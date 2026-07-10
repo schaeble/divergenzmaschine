@@ -134,9 +134,10 @@ body {
 }
 .tab.active {
   color: #fff;
-  background: linear-gradient(135deg, var(--acc2), var(--accent));
-  box-shadow: 0 2px 8px rgba(79,142,247,.3);
+  background: rgba(255,255,255,.06);
+  box-shadow: inset 0 -2px 0 0 var(--accent);
 }
+.tab.active .dot { background: var(--accent); }
 .tab:hover:not(.active) { color: var(--text); background: rgba(255,255,255,.07); }
 .tab .dot {
   width: 6px; height: 6px;
@@ -1308,7 +1309,7 @@ body.modal-open{ overflow: hidden; }
     </div>
     <nav class="tabs" role="tablist">
       <button class="tab active" data-tab="generator" role="tab" aria-selected="true">
-        <span class="dot"></span> Generieren
+        <span class="dot"></span> Studio
       </button>
       <button class="tab" data-tab="ideen" role="tab" aria-selected="false">
         <span class="dot"></span> Ideen
@@ -1976,7 +1977,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.9</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.10</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
