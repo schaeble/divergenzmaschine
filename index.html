@@ -1375,6 +1375,11 @@ body.modal-open{ overflow: hidden; }
       <button id="ctxDiceBtn" class="topbar-iconbtn" type="button" title="Wo/Wann/Wer/Was passiert zufällig füllen (aus einer festen Liste)">🎲</button>
       <button id="ctxAiDiceBtn" class="topbar-iconbtn" type="button" title="Claude erfindet eine frische, unverbrauchte Wo/Wann/Wer/Was-Kombination (benötigt API-Schlüssel)">🎲🤖</button>
       <button id="genBtn" class="ctx-gen-btn" type="button">▶ Generieren</button>
+      <label class="ki-switch" title="Wenn aktiv, bleiben die Eintragungen in Wo/Wann/Wer/Was beim nächsten App-Start erhalten">
+        <input type="checkbox" id="ctxKeepToggle"/>
+        <span class="ki-switch-track"><span class="ki-switch-thumb"></span></span>
+        <span class="ki-switch-label">Merken</span>
+      </label>
     </div>
   </div>
 
@@ -1977,7 +1982,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.10</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.11</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -9763,14 +9768,8 @@ function compressCorpus(){
     const s=loadSettings(); saveSettings(s);
     invalidateChainCache();
 
-    // Prefill for demo
-    try{
-      const pre={where:"in Paris",when:"1789",who:"Ludwig XVI, Zar Peter",what:"die Französische Revolution"};
-      if($("where")&&!String($("where").value||"").trim()) $("where").value=pre.where;
-      if($("when")&&!String($("when").value||"").trim())   $("when").value=pre.when;
-      if($("who")&&!String($("who").value||"").trim())     $("who").value=pre.who;
-      if($("what")&&!String($("what").value||"").trim())   $("what").value=pre.what;
-    }catch(e){}
+    // (Demo-Vorbefüllung entfernt – Felder starten leer.
+    //  Optionales Merken über den 'Merken'-Schalter in der Kontextzeile.)
 
     applySettingsToUI();
     loadEditorList();
@@ -10126,6 +10125,55 @@ function compressCorpus(){
   });
   overlay.addEventListener('click', (e)=>{ if(e.target === overlay) close(); });
   document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && overlay.classList.contains('open')) close(); });
+
+  /* Kontext merken: Wo/Wann/Wer/Was optional über App-Neustarts hinweg behalten */
+  (function(){
+    const KEEP_KEY = 'dm_ctx_keep';
+    const CTX_KEY  = 'dm_ctx_saved';
+    const IDS = ['where','when','who','what'];
+    const toggle = document.getElementById('ctxKeepToggle');
+    if(!toggle) return;
+    const get = (k)=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } };
+    const set = (k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} };
+    const del = (k)=>{ try{ localStorage.removeItem(k); }catch(e){} };
+
+    const keep = get(KEEP_KEY) === '1';
+    toggle.checked = keep;
+
+    function saveCtx(){
+      if(!toggle.checked) return;
+      const data = {};
+      IDS.forEach(id=>{ const el = document.getElementById(id); if(el) data[id] = el.value || ''; });
+      set(CTX_KEY, JSON.stringify(data));
+    }
+
+    if(keep){
+      try{
+        const data = JSON.parse(get(CTX_KEY) || '{}');
+        IDS.forEach(id=>{
+          const el = document.getElementById(id);
+          if(el && typeof data[id] === 'string' && !String(el.value||'').trim()) el.value = data[id];
+        });
+      }catch(e){}
+    } else {
+      del(CTX_KEY);
+    }
+
+    IDS.forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) el.addEventListener('input', saveCtx);
+    });
+    // Auch programmatische Änderungen (Würfel, Welt, Ideen) mitnehmen:
+    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'hidden') saveCtx(); });
+    window.addEventListener('beforeunload', saveCtx);
+    const genBtn = document.getElementById('genBtn');
+    if(genBtn) genBtn.addEventListener('click', saveCtx);
+
+    toggle.addEventListener('change', ()=>{
+      set(KEEP_KEY, toggle.checked ? '1' : '0');
+      if(toggle.checked) saveCtx(); else del(CTX_KEY);
+    });
+  })();
 
   /* KI-Setup: Schlüssel anzeigen/verbergen */
   const keyBtn = document.getElementById('aiKeyToggleBtn');
