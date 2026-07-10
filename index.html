@@ -1873,8 +1873,11 @@ body.modal-open{ overflow: hidden; }
                 <button id="aiWordbankBtn" class="tp-btn" type="button" title="Claude erstellt eine passende Wortbank zu Wo/Wann/Wer/Was passiert (benötigt API-Schlüssel)">🤖 KI-Wortbank</button>
               </div>
               <div class="tp-btn-row" style="margin-top:6px">
-                <input id="aiWordbankPrompt" class="tp-input" style="flex:1" type="text"
-                  placeholder="Zusätzliche Vorgaben für die KI-Wortbank (optional): z.B. „mehr Horror-Elemente“, „Fokus auf Wasser-Motive“, „im Stil von Kafka“"/>
+                <div style="position:relative; flex:1; min-width:0">
+                  <input id="aiWordbankPrompt" class="tp-input" style="width:100%; padding-right:28px" type="text"
+                    placeholder="Zusätzliche Vorgaben für die KI-Wortbank (optional): z.B. „mehr Horror-Elemente“, „Fokus auf Wasser-Motive“, „im Stil von Kafka“"/>
+                  <button type="button" class="ctx-clear-btn" id="aiWordbankPromptClear" title="Feld leeren" aria-label="Zusatzvorgaben leeren">×</button>
+                </div>
               </div>
               <div class="tp-btn-row" style="margin-top:6px">
                 <button id="presetToJsonBtn" class="tp-btn" type="button">Preset → JSON</button>
@@ -1982,7 +1985,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.12</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.13</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -10172,6 +10175,15 @@ function compressCorpus(){
       }
     });
   })();
+
+  /* Wortbank: ×-Button zum Leeren der Zusatzvorgaben */
+  const wbClear = document.getElementById('aiWordbankPromptClear');
+  if(wbClear){
+    wbClear.addEventListener('click', ()=>{
+      const inp = document.getElementById('aiWordbankPrompt');
+      if(inp){ inp.value = ''; inp.focus(); }
+    });
+  }
 
   /* KI-Setup: Schlüssel anzeigen/verbergen */
   const keyBtn = document.getElementById('aiKeyToggleBtn');
