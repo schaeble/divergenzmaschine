@@ -1375,7 +1375,7 @@ body.modal-open{ overflow: hidden; }
       <button id="ctxDiceBtn" class="topbar-iconbtn" type="button" title="Wo/Wann/Wer/Was passiert zufällig füllen (aus einer festen Liste)">🎲</button>
       <button id="ctxAiDiceBtn" class="topbar-iconbtn" type="button" title="Claude erfindet eine frische, unverbrauchte Wo/Wann/Wer/Was-Kombination (benötigt API-Schlüssel)">🎲🤖</button>
       <button id="genBtn" class="ctx-gen-btn" type="button">▶ Generieren</button>
-      <label class="ki-switch" title="Wenn aktiv, bleiben die Eintragungen in Wo/Wann/Wer/Was beim nächsten App-Start erhalten">
+      <label class="ki-switch" title="Beim Einschalten wird der aktuelle Inhalt von Wo/Wann/Wer/Was gespeichert und bei jedem App-Start geladen. Zum Aktualisieren aus- und wieder einschalten.">
         <input type="checkbox" id="ctxKeepToggle"/>
         <span class="ki-switch-track"><span class="ki-switch-thumb"></span></span>
         <span class="ki-switch-label">Merken</span>
@@ -1982,7 +1982,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.11</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.12</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -10152,26 +10152,24 @@ function compressCorpus(){
         const data = JSON.parse(get(CTX_KEY) || '{}');
         IDS.forEach(id=>{
           const el = document.getElementById(id);
-          if(el && typeof data[id] === 'string' && !String(el.value||'').trim()) el.value = data[id];
+          if(el && typeof data[id] === 'string') el.value = data[id];
         });
       }catch(e){}
     } else {
       del(CTX_KEY);
     }
 
-    IDS.forEach(id=>{
-      const el = document.getElementById(id);
-      if(el) el.addEventListener('input', saveCtx);
-    });
-    // Auch programmatische Änderungen (Würfel, Welt, Ideen) mitnehmen:
-    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'hidden') saveCtx(); });
-    window.addEventListener('beforeunload', saveCtx);
-    const genBtn = document.getElementById('genBtn');
-    if(genBtn) genBtn.addEventListener('click', saveCtx);
-
+    /* Kein Mitschreiben: Gespeichert wird nur der Stand im Moment
+       des Einschaltens. Zum Aktualisieren: aus- und wieder einschalten. */
     toggle.addEventListener('change', ()=>{
       set(KEEP_KEY, toggle.checked ? '1' : '0');
-      if(toggle.checked) saveCtx(); else del(CTX_KEY);
+      if(toggle.checked){
+        saveCtx();
+        try{ if(typeof toast === 'function') toast('Kontext gespeichert – wird bei jedem Start geladen.'); }catch(e){}
+      } else {
+        del(CTX_KEY);
+        try{ if(typeof toast === 'function') toast('Gespeicherter Kontext entfernt.'); }catch(e){}
+      }
     });
   })();
 
