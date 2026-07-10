@@ -1985,7 +1985,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.14</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.15</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -2434,6 +2434,57 @@ function initShowHideToggle(toggleId, rowId, label, opts){
     return combined.length ? combined : ["etwas Unbenanntes"];
   }
 
+  /* ── Flaschenhals-Weitung ──────────────────────────────
+     1) Bausteine werden zur Laufzeit neu kombiniert (Basis + Twist),
+        statt nur aus festen Listen zu stammen.
+     2) Zuletzt verwendete Bausteine werden gemieden (Gedächtnis
+        in localStorage, überlebt App-Neustarts).                */
+  const IDEA_RECENT_KEY = 'dm_idea_recent_v1';
+  let _ideaRecent = {};
+  try{ _ideaRecent = JSON.parse(localStorage.getItem(IDEA_RECENT_KEY) || '{}') || {}; }catch(e){ _ideaRecent = {}; }
+  function _ideaRecentSave(){ try{ localStorage.setItem(IDEA_RECENT_KEY, JSON.stringify(_ideaRecent)); }catch(e){} }
+  function pickFresh(pool, tag){
+    if(!pool || !pool.length) return "etwas Unbenanntes";
+    const memo = _ideaRecent[tag] || (_ideaRecent[tag] = []);
+    const capN = Math.max(0, Math.min(pool.length - 1, 40));
+    let cand = pool.filter(x => memo.indexOf(x) === -1);
+    if(!cand.length){ _ideaRecent[tag] = []; cand = pool.slice(); }
+    const chosen = cand[Math.floor(Math.random() * cand.length)];
+    memo.push(chosen);
+    while(memo.length > capN) memo.shift();
+    _ideaRecentSave();
+    return chosen;
+  }
+
+  const WHO_TWISTS = [
+    "mit einem geliehenen Namen","ohne Erinnerung an den gestrigen Tag","auf der Flucht vor einem Versprechen",
+    "mit zitternden Händen","kurz vor dem Aufbruch","voller ungestellter Fragen","mit einem fremden Koffer",
+    "zwischen zwei Loyalitäten","mit einer alten Schuld im Gepäck","ohne Papiere","mit einem zweiten Gesicht",
+    "mit einem halb vergessenen Auftrag","im falschen Jahrzehnt geboren","mit geliehener Stimme"
+  ];
+  const WHERE_TWISTS = [
+    "wo die Uhren falsch gehen","wo niemand nach Namen fragt","wo nachts Licht brennt, obwohl niemand wohnt",
+    "wo alle Türen offen stehen","wo der Fluss rückwärts zu fließen scheint","wo man Fremde sofort erkennt",
+    "wo ein Zimmer seit Jahren verschlossen ist","wo die Karten nicht stimmen","wo jeder zweite Brief verloren geht",
+    "wo das Echo eine Sekunde zu spät kommt","wo der Winter nie ganz endet","wo die Wände dünner sind, als man denkt"
+  ];
+  const WHEN_TWISTS = [
+    "kurz nach der Sperrstunde","in der Nacht der Inventur","am Tag der letzten Fähre","während eines Stromausfalls",
+    "zwischen zwei Glockenschlägen","am Vorabend einer Abreise","in der Woche der Nebel","als die Zeitungen schwiegen",
+    "während des Jahrmarkts","in der Stunde zwischen Hund und Wolf","kurz bevor die Brücke gesperrt wird","am Morgen nach dem Fest"
+  ];
+  const WHAT_TWISTS = [
+    "ohne zu wissen, warum","obwohl alle abraten","zum dritten und letzten Mal","gegen ein altes Versprechen",
+    "für jemanden, der nie danach gefragt hat","mit den falschen Werkzeugen","unter falschem Namen",
+    "bevor es ein anderer tut","aus einem Grund, der erst am Ende zählt","heimlich, zwischen zwei Pflichten",
+    "und zahlt dafür einen stillen Preis","als wäre nichts geschehen"
+  ];
+
+  function freshWho(){   const b = pickFresh(CTX_WHO, 'who');     return Math.random() < 0.5 ? b : b + ", " + pickFresh(WHO_TWISTS, 'whoT'); }
+  function freshWhere(){ const b = pickFresh(CTX_WHERE, 'where'); return Math.random() < 0.5 ? b : b + ", " + pickFresh(WHERE_TWISTS, 'whereT'); }
+  function freshWhen(){  const b = pickFresh(CTX_WHEN, 'when');   return Math.random() < 0.5 ? b : b + ", " + pickFresh(WHEN_TWISTS, 'whenT'); }
+  function freshWhat(){  const b = pickFresh(CTX_WHAT, 'what');   return Math.random() < 0.5 ? b : b + ", " + pickFresh(WHAT_TWISTS, 'whatT'); }
+
   function buildIdeaPremise(){
     const archId = pick(["neutral","skorpion","psychopath","entdecker"]);
     const arch = (typeof _arch === "function") ? _arch(archId) : { label: archId, add:{} };
@@ -2441,15 +2492,15 @@ function initShowHideToggle(toggleId, rowId, label, opts){
     const preset = presetPool.length ? pick(presetPool) : null;
     const presetBank = preset ? preset.bank : {};
 
-    const W = pick(CTX_WHO);
-    const O = pick(CTX_WHERE);
-    const N = pick(CTX_WHEN);
-    const A = pick(CTX_WHAT);
-    const M = pick(ideaPoolFor(arch, presetBank, "motifs"));
-    const H = pick(ideaPoolFor(arch, presetBank, "hooks"));
-    const T = pick(ideaPoolFor(arch, presetBank, "turns"));
-    const B = pick(ideaPoolFor(arch, presetBank, "obstacles"));
-    const S = pick(ideaPoolFor(arch, presetBank, "stakes"));
+    const W = freshWho();
+    const O = freshWhere();
+    const N = freshWhen();
+    const A = freshWhat();
+    const M = pickFresh(ideaPoolFor(arch, presetBank, "motifs"), "motifs");
+    const H = pickFresh(ideaPoolFor(arch, presetBank, "hooks"), "hooks");
+    const T = pickFresh(ideaPoolFor(arch, presetBank, "turns"), "turns");
+    const B = pickFresh(ideaPoolFor(arch, presetBank, "obstacles"), "obstacles");
+    const S = pickFresh(ideaPoolFor(arch, presetBank, "stakes"), "stakes");
 
     const templates = [
       () => `Was, wenn ${W} ${O} ${A} — und dabei auf ${M} stößt?`,
@@ -2459,7 +2510,13 @@ function initShowHideToggle(toggleId, rowId, label, opts){
       () => `${cap(O)}, ${N}: ${W} ${A}. ${cap(B)}.`,
       () => `${cap(W)} ${A}. ${S}`,
       () => `Kern der Idee: ${W} stößt ${O} auf ${H} — und ${T}.`,
-      () => `${cap(W)} ${A}, ${N}. Aber: ${cap(B)}.`
+      () => `${cap(W)} ${A}, ${N}. Aber: ${cap(B)}.`,
+      () => `${cap(N)}: ${W} ${A} — und ${T}.`,
+      () => `Alles beginnt damit, dass ${W} ${O} etwas findet: ${M}.`,
+      () => `Man erzählt sich, ${O} gebe es ${M}. ${cap(W)} ${A}.`,
+      () => `${cap(B)}. Trotzdem: ${W} ${A}, ${N}.`,
+      () => `${cap(W)} und ${M}: eine Geschichte, die ${N} beginnt, ${O}.`,
+      () => `Niemand rechnet damit, doch ${W} ${A} — ${O}. ${S}`
     ];
 
     let text = pick(templates)();
