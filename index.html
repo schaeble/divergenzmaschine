@@ -1988,7 +1988,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.21</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.22</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -10130,7 +10130,8 @@ function compressCorpus(){
         <ul>
           <li><b>Wo? / Wann? / Wer? / Was passiert?</b> — die vier Grundangaben, aus denen jede Story gebaut wird. Können frei getippt oder über die Buttons rechts daneben befüllt werden.</li>
           <li><b>🌍</b> — übernimmt Figur und Ort aus dem persistenten Weltensimulator (Tab „Welt“), statt sie zufällig zu würfeln.</li>
-          <li><b>🎲</b> (Kontext-Würfel) — füllt nur Wo/Wann/Wer/Was zufällig aus einer festen internen Liste. Schnell, aber irgendwann wiederholen sich Muster.</li>
+          <li><b>🎲</b> (Kontext-Würfel) — füllt Wo/Wann/Wer/Was zufällig. Schöpft aus der Basisliste <b>plus</b> den lebendigen Pools: Alles, was du generierst, in der Welt entsteht oder in die Schatzkammer legst, erweitert den Vorrat automatisch.</li>
+          <li><b>Merken</b>-Schalter (rechts neben ▶ Generieren) — beim Einschalten wird der aktuelle Inhalt der vier Felder gespeichert und bei jedem App-Start wieder geladen. Zum Aktualisieren aus- und wieder einschalten; Ausschalten löscht den gespeicherten Kontext.</li>
           <li><b>🎲🤖</b> (KI-Würfel) — lässt Claude eine frische, noch nicht verwendete Wo/Wann/Wer/Was-Kombination erfinden (merkt sich die letzten Würfe, um Wiederholungen zu vermeiden). Benötigt einen hinterlegten API-Schlüssel unter ⚙️ KI-Setup.</li>
           <li><b>▶ Generieren</b> — erzeugt aus den aktuellen Angaben und Einstellungen eine neue Story.</li>
         </ul>
@@ -10208,11 +10209,13 @@ function compressCorpus(){
       <section data-help-section>
         <h3>Aktionsleiste unter dem Ausgabetext</h3>
         <ul>
-          <li><b>KI-Werkzeuge</b> — 🤖 KI-Wortbank (springt nur zum Wortbank-Tab, generiert nicht sofort), 🤖 An KI übergeben (aktuellen Text von Claude glätten lassen), 🤖📖 Roman an KI (alle Kapitel zusammen glätten lassen, Ergebnis als Datei), ⚙️ KI-Setup (API-Schlüssel &amp; Modell hinterlegen). Alle außer dem Wortbank-Sprung benötigen einen Anthropic-API-Schlüssel und verursachen Kosten auf dem eigenen Konto.</li>
-          <li><b>Export</b> — Kopieren, als TXT speichern, sowie (weiter unten in der Liste) JSON/MD speichern und 📂 Laden zum Wiedereinlesen zuvor gespeicherter Dateien.</li>
+          <li><b>KI-Werkzeuge</b> — 🤖 KI-Wortbank (springt nur zum Wortbank-Tab, generiert nicht sofort), 🤖 An KI übergeben (aktuellen Text von Claude glätten lassen), 🤖📖 Roman an KI (alle Kapitel zusammen glätten lassen, Ergebnis als Datei), ⚙️ KI-Setup (API-Schlüssel &amp; Modell hinterlegen; das 👁 neben dem Schlüsselfeld zeigt den gespeicherten Schlüssel im Klartext, z. B. zum Übertragen aufs Handy). Alle außer dem Wortbank-Sprung benötigen einen Anthropic-API-Schlüssel und verursachen Kosten auf dem eigenen Konto.</li>
+          <li><b>Export</b> — Kopieren, als TXT speichern, <b>⭐ Schatzkammer</b> (gesammelte Lieblingstexte ansehen: aufklappen, ins Studio laden, löschen, alle als TXT exportieren), sowie JSON/MD speichern und 📂 Laden zum Wiedereinlesen zuvor gespeicherter Dateien.</li>
           <li><b>Roman/Kapitel</b> — 📖 Roman exportiert alle gesammelten Kapitel als eine Datei; 🗑 Kapitel löscht alle gesammelten Kapitel.</li>
-          <li><b>Test &amp; Ranking</b> — Probe (50) generiert 50 Varianten zur Analyse; Ranking (50) bewertet und sortiert sie nach Qualität; 🥇/🥈/🥉 laden die Plätze 1–3 aus dem letzten Ranking.</li>
+          <li><b>Test &amp; Ranking</b> — Probe (50) generiert 50 Varianten zur Analyse; Ranking (50) bewertet sie offline nach Rhythmus/Vielfalt/Wiederholung; <b>🤖 KI-Ranking (50)</b> lässt Claude alle Varianten literarisch bewerten (Originalität, Kohärenz, Sprache, Sog; eine API-Anfrage, benötigt Schlüssel). 🥇/🥈/🥉 laden die Plätze 1–3 aus dem letzten Ranking. Ranking-Varianten fluten den Korpus nicht mehr: Nur die <b>Top 3</b> werden übernommen (sofern Gedächtnis + Selbstfütterung aktiv).</li>
           <li><b>🔊 Vorlesen</b> — liest den aktuellen Text per Browser-Sprachausgabe auf Deutsch vor (offline, kein API-Schlüssel nötig).</li>
+          <li><b>📖 Lesen</b> — zeigt den Text im Vollbild-Lesemodus: große Serifenschrift, A−/A+ für die Schriftgröße, Kopieren und ⭐ Merken direkt in der Leiste. Auf dem Handy öffnet sich der Lesemodus nach jeder Generierung automatisch.</li>
+          <li><b>⭐ Merken</b> — legt den aktuellen Text dauerhaft in die <b>Schatzkammer</b> (bis 100 Texte). Jeder gemerkte Text fließt zugleich in den Korpus und in die lebendigen Pools — Kuratieren und Training in einem Schritt.</li>
           <li><b>Anzeige</b> — Stimme &amp; Tempo fürs Vorlesen, Ziel-Textlänge, Schriftart und Schriftgröße der Ausgabe.</li>
         </ul>
       </section>
@@ -10220,7 +10223,8 @@ function compressCorpus(){
       <section data-help-section>
         <h3>Tab: Ideen</h3>
         <ul>
-          <li>Die Ideenmaschine erzeugt kurze Prämissen/Ideen statt fertiger Storys. Jede Idee kann per Klick direkt in den Generator übernommen werden.</li>
+          <li>Die Ideenmaschine erzeugt kurze Prämissen/Ideen statt fertiger Storys. Jede Idee kann per Klick direkt ins Studio übernommen werden.</li>
+          <li><b>Frische-Mechanik:</b> Figuren, Orte, Zeiten und Ereignisse werden zur Laufzeit neu kombiniert (z. B. „eine Uhrmacherin, mit einem geliehenen Namen“), zuletzt verwendete Bausteine werden gemieden (Gedächtnis überlebt App-Neustarts), und die lebendigen Pools aus Generierungen, Welt und Schatzkammer fließen mit ein.</li>
         </ul>
       </section>
 
@@ -10234,7 +10238,9 @@ function compressCorpus(){
       <section data-help-section>
         <h3>Tab: Korpus</h3>
         <ul>
-          <li>Hier wird eigener Trainingstext für den offline arbeitenden Markov-Generator hinterlegt. Der Korpus wird dauerhaft im Browser gespeichert und wächst automatisch mit, wenn „Selbstfütterung“ aktiviert ist.</li>
+          <li>Hier wird eigener Trainingstext für den offline arbeitenden Markov-Generator hinterlegt. Der Korpus wird dauerhaft im Browser gespeichert (max. 160.000 Zeichen, pro Gerät) und wächst automatisch mit, wenn „Selbstfütterung“ aktiviert ist.</li>
+          <li><b>Korpus exportieren (TXT)</b> — lädt den kompletten persistenten Korpus als Textdatei herunter; „Korpus anzeigen“ zeigt nur Statistik und die letzten ~6000 Zeichen.</li>
+          <li><b>Was füttert den Korpus?</b> Normale Generierungen (bei aktiver Selbstfütterung), ⭐ gemerkte Texte, die Top 3 nach einem Ranking sowie manuell hinzugefügter Trainingstext. Probe-/Ranking-Varianten selbst fließen nicht mehr ungefiltert ein.</li>
         </ul>
       </section>
 
@@ -10264,6 +10270,7 @@ function compressCorpus(){
           <li><b>Pillen</b> (Struktur/Modus/Korpus/Lernen) — Kurzstatus, live aktualisiert.</li>
           <li><b>💾 / 📂</b> — das gesamte Projekt (Wortbank, Presets, Korpus, Einstellungen) als Datei speichern bzw. wieder laden.</li>
           <li><b>❓ Hilfe</b> — öffnet dieses Fenster.</li>
+          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.22) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
         </ul>
       </section>
     </div>
