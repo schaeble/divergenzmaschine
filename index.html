@@ -1692,6 +1692,7 @@ body.modal-open{ overflow: hidden; }
             <div class="popover-body" id="exportGroup">
               <button id="copyBtn" class="out-btn" type="button">Kopieren</button>
               <button id="saveTxtBtn" class="out-btn" type="button">TXT</button>
+              <button id="treasuryOpenBtn" class="out-btn" type="button" title="Gesammelte Lieblingstexte ansehen">⭐ Schatzkammer</button>
             </div>
           </details>
 
@@ -1710,6 +1711,7 @@ body.modal-open{ overflow: hidden; }
 
           <button id="speakBtn" class="out-btn" type="button" title="Aktuellen Text auf Deutsch vorlesen (Sprachausgabe des Browsers, offline)">🔊 Vorlesen</button>
           <button id="readerBtn" class="out-btn" type="button" title="Generierten Text im Vollbild-Lesemodus anzeigen">📖 Lesen</button>
+          <button id="treasureBtn" class="out-btn" type="button" title="Aktuellen Text in die Schatzkammer legen (dauerhaft gespeichert, füttert Korpus und Ideen-Pools)">⭐ Merken</button>
 
           <details class="popover-group" name="actionPopover">
             <summary>Anzeige</summary>
@@ -1985,7 +1987,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.15</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.16</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -2480,10 +2482,14 @@ function initShowHideToggle(toggleId, rowId, label, opts){
     "und zahlt dafür einen stillen Preis","als wäre nichts geschehen"
   ];
 
-  function freshWho(){   const b = pickFresh(CTX_WHO, 'who');     return Math.random() < 0.5 ? b : b + ", " + pickFresh(WHO_TWISTS, 'whoT'); }
-  function freshWhere(){ const b = pickFresh(CTX_WHERE, 'where'); return Math.random() < 0.5 ? b : b + ", " + pickFresh(WHERE_TWISTS, 'whereT'); }
-  function freshWhen(){  const b = pickFresh(CTX_WHEN, 'when');   return Math.random() < 0.5 ? b : b + ", " + pickFresh(WHEN_TWISTS, 'whenT'); }
-  function freshWhat(){  const b = pickFresh(CTX_WHAT, 'what');   return Math.random() < 0.5 ? b : b + ", " + pickFresh(WHAT_TWISTS, 'whatT'); }
+  function dynMerged(cat, base){
+    try{ if(window.DM_DYN) return base.concat(window.DM_DYN.all(cat)); }catch(e){}
+    return base;
+  }
+  function freshWho(){   const b = pickFresh(dynMerged('who', CTX_WHO), 'who');     return Math.random() < 0.5 ? b : b + ", " + pickFresh(WHO_TWISTS, 'whoT'); }
+  function freshWhere(){ const b = pickFresh(dynMerged('where', CTX_WHERE), 'where'); return Math.random() < 0.5 ? b : b + ", " + pickFresh(WHERE_TWISTS, 'whereT'); }
+  function freshWhen(){  const b = pickFresh(dynMerged('when', CTX_WHEN), 'when');   return Math.random() < 0.5 ? b : b + ", " + pickFresh(WHEN_TWISTS, 'whenT'); }
+  function freshWhat(){  const b = pickFresh(dynMerged('what', CTX_WHAT), 'what');   return Math.random() < 0.5 ? b : b + ", " + pickFresh(WHAT_TWISTS, 'whatT'); }
 
   function buildIdeaPremise(){
     const archId = pick(["neutral","skorpion","psychopath","entdecker"]);
@@ -8388,11 +8394,17 @@ const CTX_WHAT = [
   "verliert den Glauben an das eigene Gedächtnis","rettet einen Fremden und bereut es",
   "findet ihren eigenen Namen auf einer Liste","muss eine Lüge zu Ende erzählen"
 ];
+function _dynPool(cat, base){
+  try{
+    if(window.DM_DYN) return base.concat(window.DM_DYN.all(cat));
+  }catch(e){}
+  return base;
+}
 function randomizeContextFields(){
-  if($("where")) $("where").value = randomPick(CTX_WHERE);
-  if($("when"))  $("when").value  = randomPick(CTX_WHEN);
-  if($("who"))   $("who").value   = randomPick(CTX_WHO);
-  if($("what"))  $("what").value  = randomPick(CTX_WHAT);
+  if($("where")) $("where").value = randomPick(_dynPool('where', CTX_WHERE));
+  if($("when"))  $("when").value  = randomPick(_dynPool('when', CTX_WHEN));
+  if($("who"))   $("who").value   = randomPick(_dynPool('who', CTX_WHO));
+  if($("what"))  $("what").value  = randomPick(_dynPool('what', CTX_WHAT));
 }
 
 function randomizeAllParams(){
@@ -10119,6 +10131,15 @@ function compressCorpus(){
   </div>
 </div>
 
+<!-- ── Schatzkammer-Overlay ── -->
+<div id="treasuryOverlay" role="dialog" aria-modal="true" aria-label="Schatzkammer" style="position:fixed; inset:0; z-index:999; background:rgba(6,8,12,.94); display:none; flex-direction:column;">
+  <div class="reader-bar">
+    <span class="reader-title">⭐ Schatzkammer</span>
+    <button id="treasuryExportBtn" type="button" title="Alle Texte als eine TXT-Datei exportieren">TXT-Export</button>
+    <button id="treasuryClose" type="button" title="Schließen">✕</button>
+  </div>
+  <div id="treasuryList" style="flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:16px; max-width:760px; width:100%; margin:0 auto;"></div>
+</div>
 <!-- ── Lesemodus-Overlay ── -->
 <div id="readerOverlay" role="dialog" aria-modal="true" aria-label="Lesemodus">
   <div class="reader-bar">
@@ -10230,6 +10251,125 @@ function compressCorpus(){
         del(CTX_KEY);
         try{ if(typeof toast === 'function') toast('Gespeicherter Kontext entfernt.'); }catch(e){}
       }
+    });
+  })();
+
+  /* ── Lebendige Pools (DM_DYN): gesammelte Figuren/Orte/Zeiten/Ereignisse
+        aus Generierungen, Welt und Schatzkammer fließen zurück in
+        Kontext-Würfel und Ideenmaschine. ── */
+  window.DM_DYN = (function(){
+    const KEY = 'dm_dyn_pools_v1', CAP = 80;
+    let d;
+    try{ d = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; }catch(e){ d = {}; }
+    ['who','where','when','what'].forEach(k=>{ if(!Array.isArray(d[k])) d[k] = []; });
+    function save(){ try{ localStorage.setItem(KEY, JSON.stringify(d)); }catch(e){} }
+    function baseOf(cat){
+      try{
+        if(cat === 'who') return CTX_WHO; if(cat === 'where') return CTX_WHERE;
+        if(cat === 'when') return CTX_WHEN; if(cat === 'what') return CTX_WHAT;
+      }catch(e){}
+      return [];
+    }
+    function add(cat, val){
+      val = String(val || '').trim().replace(/\s+/g, ' ');
+      if(!val || val.length < 3 || val.length > 90) return false;
+      if(!d[cat]) d[cat] = [];
+      if(d[cat].indexOf(val) !== -1 || baseOf(cat).indexOf(val) !== -1) return false;
+      d[cat].push(val);
+      while(d[cat].length > CAP) d[cat].shift();
+      save();
+      return true;
+    }
+    function all(cat){ return (d[cat] || []).slice(); }
+    return { add, all };
+  })();
+
+  /* Bei jeder Generierung: aktuelle 4W in die Pools übernehmen */
+  const genBtnDyn = document.getElementById('genBtn');
+  if(genBtnDyn){
+    genBtnDyn.addEventListener('click', ()=>{
+      ['who','where','when','what'].forEach(cat=>{
+        const map = {who:'who', where:'where', when:'when', what:'what'};
+        const el = document.getElementById(map[cat]);
+        if(el) window.DM_DYN.add(cat, el.value);
+      });
+      syncWorldToDyn();
+    });
+  }
+
+  /* Welt-Sync: Figuren und Orte aus dem Weltensimulator in die Pools */
+  function syncWorldToDyn(){
+    try{
+      const w = JSON.parse(localStorage.getItem('divergenz_world_v1') || '{}');
+      (w.figures || []).forEach(f=>{ if(f && f.name) window.DM_DYN.add('who', f.name); });
+      (w.places  || []).forEach(p=>{ if(p && p.name) window.DM_DYN.add('where', p.name); });
+    }catch(e){}
+  }
+  syncWorldToDyn();
+
+  /* ── Schatzkammer: Lieblingstexte dauerhaft sammeln.
+        Speichern füttert zugleich Korpus und dynamische Pools. ── */
+  (function(){
+    const TKEY = 'dm_treasury_v1', TCAP = 100;
+    function tload(){ try{ return JSON.parse(localStorage.getItem(TKEY) || '[]') || []; }catch(e){ return []; } }
+    function tsave(list){ try{ localStorage.setItem(TKEY, JSON.stringify(list)); }catch(e){} }
+
+    const saveBtn = document.getElementById('treasureBtn');
+    if(saveBtn){
+      saveBtn.addEventListener('click', ()=>{
+        const text = (window.LAST_STORY_TEXT || '').trim();
+        if(!text){ if(typeof toast === 'function') toast('Kein Text zum Merken vorhanden.'); return; }
+        const list = tload();
+        if(list.length && list[list.length - 1].t === text){ if(typeof toast === 'function') toast('Dieser Text liegt schon in der Schatzkammer.'); return; }
+        const gv = (id)=>{ const el = document.getElementById(id); return el ? el.value : ''; };
+        list.push({ t: text, who: gv('who'), where: gv('where'), when: gv('when'), what: gv('what'), d: new Date().toISOString().slice(0, 16).replace('T', ' ') });
+        while(list.length > TCAP) list.shift();
+        tsave(list);
+        /* Rückkopplung: Korpus + Pools füttern */
+        try{ if(typeof appendToPersistentCorpus === 'function') appendToPersistentCorpus(text.replace(/\n+/g, ' ').trim()); }catch(e){}
+        ['who','where','when','what'].forEach(cat=>{ const v = gv(cat); if(v) window.DM_DYN.add(cat, v); });
+        if(typeof toast === 'function') toast('⭐ In die Schatzkammer gelegt (' + list.length + ' Texte).');
+      });
+    }
+
+    const overlay = document.getElementById('treasuryOverlay');
+    const listEl  = document.getElementById('treasuryList');
+    function esc(s){ const div = document.createElement('div'); div.textContent = s; return div.innerHTML; }
+    function render(){
+      const list = tload().slice().reverse();
+      if(!list.length){ listEl.innerHTML = '<p class="tp-mini">Noch keine Texte gesammelt. Im Studio auf „⭐ Merken" tippen, wenn dir ein Text gefällt.</p>'; return; }
+      listEl.innerHTML = list.map((e, i)=>`
+        <details style="margin-bottom:10px; background:var(--surf); border:1px solid var(--border); border-radius:8px; padding:8px 12px;">
+          <summary style="cursor:pointer; font-size:12px; color:var(--muted);">${esc(e.d || '')} — ${esc((e.t || '').slice(0, 70))}…</summary>
+          <p style="margin:10px 0; font-family:Georgia,serif; font-size:15px; line-height:1.6; white-space:pre-wrap;">${esc(e.t || '')}</p>
+          <p class="tp-mini" style="margin-bottom:8px;">${esc([e.who, e.where, e.when, e.what].filter(Boolean).join(' · '))}</p>
+          <button type="button" class="out-btn" data-tload="${list.length - 1 - i}">Ins Studio laden</button>
+          <button type="button" class="out-btn" data-tdel="${list.length - 1 - i}">Löschen</button>
+        </details>`).join('');
+    }
+    listEl.addEventListener('click', (ev)=>{
+      const b = ev.target.closest('button'); if(!b) return;
+      const list = tload();
+      if(b.dataset.tload !== undefined){
+        const e = list[parseInt(b.dataset.tload, 10)]; if(!e) return;
+        try{ if(typeof animate === 'function') animate(e.t); }catch(err){}
+        const sv = (id, v)=>{ const el = document.getElementById(id); if(el && typeof v === 'string') el.value = v; };
+        sv('who', e.who); sv('where', e.where); sv('when', e.when); sv('what', e.what);
+        overlay.style.display = 'none';
+        if(typeof toast === 'function') toast('Text ins Studio geladen.');
+      } else if(b.dataset.tdel !== undefined){
+        list.splice(parseInt(b.dataset.tdel, 10), 1); tsave(list); render();
+      }
+    });
+    const openBtn = document.getElementById('treasuryOpenBtn');
+    if(openBtn) openBtn.addEventListener('click', ()=>{ render(); overlay.style.display = 'flex'; });
+    document.getElementById('treasuryClose').addEventListener('click', ()=>{ overlay.style.display = 'none'; });
+    overlay.addEventListener('click', (ev)=>{ if(ev.target === overlay) overlay.style.display = 'none'; });
+    document.getElementById('treasuryExportBtn').addEventListener('click', ()=>{
+      const list = tload();
+      if(!list.length){ if(typeof toast === 'function') toast('Schatzkammer ist leer.'); return; }
+      const out = list.map(e=>`[${e.d || ''}] ${[e.who, e.where, e.when, e.what].filter(Boolean).join(' · ')}\n\n${e.t}`).join('\n\n────────────────\n\n');
+      try{ if(typeof downloadTextFile === 'function') downloadTextFile('divergenz_schatzkammer.txt', out); }catch(err){}
     });
   })();
 
