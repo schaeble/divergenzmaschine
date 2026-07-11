@@ -1987,7 +1987,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.17</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.18</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -3142,7 +3142,7 @@ function initShowHideToggle(toggleId, rowId, label, opts){
     document.body.classList.remove("modal-open");
   }
 
-  async function callClaude(promptText, maxTokens, assistantPrefill){
+  async function callClaudeRaw(promptText, maxTokens, assistantPrefill){
     const key = loadAiKey();
     const model = loadAiModel();
     const messages = [{ role: "user", content: promptText }];
@@ -3266,6 +3266,21 @@ function initShowHideToggle(toggleId, rowId, label, opts){
     }finally{
       if(btn){ btn.disabled = false; btn.textContent = oldLabel || "🤖📖 Roman an KI"; }
       if($("sbStatus")) $("sbStatus").textContent = "● aktiv";
+    }
+  }
+
+  /* Neuere Claude-Modelle unterstützen kein Assistant-Prefill mehr.
+     Wrapper: bei entsprechender Fehlermeldung einmal ohne Prefill wiederholen. */
+  async function callClaude(promptText, maxTokens, assistantPrefill){
+    try{
+      return await callClaudeRaw(promptText, maxTokens, assistantPrefill);
+    }catch(e){
+      const msg = String((e && e.message) || "");
+      if(assistantPrefill && /prefill/i.test(msg)){
+        console.warn("Modell unterstützt kein Prefill – wiederhole ohne:", msg);
+        return await callClaudeRaw(promptText, maxTokens, null);
+      }
+      throw e;
     }
   }
 
