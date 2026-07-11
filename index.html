@@ -1987,7 +1987,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.16</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.17</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -9230,6 +9230,97 @@ function _gp_applyRankingPlace(place){
 }
 
 /* =========================================================
+   KI-Ranking: N Offline-Varianten erzeugen und von Claude
+   literarisch bewerten lassen (eine einzige API-Anfrage).
+   Ergebnis landet in GP_LAST_RANKING, sodass 🥇🥈🥉 wie beim
+   Offline-Ranking funktionieren.
+========================================================= */
+async function runAiRanking(N=50, topK=10){
+  if(typeof window.loadAiKey !== "function" || !window.loadAiKey()){
+    toast("Bitte zuerst im ⚙️ KI-Setup einen API-Schlüssel hinterlegen.");
+    return null;
+  }
+  N = Math.max(3, Math.min(100, parseInt(N,10) || 50));
+  topK = Math.max(1, Math.min(N, parseInt(topK,10) || 10));
+  const btn = $("aiRankBtn");
+  const oldLabel = btn ? btn.textContent : "";
+  if(btn){ btn.disabled = true; btn.textContent = "🤖 bewertet…"; }
+  if($("sbStatus")) $("sbStatus").textContent = "⟳ KI-Ranking läuft…";
+  try{
+    // 1) Varianten offline erzeugen (Dubletten aussortieren)
+    const texts = []; const seen = new Set(); let guard = 0;
+    while(texts.length < N && guard++ < N * 4){
+      const t = _gp_generateOnce();
+      if(!t || seen.has(t)) continue;
+      seen.add(t); texts.push(t);
+    }
+    toast(`${texts.length} Varianten erzeugt – KI bewertet…`);
+
+    // 2) Eine Anfrage mit allen Texten
+    const numbered = texts.map((t,i)=>`### Text ${i+1}\n${t}`).join("\n\n");
+    const prompt =
+`Du bist ein strenger Literaturkritiker. Unten stehen ${texts.length} kurze deutsche Prosatexte aus einem generativen Schreibwerkzeug.
+
+Bewerte jeden Text mit einem Score von 0 bis 100 nach diesen gleichgewichteten Kriterien:
+- Originalität der Bilder und Wendungen
+- innere Kohärenz (kein zusammenhangloses Fragment-Rauschen)
+- sprachliche Qualität (Rhythmus, Präzision, keine Stolperer)
+- Sog: macht der Text neugierig auf mehr?
+
+Nutze die volle Skala und sei streng: 80+ nur für wirklich starke Texte.
+
+Antworte AUSSCHLIESSLICH mit einem JSON-Array, ein Objekt pro Text:
+[{"i":1,"score":72,"grund":"knappe Begründung, maximal 10 Wörter"}]
+
+${numbered}`;
+
+    const raw = await window.callClaude(prompt, 8192, "[");
+    if(!raw){ toast("Keine Antwort von der KI erhalten."); return null; }
+
+    // 3) Antwort robust parsen
+    let jsonStr = String(raw).trim()
+      .replace(/^```[a-z]*\s*/i, "").replace(/```\s*$/, "");
+    const m = jsonStr.match(/\[[\s\S]*\]/);
+    if(m) jsonStr = m[0];
+    let scores;
+    try{ scores = JSON.parse(jsonStr); }
+    catch(e){
+      console.error("KI-Antwort nicht parsebar:", raw);
+      toast("KI-Antwort war nicht lesbar (Details in der Browser-Konsole).");
+      return null;
+    }
+    const byIdx = {};
+    (Array.isArray(scores) ? scores : []).forEach(s=>{
+      if(s && typeof s.i === "number") byIdx[s.i - 1] = s;
+    });
+
+    // 4) Ranking bauen (Score auf 0..1 normiert, kompatibel zu 🥇🥈🥉)
+    const results = texts.map((txt, i)=>{
+      const s = byIdx[i] || {};
+      const aiScore = (typeof s.score === "number") ? Math.max(0, Math.min(100, s.score)) : 0;
+      return { txt, score: aiScore / 100, aiScore, grund: String(s.grund || "") };
+    });
+    results.sort((a,b)=>b.score - a.score);
+    const top = results.slice(0, topK);
+    console.log(`KI-Ranking (top ${topK} von ${texts.length})`);
+    console.table(top.map((r, idx)=>({
+      platz: idx + 1, score: r.aiScore, grund: r.grund,
+      preview: r.txt.slice(0, 80).replace(/\n/g, " ")
+    })));
+    window.GP_LAST_RANKING = { all: results, top, total: texts.length, topK, ai: true };
+    toast(`🤖 KI-Ranking fertig. Platz 1: ${top[0].aiScore}/100 – ${top[0].grund || "ohne Begründung"}. 🥇🥈🥉 laden die Plätze.`);
+    return window.GP_LAST_RANKING;
+  }catch(e){
+    console.error(e);
+    toast("KI-Ranking fehlgeschlagen: " + (e && e.message ? e.message : e));
+    return null;
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = oldLabel; }
+    if($("sbStatus")) $("sbStatus").textContent = "● bereit";
+  }
+}
+
+/* =========================================================
    runGenerate (main)
 ========================================================= */
 async function runGenerate(){
@@ -9788,6 +9879,7 @@ function compressCorpus(){
     $("importStoryBtn").title="Gespeicherten Text (TXT/MD/JSON) wieder einlesen";
     addBtn("probeBtn","Probe (50)","",()=>runGeneralprobe(50),testGroup);
     addBtn("rankBtn","Ranking (50)","",()=>{ runGeneralprobeRanked(50,10); try{ window._gp_rankvizSet&&window._gp_rankvizSet(1); }catch(e){} },testGroup);
+    addBtn("aiRankBtn","🤖 KI-Ranking (50)","50 Varianten erzeugen und von Claude literarisch bewerten lassen (eine API-Anfrage; benötigt API-Schlüssel, verbraucht Guthaben)",()=>runAiRanking(50,10),testGroup);
 
     // gold/silver/bronze
     addBtn("rankGoldBtn","🥇 #1","",()=>_gp_applyRankingPlace(1),testGroup);
