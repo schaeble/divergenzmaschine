@@ -1988,7 +1988,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.22</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.23</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -5478,6 +5478,66 @@ function insertToneFlavor(text, line){
   return paras.join("\n\n");
 }
 
+/* ── Kohärenz-Schliff (semantische Gewichtung) ──────────────
+   Zwei Probleme aus der Praxis:
+   1) Abgebrochene Markov-Sätze ("Es riecht wie ein.", "Und der Einsatz ist.")
+   2) Themenfremde Korpus-Einschübe ohne Bezug zum Leitmotiv
+      ("Der Oberbürgermeister sucht sich einen Job.")
+   Der Schliff entfernt kaputte Sätze immer und themenfremde Sätze im
+   hinteren Textteil, sofern sie kein Leitmotiv-Wort enthalten. Bei
+   Disruptor "An" bleibt jeder zweite Stilbruch bewusst stehen.
+   Maximal ~25% der Sätze werden entfernt, damit der Text nicht kippt. */
+const COHERENCE_STOPWORDS = new Set(("aber alle allem allen aller alles als also am an andere anderen auch auf aus bei bin bis bist da dabei dann das dass dem den denn der des dessen die dies diese diesem diesen dieser dieses doch dort du durch ein eine einem einen einer eines er es etwas fuer für gegen hab habe haben hat hatte hier hin hinter ich ihm ihn ihr ihre im in ist ja jede jedem jeden jeder jedes kann kein keine man mehr mein mich mir mit muss nach nicht nichts noch nun nur ob oder ohne schon sein seine sich sie sind so ueber über um und uns unser unter vom von vor war waren was wenn werden wie wieder will wir wird wo zu zum zur").split(" "));
+function _coherenceWords(s){
+  return tokenize(String(s || "").toLowerCase()).filter(w => w.length > 3 && !COHERENCE_STOPWORDS.has(w));
+}
+function coherencePass(text, input){
+  try{
+    const isLineForm = input && (input.form==="script"||input.form==="video"||input.form==="strang"||input.form==="reim"||input.form==="haiku"||input.form==="poem");
+    if(isLineForm) return text;
+    let t = String(text || "").replace(/\.\s*\.+/g, ".");
+    const paras = t.split(/\n{2,}/);
+
+    // Leitmotiv: Kontextfelder + Wörter, die im Text mehrfach vorkommen
+    const freq = {};
+    _coherenceWords(t).forEach(w => { freq[w] = (freq[w] || 0) + 1; });
+    const motif = new Set(Object.keys(freq).filter(w => freq[w] >= 2));
+    [input && input.who, input && input.where, input && input.what]
+      .forEach(s => _coherenceWords(s).forEach(w => motif.add(w)));
+
+    const allowBreaks = input && input.disruptor === "on";
+    const totalSentences = splitSentences(t).length;
+    const maxRemove = Math.max(1, Math.floor(totalSentences * 0.25));
+    let removed = 0;
+
+    const outParas = [];
+    paras.forEach((p, pi) => {
+      const sents = splitSentences(p);
+      const kept = sents.filter((s, si) => {
+        const bare = s.trim().replace(/["»«)\]]+$/, "").replace(/[.!?…]+$/, "").trim();
+        // 1) Abgebrochene Sätze: enden auf Artikel/Präposition/Konjunktion/Hilfsverb-Stumpf
+        if(/(^|\s)(ein|eine|einem|einen|einer|eines|der|die|das|dem|den|des|und|oder|aber|wie|mit|an|auf|zu|im|am|vor|nach|für|ohne|als|bei|aus|ist|sind|wird)$/i.test(bare) && bare.split(/\s+/).length <= 12){
+          removed++; return false;
+        }
+        if(removed >= maxRemove) return true;
+        // 2) Themenfremde Sätze im hinteren Teil des letzten Absatzes
+        const late = pi === paras.length - 1 && sents.length >= 4 && si >= Math.floor(sents.length / 2);
+        if(late){
+          const cw = _coherenceWords(s);
+          if(cw.length >= 2 && !cw.some(w => motif.has(w))){
+            if(allowBreaks && Math.random() < 0.5) return true; // bewusster Stilbruch
+            removed++; return false;
+          }
+        }
+        return true;
+      });
+      if(kept.length) outParas.push(kept.join(" "));
+    });
+    const result = outParas.join("\n\n").trim();
+    return result.length >= 60 ? result : text; // Sicherheitsnetz
+  }catch(e){ return text; }
+}
+
 function postProcessText(txt, input){
   let t = (txt ?? "").toString();
   t = t.replace(/ /g, " ");
@@ -5514,6 +5574,7 @@ function postProcessText(txt, input){
       fixCapitalization: false
     });
   }
+  t = coherencePass(t, input);
   return t.trim();
 }
 
@@ -10270,7 +10331,7 @@ function compressCorpus(){
           <li><b>Pillen</b> (Struktur/Modus/Korpus/Lernen) — Kurzstatus, live aktualisiert.</li>
           <li><b>💾 / 📂</b> — das gesamte Projekt (Wortbank, Presets, Korpus, Einstellungen) als Datei speichern bzw. wieder laden.</li>
           <li><b>❓ Hilfe</b> — öffnet dieses Fenster.</li>
-          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.22) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
+          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.23) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
         </ul>
       </section>
     </div>
