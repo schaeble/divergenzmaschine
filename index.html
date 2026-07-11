@@ -1842,6 +1842,7 @@ body.modal-open{ overflow: hidden; }
           <div class="tp-btn-row">
             <button id="saveTrainBtn" class="tp-btn" type="button">Zum Korpus hinzufügen</button>
             <button id="showCorpusBtn" class="tp-btn" type="button">Korpus anzeigen</button>
+            <button id="exportCorpusBtn" class="tp-btn" type="button" title="Den kompletten persistenten Korpus als Textdatei herunterladen">Korpus exportieren (TXT)</button>
             <button id="clearCorpusBtn" class="tp-btn danger" type="button">Korpus löschen</button>
           </div>
           <p class="tp-mini" id="corpusInfo" style="margin-top:8px">Persistenter Korpus: –</p>
@@ -1987,7 +1988,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.18</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.19</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -8574,6 +8575,14 @@ $("showCorpusBtn").addEventListener("click",()=>{
   const st = corpusStats(corpus);
   const preview = corpus.slice(Math.max(0,corpus.length-6000));
   alert(`Persistenter Korpus\n\nZeichen: ${st.chars.toLocaleString("de-DE")}\nTokens: ${st.tokens.toLocaleString("de-DE")}\n\nLetzte ~6000 Zeichen:\n\n`+preview);
+});
+
+$("exportCorpusBtn").addEventListener("click",()=>{
+  const corpus = loadPersistentCorpus();
+  if(!corpus.trim()){ toast("Korpus ist leer."); return; }
+  const st = corpusStats(corpus);
+  downloadTextFile("divergenz_korpus.txt", corpus);
+  toast(`Korpus exportiert (${st.chars.toLocaleString("de-DE")} Zeichen).`);
 });
 
 $("clearCorpusBtn").addEventListener("click",()=>{
