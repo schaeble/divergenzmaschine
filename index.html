@@ -1988,7 +1988,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.19</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.20</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -7994,7 +7994,7 @@ function buildStory(input, chain){
     }
 
     const settings = loadSettings();
-    if(settings.enabled && settings.learnStories){
+    if(settings.enabled && settings.learnStories && !window._GP_SILENT){
       appendToPersistentCorpus(text.replace(/\n+/g," ").trim());
       updateCorpusInfo();
       updateVideoUI();
@@ -9188,6 +9188,7 @@ function _gp_generateOnce(){
 }
 
 function runGeneralprobe(N=50){
+  window._GP_SILENT = true;
   try{
     N=Math.max(1,Math.min(500,parseInt(N,10)||50));
     const seen=new Set(), flagged=[]; let duplicates=0;
@@ -9207,9 +9208,26 @@ function runGeneralprobe(N=50){
     toast(`Generalprobe: ${N} Stories • ${flagged.length} auffällig • ${duplicates} Doppelte`);
     return report;
   }catch(e){ console.error(e); toast("Generalprobe fehlgeschlagen."); return null; }
+  finally{ window._GP_SILENT = false; }
+}
+
+/* Nach einem Ranking: nur die bestbewerteten Texte in den Korpus
+   übernehmen (statt aller 50 ungefiltert). Greift nur, wenn
+   Gedächtnis + Selbstfütterung eingeschaltet sind. */
+function _gp_feedTopToCorpus(top){
+  try{
+    const s = loadSettings();
+    if(!(s.enabled && s.learnStories)) return;
+    let n = 0;
+    (top || []).slice(0, 3).forEach(r=>{
+      if(r && r.txt){ appendToPersistentCorpus(r.txt.replace(/\n+/g, " ").trim()); n++; }
+    });
+    if(n){ updateCorpusInfo(); invalidateChainCache(); toast(`Top ${n} in den Korpus übernommen.`); }
+  }catch(e){ console.error(e); }
 }
 
 function runGeneralprobeRanked(N=50, topK=10){
+  window._GP_SILENT = true;
   try{
     N=Math.max(1,Math.min(500,parseInt(N,10)||50));
     topK=Math.max(1,Math.min(N,parseInt(topK,10)||10));
@@ -9237,9 +9255,11 @@ function runGeneralprobeRanked(N=50, topK=10){
       preview:r.txt.slice(0,80).replace(/\n/g," ")
     })));
     window.GP_LAST_RANKING={all:results,top,total:N,topK};
+    _gp_feedTopToCorpus(top);
     toast(`Ranking: Top ${topK} von ${N} Stories ermittelt.`);
     return {all:results,top,total:N,topK};
   }catch(e){ console.error(e); toast("Ranking fehlgeschlagen."); return null; }
+  finally{ window._GP_SILENT = false; }
 }
 
 function _gp_applyRankingPlace(place){
@@ -9271,7 +9291,8 @@ async function runAiRanking(N=50, topK=10){
   if(btn){ btn.disabled = true; btn.textContent = "🤖 bewertet…"; }
   if($("sbStatus")) $("sbStatus").textContent = "⟳ KI-Ranking läuft…";
   try{
-    // 1) Varianten offline erzeugen (Dubletten aussortieren)
+    // 1) Varianten offline erzeugen (Dubletten aussortieren; ohne Korpus-Fütterung)
+    window._GP_SILENT = true;
     const texts = []; const seen = new Set(); let guard = 0;
     while(texts.length < N && guard++ < N * 4){
       const t = _gp_generateOnce();
@@ -9332,6 +9353,7 @@ ${numbered}`;
       preview: r.txt.slice(0, 80).replace(/\n/g, " ")
     })));
     window.GP_LAST_RANKING = { all: results, top, total: texts.length, topK, ai: true };
+    _gp_feedTopToCorpus(top);
     toast(`🤖 KI-Ranking fertig. Platz 1: ${top[0].aiScore}/100 – ${top[0].grund || "ohne Begründung"}. 🥇🥈🥉 laden die Plätze.`);
     return window.GP_LAST_RANKING;
   }catch(e){
@@ -9339,6 +9361,7 @@ ${numbered}`;
     toast("KI-Ranking fehlgeschlagen: " + (e && e.message ? e.message : e));
     return null;
   }finally{
+    window._GP_SILENT = false;
     if(btn){ btn.disabled = false; btn.textContent = oldLabel; }
     if($("sbStatus")) $("sbStatus").textContent = "● bereit";
   }
