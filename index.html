@@ -1988,7 +1988,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.28</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.29</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -5869,6 +5869,63 @@ function coherencePass(text, input){
   }catch(e){ return text; }
 }
 
+/* ── Kohärenz-Schliff v2: Zeichen-/Grammatik-/Label-Reparatur ──────
+   Ergänzt coherencePass. Entfernt Zeichen-Artefakte und geleakte
+   Modus-Labels, repariert du-Kongruenz, verwirft klar kaputte Sätze
+   (verwaiste Anführung, hängender Doppel-Determinierer) und
+   entdoppelt formelhafte Konnektoren. */
+function coherenceRepairV2(t, input){
+  if(t == null) return t;
+  t = String(t);
+  const isLineForm = input && (input.form==="script"||input.form==="video"||input.form==="strang"||input.form==="reim"||input.form==="haiku"||input.form==="poem");
+
+  // Lever 4: geleakte Modus-/Sektionslabels in Klammern, z. B. "(Antrag)"
+  t = t.replace(/\(\s*[A-ZÄÖÜ][\wäöüß-]{2,}\s*\)/g, " ");
+  // Lever 2: Zeichen-/Anführungs-Artefakte
+  t = t.replace(/,\s*([.!?…])/g, "$1");              // ",." -> "."
+  t = t.replace(/\s*,\s*,\s*/g, ", ");                // Doppelkomma
+  t = t.replace(/„\s+/g, "„").replace(/\s+"/g, '"');  // Spacing um Anführung
+  t = t.replace(/([.!?…])\s*\1+/g, "$1");            // ". ." -> "."
+
+  if(isLineForm){
+    return t.replace(/\s{2,}/g," ").replace(/\s+([,.;:!?])/g,"$1").trim();
+  }
+
+  const DU = [[/\btritt\b/g,"trittst"],[/\bhält\b/g,"hältst"],[/\bnimmt\b/g,"nimmst"],
+              [/\bsieht\b/g,"siehst"],[/\bgeht\b/g,"gehst"],[/\bsteht\b/g,"stehst"],
+              [/\bträgt\b/g,"trägst"],[/\bführt\b/g,"führst"],[/\bfindet\b/g,"findest"],
+              [/\bsucht\b/g,"suchst"],[/\bkommt\b/g,"kommst"],[/\bbricht\b/g,"brichst"]];
+
+  const sents = t.split(/(?<=[.!?…])\s+/).filter(Boolean);
+  const kept = [];
+  for(let s of sents){
+    const bare = s.trim().replace(/["“”»«]+$/,"").replace(/[.!?…]+$/,"").trim();
+    const opens = (s.match(/„/g)||[]).length, closes = (s.match(/[“”»]/g)||[]).length;
+    // Lever 1a: verwaistes Satz-Template mit offener Anführung ("… Satz „ …")
+    if(/\bSatz\s+„/.test(s) && opens>closes) continue;
+    // Lever 1b: hängender Doppel-Determinierer am Ende (", die der Wind")
+    if(/,\s+(die|der|das|dem|den|des)\s+(die|der|das|dem|den|des)\s+\p{L}+$/iu.test(bare)) continue;
+    // Lever 2b: verbliebene offene Anführung -> „ tilgen (Satz behalten)
+    if(opens>closes) s = s.replace(/„\s*/g,"");
+    // Lever 3: du-Kongruenz nur ab dem ersten "du" im Satz
+    const di = s.search(/\bdu\b/i);
+    if(di >= 0){
+      let head = s.slice(0, di), tail = s.slice(di);
+      DU.forEach(([re,rep])=> tail = tail.replace(re, rep));
+      s = head + tail;
+    }
+    kept.push(s.trim());
+  }
+  t = kept.join(" ");
+
+  // Lever 5: Konnektor-Dedupe (gleiche Übergangsfloskel nur einmal)
+  const CONN=[/\bDann kippt es\b/gi,/\bDabei:\s*plötzlich\b/gi,/\bUnd immer wieder\b/gi,/\bAm Ende bleibt klar\b/gi];
+  CONN.forEach(re=>{ let n=0; t=t.replace(re, m=> (++n>1 ? "" : m)); });
+
+  t = t.replace(/\s{2,}/g," ").replace(/\s+([,.;:!?])/g,"$1").replace(/„\s+/g,"„").trim();
+  return t;
+}
+
 function postProcessText(txt, input){
   let t = (txt ?? "").toString();
   t = t.replace(/ /g, " ");
@@ -5906,6 +5963,8 @@ function postProcessText(txt, input){
     });
   }
   t = coherencePass(t, input);
+  t = coherenceRepairV2(t, input);
+  t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (m, p1, p2)=> p1 + p2.toUpperCase());
   return t.trim();
 }
 
@@ -10725,7 +10784,7 @@ function compressCorpus(){
           <li><b>Pillen</b> (Struktur/Modus/Korpus/Lernen) — Kurzstatus, live aktualisiert.</li>
           <li><b>💾 / 📂</b> — das gesamte Projekt (Wortbank, Presets, Korpus, Einstellungen) als Datei speichern bzw. wieder laden.</li>
           <li><b>❓ Hilfe</b> — öffnet dieses Fenster.</li>
-          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.28) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
+          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.29) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
         </ul>
       </section>
     </div>
