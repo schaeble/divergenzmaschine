@@ -1988,7 +1988,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.26</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.27</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -10722,7 +10722,7 @@ function compressCorpus(){
           <li><b>Pillen</b> (Struktur/Modus/Korpus/Lernen) — Kurzstatus, live aktualisiert.</li>
           <li><b>💾 / 📂</b> — das gesamte Projekt (Wortbank, Presets, Korpus, Einstellungen) als Datei speichern bzw. wieder laden.</li>
           <li><b>❓ Hilfe</b> — öffnet dieses Fenster.</li>
-          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.26) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
+          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.27) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
         </ul>
       </section>
     </div>
@@ -10746,6 +10746,7 @@ function compressCorpus(){
     <button id="readerBigger" type="button" title="Schrift größer">A+</button>
     <button id="readerCopy" type="button" title="Text kopieren">Kopieren</button>
     <button id="readerTreasure" type="button" title="Text in die Schatzkammer legen">⭐ Merken</button>
+    <button id="readerSpeak" type="button" title="Text vorlesen (Sprachausgabe des Browsers, offline)">🔊 Vorlesen</button>
     <button id="readerClose" type="button" title="Schließen">✕</button>
   </div>
   <div id="readerText"></div>
@@ -10793,6 +10794,26 @@ function compressCorpus(){
       const tb = document.getElementById('treasureBtn');
       if(tb) tb.click();
     });
+  }
+  // Vorlesen im Lesemodus: nutzt denselben Sprachausgabe-Button wie das Studio
+  const readerSpeak = document.getElementById('readerSpeak');
+  const speakBtn = document.getElementById('speakBtn');
+  if(readerSpeak){
+    if(!speakBtn || speakBtn.style.display === 'none'){
+      // Sprachsynthese nicht verfügbar -> Button ausblenden
+      readerSpeak.style.display = 'none';
+    } else {
+      readerSpeak.addEventListener('click', ()=> speakBtn.click());
+      const syncSpeak = ()=>{
+        readerSpeak.textContent = speakBtn.textContent;
+        readerSpeak.classList.toggle('active', speakBtn.classList.contains('active'));
+      };
+      try{
+        const mo = new MutationObserver(syncSpeak);
+        mo.observe(speakBtn, {childList:true, characterData:true, subtree:true, attributes:true, attributeFilter:['class']});
+      }catch(e){}
+      syncSpeak();
+    }
   }
   document.getElementById('readerClose').addEventListener('click', close);
   document.getElementById('readerBigger').addEventListener('click', ()=>{ fs += 1; applyFs(); });
