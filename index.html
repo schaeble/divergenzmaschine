@@ -1988,7 +1988,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.31</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.32</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -7909,6 +7909,7 @@ function makeDialogueScene(kit) {
   const capFirst = (s)=>{ s=String(s||"").trim(); return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; };
   const stripLead = (s)=> String(s||"").replace(/^(und|dann|aber|denn|so|doch)\s+/i,"").trim();
   const topic = clean(kit.motif || kit.W || "").replace(/[.!?…]+$/,"");
+  const topicIsClause = topic && (typeof looksLikeClausePhrase === "function") && looksLikeClausePhrase(topic);
   const STAGE = ["Stille.","Ein langer Blick.","Keiner spricht weiter.","Der Wind trägt den Rest fort.","Die Weide liegt still.","Nichts bewegt sich."];
   function cleanDialogLine(s){
     s = clean(s);
@@ -7933,10 +7934,13 @@ function makeDialogueScene(kit) {
   // zentrale Story-Beats dosiert & grammatisch gerahmt einstreuen
   function injectBeat(i, who) {
     const p = i / (rounds - 1);
-    // Setup: A benennt das Thema, B hakt konkret nach (roter Faden)
-    if (p < 0.18) return (who === "A")
-      ? (topic ? `Es geht um ${topic}.` : "Sag mir, was du gesehen hast.")
-      : (topic ? `Was hat ${topic} damit zu tun?` : "Was genau meinst du?");
+    // Setup nur in der allerersten Runde (kein Doppeln); Satz-Motive anders einleiten
+    if (i === 0) return topic
+      ? (topicIsClause ? `Hör zu: ${topic}.` : `Es geht um ${topic}.`)
+      : "Sag mir, was du gesehen hast.";
+    if (i === 1) return topic
+      ? (topicIsClause ? "Was soll das bedeuten?" : `Was hat ${topic} damit zu tun?`)
+      : "Was genau meinst du?";
     // Requisit grammatisch gerahmt (mit Artikel) statt rohem Nomen
     if (p >= 0.18 && p < 0.30 && who === "B" && kit.propAcc) return `Du hast ${kit.propAcc} dabei.`;
     // Konflikt: A nennt das Hindernis, B relativiert
@@ -10822,7 +10826,7 @@ function compressCorpus(){
           <li><b>Pillen</b> (Struktur/Modus/Korpus/Lernen) — Kurzstatus, live aktualisiert.</li>
           <li><b>💾 / 📂</b> — das gesamte Projekt (Wortbank, Presets, Korpus, Einstellungen) als Datei speichern bzw. wieder laden.</li>
           <li><b>❓ Hilfe</b> — öffnet dieses Fenster.</li>
-          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.31) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
+          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.32) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
         </ul>
       </section>
     </div>
