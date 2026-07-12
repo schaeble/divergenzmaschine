@@ -1988,7 +1988,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.25</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.26</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -8462,30 +8462,81 @@ function buildUnique(count, builder){
 
 function mutateBank(mutationAmount){
   BANK = loadBank();
-  const M = MODE_DATA[pick(Object.keys(MODE_DATA))];
+  const modeKeys = Object.keys(MODE_DATA);
+  const amt = Math.max(0, Math.min(500, mutationAmount|0));
+  const intensity  = amt/500;                        // 0..1 – Reglerstärke
+  const mutateRate = 0.40 + 0.55*intensity;          // Anteil bearbeiteter Einträge
+  const maxSwaps   = 1 + Math.round(intensity*2);    // 1..3 getauschte Wörter
+  const HARD_CAP   = 80;                              // Obergrenze pro Liste
+  const ADJ = ["fahl","gläsern","zerfranst","schattenhaft","brüchig","namenlos",
+               "flirrend","versehrt","lautlos","verkantet","phosphoreszierend","kalt"];
 
-  function mutateList(list, templates){
-    if(!Array.isArray(list) || !list.length) return list;
-    const count = Math.max(3, Math.min(20, list.length + Math.round(mutationAmount/50)));
-    return buildUnique(count, ()=>{
-      const base = pick(list.concat(templates||[]));
-      if(chance(0.5)) return base;
-      const words = base.split(" ");
-      const swapIdx = Math.floor(Math.random()*words.length);
-      words[swapIdx] = pick(M.nouns.concat(M.verbs));
-      return words.join(" ");
-    });
+  // Lever 4: pro Zugriff ein FRISCHER Modus statt eines einzigen pro Aufruf
+  const M = ()=> MODE_DATA[pick(modeKeys)];
+  const freshWord = ()=>{ const m=M(); return pick(m.nouns.concat(m.verbs)); };
+
+  // Lever 5: zusätzliche Operatoren
+  function injectAdj(s){
+    return s.replace(/\b(ein|eine|einen|einem|einer)\s+([A-Za-zÄÖÜäöüß]+)/i,
+      (m,a,n)=>`${a} ${pick(ADJ)} ${n}`);
+  }
+  function intensify(s){
+    if(/[.!?]$/.test(s)){
+      return chance(0.5) ? "Beinahe "+s.charAt(0).toLowerCase()+s.slice(1)
+                         : s.replace(/[.!?]$/," – und mehr.");
+    }
+    return chance(0.5) ? s+", das nicht endet" : "kaum "+s;
+  }
+  function crossover(a,b){
+    const wa=String(a).split(" "), wb=String(b).split(" ");
+    if(wa.length<2 || wb.length<2) return a;
+    const ca=Math.max(1,Math.floor(wa.length/2));
+    const cb=Math.max(1,Math.floor(wb.length/2));
+    return wa.slice(0,ca).concat(wb.slice(cb)).join(" ");
+  }
+  function swapWords(s,n){
+    const w=String(s).split(" ");
+    for(let i=0;i<n && w.length;i++){ w[Math.floor(Math.random()*w.length)] = freshWord(); }
+    return w.join(" ");
+  }
+  function mutateEntry(src){
+    let s = pick(src);
+    if(chance(0.35*(0.5+intensity))) s = crossover(s, pick(src));   // Rekombination
+    s = swapWords(s, 1 + Math.floor(Math.random()*maxSwaps));       // Mehr-Wort + Multi-Modus
+    if(chance(0.30*intensity)) s = injectAdj(s);                    // seltenes Adjektiv
+    if(chance(0.25*intensity)) s = intensify(s);                    // Negation/Steigerung
+    return clean(s);
   }
 
-  BANK.motifs   = mutateList(BANK.motifs,   M.nouns.map(n=>`ein ${n}, das sich verändert`));
-  BANK.hooks    = mutateList(BANK.hooks,    M.nouns.map(n=>`ein ${n} im falschen Winkel`));
-  BANK.turns    = mutateList(BANK.turns,    M.rules);
-  BANK.obstacles= mutateList(BANK.obstacles,M.rules.map(r=>`Weil: ${r}`));
-  BANK.stakes   = mutateList(BANK.stakes,   M.images.map(i=>`Der Einsatz ist, zu sehen ${i}.`));
-  BANK.endings  = mutateList(BANK.endings,  ["Und dann—", "Es bleibt.", "Kein Ende."]);
+  // Lever 2: Originale bleiben immer erhalten (Set), nie Schrumpfen; Regler treibt Wachstum
+  function mutateList(list, templates){
+    if(!Array.isArray(list) || !list.length) return list;
+    const out = new Set(list.map(clean).filter(Boolean));
+    const grow = Math.round(amt/25);                                // Lever 3: Regler wirkt spürbar
+    const target = Math.min(HARD_CAP, out.size + Math.max(grow, Math.round(out.size*mutateRate)));
+    const src = list.concat(templates||[]);
+    let guard=0;
+    while(out.size < target && guard < target*200){
+      guard++;
+      const v = mutateEntry(src);
+      if(v && v.split(/\s+/).filter(Boolean).length>=2) out.add(v); // pickSane-tauglich (≥2 Wörter)
+    }
+    return Array.from(out);
+  }
+
+  const gen = (fn)=> Array.from({length:6}, fn);
+  BANK.motifs    = mutateList(BANK.motifs,    gen(()=>`ein ${freshWord()}, das sich verändert`));
+  BANK.hooks     = mutateList(BANK.hooks,     gen(()=>`ein ${freshWord()} im falschen Winkel`));
+  BANK.props     = mutateList(BANK.props,     gen(()=>`ein ${freshWord()} aus fremder Hand`)); // Lever 1: props ergänzt
+  BANK.turns     = mutateList(BANK.turns,     gen(()=>pick(M().rules)));
+  BANK.obstacles = mutateList(BANK.obstacles, gen(()=>`Weil: ${pick(M().rules)}`));
+  BANK.stakes    = mutateList(BANK.stakes,    gen(()=>`Der Einsatz ist, zu sehen ${pick(M().images)}.`));
+  BANK.endings   = mutateList(BANK.endings,   ["Und dann—","Es bleibt.","Kein Ende.","Und nichts kehrte zurück.","So blieb die Frage offen."]);
 
   saveBank(BANK);
-  toast(`Mutation +${mutationAmount}: Wortbank erweitert.`);
+  const KEYS=["motifs","hooks","props","turns","obstacles","stakes","endings"];
+  const total=KEYS.reduce((a,k)=>a+((BANK[k]&&BANK[k].length)||0),0);
+  toast(`Mutation (Stärke ${amt}): alle 7 Listen mutiert – inkl. Requisiten. ${total} Einträge gesamt.`);
 }
 
 /* =========================================================
@@ -9286,7 +9337,7 @@ if($("storyFontSelect") || $("storyFontSizeSlider")){
 $("mutateBtn").addEventListener("click",()=>{
   const amt=parseInt(($("mutationSlider")?.value)||"300",10);
   mutateBank(amt); invalidateChainCache();
-  BANK=loadBank(); loadEditorList(); setPills(getChain(),null); toast("Mutation erzeugt.");
+  BANK=loadBank(); loadEditorList(); setPills(getChain(),null);
 });
 
 $("resetBtn").addEventListener("click",()=>{
@@ -10671,7 +10722,7 @@ function compressCorpus(){
           <li><b>Pillen</b> (Struktur/Modus/Korpus/Lernen) — Kurzstatus, live aktualisiert.</li>
           <li><b>💾 / 📂</b> — das gesamte Projekt (Wortbank, Presets, Korpus, Einstellungen) als Datei speichern bzw. wieder laden.</li>
           <li><b>❓ Hilfe</b> — öffnet dieses Fenster.</li>
-          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.25) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
+          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.26) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
         </ul>
       </section>
     </div>
