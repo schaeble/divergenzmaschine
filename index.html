@@ -1988,7 +1988,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.33</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.34</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -7869,6 +7869,13 @@ function makeDialogueScene(kit) {
   rounds = Math.max(4, Math.min(30, rounds));
   if (rounds % 2 !== 0) rounds = Math.min(30, rounds + 1);
 
+  // Feste Einzel-Positionen für die eingestreuten Beats: jeder genau EINMAL,
+  // damit sich bei langen Dialogen nichts wiederholt. Gerade Index = Sprecher A,
+  // ungerade = Sprecher B.
+  const _evenAt = (f)=>{ let x=Math.round(rounds*f); if(x%2!==0) x++; return Math.max(2, Math.min(rounds-2, x)); };
+  const _oddAt  = (f)=>{ let x=Math.round(rounds*f); if(x%2===0) x++; return Math.max(3, Math.min(rounds-1, x)); };
+  const BEAT = { propB:_oddAt(0.22), obstA:_evenAt(0.38), surfB:_oddAt(0.42), turnA:_evenAt(0.64), stakeB:_oddAt(0.68), endA:rounds-2, stageB:rounds-1 };
+
   // Phasen: 0 = Setup, 1 = Konflikt, 2 = Kippung, 3 = Fallout
   function phaseFor(i) {
     const p = i / (rounds - 1);
@@ -7924,33 +7931,35 @@ function makeDialogueScene(kit) {
   };
   for(const a in _EXTRA){ if(POOLS[a]){ for(const k in _EXTRA[a]){ if(Array.isArray(POOLS[a][k])) POOLS[a][k].push(..._EXTRA[a][k]); } } }
 
+  // Pool-Ziehung mit Dedup: bereits genutzte und die zuletzt gesagte Zeile meiden
+  const _usedRaw = new Set();
+  let _prevRaw = "";
   function pickLine(archetype, phase) {
     const P = POOLS[archetype] || POOLS.neutral;
     const key = (phase === 0) ? "setup" : (phase === 1) ? "conflict" : (phase === 2) ? "twist" : "fallout";
-    return pick(P[key]);
+    const arr = P[key] || [];
+    if(!arr.length) return "…";
+    const fresh = arr.filter(l => l !== _prevRaw && !_usedRaw.has(l));
+    let cand;
+    if(fresh.length) cand = pick(fresh);
+    else { const notPrev = arr.filter(l => l !== _prevRaw); cand = notPrev.length ? pick(notPrev) : pick(arr); }
+    _usedRaw.add(cand); _prevRaw = cand;
+    return cand;
   }
 
-  // zentrale Story-Beats dosiert & grammatisch gerahmt einstreuen
+  // zentrale Story-Beats an FESTEN Einzelpositionen (kein Band -> keine Wiederholung)
   function injectBeat(i, who) {
-    const p = i / (rounds - 1);
     // Setup nur in der ersten Runde; kasusneutral, damit Motiv-Kasus/Artefakte
     // (z. B. "um ein Spiegel", "eine verschlossene das Tür") nicht durchschlagen
     if (i === 0) return topic ? `Das Thema: ${topic}.` : "Sag mir, was du gesehen hast.";
     if (i === 1) return topic ? "Und was hat das mit uns zu tun?" : "Was genau meinst du?";
-    // Requisit grammatisch gerahmt (mit Artikel) statt rohem Nomen
-    if (p >= 0.18 && p < 0.30 && who === "B" && kit.propAcc) return `Du hast ${kit.propAcc} dabei.`;
-    // Konflikt: A nennt das Hindernis, B relativiert
-    if (p > 0.33 && p < 0.45) return (who === "A")
-      ? ensurePunct(capFirst(stripLead(kit.obstacle)))
-      : "Das ist nur die Oberfläche.";
-    // Kippung: A dreht mit dem Turn, B setzt den Einsatz
-    if (p > 0.60 && p < 0.72) return (who === "A")
-      ? `Dann — ${capFirst(stripLead(clean(kit.turn).replace(/[.!?…]+$/,"")))}.`
-      : ensurePunct(capFirst(stripLead(kit.stake)));
-    // Schluss: A schließt mit dem Ending, B gibt eine echte Regieanweisung oder Pool-Replik
-    if (p > 0.88) return (who === "A")
-      ? ensurePunct(capFirst(kit.ending))
-      : (chance(0.5) ? `(${pick(STAGE)})` : null);
+    if (i === BEAT.propB && kit.propAcc) return `Du hast ${kit.propAcc} dabei.`;
+    if (i === BEAT.obstA)  return ensurePunct(capFirst(stripLead(kit.obstacle)));
+    if (i === BEAT.surfB)  return "Das ist nur die Oberfläche.";
+    if (i === BEAT.turnA)  return `Dann — ${capFirst(stripLead(clean(kit.turn).replace(/[.!?…]+$/,"")))}.`;
+    if (i === BEAT.stakeB) return ensurePunct(capFirst(stripLead(kit.stake)));
+    if (i === BEAT.endA)   return ensurePunct(capFirst(kit.ending));
+    if (i === BEAT.stageB) return (chance(0.6) ? `(${pick(STAGE)})` : null);
     return null;
   }
 
@@ -10822,7 +10831,7 @@ function compressCorpus(){
           <li><b>Pillen</b> (Struktur/Modus/Korpus/Lernen) — Kurzstatus, live aktualisiert.</li>
           <li><b>💾 / 📂</b> — das gesamte Projekt (Wortbank, Presets, Korpus, Einstellungen) als Datei speichern bzw. wieder laden.</li>
           <li><b>❓ Hilfe</b> — öffnet dieses Fenster.</li>
-          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.33) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
+          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.34) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
         </ul>
       </section>
     </div>
