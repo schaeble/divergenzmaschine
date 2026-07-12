@@ -1441,6 +1441,10 @@ body.modal-open{ overflow: hidden; }
             </select>
           </div>
           <div class="param-row">
+            <span class="param-label">Preset</span>
+            <select id="presetSelectStudio" class="p-select" title="Wortbank-Preset schnell wechseln (wirkt sofort)"></select>
+          </div>
+          <div class="param-row">
             <span class="param-label">Form</span>
             <select id="form" class="p-select chip-hidden-select" aria-hidden="true" tabindex="-1">
               <option value="prose" selected>Prosa</option>
@@ -1988,7 +1992,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.34</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.35</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -5062,6 +5066,8 @@ function refreshPresetSelect(){
   // restore selection if possible
   const exists = Array.from(sel.options).some(o=>o.value===current);
   sel.value = exists ? current : "builtin:mystery";
+  const _studio = $("presetSelectStudio");
+  if(_studio){ _studio.innerHTML = sel.innerHTML; _studio.value = sel.value; }
   updatePresetInfo();
 }
 
@@ -7965,6 +7971,9 @@ function makeDialogueScene(kit) {
 
   function applyDialogueInstability(line, archetype, phase) {
     if (kit.instability !== 2) return line;
+    // Regieanweisungen "(…)", Themen-/Einsatz-Beats ":" und Wende-Beats "—" nicht
+    // verwürfeln (sonst Kauderwelsch wie "Den Rest fort.) trägt (Der Wind.")
+    if (/[()]/.test(line) || line.includes("—") || line.includes(":")) return line;
 
 	// Verbesserte Subjekt-Objekt-Vertauschung - NUR bei bestimmten Verben
 	if (chance(0.32 + phase * 0.06)) {
@@ -8492,7 +8501,8 @@ function buildStory(input, chain){
     }
 
     const settings = loadSettings();
-    if(settings.enabled && settings.learnStories && !window._GP_SILENT){
+    const _noFeedForm = (input.form === "script" || input.form === "video"); // Zeilenformen nicht selbstfüttern (Sprecher-Labels würden den Korpus verschmutzen)
+    if(settings.enabled && settings.learnStories && !window._GP_SILENT && !_noFeedForm){
       appendToPersistentCorpus(text.replace(/\n+/g," ").trim());
       updateCorpusInfo();
       updateVideoUI();
@@ -9483,10 +9493,12 @@ if($("presetSelect")){
       const id = ids[Math.floor(Math.random()*ids.length)];
       const sel = $("presetSelect");
       if(sel && Array.from(sel.options).some(o=>o.value===id)) sel.value = id;
+      const st = $("presetSelectStudio"); if(st && Array.from(st.options).some(o=>o.value===id)) st.value = id;
       applyPresetById(id, {silent:true});
     }catch(e){}
   })();
-  $("presetSelect").addEventListener("change", ()=> applyPresetById($("presetSelect").value));
+  $("presetSelect").addEventListener("change", ()=>{ const v=$("presetSelect").value; applyPresetById(v); const st=$("presetSelectStudio"); if(st) st.value=v; });
+  if($("presetSelectStudio")) $("presetSelectStudio").addEventListener("change", ()=>{ const v=$("presetSelectStudio").value; applyPresetById(v); const ps=$("presetSelect"); if(ps) ps.value=v; updatePresetInfo(); });
   $("presetSaveBtn").addEventListener("click",()=>{
     const name=prompt("Name für dein Preset (lokal speichern):","MeinPreset");
     if(!name) return;
@@ -10831,7 +10843,7 @@ function compressCorpus(){
           <li><b>Pillen</b> (Struktur/Modus/Korpus/Lernen) — Kurzstatus, live aktualisiert.</li>
           <li><b>💾 / 📂</b> — das gesamte Projekt (Wortbank, Presets, Korpus, Einstellungen) als Datei speichern bzw. wieder laden.</li>
           <li><b>❓ Hilfe</b> — öffnet dieses Fenster.</li>
-          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.34) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
+          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.35) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
         </ul>
       </section>
     </div>
