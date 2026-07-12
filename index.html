@@ -1988,7 +1988,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.24</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.25</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -5032,24 +5032,28 @@ function refreshPresetSelect(){
   const all = getAllPresets();
   const current = sel.value || "builtin:mystery";
   sel.innerHTML = "";
-  // grouping: built-in first
+  // grouping: eingebaute Presets zuerst, eigene unter eigener Überschrift
   const builtins = Object.values(all).filter(p=>p.kind==="builtin");
   const users = Object.values(all).filter(p=>p.kind==="user");
 
-  const addOpt = (p)=>{
+  const addOpt = (parent, p)=>{
     const opt = document.createElement("option");
     opt.value = p.id;
     opt.textContent = p.label;
-    sel.appendChild(opt);
+    parent.appendChild(opt);
   };
 
-  builtins.forEach(addOpt);
+  if(builtins.length){
+    const gB = document.createElement("optgroup");
+    gB.label = "Eingebaute Presets";
+    builtins.forEach(p=>addOpt(gB, p));
+    sel.appendChild(gB);
+  }
   if(users.length){
-    const sep = document.createElement("option");
-    sep.disabled = true;
-    sep.textContent = "────────";
-    sel.appendChild(sep);
-    users.forEach(addOpt);
+    const gU = document.createElement("optgroup");
+    gU.label = "Eigene Presets";
+    users.forEach(p=>addOpt(gU, p));
+    sel.appendChild(gU);
   }
 
   // restore selection if possible
@@ -5071,10 +5075,11 @@ function updatePresetInfo(){
   if(del) del.disabled = (p.kind !== "user");
 }
 
-function applyPresetById(presetId){
+function applyPresetById(presetId, opts){
+  opts = opts || {};
   const all = getAllPresets();
   const p = all[presetId];
-  if(!p){ toast("Preset nicht gefunden."); return; }
+  if(!p){ if(!opts.silent) toast("Preset nicht gefunden."); return; }
   const bank = normalizeBankShape(p.bank);
   saveBank(bank);
   invalidateChainCache();
@@ -5085,7 +5090,7 @@ function applyPresetById(presetId){
   setPills(getChain(), null);
   if($("metaWordbank")) $("metaWordbank").textContent = `Wortbank: ${p.label}`;
   updatePresetInfo();
-  toast(`Preset „${p.label}" geladen.`);
+  if(!opts.silent) toast(`Preset „${p.label}" geladen.`);
 }
 
 /* ─── Auto-Mix: pro Kategorie ein zufälliges Preset ──────────
@@ -9309,6 +9314,18 @@ $("importBtn").addEventListener("click",()=>{
 
 if($("presetSelect")){
   refreshPresetSelect();
+  // Beim Start ein zufälliges Preset aus der bestehenden Wortbank wählen
+  (function selectRandomPresetOnStart(){
+    try{
+      const all = getAllPresets();
+      const ids = Object.keys(all);
+      if(!ids.length) return;
+      const id = ids[Math.floor(Math.random()*ids.length)];
+      const sel = $("presetSelect");
+      if(sel && Array.from(sel.options).some(o=>o.value===id)) sel.value = id;
+      applyPresetById(id, {silent:true});
+    }catch(e){}
+  })();
   $("presetSelect").addEventListener("change", ()=> applyPresetById($("presetSelect").value));
   $("presetSaveBtn").addEventListener("click",()=>{
     const name=prompt("Name für dein Preset (lokal speichern):","MeinPreset");
@@ -10654,7 +10671,7 @@ function compressCorpus(){
           <li><b>Pillen</b> (Struktur/Modus/Korpus/Lernen) — Kurzstatus, live aktualisiert.</li>
           <li><b>💾 / 📂</b> — das gesamte Projekt (Wortbank, Presets, Korpus, Einstellungen) als Datei speichern bzw. wieder laden.</li>
           <li><b>❓ Hilfe</b> — öffnet dieses Fenster.</li>
-          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.24) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
+          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.25) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
         </ul>
       </section>
     </div>
