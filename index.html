@@ -1988,7 +1988,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.30</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.31</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -7861,7 +7861,13 @@ function makeDialogueScene(kit) {
   const speakerB = kit.speakerB || pickSpeakerForArchetype(bId);
 
   // Dialog-Engine: klar alternierend, Eskalationskurve, aber lesbar (eine Zeile pro Sprecher)
-  const rounds = (kit.instability === 2) ? 10 : (kit.instability === 1 ? 8 : 6);
+  // Textlänge steuert die Anzahl der Repliken (statt Wort-Trimming, das die
+  // "eine Zeile pro Sprecher"-Struktur zerstören würde): Zielwörter/7 ≈ Repliken,
+  // gedeckelt auf 4–30, Instabilität als kleiner Zuschlag, gerade Zahl.
+  const _lenTarget = (typeof getLenTarget === "function") ? getLenTarget() : 110;
+  let rounds = Math.round(_lenTarget / 7) + (kit.instability === 2 ? 2 : (kit.instability === 1 ? 1 : 0));
+  rounds = Math.max(4, Math.min(30, rounds));
+  if (rounds % 2 !== 0) rounds = Math.min(30, rounds + 1);
 
   // Phasen: 0 = Setup, 1 = Konflikt, 2 = Kippung, 3 = Fallout
   function phaseFor(i) {
@@ -10816,7 +10822,7 @@ function compressCorpus(){
           <li><b>Pillen</b> (Struktur/Modus/Korpus/Lernen) — Kurzstatus, live aktualisiert.</li>
           <li><b>💾 / 📂</b> — das gesamte Projekt (Wortbank, Presets, Korpus, Einstellungen) als Datei speichern bzw. wieder laden.</li>
           <li><b>❓ Hilfe</b> — öffnet dieses Fenster.</li>
-          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.30) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
+          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.31) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
         </ul>
       </section>
     </div>
