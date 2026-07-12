@@ -1988,7 +1988,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.29</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.30</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -7899,21 +7899,52 @@ function makeDialogueScene(kit) {
     }
   };
 
+  // ── Dialog v2: Helfer, Thema, Regieanweisungen, Zeilen-Cleanup ──
+  const capFirst = (s)=>{ s=String(s||"").trim(); return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; };
+  const stripLead = (s)=> String(s||"").replace(/^(und|dann|aber|denn|so|doch)\s+/i,"").trim();
+  const topic = clean(kit.motif || kit.W || "").replace(/[.!?…]+$/,"");
+  const STAGE = ["Stille.","Ein langer Blick.","Keiner spricht weiter.","Der Wind trägt den Rest fort.","Die Weide liegt still.","Nichts bewegt sich."];
+  function cleanDialogLine(s){
+    s = clean(s);
+    s = s.replace(/,\s*([.!?…])/g,"$1").replace(/\s*,\s*,\s*/g,", ").replace(/„\s+/g,"„").replace(/\s+"/g,'"').replace(/\.{2,}/g,".").replace(/\s+([,.;:!?])/g,"$1").replace(/\)\s*\.$/,")");
+    return capFirst(s);
+  }
+  // Pools je Phase anreichern (mehr Varianz, weniger Wiederholung)
+  const _EXTRA = {
+    neutral: { setup:["Fang von vorne an.","Was hast du wirklich gesehen?","Ich höre zu."], conflict:["Das ergibt keinen Sinn.","Du lässt etwas weg.","Bleib bei der Wahrheit."], twist:["Vielleicht liegt es an uns.","Der Grund verschiebt sich.","Nichts davon war geplant."], fallout:["Dann ist es vorbei.","Wir tragen es mit.","Mehr bleibt nicht."] },
+    skorpion: { setup:["Du zögerst.","Ich rieche die Lüge."], conflict:["Du hältst etwas fest.","Gib es zu."], twist:["Jetzt kehrt es sich um.","Deine Nähe wird zur Falle."], fallout:["Du trägst die Schuld.","Nichts entkommt mir."] },
+    psychopath:{ setup:["Nenne die Fakten.","Gefühle sind Rauschen."], conflict:["Dein Schluss ist falsch.","Das ist unpräzise."], twist:["Die Ursache ist Effekt.","Du bist die Variable."], fallout:["Abgeschlossen.","Das Ergebnis steht."] },
+    entdecker: { setup:["Da vorn ist mehr.","Komm weiter."], conflict:["Du bremst.","Du fürchtest die Tür."], twist:["Der Weg dreht sich.","Das Ziel liegt hinter uns."], fallout:["Wir ziehen weiter.","Eine Spur bleibt."] }
+  };
+  for(const a in _EXTRA){ if(POOLS[a]){ for(const k in _EXTRA[a]){ if(Array.isArray(POOLS[a][k])) POOLS[a][k].push(..._EXTRA[a][k]); } } }
+
   function pickLine(archetype, phase) {
     const P = POOLS[archetype] || POOLS.neutral;
     const key = (phase === 0) ? "setup" : (phase === 1) ? "conflict" : (phase === 2) ? "twist" : "fallout";
     return pick(P[key]);
   }
 
-  // zentrale Story-Beats dosiert einstreuen
+  // zentrale Story-Beats dosiert & grammatisch gerahmt einstreuen
   function injectBeat(i, who) {
     const p = i / (rounds - 1);
+    // Setup: A benennt das Thema, B hakt konkret nach (roter Faden)
     if (p < 0.18) return (who === "A")
-      ? `Ich habe ${ensurePunct(kit.hookAcc)}`
-      : `Du hast ${pick(M.nouns)}.`;
-    if (p > 0.33 && p < 0.45) return (who === "A") ? ensurePunct(kit.obstacle) : "Das ist nur die Oberfläche.";
-    if (p > 0.60 && p < 0.72) return (who === "A") ? `Dann: ${ensurePunct(kit.turn)}` : kit.stake;
-    if (p > 0.88) return (who === "A") ? kit.ending : `(${kit.motif})`;
+      ? (topic ? `Es geht um ${topic}.` : "Sag mir, was du gesehen hast.")
+      : (topic ? `Was hat ${topic} damit zu tun?` : "Was genau meinst du?");
+    // Requisit grammatisch gerahmt (mit Artikel) statt rohem Nomen
+    if (p >= 0.18 && p < 0.30 && who === "B" && kit.propAcc) return `Du hast ${kit.propAcc} dabei.`;
+    // Konflikt: A nennt das Hindernis, B relativiert
+    if (p > 0.33 && p < 0.45) return (who === "A")
+      ? ensurePunct(capFirst(stripLead(kit.obstacle)))
+      : "Das ist nur die Oberfläche.";
+    // Kippung: A dreht mit dem Turn, B setzt den Einsatz
+    if (p > 0.60 && p < 0.72) return (who === "A")
+      ? `Dann — ${capFirst(stripLead(clean(kit.turn).replace(/[.!?…]+$/,"")))}.`
+      : ensurePunct(capFirst(stripLead(kit.stake)));
+    // Schluss: A schließt mit dem Ending, B gibt eine echte Regieanweisung oder Pool-Replik
+    if (p > 0.88) return (who === "A")
+      ? ensurePunct(capFirst(kit.ending))
+      : (chance(0.5) ? `(${pick(STAGE)})` : null);
     return null;
   }
 
@@ -7986,6 +8017,7 @@ function makeDialogueScene(kit) {
 
     line = ensurePunct(line);
     line = applyDialogueInstability(line, arch, ph);
+    line = cleanDialogLine(line);
 
     out.push(`${speaker}: ${line}`);
   }
@@ -10784,7 +10816,7 @@ function compressCorpus(){
           <li><b>Pillen</b> (Struktur/Modus/Korpus/Lernen) — Kurzstatus, live aktualisiert.</li>
           <li><b>💾 / 📂</b> — das gesamte Projekt (Wortbank, Presets, Korpus, Einstellungen) als Datei speichern bzw. wieder laden.</li>
           <li><b>❓ Hilfe</b> — öffnet dieses Fenster.</li>
-          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.29) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
+          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.30) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
         </ul>
       </section>
     </div>
