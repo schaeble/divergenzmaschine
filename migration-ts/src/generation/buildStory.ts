@@ -11,23 +11,25 @@ import { extractLeadVerb, looksLikeFullClause } from "./wordcls";
 import { declineHookPhrase, safeCaseForm } from "./declension";
 import { applyDisruptor, applyRhythm, paragraphize, applyPerspective, pronominalize, guessPronoun } from "./shape";
 import { MarkovModel, isSaneMarkov } from "../corpus";
+import { biasedAutoChoice } from "./autochoice";
 
 const MODES = ["bureau", "tech", "body", "myth", "absurd", "post"];
 const STRUCTURES = ["linear", "reverse", "circle", "fragment", "object"];
 const PERSPECTIVES = ["third", "first", "second", "we", "object", "split"];
 const RHYTHMS = ["breath", "staccato", "long", "fracture", "clean"];
-const res = (ui: string, opts: string[]): string => (ui !== "auto" && opts.includes(ui) ? ui : pick(opts));
+const resBiased = (ui: string, kind: string, opts: string[], aA: string, aB: string): string =>
+  ui !== "auto" && opts.includes(ui) ? ui : (biasedAutoChoice(kind, aA, aB) || pick(opts));
 
 /** Baut aus Bank + Eingabe die Bausteine (StoryKit) — volle Fidelity. */
 export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): StoryKit {
   const archA = (input.archetypeA || "neutral").toLowerCase();
   const archB = (input.archetypeB || "neutral").toLowerCase();
 
-  const modeKey = res(input.mode, MODES);
+  const modeKey = resBiased(input.mode, "mode", MODES, archA, archB);
   const M = MODE_DATA[modeKey] || MODE_DATA.bureau!;
-  const structure = res(input.structure, STRUCTURES);
-  const perspective = input.perspective === "auto" ? pick(PERSPECTIVES) : input.perspective;
-  const rhythm = res(input.rhythm, RHYTHMS);
+  const structure = resBiased(input.structure, "structure", STRUCTURES, archA, archB);
+  const perspective = input.perspective === "auto" ? (biasedAutoChoice("perspective", archA, archB) || pick(PERSPECTIVES)) : input.perspective;
+  const rhythm = resBiased(input.rhythm, "rhythm", RHYTHMS, archA, archB);
 
   const W = clean(input.where) || "an einem Ort";
   const T = clean(input.when) || "zu einer Zeit";
