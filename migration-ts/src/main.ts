@@ -28,7 +28,9 @@ function render(): void {
   const bank = loadBank();
   const presetCount = Object.keys(getAllPresets()).length;
 
-  const prose = buildStory(bank, baseInput({ form: "prose" }));
+  const structures = ["linear","reverse","circle","fragment","object"];
+  const proseByStructure = structures.map((s) => [s, buildStory(bank, baseInput({ form: "prose", structure: s }))] as const);
+  const prose = buildStory(bank, baseInput({ form: "prose", structure: "linear", tone: "mystery" }));
   const scene = buildStory(bank, baseInput({ form: "script" }));
 
   // Reparatur-Demo an einem absichtlich kaputten Text
@@ -41,8 +43,11 @@ function render(): void {
       <p>${presetCount} Presets · Generierung + Dialog-Engine + Kohärenz-Schliff
          laufen als getypte Module.</p>
 
-      <h2 style="font-size:1rem">Baseline-Prosa</h2>
+      <h2 style="font-size:1rem">Prosa mit Ton (Mystery, linear)</h2>
       <blockquote style="border-left:3px solid #ccc;padding-left:.75rem;color:#333">${esc(prose)}</blockquote>
+
+      <h2 style="font-size:1rem">Struktur-Varianten</h2>
+      ${proseByStructure.map(([s, txt]) => `<p style="margin:.4rem 0"><b>${s}:</b> ${esc(txt).slice(0, 220)}…</p>`).join("")}
 
       <h2 style="font-size:1rem">Dialog-Szene</h2>
       <pre style="white-space:pre-wrap;background:#f6f6f6;padding:.75rem;border-radius:6px;font:inherit">${esc(scene)}</pre>

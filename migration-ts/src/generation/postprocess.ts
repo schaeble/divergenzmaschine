@@ -2,8 +2,10 @@
 // Hinweis: Ton-Einfärbung und "Sprachschliff" (polishGerman) sind bewusst
 // noch nicht portiert (Phase 4) — hier steckt der Kern der Bereinigung.
 import type { GenInput } from "../types";
-import { escapeRegExp, splitSentences } from "../text-utils";
+import { escapeRegExp, splitSentences, pick } from "../text-utils";
 import { coherenceWords } from "./nlp";
+import { TONE_DATA } from "./tone.data";
+import { insertToneFlavor } from "./beats";
 
 type Input = Partial<GenInput>;
 
@@ -138,6 +140,18 @@ export function postProcessText(txt: string, input?: Input): string {
       t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${esc}(?![\\p{L}\\p{N}_])`, "giu"), name);
     } catch {
       t = t.replace(new RegExp(`\\b${esc}\\b`, "gi"), name);
+    }
+  }
+
+  // Ton-Einfärbung: Einleitung + verteilte Flavor-Einschübe (nicht bei
+  // Zeilenformen und nicht, wenn der Sprachschliff aktiv ist).
+  if (!isLineForm(input) && !input?.polish && input?.tone && TONE_DATA[input.tone]) {
+    const td = TONE_DATA[input.tone]!;
+    if (td.opener.length) t = `${pick(td.opener)} ${t}`;
+    if (td.flavor.length) {
+      const wc = t.trim().split(/\s+/).filter(Boolean).length;
+      const inserts = Math.min(3, Math.max(1, Math.round(wc / 90)));
+      for (let i = 0; i < inserts; i++) t = insertToneFlavor(t, pick(td.flavor));
     }
   }
 
