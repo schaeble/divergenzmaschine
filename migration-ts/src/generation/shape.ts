@@ -3,6 +3,8 @@
 // Konjugationstabelle); die "du"-Kongruenz übernimmt coherenceRepairV2.
 import { clean, pick, chance, splitSentences, escapeRegExp } from "../text-utils";
 import { chooseInsertPos, isFragmentSentence, cap } from "./beats";
+import { VERB_CONJ } from "./verbconj.data";
+import { conjugateVerbToken } from "./verbconj";
 
 export interface DisruptorResult { text: string; fired: boolean; kind: string; }
 
@@ -79,14 +81,24 @@ export function guessPronoun(P: string): string {
 export function applyPerspective(paras: string[], perspective: string, who: string, objName: string): string[] {
   const P = clean(who) || "Jemand";
   const O = clean(objName) || "das Objekt";
-  const swap = (s: string, pronoun: string): string => {
+  const swap = (s: string, person: string, pronoun: string): string => {
     if (!P) return s;
-    try { return s.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${escapeRegExp(P)}(?![\\p{L}\\p{N}_])`, "gu"), pronoun); }
-    catch { return s.replace(new RegExp("\\b" + escapeRegExp(P) + "\\b", "g"), pronoun); }
+    try {
+      const re = new RegExp("([A-Za-zÄÖÜäöüß]+\\s+)?\\b" + escapeRegExp(P) + "\\b(\\s+[A-Za-zÄÖÜäöüß]+)?", "g");
+      return s.replace(re, (_m, before?: string, after?: string) => {
+        const bw = before ? before.trim() : "";
+        const aw = after ? after.trim() : "";
+        if (bw && VERB_CONJ[bw.toLowerCase()]) return conjugateVerbToken(bw, person) + " " + pronoun + (after || "");
+        if (aw && VERB_CONJ[aw.toLowerCase()]) return (before || "") + pronoun + " " + conjugateVerbToken(aw, person);
+        return (before || "") + pronoun + (after || "");
+      });
+    } catch {
+      return s.replace(new RegExp("\\b" + escapeRegExp(P) + "\\b", "gi"), pronoun);
+    }
   };
-  const toFirst = (s: string) => swap(s, "ich");
-  const toSecond = (s: string) => swap(s, "du");
-  const toWe = (s: string) => swap(s, "wir");
+  const toFirst = (s: string) => swap(s, "ich", "ich");
+  const toSecond = (s: string) => swap(s, "du", "du");
+  const toWe = (s: string) => swap(s, "wir", "wir");
   const toObject = (s: string) => `(${O}) ${s}`;
   if (perspective === "third") return paras;
   if (perspective === "first") return paras.map(toFirst);

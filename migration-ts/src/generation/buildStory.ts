@@ -1,92 +1,99 @@
-// Generierung: Kit-Zusammenbau + Struktur-Auswahl + Nachbearbeitung.
+// Generierung: volle Kit-Fidelity (buildBaseModules) + Struktur + V4.1-Pipeline.
 import type { Bank, GenInput, StoryKit } from "../types";
 import { MODE_DATA } from "../modes.data";
-import { pick, pickSane, clean } from "../text-utils";
-import { makeDialogueScene } from "./dialogue";
+import { pick, pickSane, clean, chance } from "../text-utils";
+import { makeDialogueScene, pickSpeakerForArchetype } from "./dialogue";
 import { postProcessText } from "./postprocess";
 import { pickStructureBuilder } from "./structures";
 import { looksLikeClausePhrase } from "./beats";
+import { archetypeAugmentList } from "./archetype";
+import { extractLeadVerb, looksLikeFullClause } from "./wordcls";
+import { declineHookPhrase, safeCaseForm } from "./declension";
 import { applyDisruptor, applyRhythm, paragraphize, applyPerspective, pronominalize, guessPronoun } from "./shape";
+import { MarkovModel, isSaneMarkov } from "../corpus";
 
-function resolveMode(modeKey: string) {
-  return MODE_DATA[modeKey] ?? pick(Object.values(MODE_DATA));
-}
-
+const MODES = ["bureau", "tech", "body", "myth", "absurd", "post"];
 const STRUCTURES = ["linear", "reverse", "circle", "fragment", "object"];
-function resolveStructure(structure: string): string {
-  return STRUCTURES.includes(structure) ? structure : pick(STRUCTURES);
-}
+const PERSPECTIVES = ["third", "first", "second", "we", "object", "split"];
 const RHYTHMS = ["breath", "staccato", "long", "fracture", "clean"];
-function resolveRhythm(rhythm: string): string {
-  return RHYTHMS.includes(rhythm) ? rhythm : pick(RHYTHMS);
-}
+const res = (ui: string, opts: string[]): string => (ui !== "auto" && opts.includes(ui) ? ui : pick(opts));
 
-/** Baut aus Bank + Eingabe die Bausteine (StoryKit) eines Laufs. */
-export function buildKit(bank: Bank, input: GenInput): StoryKit {
-  const who = clean(input.who) || "Jemand";
-  const whoParts = who.split(/\s*,\s*/).filter(Boolean);
-  const prop = pickSane(bank.props, 1);
-  const hook = pickSane(bank.hooks);
+/** Baut aus Bank + Eingabe die Bausteine (StoryKit) — volle Fidelity. */
+export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): StoryKit {
+  const archA = (input.archetypeA || "neutral").toLowerCase();
+  const archB = (input.archetypeB || "neutral").toLowerCase();
+
+  const modeKey = res(input.mode, MODES);
+  const M = MODE_DATA[modeKey] || MODE_DATA.bureau!;
+  const structure = res(input.structure, STRUCTURES);
+  const perspective = input.perspective === "auto" ? pick(PERSPECTIVES) : input.perspective;
+  const rhythm = res(input.rhythm, RHYTHMS);
+
+  const W = clean(input.where) || "an einem Ort";
+  const T = clean(input.when) || "zu einer Zeit";
+  const PRaw = clean(input.who) || "Jemand";
+  const whoParts = PRaw.split(",").map((s) => clean(s)).filter(Boolean);
+  const P = whoParts[0] || PRaw;
+  const A = clean(input.what) || "etwas";
+
+  const aLead = extractLeadVerb(A);
+  const Apure = aLead.rest;
+  const AleadVerb = aLead.verb || "";
+  const AisInfinitiveLed = !!aLead.isInfinitiveLed;
+  const AisClause = !AisInfinitiveLed && looksLikeFullClause(aLead.verb, Apure);
+
+  const markovMode = input.markovMode || "mix";
+  const maybeMarkov = (fallback: string, prob = 0.42): string => {
+    if (markovMode === "off" || !model) return fallback;
+    if (markovMode === "on" || chance(prob)) {
+      const m = model.generate(14);
+      if (m && isSaneMarkov(m)) return m;
+    }
+    return fallback;
+  };
+
+  const aug = (list: string[], key: string) => archetypeAugmentList(list, archA, archB, key);
+  const motif = maybeMarkov(pickSane(aug(bank.motifs, "motifs")), 0.28);
+  const hook = maybeMarkov(pickSane(aug(bank.hooks, "hooks")), 0.28);
+  const prop = pickSane(aug(bank.props, "props"), 1);
+
   const hookIsClause = looksLikeClausePhrase(hook);
-  const hookQuote = clean(hook).replace(/[.!?…]+$/, "");
-  const apure = clean(input.what).replace(/[.!?…]+$/, "") || "etwas zu verstehen";
+  const hookQuote = hookIsClause ? clean(hook).replace(/[.!?…]+$/, "") : "";
+  const hookAcc = hookIsClause ? `den Satz „${hookQuote}"` : safeCaseForm(hook, declineHookPhrase(hook, "acc"));
+  const hookDat = hookIsClause ? `dem Satz „${hookQuote}"` : safeCaseForm(hook, declineHookPhrase(hook, "dat"));
+  const propAcc = safeCaseForm(prop, declineHookPhrase(prop, "acc"));
+  const propDat = safeCaseForm(prop, declineHookPhrase(prop, "dat"));
+
   return {
-    W: clean(input.where) || "an einem unbestimmten Ort",
-    T: clean(input.when) || "irgendwann",
-    P: whoParts[0] || who,
-    motif: pickSane(bank.motifs),
-    hook,
-    hookAcc: hookIsClause ? `den Satz „${hookQuote}"` : hook,
-    hookDat: hookIsClause ? `dem Satz „${hookQuote}"` : hook,
-    prop,
-    propAcc: prop,
-    propDat: prop,
-    turn: pickSane(bank.turns),
-    obstacle: pickSane(bank.obstacles),
-    stake: pickSane(bank.stakes),
-    ending: pickSane(bank.endings),
-    speakerA: whoParts[0] || who,
-    speakerB: whoParts[1] || "",
-    mode: resolveMode(input.mode),
-    archetypeA: input.archetypeA || "neutral",
-    archetypeB: input.archetypeB || "neutral",
-    instability: input.instability,
-    Apure: apure,
-    AleadVerb: "",
-    AisClause: looksLikeClausePhrase(apure),
-    AisInfinitiveLed: /^zu\s/i.test(apure),
+    W, T, P, PRaw, A, motif, hook, hookAcc, hookDat, prop, propAcc, propDat,
+    turn: maybeMarkov(pickSane(aug(bank.turns, "turns")), 0.28),
+    obstacle: pickSane(aug(bank.obstacles, "obstacles")),
+    stake: pickSane(aug(bank.stakes, "stakes")),
+    ending: pickSane(aug(bank.endings, "endings")),
+    speakerA: P, speakerB: whoParts[1] || pickSpeakerForArchetype(archB),
+    mode: M, archetypeA: archA, archetypeB: archB, instability: input.instability,
+    Apure, AleadVerb, AisClause, AisInfinitiveLed,
+    structure, perspective, rhythm,
   };
 }
 
 /** Erzeugt einen Text zu Bank + Eingabe. */
-export function buildStory(bank: Bank, input: GenInput): string {
-  const kit = buildKit(bank, input);
+export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): string {
+  const kit = buildKit(bank, input, model);
 
-  if (input.form === "script") {
-    return makeDialogueScene(kit, 110);
-  }
+  if (input.form === "script") return makeDialogueScene(kit, 110);
 
-  const structure = resolveStructure(input.structure);
-  const builder = pickStructureBuilder(structure);
-  let text = builder({ ...kit });
+  let text = pickStructureBuilder(kit.structure)({ ...kit });
 
-  // Fragment ist zeilenbasiert -> Shaper/Kohärenz-Schliff überspringen.
-  if (structure === "fragment") {
-    return postProcessText(text, { ...input, form: "strang" });
-  }
+  if (kit.structure === "fragment") return postProcessText(text, { ...input, form: "strang" });
 
-  // V4.1-Pipeline: Disruptor -> Rhythmus -> Absätze -> Perspektive -> Pronominalisierung
   text = applyDisruptor(text, input.disruptor).text;
-  text = applyRhythm(text, resolveRhythm(input.rhythm));
+  text = applyRhythm(text, kit.rhythm);
   text = paragraphize(text);
   const paras = text.split(/\n\n+/).map(clean).filter(Boolean);
-  if (structure === "object") {
-    text = paras.join("\n\n");
-  } else {
-    text = applyPerspective(paras, input.perspective, kit.P, pick(kit.mode.nouns)).join("\n\n");
-  }
-  if (input.perspective === "third") {
-    text = pronominalize(text, kit.P, guessPronoun(kit.P));
-  }
+  text = kit.structure === "object"
+    ? paras.join("\n\n")
+    : applyPerspective(paras, kit.perspective, kit.P, pick(kit.mode.nouns)).join("\n\n");
+  if (kit.perspective === "third") text = pronominalize(text, kit.P, guessPronoun(kit.P));
   return postProcessText(text, input);
 }

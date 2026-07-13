@@ -63,6 +63,8 @@ export interface StoryKit {
   mode: ModeData; archetypeA: string; archetypeB: string; instability: Instability;
   // Struktur-relevante Felder (aus dem "Was passiert" abgeleitet)
   Apure: string; AleadVerb: string; AisClause: boolean; AisInfinitiveLed: boolean;
+  // aufgelöste Auto-Wahlen + Rohfelder
+  PRaw: string; A: string; structure: string; perspective: string; rhythm: string;
 }
 
 /** Persistente Einstellungen (Gedächtnis / Selbstfütterung / gespeicherter Korpus). */
