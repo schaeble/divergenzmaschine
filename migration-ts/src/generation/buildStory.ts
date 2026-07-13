@@ -6,6 +6,7 @@ import { makeDialogueScene } from "./dialogue";
 import { postProcessText } from "./postprocess";
 import { pickStructureBuilder } from "./structures";
 import { looksLikeClausePhrase } from "./beats";
+import { applyDisruptor, applyRhythm, paragraphize, applyPerspective, pronominalize, guessPronoun } from "./shape";
 
 function resolveMode(modeKey: string) {
   return MODE_DATA[modeKey] ?? pick(Object.values(MODE_DATA));
@@ -14,6 +15,10 @@ function resolveMode(modeKey: string) {
 const STRUCTURES = ["linear", "reverse", "circle", "fragment", "object"];
 function resolveStructure(structure: string): string {
   return STRUCTURES.includes(structure) ? structure : pick(STRUCTURES);
+}
+const RHYTHMS = ["breath", "staccato", "long", "fracture", "clean"];
+function resolveRhythm(rhythm: string): string {
+  return RHYTHMS.includes(rhythm) ? rhythm : pick(RHYTHMS);
 }
 
 /** Baut aus Bank + Eingabe die Bausteine (StoryKit) eines Laufs. */
@@ -63,8 +68,25 @@ export function buildStory(bank: Bank, input: GenInput): string {
 
   const structure = resolveStructure(input.structure);
   const builder = pickStructureBuilder(structure);
-  const raw = builder({ ...kit });
+  let text = builder({ ...kit });
 
-  // Fragment ist zeilenbasiert -> Kohärenz-Schliff überspringt es korrekt.
-  return postProcessText(raw, { ...input, form: structure === "fragment" ? "strang" : input.form });
+  // Fragment ist zeilenbasiert -> Shaper/Kohärenz-Schliff überspringen.
+  if (structure === "fragment") {
+    return postProcessText(text, { ...input, form: "strang" });
+  }
+
+  // V4.1-Pipeline: Disruptor -> Rhythmus -> Absätze -> Perspektive -> Pronominalisierung
+  text = applyDisruptor(text, input.disruptor).text;
+  text = applyRhythm(text, resolveRhythm(input.rhythm));
+  text = paragraphize(text);
+  const paras = text.split(/\n\n+/).map(clean).filter(Boolean);
+  if (structure === "object") {
+    text = paras.join("\n\n");
+  } else {
+    text = applyPerspective(paras, input.perspective, kit.P, pick(kit.mode.nouns)).join("\n\n");
+  }
+  if (input.perspective === "third") {
+    text = pronominalize(text, kit.P, guessPronoun(kit.P));
+  }
+  return postProcessText(text, input);
 }

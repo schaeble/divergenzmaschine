@@ -31,6 +31,7 @@ function render(): void {
   const structures = ["linear","reverse","circle","fragment","object"];
   const proseByStructure = structures.map((s) => [s, buildStory(bank, baseInput({ form: "prose", structure: s }))] as const);
   const prose = buildStory(bank, baseInput({ form: "prose", structure: "linear", tone: "mystery" }));
+  const polished = buildStory(bank, baseInput({ form: "prose", structure: "circle", rhythm: "staccato", polish: true }));
   const scene = buildStory(bank, baseInput({ form: "script" }));
 
   // Reparatur-Demo an einem absichtlich kaputten Text
@@ -45,6 +46,9 @@ function render(): void {
 
       <h2 style="font-size:1rem">Prosa mit Ton (Mystery, linear)</h2>
       <blockquote style="border-left:3px solid #ccc;padding-left:.75rem;color:#333">${esc(prose)}</blockquote>
+
+      <h2 style="font-size:1rem">Mit Sprachschliff (Kreis, Staccato)</h2>
+      <blockquote style="border-left:3px solid #7a7;padding-left:.75rem;color:#252">${esc(polished)}</blockquote>
 
       <h2 style="font-size:1rem">Struktur-Varianten</h2>
       ${proseByStructure.map(([s, txt]) => `<p style="margin:.4rem 0"><b>${s}:</b> ${esc(txt).slice(0, 220)}…</p>`).join("")}

@@ -6,6 +6,7 @@ import { escapeRegExp, splitSentences, pick } from "../text-utils";
 import { coherenceWords } from "./nlp";
 import { TONE_DATA } from "./tone.data";
 import { insertToneFlavor } from "./beats";
+import { polishGerman } from "./polish";
 
 type Input = Partial<GenInput>;
 
@@ -153,6 +154,11 @@ export function postProcessText(txt: string, input?: Input): string {
       const inserts = Math.min(3, Math.max(1, Math.round(wc / 90)));
       for (let i = 0; i < inserts; i++) t = insertToneFlavor(t, pick(td.flavor));
     }
+  }
+
+  // Sprachschliff (nur wenn aktiv): regelbasierte Grammatik-/Zeichen-Glättung.
+  if (input?.polish) {
+    t = polishGerman(t, { who: name, style: input?.polishStyle || "surreal_precise", fixCapitalization: false });
   }
 
   t = coherencePass(t, input);
