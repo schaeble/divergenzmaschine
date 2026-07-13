@@ -1,0 +1,66 @@
+// Wortbank-Tab: Preset-Wahl, Listen-Editor, Mutation, Reset, Als Preset speichern.
+import type { BankKey } from "../types";
+import { el, select, field, button } from "./dom";
+import { loadBank, saveBank, normalizeBankShape } from "../storage";
+import { getAllPresets, saveCurrentBankAsUserPreset, mutateBank, bankEntryCount } from "../wordbank";
+import { DEFAULT_BANK } from "../constants";
+
+const CATS: [BankKey, string][] = [
+  ["motifs", "Motive"], ["hooks", "Hooks"], ["props", "Requisiten"], ["turns", "Wendungen"],
+  ["obstacles", "Hindernisse"], ["stakes", "Einsätze"], ["endings", "Enden"],
+];
+
+export function mountWordbank(root: HTMLElement): void {
+  root.innerHTML = "";
+  const wrap = el("div", { style: "max-width:720px;margin:1rem auto" });
+
+  const preset = select("wb-preset", Object.values(getAllPresets()).map((p) => [p.id, p.label] as [string, string]));
+  preset.addEventListener("change", () => {
+    const p = getAllPresets()[preset.value];
+    if (p) { saveBank(p.bank); load(); }
+  });
+
+  const listSel = select("wb-list", CATS.map(([v, l]) => [v, l] as [string, string]), "motifs");
+  const editor = el("textarea", { id: "wb-editor", style: "width:100%;height:220px;padding:8px;font:13px monospace;margin-top:6px", placeholder: "Ein Eintrag pro Zeile" });
+  const info = el("p", { style: "font:12px system-ui;color:#777" }, "");
+
+  const load = (): void => {
+    const bank = loadBank();
+    editor.value = (bank[listSel.value as BankKey] || []).join("\n");
+    info.textContent = `${bankEntryCount(bank)} Einträge gesamt`;
+  };
+  listSel.addEventListener("change", load);
+
+  const saveBtn = button("Speichern");
+  saveBtn.addEventListener("click", () => {
+    const bank = loadBank();
+    bank[listSel.value as BankKey] = editor.value.split("\n").map((s) => s.trim()).filter(Boolean);
+    saveBank(bank); load();
+  });
+
+  const mutSlider = el("input", { id: "wb-mut", type: "range", min: "0", max: "500", step: "10", value: "300", style: "vertical-align:middle" });
+  const mutVal = el("span", { style: "font:12px system-ui" }, "300");
+  mutSlider.addEventListener("input", () => { mutVal.textContent = mutSlider.value; });
+  const mutBtn = button("Mutation");
+  mutBtn.addEventListener("click", () => { saveBank(mutateBank(loadBank(), parseInt(mutSlider.value, 10))); load(); });
+
+  const resetBtn = button("Reset", "color:#a00");
+  resetBtn.addEventListener("click", () => { saveBank(normalizeBankShape(DEFAULT_BANK)); load(); });
+
+  const saveAs = button("Als Preset speichern");
+  saveAs.addEventListener("click", () => {
+    const name = prompt("Name für dein Preset:", "MeinPreset");
+    if (name) { saveCurrentBankAsUserPreset(name); preset.innerHTML = ""; for (const p of Object.values(getAllPresets())) preset.append(el("option", { value: p.id }, p.label)); }
+  });
+
+  wrap.append(
+    field("Preset", preset),
+    field("Liste", listSel),
+    editor,
+    el("div", {}, saveBtn, mutBtn, mutSlider, " ", mutVal, resetBtn),
+    el("div", {}, saveAs),
+    info,
+  );
+  root.append(wrap);
+  load();
+}
