@@ -1,23 +1,11 @@
 // Reim (Paarreim AABB) — 1:1 aus dem Original portiert, mit kuratierten
 // Reimgruppen und Schlussformeln (echte Reime, nicht nur Zeilenumbrüche).
 import { pick, splitSentences } from "../text-utils";
+import { normalizeNewlines, capLine, insertStanzas, stripDanglingTail, reimShuffle, reimDedupePhrases } from "./verselib";
 import type { RhymeGroup } from "./reim.data";
-import { REIM_GROUPS, REIM_TAILS, REIM_RHYTHM_TARGETS, REIM_CONNECTORS, REIM_DEFAULTS, REIM_DANGLING_RX } from "./reim.data";
+import { REIM_GROUPS, REIM_TAILS, REIM_RHYTHM_TARGETS, REIM_CONNECTORS, REIM_DEFAULTS } from "./reim.data";
 
-const normalizeNewlines = (s: string): string => String(s || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-const capLine = (s: string): string => String(s).replace(/\s+([,.;:!?])/g, "$1").replace(/^[-–—]\s*/g, "").trim();
 
-function insertStanzas(lines: string[], everyN: number): string[] {
-  if (!everyN || everyN < 2) return lines;
-  const out: string[] = [];
-  for (let i = 0; i < lines.length; i++) { out.push(lines[i]!); if ((i + 1) % everyN === 0 && i !== lines.length - 1) out.push(""); }
-  return out;
-}
-function stripDanglingTail(words: string[]): string[] {
-  const w = words.slice(); let guard = 0;
-  while (w.length > 1 && REIM_DANGLING_RX.test((w[w.length - 1] || "").replace(/[.,;:!?…]/g, "")) && guard++ < 10) w.pop();
-  return w;
-}
 function reimCoreOf(phrase: string, targetWords: number): string {
   let words = String(phrase || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
   if (words.length > targetWords) words = words.slice(0, targetWords);
@@ -32,21 +20,6 @@ function reimGroupOfWord(word: string): RhymeGroup | null {
     if (g.words.some((x) => x.toLowerCase() === w)) return g;
   }
   return null;
-}
-function reimDedupePhrases(phrases: string[]): string[] {
-  const seen = new Set<string>(); const out: string[] = [];
-  for (const p of phrases) {
-    const prefix = p.toLowerCase().replace(/[.,;:!?…]/g, "").split(/\s+/).filter(Boolean).slice(0, 3).join(" ");
-    if (prefix && seen.has(prefix)) continue;
-    if (prefix) seen.add(prefix);
-    out.push(p);
-  }
-  return out;
-}
-function reimShuffle<T>(arr: T[]): T[] {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j]!, a[i]!]; }
-  return a;
 }
 function pickRhymeWord(group: RhymeGroup, exclude?: string): string {
   const ex = (exclude || "").toLowerCase().replace(/[.,;:!?…]/g, "");
