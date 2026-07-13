@@ -3,6 +3,7 @@
 // den sehr detaillierten Original-Heuristiken gestrafft (kürzere Helferketten).
 import { clean, pick, splitSentences } from "../text-utils";
 import { cap } from "./beats";
+import { applyReimPoem } from "./reim";
 
 /** Prosagedicht: je 2 Sätze ein Block. (1:1 aus dem Original.) */
 export function asProsePoem(text: string): string {
@@ -42,27 +43,9 @@ export function asStrang(text: string, anchor = ""): string {
   return stanzas(uniq, 4);
 }
 
-/** Reim: Paar-Reim (AABB), Best-Effort über Endsilben-Gruppen. */
+/** Reim: echter Paarreim (AABB) — delegiert an die faithful Engine. */
 export function asReim(text: string, anchor = ""): string {
-  const rhymeKey = (line: string): string => {
-    const w = (line.replace(/[.,;:!?…—–]+$/, "").split(/\s+/).pop() || "").toLowerCase();
-    const m = w.match(/[aeiouäöü][a-zäöüß]*$/);
-    return m ? m[0].slice(0, 3) : w.slice(-2);
-  };
-  const phr = phrasesOf(text).map((p) => cap(p.split(/\s+/).slice(0, 8).join(" ")));
-  const groups: Record<string, string[]> = {};
-  for (const p of phr) (groups[rhymeKey(p)] ||= []).push(p);
-  const used = new Set<string>();
-  const out: string[] = [];
-  // zuerst reimende Paare
-  for (const g of Object.values(groups)) {
-    for (let i = 0; i + 1 < g.length; i += 2) { out.push(g[i]!, g[i + 1]!); used.add(g[i]!); used.add(g[i + 1]!); }
-  }
-  // Rest sequenziell anhängen
-  for (const p of phr) if (!used.has(p)) out.push(p);
-  const lines = out.filter((l, i) => out.indexOf(l) === i);
-  if (anchor) lines.push(cap(clean(anchor).replace(/[.!?…]+$/, "") + "."));
-  return stanzas(lines.map((l) => (/[.!?…]$/.test(l) ? l : l + ".")), 4);
+  return applyReimPoem(text, anchor);
 }
 
 /** Haiku: drei Zeilen nahe 5-7-5 Silben. */
