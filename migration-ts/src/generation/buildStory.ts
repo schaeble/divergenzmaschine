@@ -13,6 +13,7 @@ import { applyDisruptor, applyRhythm, paragraphize, applyPerspective, pronominal
 import { MarkovModel, isSaneMarkov } from "../corpus";
 import { biasedAutoChoice } from "./autochoice";
 import { buildVideoSequenceText } from "./video";
+import { asProsePoem, asStrang, asReim, asHaiku, asDrama } from "./forms";
 
 const MODES = ["bureau", "tech", "body", "myth", "absurd", "post"];
 const STRUCTURES = ["linear", "reverse", "circle", "fragment", "object"];
@@ -86,18 +87,30 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
 
   if (input.form === "script") return makeDialogueScene(kit, 110);
   if (input.form === "video") return buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? 15);
+  if (input.form === "poem") {
+    const body = pickStructureBuilder(kit.structure === "fragment" ? "linear" : kit.structure)({ ...kit });
+    return postProcessText(asProsePoem(body), { ...input, form: "poem" });
+  }
 
-  let text = pickStructureBuilder(kit.structure)({ ...kit });
+  const verseForm = input.form === "reim" || input.form === "haiku" || input.form === "strang" || input.form === "drama";
+  const effStructure = verseForm && kit.structure === "fragment" ? "linear" : kit.structure;
+  let text = pickStructureBuilder(effStructure)({ ...kit });
 
-  if (kit.structure === "fragment") return postProcessText(text, { ...input, form: "strang" });
+  if (effStructure === "fragment") return postProcessText(text, { ...input, form: "strang" });
 
   text = applyDisruptor(text, input.disruptor).text;
   text = applyRhythm(text, kit.rhythm);
   text = paragraphize(text);
   const paras = text.split(/\n\n+/).map(clean).filter(Boolean);
-  text = kit.structure === "object"
+  text = effStructure === "object"
     ? paras.join("\n\n")
     : applyPerspective(paras, kit.perspective, kit.P, pick(kit.mode.nouns)).join("\n\n");
   if (kit.perspective === "third") text = pronominalize(text, kit.P, guessPronoun(kit.P));
-  return postProcessText(text, input);
+  const finalText = postProcessText(text, input);
+  const anchor = kit.ending || kit.Apure;
+  if (input.form === "reim") return asReim(finalText, anchor);
+  if (input.form === "haiku") return asHaiku(finalText, anchor);
+  if (input.form === "strang") return asStrang(finalText, anchor);
+  if (input.form === "drama") return asDrama(finalText, kit.speakerA, kit.speakerB || kit.P);
+  return finalText;
 }

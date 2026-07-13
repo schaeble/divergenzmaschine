@@ -68,6 +68,16 @@ for (let i = 0; i < RUNS; i++) {
 try { const v = buildStory(DEFAULT_BANK, base({ form: "video" as FormKind, shots: 5, totalSec: 15 })); check(/^SEQUENZ/.test(v), "video: kein SEQUENZ-Kopf"); }
 catch (e) { fails.push(`video CRASH: ${(e as Error).message}`); }
 
+// Vers-/Sonderformen (Rauchtest: kein Absturz, nicht leer)
+for (const form of ["poem", "drama", "strang", "reim", "haiku"] as FormKind[]) {
+  for (let i = 0; i < 10; i++) {
+    let t = "";
+    try { t = buildStory(DEFAULT_BANK, base({ form })); }
+    catch (e) { fails.push(`${form} CRASH: ${(e as Error).message}`); continue; }
+    check(t.trim().length > 0, `${form}: leer`);
+  }
+}
+
 // Mutation
 for (const amt of [0, 150, 300, 500]) {
   const before = bankEntryCount(DEFAULT_BANK);
