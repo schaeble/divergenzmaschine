@@ -1992,7 +1992,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.37</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.38</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -5896,6 +5896,21 @@ function coherenceRepairV2(t, input){
   t = t.replace(/„\s+/g, "„").replace(/\s+"/g, '"');  // Spacing um Anführung
   t = t.replace(/([.!?…])\s*\1+/g, "$1");            // ". ." -> "."
 
+  // Fix 1: unpaarige Anführungszeichen entfernen (verwaistes " oder „ mitten im Satz)
+  if(((t.match(/"/g)||[]).length) % 2 === 1) t = t.replace(/"/g, "");
+  { const _o=(t.match(/„/g)||[]).length, _c=(t.match(/[“”]/g)||[]).length; if(_o!==_c) t = t.replace(/[„“”]/g, ""); }
+  // Fix 2: kaputte Possessivform aus Perspektivwechsel ("ich' Hände" -> "meine Hände")
+  t = t.replace(/\bich'(?=\s)/gi, "meine").replace(/\bdu'(?=\s)/gi, "deine")
+       .replace(/\bwir'(?=\s)/gi, "unsere").replace(/\ber'(?=\s)/gi, "seine")
+       .replace(/\bsie'(?=\s)/gi, "ihre").replace(/\bes'(?=\s)/gi, "seine");
+  // Fix 4a: Großschreibung nach Doppelpunkt (Einschub-Etiketten)
+  t = t.replace(/(:\s+)([a-zäöüß])/g, (m,p1,p2)=> p1 + p2.toUpperCase());
+  // Fix 4b: Eigennamen aus "Wer" korrekt kapitalisieren (auch Genitiv "Xs"/"X'")
+  String((input && input.who) || "").split(/[,;]/).map(x=>x.trim()).filter(Boolean).forEach(n=>{
+    const esc = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    try{ t = t.replace(new RegExp("\\b"+esc+"(s|')?\\b", "giu"), (m, suf)=> n + (suf||"")); }catch(e){}
+  });
+
   if(isLineForm){
     return t.replace(/\s{2,}/g," ").replace(/\s+([,.;:!?])/g,"$1").trim();
   }
@@ -5926,6 +5941,10 @@ function coherenceRepairV2(t, input){
     kept.push(s.trim());
   }
   t = kept.join(" ");
+
+  // Fix 3: Pronomen-Kongruenz bei Plural-Subjekt "ich und X … sie sich" -> "… wir uns"
+  t = t.replace(/(\bich und [A-ZÄÖÜ][\wäöüß]+[^.!?…]*?)\bsie sich\b/gu, "$1wir uns");
+  t = t.replace(/([A-ZÄÖÜ][\wäöüß]+ und ich[^.!?…]*?)\bsie sich\b/gu, "$1wir uns");
 
   // Lever 5: Konnektor-Dedupe (gleiche Übergangsfloskel nur einmal)
   const CONN=[/\bDann kippt es\b/gi,/\bDabei:\s*plötzlich\b/gi,/\bUnd immer wieder\b/gi,/\bAm Ende bleibt klar\b/gi];
@@ -10846,7 +10865,7 @@ function compressCorpus(){
           <li><b>Pillen</b> (Struktur/Modus/Korpus/Lernen) — Kurzstatus, live aktualisiert.</li>
           <li><b>💾 / 📂</b> — das gesamte Projekt (Wortbank, Presets, Korpus, Einstellungen) als Datei speichern bzw. wieder laden.</li>
           <li><b>❓ Hilfe</b> — öffnet dieses Fenster.</li>
-          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.37) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
+          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.38) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
         </ul>
       </section>
     </div>
