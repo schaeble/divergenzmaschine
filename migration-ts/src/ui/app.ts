@@ -3,9 +3,11 @@ import { el } from "./dom";
 import { mountStudio } from "./studio";
 import { mountWordbank } from "./wordbankView";
 import { mountKorpus } from "./korpusView";
+import { mountIdeas } from "./ideasView";
 
 const TABS: [string, (root: HTMLElement) => void][] = [
   ["Studio", mountStudio],
+  ["Ideen", mountIdeas],
   ["Wortbank", mountWordbank],
   ["Korpus", mountKorpus],
 ];

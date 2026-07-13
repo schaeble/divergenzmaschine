@@ -22,7 +22,9 @@ export function mountStudio(root: HTMLElement): void {
   preset.addEventListener("change", () => { const p = getAllPresets()[preset.value]; if (p) saveBank(p.bank); });
 
   const tone = select("f-tone", [["neutral", "Neutral"], ["mystery", "Mystery"], ["poetic", "Poetisch"], ["dark", "Düster"], ["uplifting", "Hoffnungsvoll"], ["humorous", "Humorvoll"]], "mystery");
-  const form = select("f-form", [["prose", "Prosa"], ["script", "Szene/Dialog"]], "prose");
+  const form = select("f-form", [["prose", "Prosa"], ["script", "Szene/Dialog"], ["video", "Multi-Shot (Video)"]], "prose");
+  const shots = el("input", { id: "f-shots", type: "number", value: "5", min: "3", max: "10", style: "width:100%;padding:6px;margin-top:2px" }) as HTMLInputElement;
+  const secs = el("input", { id: "f-secs", type: "number", value: "15", min: "3", max: "600", style: "width:100%;padding:6px;margin-top:2px" }) as HTMLInputElement;
   const structure = select("f-structure", [["auto", "Auto"], ["linear", "Linear"], ["reverse", "Reverse"], ["circle", "Kreis"], ["fragment", "Fragment"], ["object", "Objekt"]], "auto");
   const mode = select("f-mode", [["auto", "Auto"], ["bureau", "Bürokratie"], ["tech", "Tech-Mystik"], ["body", "Body"], ["myth", "Myth"], ["absurd", "Absurd"], ["post", "Posthuman"]], "auto");
   const persp = select("f-persp", [["auto", "Auto"], ["third", "Er/Sie"], ["first", "Ich"], ["second", "Du"], ["we", "Wir"], ["object", "Objekt"]], "auto");
@@ -35,7 +37,7 @@ export function mountStudio(root: HTMLElement): void {
     field("Preset", preset), field("Ton", tone), field("Form", form),
     field("Struktur", structure), field("Modus", mode), field("Perspektive", persp),
     field("Rhythmus", rhythm), field("Instabilität", instab), field("Markov", markov),
-    field("Disruptor", disruptor),
+    field("Disruptor", disruptor), field("Video: Shots", shots), field("Video: Sekunden", secs),
     el("label", { style: "display:flex;align-items:center;gap:6px;font:12px system-ui;color:#555;margin-top:20px" }, polish, "Sprachschliff")));
 
   const out = el("pre", { id: "f-out", style: "white-space:pre-wrap;background:#f6f6f6;padding:12px;border-radius:8px;margin-top:12px;min-height:80px;font:15px/1.55 Georgia,serif" });
@@ -56,6 +58,7 @@ export function mountStudio(root: HTMLElement): void {
     archetypeA: "neutral", archetypeB: "psychopath",
     instability: parseInt(instab.value, 10) as 0 | 1 | 2,
     polish: polish.checked, polishStyle: "surreal_precise",
+    shots: parseInt(shots.value, 10), totalSec: parseInt(secs.value, 10),
   });
   const generate = (): void => {
     const model = markov.value !== "off" ? buildModelFromCorpus(2) : undefined;

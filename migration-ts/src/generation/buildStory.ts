@@ -12,6 +12,7 @@ import { declineHookPhrase, safeCaseForm } from "./declension";
 import { applyDisruptor, applyRhythm, paragraphize, applyPerspective, pronominalize, guessPronoun } from "./shape";
 import { MarkovModel, isSaneMarkov } from "../corpus";
 import { biasedAutoChoice } from "./autochoice";
+import { buildVideoSequenceText } from "./video";
 
 const MODES = ["bureau", "tech", "body", "myth", "absurd", "post"];
 const STRUCTURES = ["linear", "reverse", "circle", "fragment", "object"];
@@ -84,6 +85,7 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   const kit = buildKit(bank, input, model);
 
   if (input.form === "script") return makeDialogueScene(kit, 110);
+  if (input.form === "video") return buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? 15);
 
   let text = pickStructureBuilder(kit.structure)({ ...kit });
 

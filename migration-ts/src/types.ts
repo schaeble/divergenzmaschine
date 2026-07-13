@@ -51,6 +51,7 @@ export interface GenInput {
   rhythm: string; markovMode: string; disruptor: string;
   archetypeA: string; archetypeB: string; instability: Instability;
   polish: boolean; polishStyle: string;
+  shots?: number; totalSec?: number; // nur Form "video"
 }
 
 /** "Kit": die aus Bank + Input abgeleiteten Bausteine für einen Lauf. */
