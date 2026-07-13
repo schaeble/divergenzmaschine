@@ -1992,7 +1992,7 @@ body.modal-open{ overflow: hidden; }
 
   <!-- ── STATUS BAR ── -->
   <footer class="statusbar">
-    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.36</span></div>
+    <div class="sb-stat" title="Version dieser App-Auslieferung"><span>v4.2.37</span></div>
     <div class="sb-stat">Tipp: <span>Enter</span> generiert</div>
     <div class="sb-stat">Variante: <span>V</span></div>
     <div class="sb-stat">Offline &amp; keine Server</div>
@@ -5173,7 +5173,10 @@ function saveCurrentBankAsUserPreset(name){
    nicht als anonyme „🤖 KI-Wortbank" liegen bleibt, sondern unter
    seinem Titel in der Preset-Liste erscheint und aktiv ist). */
 function promptAndLoadAiWordbankPreset(){
-  const name = prompt("Titel für die neue KI-Wortbank (als Preset speichern):", "KI-Wortbank");
+  const _pf = $("aiWordbankPrompt");
+  const _term = _pf ? _pf.value.trim() : "";
+  const _suggested = _term ? _term.slice(0,40) : "KI-Wortbank";
+  const name = prompt("Titel für die neue KI-Wortbank (als Preset speichern):", _suggested);
   if(!name || !name.trim()){
     if(typeof toast === "function") toast("KI-Wortbank erstellt (nicht als Preset gespeichert).");
     return false;
@@ -9500,15 +9503,7 @@ if($("presetSelect")){
   $("presetSelect").addEventListener("change", ()=>{ const v=$("presetSelect").value; applyPresetById(v); const st=$("presetSelectStudio"); if(st) st.value=v; });
   if($("presetSelectStudio")) $("presetSelectStudio").addEventListener("change", ()=>{ const v=$("presetSelectStudio").value; applyPresetById(v); const ps=$("presetSelect"); if(ps) ps.value=v; updatePresetInfo(); });
   $("presetSaveBtn").addEventListener("click",()=>{
-    // aktuellen Preset-Namen als Vorgabe in die Speichern-Maske übernehmen
-    let suggested = "MeinPreset";
-    const sel = $("presetSelect");
-    if(sel && sel.selectedIndex >= 0 && sel.options[sel.selectedIndex]){
-      const label = (sel.options[sel.selectedIndex].textContent || "").trim();
-      const cleanName = label.replace(/^[^\p{L}\p{N}]+/u, "").trim();
-      if(cleanName) suggested = cleanName;
-    }
-    const name=prompt("Name für dein Preset (lokal speichern):", suggested);
+    const name=prompt("Name für dein Preset (lokal speichern):","MeinPreset");
     if(!name) return;
     saveCurrentBankAsUserPreset(name);
   });
@@ -10851,7 +10846,7 @@ function compressCorpus(){
           <li><b>Pillen</b> (Struktur/Modus/Korpus/Lernen) — Kurzstatus, live aktualisiert.</li>
           <li><b>💾 / 📂</b> — das gesamte Projekt (Wortbank, Presets, Korpus, Einstellungen) als Datei speichern bzw. wieder laden.</li>
           <li><b>❓ Hilfe</b> — öffnet dieses Fenster.</li>
-          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.36) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
+          <li><b>Versionsnummer</b> (Statusleiste ganz unten, z. B. v4.2.37) — zeigt den ausgelieferten Stand der App. Nach einem Update einfach neu laden; die App holt sich beim Öffnen automatisch die neueste Version und läuft ansonsten offline weiter.</li>
         </ul>
       </section>
     </div>
