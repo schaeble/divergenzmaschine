@@ -5,6 +5,7 @@ export const STORAGE_BANK     = "divergenz_wordbank_v1";
 export const STORAGE_CORPUS   = "divergenz_persistent_corpus_v1";
 export const STORAGE_SETTINGS = "divergenz_settings_v1";
 export const STORAGE_PRESETS  = "divergenz_bank_presets_v1";
+export const STORAGE_WORLD    = "divergenz_world_v1";
 
 /** Obergrenze des persistenten Markov-Korpus (Zeichen). */
 export const CORPUS_MAX = 160000;

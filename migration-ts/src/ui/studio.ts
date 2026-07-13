@@ -6,6 +6,7 @@ import { getAllPresets } from "../wordbank";
 import { buildStory } from "../generation/buildStory";
 import { buildModelFromCorpus } from "../corpus";
 import { el, select, field, textInput, button } from "./dom";
+import { worldLogGeneration } from "../features/world";
 
 export function mountStudio(root: HTMLElement): void {
   root.innerHTML = "";
@@ -62,8 +63,12 @@ export function mountStudio(root: HTMLElement): void {
   });
   const generate = (): void => {
     const model = markov.value !== "off" ? buildModelFromCorpus(2) : undefined;
-    try { out.textContent = buildStory(loadBank(), readInput(), model); }
-    catch (e) { out.textContent = "Fehler: " + (e instanceof Error ? e.message : String(e)); }
+    const input = readInput();
+    try {
+      out.textContent = buildStory(loadBank(), input, model);
+      try { localStorage.setItem("dm_last_text", out.textContent || ""); } catch { /* voll */ }
+      worldLogGeneration(input);
+    } catch (e) { out.textContent = "Fehler: " + (e instanceof Error ? e.message : String(e)); }
   };
   genBtn.addEventListener("click", generate);
   varBtn.addEventListener("click", generate);
@@ -90,6 +95,10 @@ export function mountStudio(root: HTMLElement): void {
     speaking = true; speakBtn.textContent = "⏹ Stopp"; synth.speak(u);
   });
 
+  try {
+    const pend = localStorage.getItem("dm_pending_ctx");
+    if (pend) { const c = JSON.parse(pend) as Record<string,string>; where.value=c.who?c.where:where.value; if(c.who)who.value=c.who; if(c.where)where.value=c.where; if(c.when)when.value=c.when; if(c.what)what.value=c.what; localStorage.removeItem("dm_pending_ctx"); }
+  } catch { /* ignore */ }
   const first = getAllPresets()[preset.value];
   if (first) saveBank(first.bank);
   generate();

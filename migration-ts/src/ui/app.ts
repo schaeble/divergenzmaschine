@@ -4,12 +4,16 @@ import { mountStudio } from "./studio";
 import { mountWordbank } from "./wordbankView";
 import { mountKorpus } from "./korpusView";
 import { mountIdeas } from "./ideasView";
+import { mountWorld } from "./worldView";
+import { mountOscilloscope } from "./oscilloscopeView";
 
 const TABS: [string, (root: HTMLElement) => void][] = [
   ["Studio", mountStudio],
   ["Ideen", mountIdeas],
+  ["Welt", mountWorld],
   ["Wortbank", mountWordbank],
   ["Korpus", mountKorpus],
+  ["Oszilloskop", mountOscilloscope],
 ];
 
 export function mountApp(root: HTMLElement): void {
