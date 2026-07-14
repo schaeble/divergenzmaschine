@@ -27,8 +27,8 @@ export function mountStudio(root: HTMLElement): void {
 
   const tone = select("f-tone", [["neutral", "Neutral"], ["mystery", "Mystery"], ["poetic", "Poetisch"], ["dark", "Düster"], ["uplifting", "Hoffnungsvoll"], ["humorous", "Humorvoll"]], "mystery");
   const form = select("f-form", [["prose", "Prosa"], ["drama", "Drama"], ["poem", "Prosagedicht"], ["strang", "Gedicht-Strang"], ["reim", "Reim"], ["haiku", "Haiku"], ["script", "Szene/Dialog"], ["video", "Multi-Shot (Video)"]], "prose");
-  const shots = el("input", { id: "f-shots", type: "number", value: "5", min: "3", max: "10", style: "width:100%;padding:6px;margin-top:2px" }) as HTMLInputElement;
-  const secs = el("input", { id: "f-secs", type: "number", value: "15", min: "3", max: "600", style: "width:100%;padding:6px;margin-top:2px" }) as HTMLInputElement;
+  const shots = el("input", { id: "f-shots", type: "number", value: "5", min: "3", max: "10" }) as HTMLInputElement;
+  const secs = el("input", { id: "f-secs", type: "number", value: "15", min: "3", max: "600" }) as HTMLInputElement;
   const structure = select("f-structure", [["auto", "Auto"], ["linear", "Linear"], ["reverse", "Reverse"], ["circle", "Kreis"], ["fragment", "Fragment"], ["object", "Objekt"]], "auto");
   const mode = select("f-mode", [["auto", "Auto"], ["bureau", "Bürokratie"], ["tech", "Tech-Mystik"], ["body", "Body"], ["myth", "Myth"], ["absurd", "Absurd"], ["post", "Posthuman"]], "auto");
   const persp = select("f-persp", [["auto", "Auto"], ["third", "Er/Sie"], ["first", "Ich"], ["second", "Du"], ["we", "Wir"], ["object", "Objekt"]], "auto");
@@ -40,11 +40,7 @@ export function mountStudio(root: HTMLElement): void {
   const stil = select("f-stil", [["surreal_precise", "Surreal präzise"], ["leicht", "Leicht"], ["stark", "Stark"]], "surreal_precise");
   const polish = el("input", { id: "f-polish", type: "checkbox" }) as HTMLInputElement;
   wrap.append(el("div", { class: "grid3" },
-    field("Preset", preset), field("Ton", tone), field("Form", form),
-    field("Struktur", structure), field("Modus", mode), field("Perspektive", persp),
-    field("Rhythmus", rhythm), field("Instabilität", instab), field("Markov", markov),
-    field("Disruptor", disruptor), field("Varianz", varianz), field("Stil", stil), field("Video: Shots", shots), field("Video: Sekunden", secs),
-    el("label", { class: "field", style: "display:flex;align-items:center;gap:6px" }, polish, "Sprachschliff")));
+    field("Preset", preset), field("Ton", tone), field("Form", form)));
 
   const out = el("pre", { id: "f-out", class: "out" });
 
@@ -57,6 +53,16 @@ export function mountStudio(root: HTMLElement): void {
   const readBtn = button("📖 Lesen");
   const speakBtn = button("🔊 Vorlesen");
   wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, readBtn, speakBtn), out);
+
+  const fine = el("details", { class: "fine" });
+  fine.append(el("summary", {}, "Feinabstimmung"));
+  fine.append(el("div", { class: "grid3" },
+    field("Struktur", structure), field("Modus", mode), field("Perspektive", persp),
+    field("Rhythmus", rhythm), field("Instabilität", instab), field("Markov", markov),
+    field("Disruptor", disruptor), field("Varianz", varianz), field("Stil", stil),
+    field("Video: Shots", shots), field("Video: Sekunden", secs),
+    el("label", { class: "field", style: "display:flex;align-items:center;gap:6px" }, polish, "Sprachschliff")));
+  wrap.append(fine);
   root.append(wrap);
 
   const readInput = (): GenInput => ({

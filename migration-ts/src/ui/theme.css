@@ -57,3 +57,19 @@ blockquote{border-left:3px solid var(--acc);padding-left:.8rem;color:#d5dae4;mar
 .reader{position:fixed;inset:0;background:var(--bg);color:#eef1f6;padding:6vh 8vw;overflow:auto;
   z-index:9999;font:19px/1.75 var(--serif)}
 .reader .x{position:fixed;top:14px;right:18px;font-size:15px}
+
+/* Ausgabe als Mittelpunkt */
+pre.out{font:19px/1.75 var(--serif);padding:22px 26px;min-height:200px;
+  background:linear-gradient(180deg,#12151c,#0e1118);
+  border:1px solid var(--border2);box-shadow:0 0 0 1px rgba(139,92,246,.08),0 18px 50px -24px rgba(0,0,0,.8);
+  color:#f3f5f9;letter-spacing:.1px}
+pre.out:empty::before{content:"Noch kein Text — auf ▶ Generieren klicken.";color:var(--muted);font-style:italic}
+
+/* Feinabstimmung einklappbar */
+details.fine{margin-top:16px;border:1px solid var(--border);border-radius:var(--radius);background:var(--panel)}
+details.fine>summary{cursor:pointer;list-style:none;padding:10px 14px;color:var(--muted);
+  font:600 13px var(--sans);user-select:none}
+details.fine>summary::before{content:"▸ ";color:var(--acc)}
+details.fine[open]>summary::before{content:"▾ "}
+details.fine>summary:hover{color:var(--text)}
+details.fine>div{padding:4px 14px 14px}
