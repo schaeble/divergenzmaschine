@@ -7,7 +7,7 @@ import { arch } from "./archetype";
 import { getAllPresets } from "../wordbank";
 import { CTX_WHO, CTX_WHERE, CTX_WHEN, CTX_WHAT, WHO_TWISTS, WHERE_TWISTS, WHEN_TWISTS, WHAT_TWISTS } from "./ideas.data";
 
-export interface Idea { text: string; archetype: string; presetLabel: string; }
+export interface Idea { text: string; archetype: string; presetLabel: string; seedWho: string; seedWhere: string; seedWhen: string; seedWhat: string; }
 
 const recent: Record<string, string[]> = {};
 function pickFresh(pool: string[], tag: string): string {
@@ -66,7 +66,7 @@ export function buildIdeaPremise(): Idea {
   let text = pick(templates)();
   text = clean(text).replace(/\s+([,.!?;:])/g, "$1");
   text = ensurePunct(text);
-  return { text, archetype: a.label || archId, presetLabel: preset ? preset.label : "–" };
+  return { text, archetype: a.label || archId, presetLabel: preset ? preset.label : "–", seedWho: W, seedWhere: O, seedWhen: N, seedWhat: A };
 }
 
 export function generateIdeaBatch(n: number): Idea[] {

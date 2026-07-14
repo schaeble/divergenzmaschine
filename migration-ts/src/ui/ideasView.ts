@@ -12,8 +12,15 @@ export function mountIdeas(root: HTMLElement): void {
   const render = (): void => {
     list.innerHTML = "";
     for (const idea of generateIdeaBatch(parseInt(count.value, 10) || 10)) {
-      list.append(el("p", { class: "card" },
-        idea.text, el("span", { class: "muted" }, `  · ${idea.archetype} · ${idea.presetLabel}`)));
+      const take = button("→ Studio");
+      take.addEventListener("click", () => {
+        try { localStorage.setItem("dm_pending_ctx", JSON.stringify({ who: idea.seedWho, where: idea.seedWhere, when: idea.seedWhen, what: idea.seedWhat })); } catch { /* voll */ }
+        const studioTab = [...document.querySelectorAll(".tabbar button")].find((b) => b.textContent === "Studio") as HTMLButtonElement | undefined;
+        if (studioTab) studioTab.click();
+      });
+      list.append(el("div", { class: "idea" },
+        el("p", { class: "idea-text" }, idea.text, el("span", { class: "muted" }, `  · ${idea.archetype} · ${idea.presetLabel}`)),
+        take));
     }
   };
   genBtn.addEventListener("click", render);
