@@ -103,3 +103,7 @@ details.fine>div{padding:4px 14px 14px}
 /* Textlänge-Regler */
 .lenrow{display:flex;align-items:center;gap:10px;margin-top:12px}
 .lenrow input[type=range]{width:auto}
+
+/* Rang-Slider (Ranking-Navigation) */
+.rankviz{flex:1;accent-color:var(--acc)}
+#f-rankstatus{display:inline-block;margin-top:6px;font-size:13px}

@@ -9,6 +9,7 @@ import { randomContext } from "../generation/context";
 import { el, select, field, textInput, button } from "./dom";
 import { worldLogGeneration } from "../features/world";
 import { addToTreasury } from "../features/treasury";
+import { runProbe, runRanking, runAiRanking, type Ranking } from "../generation/scoring";
 
 export function mountStudio(root: HTMLElement): void {
   root.innerHTML = "";
@@ -65,6 +66,54 @@ export function mountStudio(root: HTMLElement): void {
   const readBtn = button("📖 Lesen");
   const speakBtn = button("🔊 Vorlesen");
   wrap.append(lenRow, el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, readBtn, speakBtn), out, kling);
+
+  // ── Test & Ranking ──
+  let lastRanking: Ranking | null = null;
+  const rankStatus = el("span", { class: "muted", id: "f-rankstatus" }, "");
+  const applyPlace = (place: number): void => {
+    if (!lastRanking || !lastRanking.all.length) { rankStatus.textContent = "Erst Ranking ausführen."; return; }
+    const item = lastRanking.all[Math.max(0, Math.min(lastRanking.all.length - 1, place - 1))];
+    if (!item) return;
+    out.textContent = item.txt;
+    try { localStorage.setItem("dm_last_text", item.txt); } catch { /* voll */ }
+    renderKling(readInput().form, item.txt);
+    const extra = item.aiScore !== undefined ? `KI ${item.aiScore}/100${item.grund ? " – " + item.grund : ""}` : `Score ${item.score.toFixed(1)}`;
+    rankStatus.textContent = `Platz ${place}: ${extra}`;
+  };
+  const probeBtn = button("Probe (50)");
+  probeBtn.addEventListener("click", () => {
+    rankStatus.textContent = "Probe läuft…";
+    setTimeout(() => { const r = runProbe(loadBank(), readInput(), buildModelFromCorpus(), 50);
+      rankStatus.textContent = `Probe: ${r.total} Texte · ${r.flaggedCount} auffällig · ${r.duplicates} doppelt`; }, 10);
+  });
+  const rankBtn = button("Ranking (50)");
+  const rangeSlider = el("input", { type: "range", min: "1", max: "50", value: "1", class: "rankviz" }) as HTMLInputElement;
+  rangeSlider.addEventListener("input", () => applyPlace(parseInt(rangeSlider.value, 10)));
+  rankBtn.addEventListener("click", () => {
+    rankStatus.textContent = "Ranking läuft…";
+    setTimeout(() => { lastRanking = runRanking(loadBank(), readInput(), buildModelFromCorpus(), 50, 10);
+      rangeSlider.max = String(lastRanking.all.length); rangeSlider.value = "1"; applyPlace(1); }, 10);
+  });
+  const goldBtn = button("🥇 #1"); goldBtn.addEventListener("click", () => applyPlace(1));
+  const silverBtn = button("🥈 #2"); silverBtn.addEventListener("click", () => applyPlace(2));
+  const bronzeBtn = button("🥉 #3"); bronzeBtn.addEventListener("click", () => applyPlace(3));
+  const aiRankBtn = button("🤖 KI-Ranking (50)");
+  aiRankBtn.addEventListener("click", async () => {
+    aiRankBtn.disabled = true; const old = aiRankBtn.textContent; aiRankBtn.textContent = "🤖 bewertet…";
+    rankStatus.textContent = "KI-Ranking läuft…";
+    try {
+      lastRanking = await runAiRanking(loadBank(), readInput(), buildModelFromCorpus(), 50, 10);
+      rangeSlider.max = String(lastRanking.all.length); rangeSlider.value = "1"; applyPlace(1);
+    } catch (e) { rankStatus.textContent = e instanceof Error ? e.message : String(e); }
+    finally { aiRankBtn.disabled = false; aiRankBtn.textContent = old; }
+  });
+  const rankDetails = el("details", { class: "fine" });
+  rankDetails.append(el("summary", {}, "🧪 Test & Ranking"),
+    el("div", { class: "btnrow" }, probeBtn, rankBtn, aiRankBtn),
+    el("div", { class: "btnrow" }, goldBtn, silverBtn, bronzeBtn),
+    el("label", { class: "field lenrow" }, "Rang ", rangeSlider),
+    el("div", {}, rankStatus));
+  wrap.append(rankDetails);
 
   const fine = el("details", { class: "fine" });
   fine.append(el("summary", {}, "🧰 Werkzeugkasten"));
