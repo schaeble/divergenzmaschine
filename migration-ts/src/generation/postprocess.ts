@@ -68,6 +68,7 @@ export function coherenceRepairV2(t: string, input?: Input): string {
   t = t.replace(/\(\s*[A-ZÄÖÜ][\wäöüß-]{2,}\s*\)/g, " ");
   // Lever 2: Zeichen-/Anführungs-Artefakte
   t = t.replace(/,\s*([.!?…])/g, "$1");
+  t = t.replace(/([.!?…])\s*,/g, ",");  // Punkt/Ausrufe-/Fragezeichen direkt vor Komma -> nur Komma
   t = t.replace(/\s*,\s*,\s*/g, ", ");
   t = t.replace(/„\s+/g, "„").replace(/\s+"/g, '"');
   t = t.replace(/([.!?…])\s*\1+/g, "$1");

@@ -44,7 +44,7 @@ export function applyRhythm(text: string, rhythm: string): string {
   }
   if (rhythm === "long") {
     if (s.length >= 6 && chance(0.6)) {
-      const i = Math.floor(1 + Math.random() * (s.length - 3)); const first = s[i]!.replace(/[.!?…]$/, ""); const next = s[i + 1]!;
+      const i = Math.floor(1 + Math.random() * (s.length - 3)); const first = s[i]!.replace(/[.!?…]+$/, ""); const next = s[i + 1]!;
       const joiner = /^(und|aber|doch|denn|sondern)\b/i.test(next) ? ", " : (chance(0.5) ? ", und " : "; ");
       s[i] = first + joiner + next.charAt(0).toLowerCase() + next.slice(1); s.splice(i + 1, 1);
     }
@@ -52,7 +52,7 @@ export function applyRhythm(text: string, rhythm: string): string {
   }
   if (rhythm === "fracture") {
     insertFrag(0.70);
-    if (s.length >= 5 && chance(0.6)) { const i = Math.floor(1 + Math.random() * (s.length - 2)); s[i] = s[i]!.replace(/[.!?…]$/, "") + " —"; s.splice(i + 1, 0, "und genau dort bricht die Erklärung ab."); }
+    if (s.length >= 5 && chance(0.6)) { const i = Math.floor(1 + Math.random() * (s.length - 2)); s[i] = s[i]!.replace(/[.!?…]+$/, "") + " —"; s.splice(i + 1, 0, "und genau dort bricht die Erklärung ab."); }
     if (chance(0.45)) s.splice(Math.floor(s.length * 0.65), 0, "(Dieser Satz war nicht geplant.)");
   }
   return s.join(" ");

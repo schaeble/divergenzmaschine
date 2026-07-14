@@ -66,7 +66,7 @@ export function buildObjectCentric(kit: StoryKit): string {
   const a = `Ich bin ${obj}. Ich liege ${kit.W}.`;
   const b = `Ich kenne ${P}. Ich kenne ${kit.hookAcc}.`;
   const c = `Sie nennen es ${pick(["Fehler", "Vorgang", "Omen", "Signal", "Symptom", "Protokoll"])}. Ich nenne es Erinnerung.`;
-  const d = `${pick(M.rules)}.`;
+  const d = ensurePunct(pick(M.rules));
   const e = kit.AisClause
     ? `${P} spürt: ${kit.Apure}. ${kit.obstacle}.`
     : `${P} ${kit.AleadVerb || "will"} ${kit.Apure}. ${kit.obstacle}.`;
