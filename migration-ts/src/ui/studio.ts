@@ -43,6 +43,10 @@ export function mountStudio(root: HTMLElement): void {
   wrap.append(el("div", { class: "grid3" },
     field("Preset", preset), field("Ton", tone), field("Form", form)));
 
+  const lenSlider = el("input", { id: "f-len", type: "range", min: "40", max: "300", step: "10", value: "110", style: "flex:1" }) as HTMLInputElement;
+  const lenVal = el("span", { class: "muted" }, "110");
+  lenSlider.addEventListener("input", () => { lenVal.textContent = lenSlider.value; });
+  const lenRow = el("label", { class: "field lenrow" }, "Textlänge ", lenSlider, " ", lenVal);
   const out = el("pre", { id: "f-out", class: "out" });
   const kling = el("div", { class: "kling" });
 
@@ -60,7 +64,7 @@ export function mountStudio(root: HTMLElement): void {
   });
   const readBtn = button("📖 Lesen");
   const speakBtn = button("🔊 Vorlesen");
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, readBtn, speakBtn), out, kling);
+  wrap.append(lenRow, el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, readBtn, speakBtn), out, kling);
 
   const fine = el("details", { class: "fine" });
   fine.append(el("summary", {}, "🧰 Werkzeugkasten"));
@@ -82,6 +86,7 @@ export function mountStudio(root: HTMLElement): void {
     instability: parseInt(instab.value, 10) as 0 | 1 | 2,
     polish: polish.checked, polishStyle: stil.value,
     shots: parseInt(shots.value, 10), totalSec: parseInt(secs.value, 10),
+    lenTarget: parseInt(lenSlider.value, 10),
   });
   const KLING_URL = "https://klingai.com";
   const renderKling = (form: string, text: string): void => {

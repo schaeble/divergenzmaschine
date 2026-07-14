@@ -52,6 +52,7 @@ export interface GenInput {
   archetypeA: string; archetypeB: string; instability: Instability;
   polish: boolean; polishStyle: string;
   shots?: number; totalSec?: number; // nur Form "video"
+  lenTarget?: number; // Ziel-Wortzahl (Textlänge)
 }
 
 /** "Kit": die aus Bank + Input abgeleiteten Bausteine für einen Lauf. */

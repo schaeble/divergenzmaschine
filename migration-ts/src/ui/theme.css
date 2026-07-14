@@ -94,3 +94,7 @@ details.fine>div{padding:4px 14px 14px}
 .treasure{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin:12px 0}
 .treasure-meta{font:12px var(--sans);color:var(--muted);margin-bottom:6px}
 .treasure-text{margin:0;min-height:0;font-size:15px;padding:12px 14px;box-shadow:none}
+
+/* Textlänge-Regler */
+.lenrow{display:flex;align-items:center;gap:10px;margin-top:12px}
+.lenrow input[type=range]{width:auto}

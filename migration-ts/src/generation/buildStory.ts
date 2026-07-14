@@ -13,6 +13,7 @@ import { applyDisruptor, applyRhythm, paragraphize, applyPerspective, pronominal
 import { MarkovModel, isSaneMarkov } from "../corpus";
 import { biasedAutoChoice } from "./autochoice";
 import { buildVideoSequenceText } from "./video";
+import { enforceWordTarget } from "./length";
 import { asProsePoem, asStrang, asReim, asHaiku, asDrama } from "./forms";
 
 const MODES = ["bureau", "tech", "body", "myth", "absurd", "post"];
@@ -85,7 +86,8 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
 export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): string {
   const kit = buildKit(bank, input, model);
 
-  if (input.form === "script") return makeDialogueScene(kit, 110);
+  const lenTarget = Number.isFinite(input.lenTarget as number) ? (input.lenTarget as number) : 110;
+  if (input.form === "script") return makeDialogueScene(kit, lenTarget);
   if (input.form === "video") return buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? 15);
   if (input.form === "poem") {
     const body = pickStructureBuilder(kit.structure === "fragment" ? "linear" : kit.structure)({ ...kit });
@@ -112,5 +114,5 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   if (input.form === "haiku") return asHaiku(finalText, anchor);
   if (input.form === "strang") return asStrang(finalText, anchor);
   if (input.form === "drama") return asDrama(finalText, kit.speakerA, kit.speakerB || kit.P);
-  return finalText;
+  return enforceWordTarget(finalText, lenTarget, bank, model);
 }
