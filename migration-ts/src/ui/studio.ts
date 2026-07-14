@@ -2,7 +2,7 @@
 // Lesemodus (Vollbild) und Vorlesen (SpeechSynthesis).
 import type { GenInput, FormKind } from "../types";
 import { loadBank, saveBank } from "../storage";
-import { getAllPresets } from "../wordbank";
+import { getAllPresets, sortedPresetOptions } from "../wordbank";
 import { buildStory } from "../generation/buildStory";
 import { buildModelFromCorpus } from "../corpus";
 import { randomContext } from "../generation/context";
@@ -22,7 +22,7 @@ export function mountStudio(root: HTMLElement): void {
   wrap.append(el("div", { class: "grid2" },
     field("Wo?", where), field("Wann?", when), field("Wer?", who), field("Was passiert?", what)), el("div", { class: "btnrow" }, ctxDice));
 
-  const preset = select("f-preset", Object.values(getAllPresets()).map((p) => [p.id, p.label] as [string, string]));
+  const preset = select("f-preset", sortedPresetOptions());
   preset.addEventListener("change", () => { const p = getAllPresets()[preset.value]; if (p) saveBank(p.bank); });
 
   const tone = select("f-tone", [["neutral", "Neutral"], ["mystery", "Mystery"], ["poetic", "Poetisch"], ["dark", "Düster"], ["uplifting", "Hoffnungsvoll"], ["humorous", "Humorvoll"]], "mystery");

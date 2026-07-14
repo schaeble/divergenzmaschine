@@ -45,6 +45,17 @@ export function getAllPresets(): Record<string, Preset> {
   return all;
 }
 
+/** Preset-Optionen für Dropdowns: eingebaute zuerst, dann eigene — je alphabetisch
+ *  nach Namen (führendes Icon wird ignoriert), deutsche Sortierung. */
+export function sortedPresetOptions(): [string, string][] {
+  const all = Object.values(getAllPresets());
+  const key = (p: Preset): string => p.label.replace(/^[^\p{L}\p{N}]+/u, "").trim();
+  const byName = (a: Preset, b: Preset): number => key(a).localeCompare(key(b), "de", { sensitivity: "base" });
+  const builtins = all.filter((p) => p.kind === "builtin").sort(byName);
+  const users = all.filter((p) => p.kind === "user").sort(byName);
+  return [...builtins, ...users].map((p) => [p.id, p.label] as [string, string]);
+}
+
 export function saveCurrentBankAsUserPreset(name: string): void {
   if (!name || !name.trim()) return;
   const safe = name.trim().slice(0, 40);

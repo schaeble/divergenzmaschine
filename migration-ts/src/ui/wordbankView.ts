@@ -2,7 +2,7 @@
 import type { BankKey } from "../types";
 import { el, select, field, button } from "./dom";
 import { loadBank, saveBank, normalizeBankShape } from "../storage";
-import { getAllPresets, saveCurrentBankAsUserPreset, mutateBank, bankEntryCount } from "../wordbank";
+import { getAllPresets, sortedPresetOptions, saveCurrentBankAsUserPreset, mutateBank, bankEntryCount } from "../wordbank";
 import { DEFAULT_BANK } from "../constants";
 
 const CATS: [BankKey, string][] = [
@@ -14,7 +14,7 @@ export function mountWordbank(root: HTMLElement): void {
   root.innerHTML = "";
   const wrap = el("div", {});
 
-  const preset = select("wb-preset", Object.values(getAllPresets()).map((p) => [p.id, p.label] as [string, string]));
+  const preset = select("wb-preset", sortedPresetOptions());
   preset.addEventListener("change", () => {
     const p = getAllPresets()[preset.value];
     if (p) { saveBank(p.bank); load(); }
@@ -50,7 +50,7 @@ export function mountWordbank(root: HTMLElement): void {
   const saveAs = button("Als Preset speichern");
   saveAs.addEventListener("click", () => {
     const name = prompt("Name für dein Preset:", "MeinPreset");
-    if (name) { saveCurrentBankAsUserPreset(name); preset.innerHTML = ""; for (const p of Object.values(getAllPresets())) preset.append(el("option", { value: p.id }, p.label)); }
+    if (name) { saveCurrentBankAsUserPreset(name); preset.innerHTML = ""; for (const [v, l] of sortedPresetOptions()) preset.append(el("option", { value: v }, l)); }
   });
 
   wrap.append(
