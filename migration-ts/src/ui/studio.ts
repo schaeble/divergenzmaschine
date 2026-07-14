@@ -55,7 +55,7 @@ export function mountStudio(root: HTMLElement): void {
   wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, readBtn, speakBtn), out);
 
   const fine = el("details", { class: "fine" });
-  fine.append(el("summary", {}, "Feinabstimmung"));
+  fine.append(el("summary", {}, "🧰 Werkzeugkasten"));
   fine.append(el("div", { class: "grid3" },
     field("Struktur", structure), field("Modus", mode), field("Perspektive", persp),
     field("Rhythmus", rhythm), field("Instabilität", instab), field("Markov", markov),
