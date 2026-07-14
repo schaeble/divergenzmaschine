@@ -7,27 +7,27 @@ import { loadAiKey, saveAiKey, loadAiModel, saveAiModel, generateAiWordbank, smo
 
 export function mountKi(root: HTMLElement): void {
   root.innerHTML = "";
-  const wrap = el("div", { style: "max-width:720px;margin:1rem auto" });
+  const wrap = el("div", {});
 
   // Setup
-  const keyIn = el("input", { type: "password", placeholder: "sk-ant-…", value: loadAiKey(), style: "width:100%;padding:6px;margin-top:2px" }) as HTMLInputElement;
+  const keyIn = el("input", { type: "password", placeholder: "sk-ant-…", value: loadAiKey() }) as HTMLInputElement;
   const modelIn = textInput("ki-model", "Modell", loadAiModel());
-  const status = el("p", { style: "font:12px system-ui;color:#777" });
+  const status = el("p", { class: "muted" });
   const setStatus = (): void => { status.textContent = loadAiKey() ? `Schlüssel hinterlegt · Modell: ${loadAiModel()}` : "Kein Schlüssel hinterlegt."; };
   const saveBtn = button("Speichern");
   saveBtn.addEventListener("click", () => { saveAiKey(keyIn.value.trim()); saveAiModel(modelIn.value.trim()); setStatus(); });
   const clearBtn = button("Schlüssel löschen", "color:#a00");
   clearBtn.addEventListener("click", () => { saveAiKey(""); keyIn.value = ""; setStatus(); });
 
-  wrap.append(el("h3", { style: "font:600 14px system-ui" }, "KI-Setup (Anthropic)"),
-    field("API-Schlüssel", keyIn), field("Modell", modelIn), el("div", {}, saveBtn, clearBtn), status,
-    el("p", { style: "font:11px system-ui;color:#999" }, "Der Schlüssel wird nur lokal gespeichert und ausschließlich an api.anthropic.com gesendet. Jede Anfrage verbraucht Guthaben deines Kontos."));
+  wrap.append(el("h3", {}, "KI-Setup (Anthropic)"),
+    field("API-Schlüssel", keyIn), field("Modell", modelIn), el("div", { class: "btnrow" }, saveBtn, clearBtn), status,
+    el("p", { class: "muted" }, "Der Schlüssel wird nur lokal gespeichert und ausschließlich an api.anthropic.com gesendet. Jede Anfrage verbraucht Guthaben deines Kontos."));
 
   // KI-Wortbank
   const where = textInput("ki-where", "Wo?"), when = textInput("ki-when", "Wann?"), who = textInput("ki-who", "Wer?"), what = textInput("ki-what", "Was?");
   const extra = textInput("ki-extra", 'Zusatzvorgabe, z.B. „im Stil von Kafka"');
   const wbBtn = button("🤖 KI-Wortbank erstellen");
-  const wbInfo = el("p", { style: "font:12px system-ui;color:#777" });
+  const wbInfo = el("p", { class: "muted" });
   wbBtn.addEventListener("click", () => {
     void (async () => {
       wbBtn.disabled = true; const old = wbBtn.textContent; wbBtn.textContent = "Erstelle…";
@@ -41,12 +41,12 @@ export function mountKi(root: HTMLElement): void {
       finally { wbBtn.disabled = false; wbBtn.textContent = old; }
     })();
   });
-  wrap.append(el("hr", { style: "margin:16px 0" }), el("h3", { style: "font:600 14px system-ui" }, "KI-Wortbank"),
-    el("div", { style: "display:grid;grid-template-columns:1fr 1fr;gap:8px" }, field("Wo?", where), field("Wann?", when), field("Wer?", who), field("Was?", what)),
-    field("Zusatzvorgabe", extra), el("div", {}, wbBtn), wbInfo);
+  wrap.append(el("hr", { style: "margin:16px 0" }), el("h3", {}, "KI-Wortbank"),
+    el("div", { class: "grid2" }, field("Wo?", where), field("Wann?", when), field("Wer?", who), field("Was?", what)),
+    field("Zusatzvorgabe", extra), el("div", { class: "btnrow" }, wbBtn), wbInfo);
 
   // An KI übergeben
-  const out = el("textarea", { style: "width:100%;height:140px;padding:8px;font:14px/1.5 Georgia,serif;margin-top:6px" }) as HTMLTextAreaElement;
+  const out = el("textarea", { style: "height:140px", class: "out" }) as HTMLTextAreaElement;
   const smoothBtn = button("🤖 Letzten Text an KI übergeben");
   smoothBtn.addEventListener("click", () => {
     void (async () => {
@@ -58,7 +58,7 @@ export function mountKi(root: HTMLElement): void {
       finally { smoothBtn.disabled = false; smoothBtn.textContent = old; }
     })();
   });
-  wrap.append(el("hr", { style: "margin:16px 0" }), el("h3", { style: "font:600 14px system-ui" }, "An KI übergeben"), el("div", {}, smoothBtn), out);
+  wrap.append(el("hr", { style: "margin:16px 0" }), el("h3", {}, "An KI übergeben"), el("div", { class: "btnrow" }, smoothBtn), out);
 
   root.append(wrap);
   setStatus();

@@ -11,7 +11,7 @@ import { worldLogGeneration } from "../features/world";
 
 export function mountStudio(root: HTMLElement): void {
   root.innerHTML = "";
-  const wrap = el("div", { style: "max-width:820px;margin:1rem auto" });
+  const wrap = el("div", {});
 
   const where = textInput("f-where", "Wo?", "auf der Schafsweide");
   const when = textInput("f-when", "Wann?", "vor langer Zeit");
@@ -19,8 +19,8 @@ export function mountStudio(root: HTMLElement): void {
   const what = textInput("f-what", "Was passiert?", "ein Wunder geschieht");
   const ctxDice = button("🎲 Kontext würfeln");
   ctxDice.addEventListener("click", () => { const c = randomContext(); where.value = c.where; when.value = c.when; who.value = c.who; what.value = c.what; });
-  wrap.append(el("div", { style: "display:grid;grid-template-columns:1fr 1fr;gap:8px" },
-    field("Wo?", where), field("Wann?", when), field("Wer?", who), field("Was passiert?", what)), el("div", {}, ctxDice));
+  wrap.append(el("div", { class: "grid2" },
+    field("Wo?", where), field("Wann?", when), field("Wer?", who), field("Was passiert?", what)), el("div", { class: "btnrow" }, ctxDice));
 
   const preset = select("f-preset", Object.values(getAllPresets()).map((p) => [p.id, p.label] as [string, string]));
   preset.addEventListener("change", () => { const p = getAllPresets()[preset.value]; if (p) saveBank(p.bank); });
@@ -39,16 +39,16 @@ export function mountStudio(root: HTMLElement): void {
   const varianz = select("f-varianz", [["low", "Stabil"], ["mid", "Wild"], ["high", "Radikal"]], "mid");
   const stil = select("f-stil", [["surreal_precise", "Surreal präzise"], ["leicht", "Leicht"], ["stark", "Stark"]], "surreal_precise");
   const polish = el("input", { id: "f-polish", type: "checkbox" }) as HTMLInputElement;
-  wrap.append(el("div", { style: "display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px" },
+  wrap.append(el("div", { class: "grid3" },
     field("Preset", preset), field("Ton", tone), field("Form", form),
     field("Struktur", structure), field("Modus", mode), field("Perspektive", persp),
     field("Rhythmus", rhythm), field("Instabilität", instab), field("Markov", markov),
     field("Disruptor", disruptor), field("Varianz", varianz), field("Stil", stil), field("Video: Shots", shots), field("Video: Sekunden", secs),
-    el("label", { style: "display:flex;align-items:center;gap:6px;font:12px system-ui;color:#555;margin-top:20px" }, polish, "Sprachschliff")));
+    el("label", { class: "field", style: "display:flex;align-items:center;gap:6px" }, polish, "Sprachschliff")));
 
-  const out = el("pre", { id: "f-out", style: "white-space:pre-wrap;background:#f6f6f6;padding:12px;border-radius:8px;margin-top:12px;min-height:80px;font:15px/1.55 Georgia,serif" });
+  const out = el("pre", { id: "f-out", class: "out" });
 
-  const genBtn = button("▶ Generieren", "font-weight:600");
+  const genBtn = button("▶ Generieren", "primary");
   const varBtn = button("Variante");
   const copyBtn = button("Kopieren");
   const diceBtn = button("🎲 Würfeln");
@@ -56,7 +56,7 @@ export function mountStudio(root: HTMLElement): void {
   diceBtn.addEventListener("click", () => { [tone, form, structure, mode, persp, rhythm, instab, disruptor, varianz, stil, preset].forEach(rollSel); generate(); });
   const readBtn = button("📖 Lesen");
   const speakBtn = button("🔊 Vorlesen");
-  wrap.append(el("div", {}, genBtn, varBtn, diceBtn, copyBtn, readBtn, speakBtn), out);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, readBtn, speakBtn), out);
   root.append(wrap);
 
   const readInput = (): GenInput => ({
@@ -84,8 +84,8 @@ export function mountStudio(root: HTMLElement): void {
 
   // Lesemodus (Vollbild-Overlay)
   readBtn.addEventListener("click", () => {
-    const overlay = el("div", { style: "position:fixed;inset:0;background:#0a0c10;color:#eee;padding:6vh 8vw;overflow:auto;z-index:9999;font:19px/1.7 Georgia,serif" });
-    overlay.append(el("button", { style: "position:fixed;top:12px;right:16px;font:16px system-ui;cursor:pointer" }, "✕"));
+    const overlay = el("div", { class: "reader" });
+    overlay.append(el("button", { class: "x" }, "✕"));
     overlay.append(el("div", {}, out.textContent || "Noch kein Text."));
     overlay.addEventListener("click", () => overlay.remove());
     document.body.append(overlay);

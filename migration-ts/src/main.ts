@@ -1,3 +1,4 @@
+import "./ui/theme.css";
 // Einstieg: Tab-App montieren + Service Worker registrieren (PWA).
 import { mountApp } from "./ui/app";
 

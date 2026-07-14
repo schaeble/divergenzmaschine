@@ -6,11 +6,11 @@ const fmt = (x: number, d = 1): string => x.toFixed(d);
 
 export function mountOscilloscope(root: HTMLElement): void {
   root.innerHTML = "";
-  const wrap = el("div", { style: "max-width:720px;margin:1rem auto" });
-  const ta = el("textarea", { style: "width:100%;height:120px;padding:8px;font:13px system-ui" }) as HTMLTextAreaElement;
+  const wrap = el("div", {});
+  const ta = el("textarea", { style: "height:120px" }) as HTMLTextAreaElement;
   ta.value = (() => { try { return localStorage.getItem("dm_last_text") || ""; } catch { return ""; } })();
-  const viz = el("div", { style: "margin-top:12px" });
-  const stats = el("div", { style: "margin-top:8px;font:13px system-ui;color:#333" });
+  const viz = el("div", {});
+  const stats = el("div", { class: "card" });
 
   const run = (): void => {
     const m = analyze(ta.value);
@@ -23,7 +23,7 @@ export function mountOscilloscope(root: HTMLElement): void {
   };
   const runBtn = button("Analysieren");
   runBtn.addEventListener("click", run);
-  wrap.append(el("p", { style: "font:12px system-ui;color:#777" }, "Kanal A — Text analysieren (vorbelegt mit der letzten Generierung)"), ta, el("div", {}, runBtn), viz, stats);
+  wrap.append(el("p", { class: "muted" }, "Kanal A — Text analysieren (vorbelegt mit der letzten Generierung)"), ta, el("div", {}, runBtn), viz, stats);
   root.append(wrap);
   if (ta.value.trim()) run();
 }

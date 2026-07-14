@@ -113,7 +113,9 @@ export function coherenceRepairV2(t: string, input?: Input): string {
       DU.forEach(([re, rep]) => { tail = tail.replace(re, rep); });
       s = head + tail;
     }
-    kept.push(s.trim());
+    const _st = s.trim();
+    if (kept.length && kept[kept.length - 1] === _st) continue; // aufeinanderfolgende Dublette
+    kept.push(_st);
   }
   t = kept.join(" ");
 

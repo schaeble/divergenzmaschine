@@ -12,7 +12,7 @@ const CATS: [BankKey, string][] = [
 
 export function mountWordbank(root: HTMLElement): void {
   root.innerHTML = "";
-  const wrap = el("div", { style: "max-width:720px;margin:1rem auto" });
+  const wrap = el("div", {});
 
   const preset = select("wb-preset", Object.values(getAllPresets()).map((p) => [p.id, p.label] as [string, string]));
   preset.addEventListener("change", () => {
@@ -21,8 +21,8 @@ export function mountWordbank(root: HTMLElement): void {
   });
 
   const listSel = select("wb-list", CATS.map(([v, l]) => [v, l] as [string, string]), "motifs");
-  const editor = el("textarea", { id: "wb-editor", style: "width:100%;height:220px;padding:8px;font:13px monospace;margin-top:6px", placeholder: "Ein Eintrag pro Zeile" });
-  const info = el("p", { style: "font:12px system-ui;color:#777" }, "");
+  const editor = el("textarea", { id: "wb-editor", style: "height:220px", placeholder: "Ein Eintrag pro Zeile" });
+  const info = el("p", { class: "muted" }, "");
 
   const load = (): void => {
     const bank = loadBank();
@@ -38,13 +38,13 @@ export function mountWordbank(root: HTMLElement): void {
     saveBank(bank); load();
   });
 
-  const mutSlider = el("input", { id: "wb-mut", type: "range", min: "0", max: "500", step: "10", value: "300", style: "vertical-align:middle" });
-  const mutVal = el("span", { style: "font:12px system-ui" }, "300");
+  const mutSlider = el("input", { id: "wb-mut", type: "range", min: "0", max: "500", step: "10", value: "300", style: "width:auto;vertical-align:middle" });
+  const mutVal = el("span", { class: "muted" }, "300");
   mutSlider.addEventListener("input", () => { mutVal.textContent = mutSlider.value; });
   const mutBtn = button("Mutation");
   mutBtn.addEventListener("click", () => { saveBank(mutateBank(loadBank(), parseInt(mutSlider.value, 10))); load(); });
 
-  const resetBtn = button("Reset", "color:#a00");
+  const resetBtn = button("Reset", "danger");
   resetBtn.addEventListener("click", () => { saveBank(normalizeBankShape(DEFAULT_BANK)); load(); });
 
   const saveAs = button("Als Preset speichern");
@@ -57,8 +57,8 @@ export function mountWordbank(root: HTMLElement): void {
     field("Preset", preset),
     field("Liste", listSel),
     editor,
-    el("div", {}, saveBtn, mutBtn, mutSlider, " ", mutVal, resetBtn),
-    el("div", {}, saveAs),
+    el("div", { class: "btnrow" }, saveBtn, mutBtn, mutSlider, " ", mutVal, resetBtn),
+    el("div", { class: "btnrow" }, saveAs),
     info,
   );
   root.append(wrap);
