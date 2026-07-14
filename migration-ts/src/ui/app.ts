@@ -1,5 +1,6 @@
 // Tab-Gerüst: Studio · Wortbank · Korpus.
 import { el } from "./dom";
+import { VERSION } from "../version";
 import { mountStudio } from "./studio";
 import { mountWordbank } from "./wordbankView";
 import { mountKorpus } from "./korpusView";
@@ -23,7 +24,7 @@ const TABS: [string, (root: HTMLElement) => void][] = [
 export function mountApp(root: HTMLElement): void {
   root.innerHTML = "";
   const shell = el("div", { class: "app" });
-  shell.append(el("h1", {}, "Divergenzmaschine"));
+  shell.append(el("h1", { class: "apptitle" }, "Divergenzmaschine", el("span", { class: "ver", title: "Build-Version" }, "v" + VERSION)));
 
   const bar = el("div", { class: "tabbar" });
   const content = el("div", {});

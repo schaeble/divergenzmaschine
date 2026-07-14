@@ -115,3 +115,9 @@ details.fine>div{padding:4px 14px 14px}
 .compare-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .compare-head button{font-size:13px;padding:4px 10px}
 textarea.comparepane{width:100%;min-height:260px;resize:vertical;font:16px/1.7 var(--serif)}
+
+/* Versions-Badge im Header */
+.apptitle{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.apptitle .ver{font-size:12px;font-weight:600;letter-spacing:.3px;color:var(--acc2);
+  background:rgba(34,211,238,.10);border:1px solid rgba(34,211,238,.25);
+  padding:2px 8px;border-radius:999px;position:relative;top:-2px}
