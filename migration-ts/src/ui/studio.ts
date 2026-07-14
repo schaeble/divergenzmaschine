@@ -122,12 +122,43 @@ export function mountStudio(root: HTMLElement): void {
   varBtn.addEventListener("click", generate);
   copyBtn.addEventListener("click", () => { void navigator.clipboard?.writeText(out.textContent || ""); });
 
-  // Lesemodus (Vollbild-Overlay)
+  // Lesemodus (Vollbild-Overlay) mit Werkzeugleiste
   readBtn.addEventListener("click", () => {
+    const text = out.textContent || "Noch kein Text.";
     const overlay = el("div", { class: "reader" });
-    overlay.append(el("button", { class: "x" }, "✕"));
-    overlay.append(el("div", {}, out.textContent || "Noch kein Text."));
-    overlay.addEventListener("click", () => overlay.remove());
+    const body = el("div", { class: "reader-text" }, text);
+    let fs = 19;
+    const setFs = (v: number) => { fs = Math.max(13, Math.min(40, v)); body.style.fontSize = fs + "px"; };
+
+    const smaller = el("button", {}, "A−");
+    const bigger = el("button", {}, "A+");
+    const copy = el("button", {}, "Kopieren");
+    const keep = el("button", {}, "⭐ Merken");
+    const speak = el("button", {}, "🔊 Vorlesen");
+    const close = el("button", { class: "x" }, "✕");
+
+    smaller.addEventListener("click", () => setFs(fs - 2));
+    bigger.addEventListener("click", () => setFs(fs + 2));
+    copy.addEventListener("click", () => { void navigator.clipboard?.writeText(text); copy.textContent = "Kopiert ✓"; setTimeout(() => (copy.textContent = "Kopieren"), 1200); });
+    keep.addEventListener("click", () => {
+      const n = addToTreasury(text, { who: who.value, where: where.value, when: when.value, what: what.value });
+      keep.textContent = n < 0 ? "— schon drin" : `⭐ Gemerkt (${n})`;
+      setTimeout(() => (keep.textContent = "⭐ Merken"), 1400);
+    });
+    let rSpeaking = false;
+    speak.addEventListener("click", () => {
+      const synth = window.speechSynthesis;
+      if (!synth) return;
+      if (rSpeaking) { synth.cancel(); rSpeaking = false; speak.textContent = "🔊 Vorlesen"; return; }
+      const u = new SpeechSynthesisUtterance(text); u.lang = "de-DE";
+      u.onend = () => { rSpeaking = false; speak.textContent = "🔊 Vorlesen"; };
+      rSpeaking = true; speak.textContent = "⏹ Stopp"; synth.speak(u);
+    });
+    const dismiss = () => { window.speechSynthesis?.cancel(); overlay.remove(); };
+    close.addEventListener("click", dismiss);
+
+    const bar = el("div", { class: "reader-bar" }, smaller, bigger, copy, keep, speak, close);
+    overlay.append(bar, body);
     document.body.append(overlay);
   });
 

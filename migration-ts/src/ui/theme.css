@@ -54,9 +54,14 @@ pre.out{white-space:pre-wrap;background:var(--panel);border:1px solid var(--bord
 .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin:8px 0}
 blockquote{border-left:3px solid var(--acc);padding-left:.8rem;color:#d5dae4;margin:.4rem 0}
 
-.reader{position:fixed;inset:0;background:var(--bg);color:#eef1f6;padding:6vh 8vw;overflow:auto;
+.reader{position:fixed;inset:0;background:var(--bg);color:#eef1f6;overflow:auto;
   z-index:9999;font:19px/1.75 var(--serif)}
-.reader .x{position:fixed;top:14px;right:18px;font-size:15px}
+.reader-bar{position:sticky;top:0;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;
+  padding:12px 18px;background:rgba(10,12,16,.92);backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--border2);z-index:1}
+.reader-bar button{font-size:14px}
+.reader-bar .x{margin-left:4px}
+.reader-text{padding:5vh 8vw;max-width:44rem;margin:0 auto;white-space:pre-wrap}
 
 /* Ausgabe als Mittelpunkt */
 pre.out{font:19px/1.75 var(--serif);padding:22px 26px;min-height:200px;
