@@ -45,20 +45,32 @@ export function mountKi(root: HTMLElement): void {
     el("div", { class: "grid2" }, field("Wo?", where), field("Wann?", when), field("Wer?", who), field("Was?", what)),
     field("Zusatzvorgabe", extra), el("div", { class: "btnrow" }, wbBtn), wbInfo);
 
-  // An KI übergeben
-  const out = el("textarea", { style: "height:140px", class: "out" }) as HTMLTextAreaElement;
+  // An KI übergeben - Original und KI-Fassung nebeneinander
+  const lastText = (): string => { try { return localStorage.getItem("dm_last_text") || ""; } catch { return ""; } };
+  const origPane = el("textarea", { class: "out comparepane", readonly: "" }) as HTMLTextAreaElement;
+  const aiPane = el("textarea", { class: "out comparepane", readonly: "" }) as HTMLTextAreaElement;
+  origPane.value = lastText();
+  const copyOrig = button("Original kopieren");
+  const copyAi = button("KI-Fassung kopieren");
+  const flash = (b: HTMLButtonElement, val: string): void => { if (!val) return; void navigator.clipboard?.writeText(val); const o = b.textContent; b.textContent = "Kopiert ✓"; setTimeout(() => (b.textContent = o), 1200); };
+  copyOrig.addEventListener("click", () => flash(copyOrig, origPane.value));
+  copyAi.addEventListener("click", () => flash(copyAi, aiPane.value));
   const smoothBtn = button("🤖 Letzten Text an KI übergeben");
   smoothBtn.addEventListener("click", () => {
     void (async () => {
-      const last = (() => { try { return localStorage.getItem("dm_last_text") || ""; } catch { return ""; } })();
-      if (!last.trim()) { out.value = "Kein Text vorhanden (erst im Studio generieren)."; return; }
-      smoothBtn.disabled = true; const old = smoothBtn.textContent; smoothBtn.textContent = "Sende an KI…";
-      try { out.value = await smoothText(last); }
-      catch (e) { out.value = "Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e)); }
+      const last = lastText();
+      if (!last.trim()) { aiPane.value = "Kein Text vorhanden (erst im Studio generieren)."; return; }
+      origPane.value = last;
+      smoothBtn.disabled = true; const old = smoothBtn.textContent; smoothBtn.textContent = "Sende an KI…"; aiPane.value = "…";
+      try { aiPane.value = await smoothText(last); }
+      catch (e) { aiPane.value = "Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e)); }
       finally { smoothBtn.disabled = false; smoothBtn.textContent = old; }
     })();
   });
-  wrap.append(el("hr", { style: "margin:16px 0" }), el("h3", {}, "An KI übergeben"), el("div", { class: "btnrow" }, smoothBtn), out);
+  const compare = el("div", { class: "compare" },
+    el("div", { class: "compare-col" }, el("div", { class: "compare-head" }, el("span", { class: "muted" }, "Original"), copyOrig), origPane),
+    el("div", { class: "compare-col" }, el("div", { class: "compare-head" }, el("span", { class: "muted" }, "KI-Überarbeitung"), copyAi), aiPane));
+  wrap.append(el("hr", { style: "margin:16px 0" }), el("h3", {}, "An KI übergeben"), el("div", { class: "btnrow" }, smoothBtn), compare);
 
   root.append(wrap);
   setStatus();
