@@ -8,6 +8,7 @@ import { buildModelFromCorpus } from "../corpus";
 import { randomContext } from "../generation/context";
 import { el, select, field, textInput, button } from "./dom";
 import { worldLogGeneration } from "../features/world";
+import { addToTreasury } from "../features/treasury";
 
 export function mountStudio(root: HTMLElement): void {
   root.innerHTML = "";
@@ -51,9 +52,15 @@ export function mountStudio(root: HTMLElement): void {
   const diceBtn = button("🎲 Würfeln");
   const rollSel = (s: HTMLSelectElement): void => { s.selectedIndex = Math.floor(Math.random() * s.options.length); s.dispatchEvent(new Event("change")); };
   diceBtn.addEventListener("click", () => { [tone, form, structure, mode, persp, rhythm, instab, disruptor, varianz, stil, preset].forEach(rollSel); generate(); });
+  const keepBtn = button("⭐ Merken");
+  keepBtn.addEventListener("click", () => {
+    const n = addToTreasury(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value });
+    keepBtn.textContent = n < 0 ? "— schon drin" : `⭐ Gemerkt (${n})`;
+    setTimeout(() => (keepBtn.textContent = "⭐ Merken"), 1400);
+  });
   const readBtn = button("📖 Lesen");
   const speakBtn = button("🔊 Vorlesen");
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, readBtn, speakBtn), out, kling);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, readBtn, speakBtn), out, kling);
 
   const fine = el("details", { class: "fine" });
   fine.append(el("summary", {}, "🧰 Werkzeugkasten"));

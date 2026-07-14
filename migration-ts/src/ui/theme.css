@@ -89,3 +89,8 @@ details.fine>div{padding:4px 14px 14px}
 .idea{display:flex;gap:10px;align-items:flex-start;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin:8px 0}
 .idea-text{margin:0;flex:1;font:14px/1.5 var(--sans)}
 .idea button{flex:0 0 auto;align-self:center}
+
+/* Schatzkammer */
+.treasure{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin:12px 0}
+.treasure-meta{font:12px var(--sans);color:var(--muted);margin-bottom:6px}
+.treasure-text{margin:0;min-height:0;font-size:15px;padding:12px 14px;box-shadow:none}
