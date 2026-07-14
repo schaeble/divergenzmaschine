@@ -73,3 +73,14 @@ details.fine>summary::before{content:"▸ ";color:var(--acc)}
 details.fine[open]>summary::before{content:"▾ "}
 details.fine>summary:hover{color:var(--text)}
 details.fine>div{padding:4px 14px 14px}
+
+/* Multi-Shot -> Kling */
+.kling{margin-top:12px}
+.kling:empty{display:none}
+.kling-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;font:600 13px var(--sans)}
+.kling-link{background:var(--acc);color:#fff;text-decoration:none;padding:7px 12px;border-radius:8px;font:600 13px var(--sans)}
+.kling-link:hover{background:#7c4ddb}
+.kling-shot{display:grid;grid-template-columns:70px 1fr auto;gap:10px;align-items:center;
+  background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin:6px 0}
+.kling-shot span{font:14px/1.5 var(--serif);color:#e7ebf2}
+.kling-shot b{color:var(--acc2);font:600 12px var(--sans)}

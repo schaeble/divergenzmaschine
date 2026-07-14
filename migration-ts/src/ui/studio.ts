@@ -43,6 +43,7 @@ export function mountStudio(root: HTMLElement): void {
     field("Preset", preset), field("Ton", tone), field("Form", form)));
 
   const out = el("pre", { id: "f-out", class: "out" });
+  const kling = el("div", { class: "kling" });
 
   const genBtn = button("▶ Generieren", "primary");
   const varBtn = button("Variante");
@@ -52,7 +53,7 @@ export function mountStudio(root: HTMLElement): void {
   diceBtn.addEventListener("click", () => { [tone, form, structure, mode, persp, rhythm, instab, disruptor, varianz, stil, preset].forEach(rollSel); generate(); });
   const readBtn = button("📖 Lesen");
   const speakBtn = button("🔊 Vorlesen");
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, readBtn, speakBtn), out);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, readBtn, speakBtn), out, kling);
 
   const fine = el("details", { class: "fine" });
   fine.append(el("summary", {}, "🧰 Werkzeugkasten"));
@@ -75,12 +76,33 @@ export function mountStudio(root: HTMLElement): void {
     polish: polish.checked, polishStyle: stil.value,
     shots: parseInt(shots.value, 10), totalSec: parseInt(secs.value, 10),
   });
+  const KLING_URL = "https://klingai.com";
+  const renderKling = (form: string, text: string): void => {
+    kling.innerHTML = "";
+    if (form !== "video") return;
+    const shots = (text || "").split("\n").filter((l) => l.startsWith("DE:")).map((l) => l.replace(/^DE:\s*/, "").trim());
+    if (!shots.length) return;
+    const head = el("div", { class: "kling-head" },
+      el("span", {}, `🎬 ${shots.length} Shots für Kling`),
+      el("a", { class: "kling-link", href: KLING_URL, target: "_blank", rel: "noopener" }, "In Kling generieren ↗"));
+    const allBtn = button("Alle Shots kopieren");
+    allBtn.addEventListener("click", () => { void navigator.clipboard?.writeText(shots.join("\n\n")); });
+    head.append(allBtn);
+    kling.append(head);
+    shots.forEach((s, i) => {
+      const copy = button("Kopieren");
+      copy.addEventListener("click", () => { void navigator.clipboard?.writeText(s); });
+      kling.append(el("div", { class: "kling-shot" }, el("b", {}, `Shot ${i + 1}`), el("span", {}, s), copy));
+    });
+  };
+
   const generate = (): void => {
     const model = markov.value !== "off" ? buildModelFromCorpus(2) : undefined;
     const input = readInput();
     try {
       out.textContent = buildStory(loadBank(), input, model);
       try { localStorage.setItem("dm_last_text", out.textContent || ""); } catch { /* voll */ }
+      renderKling(input.form, out.textContent || "");
       worldLogGeneration(input);
     } catch (e) { out.textContent = "Fehler: " + (e instanceof Error ? e.message : String(e)); }
   };
