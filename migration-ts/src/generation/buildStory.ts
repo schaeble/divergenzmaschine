@@ -30,7 +30,10 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
 
   const modeKey = resBiased(input.mode, "mode", MODES, archA, archB);
   const M = MODE_DATA[modeKey] || MODE_DATA.bureau!;
-  const structure = resBiased(input.structure, "structure", STRUCTURES, archA, archB);
+  let structure = resBiased(input.structure, "structure", STRUCTURES, archA, archB);
+  // "fragment" liest sich telegrammartig - bei Struktur "Auto" ausschließen,
+  // damit Prosa fließend bleibt. Explizit gewählt bleibt Fragment erhalten.
+  if (input.structure === "auto" && structure === "fragment") structure = pick(["linear", "reverse", "circle", "object"]);
   const perspective = input.perspective === "auto" ? (biasedAutoChoice("perspective", archA, archB) || pick(PERSPECTIVES)) : input.perspective;
   const rhythm = resBiased(input.rhythm, "rhythm", RHYTHMS, archA, archB);
 
