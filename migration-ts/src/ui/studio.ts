@@ -22,8 +22,17 @@ export function mountStudio(root: HTMLElement): void {
   const what = textInput("f-what", "Was passiert?", "ein Wunder geschieht");
   const ctxDice = button("🎲 Kontext würfeln");
   ctxDice.addEventListener("click", () => { const c = randomContext(); where.value = c.where; when.value = c.when; who.value = c.who; what.value = c.what; });
+  const ctxKeep = button("📌 Kontext merken", "toggle");
+  const CTX_KEY = "divergenz_ctx_v1";
+  ctxKeep.title = "Wo/Wann/Wer/Was sichern und bei jedem Start laden";
+  const setCtxKeep = (on: boolean): void => {
+    ctxKeep.classList.toggle("on", on);
+    ctxKeep.setAttribute("aria-pressed", String(on));
+    try { if (on) localStorage.setItem(CTX_KEY, JSON.stringify({ where: where.value, when: when.value, who: who.value, what: what.value })); else localStorage.removeItem(CTX_KEY); } catch { /* voll */ }
+  };
+  ctxKeep.addEventListener("click", () => setCtxKeep(!ctxKeep.classList.contains("on")));
   wrap.append(el("div", { class: "grid2" },
-    field("Wo?", where), field("Wann?", when), field("Wer?", who), field("Was passiert?", what)), el("div", { class: "btnrow" }, ctxDice));
+    field("Wo?", where), field("Wann?", when), field("Wer?", who), field("Was passiert?", what)), el("div", { class: "btnrow" }, ctxDice, ctxKeep));
 
   const preset = select("f-preset", sortedPresetOptions());
   preset.addEventListener("change", () => { const p = getAllPresets()[preset.value]; if (p) saveBank(p.bank); });
@@ -62,16 +71,6 @@ export function mountStudio(root: HTMLElement): void {
   sizeSlider.addEventListener("input", applyFont);
   const fontRow = el("label", { class: "field lenrow fontrow" }, "Schrift ", fontSel, " Größe ", sizeSlider, " ", sizeVal);
 
-  // Kontext merken: Wo/Wann/Wer/Was sichern und bei jedem Start laden
-  const ctxKeep = el("input", { id: "f-ctxkeep", type: "checkbox" }) as HTMLInputElement;
-  const CTX_KEY = "divergenz_ctx_v1";
-  ctxKeep.addEventListener("change", () => {
-    try {
-      if (ctxKeep.checked) localStorage.setItem(CTX_KEY, JSON.stringify({ where: where.value, when: when.value, who: who.value, what: what.value }));
-      else localStorage.removeItem(CTX_KEY);
-    } catch { /* voll */ }
-  });
-  const ctxRow = el("label", { class: "field ctxrow" }, ctxKeep, " Kontext merken (Wo/Wann/Wer/Was beim Start laden)");
   const out = el("pre", { id: "f-out", class: "out" });
   const kling = el("div", { class: "kling" });
 
@@ -89,7 +88,7 @@ export function mountStudio(root: HTMLElement): void {
   });
   const readBtn = button("📖 Lesen");
   const speakBtn = button("🔊 Vorlesen");
-  wrap.append(lenRow, fontRow, ctxRow, el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, readBtn, speakBtn), out, kling);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, readBtn, speakBtn, lenRow), out, kling);
 
   // ── Test & Ranking ──
   let lastRanking: Ranking | null = null;
@@ -141,6 +140,7 @@ export function mountStudio(root: HTMLElement): void {
 
   const fine = el("details", { class: "fine" });
   fine.append(el("summary", {}, "🧰 Werkzeugkasten"));
+  fine.append(fontRow);
   fine.append(el("div", { class: "grid3" },
     field("Struktur", structure), field("Modus", mode), field("Perspektive", persp),
     field("Rhythmus", rhythm), field("Instabilität", instab), field("Markov", markov),
@@ -250,7 +250,7 @@ export function mountStudio(root: HTMLElement): void {
   // Gemerkten Kontext laden (falls aktiv)
   try {
     const saved = localStorage.getItem(CTX_KEY);
-    if (saved) { const c = JSON.parse(saved) as Record<string,string>; if(c.where!==undefined)where.value=c.where; if(c.when!==undefined)when.value=c.when; if(c.who!==undefined)who.value=c.who; if(c.what!==undefined)what.value=c.what; ctxKeep.checked = true; }
+    if (saved) { const c = JSON.parse(saved) as Record<string,string>; if(c.where!==undefined)where.value=c.where; if(c.when!==undefined)when.value=c.when; if(c.who!==undefined)who.value=c.who; if(c.what!==undefined)what.value=c.what; ctxKeep.classList.add("on"); ctxKeep.setAttribute("aria-pressed","true"); }
   } catch { /* ignore */ }
   // Übergabe aus Ideen überschreibt den Kontext
   try {

@@ -10,6 +10,7 @@ import { mountTreasury } from "./treasuryView";
 import { mountWorld } from "./worldView";
 import { mountOscilloscope } from "./oscilloscopeView";
 import { mountKi } from "./kiView";
+import { mountHelp } from "./helpView";
 
 const TABS: [string, (root: HTMLElement) => void][] = [
   ["Studio", mountStudio],
@@ -20,6 +21,7 @@ const TABS: [string, (root: HTMLElement) => void][] = [
   ["Korpus", mountKorpus],
   ["Oszilloskop", mountOscilloscope],
   ["KI", mountKi],
+  ["Hilfe", mountHelp],
 ];
 
 export function mountApp(root: HTMLElement): void {

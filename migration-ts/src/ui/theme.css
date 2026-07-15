@@ -130,3 +130,18 @@ textarea.comparepane{width:100%;min-height:260px;resize:vertical;font:16px/1.7 v
 .fontrow select{margin:0 4px}
 .ctxrow{display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer}
 .ctxrow input[type=checkbox]{width:16px;height:16px;accent-color:var(--acc)}
+
+/* Kontext-merken als aktivierbarer Button (wie Kontext würfeln) */
+button.toggle.on{background:var(--acc);border-color:var(--acc);color:#fff}
+button.toggle.on::before{content:"✓ "}
+/* Textlänge inline in der Button-Reihe */
+.btnrow .lenrow{margin:0;display:flex;align-items:center;gap:8px;flex:1 1 240px;min-width:210px}
+.btnrow .lenrow input[type=range]{flex:1}
+
+/* Hilfe-Tab */
+.help{max-width:52rem}
+.help-sec{margin:14px 0}
+.help-sec h3{margin:0 0 6px;font-size:15px;color:var(--acc2)}
+.help-list{margin:0;padding-left:18px}
+.help-list li{margin-bottom:6px;line-height:1.55}
+.help-list b{color:#fff}
