@@ -3,9 +3,9 @@
 import type { Bank } from "../types";
 import { clean, pick, ensurePunct, splitSentences } from "../text-utils";
 import { MarkovModel, isSaneMarkov } from "../corpus";
+import { makeConnectorPicker } from "./connectors";
 
 const count = (s: string): number => (s || "").trim().split(/\s+/).filter(Boolean).length;
-const WB_CONNECTORS = ["Dabei", "Und immer wieder", "Nebenbei", "Nicht zu vergessen", "Dazwischen"];
 
 export function enforceWordTarget(text: string, target: number, bank: Bank, model?: MarkovModel): string {
   const t0 = (text || "").trim();
@@ -34,7 +34,7 @@ export function enforceWordTarget(text: string, target: number, bank: Bank, mode
   const missing = Math.max(0, target - wc);
   const maxAttempts = Math.min(20, Math.ceil(missing / 15) + 3);
   const used = new Set<string>();
-  let rawCount = 0;
+  const nextConnector = makeConnectorPicker();
 
   const addition = (): { text: string; raw: boolean } | null => {
     if (model && Math.random() < 0.6) {
@@ -45,7 +45,7 @@ export function enforceWordTarget(text: string, target: number, bank: Bank, mode
     if (!cands.length) return null;
     const fresh = cands.filter((c) => { const k = clean(c).toLowerCase(); return k && !used.has(k) && !out.toLowerCase().includes(k); });
     const chosen = pick(fresh.length ? fresh : cands);
-    used.add(clean(chosen).toLowerCase()); rawCount++;
+    used.add(clean(chosen).toLowerCase());
     return { text: chosen, raw: true };
   };
 
@@ -57,7 +57,7 @@ export function enforceWordTarget(text: string, target: number, bank: Bank, mode
     if (!/[.!?…]$/.test(ca)) ca += ".";
     out = out.replace(/[.!?…]+\s*$/, "").trim();
     if (add.raw) {
-      const lead = WB_CONNECTORS[(rawCount - 1) % WB_CONNECTORS.length]!;
+      const lead = nextConnector();
       out += `. ${lead}: ${ca.charAt(0).toLowerCase() + ca.slice(1)}`;
     } else out += ". " + ca;
     out = out.replace(/\s+/g, " ").trim();
