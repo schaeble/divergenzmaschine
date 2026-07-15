@@ -145,3 +145,11 @@ button.toggle.on::before{content:"✓ "}
 .help-list{margin:0;padding-left:18px}
 .help-list li{margin-bottom:6px;line-height:1.55}
 .help-list b{color:#fff}
+
+/* 4W-Gewichtung (nur Prosa) */
+.emph{margin-top:12px;padding:10px 12px;border:1px dashed var(--border2);border-radius:10px;background:rgba(139,92,246,.05)}
+.emph-head{margin-bottom:8px;font-size:12px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media (max-width:720px){.grid4{grid-template-columns:repeat(2,1fr)}}
+.wrow{display:flex;align-items:center;gap:6px;margin:0}
+.wrow input[type=range]{flex:1;min-width:60px}

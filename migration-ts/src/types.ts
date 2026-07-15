@@ -53,6 +53,7 @@ export interface GenInput {
   polish: boolean; polishStyle: string;
   shots?: number; totalSec?: number; // nur Form "video"
   lenTarget?: number; // Ziel-Wortzahl (Textlänge)
+  emphasis?: { wo: number; wann: number; wer: number; was: number }; // 4W-Gewichtung (nur Prosa)
 }
 
 /** "Kit": die aus Bank + Input abgeleiteten Bausteine für einen Lauf. */

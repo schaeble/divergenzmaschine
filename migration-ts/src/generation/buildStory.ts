@@ -14,6 +14,7 @@ import { MarkovModel, isSaneMarkov } from "../corpus";
 import { biasedAutoChoice } from "./autochoice";
 import { buildVideoSequenceText } from "./video";
 import { enforceWordTarget } from "./length";
+import { applyEmphasis } from "./emphasis";
 import { asProsePoem, asStrang, asReim, asHaiku, asDrama } from "./forms";
 
 const MODES = ["bureau", "tech", "body", "myth", "absurd", "post"];
@@ -103,6 +104,8 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   let text = pickStructureBuilder(effStructure)({ ...kit });
 
   if (effStructure === "fragment") return postProcessText(text, { ...input, form: "strang" });
+
+  if (input.form === "prose" && input.emphasis) text = applyEmphasis(text, kit, input.emphasis);
 
   text = applyDisruptor(text, input.disruptor).text;
   text = applyRhythm(text, kit.rhythm);

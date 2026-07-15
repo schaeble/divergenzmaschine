@@ -55,6 +55,21 @@ export function mountStudio(root: HTMLElement): void {
   wrap.append(el("div", { class: "grid3" },
     field("Preset", preset), field("Ton", tone), field("Form", form)));
 
+  // 4W-Gewichtung (experimentell, nur Prosa) - reines Hochregeln
+  const mkW = (id: string): [HTMLInputElement, HTMLElement] => {
+    const s = el("input", { id, type: "range", min: "0", max: "3", step: "1", value: "0" }) as HTMLInputElement;
+    return [s, el("span", { class: "muted" }, "0")];
+  };
+  const [wWo, wWoV] = mkW("f-w-wo");
+  const [wWann, wWannV] = mkW("f-w-wann");
+  const [wWer, wWerV] = mkW("f-w-wer");
+  const [wWas, wWasV] = mkW("f-w-was");
+  const wrow = (lbl: string, s: HTMLInputElement, v: HTMLElement): HTMLElement => el("label", { class: "field wrow" }, lbl + " ", s, " ", v);
+  const emphasisBox = el("div", { class: "emph", id: "f-emph" },
+    el("div", { class: "muted emph-head" }, "Gewichtung — mehr über … (experimentell)"),
+    el("div", { class: "grid4" }, wrow("Wo", wWo, wWoV), wrow("Wann", wWann, wWannV), wrow("Wer", wWer, wWerV), wrow("Was", wWas, wWasV)));
+  wrap.append(emphasisBox);
+
   const lenSlider = el("input", { id: "f-len", type: "range", min: "40", max: "300", step: "10", value: "110", style: "flex:1" }) as HTMLInputElement;
   const lenVal = el("span", { class: "muted" }, "110");
   let lenTimer: ReturnType<typeof setTimeout> | undefined;
@@ -181,6 +196,7 @@ export function mountStudio(root: HTMLElement): void {
     polish: polish.checked, polishStyle: stil.value,
     shots: parseInt(shots.value, 10), totalSec: parseInt(secs.value, 10),
     lenTarget: parseInt(lenSlider.value, 10),
+    emphasis: { wo: parseInt(wWo.value, 10), wann: parseInt(wWann.value, 10), wer: parseInt(wWer.value, 10), was: parseInt(wWas.value, 10) },
   });
   const KLING_URL = "https://klingai.com";
   const renderKling = (form: string, text: string): void => {
@@ -220,6 +236,13 @@ export function mountStudio(root: HTMLElement): void {
   preset.addEventListener("change", liveRegen);
   tone.addEventListener("change", liveRegen);
   form.addEventListener("change", liveRegen);
+  // 4W-Gewichtung: live + nur bei Prosa sichtbar
+  let emphTimer: ReturnType<typeof setTimeout> | undefined;
+  ([[wWo, wWoV], [wWann, wWannV], [wWer, wWerV], [wWas, wWasV]] as [HTMLInputElement, HTMLElement][]).forEach(([s, v]) => {
+    s.addEventListener("input", () => { v.textContent = s.value; clearTimeout(emphTimer); emphTimer = setTimeout(() => { if (!rolling) generate(); }, 180); });
+  });
+  const updEmphVis = (): void => { emphasisBox.style.display = form.value === "prose" ? "" : "none"; };
+  form.addEventListener("change", updEmphVis);
   copyBtn.addEventListener("click", () => { void navigator.clipboard?.writeText(out.textContent || ""); });
 
   // Lesemodus (Vollbild-Overlay) mit Werkzeugleiste
@@ -286,6 +309,7 @@ export function mountStudio(root: HTMLElement): void {
   } catch { /* ignore */ }
   // Zufallsstart: Preset, Ton und Form
   [preset, tone, form].forEach((s) => { if (s.options.length) s.selectedIndex = Math.floor(Math.random() * s.options.length); });
+  updEmphVis();
   applyStoryFont(out, fontSel.value, parseFloat(sizeSlider.value));
   const first = getAllPresets()[preset.value];
   if (first) saveBank(first.bank);
