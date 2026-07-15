@@ -37,6 +37,6 @@ export function declineHookPhrase(phrase: string, targetCase: string): string {
 }
 
 export function safeCaseForm(rawPhrase: string, casedPhrase: string): string {
-  if (looksLikeClausePhrase(rawPhrase)) return `„${clean(rawPhrase)}"`;
+  if (looksLikeClausePhrase(rawPhrase)) return `„${clean(rawPhrase)}“`;
   return casedPhrase;
 }

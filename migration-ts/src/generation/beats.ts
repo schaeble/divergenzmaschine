@@ -15,8 +15,15 @@ export function isFragmentSentence(s: string): boolean {
 export function looksLikeClausePhrase(phrase: string): boolean {
   const s = clean(phrase);
   if (!s) return false;
-  const VERBISH = /\b(ist|war|sind|waren|hat|hatte|wird|werden|kommt|geht|steht|liegt|bleibt|beginnt|endet|kennt|sucht|will|tanzt|brüllt|zieht|schweigt|flüstert|verändert|kippt|löscht|folgt|weigern|weigert|verlangt|glüht|glühen|formt|wandert|reagiert|atmet|tickt|zeigt|spricht|antwortet|erinnert)\b/i;
-  return VERBISH.test(s);
+  // Ein ganzer Satz endet wie ein Satz. Die Nominalphrasen der Wortbank
+  // ("eine Tür, die von innen atmet") tun das nie.
+  if (/[.!?]$/.test(s)) return true;
+  // Sonst nur den Hauptteil VOR dem ersten Komma auf ein finites Verb prüfen:
+  // ein Relativsatz nach dem Komma ("… , die … atmet") macht die Phrase NICHT
+  // zum Satz - das Verb steckt dort im Nebensatz, nicht im Hauptprädikat.
+  const mainPart = (s.split(",")[0] || s).trim();
+  const VERBISH = /\b(ist|war|wäre|sind|waren|wären|bin|bist|seid|hat|hatte|hätte|haben|hatten|wird|werden|wurde|würde|kommt|kam|kamen|geht|ging|steht|stand|liegt|lag|bleibt|blieb|beginnt|begann|endet|endete|kennt|kannte|sucht|suchte|will|wollte|kann|konnte|muss|musste|macht|machte|machen|machten|tut|tat|gibt|gab|nimmt|nahm|sieht|sah|spricht|sprach|schläft|schlief|wechselt|wechselte|wiederholt|wiederholte|unterschreibt|unterschrieb|schweigt|schwieg|zeigt|zeigte|tickt|atmet|reagiert|verändert|kippt|löscht|folgt|glüht|glühen|wandert|singt|sang|fällt|fiel|steigt|stieg|brennt|brannte|zerbricht|dreht|drehte|passiert|passierte|geschieht|geschah|läuft|lief|schließt|öffnet|trägt|trug|hält|hielt|fragt|fragte|antwortet|erinnert|flüstert|brüllt|zieht|verlangt|formt|tanzt|weigert)\b/i;
+  return VERBISH.test(mainPart);
 }
 
 export function chooseInsertPos(sentences: string[]): number {

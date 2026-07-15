@@ -68,8 +68,8 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
 
   const hookIsClause = looksLikeClausePhrase(hook);
   const hookQuote = hookIsClause ? clean(hook).replace(/[.!?…]+$/, "") : "";
-  const hookAcc = hookIsClause ? `den Satz „${hookQuote}"` : safeCaseForm(hook, declineHookPhrase(hook, "acc"));
-  const hookDat = hookIsClause ? `dem Satz „${hookQuote}"` : safeCaseForm(hook, declineHookPhrase(hook, "dat"));
+  const hookAcc = hookIsClause ? `den Satz „${hookQuote}“` : safeCaseForm(hook, declineHookPhrase(hook, "acc"));
+  const hookDat = hookIsClause ? `dem Satz „${hookQuote}“` : safeCaseForm(hook, declineHookPhrase(hook, "dat"));
   const propAcc = safeCaseForm(prop, declineHookPhrase(prop, "acc"));
   const propDat = safeCaseForm(prop, declineHookPhrase(prop, "dat"));
 
