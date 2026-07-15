@@ -28,6 +28,7 @@ export function makeDialogueScene(kit: StoryKit, lenTarget = 110): string {
   const bId = kit.archetypeB || "neutral";
   const speakerA = kit.speakerA || kit.P;
   const speakerB = kit.speakerB || pickSpeakerForArchetype(bId);
+  const cast = (kit.speakers && kit.speakers.length >= 2) ? kit.speakers : [speakerA, speakerB];
 
   let rounds = Math.round(lenTarget / 7) + (kit.instability === 2 ? 2 : kit.instability === 1 ? 1 : 0);
   rounds = Math.max(4, Math.min(30, rounds));
@@ -142,7 +143,7 @@ export function makeDialogueScene(kit: StoryKit, lenTarget = 110): string {
   const out: string[] = [`SZENE: ${kit.W}, ${kit.T}.`];
   for (let i = 0; i < rounds; i++) {
     const isA = i % 2 === 0;
-    const speaker = isA ? speakerA : speakerB;
+    const speaker = cast[i % cast.length]!;
     const arch = isA ? aId : bId;
     const ph = phaseFor(i);
     let line = injectBeat(i) ?? pickLine(arch, ph);

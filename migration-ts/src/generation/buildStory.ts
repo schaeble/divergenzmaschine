@@ -7,7 +7,7 @@ import { postProcessText } from "./postprocess";
 import { pickStructureBuilder } from "./structures";
 import { looksLikeClausePhrase } from "./beats";
 import { archetypeAugmentList } from "./archetype";
-import { extractLeadVerb, looksLikeFullClause } from "./wordcls";
+import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "./wordcls";
 import { declineHookPhrase, safeCaseForm } from "./declension";
 import { applyDisruptor, applyRhythm, paragraphize, applyPerspective, pronominalize, guessPronoun } from "./shape";
 import { MarkovModel, isSaneMarkov } from "../corpus";
@@ -37,8 +37,8 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
   const W = clean(input.where) || "an einem Ort";
   const T = clean(input.when) || "zu einer Zeit";
   const PRaw = clean(input.who) || "Jemand";
-  const whoParts = PRaw.split(",").map((s) => clean(s)).filter(Boolean);
-  const P = whoParts[0] || PRaw;
+  const speakers = splitSpeakers(PRaw);
+  const P = speakers[0] || PRaw;
   const A = clean(input.what) || "etwas";
 
   const aLead = extractLeadVerb(A);
@@ -75,7 +75,8 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
     obstacle: pickSane(aug(bank.obstacles, "obstacles")),
     stake: pickSane(aug(bank.stakes, "stakes")),
     ending: pickSane(aug(bank.endings, "endings")),
-    speakerA: P, speakerB: whoParts[1] || pickSpeakerForArchetype(archB),
+    speakerA: P, speakerB: speakers[1] || pickSpeakerForArchetype(archB),
+    speakers: speakers.length >= 2 ? speakers : [P, pickSpeakerForArchetype(archB)],
     mode: M, archetypeA: archA, archetypeB: archB, instability: input.instability,
     Apure, AleadVerb, AisClause, AisInfinitiveLed,
     structure, perspective, rhythm,

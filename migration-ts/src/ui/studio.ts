@@ -18,7 +18,7 @@ export function mountStudio(root: HTMLElement): void {
 
   const where = textInput("f-where", "Wo?", "auf der Schafsweide");
   const when = textInput("f-when", "Wann?", "vor langer Zeit");
-  const who = textInput("f-who", "Wer? (2 durch Komma = Dialog)", "Baucis, Philemon");
+  const who = textInput("f-who", "Wer? (mehrere durch Komma = Dialog)", "Baucis, Philemon");
   const what = textInput("f-what", "Was passiert?", "ein Wunder geschieht");
   const ctxDice = button("🎲 Kontext würfeln");
   ctxDice.addEventListener("click", () => { const c = randomContext(); where.value = c.where; when.value = c.when; who.value = c.who; what.value = c.what; });

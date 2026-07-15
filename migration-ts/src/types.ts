@@ -61,7 +61,7 @@ export interface StoryKit {
   motif: string; hook: string; hookAcc: string; hookDat: string;
   prop: string; propAcc: string; propDat: string;
   turn: string; obstacle: string; stake: string; ending: string;
-  speakerA: string; speakerB: string;
+  speakerA: string; speakerB: string; speakers: string[];
   mode: ModeData; archetypeA: string; archetypeB: string; instability: Instability;
   // Struktur-relevante Felder (aus dem "Was passiert" abgeleitet)
   Apure: string; AleadVerb: string; AisClause: boolean; AisInfinitiveLed: boolean;
