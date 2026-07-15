@@ -1,5 +1,5 @@
 /* Divergenzmaschine V4.2 – Service Worker */
-const CACHE = 'divergenzmaschine-ts-v6';
+const CACHE = 'divergenzmaschine-ts-v8';
 const PRECACHE = [
   './',
   './index.html',
