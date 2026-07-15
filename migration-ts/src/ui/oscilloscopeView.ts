@@ -23,7 +23,13 @@ export function mountOscilloscope(root: HTMLElement): void {
   };
   const runBtn = button("Analysieren");
   runBtn.addEventListener("click", run);
-  wrap.append(el("p", { class: "muted" }, "Kanal A — Text analysieren (vorbelegt mit der letzten Generierung)"), ta, el("div", {}, runBtn), viz, stats);
+  const pullBtn = button("↺ aus Generator");
+  pullBtn.addEventListener("click", () => {
+    const last = (() => { try { return localStorage.getItem("dm_last_text") || ""; } catch { return ""; } })();
+    if (!last.trim()) { stats.innerHTML = '<span class="muted">Noch kein generierter Text — erst im Studio generieren.</span>'; return; }
+    ta.value = last; run();
+  });
+  wrap.append(el("p", { class: "muted" }, "Kanal A — Text analysieren (vorbelegt mit der letzten Generierung)"), ta, el("div", { class: "btnrow" }, runBtn, pullBtn), viz, stats);
   root.append(wrap);
   if (ta.value.trim()) run();
 }

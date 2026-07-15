@@ -9,6 +9,7 @@ import { randomContext } from "../generation/context";
 import { el, select, field, textInput, button } from "./dom";
 import { worldLogGeneration } from "../features/world";
 import { addToTreasury } from "../features/treasury";
+import { loadFont, loadFontSize, saveFontPrefs, applyStoryFont } from "../features/fonts";
 import { runProbe, runRanking, runAiRanking, type Ranking } from "../generation/scoring";
 
 export function mountStudio(root: HTMLElement): void {
@@ -48,6 +49,29 @@ export function mountStudio(root: HTMLElement): void {
   const lenVal = el("span", { class: "muted" }, "110");
   lenSlider.addEventListener("input", () => { lenVal.textContent = lenSlider.value; });
   const lenRow = el("label", { class: "field lenrow" }, "Textlänge ", lenSlider, " ", lenVal);
+
+  // Schriftart + Schriftgröße der Ausgabe (neben der Textlänge)
+  const fontSel = el("select", { id: "f-font" },
+    ...([["serif","Serif"],["classic","Times"],["sans","Sans"],["mono","Mono"]] as [string,string][])
+      .map(([v,l]) => el("option", { value: v }, l))) as HTMLSelectElement;
+  const sizeSlider = el("input", { id: "f-fontsize", type: "range", min: "14", max: "32", step: "0.5", value: String(loadFontSize()) }) as HTMLInputElement;
+  const sizeVal = el("span", { class: "muted" }, String(loadFontSize()));
+  fontSel.value = loadFont();
+  const applyFont = (): void => { applyStoryFont(out, fontSel.value, parseFloat(sizeSlider.value)); sizeVal.textContent = sizeSlider.value; saveFontPrefs(fontSel.value, parseFloat(sizeSlider.value)); };
+  fontSel.addEventListener("change", applyFont);
+  sizeSlider.addEventListener("input", applyFont);
+  const fontRow = el("label", { class: "field lenrow fontrow" }, "Schrift ", fontSel, " Größe ", sizeSlider, " ", sizeVal);
+
+  // Kontext merken: Wo/Wann/Wer/Was sichern und bei jedem Start laden
+  const ctxKeep = el("input", { id: "f-ctxkeep", type: "checkbox" }) as HTMLInputElement;
+  const CTX_KEY = "divergenz_ctx_v1";
+  ctxKeep.addEventListener("change", () => {
+    try {
+      if (ctxKeep.checked) localStorage.setItem(CTX_KEY, JSON.stringify({ where: where.value, when: when.value, who: who.value, what: what.value }));
+      else localStorage.removeItem(CTX_KEY);
+    } catch { /* voll */ }
+  });
+  const ctxRow = el("label", { class: "field ctxrow" }, ctxKeep, " Kontext merken (Wo/Wann/Wer/Was beim Start laden)");
   const out = el("pre", { id: "f-out", class: "out" });
   const kling = el("div", { class: "kling" });
 
@@ -65,7 +89,7 @@ export function mountStudio(root: HTMLElement): void {
   });
   const readBtn = button("📖 Lesen");
   const speakBtn = button("🔊 Vorlesen");
-  wrap.append(lenRow, el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, readBtn, speakBtn), out, kling);
+  wrap.append(lenRow, fontRow, ctxRow, el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, readBtn, speakBtn), out, kling);
 
   // ── Test & Ranking ──
   let lastRanking: Ranking | null = null;
@@ -223,10 +247,19 @@ export function mountStudio(root: HTMLElement): void {
     speaking = true; speakBtn.textContent = "⏹ Stopp"; synth.speak(u);
   });
 
+  // Gemerkten Kontext laden (falls aktiv)
+  try {
+    const saved = localStorage.getItem(CTX_KEY);
+    if (saved) { const c = JSON.parse(saved) as Record<string,string>; if(c.where!==undefined)where.value=c.where; if(c.when!==undefined)when.value=c.when; if(c.who!==undefined)who.value=c.who; if(c.what!==undefined)what.value=c.what; ctxKeep.checked = true; }
+  } catch { /* ignore */ }
+  // Übergabe aus Ideen überschreibt den Kontext
   try {
     const pend = localStorage.getItem("dm_pending_ctx");
-    if (pend) { const c = JSON.parse(pend) as Record<string,string>; where.value=c.who?c.where:where.value; if(c.who)who.value=c.who; if(c.where)where.value=c.where; if(c.when)when.value=c.when; if(c.what)what.value=c.what; localStorage.removeItem("dm_pending_ctx"); }
+    if (pend) { const c = JSON.parse(pend) as Record<string,string>; if(c.who)who.value=c.who; if(c.where)where.value=c.where; if(c.when)when.value=c.when; if(c.what)what.value=c.what; localStorage.removeItem("dm_pending_ctx"); }
   } catch { /* ignore */ }
+  // Zufallsstart: Preset, Ton und Form
+  [preset, tone, form].forEach((s) => { if (s.options.length) s.selectedIndex = Math.floor(Math.random() * s.options.length); });
+  applyStoryFont(out, fontSel.value, parseFloat(sizeSlider.value));
   const first = getAllPresets()[preset.value];
   if (first) saveBank(first.bank);
   generate();

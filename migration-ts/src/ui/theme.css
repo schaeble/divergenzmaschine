@@ -121,3 +121,12 @@ textarea.comparepane{width:100%;min-height:260px;resize:vertical;font:16px/1.7 v
 .apptitle .ver{font-size:12px;font-weight:600;letter-spacing:.3px;color:var(--acc2);
   background:rgba(34,211,238,.10);border:1px solid rgba(34,211,238,.25);
   padding:2px 8px;border-radius:999px;position:relative;top:-2px}
+
+/* Kopfzeile mit Projekt-Steuerung rechts */
+.apphead{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.projctl{display:flex;align-items:center;gap:8px}
+.projctl .topbtn{font-size:13px;padding:6px 12px}
+.projstatus{font-size:12px}
+.fontrow select{margin:0 4px}
+.ctxrow{display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer}
+.ctxrow input[type=checkbox]{width:16px;height:16px;accent-color:var(--acc)}
