@@ -59,6 +59,7 @@ export function mountStudio(root: HTMLElement): void {
   const lenVal = el("span", { class: "muted" }, "110");
   let lenTimer: ReturnType<typeof setTimeout> | undefined;
   let baseText = "";
+  let rolling = false;  // true während "Würfeln" alle Selects ändert (verhindert Mehrfach-Generierung)
   const applyLengthLive = (): void => {
     const target = parseInt(lenSlider.value, 10);
     const form = readInput().form;
@@ -99,7 +100,7 @@ export function mountStudio(root: HTMLElement): void {
   const copyBtn = button("Kopieren");
   const diceBtn = button("🎲 Würfeln");
   const rollSel = (s: HTMLSelectElement): void => { s.selectedIndex = Math.floor(Math.random() * s.options.length); s.dispatchEvent(new Event("change")); };
-  diceBtn.addEventListener("click", () => { [tone, form, structure, mode, persp, rhythm, instab, disruptor, varianz, stil, preset].forEach(rollSel); generate(); });
+  diceBtn.addEventListener("click", () => { rolling = true; [tone, form, structure, mode, persp, rhythm, instab, disruptor, varianz, stil, preset].forEach(rollSel); rolling = false; generate(); });
   const keepBtn = button("⭐ Merken");
   keepBtn.addEventListener("click", () => {
     const n = addToTreasury(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value });
@@ -214,6 +215,11 @@ export function mountStudio(root: HTMLElement): void {
   };
   genBtn.addEventListener("click", generate);
   varBtn.addEventListener("click", generate);
+  // Echtzeit: Preset/Ton/Form sofort anwenden (außer während "Würfeln")
+  const liveRegen = (): void => { if (!rolling) generate(); };
+  preset.addEventListener("change", liveRegen);
+  tone.addEventListener("change", liveRegen);
+  form.addEventListener("change", liveRegen);
   copyBtn.addEventListener("click", () => { void navigator.clipboard?.writeText(out.textContent || ""); });
 
   // Lesemodus (Vollbild-Overlay) mit Werkzeugleiste
