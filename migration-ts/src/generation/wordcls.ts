@@ -27,3 +27,28 @@ export function looksLikeFullClause(leadVerb: string | null, rest: string): bool
   if (leadVerb) return false;
   return VERB_TOKEN_RE.test(rest || "") || EXTRA_FINITE_RE.test(rest || "");
 }
+
+// "Wer?" in echte Personen zerlegen. Ein Komma trennt normalerweise Personen
+// ("Baucis, Philemon"), aber ein nachgestellter Relativsatz, eine Präposition
+// oder eine Konjunktion gehört zur VORHERIGEN Person und ist keine neue
+// ("eine Nonne, die die Welt bereist hat" = eine Person).
+const SP_REL = /^(der|die|das|den|dem|des|deren|dessen|welche[rsmn]?|wo|worin|woran|womit|wovon)\b/i;
+const SP_CONJ = /^(als|während|weil|wenn|da|obwohl|nachdem|bevor|sodass|damit|dass|ob|indem|sobald|solange)\b/i;
+const SP_PREP = /^(mit|ohne|aus|von|vom|in|im|auf|an|am|für|bei|zu|zum|zur|über|unter|vor|nach|durch|gegen|seit|um|entlang|trotz|wegen|innerhalb|außerhalb|samt|nebst)\b/i;
+const SP_ENDS_VERB = /(?:\b(hat|hatte|ist|war|sind|waren|wird|wurde|wurden|kann|konnte|will|wollte|muss|musste|bleibt|blieb|kommt|kam|geht|ging)|\w{2,}(?:t|te|en|st|et))\.?$/i;
+
+export function splitSpeakers(who: string): string[] {
+  const parts = (who || "").split(",").map((s) => clean(s)).filter(Boolean);
+  if (parts.length <= 1) return parts;
+  const isContinuation = (p: string): boolean => {
+    if (SP_CONJ.test(p) || SP_PREP.test(p)) return true;
+    if (SP_REL.test(p) && SP_ENDS_VERB.test(p)) return true;
+    return false;
+  };
+  const out: string[] = [parts[0]!];
+  for (let i = 1; i < parts.length; i++) {
+    if (isContinuation(parts[i]!)) out[out.length - 1] += ", " + parts[i]!;
+    else out.push(parts[i]!);
+  }
+  return out;
+}
