@@ -5,6 +5,7 @@ import { loadBank, saveBank } from "../storage";
 import { getAllPresets, sortedPresetOptions } from "../wordbank";
 import { buildStory } from "../generation/buildStory";
 import { buildModelFromCorpus } from "../corpus";
+import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
 import { el, select, field, textInput, button } from "./dom";
 import { worldLogGeneration } from "../features/world";
@@ -56,7 +57,26 @@ export function mountStudio(root: HTMLElement): void {
 
   const lenSlider = el("input", { id: "f-len", type: "range", min: "40", max: "300", step: "10", value: "110", style: "flex:1" }) as HTMLInputElement;
   const lenVal = el("span", { class: "muted" }, "110");
-  lenSlider.addEventListener("input", () => { lenVal.textContent = lenSlider.value; });
+  let lenTimer: ReturnType<typeof setTimeout> | undefined;
+  let baseText = "";
+  const applyLengthLive = (): void => {
+    const target = parseInt(lenSlider.value, 10);
+    const form = readInput().form;
+    if (form === "prose") {
+      const src = baseText.trim() ? baseText : (out.textContent || "");
+      if (!src.trim()) { generate(); return; }
+      out.textContent = enforceWordTarget(src, target, loadBank(), markov.value !== "off" ? buildModelFromCorpus(2) : undefined);
+      try { localStorage.setItem("dm_last_text", out.textContent || ""); } catch { /* voll */ }
+    } else if (form === "script") {
+      generate();
+    }
+    // Vers-/Videoformen: Textlänge ohne Wirkung
+  };
+  lenSlider.addEventListener("input", () => {
+    lenVal.textContent = lenSlider.value;
+    clearTimeout(lenTimer);
+    lenTimer = setTimeout(applyLengthLive, 180);
+  });
   const lenRow = el("label", { class: "field lenrow" }, "Textlänge ", lenSlider, " ", lenVal);
 
   // Schriftart + Schriftgröße der Ausgabe (neben der Textlänge)
@@ -186,6 +206,7 @@ export function mountStudio(root: HTMLElement): void {
     const input = readInput();
     try {
       out.textContent = buildStory(loadBank(), input, model);
+      baseText = out.textContent || "";
       try { localStorage.setItem("dm_last_text", out.textContent || ""); } catch { /* voll */ }
       renderKling(input.form, out.textContent || "");
       worldLogGeneration(input);
