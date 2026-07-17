@@ -1,5 +1,5 @@
 /* Divergenzmaschine – Service Worker */
-const CACHE = 'divergenzmaschine-ts-v33';
+const CACHE = 'divergenzmaschine-ts-v34';
 const PRECACHE = [
   './',
   './index.html',
@@ -48,7 +48,7 @@ self.addEventListener('fetch', (e) => {
   // Cache dient nur als Offline-Fallback.
   if (e.request.mode === 'navigate' || url.pathname.endsWith('/index.html')) {
     e.respondWith(
-      fetch(e.request).then((res) => {
+      fetch(e.request, { cache: 'no-cache' }).then((res) => {
         if (res.ok) {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put('./index.html', copy));
