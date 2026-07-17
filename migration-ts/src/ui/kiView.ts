@@ -58,6 +58,15 @@ export function mountKi(root: HTMLElement): void {
   const flash = (b: HTMLButtonElement, val: string): void => { if (!val) return; void navigator.clipboard?.writeText(val); const o = b.textContent; b.textContent = "Kopiert ✓"; setTimeout(() => (b.textContent = o), 1200); };
   copyOrig.addEventListener("click", () => flash(copyOrig, origPane.value));
   copyAi.addEventListener("click", () => flash(copyAi, aiPane.value));
+  const saveAi = button("Als TXT");
+  saveAi.addEventListener("click", () => {
+    const v = aiPane.value.trim();
+    if (!v) return;
+    const blob = new Blob([v], { type: "text/plain;charset=utf-8" });
+    const a = el("a", { href: URL.createObjectURL(blob), download: `ausarbeitung_${new Date().toISOString().slice(0, 10)}.txt` });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 0);
+  });
 
   const lenSel = select("ki-len", [["500", "\u2248 500 Wörter"], ["750", "\u2248 750 Wörter"], ["1000", "\u2248 1000 Wörter"]], "500");
   const treasures = loadTreasury().slice().reverse();
@@ -85,7 +94,7 @@ export function mountKi(root: HTMLElement): void {
 
   const compare = el("div", { class: "compare" },
     el("div", { class: "compare-col" }, el("div", { class: "compare-head" }, el("span", { class: "muted" }, "Original"), copyOrig), origPane),
-    el("div", { class: "compare-col" }, el("div", { class: "compare-head" }, el("span", { class: "muted" }, "KI-Ausarbeitung"), copyAi), aiPane));
+    el("div", { class: "compare-col" }, el("div", { class: "compare-head" }, el("span", { class: "muted" }, "KI-Ausarbeitung"), el("div", { style: "display:flex;gap:6px" }, copyAi, saveAi)), aiPane));
   wrap.append(el("hr", { style: "margin:16px 0" }), el("h3", {}, "Ausarbeiten (KI)"),
     field("Ziellänge", lenSel),
     el("div", { class: "btnrow" }, lastBtn),
