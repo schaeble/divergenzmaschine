@@ -1,7 +1,9 @@
 import "./ui/theme.css";
 // Einstieg: Tab-App montieren + Service Worker registrieren (PWA).
 import { mountApp } from "./ui/app";
+import { applyTheme, loadTheme } from "./features/theme";
 
+applyTheme(loadTheme());
 const root = document.getElementById("app");
 if (root) mountApp(root);
 

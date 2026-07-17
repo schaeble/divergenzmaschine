@@ -10,6 +10,7 @@ import { randomContext } from "../generation/context";
 import { el, select, field, textInput, button } from "./dom";
 import { worldLogGeneration } from "../features/world";
 import { addToTreasury } from "../features/treasury";
+import { THEMES, loadTheme, applyTheme } from "../features/theme";
 import { loadFont, loadFontSize, saveFontPrefs, applyStoryFont } from "../features/fonts";
 import { runProbe, runRanking, runAiRanking, type Ranking } from "../generation/scoring";
 
@@ -189,6 +190,14 @@ export function mountStudio(root: HTMLElement): void {
     field("Video: Shots", shots), field("Video: Sekunden", secs),
     el("label", { class: "field", style: "display:flex;align-items:center;gap:6px" }, polish, "Sprachschliff")));
   wrap.append(fine);
+
+  // ⚙️ Einstellungen (Farb-Themes)
+  const themeSel = select("f-theme", THEMES.map((t) => [t.id, t.label] as [string, string]), loadTheme());
+  themeSel.addEventListener("change", () => applyTheme(themeSel.value));
+  const settings = el("details", { class: "fine" });
+  settings.append(el("summary", {}, "⚙️ Einstellungen"), field("Farb-Theme", themeSel));
+  wrap.append(settings);
+
   root.append(wrap);
 
   const readInput = (): GenInput => ({
