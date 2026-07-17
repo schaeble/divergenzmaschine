@@ -1,5 +1,6 @@
 // Welt-Tab: Figuren, Orte, Zeitleiste; "Zeit vergeht", Kontext übernehmen, Reset.
 import { el, button } from "./dom";
+import { icon } from "./icons";
 import { loadWorld, worldTick, worldFillContext, resetWorld } from "../features/world";
 
 export function mountWorld(root: HTMLElement): void {
@@ -21,7 +22,7 @@ export function mountWorld(root: HTMLElement): void {
       el("div", { class: "muted" }, ...w.timeline.slice(-12).reverse().map((t) => el("div", {}, t))));
   };
 
-  const tickBtn = button("⏳ Zeit vergeht");
+  const tickBtn = el("button", {}, icon("clock"), " Zeit vergeht");
   tickBtn.addEventListener("click", () => { worldTick(); render(); });
   const useBtn = button("In Generator übernehmen");
   useBtn.addEventListener("click", () => {

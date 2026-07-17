@@ -1,6 +1,7 @@
 // KI-Tab: Setup (Schlüssel/Modell), KI-Wortbank, An KI übergeben.
 // Der Schlüssel bleibt lokal; Aufrufe gehen nur an api.anthropic.com.
 import { el, field, textInput, button } from "./dom";
+import { icon } from "./icons";
 import { saveBank } from "../storage";
 import { saveCurrentBankAsUserPreset } from "../wordbank";
 import { loadAiKey, saveAiKey, loadAiModel, saveAiModel, generateAiWordbank, smoothText } from "../features/ki";
@@ -26,11 +27,12 @@ export function mountKi(root: HTMLElement): void {
   // KI-Wortbank
   const where = textInput("ki-where", "Wo?"), when = textInput("ki-when", "Wann?"), who = textInput("ki-who", "Wer?"), what = textInput("ki-what", "Was?");
   const extra = textInput("ki-extra", 'Zusatzvorgabe, z.B. „im Stil von Kafka"');
-  const wbBtn = button("🤖 KI-Wortbank erstellen");
+  const wbLbl = el("span", {}, "KI-Wortbank erstellen");
+  const wbBtn = el("button", {}, icon("flask"), " ", wbLbl);
   const wbInfo = el("p", { class: "muted" });
   wbBtn.addEventListener("click", () => {
     void (async () => {
-      wbBtn.disabled = true; const old = wbBtn.textContent; wbBtn.textContent = "Erstelle…";
+      wbBtn.disabled = true; const old = wbLbl.textContent; wbLbl.textContent = "Erstelle…";
       try {
         const bank = await generateAiWordbank({ where: where.value, when: when.value, who: who.value, what: what.value, userPrompt: extra.value });
         saveBank(bank);
@@ -38,7 +40,7 @@ export function mountKi(root: HTMLElement): void {
         if (name) saveCurrentBankAsUserPreset(name);
         wbInfo.textContent = "KI-Wortbank erstellt und aktiviert.";
       } catch (e) { wbInfo.textContent = "Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e)); }
-      finally { wbBtn.disabled = false; wbBtn.textContent = old; }
+      finally { wbBtn.disabled = false; wbLbl.textContent = old || "KI-Wortbank erstellen"; }
     })();
   });
   wrap.append(el("hr", { style: "margin:16px 0" }), el("h3", {}, "KI-Wortbank"),
@@ -55,16 +57,17 @@ export function mountKi(root: HTMLElement): void {
   const flash = (b: HTMLButtonElement, val: string): void => { if (!val) return; void navigator.clipboard?.writeText(val); const o = b.textContent; b.textContent = "Kopiert ✓"; setTimeout(() => (b.textContent = o), 1200); };
   copyOrig.addEventListener("click", () => flash(copyOrig, origPane.value));
   copyAi.addEventListener("click", () => flash(copyAi, aiPane.value));
-  const smoothBtn = button("🤖 Letzten Text an KI übergeben");
+  const smoothLbl = el("span", {}, "Letzten Text an KI übergeben");
+  const smoothBtn = el("button", {}, icon("flask"), " ", smoothLbl);
   smoothBtn.addEventListener("click", () => {
     void (async () => {
       const last = lastText();
       if (!last.trim()) { aiPane.value = "Kein Text vorhanden (erst im Studio generieren)."; return; }
       origPane.value = last;
-      smoothBtn.disabled = true; const old = smoothBtn.textContent; smoothBtn.textContent = "Sende an KI…"; aiPane.value = "…";
+      smoothBtn.disabled = true; const old = smoothLbl.textContent; smoothLbl.textContent = "Sende an KI…"; aiPane.value = "…";
       try { aiPane.value = await smoothText(last); }
       catch (e) { aiPane.value = "Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e)); }
-      finally { smoothBtn.disabled = false; smoothBtn.textContent = old; }
+      finally { smoothBtn.disabled = false; smoothLbl.textContent = old || "Letzten Text an KI übergeben"; }
     })();
   });
   const compare = el("div", { class: "compare" },

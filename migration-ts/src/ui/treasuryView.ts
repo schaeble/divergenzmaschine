@@ -1,5 +1,6 @@
 // Schatzkammer-Tab: gesammelte Texte ansehen, ins Studio übernehmen, löschen, exportieren.
 import { el, button } from "./dom";
+import { icon } from "./icons";
 import { loadTreasury, deleteTreasureAt, exportTreasuryTxt } from "../features/treasury";
 
 export function mountTreasury(root: HTMLElement): void {
@@ -14,7 +15,7 @@ export function mountTreasury(root: HTMLElement): void {
     items.slice().reverse().forEach((it, ri) => {
       const idx = items.length - 1 - ri;
       const meta = [it.who, it.where, it.when].filter(Boolean).join(" · ");
-      const take = button("→ Studio");
+      const take = el("button", {}, icon("arrowRight"), " Studio");
       take.addEventListener("click", () => {
         try {
           localStorage.setItem("dm_pending_ctx", JSON.stringify({ who: it.who, where: it.where, when: it.when, what: it.what }));
@@ -25,16 +26,17 @@ export function mountTreasury(root: HTMLElement): void {
       });
       const copy = button("Kopieren");
       copy.addEventListener("click", () => { void navigator.clipboard?.writeText(it.t); });
-      const speak = button("🔊 Vorlesen");
+      const speakLbl = el("span", {}, "Vorlesen");
+      const speak = el("button", {}, icon("volume"), " ", speakLbl);
       let speaking = false;
       speak.addEventListener("click", () => {
         const synth = window.speechSynthesis;
         if (!synth) return;
-        if (speaking) { synth.cancel(); speaking = false; speak.textContent = "🔊 Vorlesen"; return; }
+        if (speaking) { synth.cancel(); speaking = false; speakLbl.textContent = "Vorlesen"; return; }
         synth.cancel();
         const u = new SpeechSynthesisUtterance(it.t); u.lang = "de-DE";
-        u.onend = () => { speaking = false; speak.textContent = "🔊 Vorlesen"; };
-        speaking = true; speak.textContent = "⏹ Stopp"; synth.speak(u);
+        u.onend = () => { speaking = false; speakLbl.textContent = "Vorlesen"; };
+        speaking = true; speakLbl.textContent = "Stopp"; synth.speak(u);
       });
       const del = button("Löschen", "danger");
       del.addEventListener("click", () => { deleteTreasureAt(idx); render(); });

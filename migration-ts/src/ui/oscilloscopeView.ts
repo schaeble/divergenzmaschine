@@ -1,5 +1,6 @@
 // Oszilloskop-Tab: Satzrhythmus eines Textes visualisieren.
 import { el, button } from "./dom";
+import { icon } from "./icons";
 import { analyze, buildSVG } from "../features/oscilloscope";
 import { loadTreasury } from "../features/treasury";
 
@@ -40,7 +41,7 @@ export function mountOscilloscope(root: HTMLElement): void {
   const trRow = treasures.length
     ? el("label", { class: "field lenrow" }, "Schatzkammer ", trSlider, " ", trLabel)
     : el("p", { class: "muted" }, "Schatzkammer leer — im Studio Texte mit ⭐ Merken sichern.");
-  const pullBtn = button("↺ aus Generator");
+  const pullBtn = el("button", {}, icon("refresh"), " aus Generator");
   pullBtn.addEventListener("click", () => {
     const last = (() => { try { return localStorage.getItem("dm_last_text") || ""; } catch { return ""; } })();
     if (!last.trim()) { stats.innerHTML = '<span class="muted">Noch kein generierter Text — erst im Studio generieren.</span>'; return; }

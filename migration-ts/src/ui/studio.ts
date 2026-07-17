@@ -8,6 +8,7 @@ import { buildModelFromCorpus } from "../corpus";
 import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
 import { el, select, field, textInput, button } from "./dom";
+import { icon } from "./icons";
 import { worldLogGeneration } from "../features/world";
 import { addToTreasury } from "../features/treasury";
 import { THEMES, loadTheme, applyTheme } from "../features/theme";
@@ -27,9 +28,9 @@ export function mountStudio(root: HTMLElement): void {
     x.addEventListener("click", () => { input.value = ""; input.dispatchEvent(new Event("input")); input.focus(); });
     return el("div", { class: "inwrap" }, input, x);
   };
-  const ctxDice = button("🎲 Kontext würfeln");
+  const ctxDice = el("button", {}, icon("dice"), " Kontext würfeln");
   ctxDice.addEventListener("click", () => { const c = randomContext(); where.value = c.where; when.value = c.when; who.value = c.who; what.value = c.what; });
-  const ctxKeep = button("📌 Kontext merken", "toggle");
+  const ctxKeep = el("button", { class: "toggle" }, icon("pin"), " Kontext merken");
   const CTX_KEY = "divergenz_ctx_v1";
   ctxKeep.title = "Wo/Wann/Wer/Was sichern und bei jedem Start laden";
   const setCtxKeep = (on: boolean): void => {
@@ -116,20 +117,22 @@ export function mountStudio(root: HTMLElement): void {
   const out = el("pre", { id: "f-out", class: "out" });
   const kling = el("div", { class: "kling" });
 
-  const genBtn = button("▶ Generieren", "primary");
+  const genBtn = el("button", { class: "primary" }, icon("play"), " Generieren");
   const varBtn = button("Variante");
-  const copyBtn = button("Kopieren");
-  const diceBtn = button("🎲 Würfeln");
+  const copyBtn = el("button", {}, icon("copy"), " Kopieren");
+  const diceBtn = el("button", {}, icon("dice"), " Würfeln");
   const rollSel = (s: HTMLSelectElement): void => { s.selectedIndex = Math.floor(Math.random() * s.options.length); s.dispatchEvent(new Event("change")); };
   diceBtn.addEventListener("click", () => { rolling = true; [tone, form, structure, mode, persp, rhythm, instab, disruptor, varianz, stil, preset].forEach(rollSel); rolling = false; generate(); });
-  const keepBtn = button("⭐ Merken");
+  const keepLbl = el("span", {}, "Merken");
+  const keepBtn = el("button", {}, icon("star"), " ", keepLbl);
   keepBtn.addEventListener("click", () => {
     const n = addToTreasury(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value });
-    keepBtn.textContent = n < 0 ? "— schon drin" : `⭐ Gemerkt (${n})`;
-    setTimeout(() => (keepBtn.textContent = "⭐ Merken"), 1400);
+    keepLbl.textContent = n < 0 ? "— schon drin" : `Gemerkt (${n})`;
+    setTimeout(() => (keepLbl.textContent = "Merken"), 1400);
   });
-  const readBtn = button("📖 Lesen");
-  const speakBtn = button("🔊 Vorlesen");
+  const readBtn = el("button", {}, icon("book"), " Lesen");
+  const speakLbl = el("span", {}, "Vorlesen");
+  const speakBtn = el("button", {}, icon("volume"), " ", speakLbl);
   wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, readBtn, speakBtn, lenRow), out, kling);
 
   // ── Test & Ranking ──
@@ -162,18 +165,19 @@ export function mountStudio(root: HTMLElement): void {
   const goldBtn = button("🥇 #1"); goldBtn.addEventListener("click", () => applyPlace(1));
   const silverBtn = button("🥈 #2"); silverBtn.addEventListener("click", () => applyPlace(2));
   const bronzeBtn = button("🥉 #3"); bronzeBtn.addEventListener("click", () => applyPlace(3));
-  const aiRankBtn = button("🤖 KI-Ranking (50)");
+  const aiRankLbl = el("span", {}, "KI-Ranking (50)");
+  const aiRankBtn = el("button", {}, icon("flask"), " ", aiRankLbl);
   aiRankBtn.addEventListener("click", async () => {
-    aiRankBtn.disabled = true; const old = aiRankBtn.textContent; aiRankBtn.textContent = "🤖 bewertet…";
+    aiRankBtn.disabled = true; const old = aiRankLbl.textContent; aiRankLbl.textContent = "bewertet…";
     rankStatus.textContent = "KI-Ranking läuft…";
     try {
       lastRanking = await runAiRanking(loadBank(), readInput(), buildModelFromCorpus(), 50, 10);
       rangeSlider.max = String(lastRanking.all.length); rangeSlider.value = "1"; applyPlace(1);
     } catch (e) { rankStatus.textContent = e instanceof Error ? e.message : String(e); }
-    finally { aiRankBtn.disabled = false; aiRankBtn.textContent = old; }
+    finally { aiRankBtn.disabled = false; aiRankLbl.textContent = old || "KI-Ranking (50)"; }
   });
   const rankDetails = el("details", { class: "fine" });
-  rankDetails.append(el("summary", {}, "🧪 Test & Ranking"),
+  rankDetails.append(el("summary", {}, icon("flask"), " Test & Ranking"),
     el("div", { class: "btnrow" }, probeBtn, rankBtn, aiRankBtn),
     el("div", { class: "btnrow" }, goldBtn, silverBtn, bronzeBtn),
     el("label", { class: "field lenrow" }, el("span", { class: "mlabel" }, "Rang"), " ", rangeSlider),
@@ -181,7 +185,7 @@ export function mountStudio(root: HTMLElement): void {
   wrap.append(rankDetails);
 
   const fine = el("details", { class: "fine" });
-  fine.append(el("summary", {}, "🧰 Werkzeugkasten"));
+  fine.append(el("summary", {}, icon("tool"), " Werkzeugkasten"));
   fine.append(fontRow);
   fine.append(el("div", { class: "grid3" },
     field("Struktur", structure), field("Modus", mode), field("Perspektive", persp),
@@ -195,7 +199,7 @@ export function mountStudio(root: HTMLElement): void {
   const themeSel = select("f-theme", THEMES.map((t) => [t.id, t.label] as [string, string]), loadTheme());
   themeSel.addEventListener("change", () => applyTheme(themeSel.value));
   const settings = el("details", { class: "fine" });
-  settings.append(el("summary", {}, "⚙️ Einstellungen"), field("Farb-Theme", themeSel));
+  settings.append(el("summary", {}, icon("settings"), " Einstellungen"), field("Farb-Theme", themeSel));
   wrap.append(settings);
 
   root.append(wrap);
@@ -304,11 +308,11 @@ export function mountStudio(root: HTMLElement): void {
   speakBtn.addEventListener("click", () => {
     const synth = window.speechSynthesis;
     if (!synth) return;
-    if (speaking) { synth.cancel(); speaking = false; speakBtn.textContent = "🔊 Vorlesen"; return; }
+    if (speaking) { synth.cancel(); speaking = false; speakLbl.textContent = "Vorlesen"; return; }
     const u = new SpeechSynthesisUtterance(out.textContent || "");
     u.lang = "de-DE";
-    u.onend = () => { speaking = false; speakBtn.textContent = "🔊 Vorlesen"; };
-    speaking = true; speakBtn.textContent = "⏹ Stopp"; synth.speak(u);
+    u.onend = () => { speaking = false; speakLbl.textContent = "Vorlesen"; };
+    speaking = true; speakLbl.textContent = "Stopp"; synth.speak(u);
   });
 
   // Gemerkten Kontext laden (falls aktiv)

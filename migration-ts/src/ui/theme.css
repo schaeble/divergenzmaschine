@@ -5,8 +5,12 @@
   --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --on-acc:#fff; --out-fg:#f2f4f8; --acc-hover:#7c4ddb;
   --glow1:rgba(139,92,246,.10); --glow2:rgba(34,211,238,.06); --overlay:rgba(10,12,16,.92);
+  --input-bg:#0e131b; --focus-glow:rgba(34,211,238,.16);
 }
 *{box-sizing:border-box}
+input[type=range]{accent-color:var(--acc)}
+.ic{display:inline-block;vertical-align:-.16em;line-height:0}
+.ic svg{display:block}
 body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 var(--sans);
   background-image:radial-gradient(circle at 20% -10%,var(--glow1),transparent 40%),
                    radial-gradient(circle at 100% 0%,var(--glow2),transparent 35%);
@@ -25,9 +29,9 @@ label.field>*{margin-top:4px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 
-input,select,textarea{width:100%;background:var(--panel2);color:var(--text);
+input,select,textarea{width:100%;background:var(--input-bg);color:var(--text);
   border:1px solid var(--border);border-radius:8px;padding:8px 10px;font:14px var(--sans);outline:none}
-input:focus,select:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(139,92,246,.25)}
+input:focus,select:focus,textarea:focus{border-color:var(--acc2);box-shadow:0 0 0 3px var(--focus-glow)}
 select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
   background-position:calc(100% - 16px) center,calc(100% - 11px) center;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:28px}
 textarea{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;resize:vertical}
@@ -170,22 +174,26 @@ button.toggle.on::before{content:"✓ "}
   --bg:#070b14; --panel:#0f1626; --panel2:#141d31; --border:#20304d; --border2:#2c405f;
   --text:#e6edf7; --muted:#8497b5; --acc:#3b82f6; --acc2:#22d3ee; --acc-hover:#2f6fd6;
   --out-fg:#eef3fb; --glow1:rgba(59,130,246,.12); --glow2:rgba(34,211,238,.06); --overlay:rgba(7,11,20,.92);
+  --input-bg:#0a1020; --focus-glow:rgba(34,211,238,.16);
 }
 [data-theme="bernstein"]{
   --bg:#0b0d0a; --panel:#12160f; --panel2:#171c13; --border:#2a3320; --border2:#3a4a29;
   --text:#e8ecdd; --muted:#93a17d; --acc:#84cc16; --acc2:#f59e0b; --acc-hover:#6ba50f;
   --on-acc:#0b0d0a; --out-fg:#eef2e3; --glow1:rgba(132,204,22,.10); --glow2:rgba(245,158,11,.07); --overlay:rgba(11,13,10,.92);
+  --input-bg:#0c0f09; --focus-glow:rgba(245,158,11,.16);
 }
 [data-theme="traumlogik"]{
   --bg:#120a16; --panel:#1b1022; --panel2:#22142b; --border:#3a2247; --border2:#4d2e5f;
   --text:#f0e6f5; --muted:#a891b5; --acc:#c084fc; --acc2:#f472b6; --acc-hover:#a95ef0;
   --on-acc:#120a16; --out-fg:#f6edfa; --glow1:rgba(192,132,252,.13); --glow2:rgba(244,114,182,.08); --overlay:rgba(18,10,22,.92);
+  --input-bg:#150c1b; --focus-glow:rgba(244,114,182,.16);
 }
 [data-theme="papier"]{
   --bg:#f3efe6; --panel:#faf7f0; --panel2:#fffdf8; --border:#ddd4c2; --border2:#c7bca4;
   --text:#2a2620; --muted:#6f6656; --acc:#b0451f; --acc2:#1d7d68; --acc-hover:#933917;
   --on-acc:#fff; --out-fg:#241f18; --danger:#b0451f;
   --glow1:transparent; --glow2:transparent; --overlay:rgba(250,247,240,.94);
+  --input-bg:#fffdf8; --focus-glow:rgba(29,125,104,.18);
 }
 
 /* Maschinenraum: kleine Monospace-Kleinbuchstaben-Labels */

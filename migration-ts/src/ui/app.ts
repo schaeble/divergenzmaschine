@@ -2,6 +2,7 @@
 import { el } from "./dom";
 import { VERSION } from "../version";
 import { exportProject, importProject } from "../features/project";
+import { icon } from "./icons";
 import { mountStudio } from "./studio";
 import { mountWordbank } from "./wordbankView";
 import { mountKorpus } from "./korpusView";
@@ -27,8 +28,8 @@ const TABS: [string, (root: HTMLElement) => void][] = [
 export function mountApp(root: HTMLElement): void {
   root.innerHTML = "";
   const shell = el("div", { class: "app" });
-  const saveBtn = el("button", { class: "topbtn", title: "Projekt speichern (JSON: Wortbank, Presets, Korpus, Einstellungen)" }, "💾 Speichern");
-  const loadBtn = el("button", { class: "topbtn", title: "Projekt laden (JSON)" }, "📂 Laden");
+  const saveBtn = el("button", { class: "topbtn", title: "Projekt speichern (JSON: Wortbank, Presets, Korpus, Einstellungen)" }, icon("floppy"), " Speichern");
+  const loadBtn = el("button", { class: "topbtn", title: "Projekt laden (JSON)" }, icon("folder"), " Laden");
   const fileIn = el("input", { type: "file", accept: "application/json,.json", style: "display:none" }) as HTMLInputElement;
   const projStatus = el("span", { class: "projstatus muted" }, "");
   saveBtn.addEventListener("click", () => { exportProject(); projStatus.textContent = "gespeichert ✓"; setTimeout(() => (projStatus.textContent = ""), 1600); });
