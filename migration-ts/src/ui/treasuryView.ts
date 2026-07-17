@@ -16,18 +16,32 @@ export function mountTreasury(root: HTMLElement): void {
       const meta = [it.who, it.where, it.when].filter(Boolean).join(" · ");
       const take = button("→ Studio");
       take.addEventListener("click", () => {
-        try { localStorage.setItem("dm_pending_ctx", JSON.stringify({ who: it.who, where: it.where, when: it.when, what: it.what })); } catch { /* voll */ }
+        try {
+          localStorage.setItem("dm_pending_ctx", JSON.stringify({ who: it.who, where: it.where, when: it.when, what: it.what }));
+          localStorage.setItem("dm_pending_text", it.t);
+        } catch { /* voll */ }
         const st = [...document.querySelectorAll(".tabbar button")].find((b) => b.textContent === "Studio") as HTMLButtonElement | undefined;
         if (st) st.click();
       });
       const copy = button("Kopieren");
       copy.addEventListener("click", () => { void navigator.clipboard?.writeText(it.t); });
+      const speak = button("🔊 Vorlesen");
+      let speaking = false;
+      speak.addEventListener("click", () => {
+        const synth = window.speechSynthesis;
+        if (!synth) return;
+        if (speaking) { synth.cancel(); speaking = false; speak.textContent = "🔊 Vorlesen"; return; }
+        synth.cancel();
+        const u = new SpeechSynthesisUtterance(it.t); u.lang = "de-DE";
+        u.onend = () => { speaking = false; speak.textContent = "🔊 Vorlesen"; };
+        speaking = true; speak.textContent = "⏹ Stopp"; synth.speak(u);
+      });
       const del = button("Löschen", "danger");
       del.addEventListener("click", () => { deleteTreasureAt(idx); render(); });
       list.append(el("div", { class: "treasure" },
         el("div", { class: "treasure-meta" }, `${it.d}${meta ? "  ·  " + meta : ""}`),
         el("pre", { class: "out treasure-text" }, it.t),
-        el("div", { class: "btnrow" }, take, copy, del)));
+        el("div", { class: "btnrow" }, take, copy, speak, del)));
     });
   };
 

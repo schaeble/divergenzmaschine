@@ -153,3 +153,11 @@ button.toggle.on::before{content:"✓ "}
 @media (max-width:720px){.grid4{grid-template-columns:repeat(2,1fr)}}
 .wrow{display:flex;align-items:center;gap:6px;margin:0}
 .wrow input[type=range]{flex:1;min-width:60px}
+
+/* 4W-Felder mit Leeren-Button */
+.inwrap{position:relative;display:block}
+.inwrap input{width:100%;padding-right:30px}
+.inwrap .clr{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:22px;height:22px;
+  padding:0;line-height:1;border-radius:6px;font-size:15px;color:var(--muted);
+  background:transparent;border:1px solid transparent;cursor:pointer}
+.inwrap .clr:hover{color:#fff;border-color:var(--border2);background:rgba(255,255,255,.06)}

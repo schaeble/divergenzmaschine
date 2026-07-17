@@ -21,6 +21,11 @@ export function mountStudio(root: HTMLElement): void {
   const when = textInput("f-when", "Wann?", "vor langer Zeit");
   const who = textInput("f-who", "Wer? (mehrere durch Komma = Dialog)", "Baucis, Philemon");
   const what = textInput("f-what", "Was passiert?", "ein Wunder geschieht");
+  const clearable = (input: HTMLInputElement): HTMLElement => {
+    const x = el("button", { class: "clr", type: "button", title: "Feld leeren" }, "×");
+    x.addEventListener("click", () => { input.value = ""; input.dispatchEvent(new Event("input")); input.focus(); });
+    return el("div", { class: "inwrap" }, input, x);
+  };
   const ctxDice = button("🎲 Kontext würfeln");
   ctxDice.addEventListener("click", () => { const c = randomContext(); where.value = c.where; when.value = c.when; who.value = c.who; what.value = c.what; });
   const ctxKeep = button("📌 Kontext merken", "toggle");
@@ -33,7 +38,7 @@ export function mountStudio(root: HTMLElement): void {
   };
   ctxKeep.addEventListener("click", () => setCtxKeep(!ctxKeep.classList.contains("on")));
   wrap.append(el("div", { class: "grid2" },
-    field("Wo?", where), field("Wann?", when), field("Wer?", who), field("Was passiert?", what)), el("div", { class: "btnrow" }, ctxDice, ctxKeep));
+    field("Wo?", clearable(where)), field("Wann?", clearable(when)), field("Wer?", clearable(who)), field("Was passiert?", clearable(what))), el("div", { class: "btnrow" }, ctxDice, ctxKeep));
 
   const preset = select("f-preset", sortedPresetOptions());
   preset.addEventListener("change", () => { const p = getAllPresets()[preset.value]; if (p) saveBank(p.bank); });
@@ -313,5 +318,13 @@ export function mountStudio(root: HTMLElement): void {
   applyStoryFont(out, fontSel.value, parseFloat(sizeSlider.value));
   const first = getAllPresets()[preset.value];
   if (first) saveBank(first.bank);
-  generate();
+  let pendingText = "";
+  try { pendingText = localStorage.getItem("dm_pending_text") || ""; localStorage.removeItem("dm_pending_text"); } catch { /* ignore */ }
+  if (pendingText.trim()) {
+    out.textContent = pendingText;
+    try { localStorage.setItem("dm_last_text", pendingText); } catch { /* voll */ }
+    renderKling(readInput().form, pendingText);
+  } else {
+    generate();
+  }
 }
