@@ -63,6 +63,7 @@ export function mountKi(root: HTMLElement): void {
   const treasures = loadTreasury().slice().reverse();
   const trSel = select("ki-treasure", [["", treasures.length ? "\u2014 Schatzkammer-Text wählen \u2014" : "\u2014 Schatzkammer leer \u2014"],
     ...treasures.map((it, i) => [String(i), `${it.d}${it.who ? " · " + it.who : ""}: ${it.t.slice(0, 40)}…`] as [string, string])]);
+  trSel.addEventListener("change", () => { const i = parseInt(trSel.value, 10); const it = Number.isNaN(i) ? undefined : treasures[i]; if (it) origPane.value = it.t; });
 
   const runElaborate = (source: string, btn: HTMLButtonElement, lbl: HTMLElement, def: string): void => {
     void (async () => {
