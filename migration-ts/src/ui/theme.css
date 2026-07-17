@@ -147,10 +147,10 @@ button.toggle.on::before{content:"✓ "}
 /* Hilfe-Tab */
 .help{max-width:52rem}
 .help-sec{margin:14px 0}
-.help-sec h3{margin:0 0 6px;font-size:15px;color:var(--acc2)}
+.help-sec h3{margin:0 0 6px;font-size:15px;color:var(--acc)}
 .help-list{margin:0;padding-left:18px}
 .help-list li{margin-bottom:6px;line-height:1.55}
-.help-list b{color:#fff}
+.help-list b{color:var(--text)}
 
 /* 4W-Gewichtung (nur Prosa) */
 .emph{margin-top:12px;padding:10px 12px;border:1px dashed var(--border2);border-radius:10px;background:rgba(139,92,246,.05)}
