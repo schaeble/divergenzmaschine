@@ -11,19 +11,43 @@ export function isFragmentSentence(s: string): boolean {
   return n > 0 && n <= 3;
 }
 
-/** Heuristik: enthält die Phrase ein finites Verb (klingt nach ganzem Satz)? */
+/** Heuristik: ist die Phrase ein ganzer Satz (statt einer Nominalphrase)? */
+const CLAUSE_VERBS = new Set(["antworten","antwortet","atmen","atmet","bebt","begann","beginnen","beginnt","beobachten","beobachtet","berühren","berührt","bin","bist","bleiben","bleibt","blieb","blitzt","brannte","brennen","brennt","brummt","brüllen","brüllt","dachte","darf","denken","denkt","donnert","drehen","dreht","drehte","durfte","dürfen","enden","endet","endete","erinnern","erinnert","fahren","fallen","fand","fiel","fielen","finden","findet","fliegen","fliegt","fliehen","flieht","fließen","fließt","flog","floss","flüstern","flüstert","folgen","folgt","folgte","formen","formt","fragen","fragt","fragte","fuhr","fährt","fällt","fühlen","fühlt","führen","führt","führte","fürchten","fürchtet","gab","gaben","galt","geben","gehen","geht","gelten","geschah","geschehen","geschieht","gibt","gilt","ging","gingen","glauben","glaubt","haben","habt","halten","hat","hatte","hatten","hielt","hielten","hoffen","hofft","hält","hätte","hören","hört","hörte","ist","jagen","jagt","kam","kamen","kann","kannte","kennen","kennt","kippen","kippt","knistert","kommen","kommt","konnte","konnten","kreisen","kreist","können","lachen","lacht","lag","lagen","laufen","leuchten","leuchtet","lief","liefen","liegen","liegt","läuft","löschen","löscht","machen","macht","machte","machten","mag","muss","musste","mussten","möchte","möchten","mögen","müssen","nahm","nahmen","nehmen","nimmt","passieren","passiert","passierte","planen","plant","pulsiert","raschelt","reagieren","reagiert","regnet","retten","rettet","rief","rinnt","riskiert","rufen","ruft","sah","sahen","sang","sank","saß","schlafen","schlief","schließen","schließt","schloss","schläft","schmelzen","schmilzt","schneit","schreien","schreit","schrie","schweigen","schweigt","schwieg","sehen","seid","sieht","sind","singen","singt","sinken","sinkt","sitzen","sitzt","soll","sollen","sollte","sprach","sprachen","sprang","sprechen","spricht","springen","springt","stand","standen","stehen","steht","steigen","steigt","stieg","suchen","sucht","suchte","summt","tanzen","tanzt","tat","taten","ticken","tickt","tragen","tropft","trug","trugen","trägt","träumen","träumt","tun","tut","unterschreiben","unterschreibt","verfolgen","verfolgt","vergessen","vergisst","verlangen","verlangt","verraten","verrät","verändern","verändert","vibriert","wachsen","wagen","wagt","wandern","wandert","war","waren","warten","wartet","wartete","wechseln","wechselt","weigern","weigert","weinen","weint","weiß","werden","werdet","wiederholen","wiederholt","will","wird","wirst","wissen","wollen","wollte","wollten","wurde","wurden","wusste","wächst","wäre","wären","würde","würden","zeigen","zeigt","zeigte","zerbrechen","zerbricht","ziehen","zieht","zittern","zittert","zog","zogen","öffnen","öffnet","überschreiben","überschreibt"]);
+const CLAUSE_STOP = new Set([
+  "der","die","das","den","dem","des","ein","eine","einen","einem","einer","eines",
+  "kein","keine","keinen","keinem","keiner","mein","meine","meinen","dein","deine","sein","seine","seinen","ihr","ihre","ihren","unser","unsere","euer","eure",
+  "dieser","diese","dieses","diesen","diesem","jener","jene","jenes","jeder","jede","jedes","jeden","jedem","manch","manche","alle","allen","beide","beiden","viele","vielen","solche","solchen",
+  "mit","ohne","aus","von","vom","in","im","auf","an","am","für","bei","zu","zum","zur","über","unter","vor","nach","durch","gegen","seit","um","neben","zwischen","hinter","wegen","trotz","während","entlang",
+  "und","oder","aber","denn","sondern","nicht","jetzt","fast","erst","sonst","selbst","meist","dennoch","trotzdem",
+]);
+const CLAUSE_PRON = new Set(["ich","du","er","sie","es","wir","man","jemand","niemand","etwas","nichts","wer","alles"]);
+
+function mainHasFiniteVerb(part: string): boolean {
+  const toks = part.trim().split(/\s+/);
+  let sawSubject = false;
+  for (let i = 0; i < toks.length; i++) {
+    const raw = toks[i]!;
+    const lower = raw.toLowerCase().replace(/[^a-zäöüß]/g, "");
+    if (i > 0 && sawSubject && /^[a-zäöüß]/.test(raw) && lower.length >= 3 && !CLAUSE_STOP.has(lower)) {
+      if (CLAUSE_VERBS.has(lower)) return true;
+      if (/iert$/.test(lower)) return true;                 // reagiert, existiert, notiert …
+      if (/en$/.test(lower)) {                              // Plural/Infinitiv-Form (folgen, kommen)
+        const next = toks[i + 1];
+        if (!next || /^[a-zäöüß]/.test(next)) return true;  // NICHT vor großgeschr. Nomen (attributives Adjektiv)
+      }
+    }
+    // Subjekt merken: großgeschriebenes Nomen (nach Position 0) oder Pronomen
+    if ((i > 0 && /^[A-ZÄÖÜ]/.test(raw)) || CLAUSE_PRON.has(lower)) sawSubject = true;
+  }
+  return false;
+}
+
 export function looksLikeClausePhrase(phrase: string): boolean {
   const s = clean(phrase);
   if (!s) return false;
-  // Ein ganzer Satz endet wie ein Satz. Die Nominalphrasen der Wortbank
-  // ("eine Tür, die von innen atmet") tun das nie.
-  if (/[.!?]$/.test(s)) return true;
-  // Sonst nur den Hauptteil VOR dem ersten Komma auf ein finites Verb prüfen:
-  // ein Relativsatz nach dem Komma ("… , die … atmet") macht die Phrase NICHT
-  // zum Satz - das Verb steckt dort im Nebensatz, nicht im Hauptprädikat.
-  const mainPart = (s.split(",")[0] || s).trim();
-  const VERBISH = /\b(ist|war|wäre|sind|waren|wären|bin|bist|seid|hat|hatte|hätte|haben|hatten|wird|werden|wurde|würde|kommt|kam|kamen|geht|ging|steht|stand|liegt|lag|bleibt|blieb|beginnt|begann|endet|endete|kennt|kannte|sucht|suchte|will|wollte|kann|konnte|muss|musste|macht|machte|machen|machten|tut|tat|gibt|gab|nimmt|nahm|sieht|sah|spricht|sprach|schläft|schlief|wechselt|wechselte|wiederholt|wiederholte|unterschreibt|unterschrieb|schweigt|schwieg|zeigt|zeigte|tickt|atmet|reagiert|verändert|kippt|löscht|folgt|glüht|glühen|wandert|singt|sang|fällt|fiel|steigt|stieg|brennt|brannte|zerbricht|dreht|drehte|passiert|passierte|geschieht|geschah|läuft|lief|schließt|öffnet|trägt|trug|hält|hielt|fragt|fragte|antwortet|erinnert|flüstert|brüllt|zieht|verlangt|formt|tanzt|weigert)\b/i;
-  return VERBISH.test(mainPart);
+  if (/[.!?]$/.test(s)) return true;                        // endet wie ein Satz
+  const mainPart = (s.split(",")[0] || s).trim();           // nur Hauptteil vor dem ersten Komma
+  return mainHasFiniteVerb(mainPart);
 }
 
 export function chooseInsertPos(sentences: string[]): number {
