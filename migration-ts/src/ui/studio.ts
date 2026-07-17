@@ -45,14 +45,6 @@ export function mountStudio(root: HTMLElement): void {
   const wWo = mkWeight("f-w-wo"), wWann = mkWeight("f-w-wann"), wWer = mkWeight("f-w-wer"), wWas = mkWeight("f-w-was");
   const field4w = (label: string, inp: HTMLInputElement, weight: HTMLInputElement): HTMLElement =>
     field(label, el("div", { class: "field4w" }, clearable(inp), weight));
-  const about = el("details", { class: "fine about" });
-  about.append(
-    el("summary", {}, icon("info"), " Über die Divergenzmaschine"),
-    el("p", {}, "Divergenzmaschine ist ein im Kern offline arbeitendes Werkzeug für prozedurales, assoziatives Schreiben auf Deutsch. Statt Zufallssätze baut sie Texte über eine mehrstufige Pipeline: wählbare Strukturen (linear, umgekehrt, kreisförmig, fragmentiert, objektzentriert) und Formen (Prosa, Prosagedicht, Gedicht-Strang, Reim, Haiku, Szene/Dialog, Multi-Shot), Perspektivwechsel mit grammatischer Anpassung und ein Markov-Modul, das aus einem selbst trainierbaren Korpus lernt. Eine Wiederholungsprüfung verwirft monotone Varianten; „Test & Ranking“ erzeugt und bewertet mehrere Fassungen, damit sich die stärkste auswählen lässt. Dazu: eine Ideenmaschine für kurze Prämissen, ein Weltensimulator für Figuren, Orte und Zeitleiste, ein Satzrhythmus-Oszilloskop, Presets (inkl. Auto-Mix), eine editierbare Wortbank, Farb-Themes und volle Projekt-Speicherung — alle Regler wirken in Echtzeit."),
-    el("p", {}, "Neu ist ihr Potential als Frontend: Die Maschine liefert offline die assoziativen Rohtexte und Prämissen, und auf Wunsch arbeitet Claude sie per Klick zu einem zusammenhängenden Text von 500, 750 oder 1000 Wörtern aus. So verbindet sie divergentes Assoziieren mit gezielter Ausarbeitung. Ohne eigenen API-Schlüssel bleibt sie vollständig offline."),
-    el("p", { class: "muted" }, "→ Trage links „Wo / Wann / Wer / Was passiert“ ein und klicke auf „Generieren“, um deine erste Geschichte zu erzeugen."));
-  wrap.append(about);
-
   wrap.append(el("div", { class: "grid2" },
     field4w("Wo?", where, wWo), field4w("Wann?", when, wWann), field4w("Wer?", who, wWer), field4w("Was passiert?", what, wWas)),
     el("div", { class: "btnrow" }, ctxDice, ctxKeep));

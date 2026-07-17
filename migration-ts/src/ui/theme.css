@@ -219,3 +219,17 @@ input[type=range].wgt:hover{opacity:1}
 /* Über-Einblendung */
 .about{margin-bottom:12px}
 .about p{max-width:60ch;line-height:1.6}
+
+/* Klickbarer Titel + Über-Dialog */
+.apptitle-link{cursor:pointer;border-bottom:1px dotted transparent}
+.apptitle-link:hover{color:var(--acc);border-bottom-color:var(--acc)}
+.modal{position:fixed;inset:0;z-index:9998;display:flex;align-items:flex-start;justify-content:center;
+  padding:6vh 16px;overflow:auto;background:var(--overlay)}
+.modal-card{background:var(--panel);border:1px solid var(--border2);border-radius:14px;
+  max-width:640px;width:100%;box-shadow:0 24px 60px -20px rgba(0,0,0,.7)}
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 18px;border-bottom:1px solid var(--border)}
+.modal-head h2{margin:0;font-size:1.05rem}
+.modal-head .x{padding:6px 8px}
+.modal-body{padding:16px 18px}
+.modal-body p{max-width:60ch;line-height:1.65;margin:.6rem 0}

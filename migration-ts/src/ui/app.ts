@@ -3,6 +3,21 @@ import { el } from "./dom";
 import { VERSION } from "../version";
 import { exportProject, importProject } from "../features/project";
 import { icon } from "./icons";
+
+function showAbout(): void {
+  const overlay = el("div", { class: "modal" });
+  const close = el("button", { class: "x", "aria-label": "Schließen" }, icon("x"));
+  close.addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+  const card = el("div", { class: "modal-card" },
+    el("div", { class: "modal-head" }, el("h2", {}, "Über die Divergenzmaschine"), close),
+    el("div", { class: "modal-body" },
+      el("p", {}, "Divergenzmaschine ist ein im Kern offline arbeitendes Werkzeug für prozedurales, assoziatives Schreiben auf Deutsch. Statt Zufallssätze baut sie Texte über eine mehrstufige Pipeline: wählbare Strukturen (linear, umgekehrt, kreisförmig, fragmentiert, objektzentriert) und Formen (Prosa, Prosagedicht, Gedicht-Strang, Reim, Haiku, Szene/Dialog, Multi-Shot), Perspektivwechsel mit grammatischer Anpassung und ein Markov-Modul, das aus einem selbst trainierbaren Korpus lernt. Eine Wiederholungsprüfung verwirft monotone Varianten; „Test & Ranking“ erzeugt und bewertet mehrere Fassungen, damit sich die stärkste auswählen lässt. Dazu: eine Ideenmaschine für kurze Prämissen, ein Weltensimulator für Figuren, Orte und Zeitleiste, ein Satzrhythmus-Oszilloskop, Presets (inkl. Auto-Mix), eine editierbare Wortbank, Farb-Themes und volle Projekt-Speicherung — alle Regler wirken in Echtzeit."),
+      el("p", {}, "Neu ist ihr Potential als Frontend: Die Maschine liefert offline die assoziativen Rohtexte und Prämissen, und auf Wunsch arbeitet Claude sie per Klick zu einem zusammenhängenden Text von 500, 750 oder 1000 Wörtern aus. So verbindet sie divergentes Assoziieren mit gezielter Ausarbeitung. Ohne eigenen API-Schlüssel bleibt sie vollständig offline."),
+      el("p", { class: "muted" }, "→ Trage links „Wo / Wann / Wer / Was passiert“ ein und klicke auf „Generieren“, um deine erste Geschichte zu erzeugen.")));
+  overlay.append(card);
+  document.body.append(overlay);
+}
 import { mountStudio } from "./studio";
 import { mountWordbank } from "./wordbankView";
 import { mountKorpus } from "./korpusView";
@@ -42,8 +57,10 @@ export function mountApp(root: HTMLElement): void {
       .catch((e: unknown) => { projStatus.textContent = "Fehler: " + (e instanceof Error ? e.message : String(e)); });
     fileIn.value = "";
   });
+  const titleLink = el("span", { class: "apptitle-link", title: "Über die Divergenzmaschine — klicken" }, "Divergenzmaschine");
+  titleLink.addEventListener("click", showAbout);
   const header = el("div", { class: "apphead" },
-    el("h1", { class: "apptitle" }, "Divergenzmaschine", el("span", { class: "ver", title: "Build-Version" }, "v" + VERSION)),
+    el("h1", { class: "apptitle" }, titleLink, el("span", { class: "ver", title: "Build-Version" }, "v" + VERSION)),
     el("div", { class: "projctl" }, projStatus, saveBtn, loadBtn, fileIn));
   shell.append(header);
 
