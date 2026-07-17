@@ -15,6 +15,17 @@ export function mountKorpus(root: HTMLElement): void {
   const clearBtn = button("Korpus löschen", "danger");
   clearBtn.addEventListener("click", () => { if (confirm("Korpus wirklich löschen?")) { savePersistentCorpus(""); refresh(); } });
 
+  const view = el("pre", { class: "out", style: "display:none;max-height:320px;overflow:auto;margin-top:10px" });
+  const showBtn = button("Inhalt anzeigen");
+  let shown = false;
+  showBtn.addEventListener("click", () => {
+    shown = !shown;
+    if (shown) {
+      const c = loadPersistentCorpus();
+      view.textContent = c ? (c.length > 6000 ? "…(gekürzt, letzte 6000 Zeichen)\n\n" + c.slice(-6000) : c) : "(Korpus ist leer)";
+      view.style.display = ""; showBtn.textContent = "Inhalt ausblenden";
+    } else { view.style.display = "none"; showBtn.textContent = "Inhalt anzeigen"; }
+  });
   const exportBtn = button("Export (TXT)");
   exportBtn.addEventListener("click", () => {
     const blob = new Blob([loadPersistentCorpus()], { type: "text/plain" });
@@ -22,7 +33,7 @@ export function mountKorpus(root: HTMLElement): void {
     a.click();
   });
 
-  wrap.append(ta, el("div", { class: "btnrow" }, addBtn, clearBtn, exportBtn), info);
+  wrap.append(ta, el("div", { class: "btnrow" }, addBtn, showBtn, clearBtn, exportBtn), info, view);
   root.append(wrap);
   refresh();
 }

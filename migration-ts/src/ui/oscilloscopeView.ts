@@ -1,6 +1,7 @@
 // Oszilloskop-Tab: Satzrhythmus eines Textes visualisieren.
 import { el, button } from "./dom";
 import { analyze, buildSVG } from "../features/oscilloscope";
+import { loadTreasury } from "../features/treasury";
 
 const fmt = (x: number, d = 1): string => x.toFixed(d);
 
@@ -23,13 +24,21 @@ export function mountOscilloscope(root: HTMLElement): void {
   };
   const runBtn = button("Analysieren");
   runBtn.addEventListener("click", run);
+  const treasures = loadTreasury().slice().reverse();
+  const trSel = el("select", {},
+    el("option", { value: "" }, treasures.length ? "— aus Schatzkammer wählen —" : "— Schatzkammer leer —"),
+    ...treasures.map((it, i) => el("option", { value: String(i) }, `${it.d}${it.who ? " · " + it.who : ""}: ${it.t.slice(0, 40)}…`))) as HTMLSelectElement;
+  trSel.addEventListener("change", () => {
+    const i = parseInt(trSel.value, 10);
+    if (!Number.isNaN(i) && treasures[i]) { ta.value = treasures[i]!.t; run(); }
+  });
   const pullBtn = button("↺ aus Generator");
   pullBtn.addEventListener("click", () => {
     const last = (() => { try { return localStorage.getItem("dm_last_text") || ""; } catch { return ""; } })();
     if (!last.trim()) { stats.innerHTML = '<span class="muted">Noch kein generierter Text — erst im Studio generieren.</span>'; return; }
     ta.value = last; run();
   });
-  wrap.append(el("p", { class: "muted" }, "Kanal A — Text analysieren (vorbelegt mit der letzten Generierung)"), ta, el("div", { class: "btnrow" }, runBtn, pullBtn), viz, stats);
+  wrap.append(el("p", { class: "muted" }, "Kanal A — Text analysieren (vorbelegt mit der letzten Generierung)"), ta, el("div", { class: "btnrow" }, runBtn, pullBtn, trSel), viz, stats);
   root.append(wrap);
   if (ta.value.trim()) run();
 }
