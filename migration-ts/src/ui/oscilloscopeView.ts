@@ -24,21 +24,29 @@ export function mountOscilloscope(root: HTMLElement): void {
   };
   const runBtn = button("Analysieren");
   runBtn.addEventListener("click", run);
+  // Schatzkammer als Regler: von links nach rechts durch die Texte blättern (Echtzeit)
   const treasures = loadTreasury().slice().reverse();
-  const trSel = el("select", {},
-    el("option", { value: "" }, treasures.length ? "— aus Schatzkammer wählen —" : "— Schatzkammer leer —"),
-    ...treasures.map((it, i) => el("option", { value: String(i) }, `${it.d}${it.who ? " · " + it.who : ""}: ${it.t.slice(0, 40)}…`))) as HTMLSelectElement;
-  trSel.addEventListener("change", () => {
-    const i = parseInt(trSel.value, 10);
-    if (!Number.isNaN(i) && treasures[i]) { ta.value = treasures[i]!.t; run(); }
-  });
+  const trLabel = el("span", { class: "muted" });
+  const trSlider = el("input", { id: "osz-treasure", type: "range", min: "0", max: String(Math.max(0, treasures.length - 1)), step: "1", value: "0", style: "flex:1" }) as HTMLInputElement;
+  const loadTreasureAt = (): void => {
+    const i = parseInt(trSlider.value, 10);
+    const it = treasures[i];
+    if (!it) return;
+    ta.value = it.t;
+    trLabel.textContent = `${i + 1}/${treasures.length}${it.who ? " · " + it.who : ""}${it.d ? " · " + it.d : ""}`;
+    run();
+  };
+  trSlider.addEventListener("input", loadTreasureAt);
+  const trRow = treasures.length
+    ? el("label", { class: "field lenrow" }, "Schatzkammer ", trSlider, " ", trLabel)
+    : el("p", { class: "muted" }, "Schatzkammer leer — im Studio Texte mit ⭐ Merken sichern.");
   const pullBtn = button("↺ aus Generator");
   pullBtn.addEventListener("click", () => {
     const last = (() => { try { return localStorage.getItem("dm_last_text") || ""; } catch { return ""; } })();
     if (!last.trim()) { stats.innerHTML = '<span class="muted">Noch kein generierter Text — erst im Studio generieren.</span>'; return; }
     ta.value = last; run();
   });
-  wrap.append(el("p", { class: "muted" }, "Kanal A — Text analysieren (vorbelegt mit der letzten Generierung)"), ta, el("div", { class: "btnrow" }, runBtn, pullBtn, trSel), viz, stats);
+  wrap.append(el("p", { class: "muted" }, "Kanal A — Text analysieren (vorbelegt mit der letzten Generierung)"), ta, el("div", { class: "btnrow" }, runBtn, pullBtn), trRow, viz, stats);
   root.append(wrap);
   if (ta.value.trim()) run();
 }
