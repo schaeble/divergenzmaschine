@@ -87,6 +87,18 @@ export async function generateAiWordbank(ctx: WordbankCtx): Promise<Bank> {
 }
 
 /** Übergibt einen Text an Claude und gibt eine geglättete Rohfassung zurück. */
+export async function elaborateText(text: string, targetWords: number): Promise<string> {
+  const n = Math.max(100, Math.min(2000, Math.round(targetWords)));
+  const prompt = "Hier ist ein kurzer, oft sperriger Rohtext aus einem experimentellen Textgenerator "
+    + "(Divergenzmaschine). Arbeite ihn zu einem zusammenhängenden literarischen Prosatext von etwa " + n + " Wörtern aus: "
+    + "entfalte Bilder, Szenen, Figuren und Atmosphäre, vertiefe die vorhandenen Motive und behalte den surrealen, "
+    + "dichten Ton bei. Bleibe bei den vorgegebenen Figuren, Orten und der Grundidee; erfinde nichts, was dem Text "
+    + "widerspricht. Schreibe auf Deutsch. Gib NUR den ausgearbeiteten Text zurück, ohne Überschrift, Erklärung oder "
+    + "Meta-Kommentar.\n\n---\n\n" + text;
+  const maxTok = Math.min(8192, Math.ceil(n * 2.4) + 400);
+  return callClaude(prompt, maxTok);
+}
+
 export async function smoothText(text: string): Promise<string> {
   const prompt = "Hier ist ein maschinell generierter, oft sperriger Rohtext aus einem kreativen Textgenerator "
     + "(Divergenzmaschine). Schreibe daraus eine flüssige, kohärente Rohfassung: behebe Grammatikfehler, "
