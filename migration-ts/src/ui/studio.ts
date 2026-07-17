@@ -186,7 +186,6 @@ export function mountStudio(root: HTMLElement): void {
 
   const fine = el("details", { class: "fine" });
   fine.append(el("summary", {}, icon("tool"), " Werkzeugkasten"));
-  fine.append(fontRow);
   fine.append(el("div", { class: "grid3" },
     field("Struktur", structure), field("Modus", mode), field("Perspektive", persp),
     field("Rhythmus", rhythm), field("Instabilität", instab), field("Markov", markov),
@@ -198,8 +197,21 @@ export function mountStudio(root: HTMLElement): void {
   // ⚙️ Einstellungen (Farb-Themes)
   const themeSel = select("f-theme", THEMES.map((t) => [t.id, t.label] as [string, string]), loadTheme());
   themeSel.addEventListener("change", () => applyTheme(themeSel.value));
+  const schriftPanel = el("div", {}, fontRow);
+  const themePanel = el("div", { style: "display:none" }, field("Farb-Theme", themeSel));
+  const tabSchrift = el("button", { class: "subtab active" }, "Schrift");
+  const tabFarbe = el("button", { class: "subtab" }, "Farbe");
+  const showSettingsPanel = (schrift: boolean): void => {
+    schriftPanel.style.display = schrift ? "" : "none";
+    themePanel.style.display = schrift ? "none" : "";
+    tabSchrift.classList.toggle("active", schrift);
+    tabFarbe.classList.toggle("active", !schrift);
+  };
+  tabSchrift.addEventListener("click", () => showSettingsPanel(true));
+  tabFarbe.addEventListener("click", () => showSettingsPanel(false));
   const settings = el("details", { class: "fine" });
-  settings.append(el("summary", {}, icon("settings"), " Einstellungen"), field("Farb-Theme", themeSel));
+  settings.append(el("summary", {}, icon("settings"), " Einstellungen"),
+    el("div", { class: "subtabs" }, tabSchrift, tabFarbe), schriftPanel, themePanel);
   wrap.append(settings);
 
   root.append(wrap);

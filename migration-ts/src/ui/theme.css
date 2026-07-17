@@ -203,3 +203,10 @@ button.toggle.on::before{content:"✓ "}
 label.field>.field-label{margin-top:0}
 label.field.lenrow>*{margin-top:0}
 .emph-head{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:lowercase;letter-spacing:.4px}
+
+/* Einstellungen: Unter-Reiter (Schrift / Farbe) */
+.subtabs{display:flex;gap:4px;margin:8px 0 12px;border-bottom:1px solid var(--border)}
+.subtab{background:none;border:0;border-bottom:2px solid transparent;border-radius:0;
+  color:var(--muted);font:600 13px var(--sans);padding:6px 12px}
+.subtab:hover{color:var(--text)}
+.subtab.active{color:var(--text);border-bottom-color:var(--acc)}
