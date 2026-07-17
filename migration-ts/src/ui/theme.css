@@ -187,3 +187,11 @@ button.toggle.on::before{content:"✓ "}
   --on-acc:#fff; --out-fg:#241f18; --danger:#b0451f;
   --glow1:transparent; --glow2:transparent; --overlay:rgba(250,247,240,.94);
 }
+
+/* Maschinenraum: kleine Monospace-Kleinbuchstaben-Labels */
+.field-label,.mlabel{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:11px;letter-spacing:.4px;text-transform:lowercase;color:var(--muted)}
+.field-label{display:block;margin:0 0 3px}
+label.field>.field-label{margin-top:0}
+label.field.lenrow>*{margin-top:0}
+.emph-head{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:lowercase;letter-spacing:.4px}

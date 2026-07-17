@@ -99,7 +99,7 @@ export function mountStudio(root: HTMLElement): void {
     clearTimeout(lenTimer);
     lenTimer = setTimeout(applyLengthLive, 180);
   });
-  const lenRow = el("label", { class: "field lenrow" }, "Textlänge ", lenSlider, " ", lenVal);
+  const lenRow = el("label", { class: "field lenrow" }, el("span", { class: "mlabel" }, "Textlänge"), " ", lenSlider, " ", lenVal);
 
   // Schriftart + Schriftgröße der Ausgabe (neben der Textlänge)
   const fontSel = el("select", { id: "f-font" },
@@ -111,7 +111,7 @@ export function mountStudio(root: HTMLElement): void {
   const applyFont = (): void => { applyStoryFont(out, fontSel.value, parseFloat(sizeSlider.value)); sizeVal.textContent = sizeSlider.value; saveFontPrefs(fontSel.value, parseFloat(sizeSlider.value)); };
   fontSel.addEventListener("change", applyFont);
   sizeSlider.addEventListener("input", applyFont);
-  const fontRow = el("label", { class: "field lenrow fontrow" }, "Schrift ", fontSel, " Größe ", sizeSlider, " ", sizeVal);
+  const fontRow = el("label", { class: "field lenrow fontrow" }, el("span", { class: "mlabel" }, "Schrift"), " ", fontSel, " ", el("span", { class: "mlabel" }, "Größe"), " ", sizeSlider, " ", sizeVal);
 
   const out = el("pre", { id: "f-out", class: "out" });
   const kling = el("div", { class: "kling" });
@@ -176,7 +176,7 @@ export function mountStudio(root: HTMLElement): void {
   rankDetails.append(el("summary", {}, "🧪 Test & Ranking"),
     el("div", { class: "btnrow" }, probeBtn, rankBtn, aiRankBtn),
     el("div", { class: "btnrow" }, goldBtn, silverBtn, bronzeBtn),
-    el("label", { class: "field lenrow" }, "Rang ", rangeSlider),
+    el("label", { class: "field lenrow" }, el("span", { class: "mlabel" }, "Rang"), " ", rangeSlider),
     el("div", {}, rankStatus));
   wrap.append(rankDetails);
 

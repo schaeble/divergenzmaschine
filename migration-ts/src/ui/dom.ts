@@ -23,7 +23,7 @@ export function select(id: string, options: Opt[], value?: string): HTMLSelectEl
 }
 
 export function field(label: string, node: HTMLElement): HTMLElement {
-  return el("label", { class: "field" }, label, node);
+  return el("label", { class: "field" }, el("span", { class: "field-label" }, label), node);
 }
 
 export function textInput(id: string, placeholder: string, val = ""): HTMLInputElement {
