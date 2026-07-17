@@ -39,8 +39,14 @@ export function mountStudio(root: HTMLElement): void {
     try { if (on) localStorage.setItem(CTX_KEY, JSON.stringify({ where: where.value, when: when.value, who: who.value, what: what.value })); else localStorage.removeItem(CTX_KEY); } catch { /* voll */ }
   };
   ctxKeep.addEventListener("click", () => setCtxKeep(!ctxKeep.classList.contains("on")));
+  // Stärke-Regler (experimentell, nur Prosa): je 4W-Feld direkt darunter.
+  const mkWeight = (id: string): HTMLInputElement => el("input", { id, class: "wgt", type: "range", min: "0", max: "3", step: "1", value: "0", title: "Stärke — mehr über dieses Feld" }) as HTMLInputElement;
+  const wWo = mkWeight("f-w-wo"), wWann = mkWeight("f-w-wann"), wWer = mkWeight("f-w-wer"), wWas = mkWeight("f-w-was");
+  const field4w = (label: string, inp: HTMLInputElement, weight: HTMLInputElement): HTMLElement =>
+    field(label, el("div", { class: "field4w" }, clearable(inp), weight));
   wrap.append(el("div", { class: "grid2" },
-    field("Wo?", clearable(where)), field("Wann?", clearable(when)), field("Wer?", clearable(who)), field("Was passiert?", clearable(what))), el("div", { class: "btnrow" }, ctxDice, ctxKeep));
+    field4w("Wo?", where, wWo), field4w("Wann?", when, wWann), field4w("Wer?", who, wWer), field4w("Was passiert?", what, wWas)),
+    el("div", { class: "btnrow" }, ctxDice, ctxKeep));
 
   const preset = select("f-preset", sortedPresetOptions());
   preset.addEventListener("change", () => { const p = getAllPresets()[preset.value]; if (p) saveBank(p.bank); });
@@ -62,20 +68,6 @@ export function mountStudio(root: HTMLElement): void {
   wrap.append(el("div", { class: "grid3" },
     field("Preset", preset), field("Ton", tone), field("Form", form)));
 
-  // 4W-Gewichtung (experimentell, nur Prosa) - reines Hochregeln
-  const mkW = (id: string): [HTMLInputElement, HTMLElement] => {
-    const s = el("input", { id, type: "range", min: "0", max: "3", step: "1", value: "0" }) as HTMLInputElement;
-    return [s, el("span", { class: "muted" }, "0")];
-  };
-  const [wWo, wWoV] = mkW("f-w-wo");
-  const [wWann, wWannV] = mkW("f-w-wann");
-  const [wWer, wWerV] = mkW("f-w-wer");
-  const [wWas, wWasV] = mkW("f-w-was");
-  const wrow = (lbl: string, s: HTMLInputElement, v: HTMLElement): HTMLElement => el("label", { class: "field wrow" }, lbl + " ", s, " ", v);
-  const emphasisBox = el("div", { class: "emph", id: "f-emph" },
-    el("div", { class: "muted emph-head" }, "Gewichtung — mehr über … (experimentell)"),
-    el("div", { class: "grid4" }, wrow("Wo", wWo, wWoV), wrow("Wann", wWann, wWannV), wrow("Wer", wWer, wWerV), wrow("Was", wWas, wWasV)));
-  wrap.append(emphasisBox);
 
   const lenSlider = el("input", { id: "f-len", type: "range", min: "40", max: "300", step: "10", value: "110", style: "flex:1" }) as HTMLInputElement;
   const lenVal = el("span", { class: "muted" }, "110");
@@ -268,10 +260,10 @@ export function mountStudio(root: HTMLElement): void {
   form.addEventListener("change", liveRegen);
   // 4W-Gewichtung: live + nur bei Prosa sichtbar
   let emphTimer: ReturnType<typeof setTimeout> | undefined;
-  ([[wWo, wWoV], [wWann, wWannV], [wWer, wWerV], [wWas, wWasV]] as [HTMLInputElement, HTMLElement][]).forEach(([s, v]) => {
-    s.addEventListener("input", () => { v.textContent = s.value; clearTimeout(emphTimer); emphTimer = setTimeout(() => { if (!rolling) generate(); }, 180); });
+  [wWo, wWann, wWer, wWas].forEach((s) => {
+    s.addEventListener("input", () => { clearTimeout(emphTimer); emphTimer = setTimeout(() => { if (!rolling) generate(); }, 180); });
   });
-  const updEmphVis = (): void => { emphasisBox.style.display = form.value === "prose" ? "" : "none"; };
+  const updEmphVis = (): void => { const show = form.value === "prose"; [wWo, wWann, wWer, wWas].forEach((s) => { s.style.display = show ? "" : "none"; }); };
   form.addEventListener("change", updEmphVis);
   copyBtn.addEventListener("click", () => { void navigator.clipboard?.writeText(out.textContent || ""); });
 

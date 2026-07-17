@@ -210,3 +210,8 @@ label.field.lenrow>*{margin-top:0}
   color:var(--muted);font:600 13px var(--sans);padding:6px 12px}
 .subtab:hover{color:var(--text)}
 .subtab.active{color:var(--text);border-bottom-color:var(--acc)}
+
+/* Stärke-Regler je 4W-Feld (minimal hoch) */
+.field4w{display:block}
+input[type=range].wgt{width:100%;height:3px;margin:5px 0 0;accent-color:var(--acc);opacity:.85}
+input[type=range].wgt:hover{opacity:1}
