@@ -6,6 +6,7 @@ import { saveBank } from "../storage";
 import { saveCurrentBankAsUserPreset } from "../wordbank";
 import { loadAiKey, saveAiKey, loadAiModel, saveAiModel, generateAiWordbank, elaborateText } from "../features/ki";
 import { loadTreasury } from "../features/treasury";
+import { openReader } from "./reader";
 
 export function mountKi(root: HTMLElement): void {
   root.innerHTML = "";
@@ -58,6 +59,8 @@ export function mountKi(root: HTMLElement): void {
   const flash = (b: HTMLButtonElement, val: string): void => { if (!val) return; void navigator.clipboard?.writeText(val); const o = b.textContent; b.textContent = "Kopiert ✓"; setTimeout(() => (b.textContent = o), 1200); };
   copyOrig.addEventListener("click", () => flash(copyOrig, origPane.value));
   copyAi.addEventListener("click", () => flash(copyAi, aiPane.value));
+  const readerAi = el("button", {}, icon("book"), " Lesemodus");
+  readerAi.addEventListener("click", () => { if (aiPane.value.trim()) openReader(aiPane.value); });
   const saveAi = button("Als TXT");
   saveAi.addEventListener("click", () => {
     const v = aiPane.value.trim();
@@ -94,7 +97,7 @@ export function mountKi(root: HTMLElement): void {
 
   const compare = el("div", { class: "compare" },
     el("div", { class: "compare-col" }, el("div", { class: "compare-head" }, el("span", { class: "muted" }, "Original"), copyOrig), origPane),
-    el("div", { class: "compare-col" }, el("div", { class: "compare-head" }, el("span", { class: "muted" }, "KI-Ausarbeitung"), el("div", { style: "display:flex;gap:6px" }, copyAi, saveAi)), aiPane));
+    el("div", { class: "compare-col" }, el("div", { class: "compare-head" }, el("span", { class: "muted" }, "KI-Ausarbeitung"), el("div", { style: "display:flex;gap:6px" }, copyAi, saveAi, readerAi)), aiPane));
   wrap.append(el("hr", { style: "margin:16px 0" }), el("h3", {}, "Ausarbeiten (KI)"),
     field("Ziellänge", lenSel),
     el("div", { class: "btnrow" }, lastBtn),

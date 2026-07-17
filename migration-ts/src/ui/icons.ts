@@ -15,6 +15,8 @@ const P: Record<string, string> = {
   refresh: '<path d="M20 11a8 8 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8 8 0 0 0 15.5 2m.5 4v-4h-4"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
   arrowRight: '<path d="M5 12h14"/><path d="M13 6l6 6l-6 6"/>',
+  x: '<path d="M6 6l12 12"/><path d="M18 6l-12 12"/>',
+  book2: '<path d="M3 5a3 3 0 0 1 6 0v14a2 2 0 0 0 -4 0"/><path d="M9 5a3 3 0 0 1 6 0v14"/><path d="M15 5a3 3 0 0 1 6 0v11a2 2 0 0 1 -2 2h-8"/>',
 };
 export function icon(name: string, size = 16): HTMLSpanElement {
   const s = document.createElement("span");
