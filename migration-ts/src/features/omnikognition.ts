@@ -130,3 +130,70 @@ export const OMNI_PRESET_LABELS: [string, string][] = [
   ["fledermaus", "Fledermaus"], ["oktopus", "Oktopus"], ["ameise", "Ameisenvolk"], ["zugvogel", "Zugvogel"],
   ["hai", "Hai"], ["tiefsee", "Tiefseewesen"], ["saeugling", "Säugling"], ["alien", "Fremdes Wesen"],
 ];
+
+// ---- KI-Profil aus Name + eigene Presets ----
+const CH_ALL = ["licht", "schall", "geruch", "efeld", "magnet", "vibration", "temperatur"];
+const FK_ALL = ["objekt", "bewegung", "nahrung", "feind", "sozial", "muster"];
+const ZL_ALL = ["nahrung", "fortpflanzung", "kooperation", "revier", "schwarm", "ueberleben"];
+const KOMM_ALL = ["sprache", "laut", "duft", "licht", "efeld", "chem", "beruehrung"] as const;
+
+function pickOne<T extends string>(v: unknown, allowed: readonly T[], def: T): T {
+  return typeof v === "string" && (allowed as readonly string[]).includes(v) ? (v as T) : def;
+}
+function pickMany(v: unknown, allowed: string[]): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && allowed.includes(x)) : [];
+}
+
+export function buildProfilePrompt(name: string): string {
+  return `Erzeuge ein Wahrnehmungsprofil (Umwelt) für das Lebewesen: "${name}". `
+    + "Antworte AUSSCHLIESSLICH mit einem JSON-Objekt mit genau diesen Feldern und nur diesen erlaubten Werten:\n"
+    + '{\n "channels": Teilmenge von ["licht","schall","geruch","efeld","magnet","vibration","temperatur"],\n'
+    + ' "dim": "2d"|"3d", "reach": "nah"|"fern", "medium": "wasser"|"luft"|"boden",\n'
+    + ' "zeit": "schnell"|"mittel"|"langsam", "aufloesung": "grob"|"mittel"|"fein",\n'
+    + ' "fokus": Teilmenge von ["objekt","bewegung","nahrung","feind","sozial","muster"],\n'
+    + ' "gedaechtnis": "angeboren"|"kurz"|"lang",\n'
+    + ' "kommunikation": "sprache"|"laut"|"duft"|"licht"|"efeld"|"chem"|"beruehrung",\n'
+    + ' "strategie": "reflex"|"instinkt"|"lern"|"planend",\n'
+    + ' "modell": "kein"|"schwach"|"stark"|"verteilt",\n'
+    + ' "ziel": Teilmenge von ["nahrung","fortpflanzung","kooperation","revier","schwarm","ueberleben"]\n}\n'
+    + "Wähle die biologisch/plausibel treffendsten Werte für dieses Wesen. Kein Text außerhalb des JSON.";
+}
+
+export function normalizeProfile(raw: unknown, name: string): CognitiveProfile {
+  const o = (raw && typeof raw === "object") ? (raw as Record<string, unknown>) : {};
+  const channels = pickMany(o["channels"], CH_ALL);
+  const fokus = pickMany(o["fokus"], FK_ALL);
+  const ziel = pickMany(o["ziel"], ZL_ALL);
+  return {
+    name: name.trim() || (typeof o["name"] === "string" ? (o["name"] as string) : "ein Wesen"),
+    channels: channels.length ? channels : ["licht"],
+    dim: pickOne(o["dim"], ["2d", "3d"] as const, "3d"),
+    reach: pickOne(o["reach"], ["nah", "fern"] as const, "nah"),
+    medium: pickOne(o["medium"], ["wasser", "luft", "boden"] as const, "luft"),
+    zeit: pickOne(o["zeit"], ["schnell", "mittel", "langsam"] as const, "mittel"),
+    aufloesung: pickOne(o["aufloesung"], ["grob", "mittel", "fein"] as const, "mittel"),
+    fokus: fokus.length ? fokus : ["bewegung"],
+    gedaechtnis: pickOne(o["gedaechtnis"], ["angeboren", "kurz", "lang"] as const, "kurz"),
+    kommunikation: pickOne(o["kommunikation"], KOMM_ALL, "laut"),
+    strategie: pickOne(o["strategie"], ["reflex", "instinkt", "lern", "planend"] as const, "instinkt"),
+    modell: pickOne(o["modell"], ["kein", "schwach", "stark", "verteilt"] as const, "schwach"),
+    ziel: ziel.length ? ziel : ["ueberleben"],
+  };
+}
+
+const OMNI_USER_KEY = "divergenz_omni_presets_v1";
+export function loadOmniUserPresets(): Record<string, CognitiveProfile> {
+  try { const o = JSON.parse(localStorage.getItem(OMNI_USER_KEY) || "{}"); return (o && typeof o === "object") ? o as Record<string, CognitiveProfile> : {}; } catch { return {}; }
+}
+export function saveOmniUserPreset(p: CognitiveProfile): string {
+  const users = loadOmniUserPresets();
+  const slug = (p.name.trim() || "wesen").toLowerCase().replace(/[^a-z0-9äöüß]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "wesen";
+  const id = "user:" + slug;
+  users[id] = p;
+  try { localStorage.setItem(OMNI_USER_KEY, JSON.stringify(users)); } catch { /* voll */ }
+  return id;
+}
+export function deleteOmniUserPreset(id: string): void {
+  const u = loadOmniUserPresets(); delete u[id];
+  try { localStorage.setItem(OMNI_USER_KEY, JSON.stringify(u)); } catch { /* voll */ }
+}

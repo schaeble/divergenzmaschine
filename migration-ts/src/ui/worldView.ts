@@ -2,9 +2,8 @@
 import { el, button, select, textInput } from "./dom";
 import { icon } from "./icons";
 import { loadWorld, worldTick, worldFillContext, resetWorld } from "../features/world";
-import { OMNI_PRESETS, OMNI_PRESET_LABELS, profileToStudio, buildOmniPrompt, type CognitiveProfile } from "../features/omnikognition";
-import { loadAiKey, callClaude } from "../features/ki";
-import { openReader } from "./reader";
+import { OMNI_PRESETS, OMNI_PRESET_LABELS, profileToStudio, buildProfilePrompt, normalizeProfile, loadOmniUserPresets, saveOmniUserPreset, deleteOmniUserPreset, type CognitiveProfile } from "../features/omnikognition";
+import { loadAiKey, callClaude, extractJson } from "../features/ki";
 
 type Chk = { v: string; box: HTMLInputElement; el: HTMLElement };
 function chkGroup(opts: [string, string][]): Chk[] {
@@ -59,14 +58,30 @@ export function mountWorld(root: HTMLElement): void {
     kommunikation: komm.value, strategie: strat.value as "reflex" | "instinkt" | "lern" | "planend",
     modell: modell.value as "kein" | "schwach" | "stark" | "verteilt", ziel: readChk(ziel),
   });
-  const applyPreset = (id: string): void => {
-    const p = OMNI_PRESETS[id]; if (!p) return;
+  const applyProfile = (p: CognitiveProfile): void => {
     nameIn.value = p.name; setChk(channels, p.channels); setChk(fokus, p.fokus); setChk(ziel, p.ziel);
     dim.value = p.dim; reach.value = p.reach; medium.value = p.medium; zeit.value = p.zeit; aufl.value = p.aufloesung;
     ged.value = p.gedaechtnis; komm.value = p.kommunikation; strat.value = p.strategie; modell.value = p.modell;
   };
-  presetSel.addEventListener("change", () => { if (presetSel.value) applyPreset(presetSel.value); });
-  applyPreset("fledermaus"); presetSel.value = "fledermaus";
+  const delBtn = button("Preset löschen", "danger");
+  const updDel = (): void => { delBtn.style.display = presetSel.value.startsWith("user:") ? "" : "none"; };
+  const rebuildPresetSel = (): void => {
+    const cur = presetSel.value;
+    presetSel.innerHTML = "";
+    const add = (v: string, l: string): void => { const o = document.createElement("option"); o.value = v; o.textContent = l; presetSel.appendChild(o); };
+    add("", "— eigenes —");
+    OMNI_PRESET_LABELS.forEach(([v, l]) => add(v, l));
+    Object.entries(loadOmniUserPresets()).forEach(([id, pr]) => add(id, "★ " + (pr.name || id.replace("user:", ""))));
+    presetSel.value = cur;
+  };
+  presetSel.addEventListener("change", () => {
+    const v = presetSel.value;
+    if (v.startsWith("user:")) { const p = loadOmniUserPresets()[v]; if (p) applyProfile(p); }
+    else if (v) { const p = OMNI_PRESETS[v]; if (p) applyProfile(p); }
+    updDel();
+  });
+  rebuildPresetSel();
+  applyProfile(OMNI_PRESETS["fledermaus"]!); presetSel.value = "fledermaus"; updDel();
 
   const transferBtn = el("button", { class: "primary" }, icon("play"), " Ins Studio übertragen");
   transferBtn.addEventListener("click", () => {
@@ -74,20 +89,26 @@ export function mountWorld(root: HTMLElement): void {
     const st = [...document.querySelectorAll(".tabbar button")].find((b) => b.textContent === "Studio") as HTMLButtonElement | undefined;
     if (st) st.click();
   });
-  const kiOut = el("textarea", { class: "out", readonly: "", style: "min-height:160px;display:none" }) as HTMLTextAreaElement;
-  const kiLbl = el("span", {}, "Von KI schreiben lassen");
-  const kiBtn = el("button", {}, icon("flask"), " ", kiLbl);
-  kiBtn.addEventListener("click", () => {
+  const profLbl = el("span", {}, "KI-Profil erzeugen");
+  const profBtn = el("button", {}, icon("flask"), " ", profLbl);
+  profBtn.addEventListener("click", () => {
     void (async () => {
-      if (!loadAiKey()) { kiOut.style.display = ""; kiOut.value = "Kein API-Schlüssel (im KI-Tab hinterlegen)."; return; }
-      kiBtn.disabled = true; const old = kiLbl.textContent; kiLbl.textContent = "Sende an KI…"; kiOut.style.display = ""; kiOut.value = "…";
-      try { kiOut.value = await callClaude(buildOmniPrompt(readProfile()), 2048); }
-      catch (e) { kiOut.value = "Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e)); }
-      finally { kiBtn.disabled = false; kiLbl.textContent = old || "Von KI schreiben lassen"; }
+      if (!loadAiKey()) { alert("Kein API-Schlüssel — bitte im KI-Tab hinterlegen."); return; }
+      profBtn.disabled = true; const old = profLbl.textContent; profLbl.textContent = "Erzeuge…";
+      try {
+        const raw = await callClaude(buildProfilePrompt(nameIn.value.trim() || "ein Wesen"), 1024, "{");
+        applyProfile(normalizeProfile(extractJson(raw), nameIn.value.trim() || "ein Wesen"));
+        presetSel.value = ""; updDel();
+      } catch (e) { alert("Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e))); }
+      finally { profBtn.disabled = false; profLbl.textContent = old || "KI-Profil erzeugen"; }
     })();
   });
-  const kiCopy = button("Kopieren"); kiCopy.addEventListener("click", () => { if (kiOut.value.trim()) void navigator.clipboard?.writeText(kiOut.value); });
-  const kiRead = el("button", {}, icon("book"), " Lesemodus"); kiRead.addEventListener("click", () => { if (kiOut.value.trim()) openReader(kiOut.value); });
+  const saveBtn = button("Als Preset speichern");
+  saveBtn.addEventListener("click", () => {
+    const p = readProfile(); if (!p.name.trim()) { alert("Bitte einen Namen für das Wesen eintragen."); return; }
+    const id = saveOmniUserPreset(p); rebuildPresetSel(); presetSel.value = id; updDel();
+  });
+  delBtn.addEventListener("click", () => { const v = presetSel.value; if (v.startsWith("user:")) { deleteOmniUserPreset(v); rebuildPresetSel(); presetSel.value = ""; updDel(); } });
 
   wrap.append(
     el("hr", { style: "margin:18px 0" }),
@@ -100,9 +121,8 @@ export function mountWorld(root: HTMLElement): void {
     grp("Aufmerksamkeitsfokus", fokus),
     el("div", { class: "grid3" }, fld("Kommunikation", komm), fld("Entscheidung", strat), fld("Selbst-/Umweltmodell", modell)),
     grp("Lebensziel", ziel),
-    el("div", { class: "btnrow" }, transferBtn, kiBtn),
-    el("div", { class: "btnrow" }, kiCopy, kiRead),
-    kiOut,
+    el("div", { class: "btnrow" }, transferBtn, profBtn),
+    el("div", { class: "btnrow" }, saveBtn, delBtn),
   );
 
   root.append(wrap);
