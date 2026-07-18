@@ -299,12 +299,25 @@ export function mountStudio(root: HTMLElement): void {
     const pend = localStorage.getItem("dm_pending_ctx");
     if (pend) { const c = JSON.parse(pend) as Record<string,string>; if(c.who)who.value=c.who; if(c.where)where.value=c.where; if(c.when)when.value=c.when; if(c.what)what.value=c.what; localStorage.removeItem("dm_pending_ctx"); }
   } catch { /* ignore */ }
-  // Zufallsstart: Preset, Ton und Form
-  [preset, tone, form].forEach((s) => { if (s.options.length) s.selectedIndex = Math.floor(Math.random() * s.options.length); });
+  // Übergabe aus Welt/Omnikognition (setzt Regler, Stärke, Wortbank)
+  let pendingStudio: Record<string, unknown> | null = null;
+  try { const s = localStorage.getItem("dm_pending_studio"); if (s) { pendingStudio = JSON.parse(s) as Record<string, unknown>; localStorage.removeItem("dm_pending_studio"); } } catch { /* ignore */ }
+  if (pendingStudio) {
+    const P = pendingStudio;
+    const setStr = (el: HTMLInputElement, k: string): void => { const v = P[k]; if (typeof v === "string" && v) el.value = v; };
+    const setSel = (sel: HTMLSelectElement, k: string): void => { const v = P[k]; if (typeof v === "string" && Array.from(sel.options).some((o) => o.value === v)) sel.value = v; };
+    setStr(where, "where"); setStr(when, "when"); setStr(who, "who"); setStr(what, "what");
+    setSel(form, "form"); setSel(structure, "structure"); setSel(persp, "perspective"); setSel(rhythm, "rhythm"); setSel(varianz, "varLevel"); setSel(mode, "mode"); setSel(tone, "tone"); setSel(markov, "markovMode");
+    const emp = P["emphasis"] as Record<string, number> | undefined;
+    if (emp) { wWo.value = String(emp.wo ?? 0); wWann.value = String(emp.wann ?? 0); wWer.value = String(emp.wer ?? 0); wWas.value = String(emp.was ?? 0); }
+    if (P["bank"]) saveBank(P["bank"] as never);
+  } else {
+    // Zufallsstart: Preset, Ton und Form
+    [preset, tone, form].forEach((s) => { if (s.options.length) s.selectedIndex = Math.floor(Math.random() * s.options.length); });
+  }
   updEmphVis();
   applyStoryFont(out, fontSel.value, parseFloat(sizeSlider.value));
-  const first = getAllPresets()[preset.value];
-  if (first) saveBank(first.bank);
+  if (!pendingStudio) { const first = getAllPresets()[preset.value]; if (first) saveBank(first.bank); }
   let pendingText = "";
   try { pendingText = localStorage.getItem("dm_pending_text") || ""; localStorage.removeItem("dm_pending_text"); } catch { /* ignore */ }
   if (pendingText.trim()) {
