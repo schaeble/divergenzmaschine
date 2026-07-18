@@ -65,6 +65,9 @@ export function mountStudio(root: HTMLElement): void {
   const disruptor = select("f-disruptor", [["auto", "Auto"], ["off", "Aus"], ["on", "An"]], "auto");
   const varianz = select("f-varianz", [["low", "Stabil"], ["mid", "Wild"], ["high", "Radikal"]], "mid");
   const stil = select("f-stil", [["surreal_precise", "Surreal präzise"], ["leicht", "Leicht"], ["stark", "Stark"]], "surreal_precise");
+  const ARCH_OPTS: [string, string][] = [["neutral", "Neutral"], ["skorpion", "Skorpion"], ["psychopath", "Psychopath"], ["entdecker", "Entdecker"]];
+  const archA = select("f-archa", ARCH_OPTS, "neutral");
+  const archB = select("f-archb", ARCH_OPTS, "neutral");
   const polish = el("input", { id: "f-polish", type: "checkbox" }) as HTMLInputElement;
   wrap.append(el("div", { class: "grid3" },
     field("Preset", preset), field("Ton", tone), field("Form", form)));
@@ -115,7 +118,7 @@ export function mountStudio(root: HTMLElement): void {
   const copyBtn = el("button", {}, icon("copy"), " Kopieren");
   const diceBtn = el("button", {}, icon("dice"), " Würfeln");
   const rollSel = (s: HTMLSelectElement): void => { s.selectedIndex = Math.floor(Math.random() * s.options.length); s.dispatchEvent(new Event("change")); };
-  diceBtn.addEventListener("click", () => { rolling = true; [tone, form, structure, mode, persp, rhythm, instab, disruptor, varianz, stil, preset].forEach(rollSel); rolling = false; generate(); });
+  diceBtn.addEventListener("click", () => { rolling = true; [tone, form, structure, mode, persp, rhythm, instab, disruptor, varianz, stil, archA, archB, preset].forEach(rollSel); rolling = false; generate(); });
   const keepLbl = el("span", {}, "Merken");
   const keepBtn = el("button", {}, icon("star"), " ", keepLbl);
   keepBtn.addEventListener("click", () => {
@@ -183,6 +186,7 @@ export function mountStudio(root: HTMLElement): void {
     field("Struktur", structure), field("Modus", mode), field("Perspektive", persp),
     field("Rhythmus", rhythm), field("Instabilität", instab), field("Markov", markov),
     field("Disruptor", disruptor), field("Varianz", varianz), field("Stil", stil),
+    field("Archetyp A", archA), field("Archetyp B", archB),
     field("Video: Shots", shots), field("Video: Sekunden", secs),
     el("label", { class: "field", style: "display:flex;align-items:center;gap:6px" }, polish, "Sprachschliff")));
   wrap.append(fine);
@@ -220,7 +224,7 @@ export function mountStudio(root: HTMLElement): void {
     tone: tone.value, varLevel: varianz.value, form: form.value as FormKind,
     structure: structure.value, mode: mode.value, perspective: persp.value,
     rhythm: rhythm.value, markovMode: markov.value, disruptor: disruptor.value,
-    archetypeA: "neutral", archetypeB: "psychopath",
+    archetypeA: archA.value, archetypeB: archB.value,
     instability: parseInt(instab.value, 10) as 0 | 1 | 2,
     polish: polish.checked, polishStyle: stil.value,
     shots: parseInt(shots.value, 10), totalSec: parseInt(secs.value, 10),
@@ -307,7 +311,7 @@ export function mountStudio(root: HTMLElement): void {
     const setStr = (el: HTMLInputElement, k: string): void => { const v = P[k]; if (typeof v === "string" && v) el.value = v; };
     const setSel = (sel: HTMLSelectElement, k: string): void => { const v = P[k]; if (typeof v === "string" && Array.from(sel.options).some((o) => o.value === v)) sel.value = v; };
     setStr(where, "where"); setStr(when, "when"); setStr(who, "who"); setStr(what, "what");
-    setSel(form, "form"); setSel(structure, "structure"); setSel(persp, "perspective"); setSel(rhythm, "rhythm"); setSel(varianz, "varLevel"); setSel(mode, "mode"); setSel(tone, "tone"); setSel(markov, "markovMode");
+    setSel(form, "form"); setSel(structure, "structure"); setSel(persp, "perspective"); setSel(rhythm, "rhythm"); setSel(varianz, "varLevel"); setSel(mode, "mode"); setSel(tone, "tone"); setSel(markov, "markovMode"); setSel(archA, "archetypeA"); setSel(archB, "archetypeB");
     const emp = P["emphasis"] as Record<string, number> | undefined;
     if (emp) { wWo.value = String(emp.wo ?? 0); wWann.value = String(emp.wann ?? 0); wWer.value = String(emp.wer ?? 0); wWas.value = String(emp.was ?? 0); }
     if (P["bank"]) {

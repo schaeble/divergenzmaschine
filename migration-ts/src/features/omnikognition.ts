@@ -71,7 +71,7 @@ export function buildSenseBank(channels: string[]): Bank {
 
 export interface PendingStudio {
   where: string; when: string; who: string; what: string;
-  form: string; structure: string; perspective: string; rhythm: string; varLevel: string; mode: string; tone: string; markovMode: string;
+  form: string; structure: string; perspective: string; rhythm: string; varLevel: string; mode: string; tone: string; markovMode: string; archetypeA: string; archetypeB: string;
   emphasis: { wo: number; wann: number; wer: number; was: number };
   bank: Bank;
 }
@@ -95,6 +95,7 @@ export function profileToStudio(p: CognitiveProfile): PendingStudio {
     mode: "body",
     tone: (p.ziel.includes("ueberleben") || p.ziel.includes("revier") || p.fokus.includes("feind")) ? "dark" : "poetic",
     markovMode: p.gedaechtnis === "lang" ? "mix" : "off",
+    archetypeA: "neutral", archetypeB: p.fokus.includes("feind") || p.ziel.includes("revier") ? "skorpion" : "neutral",
     emphasis: {
       wo: p.reach === "fern" ? 2 : 1,
       wann: p.gedaechtnis === "lang" ? 2 : p.gedaechtnis === "kurz" ? 1 : 0,
