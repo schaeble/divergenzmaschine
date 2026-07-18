@@ -1,7 +1,6 @@
-// Welt-Tab: Figuren/Orte/Zeitleiste + Omnikognition (Wahrnehmungs-Modus).
+// Welt-Tab: Omnikognition (Wahrnehmungs-Modus).
 import { el, button, select, textInput } from "./dom";
 import { icon } from "./icons";
-import { loadWorld, worldTick, worldFillContext, resetWorld } from "../features/world";
 import { OMNI_PRESETS, OMNI_PRESET_LABELS, profileToStudio, buildProfilePrompt, normalizeProfile, loadOmniUserPresets, saveOmniUserPreset, deleteOmniUserPreset, type CognitiveProfile } from "../features/omnikognition";
 import { loadAiKey, callClaude, extractJson } from "../features/ki";
 
@@ -15,22 +14,6 @@ const setChk = (g: Chk[], vals: string[]): void => g.forEach((c) => { c.box.chec
 export function mountWorld(root: HTMLElement): void {
   root.innerHTML = "";
   const wrap = el("div", {});
-  const cols = el("div", { class: "grid2" });
-  const tl = el("div", {});
-  const list = (title: string, items: string[]): HTMLElement =>
-    el("div", {}, el("h3", {}, title), el("div", {}, ...(items.length ? items.map((i) => el("div", {}, i)) : [el("div", { class: "muted" }, "—")])));
-  const render = (): void => {
-    const w = loadWorld();
-    cols.innerHTML = ""; cols.append(list("Figuren", w.figuren), list("Orte", w.orte));
-    tl.innerHTML = ""; tl.append(el("h3", {}, `Zeitleiste (Tag ${w.tag})`), el("div", { class: "muted" }, ...w.timeline.slice(-12).reverse().map((t) => el("div", {}, t))));
-  };
-  const tickBtn = el("button", {}, icon("clock"), " Zeit vergeht");
-  tickBtn.addEventListener("click", () => { worldTick(); render(); });
-  const useBtn = button("In Generator übernehmen");
-  useBtn.addEventListener("click", () => { const ctx = worldFillContext(); try { localStorage.setItem("dm_pending_ctx", JSON.stringify(ctx)); } catch { /* voll */ } alert(`Übernommen: ${ctx.who}, ${ctx.where}. Wechsle in den Studio-Tab.`); });
-  const resetBtn = button("Welt zurücksetzen", "danger");
-  resetBtn.addEventListener("click", () => { if (confirm("Welt wirklich zurücksetzen?")) { resetWorld(); render(); } });
-  wrap.append(el("h2", {}, "Welt"), el("div", { class: "btnrow" }, tickBtn, useBtn, resetBtn), cols, tl);
 
   // ---- Omnikognition ----
   const nameIn = textInput("omni-name", "Name des Wesens", "");
@@ -111,7 +94,6 @@ export function mountWorld(root: HTMLElement): void {
   delBtn.addEventListener("click", () => { const v = presetSel.value; if (v.startsWith("user:")) { deleteOmniUserPreset(v); rebuildPresetSel(); presetSel.value = ""; updDel(); } });
 
   wrap.append(
-    el("hr", { style: "margin:18px 0" }),
     el("h2", {}, "Omnikognition — Wahrnehmungs-Modus"),
     el("p", { class: "muted" }, "Formt Perspektive, Rhythmus und Bildwelt eines Textes aus der Umwelt eines Lebewesens. Wähle ein Preset oder stelle die zehn Kriterien selbst ein."),
     el("div", { class: "grid2" }, fld("Preset", presetSel), fld("Name", nameIn)),
@@ -126,5 +108,4 @@ export function mountWorld(root: HTMLElement): void {
   );
 
   root.append(wrap);
-  render();
 }
