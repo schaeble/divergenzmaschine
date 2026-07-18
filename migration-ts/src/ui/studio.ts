@@ -310,7 +310,13 @@ export function mountStudio(root: HTMLElement): void {
     setSel(form, "form"); setSel(structure, "structure"); setSel(persp, "perspective"); setSel(rhythm, "rhythm"); setSel(varianz, "varLevel"); setSel(mode, "mode"); setSel(tone, "tone"); setSel(markov, "markovMode");
     const emp = P["emphasis"] as Record<string, number> | undefined;
     if (emp) { wWo.value = String(emp.wo ?? 0); wWann.value = String(emp.wann ?? 0); wWer.value = String(emp.wer ?? 0); wWas.value = String(emp.was ?? 0); }
-    if (P["bank"]) saveBank(P["bank"] as never);
+    if (P["bank"]) {
+      saveBank(P["bank"] as never);
+      if (!preset.querySelector('option[value="__omni__"]')) {
+        const o = document.createElement("option"); o.value = "__omni__"; o.textContent = "Wahrnehmung (Omnikognition)"; preset.insertBefore(o, preset.firstChild);
+      }
+      preset.value = "__omni__";
+    }
   } else {
     // Zufallsstart: Preset, Ton und Form
     [preset, tone, form].forEach((s) => { if (s.options.length) s.selectedIndex = Math.floor(Math.random() * s.options.length); });
