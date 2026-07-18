@@ -88,7 +88,7 @@ export function profileToStudio(p: CognitiveProfile): PendingStudio {
     who: p.name || "ein Wesen",
     what: ZIEL_WHAT[p.ziel[0] || "ueberleben"] || "will überleben",
     form: isVerbal ? "script" : "prose",
-    structure: ({ reflex: "fragment", instinkt: "circle", lern: "reverse", planend: "linear" } as const)[p.strategie],
+    structure: ({ reflex: "linear", instinkt: "circle", lern: "reverse", planend: "linear" } as const)[p.strategie],
     perspective: ({ kein: "object", schwach: "third", stark: "first", verteilt: "we" } as const)[p.modell],
     rhythm: ({ schnell: "staccato", mittel: "auto", langsam: "long" } as const)[p.zeit],
     varLevel: ({ grob: "low", mittel: "mid", fein: "high" } as const)[p.aufloesung],
