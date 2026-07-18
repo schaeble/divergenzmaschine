@@ -59,7 +59,8 @@ export function extractJson(raw: string): unknown {
   const start = s.indexOf("{"), end = s.lastIndexOf("}");
   if (start === -1) throw new Error("Keine JSON-Antwort erhalten.");
   if (end === -1 || end <= start) throw new Error("Antwort abgeschnitten (kein '}').");
-  return JSON.parse(s.slice(start, end + 1));
+  const body = s.slice(start, end + 1).replace(/,\s*([}\]])/g, "$1");
+  return JSON.parse(body);
 }
 
 export interface WordbankCtx { where?: string; when?: string; who?: string; what?: string; tone?: string; userPrompt?: string; }

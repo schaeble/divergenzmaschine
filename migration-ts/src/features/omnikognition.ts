@@ -145,18 +145,19 @@ function pickMany(v: unknown, allowed: string[]): string[] {
 }
 
 export function buildProfilePrompt(name: string): string {
-  return `Erzeuge ein Wahrnehmungsprofil (Umwelt) für das Lebewesen: "${name}". `
-    + "Antworte AUSSCHLIESSLICH mit einem JSON-Objekt mit genau diesen Feldern und nur diesen erlaubten Werten:\n"
-    + '{\n "channels": Teilmenge von ["licht","schall","geruch","efeld","magnet","vibration","temperatur"],\n'
-    + ' "dim": "2d"|"3d", "reach": "nah"|"fern", "medium": "wasser"|"luft"|"boden",\n'
-    + ' "zeit": "schnell"|"mittel"|"langsam", "aufloesung": "grob"|"mittel"|"fein",\n'
-    + ' "fokus": Teilmenge von ["objekt","bewegung","nahrung","feind","sozial","muster"],\n'
-    + ' "gedaechtnis": "angeboren"|"kurz"|"lang",\n'
-    + ' "kommunikation": "sprache"|"laut"|"duft"|"licht"|"efeld"|"chem"|"beruehrung",\n'
-    + ' "strategie": "reflex"|"instinkt"|"lern"|"planend",\n'
-    + ' "modell": "kein"|"schwach"|"stark"|"verteilt",\n'
-    + ' "ziel": Teilmenge von ["nahrung","fortpflanzung","kooperation","revier","schwarm","ueberleben"]\n}\n'
-    + "Wähle die biologisch/plausibel treffendsten Werte für dieses Wesen. Kein Text außerhalb des JSON.";
+  return `Erzeuge ein Wahrnehmungsprofil (Umwelt) für das Lebewesen: "${name}".\n`
+    + "Antworte NUR mit einem einzigen JSON-Objekt in GENAU diesem Format (ersetze die Beispielwerte, keine Kommentare, kein weiterer Text):\n"
+    + '{"channels":["schall","vibration"],"dim":"3d","reach":"nah","medium":"luft","zeit":"schnell","aufloesung":"fein","fokus":["bewegung","nahrung"],"gedaechtnis":"kurz","kommunikation":"laut","strategie":"reflex","modell":"schwach","ziel":["nahrung"]}\n\n'
+    + "Erlaubte Werte:\n"
+    + "- channels (ein oder mehrere): licht, schall, geruch, efeld, magnet, vibration, temperatur\n"
+    + "- dim: 2d oder 3d\n- reach: nah oder fern\n- medium: wasser, luft oder boden\n"
+    + "- zeit: schnell, mittel oder langsam\n- aufloesung: grob, mittel oder fein\n"
+    + "- fokus (ein oder mehrere): objekt, bewegung, nahrung, feind, sozial, muster\n"
+    + "- gedaechtnis: angeboren, kurz oder lang\n"
+    + "- kommunikation (genau einer): sprache, laut, duft, licht, efeld, chem, beruehrung\n"
+    + "- strategie: reflex, instinkt, lern oder planend\n- modell: kein, schwach, stark oder verteilt\n"
+    + "- ziel (ein oder mehrere): nahrung, fortpflanzung, kooperation, revier, schwarm, ueberleben\n\n"
+    + `Gib jetzt NUR das JSON für "${name}" zurück.`;
 }
 
 export function normalizeProfile(raw: unknown, name: string): CognitiveProfile {

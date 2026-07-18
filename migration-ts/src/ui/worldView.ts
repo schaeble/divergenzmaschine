@@ -79,7 +79,7 @@ export function mountWorld(root: HTMLElement): void {
       if (!loadAiKey()) { alert("Kein API-Schlüssel — bitte im KI-Tab hinterlegen."); return; }
       profBtn.disabled = true; const old = profLbl.textContent; profLbl.textContent = "Erzeuge…";
       try {
-        const raw = await callClaude(buildProfilePrompt(nameIn.value.trim() || "ein Wesen"), 1024, "{");
+        const raw = await callClaude(buildProfilePrompt(nameIn.value.trim() || "ein Wesen"), 800);
         applyProfile(normalizeProfile(extractJson(raw), nameIn.value.trim() || "ein Wesen"));
         presetSel.value = ""; updDel();
       } catch (e) { alert("Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e))); }
