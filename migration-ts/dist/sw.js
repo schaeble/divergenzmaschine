@@ -1,5 +1,5 @@
-/* Divergenzmaschine – Service Worker */
-const CACHE = 'divergenzmaschine-ts-v34';
+/* Divergenzmaschine – Service Worker (offline-fähig) */
+const CACHE = 'divergenzmaschine-ts-v35';
 const PRECACHE = [
   './',
   './index.html',
@@ -17,42 +17,47 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', (e) => {
-  const url = new URL(e.request.url);
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
 
   // API-Aufrufe (Anthropic) nie cachen – immer Netz
   if (url.hostname.endsWith('anthropic.com')) return;
 
-  // Google Fonts: cache-first mit Nachladen
-  if (url.hostname.includes('fonts.googleapis.com') || url.hostname.includes('fonts.gstatic.com')) {
+  // Seite selbst: network-first (frisch), Offline-Fallback aus dem Cache
+  if (req.mode === 'navigate' || url.pathname.endsWith('/index.html')) {
     e.respondWith(
-      caches.open(CACHE).then(async (c) => {
-        const hit = await c.match(e.request);
-        const net = fetch(e.request).then((res) => {
-          if (res.ok) c.put(e.request, res.clone());
+      fetch(req, { cache: 'no-cache' })
+        .then((res) => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put('./index.html', copy));
+          }
           return res;
-        }).catch(() => hit);
-        return hit || net;
-      })
+        })
+        .catch(() => caches.match('./index.html').then((hit) => hit || caches.match('./')))
     );
     return;
   }
 
-  // Seite selbst: network-first, damit Updates sofort ankommen.
-  // Cache dient nur als Offline-Fallback.
-  if (e.request.mode === 'navigate' || url.pathname.endsWith('/index.html')) {
-    e.respondWith(
-      fetch(e.request, { cache: 'no-cache' }).then((res) => {
-        if (res.ok) {
+  // Übrige Ressourcen (Manifest, Icons …): cache-first, dann Netz
+  e.respondWith(
+    caches.match(req).then((hit) => {
+      if (hit) return hit;
+      return fetch(req).then((res) => {
+        if (res && res.ok) {
           const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put('./index.html', copy));
+          caches.open(CACHE).then((c) => c.put(req, copy));
         }
         return res;
-      }).catch(() =>
-        caches.match('./index.html').then((hit) => hit || caches.mat
+      });
+    })
+  );
+});
