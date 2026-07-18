@@ -71,9 +71,9 @@ blockquote{border-left:3px solid var(--acc);padding-left:.8rem;color:var(--muted
 
 /* Ausgabe als Mittelpunkt */
 pre.out{font:19px/1.75 var(--serif);padding:22px 26px;min-height:200px;
-  background:linear-gradient(180deg,#12151c,#0e1118);
-  border:1px solid var(--border2);box-shadow:0 0 0 1px rgba(139,92,246,.08),0 18px 50px -24px rgba(0,0,0,.8);
-  color:#f3f5f9;letter-spacing:.1px}
+  background:var(--panel);
+  border:1px solid var(--border2);box-shadow:0 12px 34px -24px rgba(0,0,0,.55);
+  color:var(--out-fg);letter-spacing:.1px}
 pre.out:empty::before{content:"Noch kein Text — auf ▶ Generieren klicken.";color:var(--muted);font-style:italic}
 
 /* Feinabstimmung einklappbar */
@@ -166,7 +166,7 @@ button.toggle.on::before{content:"✓ "}
 .inwrap .clr{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:22px;height:22px;
   padding:0;line-height:1;border-radius:6px;font-size:15px;color:var(--muted);
   background:transparent;border:1px solid transparent;cursor:pointer}
-.inwrap .clr:hover{color:#fff;border-color:var(--border2);background:rgba(255,255,255,.06)}
+.inwrap .clr:hover{color:var(--text);border-color:var(--border2);background:rgba(128,128,128,.14)}
 
 
 /* ===== Farb-Themes (via data-theme auf <html>) ===== */
@@ -189,11 +189,11 @@ button.toggle.on::before{content:"✓ "}
   --input-bg:#150c1b; --focus-glow:rgba(244,114,182,.16);
 }
 [data-theme="papier"]{
-  --bg:#f3efe6; --panel:#faf7f0; --panel2:#fffdf8; --border:#ddd4c2; --border2:#c7bca4;
-  --text:#2a2620; --muted:#6f6656; --acc:#b0451f; --acc2:#1d7d68; --acc-hover:#933917;
-  --on-acc:#fff; --out-fg:#241f18; --danger:#b0451f;
-  --glow1:transparent; --glow2:transparent; --overlay:rgba(250,247,240,.94);
-  --input-bg:#fffdf8; --focus-glow:rgba(29,125,104,.18);
+  --bg:#ffffff; --panel:#ffffff; --panel2:#f5f6f8; --border:#e3e5ea; --border2:#d5d8df;
+  --text:#1a1c20; --muted:#5f6570; --acc:#2563eb; --acc2:#0ea5e9; --acc-hover:#1d4ed8;
+  --on-acc:#fff; --out-fg:#1a1c20; --danger:#dc2626;
+  --glow1:transparent; --glow2:transparent; --overlay:rgba(255,255,255,.94);
+  --input-bg:#f5f6f8; --focus-glow:rgba(37,99,235,.20);
 }
 
 /* Maschinenraum: kleine Monospace-Kleinbuchstaben-Labels */

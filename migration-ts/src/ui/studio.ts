@@ -12,7 +12,7 @@ import { icon } from "./icons";
 import { openReader } from "./reader";
 import { worldLogGeneration } from "../features/world";
 import { addToTreasury } from "../features/treasury";
-import { THEMES, loadTheme, applyTheme } from "../features/theme";
+import { THEMES, loadTheme, applyTheme, loadAccent, saveAccent, applyAccent } from "../features/theme";
 import { loadFont, loadFontSize, saveFontPrefs, applyStoryFont } from "../features/fonts";
 import { runProbe, runRanking, runAiRanking, type Ranking } from "../generation/scoring";
 
@@ -191,7 +191,13 @@ export function mountStudio(root: HTMLElement): void {
   const themeSel = select("f-theme", THEMES.map((t) => [t.id, t.label] as [string, string]), loadTheme());
   themeSel.addEventListener("change", () => applyTheme(themeSel.value));
   const schriftPanel = el("div", {}, fontRow);
-  const themePanel = el("div", { style: "display:none" }, field("Farb-Theme", themeSel));
+  const accentIn = el("input", { id: "f-accent", type: "color", value: loadAccent() || "#8b5cf6", style: "width:52px;height:34px;padding:2px" }) as HTMLInputElement;
+  accentIn.addEventListener("input", () => { applyAccent(accentIn.value); saveAccent(accentIn.value); });
+  const accentReset = button("Standard");
+  accentReset.addEventListener("click", () => { saveAccent(""); applyAccent(""); });
+  const themePanel = el("div", { style: "display:none" },
+    field("Farb-Theme", themeSel),
+    field("Eigene Akzentfarbe", el("div", { class: "btnrow" }, accentIn, accentReset)));
   const tabSchrift = el("button", { class: "subtab active" }, "Schrift");
   const tabFarbe = el("button", { class: "subtab" }, "Farbe");
   const showSettingsPanel = (schrift: boolean): void => {
