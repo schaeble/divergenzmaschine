@@ -77,6 +77,18 @@ export function mountWorkshop(root: HTMLElement): void {
     raw: rawPane.value, outline: readOutline(), draft: draftPane.value, final: finalPane.value, opts: readOpts(),
   });
 
+  /** Kleines ✕ zum Leeren — nur sichtbar, wenn das Feld etwas enthält. */
+  const mkClear = (pane: HTMLTextAreaElement, after?: () => void): HTMLButtonElement => {
+    const b = el("button", { class: "danger", title: "Feld leeren" }, "✕") as HTMLButtonElement;
+    const upd = (): void => { b.style.display = pane.value.trim() ? "" : "none"; };
+    b.addEventListener("click", () => { pane.value = ""; upd(); if (after) after(); persist(); });
+    pane.addEventListener("input", upd);
+    upd();
+    return b;
+  };
+  const rawClear = mkClear(rawPane);
+  const beatsClear = mkClear(beatsPane);
+
   const status = el("p", { class: "muted" }, "");
   const run = async (btn: HTMLButtonElement, lbl: HTMLElement, def: string, fn: () => Promise<void>): Promise<void> => {
     if (!loadAiKey()) { alert("Kein API-Schlüssel — bitte unter Studio ▸ Einstellungen hinterlegen."); return; }
@@ -200,8 +212,9 @@ export function mountWorkshop(root: HTMLElement): void {
       a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 0);
     });
 
+    const clr = mkClear(pane, upd);
     pane.addEventListener("input", () => { upd(); persist(); });
-    return { row: el("div", { class: "btnrow" }, count, " ", copyBtn, readBtn, keepBtn, txtBtn, info), upd };
+    return { row: el("div", { class: "btnrow" }, count, " ", copyBtn, readBtn, keepBtn, txtBtn, clr, info), upd };
   };
 
   const draftActions = mkActions(draftPane, "rohfassung");
@@ -215,7 +228,7 @@ export function mountWorkshop(root: HTMLElement): void {
 
     step("", "Quelle"),
     rawPane,
-    el("div", { class: "btnrow" }, useLast, trSel),
+    el("div", { class: "btnrow" }, useLast, trSel, rawClear),
 
     step("", "Vorgaben"),
     el("div", { class: "grid3" }, field("Länge", lenSel), field("Perspektive", persSel), field("Zeitform", zeitSel)),
@@ -230,6 +243,7 @@ export function mountWorkshop(root: HTMLElement): void {
     el("div", { class: "grid2" }, field("Hindernis", hindernis), field("Wendung", wendung)),
     field("Schluss", schlussIn),
     field("Szenenschritte", beatsPane),
+    el("div", { class: "btnrow" }, beatsClear),
 
     step("2 ·", "Rohfassung"),
     el("div", { class: "btnrow" }, s2),

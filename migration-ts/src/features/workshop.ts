@@ -112,6 +112,9 @@ export function buildPolishPrompt(draft: string, o: WorkshopOpts): string {
     + "- Wiederholungen von Wörtern und Satzmustern beseitigen\n"
     + "- KI-typische Wendungen entfernen (etwa: 'ein Gefühl von', 'als ob die Welt', 'nicht nur ... sondern auch', "
     + "erklärende Schlusssätze, die die Bedeutung nachliefern)\n"
+    + "- Vergleiche zusammenstreichen: im ganzen Text höchstens VIER Konstruktionen der Form "
+    + "\"wie …\" oder \"als hätte/könnte/wäre …\". Zähle sie. Streiche die schwächsten und ersetze sie "
+    + "durch die direkte Behauptung — nicht \"klang wie ein Herold\", sondern der Herold ist da.\n"
     + `- den Schluss durchsetzen: ${SCHLUSS_TXT[o.schluss]}\n`
     + "- Rechtschreibung und Grammatik korrigieren\n\n"
     + "Was NICHT zu tun ist: Die Fremdheit und die schiefen Bilder sind Absicht. Erkläre sie nicht, "
