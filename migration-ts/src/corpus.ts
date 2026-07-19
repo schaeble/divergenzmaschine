@@ -7,6 +7,7 @@
 // großem Korpus.
 import { STORAGE_CORPUS, CORPUS_MAX } from "./constants";
 import { clean } from "./text-utils";
+import { feedLivePools, LIVE_W } from "./features/livepools";
 
 export function loadPersistentCorpus(): string {
   try { return localStorage.getItem(STORAGE_CORPUS) || ""; } catch { return ""; }
@@ -32,6 +33,7 @@ export function corpusSanitize(text: string): string {
 export function appendToPersistentCorpus(textToAdd: string): void {
   const add = corpusSanitize(clean(textToAdd));
   if (!add) return;
+  try { feedLivePools(add, LIVE_W.korpus); } catch { /* egal */ }
   let corpus = loadPersistentCorpus();
   const sep = corpus.trim().length ? "\n\n" : "";
   corpus = corpus + sep + add;

@@ -10,6 +10,7 @@ import {
   type IdeaProfile,
 } from "../features/ideaprofile";
 import { loadAiKey, callClaude, extractJson } from "../features/ki";
+import { liveCount, clearLivePools } from "../features/livepools";
 
 export function mountIdeas(root: HTMLElement): void {
   root.innerHTML = "";
@@ -30,6 +31,19 @@ export function mountIdeas(root: HTMLElement): void {
   const diverg = el("input", { type: "range", min: "0", max: "100", step: "5", value: "40", id: "idea-div" }) as HTMLInputElement;
   const divVal = el("span", { class: "muted" }, "40");
   diverg.addEventListener("input", () => { divVal.textContent = diverg.value; });
+
+  const live = el("input", { type: "range", min: "0", max: "40", step: "5", value: "20", id: "idea-live" }) as HTMLInputElement;
+  const liveVal = el("span", { class: "muted" }, "20 %");
+  const liveInfo = el("span", { class: "muted" }, "");
+  const clrBtn = button("Pool leeren", "danger");
+  const updLive = (): void => {
+    liveVal.textContent = live.value + " %";
+    const n = liveCount();
+    liveInfo.textContent = n ? `${n} Begriffe aus deinen Texten` : "noch leer — schreibt sich beim Generieren und Aufheben voll";
+    clrBtn.style.display = n ? "" : "none";
+  };
+  live.addEventListener("input", updLive);
+  clrBtn.addEventListener("click", () => { clearLivePools(); updLive(); });
 
   const fld = (l: string, n: HTMLElement): HTMLElement => el("label", { class: "field" }, el("span", { class: "field-label" }, l), n);
 
@@ -83,7 +97,8 @@ export function mountIdeas(root: HTMLElement): void {
   const count = el("input", { type: "number", value: "10", min: "1", max: "30", style: "width:70px" }) as HTMLInputElement;
   const render = (): void => {
     list.innerHTML = "";
-    const cfg = ideaProfileToConfig(readProfile());
+    const cfg = ideaProfileToConfig(readProfile(), (parseInt(live.value, 10) || 0) / 100);
+    updLive();
     for (const idea of generateIdeaBatch(parseInt(count.value, 10) || 10, cfg)) {
       const take = button("→ Studio");
       take.addEventListener("click", () => {
@@ -132,10 +147,12 @@ export function mountIdeas(root: HTMLElement): void {
     el("div", { class: "grid3" }, fld("Konfliktart", konflikt), fld("Ort-Typ", ort), fld("Zeit/Epoche", zeit)),
     el("div", { class: "grid3" }, fld("Maßstab", massstab), fld("Wendungstyp", wendung), fld("Fokus", fokus)),
     fld("Divergenz (zahm → radikal)", el("div", { class: "chkrow" }, diverg, " ", divVal)),
+    fld("Lebendige Pools (Anteil eigener Begriffe)", el("div", { class: "chkrow" }, live, " ", liveVal, " · ", liveInfo, " ", clrBtn)),
     el("div", { class: "btnrow" }, "Anzahl ", count, " ", genBtn, rndBtn, profBtn),
     el("div", { class: "btnrow" }, saveBtn, delBtn),
     list,
   );
   root.append(wrap);
+  updLive();
   render();
 }

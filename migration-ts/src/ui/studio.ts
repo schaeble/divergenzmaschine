@@ -5,6 +5,7 @@ import { loadBank, saveBank } from "../storage";
 import { getAllPresets, sortedPresetOptions } from "../wordbank";
 import { buildStory } from "../generation/buildStory";
 import { buildModelFromCorpus } from "../corpus";
+import { feedLivePools, LIVE_W } from "../features/livepools";
 import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
 import { el, select, field, textInput, button } from "./dom";
@@ -259,6 +260,7 @@ export function mountStudio(root: HTMLElement): void {
       baseText = out.textContent || "";
       try { localStorage.setItem("dm_last_text", out.textContent || ""); } catch { /* voll */ }
       renderKling(input.form, out.textContent || "");
+      try { feedLivePools(out.textContent || "", LIVE_W.gen); } catch { /* egal */ }
       worldLogGeneration(input);
     } catch (e) { out.textContent = "Fehler: " + (e instanceof Error ? e.message : String(e)); }
   };

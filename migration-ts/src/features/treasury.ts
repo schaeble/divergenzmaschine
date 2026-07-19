@@ -2,6 +2,7 @@
 // selber Speicher-Schlüssel dm_treasury_v1 — teilt sich die Sammlung mit der
 // Monolith-Version auf demselben Origin). Speichern füttert den Korpus.
 import { appendToPersistentCorpus } from "../corpus";
+import { feedLivePools, LIVE_W } from "./livepools";
 
 const TKEY = "dm_treasury_v1";
 const TCAP = 100;
@@ -23,7 +24,13 @@ export function addToTreasury(text: string, ctx: { who?: string; where?: string;
   while (list.length > TCAP) list.shift();
   saveTreasury(list);
   try { appendToPersistentCorpus(t.replace(/\n+/g, " ").trim()); } catch { /* egal */ }
+  try { feedLivePools(t, LIVE_W.schatz); } catch { /* egal */ }
   return list.length;
+}
+
+/** Ersetzt die gesamte Sammlung (Projektdatei-Import). */
+export function replaceTreasury(list: Treasure[]): void {
+  saveTreasury(Array.isArray(list) ? list.filter((x) => x && typeof x.t === "string").slice(-TCAP) : []);
 }
 
 export function deleteTreasureAt(i: number): void {

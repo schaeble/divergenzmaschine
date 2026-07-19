@@ -3,14 +3,25 @@
 import { loadBank, saveBank, normalizeBankShape, loadSettings, saveSettings } from "../storage";
 import { loadUserPresets, saveUserPresets } from "../wordbank";
 import { loadPersistentCorpus, savePersistentCorpus } from "../corpus";
+import { loadTreasury, replaceTreasury, type Treasure } from "./treasury";
+import { loadIdeaUserPresets, saveIdeaUserPresetsAll, type IdeaProfile } from "./ideaprofile";
+import { loadOmniUserPresets, saveOmniUserPresetsAll, type CognitiveProfile } from "./omnikognition";
+import { exportLivePools, importLivePools, type LiveItem } from "./livepools";
 import type { Bank, Settings } from "../types";
 
-interface ProjectFile { version?: number; timestamp?: string; wordbank?: unknown; presets?: Record<string, Bank>; corpus?: string; settings?: Settings; }
+interface ProjectFile {
+  version?: number; timestamp?: string;
+  wordbank?: unknown; presets?: Record<string, Bank>; corpus?: string; settings?: Settings;
+  treasury?: Treasure[]; ideaPresets?: Record<string, IdeaProfile>;
+  omniPresets?: Record<string, CognitiveProfile>; livePools?: LiveItem[];
+}
 
 export function exportProject(): void {
   const project: ProjectFile = {
-    version: 1, timestamp: new Date().toISOString(),
+    version: 2, timestamp: new Date().toISOString(),
     wordbank: loadBank(), presets: loadUserPresets(), corpus: loadPersistentCorpus(), settings: loadSettings(),
+    treasury: loadTreasury(), ideaPresets: loadIdeaUserPresets(),
+    omniPresets: loadOmniUserPresets(), livePools: exportLivePools(),
   };
   const blob = new Blob([JSON.stringify(project, null, 2)], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -30,6 +41,10 @@ export function importProject(file: File): Promise<void> {
         if (p.presets) saveUserPresets(p.presets);
         if (typeof p.corpus === "string") savePersistentCorpus(p.corpus);
         if (p.settings) saveSettings(p.settings);
+        if (Array.isArray(p.treasury)) replaceTreasury(p.treasury);
+        if (p.ideaPresets) saveIdeaUserPresetsAll(p.ideaPresets);
+        if (p.omniPresets) saveOmniUserPresetsAll(p.omniPresets);
+        if (p.livePools) importLivePools(p.livePools);
         resolve();
       } catch (e) { reject(e instanceof Error ? e : new Error(String(e))); }
     };

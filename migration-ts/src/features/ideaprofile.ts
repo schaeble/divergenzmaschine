@@ -28,6 +28,7 @@ export interface IdeaConfig {
   twistProb: number;
   doubleTwist: boolean;
   mashupCount: number;
+  liveShare: number;
 }
 
 const TON_ARCH: Record<IdeaProfile["ton"], string> = {
@@ -35,7 +36,7 @@ const TON_ARCH: Record<IdeaProfile["ton"], string> = {
   hoffnung: "entdecker", ironisch: "neutral", melancholisch: "neutral",
 };
 
-export function ideaProfileToConfig(p: IdeaProfile): IdeaConfig {
+export function ideaProfileToConfig(p: IdeaProfile, liveShare = 0): IdeaConfig {
   const d = Math.max(0, Math.min(100, p.divergenz));
   let archetypeId = TON_ARCH[p.ton] || "neutral";
   if (p.protagonist === "antiheld" && archetypeId === "neutral") archetypeId = "skorpion";
@@ -53,6 +54,7 @@ export function ideaProfileToConfig(p: IdeaProfile): IdeaConfig {
     twistProb: 0.2 + 0.006 * d,
     doubleTwist: d >= 75,
     mashupCount: d >= 55 ? 2 : 1,
+    liveShare: Math.max(0, Math.min(1, liveShare)),
   };
 }
 
@@ -136,6 +138,9 @@ export function saveIdeaUserPreset(p: IdeaProfile): string {
   users[id] = p;
   try { localStorage.setItem(IDEA_USER_KEY, JSON.stringify(users)); } catch { /* voll */ }
   return id;
+}
+export function saveIdeaUserPresetsAll(o: Record<string, IdeaProfile>): void {
+  try { localStorage.setItem(IDEA_USER_KEY, JSON.stringify(o || {})); } catch { /* voll */ }
 }
 export function deleteIdeaUserPreset(id: string): void {
   const u = loadIdeaUserPresets(); delete u[id];

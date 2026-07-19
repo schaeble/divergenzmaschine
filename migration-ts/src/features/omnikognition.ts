@@ -195,6 +195,9 @@ export function saveOmniUserPreset(p: CognitiveProfile): string {
   try { localStorage.setItem(OMNI_USER_KEY, JSON.stringify(users)); } catch { /* voll */ }
   return id;
 }
+export function saveOmniUserPresetsAll(o: Record<string, CognitiveProfile>): void {
+  try { localStorage.setItem(OMNI_USER_KEY, JSON.stringify(o || {})); } catch { /* voll */ }
+}
 export function deleteOmniUserPreset(id: string): void {
   const u = loadOmniUserPresets(); delete u[id];
   try { localStorage.setItem(OMNI_USER_KEY, JSON.stringify(u)); } catch { /* voll */ }

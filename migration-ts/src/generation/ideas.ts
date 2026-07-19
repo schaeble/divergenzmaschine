@@ -7,6 +7,7 @@ import { arch } from "./archetype";
 import { getAllPresets } from "../wordbank";
 import { CTX_WHO, CTX_WHERE, CTX_WHEN, CTX_WHAT, WHO_TWISTS, WHERE_TWISTS, WHEN_TWISTS, WHAT_TWISTS } from "./ideas.data";
 import type { IdeaConfig } from "../features/ideaprofile";
+import { liveTexts } from "../features/livepools";
 
 export interface Idea { text: string; archetype: string; presetLabel: string; seedWho: string; seedWhere: string; seedWhen: string; seedWhat: string; }
 
@@ -91,6 +92,17 @@ function mergedBank(count: number): { bank: Record<string, string[]>; label: str
   return { bank, label: chosen.map((c) => c.label).join(" × ") };
 }
 
+/** Motiv-Slot: mit Wahrscheinlichkeit liveShare aus dem eigenen Material.
+ *  Nur dieser Slot ist grammatisch nachsichtig genug für rohe Substantivphrasen. */
+function pickMotif(a: ReturnType<typeof arch>, pb: Record<string, string[]>, cfg?: IdeaConfig): string {
+  const share = cfg ? cfg.liveShare : 0;
+  if (share > 0 && Math.random() < share) {
+    const live = liveTexts();
+    if (live.length >= 5) return pickFresh(live, "live");
+  }
+  return pickFresh(ideaPoolFor(a, pb, "motifs"), "motifs");
+}
+
 export function buildIdeaPremise(cfg?: IdeaConfig): Idea {
   const archId = cfg ? cfg.archetypeId : pick(["neutral", "skorpion", "psychopath", "entdecker"]);
   const a = arch(archId);
@@ -108,7 +120,7 @@ export function buildIdeaPremise(cfg?: IdeaConfig): Idea {
     O: fresh(whereP, WHERE_TWISTS, "where", prob, dbl),
     N: fresh(whenP, WHEN_TWISTS, "when", prob, dbl),
     A: fresh(whatP, WHAT_TWISTS, "what", prob, dbl),
-    M: pickFresh(ideaPoolFor(a, pb, "motifs"), "motifs"),
+    M: pickMotif(a, pb, cfg),
     H: pickFresh(ideaPoolFor(a, pb, "hooks"), "hooks"),
     T: pickFresh(ideaPoolFor(a, pb, "turns"), "turns"),
     B: pickFresh(ideaPoolFor(a, pb, "obstacles"), "obstacles"),
