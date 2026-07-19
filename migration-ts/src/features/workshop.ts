@@ -128,3 +128,34 @@ export function loadWorkshop(): WorkshopState | null {
 export function saveWorkshop(s: WorkshopState): void {
   try { localStorage.setItem(WS_KEY, JSON.stringify(s)); } catch { /* voll */ }
 }
+
+// ---- Benannte Werkstatt-Projekte ----
+const WP_KEY = "dm_workshop_projects_v1";
+
+export interface WorkshopProject {
+  name: string; raw: string; opts: WorkshopOpts; outline: Outline | null;
+  draft: string; final: string; d: string;
+}
+
+export function loadWorkshopProjects(): Record<string, WorkshopProject> {
+  try {
+    const o = JSON.parse(localStorage.getItem(WP_KEY) || "{}");
+    return (o && typeof o === "object") ? o as Record<string, WorkshopProject> : {};
+  } catch { return {}; }
+}
+function writeProjects(o: Record<string, WorkshopProject>): void {
+  try { localStorage.setItem(WP_KEY, JSON.stringify(o)); } catch { /* voll */ }
+}
+export function saveWorkshopProject(p: WorkshopProject): string {
+  const all = loadWorkshopProjects();
+  const slug = (p.name.trim() || "projekt").toLowerCase().replace(/[^a-z0-9äöüß]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "projekt";
+  all[slug] = { ...p, d: new Date().toISOString().slice(0, 16).replace("T", " ") };
+  writeProjects(all);
+  return slug;
+}
+export function deleteWorkshopProject(id: string): void {
+  const all = loadWorkshopProjects(); delete all[id]; writeProjects(all);
+}
+export function saveWorkshopProjectsAll(o: Record<string, WorkshopProject>): void {
+  writeProjects(o && typeof o === "object" ? o : {});
+}

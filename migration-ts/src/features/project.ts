@@ -7,6 +7,7 @@ import { loadTreasury, replaceTreasury, type Treasure } from "./treasury";
 import { loadIdeaUserPresets, saveIdeaUserPresetsAll, type IdeaProfile } from "./ideaprofile";
 import { loadOmniUserPresets, saveOmniUserPresetsAll, type CognitiveProfile } from "./omnikognition";
 import { exportLivePools, importLivePools, type LiveItem } from "./livepools";
+import { loadWorkshopProjects, saveWorkshopProjectsAll, type WorkshopProject } from "./workshop";
 import type { Bank, Settings } from "../types";
 
 interface ProjectFile {
@@ -14,6 +15,7 @@ interface ProjectFile {
   wordbank?: unknown; presets?: Record<string, Bank>; corpus?: string; settings?: Settings;
   treasury?: Treasure[]; ideaPresets?: Record<string, IdeaProfile>;
   omniPresets?: Record<string, CognitiveProfile>; livePools?: LiveItem[];
+  workshopProjects?: Record<string, WorkshopProject>;
 }
 
 export function exportProject(): void {
@@ -22,6 +24,7 @@ export function exportProject(): void {
     wordbank: loadBank(), presets: loadUserPresets(), corpus: loadPersistentCorpus(), settings: loadSettings(),
     treasury: loadTreasury(), ideaPresets: loadIdeaUserPresets(),
     omniPresets: loadOmniUserPresets(), livePools: exportLivePools(),
+    workshopProjects: loadWorkshopProjects(),
   };
   const blob = new Blob([JSON.stringify(project, null, 2)], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -45,6 +48,7 @@ export function importProject(file: File): Promise<void> {
         if (p.ideaPresets) saveIdeaUserPresetsAll(p.ideaPresets);
         if (p.omniPresets) saveOmniUserPresetsAll(p.omniPresets);
         if (p.livePools) importLivePools(p.livePools);
+        if (p.workshopProjects) saveWorkshopProjectsAll(p.workshopProjects);
         resolve();
       } catch (e) { reject(e instanceof Error ? e : new Error(String(e))); }
     };

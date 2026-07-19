@@ -8,6 +8,7 @@ import {
   LEN_OPTS, PERS_OPTS, ZEIT_OPTS, TON_OPTS, SCHLUSS_OPTS,
   buildOutlinePrompt, normalizeOutline, buildDraftPrompt, buildPolishPrompt,
   gatherMaterial, loadWorkshop, saveWorkshop,
+  loadWorkshopProjects, saveWorkshopProject, deleteWorkshopProject,
   type WorkshopOpts, type Outline,
 } from "../features/workshop";
 
@@ -84,6 +85,63 @@ export function mountWorkshop(root: HTMLElement): void {
     catch (e) { status.textContent = "Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e)); }
     finally { btn.disabled = false; lbl.textContent = def; }
   };
+
+  // ---- Werkstatt-Projekt: benennen, speichern, laden ----
+  const projName = el("input", { placeholder: "Name des Projekts" }) as HTMLInputElement;
+  const projSel = select("ws-proj", [["", "— gespeicherte Projekte —"]]);
+  const projInfo = el("span", { class: "muted" }, "");
+  const projDel = button("Löschen", "danger");
+  const rebuildProjSel = (): void => {
+    const cur = projSel.value;
+    projSel.innerHTML = "";
+    const add = (v: string, l: string): void => { const o = document.createElement("option"); o.value = v; o.textContent = l; projSel.appendChild(o); };
+    const all = loadWorkshopProjects();
+    const ids = Object.keys(all).sort((a, b) => (all[b]!.d || "").localeCompare(all[a]!.d || ""));
+    add("", ids.length ? "— gespeicherte Projekte —" : "— noch keine gespeichert —");
+    ids.forEach((id) => add(id, `${all[id]!.name || id} · ${all[id]!.d || ""}`));
+    projSel.value = cur;
+    projDel.style.display = projSel.value ? "" : "none";
+  };
+  projSel.addEventListener("change", () => { projDel.style.display = projSel.value ? "" : "none"; });
+
+  const projSave = button("Speichern");
+  projSave.addEventListener("click", () => {
+    const nm = projName.value.trim();
+    if (!nm) { projInfo.textContent = "Bitte einen Namen eintragen."; return; }
+    const id = saveWorkshopProject({
+      name: nm, raw: rawPane.value, opts: readOpts(), outline: readOutline(),
+      draft: draftPane.value, final: finalPane.value, d: "",
+    });
+    rebuildProjSel(); projSel.value = id; projDel.style.display = "";
+    projInfo.textContent = "gespeichert ✓";
+    setTimeout(() => (projInfo.textContent = ""), 1800);
+  });
+  const projLoad = button("Laden");
+  projLoad.addEventListener("click", () => {
+    const id = projSel.value; if (!id) return;
+    const p = loadWorkshopProjects()[id]; if (!p) return;
+    projName.value = p.name || "";
+    rawPane.value = p.raw || "";
+    lenSel.value = String(p.opts?.laenge ?? 900);
+    persSel.value = p.opts?.perspektive ?? "ersie";
+    zeitSel.value = p.opts?.zeitform ?? "praeteritum";
+    tonSel.value = p.opts?.ton ?? "dicht";
+    schlSel.value = p.opts?.schluss ?? "pointe";
+    if (p.outline) applyOutline(p.outline);
+    draftPane.value = p.draft || "";
+    finalPane.value = p.final || "";
+    draftActions.upd(); finalActions.upd(); persist();
+    projInfo.textContent = "geladen ✓";
+    setTimeout(() => (projInfo.textContent = ""), 1800);
+  });
+  projDel.addEventListener("click", () => {
+    const id = projSel.value; if (!id) return;
+    deleteWorkshopProject(id); rebuildProjSel(); projSel.value = "";
+    projDel.style.display = "none";
+    projInfo.textContent = "gelöscht";
+    setTimeout(() => (projInfo.textContent = ""), 1800);
+  });
+  rebuildProjSel();
 
   const s1Lbl = el("span", {}, "1 · Gerüst erzeugen");
   const s1 = el("button", { class: "primary" }, icon("flask"), " ", s1Lbl) as HTMLButtonElement;
@@ -164,6 +222,9 @@ export function mountWorkshop(root: HTMLElement): void {
     el("div", { class: "grid2" }, field("Ton", tonSel), field("Schluss", schlSel)),
 
     step("1 ·", "Gerüst"),
+    el("div", { class: "grid2" }, field("Werkstatt-Projekt", projName), field("Gespeichert", projSel)),
+    el("div", { class: "btnrow" }, projSave, projLoad, projDel, projInfo),
+    el("p", { class: "muted" }, "Speichert Quelle, Vorgaben, Gerüst und beide Fassungen unter diesem Namen. Wandert auch in die Projektdatei oben rechts."),
     el("div", { class: "btnrow" }, s1),
     el("div", { class: "grid2" }, field("Figur", figur), field("Wunsch", wunsch)),
     el("div", { class: "grid2" }, field("Hindernis", hindernis), field("Wendung", wendung)),
