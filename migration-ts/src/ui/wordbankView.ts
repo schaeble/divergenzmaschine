@@ -2,7 +2,7 @@
 import type { BankKey } from "../types";
 import { el, select, field, button } from "./dom";
 import { loadBank, saveBank, normalizeBankShape } from "../storage";
-import { getAllPresets, sortedPresetOptions, saveCurrentBankAsUserPreset, mutateBank, bankEntryCount } from "../wordbank";
+import { getAllPresets, sortedPresetOptions, saveCurrentBankAsUserPreset, mutateBank, bankEntryCount, saveActiveBankLabel, loadActiveBankLabel } from "../wordbank";
 import { DEFAULT_BANK } from "../constants";
 import { icon } from "./icons";
 import { loadAiKey, generateAiWordbank } from "../features/ki";
@@ -19,7 +19,7 @@ export function mountWordbank(root: HTMLElement): void {
   const preset = select("wb-preset", sortedPresetOptions());
   preset.addEventListener("change", () => {
     const p = getAllPresets()[preset.value];
-    if (p) { saveBank(p.bank); load(); }
+    if (p) { saveBank(p.bank); saveActiveBankLabel(p.label || preset.value); load(); }
   });
 
   const listSel = select("wb-list", CATS.map(([v, l]) => [v, l] as [string, string]), "motifs");
@@ -37,17 +37,17 @@ export function mountWordbank(root: HTMLElement): void {
   saveBtn.addEventListener("click", () => {
     const bank = loadBank();
     bank[listSel.value as BankKey] = editor.value.split("\n").map((s) => s.trim()).filter(Boolean);
-    saveBank(bank); load();
+    saveBank(bank); saveActiveBankLabel("Auto-Mix"); load();
   });
 
   const mutSlider = el("input", { id: "wb-mut", type: "range", min: "0", max: "500", step: "10", value: "300", style: "width:auto;vertical-align:middle" });
   const mutVal = el("span", { class: "muted" }, "300");
   mutSlider.addEventListener("input", () => { mutVal.textContent = mutSlider.value; });
   const mutBtn = button("Mutation");
-  mutBtn.addEventListener("click", () => { saveBank(mutateBank(loadBank(), parseInt(mutSlider.value, 10))); load(); });
+  mutBtn.addEventListener("click", () => { saveBank(mutateBank(loadBank(), parseInt(mutSlider.value, 10))); saveActiveBankLabel((loadActiveBankLabel() || "Wortbank").replace(/ \(mutiert\)$/, "") + " (mutiert)"); load(); });
 
   const resetBtn = button("Reset", "danger");
-  resetBtn.addEventListener("click", () => { saveBank(normalizeBankShape(DEFAULT_BANK)); load(); });
+  resetBtn.addEventListener("click", () => { saveBank(normalizeBankShape(DEFAULT_BANK)); saveActiveBankLabel("Standard"); load(); });
 
   const saveAs = button("Als Preset speichern");
   saveAs.addEventListener("click", () => {
@@ -71,6 +71,7 @@ export function mountWordbank(root: HTMLElement): void {
       try {
         const bank = await generateAiWordbank({ where: kiWhere.value, when: kiWhen.value, who: kiWho.value, what: kiWhat.value, userPrompt: kiExtra.value });
         saveBank(bank);
+        saveActiveBankLabel("KI-Wortbank");
         const name = prompt("Titel für die neue KI-Wortbank:", kiExtra.value.trim() || "KI-Wortbank");
         if (name) { saveCurrentBankAsUserPreset(name); preset.innerHTML = ""; for (const [v, l] of sortedPresetOptions()) preset.append(el("option", { value: v }, l)); }
         load();

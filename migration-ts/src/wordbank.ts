@@ -23,6 +23,15 @@ export function saveUserPresets(user: Record<string, Bank>): void {
   localStorage.setItem(STORAGE_PRESETS, JSON.stringify(user));
 }
 
+const ACTIVE_KEY = "divergenz_active_preset_v1";
+/** Merkt sich, aus welcher Quelle die aktuelle Wortbank stammt (nur zur Anzeige). */
+export function saveActiveBankLabel(label: string): void {
+  try { localStorage.setItem(ACTIVE_KEY, label || ""); } catch { /* voll */ }
+}
+export function loadActiveBankLabel(): string {
+  try { return localStorage.getItem(ACTIVE_KEY) || ""; } catch { return ""; }
+}
+
 export function presetLabel(id: string): string {
   return PRESET_LABELS[id] ?? id;
 }

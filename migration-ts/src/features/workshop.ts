@@ -135,7 +135,7 @@ const WS_KEY = "dm_workshop_v1";
 export interface Receipts { outline?: string; draft?: string; final?: string; }
 export interface WorkshopState {
   raw: string; outline: Outline | null; draft: string; final: string; opts: WorkshopOpts;
-  material?: string; useMaterial?: boolean; receipts?: Receipts;
+  material?: string; useMaterial?: boolean; materialEdited?: boolean; receipts?: Receipts;
 }
 export function loadWorkshop(): WorkshopState | null {
   try { const v = JSON.parse(localStorage.getItem(WS_KEY) || "null"); return v && typeof v === "object" ? v as WorkshopState : null; } catch { return null; }

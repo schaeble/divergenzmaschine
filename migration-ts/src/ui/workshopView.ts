@@ -3,6 +3,7 @@ import { el, field, select, button } from "./dom";
 import { icon } from "./icons";
 import { loadAiKey, callClaude, extractJson } from "../features/ki";
 import { loadTreasury, addToTreasury } from "../features/treasury";
+import { loadActiveBankLabel } from "../wordbank";
 import { openReader } from "./reader";
 import {
   LEN_OPTS, PERS_OPTS, ZEIT_OPTS, TON_OPTS, SCHLUSS_OPTS,
@@ -46,16 +47,31 @@ export function mountWorkshop(root: HTMLElement): void {
   matUse.checked = saved?.useMaterial !== false;
   const matPane = ta("6", "Begriffe, die in Stufe 2 mitgeschickt werden — einer je Zeile.");
   const matInfo = el("span", { class: "muted" }, "");
+  let matEdited = saved?.materialEdited === true;
+
+  /** Beschriftung beschreibt immer das, was tatsächlich im Feld steht. */
+  const updMatInfo = (fresh?: { bank: number; live: number }): void => {
+    const n = matPane.value.split("\n").map((x) => x.trim()).filter(Boolean).length;
+    if (matEdited) {
+      matInfo.textContent = `${n} Begriffe · von Hand geändert, weicht von der aktuellen Wortbank ab`;
+    } else if (fresh) {
+      const src = loadActiveBankLabel();
+      matInfo.textContent = `${n} Begriffe · ${fresh.bank} aus der Wortbank${src ? " „" + src + "“" : ""} · ${fresh.live} aus den lebendigen Pools`;
+    } else {
+      matInfo.textContent = `${n} Begriffe`;
+    }
+  };
   const fillMaterial = (): void => {
     const d = gatherMaterialDetailed();
-    matPane.value = [...new Set([...d.bank, ...d.live])].slice(0, 24).join("\n");
-    matInfo.textContent = `${d.bank.length} aus der Wortbank · ${d.live.length} aus den lebendigen Pools`;
+    const merged = [...new Set([...d.bank, ...d.live])].slice(0, 24);
+    matPane.value = merged.join("\n");
+    matEdited = false;
+    updMatInfo({ bank: d.bank.length, live: d.live.length });
   };
-  if (saved && typeof saved.material === "string") {
-    matPane.value = saved.material;
-    const d = gatherMaterialDetailed();
-    matInfo.textContent = `${d.bank.length} aus der Wortbank · ${d.live.length} aus den lebendigen Pools`;
-  } else { fillMaterial(); }
+  // Beim Öffnen immer frisch aus der Wortbank — außer du hast von Hand eingegriffen.
+  if (matEdited && typeof saved?.material === "string") { matPane.value = saved.material; updMatInfo(); }
+  else { fillMaterial(); }
+
   const matReload = button("Aus Wortbank + Pools neu laden");
   matReload.addEventListener("click", () => { fillMaterial(); persist(); });
   const readMaterial = (): string[] =>
@@ -63,7 +79,7 @@ export function mountWorkshop(root: HTMLElement): void {
   const matBox = el("details", { class: "fine" });
   matBox.append(
     el("summary", {}, icon("tool"), " Wortmaterial für Stufe 2"),
-    el("p", { class: "muted" }, "Diese Begriffe gehen mit in den Schreib-Prompt und färben die Ausarbeitung — unabhängig davon, was in der Quelle steht. Steht die Wortbank z. B. auf einem Ritterroman-Preset, tauchen dessen Requisiten im Text auf."),
+    el("p", { class: "muted" }, "Diese Begriffe gehen mit in den Schreib-Prompt und färben die Ausarbeitung — unabhängig davon, was in der Quelle steht. Beim Öffnen wird immer die aktuell aktive Wortbank geladen; eigene Änderungen bleiben erhalten und werden als solche gekennzeichnet."),
     el("label", { class: "chk" }, matUse, " Wortmaterial verwenden"),
     matPane,
     el("div", { class: "btnrow" }, matReload, matInfo));
@@ -110,10 +126,10 @@ export function mountWorkshop(root: HTMLElement): void {
 
   const persist = (): void => saveWorkshop({
     raw: rawPane.value, outline: readOutline(), draft: draftPane.value, final: finalPane.value, opts: readOpts(),
-    material: matPane.value, useMaterial: matUse.checked, receipts: rc,
+    material: matPane.value, useMaterial: matUse.checked, materialEdited: matEdited, receipts: rc,
   });
   matUse.addEventListener("change", persist);
-  matPane.addEventListener("input", persist);
+  matPane.addEventListener("input", () => { matEdited = true; updMatInfo(); persist(); });
 
   /** Kleines ✕ zum Leeren — nur sichtbar, wenn das Feld etwas enthält. */
   const mkClear = (pane: HTMLTextAreaElement, after?: () => void): HTMLButtonElement => {
@@ -181,7 +197,7 @@ export function mountWorkshop(root: HTMLElement): void {
     if (p.outline) applyOutline(p.outline);
     draftPane.value = p.draft || "";
     finalPane.value = p.final || "";
-    if (typeof p.material === "string") matPane.value = p.material;
+    if (typeof p.material === "string") { matPane.value = p.material; matEdited = true; updMatInfo(); }
     matUse.checked = p.useMaterial !== false;
     draftActions.upd(); finalActions.upd(); persist();
     projInfo.textContent = "geladen ✓";
