@@ -7,9 +7,9 @@ import { openReader } from "./reader";
 import {
   LEN_OPTS, PERS_OPTS, ZEIT_OPTS, TON_OPTS, SCHLUSS_OPTS,
   buildOutlinePrompt, normalizeOutline, buildDraftPrompt, buildPolishPrompt,
-  gatherMaterial, loadWorkshop, saveWorkshop,
+  gatherMaterialDetailed, loadWorkshop, saveWorkshop,
   loadWorkshopProjects, saveWorkshopProject, deleteWorkshopProject,
-  type WorkshopOpts, type Outline,
+  type WorkshopOpts, type Outline, type Receipts,
 } from "../features/workshop";
 
 const lastText = (): string => { try { return localStorage.getItem("dm_last_text") || ""; } catch { return ""; } };
@@ -41,6 +41,41 @@ export function mountWorkshop(root: HTMLElement): void {
   const zeitSel = select("ws-zeit", ZEIT_OPTS, saved?.opts.zeitform ?? "praeteritum");
   const tonSel = select("ws-ton", TON_OPTS, saved?.opts.ton ?? "dicht");
   const schlSel = select("ws-schl", SCHLUSS_OPTS, saved?.opts.schluss ?? "pointe");
+  // ---- Wortmaterial: sichtbar, editierbar, abschaltbar ----
+  const matUse = el("input", { type: "checkbox" }) as HTMLInputElement;
+  matUse.checked = saved?.useMaterial !== false;
+  const matPane = ta("6", "Begriffe, die in Stufe 2 mitgeschickt werden — einer je Zeile.");
+  const matInfo = el("span", { class: "muted" }, "");
+  const fillMaterial = (): void => {
+    const d = gatherMaterialDetailed();
+    matPane.value = [...new Set([...d.bank, ...d.live])].slice(0, 24).join("\n");
+    matInfo.textContent = `${d.bank.length} aus der Wortbank · ${d.live.length} aus den lebendigen Pools`;
+  };
+  if (saved && typeof saved.material === "string") {
+    matPane.value = saved.material;
+    const d = gatherMaterialDetailed();
+    matInfo.textContent = `${d.bank.length} aus der Wortbank · ${d.live.length} aus den lebendigen Pools`;
+  } else { fillMaterial(); }
+  const matReload = button("Aus Wortbank + Pools neu laden");
+  matReload.addEventListener("click", () => { fillMaterial(); persist(); });
+  const readMaterial = (): string[] =>
+    matUse.checked ? matPane.value.split("\n").map((x) => x.trim()).filter(Boolean) : [];
+  const matBox = el("details", { class: "fine" });
+  matBox.append(
+    el("summary", {}, icon("tool"), " Wortmaterial für Stufe 2"),
+    el("p", { class: "muted" }, "Diese Begriffe gehen mit in den Schreib-Prompt und färben die Ausarbeitung — unabhängig davon, was in der Quelle steht. Steht die Wortbank z. B. auf einem Ritterroman-Preset, tauchen dessen Requisiten im Text auf."),
+    el("label", { class: "chk" }, matUse, " Wortmaterial verwenden"),
+    matPane,
+    el("div", { class: "btnrow" }, matReload, matInfo));
+
+  // ---- Quittungen je Stufe ----
+  const rc: Receipts = { ...(saved?.receipts || {}) };
+  const rcOutline = el("span", { class: "muted" }, rc.outline || "");
+  const rcDraft = el("span", { class: "muted" }, rc.draft || "");
+  const rcFinal = el("span", { class: "muted" }, rc.final || "");
+  const stamp = (): string => new Date().toTimeString().slice(0, 5);
+  const words = (v: string): number => (v.trim().match(/\S+/g) || []).length;
+
   const readOpts = (): WorkshopOpts => ({
     laenge: parseInt(lenSel.value, 10) || 900,
     perspektive: persSel.value as WorkshopOpts["perspektive"],
@@ -75,7 +110,10 @@ export function mountWorkshop(root: HTMLElement): void {
 
   const persist = (): void => saveWorkshop({
     raw: rawPane.value, outline: readOutline(), draft: draftPane.value, final: finalPane.value, opts: readOpts(),
+    material: matPane.value, useMaterial: matUse.checked, receipts: rc,
   });
+  matUse.addEventListener("change", persist);
+  matPane.addEventListener("input", persist);
 
   /** Kleines ✕ zum Leeren — nur sichtbar, wenn das Feld etwas enthält. */
   const mkClear = (pane: HTMLTextAreaElement, after?: () => void): HTMLButtonElement => {
@@ -123,6 +161,7 @@ export function mountWorkshop(root: HTMLElement): void {
     const id = saveWorkshopProject({
       name: nm, raw: rawPane.value, opts: readOpts(), outline: readOutline(),
       draft: draftPane.value, final: finalPane.value, d: "",
+      material: matPane.value, useMaterial: matUse.checked,
     });
     rebuildProjSel(); projSel.value = id; projDel.style.display = "";
     projInfo.textContent = "gespeichert ✓";
@@ -142,6 +181,8 @@ export function mountWorkshop(root: HTMLElement): void {
     if (p.outline) applyOutline(p.outline);
     draftPane.value = p.draft || "";
     finalPane.value = p.final || "";
+    if (typeof p.material === "string") matPane.value = p.material;
+    matUse.checked = p.useMaterial !== false;
     draftActions.upd(); finalActions.upd(); persist();
     projInfo.textContent = "geladen ✓";
     setTimeout(() => (projInfo.textContent = ""), 1800);
@@ -161,7 +202,10 @@ export function mountWorkshop(root: HTMLElement): void {
     const raw = rawPane.value.trim();
     if (!raw) { status.textContent = "Kein Rohtext."; return; }
     const out = await callClaude(buildOutlinePrompt(raw, {}, readOpts()), 900);
-    applyOutline(normalizeOutline(extractJson(out)));
+    const ol = normalizeOutline(extractJson(out));
+    applyOutline(ol);
+    rc.outline = `Gerüst erzeugt · ${stamp()} · ${ol.beats.length} Szenenschritte`;
+    rcOutline.textContent = rc.outline;
   }));
 
   const s2Lbl = el("span", {}, "2 · Rohfassung schreiben");
@@ -170,7 +214,11 @@ export function mountWorkshop(root: HTMLElement): void {
     const ol = readOutline();
     if (!ol.beats.length) { status.textContent = "Kein Gerüst — erst Stufe 1, oder Szenenschritte selbst eintragen."; return; }
     const o = readOpts();
-    draftPane.value = await callClaude(buildDraftPrompt(rawPane.value.trim(), {}, ol, o, gatherMaterial()), Math.ceil(o.laenge * 2.4) + 500);
+    const mat = readMaterial();
+    draftPane.value = await callClaude(buildDraftPrompt(rawPane.value.trim(), {}, ol, o, mat), Math.ceil(o.laenge * 2.4) + 500);
+    draftActions.upd();
+    rc.draft = `Rohfassung · ${stamp()} · ${words(draftPane.value)} Wörter · ${mat.length ? mat.length + " Begriffe Material" : "ohne Material"}`;
+    rcDraft.textContent = rc.draft;
   }));
 
   const s3Lbl = el("span", {}, "3 · Politur");
@@ -180,6 +228,9 @@ export function mountWorkshop(root: HTMLElement): void {
     if (!d) { status.textContent = "Keine Rohfassung."; return; }
     const o = readOpts();
     finalPane.value = await callClaude(buildPolishPrompt(d, o), Math.ceil(o.laenge * 2.4) + 500);
+    finalActions.upd();
+    rc.final = `Endfassung · ${stamp()} · ${words(finalPane.value)} Wörter (aus ${words(d)})`;
+    rcFinal.textContent = rc.final;
   }));
 
   // ---- Aktionen: jedes Feld bekommt seine eigene Reihe ----
@@ -229,6 +280,7 @@ export function mountWorkshop(root: HTMLElement): void {
     step("", "Quelle"),
     rawPane,
     el("div", { class: "btnrow" }, useLast, trSel, rawClear),
+    matBox,
 
     step("", "Vorgaben"),
     el("div", { class: "grid3" }, field("Länge", lenSel), field("Perspektive", persSel), field("Zeitform", zeitSel)),
@@ -238,7 +290,7 @@ export function mountWorkshop(root: HTMLElement): void {
     el("div", { class: "grid2" }, field("Werkstatt-Projekt", projName), field("Gespeichert", projSel)),
     el("div", { class: "btnrow" }, projSave, projLoad, projDel, projInfo),
     el("p", { class: "muted" }, "Speichert Quelle, Vorgaben, Gerüst und beide Fassungen unter diesem Namen. Wandert auch in die Projektdatei oben rechts."),
-    el("div", { class: "btnrow" }, s1),
+    el("div", { class: "btnrow" }, s1, rcOutline),
     el("div", { class: "grid2" }, field("Figur", figur), field("Wunsch", wunsch)),
     el("div", { class: "grid2" }, field("Hindernis", hindernis), field("Wendung", wendung)),
     field("Schluss", schlussIn),
@@ -246,12 +298,12 @@ export function mountWorkshop(root: HTMLElement): void {
     el("div", { class: "btnrow" }, beatsClear),
 
     step("2 ·", "Rohfassung"),
-    el("div", { class: "btnrow" }, s2),
+    el("div", { class: "btnrow" }, s2, rcDraft),
     draftPane,
     draftActions.row,
 
     step("3 ·", "Endfassung"),
-    el("div", { class: "btnrow" }, s3),
+    el("div", { class: "btnrow" }, s3, rcFinal),
     finalPane,
     finalActions.row,
     status,

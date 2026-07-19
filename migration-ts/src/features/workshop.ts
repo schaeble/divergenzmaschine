@@ -43,18 +43,26 @@ const SCHLUSS_TXT: Record<WorkshopOpts["schluss"], string> = {
   bruch: "ein harter Bruch: der letzte Absatz kippt Ton oder Ebene",
 };
 
-/** Wortmaterial aus Wortbank und lebendigen Pools — der Stilanker. */
-export function gatherMaterial(): string[] {
-  const out: string[] = [];
+/** Wortmaterial aus Wortbank und lebendigen Pools — der Stilanker.
+ *  Getrennt zurückgegeben, damit in der Oberfläche sichtbar wird, woher was kommt. */
+export function gatherMaterialDetailed(): { bank: string[]; live: string[] } {
+  const bankOut: string[] = [];
   try {
     const bank = loadBank() as unknown as Record<string, string[]>;
     for (const cat of ["motifs", "hooks", "props"]) {
       const v = bank[cat];
-      if (Array.isArray(v)) out.push(...v.slice(0, 8));
+      if (Array.isArray(v)) bankOut.push(...v.slice(0, 8));
     }
   } catch { /* egal */ }
-  try { out.push(...liveTexts().slice(0, 12)); } catch { /* egal */ }
-  return [...new Set(out.filter((x) => typeof x === "string" && x.trim()))].slice(0, 24);
+  let liveOut: string[] = [];
+  try { liveOut = liveTexts().slice(0, 12); } catch { /* egal */ }
+  const clean = (a: string[]): string[] => [...new Set(a.filter((x) => typeof x === "string" && x.trim()))];
+  return { bank: clean(bankOut), live: clean(liveOut) };
+}
+
+export function gatherMaterial(): string[] {
+  const d = gatherMaterialDetailed();
+  return [...new Set([...d.bank, ...d.live])].slice(0, 24);
 }
 
 const ctxLine = (c: Record<string, string>): string => {
@@ -124,7 +132,11 @@ export function buildPolishPrompt(draft: string, o: WorkshopOpts): string {
 
 // ---- Zustand über Tabwechsel hinweg ----
 const WS_KEY = "dm_workshop_v1";
-export interface WorkshopState { raw: string; outline: Outline | null; draft: string; final: string; opts: WorkshopOpts; }
+export interface Receipts { outline?: string; draft?: string; final?: string; }
+export interface WorkshopState {
+  raw: string; outline: Outline | null; draft: string; final: string; opts: WorkshopOpts;
+  material?: string; useMaterial?: boolean; receipts?: Receipts;
+}
 export function loadWorkshop(): WorkshopState | null {
   try { const v = JSON.parse(localStorage.getItem(WS_KEY) || "null"); return v && typeof v === "object" ? v as WorkshopState : null; } catch { return null; }
 }
@@ -138,6 +150,7 @@ const WP_KEY = "dm_workshop_projects_v1";
 export interface WorkshopProject {
   name: string; raw: string; opts: WorkshopOpts; outline: Outline | null;
   draft: string; final: string; d: string;
+  material?: string; useMaterial?: boolean;
 }
 
 export function loadWorkshopProjects(): Record<string, WorkshopProject> {
