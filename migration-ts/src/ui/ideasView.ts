@@ -65,7 +65,18 @@ export function mountIdeas(root: HTMLElement): void {
     updDel();
   });
   rebuildPresetSel();
-  applyProfile(IDEA_PRESETS["noir"]!); presetSel.value = "noir"; updDel();
+
+  // Zufallsstart: alle Merkmale auswürfeln.
+  const randSel = (s: HTMLSelectElement): void => {
+    if (s.options.length) s.value = s.options[Math.floor(Math.random() * s.options.length)]!.value;
+  };
+  const randomize = (): void => {
+    [genre, ton, prot, konflikt, ort, zeit, massstab, wendung, fokus].forEach(randSel);
+    diverg.value = String(Math.floor(Math.random() * 21) * 5);
+    divVal.textContent = diverg.value;
+    nameIn.value = ""; presetSel.value = ""; updDel();
+  };
+  randomize();
 
   // ---- Ausgabe ----
   const list = el("div", {});
@@ -88,6 +99,8 @@ export function mountIdeas(root: HTMLElement): void {
 
   const genBtn = el("button", { class: "primary" }, icon("dice"), " Ideen generieren");
   genBtn.addEventListener("click", render);
+  const rndBtn = el("button", {}, icon("refresh"), " Würfeln");
+  rndBtn.addEventListener("click", () => { randomize(); render(); });
 
   const profLbl = el("span", {}, "KI-Profil erzeugen");
   const profBtn = el("button", {}, icon("flask"), " ", profLbl);
@@ -119,7 +132,7 @@ export function mountIdeas(root: HTMLElement): void {
     el("div", { class: "grid3" }, fld("Konfliktart", konflikt), fld("Ort-Typ", ort), fld("Zeit/Epoche", zeit)),
     el("div", { class: "grid3" }, fld("Maßstab", massstab), fld("Wendungstyp", wendung), fld("Fokus", fokus)),
     fld("Divergenz (zahm → radikal)", el("div", { class: "chkrow" }, diverg, " ", divVal)),
-    el("div", { class: "btnrow" }, "Anzahl ", count, " ", genBtn, profBtn),
+    el("div", { class: "btnrow" }, "Anzahl ", count, " ", genBtn, rndBtn, profBtn),
     el("div", { class: "btnrow" }, saveBtn, delBtn),
     list,
   );

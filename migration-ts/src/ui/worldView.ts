@@ -64,7 +64,22 @@ export function mountWorld(root: HTMLElement): void {
     updDel();
   });
   rebuildPresetSel();
-  applyProfile(OMNI_PRESETS["fledermaus"]!); presetSel.value = "fledermaus"; updDel();
+
+  // Zufallsstart: alle Kriterien auswürfeln.
+  const randSel = (s: HTMLSelectElement): void => {
+    if (s.options.length) s.value = s.options[Math.floor(Math.random() * s.options.length)]!.value;
+  };
+  const randChk = (g: Chk[], min: number, max: number): void => {
+    const n = Math.min(g.length, min + Math.floor(Math.random() * (max - min + 1)));
+    const order = g.map((_, i) => i).sort(() => Math.random() - 0.5).slice(0, n);
+    g.forEach((c, i) => { c.box.checked = order.includes(i); });
+  };
+  const randomize = (): void => {
+    [dim, reach, medium, zeit, aufl, ged, komm, strat, modell].forEach(randSel);
+    randChk(channels, 1, 3); randChk(fokus, 1, 3); randChk(ziel, 1, 2);
+    nameIn.value = ""; presetSel.value = ""; updDel();
+  };
+  randomize();
 
   const transferBtn = el("button", { class: "primary" }, icon("play"), " Ins Studio übertragen");
   transferBtn.addEventListener("click", () => {
@@ -86,6 +101,8 @@ export function mountWorld(root: HTMLElement): void {
       finally { profBtn.disabled = false; profLbl.textContent = old || "KI-Profil erzeugen"; }
     })();
   });
+  const rndBtn = el("button", {}, icon("refresh"), " Würfeln");
+  rndBtn.addEventListener("click", () => { randomize(); });
   const saveBtn = button("Als Preset speichern");
   saveBtn.addEventListener("click", () => {
     const p = readProfile(); if (!p.name.trim()) { alert("Bitte einen Namen für das Wesen eintragen."); return; }
@@ -103,7 +120,7 @@ export function mountWorld(root: HTMLElement): void {
     grp("Aufmerksamkeitsfokus", fokus),
     el("div", { class: "grid3" }, fld("Kommunikation", komm), fld("Entscheidung", strat), fld("Selbst-/Umweltmodell", modell)),
     grp("Lebensziel", ziel),
-    el("div", { class: "btnrow" }, transferBtn, profBtn),
+    el("div", { class: "btnrow" }, transferBtn, rndBtn, profBtn),
     el("div", { class: "btnrow" }, saveBtn, delBtn),
   );
 
