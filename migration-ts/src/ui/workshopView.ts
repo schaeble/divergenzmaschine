@@ -1,7 +1,7 @@
 // Werkstatt-Tab: aus dem Maschinen-Rohtext in drei Stufen eine Kurzgeschichte.
 import { el, field, select, button } from "./dom";
 import { icon } from "./icons";
-import { loadAiKey, callClaude, extractJson } from "../features/ki";
+import { loadAiKey, callClaude, callClaudeEx, extractJson } from "../features/ki";
 import { loadTreasury, addToTreasury } from "../features/treasury";
 import { loadActiveBankLabel } from "../wordbank";
 import { openReader } from "./reader";
@@ -90,6 +90,8 @@ export function mountWorkshop(root: HTMLElement): void {
   const rcDraft = el("span", { class: "muted" }, rc.draft || "");
   const rcFinal = el("span", { class: "muted" }, rc.final || "");
   const stamp = (): string => new Date().toTimeString().slice(0, 5);
+  /** Deutsch braucht rund 3–4 Tokens je Wort; grosszuegig plus Puffer, gedeckelt. */
+  const budget = (zielWoerter: number): number => Math.min(8192, Math.ceil(zielWoerter * 5) + 1000);
   const words = (v: string): number => (v.trim().match(/\S+/g) || []).length;
 
   const readOpts = (): WorkshopOpts => ({
@@ -217,7 +219,7 @@ export function mountWorkshop(root: HTMLElement): void {
   s1.addEventListener("click", () => void run(s1, s1Lbl, "1 · Gerüst erzeugen", async () => {
     const raw = rawPane.value.trim();
     if (!raw) { status.textContent = "Kein Rohtext."; return; }
-    const out = await callClaude(buildOutlinePrompt(raw, {}, readOpts()), 900);
+    const out = await callClaude(buildOutlinePrompt(raw, {}, readOpts()), 1500);
     const ol = normalizeOutline(extractJson(out));
     applyOutline(ol);
     rc.outline = `Gerüst erzeugt · ${stamp()} · ${ol.beats.length} Szenenschritte`;
@@ -231,9 +233,10 @@ export function mountWorkshop(root: HTMLElement): void {
     if (!ol.beats.length) { status.textContent = "Kein Gerüst — erst Stufe 1, oder Szenenschritte selbst eintragen."; return; }
     const o = readOpts();
     const mat = readMaterial();
-    draftPane.value = await callClaude(buildDraftPrompt(rawPane.value.trim(), {}, ol, o, mat), Math.ceil(o.laenge * 2.4) + 500);
+    const r = await callClaudeEx(buildDraftPrompt(rawPane.value.trim(), {}, ol, o, mat), budget(o.laenge));
+    draftPane.value = r.text;
     draftActions.upd();
-    rc.draft = `Rohfassung · ${stamp()} · ${words(draftPane.value)} Wörter · ${mat.length ? mat.length + " Begriffe Material" : "ohne Material"}`;
+    rc.draft = `Rohfassung · ${stamp()} · ${words(draftPane.value)} Wörter · ${mat.length ? mat.length + " Begriffe Material" : "ohne Material"}${r.truncated ? " · ⚠ am Token-Limit abgeschnitten" : ""}`;
     rcDraft.textContent = rc.draft;
   }));
 
@@ -243,9 +246,10 @@ export function mountWorkshop(root: HTMLElement): void {
     const d = draftPane.value.trim();
     if (!d) { status.textContent = "Keine Rohfassung."; return; }
     const o = readOpts();
-    finalPane.value = await callClaude(buildPolishPrompt(d, o), Math.ceil(o.laenge * 2.4) + 500);
+    const r = await callClaudeEx(buildPolishPrompt(d, o), budget(Math.max(o.laenge, words(d))));
+    finalPane.value = r.text;
     finalActions.upd();
-    rc.final = `Endfassung · ${stamp()} · ${words(finalPane.value)} Wörter (aus ${words(d)})`;
+    rc.final = `Endfassung · ${stamp()} · ${words(finalPane.value)} Wörter (aus ${words(d)})${r.truncated ? " · ⚠ am Token-Limit abgeschnitten" : ""}`;
     rcFinal.textContent = rc.final;
   }));
 

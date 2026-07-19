@@ -15,7 +15,7 @@ export function saveAiModel(m: string): void { try { localStorage.setItem(AI_MOD
 
 interface Msg { role: "user" | "assistant"; content: string; }
 
-async function callClaudeRaw(promptText: string, maxTokens?: number, prefill?: string | null): Promise<string> {
+async function callClaudeRaw(promptText: string, maxTokens?: number, prefill?: string | null): Promise<{ text: string; truncated: boolean }> {
   const key = loadAiKey();
   const model = loadAiModel();
   const messages: Msg[] = [{ role: "user", content: promptText }];
@@ -42,16 +42,26 @@ async function callClaudeRaw(promptText: string, maxTokens?: number, prefill?: s
     text = data.content.filter((b) => b && b.type === "text" && typeof b.text === "string").map((b) => b.text).join("\n").trim();
   }
   if (text && prefill) text = prefill + text;
-  if (!text) throw new Error(`Antwort ohne Textblock (stop_reason: ${data.stop_reason || "unbekannt"}; Modell: ${model}).`);
-  return text;
+  const truncated = data.stop_reason === "max_tokens";
+  if (!text) {
+    throw new Error(truncated
+      ? `Das Token-Limit war erschöpft, bevor Text zurückkam (Modell: ${model}). Kürzere Ziellänge wählen oder erneut versuchen.`
+      : `Antwort ohne Textblock (stop_reason: ${data.stop_reason || "unbekannt"}; Modell: ${model}).`);
+  }
+  return { text, truncated };
 }
 
-export async function callClaude(promptText: string, maxTokens?: number, prefill?: string | null): Promise<string> {
+/** Wie callClaude, meldet aber zusätzlich, ob die Antwort am Token-Limit abgeschnitten wurde. */
+export async function callClaudeEx(promptText: string, maxTokens?: number, prefill?: string | null): Promise<{ text: string; truncated: boolean }> {
   try { return await callClaudeRaw(promptText, maxTokens, prefill); }
   catch (e) {
     if (prefill && /prefill/i.test(String((e as Error).message || ""))) return await callClaudeRaw(promptText, maxTokens, null);
     throw e;
   }
+}
+
+export async function callClaude(promptText: string, maxTokens?: number, prefill?: string | null): Promise<string> {
+  return (await callClaudeEx(promptText, maxTokens, prefill)).text;
 }
 
 export function extractJson(raw: string): unknown {
