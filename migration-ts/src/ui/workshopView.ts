@@ -112,39 +112,42 @@ export function mountWorkshop(root: HTMLElement): void {
     finalPane.value = await callClaude(buildPolishPrompt(d, o), Math.ceil(o.laenge * 2.4) + 500);
   }));
 
-  // ---- Ergebnis ----
-  const wc = el("span", { class: "muted" }, "");
-  const updWc = (): void => {
-    const n = (finalPane.value.trim().match(/\S+/g) || []).length;
-    wc.textContent = n ? `${n} Wörter` : "";
+  // ---- Aktionen: jedes Feld bekommt seine eigene Reihe ----
+  const wordCount = (v: string): number => (v.trim().match(/\S+/g) || []).length;
+
+  const mkActions = (pane: HTMLTextAreaElement, filePrefix: string): { row: HTMLElement; upd: () => void } => {
+    const count = el("span", { class: "muted" }, "");
+    const info = el("span", { class: "muted" }, "");
+    const upd = (): void => { const n = wordCount(pane.value); count.textContent = n ? `${n} Wörter` : ""; };
+
+    const copyBtn = button("Kopieren");
+    copyBtn.addEventListener("click", () => {
+      const v = pane.value.trim(); if (!v) return;
+      void navigator.clipboard?.writeText(v);
+      const o = copyBtn.textContent; copyBtn.textContent = "Kopiert ✓"; setTimeout(() => (copyBtn.textContent = o), 1200);
+    });
+    const readBtn = el("button", {}, icon("book"), " Lesemodus");
+    readBtn.addEventListener("click", () => { const v = pane.value.trim(); if (v) openReader(v); });
+    const keepBtn = el("button", {}, icon("star"), " Merken");
+    keepBtn.addEventListener("click", () => {
+      const v = pane.value.trim(); if (!v) return;
+      const n = addToTreasury(v, {});
+      info.textContent = n < 0 ? "schon vorhanden" : `in der Schatzkammer (${n})`;
+      setTimeout(() => (info.textContent = ""), 2200);
+    });
+    const txtBtn = button("Als TXT");
+    txtBtn.addEventListener("click", () => {
+      const v = pane.value.trim(); if (!v) return;
+      const a = el("a", { href: URL.createObjectURL(new Blob([v], { type: "text/plain;charset=utf-8" })), download: `${filePrefix}_${new Date().toISOString().slice(0, 10)}.txt` });
+      a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 0);
+    });
+
+    pane.addEventListener("input", () => { upd(); persist(); });
+    return { row: el("div", { class: "btnrow" }, count, " ", copyBtn, readBtn, keepBtn, txtBtn, info), upd };
   };
-  finalPane.addEventListener("input", () => { updWc(); persist(); });
-  draftPane.addEventListener("input", persist);
-  const copyBtn = button("Kopieren");
-  copyBtn.addEventListener("click", () => {
-    const v = finalPane.value.trim() || draftPane.value.trim();
-    if (!v) return;
-    void navigator.clipboard?.writeText(v);
-    const o = copyBtn.textContent; copyBtn.textContent = "Kopiert ✓"; setTimeout(() => (copyBtn.textContent = o), 1200);
-  });
-  const readBtn = el("button", {}, icon("book"), " Lesemodus");
-  readBtn.addEventListener("click", () => { const v = finalPane.value.trim() || draftPane.value.trim(); if (v) openReader(v); });
-  const keepBtn = el("button", {}, icon("star"), " Merken");
-  const keepInfo = el("span", { class: "muted" }, "");
-  keepBtn.addEventListener("click", () => {
-    const v = finalPane.value.trim() || draftPane.value.trim();
-    if (!v) return;
-    const n = addToTreasury(v, {});
-    keepInfo.textContent = n < 0 ? "schon vorhanden" : `in der Schatzkammer (${n})`;
-    setTimeout(() => (keepInfo.textContent = ""), 2200);
-  });
-  const txtBtn = button("Als TXT");
-  txtBtn.addEventListener("click", () => {
-    const v = finalPane.value.trim() || draftPane.value.trim();
-    if (!v) return;
-    const a = el("a", { href: URL.createObjectURL(new Blob([v], { type: "text/plain;charset=utf-8" })), download: `kurzgeschichte_${new Date().toISOString().slice(0, 10)}.txt` });
-    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 0);
-  });
+
+  const draftActions = mkActions(draftPane, "rohfassung");
+  const finalActions = mkActions(finalPane, "kurzgeschichte");
 
   const step = (n: string, t: string): HTMLElement => el("h3", { style: "margin:18px 0 8px" }, n + " " + t);
 
@@ -170,13 +173,15 @@ export function mountWorkshop(root: HTMLElement): void {
     step("2 ·", "Rohfassung"),
     el("div", { class: "btnrow" }, s2),
     draftPane,
+    draftActions.row,
 
     step("3 ·", "Endfassung"),
-    el("div", { class: "btnrow" }, s3, wc),
+    el("div", { class: "btnrow" }, s3),
     finalPane,
-    el("div", { class: "btnrow" }, copyBtn, readBtn, keepBtn, txtBtn, keepInfo),
+    finalActions.row,
     status,
   );
   root.append(wrap);
-  updWc();
+  draftActions.upd();
+  finalActions.upd();
 }
