@@ -4,6 +4,8 @@ import { el, select, field, button } from "./dom";
 import { loadBank, saveBank, normalizeBankShape } from "../storage";
 import { getAllPresets, sortedPresetOptions, saveCurrentBankAsUserPreset, mutateBank, bankEntryCount } from "../wordbank";
 import { DEFAULT_BANK } from "../constants";
+import { icon } from "./icons";
+import { loadAiKey, generateAiWordbank } from "../features/ki";
 
 const CATS: [BankKey, string][] = [
   ["motifs", "Motive"], ["hooks", "Hooks"], ["props", "Requisiten"], ["turns", "Wendungen"],
@@ -53,6 +55,35 @@ export function mountWordbank(root: HTMLElement): void {
     if (name) { saveCurrentBankAsUserPreset(name); preset.innerHTML = ""; for (const [v, l] of sortedPresetOptions()) preset.append(el("option", { value: v }, l)); }
   });
 
+  // ---- KI-Wortbank (aus dem früheren KI-Tab) ----
+  const kiWhere = el("input", { placeholder: "Wo?" }) as HTMLInputElement;
+  const kiWhen = el("input", { placeholder: "Wann?" }) as HTMLInputElement;
+  const kiWho = el("input", { placeholder: "Wer?" }) as HTMLInputElement;
+  const kiWhat = el("input", { placeholder: "Was?" }) as HTMLInputElement;
+  const kiExtra = el("input", { placeholder: "Zusatzvorgabe, z. B. „im Stil von Kafka“" }) as HTMLInputElement;
+  const kiLbl = el("span", {}, "KI-Wortbank erstellen");
+  const kiBtn = el("button", {}, icon("flask"), " ", kiLbl) as HTMLButtonElement;
+  const kiInfo = el("p", { class: "muted" }, "");
+  kiBtn.addEventListener("click", () => {
+    void (async () => {
+      if (!loadAiKey()) { alert("Kein API-Schlüssel — bitte unter Studio ▸ Einstellungen ▸ KI-Zugang hinterlegen."); return; }
+      kiBtn.disabled = true; kiLbl.textContent = "Erstelle…";
+      try {
+        const bank = await generateAiWordbank({ where: kiWhere.value, when: kiWhen.value, who: kiWho.value, what: kiWhat.value, userPrompt: kiExtra.value });
+        saveBank(bank);
+        const name = prompt("Titel für die neue KI-Wortbank:", kiExtra.value.trim() || "KI-Wortbank");
+        if (name) { saveCurrentBankAsUserPreset(name); preset.innerHTML = ""; for (const [v, l] of sortedPresetOptions()) preset.append(el("option", { value: v }, l)); }
+        load();
+        kiInfo.textContent = "KI-Wortbank erstellt und aktiviert.";
+      } catch (e) { kiInfo.textContent = "Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e)); }
+      finally { kiBtn.disabled = false; kiLbl.textContent = "KI-Wortbank erstellen"; }
+    })();
+  });
+  const kiBox = el("details", { class: "fine" });
+  kiBox.append(el("summary", {}, icon("flask"), " KI-Wortbank erzeugen"),
+    el("div", { class: "grid2" }, field("Wo?", kiWhere), field("Wann?", kiWhen), field("Wer?", kiWho), field("Was?", kiWhat)),
+    field("Zusatzvorgabe", kiExtra), el("div", { class: "btnrow" }, kiBtn), kiInfo);
+
   wrap.append(
     field("Preset", preset),
     field("Liste", listSel),
@@ -60,6 +91,7 @@ export function mountWordbank(root: HTMLElement): void {
     el("div", { class: "btnrow" }, saveBtn, mutBtn, mutSlider, " ", mutVal, resetBtn),
     el("div", { class: "btnrow" }, saveAs),
     info,
+    kiBox,
   );
   root.append(wrap);
   load();

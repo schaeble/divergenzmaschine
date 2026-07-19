@@ -25,7 +25,7 @@ import { mountIdeas } from "./ideasView";
 import { mountTreasury } from "./treasuryView";
 import { mountWorld } from "./worldView";
 import { mountOscilloscope } from "./oscilloscopeView";
-import { mountKi } from "./kiView";
+import { mountWorkshop } from "./workshopView";
 import { mountHelp } from "./helpView";
 
 const TABS: [string, (root: HTMLElement) => void][] = [
@@ -36,7 +36,7 @@ const TABS: [string, (root: HTMLElement) => void][] = [
   ["Korpus", mountKorpus],
   ["Oszilloskop", mountOscilloscope],
   ["Schatzkammer", mountTreasury],
-  ["KI", mountKi],
+  ["Werkstatt", mountWorkshop],
   ["Hilfe", mountHelp],
 ];
 

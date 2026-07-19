@@ -1,0 +1,182 @@
+// Werkstatt-Tab: aus dem Maschinen-Rohtext in drei Stufen eine Kurzgeschichte.
+import { el, field, select, button } from "./dom";
+import { icon } from "./icons";
+import { loadAiKey, callClaude, extractJson } from "../features/ki";
+import { loadTreasury, addToTreasury } from "../features/treasury";
+import { openReader } from "./reader";
+import {
+  LEN_OPTS, PERS_OPTS, ZEIT_OPTS, TON_OPTS, SCHLUSS_OPTS,
+  buildOutlinePrompt, normalizeOutline, buildDraftPrompt, buildPolishPrompt,
+  gatherMaterial, loadWorkshop, saveWorkshop,
+  type WorkshopOpts, type Outline,
+} from "../features/workshop";
+
+const lastText = (): string => { try { return localStorage.getItem("dm_last_text") || ""; } catch { return ""; } };
+const ta = (rows: string, ph: string): HTMLTextAreaElement =>
+  el("textarea", { class: "out", rows, placeholder: ph, style: "width:100%" }) as HTMLTextAreaElement;
+
+export function mountWorkshop(root: HTMLElement): void {
+  root.innerHTML = "";
+  const wrap = el("div", {});
+  const saved = loadWorkshop();
+
+  // ---- Quelle ----
+  const rawPane = ta("6", "Rohtext — aus dem Studio, der Schatzkammer oder selbst eingefügt.");
+  rawPane.value = saved?.raw || lastText();
+  const useLast = button("Letzten Studio-Text holen");
+  useLast.addEventListener("click", () => { rawPane.value = lastText(); });
+  const treasures = loadTreasury().slice().reverse();
+  const trSel = select("ws-tr", [["", treasures.length ? "— Schatzkammer-Text wählen —" : "— Schatzkammer leer —"],
+    ...treasures.map((it, i) => [String(i), `${it.d}${it.who ? " · " + it.who : ""}: ${it.t.slice(0, 40)}…`] as [string, string])]);
+  trSel.addEventListener("change", () => {
+    const i = parseInt(trSel.value, 10);
+    const it = Number.isNaN(i) ? undefined : treasures[i];
+    if (it) rawPane.value = it.t;
+  });
+
+  // ---- Optionen ----
+  const lenSel = select("ws-len", LEN_OPTS, String(saved?.opts.laenge ?? 900));
+  const persSel = select("ws-pers", PERS_OPTS, saved?.opts.perspektive ?? "ersie");
+  const zeitSel = select("ws-zeit", ZEIT_OPTS, saved?.opts.zeitform ?? "praeteritum");
+  const tonSel = select("ws-ton", TON_OPTS, saved?.opts.ton ?? "dicht");
+  const schlSel = select("ws-schl", SCHLUSS_OPTS, saved?.opts.schluss ?? "pointe");
+  const readOpts = (): WorkshopOpts => ({
+    laenge: parseInt(lenSel.value, 10) || 900,
+    perspektive: persSel.value as WorkshopOpts["perspektive"],
+    zeitform: zeitSel.value as WorkshopOpts["zeitform"],
+    ton: tonSel.value as WorkshopOpts["ton"],
+    schluss: schlSel.value as WorkshopOpts["schluss"],
+  });
+
+  // ---- Stufe 1: Gerüst ----
+  const figur = el("input", { placeholder: "Figur" }) as HTMLInputElement;
+  const wunsch = el("input", { placeholder: "Wunsch" }) as HTMLInputElement;
+  const hindernis = el("input", { placeholder: "Hindernis" }) as HTMLInputElement;
+  const wendung = el("input", { placeholder: "Wendung" }) as HTMLInputElement;
+  const schlussIn = el("input", { placeholder: "Schluss" }) as HTMLInputElement;
+  const beatsPane = ta("6", "Szenenschritte — eine Zeile je Schritt. Frei änderbar.");
+  const applyOutline = (o: Outline): void => {
+    figur.value = o.figur; wunsch.value = o.wunsch; hindernis.value = o.hindernis;
+    wendung.value = o.wendung; schlussIn.value = o.schluss; beatsPane.value = o.beats.join("\n");
+  };
+  const readOutline = (): Outline => ({
+    figur: figur.value.trim(), wunsch: wunsch.value.trim(), hindernis: hindernis.value.trim(),
+    wendung: wendung.value.trim(), schluss: schlussIn.value.trim(),
+    beats: beatsPane.value.split("\n").map((x) => x.replace(/^\s*\d+[.)]\s*/, "").trim()).filter(Boolean),
+  });
+  if (saved?.outline) applyOutline(saved.outline);
+
+  // ---- Stufen 2+3 ----
+  const draftPane = ta("14", "Rohfassung erscheint hier.");
+  draftPane.value = saved?.draft || "";
+  const finalPane = ta("14", "Endfassung erscheint hier.");
+  finalPane.value = saved?.final || "";
+
+  const persist = (): void => saveWorkshop({
+    raw: rawPane.value, outline: readOutline(), draft: draftPane.value, final: finalPane.value, opts: readOpts(),
+  });
+
+  const status = el("p", { class: "muted" }, "");
+  const run = async (btn: HTMLButtonElement, lbl: HTMLElement, def: string, fn: () => Promise<void>): Promise<void> => {
+    if (!loadAiKey()) { alert("Kein API-Schlüssel — bitte unter Studio ▸ Einstellungen hinterlegen."); return; }
+    btn.disabled = true; lbl.textContent = "Sende an KI…"; status.textContent = "";
+    try { await fn(); persist(); }
+    catch (e) { status.textContent = "Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e)); }
+    finally { btn.disabled = false; lbl.textContent = def; }
+  };
+
+  const s1Lbl = el("span", {}, "1 · Gerüst erzeugen");
+  const s1 = el("button", { class: "primary" }, icon("flask"), " ", s1Lbl) as HTMLButtonElement;
+  s1.addEventListener("click", () => void run(s1, s1Lbl, "1 · Gerüst erzeugen", async () => {
+    const raw = rawPane.value.trim();
+    if (!raw) { status.textContent = "Kein Rohtext."; return; }
+    const out = await callClaude(buildOutlinePrompt(raw, {}, readOpts()), 900);
+    applyOutline(normalizeOutline(extractJson(out)));
+  }));
+
+  const s2Lbl = el("span", {}, "2 · Rohfassung schreiben");
+  const s2 = el("button", {}, icon("flask"), " ", s2Lbl) as HTMLButtonElement;
+  s2.addEventListener("click", () => void run(s2, s2Lbl, "2 · Rohfassung schreiben", async () => {
+    const ol = readOutline();
+    if (!ol.beats.length) { status.textContent = "Kein Gerüst — erst Stufe 1, oder Szenenschritte selbst eintragen."; return; }
+    const o = readOpts();
+    draftPane.value = await callClaude(buildDraftPrompt(rawPane.value.trim(), {}, ol, o, gatherMaterial()), Math.ceil(o.laenge * 2.4) + 500);
+  }));
+
+  const s3Lbl = el("span", {}, "3 · Politur");
+  const s3 = el("button", {}, icon("flask"), " ", s3Lbl) as HTMLButtonElement;
+  s3.addEventListener("click", () => void run(s3, s3Lbl, "3 · Politur", async () => {
+    const d = draftPane.value.trim();
+    if (!d) { status.textContent = "Keine Rohfassung."; return; }
+    const o = readOpts();
+    finalPane.value = await callClaude(buildPolishPrompt(d, o), Math.ceil(o.laenge * 2.4) + 500);
+  }));
+
+  // ---- Ergebnis ----
+  const wc = el("span", { class: "muted" }, "");
+  const updWc = (): void => {
+    const n = (finalPane.value.trim().match(/\S+/g) || []).length;
+    wc.textContent = n ? `${n} Wörter` : "";
+  };
+  finalPane.addEventListener("input", () => { updWc(); persist(); });
+  draftPane.addEventListener("input", persist);
+  const copyBtn = button("Kopieren");
+  copyBtn.addEventListener("click", () => {
+    const v = finalPane.value.trim() || draftPane.value.trim();
+    if (!v) return;
+    void navigator.clipboard?.writeText(v);
+    const o = copyBtn.textContent; copyBtn.textContent = "Kopiert ✓"; setTimeout(() => (copyBtn.textContent = o), 1200);
+  });
+  const readBtn = el("button", {}, icon("book"), " Lesemodus");
+  readBtn.addEventListener("click", () => { const v = finalPane.value.trim() || draftPane.value.trim(); if (v) openReader(v); });
+  const keepBtn = el("button", {}, icon("star"), " Merken");
+  const keepInfo = el("span", { class: "muted" }, "");
+  keepBtn.addEventListener("click", () => {
+    const v = finalPane.value.trim() || draftPane.value.trim();
+    if (!v) return;
+    const n = addToTreasury(v, {});
+    keepInfo.textContent = n < 0 ? "schon vorhanden" : `in der Schatzkammer (${n})`;
+    setTimeout(() => (keepInfo.textContent = ""), 2200);
+  });
+  const txtBtn = button("Als TXT");
+  txtBtn.addEventListener("click", () => {
+    const v = finalPane.value.trim() || draftPane.value.trim();
+    if (!v) return;
+    const a = el("a", { href: URL.createObjectURL(new Blob([v], { type: "text/plain;charset=utf-8" })), download: `kurzgeschichte_${new Date().toISOString().slice(0, 10)}.txt` });
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 0);
+  });
+
+  const step = (n: string, t: string): HTMLElement => el("h3", { style: "margin:18px 0 8px" }, n + " " + t);
+
+  wrap.append(
+    el("h2", {}, "Werkstatt — aus dem Rohtext eine Kurzgeschichte"),
+    el("p", { class: "muted" }, "Drei Stufen: erst das Gerüst, das du korrigieren kannst, dann die Fassung, dann die Politur. Das Wortmaterial aus Wortbank und lebendigen Pools geht mit ein, damit der Text nach deiner Maschine klingt. Braucht einen API-Schlüssel (Studio ▸ Einstellungen)."),
+
+    step("", "Quelle"),
+    rawPane,
+    el("div", { class: "btnrow" }, useLast, trSel),
+
+    step("", "Vorgaben"),
+    el("div", { class: "grid3" }, field("Länge", lenSel), field("Perspektive", persSel), field("Zeitform", zeitSel)),
+    el("div", { class: "grid2" }, field("Ton", tonSel), field("Schluss", schlSel)),
+
+    step("1 ·", "Gerüst"),
+    el("div", { class: "btnrow" }, s1),
+    el("div", { class: "grid2" }, field("Figur", figur), field("Wunsch", wunsch)),
+    el("div", { class: "grid2" }, field("Hindernis", hindernis), field("Wendung", wendung)),
+    field("Schluss", schlussIn),
+    field("Szenenschritte", beatsPane),
+
+    step("2 ·", "Rohfassung"),
+    el("div", { class: "btnrow" }, s2),
+    draftPane,
+
+    step("3 ·", "Endfassung"),
+    el("div", { class: "btnrow" }, s3, wc),
+    finalPane,
+    el("div", { class: "btnrow" }, copyBtn, readBtn, keepBtn, txtBtn, keepInfo),
+    status,
+  );
+  root.append(wrap);
+  updWc();
+}

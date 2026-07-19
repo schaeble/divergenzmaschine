@@ -14,6 +14,7 @@ import { openReader } from "./reader";
 import { worldLogGeneration } from "../features/world";
 import { addToTreasury } from "../features/treasury";
 import { THEMES, loadTheme, applyTheme, loadAccent, saveAccent, applyAccent } from "../features/theme";
+import { loadAiKey, saveAiKey, loadAiModel, saveAiModel } from "../features/ki";
 import { loadFont, loadFontSize, saveFontPrefs, applyStoryFont } from "../features/fonts";
 import { runProbe, runRanking, runAiRanking, type Ranking } from "../generation/scoring";
 
@@ -203,19 +204,38 @@ export function mountStudio(root: HTMLElement): void {
   const themePanel = el("div", { style: "display:none" },
     field("Farb-Theme", themeSel),
     field("Eigene Akzentfarbe", el("div", { class: "btnrow" }, accentIn, accentReset)));
+  // KI-Zugang (Schlüssel bleibt lokal, Aufrufe nur an api.anthropic.com)
+  const keyIn = el("input", { type: "password", placeholder: "sk-ant-…", value: loadAiKey() }) as HTMLInputElement;
+  const modelIn = el("input", { placeholder: "Modell", value: loadAiModel() }) as HTMLInputElement;
+  const kiStatus = el("p", { class: "muted" }, "");
+  const setKiStatus = (): void => { kiStatus.textContent = loadAiKey() ? `Schlüssel hinterlegt · Modell: ${loadAiModel()}` : "Kein Schlüssel hinterlegt — KI-Funktionen sind inaktiv."; };
+  const keySave = button("Speichern");
+  keySave.addEventListener("click", () => { saveAiKey(keyIn.value.trim()); saveAiModel(modelIn.value.trim()); setKiStatus(); });
+  const keyClear = button("Schlüssel löschen", "danger");
+  keyClear.addEventListener("click", () => { saveAiKey(""); keyIn.value = ""; setKiStatus(); });
+  setKiStatus();
+  const kiPanel = el("div", { style: "display:none" },
+    field("API-Schlüssel", keyIn), field("Modell", modelIn),
+    el("div", { class: "btnrow" }, keySave, keyClear), kiStatus,
+    el("p", { class: "muted" }, "Wird nur lokal gespeichert und ausschließlich an api.anthropic.com gesendet. Jede Anfrage verbraucht Guthaben deines Kontos."));
+
   const tabSchrift = el("button", { class: "subtab active" }, "Schrift");
   const tabFarbe = el("button", { class: "subtab" }, "Farbe");
-  const showSettingsPanel = (schrift: boolean): void => {
-    schriftPanel.style.display = schrift ? "" : "none";
-    themePanel.style.display = schrift ? "none" : "";
-    tabSchrift.classList.toggle("active", schrift);
-    tabFarbe.classList.toggle("active", !schrift);
+  const tabKi = el("button", { class: "subtab" }, "KI-Zugang");
+  const showSettingsPanel = (which: "schrift" | "farbe" | "ki"): void => {
+    schriftPanel.style.display = which === "schrift" ? "" : "none";
+    themePanel.style.display = which === "farbe" ? "" : "none";
+    kiPanel.style.display = which === "ki" ? "" : "none";
+    tabSchrift.classList.toggle("active", which === "schrift");
+    tabFarbe.classList.toggle("active", which === "farbe");
+    tabKi.classList.toggle("active", which === "ki");
   };
-  tabSchrift.addEventListener("click", () => showSettingsPanel(true));
-  tabFarbe.addEventListener("click", () => showSettingsPanel(false));
+  tabSchrift.addEventListener("click", () => showSettingsPanel("schrift"));
+  tabFarbe.addEventListener("click", () => showSettingsPanel("farbe"));
+  tabKi.addEventListener("click", () => showSettingsPanel("ki"));
   const settings = el("details", { class: "fine" });
   settings.append(el("summary", {}, icon("settings"), " Einstellungen"),
-    el("div", { class: "subtabs" }, tabSchrift, tabFarbe), schriftPanel, themePanel);
+    el("div", { class: "subtabs" }, tabSchrift, tabFarbe, tabKi), schriftPanel, themePanel, kiPanel);
   wrap.append(settings);
 
   root.append(wrap);
