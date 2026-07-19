@@ -15,7 +15,7 @@ export function saveAiModel(m: string): void { try { localStorage.setItem(AI_MOD
 
 interface Msg { role: "user" | "assistant"; content: string; }
 
-async function callClaudeRaw(promptText: string, maxTokens?: number, prefill?: string | null): Promise<{ text: string; truncated: boolean }> {
+async function callClaudeRaw(promptText: string, maxTokens?: number, prefill?: string | null, noThinking = false): Promise<{ text: string; truncated: boolean }> {
   const key = loadAiKey();
   const model = loadAiModel();
   const messages: Msg[] = [{ role: "user", content: promptText }];
@@ -29,7 +29,9 @@ async function callClaudeRaw(promptText: string, maxTokens?: number, prefill?: s
       "anthropic-version": "2023-06-01",
       "anthropic-dangerous-direct-browser-access": "true",
     },
-    body: JSON.stringify({ model, max_tokens: maxTokens || 4096, messages }),
+    body: JSON.stringify(noThinking
+      ? { model, max_tokens: maxTokens || 4096, messages, thinking: { type: "disabled" } }
+      : { model, max_tokens: maxTokens || 4096, messages }),
   });
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
@@ -63,10 +65,23 @@ async function callClaudeRaw(promptText: string, maxTokens?: number, prefill?: s
 
 /** Wie callClaude, meldet aber zusätzlich, ob die Antwort am Token-Limit abgeschnitten wurde. */
 export async function callClaudeEx(promptText: string, maxTokens?: number, prefill?: string | null): Promise<{ text: string; truncated: boolean }> {
-  try { return await callClaudeRaw(promptText, maxTokens, prefill); }
+  const isParamProblem = (m: string): boolean => /thinking|unexpected|unsupported|not supported|invalid/i.test(m);
+  const isPrefillProblem = (m: string): boolean => /prefill/i.test(m);
+
+  // Erster Versuch: internes Nachdenken abschalten. Sonst verbrauchen Modelle mit
+  // erweitertem Nachdenken das gesamte Token-Budget, bevor Text entsteht.
+  try { return await callClaudeRaw(promptText, maxTokens, prefill, true); }
   catch (e) {
-    if (prefill && /prefill/i.test(String((e as Error).message || ""))) return await callClaudeRaw(promptText, maxTokens, null);
-    throw e;
+    const m = String((e as Error).message || "");
+    if (isPrefillProblem(m) && prefill) return await callClaudeRaw(promptText, maxTokens, null, true);
+    if (!isParamProblem(m)) throw e;
+    // Modell kennt den Parameter nicht -> ohne ihn erneut versuchen.
+    try { return await callClaudeRaw(promptText, maxTokens, prefill, false); }
+    catch (e2) {
+      const m2 = String((e2 as Error).message || "");
+      if (isPrefillProblem(m2) && prefill) return await callClaudeRaw(promptText, maxTokens, null, false);
+      throw e2;
+    }
   }
 }
 
