@@ -2,6 +2,8 @@
 // Spiegelt das Omnikognition-Muster: Profil -> Config -> Generierung, plus
 // Presets, KI-Profil und eigene Presets.
 
+import { WHO_TAGGED, WHERE_TAGGED, WHEN_TAGGED, WHAT_TAGGED, byTag } from "../generation/ideas.data";
+
 export interface IdeaProfile {
   name: string; // Thema/Titel (frei)
   genre: "mystery" | "scifi" | "maerchen" | "absurd" | "alltag" | "horror" | "satire";
@@ -28,40 +30,6 @@ export interface IdeaConfig {
   mashupCount: number;
 }
 
-// ---- typisierte Sub-Pools (kompakt) ----
-const WHO_BY: Record<IdeaProfile["protagonist"], string[]> = {
-  einzel: ["eine Uhrmacherin", "ein pensionierter Richter", "eine Archivarin ohne Namen", "ein Übersetzer für tote Sprachen", "eine Kartographin", "ein Fremder, der jeden Namen kennt"],
-  kollektiv: ["eine Handvoll Überlebender", "ein streikendes Ensemble", "die Bewohner eines einzigen Hauses", "ein Chor ohne Dirigent", "drei Schwestern mit getauschten Leben", "eine Belegschaft, die nicht mehr geht"],
-  kind: ["ein Kind, das zu viel weiß", "ein Junge mit zwei Schatten", "ein Mädchen, das die Zukunft träumt", "ein stummes Kind", "der jüngste Zeuge", "ein Waisenkind mit fremdem Gedächtnis"],
-  institution: ["ein Ministerium ohne Minister", "eine Bibliothek, die entscheidet", "ein Gericht im Exil", "eine Behörde für Verlorenes", "ein Archiv mit eigenem Willen", "ein Orden ohne Glauben"],
-  nichtmensch: ["ein Algorithmus mit Namen", "eine Maschine, die zu träumen beginnt", "ein Fluss, der sich erinnert", "ein Schwarm ohne Zentrum", "eine Stimme ohne Körper", "ein Tier, das ein Versprechen hält"],
-  antiheld: ["eine Falschmünzerin", "ein Spion im Ruhestand", "ein Boxer, der nie verlor", "eine Diebin mit Prinzipien", "ein Verräter aus Loyalität", "ein Hochstapler mit echtem Titel"],
-};
-const WHERE_BY: Record<IdeaProfile["ort"], string[]> = {
-  urban: ["in einer schlaflosen Stadt", "in einem verlassenen Bahnhof", "in einem Hinterhof ohne Ausgang", "auf einem nächtlichen Boulevard", "in einem Hochhaus ohne Erdgeschoss", "in der U-Bahn nach Mitternacht"],
-  natur: ["am Rand eines Moors", "in einem Wald ohne Vögel", "an einer versinkenden Küste", "auf einem Gletscher, der schmilzt", "in einer Wüste mit Türen", "am Ufer eines toten Flusses"],
-  raum: ["in einem versiegelten Zimmer", "in einem Aufzug zwischen zwei Stockwerken", "in einer Kabine auf hoher See", "in einem Bunker ohne Uhr", "in einem Wartesaal ohne Züge", "hinter einer Tür, die nicht schließt"],
-  grenze: ["an der Grenze zweier Länder", "auf einer Brücke im Niemandsland", "an der Schwelle zweier Zeiten", "in einer Zollstation im Nebel", "auf der Linie zwischen Traum und Wachen", "am Übergang, den keiner bewacht"],
-  nirgendwo: ["an einem Ort ohne Namen", "in einer Stadt, die es nicht gibt", "im weißen Raum dazwischen", "auf einer Karte ohne Legende", "im Nichts nach dem letzten Halt", "an einem vergessenen Koordinatenpunkt"],
-  institution: ["in einem Archiv der Universität", "in einer geschlossenen Klinik", "in einer stillgelegten Fabrik", "in einem Ministerium bei Nacht", "in einer Bibliothek ohne Bücher", "in einem Gericht ohne Richter"],
-};
-const WHEN_BY: Record<IdeaProfile["zeit"], string[]> = {
-  gegenwart: ["heute, kurz vor Feierabend", "an einem Sonntagnachmittag", "während eines Stromausfalls", "in der Woche des großen Sturms", "an einem ganz gewöhnlichen Dienstag"],
-  historisch: ["1789", "1917", "1348", "im Jahr der großen Flut", "während einer Belagerung"],
-  zukunft: ["2041", "im dritten Jahr der Stille", "nach dem letzten Winter", "als die Meere zurückwichen", "im Jahrhundert der Karten ohne Länder"],
-  zeitlos: ["zu einer Zeit, die niemand zählt", "im Jahr Null", "als die Uhren noch schwiegen", "irgendwann, immer", "in einem Sommer ohne Ende"],
-  umbruch: ["am Tag der Sonnenfinsternis", "in der Nacht des Umsturzes", "während eines Generalstreiks", "am letzten Tag des Jahres", "in der Stunde der Entscheidung"],
-};
-const WHAT_BY: Record<IdeaProfile["genre"], string[]> = {
-  mystery: ["sucht eine Spur, die keiner hinterließ", "findet einen Brief, der nicht an sie gerichtet war", "entdeckt ein zweites Testament", "verfolgt eine Lüge bis zur Wurzel", "stößt auf einen Namen, den es nicht geben dürfte", "rekonstruiert eine Nacht, die niemand erlebt hat"],
-  scifi: ["erhält eine Nachricht aus der Zukunft", "findet eine Tür, die es nicht geben dürfte", "verliert die Kontrolle über die eigene Stimme", "erwacht in einem Körper mit fremdem Gedächtnis", "entziffert ein Signal aus dem Nichts", "tauscht die Zeit gegen eine Erinnerung"],
-  maerchen: ["schließt einen Pakt, den keiner versteht", "folgt einem Licht in den Wald", "erbt einen Fluch mit gutem Kern", "verspricht drei Dinge, die sich widersprechen", "sucht einen Namen, um frei zu werden", "öffnet die verbotene Tür"],
-  absurd: ["füllt ein Formular für die eigene Abwesenheit", "verklagt den eigenen Schatten", "wartet auf einen Termin, der nie kommt", "erbt ein Amt ohne Aufgabe", "verliert die Erinnerung an einen Namen", "wird für tot erklärt und muss es widerlegen"],
-  alltag: ["will einfach nur verschwinden", "trifft eine Entscheidung binnen einer Stunde", "bricht ein Versprechen aus Kindheitstagen", "kehrt an einen alten Ort zurück", "sagt endlich einen Satz zu spät", "räumt ein Zimmer und findet ein Leben"],
-  horror: ["hört Schritte im leeren Haus", "bemerkt, dass die Spiegel nicht mehr stimmen", "zählt eine Person zu viel", "findet die eigene Handschrift an fremder Wand", "verliert jede Nacht eine Erinnerung mehr", "wird von etwas erkannt, das keiner sieht"],
-  satire: ["gründet ein Amt gegen die Wirklichkeit", "gewinnt einen Preis für nichts", "verwaltet das Ende der Welt in Ordnern", "beruft eine Sitzung über Sitzungen ein", "optimiert sich selbst weg", "verkauft Zeit an die, die keine haben"],
-};
-
 const TON_ARCH: Record<IdeaProfile["ton"], string> = {
   duester: "psychopath", unheimlich: "skorpion", verspielt: "entdecker",
   hoffnung: "entdecker", ironisch: "neutral", melancholisch: "neutral",
@@ -77,10 +45,10 @@ export function ideaProfileToConfig(p: IdeaProfile): IdeaConfig {
 
   return {
     archetypeId,
-    whoPool: WHO_BY[p.protagonist],
-    wherePool: WHERE_BY[p.ort],
-    whenPool: WHEN_BY[p.zeit],
-    whatPool: WHAT_BY[p.genre],
+    whoPool: byTag(WHO_TAGGED, p.protagonist),
+    wherePool: byTag(WHERE_TAGGED, p.ort),
+    whenPool: byTag(WHEN_TAGGED, p.zeit),
+    whatPool: byTag(WHAT_TAGGED, p.genre),
     tags,
     twistProb: 0.2 + 0.006 * d,
     doubleTwist: d >= 75,
