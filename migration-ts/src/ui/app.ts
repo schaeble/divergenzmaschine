@@ -31,11 +31,11 @@ import { mountHelp } from "./helpView";
 const TABS: [string, (root: HTMLElement) => void][] = [
   ["Studio", mountStudio],
   ["Ideen", mountIdeas],
-  ["Schatzkammer", mountTreasury],
   ["Welt", mountWorld],
   ["Wortbank", mountWordbank],
   ["Korpus", mountKorpus],
   ["Oszilloskop", mountOscilloscope],
+  ["Schatzkammer", mountTreasury],
   ["KI", mountKi],
   ["Hilfe", mountHelp],
 ];
