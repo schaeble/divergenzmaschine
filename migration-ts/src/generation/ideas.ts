@@ -1,11 +1,12 @@
 // Ideenmaschine: kurze Prämissen aus Kontext-Pools + Archetyp + Preset.
-// Hinweis: die "lebendigen Pools" (dynMerged aus Generierungen/Welt/Schatzkammer)
-// sind hier auf die Basislisten vereinfacht.
+// Optional gesteuert durch ein Ideen-Profil (IdeaConfig), das Pools, Archetyp,
+// Template-Auswahl und Divergenz (Twist/Mashup) bestimmt.
 import { pick, clean, ensurePunct } from "../text-utils";
 import { cap } from "./beats";
 import { arch } from "./archetype";
 import { getAllPresets } from "../wordbank";
 import { CTX_WHO, CTX_WHERE, CTX_WHEN, CTX_WHAT, WHO_TWISTS, WHERE_TWISTS, WHEN_TWISTS, WHAT_TWISTS } from "./ideas.data";
+import type { IdeaConfig } from "../features/ideaprofile";
 
 export interface Idea { text: string; archetype: string; presetLabel: string; seedWho: string; seedWhere: string; seedWhen: string; seedWhat: string; }
 
@@ -22,9 +23,12 @@ function pickFresh(pool: string[], tag: string): string {
   return chosen;
 }
 
-const fresh = (base: string[], tw: string[], tag: string): string => {
+const fresh = (base: string[], tw: string[], tag: string, prob: number, dbl: boolean): string => {
   const b = pickFresh(base, tag);
-  return Math.random() < 0.5 ? b : b + ", " + pickFresh(tw, tag + "T");
+  if (Math.random() >= prob) return b;
+  let out = b + ", " + pickFresh(tw, tag + "T");
+  if (dbl && Math.random() < prob) out += ", " + pickFresh(tw, tag + "T");
+  return out;
 };
 
 function ideaPoolFor(a: ReturnType<typeof arch>, presetBank: Record<string, string[]>, cat: string): string[] {
@@ -34,47 +38,95 @@ function ideaPoolFor(a: ReturnType<typeof arch>, presetBank: Record<string, stri
   return combined.length ? combined : ["etwas Unbenanntes"];
 }
 
-export function buildIdeaPremise(): Idea {
-  const archId = pick(["neutral", "skorpion", "psychopath", "entdecker"]);
-  const a = arch(archId);
-  const presetPool = Object.values(getAllPresets());
-  const preset = presetPool.length ? pick(presetPool) : null;
-  const pb = (preset ? preset.bank : {}) as Record<string, string[]>;
+interface Seed { W: string; O: string; N: string; A: string; M: string; H: string; T: string; B: string; S: string; }
+const TEMPLATES: { tags: string[]; f: (s: Seed) => string }[] = [
+  { tags: ["raetsel", "konzept", "offen"], f: (s) => `Was, wenn ${s.W} ${s.O} ${s.A} — und dabei auf ${s.M} stößt?` },
+  { tags: ["atmo", "figur"], f: (s) => `${cap(s.W)} ${s.A}. Doch ${s.O} wartet ${s.H}.` },
+  { tags: ["handlung", "enthuellung"], f: (s) => `Die Prämisse: ${s.W} ${s.A}, ${s.N}. ${cap(s.T)}.` },
+  { tags: ["figur", "umkehr"], f: (s) => `${cap(s.W)} glaubt, alles im Griff zu haben — bis ${s.M} auftaucht.` },
+  { tags: ["atmo", "intim"], f: (s) => `${cap(s.O)}, ${s.N}: ${s.W} ${s.A}. ${cap(s.B)}.` },
+  { tags: ["figur", "eskalation"], f: (s) => `${cap(s.W)} ${s.A}. ${s.S}` },
+  { tags: ["konzept", "raetsel"], f: (s) => `Kern der Idee: ${s.W} stößt ${s.O} auf ${s.H} — und ${s.T}.` },
+  { tags: ["handlung", "zeit"], f: (s) => `${cap(s.N)}: ${s.W} ${s.A} — und ${s.T}.` },
+  { tags: ["atmo", "enthuellung"], f: (s) => `Alles beginnt damit, dass ${s.W} ${s.O} etwas findet: ${s.M}.` },
+  { tags: ["eskalation", "episch"], f: (s) => `Niemand rechnet damit, doch ${s.W} ${s.A} — ${s.O}. ${s.S}` },
+  { tags: ["kampf", "system"], f: (s) => `${cap(s.W)} stellt sich ${s.B} entgegen — ${s.O}, ${s.N}.` },
+  { tags: ["inner", "figur", "intim"], f: (s) => `Niemand weiß, dass ${s.W} ${s.A}. Am Ende bleibt nur ${s.M}.` },
+  { tags: ["natur", "atmo"], f: (s) => `${cap(s.O)} kippt: ${s.W} ${s.A}, während ${s.H} näher rückt.` },
+  { tags: ["paradox", "konzept"], f: (s) => `Je mehr ${s.W} ${s.A}, desto näher rückt ${s.M}.` },
+  { tags: ["ironie", "figur"], f: (s) => `${cap(s.W)} sucht ${s.M} — und findet ausgerechnet ${s.H}.` },
+  { tags: ["kosmisch", "konzept"], f: (s) => `Eine einzige Frage bleibt: was, wenn ${s.M} nie existierte und ${s.W} es ${s.N} beweisen muss?` },
+  { tags: ["umkehr", "enthuellung"], f: (s) => `Was wie ${s.H} beginnt, entpuppt sich als ${s.M}: ${s.W} ${s.A}.` },
+  { tags: ["offen", "form"], f: (s) => `${cap(s.W)}, ${s.O}, ${s.N}. Und dann: ${s.T}.` },
+  { tags: ["zeit", "eskalation"], f: (s) => `${cap(s.N)} bleibt ${s.W}, um ${s.A} — bevor ${s.B}.` },
+  { tags: ["form", "atmo", "intim"], f: (s) => `Nur ein Bild: ${s.W} ${s.O}, ${s.M}, und ${s.S}` },
+];
 
-  const W = fresh(CTX_WHO, WHO_TWISTS, "who");
-  const O = fresh(CTX_WHERE, WHERE_TWISTS, "where");
-  const N = fresh(CTX_WHEN, WHEN_TWISTS, "when");
-  const A = fresh(CTX_WHAT, WHAT_TWISTS, "what");
-  const M = pickFresh(ideaPoolFor(a, pb, "motifs"), "motifs");
-  const H = pickFresh(ideaPoolFor(a, pb, "hooks"), "hooks");
-  const T = pickFresh(ideaPoolFor(a, pb, "turns"), "turns");
-  const B = pickFresh(ideaPoolFor(a, pb, "obstacles"), "obstacles");
-  const S = pickFresh(ideaPoolFor(a, pb, "stakes"), "stakes");
-
-  const templates: (() => string)[] = [
-    () => `Was, wenn ${W} ${O} ${A} — und dabei auf ${M} stößt?`,
-    () => `${cap(W)} ${A}. Doch ${O} wartet ${H}.`,
-    () => `Die Prämisse: ${W} ${A}, ${N}. ${cap(T)}.`,
-    () => `${cap(W)} glaubt, alles im Griff zu haben — bis ${M} auftaucht.`,
-    () => `${cap(O)}, ${N}: ${W} ${A}. ${cap(B)}.`,
-    () => `${cap(W)} ${A}. ${S}`,
-    () => `Kern der Idee: ${W} stößt ${O} auf ${H} — und ${T}.`,
-    () => `${cap(N)}: ${W} ${A} — und ${T}.`,
-    () => `Alles beginnt damit, dass ${W} ${O} etwas findet: ${M}.`,
-    () => `Niemand rechnet damit, doch ${W} ${A} — ${O}. ${S}`,
-  ];
-  let text = pick(templates)();
-  text = clean(text).replace(/\s+([,.!?;:])/g, "$1");
-  text = ensurePunct(text);
-  return { text, archetype: a.label || archId, presetLabel: preset ? preset.label : "–", seedWho: W, seedWhere: O, seedWhen: N, seedWhat: A };
+function chooseTemplate(cfg?: IdeaConfig): (s: Seed) => string {
+  if (!cfg || !cfg.tags.length) return pick(TEMPLATES).f;
+  const want = new Set(cfg.tags);
+  const scored = TEMPLATES.map((t) => ({ t, sc: t.tags.reduce((n, tg) => n + (want.has(tg) ? 1 : 0), 0) }));
+  const max = Math.max(...scored.map((x) => x.sc));
+  const cand = max > 0 ? scored.filter((x) => x.sc === max).map((x) => x.t) : TEMPLATES;
+  return pick(cand).f;
 }
 
-export function generateIdeaBatch(n: number): Idea[] {
+function mergedBank(count: number): { bank: Record<string, string[]>; label: string } {
+  const presetPool = Object.values(getAllPresets());
+  if (!presetPool.length) return { bank: {}, label: "–" };
+  const n = Math.max(1, Math.min(count, presetPool.length));
+  const chosen: typeof presetPool = [];
+  const used = new Set<number>();
+  let guard = 0;
+  while (chosen.length < n && guard++ < n * 6) {
+    const i = Math.floor(Math.random() * presetPool.length);
+    if (used.has(i)) continue;
+    used.add(i); chosen.push(presetPool[i]!);
+  }
+  const bank: Record<string, string[]> = {};
+  for (const pr of chosen) {
+    const b = (pr.bank || {}) as Record<string, string[]>;
+    for (const [k, v] of Object.entries(b)) bank[k] = [...(bank[k] || []), ...v];
+  }
+  return { bank, label: chosen.map((c) => c.label).join(" × ") };
+}
+
+export function buildIdeaPremise(cfg?: IdeaConfig): Idea {
+  const archId = cfg ? cfg.archetypeId : pick(["neutral", "skorpion", "psychopath", "entdecker"]);
+  const a = arch(archId);
+  const { bank: pb, label: presetLabel } = mergedBank(cfg ? cfg.mashupCount : 1);
+
+  const prob = cfg ? cfg.twistProb : 0.5;
+  const dbl = cfg ? cfg.doubleTwist : false;
+  const whoP = cfg && cfg.whoPool.length ? cfg.whoPool : CTX_WHO;
+  const whereP = cfg && cfg.wherePool.length ? cfg.wherePool : CTX_WHERE;
+  const whenP = cfg && cfg.whenPool.length ? cfg.whenPool : CTX_WHEN;
+  const whatP = cfg && cfg.whatPool.length ? cfg.whatPool : CTX_WHAT;
+
+  const s: Seed = {
+    W: fresh(whoP, WHO_TWISTS, "who", prob, dbl),
+    O: fresh(whereP, WHERE_TWISTS, "where", prob, dbl),
+    N: fresh(whenP, WHEN_TWISTS, "when", prob, dbl),
+    A: fresh(whatP, WHAT_TWISTS, "what", prob, dbl),
+    M: pickFresh(ideaPoolFor(a, pb, "motifs"), "motifs"),
+    H: pickFresh(ideaPoolFor(a, pb, "hooks"), "hooks"),
+    T: pickFresh(ideaPoolFor(a, pb, "turns"), "turns"),
+    B: pickFresh(ideaPoolFor(a, pb, "obstacles"), "obstacles"),
+    S: pickFresh(ideaPoolFor(a, pb, "stakes"), "stakes"),
+  };
+
+  let text = chooseTemplate(cfg)(s);
+  text = clean(text).replace(/\s+([,.!?;:])/g, "$1");
+  text = ensurePunct(text);
+  return { text, archetype: a.label || archId, presetLabel, seedWho: s.W, seedWhere: s.O, seedWhen: s.N, seedWhat: s.A };
+}
+
+export function generateIdeaBatch(n: number, cfg?: IdeaConfig): Idea[] {
   const out: Idea[] = [];
   const seen = new Set<string>();
   let guard = 0;
   while (out.length < n && guard++ < n * 8) {
-    const idea = buildIdeaPremise();
+    const idea = buildIdeaPremise(cfg);
     if (seen.has(idea.text)) continue;
     seen.add(idea.text);
     out.push(idea);
