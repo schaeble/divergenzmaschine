@@ -36,17 +36,27 @@ async function callClaudeRaw(promptText: string, maxTokens?: number, prefill?: s
     try { const e = await res.json() as { error?: { message?: string } }; if (e?.error?.message) msg = e.error.message; } catch { /* ignore */ }
     throw new Error(msg);
   }
-  const data = await res.json() as { content?: { type?: string; text?: string }[]; stop_reason?: string };
+  const data = await res.json() as {
+    content?: { type?: string; text?: string }[]; stop_reason?: string;
+    usage?: { input_tokens?: number; output_tokens?: number };
+  };
   let text = "";
+  const kinds: string[] = [];
   if (Array.isArray(data.content)) {
+    for (const b of data.content) if (b && typeof b.type === "string") kinds.push(b.type);
     text = data.content.filter((b) => b && b.type === "text" && typeof b.text === "string").map((b) => b.text).join("\n").trim();
   }
   if (text && prefill) text = prefill + text;
   const truncated = data.stop_reason === "max_tokens";
   if (!text) {
+    const diag = `Modell ${model} · angefordert ${maxTokens || 4096} · verbraucht ${data.usage?.output_tokens ?? "?"}`
+      + ` · Blocktypen [${kinds.join(", ") || "keine"}] · stop_reason ${data.stop_reason || "unbekannt"}`;
     throw new Error(truncated
-      ? `Das Token-Limit war erschöpft, bevor Text zurückkam (Modell: ${model}). Kürzere Ziellänge wählen oder erneut versuchen.`
-      : `Antwort ohne Textblock (stop_reason: ${data.stop_reason || "unbekannt"}; Modell: ${model}).`);
+      ? `Token-Limit erschöpft, bevor Text zurückkam.\n${diag}\n`
+        + (kinds.includes("thinking")
+          ? "Das Modell hat das Budget für interne Überlegungen verbraucht. Bitte ein Modell ohne erweitertes Nachdenken eintragen (Studio ▸ Einstellungen ▸ KI-Zugang)."
+          : "Bitte eine kürzere Ziellänge wählen oder erneut versuchen.")
+      : `Antwort ohne Textblock.\n${diag}`);
   }
   return { text, truncated };
 }
