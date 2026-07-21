@@ -11,6 +11,7 @@ import {
 } from "../features/ideaprofile";
 import { loadAiKey, callClaude, extractJson } from "../features/ki";
 import { liveCount, clearLivePools } from "../features/livepools";
+import { mountAssoc } from "./assocView";
 
 export function mountIdeas(root: HTMLElement): void {
   root.innerHTML = "";
@@ -139,8 +140,9 @@ export function mountIdeas(root: HTMLElement): void {
   });
   delBtn.addEventListener("click", () => { const v = presetSel.value; if (v.startsWith("user:")) { deleteIdeaUserPreset(v); rebuildPresetSel(); presetSel.value = ""; updDel(); } });
 
-  wrap.append(
-    el("h2", {}, "Ideen — Prämissen-Modus"),
+  // ---- Unterreiter: Prämissen | Assoziationskette ----
+  const panelPraem = el("div", {});
+  panelPraem.append(
     el("p", { class: "muted" }, "Zehn Merkmale formen die Richtung der Prämissen. Wähle ein Preset, stelle die Regler selbst ein oder lass die KI aus einem Thema ein Profil bauen. Der Divergenz-Regler steuert, wie wild die Streuung wird."),
     el("div", { class: "grid2" }, fld("Preset", presetSel), fld("Thema/Motiv", nameIn)),
     el("div", { class: "grid3" }, fld("Genre", genre), fld("Ton", ton), fld("Protagonist", prot)),
@@ -151,6 +153,26 @@ export function mountIdeas(root: HTMLElement): void {
     el("div", { class: "btnrow" }, "Anzahl ", count, " ", genBtn, rndBtn, profBtn),
     el("div", { class: "btnrow" }, saveBtn, delBtn),
     list,
+  );
+  const panelAssoc = el("div", { style: "display:none" });
+  let assocReady = false;
+
+  const tabP = el("button", { class: "subtab active" }, "Prämissen");
+  const tabA = el("button", { class: "subtab" }, "Assoziationskette");
+  const showPanel = (praem: boolean): void => {
+    panelPraem.style.display = praem ? "" : "none";
+    panelAssoc.style.display = praem ? "none" : "";
+    tabP.classList.toggle("active", praem);
+    tabA.classList.toggle("active", !praem);
+    if (!praem && !assocReady) { mountAssoc(panelAssoc); assocReady = true; }
+  };
+  tabP.addEventListener("click", () => showPanel(true));
+  tabA.addEventListener("click", () => showPanel(false));
+
+  wrap.append(
+    el("h2", {}, "Ideen"),
+    el("div", { class: "subtabs" }, tabP, tabA),
+    panelPraem, panelAssoc,
   );
   root.append(wrap);
   updLive();
