@@ -18,8 +18,10 @@ export function mountTreasury(root: HTMLElement): void {
       const take = el("button", {}, icon("arrowRight"), " Studio");
       take.addEventListener("click", () => {
         try {
-          localStorage.setItem("dm_pending_ctx", JSON.stringify({ who: it.who, where: it.where, when: it.when, what: it.what }));
-          localStorage.setItem("dm_pending_text", it.t);
+          try {
+            localStorage.setItem("dm_pending_ctx", JSON.stringify({ who: it.who, where: it.where, when: it.when, what: it.what }));
+            localStorage.setItem("dm_pending_text", it.t);
+          } catch { /* Speicher gesperrt */ }
         } catch { /* voll */ }
         const st = [...document.querySelectorAll(".tabbar button")].find((b) => b.textContent === "Studio") as HTMLButtonElement | undefined;
         if (st) st.click();

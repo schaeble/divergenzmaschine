@@ -26,7 +26,7 @@ export function loadBank(): Bank {
 }
 
 export function saveBank(bank: Bank): void {
-  localStorage.setItem(STORAGE_BANK, JSON.stringify(bank));
+  try { localStorage.setItem(STORAGE_BANK, JSON.stringify(bank)); } catch { /* Speicher gesperrt oder voll */ }
 }
 
 const DEFAULT_SETTINGS: Settings = { enabled: false, learnStories: true, useSaved: false };
@@ -47,5 +47,5 @@ export function loadSettings(): Settings {
 }
 
 export function saveSettings(s: Settings): void {
-  localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(s));
+  try { localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(s)); } catch { /* Speicher gesperrt oder voll */ }
 }

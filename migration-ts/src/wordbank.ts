@@ -20,7 +20,7 @@ export function loadUserPresets(): Record<string, Bank> {
 }
 
 export function saveUserPresets(user: Record<string, Bank>): void {
-  localStorage.setItem(STORAGE_PRESETS, JSON.stringify(user));
+  try { localStorage.setItem(STORAGE_PRESETS, JSON.stringify(user)); } catch { /* Speicher gesperrt oder voll */ }
 }
 
 const ACTIVE_KEY = "divergenz_active_preset_v1";
