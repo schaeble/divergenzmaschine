@@ -1,7 +1,7 @@
 // Werkstatt-Tab: aus dem Maschinen-Rohtext in drei Stufen eine Kurzgeschichte.
 import { el, field, select, button } from "./dom";
 import { icon } from "./icons";
-import { loadAiKey, callClaude, callClaudeEx, extractJson } from "../features/ki";
+import { loadAiKey, callClaude, callClaudeStream, isOnline, extractJson } from "../features/ki";
 import { loadTreasury, addToTreasury } from "../features/treasury";
 import { loadActiveBankLabel } from "../wordbank";
 import { openReader } from "./reader";
@@ -146,12 +146,21 @@ export function mountWorkshop(root: HTMLElement): void {
   const beatsClear = mkClear(beatsPane);
 
   const status = el("p", { class: "muted" }, "");
-  const run = async (btn: HTMLButtonElement, lbl: HTMLElement, def: string, fn: () => Promise<void>): Promise<void> => {
-    if (!loadAiKey()) { alert("Kein API-Schlüssel — bitte unter Studio ▸ Einstellungen hinterlegen."); return; }
+  const cancelBtn = el("button", { class: "danger", style: "display:none" }, "Abbrechen") as HTMLButtonElement;
+  let ac: AbortController | null = null;
+  cancelBtn.addEventListener("click", () => { ac?.abort(); });
+
+  const run = async (btn: HTMLButtonElement, lbl: HTMLElement, def: string, fn: (signal: AbortSignal) => Promise<void>): Promise<void> => {
+    if (!loadAiKey()) { alert("Kein API-Schlüssel — bitte unter Studio ▸ Einstellungen ▸ KI-Zugang hinterlegen."); return; }
+    if (!isOnline()) { status.textContent = "Keine Internetverbindung — KI-Funktionen sind offline nicht verfügbar."; return; }
     btn.disabled = true; lbl.textContent = "Sende an KI…"; status.textContent = "";
-    try { await fn(); persist(); }
-    catch (e) { status.textContent = "Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e)); }
-    finally { btn.disabled = false; lbl.textContent = def; }
+    ac = new AbortController(); cancelBtn.style.display = "";
+    try { await fn(ac.signal); persist(); }
+    catch (e) {
+      if (ac.signal.aborted) status.textContent = "Abgebrochen.";
+      else status.textContent = "Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e));
+    }
+    finally { btn.disabled = false; lbl.textContent = def; cancelBtn.style.display = "none"; ac = null; }
   };
 
   // ---- Werkstatt-Projekt: benennen, speichern, laden ----
@@ -216,7 +225,7 @@ export function mountWorkshop(root: HTMLElement): void {
 
   const s1Lbl = el("span", {}, "1 · Gerüst erzeugen");
   const s1 = el("button", { class: "primary" }, icon("flask"), " ", s1Lbl) as HTMLButtonElement;
-  s1.addEventListener("click", () => void run(s1, s1Lbl, "1 · Gerüst erzeugen", async () => {
+  s1.addEventListener("click", () => void run(s1, s1Lbl, "1 · Gerüst erzeugen", async () => {  // JSON, kein Streaming
     const raw = rawPane.value.trim();
     if (!raw) { status.textContent = "Kein Rohtext."; return; }
     const out = await callClaude(buildOutlinePrompt(raw, {}, readOpts()), 1500);
@@ -228,27 +237,29 @@ export function mountWorkshop(root: HTMLElement): void {
 
   const s2Lbl = el("span", {}, "2 · Rohfassung schreiben");
   const s2 = el("button", {}, icon("flask"), " ", s2Lbl) as HTMLButtonElement;
-  s2.addEventListener("click", () => void run(s2, s2Lbl, "2 · Rohfassung schreiben", async () => {
+  s2.addEventListener("click", () => void run(s2, s2Lbl, "2 · Rohfassung schreiben", async (signal) => {
     const ol = readOutline();
     if (!ol.beats.length) { status.textContent = "Kein Gerüst — erst Stufe 1, oder Szenenschritte selbst eintragen."; return; }
     const o = readOpts();
     const mat = readMaterial();
-    const r = await callClaudeEx(buildDraftPrompt(rawPane.value.trim(), {}, ol, o, mat), budget(o.laenge));
-    draftPane.value = r.text;
-    draftActions.upd();
+    draftPane.value = "";
+    const r = await callClaudeStream(buildDraftPrompt(rawPane.value.trim(), {}, ol, o, mat), budget(o.laenge),
+      (_c, full) => { draftPane.value = full; draftActions.upd(); }, signal);
+    draftPane.value = r.text; draftActions.upd();
     rc.draft = `Rohfassung · ${stamp()} · ${words(draftPane.value)} Wörter · ${mat.length ? mat.length + " Begriffe Material" : "ohne Material"}${r.truncated ? " · ⚠ am Token-Limit abgeschnitten" : ""}`;
     rcDraft.textContent = rc.draft;
   }));
 
   const s3Lbl = el("span", {}, "3 · Politur");
   const s3 = el("button", {}, icon("flask"), " ", s3Lbl) as HTMLButtonElement;
-  s3.addEventListener("click", () => void run(s3, s3Lbl, "3 · Politur", async () => {
+  s3.addEventListener("click", () => void run(s3, s3Lbl, "3 · Politur", async (signal) => {
     const d = draftPane.value.trim();
     if (!d) { status.textContent = "Keine Rohfassung."; return; }
     const o = readOpts();
-    const r = await callClaudeEx(buildPolishPrompt(d, o), budget(Math.max(o.laenge, words(d))));
-    finalPane.value = r.text;
-    finalActions.upd();
+    finalPane.value = "";
+    const r = await callClaudeStream(buildPolishPrompt(d, o), budget(Math.max(o.laenge, words(d))),
+      (_c, full) => { finalPane.value = full; finalActions.upd(); }, signal);
+    finalPane.value = r.text; finalActions.upd();
     rc.final = `Endfassung · ${stamp()} · ${words(finalPane.value)} Wörter (aus ${words(d)})${r.truncated ? " · ⚠ am Token-Limit abgeschnitten" : ""}`;
     rcFinal.textContent = rc.final;
   }));
@@ -318,7 +329,7 @@ export function mountWorkshop(root: HTMLElement): void {
     el("div", { class: "btnrow" }, beatsClear),
 
     step("2 ·", "Rohfassung"),
-    el("div", { class: "btnrow" }, s2, rcDraft),
+    el("div", { class: "btnrow" }, s2, cancelBtn, rcDraft),
     draftPane,
     draftActions.row,
 
@@ -328,6 +339,17 @@ export function mountWorkshop(root: HTMLElement): void {
     finalActions.row,
     status,
   );
+  const offlineNote = el("p", { class: "muted", style: "display:none" }, "⚠ Offline — die KI-Stufen sind gerade nicht verfügbar.");
+  wrap.insertBefore(offlineNote, wrap.firstChild!.nextSibling);
+  const syncOnline = (): void => {
+    const off = !isOnline();
+    [s1, s2, s3].forEach((b) => { b.disabled = off; });
+    offlineNote.style.display = off ? "" : "none";
+  };
+  window.addEventListener("online", syncOnline);
+  window.addEventListener("offline", syncOnline);
+  syncOnline();
+
   root.append(wrap);
   draftActions.upd();
   finalActions.upd();

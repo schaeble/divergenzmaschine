@@ -15,24 +15,52 @@ export function saveAiModel(m: string): void { try { localStorage.setItem(AI_MOD
 
 interface Msg { role: "user" | "assistant"; content: string; }
 
-async function callClaudeRaw(promptText: string, maxTokens?: number, prefill?: string | null, noThinking = false): Promise<{ text: string; truncated: boolean }> {
+export function isOnline(): boolean {
+  try { return navigator.onLine !== false; } catch { return true; }
+}
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+/** POST an die Messages-API mit Offline-Guard und Retry bei Überlast (429/529/5xx). */
+async function postMessages(body: unknown, signal?: AbortSignal): Promise<Response> {
+  if (!isOnline()) throw new Error("Keine Internetverbindung — KI-Funktionen sind offline nicht verfügbar.");
   const key = loadAiKey();
+  const url = "https://api.anthropic.com/v1/messages";
+  const headers = {
+    "content-type": "application/json",
+    "x-api-key": key,
+    "anthropic-version": "2023-06-01",
+    "anthropic-dangerous-direct-browser-access": "true",
+  };
+  const delays = [1000, 2000, 4000];
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    try {
+      const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal });
+      // Vorübergehende Überlast -> erneut versuchen; echte Fehler (401/403/400) sofort durchreichen.
+      if ((res.status === 429 || res.status === 529 || res.status >= 500) && attempt < delays.length) {
+        await sleep(delays[attempt]!); continue;
+      }
+      return res;
+    } catch (e) {
+      if (signal?.aborted) throw e;                 // vom Nutzer abgebrochen
+      lastErr = e;
+      if (attempt < delays.length) { await sleep(delays[attempt]!); continue; }
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("Netzwerkfehler bei der KI-Anfrage.");
+}
+
+
+
+async function callClaudeRaw(promptText: string, maxTokens?: number, prefill?: string | null, noThinking = false): Promise<{ text: string; truncated: boolean }> {
   const model = loadAiModel();
   const messages: Msg[] = [{ role: "user", content: promptText }];
   if (prefill) messages.push({ role: "assistant", content: prefill });
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": key,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
-    },
-    body: JSON.stringify(noThinking
-      ? { model, max_tokens: maxTokens || 4096, messages, thinking: { type: "disabled" } }
-      : { model, max_tokens: maxTokens || 4096, messages }),
-  });
+  const body = noThinking
+    ? { model, max_tokens: maxTokens || 4096, messages, thinking: { type: "disabled" } }
+    : { model, max_tokens: maxTokens || 4096, messages };
+  const res = await postMessages(body);
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try { const e = await res.json() as { error?: { message?: string } }; if (e?.error?.message) msg = e.error.message; } catch { /* ignore */ }
@@ -87,6 +115,51 @@ export async function callClaudeEx(promptText: string, maxTokens?: number, prefi
 
 export async function callClaude(promptText: string, maxTokens?: number, prefill?: string | null): Promise<string> {
   return (await callClaudeEx(promptText, maxTokens, prefill)).text;
+}
+
+/** Streaming: liefert Text-Deltas live über onDelta und gibt den Gesamttext zurück.
+ *  Bei fehlender Streaming-Unterstützung fällt der Aufrufer auf callClaude zurück. */
+export async function callClaudeStream(
+  promptText: string, maxTokens: number, onDelta: (chunk: string, full: string) => void, signal?: AbortSignal,
+): Promise<{ text: string; truncated: boolean }> {
+  if (!loadAiKey()) throw new Error("Kein API-Schlüssel hinterlegt.");
+  const model = loadAiModel();
+  const body = {
+    model, max_tokens: maxTokens || 4096, stream: true,
+    thinking: { type: "disabled" as const },
+    messages: [{ role: "user", content: promptText }],
+  };
+  const res = await postMessages(body, signal);
+  if (!res.ok || !res.body) {
+    let msg = `HTTP ${res.status}`;
+    try { const e = await res.json() as { error?: { message?: string } }; if (e?.error?.message) msg = e.error.message; } catch { /* egal */ }
+    throw new Error(msg);
+  }
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "", full = "", stop = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const lines = buf.split("\n");
+    buf = lines.pop() || "";
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t.startsWith("data:")) continue;
+      const payload = t.slice(5).trim();
+      if (payload === "[DONE]") continue;
+      try {
+        const ev = JSON.parse(payload) as { type?: string; delta?: { type?: string; text?: string; stop_reason?: string } };
+        if (ev.type === "content_block_delta" && ev.delta?.type === "text_delta" && ev.delta.text) {
+          full += ev.delta.text; onDelta(ev.delta.text, full);
+        } else if (ev.type === "message_delta" && ev.delta?.stop_reason) {
+          stop = ev.delta.stop_reason;
+        }
+      } catch { /* Zeile überspringen */ }
+    }
+  }
+  return { text: full.trim(), truncated: stop === "max_tokens" };
 }
 
 export function extractJson(raw: string): unknown {
