@@ -1,6 +1,6 @@
 // Korpus-Tab: Trainingstext hinzufügen, Statistik, löschen, exportieren.
 import { el, button } from "./dom";
-import { loadPersistentCorpus, savePersistentCorpus, appendToPersistentCorpus } from "../corpus";
+import { loadPersistentCorpus, savePersistentCorpus, appendToPersistentCorpus, corpusHygiene } from "../corpus";
 
 export function mountKorpus(root: HTMLElement): void {
   root.innerHTML = "";
@@ -10,7 +10,26 @@ export function mountKorpus(root: HTMLElement): void {
   const refresh = (): void => { info.textContent = `Persistenter Korpus: ${loadPersistentCorpus().length} Zeichen`; };
 
   const addBtn = button("Zum Korpus hinzufügen");
-  addBtn.addEventListener("click", () => { if (ta.value.trim()) { appendToPersistentCorpus(ta.value); ta.value = ""; refresh(); } });
+  addBtn.addEventListener("click", () => {
+    if (!ta.value.trim()) return;
+    const h = corpusHygiene(ta.value);
+    appendToPersistentCorpus(h.text);
+    ta.value = "";
+    refresh();
+    info.textContent = `Hinzugefügt: ${h.stats.sentencesAfter} Sätze übernommen, ${h.stats.removed} verworfen. · ${info.textContent}`;
+  });
+
+  const cleanBtn = button("Korpus säubern");
+  cleanBtn.addEventListener("click", () => {
+    const cur = loadPersistentCorpus();
+    if (!cur.trim()) { info.textContent = "Korpus ist leer."; return; }
+    const h = corpusHygiene(cur);
+    if (h.stats.removed === 0 && h.stats.duplicates === 0) { info.textContent = "Nichts zu säubern — Korpus ist bereits sauber."; return; }
+    if (!confirm(`Säubern entfernt ${h.stats.removed} Sätze (davon ${h.stats.duplicates} Duplikate) und schrumpft den Korpus von ${h.stats.charsBefore} auf ${h.stats.charsAfter} Zeichen. Vorher exportieren? Abbrechen = nein. Fortfahren?`)) return;
+    savePersistentCorpus(h.text);
+    refresh();
+    info.textContent = `Gesäubert: ${h.stats.sentencesBefore} → ${h.stats.sentencesAfter} Sätze (${h.stats.removed} entfernt, ${h.stats.duplicates} Duplikate).`;
+  });
 
   const clearBtn = button("Korpus löschen", "danger");
   clearBtn.addEventListener("click", () => { if (confirm("Korpus wirklich löschen?")) { savePersistentCorpus(""); refresh(); } });
@@ -33,7 +52,8 @@ export function mountKorpus(root: HTMLElement): void {
     a.click();
   });
 
-  wrap.append(ta, el("div", { class: "btnrow" }, addBtn, showBtn, clearBtn, exportBtn), info, view);
+  wrap.append(ta, el("div", { class: "btnrow" }, addBtn, showBtn, cleanBtn, exportBtn, clearBtn), info, view,
+    el("p", { class: "muted" }, "Säubern segmentiert den Korpus satzweise und entfernt Fragmente, Kopfzeilen-Reste und doppelte Sätze — der Markov-Generator lernt sonst Fehler mit. Neu hinzugefügter Text wird bereits beim Hinzufügen gesäubert."));
   root.append(wrap);
   refresh();
 }

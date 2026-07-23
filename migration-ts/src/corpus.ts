@@ -31,6 +31,47 @@ export function corpusSanitize(text: string): string {
   return s;
 }
 
+export interface HygieneStats { sentencesBefore: number; sentencesAfter: number; removed: number; duplicates: number; charsBefore: number; charsAfter: number; }
+
+/** Korpus-Hygiene (6.6): satzweise segmentieren, Müllsätze und Duplikate entfernen.
+ *  Der Markov-Generator lernt sonst Fehler und Fragmente mit. */
+export function corpusHygiene(text: string): { text: string; stats: HygieneStats } {
+  const src = corpusSanitize(text || "");
+  const sentences = src.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter(Boolean);
+  const charsBefore = (text || "").length;
+  const seen = new Set<string>();
+  const kept: string[] = [];
+  let duplicates = 0;
+
+  for (const raw of sentences) {
+    const letters = (raw.match(/[a-zäöüßA-ZÄÖÜ]/g) || []).length;
+    const words = raw.match(/[a-zäöüßA-ZÄÖÜ]{2,}/g) || [];
+    // Müll: zu kurz, zu wenig Buchstaben, kein vokalhaltiges Wort.
+    if (words.length < 4) continue;
+    if (letters / raw.length < 0.45) continue;
+    if (!words.some((w) => /[aeiouäöüy]/i.test(w))) continue;
+    // Telegramm-/Kopfzeilen: fast alles großgeschrieben und kurz.
+    const upper = words.filter((w) => /^[A-ZÄÖÜ]/.test(w)).length;
+    if (words.length < 8 && upper / words.length > 0.7) continue;
+    // Duplikate (normalisiert) verwerfen — überfüttern die Kette.
+    const norm = raw.toLowerCase().replace(/\s+/g, " ");
+    if (seen.has(norm)) { duplicates++; continue; }
+    seen.add(norm);
+    kept.push(/[.!?…]$/.test(raw) ? raw : raw + ".");
+  }
+
+  let out = kept.join(" ");
+  if (out.length > CORPUS_MAX) {
+    out = out.slice(out.length - CORPUS_MAX);
+    const cut = out.indexOf(" "); if (cut > 0) out = out.slice(cut + 1);
+  }
+  return { text: out, stats: {
+    sentencesBefore: sentences.length, sentencesAfter: kept.length,
+    removed: sentences.length - kept.length, duplicates,
+    charsBefore, charsAfter: out.length,
+  } };
+}
+
 export function appendToPersistentCorpus(textToAdd: string): void {
   const add = corpusSanitize(clean(textToAdd));
   if (!add) return;
