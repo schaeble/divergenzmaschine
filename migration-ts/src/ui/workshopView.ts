@@ -5,6 +5,7 @@ import { loadAiKey, callClaude, callClaudeStream, isOnline, extractJson } from "
 import { loadTreasury, addToTreasury } from "../features/treasury";
 import { loadActiveBankLabel } from "../wordbank";
 import { openReader } from "./reader";
+import { diffWords, diffStats } from "../generation/diff";
 import {
   LEN_OPTS, PERS_OPTS, ZEIT_OPTS, TON_OPTS, SCHLUSS_OPTS,
   buildOutlinePrompt, normalizeOutline, buildDraftPrompt, buildPolishPrompt,
@@ -262,6 +263,7 @@ export function mountWorkshop(root: HTMLElement): void {
     finalPane.value = r.text; finalActions.upd();
     rc.final = `Endfassung · ${stamp()} · ${words(finalPane.value)} Wörter (aus ${words(d)})${r.truncated ? " · ⚠ am Token-Limit abgeschnitten" : ""}`;
     rcFinal.textContent = rc.final;
+    if (diffOn) renderDiff();
   }));
 
   // ---- Aktionen: jedes Feld bekommt seine eigene Reihe ----
@@ -302,6 +304,31 @@ export function mountWorkshop(root: HTMLElement): void {
   const draftActions = mkActions(draftPane, "rohfassung");
   const finalActions = mkActions(finalPane, "kurzgeschichte");
 
+  // ---- Änderungsansicht: Rohfassung → Endfassung ----
+  const esc = (t: string): string => t.replace(/[&<>]/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;"));
+  const diffBox = el("div", { style: "display:none;white-space:pre-wrap;line-height:1.6;border:1px solid var(--line,#333);border-radius:8px;padding:12px;margin-top:6px" });
+  const diffInfo = el("span", { class: "muted" }, "");
+  const renderDiff = (): void => {
+    const a = draftPane.value, b = finalPane.value;
+    if (!a.trim() || !b.trim()) { diffBox.innerHTML = "<span class='muted'>Braucht Rohfassung und Endfassung.</span>"; diffInfo.textContent = ""; return; }
+    const ops = diffWords(a, b);
+    diffBox.innerHTML = ops.map((o) =>
+      o.type === "same" ? esc(o.text)
+        : o.type === "del" ? `<span style="color:#e06c6c;text-decoration:line-through;opacity:.75">${esc(o.text)}</span>`
+        : `<span style="color:#57b978;background:rgba(87,185,120,.14);border-radius:3px">${esc(o.text)}</span>`).join("");
+    const st = diffStats(ops);
+    diffInfo.textContent = `${st.del} entfernt · ${st.ins} hinzugefügt`;
+  };
+  const diffBtn = el("button", {}, icon("tool"), " Änderungen zeigen");
+  let diffOn = false;
+  diffBtn.addEventListener("click", () => {
+    diffOn = !diffOn;
+    diffBox.style.display = diffOn ? "" : "none";
+    diffBtn.innerHTML = ""; diffBtn.append(icon("tool"), diffOn ? " Änderungen ausblenden" : " Änderungen zeigen");
+    if (diffOn) renderDiff();
+  });
+  finalPane.addEventListener("input", () => { if (diffOn) renderDiff(); });
+
   const step = (n: string, t: string): HTMLElement => el("h3", { style: "margin:18px 0 8px" }, n + " " + t);
 
   wrap.append(
@@ -337,6 +364,8 @@ export function mountWorkshop(root: HTMLElement): void {
     el("div", { class: "btnrow" }, s3, rcFinal),
     finalPane,
     finalActions.row,
+    el("div", { class: "btnrow" }, diffBtn, el("span", { class: "muted" }, "gegen Rohfassung"), diffInfo),
+    diffBox,
     status,
   );
   const offlineNote = el("p", { class: "muted", style: "display:none" }, "⚠ Offline — die KI-Stufen sind gerade nicht verfügbar.");
