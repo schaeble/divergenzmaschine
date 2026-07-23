@@ -7,6 +7,7 @@
 // großem Korpus.
 import { STORAGE_CORPUS, CORPUS_MAX } from "./constants";
 import { clean } from "./text-utils";
+import { safeSet } from "./features/storage-status";
 import { feedLivePools, LIVE_W } from "./features/livepools";
 
 export function loadPersistentCorpus(): string {
@@ -14,7 +15,7 @@ export function loadPersistentCorpus(): string {
 }
 
 export function savePersistentCorpus(text: string): void {
-  try { localStorage.setItem(STORAGE_CORPUS, text); } catch { /* Speicher voll o. Ä. */ }
+  safeSet(STORAGE_CORPUS, text, "Korpus");
 }
 
 /** Entfernt typische Selbstfütterungs-Rückstände vor dem Lernen. */

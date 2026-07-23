@@ -1,5 +1,6 @@
 // Einzige Stelle, die den Browser-Speicher berührt. Eingehende Daten werden
 // hier an der Grenze geprüft und in die richtige Form gebracht.
+import { safeSet } from "./features/storage-status";
 import type { Bank, Settings } from "./types";
 import { STORAGE_BANK, STORAGE_SETTINGS, DEFAULT_BANK, BANK_KEYS } from "./constants";
 import { clean } from "./text-utils";
@@ -26,7 +27,7 @@ export function loadBank(): Bank {
 }
 
 export function saveBank(bank: Bank): void {
-  try { localStorage.setItem(STORAGE_BANK, JSON.stringify(bank)); } catch { /* Speicher gesperrt oder voll */ }
+  safeSet(STORAGE_BANK, JSON.stringify(bank), "Wortbank");
 }
 
 const DEFAULT_SETTINGS: Settings = { enabled: false, learnStories: true, useSaved: false };
@@ -47,5 +48,5 @@ export function loadSettings(): Settings {
 }
 
 export function saveSettings(s: Settings): void {
-  try { localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(s)); } catch { /* Speicher gesperrt oder voll */ }
+  safeSet(STORAGE_SETTINGS, JSON.stringify(s), "Einstellungen");
 }

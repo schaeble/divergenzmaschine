@@ -3,6 +3,7 @@
 // Monolith-Version auf demselben Origin). Speichern füttert den Korpus.
 import { appendToPersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "./livepools";
+import { safeSet } from "./storage-status";
 
 const TKEY = "dm_treasury_v1";
 const TCAP = 100;
@@ -12,7 +13,7 @@ export interface Treasure { t: string; who?: string; where?: string; when?: stri
 export function loadTreasury(): Treasure[] {
   try { const v = JSON.parse(localStorage.getItem(TKEY) || "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
 }
-function saveTreasury(list: Treasure[]): void { try { localStorage.setItem(TKEY, JSON.stringify(list)); } catch { /* voll */ } }
+function saveTreasury(list: Treasure[]): void { safeSet(TKEY, JSON.stringify(list), "Schatzkammer"); }
 
 /** Legt den Text in die Schatzkammer. Rückgabe: neue Anzahl, oder -1 wenn Dublette/leer. */
 export function addToTreasury(text: string, ctx: { who?: string; where?: string; when?: string; what?: string }): number {

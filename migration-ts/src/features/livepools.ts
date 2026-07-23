@@ -1,6 +1,8 @@
 // Lebendige Pools: sammelt kurze Begriffe und Wendungen aus dem, was du
 // tatsächlich schreibst (Schatzkammer, Korpus, Generierungen) und mischt sie
 // zurück in die Ideenmaschine. Global gespeichert, gedeckelt, rein lokal.
+import { safeSet } from "./storage-status";
+
 const LP_KEY = "divergenz_live_pools_v1";
 const LP_CAP = 300;
 
@@ -62,7 +64,7 @@ export function loadLive(): LiveItem[] {
   } catch { return []; }
 }
 function saveLive(list: LiveItem[]): void {
-  try { localStorage.setItem(LP_KEY, JSON.stringify(list)); } catch { /* voll */ }
+  safeSet(LP_KEY, JSON.stringify(list), "Lebendige Pools");
 }
 
 /** Füttert die Pools. weight über LIVE_W je nach Quelle. */

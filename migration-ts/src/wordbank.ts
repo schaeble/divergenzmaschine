@@ -1,4 +1,5 @@
 // Presets (Built-in + eigene) und die verstärkte Mutations-Engine.
+import { safeSet } from "./features/storage-status";
 import type { Bank, BankKey, Preset } from "./types";
 import { STORAGE_PRESETS, BANK_KEYS } from "./constants";
 import { BUILTIN_PRESETS, PRESET_LABELS } from "./presets.data";
@@ -20,7 +21,7 @@ export function loadUserPresets(): Record<string, Bank> {
 }
 
 export function saveUserPresets(user: Record<string, Bank>): void {
-  try { localStorage.setItem(STORAGE_PRESETS, JSON.stringify(user)); } catch { /* Speicher gesperrt oder voll */ }
+  safeSet(STORAGE_PRESETS, JSON.stringify(user), "Wortbank-Presets");
 }
 
 const ACTIVE_KEY = "divergenz_active_preset_v1";

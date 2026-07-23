@@ -141,11 +141,14 @@ export function loadWorkshop(): WorkshopState | null {
   try { const v = JSON.parse(localStorage.getItem(WS_KEY) || "null"); return v && typeof v === "object" ? v as WorkshopState : null; } catch { return null; }
 }
 export function saveWorkshop(s: WorkshopState): void {
-  try { localStorage.setItem(WS_KEY, JSON.stringify(s)); } catch { /* voll */ }
+  safeSet(WS_KEY, JSON.stringify(s), "Werkstatt");
 }
 
 // ---- Benannte Werkstatt-Projekte ----
+import { safeSet } from "./storage-status";
+
 const WP_KEY = "dm_workshop_projects_v1";
+const WP_MAX = 40;
 
 export interface WorkshopProject {
   name: string; raw: string; opts: WorkshopOpts; outline: Outline | null;
@@ -160,7 +163,13 @@ export function loadWorkshopProjects(): Record<string, WorkshopProject> {
   } catch { return {}; }
 }
 function writeProjects(o: Record<string, WorkshopProject>): void {
-  try { localStorage.setItem(WP_KEY, JSON.stringify(o)); } catch { /* voll */ }
+  // Deckel: bei Überzahl die ältesten (nach Datum) verwerfen.
+  const ids = Object.keys(o);
+  if (ids.length > WP_MAX) {
+    ids.sort((a, b) => (o[a]!.d || "").localeCompare(o[b]!.d || ""));
+    for (const id of ids.slice(0, ids.length - WP_MAX)) delete o[id];
+  }
+  safeSet(WP_KEY, JSON.stringify(o), "Werkstatt-Projekte");
 }
 export function saveWorkshopProject(p: WorkshopProject): string {
   const all = loadWorkshopProjects();

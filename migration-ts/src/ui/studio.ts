@@ -15,6 +15,7 @@ import { worldLogGeneration } from "../features/world";
 import { addToTreasury } from "../features/treasury";
 import { THEMES, loadTheme, applyTheme, loadAccent, saveAccent, applyAccent } from "../features/theme";
 import { loadAiKey, saveAiKey, loadAiModel, saveAiModel } from "../features/ki";
+import { storageReport } from "../features/storage-status";
 import { loadFont, loadFontSize, saveFontPrefs, applyStoryFont } from "../features/fonts";
 import { runProbe, runRanking, runAiRanking, type Ranking } from "../generation/scoring";
 
@@ -248,23 +249,38 @@ export function mountStudio(root: HTMLElement): void {
     el("div", { class: "btnrow" }, keySave, keyClear), kiStatus,
     el("p", { class: "muted" }, "Wird nur lokal gespeichert und ausschließlich an api.anthropic.com gesendet. Jede Anfrage verbraucht Guthaben deines Kontos."));
 
+  // Speicher-Reiter
+  const memLine = el("p", { class: "muted" }, "…");
+  const memRefresh = button("Aktualisieren");
+  const refreshMem = (): void => { void storageReport().then((r) => { memLine.textContent = r.text; }); };
+  memRefresh.addEventListener("click", refreshMem);
+  const memPanel = el("div", { style: "display:none" },
+    field("Belegung", memLine),
+    el("div", { class: "btnrow" }, memRefresh),
+    el("p", { class: "muted" }, "Der Browser speichert alles lokal. Wird es eng, erscheint bei jedem Sichern oben ein Warnband; dann Korpus kürzen, Schatzkammer aufräumen oder ein Projekt exportieren und Daten löschen."));
+
   const tabSchrift = el("button", { class: "subtab active" }, "Schrift");
   const tabFarbe = el("button", { class: "subtab" }, "Farbe");
   const tabKi = el("button", { class: "subtab" }, "KI-Zugang");
-  const showSettingsPanel = (which: "schrift" | "farbe" | "ki"): void => {
+  const tabMem = el("button", { class: "subtab" }, "Speicher");
+  const showSettingsPanel = (which: "schrift" | "farbe" | "ki" | "mem"): void => {
     schriftPanel.style.display = which === "schrift" ? "" : "none";
     themePanel.style.display = which === "farbe" ? "" : "none";
     kiPanel.style.display = which === "ki" ? "" : "none";
+    memPanel.style.display = which === "mem" ? "" : "none";
     tabSchrift.classList.toggle("active", which === "schrift");
     tabFarbe.classList.toggle("active", which === "farbe");
     tabKi.classList.toggle("active", which === "ki");
+    tabMem.classList.toggle("active", which === "mem");
+    if (which === "mem") refreshMem();
   };
   tabSchrift.addEventListener("click", () => showSettingsPanel("schrift"));
   tabFarbe.addEventListener("click", () => showSettingsPanel("farbe"));
   tabKi.addEventListener("click", () => showSettingsPanel("ki"));
+  tabMem.addEventListener("click", () => showSettingsPanel("mem"));
   const settings = el("details", { class: "fine" });
   settings.append(el("summary", {}, icon("settings"), " Einstellungen"),
-    el("div", { class: "subtabs" }, tabSchrift, tabFarbe, tabKi), schriftPanel, themePanel, kiPanel);
+    el("div", { class: "subtabs" }, tabSchrift, tabFarbe, tabKi, tabMem), schriftPanel, themePanel, kiPanel, memPanel);
   wrap.append(settings);
 
   root.append(wrap);
