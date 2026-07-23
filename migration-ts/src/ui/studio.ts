@@ -143,9 +143,15 @@ export function mountStudio(root: HTMLElement): void {
     out.textContent = item.txt;
     try { localStorage.setItem("dm_last_text", item.txt); } catch { /* voll */ }
     renderKling(readInput().form, item.txt);
-    const extra = item.aiScore !== undefined ? `KI ${item.aiScore}/100${item.grund ? " – " + item.grund : ""}` : `Score ${item.score.toFixed(1)}`;
+    const nov = item.novelty !== undefined ? ` · Neuheit ${Math.round(item.novelty * 100)}%` : "";
+    const extra = item.aiScore !== undefined ? `KI ${item.aiScore}/100${item.grund ? " – " + item.grund : ""}` : `Score ${item.score.toFixed(1)}${nov}`;
     rankStatus.textContent = `Platz ${place}: ${extra}`;
   };
+  const novSlider = el("input", { type: "range", min: "0", max: "100", step: "5", value: "30", class: "rankviz" }) as HTMLInputElement;
+  const novVal = el("span", { class: "muted" }, "30 %");
+  novSlider.addEventListener("input", () => { novVal.textContent = novSlider.value + " %"; });
+  const noveltyW = (): number => (parseInt(novSlider.value, 10) || 0) / 100;
+
   const probeBtn = button("Probe (50)");
   probeBtn.addEventListener("click", () => {
     rankStatus.textContent = "Probe läuft…";
@@ -157,7 +163,7 @@ export function mountStudio(root: HTMLElement): void {
   rangeSlider.addEventListener("input", () => applyPlace(parseInt(rangeSlider.value, 10)));
   rankBtn.addEventListener("click", () => {
     rankStatus.textContent = "Ranking läuft…";
-    setTimeout(() => { lastRanking = runRanking(loadBank(), readInput(), buildModelFromCorpus(), 50, 10);
+    setTimeout(() => { lastRanking = runRanking(loadBank(), readInput(), buildModelFromCorpus(), 50, 10, noveltyW());
       rangeSlider.max = String(lastRanking.all.length); rangeSlider.value = "1"; applyPlace(1); }, 10);
   });
   const goldBtn = button("🥇 #1"); goldBtn.addEventListener("click", () => applyPlace(1));
@@ -178,6 +184,8 @@ export function mountStudio(root: HTMLElement): void {
   rankDetails.append(el("summary", {}, icon("flask"), " Test & Ranking"),
     el("div", { class: "btnrow" }, probeBtn, rankBtn, aiRankBtn),
     el("div", { class: "btnrow" }, goldBtn, silverBtn, bronzeBtn),
+    el("label", { class: "field lenrow" }, el("span", { class: "mlabel" }, "Novelty"), " ", novSlider, " ", novVal),
+    el("p", { class: "muted" }, "Novelty belohnt beim Ranking den Abstand zur Schatzkammer und wertet zuletzt stark benutzte Motive ab. 0 % = reine Qualität."),
     el("label", { class: "field lenrow" }, el("span", { class: "mlabel" }, "Rang"), " ", rangeSlider),
     el("div", {}, rankStatus));
   wrap.append(rankDetails);

@@ -6,6 +6,7 @@ import { isFragmentSentence } from "./beats";
 import { MarkovModel } from "../corpus";
 import { appendToPersistentCorpus } from "../corpus";
 import { loadSettings } from "../storage";
+import { buildNoveltyContext, noveltyOf, cooldownHit, type NoveltyContext } from "./novelty";
 
 export interface TextMetrics {
   len: number; wordCount: number; repetitionRatio: number; lenFit: number;
@@ -13,7 +14,7 @@ export interface TextMetrics {
   triBad: boolean; biBad: boolean;
   flow: { startMonotony: number; colonExcess: number; fragPairs: number };
 }
-export interface RankItem extends TextMetrics { txt: string; score: number; aiScore?: number; grund?: string; }
+export interface RankItem extends TextMetrics { txt: string; score: number; baseScore?: number; novelty?: number; aiScore?: number; grund?: string; }
 export interface Ranking { all: RankItem[]; top: RankItem[]; total: number; topK: number; }
 
 function splitSentences(raw: string): string[] {
@@ -98,9 +99,21 @@ function feedTopToCorpus(top: RankItem[]): void {
     top.slice(0, 3).forEach((r) => { if (r?.txt) appendToPersistentCorpus(r.txt.replace(/\n+/g, " ").trim()); });
   } catch { /* ignore */ }
 }
-export function runRanking(bank: Bank, input: GenInput, model: MarkovModel | undefined, N = 50, topK = 10): Ranking {
+export function runRanking(bank: Bank, input: GenInput, model: MarkovModel | undefined, N = 50, topK = 10, noveltyWeight = 0): Ranking {
   const lt = input.lenTarget ?? 110;
-  const results: RankItem[] = genN(bank, input, model, N).map((txt) => { const { score, a } = scoreText(txt, lt); return { txt, score, ...a }; });
+  const nw = Math.max(0, Math.min(1, noveltyWeight));
+  const ctx: NoveltyContext | null = nw > 0 ? buildNoveltyContext() : null;
+  const results: RankItem[] = genN(bank, input, model, N).map((txt) => {
+    const { score, a } = scoreText(txt, lt);
+    return { txt, score, baseScore: score, ...a };
+  });
+  if (ctx) {
+    for (const r of results) {
+      r.novelty = noveltyOf(r.txt, ctx);
+      // Neuheit belohnen (bis +40), Cooldown-Motive abwerten (bis -30) — sanft skaliert.
+      r.score = (r.baseScore ?? r.score) + nw * (r.novelty * 40) - nw * (cooldownHit(r.txt, ctx) * 30);
+    }
+  }
   results.sort((a, b) => b.score - a.score);
   const top = results.slice(0, Math.max(1, Math.min(N, topK)));
   feedTopToCorpus(top);
