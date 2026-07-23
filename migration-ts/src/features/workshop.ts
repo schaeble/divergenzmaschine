@@ -130,6 +130,18 @@ export function buildPolishPrompt(draft: string, o: WorkshopOpts): string {
     + "Gib NUR den überarbeiteten Text zurück, ohne Überschrift oder Kommentar.\n\n--- TEXT ---\n" + draft;
 }
 
+// ---- Grammatik-Pass (6.7): nur korrigieren, Stil unangetastet ----
+export function buildGrammarPrompt(text: string): string {
+  return "Korrigiere im folgenden deutschen Text AUSSCHLIESSLICH die Grammatik:\n"
+    + "- Kongruenz (Artikel–Adjektiv–Nomen, Genus, Numerus, Kasus)\n"
+    + "- Verbstellung und Verbformen (Zeit, Person)\n"
+    + "- Rechtschreibung und Zeichensetzung (auch doppelte Satzzeichen)\n\n"
+    + "Streng verboten: Wortwahl ändern, Bilder oder Vergleiche ersetzen, Sätze umstellen oder umformulieren, "
+    + "kürzen, straffen, glätten. Wenn ein Satz grammatisch korrekt ist, lass ihn Wort für Wort unverändert. "
+    + "Die bewusst schiefen, surrealen Bilder sind gewollt und bleiben unangetastet — sie sind kein Fehler.\n\n"
+    + "Gib NUR den korrigierten Text zurück, ohne Kommentar.\n\n--- TEXT ---\n" + text;
+}
+
 // ---- Zustand über Tabwechsel hinweg ----
 const WS_KEY = "dm_workshop_v1";
 export interface Receipts { outline?: string; draft?: string; final?: string; }

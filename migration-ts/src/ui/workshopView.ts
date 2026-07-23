@@ -8,7 +8,7 @@ import { openReader } from "./reader";
 import { diffWords, diffStats } from "../generation/diff";
 import {
   LEN_OPTS, PERS_OPTS, ZEIT_OPTS, TON_OPTS, SCHLUSS_OPTS,
-  buildOutlinePrompt, normalizeOutline, buildDraftPrompt, buildPolishPrompt,
+  buildOutlinePrompt, normalizeOutline, buildDraftPrompt, buildPolishPrompt, buildGrammarPrompt,
   gatherMaterialDetailed, loadWorkshop, saveWorkshop,
   loadWorkshopProjects, saveWorkshopProject, deleteWorkshopProject,
   type WorkshopOpts, type Outline, type Receipts,
@@ -150,6 +150,7 @@ export function mountWorkshop(root: HTMLElement): void {
   const cancelBtn = el("button", { class: "danger", style: "display:none" }, "Abbrechen") as HTMLButtonElement;
   let ac: AbortController | null = null;
   cancelBtn.addEventListener("click", () => { ac?.abort(); });
+  let diffBaseOverride: { text: string; label: string } | null = null;
 
   const run = async (btn: HTMLButtonElement, lbl: HTMLElement, def: string, fn: (signal: AbortSignal) => Promise<void>): Promise<void> => {
     if (!loadAiKey()) { alert("Kein API-Schlüssel — bitte unter Studio ▸ Einstellungen ▸ KI-Zugang hinterlegen."); return; }
@@ -257,11 +258,27 @@ export function mountWorkshop(root: HTMLElement): void {
     const d = draftPane.value.trim();
     if (!d) { status.textContent = "Keine Rohfassung."; return; }
     const o = readOpts();
+    diffBaseOverride = null;
     finalPane.value = "";
     const r = await callClaudeStream(buildPolishPrompt(d, o), budget(Math.max(o.laenge, words(d))),
       (_c, full) => { finalPane.value = full; finalActions.upd(); }, signal);
     finalPane.value = r.text; finalActions.upd();
     rc.final = `Endfassung · ${stamp()} · ${words(finalPane.value)} Wörter (aus ${words(d)})${r.truncated ? " · ⚠ am Token-Limit abgeschnitten" : ""}`;
+    rcFinal.textContent = rc.final;
+    if (diffOn) renderDiff();
+  }));
+
+  const gramLbl = el("span", {}, "Grammatik prüfen");
+  const gramBtn = el("button", {}, icon("flask"), " ", gramLbl) as HTMLButtonElement;
+  gramBtn.addEventListener("click", () => void run(gramBtn, gramLbl, "Grammatik prüfen", async (signal) => {
+    const before = finalPane.value.trim() || draftPane.value.trim();
+    if (!before) { status.textContent = "Kein Text zum Prüfen."; return; }
+    finalPane.value = "";
+    const r = await callClaudeStream(buildGrammarPrompt(before), budget(words(before)),
+      (_c, full) => { finalPane.value = full; finalActions.upd(); }, signal);
+    finalPane.value = r.text; finalActions.upd();
+    diffBaseOverride = { text: before, label: "gegen Stand vor Grammatik" };
+    rc.final = `Grammatik · ${stamp()} · ${words(finalPane.value)} Wörter`;
     rcFinal.textContent = rc.final;
     if (diffOn) renderDiff();
   }));
@@ -308,15 +325,17 @@ export function mountWorkshop(root: HTMLElement): void {
   const esc = (t: string): string => t.replace(/[&<>]/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;"));
   const diffBox = el("div", { style: "display:none;white-space:pre-wrap;line-height:1.6;border:1px solid var(--line,#333);border-radius:8px;padding:12px;margin-top:6px" });
   const diffInfo = el("span", { class: "muted" }, "");
+  const diffBaseLbl = el("span", { class: "muted" }, "gegen Rohfassung");
   const renderDiff = (): void => {
-    const a = draftPane.value, b = finalPane.value;
-    if (!a.trim() || !b.trim()) { diffBox.innerHTML = "<span class='muted'>Braucht Rohfassung und Endfassung.</span>"; diffInfo.textContent = ""; return; }
+    const a = diffBaseOverride ? diffBaseOverride.text : draftPane.value, b = finalPane.value;
+    if (!a.trim() || !b.trim()) { diffBox.innerHTML = "<span class='muted'>Braucht eine Ausgangs- und eine Endfassung.</span>"; diffInfo.textContent = ""; return; }
     const ops = diffWords(a, b);
     diffBox.innerHTML = ops.map((o) =>
       o.type === "same" ? esc(o.text)
         : o.type === "del" ? `<span style="color:#e06c6c;text-decoration:line-through;opacity:.75">${esc(o.text)}</span>`
         : `<span style="color:#57b978;background:rgba(87,185,120,.14);border-radius:3px">${esc(o.text)}</span>`).join("");
     const st = diffStats(ops);
+    diffBaseLbl.textContent = diffBaseOverride ? diffBaseOverride.label : "gegen Rohfassung";
     diffInfo.textContent = `${st.del} entfernt · ${st.ins} hinzugefügt`;
   };
   const diffBtn = el("button", {}, icon("tool"), " Änderungen zeigen");
@@ -361,10 +380,10 @@ export function mountWorkshop(root: HTMLElement): void {
     draftActions.row,
 
     step("3 ·", "Endfassung"),
-    el("div", { class: "btnrow" }, s3, rcFinal),
+    el("div", { class: "btnrow" }, s3, gramBtn, rcFinal),
     finalPane,
     finalActions.row,
-    el("div", { class: "btnrow" }, diffBtn, el("span", { class: "muted" }, "gegen Rohfassung"), diffInfo),
+    el("div", { class: "btnrow" }, diffBtn, diffBaseLbl, diffInfo),
     diffBox,
     status,
   );
@@ -372,7 +391,7 @@ export function mountWorkshop(root: HTMLElement): void {
   wrap.insertBefore(offlineNote, wrap.firstChild!.nextSibling);
   const syncOnline = (): void => {
     const off = !isOnline();
-    [s1, s2, s3].forEach((b) => { b.disabled = off; });
+    [s1, s2, s3, gramBtn].forEach((b) => { b.disabled = off; });
     offlineNote.style.display = off ? "" : "none";
   };
   window.addEventListener("online", syncOnline);
