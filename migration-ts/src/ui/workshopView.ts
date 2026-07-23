@@ -182,7 +182,7 @@ export function mountWorkshop(root: HTMLElement): void {
   };
   projSel.addEventListener("change", () => { projDel.style.display = projSel.value ? "" : "none"; });
 
-  const projSave = button("Speichern");
+  const projSave = button("Speichern"); projSave.title = "Nur dieses Werkstatt-Projekt im Browser speichern.";
   projSave.addEventListener("click", () => {
     const nm = projName.value.trim();
     if (!nm) { projInfo.textContent = "Bitte einen Namen eintragen."; return; }
@@ -195,7 +195,7 @@ export function mountWorkshop(root: HTMLElement): void {
     projInfo.textContent = "gespeichert ✓";
     setTimeout(() => (projInfo.textContent = ""), 1800);
   });
-  const projLoad = button("Laden");
+  const projLoad = button("Laden"); projLoad.title = "Ein gespeichertes Werkstatt-Projekt laden.";
   projLoad.addEventListener("click", () => {
     const id = projSel.value; if (!id) return;
     const p = loadWorkshopProjects()[id]; if (!p) return;
@@ -347,7 +347,7 @@ export function mountWorkshop(root: HTMLElement): void {
     step("1 ·", "Gerüst"),
     el("div", { class: "grid2" }, field("Werkstatt-Projekt", projName), field("Gespeichert", projSel)),
     el("div", { class: "btnrow" }, projSave, projLoad, projDel, projInfo),
-    el("p", { class: "muted" }, "Speichert Quelle, Vorgaben, Gerüst und beide Fassungen unter diesem Namen. Wandert auch in die Projektdatei oben rechts."),
+    el("p", { class: "muted" }, "Speichert nur diese Geschichte (Quelle, Vorgaben, Gerüst, beide Fassungen) unter diesem Namen im Browser — keine Datei. Für eine Datei-Sicherung ALLER Daten den Knopf Exportieren oben rechts benutzen."),
     el("div", { class: "btnrow" }, s1, rcOutline),
     el("div", { class: "grid2" }, field("Figur", figur), field("Wunsch", wunsch)),
     el("div", { class: "grid2" }, field("Hindernis", hindernis), field("Wendung", wendung)),

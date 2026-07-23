@@ -43,12 +43,12 @@ const TABS: [string, (root: HTMLElement) => void][] = [
 export function mountApp(root: HTMLElement): void {
   root.innerHTML = "";
   const shell = el("div", { class: "app" });
-  const saveBtn = el("button", { class: "topbtn", title: "Projekt speichern (JSON: Wortbank, Presets, Korpus, Einstellungen)" }, icon("floppy"), " Speichern");
-  const loadBtn = el("button", { class: "topbtn", title: "Projekt laden (JSON)" }, icon("folder"), " Laden");
+  const saveBtn = el("button", { class: "topbtn", title: "Gesamtes Projekt als Datei sichern — alles: Wortbank, Presets, Korpus, Einstellungen, Schatzkammer, Ideen-/Omni-Presets, lebendige Pools und alle Werkstatt-Projekte." }, icon("floppy"), " Exportieren");
+  const loadBtn = el("button", { class: "topbtn", title: "Projektdatei importieren — ERSETZT den gesamten aktuellen Stand." }, icon("folder"), " Importieren");
   const fileIn = el("input", { type: "file", accept: "application/json,.json", style: "display:none" }) as HTMLInputElement;
   const projStatus = el("span", { class: "projstatus muted" }, "");
-  saveBtn.addEventListener("click", () => { exportProject(); projStatus.textContent = "gespeichert ✓"; setTimeout(() => (projStatus.textContent = ""), 1600); });
-  loadBtn.addEventListener("click", () => fileIn.click());
+  saveBtn.addEventListener("click", () => { exportProject(); projStatus.textContent = "exportiert ✓"; setTimeout(() => (projStatus.textContent = ""), 1600); });
+  loadBtn.addEventListener("click", () => { if (confirm("Beim Importieren wird der gesamte aktuelle Stand (Wortbank, Korpus, Schatzkammer, Werkstatt-Projekte …) durch die Datei ersetzt. Fortfahren?")) fileIn.click(); });
   fileIn.addEventListener("change", () => {
     const f = fileIn.files && fileIn.files[0];
     if (!f) return;
