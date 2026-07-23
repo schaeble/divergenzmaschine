@@ -111,6 +111,28 @@ export class MarkovModel {
     }
   }
 
+  /** Mittlere Überraschung (bits) eines Textes unter dem eigenen Modell, 0..1 normiert.
+   *  Hoch = der Text folgt unwahrscheinlichen Übergängen (informationsreich),
+   *  niedrig = er reproduziert den Korpus (klischeehaft). Nur bekannte Keys zählen. */
+  surprise(text: string): number {
+    const clean1 = corpusSanitize(text);
+    let bits = 0, n = 0;
+    for (const sentence of clean1.split(/(?<=[.!?…])\s+/)) {
+      const toks = sentence.split(/\s+/).filter(Boolean);
+      for (let i = 0; i + this.order < toks.length; i++) {
+        const key = toks.slice(i, i + this.order).join(" ");
+        const choices = this.map.get(key);
+        if (!choices || !choices.length) continue;         // unbekannt: keine Information
+        const next = toks[i + this.order]!;
+        let c = 0; for (const x of choices) if (x === next) c++;
+        const p = c > 0 ? c / choices.length : 1 / (choices.length + 1); // ungesehene Fortsetzung
+        bits += -Math.log2(p); n++;
+      }
+    }
+    if (n < 2) return -1;                                   // zu wenig Signal
+    return Math.max(0, Math.min(1, (bits / n) / 8));        // ~8 bit als Obergrenze
+  }
+
   /** Erzeugt einen Text (bis maxWords Wörter). */
   generate(maxWords = 40): string {
     if (!this.starts.length) return "";

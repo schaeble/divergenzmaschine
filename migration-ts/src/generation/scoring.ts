@@ -6,7 +6,7 @@ import { isFragmentSentence } from "./beats";
 import { MarkovModel } from "../corpus";
 import { appendToPersistentCorpus } from "../corpus";
 import { loadSettings } from "../storage";
-import { buildNoveltyContext, noveltyOf, cooldownHit, type NoveltyContext } from "./novelty";
+import { buildNoveltyContext, noveltyOf, cooldownHit, frequentContentWords, type NoveltyContext } from "./novelty";
 
 export interface TextMetrics {
   len: number; wordCount: number; repetitionRatio: number; lenFit: number;
@@ -14,7 +14,15 @@ export interface TextMetrics {
   triBad: boolean; biBad: boolean;
   flow: { startMonotony: number; colonExcess: number; fragPairs: number };
 }
-export interface RankItem extends TextMetrics { txt: string; score: number; baseScore?: number; novelty?: number; aiScore?: number; grund?: string; }
+export interface RankItem extends TextMetrics { txt: string; score: number; baseScore?: number; novelty?: number; surprise?: number; constraintsOk?: boolean; aiScore?: number; grund?: string; }
+
+export interface RankOptions {
+  noveltyWeight?: number;   // 0..1  Abstand zur Schatzkammer + Cooldown
+  surpriseWeight?: number;  // 0..1  Gewicht des Überraschungs-Ziels
+  surpriseTarget?: number;  // 0..1  Sweet Spot der Überraschung
+  mustWords?: string[];     // Einbauwörter (sollen vorkommen)
+  avoidFrequent?: boolean;  // häufigste Korpus-Inhaltswörter meiden
+}
 export interface Ranking { all: RankItem[]; top: RankItem[]; total: number; topK: number; }
 
 function splitSentences(raw: string): string[] {
@@ -99,20 +107,42 @@ function feedTopToCorpus(top: RankItem[]): void {
     top.slice(0, 3).forEach((r) => { if (r?.txt) appendToPersistentCorpus(r.txt.replace(/\n+/g, " ").trim()); });
   } catch { /* ignore */ }
 }
-export function runRanking(bank: Bank, input: GenInput, model: MarkovModel | undefined, N = 50, topK = 10, noveltyWeight = 0): Ranking {
+export function runRanking(bank: Bank, input: GenInput, model: MarkovModel | undefined, N = 50, topK = 10, opts: RankOptions = {}): Ranking {
   const lt = input.lenTarget ?? 110;
-  const nw = Math.max(0, Math.min(1, noveltyWeight));
+  const nw = Math.max(0, Math.min(1, opts.noveltyWeight ?? 0));
+  const sw = Math.max(0, Math.min(1, opts.surpriseWeight ?? 0));
+  const sTarget = Math.max(0, Math.min(1, opts.surpriseTarget ?? 0.5));
+  const must = (opts.mustWords || []).map((w) => w.toLowerCase()).filter((w) => w.length > 1);
+  const banned = opts.avoidFrequent ? frequentContentWords(40) : [];
   const ctx: NoveltyContext | null = nw > 0 ? buildNoveltyContext() : null;
+
   const results: RankItem[] = genN(bank, input, model, N).map((txt) => {
     const { score, a } = scoreText(txt, lt);
     return { txt, score, baseScore: score, ...a };
   });
-  if (ctx) {
-    for (const r of results) {
+
+  for (const r of results) {
+    let sc = r.baseScore ?? r.score;
+    if (ctx) {
       r.novelty = noveltyOf(r.txt, ctx);
-      // Neuheit belohnen (bis +40), Cooldown-Motive abwerten (bis -30) — sanft skaliert.
-      r.score = (r.baseScore ?? r.score) + nw * (r.novelty * 40) - nw * (cooldownHit(r.txt, ctx) * 30);
+      sc += nw * (r.novelty * 40) - nw * (cooldownHit(r.txt, ctx) * 30);
     }
+    if (sw > 0 && model) {
+      const s = model.surprise(r.txt);
+      if (s >= 0) { r.surprise = s; sc += sw * ((1 - Math.abs(s - sTarget)) * 30); }
+    }
+    if (must.length) {
+      const low = r.txt.toLowerCase();
+      const hit = must.filter((w) => low.includes(w)).length;
+      r.constraintsOk = hit === must.length;
+      sc -= (must.length - hit) * 25;             // fehlende Einbauwörter stark abwerten
+    }
+    if (banned.length) {
+      const low = r.txt.toLowerCase();
+      let b = 0; for (const w of banned) if (low.includes(w)) b++;
+      sc -= Math.min(b, 6) * 4;
+    }
+    r.score = sc;
   }
   results.sort((a, b) => b.score - a.score);
   const top = results.slice(0, Math.max(1, Math.min(N, topK)));

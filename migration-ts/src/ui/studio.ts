@@ -144,13 +144,31 @@ export function mountStudio(root: HTMLElement): void {
     try { localStorage.setItem("dm_last_text", item.txt); } catch { /* voll */ }
     renderKling(readInput().form, item.txt);
     const nov = item.novelty !== undefined ? ` · Neuheit ${Math.round(item.novelty * 100)}%` : "";
-    const extra = item.aiScore !== undefined ? `KI ${item.aiScore}/100${item.grund ? " – " + item.grund : ""}` : `Score ${item.score.toFixed(1)}${nov}`;
+    const surp = item.surprise !== undefined ? ` · Überraschung ${Math.round(item.surprise * 100)}%` : "";
+    const con = item.constraintsOk === false ? " · ⚠ Einbauwörter unvollständig" : "";
+    const extra = item.aiScore !== undefined ? `KI ${item.aiScore}/100${item.grund ? " – " + item.grund : ""}` : `Score ${item.score.toFixed(1)}${nov}${surp}${con}`;
     rankStatus.textContent = `Platz ${place}: ${extra}`;
   };
   const novSlider = el("input", { type: "range", min: "0", max: "100", step: "5", value: "30", class: "rankviz" }) as HTMLInputElement;
   const novVal = el("span", { class: "muted" }, "30 %");
   novSlider.addEventListener("input", () => { novVal.textContent = novSlider.value + " %"; });
   const noveltyW = (): number => (parseInt(novSlider.value, 10) || 0) / 100;
+
+  const surpSlider = el("input", { type: "range", min: "0", max: "100", step: "5", value: "0", class: "rankviz" }) as HTMLInputElement;
+  const surpVal = el("span", { class: "muted" }, "aus");
+  surpSlider.addEventListener("input", () => { const v = parseInt(surpSlider.value, 10) || 0; surpVal.textContent = v === 0 ? "aus" : "Ziel " + v + " %"; });
+  const mustIn = el("input", { placeholder: "Einbauwörter, mit Komma getrennt" }) as HTMLInputElement;
+  const avoidChk = el("input", { type: "checkbox" }) as HTMLInputElement;
+  const rankOpts = (): import("../generation/scoring").RankOptions => {
+    const sv = (parseInt(surpSlider.value, 10) || 0) / 100;
+    return {
+      noveltyWeight: noveltyW(),
+      surpriseWeight: sv > 0 ? 0.6 : 0,
+      surpriseTarget: sv > 0 ? sv : 0.5,
+      mustWords: mustIn.value.split(/[,;]/).map((w) => w.trim()).filter(Boolean),
+      avoidFrequent: avoidChk.checked,
+    };
+  };
 
   const probeBtn = button("Probe (50)");
   probeBtn.addEventListener("click", () => {
@@ -163,7 +181,7 @@ export function mountStudio(root: HTMLElement): void {
   rangeSlider.addEventListener("input", () => applyPlace(parseInt(rangeSlider.value, 10)));
   rankBtn.addEventListener("click", () => {
     rankStatus.textContent = "Ranking läuft…";
-    setTimeout(() => { lastRanking = runRanking(loadBank(), readInput(), buildModelFromCorpus(), 50, 10, noveltyW());
+    setTimeout(() => { lastRanking = runRanking(loadBank(), readInput(), buildModelFromCorpus(), 50, 10, rankOpts());
       rangeSlider.max = String(lastRanking.all.length); rangeSlider.value = "1"; applyPlace(1); }, 10);
   });
   const goldBtn = button("🥇 #1"); goldBtn.addEventListener("click", () => applyPlace(1));
@@ -185,7 +203,10 @@ export function mountStudio(root: HTMLElement): void {
     el("div", { class: "btnrow" }, probeBtn, rankBtn, aiRankBtn),
     el("div", { class: "btnrow" }, goldBtn, silverBtn, bronzeBtn),
     el("label", { class: "field lenrow" }, el("span", { class: "mlabel" }, "Novelty"), " ", novSlider, " ", novVal),
-    el("p", { class: "muted" }, "Novelty belohnt beim Ranking den Abstand zur Schatzkammer und wertet zuletzt stark benutzte Motive ab. 0 % = reine Qualität."),
+    el("label", { class: "field lenrow" }, el("span", { class: "mlabel" }, "Überraschung"), " ", surpSlider, " ", surpVal),
+    el("p", { class: "muted" }, "Novelty belohnt Abstand zur Schatzkammer; Überraschung steuert, wie unwahrscheinlich der Text unter dem eigenen Korpus sein soll (Zielwert, nicht Maximum — braucht einen Korpus). 0 % = aus."),
+    el("label", { class: "field" }, el("span", { class: "field-label" }, "Einbauwörter (Constraint)"), mustIn),
+    el("label", { class: "chk" }, avoidChk, " häufigste Korpus-Wörter meiden"),
     el("label", { class: "field lenrow" }, el("span", { class: "mlabel" }, "Rang"), " ", rangeSlider),
     el("div", {}, rankStatus));
   wrap.append(rankDetails);

@@ -5,6 +5,8 @@
 //   Eintrag führen) temporär abwerten — gegen Konvergenz auf Lieblingsbilder.
 import { loadTreasury } from "../features/treasury";
 import { loadLive } from "../features/livepools";
+import { loadPersistentCorpus } from "../corpus";
+import { COHERENCE_STOPWORDS } from "./nlp";
 
 const tokens = (s: string): string[] => (s || "").toLowerCase().match(/[a-zäöüßA-ZÄÖÜ]+/g) || [];
 function trigrams(s: string): string[] {
@@ -55,4 +57,18 @@ export function cooldownHit(txt: string, ctx: NoveltyContext): number {
   let hits = 0;
   for (const p of ctx.hot) if (p.length >= 4 && low.includes(p)) hits++;
   return Math.min(1, hits / 6);
+}
+
+
+/** Die häufigsten Inhaltswörter des Korpus (ohne Funktionswörter) — für „Sperrwörter meiden". */
+export function frequentContentWords(k = 40): string[] {
+  let corpus = "";
+  try { corpus = loadPersistentCorpus(); } catch { /* leer */ }
+  if (!corpus) return [];
+  const freq = new Map<string, number>();
+  for (const w of corpus.toLowerCase().match(/[a-zäöüß]{4,}/g) || []) {
+    if (COHERENCE_STOPWORDS.has(w)) continue;
+    freq.set(w, (freq.get(w) || 0) + 1);
+  }
+  return [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, k).map((e) => e[0]);
 }
