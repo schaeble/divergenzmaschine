@@ -1,0 +1,69 @@
+# Baut die App aus migration-ts/ und legt das Ergebnis in ts/ auf main ab.
+# Ersetzt den bisherigen Hand-Deploy (kein persönlicher Token mehr nötig —
+# der eingebaute GITHUB_TOKEN darf nach main schreiben).
+name: Build & Deploy ts/
+
+on:
+  push:
+    branches: [typescript-migration]
+    paths: ["migration-ts/**", ".github/workflows/deploy.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-ts
+  cancel-in-progress: false
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Quelle auschecken (typescript-migration)
+        uses: actions/checkout@v4
+        with:
+          ref: typescript-migration
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Abhängigkeiten
+        working-directory: migration-ts
+        run: npm ci
+
+      - name: Build (prebuild synchronisiert die Version)
+        working-directory: migration-ts
+        run: npm run build
+
+      - name: main auschecken
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main-checkout
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: ts/ aktualisieren
+        run: |
+          set -e
+          DEST=main-checkout/ts
+          mkdir -p "$DEST"
+          cp migration-ts/dist/index.html "$DEST/"
+          cp migration-ts/public/sw.js migration-ts/public/version.txt migration-ts/public/manifest.webmanifest "$DEST/"
+          cp migration-ts/public/*.png "$DEST/" 2>/dev/null || true
+          VER=$(cat migration-ts/public/version.txt)
+          echo "version=$VER" >> "$GITHUB_ENV"
+
+      - name: Commit & Push nach main
+        working-directory: main-checkout
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ts/
+          if git diff --cached --quiet; then
+            echo "Keine Änderung in ts/ — nichts zu deployen."
+          else
+            git commit -m "Deploy ts v${version} (CI)"
+            git push
+          fi
