@@ -7,6 +7,7 @@ import { MarkovModel } from "../corpus";
 import { appendToPersistentCorpus } from "../corpus";
 import { loadSettings } from "../storage";
 import { buildNoveltyContext, noveltyOf, cooldownHit, frequentContentWords, type NoveltyContext } from "./novelty";
+import { grammarFlags } from "./grammar";
 
 export interface TextMetrics {
   len: number; wordCount: number; repetitionRatio: number; lenFit: number;
@@ -14,7 +15,7 @@ export interface TextMetrics {
   triBad: boolean; biBad: boolean;
   flow: { startMonotony: number; colonExcess: number; fragPairs: number };
 }
-export interface RankItem extends TextMetrics { txt: string; score: number; baseScore?: number; novelty?: number; surprise?: number; constraintsOk?: boolean; aiScore?: number; grund?: string; }
+export interface RankItem extends TextMetrics { txt: string; score: number; baseScore?: number; novelty?: number; surprise?: number; grammar?: number; constraintsOk?: boolean; aiScore?: number; grund?: string; }
 
 export interface RankOptions {
   noveltyWeight?: number;   // 0..1  Abstand zur Schatzkammer + Cooldown
@@ -22,6 +23,7 @@ export interface RankOptions {
   surpriseTarget?: number;  // 0..1  Sweet Spot der Überraschung
   mustWords?: string[];     // Einbauwörter (sollen vorkommen)
   avoidFrequent?: boolean;  // häufigste Korpus-Inhaltswörter meiden
+  grammarFilter?: boolean;  // auffällige Grammatik abwerten
 }
 export interface Ranking { all: RankItem[]; top: RankItem[]; total: number; topK: number; }
 
@@ -87,17 +89,18 @@ function genN(bank: Bank, input: GenInput, model: MarkovModel | undefined, N: nu
   return out;
 }
 
-export interface ProbeReport { total: number; unique: number; duplicates: number; flaggedCount: number; }
+export interface ProbeReport { total: number; unique: number; duplicates: number; flaggedCount: number; grammarCount: number; }
 export function runProbe(bank: Bank, input: GenInput, model: MarkovModel | undefined, N = 50): ProbeReport {
   const lt = input.lenTarget ?? 110;
   const texts = genN(bank, input, model, N);
-  const seen = new Set<string>(); let duplicates = 0, flaggedCount = 0;
+  const seen = new Set<string>(); let duplicates = 0, flaggedCount = 0, grammarCount = 0;
   for (const txt of texts) {
     if (seen.has(txt)) duplicates++; seen.add(txt);
     const a = analyzeText(txt, lt);
     if (a.tooShort || a.triBad || a.biBad) flaggedCount++;
+    if (grammarFlags(txt).count > 0) grammarCount++;
   }
-  return { total: texts.length, unique: seen.size, duplicates, flaggedCount };
+  return { total: texts.length, unique: seen.size, duplicates, flaggedCount, grammarCount };
 }
 
 function feedTopToCorpus(top: RankItem[]): void {
@@ -141,6 +144,11 @@ export function runRanking(bank: Bank, input: GenInput, model: MarkovModel | und
       const low = r.txt.toLowerCase();
       let b = 0; for (const w of banned) if (low.includes(w)) b++;
       sc -= Math.min(b, 6) * 4;
+    }
+    if (opts.grammarFilter) {
+      const g = grammarFlags(r.txt).count;
+      r.grammar = g;
+      sc -= Math.min(g, 6) * 12;   // Grammatik-Auffälligkeiten stark abwerten
     }
     r.score = sc;
   }

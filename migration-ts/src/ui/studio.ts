@@ -147,7 +147,8 @@ export function mountStudio(root: HTMLElement): void {
     const nov = item.novelty !== undefined ? ` · Neuheit ${Math.round(item.novelty * 100)}%` : "";
     const surp = item.surprise !== undefined ? ` · Überraschung ${Math.round(item.surprise * 100)}%` : "";
     const con = item.constraintsOk === false ? " · ⚠ Einbauwörter unvollständig" : "";
-    const extra = item.aiScore !== undefined ? `KI ${item.aiScore}/100${item.grund ? " – " + item.grund : ""}` : `Score ${item.score.toFixed(1)}${nov}${surp}${con}`;
+    const gr = item.grammar ? ` · ⚠ ${item.grammar} Grammatik` : "";
+    const extra = item.aiScore !== undefined ? `KI ${item.aiScore}/100${item.grund ? " – " + item.grund : ""}` : `Score ${item.score.toFixed(1)}${nov}${surp}${gr}${con}`;
     rankStatus.textContent = `Platz ${place}: ${extra}`;
   };
   const novSlider = el("input", { type: "range", min: "0", max: "100", step: "5", value: "30", class: "rankviz" }) as HTMLInputElement;
@@ -160,6 +161,7 @@ export function mountStudio(root: HTMLElement): void {
   surpSlider.addEventListener("input", () => { const v = parseInt(surpSlider.value, 10) || 0; surpVal.textContent = v === 0 ? "aus" : "Ziel " + v + " %"; });
   const mustIn = el("input", { placeholder: "Einbauwörter, mit Komma getrennt" }) as HTMLInputElement;
   const avoidChk = el("input", { type: "checkbox" }) as HTMLInputElement;
+  const gramChk = el("input", { type: "checkbox" }) as HTMLInputElement;
   const rankOpts = (): import("../generation/scoring").RankOptions => {
     const sv = (parseInt(surpSlider.value, 10) || 0) / 100;
     return {
@@ -168,6 +170,7 @@ export function mountStudio(root: HTMLElement): void {
       surpriseTarget: sv > 0 ? sv : 0.5,
       mustWords: mustIn.value.split(/[,;]/).map((w) => w.trim()).filter(Boolean),
       avoidFrequent: avoidChk.checked,
+      grammarFilter: gramChk.checked,
     };
   };
 
@@ -175,7 +178,7 @@ export function mountStudio(root: HTMLElement): void {
   probeBtn.addEventListener("click", () => {
     rankStatus.textContent = "Probe läuft…";
     setTimeout(() => { const r = runProbe(loadBank(), readInput(), buildModelFromCorpus(), 50);
-      rankStatus.textContent = `Probe: ${r.total} Texte · ${r.flaggedCount} auffällig · ${r.duplicates} doppelt`; }, 10);
+      rankStatus.textContent = `Probe: ${r.total} Texte · ${r.flaggedCount} auffällig · ${r.grammarCount} Grammatik · ${r.duplicates} doppelt`; }, 10);
   });
   const rankBtn = button("Ranking (50)");
   const rangeSlider = el("input", { type: "range", min: "1", max: "50", value: "1", class: "rankviz" }) as HTMLInputElement;
@@ -208,6 +211,7 @@ export function mountStudio(root: HTMLElement): void {
     el("p", { class: "muted" }, "Novelty belohnt Abstand zur Schatzkammer; Überraschung steuert, wie unwahrscheinlich der Text unter dem eigenen Korpus sein soll (Zielwert, nicht Maximum — braucht einen Korpus). 0 % = aus."),
     el("label", { class: "field" }, el("span", { class: "field-label" }, "Einbauwörter (Constraint)"), mustIn),
     el("label", { class: "chk" }, avoidChk, " häufigste Korpus-Wörter meiden"),
+    el("label", { class: "chk" }, gramChk, " Grammatik-Filter (auffällige Varianten abwerten)"),
     el("label", { class: "field lenrow" }, el("span", { class: "mlabel" }, "Rang"), " ", rangeSlider),
     el("div", {}, rankStatus));
   wrap.append(rankDetails);
