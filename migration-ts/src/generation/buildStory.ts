@@ -121,5 +121,5 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   if (input.form === "haiku") return asHaiku(finalText, anchor);
   if (input.form === "strang") return asStrang(finalText, anchor);
   if (input.form === "drama") return asDrama(finalText, kit.speakerA, kit.speakerB || kit.P);
-  return enforceWordTarget(finalText, lenTarget, bank, model);
+  return enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix");
 }
