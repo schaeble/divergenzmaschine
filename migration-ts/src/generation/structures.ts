@@ -1,7 +1,7 @@
 // Die fünf Erzähl-Strukturen (linear, reverse, kreis, fragment, objektzentriert).
 import type { StoryKit } from "../types";
 import { pick, ensurePunct } from "../text-utils";
-import { joinBeats, frameTurn, reframeStake, weaveMotif, randomFragmentTime } from "./beats";
+import { joinBeats, frameTurn, reframeStake, weaveMotif, randomFragmentTime, cap } from "./beats";
 
 type Builder = (kit: StoryKit) => string;
 
@@ -42,21 +42,40 @@ export function buildCircle(kit: StoryKit): string {
 
 export function buildFragment(kit: StoryKit): string {
   const M = kit.mode;
-  const shards = [
-    `${randomFragmentTime()} — ${kit.hook}.`,
-    `Gestern — ${kit.obstacle}.`,
-    `Drei Tage später — ${kit.turn}.`,
-    `Jetzt — ${kit.P} hält ${kit.propAcc}.`,
-    `Notiz — ${pick(M.rules)}`,
-    `Rand — Es riecht ${pick(M.images)}.`,
-    `Später — ${kit.stake}`,
-    `Schluss — ${kit.ending}`,
+  // Fragmentierte, nicht-lineare Prosa: Zeitsprünge und Brüche als kurze, in den
+  // Fluss eingewobene Marker — kein starres "Label — Satz" mehr (das las sich als
+  // Aufzählung und musste von der Korpus-Hygiene wieder entfernt werden).
+  const beats = [
+    cap(ensurePunct(kit.hook)),
+    cap(ensurePunct(kit.obstacle)),
+    cap(frameTurn(kit.turn)),
+    cap(ensurePunct(`${kit.P} hält ${kit.propAcc}`)),
+    cap(ensurePunct(pick(M.rules))),
+    cap(ensurePunct(`Es riecht ${pick(M.images)}`)),
+    cap(reframeStake(kit.stake)),
+    cap(ensurePunct(kit.ending)),
   ];
-  for (let i = shards.length - 1; i > 0; i--) {
+  // mischen für den Sprung-Charakter
+  for (let i = beats.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [shards[i], shards[j]] = [shards[j]!, shards[i]!];
+    [beats[i], beats[j]] = [beats[j]!, beats[i]!];
   }
-  return shards.join("\n");
+  // Zeit-/Bruchmarker, sparsam zwischen die Beats gesetzt
+  const marks = [
+    "Später.", "Davor.", "Viel früher.", "Und dann, ohne Übergang.",
+    "Irgendwann dazwischen.", "Rückwärts betrachtet.", `Gegen ${randomFragmentTime()}.`,
+  ];
+  for (let i = marks.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [marks[i], marks[j]] = [marks[j]!, marks[i]!];
+  }
+  const woven: string[] = [];
+  let mi = 0;
+  beats.forEach((b, i) => {
+    if (i > 0 && Math.random() < 0.5 && mi < marks.length) woven.push(marks[mi++]!);
+    woven.push(b);
+  });
+  return joinBeats(woven, kit.P);
 }
 
 export function buildObjectCentric(kit: StoryKit): string {
