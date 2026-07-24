@@ -11,6 +11,7 @@ export interface WorkshopOpts {
   zeitform: "praesens" | "praeteritum";
   ton: "nuechtern" | "dicht" | "poetisch" | "kalt" | "ironisch";
   schluss: "offen" | "pointe" | "kreis" | "bruch";
+  arc: string;   // Erzählbogen-id (siehe ARCS), "frei" = ohne
 }
 
 export interface Outline {
@@ -27,6 +28,73 @@ export const TON_OPTS: [string, string][] = [["dicht", "dicht"], ["nuechtern", "
 export const SCHLUSS_OPTS: [string, string][] = [
   ["offen", "offen"], ["pointe", "Pointe"], ["kreis", "Kreisschluss"], ["bruch", "Bruch"],
 ];
+
+// ---- Erzählbögen (als Daten, damit ein späterer Montage-Modus sie wiederverwenden kann) ----
+export interface StoryArc { id: string; label: string; group: "frei" | "klassisch" | "maschine"; short: string; stages: string[]; guide: string; draftNote: string; }
+
+export const ARCS: StoryArc[] = [
+  { id: "frei", label: "frei (ohne Bogen)", group: "frei", short: "Die KI wählt die Dramaturgie selbst.",
+    stages: [], guide: "", draftNote: "" },
+
+  // Klassisch — für Zusammenhalt
+  { id: "aristotelisch", label: "Aristotelisch", group: "klassisch", short: "Exposition → Steigerung → Höhepunkt → Auflösung.",
+    stages: ["Exposition (Gleichgewicht)", "Auslöser", "steigende Handlung", "Höhepunkt", "fallende Handlung", "neues Gleichgewicht"],
+    guide: "klassischer Spannungsbogen: ein Gleichgewicht wird gestört, die Handlung steigt zum Höhepunkt und löst sich in ein verändertes Gleichgewicht. Jeder Schritt folgt kausal aus dem vorigen (deshalb, nicht und dann).",
+    draftNote: "Baue einen klaren Spannungsbogen mit Höhepunkt und Auflösung." },
+  { id: "dreiakt", label: "Drei-Akt", group: "klassisch", short: "Setup → Konfrontation → Auflösung.",
+    stages: ["Akt I: Setup und Anstoß", "Akt II: Konfrontation, Wendepunkt in der Mitte", "Akt II: Zuspitzung", "Akt III: Krise und Auflösung"],
+    guide: "drei Akte: Setup mit auslösendem Ereignis, Konfrontation mit einem Mittelpunkt-Wendepunkt, Auflösung. Klarer Wunsch, klares Hindernis.",
+    draftNote: "Halte die drei Akte erkennbar; setze in der Mitte einen Wendepunkt." },
+  { id: "freytag", label: "Freytag-Pyramide", group: "klassisch", short: "Einleitung → Klimax → Katastrophe/Lösung.",
+    stages: ["Einleitung", "erregendes Moment", "Steigerung", "Klimax", "retardierendes Moment", "Katastrophe oder Lösung"],
+    guide: "Freytags fünfteilige Pyramide mit erregendem Moment, Klimax und einem retardierenden Moment kurz vor dem Schluss.",
+    draftNote: "Setze vor dem Schluss ein retardierendes Moment, das noch einmal Hoffnung oder Zweifel weckt." },
+  { id: "fichtean", label: "Fichtean-Kurve", group: "klassisch", short: "Kein Vorspiel — Krise auf Krise bis zum Höhepunkt.",
+    stages: ["sofortige Krise", "Verschärfung", "neue Krise", "Zuspitzung", "Höhepunkt und rasche Auflösung"],
+    guide: "spannungsgetrieben, ohne langes Vorspiel: die Figur steckt sofort in der Krise, jede Szene verschärft sie bis zum Höhepunkt.",
+    draftNote: "Beginne mitten in der Krise, keine ruhige Exposition; eskaliere in jeder Szene." },
+  { id: "storycircle", label: "Story Circle (Harmon)", group: "klassisch", short: "Komfort → Wunsch → Preis → veränderte Rückkehr.",
+    stages: ["Komfort", "Wunsch", "unbekannte Welt", "Anpassung", "Erfolg", "Preis", "Rückkehr", "Veränderung"],
+    guide: "komprimierte Heldenreise: die Figur verlässt ihre Komfortzone für einen Wunsch, zahlt einen Preis und kehrt verändert zurück.",
+    draftNote: "Die Figur muss am Ende erkennbar verändert zurückkehren." },
+  { id: "mystery", label: "Mystery / Enthüllung", group: "klassisch", short: "Frage → Hinweise → falsche Spur → Erkenntnis.",
+    stages: ["Frage/Rätsel", "erste Hinweise", "falsche Spur", "Wendung", "Erkenntnis"],
+    guide: "Spannung aus Wissen: eine Frage treibt den Text, Hinweise und eine falsche Spur führen zu einer Erkenntnis, die alles neu einfärbt.",
+    draftNote: "Halte Information gezielt zurück; die Erkenntnis kommt spät und ordnet das Vorherige neu." },
+
+  // Maschinen-nah — für das experimentelle Register
+  { id: "kishotenketsu", label: "Kishōtenketsu", group: "maschine", short: "Ohne Konflikt: Einführung → Entwicklung → Wendung → Verbindung.",
+    stages: ["Ki: Einführung", "Shō: Entwicklung", "Ten: überraschende, scheinbar unverbundene Wendung", "Ketsu: Verbindung"],
+    guide: "vierteilige japanische Form OHNE zentralen Konflikt. Der dritte Teil bringt ein überraschendes, scheinbar unverbundenes Element; der vierte verbindet es rückwirkend mit dem Anfang. Keine Konfrontation, kein Sieger.",
+    draftNote: "Erzeuge keinen Konflikt. Die Spannung entsteht aus der überraschenden Wendung im dritten Teil, die der Schluss still auflöst." },
+  { id: "kreis", label: "Kreisstruktur", group: "maschine", short: "Anfang = Ende, neu verstanden.",
+    stages: ["Anfangsbild", "Entfernung vom Anfang", "Wandlung", "Rückkehr zum Anfangsbild — nun anders verstanden"],
+    guide: "das Schlussbild greift das Anfangsbild wörtlich wieder auf, aber der Leser versteht es jetzt neu. Kreis, nicht Linie.",
+    draftNote: "Beginne und ende mit demselben Bild/Satz; die Bedeutung muss sich zwischen beiden verschoben haben." },
+  { id: "rueckwaerts", label: "Rückwärts", group: "maschine", short: "Chronologisch rückwärts erzählt.",
+    stages: ["das Ende zuerst", "die Ursache davor", "die Ursache davor", "der Anfang zuletzt"],
+    guide: "die Handlung läuft chronologisch rückwärts — jede Szene liegt zeitlich vor der vorigen. Der Leser rekonstruiert die Ursachen.",
+    draftNote: "Erzähle streng rückwärts: die erste Szene ist das Ende, die letzte der Anfang. Markiere die Zeitrichtung durch Inhalt, nicht durch Datumsangaben." },
+  { id: "erkenntnis", label: "Erkenntnisbogen", group: "maschine", short: "Nicht die Welt ändert sich — der Blick.",
+    stages: ["die Figur sieht die Welt so", "ein Riss im Blick", "Widerstand", "die Wahrnehmung kippt", "dieselbe Welt, neu gesehen"],
+    guide: "die äußere Welt bleibt gleich; was sich wandelt, ist der Blick der Figur darauf. Die Wendung ist eine Erkenntnis, kein Ereignis.",
+    draftNote: "Keine äußere Handlung muss sich lösen — nur die Wahrnehmung der Figur verschiebt sich entscheidend." },
+  { id: "traumlogik", label: "Traumlogik", group: "maschine", short: "Kausalität durch Symbolik ersetzt.",
+    stages: ["ein Bild", "Verwandlung", "eine unmögliche Verbindung", "ein Bild, das nachhallt"],
+    guide: "keine logische Ursache-Wirkung, sondern Traumlogik: Bilder verwandeln sich ineinander, Übergänge folgen Symbolik statt Kausalität. Trotzdem eine innere Notwendigkeit.",
+    draftNote: "Verbinde die Szenen durch Bildassoziation und Verwandlung, nicht durch logische Kausalität. Kein erklärender Satz." },
+  { id: "assoziation", label: "Assoziationsbogen", group: "maschine", short: "Gedanke führt zu Gedanken, nicht Handlung.",
+    stages: ["ein Ausgangsgedanke", "Abschweifung", "Sprung", "unerwartete Landung"],
+    guide: "nicht Handlung treibt den Text, sondern Assoziation: ein Gedanke oder Bild führt zum nächsten. Der Reiz liegt in den Sprüngen, nicht im Plot.",
+    draftNote: "Lass den Text durch Assoziationen fortschreiten, nicht durch Ereignisse. Die Landung darf überraschen." },
+  { id: "rekursiv", label: "Rekursiver Bogen", group: "maschine", short: "Die Geschichte enthält eine kleinere Version ihrer selbst.",
+    stages: ["Rahmen beginnt", "innere, kleinere Version derselben Geschichte", "die innere spiegelt den Rahmen", "der Rahmen schließt, verändert durch die innere"],
+    guide: "die Geschichte enthält eine verkleinerte Version ihrer selbst — eine eingebettete Erzählung, die das Ganze spiegelt und den Rahmen am Ende umdeutet.",
+    draftNote: "Bette eine kleinere Version derselben Geschichte ein; sie muss den äußeren Rahmen spiegeln und seinen Schluss verändern." },
+];
+
+export function getArc(id: string): StoryArc { return ARCS.find((a) => a.id === id) || ARCS[0]!; }
+export const ARC_OPTS: [string, string][] = ARCS.map((a) => [a.id, a.label]);
 
 const PERS_TXT: Record<WorkshopOpts["perspektive"], string> = {
   ich: "Ich-Perspektive", ersie: "dritte Person (er/sie)", du: "Du-Perspektive", wir: "Wir-Perspektive",
@@ -72,13 +140,21 @@ const ctxLine = (c: Record<string, string>): string => {
 
 // ---- Stufe 1: Gerüst ----
 export function buildOutlinePrompt(raw: string, ctx: Record<string, string>, o: WorkshopOpts): string {
+  const arc = getArc(o.arc);
+  const arcBlock = arc.id !== "frei"
+    ? `Folge dem Erzählbogen »${arc.label}«: ${arc.guide}\n\n`
+    : "";
+  const beatsLine = arc.id !== "frei" && arc.stages.length
+    ? `beats: ${arc.stages.length} Szenenschritte, die diesen Stationen in Reihenfolge folgen — ${arc.stages.join(" → ")}. Je Station ein knapper Schritt, höchstens 14 Wörter.\n`
+    : "beats: 5 bis 7 knappe Szenenschritte in Reihenfolge, je höchstens 12 Wörter.\n";
   return "Du bekommst einen Rohtext aus einem experimentellen Textgenerator (Divergenzmaschine). "
     + "Entwirf daraus das dramaturgische Gerüst einer Kurzgeschichte von etwa " + o.laenge + " Wörtern. "
     + "Erfinde nichts, was dem Rohtext widerspricht — arbeite heraus, was in ihm angelegt ist.\n\n"
+    + arcBlock
     + "Antworte NUR mit einem einzigen JSON-Objekt in GENAU diesem Format (ersetze die Beispielwerte):\n"
     + '{"figur":"eine Archivarin, die nichts mehr aufhebt","wunsch":"sie will den Koffer zurückgeben","hindernis":"niemand nimmt ihn an","wendung":"der Koffer gehört ihr selbst","schluss":"sie trägt ihn weiter","beats":["Beat 1","Beat 2","Beat 3","Beat 4","Beat 5"]}\n\n'
-    + "figur, wunsch, hindernis, wendung, schluss: je ein kurzer Satz.\n"
-    + "beats: 5 bis 7 knappe Szenenschritte in Reihenfolge, je höchstens 12 Wörter.\n"
+    + "figur, wunsch, hindernis, wendung, schluss: je ein kurzer Satz (bei konfliktfreien Bögen sinngemäß: Ausgangslage, Antrieb, Spannung, Wendung, Ausklang).\n"
+    + beatsLine
     + "Der Schluss soll sein: " + SCHLUSS_TXT[o.schluss] + ".\n\n"
     + ctxLine(ctx) + "--- ROHTEXT ---\n" + raw;
 }
@@ -97,9 +173,12 @@ export function normalizeOutline(raw: unknown): Outline {
 export function buildDraftPrompt(raw: string, ctx: Record<string, string>, ol: Outline, o: WorkshopOpts, material: string[]): string {
   const beats = ol.beats.map((b, i) => `${i + 1}. ${b}`).join("\n");
   const mat = material.length ? "\n--- WORTMATERIAL (nutze davon, was sich natürlich fügt; nichts erzwingen) ---\n" + material.join(" · ") + "\n" : "";
+  const arc = getArc(o.arc);
+  const arcNote = arc.id !== "frei" ? `Erzählbogen »${arc.label}«: ${arc.draftNote}\n` : "";
   return "Schreibe eine deutsche Kurzgeschichte von etwa " + o.laenge + " Wörtern.\n\n"
     + `Perspektive: ${PERS_TXT[o.perspektive]}. Zeitform: ${ZEIT_TXT[o.zeitform]}. Ton: ${TON_TXT[o.ton]}.\n`
-    + `Schluss: ${SCHLUSS_TXT[o.schluss]}.\n\n`
+    + `Schluss: ${SCHLUSS_TXT[o.schluss]}.\n`
+    + arcNote + "\n"
     + "--- GERÜST ---\n"
     + `Figur: ${ol.figur}\nWunsch: ${ol.wunsch}\nHindernis: ${ol.hindernis}\nWendung: ${ol.wendung}\nSchluss: ${ol.schluss}\n\n`
     + "Szenenschritte:\n" + beats + "\n"

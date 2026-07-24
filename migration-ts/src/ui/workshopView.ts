@@ -7,7 +7,7 @@ import { loadActiveBankLabel } from "../wordbank";
 import { openReader } from "./reader";
 import { diffWords, diffStats } from "../generation/diff";
 import {
-  LEN_OPTS, PERS_OPTS, ZEIT_OPTS, TON_OPTS, SCHLUSS_OPTS,
+  LEN_OPTS, PERS_OPTS, ZEIT_OPTS, TON_OPTS, SCHLUSS_OPTS, ARC_OPTS, getArc,
   buildOutlinePrompt, normalizeOutline, buildDraftPrompt, buildPolishPrompt, buildGrammarPrompt,
   gatherMaterialDetailed, loadWorkshop, saveWorkshop,
   loadWorkshopProjects, saveWorkshopProject, deleteWorkshopProject,
@@ -43,6 +43,10 @@ export function mountWorkshop(root: HTMLElement): void {
   const zeitSel = select("ws-zeit", ZEIT_OPTS, saved?.opts.zeitform ?? "praeteritum");
   const tonSel = select("ws-ton", TON_OPTS, saved?.opts.ton ?? "dicht");
   const schlSel = select("ws-schl", SCHLUSS_OPTS, saved?.opts.schluss ?? "pointe");
+  const arcSel = select("ws-arc", ARC_OPTS, saved?.opts.arc ?? "aristotelisch");
+  const arcInfo = el("span", { class: "muted" }, "");
+  const updArcInfo = (): void => { arcInfo.textContent = getArc(arcSel.value).short; };
+  arcSel.addEventListener("change", updArcInfo); updArcInfo();
   // ---- Wortmaterial: sichtbar, editierbar, abschaltbar ----
   const matUse = el("input", { type: "checkbox" }) as HTMLInputElement;
   matUse.checked = saved?.useMaterial !== false;
@@ -101,6 +105,7 @@ export function mountWorkshop(root: HTMLElement): void {
     zeitform: zeitSel.value as WorkshopOpts["zeitform"],
     ton: tonSel.value as WorkshopOpts["ton"],
     schluss: schlSel.value as WorkshopOpts["schluss"],
+    arc: arcSel.value,
   });
 
   // ---- Stufe 1: Gerüst ----
@@ -207,6 +212,7 @@ export function mountWorkshop(root: HTMLElement): void {
     zeitSel.value = p.opts?.zeitform ?? "praeteritum";
     tonSel.value = p.opts?.ton ?? "dicht";
     schlSel.value = p.opts?.schluss ?? "pointe";
+    arcSel.value = p.opts?.arc ?? "aristotelisch"; updArcInfo();
     if (p.outline) applyOutline(p.outline);
     draftPane.value = p.draft || "";
     finalPane.value = p.final || "";
@@ -362,6 +368,7 @@ export function mountWorkshop(root: HTMLElement): void {
     step("", "Vorgaben"),
     el("div", { class: "grid3" }, field("Länge", lenSel), field("Perspektive", persSel), field("Zeitform", zeitSel)),
     el("div", { class: "grid2" }, field("Ton", tonSel), field("Schluss", schlSel)),
+    field("Erzählbogen", el("div", { class: "chkrow" }, arcSel, " ", arcInfo)),
 
     step("1 ·", "Gerüst"),
     el("div", { class: "grid2" }, field("Werkstatt-Projekt", projName), field("Gespeichert", projSel)),

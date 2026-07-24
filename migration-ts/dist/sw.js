@@ -1,5 +1,5 @@
 /* Divergenzmaschine – Service Worker (offline-fähig) */
-const CACHE = 'divergenzmaschine-ts-4.23.0';
+const CACHE = 'divergenzmaschine-ts-4.24.0';
 const PRECACHE = [
   './',
   './index.html',
