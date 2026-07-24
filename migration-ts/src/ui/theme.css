@@ -238,3 +238,8 @@ input[type=range].wgt:hover{opacity:1}
 .chkrow{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:5px}
 .chk{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--text);cursor:pointer}
 .chk input{width:auto;margin:0}
+
+.lockrow { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.lockbtn { background:transparent; border:0; padding:2px; cursor:pointer; color:var(--muted,#8a93a3); line-height:0; border-radius:6px; }
+.lockbtn:hover { color:var(--fg,#e6e9ef); }
+.lockbtn.on { color:var(--acc,#8b5cf6); }

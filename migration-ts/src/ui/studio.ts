@@ -72,8 +72,21 @@ export function mountStudio(root: HTMLElement): void {
   const archA = select("f-archa", ARCH_OPTS, "neutral");
   const archB = select("f-archb", ARCH_OPTS, "neutral");
   const polish = el("input", { id: "f-polish", type: "checkbox" }) as HTMLInputElement;
+  // Festhalter: gesperrte Regler werden beim Würfeln nicht verändert.
+  const LOCK_KEY = "divergenz_studio_locks_v1";
+  const locked = new Set<string>((() => { try { return JSON.parse(localStorage.getItem(LOCK_KEY) || "[]") as string[]; } catch { return []; } })());
+  const saveLocks = (): void => { try { localStorage.setItem(LOCK_KEY, JSON.stringify([...locked])); } catch { /* voll */ } };
+  const lockBtn = (sel: HTMLSelectElement): HTMLButtonElement => {
+    const b = el("button", { class: "lockbtn", type: "button", title: "Beim Würfeln festhalten" }) as HTMLButtonElement;
+    const paint = (): void => { b.innerHTML = ""; b.append(icon(locked.has(sel.id) ? "lock" : "lockOpen")); b.classList.toggle("on", locked.has(sel.id)); };
+    b.addEventListener("click", () => { if (locked.has(sel.id)) locked.delete(sel.id); else locked.add(sel.id); saveLocks(); paint(); });
+    paint(); return b;
+  };
+  const lockField = (label: string, sel: HTMLSelectElement): HTMLElement =>
+    el("div", { class: "field" }, el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sel)), sel);
+
   wrap.append(el("div", { class: "grid3" },
-    field("Preset", preset), field("Ton", tone), field("Form", form)));
+    lockField("Preset", preset), lockField("Ton", tone), lockField("Form", form)));
 
 
   const lenSlider = el("input", { id: "f-len", type: "range", min: "40", max: "300", step: "10", value: "110", style: "flex:1" }) as HTMLInputElement;
@@ -120,7 +133,7 @@ export function mountStudio(root: HTMLElement): void {
   const varBtn = button("Variante");
   const copyBtn = el("button", {}, icon("copy"), " Kopieren");
   const diceBtn = el("button", {}, icon("dice"), " Würfeln");
-  const rollSel = (s: HTMLSelectElement): void => { s.selectedIndex = Math.floor(Math.random() * s.options.length); s.dispatchEvent(new Event("change")); };
+  const rollSel = (s: HTMLSelectElement): void => { if (locked.has(s.id)) return; s.selectedIndex = Math.floor(Math.random() * s.options.length); s.dispatchEvent(new Event("change")); };
   diceBtn.addEventListener("click", () => { rolling = true; [tone, form, structure, mode, persp, rhythm, instab, disruptor, varianz, stil, archA, archB, preset].forEach(rollSel); rolling = false; generate(); });
   const keepLbl = el("span", {}, "Merken");
   const keepBtn = el("button", {}, icon("star"), " ", keepLbl);

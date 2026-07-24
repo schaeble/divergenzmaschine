@@ -14,6 +14,8 @@ const P: Record<string, string> = {
   flask: '<path d="M9 3h6"/><path d="M10 9h4"/><path d="M10 3v6l-4.5 9.5a.9 .9 0 0 0 .8 1.5h11.4a.9 .9 0 0 0 .8 -1.5l-4.5 -9.5v-6"/>',
   refresh: '<path d="M20 11a8 8 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8 8 0 0 0 15.5 2m.5 4v-4h-4"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11v-4a4 4 0 0 1 8 0v4"/>',
+  lockOpen: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11v-5a4 4 0 0 1 8 0"/>',
   arrowRight: '<path d="M5 12h14"/><path d="M13 6l6 6l-6 6"/>',
   x: '<path d="M6 6l12 12"/><path d="M18 6l-12 12"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/>',
