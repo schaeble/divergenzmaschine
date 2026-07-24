@@ -2,7 +2,7 @@
 import type { BankKey } from "../types";
 import { el, select, field, button } from "./dom";
 import { loadBank, saveBank, normalizeBankShape } from "../storage";
-import { getAllPresets, sortedPresetOptions, saveCurrentBankAsUserPreset, mutateBank, bankEntryCount, buildAutoMixBank, saveActiveBankLabel, loadActiveBankLabel, AUTOMIX_ID } from "../wordbank";
+import { getAllPresets, sortedPresetOptions, saveCurrentBankAsUserPreset, deleteUserPreset, mutateBank, bankEntryCount, buildAutoMixBank, saveActiveBankLabel, loadActiveBankLabel, AUTOMIX_ID } from "../wordbank";
 import { DEFAULT_BANK } from "../constants";
 import { icon } from "./icons";
 import { loadAiKey, generateAiWordbank } from "../features/ki";
@@ -18,11 +18,29 @@ export function mountWordbank(root: HTMLElement): void {
 
   const preset = select("wb-preset", sortedPresetOptions());
   if (preset.options.length > 1) preset.selectedIndex = 1;  // nicht Auto-Mix als Standard anzeigen
+  const delPresetBtn = button("Preset löschen", "danger");
+  const updDelPreset = (): void => { delPresetBtn.style.display = preset.value.startsWith("user:") ? "" : "none"; };
+  const rebuildPresets = (keep?: string): void => {
+    preset.innerHTML = "";
+    for (const [v, l] of sortedPresetOptions()) preset.append(el("option", { value: v }, l));
+    if (keep && Array.from(preset.options).some((o) => o.value === keep)) preset.value = keep;
+    else if (preset.options.length > 1) preset.selectedIndex = 1;
+    updDelPreset();
+  };
   preset.addEventListener("change", () => {
     const p = getAllPresets()[preset.value];
+    updDelPreset();
     if (preset.value === AUTOMIX_ID) { saveBank(buildAutoMixBank()); saveActiveBankLabel("Auto-Mix"); load(); return; }
     if (p) { saveBank(p.bank); saveActiveBankLabel(p.label || preset.value); load(); }
   });
+  delPresetBtn.addEventListener("click", () => {
+    if (!preset.value.startsWith("user:")) return;
+    const name = preset.value.slice(5);
+    if (!confirm(`Eigenes Preset „${name}" löschen? (Die aktuelle Wortbank bleibt unverändert.)`)) return;
+    deleteUserPreset(name);
+    rebuildPresets();
+  });
+  updDelPreset();
 
   const listSel = select("wb-list", CATS.map(([v, l]) => [v, l] as [string, string]), "motifs");
   const editor = el("textarea", { id: "wb-editor", style: "height:220px", placeholder: "Ein Eintrag pro Zeile" });
@@ -58,7 +76,7 @@ export function mountWordbank(root: HTMLElement): void {
   const saveAs = button("Als Preset speichern");
   saveAs.addEventListener("click", () => {
     const name = prompt("Name für dein Preset:", "MeinPreset");
-    if (name) { saveCurrentBankAsUserPreset(name); preset.innerHTML = ""; for (const [v, l] of sortedPresetOptions()) preset.append(el("option", { value: v }, l)); }
+    if (name) { saveCurrentBankAsUserPreset(name); rebuildPresets("user:" + name.trim().slice(0, 40)); }
   });
 
   // ---- KI-Wortbank (aus dem früheren KI-Tab) ----
@@ -79,7 +97,7 @@ export function mountWordbank(root: HTMLElement): void {
         saveBank(bank);
         saveActiveBankLabel("KI-Wortbank");
         const name = prompt("Titel für die neue KI-Wortbank:", kiExtra.value.trim() || "KI-Wortbank");
-        if (name) { saveCurrentBankAsUserPreset(name); preset.innerHTML = ""; for (const [v, l] of sortedPresetOptions()) preset.append(el("option", { value: v }, l)); }
+        if (name) { saveCurrentBankAsUserPreset(name); rebuildPresets("user:" + name.trim().slice(0, 40)); }
         load();
         kiInfo.textContent = "KI-Wortbank erstellt und aktiviert.";
       } catch (e) { kiInfo.textContent = "Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e)); }
@@ -93,6 +111,7 @@ export function mountWordbank(root: HTMLElement): void {
 
   wrap.append(
     field("Preset", preset),
+    el("div", { class: "btnrow" }, delPresetBtn),
     field("Liste", listSel),
     editor,
     el("div", { class: "btnrow" }, saveBtn, mutBtn, mutSlider, " ", mutVal, resetBtn),

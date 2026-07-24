@@ -68,6 +68,12 @@ export function sortedPresetOptions(): [string, string][] {
   return [[AUTOMIX_ID, "🎲 Auto-Mix"], ...opts];
 }
 
+export function deleteUserPreset(name: string): void {
+  const user = loadUserPresets();
+  delete user[name];
+  saveUserPresets(user);
+}
+
 export function saveCurrentBankAsUserPreset(name: string): void {
   if (!name || !name.trim()) return;
   const safe = name.trim().slice(0, 40);
