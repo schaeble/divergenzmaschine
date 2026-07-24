@@ -189,7 +189,7 @@ export function mountStudio(root: HTMLElement): void {
   const copyBtn = el("button", {}, icon("copy"), " Kopieren");
   const diceBtn = el("button", {}, icon("dice"), " Würfeln");
   const rollSel = (s: HTMLSelectElement): void => { if (locked.has(s.id)) return; s.selectedIndex = Math.floor(Math.random() * s.options.length); s.dispatchEvent(new Event("change")); };
-  diceBtn.addEventListener("click", () => { rolling = true; [tone, form, structure, mode, persp, rhythm, instab, disruptor, varianz, stil, archA, archB, preset].forEach(rollSel); rolling = false; generate(); });
+  diceBtn.addEventListener("click", () => { rolling = true; [tone, form, structure, mode, persp, rhythm, instab, markov, disruptor, varianz, stil, archA, archB, preset].forEach(rollSel); rolling = false; generate(); });
   const keepLbl = el("span", {}, "Merken");
   const keepBtn = el("button", {}, icon("star"), " ", keepLbl);
   keepBtn.addEventListener("click", () => {
@@ -289,7 +289,7 @@ export function mountStudio(root: HTMLElement): void {
   fine.append(el("summary", {}, icon("tool"), " Werkzeugkasten"));
   fine.append(el("div", { class: "grid3" },
     lockField("Struktur", structure), lockField("Modus", mode), lockField("Perspektive", persp),
-    lockField("Rhythmus", rhythm), lockField("Instabilität", instab), field("Markov", markov),
+    lockField("Rhythmus", rhythm), lockField("Instabilität", instab), lockField("Markov", markov),
     lockField("Disruptor", disruptor), lockField("Varianz", varianz), lockField("Stil", stil),
     lockField("Archetyp A", archA), lockField("Archetyp B", archB),
     field("Video: Shots", shots), field("Video: Sekunden", secs),
