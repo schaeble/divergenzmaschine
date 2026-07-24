@@ -18,6 +18,8 @@ import { loadAiKey, saveAiKey, loadAiModel, saveAiModel } from "../features/ki";
 import { storageReport } from "../features/storage-status";
 import { loadFont, loadFontSize, saveFontPrefs, applyStoryFont } from "../features/fonts";
 import { runProbe, runRanking, runAiRanking, type Ranking } from "../generation/scoring";
+import { TONE_DATA } from "../generation/tone.data";
+import { liveTexts } from "../features/livepools";
 
 export function mountStudio(root: HTMLElement): void {
   root.innerHTML = "";
@@ -117,6 +119,7 @@ export function mountStudio(root: HTMLElement): void {
       if (!src.trim()) { generate(); return; }
       out.textContent = enforceWordTarget(src, target, loadBank(), markov.value !== "off" ? buildModelFromCorpus(2) : undefined);
       try { localStorage.setItem("dm_last_text", out.textContent || ""); } catch { /* voll */ }
+      refreshFeeds();
     } else if (form === "script") {
       generate();
     }
@@ -144,6 +147,43 @@ export function mountStudio(root: HTMLElement): void {
   const out = el("pre", { id: "f-out", class: "out" });
   const kling = el("div", { class: "kling" });
 
+  // ── Einspeisungen färben: zeigt, welche Textteile aus welcher Quelle stammen ──
+  const feedsChk = el("input", { type: "checkbox", id: "f-feeds" }) as HTMLInputElement;
+  const legDot = (c: string, l: string): HTMLElement => el("span", { class: "feeditem" }, el("span", { class: "feeddot " + c }), " " + l);
+  const feedsRow = el("div", { class: "feedsrow" },
+    el("label", { class: "chk" }, feedsChk, " Einspeisungen färben"),
+    legDot("feed-wb", "Wortbank"), legDot("feed-ton", "Ton"), legDot("feed-4w", "4W-Kontext"), legDot("feed-pool", "Lebendige Pools"),
+    el("span", { class: "muted" }, "· unmarkiert = Vorlagen/Markov"));
+
+  interface FMatch { s: number; e: number; cls: string; prio: number; }
+  const escFeeds = (t: string): string => t.replace(/[&<>]/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;"));
+  const collectFeed = (phrases: string[], cls: string, prio: number, low: string, acc: FMatch[]): void => {
+    for (const raw of phrases) {
+      const ph = (raw || "").trim(); if (ph.length < 5) continue;
+      const pl = ph.toLowerCase(); let from = 0, idx = low.indexOf(pl, from);
+      while (idx !== -1) { acc.push({ s: idx, e: idx + pl.length, cls, prio }); from = idx + pl.length; if (acc.length > 4000) return; idx = low.indexOf(pl, from); }
+    }
+  };
+  const renderFeeds = (): void => {
+    const plain = out.textContent || "";
+    if (!feedsChk.checked) { out.textContent = plain; return; }
+    const low = plain.toLowerCase();
+    const m: FMatch[] = [];
+    if (tone.value !== "neutral") { const td = TONE_DATA[tone.value]; if (td) collectFeed([...td.opener, ...td.flavor], "feed-ton", 3, low, m); }
+    const w4: string[] = [];
+    [who.value, where.value, when.value, what.value].forEach((v) => (v || "").split(",").forEach((t) => { const x = t.trim(); if (x.length >= 4) w4.push(x); }));
+    collectFeed(w4, "feed-4w", 2, low, m);
+    try { const b = loadBank() as unknown as Record<string, string[]>; const all: string[] = []; for (const k of Object.keys(b)) if (Array.isArray(b[k])) all.push(...b[k]!); collectFeed(all, "feed-wb", 1, low, m); } catch { /* egal */ }
+    try { collectFeed(liveTexts(), "feed-pool", 1, low, m); } catch { /* egal */ }
+    m.sort((a, b) => a.s - b.s || (b.e - b.s) - (a.e - a.s) || b.prio - a.prio);
+    let html = "", i = 0, last = -1;
+    for (const x of m) { if (x.s < last) continue; html += escFeeds(plain.slice(i, x.s)) + `<span class="${x.cls}">` + escFeeds(plain.slice(x.s, x.e)) + "</span>"; i = x.e; last = x.e; }
+    html += escFeeds(plain.slice(i));
+    out.innerHTML = html;
+  };
+  const refreshFeeds = (): void => { if (feedsChk.checked) renderFeeds(); };
+  feedsChk.addEventListener("change", renderFeeds);
+
   const genBtn = el("button", { class: "primary" }, icon("play"), " Generieren");
   const varBtn = button("Variante");
   const copyBtn = el("button", {}, icon("copy"), " Kopieren");
@@ -160,7 +200,7 @@ export function mountStudio(root: HTMLElement): void {
   const readBtn = el("button", {}, icon("book"), " Lesen");
   const speakLbl = el("span", {}, "Vorlesen");
   const speakBtn = el("button", {}, icon("volume"), " ", speakLbl);
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, readBtn, speakBtn, lenRow), out, kling);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, readBtn, speakBtn, lenRow), out, feedsRow, kling);
 
   // ── Test & Ranking ──
   let lastRanking: Ranking | null = null;
@@ -172,6 +212,7 @@ export function mountStudio(root: HTMLElement): void {
     out.textContent = item.txt;
     try { localStorage.setItem("dm_last_text", item.txt); } catch { /* voll */ }
     renderKling(readInput().form, item.txt);
+    refreshFeeds();
     const nov = item.novelty !== undefined ? ` · Neuheit ${Math.round(item.novelty * 100)}%` : "";
     const surp = item.surprise !== undefined ? ` · Überraschung ${Math.round(item.surprise * 100)}%` : "";
     const con = item.constraintsOk === false ? " · ⚠ Einbauwörter unvollständig" : "";
@@ -359,6 +400,7 @@ export function mountStudio(root: HTMLElement): void {
       renderKling(input.form, out.textContent || "");
       try { feedLivePools(out.textContent || "", LIVE_W.gen); } catch { /* egal */ }
       worldLogGeneration(input);
+      refreshFeeds();
     } catch (e) { out.textContent = "Fehler: " + (e instanceof Error ? e.message : String(e)); }
   };
   genBtn.addEventListener("click", generate);
@@ -434,6 +476,7 @@ export function mountStudio(root: HTMLElement): void {
     out.textContent = pendingText;
     try { localStorage.setItem("dm_last_text", pendingText); } catch { /* voll */ }
     renderKling(readInput().form, pendingText);
+    refreshFeeds();
   } else {
     generate();
   }

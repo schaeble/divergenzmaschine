@@ -243,3 +243,12 @@ input[type=range].wgt:hover{opacity:1}
 .lockbtn { background:transparent; border:0; padding:2px; cursor:pointer; color:var(--muted,#8a93a3); line-height:0; border-radius:6px; }
 .lockbtn:hover { color:var(--fg,#e6e9ef); }
 .lockbtn.on { color:var(--acc,#8b5cf6); }
+
+.feedsrow { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:6px 0 2px; font-size:12px; color:var(--muted,#8a93a3); }
+.feeditem { display:inline-flex; align-items:center; }
+.feeddot { display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:4px; }
+.feed-wb   { background:rgba(127,119,221,.28); border-radius:3px; }
+.feed-ton  { background:rgba(239,159,39,.30); border-radius:3px; }
+.feed-4w   { background:rgba(55,138,221,.28); border-radius:3px; }
+.feed-pool { background:rgba(99,153,34,.30); border-radius:3px; }
+.feeddot.feed-wb{background:#7F77DD;} .feeddot.feed-ton{background:#EF9F27;} .feeddot.feed-4w{background:#378ADD;} .feeddot.feed-pool{background:#639922;}
