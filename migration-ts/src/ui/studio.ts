@@ -32,8 +32,21 @@ export function mountStudio(root: HTMLElement): void {
     x.addEventListener("click", () => { input.value = ""; input.dispatchEvent(new Event("input")); input.focus(); });
     return el("div", { class: "inwrap" }, input, x);
   };
+  // Festhalter: gesperrte Regler/Felder bleiben beim Würfeln unverändert (persistiert).
+  const LOCK_KEY = "divergenz_studio_locks_v1";
+  const locked = new Set<string>((() => { try { return JSON.parse(localStorage.getItem(LOCK_KEY) || "[]") as string[]; } catch { return []; } })());
+  const saveLocks = (): void => { try { localStorage.setItem(LOCK_KEY, JSON.stringify([...locked])); } catch { /* voll */ } };
+  const lockBtn = (ctrl: HTMLSelectElement | HTMLInputElement): HTMLButtonElement => {
+    const b = el("button", { class: "lockbtn", type: "button", title: "Beim Würfeln festhalten" }) as HTMLButtonElement;
+    const paint = (): void => { b.innerHTML = ""; b.append(icon(locked.has(ctrl.id) ? "lock" : "lockOpen")); b.classList.toggle("on", locked.has(ctrl.id)); };
+    b.addEventListener("click", () => { if (locked.has(ctrl.id)) locked.delete(ctrl.id); else locked.add(ctrl.id); saveLocks(); paint(); });
+    paint(); return b;
+  };
+  const lockField = (label: string, sel: HTMLSelectElement): HTMLElement =>
+    el("div", { class: "field" }, el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sel)), sel);
+
   const ctxDice = el("button", {}, icon("dice"), " Kontext würfeln");
-  ctxDice.addEventListener("click", () => { const c = randomContext(); where.value = c.where; when.value = c.when; who.value = c.who; what.value = c.what; });
+  ctxDice.addEventListener("click", () => { const c = randomContext(); if (!locked.has(where.id)) where.value = c.where; if (!locked.has(when.id)) when.value = c.when; if (!locked.has(who.id)) who.value = c.who; if (!locked.has(what.id)) what.value = c.what; });
   const ctxKeep = el("button", { class: "toggle" }, icon("pin"), " Kontext merken");
   const CTX_KEY = "divergenz_ctx_v1";
   ctxKeep.title = "Wo/Wann/Wer/Was sichern und bei jedem Start laden";
@@ -47,7 +60,9 @@ export function mountStudio(root: HTMLElement): void {
   const mkWeight = (id: string): HTMLInputElement => el("input", { id, class: "wgt", type: "range", min: "0", max: "3", step: "1", value: "0", title: "Stärke — mehr über dieses Feld" }) as HTMLInputElement;
   const wWo = mkWeight("f-w-wo"), wWann = mkWeight("f-w-wann"), wWer = mkWeight("f-w-wer"), wWas = mkWeight("f-w-was");
   const field4w = (label: string, inp: HTMLInputElement, weight: HTMLInputElement): HTMLElement =>
-    field(label, el("div", { class: "field4w" }, clearable(inp), weight));
+    el("label", { class: "field" },
+      el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(inp)),
+      el("div", { class: "field4w" }, clearable(inp), weight));
   wrap.append(el("div", { class: "grid2" },
     field4w("Wo?", where, wWo), field4w("Wann?", when, wWann), field4w("Wer?", who, wWer), field4w("Was passiert?", what, wWas)),
     el("div", { class: "btnrow" }, ctxDice, ctxKeep));
@@ -72,19 +87,6 @@ export function mountStudio(root: HTMLElement): void {
   const archA = select("f-archa", ARCH_OPTS, "neutral");
   const archB = select("f-archb", ARCH_OPTS, "neutral");
   const polish = el("input", { id: "f-polish", type: "checkbox" }) as HTMLInputElement;
-  // Festhalter: gesperrte Regler werden beim Würfeln nicht verändert.
-  const LOCK_KEY = "divergenz_studio_locks_v1";
-  const locked = new Set<string>((() => { try { return JSON.parse(localStorage.getItem(LOCK_KEY) || "[]") as string[]; } catch { return []; } })());
-  const saveLocks = (): void => { try { localStorage.setItem(LOCK_KEY, JSON.stringify([...locked])); } catch { /* voll */ } };
-  const lockBtn = (sel: HTMLSelectElement): HTMLButtonElement => {
-    const b = el("button", { class: "lockbtn", type: "button", title: "Beim Würfeln festhalten" }) as HTMLButtonElement;
-    const paint = (): void => { b.innerHTML = ""; b.append(icon(locked.has(sel.id) ? "lock" : "lockOpen")); b.classList.toggle("on", locked.has(sel.id)); };
-    b.addEventListener("click", () => { if (locked.has(sel.id)) locked.delete(sel.id); else locked.add(sel.id); saveLocks(); paint(); });
-    paint(); return b;
-  };
-  const lockField = (label: string, sel: HTMLSelectElement): HTMLElement =>
-    el("div", { class: "field" }, el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sel)), sel);
-
   wrap.append(el("div", { class: "grid3" },
     lockField("Preset", preset), lockField("Ton", tone), lockField("Form", form)));
 
