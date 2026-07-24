@@ -252,3 +252,8 @@ input[type=range].wgt:hover{opacity:1}
 .feed-4w   { background:rgba(55,138,221,.28); border-radius:3px; }
 .feed-pool { background:rgba(99,153,34,.30); border-radius:3px; }
 .feeddot.feed-wb{background:#7F77DD;} .feeddot.feed-ton{background:#EF9F27;} .feeddot.feed-4w{background:#378ADD;} .feeddot.feed-pool{background:#639922;}
+
+/* Architektur-Diagramm im Hilfe-Tab */
+.help-arch{margin:6px 0 20px}
+.help-arch-fig{width:100%;overflow-x:auto;margin:6px 0 4px}
+.help-arch-fig svg{display:block;width:100%;min-width:640px;height:auto}
