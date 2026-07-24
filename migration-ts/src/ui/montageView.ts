@@ -3,7 +3,8 @@ import { el, button, select, field, textInput } from "./dom";
 import { icon } from "./icons";
 import { loadTreasury, addToTreasury } from "../features/treasury";
 import { openReader } from "./reader";
-import { META_ARCS, assemble, loadMontage, saveMontage, newId, type Fragment } from "../features/montage";
+import { META_ARCS, assemble, isKiArc, buildMontagePrompt, loadMontage, saveMontage, newId, type Fragment } from "../features/montage";
+import { loadAiKey, callClaudeStream, isOnline } from "../features/ki";
 
 const lastText = (): string => { try { return localStorage.getItem("dm_last_text") || ""; } catch { return ""; } };
 
@@ -60,8 +61,32 @@ export function mountMontage(root: HTMLElement): void {
   pasteAdd.addEventListener("click", () => { addFrag(pasteTa.value, "eingefügt"); pasteTa.value = ""; });
 
   // Zusammensetzen + Ausgabe
+  const status = el("span", { class: "muted" }, "");
+  const cancelBtn = el("button", { class: "danger", style: "display:none" }, "Abbrechen") as HTMLButtonElement;
+  let ac: AbortController | null = null;
+  cancelBtn.addEventListener("click", () => ac?.abort());
+
   const composeBtn = el("button", { class: "primary" }, icon("tool"), " Zusammensetzen");
-  composeBtn.addEventListener("click", () => { out.value = assemble(arcSel.value, frags, klammer.value); });
+  composeBtn.addEventListener("click", () => {
+    if (!frags.length) { status.textContent = "Keine Fragmente."; return; }
+    if (!isKiArc(arcSel.value)) { out.value = assemble(arcSel.value, frags, klammer.value); status.textContent = ""; return; }
+    void (async () => {
+      if (!loadAiKey()) { status.textContent = "KI-Bogen braucht einen API-Schlüssel (Studio ▸ Einstellungen ▸ KI-Zugang)."; return; }
+      if (!isOnline()) { status.textContent = "Offline — KI-Weberei nicht verfügbar."; return; }
+      const totalWords = frags.reduce((n, f) => n + (f.text.match(/\S+/g) || []).length, 0);
+      const budget = arcSel.value === "emergenz" ? 1500 : Math.min(8192, totalWords * 3 + 800);
+      // Emergenz: Fragmente bleiben stehen, die Erkenntnis kommt darunter. Hyperlink: verwobener Gesamttext.
+      const body = arcSel.value === "emergenz" ? assemble("mosaik", frags, klammer.value) + "\n\n\n— Emergenz —\n\n" : "";
+      composeBtn.disabled = true; status.textContent = "Webt…"; ac = new AbortController(); cancelBtn.style.display = "";
+      out.value = body;
+      try {
+        const r = await callClaudeStream(buildMontagePrompt(arcSel.value, frags, klammer.value), budget,
+          (_c, full) => { out.value = body + full; }, ac.signal);
+        out.value = body + r.text; status.textContent = "fertig.";
+      } catch (e) { status.textContent = ac.signal.aborted ? "Abgebrochen." : "Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e)); }
+      finally { composeBtn.disabled = false; cancelBtn.style.display = "none"; ac = null; }
+    })();
+  });
   const copyBtn = button("Kopieren");
   copyBtn.addEventListener("click", () => { if (out.value.trim()) { void navigator.clipboard?.writeText(out.value); const o = copyBtn.textContent; copyBtn.textContent = "Kopiert ✓"; setTimeout(() => (copyBtn.textContent = o), 1200); } });
   const readBtn = el("button", {}, icon("book"), " Lesemodus");
@@ -85,7 +110,7 @@ export function mountMontage(root: HTMLElement): void {
     pasteTa,
     el("div", { class: "btnrow" }, pasteAdd),
     el("h3", { style: "margin:14px 0 6px" }, "Ergebnis"),
-    el("div", { class: "btnrow" }, composeBtn),
+    el("div", { class: "btnrow" }, composeBtn, cancelBtn, status),
     out,
     el("div", { class: "btnrow" }, copyBtn, readBtn, keepBtn, txtBtn, keepInfo),
   );

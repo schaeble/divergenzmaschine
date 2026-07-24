@@ -3,13 +3,16 @@
 // Als Daten gebaut, damit die KI-Weberei (Scheibe B) darauf aufsetzen kann.
 export interface Fragment { id: string; text: string; source: string }
 
-export interface MetaArc { id: string; label: string; short: string }
+export interface MetaArc { id: string; label: string; short: string; ki?: boolean }
 export const META_ARCS: MetaArc[] = [
   { id: "mosaik", label: "Mosaik", short: "Viele Blickwinkel nebeneinander; das Gesamtbild entsteht aus der Nachbarschaft." },
   { id: "jahreszeiten", label: "Jahreszeiten", short: "Die Fragmente werden auf Frühling → Winter verteilt — eine emotionale Kurve durch Anordnung." },
   { id: "divergenz", label: "Divergenz", short: "Ein Ursprung, mehrere Verzweigungen — ein Baum statt einer Linie." },
   { id: "kaleidoskop", label: "Kaleidoskop", short: "Reihenfolge, die jede Bedeutung der vorigen umfärbt." },
+  { id: "emergenz", label: "Emergenz (KI)", short: "Die KI liest alle Fragmente und schreibt das Muster, das keines ausspricht.", ki: true },
+  { id: "hyperlink", label: "Hyperlink (KI)", short: "Die KI verwebt die Fragmente zu sich kreuzenden Strängen.", ki: true },
 ];
+export function isKiArc(id: string): boolean { return !!META_ARCS.find((a) => a.id === id)?.ki; }
 
 const clean = (t: string): string => (t || "").trim();
 const SEASONS = ["Frühling", "Sommer", "Herbst", "Winter"];
@@ -62,3 +65,22 @@ export function saveMontage(s: MontageState): void {
   try { localStorage.setItem(MKEY, JSON.stringify(s)); } catch { /* voll */ }
 }
 export const newId = (): string => Math.random().toString(36).slice(2, 9);
+
+// ---- KI-Weberei (Scheibe B): Prompt-Bau ----
+export function buildMontagePrompt(arcId: string, frags: Fragment[], klammer: string): string {
+  const numbered = frags.map((f, i) => `${i + 1}. ${clean(f.text)}`).join("\n\n");
+  const kl = clean(klammer) ? `Gemeinsame Klammer: ${clean(klammer)}.\n` : "";
+  if (arcId === "hyperlink") {
+    return "Unten stehen mehrere Fragmente als getrennte Erzählstränge (aus einem generativen Textwerkzeug). "
+      + "Verwebe sie zu EINEM zusammenhängenden deutschen Text: behalte ihre Bilder und Sätze weitgehend bei, "
+      + "aber füge kurze Übergänge ein, die zeigen, wie die Stränge einander kreuzen — ein gemeinsamer Ort, eine Figur, "
+      + "ein Moment, an dem sie sich berühren. Erfinde diesen Knoten, wenn nötig. Bewahre den dichten, surrealen Ton; "
+      + "glätte die Fremdheit nicht weg. Gib NUR den verwobenen Text zurück.\n\n" + kl + "\nStränge:\n" + numbered;
+  }
+  // Emergenz
+  return "Unten stehen mehrere kurze, scheinbar unabhängige Fragmente (aus einem generativen Textwerkzeug). "
+    + "Lies sie als Ganzes. Schreibe einen KURZEN deutschen Schlusstext (4 bis 8 Sätze), der ein verbindendes Muster, "
+    + "eine gemeinsame Bewegung oder Bedeutung aufdeckt, die keines der Fragmente ausspricht. Fasse NICHT zusammen und "
+    + "wiederhole die Fragmente nicht — schreibe die Erkenntnis, die zwischen ihnen liegt. Dichter, ruhiger Ton. "
+    + "Gib NUR den Schlusstext zurück.\n\n" + kl + "\nFragmente:\n" + numbered;
+}
