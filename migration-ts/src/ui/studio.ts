@@ -288,10 +288,10 @@ export function mountStudio(root: HTMLElement): void {
   const fine = el("details", { class: "fine" });
   fine.append(el("summary", {}, icon("tool"), " Werkzeugkasten"));
   fine.append(el("div", { class: "grid3" },
-    field("Struktur", structure), field("Modus", mode), field("Perspektive", persp),
-    field("Rhythmus", rhythm), field("Instabilität", instab), field("Markov", markov),
-    field("Disruptor", disruptor), field("Varianz", varianz), field("Stil", stil),
-    field("Archetyp A", archA), field("Archetyp B", archB),
+    lockField("Struktur", structure), lockField("Modus", mode), lockField("Perspektive", persp),
+    lockField("Rhythmus", rhythm), lockField("Instabilität", instab), field("Markov", markov),
+    lockField("Disruptor", disruptor), lockField("Varianz", varianz), lockField("Stil", stil),
+    lockField("Archetyp A", archA), lockField("Archetyp B", archB),
     field("Video: Shots", shots), field("Video: Sekunden", secs),
     el("label", { class: "field", style: "display:flex;align-items:center;gap:6px" }, polish, "Sprachschliff")));
   wrap.append(fine);
