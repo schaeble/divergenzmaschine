@@ -103,8 +103,8 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   const effStructure = verseForm && kit.structure === "fragment" ? "linear" : kit.structure;
   let text = pickStructureBuilder(effStructure)({ ...kit });
 
-  if (effStructure === "fragment") return postProcessText(text, { ...input, form: "strang" });
-
+  // Fragment ist jetzt fragmentierte Prosa (nicht mehr eine Zeilen-Liste) und
+  // durchläuft daher den normalen Prosa-Pfad inkl. Längen-Auffüllung.
   if (input.form === "prose" && input.emphasis) text = applyEmphasis(text, kit, input.emphasis);
 
   text = applyDisruptor(text, input.disruptor).text;
