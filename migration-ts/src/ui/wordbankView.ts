@@ -2,7 +2,7 @@
 import type { BankKey } from "../types";
 import { el, select, field, button } from "./dom";
 import { loadBank, saveBank, normalizeBankShape } from "../storage";
-import { getAllPresets, sortedPresetOptions, saveCurrentBankAsUserPreset, mutateBank, bankEntryCount, saveActiveBankLabel, loadActiveBankLabel } from "../wordbank";
+import { getAllPresets, sortedPresetOptions, saveCurrentBankAsUserPreset, mutateBank, bankEntryCount, buildAutoMixBank, saveActiveBankLabel, loadActiveBankLabel } from "../wordbank";
 import { DEFAULT_BANK } from "../constants";
 import { icon } from "./icons";
 import { loadAiKey, generateAiWordbank } from "../features/ki";
@@ -37,8 +37,12 @@ export function mountWordbank(root: HTMLElement): void {
   saveBtn.addEventListener("click", () => {
     const bank = loadBank();
     bank[listSel.value as BankKey] = editor.value.split("\n").map((s) => s.trim()).filter(Boolean);
-    saveBank(bank); saveActiveBankLabel("Auto-Mix"); load();
+    saveBank(bank); load();
   });
+
+  const autoMixBtn = el("button", {}, icon("dice"), " Auto-Mix");
+  autoMixBtn.title = "Pro Kategorie ein zufälliges Preset zusammenwürfeln";
+  autoMixBtn.addEventListener("click", () => { saveBank(buildAutoMixBank()); saveActiveBankLabel("Auto-Mix"); load(); });
 
   const mutSlider = el("input", { id: "wb-mut", type: "range", min: "0", max: "500", step: "10", value: "300", style: "width:auto;vertical-align:middle" });
   const mutVal = el("span", { class: "muted" }, "300");
@@ -90,7 +94,7 @@ export function mountWordbank(root: HTMLElement): void {
     field("Liste", listSel),
     editor,
     el("div", { class: "btnrow" }, saveBtn, mutBtn, mutSlider, " ", mutVal, resetBtn),
-    el("div", { class: "btnrow" }, saveAs),
+    el("div", { class: "btnrow" }, autoMixBtn, saveAs),
     info,
     kiBox,
   );
