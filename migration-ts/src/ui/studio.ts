@@ -130,7 +130,7 @@ export function mountStudio(root: HTMLElement): void {
     clearTimeout(lenTimer);
     lenTimer = setTimeout(applyLengthLive, 180);
   });
-  const lenRow = el("label", { class: "field lenrow" }, el("span", { class: "mlabel" }, "Textlänge"), " ", lenSlider, " ", lenVal);
+  const lenRow = el("div", { class: "field lenrow" }, el("span", { class: "mlabel lockrow" }, el("span", {}, "Textlänge"), lockBtn(lenSlider)), lenSlider, " ", lenVal);
 
   // Schriftart + Schriftgröße der Ausgabe (neben der Textlänge)
   const fontSel = el("select", { id: "f-font" },
@@ -467,6 +467,7 @@ export function mountStudio(root: HTMLElement): void {
     [preset, tone, form].forEach((s) => { if (!locked.has(s.id) && s.options.length) s.selectedIndex = Math.floor(Math.random() * s.options.length); });
   }
   restoreLocked();
+  lenVal.textContent = lenSlider.value;
   updEmphVis();
   applyStoryFont(out, fontSel.value, parseFloat(sizeSlider.value));
   if (!pendingStudio) { if (preset.value === AUTOMIX_ID) { saveBank(buildAutoMixBank()); saveActiveBankLabel("Auto-Mix"); } else { const first = getAllPresets()[preset.value]; if (first) { saveBank(first.bank); saveActiveBankLabel(first.label || preset.value); } } }
