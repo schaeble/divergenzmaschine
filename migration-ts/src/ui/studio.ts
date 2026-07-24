@@ -36,10 +36,23 @@ export function mountStudio(root: HTMLElement): void {
   const LOCK_KEY = "divergenz_studio_locks_v1";
   const locked = new Set<string>((() => { try { return JSON.parse(localStorage.getItem(LOCK_KEY) || "[]") as string[]; } catch { return []; } })());
   const saveLocks = (): void => { try { localStorage.setItem(LOCK_KEY, JSON.stringify([...locked])); } catch { /* voll */ } };
+  // Gesperrte Felder merken sich zusätzlich ihren Wert über den Neustart.
+  const LOCKVAL_KEY = "divergenz_locked_vals_v1";
+  const lockVals: Record<string, string> = (() => { try { return JSON.parse(localStorage.getItem(LOCKVAL_KEY) || "{}") as Record<string, string>; } catch { return {}; } })();
+  const saveLockVals = (): void => { try { localStorage.setItem(LOCKVAL_KEY, JSON.stringify(lockVals)); } catch { /* voll */ } };
+  const lockCtrls: Record<string, HTMLSelectElement | HTMLInputElement> = {};
+  const restoreLocked = (): void => { for (const id of locked) { const c = lockCtrls[id]; if (c && lockVals[id] !== undefined) c.value = lockVals[id]!; } };
   const lockBtn = (ctrl: HTMLSelectElement | HTMLInputElement): HTMLButtonElement => {
-    const b = el("button", { class: "lockbtn", type: "button", title: "Beim Würfeln festhalten" }) as HTMLButtonElement;
+    lockCtrls[ctrl.id] = ctrl;
+    const upd = (): void => { if (locked.has(ctrl.id)) { lockVals[ctrl.id] = ctrl.value; saveLockVals(); } };
+    ctrl.addEventListener("input", upd); ctrl.addEventListener("change", upd);
+    const b = el("button", { class: "lockbtn", type: "button", title: "Beim Würfeln festhalten (Wert bleibt auch nach Neustart)" }) as HTMLButtonElement;
     const paint = (): void => { b.innerHTML = ""; b.append(icon(locked.has(ctrl.id) ? "lock" : "lockOpen")); b.classList.toggle("on", locked.has(ctrl.id)); };
-    b.addEventListener("click", () => { if (locked.has(ctrl.id)) locked.delete(ctrl.id); else locked.add(ctrl.id); saveLocks(); paint(); });
+    b.addEventListener("click", () => {
+      if (locked.has(ctrl.id)) { locked.delete(ctrl.id); delete lockVals[ctrl.id]; }
+      else { locked.add(ctrl.id); lockVals[ctrl.id] = ctrl.value; }
+      saveLocks(); saveLockVals(); paint();
+    });
     paint(); return b;
   };
   const lockField = (label: string, sel: HTMLSelectElement): HTMLElement =>
@@ -409,8 +422,9 @@ export function mountStudio(root: HTMLElement): void {
     }
   } else {
     // Zufallsstart: Preset, Ton und Form
-    [preset, tone, form].forEach((s) => { if (s.options.length) s.selectedIndex = Math.floor(Math.random() * s.options.length); });
+    [preset, tone, form].forEach((s) => { if (!locked.has(s.id) && s.options.length) s.selectedIndex = Math.floor(Math.random() * s.options.length); });
   }
+  restoreLocked();
   updEmphVis();
   applyStoryFont(out, fontSel.value, parseFloat(sizeSlider.value));
   if (!pendingStudio) { const first = getAllPresets()[preset.value]; if (first) { saveBank(first.bank); saveActiveBankLabel(first.label || preset.value); } }
