@@ -94,6 +94,13 @@ export function mountMontage(root: HTMLElement): void {
   const keepInfo = el("span", { class: "muted" }, "");
   const keepBtn = el("button", {}, icon("star"), " Merken");
   keepBtn.addEventListener("click", () => { if (!out.value.trim()) return; const n = addToTreasury(out.value, {}); keepInfo.textContent = n < 0 ? "schon vorhanden" : `gemerkt (${n})`; setTimeout(() => (keepInfo.textContent = ""), 2000); });
+  const toWerk = button("→ Werkstatt");
+  toWerk.addEventListener("click", () => {
+    if (!out.value.trim()) return;
+    try { localStorage.setItem("dm_pending_workshop_src", out.value); } catch { /* voll */ }
+    const w = [...document.querySelectorAll(".tabbar button")].find((b) => b.textContent === "Werkstatt") as HTMLButtonElement | undefined;
+    if (w) w.click();
+  });
   const txtBtn = button("Als TXT");
   txtBtn.addEventListener("click", () => { if (!out.value.trim()) return; const a = el("a", { href: URL.createObjectURL(new Blob([out.value], { type: "text/plain;charset=utf-8" })), download: `montage_${new Date().toISOString().slice(0, 10)}.txt` }); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 0); });
   const clearBtn = button("Fragmente leeren", "danger");
@@ -112,7 +119,7 @@ export function mountMontage(root: HTMLElement): void {
     el("h3", { style: "margin:14px 0 6px" }, "Ergebnis"),
     el("div", { class: "btnrow" }, composeBtn, cancelBtn, status),
     out,
-    el("div", { class: "btnrow" }, copyBtn, readBtn, keepBtn, txtBtn, keepInfo),
+    el("div", { class: "btnrow" }, copyBtn, readBtn, keepBtn, txtBtn, toWerk, keepInfo),
   );
   root.append(wrap);
   renderList();

@@ -25,7 +25,10 @@ export function mountWorkshop(root: HTMLElement): void {
 
   // ---- Quelle ----
   const rawPane = ta("6", "Rohtext — aus dem Studio, der Schatzkammer oder selbst eingefügt.");
-  rawPane.value = saved?.raw || lastText();
+  // Übergabe aus der Montage hat Vorrang.
+  let pendingSrc = "";
+  try { pendingSrc = localStorage.getItem("dm_pending_workshop_src") || ""; if (pendingSrc) localStorage.removeItem("dm_pending_workshop_src"); } catch { /* egal */ }
+  rawPane.value = pendingSrc || saved?.raw || lastText();
   const useLast = button("Letzten Studio-Text holen");
   useLast.addEventListener("click", () => { rawPane.value = lastText(); });
   const treasures = loadTreasury().slice().reverse();
