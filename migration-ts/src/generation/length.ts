@@ -3,7 +3,6 @@
 import type { Bank } from "../types";
 import { clean, pick, ensurePunct, splitSentences } from "../text-utils";
 import { MarkovModel, isSaneMarkov } from "../corpus";
-import { makeConnectorPicker } from "./connectors";
 
 const count = (s: string): number => (s || "").trim().split(/\s+/).filter(Boolean).length;
 
@@ -32,9 +31,8 @@ export function enforceWordTarget(text: string, target: number, bank: Bank, mode
 
   // zu kurz -> auffüllen
   const missing = Math.max(0, target - wc);
-  const maxAttempts = Math.min(20, Math.ceil(missing / 15) + 3);
+  const maxAttempts = Math.min(120, Math.ceil(missing / 6) + 6);
   const used = new Set<string>();
-  const nextConnector = makeConnectorPicker();
 
   const addition = (): { text: string; raw: boolean } | null => {
     if (model && Math.random() < 0.6) {
@@ -56,10 +54,7 @@ export function enforceWordTarget(text: string, target: number, bank: Bank, mode
     let ca = add.text.trim().replace(/^[a-z]/, (c) => c.toUpperCase()).replace(/\s+([,.;:!?…])/g, "$1");
     if (!/[.!?…]$/.test(ca)) ca += ".";
     out = out.replace(/[.!?…]+\s*$/, "").trim();
-    if (add.raw) {
-      const lead = nextConnector();
-      out += `. ${lead}: ${ca.charAt(0).toLowerCase() + ca.slice(1)}`;
-    } else out += ". " + ca;
+    out += ". " + ca;
     out = out.replace(/\s+/g, " ").trim();
   }
   return ensurePunct(out);
