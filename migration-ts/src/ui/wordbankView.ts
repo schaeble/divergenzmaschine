@@ -2,7 +2,7 @@
 import type { BankKey } from "../types";
 import { el, select, field, button } from "./dom";
 import { loadBank, saveBank, normalizeBankShape } from "../storage";
-import { getAllPresets, sortedPresetOptions, saveCurrentBankAsUserPreset, mutateBank, bankEntryCount, buildAutoMixBank, saveActiveBankLabel, loadActiveBankLabel } from "../wordbank";
+import { getAllPresets, sortedPresetOptions, saveCurrentBankAsUserPreset, mutateBank, bankEntryCount, buildAutoMixBank, saveActiveBankLabel, loadActiveBankLabel, AUTOMIX_ID } from "../wordbank";
 import { DEFAULT_BANK } from "../constants";
 import { icon } from "./icons";
 import { loadAiKey, generateAiWordbank } from "../features/ki";
@@ -17,8 +17,10 @@ export function mountWordbank(root: HTMLElement): void {
   const wrap = el("div", {});
 
   const preset = select("wb-preset", sortedPresetOptions());
+  if (preset.options.length > 1) preset.selectedIndex = 1;  // nicht Auto-Mix als Standard anzeigen
   preset.addEventListener("change", () => {
     const p = getAllPresets()[preset.value];
+    if (preset.value === AUTOMIX_ID) { saveBank(buildAutoMixBank()); saveActiveBankLabel("Auto-Mix"); load(); return; }
     if (p) { saveBank(p.bank); saveActiveBankLabel(p.label || preset.value); load(); }
   });
 
@@ -40,9 +42,9 @@ export function mountWordbank(root: HTMLElement): void {
     saveBank(bank); load();
   });
 
-  const autoMixBtn = el("button", {}, icon("dice"), " Auto-Mix");
-  autoMixBtn.title = "Pro Kategorie ein zufälliges Preset zusammenwürfeln";
-  autoMixBtn.addEventListener("click", () => { saveBank(buildAutoMixBank()); saveActiveBankLabel("Auto-Mix"); load(); });
+  const autoMixBtn = el("button", {}, icon("dice"), " Würfeln");
+  autoMixBtn.title = "Pro Kategorie ein zufälliges Preset neu zusammenwürfeln";
+  autoMixBtn.addEventListener("click", () => { saveBank(buildAutoMixBank()); saveActiveBankLabel("Auto-Mix"); preset.value = AUTOMIX_ID; load(); });
 
   const mutSlider = el("input", { id: "wb-mut", type: "range", min: "0", max: "500", step: "10", value: "300", style: "width:auto;vertical-align:middle" });
   const mutVal = el("span", { class: "muted" }, "300");

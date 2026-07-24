@@ -2,7 +2,7 @@
 // Lesemodus (Vollbild) und Vorlesen (SpeechSynthesis).
 import type { GenInput, FormKind } from "../types";
 import { loadBank, saveBank } from "../storage";
-import { getAllPresets, sortedPresetOptions, saveActiveBankLabel } from "../wordbank";
+import { getAllPresets, sortedPresetOptions, saveActiveBankLabel, buildAutoMixBank, AUTOMIX_ID } from "../wordbank";
 import { buildStory } from "../generation/buildStory";
 import { buildModelFromCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
@@ -81,7 +81,7 @@ export function mountStudio(root: HTMLElement): void {
     el("div", { class: "btnrow" }, ctxDice, ctxKeep));
 
   const preset = select("f-preset", sortedPresetOptions());
-  preset.addEventListener("change", () => { const p = getAllPresets()[preset.value]; if (p) { saveBank(p.bank); saveActiveBankLabel(p.label || preset.value); } });
+  preset.addEventListener("change", () => { if (preset.value === AUTOMIX_ID) { saveBank(buildAutoMixBank()); saveActiveBankLabel("Auto-Mix"); return; } const p = getAllPresets()[preset.value]; if (p) { saveBank(p.bank); saveActiveBankLabel(p.label || preset.value); } });
 
   const tone = select("f-tone", [["neutral", "Neutral"], ["mystery", "Mystery"], ["poetic", "Poetisch"], ["dark", "Düster"], ["uplifting", "Hoffnungsvoll"], ["humorous", "Humorvoll"]], "mystery");
   const form = select("f-form", [["prose", "Prosa"], ["poem", "Prosagedicht"], ["strang", "Gedicht-Strang"], ["reim", "Reim"], ["haiku", "Haiku"], ["script", "Szene/Dialog"], ["video", "Multi-Shot (Video)"]], "prose");
@@ -427,7 +427,7 @@ export function mountStudio(root: HTMLElement): void {
   restoreLocked();
   updEmphVis();
   applyStoryFont(out, fontSel.value, parseFloat(sizeSlider.value));
-  if (!pendingStudio) { const first = getAllPresets()[preset.value]; if (first) { saveBank(first.bank); saveActiveBankLabel(first.label || preset.value); } }
+  if (!pendingStudio) { if (preset.value === AUTOMIX_ID) { saveBank(buildAutoMixBank()); saveActiveBankLabel("Auto-Mix"); } else { const first = getAllPresets()[preset.value]; if (first) { saveBank(first.bank); saveActiveBankLabel(first.label || preset.value); } } }
   let pendingText = "";
   try { pendingText = localStorage.getItem("dm_pending_text") || ""; localStorage.removeItem("dm_pending_text"); } catch { /* ignore */ }
   if (pendingText.trim()) {
