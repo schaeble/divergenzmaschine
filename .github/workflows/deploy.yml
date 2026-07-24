@@ -1,7 +1,10 @@
-# Baut die App aus migration-ts/ und legt das Ergebnis in ts/ auf main ab.
-# Ersetzt den bisherigen Hand-Deploy (kein persönlicher Token mehr nötig —
-# der eingebaute GITHUB_TOKEN darf nach main schreiben).
-name: Build & Deploy ts/
+# Baut die App aus migration-ts/ und veroeffentlicht die GESAMTE Seite
+# (Root-Redirect + /legacy/ + frisch gebautes /ts/) direkt ueber die
+# GitHub-Actions-Pages-Pipeline. Der alte, haengende "pages build and
+# deployment" (Jekyll) entfaellt damit vollstaendig.
+#
+# Voraussetzung (einmalig im Repo): Settings -> Pages -> Source = "GitHub Actions".
+name: Build & Deploy Pages
 
 on:
   push:
@@ -11,25 +14,28 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
-  group: deploy-ts
+  group: pages
   cancel-in-progress: false
 
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - name: Quelle auschecken (typescript-migration)
         uses: actions/checkout@v4
-        with:
-          ref: typescript-migration
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Abhängigkeiten
+      - name: Abhaengigkeiten
         working-directory: migration-ts
         run: npm ci
 
@@ -37,33 +43,54 @@ jobs:
         working-directory: migration-ts
         run: npm run build
 
-      - name: main auschecken
+      - name: main auschecken (statische Teile)
         uses: actions/checkout@v4
         with:
           ref: main
           path: main-checkout
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: ts/ aktualisieren
+      - name: Seite zusammenstellen (_site)
         run: |
           set -e
-          DEST=main-checkout/ts
-          mkdir -p "$DEST"
-          cp migration-ts/dist/index.html "$DEST/"
-          cp migration-ts/public/sw.js migration-ts/public/version.txt migration-ts/public/manifest.webmanifest "$DEST/"
-          cp migration-ts/public/*.png "$DEST/" 2>/dev/null || true
-          VER=$(cat migration-ts/public/version.txt)
+          SITE=_site
+          rm -rf "$SITE"; mkdir -p "$SITE/ts"
+          cp main-checkout/index.html "$SITE/" 2>/dev/null || true
+          cp main-checkout/ANLEITUNG.md main-checkout/README.md "$SITE/" 2>/dev/null || true
+          cp -r main-checkout/legacy "$SITE/legacy"
+          cp migration-ts/dist/index.html "$SITE/ts/"
+          cp migration-ts/public/sw.js migration-ts/public/version.txt migration-ts/public/manifest.webmanifest "$SITE/ts/"
+          cp migration-ts/public/*.png "$SITE/ts/" 2>/dev/null || true
+          touch "$SITE/.nojekyll"
+          VER=$(cat "$SITE/ts/version.txt")
           echo "version=$VER" >> "$GITHUB_ENV"
+          echo "Zusammengestellt (v$VER):"; find "$SITE" -type f | sort
 
-      - name: Commit & Push nach main
+      - name: main-Spiegel aktualisieren (Historie/Rollback)
         working-directory: main-checkout
         run: |
+          set -e
+          rm -rf ts; mkdir -p ts
+          cp ../_site/ts/* ts/
+          touch .nojekyll
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ts/
+          git add -A
           if git diff --cached --quiet; then
-            echo "Keine Änderung in ts/ — nichts zu deployen."
+            echo "Keine Aenderung - nichts zu spiegeln."
           else
             git commit -m "Deploy ts v${version} (CI)"
             git push
           fi
+
+      - name: Pages konfigurieren
+        uses: actions/configure-pages@v5
+
+      - name: Artefakt hochladen
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Veroeffentlichen
+        id: deploy
+        uses: actions/deploy-pages@v4
