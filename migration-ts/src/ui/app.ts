@@ -37,8 +37,8 @@ const TABS: [string, (root: HTMLElement) => void][] = [
   ["Korpus", mountKorpus],
   ["Oszilloskop", mountOscilloscope],
   ["Schatzkammer", mountTreasury],
-  ["Werkstatt", mountWorkshop],
   ["Montage", mountMontage],
+  ["Werkstatt", mountWorkshop],
   ["Hilfe", mountHelp],
 ];
 
