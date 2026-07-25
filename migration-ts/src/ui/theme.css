@@ -105,6 +105,15 @@ details.fine>div{padding:4px 14px 14px}
 .treasure{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin:12px 0}
 .treasure-meta{font:12px var(--sans);color:var(--muted);margin-bottom:6px}
 .treasure-text{margin:0;min-height:0;font-size:15px;padding:12px 14px;box-shadow:none}
+.treasure-overview{background:var(--panel2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin:10px 0 4px}
+.treasure-overview .big{font:600 15px var(--sans);color:var(--text)}
+.treasure-overview .chips{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
+.tchip{font:12px var(--sans);color:var(--text);background:var(--panel);border:1px solid var(--border2);border-radius:999px;padding:3px 10px}
+.treasure-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.tbadge{font:600 11px var(--sans);color:#0b3d36;background:rgba(20,184,166,.20);border:1px solid rgba(20,184,166,.55);border-radius:6px;padding:1px 8px;text-transform:uppercase;letter-spacing:.03em}
+.treasure-meta .tcount{color:var(--text);font-weight:600}
+.treasure-meta .tdate,.treasure-meta .tctx{color:var(--muted)}
+.treasure-meta .tctx::before{content:"·";margin-right:8px;color:var(--muted)}
 
 /* Textlänge-Regler */
 .lenrow{display:flex;align-items:center;gap:10px;margin-top:12px}

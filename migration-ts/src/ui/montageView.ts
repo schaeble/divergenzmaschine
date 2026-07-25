@@ -93,7 +93,7 @@ export function mountMontage(root: HTMLElement): void {
   readBtn.addEventListener("click", () => { if (out.value.trim()) openReader(out.value); });
   const keepInfo = el("span", { class: "muted" }, "");
   const keepBtn = el("button", {}, icon("star"), " Merken");
-  keepBtn.addEventListener("click", () => { if (!out.value.trim()) return; const n = addToTreasury(out.value, {}); keepInfo.textContent = n < 0 ? "schon vorhanden" : `gemerkt (${n})`; setTimeout(() => (keepInfo.textContent = ""), 2000); });
+  keepBtn.addEventListener("click", () => { if (!out.value.trim()) return; const n = addToTreasury(out.value, { form: "montage" }); keepInfo.textContent = n < 0 ? "schon vorhanden" : `gemerkt (${n})`; setTimeout(() => (keepInfo.textContent = ""), 2000); });
   const toWerk = button("→ Werkstatt");
   toWerk.addEventListener("click", () => {
     if (!out.value.trim()) return;

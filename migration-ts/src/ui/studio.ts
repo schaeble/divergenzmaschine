@@ -195,7 +195,7 @@ export function mountStudio(root: HTMLElement): void {
   const keepLbl = el("span", {}, "Merken");
   const keepBtn = el("button", {}, icon("star"), " ", keepLbl);
   keepBtn.addEventListener("click", () => {
-    const n = addToTreasury(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value });
+    const n = addToTreasury(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value });
     keepLbl.textContent = n < 0 ? "— schon drin" : `Gemerkt (${n})`;
     setTimeout(() => (keepLbl.textContent = "Merken"), 1400);
   });

@@ -311,7 +311,7 @@ export function mountWorkshop(root: HTMLElement): void {
     const keepBtn = el("button", {}, icon("star"), " Merken");
     keepBtn.addEventListener("click", () => {
       const v = pane.value.trim(); if (!v) return;
-      const n = addToTreasury(v, {});
+      const n = addToTreasury(v, { form: "workshop" });
       info.textContent = n < 0 ? "schon vorhanden" : `in der Schatzkammer (${n})`;
       setTimeout(() => (info.textContent = ""), 2200);
     });

@@ -70,7 +70,7 @@ export function mountAssoc(root: HTMLElement): void {
       const keepInfo = el("span", { class: "muted" }, "");
       const keep = el("button", {}, icon("star"), " Merken");
       keep.addEventListener("click", () => {
-        const n = addToTreasury(chainText(c), {});
+        const n = addToTreasury(chainText(c), { form: "assoz" });
         keepInfo.textContent = n < 0 ? "schon vorhanden" : `gemerkt (${n})`;
         setTimeout(() => (keepInfo.textContent = ""), 2000);
       });

@@ -1,32 +1,60 @@
-// Schatzkammer-Tab: gesammelte Texte ansehen, ins Studio übernehmen, löschen, exportieren.
+// Schatzkammer-Tab: Übersicht + gesammelte Texte ansehen, ins Studio übernehmen,
+// löschen, exportieren. Zeigt pro Text Form-Typ und Wortzahl.
 import { el, button } from "./dom";
 import { icon } from "./icons";
-import { loadTreasury, deleteTreasureAt, clearTreasury, exportTreasuryTxt } from "../features/treasury";
+import {
+  loadTreasury, deleteTreasureAt, clearTreasury, exportTreasuryTxt,
+  treasureType, wordCount, treasureStats,
+} from "../features/treasury";
+
+const nf = (n: number): string => n.toLocaleString("de-DE");
 
 export function mountTreasury(root: HTMLElement): void {
   root.innerHTML = "";
   const wrap = el("div", {});
+  const overview = el("div", { class: "treasure-overview" });
   const list = el("div", {});
   let clearBtn: HTMLButtonElement;
+
+  const renderOverview = (items: ReturnType<typeof loadTreasury>): void => {
+    overview.innerHTML = "";
+    if (!items.length) {
+      overview.append(el("span", { class: "muted" }, "Noch keine Texte gesammelt."));
+      return;
+    }
+    const st = treasureStats(items);
+    overview.append(el("div", { class: "big" },
+      `${nf(st.total)} ${st.total === 1 ? "Text" : "Texte"} · ${nf(st.words)} Wörter · Ø ${nf(st.avg)} pro Text`));
+    const chips = el("div", { class: "chips" });
+    Object.entries(st.byType).sort((a, b) => b[1] - a[1]).forEach(([ty, n]) => {
+      chips.append(el("span", { class: "tchip" }, `${ty} · ${n}`));
+    });
+    overview.append(chips);
+  };
 
   const render = (): void => {
     const items = loadTreasury();
     if (clearBtn) clearBtn.disabled = items.length === 0;
+    renderOverview(items);
     list.innerHTML = "";
-    if (!items.length) { list.append(el("p", { class: "muted" }, "Noch nichts gemerkt — im Studio auf ⭐ Merken klicken.")); return; }
+    if (!items.length) {
+      list.append(el("p", { class: "muted" }, "Noch nichts gemerkt — im Studio auf ⭐ Merken klicken."));
+      return;
+    }
     items.slice().reverse().forEach((it, ri) => {
       const idx = items.length - 1 - ri;
-      const meta = [it.who, it.where, it.when].filter(Boolean).join(" · ");
+      const ctxMeta = [it.who, it.where, it.when].filter(Boolean).join(" · ");
+      const type = treasureType(it);
+      const wc = wordCount(it.t);
+
       const take = el("button", {}, icon("arrowRight"), " Studio");
       take.addEventListener("click", () => {
         try {
-          try {
-            localStorage.setItem("dm_pending_ctx", JSON.stringify({ who: it.who, where: it.where, when: it.when, what: it.what }));
-            localStorage.setItem("dm_pending_text", it.t);
-          } catch { /* Speicher gesperrt */ }
-        } catch { /* voll */ }
-        const st = [...document.querySelectorAll(".tabbar button")].find((b) => b.textContent === "Studio") as HTMLButtonElement | undefined;
-        if (st) st.click();
+          localStorage.setItem("dm_pending_ctx", JSON.stringify({ who: it.who, where: it.where, when: it.when, what: it.what }));
+          localStorage.setItem("dm_pending_text", it.t);
+        } catch { /* Speicher gesperrt */ }
+        const stab = [...document.querySelectorAll(".tabbar button")].find((b) => b.textContent === "Studio") as HTMLButtonElement | undefined;
+        if (stab) stab.click();
       });
       const copy = button("Kopieren");
       copy.addEventListener("click", () => { void navigator.clipboard?.writeText(it.t); });
@@ -44,8 +72,15 @@ export function mountTreasury(root: HTMLElement): void {
       });
       const del = button("Löschen", "danger");
       del.addEventListener("click", () => { deleteTreasureAt(idx); render(); });
+
+      const metaRow = el("div", { class: "treasure-meta" },
+        el("span", { class: "tbadge" }, type),
+        el("span", { class: "tcount" }, `${nf(wc)} Wörter`),
+        el("span", { class: "tdate" }, it.d),
+        ...(ctxMeta ? [el("span", { class: "tctx" }, ctxMeta)] : []));
+
       list.append(el("div", { class: "treasure" },
-        el("div", { class: "treasure-meta" }, `${it.d}${meta ? "  ·  " + meta : ""}`),
+        metaRow,
         el("pre", { class: "out treasure-text" }, it.t),
         el("div", { class: "btnrow" }, take, copy, speak, del)));
     });
@@ -65,7 +100,12 @@ export function mountTreasury(root: HTMLElement): void {
     clearTreasury();
     render();
   });
-  wrap.append(el("h2", {}, "⭐ Schatzkammer"), el("div", { class: "btnrow" }, exportBtn, clearBtn), list);
+
+  wrap.append(
+    el("h2", {}, "⭐ Schatzkammer"),
+    overview,
+    el("div", { class: "btnrow" }, exportBtn, clearBtn),
+    list);
   root.append(wrap);
   render();
 }
