@@ -10,6 +10,36 @@ const DANGLING = new Set([
   "damit", "obwohl", "während", "sodass", "bevor", "nachdem", "falls", "wenngleich",
 ]);
 
+// Kopula/Hilfsverben und häufige finite Vollverbformen für die Verb-Kollisions-
+// Heuristik (zwei kollidierende finite Verben an einer Naht, z. B. "war er schon wartet").
+const AUX = new Set([
+  "bin","bist","ist","sind","seid","war","warst","waren","wart","hatte","hattest","hatten",
+  "hat","habe","hast","habt","haben","wurde","wurdest","wurden","wird","werde","werden","wäre","wärst","wären",
+]);
+const CONN = new Set([
+  "und","oder","aber","denn","sondern","doch","weil","dass","wenn","als","während","obwohl",
+  "damit","sodass","bevor","nachdem","ob","wie","wo","der","die","das","dem","den",
+]);
+
+/** Zählt Kollisionen: Kopula/Hilfsverb, dann in <=3 Tokens ein zweites finites
+ *  Vollverb ohne Konjunktion/Komma dazwischen. Bewusst eng (kein Fehlalarm bei
+ *  "sah ihn kommen": ausgelöst nur von Kopula/Hilfsverb, Ziel darf kein Partizip sein). */
+function verbCollisions(text: string): number {
+  const words = (text || "").split(/\s+/).filter(Boolean);
+  const norm = (w: string): string => w.toLowerCase().replace(/[^a-zäöüß]/g, "");
+  let hits = 0;
+  for (let i = 0; i < words.length; i++) {
+    if (!AUX.has(norm(words[i]!))) continue;
+    for (let j = i + 1; j <= Math.min(words.length - 1, i + 3); j++) {
+      const wj = norm(words[j]!);
+      if (CONN.has(wj) || /[,;:]/.test(words[j]!)) break;
+      const finite = /(t|te|ten|st)$/.test(wj) && wj.length >= 4 && !/^ge/.test(wj) && !AUX.has(wj);
+      if (finite) { hits++; break; }
+    }
+  }
+  return hits;
+}
+
 export interface GrammarReport { count: number; issues: string[] }
 
 /** Zählt heuristische Auffälligkeiten. Konservativ gehalten (lieber übersehen als falsch melden). */
@@ -36,6 +66,8 @@ export function grammarFlags(text: string): GrammarReport {
     if (m && DANGLING.has(m[1]!.toLowerCase())) dangling++;
   }
   add(dangling, "Satz endet auf Funktionswort");
+
+  add(verbCollisions(raw), "Verb-Kollision");
 
   return { count, issues };
 }

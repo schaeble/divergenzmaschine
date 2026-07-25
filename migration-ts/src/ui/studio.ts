@@ -18,7 +18,7 @@ import { THEMES, loadTheme, applyTheme, loadAccent, saveAccent, applyAccent } fr
 import { loadAiKey, saveAiKey, loadAiModel, saveAiModel } from "../features/ki";
 import { storageReport } from "../features/storage-status";
 import { loadFont, loadFontSize, saveFontPrefs, applyStoryFont } from "../features/fonts";
-import { runProbe, runRanking, runAiRanking, type Ranking } from "../generation/scoring";
+import { runProbe, runRanking, runAiRanking, bestOf, type Ranking } from "../generation/scoring";
 import { TONE_DATA } from "../generation/tone.data";
 import { liveTexts } from "../features/livepools";
 
@@ -202,7 +202,10 @@ export function mountStudio(root: HTMLElement): void {
   const readBtn = el("button", {}, icon("book"), " Lesen");
   const speakLbl = el("span", {}, "Vorlesen");
   const speakBtn = el("button", {}, icon("volume"), " ", speakLbl);
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, readBtn, speakBtn, lenRow), out, feedsRow, kling);
+  const bestChk = el("input", { type: "checkbox", id: "f-best" }) as HTMLInputElement;
+  bestChk.checked = true;
+  const bestLbl = el("label", { class: "chk", title: "Erzeugt bei jedem Klick 12 Kandidaten und zeigt den bestbewerteten (Längentreue, Wortvielfalt, Rhythmus, wenig Wiederholung, Grammatik, Abstand zur Schatzkammer)." }, bestChk, " Bestenauslese");
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, readBtn, speakBtn, lenRow, bestLbl), out, feedsRow, kling);
 
   // ── Test & Ranking ──
   let lastRanking: Ranking | null = null;
@@ -396,7 +399,9 @@ export function mountStudio(root: HTMLElement): void {
     const model = markov.value !== "off" ? buildModelFromCorpus(2) : undefined;
     const input = readInput();
     try {
-      out.textContent = buildStory(loadBank(), input, model);
+      out.textContent = bestChk.checked
+        ? bestOf(loadBank(), input, model, 12, { noveltyWeight: 0.5, grammarFilter: true }).txt
+        : buildStory(loadBank(), input, model);
       baseText = out.textContent || "";
       try { localStorage.setItem("dm_last_text", out.textContent || ""); } catch { /* voll */ }
       renderKling(input.form, out.textContent || "");

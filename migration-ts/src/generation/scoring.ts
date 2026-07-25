@@ -82,6 +82,23 @@ export function scoreText(txt: string, lenTarget: number): { score: number; a: T
   return { score, a };
 }
 
+/** Feld-freie Bestenauslese für den Generieren-Standardpfad: erzeugt N Kandidaten,
+ *  bewertet sie (Score + optional Novelty gegen die Schatzkammer + Grammatikfilter)
+ *  und liefert den besten Text — ohne Korpus-Selbstfütterung (die bleibt bei Merken/Ranking). */
+export function bestOf(bank: Bank, input: GenInput, model: MarkovModel | undefined, N = 12, opts: RankOptions = {}): { txt: string; score: number } {
+  const lt = input.lenTarget ?? 110;
+  const nw = Math.max(0, Math.min(1, opts.noveltyWeight ?? 0));
+  const ctx: NoveltyContext | null = nw > 0 ? buildNoveltyContext() : null;
+  let best: { txt: string; score: number } | null = null;
+  for (const txt of genN(bank, input, model, N)) {
+    let sc = scoreText(txt, lt).score;
+    if (ctx) sc += nw * (noveltyOf(txt, ctx) * 40) - nw * (cooldownHit(txt, ctx) * 30);
+    if (opts.grammarFilter) sc -= Math.min(grammarFlags(txt).count, 6) * 12;
+    if (!best || sc > best.score) best = { txt, score: sc };
+  }
+  return best ?? { txt: buildStory(bank, input, model), score: 0 };
+}
+
 function genN(bank: Bank, input: GenInput, model: MarkovModel | undefined, N: number): string[] {
   N = Math.max(1, Math.min(500, N | 0));
   const out: string[] = [];
