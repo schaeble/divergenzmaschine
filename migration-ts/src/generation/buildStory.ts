@@ -11,7 +11,7 @@ import { archetypeAugmentList } from "./archetype";
 import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "./wordcls";
 import { declineHookPhrase, safeCaseForm } from "./declension";
 import { applyDisruptor, applyRhythm, paragraphize, applyPerspective, pronominalize, guessPronoun } from "./shape";
-import { MarkovModel, isSaneMarkov } from "../corpus";
+import { MarkovModel, isSaneMarkov, smoothMarkov } from "../corpus";
 import { biasedAutoChoice } from "./autochoice";
 import { buildVideoSequenceText } from "./video";
 import { enforceWordTarget } from "./length";
@@ -56,7 +56,7 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
   const maybeMarkov = (fallback: string, prob = 0.42): string => {
     if (markovMode === "off" || !model) return fallback;
     if (markovMode === "on" || chance(prob)) {
-      const m = model.generate(14);
+      const m = smoothMarkov(model.generate(14));
       if (m && isSaneMarkov(m)) { traceMarkov(m); return m; }
     }
     return fallback;

@@ -2,7 +2,7 @@
 // Aus dem Original portiert; die Markov-Erweiterung nutzt das MarkovModel.
 import type { Bank } from "../types";
 import { clean, pick, ensurePunct, splitSentences } from "../text-utils";
-import { MarkovModel, isSaneMarkov } from "../corpus";
+import { MarkovModel, isSaneMarkov, smoothMarkov } from "../corpus";
 import { traceMarkov } from "./markovTrace";
 
 const count = (s: string): number => (s || "").trim().split(/\s+/).filter(Boolean).length;
@@ -43,8 +43,13 @@ export function enforceWordTarget(text: string, target: number, bank: Bank, mode
     if (model && (strong || Math.random() < 0.6)) {
       const tries = strong ? 3 : 1;
       for (let k = 0; k < tries; k++) {
-        const m = model.generate(Math.min(60, Math.max(20, Math.floor(missing * 0.8))));
-        if (m && isSaneMarkov(m) && m.length > 15) { traceMarkov(m); return { text: m, raw: false }; }
+        const m = smoothMarkov(model.generate(Math.min(60, Math.max(20, Math.floor(missing * 0.8)))));
+        if (m && isSaneMarkov(m) && m.length > 15) {
+          const key = m.toLowerCase();
+          if (!used.has(key) && !out.toLowerCase().includes(key.slice(0, 40))) {
+            used.add(key); traceMarkov(m); return { text: m, raw: false };
+          }
+        }
       }
     }
     const cands: string[] = [...(bank.motifs || []), ...(bank.turns || []), ...(bank.hooks || [])];

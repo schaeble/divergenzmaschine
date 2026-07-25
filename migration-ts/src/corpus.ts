@@ -121,7 +121,51 @@ export function isSaneMarkov(s: string): boolean {
 
   if (/\b(Schluss|Notiz|Rand)\s*—|\bSZENE:|dass\s*—|,\s*dass\s*$/i.test(s)) return false;
   if (/[—–]\s*$/.test(s.trim())) return false;
+
+  // Loop-Erkennung: dasselbe Inhaltswort in sehr kurzem Abstand deutet auf eine
+  // Markov-Schleife hin (z. B. "… bricht genau dort bricht …") -> verwerfen.
+  const lw = words.map((w) => w.toLowerCase().replace(/[^a-zäöüß]/g, ""));
+  for (let i = 0; i < lw.length; i++) {
+    if (lw[i]!.length < 5) continue;
+    for (let j = i + 1; j <= Math.min(lw.length - 1, i + 3); j++) {
+      if (lw[j] === lw[i]) return false;
+    }
+  }
   return true;
+}
+
+// Funktions-/Bindewörter, die am Ende eines Markov-Stücks "abgeschnitten" wirken.
+const MK_TAIL_STOP = new Set([
+  "und", "oder", "aber", "denn", "sondern", "doch", "wie", "als", "ob", "dass",
+  "weil", "während", "der", "die", "das", "den", "dem", "des", "ein", "eine",
+  "einen", "einem", "einer", "zu", "in", "auf", "an", "mit", "von", "aus", "vor",
+  "für", "bei", "nach", "über", "unter", "noch", "nur", "auch", "so", "dann", "genau",
+  "im", "am", "beim", "zum", "zur", "ins", "vom", "ans", "aufs", "fürs", "durchs", "übers", "ums",
+]);
+
+/** Glättet Markov-Rohausgabe: unmittelbare Wort-Dubletten zusammenfassen, hängende
+ *  Bindewörter kappen, sauberer Satzabschluss + Großschreibung. Nicht-destruktiv –
+ *  Schleifen werden von isSaneMarkov verworfen, hier wird nur aufgeräumt. */
+export function smoothMarkov(s: string): string {
+  let words = (s || "").trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "";
+  const norm = (w: string): string => w.toLowerCase().replace(/[^a-zäöüß]/g, "");
+  // 1) unmittelbare Dubletten ("der der" -> "der", "bricht bricht" -> "bricht")
+  const dedup: string[] = [];
+  for (const w of words) {
+    const prev = dedup[dedup.length - 1];
+    if (prev && norm(prev) && norm(prev) === norm(w)) continue;
+    dedup.push(w);
+  }
+  words = dedup;
+  // 2) hängende Funktions-/Bindewörter am Ende entfernen
+  while (words.length > 3 && MK_TAIL_STOP.has(norm(words[words.length - 1]!))) words.pop();
+  let t = words.join(" ").replace(/\s+([,.;:!?…])/g, "$1").trim();
+  // 3) sauberer Abschluss + Großschreibung
+  t = t.replace(/[\s,;:—–-]+$/, "");
+  if (t && !/[.!?…]$/.test(t)) t += ".";
+  t = t.replace(/^([a-zäöüß])/, (c) => c.toUpperCase());
+  return t;
 }
 
 /**
