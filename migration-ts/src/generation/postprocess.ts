@@ -5,6 +5,7 @@ import type { GenInput } from "../types";
 import { escapeRegExp, splitSentences, pick } from "../text-utils";
 import { coherenceWords } from "./nlp";
 import { TONE_DATA } from "./tone.data";
+import { applyToneRegister } from "./tone.shape";
 import { insertToneFlavor } from "./beats";
 import { polishGerman } from "./polish";
 
@@ -157,6 +158,8 @@ export function postProcessText(txt: string, input?: Input): string {
       const inserts = Math.min(3, Math.max(1, Math.round(wc / 90)));
       for (let i = 0; i < inserts; i++) t = insertToneFlavor(t, pick(td.flavor));
     }
+    // Register-Nachlauf: Ton formt auch die Satzmuster (nüchtern flach, ironisch trocken).
+    t = applyToneRegister(t, input.tone);
   }
 
   // Sprachschliff (nur wenn aktiv): regelbasierte Grammatik-/Zeichen-Glättung.

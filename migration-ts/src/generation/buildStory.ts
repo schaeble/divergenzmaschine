@@ -8,6 +8,7 @@ import { pickStructureBuilder } from "./structures";
 import { looksLikeClausePhrase, weaveCast } from "./beats";
 import { resetMarkovTrace, traceMarkov } from "./markovTrace";
 import { markovSeenRecently, noteMarkov } from "./cooldown";
+import { toneRhythm } from "./tone.shape";
 import { archetypeAugmentList } from "./archetype";
 import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "./wordcls";
 import { declineHookPhrase, safeCaseForm } from "./declension";
@@ -38,7 +39,10 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
   // damit Prosa fließend bleibt. Explizit gewählt bleibt Fragment erhalten.
   if (input.structure === "auto" && structure === "fragment") structure = pick(["linear", "reverse", "circle", "object"]);
   const perspective = input.perspective === "auto" ? (biasedAutoChoice("perspective", archA, archB) || pick(PERSPECTIVES)) : input.perspective;
-  const rhythm = resBiased(input.rhythm, "rhythm", RHYTHMS, archA, archB);
+  let rhythm = resBiased(input.rhythm, "rhythm", RHYTHMS, archA, archB);
+  // Ton gewichtet das Satzlängen-Profil mit: bei Rhythmus "Auto" bevorzugt den
+  // ton-typischen Rhythmus (nüchtern -> klar, poetisch -> Atem, düster -> Fraktur …).
+  if (input.rhythm === "auto") { const tr = toneRhythm(input.tone); if (tr && RHYTHMS.includes(tr) && chance(0.7)) rhythm = tr; }
 
   const W = clean(input.where) || "an einem Ort";
   const T = clean(input.when) || "zu einer Zeit";

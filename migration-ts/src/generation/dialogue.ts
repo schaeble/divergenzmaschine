@@ -76,6 +76,34 @@ export function makeDialogueScene(kit: StoryKit, lenTarget = 110): string {
     },
   };
 
+  // Haltungen: jede Figur bekommt eine eigene Grundhaltung mit eigenen Zeilen,
+  // damit der Mittelteil nicht austauschbar wird (glauben vs zweifeln vs abwehren).
+  const STANCE_LINES: Record<string, Pool> = {
+    glauben: {
+      setup: ["Ich weiß, was ich gesehen habe.", "Es war genau so.", "Hör mir zu, es stimmt.", "Ich habe keinen Zweifel.", "Das ist die Wahrheit, ob du willst oder nicht."],
+      conflict: ["Es ist trotzdem wahr.", "Ich bleibe dabei.", "Du musst mir das glauben.", "Ich habe es selbst erlebt.", "Daran ändert dein Zweifel nichts."],
+      twist: ["Also hatte ich recht.", "Dann bestätigt es sich.", "Ich wusste es die ganze Zeit.", "Genau das habe ich gesagt.", "Siehst du — es stimmt."],
+      fallout: ["Ich stehe dazu.", "Es bleibt wahr.", "Ich bereue kein Wort.", "So war es, so bleibt es."],
+    },
+    zweifeln: {
+      setup: ["Woher willst du das wissen?", "Bist du sicher?", "Das klingt zu einfach.", "Kann das überhaupt stimmen?", "Ich glaube nichts ohne Beweis."],
+      conflict: ["Das kann nicht stimmen.", "Beweis es mir.", "Da fehlt etwas.", "Warum sollte ich dir glauben?", "Deine Geschichte hat Löcher."],
+      twist: ["Vielleicht hatte ich unrecht.", "Oder es ist ganz anders.", "Und wenn es doch stimmt?", "Jetzt zweifle ich an meinem Zweifel."],
+      fallout: ["Ich bin noch nicht überzeugt.", "Sicher bin ich trotzdem nicht.", "Vielleicht. Vielleicht auch nicht.", "Ich behalte meine Fragen."],
+    },
+    abwehren: {
+      setup: ["Muss das jetzt sein?", "Lass uns nicht darüber reden.", "Das geht dich nichts an.", "Ich will das nicht.", "Es ist nicht so wichtig."],
+      conflict: ["Das führt zu nichts.", "Hör auf zu bohren.", "Ich habe nichts gesagt.", "Lenk nicht ab.", "Reden wir über etwas anderes."],
+      twist: ["Es ist zu spät dafür.", "Jetzt ist es sowieso egal.", "Ich hätte schweigen sollen.", "Vergiss, was ich gesagt habe."],
+      fallout: ["Es ist erledigt.", "Reden wir nicht mehr davon.", "Vergessen wir das.", "Genug jetzt."],
+    },
+  };
+
+  // Haltungen den Figuren zuweisen (kontrastierend, pro Szene gemischt).
+  const STANCES = ["glauben", "zweifeln", "abwehren"];
+  for (let k = STANCES.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [STANCES[k], STANCES[j]] = [STANCES[j]!, STANCES[k]!]; }
+  const stanceOf = (castIdx: number): string => STANCES[castIdx % STANCES.length]!;
+
   const capFirst = (s: string): string => { s = String(s || "").trim(); return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; };
   const stripLead = (s: string): string => String(s || "").replace(/^(und|dann|aber|denn|so|doch)\s+/i, "").trim();
   const topic = clean(kit.motif || kit.W || "").replace(/[.!?…]+$/, "");
@@ -90,9 +118,11 @@ export function makeDialogueScene(kit: StoryKit, lenTarget = 110): string {
 
   const usedRaw = new Set<string>();
   let prevRaw = "";
-  const pickLine = (archetype: string, phase: 0 | 1 | 2 | 3): string => {
-    const P = POOLS[archetype] || POOLS.neutral!;
+  const pickLine = (stance: string, archetype: string, phase: 0 | 1 | 2 | 3): string => {
     const key: PoolKey = phase === 0 ? "setup" : phase === 1 ? "conflict" : phase === 2 ? "twist" : "fallout";
+    // Primaer die Haltung; bei ausgepraegtem Archetyp gelegentlich dessen Wuerze.
+    const useArch = archetype !== "neutral" && chance(0.4);
+    const P = useArch ? (POOLS[archetype] || POOLS.neutral!) : (STANCE_LINES[stance] || POOLS.neutral!);
     const arr = P[key] || [];
     if (!arr.length) return "…";
     const fresh = arr.filter((l) => l !== prevRaw && !usedRaw.has(l));
@@ -143,10 +173,11 @@ export function makeDialogueScene(kit: StoryKit, lenTarget = 110): string {
   const out: string[] = [`SZENE: ${kit.W}, ${kit.T}.`];
   for (let i = 0; i < rounds; i++) {
     const isA = i % 2 === 0;
-    const speaker = cast[i % cast.length]!;
+    const ci = i % cast.length;
+    const speaker = cast[ci]!;
     const arch = isA ? aId : bId;
     const ph = phaseFor(i);
-    let line = injectBeat(i) ?? pickLine(arch, ph);
+    let line = injectBeat(i) ?? pickLine(stanceOf(ci), arch, ph);
     line = ensurePunct(line);
     line = applyInstability(line, arch, ph);
     line = cleanDialogLine(line);
