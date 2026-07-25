@@ -4,6 +4,7 @@ import type { Bank } from "../types";
 import { clean, pick, ensurePunct, splitSentences } from "../text-utils";
 import { MarkovModel, isSaneMarkov, smoothMarkov } from "../corpus";
 import { traceMarkov } from "./markovTrace";
+import { markovSeenRecently, noteMarkov } from "./cooldown";
 
 const count = (s: string): number => (s || "").trim().split(/\s+/).filter(Boolean).length;
 
@@ -44,10 +45,10 @@ export function enforceWordTarget(text: string, target: number, bank: Bank, mode
       const tries = strong ? 3 : 1;
       for (let k = 0; k < tries; k++) {
         const m = smoothMarkov(model.generate(Math.min(60, Math.max(20, Math.floor(missing * 0.8)))));
-        if (m && isSaneMarkov(m) && m.length > 15) {
+        if (m && isSaneMarkov(m) && m.length > 15 && !markovSeenRecently(m)) {
           const key = m.toLowerCase();
           if (!used.has(key) && !out.toLowerCase().includes(key.slice(0, 40))) {
-            used.add(key); traceMarkov(m); return { text: m, raw: false };
+            used.add(key); noteMarkov(m); traceMarkov(m); return { text: m, raw: false };
           }
         }
       }

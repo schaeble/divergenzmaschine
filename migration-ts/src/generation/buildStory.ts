@@ -7,6 +7,7 @@ import { postProcessText } from "./postprocess";
 import { pickStructureBuilder } from "./structures";
 import { looksLikeClausePhrase, weaveCast } from "./beats";
 import { resetMarkovTrace, traceMarkov } from "./markovTrace";
+import { markovSeenRecently, noteMarkov } from "./cooldown";
 import { archetypeAugmentList } from "./archetype";
 import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "./wordcls";
 import { declineHookPhrase, safeCaseForm } from "./declension";
@@ -57,7 +58,7 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
     if (markovMode === "off" || !model) return fallback;
     if (markovMode === "on" || chance(prob)) {
       const m = smoothMarkov(model.generate(14));
-      if (m && isSaneMarkov(m)) { traceMarkov(m); return m; }
+      if (m && isSaneMarkov(m) && !markovSeenRecently(m)) { noteMarkov(m); traceMarkov(m); return m; }
     }
     return fallback;
   };

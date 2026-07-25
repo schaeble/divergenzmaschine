@@ -1,5 +1,6 @@
 // Textbau-Helfer für die Struktur-Builder und die Ton-Einschübe.
 import { clean, pick, chance, ensurePunct, escapeRegExp, splitSentences } from "../text-utils";
+import { pickFreshIndex } from "./cooldown";
 
 export function cap(s: string): string {
   s = (s ?? "").toString();
@@ -12,7 +13,7 @@ export function isFragmentSentence(s: string): boolean {
 }
 
 /** Heuristik: ist die Phrase ein ganzer Satz (statt einer Nominalphrase)? */
-const CLAUSE_VERBS = new Set(["antworten","antwortet","atmen","atmet","bebt","begann","beginnen","beginnt","beobachten","beobachtet","berühren","berührt","bin","bist","bleiben","bleibt","blieb","blitzt","brannte","brennen","brennt","brummt","brüllen","brüllt","dachte","darf","denken","denkt","donnert","drehen","dreht","drehte","durfte","dürfen","enden","endet","endete","erinnern","erinnert","fahren","fallen","fand","fiel","fielen","finden","findet","fliegen","fliegt","fliehen","flieht","fließen","fließt","flog","floss","flüstern","flüstert","folgen","folgt","folgte","formen","formt","fragen","fragt","fragte","fuhr","fährt","fällt","fühlen","fühlt","führen","führt","führte","fürchten","fürchtet","gab","gaben","galt","geben","gehen","geht","gelten","geschah","geschehen","geschieht","gibt","gilt","ging","gingen","glauben","glaubt","haben","habt","halten","hat","hatte","hatten","hielt","hielten","hoffen","hofft","hält","hätte","hören","hört","hörte","ist","jagen","jagt","kam","kamen","kann","kannte","kennen","kennt","kippen","kippt","knistert","kommen","kommt","konnte","konnten","kreisen","kreist","können","lachen","lacht","lag","lagen","laufen","leuchten","leuchtet","lief","liefen","liegen","liegt","läuft","löschen","löscht","machen","macht","machte","machten","mag","muss","musste","mussten","möchte","möchten","mögen","müssen","nahm","nahmen","nehmen","nimmt","passieren","passiert","passierte","planen","plant","pulsiert","raschelt","reagieren","reagiert","regnet","retten","rettet","rief","rinnt","riskiert","rufen","ruft","sah","sahen","sang","sank","saß","schlafen","schlief","schließen","schließt","schloss","schläft","schmelzen","schmilzt","schneit","schreien","schreit","schrie","schweigen","schweigt","schwieg","sehen","seid","sieht","sind","singen","singt","sinken","sinkt","sitzen","sitzt","soll","sollen","sollte","sprach","sprachen","sprang","sprechen","spricht","springen","springt","stand","standen","stehen","steht","steigen","steigt","stieg","suchen","sucht","suchte","summt","tanzen","tanzt","tat","taten","ticken","tickt","tragen","tropft","trug","trugen","trägt","träumen","träumt","tun","tut","unterschreiben","unterschreibt","verfolgen","verfolgt","vergessen","vergisst","verlangen","verlangt","verraten","verrät","verändern","verändert","vibriert","wachsen","wagen","wagt","wandern","wandert","war","waren","warten","wartet","wartete","wechseln","wechselt","weigern","weigert","weinen","weint","weiß","werden","werdet","wiederholen","wiederholt","will","wird","wirst","wissen","wollen","wollte","wollten","wurde","wurden","wusste","wächst","wäre","wären","würde","würden","zeigen","zeigt","zeigte","zerbrechen","zerbricht","ziehen","zieht","zittern","zittert","zog","zogen","öffnen","öffnet","überschreiben","überschreibt"]);
+export const CLAUSE_VERBS = new Set(["antworten","antwortet","atmen","atmet","bebt","begann","beginnen","beginnt","beobachten","beobachtet","berühren","berührt","bin","bist","bleiben","bleibt","blieb","blitzt","brannte","brennen","brennt","brummt","brüllen","brüllt","dachte","darf","denken","denkt","donnert","drehen","dreht","drehte","durfte","dürfen","enden","endet","endete","erinnern","erinnert","fahren","fallen","fand","fiel","fielen","finden","findet","fliegen","fliegt","fliehen","flieht","fließen","fließt","flog","floss","flüstern","flüstert","folgen","folgt","folgte","formen","formt","fragen","fragt","fragte","fuhr","fährt","fällt","fühlen","fühlt","führen","führt","führte","fürchten","fürchtet","gab","gaben","galt","geben","gehen","geht","gelten","geschah","geschehen","geschieht","gibt","gilt","ging","gingen","glauben","glaubt","haben","habt","halten","hat","hatte","hatten","hielt","hielten","hoffen","hofft","hält","hätte","hören","hört","hörte","ist","jagen","jagt","kam","kamen","kann","kannte","kennen","kennt","kippen","kippt","knistert","kommen","kommt","konnte","konnten","kreisen","kreist","können","lachen","lacht","lag","lagen","laufen","leuchten","leuchtet","lief","liefen","liegen","liegt","läuft","löschen","löscht","machen","macht","machte","machten","mag","muss","musste","mussten","möchte","möchten","mögen","müssen","nahm","nahmen","nehmen","nimmt","passieren","passiert","passierte","planen","plant","pulsiert","raschelt","reagieren","reagiert","regnet","retten","rettet","rief","rinnt","riskiert","rufen","ruft","sah","sahen","sang","sank","saß","schlafen","schlief","schließen","schließt","schloss","schläft","schmelzen","schmilzt","schneit","schreien","schreit","schrie","schweigen","schweigt","schwieg","sehen","seid","sieht","sind","singen","singt","sinken","sinkt","sitzen","sitzt","soll","sollen","sollte","sprach","sprachen","sprang","sprechen","spricht","springen","springt","stand","standen","stehen","steht","steigen","steigt","stieg","suchen","sucht","suchte","summt","tanzen","tanzt","tat","taten","ticken","tickt","tragen","tropft","trug","trugen","trägt","träumen","träumt","tun","tut","unterschreiben","unterschreibt","verfolgen","verfolgt","vergessen","vergisst","verlangen","verlangt","verraten","verrät","verändern","verändert","vibriert","wachsen","wagen","wagt","wandern","wandert","war","waren","warten","wartet","wartete","wechseln","wechselt","weigern","weigert","weinen","weint","weiß","werden","werdet","wiederholen","wiederholt","will","wird","wirst","wissen","wollen","wollte","wollten","wurde","wurden","wusste","wächst","wäre","wären","würde","würden","zeigen","zeigt","zeigte","zerbrechen","zerbricht","ziehen","zieht","zittern","zittert","zog","zogen","öffnen","öffnet","überschreiben","überschreibt"]);
 const CLAUSE_STOP = new Set([
   "der","die","das","den","dem","des","ein","eine","einen","einem","einer","eines",
   "kein","keine","keinen","keinem","keiner","mein","meine","meinen","dein","deine","sein","seine","seinen","ihr","ihre","ihren","unser","unsere","euer","eure",
@@ -92,24 +93,31 @@ export function joinBeats(beats: string[], P: string): string {
 
 export function frameTurn(turn: string): string {
   const t = clean(turn).replace(/[.!?…]+$/, "");
-  return pick([
+  const frames = [
     `Dann kippt es: ${t}.`,
     `Dann kippt es — ${t}.`,
     `Es braucht nur einen Atemzug, und ${t}.`,
     `Erst ein Riss, kaum merklich, und ${t}.`,
-  ]);
+    `Und dann, ohne Vorwarnung: ${t}.`,
+    `Etwas gibt nach — ${t}.`,
+    `Kaum ausgesprochen, ${t}.`,
+    `Dann, unvermittelt: ${t}.`,
+  ];
+  return frames[pickFreshIndex("frameTurn", frames.length)]!;
 }
 
 export function reframeStake(stake: string): string {
   const m = /^Der Einsatz ist\s+(.+?)[.!?…]*$/i.exec(clean(stake));
   if (!m) return stake;
   const core = m[1]!;
-  const frames = [`Der Einsatz ist ${core}.`, `Es geht um ${core}.`];
+  const frames = [`Der Einsatz ist ${core}.`, `Es geht um ${core}.`, `Alles dreht sich um ${core}.`, `Was zählt, ist ${core}.`];
   if (!/[:,]/.test(core)) {
     frames.push(`Auf dem Spiel steht ${core}.`);
     frames.push(`${cap(core)} steht auf dem Spiel.`);
+    frames.push(`Am Ende bleibt nur ${core}.`);
+    frames.push(`Verlieren hieße: ${core}.`);
   }
-  return pick(frames);
+  return frames[pickFreshIndex("stake", frames.length)]!;
 }
 
 export function weaveMotif(text: string, motif: string): string {

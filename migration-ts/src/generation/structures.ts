@@ -2,13 +2,16 @@
 import type { StoryKit } from "../types";
 import { pick, ensurePunct } from "../text-utils";
 import { joinBeats, frameTurn, reframeStake, weaveMotif, randomFragmentTime, cap } from "./beats";
+import { pickFreshIndex } from "./cooldown";
 
 type Builder = (kit: StoryKit) => string;
+
+const rot = <T>(key: string, arr: T[]): T => arr[pickFreshIndex(key, arr.length)]!;
 
 export function buildLinear(kit: StoryKit): string {
   const M = kit.mode;
   // Opener-Varianten (alle mit ${hookAcc} im Akkusativ-Slot, damit die Grammatik stimmt).
-  const opener = pick([
+  const opener = rot("lin.opener", [
     `${kit.T} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.`,
     `${kit.T} ${kit.W} findet ${kit.P} ${kit.hookAcc}.`,
     `${kit.P} sieht ${kit.hookAcc} — ${kit.T}, ${kit.W}.`,
@@ -16,26 +19,26 @@ export function buildLinear(kit: StoryKit): string {
     `${kit.T} ${kit.W}. ${kit.P} hält ${kit.hookAcc} fest.`,
   ]);
   const goal = kit.AisClause
-    ? pick([
+    ? rot("lin.goalC", [
         `${kit.P} stellt fest: ${kit.Apure} — aber ${kit.obstacle}.`,
         `${kit.P} begreift: ${kit.Apure}. Doch ${kit.obstacle}.`,
         `Klar wird: ${kit.Apure}. Nur ${kit.obstacle}.`,
       ])
-    : pick([
+    : rot("lin.goal", [
         `${kit.P} ${kit.AleadVerb || "will"} ${kit.Apure}, aber ${kit.obstacle}.`,
         `${kit.P} ${kit.AleadVerb || "will"} ${kit.Apure} — ${kit.obstacle}.`,
         `Was ${kit.P} ${kit.AleadVerb || "will"}: ${kit.Apure}. Was im Weg steht: ${kit.obstacle}.`,
       ]);
-  const action = pick([
+  const action = rot("lin.action", [
     `${kit.P} nimmt ${kit.propAcc} und ${pick(["tritt näher", "fragt nach", "hält den Blick aus", "öffnet, was verschlossen war", "bleibt stehen"])}.`,
     `${kit.P} hält ${kit.propAcc} und ${pick(["zögert", "atmet durch", "macht den ersten Schritt", "hört auf zu zählen"])}.`,
     `${kit.P} greift nach dem, was bleibt, und ${pick(["wartet", "horcht", "rechnet", "beginnt"])}.`,
     `${kit.P} legt ${kit.propAcc} beiseite und ${pick(["sieht auf", "sagt es doch", "dreht sich um", "bleibt"])}.`,
   ]);
   const modeSpice = pick([
-    `Es riecht ${pick(M.images)}. ${pick(M.rules)}`,
-    `${pick(M.rules)} Es riecht ${pick(M.images)}.`,
-    `Irgendwo ${pick(M.images)}. ${pick(M.rules)}`,
+    `Es riecht ${rot("mode.img", M.images)}. ${rot("mode.rule", M.rules)}`,
+    `${rot("mode.rule", M.rules)} Es riecht ${rot("mode.img", M.images)}.`,
+    `Irgendwo ${rot("mode.img", M.images)}. ${rot("mode.rule", M.rules)}`,
   ]);
   const beats = [opener, modeSpice, goal, action, frameTurn(kit.turn), reframeStake(kit.stake), kit.ending];
   // gelegentlich ein zusaetzlicher Sinneseindruck zwischen Ziel und Wende
@@ -49,21 +52,21 @@ export function buildReverse(kit: StoryKit): string {
   const reveal = `Du erfährst erst später: ${kit.motif} — das war der Anfang.`;
   const before = `${kit.P} hatte ${kit.propAcc} schon in der Hand, denn ${kit.obstacle}.`;
   const inciting = `${kit.T} ${kit.W}: ${kit.hook}.`;
-  const rule = `${pick(M.rules)} Es riecht ${pick(M.images)}.`;
+  const rule = `${rot("mode.rule", M.rules)} Es riecht ${rot("mode.img", M.images)}.`;
   const turn = `Und dann, rückwärts betrachtet: ${kit.turn}.`;
   return joinBeats([end, reveal, reframeStake(kit.stake), turn, before, rule, inciting], kit.P);
 }
 
 export function buildCircle(kit: StoryKit): string {
   const M = kit.mode;
-  const a = pick([
+  const a = rot("circ.a", [
     `${kit.T} ${kit.W} steht ${kit.P} vor ${kit.hookDat}.`,
     `${kit.T} ${kit.W}: wieder ${kit.hookDat} gegenüber steht ${kit.P}.`,
     `Am Anfang steht ${kit.P} vor ${kit.hookDat}. ${kit.T}, ${kit.W}.`,
   ]);
   const b = (kit.AisClause || kit.AisInfinitiveLed)
-    ? `${kit.P} bemerkt: ${kit.Apure}. ${pick(M.rules)}`
-    : `${kit.P} ${kit.AleadVerb || "sucht"} ${kit.Apure}. ${pick(M.rules)}`;
+    ? `${kit.P} bemerkt: ${kit.Apure}. ${rot("mode.rule", M.rules)}`
+    : `${kit.P} ${kit.AleadVerb || "sucht"} ${kit.Apure}. ${rot("mode.rule", M.rules)}`;
   const c = `Die Dinge werden ${pick(["fremd", "zu klar", "unruhig", "präzise"])}, denn ${kit.obstacle}.`;
   let t = joinBeats([a, b, c, frameTurn(kit.turn), reframeStake(kit.stake), kit.ending], kit.P);
   t = weaveMotif(t, kit.motif);
@@ -81,8 +84,8 @@ export function buildFragment(kit: StoryKit): string {
     cap(ensurePunct(kit.obstacle)),
     cap(frameTurn(kit.turn)),
     cap(ensurePunct(`${kit.P} hält ${kit.propAcc}`)),
-    cap(ensurePunct(pick(M.rules))),
-    cap(ensurePunct(`Es riecht ${pick(M.images)}`)),
+    cap(ensurePunct(rot("mode.rule", M.rules))),
+    cap(ensurePunct(`Es riecht ${rot("mode.img", M.images)}`)),
     cap(reframeStake(kit.stake)),
     cap(ensurePunct(kit.ending)),
   ];
@@ -116,7 +119,7 @@ export function buildObjectCentric(kit: StoryKit): string {
   const a = `Ich bin ${obj}. Ich liege ${kit.W}.`;
   const b = `Ich kenne ${P}. Ich kenne ${kit.hookAcc}.`;
   const c = `Sie nennen es ${pick(["Fehler", "Vorgang", "Omen", "Signal", "Symptom", "Protokoll", "Zufall", "Nichts"])}. Ich nenne es ${pick(["Erinnerung", "Beweis", "Anfang", "Schuld"])}.`;
-  const d = ensurePunct(pick(M.rules));
+  const d = ensurePunct(rot("mode.rule", M.rules));
   const e = kit.AisClause
     ? `${P} spürt: ${kit.Apure}. ${kit.obstacle}.`
     : `${P} ${kit.AleadVerb || "will"} ${kit.Apure}. ${kit.obstacle}.`;

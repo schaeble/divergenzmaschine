@@ -25,9 +25,18 @@ function haikuCandidatesFromPhrases(phrases: string[]): Cand[] {
   return out;
 }
 
+
+// Funktionswoerter nicht mitten in der Zeile grossschreiben ("Nur Die Zeit" -> "Nur die Zeit").
+const HAIKU_LC = new Set(["die","der","das","den","dem","des","ein","eine","einen","einem","einer","und","oder","aber","im","in","auf","an","mit","von","zu","zur","zum","als","wie","nur","noch","auch","so","dann","doch","ohne","bei","aus"]);
+function fixHaikuCaps(line: string): string {
+  return String(line).split(/\s+/).map((w, i) => (i > 0 && HAIKU_LC.has(w.toLowerCase()) ? w.toLowerCase() : w)).join(" ");
+}
+
 export function applyHaikuPoem(rawText: string, anchorLine = ""): string {
   const opts = HAIKU_DEFAULTS;
   let t = normalizeNewlines(rawText || "").trim().replace(/\([^()]*\)/g, " ")
+    .replace(/[„“”"»«]/g, " ")                                   // keine Anfuehrungszeichen im Haiku
+    .replace(/\b(den|dem|einen|einem|der|die|das)\s+Satz\b/gi, " ")  // Zitat-Traeger "den Satz …" entfernen
     .replace(/\bShot\s*\d+\b.*$/gim, "").replace(/\b\d{1,2}\s*:\s*\d{2}\b\s*—\s*/g, "").replace(/\s+/g, " ").trim();
   let phrases: string[] = [];
   for (const s of splitSentences(t)) phrases.push(...String(s).split(/[,;:—–]\s*/g).map((p) => p.trim()).filter(Boolean));
@@ -70,9 +79,9 @@ export function applyHaikuPoem(rawText: string, anchorLine = ""): string {
     let l2 = fromMaterial(t2) || fromBank(HAIKU_NATURE7, t2) || greedyLine(t2);
     const l3 = fromMaterial(t3) || fromBank(HAIKU_CLOSERS, t3) || greedyLine(t3);
     if (chance(0.7)) l2 += " –";
-    haikus.push([cap(capLine(l1)), cap(capLine(l2)), cap(capLine(l3))]);
+    haikus.push([fixHaikuCaps(cap(capLine(l1))), fixHaikuCaps(cap(capLine(l2))), fixHaikuCaps(cap(capLine(l3)))]);
     if (cands.length < 4) break;
   }
   if (!haikus.length) haikus.push(["Stille bleibt hier", "ohne jede klare Antwort", "und ohne die Zeit"]);
-  return normalizeNewlines(haikus.map((h) => h.join("\n")).join("\n\n")).replace(/\n{3,}/g, "\n\n").trim();
+  return normalizeNewlines(haikus.map((h) => h.join("\n")).join("\n\n")).replace(/[„“”"»«]/g, "").replace(/\n{3,}/g, "\n\n").trim();
 }

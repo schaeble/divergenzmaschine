@@ -8,6 +8,7 @@
 import { STORAGE_CORPUS, CORPUS_MAX } from "./constants";
 import { clean } from "./text-utils";
 import { safeSet } from "./features/storage-status";
+import { CLAUSE_VERBS } from "./generation/beats";
 import { feedLivePools, LIVE_W } from "./features/livepools";
 
 export function loadPersistentCorpus(): string {
@@ -121,6 +122,22 @@ export function isSaneMarkov(s: string): boolean {
 
   if (/\b(Schluss|Notiz|Rand)\s*—|\bSZENE:|dass\s*—|,\s*dass\s*$/i.test(s)) return false;
   if (/[—–]\s*$/.test(s.trim())) return false;
+
+  // Naht-Bruch: Kopula/Hilfsverb + zweites finites Vollverb in kurzem Abstand ohne
+  // Konjunktion/Komma (z. B. "… war er schon wartet") -> verwerfen. Bewusst nur von
+  // Kopula/Hilfsverb ausgelöst, damit "sah ihn kommen" (Wahrnehmung+Infinitiv) bleibt.
+  const AUX_MK = new Set(["bin","bist","ist","sind","seid","war","warst","waren","wart","hatte","hattest","hatten","hat","habe","hast","habt","haben","wurde","wurdest","wurden","wird","werde","werden","wäre","wärst","wären"]);
+  const CONN_MK = new Set(["und","oder","aber","denn","sondern","doch","weil","dass","wenn","als","während","obwohl","damit","sodass","bevor","nachdem","ob","wie","wo","der","die","das","dem","den"]);
+  for (let i = 0; i < words.length; i++) {
+    const wi = words[i]!.toLowerCase().replace(/[^a-zäöüß]/g, "");
+    if (!AUX_MK.has(wi)) continue;
+    for (let j = i + 1; j <= Math.min(words.length - 1, i + 3); j++) {
+      const wj = words[j]!.toLowerCase().replace(/[^a-zäöüß]/g, "");
+      if (CONN_MK.has(wj) || /[,;:]/.test(words[j]!)) break;              // Nebensatz/Aufzählung ok
+      const finite = /(t|te|ten|st)$/.test(wj) && CLAUSE_VERBS.has(wj) && !/^ge/.test(wj) && !AUX_MK.has(wj);
+      if (finite) return false;
+    }
+  }
 
   // Loop-Erkennung: dasselbe Inhaltswort in sehr kurzem Abstand deutet auf eine
   // Markov-Schleife hin (z. B. "… bricht genau dort bricht …") -> verwerfen.
