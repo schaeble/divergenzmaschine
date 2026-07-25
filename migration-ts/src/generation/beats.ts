@@ -147,3 +147,58 @@ export function insertToneFlavor(text: string, line: string): string {
   paras[target] = sentences.join(" ");
   return paras.join("\n\n");
 }
+
+/** Webt weitere in "Wer" genannte Personen (Komma-getrennt) als Ensemble-Beats
+ *  in eine fertige Prosa ein. cast[0] ist die Hauptfigur (P), der Rest taucht
+ *  mit eigenen kleinen Handlungen auf. Alle Namens-Verwendungen stehen bewusst
+ *  im Nominativ-Subjektslot (keine Genitiv-/Dativ-Fallen), damit sowohl echte
+ *  Namen ("Jonas") als auch Beschreibungen ("die Ärztin") grammatisch passen. */
+export function weaveCast(text: string, _P: string, cast: string[]): string {
+  const others = (cast || []).slice(1).map((c) => clean(c)).filter(Boolean);
+  if (!others.length) return text;
+  // Nur einen etwaigen nachgestellten Relativsatz nach dem Komma abschneiden
+  // ("Mara, die schweigt" -> "Mara"); Artikel-Beschreibungen bleiben ganz.
+  const nm = (n: string): string => (n.split(",")[0] || n).trim();
+
+  const soloVerbs = ["steht daneben und schweigt", "wartet", "sieht zu", "zögert", "sagt nichts", "nickt kaum", "atmet flach", "tritt einen Schritt zurück", "hält sich zurück"];
+  const soloWants = ["das Gegenteil", "mehr", "weg", "bleiben", "die Wahrheit", "nichts davon"];
+
+  const beats: string[] = [];
+  // Bis zu zwei Personen bekommen je einen eigenen Beat (verschiedene Namen).
+  others.slice(0, 2).map(nm).forEach((who) => {
+    beats.push(chance(0.5) ? `${who} ${pick(soloVerbs)}.` : `${who} will ${pick(soloWants)}.`);
+  });
+  // Ein namenfreier Beziehungs-Beat (immer grammatisch sicher).
+  if (chance(0.7)) {
+    beats.push(pick([
+      `Keiner von ihnen ${pick(["spricht zuerst", "weicht aus", "sagt es laut"])}.`,
+      `Zwischen ihnen ${pick(["bleibt ein Satz offen", "spannt sich die Luft", "steht etwas Ungesagtes"])}.`,
+    ]));
+  }
+  // Dritte und weitere Personen als Gruppenzeile (Numerus des Verbs beachten).
+  const rest = others.slice(2).map(nm);
+  if (rest.length) {
+    const grp = rest.length === 1 ? rest[0]! : rest.slice(0, -1).join(", ") + " und " + rest[rest.length - 1]!;
+    const v = rest.length === 1
+      ? pick(["ist dabei", "kommt dazu", "hält sich zurück"])
+      : pick(["sind dabei", "kommen dazu", "halten sich zurück"]);
+    beats.push(`Auch ${grp} ${v}.`);
+  }
+
+  // Reihenfolge mischen, damit nicht immer dieselbe Person zuerst kommt.
+  for (let i = beats.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [beats[i], beats[j]] = [beats[j]!, beats[i]!];
+  }
+
+  // An gute Positionen in den Satzfluss einfügen (wie weaveMotif).
+  const sent = splitSentences(text);
+  for (const b of beats) {
+    const line = ensurePunct(cap(clean(b)));
+    if (sent.length < 2) { sent.push(line); continue; }
+    let pos = chooseInsertPos(sent);
+    if (pos < 0) pos = Math.min(sent.length, Math.max(1, Math.floor(sent.length * 0.5)));
+    sent.splice(pos, 0, line);
+  }
+  return sent.join(" ");
+}

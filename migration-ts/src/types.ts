@@ -63,6 +63,7 @@ export interface StoryKit {
   prop: string; propAcc: string; propDat: string;
   turn: string; obstacle: string; stake: string; ending: string;
   speakerA: string; speakerB: string; speakers: string[];
+  cast: string[]; // tatsaechlich in "Wer" genannte Personen (Komma-getrennt), fuer Prosa-Ensemble
   mode: ModeData; archetypeA: string; archetypeB: string; instability: Instability;
   // Struktur-relevante Felder (aus dem "Was passiert" abgeleitet)
   Apure: string; AleadVerb: string; AisClause: boolean; AisInfinitiveLed: boolean;

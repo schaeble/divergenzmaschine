@@ -5,7 +5,7 @@ import { pick, pickSane, clean, chance } from "../text-utils";
 import { makeDialogueScene, pickSpeakerForArchetype } from "./dialogue";
 import { postProcessText } from "./postprocess";
 import { pickStructureBuilder } from "./structures";
-import { looksLikeClausePhrase } from "./beats";
+import { looksLikeClausePhrase, weaveCast } from "./beats";
 import { archetypeAugmentList } from "./archetype";
 import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "./wordcls";
 import { declineHookPhrase, safeCaseForm } from "./declension";
@@ -81,6 +81,7 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
     ending: pickSane(aug(bank.endings, "endings")),
     speakerA: P, speakerB: speakers[1] || pickSpeakerForArchetype(archB),
     speakers: speakers.length >= 2 ? speakers : [P, pickSpeakerForArchetype(archB)],
+    cast: speakers,
     mode: M, archetypeA: archA, archetypeB: archB, instability: input.instability,
     Apure, AleadVerb, AisClause, AisInfinitiveLed,
     structure, perspective, rhythm,
@@ -102,6 +103,9 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   const verseForm = input.form === "reim" || input.form === "haiku" || input.form === "strang" || input.form === "drama";
   const effStructure = verseForm && kit.structure === "fragment" ? "linear" : kit.structure;
   let text = pickStructureBuilder(effStructure)({ ...kit });
+
+  // Mehrere in "Wer" genannte Personen (Komma-getrennt) als Ensemble in die Prosa einweben.
+  if (input.form === "prose" && kit.cast.length >= 2) text = weaveCast(text, kit.P, kit.cast);
 
   // Fragment ist jetzt fragmentierte Prosa (nicht mehr eine Zeilen-Liste) und
   // durchläuft daher den normalen Prosa-Pfad inkl. Längen-Auffüllung.
