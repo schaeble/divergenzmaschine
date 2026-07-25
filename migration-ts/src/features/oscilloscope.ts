@@ -53,3 +53,25 @@ export function buildSVG(waveA: WavePoint[]): string {
   for (let i = 0; i <= 4; i++) { const v = (maxLen / 4) * i, y = yAt(v); grid += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="#20242b"/><text x="${padL - 5}" y="${(y + 3).toFixed(1)}" font-size="9" fill="#888" text-anchor="end">${Math.round(v)}</text>`; }
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="background:#0a0c10;border-radius:8px">${grid}<path d="${d.trim()}" fill="none" stroke="#5ad" stroke-width="2"/></svg>`;
 }
+
+
+/** Zwei Kurven nach Slot-Index: Soll (gestrichelt, gedämpft) vs Ist (Akzent). */
+export function buildSVG2(target: number[], actual: number[]): string {
+  const W = 600, H = 220, padL = 30, padR = 10, padT = 10, padB = 26;
+  const n = Math.max(target.length, actual.length);
+  if (n < 1) return buildSVG([]);
+  let maxLen = 4;
+  for (const v of [...target, ...actual]) maxLen = Math.max(maxLen, v);
+  maxLen = Math.max(4, Math.ceil(maxLen / 4) * 4);
+  const xAt = (i: number): number => padL + (n > 1 ? (i / (n - 1)) * (W - padL - padR) : 0);
+  const yAt = (v: number): number => H - padB - (v / maxLen) * (H - padT - padB);
+  const pathOf = (arr: number[]): string => {
+    let d = "";
+    arr.forEach((v, i) => { d += (i ? "L" : "M") + xAt(i).toFixed(1) + "," + yAt(v).toFixed(1) + " "; });
+    return d.trim();
+  };
+  let grid = "";
+  for (let i = 0; i <= 4; i++) { const v = (maxLen / 4) * i, y = yAt(v); grid += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="#20242b"/><text x="${padL - 5}" y="${(y + 3).toFixed(1)}" font-size="9" fill="#888" text-anchor="end">${Math.round(v)}</text>`; }
+  const legend = `<g font-size="10"><rect x="${W - 168}" y="${padT}" width="158" height="16" fill="#0a0c10"/><line x1="${W - 162}" y1="${padT + 8}" x2="${W - 146}" y2="${padT + 8}" stroke="#8b94a7" stroke-width="2" stroke-dasharray="5 4"/><text x="${W - 142}" y="${padT + 11}" fill="#8b94a7">Soll</text><line x1="${W - 96}" y1="${padT + 8}" x2="${W - 80}" y2="${padT + 8}" stroke="#5ad" stroke-width="2"/><text x="${W - 76}" y="${padT + 11}" fill="#5ad">Ist</text></g>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="background:#0a0c10;border-radius:8px">${grid}<path d="${pathOf(target)}" fill="none" stroke="#8b94a7" stroke-width="2" stroke-dasharray="5 4"/><path d="${pathOf(actual)}" fill="none" stroke="#5ad" stroke-width="2"/>${legend}</svg>`;
+}
