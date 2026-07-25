@@ -1,15 +1,17 @@
 // Schatzkammer-Tab: gesammelte Texte ansehen, ins Studio übernehmen, löschen, exportieren.
 import { el, button } from "./dom";
 import { icon } from "./icons";
-import { loadTreasury, deleteTreasureAt, exportTreasuryTxt } from "../features/treasury";
+import { loadTreasury, deleteTreasureAt, clearTreasury, exportTreasuryTxt } from "../features/treasury";
 
 export function mountTreasury(root: HTMLElement): void {
   root.innerHTML = "";
   const wrap = el("div", {});
   const list = el("div", {});
+  let clearBtn: HTMLButtonElement;
 
   const render = (): void => {
     const items = loadTreasury();
+    if (clearBtn) clearBtn.disabled = items.length === 0;
     list.innerHTML = "";
     if (!items.length) { list.append(el("p", { class: "muted" }, "Noch nichts gemerkt — im Studio auf ⭐ Merken klicken.")); return; }
     items.slice().reverse().forEach((it, ri) => {
@@ -55,7 +57,15 @@ export function mountTreasury(root: HTMLElement): void {
     const a = el("a", { href: URL.createObjectURL(blob), download: "schatzkammer.txt" });
     a.click();
   });
-  wrap.append(el("h2", {}, "⭐ Schatzkammer"), el("div", { class: "btnrow" }, exportBtn), list);
+  clearBtn = button("Alle löschen", "danger");
+  clearBtn.addEventListener("click", () => {
+    const n = loadTreasury().length;
+    if (!n) return;
+    if (!confirm(`Alle ${n} Texte aus der Schatzkammer löschen? Das lässt sich nicht rückgängig machen. (Korpus und Pools bleiben erhalten.)`)) return;
+    clearTreasury();
+    render();
+  });
+  wrap.append(el("h2", {}, "⭐ Schatzkammer"), el("div", { class: "btnrow" }, exportBtn, clearBtn), list);
   root.append(wrap);
   render();
 }

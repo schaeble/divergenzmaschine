@@ -39,6 +39,9 @@ export function deleteTreasureAt(i: number): void {
   if (i >= 0 && i < list.length) { list.splice(i, 1); saveTreasury(list); }
 }
 
+/** Leert die gesamte Schatzkammer. Korpus/Pools bleiben unberührt (wie beim Einzel-Löschen). */
+export function clearTreasury(): void { saveTreasury([]); }
+
 export function exportTreasuryTxt(): string {
   return loadTreasury().map((x, i) => `# ${i + 1} — ${x.d}\n${x.who || ""} · ${x.where || ""} · ${x.when || ""}\n\n${x.t}`).join("\n\n———\n\n");
 }
