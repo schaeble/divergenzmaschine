@@ -112,6 +112,103 @@ export function mountOscilloscope(root: HTMLElement): void {
     if (name && name.trim()) { saveCurve(name.trim(), curve); refreshSaved(); curveName = name.trim(); updCurveInfo(); }
   });
 
+  // ── Zeichen-Pad: Kurve mit Finger/Maus malen (v2) ──
+  const PW = 600, PH = 220, pL = 30, pR = 10, pT = 10, pB = 26;
+  const clampN = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
+  let maxWords = 30;
+  let rawPts: { x: number; y: number }[] = [];
+  let drawing = false;
+
+  const slotSl = el("input", { type: "range", min: "6", max: "20", step: "1", value: "10", style: "flex:1" }) as HTMLInputElement;
+  const slotVal = el("span", { class: "muted" }, "10");
+  const maxSl = el("input", { type: "range", min: "12", max: "40", step: "1", value: "30", style: "flex:1" }) as HTMLInputElement;
+  const maxVal = el("span", { class: "muted" }, "30");
+  const smoothChk = el("input", { type: "checkbox" }) as HTMLInputElement;
+  const pad = el("div", { style: "border:1px solid var(--border2);border-radius:8px;overflow:hidden;touch-action:none;cursor:crosshair;user-select:none" });
+
+  const xAtI = (i: number, n: number): number => pL + (n > 1 ? i / (n - 1) : 0) * (PW - pL - pR);
+  const yAtV = (v: number): number => PH - pB - (v / maxWords) * (PH - pT - pB);
+  const wordsAtY = (y: number): number => clampN(Math.round((PH - pB - y) / (PH - pT - pB) * maxWords), 2, maxWords);
+
+  const gridSVG = (): string => {
+    let g = "";
+    for (let i = 0; i <= 4; i++) { const v = (maxWords / 4) * i, y = yAtV(v); g += `<line x1="${pL}" y1="${y.toFixed(1)}" x2="${PW - pR}" y2="${y.toFixed(1)}" stroke="#20242b"/><text x="${pL - 5}" y="${(y + 3).toFixed(1)}" font-size="9" fill="#888" text-anchor="end">${Math.round(v)}</text>`; }
+    return g;
+  };
+  const paintGrid = (): void => {
+    pad.innerHTML = `<svg viewBox="0 0 ${PW} ${PH}" width="100%" style="display:block;background:#0a0c10">${gridSVG()}<path class="fh" d="" fill="none" stroke="#5ad" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><g class="dots"></g></svg>`;
+  };
+  paintGrid();
+  const paintFh = (): void => {
+    const p = pad.querySelector(".fh"); if (!p) return;
+    p.setAttribute("d", rawPts.map((q, i) => (i ? "L" : "M") + q.x.toFixed(1) + "," + q.y.toFixed(1)).join(" "));
+  };
+  const paintDots = (words: number[]): void => {
+    const g = pad.querySelector(".dots"); if (!g) return;
+    const n = words.length;
+    let s = `<path d="${words.map((w, i) => (i ? "L" : "M") + xAtI(i, n).toFixed(1) + "," + yAtV(w).toFixed(1)).join(" ")}" fill="none" stroke="#8b94a7" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+    words.forEach((w, i) => { s += `<circle cx="${xAtI(i, n).toFixed(1)}" cy="${yAtV(w).toFixed(1)}" r="3.5" fill="#5ad"/>`; });
+    g.innerHTML = s;
+  };
+
+  const resample = (): number[] => {
+    if (rawPts.length < 2) return [];
+    const slots = parseInt(slotSl.value, 10);
+    // Gezeichnete Linie an der exakten Slot-x-Position abtasten (bewahrt Spitzen,
+    // im Gegensatz zum Bin-Mitteln, das Extreme flachdrückt).
+    const pts = rawPts.slice().sort((a, b) => a.x - b.x);
+    const yAtX = (sx: number): number => {
+      if (sx <= pts[0]!.x) return pts[0]!.y;
+      if (sx >= pts[pts.length - 1]!.x) return pts[pts.length - 1]!.y;
+      for (let k = 0; k < pts.length - 1; k++) {
+        const a = pts[k]!, b = pts[k + 1]!;
+        if (sx >= a.x && sx <= b.x) { const t = b.x === a.x ? 0 : (sx - a.x) / (b.x - a.x); return a.y + (b.y - a.y) * t; }
+      }
+      return pts[pts.length - 1]!.y;
+    };
+    let words: number[] = [];
+    for (let i = 0; i < slots; i++) { const sx = pL + (slots > 1 ? i / (slots - 1) : 0) * (PW - pL - pR); words.push(wordsAtY(yAtX(sx))); }
+    if (smoothChk.checked && words.length >= 3) {
+      words = words.map((_, i) => clampN(Math.round((words[Math.max(0, i - 1)]! + words[i]! + words[Math.min(words.length - 1, i + 1)]!) / 3), 2, maxWords));
+    }
+    return words;
+  };
+  const commit = (): void => { const w = resample(); if (w.length < 2) return; paintDots(w); setCurve(w, "gezeichnet"); };
+
+  const toVB = (ev: PointerEvent): { x: number; y: number } => {
+    const svg = pad.querySelector("svg")!; const r = svg.getBoundingClientRect();
+    return { x: clampN((ev.clientX - r.left) / r.width * PW, pL, PW - pR), y: clampN((ev.clientY - r.top) / r.height * PH, pT, PH - pB) };
+  };
+  pad.addEventListener("pointerdown", (e) => { drawing = true; rawPts = [toVB(e)]; try { pad.setPointerCapture(e.pointerId); } catch { /* egal */ } paintFh(); e.preventDefault(); });
+  pad.addEventListener("pointermove", (e) => { if (!drawing) return; rawPts.push(toVB(e)); paintFh(); });
+  const endDraw = (): void => { if (!drawing) return; drawing = false; commit(); };
+  pad.addEventListener("pointerup", endDraw);
+  pad.addEventListener("pointercancel", endDraw);
+
+  slotSl.addEventListener("input", () => { slotVal.textContent = slotSl.value; if (rawPts.length > 1) commit(); });
+  maxSl.addEventListener("input", () => { maxWords = parseInt(maxSl.value, 10); maxVal.textContent = maxSl.value; paintGrid(); if (rawPts.length > 1) { paintFh(); commit(); } });
+  smoothChk.addEventListener("change", () => { if (rawPts.length > 1) commit(); });
+  const clearPad = button("Pad leeren");
+  clearPad.addEventListener("click", () => { rawPts = []; paintGrid(); });
+  const loadToPad = button("Aktuelle Kurve laden");
+  loadToPad.addEventListener("click", () => {
+    if (!curve.length) return;
+    const cmax = Math.max(...curve);
+    if (cmax > maxWords) { maxWords = Math.min(40, cmax + 2); maxSl.value = String(maxWords); maxVal.textContent = String(maxWords); }
+    slotSl.value = String(clampN(curve.length, 6, 20)); slotVal.textContent = slotSl.value;
+    paintGrid();
+    rawPts = curve.map((w, i) => ({ x: xAtI(i, curve.length), y: yAtV(w) }));
+    paintFh(); paintDots(curve);
+  });
+  const drawWrap = el("div", {},
+    el("p", { class: "muted", style: "margin:10px 0 4px" }, "Oder die Kurve zeichnen — mit Finger oder Maus über das Feld streichen:"),
+    pad,
+    el("label", { class: "field lenrow" }, "Sätze ", slotSl, " ", slotVal),
+    el("label", { class: "field lenrow" }, "max. Wörter ", maxSl, " ", maxVal),
+    el("label", { class: "chk" }, smoothChk, " glätten"),
+    el("div", { class: "btnrow" }, loadToPad, clearPad),
+  );
+
   // Generierungs-Parameter
   const toneSel = select("osz-tone", [["neutral", "Neutral"], ["mystery", "Mystery"], ["poetic", "Poetisch"], ["melancholisch", "Melancholisch"], ["dark", "Düster"], ["nuechtern", "Nüchtern"], ["ironisch", "Ironisch"]], "neutral");
   const markSel = select("osz-markov", [["off", "Markov: Aus"], ["mix", "Markov: Mix"], ["on", "Markov: Stark"]], "off");
@@ -171,6 +268,7 @@ export function mountOscilloscope(root: HTMLElement): void {
     presetRow,
     el("label", { class: "field lenrow" }, "Gespeichert ", savedSel, " ", loadSavedBtn, " ", delSavedBtn),
     curveInfo,
+    drawWrap,
     el("div", { class: "btnrow" }, toneSel, markSel, genBtn),
     genInfo,
     sollIst,
