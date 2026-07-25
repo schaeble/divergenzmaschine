@@ -6,6 +6,7 @@ import { makeDialogueScene, pickSpeakerForArchetype } from "./dialogue";
 import { postProcessText } from "./postprocess";
 import { pickStructureBuilder } from "./structures";
 import { looksLikeClausePhrase, weaveCast } from "./beats";
+import { resetMarkovTrace, traceMarkov } from "./markovTrace";
 import { archetypeAugmentList } from "./archetype";
 import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "./wordcls";
 import { declineHookPhrase, safeCaseForm } from "./declension";
@@ -56,7 +57,7 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
     if (markovMode === "off" || !model) return fallback;
     if (markovMode === "on" || chance(prob)) {
       const m = model.generate(14);
-      if (m && isSaneMarkov(m)) return m;
+      if (m && isSaneMarkov(m)) { traceMarkov(m); return m; }
     }
     return fallback;
   };
@@ -90,6 +91,7 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
 
 /** Erzeugt einen Text zu Bank + Eingabe. */
 export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): string {
+  resetMarkovTrace();
   const kit = buildKit(bank, input, model);
 
   const lenTarget = Number.isFinite(input.lenTarget as number) ? (input.lenTarget as number) : 110;

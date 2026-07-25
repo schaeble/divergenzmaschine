@@ -4,6 +4,7 @@ import type { GenInput, FormKind } from "../types";
 import { loadBank, saveBank } from "../storage";
 import { getAllPresets, sortedPresetOptions, saveActiveBankLabel, buildAutoMixBank, AUTOMIX_ID } from "../wordbank";
 import { buildStory } from "../generation/buildStory";
+import { getMarkovTrace } from "../generation/markovTrace";
 import { buildModelFromCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
 import { enforceWordTarget } from "../generation/length";
@@ -152,8 +153,8 @@ export function mountStudio(root: HTMLElement): void {
   const legDot = (c: string, l: string): HTMLElement => el("span", { class: "feeditem" }, el("span", { class: "feeddot " + c }), " " + l);
   const feedsRow = el("div", { class: "feedsrow" },
     el("label", { class: "chk" }, feedsChk, " Einspeisungen färben"),
-    legDot("feed-wb", "Wortbank"), legDot("feed-ton", "Ton"), legDot("feed-4w", "4W-Kontext"), legDot("feed-pool", "Lebendige Pools"),
-    el("span", { class: "muted" }, "· unmarkiert = Vorlagen/Markov"));
+    legDot("feed-wb", "Wortbank"), legDot("feed-ton", "Ton"), legDot("feed-4w", "4W-Kontext"), legDot("feed-pool", "Lebendige Pools"), legDot("feed-markov", "Markov"),
+    el("span", { class: "muted" }, "· unmarkiert = Vorlagen"));
 
   interface FMatch { s: number; e: number; cls: string; prio: number; }
   const escFeeds = (t: string): string => t.replace(/[&<>]/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;"));
@@ -175,6 +176,7 @@ export function mountStudio(root: HTMLElement): void {
     collectFeed(w4, "feed-4w", 2, low, m);
     try { const b = loadBank() as unknown as Record<string, string[]>; const all: string[] = []; for (const k of Object.keys(b)) if (Array.isArray(b[k])) all.push(...b[k]!); collectFeed(all, "feed-wb", 1, low, m); } catch { /* egal */ }
     try { collectFeed(liveTexts(), "feed-pool", 1, low, m); } catch { /* egal */ }
+    try { collectFeed(getMarkovTrace(), "feed-markov", 2, low, m); } catch { /* egal */ }
     m.sort((a, b) => a.s - b.s || (b.e - b.s) - (a.e - a.s) || b.prio - a.prio);
     let html = "", i = 0, last = -1;
     for (const x of m) { if (x.s < last) continue; html += escFeeds(plain.slice(i, x.s)) + `<span class="${x.cls}">` + escFeeds(plain.slice(x.s, x.e)) + "</span>"; i = x.e; last = x.e; }
