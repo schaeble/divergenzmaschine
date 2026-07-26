@@ -4,6 +4,8 @@ import { el, select, field, button } from "./dom";
 import { loadBank, saveBank, normalizeBankShape } from "../storage";
 import { getAllPresets, sortedPresetOptions, saveCurrentBankAsUserPreset, deleteUserPreset, mutateBank, bankEntryCount, buildAutoMixBank, saveActiveBankLabel, loadActiveBankLabel, AUTOMIX_ID } from "../wordbank";
 import { DEFAULT_BANK } from "../constants";
+import { loadPersistentCorpus } from "../corpus";
+import { bankFromCorpus } from "../features/corpusbank";
 import { icon } from "./icons";
 import { loadAiKey, generateAiWordbank } from "../features/ki";
 
@@ -73,6 +75,15 @@ export function mountWordbank(root: HTMLElement): void {
   const resetBtn = button("Reset", "danger");
   resetBtn.addEventListener("click", () => { saveBank(normalizeBankShape(DEFAULT_BANK)); saveActiveBankLabel("Standard"); load(); });
 
+  const fillBtn = el("button", {}, icon("refresh"), " Aus Korpus füllen");
+  fillBtn.title = "Erzeugt aus dem eigenen Korpus (Korpus-Tab) eine Wortbank — als Startpunkt zum Nachschärfen und Speichern.";
+  fillBtn.addEventListener("click", () => {
+    const corpus = loadPersistentCorpus();
+    if (!corpus || corpus.trim().length < 60) { info.textContent = "Korpus ist zu klein — erst im Korpus-Tab Text hinzufügen."; return; }
+    const bank = bankFromCorpus(corpus);
+    saveBank(bank); saveActiveBankLabel("Aus Korpus"); preset.selectedIndex = -1; load();
+    info.textContent = `Aus Korpus gefüllt (${bankEntryCount(bank)} Einträge). Im Listen-Editor nachschärfen, dann „Als Preset speichern".`;
+  });
   const saveAs = button("Als Preset speichern");
   saveAs.addEventListener("click", () => {
     const name = prompt("Name für dein Preset:", "MeinPreset");
@@ -115,7 +126,7 @@ export function mountWordbank(root: HTMLElement): void {
     field("Liste", listSel),
     editor,
     el("div", { class: "btnrow" }, saveBtn, mutBtn, mutSlider, " ", mutVal, resetBtn),
-    el("div", { class: "btnrow" }, autoMixBtn, saveAs),
+    el("div", { class: "btnrow" }, autoMixBtn, fillBtn, saveAs),
     info,
     kiBox,
   );
