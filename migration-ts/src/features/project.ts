@@ -18,7 +18,10 @@ interface ProjectFile {
   workshopProjects?: Record<string, WorkshopProject>;
 }
 
-export function exportProject(): void {
+/** Exportiert das Projekt. Zeigt — wo unterstützt — einen echten „Speichern unter"-
+ *  Dialog (File System Access API); sonst klassischer Download. Rückgabe: false, wenn
+ *  der Nutzer den Dialog abgebrochen hat, sonst true. */
+export async function exportProject(): Promise<boolean> {
   const project: ProjectFile = {
     version: 2, timestamp: new Date().toISOString(),
     wordbank: loadBank(), presets: loadUserPresets(), corpus: loadPersistentCorpus(), settings: loadSettings(),
@@ -26,12 +29,35 @@ export function exportProject(): void {
     omniPresets: loadOmniUserPresets(), livePools: exportLivePools(),
     workshopProjects: loadWorkshopProjects(),
   };
-  const blob = new Blob([JSON.stringify(project, null, 2)], { type: "application/json;charset=utf-8" });
+  const json = JSON.stringify(project, null, 2);
+  const filename = `divergenz_projekt_${new Date().toISOString().slice(0, 10)}.json`;
+
+  // „Speichern unter"-Dialog (Chromium-basierte Browser)
+  const w = window as unknown as { showSaveFilePicker?: (o: unknown) => Promise<{ createWritable: () => Promise<{ write: (d: Blob) => Promise<void>; close: () => Promise<void> }> }> };
+  if (typeof w.showSaveFilePicker === "function") {
+    try {
+      const handle = await w.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: "Divergenz-Projekt", accept: { "application/json": [".json"] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(new Blob([json], { type: "application/json" }));
+      await writable.close();
+      return true;
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return false;  // Nutzer hat abgebrochen
+      // sonst: auf klassischen Download zurückfallen
+    }
+  }
+
+  // Fallback: Download in den Standardordner
+  const blob = new Blob([json], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url; a.download = `divergenz_projekt_${new Date().toISOString().slice(0, 10)}.json`;
+  a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 0);
+  return true;
 }
 
 export function importProject(file: File): Promise<void> {

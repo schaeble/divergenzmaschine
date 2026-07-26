@@ -49,7 +49,13 @@ export function mountApp(root: HTMLElement): void {
   const loadBtn = el("button", { class: "topbtn", title: "Projektdatei importieren — ERSETZT den gesamten aktuellen Stand." }, icon("folder"), " Importieren");
   const fileIn = el("input", { type: "file", accept: "application/json,.json", style: "display:none" }) as HTMLInputElement;
   const projStatus = el("span", { class: "projstatus muted" }, "");
-  saveBtn.addEventListener("click", () => { exportProject(); projStatus.textContent = "exportiert ✓"; setTimeout(() => (projStatus.textContent = ""), 1600); });
+  saveBtn.addEventListener("click", () => {
+    void exportProject().then((ok) => {
+      if (!ok) return;
+      projStatus.textContent = "gespeichert ✓";
+      setTimeout(() => (projStatus.textContent = ""), 1600);
+    }).catch(() => { projStatus.textContent = "Export fehlgeschlagen"; setTimeout(() => (projStatus.textContent = ""), 2000); });
+  });
   loadBtn.addEventListener("click", () => { if (confirm("Beim Importieren wird der gesamte aktuelle Stand (Wortbank, Korpus, Schatzkammer, Werkstatt-Projekte …) durch die Datei ersetzt. Fortfahren?")) fileIn.click(); });
   fileIn.addEventListener("change", () => {
     const f = fileIn.files && fileIn.files[0];
