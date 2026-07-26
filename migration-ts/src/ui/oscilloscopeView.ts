@@ -139,7 +139,7 @@ export function mountOscilloscope(root: HTMLElement): void {
 
   const slotSl = el("input", { type: "range", min: "6", max: "20", step: "1", value: "10", style: "flex:1" }) as HTMLInputElement;
   const slotVal = el("span", { class: "muted" }, "10");
-  const maxSl = el("input", { type: "range", min: "12", max: "40", step: "1", value: "30", style: "flex:1" }) as HTMLInputElement;
+  const maxSl = el("input", { type: "range", min: "12", max: "100", step: "1", value: "30", style: "flex:1" }) as HTMLInputElement;
   const maxVal = el("span", { class: "muted" }, "30");
   const smoothChk = el("input", { type: "checkbox" }) as HTMLInputElement;
   const pad = el("div", { style: "border:1px solid var(--border2);border-radius:8px;overflow:hidden;touch-action:none;cursor:crosshair;user-select:none" });
@@ -212,7 +212,8 @@ export function mountOscilloscope(root: HTMLElement): void {
   const loadIntoPad = (arr: number[]): void => {
     if (!arr.length) return;
     const cmax = Math.max(...arr);
-    if (cmax > maxWords) { maxWords = Math.min(40, cmax + 2); maxSl.value = String(maxWords); maxVal.textContent = String(maxWords); }
+    // Achse exakt auf die Kurve skalieren, damit das Pad dieselbe Form wie die Messung oben zeigt.
+    maxWords = clampN(cmax + 2, 12, 100); maxSl.value = String(maxWords); maxVal.textContent = String(maxWords);
     slotSl.value = String(clampN(arr.length, 6, 20)); slotVal.textContent = slotSl.value;
     paintGrid();
     rawPts = arr.map((w, i) => ({ x: xAtI(i, arr.length), y: yAtV(w) }));
