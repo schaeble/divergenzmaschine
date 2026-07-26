@@ -48,10 +48,12 @@ export function mountWordbank(root: HTMLElement): void {
   const editor = el("textarea", { id: "wb-editor", style: "height:220px", placeholder: "Ein Eintrag pro Zeile" });
   const info = el("p", { class: "muted" }, "");
 
+  let renderFull: () => void = () => {};
   const load = (): void => {
     const bank = loadBank();
     editor.value = (bank[listSel.value as BankKey] || []).join("\n");
     info.textContent = `${bankEntryCount(bank)} Einträge gesamt`;
+    renderFull();
   };
   listSel.addEventListener("change", load);
 
@@ -89,6 +91,70 @@ export function mountWordbank(root: HTMLElement): void {
     const name = prompt("Name für dein Preset:", "MeinPreset");
     if (name) { saveCurrentBankAsUserPreset(name); rebuildPresets("user:" + name.trim().slice(0, 40)); }
   });
+
+  // ---- Ganze Wortbank: alle 7 Kategorien als Textfelder + Datei sichern/laden ----
+  const saveTextAs = async (text: string, filename: string): Promise<boolean> => {
+    const w = window as unknown as { showSaveFilePicker?: (o: unknown) => Promise<{ createWritable: () => Promise<{ write: (d: Blob) => Promise<void>; close: () => Promise<void> }> }> };
+    if (typeof w.showSaveFilePicker === "function") {
+      try {
+        const h = await w.showSaveFilePicker({ suggestedName: filename, types: [{ description: "Wortbank", accept: { "application/json": [".json"] } }] });
+        const wr = await h.createWritable(); await wr.write(new Blob([text], { type: "application/json" })); await wr.close(); return true;
+      } catch (e) { if (e instanceof DOMException && e.name === "AbortError") return false; }
+    }
+    const url = URL.createObjectURL(new Blob([text], { type: "application/json;charset=utf-8" }));
+    const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0); return true;
+  };
+
+  const fullInfo = el("p", { class: "muted" }, "");
+  const fullAreas: Record<string, HTMLTextAreaElement> = {};
+  const fullGrid = el("div", {});
+  for (const [key, label] of CATS) {
+    const t = el("textarea", { id: "wb-full-" + key, style: "height:88px", placeholder: "Ein Eintrag pro Zeile" }) as HTMLTextAreaElement;
+    fullAreas[key] = t;
+    fullGrid.append(el("div", { class: "field" }, el("span", { class: "field-label" }, label), t));
+  }
+  renderFull = (): void => { const bank = loadBank(); for (const [key] of CATS) if (fullAreas[key]) fullAreas[key]!.value = (bank[key as BankKey] || []).join("\n"); };
+  const applyAllBtn = button("Alle übernehmen");
+  applyAllBtn.addEventListener("click", () => {
+    const bank = loadBank();
+    for (const [key] of CATS) bank[key as BankKey] = fullAreas[key]!.value.split("\n").map((x) => x.trim()).filter(Boolean);
+    saveBank(bank); load(); fullInfo.textContent = `Übernommen — ${bankEntryCount(bank)} Einträge.`;
+  });
+  const saveAsFileBtn = el("button", {}, icon("floppy"), " Speichern unter…");
+  saveAsFileBtn.addEventListener("click", () => {
+    // erst die Textfelder in die Bank übernehmen, dann als Datei sichern
+    const bank = loadBank();
+    for (const [key] of CATS) bank[key as BankKey] = fullAreas[key]!.value.split("\n").map((x) => x.trim()).filter(Boolean);
+    saveBank(bank); load();
+    const nm = (loadActiveBankLabel() || "wortbank").replace(/[^0-9A-Za-zäöüÄÖÜß-]+/g, "_").toLowerCase();
+    void saveTextAs(JSON.stringify(bank, null, 2), `wortbank_${nm}.json`).then((ok) => { if (ok) fullInfo.textContent = "Gespeichert ✓"; });
+  });
+  const fileIn = el("input", { type: "file", accept: ".json,application/json", style: "display:none" }) as HTMLInputElement;
+  fileIn.addEventListener("change", () => {
+    const fl = fileIn.files && fileIn.files[0]; if (!fl) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const parsed = JSON.parse(String(r.result)) as unknown;
+        const src = (parsed && typeof parsed === "object" && "wordbank" in (parsed as Record<string, unknown>)) ? (parsed as Record<string, unknown>).wordbank : parsed;
+        const bank = normalizeBankShape(src);
+        saveBank(bank); saveActiveBankLabel("Aus Datei"); preset.selectedIndex = -1; load();
+        fullInfo.textContent = `Geladen — ${bankEntryCount(bank)} Einträge.`;
+      } catch { fullInfo.textContent = "Datei nicht lesbar (kein gültiges Wortbank-JSON)."; }
+      fileIn.value = "";
+    };
+    r.readAsText(fl);
+  });
+  const loadFileBtn = el("button", {}, icon("refresh"), " Aus Datei laden…");
+  loadFileBtn.addEventListener("click", () => fileIn.click());
+  const fullBox = el("details", { class: "fine" });
+  fullBox.append(
+    el("summary", {}, icon("floppy"), " Ganze Wortbank bearbeiten & sichern"),
+    el("p", { class: "muted" }, "Alle Kategorien direkt bearbeiten. „Alle übernehmen“ speichert in die aktive Wortbank; „Speichern unter“ schreibt sie als JSON-Datei; „Aus Datei laden“ liest eine gespeicherte Wortbank (oder ein Projekt) wieder ein."),
+    fullGrid,
+    el("div", { class: "btnrow" }, applyAllBtn, saveAsFileBtn, loadFileBtn, fileIn),
+    fullInfo);
 
   // ---- KI-Wortbank (aus dem früheren KI-Tab) ----
   const kiWhere = el("input", { placeholder: "Wo?" }) as HTMLInputElement;
@@ -128,6 +194,7 @@ export function mountWordbank(root: HTMLElement): void {
     el("div", { class: "btnrow" }, saveBtn, mutBtn, mutSlider, " ", mutVal, resetBtn),
     el("div", { class: "btnrow" }, autoMixBtn, fillBtn, saveAs),
     info,
+    fullBox,
     kiBox,
   );
   root.append(wrap);
