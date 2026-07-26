@@ -5,16 +5,19 @@ import { icon } from "./icons";
 import { analyze, buildSVG, buildSVG2 } from "../features/oscilloscope";
 import { loadTreasury, addToTreasury } from "../features/treasury";
 import { loadBank } from "../storage";
+import { getAllPresets, sortedPresetOptions, buildAutoMixBank, loadActiveBankLabel, AUTOMIX_ID } from "../wordbank";
 import { buildModelFromCorpus } from "../corpus";
 import { generateToCurve, curveFromText, CURVE_PRESETS } from "../generation/rhythmcurve";
 import { loadCurves, saveCurve, deleteCurve } from "../features/rhythm";
-import type { GenInput } from "../types";
+import type { GenInput, Bank } from "../types";
 
 const fmt = (x: number, d = 1): string => x.toFixed(d);
 
 export function mountOscilloscope(root: HTMLElement): void {
   root.innerHTML = "";
   const wrap = el("div", {});
+  const step = (n: number, title: string): HTMLElement =>
+    el("div", { class: "oszstep" }, el("span", { class: "oszstepnum" }, String(n)), el("b", {}, title));
 
   // ═══ 1) Messen (Text -> Kurve) ═══
   const ta = el("textarea", { style: "height:120px" }) as HTMLTextAreaElement;
@@ -54,7 +57,19 @@ export function mountOscilloscope(root: HTMLElement): void {
     if (!last.trim()) { stats.innerHTML = '<span class="muted">Noch kein generierter Text — erst im Studio generieren.</span>'; return; }
     ta.value = last; run();
   });
-  wrap.append(el("p", { class: "muted" }, "Kanal A — Text analysieren (vorbelegt mit der letzten Generierung)"), ta, el("div", { class: "btnrow" }, runBtn, pullBtn), trRow, viz, stats);
+  const pasteBtn = el("button", {}, icon("copy"), " Einfügen");
+  pasteBtn.addEventListener("click", () => {
+    navigator.clipboard?.readText().then((t) => { if (t) { ta.value = t; run(); } })
+      .catch(() => { stats.innerHTML = '<span class="muted">Einfügen nicht erlaubt — bitte im Feld mit Strg+V (bzw. ⌘V) einfügen.</span>'; });
+  });
+  const clearBtn = el("button", {}, "✕ Leeren");
+  clearBtn.addEventListener("click", () => { ta.value = ""; viz.innerHTML = ""; stats.innerHTML = ""; });
+  wrap.append(
+    el("h2", {}, "Messen — Text → Kurve"),
+    el("p", { class: "muted" }, "Kanal A: einen Text analysieren. Vorbelegt mit der letzten Generierung; für Fremdtexte (Kleist, Kafka …) einfügen."),
+    ta,
+    el("div", { class: "btnrow" }, runBtn, pasteBtn, clearBtn, pullBtn),
+    trRow, viz, stats);
 
   // ═══ 2) Rhythmus-Transplantation (Kurve -> Text) ═══
   wrap.append(el("hr", {}));
@@ -212,6 +227,16 @@ export function mountOscilloscope(root: HTMLElement): void {
   // Generierungs-Parameter
   const toneSel = select("osz-tone", [["neutral", "Neutral"], ["mystery", "Mystery"], ["poetic", "Poetisch"], ["melancholisch", "Melancholisch"], ["dark", "Düster"], ["nuechtern", "Nüchtern"], ["ironisch", "Ironisch"]], "neutral");
   const markSel = select("osz-markov", [["off", "Markov: Aus"], ["mix", "Markov: Mix"], ["on", "Markov: Stark"]], "off");
+  // Preset-Wahl fürs Generieren (Standard: aktive Wortbank; ohne den globalen Stand zu ändern)
+  const presetSel = el("select", { id: "osz-preset" }) as HTMLSelectElement;
+  presetSel.append(el("option", { value: "" }, `★ Aktive Wortbank (${loadActiveBankLabel() || "—"})`));
+  for (const [v, l] of sortedPresetOptions()) presetSel.append(el("option", { value: v }, l));
+  const bankForPreset = (id: string): Bank => {
+    if (!id) return loadBank();
+    if (id === AUTOMIX_ID) return buildAutoMixBank();
+    const p = getAllPresets()[id];
+    return p ? p.bank : loadBank();
+  };
   const genBtn = el("button", { class: "primary" }, icon("play"), " Gegen Kurve generieren");
   const outPre = el("pre", { class: "out", style: "min-height:60px" });
   const sollIst = el("div", {});
@@ -233,7 +258,7 @@ export function mountOscilloscope(root: HTMLElement): void {
     setTimeout(() => {
       try {
         const model = markSel.value !== "off" ? buildModelFromCorpus(2) : undefined;
-        const r = generateToCurve(loadBank(), baseInput(), model, curve, 6);
+        const r = generateToCurve(bankForPreset(presetSel.value), baseInput(), model, curve, 6);
         outPre.textContent = r.text;
         sollIst.innerHTML = buildSVG2(r.targets, r.actual);
         const mae = r.targets.length ? r.targets.map((t, i) => Math.abs(t - (r.actual[i] ?? 0))).reduce((a, b) => a + b, 0) / r.targets.length : 0;
@@ -264,12 +289,19 @@ export function mountOscilloscope(root: HTMLElement): void {
 
   updCurveInfo();
   wrap.append(
+    step(1, "Ziel-Kurve wählen"),
+    el("p", { class: "muted" }, "Aus dem Text oben ablesen, ein Muster nehmen, eine gespeicherte laden — oder unten selbst zeichnen."),
     el("div", { class: "btnrow" }, readBtn, saveBtn),
     presetRow,
     el("label", { class: "field lenrow" }, "Gespeichert ", savedSel, " ", loadSavedBtn, " ", delSavedBtn),
-    curveInfo,
     drawWrap,
-    el("div", { class: "btnrow" }, toneSel, markSel, genBtn),
+    curveInfo,
+    step(2, "Womit schreiben"),
+    el("p", { class: "muted" }, "Preset liefert das Vokabular, Ton die Färbung. Figuren/Ort werden je Satz zufällig gewürfelt."),
+    el("label", { class: "field lenrow" }, "Preset ", presetSel),
+    el("div", { class: "btnrow" }, toneSel, markSel),
+    step(3, "Erzeugen"),
+    el("div", { class: "btnrow" }, genBtn),
     genInfo,
     sollIst,
     outPre,
