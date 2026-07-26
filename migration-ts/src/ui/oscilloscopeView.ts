@@ -226,7 +226,6 @@ export function mountOscilloscope(root: HTMLElement): void {
     el("label", { class: "field lenrow" }, "Sätze ", slotSl, " ", slotVal),
     el("label", { class: "field lenrow" }, "max. Wörter ", maxSl, " ", maxVal),
     el("label", { class: "chk" }, smoothChk, " glätten"),
-    el("div", { class: "btnrow" }, clearPad),
   );
 
   // Generierungs-Parameter
@@ -296,7 +295,7 @@ export function mountOscilloscope(root: HTMLElement): void {
   wrap.append(
     step(1, "Ziel-Kurve wählen"),
     el("p", { class: "muted" }, "Aus dem Text oben ablesen, ein Muster nehmen oder eine gespeicherte laden — die Kurve erscheint sofort im Pad unten und lässt sich dort von Hand nachziehen."),
-    el("div", { class: "btnrow" }, readBtn, saveBtn),
+    el("div", { class: "btnrow" }, readBtn, saveBtn, clearPad),
     presetRow,
     el("label", { class: "field lenrow" }, "Gespeichert ", savedSel, " ", loadSavedBtn, " ", delSavedBtn),
     drawWrap,
