@@ -5,7 +5,7 @@ import { loadBank, saveBank } from "../storage";
 import { getAllPresets, sortedPresetOptions, saveActiveBankLabel, buildAutoMixBank, AUTOMIX_ID } from "../wordbank";
 import { buildStory } from "../generation/buildStory";
 import { getMarkovTrace } from "../generation/markovTrace";
-import { buildModelFromCorpus } from "../corpus";
+import { buildModelFromCorpus, savePersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
 import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
@@ -13,7 +13,7 @@ import { el, select, field, textInput, button } from "./dom";
 import { icon } from "./icons";
 import { openReader } from "./reader";
 import { worldLogGeneration } from "../features/world";
-import { addToTreasury } from "../features/treasury";
+import { addToTreasury, clearTreasury } from "../features/treasury";
 import { THEMES, loadTheme, applyTheme, loadAccent, saveAccent, applyAccent } from "../features/theme";
 import { loadAiKey, saveAiKey, loadAiModel, saveAiModel } from "../features/ki";
 import { storageReport } from "../features/storage-status";
@@ -332,9 +332,22 @@ export function mountStudio(root: HTMLElement): void {
   const memRefresh = button("Aktualisieren");
   const refreshMem = (): void => { void storageReport().then((r) => { memLine.textContent = r.text; }); };
   memRefresh.addEventListener("click", refreshMem);
+  const memReset = button("Korpus + Schatzkammer leeren", "danger");
+  const memResetInfo = el("span", { class: "muted" });
+  memReset.addEventListener("click", () => {
+    if (!confirm("Korpus UND Schatzkammer vollständig leeren? Das lässt sich nicht rückgängig machen. Wortbank, Presets und Einstellungen bleiben erhalten.")) return;
+    savePersistentCorpus("");
+    clearTreasury();
+    refreshMem();
+    memResetInfo.textContent = "Korpus und Schatzkammer geleert.";
+    setTimeout(() => (memResetInfo.textContent = ""), 2500);
+  });
   const memPanel = el("div", { style: "display:none" },
     field("Belegung", memLine),
     el("div", { class: "btnrow" }, memRefresh),
+    el("hr", {}),
+    el("div", { class: "btnrow" }, memReset, memResetInfo),
+    el("p", { class: "muted" }, "Setzt den Markov-Korpus und die Schatzkammer zurück (leert beide). Wortbank, Presets, Einstellungen und lebendige Pools bleiben erhalten. Für ein vollständiges Backup vorher oben rechts „Exportieren“."),
     el("p", { class: "muted" }, "Der Browser speichert alles lokal. Wird es eng, erscheint bei jedem Sichern oben ein Warnband; dann Korpus kürzen, Schatzkammer aufräumen oder ein Projekt exportieren und Daten löschen."));
 
   const tabSchrift = el("button", { class: "subtab active" }, "Schrift");
