@@ -21,6 +21,25 @@ export function mountOscilloscope(root: HTMLElement): void {
   // Wird später (nach Pad-Aufbau) auf loadIntoPad gesetzt: zeigt jede gewählte Kurve sofort im Pad.
   let syncPad: (arr: number[]) => void = () => {};
 
+  // Schloss: hält Ton/Markov fest und merkt den Wert über Neustarts hinweg.
+  const OSZ_LOCK_KEY = "divergenz_osz_locks_v1", OSZ_LOCKVAL_KEY = "divergenz_osz_lockvals_v1";
+  const oszLocked = new Set<string>((() => { try { return JSON.parse(localStorage.getItem(OSZ_LOCK_KEY) || "[]") as string[]; } catch { return []; } })());
+  const oszLockVals: Record<string, string> = (() => { try { return JSON.parse(localStorage.getItem(OSZ_LOCKVAL_KEY) || "{}") as Record<string, string>; } catch { return {}; } })();
+  const saveLocks = (): void => { try { localStorage.setItem(OSZ_LOCK_KEY, JSON.stringify([...oszLocked])); localStorage.setItem(OSZ_LOCKVAL_KEY, JSON.stringify(oszLockVals)); } catch { /* voll */ } };
+  const lockField = (label: string, sel: HTMLSelectElement): HTMLElement => {
+    if (oszLocked.has(sel.id) && oszLockVals[sel.id] !== undefined) sel.value = oszLockVals[sel.id]!;
+    const b = el("button", { class: "lockbtn", type: "button", title: "Wert festhalten — bleibt auch nach Neustart" }) as HTMLButtonElement;
+    const paint = (): void => { b.innerHTML = ""; b.append(icon(oszLocked.has(sel.id) ? "lock" : "lockOpen")); b.classList.toggle("on", oszLocked.has(sel.id)); };
+    b.addEventListener("click", () => {
+      if (oszLocked.has(sel.id)) { oszLocked.delete(sel.id); delete oszLockVals[sel.id]; }
+      else { oszLocked.add(sel.id); oszLockVals[sel.id] = sel.value; }
+      saveLocks(); paint();
+    });
+    sel.addEventListener("change", () => { if (oszLocked.has(sel.id)) { oszLockVals[sel.id] = sel.value; saveLocks(); } });
+    paint();
+    return el("div", { class: "field" }, el("span", { class: "field-label lockrow" }, el("span", {}, label), b), sel);
+  };
+
   // ═══ 1) Messen (Text -> Kurve) ═══
   const ta = el("textarea", { style: "height:120px" }) as HTMLTextAreaElement;
   ta.value = (() => { try { return localStorage.getItem("dm_last_text") || ""; } catch { return ""; } })();
@@ -304,7 +323,8 @@ export function mountOscilloscope(root: HTMLElement): void {
     step(2, "Womit schreiben"),
     el("p", { class: "muted" }, "Preset liefert das Vokabular, Ton die Färbung. Figuren/Ort werden je Satz zufällig gewürfelt."),
     el("label", { class: "field lenrow" }, "Preset ", presetSel),
-    el("div", { class: "btnrow" }, toneSel, markSel),
+    lockField("Ton", toneSel),
+    lockField("Markov", markSel),
     step(3, "Erzeugen"),
     el("div", { class: "btnrow" }, genBtn),
     genInfo,
