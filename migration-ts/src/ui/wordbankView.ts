@@ -5,6 +5,8 @@ import { loadBank, saveBank, normalizeBankShape } from "../storage";
 import { getAllPresets, sortedPresetOptions, saveCurrentBankAsUserPreset, deleteUserPreset, mutateBank, bankEntryCount, buildAutoMixBank, saveActiveBankLabel, loadActiveBankLabel, AUTOMIX_ID } from "../wordbank";
 import { DEFAULT_BANK } from "../constants";
 import { loadPersistentCorpus } from "../corpus";
+import { feedLivePools, LIVE_W } from "../features/livepools";
+import { preset2ToBank, preset2Pools, preset2Name, generateAiPreset2 } from "../features/preset2";
 import { bankFromCorpus } from "../features/corpusbank";
 import { icon } from "./icons";
 import { loadAiKey, generateAiWordbank } from "../features/ki";
@@ -146,11 +148,14 @@ export function mountWordbank(root: HTMLElement): void {
     r.onload = () => {
       try {
         const parsed = JSON.parse(String(r.result)) as unknown;
-        const src = (parsed && typeof parsed === "object" && "wordbank" in (parsed as Record<string, unknown>)) ? (parsed as Record<string, unknown>).wordbank : parsed;
-        const bank = normalizeBankShape(src);
-        saveBank(bank); saveActiveBankLabel("Aus Datei"); preset.selectedIndex = -1; load(); renderFull();
-        fullInfo.textContent = `Geladen — ${bankEntryCount(bank)} Einträge.`;
-      } catch { fullInfo.textContent = "Datei nicht lesbar (kein gültiges Wortbank-JSON)."; }
+        const p2 = preset2ToBank(parsed);
+        const flatSrc = (parsed && typeof parsed === "object" && "wordbank" in (parsed as Record<string, unknown>)) ? (parsed as Record<string, unknown>).wordbank : parsed;
+        const bank = p2 ?? normalizeBankShape(flatSrc);
+        saveBank(bank); saveActiveBankLabel(p2 ? preset2Name(parsed) : "Aus Datei"); preset.selectedIndex = -1; load(); renderFull();
+        const pools = preset2Pools(parsed);
+        if (pools.length) { try { feedLivePools(pools.join(". ") + ".", LIVE_W.schatz); } catch { /* egal */ } }
+        fullInfo.textContent = `Geladen — ${bankEntryCount(bank)} Einträge${pools.length ? ` · ${pools.length} Kontext-Begriffe in die lebendigen Pools` : ""}.`;
+      } catch { fullInfo.textContent = "Datei nicht lesbar (kein gültiges JSON)."; }
       fileIn.value = "";
     };
     r.readAsText(fl);
@@ -196,6 +201,42 @@ export function mountWordbank(root: HTMLElement): void {
     el("div", { class: "grid2" }, field("Wo?", kiWhere), field("Wann?", kiWhen), field("Wer?", kiWho), field("Was?", kiWhat)),
     field("Zusatzvorgabe", kiExtra), el("div", { class: "btnrow" }, kiBtn), kiInfo);
 
+  // ---- KI-Preset 2.0 (experimentell): erzeugt ein komplettes Preset 2.0 per KI ----
+  const p2Insp = el("input", { placeholder: "Inspiration / Beschreibung, z. B. „Haruki Murakami“" }) as HTMLInputElement;
+  const p2Out = el("textarea", { style: "height:150px", placeholder: "Das erzeugte Preset-2.0-JSON erscheint hier." }) as HTMLTextAreaElement;
+  const p2Info = el("p", { class: "muted" }, "");
+  let p2Json = "";
+  const p2Lbl = el("span", {}, "Preset 2.0 erzeugen");
+  const p2Btn = el("button", {}, icon("flask"), " ", p2Lbl) as HTMLButtonElement;
+  p2Btn.addEventListener("click", () => {
+    void (async () => {
+      if (!loadAiKey()) { alert("Kein API-Schlüssel — bitte unter Studio ▸ Einstellungen ▸ KI-Zugang hinterlegen."); return; }
+      p2Btn.disabled = true; p2Lbl.textContent = "Erzeuge…";
+      try {
+        const r = await generateAiPreset2(p2Insp.value);
+        p2Json = r.json; p2Out.value = r.json;
+        saveBank(r.bank); saveActiveBankLabel(r.name); preset.selectedIndex = -1; load(); renderFull();
+        const pools = preset2Pools(r.obj);
+        if (pools.length) { try { feedLivePools(pools.join(". ") + ".", LIVE_W.schatz); } catch { /* egal */ } }
+        p2Info.textContent = `„${r.name}“ erzeugt & aktiviert (${bankEntryCount(r.bank)} Einträge${pools.length ? `, ${pools.length} Kontext-Begriffe in die Pools` : ""}). Unten als Datei sichern oder als Preset speichern.`;
+      } catch (e) { p2Info.textContent = "Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e)); }
+      finally { p2Btn.disabled = false; p2Lbl.textContent = "Preset 2.0 erzeugen"; }
+    })();
+  });
+  const p2SaveBtn = el("button", {}, icon("floppy"), " Als Preset-2.0-Datei speichern…");
+  p2SaveBtn.addEventListener("click", () => {
+    if (!p2Json.trim()) { p2Info.textContent = "Erst ein Preset 2.0 erzeugen."; return; }
+    const nm = (preset2Name(JSON.parse(p2Json)) || "preset2").replace(/[^0-9A-Za-zäöüÄÖÜß-]+/g, "_").toLowerCase();
+    void saveTextAs(p2Json, `preset2_${nm}.json`).then((ok) => { if (ok) p2Info.textContent = "Als Datei gespeichert ✓"; });
+  });
+  const p2Box = el("details", { class: "fine" });
+  p2Box.append(
+    el("summary", {}, icon("flask"), " KI-Preset 2.0 erzeugen (experimentell)"),
+    el("p", { class: "muted" }, "Erzeugt ein komplettes Preset 2.0 (Welt, Orte, Figuren, Objekte, Ton, generatoren). Genutzt werden davon die Wortbank (generatoren) und die Kontext-Felder (in die lebendigen Pools); die übrigen Felder sind Metadaten. Braucht einen API-Schlüssel."),
+    field("Inspiration", p2Insp),
+    el("div", { class: "btnrow" }, p2Btn, p2SaveBtn),
+    p2Info, p2Out);
+
   wrap.append(
     field("Preset", preset),
     el("div", { class: "btnrow" }, delPresetBtn),
@@ -206,6 +247,7 @@ export function mountWordbank(root: HTMLElement): void {
     info,
     fullBox,
     kiBox,
+    p2Box,
   );
   root.append(wrap);
   load();
