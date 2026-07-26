@@ -18,6 +18,8 @@ export function mountOscilloscope(root: HTMLElement): void {
   const wrap = el("div", {});
   const step = (n: number, title: string): HTMLElement =>
     el("div", { class: "oszstep" }, el("span", { class: "oszstepnum" }, String(n)), el("b", {}, title));
+  // Wird später (nach Pad-Aufbau) auf loadIntoPad gesetzt: zeigt jede gewählte Kurve sofort im Pad.
+  let syncPad: (arr: number[]) => void = () => {};
 
   // ═══ 1) Messen (Text -> Kurve) ═══
   const ta = el("textarea", { style: "height:120px" }) as HTMLTextAreaElement;
@@ -95,11 +97,12 @@ export function mountOscilloscope(root: HTMLElement): void {
     const c = curveFromText(ta.value);
     if (c.length < 2) { curveInfo.textContent = "Text oben zu kurz — mindestens 2 Sätze nötig."; return; }
     setCurve(c, "aus Vorbild-Text");
+    syncPad(curve);
   });
   const presetRow = el("div", { class: "btnrow" }, el("span", { class: "muted" }, "Muster:"));
   CURVE_PRESETS.forEach((p) => {
     const b = button(p.label);
-    b.addEventListener("click", () => setCurve(p.curve, p.label));
+    b.addEventListener("click", () => { setCurve(p.curve, p.label); syncPad(curve); });
     presetRow.append(b);
   });
 
@@ -116,7 +119,7 @@ export function mountOscilloscope(root: HTMLElement): void {
   const loadSavedBtn = button("Laden");
   loadSavedBtn.addEventListener("click", () => {
     const c = loadCurves().find((x) => x.name === savedSel.value);
-    if (c) setCurve(c.curve, c.name);
+    if (c) { setCurve(c.curve, c.name); syncPad(curve); }
   });
   const delSavedBtn = button("Löschen", "danger");
   delSavedBtn.addEventListener("click", () => { if (savedSel.value) { deleteCurve(savedSel.value); refreshSaved(); } });
@@ -205,23 +208,25 @@ export function mountOscilloscope(root: HTMLElement): void {
   smoothChk.addEventListener("change", () => { if (rawPts.length > 1) commit(); });
   const clearPad = button("Pad leeren");
   clearPad.addEventListener("click", () => { rawPts = []; paintGrid(); });
-  const loadToPad = button("Aktuelle Kurve laden");
-  loadToPad.addEventListener("click", () => {
-    if (!curve.length) return;
-    const cmax = Math.max(...curve);
+  // Jede gewählte Kurve (ablesen/Muster/gespeichert) sofort im Pad zeigen — editierbar.
+  const loadIntoPad = (arr: number[]): void => {
+    if (!arr.length) return;
+    const cmax = Math.max(...arr);
     if (cmax > maxWords) { maxWords = Math.min(40, cmax + 2); maxSl.value = String(maxWords); maxVal.textContent = String(maxWords); }
-    slotSl.value = String(clampN(curve.length, 6, 20)); slotVal.textContent = slotSl.value;
+    slotSl.value = String(clampN(arr.length, 6, 20)); slotVal.textContent = slotSl.value;
     paintGrid();
-    rawPts = curve.map((w, i) => ({ x: xAtI(i, curve.length), y: yAtV(w) }));
-    paintFh(); paintDots(curve);
-  });
+    rawPts = arr.map((w, i) => ({ x: xAtI(i, arr.length), y: yAtV(w) }));
+    paintFh(); paintDots(arr);
+  };
+  syncPad = loadIntoPad;
+  if (curve.length) loadIntoPad(curve);  // Default-Kurve gleich anzeigen
   const drawWrap = el("div", {},
     el("p", { class: "muted", style: "margin:10px 0 4px" }, "Oder die Kurve zeichnen — mit Finger oder Maus über das Feld streichen:"),
     pad,
     el("label", { class: "field lenrow" }, "Sätze ", slotSl, " ", slotVal),
     el("label", { class: "field lenrow" }, "max. Wörter ", maxSl, " ", maxVal),
     el("label", { class: "chk" }, smoothChk, " glätten"),
-    el("div", { class: "btnrow" }, loadToPad, clearPad),
+    el("div", { class: "btnrow" }, clearPad),
   );
 
   // Generierungs-Parameter
@@ -290,7 +295,7 @@ export function mountOscilloscope(root: HTMLElement): void {
   updCurveInfo();
   wrap.append(
     step(1, "Ziel-Kurve wählen"),
-    el("p", { class: "muted" }, "Aus dem Text oben ablesen, ein Muster nehmen, eine gespeicherte laden — oder unten selbst zeichnen."),
+    el("p", { class: "muted" }, "Aus dem Text oben ablesen, ein Muster nehmen oder eine gespeicherte laden — die Kurve erscheint sofort im Pad unten und lässt sich dort von Hand nachziehen."),
     el("div", { class: "btnrow" }, readBtn, saveBtn),
     presetRow,
     el("label", { class: "field lenrow" }, "Gespeichert ", savedSel, " ", loadSavedBtn, " ", delSavedBtn),
