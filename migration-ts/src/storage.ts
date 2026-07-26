@@ -26,8 +26,8 @@ export function loadBank(): Bank {
   }
 }
 
-export function saveBank(bank: Bank): void {
-  safeSet(STORAGE_BANK, JSON.stringify(bank), "Wortbank");
+export function saveBank(bank: Bank): boolean {
+  return safeSet(STORAGE_BANK, JSON.stringify(bank), "Wortbank");
 }
 
 const DEFAULT_SETTINGS: Settings = { enabled: false, learnStories: true, useSaved: false };

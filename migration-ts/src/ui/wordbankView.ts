@@ -53,7 +53,10 @@ export function mountWordbank(root: HTMLElement): void {
     const bank = loadBank();
     editor.value = (bank[listSel.value as BankKey] || []).join("\n");
     info.textContent = `${bankEntryCount(bank)} Einträge gesamt`;
-    renderFull();
+    // Voll-Felder werden NICHT hier befüllt, um in Arbeit befindliche Bearbeitungen
+    // nicht zu überschreiben; das geschieht beim Öffnen des Bereichs (toggle) und
+    // nach „Alle übernehmen"/Import.
+    if (fullBox.open) renderFull();
   };
   listSel.addEventListener("change", load);
 
@@ -119,16 +122,22 @@ export function mountWordbank(root: HTMLElement): void {
   applyAllBtn.addEventListener("click", () => {
     const bank = loadBank();
     for (const [key] of CATS) bank[key as BankKey] = fullAreas[key]!.value.split("\n").map((x) => x.trim()).filter(Boolean);
-    saveBank(bank); load(); fullInfo.textContent = `Übernommen — ${bankEntryCount(bank)} Einträge.`;
+    if (!saveBank(bank)) { fullInfo.textContent = "Speichern fehlgeschlagen — Speicher voll. Erst Korpus/Schatzkammer leeren (Einstellungen ▸ Speicher) oder exportieren."; return; }
+    load(); renderFull();
+    let extra = "";
+    if (preset.value.startsWith("user:")) { saveCurrentBankAsUserPreset(preset.value.slice(5)); extra = ` · Preset „${preset.value.slice(5)}“ aktualisiert`; }
+    fullInfo.textContent = `Übernommen ✓ — ${bankEntryCount(bank)} Einträge${extra}.`;
   });
   const saveAsFileBtn = el("button", {}, icon("floppy"), " Speichern unter…");
   saveAsFileBtn.addEventListener("click", () => {
     // erst die Textfelder in die Bank übernehmen, dann als Datei sichern
     const bank = loadBank();
     for (const [key] of CATS) bank[key as BankKey] = fullAreas[key]!.value.split("\n").map((x) => x.trim()).filter(Boolean);
-    saveBank(bank); load();
+    if (!saveBank(bank)) { fullInfo.textContent = "Speichern fehlgeschlagen — Speicher voll."; return; }
+    load();
+    if (preset.value.startsWith("user:")) saveCurrentBankAsUserPreset(preset.value.slice(5));
     const nm = (loadActiveBankLabel() || "wortbank").replace(/[^0-9A-Za-zäöüÄÖÜß-]+/g, "_").toLowerCase();
-    void saveTextAs(JSON.stringify(bank, null, 2), `wortbank_${nm}.json`).then((ok) => { if (ok) fullInfo.textContent = "Gespeichert ✓"; });
+    void saveTextAs(JSON.stringify(bank, null, 2), `wortbank_${nm}.json`).then((ok) => { if (ok) fullInfo.textContent = "In Datei gespeichert ✓"; });
   });
   const fileIn = el("input", { type: "file", accept: ".json,application/json", style: "display:none" }) as HTMLInputElement;
   fileIn.addEventListener("change", () => {
@@ -139,7 +148,7 @@ export function mountWordbank(root: HTMLElement): void {
         const parsed = JSON.parse(String(r.result)) as unknown;
         const src = (parsed && typeof parsed === "object" && "wordbank" in (parsed as Record<string, unknown>)) ? (parsed as Record<string, unknown>).wordbank : parsed;
         const bank = normalizeBankShape(src);
-        saveBank(bank); saveActiveBankLabel("Aus Datei"); preset.selectedIndex = -1; load();
+        saveBank(bank); saveActiveBankLabel("Aus Datei"); preset.selectedIndex = -1; load(); renderFull();
         fullInfo.textContent = `Geladen — ${bankEntryCount(bank)} Einträge.`;
       } catch { fullInfo.textContent = "Datei nicht lesbar (kein gültiges Wortbank-JSON)."; }
       fileIn.value = "";
@@ -149,6 +158,7 @@ export function mountWordbank(root: HTMLElement): void {
   const loadFileBtn = el("button", {}, icon("refresh"), " Aus Datei laden…");
   loadFileBtn.addEventListener("click", () => fileIn.click());
   const fullBox = el("details", { class: "fine" });
+  fullBox.addEventListener("toggle", () => { if (fullBox.open) renderFull(); });
   fullBox.append(
     el("summary", {}, icon("floppy"), " Ganze Wortbank bearbeiten & sichern"),
     el("p", { class: "muted" }, "Alle Kategorien direkt bearbeiten. „Alle übernehmen“ speichert in die aktive Wortbank; „Speichern unter“ schreibt sie als JSON-Datei; „Aus Datei laden“ liest eine gespeicherte Wortbank (oder ein Projekt) wieder ein."),
