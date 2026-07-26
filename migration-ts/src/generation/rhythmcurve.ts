@@ -44,7 +44,7 @@ export function generateToCurve(
   // Satzpool aus vielen Generierungen aufbauen (Kontext je Lauf neu würfeln = mehr Vielfalt).
   const pool: { s: string; len: number }[] = [];
   const seen = new Set<string>();
-  const need = Math.max(n * poolFactor, 24);
+  const need = Math.max(n * poolFactor, 48);
   let guard = 0;
   while (pool.length < need && guard < need * 4) {
     guard++;
@@ -60,46 +60,46 @@ export function generateToCurve(
     }
   }
 
-  // Slot-Füllung: pro Ziel den nächstgelegenen, noch unbenutzten Satz.
+  // Slot-Füllung. Zwei Kniffe gegen verfehlte Lang-Ziele:
+  //  (a) Längste Ziele zuerst — sie greifen sich die langen Sätze, solange der
+  //      Pool noch voll ist; die kurzen kommen mit dem Rest problemlos aus.
+  //  (b) Greedy-Mehrfach-Verschmelzung (bis 3 Sätze) für lange Ziele: solange
+  //      Hinzunehmen die Abweichung verkleinert und das Ziel nicht überschritten
+  //      ist, wird ein weiterer Satz per Gedankenstrich angehängt.
   const used = new Array<boolean>(pool.length).fill(false);
-  const chosen: string[] = [];
-  const actual: number[] = [];
-  for (const tgt of clean) {
-    // bester Einzelsatz
-    let bi = -1, bd = Infinity;
-    for (let i = 0; i < pool.length; i++) {
-      if (used[i]) continue;
-      const d = Math.abs(pool[i]!.len - tgt);
-      if (d < bd) { bd = d; bi = i; }
-    }
-    // bestes Paar (nur wenn Einzel unzureichend und Ziel lang): zwei Sätze zu
-    // einem langen Atemzug verschmelzen — trifft 25–35-Wort-Ziele, die einzeln
-    // im Pool fehlen.
-    let pi = -1, pj = -1, pd = Infinity;
-    if (bd > 3 && tgt >= 12) {
+  const chosen = new Array<string>(n);
+  const actual = new Array<number>(n);
+
+  const pickFit = (target: number): number[] => {
+    const maxParts = target >= 40 ? 3 : target >= 12 ? 2 : 1;
+    const parts: number[] = [];
+    let sum = 0;
+    for (let p = 0; p < maxParts; p++) {
+      let bi = -1, bd = Infinity;
       for (let i = 0; i < pool.length; i++) {
-        if (used[i]) continue;
-        for (let j = i + 1; j < pool.length; j++) {
-          if (used[j]) continue;
-          const d = Math.abs(pool[i]!.len + pool[j]!.len - tgt);
-          if (d < pd) { pd = d; pi = i; pj = j; }
-        }
+        if (used[i] || parts.includes(i)) continue;
+        const d = Math.abs(sum + pool[i]!.len - target);
+        if (d < bd) { bd = d; bi = i; }
       }
+      if (bi < 0) break;
+      if (parts.length > 0 && Math.abs(sum - target) <= bd) break;  // Anhängen bringt nichts mehr
+      parts.push(bi); sum += pool[bi]!.len;
+      if (sum >= target) break;                                     // Ziel erreicht/überschritten
     }
-    if (pi >= 0 && pd < bd) {
-      used[pi] = true; used[pj] = true;
-      const merged = mergeSents(pool[pi]!.s, pool[pj]!.s);
-      chosen.push(merged); actual.push(wlen(merged));
+    return parts;
+  };
+
+  const order = clean.map((_, i) => i).sort((a, b) => clean[b]! - clean[a]!);  // längste zuerst
+  for (const ti of order) {
+    const parts = pickFit(clean[ti]!);
+    if (!parts.length) {
+      const extra = splitSents(buildStory(bank, { ...base, ...randomContext(), form: "prose" }, model))[0] || "…";
+      chosen[ti] = extra; actual[ti] = wlen(extra);
       continue;
     }
-    if (bi < 0) {
-      const extra = splitSents(buildStory(bank, { ...base, ...randomContext(), form: "prose" }, model))[0];
-      if (extra) { chosen.push(extra); actual.push(wlen(extra)); }
-      continue;
-    }
-    used[bi] = true;
-    chosen.push(pool[bi]!.s);
-    actual.push(pool[bi]!.len);
+    for (const i of parts) used[i] = true;
+    const merged = parts.map((i) => pool[i]!.s).reduce((acc, sen) => (acc ? mergeSents(acc, sen) : sen), "");
+    chosen[ti] = merged; actual[ti] = wlen(merged);
   }
 
   return { text: chosen.join(" "), targets: clean, actual, poolSize: pool.length };

@@ -263,7 +263,7 @@ export function mountOscilloscope(root: HTMLElement): void {
     setTimeout(() => {
       try {
         const model = markSel.value !== "off" ? buildModelFromCorpus(2) : undefined;
-        const r = generateToCurve(bankForPreset(presetSel.value), baseInput(), model, curve, 6);
+        const r = generateToCurve(bankForPreset(presetSel.value), baseInput(), model, curve, 8);
         outPre.textContent = r.text;
         sollIst.innerHTML = buildSVG2(r.targets, r.actual);
         const mae = r.targets.length ? r.targets.map((t, i) => Math.abs(t - (r.actual[i] ?? 0))).reduce((a, b) => a + b, 0) / r.targets.length : 0;
