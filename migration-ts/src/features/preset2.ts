@@ -133,7 +133,7 @@ export const PRESET2_META: Record<string, { ton: string; surrealismus?: number; 
 
 /** Studio-Einstellungen für ein eingebautes Preset (leer, wenn keine Metadaten). */
 export function builtinSettings(id: string): Preset2Settings {
-  const m = PRESET2_META[id];
+  const m = PRESET2_META[id.replace(/^builtin:/, "")];
   if (!m) return {};
   // Parameter -> Form/Disruptor/Instabilität (+ humor -> humorvoll). Ton kommt direkt
   // aus m.ton (bereits ein App-Ton-Schlüssel, nicht durch die Wort->Key-Map schicken).
@@ -157,3 +157,26 @@ export function preset2Drama(parsed: unknown): DramaData | null {
   };
   return Object.values(d).some((a) => a.length) ? d : null;
 }
+
+
+// ── Aktiver 2.0-Kontext + benannte 2.0-Presets (fuer die Preset-Liste) ──
+export interface Active2 { settings: Preset2Settings; drama: DramaData | null; pools: string[]; }
+export function preset2Active(parsed: unknown): Active2 {
+  const drama = preset2Drama(parsed);
+  const settings: Preset2Settings = preset2Settings(parsed);
+  if (drama) settings.structure = "dramaturgie";
+  return { settings, drama, pools: preset2Pools(parsed) };
+}
+const ACTIVE2_KEY = "dm_active_preset2_v1";
+export function setActive2(a: Active2 | null): void { try { if (a) localStorage.setItem(ACTIVE2_KEY, JSON.stringify(a)); else localStorage.removeItem(ACTIVE2_KEY); } catch { /* voll */ } }
+export function getActive2(): Active2 | null { try { const r = localStorage.getItem(ACTIVE2_KEY); return r ? (JSON.parse(r) as Active2) : null; } catch { return null; } }
+
+const USER2_KEY = "dm_user_presets2_v1";
+export function loadUserPresets2(): Record<string, Active2> {
+  try { const r = localStorage.getItem(USER2_KEY); const p = r ? JSON.parse(r) : {}; return p && typeof p === "object" ? (p as Record<string, Active2>) : {}; } catch { return {}; }
+}
+export function saveUserPreset2(name: string, a: Active2): void {
+  try { const all = loadUserPresets2(); all[name.trim().slice(0, 40)] = a; localStorage.setItem(USER2_KEY, JSON.stringify(all)); } catch { /* voll */ }
+}
+export function getUserPreset2(name: string): Active2 | null { return loadUserPresets2()[name] ?? null; }
+export function deleteUserPreset2(name: string): void { try { const all = loadUserPresets2(); delete all[name]; localStorage.setItem(USER2_KEY, JSON.stringify(all)); } catch { /* voll */ } }

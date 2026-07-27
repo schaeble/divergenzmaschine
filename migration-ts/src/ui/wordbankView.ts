@@ -6,7 +6,7 @@ import { getAllPresets, sortedPresetOptions, saveCurrentBankAsUserPreset, delete
 import { DEFAULT_BANK } from "../constants";
 import { loadPersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
-import { preset2ToBank, preset2Pools, preset2Name, preset2Settings, preset2Drama, builtinSettings, generateAiPreset2 } from "../features/preset2";
+import { preset2ToBank, preset2Name, preset2Active, builtinSettings, generateAiPreset2, setActive2, getActive2, saveUserPreset2, getUserPreset2, deleteUserPreset2, loadUserPresets2, type Active2 } from "../features/preset2";
 import { setDramaData } from "../generation/dramaturgie";
 import { bankFromCorpus } from "../features/corpusbank";
 import { icon } from "./icons";
@@ -25,13 +25,30 @@ export function mountWordbank(root: HTMLElement): void {
   const applyParamsChk = el("input", { type: "checkbox", id: "wb-p2apply" }) as HTMLInputElement;
   applyParamsChk.checked = true;
   const applyParamsRow = el("label", { class: "chk", title: "Setzt beim naechsten Oeffnen des Studios Ton, Form (bei hohem Dialoganteil) und Disruptor/Instabilitaet (bei Surrealismus) aus dem gewaehlten Preset." }, applyParamsChk, " Bei Preset: Ton & Parameter ins Studio uebernehmen");
+  const applyActive2 = (a: Active2 | null): void => {
+    setActive2(a);
+    setDramaData(a ? a.drama : null);
+    if (a && a.pools && a.pools.length) { try { feedLivePools(a.pools.join(". ") + ".", LIVE_W.schatz); } catch { /* egal */ } }
+    if (a && applyParamsChk.checked && a.settings && Object.keys(a.settings).length) { try { localStorage.setItem("dm_pending_studio", JSON.stringify(a.settings)); } catch { /* voll */ } }
+  };
+  const stagedInfo = (a: Active2 | null): string => {
+    if (!a || !applyParamsChk.checked) return "";
+    const st = a.settings; const parts: string[] = [];
+    if (st.tone) parts.push("Ton " + st.tone);
+    if (st.form) parts.push("Form Szene/Dialog");
+    if (st.disruptor) parts.push("Disruptor an");
+    if (st.instability) parts.push("Instabilität " + st.instability);
+    if (st.structure) parts.push("Struktur Dramaturgie");
+    return parts.length ? ` · fürs Studio vorgemerkt: ${parts.join(", ")}` : "";
+  };
   const preset = select("wb-preset", sortedPresetOptions());
   if (preset.options.length > 1) preset.selectedIndex = 1;  // nicht Auto-Mix als Standard anzeigen
   const delPresetBtn = button("Preset löschen", "danger");
   const updDelPreset = (): void => { delPresetBtn.style.display = preset.value.startsWith("user:") ? "" : "none"; };
   const rebuildPresets = (keep?: string): void => {
     preset.innerHTML = "";
-    for (const [v, l] of sortedPresetOptions()) preset.append(el("option", { value: v }, l));
+    const u2 = loadUserPresets2();
+    for (const [v, l] of sortedPresetOptions()) { const lab = v.startsWith("user:") && u2[v.slice(5)] ? l + " ✦2.0" : l; preset.append(el("option", { value: v }, lab)); }
     if (keep && Array.from(preset.options).some((o) => o.value === keep)) preset.value = keep;
     else if (preset.options.length > 1) preset.selectedIndex = 1;
     updDelPreset();
@@ -41,16 +58,22 @@ export function mountWordbank(root: HTMLElement): void {
     updDelPreset();
     if (preset.value === AUTOMIX_ID) { saveBank(buildAutoMixBank()); saveActiveBankLabel("Auto-Mix"); load(); return; }
     if (p) {
-      saveBank(p.bank); saveActiveBankLabel(p.label || preset.value); load(); setDramaData(null);
+      saveBank(p.bank); saveActiveBankLabel(p.label || preset.value); load();
       try { const voc = [...(p.bank.motifs || []), ...(p.bank.props || []), ...(p.bank.turns || [])].join(". "); if (voc.trim()) feedLivePools(voc, LIVE_W.gen); } catch { /* egal */ }
-      if (applyParamsChk.checked) { const st = builtinSettings(preset.value); if (Object.keys(st).length) { try { localStorage.setItem("dm_pending_studio", JSON.stringify(st)); } catch { /* voll */ } } }
+      const id = preset.value;
+      if (id.startsWith("user:")) {
+        applyActive2(getUserPreset2(id.slice(5)));  // 2.0-Preset wiederherstellen (oder null)
+      } else {
+        setActive2(null); setDramaData(null);
+        if (applyParamsChk.checked) { const st = builtinSettings(id); if (Object.keys(st).length) { try { localStorage.setItem("dm_pending_studio", JSON.stringify(st)); } catch { /* voll */ } } }
+      }
     }
   });
   delPresetBtn.addEventListener("click", () => {
     if (!preset.value.startsWith("user:")) return;
     const name = preset.value.slice(5);
     if (!confirm(`Eigenes Preset „${name}" löschen? (Die aktuelle Wortbank bleibt unverändert.)`)) return;
-    deleteUserPreset(name);
+    deleteUserPreset(name); deleteUserPreset2(name);
     rebuildPresets();
   });
   updDelPreset();
@@ -103,7 +126,11 @@ export function mountWordbank(root: HTMLElement): void {
   const saveAs = button("Als Preset speichern");
   saveAs.addEventListener("click", () => {
     const name = prompt("Name für dein Preset:", "MeinPreset");
-    if (name) { saveCurrentBankAsUserPreset(name); rebuildPresets("user:" + name.trim().slice(0, 40)); }
+    if (name) {
+      saveCurrentBankAsUserPreset(name);
+      const a2 = getActive2(); if (a2) saveUserPreset2(name.trim().slice(0, 40), a2);
+      rebuildPresets("user:" + name.trim().slice(0, 40));
+    }
   });
 
   // ---- Ganze Wortbank: alle 7 Kategorien als Textfelder + Datei sichern/laden ----
@@ -161,11 +188,9 @@ export function mountWordbank(root: HTMLElement): void {
         const flatSrc = (parsed && typeof parsed === "object" && "wordbank" in (parsed as Record<string, unknown>)) ? (parsed as Record<string, unknown>).wordbank : parsed;
         const bank = p2 ?? normalizeBankShape(flatSrc);
         saveBank(bank); saveActiveBankLabel(p2 ? preset2Name(parsed) : "Aus Datei"); preset.selectedIndex = -1; load(); renderFull();
-        const pools = preset2Pools(parsed);
-        if (pools.length) { try { feedLivePools(pools.join(". ") + ".", LIVE_W.schatz); } catch { /* egal */ } }
-        setDramaData(p2 ? preset2Drama(parsed) : null);
-        const staged = p2 ? stageParams(parsed) : "";
-        fullInfo.textContent = `Geladen — ${bankEntryCount(bank)} Einträge${pools.length ? ` · ${pools.length} Kontext-Begriffe in die lebendigen Pools` : ""}${staged}.`;
+        const a2 = p2 ? preset2Active(parsed) : null;
+        applyActive2(a2);
+        fullInfo.textContent = `Geladen — ${bankEntryCount(bank)} Einträge${a2 && a2.pools.length ? ` · ${a2.pools.length} Kontext-Begriffe in die Pools` : ""}${stagedInfo(a2)}.`;
       } catch { fullInfo.textContent = "Datei nicht lesbar (kein gültiges JSON)."; }
       fileIn.value = "";
     };
@@ -212,20 +237,6 @@ export function mountWordbank(root: HTMLElement): void {
     el("div", { class: "grid2" }, field("Wo?", kiWhere), field("Wann?", kiWhen), field("Wer?", kiWho), field("Was?", kiWhat)),
     field("Zusatzvorgabe", kiExtra), el("div", { class: "btnrow" }, kiBtn), kiInfo);
 
-  const stageParams = (obj: unknown): string => {
-    if (!applyParamsChk.checked) return "";
-    const st = preset2Settings(obj);
-    if (preset2Drama(obj)) st.structure = "dramaturgie";
-    if (!Object.keys(st).length) return "";
-    try { localStorage.setItem("dm_pending_studio", JSON.stringify(st)); } catch { /* voll */ }
-    const parts: string[] = [];
-    if (st.tone) parts.push("Ton " + st.tone);
-    if (st.form) parts.push("Form Szene/Dialog");
-    if (st.disruptor) parts.push("Disruptor an");
-    if (st.instability) parts.push("Instabilitaet " + st.instability);
-    if (st.structure) parts.push("Struktur Dramaturgie");
-    return parts.length ? ` · fuers Studio vorgemerkt: ${parts.join(", ")}` : "";
-  };
 
   // ---- KI-Preset 2.0 (experimentell): erzeugt ein komplettes Preset 2.0 per KI ----
   const p2Insp = el("input", { placeholder: "Inspiration / Beschreibung, z. B. „Haruki Murakami“" }) as HTMLInputElement;
@@ -242,11 +253,9 @@ export function mountWordbank(root: HTMLElement): void {
         const r = await generateAiPreset2(p2Insp.value);
         p2Json = r.json; p2Out.value = r.json;
         saveBank(r.bank); saveActiveBankLabel(r.name); preset.selectedIndex = -1; load(); renderFull();
-        const pools = preset2Pools(r.obj);
-        if (pools.length) { try { feedLivePools(pools.join(". ") + ".", LIVE_W.schatz); } catch { /* egal */ } }
-        setDramaData(preset2Drama(r.obj));
-        const staged = stageParams(r.obj);
-        p2Info.textContent = `„${r.name}“ erzeugt & aktiviert (${bankEntryCount(r.bank)} Einträge${pools.length ? `, ${pools.length} Kontext-Begriffe in die Pools` : ""}${staged}). Unten als Datei sichern oder als Preset speichern.`;
+        const a2 = preset2Active(r.obj);
+        applyActive2(a2);
+        p2Info.textContent = `„${r.name}“ erzeugt & aktiviert (${bankEntryCount(r.bank)} Einträge${a2.pools.length ? `, ${a2.pools.length} Kontext-Begriffe in die Pools` : ""}${stagedInfo(a2)}). Unten als Datei sichern oder als Preset speichern.`;
       } catch (e) { p2Info.textContent = "Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e)); }
       finally { p2Btn.disabled = false; p2Lbl.textContent = "Preset 2.0 erzeugen"; }
     })();
