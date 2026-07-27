@@ -25,11 +25,13 @@ export function mountWordbank(root: HTMLElement): void {
   const applyParamsChk = el("input", { type: "checkbox", id: "wb-p2apply" }) as HTMLInputElement;
   applyParamsChk.checked = true;
   const applyParamsRow = el("label", { class: "chk", title: "Setzt beim naechsten Oeffnen des Studios Ton, Form (bei hohem Dialoganteil) und Disruptor/Instabilitaet (bei Surrealismus) aus dem gewaehlten Preset." }, applyParamsChk, " Bei Preset: Ton & Parameter ins Studio uebernehmen");
+  let refresh2: () => void = () => {};
   const applyActive2 = (a: Active2 | null): void => {
     setActive2(a);
     setDramaData(a ? a.drama : null);
     if (a && a.pools && a.pools.length) { try { feedLivePools(a.pools.join(". ") + ".", LIVE_W.schatz); } catch { /* egal */ } }
     if (a && applyParamsChk.checked && a.settings && Object.keys(a.settings).length) { try { localStorage.setItem("dm_pending_studio", JSON.stringify(a.settings)); } catch { /* voll */ } }
+    refresh2();
   };
   const stagedInfo = (a: Active2 | null): string => {
     if (!a || !applyParamsChk.checked) return "";
@@ -201,13 +203,65 @@ export function mountWordbank(root: HTMLElement): void {
   });
   const loadFileBtn = el("button", {}, icon("refresh"), " Aus Datei laden…");
   loadFileBtn.addEventListener("click", () => fileIn.click());
+  // ── Preset-2.0-Felder (nur bei aktivem 2.0-Preset editierbar) ──
+  const P2FIELDS: [string, string][] = [
+    ["einstieg", "Einstieg"], ["mitte", "Mitte"], ["hoehepunkt", "Höhepunkt"], ["schluss", "Schluss"],
+    ["ausloeser", "Auslöser"], ["veraenderungen", "Veränderungen"], ["konflikte", "Konflikte"],
+    ["zeitanomalien", "Zeitanomalien"], ["regeln", "Regeln / Naturgesetze"],
+  ];
+  const p2Areas: Record<string, HTMLTextAreaElement> = {};
+  const p2Grid = el("div", {});
+  for (const [key, label] of P2FIELDS) {
+    const t = el("textarea", { id: "wb-p2-" + key, style: "height:66px", placeholder: "Ein Eintrag pro Zeile" }) as HTMLTextAreaElement;
+    p2Areas[key] = t;
+    p2Grid.append(el("div", { class: "field" }, el("span", { class: "field-label" }, label), t));
+  }
+  const p2Pools = el("textarea", { id: "wb-p2-pools", style: "height:66px", placeholder: "Orte, Figuren, Objekte … (ein Eintrag pro Zeile)" }) as HTMLTextAreaElement;
+  p2Grid.append(el("div", { class: "field" }, el("span", { class: "field-label" }, "Kontext-Pools"), p2Pools));
+  const p2ToneSel = select("wb-p2-tone", [["", "(kein)"], ["neutral", "Neutral"], ["mystery", "Mystery"], ["poetic", "Poetisch"], ["melancholisch", "Melancholisch"], ["dark", "Düster"], ["unheimlich", "Unheimlich"], ["uplifting", "Hoffnungsvoll"], ["zaertlich", "Zärtlich"], ["traeumerisch", "Träumerisch"], ["nuechtern", "Nüchtern"], ["ironisch", "Ironisch"], ["humorous", "Humorvoll"]], "");
+  const lines2 = (t: HTMLTextAreaElement): string[] => t.value.split("\n").map((x) => x.trim()).filter(Boolean);
+  const apply2Btn = button("2.0-Felder übernehmen");
+  const p2fInfo = el("span", { class: "muted" });
+  apply2Btn.addEventListener("click", () => {
+    const a = getActive2(); if (!a) return;
+    const drama = {
+      einstieg: lines2(p2Areas.einstieg!), mitte: lines2(p2Areas.mitte!), hoehepunkt: lines2(p2Areas.hoehepunkt!), schluss: lines2(p2Areas.schluss!),
+      ausloeser: lines2(p2Areas.ausloeser!), veraenderungen: lines2(p2Areas.veraenderungen!), konflikte: lines2(p2Areas.konflikte!),
+      zeitanomalien: lines2(p2Areas.zeitanomalien!), regeln: lines2(p2Areas.regeln!),
+    };
+    const anyDrama = Object.values(drama).some((x) => x.length > 0);
+    const settings = { ...a.settings, tone: p2ToneSel.value || undefined, structure: anyDrama ? "dramaturgie" : undefined };
+    const a2: Active2 = { drama: anyDrama ? drama : null, pools: lines2(p2Pools), settings };
+    setActive2(a2); setDramaData(a2.drama);
+    if (preset.value.startsWith("user:")) saveUserPreset2(preset.value.slice(5), a2);
+    p2fInfo.textContent = "2.0-Felder übernommen ✓" + (preset.value.startsWith("user:") ? " · Preset aktualisiert" : "");
+    setTimeout(() => (p2fInfo.textContent = ""), 2500);
+  });
+  const render2 = (): void => {
+    const a = getActive2();
+    p2Wrap.style.display = a ? "" : "none";
+    if (!a) return;
+    const d = a.drama as Record<string, string[]> | null;
+    for (const [key] of P2FIELDS) p2Areas[key]!.value = d && Array.isArray(d[key]) ? d[key]!.join("\n") : "";
+    p2Pools.value = (a.pools || []).join("\n");
+    p2ToneSel.value = a.settings && a.settings.tone ? a.settings.tone : "";
+  };
+  const p2Wrap = el("div", { style: "display:none" },
+    el("hr", {}),
+    el("p", { class: "muted" }, "Preset-2.0-Felder — nur bei aktivem 2.0-Preset. Erzählbogen (Einstieg→Schluss), Auslöser/Veränderungen, Konflikte, Zeitanomalien, Regeln, Kontext-Pools und Ton. „2.0-Felder übernehmen“ aktualisiert Dramaturgie, Pools und Ton (und ein geladenes eigenes 2.0-Preset)."),
+    el("label", { class: "field lenrow" }, "Ton ", p2ToneSel),
+    p2Grid,
+    el("div", { class: "btnrow" }, apply2Btn, p2fInfo));
+  refresh2 = render2;
+
   const fullBox = el("details", { class: "fine" });
-  fullBox.addEventListener("toggle", () => { if (fullBox.open) renderFull(); });
+  fullBox.addEventListener("toggle", () => { if (fullBox.open) { renderFull(); render2(); } });
   fullBox.append(
     el("summary", {}, icon("floppy"), " Ganze Wortbank bearbeiten & sichern"),
     el("p", { class: "muted" }, "Alle Kategorien direkt bearbeiten. „Alle übernehmen“ speichert in die aktive Wortbank; „Speichern unter“ schreibt sie als JSON-Datei; „Aus Datei laden“ liest eine gespeicherte Wortbank (oder ein Projekt) wieder ein."),
     fullGrid,
     el("div", { class: "btnrow" }, applyAllBtn, saveAsFileBtn, loadFileBtn, fileIn),
+    p2Wrap,
     fullInfo);
 
   // ---- KI-Wortbank (aus dem früheren KI-Tab) ----
