@@ -2,7 +2,9 @@
 // Lesemodus (Vollbild) und Vorlesen (SpeechSynthesis).
 import type { GenInput, FormKind } from "../types";
 import { loadBank, saveBank } from "../storage";
-import { getAllPresets, sortedPresetOptions, saveActiveBankLabel, buildAutoMixBank, AUTOMIX_ID } from "../wordbank";
+import { getAllPresets, saveActiveBankLabel, buildAutoMixBank, AUTOMIX_ID } from "../wordbank";
+import { markedPresetOptions, getUserPreset2 } from "../features/preset2";
+import { setDramaData } from "../generation/dramaturgie";
 import { buildStory } from "../generation/buildStory";
 import { getMarkovTrace } from "../generation/markovTrace";
 import { buildModelFromCorpus, savePersistentCorpus } from "../corpus";
@@ -83,8 +85,20 @@ export function mountStudio(root: HTMLElement): void {
     field4w("Wo?", where, wWo), field4w("Wann?", when, wWann), field4w("Wer?", who, wWer), field4w("Was passiert?", what, wWas)),
     el("div", { class: "btnrow" }, ctxDice, ctxKeep));
 
-  const preset = select("f-preset", sortedPresetOptions());
-  preset.addEventListener("change", () => { if (preset.value === AUTOMIX_ID) { saveBank(buildAutoMixBank()); saveActiveBankLabel("Auto-Mix"); return; } const p = getAllPresets()[preset.value]; if (p) { saveBank(p.bank); saveActiveBankLabel(p.label || preset.value); } });
+  const preset = select("f-preset", markedPresetOptions());
+  preset.addEventListener("change", () => {
+    if (preset.value === AUTOMIX_ID) { saveBank(buildAutoMixBank()); saveActiveBankLabel("Auto-Mix"); setDramaData(null); return; }
+    const p = getAllPresets()[preset.value];
+    if (!p) return;
+    saveBank(p.bank); saveActiveBankLabel(p.label || preset.value);
+    const a2 = preset.value.startsWith("user:") ? getUserPreset2(preset.value.slice(5)) : null;
+    if (a2) {
+      setDramaData(a2.drama);
+      const setV = (sel: HTMLSelectElement, v?: string): void => { if (v && Array.from(sel.options).some((o) => o.value === v)) sel.value = v; };
+      const st = a2.settings;
+      setV(tone, st.tone); setV(form, st.form); setV(structure, st.structure); setV(disruptor, st.disruptor); setV(instab, st.instability);
+    } else { setDramaData(null); }
+  });
 
   const tone = select("f-tone", [["neutral", "Neutral"], ["mystery", "Mystery"], ["poetic", "Poetisch"], ["melancholisch", "Melancholisch"], ["dark", "Düster"], ["unheimlich", "Unheimlich"], ["uplifting", "Hoffnungsvoll"], ["zaertlich", "Zärtlich"], ["traeumerisch", "Träumerisch"], ["nuechtern", "Nüchtern"], ["ironisch", "Ironisch"], ["humorous", "Humorvoll"]], "mystery");
   const form = select("f-form", [["prose", "Prosa"], ["poem", "Prosagedicht"], ["strang", "Gedicht-Strang"], ["reim", "Reim"], ["haiku", "Haiku"], ["script", "Szene/Dialog"], ["video", "Multi-Shot (Video)"]], "prose");

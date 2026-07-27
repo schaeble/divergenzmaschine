@@ -4,6 +4,7 @@
 // keine Änderung an vorhandenen Presets.
 import type { Bank } from "../types";
 import { normalizeBankShape } from "../storage";
+import { sortedPresetOptions } from "../wordbank";
 import { callClaude, extractJson } from "./ki";
 import type { DramaData } from "../generation/dramaturgie";
 
@@ -180,3 +181,10 @@ export function saveUserPreset2(name: string, a: Active2): void {
 }
 export function getUserPreset2(name: string): Active2 | null { return loadUserPresets2()[name] ?? null; }
 export function deleteUserPreset2(name: string): void { try { const all = loadUserPresets2(); delete all[name]; localStorage.setItem(USER2_KEY, JSON.stringify(all)); } catch { /* voll */ } }
+
+
+/** Preset-Optionen mit 2.0-Markierung (✦2.0) fuer eigene 2.0-Presets. */
+export function markedPresetOptions(): [string, string][] {
+  const u2 = loadUserPresets2();
+  return sortedPresetOptions().map(([v, l]) => [v, v.startsWith("user:") && u2[v.slice(5)] ? l + " ✦2.0" : l] as [string, string]);
+}
