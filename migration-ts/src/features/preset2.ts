@@ -98,6 +98,12 @@ function buildPreset2Prompt(inspiration: string): string {
     + '  "figuren": { "protagonisten": ["5-6"], "archetypen": ["5-6"], "tiere": ["3-4"] },\n'
     + '  "objekte": { "alltag": ["6-8"], "symbolisch": ["5-7"] },\n'
     + '  "sprache": { "stil": "…", "ton": "eines von: melancholisch, düster, poetisch, geheimnisvoll, unheimlich, hoffnungsvoll, zärtlich, träumerisch, nüchtern, ironisch, humorvoll, neutral", "metaphern": ["5-6"] },\n'
+    + '  "weltbild": { "naturgesetze": ["4-5 knappe Regeln der Welt, je ein ganzer Satz"] },\n'
+    + '  "zeit": { "zeitanomalien": ["3-4 Zeit-Phaenomene, kurze Nominalphrasen"] },\n'
+    + '  "konflikte": { "typisch": ["5-6 typische Konflikte, kurze Nominalphrasen"] },\n'
+    + '  "transformation": { "ausloeser": ["5-7 Ausloeser (Substantive, z.B. Traum, Brief)"], "veraenderungen": ["4-5 Veraenderungen, je clause-artig (z.B. Realitaet verschiebt sich)"] },\n'
+    + '  "logik": { "regeln": ["3-4 Erzaehl-/Logikregeln, je ein ganzer Satz"] },\n'
+    + '  "dramaturgie": { "einstieg": ["3 knappe Anfangs-Phasen"], "mitte": ["3-4 Mittel-Phasen"], "hoehepunkt": ["2 Hoehepunkt-Phasen"], "schluss": ["2-3 Schluss-Stilworte, z.B. offen, melancholisch"] },\n'
     + '  "generatoren": {\n'
     + '    "motifs": ["10-12 wiederkehrende, poetische Bilder, je 3-8 Wörter"],\n'
     + '    "hooks": ["5-6 kleine, irritierende Sätze"],\n'
@@ -108,7 +114,7 @@ function buildPreset2Prompt(inspiration: string): string {
     + '    "endings": ["5-6 Schlusssätze"]\n'
     + "  }\n"
     + "}\n\n"
-    + "Alles auf Deutsch, konkret und stimmig zur Inspiration. Der generatoren-Block ist am wichtigsten und muss vollständig gefüllt sein.";
+    + "Alles auf Deutsch, konkret und stimmig zur Inspiration. Der generatoren-Block UND der dramaturgie-/transformation-Block sind am wichtigsten und muessen vollstaendig gefuellt sein.";
 }
 
 
