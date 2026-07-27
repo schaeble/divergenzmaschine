@@ -19,6 +19,7 @@ import { buildVideoSequenceText } from "./video";
 import { enforceWordTarget } from "./length";
 import { applyEmphasis } from "./emphasis";
 import { asProsePoem, asStrang, asReim, asHaiku, asDrama } from "./forms";
+import { buildDramaturgie, hasDramaData } from "./dramaturgie";
 
 const MODES = ["bureau", "tech", "body", "myth", "absurd", "post"];
 const STRUCTURES = ["linear", "reverse", "circle", "fragment", "object"];
@@ -109,7 +110,9 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
 
   const verseForm = input.form === "reim" || input.form === "haiku" || input.form === "strang" || input.form === "drama";
   const effStructure = verseForm && kit.structure === "fragment" ? "linear" : kit.structure;
-  let text = pickStructureBuilder(effStructure)({ ...kit });
+  let text = (input.form === "prose" && input.structure === "dramaturgie" && hasDramaData())
+    ? buildDramaturgie({ ...kit })
+    : pickStructureBuilder(effStructure)({ ...kit });
 
   // Mehrere in "Wer" genannte Personen (Komma-getrennt) als Ensemble in die Prosa einweben.
   if (input.form === "prose" && kit.cast.length >= 2) text = weaveCast(text, kit.P, kit.cast);

@@ -5,6 +5,7 @@
 import type { Bank } from "../types";
 import { normalizeBankShape } from "../storage";
 import { callClaude, extractJson } from "./ki";
+import type { DramaData } from "../generation/dramaturgie";
 
 type Obj = Record<string, unknown>;
 const asObj = (v: unknown): Obj => (v && typeof v === "object" ? (v as Obj) : {});
@@ -51,7 +52,7 @@ export function preset2Name(parsed: unknown): string {
   return n || "Preset 2.0";
 }
 
-export interface Preset2Settings { tone?: string; form?: string; disruptor?: string; instability?: string; }
+export interface Preset2Settings { tone?: string; form?: string; disruptor?: string; instability?: string; structure?: string; }
 
 /** Phase 2: leitet aus sprache.ton + parameter die passenden Studio-Regler ab
  *  (nur die mit echtem Engine-Hebel: Ton, Form/Dialoganteil, Disruptor/Instabilität). */
@@ -139,4 +140,20 @@ export function builtinSettings(id: string): Preset2Settings {
   const st = preset2Settings({ parameter: { surrealismus: m.surrealismus, dialoganteil: m.dialoganteil, humor: m.humor } });
   if (!st.tone) st.tone = m.ton;
   return st;
+}
+
+
+/** Phase 3: extrahiert den Erzählbogen (Dramaturgie + Transformation + Konflikte +
+ *  Zeitanomalien + Natur-/Logik-Regeln) aus einem Preset 2.0 — oder null. */
+export function preset2Drama(parsed: unknown): DramaData | null {
+  const o = asObj(parsed);
+  const dr = asObj(o.dramaturgie), tr = asObj(o.transformation), kf = asObj(o.konflikte);
+  const zt = asObj(o.zeit), wb = asObj(o.weltbild), lg = asObj(o.logik);
+  const d: DramaData = {
+    einstieg: asArr(dr.einstieg), mitte: asArr(dr.mitte), hoehepunkt: asArr(dr.hoehepunkt), schluss: asArr(dr.schluss),
+    ausloeser: asArr(tr.ausloeser), veraenderungen: asArr(tr.veraenderungen),
+    konflikte: asArr(kf.typisch), zeitanomalien: asArr(zt.zeitanomalien),
+    regeln: [...asArr(wb.naturgesetze), ...asArr(lg.regeln)],
+  };
+  return Object.values(d).some((a) => a.length) ? d : null;
 }
