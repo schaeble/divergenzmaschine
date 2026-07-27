@@ -41,14 +41,17 @@ export function mountWordbank(root: HTMLElement): void {
     if (st.structure) parts.push("Struktur Dramaturgie");
     return parts.length ? ` · fürs Studio vorgemerkt: ${parts.join(", ")}` : "";
   };
-  const preset = select("wb-preset", sortedPresetOptions());
+  const markedOptions = (): [string, string][] => {
+    const u2 = loadUserPresets2();
+    return sortedPresetOptions().map(([v, l]) => [v, v.startsWith("user:") && u2[v.slice(5)] ? l + " ✦2.0" : l] as [string, string]);
+  };
+  const preset = select("wb-preset", markedOptions());
   if (preset.options.length > 1) preset.selectedIndex = 1;  // nicht Auto-Mix als Standard anzeigen
   const delPresetBtn = button("Preset löschen", "danger");
   const updDelPreset = (): void => { delPresetBtn.style.display = preset.value.startsWith("user:") ? "" : "none"; };
   const rebuildPresets = (keep?: string): void => {
     preset.innerHTML = "";
-    const u2 = loadUserPresets2();
-    for (const [v, l] of sortedPresetOptions()) { const lab = v.startsWith("user:") && u2[v.slice(5)] ? l + " ✦2.0" : l; preset.append(el("option", { value: v }, lab)); }
+    for (const [v, l] of markedOptions()) preset.append(el("option", { value: v }, l));
     if (keep && Array.from(preset.options).some((o) => o.value === keep)) preset.value = keep;
     else if (preset.options.length > 1) preset.selectedIndex = 1;
     updDelPreset();
