@@ -6,7 +6,7 @@ import { getAllPresets, sortedPresetOptions, saveCurrentBankAsUserPreset, delete
 import { DEFAULT_BANK } from "../constants";
 import { loadPersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
-import { preset2ToBank, preset2Pools, preset2Name, preset2Settings, generateAiPreset2 } from "../features/preset2";
+import { preset2ToBank, preset2Pools, preset2Name, preset2Settings, builtinSettings, generateAiPreset2 } from "../features/preset2";
 import { bankFromCorpus } from "../features/corpusbank";
 import { icon } from "./icons";
 import { loadAiKey, generateAiWordbank } from "../features/ki";
@@ -20,6 +20,10 @@ export function mountWordbank(root: HTMLElement): void {
   root.innerHTML = "";
   const wrap = el("div", {});
 
+  // Opt-in: Preset-Stimmung/Parameter ins Studio übernehmen (früh deklariert, unten in die UI gehängt).
+  const applyParamsChk = el("input", { type: "checkbox", id: "wb-p2apply" }) as HTMLInputElement;
+  applyParamsChk.checked = true;
+  const applyParamsRow = el("label", { class: "chk", title: "Setzt beim naechsten Oeffnen des Studios Ton, Form (bei hohem Dialoganteil) und Disruptor/Instabilitaet (bei Surrealismus) aus dem gewaehlten Preset." }, applyParamsChk, " Bei Preset: Ton & Parameter ins Studio uebernehmen");
   const preset = select("wb-preset", sortedPresetOptions());
   if (preset.options.length > 1) preset.selectedIndex = 1;  // nicht Auto-Mix als Standard anzeigen
   const delPresetBtn = button("Preset löschen", "danger");
@@ -35,7 +39,11 @@ export function mountWordbank(root: HTMLElement): void {
     const p = getAllPresets()[preset.value];
     updDelPreset();
     if (preset.value === AUTOMIX_ID) { saveBank(buildAutoMixBank()); saveActiveBankLabel("Auto-Mix"); load(); return; }
-    if (p) { saveBank(p.bank); saveActiveBankLabel(p.label || preset.value); load(); }
+    if (p) {
+      saveBank(p.bank); saveActiveBankLabel(p.label || preset.value); load();
+      try { const voc = [...(p.bank.motifs || []), ...(p.bank.props || []), ...(p.bank.turns || [])].join(". "); if (voc.trim()) feedLivePools(voc, LIVE_W.gen); } catch { /* egal */ }
+      if (applyParamsChk.checked) { const st = builtinSettings(preset.value); if (Object.keys(st).length) { try { localStorage.setItem("dm_pending_studio", JSON.stringify(st)); } catch { /* voll */ } } }
+    }
   });
   delPresetBtn.addEventListener("click", () => {
     if (!preset.value.startsWith("user:")) return;
@@ -202,10 +210,6 @@ export function mountWordbank(root: HTMLElement): void {
     el("div", { class: "grid2" }, field("Wo?", kiWhere), field("Wann?", kiWhen), field("Wer?", kiWho), field("Was?", kiWhat)),
     field("Zusatzvorgabe", kiExtra), el("div", { class: "btnrow" }, kiBtn), kiInfo);
 
-  // Phase 2: Preset-2.0-Stimmung/Parameter optional ins Studio uebernehmen.
-  const applyParamsChk = el("input", { type: "checkbox", id: "wb-p2apply" }) as HTMLInputElement;
-  applyParamsChk.checked = true;
-  const applyParamsRow = el("label", { class: "chk", title: "Setzt beim naechsten Oeffnen des Studios Ton, Form (bei hohem Dialoganteil) und Disruptor/Instabilitaet (bei Surrealismus) aus dem Preset 2.0." }, applyParamsChk, " Bei Preset 2.0: Ton & Parameter ins Studio uebernehmen");
   const stageParams = (obj: unknown): string => {
     if (!applyParamsChk.checked) return "";
     const st = preset2Settings(obj);

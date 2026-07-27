@@ -108,3 +108,35 @@ function buildPreset2Prompt(inspiration: string): string {
     + "}\n\n"
     + "Alles auf Deutsch, konkret und stimmig zur Inspiration. Der generatoren-Block ist am wichtigsten und muss vollständig gefüllt sein.";
 }
+
+
+/** Schlanke 2.0-Metadaten für die eingebauten Presets: passender Ton + wenige
+ *  Parameter (nur die mit echtem Engine-Hebel). Vokabular liefert bereits die Bank. */
+export const PRESET2_META: Record<string, { ton: string; surrealismus?: number; dialoganteil?: number; humor?: number }> = {
+  rimbaud: { ton: "poetic" }, baudelaire: { ton: "dark" }, kafka: { ton: "unheimlich" },
+  expressionismus: { ton: "dark" }, surrealismus1920: { ton: "traeumerisch", surrealismus: 0.8 },
+  transzendenz: { ton: "uplifting" }, melville: { ton: "mystery" }, formalismus: { ton: "nuechtern" },
+  christentum: { ton: "uplifting" }, koran: { ton: "poetic" }, buddhismus: { ton: "zaertlich" },
+  biologie: { ton: "nuechtern" }, geologie: { ton: "nuechtern" }, astrologie: { ton: "mystery" },
+  gaia: { ton: "poetic" }, freud: { ton: "unheimlich" },
+  jugendsprache: { ton: "ironisch", humor: 0.7, dialoganteil: 0.6 },
+  modernarchitecture: { ton: "nuechtern" }, philosophie: { ton: "nuechtern" }, klimakrise: { ton: "dark" },
+  ritterromane: { ton: "uplifting" }, liebesromane: { ton: "zaertlich" }, bergwelt: { ton: "poetic" },
+  clown: { ton: "humorous", humor: 0.8 }, faust: { ton: "dark" }, lebenreicher: { ton: "uplifting" },
+  tanz: { ton: "poetic" }, griechischetragoedie: { ton: "dark" }, glueck: { ton: "uplifting" },
+  gruendungsmythos: { ton: "mystery" }, staatsphilosophie: { ton: "nuechtern" },
+  traumbilder: { ton: "traeumerisch", surrealismus: 0.7 }, mystery: { ton: "mystery" },
+  bureau: { ton: "unheimlich" }, tech: { ton: "mystery" }, myth: { ton: "poetic" },
+  body: { ton: "dark" }, absurd: { ton: "ironisch", surrealismus: 0.7 }, post: { ton: "dark" },
+};
+
+/** Studio-Einstellungen für ein eingebautes Preset (leer, wenn keine Metadaten). */
+export function builtinSettings(id: string): Preset2Settings {
+  const m = PRESET2_META[id];
+  if (!m) return {};
+  // Parameter -> Form/Disruptor/Instabilität (+ humor -> humorvoll). Ton kommt direkt
+  // aus m.ton (bereits ein App-Ton-Schlüssel, nicht durch die Wort->Key-Map schicken).
+  const st = preset2Settings({ parameter: { surrealismus: m.surrealismus, dialoganteil: m.dialoganteil, humor: m.humor } });
+  if (!st.tone) st.tone = m.ton;
+  return st;
+}
