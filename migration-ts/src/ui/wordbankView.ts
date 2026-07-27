@@ -6,7 +6,7 @@ import { getAllPresets, sortedPresetOptions, saveCurrentBankAsUserPreset, delete
 import { DEFAULT_BANK } from "../constants";
 import { loadPersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
-import { preset2ToBank, preset2Pools, preset2Name, generateAiPreset2 } from "../features/preset2";
+import { preset2ToBank, preset2Pools, preset2Name, preset2Settings, generateAiPreset2 } from "../features/preset2";
 import { bankFromCorpus } from "../features/corpusbank";
 import { icon } from "./icons";
 import { loadAiKey, generateAiWordbank } from "../features/ki";
@@ -154,7 +154,8 @@ export function mountWordbank(root: HTMLElement): void {
         saveBank(bank); saveActiveBankLabel(p2 ? preset2Name(parsed) : "Aus Datei"); preset.selectedIndex = -1; load(); renderFull();
         const pools = preset2Pools(parsed);
         if (pools.length) { try { feedLivePools(pools.join(". ") + ".", LIVE_W.schatz); } catch { /* egal */ } }
-        fullInfo.textContent = `Geladen — ${bankEntryCount(bank)} Einträge${pools.length ? ` · ${pools.length} Kontext-Begriffe in die lebendigen Pools` : ""}.`;
+        const staged = p2 ? stageParams(parsed) : "";
+        fullInfo.textContent = `Geladen — ${bankEntryCount(bank)} Einträge${pools.length ? ` · ${pools.length} Kontext-Begriffe in die lebendigen Pools` : ""}${staged}.`;
       } catch { fullInfo.textContent = "Datei nicht lesbar (kein gültiges JSON)."; }
       fileIn.value = "";
     };
@@ -201,6 +202,23 @@ export function mountWordbank(root: HTMLElement): void {
     el("div", { class: "grid2" }, field("Wo?", kiWhere), field("Wann?", kiWhen), field("Wer?", kiWho), field("Was?", kiWhat)),
     field("Zusatzvorgabe", kiExtra), el("div", { class: "btnrow" }, kiBtn), kiInfo);
 
+  // Phase 2: Preset-2.0-Stimmung/Parameter optional ins Studio uebernehmen.
+  const applyParamsChk = el("input", { type: "checkbox", id: "wb-p2apply" }) as HTMLInputElement;
+  applyParamsChk.checked = true;
+  const applyParamsRow = el("label", { class: "chk", title: "Setzt beim naechsten Oeffnen des Studios Ton, Form (bei hohem Dialoganteil) und Disruptor/Instabilitaet (bei Surrealismus) aus dem Preset 2.0." }, applyParamsChk, " Bei Preset 2.0: Ton & Parameter ins Studio uebernehmen");
+  const stageParams = (obj: unknown): string => {
+    if (!applyParamsChk.checked) return "";
+    const st = preset2Settings(obj);
+    if (!Object.keys(st).length) return "";
+    try { localStorage.setItem("dm_pending_studio", JSON.stringify(st)); } catch { /* voll */ }
+    const parts: string[] = [];
+    if (st.tone) parts.push("Ton " + st.tone);
+    if (st.form) parts.push("Form Szene/Dialog");
+    if (st.disruptor) parts.push("Disruptor an");
+    if (st.instability) parts.push("Instabilitaet " + st.instability);
+    return parts.length ? ` · fuers Studio vorgemerkt: ${parts.join(", ")}` : "";
+  };
+
   // ---- KI-Preset 2.0 (experimentell): erzeugt ein komplettes Preset 2.0 per KI ----
   const p2Insp = el("input", { placeholder: "Inspiration / Beschreibung, z. B. „Haruki Murakami“" }) as HTMLInputElement;
   const p2Out = el("textarea", { style: "height:150px", placeholder: "Das erzeugte Preset-2.0-JSON erscheint hier." }) as HTMLTextAreaElement;
@@ -218,7 +236,8 @@ export function mountWordbank(root: HTMLElement): void {
         saveBank(r.bank); saveActiveBankLabel(r.name); preset.selectedIndex = -1; load(); renderFull();
         const pools = preset2Pools(r.obj);
         if (pools.length) { try { feedLivePools(pools.join(". ") + ".", LIVE_W.schatz); } catch { /* egal */ } }
-        p2Info.textContent = `„${r.name}“ erzeugt & aktiviert (${bankEntryCount(r.bank)} Einträge${pools.length ? `, ${pools.length} Kontext-Begriffe in die Pools` : ""}). Unten als Datei sichern oder als Preset speichern.`;
+        const staged = stageParams(r.obj);
+        p2Info.textContent = `„${r.name}“ erzeugt & aktiviert (${bankEntryCount(r.bank)} Einträge${pools.length ? `, ${pools.length} Kontext-Begriffe in die Pools` : ""}${staged}). Unten als Datei sichern oder als Preset speichern.`;
       } catch (e) { p2Info.textContent = "Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e)); }
       finally { p2Btn.disabled = false; p2Lbl.textContent = "Preset 2.0 erzeugen"; }
     })();
@@ -245,6 +264,7 @@ export function mountWordbank(root: HTMLElement): void {
     el("div", { class: "btnrow" }, saveBtn, mutBtn, mutSlider, " ", mutVal, resetBtn),
     el("div", { class: "btnrow" }, autoMixBtn, fillBtn, saveAs),
     info,
+    applyParamsRow,
     fullBox,
     kiBox,
     p2Box,

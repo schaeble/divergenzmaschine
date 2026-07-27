@@ -51,6 +51,26 @@ export function preset2Name(parsed: unknown): string {
   return n || "Preset 2.0";
 }
 
+export interface Preset2Settings { tone?: string; form?: string; disruptor?: string; instability?: string; }
+
+/** Phase 2: leitet aus sprache.ton + parameter die passenden Studio-Regler ab
+ *  (nur die mit echtem Engine-Hebel: Ton, Form/Dialoganteil, Disruptor/Instabilität). */
+export function preset2Settings(parsed: unknown): Preset2Settings {
+  const out: Preset2Settings = {};
+  const p = asObj(asObj(parsed).parameter);
+  const num = (k: string): number | undefined => (typeof p[k] === "number" ? (p[k] as number) : undefined);
+  const tone = preset2ToneKey(parsed);
+  const humor = num("humor"), dial = num("dialoganteil"), sur = num("surrealismus");
+  if (humor !== undefined && humor >= 0.5) out.tone = "humorous";
+  else if (tone) out.tone = tone;
+  if (dial !== undefined && dial >= 0.6) out.form = "script";
+  if (sur !== undefined) {
+    if (sur >= 0.5) out.disruptor = "on";
+    if (sur >= 0.6) out.instability = "2"; else if (sur >= 0.4) out.instability = "1";
+  }
+  return out;
+}
+
 export interface AiPreset2 { obj: Record<string, unknown>; bank: Bank; name: string; json: string; }
 
 /** Experimentell: erzeugt ein komplettes Preset 2.0 per KI. */

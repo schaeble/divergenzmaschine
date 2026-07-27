@@ -472,7 +472,7 @@ export function mountStudio(root: HTMLElement): void {
     const setStr = (el: HTMLInputElement, k: string): void => { const v = P[k]; if (typeof v === "string" && v) el.value = v; };
     const setSel = (sel: HTMLSelectElement, k: string): void => { const v = P[k]; if (typeof v === "string" && Array.from(sel.options).some((o) => o.value === v)) sel.value = v; };
     setStr(where, "where"); setStr(when, "when"); setStr(who, "who"); setStr(what, "what");
-    setSel(form, "form"); setSel(structure, "structure"); setSel(persp, "perspective"); setSel(rhythm, "rhythm"); setSel(varianz, "varLevel"); setSel(mode, "mode"); setSel(tone, "tone"); setSel(markov, "markovMode"); setSel(archA, "archetypeA"); setSel(archB, "archetypeB");
+    setSel(form, "form"); setSel(structure, "structure"); setSel(persp, "perspective"); setSel(rhythm, "rhythm"); setSel(varianz, "varLevel"); setSel(mode, "mode"); setSel(tone, "tone"); setSel(markov, "markovMode"); setSel(archA, "archetypeA"); setSel(archB, "archetypeB"); setSel(disruptor, "disruptor"); setSel(instab, "instability");
     const emp = P["emphasis"] as Record<string, number> | undefined;
     if (emp) { wWo.value = String(emp.wo ?? 0); wWann.value = String(emp.wann ?? 0); wWer.value = String(emp.wer ?? 0); wWas.value = String(emp.was ?? 0); }
     if (P["bank"]) {
