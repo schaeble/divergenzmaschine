@@ -163,10 +163,25 @@ export async function callClaudeStream(
 }
 
 export function extractJson(raw: string): unknown {
-  let s = (raw || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
-  const start = s.indexOf("{"), end = s.lastIndexOf("}");
+  const s = (raw || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+  const start = s.indexOf("{");
   if (start === -1) throw new Error("Keine JSON-Antwort erhalten.");
-  if (end === -1 || end <= start) throw new Error("Antwort abgeschnitten (kein '}').");
+  // Erstes vollständiges Objekt per balancierter Klammerung extrahieren (Strings/
+  // Escapes respektiert), damit Zusatztext NACH dem JSON nicht stört.
+  let depth = 0, inStr = false, esc = false, end = -1;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i]!;
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === "{") depth++;
+    else if (c === "}") { depth--; if (depth === 0) { end = i; break; } }
+  }
+  if (end === -1) throw new Error("Antwort abgeschnitten (kein schließendes '}').");
   const body = s.slice(start, end + 1).replace(/,\s*([}\]])/g, "$1");
   return JSON.parse(body);
 }

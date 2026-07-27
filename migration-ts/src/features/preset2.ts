@@ -77,7 +77,7 @@ export interface AiPreset2 { obj: Record<string, unknown>; bank: Bank; name: str
 
 /** Experimentell: erzeugt ein komplettes Preset 2.0 per KI. */
 export async function generateAiPreset2(inspiration: string): Promise<AiPreset2> {
-  const raw = await callClaude(buildPreset2Prompt(inspiration), 4096, "{");
+  const raw = await callClaude(buildPreset2Prompt(inspiration), 8192, "{");
   const obj = extractJson(raw) as Record<string, unknown>;
   const bank = preset2ToBank(obj);
   if (!bank) throw new Error("Antwort ohne gültigen generatoren-Block.");
