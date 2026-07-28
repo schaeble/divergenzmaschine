@@ -137,6 +137,10 @@ export function coherenceRepairV2(t: string, input?: Input): string {
 export function postProcessText(txt: string, input?: Input): string {
   let t = (txt ?? "").toString();
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1: string, p2: string) => p1 + p2.toUpperCase());
+  // Nach Konjunktion mitten im Satz: gross geschriebene Artikel/Pronomen klein
+  // ("…, und Die Vergangenheit" -> "…, und die Vergangenheit"). Nomen (Realitaet)
+  // stehen nicht in der Liste und bleiben gross.
+  t = t.replace(/\b(und|oder|aber|denn|sondern|sowie)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m: string, c: string, sp: string, w: string) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
 
   const name = (input?.who ?? "").toString().trim();
   if (name) {
@@ -170,5 +174,9 @@ export function postProcessText(txt: string, input?: Input): string {
   t = coherencePass(t, input);
   t = coherenceRepairV2(t, input);
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1: string, p2: string) => p1 + p2.toUpperCase());
+  // Nach Konjunktion mitten im Satz: gross geschriebene Artikel/Pronomen klein
+  // ("…, und Die Vergangenheit" -> "…, und die Vergangenheit"). Nomen (Realitaet)
+  // stehen nicht in der Liste und bleiben gross.
+  t = t.replace(/\b(und|oder|aber|denn|sondern|sowie)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m: string, c: string, sp: string, w: string) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
   return t.trim();
 }
