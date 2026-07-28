@@ -331,11 +331,28 @@ export function mountWordbank(root: HTMLElement): void {
     el("div", { class: "btnrow" }, p2Btn, p2SaveBtn),
     p2Info, p2Out);
 
+  const rulesBox = el("details", { class: "fine" });
+  rulesBox.append(
+    el("summary", {}, icon("settings"), " Regeln zum Befüllen"),
+    el("p", { class: "muted" }, "Ein Eintrag pro Zeile. Was die Engine automatisch macht: Satzanfänge großschreiben, Groß/Klein nach „und/oder/aber …“ anpassen, Requisiten deklinieren (Artikel klein). Was du selbst richtig setzen musst: deutsche Nomen großschreiben (die Engine erkennt keine Nomen)."),
+    (() => { const ul = el("ul", { class: "help-list" });
+      ([
+        ["Motive", "kurze, bildhafte Phrasen (3–8 Wörter), ohne Punkt am Ende, z. B. „ein leerer Bahnhof am Nachmittag“."],
+        ["Hooks", "kleine, irritierende Details als ganzer Satz, z. B. „Das Telefon klingelte genau einmal.“"],
+        ["Requisiten", "Gegenstände als „ein/eine + Nomen“, z. B. „ein Kompass“, „eine Muschel“. Werden automatisch dekliniert — Artikel-Schreibweise egal."],
+        ["Wendungen", "Wendepunkte als kurzer Satz/Phrase, z. B. „eine Katze führt den Weg“."],
+        ["Hindernisse", "Hindernisse als kurzer Satz, z. B. „die Stadt schweigt“."],
+        ["Einsätze", "kurze Nominalphrasen (worum es geht), z. B. „Identität“, „die Rückkehr an ein Ufer“."],
+        ["Enden", "Schlusssätze als ganzer Satz, z. B. „Die Musik spielte weiter.“"],
+      ] as [string, string][]).forEach(([k, v]) => ul.append(el("li", {}, el("b", {}, k), " — " + v)));
+      return ul; })(),
+    el("p", { class: "muted" }, "Faustregel: schreib jeden Eintrag so, wie er mitten im Satz stünde — führender Artikel/Pronomen klein, Nomen groß. Anführungszeichen oder Sonderzeichen sind nicht nötig."));
   wrap.append(
     field("Preset", preset),
     el("div", { class: "btnrow" }, delPresetBtn),
     field("Liste", listSel),
     editor,
+    rulesBox,
     el("div", { class: "btnrow" }, saveBtn, mutBtn, mutSlider, " ", mutVal, resetBtn),
     el("div", { class: "btnrow" }, autoMixBtn, fillBtn, saveAs),
     info,

@@ -71,7 +71,9 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
   const aug = (list: string[], key: string) => archetypeAugmentList(list, archA, archB, key);
   const motif = maybeMarkov(pickSane(aug(bank.motifs, "motifs")), 0.28);
   const hook = maybeMarkov(pickSane(aug(bank.hooks, "hooks")), 0.28);
-  const prop = pickSane(aug(bank.props, "props"), 1);
+  // Requisiten stehen immer mitten im Satz (…nimmt ${prop}); fuehrenden Artikel
+  // klein normalisieren, damit die Schreibweise in der Wortbank egal ist.
+  const prop = pickSane(aug(bank.props, "props"), 1).replace(/^(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/, (m) => m.toLowerCase());
 
   const hookIsClause = looksLikeClausePhrase(hook);
   const hookQuote = hookIsClause ? clean(hook).replace(/[.!?…]+$/, "") : "";
