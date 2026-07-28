@@ -28,13 +28,20 @@ export function guessGender(noun: string): "m" | "f" | "n" | undefined {
  *  sofern das Geschlecht erkennbar ist — sonst unveraendert. */
 export function ensureArticle(phrase: string): string {
   const s = clean(phrase);
-  if (/^(ein|eine|einen|einem|einer|eines|der|die|das|den|dem|des)\b/i.test(s)) return s;
+  if (/^(ein|eine|einen|einem|einer|eines|der|die|das|den|dem|des|kein|keine|mein|dein|sein|ihr|unser)\b/i.test(s)) return s;
   const words = s.split(" ");
-  const nounIdx = words.findIndex((w) => /^[A-ZÄÖÜ]/.test(w));
-  if (nounIdx === -1 || words.length > 4) return s;
+  if (words.length > 5) return s;
+  let nounIdx = words.findIndex((w) => /^[A-ZÄÖÜ]/.test(w));
+  if (nounIdx === -1) return s;
+  // Fuehrendes, faelschlich grossgeschriebenes Adjektiv (Endung -e/-er/-es/-en, direkt
+  // gefolgt von einem grossgeschriebenen Nomen) kleinschreiben; Nomen ist dann das naechste.
+  if (nounIdx + 1 < words.length && /^[A-ZÄÖÜ]/.test(words[nounIdx + 1]!) && /(e|er|es|en|em|te|ne)$/.test(words[nounIdx]!)) {
+    words[nounIdx] = words[nounIdx]!.charAt(0).toLowerCase() + words[nounIdx]!.slice(1);
+    nounIdx++;
+  }
   const g = guessGender(words[nounIdx]!.replace(/[^A-Za-zÄÖÜäöüß]/g, ""));
-  if (!g) return s;
-  return `${g === "f" ? "eine" : "ein"} ${s}`;
+  if (!g) return words.join(" ");                 // kein sicheres Genus -> nur Adjektiv-Korrektur, kein Artikel
+  return `${g === "f" ? "eine" : "ein"} ${words.join(" ")}`;
 }
 
 export function declineHookPhrase(phrase: string, targetCase: string): string {
