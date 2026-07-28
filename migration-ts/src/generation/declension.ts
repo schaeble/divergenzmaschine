@@ -11,6 +11,32 @@ export function adjustAdjectiveEnding(adj: string, gender: string, targetCase: s
   return adj;
 }
 
+/** Geschlecht per Endungs-Heuristik raten, wenn nicht in der Tabelle (grob, aber
+ *  ohne Fehlalarm bei klaren Endungen). Rueckgabe m/f/n oder undefined. */
+export function guessGender(noun: string): "m" | "f" | "n" | undefined {
+  const w = (noun || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
+  const known = NOUN_GENDER[w];
+  if (known === "m" || known === "f" || known === "n") return known;
+  if (/(ung|heit|keit|schaft|tät|ion|ik|enz|anz|ei|ade|age|üre|itis|ur)$/.test(w)) return "f";
+  if (/(chen|lein|ment|tum|um|nis|ma)$/.test(w)) return "n";
+  if (/(ling|ismus|ant|ent|ist|eur|or|ich|ig|ast)$/.test(w)) return "m";
+  if (/er$/.test(w)) return "m";
+  return undefined;
+}
+
+/** Ergaenzt bei einem bloßen Nomen (ohne Artikel) einen unbestimmten Artikel,
+ *  sofern das Geschlecht erkennbar ist — sonst unveraendert. */
+export function ensureArticle(phrase: string): string {
+  const s = clean(phrase);
+  if (/^(ein|eine|einen|einem|einer|eines|der|die|das|den|dem|des)\b/i.test(s)) return s;
+  const words = s.split(" ");
+  const nounIdx = words.findIndex((w) => /^[A-ZÄÖÜ]/.test(w));
+  if (nounIdx === -1 || words.length > 4) return s;
+  const g = guessGender(words[nounIdx]!.replace(/[^A-Za-zÄÖÜäöüß]/g, ""));
+  if (!g) return s;
+  return `${g === "f" ? "eine" : "ein"} ${s}`;
+}
+
 export function declineHookPhrase(phrase: string, targetCase: string): string {
   const s = clean(phrase);
   const m = s.match(/^(ein|eine)\s+(.*)$/i);
@@ -22,7 +48,8 @@ export function declineHookPhrase(phrase: string, targetCase: string): string {
   }
   if (nounIdx === -1) return s;
   const nounWord = restWords[nounIdx]!.replace(/[,.;:!?]+$/, "");
-  const gender = NOUN_GENDER[nounWord.toLowerCase()];
+  const art0 = m[1]!.toLowerCase();
+  const gender = art0 === "eine" ? "f" : (NOUN_GENDER[nounWord.toLowerCase()] || guessGender(nounWord));
   if (!gender) return s;
 
   const artForms: Record<string, Record<string, string>> = {

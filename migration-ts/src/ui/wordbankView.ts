@@ -339,7 +339,7 @@ export function mountWordbank(root: HTMLElement): void {
       ([
         ["Motive", "kurze, bildhafte Phrasen (3–8 Wörter), ohne Punkt am Ende, z. B. „ein leerer Bahnhof am Nachmittag“."],
         ["Hooks", "kleine, irritierende Details als ganzer Satz, z. B. „Das Telefon klingelte genau einmal.“"],
-        ["Requisiten", "Gegenstände als „ein/eine + Nomen“, z. B. „ein Kompass“, „eine Muschel“. Werden automatisch dekliniert — Artikel-Schreibweise egal."],
+        ["Requisiten", "Gegenstände, z. B. „ein Kompass“, „eine Muschel“. Werden automatisch dekliniert (Artikel-Schreibweise egal). Bei klarer Endung (-ung/-heit/-keit → die, -chen/-lein → das, -er/-ling → der) genügt das bloße Nomen — die Engine ergänzt den Artikel. Bei uneindeutigen Nomen (z. B. Muschel, Segel) bitte den Artikel angeben."],
         ["Wendungen", "Wendepunkte als kurzer Satz/Phrase, z. B. „eine Katze führt den Weg“."],
         ["Hindernisse", "Hindernisse als kurzer Satz, z. B. „die Stadt schweigt“."],
         ["Einsätze", "kurze Nominalphrasen (worum es geht), z. B. „Identität“, „die Rückkehr an ein Ufer“."],

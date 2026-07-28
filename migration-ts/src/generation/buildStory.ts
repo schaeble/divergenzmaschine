@@ -11,7 +11,7 @@ import { markovSeenRecently, noteMarkov } from "./cooldown";
 import { toneRhythm } from "./tone.shape";
 import { archetypeAugmentList } from "./archetype";
 import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "./wordcls";
-import { declineHookPhrase, safeCaseForm } from "./declension";
+import { declineHookPhrase, safeCaseForm, ensureArticle } from "./declension";
 import { applyDisruptor, applyRhythm, paragraphize, applyPerspective, pronominalize, guessPronoun } from "./shape";
 import { MarkovModel, isSaneMarkov, smoothMarkov } from "../corpus";
 import { biasedAutoChoice } from "./autochoice";
@@ -73,7 +73,7 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
   const hook = maybeMarkov(pickSane(aug(bank.hooks, "hooks")), 0.28);
   // Requisiten stehen immer mitten im Satz (…nimmt ${prop}); fuehrenden Artikel
   // klein normalisieren, damit die Schreibweise in der Wortbank egal ist.
-  const prop = pickSane(aug(bank.props, "props"), 1).replace(/^(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/, (m) => m.toLowerCase());
+  const prop = ensureArticle(pickSane(aug(bank.props, "props"), 1)).replace(/^(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/, (m) => m.toLowerCase());
 
   const hookIsClause = looksLikeClausePhrase(hook);
   const hookQuote = hookIsClause ? clean(hook).replace(/[.!?…]+$/, "") : "";
