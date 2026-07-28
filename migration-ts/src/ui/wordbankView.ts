@@ -2,7 +2,7 @@
 import type { BankKey } from "../types";
 import { el, select, field, button } from "./dom";
 import { loadBank, saveBank, normalizeBankShape } from "../storage";
-import { getAllPresets, sortedPresetOptions, saveCurrentBankAsUserPreset, deleteUserPreset, mutateBank, bankEntryCount, buildAutoMixBank, saveActiveBankLabel, loadActiveBankLabel, AUTOMIX_ID } from "../wordbank";
+import { getAllPresets, sortedPresetOptions, saveCurrentBankAsUserPreset, deleteUserPreset, mutateBank, bankEntryCount, buildAutoMixBank, saveActiveBankLabel, loadActiveBankLabel, loadUserPresets, saveUserPresets, AUTOMIX_ID } from "../wordbank";
 import { DEFAULT_BANK } from "../constants";
 import { loadPersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
@@ -367,6 +367,64 @@ export function mountWordbank(root: HTMLElement): void {
       ] as [string, string][]).forEach(([k, v]) => ul.append(el("li", {}, el("b", {}, k), " — " + v)));
       return ul; })(),
     el("p", { class: "muted" }, "Faustregel: schreib jeden Eintrag so, wie er mitten im Satz stünde — führender Artikel/Pronomen klein, Nomen groß. Anführungszeichen oder Sonderzeichen sind nicht nötig."));
+  // ---- Mehrere Presets per KI aktualisieren ----
+  const batchInfo = el("p", { class: "muted" }, "");
+  const batchList = el("div", { style: "max-height:200px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin:6px 0" });
+  const batchChks: Record<string, HTMLInputElement> = {};
+  const rebuildBatchList = (): void => {
+    batchList.innerHTML = ""; for (const k of Object.keys(batchChks)) delete batchChks[k];
+    for (const [id, label] of sortedPresetOptions()) {
+      if (id === AUTOMIX_ID) continue;
+      const c = el("input", { type: "checkbox" }) as HTMLInputElement;
+      batchChks[id] = c;
+      batchList.append(el("label", { class: "chk", style: "display:block" }, c, " " + label + (id.startsWith("builtin:") ? " → Kopie „…2.0“" : "")));
+    }
+  };
+  rebuildBatchList();
+  const selAll = button("Alle"); selAll.addEventListener("click", () => { for (const c of Object.values(batchChks)) c.checked = true; });
+  const selNone = button("Keine"); selNone.addEventListener("click", () => { for (const c of Object.values(batchChks)) c.checked = false; });
+  const stripIcon = (l: string): string => l.replace(/^[^A-Za-z0-9ÄÖÜäöüß]+/, "").trim();
+  const batchLbl = el("span", {}, "Ausgewählte aktualisieren");
+  const batchBtn = el("button", { class: "primary" }, icon("flask"), " ", batchLbl) as HTMLButtonElement;
+  batchBtn.addEventListener("click", () => {
+    void (async () => {
+      if (!loadAiKey()) { alert("Kein API-Schlüssel — bitte unter Studio ▸ Einstellungen ▸ KI-Zugang hinterlegen."); return; }
+      const ids = Object.keys(batchChks).filter((id) => batchChks[id]!.checked);
+      if (!ids.length) { batchInfo.textContent = "Nichts ausgewählt."; return; }
+      batchBtn.disabled = true; let done = 0, failed = 0;
+      for (const id of ids) {
+        const p = getAllPresets()[id]; if (!p) continue;
+        batchLbl.textContent = `Aktualisiere… (${done + failed + 1}/${ids.length})`;
+        batchInfo.textContent = `${p.label}: läuft …`;
+        try {
+          const seed = JSON.stringify({ thema: p.label, generatoren: p.bank, ...(id.startsWith("user:") && getUserPreset2(id.slice(5)) ? (() => { const a = getUserPreset2(id.slice(5))!; return a.drama ? { dramaturgie: { einstieg: a.drama.einstieg, mitte: a.drama.mitte, hoehepunkt: a.drama.hoehepunkt, schluss: a.drama.schluss }, transformation: { ausloeser: a.drama.ausloeser, veraenderungen: a.drama.veraenderungen }, konflikte: { typisch: a.drama.konflikte } } : {}; })() : {}) });
+          const r = await generateAiPreset2(stripIcon(p.label), seed);
+          const a2 = preset2Active(r.obj);
+          if (id.startsWith("user:")) {
+            const name = id.slice(5);
+            const users = loadUserPresets(); users[name] = r.bank; saveUserPresets(users); saveUserPreset2(name, a2);
+          } else {
+            const name = (stripIcon(p.label) + " 2.0").slice(0, 40);
+            const users = loadUserPresets(); users[name] = r.bank; saveUserPresets(users); saveUserPreset2(name, a2);
+          }
+          done++;
+        } catch { failed++; }
+      }
+      rebuildPresets(); rebuildBatchList();
+      batchBtn.disabled = false; batchLbl.textContent = "Ausgewählte aktualisieren";
+      batchInfo.textContent = `Fertig: ${done} aktualisiert${failed ? `, ${failed} fehlgeschlagen` : ""}.`;
+    })();
+  });
+  const batchBox = el("details", { class: "fine" });
+  batchBox.addEventListener("toggle", () => { if (batchBox.open) rebuildBatchList(); });
+  batchBox.append(
+    el("summary", {}, icon("flask"), " Mehrere Presets per KI aktualisieren"),
+    el("p", { class: "muted" }, "Ausgewählte Presets werden nacheinander per KI verbessert (Grammatik/Artikel, mehr Einträge, 2.0-Felder). Eigene Presets werden ersetzt; eingebaute als neue Kopie „…2.0“ gespeichert. Braucht einen API-Schlüssel und verbraucht pro Preset eine Anfrage."),
+    el("div", { class: "btnrow" }, selAll, selNone),
+    batchList,
+    el("div", { class: "btnrow" }, batchBtn),
+    batchInfo);
+
   wrap.append(
     field("Preset", preset),
     el("div", { class: "btnrow" }, updBtn, delPresetBtn),
@@ -380,6 +438,7 @@ export function mountWordbank(root: HTMLElement): void {
     fullBox,
     kiBox,
     p2Box,
+    batchBox,
   );
   root.append(wrap);
   load();
