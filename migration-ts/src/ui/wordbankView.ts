@@ -50,6 +50,26 @@ export function mountWordbank(root: HTMLElement): void {
   const preset = select("wb-preset", markedOptions());
   if (preset.options.length > 1) preset.selectedIndex = 1;  // nicht Auto-Mix als Standard anzeigen
   const delPresetBtn = button("Preset löschen", "danger");
+  const updLbl = el("span", {}, "Per KI aktualisieren");
+  const updBtn = el("button", {}, icon("flask"), " ", updLbl) as HTMLButtonElement;
+  updBtn.title = "Verbessert das aktive Preset per KI: Grammatik/Artikel, mehr Einträge, füllt Dramaturgie/2.0-Felder — Thema bleibt.";
+  updBtn.addEventListener("click", () => {
+    void (async () => {
+      if (!loadAiKey()) { alert("Kein API-Schlüssel — bitte unter Studio ▸ Einstellungen ▸ KI-Zugang hinterlegen."); return; }
+      updBtn.disabled = true; updLbl.textContent = "Aktualisiere…";
+      try {
+        const label = loadActiveBankLabel() || "Preset";
+        const a0 = getActive2();
+        const seed = JSON.stringify({ thema: label, generatoren: loadBank(), ...(a0 && a0.drama ? { dramaturgie: { einstieg: a0.drama.einstieg, mitte: a0.drama.mitte, hoehepunkt: a0.drama.hoehepunkt, schluss: a0.drama.schluss }, transformation: { ausloeser: a0.drama.ausloeser, veraenderungen: a0.drama.veraenderungen }, konflikte: { typisch: a0.drama.konflikte } } : {}), ...(a0 ? { pools: a0.pools } : {}) });
+        const r = await generateAiPreset2(label.replace(/^[^A-Za-z0-9ÄÖÜäöüß]+/, ""), seed);
+        saveBank(r.bank); saveActiveBankLabel(r.name || label); preset.selectedIndex = -1; load(); renderFull();
+        applyActive2(preset2Active(r.obj)); render2();
+        if (preset.value.startsWith("user:")) { const nm = preset.value.slice(5); saveCurrentBankAsUserPreset(nm); const a2 = getActive2(); if (a2) saveUserPreset2(nm, a2); }
+        info.textContent = `Aktualisiert ✓ — ${bankEntryCount(r.bank)} Einträge.`;
+      } catch (e) { info.textContent = "Aktualisieren fehlgeschlagen: " + (e instanceof Error ? e.message : String(e)); }
+      finally { updBtn.disabled = false; updLbl.textContent = "Per KI aktualisieren"; }
+    })();
+  });
   const updDelPreset = (): void => { delPresetBtn.style.display = preset.value.startsWith("user:") ? "" : "none"; };
   const rebuildPresets = (keep?: string): void => {
     preset.innerHTML = "";
@@ -349,7 +369,7 @@ export function mountWordbank(root: HTMLElement): void {
     el("p", { class: "muted" }, "Faustregel: schreib jeden Eintrag so, wie er mitten im Satz stünde — führender Artikel/Pronomen klein, Nomen groß. Anführungszeichen oder Sonderzeichen sind nicht nötig."));
   wrap.append(
     field("Preset", preset),
-    el("div", { class: "btnrow" }, delPresetBtn),
+    el("div", { class: "btnrow" }, updBtn, delPresetBtn),
     field("Liste", listSel),
     editor,
     rulesBox,

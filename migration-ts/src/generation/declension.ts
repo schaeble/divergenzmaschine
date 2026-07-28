@@ -17,6 +17,10 @@ export function guessGender(noun: string): "m" | "f" | "n" | undefined {
   const w = (noun || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
   const known = NOUN_GENDER[w];
   if (known === "m" || known === "f" || known === "n") return known;
+  // Kompositum: Genus richtet sich nach dem letzten Glied — laengster bekannter Suffix-Treffer.
+  let best = "";
+  for (const k in NOUN_GENDER) { if (k.length >= 3 && w.length >= k.length + 2 && w.endsWith(k) && k.length > best.length) best = k; }
+  if (best) return NOUN_GENDER[best]!;
   if (/(ung|heit|keit|schaft|tät|ion|ik|enz|anz|ei|ade|age|üre|itis|ur)$/.test(w)) return "f";
   if (/(chen|lein|ment|tum|um|nis|ma)$/.test(w)) return "n";
   if (/(ling|ismus|ant|ent|ist|eur|or|ich|ig|ast)$/.test(w)) return "m";

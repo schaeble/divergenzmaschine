@@ -76,16 +76,19 @@ export function preset2Settings(parsed: unknown): Preset2Settings {
 export interface AiPreset2 { obj: Record<string, unknown>; bank: Bank; name: string; json: string; }
 
 /** Experimentell: erzeugt ein komplettes Preset 2.0 per KI. */
-export async function generateAiPreset2(inspiration: string): Promise<AiPreset2> {
-  const raw = await callClaude(buildPreset2Prompt(inspiration), 8192, "{");
+export async function generateAiPreset2(inspiration: string, seed?: string): Promise<AiPreset2> {
+  const raw = await callClaude(buildPreset2Prompt(inspiration, seed), 8192, "{");
   const obj = extractJson(raw) as Record<string, unknown>;
   const bank = preset2ToBank(obj);
   if (!bank) throw new Error("Antwort ohne gültigen generatoren-Block.");
   return { obj, bank, name: preset2Name(obj), json: JSON.stringify(obj, null, 2) };
 }
 
-function buildPreset2Prompt(inspiration: string): string {
-  return 'Du erstellst ein "Preset 2.0" für einen prozeduralen, deutschsprachigen Kreativ-Textgenerator (Divergenzmaschine). '
+function buildPreset2Prompt(inspiration: string, seed?: string): string {
+  const seedPart = seed
+    ? "Hier ist ein BESTEHENDES Preset/Material zum selben Thema. Verbessere und erweitere es: Thema beibehalten und schaerfen, Grammatik korrigieren, bei Requisiten/Motiven Artikel ergaenzen, fehlende Felder (dramaturgie, transformation, konflikte, zeitanomalien, regeln) ausfuellen, pro generatoren-Kategorie 8-12 Eintraege. Ausgangsmaterial:\n" + seed + "\n\n"
+    : "";
+  return seedPart + 'Du erstellst ein "Preset 2.0" für einen prozeduralen, deutschsprachigen Kreativ-Textgenerator (Divergenzmaschine). '
     + "Inspiration/Ausgangspunkt: " + (inspiration || "(frei wählbar)") + ".\n\n"
     + "Gib NUR reines JSON zurück (beginnt mit { , endet mit } , kein Markdown, keine Erklärung), exakt mit diesen Schlüsseln:\n"
     + "{\n"
