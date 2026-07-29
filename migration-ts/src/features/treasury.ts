@@ -39,7 +39,7 @@ export function deleteTreasureAt(i: number): void {
   if (i >= 0 && i < list.length) { list.splice(i, 1); saveTreasury(list); }
 }
 
-/** Schaltet das Geheim-Flag eines Eintrags (Geheimkammer). */
+/** Schaltet das Geheim-Flag eines Eintrags (Tresor). */
 export function setTreasureSecretAt(i: number, secret: boolean): void {
   const list = loadTreasury();
   if (i >= 0 && i < list.length) { list[i]!.secret = secret; saveTreasury(list); }

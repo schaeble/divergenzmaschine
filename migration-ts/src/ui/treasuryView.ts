@@ -1,7 +1,7 @@
 // Schatzkammer-Tab: Übersicht + gesammelte Texte ansehen, ins Studio übernehmen,
 // löschen, exportieren. Zeigt pro Text Form-Typ und Wortzahl.
-// Geheimkammer: als geheim markierte Texte sind verborgen; das unbeschriftete
-// Feld im Filter schaltet sie mit „#g“ frei (× oder Tab-Wechsel verbirgt sie wieder).
+// Tresor: als geheim markierte Texte sind verborgen; das unbeschriftete
+// Feld im Filter schaltet den Tresor mit „#g“ frei (× oder Tab-Wechsel verbirgt ihn wieder).
 import { el, button } from "./dom";
 import { icon } from "./icons";
 import {
@@ -10,7 +10,7 @@ import {
 } from "../features/treasury";
 
 const nf = (n: number): string => n.toLocaleString("de-DE");
-const SECRET = " geheim"; // Sentinel-Filter für die Geheimkammer
+const SECRET = " geheim"; // Sentinel-Filter für den Tresor
 
 export function mountTreasury(root: HTMLElement): void {
   root.innerHTML = "";
@@ -19,7 +19,7 @@ export function mountTreasury(root: HTMLElement): void {
   const list = el("div", {});
   let clearBtn: HTMLButtonElement;
   let filter: string | null = null; // aktiver Form-Filter (Anzeigename), SECRET oder null = alle
-  let unlocked = false;             // Geheimkammer sichtbar?
+  let unlocked = false;             // Tresor sichtbar?
 
   // Stabiles unbeschriftetes Feld (wird NICHT bei jedem Render neu gebaut → Fokus bleibt).
   const secretIn = el("input", { class: "secretfield", type: "text", "aria-label": "" }) as HTMLInputElement;
@@ -59,7 +59,7 @@ export function mountTreasury(root: HTMLElement): void {
     });
     if (unlocked && secretCount) {
       const sChip = el("button", { class: "tchip secretchip" + (filter === SECRET ? " active" : ""), type: "button" },
-        `🔒 Geheim · ${nf(secretCount)}`) as HTMLButtonElement;
+        icon("lock", 13), ` Tresor · ${nf(secretCount)}`) as HTMLButtonElement;
       sChip.addEventListener("click", () => { filter = filter === SECRET ? null : SECRET; render(); });
       chips.append(sChip);
     }
@@ -80,11 +80,11 @@ export function mountTreasury(root: HTMLElement): void {
 
     list.innerHTML = "";
     if (!all.length) {
-      list.append(el("p", { class: "muted" }, "Noch nichts gemerkt — im Studio auf ⭐ Merken klicken."));
+      list.append(el("p", { class: "muted" }, "Noch nichts gemerkt — im Studio auf Merken klicken."));
       return;
     }
     if (!items.length) {
-      const msg = filter === SECRET ? "Die Geheimkammer ist leer." : `Keine Texte der Form „${filter}“.`;
+      const msg = filter === SECRET ? "Der Tresor ist leer." : `Keine Texte der Form „${filter}“.`;
       list.append(el("p", { class: "muted" }, msg));
       return;
     }
@@ -117,7 +117,9 @@ export function mountTreasury(root: HTMLElement): void {
         u.onend = () => { speaking = false; speakLbl.textContent = "Vorlesen"; };
         speaking = true; speakLbl.textContent = "Stopp"; synth.speak(u);
       });
-      const secretBtn = button(it.secret ? "🔓 Aus Geheimkammer" : "🔒 In Geheimkammer");
+      const secretBtn = it.secret
+        ? el("button", {}, icon("lockOpen"), " Aus Tresor")
+        : el("button", {}, icon("lock"), " In Tresor");
       secretBtn.addEventListener("click", () => { setTreasureSecretAt(idx, !it.secret); render(); });
       const del = button("Löschen", "danger");
       del.addEventListener("click", () => { deleteTreasureAt(idx); render(); });
@@ -126,7 +128,7 @@ export function mountTreasury(root: HTMLElement): void {
         el("span", { class: "tbadge" }, type),
         el("span", { class: "tcount" }, `${nf(wc)} Wörter`),
         el("span", { class: "tdate" }, it.d),
-        ...(it.secret ? [el("span", { class: "tsecret" }, "🔒 Geheim")] : []),
+        ...(it.secret ? [el("span", { class: "tsecret" }, icon("lock", 13), " Tresor")] : []),
         ...(ctxMeta ? [el("span", { class: "tctx" }, ctxMeta)] : []));
 
       list.append(el("div", { class: "treasure" + (it.secret ? " secret" : "") },
@@ -152,7 +154,7 @@ export function mountTreasury(root: HTMLElement): void {
   });
 
   wrap.append(
-    el("h2", {}, "⭐ Schatzkammer"),
+    el("h2", {}, "Schatzkammer"),
     overview,
     secretRow,
     el("div", { class: "btnrow" }, exportBtn, clearBtn),
