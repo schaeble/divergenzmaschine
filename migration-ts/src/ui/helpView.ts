@@ -40,7 +40,16 @@ export function mountHelp(root: HTMLElement): void {
   const wrap = el("div", { class: "help" });
   wrap.append(el("p", { class: "muted" }, `Divergenzmaschine v${VERSION} — was die Bedienelemente tun. Blaue Verweise springen zum passenden Abschnitt.`));
 
-  // 1) TABS zuerst — der Überblick über die App (wie die Tableiste oben).
+  // 1) Architektur zuerst — die Einleitung: wie alles zusammenhängt.
+  const arch = el("div", { class: "help-arch help-sec", id: "help-arch" });
+  arch.append(el("h3", {}, "Architektur — wie ein Text entsteht"));
+  const fig = el("div", { class: "help-arch-fig" });
+  fig.innerHTML = ARCH_SVG;
+  arch.append(fig);
+  arch.append(el("p", { class: "muted" }, "Der grüne Kreislauf: gemerkte Texte füttern Korpus und Pools zurück (Selbstfütterung). KI-Bausteine (Werkstatt, Montage) brauchen einen API-Schlüssel."));
+  wrap.append(arch);
+
+  // 2) Tabs — der Überblick über die App (wie die Tableiste oben).
   wrap.append(section("tabs", "Tabs — die App im Überblick", [
     ["Studio", P("Die Hauptbühne: aus ", lnk("4W-Kontext", "kontext"), ", ", lnk("Preset, Ton und Form", "presetton"), " entstehen die Texte. Alle ", lnk("Stil-Regler", "werkzeug"), " (Struktur, Modus, Perspektive, Rhythmus, Markov, Archetyp, Instabilität …), die ", lnk("Aktionen", "aktionen"), " Generieren/Variante/Würfeln, die ", lnk("Einspeisungs-Färbung mit Passagen-Austausch", "faerben"), " sowie ", lnk("Test & Ranking", "ranking"), ".")],
     ["Ideen", P("Prämissen-Generator: zehn Profil-Merkmale (Genre, Figurtyp, Ort, Zeit …) formen die Richtung kurzer Story-Ideen. Preset wählen, Regler selbst stellen oder per KI aus einem Thema ein Profil bauen; der Divergenz-Regler steuert die Streuung (zahm → radikal). „→ Studio“ übernimmt eine Prämisse als ", lnk("4W-Kontext", "kontext"), ". Eigene Profile als Preset speicherbar.")],
@@ -54,14 +63,6 @@ export function mountHelp(root: HTMLElement): void {
     ["Hilfe", P("Diese Seite: ", lnk("Architektur-Übersicht", "arch"), " sowie Erklärungen zu allen Bedienelementen und Tabs. Oben rechts die Versionsnummer.")],
   ]));
 
-  // 2) Architektur — wie alles zusammenhängt.
-  const arch = el("div", { class: "help-arch help-sec", id: "help-arch" });
-  arch.append(el("h3", {}, "Architektur — wie ein Text entsteht"));
-  const fig = el("div", { class: "help-arch-fig" });
-  fig.innerHTML = ARCH_SVG;
-  arch.append(fig);
-  arch.append(el("p", { class: "muted" }, "Der grüne Kreislauf: gemerkte Texte füttern Korpus und Pools zurück (Selbstfütterung). KI-Bausteine (Werkstatt, Montage) brauchen einen API-Schlüssel."));
-  wrap.append(arch);
 
   // 3) Studio-Details in Arbeitsreihenfolge: Kontext → Preset/Ton/Form → Werkzeugkasten → Aktionen → Färben → Ranking → 2.0 → Sichern.
   wrap.append(section("kontext", "Kontextzeile (Wo / Wann / Wer / Was)", [
