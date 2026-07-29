@@ -29,6 +29,19 @@ export function addToTreasury(text: string, ctx: { who?: string; where?: string;
   return list.length;
 }
 
+/** Legt den Text direkt in den Tresor (geheim). Füttert bewusst WEDER Korpus NOCH
+ *  lebendige Pools — Tresor-Texte bleiben isoliert. Rückgabe: neue Anzahl, oder -1. */
+export function addToTreasurySecret(text: string, ctx: { who?: string; where?: string; when?: string; what?: string; form?: string }): number {
+  const t = (text || "").trim();
+  if (!t) return -1;
+  const list = loadTreasury();
+  if (list.length && list[list.length - 1]!.t === t) return -1;
+  list.push({ t, who: ctx.who || "", where: ctx.where || "", when: ctx.when || "", what: ctx.what || "", form: ctx.form || "", d: new Date().toISOString().slice(0, 16).replace("T", " "), secret: true });
+  while (list.length > TCAP) list.shift();
+  saveTreasury(list);
+  return list.length;
+}
+
 /** Ersetzt die gesamte Sammlung (Projektdatei-Import). */
 export function replaceTreasury(list: Treasure[]): void {
   saveTreasury(Array.isArray(list) ? list.filter((x) => x && typeof x.t === "string").slice(-TCAP) : []);

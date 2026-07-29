@@ -15,7 +15,7 @@ import { el, select, field, textInput, button } from "./dom";
 import { icon } from "./icons";
 import { openReader } from "./reader";
 import { worldLogGeneration } from "../features/world";
-import { addToTreasury, clearTreasury } from "../features/treasury";
+import { addToTreasury, addToTreasurySecret, clearTreasury } from "../features/treasury";
 import { THEMES, loadTheme, applyTheme, loadAccent, saveAccent, applyAccent } from "../features/theme";
 import { loadAiKey, saveAiKey, loadAiModel, saveAiModel } from "../features/ki";
 import { storageReport } from "../features/storage-status";
@@ -322,13 +322,20 @@ export function mountStudio(root: HTMLElement): void {
     keepLbl.textContent = n < 0 ? "— schon drin" : `Gemerkt (${n})`;
     setTimeout(() => (keepLbl.textContent = "Merken"), 1400);
   });
+  const vaultLbl = el("span", {}, "Tresor");
+  const vaultBtn = el("button", { title: "Direkt in den Tresor (geheim) — nicht im Korpus" }, icon("lock"), " ", vaultLbl);
+  vaultBtn.addEventListener("click", () => {
+    const n = addToTreasurySecret(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value });
+    vaultLbl.textContent = n < 0 ? "— schon drin" : `Im Tresor (${n})`;
+    setTimeout(() => (vaultLbl.textContent = "Tresor"), 1400);
+  });
   const readBtn = el("button", {}, icon("book"), " Lesen");
   const speakLbl = el("span", {}, "Vorlesen");
   const speakBtn = el("button", {}, icon("volume"), " ", speakLbl);
   const bestChk = el("input", { type: "checkbox", id: "f-best" }) as HTMLInputElement;
   bestChk.checked = true;
   const bestLbl = el("label", { class: "chk", title: "Erzeugt bei jedem Klick 12 Kandidaten und zeigt den bestbewerteten (Längentreue, Wortvielfalt, Rhythmus, wenig Wiederholung, Grammatik, Abstand zur Schatzkammer)." }, bestChk, " Bestenauslese");
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, readBtn, speakBtn, lenRow, bestLbl), out, feedsRow, kling);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl), out, feedsRow, kling);
 
   // ── Test & Ranking ──
   let lastRanking: Ranking | null = null;
