@@ -1,13 +1,16 @@
 // Schatzkammer-Tab: Übersicht + gesammelte Texte ansehen, ins Studio übernehmen,
 // löschen, exportieren. Zeigt pro Text Form-Typ und Wortzahl.
+// Geheimkammer: als geheim markierte Texte sind verborgen; das unbeschriftete
+// Feld im Filter schaltet sie mit „#g“ frei (× oder Tab-Wechsel verbirgt sie wieder).
 import { el, button } from "./dom";
 import { icon } from "./icons";
 import {
   loadTreasury, deleteTreasureAt, clearTreasury, exportTreasuryTxt,
-  treasureType, wordCount, treasureStats,
+  treasureType, wordCount, treasureStats, setTreasureSecretAt,
 } from "../features/treasury";
 
 const nf = (n: number): string => n.toLocaleString("de-DE");
+const SECRET = " geheim"; // Sentinel-Filter für die Geheimkammer
 
 export function mountTreasury(root: HTMLElement): void {
   root.innerHTML = "";
@@ -15,15 +18,30 @@ export function mountTreasury(root: HTMLElement): void {
   const overview = el("div", { class: "treasure-overview" });
   const list = el("div", {});
   let clearBtn: HTMLButtonElement;
-  let filter: string | null = null; // aktiver Form-Filter (Anzeigename) oder null = alle
+  let filter: string | null = null; // aktiver Form-Filter (Anzeigename), SECRET oder null = alle
+  let unlocked = false;             // Geheimkammer sichtbar?
 
-  const renderOverview = (items: ReturnType<typeof loadTreasury>): void => {
+  // Stabiles unbeschriftetes Feld (wird NICHT bei jedem Render neu gebaut → Fokus bleibt).
+  const secretIn = el("input", { class: "secretfield", type: "text", "aria-label": "" }) as HTMLInputElement;
+  const secretClear = el("button", { class: "secretclear", type: "button", title: "Schließen" }, "✕");
+  const relock = (): void => { if (filter === SECRET) filter = null; };
+  secretIn.addEventListener("input", () => {
+    const now = secretIn.value.trim().toLowerCase() === "#g";
+    if (now !== unlocked) { unlocked = now; if (!unlocked) relock(); render(); }
+  });
+  secretClear.addEventListener("click", () => {
+    secretIn.value = "";
+    if (unlocked) { unlocked = false; relock(); render(); }
+  });
+  const secretRow = el("div", { class: "secretrow" }, secretIn, secretClear);
+
+  const renderOverview = (shown: ReturnType<typeof loadTreasury>, secretCount: number): void => {
     overview.innerHTML = "";
-    if (!items.length) {
+    if (!shown.length && !(unlocked && secretCount)) {
       overview.append(el("span", { class: "muted" }, "Noch keine Texte gesammelt."));
       return;
     }
-    const st = treasureStats(items);
+    const st = treasureStats(shown);
     overview.append(el("div", { class: "big" },
       `${nf(st.total)} ${st.total === 1 ? "Text" : "Texte"} · ${nf(st.words)} Wörter · Ø ${nf(st.avg)} pro Text`));
     const chips = el("div", { class: "chips" });
@@ -38,21 +56,35 @@ export function mountTreasury(root: HTMLElement): void {
       chip.addEventListener("click", () => { filter = filter === ty ? null : ty; render(); });
       chips.append(chip);
     });
+    if (unlocked && secretCount) {
+      const sChip = el("button", { class: "tchip secretchip" + (filter === SECRET ? " active" : ""), type: "button" },
+        `🔒 Geheim · ${nf(secretCount)}`) as HTMLButtonElement;
+      sChip.addEventListener("click", () => { filter = filter === SECRET ? null : SECRET; render(); });
+      chips.append(sChip);
+    }
     overview.append(chips);
   };
 
   const render = (): void => {
     const all = loadTreasury();
+    const secretCount = all.filter((it) => it.secret).length;
+    const shown = unlocked ? all : all.filter((it) => !it.secret);
     if (clearBtn) clearBtn.disabled = all.length === 0;
-    renderOverview(all);
-    const items = filter ? all.filter((it) => treasureType(it) === filter) : all;
+    renderOverview(shown, secretCount);
+
+    let items: ReturnType<typeof loadTreasury>;
+    if (filter === SECRET) items = all.filter((it) => it.secret);
+    else if (filter) items = shown.filter((it) => treasureType(it) === filter);
+    else items = shown;
+
     list.innerHTML = "";
     if (!all.length) {
       list.append(el("p", { class: "muted" }, "Noch nichts gemerkt — im Studio auf ⭐ Merken klicken."));
       return;
     }
     if (!items.length) {
-      list.append(el("p", { class: "muted" }, `Keine Texte der Form „${filter}“.`));
+      const msg = filter === SECRET ? "Die Geheimkammer ist leer." : `Keine Texte der Form „${filter}“.`;
+      list.append(el("p", { class: "muted" }, msg));
       return;
     }
     items.slice().reverse().forEach((it) => {
@@ -84,6 +116,8 @@ export function mountTreasury(root: HTMLElement): void {
         u.onend = () => { speaking = false; speakLbl.textContent = "Vorlesen"; };
         speaking = true; speakLbl.textContent = "Stopp"; synth.speak(u);
       });
+      const secretBtn = button(it.secret ? "🔓 Aus Geheimkammer" : "🔒 In Geheimkammer");
+      secretBtn.addEventListener("click", () => { setTreasureSecretAt(idx, !it.secret); render(); });
       const del = button("Löschen", "danger");
       del.addEventListener("click", () => { deleteTreasureAt(idx); render(); });
 
@@ -91,12 +125,13 @@ export function mountTreasury(root: HTMLElement): void {
         el("span", { class: "tbadge" }, type),
         el("span", { class: "tcount" }, `${nf(wc)} Wörter`),
         el("span", { class: "tdate" }, it.d),
+        ...(it.secret ? [el("span", { class: "tsecret" }, "🔒 Geheim")] : []),
         ...(ctxMeta ? [el("span", { class: "tctx" }, ctxMeta)] : []));
 
-      list.append(el("div", { class: "treasure" },
+      list.append(el("div", { class: "treasure" + (it.secret ? " secret" : "") },
         metaRow,
         el("pre", { class: "out treasure-text" }, it.t),
-        el("div", { class: "btnrow" }, take, copy, speak, del)));
+        el("div", { class: "btnrow" }, take, copy, speak, secretBtn, del)));
     });
   };
 
@@ -118,6 +153,7 @@ export function mountTreasury(root: HTMLElement): void {
   wrap.append(
     el("h2", {}, "⭐ Schatzkammer"),
     overview,
+    secretRow,
     el("div", { class: "btnrow" }, exportBtn, clearBtn),
     list);
   root.append(wrap);

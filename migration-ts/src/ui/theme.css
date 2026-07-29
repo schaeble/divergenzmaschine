@@ -113,6 +113,14 @@ button.tchip{cursor:pointer;transition:background .12s,border-color .12s}
 button.tchip:hover{border-color:var(--accent)}
 button.tchip.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
 .chips-label{font:12px var(--sans);color:var(--muted);align-self:center;margin-right:2px}
+.secretrow{display:flex;align-items:center;gap:4px;margin:6px 0 2px}
+.secretfield{width:64px;height:22px;border:1px solid var(--border2);border-radius:6px;background:var(--panel);color:var(--text);font:12px var(--mono,monospace);padding:0 6px;opacity:.55;transition:opacity .15s,width .15s}
+.secretfield:focus{outline:none;border-color:var(--acc);opacity:1;width:96px}
+.secretclear{height:22px;width:22px;padding:0;line-height:1;border:1px solid var(--border2);border-radius:6px;background:var(--panel);color:var(--muted);cursor:pointer;font-size:12px}
+.secretclear:hover{color:var(--text);border-color:var(--acc)}
+.tchip.secretchip.active{background:#6d4bb6;border-color:#6d4bb6}
+.treasure.secret{border-left:3px solid #6d4bb6}
+.tsecret{color:#6d4bb6;font-weight:600}
 .treasure-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .tbadge{font:600 11px var(--sans);color:#0b3d36;background:rgba(20,184,166,.20);border:1px solid rgba(20,184,166,.55);border-radius:6px;padding:1px 8px;text-transform:uppercase;letter-spacing:.03em}
 .treasure-meta .tcount{color:var(--text);font-weight:600}

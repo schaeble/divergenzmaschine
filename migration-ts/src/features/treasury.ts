@@ -8,7 +8,7 @@ import { safeSet } from "./storage-status";
 const TKEY = "dm_treasury_v1";
 const TCAP = 100;
 
-export interface Treasure { t: string; who?: string; where?: string; when?: string; what?: string; form?: string; d: string; }
+export interface Treasure { t: string; who?: string; where?: string; when?: string; what?: string; form?: string; d: string; secret?: boolean; }
 
 export function loadTreasury(): Treasure[] {
   try { const v = JSON.parse(localStorage.getItem(TKEY) || "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
@@ -37,6 +37,12 @@ export function replaceTreasury(list: Treasure[]): void {
 export function deleteTreasureAt(i: number): void {
   const list = loadTreasury();
   if (i >= 0 && i < list.length) { list.splice(i, 1); saveTreasury(list); }
+}
+
+/** Schaltet das Geheim-Flag eines Eintrags (Geheimkammer). */
+export function setTreasureSecretAt(i: number, secret: boolean): void {
+  const list = loadTreasury();
+  if (i >= 0 && i < list.length) { list[i]!.secret = secret; saveTreasury(list); }
 }
 
 /** Leert die gesamte Schatzkammer. Korpus/Pools bleiben unberührt (wie beim Einzel-Löschen). */
