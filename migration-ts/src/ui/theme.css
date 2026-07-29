@@ -293,7 +293,7 @@ input[type=range].wgt:hover{opacity:1}
 /* Passagen-Austausch: klickbare Einspeisungs-Spans + Popover */
 .out span[class^="feed-"]{cursor:pointer}
 .out span[class^="feed-"]:hover{outline:1px dashed var(--acc);outline-offset:1px;border-radius:3px}
-.feedpop{position:fixed;z-index:60;background:var(--panel2);border:1px solid var(--border2);border-radius:10px;box-shadow:0 14px 40px -18px rgba(0,0,0,.6);padding:8px 10px;width:330px;max-width:92vw;font:13px var(--sans);color:var(--text)}
+.feedpop{position:fixed;z-index:60;background:var(--panel2);border:1px solid var(--border2);border-radius:10px;box-shadow:0 14px 40px -18px rgba(0,0,0,.6);padding:8px 10px;width:330px;max-width:92vw;max-height:82vh;overflow-y:auto;font:13px var(--sans);color:var(--text)}
 .feedpop .alt{display:block;width:100%;text-align:left;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;margin:4px 0;cursor:pointer;color:var(--text);font:13px var(--sans)}
 .feedpop .alt:hover{border-color:var(--acc)}
 .feedpop .row{display:flex;gap:6px;margin-top:6px}

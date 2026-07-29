@@ -271,9 +271,17 @@ export function mountStudio(root: HTMLElement): void {
       feedPop.append(altwrap, el("div", { class: "row" }, reroll, del), el("div", { class: "muted mini" }, "Oder Grammatik anpassen — Text der Passage direkt bearbeiten:"), edit, el("div", { class: "row" }, editBtn));
     }
     const r = span.getBoundingClientRect();
-    feedPop.style.left = Math.min(window.innerWidth - 348, Math.max(8, r.left)) + "px";
-    feedPop.style.top = (r.bottom + 6) + "px";
-    feedPop.style.display = "";
+    feedPop.style.display = "";                    // erst einblenden, damit Maße messbar sind
+    const pw = feedPop.offsetWidth || 330;
+    const ph = feedPop.offsetHeight || 0;
+    const vh = window.innerHeight, vw = window.innerWidth;
+    feedPop.style.left = Math.min(vw - pw - 8, Math.max(8, r.left)) + "px";
+    let top = r.bottom + 6;                         // bevorzugt unter der Stelle
+    if (top + ph > vh - 8) {                        // passt unten nicht: über die Stelle klappen
+      const above = r.top - ph - 6;
+      top = above >= 8 ? above : Math.max(8, vh - ph - 8); // sonst an den unteren Rand klemmen
+    }
+    feedPop.style.top = top + "px";
   };
   out.addEventListener("click", (e) => {
     if (!feedsChk.checked) return;
