@@ -305,3 +305,8 @@ input[type=range].wgt:hover{opacity:1}
 .feedpop .mini{margin-bottom:4px;line-height:1.4}
 .feedpop textarea.freeedit{width:100%;min-height:76px;resize:vertical;box-sizing:border-box;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font:13px var(--sans);line-height:1.45}
 .feedpop textarea.freeedit:focus{outline:none;border-color:var(--acc)}
+.korpus-mgr{max-height:420px;overflow:auto;border:1px solid var(--border2);border-radius:8px;padding:8px 10px}
+.korpus-entry{border-top:1px solid var(--border2);padding:8px 0}
+.korpus-entry:first-of-type{border-top:none}
+.korpus-prev{color:var(--text);font-size:.86rem;line-height:1.5;margin:2px 0 6px;white-space:pre-wrap}
+.mini{font-size:.72rem}

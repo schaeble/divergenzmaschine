@@ -7,7 +7,7 @@ export function mountKorpus(root: HTMLElement): void {
   const wrap = el("div", {});
   const ta = el("textarea", { style: "height:160px", placeholder: "Trainings-Text für den Markov-Korpus" });
   const info = el("p", { class: "muted" });
-  const refresh = (): void => { info.textContent = `Persistenter Korpus: ${loadPersistentCorpus().length} Zeichen`; };
+  const refresh = (): void => { info.textContent = `Persistenter Korpus: ${loadPersistentCorpus().length} Zeichen · ${loadPersistentCorpus().split(/\n{2,}/).filter((x) => x.trim()).length} Einträge`; };
 
   const addBtn = button("Zum Korpus hinzufügen");
   addBtn.addEventListener("click", () => {
@@ -52,7 +52,41 @@ export function mountKorpus(root: HTMLElement): void {
     a.click();
   });
 
-  wrap.append(ta, el("div", { class: "btnrow" }, addBtn, showBtn, cleanBtn, exportBtn, clearBtn), info, view,
+  // ── Einträge einzeln löschen ──────────────────────────────────────────
+  const segsOf = (): string[] => loadPersistentCorpus().split(/\n{2,}/).map((x) => x.trim()).filter(Boolean);
+  const mgr = el("div", { class: "korpus-mgr", style: "display:none;margin-top:10px" });
+  const renderMgr = (): void => {
+    mgr.innerHTML = "";
+    const segs = segsOf();
+    if (!segs.length) { mgr.append(el("p", { class: "muted" }, "Korpus ist leer.")); return; }
+    mgr.append(el("p", { class: "muted" }, `${segs.length} ${segs.length === 1 ? "Eintrag" : "Einträge"} — einzeln löschbar:`));
+    segs.forEach((seg, i) => {
+      const words = (seg.match(/\S+/g) || []).length;
+      const prev = seg.length > 200 ? seg.slice(0, 200) + "…" : seg;
+      const del = button("Löschen", "danger");
+      del.addEventListener("click", () => {
+        const cur = segsOf();
+        if (i >= cur.length) { renderMgr(); return; }
+        if (!confirm(`Diesen Eintrag (#${i + 1}) aus dem Korpus löschen?`)) return;
+        cur.splice(i, 1);
+        savePersistentCorpus(cur.join("\n\n"));
+        renderMgr(); refresh();
+      });
+      mgr.append(el("div", { class: "korpus-entry" },
+        el("div", { class: "muted mini" }, `#${i + 1} · ${words} Wörter`),
+        el("div", { class: "korpus-prev" }, prev),
+        el("div", { class: "btnrow" }, del)));
+    });
+  };
+  const mgrBtn = button("Einträge verwalten");
+  let mgrShown = false;
+  mgrBtn.addEventListener("click", () => {
+    mgrShown = !mgrShown;
+    if (mgrShown) { renderMgr(); mgr.style.display = ""; mgrBtn.textContent = "Verwaltung ausblenden"; }
+    else { mgr.style.display = "none"; mgrBtn.textContent = "Einträge verwalten"; }
+  });
+
+  wrap.append(ta, el("div", { class: "btnrow" }, addBtn, showBtn, mgrBtn, cleanBtn, exportBtn, clearBtn), info, view, mgr,
     el("p", { class: "muted" }, "Säubern segmentiert den Korpus satzweise und entfernt Fragmente, Kopfzeilen-Reste und doppelte Sätze — der Markov-Generator lernt sonst Fehler mit. Neu hinzugefügter Text wird bereits beim Hinzufügen gesäubert."));
   root.append(wrap);
   refresh();
