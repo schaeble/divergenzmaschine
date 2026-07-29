@@ -200,6 +200,67 @@ export function mountStudio(root: HTMLElement): void {
   const refreshFeeds = (): void => { if (feedsChk.checked) renderFeeds(); };
   feedsChk.addEventListener("change", renderFeeds);
 
+  // ── Passagen-Austausch: farbigen Span anklicken -> Alternativen aus demselben Pool ──
+  const feedPop = el("div", { class: "feedpop", style: "display:none" });
+  document.body.appendChild(feedPop);
+  let popSpan: HTMLElement | null = null;
+  const hidePop = (): void => { feedPop.style.display = "none"; popSpan = null; };
+  document.addEventListener("click", (e) => { if (feedPop.style.display !== "none" && !feedPop.contains(e.target as Node) && (e.target as HTMLElement) !== popSpan) hidePop(); }, true);
+  const persistEdit = (): void => { try { localStorage.setItem("dm_last_text", out.textContent || ""); } catch { /* voll */ } };
+
+  const altsFor = (cls: string, cur: string): string[] => {
+    const inText = (out.textContent || "").toLowerCase();
+    const norm = (arr: string[]): string[] => [...new Set(arr.map((x) => (x || "").trim()).filter((a) => a.length >= 2 && a.toLowerCase() !== cur.toLowerCase() && !inText.includes(a.toLowerCase())))];
+    let pool: string[] = [];
+    try {
+      if (cls === "feed-wb") { const b = loadBank() as unknown as Record<string, string[]>; let cat: string[] | null = null; for (const k of Object.keys(b)) if (Array.isArray(b[k]) && b[k]!.some((x) => x.toLowerCase() === cur.toLowerCase())) { cat = b[k]!; break; } pool = cat || Object.values(b).flat(); }
+      else if (cls === "feed-pool") pool = liveTexts();
+      else if (cls === "feed-ton") { const td = TONE_DATA[tone.value]; pool = td ? [...td.opener, ...td.flavor] : []; }
+      else if (cls === "feed-4w") pool = [who.value, where.value, when.value, what.value];
+      else if (cls === "feed-markov") { const model = buildModelFromCorpus(2); const n = Math.max(6, cur.split(/\s+/).filter(Boolean).length + 2); for (let i = 0; i < 12; i++) { const g = model.generate(n); if (g) pool.push(g); } }
+    } catch { /* egal */ }
+    const uniq = norm(pool);
+    for (let i = uniq.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [uniq[i], uniq[j]] = [uniq[j]!, uniq[i]!]; }
+    return uniq.slice(0, 6);
+  };
+  const replaceSpan = (span: HTMLElement, txt: string): void => { span.textContent = txt; persistEdit(); renderFeeds(); hidePop(); };
+  const removeSpan = (span: HTMLElement): void => {
+    span.textContent = "";
+    const cleaned = (out.textContent || "").replace(/\s{2,}/g, " ").replace(/\s+([,.;:!?…])/g, "$1").replace(/([.!?…])(?:\s*\1)+/g, "$1").trim();
+    out.textContent = cleaned; persistEdit(); renderFeeds(); hidePop();
+  };
+  const openPop = (span: HTMLElement): void => {
+    popSpan = span;
+    const cls = (span.className.match(/feed-[a-z0-9]+/) || ["feed-wb"])[0]!;
+    const cur = span.textContent || "";
+    const titles: Record<string, string> = { "feed-wb": "Wortbank", "feed-ton": "Ton", "feed-4w": "4W-Kontext", "feed-pool": "Lebendige Pools", "feed-markov": "Markov" };
+    feedPop.innerHTML = "";
+    feedPop.append(el("div", { class: "muted" }, `„${cur.length > 44 ? cur.slice(0, 44) + "…" : cur}“ · ${titles[cls] || "Passage"}`));
+    const altwrap = el("div", {});
+    const fill = (): void => {
+      altwrap.innerHTML = "";
+      const alts = altsFor(cls, cur);
+      if (!alts.length) altwrap.append(el("div", { class: "muted" }, "Keine Alternativen im Pool."));
+      alts.forEach((a) => { const b = el("button", { class: "alt" }, a); b.addEventListener("click", () => replaceSpan(span, a)); altwrap.append(b); });
+    };
+    fill();
+    const reroll = el("button", {}, icon("dice"), " Neu"); reroll.addEventListener("click", fill);
+    const del = el("button", { class: "danger" }, "✕ Entfernen"); del.addEventListener("click", () => removeSpan(span));
+    const freeIn = el("input", { placeholder: "Eigener Text …" }) as HTMLInputElement;
+    const freeBtn = button("Übernehmen"); freeBtn.addEventListener("click", () => { if (freeIn.value.trim()) replaceSpan(span, freeIn.value.trim()); });
+    feedPop.append(altwrap, el("div", { class: "row" }, reroll, del), el("div", { class: "row" }, freeIn, freeBtn));
+    const r = span.getBoundingClientRect();
+    feedPop.style.left = Math.min(window.innerWidth - 348, Math.max(8, r.left)) + "px";
+    feedPop.style.top = (r.bottom + 6) + "px";
+    feedPop.style.display = "";
+  };
+  out.addEventListener("click", (e) => {
+    if (!feedsChk.checked) return;
+    const t = (e.target as HTMLElement).closest('span[class^="feed-"]') as HTMLElement | null;
+    if (!t) return;
+    e.preventDefault(); e.stopPropagation(); openPop(t);
+  });
+
   const genBtn = el("button", { class: "primary" }, icon("play"), " Generieren");
   const varBtn = button("Variante");
   const copyBtn = el("button", {}, icon("copy"), " Kopieren");
