@@ -166,7 +166,7 @@ export function mountStudio(root: HTMLElement): void {
   const feedsChk = el("input", { type: "checkbox", id: "f-feeds" }) as HTMLInputElement;
   const legDot = (c: string, l: string): HTMLElement => el("span", { class: "feeditem" }, el("span", { class: "feeddot " + c }), " " + l);
   const feedsRow = el("div", { class: "feedsrow" },
-    el("label", { class: "chk" }, feedsChk, " Einspeisungen färben"),
+    el("label", { class: "chk" }, feedsChk, " Editieren"),
     legDot("feed-wb", "Wortbank"), legDot("feed-ton", "Ton"), legDot("feed-4w", "4W-Kontext"), legDot("feed-pool", "Lebendige Pools"), legDot("feed-markov", "Markov"),
     el("span", { class: "muted" }, "· unmarkiert = Vorlagen · alles anklickbar"));
 

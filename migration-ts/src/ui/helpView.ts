@@ -104,8 +104,8 @@ export function mountHelp(root: HTMLElement): void {
     ["Textlänge", P("Ziel-Wortzahl (40–300): steuert bei Prosa das Kürzen/Auffüllen, bei Szene/Dialog die Rundenzahl.")],
   ]));
 
-  wrap.append(section("faerben", "Einspeisungen färben & Passagen-Austausch (im Studio)", [
-    ["Einspeisungen färben", P("Schalter unter der Ausgabe: färbt jede Textpassage nach Herkunft — ", lnk("Wortbank", "presetton"), ", ", lnk("Ton", "presetton"), ", ", lnk("4W-Kontext", "kontext"), ", Lebendige Pools, ", lnk("Markov", "werkzeug"), "; unmarkiert = feste Vorlagen. Die Legende daneben zeigt die Farbzuordnung.")],
+  wrap.append(section("faerben", "Editieren — Färben & Passagen-Austausch (im Studio)", [
+    ["Editieren", P("Schalter unter der Ausgabe (früher „Einspeisungen färben“): macht den Text bearbeitbar und färbt jede Passage nach Herkunft — ", lnk("Wortbank", "presetton"), ", ", lnk("Ton", "presetton"), ", ", lnk("4W-Kontext", "kontext"), ", Lebendige Pools, ", lnk("Markov", "werkzeug"), "; unmarkiert = feste Vorlagen. Die Legende daneben zeigt die Farbzuordnung.")],
     ["Passagen-Austausch", P("Bei aktiver Färbung sind die farbigen Passagen anklickbar. Ein Klick öffnet ein Auswahlfenster mit Alternativen aus derselben Quelle (🎲 Neu holt weitere), dazu ✕ Entfernen und ein Freitextfeld (Übernehmen) für eine eigene Formulierung. Der Text wird sofort ersetzt und neu eingefärbt — für gezielte Eingriffe in störende Stellen.")],
   ]));
 
