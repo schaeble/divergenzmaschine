@@ -15,6 +15,7 @@ export function mountTreasury(root: HTMLElement): void {
   const overview = el("div", { class: "treasure-overview" });
   const list = el("div", {});
   let clearBtn: HTMLButtonElement;
+  let filter: string | null = null; // aktiver Form-Filter (Anzeigename) oder null = alle
 
   const renderOverview = (items: ReturnType<typeof loadTreasury>): void => {
     overview.innerHTML = "";
@@ -26,23 +27,35 @@ export function mountTreasury(root: HTMLElement): void {
     overview.append(el("div", { class: "big" },
       `${nf(st.total)} ${st.total === 1 ? "Text" : "Texte"} · ${nf(st.words)} Wörter · Ø ${nf(st.avg)} pro Text`));
     const chips = el("div", { class: "chips" });
+    const allChip = el("button", { class: "tchip" + (filter === null ? " active" : ""), type: "button" },
+      `Alle · ${nf(st.total)}`) as HTMLButtonElement;
+    allChip.addEventListener("click", () => { filter = null; render(); });
+    chips.append(allChip);
     Object.entries(st.byType).sort((a, b) => b[1] - a[1]).forEach(([ty, n]) => {
-      chips.append(el("span", { class: "tchip" }, `${ty} · ${n}`));
+      const chip = el("button", { class: "tchip" + (filter === ty ? " active" : ""), type: "button" },
+        `${ty} · ${n}`) as HTMLButtonElement;
+      chip.addEventListener("click", () => { filter = filter === ty ? null : ty; render(); });
+      chips.append(chip);
     });
     overview.append(chips);
   };
 
   const render = (): void => {
-    const items = loadTreasury();
-    if (clearBtn) clearBtn.disabled = items.length === 0;
-    renderOverview(items);
+    const all = loadTreasury();
+    if (clearBtn) clearBtn.disabled = all.length === 0;
+    renderOverview(all);
+    const items = filter ? all.filter((it) => treasureType(it) === filter) : all;
     list.innerHTML = "";
-    if (!items.length) {
+    if (!all.length) {
       list.append(el("p", { class: "muted" }, "Noch nichts gemerkt — im Studio auf ⭐ Merken klicken."));
       return;
     }
-    items.slice().reverse().forEach((it, ri) => {
-      const idx = items.length - 1 - ri;
+    if (!items.length) {
+      list.append(el("p", { class: "muted" }, `Keine Texte der Form „${filter}“.`));
+      return;
+    }
+    items.slice().reverse().forEach((it) => {
+      const idx = all.indexOf(it);
       const ctxMeta = [it.who, it.where, it.when].filter(Boolean).join(" · ");
       const type = treasureType(it);
       const wc = wordCount(it.t);
