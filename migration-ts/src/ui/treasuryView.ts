@@ -27,6 +27,7 @@ export function mountTreasury(root: HTMLElement): void {
     overview.append(el("div", { class: "big" },
       `${nf(st.total)} ${st.total === 1 ? "Text" : "Texte"} · ${nf(st.words)} Wörter · Ø ${nf(st.avg)} pro Text`));
     const chips = el("div", { class: "chips" });
+    chips.append(el("span", { class: "chips-label" }, "Zum Filtern wählen:"));
     const allChip = el("button", { class: "tchip" + (filter === null ? " active" : ""), type: "button" },
       `Alle · ${nf(st.total)}`) as HTMLButtonElement;
     allChip.addEventListener("click", () => { filter = null; render(); });
