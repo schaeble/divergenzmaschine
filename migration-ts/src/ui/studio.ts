@@ -232,7 +232,23 @@ export function mountStudio(root: HTMLElement): void {
     for (let i = uniq.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [uniq[i], uniq[j]] = [uniq[j]!, uniq[i]!]; }
     return uniq.slice(0, 6);
   };
-  const replaceSpan = (span: HTMLElement, txt: string): void => { span.textContent = txt; persistEdit(); renderFeeds(); hidePop(); };
+  // Steht die Passage am Satzanfang? (Textanfang oder direkt nach Satzzeichen)
+  const atSentenceStart = (span: HTMLElement): boolean => {
+    try {
+      const range = document.createRange();
+      range.setStart(out, 0);
+      range.setEndBefore(span);
+      const before = range.toString().replace(/\s+$/, "");
+      if (!before) return true;
+      return /[.!?…:][")»“”'\]]?$/.test(before);
+    } catch { return false; }
+  };
+  // Ersten Buchstaben groß (auch hinter öffnendem Anführungszeichen/Klammer)
+  const capFirst = (t: string): string => t.replace(/^(\s*["„«»'(\[]*\s*)?(\p{L})/u, (_m, pre: string | undefined, ch: string) => (pre || "") + ch.toLocaleUpperCase("de-DE"));
+  const replaceSpan = (span: HTMLElement, txt: string): void => {
+    const v = atSentenceStart(span) ? capFirst(txt) : txt;
+    span.textContent = v; persistEdit(); renderFeeds(); hidePop();
+  };
   const removeSpan = (span: HTMLElement): void => {
     span.textContent = "";
     const cleaned = (out.textContent || "").replace(/\s{2,}/g, " ").replace(/\s+([,.;:!?…])/g, "$1").replace(/([.!?…])(?:\s*\1)+/g, "$1").trim();
