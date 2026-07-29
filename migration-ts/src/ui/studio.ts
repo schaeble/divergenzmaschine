@@ -264,9 +264,11 @@ export function mountStudio(root: HTMLElement): void {
       };
       fill();
       const reroll = el("button", {}, icon("dice"), " Neu"); reroll.addEventListener("click", fill);
-      const freeIn = el("input", { placeholder: "Eigener Text …" }) as HTMLInputElement;
-      const freeBtn = button("Übernehmen"); freeBtn.addEventListener("click", () => { if (freeIn.value.trim()) replaceSpan(span, freeIn.value.trim()); });
-      feedPop.append(altwrap, el("div", { class: "row" }, reroll, del), el("div", { class: "row" }, freeIn, freeBtn));
+      // Grammatik/Text der Passage direkt anpassen (vorbefüllt) — ohne Neuschreiben/Ersetzen
+      const edit = el("textarea", { class: "freeedit" }) as HTMLTextAreaElement; edit.value = cur;
+      const editBtn = button("Übernehmen");
+      editBtn.addEventListener("click", () => { const v = edit.value.replace(/\s+/g, " ").trim(); if (!v) { removeSpan(span); return; } if (v !== cur) replaceSpan(span, v); else hidePop(); });
+      feedPop.append(altwrap, el("div", { class: "row" }, reroll, del), el("div", { class: "muted mini" }, "Oder Grammatik anpassen — Text der Passage direkt bearbeiten:"), edit, el("div", { class: "row" }, editBtn));
     }
     const r = span.getBoundingClientRect();
     feedPop.style.left = Math.min(window.innerWidth - 348, Math.max(8, r.left)) + "px";
