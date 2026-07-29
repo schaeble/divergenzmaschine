@@ -29,6 +29,7 @@ export function mountTreasury(root: HTMLElement): void {
     const now = secretIn.value.trim().toLowerCase() === "#g";
     if (now !== unlocked) { unlocked = now; if (!unlocked) relock(); render(); }
   });
+  secretClear.addEventListener("mousedown", (e) => e.preventDefault()); // kein Fokusverlust → kein Layout-Sprung
   secretClear.addEventListener("click", () => {
     secretIn.value = "";
     if (unlocked) { unlocked = false; relock(); render(); }
