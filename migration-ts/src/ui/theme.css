@@ -164,6 +164,11 @@ button.toggle.on::before{content:"✓ "}
 .help-list{margin:0;padding-left:18px}
 .help-list li{margin-bottom:6px;line-height:1.55}
 .help-list b{color:var(--text)}
+.help-jump{color:var(--acc);cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
+.help-jump:hover{text-decoration-style:solid}
+.help-sec{scroll-margin-top:12px;border-radius:8px;transition:background .3s}
+@keyframes helpflash{0%{background:var(--acc);}12%{background:color-mix(in srgb,var(--acc) 28%,transparent)}100%{background:transparent}}
+.help-sec.help-flash{animation:helpflash 1.3s ease-out}
 
 /* 4W-Gewichtung (nur Prosa) */
 .emph{margin-top:12px;padding:10px 12px;border:1px dashed var(--border2);border-radius:10px;background:rgba(139,92,246,.05)}
