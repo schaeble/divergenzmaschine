@@ -168,7 +168,7 @@ export function mountStudio(root: HTMLElement): void {
   const feedsRow = el("div", { class: "feedsrow" },
     el("label", { class: "chk" }, feedsChk, " Einspeisungen färben"),
     legDot("feed-wb", "Wortbank"), legDot("feed-ton", "Ton"), legDot("feed-4w", "4W-Kontext"), legDot("feed-pool", "Lebendige Pools"), legDot("feed-markov", "Markov"),
-    el("span", { class: "muted" }, "· unmarkiert = Vorlagen"));
+    el("span", { class: "muted" }, "· unmarkiert = Vorlagen · alles anklickbar"));
 
   interface FMatch { s: number; e: number; cls: string; prio: number; }
   const escFeeds = (t: string): string => t.replace(/[&<>]/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;"));
@@ -192,9 +192,18 @@ export function mountStudio(root: HTMLElement): void {
     try { collectFeed(liveTexts(), "feed-pool", 1, low, m); } catch { /* egal */ }
     try { collectFeed(getMarkovTrace(), "feed-markov", 2, low, m); } catch { /* egal */ }
     m.sort((a, b) => a.s - b.s || (b.e - b.s) - (a.e - a.s) || b.prio - a.prio);
+    // unmarkierte Lücke: als klick-/editierbaren feed-plain-Span ausgeben (Randweißraum bleibt außen)
+    const emitPlain = (seg: string): string => {
+      if (!seg) return "";
+      if (!seg.trim()) return escFeeds(seg);
+      const lead = (seg.match(/^\s*/) || [""])[0];
+      const trail = (seg.match(/\s*$/) || [""])[0];
+      const core = seg.slice(lead.length, seg.length - trail.length);
+      return escFeeds(lead) + `<span class="feed-plain">` + escFeeds(core) + "</span>" + escFeeds(trail);
+    };
     let html = "", i = 0, last = -1;
-    for (const x of m) { if (x.s < last) continue; html += escFeeds(plain.slice(i, x.s)) + `<span class="${x.cls}">` + escFeeds(plain.slice(x.s, x.e)) + "</span>"; i = x.e; last = x.e; }
-    html += escFeeds(plain.slice(i));
+    for (const x of m) { if (x.s < last) continue; html += emitPlain(plain.slice(i, x.s)) + `<span class="${x.cls}">` + escFeeds(plain.slice(x.s, x.e)) + "</span>"; i = x.e; last = x.e; }
+    html += emitPlain(plain.slice(i));
     out.innerHTML = html;
   };
   const refreshFeeds = (): void => { if (feedsChk.checked) renderFeeds(); };
@@ -233,22 +242,32 @@ export function mountStudio(root: HTMLElement): void {
     popSpan = span;
     const cls = (span.className.match(/feed-[a-z0-9]+/) || ["feed-wb"])[0]!;
     const cur = span.textContent || "";
-    const titles: Record<string, string> = { "feed-wb": "Wortbank", "feed-ton": "Ton", "feed-4w": "4W-Kontext", "feed-pool": "Lebendige Pools", "feed-markov": "Markov" };
+    const titles: Record<string, string> = { "feed-wb": "Wortbank", "feed-ton": "Ton", "feed-4w": "4W-Kontext", "feed-pool": "Lebendige Pools", "feed-markov": "Markov", "feed-plain": "Text" };
     feedPop.innerHTML = "";
     feedPop.append(el("div", { class: "muted" }, `„${cur.length > 44 ? cur.slice(0, 44) + "…" : cur}“ · ${titles[cls] || "Passage"}`));
-    const altwrap = el("div", {});
-    const fill = (): void => {
-      altwrap.innerHTML = "";
-      const alts = altsFor(cls, cur);
-      if (!alts.length) altwrap.append(el("div", { class: "muted" }, "Keine Alternativen im Pool."));
-      alts.forEach((a) => { const b = el("button", { class: "alt" }, a); b.addEventListener("click", () => replaceSpan(span, a)); altwrap.append(b); });
-    };
-    fill();
-    const reroll = el("button", {}, icon("dice"), " Neu"); reroll.addEventListener("click", fill);
     const del = el("button", { class: "danger" }, "✕ Entfernen"); del.addEventListener("click", () => removeSpan(span));
-    const freeIn = el("input", { placeholder: "Eigener Text …" }) as HTMLInputElement;
-    const freeBtn = button("Übernehmen"); freeBtn.addEventListener("click", () => { if (freeIn.value.trim()) replaceSpan(span, freeIn.value.trim()); });
-    feedPop.append(altwrap, el("div", { class: "row" }, reroll, del), el("div", { class: "row" }, freeIn, freeBtn));
+    if (cls === "feed-plain") {
+      // unmarkierter Abschnitt: freie Textbearbeitung (z. B. fehlende Wörter einfügen)
+      const ta = el("textarea", { class: "freeedit" }) as HTMLTextAreaElement;
+      ta.value = cur;
+      const freeBtn = button("Übernehmen");
+      freeBtn.addEventListener("click", () => { const v = ta.value.replace(/\s+/g, " ").trim(); if (v) replaceSpan(span, v); else removeSpan(span); });
+      feedPop.append(el("div", { class: "muted mini" }, "Text frei bearbeiten — fehlende Wörter einfügen oder umformulieren."), ta, el("div", { class: "row" }, del, freeBtn));
+      setTimeout(() => { ta.focus(); const n = ta.value.length; ta.setSelectionRange(n, n); }, 0);
+    } else {
+      const altwrap = el("div", {});
+      const fill = (): void => {
+        altwrap.innerHTML = "";
+        const alts = altsFor(cls, cur);
+        if (!alts.length) altwrap.append(el("div", { class: "muted" }, "Keine Alternativen im Pool."));
+        alts.forEach((a) => { const b = el("button", { class: "alt" }, a); b.addEventListener("click", () => replaceSpan(span, a)); altwrap.append(b); });
+      };
+      fill();
+      const reroll = el("button", {}, icon("dice"), " Neu"); reroll.addEventListener("click", fill);
+      const freeIn = el("input", { placeholder: "Eigener Text …" }) as HTMLInputElement;
+      const freeBtn = button("Übernehmen"); freeBtn.addEventListener("click", () => { if (freeIn.value.trim()) replaceSpan(span, freeIn.value.trim()); });
+      feedPop.append(altwrap, el("div", { class: "row" }, reroll, del), el("div", { class: "row" }, freeIn, freeBtn));
+    }
     const r = span.getBoundingClientRect();
     feedPop.style.left = Math.min(window.innerWidth - 348, Math.max(8, r.left)) + "px";
     feedPop.style.top = (r.bottom + 6) + "px";
