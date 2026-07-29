@@ -298,6 +298,9 @@ input[type=range].wgt:hover{opacity:1}
 .feedpop .alt:hover{border-color:var(--acc)}
 .feedpop .row{display:flex;gap:6px;margin-top:6px}
 .feedpop .row input{flex:1}
+.feedpop .pophead,.feedpop .pophead{padding-right:20px}
+.feedpop-x{position:absolute;top:6px;right:8px;width:22px;height:22px;padding:0;line-height:1;border:1px solid var(--border2);border-radius:6px;background:var(--panel);color:var(--muted);cursor:pointer;font-size:12px}
+.feedpop-x:hover{color:var(--text);border-color:var(--acc)}
 .feed-plain{border-radius:3px}
 .feedpop .mini{margin-bottom:4px;line-height:1.4}
 .feedpop textarea.freeedit{width:100%;min-height:76px;resize:vertical;box-sizing:border-box;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font:13px var(--sans);line-height:1.45}

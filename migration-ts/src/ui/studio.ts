@@ -244,7 +244,10 @@ export function mountStudio(root: HTMLElement): void {
     const cur = span.textContent || "";
     const titles: Record<string, string> = { "feed-wb": "Wortbank", "feed-ton": "Ton", "feed-4w": "4W-Kontext", "feed-pool": "Lebendige Pools", "feed-markov": "Markov", "feed-plain": "Text" };
     feedPop.innerHTML = "";
-    feedPop.append(el("div", { class: "muted" }, `„${cur.length > 44 ? cur.slice(0, 44) + "…" : cur}“ · ${titles[cls] || "Passage"}`));
+    const closeX = el("button", { class: "feedpop-x", type: "button", title: "Schließen", "aria-label": "Schließen" }, "✕");
+    closeX.addEventListener("click", hidePop);
+    feedPop.append(closeX);
+    feedPop.append(el("div", { class: "muted pophead" }, `„${cur.length > 44 ? cur.slice(0, 44) + "…" : cur}“ · ${titles[cls] || "Passage"}`));
     const del = el("button", { class: "danger" }, "✕ Entfernen"); del.addEventListener("click", () => removeSpan(span));
     if (cls === "feed-plain") {
       // unmarkierter Abschnitt: freie Textbearbeitung (z. B. fehlende Wörter einfügen)
