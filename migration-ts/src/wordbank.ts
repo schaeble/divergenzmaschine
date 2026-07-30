@@ -93,6 +93,21 @@ export function buildAutoMixBank(): Bank {
   return normalizeBankShape(out);
 }
 
+/** Mehrere Presets aktiv: pro Kategorie die Einträge aller gewählten Presets vereinen (dedupliziert). */
+export function buildMergedBank(ids: string[]): Bank {
+  const all = getAllPresets();
+  const out = {} as Bank;
+  for (const k of BANK_KEYS) {
+    const set = new Set<string>();
+    for (const id of ids) {
+      const p = all[id];
+      if (p && Array.isArray(p.bank[k])) for (const x of p.bank[k]) { const v = (x || "").trim(); if (v) set.add(v); }
+    }
+    out[k] = [...set];
+  }
+  return normalizeBankShape(out);
+}
+
 // ── Verstärkte Mutations-Engine (v2), jetzt als reine Funktion ───────
 const ADJ = [
   "fahl", "gläsern", "zerfranst", "schattenhaft", "brüchig", "namenlos",

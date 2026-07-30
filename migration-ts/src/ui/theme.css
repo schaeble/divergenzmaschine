@@ -310,3 +310,8 @@ input[type=range].wgt:hover{opacity:1}
 .korpus-entry:first-of-type{border-top:none}
 .korpus-prev{color:var(--text);font-size:.86rem;line-height:1.5;margin:2px 0 6px;white-space:pre-wrap}
 .mini{font-size:.72rem}
+.multirow{margin:6px 0 2px}
+.multipreset{margin:6px 0;border:1px solid var(--border2);border-radius:8px;padding:8px 10px}
+.mplist{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px 12px;max-height:240px;overflow:auto;margin:6px 0}
+.mpitem{display:flex;align-items:center;gap:6px;font:13px var(--sans);color:var(--text);cursor:pointer}
+.mpitem input{margin:0}

@@ -2,7 +2,7 @@
 // Lesemodus (Vollbild) und Vorlesen (SpeechSynthesis).
 import type { GenInput, FormKind } from "../types";
 import { loadBank, saveBank } from "../storage";
-import { getAllPresets, saveActiveBankLabel, buildAutoMixBank, AUTOMIX_ID } from "../wordbank";
+import { getAllPresets, saveActiveBankLabel, buildAutoMixBank, buildMergedBank, AUTOMIX_ID } from "../wordbank";
 import { markedPresetOptions, getUserPreset2 } from "../features/preset2";
 import { setDramaData } from "../generation/dramaturgie";
 import { buildStory } from "../generation/buildStory";
@@ -86,7 +86,10 @@ export function mountStudio(root: HTMLElement): void {
     el("div", { class: "btnrow" }, ctxDice, ctxKeep));
 
   const preset = select("f-preset", markedPresetOptions());
+  const MULTI_ID = "__multi__";
+  let multiIds: string[] = [];
   preset.addEventListener("change", () => {
+    if (preset.value === MULTI_ID) { if (multiIds.length >= 2) applyMulti(); return; }
     if (preset.value === AUTOMIX_ID) { saveBank(buildAutoMixBank()); saveActiveBankLabel("Auto-Mix"); setDramaData(null); return; }
     const p = getAllPresets()[preset.value];
     if (!p) return;
@@ -99,6 +102,53 @@ export function mountStudio(root: HTMLElement): void {
       setV(tone, st.tone); setV(form, st.form); setV(structure, st.structure); setV(disruptor, st.disruptor); setV(instab, st.instability);
     } else { setDramaData(null); }
   });
+
+  // ── Mehrere Presets mischen ──────────────────────────────────────────
+  const stripIcon = (l: string): string => l.replace(/^[^\p{L}\p{N}]+/u, "").replace(/\s*✦2\.0$/, "").trim();
+  const applyMulti = (): void => {
+    if (multiIds.length < 2) return;
+    saveBank(buildMergedBank(multiIds));
+    const labels = multiIds.map((id) => stripIcon(getAllPresets()[id]?.label || id));
+    saveActiveBankLabel("Mix: " + labels.join(" + "));
+    setDramaData(null);
+  };
+  const ensureMultiOption = (): void => {
+    let o = preset.querySelector('option[value="' + MULTI_ID + '"]') as HTMLOptionElement | null;
+    if (!o) { o = document.createElement("option"); o.value = MULTI_ID; preset.insertBefore(o, preset.firstChild); }
+    o.textContent = `Mehrere (${multiIds.length})`;
+  };
+  const multiPanel = el("div", { class: "multipreset", style: "display:none" });
+  const toggleMulti = (force?: boolean): void => {
+    const show = force ?? (multiPanel.style.display === "none");
+    if (show) buildMultiPanel();
+    multiPanel.style.display = show ? "" : "none";
+    multiBtn.textContent = show ? "Schließen" : "Mehrere \u2026";
+  };
+  function buildMultiPanel(): void {
+    multiPanel.innerHTML = "";
+    multiPanel.append(el("div", { class: "muted mini" }, "Presets ankreuzen — ihre Wortbänke werden vereint:"));
+    const opts = markedPresetOptions().filter(([v]) => v !== AUTOMIX_ID);
+    const boxes: HTMLInputElement[] = [];
+    const listWrap = el("div", { class: "mplist" });
+    opts.forEach(([v, l]) => {
+      const cb = el("input", { type: "checkbox" }) as HTMLInputElement;
+      cb.checked = multiIds.includes(v); cb.value = v;
+      boxes.push(cb);
+      listWrap.append(el("label", { class: "chk mpitem" }, cb, " " + l));
+    });
+    const apply = el("button", { class: "primary" }, "Übernehmen");
+    apply.addEventListener("click", () => {
+      const sel = boxes.filter((b) => b.checked).map((b) => b.value);
+      if (!sel.length) return;
+      multiIds = sel;
+      if (multiIds.length === 1) { toggleMulti(false); preset.value = multiIds[0]!; preset.dispatchEvent(new Event("change")); return; }
+      applyMulti(); ensureMultiOption(); preset.value = MULTI_ID; toggleMulti(false); liveRegen();
+    });
+    const cancel = button("Abbrechen"); cancel.addEventListener("click", () => toggleMulti(false));
+    multiPanel.append(listWrap, el("div", { class: "btnrow" }, apply, cancel));
+  }
+  const multiBtn = button("Mehrere \u2026");
+  multiBtn.addEventListener("click", () => toggleMulti());
 
   const tone = select("f-tone", [["neutral", "Neutral"], ["mystery", "Mystery"], ["poetic", "Poetisch"], ["melancholisch", "Melancholisch"], ["dark", "Düster"], ["unheimlich", "Unheimlich"], ["uplifting", "Hoffnungsvoll"], ["zaertlich", "Zärtlich"], ["traeumerisch", "Träumerisch"], ["nuechtern", "Nüchtern"], ["ironisch", "Ironisch"], ["humorous", "Humorvoll"]], "mystery");
   const form = select("f-form", [["prose", "Prosa"], ["poem", "Prosagedicht"], ["strang", "Gedicht-Strang"], ["reim", "Reim"], ["haiku", "Haiku"], ["script", "Szene/Dialog"], ["video", "Multi-Shot (Video)"]], "prose");
@@ -119,6 +169,7 @@ export function mountStudio(root: HTMLElement): void {
   const polish = el("input", { id: "f-polish", type: "checkbox" }) as HTMLInputElement;
   wrap.append(el("div", { class: "grid3" },
     lockField("Preset", preset), lockField("Ton", tone), lockField("Form", form)));
+  wrap.append(el("div", { class: "multirow" }, multiBtn), multiPanel);
 
 
   const lenSlider = el("input", { id: "f-len", type: "range", min: "40", max: "300", step: "10", value: "110", style: "flex:1" }) as HTMLInputElement;
