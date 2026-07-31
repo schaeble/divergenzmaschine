@@ -71,22 +71,37 @@ export function archiveReady(): { ok: boolean; msg?: string } {
   return { ok: true };
 }
 
-/** Erzeugt per KI pro gewählter Kategorie ~15 Einträge zum Thema. */
-export async function generateArchive(theme: string, cats: string[], perCat = 15): Promise<Record<string, string[]>> {
-  const chosen = ARCHIVE_CATS.filter((c) => cats.includes(c[0]));
+async function generateChunk(theme: string, chunk: [string, string, string][], perCat: number): Promise<Record<string, string[]>> {
   const themeLine = theme.trim() ? `Thema/Stimmung: „${theme.trim()}“. Alle Einträge sollen dazu passen.` : "Frei erfunden, stimmig und konkret.";
-  const catBlock = chosen.map((c) => `  "${c[0]}": [${perCat} Einträge — ${c[2]}]`).join(",\n");
+  const catBlock = chunk.map((c) => `  "${c[0]}": [${perCat} Einträge — ${c[2]}]`).join(",\n");
   const prompt = "Du hilfst, ein Wortarchiv für ein deutsches Schreibwerkzeug zu füllen. "
     + themeLine + "\n\n"
-    + `Gib pro Kategorie ${perCat} konkrete, kurze deutsche Einträge. Konkret und bildhaft, keine Erklärungen, keine Nummerierung. `
+    + `Gib pro Kategorie genau ${perCat} konkrete, kurze deutsche Einträge. Konkret und bildhaft, keine Erklärungen, keine Nummerierung. `
     + "Requisiten/Gegenstände mit Artikel. Kuriose deutsche Wörter sind einzelne Substantive.\n\n"
-    + "Antworte AUSSCHLIESSLICH mit einem JSON-Objekt in genau dieser Form:\n{\n" + catBlock + "\n}";
-  const raw = await callClaude(prompt, 3000, "{");
+    + "Antworte AUSSCHLIESSLICH mit einem JSON-Objekt in genau dieser Form (nur diese Schlüssel):\n{\n" + catBlock + "\n}";
+  const raw = await callClaude(prompt, 4096, "{");
   const obj = extractJson(raw.trim().startsWith("{") ? raw : "{" + raw) as Record<string, unknown>;
   const out: Record<string, string[]> = {};
-  for (const c of chosen) {
+  for (const c of chunk) {
     const arr = obj[c[0]];
     out[c[0]] = Array.isArray(arr) ? arr.map((x) => String(x).trim()).filter(Boolean) : [];
+  }
+  return out;
+}
+
+/** Erzeugt per KI pro gewählter Kategorie ~perCat Einträge zum Thema.
+ *  In kleinen Kategorie-Chunks, damit keine Antwort abgeschnitten wird; Teil-Ergebnisse bleiben erhalten. */
+export async function generateArchive(theme: string, cats: string[], perCat = 15, onProgress?: (done: number, total: number) => void): Promise<Record<string, string[]>> {
+  const chosen = ARCHIVE_CATS.filter((c) => cats.includes(c[0]));
+  const chunks: [string, string, string][][] = [];
+  for (let i = 0; i < chosen.length; i += 3) chunks.push(chosen.slice(i, i + 3));
+  const out: Record<string, string[]> = {};
+  let done = 0;
+  for (const chunk of chunks) {
+    try { Object.assign(out, await generateChunk(theme, chunk, perCat)); }
+    catch { /* diesen Chunk überspringen, Rest weiter */ }
+    done += chunk.length;
+    onProgress?.(done, chosen.length);
   }
   return out;
 }

@@ -54,8 +54,8 @@ export function openWordArchive(onClose?: () => void): void {
     if (!rdy.ok) { status.textContent = rdy.msg || "Nicht verfügbar."; return; }
     const cats = Object.keys(boxes).filter((id) => boxes[id]!.checked);
     if (!cats.length) { status.textContent = "Bitte mindestens eine Kategorie wählen."; return; }
-    genBtn.disabled = true; status.textContent = "Erzeuge…"; results.innerHTML = "";
-    generateArchive(themeIn.value, cats).then((res) => {
+    genBtn.disabled = true; status.textContent = `Erzeuge… 0/${cats.length}`; results.innerHTML = "";
+    generateArchive(themeIn.value, cats, 15, (d, t) => { status.textContent = `Erzeuge… ${d}/${t}`; }).then((res) => {
       status.textContent = "";
       const theme = themeIn.value.trim();
       ARCHIVE_CATS.filter(([id]) => res[id]?.length).forEach(([id, label]) => {
