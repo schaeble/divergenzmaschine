@@ -344,3 +344,10 @@ input[type=range].wgt:hover{opacity:1}
 .wa-pick{margin:4px 0 8px}
 .wa-pickpanel{border:1px solid var(--border2);border-radius:8px;padding:8px;margin-top:4px}
 .wiz-arch-theme,.wa-pickpanel select{height:26px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--text);font:12px var(--sans);padding:0 6px}
+.off-pool{max-height:220px;overflow:auto;border:1px solid var(--border2);border-radius:8px;padding:8px;margin:6px 0}
+.off-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.off-chip{display:inline-flex;align-items:center;gap:5px;font:12px var(--sans);background:var(--panel);border:1px solid var(--border2);border-radius:999px;padding:2px 8px}
+.off-x{border:none;background:none;color:var(--muted);cursor:pointer;padding:0;font-size:11px}
+.off-x:hover{color:var(--danger)}
+.off-group{border-top:1px solid var(--border2);padding:6px 0}
+.off-grouphead{display:flex;align-items:center;gap:10px;margin-bottom:2px}

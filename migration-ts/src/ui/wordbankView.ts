@@ -8,6 +8,7 @@ import { loadPersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
 import { openPresetWizard } from "./presetWizard";
 import { openWordArchive } from "./wordArchiveView";
+import { splitEntries, offlineAddPool, offlinePool, offlineGroups, offlineRemoveFromPool, offlineClearPool, offlineSetGroup, offlineDeleteGroup } from "../features/offlinearchive";
 import { preset2ToBank, preset2Name, preset2Active, builtinSettings, generateAiPreset2, setActive2, getActive2, saveUserPreset2, getUserPreset2, deleteUserPreset2, loadUserPresets2, type Active2 } from "../features/preset2";
 import { setDramaData } from "../generation/dramaturgie";
 import { bankFromCorpus } from "../features/corpusbank";
@@ -438,6 +439,73 @@ export function mountWordbank(root: HTMLElement): void {
     el("div", { class: "btnrow" }, batchBtn),
     batchInfo);
 
+  // ── Wortarchiv (offline): Pool aus der Zwischenablage + eigene Gruppen ──
+  const offBox = el("details", { class: "fine" });
+  const offInfo = el("span", { class: "muted mini" });
+  const offManual = el("textarea", { style: "height:60px", placeholder: "…oder hier Wörter einfügen (ein Eintrag pro Zeile) und „Hinzufügen“" }) as HTMLTextAreaElement;
+  const offPoolWrap = el("div", { class: "off-pool" });
+  const offGroupsWrap = el("div", {});
+  const offGroupName = el("input", { placeholder: "Gruppenname", style: "flex:1" }) as HTMLInputElement;
+  let offChecks: HTMLInputElement[] = [];
+  const renderOff = (): void => {
+    // Pool
+    offPoolWrap.innerHTML = ""; offChecks = [];
+    const pool = offlinePool();
+    offPoolWrap.append(el("div", { class: "muted mini" }, `Alle Wörter (${pool.length}) — ankreuzen zum Gruppieren:`));
+    if (!pool.length) offPoolWrap.append(el("span", { class: "muted mini" }, "Noch nichts eingefügt."));
+    const chips = el("div", { class: "off-chips" });
+    pool.forEach((w) => {
+      const cb = el("input", { type: "checkbox" }) as HTMLInputElement; cb.value = w; offChecks.push(cb);
+      const del = el("button", { class: "off-x", type: "button", title: "Entfernen" }, "✕");
+      del.addEventListener("click", () => { offlineRemoveFromPool(w); renderOff(); });
+      chips.append(el("label", { class: "off-chip" }, cb, " " + w, del));
+    });
+    offPoolWrap.append(chips);
+    // Gruppen
+    offGroupsWrap.innerHTML = "";
+    const groups = offlineGroups();
+    const names = Object.keys(groups).sort((a, b) => a.localeCompare(b, "de"));
+    if (names.length) {
+      offGroupsWrap.append(el("div", { class: "muted mini" }, "Gruppen:"));
+      names.forEach((nm) => {
+        const g = el("div", { class: "off-group" });
+        const delG = el("button", { class: "danger", type: "button" }, "Gruppe löschen");
+        delG.addEventListener("click", () => { offlineDeleteGroup(nm); renderOff(); });
+        g.append(el("div", { class: "off-grouphead" }, el("b", {}, `${nm} (${groups[nm]!.length})`), delG),
+          el("div", { class: "off-chips" }, ...groups[nm]!.map((w) => el("span", { class: "off-chip" }, w))));
+        offGroupsWrap.append(g);
+      });
+    }
+  };
+  const offPasteBtn = el("button", { class: "primary" }, icon("copy"), " Aus Zwischenablage einfügen");
+  offPasteBtn.addEventListener("click", () => {
+    const nav = navigator as unknown as { clipboard?: { readText?: () => Promise<string> } };
+    if (!nav.clipboard || !nav.clipboard.readText) { offInfo.textContent = "Zwischenablage nicht lesbar — bitte unten manuell einfügen."; offManual.focus(); return; }
+    nav.clipboard.readText().then((txt) => { const n = offlineAddPool(splitEntries(txt)); offInfo.textContent = `${n} eingefügt`; renderOff(); })
+      .catch(() => { offInfo.textContent = "Zwischenablage nicht lesbar — bitte unten manuell einfügen."; offManual.focus(); });
+  });
+  const offAddBtn = button("Hinzufügen");
+  offAddBtn.addEventListener("click", () => { const n = offlineAddPool(splitEntries(offManual.value)); offManual.value = ""; offInfo.textContent = `${n} hinzugefügt`; renderOff(); });
+  const offClearBtn = button("Pool leeren", "danger");
+  offClearBtn.addEventListener("click", () => { if (offlinePool().length && confirm("Alle Wörter im Offline-Pool löschen? (Gruppen bleiben.)")) { offlineClearPool(); renderOff(); } });
+  const offGroupBtn = button("Auswahl als Gruppe speichern");
+  offGroupBtn.addEventListener("click", () => {
+    const sel = offChecks.filter((c) => c.checked).map((c) => c.value);
+    const nm = offGroupName.value.trim();
+    if (!nm) { offInfo.textContent = "Bitte Gruppennamen angeben."; return; }
+    if (!sel.length) { offInfo.textContent = "Bitte Einträge ankreuzen."; return; }
+    offlineSetGroup(nm, sel); offGroupName.value = ""; offInfo.textContent = `Gruppe „${nm}“ gespeichert (${sel.length}).`; renderOff();
+  });
+  offBox.append(
+    el("summary", {}, icon("folder"), " Wortarchiv (offline)"),
+    el("p", { class: "muted" }, "Füge Wörter aus der Zwischenablage in einen ungeordneten Pool. Bei Bedarf kreuzt du Einträge an und speicherst sie unter einem eigenen Gruppennamen. Pool und Gruppen stehen im Preset-Assistenten unter „Aus Archiv laden“ bereit."),
+    el("div", { class: "btnrow" }, offPasteBtn, offClearBtn, offInfo),
+    el("div", { class: "btnrow" }, offManual, offAddBtn),
+    offPoolWrap,
+    el("div", { class: "btnrow" }, offGroupName, offGroupBtn),
+    offGroupsWrap);
+  renderOff();
+
   wrap.append(
     el("div", { class: "btnrow" }, wizardBtn, archiveBtn),
     field("Preset", preset),
@@ -453,6 +521,7 @@ export function mountWordbank(root: HTMLElement): void {
     kiBox,
     p2Box,
     batchBox,
+    offBox,
   );
   root.append(wrap);
   load();

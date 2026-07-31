@@ -10,6 +10,7 @@ import { exportLivePools, importLivePools, type LiveItem } from "./livepools";
 import { loadWorkshopProjects, saveWorkshopProjectsAll, type WorkshopProject } from "./workshop";
 import { loadUserPresets2, saveUserPresets2All, getActive2, setActive2, type Active2 } from "./preset2";
 import { loadArchive, saveArchive, type Archive } from "./wordarchive";
+import { loadOffline, saveOffline, type OfflineArchive } from "./offlinearchive";
 import type { Bank, Settings } from "../types";
 
 interface ProjectFile {
@@ -18,7 +19,7 @@ interface ProjectFile {
   treasury?: Treasure[]; ideaPresets?: Record<string, IdeaProfile>;
   omniPresets?: Record<string, CognitiveProfile>; livePools?: LiveItem[];
   workshopProjects?: Record<string, WorkshopProject>;
-  presets2?: Record<string, Active2>; active2?: Active2 | null; wordArchive?: Archive;
+  presets2?: Record<string, Active2>; active2?: Active2 | null; wordArchive?: Archive; offlineArchive?: OfflineArchive;
 }
 
 /** Exportiert das Projekt. Zeigt — wo unterstützt — einen echten „Speichern unter"-
@@ -31,7 +32,7 @@ export async function exportProject(): Promise<boolean> {
     treasury: loadTreasury(), ideaPresets: loadIdeaUserPresets(),
     omniPresets: loadOmniUserPresets(), livePools: exportLivePools(),
     workshopProjects: loadWorkshopProjects(),
-    presets2: loadUserPresets2(), active2: getActive2(), wordArchive: loadArchive(),
+    presets2: loadUserPresets2(), active2: getActive2(), wordArchive: loadArchive(), offlineArchive: loadOffline(),
   };
   const json = JSON.stringify(project, null, 2);
   const filename = `divergenz_projekt_${new Date().toISOString().slice(0, 10)}.json`;
@@ -82,6 +83,7 @@ export function importProject(file: File): Promise<void> {
         if (p.presets2) saveUserPresets2All(p.presets2);
         if ("active2" in p) setActive2(p.active2 ?? null);
         if (p.wordArchive) saveArchive(p.wordArchive);
+        if (p.offlineArchive) saveOffline(p.offlineArchive);
         resolve();
       } catch (e) { reject(e instanceof Error ? e : new Error(String(e))); }
     };

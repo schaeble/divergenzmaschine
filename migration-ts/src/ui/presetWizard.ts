@@ -10,6 +10,7 @@ import type { Bank, BankKey } from "../types";
 import { setActive2, saveUserPreset2, type Active2 } from "../features/preset2";
 import { setDramaData } from "../generation/dramaturgie";
 import { ARCHIVE_CATS, archiveGet, archiveThemes, catLabel } from "../features/wordarchive";
+import { offlinePool, offlineGroupNames, offlineGroupEntries } from "../features/offlinearchive";
 
 const shuffle = <T>(a: T[]): T[] => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j]!, a[i]!]; } return a; };
 const lines = (v: string): string[] => v.split("\n").map((s) => s.trim()).filter(Boolean);
@@ -141,17 +142,28 @@ export function openPresetWizard(onDone: (userId: string | null) => void): void 
   const archivePicker = (defaultCat: string, insert: (a: string[]) => void): HTMLElement => {
     const wrap = el("div", { class: "wa-pick" });
     const panel = el("div", { class: "wa-pickpanel", style: "display:none" });
-    const catSel = select("wiz-arch-cat", ARCHIVE_CATS.map(([id, l]) => [id, l] as [string, string]), defaultCat);
+    const catOpts: [string, string][] = [
+      ...ARCHIVE_CATS.map(([id, l]) => [id, l] as [string, string]),
+      ["offline:__pool__", "Offline · Alle Wörter"],
+      ...offlineGroupNames().map((nm) => ["offline:" + nm, "Offline · " + nm] as [string, string]),
+    ];
+    const catSel = select("wiz-arch-cat", catOpts, defaultCat);
     const themeSel = el("select", { class: "wiz-arch-theme" }) as HTMLSelectElement;
     const chips = el("div", { class: "wiz-exchips" });
+    const isOffline = (): boolean => catSel.value.startsWith("offline:");
+    const offlineEntries = (): string[] => { const key = catSel.value.slice("offline:".length); return key === "__pool__" ? offlinePool() : offlineGroupEntries(key); };
     const fillThemes = (): void => {
       themeSel.innerHTML = "";
       themeSel.append(el("option", { value: "" }, "alle Themen"));
+      if (isOffline()) { themeSel.disabled = true; return; }
+      themeSel.disabled = false;
       for (const t of archiveThemes(catSel.value)) themeSel.append(el("option", { value: t }, t));
     };
     const renderChips = (): void => {
       chips.innerHTML = "";
-      const entries = archiveGet(catSel.value).filter((e) => !themeSel.value || e.theme === themeSel.value);
+      const entries = isOffline()
+        ? offlineEntries().map((t) => ({ t } as { t: string; theme?: string }))
+        : archiveGet(catSel.value).filter((e) => !themeSel.value || e.theme === themeSel.value);
       if (!entries.length) { chips.append(el("span", { class: "muted mini" }, "Nichts im Archiv für diese Auswahl.")); return; }
       const all = button("Alle einfügen"); all.addEventListener("click", () => insert(entries.map((e) => e.t)));
       chips.append(all);
