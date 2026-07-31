@@ -9,7 +9,7 @@ import { DEFAULT_BANK, BANK_KEYS } from "../constants";
 import type { Bank, BankKey } from "../types";
 import { setActive2, saveUserPreset2, type Active2 } from "../features/preset2";
 import { setDramaData } from "../generation/dramaturgie";
-import { ARCHIVE_CATS, archiveGet, archiveThemes } from "../features/wordarchive";
+import { ARCHIVE_CATS, archiveGet, archiveThemes, catLabel } from "../features/wordarchive";
 
 const shuffle = <T>(a: T[]): T[] => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j]!, a[i]!]; } return a; };
 const lines = (v: string): string[] => v.split("\n").map((s) => s.trim()).filter(Boolean);
@@ -94,7 +94,8 @@ export function openPresetWizard(onDone: (userId: string | null) => void): void 
   let commit: () => void = () => {};
 
   const SHOW_N = 8; // wie viele Beispiele pro Wurf angeboten werden
-  const areaStep = (label: string, help: string, value: string[], examples: string[], onCommit: (v: string[]) => void, total: number, num: number, archiveCat?: string): void => {
+  const KURIOSE_FOR: Record<string, string> = { motifs: "kuriose_woerter", props: "kuriose_gegenstaende", turns: "kuriose_wendungen" };
+  const areaStep = (label: string, help: string, value: string[], examples: string[], onCommit: (v: string[]) => void, total: number, num: number, archiveCat?: string, extraCat?: string): void => {
     body.append(el("div", { class: "muted wiz-prog" }, `Schritt ${num} von ${total}`));
     body.append(el("h3", { class: "wiz-h" }, label));
     body.append(el("p", { class: "muted wiz-help" }, help));
@@ -106,8 +107,10 @@ export function openPresetWizard(onDone: (userId: string | null) => void): void 
       if (!add.length) return;
       ta.value = (ta.value.trim() ? ta.value.replace(/\n+$/, "") + "\n" : "") + add.join("\n");
     };
-    if (examples.length) {
-      const pool = examples.slice();
+    // Wiederverwendbarer Beispiel-Block (mit Würfeln / Alle einfügen)
+    const exampleBlock = (labelText: string, poolIn: string[], withClear: boolean): void => {
+      if (!poolIn.length) return;
+      const pool = poolIn.slice();
       let pick: string[] = shuffle(pool.slice()).slice(0, Math.min(SHOW_N, pool.length));
       const chips = el("div", { class: "wiz-exchips" });
       const renderChips = (): void => {
@@ -116,13 +119,18 @@ export function openPresetWizard(onDone: (userId: string | null) => void): void 
       };
       const dice = el("button", {}, icon("dice"), " Würfeln");
       dice.addEventListener("click", () => { pick = shuffle(pool.slice()).slice(0, Math.min(SHOW_N, pool.length)); renderChips(); });
-      const exBtn = button("Alle einfügen");
-      exBtn.addEventListener("click", () => insert(pick));
-      const clearBtn = button("Leeren");
-      clearBtn.addEventListener("click", () => { ta.value = ""; ta.focus(); });
+      const allBtn = button("Alle einfügen");
+      allBtn.addEventListener("click", () => insert(pick));
+      const row = el("div", { class: "wiz-ex" }, dice, allBtn);
+      if (withClear) { const clearBtn = button("Leeren"); clearBtn.addEventListener("click", () => { ta.value = ""; ta.focus(); }); row.append(clearBtn); }
       renderChips();
-      body.append(el("div", { class: "muted mini wiz-exlabel" }, `Beispiele (${pool.length} verfügbar) — einzeln anklicken zum Einfügen:`),
-        el("div", { class: "wiz-ex" }, dice, exBtn, clearBtn), chips);
+      body.append(el("div", { class: "muted mini wiz-exlabel" }, labelText), row, chips);
+    };
+    exampleBlock(`Beispiele (${examples.length} verfügbar) — einzeln anklicken zum Einfügen:`, examples, true);
+    // Kuriose Kategorie aus deinem Archiv als zusätzliche Quelle direkt im Schritt
+    if (extraCat) {
+      const arch = archiveGet(extraCat).map((e) => e.t);
+      if (arch.length) exampleBlock(`Aus deinem Archiv · ${catLabel(extraCat)} (${arch.length}):`, arch, false);
     }
     if (archiveCat) body.append(archivePicker(archiveCat, insert));
     body.append(ta);
@@ -171,7 +179,7 @@ export function openPresetWizard(onDone: (userId: string | null) => void): void 
       body.append(el("h3", { class: "wiz-h" }, "Ein eigenes Preset bauen — offline"));
       body.append(el("p", { class: "muted" }, "Der Assistent führt dich durch die 7 Kern-Kategorien der Wortbank und anschließend optional durch die Dramaturgie (Preset 2.0). Pro Schritt gibt es einen Erklärtext und Beispiele zum Einfügen. Am Ende speicherst du alles als eigenes Preset."));
     } else if (step.kind === "bank") {
-      areaStep(step.label, step.help, data.bank[step.k] || [], bankExamples(step.k), (v) => (data.bank[step.k] = v), total, i, step.k);
+      areaStep(step.label, step.help, data.bank[step.k] || [], bankExamples(step.k), (v) => (data.bank[step.k] = v), total, i, step.k, KURIOSE_FOR[step.k]);
     } else if (step.kind === "gate") {
       body.append(el("div", { class: "muted wiz-prog" }, `Schritt ${i} von ${total}`));
       body.append(el("h3", { class: "wiz-h" }, "Dramaturgie (Preset 2.0) — optional"));
