@@ -36,23 +36,23 @@ const DRAMA: [DKey, string, string][] = [
   ["regeln", "Regeln / Naturgesetze", "Weltregeln, die im Text gelten."],
 ];
 const DRAMA_EX: Record<DKey, string[]> = {
-  einstieg: ["ein Morgen, der zu früh beginnt", "eine Ankunft ohne Grund", "die Stille vor dem ersten Wort"],
-  mitte: ["die Dinge verschieben sich unmerklich", "eine zweite Möglichkeit taucht auf", "das Vertraute wird fremd"],
-  hoehepunkt: ["alles kippt in einem Satz", "die Wahrheit zeigt ihr Gesicht"],
-  schluss: ["offen", "melancholisch", "ein leises Verstummen"],
-  ausloeser: ["ein Anruf, der niemandem gehört", "ein gefundener Gegenstand", "ein Wort zu viel"],
-  veraenderungen: ["die Figur verliert ihren Namen", "der Ort beginnt sich zu erinnern"],
-  konflikte: ["Nähe gegen Flucht", "Wissen gegen Vergessen", "Pflicht gegen Sehnsucht"],
-  zeitanomalien: ["ein Tag wiederholt sich halb", "die Uhr springt zurück"],
-  regeln: ["wer schläft, altert doppelt", "Spiegel zeigen nur Vergangenes"],
+  einstieg: ["ein Morgen, der zu früh beginnt", "eine Ankunft ohne Grund", "die Stille vor dem ersten Wort", "ein Zug hält an einem Ort ohne Namen", "jemand wacht in einem fremden Zimmer auf", "der letzte Gast verlässt das Haus", "ein Brief liegt ungeöffnet auf dem Tisch", "die Uhr schlägt eine Stunde zu viel", "ein Fremder fragt nach dem Weg", "Nebel legt sich über die Felder", "das Telefon klingelt einmal und verstummt", "eine Tür steht offen, die verschlossen war", "der erste Schnee fällt zu früh", "ein Kind zählt Fenster", "die Straßenlampen gehen nacheinander aus"],
+  mitte: ["die Dinge verschieben sich unmerklich", "eine zweite Möglichkeit taucht auf", "das Vertraute wird fremd", "die Erinnerung widerspricht sich", "ein Verdacht wächst leise", "zwei Wege trennen sich", "die Zeit dehnt sich", "ein Name wird mehrmals genannt", "etwas fehlt, das keiner benennt", "die Wände scheinen näher zu rücken", "ein alter Bekannter kehrt zurück", "die Karte stimmt nicht mehr", "ein Geräusch wiederholt sich", "die Suche führt im Kreis", "ein Geheimnis drängt an die Oberfläche"],
+  hoehepunkt: ["alles kippt in einem Satz", "die Wahrheit zeigt ihr Gesicht", "der Boden gibt nach", "ein Wort zerreißt die Stille", "die Maske fällt", "zwei Möglichkeiten kollabieren zu einer", "die Tür fällt ins Schloss", "das Licht erlischt schlagartig", "eine Entscheidung lässt sich nicht mehr zurücknehmen", "der Spiegel zeigt das Falsche", "die Stimme bricht", "die Zeit steht einen Herzschlag still", "ein Name wird endlich ausgesprochen", "alles Verborgene liegt frei", "der letzte Halt löst sich"],
+  schluss: ["offen", "melancholisch", "ein leises Verstummen", "versöhnlich", "kühl und klar", "ein Aufatmen", "unentschieden", "ein Kreis schließt sich", "nachhallend", "bitter", "hoffnungsvoll", "ins Schweigen", "ein letzter Blick zurück", "die Nacht bleibt", "ohne Antwort"],
+  ausloeser: ["ein Anruf, der niemandem gehört", "ein gefundener Gegenstand", "ein Wort zu viel", "ein Riss in der Wand", "ein vergessener Name fällt", "ein Foto ohne Datum", "ein Schlüssel, der überall passt", "ein Brief von einem Toten", "eine falsche Uhrzeit", "ein Klopfen an der falschen Tür", "ein Geruch aus der Kindheit", "eine Rechnung, die niemand stellte", "ein Licht im leeren Haus", "ein Versprechen, das jemand einlöst", "eine Tür, die sich von selbst öffnet"],
+  veraenderungen: ["die Figur verliert ihren Namen", "der Ort beginnt sich zu erinnern", "aus Nähe wird Distanz", "das Gewöhnliche wird bedrohlich", "eine Rolle kehrt sich um", "Vertrauen weicht Zweifel", "die Sprache versagt", "aus Jäger wird Gejagter", "das Innen wird zum Außen", "die Zeit läuft rückwärts", "aus Schweigen wird Geständnis", "die Erinnerung schreibt sich um", "ein Wunsch verkehrt sich", "die Grenze verschwimmt", "aus Zufall wird Muster"],
+  konflikte: ["Nähe gegen Flucht", "Wissen gegen Vergessen", "Pflicht gegen Sehnsucht", "Wahrheit gegen Schutz", "Bleiben gegen Aufbruch", "Erinnern gegen Loslassen", "Ordnung gegen Chaos", "Stimme gegen Schweigen", "Freiheit gegen Bindung", "Vergangenheit gegen Gegenwart", "Vertrauen gegen Verrat", "Kontrolle gegen Hingabe", "Schuld gegen Vergebung", "Sehen gegen Wegsehen", "Ich gegen die anderen"],
+  zeitanomalien: ["ein Tag wiederholt sich halb", "die Uhr springt zurück", "Stunden fehlen ohne Spur", "die Zukunft sickert in die Gegenwart", "ein Moment dehnt sich zur Ewigkeit", "Erinnerungen kommen vor dem Ereignis", "die Nacht dauert zu lang", "zwei Zeiten überlagern sich", "ein Echo antwortet zu früh", "gestern liegt vor morgen", "die Zeit tropft ungleichmäßig", "ein Jahr vergeht über Nacht", "Vergangenes geschieht erneut", "die Sekunden zählen rückwärts", "ein Spiegel zeigt Vergangenes"],
+  regeln: ["wer schläft, altert doppelt", "Spiegel zeigen nur Vergangenes", "Namen verblassen, wenn man sie ausspricht", "niemand darf zweimal denselben Weg gehen", "Licht wirft keine Schatten", "Versprechen binden über den Tod hinaus", "was man verliert, kehrt verwandelt zurück", "Türen führen nie zweimal zum selben Ort", "Schweigen hat ein Gewicht", "Wasser erinnert sich an jede Berührung", "wer lügt, wird durchsichtig", "die Toten hören mit", "Uhren gehen nur bei Sonnenlicht", "jeder Schatten gehört jemandem", "Wünsche kosten ein Jahr"],
 };
-const POOL_EX = ["ein verlassener Leuchtturm", "die Kartografin", "eine Spieluhr ohne Melodie", "ein Bahnwärterhaus im Nebel"];
+const POOL_EX = ["ein verlassener Leuchtturm", "die Kartografin", "eine Spieluhr ohne Melodie", "ein Bahnwärterhaus im Nebel", "der Uhrmacher ohne Hände", "ein Gewächshaus im Winter", "die Frau mit den zwei Schatten", "ein Fahrstuhl ohne Knöpfe", "das Archiv der verlorenen Dinge", "ein Junge, der Karten sammelt", "die Brücke, die nirgends hinführt", "eine Bibliothek bei Nacht", "der Fährmann ohne Boot", "ein Zimmer voller Uhren", "die Stadt unter dem Wasser"];
 const TONE_OPTS: [string, string][] = [["", "(kein)"], ["neutral", "Neutral"], ["mystery", "Mystery"], ["poetic", "Poetisch"], ["melancholisch", "Melancholisch"], ["dark", "Düster"], ["unheimlich", "Unheimlich"], ["uplifting", "Hoffnungsvoll"], ["zaertlich", "Zärtlich"], ["traeumerisch", "Träumerisch"], ["nuechtern", "Nüchtern"], ["ironisch", "Ironisch"], ["humorous", "Humorvoll"]];
 
 const bankExamples = (key: BankKey): string[] => {
   const set = new Set<string>();
   for (const p of Object.values(getAllPresets())) { const arr = (p.bank as Record<string, string[]>)[key]; if (Array.isArray(arr)) arr.forEach((x) => { const v = (x || "").trim(); if (v) set.add(v); }); }
-  return shuffle([...set]).slice(0, 6);
+  return [...set];
 };
 
 interface WData { bank: Partial<Record<BankKey, string[]>>; drama: Partial<Record<DKey, string[]>>; pools: string[]; tone: string; name: string; }
@@ -92,6 +92,7 @@ export function openPresetWizard(onDone: (userId: string | null) => void): void 
   let i = 0;
   let commit: () => void = () => {};
 
+  const SHOW_N = 8; // wie viele Beispiele pro Wurf angeboten werden
   const areaStep = (label: string, help: string, value: string[], examples: string[], onCommit: (v: string[]) => void, total: number, num: number): void => {
     body.append(el("div", { class: "muted wiz-prog" }, `Schritt ${num} von ${total}`));
     body.append(el("h3", { class: "wiz-h" }, label));
@@ -99,13 +100,26 @@ export function openPresetWizard(onDone: (userId: string | null) => void): void 
     const ta = el("textarea", { class: "wiz-ta", placeholder: "Ein Eintrag pro Zeile" }) as HTMLTextAreaElement;
     ta.value = value.join("\n");
     if (examples.length) {
-      const exBtn = button("Beispiele einfügen");
-      exBtn.addEventListener("click", () => {
+      const pool = examples.slice();
+      let pick: string[] = shuffle(pool.slice()).slice(0, Math.min(SHOW_N, pool.length));
+      const chips = el("div", { class: "wiz-exchips" });
+      const insert = (arr: string[]): void => {
         const have = new Set(lines(ta.value).map((x) => x.toLowerCase()));
-        const add = examples.filter((x) => !have.has(x.toLowerCase()));
+        const add = arr.filter((x) => !have.has(x.toLowerCase()));
+        if (!add.length) return;
         ta.value = (ta.value.trim() ? ta.value.replace(/\n+$/, "") + "\n" : "") + add.join("\n");
-      });
-      body.append(el("div", { class: "wiz-ex" }, exBtn, el("span", { class: "muted mini" }, " " + examples.slice(0, 3).join(" · ") + " …")));
+      };
+      const renderChips = (): void => {
+        chips.innerHTML = "";
+        pick.forEach((x) => { const c = el("button", { class: "wiz-chip", type: "button", title: "Einfügen" }, x); c.addEventListener("click", () => insert([x])); chips.append(c); });
+      };
+      const dice = el("button", {}, icon("dice"), " Würfeln");
+      dice.addEventListener("click", () => { pick = shuffle(pool.slice()).slice(0, Math.min(SHOW_N, pool.length)); renderChips(); });
+      const exBtn = button("Alle einfügen");
+      exBtn.addEventListener("click", () => insert(pick));
+      renderChips();
+      body.append(el("div", { class: "muted mini wiz-exlabel" }, `Beispiele (${pool.length} verfügbar) — einzeln anklicken zum Einfügen:`),
+        el("div", { class: "wiz-ex" }, dice, exBtn), chips);
     }
     body.append(ta);
     commit = () => onCommit(lines(ta.value));

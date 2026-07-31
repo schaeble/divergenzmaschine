@@ -326,3 +326,7 @@ input[type=range].wgt:hover{opacity:1}
 .wiz-name{width:100%;box-sizing:border-box;height:34px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);font:14px var(--sans);padding:0 10px}
 .wiz-foot{display:flex;align-items:center;gap:8px;padding:12px 18px;border-top:1px solid var(--border2)}
 .wiz-spacer{flex:1}
+.wiz-exlabel{margin:.3rem 0 .2rem}
+.wiz-exchips{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px}
+.wiz-chip{font:12px var(--sans);color:var(--text);background:var(--panel);border:1px solid var(--border2);border-radius:999px;padding:3px 10px;cursor:pointer;max-width:100%;text-align:left}
+.wiz-chip:hover{border-color:var(--acc);color:var(--text)}
