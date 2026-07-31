@@ -188,6 +188,9 @@ export function loadUserPresets2(): Record<string, Active2> {
 export function saveUserPreset2(name: string, a: Active2): void {
   try { const all = loadUserPresets2(); all[name.trim().slice(0, 40)] = a; localStorage.setItem(USER2_KEY, JSON.stringify(all)); } catch { /* voll */ }
 }
+export function saveUserPresets2All(all: Record<string, Active2>): void {
+  try { localStorage.setItem(USER2_KEY, JSON.stringify(all || {})); } catch { /* voll */ }
+}
 export function getUserPreset2(name: string): Active2 | null { return loadUserPresets2()[name] ?? null; }
 export function deleteUserPreset2(name: string): void { try { const all = loadUserPresets2(); delete all[name]; localStorage.setItem(USER2_KEY, JSON.stringify(all)); } catch { /* voll */ } }
 

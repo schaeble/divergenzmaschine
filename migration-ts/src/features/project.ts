@@ -8,6 +8,8 @@ import { loadIdeaUserPresets, saveIdeaUserPresetsAll, type IdeaProfile } from ".
 import { loadOmniUserPresets, saveOmniUserPresetsAll, type CognitiveProfile } from "./omnikognition";
 import { exportLivePools, importLivePools, type LiveItem } from "./livepools";
 import { loadWorkshopProjects, saveWorkshopProjectsAll, type WorkshopProject } from "./workshop";
+import { loadUserPresets2, saveUserPresets2All, getActive2, setActive2, type Active2 } from "./preset2";
+import { loadArchive, saveArchive, type Archive } from "./wordarchive";
 import type { Bank, Settings } from "../types";
 
 interface ProjectFile {
@@ -16,6 +18,7 @@ interface ProjectFile {
   treasury?: Treasure[]; ideaPresets?: Record<string, IdeaProfile>;
   omniPresets?: Record<string, CognitiveProfile>; livePools?: LiveItem[];
   workshopProjects?: Record<string, WorkshopProject>;
+  presets2?: Record<string, Active2>; active2?: Active2 | null; wordArchive?: Archive;
 }
 
 /** Exportiert das Projekt. Zeigt — wo unterstützt — einen echten „Speichern unter"-
@@ -28,6 +31,7 @@ export async function exportProject(): Promise<boolean> {
     treasury: loadTreasury(), ideaPresets: loadIdeaUserPresets(),
     omniPresets: loadOmniUserPresets(), livePools: exportLivePools(),
     workshopProjects: loadWorkshopProjects(),
+    presets2: loadUserPresets2(), active2: getActive2(), wordArchive: loadArchive(),
   };
   const json = JSON.stringify(project, null, 2);
   const filename = `divergenz_projekt_${new Date().toISOString().slice(0, 10)}.json`;
@@ -75,6 +79,9 @@ export function importProject(file: File): Promise<void> {
         if (p.omniPresets) saveOmniUserPresetsAll(p.omniPresets);
         if (p.livePools) importLivePools(p.livePools);
         if (p.workshopProjects) saveWorkshopProjectsAll(p.workshopProjects);
+        if (p.presets2) saveUserPresets2All(p.presets2);
+        if ("active2" in p) setActive2(p.active2 ?? null);
+        if (p.wordArchive) saveArchive(p.wordArchive);
         resolve();
       } catch (e) { reject(e instanceof Error ? e : new Error(String(e))); }
     };

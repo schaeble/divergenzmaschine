@@ -90,9 +90,13 @@ export function mountStudio(root: HTMLElement): void {
 
   const preset = select("f-preset", markedPresetOptions());
   const MULTI_ID = "__multi__";
-  let multiIds: string[] = [];
+  const MULTI_KEY = "dm_multi_presets_v1";
+  const saveMulti = (): void => { try { if (multiIds.length >= 2) localStorage.setItem(MULTI_KEY, JSON.stringify(multiIds)); else localStorage.removeItem(MULTI_KEY); } catch { /* voll */ } };
+  const loadMulti = (): string[] => { try { const r = localStorage.getItem(MULTI_KEY); const a = r ? JSON.parse(r) : []; return Array.isArray(a) ? a.filter((x) => typeof x === "string") : []; } catch { return []; } };
+  let multiIds: string[] = loadMulti();
   preset.addEventListener("change", () => {
     if (preset.value === MULTI_ID) { if (multiIds.length >= 2) applyMulti(); return; }
+    if (multiIds.length) { multiIds = []; saveMulti(); }
     if (preset.value === AUTOMIX_ID) { saveBank(buildAutoMixBank()); saveActiveBankLabel("Auto-Mix"); setDramaData(null); return; }
     const p = getAllPresets()[preset.value];
     if (!p) return;
@@ -144,8 +148,8 @@ export function mountStudio(root: HTMLElement): void {
       const sel = boxes.filter((b) => b.checked).map((b) => b.value);
       if (!sel.length) return;
       multiIds = sel;
-      if (multiIds.length === 1) { toggleMulti(false); preset.value = multiIds[0]!; preset.dispatchEvent(new Event("change")); return; }
-      applyMulti(); ensureMultiOption(); preset.value = MULTI_ID; toggleMulti(false); liveRegen();
+      if (multiIds.length === 1) { multiIds = []; saveMulti(); toggleMulti(false); preset.value = sel[0]!; preset.dispatchEvent(new Event("change")); return; }
+      saveMulti(); applyMulti(); ensureMultiOption(); preset.value = MULTI_ID; toggleMulti(false); liveRegen();
     });
     const cancel = button("Abbrechen"); cancel.addEventListener("click", () => toggleMulti(false));
     multiPanel.append(listWrap, el("div", { class: "btnrow" }, apply, cancel));
@@ -675,6 +679,8 @@ export function mountStudio(root: HTMLElement): void {
   updEmphVis();
   applyStoryFont(out, fontSel.value, parseFloat(sizeSlider.value));
   if (!pendingStudio) { if (preset.value === AUTOMIX_ID) { saveBank(buildAutoMixBank()); saveActiveBankLabel("Auto-Mix"); } else { const first = getAllPresets()[preset.value]; if (first) { saveBank(first.bank); saveActiveBankLabel(first.label || preset.value); } } }
+  // Mehrfach-Preset-Auswahl nach Neustart wiederherstellen (Merge-Bank + Dropdown-Zustand)
+  if (multiIds.length >= 2) { ensureMultiOption(); preset.value = MULTI_ID; applyMulti(); }
   let pendingText = "";
   try { pendingText = localStorage.getItem("dm_pending_text") || ""; localStorage.removeItem("dm_pending_text"); } catch { /* ignore */ }
   if (pendingText.trim()) {
