@@ -32,6 +32,15 @@ export function openWordArchive(onClose?: () => void): void {
   const genBtn = el("button", { class: "primary" }, icon("play"), " Generieren (KI)");
   const status = el("span", { class: "muted mini" });
   const results = el("div", { class: "wa-results" });
+  let blockSavers: Array<() => number> = [];
+  const archiveAllBtn = el("button", { class: "primary" }, "Alles archivieren") as HTMLButtonElement;
+  const allInfo = el("span", { class: "muted mini" });
+  archiveAllBtn.disabled = true;
+  archiveAllBtn.addEventListener("click", () => {
+    const n = blockSavers.reduce((sum, fn) => sum + fn(), 0);
+    allInfo.textContent = ` ${n} Einträge archiviert`;
+    renderOverview();
+  });
 
   const overview = el("div", { class: "wa-overview" });
   const renderOverview = (): void => {
@@ -54,7 +63,7 @@ export function openWordArchive(onClose?: () => void): void {
     if (!rdy.ok) { status.textContent = rdy.msg || "Nicht verfügbar."; return; }
     const cats = Object.keys(boxes).filter((id) => boxes[id]!.checked);
     if (!cats.length) { status.textContent = "Bitte mindestens eine Kategorie wählen."; return; }
-    genBtn.disabled = true; status.textContent = `Erzeuge… 0/${cats.length}`; results.innerHTML = "";
+    genBtn.disabled = true; archiveAllBtn.disabled = true; allInfo.textContent = ""; blockSavers = []; status.textContent = `Erzeuge… 0/${cats.length}`; results.innerHTML = "";
     generateArchive(themeIn.value, cats, 15, (d, t) => { status.textContent = `Erzeuge… ${d}/${t}`; }).then((res) => {
       status.textContent = "";
       const theme = themeIn.value.trim();
@@ -71,17 +80,20 @@ export function openWordArchive(onClose?: () => void): void {
         });
         const add = button("Archivieren");
         const info = el("span", { class: "muted mini" });
-        add.addEventListener("click", () => {
+        const saveBlock = (): number => {
           const keep = checks.filter((c) => c.checked).map((c) => (c as unknown as { _t: string })._t);
           const n = archiveAdd(id, keep, theme);
           info.textContent = ` ${n} archiviert${theme ? " · Thema „" + theme + "“" : ""}`;
-          renderOverview();
-        });
+          return n;
+        };
+        blockSavers.push(saveBlock);
+        add.addEventListener("click", () => { saveBlock(); renderOverview(); });
         block.append(
           el("div", { class: "wa-blockhead" }, el("b", {}, label + ` (${entries.length})`), add, info),
           chips);
         results.append(block);
       });
+      archiveAllBtn.disabled = blockSavers.length === 0;
       if (!results.children.length) results.append(el("p", { class: "muted" }, "Keine Einträge erhalten — bitte erneut versuchen."));
     }).catch((err: unknown) => { status.textContent = "Fehlgeschlagen: " + (err instanceof Error ? err.message : String(err)); })
       .finally(() => { genBtn.disabled = false; });
@@ -93,7 +105,7 @@ export function openWordArchive(onClose?: () => void): void {
       el("p", { class: "muted" }, "Erzeuge Wort- und Phrasen-Kategorien zu einem Thema, prüfe sie und archiviere sie. Im Preset-Assistenten kannst du archivierte Einträge dann pro Schritt über „Aus Archiv laden“ übernehmen."),
       el("div", { class: "field" }, el("span", { class: "field-label" }, "Thema"), themeIn),
       el("div", { class: "field" }, el("span", { class: "field-label lockrow" }, el("span", {}, "Kategorien"), el("span", { class: "btnrow" }, allBtn, noneBtn)), catGrid),
-      el("div", { class: "wiz-ex" }, genBtn, status),
+      el("div", { class: "wiz-ex" }, genBtn, archiveAllBtn, allInfo, status),
       results,
       el("hr", {}),
       overview));
