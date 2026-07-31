@@ -46,6 +46,7 @@ export function mountStudio(root: HTMLElement): void {
   const lockVals: Record<string, string> = (() => { try { return JSON.parse(localStorage.getItem(LOCKVAL_KEY) || "{}") as Record<string, string>; } catch { return {}; } })();
   const saveLockVals = (): void => { try { localStorage.setItem(LOCKVAL_KEY, JSON.stringify(lockVals)); } catch { /* voll */ } };
   const lockCtrls: Record<string, HTMLSelectElement | HTMLInputElement> = {};
+  const lockPainters: Record<string, Array<() => void>> = {};
   const restoreLocked = (): void => { for (const id of locked) { const c = lockCtrls[id]; if (c && lockVals[id] !== undefined) c.value = lockVals[id]!; } };
   const lockBtn = (ctrl: HTMLSelectElement | HTMLInputElement): HTMLButtonElement => {
     lockCtrls[ctrl.id] = ctrl;
@@ -53,10 +54,12 @@ export function mountStudio(root: HTMLElement): void {
     ctrl.addEventListener("input", upd); ctrl.addEventListener("change", upd);
     const b = el("button", { class: "lockbtn", type: "button", title: "Beim Würfeln festhalten (Wert bleibt auch nach Neustart)" }) as HTMLButtonElement;
     const paint = (): void => { b.innerHTML = ""; b.append(icon(locked.has(ctrl.id) ? "lock" : "lockOpen")); b.classList.toggle("on", locked.has(ctrl.id)); };
+    (lockPainters[ctrl.id] ||= []).push(paint);
+    const repaint = (): void => { (lockPainters[ctrl.id] || [paint]).forEach((fn) => fn()); };
     b.addEventListener("click", () => {
       if (locked.has(ctrl.id)) { locked.delete(ctrl.id); delete lockVals[ctrl.id]; }
       else { locked.add(ctrl.id); lockVals[ctrl.id] = ctrl.value; }
-      saveLocks(); saveLockVals(); paint();
+      saveLocks(); saveLockVals(); repaint();
     });
     paint(); return b;
   };
@@ -169,7 +172,7 @@ export function mountStudio(root: HTMLElement): void {
   const polish = el("input", { id: "f-polish", type: "checkbox" }) as HTMLInputElement;
   wrap.append(el("div", { class: "grid3" },
     lockField("Preset", preset), lockField("Ton", tone), lockField("Form", form)));
-  wrap.append(el("div", { class: "multirow" }, multiBtn), multiPanel);
+  wrap.append(el("div", { class: "multirow" }, multiBtn, lockBtn(preset)), multiPanel);
 
 
   const lenSlider = el("input", { id: "f-len", type: "range", min: "40", max: "300", step: "10", value: "110", style: "flex:1" }) as HTMLInputElement;
@@ -374,7 +377,7 @@ export function mountStudio(root: HTMLElement): void {
     setTimeout(() => (keepLbl.textContent = "Merken"), 1400);
   });
   const vaultLbl = el("span", {}, "Tresor");
-  const vaultBtn = el("button", { title: "Direkt in den Tresor (geheim) — nicht im Korpus" }, icon("lock"), " ", vaultLbl);
+  const vaultBtn = el("button", {}, icon("lock"), " ", vaultLbl);
   vaultBtn.addEventListener("click", () => {
     const n = addToTreasurySecret(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value });
     vaultLbl.textContent = n < 0 ? "— schon drin" : `Im Tresor (${n})`;
