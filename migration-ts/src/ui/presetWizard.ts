@@ -117,9 +117,11 @@ export function openPresetWizard(onDone: (userId: string | null) => void): void 
       dice.addEventListener("click", () => { pick = shuffle(pool.slice()).slice(0, Math.min(SHOW_N, pool.length)); renderChips(); });
       const exBtn = button("Alle einfügen");
       exBtn.addEventListener("click", () => insert(pick));
+      const clearBtn = button("Leeren");
+      clearBtn.addEventListener("click", () => { ta.value = ""; ta.focus(); });
       renderChips();
       body.append(el("div", { class: "muted mini wiz-exlabel" }, `Beispiele (${pool.length} verfügbar) — einzeln anklicken zum Einfügen:`),
-        el("div", { class: "wiz-ex" }, dice, exBtn), chips);
+        el("div", { class: "wiz-ex" }, dice, exBtn, clearBtn), chips);
     }
     body.append(ta);
     commit = () => onCommit(lines(ta.value));
