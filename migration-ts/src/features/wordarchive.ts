@@ -71,37 +71,33 @@ export function archiveReady(): { ok: boolean; msg?: string } {
   return { ok: true };
 }
 
-async function generateChunk(theme: string, chunk: [string, string, string][], perCat: number): Promise<Record<string, string[]>> {
+async function generateOne(theme: string, cat: [string, string, string], perCat: number): Promise<string[]> {
   const themeLine = theme.trim() ? `Thema/Stimmung: „${theme.trim()}“. Alle Einträge sollen dazu passen.` : "Frei erfunden, stimmig und konkret.";
-  const catBlock = chunk.map((c) => `  "${c[0]}": [${perCat} Einträge — ${c[2]}]`).join(",\n");
   const prompt = "Du hilfst, ein Wortarchiv für ein deutsches Schreibwerkzeug zu füllen. "
     + themeLine + "\n\n"
-    + `Gib pro Kategorie genau ${perCat} konkrete, kurze deutsche Einträge. Konkret und bildhaft, keine Erklärungen, keine Nummerierung. `
+    + `Kategorie „${cat[1]}“: ${cat[2]}.\n`
+    + `Gib genau ${perCat} konkrete, kurze deutsche Einträge dazu — bildhaft, ohne Erklärungen, ohne Nummerierung. `
     + "Requisiten/Gegenstände mit Artikel. Kuriose deutsche Wörter sind einzelne Substantive.\n\n"
-    + "Antworte AUSSCHLIESSLICH mit einem JSON-Objekt in genau dieser Form (nur diese Schlüssel):\n{\n" + catBlock + "\n}";
-  const raw = await callClaude(prompt, 4096, "{");
-  const obj = extractJson(raw.trim().startsWith("{") ? raw : "{" + raw) as Record<string, unknown>;
-  const out: Record<string, string[]> = {};
-  for (const c of chunk) {
-    const arr = obj[c[0]];
-    out[c[0]] = Array.isArray(arr) ? arr.map((x) => String(x).trim()).filter(Boolean) : [];
-  }
-  return out;
+    + `Antworte AUSSCHLIESSLICH mit reinem JSON in genau dieser Form:\n{ "${cat[0]}": ["…", "…"] }`;
+  const raw = await callClaude(prompt, 2048);
+  const obj = extractJson(raw) as Record<string, unknown>;
+  // Schlüssel kann exakt die id sein — sonst das erste Array im Objekt nehmen.
+  let arr = obj[cat[0]];
+  if (!Array.isArray(arr)) { const first = Object.values(obj).find((v) => Array.isArray(v)); arr = first as unknown; }
+  return Array.isArray(arr) ? arr.map((x) => String(x).trim()).filter(Boolean) : [];
 }
 
 /** Erzeugt per KI pro gewählter Kategorie ~perCat Einträge zum Thema.
- *  In kleinen Kategorie-Chunks, damit keine Antwort abgeschnitten wird; Teil-Ergebnisse bleiben erhalten. */
+ *  Eine Kategorie pro Aufruf → kleine, vollständige Antworten; Teil-Ergebnisse bleiben erhalten. */
 export async function generateArchive(theme: string, cats: string[], perCat = 15, onProgress?: (done: number, total: number) => void): Promise<Record<string, string[]>> {
   const chosen = ARCHIVE_CATS.filter((c) => cats.includes(c[0]));
-  const chunks: [string, string, string][][] = [];
-  for (let i = 0; i < chosen.length; i += 3) chunks.push(chosen.slice(i, i + 3));
   const out: Record<string, string[]> = {};
-  let done = 0;
-  for (const chunk of chunks) {
-    try { Object.assign(out, await generateChunk(theme, chunk, perCat)); }
-    catch { /* diesen Chunk überspringen, Rest weiter */ }
-    done += chunk.length;
-    onProgress?.(done, chosen.length);
+  let done = 0; let lastErr: unknown = null;
+  for (const c of chosen) {
+    try { const arr = await generateOne(theme, c, perCat); if (arr.length) out[c[0]] = arr; }
+    catch (e) { lastErr = e; }
+    onProgress?.(++done, chosen.length);
   }
+  if (!Object.keys(out).length && lastErr) throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
   return out;
 }
