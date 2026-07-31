@@ -9,7 +9,7 @@ import { feedLivePools, LIVE_W } from "../features/livepools";
 import { openPresetWizard } from "./presetWizard";
 import { openWordArchive } from "./wordArchiveView";
 import { openOfflineArchive } from "./offlineArchiveView";
-import { preset2ToBank, preset2Name, preset2Active, builtinSettings, generateAiPreset2, setActive2, getActive2, saveUserPreset2, getUserPreset2, deleteUserPreset2, loadUserPresets2, type Active2 } from "../features/preset2";
+import { preset2ToBank, preset2Name, preset2Active, builtinSettings, generateAiPreset2, setActive2, getActive2, saveUserPreset2, saveUserPresets2All, getUserPreset2, deleteUserPreset2, loadUserPresets2, type Active2 } from "../features/preset2";
 import { setDramaData } from "../generation/dramaturgie";
 import { bankFromCorpus } from "../features/corpusbank";
 import { icon } from "./icons";
@@ -53,8 +53,9 @@ export function mountWordbank(root: HTMLElement): void {
   const preset = select("wb-preset", markedOptions());
   if (preset.options.length > 1) preset.selectedIndex = 1;  // nicht Auto-Mix als Standard anzeigen
   const delPresetBtn = button("Preset löschen", "danger");
+  const renamePresetBtn = button("Preset umbenennen");
 
-  const updDelPreset = (): void => { delPresetBtn.style.display = preset.value.startsWith("user:") ? "" : "none"; };
+  const updDelPreset = (): void => { const isUser = preset.value.startsWith("user:"); delPresetBtn.style.display = isUser ? "" : "none"; renamePresetBtn.style.display = isUser ? "" : "none"; };
   const rebuildPresets = (keep?: string): void => {
     preset.innerHTML = "";
     for (const [v, l] of markedOptions()) preset.append(el("option", { value: v }, l));
@@ -84,6 +85,21 @@ export function mountWordbank(root: HTMLElement): void {
     if (!confirm(`Eigenes Preset „${name}" löschen? (Die aktuelle Wortbank bleibt unverändert.)`)) return;
     deleteUserPreset(name); deleteUserPreset2(name);
     rebuildPresets();
+  });
+  renamePresetBtn.addEventListener("click", () => {
+    if (!preset.value.startsWith("user:")) return;
+    const old = preset.value.slice(5);
+    const raw = prompt("Neuer Name für das Preset:", old);
+    if (raw === null) return;
+    const neu = raw.trim().slice(0, 40);
+    if (!neu || neu === old) return;
+    const users = loadUserPresets();
+    if (users[neu] && !confirm(`„${neu}" existiert bereits — überschreiben?`)) return;
+    if (users[old]) { users[neu] = users[old]!; delete users[old]; saveUserPresets(users); }
+    const u2 = loadUserPresets2();
+    if (u2[old]) { u2[neu] = u2[old]!; delete u2[old]; saveUserPresets2All(u2); }
+    if ((loadActiveBankLabel() || "") === old) saveActiveBankLabel(neu);
+    rebuildPresets("user:" + neu);
   });
   updDelPreset();
 
@@ -400,7 +416,7 @@ export function mountWordbank(root: HTMLElement): void {
   wrap.append(
     el("div", { class: "btnrow" }, wizardBtn, offlineBtn, archiveBtn),
     field("Preset", preset),
-    el("div", { class: "btnrow" }, delPresetBtn),
+    el("div", { class: "btnrow" }, delPresetBtn, renamePresetBtn),
     field("Liste", listSel),
     editor,
     rulesBox,
