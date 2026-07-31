@@ -54,6 +54,7 @@ export interface GenInput {
   shots?: number; totalSec?: number; // nur Form "video"
   lenTarget?: number; // Ziel-Wortzahl (Textlänge)
   emphasis?: { wo: number; wann: number; wer: number; was: number }; // 4W-Gewichtung (nur Prosa)
+  tension?: string; // Spannungs-Peak-Position (off/top/mid/low), nur Prosa
 }
 
 /** "Kit": die aus Bank + Input abgeleiteten Bausteine für einen Lauf. */

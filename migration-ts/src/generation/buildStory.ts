@@ -12,7 +12,7 @@ import { toneRhythm } from "./tone.shape";
 import { archetypeAugmentList } from "./archetype";
 import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "./wordcls";
 import { declineHookPhrase, safeCaseForm, ensureArticle } from "./declension";
-import { applyDisruptor, applyRhythm, paragraphize, applyPerspective, pronominalize, guessPronoun } from "./shape";
+import { applyDisruptor, applyRhythm, applyTension, paragraphize, applyPerspective, pronominalize, guessPronoun } from "./shape";
 import { MarkovModel, isSaneMarkov, smoothMarkov } from "../corpus";
 import { biasedAutoChoice } from "./autochoice";
 import { buildVideoSequenceText } from "./video";
@@ -125,6 +125,7 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
 
   text = applyDisruptor(text, input.disruptor).text;
   text = applyRhythm(text, kit.rhythm);
+  if (input.form === "prose") text = applyTension(text, input.tension);
   text = paragraphize(text);
   const paras = text.split(/\n\n+/).map(clean).filter(Boolean);
   text = effStructure === "object"

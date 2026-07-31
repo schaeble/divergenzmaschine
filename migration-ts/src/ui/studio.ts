@@ -165,6 +165,7 @@ export function mountStudio(root: HTMLElement): void {
   const mode = select("f-mode", [["auto", "Auto"], ["bureau", "Bürokratie"], ["tech", "Tech-Mystik"], ["body", "Body"], ["myth", "Myth"], ["absurd", "Absurd"], ["post", "Posthuman"]], "auto");
   const persp = select("f-persp", [["auto", "Auto"], ["third", "Er/Sie"], ["first", "Ich"], ["second", "Du"], ["we", "Wir"], ["object", "Objekt"]], "auto");
   const rhythm = select("f-rhythm", [["auto", "Auto"], ["breath", "Atem"], ["staccato", "Staccato"], ["long", "Lange Bögen"], ["fracture", "Fraktur"], ["clean", "Klar"]], "auto");
+  const tension = select("f-tension", [["off", "Aus"], ["top", "Oben (12 Uhr)"], ["mid", "Mitte (3 Uhr)"], ["low", "Unten (6 Uhr)"]], "off");
   const instab = select("f-instab", [["0", "Aus"], ["1", "Subtil"], ["2", "Aggressiv"]], "2");
   const markov = select("f-markov", [["off", "Aus"], ["mix", "Mix"], ["on", "Stark"]], "off");
   const disruptor = select("f-disruptor", [["auto", "Auto"], ["off", "Aus"], ["on", "An"]], "auto");
@@ -484,6 +485,7 @@ export function mountStudio(root: HTMLElement): void {
     lockField("Struktur", structure), lockField("Modus", mode), lockField("Perspektive", persp),
     lockField("Rhythmus", rhythm), lockField("Instabilität", instab), lockField("Markov", markov),
     lockField("Disruptor", disruptor), lockField("Varianz", varianz), lockField("Stil", stil),
+    lockField("Spannung", tension),
     lockField("Archetyp A", archA), lockField("Archetyp B", archB),
     field("Video: Shots", shots), field("Video: Sekunden", secs),
     el("label", { class: "field", style: "display:flex;align-items:center;gap:6px" }, polish, "Sprachschliff")));
@@ -574,6 +576,7 @@ export function mountStudio(root: HTMLElement): void {
     polish: polish.checked, polishStyle: stil.value,
     shots: parseInt(shots.value, 10), totalSec: parseInt(secs.value, 10),
     lenTarget: parseInt(lenSlider.value, 10),
+    tension: tension.value,
     emphasis: { wo: parseInt(wWo.value, 10), wann: parseInt(wWann.value, 10), wer: parseInt(wWer.value, 10), was: parseInt(wWas.value, 10) },
   });
   const KLING_URL = "https://klingai.com";
@@ -616,6 +619,7 @@ export function mountStudio(root: HTMLElement): void {
   // Echtzeit: Preset/Ton/Form sofort anwenden (außer während "Würfeln")
   const liveRegen = (): void => { if (!rolling) generate(); };
   preset.addEventListener("change", liveRegen);
+  tension.addEventListener("change", liveRegen);
   tone.addEventListener("change", liveRegen);
   form.addEventListener("change", liveRegen);
   // 4W-Gewichtung: live + nur bei Prosa sichtbar

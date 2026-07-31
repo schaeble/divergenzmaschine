@@ -58,6 +58,52 @@ export function applyRhythm(text: string, rhythm: string): string {
   return s.join(" ");
 }
 
+// Spannungs-Hüllkurve: verschiebt die Intensität an eine Position im Text.
+// Nahe dem Peak: kurze, harte Sätze (Komma-Splits + Fragmente). Fern: ruhige,
+// verbundene Bögen. Grammatik-sichere Operationen (wie applyRhythm). Nur Prosa.
+const TENSION_CENTER: Record<string, number> = { top: 0.15, mid: 0.5, low: 0.85 };
+export function applyTension(text: string, peak?: string): string {
+  if (!peak || peak === "off") return text;
+  const center = TENSION_CENTER[peak];
+  if (center === undefined) return text;
+  const s = splitSentences(text);
+  if (s.length < 5) return text; // erst bei längeren Passagen spürbar
+  const width = 0.26;
+  const intensity = (i: number, n: number): number => {
+    const pos = n <= 1 ? 0 : i / (n - 1);
+    const d = (pos - center) / width;
+    return Math.exp(-0.5 * d * d); // 0..1
+  };
+  // 1) Anspannen nahe Peak: lange, komma-getrennte Sätze in Staccato brechen (rückwärts, indexstabil)
+  for (let i = s.length - 1; i >= 0; i--) {
+    const it = intensity(i, s.length);
+    if (it > 0.6 && chance(it * 0.7)) {
+      const t = s[i]!; const cut = t.indexOf(", ");
+      if (cut > 10 && cut < 90) { s[i] = t.slice(0, cut) + "."; s.splice(i + 1, 0, cap(t.slice(cut + 2))); }
+    }
+  }
+  // Ein, zwei kurze Fragmente direkt am Peak einstreuen
+  for (let pass = 0; pass < 2; pass++) {
+    const idx = Math.round(center * (s.length - 1));
+    if (idx > 0 && idx < s.length && chance(0.55) && !isFragmentSentence(s[idx - 1] || "") && !isFragmentSentence(s[idx] || "")) {
+      s.splice(idx, 0, pick(FRAGMENTS));
+    }
+  }
+  // 2) Entspannen fern vom Peak: kurze Nachbarsätze zu ruhigen Bögen verbinden
+  for (let i = 0; i < s.length - 1; i++) {
+    if (s.length <= 4) break;
+    const it = intensity(i, s.length);
+    if (it < 0.3 && chance((0.3 - it) * 1.2)) {
+      const first = s[i]!.replace(/[.!?…]+$/, ""); const next = s[i + 1]!;
+      if ((first.length + next.length) < 160 && !isFragmentSentence(first) && !isFragmentSentence(next)) {
+        const joiner = /^(und|aber|doch|denn|sondern)\b/i.test(next) ? ", " : (chance(0.5) ? ", und " : "; ");
+        s[i] = first + joiner + next.charAt(0).toLowerCase() + next.slice(1); s.splice(i + 1, 1); i--;
+      }
+    }
+  }
+  return s.join(" ");
+}
+
 export function paragraphize(txt: string): string {
   const s = splitSentences(txt);
   if (s.length <= 3) return txt;
