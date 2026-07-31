@@ -110,7 +110,7 @@ export function mountStudio(root: HTMLElement): void {
     } else { setDramaData(null); }
   });
 
-  // ── Mehrere Presets mischen ──────────────────────────────────────────
+  // ── Preset-Auswahl: eins ODER mehrere ankreuzen (steuert das versteckte Select) ──
   const stripIcon = (l: string): string => l.replace(/^[^\p{L}\p{N}]+/u, "").replace(/\s*✦2\.0$/, "").trim();
   const applyMulti = (): void => {
     if (multiIds.length < 2) return;
@@ -124,38 +124,33 @@ export function mountStudio(root: HTMLElement): void {
     if (!o) { o = document.createElement("option"); o.value = MULTI_ID; preset.insertBefore(o, preset.firstChild); }
     o.textContent = `Mehrere (${multiIds.length})`;
   };
-  const multiPanel = el("div", { class: "multipreset", style: "display:none" });
-  const toggleMulti = (force?: boolean): void => {
-    const show = force ?? (multiPanel.style.display === "none");
-    if (show) buildMultiPanel();
-    multiPanel.style.display = show ? "" : "none";
-    multiBtn.textContent = show ? "Schließen" : "Mehrere \u2026";
-  };
-  function buildMultiPanel(): void {
-    multiPanel.innerHTML = "";
-    multiPanel.append(el("div", { class: "muted mini" }, "Presets ankreuzen — ihre Wortbänke werden vereint:"));
-    const opts = markedPresetOptions().filter(([v]) => v !== AUTOMIX_ID);
+  preset.style.display = "none"; // verstecktes Zustands-Element; die Checkbox-Liste steuert es
+  const presetList = el("div", { class: "mplist" });
+  const presetStatus = el("span", { class: "muted mini" });
+  const renderPresetChecks = (): void => {
+    presetList.innerHTML = "";
+    const selected = new Set<string>(preset.value === MULTI_ID ? multiIds : [preset.value]);
     const boxes: HTMLInputElement[] = [];
-    const listWrap = el("div", { class: "mplist" });
-    opts.forEach(([v, l]) => {
+    markedPresetOptions().forEach(([v, l]) => {
       const cb = el("input", { type: "checkbox" }) as HTMLInputElement;
-      cb.checked = multiIds.includes(v); cb.value = v;
+      cb.checked = selected.has(v); cb.value = v;
+      cb.addEventListener("change", () => applySelection(boxes.filter((b) => b.checked).map((b) => b.value)));
       boxes.push(cb);
-      listWrap.append(el("label", { class: "chk mpitem" }, cb, " " + l));
+      presetList.append(el("label", { class: "chk mpitem" }, cb, " " + l));
     });
-    const apply = el("button", { class: "primary" }, "Übernehmen");
-    apply.addEventListener("click", () => {
-      const sel = boxes.filter((b) => b.checked).map((b) => b.value);
-      if (!sel.length) return;
-      multiIds = sel;
-      if (multiIds.length === 1) { multiIds = []; saveMulti(); toggleMulti(false); preset.value = sel[0]!; preset.dispatchEvent(new Event("change")); return; }
-      saveMulti(); applyMulti(); ensureMultiOption(); preset.value = MULTI_ID; toggleMulti(false); liveRegen();
-    });
-    const cancel = button("Abbrechen"); cancel.addEventListener("click", () => toggleMulti(false));
-    multiPanel.append(listWrap, el("div", { class: "btnrow" }, apply, cancel));
+    const curOpt = Array.from(preset.options).find((o) => o.value === preset.value);
+    presetStatus.textContent = preset.value === MULTI_ID ? `Aktiv: Mix (${multiIds.length})` : ("Aktiv: " + (curOpt ? (curOpt.textContent || "—") : "—"));
+  };
+  function applySelection(rawIds: string[]): void {
+    let ids = rawIds.filter((v) => v !== MULTI_ID && v !== "__omni__");
+    if (ids.includes(AUTOMIX_ID)) {
+      if (ids.length === 1) { multiIds = []; saveMulti(); preset.value = AUTOMIX_ID; preset.dispatchEvent(new Event("change")); renderPresetChecks(); return; }
+      ids = ids.filter((v) => v !== AUTOMIX_ID); // Auto-Mix lässt sich nicht mit anderen mischen
+    }
+    if (ids.length === 0) { renderPresetChecks(); return; }
+    if (ids.length === 1) { multiIds = []; saveMulti(); preset.value = ids[0]!; preset.dispatchEvent(new Event("change")); renderPresetChecks(); return; }
+    multiIds = ids; saveMulti(); applyMulti(); ensureMultiOption(); preset.value = MULTI_ID; renderPresetChecks(); liveRegen();
   }
-  const multiBtn = button("Mehrere \u2026");
-  multiBtn.addEventListener("click", () => toggleMulti());
 
   const tone = select("f-tone", [["neutral", "Neutral"], ["mystery", "Mystery"], ["poetic", "Poetisch"], ["melancholisch", "Melancholisch"], ["dark", "Düster"], ["unheimlich", "Unheimlich"], ["uplifting", "Hoffnungsvoll"], ["zaertlich", "Zärtlich"], ["traeumerisch", "Träumerisch"], ["nuechtern", "Nüchtern"], ["ironisch", "Ironisch"], ["humorous", "Humorvoll"]], "mystery");
   const form = select("f-form", [["prose", "Prosa"], ["poem", "Prosagedicht"], ["strang", "Gedicht-Strang"], ["reim", "Reim"], ["haiku", "Haiku"], ["script", "Szene/Dialog"], ["video", "Multi-Shot (Video)"]], "prose");
@@ -177,9 +172,12 @@ export function mountStudio(root: HTMLElement): void {
   // Alle würfelbaren Stil-Regler (Würfeln-Knopf UND Zufallsstart nutzen dieselbe Liste)
   const ROLL_SELECTS = [tone, form, structure, mode, persp, rhythm, tension, instab, markov, disruptor, varianz, stil, archA, archB, preset];
   const polish = el("input", { id: "f-polish", type: "checkbox" }) as HTMLInputElement;
-  wrap.append(el("div", { class: "grid3" },
-    lockField("Preset", preset), lockField("Ton", tone), lockField("Form", form)));
-  wrap.append(el("div", { class: "multirow" }, multiBtn, lockBtn(preset)), multiPanel);
+  const presetField = el("div", { class: "field presetfield" },
+    el("span", { class: "field-label lockrow" }, el("span", {}, "Preset — eins oder mehrere ankreuzen"), presetStatus, lockBtn(preset)),
+    preset,
+    presetList);
+  wrap.append(presetField);
+  wrap.append(el("div", { class: "grid3" }, lockField("Ton", tone), lockField("Form", form)));
 
 
   const lenSlider = el("input", { id: "f-len", type: "range", min: "40", max: "300", step: "10", value: "110", style: "flex:1" }) as HTMLInputElement;
@@ -404,7 +402,7 @@ export function mountStudio(root: HTMLElement): void {
   const copyBtn = el("button", {}, icon("copy"), " Kopieren");
   const diceBtn = el("button", {}, icon("dice"), " Würfeln");
   const rollSel = (s: HTMLSelectElement): void => { if (locked.has(s.id)) return; s.selectedIndex = Math.floor(Math.random() * s.options.length); s.dispatchEvent(new Event("change")); };
-  diceBtn.addEventListener("click", () => { rolling = true; ROLL_SELECTS.forEach(rollSel); rolling = false; generate(); });
+  diceBtn.addEventListener("click", () => { rolling = true; ROLL_SELECTS.forEach(rollSel); rolling = false; renderPresetChecks(); generate(); });
   const keepLbl = el("span", {}, "Merken");
   const keepBtn = el("button", {}, icon("star"), " ", keepLbl);
   keepBtn.addEventListener("click", () => {
@@ -717,6 +715,7 @@ export function mountStudio(root: HTMLElement): void {
   if (!pendingStudio) { if (preset.value === AUTOMIX_ID) { saveBank(buildAutoMixBank()); saveActiveBankLabel("Auto-Mix"); } else { const first = getAllPresets()[preset.value]; if (first) { saveBank(first.bank); saveActiveBankLabel(first.label || preset.value); } } }
   // Mehrfach-Preset-Auswahl nach Neustart wiederherstellen (Merge-Bank + Dropdown-Zustand)
   if (multiIds.length >= 2) { ensureMultiOption(); preset.value = MULTI_ID; applyMulti(); }
+  renderPresetChecks();
   let pendingText = "";
   try { pendingText = localStorage.getItem("dm_pending_text") || ""; localStorage.removeItem("dm_pending_text"); } catch { /* ignore */ }
   if (pendingText.trim()) {
