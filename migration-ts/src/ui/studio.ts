@@ -174,6 +174,8 @@ export function mountStudio(root: HTMLElement): void {
   const ARCH_OPTS: [string, string][] = [["neutral", "Neutral"], ["skorpion", "Skorpion"], ["psychopath", "Psychopath"], ["entdecker", "Entdecker"]];
   const archA = select("f-archa", ARCH_OPTS, "neutral");
   const archB = select("f-archb", ARCH_OPTS, "neutral");
+  // Alle würfelbaren Stil-Regler (Würfeln-Knopf UND Zufallsstart nutzen dieselbe Liste)
+  const ROLL_SELECTS = [tone, form, structure, mode, persp, rhythm, tension, instab, markov, disruptor, varianz, stil, archA, archB, preset];
   const polish = el("input", { id: "f-polish", type: "checkbox" }) as HTMLInputElement;
   wrap.append(el("div", { class: "grid3" },
     lockField("Preset", preset), lockField("Ton", tone), lockField("Form", form)));
@@ -373,7 +375,7 @@ export function mountStudio(root: HTMLElement): void {
   const copyBtn = el("button", {}, icon("copy"), " Kopieren");
   const diceBtn = el("button", {}, icon("dice"), " Würfeln");
   const rollSel = (s: HTMLSelectElement): void => { if (locked.has(s.id)) return; s.selectedIndex = Math.floor(Math.random() * s.options.length); s.dispatchEvent(new Event("change")); };
-  diceBtn.addEventListener("click", () => { rolling = true; [tone, form, structure, mode, persp, rhythm, instab, markov, disruptor, varianz, stil, archA, archB, preset].forEach(rollSel); rolling = false; generate(); });
+  diceBtn.addEventListener("click", () => { rolling = true; ROLL_SELECTS.forEach(rollSel); rolling = false; generate(); });
   const keepLbl = el("span", {}, "Merken");
   const keepBtn = el("button", {}, icon("star"), " ", keepLbl);
   keepBtn.addEventListener("click", () => {
@@ -675,8 +677,8 @@ export function mountStudio(root: HTMLElement): void {
       preset.value = "__omni__";
     }
   } else {
-    // Zufallsstart: Preset, Ton und Form
-    [preset, tone, form].forEach((s) => { if (!locked.has(s.id) && s.options.length) s.selectedIndex = Math.floor(Math.random() * s.options.length); });
+    // Zufallsstart: alle Regler würfeln (gesperrte bleiben; kein dispatch, generate() folgt am Ende)
+    ROLL_SELECTS.forEach((s) => { if (!locked.has(s.id) && s.options.length) s.selectedIndex = Math.floor(Math.random() * s.options.length); });
   }
   restoreLocked();
   lenVal.textContent = lenSlider.value;
