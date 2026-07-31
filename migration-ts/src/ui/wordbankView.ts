@@ -6,6 +6,7 @@ import { getAllPresets, sortedPresetOptions, saveCurrentBankAsUserPreset, delete
 import { DEFAULT_BANK } from "../constants";
 import { loadPersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
+import { openPresetWizard } from "./presetWizard";
 import { preset2ToBank, preset2Name, preset2Active, builtinSettings, generateAiPreset2, setActive2, getActive2, saveUserPreset2, getUserPreset2, deleteUserPreset2, loadUserPresets2, type Active2 } from "../features/preset2";
 import { setDramaData } from "../generation/dramaturgie";
 import { bankFromCorpus } from "../features/corpusbank";
@@ -156,6 +157,15 @@ export function mountWordbank(root: HTMLElement): void {
       const a2 = getActive2(); if (a2) saveUserPreset2(name.trim().slice(0, 40), a2);
       rebuildPresets("user:" + name.trim().slice(0, 40));
     }
+  });
+
+  const wizardBtn = el("button", { class: "primary" }, icon("tool"), " Preset-Assistent (offline)");
+  wizardBtn.addEventListener("click", () => {
+    openPresetWizard((id) => {
+      if (!id) return;
+      rebuildPresets(id);
+      load(); renderFull();
+    });
   });
 
   // ---- Ganze Wortbank: alle 7 Kategorien als Textfelder + Datei sichern/laden ----
@@ -426,6 +436,7 @@ export function mountWordbank(root: HTMLElement): void {
     batchInfo);
 
   wrap.append(
+    el("div", { class: "btnrow" }, wizardBtn),
     field("Preset", preset),
     el("div", { class: "btnrow" }, updBtn, delPresetBtn),
     field("Liste", listSel),

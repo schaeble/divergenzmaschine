@@ -315,3 +315,14 @@ input[type=range].wgt:hover{opacity:1}
 .mplist{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px 12px;max-height:240px;overflow:auto;margin:6px 0}
 .mpitem{display:flex;align-items:center;gap:6px;font:13px var(--sans);color:var(--text);cursor:pointer}
 .mpitem input{margin:0}
+.wizard{width:min(680px,94vw)}
+.wiz-body{min-height:230px}
+.wiz-prog{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px}
+.wiz-h{margin:.1rem 0 .3rem;color:var(--text);font-size:1.02rem}
+.wiz-help{margin:.1rem 0 .5rem;max-width:60ch}
+.wiz-ta{width:100%;box-sizing:border-box;height:150px;resize:vertical;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);font:14px var(--sans);line-height:1.5;padding:8px 10px}
+.wiz-ta:focus{outline:none;border-color:var(--acc)}
+.wiz-ex{margin:4px 0 6px}
+.wiz-name{width:100%;box-sizing:border-box;height:34px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);font:14px var(--sans);padding:0 10px}
+.wiz-foot{display:flex;align-items:center;gap:8px;padding:12px 18px;border-top:1px solid var(--border2)}
+.wiz-spacer{flex:1}
