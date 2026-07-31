@@ -9,6 +9,7 @@ import { DEFAULT_BANK, BANK_KEYS } from "../constants";
 import type { Bank, BankKey } from "../types";
 import { setActive2, saveUserPreset2, type Active2 } from "../features/preset2";
 import { setDramaData } from "../generation/dramaturgie";
+import { ARCHIVE_CATS, archiveGet, archiveThemes } from "../features/wordarchive";
 
 const shuffle = <T>(a: T[]): T[] => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j]!, a[i]!]; } return a; };
 const lines = (v: string): string[] => v.split("\n").map((s) => s.trim()).filter(Boolean);
@@ -93,22 +94,22 @@ export function openPresetWizard(onDone: (userId: string | null) => void): void 
   let commit: () => void = () => {};
 
   const SHOW_N = 8; // wie viele Beispiele pro Wurf angeboten werden
-  const areaStep = (label: string, help: string, value: string[], examples: string[], onCommit: (v: string[]) => void, total: number, num: number): void => {
+  const areaStep = (label: string, help: string, value: string[], examples: string[], onCommit: (v: string[]) => void, total: number, num: number, archiveCat?: string): void => {
     body.append(el("div", { class: "muted wiz-prog" }, `Schritt ${num} von ${total}`));
     body.append(el("h3", { class: "wiz-h" }, label));
     body.append(el("p", { class: "muted wiz-help" }, help));
     const ta = el("textarea", { class: "wiz-ta", placeholder: "Ein Eintrag pro Zeile" }) as HTMLTextAreaElement;
     ta.value = value.join("\n");
+    const insert = (arr: string[]): void => {
+      const have = new Set(lines(ta.value).map((x) => x.toLowerCase()));
+      const add = arr.filter((x) => !have.has(x.toLowerCase()));
+      if (!add.length) return;
+      ta.value = (ta.value.trim() ? ta.value.replace(/\n+$/, "") + "\n" : "") + add.join("\n");
+    };
     if (examples.length) {
       const pool = examples.slice();
       let pick: string[] = shuffle(pool.slice()).slice(0, Math.min(SHOW_N, pool.length));
       const chips = el("div", { class: "wiz-exchips" });
-      const insert = (arr: string[]): void => {
-        const have = new Set(lines(ta.value).map((x) => x.toLowerCase()));
-        const add = arr.filter((x) => !have.has(x.toLowerCase()));
-        if (!add.length) return;
-        ta.value = (ta.value.trim() ? ta.value.replace(/\n+$/, "") + "\n" : "") + add.join("\n");
-      };
       const renderChips = (): void => {
         chips.innerHTML = "";
         pick.forEach((x) => { const c = el("button", { class: "wiz-chip", type: "button", title: "Einfügen" }, x); c.addEventListener("click", () => insert([x])); chips.append(c); });
@@ -123,8 +124,43 @@ export function openPresetWizard(onDone: (userId: string | null) => void): void 
       body.append(el("div", { class: "muted mini wiz-exlabel" }, `Beispiele (${pool.length} verfügbar) — einzeln anklicken zum Einfügen:`),
         el("div", { class: "wiz-ex" }, dice, exBtn, clearBtn), chips);
     }
+    if (archiveCat) body.append(archivePicker(archiveCat, insert));
     body.append(ta);
     commit = () => onCommit(lines(ta.value));
+  };
+
+  // Import-Panel: archivierte Einträge (nach Kategorie/Thema) als Chips einfügen
+  const archivePicker = (defaultCat: string, insert: (a: string[]) => void): HTMLElement => {
+    const wrap = el("div", { class: "wa-pick" });
+    const panel = el("div", { class: "wa-pickpanel", style: "display:none" });
+    const catSel = select("wiz-arch-cat", ARCHIVE_CATS.map(([id, l]) => [id, l] as [string, string]), defaultCat);
+    const themeSel = el("select", { class: "wiz-arch-theme" }) as HTMLSelectElement;
+    const chips = el("div", { class: "wiz-exchips" });
+    const fillThemes = (): void => {
+      themeSel.innerHTML = "";
+      themeSel.append(el("option", { value: "" }, "alle Themen"));
+      for (const t of archiveThemes(catSel.value)) themeSel.append(el("option", { value: t }, t));
+    };
+    const renderChips = (): void => {
+      chips.innerHTML = "";
+      const entries = archiveGet(catSel.value).filter((e) => !themeSel.value || e.theme === themeSel.value);
+      if (!entries.length) { chips.append(el("span", { class: "muted mini" }, "Nichts im Archiv für diese Auswahl.")); return; }
+      const all = button("Alle einfügen"); all.addEventListener("click", () => insert(entries.map((e) => e.t)));
+      chips.append(all);
+      entries.forEach((e) => { const c = el("button", { class: "wiz-chip", type: "button", title: "Einfügen" }, e.t); c.addEventListener("click", () => insert([e.t])); chips.append(c); });
+    };
+    catSel.addEventListener("change", () => { fillThemes(); renderChips(); });
+    themeSel.addEventListener("change", renderChips);
+    const openBtn = button("Aus Archiv laden");
+    openBtn.addEventListener("click", () => {
+      const show = panel.style.display === "none";
+      panel.style.display = show ? "" : "none";
+      openBtn.textContent = show ? "Archiv schließen" : "Aus Archiv laden";
+      if (show) { fillThemes(); renderChips(); }
+    });
+    panel.append(el("div", { class: "wiz-ex" }, el("span", { class: "muted mini" }, "Kategorie"), catSel, el("span", { class: "muted mini" }, "Thema"), themeSel), chips);
+    wrap.append(el("div", { class: "wiz-ex" }, openBtn), panel);
+    return wrap;
   };
 
   const render = (): void => {
@@ -135,15 +171,15 @@ export function openPresetWizard(onDone: (userId: string | null) => void): void 
       body.append(el("h3", { class: "wiz-h" }, "Ein eigenes Preset bauen — offline"));
       body.append(el("p", { class: "muted" }, "Der Assistent führt dich durch die 7 Kern-Kategorien der Wortbank und anschließend optional durch die Dramaturgie (Preset 2.0). Pro Schritt gibt es einen Erklärtext und Beispiele zum Einfügen. Am Ende speicherst du alles als eigenes Preset."));
     } else if (step.kind === "bank") {
-      areaStep(step.label, step.help, data.bank[step.k] || [], bankExamples(step.k), (v) => (data.bank[step.k] = v), total, i);
+      areaStep(step.label, step.help, data.bank[step.k] || [], bankExamples(step.k), (v) => (data.bank[step.k] = v), total, i, step.k);
     } else if (step.kind === "gate") {
       body.append(el("div", { class: "muted wiz-prog" }, `Schritt ${i} von ${total}`));
       body.append(el("h3", { class: "wiz-h" }, "Dramaturgie (Preset 2.0) — optional"));
       body.append(el("p", { class: "muted" }, "Möchtest du zusätzlich einen Erzählbogen und Weltregeln festlegen? Damit kann die Struktur „Dramaturgie“ den Text entlang deines Bogens bauen. Du kannst das auch überspringen und ein reines Wortbank-Preset speichern."));
     } else if (step.kind === "drama") {
-      areaStep(step.label, step.help, data.drama[step.k] || [], DRAMA_EX[step.k] || [], (v) => (data.drama[step.k] = v), total, i);
+      areaStep(step.label, step.help, data.drama[step.k] || [], DRAMA_EX[step.k] || [], (v) => (data.drama[step.k] = v), total, i, step.k);
     } else if (step.kind === "pools") {
-      areaStep("Kontext-Pools", "Orte, Figuren, Objekte — ein Eintrag pro Zeile. Sie füttern die lebendigen Pools als Motiv-Gedächtnis.", data.pools, POOL_EX, (v) => (data.pools = v), total, i);
+      areaStep("Kontext-Pools", "Orte, Figuren, Objekte — ein Eintrag pro Zeile. Sie füttern die lebendigen Pools als Motiv-Gedächtnis.", data.pools, POOL_EX, (v) => (data.pools = v), total, i, "kuriose_gegenstaende");
     } else if (step.kind === "tone") {
       body.append(el("div", { class: "muted wiz-prog" }, `Schritt ${i} von ${total}`));
       body.append(el("h3", { class: "wiz-h" }, "Grundton"));

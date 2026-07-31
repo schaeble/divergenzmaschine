@@ -330,3 +330,17 @@ input[type=range].wgt:hover{opacity:1}
 .wiz-exchips{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px}
 .wiz-chip{font:12px var(--sans);color:var(--text);background:var(--panel);border:1px solid var(--border2);border-radius:999px;padding:3px 10px;cursor:pointer;max-width:100%;text-align:left}
 .wiz-chip:hover{border-color:var(--acc);color:var(--text)}
+.wa-cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:2px 12px;max-height:200px;overflow:auto;margin:4px 0}
+.wa-results{margin:8px 0}
+.wa-block{border-top:1px solid var(--border2);padding:8px 0}
+.wa-blockhead{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.wa-genchips{display:flex;flex-wrap:wrap;gap:2px 14px}
+.wa-genitem{font:13px var(--sans)}
+.wa-overview{margin-top:6px}
+.wa-ovrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.wa-ovchip{display:inline-flex;align-items:center;gap:6px;font:12px var(--sans);background:var(--panel);border:1px solid var(--border2);border-radius:999px;padding:2px 8px}
+.wa-ovx{border:none;background:none;color:var(--muted);cursor:pointer;padding:0;font-size:11px}
+.wa-ovx:hover{color:var(--danger)}
+.wa-pick{margin:4px 0 8px}
+.wa-pickpanel{border:1px solid var(--border2);border-radius:8px;padding:8px;margin-top:4px}
+.wiz-arch-theme,.wa-pickpanel select{height:26px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--text);font:12px var(--sans);padding:0 6px}

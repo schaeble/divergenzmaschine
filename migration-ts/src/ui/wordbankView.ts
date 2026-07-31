@@ -7,6 +7,7 @@ import { DEFAULT_BANK } from "../constants";
 import { loadPersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
 import { openPresetWizard } from "./presetWizard";
+import { openWordArchive } from "./wordArchiveView";
 import { preset2ToBank, preset2Name, preset2Active, builtinSettings, generateAiPreset2, setActive2, getActive2, saveUserPreset2, getUserPreset2, deleteUserPreset2, loadUserPresets2, type Active2 } from "../features/preset2";
 import { setDramaData } from "../generation/dramaturgie";
 import { bankFromCorpus } from "../features/corpusbank";
@@ -167,6 +168,8 @@ export function mountWordbank(root: HTMLElement): void {
       load(); renderFull();
     });
   });
+  const archiveBtn = button("Wortarchiv (KI)");
+  archiveBtn.addEventListener("click", () => openWordArchive());
 
   // ---- Ganze Wortbank: alle 7 Kategorien als Textfelder + Datei sichern/laden ----
   const saveTextAs = async (text: string, filename: string): Promise<boolean> => {
@@ -436,7 +439,7 @@ export function mountWordbank(root: HTMLElement): void {
     batchInfo);
 
   wrap.append(
-    el("div", { class: "btnrow" }, wizardBtn),
+    el("div", { class: "btnrow" }, wizardBtn, archiveBtn),
     field("Preset", preset),
     el("div", { class: "btnrow" }, updBtn, delPresetBtn),
     field("Liste", listSel),
