@@ -87,7 +87,7 @@ export function mountHelp(root: HTMLElement): void {
     ["Modus", P("Realitätsmodus (z. B. bürokratisch, technologisch, mythisch, absurd …).")],
     ["Perspektive", P("Ich-, Du- oder Er/Sie-Erzähler; Verben werden passend konjugiert.")],
     ["Rhythmus · Disruptor · Instabilität", P("steuern Satzlängen-Variation, gezielte Brüche und die Figuren-Instabilität.")],
-    ["Spannung (nur Prosa)", P("verschiebt den Spannungs-Höhepunkt in den Text: Oben (12 Uhr), Mitte (3 Uhr) oder Unten (6 Uhr). Nahe dem Peak werden Sätze kurz und hart, fern davon ruhig und verbunden — hilft gegen den Spannungsabfall in langen Texten. Wirkt erst ab längeren Passagen.")],
+    ["Spannung (nur Prosa)", P("verschiebt den Spannungs-Höhepunkt in den Text: Oben (12 Uhr), Mitte (3 Uhr) oder Unten (6 Uhr). Nahe dem Peak werden Sätze kurz und hart, Hook-/Motiv-Bilder verdichten sich und ein harter Bruch setzt ein; fern davon ruhige, verbundene Bögen — hilft gegen den Spannungsabfall in langen Texten. Wirkt erst ab längeren Passagen.")],
     ["Markov", P("Anteil, in dem der offline gelernte ", lnk("Markov-Generator (Korpus)", "tabs"), " mitmischt.")],
     ["Archetyp A/B", P("färbt die Sprache aus Archetyp-Wortpools (Neutral, Skorpion, Psychopath, Entdecker); Standard neutral.")],
     ["Varianz · Stil · Sprachschliff", P("Variationsgrad, Schliff-Stil und die automatische Glättung bei der Generierung.")],

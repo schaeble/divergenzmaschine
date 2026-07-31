@@ -62,7 +62,8 @@ export function applyRhythm(text: string, rhythm: string): string {
 // Nahe dem Peak: kurze, harte Sätze (Komma-Splits + Fragmente). Fern: ruhige,
 // verbundene Bögen. Grammatik-sichere Operationen (wie applyRhythm). Nur Prosa.
 const TENSION_CENTER: Record<string, number> = { top: 0.15, mid: 0.5, low: 0.85 };
-export function applyTension(text: string, peak?: string): string {
+export interface TensionMaterial { motifs?: string[]; hooks?: string[]; }
+export function applyTension(text: string, peak?: string, material?: TensionMaterial): string {
   if (!peak || peak === "off") return text;
   const center = TENSION_CENTER[peak];
   if (center === undefined) return text;
@@ -97,8 +98,29 @@ export function applyTension(text: string, peak?: string): string {
       const first = s[i]!.replace(/[.!?…]+$/, ""); const next = s[i + 1]!;
       if ((first.length + next.length) < 160 && !isFragmentSentence(first) && !isFragmentSentence(next)) {
         const joiner = /^(und|aber|doch|denn|sondern)\b/i.test(next) ? ", " : (chance(0.5) ? ", und " : "; ");
-        s[i] = first + joiner + next.charAt(0).toLowerCase() + next.slice(1); s.splice(i + 1, 1); i--;
+        // Nach "; " bleibt die Groß-/Kleinschreibung erhalten (Nomen wie „Regen“); bei Komma-Fortsetzung klein.
+        const cont = joiner === "; " ? next : next.charAt(0).toLowerCase() + next.slice(1);
+        s[i] = first + joiner + cont; s.splice(i + 1, 1); i--;
       }
+    }
+  }
+  // 3) Verdichten am Peak: Hook-/Motiv-Bilder als kurze, harte Bild-Sätze einstreuen
+  const mat = [...(material?.hooks || []), ...(material?.motifs || [])].map((x) => (x || "").trim()).filter((x) => x.length >= 4);
+  if (mat.length) {
+    for (let k = 0; k < 2; k++) {
+      const cand = pick(mat);
+      if (!cand || s.join(" ").toLowerCase().includes(cand.toLowerCase())) continue;
+      if (!chance(0.7)) continue;
+      const idx = Math.max(1, Math.min(s.length, Math.round(center * (s.length - 1)) + k));
+      s.splice(idx, 0, cap(cand.replace(/[.!?…]+$/, "")) + ".");
+    }
+  }
+  // 4) Positionsabhängiger Disruptor: harter Bruch direkt am Peak
+  {
+    const idx = Math.round(center * (s.length - 1));
+    if (idx > 0 && idx < s.length - 1 && chance(0.5)) {
+      const t = s[idx]!.replace(/[.!?…]+$/, "");
+      if (t.length > 12 && !isFragmentSentence(t)) { s[idx] = t + " —"; s.splice(idx + 1, 0, pick(["und genau hier kippt es.", "kein Zurück.", "jetzt.", "und nichts hält mehr."])); }
     }
   }
   return s.join(" ");
