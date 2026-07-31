@@ -13,7 +13,7 @@ import { preset2ToBank, preset2Name, preset2Active, builtinSettings, generateAiP
 import { setDramaData } from "../generation/dramaturgie";
 import { bankFromCorpus } from "../features/corpusbank";
 import { icon } from "./icons";
-import { loadAiKey, generateAiWordbank } from "../features/ki";
+import { loadAiKey } from "../features/ki";
 
 const CATS: [BankKey, string][] = [
   ["motifs", "Motive"], ["hooks", "Hooks"], ["props", "Requisiten"], ["turns", "Wendungen"],
@@ -291,42 +291,14 @@ export function mountWordbank(root: HTMLElement): void {
   const fullBox = el("details", { class: "fine" });
   fullBox.addEventListener("toggle", () => { if (fullBox.open) { renderFull(); render2(); } });
   fullBox.append(
-    el("summary", {}, icon("floppy"), " Ganze Wortbank bearbeiten & sichern"),
+    el("summary", {}, icon("floppy"), " Preset bearbeiten und sichern"),
     el("p", { class: "muted" }, "Alle Kategorien direkt bearbeiten. „Alle übernehmen“ speichert in die aktive Wortbank; „Speichern unter“ schreibt sie als JSON-Datei; „Aus Datei laden“ liest eine gespeicherte Wortbank (oder ein Projekt) wieder ein."),
     fullGrid,
     el("div", { class: "btnrow" }, applyAllBtn, saveAsFileBtn, loadFileBtn, fileIn),
     p2Wrap,
     fullInfo);
 
-  // ---- KI-Wortbank (aus dem früheren KI-Tab) ----
-  const kiWhere = el("input", { placeholder: "Wo?" }) as HTMLInputElement;
-  const kiWhen = el("input", { placeholder: "Wann?" }) as HTMLInputElement;
-  const kiWho = el("input", { placeholder: "Wer?" }) as HTMLInputElement;
-  const kiWhat = el("input", { placeholder: "Was?" }) as HTMLInputElement;
-  const kiExtra = el("input", { placeholder: "Zusatzvorgabe, z. B. „im Stil von Kafka“" }) as HTMLInputElement;
-  const kiLbl = el("span", {}, "KI-Wortbank erstellen");
-  const kiBtn = el("button", {}, icon("flask"), " ", kiLbl) as HTMLButtonElement;
-  const kiInfo = el("p", { class: "muted" }, "");
-  kiBtn.addEventListener("click", () => {
-    void (async () => {
-      if (!loadAiKey()) { alert("Kein API-Schlüssel — bitte unter Studio ▸ Einstellungen ▸ KI-Zugang hinterlegen."); return; }
-      kiBtn.disabled = true; kiLbl.textContent = "Erstelle…";
-      try {
-        const bank = await generateAiWordbank({ where: kiWhere.value, when: kiWhen.value, who: kiWho.value, what: kiWhat.value, userPrompt: kiExtra.value });
-        saveBank(bank);
-        saveActiveBankLabel("KI-Wortbank");
-        const name = prompt("Titel für die neue KI-Wortbank:", kiExtra.value.trim() || "KI-Wortbank");
-        if (name) { saveCurrentBankAsUserPreset(name); rebuildPresets("user:" + name.trim().slice(0, 40)); }
-        load();
-        kiInfo.textContent = "KI-Wortbank erstellt und aktiviert.";
-      } catch (e) { kiInfo.textContent = "Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e)); }
-      finally { kiBtn.disabled = false; kiLbl.textContent = "KI-Wortbank erstellen"; }
-    })();
-  });
-  const kiBox = el("details", { class: "fine" });
-  kiBox.append(el("summary", {}, icon("flask"), " KI-Wortbank erzeugen"),
-    el("div", { class: "grid2" }, field("Wo?", kiWhere), field("Wann?", kiWhen), field("Wer?", kiWho), field("Was?", kiWhat)),
-    field("Zusatzvorgabe", kiExtra), el("div", { class: "btnrow" }, kiBtn), kiInfo);
+
 
 
   // ---- KI-Preset 2.0 (experimentell): erzeugt ein komplettes Preset 2.0 per KI ----
@@ -359,7 +331,7 @@ export function mountWordbank(root: HTMLElement): void {
   });
   const p2Box = el("details", { class: "fine" });
   p2Box.append(
-    el("summary", {}, icon("flask"), " KI-Preset 2.0 erzeugen (experimentell)"),
+    el("summary", {}, icon("flask"), " KI-Preset 2.0 erzeugen"),
     el("p", { class: "muted" }, "Erzeugt ein komplettes Preset 2.0 (Welt, Orte, Figuren, Objekte, Ton, generatoren). Genutzt werden davon die Wortbank (generatoren) und die Kontext-Felder (in die lebendigen Pools); die übrigen Felder sind Metadaten. Braucht einen API-Schlüssel."),
     field("Inspiration", p2Insp),
     el("div", { class: "btnrow" }, p2Btn, p2SaveBtn),
@@ -508,6 +480,7 @@ export function mountWordbank(root: HTMLElement): void {
 
   wrap.append(
     el("div", { class: "btnrow" }, wizardBtn, archiveBtn),
+    offBox,
     field("Preset", preset),
     el("div", { class: "btnrow" }, updBtn, delPresetBtn),
     field("Liste", listSel),
@@ -518,10 +491,8 @@ export function mountWordbank(root: HTMLElement): void {
     info,
     applyParamsRow,
     fullBox,
-    kiBox,
     p2Box,
     batchBox,
-    offBox,
   );
   root.append(wrap);
   load();
