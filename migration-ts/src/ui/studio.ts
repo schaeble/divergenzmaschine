@@ -226,10 +226,12 @@ export function mountStudio(root: HTMLElement): void {
   // ── Einspeisungen färben: zeigt, welche Textteile aus welcher Quelle stammen ──
   const feedsChk = el("input", { type: "checkbox", id: "f-feeds" }) as HTMLInputElement;
   const legDot = (c: string, l: string): HTMLElement => el("span", { class: "feeditem" }, el("span", { class: "feeddot " + c }), " " + l);
+  const undoBtn = el("button", { class: "undochip", type: "button", title: "Letzte Änderung rückgängig (Strg+Z)" }, "↩ Rückgängig") as HTMLButtonElement;
+  undoBtn.disabled = true;
   const feedsRow = el("div", { class: "feedsrow" },
     el("label", { class: "chk" }, feedsChk, " Editieren"),
     legDot("feed-wb", "Wortbank"), legDot("feed-ton", "Ton"), legDot("feed-4w", "4W-Kontext"), legDot("feed-pool", "Lebendige Pools"), legDot("feed-markov", "Markov"),
-    el("span", { class: "muted" }, "· unmarkiert = Vorlagen · alles anklickbar"));
+    el("span", { class: "muted" }, "· unmarkiert = Vorlagen · alles anklickbar"), undoBtn);
 
   interface FMatch { s: number; e: number; cls: string; prio: number; }
   const escFeeds = (t: string): string => t.replace(/[&<>]/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;"));
@@ -278,6 +280,26 @@ export function mountStudio(root: HTMLElement): void {
   document.addEventListener("click", (e) => { if (feedPop.style.display !== "none" && !feedPop.contains(e.target as Node) && (e.target as HTMLElement) !== popSpan) hidePop(); }, true);
   const persistEdit = (): void => { try { localStorage.setItem("dm_last_text", out.textContent || ""); } catch { /* voll */ } };
 
+  // ── Undo-Verlauf fürs Editieren (letzte ~12 Textzustände) ──
+  const undoStack: string[] = [];
+  const updateUndoBtn = (): void => { undoBtn.disabled = undoStack.length === 0; };
+  const pushUndo = (): void => { undoStack.push(out.textContent || ""); if (undoStack.length > 12) undoStack.shift(); updateUndoBtn(); };
+  const clearUndo = (): void => { undoStack.length = 0; updateUndoBtn(); };
+  const doUndo = (): void => { const prev = undoStack.pop(); if (prev === undefined) return; out.textContent = prev; persistEdit(); renderFeeds(); updateUndoBtn(); };
+  undoBtn.addEventListener("click", doUndo);
+  document.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== "z") return;
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return; // native Undo im Feld
+    if (!undoStack.length) return;
+    e.preventDefault(); doUndo();
+  });
+
+  // Kontext-Nähe: Jaccard über Wortstämme (5-Zeichen-Stämme), offline.
+  const FEED_STOP = new Set(["und", "oder", "aber", "denn", "sondern", "sowie", "eine", "einen", "einem", "einer", "eines", "der", "die", "das", "den", "dem", "des", "mit", "von", "für", "auf", "aus", "ist", "sind", "war", "sich", "nicht", "auch", "wie", "als", "was", "wer", "wann", "über", "unter", "durch", "zwischen", "diese", "dieser", "dieses", "sein", "seine", "ihre", "ihrer", "immer", "schon", "noch", "dann", "aber", "wird", "wurde"]);
+  const feedStems = (t: string): Set<string> => { const set = new Set<string>(); for (const w of (t.toLowerCase().match(/[a-zäöüß]{4,}/g) || [])) { if (FEED_STOP.has(w)) continue; set.add(w.slice(0, 5)); } return set; };
+  const feedJac = (a: Set<string>, b: Set<string>): number => { if (!a.size || !b.size) return 0; let inter = 0; for (const x of a) if (b.has(x)) inter++; return inter / (a.size + b.size - inter); };
+
   const altsFor = (cls: string, cur: string): string[] => {
     const inText = (out.textContent || "").toLowerCase();
     const norm = (arr: string[]): string[] => [...new Set(arr.map((x) => (x || "").trim()).filter((a) => a.length >= 2 && a.toLowerCase() !== cur.toLowerCase() && !inText.includes(a.toLowerCase())))];
@@ -290,8 +312,13 @@ export function mountStudio(root: HTMLElement): void {
       else if (cls === "feed-markov") { const model = buildModelFromCorpus(2); const n = Math.max(6, cur.split(/\s+/).filter(Boolean).length + 2); for (let i = 0; i < 12; i++) { const g = model.generate(n); if (g) pool.push(g); } }
     } catch { /* egal */ }
     const uniq = norm(pool);
-    for (let i = uniq.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [uniq[i], uniq[j]] = [uniq[j]!, uniq[i]!]; }
-    return uniq.slice(0, 6);
+    const ctxStems = feedStems((out.textContent || "").split(new RegExp(cur.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")).join(" "));
+    const scored = uniq.map((t) => ({ t, sc: feedJac(feedStems(t), ctxStems) }));
+    for (let i = scored.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [scored[i], scored[j]] = [scored[j]!, scored[i]!]; } // Zufalls-Tiebreak
+    scored.sort((a, b) => b.sc - a.sc);                        // nach Kontextnähe
+    const top = scored.slice(0, Math.min(12, scored.length));   // relevanteste behalten
+    for (let i = top.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [top[i], top[j]] = [top[j]!, top[i]!]; } // „Neu“ variiert
+    return top.slice(0, 6).map((x) => x.t);
   };
   // Steht die Passage am Satzanfang? (Textanfang oder direkt nach Satzzeichen)
   const atSentenceStart = (span: HTMLElement): boolean => {
@@ -307,10 +334,12 @@ export function mountStudio(root: HTMLElement): void {
   // Ersten Buchstaben groß (auch hinter öffnendem Anführungszeichen/Klammer)
   const capFirst = (t: string): string => t.replace(/^(\s*["„«»'(\[]*\s*)?(\p{L})/u, (_m, pre: string | undefined, ch: string) => (pre || "") + ch.toLocaleUpperCase("de-DE"));
   const replaceSpan = (span: HTMLElement, txt: string): void => {
+    pushUndo();
     const v = atSentenceStart(span) ? capFirst(txt) : txt;
     span.textContent = v; persistEdit(); renderFeeds(); hidePop();
   };
   const removeSpan = (span: HTMLElement): void => {
+    pushUndo();
     span.textContent = "";
     const cleaned = (out.textContent || "").replace(/\s{2,}/g, " ").replace(/\s+([,.;:!?…])/g, "$1").replace(/([.!?…])(?:\s*\1)+/g, "$1").trim();
     out.textContent = cleaned; persistEdit(); renderFeeds(); hidePop();
@@ -614,6 +643,7 @@ export function mountStudio(root: HTMLElement): void {
       try { feedLivePools(out.textContent || "", LIVE_W.gen); } catch { /* egal */ }
       worldLogGeneration(input);
       refreshFeeds();
+      clearUndo();
     } catch (e) { out.textContent = "Fehler: " + (e instanceof Error ? e.message : String(e)); }
   };
   genBtn.addEventListener("click", generate);
