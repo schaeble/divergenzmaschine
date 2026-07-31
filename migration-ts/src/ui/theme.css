@@ -357,3 +357,6 @@ input[type=range].wgt:hover{opacity:1}
 .presetfield{margin:8px 0}
 .presetfield .mplist{margin-top:4px}
 .presetfield .field-label.lockrow{gap:8px}
+.off-groups{display:flex;flex-direction:column;gap:2px}
+.off-groupname{flex:1;text-align:left;background:none;border:none;color:var(--text);font:600 13px var(--sans);cursor:pointer;padding:4px 0}
+.off-groupname:hover{color:var(--acc)}

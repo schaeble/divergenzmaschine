@@ -54,3 +54,19 @@ export function offlineSetGroup(name: string, entries: string[]): void {
   saveOffline(a);
 }
 export function offlineDeleteGroup(name: string): void { const a = loadOffline(); delete a.groups[name]; saveOffline(a); }
+
+/** Benennt eine Gruppe um; existiert das Ziel bereits, werden die Einträge zusammengeführt. */
+export function offlineRenameGroup(oldName: string, newName: string): void {
+  const nm = (newName || "").trim().slice(0, 40);
+  const a = loadOffline();
+  if (!nm || !a.groups[oldName] || oldName === nm) return;
+  const target = a.groups[nm] || [];
+  const have = new Set(target.map((x) => x.toLowerCase()));
+  for (const w of a.groups[oldName]!) if (!have.has(w.toLowerCase())) { have.add(w.toLowerCase()); target.push(w); }
+  a.groups[nm] = target; delete a.groups[oldName]; saveOffline(a);
+}
+/** Entfernt einen Eintrag aus einer Gruppe (der Pool bleibt unberührt). */
+export function offlineRemoveFromGroup(name: string, entry: string): void {
+  const a = loadOffline(); if (!a.groups[name]) return;
+  a.groups[name] = a.groups[name]!.filter((x) => x !== entry); saveOffline(a);
+}

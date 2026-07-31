@@ -1,10 +1,11 @@
-// Wortarchiv (offline) als Fenster: ungeordneter Pool aus der Zwischenablage,
-// bei Bedarf in selbst benannte Gruppen. Steht dem Preset-Assistenten bereit.
+// Wortarchiv (offline) als Fenster: Wörter werden direkt in benannte Gruppen
+// archiviert. Angezeigt werden nur die Gruppennamen (aufklappbar). Gruppen lassen
+// sich umbenennen, ihr Inhalt kopieren, löschen. Steht dem Preset-Assistenten bereit.
 import { el, button } from "./dom";
 import { icon } from "./icons";
 import {
-  splitEntries, offlineAddPool, offlinePool, offlineGroups,
-  offlineRemoveFromPool, offlineClearPool, offlineSetGroup, offlineDeleteGroup,
+  splitEntries, offlineAddPool, offlineGroups, offlineGroupEntries,
+  offlineSetGroup, offlineDeleteGroup, offlineRenameGroup, offlineRemoveFromGroup,
 } from "../features/offlinearchive";
 
 export function openOfflineArchive(onClose?: () => void): void {
@@ -15,69 +16,81 @@ export function openOfflineArchive(onClose?: () => void): void {
   overlay.addEventListener("click", (e) => { if (e.target === overlay) shut(); });
 
   const info = el("span", { class: "muted mini" });
-  const manual = el("textarea", { style: "height:60px", placeholder: "…oder hier Wörter einfügen (ein Eintrag pro Zeile) und „Hinzufügen“" }) as HTMLTextAreaElement;
-  const poolWrap = el("div", { class: "off-pool" });
-  const groupsWrap = el("div", {});
+  const manual = el("textarea", { style: "height:64px", placeholder: "Wörter einfügen — ein Eintrag pro Zeile" }) as HTMLTextAreaElement;
   const groupName = el("input", { placeholder: "Gruppenname", style: "flex:1" }) as HTMLInputElement;
-  let checks: HTMLInputElement[] = [];
+  const groupsWrap = el("div", { class: "off-groups" });
+  const expanded = new Set<string>();
 
   const render = (): void => {
-    poolWrap.innerHTML = ""; checks = [];
-    const pool = offlinePool();
-    poolWrap.append(el("div", { class: "muted mini" }, `Alle Wörter (${pool.length}) — ankreuzen zum Gruppieren:`));
-    if (!pool.length) poolWrap.append(el("span", { class: "muted mini" }, "Noch nichts eingefügt."));
-    const chips = el("div", { class: "off-chips" });
-    pool.forEach((w) => {
-      const cb = el("input", { type: "checkbox" }) as HTMLInputElement; cb.value = w; checks.push(cb);
-      const del = el("button", { class: "off-x", type: "button", title: "Entfernen" }, "✕");
-      del.addEventListener("click", () => { offlineRemoveFromPool(w); render(); });
-      chips.append(el("label", { class: "off-chip" }, cb, " " + w, del));
-    });
-    poolWrap.append(chips);
     groupsWrap.innerHTML = "";
     const groups = offlineGroups();
     const names = Object.keys(groups).sort((a, b) => a.localeCompare(b, "de"));
-    if (names.length) {
-      groupsWrap.append(el("div", { class: "muted mini" }, "Gruppen:"));
-      names.forEach((nm) => {
-        const g = el("div", { class: "off-group" });
-        const delG = el("button", { class: "danger", type: "button" }, "Gruppe löschen");
-        delG.addEventListener("click", () => { offlineDeleteGroup(nm); render(); });
-        g.append(el("div", { class: "off-grouphead" }, el("b", {}, `${nm} (${groups[nm]!.length})`), delG),
-          el("div", { class: "off-chips" }, ...groups[nm]!.map((w) => el("span", { class: "off-chip" }, w))));
-        groupsWrap.append(g);
+    if (!names.length) { groupsWrap.append(el("span", { class: "muted mini" }, "Noch keine Gruppen — oben Wörter einfügen, Gruppennamen vergeben und „Archivieren“.")); return; }
+    names.forEach((nm) => {
+      const entries = groups[nm]!;
+      const open = expanded.has(nm);
+      const row = el("div", { class: "off-group" });
+      const nameBtn = el("button", { class: "off-groupname", type: "button", title: open ? "Zuklappen" : "Aufklappen" }, (open ? "▾ " : "▸ ") + nm + ` (${entries.length})`);
+      nameBtn.addEventListener("click", () => { if (open) expanded.delete(nm); else expanded.add(nm); render(); });
+      const renameB = button("Umbenennen");
+      renameB.addEventListener("click", () => {
+        const raw = prompt("Neuer Gruppenname:", nm); if (raw === null) return;
+        const neu = raw.trim(); if (!neu || neu === nm) return;
+        if (offlineGroups()[neu] && !confirm(`„${neu}“ existiert bereits — zusammenführen?`)) return;
+        offlineRenameGroup(nm, neu); if (expanded.has(nm)) { expanded.delete(nm); expanded.add(neu); } render();
       });
-    }
+      const copyB = button("Inhalt kopieren");
+      copyB.addEventListener("click", () => {
+        const text = offlineGroupEntries(nm).join("\n");
+        const nav = navigator as unknown as { clipboard?: { writeText?: (t: string) => Promise<void> } };
+        if (nav.clipboard && nav.clipboard.writeText) nav.clipboard.writeText(text).then(() => { info.textContent = `„${nm}“ kopiert (${entries.length}).`; }).catch(() => { info.textContent = "Kopieren nicht möglich."; });
+        else info.textContent = "Kopieren nicht möglich.";
+      });
+      const delB = button("Löschen", "danger");
+      delB.addEventListener("click", () => { if (confirm(`Gruppe „${nm}“ löschen?`)) { offlineDeleteGroup(nm); expanded.delete(nm); render(); } });
+      row.append(el("div", { class: "off-grouphead" }, nameBtn, renameB, copyB, delB));
+      if (open) {
+        const chips = el("div", { class: "off-chips" });
+        entries.forEach((w) => {
+          const x = el("button", { class: "off-x", type: "button", title: "Aus Gruppe entfernen" }, "✕");
+          x.addEventListener("click", () => { offlineRemoveFromGroup(nm, w); render(); });
+          chips.append(el("span", { class: "off-chip" }, w, x));
+        });
+        row.append(chips);
+      }
+      groupsWrap.append(row);
+    });
   };
 
-  const pasteBtn = el("button", { class: "primary" }, icon("copy"), " Aus Zwischenablage einfügen");
+  const archive = (entries: string[]): void => {
+    const nm = groupName.value.trim();
+    if (!nm) { info.textContent = "Bitte einen Gruppennamen angeben."; groupName.focus(); return; }
+    if (!entries.length) { info.textContent = "Keine Wörter zum Archivieren."; return; }
+    offlineSetGroup(nm, entries);   // in die Gruppe
+    offlineAddPool(entries);        // und in den Gesamtpool (für „Offline · Alle Wörter“ im Assistenten)
+    manual.value = "";
+    info.textContent = `${entries.length} in „${nm}“ archiviert.`;
+    expanded.add(nm); render();
+  };
+
+  const pasteBtn = el("button", {}, icon("copy"), " Aus Zwischenablage");
   pasteBtn.addEventListener("click", () => {
     const nav = navigator as unknown as { clipboard?: { readText?: () => Promise<string> } };
-    if (!nav.clipboard || !nav.clipboard.readText) { info.textContent = "Zwischenablage nicht lesbar — bitte unten manuell einfügen."; manual.focus(); return; }
-    nav.clipboard.readText().then((txt) => { const n = offlineAddPool(splitEntries(txt)); info.textContent = `${n} eingefügt`; render(); })
-      .catch(() => { info.textContent = "Zwischenablage nicht lesbar — bitte unten manuell einfügen."; manual.focus(); });
+    if (!nav.clipboard || !nav.clipboard.readText) { info.textContent = "Zwischenablage nicht lesbar — bitte Text ins Feld einfügen."; manual.focus(); return; }
+    nav.clipboard.readText().then((txt) => { manual.value = (manual.value.trim() ? manual.value.replace(/\n+$/, "") + "\n" : "") + txt; info.textContent = "Aus Zwischenablage übernommen — Gruppennamen vergeben und archivieren."; manual.focus(); })
+      .catch(() => { info.textContent = "Zwischenablage nicht lesbar — bitte Text ins Feld einfügen."; manual.focus(); });
   });
-  const addBtn = button("Hinzufügen");
-  addBtn.addEventListener("click", () => { const n = offlineAddPool(splitEntries(manual.value)); manual.value = ""; info.textContent = `${n} hinzugefügt`; render(); });
-  const clearBtn = button("Pool leeren", "danger");
-  clearBtn.addEventListener("click", () => { if (offlinePool().length && confirm("Alle Wörter im Offline-Pool löschen? (Gruppen bleiben.)")) { offlineClearPool(); render(); } });
-  const groupBtn = button("Auswahl als Gruppe speichern");
-  groupBtn.addEventListener("click", () => {
-    const sel = checks.filter((c) => c.checked).map((c) => c.value);
-    const nm = groupName.value.trim();
-    if (!nm) { info.textContent = "Bitte Gruppennamen angeben."; return; }
-    if (!sel.length) { info.textContent = "Bitte Einträge ankreuzen."; return; }
-    offlineSetGroup(nm, sel); groupName.value = ""; info.textContent = `Gruppe „${nm}“ gespeichert (${sel.length}).`; render();
-  });
+  const archiveBtn = el("button", { class: "primary" }, icon("folder"), " Archivieren");
+  archiveBtn.addEventListener("click", () => archive(splitEntries(manual.value)));
 
   const card = el("div", { class: "modal-card wizard" },
     el("div", { class: "modal-head" }, el("h2", {}, "Wortarchiv (offline)"), close),
     el("div", { class: "modal-body wiz-body" },
-      el("p", { class: "muted" }, "Füge Wörter aus der Zwischenablage in einen ungeordneten Pool. Bei Bedarf kreuzt du Einträge an und speicherst sie unter einem eigenen Gruppennamen. Pool und Gruppen stehen im Preset-Assistenten unter „Aus Archiv laden“ bereit."),
-      el("div", { class: "btnrow" }, pasteBtn, clearBtn, info),
-      el("div", { class: "btnrow" }, manual, addBtn),
-      poolWrap,
-      el("div", { class: "btnrow" }, groupName, groupBtn),
+      el("p", { class: "muted" }, "Füge Wörter ein, vergib einen Gruppennamen und archiviere sie. Es werden nur die Gruppennamen angezeigt — zum Ansehen aufklappen. Gruppen lassen sich umbenennen, ihr Inhalt kopieren. Sie stehen im Preset-Assistenten unter „Aus Archiv laden“ bereit."),
+      el("div", { class: "btnrow" }, manual),
+      el("div", { class: "btnrow" }, pasteBtn, groupName, archiveBtn),
+      info,
+      el("hr", {}),
       groupsWrap));
   overlay.append(card);
   document.body.append(overlay);
