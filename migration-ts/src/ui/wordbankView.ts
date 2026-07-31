@@ -55,7 +55,7 @@ export function mountWordbank(root: HTMLElement): void {
   const delPresetBtn = button("Preset löschen", "danger");
   const renamePresetBtn = button("Preset umbenennen");
 
-  const updDelPreset = (): void => { const isUser = preset.value.startsWith("user:"); delPresetBtn.style.display = isUser ? "" : "none"; renamePresetBtn.style.display = isUser ? "" : "none"; };
+  const updDelPreset = (): void => { const isUser = preset.value.startsWith("user:"); delPresetBtn.disabled = !isUser; renamePresetBtn.disabled = !isUser; delPresetBtn.title = isUser ? "" : "Nur für eigene Presets"; renamePresetBtn.title = isUser ? "" : "Nur für eigene Presets"; };
   const rebuildPresets = (keep?: string): void => {
     preset.innerHTML = "";
     for (const [v, l] of markedOptions()) preset.append(el("option", { value: v }, l));
