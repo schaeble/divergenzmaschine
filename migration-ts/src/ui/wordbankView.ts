@@ -134,7 +134,9 @@ export function mountWordbank(root: HTMLElement): void {
   });
   const saveAs = button("Als Preset speichern");
   saveAs.addEventListener("click", () => {
-    const name = prompt("Name für dein Preset:", "MeinPreset");
+    // Vorschlag: der aktive Bank-Name (nach „KI-Preset 2.0 erzeugen“ = Inspirations-/Beschreibungsname)
+    const def = (loadActiveBankLabel() || "").replace(/^[^0-9A-Za-zÄÖÜäöüß]+/, "").trim() || "MeinPreset";
+    const name = prompt("Name für dein Preset:", def);
     if (name) {
       saveCurrentBankAsUserPreset(name);
       const a2 = getActive2(); if (a2) saveUserPreset2(name.trim().slice(0, 40), a2);
