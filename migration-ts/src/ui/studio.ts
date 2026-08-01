@@ -12,6 +12,7 @@ import { feedLivePools, LIVE_W } from "../features/livepools";
 import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
 import { normWhere, normWhen, normWho } from "../generation/ctxnorm";
+import { extractLeadVerb, looksLikeFullClause } from "../generation/wordcls";
 import { el, select, field, textInput, button } from "./dom";
 import { icon } from "./icons";
 import { openReader } from "./reader";
@@ -85,21 +86,32 @@ export function mountStudio(root: HTMLElement): void {
   const hintWo = el("span", { class: "ctxhint" });
   const hintWann = el("span", { class: "ctxhint" });
   const hintWer = el("span", { class: "ctxhint" });
+  const hintWas = el("span", { class: "ctxhint" });
   const updHints = (): void => {
     const h = (inp: HTMLInputElement, fn: (v: string) => string, out: HTMLElement): void => {
       const v = inp.value.trim(); const n = v ? fn(v) : "";
       out.textContent = v && n && n !== v ? "→ " + n : "";
     };
     h(where, normWhere, hintWo); h(when, normWhen, hintWann); h(who, normWho, hintWer);
+    // Was: zeigt, WIE die Engine den Wert einwebt (Satz / Handlung / Vorhaben / Ereignis)
+    const a = what.value.trim();
+    if (!a) hintWas.textContent = "";
+    else {
+      const lead = extractLeadVerb(a);
+      if (lead.isInfinitiveLed) hintWas.textContent = "→ als Vorhaben eingewoben („will " + a + "“)";
+      else if (lead.verb) hintWas.textContent = "→ als Handlung eingewoben (Verb: " + lead.verb + ")";
+      else if (looksLikeFullClause(lead.verb, lead.rest)) hintWas.textContent = "→ als eigener Satz eingewoben";
+      else hintWas.textContent = "→ als Ereignis-Phrase eingewoben";
+    }
   };
-  [where, when, who].forEach((i) => i.addEventListener("input", updHints));
+  [where, when, who, what].forEach((i) => i.addEventListener("input", updHints));
   const field4w = (label: string, inp: HTMLInputElement, weight: HTMLInputElement, hint?: HTMLElement): HTMLElement =>
     el("label", { class: "field" },
       el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(inp)),
       el("div", { class: "field4w" }, clearable(inp), weight),
       ...(hint ? [hint] : []));
   wrap.append(el("div", { class: "grid2" },
-    field4w("Wo?", where, wWo, hintWo), field4w("Wann?", when, wWann, hintWann), field4w("Wer?", who, wWer, hintWer), field4w("Was passiert?", what, wWas)),
+    field4w("Wo?", where, wWo, hintWo), field4w("Wann?", when, wWann, hintWann), field4w("Wer?", who, wWer, hintWer), field4w("Was passiert?", what, wWas, hintWas)),
     el("div", { class: "btnrow" }, ctxDice, ctxKeep));
 
   const preset = select("f-preset", markedPresetOptions());

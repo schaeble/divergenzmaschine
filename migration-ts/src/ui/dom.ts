@@ -27,7 +27,8 @@ export function field(label: string, node: HTMLElement): HTMLElement {
 }
 
 export function textInput(id: string, placeholder: string, val = ""): HTMLInputElement {
-  return el("input", { id, placeholder, value: val });
+  // autocomplete=off + data-form-type: verhindert Browser-Autofill/Passwort-Vorschläge
+  return el("input", { id, placeholder, value: val, autocomplete: "off", "data-form-type": "other", "data-lpignore": "true" });
 }
 
 export function button(label: string, variant = ""): HTMLButtonElement {
