@@ -9,8 +9,8 @@ import { DEFAULT_BANK, BANK_KEYS } from "../constants";
 import type { Bank, BankKey } from "../types";
 import { setActive2, saveUserPreset2, type Active2 } from "../features/preset2";
 import { setDramaData } from "../generation/dramaturgie";
-import { ARCHIVE_CATS, archiveGet, archiveThemes, catLabel } from "../features/wordarchive";
-import { offlinePool, offlineGroupNames, offlineGroupEntries } from "../features/offlinearchive";
+import { ARCHIVE_CATS, catLabel } from "../features/wordarchive";
+import { entriesForCat, entriesForCatTheme, themesForCat, archiveGroupNames, groupEntries, allEntries } from "../features/archive2";
 
 const shuffle = <T>(a: T[]): T[] => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j]!, a[i]!]; } return a; };
 const lines = (v: string): string[] => v.split("\n").map((s) => s.trim()).filter(Boolean);
@@ -130,7 +130,7 @@ export function openPresetWizard(onDone: (userId: string | null) => void): void 
     exampleBlock(`Beispiele (${examples.length} verfügbar) — einzeln anklicken zum Einfügen:`, examples, true);
     // Kuriose Kategorie aus deinem Archiv als zusätzliche Quelle direkt im Schritt
     if (extraCat) {
-      const arch = archiveGet(extraCat).map((e) => e.t);
+      const arch = entriesForCat(extraCat);
       if (arch.length) exampleBlock(`Aus deinem Archiv · ${catLabel(extraCat)} (${arch.length}):`, arch, false);
     }
     if (archiveCat) body.append(archivePicker(archiveCat, insert));
@@ -144,30 +144,31 @@ export function openPresetWizard(onDone: (userId: string | null) => void): void 
     const panel = el("div", { class: "wa-pickpanel", style: "display:none" });
     const catOpts: [string, string][] = [
       ...ARCHIVE_CATS.map(([id, l]) => [id, l] as [string, string]),
-      ["offline:__pool__", "Offline · Alle Wörter"],
-      ...offlineGroupNames().map((nm) => ["offline:" + nm, "Offline · " + nm] as [string, string]),
+      ["grp:__all__", "Alle Gruppen"],
+      ...archiveGroupNames().map((nm) => ["grp:" + nm, "Gruppe · " + nm] as [string, string]),
     ];
     const catSel = select("wiz-arch-cat", catOpts, defaultCat);
     const themeSel = el("select", { class: "wiz-arch-theme" }) as HTMLSelectElement;
     const chips = el("div", { class: "wiz-exchips" });
-    const isOffline = (): boolean => catSel.value.startsWith("offline:");
-    const offlineEntries = (): string[] => { const key = catSel.value.slice("offline:".length); return key === "__pool__" ? offlinePool() : offlineGroupEntries(key); };
+    const isGroup = (): boolean => catSel.value.startsWith("grp:");
+    const currentEntries = (): string[] => {
+      if (isGroup()) { const key = catSel.value.slice(4); return key === "__all__" ? allEntries() : groupEntries(key); }
+      return themeSel.value ? entriesForCatTheme(catSel.value, themeSel.value) : entriesForCat(catSel.value);
+    };
     const fillThemes = (): void => {
       themeSel.innerHTML = "";
       themeSel.append(el("option", { value: "" }, "alle Themen"));
-      if (isOffline()) { themeSel.disabled = true; return; }
+      if (isGroup()) { themeSel.disabled = true; return; }
       themeSel.disabled = false;
-      for (const t of archiveThemes(catSel.value)) themeSel.append(el("option", { value: t }, t));
+      for (const t of themesForCat(catSel.value)) themeSel.append(el("option", { value: t }, t));
     };
     const renderChips = (): void => {
       chips.innerHTML = "";
-      const entries = isOffline()
-        ? offlineEntries().map((t) => ({ t } as { t: string; theme?: string }))
-        : archiveGet(catSel.value).filter((e) => !themeSel.value || e.theme === themeSel.value);
+      const entries = currentEntries();
       if (!entries.length) { chips.append(el("span", { class: "muted mini" }, "Nichts im Archiv für diese Auswahl.")); return; }
-      const all = button("Alle einfügen"); all.addEventListener("click", () => insert(entries.map((e) => e.t)));
+      const all = button("Alle einfügen"); all.addEventListener("click", () => insert(entries));
       chips.append(all);
-      entries.forEach((e) => { const c = el("button", { class: "wiz-chip", type: "button", title: "Einfügen" }, e.t); c.addEventListener("click", () => insert([e.t])); chips.append(c); });
+      entries.forEach((t) => { const c = el("button", { class: "wiz-chip", type: "button", title: "Einfügen" }, t); c.addEventListener("click", () => insert([t])); chips.append(c); });
     };
     catSel.addEventListener("change", () => { fillThemes(); renderChips(); });
     themeSel.addEventListener("change", renderChips);

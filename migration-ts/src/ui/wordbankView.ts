@@ -7,8 +7,7 @@ import { DEFAULT_BANK } from "../constants";
 import { loadPersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
 import { openPresetWizard } from "./presetWizard";
-import { openWordArchive } from "./wordArchiveView";
-import { openOfflineArchive } from "./offlineArchiveView";
+import { openArchive } from "./archiveView";
 import { preset2ToBank, preset2Name, preset2Active, builtinSettings, generateAiPreset2, setActive2, getActive2, saveUserPreset2, saveUserPresets2All, getUserPreset2, deleteUserPreset2, loadUserPresets2, type Active2 } from "../features/preset2";
 import { setDramaData } from "../generation/dramaturgie";
 import { bankFromCorpus } from "../features/corpusbank";
@@ -157,10 +156,8 @@ export function mountWordbank(root: HTMLElement): void {
       load(); renderFull();
     });
   });
-  const archiveBtn = button("Wortarchiv (KI)");
-  archiveBtn.addEventListener("click", () => openWordArchive());
-  const offlineBtn = button("Wortarchiv (offline)");
-  offlineBtn.addEventListener("click", () => openOfflineArchive());
+  const archiveBtn = button("Wortarchiv");
+  archiveBtn.addEventListener("click", () => openArchive());
 
   // ---- Ganze Wortbank: alle 7 Kategorien als Textfelder + Datei sichern/laden ----
   const saveTextAs = async (text: string, filename: string): Promise<boolean> => {
@@ -403,7 +400,7 @@ export function mountWordbank(root: HTMLElement): void {
 
 
   wrap.append(
-    el("div", { class: "btnrow" }, wizardBtn, offlineBtn, archiveBtn),
+    el("div", { class: "btnrow" }, wizardBtn, archiveBtn),
     field("Preset", preset),
     el("div", { class: "btnrow" }, delPresetBtn, renamePresetBtn),
     rulesBox,

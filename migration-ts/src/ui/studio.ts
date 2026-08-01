@@ -127,11 +127,17 @@ export function mountStudio(root: HTMLElement): void {
   preset.style.display = "none"; // verstecktes Zustands-Element; die Checkbox-Liste steuert es
   const presetList = el("div", { class: "mplist" });
   const presetStatus = el("span", { class: "muted mini" });
+  const autoMixStudioBtn = el("button", { class: "automixbtn", type: "button", title: "Pro Kategorie ein zufälliges Preset zusammenwürfeln" }, icon("dice"), " Auto-Mix würfeln");
+  autoMixStudioBtn.addEventListener("click", () => {
+    multiIds = []; saveMulti();
+    preset.value = AUTOMIX_ID; preset.dispatchEvent(new Event("change"));
+    renderPresetChecks();
+  });
   const renderPresetChecks = (): void => {
     presetList.innerHTML = "";
     const selected = new Set<string>(preset.value === MULTI_ID ? multiIds : [preset.value]);
     const boxes: HTMLInputElement[] = [];
-    markedPresetOptions().forEach(([v, l]) => {
+    markedPresetOptions().filter(([v]) => v !== AUTOMIX_ID).forEach(([v, l]) => {
       const cb = el("input", { type: "checkbox" }) as HTMLInputElement;
       cb.checked = selected.has(v); cb.value = v;
       cb.addEventListener("change", () => applySelection(boxes.filter((b) => b.checked).map((b) => b.value)));
@@ -142,11 +148,7 @@ export function mountStudio(root: HTMLElement): void {
     presetStatus.textContent = preset.value === MULTI_ID ? `Aktiv: Mix (${multiIds.length})` : ("Aktiv: " + (curOpt ? (curOpt.textContent || "—") : "—"));
   };
   function applySelection(rawIds: string[]): void {
-    let ids = rawIds.filter((v) => v !== MULTI_ID && v !== "__omni__");
-    if (ids.includes(AUTOMIX_ID)) {
-      if (ids.length === 1) { multiIds = []; saveMulti(); preset.value = AUTOMIX_ID; preset.dispatchEvent(new Event("change")); renderPresetChecks(); return; }
-      ids = ids.filter((v) => v !== AUTOMIX_ID); // Auto-Mix lässt sich nicht mit anderen mischen
-    }
+    const ids = rawIds.filter((v) => v !== MULTI_ID && v !== AUTOMIX_ID && v !== "__omni__");
     if (ids.length === 0) { renderPresetChecks(); return; }
     if (ids.length === 1) { multiIds = []; saveMulti(); preset.value = ids[0]!; preset.dispatchEvent(new Event("change")); renderPresetChecks(); return; }
     multiIds = ids; saveMulti(); applyMulti(); ensureMultiOption(); preset.value = MULTI_ID; renderPresetChecks(); liveRegen();
@@ -175,6 +177,7 @@ export function mountStudio(root: HTMLElement): void {
   const presetField = el("div", { class: "field presetfield" },
     el("span", { class: "field-label lockrow" }, el("span", {}, "Preset — eins oder mehrere ankreuzen"), presetStatus, lockBtn(preset)),
     preset,
+    el("div", { class: "btnrow" }, autoMixStudioBtn),
     presetList);
   wrap.append(presetField);
   wrap.append(el("div", { class: "grid3" }, lockField("Ton", tone), lockField("Form", form)));

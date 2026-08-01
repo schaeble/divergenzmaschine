@@ -9,8 +9,9 @@ import { loadOmniUserPresets, saveOmniUserPresetsAll, type CognitiveProfile } fr
 import { exportLivePools, importLivePools, type LiveItem } from "./livepools";
 import { loadWorkshopProjects, saveWorkshopProjectsAll, type WorkshopProject } from "./workshop";
 import { loadUserPresets2, saveUserPresets2All, getActive2, setActive2, type Active2 } from "./preset2";
-import { loadArchive, saveArchive, type Archive } from "./wordarchive";
-import { loadOffline, saveOffline, type OfflineArchive } from "./offlinearchive";
+import { type Archive } from "./wordarchive";
+import { type OfflineArchive } from "./offlinearchive";
+import { loadArchive2, saveArchive2, mergeArchive2, migrateOldArchives, type Archive2 } from "./archive2";
 import type { Bank, Settings } from "../types";
 
 interface ProjectFile {
@@ -19,7 +20,7 @@ interface ProjectFile {
   treasury?: Treasure[]; ideaPresets?: Record<string, IdeaProfile>;
   omniPresets?: Record<string, CognitiveProfile>; livePools?: LiveItem[];
   workshopProjects?: Record<string, WorkshopProject>;
-  presets2?: Record<string, Active2>; active2?: Active2 | null; wordArchive?: Archive; offlineArchive?: OfflineArchive;
+  presets2?: Record<string, Active2>; active2?: Active2 | null; wordArchive?: Archive; offlineArchive?: OfflineArchive; archive2?: Archive2;
 }
 
 /** Exportiert das Projekt. Zeigt — wo unterstützt — einen echten „Speichern unter"-
@@ -32,7 +33,7 @@ export async function exportProject(): Promise<boolean> {
     treasury: loadTreasury(), ideaPresets: loadIdeaUserPresets(),
     omniPresets: loadOmniUserPresets(), livePools: exportLivePools(),
     workshopProjects: loadWorkshopProjects(),
-    presets2: loadUserPresets2(), active2: getActive2(), wordArchive: loadArchive(), offlineArchive: loadOffline(),
+    presets2: loadUserPresets2(), active2: getActive2(), archive2: loadArchive2(),
   };
   const json = JSON.stringify(project, null, 2);
   const filename = `divergenz_projekt_${new Date().toISOString().slice(0, 10)}.json`;
@@ -82,8 +83,8 @@ export function importProject(file: File): Promise<void> {
         if (p.workshopProjects) saveWorkshopProjectsAll(p.workshopProjects);
         if (p.presets2) saveUserPresets2All(p.presets2);
         if ("active2" in p) setActive2(p.active2 ?? null);
-        if (p.wordArchive) saveArchive(p.wordArchive);
-        if (p.offlineArchive) saveOffline(p.offlineArchive);
+        if (p.archive2 && Array.isArray(p.archive2.groups)) saveArchive2(p.archive2);
+        else if (p.wordArchive || p.offlineArchive) mergeArchive2(migrateOldArchives(p.wordArchive ?? null, p.offlineArchive ?? null));
         resolve();
       } catch (e) { reject(e instanceof Error ? e : new Error(String(e))); }
     };
