@@ -12,10 +12,17 @@ const PLACE_DETAIL = ["liegt die Luft schwer", "verschieben sich die Schatten", 
 const PLACE_VERB = ["scheint zuzuhören", "gibt keine Auskunft", "merkt sich jede Bewegung", "ordnet die Dinge neu", "lässt niemanden unberührt"];
 function placeLine(kit: StoryKit): string {
   const M = kit.mode;
+  // Orts-Varianten mit dem eingetragenen Wo doppelt gewichtet — der Ort soll
+  // bei hoher Stärke tatsächlich auftauchen, nicht nur generisches Modus-Material.
+  const withW = [
+    `Hier, ${kit.W}, ${pick(PLACE_DETAIL)}.`,
+    `${cap(kit.W)} ${pick(PLACE_DETAIL)}.`,
+    `Der Ort — ${kit.W} — ${pick(PLACE_VERB)}.`,
+  ];
   return pick([
+    ...withW, ...withW,
     `Es riecht ${pick(M.images)}.`,
     ensurePunct(cap(pick(M.rules))),
-    `Hier, ${kit.W}, ${pick(PLACE_DETAIL)}.`,
     `Der Ort ${pick(PLACE_VERB)}.`,
   ]);
 }
@@ -24,10 +31,15 @@ const TIME_DETAIL = ["zählte jede Stunde anders", "war die Zukunft schon vergan
 const TIME_CLAUSE = ["die Uhren einander misstrauten", "niemand mehr auf das Morgen wartete", "die Vergangenheit noch nicht entschieden war", "jeder Tag sich selbst wiederholte"];
 const TIME_VERB = ["stand still", "lief rückwärts", "verlor ihren Takt", "wurde zäh"];
 function timeLine(kit: StoryKit): string {
-  return pick([
-    `Damals, ${kit.T}, ${pick(TIME_DETAIL)}.`,
-    `Es war die Zeit, als ${pick(TIME_CLAUSE)}.`,
+  // „Damals" nur bei nicht-gegenwärtigen Zeitangaben — „Damals, heute …" wäre ein Widerspruch.
+  const presentish = /^(heute|jetzt|nun|gerade|eben|soeben|morgen|übermorgen)\b/i.test(kit.T);
+  const withT = [
+    presentish ? `${cap(kit.T)}, ${pick(TIME_DETAIL)}.` : `Damals, ${kit.T}, ${pick(TIME_DETAIL)}.`,
     `${cap(kit.T)} — und die Zeit ${pick(TIME_VERB)}.`,
+  ];
+  return pick([
+    ...withT, ...withT,
+    `Es war die Zeit, als ${pick(TIME_CLAUSE)}.`,
   ]);
 }
 
