@@ -47,7 +47,18 @@ function charLine(kit: StoryKit): string {
 }
 
 function plotLine(kit: StoryKit): string {
+  // Die eingetragene Handlung („Was passiert?") steht im Zentrum — grammatisch
+  // je nach Analyse (Satz / Verb-geführt / Vorhaben) eingewoben; Bank-Material ergänzt.
+  const A = strip(kit.Apure);
+  const actionLines = A
+    ? (kit.AisClause
+      ? [`Und wieder: ${A}.`, `Denn genau das geschieht: ${A}.`, `Im Kern bleibt es dabei — ${A}.`]
+      : kit.AisInfinitiveLed
+        ? [`Noch immer will ${kit.P} ${A}.`, `Alles drängt darauf, ${A}.`]
+        : [`${kit.P} ${kit.AleadVerb || "will"} ${A} — noch immer.`, `Es geht weiter um eines: ${A}.`])
+    : [];
   return pick([
+    ...actionLines, ...actionLines, // Handlung doppelt gewichtet gegenüber Bank-Material
     frameTurn(kit.turn),
     reframeStake(kit.stake),
     `Doch ${strip(kit.obstacle)}.`,
