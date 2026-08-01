@@ -2,7 +2,7 @@
 // Lesemodus (Vollbild) und Vorlesen (SpeechSynthesis).
 import type { GenInput, FormKind } from "../types";
 import { loadBank, saveBank } from "../storage";
-import { getAllPresets, saveActiveBankLabel, buildAutoMixBank, buildMergedBank, AUTOMIX_ID } from "../wordbank";
+import { getAllPresets, saveActiveBankLabel, buildAutoMixBank, buildMergedBank, lastAutoMixSources, AUTOMIX_ID } from "../wordbank";
 import { markedPresetOptions, getUserPreset2 } from "../features/preset2";
 import { setDramaData } from "../generation/dramaturgie";
 import { buildStory } from "../generation/buildStory";
@@ -137,15 +137,20 @@ export function mountStudio(root: HTMLElement): void {
     presetList.innerHTML = "";
     const selected = new Set<string>(preset.value === MULTI_ID ? multiIds : [preset.value]);
     const boxes: HTMLInputElement[] = [];
+    const CATL: Record<string, string> = { motifs: "Motive", hooks: "Hooks", props: "Requisiten", turns: "Wendungen", obstacles: "Hindernisse", stakes: "Einsätze", endings: "Enden" };
+    const mixSrc = preset.value === AUTOMIX_ID ? lastAutoMixSources() : {};
     markedPresetOptions().filter(([v]) => v !== AUTOMIX_ID).forEach(([v, l]) => {
       const cb = el("input", { type: "checkbox" }) as HTMLInputElement;
       cb.checked = selected.has(v); cb.value = v;
       cb.addEventListener("change", () => applySelection(boxes.filter((b) => b.checked).map((b) => b.value)));
       boxes.push(cb);
-      presetList.append(el("label", { class: "chk mpitem" }, cb, " " + l));
+      const cats = mixSrc[v];
+      const item = el("label", { class: "chk mpitem" + (cats ? " mixsrc" : "") }, cb, " " + l);
+      if (cats) { item.title = "Auto-Mix-Quelle: " + cats.map((k) => CATL[k] || k).join(", "); item.append(el("span", { class: "mixsrc-badge" }, String(cats.length))); }
+      presetList.append(item);
     });
     const curOpt = Array.from(preset.options).find((o) => o.value === preset.value);
-    presetStatus.textContent = preset.value === MULTI_ID ? `Aktiv: Mix (${multiIds.length})` : ("Aktiv: " + (curOpt ? (curOpt.textContent || "—") : "—"));
+    presetStatus.textContent = preset.value === MULTI_ID ? `Aktiv: Mix (${multiIds.length})` : (preset.value === AUTOMIX_ID ? "Aktiv: Auto-Mix — Quellen schattiert" : ("Aktiv: " + (curOpt ? (curOpt.textContent || "—") : "—")));
   };
   function applySelection(rawIds: string[]): void {
     const ids = rawIds.filter((v) => v !== MULTI_ID && v !== AUTOMIX_ID && v !== "__omni__");

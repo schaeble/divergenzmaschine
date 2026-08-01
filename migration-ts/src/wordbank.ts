@@ -82,14 +82,22 @@ export function saveCurrentBankAsUserPreset(name: string): void {
   saveUserPresets(user);
 }
 
-/** Auto-Mix: pro Kategorie ein zufälliges Preset ziehen. */
+/** Auto-Mix: pro Kategorie ein zufälliges Preset ziehen. Die Quellen werden
+ *  gespeichert (dm_automix_sources_v1), damit die UI sie markieren kann. */
+const AUTOMIX_SRC_KEY = "dm_automix_sources_v1";
+export function lastAutoMixSources(): Record<string, string[]> {
+  try { const v = JSON.parse(localStorage.getItem(AUTOMIX_SRC_KEY) || "{}"); return v && typeof v === "object" ? v as Record<string, string[]> : {}; } catch { return {}; }
+}
 export function buildAutoMixBank(): Bank {
   const pool = Object.values(getAllPresets());
   const out = {} as Bank;
+  const sources: Record<string, string[]> = {};
   for (const k of BANK_KEYS) {
     const src = pick(pool);
     out[k] = Array.isArray(src.bank[k]) ? src.bank[k].slice() : [];
+    (sources[src.id] ||= []).push(k);
   }
+  try { localStorage.setItem(AUTOMIX_SRC_KEY, JSON.stringify(sources)); } catch { /* voll */ }
   return normalizeBankShape(out);
 }
 
