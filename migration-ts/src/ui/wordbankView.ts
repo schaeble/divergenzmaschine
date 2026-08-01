@@ -103,30 +103,19 @@ export function mountWordbank(root: HTMLElement): void {
   });
   updDelPreset();
 
-  const listSel = select("wb-list", CATS.map(([v, l]) => [v, l] as [string, string]), "motifs");
-  const editor = el("textarea", { id: "wb-editor", style: "height:220px", placeholder: "Ein Eintrag pro Zeile" });
+
   const info = el("p", { class: "muted" }, "");
 
   let renderFull: () => void = () => {};
   const load = (): void => {
     const bank = loadBank();
-    editor.value = (bank[listSel.value as BankKey] || []).join("\n");
     info.textContent = `${bankEntryCount(bank)} Einträge gesamt`;
     // Voll-Felder werden NICHT hier befüllt, um in Arbeit befindliche Bearbeitungen
     // nicht zu überschreiben; das geschieht beim Öffnen des Bereichs (toggle) und
     // nach „Alle übernehmen"/Import.
     if (fullBox.open) renderFull();
   };
-  listSel.addEventListener("change", load);
-
-  const saveBtn = button("Speichern");
-  saveBtn.addEventListener("click", () => {
-    const bank = loadBank();
-    bank[listSel.value as BankKey] = editor.value.split("\n").map((s) => s.trim()).filter(Boolean);
-    saveBank(bank); load();
-  });
-
-  const autoMixBtn = el("button", {}, icon("dice"), " Würfeln");
+  const autoMixBtn = el("button", {}, icon("dice"), " Auto-Mix würfeln");
   autoMixBtn.title = "Pro Kategorie ein zufälliges Preset neu zusammenwürfeln";
   autoMixBtn.addEventListener("click", () => { saveBank(buildAutoMixBank()); saveActiveBankLabel("Auto-Mix"); preset.value = AUTOMIX_ID; load(); });
 
@@ -289,7 +278,7 @@ export function mountWordbank(root: HTMLElement): void {
     el("div", { class: "btnrow" }, apply2Btn, p2fInfo));
   refresh2 = render2;
 
-  const fullBox = el("details", { class: "fine" });
+  const fullBox = el("details", { class: "fine", open: "" });
   fullBox.addEventListener("toggle", () => { if (fullBox.open) { renderFull(); render2(); } });
   fullBox.append(
     el("summary", {}, icon("floppy"), " Preset bearbeiten und sichern"),
@@ -417,10 +406,8 @@ export function mountWordbank(root: HTMLElement): void {
     el("div", { class: "btnrow" }, wizardBtn, offlineBtn, archiveBtn),
     field("Preset", preset),
     el("div", { class: "btnrow" }, delPresetBtn, renamePresetBtn),
-    field("Liste", listSel),
-    editor,
     rulesBox,
-    el("div", { class: "btnrow" }, saveBtn, mutBtn, mutSlider, " ", mutVal, resetBtn),
+    el("div", { class: "btnrow" }, mutBtn, mutSlider, " ", mutVal, resetBtn),
     el("div", { class: "btnrow" }, autoMixBtn, fillBtn, saveAs),
     info,
     applyParamsRow,
@@ -430,4 +417,5 @@ export function mountWordbank(root: HTMLElement): void {
   );
   root.append(wrap);
   load();
+  refresh2(); // 2.0-Felder initial füllen — die Box ist jetzt standardmäßig offen
 }
