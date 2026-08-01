@@ -362,3 +362,4 @@ input[type=range].wgt:hover{opacity:1}
 .off-groupname:hover{color:var(--acc)}
 .mpitem.mixsrc{background:color-mix(in srgb, var(--acc) 16%, transparent);border-radius:6px;padding:1px 6px 1px 2px;box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--acc) 35%, transparent)}
 .mixsrc-badge{margin-left:auto;font:600 10px var(--sans);color:var(--on-acc);background:var(--acc);border-radius:999px;padding:1px 6px}
+.ctxhint{display:block;font:11px var(--sans);color:var(--muted);margin-top:2px;min-height:13px}

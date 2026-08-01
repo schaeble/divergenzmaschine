@@ -11,6 +11,7 @@ import { buildModelFromCorpus, savePersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
 import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
+import { normWhere, normWhen, normWho } from "../generation/ctxnorm";
 import { el, select, field, textInput, button } from "./dom";
 import { icon } from "./icons";
 import { openReader } from "./reader";
@@ -67,7 +68,7 @@ export function mountStudio(root: HTMLElement): void {
     el("div", { class: "field" }, el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sel)), sel);
 
   const ctxDice = el("button", {}, icon("dice"), " Kontext würfeln");
-  ctxDice.addEventListener("click", () => { const c = randomContext(); if (!locked.has(where.id)) where.value = c.where; if (!locked.has(when.id)) when.value = c.when; if (!locked.has(who.id)) who.value = c.who; if (!locked.has(what.id)) what.value = c.what; });
+  ctxDice.addEventListener("click", () => { const c = randomContext(); if (!locked.has(where.id)) where.value = c.where; if (!locked.has(when.id)) when.value = c.when; if (!locked.has(who.id)) who.value = c.who; if (!locked.has(what.id)) what.value = c.what; updHints(); });
   const ctxKeep = el("button", { class: "toggle" }, icon("pin"), " Kontext merken");
   const CTX_KEY = "divergenz_ctx_v1";
   ctxKeep.title = "Wo/Wann/Wer/Was sichern und bei jedem Start laden";
@@ -80,12 +81,25 @@ export function mountStudio(root: HTMLElement): void {
   // Stärke-Regler (experimentell, nur Prosa): je 4W-Feld direkt darunter.
   const mkWeight = (id: string): HTMLInputElement => el("input", { id, class: "wgt", type: "range", min: "0", max: "3", step: "1", value: "0", title: "Stärke — mehr über dieses Feld" }) as HTMLInputElement;
   const wWo = mkWeight("f-w-wo"), wWann = mkWeight("f-w-wann"), wWer = mkWeight("f-w-wer"), wWas = mkWeight("f-w-was");
-  const field4w = (label: string, inp: HTMLInputElement, weight: HTMLInputElement): HTMLElement =>
+  // Live-Hinweis: zeigt, wie die Engine den Wert grammatisch einsetzt („→ im Hafen“)
+  const hintWo = el("span", { class: "ctxhint" });
+  const hintWann = el("span", { class: "ctxhint" });
+  const hintWer = el("span", { class: "ctxhint" });
+  const updHints = (): void => {
+    const h = (inp: HTMLInputElement, fn: (v: string) => string, out: HTMLElement): void => {
+      const v = inp.value.trim(); const n = v ? fn(v) : "";
+      out.textContent = v && n && n !== v ? "→ " + n : "";
+    };
+    h(where, normWhere, hintWo); h(when, normWhen, hintWann); h(who, normWho, hintWer);
+  };
+  [where, when, who].forEach((i) => i.addEventListener("input", updHints));
+  const field4w = (label: string, inp: HTMLInputElement, weight: HTMLInputElement, hint?: HTMLElement): HTMLElement =>
     el("label", { class: "field" },
       el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(inp)),
-      el("div", { class: "field4w" }, clearable(inp), weight));
+      el("div", { class: "field4w" }, clearable(inp), weight),
+      ...(hint ? [hint] : []));
   wrap.append(el("div", { class: "grid2" },
-    field4w("Wo?", where, wWo), field4w("Wann?", when, wWann), field4w("Wer?", who, wWer), field4w("Was passiert?", what, wWas)),
+    field4w("Wo?", where, wWo, hintWo), field4w("Wann?", when, wWann, hintWann), field4w("Wer?", who, wWer, hintWer), field4w("Was passiert?", what, wWas)),
     el("div", { class: "btnrow" }, ctxDice, ctxKeep));
 
   const preset = select("f-preset", markedPresetOptions());
@@ -132,6 +146,7 @@ export function mountStudio(root: HTMLElement): void {
     multiIds = []; saveMulti();
     preset.value = AUTOMIX_ID; preset.dispatchEvent(new Event("change"));
     renderPresetChecks();
+  updHints();
   });
   const renderPresetChecks = (): void => {
     presetList.innerHTML = "";
@@ -724,6 +739,7 @@ export function mountStudio(root: HTMLElement): void {
   // Mehrfach-Preset-Auswahl nach Neustart wiederherstellen (Merge-Bank + Dropdown-Zustand)
   if (multiIds.length >= 2) { ensureMultiOption(); preset.value = MULTI_ID; applyMulti(); }
   renderPresetChecks();
+  updHints();
   let pendingText = "";
   try { pendingText = localStorage.getItem("dm_pending_text") || ""; localStorage.removeItem("dm_pending_text"); } catch { /* ignore */ }
   if (pendingText.trim()) {

@@ -2,6 +2,7 @@
 import type { Bank, GenInput, StoryKit } from "../types";
 import { MODE_DATA } from "../modes.data";
 import { pick, pickSane, clean, chance } from "../text-utils";
+import { normWhere, normWhen, normWho } from "./ctxnorm";
 import { makeDialogueScene, pickSpeakerForArchetype } from "./dialogue";
 import { postProcessText } from "./postprocess";
 import { pickStructureBuilder } from "./structures";
@@ -45,9 +46,9 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
   // ton-typischen Rhythmus (nüchtern -> klar, poetisch -> Atem, düster -> Fraktur …).
   if (input.rhythm === "auto") { const tr = toneRhythm(input.tone); if (tr && RHYTHMS.includes(tr) && chance(0.7)) rhythm = tr; }
 
-  const W = clean(input.where) || "an einem Ort";
-  const T = clean(input.when) || "zu einer Zeit";
-  const PRaw = clean(input.who) || "Jemand";
+  const W = normWhere(clean(input.where)) || "an einem Ort";
+  const T = normWhen(clean(input.when)) || "zu einer Zeit";
+  const PRaw = normWho(clean(input.who)) || "Jemand";
   const speakers = splitSpeakers(PRaw);
   const P = speakers[0] || PRaw;
   const A = clean(input.what) || "etwas";
