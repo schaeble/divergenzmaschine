@@ -27,6 +27,7 @@ import { mountWorld } from "./worldView";
 import { mountOscilloscope } from "./oscilloscopeView";
 import { mountWorkshop } from "./workshopView";
 import { mountMontage } from "./montageView";
+import { mountDiagnose } from "./diagnoseView";
 import { mountHelp } from "./helpView";
 
 const TABS: [string, (root: HTMLElement) => void][] = [
@@ -39,6 +40,7 @@ const TABS: [string, (root: HTMLElement) => void][] = [
   ["Schatzkammer", mountTreasury],
   ["Montage", mountMontage],
   ["Werkstatt", mountWorkshop],
+  ["Diagnose", mountDiagnose],
   ["Hilfe", mountHelp],
 ];
 
