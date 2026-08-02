@@ -10,7 +10,7 @@ import { openPresetWizard } from "./presetWizard";
 import { openArchive } from "./archiveView";
 import { preset2ToBank, preset2Name, preset2Active, builtinSettings, generateAiPreset2, setActive2, getActive2, saveUserPreset2, saveUserPresets2All, getUserPreset2, deleteUserPreset2, loadUserPresets2, type Active2 } from "../features/preset2";
 import { setDramaData } from "../generation/dramaturgie";
-import { isPastTense } from "../generation/coherence";
+import { isPastTense, toPresent } from "../generation/coherence";
 import { bankFromCorpus } from "../features/corpusbank";
 import { icon } from "./icons";
 import { loadAiKey } from "../features/ki";
@@ -196,6 +196,26 @@ export function mountWordbank(root: HTMLElement): void {
     fullGrid.append(el("div", { class: "field" }, el("span", { class: "field-label" }, label), t, hint));
   }
   renderFull = (): void => { const bank = loadBank(); for (const [key] of CATS) if (fullAreas[key]) { fullAreas[key]!.value = (bank[key as BankKey] || []).join("\n"); updTenseHint(key); } };
+  // Offline-Konverter: wandelt eindeutige Präteritum-Formen in Präsens; unsichere bleiben stehen.
+  const tenseFixBtn = button("Präteritum → Präsens");
+  tenseFixBtn.title = "Wandelt eindeutige Vergangenheitsformen in Präsens. Unsichere Fälle bleiben unverändert und werden weiter markiert.";
+  tenseFixBtn.addEventListener("click", () => {
+    let changed = 0, kept = 0;
+    for (const [key] of CATS) {
+      const ta = fullAreas[key]; if (!ta) continue;
+      const lines = ta.value.split("\n");
+      const out = lines.map((line) => {
+        if (!line.trim() || !isPastTense(line)) return line;
+        const r = toPresent(line);
+        if (r.changed) { changed++; return r.text; }
+        kept++; return line;
+      });
+      ta.value = out.join("\n"); updTenseHint(key);
+    }
+    fullInfo.textContent = changed || kept
+      ? `${changed} Eintrag/Einträge ins Präsens gesetzt${kept ? `, ${kept} unsicher gelassen (bitte selbst prüfen)` : ""}. Noch nicht gespeichert — „Alle übernehmen“ klicken.`
+      : "Keine eindeutigen Präteritum-Formen gefunden.";
+  });
   const applyAllBtn = button("Alle übernehmen");
   applyAllBtn.addEventListener("click", () => {
     const bank = loadBank();
@@ -295,7 +315,7 @@ export function mountWordbank(root: HTMLElement): void {
     el("summary", {}, icon("floppy"), " Preset bearbeiten und sichern"),
     el("p", { class: "muted" }, "Alle Kategorien direkt bearbeiten. „Alle übernehmen“ speichert in die aktive Wortbank; „Speichern unter“ schreibt sie als JSON-Datei; „Aus Datei laden“ liest eine gespeicherte Wortbank (oder ein Projekt) wieder ein."),
     fullGrid,
-    el("div", { class: "btnrow" }, applyAllBtn, saveAsFileBtn, loadFileBtn, fileIn),
+    el("div", { class: "btnrow" }, applyAllBtn, tenseFixBtn, saveAsFileBtn, loadFileBtn, fileIn),
     p2Wrap,
     fullInfo);
 

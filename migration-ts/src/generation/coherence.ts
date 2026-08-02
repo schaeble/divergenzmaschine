@@ -8,13 +8,16 @@ import { NOUN_GENDER } from "./nouns.data";
 // ── 1) Tempus ────────────────────────────────────────────────────────
 // Präteritum-Marker: starke Formen + schwache -te/-ten-Endungen.
 const PRAET_STRONG = /\b(war|waren|warst|hatte|hatten|wurde|wurden|ging|gingen|kam|kamen|sah|sahen|gab|gaben|stand|standen|blieb|blieben|hielt|hielten|ließ|ließen|fand|fanden|nahm|nahmen|sprach|sprachen|schrieb|schrieben|trug|trugen|fuhr|fuhren|lief|liefen|saß|saßen|lag|lagen|hieß|hießen|zog|zogen|schlief|schliefen|rief|riefen|fiel|fielen|sang|sangen|trank|tranken|schwieg|schwiegen|floss|flossen|stieg|stiegen|sank|sanken|bot|boten|schloss|schlossen|verlor|verloren|begann|begannen|geschah|geschahen|konnte|konnten|musste|mussten|wollte|wollten|sollte|sollten|durfte|durften|wusste|wussten|dachte|dachten|brachte|brachten)\b/i;
-const PRAET_WEAK = /\b[a-zäöüß]{3,}(te|ten|test|tet)\b/i;
+const PRAET_WEAK = /\b[a-zäöüß]{3,}(te|ten|test|tet)\b/;   // bewusst OHNE /i: Nomen (Seekarte, Karten) sind großgeschrieben
 const PRAES_MARK = /\b(ist|sind|bin|bist|seid|hat|habe|hast|haben|habt|wird|werden|wirst|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|weiß|wissen|geht|gehen|kommt|kommen|sieht|sehen|steht|stehen|bleibt|bleiben|liegt|liegen|gibt|geben|nimmt|nehmen|spricht|sprechen|trägt|tragen|läuft|laufen|fällt|fallen|geschieht|passiert|beginnt|endet)\b/i;
 
 /** Steht dieser einzelne Eintrag/Satz im Präteritum? (für Wortbank-Prüfung) */
 export function isPastTense(s: string): boolean {
   const t = s || "";
-  return (PRAET_STRONG.test(t) || PRAET_WEAK.test(t)) && !PRAES_MARK.test(t);
+  if (PRAES_MARK.test(t)) return false;
+  if (PRAET_STRONG.test(t) || PRAET_WEAK.test(t)) return true;
+  // Auch die Verben der Konverter-Tabelle erkennen (hält Warnung und Umschreibung synchron)
+  return (t.toLowerCase().match(/[a-zäöüß]+/g) || []).some((w) => !!PAST2PRES[w]);
 }
 
 /** Anteil der Sätze, die von der vorherrschenden Zeitform abweichen (0 = einheitlich). */
@@ -100,4 +103,91 @@ export function castSpread(text: string, expected: string[] = []): number {
   const names = properNames(text).filter((n) => !known.has(n.toLowerCase()));
   const sents = Math.max(1, splitSentences(text).length);
   return Math.min(1, names.length / Math.max(4, sents * 0.5));
+}
+
+// ── Präteritum → Präsens (nur eindeutige Fälle) ──────────────────────
+// Starke/unregelmäßige Verben als Tabelle (3. Person Singular Präsens).
+// Was hier nicht sicher abbildbar ist, bleibt unangetastet und wird markiert.
+const PAST2PRES: Record<string, string> = {
+  war: "ist", waren: "sind", warst: "bist", hatte: "hat", hatten: "haben", hattest: "hast",
+  wurde: "wird", wurden: "werden", ging: "geht", gingen: "gehen", kam: "kommt", kamen: "kommen",
+  sah: "sieht", sahen: "sehen", gab: "gibt", gaben: "geben", stand: "steht", standen: "stehen",
+  blieb: "bleibt", blieben: "bleiben", hielt: "hält", hielten: "halten", ließ: "lässt", ließen: "lassen",
+  fand: "findet", fanden: "finden", nahm: "nimmt", nahmen: "nehmen", sprach: "spricht", sprachen: "sprechen",
+  schrieb: "schreibt", schrieben: "schreiben", trug: "trägt", trugen: "tragen", fuhr: "fährt", fuhren: "fahren",
+  lief: "läuft", liefen: "laufen", saß: "sitzt", saßen: "sitzen", lag: "liegt", lagen: "liegen",
+  hieß: "heißt", hießen: "heißen", zog: "zieht", zogen: "ziehen", schlief: "schläft", schliefen: "schlafen",
+  rief: "ruft", riefen: "rufen", fiel: "fällt", fielen: "fallen", sang: "singt", sangen: "singen",
+  trank: "trinkt", tranken: "trinken", schwieg: "schweigt", schwiegen: "schweigen", floss: "fließt", flossen: "fließen",
+  stieg: "steigt", stiegen: "steigen", sank: "sinkt", sanken: "sinken", bot: "bietet", boten: "bieten",
+  schloss: "schließt", schlossen: "schließen", verlor: "verliert", verloren: "verlieren",
+  begann: "beginnt", begannen: "beginnen", geschah: "geschieht", geschahen: "geschehen",
+  konnte: "kann", konnten: "können", musste: "muss", mussten: "müssen", wollte: "will", wollten: "wollen",
+  sollte: "soll", sollten: "sollen", durfte: "darf", durften: "dürfen", wusste: "weiß", wussten: "wissen",
+  dachte: "denkt", dachten: "denken", brachte: "bringt", brachten: "bringen", kannte: "kennt", kannten: "kennen",
+  erkannte: "erkennt", erkannten: "erkennen", brannte: "brennt", brannten: "brennen", nannte: "nennt", nannten: "nennen",
+  rannte: "rennt", rannten: "rennen", wandte: "wendet", wandten: "wenden", sprang: "springt", sprangen: "springen",
+  schrie: "schreit", schrien: "schreien", flog: "fliegt", flogen: "fliegen", floh: "flieht", flohen: "fliehen",
+  schoss: "schießt", schossen: "schießen", riss: "reißt", rissen: "reißen", biss: "beißt", bissen: "beißen",
+  griff: "greift", griffen: "greifen", pfiff: "pfeift", pfiffen: "pfeifen", schnitt: "schneidet", schnitten: "schneiden",
+  litt: "leidet", litten: "leiden", trat: "tritt", traten: "treten", vergaß: "vergisst", vergaßen: "vergessen",
+  wuchs: "wächst", wuchsen: "wachsen", wich: "weicht", wichen: "weichen", schien: "scheint", schienen: "scheinen",
+  zerbrach: "zerbricht", zerbrachen: "zerbrechen", verschwand: "verschwindet", verschwanden: "verschwinden",
+  erschien: "erscheint", erschienen: "erscheinen", starb: "stirbt", starben: "sterben",
+  brach: "bricht", brachen: "brechen", sprach2: "spricht", schwoll: "schwillt", schwollen: "schwellen",
+  bog: "biegt", bogen: "biegen", hob: "hebt", hoben: "heben", wob: "webt", woben: "weben",
+  klang: "klingt", klangen: "klingen", sann: "sinnt", sannen: "sinnen", rann: "rinnt", rannen: "rinnen",
+  schwamm: "schwimmt", schwammen: "schwimmen", verschwieg: "verschweigt", zerfiel: "zerfällt", zerfielen: "zerfallen",
+  entstand: "entsteht", entstanden: "entstehen", verstand: "versteht", verstanden: "verstehen",
+  bestand: "besteht", bestanden: "bestehen", geriet: "gerät", gerieten: "geraten",
+  trieb: "treibt", trieben: "treiben", schrak: "schrickt", wies: "weist", wiesen: "weisen",
+  hing: "hängt", hingen: "hängen", schwand: "schwindet", schwanden: "schwinden",
+  gewann: "gewinnt", gewannen: "gewinnen", zerriss: "zerreißt", zerrissen2: "zerreißen",
+  empfand: "empfindet", empfanden: "empfinden", befahl: "befiehlt", befahlen: "befehlen",
+  half: "hilft", halfen: "helfen", warf: "wirft", warfen: "werfen", starrte2: "starrt",
+  las: "liest", lasen: "lesen", aß: "isst", aßen: "essen", bat: "bittet", baten: "bitten",
+};
+// Personenabhängige Formen: nach Pronomen muss die Person stimmen.
+const PERSON_FORMS: Record<string, Record<string, string>> = {
+  war:   { ich: "bin", du: "bist", wir: "sind", ihr: "seid", sie: "ist", er: "ist", es: "ist" },
+  waren: { wir: "sind", sie: "sind", ihr: "seid" },
+  hatte: { ich: "habe", du: "hast", wir: "haben", ihr: "habt", sie: "hat", er: "hat", es: "hat" },
+  hatten:{ wir: "haben", sie: "haben", ihr: "habt" },
+  wurde: { ich: "werde", du: "wirst", wir: "werden", sie: "wird", er: "wird", es: "wird" },
+  konnte:{ ich: "kann", du: "kannst", wir: "können", sie: "kann", er: "kann", es: "kann" },
+  musste:{ ich: "muss", du: "musst", wir: "müssen", sie: "muss", er: "muss", es: "muss" },
+  wollte:{ ich: "will", du: "willst", wir: "wollen", sie: "will", er: "will", es: "will" },
+  sollte:{ ich: "soll", du: "sollst", wir: "sollen", sie: "soll", er: "soll", es: "soll" },
+  wusste:{ ich: "weiß", du: "weißt", wir: "wissen", sie: "weiß", er: "weiß", es: "weiß" },
+};
+
+export interface TenseFix { text: string; changed: boolean; unsure: string[]; }
+/** Wandelt NUR eindeutige, unregelmäßige Präteritum-Formen ins Präsens (Tabelle
+ *  + Personenabgleich). Schwache Formen auf -te/-ten bleiben bewusst unangetastet:
+ *  Sie sind ohne Wortartenerkennung nicht von Adjektiven („violette“) oder Nomen
+ *  („Karten“) zu unterscheiden. Solche Fälle werden in `unsure` gemeldet. */
+export function toPresent(entry: string): TenseFix {
+  const unsure: string[] = [];
+  let changed = false;
+  const words = (entry || "").split(/(\s+)/);
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i]!;
+    if (!/^[A-Za-zÄÖÜäöüß]+$/.test(w)) continue;
+    const low = w.toLowerCase();
+    const base = PAST2PRES[low];
+    if (base) {
+      // Person aus dem vorangehenden Wort ableiten (z. B. „Ich war“ → „Ich bin“)
+      const prev = (words.slice(0, i).reverse().find((x) => /^[A-Za-zÄÖÜäöüß]+$/.test(x)) || "").toLowerCase();
+      const pf = PERSON_FORMS[low];
+      let form = base;                       // Tabellenform = 3. Person Singular
+      if (pf && pf[prev]) form = pf[prev]!;
+      else if (/^(ich|du|wir|ihr)$/.test(prev)) { unsure.push(w); continue; } // Person unklar → nicht raten
+      words[i] = /^[A-ZÄÖÜ]/.test(w) ? form.charAt(0).toUpperCase() + form.slice(1) : form;
+      changed = true;
+      continue;
+    }
+    // Schwache Form? Nur melden, nicht anfassen.
+    if (/^[a-zäöüß]{4,}(te|ete)$/.test(low)) unsure.push(w);
+  }
+  return { text: words.join(""), changed, unsure };
 }
