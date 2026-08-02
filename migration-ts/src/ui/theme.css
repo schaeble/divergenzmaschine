@@ -393,3 +393,4 @@ input[type=range].wgt:hover{opacity:1}
 .diag-card.sporadic .diag-dot.on{background:#d7a531}
 .diag-card.dead .diag-dot.on{background:var(--danger)}
 .diag-note{line-height:1.4}
+.tensewarn{color:#d7a531;line-height:1.4;margin-top:2px}

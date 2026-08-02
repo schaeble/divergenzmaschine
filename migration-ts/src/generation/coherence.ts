@@ -11,6 +11,12 @@ const PRAET_STRONG = /\b(war|waren|warst|hatte|hatten|wurde|wurden|ging|gingen|k
 const PRAET_WEAK = /\b[a-zäöüß]{3,}(te|ten|test|tet)\b/i;
 const PRAES_MARK = /\b(ist|sind|bin|bist|seid|hat|habe|hast|haben|habt|wird|werden|wirst|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|weiß|wissen|geht|gehen|kommt|kommen|sieht|sehen|steht|stehen|bleibt|bleiben|liegt|liegen|gibt|geben|nimmt|nehmen|spricht|sprechen|trägt|tragen|läuft|laufen|fällt|fallen|geschieht|passiert|beginnt|endet)\b/i;
 
+/** Steht dieser einzelne Eintrag/Satz im Präteritum? (für Wortbank-Prüfung) */
+export function isPastTense(s: string): boolean {
+  const t = s || "";
+  return (PRAET_STRONG.test(t) || PRAET_WEAK.test(t)) && !PRAES_MARK.test(t);
+}
+
 /** Anteil der Sätze, die von der vorherrschenden Zeitform abweichen (0 = einheitlich). */
 export function tenseBreakRatio(text: string): number {
   const sents = splitSentences(text).filter((s) => s.trim().length > 3);

@@ -86,7 +86,7 @@ export async function generateAiPreset2(inspiration: string, seed?: string): Pro
 
 function buildPreset2Prompt(inspiration: string, seed?: string): string {
   const seedPart = seed
-    ? "Hier ist ein BESTEHENDES Preset/Material zum selben Thema. Verbessere und erweitere es: Thema beibehalten und schaerfen, Grammatik korrigieren, bei Requisiten/Motiven Artikel ergaenzen, fehlende Felder (dramaturgie, transformation, konflikte, zeitanomalien, regeln) ausfuellen, pro generatoren-Kategorie 8-12 Eintraege. Ausgangsmaterial:\n" + seed + "\n\n"
+    ? "Hier ist ein BESTEHENDES Preset/Material zum selben Thema. Verbessere und erweitere es: Thema beibehalten und schaerfen, Grammatik korrigieren, bei Requisiten/Motiven Artikel ergaenzen, ALLE satzartigen Eintraege ins PRAESENS setzen (Praeteritum-Formen wie \"erkannte\", \"war\", \"ging\" umschreiben zu \"erkennt\", \"ist\", \"geht\"), fehlende Felder (dramaturgie, transformation, konflikte, zeitanomalien, regeln) ausfuellen, pro generatoren-Kategorie 8-12 Eintraege. Ausgangsmaterial:\n" + seed + "\n\n"
     : "";
   return seedPart + 'Du erstellst ein "Preset 2.0" für einen prozeduralen, deutschsprachigen Kreativ-Textgenerator (Divergenzmaschine). '
     + "Inspiration/Ausgangspunkt: " + (inspiration || "(frei wählbar)") + ".\n\n"
@@ -117,7 +117,11 @@ function buildPreset2Prompt(inspiration: string, seed?: string): string {
     + '    "endings": ["5-6 Schlusssätze"]\n'
     + "  }\n"
     + "}\n\n"
-    + "Alles auf Deutsch, konkret und stimmig zur Inspiration. Der generatoren-Block UND der dramaturgie-/transformation-Block sind am wichtigsten und muessen vollstaendig gefuellt sein.";
+    + "Alles auf Deutsch, konkret und stimmig zur Inspiration. Der generatoren-Block UND der dramaturgie-/transformation-Block sind am wichtigsten und muessen vollstaendig gefuellt sein.\n\n"
+    + "ZEITFORM — WICHTIG: Die Engine baut ihre Saetze im Praesens. Alle satzartigen Eintraege "
+    + "(hooks, turns, obstacles, endings, veraenderungen, naturgesetze, regeln, dramaturgie-Phasen) MUESSEN im Praesens stehen "
+    + "(\"die Tuer bleibt verschlossen\", NICHT \"die Tuer blieb verschlossen\"). Nominalphrasen ohne Verb (motifs, props, stakes, "
+    + "zeitanomalien, konflikte) bleiben zeitlos. Kein Praeteritum, kein Perfekt.";
 }
 
 

@@ -10,6 +10,7 @@ import { openPresetWizard } from "./presetWizard";
 import { openArchive } from "./archiveView";
 import { preset2ToBank, preset2Name, preset2Active, builtinSettings, generateAiPreset2, setActive2, getActive2, saveUserPreset2, saveUserPresets2All, getUserPreset2, deleteUserPreset2, loadUserPresets2, type Active2 } from "../features/preset2";
 import { setDramaData } from "../generation/dramaturgie";
+import { isPastTense } from "../generation/coherence";
 import { bankFromCorpus } from "../features/corpusbank";
 import { icon } from "./icons";
 import { loadAiKey } from "../features/ki";
@@ -176,12 +177,25 @@ export function mountWordbank(root: HTMLElement): void {
   const fullInfo = el("p", { class: "muted" }, "");
   const fullAreas: Record<string, HTMLTextAreaElement> = {};
   const fullGrid = el("div", {});
+  // Tempus-Hinweis je Kategorie: Die Engine baut im Präsens — Präteritum-Einträge
+  // erzeugen Zeitebenen-Sprünge im fertigen Text.
+  const tenseHints: Record<string, HTMLElement> = {};
+  const updTenseHint = (key: string): void => {
+    const h = tenseHints[key]; const ta = fullAreas[key]; if (!h || !ta) return;
+    const past = ta.value.split("\n").map((x) => x.trim()).filter(Boolean).filter(isPastTense);
+    if (!past.length) { h.textContent = ""; h.className = "muted mini"; return; }
+    h.className = "muted mini tensewarn";
+    h.textContent = `⚠ ${past.length} Eintrag/Einträge im Präteritum — z. B. „${past[0]!.slice(0, 46)}“. Die Engine schreibt im Präsens.`;
+  };
   for (const [key, label] of CATS) {
     const t = el("textarea", { id: "wb-full-" + key, style: "height:88px", placeholder: "Ein Eintrag pro Zeile" }) as HTMLTextAreaElement;
     fullAreas[key] = t;
-    fullGrid.append(el("div", { class: "field" }, el("span", { class: "field-label" }, label), t));
+    const hint = el("div", { class: "muted mini" });
+    tenseHints[key] = hint;
+    t.addEventListener("input", () => updTenseHint(key));
+    fullGrid.append(el("div", { class: "field" }, el("span", { class: "field-label" }, label), t, hint));
   }
-  renderFull = (): void => { const bank = loadBank(); for (const [key] of CATS) if (fullAreas[key]) fullAreas[key]!.value = (bank[key as BankKey] || []).join("\n"); };
+  renderFull = (): void => { const bank = loadBank(); for (const [key] of CATS) if (fullAreas[key]) { fullAreas[key]!.value = (bank[key as BankKey] || []).join("\n"); updTenseHint(key); } };
   const applyAllBtn = button("Alle übernehmen");
   applyAllBtn.addEventListener("click", () => {
     const bank = loadBank();
@@ -327,7 +341,7 @@ export function mountWordbank(root: HTMLElement): void {
   const rulesBox = el("details", { class: "fine" });
   rulesBox.append(
     el("summary", {}, icon("settings"), " Regeln zum Befüllen"),
-    el("p", { class: "muted" }, "Ein Eintrag pro Zeile. Was die Engine automatisch macht: Satzanfänge großschreiben, Groß/Klein nach „und/oder/aber …“ anpassen, Requisiten deklinieren (Artikel klein). Was du selbst richtig setzen musst: deutsche Nomen großschreiben (die Engine erkennt keine Nomen)."),
+    el("p", { class: "muted" }, "Ein Eintrag pro Zeile. Was die Engine automatisch macht: Satzanfänge großschreiben, Groß/Klein nach „und/oder/aber …“ anpassen, Requisiten deklinieren (Artikel klein). Was du selbst richtig setzen musst: deutsche Nomen großschreiben (die Engine erkennt keine Nomen) und satzartige Einträge im PRÄSENS formulieren („die Tür bleibt verschlossen“, nicht „blieb“) — die Engine baut im Präsens, Präteritum erzeugt Zeitsprünge im Text."),
     (() => { const ul = el("ul", { class: "help-list" });
       ([
         ["Motive", "kurze, bildhafte Phrasen (3–8 Wörter), ohne Punkt am Ende, z. B. „ein leerer Bahnhof am Nachmittag“."],
