@@ -11,7 +11,7 @@ import { buildModelFromCorpus, savePersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
 import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
-import { normWhere, normWhen, normWho } from "../generation/ctxnorm";
+import { normWhere, normWhen, normWho, rateWhere, rateWhen, rateWho } from "../generation/ctxnorm";
 import { extractLeadVerb, looksLikeFullClause } from "../generation/wordcls";
 import { el, select, field, textInput, button } from "./dom";
 import { icon } from "./icons";
@@ -95,14 +95,22 @@ export function mountStudio(root: HTMLElement): void {
     h(where, normWhere, hintWo); h(when, normWhen, hintWann); h(who, normWho, hintWer);
     // Was: zeigt, WIE die Engine den Wert einwebt (Satz / Handlung / Vorhaben / Ereignis)
     const a = what.value.trim();
+    let wasScore = -1;
     if (!a) hintWas.textContent = "";
     else {
       const lead = extractLeadVerb(a);
-      if (lead.isInfinitiveLed) hintWas.textContent = "→ als Vorhaben eingewoben („will " + a + "“)";
-      else if (lead.verb) hintWas.textContent = "→ als Handlung eingewoben (Verb: " + lead.verb + ")";
-      else if (looksLikeFullClause(lead.verb, lead.rest)) hintWas.textContent = "→ als eigener Satz eingewoben";
-      else hintWas.textContent = "→ als Ereignis-Phrase eingewoben";
+      if (lead.isInfinitiveLed) { hintWas.textContent = "→ als Vorhaben eingewoben („will " + a + "“)"; wasScore = 0.9; }
+      else if (lead.verb) { hintWas.textContent = "→ als Handlung eingewoben (Verb: " + lead.verb + ")"; wasScore = 1; }
+      else if (looksLikeFullClause(lead.verb, lead.rest)) { hintWas.textContent = "→ als eigener Satz eingewoben"; wasScore = 1; }
+      else { hintWas.textContent = "→ als Ereignis-Phrase eingewoben"; wasScore = a.length >= 4 ? 0.7 : 0.4; }
     }
+    // Farbcode: Feldhintergrund rot→grün je nach Einsetzbarkeit
+    const tint = (inp: HTMLInputElement, score: number): void => {
+      if (score < 0) { inp.style.backgroundColor = ""; return; }
+      const hue = Math.round(120 * Math.max(0, Math.min(1, score)));
+      inp.style.backgroundColor = `hsl(${hue} 65% 42% / 0.20)`;
+    };
+    tint(where, rateWhere(where.value)); tint(when, rateWhen(when.value)); tint(who, rateWho(who.value)); tint(what, wasScore);
   };
   [where, when, who, what].forEach((i) => i.addEventListener("input", updHints));
   const field4w = (label: string, inp: HTMLInputElement, weight: HTMLInputElement, hint?: HTMLElement): HTMLElement =>

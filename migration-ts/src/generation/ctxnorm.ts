@@ -87,3 +87,32 @@ export function normWho(s: string): string {
   return fixed.join(", ");
 }
 export { low as lowerFirst };
+
+// ── Eingabe-Bewertung (0 = schlecht/rot … 1 = gut/grün; -1 = leer/keine Wertung) ──
+// Kriterium: Kann die Engine den Wert grammatisch sicher in die Schablonen einsetzen?
+export function rateWhere(s: string): number {
+  const t = (s || "").trim();
+  if (!t) return -1;
+  if (PREPS.test(t)) return 1;                 // fertige Ortsangabe
+  if (normWhere(t) !== t) return 0.8;          // Engine kann normalisieren
+  return 0.35;                                  // bleibt roh — Bruchgefahr
+}
+export function rateWhen(s: string): number {
+  const t = (s || "").trim();
+  if (!t) return -1;
+  if (PREPS.test(t) || TIME_ADV.test(t) || /\d+\s*uhr/i.test(t)) return 1;
+  if (normWhen(t) !== t) return 0.8;
+  return 0.35;
+}
+export function rateWho(s: string): number {
+  const t = (s || "").trim();
+  if (!t) return -1;
+  const parts = t.split(",").map((p) => p.trim()).filter(Boolean);
+  let sum = 0;
+  for (const p of parts) {
+    if (/^(der|die|das|ein|eine|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere)\s/i.test(p) || /^[A-ZÄÖÜ]/.test(p)) sum += 1;
+    else if (normWho(p) !== p) sum += 0.8;
+    else sum += 0.4;
+  }
+  return parts.length ? sum / parts.length : -1;
+}
