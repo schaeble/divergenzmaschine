@@ -254,6 +254,20 @@ export function mountStudio(root: HTMLElement): void {
   const fontRow = el("label", { class: "field lenrow fontrow" }, el("span", { class: "mlabel" }, "Schrift"), " ", fontSel, " ", el("span", { class: "mlabel" }, "Größe"), " ", sizeSlider, " ", sizeVal);
 
   const out = el("pre", { id: "f-out", class: "out" });
+  // Neue Variante per Pfeil (PC) oder Wischen links/rechts (Handy)
+  const mkGenArrow = (dir: "left" | "right"): HTMLButtonElement => {
+    const b = el("button", { class: "genarrow " + dir, type: "button", title: "Neue Variante generieren", "aria-label": "Neue Variante generieren" }, dir === "left" ? "‹" : "›") as HTMLButtonElement;
+    b.addEventListener("click", () => generate());
+    return b;
+  };
+  const outWrap = el("div", { class: "outwrap" }, mkGenArrow("left"), out, mkGenArrow("right"));
+  let swipeX = 0, swipeY = 0;
+  out.addEventListener("touchstart", (e) => { const t = e.touches[0]; if (t) { swipeX = t.clientX; swipeY = t.clientY; } }, { passive: true });
+  out.addEventListener("touchend", (e) => {
+    const t = e.changedTouches[0]; if (!t) return;
+    const dx = t.clientX - swipeX, dy = t.clientY - swipeY;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) generate();
+  }, { passive: true });
   const kling = el("div", { class: "kling" });
 
   // ── Einspeisungen färben: zeigt, welche Textteile aus welcher Quelle stammen ──
@@ -458,7 +472,7 @@ export function mountStudio(root: HTMLElement): void {
   const bestChk = el("input", { type: "checkbox", id: "f-best" }) as HTMLInputElement;
   bestChk.checked = true;
   const bestLbl = el("label", { class: "chk", title: "Erzeugt bei jedem Klick 12 Kandidaten und zeigt den bestbewerteten (Längentreue, Wortvielfalt, Rhythmus, wenig Wiederholung, Grammatik, Abstand zur Schatzkammer)." }, bestChk, " Bestenauslese");
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl), out, feedsRow, kling);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl), outWrap, feedsRow, kling);
 
   // ── Test & Ranking ──
   let lastRanking: Ranking | null = null;
