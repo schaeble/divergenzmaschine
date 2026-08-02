@@ -364,8 +364,8 @@ input[type=range].wgt:hover{opacity:1}
 .mixsrc-badge{margin-left:auto;font:600 10px var(--sans);color:var(--on-acc);background:var(--acc);border-radius:999px;padding:1px 6px}
 .ctxhint{display:block;font:11px var(--sans);color:var(--muted);margin-top:2px;min-height:13px}
 .outwrap{position:relative}
-.genarrow{position:absolute;top:50%;transform:translateY(-50%);z-index:5;width:32px;height:58px;display:flex;align-items:center;justify-content:center;font-size:26px;line-height:1;color:var(--muted);background:color-mix(in srgb, var(--panel) 78%, transparent);border:1px solid var(--border2);border-radius:10px;cursor:pointer;opacity:.45;transition:opacity .15s,border-color .15s;padding:0}
+.genarrow{position:absolute;top:56px;z-index:5;width:32px;height:58px;display:flex;align-items:center;justify-content:center;font-size:26px;line-height:1;color:var(--muted);background:color-mix(in srgb, var(--panel) 78%, transparent);border:1px solid var(--border2);border-radius:10px;cursor:pointer;opacity:.45;transition:opacity .15s,border-color .15s;padding:0}
 .genarrow:hover{opacity:1;color:var(--text);border-color:var(--acc)}
 .genarrow.left{left:6px}
 .genarrow.right{right:6px}
-@media (hover: none){.genarrow{display:none}}
+.outwrap .out{min-height:150px}
