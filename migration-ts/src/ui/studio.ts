@@ -159,6 +159,7 @@ export function mountStudio(root: HTMLElement): void {
     preset.value = AUTOMIX_ID; preset.dispatchEvent(new Event("change"));
     renderPresetChecks();
   updHints();
+  requestAnimationFrame(positionArrows);
   });
   const renderPresetChecks = (): void => {
     presetList.innerHTML = "";
@@ -255,12 +256,28 @@ export function mountStudio(root: HTMLElement): void {
 
   const out = el("pre", { id: "f-out", class: "out" });
   // Neue Variante per Pfeil (PC) oder Wischen links/rechts (Handy)
+  const genArrows: HTMLButtonElement[] = [];
   const mkGenArrow = (dir: "left" | "right"): HTMLButtonElement => {
     const b = el("button", { class: "genarrow " + dir, type: "button", title: "Neue Variante generieren", "aria-label": "Neue Variante generieren" }, dir === "left" ? "‹" : "›") as HTMLButtonElement;
-    b.addEventListener("click", () => generate());
+    // pointerdown statt click: löst sofort aus, auch wenn sich das Layout danach ändert
+    b.addEventListener("pointerdown", (e) => { e.preventDefault(); generate(); });
+    genArrows.push(b);
     return b;
   };
   const outWrap = el("div", { class: "outwrap" }, mkGenArrow("left"), out, mkGenArrow("right"));
+  // Pfeile mittig im SICHTBAREN Ausschnitt des Textfensters halten — unabhängig
+  // von der Inhaltshöhe (kein Springen beim Generieren).
+  const positionArrows = (): void => {
+    const r = outWrap.getBoundingClientRect();
+    if (r.height <= 0) return;
+    const visTop = Math.max(r.top, 0);
+    const visBot = Math.min(r.bottom, window.innerHeight);
+    let center = (visTop + visBot) / 2 - r.top;
+    center = Math.max(40, Math.min(r.height - 40, center));
+    for (const a of genArrows) a.style.top = center + "px";
+  };
+  window.addEventListener("scroll", positionArrows, { passive: true });
+  window.addEventListener("resize", positionArrows);
   let swipeX = 0, swipeY = 0;
   out.addEventListener("touchstart", (e) => { const t = e.touches[0]; if (t) { swipeX = t.clientX; swipeY = t.clientY; } }, { passive: true });
   out.addEventListener("touchend", (e) => {
@@ -691,6 +708,7 @@ export function mountStudio(root: HTMLElement): void {
       worldLogGeneration(input);
       refreshFeeds();
       clearUndo();
+      requestAnimationFrame(positionArrows);
     } catch (e) { out.textContent = "Fehler: " + (e instanceof Error ? e.message : String(e)); }
   };
   genBtn.addEventListener("click", generate);
@@ -766,6 +784,7 @@ export function mountStudio(root: HTMLElement): void {
   if (multiIds.length >= 2) { ensureMultiOption(); preset.value = MULTI_ID; applyMulti(); }
   renderPresetChecks();
   updHints();
+  requestAnimationFrame(positionArrows);
   let pendingText = "";
   try { pendingText = localStorage.getItem("dm_pending_text") || ""; localStorage.removeItem("dm_pending_text"); } catch { /* ignore */ }
   if (pendingText.trim()) {
