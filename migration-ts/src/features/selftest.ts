@@ -10,6 +10,7 @@ import { liveTexts } from "./livepools";
 import { hasDramaData } from "../generation/dramaturgie";
 import { loadBank } from "../storage";
 import { splitSentences } from "../text-utils";
+import { tenseBreakRatio, phraseRepeatRatio, castSpread } from "../generation/coherence";
 
 export type Verdict = "ok" | "sporadic" | "dead" | "skipped";
 export interface FeatureResult { id: string; label: string; group: string; runs: boolean[]; verdict: Verdict; note: string; }
@@ -112,6 +113,12 @@ export function runSelfTest(onStep?: (done: number, total: number, label: string
     // ── Steuerung ──
     { id: "textlaenge", label: "Textlänge", group: "Steuerung", note: "Zielwortzahl wird angesteuert",
       probe: () => { const k = words(gen({ lenTarget: 60 }, bank)), l = words(gen({ lenTarget: 260 }, bank)); return l > k + 40; } },
+    { id: "tempus", label: "Tempus-Wächter", group: "Kohärenz", note: "erkennt Zeitebenen-Sprünge (wirkt in der Bestenauslese)",
+      probe: () => tenseBreakRatio("Der Hafen lag still. Ein Mann ging über den Steg. Die Kornkammern sind leer. Man erkannte nichts. Die Uhr tickt weiter.") > tenseBreakRatio("Der Hafen lag still. Ein Mann ging über den Steg. Die Möwen kreisten hoch. Später wurde es dunkel. Niemand kam zurück.") },
+    { id: "phrasen", label: "Phrasen-Wiederholung", group: "Kohärenz", note: "erkennt wiederkehrende Versatzstücke (3-/4-Gramme)",
+      probe: () => phraseRepeatRatio("Der Steg bricht unter ihrem Schritt. Es riecht wie Ruß auf Gold. Der Steg bricht unter ihrem Schritt. Es riecht wie Ruß auf Gold.") > 0.1 },
+    { id: "figuren", label: "Figurendisziplin", group: "Kohärenz", note: "erkennt neu eingeführte Eigennamen",
+      probe: () => castSpread("Baucis wartet am Fenster. Zar Peter unterschreibt den Erlass. Ludwig zögert im Saal. Philemon schweigt.", ["Baucis"]) > castSpread("Baucis wartet am Fenster. Baucis zählt die Stunden. Baucis schweigt.", ["Baucis"]) },
     { id: "emphasis", label: "4W-Stärke", group: "Steuerung", note: "Gewichtete Zusatzsätze erscheinen im Text (Gesamtlänge bleibt stabil)",
       probe: () => EMPH_MARK.test(gen({ emphasis: { wo: 3, wann: 3, wer: 3, was: 3 } }, bank)) },
   ];

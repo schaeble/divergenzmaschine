@@ -204,6 +204,7 @@ export function mountStudio(root: HTMLElement): void {
   const persp = select("f-persp", [["auto", "Auto"], ["third", "Er/Sie"], ["first", "Ich"], ["second", "Du"], ["we", "Wir"], ["object", "Objekt"]], "auto");
   const rhythm = select("f-rhythm", [["auto", "Auto"], ["breath", "Atem"], ["staccato", "Staccato"], ["long", "Lange Bögen"], ["fracture", "Fraktur"], ["clean", "Klar"]], "auto");
   const tension = select("f-tension", [["off", "Aus"], ["top", "Oben (12 Uhr)"], ["mid", "Mitte (3 Uhr)"], ["low", "Unten (6 Uhr)"]], "off");
+  const cast = select("f-cast", [["0", "Offen"], ["0.5", "Mittel"], ["1", "Streng"]], "0.5");
   const instab = select("f-instab", [["0", "Aus"], ["1", "Subtil"], ["2", "Aggressiv"]], "2");
   const markov = select("f-markov", [["off", "Aus"], ["mix", "Mix"], ["on", "Stark"]], "off");
   const disruptor = select("f-disruptor", [["auto", "Auto"], ["off", "Aus"], ["on", "An"]], "auto");
@@ -213,7 +214,7 @@ export function mountStudio(root: HTMLElement): void {
   const archA = select("f-archa", ARCH_OPTS, "neutral");
   const archB = select("f-archb", ARCH_OPTS, "neutral");
   // Alle würfelbaren Stil-Regler (Würfeln-Knopf UND Zufallsstart nutzen dieselbe Liste)
-  const ROLL_SELECTS = [tone, form, structure, mode, persp, rhythm, tension, instab, markov, disruptor, varianz, stil, archA, archB, preset];
+  const ROLL_SELECTS = [tone, form, structure, mode, persp, rhythm, tension, cast, instab, markov, disruptor, varianz, stil, archA, archB, preset];
   const polish = el("input", { id: "f-polish", type: "checkbox" }) as HTMLInputElement;
   const presetField = el("div", { class: "field presetfield" },
     el("span", { class: "field-label lockrow" }, el("span", {}, "Preset — eins oder mehrere ankreuzen"), presetStatus, lockBtn(preset)),
@@ -537,6 +538,8 @@ export function mountStudio(root: HTMLElement): void {
       mustWords: mustIn.value.split(/[,;]/).map((w) => w.trim()).filter(Boolean),
       avoidFrequent: avoidChk.checked,
       grammarFilter: gramChk.checked,
+      castDiscipline: parseFloat(cast.value) || 0,
+      expectedCast: who.value.split(/[,;]/).map((x) => x.trim()).filter(Boolean),
     };
   };
 
@@ -588,7 +591,7 @@ export function mountStudio(root: HTMLElement): void {
     lockField("Struktur", structure), lockField("Modus", mode), lockField("Perspektive", persp),
     lockField("Rhythmus", rhythm), lockField("Instabilität", instab), lockField("Markov", markov),
     lockField("Disruptor", disruptor), lockField("Varianz", varianz), lockField("Stil", stil),
-    lockField("Spannung", tension),
+    lockField("Spannung", tension), lockField("Figurendisziplin", cast),
     lockField("Archetyp A", archA), lockField("Archetyp B", archB),
     field("Video: Shots", shots), field("Video: Sekunden", secs),
     el("label", { class: "field", style: "display:flex;align-items:center;gap:6px" }, polish, "Sprachschliff")));
@@ -707,7 +710,7 @@ export function mountStudio(root: HTMLElement): void {
     const input = readInput();
     try {
       out.textContent = bestChk.checked
-        ? bestOf(loadBank(), input, model, 12, { noveltyWeight: 0.5, grammarFilter: true }).txt
+        ? bestOf(loadBank(), input, model, 12, { noveltyWeight: 0.5, grammarFilter: true, castDiscipline: parseFloat(cast.value) || 0, expectedCast: who.value.split(/[,;]/).map((x) => x.trim()).filter(Boolean) }).txt
         : buildStory(loadBank(), input, model);
       baseText = out.textContent || "";
       try { localStorage.setItem("dm_last_text", out.textContent || ""); } catch { /* voll */ }
@@ -725,6 +728,7 @@ export function mountStudio(root: HTMLElement): void {
   const liveRegen = (): void => { if (!rolling) generate(); };
   preset.addEventListener("change", liveRegen);
   tension.addEventListener("change", liveRegen);
+  cast.addEventListener("change", liveRegen);
   tone.addEventListener("change", liveRegen);
   form.addEventListener("change", liveRegen);
   // 4W-Gewichtung: live + nur bei Prosa sichtbar

@@ -5,6 +5,7 @@ import { buildStory } from "./buildStory";
 import { isFragmentSentence } from "./beats";
 import { MarkovModel } from "../corpus";
 import { appendToPersistentCorpus } from "../corpus";
+import { tenseBreakRatio, phraseRepeatRatio, castSpread } from "./coherence";
 import { loadSettings } from "../storage";
 import { buildNoveltyContext, noveltyOf, cooldownHit, frequentContentWords, type NoveltyContext } from "./novelty";
 import { grammarFlags } from "./grammar";
@@ -24,6 +25,8 @@ export interface RankOptions {
   mustWords?: string[];     // Einbauwörter (sollen vorkommen)
   avoidFrequent?: boolean;  // häufigste Korpus-Inhaltswörter meiden
   grammarFilter?: boolean;  // auffällige Grammatik abwerten
+  castDiscipline?: number;  // 0..1  Figuren-Disziplin: neue Eigennamen abwerten
+  expectedCast?: string[];  // in "Wer?" genannte Figuren (zählen nicht als neu)
 }
 export interface Ranking { all: RankItem[]; top: RankItem[]; total: number; topK: number; }
 
@@ -75,6 +78,18 @@ export function analyzeText(txt: string, lenTarget: number): TextMetrics {
   return { len: raw.length, wordCount, repetitionRatio: repetitionRatio(raw), lenFit, ttr, stdLen, rhythmScore,
     tooShort: raw.trim().length < 120, triBad: repTri > 10, biBad: repBi > 25, flow: flowMetrics(raw) };
 }
+/** Kohärenz-Abzug: Tempussprünge, wiederkehrende Versatzstücke, Figurenstreuung.
+ *  Rein heuristisch — fängt die typischen Symptome zusammengesetzter Texte ab. */
+export function coherencePenalty(txt: string, opts: RankOptions = {}): number {
+  // Hinweis: Der Abgleich gegen die Schatzkammer läuft bereits über die Novelty-
+  // Metrik (Trigramme) — hier geht es um WIEDERHOLUNG INNERHALB des Textes.
+  let p = tenseBreakRatio(txt) * 90          // Zeitebenen-Sprünge
+        + phraseRepeatRatio(txt) * 40;        // wiederkehrende 3-/4-Gramme im Text
+  const cd = Math.max(0, Math.min(1, opts.castDiscipline ?? 0));
+  if (cd > 0) p += cd * castSpread(txt, opts.expectedCast || []) * 40;
+  return p;
+}
+
 export function scoreText(txt: string, lenTarget: number): { score: number; a: TextMetrics } {
   const a = analyzeText(txt, lenTarget);
   const score = a.lenFit * 30 + a.ttr * 25 + a.rhythmScore * 20 - a.repetitionRatio * 50 - (a.tooShort ? 20 : 0)
@@ -94,6 +109,7 @@ export function bestOf(bank: Bank, input: GenInput, model: MarkovModel | undefin
     let sc = scoreText(txt, lt).score;
     if (ctx) sc += nw * (noveltyOf(txt, ctx) * 40) - nw * (cooldownHit(txt, ctx) * 30);
     if (opts.grammarFilter) sc -= Math.min(grammarFlags(txt).count, 6) * 12;
+    sc -= coherencePenalty(txt, opts);
     if (!best || sc > best.score) best = { txt, score: sc };
   }
   return best ?? { txt: buildStory(bank, input, model), score: 0 };
@@ -166,6 +182,9 @@ export function runRanking(bank: Bank, input: GenInput, model: MarkovModel | und
       const g = grammarFlags(r.txt).count;
       r.grammar = g;
       sc -= Math.min(g, 6) * 12;   // Grammatik-Auffälligkeiten stark abwerten
+    }
+    {
+      sc -= coherencePenalty(r.txt, opts);   // Tempus, Phrasen-Wiederholung, Figuren-Disziplin
     }
     r.score = sc;
   }

@@ -92,6 +92,7 @@ export function mountHelp(root: HTMLElement): void {
     ["Modus", P("Realitätsmodus (z. B. bürokratisch, technologisch, mythisch, absurd …).")],
     ["Perspektive", P("Ich-, Du- oder Er/Sie-Erzähler; Verben werden passend konjugiert.")],
     ["Rhythmus · Disruptor · Instabilität", P("steuern Satzlängen-Variation, gezielte Brüche und die Figuren-Instabilität.")],
+    ["Figurendisziplin", P("wie streng die ", lnk("Bestenauslese", "ranking"), " Fassungen abwertet, die neue Eigennamen einführen statt die vorhandenen Figuren weiterzuführen. „Offen“ lässt die Streuung zu (gewollte Divergenz), „Streng“ hält den Text auf den in „Wer?“ genannten Figuren. Wirkt nur bei aktiver Bestenauslese.")],
     ["Spannung (nur Prosa)", P("verschiebt den Spannungs-Höhepunkt in den Text: Oben (12 Uhr), Mitte (3 Uhr) oder Unten (6 Uhr). Nahe dem Peak werden Sätze kurz und hart, Hook-/Motiv-Bilder verdichten sich und ein harter Bruch setzt ein; fern davon ruhige, verbundene Bögen — hilft gegen den Spannungsabfall in langen Texten. Wirkt erst ab längeren Passagen.")],
     ["Markov", P("Anteil, in dem der offline gelernte ", lnk("Markov-Generator (Korpus)", "tabs"), " mitmischt.")],
     ["Archetyp A/B", P("färbt die Sprache aus Archetyp-Wortpools (Neutral, Skorpion, Psychopath, Entdecker); Standard neutral.")],
@@ -123,6 +124,7 @@ export function mountHelp(root: HTMLElement): void {
     ["Probe (50)", P("generiert 50 Varianten und meldet auffällige/doppelte.")],
     ["Ranking (50)", P("bewertet 50 Varianten offline (Längentreue, Wortvielfalt, Satzrhythmus, wenig Wiederholung) und sortiert sie.")],
     ["KI-Ranking (50)", P("lässt Claude alle Varianten literarisch bewerten (Originalität, Kohärenz, Sprache, Sog). Braucht einen API-Schlüssel.")],
+    ["Kohärenz-Kriterien", P("in Bewertung und Bestenauslese fließen zusätzlich ein: ", el("b", {}, "Tempus"), " (Fassungen mit Sprüngen zwischen Präsens und Präteritum werden abgewertet), ", el("b", {}, "Phrasen-Wiederholung"), " (wiederkehrende Drei- und Viergramme im selben Text) und ", lnk("Figurendisziplin", "werkzeug"), ". Der Abgleich gegen die Schatzkammer läuft weiterhin über „Neuheit“.")],
     ["Platz 1 / 2 / 3 und Rang-Slider", P("laden Platz 1–3 bzw. blättern per Slider durch alle Ränge.")],
   ]));
 
