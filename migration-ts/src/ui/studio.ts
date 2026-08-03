@@ -534,12 +534,14 @@ export function mountStudio(root: HTMLElement): void {
   };
   const novSlider = el("input", { id: "f-novelty", type: "range", min: "0", max: "100", step: "5", value: "30", class: "rankviz" }) as HTMLInputElement;
   const novVal = el("span", { class: "muted" }, "30 %");
-  novSlider.addEventListener("input", () => { novVal.textContent = novSlider.value + " %"; });
+  const updNovVal = (): void => { novVal.textContent = novSlider.value + " %"; };
+  novSlider.addEventListener("input", updNovVal);
   const noveltyW = (): number => (parseInt(novSlider.value, 10) || 0) / 100;
 
   const surpSlider = el("input", { id: "f-surprise", type: "range", min: "0", max: "100", step: "5", value: "0", class: "rankviz" }) as HTMLInputElement;
   const surpVal = el("span", { class: "muted" }, "aus");
-  surpSlider.addEventListener("input", () => { const v = parseInt(surpSlider.value, 10) || 0; surpVal.textContent = v === 0 ? "aus" : "Ziel " + v + " %"; });
+  const updSurpVal = (): void => { const v = parseInt(surpSlider.value, 10) || 0; surpVal.textContent = v === 0 ? "aus" : "Ziel " + v + " %"; };
+  surpSlider.addEventListener("input", updSurpVal);
   const mustIn = el("input", { placeholder: "Einbauwörter, mit Komma getrennt" }) as HTMLInputElement;
   const avoidChk = el("input", { type: "checkbox" }) as HTMLInputElement;
   const gramChk = el("input", { type: "checkbox" }) as HTMLInputElement;
@@ -844,6 +846,7 @@ export function mountStudio(root: HTMLElement): void {
     wrap.insertBefore(lockBar, wrap.firstChild);
   }
   lenVal.textContent = lenSlider.value;
+  updNovVal(); updSurpVal(); rangeVal.textContent = "#" + rangeSlider.value;   // Anzeigen nach restoreLocked nachziehen
   updEmphVis();
   applyStoryFont(out, fontSel.value, parseFloat(sizeSlider.value));
   if (!pendingStudio) { if (preset.value === AUTOMIX_ID) { saveBank(buildAutoMixBank()); saveActiveBankLabel("Auto-Mix"); } else { const first = getAllPresets()[preset.value]; if (first) { saveBank(first.bank); saveActiveBankLabel(first.label || preset.value); } } }
