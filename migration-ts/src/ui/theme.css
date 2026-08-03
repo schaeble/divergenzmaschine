@@ -395,3 +395,6 @@ input[type=range].wgt:hover{opacity:1}
 .diag-note{line-height:1.4}
 .tensewarn{color:#d7a531;line-height:1.4;margin-top:2px}
 .rightsnote{border-left:3px solid var(--border2);padding-left:10px;line-height:1.5;margin-top:8px}
+.lockbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 10px;padding:9px 12px;border:1px solid #d7a53166;border-left:3px solid #d7a531;border-radius:8px;background:#d7a5311a;font:13px var(--sans);color:var(--text)}
+.lockbar .x{margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;padding:2px 4px}
+.lockbar .x:hover{color:var(--text)}

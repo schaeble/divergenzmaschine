@@ -135,6 +135,7 @@ export function mountStudio(root: HTMLElement): void {
     field4w("Wo?", where, wWo, hintWo), field4w("Wann?", when, wWann, hintWann), field4w("Wer?", who, wWer, hintWer), field4w("Was passiert?", what, wWas, hintWas)),
     el("div", { class: "btnrow" }, ctxDice, ctxKeep));
 
+  const lockBar = el("div", { class: "lockbar" });
   const preset = select("f-preset", markedPresetOptions());
   const MULTI_ID = "__multi__";
   const MULTI_KEY = "dm_multi_presets_v1";
@@ -775,20 +776,32 @@ export function mountStudio(root: HTMLElement): void {
     const saved = localStorage.getItem(CTX_KEY);
     if (saved) { const c = JSON.parse(saved) as Record<string,string>; if(c.where!==undefined)where.value=c.where; if(c.when!==undefined)when.value=c.when; if(c.who!==undefined)who.value=c.who; if(c.what!==undefined)what.value=c.what; ctxKeep.classList.add("on"); ctxKeep.setAttribute("aria-pressed","true"); }
   } catch { /* ignore */ }
-  // Übergabe aus Ideen überschreibt den Kontext
+  // Übergaben aus anderen Tabs: gewünschte Werte merken, um blockierte Schlösser zu melden
+  const handedOver: { el: HTMLInputElement | HTMLSelectElement; label: string; want: string }[] = [];
+  const hand = (el: HTMLInputElement | HTMLSelectElement, label: string, v: unknown): void => {
+    if (typeof v !== "string" || !v) return;
+    if (el instanceof HTMLSelectElement && !Array.from(el.options).some((o) => o.value === v)) return;
+    handedOver.push({ el, label, want: v }); el.value = v;
+  };
+  // Übergabe aus Ideen/Schatzkammer/Assoziation überschreibt den Kontext
   try {
     const pend = localStorage.getItem("dm_pending_ctx");
-    if (pend) { const c = JSON.parse(pend) as Record<string,string>; if(c.who)who.value=c.who; if(c.where)where.value=c.where; if(c.when)when.value=c.when; if(c.what)what.value=c.what; localStorage.removeItem("dm_pending_ctx"); }
+    if (pend) {
+      const c = JSON.parse(pend) as Record<string, string>;
+      hand(who, "Wer", c.who); hand(where, "Wo", c.where); hand(when, "Wann", c.when); hand(what, "Was passiert", c.what);
+      localStorage.removeItem("dm_pending_ctx");
+    }
   } catch { /* ignore */ }
   // Übergabe aus Welt/Omnikognition (setzt Regler, Stärke, Wortbank)
   let pendingStudio: Record<string, unknown> | null = null;
   try { const s = localStorage.getItem("dm_pending_studio"); if (s) { pendingStudio = JSON.parse(s) as Record<string, unknown>; localStorage.removeItem("dm_pending_studio"); } } catch { /* ignore */ }
   if (pendingStudio) {
     const P = pendingStudio;
-    const setStr = (el: HTMLInputElement, k: string): void => { const v = P[k]; if (typeof v === "string" && v) el.value = v; };
-    const setSel = (sel: HTMLSelectElement, k: string): void => { const v = P[k]; if (typeof v === "string" && Array.from(sel.options).some((o) => o.value === v)) sel.value = v; };
-    setStr(where, "where"); setStr(when, "when"); setStr(who, "who"); setStr(what, "what");
-    setSel(form, "form"); setSel(structure, "structure"); setSel(persp, "perspective"); setSel(rhythm, "rhythm"); setSel(varianz, "varLevel"); setSel(mode, "mode"); setSel(tone, "tone"); setSel(markov, "markovMode"); setSel(archA, "archetypeA"); setSel(archB, "archetypeB"); setSel(disruptor, "disruptor"); setSel(instab, "instability");
+    hand(where, "Wo", P["where"]); hand(when, "Wann", P["when"]); hand(who, "Wer", P["who"]); hand(what, "Was passiert", P["what"]);
+    hand(form, "Form", P["form"]); hand(structure, "Struktur", P["structure"]); hand(persp, "Perspektive", P["perspective"]);
+    hand(rhythm, "Rhythmus", P["rhythm"]); hand(varianz, "Varianz", P["varLevel"]); hand(mode, "Modus", P["mode"]);
+    hand(tone, "Ton", P["tone"]); hand(markov, "Markov", P["markovMode"]); hand(archA, "Archetyp A", P["archetypeA"]);
+    hand(archB, "Archetyp B", P["archetypeB"]); hand(disruptor, "Disruptor", P["disruptor"]); hand(instab, "Instabilität", P["instability"]);
     const emp = P["emphasis"] as Record<string, number> | undefined;
     if (emp) { wWo.value = String(emp.wo ?? 0); wWann.value = String(emp.wann ?? 0); wWer.value = String(emp.wer ?? 0); wWas.value = String(emp.was ?? 0); }
     if (P["bank"]) {
@@ -803,6 +816,24 @@ export function mountStudio(root: HTMLElement): void {
     ROLL_SELECTS.forEach((s) => { if (!locked.has(s.id) && s.options.length) s.selectedIndex = Math.floor(Math.random() * s.options.length); });
   }
   restoreLocked();
+  // Schlösser haben Übergabewerte überschrieben? Hinweis mit Sofortlösung zeigen.
+  const blocked = handedOver.filter((h) => locked.has(h.el.id) && h.el.value !== h.want);
+  if (blocked.length) {
+    const names = blocked.map((b) => b.label).join(", ");
+    const applyBtn = button("Schlösser öffnen und übernehmen");
+    applyBtn.addEventListener("click", () => {
+      for (const b of blocked) { locked.delete(b.el.id); delete lockVals[b.el.id]; b.el.value = b.want; }
+      saveLocks(); saveLockVals();
+      lockPainters && Object.keys(lockPainters).forEach((id) => (lockPainters[id] || []).forEach((fn) => fn()));
+      lockBar.remove(); updHints(); renderPresetChecks(); generate();
+    });
+    const closeBtn = el("button", { class: "x", type: "button", "aria-label": "Hinweis schließen" }, "✕");
+    closeBtn.addEventListener("click", () => lockBar.remove());
+    lockBar.append(
+      el("span", {}, `🔒 Übernahme unvollständig: ${blocked.length === 1 ? "Ein Feld wurde" : blocked.length + " Felder wurden"} nicht übernommen, weil das Schloss geschlossen ist — ${names}.`),
+      applyBtn, closeBtn);
+    wrap.insertBefore(lockBar, wrap.firstChild);
+  }
   lenVal.textContent = lenSlider.value;
   updEmphVis();
   applyStoryFont(out, fontSel.value, parseFloat(sizeSlider.value));
