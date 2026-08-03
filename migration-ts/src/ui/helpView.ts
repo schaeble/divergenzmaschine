@@ -123,9 +123,8 @@ export function mountHelp(root: HTMLElement): void {
   wrap.append(section("ranking", "Test & Ranking (im Studio, aufklappbar)", [
     ["Probe (50)", P("generiert 50 Varianten und meldet auffällige/doppelte.")],
     ["Ranking (50)", P("bewertet 50 Varianten offline (Längentreue, Wortvielfalt, Satzrhythmus, wenig Wiederholung) und sortiert sie.")],
-    ["KI-Ranking (50)", P("lässt Claude alle Varianten literarisch bewerten (Originalität, Kohärenz, Sprache, Sog). Braucht einen API-Schlüssel.")],
     ["Kohärenz-Kriterien", P("in Bewertung und Bestenauslese fließen zusätzlich ein: ", el("b", {}, "Tempus"), " (Fassungen mit Sprüngen zwischen Präsens und Präteritum werden abgewertet), ", el("b", {}, "Phrasen-Wiederholung"), " (wiederkehrende Drei- und Viergramme im selben Text) und ", lnk("Figurendisziplin", "werkzeug"), ". Der Abgleich gegen die Schatzkammer läuft weiterhin über „Neuheit“.")],
-    ["Platz 1 / 2 / 3 und Rang-Slider", P("laden Platz 1–3 bzw. blättern per Slider durch alle Ränge.")],
+    ["Platz 1 / 2 / 3 und Rang", P("laden Platz 1–3 bzw. blättern per Regler durch alle Ränge. Der Bereich ist in drei Schritte gegliedert: erzeugen und bewerten, Bewertungsmaßstab einstellen, Ergebnis wählen. Neuheit und Überraschung lassen sich per Schloss festhalten.")],
   ]));
 
   wrap.append(section("preset2", "Preset 2.0 (Dramaturgie)", [

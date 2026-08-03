@@ -22,7 +22,7 @@ import { THEMES, loadTheme, applyTheme, loadAccent, saveAccent, applyAccent } fr
 import { loadAiKey, saveAiKey, loadAiModel, saveAiModel } from "../features/ki";
 import { storageReport } from "../features/storage-status";
 import { loadFont, loadFontSize, saveFontPrefs, applyStoryFont } from "../features/fonts";
-import { runProbe, runRanking, runAiRanking, bestOf, type Ranking } from "../generation/scoring";
+import { runProbe, runRanking, bestOf, type Ranking } from "../generation/scoring";
 import { TONE_DATA } from "../generation/tone.data";
 import { liveTexts } from "../features/livepools";
 
@@ -532,12 +532,12 @@ export function mountStudio(root: HTMLElement): void {
     const extra = item.aiScore !== undefined ? `KI ${item.aiScore}/100${item.grund ? " – " + item.grund : ""}` : `Score ${item.score.toFixed(1)}${nov}${surp}${gr}${con}`;
     rankStatus.textContent = `Platz ${place}: ${extra}`;
   };
-  const novSlider = el("input", { type: "range", min: "0", max: "100", step: "5", value: "30", class: "rankviz" }) as HTMLInputElement;
+  const novSlider = el("input", { id: "f-novelty", type: "range", min: "0", max: "100", step: "5", value: "30", class: "rankviz" }) as HTMLInputElement;
   const novVal = el("span", { class: "muted" }, "30 %");
   novSlider.addEventListener("input", () => { novVal.textContent = novSlider.value + " %"; });
   const noveltyW = (): number => (parseInt(novSlider.value, 10) || 0) / 100;
 
-  const surpSlider = el("input", { type: "range", min: "0", max: "100", step: "5", value: "0", class: "rankviz" }) as HTMLInputElement;
+  const surpSlider = el("input", { id: "f-surprise", type: "range", min: "0", max: "100", step: "5", value: "0", class: "rankviz" }) as HTMLInputElement;
   const surpVal = el("span", { class: "muted" }, "aus");
   surpSlider.addEventListener("input", () => { const v = parseInt(surpSlider.value, 10) || 0; surpVal.textContent = v === 0 ? "aus" : "Ziel " + v + " %"; });
   const mustIn = el("input", { placeholder: "Einbauwörter, mit Komma getrennt" }) as HTMLInputElement;
@@ -565,39 +565,48 @@ export function mountStudio(root: HTMLElement): void {
       rankStatus.textContent = `Probe: ${r.total} Texte · ${r.flaggedCount} auffällig · ${r.grammarCount} Grammatik · ${r.duplicates} doppelt`; }, 10);
   });
   const rankBtn = button("Ranking (50)");
-  const rangeSlider = el("input", { type: "range", min: "1", max: "50", value: "1", class: "rankviz" }) as HTMLInputElement;
-  rangeSlider.addEventListener("input", () => applyPlace(parseInt(rangeSlider.value, 10)));
+  const rangeSlider = el("input", { id: "f-rang", type: "range", min: "1", max: "50", value: "1", class: "rankviz" }) as HTMLInputElement;
+  const rangeVal = el("span", { class: "muted" }, "1");
+  rangeSlider.addEventListener("input", () => { rangeVal.textContent = "#" + rangeSlider.value; applyPlace(parseInt(rangeSlider.value, 10)); });
   rankBtn.addEventListener("click", () => {
     rankStatus.textContent = "Ranking läuft…";
     setTimeout(() => { lastRanking = runRanking(loadBank(), readInput(), buildModelFromCorpus(), 50, 10, rankOpts());
-      rangeSlider.max = String(lastRanking.all.length); rangeSlider.value = "1"; applyPlace(1); }, 10);
+      rangeSlider.max = String(lastRanking.all.length); rangeSlider.value = "1"; rangeVal.textContent = "#1"; applyPlace(1); }, 10);
   });
   const goldBtn = button("🥇 #1"); goldBtn.addEventListener("click", () => applyPlace(1));
   const silverBtn = button("🥈 #2"); silverBtn.addEventListener("click", () => applyPlace(2));
   const bronzeBtn = button("🥉 #3"); bronzeBtn.addEventListener("click", () => applyPlace(3));
-  const aiRankLbl = el("span", {}, "KI-Ranking (50)");
-  const aiRankBtn = el("button", {}, icon("flask"), " ", aiRankLbl);
-  aiRankBtn.addEventListener("click", async () => {
-    aiRankBtn.disabled = true; const old = aiRankLbl.textContent; aiRankLbl.textContent = "bewertet…";
-    rankStatus.textContent = "KI-Ranking läuft…";
-    try {
-      lastRanking = await runAiRanking(loadBank(), readInput(), buildModelFromCorpus(), 50, 10);
-      rangeSlider.max = String(lastRanking.all.length); rangeSlider.value = "1"; applyPlace(1);
-    } catch (e) { rankStatus.textContent = e instanceof Error ? e.message : String(e); }
-    finally { aiRankBtn.disabled = false; aiRankLbl.textContent = old || "KI-Ranking (50)"; }
-  });
+  // Regler mit Schloss (hält den Wert beim Würfeln und über den Neustart)
+  const sliderField = (label: string, sl: HTMLInputElement, val: HTMLElement, hint: string): HTMLElement =>
+    el("div", { class: "field rankrow" },
+      el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sl)),
+      el("div", { class: "rankslide" }, sl, val),
+      el("span", { class: "muted mini" }, hint));
+
   const rankDetails = el("details", { class: "fine" });
   rankDetails.append(el("summary", {}, icon("flask"), " Test & Ranking"),
-    el("div", { class: "btnrow" }, probeBtn, rankBtn, aiRankBtn),
-    el("div", { class: "btnrow" }, goldBtn, silverBtn, bronzeBtn),
-    el("label", { class: "field lenrow" }, el("span", { class: "mlabel" }, "Novelty"), " ", novSlider, " ", novVal),
-    el("label", { class: "field lenrow" }, el("span", { class: "mlabel" }, "Überraschung"), " ", surpSlider, " ", surpVal),
-    el("p", { class: "muted" }, "Novelty belohnt Abstand zur Schatzkammer; Überraschung steuert, wie unwahrscheinlich der Text unter dem eigenen Korpus sein soll (Zielwert, nicht Maximum — braucht einen Korpus). 0 % = aus."),
-    el("label", { class: "field" }, el("span", { class: "field-label" }, "Einbauwörter (Constraint)"), mustIn),
-    el("label", { class: "chk" }, avoidChk, " häufigste Korpus-Wörter meiden"),
-    el("label", { class: "chk" }, gramChk, " Grammatik-Filter (auffällige Varianten abwerten)"),
-    el("label", { class: "field lenrow" }, el("span", { class: "mlabel" }, "Rang"), " ", rangeSlider),
-    el("div", {}, rankStatus));
+    // 1 Erzeugen & bewerten
+    el("div", { class: "ranksec" },
+      el("div", { class: "ranksec-h" }, "1 · Erzeugen und bewerten"),
+      el("div", { class: "btnrow" }, probeBtn, rankBtn),
+      rankStatus),
+    // 2 Bewertungsmaßstab
+    el("div", { class: "ranksec" },
+      el("div", { class: "ranksec-h" }, "2 · Bewertungsmaßstab"),
+      el("div", { class: "rankgrid" },
+        sliderField("Neuheit", novSlider, novVal, "Abstand zur Schatzkammer belohnen"),
+        sliderField("Überraschung", surpSlider, surpVal, "Zielwert der Unwahrscheinlichkeit im eigenen Korpus — braucht einen Korpus; 0 % = aus")),
+      el("label", { class: "field" }, el("span", { class: "field-label" }, "Einbauwörter"), mustIn),
+      el("div", { class: "chkrow" },
+        el("label", { class: "chk" }, avoidChk, " Häufigste Korpus-Wörter meiden"),
+        el("label", { class: "chk" }, gramChk, " Grammatik-Filter (auffällige Varianten abwerten)"))),
+    // 3 Ergebnis wählen
+    el("div", { class: "ranksec" },
+      el("div", { class: "ranksec-h" }, "3 · Ergebnis wählen"),
+      el("div", { class: "btnrow" }, goldBtn, silverBtn, bronzeBtn),
+      el("div", { class: "field rankrow" },
+        el("span", { class: "field-label" }, "Rang durchblättern"),
+        el("div", { class: "rankslide" }, rangeSlider, rangeVal))));
   wrap.append(rankDetails);
 
   const fine = el("details", { class: "fine" });

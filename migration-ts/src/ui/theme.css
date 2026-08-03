@@ -398,3 +398,12 @@ input[type=range].wgt:hover{opacity:1}
 .lockbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 10px;padding:9px 12px;border:1px solid #d7a53166;border-left:3px solid #d7a531;border-radius:8px;background:#d7a5311a;font:13px var(--sans);color:var(--text)}
 .lockbar .x{margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;padding:2px 4px}
 .lockbar .x:hover{color:var(--text)}
+.ranksec{border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin:8px 0}
+.ranksec-h{font:600 11px var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.rankgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:6px 18px;margin-bottom:6px}
+.rankrow{margin:6px 0}
+.rankslide{display:flex;align-items:center;gap:10px}
+.rankslide input[type=range]{flex:1;min-width:100px}
+.rankslide .muted{min-width:58px;text-align:right;font-variant-numeric:tabular-nums}
+.chkrow{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:6px}
+.chkrow .chk{display:inline-flex;align-items:center;gap:7px}
