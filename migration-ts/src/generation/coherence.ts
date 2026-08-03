@@ -205,3 +205,28 @@ export function toPresent(entry: string): TenseFix {
   }
   return { text: words.join(""), changed, unsure };
 }
+
+// ── 4) Perspektive ───────────────────────────────────────────────────
+// Bank-Einträge in Du-/Ich-Form brechen die eingestellte Erzählperspektive
+// ("Tom will …, aber du darfst nicht frei sprechen").
+const DU_FORM = /\b(du|dir|dich|dein|deine|deinen|deinem|deiner|deines)\b/i;
+const ICH_FORM = /\b(ich|mir|mich|mein|meine|meinen|meinem|meiner|meines)\b/i;
+
+/** Steht dieser Eintrag in der Du-Form? (für die Wortbank-Prüfung) */
+export function isSecondPerson(s: string): boolean { return DU_FORM.test(s || ""); }
+/** Steht dieser Eintrag in der Ich-Form? */
+export function isFirstPerson(s: string): boolean { return ICH_FORM.test(s || ""); }
+
+/** Anteil der Sätze, die der eingestellten Perspektive widersprechen (0 = stimmig).
+ *  Bei "auto" und in Dialogen wird nicht gewertet — dort ist Wechsel gewollt. */
+export function perspectiveBreakRatio(text: string, perspective?: string): number {
+  if (!perspective || perspective === "auto") return 0;
+  const sents = splitSentences(text).filter((x) => x.trim().length > 3);
+  if (sents.length < 3) return 0;
+  let off = 0;
+  for (const s of sents) {
+    if (perspective !== "second" && DU_FORM.test(s)) { off++; continue; }
+    if (perspective !== "first" && perspective !== "we" && ICH_FORM.test(s)) off++;
+  }
+  return off / sents.length;
+}

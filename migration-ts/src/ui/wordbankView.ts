@@ -10,7 +10,7 @@ import { openPresetWizard } from "./presetWizard";
 import { openArchive } from "./archiveView";
 import { preset2ToBank, preset2Name, preset2Active, builtinSettings, generateAiPreset2, setActive2, getActive2, saveUserPreset2, saveUserPresets2All, getUserPreset2, deleteUserPreset2, loadUserPresets2, type Active2 } from "../features/preset2";
 import { setDramaData } from "../generation/dramaturgie";
-import { isPastTense, toPresent } from "../generation/coherence";
+import { isPastTense, toPresent, isSecondPerson, isFirstPerson } from "../generation/coherence";
 import { bankFromCorpus } from "../features/corpusbank";
 import { icon } from "./icons";
 import { loadAiKey } from "../features/ki";
@@ -182,10 +182,15 @@ export function mountWordbank(root: HTMLElement): void {
   const tenseHints: Record<string, HTMLElement> = {};
   const updTenseHint = (key: string): void => {
     const h = tenseHints[key]; const ta = fullAreas[key]; if (!h || !ta) return;
-    const past = ta.value.split("\n").map((x) => x.trim()).filter(Boolean).filter(isPastTense);
-    if (!past.length) { h.textContent = ""; h.className = "muted mini"; return; }
+    const lines = ta.value.split("\n").map((x) => x.trim()).filter(Boolean);
+    const past = lines.filter(isPastTense);
+    const persons = lines.filter((x) => isSecondPerson(x) || isFirstPerson(x));
+    const msgs: string[] = [];
+    if (past.length) msgs.push(`${past.length}× Präteritum (z. B. „${past[0]!.slice(0, 40)}“) — die Engine schreibt im Präsens`);
+    if (persons.length) msgs.push(`${persons.length}× Ich-/Du-Form (z. B. „${persons[0]!.slice(0, 40)}“) — bricht die Erzählperspektive`);
+    if (!msgs.length) { h.textContent = ""; h.className = "muted mini"; return; }
     h.className = "muted mini tensewarn";
-    h.textContent = `⚠ ${past.length} Eintrag/Einträge im Präteritum — z. B. „${past[0]!.slice(0, 46)}“. Die Engine schreibt im Präsens.`;
+    h.textContent = "⚠ " + msgs.join(" · ");
   };
   for (const [key, label] of CATS) {
     const t = el("textarea", { id: "wb-full-" + key, style: "height:88px", placeholder: "Ein Eintrag pro Zeile" }) as HTMLTextAreaElement;

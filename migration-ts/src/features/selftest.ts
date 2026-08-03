@@ -10,7 +10,7 @@ import { liveTexts } from "./livepools";
 import { hasDramaData } from "../generation/dramaturgie";
 import { loadBank } from "../storage";
 import { splitSentences } from "../text-utils";
-import { tenseBreakRatio, phraseRepeatRatio, castSpread } from "../generation/coherence";
+import { tenseBreakRatio, phraseRepeatRatio, castSpread, perspectiveBreakRatio } from "../generation/coherence";
 
 export type Verdict = "ok" | "sporadic" | "dead" | "skipped";
 export interface FeatureResult { id: string; label: string; group: string; runs: boolean[]; verdict: Verdict; note: string; }
@@ -117,6 +117,8 @@ export function runSelfTest(onStep?: (done: number, total: number, label: string
       probe: () => tenseBreakRatio("Der Hafen lag still. Ein Mann ging über den Steg. Die Kornkammern sind leer. Man erkannte nichts. Die Uhr tickt weiter.") > tenseBreakRatio("Der Hafen lag still. Ein Mann ging über den Steg. Die Möwen kreisten hoch. Später wurde es dunkel. Niemand kam zurück.") },
     { id: "phrasen", label: "Phrasen-Wiederholung", group: "Kohärenz", note: "erkennt wiederkehrende Versatzstücke (3-/4-Gramme)",
       probe: () => phraseRepeatRatio("Der Steg bricht unter ihrem Schritt. Es riecht wie Ruß auf Gold. Der Steg bricht unter ihrem Schritt. Es riecht wie Ruß auf Gold.") > 0.1 },
+    { id: "perspektive_k", label: "Perspektiv-Wächter", group: "Kohärenz", note: "erkennt Ich-/Du-Formen in einer Er-Erzählung",
+      probe: () => perspectiveBreakRatio("Tom wartet am Kai. Aber du darfst nicht sprechen. Er nimmt die Glocke. Ich sehe nichts.", "third") > 0 && perspectiveBreakRatio("Tom wartet am Kai. Er nimmt die Glocke. Der Kran steht still.", "third") === 0 },
     { id: "figuren", label: "Figurendisziplin", group: "Kohärenz", note: "erkennt neu eingeführte Eigennamen",
       probe: () => castSpread("Baucis wartet am Fenster. Zar Peter unterschreibt den Erlass. Ludwig zögert im Saal. Philemon schweigt.", ["Baucis"]) > castSpread("Baucis wartet am Fenster. Baucis zählt die Stunden. Baucis schweigt.", ["Baucis"]) },
     { id: "emphasis", label: "4W-Stärke", group: "Steuerung", note: "Gewichtete Zusatzsätze erscheinen im Text (Gesamtlänge bleibt stabil)",

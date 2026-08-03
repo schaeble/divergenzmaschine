@@ -5,7 +5,7 @@ import { buildStory } from "./buildStory";
 import { isFragmentSentence } from "./beats";
 import { MarkovModel } from "../corpus";
 import { appendToPersistentCorpus } from "../corpus";
-import { tenseBreakRatio, phraseRepeatRatio, castSpread } from "./coherence";
+import { tenseBreakRatio, phraseRepeatRatio, castSpread, perspectiveBreakRatio } from "./coherence";
 import { loadSettings } from "../storage";
 import { buildNoveltyContext, noveltyOf, cooldownHit, frequentContentWords, type NoveltyContext } from "./novelty";
 import { grammarFlags } from "./grammar";
@@ -27,6 +27,7 @@ export interface RankOptions {
   grammarFilter?: boolean;  // auffällige Grammatik abwerten
   castDiscipline?: number;  // 0..1  Figuren-Disziplin: neue Eigennamen abwerten
   expectedCast?: string[];  // in "Wer?" genannte Figuren (zählen nicht als neu)
+  perspective?: string;     // eingestellte Erzählperspektive (Brüche abwerten)
 }
 export interface Ranking { all: RankItem[]; top: RankItem[]; total: number; topK: number; }
 
@@ -85,6 +86,7 @@ export function coherencePenalty(txt: string, opts: RankOptions = {}): number {
   // Metrik (Trigramme) — hier geht es um WIEDERHOLUNG INNERHALB des Textes.
   let p = tenseBreakRatio(txt) * 90          // Zeitebenen-Sprünge
         + phraseRepeatRatio(txt) * 40;        // wiederkehrende 3-/4-Gramme im Text
+  p += perspectiveBreakRatio(txt, opts.perspective) * 150;   // Perspektivbrüche (du/ich in Er-Erzählung)
   const cd = Math.max(0, Math.min(1, opts.castDiscipline ?? 0));
   if (cd > 0) p += cd * castSpread(txt, opts.expectedCast || []) * 40;
   return p;
@@ -109,7 +111,7 @@ export function bestOf(bank: Bank, input: GenInput, model: MarkovModel | undefin
     let sc = scoreText(txt, lt).score;
     if (ctx) sc += nw * (noveltyOf(txt, ctx) * 40) - nw * (cooldownHit(txt, ctx) * 30);
     if (opts.grammarFilter) sc -= Math.min(grammarFlags(txt).count, 6) * 12;
-    sc -= coherencePenalty(txt, opts);
+    sc -= coherencePenalty(txt, { ...opts, perspective: opts.perspective ?? input.perspective });
     if (!best || sc > best.score) best = { txt, score: sc };
   }
   return best ?? { txt: buildStory(bank, input, model), score: 0 };

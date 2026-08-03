@@ -539,6 +539,7 @@ export function mountStudio(root: HTMLElement): void {
       avoidFrequent: avoidChk.checked,
       grammarFilter: gramChk.checked,
       castDiscipline: parseFloat(cast.value) || 0,
+      perspective: persp.value,
       expectedCast: who.value.split(/[,;]/).map((x) => x.trim()).filter(Boolean),
     };
   };
@@ -710,7 +711,7 @@ export function mountStudio(root: HTMLElement): void {
     const input = readInput();
     try {
       out.textContent = bestChk.checked
-        ? bestOf(loadBank(), input, model, 12, { noveltyWeight: 0.5, grammarFilter: true, castDiscipline: parseFloat(cast.value) || 0, expectedCast: who.value.split(/[,;]/).map((x) => x.trim()).filter(Boolean) }).txt
+        ? bestOf(loadBank(), input, model, 12, { noveltyWeight: 0.5, grammarFilter: true, castDiscipline: parseFloat(cast.value) || 0, expectedCast: who.value.split(/[,;]/).map((x) => x.trim()).filter(Boolean), perspective: persp.value }).txt
         : buildStory(loadBank(), input, model);
       baseText = out.textContent || "";
       try { localStorage.setItem("dm_last_text", out.textContent || ""); } catch { /* voll */ }
