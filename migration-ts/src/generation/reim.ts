@@ -6,6 +6,15 @@ import type { RhymeGroup } from "./reim.data";
 import { REIM_GROUPS, REIM_TAILS, REIM_RHYTHM_TARGETS, REIM_CONNECTORS, REIM_DEFAULTS } from "./reim.data";
 
 
+// Verszeile: erster Buchstabe groß (die Phrasen stammen aus Satzmitten) und
+// verwaiste Anführungszeichen entfernen, die beim Zerlegen entstehen.
+function verseLine(s: string): string {
+  let t = capLine(s);
+  const q = (t.match(/["„“”]/g) || []).length;
+  if (q % 2 === 1) t = t.replace(/["„“”]/g, "");
+  t = t.replace(/^[\s"„“”'’]+/, "");
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
 function reimCoreOf(phrase: string, targetWords: number): string {
   let words = String(phrase || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
   if (words.length > targetWords) words = words.slice(0, targetWords);
@@ -34,8 +43,8 @@ function lineWithRhyme(phrase: string, rhymeWord: string, targetWords: number, c
   let core = words.join(" ").replace(/[.,;:!?…]+$/, "").trim();
   if (!core) core = "Es bleibt";
   const tails = REIM_TAILS[rhymeWord];
-  if (tails && tails.length) return capLine(`${core}, ${pick(tails)}.`);
-  return capLine(`${core}${connector}${rhymeWord}.`);
+  if (tails && tails.length) return verseLine(`${core}, ${pick(tails)}.`);
+  return verseLine(`${core}${connector}${rhymeWord}.`);
 }
 
 export function applyReimPoem(rawText: string, anchorLine = ""): string {
@@ -63,7 +72,7 @@ export function applyReimPoem(rawText: string, anchorLine = ""): string {
     const lastA = coreA.split(" ").pop() || "";
     const natural = reimGroupOfWord(lastA);
     let group: RhymeGroup, wA: string;
-    if (natural && coreA.split(" ").length >= 2) { group = natural; wA = lastA; lines.push(capLine(`${coreA}.`)); }
+    if (natural && coreA.split(" ").length >= 2) { group = natural; wA = lastA; lines.push(verseLine(`${coreA}.`)); }
     else { group = nextGroup(); wA = pickRhymeWord(group); lines.push(lineWithRhyme(phrases[pi] || anchor, wA, targetWords, connector)); }
     pi++;
     const wB = pickRhymeWord(group, wA);
