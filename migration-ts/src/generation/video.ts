@@ -27,7 +27,7 @@ function buildVideoShots(kit: StoryKit, shotCount: number): string[] {
   shots.push(`${ensurePunct(kit.turn)} Der Raum reagiert: ${sym} pulsiert, und ${pick(["die Wände atmen", "die Perspektive kippt", "der Boden verschiebt sich", "die Luft wird körnig"])}. ${cap(pick(VIDEO_LIGHT))}.`);
   shots.push((kit.AisClause || kit.AisInfinitiveLed)
     ? `${who} erkennt: ${stripTailPunct(kit.Apure)} — aber ${pick(["die Zeit springt", "die Regeln drehen sich um", "die Schatten lösen sich"])}. ${cap(pick(VIDEO_CAM_EXTENDED))}.`
-    : `${who} ${kit.AleadVerb || "versucht"} ${stripTailPunct(kit.Apure)}, aber ${pick(["die Zeit springt", "die Regeln drehen sich um", "die Schatten lösen sich"])}. ${cap(pick(VIDEO_CAM_EXTENDED))}.`);
+    : `${who} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "versucht")} ${stripTailPunct(kit.Apure)}, aber ${pick(["die Zeit springt", "die Regeln drehen sich um", "die Schatten lösen sich"])}. ${cap(pick(VIDEO_CAM_EXTENDED))}.`);
   shots.push(`${ensurePunct(kit.ending)} Nur: ${pick(["der Riss", "das Fenster", `das Symbol ${sym}`, "die Karte"])} bleibt sichtbar. ${cap(pick(VIDEO_TEX))}.`);
   while (shots.length < shotCount) {
     shots.splice(Math.min(shots.length, 4), 0, `${who} passiert an ${pick(["einer Kante", "einem Spiegel", "einer Tür ohne Griff"])} vorbei. ${cap(pick(VIDEO_LIGHT))}. ${cap(pick(VIDEO_CAM_EXTENDED))}.`);

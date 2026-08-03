@@ -48,7 +48,7 @@ export function buildDramaturgie(kit: StoryKit): string {
 
   // 5) Konflikt
   const konf = d && some(d.konflikte) ? pick(d.konflikte) : "";
-  beats.push(konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || "sucht"} ${kit.Apure}, aber ${kit.obstacle}.`);
+  beats.push(konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`);
 
   // 6) Auslöser → Veränderung (die Wende)
   if (d && some(d.ausloeser)) beats.push(`Dann, unvermittelt: ${cap(pick(d.ausloeser))}.`);

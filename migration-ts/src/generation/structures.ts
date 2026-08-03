@@ -64,9 +64,11 @@ export function buildCircle(kit: StoryKit): string {
     `${kit.T} ${kit.W}: wieder ${kit.hookDat} gegenüber steht ${kit.P}.`,
     `Am Anfang steht ${kit.P} vor ${kit.hookDat}. ${kit.T}, ${kit.W}.`,
   ]);
-  const b = (kit.AisClause || kit.AisInfinitiveLed)
+  // Infinitivphrasen ("einen Kran ins Wasser stürzen sehen") sind KEINE Clause:
+  // nach "bemerkt:" wären sie ungrammatisch — sie brauchen ein Modalverb.
+  const b = kit.AisClause
     ? `${kit.P} bemerkt: ${kit.Apure}. ${rot("mode.rule", M.rules)}`
-    : `${kit.P} ${kit.AleadVerb || "sucht"} ${kit.Apure}. ${rot("mode.rule", M.rules)}`;
+    : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}. ${rot("mode.rule", M.rules)}`;
   const c = `Die Dinge werden ${pick(["fremd", "zu klar", "unruhig", "präzise"])}, denn ${kit.obstacle}.`;
   let t = joinBeats([a, b, c, frameTurn(kit.turn), reframeStake(kit.stake), kit.ending], kit.P);
   t = weaveMotif(t, kit.motif);
