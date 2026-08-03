@@ -12,7 +12,7 @@ import { feedLivePools, LIVE_W } from "../features/livepools";
 import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
 import { normWhere, normWhen, normWho, rateWhere, rateWhen, rateWho } from "../generation/ctxnorm";
-import { extractLeadVerb, looksLikeFullClause } from "../generation/wordcls";
+import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "../generation/wordcls";
 import { el, select, field, textInput, button } from "./dom";
 import { icon } from "./icons";
 import { openReader } from "./reader";
@@ -92,7 +92,20 @@ export function mountStudio(root: HTMLElement): void {
       const v = inp.value.trim(); const n = v ? fn(v) : "";
       out.textContent = v && n && n !== v ? "→ " + n : "";
     };
-    h(where, normWhere, hintWo); h(when, normWhen, hintWann); h(who, normWho, hintWer);
+    h(where, normWhere, hintWo); h(when, normWhen, hintWann);
+    // Wer: normalisierte Form UND die Rollenverteilung (erste Figur = Hauptfigur)
+    {
+      const v = who.value.trim();
+      if (!v) hintWer.textContent = "";
+      else {
+        const n = normWho(v);
+        const sp = splitSpeakers(n);
+        const norm = n !== v ? "→ " + n + " · " : "";
+        if (sp.length <= 1) hintWer.textContent = norm + "eine Figur — sie trägt die Handlung";
+        else if (form.value === "script") hintWer.textContent = norm + `${sp.length} Sprecher: ${sp.join(", ")} — reihum im Dialog`;
+        else hintWer.textContent = norm + `Hauptfigur: ${sp[0]} · Nebenfigur${sp.length > 2 ? "n" : ""}: ${sp.slice(1).join(", ")} — die Handlung aus „Was passiert?" gehört der Hauptfigur, die übrigen werden eingewoben`;
+      }
+    }
     // Was: zeigt, WIE die Engine den Wert einwebt (Satz / Handlung / Vorhaben / Ereignis)
     const a = what.value.trim();
     let wasScore = -1;
@@ -739,6 +752,7 @@ export function mountStudio(root: HTMLElement): void {
   });
   const updEmphVis = (): void => { const show = form.value === "prose"; [wWo, wWann, wWer, wWas].forEach((s) => { s.style.display = show ? "" : "none"; }); };
   form.addEventListener("change", updEmphVis);
+  form.addEventListener("change", updHints);
   copyBtn.addEventListener("click", () => { void navigator.clipboard?.writeText(out.textContent || ""); });
 
   // Lesemodus (Vollbild-Overlay)
