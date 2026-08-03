@@ -2,6 +2,7 @@
 // Hinweis: Ton-Einfärbung und "Sprachschliff" (polishGerman) sind bewusst
 // noch nicht portiert (Phase 4) — hier steckt der Kern der Bereinigung.
 import type { GenInput } from "../types";
+import { looksLikeFullClause } from "./wordcls";
 import { escapeRegExp, splitSentences, pick } from "../text-utils";
 import { coherenceWords } from "./nlp";
 import { TONE_DATA } from "./tone.data";
@@ -81,8 +82,12 @@ export function coherenceRepairV2(t: string, input?: Input): string {
   t = t.replace(/\bich'(?=\s)/gi, "meine").replace(/\bdu'(?=\s)/gi, "deine")
     .replace(/\bwir'(?=\s)/gi, "unsere").replace(/\ber'(?=\s)/gi, "seine")
     .replace(/\bsie'(?=\s)/gi, "ihre").replace(/\bes'(?=\s)/gi, "seine");
-  // Fix 4a: Großschreibung nach Doppelpunkt
-  t = t.replace(/(:\s+)([a-zäöüß])/g, (_m, p1: string, p2: string) => p1 + p2.toUpperCase());
+  // Fix 4a: Großschreibung nach Doppelpunkt — nur wenn ein VOLLSTÄNDIGER SATZ folgt.
+  // Deutsche Regel: „Was Tom will: einen Kran stürzen sehen." bleibt klein,
+  // „Tom bemerkt: Die Tür ist offen." wird groß.
+  t = t.replace(/(:\s+)([a-zäöüß][^.!?…]*)/g, (m: string, p1: string, rest: string) =>
+    (looksLikeFullClause(null, rest) || /^(warum|weshalb|wieso|wie|was|wer|wen|wem|wann|wo|wohin|woher|ob)\b/i.test(rest))
+      ? p1 + rest.charAt(0).toUpperCase() + rest.slice(1) : m);
   // Fix 4b: Eigennamen aus "Wer" korrekt kapitalisieren
   String(input?.who || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean).forEach((n) => {
     const esc = escapeRegExp(n);
