@@ -1,7 +1,7 @@
 // Reim (Paarreim AABB) — 1:1 aus dem Original portiert, mit kuratierten
 // Reimgruppen und Schlussformeln (echte Reime, nicht nur Zeilenumbrüche).
 import { pick, splitSentences } from "../text-utils";
-import { normalizeNewlines, capLine, insertStanzas, stripDanglingTail, reimShuffle, reimDedupePhrases } from "./verselib";
+import { normalizeNewlines, capLine, insertStanzasByTheme, stripDanglingTail, reimShuffle, reimDedupePhrases } from "./verselib";
 import type { RhymeGroup } from "./reim.data";
 import { REIM_GROUPS, REIM_TAILS, REIM_RHYTHM_TARGETS, REIM_CONNECTORS, REIM_DEFAULTS } from "./reim.data";
 
@@ -79,5 +79,5 @@ export function applyReimPoem(rawText: string, anchorLine = ""): string {
     lines.push(lineWithRhyme(phrases[pi] || anchor, wB, targetWords, connector));
     pi++; coupletIdx++;
   }
-  return normalizeNewlines(insertStanzas(lines.slice(0, opts.targetLines), opts.stanzaEvery).join("\n")).replace(/\n{3,}/g, "\n\n").trim();
+  return normalizeNewlines(insertStanzasByTheme(lines.slice(0, opts.targetLines), opts.stanzaEvery, 2).join("\n")).replace(/\n{3,}/g, "\n\n").trim();
 }

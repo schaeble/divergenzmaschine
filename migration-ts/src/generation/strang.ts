@@ -1,7 +1,7 @@
 // Gedicht-Strang — 1:1 aus dem Original portiert.
 import { pick, chance, splitSentences } from "../text-utils";
 import { chooseInsertPos } from "./beats";
-import { normalizeNewlines, capLine, insertStanzas, stripDanglingTail, reimDedupePhrases, breakIntoLines } from "./verselib";
+import { normalizeNewlines, capLine, insertStanzasByTheme, stripDanglingTail, reimDedupePhrases, breakIntoLines } from "./verselib";
 import { STRANG_DEFAULTS, STRANG_PULSE, STRANG_IMAGES } from "./strang.data";
 import { isActionSentence, isConcreteLossSentence, isDecisionSentence } from "./sentclass";
 
@@ -93,5 +93,5 @@ export function applyStrangPoem(rawText: string, anchorLine = ""): string {
     if (!/[.!?…]$/.test(last)) last += ".";
     lines[lines.length - 1] = last;
   }
-  return normalizeNewlines(insertStanzas(lines, opts.stanzaEvery).join("\n")).replace(/\n{3,}/g, "\n\n").trim();
+  return normalizeNewlines(insertStanzasByTheme(lines, opts.stanzaEvery, 1).join("\n")).replace(/\n{3,}/g, "\n\n").trim();
 }
