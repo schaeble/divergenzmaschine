@@ -87,7 +87,8 @@ export function mountKorpus(root: HTMLElement): void {
   });
 
   wrap.append(ta, el("div", { class: "btnrow" }, addBtn, showBtn, mgrBtn, cleanBtn, exportBtn, clearBtn), info, view, mgr,
-    el("p", { class: "muted" }, "Säubern segmentiert den Korpus satzweise und entfernt Fragmente, Kopfzeilen-Reste und doppelte Sätze — der Markov-Generator lernt sonst Fehler mit. Neu hinzugefügter Text wird bereits beim Hinzufügen gesäubert."));
+    el("p", { class: "muted" }, "Säubern segmentiert den Korpus satzweise und entfernt Fragmente, Kopfzeilen-Reste und doppelte Sätze — der Markov-Generator lernt sonst Fehler mit. Neu hinzugefügter Text wird bereits beim Hinzufügen gesäubert."),
+    el("p", { class: "muted rightsnote" }, "⚖ Rechtlicher Hinweis: Der Markov-Generator lernt aus genau diesem Text und kann Wortfolgen daraus im erzeugten Text wiedergeben. Fügst du urheberrechtlich geschützte Literatur ein — auch Übersetzungen, die sind eigenständig geschützt, selbst wenn das Original gemeinfrei ist —, können Fragmente davon in deinen Texten auftauchen. Für den privaten Gebrauch ist das unbedenklich; vor einer Veröffentlichung prüfe, woraus dein Korpus besteht. Unbedenklich sind eigene Texte und gemeinfreie Werke (Urheber vor mehr als 70 Jahren verstorben)."));
   root.append(wrap);
   refresh();
 }
