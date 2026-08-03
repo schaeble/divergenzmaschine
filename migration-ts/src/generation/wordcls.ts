@@ -1,19 +1,41 @@
 // "Was passiert"-Analyse: Leitverb abtrennen, Satz-Erkennung.
 import { clean } from "../text-utils";
 import { VERB_CONJ, INFINITIVE_VERBS } from "./verbconj.data";
+import { NOUN_GENDER } from "./nouns.data";
 import { VERB_TOKEN_RE } from "./verbconj";
 
 export interface LeadVerb { verb: string | null; rest: string; isInfinitiveLed?: boolean; }
+
+// Funktionswörter auf -en/-ern/-eln, die KEINE Infinitive sind (Artikel, Pronomen,
+// Präpositionen, Adverbien). Ohne diese Liste würde "einen Kran …" als Verb gelesen.
+const NOT_INFINITIVE = new Set([
+  "einen", "keinen", "seinen", "ihren", "deinen", "unseren", "euren", "diesen", "jenen", "denen", "welchen",
+  "allen", "vielen", "beiden", "manchen", "jeden", "solchen", "anderen", "eigenen", "letzten", "ersten",
+  "oben", "unten", "innen", "außen", "hinten", "vorn", "vorne", "neben", "eben", "gegen", "wegen", "gegenüber",
+  "morgen", "übermorgen", "wochen", "stunden", "sieben", "zehn", "trotzen", "während", "dessen", "deren", "hinein",
+]);
+/** Erkennt einen Infinitiv am Satzanfang — auch außerhalb der kuratierten Liste.
+ *  Deutsche Infinitive enden auf -en/-eln/-ern; ausgeschlossen werden Funktionswörter
+ *  und bekannte Nomen (die Groß-/Kleinschreibung prüft der Aufrufer). */
+function looksLikeInfinitive(w: string): boolean {
+  if (INFINITIVE_VERBS.has(w)) return true;
+  if (w.length < 5 || NOT_INFINITIVE.has(w) || NOUN_GENDER[w]) return false;
+  return /(?:[a-zäöüß]{3,})(?:en|ern|eln)$/.test(w);
+}
 
 export function extractLeadVerb(text: string): LeadVerb {
   const s = clean(text);
   if (!s) return { verb: null, rest: s };
   const m = s.match(/^([A-Za-zÄÖÜäöüß]+)\s+(.+)$/);
   if (!m) return { verb: null, rest: s };
-  const w = m[1]!.toLowerCase();
-  if (VERB_CONJ[w]) return { verb: m[1]!, rest: m[2]! };
-  if (INFINITIVE_VERBS.has(w)) return { verb: null, rest: `${m[2]} ${w}`, isInfinitiveLed: true };
-  if (/^[a-zäöüß]+iert$/.test(w)) return { verb: m[1]!, rest: m[2]! };
+  const raw = m[1]!;
+  const w = raw.toLowerCase();
+  if (VERB_CONJ[w]) return { verb: raw, rest: m[2]! };
+  // Nur kleingeschriebene Wörter können hier Infinitive sein (Nomen sind groß).
+  if (/^[a-zäöüß]/.test(raw) && looksLikeInfinitive(w)) {
+    return { verb: null, rest: `${m[2]} ${w}`, isInfinitiveLed: true };
+  }
+  if (/^[a-zäöüß]+iert$/.test(w)) return { verb: raw, rest: m[2]! };
   return { verb: null, rest: s };
 }
 
