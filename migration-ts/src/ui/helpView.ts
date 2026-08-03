@@ -61,7 +61,7 @@ export function mountHelp(root: HTMLElement): void {
     ["Montage", P("Fragmente sammeln (aus der Schatzkammer, dem letzten Studio-Text oder frei eingefügt) und nach einem Meta-Bogen zusammensetzen: Mosaik, Jahreszeiten, Divergenz und Kaleidoskop (offline) sowie Emergenz und Hyperlink als KI-Weberei (API-Schlüssel nötig). Reihenfolge per ↑/↓ ändern, Ergebnis kopieren oder in die Schatzkammer merken.")],
     ["Werkstatt", P("Aus einem Rohtext (Studio, Schatzkammer oder eingefügt) wird in drei Stufen eine Kurzgeschichte: 1 Gerüst (Figur, Wunsch, Hindernis, Wendung, Schluss, Szenenschritte — vor dem Schreiben korrigierbar), 2 Rohfassung auf 1/1½/2 Seiten, 3 Politur. Wortbank-Motive und lebendige Pools gehen als editierbare Stilanker mit ein; Projekte sind benennbar und speicherbar. Braucht einen API-Schlüssel.")],
     ["Diagnose", P("Selbsttest: prüft per Knopfdruck, ob jedes eingebaute Feature im Ergebnis nachweisbar ", el("b", {}, "wirkt"), " — kein Qualitätsurteil, nur die Frage, ob der Schalter etwas bewirkt. Je Feature eine Ampel-Kachel (greift · greift sporadisch · greift nicht · nicht prüfbar) und darunter eine Pulsreihe: ein Punkt je Testlauf, leuchtend wenn das Feature gewirkt hat. So erscheinen absichtlich seltene Features (z. B. der ", lnk("Disruptor", "werkzeug"), ") als gepunkteter Streifen statt als Fehler. Fehlende Voraussetzungen (leerer Korpus, kein 2.0-Preset) werden grau übersprungen. Rot heißt zuerst „nachprüfen“, nicht schon „kaputt“.")],
-    ["Hilfe", P("Diese Seite: ", lnk("Architektur-Übersicht", "arch"), " sowie Erklärungen zu allen Bedienelementen und Tabs. Oben rechts die Versionsnummer.")],
+    ["Hilfe", P("Diese Seite: ", lnk("Architektur-Übersicht", "arch"), " sowie Erklärungen zu allen Bedienelementen und Tabs, dazu ", lnk("Hinweise & Haftungsausschluss", "disclaimer"), ". Oben rechts die Versionsnummer.")],
   ]));
 
 
@@ -140,6 +140,15 @@ export function mountHelp(root: HTMLElement): void {
     ["Exportieren (oben rechts)", P("sichert das GESAMTE Projekt als eine JSON-Datei: Wortbank, Presets, Korpus, Einstellungen, Schatzkammer, Ideen-/Omni-Presets, lebendige Pools und alle Werkstatt-Projekte. Für Backup oder Übertragung auf ein anderes Gerät.")],
     ["Importieren (oben rechts)", P("liest so eine Datei wieder ein und ERSETZT den gesamten aktuellen Stand (mit Rückfrage).")],
     ["Werkstatt-Projekt speichern (im Tab Werkstatt)", P("speichert NUR die aktuelle Geschichte (Quelle, Vorgaben, Gerüst, Fassungen) unter einem Namen im Browser — keine Datei.")],
+  ]));
+
+  wrap.append(section("disclaimer", "Hinweise & Haftungsausschluss", [
+    ["Maschinell erzeugte Texte", P("die Divergenzmaschine setzt Texte prozedural aus Wortbank-Bausteinen, Vorlagen und einem statistischen Markov-Modell zusammen. Sie ", el("b", {}, "versteht"), " nicht, was sie schreibt. Aussagen in den Texten sind weder recherchiert noch wahr — sie können sachlich falsch, widersprüchlich oder unfreiwillig komisch sein. Nichts davon ist Information, Rat oder Meinung.")],
+    ["Verantwortung", P("für alles, was du mit den erzeugten Texten tust — veröffentlichen, weitergeben, einreichen — bist allein du verantwortlich. Prüfe Texte vor jeder Verwendung. Bei Veröffentlichung ist ein Hinweis auf die maschinelle Erzeugung fair und in manchen Zusammenhängen (Schule, Hochschule, Wettbewerbe, Presse) verpflichtend.")],
+    ["Namen, Werke, Personen", P("Presets tragen Namen realer Autorinnen und Autoren (Goethe, Eichendorff, Dickens, Hugo …). Sie bezeichnen eine ", el("b", {}, "Stilanmutung"), ", keine Zitate und keine Aussagen dieser Personen. Erzeugte Texte sind keine Werke dieser Autoren. Auftauchende Namen, Orte und Ereignisse sind zufällige Kombinationen; Ähnlichkeiten mit lebenden Personen sind unbeabsichtigt.")],
+    ["Inhalte", P("die Bausteine können düstere, gewaltnahe, erotische oder verstörende Motive enthalten (z. B. die Presets Erotik, Hunger, Psychopath). Die Zusammenstellung ist zufällig und nicht kuratiert — es kann Kombinationen geben, die du nicht erwartest. Das Werkzeug richtet sich an erwachsene Schreibende; für Kinder ist es nicht gedacht.")],
+    ["Daten & KI", P("alle Daten liegen ausschließlich in deinem Browser (localStorage) — es gibt keinen Server und kein Konto. Sichere Wichtiges über ", lnk("Exportieren", "sichern"), ", der Browser kann seinen Speicher jederzeit räumen. Nur wenn du einen eigenen API-Schlüssel hinterlegst, werden für die KI-Funktionen Daten an Anthropic übertragen; die Kosten trägst du. Ohne Schlüssel arbeitet die Maschine vollständig offline.")],
+    ["Gewährleistung", P("dieses Werkzeug wird ohne jede Gewährleistung bereitgestellt — keine Zusicherung von Fehlerfreiheit, Verfügbarkeit oder Eignung für einen bestimmten Zweck. Die Nutzung erfolgt auf eigenes Risiko.")],
   ]));
 
   root.append(wrap);

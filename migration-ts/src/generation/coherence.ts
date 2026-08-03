@@ -12,10 +12,24 @@ const PRAET_WEAK = /\b[a-zäöüß]{3,}(te|ten|test|tet)\b/;   // bewusst OHNE /
 const PRAES_MARK = /\b(ist|sind|bin|bist|seid|hat|habe|hast|haben|habt|wird|werden|wirst|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|weiß|wissen|geht|gehen|kommt|kommen|sieht|sehen|steht|stehen|bleibt|bleiben|liegt|liegen|gibt|geben|nimmt|nehmen|spricht|sprechen|trägt|tragen|läuft|laufen|fällt|fallen|geschieht|passiert|beginnt|endet)\b/i;
 
 /** Steht dieser einzelne Eintrag/Satz im Präteritum? (für Wortbank-Prüfung) */
+// Attributives Adjektiv statt Verb: „eine mondbeglänzte Wipfel“, „die letzte Scheibe“.
+// Solche -te-Formen stehen nach Artikel/Adjektiv oder direkt vor einem Nomen.
+const ADJ_CONTEXT = /(?:\b(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|kein|keine|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|jede|jeder|jedes|diese|dieser|dieses|manche|viele|alle)\s+[a-zäöüß]*)?\b[a-zäöüß]{3,}(?:te|ten)\b(?=\s+[A-ZÄÖÜ])/;
+const weakLooksVerbal = (t: string): boolean => {
+  const m = t.match(/\b[a-zäöüß]{3,}(te|ten|test|tet)\b/g);
+  if (!m) return false;
+  // Mindestens eine -te-Form, die NICHT vor einem Nomen steht (also kein Attribut).
+  return m.some((w) => {
+    const re = new RegExp("\\b" + w + "\\b(?=\\s+[A-ZÄÖÜ])");
+    return !re.test(t);
+  });
+};
+
 export function isPastTense(s: string): boolean {
   const t = s || "";
   if (PRAES_MARK.test(t)) return false;
-  if (PRAET_STRONG.test(t) || PRAET_WEAK.test(t)) return true;
+  if (PRAET_STRONG.test(t)) return true;
+  if (PRAET_WEAK.test(t) && weakLooksVerbal(t) && !ADJ_CONTEXT.test(t)) return true;
   // Auch die Verben der Konverter-Tabelle erkennen (hält Warnung und Umschreibung synchron)
   return (t.toLowerCase().match(/[a-zäöüß]+/g) || []).some((w) => !!PAST2PRES[w]);
 }

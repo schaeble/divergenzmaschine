@@ -2545,7 +2545,723 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Und der Satz fehlte weiter.",
       "Und es begann erst dort."
     ]
-  }
+  },
+  "haute_couture": {
+    "motifs": [
+      "ein Saum aus flüssigem Silber",
+      "eine Naht, die niemand findet",
+      "Tüll über nacktem Licht",
+      "ein Stoff, der sich erinnert",
+      "die Schleppe im leeren Saal",
+      "Seide mit dem Puls darunter",
+      "ein Schnittmuster ohne Körper",
+      "Perlen auf gespannter Haut",
+      "der Schatten einer Schulter",
+      "ein Kleid, das ohne Trägerin steht"
+    ],
+    "hooks": [
+      "eine Stecknadel liegt falsch",
+      "der Spiegel zeigt den Rücken zuerst",
+      "ein Faden hängt aus der Naht",
+      "das Licht trifft nur den Saum",
+      "ein Handschuh fehlt",
+      "die Schneiderin schweigt zu lange",
+      "ein Maß stimmt seit gestern nicht"
+    ],
+    "props": [
+      "eine Schere",
+      "ein Fingerhut",
+      "ein Maßband",
+      "eine Stecknadel",
+      "ein Seidenfaden",
+      "eine Schneiderpuppe",
+      "ein Perlmuttknopf",
+      "ein Kleidersack",
+      "ein Handspiegel",
+      "ein Bügeleisen"
+    ],
+    "turns": [
+      "die Naht platzt bei der Anprobe",
+      "das Modell weigert sich zu gehen",
+      "der Stoff verändert im Licht die Farbe",
+      "ein Entwurf verschwindet über Nacht",
+      "die Schneiderin näht den Saum zu eng",
+      "das Kleid passt einer Fremden besser"
+    ],
+    "obstacles": [
+      "der Stoff widersetzt sich der Schere",
+      "die Zeit reicht bis zur Schau nicht",
+      "die Hände zittern zu sehr",
+      "ein Muster lässt sich nicht wiederholen",
+      "niemand bezahlt die Seide"
+    ],
+    "stakes": [
+      "der Ruf eines Hauses",
+      "die letzte Kollektion",
+      "ein Name auf dem Etikett",
+      "die Hand, die noch nähen kann",
+      "ein einziger Abend"
+    ],
+    "endings": [
+      "Der Saum bleibt offen, das Licht geht aus.",
+      "Am Ende trägt es niemand.",
+      "Die Puppe steht, die Schneiderin geht.",
+      "Das Kleid wartet auf einen Körper, der nicht kommt.",
+      "Alle Nadeln liegen ordentlich, alles ist zu spät."
+    ]
+  },
+  "eichendorff": {
+    "motifs": [
+      "ein Waldhorn in der Ferne",
+      "mondbeglänzte Wipfel",
+      "ein Brunnen, der nachts spricht",
+      "das Rauschen über stillen Gründen",
+      "ein Wanderer ohne Ziel",
+      "die Sehnsucht in den Tälern",
+      "ein Schloss im Dämmerlicht",
+      "Sterne über schwarzen Tannen",
+      "ein Weg, der ins Offene führt",
+      "der Morgen hinter blauen Bergen"
+    ],
+    "hooks": [
+      "ein Lied klingt aus dem Tal herauf",
+      "die Wipfel rauschen ohne Wind",
+      "jemand ruft einen alten Namen",
+      "ein Licht brennt im leeren Schloss",
+      "der Weg gabelt sich zweimal gleich",
+      "das Horn verstummt mitten im Ton"
+    ],
+    "props": [
+      "ein Wanderstab",
+      "ein Waldhorn",
+      "ein Ring",
+      "ein Brief",
+      "eine Laute",
+      "ein Mantel",
+      "eine Feder",
+      "ein Krug"
+    ],
+    "turns": [
+      "der Wanderer kehrt um und findet nichts wieder",
+      "das Lied kommt aus dem eigenen Mund",
+      "der Wald öffnet sich auf eine fremde Stadt",
+      "die Nacht bringt zurück, was der Tag nahm",
+      "ein Fremder kennt den Weg besser"
+    ],
+    "obstacles": [
+      "die Sehnsucht findet kein Ziel",
+      "der Wald schließt sich hinter jedem Schritt",
+      "die Nacht kommt zu früh",
+      "niemand antwortet auf das Horn",
+      "das Heimweh zeigt in zwei Richtungen"
+    ],
+    "stakes": [
+      "die Heimat hinter den Bergen",
+      "ein Versprechen aus dem Sommer",
+      "die eigene Stimme",
+      "der letzte helle Abend",
+      "ein Name im Wind"
+    ],
+    "endings": [
+      "Das Horn verklingt, die Wipfel rauschen weiter.",
+      "Er geht, und der Wald bleibt wach.",
+      "Der Morgen kommt und findet niemanden mehr.",
+      "Über den Gründen steht der alte Mond.",
+      "Die Sehnsucht bleibt, der Weg bleibt offen."
+    ]
+  },
+  "dickens": {
+    "motifs": [
+      "Nebel über schwarzen Dächern",
+      "eine Gasse voller Ruß",
+      "ein Kaminfeuer ohne Wärme",
+      "gestärkte Kragen und leere Mägen",
+      "ein Kontor mit kalten Fenstern",
+      "Kinderhände an fremder Arbeit",
+      "eine Uhr im Treppenhaus",
+      "der Atem in ungeheizten Zimmern",
+      "eine Suppe, die nicht reicht",
+      "Kerzenstummel im Amtszimmer"
+    ],
+    "hooks": [
+      "ein Waisenjunge steht in der Tür",
+      "der Vormund zählt zweimal falsch",
+      "ein Testament taucht verspätet auf",
+      "jemand klopft im Schuldnerviertel",
+      "ein Brief trägt kein Siegel",
+      "die Rechnung stimmt seit Jahren nicht"
+    ],
+    "props": [
+      "eine Taschenuhr",
+      "ein Federkiel",
+      "ein Schuldschein",
+      "eine Kerze",
+      "ein Kohleneimer",
+      "ein Kontobuch",
+      "ein Kanten Brot",
+      "ein abgetragener Mantel"
+    ],
+    "turns": [
+      "der Wohltäter erweist sich als Gläubiger",
+      "ein Kind erbt, was niemand erwartet",
+      "der Schreiber weigert sich zu unterschreiben",
+      "die Armenkasse ist leer",
+      "ein Fremder bezahlt die Schuld"
+    ],
+    "obstacles": [
+      "das Amt schließt vor der Zeit",
+      "niemand bürgt für einen Namenlosen",
+      "der Winter kommt vor dem Lohn",
+      "die Papiere fehlen",
+      "der Vormund unterschreibt nicht"
+    ],
+    "stakes": [
+      "ein Platz am Feuer",
+      "der Name der Mutter",
+      "die Freiheit aus dem Schuldturm",
+      "ein Winter ohne Hunger",
+      "die Ehre eines Hauses"
+    ],
+    "endings": [
+      "Der Nebel steht, das Kontor bleibt dunkel.",
+      "Am Morgen ist die Kerze herunter, die Rechnung offen.",
+      "Jemand zahlt, aber es ist zu spät.",
+      "Das Kind geht durch die Gasse und zählt seine Schritte.",
+      "Die Uhr im Treppenhaus schlägt in ein leeres Haus."
+    ]
+  },
+  "urknall": {
+    "motifs": [
+      "ein Punkt ohne Ausdehnung",
+      "der erste Riss im Nichts",
+      "Licht, das älter ist als Raum",
+      "eine Temperatur ohne Ort",
+      "Materie im Zustand des Werdens",
+      "ein Rauschen aus allen Richtungen",
+      "gekrümmte Zeit",
+      "die Ausdehnung eines Augenblicks",
+      "ein Hintergrund aus Wärme",
+      "der Abdruck des Anfangs"
+    ],
+    "hooks": [
+      "das Rauschen kommt aus jeder Richtung gleich",
+      "eine Konstante verschiebt sich um ein Weniges",
+      "der Hintergrund ist wärmer als erwartet",
+      "ein Signal ist älter als sein Ursprung",
+      "die Ausdehnung beschleunigt sich"
+    ],
+    "props": [
+      "ein Spektrometer",
+      "eine Antenne",
+      "eine Rechentafel",
+      "ein Teleskop",
+      "ein Diagramm",
+      "ein Detektor",
+      "eine Uhr",
+      "eine Photoplatte"
+    ],
+    "turns": [
+      "die Messung widerspricht dem Modell",
+      "das Rauschen erweist sich als Erinnerung",
+      "die Konstante ändert sich mit der Entfernung",
+      "jemand rechnet die Zeit rückwärts weiter",
+      "der Anfang lässt kein Davor zu"
+    ],
+    "obstacles": [
+      "die Gleichung teilt durch null",
+      "kein Instrument reicht so weit zurück",
+      "das Licht kommt zu spät an",
+      "die Skala versagt bei kleinen Zahlen",
+      "niemand kann außerhalb stehen"
+    ],
+    "stakes": [
+      "die erste Sekunde",
+      "ein widerlegtes Weltbild",
+      "die Herkunft aller Dinge",
+      "eine einzige Zahl",
+      "das Recht auf eine Frage"
+    ],
+    "endings": [
+      "Das Rauschen bleibt, die Antwort dehnt sich weiter aus.",
+      "Alles fliegt auseinander, gleichmäßig und ohne Eile.",
+      "Der Anfang liegt hinter jedem Punkt gleich weit.",
+      "Die Platte zeigt Wärme, sonst nichts.",
+      "Es dehnt sich, und es kühlt."
+    ]
+  },
+  "erotik": {
+    "motifs": [
+      "ein Abstand, der kleiner wird",
+      "Wärme durch dünnen Stoff",
+      "ein Blick, der zu lange bleibt",
+      "der Puls an einem Handgelenk",
+      "Atem im Nacken",
+      "ein Schulterblatt im Halbdunkel",
+      "die Spur einer Berührung",
+      "Haut im Licht der Straßenlampe",
+      "ein Zögern vor der Tür",
+      "der Schatten zweier Gestalten"
+    ],
+    "hooks": [
+      "eine Hand bleibt eine Sekunde zu lang",
+      "jemand nennt einen Namen leiser als nötig",
+      "der Stuhl rückt näher",
+      "ein Satz bleibt unvollendet",
+      "die Tür fällt hinter zwei Leuten zu",
+      "ein Blick geht über den Rand des Glases"
+    ],
+    "props": [
+      "ein Glas Wein",
+      "ein offenes Fenster",
+      "ein Seidenband",
+      "ein Schlüssel",
+      "ein Mantel über einer Lehne",
+      "eine Kerze",
+      "ein Spiegel",
+      "ein Brief"
+    ],
+    "turns": [
+      "das Schweigen wird zur Antwort",
+      "einer geht, der andere bleibt stehen",
+      "aus Höflichkeit wird Absicht",
+      "die Nähe kippt in Scheu",
+      "jemand sagt doch das Wort"
+    ],
+    "obstacles": [
+      "die Zeit reicht nur bis Mitternacht",
+      "niemand macht den ersten Schritt",
+      "es gibt zu viele Zuschauer",
+      "ein Versprechen bindet anderswo",
+      "die Worte kommen nicht"
+    ],
+    "stakes": [
+      "ein Abend, der nicht wiederkommt",
+      "eine Freundschaft",
+      "der eigene Vorsatz",
+      "die Wahrheit über ein Gefühl",
+      "ein einziges Ja"
+    ],
+    "endings": [
+      "Die Tür bleibt angelehnt.",
+      "Am Morgen liegt der Mantel noch über der Lehne.",
+      "Sie gehen in verschiedene Richtungen, langsam.",
+      "Das Fenster steht offen, das Zimmer ist kühl.",
+      "Nichts geschieht, und alles ist gesagt."
+    ]
+  },
+  "hunger": {
+    "motifs": [
+      "ein leerer Teller im Licht",
+      "die Kornkammer ohne Schatten",
+      "Brot hinter dickem Glas",
+      "ein Magen, der die Stunden zählt",
+      "der Geruch aus fremden Fenstern",
+      "Hände, die nach nichts greifen",
+      "ein Löffel ohne Suppe",
+      "die Straße riecht nach Backstube",
+      "ein Kind zählt Krumen",
+      "Winter über leeren Feldern"
+    ],
+    "hooks": [
+      "die Bäckerei öffnet heute nicht",
+      "jemand teilt die letzte Scheibe zu genau",
+      "ein Sack Mehl fehlt im Lager",
+      "der Preis steigt über Nacht",
+      "ein Teller steht zu viel auf dem Tisch"
+    ],
+    "props": [
+      "ein Löffel",
+      "ein Krug Wasser",
+      "ein Kanten Brot",
+      "eine leere Schüssel",
+      "ein Sack Mehl",
+      "ein Messer",
+      "ein Marktkorb",
+      "eine Waage"
+    ],
+    "turns": [
+      "das Brot reicht für einen weniger",
+      "jemand stiehlt und wird gesehen",
+      "der Nachbar teilt, ohne zu fragen",
+      "die Vorräte finden sich, aber verdorben",
+      "der Hunger geht, die Angst bleibt"
+    ],
+    "obstacles": [
+      "die Felder tragen nichts",
+      "der Markt bleibt geschlossen",
+      "das Geld reicht bis Dienstag",
+      "niemand öffnet die Tür",
+      "der Weg zur Stadt ist zu weit"
+    ],
+    "stakes": [
+      "ein Winter",
+      "die Kraft für morgen",
+      "der Stolz beim Bitten",
+      "ein Kind am Tisch",
+      "die letzte Scheibe"
+    ],
+    "endings": [
+      "Der Teller bleibt leer, das Licht wird kalt.",
+      "Am Morgen ist der Krug noch voll.",
+      "Sie teilen, und es reicht nicht.",
+      "Draußen backt jemand, hier zählt jemand.",
+      "Der Hunger legt sich schlafen und wacht früher auf."
+    ]
+  },
+  "romantik": {
+    "motifs": [
+      "die blaue Blume am Wegrand",
+      "Mondlicht auf altem Stein",
+      "eine Ruine im Nebel",
+      "Sehnsucht ohne Gegenstand",
+      "ein Traum, der weiterträumt",
+      "die Nacht als offenes Tor",
+      "eine Harfe im leeren Saal",
+      "der Wald als Kirche",
+      "Sterne über schlafenden Dörfern",
+      "ein Herz, das die Ferne wählt"
+    ],
+    "hooks": [
+      "die Blume blüht am falschen Ort",
+      "ein Traum wiederholt ein fremdes Zimmer",
+      "die Ruine trägt ein frisches Zeichen",
+      "jemand singt, was niemand kennt",
+      "der Mond steht zweimal im Wasser"
+    ],
+    "props": [
+      "eine getrocknete Blume",
+      "ein Medaillon",
+      "eine Harfe",
+      "ein Notenblatt",
+      "ein Spiegel",
+      "ein Schlüssel",
+      "eine Kerze",
+      "ein Buch"
+    ],
+    "turns": [
+      "der Traum tritt aus dem Schlaf heraus",
+      "die Ferne erweist sich als Nähe",
+      "das Lied kennt die Zukunft",
+      "die Ruine erinnert sich an ihren Bau",
+      "der Weg führt in die eigene Kindheit"
+    ],
+    "obstacles": [
+      "das Erwachen kommt zu früh",
+      "die Blume verliert im Licht ihre Farbe",
+      "niemand hört den Ton",
+      "die Ferne bleibt Ferne",
+      "der Traum lässt sich nicht erzählen"
+    ],
+    "stakes": [
+      "ein Traum, der nicht zurückkommt",
+      "die Unschuld eines Sommers",
+      "ein Ton, den niemand sonst hört",
+      "die Ferne selbst",
+      "ein Wort für das Unsagbare"
+    ],
+    "endings": [
+      "Die Blume bleibt blau, der Morgen bleibt grau.",
+      "Er erwacht, und die Ferne ist wieder weit.",
+      "Das Lied endet, der Saal hört weiter zu.",
+      "Über der Ruine steht der Mond und wartet.",
+      "Alles bleibt offen wie ein Tor bei Nacht."
+    ]
+  },
+  "hugo": {
+    "motifs": [
+      "eine Barrikade aus Möbeln",
+      "Kanäle unter der Stadt",
+      "die Glocke über den Dächern",
+      "ein Kerzenleuchter aus Silber",
+      "das Kind auf dem Pflaster",
+      "ein Gerichtssaal ohne Fenster",
+      "Brot und Ketten",
+      "die Kathedrale im Regen",
+      "eine Nummer statt eines Namens",
+      "der Aufruhr in engen Gassen"
+    ],
+    "hooks": [
+      "ein Bischof zählt das Silber nicht nach",
+      "ein Kommissar erkennt ein Gesicht wieder",
+      "auf dem Pflaster liegt eine Fahne",
+      "das Kind singt gegen die Gewehre",
+      "ein Name steht in zwei Akten"
+    ],
+    "props": [
+      "ein Leuchter",
+      "eine Akte",
+      "ein Brotlaib",
+      "eine Kette",
+      "eine Fahne",
+      "ein Gewehr",
+      "eine Glocke",
+      "ein Passierschein"
+    ],
+    "turns": [
+      "der Verfolger lässt den Verfolgten laufen",
+      "die Barrikade hält länger als erwartet",
+      "aus Gnade wird ein neues Leben",
+      "das Gesetz siegt und verliert dabei",
+      "ein Kind fällt, und die Straße erhebt sich"
+    ],
+    "obstacles": [
+      "das Gesetz kennt keine Gnade",
+      "die Papiere tragen den alten Namen",
+      "die Nacht gehört den Wachen",
+      "niemand öffnet die Tore",
+      "die Kanäle sind überflutet"
+    ],
+    "stakes": [
+      "ein Name ohne Nummer",
+      "das Leben eines Kindes",
+      "die Gerechtigkeit selbst",
+      "eine Stadt für eine Nacht",
+      "die Seele eines Verfolgers"
+    ],
+    "endings": [
+      "Die Barrikade fällt, die Glocke bleibt.",
+      "Am Morgen räumt man das Pflaster.",
+      "Er geht frei, und niemand versteht warum.",
+      "Die Kathedrale steht im Regen wie immer.",
+      "Unten in den Kanälen läuft das Wasser weiter."
+    ]
+  },
+  "hafen": {
+    "motifs": [
+      "Kräne im Morgennebel",
+      "ein Poller mit alten Kerben",
+      "Öl auf schwarzem Wasser",
+      "Container in falscher Ordnung",
+      "ein Schiffsbauch voller Fremde",
+      "Möwen über leeren Kais",
+      "das Tuten in der Nacht",
+      "Seile, dick wie Arme",
+      "eine Uhr am Kaischuppen",
+      "Salz auf jeder Fläche"
+    ],
+    "hooks": [
+      "ein Container steht ohne Papiere da",
+      "das Schiff läuft ohne Namen ein",
+      "eine Leine löst sich von selbst",
+      "jemand wartet seit Tagen am Kai",
+      "die Ladeliste zählt einen Posten zu viel"
+    ],
+    "props": [
+      "ein Tau",
+      "ein Kompass",
+      "eine Laterne",
+      "ein Seesack",
+      "ein Frachtbrief",
+      "ein Anker",
+      "eine Trillerpfeife",
+      "eine Seekarte"
+    ],
+    "turns": [
+      "das Schiff legt früher ab als angekündigt",
+      "der Wartende steigt doch ein",
+      "die Ladung gehört jemand anderem",
+      "der Kapitän kennt den Namen im Brief",
+      "der Nebel hebt sich und zeigt nichts"
+    ],
+    "obstacles": [
+      "die Papiere fehlen",
+      "die Flut kommt zu spät",
+      "niemand spricht dieselbe Sprache",
+      "der Zoll schließt den Kai",
+      "das Tau hält nicht"
+    ],
+    "stakes": [
+      "eine Überfahrt",
+      "ein Name auf der Liste",
+      "die letzte Fracht",
+      "ein Wiedersehen",
+      "der Weg zurück"
+    ],
+    "endings": [
+      "Das Schiff läuft aus, der Kai bleibt leer.",
+      "Am Morgen liegt nur noch Öl auf dem Wasser.",
+      "Sie wartet weiter, die Uhr am Schuppen geht falsch.",
+      "Die Möwen bleiben, alles andere fährt.",
+      "Das Tuten kommt zurück und findet niemanden."
+    ]
+  },
+  "alltag": {
+    "motifs": [
+      "ein Kühlschrank, der nachts brummt",
+      "die immer gleiche Bushaltestelle",
+      "Post auf dem Küchentisch",
+      "ein Schlüssel im falschen Fach",
+      "Wäsche auf dem Balkon",
+      "das Licht im Treppenhaus",
+      "eine Kaffeetasse mit Rand",
+      "der Wecker vor dem Wecker",
+      "ein Einkaufszettel ohne Ende",
+      "Fernsehen ohne Ton"
+    ],
+    "hooks": [
+      "der Bus kommt heute nicht",
+      "ein Umschlag ohne Absender liegt da",
+      "der Nachbar grüßt zum ersten Mal",
+      "der Aufzug hält im falschen Stock",
+      "eine Zahl auf der Rechnung stimmt nicht"
+    ],
+    "props": [
+      "ein Schlüsselbund",
+      "eine Kaffeetasse",
+      "ein Einkaufszettel",
+      "eine Fernbedienung",
+      "ein Regenschirm",
+      "ein Handy",
+      "ein Kalender",
+      "ein Blumentopf"
+    ],
+    "turns": [
+      "der freie Tag füllt sich ungefragt",
+      "jemand ruft nach Jahren wieder an",
+      "der Umzug fällt aus",
+      "die Routine bricht an einem Dienstag",
+      "der Nachbar bleibt in der Tür stehen"
+    ],
+    "obstacles": [
+      "der Tag hat zu wenig Stunden",
+      "niemand ist erreichbar",
+      "das Formular verlangt eine Nummer",
+      "der Bus fährt nur bis zur Brücke",
+      "die Wohnung bleibt zu klein"
+    ],
+    "stakes": [
+      "ein freier Nachmittag",
+      "die Miete",
+      "ein Anruf, der überfällig ist",
+      "der Platz am Fenster",
+      "die Ruhe nach Feierabend"
+    ],
+    "endings": [
+      "Der Kühlschrank brummt weiter, das Licht geht aus.",
+      "Morgen kommt der Bus wieder pünktlich.",
+      "Sie räumt die Tasse weg und macht das Fenster zu.",
+      "Im Treppenhaus geht das Licht von selbst aus.",
+      "Der Zettel bleibt liegen, unvollständig."
+    ]
+  },
+  "goethe": {
+    "motifs": [
+      "ein Erlkönig im Nebelstreif",
+      "die Grenze zwischen Wald und Feld",
+      "ein Werk, das seinen Meister verschlingt",
+      "der Faden einer alten Schuld",
+      "Marmor unter südlichem Licht",
+      "ein Brief an eine Ferne",
+      "die Wette zwischen zwei Kräften",
+      "ein Garten nach strengem Plan",
+      "das Wetterleuchten über Weimar",
+      "der Augenblick, der verweilen soll"
+    ],
+    "hooks": [
+      "ein Vater reitet zu schnell",
+      "der Lehrling spricht die halbe Formel",
+      "ein Brief trägt kein Datum",
+      "der Spiegel zeigt eine jüngere Hand",
+      "jemand schließt eine Wette ohne Zeugen"
+    ],
+    "props": [
+      "ein Federkiel",
+      "ein Siegelring",
+      "ein Zauberbesen",
+      "eine Wetterfahne",
+      "ein Reisekoffer",
+      "eine Farbenscheibe",
+      "ein Manuskript",
+      "ein Wanderstock"
+    ],
+    "turns": [
+      "der Diener gehorcht länger als befohlen",
+      "die Wette wendet sich gegen beide",
+      "das Werk gelingt und fordert alles",
+      "ein Wort zu viel bindet für immer",
+      "die Reise führt zurück an den Anfang"
+    ],
+    "obstacles": [
+      "das Wort für den Bann fehlt",
+      "zwei Seelen wollen verschiedene Wege",
+      "die Zeit lässt sich nicht anhalten",
+      "der Meister bleibt fort",
+      "die Formel ist nur halb gelernt"
+    ],
+    "stakes": [
+      "ein Augenblick, der bleiben soll",
+      "die Seele in einer Wette",
+      "das Kind auf dem Pferd",
+      "der Ruhm eines Werks",
+      "zwei Seelen in einer Brust"
+    ],
+    "endings": [
+      "Der Vater kommt an, das Kind ist still.",
+      "Die Besen stehen, das Wasser steigt weiter.",
+      "Er sagt das Wort, und alles hält an.",
+      "Der Garten bleibt in Ordnung, der Gärtner geht.",
+      "Am Ende verweilt nichts, auch nicht der Augenblick."
+    ]
+  },
+  "sinnlich": {
+    "motifs": [
+      "Regen auf warmem Stein",
+      "der Geschmack von Salz auf den Lippen",
+      "Wolle an der Innenseite des Arms",
+      "ein Geruch aus der Kindheit",
+      "das Knistern von Papier",
+      "Licht durch geschlossene Lider",
+      "kaltes Wasser an den Handgelenken",
+      "der Nachhall einer Stimme",
+      "Sand zwischen den Fingern",
+      "der erste Schluck nach langem Weg"
+    ],
+    "hooks": [
+      "ein Duft kommt ohne Quelle",
+      "die Haut spürt ein Geräusch",
+      "ein Geschmack weckt ein Datum",
+      "das Licht fühlt sich schwer an",
+      "eine Berührung klingt nach"
+    ],
+    "props": [
+      "eine Orange",
+      "ein Wollschal",
+      "eine Schale Wasser",
+      "ein Stück Rinde",
+      "eine Glocke",
+      "ein Tuch",
+      "eine Kerze",
+      "ein Kieselstein"
+    ],
+    "turns": [
+      "ein Sinn übernimmt die Arbeit des anderen",
+      "der Geruch führt an einen Ort zurück",
+      "die Berührung verändert die Farbe",
+      "das Hören wird zum Sehen",
+      "der Geschmack bleibt länger als die Erinnerung"
+    ],
+    "obstacles": [
+      "die Worte fehlen für das Gefühlte",
+      "der Duft verfliegt zu schnell",
+      "niemand sonst nimmt es wahr",
+      "die Haut gewöhnt sich",
+      "der Ton liegt außerhalb des Hörens"
+    ],
+    "stakes": [
+      "eine Erinnerung, die nur im Duft lebt",
+      "die Schärfe der Wahrnehmung",
+      "ein Augenblick vor dem Vergessen",
+      "die eigene Haut",
+      "ein Name für ein Gefühl"
+    ],
+    "endings": [
+      "Der Regen hört auf, der Stein bleibt warm.",
+      "Nichts davon lässt sich sagen.",
+      "Sie schließt die Augen und sieht mehr.",
+      "Der Duft geht, das Zimmer bleibt.",
+      "Am Ende bleibt Salz auf den Lippen."
+    ]
+  },
 };
 
 /** Icon-Labels je Built-in-Preset-Id. */
@@ -2588,5 +3304,17 @@ export const PRESET_LABELS: Record<string, string> = {
   "myth": "🜁 Myth",
   "body": "🫀 Body",
   "absurd": "🌀 Absurd",
-  "post": "🛰️ Posthuman"
+  "post": "🛰️ Posthuman",
+  "haute_couture": "👗 Haute Couture",
+  "eichendorff": "🌲 Eichendorff",
+  "dickens": "🕯️ Dickens",
+  "urknall": "💥 Urknall",
+  "erotik": "🌹 Erotik",
+  "hunger": "🍞 Hunger",
+  "romantik": "🌙 Romantik",
+  "hugo": "🔔 Victor Hugo",
+  "hafen": "⚓ Am Hafen",
+  "alltag": "🏠 Alltag",
+  "goethe": "🌿 Goethe",
+  "sinnlich": "🖐️ Sinnliche Erfahrung",
 };

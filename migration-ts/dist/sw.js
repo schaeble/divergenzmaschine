@@ -1,5 +1,5 @@
 /* Divergenzmaschine – Service Worker (offline-fähig) */
-const CACHE = 'divergenzmaschine-ts-4.118.0';
+const CACHE = 'divergenzmaschine-ts-4.119.0';
 const PRECACHE = [
   './',
   './index.html',
@@ -31,18 +31,22 @@ self.addEventListener('fetch', (e) => {
   // API-Aufrufe (Anthropic) nie cachen – immer Netz
   if (url.hostname.endsWith('anthropic.com')) return;
 
-  // Seite selbst: network-first (frisch), Offline-Fallback aus dem Cache
+  // Seite selbst: network-first MIT Zeitlimit. Ohne Limit haengt der Start bei
+  // langsamem/halbtotem Netz, bis der Browser-Timeout greift; deshalb nach 2,5 s
+  // aus dem Cache ausliefern und die Netzantwort im Hintergrund weiter uebernehmen.
   if (req.mode === 'navigate' || url.pathname.endsWith('/index.html')) {
+    const fromCache = () => caches.match('./index.html').then((hit) => hit || caches.match('./'));
+    const net = fetch(req, { cache: 'no-cache' }).then((res) => {
+      if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put('./index.html', copy)); }
+      return res;
+    });
     e.respondWith(
-      fetch(req, { cache: 'no-cache' })
-        .then((res) => {
-          if (res && res.ok) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put('./index.html', copy));
-          }
-          return res;
-        })
-        .catch(() => caches.match('./index.html').then((hit) => hit || caches.match('./')))
+      new Promise((resolve) => {
+        let done = false;
+        const finish = (r) => { if (!done && r) { done = true; resolve(r); } };
+        net.then(finish).catch(() => { fromCache().then((hit) => finish(hit) || (done || resolve(Response.error()))); });
+        setTimeout(() => { if (!done) fromCache().then((hit) => { if (hit) finish(hit); }); }, 2500);
+      })
     );
     return;
   }
