@@ -99,7 +99,7 @@ export function mountStudio(root: HTMLElement): void {
     if (!a) hintWas.textContent = "";
     else {
       const lead = extractLeadVerb(a);
-      if (lead.isInfinitiveLed) { hintWas.textContent = "→ als Vorhaben eingewoben („will " + a + "“)"; wasScore = 0.9; }
+      if (lead.isInfinitiveLed) { hintWas.textContent = "→ als Vorhaben eingewoben („will " + lead.rest + "“)"; wasScore = 0.9; }
       else if (lead.verb) { hintWas.textContent = "→ als Handlung eingewoben (Verb: " + lead.verb + ")"; wasScore = 1; }
       else if (looksLikeFullClause(lead.verb, lead.rest)) { hintWas.textContent = "→ als eigener Satz eingewoben"; wasScore = 1; }
       else { hintWas.textContent = "→ als Ereignis-Phrase eingewoben"; wasScore = a.length >= 4 ? 0.7 : 0.4; }
