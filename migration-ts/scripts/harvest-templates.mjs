@@ -69,6 +69,8 @@ for (const q of QUELLEN) {
     for (const teil of teile) {
       const t = teil.trim();
       if (t.length < 6 || seen.has(t)) continue;
+      // Struktur-Labels aus dem Generator sind keine Sprache: „WO:“, „SZENE:“, „Shot 3:“
+      if (/^[A-ZÄÖÜ]{2,}\s*:/.test(t) || /^(Shot|Szene|Take)\b/i.test(t)) continue;
       seen.add(t);
       const typ = typOf(t);
       atome.push({

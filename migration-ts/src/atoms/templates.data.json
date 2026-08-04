@@ -870,16 +870,6 @@
   },
   {
    "id": "vl-0060",
-   "text": "SZENE:",
-   "quelle": "vorlage",
-   "herkunft": "dialogue",
-   "typ": "kopf",
-   "verlangt": null,
-   "oeffnet": true,
-   "platzhalter": []
-  },
-  {
-   "id": "vl-0061",
    "text": "⟨ORT⟩, ⟨ZEIT⟩.",
    "quelle": "vorlage",
    "herkunft": "dialogue",
@@ -892,7 +882,7 @@
    ]
   },
   {
-   "id": "vl-0062",
+   "id": "vl-0061",
    "text": "⟨X⟩ ⟨X⟩ ⟨X⟩, aber ⟨WAHL⟩.",
    "quelle": "vorlage",
    "herkunft": "video",
@@ -907,7 +897,7 @@
    ]
   },
   {
-   "id": "vl-0063",
+   "id": "vl-0062",
    "text": "SEQUENZ — ⟨X⟩",
    "quelle": "vorlage",
    "herkunft": "video",
@@ -919,31 +909,7 @@
    ]
   },
   {
-   "id": "vl-0064",
-   "text": "WER: ⟨X⟩",
-   "quelle": "vorlage",
-   "herkunft": "video",
-   "typ": "fragment",
-   "verlangt": null,
-   "oeffnet": false,
-   "platzhalter": [
-    "X"
-   ]
-  },
-  {
-   "id": "vl-0065",
-   "text": "WO: ⟨ORT⟩",
-   "quelle": "vorlage",
-   "herkunft": "video",
-   "typ": "fragment",
-   "verlangt": null,
-   "oeffnet": false,
-   "platzhalter": [
-    "ORT"
-   ]
-  },
-  {
-   "id": "vl-0066",
+   "id": "vl-0063",
    "text": "⟨ZEIT⟩",
    "quelle": "vorlage",
    "herkunft": "video",
@@ -952,18 +918,6 @@
    "oeffnet": false,
    "platzhalter": [
     "ZEIT"
-   ]
-  },
-  {
-   "id": "vl-0067",
-   "text": "WAS: ⟨A⟩",
-   "quelle": "vorlage",
-   "herkunft": "video",
-   "typ": "fragment",
-   "verlangt": null,
-   "oeffnet": false,
-   "platzhalter": [
-    "A"
    ]
   }
  ]

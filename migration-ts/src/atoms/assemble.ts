@@ -10,6 +10,43 @@ export interface PoolAtom extends DerivedAtom {
   bruchgrad: number;
   verlangt: { rolle: string; kasus: string; art: string } | null;
   platzhalter?: string[];
+  kategorie?: string;      // Bank-Kategorie: motifs | hooks | props | turns | obstacles | stakes | endings
+}
+
+// ── Positionslogik ───────────────────────────────────────────────────
+// Ohne sie stehen die Sätze beliebig nebeneinander: grammatisch sauber, aber
+// ohne Bogen. Jede Position bekommt eine Funktion; passende Atome werden
+// bevorzugt, nicht erzwungen — sonst geht die Divergenz verloren.
+export type Phase = "exposition" | "verdichtung" | "umschlag" | "schluss";
+
+/** Welche Bank-Kategorien tragen welche Phase. */
+const PHASEN_KATEGORIEN: Record<Phase, string[]> = {
+  exposition:  ["motifs", "hooks"],
+  verdichtung: ["props", "obstacles", "stakes"],
+  umschlag:    ["turns"],
+  schluss:     ["endings"],
+};
+
+/** Verteilt n Positionen auf den Erzählbogen (30 / 30 / 20 / 20). */
+export function phasenplan(n: number): Phase[] {
+  const plan: Phase[] = [];
+  const grenzen: [Phase, number][] = [["exposition", 0.3], ["verdichtung", 0.6], ["umschlag", 0.8], ["schluss", 1]];
+  for (let i = 0; i < n; i++) {
+    const p = (i + 1) / n;
+    plan.push((grenzen.find(([, g]) => p <= g) || grenzen[3]!)[0]);
+  }
+  return plan;
+}
+
+/** Bonus, wenn das Atom die Funktion der aktuellen Phase erfüllt. */
+export function phasenBonus(a: PoolAtom, phase: Phase): number {
+  if (a.quelle === "vorlage") return phase === "exposition" ? 1.2 : 0.4;   // Rahmen eröffnen gern
+  if (!a.kategorie) return 0;
+  if (PHASEN_KATEGORIEN[phase].includes(a.kategorie)) return 2.2;
+  // Schluss-Atome dürfen nie zu früh, Motive nie ganz am Ende
+  if (a.kategorie === "endings" && phase !== "schluss") return -3;
+  if (a.kategorie === "motifs" && phase === "schluss") return -1.5;
+  return 0;
 }
 
 export interface Kontext {
@@ -22,8 +59,11 @@ export interface Kontext {
 }
 
 /** Prüft, ob ein Atom an der aktuellen Stelle stehen darf. */
-export function passt(a: PoolAtom, k: Kontext): boolean {
+export function passt(a: PoolAtom, k: Kontext, phase?: Phase): boolean {
   if (k.benutzt.has(a.id)) return false;
+  // Schluss-Atome gehören ans Ende — sonst kippt der Bogen mittendrin
+  if (phase && a.kategorie === "endings" && phase !== "schluss") return false;
+  if (phase && phase === "schluss" && a.kategorie === "motifs") return false;
   const vorTyp: AtomTyp | "start" = k.vorheriges ? k.vorheriges.typ : "start";
   if (!darfFolgen(vorTyp, a.typ)) return false;
   // Offener Kopf muss bedient werden
@@ -103,17 +143,18 @@ export function verfugen(teile: string[]): string {
 }
 
 /** Zieht gewichtet: bevorzugt passende Länge und Bildfeld-Nähe zum bisherigen Text. */
-export function ziehe(kandidaten: PoolAtom[], sollGewicht: string, bisher: string): PoolAtom | null {
+export function ziehe(kandidaten: PoolAtom[], sollGewicht: string, bisher: string, phase?: Phase): PoolAtom | null {
   if (!kandidaten.length) return null;
   const stems = (t: string): Set<string> => new Set((t.toLowerCase().match(/[a-zäöüß]{5,}/g) || []).map((w) => w.slice(0, 5)));
   const kontext = stems(bisher);
   const score = (a: PoolAtom): number => {
     let s = 1;
+    if (phase) s += phasenBonus(a, phase);         // Funktion der Position zuerst
     if (a.rhythmus.gewicht === sollGewicht) s += 1.5;
     const ov = [...stems(a.text)].filter((x) => kontext.has(x)).length;
     s += Math.min(ov, 2) * 0.8;                    // etwas Bindung, aber keine Wiederholung
     if (ov > 3) s -= 2;
-    return s;
+    return Math.max(0.05, s);                      // nie negativ ziehen
   };
   const total = kandidaten.reduce((n, a) => n + score(a), 0);
   let r = Math.random() * total;
