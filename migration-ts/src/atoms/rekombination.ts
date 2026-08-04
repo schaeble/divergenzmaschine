@@ -6,6 +6,7 @@ import { passt, fortschreiben, fuelleKontext, fuelleSlot, offeneSlots, verfugen,
 import TEMPLATES from "./templates.data.json";
 import { normWhere, normWhen, normWho } from "../generation/ctxnorm";
 import { isFirstPerson, isSecondPerson } from "../generation/coherence";
+import { resetTrace, pushTrace } from "./trace";
 
 interface TemplateAtom { id: string; text: string; typ: string; verlangt: PoolAtom["verlangt"]; oeffnet: boolean }
 
@@ -54,6 +55,7 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
   const kurve = ["mittel", "kurz", "lang", "mittel", "kurz", "mittel", "lang"];
   const out: string[] = [];
   let letzterTyp = "", gleicheInFolge = 0;
+  resetTrace();
   // Cooldown statt Verbrauch: bei ~78 Atomen im Pool wäre der Vorrat sonst nach
   // wenigen Sätzen erschöpft. Nur die zuletzt gesetzten bleiben gesperrt.
   const cooldown: string[] = [];
@@ -78,19 +80,24 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     const a = ziehe(kand, kurve[s % kurve.length]!, out.join(" "), phase);
     if (!a) break;
     let text = fuelleKontext(a.text, ctx);
+    const fueller: { text: string; kategorie: string }[] = [];
     let guard = 0;
     while (offeneSlots(text) && guard++ < 3) {
       const kf: Kontext = { ...k, vorheriges: a, offenerKopf: false };
-      const f = ziehe(pool.filter((x) => x.id !== a.id && !k.benutzt.has(x.id) && passt(x, kf)), "mittel", out.join(" "));
+      const f = ziehe(pool.filter((x) => x.id !== a.id && !k.benutzt.has(x.id)
+        && !(x.kategorie === "endings" && phase !== "schluss")     // kein Schlussbild als Füllung
+        && passt(x, kf)), "mittel", out.join(" "));
       if (!f) break;
       // Der Füller steht mitten im Satz: Großschreibung nur bei Eigennamen belassen
       let fill = fuelleKontext(f.text, ctx).replace(/[.!?…]+$/, "");
       if (!f.fuehrt_ein.length && /^[A-ZÄÖÜ][a-zäöüß]/.test(fill)) fill = fill.charAt(0).toLowerCase() + fill.slice(1);
       text = fuelleSlot(text, fill);
+      fueller.push({ text: fill, kategorie: f.kategorie || "—" });
       k.benutzt.add(f.id);
     }
     if (offeneSlots(text)) continue;                    // ungefüllt → verwerfen statt ausgeben
     out.push(text);
+    pushTrace({ text, quelle: a.quelle, kategorie: a.kategorie || "—", typ: a.typ, phase, fueller: fueller.length ? fueller : undefined });
     gleicheInFolge = a.typ === letzterTyp ? gleicheInFolge + 1 : 0;
     letzterTyp = a.typ;
     fortschreiben(k, a);

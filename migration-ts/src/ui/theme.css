@@ -407,3 +407,16 @@ input[type=range].wgt:hover{opacity:1}
 .rankslide .muted{min-width:58px;text-align:right;font-variant-numeric:tabular-nums}
 .chkrow{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:6px}
 .chkrow .chk{display:inline-flex;align-items:center;gap:7px}
+.planchk{margin-left:6px}
+.bauplan{margin:8px 0;border:1px solid var(--border2);border-radius:10px;padding:8px 10px;max-height:320px;overflow:auto}
+.bp-phase{font:600 10px var(--sans);letter-spacing:.08em;text-transform:uppercase;margin:8px 0 3px;padding:2px 8px;border-radius:999px;display:inline-block}
+.bp-phase:first-child{margin-top:0}
+.ph-exposition{background:rgba(55,138,221,.18);color:#378ADD}
+.ph-verdichtung{background:rgba(99,153,34,.18);color:#639922}
+.ph-umschlag{background:rgba(239,159,39,.20);color:#EF9F27}
+.ph-schluss{background:rgba(230,73,128,.18);color:#E64980}
+.bp-zeile{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;padding:3px 0 3px 8px;border-left:2px solid var(--border2);margin:2px 0}
+.bp-zeile.q-vorlage{border-left-color:var(--acc);opacity:.85}
+.bp-tag{font:600 10px var(--sans);color:var(--muted);min-width:92px;text-transform:uppercase;letter-spacing:.04em}
+.bp-text{font:13px var(--sans);color:var(--text);flex:1}
+.bp-fill{font:12px var(--sans);color:var(--muted);flex-basis:100%;padding-left:100px}
