@@ -2,7 +2,7 @@
 // Pool = aktive Wortbank (offline annotiert) + geerntete Satzvorlagen.
 import type { Bank, GenInput } from "../types";
 import { deriveAtom } from "./derive";
-import { passt, fortschreiben, fuelleKontext, fuelleSlot, offeneSlots, verfugen, ziehe, phasenplan, type PoolAtom, type Kontext } from "./assemble";
+import { passt, fortschreiben, fuelleKontext, fuelleSlot, offeneSlots, verfugen, ziehe, type PoolAtom, type Kontext } from "./assemble";
 import TEMPLATES from "./templates.data.json";
 import { normWhere, normWhen, normWho } from "../generation/ctxnorm";
 import { isFirstPerson, isSecondPerson } from "../generation/coherence";
@@ -46,17 +46,27 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     figur: (normWho(input.who || "").split(",")[0] || "Jemand").trim(),
     verb: "will",
   };
-  const ziel = Math.max(4, Math.min(18, Math.round((input.lenTarget ?? 110) / 14)));
+  // Bis zur ZIELWORTZAHL bauen, nicht bis zu einer geschätzten Atomzahl: Atome sind
+  // im Schnitt nur ~4 Wörter lang, eine feste Zahl verfehlt das Ziel um ein Vielfaches.
+  const zielWoerter = Math.max(30, input.lenTarget ?? 110);
   const k: Kontext = { vorheriges: null, offenerKopf: false, entitaeten: new Map([[ctx.figur, { abstand: 0 }]]),
     tempus: null, divergenz: divergenzOf(input), benutzt: new Set() };
   const kurve = ["mittel", "kurz", "lang", "mittel", "kurz", "mittel", "lang"];
-  const plan = phasenplan(ziel);
   const out: string[] = [];
   let letzterTyp = "", gleicheInFolge = 0;
+  // Cooldown statt Verbrauch: bei ~78 Atomen im Pool wäre der Vorrat sonst nach
+  // wenigen Sätzen erschöpft. Nur die zuletzt gesetzten bleiben gesperrt.
+  const cooldown: string[] = [];
+  // Cooldown proportional zum Vorrat: bei kleinem Pool sonst Dauerwiederholung
+  const COOLDOWN = Math.max(10, Math.floor(pool.length * 0.45));
+  const woerterJetzt = (): number => out.join(" ").split(/\s+/).filter(Boolean).length;
 
-  for (let s = 0; s < ziel; s++) {
-    const phase = plan[s]!;
-    const letzte = s === ziel - 1;
+  for (let s = 0; s < 200; s++) {
+    const fortschritt = woerterJetzt() / zielWoerter;
+    if (fortschritt >= 1) break;
+    // Phase aus dem Fortschritt in Wörtern ableiten (nicht aus der Position)
+    const phase = fortschritt < 0.3 ? "exposition" : fortschritt < 0.6 ? "verdichtung" : fortschritt < 0.8 ? "umschlag" : "schluss";
+    const letzte = fortschritt >= 0.92;
     let kand = pool.filter((a) => passt(a, k, phase));
     if (letzte) kand = kand.filter((a) => !a.oeffnet && !a.verlangt);   // Text darf nicht offen enden
     // Nominalphrasen-Ketten aufbrechen: nach zwei gleichartigen Atomen Typwechsel erzwingen
@@ -85,6 +95,8 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     letzterTyp = a.typ;
     fortschreiben(k, a);
     if (a.verlangt) k.offenerKopf = false;
+    cooldown.push(a.id);
+    while (cooldown.length > COOLDOWN) { const frei = cooldown.shift(); if (frei) k.benutzt.delete(frei); }
   }
   return verfugen(out);
 }
