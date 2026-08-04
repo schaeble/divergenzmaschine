@@ -88,7 +88,8 @@ export function mountHelp(root: HTMLElement): void {
 
   wrap.append(section("werkzeug", "Werkzeugkasten (aufklappbar)", [
     ["Schrift · Größe", P("Schriftart (Serif/Times/Sans/Mono) und Größe der Ausgabe; wird lokal gemerkt.")],
-    ["Struktur", P("Erzählform: Auto (zufällig), Linear, Reverse, Kreis, Fragment, Objekt, Dramaturgie (", lnk("Preset 2.0", "preset2"), " — baut den Text entlang des Erzählbogens).")],
+    ["Struktur", P("Erzählform: Auto (zufällig), Linear, Reverse, Kreis, Fragment, Objekt, Dramaturgie (", lnk("Preset 2.0", "preset2"), " — baut den Text entlang des Erzählbogens), Rekombination.")],
+    ["Rekombination (nur Prosa)", P("experimenteller Bauweg: Statt Sätze in Schablonen zu füllen, setzt die Engine den Text aus ", el("b", {}, "geprüften Bausteinen"), " zusammen. Jeder Baustein trägt eine Schnittstelle — Satztyp, Fall, Zeitform, ob er einen Doppelpunkt bedienen kann —, und nur passende Kombinationen werden zugelassen. Die Positionen folgen einem Bogen (Eröffnung, Verdichtung, Umschlag, Schluss); Varianz und Instabilität steuern, wie harte Brüche zugelassen werden. Erzeugt weniger Grammatikfehler, ist dafür karger als die Schablonen.")],
     ["Modus", P("Realitätsmodus (z. B. bürokratisch, technologisch, mythisch, absurd …).")],
     ["Perspektive", P("Ich-, Du- oder Er/Sie-Erzähler; Verben werden passend konjugiert.")],
     ["Rhythmus · Disruptor · Instabilität", P("steuern Satzlängen-Variation, gezielte Brüche und die Figuren-Instabilität.")],

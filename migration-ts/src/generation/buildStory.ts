@@ -18,6 +18,7 @@ import { MarkovModel, isSaneMarkov, smoothMarkov } from "../corpus";
 import { biasedAutoChoice } from "./autochoice";
 import { buildVideoSequenceText } from "./video";
 import { enforceWordTarget } from "./length";
+import { buildRekombination } from "../atoms/rekombination";
 import { applyEmphasis } from "./emphasis";
 import { asProsePoem, asStrang, asReim, asHaiku, asDrama } from "./forms";
 import { buildDramaturgie, hasDramaData } from "./dramaturgie";
@@ -113,6 +114,11 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
 
   const verseForm = input.form === "reim" || input.form === "haiku" || input.form === "strang" || input.form === "drama";
   const effStructure = verseForm && kit.structure === "fragment" ? "linear" : kit.structure;
+  // Rekombination: Atome mit geprüfter Schnittstelle statt Schablonen
+  if (input.form === "prose" && input.structure === "rekombination") {
+    const rk = buildRekombination(bank, input);
+    if (rk.trim()) return postProcessText(rk, input);
+  }
   let text = (input.form === "prose" && input.structure === "dramaturgie" && hasDramaData())
     ? buildDramaturgie({ ...kit })
     : pickStructureBuilder(effStructure)({ ...kit });
