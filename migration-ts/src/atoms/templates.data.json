@@ -1,0 +1,970 @@
+{
+ "erzeugt_am": "2026-08-04",
+ "quellen": [
+  "structures",
+  "dramaturgie",
+  "emphasis",
+  "dialogue",
+  "video"
+ ],
+ "atome": [
+  {
+   "id": "vl-0001",
+   "text": "⟨ZEIT⟩ ⟨ORT⟩ bemerkt ⟨FIGUR⟩ ⟨AKK⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "objekt",
+    "kasus": "akk",
+    "art": "nominalphrase"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "ZEIT",
+    "ORT",
+    "FIGUR",
+    "AKK"
+   ]
+  },
+  {
+   "id": "vl-0002",
+   "text": "⟨ZEIT⟩ ⟨ORT⟩ findet ⟨FIGUR⟩ ⟨AKK⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "objekt",
+    "kasus": "akk",
+    "art": "nominalphrase"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "ZEIT",
+    "ORT",
+    "FIGUR",
+    "AKK"
+   ]
+  },
+  {
+   "id": "vl-0003",
+   "text": "⟨FIGUR⟩ sieht ⟨AKK⟩ — ⟨ZEIT⟩, ⟨ORT⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "objekt",
+    "kasus": "akk",
+    "art": "nominalphrase"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "FIGUR",
+    "AKK",
+    "ZEIT",
+    "ORT"
+   ]
+  },
+  {
+   "id": "vl-0004",
+   "text": "Zuerst ⟨ORT⟩, ⟨ZEIT⟩:",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "kopf",
+   "verlangt": null,
+   "oeffnet": true,
+   "platzhalter": [
+    "ORT",
+    "ZEIT"
+   ]
+  },
+  {
+   "id": "vl-0005",
+   "text": "⟨FIGUR⟩ bemerkt ⟨AKK⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "objekt",
+    "kasus": "akk",
+    "art": "nominalphrase"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "FIGUR",
+    "AKK"
+   ]
+  },
+  {
+   "id": "vl-0006",
+   "text": "⟨ZEIT⟩ ⟨ORT⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "fragment",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "ZEIT",
+    "ORT"
+   ]
+  },
+  {
+   "id": "vl-0007",
+   "text": "⟨FIGUR⟩ hält ⟨AKK⟩ fest.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "objekt",
+    "kasus": "akk",
+    "art": "nominalphrase"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "FIGUR",
+    "AKK"
+   ]
+  },
+  {
+   "id": "vl-0008",
+   "text": "⟨FIGUR⟩ stellt fest:",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "kopf",
+   "verlangt": null,
+   "oeffnet": true,
+   "platzhalter": [
+    "FIGUR"
+   ]
+  },
+  {
+   "id": "vl-0009",
+   "text": "⟨SATZ⟩ — aber ⟨SATZ⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "ergaenzung",
+    "kasus": "nom",
+    "art": "hauptsatz"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "SATZ",
+    "SATZ"
+   ]
+  },
+  {
+   "id": "vl-0010",
+   "text": "⟨FIGUR⟩ begreift:",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "kopf",
+   "verlangt": null,
+   "oeffnet": true,
+   "platzhalter": [
+    "FIGUR"
+   ]
+  },
+  {
+   "id": "vl-0011",
+   "text": "⟨SATZ⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "ergaenzung",
+    "kasus": "nom",
+    "art": "hauptsatz"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "SATZ"
+   ]
+  },
+  {
+   "id": "vl-0012",
+   "text": "Doch ⟨SATZ⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "ergaenzung",
+    "kasus": "nom",
+    "art": "hauptsatz"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "SATZ"
+   ]
+  },
+  {
+   "id": "vl-0013",
+   "text": "Klar wird:",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "kopf",
+   "verlangt": null,
+   "oeffnet": true,
+   "platzhalter": []
+  },
+  {
+   "id": "vl-0014",
+   "text": "Nur ⟨SATZ⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "ergaenzung",
+    "kasus": "nom",
+    "art": "hauptsatz"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "SATZ"
+   ]
+  },
+  {
+   "id": "vl-0015",
+   "text": "⟨FIGUR⟩ ⟨VERB⟩ ⟨SATZ⟩, aber ⟨SATZ⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "ergaenzung",
+    "kasus": "nom",
+    "art": "hauptsatz"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "FIGUR",
+    "VERB",
+    "SATZ",
+    "SATZ"
+   ]
+  },
+  {
+   "id": "vl-0016",
+   "text": "⟨FIGUR⟩ ⟨VERB⟩ ⟨SATZ⟩ — ⟨SATZ⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "ergaenzung",
+    "kasus": "nom",
+    "art": "hauptsatz"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "FIGUR",
+    "VERB",
+    "SATZ",
+    "SATZ"
+   ]
+  },
+  {
+   "id": "vl-0017",
+   "text": "Was ⟨FIGUR⟩ ⟨VERB⟩:",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "kopf",
+   "verlangt": null,
+   "oeffnet": true,
+   "platzhalter": [
+    "FIGUR",
+    "VERB"
+   ]
+  },
+  {
+   "id": "vl-0018",
+   "text": "Was im Weg steht:",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "kopf",
+   "verlangt": null,
+   "oeffnet": true,
+   "platzhalter": []
+  },
+  {
+   "id": "vl-0019",
+   "text": "⟨FIGUR⟩ nimmt ⟨AKK⟩ und ⟨WAHL⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "objekt",
+    "kasus": "akk",
+    "art": "nominalphrase"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "FIGUR",
+    "AKK",
+    "WAHL"
+   ]
+  },
+  {
+   "id": "vl-0020",
+   "text": "⟨FIGUR⟩ hält ⟨AKK⟩ und ⟨WAHL⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "objekt",
+    "kasus": "akk",
+    "art": "nominalphrase"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "FIGUR",
+    "AKK",
+    "WAHL"
+   ]
+  },
+  {
+   "id": "vl-0021",
+   "text": "⟨FIGUR⟩ greift nach dem, was bleibt, und ⟨WAHL⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "hauptsatz",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "FIGUR",
+    "WAHL"
+   ]
+  },
+  {
+   "id": "vl-0022",
+   "text": "⟨FIGUR⟩ legt ⟨AKK⟩ beiseite und ⟨WAHL⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "objekt",
+    "kasus": "akk",
+    "art": "nominalphrase"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "FIGUR",
+    "AKK",
+    "WAHL"
+   ]
+  },
+  {
+   "id": "vl-0023",
+   "text": "⟨SATZ⟩",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "ergaenzung",
+    "kasus": "nom",
+    "art": "hauptsatz"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "SATZ"
+   ]
+  },
+  {
+   "id": "vl-0024",
+   "text": "Du erfährst erst später:",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "kopf",
+   "verlangt": null,
+   "oeffnet": true,
+   "platzhalter": []
+  },
+  {
+   "id": "vl-0025",
+   "text": "⟨NOM⟩ — das war der Anfang.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "objekt",
+    "kasus": "nom",
+    "art": "nominalphrase"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "NOM"
+   ]
+  },
+  {
+   "id": "vl-0026",
+   "text": "⟨FIGUR⟩ hatte ⟨AKK⟩ schon in der Hand, denn ⟨SATZ⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "objekt",
+    "kasus": "akk",
+    "art": "nominalphrase"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "FIGUR",
+    "AKK",
+    "SATZ"
+   ]
+  },
+  {
+   "id": "vl-0027",
+   "text": "⟨ZEIT⟩ ⟨ORT⟩:",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "kopf",
+   "verlangt": null,
+   "oeffnet": true,
+   "platzhalter": [
+    "ZEIT",
+    "ORT"
+   ]
+  },
+  {
+   "id": "vl-0028",
+   "text": "⟨NOM⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "objekt",
+    "kasus": "nom",
+    "art": "nominalphrase"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "NOM"
+   ]
+  },
+  {
+   "id": "vl-0029",
+   "text": "Und dann, rückwärts betrachtet:",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "kopf",
+   "verlangt": null,
+   "oeffnet": true,
+   "platzhalter": []
+  },
+  {
+   "id": "vl-0030",
+   "text": "⟨ZEIT⟩ ⟨ORT⟩ steht ⟨FIGUR⟩ vor ⟨DAT⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "objekt",
+    "kasus": "dat",
+    "art": "nominalphrase"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "ZEIT",
+    "ORT",
+    "FIGUR",
+    "DAT"
+   ]
+  },
+  {
+   "id": "vl-0031",
+   "text": "wieder ⟨DAT⟩ gegenüber steht ⟨FIGUR⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "objekt",
+    "kasus": "dat",
+    "art": "nominalphrase"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "DAT",
+    "FIGUR"
+   ]
+  },
+  {
+   "id": "vl-0032",
+   "text": "Am Anfang steht ⟨FIGUR⟩ vor ⟨DAT⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "objekt",
+    "kasus": "dat",
+    "art": "nominalphrase"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "FIGUR",
+    "DAT"
+   ]
+  },
+  {
+   "id": "vl-0033",
+   "text": "⟨ZEIT⟩, ⟨ORT⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "fragment",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "ZEIT",
+    "ORT"
+   ]
+  },
+  {
+   "id": "vl-0034",
+   "text": "⟨FIGUR⟩ bemerkt:",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "kopf",
+   "verlangt": null,
+   "oeffnet": true,
+   "platzhalter": [
+    "FIGUR"
+   ]
+  },
+  {
+   "id": "vl-0035",
+   "text": "⟨WAHL⟩",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "fragment",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "WAHL"
+   ]
+  },
+  {
+   "id": "vl-0036",
+   "text": "⟨FIGUR⟩ ⟨X⟩ ⟨SATZ⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "ergaenzung",
+    "kasus": "nom",
+    "art": "hauptsatz"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "FIGUR",
+    "X",
+    "SATZ"
+   ]
+  },
+  {
+   "id": "vl-0037",
+   "text": "Die Dinge werden ⟨WAHL⟩, denn ⟨SATZ⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "ergaenzung",
+    "kasus": "nom",
+    "art": "hauptsatz"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "WAHL",
+    "SATZ"
+   ]
+  },
+  {
+   "id": "vl-0038",
+   "text": "Und wieder:",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "kopf",
+   "verlangt": null,
+   "oeffnet": true,
+   "platzhalter": []
+  },
+  {
+   "id": "vl-0039",
+   "text": "Und von vorn:",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "kopf",
+   "verlangt": null,
+   "oeffnet": true,
+   "platzhalter": []
+  },
+  {
+   "id": "vl-0040",
+   "text": "Der Kreis schließt sich:",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "kopf",
+   "verlangt": null,
+   "oeffnet": true,
+   "platzhalter": []
+  },
+  {
+   "id": "vl-0041",
+   "text": "⟨FIGUR⟩ hält ⟨AKK⟩",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "objekt",
+    "kasus": "akk",
+    "art": "nominalphrase"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "FIGUR",
+    "AKK"
+   ]
+  },
+  {
+   "id": "vl-0042",
+   "text": "Ich bin ⟨X⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "hauptsatz",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "X"
+   ]
+  },
+  {
+   "id": "vl-0043",
+   "text": "Ich liege ⟨ORT⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "hauptsatz",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "ORT"
+   ]
+  },
+  {
+   "id": "vl-0044",
+   "text": "Ich kenne ⟨X⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "praepositionalphrase",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "X"
+   ]
+  },
+  {
+   "id": "vl-0045",
+   "text": "Ich kenne ⟨AKK⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "objekt",
+    "kasus": "akk",
+    "art": "nominalphrase"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "AKK"
+   ]
+  },
+  {
+   "id": "vl-0046",
+   "text": "⟨X⟩ spürt:",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "kopf",
+   "verlangt": null,
+   "oeffnet": true,
+   "platzhalter": [
+    "X"
+   ]
+  },
+  {
+   "id": "vl-0047",
+   "text": "⟨X⟩ ⟨VERB⟩ ⟨SATZ⟩.",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "ergaenzung",
+    "kasus": "nom",
+    "art": "hauptsatz"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "X",
+    "VERB",
+    "SATZ"
+   ]
+  },
+  {
+   "id": "vl-0048",
+   "text": "Dann spüre ich:",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "kopf",
+   "verlangt": null,
+   "oeffnet": true,
+   "platzhalter": []
+  },
+  {
+   "id": "vl-0049",
+   "text": "Und dann, durch mich hindurch:",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "kopf",
+   "verlangt": null,
+   "oeffnet": true,
+   "platzhalter": []
+  },
+  {
+   "id": "vl-0050",
+   "text": "Ich registriere:",
+   "quelle": "vorlage",
+   "herkunft": "structures",
+   "typ": "kopf",
+   "verlangt": null,
+   "oeffnet": true,
+   "platzhalter": []
+  },
+  {
+   "id": "vl-0051",
+   "text": "⟨X⟩ ⟨ORT⟩.",
+   "quelle": "vorlage",
+   "herkunft": "dramaturgie",
+   "typ": "fragment",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "X",
+    "ORT"
+   ]
+  },
+  {
+   "id": "vl-0052",
+   "text": "⟨X⟩ ⟨ORT⟩ bemerkt ⟨FIGUR⟩ ⟨AKK⟩.",
+   "quelle": "vorlage",
+   "herkunft": "dramaturgie",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "objekt",
+    "kasus": "akk",
+    "art": "nominalphrase"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "X",
+    "ORT",
+    "FIGUR",
+    "AKK"
+   ]
+  },
+  {
+   "id": "vl-0053",
+   "text": "⟨FIGUR⟩ ⟨X⟩ ⟨SATZ⟩, aber ⟨SATZ⟩.",
+   "quelle": "vorlage",
+   "herkunft": "dramaturgie",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "ergaenzung",
+    "kasus": "nom",
+    "art": "hauptsatz"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "FIGUR",
+    "X",
+    "SATZ",
+    "SATZ"
+   ]
+  },
+  {
+   "id": "vl-0054",
+   "text": "Hier, ⟨ORT⟩, ⟨WAHL⟩.",
+   "quelle": "vorlage",
+   "herkunft": "emphasis",
+   "typ": "praepositionalphrase",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "ORT",
+    "WAHL"
+   ]
+  },
+  {
+   "id": "vl-0055",
+   "text": "Der Ort — ⟨ORT⟩ — ⟨WAHL⟩.",
+   "quelle": "vorlage",
+   "herkunft": "emphasis",
+   "typ": "praepositionalphrase",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "ORT",
+    "WAHL"
+   ]
+  },
+  {
+   "id": "vl-0056",
+   "text": "Damals, ⟨ZEIT⟩, ⟨WAHL⟩.",
+   "quelle": "vorlage",
+   "herkunft": "emphasis",
+   "typ": "praepositionalphrase",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "ZEIT",
+    "WAHL"
+   ]
+  },
+  {
+   "id": "vl-0057",
+   "text": "Noch immer will ⟨FIGUR⟩ ⟨X⟩.",
+   "quelle": "vorlage",
+   "herkunft": "emphasis",
+   "typ": "hauptsatz",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "FIGUR",
+    "X"
+   ]
+  },
+  {
+   "id": "vl-0058",
+   "text": "⟨FIGUR⟩ ⟨VERB⟩ ⟨X⟩ — noch immer.",
+   "quelle": "vorlage",
+   "herkunft": "emphasis",
+   "typ": "praepositionalphrase",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "FIGUR",
+    "VERB",
+    "X"
+   ]
+  },
+  {
+   "id": "vl-0059",
+   "text": "Du hast ⟨AKK⟩ dabei.",
+   "quelle": "vorlage",
+   "herkunft": "dialogue",
+   "typ": "rahmen",
+   "verlangt": {
+    "rolle": "objekt",
+    "kasus": "akk",
+    "art": "nominalphrase"
+   },
+   "oeffnet": false,
+   "platzhalter": [
+    "AKK"
+   ]
+  },
+  {
+   "id": "vl-0060",
+   "text": "SZENE:",
+   "quelle": "vorlage",
+   "herkunft": "dialogue",
+   "typ": "kopf",
+   "verlangt": null,
+   "oeffnet": true,
+   "platzhalter": []
+  },
+  {
+   "id": "vl-0061",
+   "text": "⟨ORT⟩, ⟨ZEIT⟩.",
+   "quelle": "vorlage",
+   "herkunft": "dialogue",
+   "typ": "fragment",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "ORT",
+    "ZEIT"
+   ]
+  },
+  {
+   "id": "vl-0062",
+   "text": "⟨X⟩ ⟨X⟩ ⟨X⟩, aber ⟨WAHL⟩.",
+   "quelle": "vorlage",
+   "herkunft": "video",
+   "typ": "praepositionalphrase",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "X",
+    "X",
+    "X",
+    "WAHL"
+   ]
+  },
+  {
+   "id": "vl-0063",
+   "text": "SEQUENZ — ⟨X⟩",
+   "quelle": "vorlage",
+   "herkunft": "video",
+   "typ": "fragment",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "X"
+   ]
+  },
+  {
+   "id": "vl-0064",
+   "text": "WER: ⟨X⟩",
+   "quelle": "vorlage",
+   "herkunft": "video",
+   "typ": "fragment",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "X"
+   ]
+  },
+  {
+   "id": "vl-0065",
+   "text": "WO: ⟨ORT⟩",
+   "quelle": "vorlage",
+   "herkunft": "video",
+   "typ": "fragment",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "ORT"
+   ]
+  },
+  {
+   "id": "vl-0066",
+   "text": "⟨ZEIT⟩",
+   "quelle": "vorlage",
+   "herkunft": "video",
+   "typ": "fragment",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "ZEIT"
+   ]
+  },
+  {
+   "id": "vl-0067",
+   "text": "WAS: ⟨A⟩",
+   "quelle": "vorlage",
+   "herkunft": "video",
+   "typ": "fragment",
+   "verlangt": null,
+   "oeffnet": false,
+   "platzhalter": [
+    "A"
+   ]
+  }
+ ]
+}
