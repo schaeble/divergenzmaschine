@@ -201,7 +201,17 @@ export function mountStudio(root: HTMLElement): void {
       presetList.append(item);
     });
     const curOpt = Array.from(preset.options).find((o) => o.value === preset.value);
-    presetStatus.textContent = preset.value === MULTI_ID ? `Aktiv: Mix (${multiIds.length})` : (preset.value === AUTOMIX_ID ? "Aktiv: Auto-Mix — Quellen schattiert" : ("Aktiv: " + (curOpt ? (curOpt.textContent || "—") : "—")));
+    if (preset.value === MULTI_ID) {
+      // Namen statt bloßer Anzahl — bei vielen Presets die ersten drei plus Rest
+      const namen = multiIds.map((id) => stripIcon(getAllPresets()[id]?.label || id));
+      const kurz = namen.length <= 3 ? namen.join(" + ") : namen.slice(0, 3).join(" + ") + ` + ${namen.length - 3} weitere`;
+      presetStatus.textContent = `Aktiv: ${kurz}`;
+      presetStatus.title = namen.join(" + ");
+    } else if (preset.value === AUTOMIX_ID) {
+      presetStatus.textContent = "Aktiv: Auto-Mix — Quellen schattiert"; presetStatus.title = "";
+    } else {
+      presetStatus.textContent = "Aktiv: " + (curOpt ? (curOpt.textContent || "—") : "—"); presetStatus.title = "";
+    }
   };
   function applySelection(rawIds: string[]): void {
     const ids = rawIds.filter((v) => v !== MULTI_ID && v !== AUTOMIX_ID && v !== "__omni__");
