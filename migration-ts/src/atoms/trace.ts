@@ -14,6 +14,22 @@ export function resetTrace(): void { spur = []; abweichung = []; }
 export function pushTrace(s: TraceSchritt): void { spur.push(s); }
 export function getTrace(): TraceSchritt[] { return spur.slice(); }
 
+// Bei der Bestenauslese entstehen 12 Kandidaten; jeder überschreibt die Spur.
+// Ohne Zuordnung zeigt der Bauplan den LETZTEN Lauf, ausgegeben wird aber der
+// BESTE — deshalb wird jede Spur an ihren fertigen Text gebunden.
+const nachText = new Map<string, TraceSchritt[]>();
+const schluessel = (t: string): string => t.toLowerCase().replace(/[^a-zäöüß]/g, "").slice(0, 400);
+export function linkTrace(finalText: string): void {
+  if (!spur.length || !finalText) return;
+  // Platz für mehrere Bestenauslese-Runden (12 Kandidaten je Lauf)
+  if (nachText.size > 64) { const erste = nachText.keys().next().value; if (erste) nachText.delete(erste); }
+  nachText.set(schluessel(finalText), spur.slice());
+}
+/** Spur zum tatsächlich ausgegebenen Text — oder die zuletzt erzeugte. */
+export function getTraceFor(text: string): TraceSchritt[] {
+  return nachText.get(schluessel(text || "")) ?? [];
+}
+
 /** 0.1 Bauplan/Text-Abgleich: Steht jedes gesetzte Element auch im fertigen Text?
  *  Verschlucktes Material ist ein Fehler in Verfugung oder Nachbearbeitung. */
 export function pruefeAbgleich(endtext: string): string[] {

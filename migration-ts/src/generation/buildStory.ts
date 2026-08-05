@@ -19,6 +19,7 @@ import { biasedAutoChoice } from "./autochoice";
 import { buildVideoSequenceText } from "./video";
 import { enforceWordTarget } from "./length";
 import { buildRekombination } from "../atoms/rekombination";
+import { linkTrace } from "../atoms/trace";
 import { applyEmphasis } from "./emphasis";
 import { asProsePoem, asStrang, asReim, asHaiku, asDrama } from "./forms";
 import { buildDramaturgie, hasDramaData } from "./dramaturgie";
@@ -117,7 +118,7 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   // Rekombination: Atome mit geprüfter Schnittstelle statt Schablonen
   if (input.form === "prose" && input.structure === "rekombination") {
     const rk = buildRekombination(bank, input);
-    if (rk.trim()) return postProcessText(rk, input);
+    if (rk.trim()) { const fertig = postProcessText(rk, input); linkTrace(fertig); return fertig; }
   }
   let text = (input.form === "prose" && input.structure === "dramaturgie" && hasDramaData())
     ? buildDramaturgie({ ...kit })
