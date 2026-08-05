@@ -57,7 +57,11 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
   const kurve = ["mittel", "kurz", "lang", "mittel", "kurz", "mittel", "lang"];
   const out: string[] = [];
   let letzterTyp = "", gleicheInFolge = 0;
-  const gesetzteTexte = new Set<string>();   // C: verschiedene Atome können gleichen TEXT erzeugen
+  const gesetzteTexte = new Set<string>();   // verschiedene Atome können gleichen TEXT erzeugen
+  // Satzanfänge sperren: In einem Preset beginnen oft mehrere Einträge gleich
+  // („Der Einsatz ist …“ 7×) — das ergibt eine Schleife trotz verschiedener Atome.
+  const gesetzteAnfaenge = new Set<string>();
+  const anfangVon = (t: string): string => t.toLowerCase().replace(/[^a-zäöüß ]/g, "").trim().split(/\s+/).slice(0, 3).join(" ");
   resetTrace();
   // 0.6 Harte Dublettensperre: jedes Atom höchstens EINMAL je Text. Lieber ein
   // kürzerer Text als eine Phrasenschleife — für lange Texte mehrere Presets wählen.
@@ -112,7 +116,9 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     // identische Sätze („Im Jahr 2000 in London.“) — die Atom-Sperre greift dort nicht.
     const sig = text.toLowerCase().replace(/[^a-zäöüß ]/g, "").replace(/\s+/g, " ").trim();
     if (gesetzteTexte.has(sig)) { k.benutzt.add(a.id); continue; }
-    gesetzteTexte.add(sig);
+    const anf = anfangVon(text);
+    if (anf.split(" ").length >= 2 && gesetzteAnfaenge.has(anf)) { k.benutzt.add(a.id); continue; }
+    gesetzteTexte.add(sig); gesetzteAnfaenge.add(anf);
     out.push(text);
     pushTrace({ text, quelle: a.quelle, kategorie: a.kategorie || "—", typ: a.typ, phase, fueller: fueller.length ? fueller : undefined });
     gleicheInFolge = a.typ === letzterTyp ? gleicheInFolge + 1 : 0;

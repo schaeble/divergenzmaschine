@@ -69,6 +69,9 @@ export function passt(a: PoolAtom, k: Kontext, phase?: Phase): boolean {
   // nicht die Anschlussmatrix. (Regressionsfall „Zuckerkringel-Splice“: sonst wurde
   // die gültige Akkusativ-Nominalphrase mit abgewiesen.)
   const fuelltSlot = !!k.vorheriges?.verlangt;
+  // Plan 0.3: „Einen Dolch, der nach Kerosin riecht.“ ist kein Satz — Akkusativ-
+  // und Dativphrasen gehören in einen Rahmen, nicht frei in den Text.
+  if (!fuelltSlot && a.typ === "nominalphrase" && (a.bietet.kasus === "akk" || a.bietet.kasus === "dat")) return false;
   const vorTyp: AtomTyp | "start" = k.vorheriges ? k.vorheriges.typ : "start";
   if (!fuelltSlot && !darfFolgen(vorTyp, a.typ)) return false;
   // Offener Kopf muss bedient werden

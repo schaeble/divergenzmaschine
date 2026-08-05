@@ -1135,6 +1135,7 @@ function passt(a, k, phase) {
   if (phase && a.kategorie === "endings" && phase !== "schluss") return false;
   if (phase && phase === "schluss" && a.kategorie === "motifs") return false;
   const fuelltSlot = !!k.vorheriges?.verlangt;
+  if (!fuelltSlot && a.typ === "nominalphrase" && (a.bietet.kasus === "akk" || a.bietet.kasus === "dat")) return false;
   const vorTyp = k.vorheriges ? k.vorheriges.typ : "start";
   if (!fuelltSlot && !darfFolgen(vorTyp, a.typ)) return false;
   if (k.offenerKopf && !schliesstKopf(a.typ)) return false;
