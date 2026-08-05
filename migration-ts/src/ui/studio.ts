@@ -15,8 +15,6 @@ import { normWhere, normWhen, normWho, rateWhere, rateWhen, rateWho } from "../g
 import { getTraceFor, fuegeteilAnteil } from "../atoms/trace";
 import { saveSchnappschuss, loadSchnappschuss } from "../features/sources";
 import { renderTextstruktur } from "./structureView";
-import { runSelfTest } from "../features/selftest";
-import { renderSelfTest, renderSummary } from "./selftestView";
 import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "../generation/wordcls";
 import { el, select, field, textInput, button } from "./dom";
 import { icon } from "./icons";
@@ -378,25 +376,9 @@ export function mountStudio(root: HTMLElement): void {
   };
   struktChk.addEventListener("change", renderStruktur);
 
-  // Selbsttest direkt im Studio — greifen alle Features? (Vollansicht im Diagnose-Tab)
-  const stBox = el("div", { class: "selftest-inline", style: "display:none" });
-  const stLbl = el("span", {}, "Selbsttest");
-  const stBtn = el("button", { type: "button", title: "Prüft, ob jedes Feature im Ergebnis nachweisbar wirkt" }, icon("flask"), " ", stLbl) as HTMLButtonElement;
-  stBtn.addEventListener("click", () => {
-    if (stBox.style.display !== "none") { stBox.style.display = "none"; stLbl.textContent = "Selbsttest"; return; }
-    stBox.style.display = ""; stBox.innerHTML = ""; stLbl.textContent = "läuft…"; stBtn.disabled = true;
-    stBox.append(el("span", { class: "muted mini" }, "Prüfe Features…"));
-    setTimeout(() => {
-      try {
-        const res = runSelfTest();
-        stBox.innerHTML = "";
-        stBox.append(renderSummary(res), renderSelfTest(res, true),
-          el("p", { class: "muted mini" }, "Ausführlich mit Pulsreihen im Tab Diagnose. Rot heißt zuerst „nachprüfen“, nicht „kaputt“ — manche Features wirken absichtlich nur gelegentlich."));
-      } catch (e) { stBox.textContent = "Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e)); }
-      finally { stLbl.textContent = "Selbsttest schließen"; stBtn.disabled = false; }
-    }, 30);
-  });
+  // Textstruktur direkt unter dem Text: woraus besteht er, mit welchen Einstellungen?
 
+  // Selbsttest direkt im Studio — greifen alle Features? (Vollansicht im Diagnose-Tab)
   const undoBtn = el("button", { class: "undochip", type: "button", title: "Letzte Änderung rückgängig (Strg+Z)" }, "↩ Rückgängig") as HTMLButtonElement;
   undoBtn.disabled = true;
   const feedsRow = el("div", { class: "feedsrow" },
@@ -404,7 +386,7 @@ export function mountStudio(root: HTMLElement): void {
     legDot("feed-wb", "Wortbank"), legDot("feed-ton", "Ton"), legDot("feed-4w", "4W-Kontext"), legDot("feed-pool", "Lebendige Pools"), legDot("feed-markov", "Markov"),
     el("span", { class: "muted" }, "· unmarkiert = Vorlagen · alles anklickbar"),
     el("label", { class: "chk planchk" }, planChk, " Bauplan"),
-    el("label", { class: "chk planchk" }, struktChk, " Struktur"), stBtn, undoBtn);
+    el("label", { class: "chk planchk" }, struktChk, " Struktur"), undoBtn);
 
   interface FMatch { s: number; e: number; cls: string; prio: number; }
   const escFeeds = (t: string): string => t.replace(/[&<>]/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;"));
@@ -598,7 +580,7 @@ export function mountStudio(root: HTMLElement): void {
   const bestChk = el("input", { type: "checkbox", id: "f-best" }) as HTMLInputElement;
   bestChk.checked = true;
   const bestLbl = el("label", { class: "chk", title: "Erzeugt bei jedem Klick 12 Kandidaten und zeigt den bestbewerteten (Längentreue, Wortvielfalt, Rhythmus, wenig Wiederholung, Grammatik, Abstand zur Schatzkammer)." }, bestChk, " Bestenauslese");
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl), outWrap, feedsRow, planBox, struktBox, stBox, kling);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl), outWrap, feedsRow, planBox, struktBox, kling);
 
   // ── Test & Ranking ──
   let lastRanking: Ranking | null = null;

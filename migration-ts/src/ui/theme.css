@@ -416,7 +416,7 @@ input[type=range].wgt:hover{opacity:1}
 .ph-umschlag{background:rgba(239,159,39,.20);color:#EF9F27}
 .ph-schluss{background:rgba(230,73,128,.18);color:#E64980}
 .bp-zeile{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;padding:3px 0 3px 8px;border-left:2px solid var(--border2);margin:2px 0}
-.bp-zeile.q-vorlage{border-left-color:var(--acc);opacity:.85}
+.bp-zeile.q-vorlage{background:color-mix(in srgb, var(--acc) 6%, transparent);border-left-color:var(--acc);opacity:.9}
 .bp-tag{font:600 10px var(--sans);color:var(--muted);min-width:92px;text-transform:uppercase;letter-spacing:.04em}
 .bp-text{font:13px var(--sans);color:var(--text);flex:1}
 .bp-fill{font:12px var(--sans);color:var(--muted);flex-basis:100%;padding-left:100px}
@@ -434,9 +434,17 @@ input[type=range].wgt:hover{opacity:1}
 .src-bar{flex:1;height:12px;background:var(--panel);border:1px solid var(--border2);border-radius:999px;overflow:hidden}
 .src-fill{display:block;height:100%;border-radius:999px}
 .src-val{min-width:42px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
-.q-wortbank{background:#14B8A6}.q-ton{background:#EF9F27}.q-kontext{background:#378ADD}
-.q-pools{background:#639922}.q-markov{background:#E64980}.q-vorlage{background:var(--border2)}
-.selftest-inline{margin:8px 0;border:1px solid var(--border2);border-radius:10px;padding:10px 12px;max-height:420px;overflow:auto}
-.selftest-inline h3{margin:10px 0 4px}
-.selftest-inline h3:first-of-type{margin-top:0}
+/* Vollton NUR im Farbband und in den Balken — sonst schlagen die Farben in den
+   Bauplan durch und der Text darauf wird unlesbar. */
+.src-seg.q-wortbank,.src-fill.q-wortbank{background:#14B8A6}
+.src-seg.q-ton,.src-fill.q-ton{background:#EF9F27}
+.src-seg.q-kontext,.src-fill.q-kontext{background:#378ADD}
+.src-seg.q-pools,.src-fill.q-pools{background:#639922}
+.src-seg.q-markov,.src-fill.q-markov{background:#E64980}
+.src-seg.q-vorlage,.src-fill.q-vorlage{background:var(--border2)}
+/* Bauplan: nur zarte Tönung plus farbige Kante, damit die Zeilen lesbar bleiben */
+.bp-zeile.q-wortbank{background:rgba(20,184,166,.07);border-left-color:#14B8A6}
+.bp-zeile.q-kontext{background:rgba(55,138,221,.07);border-left-color:#378ADD}
+.bp-zeile.q-pools{background:rgba(99,153,34,.07);border-left-color:#639922}
+.bp-zeile.q-markov{background:rgba(230,73,128,.07);border-left-color:#E64980}
 .struktur-inline{margin:8px 0;border:1px solid var(--border2);border-radius:10px;padding:10px 12px}
