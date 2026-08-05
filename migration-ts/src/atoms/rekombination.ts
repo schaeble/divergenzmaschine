@@ -27,7 +27,9 @@ export function buildPool(bank: Bank, perspektive: string): PoolAtom[] {
   for (const a of (TEMPLATES as { atome: TemplateAtom[] }).atome) {
     if (/⟨(WAHL|X)⟩/.test(a.text)) continue;                    // unauflösbarer Rest aus der Ernte
     // Perspektiv-Markierung: Ich-/Du-Vorlagen nur bei passender Erzählperspektive
-    if (isFirstPerson(a.text) && perspektive !== "first" && perspektive !== "we" && perspektive !== "auto") continue;
+    // Ich-Vorlagen nur bei Ich-Perspektive: bei „wir“ müssten sie mitkonjugiert
+    // werden („Wir registrieren:“), was die Namensersetzung nicht leistet.
+    if (isFirstPerson(a.text) && perspektive !== "first" && perspektive !== "auto") continue;
     if (isSecondPerson(a.text) && perspektive !== "second" && perspektive !== "auto") continue;
     const d = deriveAtom(a.text.replace(/⟨[A-ZÄÖÜ]+⟩/g, "Ding"));
     pool.push({ ...d, id: a.id, text: a.text, typ: a.typ as PoolAtom["typ"], quelle: "vorlage",

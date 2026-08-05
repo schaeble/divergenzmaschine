@@ -424,6 +424,51 @@ export const VERB_CONJ: Record<string, Record<string,string>> = {
   "du": "begriffst",
   "wir": "begriffen",
   "ihr": "begrifft"
- }
+ },
+ "stellt": {
+  "ich": "stelle",
+  "du": "stellst",
+  "wir": "stellen"
+ },
+ "erkennt": {
+  "ich": "erkenne",
+  "du": "erkennst",
+  "wir": "erkennen"
+ },
+ "zeigt": {
+  "ich": "zeige",
+  "du": "zeigst",
+  "wir": "zeigen"
+ },
+ "greift": {
+  "ich": "greife",
+  "du": "greifst",
+  "wir": "greifen"
+ },
+ "legt": {
+  "ich": "lege",
+  "du": "legst",
+  "wir": "legen"
+ },
+ "betrachtet": {
+  "ich": "betrachte",
+  "du": "betrachtest",
+  "wir": "betrachten"
+ },
+ "setzt": {
+  "ich": "setze",
+  "du": "setzt",
+  "wir": "setzen"
+ },
+ "merkt": {
+  "ich": "merke",
+  "du": "merkst",
+  "wir": "merken"
+ },
+ "prüft": {
+  "ich": "prüfe",
+  "du": "prüfst",
+  "wir": "prüfen"
+ },
 };
 export const INFINITIVE_VERBS = new Set<string>(["entdecken","finden","verstehen","erreichen","verlassen","retten","zerstören","beweisen","überleben","fliehen","gewinnen","verlieren","öffnen","schließen","verschwinden","sterben","bleiben","ankommen","entkommen","aufwachen","vergessen","lernen","verändern","kontrollieren","schützen","befreien","heilen","erschaffen","reparieren","beenden","anfangen","beginnen","erinnern","wissen","glauben","träumen","hoffen","kämpfen","siegen","sprechen","schweigen","warten","folgen","fragen","antworten","erklären","gehen","kommen"]);
