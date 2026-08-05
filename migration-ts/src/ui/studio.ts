@@ -13,6 +13,7 @@ import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
 import { normWhere, normWhen, normWho, rateWhere, rateWhen, rateWho } from "../generation/ctxnorm";
 import { getTraceFor, fuegeteilAnteil } from "../atoms/trace";
+import { saveSchnappschuss } from "../features/sources";
 import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "../generation/wordcls";
 import { el, select, field, textInput, button } from "./dom";
 import { icon } from "./icons";
@@ -794,6 +795,21 @@ export function mountStudio(root: HTMLElement): void {
       renderKling(input.form, out.textContent || "");
       try { feedLivePools(out.textContent || "", LIVE_W.gen); } catch { /* egal */ }
       worldLogGeneration(input);
+      // Einstellungen mitschreiben, damit die Diagnose den Text zuordnen kann
+      saveSchnappschuss({
+        preset: presetStatus.textContent?.replace(/^Aktiv:\s*/, "") || "—",
+        ton: tone.options[tone.selectedIndex]?.text || tone.value,
+        form: form.options[form.selectedIndex]?.text || form.value,
+        struktur: structure.options[structure.selectedIndex]?.text || structure.value,
+        perspektive: persp.options[persp.selectedIndex]?.text || persp.value,
+        rhythmus: rhythm.options[rhythm.selectedIndex]?.text || rhythm.value,
+        markov: markov.options[markov.selectedIndex]?.text || markov.value,
+        varianz: varianz.options[varianz.selectedIndex]?.text || varianz.value,
+        spannung: tension.options[tension.selectedIndex]?.text || tension.value,
+        where: where.value, when: when.value, who: who.value, what: what.value,
+        laenge: parseInt(lenSlider.value, 10) || 0, bestenauslese: bestChk.checked,
+        zeit: new Date().toLocaleTimeString("de-DE"),
+      });
       refreshFeeds();
       clearUndo();
       requestAnimationFrame(positionArrows);
