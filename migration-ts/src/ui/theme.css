@@ -439,3 +439,4 @@ input[type=range].wgt:hover{opacity:1}
 .selftest-inline{margin:8px 0;border:1px solid var(--border2);border-radius:10px;padding:10px 12px;max-height:420px;overflow:auto}
 .selftest-inline h3{margin:10px 0 4px}
 .selftest-inline h3:first-of-type{margin-top:0}
+.struktur-inline{margin:8px 0;border:1px solid var(--border2);border-radius:10px;padding:10px 12px}
