@@ -9,6 +9,29 @@ export interface TraceSchritt {
   fueller?: { text: string; kategorie: string }[];   // was in die Slots kam
 }
 let spur: TraceSchritt[] = [];
-export function resetTrace(): void { spur = []; }
+let abweichung: string[] = [];
+export function resetTrace(): void { spur = []; abweichung = []; }
 export function pushTrace(s: TraceSchritt): void { spur.push(s); }
 export function getTrace(): TraceSchritt[] { return spur.slice(); }
+
+/** 0.1 Bauplan/Text-Abgleich: Steht jedes gesetzte Element auch im fertigen Text?
+ *  Verschlucktes Material ist ein Fehler in Verfugung oder Nachbearbeitung. */
+export function pruefeAbgleich(endtext: string): string[] {
+  const norm = (t: string): string => t.toLowerCase().replace(/[^a-zäöüß ]/g, " ").replace(/\s+/g, " ").trim();
+  const ziel = norm(endtext);
+  abweichung = [];
+  for (const s of spur) {
+    const kern = norm(s.text);
+    if (!kern) continue;
+    const w = kern.split(" ");
+    const probe = w.length > 4 ? w.slice(1, -1).join(" ") : kern;   // Ränder darf die Verfugung ändern
+    if (probe && !ziel.includes(probe)) abweichung.push(s.text);
+  }
+  return abweichung.slice();
+}
+export function getAbweichung(): string[] { return abweichung.slice(); }
+/** 0.4 Anteil der Fügeteile an allen gesetzten Elementen. */
+export function fuegeteilAnteil(): number {
+  if (!spur.length) return 0;
+  return spur.filter((s) => s.quelle === "vorlage").length / spur.length;
+}

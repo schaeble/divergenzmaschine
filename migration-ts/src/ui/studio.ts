@@ -12,7 +12,7 @@ import { feedLivePools, LIVE_W } from "../features/livepools";
 import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
 import { normWhere, normWhen, normWho, rateWhere, rateWhen, rateWho } from "../generation/ctxnorm";
-import { getTrace } from "../atoms/trace";
+import { getTrace, getAbweichung, fuegeteilAnteil } from "../atoms/trace";
 import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "../generation/wordcls";
 import { el, select, field, textInput, button } from "./dom";
 import { icon } from "./icons";
@@ -326,6 +326,12 @@ export function mountStudio(root: HTMLElement): void {
     const tr = getTrace();
     planBox.innerHTML = "";
     if (!tr.length) { planBox.append(el("span", { class: "muted mini" }, "Noch kein Rekombinations-Text erzeugt.")); return; }
+    // Kennzahlen: Fügeteil-Anteil (Deckel 25 %) und verschlucktes Material
+    const abw = getAbweichung();
+    const anteil = Math.round(fuegeteilAnteil() * 100);
+    planBox.append(el("div", { class: "muted mini bp-kopf" },
+      `${tr.length} Bausteine · ${anteil} % Fügeteile${anteil > 25 ? " ⚠" : ""}` +
+      (abw.length ? ` · ⚠ ${abw.length} Element(e) nicht im Text: „${abw[0]!.slice(0, 40)}“` : " · vollständig im Text")));
     let letztePhase = "";
     for (const s of tr) {
       if (s.phase !== letztePhase) {

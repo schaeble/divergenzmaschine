@@ -420,3 +420,4 @@ input[type=range].wgt:hover{opacity:1}
 .bp-tag{font:600 10px var(--sans);color:var(--muted);min-width:92px;text-transform:uppercase;letter-spacing:.04em}
 .bp-text{font:13px var(--sans);color:var(--text);flex:1}
 .bp-fill{font:12px var(--sans);color:var(--muted);flex-basis:100%;padding-left:100px}
+.bp-kopf{margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid var(--border2)}

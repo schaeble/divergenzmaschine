@@ -6,7 +6,7 @@ import { passt, fortschreiben, fuelleKontext, fuelleSlot, offeneSlots, verfugen,
 import TEMPLATES from "./templates.data.json";
 import { normWhere, normWhen, normWho } from "../generation/ctxnorm";
 import { isFirstPerson, isSecondPerson } from "../generation/coherence";
-import { resetTrace, pushTrace } from "./trace";
+import { resetTrace, pushTrace, pruefeAbgleich } from "./trace";
 
 interface TemplateAtom { id: string; text: string; typ: string; verlangt: PoolAtom["verlangt"]; oeffnet: boolean }
 
@@ -56,11 +56,9 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
   const out: string[] = [];
   let letzterTyp = "", gleicheInFolge = 0;
   resetTrace();
-  // Cooldown statt Verbrauch: bei ~78 Atomen im Pool wäre der Vorrat sonst nach
-  // wenigen Sätzen erschöpft. Nur die zuletzt gesetzten bleiben gesperrt.
-  const cooldown: string[] = [];
-  // Cooldown proportional zum Vorrat: bei kleinem Pool sonst Dauerwiederholung
-  const COOLDOWN = Math.max(10, Math.floor(pool.length * 0.45));
+  // 0.6 Harte Dublettensperre: jedes Atom höchstens EINMAL je Text. Lieber ein
+  // kürzerer Text als eine Phrasenschleife — für lange Texte mehrere Presets wählen.
+  let fuegeteile = 0;
   const woerterJetzt = (): number => out.join(" ").split(/\s+/).filter(Boolean).length;
 
   for (let s = 0; s < 200; s++) {
@@ -70,6 +68,14 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     const phase = fortschritt < 0.3 ? "exposition" : fortschritt < 0.6 ? "verdichtung" : fortschritt < 0.8 ? "umschlag" : "schluss";
     const letzte = fortschritt >= 0.92;
     let kand = pool.filter((a) => passt(a, k, phase));
+    // 0.4 Fügeteil-Anteil deckeln: Vorlagen sind Verbindungsstücke, nicht Inhalt.
+    if (out.length >= 3 && fuegeteile / out.length >= 0.25) {
+      const inhalt = kand.filter((a) => a.quelle !== "vorlage");
+      // Kein Inhalt mehr übrig? Dann endet der Text — Strecken mit Fügeteilen
+      // erzeugt nur Leerlauf („Im Winter. Im Hafen, im Winter.“).
+      if (!inhalt.length) break;
+      kand = inhalt;
+    }
     if (letzte) kand = kand.filter((a) => !a.oeffnet && !a.verlangt);   // Text darf nicht offen enden
     // Nominalphrasen-Ketten aufbrechen: nach zwei gleichartigen Atomen Typwechsel erzwingen
     if (gleicheInFolge >= 2) {
@@ -102,8 +108,9 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     letzterTyp = a.typ;
     fortschreiben(k, a);
     if (a.verlangt) k.offenerKopf = false;
-    cooldown.push(a.id);
-    while (cooldown.length > COOLDOWN) { const frei = cooldown.shift(); if (frei) k.benutzt.delete(frei); }
+    if (a.quelle === "vorlage") fuegeteile++;
   }
-  return verfugen(out);
+  const fertig = verfugen(out);
+  pruefeAbgleich(fertig);                 // 0.1: verschlucktes Material protokollieren
+  return fertig;
 }
