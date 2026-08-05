@@ -1,6 +1,7 @@
 // Korpus-Tab: Trainingstext hinzufügen, Statistik, löschen, exportieren.
 import { el, button } from "./dom";
 import { loadPersistentCorpus, savePersistentCorpus, appendToPersistentCorpus, corpusHygiene } from "../corpus";
+import { loadSettings, saveSettings } from "../storage";
 
 export function mountKorpus(root: HTMLElement): void {
   root.innerHTML = "";
@@ -8,6 +9,27 @@ export function mountKorpus(root: HTMLElement): void {
   const ta = el("textarea", { style: "height:160px", placeholder: "Trainings-Text für den Markov-Korpus" });
   const info = el("p", { class: "muted" });
   const refresh = (): void => { info.textContent = `Persistenter Korpus: ${loadPersistentCorpus().length} Zeichen · ${loadPersistentCorpus().split(/\n{2,}/).filter((x) => x.trim()).length} Einträge`; };
+
+  // ── Selbstfütterung ───────────────────────────────────────────────────
+  // Ohne diesen Schalter wächst der Korpus nur über "Merken" und Handeingabe;
+  // der Markov-Generator bleibt dann dauerhaft ohne Nahrung.
+  const feedChk = el("input", { type: "checkbox", id: "korp-selffeed" }) as HTMLInputElement;
+  feedChk.checked = (() => { try { const s = loadSettings(); return !!(s.enabled && s.learnStories); } catch { return false; } })();
+  const feedNote = el("p", { class: "muted mini" });
+  const updFeed = (): void => {
+    feedNote.textContent = feedChk.checked
+      ? "An: Bei eingeschalteter Bestenauslese wandert der Siegertext jeder Generierung in den Korpus. Der Markov-Generator lernt dadurch auch aus seinen eigenen Texten — das schärft den Ton, kann aber Wendungen verfestigen. Gelegentlich säubern."
+      : "Aus: In den Korpus kommt nur, was du merkst oder von Hand einfügst. Ist der Korpus leer, liefert der Markov-Regler im Studio nichts.";
+  };
+  feedChk.addEventListener("change", () => {
+    try {
+      const s = loadSettings();
+      saveSettings({ ...s, enabled: feedChk.checked, learnStories: true });
+    } catch { /* voll */ }
+    updFeed();
+  });
+  const feedLbl = el("label", { class: "chk", title: "Schreibt den Siegertext der Bestenauslese in den Korpus." }, feedChk, " Selbstfütterung: erzeugte Texte aufnehmen");
+  updFeed();
 
   const addBtn = button("Zum Korpus hinzufügen");
   addBtn.addEventListener("click", () => {
@@ -86,7 +108,8 @@ export function mountKorpus(root: HTMLElement): void {
     else { mgr.style.display = "none"; mgrBtn.textContent = "Einträge verwalten"; }
   });
 
-  wrap.append(ta, el("div", { class: "btnrow" }, addBtn, showBtn, mgrBtn, cleanBtn, exportBtn, clearBtn), info, view, mgr,
+  wrap.append(ta, el("div", { class: "btnrow" }, addBtn, showBtn, mgrBtn, cleanBtn, exportBtn, clearBtn), info,
+    el("div", { class: "btnrow" }, feedLbl), feedNote, view, mgr,
     el("p", { class: "muted" }, "Säubern segmentiert den Korpus satzweise und entfernt Fragmente, Kopfzeilen-Reste und doppelte Sätze — der Markov-Generator lernt sonst Fehler mit. Neu hinzugefügter Text wird bereits beim Hinzufügen gesäubert."),
     el("p", { class: "muted rightsnote" }, "⚖ Rechtlicher Hinweis: Der Markov-Generator lernt aus genau diesem Text und kann Wortfolgen daraus im erzeugten Text wiedergeben. Fügst du urheberrechtlich geschützte Literatur ein — auch Übersetzungen, die sind eigenständig geschützt, selbst wenn das Original gemeinfrei ist —, können Fragmente davon in deinen Texten auftauchen. Für den privaten Gebrauch ist das unbedenklich; vor einer Veröffentlichung prüfe, woraus dein Korpus besteht. Unbedenklich sind eigene Texte und gemeinfreie Werke (Urheber vor mehr als 70 Jahren verstorben)."));
   root.append(wrap);

@@ -4,7 +4,7 @@ import type { Bank, GenInput } from "../types";
 import { buildStory } from "./buildStory";
 import { isFragmentSentence } from "./beats";
 import { MarkovModel } from "../corpus";
-import { appendToPersistentCorpus } from "../corpus";
+import { appendToPersistentCorpus, loadPersistentCorpus } from "../corpus";
 import { tenseBreakRatio, phraseRepeatRatio, castSpread, perspectiveBreakRatio } from "./coherence";
 import { loadSettings } from "../storage";
 import { buildNoveltyContext, noveltyOf, cooldownHit, frequentContentWords, type NoveltyContext } from "./novelty";
@@ -114,7 +114,11 @@ export function bestOf(bank: Bank, input: GenInput, model: MarkovModel | undefin
     sc -= coherencePenalty(txt, { ...opts, perspective: opts.perspective ?? input.perspective });
     if (!best || sc > best.score) best = { txt, score: sc };
   }
-  return best ?? { txt: buildStory(bank, input, model), score: 0 };
+  const win = best ?? { txt: buildStory(bank, input, model), score: 0 };
+  // Der Sieger der Bestenauslese ist das kuratierteste, was die Maschine ohne
+  // Zutun liefert - genau er gehoert in den Korpus, wenn Selbstfuetterung an ist.
+  feedGeneratedToCorpus(win.txt);
+  return win;
 }
 
 function genN(bank: Bank, input: GenInput, model: MarkovModel | undefined, N: number): string[] {
@@ -138,12 +142,32 @@ export function runProbe(bank: Bank, input: GenInput, model: MarkovModel | undef
   return { total: texts.length, unique: seen.size, duplicates, flaggedCount, grammarCount };
 }
 
-function feedTopToCorpus(top: RankItem[]): void {
+/** Selbstfuetterung aktiv? Beide Flags muessen stehen. */
+export function selfFeedActive(): boolean {
+  try { const s = loadSettings(); return !!(s.enabled && s.learnStories); } catch { return false; }
+}
+
+/**
+ * Schreibt einen erzeugten Text in den Markov-Korpus - nur bei eingeschalteter
+ * Selbstfuetterung. Ohne diesen Weg fuellt sich der Korpus ausschliesslich ueber
+ * "Merken" und Handeingabe, und der Markov-Generator bleibt ohne Nahrung.
+ */
+export function feedGeneratedToCorpus(txt: string): void {
   try {
-    const s = loadSettings();
-    if (!(s.enabled && s.learnStories)) return;
-    top.slice(0, 3).forEach((r) => { if (r?.txt) appendToPersistentCorpus(r.txt.replace(/\n+/g, " ").trim()); });
+    if (!txt || !selfFeedActive()) return;
+    const flat = txt.replace(/\s+/g, " ").trim();
+    if (flat.length < 40) return;
+    // Schon drin? Sonst blaeht jede Wiederholung den Korpus auf und die Kette
+    // lernt dieselbe Wendung mehrfach. Vergleich ueber den Textanfang genuegt.
+    const probe = flat.slice(0, 120).toLowerCase();
+    if (loadPersistentCorpus().replace(/\s+/g, " ").toLowerCase().includes(probe)) return;
+    appendToPersistentCorpus(flat);
   } catch { /* ignore */ }
+}
+
+function feedTopToCorpus(top: RankItem[]): void {
+  if (!selfFeedActive()) return;
+  top.slice(0, 3).forEach((r) => { if (r?.txt) feedGeneratedToCorpus(r.txt); });
 }
 export function runRanking(bank: Bank, input: GenInput, model: MarkovModel | undefined, N = 50, topK = 10, opts: RankOptions = {}): Ranking {
   const lt = input.lenTarget ?? 110;
