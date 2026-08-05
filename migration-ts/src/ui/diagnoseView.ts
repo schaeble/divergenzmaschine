@@ -4,11 +4,9 @@
 import { el, button } from "./dom";
 import { icon } from "./icons";
 import { runSelfTest, type FeatureResult } from "../features/selftest";
+import { renderSelfTest, renderSummary } from "./selftestView";
 import { analysiereHerkunft, loadSchnappschuss, QUELLEN_LABEL, type QuellenId } from "../features/sources";
 
-const VERDICT_LABEL: Record<string, string> = {
-  ok: "greift", sporadic: "greift sporadisch", dead: "greift nicht", skipped: "nicht prüfbar",
-};
 
 export function mountDiagnose(root: HTMLElement): void {
   root.innerHTML = "";
@@ -19,32 +17,8 @@ export function mountDiagnose(root: HTMLElement): void {
 
   const render = (res: FeatureResult[]): void => {
     body.innerHTML = ""; summary.innerHTML = "";
-    const count = (v: string): number => res.filter((r) => r.verdict === v).length;
-    summary.append(
-      el("span", { class: "diag-sum ok" }, `${count("ok")} greifen`),
-      el("span", { class: "diag-sum sporadic" }, `${count("sporadic")} sporadisch`),
-      el("span", { class: "diag-sum dead" }, `${count("dead")} ohne Wirkung`),
-      el("span", { class: "diag-sum skipped" }, `${count("skipped")} nicht prüfbar`));
-
-    const groups = [...new Set(res.map((r) => r.group))];
-    for (const g of groups) {
-      body.append(el("h3", {}, g));
-      const grid = el("div", { class: "diag-grid" });
-      res.filter((r) => r.group === g).forEach((r) => {
-        const hits = r.runs.filter(Boolean).length;
-        const card = el("div", { class: "diag-card " + r.verdict });
-        const pulse = el("div", { class: "diag-pulse" });
-        r.runs.forEach((hit) => pulse.append(el("span", { class: "diag-dot" + (hit ? " on" : "") })));
-        card.append(
-          el("div", { class: "diag-head" }, el("span", { class: "diag-lamp" }), el("b", {}, r.label)),
-          el("div", { class: "diag-verdict" }, VERDICT_LABEL[r.verdict] || r.verdict,
-            ...(r.runs.length ? [el("span", { class: "muted mini" }, ` · ${hits} von ${r.runs.length} Läufen`)] : [])),
-          ...(r.runs.length ? [pulse] : []),
-          el("div", { class: "muted mini diag-note" }, r.note));
-        grid.append(card);
-      });
-      body.append(grid);
-    }
+    summary.append(renderSummary(res));
+    body.append(renderSelfTest(res));
   };
 
   // ── Textstruktur: woraus besteht der letzte Studio-Text? ──
