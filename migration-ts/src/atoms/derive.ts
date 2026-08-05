@@ -106,8 +106,13 @@ export function deriveAtom(raw: string): DerivedAtom {
   let kasus: string | null = null;
   if (typ === "nominalphrase") {
     const a = (text.match(/^(\S+)/) || [""])[0]!.toLowerCase();
+    // „der“ ist dreifach mehrdeutig: Nominativ mask., Dativ fem., Genitiv fem./Plural.
+    // Ohne diese Unterscheidung landet „der erste Riss“ (Nom.) in einem Dativ-Slot.
+    const kern = (text.match(/\b([A-ZÄÖÜ][a-zäöüß-]{2,})/) || [])[1];
+    const g = kern ? guessGender(kern) : undefined;
     if (/^(einen|den)$/.test(a)) kasus = "akk";
-    else if (/^(einem|dem|einer|der)$/.test(a)) kasus = "dat";
+    else if (/^(einem|dem|einer)$/.test(a)) kasus = "dat";
+    else if (a === "der") { kasus = g === "f" ? "dat" : g === "m" ? "nom" : null; if (!kasus) unsicher.push("kasus (der: Nom/Dat)"); }
     else if (/^(eines|des)$/.test(a)) kasus = "gen";
     else if (/^(ein|eine|die|das)$/.test(a)) { kasus = "nom_akk"; unsicher.push("kasus (nom/akk mehrdeutig)"); }
     else unsicher.push("kasus");

@@ -735,7 +735,53 @@ var NOUN_GENDER = {
   "zweig": "m",
   "zwiebel": "f",
   "\xE4rztin": "f",
-  "\xF6l": "n"
+  "\xF6l": "n",
+  "grund": "m",
+  "hintergrund": "m",
+  "abgrund": "m",
+  "untergrund": "m",
+  "teleskop": "n",
+  "antenne": "f",
+  "spektrometer": "n",
+  "detektor": "m",
+  "rechentafel": "f",
+  "photoplatte": "f",
+  "diagramm": "n",
+  "konstante": "f",
+  "ausdehnung": "f",
+  "rauschen": "n",
+  "abdruck": "m",
+  "skala": "f",
+  "gleichung": "f",
+  "messung": "f",
+  "poller": "m",
+  "trillerpfeife": "f",
+  "seesack": "m",
+  "frachtbrief": "m",
+  "ladeliste": "f",
+  "kontor": "n",
+  "kohleneimer": "m",
+  "kontobuch": "n",
+  "schuldschein": "m",
+  "federkiel": "m",
+  "waisenjunge": "m",
+  "vormund": "m",
+  "kaminfeuer": "n",
+  "siegelring": "m",
+  "wetterfahne": "f",
+  "zauberbesen": "m",
+  "farbenscheibe": "f",
+  "waldhorn": "n",
+  "wanderstab": "m",
+  "medaillon": "n",
+  "notenblatt": "n",
+  "fingerhut": "m",
+  "stecknadel": "f",
+  "schneiderpuppe": "f",
+  "perlmuttknopf": "m",
+  "kleidersack": "m",
+  "ma\xDFband": "n",
+  "seidenfaden": "m"
 };
 
 // src/generation/coherence.ts
@@ -1065,6 +1111,23 @@ var FOLGT_AUF = {
 var darfFolgen = (a, b) => (FOLGT_AUF[a] || []).includes(b);
 var schliesstKopf = (t) => ["hauptsatz", "nominalphrase", "fragment", "einwort"].includes(t);
 var schwelle = (divergenz) => divergenz < 25 ? 0 : divergenz < 55 ? 1 : divergenz < 80 ? 2 : 3;
+
+// src/generation/declension.ts
+function guessGender(noun) {
+  const w = (noun || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
+  const known = NOUN_GENDER[w];
+  if (known === "m" || known === "f" || known === "n") return known;
+  let best = "";
+  for (const k in NOUN_GENDER) {
+    if (k.length >= 3 && w.length >= k.length + 2 && w.endsWith(k) && k.length > best.length) best = k;
+  }
+  if (best) return NOUN_GENDER[best];
+  if (/(ung|heit|keit|schaft|tät|ion|ik|enz|anz|ei|ade|age|üre|itis|ur)$/.test(w)) return "f";
+  if (/(chen|lein|ment|tum|um|nis|ma)$/.test(w)) return "n";
+  if (/(ling|ismus|ant|ent|ist|eur|or|ich|ig|ast)$/.test(w)) return "m";
+  if (/er$/.test(w)) return "m";
+  return void 0;
+}
 
 // src/atoms/assemble.ts
 function passt(a, k, phase) {
@@ -1603,23 +1666,6 @@ function looksLikeFullClause(leadVerb, rest) {
   return VERB_TOKEN_RE.test(rest || "") || EXTRA_FINITE_RE.test(rest || "");
 }
 
-// src/generation/declension.ts
-function guessGender(noun) {
-  const w = (noun || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
-  const known = NOUN_GENDER[w];
-  if (known === "m" || known === "f" || known === "n") return known;
-  let best = "";
-  for (const k in NOUN_GENDER) {
-    if (k.length >= 3 && w.length >= k.length + 2 && w.endsWith(k) && k.length > best.length) best = k;
-  }
-  if (best) return NOUN_GENDER[best];
-  if (/(ung|heit|keit|schaft|tät|ion|ik|enz|anz|ei|ade|age|üre|itis|ur)$/.test(w)) return "f";
-  if (/(chen|lein|ment|tum|um|nis|ma)$/.test(w)) return "n";
-  if (/(ling|ismus|ant|ent|ist|eur|or|ich|ig|ast)$/.test(w)) return "m";
-  if (/er$/.test(w)) return "m";
-  return void 0;
-}
-
 // src/atoms/derive.ts
 var SEIN_HABEN_WERDEN = /^(ist|sind|bin|bist|seid|war|waren|warst|hat|habe|hast|haben|habt|hatte|hatten|wird|werden|wirst|werdet|wurde|wurden|kann|kannst|können|könnt|konnte|muss|musst|müssen|müsst|will|willst|wollen|wollt|soll|sollen|darf|dürfen|mag|mögen|weiß|wissen|bleibt|bleiben|blieb|gibt|geben|gab)$/;
 var PRAET_FORM = /(?:^|^[a-zäöüß]{2,6})(lag|lagen|stand|standen|ging|gingen|kam|kamen|sah|sahen|nahm|nahmen|hielt|hielten|ließ|ließen|fand|fanden|zog|zogen|trug|trugen|fiel|fielen|rief|riefen|sprach|schrieb|floss|stieg|sank|klang|hing|schien|trieb|brach|schloss|verlor|begann|geschah)$/;
@@ -1690,9 +1736,14 @@ function deriveAtom(raw) {
   let kasus = null;
   if (typ === "nominalphrase") {
     const a = (text.match(/^(\S+)/) || [""])[0].toLowerCase();
+    const kern = (text.match(/\b([A-ZÄÖÜ][a-zäöüß-]{2,})/) || [])[1];
+    const g = kern ? guessGender(kern) : void 0;
     if (/^(einen|den)$/.test(a)) kasus = "akk";
-    else if (/^(einem|dem|einer|der)$/.test(a)) kasus = "dat";
-    else if (/^(eines|des)$/.test(a)) kasus = "gen";
+    else if (/^(einem|dem|einer)$/.test(a)) kasus = "dat";
+    else if (a === "der") {
+      kasus = g === "f" ? "dat" : g === "m" ? "nom" : null;
+      if (!kasus) unsicher.push("kasus (der: Nom/Dat)");
+    } else if (/^(eines|des)$/.test(a)) kasus = "gen";
     else if (/^(ein|eine|die|das)$/.test(a)) {
       kasus = "nom_akk";
       unsicher.push("kasus (nom/akk mehrdeutig)");

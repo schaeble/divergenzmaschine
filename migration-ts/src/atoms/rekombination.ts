@@ -7,6 +7,7 @@ import TEMPLATES from "./templates.data.json";
 import { normWhere, normWhen, normWho } from "../generation/ctxnorm";
 import { isFirstPerson, isSecondPerson } from "../generation/coherence";
 import { NOUN_GENDER } from "../generation/nouns.data";
+import { applyPerspective, pronominalize, guessPronoun } from "../generation/shape";
 import { resetTrace, pushTrace, pruefeAbgleich } from "./trace";
 
 interface TemplateAtom { id: string; text: string; typ: string; verlangt: PoolAtom["verlangt"]; oeffnet: boolean }
@@ -56,6 +57,7 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
   const kurve = ["mittel", "kurz", "lang", "mittel", "kurz", "mittel", "lang"];
   const out: string[] = [];
   let letzterTyp = "", gleicheInFolge = 0;
+  const gesetzteTexte = new Set<string>();   // C: verschiedene Atome können gleichen TEXT erzeugen
   resetTrace();
   // 0.6 Harte Dublettensperre: jedes Atom höchstens EINMAL je Text. Lieber ein
   // kürzerer Text als eine Phrasenschleife — für lange Texte mehrere Presets wählen.
@@ -106,6 +108,11 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
       k.benutzt.add(f.id);
     }
     if (offeneSlots(text)) continue;                    // ungefüllt → verwerfen statt ausgeben
+    // Textdublette? Verschiedene Vorlagen mit denselben Platzhaltern erzeugen
+    // identische Sätze („Im Jahr 2000 in London.“) — die Atom-Sperre greift dort nicht.
+    const sig = text.toLowerCase().replace(/[^a-zäöüß ]/g, "").replace(/\s+/g, " ").trim();
+    if (gesetzteTexte.has(sig)) { k.benutzt.add(a.id); continue; }
+    gesetzteTexte.add(sig);
     out.push(text);
     pushTrace({ text, quelle: a.quelle, kategorie: a.kategorie || "—", typ: a.typ, phase, fueller: fueller.length ? fueller : undefined });
     gleicheInFolge = a.typ === letzterTyp ? gleicheInFolge + 1 : 0;
@@ -114,7 +121,14 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     if (a.verlangt) k.offenerKopf = false;
     if (a.quelle === "vorlage") fuegeteile++;
   }
-  const fertig = verfugen(out);
+  let fertig = verfugen(out);
+  // B: Perspektivwechsel — im Rekombinationspfad lief er bisher gar nicht, die
+  // Einstellung „Ich/Du/Wir“ blieb wirkungslos.
+  if (input.perspective && input.perspective !== "third" && input.perspective !== "auto") {
+    fertig = applyPerspective([fertig], input.perspective, ctx.figur, "das Objekt").join(" ");
+  } else if (input.perspective === "third") {
+    fertig = pronominalize(fertig, ctx.figur, guessPronoun(ctx.figur));
+  }
   pruefeAbgleich(fertig);                 // 0.1: verschlucktes Material protokollieren
   return fertig;
 }

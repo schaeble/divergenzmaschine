@@ -3,6 +3,7 @@
 // gezogen. Zweck dieser Fassung: sehen, ob die Texte taugen — noch nicht die UI.
 import { darfFolgen, schliesstKopf, schwelle, type AtomTyp } from "./schema";
 import type { DerivedAtom } from "./derive";
+import { guessGender } from "../generation/declension";
 
 export interface PoolAtom extends DerivedAtom {
   id: string;
@@ -112,9 +113,36 @@ export function fuelleKontext(text: string, ctx: { ort: string; zeit: string; fi
     .replace(/⟨FIGUR⟩/g, ctx.figur).replace(/⟨VERB⟩/g, ctx.verb);
 }
 
-/** Setzt den ERSTEN offenen Slot. Rahmen mit mehreren Slots werden mehrfach gefüllt. */
+/** Bringt eine Nominalphrase in den verlangten Fall — sonst entsteht
+ *  „Ich sehe ein Hintergrund“ statt „einen Hintergrund“. */
+export function dekliniere(phrase: string, kasus: string): string {
+  const m = phrase.match(/^(ein|eine|der|die|das)\s+(.*)$/i);
+  if (!m) return phrase;
+  const [, art, rest] = m as unknown as [string, string, string];
+  const kern = (rest.match(/\b([A-ZÄÖÜ][a-zäöüß-]{2,})/) || [])[1];
+  const g = kern ? guessGender(kern) : undefined;
+  if (!g) return phrase;
+  const map: Record<string, Record<string, string>> = {
+    akk: { m: art.toLowerCase() === "ein" ? "einen" : "den", f: art, n: art },
+    dat: { m: art.toLowerCase() === "ein" ? "einem" : "dem", f: art.toLowerCase() === "eine" ? "einer" : "der", n: art.toLowerCase() === "ein" ? "einem" : "dem" },
+  };
+  const neu = map[kasus]?.[g];
+  if (!neu) return phrase;
+  // Adjektiv nur mitziehen, wenn sich der Artikel geändert hat — sonst wird aus
+  // „die eigene Haut“ (Akk. fem., korrekt) fälschlich „die eigenen Haut“.
+  const r = neu.toLowerCase() !== art.toLowerCase()
+    ? rest.replace(/^([a-zäöüß]+?)(?:e|er|es|em|en)?(\s+[A-ZÄÖÜ])/, (_m, stamm: string, tail: string) => stamm + "en" + tail)
+    : rest;
+  return neu + " " + r;
+}
+
+/** Setzt den ERSTEN offenen Slot — mit Kasusanpassung der Füllung. */
 export function fuelleSlot(rahmen: string, fueller: string): string {
-  return rahmen.replace(/⟨(AKK|DAT|NOM|SATZ)⟩/, fueller.replace(/[.!?…]+$/, ""));
+  const m = rahmen.match(/⟨(AKK|DAT|NOM|SATZ)⟩/);
+  const kasus = m ? m[1]!.toLowerCase() : "";
+  let f = fueller.replace(/[.!?…]+$/, "");
+  if (kasus === "akk" || kasus === "dat") f = dekliniere(f, kasus);
+  return rahmen.replace(/⟨(AKK|DAT|NOM|SATZ)⟩/, f);
 }
 /** Wie viele Slots sind im Text noch offen? */
 export const offeneSlots = (t: string): number => (t.match(/⟨(AKK|DAT|NOM|SATZ)⟩/g) || []).length;
