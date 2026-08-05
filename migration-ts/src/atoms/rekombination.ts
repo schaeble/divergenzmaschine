@@ -6,6 +6,7 @@ import { passt, fortschreiben, fuelleKontext, fuelleSlot, offeneSlots, verfugen,
 import TEMPLATES from "./templates.data.json";
 import { normWhere, normWhen, normWho } from "../generation/ctxnorm";
 import { isFirstPerson, isSecondPerson } from "../generation/coherence";
+import { NOUN_GENDER } from "../generation/nouns.data";
 import { resetTrace, pushTrace, pruefeAbgleich } from "./trace";
 
 interface TemplateAtom { id: string; text: string; typ: string; verlangt: PoolAtom["verlangt"]; oeffnet: boolean }
@@ -96,7 +97,10 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
       if (!f) break;
       // Der Füller steht mitten im Satz: Großschreibung nur bei Eigennamen belassen
       let fill = fuelleKontext(f.text, ctx).replace(/[.!?…]+$/, "");
-      if (!f.fuehrt_ein.length && /^[A-ZÄÖÜ][a-zäöüß]/.test(fill)) fill = fill.charAt(0).toLowerCase() + fill.slice(1);
+      // Nur klein, wenn das erste Wort KEIN Nomen ist — „Kerzenstummel“ bleibt groß.
+      const w1 = (fill.match(/^[A-ZÄÖÜ][a-zäöüß-]*/) || [""])[0];
+      const istNomen = !!w1 && (!!NOUN_GENDER[w1.toLowerCase()] || /(ung|heit|keit|schaft|nis|tum|chen|lein|er|el|en)$/.test(w1.toLowerCase()));
+      if (!f.fuehrt_ein.length && !istNomen && /^[A-ZÄÖÜ][a-zäöüß]/.test(fill)) fill = fill.charAt(0).toLowerCase() + fill.slice(1);
       text = fuelleSlot(text, fill);
       fueller.push({ text: fill, kategorie: f.kategorie || "—" });
       k.benutzt.add(f.id);

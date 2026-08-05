@@ -1,13 +1,13 @@
 {
   "name": "divergenzmaschine-ts",
-  "version": "4.135.0",
+  "version": "4.136.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "test": "esbuild test/property.ts --bundle --platform=node --format=cjs --outfile=test/.property.cjs --log-level=error && node test/.property.cjs",
+    "test": "esbuild test/property.ts --bundle --platform=node --format=cjs --outfile=test/.property.cjs --log-level=error && node test/.property.cjs && esbuild test/regression.ts --bundle --platform=node --format=cjs --outfile=test/.regression.cjs --log-level=error && node test/.regression.cjs",
     "prebuild": "node scripts/sync-version.mjs"
   },
   "devDependencies": {

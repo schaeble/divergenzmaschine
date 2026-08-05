@@ -1,5 +1,5 @@
 {
- "erzeugt_am": "2026-08-04",
+ "erzeugt_am": "2026-08-05",
  "quellen": [
   "structures",
   "dramaturgie",
@@ -226,44 +226,6 @@
   },
   {
    "id": "vl-0015",
-   "text": "⟨FIGUR⟩ ⟨VERB⟩ ⟨SATZ⟩, aber ⟨SATZ⟩.",
-   "quelle": "vorlage",
-   "herkunft": "structures",
-   "typ": "rahmen",
-   "verlangt": {
-    "rolle": "ergaenzung",
-    "kasus": "nom",
-    "art": "hauptsatz"
-   },
-   "oeffnet": false,
-   "platzhalter": [
-    "FIGUR",
-    "VERB",
-    "SATZ",
-    "SATZ"
-   ]
-  },
-  {
-   "id": "vl-0016",
-   "text": "⟨FIGUR⟩ ⟨VERB⟩ ⟨SATZ⟩ — ⟨SATZ⟩.",
-   "quelle": "vorlage",
-   "herkunft": "structures",
-   "typ": "rahmen",
-   "verlangt": {
-    "rolle": "ergaenzung",
-    "kasus": "nom",
-    "art": "hauptsatz"
-   },
-   "oeffnet": false,
-   "platzhalter": [
-    "FIGUR",
-    "VERB",
-    "SATZ",
-    "SATZ"
-   ]
-  },
-  {
-   "id": "vl-0017",
    "text": "Was ⟨FIGUR⟩ ⟨VERB⟩:",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -276,7 +238,7 @@
    ]
   },
   {
-   "id": "vl-0018",
+   "id": "vl-0016",
    "text": "Was im Weg steht:",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -286,7 +248,7 @@
    "platzhalter": []
   },
   {
-   "id": "vl-0019",
+   "id": "vl-0017",
    "text": "⟨FIGUR⟩ nimmt ⟨AKK⟩ und ⟨WAHL⟩.",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -304,7 +266,7 @@
    ]
   },
   {
-   "id": "vl-0020",
+   "id": "vl-0018",
    "text": "⟨FIGUR⟩ hält ⟨AKK⟩ und ⟨WAHL⟩.",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -322,7 +284,7 @@
    ]
   },
   {
-   "id": "vl-0021",
+   "id": "vl-0019",
    "text": "⟨FIGUR⟩ greift nach dem, was bleibt, und ⟨WAHL⟩.",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -335,7 +297,7 @@
    ]
   },
   {
-   "id": "vl-0022",
+   "id": "vl-0020",
    "text": "⟨FIGUR⟩ legt ⟨AKK⟩ beiseite und ⟨WAHL⟩.",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -353,7 +315,7 @@
    ]
   },
   {
-   "id": "vl-0023",
+   "id": "vl-0021",
    "text": "⟨SATZ⟩",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -369,7 +331,7 @@
    ]
   },
   {
-   "id": "vl-0024",
+   "id": "vl-0022",
    "text": "Du erfährst erst später:",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -379,7 +341,7 @@
    "platzhalter": []
   },
   {
-   "id": "vl-0025",
+   "id": "vl-0023",
    "text": "⟨NOM⟩ — das war der Anfang.",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -395,7 +357,7 @@
    ]
   },
   {
-   "id": "vl-0026",
+   "id": "vl-0024",
    "text": "⟨FIGUR⟩ hatte ⟨AKK⟩ schon in der Hand, denn ⟨SATZ⟩.",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -413,7 +375,7 @@
    ]
   },
   {
-   "id": "vl-0027",
+   "id": "vl-0025",
    "text": "⟨ZEIT⟩ ⟨ORT⟩:",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -426,7 +388,7 @@
    ]
   },
   {
-   "id": "vl-0028",
+   "id": "vl-0026",
    "text": "⟨NOM⟩.",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -442,7 +404,7 @@
    ]
   },
   {
-   "id": "vl-0029",
+   "id": "vl-0027",
    "text": "Und dann, rückwärts betrachtet:",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -452,7 +414,7 @@
    "platzhalter": []
   },
   {
-   "id": "vl-0030",
+   "id": "vl-0028",
    "text": "⟨ZEIT⟩ ⟨ORT⟩ steht ⟨FIGUR⟩ vor ⟨DAT⟩.",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -471,7 +433,7 @@
    ]
   },
   {
-   "id": "vl-0031",
+   "id": "vl-0029",
    "text": "wieder ⟨DAT⟩ gegenüber steht ⟨FIGUR⟩.",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -488,7 +450,7 @@
    ]
   },
   {
-   "id": "vl-0032",
+   "id": "vl-0030",
    "text": "Am Anfang steht ⟨FIGUR⟩ vor ⟨DAT⟩.",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -505,7 +467,7 @@
    ]
   },
   {
-   "id": "vl-0033",
+   "id": "vl-0031",
    "text": "⟨ZEIT⟩, ⟨ORT⟩.",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -518,7 +480,7 @@
    ]
   },
   {
-   "id": "vl-0034",
+   "id": "vl-0032",
    "text": "⟨FIGUR⟩ bemerkt:",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -530,7 +492,7 @@
    ]
   },
   {
-   "id": "vl-0035",
+   "id": "vl-0033",
    "text": "⟨WAHL⟩",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -542,7 +504,7 @@
    ]
   },
   {
-   "id": "vl-0036",
+   "id": "vl-0034",
    "text": "⟨FIGUR⟩ ⟨X⟩ ⟨SATZ⟩.",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -560,7 +522,7 @@
    ]
   },
   {
-   "id": "vl-0037",
+   "id": "vl-0035",
    "text": "Die Dinge werden ⟨WAHL⟩, denn ⟨SATZ⟩.",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -577,7 +539,7 @@
    ]
   },
   {
-   "id": "vl-0038",
+   "id": "vl-0036",
    "text": "Und wieder:",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -587,7 +549,7 @@
    "platzhalter": []
   },
   {
-   "id": "vl-0039",
+   "id": "vl-0037",
    "text": "Und von vorn:",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -597,7 +559,7 @@
    "platzhalter": []
   },
   {
-   "id": "vl-0040",
+   "id": "vl-0038",
    "text": "Der Kreis schließt sich:",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -607,7 +569,7 @@
    "platzhalter": []
   },
   {
-   "id": "vl-0041",
+   "id": "vl-0039",
    "text": "⟨FIGUR⟩ hält ⟨AKK⟩",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -624,7 +586,7 @@
    ]
   },
   {
-   "id": "vl-0042",
+   "id": "vl-0040",
    "text": "Ich bin ⟨X⟩.",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -636,7 +598,7 @@
    ]
   },
   {
-   "id": "vl-0043",
+   "id": "vl-0041",
    "text": "Ich liege ⟨ORT⟩.",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -648,7 +610,7 @@
    ]
   },
   {
-   "id": "vl-0044",
+   "id": "vl-0042",
    "text": "Ich kenne ⟨X⟩.",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -660,7 +622,7 @@
    ]
   },
   {
-   "id": "vl-0045",
+   "id": "vl-0043",
    "text": "Ich kenne ⟨AKK⟩.",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -676,7 +638,7 @@
    ]
   },
   {
-   "id": "vl-0046",
+   "id": "vl-0044",
    "text": "⟨X⟩ spürt:",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -688,25 +650,7 @@
    ]
   },
   {
-   "id": "vl-0047",
-   "text": "⟨X⟩ ⟨VERB⟩ ⟨SATZ⟩.",
-   "quelle": "vorlage",
-   "herkunft": "structures",
-   "typ": "rahmen",
-   "verlangt": {
-    "rolle": "ergaenzung",
-    "kasus": "nom",
-    "art": "hauptsatz"
-   },
-   "oeffnet": false,
-   "platzhalter": [
-    "X",
-    "VERB",
-    "SATZ"
-   ]
-  },
-  {
-   "id": "vl-0048",
+   "id": "vl-0045",
    "text": "Dann spüre ich:",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -716,7 +660,7 @@
    "platzhalter": []
   },
   {
-   "id": "vl-0049",
+   "id": "vl-0046",
    "text": "Und dann, durch mich hindurch:",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -726,7 +670,7 @@
    "platzhalter": []
   },
   {
-   "id": "vl-0050",
+   "id": "vl-0047",
    "text": "Ich registriere:",
    "quelle": "vorlage",
    "herkunft": "structures",
@@ -736,7 +680,7 @@
    "platzhalter": []
   },
   {
-   "id": "vl-0051",
+   "id": "vl-0048",
    "text": "⟨X⟩ ⟨ORT⟩.",
    "quelle": "vorlage",
    "herkunft": "dramaturgie",
@@ -749,7 +693,7 @@
    ]
   },
   {
-   "id": "vl-0052",
+   "id": "vl-0049",
    "text": "⟨X⟩ ⟨ORT⟩ bemerkt ⟨FIGUR⟩ ⟨AKK⟩.",
    "quelle": "vorlage",
    "herkunft": "dramaturgie",
@@ -768,7 +712,7 @@
    ]
   },
   {
-   "id": "vl-0053",
+   "id": "vl-0050",
    "text": "⟨FIGUR⟩ ⟨X⟩ ⟨SATZ⟩, aber ⟨SATZ⟩.",
    "quelle": "vorlage",
    "herkunft": "dramaturgie",
@@ -787,7 +731,7 @@
    ]
   },
   {
-   "id": "vl-0054",
+   "id": "vl-0051",
    "text": "Hier, ⟨ORT⟩, ⟨WAHL⟩.",
    "quelle": "vorlage",
    "herkunft": "emphasis",
@@ -800,7 +744,7 @@
    ]
   },
   {
-   "id": "vl-0055",
+   "id": "vl-0052",
    "text": "Der Ort — ⟨ORT⟩ — ⟨WAHL⟩.",
    "quelle": "vorlage",
    "herkunft": "emphasis",
@@ -813,7 +757,7 @@
    ]
   },
   {
-   "id": "vl-0056",
+   "id": "vl-0053",
    "text": "Damals, ⟨ZEIT⟩, ⟨WAHL⟩.",
    "quelle": "vorlage",
    "herkunft": "emphasis",
@@ -826,7 +770,7 @@
    ]
   },
   {
-   "id": "vl-0057",
+   "id": "vl-0054",
    "text": "Noch immer will ⟨FIGUR⟩ ⟨X⟩.",
    "quelle": "vorlage",
    "herkunft": "emphasis",
@@ -839,7 +783,7 @@
    ]
   },
   {
-   "id": "vl-0058",
+   "id": "vl-0055",
    "text": "⟨FIGUR⟩ ⟨VERB⟩ ⟨X⟩ — noch immer.",
    "quelle": "vorlage",
    "herkunft": "emphasis",
@@ -853,7 +797,7 @@
    ]
   },
   {
-   "id": "vl-0059",
+   "id": "vl-0056",
    "text": "Du hast ⟨AKK⟩ dabei.",
    "quelle": "vorlage",
    "herkunft": "dialogue",
@@ -869,7 +813,7 @@
    ]
   },
   {
-   "id": "vl-0060",
+   "id": "vl-0057",
    "text": "⟨ORT⟩, ⟨ZEIT⟩.",
    "quelle": "vorlage",
    "herkunft": "dialogue",
@@ -882,7 +826,7 @@
    ]
   },
   {
-   "id": "vl-0061",
+   "id": "vl-0058",
    "text": "⟨X⟩ ⟨X⟩ ⟨X⟩, aber ⟨WAHL⟩.",
    "quelle": "vorlage",
    "herkunft": "video",
@@ -897,7 +841,7 @@
    ]
   },
   {
-   "id": "vl-0062",
+   "id": "vl-0059",
    "text": "SEQUENZ — ⟨X⟩",
    "quelle": "vorlage",
    "herkunft": "video",
@@ -909,7 +853,7 @@
    ]
   },
   {
-   "id": "vl-0063",
+   "id": "vl-0060",
    "text": "⟨ZEIT⟩",
    "quelle": "vorlage",
    "herkunft": "video",

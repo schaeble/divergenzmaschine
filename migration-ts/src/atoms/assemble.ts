@@ -64,8 +64,12 @@ export function passt(a: PoolAtom, k: Kontext, phase?: Phase): boolean {
   // Schluss-Atome gehören ans Ende — sonst kippt der Bogen mittendrin
   if (phase && a.kategorie === "endings" && phase !== "schluss") return false;
   if (phase && phase === "schluss" && a.kategorie === "motifs") return false;
+  // Ein Slot-Füller steht IM Rahmen, nicht danach — für ihn gilt die Slot-Regel,
+  // nicht die Anschlussmatrix. (Regressionsfall „Zuckerkringel-Splice“: sonst wurde
+  // die gültige Akkusativ-Nominalphrase mit abgewiesen.)
+  const fuelltSlot = !!k.vorheriges?.verlangt;
   const vorTyp: AtomTyp | "start" = k.vorheriges ? k.vorheriges.typ : "start";
-  if (!darfFolgen(vorTyp, a.typ)) return false;
+  if (!fuelltSlot && !darfFolgen(vorTyp, a.typ)) return false;
   // Offener Kopf muss bedient werden
   if (k.offenerKopf && !schliesstKopf(a.typ)) return false;
   // Slot des vorherigen Rahmens: Typ und Kasus müssen passen

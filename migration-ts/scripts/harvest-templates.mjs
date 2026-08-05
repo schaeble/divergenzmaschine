@@ -71,8 +71,9 @@ for (const q of QUELLEN) {
       if (t.length < 6 || seen.has(t)) continue;
       // Struktur-Labels aus dem Generator sind keine Sprache: „WO:“, „SZENE:“, „Shot 3:“
       if (/^[A-ZÄÖÜ]{2,}\s*:/.test(t) || /^(Shot|Szene|Take)\b/i.test(t)) continue;
-      // Modalverb + ganzer Satz ist ungrammatisch: „will ⟨SATZ⟩“ ergibt „will niemand bürgt …“
-      if (/\b(will|kann|muss|soll|darf|mag|möchte|sucht|versucht)\s+⟨SATZ⟩/.test(t)) continue;
+      // Modalverb (auch als ⟨VERB⟩-Platzhalter) + ganzer Satz ist ungrammatisch:
+      // „will ⟨SATZ⟩“ ergibt „Tina will der Winter kommt vor dem Lohn“.
+      if (/(⟨VERB⟩|\b(?:will|kann|muss|soll|darf|mag|möchte|sucht|versucht))\s+⟨SATZ⟩/.test(t)) continue;
       seen.add(t);
       const typ = typOf(t);
       atome.push({
