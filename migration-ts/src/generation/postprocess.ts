@@ -117,8 +117,13 @@ export function coherenceRepairV2(t: string, input?: Input): string {
     if (di >= 0) {
       const head = s.slice(0, di);
       let tail = s.slice(di);
+      // Nur bis zum nächsten Subjektwechsel konjugieren — sonst wird aus
+      // „du findest den Bug, aber er findet dich“ ein „aber er findest dich“.
+      const wechsel = tail.search(/\b(?:aber|und|doch|denn|sondern|oder|während|als)\s+(?:er|sie|es|man|wir|ihr|der|die|das)\b/i);
+      let rest = "";
+      if (wechsel > 0) { rest = tail.slice(wechsel); tail = tail.slice(0, wechsel); }
       DU.forEach(([re, rep]) => { tail = tail.replace(re, rep); });
-      s = head + tail;
+      s = head + tail + rest;
     }
     const _st = s.trim();
     if (kept.length && kept[kept.length - 1] === _st) continue; // aufeinanderfolgende Dublette
