@@ -2,7 +2,7 @@
 // Pool = aktive Wortbank (offline annotiert) + geerntete Satzvorlagen.
 import type { Bank, GenInput } from "../types";
 import { deriveAtom } from "./derive";
-import { passt, fortschreiben, fuelleKontext, fuelleSlot, offeneSlots, verfugen, ziehe, type PoolAtom, type Kontext } from "./assemble";
+import { passt, fortschreiben, fuelleKontext, fuelleSlot, offeneSlots, verfugen, ziehe, type PoolAtom, type Kontext, naechsterSlot }  from "./assemble";
 import TEMPLATES from "./templates.data.json";
 import { normWhere, normWhen, normWho } from "../generation/ctxnorm";
 import { isFirstPerson, isSecondPerson } from "../generation/coherence";
@@ -62,6 +62,9 @@ const divergenzOf = (input: GenInput): number =>
   (input.varLevel === "high" ? 85 : input.varLevel === "low" ? 30 : 60) + (input.instability >= 2 ? 10 : 0);
 
 /** Erzeugt einen Text im Rekombinations-Modus. */
+// Bausteine ohne finites Verb - drei davon in Folge ergeben ein Stakkato.
+const FLACH = new Set(["nominalphrase", "praepositionalphrase", "fragment", "einwort"]);
+
 export function buildRekombination(bank: Bank, input: GenInput): string {
   const pool = buildPool(bank, input.perspective, input.what, (normWho(input.who || "").split(",")[0] || "Jemand").trim());
   const ctx = {
@@ -77,7 +80,7 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     tempus: null, divergenz: divergenzOf(input), benutzt: new Set() };
   const kurve = ["mittel", "kurz", "lang", "mittel", "kurz", "mittel", "lang"];
   const out: string[] = [];
-  let letzterTyp = "", gleicheInFolge = 0, wasGesetzt = false;
+  let letzterTyp = "", gleicheInFolge = 0, wasGesetzt = false, flachInFolge = 0;
   const gesetzteTexte = new Set<string>();   // verschiedene Atome können gleichen TEXT erzeugen
   // Satzanfänge sperren: In einem Preset beginnen oft mehrere Einträge gleich
   // („Der Einsatz ist …“ 7×) — das ergibt eine Schleife trotz verschiedener Atome.
@@ -110,6 +113,16 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
       const anders = kand.filter((a) => a.typ !== letzterTyp);
       if (anders.length) kand = anders;
     }
+    // Stakkato verhindern: "Eine Quittung ohne Betrag. Eine Mappe mit Bindfaden.
+    // Ein leeres Logbuch." - drei satzlose Bausteine hintereinander sind rhythmisch
+    // monoton und syntaktisch flach. Nach zweien muss etwas Satzwertiges kommen.
+    if (flachInFolge >= 2) {
+      const tief = kand.filter((a) => !FLACH.has(a.typ));
+      if (tief.length) kand = tief;
+    }
+    // Phasenordnung: ein Schlussbild erst wirklich am Ende, nicht schon bei 80 %
+    if (fortschritt < 0.85) kand = kand.filter((a) => a.kategorie !== "endings");
+    if (!kand.length) break;
     if (!kand.length) break;
     // Die Handlung aus „Was passiert?“ muss vorkommen — spätestens zur Hälfte
     // wird sie erzwungen, sofern ein passendes Atom zur Verfügung steht.
@@ -124,16 +137,26 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     let guard = 0;
     while (offeneSlots(text) && guard++ < 3) {
       const kf: Kontext = { ...k, vorheriges: a, offenerKopf: false };
+      // Gegen den Slot pruefen, der als NAECHSTES gefuellt wird - nicht gegen den
+      // ersten der Vorlage. Sonst wandert eine Nominalphrase in ein ⟨SATZ⟩ hinter
+      // "denn", und ein Hauptsatz in ein ⟨AKK⟩ mitten im Rahmen.
+      const slot = naechsterSlot(text);
       const f = ziehe(pool.filter((x) => x.id !== a.id && !k.benutzt.has(x.id)
         && !(x.kategorie === "endings" && phase !== "schluss")     // kein Schlussbild als Füllung
-        && passt(x, kf)), "mittel", out.join(" "));
+        // Ein Fueller steht IM Rahmen - eine eigene Satzverknuepfung stoesst dort an
+        // die des Rahmens ("…, denn Und wieder: ich warte…").
+        && !/^(Und|Doch|Aber|Oder|Denn|Dann|Dabei|Also|Trotzdem)\b/.test(x.text)
+        && passt(x, kf, undefined, slot)), "mittel", out.join(" "));
       if (!f) break;
       // Der Füller steht mitten im Satz: Großschreibung nur bei Eigennamen belassen
       let fill = fuelleKontext(f.text, ctx).replace(/[.!?…]+$/, "");
       // Nur klein, wenn das erste Wort KEIN Nomen ist — „Kerzenstummel“ bleibt groß.
       const w1 = (fill.match(/^[A-ZÄÖÜ][a-zäöüß-]*/) || [""])[0];
       const istNomen = !!w1 && (!!NOUN_GENDER[w1.toLowerCase()] || /(ung|heit|keit|schaft|nis|tum|chen|lein|er|el|en|ucht|acht|icht|ion|tät|ei|ie|ur|us|um)$/.test(w1.toLowerCase()));
-      if (!f.fuehrt_ein.length && !istNomen && /^[A-ZÄÖÜ][a-zäöüß]/.test(fill)) fill = fill.charAt(0).toLowerCase() + fill.slice(1);
+      // Figurennamen bleiben gross - "denn tom wartet auf einen Bescheid" sonst.
+      const istFigur = !!w1 && (w1.toLowerCase() === ctx.figur.toLowerCase()
+        || normWho(input.who || "").split(/[,;]/).some((x) => x.trim().toLowerCase() === w1.toLowerCase()));
+      if (!f.fuehrt_ein.length && !istNomen && !istFigur && /^[A-ZÄÖÜ][a-zäöüß]/.test(fill)) fill = fill.charAt(0).toLowerCase() + fill.slice(1);
       text = fuelleSlot(text, fill);
       fueller.push({ text: fill, kategorie: f.kategorie || "—" });
       k.benutzt.add(f.id);
@@ -149,11 +172,17 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     out.push(text);
     pushTrace({ text, quelle: a.quelle, kategorie: a.kategorie || "—", typ: a.typ, phase, fueller: fueller.length ? fueller : undefined });
     gleicheInFolge = a.typ === letzterTyp ? gleicheInFolge + 1 : 0;
+    flachInFolge = FLACH.has(a.typ) ? flachInFolge + 1 : 0;
     letzterTyp = a.typ;
     fortschreiben(k, a);
     if (a.verlangt) k.offenerKopf = false;
     if (a.quelle === "vorlage") fuegeteile++;
     if (a.kategorie === "was") wasGesetzt = true;
+    // Nach dem Schlussbild kommt nichts mehr - und es gibt nur eines. Ohne diese
+    // Regel standen zwei Schlussformeln in kausal verkehrter Reihenfolge im Text
+    // ("Und der Bescheid war schon gueltig." vor "Damit war der Vorgang eroeffnet.")
+    // und dahinter noch eine lose Requisite ("eine bleiche Boje").
+    if (a.kategorie === "endings") break;
   }
   let fertig = verfugen(out);
   // B: Perspektivwechsel — im Rekombinationspfad lief er bisher gar nicht, die

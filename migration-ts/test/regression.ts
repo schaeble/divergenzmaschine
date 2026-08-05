@@ -12,7 +12,7 @@
 }
 import { REGRESSIONSFAELLE } from "./regression.data";
 import { phraseRepeatRatio, tenseBreakRatio, castSpread, perspectiveBreakRatio } from "../src/generation/coherence";
-import { passt, type PoolAtom, type Kontext } from "../src/atoms/assemble";
+import { passt, naechsterSlot, wirktSatzwertig, type PoolAtom, type Kontext } from "../src/atoms/assemble";
 import { deriveAtom } from "../src/atoms/derive";
 
 const fails: string[] = [];
@@ -56,6 +56,28 @@ for (const f of REGRESSIONSFAELLE) {
     werte.push(`Splice abgewiesen: ${abgewiesen ? "ja" : "NEIN"} · gültige Füllung zugelassen: ${zugelassen ? "ja" : "nein"}`);
     if (!abgewiesen) fails.push(`${f.id}: Hauptsatz wird in einen Nominalphrasen-Slot gelassen — der Splice ist wieder möglich`);
     if (!zugelassen) fails.push(`${f.id}: gültige Akkusativ-Nominalphrase wird abgewiesen — Prüfung zu streng`);
+  }
+  if (e.zweitslot) {
+    // Vorlagen mit ZWEI Slots verschiedener Art: "⟨FIGUR⟩ hatte ⟨AKK⟩ schon in der
+    // Hand, denn ⟨SATZ⟩." Das statische Feld `verlangt` beschreibt nur den ersten -
+    // der zweite muss aus dem Resttext gelesen werden, sonst landet eine
+    // Nominalphrase hinter "denn" und ein Hauptsatz im Akkusativrahmen.
+    const mk = (text: string, over: Partial<PoolAtom> = {}): PoolAtom =>
+      ({ ...deriveAtom(text), id: "z-" + Math.random(), quelle: "test", bruchgrad: 0, verlangt: null, ...over }) as PoolAtom;
+    const vorlage = "Du hattest ⟨AKK⟩ schon in der Hand, denn ⟨SATZ⟩.";
+    const rest = vorlage.replace("⟨AKK⟩", "die Mappe");            // erster Slot bereits gefüllt
+    const s1 = naechsterSlot(vorlage), s2 = naechsterSlot(rest);
+    const rahmen = mk(vorlage, { typ: "rahmen", verlangt: s1 });
+    const k: Kontext = { vorheriges: rahmen, offenerKopf: false, entitaeten: new Map(), tempus: null, divergenz: 100, benutzt: new Set() };
+    const satz = mk("die Luft roch nach Papier und geduldeter Angst");
+    const phrase = mk("ein taumelnder Mast");
+    const a1 = !passt(satz, k, undefined, s1);          // Satz darf nicht in ⟨AKK⟩
+    const a2 = !passt(phrase, k, undefined, s2);        // Fragment darf nicht in ⟨SATZ⟩
+    const verb = wirktSatzwertig("die Luft roch nach Papier");
+    werte.push(`Satz in ⟨AKK⟩ abgewiesen: ${a1 ? "ja" : "NEIN"} · Fragment in ⟨SATZ⟩ abgewiesen: ${a2 ? "ja" : "NEIN"} · „roch“ erkannt: ${verb ? "ja" : "NEIN"}`);
+    if (!a1) fails.push(`${f.id}: satzwertiges Atom wird in einen Akkusativ-Slot gelassen`);
+    if (!a2) fails.push(`${f.id}: Nominalphrase wird in einen ⟨SATZ⟩-Slot gelassen`);
+    if (!verb) fails.push(`${f.id}: starkes Präteritum „roch“ wird nicht als finites Verb erkannt`);
   }
   zeilen.push(`  ${f.titel.padEnd(22)} ${werte.join(" · ")}`);
 }

@@ -38,6 +38,12 @@ var REGRESSIONSFAELLE = [
     text: "Tom wartet am Kai. Er nimmt die Glocke. Aber du darfst nicht frei sprechen. Der Kran steht still. Ich sehe nichts.",
     pathologie: "Du- und Ich-Formen in einer Er-Erz\xE4hlung.",
     erwartung: { perspBreakMin: 0.2 }
+  },
+  {
+    id: "zweitslot-kollision",
+    titel: "Zweitslot-Kollision",
+    text: "Du hattest Die Luft roch nach Papier und geduldeter Angst schon in der Hand, denn ein taumelnder Mast.",
+    erwartung: { zweitslot: true }
   }
 ];
 
@@ -1129,38 +1135,6 @@ function guessGender(noun) {
   return void 0;
 }
 
-// src/atoms/assemble.ts
-function passt(a, k, phase) {
-  if (k.benutzt.has(a.id)) return false;
-  if (phase && a.kategorie === "endings" && phase !== "schluss") return false;
-  if (phase && phase === "schluss" && a.kategorie === "motifs") return false;
-  const fuelltSlot = !!k.vorheriges?.verlangt;
-  if (!fuelltSlot && a.typ === "nominalphrase" && (a.bietet.kasus === "akk" || a.bietet.kasus === "dat")) return false;
-  const vorTyp = k.vorheriges ? k.vorheriges.typ : "start";
-  if (!fuelltSlot && !darfFolgen(vorTyp, a.typ)) return false;
-  if (k.offenerKopf && !schliesstKopf(a.typ)) return false;
-  const v = k.vorheriges?.verlangt;
-  if (v) {
-    if (a.typ !== v.art) return false;
-    if (v.art === "nominalphrase") {
-      const bietet = a.bietet.kasus;
-      if (!bietet) return false;
-      if (bietet !== v.kasus && !(bietet === "nom_akk" && (v.kasus === "nom" || v.kasus === "akk"))) return false;
-    }
-  }
-  if (a.verlangt_bezug) {
-    let da = false;
-    for (const e of k.entitaeten.values()) if (e.abstand <= 2) {
-      da = true;
-      break;
-    }
-    if (!da) return false;
-  }
-  if (k.tempus && a.tempus !== "kein" && a.tempus !== k.tempus) return false;
-  if (a.bruchgrad > schwelle(k.divergenz)) return false;
-  return true;
-}
-
 // src/generation/verbconj.data.ts
 var VERB_CONJ = {
   "bemerkt": {
@@ -1714,7 +1688,7 @@ function looksLikeFullClause(leadVerb, rest) {
 
 // src/atoms/derive.ts
 var SEIN_HABEN_WERDEN = /^(ist|sind|bin|bist|seid|war|waren|warst|hat|habe|hast|haben|habt|hatte|hatten|wird|werden|wirst|werdet|wurde|wurden|kann|kannst|können|könnt|konnte|muss|musst|müssen|müsst|will|willst|wollen|wollt|soll|sollen|darf|dürfen|mag|mögen|weiß|wissen|bleibt|bleiben|blieb|gibt|geben|gab)$/;
-var PRAET_FORM = /(?:^|^[a-zäöüß]{2,6})(lag|lagen|stand|standen|ging|gingen|kam|kamen|sah|sahen|nahm|nahmen|hielt|hielten|ließ|ließen|fand|fanden|zog|zogen|trug|trugen|fiel|fielen|rief|riefen|sprach|schrieb|floss|stieg|sank|klang|hing|schien|trieb|brach|schloss|verlor|begann|geschah)$/;
+var PRAET_FORM = /(?:^|^[a-zäöüß]{2,6})(lag|lagen|stand|standen|ging|gingen|kam|kamen|sah|sahen|nahm|nahmen|hielt|hielten|ließ|ließen|fand|fanden|zog|zogen|trug|trugen|fiel|fielen|rief|riefen|sprach|schrieb|floss|stieg|sank|klang|hing|schien|trieb|brach|schloss|verlor|begann|geschah|roch|rochen|sass|saßen|riss|rissen|sprang|sprangen|schlug|schlugen|traf|trafen|griff|griffen|lief|liefen|wusste|wussten|verschwand|verschwanden|blieb|blieben|hieß|hießen|wuchs|wuchsen|schob|schoben|bog|bogen|schwieg|schwiegen)$/;
 var NOMEN_ENDUNG = /(ung|heit|keit|schaft|tät|ion|nis|tum|chen|lein|ment)$/;
 var PREP2 = /^(in|im|an|am|auf|bei|beim|mit|von|vom|zu|zum|zur|nach|über|unter|vor|hinter|neben|zwischen|durch|für|ohne|um|gegen|seit|trotz|wegen|während|aus|entlang|inmitten|jenseits|abseits)\b/i;
 var SUBJUNKTION = /^(dass|weil|obwohl|wenn|nachdem|bevor|ob|indem|sobald|solange|falls|sodass)\b/i;
@@ -1741,6 +1715,23 @@ function subjektOf(t, typ) {
   const plural = /\b(sie|die)\s+\w+en\b/.test(t.toLowerCase()) || /\b(sind|waren|haben|werden)\b/.test(t.toLowerCase());
   return { person: 3, numerus: plural ? "pl" : "sg", genus };
 }
+function hatFinitesVerb(seg) {
+  const ws = seg.match(/[A-Za-zÄÖÜäöüß]+/g) || [];
+  for (const w of ws) {
+    if (/^[A-ZÄÖÜ]/.test(w)) continue;
+    const l = w.toLowerCase();
+    if (VERB_CONJ[l]) return true;
+    if (SEIN_HABEN_WERDEN.test(l)) return true;
+    if (PRAET_FORM.test(l)) return true;
+    if (/^(?!ge)[a-zäöüß]{4,}(?:t|te|en|ten)$/.test(l) && !NOMEN_ENDUNG.test(l)) return true;
+  }
+  const first = (seg.match(/^([A-ZÄÖÜ][a-zäöüß]+)/) || [])[1];
+  if (first) {
+    const l = first.toLowerCase();
+    if (VERB_CONJ[l] || SEIN_HABEN_WERDEN.test(l) || PRAET_FORM.test(l)) return true;
+  }
+  return looksLikeFullClause(null, seg);
+}
 function deriveAtom(raw) {
   const text = (raw || "").trim();
   const unsicher = [];
@@ -1748,23 +1739,6 @@ function deriveAtom(raw) {
   const end = (text.match(/[.!?:;—]$/) || [""])[0];
   const lead = extractLeadVerb(text);
   const haupt = text.split(",")[0];
-  const hatFinitesVerb = (seg) => {
-    const ws = seg.match(/[A-Za-zÄÖÜäöüß]+/g) || [];
-    for (const w of ws) {
-      if (/^[A-ZÄÖÜ]/.test(w)) continue;
-      const l = w.toLowerCase();
-      if (VERB_CONJ[l]) return true;
-      if (SEIN_HABEN_WERDEN.test(l)) return true;
-      if (PRAET_FORM.test(l)) return true;
-      if (/^(?!ge)[a-zäöüß]{4,}(?:t|te|en|ten)$/.test(l) && !NOMEN_ENDUNG.test(l)) return true;
-    }
-    const first = (seg.match(/^([A-ZÄÖÜ][a-zäöüß]+)/) || [])[1];
-    if (first) {
-      const l = first.toLowerCase();
-      if (VERB_CONJ[l] || SEIN_HABEN_WERDEN.test(l) || PRAET_FORM.test(l)) return true;
-    }
-    return looksLikeFullClause(null, seg);
-  };
   const hatFinit = !!lead.verb || hatFinitesVerb(haupt);
   let typ;
   if (/:$/.test(text)) typ = "kopf";
@@ -1812,6 +1786,51 @@ function deriveAtom(raw) {
     rhythmus: { woerter: wcount, silben: s, tiefe: tiefe(text), endzeichen: end, gewicht: wcount <= 4 ? "kurz" : wcount <= 9 ? "mittel" : "lang" },
     unsicher
   };
+}
+
+// src/atoms/assemble.ts
+function naechsterSlot(text) {
+  const m = text.match(/⟨(AKK|DAT|NOM|SATZ)⟩/);
+  if (!m) return null;
+  const k = m[1];
+  if (k === "SATZ") return { rolle: "ergaenzung", kasus: "nom", art: "hauptsatz" };
+  return { rolle: "objekt", kasus: k.toLowerCase(), art: "nominalphrase" };
+}
+function wirktSatzwertig(text) {
+  const haupt = text.split(/[,;–—]/)[0] || text;
+  return hatFinitesVerb(haupt);
+}
+function passt(a, k, phase, slot) {
+  if (k.benutzt.has(a.id)) return false;
+  if (phase && a.kategorie === "endings" && phase !== "schluss") return false;
+  if (phase && phase === "schluss" && a.kategorie === "motifs") return false;
+  const v = slot !== void 0 ? slot : k.vorheriges?.verlangt ?? null;
+  const fuelltSlot = !!v;
+  if (!fuelltSlot && a.typ === "nominalphrase" && (a.bietet.kasus === "akk" || a.bietet.kasus === "dat")) return false;
+  const vorTyp = k.vorheriges ? k.vorheriges.typ : "start";
+  if (!fuelltSlot && !darfFolgen(vorTyp, a.typ)) return false;
+  if (k.offenerKopf && !schliesstKopf(a.typ)) return false;
+  if (v) {
+    if (a.typ !== v.art) return false;
+    if (v.art === "nominalphrase" && wirktSatzwertig(a.text)) return false;
+    if (v.art === "hauptsatz" && !wirktSatzwertig(a.text) && a.typ !== "hauptsatz") return false;
+    if (v.art === "nominalphrase") {
+      const bietet = a.bietet.kasus;
+      if (!bietet) return false;
+      if (bietet !== v.kasus && !(bietet === "nom_akk" && (v.kasus === "nom" || v.kasus === "akk"))) return false;
+    }
+  }
+  if (a.verlangt_bezug) {
+    let da = false;
+    for (const e of k.entitaeten.values()) if (e.abstand <= 2) {
+      da = true;
+      break;
+    }
+    if (!da) return false;
+  }
+  if (k.tempus && a.tempus !== "kein" && a.tempus !== k.tempus) return false;
+  if (a.bruchgrad > schwelle(k.divergenz)) return false;
+  return true;
 }
 
 // test/regression.ts
@@ -1871,6 +1890,23 @@ for (const f of REGRESSIONSFAELLE) {
     werte.push(`Splice abgewiesen: ${abgewiesen ? "ja" : "NEIN"} \xB7 g\xFCltige F\xFCllung zugelassen: ${zugelassen ? "ja" : "nein"}`);
     if (!abgewiesen) fails.push(`${f.id}: Hauptsatz wird in einen Nominalphrasen-Slot gelassen \u2014 der Splice ist wieder m\xF6glich`);
     if (!zugelassen) fails.push(`${f.id}: g\xFCltige Akkusativ-Nominalphrase wird abgewiesen \u2014 Pr\xFCfung zu streng`);
+  }
+  if (e.zweitslot) {
+    const mk = (text, over = {}) => ({ ...deriveAtom(text), id: "z-" + Math.random(), quelle: "test", bruchgrad: 0, verlangt: null, ...over });
+    const vorlage = "Du hattest \u27E8AKK\u27E9 schon in der Hand, denn \u27E8SATZ\u27E9.";
+    const rest = vorlage.replace("\u27E8AKK\u27E9", "die Mappe");
+    const s1 = naechsterSlot(vorlage), s2 = naechsterSlot(rest);
+    const rahmen = mk(vorlage, { typ: "rahmen", verlangt: s1 });
+    const k = { vorheriges: rahmen, offenerKopf: false, entitaeten: /* @__PURE__ */ new Map(), tempus: null, divergenz: 100, benutzt: /* @__PURE__ */ new Set() };
+    const satz = mk("die Luft roch nach Papier und geduldeter Angst");
+    const phrase = mk("ein taumelnder Mast");
+    const a1 = !passt(satz, k, void 0, s1);
+    const a2 = !passt(phrase, k, void 0, s2);
+    const verb = wirktSatzwertig("die Luft roch nach Papier");
+    werte.push(`Satz in \u27E8AKK\u27E9 abgewiesen: ${a1 ? "ja" : "NEIN"} \xB7 Fragment in \u27E8SATZ\u27E9 abgewiesen: ${a2 ? "ja" : "NEIN"} \xB7 \u201Eroch\u201C erkannt: ${verb ? "ja" : "NEIN"}`);
+    if (!a1) fails.push(`${f.id}: satzwertiges Atom wird in einen Akkusativ-Slot gelassen`);
+    if (!a2) fails.push(`${f.id}: Nominalphrase wird in einen \u27E8SATZ\u27E9-Slot gelassen`);
+    if (!verb) fails.push(`${f.id}: starkes Pr\xE4teritum \u201Eroch\u201C wird nicht als finites Verb erkannt`);
   }
   zeilen.push(`  ${f.titel.padEnd(22)} ${werte.join(" \xB7 ")}`);
 }

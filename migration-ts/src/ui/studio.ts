@@ -29,6 +29,10 @@ import { runProbe, runRanking, bestOf, type Ranking } from "../generation/scorin
 import { TONE_DATA } from "../generation/tone.data";
 import { liveTexts } from "../features/livepools";
 
+// Überlebt den Tab-Wechsel: mountStudio läuft bei jeder Rückkehr neu.
+let studioSchonGewuerfelt = false;
+const studioReglerStand: Record<string, string> = {};
+
 export function mountStudio(root: HTMLElement): void {
   root.innerHTML = "";
   const wrap = el("div", {});
@@ -72,7 +76,7 @@ export function mountStudio(root: HTMLElement): void {
     el("div", { class: "field" }, el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sel)), sel);
 
   const ctxDice = el("button", {}, icon("dice"), " Kontext würfeln");
-  ctxDice.addEventListener("click", () => { const c = randomContext(); if (!locked.has(where.id)) where.value = c.where; if (!locked.has(when.id)) when.value = c.when; if (!locked.has(who.id)) who.value = c.who; if (!locked.has(what.id)) what.value = c.what; updHints(); });
+  ctxDice.addEventListener("click", () => { const c = randomContext(); if (!locked.has(where.id)) where.value = c.where; if (!locked.has(when.id)) when.value = c.when; if (!locked.has(who.id)) who.value = c.who; if (!locked.has(what.id)) what.value = c.what; updHints(); ctxSichern(); });
   const ctxKeep = el("button", { class: "toggle" }, icon("pin"), " Kontext merken");
   const CTX_KEY = "divergenz_ctx_v1";
   ctxKeep.title = "Wo/Wann/Wer/Was sichern und bei jedem Start laden";
@@ -82,6 +86,14 @@ export function mountStudio(root: HTMLElement): void {
     try { if (on) localStorage.setItem(CTX_KEY, JSON.stringify({ where: where.value, when: when.value, who: who.value, what: what.value })); else localStorage.removeItem(CTX_KEY); } catch { /* voll */ }
   };
   ctxKeep.addEventListener("click", () => setCtxKeep(!ctxKeep.classList.contains("on")));
+  // Der Schalter hat den Kontext bisher nur im Moment des Klicks gesichert. Wer ihn
+  // früh einschaltet und die Felder danach ändert, bekam beim nächsten Aufbau die
+  // alte Momentaufnahme zurück — genau der scheinbare Reset auf „London / Tom“.
+  const ctxSichern = (): void => {
+    if (!ctxKeep.classList.contains("on")) return;
+    try { localStorage.setItem(CTX_KEY, JSON.stringify({ where: where.value, when: when.value, who: who.value, what: what.value })); } catch { /* voll */ }
+  };
+  [where, when, who, what].forEach((f) => { f.addEventListener("input", ctxSichern); f.addEventListener("change", ctxSichern); });
   // Stärke-Regler (experimentell, nur Prosa): je 4W-Feld direkt darunter.
   const mkWeight = (id: string): HTMLInputElement => el("input", { id, class: "wgt", type: "range", min: "0", max: "3", step: "1", value: "0", title: "Stärke — mehr über dieses Feld" }) as HTMLInputElement;
   const wWo = mkWeight("f-w-wo"), wWann = mkWeight("f-w-wann"), wWer = mkWeight("f-w-wer"), wWas = mkWeight("f-w-was");
@@ -807,6 +819,7 @@ export function mountStudio(root: HTMLElement): void {
         ? bestOf(loadBank(), input, model, 12, { noveltyWeight: 0.5, grammarFilter: true, castDiscipline: parseFloat(cast.value) || 0, expectedCast: who.value.split(/[,;]/).map((x) => x.trim()).filter(Boolean), perspective: persp.value }).txt
         : buildStory(loadBank(), input, model);
       baseText = out.textContent || "";
+      ctxSichern();
       try { localStorage.setItem("dm_last_text", out.textContent || ""); } catch { /* voll */ }
       renderKling(input.form, out.textContent || "");
       try { feedLivePools(out.textContent || "", LIVE_W.gen); } catch { /* egal */ }
@@ -907,11 +920,22 @@ export function mountStudio(root: HTMLElement): void {
       }
       preset.value = "__omni__";
     }
-  } else {
-    // Zufallsstart: alle Regler würfeln (gesperrte bleiben; kein dispatch, generate() folgt am Ende)
+  } else if (!studioSchonGewuerfelt) {
+    // Zufallsstart: alle Regler würfeln (gesperrte bleiben; kein dispatch, generate() folgt am Ende).
+    // NUR beim ersten Aufbau je Sitzung — mountStudio läuft bei jedem Tab-Wechsel erneut,
+    // und ein Neuwürfeln dort zerstört jeden Vergleichslauf (Ton sprang von Nüchtern
+    // auf Hoffnungsvoll, Rhythmus von Fraktur auf Klar).
     ROLL_SELECTS.forEach((s) => { if (!locked.has(s.id) && s.options.length) s.selectedIndex = Math.floor(Math.random() * s.options.length); });
+    studioSchonGewuerfelt = true;
+  } else {
+    // Rückkehr in den Tab: zuletzt gewählte Reglerstellung wiederherstellen
+    for (const s of ROLL_SELECTS) { const v = studioReglerStand[s.id]; if (v !== undefined && Array.from(s.options).some((o) => o.value === v)) s.value = v; }
   }
   restoreLocked();
+  // Reglerstand festhalten, damit die Rückkehr in den Tab ihn wiederherstellen kann
+  const merkeRegler = (): void => { for (const s of ROLL_SELECTS) studioReglerStand[s.id] = s.value; };
+  ROLL_SELECTS.forEach((s) => s.addEventListener("change", () => { studioReglerStand[s.id] = s.value; }));
+  merkeRegler();
   // Schlösser haben Übergabewerte überschrieben? Hinweis mit Sofortlösung zeigen.
   const blocked = handedOver.filter((h) => locked.has(h.el.id) && h.el.value !== h.want);
   if (blocked.length) {

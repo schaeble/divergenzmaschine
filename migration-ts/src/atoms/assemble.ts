@@ -4,6 +4,7 @@
 import { darfFolgen, schliesstKopf, schwelle, type AtomTyp } from "./schema";
 import type { DerivedAtom } from "./derive";
 import { guessGender } from "../generation/declension";
+import { hatFinitesVerb } from "./derive";
 
 export interface PoolAtom extends DerivedAtom {
   id: string;
@@ -61,7 +62,35 @@ export interface Kontext {
 }
 
 /** Prüft, ob ein Atom an der aktuellen Stelle stehen darf. */
-export function passt(a: PoolAtom, k: Kontext, phase?: Phase): boolean {
+/**
+ * Der naechste noch offene Platzhalter im Text. Vorlagen wie
+ * "⟨FIGUR⟩ hatte ⟨AKK⟩ schon in der Hand, denn ⟨SATZ⟩." haben ZWEI Slots
+ * verschiedener Art; das statische Feld `verlangt` beschreibt aber nur den ersten.
+ * Ohne diese Funktion wurde der zweite Slot gegen die Regel des ersten geprueft -
+ * daher "denn ein taumelnder Mast".
+ */
+export function naechsterSlot(text: string): { rolle: string; kasus: string; art: string } | null {
+  const m = text.match(/⟨(AKK|DAT|NOM|SATZ)⟩/);
+  if (!m) return null;
+  const k = m[1]!;
+  if (k === "SATZ") return { rolle: "ergaenzung", kasus: "nom", art: "hauptsatz" };
+  return { rolle: "objekt", kasus: k.toLowerCase(), art: "nominalphrase" };
+}
+
+/**
+ * Wirkt der Text wie ein vollstaendiger Satz? Zweitpruefung an der Slot-Grenze,
+ * unabhaengig vom abgeleiteten Feld `typ`: derive.ts las "Die Luft roch nach Papier"
+ * als Nominalphrase, weil "roch" in keiner Verbliste stand.
+ */
+export function wirktSatzwertig(text: string): boolean {
+  // Nur den Hauptteil vor dem ersten Komma pruefen. "den Satz, der nach Sueden zeigt"
+  // ist eine gueltige Nominalphrase - das finite Verb steckt im Relativsatz und macht
+  // sie nicht satzwertig. (Der Regressionsfall Zuckerkringel hat genau das gemeldet.)
+  const haupt = text.split(/[,;–—]/)[0] || text;
+  return hatFinitesVerb(haupt);
+}
+
+export function passt(a: PoolAtom, k: Kontext, phase?: Phase, slot?: { rolle: string; kasus: string; art: string } | null): boolean {
   if (k.benutzt.has(a.id)) return false;
   // Schluss-Atome gehören ans Ende — sonst kippt der Bogen mittendrin
   if (phase && a.kategorie === "endings" && phase !== "schluss") return false;
@@ -69,7 +98,8 @@ export function passt(a: PoolAtom, k: Kontext, phase?: Phase): boolean {
   // Ein Slot-Füller steht IM Rahmen, nicht danach — für ihn gilt die Slot-Regel,
   // nicht die Anschlussmatrix. (Regressionsfall „Zuckerkringel-Splice“: sonst wurde
   // die gültige Akkusativ-Nominalphrase mit abgewiesen.)
-  const fuelltSlot = !!k.vorheriges?.verlangt;
+  const v = slot !== undefined ? slot : (k.vorheriges?.verlangt ?? null);
+  const fuelltSlot = !!v;
   // Plan 0.3: „Einen Dolch, der nach Kerosin riecht.“ ist kein Satz — Akkusativ-
   // und Dativphrasen gehören in einen Rahmen, nicht frei in den Text.
   if (!fuelltSlot && a.typ === "nominalphrase" && (a.bietet.kasus === "akk" || a.bietet.kasus === "dat")) return false;
@@ -78,9 +108,12 @@ export function passt(a: PoolAtom, k: Kontext, phase?: Phase): boolean {
   // Offener Kopf muss bedient werden
   if (k.offenerKopf && !schliesstKopf(a.typ)) return false;
   // Slot des vorherigen Rahmens: Typ und Kasus müssen passen
-  const v = k.vorheriges?.verlangt;
   if (v) {
     if (a.typ !== v.art) return false;
+    // Zweite Instanz gegen Ableitungsfehler: ein Baustein mit finitem Verb ist ein
+    // Satz, auch wenn er als Nominalphrase getaggt wurde - und umgekehrt.
+    if (v.art === "nominalphrase" && wirktSatzwertig(a.text)) return false;
+    if (v.art === "hauptsatz" && !wirktSatzwertig(a.text) && a.typ !== "hauptsatz") return false;
     if (v.art === "nominalphrase") {
       const bietet = a.bietet.kasus;
       if (!bietet) return false;

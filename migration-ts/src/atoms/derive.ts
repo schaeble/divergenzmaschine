@@ -25,7 +25,7 @@ export interface DerivedAtom {
 }
 
 const SEIN_HABEN_WERDEN = /^(ist|sind|bin|bist|seid|war|waren|warst|hat|habe|hast|haben|habt|hatte|hatten|wird|werden|wirst|werdet|wurde|wurden|kann|kannst|können|könnt|konnte|muss|musst|müssen|müsst|will|willst|wollen|wollt|soll|sollen|darf|dürfen|mag|mögen|weiß|wissen|bleibt|bleiben|blieb|gibt|geben|gab)$/;
-const PRAET_FORM = /(?:^|^[a-zäöüß]{2,6})(lag|lagen|stand|standen|ging|gingen|kam|kamen|sah|sahen|nahm|nahmen|hielt|hielten|ließ|ließen|fand|fanden|zog|zogen|trug|trugen|fiel|fielen|rief|riefen|sprach|schrieb|floss|stieg|sank|klang|hing|schien|trieb|brach|schloss|verlor|begann|geschah)$/;
+const PRAET_FORM = /(?:^|^[a-zäöüß]{2,6})(lag|lagen|stand|standen|ging|gingen|kam|kamen|sah|sahen|nahm|nahmen|hielt|hielten|ließ|ließen|fand|fanden|zog|zogen|trug|trugen|fiel|fielen|rief|riefen|sprach|schrieb|floss|stieg|sank|klang|hing|schien|trieb|brach|schloss|verlor|begann|geschah|roch|rochen|sass|saßen|riss|rissen|sprang|sprangen|schlug|schlugen|traf|trafen|griff|griffen|lief|liefen|wusste|wussten|verschwand|verschwanden|blieb|blieben|hieß|hießen|wuchs|wuchsen|schob|schoben|bog|bogen|schwieg|schwiegen)$/;
 // Endungen, die eher auf ein Nomen als auf ein Verb deuten (Falsch-Positive vermeiden)
 const NOMEN_ENDUNG = /(ung|heit|keit|schaft|tät|ion|nis|tum|chen|lein|ment)$/;
 const PREP = /^(in|im|an|am|auf|bei|beim|mit|von|vom|zu|zum|zur|nach|über|unter|vor|hinter|neben|zwischen|durch|für|ohne|um|gegen|seit|trotz|wegen|während|aus|entlang|inmitten|jenseits|abseits)\b/i;
@@ -58,6 +58,29 @@ function subjektOf(t: string, typ: AtomTyp): Subjekt | null {
   return { person: 3, numerus: plural ? "pl" : "sg", genus };
 }
 
+/**
+ * Enthaelt der Text ein finites Verb? Auf Modulebene gehoben und exportiert, damit
+ * der Assembler dieselbe Pruefung an der Slot-Grenze nutzen kann statt einer zweiten,
+ * schwaecheren Kopie.
+ */
+export function hatFinitesVerb(seg: string): boolean {
+  // WICHTIG: Groß-/Kleinschreibung erhalten — deutsche Nomen sind groß, Verben klein.
+  // Ohne diese Prüfung gelten „Frist“, „Licht“, „Nacht“ als Verbformen auf -t.
+  const ws = (seg.match(/[A-Za-zÄÖÜäöüß]+/g) || []);
+  for (const w of ws) {
+    if (/^[A-ZÄÖÜ]/.test(w)) continue;                                // Nomen oder Satzanfang → kein Verbkandidat
+    const l = w.toLowerCase();
+    if (VERB_CONJ[l]) return true;                                    // 3. Ps. Sg. Präsens
+    if (SEIN_HABEN_WERDEN.test(l)) return true;                       // Hilfs-/Modalverben
+    if (PRAET_FORM.test(l)) return true;                              // starke Präteritumformen (auch trennbar: aufging)
+    if (/^(?!ge)[a-zäöüß]{4,}(?:t|te|en|ten)$/.test(l) && !NOMEN_ENDUNG.test(l)) return true;
+  }
+  // Satzanfang gesondert: „Klebt ein Zuckerkringel …“, „Stand im Sand“
+  const first = (seg.match(/^([A-ZÄÖÜ][a-zäöüß]+)/) || [])[1];
+  if (first) { const l = first.toLowerCase(); if (VERB_CONJ[l] || SEIN_HABEN_WERDEN.test(l) || PRAET_FORM.test(l)) return true; }
+  return looksLikeFullClause(null, seg);
+}
+
 export function deriveAtom(raw: string): DerivedAtom {
   const text = (raw || "").trim();
   const unsicher: string[] = [];
@@ -69,23 +92,7 @@ export function deriveAtom(raw: string): DerivedAtom {
   // Finites Verb im HAUPTTEIL (vor dem ersten Komma) — ein Verb im Relativsatz
   // macht „eine Frist, die rückwärts läuft“ nicht zum Hauptsatz.
   const haupt = text.split(",")[0]!;
-  const hatFinitesVerb = (seg: string): boolean => {
-    // WICHTIG: Groß-/Kleinschreibung erhalten — deutsche Nomen sind groß, Verben klein.
-    // Ohne diese Prüfung gelten „Frist“, „Licht“, „Nacht“ als Verbformen auf -t.
-    const ws = (seg.match(/[A-Za-zÄÖÜäöüß]+/g) || []);
-    for (const w of ws) {
-      if (/^[A-ZÄÖÜ]/.test(w)) continue;                                // Nomen oder Satzanfang → kein Verbkandidat
-      const l = w.toLowerCase();
-      if (VERB_CONJ[l]) return true;                                    // 3. Ps. Sg. Präsens
-      if (SEIN_HABEN_WERDEN.test(l)) return true;                       // Hilfs-/Modalverben
-      if (PRAET_FORM.test(l)) return true;                              // starke Präteritumformen (auch trennbar: aufging)
-      if (/^(?!ge)[a-zäöüß]{4,}(?:t|te|en|ten)$/.test(l) && !NOMEN_ENDUNG.test(l)) return true;
-    }
-    // Satzanfang gesondert: „Klebt ein Zuckerkringel …“, „Stand im Sand“
-    const first = (seg.match(/^([A-ZÄÖÜ][a-zäöüß]+)/) || [])[1];
-    if (first) { const l = first.toLowerCase(); if (VERB_CONJ[l] || SEIN_HABEN_WERDEN.test(l) || PRAET_FORM.test(l)) return true; }
-    return looksLikeFullClause(null, seg);
-  };
+
   const hatFinit = !!lead.verb || hatFinitesVerb(haupt);
   let typ: AtomTyp;
   if (/:$/.test(text)) typ = "kopf";

@@ -16,7 +16,8 @@ export interface Regressionsfall {
     tenseBreakMin?: number;
     castSpreadMin?: number;
     perspBreakMin?: number;
-    slotBruch?: boolean;         // enthält einen Slot-Splice (Rahmen schluckt Hauptsatz)
+    slotBruch?: boolean;
+    zweitslot?: boolean;       // Vorlage mit zwei Slots verschiedener Art         // enthält einen Slot-Splice (Rahmen schluckt Hauptsatz)
   };
 }
 
@@ -66,5 +67,11 @@ export const REGRESSIONSFAELLE: Regressionsfall[] = [
         + "Der Kran steht still. Ich sehe nichts.",
     pathologie: "Du- und Ich-Formen in einer Er-Erzählung.",
     erwartung: { perspBreakMin: 0.2 },
+  },
+  {
+    id: "zweitslot-kollision",
+    titel: "Zweitslot-Kollision",
+    text: "Du hattest Die Luft roch nach Papier und geduldeter Angst schon in der Hand, denn ein taumelnder Mast.",
+    erwartung: { zweitslot: true },
   },
 ];
