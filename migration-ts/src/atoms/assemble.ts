@@ -22,8 +22,8 @@ export type Phase = "exposition" | "verdichtung" | "umschlag" | "schluss";
 
 /** Welche Bank-Kategorien tragen welche Phase. */
 const PHASEN_KATEGORIEN: Record<Phase, string[]> = {
-  exposition:  ["motifs", "hooks"],
-  verdichtung: ["props", "obstacles", "stakes"],
+  exposition:  ["motifs", "hooks", "was"],
+  verdichtung: ["props", "obstacles", "stakes", "was"],
   umschlag:    ["turns"],
   schluss:     ["endings"],
 };
@@ -42,6 +42,7 @@ export function phasenplan(n: number): Phase[] {
 /** Bonus, wenn das Atom die Funktion der aktuellen Phase erfüllt. */
 export function phasenBonus(a: PoolAtom, phase: Phase): number {
   if (a.quelle === "vorlage") return phase === "exposition" ? 1.2 : 0.4;   // Rahmen eröffnen gern
+  if (a.kategorie === "was") return phase === "schluss" ? 0.5 : 3.5;        // die Handlung soll vorkommen
   if (!a.kategorie) return 0;
   if (PHASEN_KATEGORIEN[phase].includes(a.kategorie)) return 2.2;
   // Schluss-Atome dürfen nie zu früh, Motive nie ganz am Ende

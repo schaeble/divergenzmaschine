@@ -6,6 +6,7 @@ import { passt, fortschreiben, fuelleKontext, fuelleSlot, offeneSlots, verfugen,
 import TEMPLATES from "./templates.data.json";
 import { normWhere, normWhen, normWho } from "../generation/ctxnorm";
 import { isFirstPerson, isSecondPerson } from "../generation/coherence";
+import { extractLeadVerb, looksLikeFullClause } from "../generation/wordcls";
 import { NOUN_GENDER } from "../generation/nouns.data";
 import { applyPerspective, pronominalize, guessPronoun } from "../generation/shape";
 import { resetTrace, pushTrace, pruefeAbgleich } from "./trace";
@@ -13,9 +14,27 @@ import { resetTrace, pushTrace, pruefeAbgleich } from "./trace";
 interface TemplateAtom { id: string; text: string; typ: string; verlangt: PoolAtom["verlangt"]; oeffnet: boolean }
 
 /** Baut den Atom-Pool aus Bank und Vorlagen. Perspektivfremde Vorlagen bleiben draußen. */
-export function buildPool(bank: Bank, perspektive: string): PoolAtom[] {
+export function buildPool(bank: Bank, perspektive: string, what?: string, figur?: string): PoolAtom[] {
   const pool: PoolAtom[] = [];
   let i = 0;
+  // „Was passiert?“ als eigene Atome — bisher floss die Angabe gar nicht ein.
+  const w = (what || "").trim();
+  if (w) {
+    const lead = extractLeadVerb(w);
+    const kern = lead.rest.replace(/[.!?…]+$/, "");
+    const P = figur || "Jemand";
+    const saetze = lead.isInfinitiveLed
+      ? [`${P} will ${kern}`, `Alles drängt darauf, ${kern.replace(/(\S+)$/, "zu $1")}`]
+      : lead.verb
+        ? [`${P} ${lead.verb} ${kern}`, `Und wieder: ${P} ${lead.verb} ${kern}`]
+        : looksLikeFullClause(lead.verb, kern)
+          ? [kern, `Und wieder: ${kern}`, `Denn genau das geschieht: ${kern}`]
+          : [`Es geht um eines: ${kern}`, `${P} sucht ${kern}`];
+    for (const t of saetze) {
+      const d = deriveAtom(t);
+      pool.push({ ...d, id: `was-${pool.length}`, quelle: "kontext", kategorie: "was", verlangt: null, bruchgrad: 0 });
+    }
+  }
   for (const [kat, arr] of Object.entries(bank as unknown as Record<string, string[]>)) {
     if (!Array.isArray(arr)) continue;
     for (const t of arr) {
@@ -44,7 +63,7 @@ const divergenzOf = (input: GenInput): number =>
 
 /** Erzeugt einen Text im Rekombinations-Modus. */
 export function buildRekombination(bank: Bank, input: GenInput): string {
-  const pool = buildPool(bank, input.perspective);
+  const pool = buildPool(bank, input.perspective, input.what, (normWho(input.who || "").split(",")[0] || "Jemand").trim());
   const ctx = {
     ort: normWhere(input.where || "") || "an einem Ort",
     zeit: normWhen(input.when || "") || "zu einer Zeit",
@@ -58,7 +77,7 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     tempus: null, divergenz: divergenzOf(input), benutzt: new Set() };
   const kurve = ["mittel", "kurz", "lang", "mittel", "kurz", "mittel", "lang"];
   const out: string[] = [];
-  let letzterTyp = "", gleicheInFolge = 0;
+  let letzterTyp = "", gleicheInFolge = 0, wasGesetzt = false;
   const gesetzteTexte = new Set<string>();   // verschiedene Atome können gleichen TEXT erzeugen
   // Satzanfänge sperren: In einem Preset beginnen oft mehrere Einträge gleich
   // („Der Einsatz ist …“ 7×) — das ergibt eine Schleife trotz verschiedener Atome.
@@ -92,6 +111,12 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
       if (anders.length) kand = anders;
     }
     if (!kand.length) break;
+    // Die Handlung aus „Was passiert?“ muss vorkommen — spätestens zur Hälfte
+    // wird sie erzwungen, sofern ein passendes Atom zur Verfügung steht.
+    if (!wasGesetzt && fortschritt >= 0.35) {
+      const wasKand = kand.filter((x) => x.kategorie === "was");
+      if (wasKand.length) kand = wasKand;
+    }
     const a = ziehe(kand, kurve[s % kurve.length]!, out.join(" "), phase);
     if (!a) break;
     let text = fuelleKontext(a.text, ctx);
@@ -107,7 +132,7 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
       let fill = fuelleKontext(f.text, ctx).replace(/[.!?…]+$/, "");
       // Nur klein, wenn das erste Wort KEIN Nomen ist — „Kerzenstummel“ bleibt groß.
       const w1 = (fill.match(/^[A-ZÄÖÜ][a-zäöüß-]*/) || [""])[0];
-      const istNomen = !!w1 && (!!NOUN_GENDER[w1.toLowerCase()] || /(ung|heit|keit|schaft|nis|tum|chen|lein|er|el|en)$/.test(w1.toLowerCase()));
+      const istNomen = !!w1 && (!!NOUN_GENDER[w1.toLowerCase()] || /(ung|heit|keit|schaft|nis|tum|chen|lein|er|el|en|ucht|acht|icht|ion|tät|ei|ie|ur|us|um)$/.test(w1.toLowerCase()));
       if (!f.fuehrt_ein.length && !istNomen && /^[A-ZÄÖÜ][a-zäöüß]/.test(fill)) fill = fill.charAt(0).toLowerCase() + fill.slice(1);
       text = fuelleSlot(text, fill);
       fueller.push({ text: fill, kategorie: f.kategorie || "—" });
@@ -128,6 +153,7 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     fortschreiben(k, a);
     if (a.verlangt) k.offenerKopf = false;
     if (a.quelle === "vorlage") fuegeteile++;
+    if (a.kategorie === "was") wasGesetzt = true;
   }
   let fertig = verfugen(out);
   // B: Perspektivwechsel — im Rekombinationspfad lief er bisher gar nicht, die
