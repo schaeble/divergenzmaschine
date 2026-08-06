@@ -109,6 +109,11 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   if (input.form === "script") return makeDialogueScene(kit, lenTarget);
   if (input.form === "video") return buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? 15);
   if (input.form === "poem") {
+    // Rekombination gilt auch fuers Prosagedicht: Der Zweig lag bisher hinter dieser
+    // Abfrage und wurde nie erreicht - die Struktur "Rekombination (geprueft)" blieb
+    // wirkungslos, ohne dass die Oberflaeche das sagte.
+    const rk = input.structure === "rekombination" ? buildRekombination(bank, input) : "";
+    if (rk.trim()) { const fertig = postProcessText(asProsePoem(rk), { ...input, form: "poem" }); linkTrace(fertig); return fertig; }
     const body = pickStructureBuilder(kit.structure === "fragment" ? "linear" : kit.structure)({ ...kit });
     return postProcessText(asProsePoem(body), { ...input, form: "poem" });
   }

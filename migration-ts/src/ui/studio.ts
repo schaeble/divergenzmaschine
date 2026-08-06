@@ -693,6 +693,20 @@ export function mountStudio(root: HTMLElement): void {
 
   const fine = el("details", { class: "fine" });
   fine.append(el("summary", {}, icon("tool"), " Werkzeugkasten"));
+  // Rekombination baut aus typisierten Atomen und kann nur Fliesstext erzeugen.
+  // Bei Vers- und Dialogformen greift sie nicht - das muss die Oberflaeche sagen,
+  // statt stillschweigend den Schablonenweg zu nehmen.
+  const rekHint = el("p", { class: "muted mini", style: "display:none" });
+  const updRekHint = (): void => {
+    const passt = form.value === "prose" || form.value === "poem";
+    const an = structure.value === "rekombination" && !passt;
+    rekHint.style.display = an ? "" : "none";
+    if (an) rekHint.textContent = `Hinweis: „Rekombination (geprüft)“ wirkt nur bei Prosa und Prosagedicht. `
+      + `Bei „${form.options[form.selectedIndex]?.text || form.value}“ baut die Maschine über die Schablonen — die Struktur bleibt hier ohne Wirkung.`;
+  };
+  form.addEventListener("change", updRekHint);
+  structure.addEventListener("change", updRekHint);
+  updRekHint();
   fine.append(el("div", { class: "grid3" },
     lockField("Struktur", structure), lockField("Modus", mode), lockField("Perspektive", persp),
     lockField("Rhythmus", rhythm), lockField("Instabilität", instab), lockField("Markov", markov),
@@ -701,6 +715,7 @@ export function mountStudio(root: HTMLElement): void {
     lockField("Archetyp A", archA), lockField("Archetyp B", archB),
     field("Video: Shots", shots), field("Video: Sekunden", secs),
     el("label", { class: "field", style: "display:flex;align-items:center;gap:6px" }, polish, "Sprachschliff")));
+  fine.append(rekHint);
   wrap.append(fine);
 
   // ⚙️ Einstellungen (Farb-Themes)
