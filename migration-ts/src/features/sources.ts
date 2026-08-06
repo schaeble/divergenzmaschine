@@ -124,15 +124,37 @@ export function analysiereHerkunft(text: string, tone: string, ctx: { where?: st
         if (at < span[1]) roheSeg.push({ s: at, e: span[1], quelle: q });
         cursor = span[1];
       }
+      // Luecken schliessen: Was die Bauspur nicht kennt, ist nicht automatisch
+      // anonym. Ton-Saetze und 4W-Angaben aus der Nachbearbeitung stehen in ihren
+      // Quelllisten und lassen sich dort wiederfinden. Der Textabgleich darf also
+      // ergaenzen - aber nur in den Bereichen, die kein Baustein belegt.
+      const belegtVon = (a: number, b: number): boolean => roheSeg.some((x) => a < x.e && b > x.s);
+      const ausLuecke = acc
+        .filter((t) => !belegtVon(t.s, t.e))
+        .sort((a, b) => a.s - b.s || (b.e - b.s) - (a.e - a.s) || b.prio - a.prio);
+      let lEnde = -1;
+      for (const t of ausLuecke) {
+        if (t.s < lEnde || belegtVon(t.s, t.e)) continue;
+        roheSeg.push({ s: t.s, e: t.e, quelle: t.quelle }); lEnde = t.e;
+      }
+      roheSeg.sort((a, b) => a.s - b.s);
       if (roheSeg.length) { segmente.length = 0; segmente.push(...roheSeg); }
       // Ueber den ENDTEXT normieren, nicht ueber die Summe der Bausteine. Sonst faellt
       // heraus, was die Nachbearbeitung beisteuert - Ton-Saetze, Verfugung, Perspektive -
       // und der Bauplan meldete "2 Saetze aus der Nachbearbeitung", waehrend in den
       // Balken davon nichts zu sehen war.
-      const nach = zeichen - summe;
-      const nenner = nach > 0 ? zeichen : summe;
-      for (const k of Object.keys(roh) as QuellenId[]) anteile[k] = roh[k] / nenner;
-      anteile.nachbearbeitung = nach > 0 ? nach / nenner : 0;
+      // Anteile ueber den ENDTEXT zaehlen, aus den zusammengefuehrten Segmenten.
+      // Was unmarkiert bleibt, ist zuerst Vorlagentext, den die Nachbearbeitung
+      // umgeschrieben hat (die Spur weiss, wie viel davon existiert) - erst der
+      // Ueberschuss darueber hinaus ist echte Nachbearbeitung.
+      const gezaehlt = { wortbank: 0, ton: 0, kontext: 0, pools: 0, markov: 0, vorlage: 0, nachbearbeitung: 0 } as Record<QuellenId, number>;
+      let markiert = 0;
+      for (const sg of segmente) { gezaehlt[sg.quelle] += (sg.e - sg.s); markiert += (sg.e - sg.s); }
+      const rest = Math.max(0, zeichen - markiert);
+      const vorlageFehlt = Math.max(0, roh.vorlage - gezaehlt.vorlage);
+      gezaehlt.vorlage += Math.min(rest, vorlageFehlt);
+      gezaehlt.nachbearbeitung = Math.max(0, rest - Math.min(rest, vorlageFehlt));
+      for (const k of Object.keys(gezaehlt) as QuellenId[]) anteile[k] = gezaehlt[k] / zeichen;
       return { segmente, anteile, zeichen, exakt: true, poolUeberschneidung };
     }
   }
@@ -143,6 +165,10 @@ export function analysiereHerkunft(text: string, tone: string, ctx: { where?: st
 const KEY = "dm_last_input_v1";
 export interface Schnappschuss {
   preset: string; ton: string; form: string; struktur: string; perspektive: string;
+  /** Rohwert des Ton-Auswahlfelds. `ton` traegt die Beschriftung fuer die Anzeige;
+   *  fuer den Abgleich mit TONE_DATA wird der Schluessel gebraucht. "Duester" ist
+   *  kleingeschrieben nicht "dark", der Ton fiel dadurch stillschweigend aus der Messung. */
+  tonId?: string;
   rhythmus: string; markov: string; varianz: string; spannung: string;
   where: string; when: string; who: string; what: string;
   laenge: number; bestenauslese: boolean; zeit: string;

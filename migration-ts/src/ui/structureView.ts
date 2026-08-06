@@ -6,7 +6,7 @@ import { analysiereHerkunft, QUELLEN_LABEL, type QuellenId, type Schnappschuss }
 export function renderTextstruktur(text: string, snap: Schnappschuss | null): HTMLElement {
   const box = el("div", {});
   if (!text.trim()) { box.append(el("p", { class: "muted" }, "Noch kein Text erzeugt.")); return box; }
-  const h = analysiereHerkunft(text, (snap?.ton || "neutral").toLowerCase(),
+  const h = analysiereHerkunft(text, (snap?.tonId || snap?.ton || "neutral").toLowerCase(),
     { where: snap?.where, when: snap?.when, who: snap?.who, what: snap?.what });
 
   if (snap) {

@@ -843,6 +843,7 @@ export function mountStudio(root: HTMLElement): void {
       saveSchnappschuss({
         preset: presetStatus.textContent?.replace(/^Aktiv:\s*/, "") || "—",
         ton: tone.options[tone.selectedIndex]?.text || tone.value,
+        tonId: tone.value,
         form: form.options[form.selectedIndex]?.text || form.value,
         struktur: structure.options[structure.selectedIndex]?.text || structure.value,
         perspektive: persp.options[persp.selectedIndex]?.text || persp.value,
