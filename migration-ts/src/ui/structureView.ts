@@ -51,7 +51,9 @@ export function renderTextstruktur(text: string, snap: Schnappschuss | null): HT
       "Die Anteile stammen aus der Bauspur — für jeden Baustein ist bekannt, woher er kommt. "
       + "„Vorlagen“ ist hier eine echte Größe, keine Restmenge. „Nachbearbeitung“ ist das, was nach dem "
       + "Zusammenbau hinzukommt: Ton-Sätze, Verfugung, Perspektive. Lebendige Pools und Markov stehen auf 0 %, "
-      + "weil der Rekombinations-Assembler sie noch nicht als Quelle führt."));
+      + "weil der Rekombinations-Assembler sie noch nicht als Quelle führt. Im Farbband bleibt unmarkiert, "
+      + "was sich im Endtext nicht wörtlich wiederfinden lässt — Vorlagentext, Nachbearbeitung und Bausteine, "
+      + "die durch Perspektive oder Glättung umgeschrieben wurden."));
   } else {
     box.append(el("p", { class: "muted mini" },
       el("b", {}, "Geschätzt. "),

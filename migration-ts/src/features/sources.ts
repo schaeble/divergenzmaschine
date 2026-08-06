@@ -91,6 +91,40 @@ export function analysiereHerkunft(text: string, tone: string, ctx: { where?: st
       for (const f of sch.fueller || []) { roh[mapQ(f.quelle)] += f.text.length; summe += f.text.length; }
     }
     if (summe > 0) {
+      // Auch das Farbband aus der Bauspur zeichnen. Sonst zeigt es orange Ton-Abschnitte
+      // aus dem Textabgleich, waehrend der Ton-Balken 0 % meldet - zwei Antworten auf
+      // dieselbe Frage. Nicht wiedergefundene Bausteine bleiben unmarkiert; das ist
+      // ehrlicher als sie zu raten.
+      const roheSeg: Segment[] = [];
+      let cursor = 0;
+      const finde = (was: string, ab: number): [number, number] | null => {
+        const w = was.toLowerCase().replace(/[.!?…]+$/, "").trim();
+        if (w.length < 4) return null;
+        const i = low.indexOf(w, ab);
+        return i === -1 ? null : [i, i + w.length];
+      };
+      for (const sch of spur) {
+        const span = finde(sch.text, cursor);
+        if (!span) continue;
+        const q = mapQ(sch.quelle);
+        // Fuellungen liegen IM Rahmen und haben eine eigene Herkunft - der Rahmen
+        // wird um sie herum aufgeteilt.
+        const innen: { s: number; e: number; quelle: QuellenId }[] = [];
+        for (const f of sch.fueller || []) {
+          const fs = finde(f.text, span[0]);
+          if (fs && fs[0] >= span[0] && fs[1] <= span[1]) innen.push({ s: fs[0], e: fs[1], quelle: mapQ(f.quelle) });
+        }
+        innen.sort((a, b) => a.s - b.s);
+        let at = span[0];
+        for (const iv of innen) {
+          if (iv.s > at) roheSeg.push({ s: at, e: iv.s, quelle: q });
+          roheSeg.push({ s: iv.s, e: iv.e, quelle: iv.quelle });
+          at = iv.e;
+        }
+        if (at < span[1]) roheSeg.push({ s: at, e: span[1], quelle: q });
+        cursor = span[1];
+      }
+      if (roheSeg.length) { segmente.length = 0; segmente.push(...roheSeg); }
       // Ueber den ENDTEXT normieren, nicht ueber die Summe der Bausteine. Sonst faellt
       // heraus, was die Nachbearbeitung beisteuert - Ton-Saetze, Verfugung, Perspektive -
       // und der Bauplan meldete "2 Saetze aus der Nachbearbeitung", waehrend in den
