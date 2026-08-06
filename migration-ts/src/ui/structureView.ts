@@ -49,7 +49,8 @@ export function renderTextstruktur(text: string, snap: Schnappschuss | null): HT
     box.append(el("p", { class: "muted mini" },
       el("b", {}, "Gemessen. "),
       "Die Anteile stammen aus der Bauspur — für jeden Baustein ist bekannt, woher er kommt. "
-      + "„Vorlagen“ ist hier eine echte Größe, keine Restmenge. Lebendige Pools und Markov stehen auf 0 %, "
+      + "„Vorlagen“ ist hier eine echte Größe, keine Restmenge. „Nachbearbeitung“ ist das, was nach dem "
+      + "Zusammenbau hinzukommt: Ton-Sätze, Verfugung, Perspektive. Lebendige Pools und Markov stehen auf 0 %, "
       + "weil der Rekombinations-Assembler sie noch nicht als Quelle führt."));
   } else {
     box.append(el("p", { class: "muted mini" },

@@ -7,7 +7,7 @@ import { TONE_DATA } from "../generation/tone.data";
 import { getMarkovTrace } from "../generation/markovTrace";
 import { getTraceFor } from "../atoms/trace";
 
-export type QuellenId = "wortbank" | "ton" | "kontext" | "pools" | "markov" | "vorlage";
+export type QuellenId = "wortbank" | "ton" | "kontext" | "pools" | "markov" | "vorlage" | "nachbearbeitung";
 export interface Segment { s: number; e: number; quelle: QuellenId; }
 export interface Herkunft {
   segmente: Segment[];
@@ -20,7 +20,7 @@ export interface Herkunft {
 }
 export const QUELLEN_LABEL: Record<QuellenId, string> = {
   wortbank: "Wortbank", ton: "Ton", kontext: "4W-Kontext", pools: "Lebendige Pools",
-  markov: "Markov", vorlage: "Vorlagen/Schablonen",
+  markov: "Markov", vorlage: "Vorlagen/Schablonen", nachbearbeitung: "Nachbearbeitung",
 };
 
 interface Treffer { s: number; e: number; quelle: QuellenId; prio: number }
@@ -52,7 +52,7 @@ export function analysiereHerkunft(text: string, tone: string, ctx: { where?: st
   for (const t of acc) { if (t.s < ende) continue; segmente.push({ s: t.s, e: t.e, quelle: t.quelle }); ende = t.e; }
 
   const zeichen = (text || "").length || 1;
-  const anteile = { wortbank: 0, ton: 0, kontext: 0, pools: 0, markov: 0, vorlage: 0 } as Record<QuellenId, number>;
+  const anteile = { wortbank: 0, ton: 0, kontext: 0, pools: 0, markov: 0, vorlage: 0, nachbearbeitung: 0 } as Record<QuellenId, number>;
   let belegt = 0;
   for (const s of segmente) { anteile[s.quelle] += (s.e - s.s); belegt += (s.e - s.s); }
   anteile.vorlage = Math.max(0, zeichen - belegt);           // unmarkiert = Restgröße (Schätzung)
@@ -80,7 +80,7 @@ export function analysiereHerkunft(text: string, tone: string, ctx: { where?: st
   // Restgröße — bisher hieß alles Nichtzugeordnete pauschal „Schablonen“.
   const spur = getTraceFor(text);
   if (spur.length) {
-    const roh = { wortbank: 0, ton: 0, kontext: 0, pools: 0, markov: 0, vorlage: 0 } as Record<QuellenId, number>;
+    const roh = { wortbank: 0, ton: 0, kontext: 0, pools: 0, markov: 0, vorlage: 0, nachbearbeitung: 0 } as Record<QuellenId, number>;
     const mapQ = (q: string): QuellenId =>
       q === "vorlage" ? "vorlage" : q === "kontext" ? "kontext" : q === "markov" ? "markov" : q === "pools" ? "pools" : "wortbank";
     let summe = 0;
@@ -91,7 +91,14 @@ export function analysiereHerkunft(text: string, tone: string, ctx: { where?: st
       for (const f of sch.fueller || []) { roh[mapQ(f.quelle)] += f.text.length; summe += f.text.length; }
     }
     if (summe > 0) {
-      for (const k of Object.keys(roh) as QuellenId[]) anteile[k] = roh[k] / summe;
+      // Ueber den ENDTEXT normieren, nicht ueber die Summe der Bausteine. Sonst faellt
+      // heraus, was die Nachbearbeitung beisteuert - Ton-Saetze, Verfugung, Perspektive -
+      // und der Bauplan meldete "2 Saetze aus der Nachbearbeitung", waehrend in den
+      // Balken davon nichts zu sehen war.
+      const nach = zeichen - summe;
+      const nenner = nach > 0 ? zeichen : summe;
+      for (const k of Object.keys(roh) as QuellenId[]) anteile[k] = roh[k] / nenner;
+      anteile.nachbearbeitung = nach > 0 ? nach / nenner : 0;
       return { segmente, anteile, zeichen, exakt: true, poolUeberschneidung };
     }
   }
