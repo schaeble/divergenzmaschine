@@ -6,7 +6,7 @@ export interface TraceSchritt {
   kategorie: string;       // motifs | hooks | props | turns | obstacles | stakes | endings | —
   typ: string;             // hauptsatz | nominalphrase | kopf | rahmen …
   phase: string;           // exposition | verdichtung | umschlag | schluss
-  fueller?: { text: string; kategorie: string }[];   // was in die Slots kam
+  fueller?: { text: string; kategorie: string; quelle: string }[];   // was in die Slots kam
 }
 let spur: TraceSchritt[] = [];
 let abweichung: string[] = [];

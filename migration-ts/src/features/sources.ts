@@ -5,6 +5,7 @@ import { loadBank } from "../storage";
 import { liveTexts } from "./livepools";
 import { TONE_DATA } from "../generation/tone.data";
 import { getMarkovTrace } from "../generation/markovTrace";
+import { getTraceFor } from "../atoms/trace";
 
 export type QuellenId = "wortbank" | "ton" | "kontext" | "pools" | "markov" | "vorlage";
 export interface Segment { s: number; e: number; quelle: QuellenId; }
@@ -12,6 +13,10 @@ export interface Herkunft {
   segmente: Segment[];
   anteile: Record<QuellenId, number>;   // 0..1, Anteil der Zeichen
   zeichen: number;
+  /** true = Anteile stammen aus der Bauspur (Rekombination), nicht aus dem Textabgleich. */
+  exakt: boolean;
+  /** Anteil der Pool-Einträge, die wörtlich auch in der Wortbank stehen und dort gezählt werden. */
+  poolUeberschneidung: number;
 }
 export const QUELLEN_LABEL: Record<QuellenId, string> = {
   wortbank: "Wortbank", ton: "Ton", kontext: "4W-Kontext", pools: "Lebendige Pools",
@@ -50,9 +55,47 @@ export function analysiereHerkunft(text: string, tone: string, ctx: { where?: st
   const anteile = { wortbank: 0, ton: 0, kontext: 0, pools: 0, markov: 0, vorlage: 0 } as Record<QuellenId, number>;
   let belegt = 0;
   for (const s of segmente) { anteile[s.quelle] += (s.e - s.s); belegt += (s.e - s.s); }
-  anteile.vorlage = Math.max(0, zeichen - belegt);           // unmarkiert = feste Schablonen
+  anteile.vorlage = Math.max(0, zeichen - belegt);           // unmarkiert = Restgröße (Schätzung)
   for (const k of Object.keys(anteile) as QuellenId[]) anteile[k] = anteile[k] / zeichen;
-  return { segmente, anteile, zeichen };
+
+  // Wie viel Pool-Material geht in der Wortbank-Zählung unter? Beide haben dieselbe
+  // Priorität, und die Wortbank wird zuerst gesammelt — Einträge, die in beiden
+  // stehen, laufen deshalb unter „Wortbank“. Das ist keine Fehlmessung, aber es
+  // erklärt, warum die Pools schmal wirken. Also offenlegen statt umbuchen.
+  let poolUeberschneidung = 0;
+  try {
+    const b = loadBank() as unknown as Record<string, string[]>;
+    const bankSet = new Set<string>();
+    for (const k of Object.keys(b)) if (Array.isArray(b[k])) for (const x of b[k]!) bankSet.add(x.trim().toLowerCase());
+    const lt = liveTexts();
+    if (lt.length) {
+      let doppelt = 0;
+      for (const p of lt) if (bankSet.has(p.trim().toLowerCase())) doppelt++;
+      poolUeberschneidung = doppelt / lt.length;
+    }
+  } catch { /* egal */ }
+
+  // Bauspur schlägt Textabgleich: In der Rekombination weiß die Engine für jeden
+  // Baustein, woher er stammt. Dann ist „Vorlagen“ eine Messung statt einer
+  // Restgröße — bisher hieß alles Nichtzugeordnete pauschal „Schablonen“.
+  const spur = getTraceFor(text);
+  if (spur.length) {
+    const roh = { wortbank: 0, ton: 0, kontext: 0, pools: 0, markov: 0, vorlage: 0 } as Record<QuellenId, number>;
+    const mapQ = (q: string): QuellenId =>
+      q === "vorlage" ? "vorlage" : q === "kontext" ? "kontext" : q === "markov" ? "markov" : q === "pools" ? "pools" : "wortbank";
+    let summe = 0;
+    for (const sch of spur) {
+      const fl = (sch.fueller || []).reduce((n, f) => n + f.text.length, 0);
+      const eigen = Math.max(0, sch.text.length - fl);       // Rahmen ohne seine Füllung
+      roh[mapQ(sch.quelle)] += eigen; summe += eigen;
+      for (const f of sch.fueller || []) { roh[mapQ(f.quelle)] += f.text.length; summe += f.text.length; }
+    }
+    if (summe > 0) {
+      for (const k of Object.keys(roh) as QuellenId[]) anteile[k] = roh[k] / summe;
+      return { segmente, anteile, zeichen, exakt: true, poolUeberschneidung };
+    }
+  }
+  return { segmente, anteile, zeichen, exakt: false, poolUeberschneidung };
 }
 
 // ── Einstellungs-Schnappschuss (vom Studio bei jeder Generierung gesetzt) ──

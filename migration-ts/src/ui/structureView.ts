@@ -43,6 +43,25 @@ export function renderTextstruktur(text: string, snap: Schnappschuss | null): HT
       el("span", { class: "src-bar" }, el("span", { class: "src-fill q-" + q, style: `width:${Math.round(v * 100)}%` })),
       el("span", { class: "src-val" }, Math.round(v * 100) + " %"))));
   box.append(bars);
-  box.append(el("p", { class: "muted mini" }, "„Vorlagen/Schablonen“ ist der Anteil, der keiner Quelle zugeordnet werden konnte — feste Satzgerüste, Verbindungswörter und die Nachbearbeitung."));
+
+  // Ehrlichkeit der Anzeige: gemessen oder geschätzt, und was dabei untergeht.
+  if (h.exakt) {
+    box.append(el("p", { class: "muted mini" },
+      el("b", {}, "Gemessen. "),
+      "Die Anteile stammen aus der Bauspur — für jeden Baustein ist bekannt, woher er kommt. "
+      + "„Vorlagen“ ist hier eine echte Größe, keine Restmenge. Lebendige Pools und Markov stehen auf 0 %, "
+      + "weil der Rekombinations-Assembler sie noch nicht als Quelle führt."));
+  } else {
+    box.append(el("p", { class: "muted mini" },
+      el("b", {}, "Geschätzt. "),
+      "Die Anteile entstehen durch Abgleich des fertigen Textes mit den Quelllisten. "
+      + "„Vorlagen/Schablonen“ ist dabei die Restgröße: alles, was keiner Liste zugeordnet werden konnte — "
+      + "feste Satzgerüste, Verbindungswörter und die Nachbearbeitung. Diese Zahl ist also eine Obergrenze."));
+  }
+  if (h.poolUeberschneidung > 0.02) {
+    box.append(el("p", { class: "muted mini" },
+      `Hinweis zu den Pools: ${Math.round(h.poolUeberschneidung * 100)} % ihrer Einträge stehen wörtlich auch in der Wortbank `
+      + "und werden dort gezählt. Der ausgewiesene Pool-Anteil ist deshalb der ausschließliche Beitrag, nicht der gesamte."));
+  }
   return box;
 }

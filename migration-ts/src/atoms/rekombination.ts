@@ -133,7 +133,7 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     const a = ziehe(kand, kurve[s % kurve.length]!, out.join(" "), phase);
     if (!a) break;
     let text = fuelleKontext(a.text, ctx);
-    const fueller: { text: string; kategorie: string }[] = [];
+    const fueller: { text: string; kategorie: string; quelle: string }[] = [];
     let guard = 0;
     while (offeneSlots(text) && guard++ < 3) {
       const kf: Kontext = { ...k, vorheriges: a, offenerKopf: false };
@@ -158,7 +158,7 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
         || normWho(input.who || "").split(/[,;]/).some((x) => x.trim().toLowerCase() === w1.toLowerCase()));
       if (!f.fuehrt_ein.length && !istNomen && !istFigur && /^[A-ZÄÖÜ][a-zäöüß]/.test(fill)) fill = fill.charAt(0).toLowerCase() + fill.slice(1);
       text = fuelleSlot(text, fill);
-      fueller.push({ text: fill, kategorie: f.kategorie || "—" });
+      fueller.push({ text: fill, kategorie: f.kategorie || "—", quelle: f.quelle });
       k.benutzt.add(f.id);
     }
     if (offeneSlots(text)) continue;                    // ungefüllt → verwerfen statt ausgeben
