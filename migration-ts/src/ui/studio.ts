@@ -59,10 +59,22 @@ export function mountStudio(root: HTMLElement): void {
   const saveLockVals = (): void => { try { localStorage.setItem(LOCKVAL_KEY, JSON.stringify(lockVals)); } catch { /* voll */ } };
   const lockCtrls: Record<string, HTMLSelectElement | HTMLInputElement> = {};
   const lockPainters: Record<string, Array<() => void>> = {};
-  const restoreLocked = (): void => { for (const id of locked) { const c = lockCtrls[id]; if (c && lockVals[id] !== undefined) c.value = lockVals[id]!; } };
+  // Haekchen speichern ihren Zustand in .checked, nicht in .value - ohne diese
+  // Unterscheidung merkte sich das Schloss bei Editieren, Struktur und Bauplan nichts.
+  const istHaken = (c: HTMLSelectElement | HTMLInputElement): boolean =>
+    c instanceof HTMLInputElement && c.type === "checkbox";
+  const wertVon = (c: HTMLSelectElement | HTMLInputElement): string =>
+    istHaken(c) ? ((c as HTMLInputElement).checked ? "1" : "0") : c.value;
+  const setzeWert = (c: HTMLSelectElement | HTMLInputElement, v: string): void => {
+    if (istHaken(c)) {
+      const h = c as HTMLInputElement;
+      if (h.checked !== (v === "1")) { h.checked = v === "1"; h.dispatchEvent(new Event("change")); }
+    } else c.value = v;
+  };
+  const restoreLocked = (): void => { for (const id of locked) { const c = lockCtrls[id]; if (c && lockVals[id] !== undefined) setzeWert(c, lockVals[id]!); } };
   const lockBtn = (ctrl: HTMLSelectElement | HTMLInputElement): HTMLButtonElement => {
     lockCtrls[ctrl.id] = ctrl;
-    const upd = (): void => { if (locked.has(ctrl.id)) { lockVals[ctrl.id] = ctrl.value; saveLockVals(); } };
+    const upd = (): void => { if (locked.has(ctrl.id)) { lockVals[ctrl.id] = wertVon(ctrl); saveLockVals(); } };
     ctrl.addEventListener("input", upd); ctrl.addEventListener("change", upd);
     const b = el("button", { class: "lockbtn", type: "button", title: "Beim Würfeln festhalten (Wert bleibt auch nach Neustart)" }) as HTMLButtonElement;
     const paint = (): void => { b.innerHTML = ""; b.append(icon(locked.has(ctrl.id) ? "lock" : "lockOpen")); b.classList.toggle("on", locked.has(ctrl.id)); };
@@ -70,7 +82,7 @@ export function mountStudio(root: HTMLElement): void {
     const repaint = (): void => { (lockPainters[ctrl.id] || [paint]).forEach((fn) => fn()); };
     b.addEventListener("click", () => {
       if (locked.has(ctrl.id)) { locked.delete(ctrl.id); delete lockVals[ctrl.id]; }
-      else { locked.add(ctrl.id); lockVals[ctrl.id] = ctrl.value; }
+      else { locked.add(ctrl.id); lockVals[ctrl.id] = wertVon(ctrl); }
       saveLocks(); saveLockVals(); repaint();
     });
     paint(); return b;
@@ -600,12 +612,19 @@ export function mountStudio(root: HTMLElement): void {
   // Selbsttest direkt im Studio — greifen alle Features? (Vollansicht im Diagnose-Tab)
   const undoBtn = el("button", { class: "undochip", type: "button", title: "Letzte Änderung rückgängig (Strg+Z)" }, "↩ Rückgängig") as HTMLButtonElement;
   undoBtn.disabled = true;
-  const feedsRow = el("div", { class: "feedsrow" },
-    el("label", { class: "chk" }, feedsChk, " Editieren"),
-    legDot("feed-wb", "Wortbank"), legDot("feed-ton", "Ton"), legDot("feed-4w", "4W-Kontext"), legDot("feed-pool", "Lebendige Pools"), legDot("feed-markov", "Markov"), legDot("feed-drama", "Erzählbogen"), legDot("feed-korpus", "Korpus"),
-    el("span", { class: "muted" }, "· unmarkiert = Vorlagen · alles anklickbar"),
-    el("label", { class: "chk planchk" }, planChk, " Bauplan"),
-    el("label", { class: "chk planchk" }, struktChk, " Struktur"), undoBtn);
+  // Erste Zeile: nur die Farblegende. Zweite Zeile: die drei Ansichten in der
+  // Reihenfolge, in der man sie benutzt, jede mit Schloss - so bleiben sie beim
+  // naechsten Start an, statt jedes Mal neu eingeschaltet werden zu muessen.
+  const ansicht = (chk: HTMLInputElement, text: string): HTMLElement =>
+    el("span", { class: "ansichtchk" }, el("label", { class: "chk" }, chk, " " + text), lockBtn(chk));
+  const feedsRow = el("div", {},
+    el("div", { class: "feedsrow" },
+      legDot("feed-wb", "Wortbank"), legDot("feed-ton", "Ton"), legDot("feed-4w", "4W-Kontext"),
+      legDot("feed-pool", "Lebendige Pools"), legDot("feed-markov", "Markov"),
+      legDot("feed-drama", "Erzählbogen"), legDot("feed-korpus", "Korpus"),
+      el("span", { class: "muted" }, "· unmarkiert = Vorlagen · alles anklickbar")),
+    el("div", { class: "feedsrow ansichtrow" },
+      ansicht(feedsChk, "Editieren"), ansicht(struktChk, "Struktur"), ansicht(planChk, "Bauplan"), undoBtn));
 
   interface FMatch { s: number; e: number; cls: string; prio: number; }
   const escFeeds = (t: string): string => t.replace(/[&<>]/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;"));
