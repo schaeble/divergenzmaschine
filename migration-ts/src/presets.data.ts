@@ -1261,10 +1261,10 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
   "klimakrise": {
     "motifs": [
       "ein Himmel, der nach Rauch und Ruß riecht",
-      "schmelzendes Eis, das durch die Seine treibt",
-      "eine Sonne, die zu heiß über Versailles brennt",
-      "Nebel aus Treibhausgasen über den Barrikaden",
-      "ein Wald, der stumm verdorrt, während Paris brennt",
+      "schmelzendes Eis, das den Fluss hinabtreibt",
+      "eine Sonne, die zu heiß über den Dächern brennt",
+      "Nebel aus Abgasen über der Stadt",
+      "ein Wald, der stumm verdorrt, während die Stadt weiterläuft",
       "aschgraue Wolken, die keine Jahreszeit kennen",
       "ein Fluss, der immer weiter zurückweicht",
       "Risse in der Erde wie alte Wunden"
@@ -1272,9 +1272,9 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     "hooks": [
       "ein Thermometer, das rückwärts steigt",
       "ein vergilbtes Kartenblatt zeigt ein Meer, das es nicht mehr gibt",
-      "Zar Peters Kompass zeigt nur noch nach Süden",
+      "ein Kompass zeigt nur noch nach Süden",
       "ein Bäcker flüstert von einer Dürre, die niemand sah",
-      "Ludwig XVI. sammelt Schneeflocken, die nicht schmelzen sollten",
+      "jemand sammelt Schneeflocken, die längst hätten schmelzen müssen",
       "ein Geruch von verbranntem Getreide ohne Feuer",
       "ein Vogel singt ein Lied aus einer anderen Zeit",
       "auf dem Marktplatz liegt Asche, die nach Zukunft schmeckt"
@@ -1285,36 +1285,36 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Uhr aus geschmolzenem Zinn",
       "ein Tagebuch mit Wetteraufzeichnungen ohne Datum",
       "eine Kohleschale, die niemals erkaltet",
-      "einen Handschuh aus Zarenpelz, der brennend heiß ist",
+      "einen Winterhandschuh, der brennend heiß ist",
       "eine Flasche mit stickiger, schwerer Luft",
       "ein Fernrohr, das nur Nebel zeigt",
       "einen Faden aus verbranntem Kornfeld"
     ],
     "turns": [
       "plötzlich weiß niemand mehr, welches Jahr wirklich ist",
-      "der Zar erkennt in der Asche das Gesicht des Königs",
+      "in der Asche zeichnet sich ein vertrautes Gesicht ab",
       "die Ernte verfault, noch bevor sie geerntet wird",
-      "aus der Kälte des Winterpalasts steigt plötzlich Hitze auf",
-      "die Menge ruft nach Brot, doch der Himmel selbst scheint zu hungern",
-      "ein Brief aus Sankt Petersburg spricht von einem Meer, das verschwindet",
-      "Ludwig erkennt, dass die Revolution älter ist als die Zeit selbst",
-      "das Eis unter Paris beginnt zu sprechen"
+      "aus dem kalten Keller steigt plötzlich Hitze auf",
+      "die Regale bleiben leer, doch der Himmel selbst scheint zu hungern",
+      "ein Bericht aus dem Norden spricht von einem Meer, das verschwindet",
+      "es zeigt sich, dass die Veränderung älter ist als jede Messung",
+      "das Eis unter der Stadt beginnt zu sprechen"
     ],
     "obstacles": [
-      "die Straßen sind verstopft von Rauch und Menschenmengen",
+      "die Straßen sind verstopft von Rauch und Stillstand",
       "der Fluss führt kein Wasser mehr, nur Staub",
-      "niemand glaubt der Warnung des Zaren",
+      "niemand glaubt der Warnung, die längst vorliegt",
       "die Kälte des Winters bleibt aus, und das macht Angst",
       "die Kornkammern sind leer, obwohl die Saat aufging",
       "der Nebel verschluckt jeden Fluchtweg",
-      "die Wachen misstrauen jedem Fremden aus dem Osten",
-      "die Hitze lähmt selbst die Aufständischen"
+      "die Zuständigen misstrauen jeder Zahl, die nicht passt",
+      "die Hitze lähmt selbst die Entschlossenen"
     ],
     "stakes": [
       "Der Einsatz ist das letzte Grün eines sterbenden Gartens.",
       "Der Einsatz ist die Zukunft, die im Rauch verglüht.",
-      "Der Einsatz ist ein Thron, der im schmelzenden Eis versinkt.",
-      "Der Einsatz ist das Vertrauen zweier Reiche in eine gemeinsame Erde.",
+      "Der Einsatz ist eine Küste, die im steigenden Wasser versinkt.",
+      "Der Einsatz ist das Vertrauen ganzer Länder in eine gemeinsame Erde.",
       "Der Einsatz ist die letzte Ernte vor der großen Dürre.",
       "Der Einsatz ist die Wahrheit hinter der brennenden Kälte.",
       "Der Einsatz ist ein Bündnis gegen einen unsichtbaren Feind: die Erwärmung selbst.",
@@ -1322,12 +1322,12 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     ],
     "endings": [
       "So endet ein Zeitalter im Rauch der eigenen Zukunft.",
-      "Und die Asche bedeckt Paris wie ein zweites Schweigen.",
+      "Und die Asche bedeckt die Stadt wie ein zweites Schweigen.",
       "So schließt sich der Kreis aus Feuer und Eis.",
       "Am Ende bleibt nur die Hitze, die keiner erklären kann.",
-      "Die Revolution frisst sich selbst, während die Erde weiter glüht.",
-      "So verschwindet ein Königreich im Nebel der Veränderung.",
-      "Der Zar reist heim, doch das Eis folgt ihm nicht mehr.",
+      "Die Debatte frisst sich selbst, während die Erde weiter glüht.",
+      "So verschwindet eine Landschaft im Nebel der Veränderung.",
+      "Der Winter kehrt zurück, doch das Eis folgt ihm nicht mehr.",
       "Am Horizont brennt kein Feuer mehr – nur die Erinnerung daran."
     ]
   },
@@ -1403,60 +1403,60 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
   },
   "liebesromane": {
     "motifs": [
-      "ein Herz, das im Takt der Guillotine schlägt",
+      "ein Herz, das im Takt fremder Schritte schlägt",
       "ein Liebesbrief, versiegelt mit Wachs und Blut",
       "zwei Schatten, die sich unter Kerzenlicht berühren",
-      "ein Medaillon mit einem fremden Königsporträt",
-      "eine Rose, die in der Nacht der Revolution welkt",
+      "ein Medaillon mit einem fremden Porträt",
+      "eine Rose, die über Nacht welkt",
       "ein Blick über den Ballsaal, der alles verändert",
-      "ein Flüstern von Liebe hinter Palastmauern",
+      "ein Flüstern von Liebe hinter geschlossenen Türen",
       "ein Tanz, der nie zu Ende zu sein scheint"
     ],
     "hooks": [
       "ein Ring, der nicht an ihre Hand passt",
-      "ein russischer Akzent im Pariser Salon",
+      "ein fremder Akzent im vertrauten Raum",
       "ein Brief ohne Unterschrift, nur mit einem Kuss",
-      "ein Duft von Zarenparfum in Versailles",
+      "ein Duft von fremdem Parfum im Treppenhaus",
       "ein Herzschlag, der zu schnell für Etikette ist",
       "ein verbotenes Lächeln zwischen zwei Fronten",
-      "eine Träne auf einem königlichen Siegel"
+      "eine Träne auf einem versiegelten Brief"
     ],
     "props": [
       "einen Liebesbrief mit fremdem Wappen",
       "ein Medaillon mit verborgenem Porträt",
-      "eine Rose aus dem Garten von Versailles",
+      "eine Rose aus einem fremden Garten",
       "einen goldenen Ring ohne Inschrift",
       "ein Taschentuch mit fremden Initialen",
       "eine Locke Haar in einem Samtbeutel",
       "einen Fächer mit geheimer Botschaft",
-      "eine Maske vom letzten Ball"
+      "eine Maske vom letzten Fest"
     ],
     "turns": [
-      "Plötzlich erkennt sie im Zaren den Mann aus ihren Träumen.",
-      "Der König spricht ihren Namen, als kenne er ihr Herz.",
-      "Ein Kuss im Schatten der Bastille verändert alles.",
-      "Sie begreift, dass Liebe gefährlicher ist als der Aufstand.",
-      "Zwischen den Schüssen findet ihr Blick nur ihn."
+      "Plötzlich erkennt sie in dem Fremden den Mann aus ihren Träumen.",
+      "Er spricht ihren Namen, als kenne er ihr Herz.",
+      "Ein Kuss im Schatten des Torbogens verändert alles.",
+      "Sie begreift, dass Liebe gefährlicher ist als jedes Gerücht.",
+      "Zwischen all den Stimmen findet ihr Blick nur ihn."
     ],
     "obstacles": [
-      "Die Revolution trennt die Liebenden für immer.",
+      "Die Umstände trennen die Liebenden für immer.",
       "Ein Ehering bindet sie an einen anderen Mann.",
-      "Der Zar muss nach Russland zurückkehren, ehe der Morgen graut.",
-      "Ludwig XVI. verlangt Treue, die ihr Herz nicht geben kann.",
-      "Die Mauern des Palastes trennen zwei Herzen."
+      "Er muss abreisen, ehe der Morgen graut.",
+      "Ein altes Versprechen verlangt Treue, die ihr Herz nicht geben kann.",
+      "Zwei Häuser trennen, was zusammengehört."
     ],
     "stakes": [
       "Der Einsatz ist Liebe: verboten und unsterblich zugleich.",
-      "Der Einsatz ist ihr Herz, das dem falschen König gehört.",
-      "Der Einsatz ist eine Zukunft zwischen zwei Kronen.",
+      "Der Einsatz ist ihr Herz, das dem Falschen gehört.",
+      "Der Einsatz ist eine Zukunft zwischen zwei Leben.",
       "Der Einsatz ist die Wahrheit über eine heimliche Liaison.",
       "Der Einsatz ist alles, was sie zu verlieren fürchtet: ihn."
     ],
     "endings": [
-      "Und ihre Liebe überdauert selbst die Revolution.",
-      "So bleibt ihr Herz für immer in Paris zurück.",
-      "Am Ende zählt nur der Kuss, der die Zeit besiegte.",
-      "Die Krone verblasst, doch ihre Liebe bleibt bestehen.",
+      "Und ihre Liebe überdauert selbst das Schweigen.",
+      "So bleibt ihr Herz für immer an jenem Ort zurück.",
+      "Am Ende zählt nur der Kuss, der die Zeit besiegt.",
+      "Die Jahre verblassen, doch ihre Liebe bleibt bestehen.",
       "So schließt sich der Kreis zweier Herzen für immer."
     ]
   },
@@ -1535,28 +1535,28 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
   },
   "clown": {
     "motifs": [
-      "ein Clown, der lautlos durch den Nebel der Seine schreitet",
+      "ein Clown, der lautlos durch den Nebel der Manege schreitet",
       "weiße Schminke, die wie Mondlicht schimmert",
       "eine Maske, die immer lächelt, auch wenn niemand lacht",
-      "Glockenspiel eines Narren im Wind der Takelage",
+      "Glockenspiel eines Narren im Wind über dem Zeltdach",
       "rot geschminkte Lippen über blutleeren Lippen",
       "ein Schellenhut, der im Sturm nicht klingelt",
       "Schatten, die tanzen, wo kein Licht sein sollte",
       "ein Kartenspiel, das immer denselben Narren zeigt"
     ],
     "hooks": [
-      "Jürgens Handschuh riecht nach Schießpulver und Puderzucker",
+      "ein Handschuh riecht nach Schwarzpulver und Puderzucker",
       "irgendwo lacht jemand, wo niemand stehen sollte",
-      "die Takelage knarrt im Takt eines unsichtbaren Trommlers",
-      "ein Clownsschuh treibt einsam im Hafenwasser",
-      "die Kerzen an Bord brennen mit grüner Flamme",
-      "jemand hat Kreide-Zeichen an die Bordwand gemalt",
-      "das Schiffsglöckchen klingt wie Jahrmarktsmusik",
-      "ein Zettel mit einem gezeichneten Lächeln liegt am Steuer"
+      "das Zeltgestänge knarrt im Takt eines unsichtbaren Trommlers",
+      "ein Clownsschuh steht einsam mitten in der Manege",
+      "die Kerzen am Bühnenrand brennen mit grüner Flamme",
+      "jemand hat Kreidezeichen an die Zeltplane gemalt",
+      "das Pausenzeichen klingt wie eine alte Drehorgel",
+      "ein Zettel mit einem gezeichneten Lächeln liegt in der Garderobe"
     ],
     "props": [
       "eine rissige Clownsmaske",
-      "einen verrosteten Entertakel",
+      "einen verrosteten Trapezhaken",
       "eine Trillerpfeife aus Messing",
       "ein zerfleddertes Tarotblatt mit einem Narren",
       "einen Beutel voller Konfetti aus Pergament",
@@ -1566,126 +1566,126 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Seil, geflochten mit bunten Bändern"
     ],
     "turns": [
-      "plötzlich erkennt Jürgen das Gesicht unter der Maske als sein eigenes",
-      "der Kapitän des gekaperten Schiffs trägt dieselbe Schminke wie der Narr aus Jürgens Träumen",
-      "die Schiffsglocke schlägt dreizehn Mal, und die Nacht wird zum Tag",
-      "im Frachtraum wartet kein Gold, sondern ein leeres Zirkuszelt",
-      "als die Kanonen schweigen, beginnt irgendwo Jahrmarktsmusik zu spielen"
+      "plötzlich erkennt er das Gesicht unter der Maske als sein eigenes",
+      "der Direktor trägt dieselbe Schminke wie der Narr aus seinen Träumen",
+      "die Zirkusglocke schlägt dreizehn Mal, und die Nacht wird zum Tag",
+      "hinter dem Vorhang wartet kein Publikum, sondern ein leeres Zelt",
+      "als der Applaus verstummt, beginnt irgendwo Jahrmarktsmusik zu spielen"
     ],
     "obstacles": [
-      "die Planken sind mit Kreidekreuzen übersät, die niemand betreten darf",
-      "der Ausguck starrt reglos ins Leere, als sei er zu Stein erstarrt",
-      "ein Netz aus bunten Bändern versperrt den Niedergang",
-      "die Mannschaft weigert sich, das Deck des fremden Schiffes zu betreten",
+      "der Boden ist mit Kreidekreuzen übersät, die niemand betreten darf",
+      "der Ansager starrt reglos ins Leere, als sei er zu Stein erstarrt",
+      "ein Netz aus bunten Bändern versperrt den Ausgang",
+      "die Truppe weigert sich, die fremde Manege zu betreten",
       "der Nebel verschluckt jeden Ruf nach Verstärkung",
-      "das Enterseil ist mit Naht aus Narrenstoff geflickt"
+      "das Sicherungsseil ist mit Narrenstoff geflickt"
     ],
     "stakes": [
-      "Der Einsatz ist Jürgens Verstand: gefangen zwischen Revolution und Wahnsinn.",
-      "Der Einsatz ist die Fracht der Seine: mehr Fluch als Schatz.",
+      "Der Einsatz ist sein Verstand: gefangen zwischen Rolle und Wahnsinn.",
+      "Der Einsatz ist der Applaus: mehr Fluch als Geschenk.",
       "Der Einsatz ist ein Name, den niemand mehr auszusprechen wagt.",
-      "Der Einsatz ist die letzte Nacht vor dem Sturm auf die Bastille.",
+      "Der Einsatz ist die letzte Nacht vor der letzten Vorstellung.",
       "Der Einsatz ist das Lächeln hinter der Maske: echt oder erzwungen?"
     ],
     "endings": [
-      "Und irgendwo im Nebel von Paris lacht noch immer ein Narr.",
+      "Und irgendwo im Nebel hinter dem Zelt lacht noch immer ein Narr.",
       "So endet die Fahrt, doch die Schminke bleibt auf seiner Haut.",
-      "Der Vorhang der Nacht fällt über die Seine, für immer.",
-      "Jürgen trägt seither die Maske, die ihn einst jagte.",
-      "So schließt sich der Kreis aus Revolution und Rummelplatz."
+      "Der Vorhang fällt über die leere Manege, für immer.",
+      "Er trägt seither die Maske, die ihn einst jagte.",
+      "So schließt sich der Kreis aus Manege und Rummelplatz."
     ]
   },
   "faust": {
     "motifs": [
       "ein Pakt, mit Blut besiegelt",
-      "der Schatten des Mephisto über den Barrikaden",
-      "eine Uhr in den Tuilerien, die rückwärts tickt",
-      "zwei Seelen in Ludwigs Brust",
+      "der Schatten des Mephisto über dem Studierzimmer",
+      "eine Uhr im Studierzimmer, die rückwärts tickt",
+      "zwei Seelen in einer Brust",
       "ein Buch, das niemand lesen darf",
       "das Flüstern verlorener Seelen in den Gassen",
-      "ein Spiegel, der Zar Peters Gesicht verzerrt",
-      "Rauch ohne Feuer über der Bastille"
+      "ein Spiegel, der ein jüngeres Gesicht zeigt",
+      "Rauch ohne Feuer über den Dächern"
     ],
     "hooks": [
       "ein Siegel, das nach Schwefel riecht",
       "eine Handschrift, die sich selbst verändert",
-      "ein Fremder, der Ludwigs Stimme trägt",
+      "ein Fremder, der die eigene Stimme trägt",
       "ein Vertrag mit fehlendem Datum",
-      "ein zweiter Schatten hinter dem König",
-      "Zar Peters Brief ohne Absender",
-      "ein Duft von verbranntem Papier im Thronsaal",
+      "ein zweiter Schatten hinter dem Gelehrten",
+      "ein Brief ohne Absender und ohne Datum",
+      "ein Duft von verbranntem Papier im Hörsaal",
       "ein Lachen, das aus der Mauer kommt"
     ],
     "props": [
       "einen Pakt aus vergilbtem Pergament",
       "eine Phiole mit rotem Wachs",
       "einen Ring mit eingraviertem Pentagramm",
-      "eine Maske aus Zaren-Gold",
+      "eine Maske aus mattem Gold",
       "ein Amulett mit Teufelskopf",
-      "einen Schlüssel zu Ludwigs Kabinett",
+      "einen Schlüssel zur verbotenen Kammer",
       "eine Feder, die von selbst schreibt",
       "ein Medaillon mit Mephistos Zeichen",
       "einen verkohlten Brief"
     ],
     "turns": [
-      "plötzlich unterschreibt der König, was er nie lesen wollte",
-      "der Zar erkennt sein eigenes Gesicht im Feind",
+      "plötzlich unterschreibt er, was er nie lesen wollte",
+      "er erkennt sein eigenes Gesicht im Widersacher",
       "die Menge ruft einen Namen, den niemand kennt",
       "der Pakt verlangt seinen Preis, genau um Mitternacht",
       "aus Freiheit wird ein Handel mit dem Teufel",
-      "die Revolution folgt einem Plan, den keiner schrieb"
+      "das Streben folgt einem Plan, den keiner schrieb"
     ],
     "obstacles": [
-      "der Palast ist von Misstrauen umstellt",
+      "die Kammer ist von Misstrauen umstellt",
       "niemand darf den Pakt je erwähnen",
-      "die Wachen gehorchen einer fremden Stimme",
-      "der Zar verlangt ein Pfand, das keiner geben will",
-      "das Volk verlangt einen Kopf, den die Mächte schützen",
+      "die Diener gehorchen einer fremden Stimme",
+      "der Fremde verlangt ein Pfand, das keiner geben will",
+      "das Wissen verlangt einen Preis, den niemand nennen will",
       "die Zeit läuft schneller als jeder Plan"
     ],
     "stakes": [
-      "Der Einsatz ist die Seele eines Königreichs.",
-      "Der Einsatz ist Ludwigs letzte Wahrheit.",
+      "Der Einsatz ist eine Seele, im Voraus verpfändet.",
+      "Der Einsatz ist die letzte Wahrheit hinter allem Wissen.",
       "Der Einsatz ist ein Pakt, der niemals bricht.",
       "Der Einsatz ist die Freiheit, erkauft mit Schatten.",
-      "Der Einsatz ist Zar Peters verlorene Krone.",
+      "Der Einsatz ist der Augenblick, der verweilen soll.",
       "Der Einsatz ist das Gleichgewicht zweier Welten."
     ],
     "endings": [
       "So schließt sich der Pakt, unwiderruflich.",
-      "Die Guillotine schweigt, doch der Teufel lächelt.",
-      "Paris erinnert sich nur an das Feuer, nicht an den Preis.",
+      "Die Glocke schweigt, doch der Teufel lächelt.",
+      "Man erinnert sich nur an das Streben, nicht an den Preis.",
       "Der Vertrag ist erfüllt, die Seele bezahlt.",
-      "So endet ein König, so beginnt eine Legende.",
-      "Im Schatten von Notre-Dame verstummt die letzte Frage."
+      "So endet ein Gelehrter, so beginnt eine Legende.",
+      "Im Schatten der Bücherwand verstummt die letzte Frage."
     ]
   },
   "lebenreicher": {
     "motifs": [
-      "ein Zar, der Reichtum in fremden Gassen sucht",
-      "zwei Kronen, die sich im Dunkeln begegnen",
+      "jemand, der Reichtum in fremden Gassen sucht",
+      "zwei Fremde, die sich im Dunkeln begegnen",
       "eine Münze, die niemals ihren Glanz verliert",
       "ein Herz, das mehr zählt als Gold",
-      "ein Thron, der leiser wird als das Volk",
+      "ein Besitz, der leiser wird als das Teilen",
       "ein Ring, der Erinnerung statt Macht bedeutet",
       "ein Brief, der wahren Reichtum beschreibt",
       "eine Kerze, die Freundschaft erhellt",
       "ein Spiegel, der die Seele reicher zeigt"
     ],
     "hooks": [
-      "ein Fremder spricht russisch in der Dunkelheit",
+      "ein Fremder spricht eine unbekannte Sprache in der Dunkelheit",
       "ein vergessenes Geschenk liegt auf der Fensterbank",
       "eine Notiz nennt keinen Namen, nur ein Versprechen",
       "zwei Schatten reichen sich die Hand",
       "ein Duft nach Zimt, wo Blut sein sollte",
       "ein Lächeln, das nicht zum Elend passt",
       "ein Lied klingt vertraut, obwohl es niemand kennt",
-      "ein Kind schenkt einem König sein letztes Brot"
+      "ein Kind schenkt einem Fremden sein letztes Brot"
     ],
     "props": [
       "einen goldenen Siegelring",
       "eine Schatulle voller Briefe",
-      "einen Kelch aus Zarenhand",
+      "einen Kelch aus fremder Hand",
       "eine zerlesene Schrift über das Glück",
       "einen einfachen Holzlöffel",
       "ein Medaillon mit zwei Gesichtern",
@@ -1694,19 +1694,19 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Uhr ohne Zeiger"
     ],
     "turns": [
-      "plötzlich zählt nicht mehr die Krone, sondern die Geste",
-      "der Zar erkennt, dass sein Reichtum nie aus Gold bestand",
-      "Ludwig verschenkt, was er zuvor bewachte",
+      "plötzlich zählt nicht mehr der Besitz, sondern die Geste",
+      "er erkennt, dass sein Reichtum nie aus Gold bestand",
+      "er verschenkt, was er zuvor bewachte",
       "die Menge verstummt vor einem Akt der Güte",
       "aus Feinden werden für einen Moment Freunde",
       "der wahre Schatz liegt in einem geteilten Brot",
       "niemand weiß mehr, wer hier wirklich herrscht"
     ],
     "obstacles": [
-      "die Wachen misstrauen jedem freundlichen Wort",
-      "der Palast verschließt sich vor echten Gefühlen",
-      "Gerüchte vergiften das Vertrauen zwischen den Ständen",
-      "der Zar wird als Spion verdächtigt",
+      "alle misstrauen jedem freundlichen Wort",
+      "das Haus verschließt sich vor echten Gefühlen",
+      "Gerüchte vergiften das Vertrauen zwischen Nachbarn",
+      "der Fremde wird verdächtigt, etwas zu wollen",
       "die Straßen sind zu gefährlich für offene Worte",
       "niemand glaubt an uneigennützige Gaben",
       "die Zeit drängt, doch die Wahrheit wartet"
@@ -1715,19 +1715,19 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Menschlichkeit: in einer Zeit des Hasses.",
       "Der Einsatz ist Freundschaft: über Grenzen hinweg.",
       "Der Einsatz ist Würde: wenn alles andere fällt.",
-      "Der Einsatz ist Vertrauen: zwischen Fremden und Königen.",
+      "Der Einsatz ist Vertrauen: zwischen Fremden, die es nicht müssten.",
       "Der Einsatz ist Erinnerung: an das, was wirklich zählt.",
-      "Der Einsatz ist Mitgefühl: in einer kalten Revolution.",
+      "Der Einsatz ist Mitgefühl: in einer kalten Zeit.",
       "Der Einsatz ist Hoffnung: für ein reicheres Morgen."
     ],
     "endings": [
       "So wird aus Gold nur Staub, aus Güte aber Ewigkeit.",
-      "Der Palast fällt, doch die Geste bleibt bestehen.",
+      "Das Haus verfällt, doch die Geste bleibt bestehen.",
       "So endet die Nacht, reicher an Menschlichkeit.",
-      "Zwei Kronen vergehen, ein Herz bleibt bestehen.",
-      "So schließt sich der Kreis aus Macht und Mitgefühl.",
+      "Zwei Vermögen vergehen, ein Herz bleibt bestehen.",
+      "So schließt sich der Kreis aus Haben und Geben.",
       "Am Ende zählt nur, was man verschenkt hat.",
-      "So bleibt von Königen nur, was sie gaben."
+      "So bleibt von allen nur, was sie gaben."
     ]
   },
   "tanz": {
