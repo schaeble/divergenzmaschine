@@ -155,12 +155,42 @@ export function fuelleKontext(text: string, ctx: { ort: string; zeit: string; fi
 
 /** Bringt eine Nominalphrase in den verlangten Fall — sonst entsteht
  *  „Ich sehe ein Hintergrund“ statt „einen Hintergrund“. */
+// Geschlossene Gruppe schwacher Maskulina auf Konsonant. Die auf -e werden ueber
+// die Endung erkannt, brauchen also keine Liste.
+const SCHWACH_KONSONANT = /^(Herr|Mensch|Held|Fürst|Prinz|Graf|Bär|Elefant|Nachbar|Bauer|Herz|Narr|Tor|Christ|Zar|Architekt|Soldat|Advokat|Kamerad|Katholik|Ochs|Spatz|Fink|Pfau|Ahn)$/;
+// Schwache Maskulina auf -e. Eine Liste, weil Substantive auf -e sonst ueberwiegend
+// feminin sind (Lampe, Tuer, Farbe) - guessGender liegt bei diesen belebten
+// Maskulina daneben, und ohne Korrektur bliebe der Artikel falsch.
+const SCHWACH_E = /^(Hase|Junge|Kollege|Zeuge|Bote|Erbe|Riese|Löwe|Affe|Rabe|Neffe|Kunde|Gefährte|Experte|Komplize|Insasse|Gatte|Bube|Falke|Franzose|Schwede|Türke|Russe|Pole|Däne|Ire|Brite|Jude|Sklave|Ahne|Zeuge)$/;
+/** Ist das ein schwaches Maskulinum? Dann gilt es als maskulin, egal was die
+ *  Genusheuristik sagt. */
+export function istSchwachesMaskulinum(kern: string): boolean {
+  return SCHWACH_E.test(kern) || SCHWACH_KONSONANT.test(kern)
+    || /(ent|ant|ist|oge|graf|soph|nom|arch|krat)$/.test(kern)
+    || /^(Name|Gedanke|Glaube|Wille|Friede|Buchstabe)$/.test(kern);
+}
+
+/** Akkusativ- und Dativform eines schwachen Maskulinums, sonst unveraendert. */
+function schwachesMaskulinum(kern: string): string {
+  if (/(chen|lein|er|el|en|ling|ismus|or)$/.test(kern)) return kern;   // starke Maskulina
+  if (SCHWACH_E.test(kern)) return kern + "n";                          // Hase -> Hasen
+  if (/(ent|ant|ist|oge|graf|soph|nom|arch|krat|at)$/.test(kern)) return kern + "en";
+  if (kern === "Herr") return "Herrn";
+  if (kern === "Nachbar" || kern === "Bauer") return kern + "n";
+  if (kern === "Herz") return "Herzen";
+  if (SCHWACH_KONSONANT.test(kern)) return kern + "en";
+  if (kern === "Name" || kern === "Gedanke" || kern === "Glaube" || kern === "Wille" || kern === "Friede" || kern === "Buchstabe") return kern + "n";
+  return kern;
+}
+
 export function dekliniere(phrase: string, kasus: string): string {
   const m = phrase.match(/^(ein|eine|der|die|das)\s+(.*)$/i);
   if (!m) return phrase;
   const [, art, rest] = m as unknown as [string, string, string];
   const kern = (rest.match(/\b([A-ZÄÖÜ][a-zäöüß-]{2,})/) || [])[1];
-  const g = kern ? guessGender(kern) : undefined;
+  // Schwache Maskulina gelten als maskulin, auch wenn die Genusheuristik anders
+  // entscheidet - sonst bleibt "ein Zeuge" im Akkusativ unveraendert stehen.
+  const g = kern ? (istSchwachesMaskulinum(kern) ? "m" : guessGender(kern)) : undefined;
   if (!g) return phrase;
   const map: Record<string, Record<string, string>> = {
     akk: { m: art.toLowerCase() === "ein" ? "einen" : "den", f: art, n: art },
@@ -170,9 +200,16 @@ export function dekliniere(phrase: string, kasus: string): string {
   if (!neu) return phrase;
   // Adjektiv nur mitziehen, wenn sich der Artikel geändert hat — sonst wird aus
   // „die eigene Haut“ (Akk. fem., korrekt) fälschlich „die eigenen Haut“.
-  const r = neu.toLowerCase() !== art.toLowerCase()
-    ? rest.replace(/^([a-zäöüß]+?)(?:e|er|es|em|en)?(\s+[A-ZÄÖÜ])/, (_m, stamm: string, tail: string) => stamm + "en" + tail)
+  // B.2: schwache Maskulina (n-Deklination). "einen Name" ist falsch, es heisst
+  // "einen Namen". Betroffen sind belebte Maskulina auf -e (Hase, Junge, Zeuge) und
+  // eine geschlossene Gruppe auf Konsonant (Herr, Mensch, Held, Fuerst, Nachbar,
+  // dazu die Fremdwoerter auf -ent/-ant/-ist/-oge/-graf). Nur Akkusativ und Dativ.
+  const rest2 = (kasus === "akk" || kasus === "dat") && g === "m" && kern
+    ? rest.replace(new RegExp("\\b" + kern + "\\b"), schwachesMaskulinum(kern))
     : rest;
+  const r = neu.toLowerCase() !== art.toLowerCase()
+    ? rest2.replace(/^([a-zäöüß]+?)(?:e|er|es|em|en)?(\s+[A-ZÄÖÜ])/, (_m, stamm: string, tail: string) => stamm + "en" + tail)
+    : rest2;
   return neu + " " + r;
 }
 

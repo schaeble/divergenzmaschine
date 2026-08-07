@@ -36,8 +36,43 @@ export function extractLeadVerb(text: string): LeadVerb {
     return { verb: null, rest: `${m[2]} ${w}`, isInfinitiveLed: true };
   }
   if (/^[a-zäöüß]+iert$/.test(w)) return { verb: raw, rest: m[2]! };
+  // B.3: Formen der ersten und zweiten Person. Die Konjugationstabelle kennt nur
+  // die dritte ("sieht"), deshalb blieb "sehe 9 Monde am Himmel" ohne Leitverb -
+  // und wurde als Nominalphrase hinter "sucht" gehaengt: "Du suchst sehe 9 Monde".
+  // Die Endung -e ist von Adjektiven nicht zu trennen, -st dagegen fast eindeutig.
+  // Deshalb hier eine gepruefte Liste statt einer Endungsregel.
+  // Nicht die Rohform zurueckgeben, sondern die dritte Person: Die Vorlagen bauen
+  // "⟨Figur⟩ ⟨Verb⟩ ⟨Rest⟩", und "Murx sehe 9 Monde" waere so falsch wie vorher
+  // "Murx will sehe 9 Monde". Die Perspektive konjugiert danach weiter.
+  const dritte = ICH_DU_ZU_ER[w];
+  if (dritte && /^[a-zäöüß]/.test(raw)) return { verb: dritte, rest: m[2]! };
   return { verb: null, rest: s };
 }
+
+/** Formen der 1. und 2. Person Singular mit ihrer 3.-Person-Entsprechung. Bewusst
+ *  eine Liste: "leise", "kleine", "eigene" enden ebenfalls auf -e und duerfen nicht
+ *  als Verben gelten. Die Zuordnung wird gebraucht, weil die Vorlagen die dritte
+ *  Person einsetzen und die Perspektive erst danach konjugiert. */
+export const ICH_DU_ZU_ER: Record<string, string> = {
+  sehe: "sieht", siehst: "sieht", gehe: "geht", gehst: "geht", stehe: "steht", stehst: "steht",
+  komme: "kommt", kommst: "kommt", nehme: "nimmt", nimmst: "nimmt", finde: "findet", findest: "findet",
+  denke: "denkt", denkst: "denkt", glaube: "glaubt", glaubst: "glaubt", höre: "hört", hörst: "hört",
+  fühle: "fühlt", fühlst: "fühlt", suche: "sucht", suchst: "sucht", warte: "wartet", wartest: "wartet",
+  lebe: "lebt", lebst: "lebt", liege: "liegt", liegst: "liegt", sitze: "sitzt",
+  spreche: "spricht", sprichst: "spricht", schreibe: "schreibt", schreibst: "schreibt",
+  lese: "liest", liest: "liest", schlafe: "schläft", schläfst: "schläft",
+  träume: "träumt", träumst: "träumt", laufe: "läuft", läufst: "läuft",
+  falle: "fällt", fällst: "fällt", halte: "hält", hältst: "hält", trage: "trägt", trägst: "trägt",
+  ziehe: "zieht", ziehst: "zieht", breche: "bricht", brichst: "bricht", rufe: "ruft", rufst: "ruft",
+  frage: "fragt", fragst: "fragt", sage: "sagt", sagst: "sagt", mache: "macht", machst: "macht",
+  zeige: "zeigt", zeigst: "zeigt", weine: "weint", weinst: "weint", lache: "lacht", lachst: "lacht",
+  beginne: "beginnt", beginnst: "beginnt", verliere: "verliert", verlierst: "verliert",
+  vergesse: "vergisst", vergisst: "vergisst", erinnere: "erinnert", erinnerst: "erinnert",
+  erkenne: "erkennt", erkennst: "erkennt", bemerke: "bemerkt", bemerkst: "bemerkt",
+  spüre: "spürt", spürst: "spürt", atme: "atmet", atmest: "atmet",
+  schweige: "schweigt", schweigst: "schweigt", singe: "singt", singst: "singt",
+  öffne: "öffnet", öffnest: "öffnet", schließe: "schließt",
+};
 
 // Kuratierte finite Verben, die NICHT in der Konjugationstabelle stehen und
 // keine gängigen Nomen sind - so werden ganze Sätze wie "ein Wunder geschieht"
