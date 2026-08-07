@@ -929,7 +929,10 @@ export function mountStudio(root: HTMLElement): void {
   const knobBox = el("div", { class: "grid3", id: "knobs" },
     knobRow("fuegeteil", "Fügeteil-Deckel", "Höchstanteil der Verbindungsstücke — steuert den Balken „Vorlagen“", " %"),
     knobRow("w4max", "4W-Deckel", "wie oft Ort und Zeit im Text vorkommen dürfen", "×"),
-    knobRow("abstand", "Nachlege-Abstand", "wie weit ein Baustein zurückliegen muss, bevor er wiederkehrt", ""));
+    knobRow("abstand", "Nachlege-Abstand", "wie weit ein Baustein zurückliegen muss, bevor er wiederkehrt", ""),
+    knobRow("bogen", "Erzählbogen", "Gewicht der Bogen-Atome; 0 schaltet die Quelle ab", " %"),
+    knobRow("ton", "Ton-Einschübe", "wie viele Ton-Sätze die Nachbearbeitung einstreut", " %"),
+    knobRow("korpus", "Korpus-Bausteine", "aus dem eigenen Korpus, gefiltert auf Präsens und eigene Figuren; 0 = aus", ""));
   const knobReset = button("Vorgaben wiederherstellen");
   knobReset.addEventListener("click", () => {
     Object.assign(knobs, KNOB_VORGABE); saveKnobs(knobs);

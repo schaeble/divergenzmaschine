@@ -12,14 +12,17 @@ export interface Knobs {
   bogen: number;
   /** Zahl der Ton-Einschübe, in Prozent von normal. */
   ton: number;
+  /** Wie viele Bausteine höchstens aus dem eigenen Korpus kommen. 0 = aus. */
+  korpus: number;
 }
-export const KNOB_VORGABE: Knobs = { fuegeteil: 25, w4max: 2, abstand: 12, bogen: 100, ton: 100 };
+export const KNOB_VORGABE: Knobs = { fuegeteil: 25, w4max: 2, abstand: 12, bogen: 100, ton: 100, korpus: 0 };
 export const KNOB_SPANNE = {
   fuegeteil: { min: 10, max: 35, step: 5 },
   w4max: { min: 1, max: 4, step: 1 },
   abstand: { min: 6, max: 24, step: 2 },
   bogen: { min: 0, max: 250, step: 25 },
   ton: { min: 0, max: 250, step: 25 },
+  korpus: { min: 0, max: 60, step: 10 },
 } as const;
 
 const KEY = "dm_knobs_v1";
@@ -36,6 +39,7 @@ export function loadKnobs(): Knobs {
       abstand: klemm(Number(p.abstand) || KNOB_VORGABE.abstand, KNOB_SPANNE.abstand),
       bogen: klemm(p.bogen === undefined ? KNOB_VORGABE.bogen : Number(p.bogen), KNOB_SPANNE.bogen),
       ton: klemm(p.ton === undefined ? KNOB_VORGABE.ton : Number(p.ton), KNOB_SPANNE.ton),
+      korpus: klemm(p.korpus === undefined ? KNOB_VORGABE.korpus : Number(p.korpus), KNOB_SPANNE.korpus),
     };
   } catch { return { ...KNOB_VORGABE }; }
 }

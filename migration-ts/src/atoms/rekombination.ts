@@ -12,7 +12,7 @@ import { applyPerspective, pronominalize, guessPronoun } from "../generation/sha
 import { resetTrace, pushTrace, pruefeAbgleich } from "./trace";
 import { loadDramaData } from "../generation/dramaturgie";
 import { loadKnobs } from "../features/knobs";
-import { isSaneMarkov, type MarkovModel } from "../corpus";
+import { isSaneMarkov, loadPersistentCorpus, type MarkovModel } from "../corpus";
 import { properNames } from "../generation/coherence";
 import { hatFinitesVerb } from "./derive";
 import { traceMarkov } from "../generation/markovTrace";
@@ -93,6 +93,26 @@ export function buildPool(bank: Bank, perspektive: string, what?: string, figur?
       if (properNames(roh).some((nm) => !eigene.has(nm.toLowerCase()))) continue;  // fremde Figuren
       gesehen.add(sig);
       pool.push({ ...d, id: `mk-${++i}`, quelle: "markov", kategorie: "", verlangt: null, bruchgrad: 1 });
+    }
+  }
+  // B.7: Der eigene Korpus als Atomquelle. Der groesste Hebel fuer Vielfalt - aber
+  // nur mit denselben Filtern wie bei Markov, sonst holt man sich fremde Figuren,
+  // Praeteritum und Bandwurmsaetze ins Preset. Voreinstellung ist AUS: Wer fremde
+  // Literatur im Korpus hat, wuerde sonst ganze Saetze daraus woertlich ausgeben.
+  const korpusDeckel = loadKnobs().korpus;
+  if (korpusDeckel > 0) {
+    const eigene2 = new Set((figur || "").toLowerCase().split(/[,;]/).map((x) => x.trim()).filter(Boolean));
+    const roh = loadPersistentCorpus();
+    const saetze = roh.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter((x) => x.length > 12);
+    let genommen = 0;
+    for (const satz of saetze) {
+      if (genommen >= korpusDeckel) break;
+      const d = deriveAtom(satz);
+      if (d.tempus === "praeteritum") continue;
+      if (d.rhythmus.woerter > 22) continue;
+      if (properNames(satz).some((nm) => !eigene2.has(nm.toLowerCase()))) continue;
+      pool.push({ ...d, id: `kp-${++i}`, quelle: "korpus", kategorie: "", verlangt: null, bruchgrad: 1 });
+      genommen++;
     }
   }
   for (const [kat, arr] of Object.entries(bank as unknown as Record<string, string[]>)) {
@@ -289,6 +309,17 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
       if (zaehleIn(text, wert) && zaehleIn(bisher, wert) >= W4_MAX) { zuOft = true; break; }
     }
     if (zuOft) { k.benutzt.add(a.id); continue; }
+    // N-Gramm-Sperre fuer Korpusmaterial: Die Selbstfuetterung koppelt zurueck -
+    // ohne sie wiederholt der Text Wendungen, die er selbst erzeugt hat.
+    if (a.quelle === "korpus") {
+      const wds = text.toLowerCase().match(/[a-zäöüß]{2,}/g) || [];
+      const bisherLow = out.join(" ").toLowerCase();
+      let doppelt = false;
+      for (let x = 0; x + 4 <= wds.length; x++) {
+        if (bisherLow.includes(wds.slice(x, x + 4).join(" "))) { doppelt = true; break; }
+      }
+      if (doppelt) { k.benutzt.add(a.id); continue; }
+    }
     const anf = anfangVon(text);
     if (anf.split(" ").length >= 2 && (anfangZahl.get(anf) || 0) >= 2) { k.benutzt.add(a.id); continue; }
     gesetzteTexte.add(sig); anfangZahl.set(anf, (anfangZahl.get(anf) || 0) + 1);

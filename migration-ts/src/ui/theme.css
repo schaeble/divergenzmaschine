@@ -475,6 +475,8 @@ input[type=range].wgt:hover{opacity:1}
 .src-seg.q-vorlage,.src-fill.q-vorlage{background:var(--border2)}
 .src-seg.q-nachbearbeitung,.src-fill.q-nachbearbeitung{background:#94A3B8}
 .src-seg.q-dramaturgie,.src-fill.q-dramaturgie{background:#8B5CF6}
+.src-seg.q-korpus,.src-fill.q-korpus{background:#B45309}
+.bp-zeile.q-korpus{background:rgba(180,83,9,.07);border-left-color:#B45309}
 .bp-zeile.q-dramaturgie{background:rgba(139,92,246,.07);border-left-color:#8B5CF6}
 /* Bauplan: nur zarte Tönung plus farbige Kante, damit die Zeilen lesbar bleiben */
 .bp-zeile.q-wortbank{background:rgba(20,184,166,.07);border-left-color:#14B8A6}
