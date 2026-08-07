@@ -6,6 +6,7 @@ import { looksLikeFullClause } from "./wordcls";
 import { escapeRegExp, splitSentences, pick } from "../text-utils";
 import { coherenceWords } from "./nlp";
 import { TONE_DATA } from "./tone.data";
+import { loadKnobs } from "../features/knobs";
 import { applyToneRegister } from "./tone.shape";
 import { insertToneFlavor } from "./beats";
 import { polishGerman } from "./polish";
@@ -169,7 +170,10 @@ export function postProcessText(txt: string, input?: Input): string {
     if (td.opener.length) t = `${pick(td.opener)} ${t}`;
     if (td.flavor.length) {
       const wc = t.trim().split(/\s+/).filter(Boolean).length;
-      const inserts = Math.min(3, Math.max(1, Math.round(wc / 90)));
+      // A.3: Der Ton-Regler skaliert die Zahl der Einschuebe. Bei 0 bleibt nur die
+      // Einleitung, bei 250 % bis zu sieben.
+      const f = (loadKnobs().ton || 0) / 100;
+      const inserts = Math.max(0, Math.min(7, Math.round(Math.max(1, Math.round(wc / 90)) * f)));
       for (let i = 0; i < inserts; i++) t = insertToneFlavor(t, pick(td.flavor));
     }
     // Register-Nachlauf: Ton formt auch die Satzmuster (nüchtern flach, ironisch trocken).

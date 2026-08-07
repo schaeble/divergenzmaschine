@@ -2,6 +2,7 @@
 // Diagnose-Tab und die Ansicht direkt unter dem Studio-Text.
 import { el } from "./dom";
 import { analysiereHerkunft, QUELLEN_LABEL, type QuellenId, type Schnappschuss } from "../features/sources";
+import { loadZiele, saveZiele, type ZielQuelle } from "../features/knobs";
 
 export function renderTextstruktur(text: string, snap: Schnappschuss | null): HTMLElement {
   const box = el("div", {});
@@ -44,6 +45,54 @@ export function renderTextstruktur(text: string, snap: Schnappschuss | null): HT
       el("span", { class: "src-name" }, QUELLEN_LABEL[q]),
       el("span", { class: "src-bar" }, el("span", { class: "src-fill q-" + q, style: `width:${Math.round(v * 100)}%` })),
       el("span", { class: "src-val" }, Math.round(v * 100) + " %"))));
+  // ── A.3: Ziehbare Balken ───────────────────────────────────────────────
+  // Vier Quellen haben eine reale Stellschraube dahinter — nur die sind ziehbar.
+  // Gezogen wird ein ZIEL, kein Wert: Die Marke zeigt, was gewollt ist, der Balken,
+  // was erreicht wurde. Wortbank bleibt Restgröße, der Rest bleibt Anzeige.
+  const ZIEHBAR = new Set<string>(["vorlage", "dramaturgie", "ton", "kontext"]);
+  const ziele = loadZiele();
+  bars.querySelectorAll(".src-row").forEach((row, i) => {
+    const qq = (Object.keys(QUELLEN_LABEL) as QuellenId[])
+      .map((x) => [x, h.anteile[x]] as [QuellenId, number]).sort((a, b) => b[1] - a[1])[i]?.[0];
+    if (!qq || !ZIEHBAR.has(qq)) return;
+    const q = qq as ZielQuelle;
+    const bar = row.querySelector(".src-bar") as HTMLElement | null;
+    if (!bar) return;
+    row.classList.add("ziehbar");
+    const marke = el("span", { class: "src-ziel" });
+    const setzeMarke = (): void => {
+      const z = ziele[q];
+      if (z === undefined) { marke.style.display = "none"; return; }
+      marke.style.display = ""; marke.style.left = Math.max(0, Math.min(100, z)) + "%";
+      marke.title = `Ziel ${z} % — erreicht ${(h.anteile[q] * 100).toFixed(0)} %`;
+    };
+    bar.append(marke); setzeMarke();
+    let zieht = false;
+    const ausX = (x: number): number => {
+      const r = bar.getBoundingClientRect();
+      return Math.round(Math.max(0, Math.min(100, ((x - r.left) / Math.max(1, r.width)) * 100)) / 5) * 5;
+    };
+    bar.addEventListener("pointerdown", (e) => {
+      const ev = e as PointerEvent; zieht = true;
+      bar.setPointerCapture(ev.pointerId); ev.preventDefault(); ev.stopPropagation();
+      ziele[q] = ausX(ev.clientX); setzeMarke();
+    });
+    bar.addEventListener("pointermove", (e) => {
+      if (!zieht) return; ziele[q] = ausX((e as PointerEvent).clientX); setzeMarke();
+    });
+    const ende = (e: Event): void => {
+      if (!zieht) return; zieht = false;
+      try { bar.releasePointerCapture((e as PointerEvent).pointerId); } catch { /* egal */ }
+      saveZiele(ziele);
+      document.dispatchEvent(new CustomEvent("dm-ziel", { detail: { quelle: q, ziel: ziele[q] } }));
+    };
+    bar.addEventListener("pointerup", ende);
+    bar.addEventListener("pointercancel", ende);
+    bar.addEventListener("dblclick", (e) => {
+      e.stopPropagation(); delete ziele[q]; saveZiele(ziele); setzeMarke();
+      document.dispatchEvent(new CustomEvent("dm-ziel", { detail: { quelle: q, ziel: undefined } }));
+    });
+  });
   bars.querySelectorAll(".src-row").forEach((row, i) => {
     const q = (Object.keys(QUELLEN_LABEL) as QuellenId[])
       .map((x) => [x, h.anteile[x]] as [QuellenId, number]).sort((a, b) => b[1] - a[1])[i]?.[0];

@@ -6,7 +6,7 @@ import { getAllPresets, saveActiveBankLabel, buildAutoMixBank, buildMergedBank, 
 import { markedPresetOptions, getUserPreset2 } from "../features/preset2";
 import { setDramaData, hasDramaData, loadDramaData } from "../generation/dramaturgie";
 import { builtinDrama } from "../presets.drama.data";
-import { loadKnobs, saveKnobs, KNOB_VORGABE, KNOB_SPANNE, type Knobs } from "../features/knobs";
+import { loadKnobs, saveKnobs, KNOB_VORGABE, KNOB_SPANNE, regle, loadZiele, vergissVerlauf, type Knobs, type ZielQuelle } from "../features/knobs";
 import { buildStory } from "../generation/buildStory";
 import { getMarkovTrace } from "../generation/markovTrace";
 import { buildModelFromCorpus, savePersistentCorpus } from "../corpus";
@@ -17,6 +17,7 @@ import { normWhere, normWhen, normWho, rateWhere, rateWhen, rateWho } from "../g
 import { getTraceFor, fuegeteilAnteil } from "../atoms/trace";
 import { saveSchnappschuss, loadSchnappschuss } from "../features/sources";
 import { renderTextstruktur } from "./structureView";
+import { analysiereHerkunft, QUELLEN_LABEL } from "../features/sources";
 import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "../generation/wordcls";
 import { el, select, field, textInput, button } from "./dom";
 import { icon } from "./icons";
@@ -492,8 +493,15 @@ export function mountStudio(root: HTMLElement): void {
     struktBox.style.display = "";
     struktBox.innerHTML = "";
     quelleHint.style.display = "none";
-    struktBox.append(renderTextstruktur(out.textContent || "", loadSchnappschuss()));
-    struktBox.append(quelleHint);
+    const snap = loadSchnappschuss();
+    struktBox.append(renderTextstruktur(out.textContent || "", snap));
+    struktBox.append(quelleHint, zielHint);
+    try {
+      const hh = analysiereHerkunft(out.textContent || "", (snap?.tonId || snap?.ton || "neutral").toLowerCase(),
+        { where: snap?.where, when: snap?.when, who: snap?.who, what: snap?.what });
+      regelschritt({ vorlage: hh.anteile.vorlage, dramaturgie: hh.anteile.dramaturgie,
+        ton: hh.anteile.ton, kontext: hh.anteile.kontext });
+    } catch { /* egal */ }
   };
   struktChk.addEventListener("change", renderStruktur);
   /** Nach jeder Textaenderung, die nicht aus generate() kommt: Struktur und
@@ -519,6 +527,32 @@ export function mountStudio(root: HTMLElement): void {
     setTimeout(() => n.classList.remove("hervor"), 1800);
     zeigeHinweis(txt);
   };
+  // A.3: Nach jeder Erzeugung einen Regelschritt in Richtung Ziel. Bewusst nur EIN
+  // Schritt je Lauf und mit Totband - eine Regelung, die in einem Zug ans Ziel
+  // springt, schwingt und macht den Text unruhig.
+  const zielHint = el("p", { class: "muted mini", style: "display:none" });
+  const regelschritt = (anteile: Partial<Record<ZielQuelle, number>>): void => {
+    const z = loadZiele();
+    const offen = (Object.keys(z) as ZielQuelle[]).filter((q) => z[q] !== undefined);
+    if (!offen.length) { zielHint.style.display = "none"; return; }
+    const r = regle(anteile);
+    const teile = offen.map((q) => {
+      const ist = Math.round((anteile[q] ?? 0) * 100);
+      const marke = r.fest.includes(q) ? " — nicht erreichbar" : "";
+      return `${QUELLEN_LABEL[q]} ${ist} % (Ziel ${z[q]} %${marke})`;
+    });
+    zielHint.style.display = "";
+    zielHint.textContent = (r.bewegt ? "Nachgeregelt, wirkt beim nächsten Erzeugen: "
+      : r.fest.length ? "Diese Stellschraube trifft das Ziel nicht — nächstmöglicher Wert: "
+      : "Ziel erreicht: ") + teile.join(" · ");
+    // Reglerstellungen in der Oberfläche nachziehen
+    const k = loadKnobs();
+    for (const f of ["fuegeteil", "w4max", "abstand", "bogen", "ton"] as (keyof Knobs)[]) {
+      const r = document.getElementById("k-" + f) as HTMLInputElement | null;
+      if (r && r.value !== String(k[f])) { r.value = String(k[f]); r.dispatchEvent(new Event("input")); }
+    }
+  };
+  document.addEventListener("dm-ziel", (e) => { vergissVerlauf((e as CustomEvent).detail?.quelle); renderStruktur(); });
   document.addEventListener("dm-quelle", (e) => {
     const q = (e as CustomEvent).detail as string;
     const rek = structure.value === "rekombination";

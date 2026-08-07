@@ -5,6 +5,7 @@ import { darfFolgen, schliesstKopf, schwelle, type AtomTyp } from "./schema";
 import type { DerivedAtom } from "./derive";
 import { guessGender } from "../generation/declension";
 import { hatFinitesVerb } from "./derive";
+import { loadKnobs } from "../features/knobs";
 
 export interface PoolAtom extends DerivedAtom {
   id: string;
@@ -218,6 +219,7 @@ export function ziehe(kandidaten: PoolAtom[], sollGewicht: string, bisher: strin
   if (!kandidaten.length) return null;
   const stems = (t: string): Set<string> => new Set((t.toLowerCase().match(/[a-zäöüß]{5,}/g) || []).map((w) => w.slice(0, 5)));
   const kontext = stems(bisher);
+  const bogenGewicht = (loadKnobs().bogen || 100) / 100;   // A.3: Zielvorgabe Erzählbogen
   const score = (a: PoolAtom): number => {
     let s = 1;
     if (phase) s += phasenBonus(a, phase);         // Funktion der Position zuerst
@@ -225,7 +227,12 @@ export function ziehe(kandidaten: PoolAtom[], sollGewicht: string, bisher: strin
     const ov = [...stems(a.text)].filter((x) => kontext.has(x)).length;
     s += Math.min(ov, 2) * 0.8;                    // etwas Bindung, aber keine Wiederholung
     if (ov > 3) s -= 2;
-    return Math.max(0.05, s);                      // nie negativ ziehen
+    s = Math.max(0.05, s);                         // nie negativ ziehen
+    // A.3: Das Bogen-Gewicht wirkt auf den FERTIGEN Wert. Frueher stand es vor den
+    // additiven Termen und wurde von ihnen ueberdeckt - bei 0 % kamen immer noch
+    // 26 % Erzaehlbogen heraus.
+    if (a.quelle === "dramaturgie") s = bogenGewicht === 0 ? 0.0001 : s * bogenGewicht;
+    return s;
   };
   const total = kandidaten.reduce((n, a) => n + score(a), 0);
   let r = Math.random() * total;

@@ -41,7 +41,11 @@ export function buildPool(bank: Bank, perspektive: string, what?: string, figur?
   // und der Assembler baut in Phasen — das passt ohne Umweg zusammen. Nebenbei
   // vergroessert es den Vorrat um rund zwanzig Eintraege je Preset, und genau daran
   // scheiterte bisher die Ziellaenge.
-  const drama = loadDramaData();
+  // A.3: Bei Gewicht 0 wird der Erzaehlbogen gar nicht erst in den Pool gelegt.
+  // Ihn nur herunterzugewichten reicht nicht: In manchen Phasen sind seine Atome
+  // die einzigen Kandidaten, und ziehe() normiert ueber die vorhandene Auswahl -
+  // bei 0 % kamen so immer noch 26 % heraus.
+  const drama = loadKnobs().bogen === 0 ? null : loadDramaData();
   if (drama) {
     const felder: [string, string[]][] = [
       ["einstieg", drama.einstieg], ["mitte", drama.mitte], ["hoehepunkt", drama.hoehepunkt],

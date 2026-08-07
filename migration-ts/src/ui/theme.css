@@ -365,6 +365,11 @@ input[type=range].wgt:hover{opacity:1}
 .mixsrc-badge{margin-left:auto;font:600 10px var(--sans);color:var(--on-acc);background:var(--acc);border-radius:999px;padding:1px 6px}
 .ctxhint{display:block;font:11px var(--sans);color:var(--muted);margin-top:2px;min-height:13px}
 /* A.2: Balken der Textstruktur sind Schaltflaechen zu ihrer Stellschraube. */
+/* A.3: ziehbare Balken mit Zielmarke */
+.src-row.ziehbar .src-bar{cursor:ew-resize;touch-action:none;position:relative}
+.src-ziel{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--acc);pointer-events:none}
+.src-ziel::after{content:"";position:absolute;top:-4px;left:-4px;width:10px;height:10px;
+  border-radius:50%;background:var(--acc)}
 .src-row.anklickbar{cursor:pointer;border-radius:6px;padding:1px 4px;margin:0 -4px}
 .src-row.anklickbar:hover,.src-row.anklickbar:focus-visible{background:color-mix(in srgb, var(--acc) 8%, transparent);outline:none}
 .src-row.anklickbar:focus-visible{box-shadow:0 0 0 2px var(--acc)}
