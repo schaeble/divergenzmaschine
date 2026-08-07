@@ -10,6 +10,7 @@ import { extractLeadVerb, looksLikeFullClause } from "../generation/wordcls";
 import { NOUN_GENDER } from "../generation/nouns.data";
 import { applyPerspective, pronominalize, guessPronoun } from "../generation/shape";
 import { resetTrace, pushTrace, pruefeAbgleich } from "./trace";
+import { loadDramaData } from "../generation/dramaturgie";
 
 interface TemplateAtom { id: string; text: string; typ: string; verlangt: PoolAtom["verlangt"]; oeffnet: boolean }
 
@@ -33,6 +34,29 @@ export function buildPool(bank: Bank, perspektive: string, what?: string, figur?
     for (const t of saetze) {
       const d = deriveAtom(t);
       pool.push({ ...d, id: `was-${pool.length}`, quelle: "kontext", kategorie: "was", verlangt: null, bruchgrad: 0 });
+    }
+  }
+  // Erzaehlbogen als eigene Quelle: Die Dramaturgie eines Presets beschreibt Phasen,
+  // und der Assembler baut in Phasen — das passt ohne Umweg zusammen. Nebenbei
+  // vergroessert es den Vorrat um rund zwanzig Eintraege je Preset, und genau daran
+  // scheiterte bisher die Ziellaenge.
+  const drama = loadDramaData();
+  if (drama) {
+    const felder: [string, string[]][] = [
+      ["einstieg", drama.einstieg], ["mitte", drama.mitte], ["hoehepunkt", drama.hoehepunkt],
+      ["konflikte", drama.konflikte], ["ausloeser", drama.ausloeser],
+      ["veraenderungen", drama.veraenderungen], ["zeitanomalien", drama.zeitanomalien],
+      ["regeln", drama.regeln],
+      // "schluss" bleibt aussen vor: Stilworte wie "offen" sind kein Textmaterial.
+    ];
+    for (const [kat, arr] of felder) {
+      if (!Array.isArray(arr)) continue;
+      for (const t of arr) {
+        const roh = (t || "").trim(); if (roh.length < 4) continue;
+        const d = deriveAtom(roh);
+        pool.push({ ...d, id: `dr-${kat}-${++i}`, quelle: "dramaturgie", kategorie: kat, verlangt: null,
+          bruchgrad: d.unsicher.length ? 1 : 0 });
+      }
     }
   }
   for (const [kat, arr] of Object.entries(bank as unknown as Record<string, string[]>)) {

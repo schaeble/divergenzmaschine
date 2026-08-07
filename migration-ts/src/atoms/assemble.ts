@@ -23,9 +23,11 @@ export type Phase = "exposition" | "verdichtung" | "umschlag" | "schluss";
 
 /** Welche Bank-Kategorien tragen welche Phase. */
 const PHASEN_KATEGORIEN: Record<Phase, string[]> = {
-  exposition:  ["motifs", "hooks", "was"],
-  verdichtung: ["props", "obstacles", "stakes", "was"],
-  umschlag:    ["turns"],
+  // Die Dramaturgie-Kategorien tragen ihre Phase bereits im Namen — der Erzaehlbogen
+  // eines Presets beschreibt genau das, was der Assembler ohnehin in Phasen baut.
+  exposition:  ["motifs", "hooks", "was", "einstieg", "regeln"],
+  verdichtung: ["props", "obstacles", "stakes", "was", "mitte", "konflikte", "zeitanomalien"],
+  umschlag:    ["turns", "hoehepunkt", "ausloeser", "veraenderungen"],
   schluss:     ["endings"],
 };
 
