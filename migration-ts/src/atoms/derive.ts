@@ -25,6 +25,12 @@ export interface DerivedAtom {
 }
 
 const SEIN_HABEN_WERDEN = /^(ist|sind|bin|bist|seid|war|waren|warst|hat|habe|hast|haben|habt|hatte|hatten|wird|werden|wirst|werdet|wurde|wurden|kann|kannst|können|könnt|konnte|muss|musst|müssen|müsst|will|willst|wollen|wollt|soll|sollen|darf|dürfen|mag|mögen|weiß|wissen|bleibt|bleiben|blieb|gibt|geben|gab)$/;
+// Finite Verbformen mit kurzem Stamm. Die allgemeine Regel verlangt vier Buchstaben
+// VOR der Endung; "löst" hat drei und rutschte durch - so landete "eine Verdrängung
+// löst sich" als Nominalphrase in einem Akkusativ-Rahmen. Eine Liste statt einer
+// kuerzeren Mindestlaenge, weil sonst Adjektive wie "kalt", "laut", "hart", "bunt"
+// als Verben gelten wuerden.
+const KURZVERB = /^(löst|geht|ruft|tut|gibt|lebt|hebt|legt|sagt|sieht|hält|fällt|zieht|trägt|liegt|kommt|nimmt|läuft|steht|dreht|führt|hört|fühlt|zählt|setzt|passt|weint|lacht|denkt|kennt|nennt|misst|sinkt|steigt|klingt|singt|fehlt|blickt|wirkt|reißt|bricht|spricht|wächst)$/;
 const PRAET_FORM = /(?:^|^[a-zäöüß]{2,6})(lag|lagen|stand|standen|ging|gingen|kam|kamen|sah|sahen|nahm|nahmen|hielt|hielten|ließ|ließen|fand|fanden|zog|zogen|trug|trugen|fiel|fielen|rief|riefen|sprach|schrieb|floss|stieg|sank|klang|hing|schien|trieb|brach|schloss|verlor|begann|geschah|roch|rochen|sass|saßen|riss|rissen|sprang|sprangen|schlug|schlugen|traf|trafen|griff|griffen|lief|liefen|wusste|wussten|verschwand|verschwanden|blieb|blieben|hieß|hießen|wuchs|wuchsen|schob|schoben|bog|bogen|schwieg|schwiegen)$/;
 // Endungen, die eher auf ein Nomen als auf ein Verb deuten (Falsch-Positive vermeiden)
 const NOMEN_ENDUNG = /(ung|heit|keit|schaft|tät|ion|nis|tum|chen|lein|ment)$/;
@@ -73,6 +79,7 @@ export function hatFinitesVerb(seg: string): boolean {
     if (VERB_CONJ[l]) return true;                                    // 3. Ps. Sg. Präsens
     if (SEIN_HABEN_WERDEN.test(l)) return true;                       // Hilfs-/Modalverben
     if (PRAET_FORM.test(l)) return true;                              // starke Präteritumformen (auch trennbar: aufging)
+    if (KURZVERB.test(l)) return true;                                // kurze Formen: löst, geht, ruft
     if (/^(?!ge)[a-zäöüß]{4,}(?:t|te|en|ten)$/.test(l) && !NOMEN_ENDUNG.test(l)) return true;
   }
   // Satzanfang gesondert: „Klebt ein Zuckerkringel …“, „Stand im Sand“
