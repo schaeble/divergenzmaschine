@@ -494,7 +494,10 @@ export function mountStudio(root: HTMLElement): void {
     struktBox.innerHTML = "";
     quelleHint.style.display = "none";
     const snap = loadSchnappschuss();
-    struktBox.append(renderTextstruktur(out.textContent || "", snap));
+    struktBox.append(renderTextstruktur(out.textContent || "", snap, {
+      Preset: preset, Ton: tone, Form: form, Struktur: structure, Perspektive: persp,
+      Rhythmus: rhythm, Markov: markov, Varianz: varianz, Spannung: tension,
+    }));
     struktBox.append(quelleHint, zielHint);
     try {
       const hh = analysiereHerkunft(out.textContent || "", (snap?.tonId || snap?.ton || "neutral").toLowerCase(),
@@ -552,6 +555,8 @@ export function mountStudio(root: HTMLElement): void {
       if (r && r.value !== String(k[f])) { r.value = String(k[f]); r.dispatchEvent(new Event("input")); }
     }
   };
+  // Schnellwahl an den Chips: Einstellung ändern und sofort neu erzeugen.
+  document.addEventListener("dm-schnellwahl", () => { renderPresetChecks(); generate(); });
   document.addEventListener("dm-ziel", (e) => { vergissVerlauf((e as CustomEvent).detail?.quelle); renderStruktur(); });
   document.addEventListener("dm-quelle", (e) => {
     const q = (e as CustomEvent).detail as string;

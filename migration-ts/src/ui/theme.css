@@ -367,6 +367,13 @@ input[type=range].wgt:hover{opacity:1}
 .ctxhint{display:block;font:11px var(--sans);color:var(--muted);margin-top:2px;min-height:13px}
 /* A.2: Balken der Textstruktur sind Schaltflaechen zu ihrer Stellschraube. */
 /* A.3: ziehbare Balken mit Zielmarke */
+/* Schnellwahl-Chips: sehen aus wie die Anzeige-Chips, sind aber Auswahlfelder */
+.src-chipwrap{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border2);
+  border-radius:999px;padding:2px 4px 2px 10px;font-size:12px;background:var(--bg2)}
+.src-chipwrap b{font-weight:600}
+.src-chip-sel{border:none;background:transparent;font:inherit;color:inherit;padding:2px 4px;
+  border-radius:999px;cursor:pointer;max-width:15em}
+.src-chip-sel:hover,.src-chip-sel:focus-visible{background:color-mix(in srgb, var(--acc) 12%, transparent);outline:none}
 .src-row.ziehbar .src-bar{cursor:ew-resize;touch-action:none;position:relative}
 .src-ziel{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--acc);pointer-events:none}
 .src-ziel::after{content:"";position:absolute;top:-4px;left:-4px;width:10px;height:10px;

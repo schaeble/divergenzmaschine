@@ -4,7 +4,11 @@ import { el } from "./dom";
 import { analysiereHerkunft, QUELLEN_LABEL, type QuellenId, type Schnappschuss } from "../features/sources";
 import { loadZiele, saveZiele, type ZielQuelle } from "../features/knobs";
 
-export function renderTextstruktur(text: string, snap: Schnappschuss | null): HTMLElement {
+/** Schnellwahl: Chip-Name → das echte Auswahlfeld im Studio. Wird nur dort
+ *  übergeben; im Diagnose-Tab bleiben die Chips reine Anzeige. */
+export type Schnellwahl = Record<string, HTMLSelectElement>;
+
+export function renderTextstruktur(text: string, snap: Schnappschuss | null, schnell?: Schnellwahl): HTMLElement {
   const box = el("div", {});
   if (!text.trim()) { box.append(el("p", { class: "muted" }, "Noch kein Text erzeugt.")); return box; }
   const h = analysiereHerkunft(text, (snap?.tonId || snap?.ton || "neutral").toLowerCase(),
@@ -16,7 +20,22 @@ export function renderTextstruktur(text: string, snap: Schnappschuss | null): HT
       ["Struktur", snap.struktur], ["Perspektive", snap.perspektive], ["Rhythmus", snap.rhythmus],
       ["Markov", snap.markov], ["Varianz", snap.varianz], ["Spannung", snap.spannung],
       ["Länge", String(snap.laenge)], ["Bestenauslese", snap.bestenauslese ? "an" : "aus"]];
-    for (const [k, v] of paare) chips.append(el("span", { class: "src-chip" }, el("b", {}, k), " " + (v || "—")));
+    for (const [k, v] of paare) {
+      const sel = schnell?.[k];
+      if (!sel) { chips.append(el("span", { class: "src-chip" }, el("b", {}, k), " " + (v || "—"))); continue; }
+      // Der Chip zeigt nicht nur die Einstellung, er IST sie. Ein natives Auswahlfeld
+      // statt eines eigenen Menüs: funktioniert auf dem Handy mit der Systemauswahl,
+      // ist mit Tastatur bedienbar und braucht keinen Code, der zugeklappt werden will.
+      const mini = el("select", { class: "src-chip src-chip-sel", title: k + " ändern" }) as HTMLSelectElement;
+      for (const o of Array.from(sel.options)) mini.append(el("option", { value: o.value }, o.text));
+      mini.value = sel.value;
+      mini.addEventListener("change", () => {
+        sel.value = mini.value;
+        sel.dispatchEvent(new Event("change"));
+        document.dispatchEvent(new CustomEvent("dm-schnellwahl", { detail: k }));
+      });
+      chips.append(el("span", { class: "src-chipwrap" }, el("b", {}, k), " ", mini));
+    }
     box.append(chips);
     const w4 = el("div", { class: "src-4w" });
     ([["Wo", snap.where], ["Wann", snap.when], ["Wer", snap.who], ["Was", snap.what]] as [string, string][])
