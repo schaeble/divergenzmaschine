@@ -5,6 +5,7 @@ import { loadBank, saveBank } from "../storage";
 import { getAllPresets, saveActiveBankLabel, buildAutoMixBank, buildMergedBank, lastAutoMixSources, AUTOMIX_ID } from "../wordbank";
 import { markedPresetOptions, getUserPreset2 } from "../features/preset2";
 import { setDramaData, hasDramaData } from "../generation/dramaturgie";
+import { builtinDrama } from "../presets.drama.data";
 import { buildStory } from "../generation/buildStory";
 import { getMarkovTrace } from "../generation/markovTrace";
 import { buildModelFromCorpus, savePersistentCorpus } from "../corpus";
@@ -165,12 +166,17 @@ export function mountStudio(root: HTMLElement): void {
     if (!p) return;
     saveBank(p.bank); saveActiveBankLabel(p.label || preset.value);
     const a2 = preset.value.startsWith("user:") ? getUserPreset2(preset.value.slice(5)) : null;
+    // Eingebaute Presets bringen ihre Dramaturgie jetzt selbst mit — fest im
+    // Programm statt per KI erzeugt. Ohne sie fiel der Dramaturgie-Bauweg
+    // wortlos auf den gewoehnlichen zurueck.
+    if (!a2) { setDramaData(builtinDrama(preset.value)); updRekHint(); return; }
     if (a2) {
       setDramaData(a2.drama);
       const setV = (sel: HTMLSelectElement, v?: string): void => { if (v && Array.from(sel.options).some((o) => o.value === v)) sel.value = v; };
       const st = a2.settings;
       setV(tone, st.tone); setV(form, st.form); setV(structure, st.structure); setV(disruptor, st.disruptor); setV(instab, st.instability);
-    } else { setDramaData(null); }
+    }
+    updRekHint();
   });
 
   // ── Preset-Auswahl: eins ODER mehrere ankreuzen (steuert das versteckte Select) ──
