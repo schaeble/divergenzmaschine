@@ -8,7 +8,7 @@ import { setDramaData, hasDramaData, loadDramaData } from "../generation/dramatu
 import { builtinDrama } from "../presets.drama.data";
 import { loadKnobs, saveKnobs, KNOB_VORGABE, KNOB_SPANNE, regle, loadZiele, vergissVerlauf, type Knobs, type ZielQuelle } from "../features/knobs";
 import { buildStory } from "../generation/buildStory";
-import { getMarkovTrace } from "../generation/markovTrace";
+import { getMarkovTraceFor } from "../generation/markovTrace";
 import { buildModelFromCorpus, savePersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
 import { enforceWordTarget } from "../generation/length";
@@ -622,7 +622,7 @@ export function mountStudio(root: HTMLElement): void {
     collectFeed(w4, "feed-4w", 2, low, m);
     try { const b = loadBank() as unknown as Record<string, string[]>; const all: string[] = []; for (const k of Object.keys(b)) if (Array.isArray(b[k])) all.push(...b[k]!); collectFeed(all, "feed-wb", 1, low, m); } catch { /* egal */ }
     try { collectFeed(liveTexts(), "feed-pool", 1, low, m); } catch { /* egal */ }
-    try { collectFeed(getMarkovTrace(), "feed-markov", 2, low, m); } catch { /* egal */ }
+    try { collectFeed(getMarkovTraceFor(plain), "feed-markov", 2, low, m); } catch { /* egal */ }
     // Erzaehlbogen: eigene Quelle, hoehere Prioritaet als die Wortbank - sonst
     // verschwindet er in ihr, wo Eintraege in beiden stehen.
     try {

@@ -14,6 +14,7 @@ import { loadDramaData } from "../generation/dramaturgie";
 import { loadKnobs } from "../features/knobs";
 import { isSaneMarkov, type MarkovModel } from "../corpus";
 import { properNames } from "../generation/coherence";
+import { hatFinitesVerb } from "./derive";
 import { traceMarkov } from "../generation/markovTrace";
 
 interface TemplateAtom { id: string; text: string; typ: string; verlangt: PoolAtom["verlangt"]; oeffnet: boolean }
@@ -33,7 +34,12 @@ export function buildPool(bank: Bank, perspektive: string, what?: string, figur?
       ? [`${P} will ${kern}`, `Alles drängt darauf, ${kern.replace(/(\S+)$/, "zu $1")}`]
       : lead.verb
         ? [`${P} ${lead.verb} ${kern}`, `Und wieder: ${P} ${lead.verb} ${kern}`]
-        : looksLikeFullClause(lead.verb, kern)
+        // "X sucht <kern>" ergibt nur Sinn, wenn der Kern eine Nominalphrase ist.
+        // Steht dort ein Satz, entsteht "Du suchst sehe 9 Monde am Himmel" - genau so
+        // geschehen, weil hatFinitesVerb Formen der ersten Person ("sehe", "warte",
+        // "gehe") nicht kennt: Die Endung -e ist von Adjektiven nicht zu trennen.
+        // Deshalb wird hier nicht nach dem Verb gefragt, sondern nach dem Artikel.
+        : looksLikeFullClause(lead.verb, kern) || hatFinitesVerb(kern) || !wirktNominal(kern)
           ? [kern, `Und wieder: ${kern}`, `Denn genau das geschieht: ${kern}`]
           : [`Es geht um eines: ${kern}`, `${P} sucht ${kern}`];
     for (const t of saetze) {
@@ -117,6 +123,11 @@ const divergenzOf = (input: GenInput): number =>
 
 /** Erzeugt einen Text im Rekombinations-Modus. */
 // Bausteine ohne finites Verb - drei davon in Folge ergeben ein Stakkato.
+/** Sieht der Text nach einer Nominalphrase aus? Entscheidend ist der Anfang:
+ *  Artikel, Possessiv, Mengenwort oder ein grossgeschriebenes Nomen. */
+const wirktNominal = (t: string): boolean =>
+  /^\s*(ein|eine|einen|einem|eines|einer|der|die|das|den|dem|des|mein|meine|meinen|sein|seine|ihr|ihre|kein|keine|viele|manche|jede|jeden|etwas|nichts|[A-ZÄÖÜ])/.test(t);
+
 const FLACH = new Set(["nominalphrase", "praepositionalphrase", "fragment", "einwort"]);
 
 

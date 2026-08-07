@@ -20,6 +20,7 @@ import { buildVideoSequenceText } from "./video";
 import { enforceWordTarget } from "./length";
 import { buildRekombination } from "../atoms/rekombination";
 import { linkTrace } from "../atoms/trace";
+import { linkMarkovTrace } from "./markovTrace";
 import { applyEmphasis } from "./emphasis";
 import { asProsePoem, asStrang, asReim, asHaiku, asDrama } from "./forms";
 import { buildDramaturgie, hasDramaData } from "./dramaturgie";
@@ -113,7 +114,7 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
     // Abfrage und wurde nie erreicht - die Struktur "Rekombination (geprueft)" blieb
     // wirkungslos, ohne dass die Oberflaeche das sagte.
     const rk = input.structure === "rekombination" ? buildRekombination(bank, input, model) : "";
-    if (rk.trim()) { const fertig = postProcessText(asProsePoem(rk), { ...input, form: "poem" }); linkTrace(fertig); return fertig; }
+    if (rk.trim()) { const fertig = postProcessText(asProsePoem(rk), { ...input, form: "poem" }); linkTrace(fertig); linkMarkovTrace(fertig); return fertig; }
     const body = pickStructureBuilder(kit.structure === "fragment" ? "linear" : kit.structure)({ ...kit });
     return postProcessText(asProsePoem(body), { ...input, form: "poem" });
   }
@@ -123,7 +124,7 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   // Rekombination: Atome mit geprüfter Schnittstelle statt Schablonen
   if (input.form === "prose" && input.structure === "rekombination") {
     const rk = buildRekombination(bank, input, model);
-    if (rk.trim()) { const fertig = postProcessText(rk, input); linkTrace(fertig); return fertig; }
+    if (rk.trim()) { const fertig = postProcessText(rk, input); linkTrace(fertig); linkMarkovTrace(fertig); return fertig; }
   }
   let text = (input.form === "prose" && input.structure === "dramaturgie" && hasDramaData())
     ? buildDramaturgie({ ...kit })

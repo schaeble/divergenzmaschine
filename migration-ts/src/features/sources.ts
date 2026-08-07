@@ -4,7 +4,7 @@
 import { loadBank } from "../storage";
 import { liveTexts } from "./livepools";
 import { TONE_DATA } from "../generation/tone.data";
-import { getMarkovTrace } from "../generation/markovTrace";
+import { getMarkovTraceFor } from "../generation/markovTrace";
 import { getTraceFor } from "../atoms/trace";
 
 export type QuellenId = "wortbank" | "ton" | "kontext" | "pools" | "markov" | "vorlage" | "nachbearbeitung" | "dramaturgie";
@@ -44,7 +44,7 @@ export function analysiereHerkunft(text: string, tone: string, ctx: { where?: st
   try { const b = loadBank() as unknown as Record<string, string[]>; const alle: string[] = [];
     for (const k of Object.keys(b)) if (Array.isArray(b[k])) alle.push(...b[k]!); sammle(alle, "wortbank", 1, low, acc); } catch { /* egal */ }
   try { sammle(liveTexts(), "pools", 1, low, acc); } catch { /* egal */ }
-  try { sammle(getMarkovTrace(), "markov", 2, low, acc); } catch { /* egal */ }
+  try { sammle(getMarkovTraceFor(text || ""), "markov", 2, low, acc); } catch { /* egal */ }
 
   acc.sort((a, b) => a.s - b.s || (b.e - b.s) - (a.e - a.s) || b.prio - a.prio);
   const segmente: Segment[] = [];
