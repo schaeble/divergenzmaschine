@@ -365,6 +365,22 @@ input[type=range].wgt:hover{opacity:1}
 .mixsrc-badge{margin-left:auto;font:600 10px var(--sans);color:var(--on-acc);background:var(--acc);border-radius:999px;padding:1px 6px}
 .ctxhint{display:block;font:11px var(--sans);color:var(--muted);margin-top:2px;min-height:13px}
 .outwrap{position:relative}
+/* Ziehgriff am unteren Rand des Textfensters: aendert die Ziellaenge.
+   touch-action:none, sonst scrollt das Handy statt zu ziehen. */
+.lengrip{position:absolute;left:0;right:0;bottom:-6px;height:22px;display:flex;align-items:center;
+  justify-content:center;cursor:ns-resize;touch-action:none;user-select:none;z-index:3}
+.lengrip::before{content:"";width:56px;height:5px;border-radius:3px;background:var(--border2);
+  transition:background .15s,width .15s}
+.lengrip:hover::before,.lengrip:focus-visible::before{background:var(--acc);width:72px}
+.lengrip.zieht::before{background:var(--acc);width:88px}
+.lengrip:focus-visible{outline:none}
+.lengrip-val{position:absolute;bottom:20px;padding:2px 8px;border-radius:10px;font-size:12px;
+  background:var(--acc);color:#fff;white-space:nowrap;pointer-events:none}
+.lengrip-val:empty{display:none}
+.lengrip.warn::before{background:#E64980}
+.lengrip.warn .lengrip-val{background:#E64980}
+/* Auf dem Handy groesserer Griff */
+@media (max-width:640px){ .lengrip{height:30px;bottom:-10px} .lengrip::before{width:76px;height:6px} }
 .genarrow{position:absolute;top:50%;transform:translateY(-50%);z-index:5;width:32px;height:58px;display:flex;align-items:center;justify-content:center;font-size:26px;line-height:1;color:var(--muted);background:color-mix(in srgb, var(--panel) 78%, transparent);border:1px solid var(--border2);border-radius:10px;cursor:pointer;opacity:.45;transition:opacity .15s,border-color .15s;padding:0}
 .genarrow:hover{opacity:1;color:var(--text);border-color:var(--acc)}
 .genarrow.left{left:6px}

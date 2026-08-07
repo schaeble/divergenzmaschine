@@ -339,7 +339,67 @@ export function mountStudio(root: HTMLElement): void {
     genArrows.push(b);
     return b;
   };
-  const outWrap = el("div", { class: "outwrap" }, mkGenArrow("left"), out, mkGenArrow("right"));
+  // Ziehgriff am unteren Rand: Das Textfenster laesst sich nach unten oder oben
+  // ziehen, und die Ziellaenge folgt der Geste. Auf dem Handy ist der Weg zum
+  // Laengenregler weit oben unbequem - hier liegt er am Text selbst.
+  const grip = el("div", { class: "lengrip", role: "slider", tabindex: "0",
+    title: "Ziehen: Textlänge ändern · Doppelklick: Fensterhöhe zurücksetzen" });
+  const gripVal = el("span", { class: "lengrip-val" });
+  grip.append(gripVal);
+  const PX_JE_SCHRITT = 6;                       // 6 px Ziehweg = ein Reglerschritt (10 Wörter)
+  let zieht = false, startY = 0, startWert = 0, startHoehe = 0, geaendert = false;
+  const zeigeWert = (v: number): void => { gripVal.textContent = v + " Wörter"; };
+  grip.addEventListener("pointerdown", (e) => {
+    const ev = e as PointerEvent;
+    if (locked.has(lenSlider.id)) {
+      gripVal.textContent = "Textlänge ist gesperrt";
+      grip.classList.add("warn");
+      setTimeout(() => { grip.classList.remove("warn"); gripVal.textContent = ""; }, 1600);
+      return;
+    }
+    zieht = true; geaendert = false;
+    startY = ev.clientY; startWert = parseInt(lenSlider.value, 10) || 110;
+    startHoehe = out.getBoundingClientRect().height;
+    grip.classList.add("zieht"); zeigeWert(startWert);
+    grip.setPointerCapture(ev.pointerId);
+    ev.preventDefault();
+  });
+  grip.addEventListener("pointermove", (e) => {
+    if (!zieht) return;
+    const dy = (e as PointerEvent).clientY - startY;
+    const schritt = parseInt(lenSlider.step, 10) || 10;
+    const min = parseInt(lenSlider.min, 10), max = parseInt(lenSlider.max, 10);
+    const roh = startWert + Math.round(dy / PX_JE_SCHRITT) * schritt;
+    const neuW = Math.max(min, Math.min(max, roh));
+    if (String(neuW) !== lenSlider.value) {
+      lenSlider.value = String(neuW); lenVal.textContent = String(neuW); geaendert = true;
+    }
+    zeigeWert(neuW);
+    // Das Fenster folgt der Geste, damit das Ziehen sich nach etwas anfuehlt.
+    out.style.minHeight = Math.max(120, startHoehe + dy) + "px";
+    positionArrows();
+  });
+  const gripEnde = (e: Event): void => {
+    if (!zieht) return;
+    zieht = false; grip.classList.remove("zieht");
+    gripVal.textContent = "";
+    try { grip.releasePointerCapture((e as PointerEvent).pointerId); } catch { /* egal */ }
+    if (geaendert) generate();
+  };
+  grip.addEventListener("pointerup", gripEnde);
+  grip.addEventListener("pointercancel", gripEnde);
+  grip.addEventListener("dblclick", () => { out.style.minHeight = ""; positionArrows(); });
+  // Tastatur: Pfeile hoch/runter aendern die Laenge in Reglerschritten
+  grip.addEventListener("keydown", (e) => {
+    const ev = e as KeyboardEvent;
+    if (ev.key !== "ArrowUp" && ev.key !== "ArrowDown") return;
+    if (locked.has(lenSlider.id)) return;
+    const schritt = parseInt(lenSlider.step, 10) || 10;
+    const min = parseInt(lenSlider.min, 10), max = parseInt(lenSlider.max, 10);
+    const v = Math.max(min, Math.min(max, (parseInt(lenSlider.value, 10) || 110) + (ev.key === "ArrowDown" ? schritt : -schritt)));
+    lenSlider.value = String(v); lenVal.textContent = String(v); ev.preventDefault(); generate();
+  });
+  const outWrap = el("div", { class: "outwrap" }, mkGenArrow("left"), out, mkGenArrow("right"), grip);
   // Pfeile mittig im SICHTBAREN Ausschnitt des Textfensters halten — unabhängig
   // von der Inhaltshöhe (kein Springen beim Generieren).
   const positionArrows = (): void => {
