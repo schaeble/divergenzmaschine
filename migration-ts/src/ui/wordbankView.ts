@@ -14,6 +14,7 @@ import { isPastTense, toPresent, isSecondPerson, isFirstPerson } from "../genera
 import { bankFromCorpus } from "../features/corpusbank";
 import { icon } from "./icons";
 import { loadAiKey } from "../features/ki";
+import { loadSchnappschuss } from "../features/sources";
 
 const CATS: [BankKey, string][] = [
   ["motifs", "Motive"], ["hooks", "Hooks"], ["props", "Requisiten"], ["turns", "Wendungen"],
@@ -353,6 +354,25 @@ export function mountWordbank(root: HTMLElement): void {
   const p2Out = el("textarea", { style: "height:150px", placeholder: "Das erzeugte Preset-2.0-JSON erscheint hier." }) as HTMLTextAreaElement;
   const p2Info = el("p", { class: "muted" }, "");
   let p2Json = "";
+  // 4W-Schalter: Frueher floss der Studio-Kontext bei manchen Wegen unbemerkt in den
+  // Auftrag - daher die Hirten in sechs eingebauten Presets. Jetzt ist es eine
+  // bewusste Entscheidung, und der Hinweis zeigt, worum es geht.
+  const p2Ctx = el("input", { type: "checkbox", id: "p2-ctx" }) as HTMLInputElement;
+  const p2CtxInfo = el("span", { class: "muted mini" }, "");
+  const vierW = (): { where: string; when: string; who: string; what: string } => {
+    const sn = loadSchnappschuss();
+    return { where: sn?.where || "", when: sn?.when || "", who: sn?.who || "", what: sn?.what || "" };
+  };
+  const updP2Ctx = (): void => {
+    const c = vierW();
+    const teile = [c.where, c.when, c.who, c.what].filter(Boolean).join(" · ");
+    p2CtxInfo.textContent = p2Ctx.checked
+      ? (teile ? `→ fließt in den Auftrag ein: ${teile}` : "→ keine 4W-Angaben im Studio gesetzt")
+      : (teile ? `aus: ${teile} bleibt außen vor — das Preset richtet sich allein nach der Inspiration` : "");
+  };
+  p2Ctx.addEventListener("change", updP2Ctx);
+  const p2CtxLbl = el("label", { class: "chk", title: "Nimmt Wo/Wann/Wer/Was aus dem Studio in den Auftrag auf." },
+    p2Ctx, " 4W-Kontext einbeziehen");
   const p2Lbl = el("span", {}, "Preset 2.0 erzeugen");
   const p2Btn = el("button", {}, icon("flask"), " ", p2Lbl) as HTMLButtonElement;
   p2Btn.addEventListener("click", () => {
@@ -360,7 +380,7 @@ export function mountWordbank(root: HTMLElement): void {
       if (!loadAiKey()) { alert("Kein API-Schlüssel — bitte unter Studio ▸ Einstellungen ▸ KI-Zugang hinterlegen."); return; }
       p2Btn.disabled = true; p2Lbl.textContent = "Erzeuge…";
       try {
-        const r = await generateAiPreset2(p2Insp.value);
+        const r = await generateAiPreset2(p2Insp.value, undefined, p2Ctx.checked ? vierW() : null);
         p2Json = r.json; p2Out.value = r.json;
         saveBank(r.bank); saveActiveBankLabel(r.name); preset.selectedIndex = -1; load(); renderFull();
         const a2 = preset2Active(r.obj);
@@ -370,6 +390,7 @@ export function mountWordbank(root: HTMLElement): void {
       finally { p2Btn.disabled = false; p2Lbl.textContent = "Preset 2.0 erzeugen"; }
     })();
   });
+  updP2Ctx();
   const p2SaveBtn = el("button", {}, icon("floppy"), " Als Preset-2.0-Datei speichern…");
   p2SaveBtn.addEventListener("click", () => {
     if (!p2Json.trim()) { p2Info.textContent = "Erst ein Preset 2.0 erzeugen."; return; }
@@ -381,7 +402,7 @@ export function mountWordbank(root: HTMLElement): void {
     el("summary", {}, icon("flask"), " KI-Preset 2.0 erzeugen"),
     el("p", { class: "muted" }, "Erzeugt ein komplettes Preset 2.0 (Welt, Orte, Figuren, Objekte, Ton, generatoren). Genutzt werden davon die Wortbank (generatoren) und die Kontext-Felder (in die lebendigen Pools); die übrigen Felder sind Metadaten. Braucht einen API-Schlüssel."),
     field("Inspiration", p2Insp),
-    el("div", { class: "btnrow" }, p2Btn, p2SaveBtn),
+    el("div", { class: "btnrow" }, p2Btn, p2CtxLbl, p2SaveBtn), p2CtxInfo,
     p2Info, p2Out);
 
   const rulesBox = el("details", { class: "fine" });

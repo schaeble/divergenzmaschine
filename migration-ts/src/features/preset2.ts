@@ -76,19 +76,30 @@ export function preset2Settings(parsed: unknown): Preset2Settings {
 export interface AiPreset2 { obj: Record<string, unknown>; bank: Bank; name: string; json: string; }
 
 /** Experimentell: erzeugt ein komplettes Preset 2.0 per KI. */
-export async function generateAiPreset2(inspiration: string, seed?: string): Promise<AiPreset2> {
-  const raw = await callClaude(buildPreset2Prompt(inspiration, seed), 8192, "{");
+export interface VierW { where?: string; when?: string; who?: string; what?: string }
+
+export async function generateAiPreset2(inspiration: string, seed?: string, kontext?: VierW | null): Promise<AiPreset2> {
+  const raw = await callClaude(buildPreset2Prompt(inspiration, seed, kontext), 8192, "{");
   const obj = extractJson(raw) as Record<string, unknown>;
   const bank = preset2ToBank(obj);
   if (!bank) throw new Error("Antwort ohne gültigen generatoren-Block.");
   return { obj, bank, name: preset2Name(obj), json: JSON.stringify(obj, null, 2) };
 }
 
-function buildPreset2Prompt(inspiration: string, seed?: string): string {
+function buildPreset2Prompt(inspiration: string, seed?: string, kontext?: VierW | null): string {
+  // Der 4W-Kontext wird nur auf ausdrueckliche Anforderung mitgeschickt. Frueher
+  // flossen Ort und Figuren ueber den Wortbank-Prompt unbemerkt ein - so bekamen
+  // sechs eingebaute Presets die Voreinstellung "Schafsweide / Baucis, Philemon"
+  // ab, obwohl ihr Thema ein voellig anderes war.
+  const k = kontext && (kontext.where || kontext.when || kontext.who || kontext.what)
+    ? "BEZIEHE diesen Kontext ein - das Preset soll zu ihm passen:\n"
+      + `Ort: ${kontext.where || "(offen)"}\nZeit: ${kontext.when || "(offen)"}\n`
+      + `Figur(en): ${kontext.who || "(offen)"}\nHandlung: ${kontext.what || "(offen)"}\n\n`
+    : "";
   const seedPart = seed
     ? "Hier ist ein BESTEHENDES Preset/Material zum selben Thema. Verbessere und erweitere es: Thema beibehalten und schaerfen, Grammatik korrigieren, bei Requisiten/Motiven Artikel ergaenzen, ALLE satzartigen Eintraege ins PRAESENS setzen (Praeteritum-Formen wie \"erkannte\", \"war\", \"ging\" umschreiben zu \"erkennt\", \"ist\", \"geht\"), fehlende Felder (dramaturgie, transformation, konflikte, zeitanomalien, regeln) ausfuellen, pro generatoren-Kategorie 8-12 Eintraege. Ausgangsmaterial:\n" + seed + "\n\n"
     : "";
-  return seedPart + 'Du erstellst ein "Preset 2.0" für einen prozeduralen, deutschsprachigen Kreativ-Textgenerator (Divergenzmaschine). '
+  return k + seedPart + 'Du erstellst ein "Preset 2.0" für einen prozeduralen, deutschsprachigen Kreativ-Textgenerator (Divergenzmaschine). '
     + "Inspiration/Ausgangspunkt: " + (inspiration || "(frei wählbar)") + ".\n\n"
     + "Gib NUR reines JSON zurück (beginnt mit { , endet mit } , kein Markdown, keine Erklärung), exakt mit diesen Schlüsseln:\n"
     + "{\n"

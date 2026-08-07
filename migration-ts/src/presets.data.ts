@@ -1732,27 +1732,27 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
   },
   "tanz": {
     "motifs": [
-      "ein Tanz im Kreis der Schafe, der niemals endet",
+      "ein Kreis, der sich dreht, ohne dass jemand führt",
       "zwei Schatten, die sich drehen, ohne Musik",
       "der Wind tanzt durch das Gras wie eine unsichtbare Hand",
-      "ein altes Lied, das nur die Schafe zu hören scheinen",
-      "Baucis' und Philemons Schritte im gleichen geheimen Takt",
-      "ein Reigen, der sich im Nebel der Weide verliert",
-      "die Wolle der Schafe wirbelt wie Schnee im Mondlicht",
+      "ein altes Lied, das nur die Füße zu kennen scheinen",
+      "zwei Paar Schritte im gleichen geheimen Takt",
+      "ein Reigen, der sich im Nebel des Saals verliert",
+      "aufgewirbelter Staub, der wie Schnee im Mondlicht steht",
       "ein Lächeln, das älter ist als der Tanz selbst"
     ],
     "hooks": [
-      "die Schafe bleiben stehen, sobald der Tanz beginnt",
+      "die Musik setzt aus, doch niemand bleibt stehen",
       "ein Glöckchen läutet, ohne dass jemand es berührt",
-      "Philemons Schatten tanzt einen Takt zu spät",
-      "Baucis summt eine Melodie, die niemand ihr beibrachte",
+      "ein Schatten tanzt einen Takt zu spät",
+      "jemand summt eine Melodie, die ihm niemand beibrachte",
       "der Kreis im Gras ist genau so groß wie ihr Tanz",
       "ein Schaf folgt ihrem Tanz mit geneigtem Kopf",
       "ihre Fußspuren verschwinden, kaum sind sie gesetzt",
       "der Wind hält kurz den Atem an"
     ],
     "props": [
-      "einen alten Hirtenstab",
+      "eine Geige ohne Saiten",
       "ein verwittertes Glöckchen",
       "einen Kranz aus Wiesenblumen",
       "ein Tuch, das nach Zeit riecht",
@@ -1764,16 +1764,16 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     "turns": [
       "plötzlich tanzen sie, als hätten sie es niemals verlernt",
       "auf einmal lächeln beide zur gleichen Sekunde",
-      "die Weide scheint sich mit ihnen zu drehen",
+      "der Boden scheint sich mit ihnen zu drehen",
       "mit dem ersten Schritt wird die Zeit ganz still",
-      "ihr Tanz zieht die Schafe in einen stillen Kreis",
+      "ihr Tanz zieht die Umstehenden in einen stillen Kreis",
       "als der Mond aufgeht, beginnt der Tanz von selbst"
     ],
     "obstacles": [
-      "die Weide liegt plötzlich im Nebel verborgen",
+      "der Saal liegt plötzlich im Halbdunkel",
       "ihre Füße scheinen den Boden nicht mehr zu berühren",
       "der Tanz will nicht enden, obwohl die Kräfte schwinden",
-      "die Schafe weichen zurück, als spürten sie etwas Fremdes",
+      "die anderen weichen zurück, als spürten sie etwas Fremdes",
       "kein Lied begleitet ihre Schritte, und doch tanzen sie weiter"
     ],
     "stakes": [
@@ -1785,9 +1785,9 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     ],
     "endings": [
       "So tanzen sie weiter, wenn niemand mehr hinsieht.",
-      "Und die Schafe erinnern sich an den Tanz, wenn der Mond wiederkehrt.",
+      "Und das Holz erinnert sich an den Takt, wenn der Saal längst leer ist.",
       "So schließt sich der Kreis, Schritt für Schritt.",
-      "Am Ende bleibt nur ihr Lächeln über der stillen Weide.",
+      "Am Ende bleibt nur ihr Lächeln über dem stillen Boden.",
       "Und der Tanz wird zur Legende, die der Wind weiterträgt."
     ]
   },
@@ -1982,23 +1982,23 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
   "staatsphilosophie": {
     "motifs": [
       "ein Gesetzbuch, das niemand je geschrieben hat",
-      "ein Zepter aus verwittertem Hirtenstab",
-      "eine Grenze, die durch die Weide läuft, unsichtbar",
-      "der Schatten eines Throns über den Schafen",
+      "ein Zepter aus verwittertem Holz",
+      "eine Grenze, die durch das Land läuft, unsichtbar",
+      "der Schatten eines Throns über den Köpfen",
       "ein Siegelring, verloren im Gras",
       "ein Vertrag, in Wolle eingewebt",
       "die Stille eines Gesetzes vor seiner Verkündung",
-      "ein Herrscherblick in den Augen der Schafe",
+      "ein Herrscherblick in den Augen der Beherrschten",
       "die Wiederkehr eines alten Eids"
     ],
     "hooks": [
       "ein Schaf trägt ein Amulett mit einem Wappen",
-      "Philemon murmelt Worte wie aus einem Gesetzestext",
-      "Baucis zeichnet Linien in den Staub, wie Grenzen",
+      "jemand murmelt Worte wie aus einem Gesetzestext",
+      "eine Hand zeichnet Linien in den Staub, wie Grenzen",
       "ein Fremder fragt nach dem 'Herrn dieses Landes'",
       "der Wind trägt eine Stimme, die von Pflicht spricht",
       "zwischen den Hufspuren liegt ein Siegel aus Ton",
-      "die Schafe folgen einer Ordnung, die niemand befahl",
+      "alle folgen einer Ordnung, die niemand befahl",
       "ein Stein in der Erde trägt eingeritzte Paragraphen"
     ],
     "props": [
@@ -2006,37 +2006,37 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Tontafel mit unleserlichen Gesetzen",
       "ein Wollknäuel, verknotet wie ein Staatsvertrag",
       "einen alten Siegelring",
-      "eine Hirtenflöte mit eingeritzten Symbolen",
+      "eine Flöte mit eingeritzten Symbolen",
       "ein vergilbtes Pergament ohne Unterschrift",
       "einen Wanderstab mit eingeschnitzter Krone",
       "ein verrostetes Schloss ohne Schlüssel",
       "eine Münze mit unbekanntem Antlitz"
     ],
     "turns": [
-      "plötzlich erkennt Baucis im Blöken der Schafe eine Ordnung, die einem Gesetz gleicht",
-      "Philemon lächelt, als verstünde er die stumme Verfassung der Weide",
+      "plötzlich zeigt sich im Lärm der Menge eine Ordnung, die einem Gesetz gleicht",
+      "ein Lächeln verrät, dass jemand die stumme Verfassung längst versteht",
       "auf einmal scheint die ganze Herde einem unsichtbaren Herrscher zu gehorchen",
       "ohne Vorwarnung spricht der Wind wie ein Urteil",
-      "es scheint, als hätte die Weide seit jeher eigene Gesetze"
+      "es scheint, als hätte das Land seit jeher eigene Gesetze"
     ],
     "obstacles": [
-      "die Grenze der Weide lässt sich nicht mit Worten erklären",
+      "die Grenze lässt sich nicht mit Worten erklären",
       "niemand erinnert sich, wer die ersten Regeln aufstellte",
-      "die Schafe gehorchen keinem Ruf mehr",
+      "niemand gehorcht mehr einem Ruf",
       "der alte Vertrag ist im Boden versunken",
       "ein Nebel verwischt jede sichtbare Ordnung"
     ],
     "stakes": [
       "Der Einsatz ist Gerechtigkeit: für ein Land ohne Namen.",
-      "Der Einsatz ist Ordnung: bewahrt von zwei alten Hirten.",
+      "Der Einsatz ist Ordnung: bewahrt von zwei alten Händen.",
       "Der Einsatz ist Macht: verborgen im Lächeln der Weise.",
       "Der Einsatz ist Frieden: erkauft mit Schweigen.",
       "Der Einsatz ist Herrschaft: über etwas, das niemand sieht."
     ],
     "endings": [
       "So bleibt die Ordnung ungeschrieben, aber lebendig.",
-      "Und die Schafe folgten weiterhin einem Gesetz ohne Namen.",
-      "So verschwimmt Herrschaft mit Hirtentum.",
+      "Und alle folgen weiterhin einem Gesetz ohne Namen.",
+      "So verschwimmt Herrschaft mit Gewohnheit.",
       "Am Ende lächelten beide, als wüssten sie, wer wirklich regiert.",
       "So schließt sich der Kreis von Macht und Stille."
     ]
@@ -2045,26 +2045,26 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     "motifs": [
       "ein Schaf, das mit Menschenaugen blickt",
       "Nebel, der Gesichter formt und wieder löst",
-      "eine Weide, die im Schlaf zu atmen scheint",
+      "ein Zimmer, das im Schlaf zu atmen scheint",
       "zwei Schatten, die sich lächelnd berühren",
       "ein Traumbild von Göttern in Bettlergestalt",
       "Wolken, die wie erinnerte Gesichter ziehen",
       "ein Licht zwischen den Bäumen, das niemand entzündet hat",
-      "die Weide, die sich in einen See aus Schlaf verwandelt"
+      "eine Ebene, die sich in einen See aus Schlaf verwandelt"
     ],
     "hooks": [
       "ein Lächeln, das älter wirkt als ihr Gesicht",
-      "Schafe, die alle in dieselbe Richtung schauen",
+      "Gesichter, die alle in dieselbe Richtung schauen",
       "ein Windhauch, der nach fremden Worten riecht",
-      "Philemons Hand, die zittert, ohne zu frieren",
-      "ein Schatten, der Baucis folgt, aber nicht ihr gehört",
+      "eine Hand, die zittert, ohne zu frieren",
+      "ein Schatten, der jemandem folgt, aber nicht ihm gehört",
       "ein Klang wie ferne Schritte über Wolken",
       "der Geruch von Brot, wo kein Ofen brennt",
       "zwei Fremde, die schon immer da gewesen sein könnten"
     ],
     "props": [
       "einen Krug, der niemals leer wird",
-      "einen alten Hirtenstab",
+      "einen Schlüssel ohne Schloss",
       "eine Decke aus grauer Wolle",
       "einen Becher voller Traumwasser",
       "eine Kette aus getrockneten Blumen",
@@ -2074,20 +2074,20 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Feder, die im Wind nicht fällt"
     ],
     "turns": [
-      "Plötzlich wissen Baucis und Philemon, dass sie träumen und doch nicht erwachen wollen.",
-      "Die Schafe verstummen, als die Fremden zu lächeln beginnen.",
+      "Plötzlich ist klar: hier wird geträumt, und niemand will erwachen.",
+      "Die Stimmen verstummen, als die Fremden zu lächeln beginnen.",
       "Ein Windstoß trägt eine Stimme, die niemand ausgesprochen hat.",
-      "Die Weide beginnt sich zu drehen, als läge sie in einem Traum.",
-      "Baucis erkennt in den Augen der Fremden ihr eigenes Spiegelbild.",
+      "Der Boden beginnt sich zu drehen, als läge er in einem Traum.",
+      "In den Augen der Fremden erscheint das eigene Spiegelbild.",
       "Der Himmel färbt sich golden, obwohl es Nacht sein sollte."
     ],
     "obstacles": [
       "Die Fremden sprechen eine Sprache, die nur im Traum verständlich ist.",
       "Der Weg zur Hütte verschwindet zwischen den Nebelschwaden.",
-      "Die Schafe weigern sich, die Weide zu verlassen.",
-      "Ein unsichtbares Gewicht hält Philemons Schritte zurück.",
+      "Der Weg zurück liegt offen, doch niemand findet ihn.",
+      "Ein unsichtbares Gewicht hält jeden Schritt zurück.",
       "Die Zeit scheint sich zu verdoppeln, ohne Fortschritt zu machen.",
-      "Baucis' Stimme verhallt, bevor sie ihr Ende erreicht."
+      "Jede Stimme verhallt, bevor sie ihr Ende erreicht."
     ],
     "stakes": [
       "Der Einsatz ist Gastfreundschaft: die letzte, die bleibt.",
@@ -2098,12 +2098,12 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist die Gnade der Götter, verkleidet als Fremde."
     ],
     "endings": [
-      "So verschwimmt der Traum mit der Weide, für immer.",
+      "So verschwimmt der Traum mit dem Zimmer, für immer.",
       "So bleibt nur ein Lächeln, das die Zeit überdauert.",
       "So schließt sich der Kreis zwischen Himmel und Erde.",
       "So wird aus zwei Herzen ein einziger Baum.",
       "So endet der Traum, doch das Lächeln bleibt wach.",
-      "So verklingt die Weide im ersten Licht des Erwachens."
+      "So verklingt alles im ersten Licht des Erwachens."
     ]
   },
   "mystery": {
