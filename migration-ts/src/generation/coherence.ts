@@ -8,8 +8,14 @@ import { NOUN_GENDER } from "./nouns.data";
 // ── 1) Tempus ────────────────────────────────────────────────────────
 // Präteritum-Marker: starke Formen + schwache -te/-ten-Endungen.
 const PRAET_STRONG = /\b(war|waren|warst|hatte|hatten|wurde|wurden|ging|gingen|kam|kamen|sah|sahen|gab|gaben|stand|standen|blieb|blieben|hielt|hielten|ließ|ließen|fand|fanden|nahm|nahmen|sprach|sprachen|schrieb|schrieben|trug|trugen|fuhr|fuhren|lief|liefen|saß|saßen|lag|lagen|hieß|hießen|zog|zogen|schlief|schliefen|rief|riefen|fiel|fielen|sang|sangen|trank|tranken|schwieg|schwiegen|floss|flossen|stieg|stiegen|sank|sanken|bot|boten|schloss|schlossen|verlor|verloren|begann|begannen|geschah|geschahen|konnte|konnten|musste|mussten|wollte|wollten|sollte|sollten|durfte|durften|wusste|wussten|dachte|dachten|brachte|brachten)\b/i;
-const PRAET_WEAK = /\b[a-zäöüß]{3,}(te|ten|test|tet)\b/;   // bewusst OHNE /i: Nomen (Seekarte, Karten) sind großgeschrieben
-const PRAES_MARK = /\b(ist|sind|bin|bist|seid|hat|habe|hast|haben|habt|wird|werden|wirst|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|weiß|wissen|geht|gehen|kommt|kommen|sieht|sehen|steht|stehen|bleibt|bleiben|liegt|liegen|gibt|geben|nimmt|nehmen|spricht|sprechen|trägt|tragen|läuft|laufen|fällt|fallen|geschieht|passiert|beginnt|endet)\b/i;
+// Bewusst OHNE /i: Nomen (Seekarte, Karten) sind großgeschrieben.
+// "tet" gehoerte hier NICHT hin: "er wartet", "sie antwortet", "es bedeutet" sind
+// Praesens, dritte Person Singular von Verben mit t-Stamm. Das Muster hat sie fuer
+// Praeteritum gehalten - ein reiner Praesens-Text bekam dadurch die schlechteste
+// Note. Die zweite Person Plural ("ihr wartetet") faellt jetzt durch; sie kommt in
+// erzaehlendem Text praktisch nicht vor.
+const PRAET_WEAK = /\b[a-zäöüß]{3,}(te|ten|test)\b/;
+const PRAES_MARK = /\b(ist|sind|bin|bist|seid|hat|habe|hast|haben|habt|wird|werden|wirst|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|weiß|wissen|geht|gehen|kommt|kommen|sieht|sehen|steht|stehen|bleibt|bleiben|liegt|liegen|gibt|geben|nimmt|nehmen|spricht|sprechen|trägt|tragen|läuft|laufen|fällt|fallen|geschieht|passiert|beginnt|endet|wartet|antwortet|arbeitet|bedeutet|beobachtet|berichtet|schlägt|zeigt|dauert|öffnet|schließt|klingt|riecht|scheint|hört|fühlt|wirkt|führt|dreht|zieht|hält|läuft|fließt|wächst|sinkt|steigt|schweigt|spricht|denkt|kennt|nennt|trägt|findet|verliert|verschwindet)\b/i;
 
 /** Steht dieser einzelne Eintrag/Satz im Präteritum? (für Wortbank-Prüfung) */
 // Attributives Adjektiv statt Verb: „eine mondbeglänzte Wipfel“, „die letzte Scheibe“.

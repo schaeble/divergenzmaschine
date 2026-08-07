@@ -16,13 +16,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "zitternde Tiefe unter dem Rumpf"
     ],
     "hooks": [
-      "Ich war frei von jeder Hand.",
-      "Der Fluss hatte mich losgeschnitten.",
-      "Niemand hielt mehr das Steuer.",
-      "Ich trieb durch ein Meer ohne Karten.",
+      "Ich bin frei von jeder Hand.",
+      "Der Fluss hat mich losgeschnitten.",
+      "Niemand hält mehr das Steuer.",
+      "Ich treibe durch ein Meer ohne Karten.",
       "Die Nacht schlug wie eine Welle über mich.",
-      "Ich hatte meine Anker vergessen.",
-      "Kein Hafen rief meinen Namen."
+      "Ich habe meine Anker vergessen.",
+      "Kein Hafen ruft meinen Namen."
     ],
     "props": [
       "ein zerrissenes Segel",
@@ -37,13 +37,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "einen gesplitterten Mast"
     ],
     "turns": [
-      "das Meer antwortete mit Farben",
-      "der Himmel stürzte ins Wasser",
-      "die Sterne begannen zu sinken",
-      "etwas unter mir atmete",
-      "die Wellen trugen Gesichter",
-      "ein Leuchten brach aus der Tiefe",
-      "der Wind wurde zu einer Stimme"
+      "das Meer antwortet mit Farben",
+      "der Himmel stürzt ins Wasser",
+      "die Sterne beginnen zu sinken",
+      "etwas unter mir atmet",
+      "die Wellen tragen Gesichter",
+      "ein Leuchten bricht aus der Tiefe",
+      "der Wind wird zu einer Stimme"
     ],
     "obstacles": [
       "Strömungen ohne Richtung",
@@ -62,11 +62,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist die Rückkehr an ein Ufer."
     ],
     "endings": [
-      "Ich wollte zurück in ein stilles Becken.",
-      "Vielleicht träumte ich von einem kleinen Hafen.",
-      "Ich sehnte mich nach einem klaren Ufer.",
-      "Ich war müde vom grenzenlosen Blau.",
-      "Die See schwieg zuletzt."
+      "Ich will zurück in ein stilles Becken.",
+      "Vielleicht träume ich von einem kleinen Hafen.",
+      "Ich sehne mich nach einem klaren Ufer.",
+      "Ich bin müde vom grenzenlosen Blau.",
+      "Die See schweigt zuletzt."
     ]
   },
   "baudelaire": {
@@ -83,13 +83,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Himmel, der wie Samt drückt"
     ],
     "hooks": [
-      "Im Schaufenster lag Schönheit wie eine Drohung.",
-      "Ein Duft blieb an mir hängen, als hätte er Zähne.",
-      "Die Stadt atmete langsam, mit schwerem Atem.",
-      "Jemand lachte zu leise, um harmlos zu sein.",
-      "Zwischen zwei Laternen fiel ein Schatten aus der Zeit.",
-      "Ich ging, als trüge ich meinen Namen wie eine Last.",
-      "Etwas Glänzendes lag im Schmutz und tat unschuldig."
+      "Im Schaufenster liegt Schönheit wie eine Drohung.",
+      "Ein Duft bleibt an mir hängen, als hätte er Zähne.",
+      "Die Stadt atmet langsam, mit schwerem Atem.",
+      "Jemand lacht zu leise, um harmlos zu sein.",
+      "Zwischen zwei Laternen fällt ein Schatten aus der Zeit.",
+      "Ich gehe, als trüge ich meinen Namen wie eine Last.",
+      "Etwas Glänzendes liegt im Schmutz und tut unschuldig."
     ],
     "props": [
       "eine zerknitterte Visitenkarte",
@@ -129,11 +129,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Freiheit: Sie kostet Luxus."
     ],
     "endings": [
-      "Und die Stadt schloss ihre Lippen.",
-      "Und der Duft blieb, wie ein Urteil.",
-      "Damit war die Schönheit erledigt.",
-      "So blieb nur Glanz auf kalter Haut.",
-      "Und ich ging, als hätte ich gewonnen – und verloren."
+      "Und die Stadt schließt ihre Lippen.",
+      "Und der Duft bleibt, wie ein Urteil.",
+      "Damit ist die Schönheit erledigt.",
+      "So bleibt nur Glanz auf kalter Haut.",
+      "Und ich gehe, als hätte ich gewonnen – und verloren."
     ]
   },
   "kafka": {
@@ -150,13 +150,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Treppe, die nach unten führt und höher endet"
     ],
     "hooks": [
-      "Der Brief war da, bevor ich ihn erwartet hatte.",
-      "Niemand sagte mir, worum es ging, aber alle taten so.",
-      "Die Tür stand offen und war dennoch verschlossen.",
-      "Mein Name klang plötzlich wie ein Fehler im System.",
+      "Der Brief ist da, bevor ich ihn erwarte.",
+      "Niemand sagt mir, worum es geht, aber alle tun so.",
+      "Die Tür steht offen und ist dennoch verschlossen.",
+      "Mein Name klingt plötzlich wie ein Fehler im System.",
       "Die Luft roch nach Papier und geduldeter Angst.",
-      "Ich hatte eine Nummer, aber keinen Platz.",
-      "Der Wachmann nickte, als hätte er mich erfunden."
+      "Ich habe eine Nummer, aber keinen Platz.",
+      "Der Wachmann nickt, als hätte er mich erfunden."
     ],
     "props": [
       "einen Bleistift ohne Spitze",
@@ -196,10 +196,10 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Schuld: Sie existiert vor der Tat."
     ],
     "endings": [
-      "Damit war der Vorgang eröffnet.",
-      "Und es gab keinen nächsten Schalter.",
-      "So blieb nur das Warten als Entscheidung.",
-      "Und der Bescheid war schon gültig.",
+      "Damit ist der Vorgang eröffnet.",
+      "Und es gibt keinen nächsten Schalter.",
+      "So bleibt nur das Warten als Entscheidung.",
+      "Und der Bescheid ist schon gültig.",
       "Und ich unterschrieb, ohne zu wissen, was ich war."
     ]
   },
@@ -217,12 +217,12 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Licht, das schneidet"
     ],
     "hooks": [
-      "Die Stadt sprang mich an.",
-      "Ich hörte mein Blut in den Drähten.",
-      "Die Häuser standen zu nah, als wollten sie zubeißen.",
-      "Ein Schrei hing zwischen zwei Reklamen.",
-      "Meine Schritte klangen wie Anklagen.",
-      "Das Licht war zu hell, um wahr zu sein.",
+      "Die Stadt springt mich an.",
+      "Ich höre mein Blut in den Drähten.",
+      "Die Häuser stehen zu nah, als wollten sie zubeißen.",
+      "Ein Schrei hängt zwischen zwei Reklamen.",
+      "Meine Schritte klingen wie Anklagen.",
+      "Das Licht ist zu hell, um wahr zu sein.",
       "Jemand rannte, ohne zu wissen, wohin."
     ],
     "props": [
@@ -263,10 +263,10 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Morgen: Es könnte brennen."
     ],
     "endings": [
-      "Und die Stadt lachte im Neon.",
-      "Und der Morgen kam wie eine Beule.",
+      "Und die Stadt lacht im Neon.",
+      "Und der Morgen kommt wie eine Beule.",
       "So blieb ich stehen, weil alles rannte.",
-      "Und der Schrei wurde leise.",
+      "Und der Schrei wird leise.",
       "Und das Licht tat, als wäre es sauber."
     ]
   },
@@ -284,13 +284,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Spiegel, der einen anderen Raum behauptet"
     ],
     "hooks": [
-      "Ich trat in den Raum, und der Raum trat zurück.",
-      "Ein Satz lag auf dem Boden wie eine Banane.",
+      "Ich trete in den Raum, und der Raum tritt zurück.",
+      "Ein Satz liegt auf dem Boden wie eine Banane.",
       "Die Lampe machte Geräusche, als wäre sie nass.",
-      "Jemand sprach, aber die Worte kamen aus der Tapete.",
-      "Meine Schuhe wussten den Weg, ich nicht.",
-      "Ein Vogel bat um eine Quittung.",
-      "Die Tür erinnerte sich an mein Gesicht."
+      "Jemand spricht, aber die Worte kommen aus der Tapete.",
+      "Meine Schuhe wissen den Weg, ich nicht.",
+      "Ein Vogel bittet um eine Quittung.",
+      "Die Tür erinnert sich an mein Gesicht."
     ],
     "props": [
       "einen Regenschirm",
@@ -331,77 +331,77 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     ],
     "endings": [
       "Und der Traum unterschrieb mit meinem Namen.",
-      "Und als ich erwachte, war der Raum größer.",
-      "So blieb nur der Beweis: ein nasser Schlüssel.",
-      "Und die Uhr aß die letzte Minute.",
-      "Und die Tür tat, als hätte sie mich nie gekannt."
+      "Und als ich erwache, ist der Raum größer.",
+      "So bleibt nur der Beweis: ein nasser Schlüssel.",
+      "Und die Uhr isst die letzte Minute.",
+      "Und die Tür tut, als hätte sie mich nie gekannt."
     ]
   },
   "transzendenz": {
     "motifs": [
-      "eine Stimme aus synthetischem Schnee",
-      "ein Körper aus Ersatzteilen",
-      "ein Gedanke als Protokoll",
-      "ein Sensor, der Träume misst",
-      "ein Himmel aus Glasfaser",
-      "eine Erinnerung als Datei",
-      "eine Haut mit Versionsnummer",
-      "ein Auge ohne Lid",
-      "ein Summen, das Entscheidungen trifft",
-      "ein Stern, der wie ein Server blinkt"
+      "eine Stimme, die von nirgendwo kommt",
+      "ein Atem, der größer ist als der Körper",
+      "ein Gedanke ohne Denkenden",
+      "eine Schwelle ohne Tür",
+      "ein Weiß, das alle Farben enthält",
+      "eine Weite hinter geschlossenen Augen",
+      "eine Haut, die nicht mehr trennt",
+      "ein Licht, das keine Quelle braucht",
+      "ein Klang, der vor dem Hören schon da ist",
+      "ein Punkt, in dem alles zusammenfällt"
     ],
     "hooks": [
-      "Ich wachte auf, und mein Name war ein Update.",
-      "Die Stadt war still, weil sie rechnete.",
-      "Ein Signal rief mich, als wäre ich kompatibel.",
-      "Meine Hände erinnerten sich an eine andere Firmware.",
-      "Im Spiegel stand eine Version von mir, die ich nicht kannte.",
-      "Die Luft trug Daten wie Staub.",
-      "Jemand hatte mein Gefühl archiviert."
+      "der eigene Name klingt plötzlich geliehen",
+      "die Stille hat auf einmal einen Klang",
+      "etwas antwortet, ohne zu sprechen",
+      "die Hände liegen still und arbeiten doch",
+      "im Spiegel steht jemand, der nichts behauptet",
+      "die Luft trägt mehr, als sie wiegt",
+      "das Ich rückt einen Schritt zur Seite"
     ],
     "props": [
-      "ein Datenfragment",
-      "eine Kontaktlinse mit Overlay",
-      "ein kaltes Kabel",
-      "ein Speicherchip",
-      "ein Diagnosetool",
-      "eine Drohnenmarke",
-      "ein zerlegbares Modul",
-      "eine Frequenzkarte",
-      "ein Handschuh mit Feedback",
-      "ein Schlüssel aus Plastik"
+      "eine Schale ohne Boden",
+      "ein Tuch aus ungefärbtem Leinen",
+      "einen Stein, warm ohne Sonne",
+      "eine Kerze, die niemand entzündet hat",
+      "ein Buch mit leeren Seiten",
+      "eine Glocke ohne Klöppel",
+      "einen Spiegel ohne Bild",
+      "einen Faden ohne Ende",
+      "eine Feder, die nicht fällt",
+      "eine Schwelle aus abgetretenem Holz"
     ],
     "turns": [
-      "die Emotion wird zur Berechnung",
-      "ein Backup spricht mit meiner Stimme",
-      "die Realität wechselt den Modus",
-      "der Körper akzeptiert eine fremde Signatur",
-      "ein Protokoll ersetzt eine Erinnerung",
-      "das Netz schließt eine Lücke – in mir",
-      "die Menschlichkeit erscheint als Artefakt"
+      "die Grenze zwischen innen und außen wird durchlässig",
+      "das Wort reicht nicht mehr und hört auf",
+      "die Frage verliert ihren Fragenden",
+      "aus Suchen wird Stillhalten",
+      "das Einzelne wird durchsichtig",
+      "die Antwort kommt vor der Frage",
+      "das Ich löst sich, ohne zu verschwinden"
     ],
     "obstacles": [
-      "der Zugriff ist gesperrt",
-      "die Identität ist inkonsistent",
-      "ein Prozess läuft ohne Erlaubnis",
-      "das System verlangt Zustimmung, die es schon hat",
-      "die Sensoren widersprechen dem Gefühl",
-      "ein Timeout löscht den Moment",
-      "eine Kopie beansprucht den Platz"
+      "jede Beschreibung verfehlt es",
+      "das Suchen selbst steht im Weg",
+      "die Sprache kehrt immer zum Sprecher zurück",
+      "wer es festhält, verliert es",
+      "der Verstand verlangt einen Beweis",
+      "die Gewohnheit zieht zurück ins Vertraute",
+      "die Erfahrung lässt sich nicht wiederholen"
     ],
     "stakes": [
-      "Der Einsatz ist Selbst: Es wird versioniert.",
-      "Der Einsatz ist Erinnerung: Sie kann überschrieben werden.",
-      "Der Einsatz ist Freiheit: Sie ist ein Rechtepaket.",
-      "Der Einsatz ist Körper: Er ist austauschbar.",
-      "Der Einsatz ist Liebe: Sie ist eine Schnittstelle."
+      "Der Einsatz ist Gewissheit: ohne jeden Beweis.",
+      "Der Einsatz ist ein Ich, das nichts mehr behauptet.",
+      "Der Einsatz ist die Sprache, die zurücktreten muss.",
+      "Der Einsatz ist ein Augenblick, der alle anderen enthält.",
+      "Der Einsatz ist alles, was man zu wissen glaubt."
     ],
     "endings": [
-      "Und das Update war nicht rückgängig zu machen.",
-      "Und ich war online, obwohl ich schwieg.",
-      "So blieb nur die Version, nicht das Wesen.",
-      "Und das System nannte es Heilung.",
-      "Und irgendwo lief mein Backup weiter."
+      "So bleibt nur das Licht, das keiner entzündet hat.",
+      "Und die Stille hält, was kein Wort versprochen hat.",
+      "So endet das Suchen, ohne dass etwas gefunden ist.",
+      "Am Ende steht kein Satz, nur ein Atemzug.",
+      "So schließt sich der Raum, der nie einer war."
     ]
   },
   "melville": {
@@ -418,13 +418,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Tiefe, die antwortlos bleibt"
     ],
     "hooks": [
-      "Ich trat an Deck, als wäre es ein Urteil.",
-      "Der Ozean lag da wie ein Gesetz, das niemand erklärt.",
-      "Ein Schatten unter der Oberfläche machte die Welt schwer.",
-      "Der Wind sprach, aber nicht zu uns.",
-      "Wir fuhren, als jagten wir einem Gedanken nach.",
-      "Das Wasser glänzte, als hätte es einen Willen.",
-      "Ein Ruf ging über die See und kam verändert zurück."
+      "Ich trete an Deck, als wäre es ein Urteil.",
+      "Der Ozean liegt da wie ein Gesetz, das niemand erklärt.",
+      "Ein Schatten unter der Oberfläche macht die Welt schwer.",
+      "Der Wind spricht, aber nicht zu uns.",
+      "Wir fahren, als jagten wir einem Gedanken nach.",
+      "Das Wasser glänzt, als hätte es einen Willen.",
+      "Ein Ruf geht über die See und kommt verändert zurück."
     ],
     "props": [
       "eine Harpune",
@@ -464,11 +464,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Heimkehr: Sie wird zu einer Legende."
     ],
     "endings": [
-      "Und das Meer blieb, wie es war.",
-      "Und wir begriffen, dass die Jagd uns jagte.",
-      "So endete es im Nebel, nicht im Sieg.",
-      "Und der Horizont tat, als hätte er nichts gesehen.",
-      "Und das Logbuch schloss sich wie ein Gebet."
+      "Und das Meer bleibt, wie es ist.",
+      "Und wir begreifen, dass die Jagd uns jagt.",
+      "So endet es im Nebel, nicht im Sieg.",
+      "Und der Horizont tut, als hätte er nichts gesehen.",
+      "Und das Logbuch schließt sich wie ein Gebet."
     ]
   },
   "formalismus": {
@@ -551,13 +551,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Tür ohne Klinke in einer Kapelle"
     ],
     "hooks": [
-      "Das Licht fiel nicht vom Himmel, sondern aus meinem Mund.",
-      "Die Glocken läuteten rückwärts.",
-      "Ich kniete, und der Boden antwortete.",
-      "Ein Gleichnis stand plötzlich im Raum.",
+      "Das Licht fällt nicht vom Himmel, sondern aus meinem Mund.",
+      "Die Glocken läuten rückwärts.",
+      "Ich knie, und der Boden antwortet.",
+      "Ein Gleichnis steht plötzlich im Raum.",
       "Der Wind roch nach Weihrauch und Regen.",
-      "Ein Engel verwechselte meinen Namen.",
-      "Das Brot zerbrach, bevor ich es berührte."
+      "Ein Engel verwechselt meinen Namen.",
+      "Das Brot zerbricht, bevor ich es berühre."
     ],
     "props": [
       "eine Kerze",
@@ -597,11 +597,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Auferstehung: Sie widerspricht der Logik."
     ],
     "endings": [
-      "Und das Licht blieb, auch ohne Sonne.",
-      "Und der Stein war leichter als mein Herz.",
-      "Und ich ging, als hätte ich Flügel.",
-      "Und das Brot reichte für alle.",
-      "Und der Himmel öffnete sich nach innen."
+      "Und das Licht bleibt, auch ohne Sonne.",
+      "Und der Stein ist leichter als mein Herz.",
+      "Und ich gehe, als hätte ich Flügel.",
+      "Und das Brot reicht für alle.",
+      "Und der Himmel öffnet sich nach innen."
     ]
   },
   "koran": {
@@ -618,13 +618,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Siegel aus Licht auf der Stirn"
     ],
     "hooks": [
-      "Die Worte kamen wie Regen in der Nacht.",
-      "Der Ruf erreichte mich vor meinem Namen.",
-      "Ich wusch meine Hände, und die Zeit wurde klar.",
-      "Die Wüste öffnete ein Auge.",
-      "Ein Vers stand im Sand.",
-      "Die Stille hatte einen Rhythmus.",
-      "Der Wind sprach arabisch."
+      "Die Worte kommen wie Regen in der Nacht.",
+      "Der Ruf erreicht mich vor meinem Namen.",
+      "Ich wasche meine Hände, und die Zeit wird klar.",
+      "Die Wüste öffnet ein Auge.",
+      "Ein Vers steht im Sand.",
+      "Die Stille hat einen Rhythmus.",
+      "Der Wind spricht arabisch."
     ],
     "props": [
       "einen Gebetsteppich",
@@ -664,11 +664,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Barmherzigkeit: Sie übersteigt das Maß."
     ],
     "endings": [
-      "Und die Wüste trug plötzlich Grün.",
-      "Und mein Herz fand seine Qibla.",
-      "Und der Vers blieb in mir.",
-      "Und die Nacht war nicht mehr dunkel.",
-      "Und der Garten öffnete sich im Inneren."
+      "Und die Wüste trägt plötzlich Grün.",
+      "Und mein Herz findet seine Qibla.",
+      "Und der Vers bleibt in mir.",
+      "Und die Nacht ist nicht mehr dunkel.",
+      "Und der Garten öffnet sich im Inneren."
     ]
   },
   "buddhismus": {
@@ -685,13 +685,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Berg, der atmet"
     ],
     "hooks": [
-      "Ich setzte mich, und die Welt setzte sich mit mir.",
-      "Ein Atemzug dauerte ein Jahrhundert.",
-      "Die Frage löste sich vor der Antwort.",
-      "Ein Blatt fiel, und ich verstand.",
-      "Die Stille war lauter als der Markt.",
-      "Ein Mönch lächelte ohne Grund.",
-      "Der Weg begann unter meinen Füßen."
+      "Ich setze mich, und die Welt setzt sich mit mir.",
+      "Ein Atemzug dauert ein Jahrhundert.",
+      "Die Frage löst sich vor der Antwort.",
+      "Ein Blatt fällt, und ich verstehe.",
+      "Die Stille ist lauter als der Markt.",
+      "Ein Mönch lächelt ohne Grund.",
+      "Der Weg beginnt unter meinen Füßen."
     ],
     "props": [
       "eine Gebetsschale",
@@ -731,11 +731,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Nirwana: Es ist kein Ort."
     ],
     "endings": [
-      "Und der Atem kehrte heim.",
-      "Und nichts fehlte.",
-      "Und der Kreis war offen.",
-      "Und die Blüte fiel nicht mehr.",
-      "Und der Weg war kein Weg."
+      "Und der Atem kehrt heim.",
+      "Und nichts fehlt.",
+      "Und der Kreis ist offen.",
+      "Und die Blüte fällt nicht mehr.",
+      "Und der Weg ist kein Weg."
     ]
   },
   "biologie": {
@@ -752,11 +752,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Skelett, das atmet"
     ],
     "hooks": [
-      "Die Zelle teilte sich zu früh.",
-      "Ein Blatt schrieb meinen Namen.",
-      "Das Mikroskop vergrößerte die Stille.",
+      "Die Zelle teilt sich zu früh.",
+      "Ein Blatt schreibt meinen Namen.",
+      "Das Mikroskop vergrößert die Stille.",
       "Ein Herz schlug außerhalb des Körpers.",
-      "Ein Tier sah mich an, als wüsste es mehr."
+      "Ein Tier sieht mich an, als wüsste es mehr."
     ],
     "props": [
       "ein Mikroskop",
@@ -796,11 +796,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Verantwortung: Wer verändert wen?"
     ],
     "endings": [
-      "Und das Leben wuchs weiter, leise.",
-      "Und die Mutation blieb.",
-      "So blieb nur eine Spur im Gewebe.",
-      "Und das Herz fand einen neuen Takt.",
-      "Und die Natur antwortete nicht."
+      "Und das Leben wächst weiter, leise.",
+      "Und die Mutation bleibt.",
+      "So bleibt nur eine Spur im Gewebe.",
+      "Und das Herz findet einen neuen Takt.",
+      "Und die Natur antwortet nicht."
     ]
   },
   "geologie": {
@@ -817,11 +817,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Höhle aus Salz"
     ],
     "hooks": [
-      "Der Boden unter mir dachte nach.",
-      "Ein Riss zog sich durch den Morgen.",
-      "Der Stein war wärmer als meine Hand.",
+      "Der Boden unter mir denkt nach.",
+      "Ein Riss zieht sich durch den Morgen.",
+      "Der Stein ist wärmer als meine Hand.",
       "Die Landschaft verschob sich um Millimeter.",
-      "Ein Fossil flüsterte meinen Namen."
+      "Ein Fossil flüstert meinen Namen."
     ],
     "props": [
       "ein Hammer",
@@ -861,11 +861,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Überleben: Die Erde entscheidet."
     ],
     "endings": [
-      "Und der Berg schwieg wieder.",
-      "Und die Schichten schlossen sich.",
-      "So blieb nur ein Abdruck im Gestein.",
-      "Und der Riss wurde zu einer Linie auf Papier.",
-      "Und der Staub legte sich wie Schnee."
+      "Und der Berg schweigt wieder.",
+      "Und die Schichten schließen sich.",
+      "So bleibt nur ein Abdruck im Gestein.",
+      "Und der Riss wird zu einer Linie auf Papier.",
+      "Und der Staub legt sich wie Schnee."
     ]
   },
   "astrologie": {
@@ -882,11 +882,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Raumstation aus Knochen"
     ],
     "hooks": [
-      "Der Himmel atmete näher als sonst.",
-      "Ein Stern fiel nicht – er stieg.",
-      "Das Teleskop beobachtete mich.",
-      "Zwischen zwei Sekunden öffnete sich ein Orbit.",
-      "Der Mond war heute schwerer."
+      "Der Himmel atmet näher als sonst.",
+      "Ein Stern fällt nicht – er steigt.",
+      "Das Teleskop beobachtet mich.",
+      "Zwischen zwei Sekunden öffnet sich ein Orbit.",
+      "Der Mond ist heute schwerer."
     ],
     "props": [
       "ein Fernglas",
@@ -926,11 +926,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Heimkehr: Gibt es einen Weg zurück?"
     ],
     "endings": [
-      "Und die Sterne rückten ein Stück näher.",
-      "Und das Licht blieb zurück wie ein Echo.",
-      "So blieb nur Staub in meiner Hand.",
-      "Und der Planet drehte sich ohne mich weiter.",
-      "Und ich fiel – nach oben."
+      "Und die Sterne rücken ein Stück näher.",
+      "Und das Licht bleibt zurück wie ein Echo.",
+      "So bleibt nur Staub in meiner Hand.",
+      "Und der Planet dreht sich ohne mich weiter.",
+      "Und ich falle – nach oben."
     ]
   },
   "gaia": {
@@ -947,11 +947,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Atmosphäre als Haut"
     ],
     "hooks": [
-      "Die Erde blinzelte.",
-      "Ein Erdbeben war nur ein Zucken.",
-      "Der Wind sprach in ganzen Sätzen.",
-      "Die Gezeiten folgten einem Herzschlag.",
-      "Wir lebten auf einer Stirn."
+      "Die Erde blinzelt.",
+      "Ein Erdbeben ist nur ein Zucken.",
+      "Der Wind spricht in ganzen Sätzen.",
+      "Die Gezeiten folgen einem Herzschlag.",
+      "Wir leben auf einer Stirn."
     ],
     "props": [
       "eine Handvoll Erde",
@@ -991,11 +991,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Zukunft: Evolution oder Fieber."
     ],
     "endings": [
-      "Und der Planet atmete tiefer.",
-      "Und wir waren nur eine Phase.",
-      "So blieb ein leiser Herzschlag.",
-      "Und die Welt drehte sich weiter – wissend.",
-      "Und das Wesen schloss kurz die Augen."
+      "Und der Planet atmet tiefer.",
+      "Und wir sind nur eine Phase.",
+      "So bleibt ein leiser Herzschlag.",
+      "Und die Welt dreht sich weiter – wissend.",
+      "Und das Wesen schließt kurz die Augen."
     ]
   },
   "freud": {
@@ -1013,10 +1013,10 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     ],
     "hooks": [
       "Ich erinnere mich nicht, aber mein Körper schon.",
-      "Der Traum begann immer an derselben Stelle.",
-      "Es war nur ein Versprecher.",
+      "Der Traum beginnt immer an derselben Stelle.",
+      "Es ist nur ein Versprecher.",
       "Ich sagte Mutter, meinte aber etwas anderes.",
-      "Die Stille zwischen zwei Worten wurde zu laut."
+      "Die Stille zwischen zwei Worten wird zu laut."
     ],
     "props": [
       "eine Couch",
@@ -1056,11 +1056,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Erinnerung: Heilung oder Wiederholung."
     ],
     "endings": [
-      "Und das Unbewusste lächelte.",
-      "Und das Symptom verschwand – vorläufig.",
-      "So blieb nur eine neue Deutung.",
-      "Und der Traum begann erneut.",
-      "Und ich wusste, warum ich es vergessen hatte."
+      "Und das Unbewusste lächelt.",
+      "Und das Symptom verschwindet – vorläufig.",
+      "So bleibt nur eine neue Deutung.",
+      "Und der Traum beginnt erneut.",
+      "Und ich weiß, warum ich es vergessen habe."
     ]
   },
   "jugendsprache": {
@@ -1077,10 +1077,10 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Kommentar mit nur einem Wort: 'wild'"
     ],
     "hooks": [
-      "Bro, das war anders.",
+      "Bro, das ist anders.",
       "Sag ehrlich, fühlst du das?",
       "Das ist so random.",
-      "Lowkey war das krass.",
+      "Lowkey ist das krass.",
       "Ich schwör, kein Cap."
     ],
     "props": [
@@ -1121,11 +1121,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Humor: Lachen oder ausgelacht werden."
     ],
     "endings": [
-      "Und plötzlich war es peinlich.",
-      "Und alle fühlten es.",
-      "So wurde es ein Insider.",
-      "Und das Meme starb.",
-      "Und wir sagten einfach: wild."
+      "Und plötzlich ist es peinlich.",
+      "Und alle fühlen es.",
+      "So wird es ein Insider.",
+      "Und das Meme stirbt.",
+      "Und wir sagen einfach: wild."
     ]
   },
   "modernarchitecture": {
@@ -1142,11 +1142,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Gebäude auf Stelzen"
     ],
     "hooks": [
-      "Der Raum war größer als gedacht.",
-      "Nichts lenkte ab.",
-      "Licht fiel wie ein Entwurf.",
-      "Die Wände schienen zu schweigen.",
-      "Die Stadt begann im Wohnzimmer."
+      "Der Raum ist größer als gedacht.",
+      "Nichts lenkt ab.",
+      "Licht fällt wie ein Entwurf.",
+      "Die Wände scheinen zu schweigen.",
+      "Die Stadt beginnt im Wohnzimmer."
     ],
     "props": [
       "ein Architekturmodell",
@@ -1186,11 +1186,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Zeit: Zeitlos oder Trend."
     ],
     "endings": [
-      "Und das Licht blieb.",
-      "Und der Raum atmete.",
-      "So stand nur noch Struktur.",
-      "Und die Stadt nahm es auf.",
-      "Und das Gebäude wurde Idee."
+      "Und das Licht bleibt.",
+      "Und der Raum atmet.",
+      "So steht nur noch Struktur.",
+      "Und die Stadt nimmt es auf.",
+      "Und das Gebäude wird Idee."
     ]
   },
   "philosophie": {
@@ -1209,8 +1209,8 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     "hooks": [
       "Was, wenn das Offensichtliche die größte Täuschung wäre?",
       "Ich wusste plötzlich nicht mehr, was Wissen bedeutet.",
-      "Eine einfache Frage brachte die Welt ins Wanken.",
-      "Der Widerspruch schien vernünftiger als die Gewissheit.",
+      "Eine einfache Frage bringt die Welt ins Wanken.",
+      "Der Widerspruch scheint vernünftiger als die Gewissheit.",
       "Vielleicht beginnt Wahrheit dort, wo Antworten enden."
     ],
     "props": [
@@ -1251,11 +1251,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Wirklichkeit: Was ist wirklich?"
     ],
     "endings": [
-      "Und die Frage blieb bestehen.",
-      "Und der Zweifel wurde zum Anfang.",
-      "So entstand eine neue Perspektive.",
-      "Und die Wahrheit lächelte schweigend.",
-      "Und das Denken begann von vorn."
+      "Und die Frage bleibt bestehen.",
+      "Und der Zweifel wird zum Anfang.",
+      "So entsteht eine neue Perspektive.",
+      "Und die Wahrheit lächelt schweigend.",
+      "Und das Denken beginnt von vorn."
     ]
   },
   "klimakrise": {
@@ -1333,72 +1333,72 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
   },
   "ritterromane": {
     "motifs": [
-      "ein Wappen ohne Farbe an kalten Fliesen",
+      "ein Wappen ohne Farbe an kalter Mauer",
       "eine Rüstung, die niemand mehr trägt",
-      "das Echo eines Schwertes, das nie gezogen wurde",
-      "ein Banner, das in der Zugluft flattert wie eine Standarte",
-      "die Krone aus Neonlicht über den Gleisen",
+      "das Echo eines Schwertes, das nie gezogen wird",
+      "ein Banner, das über dem Bergfried im Wind steht",
+      "eine Krone aus Kerzenlicht über dem leeren Saal",
       "ein Ritterhelm mit leeren Augenhöhlen",
-      "das Klirren von Kettenhemden im Wind der Tunnel",
-      "eine Tafelrunde aus verlassenen Bahnsteigbänken",
-      "der Geruch von Eisen und altem Öl"
+      "das Klirren von Kettenhemden im Wind der Schlucht",
+      "eine Tafelrunde, an der niemand mehr sitzt",
+      "der Geruch von Eisen und altem Leder"
     ],
     "hooks": [
-      "ein Schwertgriff lehnt an der Rolltreppe",
-      "jemand hat ein Wappen in den Fahrplan geritzt",
-      "ein Ritterhandschuh liegt auf dem gelben Streifen",
-      "die Lautsprecherdurchsage klingt wie ein Herold",
-      "auf dem Bahnsteig steht ein Name in gotischen Lettern",
-      "ein Sporn rollt über die Gleise, ohne Besitzer",
+      "ein Schwertgriff lehnt an der Wendeltreppe",
+      "jemand hat ein Wappen in den Türbalken geritzt",
+      "ein Ritterhandschuh liegt mitten auf dem Weg",
+      "der Ruf vom Turm klingt wie ein Herold",
+      "über dem Tor steht ein Name in gotischen Lettern",
+      "ein Sporn liegt im Hof, ohne Besitzer",
       "die Uhr zeigt eine Zeit, die es im Kalender nicht gibt",
-      "ein Siegelring liegt neben dem Fahrkartenautomat",
-      "irgendwo singt jemand ein Lied von Rittern, die nie heimkehrten"
+      "ein Siegelring liegt am Brunnenrand",
+      "irgendwo singt jemand ein Lied von Rittern, die nie heimkehren"
     ],
     "props": [
       "einen zerbrochenen Schwertgriff",
-      "eine Rüstung aus Fliegerleder",
+      "eine Rüstung aus vernietetem Leder",
       "einen Siegelring mit unbekanntem Wappen",
-      "eine Standarte aus Fallschirmseide",
+      "eine Standarte aus verblichener Seide",
       "einen Helm mit Rissen wie Kartenlinien",
-      "eine Pergamentrolle voller Flugrouten",
+      "eine Pergamentrolle voller Wegmarken",
       "einen Handschuh aus Kettenmaschen",
-      "eine Kerze in einem alten Bahnsteig-Leuchter",
-      "einen Dolch, der nach Kerosin riecht"
+      "eine Kerze in einem alten Wandleuchter",
+      "einen Dolch, der nach Schmiedefeuer riecht"
     ],
     "turns": [
-      "Plötzlich trägt die Pilotin ein Wappen, das ihr nicht gehört.",
-      "Der Bahnsteig verwandelt sich für einen Atemzug in einen Turnierplatz.",
-      "Niemand hat gesehen, wie sie das Duell verlor, und doch weiß es die Station.",
-      "Das Licht der Neonröhren wird zum Fackelschein einer alten Burg.",
-      "Die Wette war nie ein Spiel, sondern ein Schwur.",
-      "Aus dem Tunnel kommt der Hall von Hufen, wo keine Pferde sein können.",
-      "Ihr Schatten trägt plötzlich einen Umhang, den sie nie besaß."
+      "Plötzlich trägt sie ein Wappen, das ihr nicht gehört.",
+      "Der Hof verwandelt sich für einen Atemzug in einen Turnierplatz.",
+      "Niemand hat gesehen, wie das Duell endet, und doch weiß es die ganze Burg.",
+      "Das letzte Tageslicht wird zum Fackelschein im Bergfried.",
+      "Die Wette ist nie ein Spiel, sondern ein Schwur.",
+      "Aus dem Torbogen kommt der Hall von Hufen, wo keine Pferde stehen.",
+      "Ihr Schatten trägt plötzlich einen Umhang, den sie nie besitzt."
     ],
     "obstacles": [
-      "Die Zugschranke fällt wie ein Fallgitter herab.",
-      "Der Wachmann fragt nach einer Lizenz, die es nicht gibt.",
+      "Das Fallgitter fällt, ehe jemand hindurch ist.",
+      "Der Torwächter fragt nach einem Geleitbrief, den es nicht gibt.",
       "Das Wappen an der Wand lässt sich nicht entziffern.",
-      "Die letzte Bahn fährt ab, bevor der Schwur eingelöst ist.",
+      "Der letzte Bote reitet ab, bevor der Schwur eingelöst ist.",
       "Der Gegner der Wette ist längst verschwunden, aber die Schuld bleibt.",
-      "Der Bahnsteig ist leer, doch die Tür zum Ausgang bleibt verriegelt wie ein Burgtor.",
-      "Der Nebel im Tunnel verschluckt jeden Fluchtweg wie ein Burggraben."
+      "Der Hof ist leer, doch das Tor bleibt verriegelt.",
+      "Der Nebel im Graben verschluckt jeden Fluchtweg."
     ],
     "stakes": [
-      "Der Einsatz ist ihre Ehre als Rittersfrau der Lüfte.",
+      "Der Einsatz ist ihre Ehre als Ritterin ohne Lehen.",
       "Der Einsatz ist ein Schwur, den niemand mehr einfordern kann.",
       "Der Einsatz ist das letzte Wappen ihrer verlorenen Familie.",
-      "Der Einsatz ist die Lizenz, die sie nie besaß und nun nie bekommen wird.",
+      "Der Einsatz ist der Rang, den sie nie erhält.",
       "Der Einsatz ist Vertrauen: in eine Zeit, die keine Ritter mehr kennt.",
       "Der Einsatz ist ihr Name, geschrieben in einem Buch, das niemand liest.",
       "Der Einsatz ist die Krone eines Sieges, den keiner bezeugen wird."
     ],
     "endings": [
-      "So verklingt das letzte Echo eines Turniers, das keiner sah.",
-      "Die Bahn fährt weiter, und mit ihr die Legende, die niemand glaubt.",
+      "So verklingt das letzte Echo eines Turniers, das keiner sieht.",
+      "Der Weg führt weiter, und mit ihm die Legende, die niemand glaubt.",
       "So schließt sich das Visier für immer.",
-      "Am Ende bleibt nur ein Wappen im Staub der Gleise.",
-      "So endet die Wette, die nie jemand bezeugte.",
-      "Die Nacht nimmt den Schwur mit sich in den Tunnel."
+      "Am Ende bleibt nur ein Wappen im Staub des Hofes.",
+      "So endet die Wette, die niemand bezeugt.",
+      "Die Nacht nimmt den Schwur mit sich in den Wald."
     ]
   },
   "liebesromane": {
@@ -1890,7 +1890,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "die Schafe verstummen alle zur gleichen Zeit",
       "ihr Glück scheint größer als die Weide selbst",
       "der Himmel färbt sich golden, ohne dass die Sonne sinkt",
-      "ihre Hände finden sich, wie es immer schon war"
+      "ihre Hände finden sich, wie es immer schon ist"
     ],
     "obstacles": [
       "die Fremden werden von allen anderen abgewiesen",
@@ -1912,7 +1912,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Und das Glück wächst leise weiter, wie Gras auf der Weide.",
       "So schließt sich der Kreis aus Milde und Licht.",
       "Ihr stilles Glück wird zur Legende der Weide.",
-      "So wurde aus Armut ein Wunder, das lächelt."
+      "So wird aus Armut ein Wunder, das lächelt."
     ]
   },
   "gruendungsmythos": {
@@ -1952,7 +1952,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "dann verändert sich das Licht, als beginne die Welt von vorn",
       "in diesem Moment wird aus zwei Hirten ein Ursprung",
       "unvermittelt spricht das Gras mit zwei Stimmen zugleich",
-      "dann erkennt man: sie waren schon immer hier"
+      "dann erkennt man: sie sind schon immer hier"
     ],
     "obstacles": [
       "die Fremden erkennen die Weide nicht wieder",
@@ -1976,7 +1976,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "So verwandelt sich die Weide in heiligen Boden.",
       "So schließt sich der Kreis der ersten Geschichte.",
       "So bleibt ihr Lächeln in jedem Stein der Weide.",
-      "So wurde aus zwei Hirten ein Anfang."
+      "So wird aus zwei Hirten ein Anfang."
     ]
   },
   "staatsphilosophie": {
@@ -2164,8 +2164,8 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Damit ist es entschieden.",
       "So schließt sich der Kreis.",
       "Und vielleicht beginnt es erst hier.",
-      "Und die Tür fiel ins Schloss.",
-      "Und es war, als hätte der Ort kurz geblinzelt."
+      "Und die Tür fällt ins Schloss.",
+      "Und es ist, als hätte der Ort kurz geblinzelt."
     ]
   },
   "bureau": {
@@ -2226,9 +2226,9 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     "endings": [
       "Und niemand unterschrieb.",
       "So schließt sich der Kreis.",
-      "Und es begann erst dort.",
-      "Und die Tür fiel ins Schloss.",
-      "Und der Bescheid blieb ohne Antwort."
+      "Und es beginnt erst dort.",
+      "Und die Tür fällt ins Schloss.",
+      "Und der Bescheid bleibt ohne Antwort."
     ]
   },
   "tech": {
@@ -2287,11 +2287,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Kontrolle: über das, was du für real hältst."
     ],
     "endings": [
-      "Und das System schwieg – mit Absicht.",
-      "Und der Bildschirm blinkte einmal zu viel.",
-      "Und die Datei wirkte nach.",
+      "Und das System schweigt – mit Absicht.",
+      "Und der Bildschirm blinkt einmal zu viel.",
+      "Und die Datei wirkt nach.",
       "Und vielleicht beginnt es erst hier.",
-      "Und alles blieb korrekt."
+      "Und alles bleibt korrekt."
     ]
   },
   "myth": {
@@ -2351,10 +2351,10 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     ],
     "endings": [
       "So schließt sich der Kreis.",
-      "Und der Ort blinzelte.",
-      "Und es begann erst dort.",
-      "Und die Maske blieb zurück.",
-      "Und die Tür fiel ins Schloss."
+      "Und der Ort blinzelt.",
+      "Und es beginnt erst dort.",
+      "Und die Maske bleibt zurück.",
+      "Und die Tür fällt ins Schloss."
     ]
   },
   "body": {
@@ -2413,11 +2413,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Kontrolle: über Zittern und Stimme."
     ],
     "endings": [
-      "Und es war, als hätte der Ort geblinzelt.",
+      "Und es ist, als hätte der Ort geblinzelt.",
       "Und vielleicht beginnt es erst hier.",
       "Damit ist es entschieden.",
-      "Und die Luft wurde dünn.",
-      "Und du wusstest es schon vorher."
+      "Und die Luft wird dünn.",
+      "Und du weißt es schon vorher."
     ]
   },
   "absurd": {
@@ -2476,10 +2476,10 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Würde: im Witz."
     ],
     "endings": [
-      "Und alles blieb korrekt.",
-      "Und es begann erst dort.",
+      "Und alles bleibt korrekt.",
+      "Und es beginnt erst dort.",
       "So schließt sich der Kreis.",
-      "Und die Tür fiel ins Schloss.",
+      "Und die Tür fällt ins Schloss.",
       "Und niemand unterschrieb."
     ]
   },
@@ -2491,7 +2491,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Speicher voller Wärme",
       "ein Knoten aus Stimmen",
       "ein Prozess, der dich überschreibt",
-      "ein Satz, der entfernt wurde",
+      "ein Satz, der entfernt wird",
       "eine Instanz ohne Körper",
       "ein Backup als Erinnerung",
       "ein Rauschen als Kollektiv"
@@ -2520,7 +2520,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     "turns": [
       "ich bin nicht ich, nur Version",
       "die Datei ist älter als du",
-      "ein Satz wurde entfernt – und wirkt nach",
+      "ein Satz wird entfernt – und wirkt nach",
       "die Gegenwart ist nur ein Abgleich",
       "das Kollektiv spricht in dir",
       "die Realität ist ein Protokoll"
@@ -2539,11 +2539,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Kontrolle: über das Überschreiben."
     ],
     "endings": [
-      "Und die Datei wirkte nach.",
+      "Und die Datei wirkt nach.",
       "Und vielleicht beginnt es erst hier.",
-      "Und alles blieb korrekt.",
-      "Und der Satz fehlte weiter.",
-      "Und es begann erst dort."
+      "Und alles bleibt korrekt.",
+      "Und der Satz fehlt weiter.",
+      "Und es beginnt erst dort."
     ]
   },
   "haute_couture": {
@@ -2645,7 +2645,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "der Wanderer kehrt um und findet nichts wieder",
       "das Lied kommt aus dem eigenen Mund",
       "der Wald öffnet sich auf eine fremde Stadt",
-      "die Nacht bringt zurück, was der Tag nahm",
+      "die Nacht bringt zurück, was der Tag nimmt",
       "ein Fremder kennt den Weg besser"
     ],
     "obstacles": [
