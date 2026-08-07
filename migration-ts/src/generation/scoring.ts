@@ -109,6 +109,14 @@ export function bestOf(bank: Bank, input: GenInput, model: MarkovModel | undefin
   let best: { txt: string; score: number } | null = null;
   for (const txt of genN(bank, input, model, N)) {
     let sc = scoreText(txt, lt).score;
+    // Laengendefizit quadratisch bestrafen. Ohne das gewinnen kurze Fassungen: Sie
+    // haben zwangslaeufig die bessere Wortvielfalt und weniger Wiederholung, und
+    // diese Punkte ueberwogen die Laengentreue. In der Rekombination, wo die Ausbeute
+    // stark streut, kam so aus zwoelf Kandidaten oft der mit 47 statt 225 Woertern.
+    // Quadratisch, damit kleine Abweichungen folgenlos bleiben und erst grobe teuer werden.
+    const woerter = txt.split(/\s+/).filter(Boolean).length;
+    const fehl = Math.max(0, (lt - woerter) / Math.max(1, lt));
+    sc -= fehl * fehl * 120;
     if (ctx) sc += nw * (noveltyOf(txt, ctx) * 40) - nw * (cooldownHit(txt, ctx) * 30);
     if (opts.grammarFilter) sc -= Math.min(grammarFlags(txt).count, 6) * 12;
     sc -= coherencePenalty(txt, { ...opts, perspective: opts.perspective ?? input.perspective });

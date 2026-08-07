@@ -276,6 +276,7 @@ export function mountStudio(root: HTMLElement): void {
       const src = baseText.trim() ? baseText : (out.textContent || "");
       if (!src.trim()) { generate(); return; }
       out.textContent = enforceWordTarget(src, target, loadBank(), markov.value !== "off" ? buildModelFromCorpus(2) : undefined);
+      nachTextwechsel();
       try { localStorage.setItem("dm_last_text", out.textContent || ""); } catch { /* voll */ }
       refreshFeeds();
     } else if (form === "script") {
@@ -401,6 +402,11 @@ export function mountStudio(root: HTMLElement): void {
     struktBox.append(renderTextstruktur(out.textContent || "", loadSchnappschuss()));
   };
   struktChk.addEventListener("change", renderStruktur);
+  /** Nach jeder Textaenderung, die nicht aus generate() kommt: Struktur und
+   *  Vorrats-Hinweis nachziehen. Beide hingen bisher allein an generate(), sodass
+   *  nach Passagen-Austausch, Rueckgaengig, Variante oder einer Uebernahme aus dem
+   *  Ranking die Balken noch den vorigen Text beschrieben. */
+  const nachTextwechsel = (): void => { renderStruktur(); updVorrat(); };
 
   // Textstruktur direkt unter dem Text: woraus besteht er, mit welchen Einstellungen?
 
@@ -466,7 +472,7 @@ export function mountStudio(root: HTMLElement): void {
   const updateUndoBtn = (): void => { undoBtn.disabled = undoStack.length === 0; };
   const pushUndo = (): void => { undoStack.push(out.textContent || ""); if (undoStack.length > 12) undoStack.shift(); updateUndoBtn(); };
   const clearUndo = (): void => { undoStack.length = 0; updateUndoBtn(); };
-  const doUndo = (): void => { const prev = undoStack.pop(); if (prev === undefined) return; out.textContent = prev; persistEdit(); renderFeeds(); updateUndoBtn(); };
+  const doUndo = (): void => { const prev = undoStack.pop(); if (prev === undefined) return; out.textContent = prev; persistEdit(); renderFeeds(); nachTextwechsel(); updateUndoBtn(); };
   undoBtn.addEventListener("click", doUndo);
   document.addEventListener("keydown", (e) => {
     if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== "z") return;
@@ -517,13 +523,13 @@ export function mountStudio(root: HTMLElement): void {
   const replaceSpan = (span: HTMLElement, txt: string): void => {
     pushUndo();
     const v = atSentenceStart(span) ? capFirst(txt) : txt;
-    span.textContent = v; persistEdit(); renderFeeds(); hidePop();
+    span.textContent = v; persistEdit(); renderFeeds(); nachTextwechsel(); hidePop();
   };
   const removeSpan = (span: HTMLElement): void => {
     pushUndo();
     span.textContent = "";
     const cleaned = (out.textContent || "").replace(/\s{2,}/g, " ").replace(/\s+([,.;:!?…])/g, "$1").replace(/([.!?…])(?:\s*\1)+/g, "$1").trim();
-    out.textContent = cleaned; persistEdit(); renderFeeds(); hidePop();
+    out.textContent = cleaned; persistEdit(); renderFeeds(); nachTextwechsel(); hidePop();
   };
   const openPop = (span: HTMLElement): void => {
     popSpan = span;
@@ -616,6 +622,7 @@ export function mountStudio(root: HTMLElement): void {
     const item = lastRanking.all[Math.max(0, Math.min(lastRanking.all.length - 1, place - 1))];
     if (!item) return;
     out.textContent = item.txt;
+    nachTextwechsel();
     try { localStorage.setItem("dm_last_text", item.txt); } catch { /* voll */ }
     renderKling(readInput().form, item.txt);
     refreshFeeds();
@@ -999,6 +1006,7 @@ export function mountStudio(root: HTMLElement): void {
   try { pendingText = localStorage.getItem("dm_pending_text") || ""; localStorage.removeItem("dm_pending_text"); } catch { /* ignore */ }
   if (pendingText.trim()) {
     out.textContent = pendingText;
+    nachTextwechsel();
     try { localStorage.setItem("dm_last_text", pendingText); } catch { /* voll */ }
     renderKling(readInput().form, pendingText);
     refreshFeeds();
