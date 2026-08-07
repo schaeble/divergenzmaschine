@@ -290,7 +290,7 @@ export function mountStudio(root: HTMLElement): void {
   wrap.append(el("div", { class: "grid3" }, lockField("Ton", tone), lockField("Form", form)));
 
 
-  const lenSlider = el("input", { id: "f-len", type: "range", min: "40", max: "300", step: "10", value: "110", style: "flex:1" }) as HTMLInputElement;
+  const lenSlider = el("input", { id: "f-len", type: "range", min: "40", max: "300", step: "5", value: "110", style: "flex:1" }) as HTMLInputElement;
   const lenVal = el("span", { class: "muted" }, "110");
   let lenTimer: ReturnType<typeof setTimeout> | undefined;
   let baseText = "";
@@ -346,7 +346,7 @@ export function mountStudio(root: HTMLElement): void {
     title: "Ziehen: Textlänge ändern · Doppelklick: Fensterhöhe zurücksetzen" });
   const gripVal = el("span", { class: "lengrip-val" });
   grip.append(gripVal);
-  const PX_JE_SCHRITT = 6;                       // 6 px Ziehweg = ein Reglerschritt (10 Wörter)
+  const PX_JE_SCHRITT = 6;                       // 6 px Ziehweg = ein Reglerschritt (5 Wörter)
   let zieht = false, startY = 0, startWert = 0, startHoehe = 0, geaendert = false;
   const zeigeWert = (v: number): void => { gripVal.textContent = v + " Wörter"; };
   grip.addEventListener("pointerdown", (e) => {
@@ -384,6 +384,11 @@ export function mountStudio(root: HTMLElement): void {
     zieht = false; grip.classList.remove("zieht");
     gripVal.textContent = "";
     try { grip.releasePointerCapture((e as PointerEvent).pointerId); } catch { /* egal */ }
+    // Die waehrend der Geste gesetzte Hoehe wieder freigeben: Sonst bleibt sie
+    // stehen, und bei kuerzerem Text klafft darunter eine wachsende Leerflaeche.
+    // Das Fenster soll dem Text folgen, nicht dem Finger von vorhin.
+    out.style.minHeight = "";
+    positionArrows();
     if (geaendert) generate();
   };
   grip.addEventListener("pointerup", gripEnde);
