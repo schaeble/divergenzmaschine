@@ -4,7 +4,7 @@ import type { GenInput, FormKind } from "../types";
 import { loadBank, saveBank } from "../storage";
 import { getAllPresets, saveActiveBankLabel, buildAutoMixBank, buildMergedBank, lastAutoMixSources, AUTOMIX_ID } from "../wordbank";
 import { markedPresetOptions, getUserPreset2 } from "../features/preset2";
-import { setDramaData, hasDramaData } from "../generation/dramaturgie";
+import { setDramaData, hasDramaData, loadDramaData } from "../generation/dramaturgie";
 import { builtinDrama } from "../presets.drama.data";
 import { buildStory } from "../generation/buildStory";
 import { getMarkovTrace } from "../generation/markovTrace";
@@ -186,7 +186,21 @@ export function mountStudio(root: HTMLElement): void {
     saveBank(buildMergedBank(multiIds));
     const labels = multiIds.map((id) => stripIcon(getAllPresets()[id]?.label || id));
     saveActiveBankLabel("Mix: " + labels.join(" + "));
-    setDramaData(null);
+    // Die Erzaehlboegen der gewaehlten Presets zusammenfuehren, statt sie zu
+    // verwerfen. Vorher stand hier setDramaData(null) - bei jeder Mehrfachauswahl
+    // war der Bogen also weg, und genau so arbeitet dieses Studio meistens.
+    const boegen = multiIds.map((id) => builtinDrama(id)).filter(Boolean);
+    if (!boegen.length) { setDramaData(null); return; }
+    const misch = (feld: keyof NonNullable<ReturnType<typeof builtinDrama>>): string[] => {
+      const raus: string[] = [];
+      for (const b of boegen) for (const t of (b![feld] as string[]) || []) if (!raus.includes(t)) raus.push(t);
+      return raus;
+    };
+    setDramaData({
+      einstieg: misch("einstieg"), mitte: misch("mitte"), hoehepunkt: misch("hoehepunkt"),
+      schluss: misch("schluss"), ausloeser: misch("ausloeser"), veraenderungen: misch("veraenderungen"),
+      konflikte: misch("konflikte"), zeitanomalien: misch("zeitanomalien"), regeln: misch("regeln"),
+    });
   };
   const ensureMultiOption = (): void => {
     let o = preset.querySelector('option[value="' + MULTI_ID + '"]') as HTMLOptionElement | null;
@@ -200,7 +214,13 @@ export function mountStudio(root: HTMLElement): void {
   autoMixStudioBtn.addEventListener("click", () => {
     multiIds = []; saveMulti();
     preset.value = AUTOMIX_ID; preset.dispatchEvent(new Event("change"));
-    renderPresetChecks();
+    // Beim Aufbau die Dramaturgie des gewaehlten Presets herstellen. Bisher geschah das
+  // NUR im change-Handler - wer die App oeffnete und sofort generierte, baute ohne
+  // Erzaehlbogen, obwohl das Preset einen mitbringt.
+  if (!preset.value.startsWith("user:") && preset.value !== AUTOMIX_ID && preset.value !== MULTI_ID) {
+    setDramaData(builtinDrama(preset.value));
+  }
+  renderPresetChecks();
   updHints();
   requestAnimationFrame(positionArrows);
   });
@@ -421,7 +441,7 @@ export function mountStudio(root: HTMLElement): void {
   undoBtn.disabled = true;
   const feedsRow = el("div", { class: "feedsrow" },
     el("label", { class: "chk" }, feedsChk, " Editieren"),
-    legDot("feed-wb", "Wortbank"), legDot("feed-ton", "Ton"), legDot("feed-4w", "4W-Kontext"), legDot("feed-pool", "Lebendige Pools"), legDot("feed-markov", "Markov"),
+    legDot("feed-wb", "Wortbank"), legDot("feed-ton", "Ton"), legDot("feed-4w", "4W-Kontext"), legDot("feed-pool", "Lebendige Pools"), legDot("feed-markov", "Markov"), legDot("feed-drama", "Erzählbogen"),
     el("span", { class: "muted" }, "· unmarkiert = Vorlagen · alles anklickbar"),
     el("label", { class: "chk planchk" }, planChk, " Bauplan"),
     el("label", { class: "chk planchk" }, struktChk, " Struktur"), undoBtn);
@@ -447,6 +467,13 @@ export function mountStudio(root: HTMLElement): void {
     try { const b = loadBank() as unknown as Record<string, string[]>; const all: string[] = []; for (const k of Object.keys(b)) if (Array.isArray(b[k])) all.push(...b[k]!); collectFeed(all, "feed-wb", 1, low, m); } catch { /* egal */ }
     try { collectFeed(liveTexts(), "feed-pool", 1, low, m); } catch { /* egal */ }
     try { collectFeed(getMarkovTrace(), "feed-markov", 2, low, m); } catch { /* egal */ }
+    // Erzaehlbogen: eigene Quelle, hoehere Prioritaet als die Wortbank - sonst
+    // verschwindet er in ihr, wo Eintraege in beiden stehen.
+    try {
+      const dd = loadDramaData();
+      if (dd) collectFeed([...dd.einstieg, ...dd.mitte, ...dd.hoehepunkt, ...dd.konflikte,
+        ...dd.ausloeser, ...dd.veraenderungen, ...dd.zeitanomalien, ...dd.regeln], "feed-drama", 3, low, m);
+    } catch { /* egal */ }
     m.sort((a, b) => a.s - b.s || (b.e - b.s) - (a.e - a.s) || b.prio - a.prio);
     // unmarkierte Lücke: als klick-/editierbaren feed-plain-Span ausgeben (Randweißraum bleibt außen)
     const emitPlain = (seg: string): string => {
@@ -500,6 +527,7 @@ export function mountStudio(root: HTMLElement): void {
     try {
       if (cls === "feed-wb") { const b = loadBank() as unknown as Record<string, string[]>; let cat: string[] | null = null; for (const k of Object.keys(b)) if (Array.isArray(b[k]) && b[k]!.some((x) => x.toLowerCase() === cur.toLowerCase())) { cat = b[k]!; break; } pool = cat || Object.values(b).flat(); }
       else if (cls === "feed-pool") pool = liveTexts();
+      else if (cls === "feed-drama") { const dd = loadDramaData(); pool = dd ? [...dd.einstieg, ...dd.mitte, ...dd.hoehepunkt, ...dd.konflikte, ...dd.ausloeser, ...dd.veraenderungen, ...dd.zeitanomalien, ...dd.regeln] : []; }
       else if (cls === "feed-ton") { const td = TONE_DATA[tone.value]; pool = td ? [...td.opener, ...td.flavor] : []; }
       else if (cls === "feed-4w") pool = [who.value, where.value, when.value, what.value];
       else if (cls === "feed-markov") { const model = buildModelFromCorpus(2); const n = Math.max(6, cur.split(/\s+/).filter(Boolean).length + 2); for (let i = 0; i < 12; i++) { const g = model.generate(n); if (g) pool.push(g); } }
@@ -541,7 +569,7 @@ export function mountStudio(root: HTMLElement): void {
     popSpan = span;
     const cls = (span.className.match(/feed-[a-z0-9]+/) || ["feed-wb"])[0]!;
     const cur = span.textContent || "";
-    const titles: Record<string, string> = { "feed-wb": "Wortbank", "feed-ton": "Ton", "feed-4w": "4W-Kontext", "feed-pool": "Lebendige Pools", "feed-markov": "Markov", "feed-plain": "Text" };
+    const titles: Record<string, string> = { "feed-wb": "Wortbank", "feed-ton": "Ton", "feed-4w": "4W-Kontext", "feed-pool": "Lebendige Pools", "feed-markov": "Markov", "feed-drama": "Erzählbogen", "feed-plain": "Text" };
     feedPop.innerHTML = "";
     const closeX = el("button", { class: "feedpop-x", type: "button", title: "Schließen", "aria-label": "Schließen" }, "✕");
     closeX.addEventListener("click", hidePop);
