@@ -17,7 +17,7 @@ import { normWhere, normWhen, normWho, rateWhere, rateWhen, rateWho } from "../g
 import { getTraceFor, fuegeteilAnteil } from "../atoms/trace";
 import { saveSchnappschuss, loadSchnappschuss } from "../features/sources";
 import { renderTextstruktur } from "./structureView";
-import { analysiereHerkunft, QUELLEN_LABEL } from "../features/sources";
+import { analysiereHerkunft, QUELLEN_LABEL, w4Varianten } from "../features/sources";
 import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "../generation/wordcls";
 import { el, select, field, textInput, button } from "./dom";
 import { icon } from "./icons";
@@ -641,9 +641,8 @@ export function mountStudio(root: HTMLElement): void {
     const low = plain.toLowerCase();
     const m: FMatch[] = [];
     if (tone.value !== "neutral") { const td = TONE_DATA[tone.value]; if (td) collectFeed([...td.opener, ...td.flavor], "feed-ton", 3, low, m); }
-    const w4: string[] = [];
-    [who.value, where.value, when.value, what.value].forEach((v) => (v || "").split(",").forEach((t) => { const x = t.trim(); if (x.length >= 4) w4.push(x); }));
-    collectFeed(w4, "feed-4w", 2, low, m);
+    collectFeed(w4Varianten({ who: who.value, where: where.value, when: when.value, what: what.value }),
+      "feed-4w", 2, low, m);
     try { const b = loadBank() as unknown as Record<string, string[]>; const all: string[] = []; for (const k of Object.keys(b)) if (Array.isArray(b[k])) all.push(...b[k]!); collectFeed(all, "feed-wb", 1, low, m); } catch { /* egal */ }
     try { collectFeed(liveTexts(), "feed-pool", 1, low, m); } catch { /* egal */ }
     try { collectFeed(getMarkovTraceFor(plain), "feed-markov", 2, low, m); } catch { /* egal */ }

@@ -6,6 +6,7 @@ import { liveTexts } from "./livepools";
 import { TONE_DATA } from "../generation/tone.data";
 import { getMarkovTraceFor } from "../generation/markovTrace";
 import { getTraceFor } from "../atoms/trace";
+import { extractLeadVerb } from "../generation/wordcls";
 
 export type QuellenId = "wortbank" | "ton" | "kontext" | "pools" | "markov" | "vorlage" | "nachbearbeitung" | "dramaturgie" | "korpus";
 export interface Segment { s: number; e: number; quelle: QuellenId; }
@@ -23,6 +24,28 @@ export const QUELLEN_LABEL: Record<QuellenId, string> = {
   markov: "Markov", vorlage: "Vorlagen/Schablonen", nachbearbeitung: "Nachbearbeitung", dramaturgie: "Erzählbogen", korpus: "Korpus",
 };
 
+/** Die 4W-Werte in allen Formen, in denen sie im Text auftauchen koennen.
+ *  Zwei Fallen: Namen wie "Tom" sind kuerzer als die bisherige Mindestlaenge von
+ *  vier Zeichen und fielen ganz heraus. Und das Was-Feld wird beim Bauen auf die
+ *  dritte Person gebracht ("sehe 9 Monde" -> "sieht 9 Monde"), der Rohwert steht
+ *  also nirgends im Text. Beide Formen werden jetzt gesammelt. */
+export function w4Varianten(ctx: { where?: string; when?: string; who?: string; what?: string }): string[] {
+  const raus: string[] = [];
+  const nimm = (x: string): void => {
+    const t = (x || "").trim();
+    if (!t) return;
+    // Kurzes nur, wenn es wie ein Name aussieht - sonst treffen "ist" und "und".
+    if (t.length >= 4 || (t.length >= 2 && /^[A-ZÄÖÜ]/.test(t))) raus.push(t);
+  };
+  for (const v of [ctx.who, ctx.where, ctx.when, ctx.what]) (v || "").split(/[,;]/).forEach(nimm);
+  const was = (ctx.what || "").trim();
+  if (was) {
+    const lead = extractLeadVerb(was);
+    if (lead.verb) { nimm(`${lead.verb} ${lead.rest}`); nimm(lead.rest); }
+  }
+  return raus;
+}
+
 interface Treffer { s: number; e: number; quelle: QuellenId; prio: number }
 function sammle(phrasen: string[], quelle: QuellenId, prio: number, low: string, acc: Treffer[]): void {
   for (const roh of phrasen) {
@@ -38,9 +61,7 @@ export function analysiereHerkunft(text: string, tone: string, ctx: { where?: st
   const low = (text || "").toLowerCase();
   const acc: Treffer[] = [];
   if (tone && tone !== "neutral") { const td = TONE_DATA[tone]; if (td) sammle([...td.opener, ...td.flavor], "ton", 3, low, acc); }
-  const w4: string[] = [];
-  [ctx.who, ctx.where, ctx.when, ctx.what].forEach((v) => (v || "").split(",").forEach((t) => { const x = t.trim(); if (x.length >= 4) w4.push(x); }));
-  sammle(w4, "kontext", 2, low, acc);
+  sammle(w4Varianten(ctx), "kontext", 2, low, acc);
   try { const b = loadBank() as unknown as Record<string, string[]>; const alle: string[] = [];
     for (const k of Object.keys(b)) if (Array.isArray(b[k])) alle.push(...b[k]!); sammle(alle, "wortbank", 1, low, acc); } catch { /* egal */ }
   try { sammle(liveTexts(), "pools", 1, low, acc); } catch { /* egal */ }
