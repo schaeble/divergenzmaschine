@@ -24,3 +24,21 @@ npm run build       # -> dist/index.html (eine Offline-Datei)
 ## Noch NICHT enthalten (spätere Phasen)
 Generierung, Dialog-Engine, Korpus/Markov, Presets, UI-Verdrahtung,
 Zusatz-Features. Siehe `divergenzmaschine-modulbauplan.md`.
+
+## Veröffentlichen — eine Falle
+
+Der Workflow `Build & Deploy Pages` läuft bei einem Push auf
+`typescript-migration`, sofern etwas unter `migration-ts/**` oder an der
+Workflow-Datei geändert wurde. Er kennt zwar `workflow_dispatch`, doch der Knopf
+„Run workflow" erscheint **nicht**: GitHub zeigt ihn nur, wenn die Workflow-Datei
+auch auf dem Standardzweig liegt — und `main` enthält ausschließlich das
+Veröffentlichte, nicht die Quellen.
+
+Folge: Geht ein Push-Ereignis verloren — etwa während einer Actions-Störung, wenn
+GitHub Webhooks verzögert —, entsteht zu diesem Commit **kein** Lauf, und es gibt
+keine Möglichkeit, ihn nachträglich von Hand zu starten. Am 6. August 2026 ist
+das den Fassungen 4.151.0 bis 4.154.0 passiert. Der einzige Ausweg ist ein
+weiterer Push, der die `paths`-Filter trifft.
+
+Dauerhaft beheben ließe sich das, indem die Workflow-Datei zusätzlich auf `main`
+abgelegt wird; dann steht der Knopf zur Verfügung.
