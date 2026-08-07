@@ -176,6 +176,7 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
   // Stellschrauben aus den Einstellungen statt fest im Code (A.2)
   const knobs = loadKnobs();
   const W4_MAX = knobs.w4max;
+  const ENDE_MARGE = 20;   // ab so vielen Restwoertern darf ein Schlussbild kommen
   const FUEGE_DECKEL = knobs.fuegeteil / 100;
   // Nebenfiguren seltener als die Hauptfigur: Sie sollen vorkommen, nicht dominieren.
   const figuren = normWho(input.who || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean);
@@ -249,8 +250,16 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
       const tief = kand.filter((a) => !FLACH.has(a.typ));
       if (tief.length) kand = tief;
     }
-    // Phasenordnung: ein Schlussbild erst wirklich am Ende, nicht schon bei 80 %
-    if (fortschritt < 0.85) kand = kand.filter((a) => a.kategorie !== "endings");
+    // Phasenordnung: ein Schlussbild erst wirklich am Ende. Die Schwelle lag bei
+    // 85 %, und weil der Text nach dem Schlussbild endet, brach er dort ab - bei
+    // Ziel 400 in 149 von 150 Laeufen. Der vermeintliche Materialmangel war zum
+    // grossen Teil diese Zeile. 95 % laesst dem Bogen Raum und dem Text seine Laenge.
+    // Nicht als Prozentsatz, sondern als Restweg in Woertern: 85 % waren bei Ziel
+    // 400 noch 60 Woerter zu frueh (der Text endet nach dem Schlussbild - in 149 von
+    // 150 Laeufen war DAS der Abbruchgrund, nicht fehlendes Material). 95 % wiederum
+    // liessen bei Ziel 180 kaum noch Platz, ein Schlussbild ueberhaupt zu ziehen.
+    // Eine feste Marge trifft beide Faelle.
+    if (zielWoerter - woerterJetzt() > ENDE_MARGE) kand = kand.filter((a) => a.kategorie !== "endings");
     if (!kand.length) { if (!nachlegen()) break; continue; }
     if (!kand.length) { if (!nachlegen()) break; continue; }
     // Die Handlung aus „Was passiert?“ muss vorkommen — spätestens zur Hälfte
