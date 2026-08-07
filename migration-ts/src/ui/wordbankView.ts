@@ -133,6 +133,15 @@ export function mountWordbank(root: HTMLElement): void {
   fillBtn.addEventListener("click", () => {
     const corpus = loadPersistentCorpus();
     if (!corpus || corpus.trim().length < 60) { info.textContent = "Korpus ist zu klein — erst im Korpus-Tab Text hinzufügen."; return; }
+    // Die Bank entsteht AUSSCHLIESSLICH aus diesem Korpus. Wer ihn nicht im Kopf hat,
+    // bekommt eine Wortbank zum Thema seiner letzten Versuche und vergibt beim
+    // Speichern ahnungslos einen ganz anderen Namen. Also vorher zeigen, woraus gebaut wird.
+    const eintraege = corpus.split(/\n{2,}/).map((x) => x.trim()).filter(Boolean);
+    const probe = eintraege.slice(0, 5)
+      .map((e, i) => `  ${i + 1}. ${e.slice(0, 70)}${e.length > 70 ? "…" : ""}`).join("\n");
+    const mehr = eintraege.length > 5 ? `\n  … und ${eintraege.length - 5} weitere` : "";
+    if (!confirm(`Die Wortbank entsteht ausschließlich aus deinem Korpus — ihr Thema ist das Thema dieser Texte.\n\n`
+      + `${eintraege.length} ${eintraege.length === 1 ? "Eintrag" : "Einträge"}, ${corpus.length} Zeichen:\n${probe}${mehr}\n\nFortfahren?`)) return;
     const bank = bankFromCorpus(corpus);
     saveBank(bank); saveActiveBankLabel("Aus Korpus"); preset.selectedIndex = -1; load();
     info.textContent = `Aus Korpus gefüllt (${bankEntryCount(bank)} Einträge). Im Listen-Editor nachschärfen, dann „Als Preset speichern".`;
