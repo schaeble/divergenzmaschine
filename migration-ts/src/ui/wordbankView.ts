@@ -9,7 +9,7 @@ import { feedLivePools, LIVE_W } from "../features/livepools";
 import { openPresetWizard } from "./presetWizard";
 import { openArchive } from "./archiveView";
 import { preset2ToBank, preset2Name, preset2Active, builtinSettings, generateAiPreset2, setActive2, getActive2, saveUserPreset2, saveUserPresets2All, getUserPreset2, deleteUserPreset2, loadUserPresets2, type Active2 } from "../features/preset2";
-import { setDramaData, loadDramaData, type DramaData } from "../generation/dramaturgie";
+import { setDramaData, loadDramaData } from "../generation/dramaturgie";
 import { builtinDrama } from "../presets.drama.data";
 import { isPastTense, toPresent, isSecondPerson, isFirstPerson } from "../generation/coherence";
 import { bankFromCorpus } from "../features/corpusbank";
@@ -153,64 +153,6 @@ export function mountWordbank(root: HTMLElement): void {
     saveBank(bank); saveActiveBankLabel("Aus Korpus"); preset.selectedIndex = -1; load();
     info.textContent = `Aus Korpus gefüllt (${bankEntryCount(bank)} Einträge). Im Listen-Editor nachschärfen, dann „Als Preset speichern".`;
   });
-  // ── Erzählbogen (2.0) sichtbar und bearbeitbar machen ──────────────────
-  // Die Dramaturgie liegt nicht in der Bank, sondern daneben. Der Listen-Editor
-  // zeigte deshalb nur die sieben Kategorien, und der Bogen blieb unsichtbar —
-  // man konnte weder nachsehen, was ein Preset erzählt, noch es ändern.
-  const DFELDER: [keyof DramaData, string, string][] = [
-    ["einstieg", "Einstieg", "Teilsatz, wird zu „⟨Text⟩.“ — z. B. alles liegt an seinem Platz"],
-    ["mitte", "Mitte", "Teilsatz — z. B. die Zuständigkeit wandert von Zimmer zu Zimmer"],
-    ["hoehepunkt", "Höhepunkt", "Teilsatz, wird zu „Und dann: ⟨Text⟩.“"],
-    ["konflikte", "Konflikte", "Nominalphrase, wird zu „Es geht um ⟨Text⟩.“"],
-    ["ausloeser", "Auslöser", "Nominalphrase, wird zu „Dann, unvermittelt: ⟨Text⟩.“"],
-    ["veraenderungen", "Veränderungen", "Teilsatz — z. B. die Spur kehrt sich um"],
-    ["zeitanomalien", "Zeitanomalien", "ganzer Satz mit Punkt"],
-    ["regeln", "Regeln", "ganzer Satz mit Punkt"],
-  ];
-  const dramaBox = el("details", { class: "wb-full" });
-  dramaBox.append(el("summary", {}, icon("tool"), " Erzählbogen (Dramaturgie 2.0)"));
-  const dramaInner = el("div", {});
-  const dramaInfo = el("p", { class: "muted mini" }, "");
-  const dFields: Partial<Record<keyof DramaData, HTMLTextAreaElement>> = {};
-  const renderDrama = (): void => {
-    dramaInner.innerHTML = "";
-    const d = loadDramaData();
-    if (!d) {
-      dramaInner.append(el("p", { class: "muted" },
-        "Für dieses Preset ist kein Erzählbogen hinterlegt. Ohne ihn bleibt die Struktur „Dramaturgie“ im Studio wirkungslos."));
-      return;
-    }
-    for (const [key, label, hint] of DFELDER) {
-      const ta = el("textarea", { style: "height:70px" }) as HTMLTextAreaElement;
-      ta.value = (d[key] as string[] || []).join("\n");
-      dFields[key] = ta;
-      dramaInner.append(el("label", { class: "field" },
-        el("span", { class: "field-label" }, label), el("span", { class: "muted mini" }, hint), ta));
-    }
-  };
-  const dramaSave = button("Erzählbogen übernehmen");
-  dramaSave.addEventListener("click", () => {
-    const d = loadDramaData(); if (!d) return;
-    const neu2 = { ...d } as DramaData;
-    for (const [key] of DFELDER) {
-      const ta = dFields[key]; if (!ta) continue;
-      (neu2[key] as string[]) = ta.value.split("\n").map((x) => x.trim()).filter(Boolean);
-    }
-    setDramaData(neu2);
-    const a2 = getActive2();
-    setActive2({ settings: a2?.settings || { structure: "dramaturgie" }, drama: neu2, pools: a2?.pools || [] });
-    dramaInfo.textContent = "Übernommen. Er gilt ab der nächsten Generierung und wird mitgespeichert, wenn du das Preset sicherst.";
-  });
-  const dramaReset = button("Original wiederherstellen");
-  dramaReset.addEventListener("click", () => {
-    const bd = builtinDrama(preset.value);
-    if (!bd) { dramaInfo.textContent = "Kein eingebauter Bogen für dieses Preset."; return; }
-    setDramaData(bd); renderDrama();
-    dramaInfo.textContent = "Auf den mitgelieferten Bogen zurückgesetzt.";
-  });
-  dramaBox.append(dramaInner, el("div", { class: "btnrow" }, dramaSave, dramaReset), dramaInfo);
-  dramaBox.addEventListener("toggle", () => { if (dramaBox.open) renderDrama(); });
-
   const saveAs = button("Als Preset speichern");
   saveAs.addEventListener("click", () => {
     // Vorschlag: der aktive Bank-Name (nach „KI-Preset 2.0 erzeugen“ = Inspirations-/Beschreibungsname)
@@ -354,23 +296,43 @@ export function mountWordbank(root: HTMLElement): void {
   const loadFileBtn = el("button", {}, icon("refresh"), " Aus Datei laden…");
   loadFileBtn.addEventListener("click", () => fileIn.click());
   // ── Preset-2.0-Felder (nur bei aktivem 2.0-Preset editierbar) ──
-  const P2FIELDS: [string, string][] = [
-    ["einstieg", "Einstieg"], ["mitte", "Mitte"], ["hoehepunkt", "Höhepunkt"], ["schluss", "Schluss"],
-    ["ausloeser", "Auslöser"], ["veraenderungen", "Veränderungen"], ["konflikte", "Konflikte"],
-    ["zeitanomalien", "Zeitanomalien"], ["regeln", "Regeln / Naturgesetze"],
+  // Die Satzform entscheidet, ob ein Eintrag im Text funktioniert: Der Bauweg setzt
+  // sie in feste Rahmen („Es geht um ⟨…⟩.“), ein ganzer Satz an dieser Stelle ergibt
+  // Unsinn. Deshalb steht die Form jetzt an jedem Feld.
+  const P2FIELDS: [string, string, string][] = [
+    ["einstieg", "Einstieg", "Teilsatz, klein, ohne Punkt — „alles liegt an seinem Platz“"],
+    ["mitte", "Mitte", "Teilsatz — „die Zuständigkeit wandert von Zimmer zu Zimmer“"],
+    ["hoehepunkt", "Höhepunkt", "Teilsatz, wird zu „Und dann: ⟨…⟩.“"],
+    ["schluss", "Schluss", "Stilwort — offen, melancholisch, beklemmend"],
+    ["ausloeser", "Auslöser", "Nominalphrase, wird zu „Dann, unvermittelt: ⟨…⟩.“"],
+    ["veraenderungen", "Veränderungen", "Teilsatz — „die Spur kehrt sich um“"],
+    ["konflikte", "Konflikte", "Nominalphrase, wird zu „Es geht um ⟨…⟩.“"],
+    ["zeitanomalien", "Zeitanomalien", "ganzer Satz mit Punkt"],
+    ["regeln", "Regeln / Naturgesetze", "ganzer Satz mit Punkt"],
   ];
   const p2Areas: Record<string, HTMLTextAreaElement> = {};
   const p2Grid = el("div", {});
-  for (const [key, label] of P2FIELDS) {
+  for (const [key, label, form] of P2FIELDS) {
     const t = el("textarea", { id: "wb-p2-" + key, style: "height:66px", placeholder: "Ein Eintrag pro Zeile" }) as HTMLTextAreaElement;
     p2Areas[key] = t;
-    p2Grid.append(el("div", { class: "field" }, el("span", { class: "field-label" }, label), t));
+    p2Grid.append(el("div", { class: "field" },
+      el("span", { class: "field-label" }, label), el("span", { class: "muted mini" }, form), t));
   }
   const p2Pools = el("textarea", { id: "wb-p2-pools", style: "height:66px", placeholder: "Orte, Figuren, Objekte … (ein Eintrag pro Zeile)" }) as HTMLTextAreaElement;
   p2Grid.append(el("div", { class: "field" }, el("span", { class: "field-label" }, "Kontext-Pools"), p2Pools));
   const p2ToneSel = select("wb-p2-tone", [["", "(kein)"], ["neutral", "Neutral"], ["mystery", "Mystery"], ["poetic", "Poetisch"], ["melancholisch", "Melancholisch"], ["dark", "Düster"], ["unheimlich", "Unheimlich"], ["uplifting", "Hoffnungsvoll"], ["zaertlich", "Zärtlich"], ["traeumerisch", "Träumerisch"], ["nuechtern", "Nüchtern"], ["ironisch", "Ironisch"], ["humorous", "Humorvoll"]], "");
   const lines2 = (t: HTMLTextAreaElement): string[] => t.value.split("\n").map((x) => x.trim()).filter(Boolean);
   const apply2Btn = button("2.0-Felder übernehmen");
+  const reset2Btn = button("Original wiederherstellen");
+  reset2Btn.addEventListener("click", () => {
+    const bd = builtinDrama(preset.value);
+    if (!bd) { p2fInfo.textContent = "Kein mitgelieferter Bogen — das ist ein eigenes Preset."; return; }
+    setDramaData(bd);
+    const a = getActive2();
+    setActive2({ settings: a?.settings || { structure: "dramaturgie" }, drama: bd, pools: a?.pools || [] });
+    refresh2();
+    p2fInfo.textContent = "Auf den mitgelieferten Erzählbogen zurückgesetzt ✓";
+  });
   const p2fInfo = el("span", { class: "muted" });
   apply2Btn.addEventListener("click", () => {
     const a = getActive2(); if (!a) return;
@@ -398,10 +360,10 @@ export function mountWordbank(root: HTMLElement): void {
   };
   const p2Wrap = el("div", { style: "display:none" },
     el("hr", {}),
-    el("p", { class: "muted" }, "Preset-2.0-Felder — nur bei aktivem 2.0-Preset. Erzählbogen (Einstieg→Schluss), Auslöser/Veränderungen, Konflikte, Zeitanomalien, Regeln, Kontext-Pools und Ton. „2.0-Felder übernehmen“ aktualisiert Dramaturgie, Pools und Ton (und ein geladenes eigenes 2.0-Preset)."),
+    el("p", { class: "muted" }, "Preset-2.0-Felder — der Erzählbogen des aktiven Presets. Seit v4.163.0 bringt jedes eingebaute Preset einen mit; er entscheidet darüber, was die Struktur „Dramaturgie“ im Studio erzeugt. „2.0-Felder übernehmen“ aktualisiert Dramaturgie, Pools und Ton (und ein geladenes eigenes 2.0-Preset). „Original wiederherstellen“ holt den mitgelieferten Bogen zurück."),
     el("label", { class: "field lenrow" }, "Ton ", p2ToneSel),
     p2Grid,
-    el("div", { class: "btnrow" }, apply2Btn, p2fInfo));
+    el("div", { class: "btnrow" }, apply2Btn, reset2Btn, p2fInfo));
   refresh2 = render2;
 
   const fullBox = el("details", { class: "fine", open: "" });
@@ -588,7 +550,7 @@ export function mountWordbank(root: HTMLElement): void {
     el("div", { class: "btnrow" }, autoMixBtn, fillBtn, saveAs),
     info,
     applyParamsRow,
-    fullBox, dramaBox,
+    fullBox,
     p2Box,
     batchBox,
   );
