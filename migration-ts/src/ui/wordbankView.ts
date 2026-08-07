@@ -9,7 +9,8 @@ import { feedLivePools, LIVE_W } from "../features/livepools";
 import { openPresetWizard } from "./presetWizard";
 import { openArchive } from "./archiveView";
 import { preset2ToBank, preset2Name, preset2Active, builtinSettings, generateAiPreset2, setActive2, getActive2, saveUserPreset2, saveUserPresets2All, getUserPreset2, deleteUserPreset2, loadUserPresets2, type Active2 } from "../features/preset2";
-import { setDramaData } from "../generation/dramaturgie";
+import { setDramaData, loadDramaData, type DramaData } from "../generation/dramaturgie";
+import { builtinDrama } from "../presets.drama.data";
 import { isPastTense, toPresent, isSecondPerson, isFirstPerson } from "../generation/coherence";
 import { bankFromCorpus } from "../features/corpusbank";
 import { icon } from "./icons";
@@ -75,7 +76,12 @@ export function mountWordbank(root: HTMLElement): void {
       if (id.startsWith("user:")) {
         applyActive2(getUserPreset2(id.slice(5)));  // 2.0-Preset wiederherstellen (oder null)
       } else {
-        setActive2(null); setDramaData(null);
+        // Eingebaute Presets bringen ihre Dramaturgie selbst mit. Bisher wurde sie
+        // hier geloescht - der Wortbank-Tab hat also zurueckgenommen, was das Studio
+        // gesetzt hatte.
+        const bd = builtinDrama(id);
+        setActive2(bd ? { settings: { structure: "dramaturgie" }, drama: bd, pools: [] } : null);
+        setDramaData(bd);
         if (applyParamsChk.checked) { const st = builtinSettings(id); if (Object.keys(st).length) { try { localStorage.setItem("dm_pending_studio", JSON.stringify(st)); } catch { /* voll */ } } }
       }
     }
@@ -147,6 +153,64 @@ export function mountWordbank(root: HTMLElement): void {
     saveBank(bank); saveActiveBankLabel("Aus Korpus"); preset.selectedIndex = -1; load();
     info.textContent = `Aus Korpus gefüllt (${bankEntryCount(bank)} Einträge). Im Listen-Editor nachschärfen, dann „Als Preset speichern".`;
   });
+  // ── Erzählbogen (2.0) sichtbar und bearbeitbar machen ──────────────────
+  // Die Dramaturgie liegt nicht in der Bank, sondern daneben. Der Listen-Editor
+  // zeigte deshalb nur die sieben Kategorien, und der Bogen blieb unsichtbar —
+  // man konnte weder nachsehen, was ein Preset erzählt, noch es ändern.
+  const DFELDER: [keyof DramaData, string, string][] = [
+    ["einstieg", "Einstieg", "Teilsatz, wird zu „⟨Text⟩.“ — z. B. alles liegt an seinem Platz"],
+    ["mitte", "Mitte", "Teilsatz — z. B. die Zuständigkeit wandert von Zimmer zu Zimmer"],
+    ["hoehepunkt", "Höhepunkt", "Teilsatz, wird zu „Und dann: ⟨Text⟩.“"],
+    ["konflikte", "Konflikte", "Nominalphrase, wird zu „Es geht um ⟨Text⟩.“"],
+    ["ausloeser", "Auslöser", "Nominalphrase, wird zu „Dann, unvermittelt: ⟨Text⟩.“"],
+    ["veraenderungen", "Veränderungen", "Teilsatz — z. B. die Spur kehrt sich um"],
+    ["zeitanomalien", "Zeitanomalien", "ganzer Satz mit Punkt"],
+    ["regeln", "Regeln", "ganzer Satz mit Punkt"],
+  ];
+  const dramaBox = el("details", { class: "wb-full" });
+  dramaBox.append(el("summary", {}, icon("tool"), " Erzählbogen (Dramaturgie 2.0)"));
+  const dramaInner = el("div", {});
+  const dramaInfo = el("p", { class: "muted mini" }, "");
+  const dFields: Partial<Record<keyof DramaData, HTMLTextAreaElement>> = {};
+  const renderDrama = (): void => {
+    dramaInner.innerHTML = "";
+    const d = loadDramaData();
+    if (!d) {
+      dramaInner.append(el("p", { class: "muted" },
+        "Für dieses Preset ist kein Erzählbogen hinterlegt. Ohne ihn bleibt die Struktur „Dramaturgie“ im Studio wirkungslos."));
+      return;
+    }
+    for (const [key, label, hint] of DFELDER) {
+      const ta = el("textarea", { style: "height:70px" }) as HTMLTextAreaElement;
+      ta.value = (d[key] as string[] || []).join("\n");
+      dFields[key] = ta;
+      dramaInner.append(el("label", { class: "field" },
+        el("span", { class: "field-label" }, label), el("span", { class: "muted mini" }, hint), ta));
+    }
+  };
+  const dramaSave = button("Erzählbogen übernehmen");
+  dramaSave.addEventListener("click", () => {
+    const d = loadDramaData(); if (!d) return;
+    const neu2 = { ...d } as DramaData;
+    for (const [key] of DFELDER) {
+      const ta = dFields[key]; if (!ta) continue;
+      (neu2[key] as string[]) = ta.value.split("\n").map((x) => x.trim()).filter(Boolean);
+    }
+    setDramaData(neu2);
+    const a2 = getActive2();
+    setActive2({ settings: a2?.settings || { structure: "dramaturgie" }, drama: neu2, pools: a2?.pools || [] });
+    dramaInfo.textContent = "Übernommen. Er gilt ab der nächsten Generierung und wird mitgespeichert, wenn du das Preset sicherst.";
+  });
+  const dramaReset = button("Original wiederherstellen");
+  dramaReset.addEventListener("click", () => {
+    const bd = builtinDrama(preset.value);
+    if (!bd) { dramaInfo.textContent = "Kein eingebauter Bogen für dieses Preset."; return; }
+    setDramaData(bd); renderDrama();
+    dramaInfo.textContent = "Auf den mitgelieferten Bogen zurückgesetzt.";
+  });
+  dramaBox.append(dramaInner, el("div", { class: "btnrow" }, dramaSave, dramaReset), dramaInfo);
+  dramaBox.addEventListener("toggle", () => { if (dramaBox.open) renderDrama(); });
+
   const saveAs = button("Als Preset speichern");
   saveAs.addEventListener("click", () => {
     // Vorschlag: der aktive Bank-Name (nach „KI-Preset 2.0 erzeugen“ = Inspirations-/Beschreibungsname)
@@ -166,7 +230,11 @@ export function mountWordbank(root: HTMLElement): void {
     const name = prompt("Name für dein Preset:", def);
     if (name) {
       saveCurrentBankAsUserPreset(name);
-      const a2 = getActive2(); if (a2) saveUserPreset2(name.trim().slice(0, 40), a2);
+      // Auch eingebaute Presets haben einen Bogen — ohne diese Zeile verlor jede
+      // gespeicherte Kopie ihre Dramaturgie.
+      const d = loadDramaData();
+      const a2 = getActive2() || (d ? { settings: { structure: "dramaturgie" }, drama: d, pools: [] } : null);
+      if (a2) saveUserPreset2(name.trim().slice(0, 40), a2);
       rebuildPresets("user:" + name.trim().slice(0, 40));
     }
   });
@@ -520,7 +588,7 @@ export function mountWordbank(root: HTMLElement): void {
     el("div", { class: "btnrow" }, autoMixBtn, fillBtn, saveAs),
     info,
     applyParamsRow,
-    fullBox,
+    fullBox, dramaBox,
     p2Box,
     batchBox,
   );
