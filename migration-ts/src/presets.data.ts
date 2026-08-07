@@ -1733,22 +1733,22 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
   "tanz": {
     "motifs": [
       "ein Kreis, der sich dreht, ohne dass jemand führt",
-      "zwei Schatten, die sich drehen, ohne Musik",
+      "Schatten, die sich drehen, ohne Musik",
       "der Wind tanzt durch das Gras wie eine unsichtbare Hand",
       "ein altes Lied, das nur die Füße zu kennen scheinen",
       "zwei Paar Schritte im gleichen geheimen Takt",
       "ein Reigen, der sich im Nebel des Saals verliert",
       "aufgewirbelter Staub, der wie Schnee im Mondlicht steht",
-      "ein Lächeln, das älter ist als der Tanz selbst"
+      "ein Takt, der älter ist als der Tanz selbst"
     ],
     "hooks": [
       "die Musik setzt aus, doch niemand bleibt stehen",
       "ein Glöckchen läutet, ohne dass jemand es berührt",
       "ein Schatten tanzt einen Takt zu spät",
       "jemand summt eine Melodie, die ihm niemand beibrachte",
-      "der Kreis im Gras ist genau so groß wie ihr Tanz",
-      "ein Schaf folgt ihrem Tanz mit geneigtem Kopf",
-      "ihre Fußspuren verschwinden, kaum sind sie gesetzt",
+      "der Kreis im Staub ist genau so groß wie der Tanz",
+      "ein Hund folgt dem Takt mit geneigtem Kopf",
+      "die Fußspuren verschwinden, kaum sind sie gesetzt",
       "der Wind hält kurz den Atem an"
     ],
     "props": [
@@ -1757,37 +1757,37 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "einen Kranz aus Wiesenblumen",
       "ein Tuch, das nach Zeit riecht",
       "eine Flöte ohne Löcher",
-      "einen Ring aus geflochtenem Gras",
+      "einen Ring aus geflochtenem Draht",
       "eine Laterne ohne Flamme",
-      "ein Schaffell, warm wie eine Erinnerung"
+      "einen Mantel, warm wie eine Erinnerung"
     ],
     "turns": [
-      "plötzlich tanzen sie, als hätten sie es niemals verlernt",
-      "auf einmal lächeln beide zur gleichen Sekunde",
+      "plötzlich tanzen alle, als hätte es niemand je verlernt",
+      "auf einmal lächeln alle zur gleichen Sekunde",
       "der Boden scheint sich mit ihnen zu drehen",
       "mit dem ersten Schritt wird die Zeit ganz still",
-      "ihr Tanz zieht die Umstehenden in einen stillen Kreis",
+      "der Tanz zieht die Umstehenden in einen stillen Kreis",
       "als der Mond aufgeht, beginnt der Tanz von selbst"
     ],
     "obstacles": [
       "der Saal liegt plötzlich im Halbdunkel",
-      "ihre Füße scheinen den Boden nicht mehr zu berühren",
+      "die Füße scheinen den Boden nicht mehr zu berühren",
       "der Tanz will nicht enden, obwohl die Kräfte schwinden",
       "die anderen weichen zurück, als spürten sie etwas Fremdes",
-      "kein Lied begleitet ihre Schritte, und doch tanzen sie weiter"
+      "kein Lied begleitet die Schritte, und doch geht der Tanz weiter"
     ],
     "stakes": [
-      "Der Einsatz ist Erinnerung: an einen Tanz, der sie beide jung hielt.",
-      "Der Einsatz ist Vertrauen: dass der Tanz sie nicht verlässt.",
+      "Der Einsatz ist Erinnerung: an einen Tanz, der jung hält.",
+      "Der Einsatz ist Vertrauen: dass der Takt nicht abbricht.",
       "Der Einsatz ist die Zeit selbst, die mit jedem Schritt verrinnt.",
       "Der Einsatz ist die Liebe, die sich im Kreis bewahrt.",
       "Der Einsatz ist das Lächeln, das den Tanz überlebt."
     ],
     "endings": [
-      "So tanzen sie weiter, wenn niemand mehr hinsieht.",
+      "So geht der Tanz weiter, wenn niemand mehr hinsieht.",
       "Und das Holz erinnert sich an den Takt, wenn der Saal längst leer ist.",
       "So schließt sich der Kreis, Schritt für Schritt.",
-      "Am Ende bleibt nur ihr Lächeln über dem stillen Boden.",
+      "Am Ende bleibt nur ein Lächeln über dem stillen Boden.",
       "Und der Tanz wird zur Legende, die der Wind weiterträgt."
     ]
   },
@@ -1986,36 +1986,36 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Grenze, die durch das Land läuft, unsichtbar",
       "der Schatten eines Throns über den Köpfen",
       "ein Siegelring, verloren im Gras",
-      "ein Vertrag, in Wolle eingewebt",
+      "ein Vertrag, in Leinen eingewebt",
       "die Stille eines Gesetzes vor seiner Verkündung",
       "ein Herrscherblick in den Augen der Beherrschten",
       "die Wiederkehr eines alten Eids"
     ],
     "hooks": [
-      "ein Schaf trägt ein Amulett mit einem Wappen",
+      "ein Kind trägt ein Amulett mit einem fremden Wappen",
       "jemand murmelt Worte wie aus einem Gesetzestext",
       "eine Hand zeichnet Linien in den Staub, wie Grenzen",
       "ein Fremder fragt nach dem 'Herrn dieses Landes'",
       "der Wind trägt eine Stimme, die von Pflicht spricht",
-      "zwischen den Hufspuren liegt ein Siegel aus Ton",
+      "zwischen den Pflastersteinen liegt ein Siegel aus Ton",
       "alle folgen einer Ordnung, die niemand befahl",
       "ein Stein in der Erde trägt eingeritzte Paragraphen"
     ],
     "props": [
       "einen zerbrochenen Herrscherstab",
       "eine Tontafel mit unleserlichen Gesetzen",
-      "ein Wollknäuel, verknotet wie ein Staatsvertrag",
+      "eine Schnur, verknotet wie ein Staatsvertrag",
       "einen alten Siegelring",
       "eine Flöte mit eingeritzten Symbolen",
       "ein vergilbtes Pergament ohne Unterschrift",
-      "einen Wanderstab mit eingeschnitzter Krone",
+      "einen Gehstock mit eingeschnitzter Krone",
       "ein verrostetes Schloss ohne Schlüssel",
       "eine Münze mit unbekanntem Antlitz"
     ],
     "turns": [
       "plötzlich zeigt sich im Lärm der Menge eine Ordnung, die einem Gesetz gleicht",
       "ein Lächeln verrät, dass jemand die stumme Verfassung längst versteht",
-      "auf einmal scheint die ganze Herde einem unsichtbaren Herrscher zu gehorchen",
+      "auf einmal scheint die ganze Stadt einem unsichtbaren Herrscher zu gehorchen",
       "ohne Vorwarnung spricht der Wind wie ein Urteil",
       "es scheint, als hätte das Land seit jeher eigene Gesetze"
     ],
@@ -2028,7 +2028,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     ],
     "stakes": [
       "Der Einsatz ist Gerechtigkeit: für ein Land ohne Namen.",
-      "Der Einsatz ist Ordnung: bewahrt von zwei alten Händen.",
+      "Der Einsatz ist Ordnung: bewahrt von niemandem und doch von allen.",
       "Der Einsatz ist Macht: verborgen im Lächeln der Weise.",
       "Der Einsatz ist Frieden: erkauft mit Schweigen.",
       "Der Einsatz ist Herrschaft: über etwas, das niemand sieht."
@@ -2037,71 +2037,71 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "So bleibt die Ordnung ungeschrieben, aber lebendig.",
       "Und alle folgen weiterhin einem Gesetz ohne Namen.",
       "So verschwimmt Herrschaft mit Gewohnheit.",
-      "Am Ende lächelten beide, als wüssten sie, wer wirklich regiert.",
+      "Am Ende lächeln alle, als wüssten sie, wer wirklich regiert.",
       "So schließt sich der Kreis von Macht und Stille."
     ]
   },
   "traumbilder": {
     "motifs": [
-      "ein Schaf, das mit Menschenaugen blickt",
+      "ein Flur, der sich bei jedem Blick neu ordnet",
       "Nebel, der Gesichter formt und wieder löst",
       "ein Zimmer, das im Schlaf zu atmen scheint",
-      "zwei Schatten, die sich lächelnd berühren",
-      "ein Traumbild von Göttern in Bettlergestalt",
+      "eine Uhr, deren Zeiger im Schlaf weiterwandern",
+      "eine Treppe, die nach unten führt und höher endet",
       "Wolken, die wie erinnerte Gesichter ziehen",
       "ein Licht zwischen den Bäumen, das niemand entzündet hat",
       "eine Ebene, die sich in einen See aus Schlaf verwandelt"
     ],
     "hooks": [
-      "ein Lächeln, das älter wirkt als ihr Gesicht",
+      "ein Lächeln, das älter wirkt als das Gesicht",
       "Gesichter, die alle in dieselbe Richtung schauen",
       "ein Windhauch, der nach fremden Worten riecht",
       "eine Hand, die zittert, ohne zu frieren",
       "ein Schatten, der jemandem folgt, aber nicht ihm gehört",
       "ein Klang wie ferne Schritte über Wolken",
-      "der Geruch von Brot, wo kein Ofen brennt",
-      "zwei Fremde, die schon immer da gewesen sein könnten"
+      "ein Geräusch, das erst beim Aufwachen aufhört",
+      "ein Zimmer, das man betritt und längst kennt"
     ],
     "props": [
-      "einen Krug, der niemals leer wird",
+      "einen Wecker, der rückwärts läuft",
       "einen Schlüssel ohne Schloss",
-      "eine Decke aus grauer Wolle",
+      "einen Koffer, der mit jedem Schritt leichter wird",
       "einen Becher voller Traumwasser",
       "eine Kette aus getrockneten Blumen",
-      "einen Ring aus Weidenzweigen",
+      "einen Ring, der nachts enger sitzt",
       "eine Schale mit stillem Wasser",
-      "einen Spiegel aus poliertem Zinn",
+      "einen Spiegel, der eine Spur zu spät reagiert",
       "eine Feder, die im Wind nicht fällt"
     ],
     "turns": [
       "Plötzlich ist klar: hier wird geträumt, und niemand will erwachen.",
-      "Die Stimmen verstummen, als die Fremden zu lächeln beginnen.",
+      "Die Stimmen verstummen, als jemand den Raum betritt, den es nicht gibt.",
       "Ein Windstoß trägt eine Stimme, die niemand ausgesprochen hat.",
       "Der Boden beginnt sich zu drehen, als läge er in einem Traum.",
-      "In den Augen der Fremden erscheint das eigene Spiegelbild.",
+      "Im Spiegel bewegt sich das Bild einen Atemzug zu spät.",
       "Der Himmel färbt sich golden, obwohl es Nacht sein sollte."
     ],
     "obstacles": [
-      "Die Fremden sprechen eine Sprache, die nur im Traum verständlich ist.",
-      "Der Weg zur Hütte verschwindet zwischen den Nebelschwaden.",
+      "Alle sprechen eine Sprache, die nur im Traum verständlich ist.",
+      "Der Weg zur Tür verschwindet zwischen den Nebelschwaden.",
       "Der Weg zurück liegt offen, doch niemand findet ihn.",
       "Ein unsichtbares Gewicht hält jeden Schritt zurück.",
       "Die Zeit scheint sich zu verdoppeln, ohne Fortschritt zu machen.",
       "Jede Stimme verhallt, bevor sie ihr Ende erreicht."
     ],
     "stakes": [
-      "Der Einsatz ist Gastfreundschaft: die letzte, die bleibt.",
+      "Der Einsatz ist der Schlaf: das Letzte, was verlässlich bleibt.",
       "Der Einsatz ist der Glaube an das Unsichtbare.",
-      "Der Einsatz ist die Erinnerung an ein gemeinsames Leben.",
+      "Der Einsatz ist die Erinnerung, die beim Erwachen zerfällt.",
       "Der Einsatz ist die Grenze zwischen Traum und Erwachen.",
-      "Der Einsatz ist das Vertrauen zweier Alter, die nichts mehr zu verlieren scheinen.",
-      "Der Einsatz ist die Gnade der Götter, verkleidet als Fremde."
+      "Der Einsatz ist die Gewissheit, wach zu sein.",
+      "Der Einsatz ist das, was der Traum nicht hergeben will."
     ],
     "endings": [
       "So verschwimmt der Traum mit dem Zimmer, für immer.",
       "So bleibt nur ein Lächeln, das die Zeit überdauert.",
-      "So schließt sich der Kreis zwischen Himmel und Erde.",
-      "So wird aus zwei Herzen ein einziger Baum.",
+      "So schließt sich der Raum, kaum dass man ihn benannt hat.",
+      "So bleibt vom Traum nur ein Wort, das niemand kennt.",
       "So endet der Traum, doch das Lächeln bleibt wach.",
       "So verklingt alles im ersten Licht des Erwachens."
     ]
