@@ -49,30 +49,45 @@ export function extractLeadVerb(text: string): LeadVerb {
   return { verb: null, rest: s };
 }
 
-/** Formen der 1. und 2. Person Singular mit ihrer 3.-Person-Entsprechung. Bewusst
- *  eine Liste: "leise", "kleine", "eigene" enden ebenfalls auf -e und duerfen nicht
- *  als Verben gelten. Die Zuordnung wird gebraucht, weil die Vorlagen die dritte
- *  Person einsetzen und die Perspektive erst danach konjugiert. */
-export const ICH_DU_ZU_ER: Record<string, string> = {
-  sehe: "sieht", siehst: "sieht", gehe: "geht", gehst: "geht", stehe: "steht", stehst: "steht",
-  komme: "kommt", kommst: "kommt", nehme: "nimmt", nimmst: "nimmt", finde: "findet", findest: "findet",
-  denke: "denkt", denkst: "denkt", glaube: "glaubt", glaubst: "glaubt", höre: "hört", hörst: "hört",
-  fühle: "fühlt", fühlst: "fühlt", suche: "sucht", suchst: "sucht", warte: "wartet", wartest: "wartet",
+
+const ICH_DU_HAND: Record<string, string> = {
+  sehe: "sieht", siehst: "sieht", gehe: "geht", gehst: "geht", komme: "kommt", kommst: "kommt",
+  finde: "findet", findest: "findet", glaube: "glaubt", glaubst: "glaubt",
   lebe: "lebt", lebst: "lebt", liege: "liegt", liegst: "liegt", sitze: "sitzt",
-  spreche: "spricht", sprichst: "spricht", schreibe: "schreibt", schreibst: "schreibt",
   lese: "liest", liest: "liest", schlafe: "schläft", schläfst: "schläft",
-  träume: "träumt", träumst: "träumt", laufe: "läuft", läufst: "läuft",
-  falle: "fällt", fällst: "fällt", halte: "hält", hältst: "hält", trage: "trägt", trägst: "trägt",
-  ziehe: "zieht", ziehst: "zieht", breche: "bricht", brichst: "bricht", rufe: "ruft", rufst: "ruft",
-  frage: "fragt", fragst: "fragt", sage: "sagt", sagst: "sagt", mache: "macht", machst: "macht",
-  zeige: "zeigt", zeigst: "zeigt", weine: "weint", weinst: "weint", lache: "lacht", lachst: "lacht",
-  beginne: "beginnt", beginnst: "beginnt", verliere: "verliert", verlierst: "verliert",
-  vergesse: "vergisst", vergisst: "vergisst", erinnere: "erinnert", erinnerst: "erinnert",
-  erkenne: "erkennt", erkennst: "erkennt", bemerke: "bemerkt", bemerkst: "bemerkt",
+  laufe: "läuft", läufst: "läuft", falle: "fällt", fällst: "fällt",
+  breche: "bricht", brichst: "bricht", rufe: "ruft", rufst: "ruft",
+  weine: "weint", weinst: "weint", lache: "lacht", lachst: "lacht",
   spüre: "spürt", spürst: "spürt", atme: "atmet", atmest: "atmet",
-  schweige: "schweigt", schweigst: "schweigt", singe: "singt", singst: "singt",
-  öffne: "öffnet", öffnest: "öffnet", schließe: "schließt",
+  singe: "singt", singst: "singt", öffne: "öffnet", öffnest: "öffnet",
+  erinnere: "erinnert", erinnerst: "erinnert", erkenne: "erkennt", erkennst: "erkennt",
+  zerbreche: "zerbricht", zerbrichst: "zerbricht", stolpere: "stolpert", stolperst: "stolpert",
+  verharre: "verharrt", verharrst: "verharrt", wandere: "wandert", wanderst: "wandert",
+  zittere: "zittert", zitterst: "zittert", flüstere: "flüstert", flüsterst: "flüstert",
+  wundere: "wundert", wunderst: "wundert", zögere: "zögert", zögerst: "zögert",
+  erwache: "erwacht", erwachst: "erwacht", verschwinde: "verschwindet", verschwindest: "verschwindet",
+  begreife: "begreift", begreifst: "begreift", verstehe: "versteht", verstehst: "versteht",
+  bleibe: "bleibt", bleibst: "bleibt", ziehe: "zieht", ziehst: "zieht",
 };
+
+/**
+ * Formen der 1. und 2. Person mit ihrer 3.-Person-Entsprechung. Der grosse Teil
+ * wird aus VERB_CONJ ERZEUGT statt gepflegt: Die Tabelle enthaelt zu jedem der
+ * rund 80 Verben ohnehin die Formen fuer ich, du, wir und ihr. Eine Handliste
+ * bleibt fuer Verben, die dort fehlen. So waechst die Erkennung automatisch mit,
+ * wenn die Konjugationstabelle waechst - und es steht nirgends eine Endungsregel,
+ * die "leise" oder "eigene" fuer Verben halten koennte.
+ */
+export const ICH_DU_ZU_ER: Record<string, string> = (() => {
+  const m: Record<string, string> = {};
+  for (const [dritte, formen] of Object.entries(VERB_CONJ)) {
+    for (const p of ["ich", "du", "wir", "ihr"] as const) {
+      const f = (formen as Record<string, string>)[p];
+      if (f && !m[f]) m[f] = dritte;
+    }
+  }
+  return { ...m, ...ICH_DU_HAND };   // Handliste hat Vorrang
+})();
 
 // Kuratierte finite Verben, die NICHT in der Konjugationstabelle stehen und
 // keine gängigen Nomen sind - so werden ganze Sätze wie "ein Wunder geschieht"

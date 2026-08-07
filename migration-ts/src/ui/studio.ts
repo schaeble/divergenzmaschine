@@ -597,7 +597,7 @@ export function mountStudio(root: HTMLElement): void {
   undoBtn.disabled = true;
   const feedsRow = el("div", { class: "feedsrow" },
     el("label", { class: "chk" }, feedsChk, " Editieren"),
-    legDot("feed-wb", "Wortbank"), legDot("feed-ton", "Ton"), legDot("feed-4w", "4W-Kontext"), legDot("feed-pool", "Lebendige Pools"), legDot("feed-markov", "Markov"), legDot("feed-drama", "Erzählbogen"),
+    legDot("feed-wb", "Wortbank"), legDot("feed-ton", "Ton"), legDot("feed-4w", "4W-Kontext"), legDot("feed-pool", "Lebendige Pools"), legDot("feed-markov", "Markov"), legDot("feed-drama", "Erzählbogen"), legDot("feed-korpus", "Korpus"),
     el("span", { class: "muted" }, "· unmarkiert = Vorlagen · alles anklickbar"),
     el("label", { class: "chk planchk" }, planChk, " Bauplan"),
     el("label", { class: "chk planchk" }, struktChk, " Struktur"), undoBtn);
@@ -625,6 +625,12 @@ export function mountStudio(root: HTMLElement): void {
     try { collectFeed(getMarkovTraceFor(plain), "feed-markov", 2, low, m); } catch { /* egal */ }
     // Erzaehlbogen: eigene Quelle, hoehere Prioritaet als die Wortbank - sonst
     // verschwindet er in ihr, wo Eintraege in beiden stehen.
+    // Korpus-Bausteine: die Bauspur weiss, welche gesetzt wurden - genauer als
+    // jeder Textabgleich gegen den ganzen Korpus.
+    try {
+      const kp = (getTraceFor(plain) || []).filter((x) => x.quelle === "korpus").map((x) => x.text);
+      if (kp.length) collectFeed(kp, "feed-korpus", 3, low, m);
+    } catch { /* egal */ }
     try {
       const dd = loadDramaData();
       if (dd) collectFeed([...dd.einstieg, ...dd.mitte, ...dd.hoehepunkt, ...dd.konflikte,
@@ -683,6 +689,7 @@ export function mountStudio(root: HTMLElement): void {
     try {
       if (cls === "feed-wb") { const b = loadBank() as unknown as Record<string, string[]>; let cat: string[] | null = null; for (const k of Object.keys(b)) if (Array.isArray(b[k]) && b[k]!.some((x) => x.toLowerCase() === cur.toLowerCase())) { cat = b[k]!; break; } pool = cat || Object.values(b).flat(); }
       else if (cls === "feed-pool") pool = liveTexts();
+      else if (cls === "feed-korpus") { pool = (getTraceFor(out.textContent || "") || []).filter((x) => x.quelle === "korpus").map((x) => x.text); }
       else if (cls === "feed-drama") { const dd = loadDramaData(); pool = dd ? [...dd.einstieg, ...dd.mitte, ...dd.hoehepunkt, ...dd.konflikte, ...dd.ausloeser, ...dd.veraenderungen, ...dd.zeitanomalien, ...dd.regeln] : []; }
       else if (cls === "feed-ton") { const td = TONE_DATA[tone.value]; pool = td ? [...td.opener, ...td.flavor] : []; }
       else if (cls === "feed-4w") pool = [who.value, where.value, when.value, what.value];
@@ -725,7 +732,7 @@ export function mountStudio(root: HTMLElement): void {
     popSpan = span;
     const cls = (span.className.match(/feed-[a-z0-9]+/) || ["feed-wb"])[0]!;
     const cur = span.textContent || "";
-    const titles: Record<string, string> = { "feed-wb": "Wortbank", "feed-ton": "Ton", "feed-4w": "4W-Kontext", "feed-pool": "Lebendige Pools", "feed-markov": "Markov", "feed-drama": "Erzählbogen", "feed-plain": "Text" };
+    const titles: Record<string, string> = { "feed-wb": "Wortbank", "feed-ton": "Ton", "feed-4w": "4W-Kontext", "feed-pool": "Lebendige Pools", "feed-markov": "Markov", "feed-drama": "Erzählbogen", "feed-korpus": "Korpus", "feed-plain": "Text" };
     feedPop.innerHTML = "";
     const closeX = el("button", { class: "feedpop-x", type: "button", title: "Schließen", "aria-label": "Schließen" }, "✕");
     closeX.addEventListener("click", hidePop);
