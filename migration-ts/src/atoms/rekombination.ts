@@ -143,8 +143,16 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
   // Bis zur ZIELWORTZAHL bauen, nicht bis zu einer geschätzten Atomzahl: Atome sind
   // im Schnitt nur ~4 Wörter lang, eine feste Zahl verfehlt das Ziel um ein Vielfaches.
   const zielWoerter = Math.max(30, input.lenTarget ?? 110);
+  // B.4: Die Zeitebene vorab aus der MEHRHEIT des Vorrats bestimmen, nicht dem
+  // ersten Los ueberlassen. Vorher legte der erste zeitgebundene Baustein sie fest -
+  // erwischte er eines der wenigen Praeteritum-Atome, galt Praeteritum fuer den
+  // ganzen Text, und fast alles andere wurde abgewiesen. Gemessen: solche Laeufe
+  // kamen bei Ziel 260 auf 144 statt 217 Woerter.
+  const tempusZaehler = new Map<string, number>();
+  for (const a of pool) if (a.tempus && a.tempus !== "kein") tempusZaehler.set(a.tempus, (tempusZaehler.get(a.tempus) || 0) + 1);
+  const mehrheit = [...tempusZaehler].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "praesens";
   const k: Kontext = { vorheriges: null, offenerKopf: false, entitaeten: new Map([[ctx.figur, { abstand: 0 }]]),
-    tempus: null, divergenz: divergenzOf(input), benutzt: new Set() };
+    tempus: mehrheit, divergenz: divergenzOf(input), benutzt: new Set() };
   // Stellschrauben aus den Einstellungen statt fest im Code (A.2)
   const knobs = loadKnobs();
   const W4_MAX = knobs.w4max;
