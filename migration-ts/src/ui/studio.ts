@@ -219,7 +219,9 @@ export function mountStudio(root: HTMLElement): void {
   const ensureMultiOption = (): void => {
     let o = preset.querySelector('option[value="' + MULTI_ID + '"]') as HTMLOptionElement | null;
     if (!o) { o = document.createElement("option"); o.value = MULTI_ID; preset.insertBefore(o, preset.firstChild); }
-    o.textContent = `Mehrere (${multiIds.length})`;
+    // Namen statt blosser Anzahl - "Mehrere (2)" sagt nicht, welche zwei.
+    const nm = multiIds.map((id) => stripIcon(getAllPresets()[id]?.label || id));
+    o.textContent = nm.length <= 3 ? nm.join(" + ") : nm.slice(0, 3).join(" + ") + ` +${nm.length - 3}`;
   };
   preset.style.display = "none"; // verstecktes Zustands-Element; die Checkbox-Liste steuert es
   const presetList = el("div", { class: "mplist", id: "presets" });
@@ -238,8 +240,8 @@ export function mountStudio(root: HTMLElement): void {
   updHints();
   requestAnimationFrame(positionArrows);
   });
-  const renderPresetChecks = (): void => {
-    presetList.innerHTML = "";
+  const renderPresetChecks = (ziel: HTMLElement = presetList): void => {
+    ziel.innerHTML = "";
     const selected = new Set<string>(preset.value === MULTI_ID ? multiIds : [preset.value]);
     const boxes: HTMLInputElement[] = [];
     const CATL: Record<string, string> = { motifs: "Motive", hooks: "Hooks", props: "Requisiten", turns: "Wendungen", obstacles: "Hindernisse", stakes: "Einsätze", endings: "Enden" };
@@ -247,12 +249,17 @@ export function mountStudio(root: HTMLElement): void {
     markedPresetOptions().filter(([v]) => v !== AUTOMIX_ID).forEach(([v, l]) => {
       const cb = el("input", { type: "checkbox" }) as HTMLInputElement;
       cb.checked = selected.has(v); cb.value = v;
-      cb.addEventListener("change", () => applySelection(boxes.filter((b) => b.checked).map((b) => b.value)));
+      cb.addEventListener("change", () => {
+        applySelection(boxes.filter((b) => b.checked).map((b) => b.value));
+        // Der Aufklapper unter dem Chip ist eine zweite Ansicht derselben Auswahl -
+        // ohne dies bliebe er nach dem Klick stehen und zeigte den alten Stand.
+        if (ziel !== presetList) renderPresetChecks(ziel);
+      });
       boxes.push(cb);
       const cats = mixSrc[v];
       const item = el("label", { class: "chk mpitem" + (cats ? " mixsrc" : "") }, cb, " " + l);
       if (cats) { item.title = "Auto-Mix-Quelle: " + cats.map((k) => CATL[k] || k).join(", "); item.append(el("span", { class: "mixsrc-badge" }, String(cats.length))); }
-      presetList.append(item);
+      ziel.append(item);
     });
     const curOpt = Array.from(preset.options).find((o) => o.value === preset.value);
     if (preset.value === MULTI_ID) {
@@ -509,7 +516,7 @@ export function mountStudio(root: HTMLElement): void {
     struktBox.append(renderTextstruktur(out.textContent || "", snap, {
       Preset: preset, Ton: tone, Form: form, Struktur: structure, Perspektive: persp,
       Rhythmus: rhythm, Markov: markov, Varianz: varianz, Spannung: tension,
-    }));
+    }, (host) => renderPresetChecks(host)));
     struktBox.append(quelleHint, zielHint);
     try {
       const hh = analysiereHerkunft(out.textContent || "", (snap?.tonId || snap?.ton || "neutral").toLowerCase(),

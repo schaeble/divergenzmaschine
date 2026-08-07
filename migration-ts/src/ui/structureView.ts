@@ -8,7 +8,8 @@ import { loadZiele, saveZiele, type ZielQuelle } from "../features/knobs";
  *  übergeben; im Diagnose-Tab bleiben die Chips reine Anzeige. */
 export type Schnellwahl = Record<string, HTMLSelectElement>;
 
-export function renderTextstruktur(text: string, snap: Schnappschuss | null, schnell?: Schnellwahl): HTMLElement {
+export function renderTextstruktur(text: string, snap: Schnappschuss | null, schnell?: Schnellwahl,
+                                   presetPanel?: (host: HTMLElement) => void): HTMLElement {
   const box = el("div", {});
   if (!text.trim()) { box.append(el("p", { class: "muted" }, "Noch kein Text erzeugt.")); return box; }
   const h = analysiereHerkunft(text, (snap?.tonId || snap?.ton || "neutral").toLowerCase(),
@@ -21,6 +22,21 @@ export function renderTextstruktur(text: string, snap: Schnappschuss | null, sch
       ["Markov", snap.markov], ["Varianz", snap.varianz], ["Spannung", snap.spannung],
       ["Länge", String(snap.laenge)], ["Bestenauslese", snap.bestenauslese ? "an" : "aus"]];
     for (const [k, v] of paare) {
+      // Preset ist der einzige Fall mit Mehrfachauswahl - ein natives Auswahlfeld
+      // kann das nicht. Deshalb hier eine Schaltfläche, die die Ankreuzliste
+      // aufklappt; die Liste selbst füllt das Studio, damit es nur einen Zustand gibt.
+      if (k === "Preset" && presetPanel) {
+        const knopf = el("button", { class: "src-chip-sel src-chip-preset", type: "button",
+          title: "Presets wählen — mehrere möglich" }, v || "—") as HTMLButtonElement;
+        const panel = el("div", { class: "presetpop", style: "display:none" });
+        knopf.addEventListener("click", () => {
+          const auf = panel.style.display === "none";
+          panel.style.display = auf ? "" : "none";
+          if (auf) presetPanel(panel);
+        });
+        chips.append(el("span", { class: "src-chipwrap src-chipwrap-preset" }, el("b", {}, k), " ", knopf, panel));
+        continue;
+      }
       const sel = schnell?.[k];
       if (!sel) { chips.append(el("span", { class: "src-chip" }, el("b", {}, k), " " + (v || "—"))); continue; }
       // Der Chip zeigt nicht nur die Einstellung, er IST sie. Ein natives Auswahlfeld
