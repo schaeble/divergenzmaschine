@@ -38,10 +38,23 @@ export function renderTextstruktur(text: string, snap: Schnappschuss | null): HT
   (Object.keys(QUELLEN_LABEL) as QuellenId[])
     .map((q) => [q, h.anteile[q]] as [QuellenId, number])
     .sort((a, b) => b[1] - a[1])
-    .forEach(([q, v]) => bars.append(el("div", { class: "src-row" },
+    .forEach(([q, v]) => bars.append(el("div", { class: "src-row anklickbar", role: "button", tabindex: "0",
+      title: "Zeigt, was diesen Anteil steuert",
+      onclick: undefined as unknown as string },
       el("span", { class: "src-name" }, QUELLEN_LABEL[q]),
       el("span", { class: "src-bar" }, el("span", { class: "src-fill q-" + q, style: `width:${Math.round(v * 100)}%` })),
       el("span", { class: "src-val" }, Math.round(v * 100) + " %"))));
+  bars.querySelectorAll(".src-row").forEach((row, i) => {
+    const q = (Object.keys(QUELLEN_LABEL) as QuellenId[])
+      .map((x) => [x, h.anteile[x]] as [QuellenId, number]).sort((a, b) => b[1] - a[1])[i]?.[0];
+    if (!q) return;
+    const los = (): void => { document.dispatchEvent(new CustomEvent("dm-quelle", { detail: q })); };
+    row.addEventListener("click", los);
+    row.addEventListener("keydown", (e) => {
+      const k = (e as KeyboardEvent).key;
+      if (k === "Enter" || k === " ") { e.preventDefault(); los(); }
+    });
+  });
   box.append(bars);
 
   // Ehrlichkeit der Anzeige: gemessen oder geschätzt, und was dabei untergeht.

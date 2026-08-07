@@ -11,6 +11,7 @@ import { NOUN_GENDER } from "../generation/nouns.data";
 import { applyPerspective, pronominalize, guessPronoun } from "../generation/shape";
 import { resetTrace, pushTrace, pruefeAbgleich } from "./trace";
 import { loadDramaData } from "../generation/dramaturgie";
+import { loadKnobs } from "../features/knobs";
 
 interface TemplateAtom { id: string; text: string; typ: string; verlangt: PoolAtom["verlangt"]; oeffnet: boolean }
 
@@ -88,8 +89,7 @@ const divergenzOf = (input: GenInput): number =>
 /** Erzeugt einen Text im Rekombinations-Modus. */
 // Bausteine ohne finites Verb - drei davon in Folge ergeben ein Stakkato.
 const FLACH = new Set(["nominalphrase", "praepositionalphrase", "fragment", "einwort"]);
-/** Wie oft duerfen Ort bzw. Zeit im selben Text vorkommen? */
-const W4_MAX = 2;
+
 
 export function buildRekombination(bank: Bank, input: GenInput): string {
   const pool = buildPool(bank, input.perspective, input.what, (normWho(input.who || "").split(",")[0] || "Jemand").trim());
@@ -104,6 +104,10 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
   const zielWoerter = Math.max(30, input.lenTarget ?? 110);
   const k: Kontext = { vorheriges: null, offenerKopf: false, entitaeten: new Map([[ctx.figur, { abstand: 0 }]]),
     tempus: null, divergenz: divergenzOf(input), benutzt: new Set() };
+  // Stellschrauben aus den Einstellungen statt fest im Code (A.2)
+  const knobs = loadKnobs();
+  const W4_MAX = knobs.w4max;
+  const FUEGE_DECKEL = knobs.fuegeteil / 100;
   const kurve = ["mittel", "kurz", "lang", "mittel", "kurz", "mittel", "lang"];
   const out: string[] = [];
   let letzterTyp = "", gleicheInFolge = 0, wasGesetzt = false, flachInFolge = 0;
@@ -114,7 +118,7 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
   // Wann wurde welches Atom gesetzt? Erlaubt es, den Vorrat spaeter kontrolliert
   // wieder zu oeffnen, statt den Text abzubrechen.
   const benutztBei = new Map<string, number>();
-  const ABSTAND = 12;   // so viele Elemente muss ein Baustein zurueckliegen
+  const ABSTAND = knobs.abstand;   // so viele Elemente muss ein Baustein zurueckliegen
   /** Gibt Bausteine frei, die lange genug zurueckliegen. Gibt zurueck, wie viele. */
   const nachlegen = (): number => {
     let frei = 0;
@@ -138,7 +142,7 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     const letzte = fortschritt >= 0.92;
     let kand = pool.filter((a) => passt(a, k, phase));
     // 0.4 Fügeteil-Anteil deckeln: Vorlagen sind Verbindungsstücke, nicht Inhalt.
-    if (out.length >= 3 && fuegeteile / out.length >= 0.25) {
+    if (out.length >= 3 && fuegeteile / out.length >= FUEGE_DECKEL) {
       const inhalt = kand.filter((a) => a.quelle !== "vorlage");
       // Kein Inhalt mehr uebrig? Frueher endete der Text hier - und genau das war
       // der Grund, warum die Rekombination bei Ziel 280 nur die Haelfte lieferte.

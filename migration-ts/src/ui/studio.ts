@@ -6,6 +6,7 @@ import { getAllPresets, saveActiveBankLabel, buildAutoMixBank, buildMergedBank, 
 import { markedPresetOptions, getUserPreset2 } from "../features/preset2";
 import { setDramaData, hasDramaData, loadDramaData } from "../generation/dramaturgie";
 import { builtinDrama } from "../presets.drama.data";
+import { loadKnobs, saveKnobs, KNOB_VORGABE, KNOB_SPANNE, type Knobs } from "../features/knobs";
 import { buildStory } from "../generation/buildStory";
 import { getMarkovTrace } from "../generation/markovTrace";
 import { buildModelFromCorpus, savePersistentCorpus } from "../corpus";
@@ -208,7 +209,7 @@ export function mountStudio(root: HTMLElement): void {
     o.textContent = `Mehrere (${multiIds.length})`;
   };
   preset.style.display = "none"; // verstecktes Zustands-Element; die Checkbox-Liste steuert es
-  const presetList = el("div", { class: "mplist" });
+  const presetList = el("div", { class: "mplist", id: "presets" });
   const presetStatus = el("span", { class: "muted mini" });
   const autoMixStudioBtn = el("button", { class: "automixbtn", type: "button", title: "Pro Kategorie ein zufälliges Preset zusammenwürfeln" }, icon("dice"), " Auto-Mix würfeln");
   autoMixStudioBtn.addEventListener("click", () => {
@@ -490,7 +491,9 @@ export function mountStudio(root: HTMLElement): void {
     if (!struktChk.checked) { struktBox.style.display = "none"; return; }
     struktBox.style.display = "";
     struktBox.innerHTML = "";
+    quelleHint.style.display = "none";
     struktBox.append(renderTextstruktur(out.textContent || "", loadSchnappschuss()));
+    struktBox.append(quelleHint);
   };
   struktChk.addEventListener("change", renderStruktur);
   /** Nach jeder Textaenderung, die nicht aus generate() kommt: Struktur und
@@ -498,6 +501,60 @@ export function mountStudio(root: HTMLElement): void {
    *  nach Passagen-Austausch, Rueckgaengig, Variante oder einer Uebernahme aus dem
    *  Ranking die Balken noch den vorigen Text beschrieben. */
   const nachTextwechsel = (): void => { renderStruktur(); updVorrat(); };
+
+  // ── Klick auf einen Balken der Textstruktur (A.2) ──────────────────────
+  // Jeder Balken fuehrt zu dem Bedienelement, das ihn steuert - oder sagt, warum
+  // es keines gibt. Eine Anzeige, die auf einen wirkungslosen Regler zeigt, waere
+  // schlimmer als gar kein Ziel.
+  const quelleHint = el("p", { class: "muted mini", style: "display:none" });
+  const zeigeHinweis = (txt: string): void => {
+    quelleHint.textContent = txt; quelleHint.style.display = "";
+  };
+  const springZu = (id: string, txt: string): void => {
+    const n = document.getElementById(id);
+    if (!n) { zeigeHinweis(txt); return; }
+    fine.open = true;                                  // Werkzeugkasten aufklappen
+    n.scrollIntoView({ behavior: "smooth", block: "center" });
+    n.classList.add("hervor");
+    setTimeout(() => n.classList.remove("hervor"), 1800);
+    zeigeHinweis(txt);
+  };
+  document.addEventListener("dm-quelle", (e) => {
+    const q = (e as CustomEvent).detail as string;
+    const rek = structure.value === "rekombination";
+    switch (q) {
+      case "vorlage":
+        springZu("knob-fuegeteil", "„Vorlagen“ sind die Verbindungsstücke. Der Fügeteil-Deckel begrenzt ihren Anteil.");
+        break;
+      case "kontext":
+        springZu("knob-w4max", "Der 4W-Anteil kommt aus Wo/Wann/Wer/Was — Stärke je Feld darüber, Wiederholung über den 4W-Deckel.");
+        break;
+      case "wortbank":
+        springZu("presets", "Die Wortbank ist die Restgröße: alles, was die anderen Quellen nicht liefern. Steuerbar nur über die Preset-Auswahl.");
+        break;
+      case "ton":
+        springZu("f-tone", "Der Ton-Anteil entsteht in der Nachbearbeitung. Die Auswahl bestimmt, welche Sätze eingeschoben werden.");
+        break;
+      case "dramaturgie":
+        zeigeHinweis("Der Erzählbogen wird im Tab Wortbank bearbeitet, unter „Preset bearbeiten und sichern“. Jedes eingebaute Preset bringt einen mit.");
+        break;
+      case "nachbearbeitung":
+        springZu("f-persp", "Nachbearbeitung ist eine Folge, kein Wunsch: Perspektive, Glättung und Verfugung. Man stellt sie nicht ein, man verursacht sie.");
+        break;
+      case "pools":
+        zeigeHinweis(rek
+          ? "Lebendige Pools sind im Rekombinationsmodus nicht angeschlossen — der Assembler führt sie nicht als Quelle. Der Regler im Ideen-Tab wirkt nur dort."
+          : "Lebendige Pools füllen sich beim Merken und Generieren; im Schablonenweg mischen sie sich unter die Wortbank.");
+        break;
+      case "markov":
+        zeigeHinweis(rek
+          ? "Markov ist im Rekombinationsmodus nicht angeschlossen — der Regler bleibt hier ohne Wirkung. Im Schablonenweg wirkt er, sofern der Korpus gefüllt ist."
+          : "Markov braucht einen gefüllten Korpus. Bei leerem Korpus liefert er nichts, gleich wie der Regler steht.");
+        break;
+      default:
+        zeigeHinweis("Für diesen Anteil gibt es keine eigene Stellschraube.");
+    }
+  });
 
   // Textstruktur direkt unter dem Text: woraus besteht er, mit welchen Einstellungen?
 
@@ -813,6 +870,44 @@ export function mountStudio(root: HTMLElement): void {
 
   const fine = el("details", { class: "fine" });
   fine.append(el("summary", {}, icon("tool"), " Werkzeugkasten"));
+
+  // ── Stellschrauben der Rekombination (A.2) ─────────────────────────────
+  // Drei Zahlen standen fest im Code und wirkten wie Regler, ohne welche zu sein.
+  // Die Spannen sind bewusst eng: Ein Fuegeteil-Deckel von 60 % ergibt Leerlauf.
+  const knobs: Knobs = loadKnobs();
+  const knobRow = (feld: keyof Knobs, label: string, hinweis: string, einheit: string): HTMLElement => {
+    const sp = KNOB_SPANNE[feld];
+    const r = el("input", { id: "k-" + feld, type: "range", min: String(sp.min), max: String(sp.max),
+      step: String(sp.step), value: String(knobs[feld]) }) as HTMLInputElement;
+    const v = el("span", { class: "muted" }, knobs[feld] + einheit);
+    const vor = el("span", { class: "muted mini" }, `Vorgabe ${KNOB_VORGABE[feld]}${einheit}`);
+    const zeige = (): void => {
+      v.textContent = r.value + einheit;
+      v.classList.toggle("abweichend", parseInt(r.value, 10) !== KNOB_VORGABE[feld]);
+    };
+    r.addEventListener("input", () => { knobs[feld] = parseInt(r.value, 10); zeige(); });
+    r.addEventListener("change", () => { saveKnobs(knobs); generate(); });
+    zeige();
+    return el("div", { class: "field", id: "knob-" + feld },
+      el("span", { class: "field-label" }, label), el("span", { class: "muted mini" }, hinweis),
+      el("span", { class: "lenrow" }, r, " ", v, " ", vor));
+  };
+  const knobBox = el("div", { class: "grid3", id: "knobs" },
+    knobRow("fuegeteil", "Fügeteil-Deckel", "Höchstanteil der Verbindungsstücke — steuert den Balken „Vorlagen“", " %"),
+    knobRow("w4max", "4W-Deckel", "wie oft Ort und Zeit im Text vorkommen dürfen", "×"),
+    knobRow("abstand", "Nachlege-Abstand", "wie weit ein Baustein zurückliegen muss, bevor er wiederkehrt", ""));
+  const knobReset = button("Vorgaben wiederherstellen");
+  knobReset.addEventListener("click", () => {
+    Object.assign(knobs, KNOB_VORGABE); saveKnobs(knobs);
+    for (const f of ["fuegeteil", "w4max", "abstand"] as (keyof Knobs)[]) {
+      const r = document.getElementById("k-" + f) as HTMLInputElement | null;
+      if (r) { r.value = String(KNOB_VORGABE[f]); r.dispatchEvent(new Event("input")); }
+    }
+    generate();
+  });
+  fine.append(el("p", { class: "muted mini" },
+    "Stellschrauben der Rekombination. Sie wirken auf die Balken der Textstruktur — ein Klick auf einen Balken führt hierher."),
+    knobBox, el("div", { class: "btnrow" }, knobReset));
   // Rekombination baut aus typisierten Atomen und kann nur Fliesstext erzeugen.
   // Bei Vers- und Dialogformen greift sie nicht - das muss die Oberflaeche sagen,
   // statt stillschweigend den Schablonenweg zu nehmen.
