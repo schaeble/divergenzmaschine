@@ -391,6 +391,37 @@ export function mountWordbank(root: HTMLElement): void {
     })();
   });
   updP2Ctx();
+  // Bestehendes Preset auf 2.0 heben: nutzt den Saat-Pfad ("Thema beibehalten und
+  // schaerfen"), der bisher nur im Prompt existierte, aber von keiner Schaltflaeche
+  // aufgerufen wurde. Ergaenzt Dramaturgie, Transformation, Konflikte, Zeitanomalien
+  // und Regeln - ohne Dramaturgie-Block ist die Struktur "Dramaturgie" wirkungslos.
+  const p2UpLbl = el("span", {}, "Aktives Preset auf 2.0 heben");
+  const p2UpBtn = el("button", {}, icon("flask"), " ", p2UpLbl) as HTMLButtonElement;
+  p2UpBtn.addEventListener("click", () => {
+    void (async () => {
+      if (!loadAiKey()) { alert("Kein API-Schlüssel — bitte unter Studio ▸ Einstellungen ▸ KI-Zugang hinterlegen."); return; }
+      const label = (loadActiveBankLabel() || "").trim();
+      const bank = loadBank();
+      const n = bankEntryCount(bank);
+      if (n < 10) { p2Info.textContent = "Die aktive Wortbank ist zu klein — erst ein Preset auswählen."; return; }
+      if (!confirm(`„${label || "aktive Bank"}“ (${n} Einträge) wird als Vorlage an die KI geschickt.\n\n`
+        + `Das Thema bleibt erhalten; ergänzt werden Dramaturgie, Transformation, Konflikte, Zeitanomalien und Regeln. `
+        + `Zeitformen werden ins Präsens gebracht, fehlende Artikel ergänzt.\n\nDas Ergebnis ersetzt die aktive Bank — `
+        + `unter „Als Preset speichern“ landet es erst, wenn du es speicherst.\n\nFortfahren?`)) return;
+      p2UpBtn.disabled = true; p2UpLbl.textContent = "Hebe…";
+      try {
+        const r = await generateAiPreset2(label || "unbenannt", JSON.stringify(bank), p2Ctx.checked ? vierW() : null);
+        p2Json = r.json; p2Out.value = r.json;
+        saveBank(r.bank); saveActiveBankLabel(r.name || label); preset.selectedIndex = -1; load(); renderFull();
+        const a2 = preset2Active(r.obj);
+        applyActive2(a2);
+        p2Info.textContent = `„${r.name}“ auf 2.0 gehoben: ${n} → ${bankEntryCount(r.bank)} Einträge`
+          + `${a2.drama ? ", mit Dramaturgie-Block" : ", OHNE Dramaturgie-Block (bitte prüfen)"}. `
+          + `Vergleiche das JSON, bevor du es als Preset speicherst.`;
+      } catch (e) { p2Info.textContent = "Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e)); }
+      finally { p2UpBtn.disabled = false; p2UpLbl.textContent = "Aktives Preset auf 2.0 heben"; }
+    })();
+  });
   const p2SaveBtn = el("button", {}, icon("floppy"), " Als Preset-2.0-Datei speichern…");
   p2SaveBtn.addEventListener("click", () => {
     if (!p2Json.trim()) { p2Info.textContent = "Erst ein Preset 2.0 erzeugen."; return; }
@@ -402,7 +433,7 @@ export function mountWordbank(root: HTMLElement): void {
     el("summary", {}, icon("flask"), " KI-Preset 2.0 erzeugen"),
     el("p", { class: "muted" }, "Erzeugt ein komplettes Preset 2.0 (Welt, Orte, Figuren, Objekte, Ton, generatoren). Genutzt werden davon die Wortbank (generatoren) und die Kontext-Felder (in die lebendigen Pools); die übrigen Felder sind Metadaten. Braucht einen API-Schlüssel."),
     field("Inspiration", p2Insp),
-    el("div", { class: "btnrow" }, p2Btn, p2CtxLbl, p2SaveBtn), p2CtxInfo,
+    el("div", { class: "btnrow" }, p2Btn, p2UpBtn, p2CtxLbl, p2SaveBtn), p2CtxInfo,
     p2Info, p2Out);
 
   const rulesBox = el("details", { class: "fine" });

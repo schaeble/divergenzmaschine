@@ -4,7 +4,7 @@ import type { GenInput, FormKind } from "../types";
 import { loadBank, saveBank } from "../storage";
 import { getAllPresets, saveActiveBankLabel, buildAutoMixBank, buildMergedBank, lastAutoMixSources, AUTOMIX_ID } from "../wordbank";
 import { markedPresetOptions, getUserPreset2 } from "../features/preset2";
-import { setDramaData } from "../generation/dramaturgie";
+import { setDramaData, hasDramaData } from "../generation/dramaturgie";
 import { buildStory } from "../generation/buildStory";
 import { getMarkovTrace } from "../generation/markovTrace";
 import { buildModelFromCorpus, savePersistentCorpus } from "../corpus";
@@ -720,13 +720,28 @@ export function mountStudio(root: HTMLElement): void {
   const rekHint = el("p", { class: "muted mini", style: "display:none" });
   const updRekHint = (): void => {
     const passt = form.value === "prose" || form.value === "poem";
-    const an = structure.value === "rekombination" && !passt;
-    rekHint.style.display = an ? "" : "none";
-    if (an) rekHint.textContent = `Hinweis: „Rekombination (geprüft)“ wirkt nur bei Prosa und Prosagedicht. `
-      + `Bei „${form.options[form.selectedIndex]?.text || form.value}“ baut die Maschine über die Schablonen — die Struktur bleibt hier ohne Wirkung.`;
+    if (structure.value === "rekombination" && !passt) {
+      rekHint.style.display = "";
+      rekHint.textContent = `Hinweis: „Rekombination (geprüft)“ wirkt nur bei Prosa und Prosagedicht. `
+        + `Bei „${form.options[form.selectedIndex]?.text || form.value}“ baut die Maschine über die Schablonen — die Struktur bleibt hier ohne Wirkung.`;
+      return;
+    }
+    // Dieselbe stumme Wirkungslosigkeit: „Dramaturgie“ verlangt einen Dramaturgie-Block,
+    // den KEINES der eingebauten Presets mitbringt. Ohne ihn faellt die Engine
+    // wortlos auf den gewoehnlichen Bauweg zurueck.
+    if (structure.value === "dramaturgie" && !(form.value === "prose" && hasDramaData())) {
+      rekHint.style.display = "";
+      rekHint.textContent = form.value !== "prose"
+        ? `Hinweis: „Dramaturgie“ wirkt nur bei Prosa — bei „${form.options[form.selectedIndex]?.text || form.value}“ bleibt die Struktur ohne Wirkung.`
+        : "Hinweis: „Dramaturgie“ braucht ein Preset 2.0 mit Dramaturgie-Block. Das aktive Preset hat keinen — "
+          + "die Maschine baut über die Schablonen, die Struktur bleibt ohne Wirkung. In der Wortbank lässt sich ein Preset auf 2.0 heben.";
+      return;
+    }
+    rekHint.style.display = "none";
   };
   form.addEventListener("change", updRekHint);
   structure.addEventListener("change", updRekHint);
+  preset.addEventListener("change", updRekHint);
   updRekHint();
   fine.append(el("div", { class: "grid3" },
     lockField("Struktur", structure), lockField("Modus", mode), lockField("Perspektive", persp),
