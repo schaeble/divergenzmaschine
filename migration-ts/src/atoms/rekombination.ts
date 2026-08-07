@@ -88,6 +88,8 @@ const divergenzOf = (input: GenInput): number =>
 /** Erzeugt einen Text im Rekombinations-Modus. */
 // Bausteine ohne finites Verb - drei davon in Folge ergeben ein Stakkato.
 const FLACH = new Set(["nominalphrase", "praepositionalphrase", "fragment", "einwort"]);
+/** Wie oft duerfen Ort bzw. Zeit im selben Text vorkommen? */
+const W4_MAX = 2;
 
 export function buildRekombination(bank: Bank, input: GenInput): string {
   const pool = buildPool(bank, input.perspective, input.what, (normWho(input.who || "").split(",")[0] || "Jemand").trim());
@@ -214,6 +216,17 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     // identische Sätze („Im Jahr 2000 in London.“) — die Atom-Sperre greift dort nicht.
     const sig = text.toLowerCase().replace(/[^a-zäöüß ]/g, "").replace(/\s+/g, " ").trim();
     if (gesetzteTexte.has(sig)) { k.benutzt.add(a.id); continue; }
+    // 4W-Deckel: Ort und Zeit stecken als Platzhalter in vielen Vorlagen. Jede
+    // erzeugt einen anderen Satz, also greift weder die Atom- noch die Textsperre -
+    // "Im Jahr 2100 in London" stand dadurch mehrfach im selben Text.
+    const zaehleIn = (hay: string, nadel: string): number =>
+      !nadel || nadel.length < 4 ? 0 : hay.toLowerCase().split(nadel.toLowerCase()).length - 1;
+    const bisher = out.join(" ");
+    let zuOft = false;
+    for (const wert of [ctx.ort, ctx.zeit]) {
+      if (zaehleIn(text, wert) && zaehleIn(bisher, wert) >= W4_MAX) { zuOft = true; break; }
+    }
+    if (zuOft) { k.benutzt.add(a.id); continue; }
     const anf = anfangVon(text);
     if (anf.split(" ").length >= 2 && (anfangZahl.get(anf) || 0) >= 2) { k.benutzt.add(a.id); continue; }
     gesetzteTexte.add(sig); anfangZahl.set(anf, (anfangZahl.get(anf) || 0) + 1);

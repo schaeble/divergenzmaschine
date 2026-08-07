@@ -137,6 +137,24 @@ export function analysiereHerkunft(text: string, tone: string, ctx: { where?: st
         if (t.s < lEnde || belegtVon(t.s, t.e)) continue;
         roheSeg.push({ s: t.s, e: t.e, quelle: t.quelle }); lEnde = t.e;
       }
+      // 4W-Werte liegen IN den Bausteinen: fuelleKontext ersetzt ⟨ORT⟩, ⟨ZEIT⟩ und
+      // ⟨FIGUR⟩ mitten in einer Vorlage. Ohne diese Schicht zaehlen sie zur Vorlage,
+      // und "4W-Kontext" stand auf 0 %, obwohl Ort und Zeit im Text zu lesen waren.
+      const w4Treffer = acc.filter((t) => t.quelle === "kontext").sort((a, b) => a.s - b.s);
+      if (w4Treffer.length) {
+        const zerlegt: Segment[] = [];
+        for (const sg of roheSeg) {
+          let at = sg.s;
+          for (const t of w4Treffer) {
+            if (t.s < at || t.e > sg.e) continue;
+            if (t.s > at) zerlegt.push({ s: at, e: t.s, quelle: sg.quelle });
+            zerlegt.push({ s: t.s, e: t.e, quelle: "kontext" });
+            at = t.e;
+          }
+          if (at < sg.e) zerlegt.push({ s: at, e: sg.e, quelle: sg.quelle });
+        }
+        roheSeg.length = 0; roheSeg.push(...zerlegt);
+      }
       roheSeg.sort((a, b) => a.s - b.s);
       if (roheSeg.length) { segmente.length = 0; segmente.push(...roheSeg); }
       // Ueber den ENDTEXT normieren, nicht ueber die Summe der Bausteine. Sonst faellt
