@@ -15,11 +15,20 @@ import { loadKnobs } from "../features/knobs";
 import { isSaneMarkov, loadPersistentCorpus, type MarkovModel } from "../corpus";
 import { properNames } from "../generation/coherence";
 import { hatFinitesVerb } from "./derive";
+import { ICH_DU_ZU_ER } from "../generation/wordcls";
 import { traceMarkov } from "../generation/markovTrace";
 
 interface TemplateAtom { id: string; text: string; typ: string; verlangt: PoolAtom["verlangt"]; oeffnet: boolean }
 
 /** Baut den Atom-Pool aus Bank und Vorlagen. Perspektivfremde Vorlagen bleiben draußen. */
+/** Traegt der Satz eine eigene Perspektive? Bausteine aus Korpus und Markov
+ *  bringen ihre Person mit ("ich bemerke", "du siehst"). Die Perspektiven-
+ *  Umstellung konjugiert aber nur AUS der dritten Person - eine erste Person
+ *  bleibt unveraendert stehen und ergibt "du bemerke eine Erinnerung".
+ *  Erkannt wird das mit derselben Zuordnung, die B.8 erzeugt hat. */
+const traegtPerson = (t: string): boolean =>
+  (t.toLowerCase().match(/[a-zäöüß]+/g) || []).some((w) => !!ICH_DU_ZU_ER[w]);
+
 export function buildPool(bank: Bank, perspektive: string, what?: string, figur?: string,
                           model?: MarkovModel, markovMode?: string): PoolAtom[] {
   const pool: PoolAtom[] = [];
@@ -91,6 +100,7 @@ export function buildPool(bank: Bank, perspektive: string, what?: string, figur?
       if (d.tempus === "praeteritum") continue;                       // Zeitebene bricht sonst
       if (d.rhythmus.woerter > 20) continue;                          // zu lang zum Verfugen
       if (properNames(roh).some((nm) => !eigene.has(nm.toLowerCase()))) continue;  // fremde Figuren
+      if (traegtPerson(roh)) continue;                                             // eigene Person
       gesehen.add(sig);
       pool.push({ ...d, id: `mk-${++i}`, quelle: "markov", kategorie: "", verlangt: null, bruchgrad: 1 });
     }
@@ -111,6 +121,7 @@ export function buildPool(bank: Bank, perspektive: string, what?: string, figur?
       if (d.tempus === "praeteritum") continue;
       if (d.rhythmus.woerter > 22) continue;
       if (properNames(satz).some((nm) => !eigene2.has(nm.toLowerCase()))) continue;
+      if (traegtPerson(satz)) continue;                      // eigene Person, siehe oben
       pool.push({ ...d, id: `kp-${++i}`, quelle: "korpus", kategorie: "", verlangt: null, bruchgrad: 1 });
       genommen++;
     }

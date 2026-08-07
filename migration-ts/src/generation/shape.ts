@@ -5,6 +5,7 @@ import { clean, pick, chance, splitSentences, escapeRegExp } from "../text-utils
 import { chooseInsertPos, isFragmentSentence, cap } from "./beats";
 import { VERB_CONJ } from "./verbconj.data";
 import { conjugateVerbToken } from "./verbconj";
+import { ICH_DU_ZU_ER } from "./wordcls";
 
 export interface DisruptorResult { text: string; fired: boolean; kind: string; }
 
@@ -152,13 +153,46 @@ export function applyPerspective(paras: string[], perspective: string, who: stri
   const swap = (s: string, person: string, pronoun: string): string => {
     if (!P) return s;
     try {
-      const re = new RegExp("([A-Za-zÄÖÜäöüß]+\\s+)?\\b" + escapeRegExp(P) + "\\b(\\s+[A-Za-zÄÖÜäöüß]+)?", "g");
-      return s.replace(re, (_m, before?: string, after?: string) => {
+      // Ohne "i" wurde die Figur am Satzanfang nicht gefunden: gesucht wurde "ich",
+      // dort steht aber "Ich". Der Baustein blieb dann unveraendert stehen.
+      const re = new RegExp("([A-Za-zÄÖÜäöüß]+\\s+)?\\b" + escapeRegExp(P) + "\\b(\\s+[A-Za-zÄÖÜäöüß]+)?", "gi");
+      return s.replace(re, (_m: string, before?: string, after?: string, ...rest: unknown[]) => {
+        // Nicht in Zusammensetzungen ersetzen: Sonst wird aus "Über-Ich" ein
+        // "Über-du". Der Bindestrich davor macht den Unterschied.
+        const idx = rest[rest.length - 2] as number;
+        const voll = rest[rest.length - 1] as string;
+        const posP = voll.toLowerCase().indexOf(P.toLowerCase(), idx);
+        if (posP > 0 && /[-–\wÄÖÜäöüß]/.test(voll.charAt(posP - 1))) return _m;
+        // Grossschreibung des Originals uebernehmen, damit der Satzanfang stimmt.
+        const treffer = _m.match(new RegExp("\\b" + escapeRegExp(P) + "\\b", "i"));
+        const gross = !!treffer && /^[A-ZÄÖÜ]/.test(treffer[0]);
+        const pron = gross ? pronoun.charAt(0).toUpperCase() + pronoun.slice(1) : pronoun;
         const bw = before ? before.trim() : "";
         const aw = after ? after.trim() : "";
-        if (bw && VERB_CONJ[bw.toLowerCase()]) return conjugateVerbToken(bw, person) + " " + pronoun + (after || "");
-        if (aw && VERB_CONJ[aw.toLowerCase()]) return (before || "") + pronoun + " " + conjugateVerbToken(aw, person);
-        return (before || "") + pronoun + (after || "");
+        // Erst auf die dritte Person bringen: Die Konjugationstabelle ist danach
+        // geschluesselt, ein Baustein kann aber schon eine Person tragen
+        // ("ich bemerke"). Ohne diesen Schritt blieb er stehen und ergab
+        // "du bemerke eine Erinnerung".
+        const bw3 = ICH_DU_ZU_ER[bw.toLowerCase()] || bw;
+        const aw3 = ICH_DU_ZU_ER[aw.toLowerCase()] || aw;
+        // Rueckfall fuer schwache Verben ohne Tabelleneintrag. Das Endungs-t der
+        // dritten Person wird ERSETZT, nicht ergaenzt: "erinnert" -> "erinnerst",
+        // nicht "erinnertst". Bei Stamm auf -e ("wartet" -> "warte") faellt das
+        // zusaetzliche e weg.
+        const beuge = (v: string): string => {
+          if (VERB_CONJ[v.toLowerCase()]) return conjugateVerbToken(v, person);
+          if (!/[a-zäöüß]{3,}t$/.test(v)) return v;
+          const stamm = v.slice(0, -1);                       // ohne das End-t
+          const hatE = /e$/.test(stamm);
+          if (person === "du") return stamm + "st";
+          if (person === "ich") return hatE ? stamm : stamm + "e";
+          if (person === "wir") return hatE ? stamm + "n" : stamm + "en";
+          return v;
+        };
+        const kennt = (v: string): boolean => !!VERB_CONJ[v.toLowerCase()] || /^[a-zäöüß]{4,}t$/.test(v);
+        if (bw && kennt(bw3)) return beuge(bw3) + " " + pron + (after || "");
+        if (aw && kennt(aw3)) return (before || "") + pron + " " + beuge(aw3);
+        return (before || "") + pron + (after || "");
       });
     } catch {
       return s.replace(new RegExp("\\b" + escapeRegExp(P) + "\\b", "gi"), pronoun);
