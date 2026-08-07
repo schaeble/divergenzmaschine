@@ -140,7 +140,19 @@ export function mountWordbank(root: HTMLElement): void {
   const saveAs = button("Als Preset speichern");
   saveAs.addEventListener("click", () => {
     // Vorschlag: der aktive Bank-Name (nach „KI-Preset 2.0 erzeugen“ = Inspirations-/Beschreibungsname)
-    const def = (loadActiveBankLabel() || "").replace(/^[^0-9A-Za-zÄÖÜäöüß]+/, "").trim() || "MeinPreset";
+    const label = (loadActiveBankLabel() || "").trim();
+    const def = label.replace(/^[^0-9A-Za-zÄÖÜäöüß]+/, "").trim() || "MeinPreset";
+    // Gespeichert wird die AKTIVE Bank — und die ist ein flüchtiger Arbeitsplatz:
+    // Eine Mehrfachauswahl im Studio überschreibt sie mit der Mischung. Wer danach
+    // hier speichert, legt die Mischung unter dem alten Namen ab. Deshalb erst zeigen,
+    // was tatsächlich abgelegt wird.
+    const n = bankEntryCount(loadBank());
+    const istMix = /^(Mix:|Auto-Mix)/i.test(label);
+    const warn = istMix
+      ? `\n\n⚠ ACHTUNG: Die aktive Bank ist eine MISCHUNG („${label}“). Gespeichert wird diese Mischung, `
+        + `nicht das ursprüngliche Preset. Wenn du ein einzelnes Preset sichern willst, wähle es zuerst allein aus.`
+      : "";
+    if (!confirm(`Gespeichert wird die aktive Wortbank:\n\n„${label || "ohne Namen"}“ · ${n} Einträge${warn}\n\nFortfahren?`)) return;
     const name = prompt("Name für dein Preset:", def);
     if (name) {
       saveCurrentBankAsUserPreset(name);
