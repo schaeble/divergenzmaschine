@@ -157,6 +157,12 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
   const knobs = loadKnobs();
   const W4_MAX = knobs.w4max;
   const FUEGE_DECKEL = knobs.fuegeteil / 100;
+  // Nebenfiguren seltener als die Hauptfigur: Sie sollen vorkommen, nicht dominieren.
+  const figuren = normWho(input.who || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean);
+  const waehleFigur = (): string => {
+    if (figuren.length < 2) return ctx.figur;
+    return Math.random() < 0.65 ? figuren[0]! : figuren[1 + Math.floor(Math.random() * (figuren.length - 1))]!;
+  };
   const kurve = ["mittel", "kurz", "lang", "mittel", "kurz", "mittel", "lang"];
   const out: string[] = [];
   let letzterTyp = "", gleicheInFolge = 0, wasGesetzt = false, flachInFolge = 0;
@@ -235,7 +241,10 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
     }
     const a = ziehe(kand, kurve[s % kurve.length]!, out.join(" "), phase);
     if (!a) break;
-    let text = fuelleKontext(a.text, ctx);
+    // Alle genannten Figuren einsetzen, nicht nur die erste. Vorher fuellte ⟨FIGUR⟩
+    // immer denselben Namen - eine zweite Figur aus "Wer?" kam im ganzen Text nicht
+    // vor (gemessen: "Ada" in 0 von 64 Texten, im Schablonenweg in 59).
+    let text = fuelleKontext(a.text, { ...ctx, figur: waehleFigur() });
     const fueller: { text: string; kategorie: string; quelle: string }[] = [];
     let guard = 0;
     while (offeneSlots(text) && guard++ < 3) {

@@ -266,7 +266,7 @@ export function mountStudio(root: HTMLElement): void {
   const form = select("f-form", [["prose", "Prosa"], ["poem", "Prosagedicht"], ["strang", "Gedicht-Strang"], ["reim", "Reim"], ["haiku", "Haiku"], ["script", "Szene/Dialog"], ["video", "Multi-Shot (Video)"]], "prose");
   const shots = el("input", { id: "f-shots", type: "number", value: "5", min: "3", max: "10" }) as HTMLInputElement;
   const secs = el("input", { id: "f-secs", type: "number", value: "15", min: "3", max: "600" }) as HTMLInputElement;
-  const structure = select("f-structure", [["auto", "Auto"], ["linear", "Linear"], ["reverse", "Reverse"], ["circle", "Kreis"], ["fragment", "Fragment"], ["object", "Objekt"], ["dramaturgie", "Dramaturgie (Preset 2.0)"], ["rekombination", "Rekombination (geprüft)"]], "auto");
+  const structure = select("f-structure", [["auto", "Auto"], ["linear", "Linear"], ["reverse", "Reverse"], ["circle", "Kreis"], ["fragment", "Fragment"], ["object", "Objekt"], ["dramaturgie", "Dramaturgie (Preset 2.0)"], ["rekombination", "Rekombination"]], "rekombination");
   const mode = select("f-mode", [["auto", "Auto"], ["bureau", "Bürokratie"], ["tech", "Tech-Mystik"], ["body", "Body"], ["myth", "Myth"], ["absurd", "Absurd"], ["post", "Posthuman"]], "auto");
   const persp = select("f-persp", [["auto", "Auto"], ["third", "Er/Sie"], ["first", "Ich"], ["second", "Du"], ["we", "Wir"], ["object", "Objekt"]], "auto");
   const rhythm = select("f-rhythm", [["auto", "Auto"], ["breath", "Atem"], ["staccato", "Staccato"], ["long", "Lange Bögen"], ["fracture", "Fraktur"], ["clean", "Klar"]], "auto");
@@ -950,7 +950,7 @@ export function mountStudio(root: HTMLElement): void {
     const passt = form.value === "prose" || form.value === "poem";
     if (structure.value === "rekombination" && !passt) {
       rekHint.style.display = "";
-      rekHint.textContent = `Hinweis: „Rekombination (geprüft)“ wirkt nur bei Prosa und Prosagedicht. `
+      rekHint.textContent = `Hinweis: „Rekombination“ wirkt nur bei Prosa und Prosagedicht. `
         + `Bei „${form.options[form.selectedIndex]?.text || form.value}“ baut die Maschine über die Schablonen — die Struktur bleibt hier ohne Wirkung.`;
       return;
     }
