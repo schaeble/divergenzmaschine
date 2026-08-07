@@ -581,9 +581,9 @@ export function mountStudio(root: HTMLElement): void {
           : "Lebendige Pools füllen sich beim Merken und Generieren; im Schablonenweg mischen sie sich unter die Wortbank.");
         break;
       case "markov":
-        zeigeHinweis(rek
-          ? "Markov ist im Rekombinationsmodus nicht angeschlossen — der Regler bleibt hier ohne Wirkung. Im Schablonenweg wirkt er, sofern der Korpus gefüllt ist."
-          : "Markov braucht einen gefüllten Korpus. Bei leerem Korpus liefert er nichts, gleich wie der Regler steht.");
+        springZu("f-markov", rek
+          ? "Markov speist eigene Bausteine in die Rekombination ein — gefiltert auf Präsens, ohne fremde Figuren, nicht zu lang. Braucht einen gefüllten Korpus."
+          : "Markov mischt sich in die Bausteine des Schablonenwegs. Bei leerem Korpus liefert er nichts, gleich wie der Regler steht.");
         break;
       default:
         zeigeHinweis("Für diesen Anteil gibt es keine eigene Stellschraube.");

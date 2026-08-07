@@ -12,11 +12,15 @@ import { applyPerspective, pronominalize, guessPronoun } from "../generation/sha
 import { resetTrace, pushTrace, pruefeAbgleich } from "./trace";
 import { loadDramaData } from "../generation/dramaturgie";
 import { loadKnobs } from "../features/knobs";
+import { isSaneMarkov, type MarkovModel } from "../corpus";
+import { properNames } from "../generation/coherence";
+import { traceMarkov } from "../generation/markovTrace";
 
 interface TemplateAtom { id: string; text: string; typ: string; verlangt: PoolAtom["verlangt"]; oeffnet: boolean }
 
 /** Baut den Atom-Pool aus Bank und Vorlagen. Perspektivfremde Vorlagen bleiben draußen. */
-export function buildPool(bank: Bank, perspektive: string, what?: string, figur?: string): PoolAtom[] {
+export function buildPool(bank: Bank, perspektive: string, what?: string, figur?: string,
+                          model?: MarkovModel, markovMode?: string): PoolAtom[] {
   const pool: PoolAtom[] = [];
   let i = 0;
   // „Was passiert?“ als eigene Atome — bisher floss die Angabe gar nicht ein.
@@ -64,6 +68,27 @@ export function buildPool(bank: Bank, perspektive: string, what?: string, figur?
       }
     }
   }
+  // B.1: Markov als eigene Atomquelle. Bisher kannte der Assembler nur Bank,
+  // Erzaehlbogen und Vorlagen - der Markov-Regler war in diesem Bauweg wirkungslos.
+  // Die Fragmente laufen durch dieselben Filter, die auch fuer Korpusmaterial
+  // gelten muessten: brauchbar, Praesens, keine fremden Eigennamen, nicht zu lang.
+  if (model && markovMode && markovMode !== "off") {
+    const wieViele = markovMode === "on" ? 34 : 16;
+    const eigene = new Set((figur || "").toLowerCase().split(/[,;]/).map((x) => x.trim()).filter(Boolean));
+    const gesehen = new Set<string>();
+    for (let n = 0; n < wieViele * 3 && gesehen.size < wieViele; n++) {
+      const roh = (model.generate(14) || "").trim();
+      if (!roh || !isSaneMarkov(roh)) continue;
+      const sig = roh.toLowerCase();
+      if (gesehen.has(sig)) continue;
+      const d = deriveAtom(roh);
+      if (d.tempus === "praeteritum") continue;                       // Zeitebene bricht sonst
+      if (d.rhythmus.woerter > 20) continue;                          // zu lang zum Verfugen
+      if (properNames(roh).some((nm) => !eigene.has(nm.toLowerCase()))) continue;  // fremde Figuren
+      gesehen.add(sig);
+      pool.push({ ...d, id: `mk-${++i}`, quelle: "markov", kategorie: "", verlangt: null, bruchgrad: 1 });
+    }
+  }
   for (const [kat, arr] of Object.entries(bank as unknown as Record<string, string[]>)) {
     if (!Array.isArray(arr)) continue;
     for (const t of arr) {
@@ -95,8 +120,9 @@ const divergenzOf = (input: GenInput): number =>
 const FLACH = new Set(["nominalphrase", "praepositionalphrase", "fragment", "einwort"]);
 
 
-export function buildRekombination(bank: Bank, input: GenInput): string {
-  const pool = buildPool(bank, input.perspective, input.what, (normWho(input.who || "").split(",")[0] || "Jemand").trim());
+export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovModel): string {
+  const pool = buildPool(bank, input.perspective, input.what, (normWho(input.who || "").split(",")[0] || "Jemand").trim(),
+    model, input.markovMode);
   const ctx = {
     ort: normWhere(input.where || "") || "an einem Ort",
     zeit: normWhen(input.when || "") || "zu einer Zeit",
@@ -239,6 +265,7 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     if (anf.split(" ").length >= 2 && (anfangZahl.get(anf) || 0) >= 2) { k.benutzt.add(a.id); continue; }
     gesetzteTexte.add(sig); anfangZahl.set(anf, (anfangZahl.get(anf) || 0) + 1);
     out.push(text);
+    if (a.quelle === "markov") traceMarkov(a.text);
     pushTrace({ text, quelle: a.quelle, kategorie: a.kategorie || "—", typ: a.typ, phase, fueller: fueller.length ? fueller : undefined });
     gleicheInFolge = a.typ === letzterTyp ? gleicheInFolge + 1 : 0;
     flachInFolge = FLACH.has(a.typ) ? flachInFolge + 1 : 0;
