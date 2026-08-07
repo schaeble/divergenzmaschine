@@ -379,6 +379,20 @@ export function mountStudio(root: HTMLElement): void {
 
   // Textstruktur direkt unter dem Text: woraus besteht er, mit welchen Einstellungen?
   const struktChk = el("input", { type: "checkbox", id: "f-struktur" }) as HTMLInputElement;
+  // Vorrats-Hinweis: Die Rekombination baut aus typisierten Bausteinen, und jeder
+  // Satz darf nur einmal vorkommen. Reicht das Material nicht fuer die Ziellaenge,
+  // wurde der Text bisher stillschweigend kuerzer - das sieht nach einem Fehler aus,
+  // ist aber eine Materialgrenze. Also benennen.
+  const vorratHint = el("p", { class: "muted mini", style: "display:none" });
+  const updVorrat = (): void => {
+    const txt = out.textContent || "";
+    const ziel = parseInt(lenSlider.value, 10) || 0;
+    const ist = txt.split(/\s+/).filter(Boolean).length;
+    const knapp = structure.value === "rekombination" && ziel > 0 && ist > 0 && ist / ziel < 0.85;
+    vorratHint.style.display = knapp ? "" : "none";
+    if (knapp) vorratHint.textContent = `${ist} statt ${ziel} Wörtern: Der Baustein-Vorrat des gewählten Presets ist erschöpft. `
+      + `Die Rekombination lässt jeden Satz nur einmal zu — für längere Texte mehrere Presets aktivieren oder Auto-Mix wählen.`;
+  };
   const struktBox = el("div", { class: "struktur-inline", style: "display:none" });
   const renderStruktur = (): void => {
     if (!struktChk.checked) { struktBox.style.display = "none"; return; }
@@ -592,7 +606,7 @@ export function mountStudio(root: HTMLElement): void {
   const bestChk = el("input", { type: "checkbox", id: "f-best" }) as HTMLInputElement;
   bestChk.checked = true;
   const bestLbl = el("label", { class: "chk", title: "Erzeugt bei jedem Klick 12 Kandidaten und zeigt den bestbewerteten (Längentreue, Wortvielfalt, Rhythmus, wenig Wiederholung, Grammatik, Abstand zur Schatzkammer)." }, bestChk, " Bestenauslese");
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl), outWrap, feedsRow, planBox, struktBox, kling);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl), outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
 
   // ── Test & Ranking ──
   let lastRanking: Ranking | null = null;
@@ -835,6 +849,7 @@ export function mountStudio(root: HTMLElement): void {
         : buildStory(loadBank(), input, model);
       baseText = out.textContent || "";
       ctxSichern();
+      updVorrat();
       try { localStorage.setItem("dm_last_text", out.textContent || ""); } catch { /* voll */ }
       renderKling(input.form, out.textContent || "");
       try { feedLivePools(out.textContent || "", LIVE_W.gen); } catch { /* egal */ }

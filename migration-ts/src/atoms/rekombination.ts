@@ -84,7 +84,19 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
   const gesetzteTexte = new Set<string>();   // verschiedene Atome können gleichen TEXT erzeugen
   // Satzanfänge sperren: In einem Preset beginnen oft mehrere Einträge gleich
   // („Der Einsatz ist …“ 7×) — das ergibt eine Schleife trotz verschiedener Atome.
-  const gesetzteAnfaenge = new Set<string>();
+  const anfangZahl = new Map<string, number>();
+  // Wann wurde welches Atom gesetzt? Erlaubt es, den Vorrat spaeter kontrolliert
+  // wieder zu oeffnen, statt den Text abzubrechen.
+  const benutztBei = new Map<string, number>();
+  const ABSTAND = 12;   // so viele Elemente muss ein Baustein zurueckliegen
+  /** Gibt Bausteine frei, die lange genug zurueckliegen. Gibt zurueck, wie viele. */
+  const nachlegen = (): number => {
+    let frei = 0;
+    for (const [id, wann] of [...benutztBei]) {
+      if (out.length - wann >= ABSTAND) { k.benutzt.delete(id); benutztBei.delete(id); frei++; }
+    }
+    return frei;
+  };
   const anfangVon = (t: string): string => t.toLowerCase().replace(/[^a-zäöüß ]/g, "").trim().split(/\s+/).slice(0, 3).join(" ");
   resetTrace();
   // 0.6 Harte Dublettensperre: jedes Atom höchstens EINMAL je Text. Lieber ein
@@ -92,7 +104,7 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
   let fuegeteile = 0;
   const woerterJetzt = (): number => out.join(" ").split(/\s+/).filter(Boolean).length;
 
-  for (let s = 0; s < 200; s++) {
+  for (let s = 0; s < 600; s++) {
     const fortschritt = woerterJetzt() / zielWoerter;
     if (fortschritt >= 1) break;
     // Phase aus dem Fortschritt in Wörtern ableiten (nicht aus der Position)
@@ -102,10 +114,22 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     // 0.4 Fügeteil-Anteil deckeln: Vorlagen sind Verbindungsstücke, nicht Inhalt.
     if (out.length >= 3 && fuegeteile / out.length >= 0.25) {
       const inhalt = kand.filter((a) => a.quelle !== "vorlage");
-      // Kein Inhalt mehr übrig? Dann endet der Text — Strecken mit Fügeteilen
-      // erzeugt nur Leerlauf („Im Winter. Im Hafen, im Winter.“).
-      if (!inhalt.length) break;
-      kand = inhalt;
+      // Kein Inhalt mehr uebrig? Frueher endete der Text hier - und genau das war
+      // der Grund, warum die Rekombination bei Ziel 280 nur die Haelfte lieferte.
+      // Strecken mit Fuegeteilen bleibt verboten (das ergibt Leerlauf), aber der
+      // Baustein-Vorrat darf sich wieder oeffnen: Was ABSTAND Elemente zurueckliegt,
+      // ist erneut ziehbar. Die Textsperre bleibt absolut - woertliche Wiederholung
+      // ist weiterhin unmoeglich, nur derselbe Baustein darf in anderer Umgebung
+      // wiederkehren.
+      if (!inhalt.length) {
+        // Rahmen mit Slot sind der Ausweg: Sie verbinden bereits benutzte Bausteine
+        // zu einem Satz, den es so noch nicht gab - die Textsperre laesst ihn also zu.
+        // Reine Fuegeteile ohne Slot bleiben gedeckelt, die ergaeben nur Leerlauf.
+        nachlegen();
+        const rahmen = pool.filter((a) => a.verlangt && passt(a, k, phase));
+        if (!rahmen.length) break;
+        kand = rahmen;
+      } else kand = inhalt;
     }
     if (letzte) kand = kand.filter((a) => !a.oeffnet && !a.verlangt);   // Text darf nicht offen enden
     // Nominalphrasen-Ketten aufbrechen: nach zwei gleichartigen Atomen Typwechsel erzwingen
@@ -122,8 +146,8 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     }
     // Phasenordnung: ein Schlussbild erst wirklich am Ende, nicht schon bei 80 %
     if (fortschritt < 0.85) kand = kand.filter((a) => a.kategorie !== "endings");
-    if (!kand.length) break;
-    if (!kand.length) break;
+    if (!kand.length) { if (!nachlegen()) break; continue; }
+    if (!kand.length) { if (!nachlegen()) break; continue; }
     // Die Handlung aus „Was passiert?“ muss vorkommen — spätestens zur Hälfte
     // wird sie erzwungen, sofern ein passendes Atom zur Verfügung steht.
     if (!wasGesetzt && fortschritt >= 0.35) {
@@ -159,7 +183,7 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
       if (!f.fuehrt_ein.length && !istNomen && !istFigur && /^[A-ZÄÖÜ][a-zäöüß]/.test(fill)) fill = fill.charAt(0).toLowerCase() + fill.slice(1);
       text = fuelleSlot(text, fill);
       fueller.push({ text: fill, kategorie: f.kategorie || "—", quelle: f.quelle });
-      k.benutzt.add(f.id);
+      k.benutzt.add(f.id); benutztBei.set(f.id, out.length);
     }
     if (offeneSlots(text)) continue;                    // ungefüllt → verwerfen statt ausgeben
     // Textdublette? Verschiedene Vorlagen mit denselben Platzhaltern erzeugen
@@ -167,13 +191,14 @@ export function buildRekombination(bank: Bank, input: GenInput): string {
     const sig = text.toLowerCase().replace(/[^a-zäöüß ]/g, "").replace(/\s+/g, " ").trim();
     if (gesetzteTexte.has(sig)) { k.benutzt.add(a.id); continue; }
     const anf = anfangVon(text);
-    if (anf.split(" ").length >= 2 && gesetzteAnfaenge.has(anf)) { k.benutzt.add(a.id); continue; }
-    gesetzteTexte.add(sig); gesetzteAnfaenge.add(anf);
+    if (anf.split(" ").length >= 2 && (anfangZahl.get(anf) || 0) >= 2) { k.benutzt.add(a.id); continue; }
+    gesetzteTexte.add(sig); anfangZahl.set(anf, (anfangZahl.get(anf) || 0) + 1);
     out.push(text);
     pushTrace({ text, quelle: a.quelle, kategorie: a.kategorie || "—", typ: a.typ, phase, fueller: fueller.length ? fueller : undefined });
     gleicheInFolge = a.typ === letzterTyp ? gleicheInFolge + 1 : 0;
     flachInFolge = FLACH.has(a.typ) ? flachInFolge + 1 : 0;
     letzterTyp = a.typ;
+    benutztBei.set(a.id, out.length);
     fortschreiben(k, a);
     if (a.verlangt) k.offenerKopf = false;
     if (a.quelle === "vorlage") fuegeteile++;
