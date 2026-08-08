@@ -4,6 +4,7 @@ import { pick, clean, ensurePunct } from "../text-utils";
 import { cap } from "./beats";
 import { VIDEO_RULES, VIDEO_CAM_EXTENDED, VIDEO_LIGHT, VIDEO_TEX } from "./video.data";
 import { loadDramaData, type DramaData } from "./dramaturgie";
+import { loadActiveBankLabel } from "../wordbank";
 
 export const clampShotCount = (n: number): number => Math.max(3, Math.min(10, Number.isFinite(n) ? n : 5));
 export const clampTotalSec = (n: number): number => Math.max(3, Math.min(600, Number.isFinite(n) ? n : 15));
@@ -174,7 +175,12 @@ export function buildVideoSequenceText(kit: StoryKit, shotCount = 5, totalSec = 
   // F.2: Die Textmenge je Shot folgt dem Laengenregler. Die Shot-ZAHL bleibt am
   // eigenen Regler - sie ist eine Angabe fuer den Schnitt, keine Textlaenge.
   const shots = buildVideoShots(kit, n, lenTarget);
-  const out = [`SEQUENZ — ${kit.mode.label || ""}`.trim(), `WER: ${kit.PRaw || kit.P}`, `WO: ${kit.W}`, `WANN: ${kit.T}`, `WAS: ${kit.A}`, `GESAMTLÄNGE: ${fmtSec(total)} • ${fmtSec(dur)} pro Shot`, ""];
+  // Kopfzeile: zuerst das Preset, dann der Modus. Vorher stand dort NUR der
+  // Modus - und der ist eine Einstellung, kein Titel: Wer ihn fest eingestellt
+  // hat, las in jeder Sequenz dieselbe Zeile ("Intime Koerperwahrnehmung"), ohne
+  // zu erfahren, aus welchem Stoff sie gebaut ist.
+  const titel = [loadActiveBankLabel(), kit.mode.label].filter(Boolean).join(" · ");
+  const out = [`SEQUENZ — ${titel}`.trim(), `WER: ${kit.PRaw || kit.P}`, `WO: ${kit.W}`, `WANN: ${kit.T}`, `WAS: ${kit.A}`, `GESAMTLÄNGE: ${fmtSec(total)} • ${fmtSec(dur)} pro Shot`, ""];
   for (let i = 0; i < shots.length; i++) { out.push(`Shot ${i + 1} (${fmtSec(dur)})`, `DE: ${shots[i]}`, ""); }
   return out.join("\n");
 }
