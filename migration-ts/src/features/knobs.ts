@@ -16,8 +16,10 @@ export interface Knobs {
   korpus: number;
   /** Fensterbreite der Phrasensperre in Woertern; 0 schaltet sie ab. */
   phrase: number;
+  /** Ziel fuer die mittlere Satzlaenge in Woertern; 0 schaltet ab. */
+  satzlaenge: number;
 }
-export const KNOB_VORGABE: Knobs = { fuegeteil: 25, w4max: 2, abstand: 12, bogen: 100, ton: 100, korpus: 0, phrase: 5 };
+export const KNOB_VORGABE: Knobs = { fuegeteil: 25, w4max: 2, abstand: 12, bogen: 100, ton: 100, korpus: 0, phrase: 5, satzlaenge: 9 };
 export const KNOB_SPANNE = {
   fuegeteil: { min: 10, max: 35, step: 5 },
   w4max: { min: 1, max: 4, step: 1 },
@@ -26,6 +28,7 @@ export const KNOB_SPANNE = {
   ton: { min: 0, max: 250, step: 25 },
   korpus: { min: 0, max: 60, step: 10 },
   phrase: { min: 0, max: 8, step: 1 },
+  satzlaenge: { min: 0, max: 21, step: 3 },
 } as const;
 
 const KEY = "dm_knobs_v1";
@@ -44,6 +47,7 @@ export function loadKnobs(): Knobs {
       ton: klemm(p.ton === undefined ? KNOB_VORGABE.ton : Number(p.ton), KNOB_SPANNE.ton),
       korpus: klemm(p.korpus === undefined ? KNOB_VORGABE.korpus : Number(p.korpus), KNOB_SPANNE.korpus),
       phrase: klemm(p.phrase === undefined ? KNOB_VORGABE.phrase : Number(p.phrase), KNOB_SPANNE.phrase),
+      satzlaenge: klemm(p.satzlaenge === undefined ? KNOB_VORGABE.satzlaenge : Number(p.satzlaenge), KNOB_SPANNE.satzlaenge),
     };
   } catch { return { ...KNOB_VORGABE }; }
 }

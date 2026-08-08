@@ -33,7 +33,10 @@ const DOPPELT_ERLAUBT = new Set([
 /** Fehlt am Satzanfang der Artikel? Nur dann, wenn der Satz einer IST: Ein
  *  finites Verb im Hauptteil unterscheidet "Zeit wird zur Illusion" (Artikel
  *  fehlt) von "Atem im Nacken" (gewolltes Fragment). */
-const KEIN_NOMEN = new Set([
+/** Wörter, die am Satzanfang groß stehen, ohne Nomen zu sein. Deutsche Nomen
+ *  sind immer groß — an der Schreibung allein ist der Unterschied nicht zu sehen,
+ *  deshalb diese geschlossene Liste. */
+export const KEIN_NOMEN = new Set([
   "der", "die", "das", "den", "dem", "des", "ein", "eine", "einen", "einem", "einer", "eines",
   "kein", "keine", "mein", "dein", "sein", "ihr", "unser", "euer", "dieser", "diese", "dieses",
   "jeder", "jede", "jedes", "alle", "viele", "manche", "beide", "und", "aber", "doch", "denn",

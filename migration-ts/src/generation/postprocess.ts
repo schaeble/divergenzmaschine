@@ -10,6 +10,7 @@ import { loadKnobs } from "../features/knobs";
 import { applyToneRegister } from "./tone.shape";
 import { insertToneFlavor } from "./beats";
 import { polishGerman } from "./polish";
+import { applySatzlaenge } from "./shape";
 
 type Input = Partial<GenInput>;
 
@@ -181,6 +182,11 @@ export function postProcessText(txt: string, input?: Input): string {
     // Register-Nachlauf: Ton formt auch die Satzmuster (nüchtern flach, ironisch trocken).
     t = applyToneRegister(t, input.tone);
   }
+
+  // Satzlaenge ganz zum Schluss: Rhythmus, Spannung und die Ton-Einschuebe
+  // zerlegen oder ergaenzen Saetze - wer die Laenge steuern will, muss das
+  // letzte Wort haben, sonst schneidet Staccato wieder auf.
+  t = applySatzlaenge(t, loadKnobs().satzlaenge);
 
   // Sprachschliff: laeuft immer. Was uebrig ist, ist in jedem Text richtig.
   t = polishGerman(t, { who: name });

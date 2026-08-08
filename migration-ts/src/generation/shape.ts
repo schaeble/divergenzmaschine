@@ -4,6 +4,7 @@
 import { clean, pick, chance, splitSentences, escapeRegExp } from "../text-utils";
 import { chooseInsertPos, isFragmentSentence, cap } from "./beats";
 import { VERB_CONJ } from "./verbconj.data";
+import { KEIN_NOMEN } from "./polish";
 import { conjugateVerbToken } from "./verbconj";
 import { ICH_DU_ZU_ER } from "./wordcls";
 
@@ -236,4 +237,93 @@ export function pronominalize(text: string, P: string, pronoun: string): string 
     }
     return s.join(" ");
   }).join("\n\n");
+}
+
+// ── Satzlänge ─────────────────────────────────────────────────────────────
+// Gemessen lag der Median bei 5 Wörtern, die Hälfte aller Sätze bei höchstens
+// fünf, nur ein Prozent bei fünfzehn oder mehr. Deutsche Erzählprosa liegt eher
+// bei fünfzehn bis achtzehn. Ursache ist die Bauweise: Ein Atom ergibt einen
+// Satz, und Atome sind im Schnitt sechs Wörter lang. Der Rhythmus-Regler half
+// nicht — "Lange Bögen" verband höchstens EIN Paar je Text und verschob den
+// Schnitt um 0,2 Wörter.
+//
+// Deshalb hier ein eigener Schritt: Nachbarsätze werden verbunden, bis der
+// Schnitt die Zielmarke erreicht. Verbunden wird nur, wo es grammatisch sicher
+// ist — lieber ein kurzer Satz zu viel als ein falscher.
+
+/** Fängt der Satz schon mit einer Verknüpfung an? Dann ist er bereits gebunden. */
+const SCHON_GEBUNDEN = /^(und|doch|aber|oder|denn|dann|dabei|also|trotzdem|dennoch|sondern|nur|zuerst|zuletzt|währenddessen)/i;
+
+/** Darf zwischen diesen beiden verbunden werden? */
+function darfVerbinden(a: string, b: string, obergrenze: number): boolean {
+  if (!a || !b) return false;
+  // Ankündigungen und offene Gedankenstriche binden schon nach vorn.
+  if (/[:;—–]\s*$/.test(a.replace(/[.!?…]+$/, ""))) return false;
+  if (!/[.!?…]$/.test(a.trim())) return false;          // kein sauberer Schluss
+  if (/[?!]$/.test(a.trim())) return false;             // Frage und Ausruf bleiben stehen
+  if (SCHON_GEBUNDEN.test(b)) return false;
+  if (/^[„»"(]/.test(b) || /[“«")]$/.test(a)) return false;   // Zitate nicht anfassen
+  const wa = (a.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+  const wb = (b.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+  if (!wa || !wb) return false;
+  return wa + wb <= obergrenze;
+}
+
+/** Verbindet zwei Sätze. Ein Satzglied ohne finites Verb wird angehängt wie eine
+ *  Apposition (Gedankenstrich), zwei ganze Sätze mit Komma und Konjunktion. */
+function verbinde(a: string, b: string, satzartig: boolean): string {
+  const kopf = a.trim().replace(/[.!?…]+$/, "");
+  const rest = b.trim();
+  // Kleinschreiben nur, wenn das erste Wort sicher KEIN Nomen ist. Deutsche
+  // Nomen bleiben auch mitten im Satz gross - ohne diese Pruefung entstand
+  // "... — wäsche auf dem Balkon".
+  const wort = (rest.match(/^[A-Za-zÄÖÜäöüß]+/) || [""])[0]!.toLowerCase();
+  const darfKlein = KEIN_NOMEN.has(wort) || !!VERB_CONJ[wort];
+  const weiter = darfKlein ? rest.charAt(0).toLowerCase() + rest.slice(1) : rest;
+  if (!satzartig) return `${kopf} — ${weiter}`;
+  // Kein ", denn": Das behauptet einen Grund, den der Text nicht hergibt.
+  return `${kopf}${pick([", und ", "; ", " — "])}${weiter}`;
+}
+
+/** Hebt kurze Sätze auf die Zielmarke, indem Nachbarn verbunden werden.
+ *  0 lässt alles unverändert. */
+export function applySatzlaenge(text: string, ziel: number): string {
+  if (!ziel || ziel < 6) return text;
+  const w = (x: string): number => (x.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+  // Absatzweise, damit über eine Leerzeile hinweg nichts zusammenwächst.
+  return text.split(/\n{2,}/).map((absatz) => {
+    let s = splitSentences(absatz);
+    if (s.length < 2) return absatz;
+    // NICHT auf den Mittelwert steuern. Der erste Versuch tat das und lief in
+    // eine Falle: Fünf kräftig verbundene Sätze am Anfang heben den Schnitt über
+    // die Marke, danach bricht die Schleife ab - und die restlichen dreissig
+    // Sätze bleiben so kurz wie vorher. Genau das fällt beim Lesen auf.
+    // Stattdessen: Jede Fuge schliessen, deren Ergebnis noch unter der Marke
+    // bleibt. Das hebt alle kurzen Sätze gleichmässig und begrenzt sich selbst,
+    // weil ein Satz auf Ziellänge keinen weiteren Partner mehr aufnimmt.
+    // Ein Fünftel bleibt kurz. Bei Ziel 15 lag der Anteil der Sätze mit höchstens
+    // fünf Wörtern sonst bei null - der abgesetzte Kurzsatz ist in diesen Texten
+    // aber ein Mittel und kein Mangel.
+    const bleibtKurz = new Set<string>(s.filter(() => chance(0.2)));
+    for (let runde = 0; runde < 200; runde++) {
+      let beste = -1, kuerzeste = Infinity;
+      for (let i = 0; i + 1 < s.length; i++) {
+        const n = w(s[i]!) + w(s[i + 1]!);
+        if (n > ziel) continue;
+        if (bleibtKurz.has(s[i]!) || bleibtKurz.has(s[i + 1]!)) continue;
+        if (!darfVerbinden(s[i]!, s[i + 1]!, ziel)) continue;
+        if (n < kuerzeste) { kuerzeste = n; beste = i; }
+      }
+      if (beste < 0) break;
+      const satzartig = hatFinitesVerbLeicht(s[beste]!);
+      s = [...s.slice(0, beste), verbinde(s[beste]!, s[beste + 1]!, satzartig), ...s.slice(beste + 2)];
+    }
+    return s.join(" ");
+  }).join("\n\n");
+}
+
+/** Grobe Frage: Steckt im Satz überhaupt ein finites Verb? Entscheidet nur über
+ *  die Art der Fuge (Gedankenstrich gegen Konjunktion), nicht über das Ob. */
+function hatFinitesVerbLeicht(satz: string): boolean {
+  return (satz.match(/[a-zäöüß]{3,}/g) || []).some((w) => !!VERB_CONJ[w] || /^(ist|sind|war|waren|hat|haben|wird|werden|kann|muss|will|bleibt|steht|geht|kommt)$/.test(w));
 }
