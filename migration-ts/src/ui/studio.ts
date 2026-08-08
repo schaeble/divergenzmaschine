@@ -514,7 +514,15 @@ export function mountStudio(root: HTMLElement): void {
     struktBox.append(renderTextstruktur(out.textContent || "", snap, {
       Preset: preset, Ton: tone, Form: form, Struktur: structure, Perspektive: persp,
       Rhythmus: rhythm, Markov: markov, Varianz: varianz, Spannung: tension,
+      // Stellschrauben in der Schnellwahl: die vier, deren Wirkung man beim Lesen
+      // sofort merkt, plus die Korpus-Menge. Fuegeteil-Deckel, 4W-Deckel und
+      // Nachlege-Abstand bleiben im Werkzeugkasten - sie wirken auf den Bau,
+      // nicht auf den Klang.
+      ...(knobSel.satzlaenge ? { "Satzlänge": knobSel.satzlaenge } : {}),
+      ...(knobSel.bogen ? { "Erzählbogen": knobSel.bogen } : {}),
+      ...(knobSel.ton ? { "Ton-Einschübe": knobSel.ton } : {}),
       ...(knobSel.korpus ? { "Korpus-Bausteine": knobSel.korpus } : {}),
+      ...(knobSel.phrase ? { "Phrasensperre": knobSel.phrase } : {}),
     }, (host) => renderPresetChecks(host)));
     struktBox.append(quelleHint, zielHint);
     try {

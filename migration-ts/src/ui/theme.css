@@ -420,6 +420,10 @@ input[type=range].wgt:hover{opacity:1}
 select.abweichend{border-color:var(--acc)}
 /* Beschriftung mit Erklaerung im Mouseover */
 .field-label.hilfe{cursor:help;border-bottom:1px dotted var(--border2)}
+/* Zweite Chip-Zeile: die Stellschrauben, abgesetzt von den Textwerkzeugen */
+.src-settings-knobs{margin-top:6px;padding-top:8px;border-top:1px dashed var(--border2)}
+.src-knoblabel{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;
+  letter-spacing:.5px;text-transform:lowercase;color:var(--muted);align-self:center;margin-right:2px}
 .outwrap{position:relative}
 /* Ziehgriff am unteren Rand des Textfensters: aendert die Ziellaenge.
    touch-action:none, sonst scrollt das Handy statt zu ziehen. */

@@ -28,13 +28,17 @@ export function renderTextstruktur(text: string, snap: Schnappschuss | null, sch
       ["Länge", String(snap.laenge)], ["Bestenauslese", snap.bestenauslese ? "an" : "aus"]];
     // Stellschrauben, die kein Feld im Schnappschuss haben, aber ein Auswahlfeld:
     // Wert direkt daraus lesen, damit der Chip nicht doppelt gepflegt werden muss.
+    // Sie kommen in eine ZWEITE Zeile: Oben steht, was der Text ist, unten, wie
+    // fest an ihm gedreht wird - vermischt findet man weder das eine noch das andere.
+    const stellschrauben: [string, string][] = [];
     for (const k of Object.keys(schnell || {})) {
       if (paare.some(([n]) => n === k)) continue;
       const sel = schnell?.[k];
       if (!sel) continue;
-      paare.push([k, sel.options[sel.selectedIndex]?.text || sel.value]);
+      stellschrauben.push([k, sel.options[sel.selectedIndex]?.text || sel.value]);
     }
-    for (const [k, v] of paare) {
+    const zeichneChips = (liste: [string, string][], host: HTMLElement): void => {
+    for (const [k, v] of liste) {
       // Preset ist der einzige Fall mit Mehrfachauswahl - ein natives Auswahlfeld
       // kann das nicht. Deshalb hier eine Schaltfläche, die die Ankreuzliste
       // aufklappt; die Liste selbst füllt das Studio, damit es nur einen Zustand gibt.
@@ -53,11 +57,11 @@ export function renderTextstruktur(text: string, snap: Schnappschuss | null, sch
         };
         knopf.addEventListener("click", () => { presetPopOffen = !presetPopOffen; zeichne(); });
         zeichne();
-        chips.append(el("span", { class: "src-chipwrap src-chipwrap-preset" }, el("b", {}, k), " ", knopf, panel));
+        host.append(el("span", { class: "src-chipwrap src-chipwrap-preset" }, el("b", {}, k), " ", knopf, panel));
         continue;
       }
       const sel = schnell?.[k];
-      if (!sel) { chips.append(el("span", { class: "src-chip" }, el("b", {}, k), " " + (v || "—"))); continue; }
+      if (!sel) { host.append(el("span", { class: "src-chip" }, el("b", {}, k), " " + (v || "—"))); continue; }
       // Der Chip zeigt nicht nur die Einstellung, er IST sie. Ein natives Auswahlfeld
       // statt eines eigenen Menüs: funktioniert auf dem Handy mit der Systemauswahl,
       // ist mit Tastatur bedienbar und braucht keinen Code, der zugeklappt werden will.
@@ -69,9 +73,17 @@ export function renderTextstruktur(text: string, snap: Schnappschuss | null, sch
         sel.dispatchEvent(new Event("change"));
         document.dispatchEvent(new CustomEvent("dm-schnellwahl", { detail: k }));
       });
-      chips.append(el("span", { class: "src-chipwrap" }, el("b", {}, k), " ", mini));
+      host.append(el("span", { class: "src-chipwrap" }, el("b", {}, k), " ", mini));
     }
+    };
+    zeichneChips(paare, chips);
     box.append(chips);
+    if (stellschrauben.length) {
+      const knopfzeile = el("div", { class: "src-settings src-settings-knobs" },
+        el("span", { class: "src-knoblabel" }, "Stellschrauben"));
+      zeichneChips(stellschrauben, knopfzeile);
+      box.append(knopfzeile);
+    }
     const w4 = el("div", { class: "src-4w" });
     ([["Wo", snap.where], ["Wann", snap.when], ["Wer", snap.who], ["Was", snap.what]] as [string, string][])
       .forEach(([k, v]) => w4.append(el("span", { class: "src-w" }, el("b", {}, k + ": "), v || "—")));
