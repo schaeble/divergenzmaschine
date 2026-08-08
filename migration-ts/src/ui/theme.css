@@ -403,6 +403,8 @@ input[type=range].wgt:hover{opacity:1}
 /* Abweichung von der Vorgabe sichtbar machen */
 .abweichend{color:var(--acc);font-weight:600}
 select.abweichend{border-color:var(--acc)}
+/* Beschriftung mit Erklaerung im Mouseover */
+.field-label.hilfe{cursor:help;border-bottom:1px dotted var(--border2)}
 .outwrap{position:relative}
 /* Ziehgriff am unteren Rand des Textfensters: aendert die Ziellaenge.
    touch-action:none, sonst scrollt das Handy statt zu ziehen. */

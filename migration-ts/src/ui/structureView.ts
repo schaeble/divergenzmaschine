@@ -26,6 +26,14 @@ export function renderTextstruktur(text: string, snap: Schnappschuss | null, sch
       ["Struktur", snap.struktur], ["Perspektive", snap.perspektive], ["Rhythmus", snap.rhythmus],
       ["Markov", snap.markov], ["Varianz", snap.varianz], ["Spannung", snap.spannung],
       ["Länge", String(snap.laenge)], ["Bestenauslese", snap.bestenauslese ? "an" : "aus"]];
+    // Stellschrauben, die kein Feld im Schnappschuss haben, aber ein Auswahlfeld:
+    // Wert direkt daraus lesen, damit der Chip nicht doppelt gepflegt werden muss.
+    for (const k of Object.keys(schnell || {})) {
+      if (paare.some(([n]) => n === k)) continue;
+      const sel = schnell?.[k];
+      if (!sel) continue;
+      paare.push([k, sel.options[sel.selectedIndex]?.text || sel.value]);
+    }
     for (const [k, v] of paare) {
       // Preset ist der einzige Fall mit Mehrfachauswahl - ein natives Auswahlfeld
       // kann das nicht. Deshalb hier eine Schaltfläche, die die Ankreuzliste

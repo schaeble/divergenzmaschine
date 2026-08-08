@@ -516,6 +516,7 @@ export function mountStudio(root: HTMLElement): void {
     struktBox.append(renderTextstruktur(out.textContent || "", snap, {
       Preset: preset, Ton: tone, Form: form, Struktur: structure, Perspektive: persp,
       Rhythmus: rhythm, Markov: markov, Varianz: varianz, Spannung: tension,
+      ...(knobSel.korpus ? { "Korpus-Bausteine": knobSel.korpus } : {}),
     }, (host) => renderPresetChecks(host)));
     struktBox.append(quelleHint, zielHint);
     try {
@@ -946,12 +947,14 @@ export function mountStudio(root: HTMLElement): void {
   // Drei Zahlen standen fest im Code und wirkten wie Regler, ohne welche zu sein.
   // Die Spannen sind bewusst eng: Ein Fuegeteil-Deckel von 60 % ergibt Leerlauf.
   const knobs: Knobs = loadKnobs();
+  const knobSel: Partial<Record<keyof Knobs, HTMLSelectElement>> = {};
   const knobRow = (feld: keyof Knobs, label: string, hinweis: string, einheit: string): HTMLElement => {
     const sp = KNOB_SPANNE[feld];
     // Auswahlfeld statt Schieberegler: Die Spannen sind klein und die Werte
     // benannt - auf dem Handy trifft man einen Eintrag leichter als eine Position,
     // und es sieht aus wie die uebrigen Werkzeuge daneben.
     const sel = el("select", { id: "k-" + feld }) as HTMLSelectElement;
+    knobSel[feld] = sel;
     for (let v = sp.min; v <= sp.max; v += sp.step) {
       const txt = v + einheit + (v === KNOB_VORGABE[feld] ? "  (Vorgabe)" : "") + (v === 0 ? "  — aus" : "");
       sel.append(el("option", { value: String(v) }, txt));
@@ -964,8 +967,11 @@ export function mountStudio(root: HTMLElement): void {
     sel.addEventListener("input", merke);
     sel.addEventListener("change", () => { merke(); saveKnobs(knobs); generate(); });
     merke();
-    return el("div", { class: "field", id: "knob-" + feld },
-      el("span", { class: "field-label" }, label), el("span", { class: "muted mini" }, hinweis), sel);
+    // Erklaerung als Mouseover statt als Fliesstext: Sechs Beschreibungen
+    // untereinander kosteten mehr Hoehe als die Regler selbst.
+    sel.title = hinweis;
+    return el("div", { class: "field", id: "knob-" + feld, title: hinweis },
+      el("span", { class: "field-label hilfe" }, label), sel);
   };
   const knobBox = el("div", { class: "grid3", id: "knobs" },
     knobRow("fuegeteil", "Fügeteil-Deckel", "Höchstanteil der Verbindungsstücke — steuert den Balken „Vorlagen“", " %"),
