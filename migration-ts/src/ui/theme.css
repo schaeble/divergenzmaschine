@@ -25,11 +25,19 @@ hr{border:0;border-top:1px solid var(--border);margin:16px 0}
 
 label.field{display:block;font:12px var(--sans);color:var(--muted);margin:8px 0}
 label.field>*{margin-top:4px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+/* minmax(0,1fr) statt 1fr: Sonst ist die kleinste Spaltenbreite der laengste
+   Auswahleintrag, und die dritte Spalte laeuft am Handy aus dem Rahmen. */
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.grid2>*,.grid3>*,.grid4>*{min-width:0}
+/* Beschriftung oben, Auswahlfeld unten buendig: Bricht eine Beschriftung auf
+   zwei Zeilen um, standen die Felder der Reihe sonst versetzt. */
+.grid2>.field,.grid3>.field,.grid4>.field{display:flex;flex-direction:column}
+.grid2>.field>*:last-child,.grid3>.field>*:last-child,.grid4>.field>*:last-child{margin-top:auto}
 .btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 
-input,select,textarea{width:100%;background:var(--input-bg);color:var(--text);
+input,select,textarea{width:100%;max-width:100%;min-width:0;box-sizing:border-box;
+  background:var(--input-bg);color:var(--text);
   border:1px solid var(--border);border-radius:8px;padding:8px 10px;font:14px var(--sans);outline:none}
 input:focus,select:focus,textarea:focus{border-color:var(--acc2);box-shadow:0 0 0 3px var(--focus-glow)}
 select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
@@ -180,8 +188,15 @@ button.toggle.on::before{content:"✓ "}
 /* 4W-Gewichtung (nur Prosa) */
 .emph{margin-top:12px;padding:10px 12px;border:1px dashed var(--border2);border-radius:10px;background:rgba(139,92,246,.05)}
 .emph-head{margin-bottom:8px;font-size:12px}
-.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-@media (max-width:720px){.grid4{grid-template-columns:repeat(2,1fr)}}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:720px){.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Am Handy zwei statt drei Spalten: Bei drei blieben rund 100 px je Feld, die
+   Beschriftungen brachen um und die Werte waren nicht mehr lesbar. */
+@media (max-width:600px){
+  .grid3{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid3 .field-label,.grid2 .field-label{overflow-wrap:anywhere}
+}
+@media (max-width:380px){.grid3,.grid2{grid-template-columns:minmax(0,1fr)}}
 .wrow{display:flex;align-items:center;gap:6px;margin:0}
 .wrow input[type=range]{flex:1;min-width:60px}
 
