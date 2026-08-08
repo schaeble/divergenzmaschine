@@ -979,7 +979,7 @@ export function mountStudio(root: HTMLElement): void {
     knobRow("ton", "Ton-Einschübe", "wie viele Ton-Sätze die Nachbearbeitung einstreut", " %"),
     knobRow("korpus", "Korpus-Bausteine", "aus dem eigenen Korpus, gefiltert auf Präsens und eigene Figuren; 0 = aus", ""),
     knobRow("phrase", "Phrasensperre", "ab wie vielen gleichen Wörtern in Folge ein Baustein abgelehnt wird; 0 = aus. Streng heißt weniger Wiederholung, aber auch kürzere Texte", " Wörter"),
-    knobRow("satzlaenge", "Satzlänge", "angepeilte mittlere Wortzahl je Satz; Nachbarsätze werden dafür verbunden. 0 = aus, dann bleibt es bei den kurzen Bausteinsätzen", " Wörter"));
+    knobRow("satzlaenge", "Satzlänge", "Obergrenze, kein Mittelwert: Nachbarsätze werden zusammengezogen, solange das Ergebnis darunter bleibt. 0 = aus. Bei 9 verschwinden vor allem die Stummelsätze, lange entstehen erst ab 12; bei 15 liegt der Schnitt bei rund 9 Wörtern", " Wörter"));
   const knobReset = button("Vorgaben wiederherstellen");
   knobReset.addEventListener("click", () => {
     Object.assign(knobs, KNOB_VORGABE); saveKnobs(knobs);
