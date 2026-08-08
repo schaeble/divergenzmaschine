@@ -46,8 +46,10 @@ function mergeDanglingLines(lines: string[], opts: { maxCharsPerLine?: number })
   return out;
 }
 
-export function applyStrangPoem(rawText: string, anchorLine = ""): string {
-  const opts = STRANG_DEFAULTS;
+export function applyStrangPoem(rawText: string, anchorLine = "", lenTarget = 0): string {
+  const opts = lenTarget > 0
+    ? { ...STRANG_DEFAULTS, targetLines: Math.max(8, Math.min(64, Math.round(lenTarget / 6.5))) }
+    : STRANG_DEFAULTS;
   let t = normalizeNewlines(rawText || "").trim().replace(/\([^()]*\)/g, " ")
     .replace(/\bShot\s*\d+\b.*$/gim, "").replace(/\bHandheld\b.*$/gim, "").replace(/\b\d{1,2}\s*:\s*\d{2}\b\s*—\s*/g, "").replace(/\s+/g, " ").trim();
   t = t.replace(/\bDer\s+Einsatz\s+ist\s*[:,]?\s*([^.!?\n]+)[.!?]?/gi, (_m, x: string) => { const k = (x || "").trim(); return k ? `Wenn es wahr wird, verlieren wir ${k}.` : ""; });

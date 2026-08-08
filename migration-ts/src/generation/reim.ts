@@ -47,8 +47,13 @@ function lineWithRhyme(phrase: string, rhymeWord: string, targetWords: number, c
   return verseLine(`${core}${connector}${rhymeWord}.`);
 }
 
-export function applyReimPoem(rawText: string, anchorLine = ""): string {
-  const opts = REIM_DEFAULTS;
+export function applyReimPoem(rawText: string, anchorLine = "", lenTarget = 0): string {
+  // F.2: Der Laengenregler erreichte die Versformen nicht - bei Ziel 240 kamen
+  // 74 Woerter heraus, weil targetLines fest auf 12 stand. Eine Reimzeile hat
+  // rund sechs Woerter, daraus die Zeilenzahl.
+  const opts = lenTarget > 0
+    ? { ...REIM_DEFAULTS, targetLines: Math.max(8, Math.min(64, Math.round(lenTarget / 6))) }
+    : REIM_DEFAULTS;
   let t = normalizeNewlines(rawText || "").trim().replace(/\([^()]*\)/g, " ")
     .replace(/\bShot\s*\d+\b.*$/gim, "").replace(/\b\d{1,2}\s*:\s*\d{2}\b\s*—\s*/g, "").replace(/\s+/g, " ").trim();
   let phrases: string[] = [];

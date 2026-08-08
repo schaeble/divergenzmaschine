@@ -107,8 +107,14 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   const kit = buildKit(bank, input, model);
 
   const lenTarget = Number.isFinite(input.lenTarget as number) ? (input.lenTarget as number) : 110;
-  if (input.form === "script") return makeDialogueScene(kit, lenTarget);
-  if (input.form === "video") return buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? 15);
+  // F.1: Beide Formen kehrten hier zurueck, BEVOR postProcessText lief - kein
+  // Sprachschliff, keine Kohaerenzpruefung, keine Namensvereinheitlichung. Die
+  // Nachbearbeitung ist bereits formbewusst (isLineForm ueberspringt Ton-Einschuebe
+  // und die semantische Satzauslese), es fehlte nur der Weg dorthin.
+  if (input.form === "script") return postProcessText(makeDialogueScene(kit, lenTarget), input);
+  if (input.form === "video") {
+    return postProcessText(buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? 15, lenTarget), input);
+  }
   if (input.form === "poem") {
     // Rekombination gilt auch fuers Prosagedicht: Der Zweig lag bisher hinter dieser
     // Abfrage und wurde nie erreicht - die Struktur "Rekombination (geprueft)" blieb
@@ -124,7 +130,10 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   // Rekombination: Atome mit geprüfter Schnittstelle statt Schablonen
   if (input.form === "prose" && input.structure === "rekombination") {
     const rk = buildRekombination(bank, input, model);
-    if (rk.trim()) { const fertig = postProcessText(rk, input); linkTrace(fertig); linkMarkovTrace(fertig); return fertig; }
+    // Absaetze auch auf diesem Weg: Der Zweig kehrt vor paragraphize() zurueck,
+    // die Rekombination lieferte deshalb immer einen einzigen Block - gemessen
+    // 1,0 Absaetze in 51 von 51 Laeufen.
+    if (rk.trim()) { const fertig = postProcessText(paragraphize(rk), input); linkTrace(fertig); linkMarkovTrace(fertig); return fertig; }
   }
   let text = (input.form === "prose" && input.structure === "dramaturgie" && hasDramaData())
     ? buildDramaturgie({ ...kit })
@@ -148,9 +157,9 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   if (kit.perspective === "third") text = pronominalize(text, kit.P, guessPronoun(kit.P));
   const finalText = postProcessText(text, input);
   const anchor = kit.ending || kit.Apure;
-  if (input.form === "reim") return asReim(finalText, anchor);
-  if (input.form === "haiku") return asHaiku(finalText, anchor);
-  if (input.form === "strang") return asStrang(finalText, anchor);
+  if (input.form === "reim") return asReim(finalText, anchor, lenTarget);
+  if (input.form === "haiku") return asHaiku(finalText, anchor, lenTarget);
+  if (input.form === "strang") return asStrang(finalText, anchor, lenTarget);
   if (input.form === "drama") return asDrama(finalText, kit.speakerA, kit.speakerB || kit.P);
   return enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix");
 }

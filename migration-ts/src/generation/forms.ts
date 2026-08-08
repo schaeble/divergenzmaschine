@@ -17,18 +17,18 @@ export function asProsePoem(text: string): string {
 // ── gemeinsame Vers-Helfer ──────────────────────────────────────────
 
 /** Gedicht-Strang: delegiert an die faithful Engine. */
-export function asStrang(text: string, anchor = ""): string {
-  return applyStrangPoem(text, anchor);
+export function asStrang(text: string, anchor = "", lenTarget = 0): string {
+  return applyStrangPoem(text, anchor, lenTarget);
 }
 
 /** Reim: echter Paarreim (AABB) — delegiert an die faithful Engine. */
-export function asReim(text: string, anchor = ""): string {
-  return applyReimPoem(text, anchor);
+export function asReim(text: string, anchor = "", lenTarget = 0): string {
+  return applyReimPoem(text, anchor, lenTarget);
 }
 
 /** Haiku: echtes 5-7-5 — delegiert an die faithful Engine. */
-export function asHaiku(text: string, anchor = ""): string {
-  return applyHaikuPoem(text, anchor);
+export function asHaiku(text: string, anchor = "", lenTarget = 0): string {
+  return applyHaikuPoem(text, anchor, lenTarget);
 }
 
 // ── Drama ──────────────────────────────────────────────────────────

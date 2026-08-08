@@ -18,6 +18,21 @@ const LINE_FORMS = new Set(["script", "video", "strang", "reim", "haiku", "poem"
 const isLineForm = (input?: Input): boolean =>
   !!input && !!input.form && LINE_FORMS.has(input.form);
 
+/** Doppelte Abstaende einebnen, OHNE die Zeilenstruktur zu zerstoeren.
+ *  Vorher stand hier /\s{2,}/ -> " ". Das trifft auch "\n\n": Die Absaetze der
+ *  Prosa und die Zeilen von Multi-Shot, Prosagedicht und Vers wurden am Ende der
+ *  Nachbearbeitung zu einem einzigen Block plattgewalzt - gemessen hatte jede
+ *  Form genau eine Zeile. paragraphize() lief also, und der Schritt danach nahm
+ *  sein Ergebnis wieder zurueck. */
+function glaetten(t: string): string {
+  return t
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]+([,.;:!?])/g, "$1")
+    .trim();
+}
+
 /** Entfernt abgebrochene und themenfremde Sätze (semantische Gewichtung). */
 export function coherencePass(text: string, input?: Input): string {
   try {
@@ -97,7 +112,7 @@ export function coherenceRepairV2(t: string, input?: Input): string {
   });
 
   if (isLineForm(input)) {
-    return t.replace(/\s{2,}/g, " ").replace(/\s+([,.;:!?])/g, "$1").trim();
+    return glaetten(t);
   }
 
   const DU: [RegExp, string][] = [
@@ -107,6 +122,11 @@ export function coherenceRepairV2(t: string, input?: Input): string {
     [/\bsucht\b/g, "suchst"], [/\bkommt\b/g, "kommst"], [/\bbricht\b/g, "brichst"],
   ];
 
+  // Absatzmarken schuetzen: Die Schleife setzt den Text am Ende mit join(" ")
+  // wieder zusammen und loeschte damit jede Leerzeile - die Absaetze der Prosa
+  // und die Zeilen des Prosagedichts ueberlebten die Nachbearbeitung nie.
+  const ABS = "\u241E";
+  t = t.replace(/[ \t]*\n{2,}[ \t]*/g, " " + ABS + " ");
   const sents = t.split(/(?<=[.!?…])\s+/).filter(Boolean);
   const kept: string[] = [];
   for (let s of sents) {
@@ -131,7 +151,7 @@ export function coherenceRepairV2(t: string, input?: Input): string {
     if (kept.length && kept[kept.length - 1] === _st) continue; // aufeinanderfolgende Dublette
     kept.push(_st);
   }
-  t = kept.join(" ");
+  t = kept.join(" ").replace(/\s*\u241E\s*/g, "\n\n");
 
   // Fix 3: Pronomen-Kongruenz bei Plural-Subjekt
   t = t.replace(/(\bich und [A-ZÄÖÜ][\wäöüß]+[^.!?…]*?)\bsie sich\b/gu, "$1wir uns");
@@ -141,7 +161,7 @@ export function coherenceRepairV2(t: string, input?: Input): string {
   const CONN = [/\bDann kippt es\b/gi, /\bDabei:\s*plötzlich\b/gi, /\bUnd immer wieder\b/gi, /\bAm Ende bleibt klar\b/gi];
   CONN.forEach((re) => { let n = 0; t = t.replace(re, (m) => (++n > 1 ? "" : m)); });
 
-  t = t.replace(/\s{2,}/g, " ").replace(/\s+([,.;:!?])/g, "$1").replace(/„\s+/g, "„").trim();
+  t = glaetten(t).replace(/„[ \t]+/g, "„");
   return t;
 }
 
@@ -186,7 +206,10 @@ export function postProcessText(txt: string, input?: Input): string {
   // Satzlaenge ganz zum Schluss: Rhythmus, Spannung und die Ton-Einschuebe
   // zerlegen oder ergaenzen Saetze - wer die Laenge steuern will, muss das
   // letzte Wort haben, sonst schneidet Staccato wieder auf.
-  t = applySatzlaenge(t, loadKnobs().satzlaenge);
+  // Nicht bei Zeilenformen: Dort ist die Zeile die Einheit, nicht der Satz -
+  // "Shot 1 (3s)" und "DE: ..." wuerden sonst zu einer Zeile verschmelzen, und
+  // ein Vers waere kein Vers mehr.
+  if (!isLineForm(input)) t = applySatzlaenge(t, loadKnobs().satzlaenge);
 
   // Sprachschliff: laeuft immer. Was uebrig ist, ist in jedem Text richtig.
   t = polishGerman(t, { who: name });

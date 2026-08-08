@@ -32,8 +32,13 @@ function fixHaikuCaps(line: string): string {
   return String(line).split(/\s+/).map((w, i) => (i > 0 && HAIKU_LC.has(w.toLowerCase()) ? w.toLowerCase() : w)).join(" ");
 }
 
-export function applyHaikuPoem(rawText: string, anchorLine = ""): string {
-  const opts = HAIKU_DEFAULTS;
+export function applyHaikuPoem(rawText: string, anchorLine = "", lenTarget = 0): string {
+  // F.2: maxHaikus stand fest auf 3, bei Ziel 240 also 32 Woerter. Ein Haiku
+  // traegt rund zwoelf Woerter; nach oben gedeckelt, weil zwanzig Haiku am Stueck
+  // die Form sprengen; gemessen bleiben die Zeilenwiederholungen dabei bei 0 %.
+  const opts = lenTarget > 0
+    ? { ...HAIKU_DEFAULTS, maxHaikus: Math.max(2, Math.min(40, Math.round(lenTarget / 12))) }
+    : HAIKU_DEFAULTS;
   let t = normalizeNewlines(rawText || "").trim().replace(/\([^()]*\)/g, " ")
     .replace(/[„“”"»«]/g, " ")                                   // keine Anfuehrungszeichen im Haiku
     .replace(/\b(den|dem|einen|einem|der|die|das)\s+Satz\b/gi, " ")  // Zitat-Traeger "den Satz …" entfernen

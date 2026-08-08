@@ -84,7 +84,7 @@ export function polishGerman(text: string, opts: PolishOpts = {}): string {
     .replace(/ /g, " ")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/\n{3,}/g, "\n\n")
-    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/[ \t]+([,.;:!?])/g, "$1")   // nicht \s: sonst frisst es Zeilenumbrueche
     .replace(/([,.;:!?])([A-Za-zÄÖÜäöü])/g, "$1 $2")
     .replace(/\(\s+/g, "(")
     .replace(/\s+\)/g, ")")
@@ -104,7 +104,10 @@ export function polishGerman(text: string, opts: PolishOpts = {}): string {
 
   // 3. Wortdopplung, mit Ausnahmeliste
   for (let k = 0; k < 6; k++) {
-    const next = t.replace(/\b([A-Za-zÄÖÜäöüß]{2,})\s+\1\b/gi,
+    // [ \t] statt \s: Ueber einen Zeilenumbruch hinweg ist eine Wiederholung
+    // keine Dopplung, sondern Struktur. "... pro Shot\n\nShot 1 (3s)" wurde sonst
+    // zu "... pro Shot 1 (3s)".
+    const next = t.replace(/\b([A-Za-zÄÖÜäöüß]{2,})[ \t]+\1\b/gi,
       (m, w: string) => (DOPPELT_ERLAUBT.has(w.toLowerCase()) ? m : w));
     if (next === t) break;
     t = next;
