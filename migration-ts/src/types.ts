@@ -50,7 +50,8 @@ export interface GenInput {
   structure: string; mode: string; perspective: string;
   rhythm: string; markovMode: string; disruptor: string;
   archetypeA: string; archetypeB: string; instability: Instability;
-  polish: boolean; polishStyle: string;
+  /** @deprecated Der Sprachschliff laeuft immer; Felder nur fuer alte Projektdateien. */
+  polish?: boolean; polishStyle?: string;
   shots?: number; totalSec?: number; // nur Form "video"
   lenTarget?: number; // Ziel-Wortzahl (Textlänge)
   emphasis?: { wo: number; wann: number; wer: number; was: number }; // 4W-Gewichtung (nur Prosa)

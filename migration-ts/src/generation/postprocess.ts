@@ -1,5 +1,5 @@
 // Nachbearbeitung des generierten Textes: Kohärenz-Schliff + Reparatur.
-// Hinweis: Ton-Einfärbung und "Sprachschliff" (polishGerman) sind bewusst
+// Hinweis: Ton-Einfärbung und Sprachschliff (polishGerman) sind bewusst
 // noch nicht portiert (Phase 4) — hier steckt der Kern der Bereinigung.
 import type { GenInput } from "../types";
 import { looksLikeFullClause } from "./wordcls";
@@ -164,8 +164,10 @@ export function postProcessText(txt: string, input?: Input): string {
   }
 
   // Ton-Einfärbung: Einleitung + verteilte Flavor-Einschübe (nicht bei
-  // Zeilenformen und nicht, wenn der Sprachschliff aktiv ist).
-  if (!isLineForm(input) && !input?.polish && input?.tone && TONE_DATA[input.tone]) {
+  // Zeilenformen). Frueher hing das zusaetzlich am Sprachschliff-Haken: Wer ihn
+  // setzte, verlor stillschweigend den ganzen Ton - im Schalter stand davon
+  // nichts. Die Menge steuert jetzt allein der Regler "Ton-Einschuebe", 0 = aus.
+  if (!isLineForm(input) && input?.tone && TONE_DATA[input.tone]) {
     const td = TONE_DATA[input.tone]!;
     if (td.opener.length) t = `${pick(td.opener)} ${t}`;
     if (td.flavor.length) {
@@ -180,10 +182,8 @@ export function postProcessText(txt: string, input?: Input): string {
     t = applyToneRegister(t, input.tone);
   }
 
-  // Sprachschliff (nur wenn aktiv): regelbasierte Grammatik-/Zeichen-Glättung.
-  if (input?.polish) {
-    t = polishGerman(t, { who: name, style: input?.polishStyle || "surreal_precise", fixCapitalization: false });
-  }
+  // Sprachschliff: laeuft immer. Was uebrig ist, ist in jedem Text richtig.
+  t = polishGerman(t, { who: name });
 
   t = coherencePass(t, input);
   t = coherenceRepairV2(t, input);

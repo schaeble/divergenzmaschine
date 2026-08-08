@@ -97,7 +97,8 @@ export function mountHelp(root: HTMLElement): void {
     ["Spannung (nur Prosa)", P("verschiebt den Spannungs-Höhepunkt in den Text: Oben (12 Uhr), Mitte (3 Uhr) oder Unten (6 Uhr). Nahe dem Peak werden Sätze kurz und hart, Hook-/Motiv-Bilder verdichten sich und ein harter Bruch setzt ein; fern davon ruhige, verbundene Bögen — hilft gegen den Spannungsabfall in langen Texten. Wirkt erst ab längeren Passagen.")],
     ["Markov", P("Anteil, in dem der offline gelernte ", lnk("Markov-Generator (Korpus)", "tabs"), " mitmischt.")],
     ["Archetyp A/B", P("färbt die Sprache aus Archetyp-Wortpools (Neutral, Skorpion, Psychopath, Entdecker); Standard neutral.")],
-    ["Varianz · Stil · Sprachschliff", P("Variationsgrad, Schliff-Stil und die automatische Glättung bei der Generierung.")],
+    ["Varianz", P("Variationsgrad bei der Generierung.")],
+    ["Sprachschliff", P("kein Schalter mehr, sondern immer an: Abstände, Zeichensetzung, doppelte Wörter und ein am Satzanfang fehlender Artikel. Nur Regeln, die in jedem Text richtig sind — die Grammatik-Einzelfälle von früher sind entfallen.")],
     ["Video: Shots / Sekunden", P("nur bei Form Multi-Shot: Anzahl der Einzelszenen und Ziel-Gesamtlänge.")],
   ]));
 

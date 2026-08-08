@@ -295,13 +295,11 @@ export function mountStudio(root: HTMLElement): void {
   const markov = select("f-markov", [["off", "Aus"], ["mix", "Mix"], ["on", "Stark"]], "off");
   const disruptor = select("f-disruptor", [["auto", "Auto"], ["off", "Aus"], ["on", "An"]], "auto");
   const varianz = select("f-varianz", [["low", "Stabil"], ["mid", "Wild"], ["high", "Radikal"]], "mid");
-  const stil = select("f-stil", [["surreal_precise", "Surreal präzise"], ["leicht", "Leicht"], ["stark", "Stark"]], "surreal_precise");
   const ARCH_OPTS: [string, string][] = [["neutral", "Neutral"], ["skorpion", "Skorpion"], ["psychopath", "Psychopath"], ["entdecker", "Entdecker"]];
   const archA = select("f-archa", ARCH_OPTS, "neutral");
   const archB = select("f-archb", ARCH_OPTS, "neutral");
   // Alle würfelbaren Stil-Regler (Würfeln-Knopf UND Zufallsstart nutzen dieselbe Liste)
-  const ROLL_SELECTS = [tone, form, structure, mode, persp, rhythm, tension, cast, instab, markov, disruptor, varianz, stil, archA, archB, preset];
-  const polish = el("input", { id: "f-polish", type: "checkbox" }) as HTMLInputElement;
+  const ROLL_SELECTS = [tone, form, structure, mode, persp, rhythm, tension, cast, instab, markov, disruptor, varianz, archA, archB, preset];
   const presetField = el("div", { class: "field presetfield" },
     el("span", { class: "field-label lockrow" }, el("span", {}, "Preset — eins oder mehrere ankreuzen"), presetStatus, lockBtn(preset)),
     preset,
@@ -1025,11 +1023,10 @@ export function mountStudio(root: HTMLElement): void {
   fine.append(el("div", { class: "grid3" },
     lockField("Struktur", structure), lockField("Modus", mode), lockField("Perspektive", persp),
     lockField("Rhythmus", rhythm), lockField("Instabilität", instab), lockField("Markov", markov),
-    lockField("Disruptor", disruptor), lockField("Varianz", varianz), lockField("Stil", stil),
+    lockField("Disruptor", disruptor), lockField("Varianz", varianz),
     lockField("Spannung", tension), lockField("Figurendisziplin", cast),
     lockField("Archetyp A", archA), lockField("Archetyp B", archB),
-    field("Video: Shots", shots), field("Video: Sekunden", secs),
-    el("label", { class: "field", style: "display:flex;align-items:center;gap:6px" }, polish, "Sprachschliff")));
+    field("Video: Shots", shots), field("Video: Sekunden", secs)));
   fine.append(rekHint);
   wrap.append(fine);
 
@@ -1115,7 +1112,6 @@ export function mountStudio(root: HTMLElement): void {
     rhythm: rhythm.value, markovMode: markov.value, disruptor: disruptor.value,
     archetypeA: archA.value, archetypeB: archB.value,
     instability: parseInt(instab.value, 10) as 0 | 1 | 2,
-    polish: polish.checked, polishStyle: stil.value,
     shots: parseInt(shots.value, 10), totalSec: parseInt(secs.value, 10),
     lenTarget: parseInt(lenSlider.value, 10),
     tension: tension.value,
