@@ -14,6 +14,33 @@ const NOT_INFINITIVE = new Set([
   "oben", "unten", "innen", "außen", "hinten", "vorn", "vorne", "neben", "eben", "gegen", "wegen", "gegenüber",
   "morgen", "übermorgen", "wochen", "stunden", "sieben", "zehn", "trotzen", "während", "dessen", "deren", "hinein",
 ]);
+// Kleingeschriebene Woerter auf -t, die KEINE Verben sind. Ein deutscher
+// Aussagesatz beginnt gross; steht am Anfang der "Was passiert?"-Angabe ein
+// kleingeschriebenes Wort, ist es fast immer ein Verb. Die Ausnahmen sind
+// Adjektive und Adverbien - eine geschlossene, aufzaehlbare Menge.
+const NICHT_VERB_T = new Set([
+  "nicht", "jetzt", "erst", "fast", "sonst", "meist", "zuerst", "zuletzt", "selbst", "sogar",
+  "seit", "samt", "statt", "mit", "zeit", "trotz", "laut", "gerecht",
+  "sanft", "dicht", "leicht", "schlecht", "recht", "direkt", "echt", "exakt", "strikt",
+  "perfekt", "konkret", "komplett", "kaputt", "sacht", "glatt", "platt", "nackt", "satt",
+  "breit", "bereit", "weit", "spät", "hart", "zart", "kalt", "alt", "bunt", "rot", "gut", "oft",
+  "still", "halt", "gesamt", "insgesamt", "bekannt", "verwandt", "berühmt",
+  "sofort", "vielleicht", "überhaupt", "zumindest", "höchst", "äußerst", "mindest",
+  "bestimmt", "unbedingt", "ernst", "einst", "längst", "jüngst", "umsonst",
+  "weltweit", "korrekt", "intakt", "kompakt", "prompt", "getrennt",
+  // vierbuchstabige Adjektive und Adverbien auf -t
+  "bunt", "echt", "fest", "hart", "kalt", "laut", "matt", "nett", "satt", "weit",
+  "zart", "fett", "halt", "wert", "dort", "fort", "stet", "sart",
+]);
+
+/** Hat das erste Wort die Form einer finiten Verbform der 3. Person Singular?
+ *  Reine Formfrage - ob es semantisch passt, entscheidet der Aufrufer nicht. */
+function wirktFinit(w: string): boolean {
+  if (w.length < 4 || NICHT_VERB_T.has(w)) return false;
+  if (/^ge[a-zäöüß]+t$/.test(w)) return false;      // Partizip: "gesehen", "gemacht"
+  return /^[a-zäöüß]+[^aeiouäöü]t$/.test(w) || /^[a-zäöüß]+et$/.test(w);
+}
+
 /** Erkennt einen Infinitiv am Satzanfang — auch außerhalb der kuratierten Liste.
  *  Deutsche Infinitive enden auf -en/-eln/-ern; ausgeschlossen werden Funktionswörter
  *  und bekannte Nomen (die Groß-/Kleinschreibung prüft der Aufrufer). */
@@ -46,6 +73,16 @@ export function extractLeadVerb(text: string): LeadVerb {
   // "Murx will sehe 9 Monde". Die Perspektive konjugiert danach weiter.
   const dritte = ICH_DU_ZU_ER[w];
   if (dritte && /^[a-zäöüß]/.test(raw)) return { verb: dritte, rest: m[2]! };
+  // Verb-erst, aber ausserhalb der Konjugationstabelle: "bekommt einen Ausweis",
+  // "graebt im Schutt nach Samen". Bisher blieb das Leitverb null, der Kern ging
+  // roh in die Vorlagen - so entstanden "Ich will bekommt einen Ausweis" (linear)
+  // und "Denn genau das geschieht: bekommt einen Ausweis" (Rekombination), also
+  // dieselbe Fehlerklasse wie "Du suchst sehe 9 Monde am Himmel". Die Tabelle zu
+  // vergroessern haette nur den naechsten Fall verschoben; entscheidend ist, dass
+  // ein kleingeschriebenes Wort am Anfang im Deutschen kein Satzanfang sein kann.
+  if (/^[a-zäöüß]/.test(raw) && (EXTRA_FINITE_RE.test(w) || wirktFinit(w))) {
+    return { verb: raw, rest: m[2]! };
+  }
   return { verb: null, rest: s };
 }
 

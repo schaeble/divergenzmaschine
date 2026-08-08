@@ -163,9 +163,11 @@ export function applyPerspective(paras: string[], perspective: string, who: stri
         const voll = rest[rest.length - 1] as string;
         const posP = voll.toLowerCase().indexOf(P.toLowerCase(), idx);
         if (posP > 0 && /[-–\wÄÖÜäöüß]/.test(voll.charAt(posP - 1))) return _m;
-        // Grossschreibung des Originals uebernehmen, damit der Satzanfang stimmt.
-        const treffer = _m.match(new RegExp("\\b" + escapeRegExp(P) + "\\b", "i"));
-        const gross = !!treffer && /^[A-ZÄÖÜ]/.test(treffer[0]);
+        // Nicht die Grossschreibung des Originals uebernehmen: Ein Eigenname ist
+        // IMMER gross, ein Pronomen nur am Satzanfang. So entstand "bemerke Ich
+        // einen Stempel" und "Was Ich will". Massgeblich ist die Stelle im Text.
+        const davor = voll.slice(0, posP).replace(/\s+$/, "");
+        const gross = davor === "" || /[.!?…:;—–„"»(]$/.test(davor);
         const pron = gross ? pronoun.charAt(0).toUpperCase() + pronoun.slice(1) : pronoun;
         const bw = before ? before.trim() : "";
         const aw = after ? after.trim() : "";

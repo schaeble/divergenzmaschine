@@ -1,7 +1,6 @@
 // Deklination von Hook-/Requisit-Phrasen (Akkusativ/Dativ) + Adjektivendungen.
 import { clean } from "../text-utils";
 import { NOUN_GENDER } from "./nouns.data";
-import { looksLikeClausePhrase } from "./beats";
 
 export function adjustAdjectiveEnding(adj: string, gender: string, targetCase: string): string {
   if (targetCase === "nom") return adj;
@@ -74,7 +73,3 @@ export function declineHookPhrase(phrase: string, targetCase: string): string {
   return `${newArt} ${words.join(" ")}`;
 }
 
-export function safeCaseForm(rawPhrase: string, casedPhrase: string): string {
-  if (looksLikeClausePhrase(rawPhrase)) return `„${clean(rawPhrase)}“`;
-  return casedPhrase;
-}

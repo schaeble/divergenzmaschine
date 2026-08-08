@@ -95,13 +95,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine zerknitterte Visitenkarte",
       "ein Flakon mit Resten",
       "eine schwarze Handschuhspitze",
-      "ein vergilbter Liebesbrief",
+      "einen vergilbten Liebesbrief",
       "eine silberne Münze",
       "ein kleines Taschenmesser",
       "eine zerbrochene Uhrkette",
       "eine rote Nelke",
       "eine Opiumdose",
-      "ein Taschenspiegel"
+      "einen Taschenspiegel"
     ],
     "turns": [
       "die Schönheit zeigt ihre Rückseite",
@@ -165,8 +165,8 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Mappe mit Bindfaden",
       "eine Quittung ohne Betrag",
       "eine Klingel, die nicht läutet",
-      "ein Ausweis mit fremdem Foto",
-      "ein Schlüssel ohne Schloss",
+      "einen Ausweis mit fremdem Foto",
+      "einen Schlüssel ohne Schloss",
       "eine Wartemarke",
       "ein Protokollheft"
     ],
@@ -227,12 +227,12 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     ],
     "props": [
       "eine zerbeulte Blechdose",
-      "ein Zigarettenstummel",
+      "einen Zigarettenstummel",
       "ein zerrissenes Plakat",
       "eine Taschenlampe",
       "ein Stück Draht",
       "eine rostige Klinge",
-      "ein Notizblock",
+      "einen Notizblock",
       "eine Fahrkarte",
       "ein Glas mit schwarzem Wasser",
       "ein Taschenradio"
@@ -430,13 +430,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Harpune",
       "ein Logbuch",
       "ein Messingfernrohr",
-      "ein Kompass",
+      "einen Kompass",
       "eine Öl-Laterne",
       "ein Stück Tauwerk",
       "ein Seekartenfragment",
-      "ein geschnitzter Anhänger",
+      "einen geschnitzten Anhänger",
       "eine Pfeife",
-      "ein Schiffssextant"
+      "einen Schiffssextanten"
     ],
     "turns": [
       "das Ziel wird zum Spiegel",
@@ -497,7 +497,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     "props": [
       "ein Dokument",
       "eine Akte",
-      "ein Vermerk",
+      "einen Vermerk",
       "eine Tabelle",
       "ein Siegel",
       "eine Fußnote",
@@ -765,7 +765,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Herbariumblatt",
       "eine Pipette",
       "ein Glas mit Formalin",
-      "ein Samen",
+      "einen Samen",
       "ein Anatomiebuch",
       "eine Feder",
       "ein Reagenzglas"
@@ -824,15 +824,15 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Ein Fossil flüstert meinen Namen."
     ],
     "props": [
-      "ein Hammer",
+      "einen Hammer",
       "eine Lupe",
       "ein Stück Basalt",
       "eine Feldkarte",
-      "ein Kompass",
+      "einen Kompass",
       "ein Notizbuch voller Schichten",
       "eine Taschenlampe",
       "eine Bohrprobe",
-      "ein Kristall",
+      "einen Kristall",
       "eine Staubmaske"
     ],
     "turns": [
@@ -894,11 +894,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Stück Meteorit",
       "eine zerkratzte Raumkapsel",
       "ein Notizbuch mit Koordinaten",
-      "ein Kompass ohne Nadel",
+      "einen Kompass ohne Nadel",
       "eine Sauerstoffmaske",
-      "ein Modellplanet",
+      "einen Modellplaneten",
       "eine Sanduhr mit Sternenstaub",
-      "ein Funksender"
+      "einen Funksender"
     ],
     "turns": [
       "die Gravitation ändert ihre Richtung",
@@ -958,7 +958,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Stethoskop",
       "eine Weltkarte",
       "ein Glas Meerwasser",
-      "ein Stein mit Riss",
+      "einen Stein mit Riss",
       "ein Blatt",
       "eine seismografische Linie",
       "ein Satellitenbild",
@@ -1024,9 +1024,9 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Taschenuhr",
       "ein Kindheitsfoto",
       "eine Zigarre",
-      "ein Briefumschlag",
+      "einen Briefumschlag",
       "eine verschlossene Schublade",
-      "ein Schlüssel",
+      "einen Schlüssel",
       "eine Maske",
       "ein Tagebuch"
     ],
@@ -1086,14 +1086,14 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     "props": [
       "ein Smartphone",
       "eine Sprachnachricht",
-      "ein Screenshot",
+      "einen Screenshot",
       "ein Hoodie",
       "ein Emoji",
-      "ein TikTok-Sound",
-      "ein Hashtag",
+      "einen TikTok-Sound",
+      "einen Hashtag",
       "eine Insta-Story",
-      "ein Gruppenchat",
-      "ein AirPod"
+      "einen Gruppenchat",
+      "einen AirPod"
     ],
     "turns": [
       "Ironie kippt in Ernst",
@@ -1150,14 +1150,14 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     ],
     "props": [
       "ein Architekturmodell",
-      "ein Grundrissplan",
+      "einen Grundrissplan",
       "eine Skizze auf Transparentpapier",
       "eine Betonprobe",
       "eine Stahlstrebe",
       "eine Glasplatte",
       "ein Maßband",
       "ein CAD-Tablet",
-      "ein Lichtschalter",
+      "einen Lichtschalter",
       "eine Designlampe"
     ],
     "turns": [
@@ -1216,14 +1216,14 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     "props": [
       "ein leeres Buch",
       "eine Feder",
-      "ein Kompass",
+      "einen Kompass",
       "eine Sanduhr",
       "eine Kerze",
       "eine Lupe",
       "ein Schachbrett",
-      "ein Stein",
+      "einen Stein",
       "eine Maske",
-      "ein Schlüssel"
+      "einen Schlüssel"
     ],
     "turns": [
       "ein Axiom zerfällt",
@@ -2507,15 +2507,15 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     ],
     "props": [
       "ein Archiv",
-      "ein Speicher",
-      "ein Knoten",
+      "einen Speicher",
+      "einen Knoten",
       "ein Notizbuch",
       "eine Karte",
       "ein Siegel",
       "ein Foto",
       "eine Lampe",
       "einen Schlüssel",
-      "ein Ausweis"
+      "einen Ausweis"
     ],
     "turns": [
       "ich bin nicht ich, nur Version",
@@ -2570,14 +2570,14 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     ],
     "props": [
       "eine Schere",
-      "ein Fingerhut",
+      "einen Fingerhut",
       "ein Maßband",
       "eine Stecknadel",
-      "ein Seidenfaden",
+      "einen Seidenfaden",
       "eine Schneiderpuppe",
-      "ein Perlmuttknopf",
-      "ein Kleidersack",
-      "ein Handspiegel",
+      "einen Perlmuttknopf",
+      "einen Kleidersack",
+      "einen Handspiegel",
       "ein Bügeleisen"
     ],
     "turns": [
@@ -2596,11 +2596,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "niemand bezahlt die Seide"
     ],
     "stakes": [
-      "der Ruf eines Hauses",
-      "die letzte Kollektion",
-      "ein Name auf dem Etikett",
-      "die Hand, die noch nähen kann",
-      "ein einziger Abend"
+      "Der Einsatz ist der Ruf eines Hauses.",
+      "Der Einsatz ist die letzte Kollektion.",
+      "Der Einsatz ist ein Name auf dem Etikett.",
+      "Der Einsatz ist die Hand, die noch nähen kann.",
+      "Der Einsatz ist ein einziger Abend."
     ],
     "endings": [
       "Der Saum bleibt offen, das Licht geht aus.",
@@ -2632,14 +2632,14 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "das Horn verstummt mitten im Ton"
     ],
     "props": [
-      "ein Wanderstab",
+      "einen Wanderstab",
       "ein Waldhorn",
-      "ein Ring",
-      "ein Brief",
+      "einen Ring",
+      "einen Brief",
       "eine Laute",
-      "ein Mantel",
+      "einen Mantel",
       "eine Feder",
-      "ein Krug"
+      "einen Krug"
     ],
     "turns": [
       "der Wanderer kehrt um und findet nichts wieder",
@@ -2656,11 +2656,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "das Heimweh zeigt in zwei Richtungen"
     ],
     "stakes": [
-      "die Heimat hinter den Bergen",
-      "ein Versprechen aus dem Sommer",
-      "die eigene Stimme",
-      "der letzte helle Abend",
-      "ein Name im Wind"
+      "Der Einsatz ist die Heimat hinter den Bergen.",
+      "Der Einsatz ist ein Versprechen aus dem Sommer.",
+      "Der Einsatz ist die eigene Stimme.",
+      "Der Einsatz ist der letzte helle Abend.",
+      "Der Einsatz ist ein Name im Wind."
     ],
     "endings": [
       "Das Horn verklingt, die Wipfel rauschen weiter.",
@@ -2693,13 +2693,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     ],
     "props": [
       "eine Taschenuhr",
-      "ein Federkiel",
-      "ein Schuldschein",
+      "einen Federkiel",
+      "einen Schuldschein",
       "eine Kerze",
-      "ein Kohleneimer",
+      "einen Kohleneimer",
       "ein Kontobuch",
-      "ein Kanten Brot",
-      "ein abgetragener Mantel"
+      "einen Kanten Brot",
+      "einen abgetragenen Mantel"
     ],
     "turns": [
       "der Wohltäter erweist sich als Gläubiger",
@@ -2716,11 +2716,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "der Vormund unterschreibt nicht"
     ],
     "stakes": [
-      "ein Platz am Feuer",
-      "der Name der Mutter",
-      "die Freiheit aus dem Schuldturm",
-      "ein Winter ohne Hunger",
-      "die Ehre eines Hauses"
+      "Der Einsatz ist ein Platz am Feuer.",
+      "Der Einsatz ist der Name der Mutter.",
+      "Der Einsatz ist die Freiheit aus dem Schuldturm.",
+      "Der Einsatz ist ein Winter ohne Hunger.",
+      "Der Einsatz ist die Ehre eines Hauses."
     ],
     "endings": [
       "Der Nebel steht, das Kontor bleibt dunkel.",
@@ -2756,7 +2756,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Rechentafel",
       "ein Teleskop",
       "ein Diagramm",
-      "ein Detektor",
+      "einen Detektor",
       "eine Uhr",
       "eine Photoplatte"
     ],
@@ -2775,11 +2775,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "niemand kann außerhalb stehen"
     ],
     "stakes": [
-      "die erste Sekunde",
-      "ein widerlegtes Weltbild",
-      "die Herkunft aller Dinge",
-      "eine einzige Zahl",
-      "das Recht auf eine Frage"
+      "Der Einsatz ist die erste Sekunde.",
+      "Der Einsatz ist ein widerlegtes Weltbild.",
+      "Der Einsatz ist die Herkunft aller Dinge.",
+      "Der Einsatz ist eine einzige Zahl.",
+      "Der Einsatz ist das Recht auf eine Frage."
     ],
     "endings": [
       "Das Rauschen bleibt, die Antwort dehnt sich weiter aus.",
@@ -2814,11 +2814,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Glas Wein",
       "ein offenes Fenster",
       "ein Seidenband",
-      "ein Schlüssel",
-      "ein Mantel über einer Lehne",
+      "einen Schlüssel",
+      "einen Mantel über einer Lehne",
       "eine Kerze",
-      "ein Spiegel",
-      "ein Brief"
+      "einen Spiegel",
+      "einen Brief"
     ],
     "turns": [
       "das Schweigen wird zur Antwort",
@@ -2835,11 +2835,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "die Worte kommen nicht"
     ],
     "stakes": [
-      "ein Abend, der nicht wiederkommt",
-      "eine Freundschaft",
-      "der eigene Vorsatz",
-      "die Wahrheit über ein Gefühl",
-      "ein einziges Ja"
+      "Der Einsatz ist ein Abend, der nicht wiederkommt.",
+      "Der Einsatz ist eine Freundschaft.",
+      "Der Einsatz ist der eigene Vorsatz.",
+      "Der Einsatz ist die Wahrheit über ein Gefühl.",
+      "Der Einsatz ist ein einziges Ja."
     ],
     "endings": [
       "Die Tür bleibt angelehnt.",
@@ -2870,13 +2870,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Teller steht zu viel auf dem Tisch"
     ],
     "props": [
-      "ein Löffel",
-      "ein Krug Wasser",
-      "ein Kanten Brot",
+      "einen Löffel",
+      "einen Krug Wasser",
+      "einen Kanten Brot",
       "eine leere Schüssel",
-      "ein Sack Mehl",
+      "einen Sack Mehl",
       "ein Messer",
-      "ein Marktkorb",
+      "einen Marktkorb",
       "eine Waage"
     ],
     "turns": [
@@ -2894,11 +2894,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "der Weg zur Stadt ist zu weit"
     ],
     "stakes": [
-      "ein Winter",
-      "die Kraft für morgen",
-      "der Stolz beim Bitten",
-      "ein Kind am Tisch",
-      "die letzte Scheibe"
+      "Der Einsatz ist ein Winter.",
+      "Der Einsatz ist die Kraft für morgen.",
+      "Der Einsatz ist der Stolz beim Bitten.",
+      "Der Einsatz ist ein Kind am Tisch.",
+      "Der Einsatz ist die letzte Scheibe."
     ],
     "endings": [
       "Der Teller bleibt leer, das Licht wird kalt.",
@@ -2933,8 +2933,8 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Medaillon",
       "eine Harfe",
       "ein Notenblatt",
-      "ein Spiegel",
-      "ein Schlüssel",
+      "einen Spiegel",
+      "einen Schlüssel",
       "eine Kerze",
       "ein Buch"
     ],
@@ -2953,11 +2953,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "der Traum lässt sich nicht erzählen"
     ],
     "stakes": [
-      "ein Traum, der nicht zurückkommt",
-      "die Unschuld eines Sommers",
-      "ein Ton, den niemand sonst hört",
-      "die Ferne selbst",
-      "ein Wort für das Unsagbare"
+      "Der Einsatz ist ein Traum, der nicht zurückkommt.",
+      "Der Einsatz ist die Unschuld eines Sommers.",
+      "Der Einsatz ist ein Ton, den niemand sonst hört.",
+      "Der Einsatz ist die Ferne selbst.",
+      "Der Einsatz ist ein Wort für das Unsagbare."
     ],
     "endings": [
       "Die Blume bleibt blau, der Morgen bleibt grau.",
@@ -2988,14 +2988,14 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Name steht in zwei Akten"
     ],
     "props": [
-      "ein Leuchter",
+      "einen Leuchter",
       "eine Akte",
-      "ein Brotlaib",
+      "einen Brotlaib",
       "eine Kette",
       "eine Fahne",
       "ein Gewehr",
       "eine Glocke",
-      "ein Passierschein"
+      "einen Passierschein"
     ],
     "turns": [
       "der Verfolger lässt den Verfolgten laufen",
@@ -3012,11 +3012,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "die Kanäle sind überflutet"
     ],
     "stakes": [
-      "ein Name ohne Nummer",
-      "das Leben eines Kindes",
-      "die Gerechtigkeit selbst",
-      "eine Stadt für eine Nacht",
-      "die Seele eines Verfolgers"
+      "Der Einsatz ist ein Name ohne Nummer.",
+      "Der Einsatz ist das Leben eines Kindes.",
+      "Der Einsatz ist die Gerechtigkeit selbst.",
+      "Der Einsatz ist eine Stadt für eine Nacht.",
+      "Der Einsatz ist die Seele eines Verfolgers."
     ],
     "endings": [
       "Die Barrikade fällt, die Glocke bleibt.",
@@ -3048,11 +3048,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     ],
     "props": [
       "ein Tau",
-      "ein Kompass",
+      "einen Kompass",
       "eine Laterne",
-      "ein Seesack",
-      "ein Frachtbrief",
-      "ein Anker",
+      "einen Seesack",
+      "einen Frachtbrief",
+      "einen Anker",
       "eine Trillerpfeife",
       "eine Seekarte"
     ],
@@ -3071,11 +3071,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "das Tau hält nicht"
     ],
     "stakes": [
-      "eine Überfahrt",
-      "ein Name auf der Liste",
-      "die letzte Fracht",
-      "ein Wiedersehen",
-      "der Weg zurück"
+      "Der Einsatz ist eine Überfahrt.",
+      "Der Einsatz ist ein Name auf der Liste.",
+      "Der Einsatz ist die letzte Fracht.",
+      "Der Einsatz ist ein Wiedersehen.",
+      "Der Einsatz ist der Weg zurück."
     ],
     "endings": [
       "Das Schiff läuft aus, der Kai bleibt leer.",
@@ -3106,14 +3106,14 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Zahl auf der Rechnung stimmt nicht"
     ],
     "props": [
-      "ein Schlüsselbund",
+      "einen Schlüsselbund",
       "eine Kaffeetasse",
-      "ein Einkaufszettel",
+      "einen Einkaufszettel",
       "eine Fernbedienung",
-      "ein Regenschirm",
+      "einen Regenschirm",
       "ein Handy",
-      "ein Kalender",
-      "ein Blumentopf"
+      "einen Kalender",
+      "einen Blumentopf"
     ],
     "turns": [
       "der freie Tag füllt sich ungefragt",
@@ -3130,11 +3130,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "die Wohnung bleibt zu klein"
     ],
     "stakes": [
-      "ein freier Nachmittag",
-      "die Miete",
-      "ein Anruf, der überfällig ist",
-      "der Platz am Fenster",
-      "die Ruhe nach Feierabend"
+      "Der Einsatz ist ein freier Nachmittag.",
+      "Der Einsatz ist die Miete.",
+      "Der Einsatz ist ein Anruf, der überfällig ist.",
+      "Der Einsatz ist der Platz am Fenster.",
+      "Der Einsatz ist die Ruhe nach Feierabend."
     ],
     "endings": [
       "Der Kühlschrank brummt weiter, das Licht geht aus.",
@@ -3165,14 +3165,14 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "jemand schließt eine Wette ohne Zeugen"
     ],
     "props": [
-      "ein Federkiel",
-      "ein Siegelring",
-      "ein Zauberbesen",
+      "einen Federkiel",
+      "einen Siegelring",
+      "einen Zauberbesen",
       "eine Wetterfahne",
-      "ein Reisekoffer",
+      "einen Reisekoffer",
       "eine Farbenscheibe",
       "ein Manuskript",
-      "ein Wanderstock"
+      "einen Wanderstock"
     ],
     "turns": [
       "der Diener gehorcht länger als befohlen",
@@ -3189,11 +3189,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "die Formel ist nur halb gelernt"
     ],
     "stakes": [
-      "ein Augenblick, der bleiben soll",
-      "die Seele in einer Wette",
-      "das Kind auf dem Pferd",
-      "der Ruhm eines Werks",
-      "zwei Seelen in einer Brust"
+      "Der Einsatz ist ein Augenblick, der bleiben soll.",
+      "Der Einsatz ist die Seele in einer Wette.",
+      "Der Einsatz ist das Kind auf dem Pferd.",
+      "Der Einsatz ist der Ruhm eines Werks.",
+      "Der Einsatz ist zwei Seelen in einer Brust."
     ],
     "endings": [
       "Der Vater kommt an, das Kind ist still.",
@@ -3225,13 +3225,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     ],
     "props": [
       "eine Orange",
-      "ein Wollschal",
+      "einen Wollschal",
       "eine Schale Wasser",
       "ein Stück Rinde",
       "eine Glocke",
       "ein Tuch",
       "eine Kerze",
-      "ein Kieselstein"
+      "einen Kieselstein"
     ],
     "turns": [
       "ein Sinn übernimmt die Arbeit des anderen",
@@ -3248,11 +3248,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "der Ton liegt außerhalb des Hörens"
     ],
     "stakes": [
-      "eine Erinnerung, die nur im Duft lebt",
-      "die Schärfe der Wahrnehmung",
-      "ein Augenblick vor dem Vergessen",
-      "die eigene Haut",
-      "ein Name für ein Gefühl"
+      "Der Einsatz ist eine Erinnerung, die nur im Duft lebt.",
+      "Der Einsatz ist die Schärfe der Wahrnehmung.",
+      "Der Einsatz ist ein Augenblick vor dem Vergessen.",
+      "Der Einsatz ist die eigene Haut.",
+      "Der Einsatz ist ein Name für ein Gefühl."
     ],
     "endings": [
       "Der Regen hört auf, der Stein bleibt warm.",
@@ -3261,7 +3261,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Duft geht, das Zimmer bleibt.",
       "Am Ende bleibt Salz auf den Lippen."
     ]
-  },
+  }
 };
 
 /** Icon-Labels je Built-in-Preset-Id. */

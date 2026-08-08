@@ -1,6 +1,7 @@
 // Textbau-Helfer für die Struktur-Builder und die Ton-Einschübe.
 import { clean, pick, chance, ensurePunct, escapeRegExp, splitSentences } from "../text-utils";
 import { pickFreshIndex } from "./cooldown";
+import { dekliniere } from "../atoms/assemble";
 
 export function cap(s: string): string {
   s = (s ?? "").toString();
@@ -110,7 +111,12 @@ export function reframeStake(stake: string): string {
   const m = /^Der Einsatz ist\s+(.+?)[.!?…]*$/i.exec(clean(stake));
   if (!m) return stake;
   const core = m[1]!;
-  const frames = [`Der Einsatz ist ${core}.`, `Es geht um ${core}.`, `Alles dreht sich um ${core}.`, `Was zählt, ist ${core}.`];
+  // "um" verlangt den Akkusativ, alle anderen Rahmen den Nominativ. Bei
+  // maskulinem Artikel brach das bisher auseinander: "Es geht um der Ruf eines
+  // Hauses". Feminina und Neutra sind in beiden Faellen gleich, dort aendert
+  // die Umformung nichts.
+  const akk = dekliniere(core, "akk");
+  const frames = [`Der Einsatz ist ${core}.`, `Es geht um ${akk}.`, `Alles dreht sich um ${akk}.`, `Was zählt, ist ${core}.`];
   if (!/[:,]/.test(core)) {
     frames.push(`Auf dem Spiel steht ${core}.`);
     frames.push(`${cap(core)} steht auf dem Spiel.`);
@@ -118,6 +124,11 @@ export function reframeStake(stake: string): string {
     frames.push(`Verlieren hieße: ${core}.`);
   }
   return frames[pickFreshIndex("stake", frames.length)]!;
+}
+
+export function safeCaseForm(rawPhrase: string, casedPhrase: string): string {
+  if (looksLikeClausePhrase(rawPhrase)) return `„${clean(rawPhrase)}“`;
+  return casedPhrase;
 }
 
 export function weaveMotif(text: string, motif: string): string {

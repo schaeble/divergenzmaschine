@@ -41,15 +41,19 @@ export function buildPool(bank: Bank, perspektive: string, what?: string, figur?
     const P = figur || "Jemand";
     const saetze = lead.isInfinitiveLed
       ? [`${P} will ${kern}`, `Alles drängt darauf, ${kern.replace(/(\S+)$/, "zu $1")}`]
+      // Kein "Und wieder: …" mehr: Die Phrasensperre laesst die Handlung nur noch
+      // einmal in den Text: Blieb dann ausgerechnet die Echo-Fassung uebrig, kuendigte
+      // sie eine Wiederholung an, die es nicht gab - und zweimal hintereinander
+      // gezogen ergab sie "Und wieder: und wieder: …".
       : lead.verb
-        ? [`${P} ${lead.verb} ${kern}`, `Und wieder: ${P} ${lead.verb} ${kern}`]
+        ? [`${P} ${lead.verb} ${kern}`]
         // "X sucht <kern>" ergibt nur Sinn, wenn der Kern eine Nominalphrase ist.
         // Steht dort ein Satz, entsteht "Du suchst sehe 9 Monde am Himmel" - genau so
         // geschehen, weil hatFinitesVerb Formen der ersten Person ("sehe", "warte",
         // "gehe") nicht kennt: Die Endung -e ist von Adjektiven nicht zu trennen.
         // Deshalb wird hier nicht nach dem Verb gefragt, sondern nach dem Artikel.
         : looksLikeFullClause(lead.verb, kern) || hatFinitesVerb(kern) || !wirktNominal(kern)
-          ? [kern, `Und wieder: ${kern}`, `Denn genau das geschieht: ${kern}`]
+          ? [kern]
           : [`Es geht um eines: ${kern}`, `${P} sucht ${kern}`];
     for (const t of saetze) {
       const d = deriveAtom(t);
@@ -205,7 +209,13 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
   // Wann wurde welches Atom gesetzt? Erlaubt es, den Vorrat spaeter kontrolliert
   // wieder zu oeffnen, statt den Text abzubrechen.
   const benutztBei = new Map<string, number>();
+  // Kurzsperre statt Verbrauch: Ein Baustein, den die Phrasensperre an DIESER
+  // Stelle ablehnt, ist an einer spaeteren oft brauchbar. Ihn wie einen benutzten
+  // zu behandeln kostete Laenge (gemessen: Ziel 240 von 75 auf 52 Prozent). Die
+  // Kurzsperre faellt, sobald wieder etwas gesetzt wurde.
+  const kurzGesperrt = new Set<string>();
   const ABSTAND = knobs.abstand;   // so viele Elemente muss ein Baustein zurueckliegen
+  const PHRASE = knobs.phrase;     // Fensterbreite der Phrasensperre, 0 = aus
   /** Gibt Bausteine frei, die lange genug zurueckliegen. Gibt zurueck, wie viele. */
   const nachlegen = (): number => {
     let frei = 0;
@@ -227,7 +237,13 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
     // Phase aus dem Fortschritt in Wörtern ableiten (nicht aus der Position)
     const phase = fortschritt < 0.3 ? "exposition" : fortschritt < 0.6 ? "verdichtung" : fortschritt < 0.8 ? "umschlag" : "schluss";
     const letzte = fortschritt >= 0.92;
-    let kand = pool.filter((a) => passt(a, k, phase));
+    // Die Handlung aus "Was passiert?" liegt als mehrere Fassungen im Vorrat.
+    // Steht eine davon im Text, sind die anderen nur noch Wiederholung derselben
+    // Aussage - genau so kamen "bekommt einen Ausweis fuer ein anderes Leben" und
+    // "Denn genau das geschieht: bekommt einen Ausweis fuer ein anderes Leben"
+    // zusammen in einen Text.
+    let kand = pool.filter((a) => passt(a, k, phase) && !kurzGesperrt.has(a.id)
+      && !(wasGesetzt && a.kategorie === "was"));
     // 0.4 Fügeteil-Anteil deckeln: Vorlagen sind Verbindungsstücke, nicht Inhalt.
     if (out.length >= 3 && fuegeteile / out.length >= FUEGE_DECKEL) {
       const inhalt = kand.filter((a) => a.quelle !== "vorlage");
@@ -329,20 +345,46 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
       if (zaehleIn(text, wert) && zaehleIn(bisher, wert) >= W4_MAX) { zuOft = true; break; }
     }
     if (zuOft) { k.benutzt.add(a.id); continue; }
-    // N-Gramm-Sperre fuer Korpusmaterial: Die Selbstfuetterung koppelt zurueck -
-    // ohne sie wiederholt der Text Wendungen, die er selbst erzeugt hat.
-    if (a.quelle === "korpus") {
-      const wds = text.toLowerCase().match(/[a-zäöüß]{2,}/g) || [];
-      const bisherLow = out.join(" ").toLowerCase();
+    // N-Gramm-Sperre, jetzt fuer ALLE Quellen. Bisher galt sie nur fuer den Korpus,
+    // weil dort die Selbstfuetterung zurueckkoppelt. Gemessen wiederholten trotzdem
+    // 95 % der Laeufe eine Phrase aus fuenf Woertern - fast immer den Kern der
+    // "Was passiert?"-Angabe, der als drei Atome im Vorrat liegt ("X", "Und wieder: X",
+    // "Denn genau das geschieht: X"). Drei verschiedene Kennungen, drei verschiedene
+    // Satzsignaturen: Weder die Atom- noch die Textsperre konnte greifen.
+    // Ort und Zeit werden vorher herausgeschnitten - fuer sie gilt der 4W-Deckel,
+    // und der ist ein Regler des Benutzers, den diese Sperre nicht ueberstimmen darf.
+    if (PHRASE > 0) {
+      const ohne4W = (roh: string): string => {
+        let x = roh.toLowerCase();
+        for (const wert of [ctx.ort, ctx.zeit]) {
+          if (wert && wert.length >= 4) x = x.split(wert.toLowerCase()).join(" ");
+        }
+        return x;
+      };
+      const fenster = a.quelle === "korpus" ? 4 : PHRASE;
+      // Nur inhaltstragende Ketten sperren. Fuenf Woerter, die zur Haelfte aus
+      // "in", "und", "die", "der" bestehen, wiederholen sich in jedem deutschen
+      // Text - sie zu verbieten kostete Laenge, ohne dass jemand eine Wiederholung
+      // bemerkt haette.
+      const inhaltlich = (kette: string[]): boolean =>
+        kette.filter((x) => x.length >= 5).length >= 2;
+      const wds = ohne4W(text).match(/[a-zäöüß]{2,}/g) || [];
+      // Beide Seiten gleich normalisieren. Die Korpus-Sperre verglich bisher eine
+      // Wortkette ohne Satzzeichen gegen Rohtext MIT Satzzeichen - "eine wurzel die"
+      // stand dort als "eine wurzel, die" und wurde nie gefunden. Die Sperre lief
+      // also praktisch leer.
+      const bisherLow = (ohne4W(out.join(" ")).match(/[a-zäöüß]{2,}/g) || []).join(" ");
       let doppelt = false;
-      for (let x = 0; x + 4 <= wds.length; x++) {
-        if (bisherLow.includes(wds.slice(x, x + 4).join(" "))) { doppelt = true; break; }
+      for (let x = 0; x + fenster <= wds.length; x++) {
+        const kette = wds.slice(x, x + fenster);
+        if (inhaltlich(kette) && bisherLow.includes(kette.join(" "))) { doppelt = true; break; }
       }
-      if (doppelt) { k.benutzt.add(a.id); continue; }
+      if (doppelt) { kurzGesperrt.add(a.id); continue; }
     }
     const anf = anfangVon(text);
     if (anf.split(" ").length >= 2 && (anfangZahl.get(anf) || 0) >= 2) { k.benutzt.add(a.id); continue; }
     gesetzteTexte.add(sig); anfangZahl.set(anf, (anfangZahl.get(anf) || 0) + 1);
+    kurzGesperrt.clear();
     out.push(text);
     if (a.quelle === "markov") traceMarkov(a.text);
     pushTrace({ text, quelle: a.quelle, kategorie: a.kategorie || "—", typ: a.typ, phase, fueller: fueller.length ? fueller : undefined });

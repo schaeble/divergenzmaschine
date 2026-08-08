@@ -979,7 +979,8 @@ export function mountStudio(root: HTMLElement): void {
     knobRow("abstand", "Nachlege-Abstand", "wie weit ein Baustein zurückliegen muss, bevor er wiederkehrt", ""),
     knobRow("bogen", "Erzählbogen", "Gewicht der Bogen-Atome; 0 schaltet die Quelle ab", " %"),
     knobRow("ton", "Ton-Einschübe", "wie viele Ton-Sätze die Nachbearbeitung einstreut", " %"),
-    knobRow("korpus", "Korpus-Bausteine", "aus dem eigenen Korpus, gefiltert auf Präsens und eigene Figuren; 0 = aus", ""));
+    knobRow("korpus", "Korpus-Bausteine", "aus dem eigenen Korpus, gefiltert auf Präsens und eigene Figuren; 0 = aus", ""),
+    knobRow("phrase", "Phrasensperre", "ab wie vielen gleichen Wörtern in Folge ein Baustein abgelehnt wird; 0 = aus. Streng heißt weniger Wiederholung, aber auch kürzere Texte", " Wörter"));
   const knobReset = button("Vorgaben wiederherstellen");
   knobReset.addEventListener("click", () => {
     Object.assign(knobs, KNOB_VORGABE); saveKnobs(knobs);

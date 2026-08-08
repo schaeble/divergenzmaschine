@@ -190,7 +190,12 @@ export function dekliniere(phrase: string, kasus: string): string {
   const kern = (rest.match(/\b([A-ZÄÖÜ][a-zäöüß-]{2,})/) || [])[1];
   // Schwache Maskulina gelten als maskulin, auch wenn die Genusheuristik anders
   // entscheidet - sonst bleibt "ein Zeuge" im Akkusativ unveraendert stehen.
-  const g = kern ? (istSchwachesMaskulinum(kern) ? "m" : guessGender(kern)) : undefined;
+  // Der bestimmte Artikel verraet das Genus sicherer als jede Endungsheuristik:
+  // "der Ruf", "der Platz" blieben unveraendert, weil guessGender die Woerter nicht
+  // kennt - dabei steht das Geschlecht schon vorne. Nur "ein" bleibt mehrdeutig
+  // (maskulin oder neutrum), dort entscheidet weiter der Kern.
+  const artG = art.toLowerCase() === "der" ? "m" : art.toLowerCase() === "das" ? "n" : undefined;
+  const g = artG || (kern ? (istSchwachesMaskulinum(kern) ? "m" : guessGender(kern)) : undefined);
   if (!g) return phrase;
   const map: Record<string, Record<string, string>> = {
     akk: { m: art.toLowerCase() === "ein" ? "einen" : "den", f: art, n: art },
@@ -207,9 +212,20 @@ export function dekliniere(phrase: string, kasus: string): string {
   const rest2 = (kasus === "akk" || kasus === "dat") && g === "m" && kern
     ? rest.replace(new RegExp("\\b" + kern + "\\b"), schwachesMaskulinum(kern))
     : rest;
-  const r = neu.toLowerCase() !== art.toLowerCase()
-    ? rest2.replace(/^([a-zäöüß]+?)(?:e|er|es|em|en)?(\s+[A-ZÄÖÜ])/, (_m, stamm: string, tail: string) => stamm + "en" + tail)
-    : rest2;
+  // Alle Adjektive vor dem Kern mitziehen, nicht nur das letzte: "den letzte helle
+  // Abend" blieb halb gebeugt, weil das Muster ein grossgeschriebenes Wort direkt
+  // hinter dem Adjektiv verlangte.
+  let r = rest2;
+  if (neu.toLowerCase() !== art.toLowerCase()) {
+    const w = rest2.split(/\s+/);
+    let kernIdx = w.findIndex((x) => /^[A-ZÄÖÜ]/.test(x));
+    if (kernIdx < 0) kernIdx = w.length;
+    for (let i = 0; i < kernIdx; i++) {
+      const x = w[i]!;
+      if (/^[a-zäöüß]{3,}$/.test(x)) w[i] = x.replace(/(?:e|er|es|em|en)$/, "") + "en";
+    }
+    r = w.join(" ");
+  }
   return neu + " " + r;
 }
 
