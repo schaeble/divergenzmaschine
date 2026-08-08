@@ -18,10 +18,10 @@ export const HAIKU_KIGO: string[] = [
  "Der Schneefall setzt aus",
  "Abendrot im Hof",
  "Wintersonne flach",
- "Regen an der Scheibe",
- "Nebel über dem Feld",
+ "Regen am Fenster",
+ "Nebel überm Feld",
  "Junilicht auf Staub",
- "Der Fluss trägt Eis"
+ "Der Fluss trägt das Eis"
 ];
 export const HAIKU_NATURE7: string[] = [
  "ein Reiher hebt langsam ab",
@@ -29,19 +29,19 @@ export const HAIKU_NATURE7: string[] = [
  "ein Blatt dreht sich im Fallen",
  "das Eis knackt unter dem Steg",
  "ein Falter taumelt ins Licht",
- "der Wind blättert die Akte um",
- "Schnee sammelt sich auf dem Stempel",
- "ein Vogel setzt sich aufs Kabel",
- "die Pfütze friert von innen zu"
+ "der Wind blättert die Akte",
+ "Schnee sammelt sich am Stempel",
+ "ein Vogel sitzt aufs Kabel",
+ "die Pfütze friert von innen"
 ];
 export const HAIKU_CLOSERS: string[] = [
  "der Teich schweigt wieder",
  "der Raum schweigt wieder",
  "die Uhr geht weiter",
- "der Staub setzt sich",
+ "der Staub setzt sich hin",
  "die Tür bleibt offen",
- "das Licht bleibt an",
- "niemand sieht hin",
- "der Atem wird ruhig",
+ "das Licht bleibt hängen",
+ "und niemand sieht hin",
+ "der Atem wird still",
  "alles bleibt stehen"
 ];

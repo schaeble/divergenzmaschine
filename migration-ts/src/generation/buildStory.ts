@@ -18,7 +18,7 @@ import { MarkovModel, isSaneMarkov, smoothMarkov } from "../corpus";
 import { biasedAutoChoice } from "./autochoice";
 import { buildVideoSequenceText } from "./video";
 import { enforceWordTarget } from "./length";
-import { buildRekombination } from "../atoms/rekombination";
+import { buildRekombination, buildVersAtome } from "../atoms/rekombination";
 import { linkTrace } from "../atoms/trace";
 import { linkMarkovTrace } from "./markovTrace";
 import { applyEmphasis } from "./emphasis";
@@ -157,8 +157,12 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   if (kit.perspective === "third") text = pronominalize(text, kit.P, guessPronoun(kit.P));
   const finalText = postProcessText(text, input);
   const anchor = kit.ending || kit.Apure;
-  if (input.form === "reim") return asReim(finalText, anchor, lenTarget);
-  if (input.form === "haiku") return asHaiku(finalText, anchor, lenTarget);
+  if (input.form === "reim") return asReim(finalText, anchor, lenTarget, buildVersAtome(bank, input, model));
+  if (input.form === "haiku") {
+    // F.3: Der Atomvorrat als Material. Er wird unabhaengig vom Prosatext gebaut -
+    // die Versform soll waehlen, nicht zerschneiden.
+    return asHaiku(finalText, anchor, lenTarget, buildVersAtome(bank, input, model));
+  }
   if (input.form === "strang") return asStrang(finalText, anchor, lenTarget);
   if (input.form === "drama") return asDrama(finalText, kit.speakerA, kit.speakerB || kit.P);
   return enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix");

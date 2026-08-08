@@ -15,10 +15,29 @@ function verseLine(s: string): string {
   t = t.replace(/^[\s"„“”'’]+/, "");
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
+// Woerter, die eine Zeile nicht beenden duerfen. REIM_DANGLING_RX deckt Artikel
+// und Praepositionen ab, aber nicht Pronomen und Zahlwoerter - "Was ich" endete
+// deshalb ungeruegt.
+const REIM_KEIN_ENDE = /^(ich|du|er|sie|es|wir|man|ihn|ihm|mir|mich|dir|dich|uns|euch|sich|selbst|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|jede|jeder|jedes|alle|viele|manche|diese|dieser|dieses|keinen|keinem|keiner|genau|sehr|ganz|so|noch|nur|auch|schon|immer|wieder)$/i;
+
 function reimCoreOf(phrase: string, targetWords: number): string {
-  let words = String(phrase || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
-  if (words.length > targetWords) words = words.slice(0, targetWords);
+  const alle = String(phrase || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  let words = alle.length > targetWords ? alle.slice(0, targetWords) : alle.slice();
+  // Attributives Adjektiv ohne sein Nomen abschneiden: "Sterne ueber schwarzen"
+  // stand fuer "Sterne ueber schwarzen Tannen". stripDanglingTail kennt nur
+  // Artikel und Praepositionen, ein Adjektiv erkennt man erst am naechsten Wort.
+  while (words.length > 2) {
+    const letzt = words[words.length - 1]!;
+    const danach = alle[words.length];
+    if (danach && /^[A-ZÄÖÜ]/.test(danach) && /^[a-zäöüß]+(en|er|es|em|e)$/.test(letzt)) words.pop();
+    else break;
+  }
   words = stripDanglingTail(words);
+  let guard = 0;
+  while (words.length > 2 && REIM_KEIN_ENDE.test((words[words.length - 1] || "").replace(/[.,;:!?…]/g, "")) && guard++ < 6) {
+    words.pop();
+    words = stripDanglingTail(words);
+  }
   return words.join(" ").replace(/[.,;:!?…]+$/, "").trim();
 }
 function reimGroupOfWord(word: string): RhymeGroup | null {
@@ -36,18 +55,19 @@ function pickRhymeWord(group: RhymeGroup, exclude?: string): string {
   return options.length ? pick(options) : pick(group.words);
 }
 function lineWithRhyme(phrase: string, rhymeWord: string, targetWords: number, connector: string): string {
-  let words = String(phrase || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
-  words = words.filter((w) => w.toLowerCase().replace(/[.,;:!?…]/g, "") !== rhymeWord.toLowerCase());
-  if (words.length > targetWords) words = words.slice(0, targetWords);
-  words = stripDanglingTail(words);
-  let core = words.join(" ").replace(/[.,;:!?…]+$/, "").trim();
+  const ohneReim = String(phrase || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean)
+    .filter((w) => w.toLowerCase().replace(/[.,;:!?…]/g, "") !== rhymeWord.toLowerCase());
+  // Dieselbe Kuerzung wie im Reimpaar-Zweig verwenden statt einer zweiten,
+  // schwaecheren Kopie: Hier stand "Sterne ueber schwarzen" noch, nachdem der
+  // andere Zweig es laengst sauber abschnitt.
+  let core = reimCoreOf(ohneReim.join(" "), targetWords);
   if (!core) core = "Es bleibt";
   const tails = REIM_TAILS[rhymeWord];
   if (tails && tails.length) return verseLine(`${core}, ${pick(tails)}.`);
   return verseLine(`${core}${connector}${rhymeWord}.`);
 }
 
-export function applyReimPoem(rawText: string, anchorLine = "", lenTarget = 0): string {
+export function applyReimPoem(rawText: string, anchorLine = "", lenTarget = 0, atome: string[] = []): string {
   // F.2: Der Laengenregler erreichte die Versformen nicht - bei Ziel 240 kamen
   // 74 Woerter heraus, weil targetLines fest auf 12 stand. Eine Reimzeile hat
   // rund sechs Woerter, daraus die Zeilenzahl.
@@ -57,7 +77,14 @@ export function applyReimPoem(rawText: string, anchorLine = "", lenTarget = 0): 
   let t = normalizeNewlines(rawText || "").trim().replace(/\([^()]*\)/g, " ")
     .replace(/\bShot\s*\d+\b.*$/gim, "").replace(/\b\d{1,2}\s*:\s*\d{2}\b\s*—\s*/g, "").replace(/\s+/g, " ").trim();
   let phrases: string[] = [];
-  for (const s of splitSentences(t)) phrases.push(...String(s).split(/[,;:—–]\s*/g).map((p) => p.trim()).filter(Boolean));
+  // F.3: Atome sind geschlossene Einheiten und werden NICHT am Komma zerlegt.
+  // Genau dieses Zerlegen erzeugte "Was ich, bis ins Gebein." - "Was ich" ist
+  // ein abgeschnittener Nebensatz, an den eine Reimwendung geklebt wurde.
+  if (atome.length >= 6) {
+    phrases = atome.map((a) => a.trim()).filter((a) => a.length >= 6);
+  } else {
+    for (const s of splitSentences(t)) phrases.push(...String(s).split(/[,;:—–]\s*/g).map((p) => p.trim()).filter(Boolean));
+  }
   phrases = phrases.map((p) => p.replace(/^Und\s+/i, "").trim()).filter((p) => p.length >= 6);
   phrases = reimDedupePhrases(phrases);
   const anchor = anchorLine.trim();

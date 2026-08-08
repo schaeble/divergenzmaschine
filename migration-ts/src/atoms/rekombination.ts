@@ -413,3 +413,33 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
   pruefeAbgleich(fertig);                 // 0.1: verschlucktes Material protokollieren
   return fertig;
 }
+
+/**
+ * F.3: Der Atomvorrat als fertige Textbausteine — für die Versformen.
+ *
+ * Reim und Haiku zerschnitten bisher fertige Prosa. Genau daher kamen Zeilen wie
+ * "Was ich, bis ins Gebein." und "Sie, hält sich im Zaum.": Der Schnitt fiel
+ * mitten in eine Fügung, weil der Umsetzer die Fügung nicht kennt. Die Atome
+ * sind dagegen geschlossene Einheiten — wer aus ihnen WÄHLT, statt zu zerhacken,
+ * kann nichts zerschneiden.
+ *
+ * Rahmen mit offenen Slots fallen heraus: Ein halb gefüllter Rahmen ist als Vers
+ * unbrauchbar.
+ */
+export function buildVersAtome(bank: Bank, input: GenInput, model?: MarkovModel): string[] {
+  const figur = (normWho(input.who || "").split(",")[0] || "Jemand").trim();
+  const pool = buildPool(bank, input.perspective, input.what, figur, model, input.markovMode);
+  const ctx = {
+    ort: normWhere(input.where || "") || "an einem Ort",
+    zeit: normWhen(input.when || "") || "zu einer Zeit",
+    figur, verb: "will",
+  };
+  const raus: string[] = [];
+  for (const a of pool) {
+    const t = fuelleKontext(a.text, ctx);
+    if (offeneSlots(t)) continue;
+    const rein = t.replace(/[.!?…:;]+$/, "").trim();
+    if (rein.split(/\s+/).length >= 2) raus.push(rein);
+  }
+  return [...new Set(raus)];
+}

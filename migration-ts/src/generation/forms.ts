@@ -22,13 +22,13 @@ export function asStrang(text: string, anchor = "", lenTarget = 0): string {
 }
 
 /** Reim: echter Paarreim (AABB) — delegiert an die faithful Engine. */
-export function asReim(text: string, anchor = "", lenTarget = 0): string {
-  return applyReimPoem(text, anchor, lenTarget);
+export function asReim(text: string, anchor = "", lenTarget = 0, atome: string[] = []): string {
+  return applyReimPoem(text, anchor, lenTarget, atome);
 }
 
 /** Haiku: echtes 5-7-5 — delegiert an die faithful Engine. */
-export function asHaiku(text: string, anchor = "", lenTarget = 0): string {
-  return applyHaikuPoem(text, anchor, lenTarget);
+export function asHaiku(text: string, anchor = "", lenTarget = 0, atome: string[] = []): string {
+  return applyHaikuPoem(text, anchor, lenTarget, atome);
 }
 
 // ── Drama ──────────────────────────────────────────────────────────
