@@ -384,6 +384,11 @@ input[type=range].wgt:hover{opacity:1}
   background:var(--bg);border:1px solid var(--border2);border-radius:10px;padding:8px;
   box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:16em}
 .presetpop .mpitem{display:flex;align-items:center;gap:6px;padding:2px 4px}
+.presetpop-kopf{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:0 2px 6px;border-bottom:1px solid var(--border2);margin-bottom:6px}
+.presetpop-x{border:none;background:transparent;font-size:15px;line-height:1;cursor:pointer;
+  color:inherit;padding:2px 6px;border-radius:6px}
+.presetpop-x:hover{background:color-mix(in srgb, var(--acc) 14%, transparent)}
 .src-chip-sel:hover,.src-chip-sel:focus-visible{background:color-mix(in srgb, var(--acc) 12%, transparent);outline:none}
 .src-row.ziehbar .src-bar{cursor:ew-resize;touch-action:none;position:relative}
 .src-ziel{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--acc);pointer-events:none}
@@ -397,6 +402,7 @@ input[type=range].wgt:hover{opacity:1}
 .hervor{animation:dm-hervor 1.8s ease-in-out;border-radius:8px}
 /* Abweichung von der Vorgabe sichtbar machen */
 .abweichend{color:var(--acc);font-weight:600}
+select.abweichend{border-color:var(--acc)}
 .outwrap{position:relative}
 /* Ziehgriff am unteren Rand des Textfensters: aendert die Ziellaenge.
    touch-action:none, sonst scrollt das Handy statt zu ziehen. */

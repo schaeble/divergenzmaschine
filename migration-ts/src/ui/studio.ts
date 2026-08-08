@@ -570,7 +570,7 @@ export function mountStudio(root: HTMLElement): void {
     // Reglerstellungen in der Oberfläche nachziehen
     const k = loadKnobs();
     for (const f of ["fuegeteil", "w4max", "abstand", "bogen", "ton"] as (keyof Knobs)[]) {
-      const r = document.getElementById("k-" + f) as HTMLInputElement | null;
+      const r = document.getElementById("k-" + f) as HTMLSelectElement | null;
       if (r && r.value !== String(k[f])) { r.value = String(k[f]); r.dispatchEvent(new Event("input")); }
     }
   };
@@ -948,20 +948,24 @@ export function mountStudio(root: HTMLElement): void {
   const knobs: Knobs = loadKnobs();
   const knobRow = (feld: keyof Knobs, label: string, hinweis: string, einheit: string): HTMLElement => {
     const sp = KNOB_SPANNE[feld];
-    const r = el("input", { id: "k-" + feld, type: "range", min: String(sp.min), max: String(sp.max),
-      step: String(sp.step), value: String(knobs[feld]) }) as HTMLInputElement;
-    const v = el("span", { class: "muted" }, knobs[feld] + einheit);
-    const vor = el("span", { class: "muted mini" }, `Vorgabe ${KNOB_VORGABE[feld]}${einheit}`);
-    const zeige = (): void => {
-      v.textContent = r.value + einheit;
-      v.classList.toggle("abweichend", parseInt(r.value, 10) !== KNOB_VORGABE[feld]);
+    // Auswahlfeld statt Schieberegler: Die Spannen sind klein und die Werte
+    // benannt - auf dem Handy trifft man einen Eintrag leichter als eine Position,
+    // und es sieht aus wie die uebrigen Werkzeuge daneben.
+    const sel = el("select", { id: "k-" + feld }) as HTMLSelectElement;
+    for (let v = sp.min; v <= sp.max; v += sp.step) {
+      const txt = v + einheit + (v === KNOB_VORGABE[feld] ? "  (Vorgabe)" : "") + (v === 0 ? "  — aus" : "");
+      sel.append(el("option", { value: String(v) }, txt));
+    }
+    sel.value = String(knobs[feld]);
+    const merke = (): void => {
+      knobs[feld] = parseInt(sel.value, 10);
+      sel.classList.toggle("abweichend", knobs[feld] !== KNOB_VORGABE[feld]);
     };
-    r.addEventListener("input", () => { knobs[feld] = parseInt(r.value, 10); zeige(); });
-    r.addEventListener("change", () => { saveKnobs(knobs); generate(); });
-    zeige();
+    sel.addEventListener("input", merke);
+    sel.addEventListener("change", () => { merke(); saveKnobs(knobs); generate(); });
+    merke();
     return el("div", { class: "field", id: "knob-" + feld },
-      el("span", { class: "field-label" }, label), el("span", { class: "muted mini" }, hinweis),
-      el("span", { class: "lenrow" }, r, " ", v, " ", vor));
+      el("span", { class: "field-label" }, label), el("span", { class: "muted mini" }, hinweis), sel);
   };
   const knobBox = el("div", { class: "grid3", id: "knobs" },
     knobRow("fuegeteil", "Fügeteil-Deckel", "Höchstanteil der Verbindungsstücke — steuert den Balken „Vorlagen“", " %"),
@@ -974,7 +978,7 @@ export function mountStudio(root: HTMLElement): void {
   knobReset.addEventListener("click", () => {
     Object.assign(knobs, KNOB_VORGABE); saveKnobs(knobs);
     for (const f of ["fuegeteil", "w4max", "abstand"] as (keyof Knobs)[]) {
-      const r = document.getElementById("k-" + f) as HTMLInputElement | null;
+      const r = document.getElementById("k-" + f) as HTMLSelectElement | null;
       if (r) { r.value = String(KNOB_VORGABE[f]); r.dispatchEvent(new Event("input")); }
     }
     generate();

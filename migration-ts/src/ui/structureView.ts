@@ -8,6 +8,11 @@ import { loadZiele, saveZiele, type ZielQuelle } from "../features/knobs";
  *  übergeben; im Diagnose-Tab bleiben die Chips reine Anzeige. */
 export type Schnellwahl = Record<string, HTMLSelectElement>;
 
+// Der Aufklapper ueberlebt das Neuzeichnen: Jede Auswahl erzeugt neu, dabei wird
+// die ganze Chip-Zeile verworfen - und mit ihr das offene Fenster. Der Zustand
+// liegt deshalb ausserhalb der Ansicht. Geschlossen wird nur ueber das Kreuz.
+let presetPopOffen = false;
+
 export function renderTextstruktur(text: string, snap: Schnappschuss | null, schnell?: Schnellwahl,
                                    presetPanel?: (host: HTMLElement) => void): HTMLElement {
   const box = el("div", {});
@@ -28,12 +33,18 @@ export function renderTextstruktur(text: string, snap: Schnappschuss | null, sch
       if (k === "Preset" && presetPanel) {
         const knopf = el("button", { class: "src-chip-sel src-chip-preset", type: "button",
           title: "Presets wählen — mehrere möglich" }, v || "—") as HTMLButtonElement;
-        const panel = el("div", { class: "presetpop", style: "display:none" });
-        knopf.addEventListener("click", () => {
-          const auf = panel.style.display === "none";
-          panel.style.display = auf ? "" : "none";
-          if (auf) presetPanel(panel);
-        });
+        const panel = el("div", { class: "presetpop" });
+        const inhalt = el("div", {});
+        const zu = el("button", { class: "presetpop-x", type: "button", "aria-label": "Auswahl schließen" }, "✕");
+        zu.addEventListener("click", () => { presetPopOffen = false; panel.style.display = "none"; });
+        panel.append(el("div", { class: "presetpop-kopf" },
+          el("span", { class: "muted mini" }, "Mehrere möglich"), zu), inhalt);
+        const zeichne = (): void => {
+          panel.style.display = presetPopOffen ? "" : "none";
+          if (presetPopOffen) presetPanel(inhalt);
+        };
+        knopf.addEventListener("click", () => { presetPopOffen = !presetPopOffen; zeichne(); });
+        zeichne();
         chips.append(el("span", { class: "src-chipwrap src-chipwrap-preset" }, el("b", {}, k), " ", knopf, panel));
         continue;
       }
