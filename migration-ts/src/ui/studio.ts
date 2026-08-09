@@ -182,6 +182,7 @@ export function mountStudio(root: HTMLElement): void {
   const umweltSichern = (): void => {
     saveUmwelt({ zeichen: umweltIn.value, wirkung: umweltSel.value as UmweltWirkung });
     umweltZeigen();
+    umweltLegZeigen();
   };
   umweltIn.addEventListener("input", umweltSichern);
   umweltSel.addEventListener("change", () => { umweltSichern(); generate(); });
@@ -662,14 +663,45 @@ export function mountStudio(root: HTMLElement): void {
   // naechsten Start an, statt jedes Mal neu eingeschaltet werden zu muessen.
   const ansicht = (chk: HTMLInputElement, text: string): HTMLElement =>
     el("span", { class: "ansichtchk" }, el("label", { class: "chk" }, chk, " " + text), lockBtn(chk));
+  // Legendeneintrag der Umwelt zeigt die eingestellte Wirkung an - eine Farbe
+  // ohne Bedeutung waere nur ein weiterer Punkt in der Zeile.
+  const umweltLeg = el("span", { class: "feeditem", style: "display:none" });
+  // Der Wirkungsnachweis: Wie viel hat der Sieger aufgenommen - und haette ohne
+  // die Umwelt ein anderer gewonnen? Ohne diese zweite Zahl sieht man nur, dass
+  // Zeichen im Text stehen, nicht, ob die Umwelt daran beteiligt war.
+  const umweltStatus = el("span", { class: "umweltchip", style: "display:none" });
+  const zeigeUmweltEffekt = (e: { wirkung: string; quote: number; quoteOhne: number; gewechselt: boolean } | undefined): void => {
+    umweltStatus.innerHTML = "";
+    if (!e) { umweltStatus.style.display = "none"; return; }
+    umweltStatus.style.display = "";
+    umweltStatus.className = "umweltchip" + (e.wirkung === "gift" ? " gift" : "") + (e.gewechselt ? " gewechselt" : "");
+    const pct = Math.round(e.quote * 100), pctOhne = Math.round(e.quoteOhne * 100);
+    const bar = el("span", { class: "umweltbar" }); bar.append(el("i", { style: `width:${pct}%` }));
+    umweltStatus.title = e.gewechselt
+      ? `Die Umwelt hat die Auswahl gedreht: ohne sie hätte eine Fassung mit ${pctOhne} % gewonnen.`
+      : `Dieselbe Fassung hätte auch ohne die Umwelt gewonnen (${pctOhne} %).`;
+    umweltStatus.append(el("span", {}, e.wirkung === "nahrung" ? "aufgenommen" : "gemieden"), bar,
+      el("span", {}, e.wirkung === "nahrung" ? pct + " %" : (100 - pct) + " %"),
+      el("span", { class: "muted" }, e.gewechselt ? "· gedreht" : "· ohne Wirkung"));
+  };
+  const umweltLegZeigen = (): void => {
+    const u = loadUmwelt();
+    umweltLeg.innerHTML = "";
+    if (u.wirkung === "aus" || !umweltTeile(u.zeichen).length) { umweltLeg.style.display = "none"; return; }
+    umweltLeg.style.display = "";
+    umweltLeg.append(el("span", { class: "feeddot " + (u.wirkung === "nahrung" ? "feed-nahrung" : "feed-gift") }),
+      u.wirkung === "nahrung" ? "Umwelt (Nahrung)" : "Umwelt (Gift)");
+  };
   const feedsRow = el("div", {},
     el("div", { class: "feedsrow" },
       legDot("feed-wb", "Wortbank"), legDot("feed-ton", "Ton"), legDot("feed-4w", "4W-Kontext"),
       legDot("feed-pool", "Lebendige Pools"), legDot("feed-markov", "Markov"),
       legDot("feed-drama", "Erzählbogen"), legDot("feed-korpus", "Korpus"),
+      umweltLeg,
       el("span", { class: "muted" }, "· unmarkiert = Vorlagen · alles anklickbar")),
     el("div", { class: "feedsrow ansichtrow" },
-      ansicht(feedsChk, "Editieren"), ansicht(struktChk, "Struktur"), ansicht(planChk, "Bauplan"), undoBtn));
+      ansicht(feedsChk, "Editieren"), ansicht(struktChk, "Struktur"), ansicht(planChk, "Bauplan"), undoBtn, umweltStatus));
+  umweltLegZeigen();
 
   interface FMatch { s: number; e: number; cls: string; prio: number; }
   const escFeeds = (t: string): string => t.replace(/[&<>]/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;"));
@@ -698,6 +730,21 @@ export function mountStudio(root: HTMLElement): void {
     try {
       const kp = (getTraceFor(plain) || []).filter((x) => x.quelle === "korpus").map((x) => x.text);
       if (kp.length) collectFeed(kp, "feed-korpus", 3, low, m);
+    } catch { /* egal */ }
+    // Bauplan F: Die Umweltzeichen einfaerben - gruen, wenn sie aufgenommen werden
+    // sollen, rot, wenn sie gemieden werden sollen. Eigener Sammler, weil
+    // collectFeed alles unter fuenf Zeichen verwirft: "Tuer" und "∅" waeren sonst
+    // unsichtbar, und gerade die kurzen Zeichen sind der Punkt.
+    try {
+      const u = loadUmwelt();
+      if (u.wirkung !== "aus") {
+        const cls = u.wirkung === "nahrung" ? "feed-nahrung" : "feed-gift";
+        for (const teil of umweltTeile(u.zeichen)) {
+          const pl = teil.toLowerCase(); if (!pl) continue;
+          let from = 0, idx = low.indexOf(pl, from);
+          while (idx !== -1 && m.length < 4000) { m.push({ s: idx, e: idx + pl.length, cls, prio: 9 }); from = idx + pl.length; idx = low.indexOf(pl, from); }
+        }
+      }
     } catch { /* egal */ }
     try {
       const dd = loadDramaData();
@@ -1181,9 +1228,14 @@ export function mountStudio(root: HTMLElement): void {
     const model = markov.value !== "off" ? buildModelFromCorpus(2) : undefined;
     const input = readInput();
     try {
-      out.textContent = bestChk.checked
-        ? bestOf(loadBank(), input, model, 12, { noveltyWeight: 0.5, grammarFilter: true, castDiscipline: parseFloat(cast.value) || 0, expectedCast: who.value.split(/[,;]/).map((x) => x.trim()).filter(Boolean), perspective: persp.value }).txt
-        : buildStory(loadBank(), input, model);
+      if (bestChk.checked) {
+        const w = bestOf(loadBank(), input, model, 12, { noveltyWeight: 0.5, grammarFilter: true, castDiscipline: parseFloat(cast.value) || 0, expectedCast: who.value.split(/[,;]/).map((x) => x.trim()).filter(Boolean), perspective: persp.value });
+        out.textContent = w.txt;
+        zeigeUmweltEffekt(w.umwelt);
+      } else {
+        out.textContent = buildStory(loadBank(), input, model);
+        zeigeUmweltEffekt(undefined);
+      }
       baseText = out.textContent || "";
       ctxSichern();
       updVorrat();

@@ -294,8 +294,18 @@ input[type=range].wgt:hover{opacity:1}
 .feed-markov { background:rgba(230,73,128,.30); border-radius:3px; }
 .feed-drama { background:rgba(139,92,246,.30); border-radius:3px; }
 .feed-korpus { background:rgba(180,83,9,.28); border-radius:3px; }
+/* Umwelt: Nahrung gruen (aufgenommen, wie gewollt), Gift rot (durchgerutscht) */
+.feed-nahrung { background:rgba(34,160,90,.34); border-radius:3px; box-shadow:inset 0 -2px 0 rgba(34,160,90,.9); }
+.feed-gift { background:rgba(230,73,73,.30); border-radius:3px; box-shadow:inset 0 -2px 0 rgba(230,73,73,.9); }
 .feeddot.feed-wb{background:#14B8A6;} .feeddot.feed-ton{background:#EF9F27;} .feeddot.feed-4w{background:#378ADD;} .feeddot.feed-pool{background:#639922;}
 .feeddot.feed-markov{background:#E64980;} .feeddot.feed-drama{background:#8B5CF6;} .feeddot.feed-korpus{background:#B45309;}
+.feeddot.feed-nahrung{background:#22A05A;} .feeddot.feed-gift{background:#E64949;}
+/* Umwelt-Anzeige unter dem Text */
+.umweltchip{display:inline-flex;align-items:center;gap:6px;font:12px var(--sans);border:1px solid var(--border2);border-radius:999px;padding:2px 10px}
+.umweltchip.gewechselt{border-color:var(--acc);color:var(--text)}
+.umweltbar{display:inline-block;width:54px;height:6px;border-radius:3px;background:var(--border2);overflow:hidden;vertical-align:middle}
+.umweltbar i{display:block;height:100%;background:#22A05A}
+.umweltchip.gift .umweltbar i{background:#E64949}
 
 /* Architektur-Diagramm im Hilfe-Tab */
 .help-arch{margin:6px 0 20px}

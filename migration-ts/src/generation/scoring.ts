@@ -18,7 +18,7 @@ export interface TextMetrics {
 }
 export interface RankItem extends TextMetrics { txt: string; score: number; baseScore?: number; novelty?: number; surprise?: number; grammar?: number; constraintsOk?: boolean; aiScore?: number; grund?: string; }
 
-import { loadUmwelt, umweltBeitrag, type Umwelt } from "../features/umwelt";
+import { loadUmwelt, umweltBeitrag, aufnahmequote, type Umwelt } from "../features/umwelt";
 
 export interface RankOptions {
   noveltyWeight?: number;   // 0..1  Abstand zur Schatzkammer + Cooldown
@@ -105,12 +105,17 @@ export function scoreText(txt: string, lenTarget: number): { score: number; a: T
 /** Feld-freie Bestenauslese für den Generieren-Standardpfad: erzeugt N Kandidaten,
  *  bewertet sie (Score + optional Novelty gegen die Schatzkammer + Grammatikfilter)
  *  und liefert den besten Text — ohne Korpus-Selbstfütterung (die bleibt bei Merken/Ranking). */
-export function bestOf(bank: Bank, input: GenInput, model: MarkovModel | undefined, N = 12, opts: RankOptions = {}): { txt: string; score: number } {
+export interface UmweltEffekt { wirkung: string; quote: number; quoteOhne: number; gewechselt: boolean; }
+export function bestOf(bank: Bank, input: GenInput, model: MarkovModel | undefined, N = 12, opts: RankOptions = {}): { txt: string; score: number; umwelt?: UmweltEffekt } {
   const lt = input.lenTarget ?? 110;
   const nw = Math.max(0, Math.min(1, opts.noveltyWeight ?? 0));
   const ctx: NoveltyContext | null = nw > 0 ? buildNoveltyContext() : null;
   const umw = opts.umwelt ?? loadUmwelt();
+  // Fuer die Anzeige mitfuehren: Wer haette OHNE Umwelt gewonnen? Nur so laesst
+  // sich zeigen, ob die Umwelt die Auswahl wirklich gedreht hat - die blosse
+  // Anwesenheit der Zeichen im Text sagt darueber nichts.
   let best: { txt: string; score: number } | null = null;
+  let bestOhne: { txt: string; score: number } | null = null;
   for (const txt of genN(bank, input, model, N)) {
     let sc = scoreText(txt, lt).score;
     // Laengendefizit quadratisch bestrafen. Ohne das gewinnen kurze Fassungen: Sie
@@ -126,14 +131,22 @@ export function bestOf(bank: Bank, input: GenInput, model: MarkovModel | undefin
     sc -= coherencePenalty(txt, { ...opts, perspective: opts.perspective ?? input.perspective });
     // Bauplan F: Die Umwelt richtet die Auswahl. Sie wirkt hier und nicht nur im
     // Auslese-Tab - der normale Weg ueber "Generieren" ist der, den man benutzt.
+    const ohne = sc;
     sc += umweltBeitrag(txt, umw);
+    if (!bestOhne || ohne > bestOhne.score) bestOhne = { txt, score: ohne };
     if (!best || sc > best.score) best = { txt, score: sc };
   }
   const win = best ?? { txt: buildStory(bank, input, model), score: 0 };
+  const effekt: UmweltEffekt | undefined = umw.wirkung === "aus" || !umw.zeichen.trim() ? undefined : {
+    wirkung: umw.wirkung,
+    quote: aufnahmequote(win.txt, umw.zeichen),
+    quoteOhne: bestOhne ? aufnahmequote(bestOhne.txt, umw.zeichen) : 0,
+    gewechselt: !!bestOhne && bestOhne.txt !== win.txt,
+  };
   // Der Sieger der Bestenauslese ist das kuratierteste, was die Maschine ohne
   // Zutun liefert - genau er gehoert in den Korpus, wenn Selbstfuetterung an ist.
   feedGeneratedToCorpus(win.txt);
-  return win;
+  return effekt ? { ...win, umwelt: effekt } : win;
 }
 
 function genN(bank: Bank, input: GenInput, model: MarkovModel | undefined, N: number): string[] {
