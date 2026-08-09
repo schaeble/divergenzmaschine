@@ -18,6 +18,8 @@ export interface TextMetrics {
 }
 export interface RankItem extends TextMetrics { txt: string; score: number; baseScore?: number; novelty?: number; surprise?: number; grammar?: number; constraintsOk?: boolean; aiScore?: number; grund?: string; }
 
+import { loadUmwelt, umweltBeitrag, type Umwelt } from "../features/umwelt";
+
 export interface RankOptions {
   noveltyWeight?: number;   // 0..1  Abstand zur Schatzkammer + Cooldown
   surpriseWeight?: number;  // 0..1  Gewicht des Überraschungs-Ziels
@@ -28,6 +30,7 @@ export interface RankOptions {
   castDiscipline?: number;  // 0..1  Figuren-Disziplin: neue Eigennamen abwerten
   expectedCast?: string[];  // in "Wer?" genannte Figuren (zählen nicht als neu)
   perspective?: string;     // eingestellte Erzählperspektive (Brüche abwerten)
+  umwelt?: Umwelt;          // Bauplan F: Zeichen der Umwelt, wirken als Nahrung oder Gift
 }
 export interface Ranking { all: RankItem[]; top: RankItem[]; total: number; topK: number; }
 
@@ -106,6 +109,7 @@ export function bestOf(bank: Bank, input: GenInput, model: MarkovModel | undefin
   const lt = input.lenTarget ?? 110;
   const nw = Math.max(0, Math.min(1, opts.noveltyWeight ?? 0));
   const ctx: NoveltyContext | null = nw > 0 ? buildNoveltyContext() : null;
+  const umw = opts.umwelt ?? loadUmwelt();
   let best: { txt: string; score: number } | null = null;
   for (const txt of genN(bank, input, model, N)) {
     let sc = scoreText(txt, lt).score;
@@ -120,6 +124,9 @@ export function bestOf(bank: Bank, input: GenInput, model: MarkovModel | undefin
     if (ctx) sc += nw * (noveltyOf(txt, ctx) * 40) - nw * (cooldownHit(txt, ctx) * 30);
     if (opts.grammarFilter) sc -= Math.min(grammarFlags(txt).count, 6) * 12;
     sc -= coherencePenalty(txt, { ...opts, perspective: opts.perspective ?? input.perspective });
+    // Bauplan F: Die Umwelt richtet die Auswahl. Sie wirkt hier und nicht nur im
+    // Auslese-Tab - der normale Weg ueber "Generieren" ist der, den man benutzt.
+    sc += umweltBeitrag(txt, umw);
     if (!best || sc > best.score) best = { txt, score: sc };
   }
   const win = best ?? { txt: buildStory(bank, input, model), score: 0 };
@@ -185,6 +192,7 @@ export function runRanking(bank: Bank, input: GenInput, model: MarkovModel | und
   const must = (opts.mustWords || []).map((w) => w.toLowerCase()).filter((w) => w.length > 1);
   const banned = opts.avoidFrequent ? frequentContentWords(40) : [];
   const ctx: NoveltyContext | null = nw > 0 ? buildNoveltyContext() : null;
+  const umwR = opts.umwelt ?? loadUmwelt();
 
   const results: RankItem[] = genN(bank, input, model, N).map((txt) => {
     const { score, a } = scoreText(txt, lt);
@@ -220,6 +228,7 @@ export function runRanking(bank: Bank, input: GenInput, model: MarkovModel | und
     {
       sc -= coherencePenalty(r.txt, opts);   // Tempus, Phrasen-Wiederholung, Figuren-Disziplin
     }
+    sc += umweltBeitrag(r.txt, umwR);        // Bauplan F
     r.score = sc;
   }
   results.sort((a, b) => b.score - a.score);

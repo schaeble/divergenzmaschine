@@ -1,6 +1,6 @@
 {
   "name": "divergenzmaschine-ts",
-  "version": "4.199.1",
+  "version": "4.200.0",
   "private": true,
   "type": "module",
   "scripts": {

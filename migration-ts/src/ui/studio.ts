@@ -5,6 +5,7 @@ import { loadBank, saveBank } from "../storage";
 import { getAllPresets, saveActiveBankLabel, buildAutoMixBank, buildMergedBank, lastAutoMixSources, AUTOMIX_ID } from "../wordbank";
 import { markedPresetOptions, getUserPreset2 } from "../features/preset2";
 import { setDramaData, hasDramaData, loadDramaData } from "../generation/dramaturgie";
+import { loadUmwelt, saveUmwelt, umweltTeile, type UmweltWirkung } from "../features/umwelt";
 import { builtinDrama } from "../presets.drama.data";
 import { loadKnobs, saveKnobs, KNOB_VORGABE, KNOB_SPANNE, regle, loadZiele, vergissVerlauf, type Knobs, type ZielQuelle } from "../features/knobs";
 import { buildStory } from "../generation/buildStory";
@@ -161,8 +162,38 @@ export function mountStudio(root: HTMLElement): void {
       el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(inp)),
       el("div", { class: "field4w" }, clearable(inp), weight),
       ...(hint ? [hint] : []));
+  // Bauplan F: Die Umwelt als fuenfte Angabe. Sie beschreibt nicht den Text,
+  // sondern das, woran er sich messen lassen muss - deshalb steht sie hier und
+  // nicht im Werkzeugkasten: Man tippt sie zusammen mit den vier W.
+  const gespeicherteUmwelt = loadUmwelt();
+  const umweltIn = el("input", { id: "f-umwelt", type: "text",
+    placeholder: "Frost, 7Z-49, ∅, Verwaltung — mit Komma getrennt",
+    value: gespeicherteUmwelt.zeichen }) as HTMLInputElement;
+  const umweltSel = el("select", { id: "f-umwelt-wirkung", title: "Wie die Zeichen auf die Auswahl wirken" }) as HTMLSelectElement;
+  ([["aus", "aus"], ["nahrung", "Nahrung — aufnehmen"], ["gift", "Gift — meiden"]] as [UmweltWirkung, string][])
+    .forEach(([v, t]) => umweltSel.append(el("option", { value: v }, t)));
+  umweltSel.value = gespeicherteUmwelt.wirkung;
+  const umweltHint = el("span", { class: "ctxhint" });
+  const umweltZeigen = (): void => {
+    const n = umweltTeile(umweltIn.value).length;
+    umweltHint.textContent = umweltSel.value === "aus" || !n ? ""
+      : `→ ${n} ${n === 1 ? "Zeichen wirkt" : "Zeichen wirken"} auf die Bestenauslese`;
+  };
+  const umweltSichern = (): void => {
+    saveUmwelt({ zeichen: umweltIn.value, wirkung: umweltSel.value as UmweltWirkung });
+    umweltZeigen();
+  };
+  umweltIn.addEventListener("input", umweltSichern);
+  umweltSel.addEventListener("change", () => { umweltSichern(); generate(); });
+  umweltZeigen();
+
   wrap.append(el("div", { class: "grid2" },
     field4w("Wo?", where, wWo, hintWo), field4w("Wann?", when, wWann, hintWann), field4w("Wer?", who, wWer, hintWer), field4w("Was passiert?", what, wWas, hintWas)),
+    el("label", { class: "field" },
+      el("span", { class: "field-label lockrow" },
+        el("span", { class: "hilfe", title: "Begriffe, Wörter, Zahlenkombinationen oder Zeichen. Sie erzeugen keinen Text — sie richten die Auswahl: Nahrung bevorzugt Fassungen, die sie aufnehmen, Gift bevorzugt Fassungen, die sie meiden. Wirkt nur bei eingeschalteter Bestenauslese." }, "Umwelt"),
+        umweltSel),
+      umweltIn, umweltHint),
     el("div", { class: "btnrow" }, ctxDice, ctxKeep));
 
   const lockBar = el("div", { class: "lockbar" });

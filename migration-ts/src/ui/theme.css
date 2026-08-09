@@ -420,6 +420,9 @@ input[type=range].wgt:hover{opacity:1}
 select.abweichend{border-color:var(--acc)}
 /* Beschriftung mit Erklaerung im Mouseover */
 .field-label.hilfe{cursor:help;border-bottom:1px dotted var(--border2)}
+.field-label .hilfe{cursor:help;border-bottom:1px dotted var(--border2)}
+/* Umwelt: Wirkungswahl schmal neben der Beschriftung */
+#f-umwelt-wirkung{width:auto;min-width:0;padding:2px 22px 2px 8px;font-size:12px;background-position:calc(100% - 12px) center,calc(100% - 7px) center}
 /* Zweite Chip-Zeile: die Stellschrauben, abgesetzt von den Textwerkzeugen */
 .src-settings-knobs{margin-top:6px;padding-top:8px;border-top:1px dashed var(--border2)}
 .src-knoblabel{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;
