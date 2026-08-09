@@ -677,12 +677,19 @@ export function mountStudio(root: HTMLElement): void {
     umweltStatus.className = "umweltchip" + (e.wirkung === "gift" ? " gift" : "") + (e.gewechselt ? " gewechselt" : "");
     const pct = Math.round(e.quote * 100), pctOhne = Math.round(e.quoteOhne * 100);
     const bar = el("span", { class: "umweltbar" }); bar.append(el("i", { style: `width:${pct}%` }));
+    // "gedreht" und "ohne Wirkung" musste erklaert werden - also taugten sie nicht.
+    // Die Zeile soll ohne Mouseover verstaendlich sein: Hat die Umwelt entschieden
+    // oder nur zugestimmt?
     umweltStatus.title = e.gewechselt
-      ? `Die Umwelt hat die Auswahl gedreht: ohne sie hätte eine Fassung mit ${pctOhne} % gewonnen.`
-      : `Dieselbe Fassung hätte auch ohne die Umwelt gewonnen (${pctOhne} %).`;
+      ? `Unter den zwölf Fassungen hat eine andere gewonnen als ohne die Umwelt: Sie war nach den `
+        + `übrigen Maßstäben schlechter, ging mit den Zeichen aber besser um. Ohne die Umwelt hätte `
+        + `eine Fassung mit ${pctOhne} % gewonnen.`
+      : `Die Umwelt war derselben Meinung wie der Rest der Bewertung — dieselbe Fassung hätte auch `
+        + `ohne sie gewonnen. Eine hohe Quote allein beweist nichts: Was das Preset ohnehin dauernd `
+        + `sagt, steht auch ohne Umwelt im Text.`;
     umweltStatus.append(el("span", {}, e.wirkung === "nahrung" ? "aufgenommen" : "gemieden"), bar,
       el("span", {}, e.wirkung === "nahrung" ? pct + " %" : (100 - pct) + " %"),
-      el("span", { class: "muted" }, e.gewechselt ? "· gedreht" : "· ohne Wirkung"));
+      el("span", { class: "muted" }, e.gewechselt ? "· Umwelt gab den Ausschlag" : "· hätte auch so gewonnen"));
   };
   const umweltLegZeigen = (): void => {
     const u = loadUmwelt();

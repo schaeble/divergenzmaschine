@@ -98,6 +98,7 @@ export function mountHelp(root: HTMLElement): void {
     ["Markov", P("Anteil, in dem der offline gelernte ", lnk("Markov-Generator (Korpus)", "tabs"), " mitmischt.")],
     ["Archetyp A/B", P("färbt die Sprache aus Archetyp-Wortpools (Neutral, Skorpion, Psychopath, Entdecker); Standard neutral.")],
     ["Varianz", P("Variationsgrad bei der Generierung.")],
+    ["Umwelt", P("Begriffe, Wörter, Zahlenkombinationen oder Zeichen, die nicht den Text erzeugen, sondern die Bestenauslese richten. „Nahrung“ bevorzugt unter den zwölf Fassungen die, die sie aufnehmen, „Gift“ die, die sie meiden. Der Chip unter dem Text sagt, ob die Umwelt den Ausschlag gegeben hat oder ob dieselbe Fassung auch ohne sie gewonnen hätte — eine hohe Quote allein beweist nichts, denn was das Preset ohnehin dauernd sagt, steht auch ohne Umwelt im Text. Auf Zeichen, die im Preset gar nicht vorkommen, wirkt sie nicht: Auswahl kann nur wählen, was die Erzeugung anbietet.")],
     ["Sprachschliff", P("kein Schalter mehr, sondern immer an: Abstände, Zeichensetzung, doppelte Wörter und ein am Satzanfang fehlender Artikel. Nur Regeln, die in jedem Text richtig sind — die Grammatik-Einzelfälle von früher sind entfallen.")],
     ["Video: Shots / Sekunden", P("nur bei Form Multi-Shot: Anzahl der Einzelszenen und Ziel-Gesamtlänge.")],
   ]));
