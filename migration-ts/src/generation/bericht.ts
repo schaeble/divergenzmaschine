@@ -14,6 +14,7 @@ import { hatFinitesVerb } from "../atoms/derive";
 
 import { ziehFaktenblatt, erlaubteZahlen, ALLE_NAMEN, ROLLE_LABEL, type Faktenblatt, type FbPerson, type FbZahl } from "../features/faktenblatt";
 import { buildVersAtome } from "../atoms/rekombination";
+import { RESSORTS, type RessortId } from "../features/ressorts";
 
 /** Erst- und Zweitnennung: Wer schon eingeführt ist, wird nur noch kurz genannt. */
 class Buchfuehrung {
@@ -61,7 +62,9 @@ function schlagzeile(fb: Faktenblatt): string {
 }
 
 function dachzeile(fb: Faktenblatt): string {
-  return `${fb.wo.ort} · ${cap(fb.wer.art === "organisation" ? "Wirtschaft" : "Vermischtes")}`;
+  // Vorher stand hier fest "Wirtschaft", weil `art` beim Ziehen immer auf
+  // "organisation" gesetzt wurde: Es gab genau eine Zeitungsseite.
+  return `${fb.wo.ort} · ${RESSORTS[fb.ressort].label}`;
 }
 
 function vorspann(fb: Faktenblatt, b: Buchfuehrung): string {
@@ -120,10 +123,9 @@ function hintergrund(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<
 function ausblick(fb: Faktenblatt): string {
   // Kein neuer Fakt — nur eine offene Frage oder ein Termin. Deshalb greift der
   // Abschnitt ausschliesslich auf bereits Genanntes zurueck.
-  return pick([
+  return pick([...RESSORTS[fb.ressort].ausblick,
     `Wie es in ${fb.wo.ort} weitergeht, ist offen.`,
     `Ob der Schritt zurückgenommen wird, blieb ${fb.wann.relativ} unbeantwortet.`,
-    `Eine Entscheidung soll in den kommenden Tagen fallen.`,
   ]);
 }
 
@@ -145,8 +147,8 @@ function zahlSatz(z: FbZahl, fb: Faktenblatt): string {
 
 export interface BerichtErgebnis { text: string; fb: Faktenblatt; hergang: string; }
 
-export function buildBericht(bank: Bank, input: GenInput): BerichtErgebnis {
-  const fb = ziehFaktenblatt(input);
+export function buildBericht(bank: Bank, input: GenInput, ressort: RessortId | "auto" = "auto"): BerichtErgebnis {
+  const fb = ziehFaktenblatt(input, ressort);
   const b = new Buchfuehrung();
   const benutzt = new Set<string>();
   // Laengenregler: Das Geruest steht fest, die Zahl der erzaehlenden Saetze nicht.
@@ -182,6 +184,16 @@ export function buildBericht(bank: Bank, input: GenInput): BerichtErgebnis {
       if (roh) teile.push(`${cap(roh)}.`);
     }
     if (teile.length) abschnitte.push(`Zur Einordnung: ${teile.join(" ")}`);
+  }
+  // Zusatzabschnitt des Ressorts - die einzige Abweichung vom Grundgeruest.
+  {
+    const R = RESSORTS[fb.ressort];
+    const teile: string[] = [];
+    for (let i = 0; i < Math.min(R.zusatz.rahmen.length, 1 + Math.floor(extra / 3)); i++) {
+      const roh = satzOhneZahl(bank, ["hooks", "turns", "stakes"], benutzt, vorrat);
+      if (roh) teile.push(`${R.zusatz.rahmen[i]} ${roh}.`);
+    }
+    if (teile.length) abschnitte.push(`${R.zusatz.titel}: ${teile.join(" ")}`);
   }
   abschnitte.push(ausblick(fb));
 

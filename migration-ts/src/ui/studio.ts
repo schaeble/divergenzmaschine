@@ -6,6 +6,7 @@ import { getAllPresets, saveActiveBankLabel, buildAutoMixBank, buildMergedBank, 
 import { markedPresetOptions, getUserPreset2 } from "../features/preset2";
 import { setDramaData, hasDramaData, loadDramaData } from "../generation/dramaturgie";
 import { loadUmwelt, saveUmwelt, umweltTeile, type UmweltWirkung } from "../features/umwelt";
+import { RESSORTS, RESSORT_IDS } from "../features/ressorts";
 import { builtinDrama } from "../presets.drama.data";
 import { loadKnobs, saveKnobs, KNOB_VORGABE, KNOB_SPANNE, regle, loadZiele, vergissVerlauf, type Knobs, type ZielQuelle } from "../features/knobs";
 import { buildStory } from "../generation/buildStory";
@@ -326,12 +327,15 @@ export function mountStudio(root: HTMLElement): void {
   const instab = select("f-instab", [["0", "Aus"], ["1", "Subtil"], ["2", "Aggressiv"]], "2");
   const markov = select("f-markov", [["off", "Aus"], ["mix", "Mix"], ["on", "Stark"]], "off");
   const disruptor = select("f-disruptor", [["auto", "Auto"], ["off", "Aus"], ["on", "An"]], "auto");
+  // Zeitungsseite - nur fuer die Form "Bericht". "Auto" raet aus Wer/Was/Wo.
+  const ressort = select("f-ressort", [["auto", "Auto (aus dem Stoff)"],
+    ...RESSORT_IDS.map((id) => [id, RESSORTS[id].label] as [string, string])], "auto");
   const varianz = select("f-varianz", [["low", "Stabil"], ["mid", "Wild"], ["high", "Radikal"]], "mid");
   const ARCH_OPTS: [string, string][] = [["neutral", "Neutral"], ["skorpion", "Skorpion"], ["psychopath", "Psychopath"], ["entdecker", "Entdecker"]];
   const archA = select("f-archa", ARCH_OPTS, "neutral");
   const archB = select("f-archb", ARCH_OPTS, "neutral");
   // Alle würfelbaren Stil-Regler (Würfeln-Knopf UND Zufallsstart nutzen dieselbe Liste)
-  const ROLL_SELECTS = [tone, form, structure, mode, persp, rhythm, tension, cast, instab, markov, disruptor, varianz, archA, archB, preset];
+  const ROLL_SELECTS = [tone, form, structure, mode, persp, rhythm, tension, cast, instab, markov, disruptor, varianz, ressort, archA, archB, preset];
   const presetField = el("div", { class: "field presetfield" },
     el("span", { class: "field-label lockrow" }, el("span", {}, "Preset — eins oder mehrere ankreuzen"), presetStatus, lockBtn(preset)),
     preset,
@@ -1119,7 +1123,7 @@ export function mountStudio(root: HTMLElement): void {
   fine.append(el("div", { class: "grid3" },
     lockField("Struktur", structure), lockField("Modus", mode), lockField("Perspektive", persp),
     lockField("Rhythmus", rhythm), lockField("Instabilität", instab), lockField("Markov", markov),
-    lockField("Disruptor", disruptor), lockField("Varianz", varianz),
+    lockField("Disruptor", disruptor), lockField("Varianz", varianz), lockField("Zeitungsseite", ressort),
     lockField("Spannung", tension), lockField("Figurendisziplin", cast),
     lockField("Archetyp A", archA), lockField("Archetyp B", archB),
     field("Video: Shots", shots), field("Video: Sekunden", secs)));
@@ -1208,6 +1212,7 @@ export function mountStudio(root: HTMLElement): void {
     rhythm: rhythm.value, markovMode: markov.value, disruptor: disruptor.value,
     archetypeA: archA.value, archetypeB: archB.value,
     instability: parseInt(instab.value, 10) as 0 | 1 | 2,
+    ressort: ressort.value,
     shots: parseInt(shots.value, 10), totalSec: parseInt(secs.value, 10),
     lenTarget: parseInt(lenSlider.value, 10),
     tension: tension.value,

@@ -56,6 +56,8 @@ export interface GenInput {
   lenTarget?: number; // Ziel-Wortzahl (Textlänge)
   emphasis?: { wo: number; wann: number; wer: number; was: number }; // 4W-Gewichtung (nur Prosa)
   tension?: string; // Spannungs-Peak-Position (off/top/mid/low), nur Prosa
+  /** Zeitungsressort, nur Form "bericht". "auto" raet aus dem Stoff. */
+  ressort?: string;
 }
 
 /** "Kit": die aus Bank + Input abgeleiteten Bausteine für einen Lauf. */

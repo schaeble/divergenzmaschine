@@ -12,6 +12,7 @@ import type { GenInput } from "../types";
 import { pick } from "../text-utils";
 import { normWhere, normWhen, normWho } from "../generation/ctxnorm";
 import { guessGender } from "../generation/declension";
+import { RESSORTS, rateRessort, type RessortId } from "./ressorts";
 
 export type Genus = "mask" | "fem" | "neut";
 
@@ -28,6 +29,7 @@ export interface FbChrono { id: string; zeit: string; was: string; }
 
 export interface Faktenblatt {
   id: string;
+  ressort: RessortId;
   wer: { haupt: string; kurz: string; genus: Genus; art: string };
   was: string;
   wo: { ort: string };
@@ -112,7 +114,7 @@ function rundWort(wert: number): string | undefined {
 // als Plural gelesen, "600 Beton" waere der Fehler gewesen, den die Zahl gerade
 // vermeiden soll. Dazu eine kurze Liste haeufiger Einzahlwoerter auf -e und -er,
 // die die Endung nicht von einem Plural unterscheiden kann.
-const PLURAL_ENDUNG = /(en|er|e)$/;
+const PLURAL_ENDUNG = /(ern|en|er|e)$/;   // "Opern" endet auf -ern und fiel sonst durch
 const KEIN_SACHNOMEN = /^(Jahr|Jahre|Monat|Monate|Tag|Tage|Woche|Wochen|Stunde|Stunden|Mal|Uhr|Zeit|Welt|Leben|Anfang|Nacht|Morgen|Abend|Ende|Reihe|Farbe|Sprache|Straße|Grenze|Klasse|Frage|Stelle|Weise|Seite|Liebe|Sorge|Ruhe|Stille|Ferne|Nähe|Fenster|Wasser|Feuer|Zimmer|Wetter|Messer|Muster|Ufer|Alter|Fieber|Wunder|Zeichen|Wesen)$/;
 
 export function sachNomen(was: string): string | null {
@@ -170,7 +172,12 @@ function kurzform(haupt: string, genus: Genus): string {
   return `${art} ${teil}`;
 }
 
-export function ziehFaktenblatt(input: GenInput): Faktenblatt {
+export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto" = "auto"): Faktenblatt {
+  // Ressort zuerst: Es bestimmt Rollen, Einheiten und den Zusatzabschnitt.
+  const ressort = ressortWahl === "auto"
+    ? rateRessort([input.who, input.what, input.where].filter(Boolean).join(" "))
+    : ressortWahl;
+  const R = RESSORTS[ressort];
   const werRoh = (normWho(input.who || "").split(",")[0] || "").trim() || "eine Einrichtung";
   const genus = genusVon(werRoh);
   const ort = (normWhere(input.where || "") || "").replace(/^(in|an|auf|bei|im|am)\s+/i, "").trim() || "der Ort";
@@ -181,13 +188,14 @@ export function ziehFaktenblatt(input: GenInput): Faktenblatt {
   const nachnamen = [...NACHNAME];
   const zieheNach = (): string => nachnamen.splice(Math.floor(Math.random() * nachnamen.length), 1)[0]!;
   const n1 = zieheNach(), n2 = zieheNach();
+  // Rollen aus dem Ressort: "Geschäftsführerin" passt nicht ins Feuilleton.
   const personen: FbPerson[] = [
-    { id: "p1", name: `${pick(VORNAME_F)} ${n1}`, kurz: n1, rolle: pick(ROLLE_F), genus: "fem", zitierfaehig: true },
-    { id: "p2", name: `${pick(VORNAME_M)} ${n2}`, kurz: n2, rolle: pick(ROLLE_M), genus: "mask", zitierfaehig: true },
+    { id: "p1", name: `${pick(VORNAME_F)} ${n1}`, kurz: n1, rolle: pick(R.rollenF.length ? R.rollenF : ROLLE_F), genus: "fem", zitierfaehig: true },
+    { id: "p2", name: `${pick(VORNAME_M)} ${n2}`, kurz: n2, rolle: pick(R.rollenM.length ? R.rollenM : ROLLE_M), genus: "mask", zitierfaehig: true },
   ];
 
   // Zahlen: zwei bis drei, jede Einheit höchstens einmal.
-  const einheiten = [...EINHEIT];
+  const einheiten: EinheitDef[] = [...R.einheiten, ...EINHEIT];
   const zahlen: FbZahl[] = [];
   const wieViele = 2 + Math.floor(Math.random() * 2);
   // z1 muss eine Einheit sein, von der man "betroffen" sagen kann - der Vorspann
@@ -238,6 +246,7 @@ export function ziehFaktenblatt(input: GenInput): Faktenblatt {
 
   return {
     id: "fb-" + Date.now().toString(36),
+    ressort,
     wer: { haupt: werRoh, kurz: kurzform(werRoh, genus), genus, art: "organisation" },
     was: (input.what || "meldet einen Vorfall").trim().replace(/[.!?…]+$/, ""),
     wo: { ort },
