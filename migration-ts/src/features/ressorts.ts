@@ -26,6 +26,12 @@ export interface Ressort {
   einheiten: RessortEinheit[];
   /** Überschrift des Zusatzabschnitts und seine Einleitung. */
   zusatz: { titel: string; rahmen: string[] };
+  /** Was auf dem Spiel steht. Nicht dasselbe wie „betroffen": Betroffen ist,
+   *  wer die Folgen trägt; auf dem Spiel steht, was verloren gehen kann. Der
+   *  Bericht hatte dafür bisher gar nichts und griff auf die literarischen
+   *  Einsätze des Presets zurück — daher „Der Einsatz ist Freiheit: Sie hängt an
+   *  einem Stempel" in einem Wirtschaftsbericht. */
+  einsatz: string[];
   /** Was der Abschnitt „Ausblick" in diesem Ressort sagen darf. */
   ausblick: string[];
   /** Wer oder was in diesem Ressort betroffen sein kann — OHNE Zahl. Genau das
@@ -50,6 +56,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
       { einheit: "Standorte", rolle: "vorgaenge", min: 2, max: 40, rund: 1 },
     ],
     zusatz: { titel: "Marktreaktion", rahmen: ["Am Markt heißt es:", "In der Branche gilt:", "Beobachter verweisen auf:"] },
+    einsatz: ["der Standort", "die Altersversorgung der Belegschaft", "die Ausbildungsplätze", "der Name des Hauses", "die Lieferkette", "das Werksgelände"],
     ausblick: ["Ob die Zahlen halten, entscheidet sich im nächsten Quartal.",
       "Eine Entscheidung soll in den kommenden Tagen fallen."],
     regel: "zweiZahlen",
@@ -67,6 +74,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
       { einheit: "Sitzungen", rolle: "vorgaenge", min: 2, max: 60, rund: 1 },
     ],
     zusatz: { titel: "Reaktionen", rahmen: ["Aus der Regierung heißt es:", "Die Opposition hält dagegen:", "Aus den Ländern kommt:"] },
+    einsatz: ["die Mehrheit", "der Zeitplan des Verfahrens", "das Vertrauen in die Zusage", "die Zuständigkeit der Kommunen", "der Haushaltsansatz"],
     ausblick: ["Der Verfahrensstand bleibt bis zur nächsten Sitzung unverändert.",
       "Ob es zur Abstimmung kommt, ist offen."],
     regel: "lagerAusgewogen",
@@ -84,6 +92,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
       { einheit: "Minuten Spieldauer", rolle: "dauer", min: 45, max: 240, rund: 5 },
     ],
     zusatz: { titel: "Zum Werk", rahmen: ["Zu sehen ist:", "Die Arbeit zeigt:", "Auf der Bühne steht:"] },
+    einsatz: ["der Spielplan der kommenden Saison", "das Ensemble in seiner jetzigen Form", "die Werkstätten", "das Haus als Ort", "die Nachwuchsarbeit"],
     ausblick: ["Ob das Publikum folgt, wird sich zeigen.",
       "Die nächste Aufführung ist angekündigt."],
     regel: "wertungGetrennt",
@@ -101,6 +110,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
       { einheit: "Minuten", rolle: "dauer", min: 5, max: 120, rund: 1 },
     ],
     zusatz: { titel: "Spielverlauf", rahmen: ["Nach der Pause:", "In der Schlussphase:", "Zur Halbzeit:"] },
+    einsatz: ["der Klassenerhalt", "die Lizenz", "die Nachwuchsabteilung", "der Name des Vereins", "die Heimspielstätte", "das Traineramt"],
     ausblick: ["Das Rückspiel steht noch aus.",
       "Ob die Serie hält, entscheidet sich am Wochenende."],
     regel: "ergebnisZuerst",
@@ -118,6 +128,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
       { einheit: "Monate Laufzeit", rolle: "dauer", min: 3, max: 96, rund: 1 },
     ],
     zusatz: { titel: "Methode", rahmen: ["Untersucht wurde:", "Erhoben wurden:", "Verglichen wurde:"] },
+    einsatz: ["die Förderung", "die Vergleichbarkeit der Daten", "die Veröffentlichung", "der Standort des Instituts", "die Fortsetzung der Reihe"],
     ausblick: ["Eine Wiederholung der Studie steht aus.",
       "Ob sich der Befund bestätigt, ist offen."],
     regel: "einschraenkungPflicht",
@@ -135,6 +146,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
       { einheit: "Beratungen", rolle: "vorgaenge", min: 10, max: 900, rund: 1 },
     ],
     zusatz: { titel: "Vor Ort", rahmen: ["Im Viertel heißt es:", "Nachbarn berichten:", "In der Beratungsstelle:"] },
+    einsatz: ["der Treffpunkt im Viertel", "die Beratung vor Ort", "das Ehrenamt", "die Mietbindung", "der Zusammenhalt in der Nachbarschaft"],
     ausblick: ["Wie es im Viertel weitergeht, ist offen.",
       "Eine Entscheidung soll in den kommenden Wochen fallen."],
     regel: "keine",
@@ -152,6 +164,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
       { einheit: "Behandlungen", rolle: "vorgaenge", min: 30, max: 9000, rund: 10 },
     ],
     zusatz: { titel: "Einordnung der Lage", rahmen: ["Aus der Klinik heißt es:", "Die Behörde teilt mit:", "In der Versorgung zeigt sich:"] },
+    einsatz: ["die Versorgung im Umkreis", "die Notaufnahme", "die Ausbildungsplätze in der Pflege", "die Wartezeiten", "der Standort der Klinik"],
     ausblick: ["Wie sich die Lage entwickelt, bleibt abzuwarten.",
       "Eine Neubewertung ist für die kommende Woche angekündigt."],
     // Bewusst keine Sonderregel mit Zahlenpflicht: Gesundheitsberichte, die
@@ -171,6 +184,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
       { einheit: "Unterrichtsstunden", rolle: "dauer", min: 4, max: 400, rund: 2 },
     ],
     zusatz: { titel: "An der Schule", rahmen: ["Im Kollegium heißt es:", "Aus der Elternschaft:", "Im Unterricht zeigt sich:"] },
+    einsatz: ["der Ganztag", "das Abschlussjahr", "die Stellen im Kollegium", "der Schulstandort", "die Betreuung am Nachmittag"],
     ausblick: ["Ob die Stunden ersetzt werden, ist offen.",
       "Das nächste Schuljahr soll Klarheit bringen."],
     regel: "keine",
@@ -188,7 +202,7 @@ const SPUR: [RessortId, RegExp][] = [
   ["wissenschaft", /\b(studie|forschung|labor|messung|befund|experiment|hypothese|probe|institut)\b/i],
   ["gesundheit", /\b(klinik|krankenhaus|arzt|ärztin|pflege|patient|diagnose|behandlung|seuche|impf)\b/i],
   ["bildung", /\b(schule|unterricht|klasse|lehrer|lehrerin|prüfung|schüler|universität|studium)\b/i],
-  ["wirtschaft", /\b(werft|betrieb|firma|unternehmen|umsatz|markt|produktion|belegschaft|insolvenz|werk)\b/i],
+  ["wirtschaft", /\b(werft|betrieb|firma|unternehmen|konzern|gmbh|ag|holding|umsatz|markt|produktion|belegschaft|insolvenz|werk|fabrik|filiale|standort|schliessen|schließt|schließen)\b/i],
 ];
 
 export function rateRessort(text: string): RessortId {

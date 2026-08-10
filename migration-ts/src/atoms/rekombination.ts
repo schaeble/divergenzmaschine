@@ -438,6 +438,10 @@ export function buildVersAtome(bank: Bank, input: GenInput, model?: MarkovModel)
   for (const a of pool) {
     const t = fuelleKontext(a.text, ctx);
     if (offeneSlots(t)) continue;
+    // Kopf-Atome ("⟨FIGUR⟩ stellt fest:") verlieren mit dem Doppelpunkt ihren
+    // Rumpf und ergeben "Richard Doll stellt fest." - ein Satz ohne Aussage. Die
+    // Wortzahl half dagegen nicht: Mit Titeln im Namen kommt er auf sechs.
+    if (a.typ === "kopf") continue;
     const rein = t.replace(/[.!?…:;]+$/, "").trim();
     if (rein.split(/\s+/).length >= 2) raus.push(rein);
   }

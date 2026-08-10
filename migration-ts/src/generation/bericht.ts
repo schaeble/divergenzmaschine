@@ -92,6 +92,14 @@ function hergang(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<stri
   // Was außerdem betroffen ist, sagt das Ressort. Ohne das stand in einem
   // Sportbericht "1.700 Haushalte betroffen" - eine Groesse, die mit dem
   // Ereignis nichts zu tun hatte.
+  // Was auf dem Spiel steht - der Abschnitt, den ein Bericht braucht und der
+  // bisher fehlte. Frueher lieferte das Preset seine literarischen Einsaetze,
+  // und in einem Wirtschaftsbericht stand "Der Einsatz ist Freiheit".
+  const eins = RESSORTS[fb.ressort].einsatz;
+  if (eins.length) {
+    const zwei = reihenfolge(eins).slice(0, 1 + Math.min(1, Math.floor(extra / 4)));
+    teile.push(`Auf dem Spiel ${zwei.length > 1 ? "stehen" : "steht"} ${aufzaehlung(zwei)}.`);
+  }
   const bt = RESSORTS[fb.ressort].betroffen;
   if (bt.length >= 3) {
     // Nicht wiederholen, was schon als Zahl dasteht: "14.800 Dauerkarten

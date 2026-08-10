@@ -130,7 +130,11 @@ export function sachNomen(was: string): string | null {
     if (KEIN_SACHNOMEN.test(w)) continue;
     if (!PLURAL_ENDUNG.test(w)) continue;
     const davor = (woerter[i - 1] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
-    if (davor === "der" || davor === "des") continue;
+    // Ein eindeutig singularer Begleiter schliesst den Plural aus. "den Konzern"
+    // wurde sonst als Plural gelesen, weil das Wort auf -ern endet, und im
+    // Faktenkasten stand "3.450 Konzern". "die" und "keine" bleiben erlaubt -
+    // sie koennen Plural sein.
+    if (/^(der|des|dem|den|das|ein|eine|einen|einem|einer|eines|jeder|jede|jedes|dieser|diese|dieses|diesem|diesen)$/.test(davor)) continue;
     return w;
   }
   return null;
@@ -183,13 +187,30 @@ function kurzform(haupt: string, genus: Genus): string {
 /** Person oder Einrichtung? Eine Person "besteht" nicht seit 1988, und "der
  *  Kraus" ist keine Kurzform, sondern ein Fehler. Erkannt an drei Zeichen:
  *  kein Artikel davor, zwei grossgeschriebene Woerter, keine Rechtsform. */
+const TITEL = /^(Dr|Prof|Ing|Dipl|Mag|Med|Rer|Nat|Phil|h\.c|Jun|Sen|MdB|MdL)\.?$/i;
+
 function istPerson(haupt: string): boolean {
-  const w = haupt.trim().split(/\s+/);
+  let w = haupt.trim().split(/\s+/);
   if (/^(der|die|das|ein|eine)$/i.test(w[0] || "")) return false;
+  // Titel abziehen: "Dr. Ing. Richard Doll" sind vier Woerter, davon zwei Titel.
+  // Ohne das galt der Name als Einrichtung, und im Text stand "der Doll".
+  w = w.filter((x) => !TITEL.test(x.replace(/[^A-Za-z.]/g, "")));
   if (w.length !== 2) return false;
   if (RECHTSFORM.test(w[1]!.replace(/[^A-Za-z.]/g, ""))) return false;
   if (/^(FC|SV|TSV|SC|VfB|VfL|BSC|1\.)$/i.test(w[0]!)) return false;
   return w.every((x) => /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(x));
+}
+
+/** Zeitangabe satzfaehig machen: "Frühjahr 2001" ist keine Adverbiale, "Im
+ *  Frühjahr 2001" schon. Steht schon eine Praeposition davor, bleibt alles. */
+function mitPraeposition(wann: string): string {
+  const w = (wann || "").trim();
+  if (!w) return "";
+  if (/^(am|im|um|an|in|zu|seit|vor|nach|gegen|während|zwischen|beim)\b/i.test(w)) return w;
+  if (/^\d{4}$/.test(w)) return w;                       // reine Jahreszahl steht allein
+  // NICHT kleinschreiben: "Frühjahr" ist ein Nomen. Der erste Versuch machte
+  // daraus "Im frühjahr 2001".
+  return "im " + w;
 }
 
 export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto" = "auto"): Faktenblatt {
@@ -276,7 +297,9 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
   const chronologie: FbChrono[] = [
     { id: "c1", zeit: String(jahr), was: "der Anfang" },
     { id: "c2", zeit: "im Frühjahr", was: "die erste Meldung" },
-    { id: "c3", zeit: wann || pick(ZEITPUNKT), was: (input.what || "das Ereignis").trim() },
+    // Dieselbe Form wie im Vorspann, sonst steht dort "Im Frühjahr 2001" und
+    // im Hergang "Frühjahr 2001 folgte der Schritt".
+    { id: "c3", zeit: mitPraeposition(wann) || pick(ZEITPUNKT), was: (input.what || "das Ereignis").trim() },
   ];
 
   return {
@@ -287,7 +310,7 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
       : { haupt: werRoh, kurz: kurzform(werRoh, genus), genus, art: "organisation" },
     was: (input.what || "meldet einen Vorfall").trim().replace(/[.!?…]+$/, ""),
     wo: { ort },
-    wann: { datum: wann || pick(ZEITPUNKT), relativ: pick(RELATIV) },
+    wann: { datum: mitPraeposition(wann) || pick(ZEITPUNKT), relativ: pick(RELATIV) },
     personen, zahlen, abgeleitet, chronologie,
     fiktion: true,
   };
