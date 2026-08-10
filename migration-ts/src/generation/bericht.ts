@@ -287,6 +287,18 @@ export function pruefeBericht(text: string, fb: Faktenblatt, hergang = ""): Beri
   //    Ereignis zuerst (Vorspann) und geht im Hintergrund bis zur Gründung
   //    zurück. Genau das ist die Form, kein Fehler. Erzählt wird der Reihe nach
   //    allein im Hergang, und dort gilt die Monotonie.
+  // 4a. Jahreszahlen der Chronologie muessen aufsteigen. Die Pruefung unten
+  //     vergleicht Textpositionen; ob 1971 nach 1855 liegt, sieht sie nicht.
+  const jahre = fb.chronologie
+    .map((c) => ({ id: c.id, jahr: Number((c.zeit.match(/\b(1[0-9]{3}|2[0-9]{3})\b/) || [])[1]) }))
+    .filter((x) => Number.isFinite(x.jahr));
+  for (let i = 1; i < jahre.length; i++) {
+    if (jahre[i]!.jahr < jahre[i - 1]!.jahr) {
+      m.push({ art: "Jahreszahlen der Chronologie verdreht", stelle: `${jahre[i - 1]!.jahr} vor ${jahre[i]!.jahr}` });
+      break;
+    }
+  }
+
   if (hergang) {
     // Klein vergleichen: Der Abschnitt schreibt die Zeitmarke am Satzanfang gross
     // ("Im Frühjahr"), im Faktenblatt steht sie klein. Mit indexOf auf die Rohform

@@ -262,7 +262,17 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
     : [];
 
   // Chronologie: nach Konstruktion monoton — c1 liegt vor c2 liegt vor c3.
-  const jahr = 1890 + Math.floor(Math.random() * 110);
+  // Der Anfang muss VOR dem Ereignis liegen. Vorher wurde er blind aus 1890 bis
+  // 2000 gezogen: Bei der Eingabe "im Jahr 1855" stand im Bericht "Im Jahr 1855
+  // folgte der Schritt" und zwei Absaetze weiter "ist seit 1971 dabei" - die
+  // Chronologie war der Konstruktion nach monoton und den Zahlen nach verdreht.
+  const ereignisJahr = Number((wann.match(/\b(1[0-9]{3}|20[0-9]{2}|2[1-9][0-9]{2})\b/) || [])[1]);
+  const bezug = Number.isFinite(ereignisJahr) ? ereignisJahr : 2000;
+  // Bei einer Person ist der "Anfang" der Beginn ihrer Laufbahn, nicht die
+  // Gruendung eines Hauses: 83 Jahre vor dem Ereignis waere sie beim Ereignis
+  // ueber hundert. Deshalb eine kurze Spanne.
+  const spanne = person ? 4 + Math.floor(Math.random() * 34) : 12 + Math.floor(Math.random() * 110);
+  const jahr = Math.max(1200, bezug - spanne);
   const chronologie: FbChrono[] = [
     { id: "c1", zeit: String(jahr), was: "der Anfang" },
     { id: "c2", zeit: "im Frühjahr", was: "die erste Meldung" },
