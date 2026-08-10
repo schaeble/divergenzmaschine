@@ -356,7 +356,9 @@ export function mountStudio(root: HTMLElement): void {
       nachTextwechsel();
       try { localStorage.setItem("dm_last_text", out.textContent || ""); } catch { /* voll */ }
       refreshFeeds();
-    } else if (form === "script") {
+    } else if (form === "script" || form === "bericht") {
+      // Beide bauen ihre Laenge beim Erzeugen, nicht nachtraeglich: Ein Bericht
+      // laesst sich nicht kuerzen, ohne Fakten zu verlieren.
       generate();
     }
     // Vers-/Videoformen: Textlänge ohne Wirkung

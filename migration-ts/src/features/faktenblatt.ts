@@ -86,7 +86,8 @@ function rundWort(wert: number): string | undefined {
 /** Ganze Zahl im Bereich, auf `rund` gerundet. */
 function zahlIn(min: number, max: number, rund: number): number {
   const roh = min + Math.random() * (max - min);
-  return Math.max(min, Math.round(roh / rund) * rund);
+  const n = Math.max(min, Math.round(roh / rund) * rund);
+  return n % 2 === 0 ? n : n + 1;   // gerade, damit die Haelfte aufgeht
 }
 
 /** Deutsche Tausenderpunkte — „1.200" statt „1200". */
@@ -114,9 +115,13 @@ function genusVon(phrase: string): Genus {
 }
 
 /** Kurzform für die Zweitnennung: „die Ostmoor-Werft" → „die Werft". */
+// Rechtsform-Kuerzel sind kein Kern: "Ritter Ltd" wurde sonst zu "der Ltd".
+const RECHTSFORM = /^(Ltd|GmbH|AG|KG|SE|Inc|LLC|mbH|OHG|gGmbH|e\.?V\.?|Co|KGaA)$/i;
+
 function kurzform(haupt: string, genus: Genus): string {
   const art = genus === "fem" ? "die" : genus === "neut" ? "das" : "der";
-  const woerter = haupt.replace(/^(der|die|das|ein|eine|einen)\s+/i, "").split(/\s+/);
+  let woerter = haupt.replace(/^(der|die|das|ein|eine|einen)\s+/i, "").split(/\s+/);
+  while (woerter.length > 1 && RECHTSFORM.test(woerter[woerter.length - 1]!.replace(/[^A-Za-z.]/g, ""))) woerter.pop();
   const letzt = woerter[woerter.length - 1] || haupt;
   const teil = letzt.includes("-") ? letzt.split("-").pop()! : letzt;
   return `${art} ${teil}`;
@@ -159,7 +164,10 @@ export function ziehFaktenblatt(input: GenInput): Faktenblatt {
   }
 
   // Abgeleitet: gerechnet, nicht gezogen. Genau dafür ist das Feld da.
-  const abgeleitet: FbAbgeleitet[] = zahlen.length
+  // Nur ableiten, wenn die Rechnung aufgeht. "Die Hälfte der 655 Arbeitsplätze —
+  // 328" stimmt nicht: 655 ist ungerade, und ein Bericht, der rundet, ohne es zu
+  // sagen, ist genau der Fehler, den das Faktenblatt verhindern soll.
+  const abgeleitet: FbAbgeleitet[] = zahlen.length && zahlen[0]!.wert % 2 === 0
     ? [{ id: "a1", formel: "z1 * 0.5", wortform: zahlwort(zahlen[0]!.wert / 2), label: `die Hälfte der ${zahlen[0]!.einheit}` }]
     : [];
 
@@ -186,7 +194,13 @@ export function ziehFaktenblatt(input: GenInput): Faktenblatt {
 export function erlaubteZahlen(fb: Faktenblatt): string[] {
   const out = [...fb.zahlen.map((z) => z.wortform), ...fb.abgeleitet.map((a) => a.wortform)];
   for (const z of fb.zahlen) if (z.verbal) out.push(z.verbal.replace(/^rund\s+/, ""));
-  for (const c of fb.chronologie) if (/^\d+$/.test(c.zeit)) out.push(c.zeit);
+  // Jede Ziffernfolge, die IRGENDWO im Faktenblatt steht, ist erlaubt - auch die
+  // in einer Zeitangabe. Die erste Fassung liess nur reine Jahreszahlen aus der
+  // Chronologie zu und meldete bei der Eingabe "im Jahr 2100" jede Nennung als
+  // erfundene Zahl: 459 Funde in 153 Berichten, alle falsch.
+  for (const treffer of JSON.stringify(fb).match(/\d[\d.,]*/g) || []) {
+    out.push(treffer.replace(/[.,]+$/, ""));
+  }
   return out;
 }
 
