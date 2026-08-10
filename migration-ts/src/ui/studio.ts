@@ -2,11 +2,12 @@
 // Lesemodus (Vollbild) und Vorlesen (SpeechSynthesis).
 import type { GenInput, FormKind } from "../types";
 import { loadBank, saveBank } from "../storage";
-import { getAllPresets, saveActiveBankLabel, buildAutoMixBank, buildMergedBank, lastAutoMixSources, AUTOMIX_ID } from "../wordbank";
+import { getAllPresets, saveActiveBankLabel, buildAutoMixBank, buildMergedBank, lastAutoMixSources, AUTOMIX_ID, loadActiveBankLabel } from "../wordbank";
 import { markedPresetOptions, getUserPreset2 } from "../features/preset2";
 import { setDramaData, hasDramaData, loadDramaData } from "../generation/dramaturgie";
 import { loadUmwelt, saveUmwelt, umweltTeile, type UmweltWirkung } from "../features/umwelt";
 import { RESSORTS, RESSORT_IDS } from "../features/ressorts";
+import { oeffneDruckvorschau } from "./printView";
 import { builtinDrama } from "../presets.drama.data";
 import { loadKnobs, saveKnobs, KNOB_VORGABE, KNOB_SPANNE, regle, loadZiele, vergissVerlauf, type Knobs, type ZielQuelle } from "../features/knobs";
 import { buildStory } from "../generation/buildStory";
@@ -912,6 +913,8 @@ export function mountStudio(root: HTMLElement): void {
   });
 
   const genBtn = el("button", { class: "primary" }, icon("play"), " Generieren");
+  const printBtn = el("button", { title: "Druckvorschau — Satzspiegel je Form, PDF über den Druckdialog" }, icon("floppy"), " Drucken");
+  printBtn.addEventListener("click", () => oeffneDruckvorschau(out.textContent || "", readInput().form, loadActiveBankLabel()));
   const varBtn = button("Variante");
   const copyBtn = el("button", {}, icon("copy"), " Kopieren");
   const diceBtn = el("button", {}, icon("dice"), " Würfeln");
@@ -937,7 +940,7 @@ export function mountStudio(root: HTMLElement): void {
   const bestChk = el("input", { type: "checkbox", id: "f-best" }) as HTMLInputElement;
   bestChk.checked = true;
   const bestLbl = el("label", { class: "chk", title: "Erzeugt bei jedem Klick 12 Kandidaten und zeigt den bestbewerteten (Längentreue, Wortvielfalt, Rhythmus, wenig Wiederholung, Grammatik, Abstand zur Schatzkammer)." }, bestChk, " Bestenauslese");
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl), outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, printBtn, lenRow, bestLbl), outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
 
   // ── Test & Ranking ──
   let lastRanking: Ranking | null = null;
