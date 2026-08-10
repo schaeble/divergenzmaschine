@@ -16,6 +16,15 @@ export interface RessortEinheit {
   einheit: string; rolle: ZahlRolle; min: number; max: number; rund: number; gen?: string;
 }
 
+/** Ein Einsatz mit seinem Numerus. Der muss IM Eintrag stehen, nicht geraten
+ *  werden: "die Lieferkette" ist Singular, "die Ausbildungsplätze" Plural, und
+ *  beide beginnen mit "die". Ohne die Angabe entstand "Auf dem Spiel steht die
+ *  Ausbildungsplätze" - ich hatte die ANZAHL der Einträge geprüft statt den
+ *  Numerus des Eintrags. */
+export interface EinsatzTeil { t: string; pl?: true }
+const S = (t: string): EinsatzTeil => ({ t });
+const P = (t: string): EinsatzTeil => ({ t, pl: true });
+
 export interface Ressort {
   id: RessortId;
   label: string;
@@ -31,7 +40,7 @@ export interface Ressort {
    *  Bericht hatte dafür bisher gar nichts und griff auf die literarischen
    *  Einsätze des Presets zurück — daher „Der Einsatz ist Freiheit: Sie hängt an
    *  einem Stempel" in einem Wirtschaftsbericht. */
-  einsatz: string[];
+  einsatz: EinsatzTeil[];
   /** Was der Abschnitt „Ausblick" in diesem Ressort sagen darf. */
   ausblick: string[];
   /** Wer oder was in diesem Ressort betroffen sein kann — OHNE Zahl. Genau das
@@ -56,7 +65,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
       { einheit: "Standorte", rolle: "vorgaenge", min: 2, max: 40, rund: 1 },
     ],
     zusatz: { titel: "Marktreaktion", rahmen: ["Am Markt heißt es:", "In der Branche gilt:", "Beobachter verweisen auf:"] },
-    einsatz: ["der Standort", "die Altersversorgung der Belegschaft", "die Ausbildungsplätze", "der Name des Hauses", "die Lieferkette", "das Werksgelände"],
+    einsatz: [S("der Standort"), S("die Altersversorgung der Belegschaft"), P("die Ausbildungsplätze"), S("der Name des Hauses"), S("die Lieferkette"), S("das Werksgelände")],
     ausblick: ["Ob die Zahlen halten, entscheidet sich im nächsten Quartal.",
       "Eine Entscheidung soll in den kommenden Tagen fallen."],
     regel: "zweiZahlen",
@@ -74,7 +83,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
       { einheit: "Sitzungen", rolle: "vorgaenge", min: 2, max: 60, rund: 1 },
     ],
     zusatz: { titel: "Reaktionen", rahmen: ["Aus der Regierung heißt es:", "Die Opposition hält dagegen:", "Aus den Ländern kommt:"] },
-    einsatz: ["die Mehrheit", "der Zeitplan des Verfahrens", "das Vertrauen in die Zusage", "die Zuständigkeit der Kommunen", "der Haushaltsansatz"],
+    einsatz: [S("die Mehrheit"), S("der Zeitplan des Verfahrens"), S("das Vertrauen in die Zusage"), S("die Zuständigkeit der Kommunen"), S("der Haushaltsansatz")],
     ausblick: ["Der Verfahrensstand bleibt bis zur nächsten Sitzung unverändert.",
       "Ob es zur Abstimmung kommt, ist offen."],
     regel: "lagerAusgewogen",
@@ -92,7 +101,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
       { einheit: "Minuten Spieldauer", rolle: "dauer", min: 45, max: 240, rund: 5 },
     ],
     zusatz: { titel: "Zum Werk", rahmen: ["Zu sehen ist:", "Die Arbeit zeigt:", "Auf der Bühne steht:"] },
-    einsatz: ["der Spielplan der kommenden Saison", "das Ensemble in seiner jetzigen Form", "die Werkstätten", "das Haus als Ort", "die Nachwuchsarbeit"],
+    einsatz: [S("der Spielplan der kommenden Saison"), S("das Ensemble in seiner jetzigen Form"), P("die Werkstätten"), S("das Haus als Ort"), S("die Nachwuchsarbeit")],
     ausblick: ["Ob das Publikum folgt, wird sich zeigen.",
       "Die nächste Aufführung ist angekündigt."],
     regel: "wertungGetrennt",
@@ -110,7 +119,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
       { einheit: "Minuten", rolle: "dauer", min: 5, max: 120, rund: 1 },
     ],
     zusatz: { titel: "Spielverlauf", rahmen: ["Nach der Pause:", "In der Schlussphase:", "Zur Halbzeit:"] },
-    einsatz: ["der Klassenerhalt", "die Lizenz", "die Nachwuchsabteilung", "der Name des Vereins", "die Heimspielstätte", "das Traineramt"],
+    einsatz: [S("der Klassenerhalt"), S("die Lizenz"), S("die Nachwuchsabteilung"), S("der Name des Vereins"), S("die Heimspielstätte"), S("das Traineramt")],
     ausblick: ["Das Rückspiel steht noch aus.",
       "Ob die Serie hält, entscheidet sich am Wochenende."],
     regel: "ergebnisZuerst",
@@ -128,7 +137,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
       { einheit: "Monate Laufzeit", rolle: "dauer", min: 3, max: 96, rund: 1 },
     ],
     zusatz: { titel: "Methode", rahmen: ["Untersucht wurde:", "Erhoben wurden:", "Verglichen wurde:"] },
-    einsatz: ["die Förderung", "die Vergleichbarkeit der Daten", "die Veröffentlichung", "der Standort des Instituts", "die Fortsetzung der Reihe"],
+    einsatz: [S("die Förderung"), S("die Vergleichbarkeit der Daten"), S("die Veröffentlichung"), S("der Standort des Instituts"), S("die Fortsetzung der Reihe")],
     ausblick: ["Eine Wiederholung der Studie steht aus.",
       "Ob sich der Befund bestätigt, ist offen."],
     regel: "einschraenkungPflicht",
@@ -146,7 +155,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
       { einheit: "Beratungen", rolle: "vorgaenge", min: 10, max: 900, rund: 1 },
     ],
     zusatz: { titel: "Vor Ort", rahmen: ["Im Viertel heißt es:", "Nachbarn berichten:", "In der Beratungsstelle:"] },
-    einsatz: ["der Treffpunkt im Viertel", "die Beratung vor Ort", "das Ehrenamt", "die Mietbindung", "der Zusammenhalt in der Nachbarschaft"],
+    einsatz: [S("der Treffpunkt im Viertel"), S("die Beratung vor Ort"), S("das Ehrenamt"), S("die Mietbindung"), S("der Zusammenhalt in der Nachbarschaft")],
     ausblick: ["Wie es im Viertel weitergeht, ist offen.",
       "Eine Entscheidung soll in den kommenden Wochen fallen."],
     regel: "keine",
@@ -164,7 +173,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
       { einheit: "Behandlungen", rolle: "vorgaenge", min: 30, max: 9000, rund: 10 },
     ],
     zusatz: { titel: "Einordnung der Lage", rahmen: ["Aus der Klinik heißt es:", "Die Behörde teilt mit:", "In der Versorgung zeigt sich:"] },
-    einsatz: ["die Versorgung im Umkreis", "die Notaufnahme", "die Ausbildungsplätze in der Pflege", "die Wartezeiten", "der Standort der Klinik"],
+    einsatz: [S("die Versorgung im Umkreis"), S("die Notaufnahme"), P("die Ausbildungsplätze in der Pflege"), P("die Wartezeiten"), S("der Standort der Klinik")],
     ausblick: ["Wie sich die Lage entwickelt, bleibt abzuwarten.",
       "Eine Neubewertung ist für die kommende Woche angekündigt."],
     // Bewusst keine Sonderregel mit Zahlenpflicht: Gesundheitsberichte, die
@@ -184,7 +193,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
       { einheit: "Unterrichtsstunden", rolle: "dauer", min: 4, max: 400, rund: 2 },
     ],
     zusatz: { titel: "An der Schule", rahmen: ["Im Kollegium heißt es:", "Aus der Elternschaft:", "Im Unterricht zeigt sich:"] },
-    einsatz: ["der Ganztag", "das Abschlussjahr", "die Stellen im Kollegium", "der Schulstandort", "die Betreuung am Nachmittag"],
+    einsatz: [S("der Ganztag"), S("das Abschlussjahr"), P("die Stellen im Kollegium"), S("der Schulstandort"), S("die Betreuung am Nachmittag")],
     ausblick: ["Ob die Stunden ersetzt werden, ist offen.",
       "Das nächste Schuljahr soll Klarheit bringen."],
     regel: "keine",

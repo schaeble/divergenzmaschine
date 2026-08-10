@@ -104,7 +104,11 @@ function hergang(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<stri
   const eins = RESSORTS[fb.ressort].einsatz;
   if (eins.length) {
     const zwei = reihenfolge(eins).slice(0, 1 + Math.min(1, Math.floor(extra / 4)));
-    teile.push(`Auf dem Spiel ${zwei.length > 1 ? "stehen" : "steht"} ${aufzaehlung(zwei)}.`);
+    // Plural, sobald MEHRERE Teile genannt werden oder EIN Teil selbst Plural
+    // ist. Die blosse Zahl der Teile reichte nicht: "Auf dem Spiel steht die
+    // Ausbildungsplätze".
+    const mehr = zwei.length > 1 || zwei.some((x) => x.pl);
+    teile.push(`Auf dem Spiel ${mehr ? "stehen" : "steht"} ${aufzaehlung(zwei.map((x) => x.t))}.`);
   }
   const bt = RESSORTS[fb.ressort].betroffen;
   if (bt.length >= 3) {
