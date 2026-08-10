@@ -8,6 +8,42 @@ import { HAIKU_DEFAULTS, HAIKU_KIGO, HAIKU_NATURE7, HAIKU_CLOSERS } from "./haik
 const KEIN_ENDE = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|dein|sein|ihr|unser|euer|kein|keine|keinen|keinem|keiner|keines|meinen|meinem|meiner|deinen|seinen|seinem|ihren|ihrem|selbst|und|oder|aber|doch|denn|sondern|als|dass|ob|weil|wenn|wie|um|zu|zum|zur|beim|vom|im|am|ins|aufs|mit|in|auf|an|für|von|bei|aus|über|unter|vor|nach|durch|gegen|ohne|seit|bis|hätte|hatte|wäre|würde|könnte|müsste|sollte|dürfte|genau|sehr|ganz|so|noch|nur|auch|schon|immer|wieder|dann|dabei|ich|du|er|sie|es|wir|man|ihn|ihm|mir|mich|dir|dich|uns|euch|sich|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|jede|jeder|jedes|alle|viele|manche|diese|dieser|dieses)$/i;
 const darfEnden = (w: string): boolean => !KEIN_ENDE.test(w.replace(/[^A-Za-zÄÖÜäöüß]/g, ""));
 
+// Einsilbige Woerter, die eine Zeile vorn ergaenzen koennen, ohne den Sinn zu
+// drehen. Fuer den Fall, dass eine Silbe fehlt.
+const FUELL_VORN = ["Nun", "Still", "Kaum", "Hier", "Dann", "Schon", "Noch"];
+// Einsilbige Fuellwoerter, die sich aus der Mitte streichen lassen, wenn eine
+// Silbe zu viel ist.
+const STREICHBAR = /^(und|noch|schon|nur|auch|doch|dann|hier|so|sehr|ganz|mal|der|die|das|den|dem|des|ein|im|am|zu|in|an|auf|bei|mit|von|für)$/i;
+
+/** Zeile auf die Silbenzahl bringen. Gemessen waren ALLE Abweichungen genau
+ *  eine Silbe - das Material geht bei vielen Haiku aus, und die Notloesung
+ *  liess eine Silbe daneben zu. Eine Silbe laesst sich hinzufuegen oder
+ *  streichen, ohne die Fuegung zu zerreissen. */
+function passeSilben(line: string, ziel: number, syllOf: (x: string) => number): string {
+  const ist = syllOf(line);
+  if (ist === ziel) return line;
+  if (ist === ziel - 1) {
+    for (const f of FUELL_VORN) {
+      const neu = f + " " + line.charAt(0).toLowerCase() + line.slice(1);
+      if (syllOf(neu) === ziel) return neu;
+    }
+  }
+  if (ist === ziel + 1) {
+    // Auch das erste Wort: Der fehlende Artikel ist in dieser Form ueblich
+    // ("Tür steht offen"), und ohne diese Stelle blieben zwei Drittel der
+    // Faelle unrepariert.
+    const w = line.split(/\s+/);
+    for (let i = 0; i < w.length; i++) {
+      if (!STREICHBAR.test(w[i]!)) continue;
+      const rest = [...w.slice(0, i), ...w.slice(i + 1)];
+      if (rest.length < 2) continue;
+      const neu = rest.join(" ");
+      if (syllOf(neu) === ziel && darfEnden(rest[rest.length - 1]!)) return neu;
+    }
+  }
+  return line;
+}
+
 const haikuSyllOf = (line: string): number => String(line || "").split(/\s+/).filter(Boolean).reduce((a, w) => a + estimateSyllables(w), 0);
 
 interface Cand { text: string; syll: number; src: number; ganz: boolean; }
@@ -133,7 +169,12 @@ export function applyHaikuPoem(rawText: string, anchorLine = "", lenTarget = 0, 
     let l2 = fromMaterial(t2) || fromBank(HAIKU_NATURE7, t2) || fromMaterial(t2, false) || greedyLine(t2);
     const l3 = fromMaterial(t3) || fromBank(HAIKU_CLOSERS, t3) || fromMaterial(t3, false) || greedyLine(t3);
     if (chance(0.7)) l2 += " –";
-    haikus.push([fixHaikuCaps(cap(capLine(l1))), fixHaikuCaps(cap(capLine(l2))), fixHaikuCaps(cap(capLine(l3)))]);
+    // Erst anpassen, dann setzen: capLine und cap veraendern die Silbenzahl nicht,
+    // aber die Reihenfolge macht die Absicht klar.
+    const f1 = passeSilben(l1, t1, haikuSyllOf);
+    const f2 = passeSilben(l2.replace(/\s*–\s*$/, ""), t2, haikuSyllOf) + (/–\s*$/.test(l2) ? " –" : "");
+    const f3 = passeSilben(l3, t3, haikuSyllOf);
+    haikus.push([fixHaikuCaps(cap(capLine(f1))), fixHaikuCaps(cap(capLine(f2))), fixHaikuCaps(cap(capLine(f3)))]);
     if (cands.length < 4) break;
   }
   if (!haikus.length) haikus.push(["Stille bleibt hier", "ohne jede klare Antwort", "und ohne die Zeit"]);
