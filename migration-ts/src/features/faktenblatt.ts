@@ -118,11 +118,19 @@ const PLURAL_ENDUNG = /(ern|en|er|e)$/;   // "Opern" endet auf -ern und fiel son
 const KEIN_SACHNOMEN = /^(Jahr|Jahre|Monat|Monate|Tag|Tage|Woche|Wochen|Stunde|Stunden|Mal|Uhr|Zeit|Welt|Leben|Anfang|Nacht|Morgen|Abend|Ende|Reihe|Farbe|Sprache|Straße|Grenze|Klasse|Frage|Stelle|Weise|Seite|Liebe|Sorge|Ruhe|Stille|Ferne|Nähe|Fenster|Wasser|Feuer|Zimmer|Wetter|Messer|Muster|Ufer|Alter|Fieber|Wunder|Zeichen|Wesen)$/;
 
 export function sachNomen(was: string): string | null {
-  const kandidaten = (was || "").match(/[A-ZÄÖÜ][a-zäöüß]{3,}/g) || [];
-  for (let i = kandidaten.length - 1; i >= 0; i--) {
-    const w = kandidaten[i]!;
+  // Von VORN suchen, nicht von hinten: In "tanzt fuer die Gesellschaft der
+  // Tanzunwilligen" ist "Gesellschaft" das Objekt und "Tanzunwilligen" ein
+  // Genitivattribut - im Faktenkasten stand dadurch "370 Tanzunwilligen"
+  // statt "Tanzunwillige". Ein Nomen direkt hinter "der" oder "des" ist ein
+  // solches Attribut und faellt heraus.
+  const woerter = (was || "").split(/\s+/);
+  for (let i = 0; i < woerter.length; i++) {
+    const w = (woerter[i] || "").replace(/[^A-Za-zÄÖÜäöüß-]/g, "");
+    if (!/^[A-ZÄÖÜ][a-zäöüß]{3,}$/.test(w)) continue;
     if (KEIN_SACHNOMEN.test(w)) continue;
     if (!PLURAL_ENDUNG.test(w)) continue;
+    const davor = (woerter[i - 1] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
+    if (davor === "der" || davor === "des") continue;
     return w;
   }
   return null;
