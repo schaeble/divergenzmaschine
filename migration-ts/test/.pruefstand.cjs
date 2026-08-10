@@ -2226,7 +2226,7 @@ function rundWort(wert) {
   const gerundet = Math.round(wert / stufe) * stufe;
   return gerundet === wert ? void 0 : `rund ${zahlwort(gerundet)}`;
 }
-var PLURAL_ENDUNG = /(ern|en|er|e)$/;
+var PLURAL_ENDUNG = /(ern|en)$/;
 var KEIN_SACHNOMEN = /^(Jahr|Jahre|Monat|Monate|Tag|Tage|Woche|Wochen|Stunde|Stunden|Mal|Uhr|Zeit|Welt|Leben|Anfang|Nacht|Morgen|Abend|Ende|Reihe|Farbe|Sprache|Straße|Grenze|Klasse|Frage|Stelle|Weise|Seite|Liebe|Sorge|Ruhe|Stille|Ferne|Nähe|Fenster|Wasser|Feuer|Zimmer|Wetter|Messer|Muster|Ufer|Alter|Fieber|Wunder|Zeichen|Wesen)$/;
 function sachNomen(was) {
   const woerter2 = (was || "").split(/\s+/);
@@ -2274,7 +2274,9 @@ var TITEL = /^(Dr|Prof|Ing|Dipl|Mag|Med|Rer|Nat|Phil|h\.c|Jun|Sen|MdB|MdL)\.?$/i
 function istPerson(haupt) {
   let w = haupt.trim().split(/\s+/);
   if (/^(der|die|das|ein|eine)$/i.test(w[0] || "")) return false;
+  const mitTitel = w.length;
   w = w.filter((x) => !TITEL.test(x.replace(/[^A-Za-z.]/g, "")));
+  if (w.length === 1 && mitTitel > w.length) return /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(w[0]);
   if (w.length !== 2) return false;
   if (RECHTSFORM.test(w[1].replace(/[^A-Za-z.]/g, ""))) return false;
   if (/^(FC|SV|TSV|SC|VfB|VfL|BSC|1\.)$/i.test(w[0])) return false;
@@ -3484,15 +3486,16 @@ var Buchfuehrung = class {
   }
 };
 var EINSATZ_FORMEL = /^(Der Einsatz ist|Es geht um|Auf dem Spiel steht|Alles dreht sich um|Was zählt, ist|Am Ende bleibt nur|Verlieren hieße)\b/i;
+var ZAHLWORT = /(?<![a-zäöüß])(zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|dreizehn|vierzehn|fünfzehn|sechzehn|siebzehn|achtzehn|neunzehn|zwanzig|dreißig|vierzig|fünfzig|hundert|tausend|dutzend|hunderte|tausende|dutzende)(?![a-zäöüß])/i;
 function satzOhneZahl(bank, kats, benutzt, zusatz = []) {
   const kandidaten = [];
   for (const k of kats) for (const x of bank[k] || []) {
-    if (/\d/.test(x) || EINSATZ_FORMEL.test(x)) continue;
+    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x)) continue;
     if (benutzt.has(x)) continue;
     kandidaten.push(x);
   }
   for (const x of zusatz) {
-    if (/\d/.test(x) || EINSATZ_FORMEL.test(x) || benutzt.has(x)) continue;
+    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || benutzt.has(x)) continue;
     kandidaten.push(x);
   }
   if (!kandidaten.length) return null;
@@ -3650,6 +3653,10 @@ function pruefeBericht(text, fb, hergang2 = "") {
   for (const roh of text.match(/\d[\d.,]*/g) || []) {
     const z = roh.replace(/[.,]+$/, "");
     if (!erlaubtZ.has(z)) m.push({ art: "Zahl ohne Faktenblatt", stelle: z });
+  }
+  const fbText = JSON.stringify(fb).toLowerCase();
+  for (const w of text.match(new RegExp(ZAHLWORT.source, "gi")) || []) {
+    if (!fbText.includes(w.toLowerCase())) m.push({ art: "Zahlwort ohne Faktenblatt", stelle: w });
   }
   const drin = /* @__PURE__ */ new Set([
     ...fb.personen.flatMap((p) => [p.kurz.toLowerCase(), ...p.name.toLowerCase().split(/\s+/)]),
@@ -6974,8 +6981,10 @@ var WER = [
   // Einrichtung mit Rechtsform
   "FC Liverpool",
   // Einrichtung ohne Artikel
-  "das Stadttheater"
+  "das Stadttheater",
   // Einrichtung neutrum
+  "Prof. Schwarz"
+  // Titel ohne Vornamen
 ];
 var WAS = [
   "will den Konzern DAS GmbH schlie\xDFen",
@@ -6988,8 +6997,10 @@ var WAS = [
   // Sport
   "zeigt keine Opern mehr",
   // Plural auf -ern
-  "stellt den Betrieb ein"
+  "stellt den Betrieb ein",
   // kein zählbares Objekt
+  "will die Sonne ausknipsen"
+  // Singular auf -e hinter "die"
 ];
 var WANN = ["Fr\xFChjahr 2001", "im Jahr 1855", "am Donnerstag", "2100", ""];
 var WO = ["in D\xFCrrhausen", "in London", "Ostmoor", ""];
@@ -7005,7 +7016,12 @@ var VERBOTEN = [
   ["Kopfsatz ohne Aussage", /\b\w+ (stellt fest|begreift|bemerkt|nimmt wahr)\.(\s|$)/],
   ["Rahmen mit zwei finiten Verben", /(Geblieben ist|Erinnert wird an|Im Ort verbindet man damit) [^.]*\b(ist|sind|wird|werden|hat|haben)\b[^.]*\./],
   ["doppelter Bildrahmen", /(Im Ort verbindet man damit)[^]*\1/],
-  ["Genitiv Plural falsch", /die Hälfte der (Beschäftigte|Teilnehmende)\b/]
+  ["Genitiv Plural falsch", /die Hälfte der (Beschäftigte|Teilnehmende)\b/],
+  ["Artikel vor Titelnamen", /\b(Der|Die|Das) (Schwarz|Doll|Kraus|Lessing) \b/],
+  // Kein blindes Muster fuer Zahlwoerter: "vor vier Tagen" steht im Faktenblatt
+  // und ist erlaubt. Die Pruefung im Programm vergleicht gegen das Faktenblatt
+  // und meldet nur, was dort NICHT steht - sie laeuft unten ohnehin mit.
+  ["Singular als Menge", /\b\d[\d.]* (Sonne|Bühne|Konzern|Wahrheit|Zeit|Welt)\b/]
 ];
 function semantisch(text, fb) {
   const out = [];

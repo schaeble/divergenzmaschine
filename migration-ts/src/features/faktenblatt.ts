@@ -114,7 +114,12 @@ function rundWort(wert: number): string | undefined {
 // als Plural gelesen, "600 Beton" waere der Fehler gewesen, den die Zahl gerade
 // vermeiden soll. Dazu eine kurze Liste haeufiger Einzahlwoerter auf -e und -er,
 // die die Endung nicht von einem Plural unterscheiden kann.
-const PLURAL_ENDUNG = /(ern|en|er|e)$/;   // "Opern" endet auf -ern und fiel sonst durch
+// Nur -en und -ern. Die Endungen -er und -e waren zu weit: "will die Sonne
+// ausknipsen" ergab "8.430 Sonne". Dass "die" auch Plural sein kann, half
+// nicht - bei einem Nomen auf -e ist der Singular mindestens so wahrscheinlich.
+// Der Preis ist, dass "die Verträge" durchfällt; eine falsche Zahl im Bericht
+// wiegt schwerer als eine fehlende.
+const PLURAL_ENDUNG = /(ern|en)$/;
 const KEIN_SACHNOMEN = /^(Jahr|Jahre|Monat|Monate|Tag|Tage|Woche|Wochen|Stunde|Stunden|Mal|Uhr|Zeit|Welt|Leben|Anfang|Nacht|Morgen|Abend|Ende|Reihe|Farbe|Sprache|Straße|Grenze|Klasse|Frage|Stelle|Weise|Seite|Liebe|Sorge|Ruhe|Stille|Ferne|Nähe|Fenster|Wasser|Feuer|Zimmer|Wetter|Messer|Muster|Ufer|Alter|Fieber|Wunder|Zeichen|Wesen)$/;
 
 export function sachNomen(was: string): string | null {
@@ -194,7 +199,12 @@ function istPerson(haupt: string): boolean {
   if (/^(der|die|das|ein|eine)$/i.test(w[0] || "")) return false;
   // Titel abziehen: "Dr. Ing. Richard Doll" sind vier Woerter, davon zwei Titel.
   // Ohne das galt der Name als Einrichtung, und im Text stand "der Doll".
+  const mitTitel = w.length;
   w = w.filter((x) => !TITEL.test(x.replace(/[^A-Za-z.]/g, "")));
+  // "Prof. Schwarz" bleibt nach dem Abzug EIN Wort. Wer einen Titel traegt, ist
+  // eine Person - auch ohne Vornamen. Ohne diese Zeile stand "Der Schwarz
+  // besteht seit 1894".
+  if (w.length === 1 && mitTitel > w.length) return /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(w[0]!);
   if (w.length !== 2) return false;
   if (RECHTSFORM.test(w[1]!.replace(/[^A-Za-z.]/g, ""))) return false;
   if (/^(FC|SV|TSV|SC|VfB|VfL|BSC|1\.)$/i.test(w[0]!)) return false;

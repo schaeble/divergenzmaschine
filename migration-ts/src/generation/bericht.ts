@@ -38,12 +38,18 @@ class Buchfuehrung {
 // dem Spiel steht der Standort".
 const EINSATZ_FORMEL = /^(Der Einsatz ist|Es geht um|Auf dem Spiel steht|Alles dreht sich um|Was zählt, ist|Am Ende bleibt nur|Verlieren hieße)\b/i;
 
+// Ausgeschriebene Zahlen. Die Zahlenpruefung sah nur Ziffern - "ein Bündel aus
+// sieben Rabenfedern" stand deshalb ungerueegt im Bericht, eine Menge, die in
+// keinem Faktenblatt steht. "ein" und "eine" bleiben draussen: Das sind
+// meistens Artikel, keine Zahlwoerter.
+const ZAHLWORT = /(?<![a-zäöüß])(zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|dreizehn|vierzehn|fünfzehn|sechzehn|siebzehn|achtzehn|neunzehn|zwanzig|dreißig|vierzig|fünfzig|hundert|tausend|dutzend|hunderte|tausende|dutzende)(?![a-zäöüß])/i;
+
 /** Ein Satz aus dem Vorrat, der keine Ziffer enthält — Zahlen kommen NUR aus
  *  dem Faktenblatt, sonst bricht die Konsistenzprüfung. */
 function satzOhneZahl(bank: Bank, kats: (keyof Bank)[], benutzt: Set<string>, zusatz: string[] = []): string | null {
   const kandidaten: string[] = [];
   for (const k of kats) for (const x of bank[k] || []) {
-    if (/\d/.test(x) || EINSATZ_FORMEL.test(x)) continue;
+    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x)) continue;
     if (benutzt.has(x)) continue;
     kandidaten.push(x);
   }
@@ -51,7 +57,7 @@ function satzOhneZahl(bank: Bank, kats: (keyof Bank)[], benutzt: Set<string>, zu
   // kurzen Bericht, nicht fuer einen langen - bei Ziel 400 blieb es sonst bei
   // 66 Prozent der Marke, weil kein Satz mehr uebrig war.
   for (const x of zusatz) {
-    if (/\d/.test(x) || EINSATZ_FORMEL.test(x) || benutzt.has(x)) continue;
+    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || benutzt.has(x)) continue;
     kandidaten.push(x);
   }
   if (!kandidaten.length) return null;
@@ -270,6 +276,12 @@ export function pruefeBericht(text: string, fb: Faktenblatt, hergang = ""): Beri
   for (const roh of text.match(/\d[\d.,]*/g) || []) {
     const z = roh.replace(/[.,]+$/, "");
     if (!erlaubtZ.has(z)) m.push({ art: "Zahl ohne Faktenblatt", stelle: z });
+  }
+
+  // 1b. Auch ausgeschriebene Zahlen muessen aus dem Faktenblatt stammen.
+  const fbText = JSON.stringify(fb).toLowerCase();
+  for (const w of text.match(new RegExp(ZAHLWORT.source, "gi")) || []) {
+    if (!fbText.includes(w.toLowerCase())) m.push({ art: "Zahlwort ohne Faktenblatt", stelle: w });
   }
 
   // 2. Kein fremder PERSONENNAME. Nicht "jeder Eigenname": properNames haelt im

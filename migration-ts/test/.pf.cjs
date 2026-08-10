@@ -9599,7 +9599,7 @@ function rundWort(wert) {
   const gerundet = Math.round(wert / stufe) * stufe;
   return gerundet === wert ? void 0 : `rund ${zahlwort(gerundet)}`;
 }
-var PLURAL_ENDUNG = /(ern|en|er|e)$/;
+var PLURAL_ENDUNG = /(ern|en)$/;
 var KEIN_SACHNOMEN = /^(Jahr|Jahre|Monat|Monate|Tag|Tage|Woche|Wochen|Stunde|Stunden|Mal|Uhr|Zeit|Welt|Leben|Anfang|Nacht|Morgen|Abend|Ende|Reihe|Farbe|Sprache|Straße|Grenze|Klasse|Frage|Stelle|Weise|Seite|Liebe|Sorge|Ruhe|Stille|Ferne|Nähe|Fenster|Wasser|Feuer|Zimmer|Wetter|Messer|Muster|Ufer|Alter|Fieber|Wunder|Zeichen|Wesen)$/;
 function sachNomen(was) {
   const woerter2 = (was || "").split(/\s+/);
@@ -9647,7 +9647,9 @@ var TITEL = /^(Dr|Prof|Ing|Dipl|Mag|Med|Rer|Nat|Phil|h\.c|Jun|Sen|MdB|MdL)\.?$/i
 function istPerson(haupt) {
   let w = haupt.trim().split(/\s+/);
   if (/^(der|die|das|ein|eine)$/i.test(w[0] || "")) return false;
+  const mitTitel = w.length;
   w = w.filter((x) => !TITEL.test(x.replace(/[^A-Za-z.]/g, "")));
+  if (w.length === 1 && mitTitel > w.length) return /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(w[0]);
   if (w.length !== 2) return false;
   if (RECHTSFORM.test(w[1].replace(/[^A-Za-z.]/g, ""))) return false;
   if (/^(FC|SV|TSV|SC|VfB|VfL|BSC|1\.)$/i.test(w[0])) return false;
@@ -9749,15 +9751,16 @@ var Buchfuehrung = class {
   }
 };
 var EINSATZ_FORMEL = /^(Der Einsatz ist|Es geht um|Auf dem Spiel steht|Alles dreht sich um|Was zählt, ist|Am Ende bleibt nur|Verlieren hieße)\b/i;
+var ZAHLWORT = /(?<![a-zäöüß])(zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|dreizehn|vierzehn|fünfzehn|sechzehn|siebzehn|achtzehn|neunzehn|zwanzig|dreißig|vierzig|fünfzig|hundert|tausend|dutzend|hunderte|tausende|dutzende)(?![a-zäöüß])/i;
 function satzOhneZahl(bank, kats, benutzt, zusatz = []) {
   const kandidaten = [];
   for (const k of kats) for (const x of bank[k] || []) {
-    if (/\d/.test(x) || EINSATZ_FORMEL.test(x)) continue;
+    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x)) continue;
     if (benutzt.has(x)) continue;
     kandidaten.push(x);
   }
   for (const x of zusatz) {
-    if (/\d/.test(x) || EINSATZ_FORMEL.test(x) || benutzt.has(x)) continue;
+    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || benutzt.has(x)) continue;
     kandidaten.push(x);
   }
   if (!kandidaten.length) return null;

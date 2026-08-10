@@ -22,6 +22,7 @@ const WER = [
   "Ritter Ltd",                 // Einrichtung mit Rechtsform
   "FC Liverpool",               // Einrichtung ohne Artikel
   "das Stadttheater",           // Einrichtung neutrum
+  "Prof. Schwarz",              // Titel ohne Vornamen
 ];
 const WAS = [
   "will den Konzern DAS GmbH schließen",   // singularer Begleiter vor -ern
@@ -30,6 +31,7 @@ const WAS = [
   "spielt für FC Liverpool",               // Sport
   "zeigt keine Opern mehr",                // Plural auf -ern
   "stellt den Betrieb ein",                // kein zählbares Objekt
+  "will die Sonne ausknipsen",             // Singular auf -e hinter "die"
 ];
 const WANN = ["Frühjahr 2001", "im Jahr 1855", "am Donnerstag", "2100", ""];
 const WO = ["in Dürrhausen", "in London", "Ostmoor", ""];
@@ -49,6 +51,11 @@ const VERBOTEN: [string, RegExp][] = [
   ["Rahmen mit zwei finiten Verben", /(Geblieben ist|Erinnert wird an|Im Ort verbindet man damit) [^.]*\b(ist|sind|wird|werden|hat|haben)\b[^.]*\./],
   ["doppelter Bildrahmen", /(Im Ort verbindet man damit)[^]*\1/],
   ["Genitiv Plural falsch", /die Hälfte der (Beschäftigte|Teilnehmende)\b/],
+  ["Artikel vor Titelnamen", /\b(Der|Die|Das) (Schwarz|Doll|Kraus|Lessing) \b/],
+  // Kein blindes Muster fuer Zahlwoerter: "vor vier Tagen" steht im Faktenblatt
+  // und ist erlaubt. Die Pruefung im Programm vergleicht gegen das Faktenblatt
+  // und meldet nur, was dort NICHT steht - sie laeuft unten ohnehin mit.
+  ["Singular als Menge", /\b\d[\d.]* (Sonne|Bühne|Konzern|Wahrheit|Zeit|Welt)\b/],
 ];
 
 /** Prüfungen, die das Faktenblatt brauchen. */
