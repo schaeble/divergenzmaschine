@@ -30,7 +30,7 @@ export interface FbChrono { id: string; zeit: string; was: string; }
 export interface Faktenblatt {
   id: string;
   ressort: RessortId;
-  wer: { haupt: string; kurz: string; genus: Genus; art: string };
+  wer: { haupt: string; kurz: string; genus: Genus; art: "person" | "organisation" };
   was: string;
   wo: { ort: string };
   wann: { datum: string; relativ: string };
@@ -172,6 +172,18 @@ function kurzform(haupt: string, genus: Genus): string {
   return `${art} ${teil}`;
 }
 
+/** Person oder Einrichtung? Eine Person "besteht" nicht seit 1988, und "der
+ *  Kraus" ist keine Kurzform, sondern ein Fehler. Erkannt an drei Zeichen:
+ *  kein Artikel davor, zwei grossgeschriebene Woerter, keine Rechtsform. */
+function istPerson(haupt: string): boolean {
+  const w = haupt.trim().split(/\s+/);
+  if (/^(der|die|das|ein|eine)$/i.test(w[0] || "")) return false;
+  if (w.length !== 2) return false;
+  if (RECHTSFORM.test(w[1]!.replace(/[^A-Za-z.]/g, ""))) return false;
+  if (/^(FC|SV|TSV|SC|VfB|VfL|BSC|1\.)$/i.test(w[0]!)) return false;
+  return w.every((x) => /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(x));
+}
+
 export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto" = "auto"): Faktenblatt {
   // Ressort zuerst: Es bestimmt Rollen, Einheiten und den Zusatzabschnitt.
   const ressort = ressortWahl === "auto"
@@ -179,7 +191,8 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
     : ressortWahl;
   const R = RESSORTS[ressort];
   const werRoh = (normWho(input.who || "").split(",")[0] || "").trim() || "eine Einrichtung";
-  const genus = genusVon(werRoh);
+  const person = istPerson(werRoh);
+  const genus = person ? "mask" : genusVon(werRoh);
   const ort = (normWhere(input.where || "") || "").replace(/^(in|an|auf|bei|im|am)\s+/i, "").trim() || "der Ort";
   const wann = (normWhen(input.when || "") || "").trim();
 
@@ -209,8 +222,12 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
   const sache = sachNomen(input.what || "");
   if (sache) einheiten.unshift({ einheit: sache, rolle: "sache", min: 50, max: 9000, rund: 10 });
   for (let i = 0; i < wieViele && einheiten.length; i++) {
+    // Die Betroffenen kommen aus dem Ressort, wenn es welche hat. Sonst stand in
+    // einem Sportbericht "910 Haushalte betroffen" - die allgemeine Liste
+    // gewann, weil sie mit im Topf lag.
+    const eigeneBetroffen = R.einheiten.filter((e) => e.rolle === "betroffene" && einheiten.includes(e));
     const quelle = i === 0
-      ? einheiten.filter((e) => e.rolle === "betroffene")
+      ? (eigeneBetroffen.length ? eigeneBetroffen : einheiten.filter((e) => e.rolle === "betroffene"))
       : i === 1 && sache
         ? einheiten.filter((e) => e.rolle === "sache")       // gleich nach den Betroffenen
         : einheiten.filter((e) => !rollenDrin.has(e.rolle));
@@ -247,7 +264,9 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
   return {
     id: "fb-" + Date.now().toString(36),
     ressort,
-    wer: { haupt: werRoh, kurz: kurzform(werRoh, genus), genus, art: "organisation" },
+    wer: person
+      ? { haupt: werRoh, kurz: werRoh.split(/\s+/).pop()!, genus, art: "person" }
+      : { haupt: werRoh, kurz: kurzform(werRoh, genus), genus, art: "organisation" },
     was: (input.what || "meldet einen Vorfall").trim().replace(/[.!?…]+$/, ""),
     wo: { ort },
     wann: { datum: wann || pick(ZEITPUNKT), relativ: pick(RELATIV) },

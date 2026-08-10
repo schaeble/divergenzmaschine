@@ -85,10 +85,22 @@ function hergang(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<stri
     if (roh) teile.push(`${cap(roh)}.`);
   }
   const z2 = fb.zahlen[1];
-  if (z2) teile.push(zahlSatz(z2, fb));
+  if (z2) teile.push(zahlSatz(z2));
   if (c3) teile.push(`${cap(c3.zeit)} folgte der Schritt, über den ${b.organisation(fb)} nun informiert.`);
   const a1 = fb.abgeleitet[0];
   if (a1) teile.push(`Betroffen ist damit ${a1.label} — ${a1.wortform}.`);
+  // Was außerdem betroffen ist, sagt das Ressort. Ohne das stand in einem
+  // Sportbericht "1.700 Haushalte betroffen" - eine Groesse, die mit dem
+  // Ereignis nichts zu tun hatte.
+  const bt = RESSORTS[fb.ressort].betroffen;
+  if (bt.length >= 3) {
+    // Nicht wiederholen, was schon als Zahl dasteht: "14.800 Dauerkarten
+    // betroffen ... Betroffen sind ausserdem die Dauerkarten".
+    const schon = fb.zahlen.map((z) => z.einheit.toLowerCase());
+    const frei = bt.filter((x) => !schon.some((e) => x.toLowerCase().includes(e)));
+    const aus = reihenfolge(frei.length >= 2 ? frei : bt).slice(0, 2 + Math.min(2, Math.floor(extra / 3)));
+    teile.push(`Betroffen sind außerdem ${aufzaehlung(aus)}.`);
+  }
   return teile.join(" ");
 }
 
@@ -102,7 +114,11 @@ function zitat(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<string
 function hintergrund(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<string>, extra: number, vorrat: string[]): string {
   const teile: string[] = [];
   const c1 = fb.chronologie[0];
-  if (c1) teile.push(`${cap(b.organisation(fb))} besteht seit ${c1.zeit}.`);
+  // Eine Person "besteht" nicht seit 1988. Im Beispiel stand "Der Kraus besteht
+  // seit 1988", weil `art` fest auf "organisation" stand.
+  if (c1) teile.push(fb.wer.art === "person"
+    ? `${cap(b.organisation(fb))} ist seit ${c1.zeit} dabei.`
+    : `${cap(b.organisation(fb))} besteht seit ${c1.zeit}.`);
   // Rahmen nur fuer Nominalphrasen. Der Vorrat aus Atomen liefert auch ganze
   // Saetze, und "Geblieben ist die Zuständigkeit ist unklar" hat zwei finite
   // Verben. Jeder Rahmen zudem hoechstens einmal - beim Reihum-Zaehlen stand
@@ -116,7 +132,7 @@ function hintergrund(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<
     else teile.push(`${cap(roh)}.`);
   }
   const z3 = fb.zahlen[2];
-  if (z3) teile.push(zahlSatz(z3, fb));
+  if (z3) teile.push(zahlSatz(z3));
   return teile.join(" ");
 }
 
@@ -132,17 +148,30 @@ function ausblick(fb: Faktenblatt): string {
 /** Satz zu einer Zahl, passend zu ihrer Rolle. Eine Zahl ohne Rolle bekam vorher
  *  einen beliebigen Rahmen — daher "Zuletzt waren es 9 Stunden", ein Satz, der
  *  nichts behauptete. */
-function zahlSatz(z: FbZahl, fb: Faktenblatt): string {
+function zahlSatz(z: FbZahl): string {
   const n = `${z.wortform} ${z.einheit}`;
   switch (z.rolle) {
     case "betroffene": return `Betroffen sind ${n}.`;
     case "sache": return pick([`Zuletzt waren es ${n} im Jahr.`, `Es geht um ${n}.`, `${cap(n)} standen zuletzt in den Büchern.`]);
-    case "dauer": return `${cap(n)} lang stand der Betrieb still.`;
-    case "groesse": return `Das Gelände in ${fb.wo.ort} misst ${n}.`;
+    case "dauer": return `${cap(n)} dauerte es.`;   // ressortneutral: "stand der Betrieb still" passte nur zur Wirtschaft
+    case "groesse": return `Gemessen wurden ${n}.`;
     case "vorgaenge": return `${cap(n)} liegen inzwischen vor.`;
     case "geld": return `Es geht um ${n}.`;
     default: return `${cap(n)}.`;
   }
+}
+
+/** Deutsche Aufzaehlung: Komma, Komma, "und". */
+function aufzaehlung(xs: string[]): string {
+  if (xs.length <= 1) return xs[0] || "";
+  return xs.slice(0, -1).join(", ") + " und " + xs[xs.length - 1];
+}
+
+/** Zufaellige Reihenfolge, ohne die Vorlage zu veraendern. */
+function reihenfolge<T>(a: T[]): T[] {
+  const x = a.slice();
+  for (let i = x.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [x[i], x[j]] = [x[j]!, x[i]!]; }
+  return x;
 }
 
 export interface BerichtErgebnis { text: string; fb: Faktenblatt; hergang: string; }
@@ -230,7 +259,13 @@ export function pruefeBericht(text: string, fb: Faktenblatt, hergang = ""): Beri
   //    meldete 1856 Funde, darunter "Wirtschaft". Geprueft wird deshalb gegen den
   //    Ziehvorrat: Steht ein Name aus dem Vorrat im Text, der nicht im
   //    Faktenblatt dieses Berichts vorkommt, ist er hereingerutscht.
-  const drin = new Set(fb.personen.flatMap((p) => [p.kurz.toLowerCase(), ...p.name.toLowerCase().split(/\s+/)]));
+  const drin = new Set([
+    ...fb.personen.flatMap((p) => [p.kurz.toLowerCase(), ...p.name.toLowerCase().split(/\s+/)]),
+    // Der Name aus "Wer?" gehoert dazu: "Reinhard Kraus" wurde als fremd
+    // gemeldet, weil "Reinhard" auch im Ziehvorrat steht.
+    ...fb.wer.haupt.toLowerCase().split(/\s+/),
+    fb.wer.kurz.toLowerCase(),
+  ]);
   for (const name of ALLE_NAMEN) {
     if (drin.has(name.toLowerCase())) continue;
     if (new RegExp("(?<![A-Za-zÄÖÜäöüß])" + name + "(?![A-Za-zÄÖÜäöüß])").test(text)) {
