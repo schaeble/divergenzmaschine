@@ -19,6 +19,7 @@ import { biasedAutoChoice } from "./autochoice";
 import { buildVideoSequenceText } from "./video";
 import { enforceWordTarget } from "./length";
 import { buildRekombination, buildVersAtome } from "../atoms/rekombination";
+import { buildBericht } from "./bericht";
 import { linkTrace } from "../atoms/trace";
 import { linkMarkovTrace } from "./markovTrace";
 import { applyEmphasis } from "./emphasis";
@@ -111,6 +112,11 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   // Sprachschliff, keine Kohaerenzpruefung, keine Namensvereinheitlichung. Die
   // Nachbearbeitung ist bereits formbewusst (isLineForm ueberspringt Ton-Einschuebe
   // und die semantische Satzauslese), es fehlte nur der Weg dorthin.
+  // Der Bericht referiert aus einem Faktenblatt statt aus dem Vorrat zu erzaehlen.
+  // Er laeuft NICHT durch postProcessText: Die Nachbearbeitung ergaenzt Artikel,
+  // zieht Saetze zusammen und streut Ton ein - alles Eingriffe, die einem Bericht
+  // Fakten hinzufuegen oder wegnehmen wuerden.
+  if (input.form === "bericht") return buildBericht(bank, input).text;
   if (input.form === "script") return postProcessText(makeDialogueScene(kit, lenTarget), input);
   if (input.form === "video") {
     return postProcessText(buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? 15, lenTarget), input);

@@ -10,7 +10,7 @@ export type Bank = Record<BankKey, string[]>;
 
 /** Textform einer Generierung. */
 export type FormKind =
-  | "prose" | "drama" | "poem" | "strang" | "reim" | "haiku" | "script" | "video";
+  | "prose" | "drama" | "poem" | "strang" | "reim" | "haiku" | "script" | "video" | "bericht";
 
 /** Instabilitäts-Stufe (Aus / Subtil / Aggressiv). */
 export type Instability = 0 | 1 | 2;
