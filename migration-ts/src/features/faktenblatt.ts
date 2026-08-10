@@ -19,7 +19,7 @@ export interface FbPerson {
   id: string; name: string; kurz: string; rolle: string; genus: Genus; zitierfaehig: boolean;
 }
 export interface FbZahl {
-  id: string; wert: number; einheit: string; wortform: string; verbal?: string;
+  id: string; wert: number; einheit: string; wortform: string; verbal?: string; rolle: ZahlRolle;
 }
 export interface FbAbgeleitet {
   id: string; formel: string; wortform: string; label: string;
@@ -56,20 +56,37 @@ ALLE_NAMEN.push(...VORNAME_F, ...VORNAME_M, ...NACHNAME);
 const ROLLE_F = ["Geschäftsführerin", "Sprecherin", "Betriebsrätin", "Anwohnerin", "Gutachterin", "Vorsitzende"];
 const ROLLE_M = ["Geschäftsführer", "Sprecher", "Betriebsratsvorsitzender", "Anwohner", "Gutachter", "Vorsitzender"];
 
-// `betroffen` heisst: Von dieser Einheit kann man sagen, sie sei "betroffen".
-// Ohne die Unterscheidung stand im Vorspann "dass 44 Stunden betroffen sind" -
-// eine Zahl, die zwar konsistent war, aber nichts bedeutete.
-const EINHEIT = [
-  { einheit: "Beschäftigte", min: 40, max: 900, rund: 10, betroffen: true },
-  { einheit: "Haushalte", min: 20, max: 1200, rund: 10, betroffen: true },
-  { einheit: "Anwohner", min: 30, max: 2000, rund: 10, betroffen: true },
-  { einheit: "Arbeitsplätze", min: 15, max: 700, rund: 5, betroffen: true },
-  { einheit: "Jahre", min: 3, max: 120, rund: 1, betroffen: false },
-  { einheit: "Meter", min: 8, max: 400, rund: 1, betroffen: false },
-  { einheit: "Unterschriften", min: 200, max: 9000, rund: 50, betroffen: false },
-  { einheit: "Anträge", min: 12, max: 600, rund: 1, betroffen: false },
-  { einheit: "Stunden", min: 2, max: 72, rund: 1, betroffen: false },
+// Jede Zahl braucht eine ROLLE. Ohne sie zieht das Faktenblatt Einheiten ohne
+// Bezug zum Ereignis, und im Faktenkasten steht "· 9 Stunden" — konsistent,
+// prüfungsfest und bedeutungslos. Die Rolle sagt, WOFÜR die Zahl da ist; daraus
+// ergibt sich der Satz im Text und die Beschriftung im Kasten.
+export type ZahlRolle = "betroffene" | "sache" | "dauer" | "groesse" | "vorgaenge" | "geld";
+
+// `gen` ist der Genitiv Plural — "die Hälfte der Beschäftigten", nicht "der
+// Beschäftigte". Betroffen ist nur das substantivierte Adjektiv; bei allen
+// anderen sind Nominativ und Genitiv Plural gleich.
+interface EinheitDef { einheit: string; rolle: ZahlRolle; min: number; max: number; rund: number; gen?: string; }
+
+const EINHEIT: EinheitDef[] = [
+  { einheit: "Beschäftigte", rolle: "betroffene", min: 40, max: 900, rund: 10, gen: "Beschäftigten" },
+  { einheit: "Haushalte", rolle: "betroffene", min: 20, max: 1200, rund: 10 },
+  { einheit: "Anwohner", rolle: "betroffene", min: 30, max: 2000, rund: 10 },
+  { einheit: "Arbeitsplätze", rolle: "betroffene", min: 15, max: 700, rund: 5 },
+  { einheit: "Stunden", rolle: "dauer", min: 2, max: 72, rund: 1 },
+  { einheit: "Tage", rolle: "dauer", min: 2, max: 40, rund: 1 },
+  { einheit: "Meter", rolle: "groesse", min: 8, max: 400, rund: 1 },
+  { einheit: "Quadratmeter", rolle: "groesse", min: 200, max: 40000, rund: 100 },
+  { einheit: "Unterschriften", rolle: "vorgaenge", min: 200, max: 9000, rund: 50 },
+  { einheit: "Anträge", rolle: "vorgaenge", min: 12, max: 600, rund: 1 },
+  { einheit: "Beschwerden", rolle: "vorgaenge", min: 5, max: 400, rund: 1 },
+  { einheit: "Millionen Euro", rolle: "geld", min: 2, max: 90, rund: 1 },
 ];
+
+/** Beschriftung im Faktenkasten — eine nackte Zahl sagt dort nichts. */
+export const ROLLE_LABEL: Record<ZahlRolle, string> = {
+  betroffene: "Betroffen", sache: "Gegenstand", dauer: "Dauer", groesse: "Ausdehnung",
+  vorgaenge: "Vorgänge", geld: "Volumen",
+};
 
 const ZEITPUNKT = ["am vergangenen Donnerstag", "am Montagabend", "in der Nacht zum Sonntag",
   "am frühen Morgen", "gegen Mittag", "am Dienstag"];
@@ -81,6 +98,32 @@ function rundWort(wert: number): string | undefined {
   if (!stufe) return undefined;
   const gerundet = Math.round(wert / stufe) * stufe;
   return gerundet === wert ? undefined : `rund ${zahlwort(gerundet)}`;
+}
+
+/** Das Nomen aus „Was passiert?" als Einheit — „produziert keine Lanzen mehr"
+ *  ergibt „600 Lanzen". Damit bekommt die Zahl einen Gegenstand aus dem Ereignis
+ *  statt einen beliebigen aus der Liste; genau das fehlte, als im Faktenkasten
+ *  „9 Stunden" stand.
+ *
+ *  Nur bei erkennbarem Plural: „600 Wurzel" wäre falsch, und deutsche Pluralformen
+ *  lassen sich nicht zuverlässig bilden. Im Zweifel gar nichts — dann bleibt es
+ *  bei den allgemeinen Rollen. */
+// Nur -en, -er, -e. Das blosse -n war zu weit: "Beton" endet auf -on und wurde
+// als Plural gelesen, "600 Beton" waere der Fehler gewesen, den die Zahl gerade
+// vermeiden soll. Dazu eine kurze Liste haeufiger Einzahlwoerter auf -e und -er,
+// die die Endung nicht von einem Plural unterscheiden kann.
+const PLURAL_ENDUNG = /(en|er|e)$/;
+const KEIN_SACHNOMEN = /^(Jahr|Jahre|Monat|Monate|Tag|Tage|Woche|Wochen|Stunde|Stunden|Mal|Uhr|Zeit|Welt|Leben|Anfang|Nacht|Morgen|Abend|Ende|Reihe|Farbe|Sprache|Straße|Grenze|Klasse|Frage|Stelle|Weise|Seite|Liebe|Sorge|Ruhe|Stille|Ferne|Nähe|Fenster|Wasser|Feuer|Zimmer|Wetter|Messer|Muster|Ufer|Alter|Fieber|Wunder|Zeichen|Wesen)$/;
+
+export function sachNomen(was: string): string | null {
+  const kandidaten = (was || "").match(/[A-ZÄÖÜ][a-zäöüß]{3,}/g) || [];
+  for (let i = kandidaten.length - 1; i >= 0; i--) {
+    const w = kandidaten[i]!;
+    if (KEIN_SACHNOMEN.test(w)) continue;
+    if (!PLURAL_ENDUNG.test(w)) continue;
+    return w;
+  }
+  return null;
 }
 
 /** Ganze Zahl im Bereich, auf `rund` gerundet. */
@@ -149,14 +192,28 @@ export function ziehFaktenblatt(input: GenInput): Faktenblatt {
   const wieViele = 2 + Math.floor(Math.random() * 2);
   // z1 muss eine Einheit sein, von der man "betroffen" sagen kann - der Vorspann
   // und der abgeleitete Wert bauen darauf auf.
-  const ersteBetroffen = einheiten.filter((e) => e.betroffen);
+  // z1 ist immer eine Betroffenen-Zahl - der Vorspann baut darauf auf. Danach je
+  // Rolle hoechstens eine: Zwei Dauerangaben in einem Bericht widersprechen sich
+  // eher, als dass sie etwas hinzufuegen.
+  const rollenDrin = new Set<ZahlRolle>();
+  const genitivPlural: string[] = [];
+  // Der Gegenstand aus „Was passiert?" hat Vorrang vor den allgemeinen Einheiten.
+  const sache = sachNomen(input.what || "");
+  if (sache) einheiten.unshift({ einheit: sache, rolle: "sache", min: 50, max: 9000, rund: 10 });
   for (let i = 0; i < wieViele && einheiten.length; i++) {
-    const quelle = i === 0 && ersteBetroffen.length ? ersteBetroffen : einheiten;
+    const quelle = i === 0
+      ? einheiten.filter((e) => e.rolle === "betroffene")
+      : i === 1 && sache
+        ? einheiten.filter((e) => e.rolle === "sache")       // gleich nach den Betroffenen
+        : einheiten.filter((e) => !rollenDrin.has(e.rolle));
+    if (!quelle.length) break;
     const gewaehlt = quelle[Math.floor(Math.random() * quelle.length)]!;
     const e = einheiten.splice(einheiten.indexOf(gewaehlt), 1)[0]!;
+    rollenDrin.add(e.rolle);
+    genitivPlural.push(e.gen || e.einheit);
     const wert = zahlIn(e.min, e.max, e.rund);
     zahlen.push({
-      id: `z${i + 1}`, wert, einheit: e.einheit, wortform: zahlwort(wert),
+      id: `z${i + 1}`, wert, einheit: e.einheit, wortform: zahlwort(wert), rolle: e.rolle,
       // "rund" nur, wenn das Runden auch etwas aendert - "rund 1.150" fuer 1150
       // ist keine Rundung, sondern eine Behauptung.
       verbal: rundWort(wert),
@@ -168,7 +225,7 @@ export function ziehFaktenblatt(input: GenInput): Faktenblatt {
   // 328" stimmt nicht: 655 ist ungerade, und ein Bericht, der rundet, ohne es zu
   // sagen, ist genau der Fehler, den das Faktenblatt verhindern soll.
   const abgeleitet: FbAbgeleitet[] = zahlen.length && zahlen[0]!.wert % 2 === 0
-    ? [{ id: "a1", formel: "z1 * 0.5", wortform: zahlwort(zahlen[0]!.wert / 2), label: `die Hälfte der ${zahlen[0]!.einheit}` }]
+    ? [{ id: "a1", formel: "z1 * 0.5", wortform: zahlwort(zahlen[0]!.wert / 2), label: `die Hälfte der ${genitivPlural[0] || zahlen[0]!.einheit}` }]
     : [];
 
   // Chronologie: nach Konstruktion monoton — c1 liegt vor c2 liegt vor c3.

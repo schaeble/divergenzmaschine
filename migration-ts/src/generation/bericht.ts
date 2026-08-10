@@ -10,8 +10,9 @@
 import type { Bank, GenInput } from "../types";
 import { pick } from "../text-utils";
 import { cap } from "./beats";
+import { hatFinitesVerb } from "../atoms/derive";
 
-import { ziehFaktenblatt, erlaubteZahlen, ALLE_NAMEN, type Faktenblatt, type FbPerson } from "../features/faktenblatt";
+import { ziehFaktenblatt, erlaubteZahlen, ALLE_NAMEN, ROLLE_LABEL, type Faktenblatt, type FbPerson, type FbZahl } from "../features/faktenblatt";
 import { buildVersAtome } from "../atoms/rekombination";
 
 /** Erst- und Zweitnennung: Wer schon eingeführt ist, wird nur noch kurz genannt. */
@@ -81,7 +82,7 @@ function hergang(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<stri
     if (roh) teile.push(`${cap(roh)}.`);
   }
   const z2 = fb.zahlen[1];
-  if (z2) teile.push(`Nach Angaben aus ${fb.wo.ort} geht es um ${z2.wortform} ${z2.einheit}.`);
+  if (z2) teile.push(zahlSatz(z2, fb));
   if (c3) teile.push(`${cap(c3.zeit)} folgte der Schritt, über den ${b.organisation(fb)} nun informiert.`);
   const a1 = fb.abgeleitet[0];
   if (a1) teile.push(`Betroffen ist damit ${a1.label} — ${a1.wortform}.`);
@@ -99,15 +100,20 @@ function hintergrund(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<
   const teile: string[] = [];
   const c1 = fb.chronologie[0];
   if (c1) teile.push(`${cap(b.organisation(fb))} besteht seit ${c1.zeit}.`);
+  // Rahmen nur fuer Nominalphrasen. Der Vorrat aus Atomen liefert auch ganze
+  // Saetze, und "Geblieben ist die Zuständigkeit ist unklar" hat zwei finite
+  // Verben. Jeder Rahmen zudem hoechstens einmal - beim Reihum-Zaehlen stand
+  // "Im Ort verbindet man damit" zweimal im selben Absatz.
   const rahmen = ["Im Ort verbindet man damit", "Erinnert wird an", "Geblieben ist"];
+  let r = 0;
   for (let i = 0; i < 1 + extra; i++) {
     const roh = satzOhneZahl(bank, ["motifs", "props"], benutzt, vorrat);
-    if (roh) teile.push(`${rahmen[i % rahmen.length]} ${roh}.`);
+    if (!roh) continue;
+    if (!hatFinitesVerb(roh) && r < rahmen.length) teile.push(`${rahmen[r++]} ${roh}.`);
+    else teile.push(`${cap(roh)}.`);
   }
-  // Die dritte Zahl nur nennen, wenn sie sich zaehlen laesst: "Zuletzt waren es
-  // 9 Stunden" stand im Bericht und bedeutete nichts.
   const z3 = fb.zahlen[2];
-  if (z3 && ZAEHLBAR.test(z3.einheit)) teile.push(`Gezaehlt wurden zuletzt ${z3.wortform} ${z3.einheit}.`);
+  if (z3) teile.push(zahlSatz(z3, fb));
   return teile.join(" ");
 }
 
@@ -121,8 +127,21 @@ function ausblick(fb: Faktenblatt): string {
   ]);
 }
 
-// Einheiten, von denen sich sinnvoll sagen laesst, dass sie "gezaehlt wurden".
-const ZAEHLBAR = /^(Beschäftigte|Haushalte|Anwohner|Arbeitsplätze|Unterschriften|Anträge)$/;
+/** Satz zu einer Zahl, passend zu ihrer Rolle. Eine Zahl ohne Rolle bekam vorher
+ *  einen beliebigen Rahmen — daher "Zuletzt waren es 9 Stunden", ein Satz, der
+ *  nichts behauptete. */
+function zahlSatz(z: FbZahl, fb: Faktenblatt): string {
+  const n = `${z.wortform} ${z.einheit}`;
+  switch (z.rolle) {
+    case "betroffene": return `Betroffen sind ${n}.`;
+    case "sache": return pick([`Zuletzt waren es ${n} im Jahr.`, `Es geht um ${n}.`, `${cap(n)} standen zuletzt in den Büchern.`]);
+    case "dauer": return `${cap(n)} lang stand der Betrieb still.`;
+    case "groesse": return `Das Gelände in ${fb.wo.ort} misst ${n}.`;
+    case "vorgaenge": return `${cap(n)} liegen inzwischen vor.`;
+    case "geld": return `Es geht um ${n}.`;
+    default: return `${cap(n)}.`;
+  }
+}
 
 export interface BerichtErgebnis { text: string; fb: Faktenblatt; hergang: string; }
 
@@ -137,7 +156,11 @@ export function buildBericht(bank: Bank, input: GenInput): BerichtErgebnis {
   // rund zehn Prozent darueber. 17 trifft.
   const ziel = Number.isFinite(input.lenTarget as number) ? (input.lenTarget as number) : 240;
   const extra = Math.max(0, Math.min(22, Math.round((ziel - 124) / 17)));
-  const vorrat = buildVersAtome(bank, input);
+  // Kopf-Atome wie "⟨FIGUR⟩ begreift:" verlieren beim Abschneiden des Doppelpunkts
+  // ihren Rumpf und ergeben "Ritter Ltd stellt fest." - ein Satz ohne Aussage.
+  // Fuenf Woerter als Untergrenze nehmen sie heraus; bei vier rutschte die
+  // zweiteilige Form ("stellt fest", "nimmt wahr") noch durch.
+  const vorrat = buildVersAtome(bank, input).filter((x) => x.split(/\s+/).length >= 5);
 
   const abschnitte: string[] = [];
   abschnitte.push(dachzeile(fb));
@@ -164,7 +187,7 @@ export function buildBericht(bank: Bank, input: GenInput): BerichtErgebnis {
 
   const kasten = [
     `Faktenkasten`,
-    ...fb.zahlen.map((z) => `· ${z.wortform} ${z.einheit}`),
+    ...fb.zahlen.map((z) => `· ${ROLLE_LABEL[z.rolle]}: ${z.wortform} ${z.einheit}`),
     ...fb.chronologie.map((c) => `· ${c.zeit}: ${c.was}`),
   ].join("\n");
 
