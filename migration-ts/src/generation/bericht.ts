@@ -32,12 +32,18 @@ class Buchfuehrung {
   }
 }
 
+// Der Bericht hat einen eigenen Einsatz - den des Ressorts. Die literarische
+// Formel des Presets daneben ergibt zwei Bedeutungen desselben Wortes in einem
+// Text: "Der Einsatz ist Identität: Sie wechselt die Masken" direkt neben "Auf
+// dem Spiel steht der Standort".
+const EINSATZ_FORMEL = /^(Der Einsatz ist|Es geht um|Auf dem Spiel steht|Alles dreht sich um|Was zählt, ist|Am Ende bleibt nur|Verlieren hieße)\b/i;
+
 /** Ein Satz aus dem Vorrat, der keine Ziffer enthält — Zahlen kommen NUR aus
  *  dem Faktenblatt, sonst bricht die Konsistenzprüfung. */
 function satzOhneZahl(bank: Bank, kats: (keyof Bank)[], benutzt: Set<string>, zusatz: string[] = []): string | null {
   const kandidaten: string[] = [];
   for (const k of kats) for (const x of bank[k] || []) {
-    if (/\d/.test(x)) continue;
+    if (/\d/.test(x) || EINSATZ_FORMEL.test(x)) continue;
     if (benutzt.has(x)) continue;
     kandidaten.push(x);
   }
@@ -45,7 +51,7 @@ function satzOhneZahl(bank: Bank, kats: (keyof Bank)[], benutzt: Set<string>, zu
   // kurzen Bericht, nicht fuer einen langen - bei Ziel 400 blieb es sonst bei
   // 66 Prozent der Marke, weil kein Satz mehr uebrig war.
   for (const x of zusatz) {
-    if (/\d/.test(x) || benutzt.has(x)) continue;
+    if (/\d/.test(x) || EINSATZ_FORMEL.test(x) || benutzt.has(x)) continue;
     kandidaten.push(x);
   }
   if (!kandidaten.length) return null;

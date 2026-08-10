@@ -278,7 +278,11 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
   // Nur ableiten, wenn die Rechnung aufgeht. "Die Hälfte der 655 Arbeitsplätze —
   // 328" stimmt nicht: 655 ist ungerade, und ein Bericht, der rundet, ohne es zu
   // sagen, ist genau der Fehler, den das Faktenblatt verhindern soll.
-  const abgeleitet: FbAbgeleitet[] = zahlen.length && zahlen[0]!.wert % 2 === 0
+  // Erst ab 40. "Betroffen ist damit die Haelfte der Zulieferer - 3" ist bei
+  // sechs Zulieferern keine Information, sondern eine Rechnung, die niemand
+  // gebraucht hat. Gerade muss der Wert weiterhin sein, sonst rundet der Bericht
+  // stillschweigend.
+  const abgeleitet: FbAbgeleitet[] = zahlen.length && zahlen[0]!.wert >= 40 && zahlen[0]!.wert % 2 === 0
     ? [{ id: "a1", formel: "z1 * 0.5", wortform: zahlwort(zahlen[0]!.wert / 2), label: `die Hälfte der ${genitivPlural[0] || zahlen[0]!.einheit}` }]
     : [];
 
