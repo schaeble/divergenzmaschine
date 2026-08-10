@@ -51,6 +51,12 @@ export interface Ressort {
   regel: "zweiZahlen" | "lagerAusgewogen" | "wertungGetrennt" | "ergebnisZuerst" | "einschraenkungPflicht" | "keine";
 }
 
+// Die Untergrenze der Betroffenen-Einheiten liegt bei zwoelf. Eine
+// Schlagzeilenzahl darunter traegt den Vorspann nicht: "wurde bekannt, dass 4
+// Institute betroffen sind" ist keine Nachricht. Beim ersten Versuch hatte ich
+// die Zahlen einzeln angehoben und dabei die Haelfte verfehlt, weil die Zeilen
+// nach einer frueheren Umformung anders formatiert waren - der Pruefstand hat
+// es gefunden, meine Stichprobe nicht.
 export const RESSORTS: Record<RessortId, Ressort> = {
   wirtschaft: {
     id: "wirtschaft", label: "Wirtschaft",
@@ -59,7 +65,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
     betroffen: ["der Betrieb", "die Belegschaft", "die Zulieferer", "die Auftragsbücher", "der Standort", "die Ausbildungsplätze"],
     einheiten: [
       { einheit: "Beschäftigte", rolle: "betroffene", min: 40, max: 900, rund: 10, gen: "Beschäftigten" },
-      { einheit: "Zulieferer", rolle: "betroffene", min: 3, max: 120, rund: 1 },
+      { einheit: "Zulieferer", rolle: "betroffene", min: 12, max: 120, rund: 1 },
      
       { einheit: "Millionen Euro Umsatz", rolle: "geld", min: 2, max: 900, rund: 1 },
       { einheit: "Standorte", rolle: "vorgaenge", min: 2, max: 40, rund: 1 },
@@ -77,7 +83,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
     betroffen: ["das Verfahren", "die Fraktionen", "die Kommunen", "der Zeitplan", "die Antragsteller"],
     einheiten: [
       { einheit: "Wahlberechtigte", rolle: "betroffene", min: 500, max: 90000, rund: 100, gen: "Wahlberechtigten" },
-      { einheit: "Kommunen", rolle: "betroffene", min: 2, max: 200, rund: 1 },
+      { einheit: "Kommunen", rolle: "betroffene", min: 12, max: 200, rund: 1 },
      
       { einheit: "Stimmen", rolle: "vorgaenge", min: 20, max: 700, rund: 1 },
       { einheit: "Sitzungen", rolle: "vorgaenge", min: 2, max: 60, rund: 1 },
@@ -94,7 +100,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
     rollenM: ["Intendant", "Kurator", "Dramaturg", "Kritiker"],
     betroffen: ["das Ensemble", "der Spielplan", "die Abonnenten", "die Werkstätten", "die Nachwuchsarbeit"],
     einheiten: [
-      { einheit: "Ensemblemitglieder", rolle: "betroffene", min: 6, max: 200, rund: 1 },
+      { einheit: "Ensemblemitglieder", rolle: "betroffene", min: 12, max: 200, rund: 1 },
       { einheit: "Abonnenten", rolle: "betroffene", min: 50, max: 8000, rund: 10 },
      
       { einheit: "Vorstellungen", rolle: "vorgaenge", min: 3, max: 200, rund: 1 },
@@ -131,7 +137,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
     betroffen: ["die Studie", "die Arbeitsgruppe", "die Förderung", "die Veröffentlichung", "die Datenbasis"],
     einheiten: [
       { einheit: "Teilnehmende", rolle: "betroffene", min: 12, max: 4000, rund: 1, gen: "Teilnehmenden" },
-      { einheit: "Institute", rolle: "betroffene", min: 2, max: 40, rund: 1 },
+      { einheit: "Institute", rolle: "betroffene", min: 12, max: 40, rund: 1 },
      
       { einheit: "Proben", rolle: "vorgaenge", min: 12, max: 4000, rund: 1 },
       { einheit: "Monate Laufzeit", rolle: "dauer", min: 3, max: 96, rund: 1 },
@@ -149,7 +155,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
     betroffen: ["die Nachbarschaft", "die Familien", "das Ehrenamt", "die Beratungsstelle", "der Treffpunkt"],
     einheiten: [
       { einheit: "Haushalte", rolle: "betroffene", min: 20, max: 4000, rund: 10 },
-      { einheit: "Familien", rolle: "betroffene", min: 10, max: 2000, rund: 10 },
+      { einheit: "Familien", rolle: "betroffene", min: 12, max: 2000, rund: 10 },
      
       { einheit: "Haushalte", rolle: "betroffene", min: 20, max: 4000, rund: 10 },
       { einheit: "Beratungen", rolle: "vorgaenge", min: 10, max: 900, rund: 1 },
@@ -167,7 +173,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
     betroffen: ["die Versorgung", "die Pflegekräfte", "die Notaufnahme", "die Wartezeiten", "die Angehörigen"],
     einheiten: [
       { einheit: "Patientinnen und Patienten", rolle: "betroffene", min: 30, max: 9000, rund: 10 },
-      { einheit: "Pflegekräfte", rolle: "betroffene", min: 10, max: 900, rund: 1 },
+      { einheit: "Pflegekräfte", rolle: "betroffene", min: 12, max: 900, rund: 1 },
      
       { einheit: "Betten", rolle: "groesse", min: 20, max: 1200, rund: 10 },
       { einheit: "Behandlungen", rolle: "vorgaenge", min: 30, max: 9000, rund: 10 },
@@ -187,7 +193,7 @@ export const RESSORTS: Record<RessortId, Ressort> = {
     betroffen: ["der Unterricht", "die Elternhäuser", "das Kollegium", "der Stundenplan", "die Abschlussjahrgänge"],
     einheiten: [
       { einheit: "Schülerinnen und Schüler", rolle: "betroffene", min: 30, max: 2000, rund: 10 },
-      { einheit: "Lehrkräfte", rolle: "betroffene", min: 3, max: 200, rund: 1 },
+      { einheit: "Lehrkräfte", rolle: "betroffene", min: 12, max: 200, rund: 1 },
      
       { einheit: "Schülerinnen und Schüler", rolle: "betroffene", min: 30, max: 2000, rund: 10 },
       { einheit: "Unterrichtsstunden", rolle: "dauer", min: 4, max: 400, rund: 2 },
