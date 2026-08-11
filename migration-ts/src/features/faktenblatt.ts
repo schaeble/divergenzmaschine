@@ -32,7 +32,7 @@ export interface Faktenblatt {
   ressort: RessortId;
   wer: { haupt: string; kurz: string; genus: Genus; art: "person" | "organisation" };
   was: string;
-  wo: { ort: string };
+  wo: { ort: string; mitPraep: string };
   wann: { datum: string; relativ: string };
   personen: FbPerson[];
   zahlen: FbZahl[];
@@ -120,6 +120,11 @@ function rundWort(wert: number): string | undefined {
 // Der Preis ist, dass "die Verträge" durchfällt; eine falsche Zahl im Bericht
 // wiegt schwerer als eine fehlende.
 const PLURAL_ENDUNG = /(ern|en)$/;
+// Haeufige EINZAHLwoerter auf -en. Die Endung -en ist im Deutschen kein
+// verlaesslicher Pluralmarker: Wagen, Boden, Garten, Regen, Schatten, Namen und
+// viele mehr sind Singular. "bringt Dauerregen ueber die Kueste" ergab sonst
+// "7.880 Dauerregen". Geprueft wird auch das letzte Kompositumglied.
+const EN_SINGULAR = /(regen|wagen|boden|garten|kuchen|schatten|rücken|bogen|laden|ofen|hafen|haken|balken|besen|faden|knochen|kragen|magen|nacken|namen|rasen|riemen|samen|schaden|segen|braten|graben|husten|karren|kolben|zeichen|wesen|leben|essen|wappen|becken|kissen|eisen|zeugen|glauben|willen|frieden|gedanken|kummer)$/i;
 const KEIN_SACHNOMEN = /^(Jahr|Jahre|Monat|Monate|Tag|Tage|Woche|Wochen|Stunde|Stunden|Mal|Uhr|Zeit|Welt|Leben|Anfang|Nacht|Morgen|Abend|Ende|Reihe|Farbe|Sprache|Straße|Grenze|Klasse|Frage|Stelle|Weise|Seite|Liebe|Sorge|Ruhe|Stille|Ferne|Nähe|Fenster|Wasser|Feuer|Zimmer|Wetter|Messer|Muster|Ufer|Alter|Fieber|Wunder|Zeichen|Wesen)$/;
 
 export function sachNomen(was: string): string | null {
@@ -134,12 +139,18 @@ export function sachNomen(was: string): string | null {
     if (!/^[A-ZÄÖÜ][a-zäöüß]{3,}$/.test(w)) continue;
     if (KEIN_SACHNOMEN.test(w)) continue;
     if (!PLURAL_ENDUNG.test(w)) continue;
+    if (EN_SINGULAR.test(w)) continue;
+    // Nach einer Praeposition steht kein Objekt, sondern ein Praepositionalfall -
+    // und das -n in "vor schweren Gewittern" ist der Dativ Plural, keine Menge.
+    const zwei = (woerter[i - 2] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
     const davor = (woerter[i - 1] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
     // Ein eindeutig singularer Begleiter schliesst den Plural aus. "den Konzern"
     // wurde sonst als Plural gelesen, weil das Wort auf -ern endet, und im
     // Faktenkasten stand "3.450 Konzern". "die" und "keine" bleiben erlaubt -
     // sie koennen Plural sein.
     if (/^(der|des|dem|den|das|ein|eine|einen|einem|einer|eines|jeder|jede|jedes|dieser|diese|dieses|diesem|diesen)$/.test(davor)) continue;
+    const PRAEP = /^(mit|bei|seit|von|zu|aus|nach|vor|in|an|auf|über|unter|neben|zwischen|hinter|durch|gegen|ohne|um|für)$/;
+    if (PRAEP.test(davor) || PRAEP.test(zwei)) continue;
     return w;
   }
   return null;
@@ -233,7 +244,12 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
   const werRoh = (normWho(input.who || "").split(",")[0] || "").trim() || "eine Einrichtung";
   const person = istPerson(werRoh);
   const genus = person ? "mask" : genusVon(werRoh);
-  const ort = (normWhere(input.where || "") || "").replace(/^(in|an|auf|bei|im|am)\s+/i, "").trim() || "der Ort";
+  // Auch den Artikel: "an der Unterelbe" ergab sonst die Dachzeile
+  // "der Unterelbe · Wetter".
+  const ortMitPraep = (normWhere(input.where || "") || "").trim() || "am Ort";
+  const ort = (normWhere(input.where || "") || "")
+    .replace(/^(in|an|auf|bei|im|am|vor|über|unter)\s+/i, "")
+    .replace(/^(der|die|das|dem|den)\s+/i, "").trim() || "der Ort";
   const wann = (normWhen(input.when || "") || "").trim();
 
   // Personen: eine weiblich, eine männlich — so ist die Kongruenz in den Zitaten
@@ -248,7 +264,11 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
   ];
 
   // Zahlen: zwei bis drei, jede Einheit höchstens einmal.
-  const einheiten: EinheitDef[] = [...R.einheiten, ...EINHEIT];
+  // Allgemeine Einheiten nur fuer Rollen, die das Ressort NICHT abdeckt. Sonst
+  // gewinnen sie oft: Im Wetterbericht stand "Gemessen wurden 40 Meter" und
+  // "Es geht um 80 Millionen Euro", obwohl das Ressort eigene Groessen hat.
+  const eigeneRollen = new Set(R.einheiten.map((e) => e.rolle));
+  const einheiten: EinheitDef[] = [...R.einheiten, ...EINHEIT.filter((e) => !eigeneRollen.has(e.rolle))];
   const zahlen: FbZahl[] = [];
   const wieViele = 2 + Math.floor(Math.random() * 2);
   // z1 muss eine Einheit sein, von der man "betroffen" sagen kann - der Vorspann
@@ -326,7 +346,10 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
       ? { haupt: werRoh, kurz: werRoh.split(/\s+/).pop()!, genus, art: "person" }
       : { haupt: werRoh, kurz: kurzform(werRoh, genus), genus, art: "organisation" },
     was: (input.what || "meldet einen Vorfall").trim().replace(/[.!?…]+$/, ""),
-    wo: { ort },
+    // Zwei Formen: `ort` fuer die Dachzeile ("Unterelbe · Wetter"), `mitPraep`
+    // fuer den Satz. Ohne die zweite stand "Wie es in Unterelbe weitergeht" -
+    // es heisst "an der Unterelbe".
+    wo: { ort, mitPraep: ortMitPraep },
     wann: { datum: mitPraeposition(wann) || pick(ZEITPUNKT), relativ: pick(RELATIV) },
     personen, zahlen, abgeleitet, chronologie,
     fiktion: true,

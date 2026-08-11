@@ -118,7 +118,7 @@ function vorspann(fb: Faktenblatt, b: Buchfuehrung, blick: Blick): string {
   const s1 = `${cap(b.organisation(fb))} ${fb.was}.`;
   const s2 = z
     ? `${cap(fb.wann.datum)} ${w.vorspann(`${z.verbal || z.wortform} ${z.einheit}`)}.`
-    : `${cap(fb.wann.datum)} wurde es in ${fb.wo.ort} bekannt.`;
+    : `${cap(fb.wann.datum)} wurde es ${fb.wo.mitPraep} bekannt.`;
   return `${s1} ${s2}`;
 }
 
@@ -176,9 +176,11 @@ function hintergrund(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<
   const c1 = fb.chronologie[0];
   // Eine Person "besteht" nicht seit 1988. Im Beispiel stand "Der Kraus besteht
   // seit 1988", weil `art` fest auf "organisation" stand.
-  if (c1) teile.push(fb.wer.art === "person"
-    ? `${cap(b.organisation(fb))} ist seit ${c1.zeit} dabei.`
-    : `${cap(b.organisation(fb))} besteht seit ${c1.zeit}.`);
+  const RK = RESSORTS[fb.ressort].hintergrundKopf;
+  if (c1) teile.push(RK ? RK(b.organisation(fb), c1.zeit)
+    : fb.wer.art === "person"
+      ? `${cap(b.organisation(fb))} ist seit ${c1.zeit} dabei.`
+      : `${cap(b.organisation(fb))} besteht seit ${c1.zeit}.`);
   // Rahmen nur fuer Nominalphrasen. Der Vorrat aus Atomen liefert auch ganze
   // Saetze, und "Geblieben ist die Zuständigkeit ist unklar" hat zwei finite
   // Verben. Jeder Rahmen zudem hoechstens einmal - beim Reihum-Zaehlen stand
@@ -201,9 +203,9 @@ function ausblick(fb: Faktenblatt, blick: Blick): string {
   // Abschnitt ausschliesslich auf bereits Genanntes zurueck.
   const R = RESSORTS[fb.ressort];
   return blick === "gut"
-    ? pick([...R.ausblickGut, `Wie es in ${fb.wo.ort} weitergeht, wird sich zeigen.`])
+    ? pick([...R.ausblickGut, `Wie es ${fb.wo.mitPraep} weitergeht, wird sich zeigen.`])
     : pick([...R.ausblick,
-      `Wie es in ${fb.wo.ort} weitergeht, ist offen.`,
+      `Wie es ${fb.wo.mitPraep} weitergeht, ist offen.`,
       `Ob der Schritt zurückgenommen wird, blieb ${fb.wann.relativ} unbeantwortet.`]);
 }
 

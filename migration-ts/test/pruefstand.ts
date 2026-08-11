@@ -22,6 +22,7 @@ const WER = [
   "Ritter Ltd",                 // Einrichtung mit Rechtsform
   "FC Liverpool",               // Einrichtung ohne Artikel
   "das Stadttheater",           // Einrichtung neutrum
+  "das Tief Ottilie",           // Wetterlage
   "Prof. Schwarz",              // Titel ohne Vornamen
 ];
 const WAS = [
@@ -32,6 +33,8 @@ const WAS = [
   "zeigt keine Opern mehr",                // Plural auf -ern
   "stellt den Betrieb ein",                // kein zählbares Objekt
   "will die Sonne ausknipsen",             // Singular auf -e hinter "die"
+  "warnt vor schweren Gewittern",          // Dativ Plural, kein Objekt
+  "bringt Dauerregen über die Küste",      // Einzahlwort auf -en
 ];
 const WANN = ["Frühjahr 2001", "im Jahr 1855", "am Donnerstag", "2100", ""];
 // Beide Blickrichtungen: "uplifting" meldet Gewinn, "dark" Verlust. Ein Bericht,
@@ -59,7 +62,11 @@ const VERBOTEN: [string, RegExp][] = [
   // Kein blindes Muster fuer Zahlwoerter: "vor vier Tagen" steht im Faktenblatt
   // und ist erlaubt. Die Pruefung im Programm vergleicht gegen das Faktenblatt
   // und meldet nur, was dort NICHT steht - sie laeuft unten ohnehin mit.
-  ["Singular als Menge", /\b\d[\d.]* (Sonne|Bühne|Konzern|Wahrheit|Zeit|Welt)\b/],
+  // \d+(?:\.\d+)* statt \d[\d.]*: Das erste Muster verschluckte den Satzpunkt und
+  // traf "1902. Zeit beschleunigt sich" - dieselbe Falle wie bei "210." in der
+  // Zahlenpruefung des Programms.
+  ["Singular als Menge", /\b\d+(?:\.\d+)* (Sonne|Bühne|Konzern|Wahrheit|Zeit|Welt|Dauerregen|Gewittern|Regen|Boden|Wagen)\b/],
+  ["Ort ohne Präposition", /\b(Wie es|wurde es) in (der|die|das) /],
 ];
 
 /** Prüfungen, die das Faktenblatt brauchen. */

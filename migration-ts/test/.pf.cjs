@@ -9384,8 +9384,8 @@ var RESSORTS = {
   politik: {
     id: "politik",
     label: "Politik",
-    rollenF: ["Abgeordnete", "Sprecherin der Fraktion", "Staatssekret\xE4rin", "Fraktionsvorsitzende"],
-    rollenM: ["Abgeordneter", "Sprecher der Fraktion", "Staatssekret\xE4r", "Fraktionsvorsitzender"],
+    rollenF: ["Abgeordnete", "Fraktionssprecherin", "Staatssekret\xE4rin", "Fraktionsvorsitzende"],
+    rollenM: ["Abgeordneter", "Fraktionssprecher", "Staatssekret\xE4r", "Fraktionsvorsitzender"],
     betroffen: ["das Verfahren", "die Fraktionen", "die Kommunen", "der Zeitplan", "die Antragsteller"],
     einheiten: [
       { einheit: "Wahlberechtigte", rolle: "betroffene", min: 500, max: 9e4, rund: 100, gen: "Wahlberechtigten" },
@@ -9536,17 +9536,43 @@ var RESSORTS = {
       "Das n\xE4chste Schuljahr soll Klarheit bringen."
     ],
     regel: "keine"
+  },
+  wetter: {
+    id: "wetter",
+    label: "Wetter",
+    rollenF: ["Meteorologin", "Wetterdienst-Sprecherin", "Einsatzleiterin", "Deichvorsteherin"],
+    rollenM: ["Meteorologe", "Wetterdienst-Sprecher", "Einsatzleiter", "Deichvorsteher"],
+    einheiten: [
+      { einheit: "Gemeinden", rolle: "betroffene", min: 12, max: 400, rund: 2 },
+      { einheit: "H\xF6fe", rolle: "betroffene", min: 12, max: 800, rund: 2 },
+      { einheit: "Liter je Quadratmeter", rolle: "groesse", min: 14, max: 180, rund: 2 },
+      { einheit: "Stundenkilometer", rolle: "groesse", min: 60, max: 200, rund: 5 },
+      { einheit: "Zentimeter Neuschnee", rolle: "groesse", min: 12, max: 90, rund: 2 },
+      { einheit: "Eins\xE4tze", rolle: "vorgaenge", min: 20, max: 900, rund: 2 },
+      { einheit: "Stunden Dauerregen", rolle: "dauer", min: 4, max: 60, rund: 2 }
+    ],
+    betroffen: ["die K\xFCste", "der Deich", "die Ernte", "der Bahnverkehr", "die Schulen", "die Feuerwehr", "die F\xE4hren"],
+    einsatz: [S("die Ernte"), S("der Deich"), S("der Bahnverkehr"), S("die Trinkwasserversorgung"), S("die F\xE4hrverbindung")],
+    gewinn: [S("eine trockene Erntewoche"), S("die R\xFCckkehr des Grundwassers"), S("ein mildes Wochenende"), S("die Entwarnung f\xFCr die K\xFCste")],
+    zusatz: { titel: "Aussichten", rahmen: ["F\xFCr morgen gilt:", "Zum Wochenende:", "In der Nacht:"] },
+    hintergrundKopf: (_wer, jahr) => `Vergleichbare Lagen gab es zuletzt ${jahr}.`,
+    ausblickGut: ["Die Warnung wird zum Abend aufgehoben.", "Das Hoch soll sich bis zur Wochenmitte halten."],
+    ausblick: ["Die Warnstufe bleibt vorerst bestehen.", "Wie lange die Lage anh\xE4lt, ist offen."],
+    // Keine Sonderregel: Ein Wetterbericht, der Zahlen erzwingt, erfindet
+    // Messwerte - und ein erfundener Messwert ist schlimmer als keiner.
+    regel: "keine"
   }
 };
 var RESSORT_IDS = Object.keys(RESSORTS);
 var SPUR = [
-  ["sport", /\b(spielt|spielen|spiel|tor|tore|mannschaft|trainer|trainiert|liga|stadion|wettkampf|sieg|niederlage|halbzeit|verein|klub|club|fc|sv|tsv|bvb|meisterschaft|turnier|pokal|elf|kader|transfer|saison)\b/i],
-  ["kultur", /\b(bühne|theater|roman|gedicht|ausstellung|museum|konzert|oper|film|publikum|werk)\b/i],
-  ["politik", /\b(regierung|partei|fraktion|gesetz|wahl|parlament|abstimmung|minister|verfahren)\b/i],
-  ["wissenschaft", /\b(studie|forschung|labor|messung|befund|experiment|hypothese|probe|institut)\b/i],
-  ["gesundheit", /\b(klinik|krankenhaus|arzt|ärztin|pflege|patient|diagnose|behandlung|seuche|impf)\b/i],
-  ["bildung", /\b(schule|unterricht|klasse|lehrer|lehrerin|prüfung|schüler|universität|studium)\b/i],
-  ["wirtschaft", /\b(werft|betrieb|firma|unternehmen|konzern|gmbh|ag|holding|umsatz|markt|produktion|belegschaft|insolvenz|werk|fabrik|filiale|standort|schliessen|schließt|schließen)\b/i]
+  ["wetter", /\b(wetter|sturm|orkan|regen|schnee|hitze|frost|gewitter|hochwasser|dürre|dürre|unwetter|hagel|nebel|windböen|tief|hoch|warnstufe|deich|überschwemmung|glatteis|temperatur)\w*/i],
+  ["sport", /\b(spielt|spielen|spiel|tor|tore|mannschaft|trainer|trainiert|liga|stadion|wettkampf|sieg|niederlage|halbzeit|verein|klub|club|fc|sv|tsv|bvb|meisterschaft|turnier|pokal|elf|kader|transfer|saison)\w*/i],
+  ["kultur", /\b(bühne|theater|roman|gedicht|ausstellung|museum|konzert|oper|film|publikum|werk)\w*/i],
+  ["politik", /\b(regierung|partei|fraktion|gesetz|wahl|parlament|abstimmung|minister|verfahren)\w*/i],
+  ["wissenschaft", /\b(studie|forschung|labor|messung|befund|experiment|hypothese|probe|institut)\w*/i],
+  ["gesundheit", /\b(klinik|krankenhaus|arzt|ärztin|pflege|patient|diagnose|behandlung|seuche|impf)\w*/i],
+  ["bildung", /\b(schule|unterricht|klasse|lehrer|lehrerin|prüfung|schüler|universität|studium)\w*/i],
+  ["wirtschaft", /\b(werft|betrieb|firma|unternehmen|konzern|gmbh|ag|holding|umsatz|markt|produktion|belegschaft|insolvenz|werk|fabrik|filiale|standort|schliessen|schließt|schließen)\w*/i]
 ];
 function rateRessort(text) {
   for (const [id, re] of SPUR) if (re.test(text)) return id;
@@ -9616,6 +9642,7 @@ function rundWort(wert) {
   return gerundet === wert ? void 0 : `rund ${zahlwort(gerundet)}`;
 }
 var PLURAL_ENDUNG = /(ern|en)$/;
+var EN_SINGULAR = /(regen|wagen|boden|garten|kuchen|schatten|rücken|bogen|laden|ofen|hafen|haken|balken|besen|faden|knochen|kragen|magen|nacken|namen|rasen|riemen|samen|schaden|segen|braten|graben|husten|karren|kolben|zeichen|wesen|leben|essen|wappen|becken|kissen|eisen|zeugen|glauben|willen|frieden|gedanken|kummer)$/i;
 var KEIN_SACHNOMEN = /^(Jahr|Jahre|Monat|Monate|Tag|Tage|Woche|Wochen|Stunde|Stunden|Mal|Uhr|Zeit|Welt|Leben|Anfang|Nacht|Morgen|Abend|Ende|Reihe|Farbe|Sprache|Straße|Grenze|Klasse|Frage|Stelle|Weise|Seite|Liebe|Sorge|Ruhe|Stille|Ferne|Nähe|Fenster|Wasser|Feuer|Zimmer|Wetter|Messer|Muster|Ufer|Alter|Fieber|Wunder|Zeichen|Wesen)$/;
 function sachNomen(was) {
   const woerter2 = (was || "").split(/\s+/);
@@ -9624,8 +9651,12 @@ function sachNomen(was) {
     if (!/^[A-ZÄÖÜ][a-zäöüß]{3,}$/.test(w)) continue;
     if (KEIN_SACHNOMEN.test(w)) continue;
     if (!PLURAL_ENDUNG.test(w)) continue;
+    if (EN_SINGULAR.test(w)) continue;
+    const zwei = (woerter2[i2 - 2] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
     const davor = (woerter2[i2 - 1] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
     if (/^(der|des|dem|den|das|ein|eine|einen|einem|einer|eines|jeder|jede|jedes|dieser|diese|dieses|diesem|diesen)$/.test(davor)) continue;
+    const PRAEP = /^(mit|bei|seit|von|zu|aus|nach|vor|in|an|auf|über|unter|neben|zwischen|hinter|durch|gegen|ohne|um|für)$/;
+    if (PRAEP.test(davor) || PRAEP.test(zwei)) continue;
     return w;
   }
   return null;
@@ -9685,7 +9716,8 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
   const werRoh = (normWho(input.who || "").split(",")[0] || "").trim() || "eine Einrichtung";
   const person = istPerson(werRoh);
   const genus = person ? "mask" : genusVon(werRoh);
-  const ort = (normWhere(input.where || "") || "").replace(/^(in|an|auf|bei|im|am)\s+/i, "").trim() || "der Ort";
+  const ortMitPraep = (normWhere(input.where || "") || "").trim() || "am Ort";
+  const ort = (normWhere(input.where || "") || "").replace(/^(in|an|auf|bei|im|am|vor|über|unter)\s+/i, "").replace(/^(der|die|das|dem|den)\s+/i, "").trim() || "der Ort";
   const wann = (normWhen(input.when || "") || "").trim();
   const nachnamen = [...NACHNAME];
   const zieheNach = () => nachnamen.splice(Math.floor(Math.random() * nachnamen.length), 1)[0];
@@ -9694,7 +9726,8 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
     { id: "p1", name: `${pick(VORNAME_F)} ${n1}`, kurz: n1, rolle: pick(R.rollenF.length ? R.rollenF : ROLLE_F), genus: "fem", zitierfaehig: true },
     { id: "p2", name: `${pick(VORNAME_M)} ${n2}`, kurz: n2, rolle: pick(R.rollenM.length ? R.rollenM : ROLLE_M), genus: "mask", zitierfaehig: true }
   ];
-  const einheiten = [...R.einheiten, ...EINHEIT];
+  const eigeneRollen = new Set(R.einheiten.map((e) => e.rolle));
+  const einheiten = [...R.einheiten, ...EINHEIT.filter((e) => !eigeneRollen.has(e.rolle))];
   const zahlen = [];
   const wieViele = 2 + Math.floor(Math.random() * 2);
   const rollenDrin = /* @__PURE__ */ new Set();
@@ -9740,7 +9773,10 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
     ressort,
     wer: person ? { haupt: werRoh, kurz: werRoh.split(/\s+/).pop(), genus, art: "person" } : { haupt: werRoh, kurz: kurzform(werRoh, genus), genus, art: "organisation" },
     was: (input.what || "meldet einen Vorfall").trim().replace(/[.!?…]+$/, ""),
-    wo: { ort },
+    // Zwei Formen: `ort` fuer die Dachzeile ("Unterelbe · Wetter"), `mitPraep`
+    // fuer den Satz. Ohne die zweite stand "Wie es in Unterelbe weitergeht" -
+    // es heisst "an der Unterelbe".
+    wo: { ort, mitPraep: ortMitPraep },
     wann: { datum: mitPraeposition(wann) || pick(ZEITPUNKT), relativ: pick(RELATIV) },
     personen,
     zahlen,
@@ -9820,7 +9856,7 @@ function vorspann(fb, b, blick) {
   const z = fb.zahlen[0];
   const w = WORTE[blick];
   const s1 = `${cap2(b.organisation(fb))} ${fb.was}.`;
-  const s2 = z ? `${cap2(fb.wann.datum)} ${w.vorspann(`${z.verbal || z.wortform} ${z.einheit}`)}.` : `${cap2(fb.wann.datum)} wurde es in ${fb.wo.ort} bekannt.`;
+  const s2 = z ? `${cap2(fb.wann.datum)} ${w.vorspann(`${z.verbal || z.wortform} ${z.einheit}`)}.` : `${cap2(fb.wann.datum)} wurde es ${fb.wo.mitPraep} bekannt.`;
   return `${s1} ${s2}`;
 }
 function hergang(fb, bank, b, benutzt, extra, vorrat, blick) {
@@ -9862,7 +9898,8 @@ function zitat(fb, bank, b, benutzt, welche, vorrat) {
 function hintergrund(fb, bank, b, benutzt, extra, vorrat) {
   const teile = [];
   const c1 = fb.chronologie[0];
-  if (c1) teile.push(fb.wer.art === "person" ? `${cap2(b.organisation(fb))} ist seit ${c1.zeit} dabei.` : `${cap2(b.organisation(fb))} besteht seit ${c1.zeit}.`);
+  const RK = RESSORTS[fb.ressort].hintergrundKopf;
+  if (c1) teile.push(RK ? RK(b.organisation(fb), c1.zeit) : fb.wer.art === "person" ? `${cap2(b.organisation(fb))} ist seit ${c1.zeit} dabei.` : `${cap2(b.organisation(fb))} besteht seit ${c1.zeit}.`);
   const rahmen = ["Im Ort verbindet man damit", "Erinnert wird an", "Geblieben ist"];
   let r = 0;
   for (let i2 = 0; i2 < 1 + extra; i2++) {
@@ -9877,9 +9914,9 @@ function hintergrund(fb, bank, b, benutzt, extra, vorrat) {
 }
 function ausblick(fb, blick) {
   const R = RESSORTS[fb.ressort];
-  return blick === "gut" ? pick([...R.ausblickGut, `Wie es in ${fb.wo.ort} weitergeht, wird sich zeigen.`]) : pick([
+  return blick === "gut" ? pick([...R.ausblickGut, `Wie es ${fb.wo.mitPraep} weitergeht, wird sich zeigen.`]) : pick([
     ...R.ausblick,
-    `Wie es in ${fb.wo.ort} weitergeht, ist offen.`,
+    `Wie es ${fb.wo.mitPraep} weitergeht, ist offen.`,
     `Ob der Schritt zur\xFCckgenommen wird, blieb ${fb.wann.relativ} unbeantwortet.`
   ]);
 }

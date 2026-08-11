@@ -10,7 +10,7 @@ import type { ZahlRolle } from "./faktenblatt";
 
 export type RessortId =
   | "wirtschaft" | "politik" | "kultur" | "sport"
-  | "wissenschaft" | "gesellschaft" | "gesundheit" | "bildung";
+  | "wissenschaft" | "gesellschaft" | "gesundheit" | "bildung" | "wetter";
 
 export interface RessortEinheit {
   einheit: string; rolle: ZahlRolle; min: number; max: number; rund: number; gen?: string;
@@ -54,6 +54,9 @@ export interface Ressort {
    *  fehlte: Bei einem Sportbericht sind Verein, Fans, Marketing und Logo
    *  betroffen, nicht „Haushalte". */
   betroffen: string[];
+  /** Satz, der den Hintergrund eroeffnet. Vorgabe ist „besteht seit ⟨Jahr⟩" —
+   *  bei einem Sturmtief ergibt das „Das Ottilie besteht seit 1952". */
+  hintergrundKopf?: (wer: string, jahr: string) => string;
   /** Sonderregel, die die Prüfung kennt. */
   regel: "zweiZahlen" | "lagerAusgewogen" | "wertungGetrennt" | "ergebnisZuerst" | "einschraenkungPflicht" | "keine";
 }
@@ -87,8 +90,8 @@ export const RESSORTS: Record<RessortId, Ressort> = {
   },
   politik: {
     id: "politik", label: "Politik",
-    rollenF: ["Abgeordnete", "Sprecherin der Fraktion", "Staatssekretärin", "Fraktionsvorsitzende"],
-    rollenM: ["Abgeordneter", "Sprecher der Fraktion", "Staatssekretär", "Fraktionsvorsitzender"],
+    rollenF: ["Abgeordnete", "Fraktionssprecherin", "Staatssekretärin", "Fraktionsvorsitzende"],
+    rollenM: ["Abgeordneter", "Fraktionssprecher", "Staatssekretär", "Fraktionsvorsitzender"],
     betroffen: ["das Verfahren", "die Fraktionen", "die Kommunen", "der Zeitplan", "die Antragsteller"],
     einheiten: [
       { einheit: "Wahlberechtigte", rolle: "betroffene", min: 500, max: 90000, rund: 100, gen: "Wahlberechtigten" },
@@ -227,20 +230,48 @@ export const RESSORTS: Record<RessortId, Ressort> = {
       "Das nächste Schuljahr soll Klarheit bringen."],
     regel: "keine",
   },
+  wetter: {
+    id: "wetter", label: "Wetter",
+    rollenF: ["Meteorologin", "Wetterdienst-Sprecherin", "Einsatzleiterin", "Deichvorsteherin"],
+    rollenM: ["Meteorologe", "Wetterdienst-Sprecher", "Einsatzleiter", "Deichvorsteher"],
+    einheiten: [
+      { einheit: "Gemeinden", rolle: "betroffene", min: 12, max: 400, rund: 2 },
+      { einheit: "Höfe", rolle: "betroffene", min: 12, max: 800, rund: 2 },
+      { einheit: "Liter je Quadratmeter", rolle: "groesse", min: 14, max: 180, rund: 2 },
+      { einheit: "Stundenkilometer", rolle: "groesse", min: 60, max: 200, rund: 5 },
+      { einheit: "Zentimeter Neuschnee", rolle: "groesse", min: 12, max: 90, rund: 2 },
+      { einheit: "Einsätze", rolle: "vorgaenge", min: 20, max: 900, rund: 2 },
+      { einheit: "Stunden Dauerregen", rolle: "dauer", min: 4, max: 60, rund: 2 },
+    ],
+    betroffen: ["die Küste", "der Deich", "die Ernte", "der Bahnverkehr", "die Schulen", "die Feuerwehr", "die Fähren"],
+    einsatz: [S("die Ernte"), S("der Deich"), S("der Bahnverkehr"), S("die Trinkwasserversorgung"), S("die Fährverbindung")],
+    gewinn: [S("eine trockene Erntewoche"), S("die Rückkehr des Grundwassers"), S("ein mildes Wochenende"), S("die Entwarnung für die Küste")],
+    zusatz: { titel: "Aussichten", rahmen: ["Für morgen gilt:", "Zum Wochenende:", "In der Nacht:"] },
+    hintergrundKopf: (_wer, jahr) => `Vergleichbare Lagen gab es zuletzt ${jahr}.`,
+    ausblickGut: ["Die Warnung wird zum Abend aufgehoben.", "Das Hoch soll sich bis zur Wochenmitte halten."],
+    ausblick: ["Die Warnstufe bleibt vorerst bestehen.", "Wie lange die Lage anhält, ist offen."],
+    // Keine Sonderregel: Ein Wetterbericht, der Zahlen erzwingt, erfindet
+    // Messwerte - und ein erfundener Messwert ist schlimmer als keiner.
+    regel: "keine",
+  },
 };
 
 export const RESSORT_IDS = Object.keys(RESSORTS) as RessortId[];
 
 /** Ressort aus dem Stoff raten, wenn „Auto" eingestellt ist. Stichwörter, keine
  *  Klugheit — und im Zweifel Gesellschaft, das trägt am meisten. */
+// Die Stichwoerter stehen mit \w* am Ende: "Gewittern" ist "gewitter" im Dativ
+// Plural, und mit \b am Schluss fiel es durch - der Bericht landete im Ressort
+// Gesellschaft.
 const SPUR: [RessortId, RegExp][] = [
-  ["sport", /\b(spielt|spielen|spiel|tor|tore|mannschaft|trainer|trainiert|liga|stadion|wettkampf|sieg|niederlage|halbzeit|verein|klub|club|fc|sv|tsv|bvb|meisterschaft|turnier|pokal|elf|kader|transfer|saison)\b/i],
-  ["kultur", /\b(bühne|theater|roman|gedicht|ausstellung|museum|konzert|oper|film|publikum|werk)\b/i],
-  ["politik", /\b(regierung|partei|fraktion|gesetz|wahl|parlament|abstimmung|minister|verfahren)\b/i],
-  ["wissenschaft", /\b(studie|forschung|labor|messung|befund|experiment|hypothese|probe|institut)\b/i],
-  ["gesundheit", /\b(klinik|krankenhaus|arzt|ärztin|pflege|patient|diagnose|behandlung|seuche|impf)\b/i],
-  ["bildung", /\b(schule|unterricht|klasse|lehrer|lehrerin|prüfung|schüler|universität|studium)\b/i],
-  ["wirtschaft", /\b(werft|betrieb|firma|unternehmen|konzern|gmbh|ag|holding|umsatz|markt|produktion|belegschaft|insolvenz|werk|fabrik|filiale|standort|schliessen|schließt|schließen)\b/i],
+  ["wetter", /\b(wetter|sturm|orkan|regen|schnee|hitze|frost|gewitter|hochwasser|dürre|dürre|unwetter|hagel|nebel|windböen|tief|hoch|warnstufe|deich|überschwemmung|glatteis|temperatur)\w*/i],
+  ["sport", /\b(spielt|spielen|spiel|tor|tore|mannschaft|trainer|trainiert|liga|stadion|wettkampf|sieg|niederlage|halbzeit|verein|klub|club|fc|sv|tsv|bvb|meisterschaft|turnier|pokal|elf|kader|transfer|saison)\w*/i],
+  ["kultur", /\b(bühne|theater|roman|gedicht|ausstellung|museum|konzert|oper|film|publikum|werk)\w*/i],
+  ["politik", /\b(regierung|partei|fraktion|gesetz|wahl|parlament|abstimmung|minister|verfahren)\w*/i],
+  ["wissenschaft", /\b(studie|forschung|labor|messung|befund|experiment|hypothese|probe|institut)\w*/i],
+  ["gesundheit", /\b(klinik|krankenhaus|arzt|ärztin|pflege|patient|diagnose|behandlung|seuche|impf)\w*/i],
+  ["bildung", /\b(schule|unterricht|klasse|lehrer|lehrerin|prüfung|schüler|universität|studium)\w*/i],
+  ["wirtschaft", /\b(werft|betrieb|firma|unternehmen|konzern|gmbh|ag|holding|umsatz|markt|produktion|belegschaft|insolvenz|werk|fabrik|filiale|standort|schliessen|schließt|schließen)\w*/i],
 ];
 
 export function rateRessort(text: string): RessortId {
