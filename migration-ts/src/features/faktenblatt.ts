@@ -229,6 +229,7 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
     ? rateRessort([input.who, input.what, input.where].filter(Boolean).join(" "))
     : ressortWahl;
   const R = RESSORTS[ressort];
+  const gutesLicht = /^(uplifting|humorous|zaertlich)$/i.test(input.tone || "");
   const werRoh = (normWho(input.who || "").split(",")[0] || "").trim() || "eine Einrichtung";
   const person = istPerson(werRoh);
   const genus = person ? "mask" : genusVon(werRoh);
@@ -310,7 +311,9 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
   const jahr = Math.max(1200, bezug - spanne);
   const chronologie: FbChrono[] = [
     { id: "c1", zeit: String(jahr), was: "der Anfang" },
-    { id: "c2", zeit: "im Frühjahr", was: "die erste Meldung" },
+    // Auch die Chronologie kennt die Blickrichtung: Im Faktenkasten stand sonst
+    // "die erste Meldung", waehrend im Text "die erste Zusage" lief.
+    { id: "c2", zeit: "im Frühjahr", was: gutesLicht ? "die erste Zusage" : "die erste Meldung" },
     // Dieselbe Form wie im Vorspann, sonst steht dort "Im Frühjahr 2001" und
     // im Hergang "Frühjahr 2001 folgte der Schritt".
     { id: "c3", zeit: mitPraeposition(wann) || pick(ZEITPUNKT), was: (input.what || "das Ereignis").trim() },

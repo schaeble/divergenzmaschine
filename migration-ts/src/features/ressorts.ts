@@ -41,6 +41,13 @@ export interface Ressort {
    *  Einsätze des Presets zurück — daher „Der Einsatz ist Freiheit: Sie hängt an
    *  einem Stempel" in einem Wirtschaftsbericht. */
   einsatz: EinsatzTeil[];
+  /** Was in Aussicht steht, wenn die Nachricht eine gute ist. Gegenstueck zu
+   *  `einsatz`: Der Bericht war durchgehend auf Verlust gebaut - „betroffen",
+   *  „auf dem Spiel", „die erste Meldung" -, und ein hoffnungsvoller Ton konnte
+   *  daran nichts aendern, weil die Woerter selbst die Richtung vorgaben. */
+  gewinn: EinsatzTeil[];
+  /** Ausblick, wenn die Nachricht eine gute ist. */
+  ausblickGut: string[];
   /** Was der Abschnitt „Ausblick" in diesem Ressort sagen darf. */
   ausblick: string[];
   /** Wer oder was in diesem Ressort betroffen sein kann — OHNE Zahl. Genau das
@@ -72,6 +79,8 @@ export const RESSORTS: Record<RessortId, Ressort> = {
     ],
     zusatz: { titel: "Marktreaktion", rahmen: ["Am Markt heißt es:", "In der Branche gilt:", "Beobachter verweisen auf:"] },
     einsatz: [S("der Standort"), S("die Altersversorgung der Belegschaft"), P("die Ausbildungsplätze"), S("der Name des Hauses"), S("die Lieferkette"), S("das Werksgelände")],
+    gewinn: [S("ein zweites Werk"), S("die Ausbildungsoffensive"), S("der Ausbau des Standorts"), S("die Rückkehr der Aufträge"), S("ein neuer Tarifvertrag")],
+    ausblickGut: ["Ob die Zahlen halten, entscheidet sich im nächsten Quartal.", "Die ersten Einstellungen sind fuer den Herbst angekündigt."],
     ausblick: ["Ob die Zahlen halten, entscheidet sich im nächsten Quartal.",
       "Eine Entscheidung soll in den kommenden Tagen fallen."],
     regel: "zweiZahlen",
@@ -90,6 +99,8 @@ export const RESSORTS: Record<RessortId, Ressort> = {
     ],
     zusatz: { titel: "Reaktionen", rahmen: ["Aus der Regierung heißt es:", "Die Opposition hält dagegen:", "Aus den Ländern kommt:"] },
     einsatz: [S("die Mehrheit"), S("der Zeitplan des Verfahrens"), S("das Vertrauen in die Zusage"), S("die Zuständigkeit der Kommunen"), S("der Haushaltsansatz")],
+    gewinn: [S("eine breite Mehrheit"), S("die Zustimmung der Länder"), S("ein früherer Beginn"), S("die Aufstockung der Mittel")],
+    ausblickGut: ["Der Beschluss soll in der nächsten Sitzung bestätigt werden.", "Die Umsetzung beginnt im kommenden Jahr."],
     ausblick: ["Der Verfahrensstand bleibt bis zur nächsten Sitzung unverändert.",
       "Ob es zur Abstimmung kommt, ist offen."],
     regel: "lagerAusgewogen",
@@ -108,6 +119,8 @@ export const RESSORTS: Record<RessortId, Ressort> = {
     ],
     zusatz: { titel: "Zum Werk", rahmen: ["Zu sehen ist:", "Die Arbeit zeigt:", "Auf der Bühne steht:"] },
     einsatz: [S("der Spielplan der kommenden Saison"), S("das Ensemble in seiner jetzigen Form"), P("die Werkstätten"), S("das Haus als Ort"), S("die Nachwuchsarbeit")],
+    gewinn: [S("eine zweite Spielstätte"), S("die Übernahme ins Repertoire"), S("ein eigenes Nachwuchsstudio"), S("die Verlaengerung der Reihe")],
+    ausblickGut: ["Die nächste Aufführung ist angekündigt.", "Weitere Termine sollen folgen."],
     ausblick: ["Ob das Publikum folgt, wird sich zeigen.",
       "Die nächste Aufführung ist angekündigt."],
     regel: "wertungGetrennt",
@@ -126,6 +139,8 @@ export const RESSORTS: Record<RessortId, Ressort> = {
     ],
     zusatz: { titel: "Spielverlauf", rahmen: ["Nach der Pause:", "In der Schlussphase:", "Zur Halbzeit:"] },
     einsatz: [S("der Klassenerhalt"), S("die Lizenz"), S("die Nachwuchsabteilung"), S("der Name des Vereins"), S("die Heimspielstätte"), S("das Traineramt")],
+    gewinn: [S("der Aufstieg"), S("ein neuer Hauptsponsor"), S("der Ausbau der Jugendabteilung"), S("die Rückkehr in die Halle")],
+    ausblickGut: ["Das Rückspiel steht noch aus.", "Die Vorbereitung beginnt im Sommer."],
     ausblick: ["Das Rückspiel steht noch aus.",
       "Ob die Serie hält, entscheidet sich am Wochenende."],
     regel: "ergebnisZuerst",
@@ -144,6 +159,8 @@ export const RESSORTS: Record<RessortId, Ressort> = {
     ],
     zusatz: { titel: "Methode", rahmen: ["Untersucht wurde:", "Erhoben wurden:", "Verglichen wurde:"] },
     einsatz: [S("die Förderung"), S("die Vergleichbarkeit der Daten"), S("die Veröffentlichung"), S("der Standort des Instituts"), S("die Fortsetzung der Reihe")],
+    gewinn: [S("eine Anschlussfoerderung"), S("ein zweiter Standort"), S("die Aufnahme in das Programm"), S("ein gemeinsames Labor")],
+    ausblickGut: ["Eine Wiederholung der Studie ist geplant.", "Die Ergebnisse sollen offen zugänglich werden."],
     ausblick: ["Eine Wiederholung der Studie steht aus.",
       "Ob sich der Befund bestätigt, ist offen."],
     regel: "einschraenkungPflicht",
@@ -162,6 +179,8 @@ export const RESSORTS: Record<RessortId, Ressort> = {
     ],
     zusatz: { titel: "Vor Ort", rahmen: ["Im Viertel heißt es:", "Nachbarn berichten:", "In der Beratungsstelle:"] },
     einsatz: [S("der Treffpunkt im Viertel"), S("die Beratung vor Ort"), S("das Ehrenamt"), S("die Mietbindung"), S("der Zusammenhalt in der Nachbarschaft")],
+    gewinn: [S("ein neuer Treffpunkt"), S("die Verstetigung der Beratung"), S("mehr Plätze im Ehrenamt"), S("ein Nachbarschaftsfonds")],
+    ausblickGut: ["Das Angebot soll im Frühjahr starten.", "Weitere Häuser haben Interesse angemeldet."],
     ausblick: ["Wie es im Viertel weitergeht, ist offen.",
       "Eine Entscheidung soll in den kommenden Wochen fallen."],
     regel: "keine",
@@ -180,6 +199,8 @@ export const RESSORTS: Record<RessortId, Ressort> = {
     ],
     zusatz: { titel: "Einordnung der Lage", rahmen: ["Aus der Klinik heißt es:", "Die Behörde teilt mit:", "In der Versorgung zeigt sich:"] },
     einsatz: [S("die Versorgung im Umkreis"), S("die Notaufnahme"), P("die Ausbildungsplätze in der Pflege"), P("die Wartezeiten"), S("der Standort der Klinik")],
+    gewinn: [S("eine zusaetzliche Station"), S("kürzere Wartezeiten"), S("mehr Ausbildungsplätze in der Pflege"), S("ein zweiter Rettungswagen")],
+    ausblickGut: ["Die Station soll im Herbst öffnen.", "Die Versorgung im Umkreis wird neu geordnet."],
     ausblick: ["Wie sich die Lage entwickelt, bleibt abzuwarten.",
       "Eine Neubewertung ist für die kommende Woche angekündigt."],
     // Bewusst keine Sonderregel mit Zahlenpflicht: Gesundheitsberichte, die
@@ -200,6 +221,8 @@ export const RESSORTS: Record<RessortId, Ressort> = {
     ],
     zusatz: { titel: "An der Schule", rahmen: ["Im Kollegium heißt es:", "Aus der Elternschaft:", "Im Unterricht zeigt sich:"] },
     einsatz: [S("der Ganztag"), S("das Abschlussjahr"), P("die Stellen im Kollegium"), S("der Schulstandort"), S("die Betreuung am Nachmittag")],
+    gewinn: [S("zusätzliche Klassen"), S("der Ausbau des Ganztags"), S("zusaetzliche Stellen im Kollegium"), S("eine eigene Werkstatt")],
+    ausblickGut: ["Der Start ist fuer das kommende Schuljahr geplant.", "Die Stellen sollen zum Halbjahr besetzt werden."],
     ausblick: ["Ob die Stunden ersetzt werden, ist offen.",
       "Das nächste Schuljahr soll Klarheit bringen."],
     regel: "keine",

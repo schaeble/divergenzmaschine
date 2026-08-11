@@ -16,6 +16,39 @@ import { ziehFaktenblatt, erlaubteZahlen, ALLE_NAMEN, ROLLE_LABEL, type Faktenbl
 import { buildVersAtome } from "../atoms/rekombination";
 import { RESSORTS, type RessortId } from "../features/ressorts";
 
+/** Blickrichtung des Berichts. Der Ton bestimmt sie: "Hoffnungsvoll",
+ *  "Humorvoll" und "Zärtlich" melden Gewinn, alles andere meldet Verlust oder
+ *  bleibt sachlich. Ohne diese Unterscheidung stand in jedem Blatt "betroffen
+ *  sind", "auf dem Spiel steht", "die erste Meldung" - Wörter, die die Richtung
+ *  vorgeben, gleich wie der Ton eingestellt war. */
+export type Blick = "gut" | "sachlich";
+const GUTE_TOENE = new Set(["uplifting", "humorous", "zaertlich"]);
+export const blickVonTon = (ton: string): Blick =>
+  GUTE_TOENE.has((ton || "").toLowerCase()) ? "gut" : "sachlich";
+
+/** Wortwahl je Blickrichtung. Eine Tabelle statt verstreuter Bedingungen: So
+ *  laesst sich nachlesen, worin sich die beiden Fassungen unterscheiden. */
+const WORTE = {
+  sachlich: {
+    vorspann: (n: string) => `wurde bekannt, dass ${n} betroffen sind`,
+    ersteMeldung: "die erste Meldung",
+    // Das Bezugswort steckt im Satz: "der Schritt, ueber DEN". Als ich nur das
+    // Nomen austauschte, stand "folgte der Schritt, ueber die ...".
+    schritt: (wer: string) => `folgte der Schritt, über den ${wer} nun informiert`,
+    haelfte: (l: string, w: string) => `Betroffen ist damit ${l} — ${w}.`,
+    einsatz: (mehr: boolean, x: string) => `Auf dem Spiel ${mehr ? "stehen" : "steht"} ${x}.`,
+    weitere: (x: string) => `Betroffen sind außerdem ${x}.`,
+  },
+  gut: {
+    vorspann: (n: string) => `wurde bekannt, dass ${n} hinzukommen`,
+    ersteMeldung: "die erste Zusage",
+    schritt: (wer: string) => `folgte die Entscheidung, über die ${wer} nun informiert`,
+    haelfte: (l: string, w: string) => `${cap(l)} — ${w} — entsteht im ersten Jahr.`,
+    einsatz: (mehr: boolean, x: string) => `In Aussicht ${mehr ? "stehen" : "steht"} ${x}.`,
+    weitere: (x: string) => `Profitieren werden außerdem ${x}.`,
+  },
+} as const;
+
 /** Erst- und Zweitnennung: Wer schon eingeführt ist, wird nur noch kurz genannt. */
 class Buchfuehrung {
   private drin = new Set<string>();
@@ -79,42 +112,45 @@ function dachzeile(fb: Faktenblatt): string {
   return `${fb.wo.ort} · ${RESSORTS[fb.ressort].label}`;
 }
 
-function vorspann(fb: Faktenblatt, b: Buchfuehrung): string {
+function vorspann(fb: Faktenblatt, b: Buchfuehrung, blick: Blick): string {
   const z = fb.zahlen[0];
+  const w = WORTE[blick];
   const s1 = `${cap(b.organisation(fb))} ${fb.was}.`;
   const s2 = z
-    ? `${cap(fb.wann.datum)} wurde bekannt, dass ${z.verbal || z.wortform} ${z.einheit} betroffen sind.`
-    : `${cap(fb.wann.datum)} wurde der Schritt in ${fb.wo.ort} bekannt.`;
+    ? `${cap(fb.wann.datum)} ${w.vorspann(`${z.verbal || z.wortform} ${z.einheit}`)}.`
+    : `${cap(fb.wann.datum)} wurde es in ${fb.wo.ort} bekannt.`;
   return `${s1} ${s2}`;
 }
 
-function hergang(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<string>, extra: number, vorrat: string[]): string {
+function hergang(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<string>, extra: number, vorrat: string[], blick: Blick): string {
   const teile: string[] = [];
+  const w = WORTE[blick];
   const c2 = fb.chronologie[1], c3 = fb.chronologie[2];
-  if (c2) teile.push(`${cap(c2.zeit)} zeichnete sich ${c2.was} ab.`);
+  if (c2) teile.push(`${cap(c2.zeit)} zeichnete sich ${blick === "gut" ? w.ersteMeldung : c2.was} ab.`);
   for (let i = 0; i < 1 + extra; i++) {
     const roh = satzOhneZahl(bank, ["obstacles", "turns"], benutzt, vorrat);
     if (roh) teile.push(`${cap(roh)}.`);
   }
   const z2 = fb.zahlen[1];
   if (z2) teile.push(zahlSatz(z2));
-  if (c3) teile.push(`${cap(c3.zeit)} folgte der Schritt, über den ${b.organisation(fb)} nun informiert.`);
+  if (c3) teile.push(`${cap(c3.zeit)} ${w.schritt(b.organisation(fb))}.`);
   const a1 = fb.abgeleitet[0];
-  if (a1) teile.push(`Betroffen ist damit ${a1.label} — ${a1.wortform}.`);
+  if (a1) teile.push(w.haelfte(a1.label, a1.wortform));
   // Was außerdem betroffen ist, sagt das Ressort. Ohne das stand in einem
   // Sportbericht "1.700 Haushalte betroffen" - eine Groesse, die mit dem
   // Ereignis nichts zu tun hatte.
   // Was auf dem Spiel steht - der Abschnitt, den ein Bericht braucht und der
   // bisher fehlte. Frueher lieferte das Preset seine literarischen Einsaetze,
   // und in einem Wirtschaftsbericht stand "Der Einsatz ist Freiheit".
-  const eins = RESSORTS[fb.ressort].einsatz;
+  const R0 = RESSORTS[fb.ressort];
+  const eins = blick === "gut" ? R0.gewinn : R0.einsatz;
   if (eins.length) {
     const zwei = reihenfolge(eins).slice(0, 1 + Math.min(1, Math.floor(extra / 4)));
     // Plural, sobald MEHRERE Teile genannt werden oder EIN Teil selbst Plural
     // ist. Die blosse Zahl der Teile reichte nicht: "Auf dem Spiel steht die
     // Ausbildungsplätze".
     const mehr = zwei.length > 1 || zwei.some((x) => x.pl);
-    teile.push(`Auf dem Spiel ${mehr ? "stehen" : "steht"} ${aufzaehlung(zwei.map((x) => x.t))}.`);
+    teile.push(w.einsatz(mehr, aufzaehlung(zwei.map((x) => x.t))));
   }
   const bt = RESSORTS[fb.ressort].betroffen;
   if (bt.length >= 3) {
@@ -123,7 +159,7 @@ function hergang(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<stri
     const schon = fb.zahlen.map((z) => z.einheit.toLowerCase());
     const frei = bt.filter((x) => !schon.some((e) => x.toLowerCase().includes(e)));
     const aus = reihenfolge(frei.length >= 2 ? frei : bt).slice(0, 2 + Math.min(2, Math.floor(extra / 3)));
-    teile.push(`Betroffen sind außerdem ${aufzaehlung(aus)}.`);
+    teile.push(w.weitere(aufzaehlung(aus)));
   }
   return teile.join(" ");
 }
@@ -160,13 +196,15 @@ function hintergrund(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<
   return teile.join(" ");
 }
 
-function ausblick(fb: Faktenblatt): string {
+function ausblick(fb: Faktenblatt, blick: Blick): string {
   // Kein neuer Fakt — nur eine offene Frage oder ein Termin. Deshalb greift der
   // Abschnitt ausschliesslich auf bereits Genanntes zurueck.
-  return pick([...RESSORTS[fb.ressort].ausblick,
-    `Wie es in ${fb.wo.ort} weitergeht, ist offen.`,
-    `Ob der Schritt zurückgenommen wird, blieb ${fb.wann.relativ} unbeantwortet.`,
-  ]);
+  const R = RESSORTS[fb.ressort];
+  return blick === "gut"
+    ? pick([...R.ausblickGut, `Wie es in ${fb.wo.ort} weitergeht, wird sich zeigen.`])
+    : pick([...R.ausblick,
+      `Wie es in ${fb.wo.ort} weitergeht, ist offen.`,
+      `Ob der Schritt zurückgenommen wird, blieb ${fb.wann.relativ} unbeantwortet.`]);
 }
 
 /** Satz zu einer Zahl, passend zu ihrer Rolle. Eine Zahl ohne Rolle bekam vorher
@@ -216,12 +254,13 @@ export function buildBericht(bank: Bank, input: GenInput, ressort: RessortId | "
   // Fuenf Woerter als Untergrenze nehmen sie heraus; bei vier rutschte die
   // zweiteilige Form ("stellt fest", "nimmt wahr") noch durch.
   const vorrat = buildVersAtome(bank, input).filter((x) => x.split(/\s+/).length >= 5);
+  const blick = blickVonTon(input.tone || "");
 
   const abschnitte: string[] = [];
   abschnitte.push(dachzeile(fb));
   abschnitte.push(schlagzeile(fb));
-  abschnitte.push(vorspann(fb, b));
-  const hergangText = hergang(fb, bank, b, benutzt, extra, vorrat);
+  abschnitte.push(vorspann(fb, b, blick));
+  const hergangText = hergang(fb, bank, b, benutzt, extra, vorrat, blick);
   abschnitte.push(hergangText);
   const z1 = zitat(fb, bank, b, benutzt, 0, vorrat);
   if (z1) abschnitte.push(z1);
@@ -248,11 +287,13 @@ export function buildBericht(bank: Bank, input: GenInput, ressort: RessortId | "
     }
     if (teile.length) abschnitte.push(`${R.zusatz.titel}: ${teile.join(" ")}`);
   }
-  abschnitte.push(ausblick(fb));
+  abschnitte.push(ausblick(fb, blick));
 
   const kasten = [
     `Faktenkasten`,
-    ...fb.zahlen.map((z) => `· ${ROLLE_LABEL[z.rolle]}: ${z.wortform} ${z.einheit}`),
+    // Auch die Beschriftung dreht sich: "Betroffen: 480 Beschaeftigte" unter
+    // einer guten Nachricht liest sich wie ein Widerspruch.
+    ...fb.zahlen.map((z) => `· ${z.rolle === "betroffene" && blick === "gut" ? "Neu" : ROLLE_LABEL[z.rolle]}: ${z.wortform} ${z.einheit}`),
     ...fb.chronologie.map((c) => `· ${c.zeit}: ${c.was}`),
   ].join("\n");
 

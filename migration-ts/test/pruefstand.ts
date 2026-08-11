@@ -34,6 +34,9 @@ const WAS = [
   "will die Sonne ausknipsen",             // Singular auf -e hinter "die"
 ];
 const WANN = ["Frühjahr 2001", "im Jahr 1855", "am Donnerstag", "2100", ""];
+// Beide Blickrichtungen: "uplifting" meldet Gewinn, "dark" Verlust. Ein Bericht,
+// der bei gutem Ton "betroffen sind" schreibt, ist so falsch wie umgekehrt.
+const TOENE = ["uplifting", "dark"];
 const WO = ["in Dürrhausen", "in London", "Ostmoor", ""];
 
 /** Muster, die im fertigen Text NIE vorkommen dürfen. Jedes stammt aus einem
@@ -51,6 +54,7 @@ const VERBOTEN: [string, RegExp][] = [
   ["Rahmen mit zwei finiten Verben", /(Geblieben ist|Erinnert wird an|Im Ort verbindet man damit) [^.]*\b(ist|sind|wird|werden|hat|haben)\b[^.]*\./],
   ["doppelter Bildrahmen", /(Im Ort verbindet man damit)[^]*\1/],
   ["Genitiv Plural falsch", /die Hälfte der (Beschäftigte|Teilnehmende)\b/],
+  ["Bezugswort passt nicht", /folgte (der Schritt, über die|die Entscheidung, über den)\b/],
   ["Artikel vor Titelnamen", /\b(Der|Die|Das) (Schwarz|Doll|Kraus|Lessing) \b/],
   // Kein blindes Muster fuer Zahlwoerter: "vor vier Tagen" steht im Faktenblatt
   // und ist erlaubt. Die Pruefung im Programm vergleicht gegen das Faktenblatt
@@ -82,11 +86,16 @@ const zaehl = new Map<string, number>();
 const bsp = new Map<string, string>();
 let n = 0, sauber = 0, i = 0;
 for (const wer of WER) for (const was of WAS) for (const wann of WANN) for (const wo of WO)
-  for (const ziel of [140, 300]) {
+  for (const ton of TOENE) {
+    const ziel = 220;
     const preset = presets[i++ % presets.length]!;
     const ressort = RESSORT_IDS[i % RESSORT_IDS.length]!;
     const b = buildBericht(BUILTIN_PRESETS[preset] as Bank,
-      { ...basis, who: wer, what: was, when: wann, where: wo, lenTarget: ziel } as GenInput, ressort);
+      { ...basis, who: wer, what: was, when: wann, where: wo, tone: ton, lenTarget: ziel } as GenInput, ressort);
+    // Blickrichtung muss zum Ton passen.
+    const gut = ton === "uplifting";
+    if (gut && /betroffen sind|Auf dem Spiel|die erste Meldung/.test(b.text)) zaehl.set("Verlustwort bei gutem Ton", (zaehl.get("Verlustwort bei gutem Ton") || 0) + 1);
+    if (!gut && /hinzukommen|In Aussicht|Profitieren werden/.test(b.text)) zaehl.set("Gewinnwort bei düsterem Ton", (zaehl.get("Gewinnwort bei düsterem Ton") || 0) + 1);
     n++;
     const funde: string[] = [];
     for (const [name, re] of VERBOTEN) if (re.test(b.text)) funde.push(name);
@@ -99,7 +108,7 @@ for (const wer of WER) for (const was of WAS) for (const wann of WANN) for (cons
     }
   }
 
-console.log(`Prüfstand Bericht: ${n} Läufe (${WER.length}×${WAS.length}×${WANN.length}×${WO.length}×2)`);
+console.log(`Prüfstand Bericht: ${n} Läufe (${WER.length}×${WAS.length}×${WANN.length}×${WO.length}×${TOENE.length} Töne)`);
 console.log(`  ${sauber} ohne Befund (${Math.round(100 * sauber / n)} %)`);
 if (zaehl.size) {
   console.log(`  ${zaehl.size} Fehlerklassen:`);

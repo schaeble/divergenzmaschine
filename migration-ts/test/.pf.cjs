@@ -9373,6 +9373,8 @@ var RESSORTS = {
     ],
     zusatz: { titel: "Marktreaktion", rahmen: ["Am Markt hei\xDFt es:", "In der Branche gilt:", "Beobachter verweisen auf:"] },
     einsatz: [S("der Standort"), S("die Altersversorgung der Belegschaft"), P("die Ausbildungspl\xE4tze"), S("der Name des Hauses"), S("die Lieferkette"), S("das Werksgel\xE4nde")],
+    gewinn: [S("ein zweites Werk"), S("die Ausbildungsoffensive"), S("der Ausbau des Standorts"), S("die R\xFCckkehr der Auftr\xE4ge"), S("ein neuer Tarifvertrag")],
+    ausblickGut: ["Ob die Zahlen halten, entscheidet sich im n\xE4chsten Quartal.", "Die ersten Einstellungen sind fuer den Herbst angek\xFCndigt."],
     ausblick: [
       "Ob die Zahlen halten, entscheidet sich im n\xE4chsten Quartal.",
       "Eine Entscheidung soll in den kommenden Tagen fallen."
@@ -9393,6 +9395,8 @@ var RESSORTS = {
     ],
     zusatz: { titel: "Reaktionen", rahmen: ["Aus der Regierung hei\xDFt es:", "Die Opposition h\xE4lt dagegen:", "Aus den L\xE4ndern kommt:"] },
     einsatz: [S("die Mehrheit"), S("der Zeitplan des Verfahrens"), S("das Vertrauen in die Zusage"), S("die Zust\xE4ndigkeit der Kommunen"), S("der Haushaltsansatz")],
+    gewinn: [S("eine breite Mehrheit"), S("die Zustimmung der L\xE4nder"), S("ein fr\xFCherer Beginn"), S("die Aufstockung der Mittel")],
+    ausblickGut: ["Der Beschluss soll in der n\xE4chsten Sitzung best\xE4tigt werden.", "Die Umsetzung beginnt im kommenden Jahr."],
     ausblick: [
       "Der Verfahrensstand bleibt bis zur n\xE4chsten Sitzung unver\xE4ndert.",
       "Ob es zur Abstimmung kommt, ist offen."
@@ -9413,6 +9417,8 @@ var RESSORTS = {
     ],
     zusatz: { titel: "Zum Werk", rahmen: ["Zu sehen ist:", "Die Arbeit zeigt:", "Auf der B\xFChne steht:"] },
     einsatz: [S("der Spielplan der kommenden Saison"), S("das Ensemble in seiner jetzigen Form"), P("die Werkst\xE4tten"), S("das Haus als Ort"), S("die Nachwuchsarbeit")],
+    gewinn: [S("eine zweite Spielst\xE4tte"), S("die \xDCbernahme ins Repertoire"), S("ein eigenes Nachwuchsstudio"), S("die Verlaengerung der Reihe")],
+    ausblickGut: ["Die n\xE4chste Auff\xFChrung ist angek\xFCndigt.", "Weitere Termine sollen folgen."],
     ausblick: [
       "Ob das Publikum folgt, wird sich zeigen.",
       "Die n\xE4chste Auff\xFChrung ist angek\xFCndigt."
@@ -9433,6 +9439,8 @@ var RESSORTS = {
     ],
     zusatz: { titel: "Spielverlauf", rahmen: ["Nach der Pause:", "In der Schlussphase:", "Zur Halbzeit:"] },
     einsatz: [S("der Klassenerhalt"), S("die Lizenz"), S("die Nachwuchsabteilung"), S("der Name des Vereins"), S("die Heimspielst\xE4tte"), S("das Traineramt")],
+    gewinn: [S("der Aufstieg"), S("ein neuer Hauptsponsor"), S("der Ausbau der Jugendabteilung"), S("die R\xFCckkehr in die Halle")],
+    ausblickGut: ["Das R\xFCckspiel steht noch aus.", "Die Vorbereitung beginnt im Sommer."],
     ausblick: [
       "Das R\xFCckspiel steht noch aus.",
       "Ob die Serie h\xE4lt, entscheidet sich am Wochenende."
@@ -9453,6 +9461,8 @@ var RESSORTS = {
     ],
     zusatz: { titel: "Methode", rahmen: ["Untersucht wurde:", "Erhoben wurden:", "Verglichen wurde:"] },
     einsatz: [S("die F\xF6rderung"), S("die Vergleichbarkeit der Daten"), S("die Ver\xF6ffentlichung"), S("der Standort des Instituts"), S("die Fortsetzung der Reihe")],
+    gewinn: [S("eine Anschlussfoerderung"), S("ein zweiter Standort"), S("die Aufnahme in das Programm"), S("ein gemeinsames Labor")],
+    ausblickGut: ["Eine Wiederholung der Studie ist geplant.", "Die Ergebnisse sollen offen zug\xE4nglich werden."],
     ausblick: [
       "Eine Wiederholung der Studie steht aus.",
       "Ob sich der Befund best\xE4tigt, ist offen."
@@ -9473,6 +9483,8 @@ var RESSORTS = {
     ],
     zusatz: { titel: "Vor Ort", rahmen: ["Im Viertel hei\xDFt es:", "Nachbarn berichten:", "In der Beratungsstelle:"] },
     einsatz: [S("der Treffpunkt im Viertel"), S("die Beratung vor Ort"), S("das Ehrenamt"), S("die Mietbindung"), S("der Zusammenhalt in der Nachbarschaft")],
+    gewinn: [S("ein neuer Treffpunkt"), S("die Verstetigung der Beratung"), S("mehr Pl\xE4tze im Ehrenamt"), S("ein Nachbarschaftsfonds")],
+    ausblickGut: ["Das Angebot soll im Fr\xFChjahr starten.", "Weitere H\xE4user haben Interesse angemeldet."],
     ausblick: [
       "Wie es im Viertel weitergeht, ist offen.",
       "Eine Entscheidung soll in den kommenden Wochen fallen."
@@ -9493,6 +9505,8 @@ var RESSORTS = {
     ],
     zusatz: { titel: "Einordnung der Lage", rahmen: ["Aus der Klinik hei\xDFt es:", "Die Beh\xF6rde teilt mit:", "In der Versorgung zeigt sich:"] },
     einsatz: [S("die Versorgung im Umkreis"), S("die Notaufnahme"), P("die Ausbildungspl\xE4tze in der Pflege"), P("die Wartezeiten"), S("der Standort der Klinik")],
+    gewinn: [S("eine zusaetzliche Station"), S("k\xFCrzere Wartezeiten"), S("mehr Ausbildungspl\xE4tze in der Pflege"), S("ein zweiter Rettungswagen")],
+    ausblickGut: ["Die Station soll im Herbst \xF6ffnen.", "Die Versorgung im Umkreis wird neu geordnet."],
     ausblick: [
       "Wie sich die Lage entwickelt, bleibt abzuwarten.",
       "Eine Neubewertung ist f\xFCr die kommende Woche angek\xFCndigt."
@@ -9515,6 +9529,8 @@ var RESSORTS = {
     ],
     zusatz: { titel: "An der Schule", rahmen: ["Im Kollegium hei\xDFt es:", "Aus der Elternschaft:", "Im Unterricht zeigt sich:"] },
     einsatz: [S("der Ganztag"), S("das Abschlussjahr"), P("die Stellen im Kollegium"), S("der Schulstandort"), S("die Betreuung am Nachmittag")],
+    gewinn: [S("zus\xE4tzliche Klassen"), S("der Ausbau des Ganztags"), S("zusaetzliche Stellen im Kollegium"), S("eine eigene Werkstatt")],
+    ausblickGut: ["Der Start ist fuer das kommende Schuljahr geplant.", "Die Stellen sollen zum Halbjahr besetzt werden."],
     ausblick: [
       "Ob die Stunden ersetzt werden, ist offen.",
       "Das n\xE4chste Schuljahr soll Klarheit bringen."
@@ -9665,6 +9681,7 @@ function mitPraeposition(wann) {
 function ziehFaktenblatt(input, ressortWahl = "auto") {
   const ressort = ressortWahl === "auto" ? rateRessort([input.who, input.what, input.where].filter(Boolean).join(" ")) : ressortWahl;
   const R = RESSORTS[ressort];
+  const gutesLicht = /^(uplifting|humorous|zaertlich)$/i.test(input.tone || "");
   const werRoh = (normWho(input.who || "").split(",")[0] || "").trim() || "eine Einrichtung";
   const person = istPerson(werRoh);
   const genus = person ? "mask" : genusVon(werRoh);
@@ -9711,7 +9728,9 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
   const jahr = Math.max(1200, bezug - spanne);
   const chronologie = [
     { id: "c1", zeit: String(jahr), was: "der Anfang" },
-    { id: "c2", zeit: "im Fr\xFChjahr", was: "die erste Meldung" },
+    // Auch die Chronologie kennt die Blickrichtung: Im Faktenkasten stand sonst
+    // "die erste Meldung", waehrend im Text "die erste Zusage" lief.
+    { id: "c2", zeit: "im Fr\xFChjahr", was: gutesLicht ? "die erste Zusage" : "die erste Meldung" },
     // Dieselbe Form wie im Vorspann, sonst steht dort "Im Frühjahr 2001" und
     // im Hergang "Frühjahr 2001 folgte der Schritt".
     { id: "c3", zeit: mitPraeposition(wann) || pick(ZEITPUNKT), was: (input.what || "das Ereignis").trim() }
@@ -9732,6 +9751,28 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
 }
 
 // src/generation/bericht.ts
+var GUTE_TOENE = /* @__PURE__ */ new Set(["uplifting", "humorous", "zaertlich"]);
+var blickVonTon = (ton) => GUTE_TOENE.has((ton || "").toLowerCase()) ? "gut" : "sachlich";
+var WORTE = {
+  sachlich: {
+    vorspann: (n2) => `wurde bekannt, dass ${n2} betroffen sind`,
+    ersteMeldung: "die erste Meldung",
+    // Das Bezugswort steckt im Satz: "der Schritt, ueber DEN". Als ich nur das
+    // Nomen austauschte, stand "folgte der Schritt, ueber die ...".
+    schritt: (wer) => `folgte der Schritt, \xFCber den ${wer} nun informiert`,
+    haelfte: (l, w) => `Betroffen ist damit ${l} \u2014 ${w}.`,
+    einsatz: (mehr, x) => `Auf dem Spiel ${mehr ? "stehen" : "steht"} ${x}.`,
+    weitere: (x) => `Betroffen sind au\xDFerdem ${x}.`
+  },
+  gut: {
+    vorspann: (n2) => `wurde bekannt, dass ${n2} hinzukommen`,
+    ersteMeldung: "die erste Zusage",
+    schritt: (wer) => `folgte die Entscheidung, \xFCber die ${wer} nun informiert`,
+    haelfte: (l, w) => `${cap2(l)} \u2014 ${w} \u2014 entsteht im ersten Jahr.`,
+    einsatz: (mehr, x) => `In Aussicht ${mehr ? "stehen" : "steht"} ${x}.`,
+    weitere: (x) => `Profitieren werden au\xDFerdem ${x}.`
+  }
+};
 var Buchfuehrung = class {
   constructor() {
     this.drin = /* @__PURE__ */ new Set();
@@ -9775,37 +9816,40 @@ function schlagzeile(fb) {
 function dachzeile(fb) {
   return `${fb.wo.ort} \xB7 ${RESSORTS[fb.ressort].label}`;
 }
-function vorspann(fb, b) {
+function vorspann(fb, b, blick) {
   const z = fb.zahlen[0];
+  const w = WORTE[blick];
   const s1 = `${cap2(b.organisation(fb))} ${fb.was}.`;
-  const s2 = z ? `${cap2(fb.wann.datum)} wurde bekannt, dass ${z.verbal || z.wortform} ${z.einheit} betroffen sind.` : `${cap2(fb.wann.datum)} wurde der Schritt in ${fb.wo.ort} bekannt.`;
+  const s2 = z ? `${cap2(fb.wann.datum)} ${w.vorspann(`${z.verbal || z.wortform} ${z.einheit}`)}.` : `${cap2(fb.wann.datum)} wurde es in ${fb.wo.ort} bekannt.`;
   return `${s1} ${s2}`;
 }
-function hergang(fb, bank, b, benutzt, extra, vorrat) {
+function hergang(fb, bank, b, benutzt, extra, vorrat, blick) {
   const teile = [];
+  const w = WORTE[blick];
   const c2 = fb.chronologie[1], c3 = fb.chronologie[2];
-  if (c2) teile.push(`${cap2(c2.zeit)} zeichnete sich ${c2.was} ab.`);
+  if (c2) teile.push(`${cap2(c2.zeit)} zeichnete sich ${blick === "gut" ? w.ersteMeldung : c2.was} ab.`);
   for (let i2 = 0; i2 < 1 + extra; i2++) {
     const roh = satzOhneZahl(bank, ["obstacles", "turns"], benutzt, vorrat);
     if (roh) teile.push(`${cap2(roh)}.`);
   }
   const z2 = fb.zahlen[1];
   if (z2) teile.push(zahlSatz(z2));
-  if (c3) teile.push(`${cap2(c3.zeit)} folgte der Schritt, \xFCber den ${b.organisation(fb)} nun informiert.`);
+  if (c3) teile.push(`${cap2(c3.zeit)} ${w.schritt(b.organisation(fb))}.`);
   const a1 = fb.abgeleitet[0];
-  if (a1) teile.push(`Betroffen ist damit ${a1.label} \u2014 ${a1.wortform}.`);
-  const eins = RESSORTS[fb.ressort].einsatz;
+  if (a1) teile.push(w.haelfte(a1.label, a1.wortform));
+  const R0 = RESSORTS[fb.ressort];
+  const eins = blick === "gut" ? R0.gewinn : R0.einsatz;
   if (eins.length) {
     const zwei = reihenfolge2(eins).slice(0, 1 + Math.min(1, Math.floor(extra / 4)));
     const mehr = zwei.length > 1 || zwei.some((x) => x.pl);
-    teile.push(`Auf dem Spiel ${mehr ? "stehen" : "steht"} ${aufzaehlung(zwei.map((x) => x.t))}.`);
+    teile.push(w.einsatz(mehr, aufzaehlung(zwei.map((x) => x.t))));
   }
   const bt = RESSORTS[fb.ressort].betroffen;
   if (bt.length >= 3) {
     const schon = fb.zahlen.map((z) => z.einheit.toLowerCase());
     const frei = bt.filter((x) => !schon.some((e) => x.toLowerCase().includes(e)));
     const aus = reihenfolge2(frei.length >= 2 ? frei : bt).slice(0, 2 + Math.min(2, Math.floor(extra / 3)));
-    teile.push(`Betroffen sind au\xDFerdem ${aufzaehlung(aus)}.`);
+    teile.push(w.weitere(aufzaehlung(aus)));
   }
   return teile.join(" ");
 }
@@ -9831,9 +9875,10 @@ function hintergrund(fb, bank, b, benutzt, extra, vorrat) {
   if (z3) teile.push(zahlSatz(z3));
   return teile.join(" ");
 }
-function ausblick(fb) {
-  return pick([
-    ...RESSORTS[fb.ressort].ausblick,
+function ausblick(fb, blick) {
+  const R = RESSORTS[fb.ressort];
+  return blick === "gut" ? pick([...R.ausblickGut, `Wie es in ${fb.wo.ort} weitergeht, wird sich zeigen.`]) : pick([
+    ...R.ausblick,
     `Wie es in ${fb.wo.ort} weitergeht, ist offen.`,
     `Ob der Schritt zur\xFCckgenommen wird, blieb ${fb.wann.relativ} unbeantwortet.`
   ]);
@@ -9876,11 +9921,12 @@ function buildBericht(bank, input, ressort = "auto") {
   const ziel = Number.isFinite(input.lenTarget) ? input.lenTarget : 240;
   const extra = Math.max(0, Math.min(22, Math.round((ziel - 124) / 17)));
   const vorrat = buildVersAtome(bank, input).filter((x) => x.split(/\s+/).length >= 5);
+  const blick = blickVonTon(input.tone || "");
   const abschnitte = [];
   abschnitte.push(dachzeile(fb));
   abschnitte.push(schlagzeile(fb));
-  abschnitte.push(vorspann(fb, b));
-  const hergangText = hergang(fb, bank, b, benutzt, extra, vorrat);
+  abschnitte.push(vorspann(fb, b, blick));
+  const hergangText = hergang(fb, bank, b, benutzt, extra, vorrat, blick);
   abschnitte.push(hergangText);
   const z1 = zitat(fb, bank, b, benutzt, 0, vorrat);
   if (z1) abschnitte.push(z1);
@@ -9904,10 +9950,12 @@ function buildBericht(bank, input, ressort = "auto") {
     }
     if (teile.length) abschnitte.push(`${R.zusatz.titel}: ${teile.join(" ")}`);
   }
-  abschnitte.push(ausblick(fb));
+  abschnitte.push(ausblick(fb, blick));
   const kasten = [
     `Faktenkasten`,
-    ...fb.zahlen.map((z) => `\xB7 ${ROLLE_LABEL[z.rolle]}: ${z.wortform} ${z.einheit}`),
+    // Auch die Beschriftung dreht sich: "Betroffen: 480 Beschaeftigte" unter
+    // einer guten Nachricht liest sich wie ein Widerspruch.
+    ...fb.zahlen.map((z) => `\xB7 ${z.rolle === "betroffene" && blick === "gut" ? "Neu" : ROLLE_LABEL[z.rolle]}: ${z.wortform} ${z.einheit}`),
     ...fb.chronologie.map((c) => `\xB7 ${c.zeit}: ${c.was}`)
   ].join("\n");
   return { text: abschnitte.filter(Boolean).join("\n\n") + "\n\n" + kasten, fb, hergang: hergangText };
