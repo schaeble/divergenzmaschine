@@ -147,23 +147,33 @@ export function baueZeitungsseite(kopf: Zeitungskopf, teile: SeitenTeil[], spalt
 
 /** Misst die Höhe eines Beitrags in einer echten Spalte. Geht nur im Browser —
  *  deshalb steckt die Verteilung in umbruch.ts und bekommt diese Funktion. */
-export function browserMessung(quellen: Treasure[], rollen: Rolle[], titel: string[], spaltenbreite: number): Messbar {
-  const probe = el("div", { class: "dm-print zk-seite zk-probe", "data-profil": "zeitungsseite" });
-  probe.style.cssText = `position:absolute;left:-99999px;top:0;width:${spaltenbreite}px;visibility:hidden`;
-  document.body.append(probe);
+export function browserMessung(quellen: Treasure[], rollen: Rolle[], titel: string[],
+                               spaltenbreite: number, vollbreite: number): Messbar & { aufmacher(id: number): number } {
+  const mach = (breite: number): HTMLElement => {
+    const p = el("div", { class: "dm-print zk-seite zk-probe", "data-profil": "zeitungsseite" });
+    p.style.cssText = `position:absolute;left:-99999px;top:0;width:${breite}px;visibility:hidden`;
+    document.body.append(p);
+    return p;
+  };
+  const probeSpalte = mach(spaltenbreite);
+  // Zweite Probe in voller Breite: Der Aufmacher laeuft ueber alle Spalten. In
+  // Spaltenbreite gemessen kam er auf das Dreifache seiner echten Hoehe - danach
+  // war rechnerisch kein Platz mehr, und alles Weitere rutschte auf Seite 2.
+  const probeVoll = mach(vollbreite);
   const cache = new Map<string, number>();
+  const miss = (probe: HTMLElement, id: number, rolle: Rolle, skala: number, key: string): number => {
+    const c = cache.get(key);
+    if (c !== undefined) return c;
+    probe.innerHTML = "";
+    const b = beitrag(quellen[id]!, rolle, titel[id] || "", skala, 0);
+    probe.append(b);
+    const h = b.getBoundingClientRect().height || b.offsetHeight;
+    cache.set(key, h);
+    return h;
+  };
   return {
-    hoehe(id, skala) {
-      const key = id + ":" + skala;
-      const c = cache.get(key);
-      if (c !== undefined) return c;
-      probe.innerHTML = "";
-      const b = beitrag(quellen[id]!, rollen[id] || "spalte", titel[id] || "", skala, 0);
-      probe.append(b);
-      const h = b.getBoundingClientRect().height || b.offsetHeight;
-      cache.set(key, h);
-      return h;
-    },
+    hoehe: (id, skala) => miss(probeSpalte, id, rollen[id] || "spalte", skala, `s${id}:${skala}`),
+    aufmacher: (id) => miss(probeVoll, id, "aufmacher", 1, `a${id}`),
   };
 }
 
@@ -275,11 +285,15 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
 
     const rollen = quellen.map((t, i) => gewaehlt.get(i)?.rolle || rolleFuer(t, false));
     const titelAlle = quellen.map((t, i) => gewaehlt.get(i)?.titel ?? ueberschriftVon(t));
-    const mess = browserMessung(quellen, rollen, titelAlle, breite);
+    const rasterBreite = (roh.querySelector(".zk-raster") as HTMLElement | null)?.getBoundingClientRect().width
+      || (A4_BREITE - 2 * RAND_X);
+    const mess = browserMessung(quellen, rollen, titelAlle, breite, rasterBreite);
     const teile: UmbruchTeil[] = ids.map((i) => ({ id: i, rolle: rollen[i]! }));
     const inhaltH = A4_HOEHE - 2 * RAND_Y - fussH;
+    // Der Aufmacher wird in voller Breite gemessen, alles Uebrige in Spaltenbreite.
+    const aufId = ids.find((i) => rollen[i] === "aufmacher");
     const o = { spaltenhoehe: inhaltH - kopfH, spalten, seiten: seitenZahl,
-      aufmacherhoehe: undefined as number | undefined };
+      aufmacherhoehe: aufId === undefined ? undefined : mess.aufmacher(aufId) };
     const seiten: Seite[] = umbrechen(teile, mess, o);
 
     seiten.forEach((seite, n) => {
