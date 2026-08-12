@@ -16,8 +16,15 @@ import { umbrechen, fuellgrad, type Messbar, type UmbruchTeil, type Seite } from
 // A4 bei 96 dpi, abzueglich der Raender aus .druckblatt (16 mm oben/unten,
 // 14 mm seitlich). Die Zahlen stehen hier und nicht im CSS, weil die Verteilung
 // sie kennen muss - gemessen wird trotzdem am echten Element.
-export const A4_BREITE = 794, A4_HOEHE = 1123;
-export const RAND_X = Math.round(14 * 96 / 25.4), RAND_Y = Math.round(16 * 96 / 25.4);
+// Nicht das ganze Blatt, sondern der BEDRUCKBARE Bereich: A4 minus der
+// Seitenraender aus @page (20 mm oben/unten, 18 mm seitlich). Vorschau und Druck
+// benutzen dieselbe Groesse - vorher hatte die Vorschau 794 x 1123 px mit
+// eigenem Innenabstand, der Druck zusaetzlich die @page-Raender, und die Seite
+// war im Druck hoeher als das Papier: Alles ausser dem Aufmacher rutschte auf
+// Seite 2.
+const MM = 96 / 25.4;
+export const SEITE_B = Math.round((210 - 2 * 18) * MM);   // 658 px
+export const SEITE_H = Math.round((297 - 2 * 20) * MM);   // 972 px
 
 export type Rolle = "aufmacher" | "spalte" | "kasten";
 
@@ -278,18 +285,26 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     const roh = baueZeitungsseite(kopf, ids.map((i) => ({ t: quellen[i]!, rolle: gewaehlt.get(i)!.rolle, titel: gewaehlt.get(i)!.titel })), spalten, true);
     blatt.append(roh);
     const box = roh.querySelector(".zk-spaltebox") as HTMLElement | null;
-    const kopfH = (roh.querySelector(".zk-kopf") as HTMLElement | null)?.getBoundingClientRect().height ?? 150;
-    const fussH = (roh.querySelector(".zk-fuss") as HTMLElement | null)?.getBoundingClientRect().height ?? 30;
+    const kopfEl = roh.querySelector(".zk-kopf") as HTMLElement | null;
+    const kopfCs = kopfEl && window.getComputedStyle(kopfEl);
+    const kopfH = kopfEl
+      ? kopfEl.getBoundingClientRect().height + (kopfCs ? parseFloat(kopfCs.marginBottom) || 0 : 0)
+      : 150;
+    const fussEl = roh.querySelector(".zk-fuss") as HTMLElement | null;
+    const fussCs = fussEl && window.getComputedStyle(fussEl);
+    const fussH = fussEl
+      ? fussEl.getBoundingClientRect().height + (fussCs ? parseFloat(fussCs.marginTop) || 0 : 0)
+      : 30;
     const breite = box?.getBoundingClientRect().width || 214;
     blatt.innerHTML = "";
 
     const rollen = quellen.map((t, i) => gewaehlt.get(i)?.rolle || rolleFuer(t, false));
     const titelAlle = quellen.map((t, i) => gewaehlt.get(i)?.titel ?? ueberschriftVon(t));
     const rasterBreite = (roh.querySelector(".zk-raster") as HTMLElement | null)?.getBoundingClientRect().width
-      || (A4_BREITE - 2 * RAND_X);
+      || SEITE_B;
     const mess = browserMessung(quellen, rollen, titelAlle, breite, rasterBreite);
     const teile: UmbruchTeil[] = ids.map((i) => ({ id: i, rolle: rollen[i]! }));
-    const inhaltH = A4_HOEHE - 2 * RAND_Y - fussH;
+    const inhaltH = SEITE_H - fussH;
     // Der Aufmacher wird in voller Breite gemessen, alles Uebrige in Spaltenbreite.
     const aufId = ids.find((i) => rollen[i] === "aufmacher");
     const o = { spaltenhoehe: inhaltH - kopfH, spalten, seiten: seitenZahl,
@@ -302,8 +317,9 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
         skala: p.skala, zwischenraum: p.zwischenraum, spalte: p.spalte,
       }));
       const dom = baueZeitungsseite(kopf, st, spalten, n === 0);
-      if (n > 0) dom.classList.add("dm-seitenumbruch");
-      blatt.append(dom);
+      // In der Vorschau steckt die Seite in einem Papierrahmen; im Druck macht
+      // das @page. Der Rahmen wird beim Kopieren fuer den Druck weggelassen.
+      blatt.append(el("div", { class: "zk-papier" }, dom));
     });
 
     const gesetzt = seiten.reduce((a, s2) => a + s2.teile.length, 0);
@@ -317,7 +333,10 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     // position:absolute aus der Druckregel und lag auf der vorigen - gedruckt
     // wurde die letzte, und der Zeitungskopf der ersten war verdeckt.
     const mappe = el("div", { class: "dm-print-aktiv dm-seiten" });
-    for (const s2 of Array.from(blatt.children)) mappe.append(s2.cloneNode(true));
+    for (const papier of Array.from(blatt.children)) {
+      const seite = papier.firstElementChild;
+      if (seite) mappe.append(seite.cloneNode(true));
+    }
     document.body.append(mappe);
   };
 

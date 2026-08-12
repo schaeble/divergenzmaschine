@@ -616,8 +616,16 @@ select.abweichend{border-color:var(--acc)}
      oberste: Der Zeitungskopf steckte auf der ersten und war verdeckt. */
   .dm-print-aktiv { display: block; position: absolute; inset: 0; background:#fff; }
   .dm-print-aktiv.dm-seiten { position: static; inset: auto; }
-  .dm-print-aktiv.dm-seiten > .zk-seite { break-after: page; }
+  /* Dieselbe Geometrie wie in der Vorschau: 174 x 255 mm ist der Bereich
+     innerhalb der @page-Raender. Ohne diese Zeilen war die Seite im Druck
+     hoeher als das Papier, und alles unter dem Aufmacher fiel auf Seite 2. */
+  .dm-print-aktiv.dm-seiten > .zk-seite {
+    width: 174mm; height: 255mm; padding: 0; margin: 0; box-shadow: none;
+    display: flex; flex-direction: column; overflow: hidden;
+    break-after: page;
+  }
   .dm-print-aktiv.dm-seiten > .zk-seite:last-child { break-after: auto; }
+  .dm-print-aktiv.dm-seiten .zk-raster { flex: 1; min-height: 0; }
 
   .dm-print-aktiv .dm-kopf, .dm-print-aktiv .dm-fuss {
     position: fixed; left: 0; right: 0;
@@ -639,8 +647,14 @@ select.abweichend{border-color:var(--acc)}
    rechnet, muss auf dem Blatt auch so aussehen. 794 x 1123 px sind A4 bei
    96 dpi. */
 .zk-blatt{padding:0;background:transparent;box-shadow:none;overflow:auto;min-height:0}
-.zk-blatt .zk-seite{width:794px;height:1123px;padding:16mm 14mm;background:#fff;
-  box-shadow:0 2px 12px rgba(0,0,0,.35);margin:0 auto 16px;display:flex;flex-direction:column;overflow:hidden}
+/* Die Seite ist exakt der BEDRUCKBARE Bereich (A4 minus @page-Raender), in
+   Vorschau wie im Druck dieselbe Groesse. Das weisse Papier drumherum macht
+   die Huelle, damit es aussieht wie ein Blatt - es geht aber nicht in die
+   Rechnung ein. */
+.zk-papier{background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.35);padding:20mm 18mm;
+  width:210mm;margin:0 auto 16px;box-sizing:border-box}
+.zk-blatt .zk-seite{width:174mm;height:255mm;padding:0;background:#fff;
+  display:flex;flex-direction:column;overflow:hidden}
 .zk-blatt .zk-raster{flex:1;min-height:0}
 .zk-status{margin:0 0 8px}
 .zk-dialog{max-width:1180px}
