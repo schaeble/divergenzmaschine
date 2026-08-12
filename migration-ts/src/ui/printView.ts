@@ -39,11 +39,11 @@ interface KopfOpts { blatt: string; rechts: string; datum: boolean; fiktion: boo
 // druckt einen grauen Block — die Umbruchdisziplin (Strophen nicht trennen,
 // Repliken nicht trennen) braucht Elemente, an denen sie greifen kann.
 
-function absaetze(text: string): string[] {
+export function absaetze(text: string): string[] {
   return text.split(/\n{2,}/).map((x) => x.trim()).filter(Boolean);
 }
 
-function inhaltZeitung(text: string): HTMLElement {
+export function inhaltZeitung(text: string): HTMLElement {
   const box = el("div", { class: "dm-inhalt" });
   const teile = absaetze(text);
   // Reihenfolge des Berichts: Dachzeile, Schlagzeile, Vorspann, Rest, Kasten.
@@ -63,7 +63,7 @@ function inhaltZeitung(text: string): HTMLElement {
   return box;
 }
 
-function inhaltVers(text: string, proSeite: boolean): HTMLElement {
+export function inhaltVers(text: string, proSeite: boolean): HTMLElement {
   const box = el("div", { class: "dm-inhalt" });
   absaetze(text).forEach((strophe, i) => {
     const s = el("div", { class: "dm-strophe" + (proSeite && i > 0 ? " dm-seitenumbruch" : "") });
@@ -111,7 +111,7 @@ function inhaltShots(text: string): HTMLElement {
   return box;
 }
 
-function inhaltFliess(text: string): HTMLElement {
+export function inhaltFliess(text: string): HTMLElement {
   const box = el("div", { class: "dm-inhalt" });
   for (const t of absaetze(text)) box.append(el("p", {}, t));
   return box;
