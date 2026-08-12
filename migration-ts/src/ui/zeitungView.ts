@@ -11,6 +11,13 @@ import { el } from "./dom";
 import { icon } from "./icons";
 import { loadTreasury, type Treasure } from "../features/treasury";
 import { inhaltVers, inhaltFliess, absaetze } from "./printView";
+import { umbrechen, fuellgrad, type Messbar, type UmbruchTeil, type Seite } from "./umbruch";
+
+// A4 bei 96 dpi, abzueglich der Raender aus .druckblatt (16 mm oben/unten,
+// 14 mm seitlich). Die Zahlen stehen hier und nicht im CSS, weil die Verteilung
+// sie kennen muss - gemessen wird trotzdem am echten Element.
+export const A4_BREITE = 794, A4_HOEHE = 1123;
+export const RAND_X = Math.round(14 * 96 / 25.4), RAND_Y = Math.round(16 * 96 / 25.4);
 
 export type Rolle = "aufmacher" | "spalte" | "kasten";
 
@@ -64,8 +71,12 @@ function istVers(form?: string): boolean {
   return form === "reim" || form === "haiku" || form === "strang" || form === "poem";
 }
 
-function beitrag(t: Treasure, rolle: Rolle, titel: string): HTMLElement {
+function beitrag(t: Treasure, rolle: Rolle, titel: string, skala = 1, zwischenraum = 0): HTMLElement {
   const box = el("div", { class: "zk-beitrag zk-" + rolle });
+  // Die Schriftskala wirkt ueber eine eigene Variable, damit sie sich mit dem
+  // Schriftgrad der Seite multipliziert statt ihn zu ueberschreiben.
+  if (skala !== 1) box.style.setProperty("--zk-skala", String(skala));
+  if (zwischenraum) box.style.marginBottom = zwischenraum + "px";
   if (t.form === "bericht") {
     const abs = absaetze(t.t);
     if (abs[0]) box.append(el("div", { class: "zk-dach" }, abs[0]));
@@ -90,48 +101,88 @@ function beitrag(t: Treasure, rolle: Rolle, titel: string): HTMLElement {
 
 export interface SeitenTeil { t: Treasure; rolle: Rolle; titel: string; }
 
-export function baueZeitungsseite(kopf: Zeitungskopf, teile: SeitenTeil[]): HTMLElement {
+export interface SeitenTeil { t: Treasure; rolle: Rolle; titel: string; skala?: number; zwischenraum?: number }
+
+/** Eine Seite bauen. `mitKopf` nur auf der ersten — der Zeitungskopf steht
+ *  einmal, nicht auf jeder Seite. */
+export function baueZeitungsseite(kopf: Zeitungskopf, teile: SeitenTeil[], spalten = 3, mitKopf = true): HTMLElement {
   const wurzel = el("div", { class: "dm-print zk-seite", "data-profil": "zeitungsseite" });
-  const k = el("header", { class: "zk-kopf" + (kopf.linien ? " zk-linien" : "") + (kopf.fraktur ? " zk-fraktur" : "") });
-  k.append(el("div", { class: "zk-name" }, kopf.titel || "Ohne Titel"));
-  if (kopf.motto) k.append(el("div", { class: "zk-motto" }, kopf.motto));
-  k.append(el("div", { class: "zk-meta" },
-    el("span", {}, kopf.ausgabe || ""),
-    el("span", {}, kopf.datum ? new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : ""),
-    el("span", {}, kopf.preis || "")));
-  wurzel.append(k);
-
-  const auf = teile.filter((x) => x.rolle === "aufmacher");
-  const sp = teile.filter((x) => x.rolle === "spalte");
-  const ka = teile.filter((x) => x.rolle === "kasten");
-
-  for (const a of auf) wurzel.append(beitrag(a.t, "aufmacher", a.titel));
-  if (sp.length || ka.length) {
-    const raster = el("div", { class: "zk-raster" });
-    for (const x of sp) raster.append(beitrag(x.t, "spalte", x.titel));
-    for (const x of ka) raster.append(beitrag(x.t, "kasten", x.titel));
-    wurzel.append(raster);
+  if (mitKopf) {
+    const k = el("header", { class: "zk-kopf" + (kopf.linien ? " zk-linien" : "") + (kopf.fraktur ? " zk-fraktur" : "") });
+    k.append(el("div", { class: "zk-name" }, kopf.titel || "Ohne Titel"));
+    if (kopf.motto) k.append(el("div", { class: "zk-motto" }, kopf.motto));
+    k.append(el("div", { class: "zk-meta" },
+      el("span", {}, kopf.ausgabe || ""),
+      el("span", {}, kopf.datum ? new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : ""),
+      el("span", {}, kopf.preis || "")));
+    wurzel.append(k);
   }
+
+  for (const a of teile.filter((x) => x.rolle === "aufmacher")) {
+    wurzel.append(beitrag(a.t, "aufmacher", a.titel, a.skala ?? 1, a.zwischenraum ?? 0));
+  }
+
+  // Feste Spaltenkaesten statt CSS-columns: Nur so bestimmt der Umbruch, was in
+  // welcher Spalte steht - die Spaltenbalance von CSS laesst sich nicht steuern
+  // und hinterlaesst an den Fuessen ungleiche Loecher.
+  const raster = el("div", { class: "zk-raster", style: `--zk-spalten:${spalten}` });
+  const boxen: HTMLElement[] = [];
+  for (let i = 0; i < spalten; i++) { const b = el("div", { class: "zk-spaltebox" }); boxen.push(b); raster.append(b); }
+  const rest = teile.filter((x) => x.rolle !== "aufmacher");
+  rest.forEach((x, i) => {
+    const sp = (x as SeitenTeil & { spalte?: number }).spalte ?? (i % spalten);
+    (boxen[Math.max(0, Math.min(spalten - 1, sp))] || boxen[0]!)
+      .append(beitrag(x.t, x.rolle, x.titel, x.skala ?? 1, x.zwischenraum ?? 0));
+  });
+  wurzel.append(raster);
+
   wurzel.append(el("footer", { class: "zk-fuss" },
     el("span", {}, "Fiktive Zeitung · maschinell erzeugt"),
     el("span", {}, kopf.titel || "")));
   return wurzel;
 }
 
+/** Misst die Höhe eines Beitrags in einer echten Spalte. Geht nur im Browser —
+ *  deshalb steckt die Verteilung in umbruch.ts und bekommt diese Funktion. */
+export function browserMessung(quellen: Treasure[], rollen: Rolle[], titel: string[], spaltenbreite: number): Messbar {
+  const probe = el("div", { class: "dm-print zk-seite zk-probe", "data-profil": "zeitungsseite" });
+  probe.style.cssText = `position:absolute;left:-99999px;top:0;width:${spaltenbreite}px;visibility:hidden`;
+  document.body.append(probe);
+  const cache = new Map<string, number>();
+  return {
+    hoehe(id, skala) {
+      const key = id + ":" + skala;
+      const c = cache.get(key);
+      if (c !== undefined) return c;
+      probe.innerHTML = "";
+      const b = beitrag(quellen[id]!, rollen[id] || "spalte", titel[id] || "", skala, 0);
+      probe.append(b);
+      const h = b.getBoundingClientRect().height || b.offsetHeight;
+      cache.set(key, h);
+      return h;
+    },
+  };
+}
+
 // ── Setzer ────────────────────────────────────────────────────────────────
+
+function rolleFuer(t: Treasure, ersteR: boolean): Rolle {
+  if (istVers(t.form)) return "kasten";
+  return ersteR ? "aufmacher" : "spalte";
+}
 
 export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string): void {
   const kopf = ladeKopf();
-  const schatz = loadTreasury().slice().reverse();
   const quellen: Treasure[] = [];
-  if (aktuellerText.trim()) {
-    quellen.push({ t: aktuellerText, form: aktuelleForm, d: "im Studio" });
-  }
-  quellen.push(...schatz);
+  if (aktuellerText.trim()) quellen.push({ t: aktuellerText, form: aktuelleForm, d: "im Studio" });
+  quellen.push(...loadTreasury().slice().reverse());
 
+  let spalten = 3, seitenZahl = 1;
   const gewaehlt = new Map<number, { rolle: Rolle; titel: string }>();
+
   const buehne = el("div", { class: "druckhuelle" });
-  const blatt = el("div", { class: "druckblatt" });
+  const blatt = el("div", { class: "druckblatt zk-blatt" });
+  const status = el("div", { class: "zk-status muted mini" });
 
   const feldT = (label: string, wert: string, cb: (v: string) => void): HTMLElement => {
     const i = el("input", { type: "text", value: wert }) as HTMLInputElement;
@@ -143,6 +194,13 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     i.checked = wert;
     i.addEventListener("change", () => { cb(i.checked); zeichne(); });
     return el("label", { class: "druckfeld" }, el("span", { class: "field-label" }, label), i);
+  };
+  const feldZ = (label: string, wert: number, min: number, max: number, cb: (v: number) => void): HTMLElement => {
+    const sel = el("select", {}) as HTMLSelectElement;
+    for (let v = min; v <= max; v++) sel.append(el("option", { value: String(v) }, String(v)));
+    sel.value = String(wert);
+    sel.addEventListener("change", () => { cb(parseInt(sel.value, 10)); zeichne(); });
+    return el("label", { class: "druckfeld" }, el("span", { class: "field-label" }, label), sel);
   };
 
   const liste = el("div", { class: "zk-liste" });
@@ -158,8 +216,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       const rolle = el("select", {}) as HTMLSelectElement;
       ([["aufmacher", "Aufmacher"], ["spalte", "Spalte"], ["kasten", "Kasten"]] as [Rolle, string][])
         .forEach(([v, l]) => rolle.append(el("option", { value: v }, l)));
-      const vorschlag = istVers(t.form) ? "kasten" : i === 0 ? "aufmacher" : "spalte";
-      rolle.value = gewaehlt.get(i)?.rolle || (vorschlag as Rolle);
+      rolle.value = gewaehlt.get(i)?.rolle || rolleFuer(t, i === 0);
       const titel = el("input", { type: "text", value: gewaehlt.get(i)?.titel ?? ueberschriftVon(t) }) as HTMLInputElement;
       const merke = (): void => {
         if (an.checked) gewaehlt.set(i, { rolle: rolle.value as Rolle, titel: titel.value });
@@ -171,29 +228,88 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       const wc = (t.t.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
       liste.append(el("div", { class: "zk-zeile" },
         an, el("span", { class: "zk-form" }, FORM_LABEL[t.form || ""] || t.form || "—"),
-        titel, rolle, el("span", { class: "muted mini" }, `${wc} W · ${t.d}`)));
+        titel, rolle, el("span", { class: "muted mini" }, `${wc} W`)));
     });
   };
 
-  const zeichne = (): void => {
-    sichereKopf(kopf);
-    const teile: SeitenTeil[] = [...gewaehlt.entries()]
-      .sort((a, b) => a[0] - b[0])
-      .map(([i, v]) => ({ t: quellen[i]!, rolle: v.rolle, titel: v.titel }));
-    blatt.innerHTML = "";
-    const dom = baueZeitungsseite(kopf, teile);
-    blatt.append(dom);
-    document.querySelectorAll(".dm-print-aktiv").forEach((x) => x.remove());
-    const kopie = dom.cloneNode(true) as HTMLElement;
-    kopie.classList.add("dm-print-aktiv");
-    document.body.append(kopie);
+  /** Automatik: so viele Beiträge wählen, wie auf die Seiten passen. Gemischt
+   *  nach Form, damit nicht drei Berichte hintereinander stehen. */
+  const fuellen = (): void => {
+    gewaehlt.clear();
+    const nachForm = new Map<string, number[]>();
+    quellen.forEach((t, i) => {
+      const k = t.form || "?";
+      if (!nachForm.has(k)) nachForm.set(k, []);
+      nachForm.get(k)!.push(i);
+    });
+    // Reihum aus jeder Form ziehen: erst ein Bericht, dann Prosa, dann Vers …
+    const reihen = [...nachForm.values()];
+    const misch: number[] = [];
+    for (let r = 0; misch.length < quellen.length; r++) {
+      let leer = true;
+      for (const reihe of reihen) if (reihe[r] !== undefined) { misch.push(reihe[r]!); leer = false; }
+      if (leer) break;
+    }
+    misch.forEach((i, n) => gewaehlt.set(i, { rolle: rolleFuer(quellen[i]!, n === 0), titel: ueberschriftVon(quellen[i]!) }));
+    bauListe();
+    zeichne(true);
   };
 
+  const zeichne = (nachFuellung = false): void => {
+    sichereKopf(kopf);
+    blatt.innerHTML = "";
+    const ids = [...gewaehlt.keys()].sort((a, b) => a - b);
+    if (!ids.length) { blatt.append(el("p", { class: "muted" }, "Nichts gewählt.")); status.textContent = ""; return; }
+
+    // Erste Seite provisorisch setzen, um Kopfhöhe und Spaltenbreite zu messen.
+    const roh = baueZeitungsseite(kopf, ids.map((i) => ({ t: quellen[i]!, rolle: gewaehlt.get(i)!.rolle, titel: gewaehlt.get(i)!.titel })), spalten, true);
+    blatt.append(roh);
+    const box = roh.querySelector(".zk-spaltebox") as HTMLElement | null;
+    const kopfH = (roh.querySelector(".zk-kopf") as HTMLElement | null)?.getBoundingClientRect().height ?? 150;
+    const fussH = (roh.querySelector(".zk-fuss") as HTMLElement | null)?.getBoundingClientRect().height ?? 30;
+    const breite = box?.getBoundingClientRect().width || 214;
+    blatt.innerHTML = "";
+
+    const rollen = quellen.map((t, i) => gewaehlt.get(i)?.rolle || rolleFuer(t, false));
+    const titelAlle = quellen.map((t, i) => gewaehlt.get(i)?.titel ?? ueberschriftVon(t));
+    const mess = browserMessung(quellen, rollen, titelAlle, breite);
+    const teile: UmbruchTeil[] = ids.map((i) => ({ id: i, rolle: rollen[i]! }));
+    const inhaltH = A4_HOEHE - 2 * RAND_Y - fussH;
+    const o = { spaltenhoehe: inhaltH - kopfH, spalten, seiten: seitenZahl,
+      aufmacherhoehe: undefined as number | undefined };
+    const seiten: Seite[] = umbrechen(teile, mess, o);
+
+    seiten.forEach((seite, n) => {
+      const st: (SeitenTeil & { spalte?: number })[] = seite.teile.map((p) => ({
+        t: quellen[p.id]!, rolle: p.rolle, titel: titelAlle[p.id]!,
+        skala: p.skala, zwischenraum: p.zwischenraum, spalte: p.spalte,
+      }));
+      const dom = baueZeitungsseite(kopf, st, spalten, n === 0);
+      if (n > 0) dom.classList.add("dm-seitenumbruch");
+      blatt.append(dom);
+    });
+
+    const gesetzt = seiten.reduce((a, s2) => a + s2.teile.length, 0);
+    const grad = Math.round(100 * seiten.reduce((a, s2) => a + fuellgrad(s2, mess, o), 0) / Math.max(1, seiten.length));
+    status.textContent = `${seiten.length} Seite(n) · ${gesetzt} von ${ids.length} Beiträgen gesetzt · Füllung ${grad} %`
+      + (gesetzt < ids.length ? " · Rest passt nicht mehr — mehr Seiten wählen" : "")
+      + (nachFuellung ? "" : "");
+    document.querySelectorAll(".zk-probe").forEach((x) => x.remove());
+    document.querySelectorAll(".dm-print-aktiv").forEach((x) => x.remove());
+    for (const s2 of Array.from(blatt.children)) {
+      const kopie = s2.cloneNode(true) as HTMLElement;
+      kopie.classList.add("dm-print-aktiv");
+      document.body.append(kopie);
+    }
+  };
+
+  const autoBtn = el("button", {}, icon("dice"), " Seiten füllen");
+  autoBtn.addEventListener("click", fuellen);
   const drucken = el("button", { class: "primary" }, icon("play"), " Drucken");
   drucken.addEventListener("click", () => window.print());
   const zu = el("button", {}, "Schließen");
   const schliessen = (): void => {
-    document.querySelectorAll(".dm-print-aktiv").forEach((x) => x.remove());
+    document.querySelectorAll(".dm-print-aktiv, .zk-probe").forEach((x) => x.remove());
     buehne.remove();
   };
   zu.addEventListener("click", schliessen);
@@ -205,10 +321,13 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       feldT("Motto", kopf.motto, (v) => { kopf.motto = v; }),
       feldT("Ausgabe", kopf.ausgabe, (v) => { kopf.ausgabe = v; }),
       feldT("Preis", kopf.preis, (v) => { kopf.preis = v; }),
+      feldZ("Spalten", spalten, 2, 5, (v) => { spalten = v; }),
+      feldZ("Seiten", seitenZahl, 1, 8, (v) => { seitenZahl = v; }),
       feldC("Datum", kopf.datum, (v) => { kopf.datum = v; }),
       feldC("Linien", kopf.linien, (v) => { kopf.linien = v; }),
       feldC("Gebrochene Schrift", kopf.fraktur, (v) => { kopf.fraktur = v; }),
-      el("span", { class: "druckspacer" }), drucken, zu),
+      el("span", { class: "druckspacer" }), autoBtn, drucken, zu),
+    status,
     el("div", { class: "zk-spalten" }, liste, blatt)));
   document.body.append(buehne);
   bauListe();

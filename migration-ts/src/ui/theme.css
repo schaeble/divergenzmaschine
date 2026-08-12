@@ -629,6 +629,14 @@ select.abweichend{border-color:var(--acc)}
 }
 
 /* ── Zeitungsseite: der Setzer und das Blatt ────────────────────────────── */
+/* Feste A4-Geometrie, damit die Hoehenmessung stimmt: Was die Verteilung
+   rechnet, muss auf dem Blatt auch so aussehen. 794 x 1123 px sind A4 bei
+   96 dpi. */
+.zk-blatt{padding:0;background:transparent;box-shadow:none;overflow:auto;min-height:0}
+.zk-blatt .zk-seite{width:794px;height:1123px;padding:16mm 14mm;background:#fff;
+  box-shadow:0 2px 12px rgba(0,0,0,.35);margin:0 auto 16px;display:flex;flex-direction:column;overflow:hidden}
+.zk-blatt .zk-raster{flex:1;min-height:0}
+.zk-status{margin:0 0 8px}
 .zk-dialog{max-width:1180px}
 .zk-spalten{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:14px;align-items:start}
 @media (max-width:900px){.zk-spalten{grid-template-columns:minmax(0,1fr)}}
@@ -662,11 +670,20 @@ select.abweichend{border-color:var(--acc)}
 [data-profil="zeitungsseite"] .zk-aufmacher{border-bottom:1pt solid #000;padding-bottom:3mm;margin-bottom:3mm}
 [data-profil="zeitungsseite"] .zk-aufmacher .dm-inhalt{columns:3;column-gap:6mm;
   font:calc(9.5pt * var(--dm-grad,1))/1.42 Georgia,serif;text-align:justify;hyphens:auto}
-[data-profil="zeitungsseite"] .zk-raster{columns:3;column-gap:6mm}
+/* Feste Spaltenkaesten statt CSS-columns: Die Balance von CSS laesst sich nicht
+   steuern und hinterlaesst an den Spaltenfuessen ungleiche Loecher - genau das,
+   was hier vermieden werden soll. */
+[data-profil="zeitungsseite"] .zk-raster{display:grid;
+  grid-template-columns:repeat(var(--zk-spalten,3),minmax(0,1fr));gap:0 6mm}
+[data-profil="zeitungsseite"] .zk-spaltebox{min-width:0}
+[data-profil="zeitungsseite"] .zk-probe{display:block}
 [data-profil="zeitungsseite"] .zk-beitrag{break-inside:avoid;margin-bottom:4mm}
 [data-profil="zeitungsseite"] .zk-spalte .dm-inhalt,
-[data-profil="zeitungsseite"] .zk-kasten .dm-inhalt{font:calc(9pt * var(--dm-grad,1))/1.4 Georgia,serif;
+[data-profil="zeitungsseite"] .zk-kasten .dm-inhalt{
+  font:calc(9pt * var(--dm-grad,1) * var(--zk-skala,1))/1.4 Georgia,serif;
   text-align:justify;hyphens:auto}
+[data-profil="zeitungsseite"] .zk-spalte .zk-titel,
+[data-profil="zeitungsseite"] .zk-kasten .zk-titel{font-size:calc(12.5pt * var(--dm-grad,1) * var(--zk-skala,1))}
 [data-profil="zeitungsseite"] .zk-kasten{border:.6pt solid #000;padding:2.5mm;background:#f6f4ef}
 [data-profil="zeitungsseite"] .zk-kasten .dm-inhalt{text-align:left;hyphens:none}
 [data-profil="zeitungsseite"] .zk-kasten .dm-strophe{margin-bottom:2.5mm}
