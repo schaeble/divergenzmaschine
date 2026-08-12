@@ -21,6 +21,33 @@ interface ProjectFile {
   omniPresets?: Record<string, CognitiveProfile>; livePools?: LiveItem[];
   workshopProjects?: Record<string, WorkshopProject>;
   presets2?: Record<string, Active2>; active2?: Active2 | null; wordArchive?: Archive; offlineArchive?: OfflineArchive; archive2?: Archive2;
+  /** Alle uebrigen Schluessel des Speichers. Aufgefallen bei einem
+   *  Rechnerwechsel: Die acht Stellschrauben (dm_knobs_v1), die Umwelt
+   *  (dm_umwelt_v1), die Zielvorgaben und der gemerkte 4W-Kontext standen in
+   *  KEINEM Feld dieser Datei - wer umzieht, verliert sie stillschweigend.
+   *  Statt sie einzeln nachzutragen und beim naechsten Regler wieder zu
+   *  vergessen, wandert hier alles mit, was zum Programm gehoert. */
+  rest?: Record<string, string>;
+}
+
+/** Schluessel, die zum Programm gehoeren. Praefixe statt Liste, damit ein neuer
+ *  Regler ohne Zutun mitgesichert wird. */
+const REST_PRAEFIX = ["dm_", "divergenz_"];
+/** Was anderswo schon vollstaendig gesichert wird, gehoert nicht doppelt hinein. */
+const REST_AUSNAHME = new Set(["divergenz_settings_v1", "dm_treasury_v1", "divergenz_live_pools_v1"]);
+
+function sammleRest(): Record<string, string> {
+  const out: Record<string, string> = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || REST_AUSNAHME.has(k)) continue;
+      if (!REST_PRAEFIX.some((px) => k.startsWith(px))) continue;
+      const v = localStorage.getItem(k);
+      if (v !== null) out[k] = v;
+    }
+  } catch { /* kein Speicher */ }
+  return out;
 }
 
 /** Exportiert das Projekt. Zeigt — wo unterstützt — einen echten „Speichern unter"-
@@ -34,6 +61,7 @@ export async function exportProject(): Promise<boolean> {
     omniPresets: loadOmniUserPresets(), livePools: exportLivePools(),
     workshopProjects: loadWorkshopProjects(),
     presets2: loadUserPresets2(), active2: getActive2(), archive2: loadArchive2(),
+    rest: sammleRest(),
   };
   const json = JSON.stringify(project, null, 2);
   const filename = `divergenz_projekt_${new Date().toISOString().slice(0, 10)}.json`;
@@ -83,6 +111,12 @@ export function importProject(file: File): Promise<void> {
         if (p.workshopProjects) saveWorkshopProjectsAll(p.workshopProjects);
         if (p.presets2) saveUserPresets2All(p.presets2);
         if ("active2" in p) setActive2(p.active2 ?? null);
+        if (p.rest) {
+          for (const [k, v] of Object.entries(p.rest)) {
+            if (!REST_PRAEFIX.some((px) => k.startsWith(px)) || REST_AUSNAHME.has(k)) continue;
+            try { localStorage.setItem(k, v); } catch { /* voll */ }
+          }
+        }
         if (p.archive2 && Array.isArray(p.archive2.groups)) saveArchive2(p.archive2);
         else if (p.wordArchive || p.offlineArchive) mergeArchive2(migrateOldArchives(p.wordArchive ?? null, p.offlineArchive ?? null));
         resolve();
