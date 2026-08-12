@@ -85,15 +85,18 @@ function beitrag(t: Treasure, rolle: Rolle, titel: string, skala = 1, zwischenra
   }
   box.append(el(rolle === "aufmacher" ? "h1" : "h2", { class: "zk-titel" }, titel));
   const rumpf = rumpfVon(t);
-  box.append(istVers(t.form) ? inhaltVers(rumpf, false) : inhaltFliess(rumpf));
-  if (t.form === "bericht") {
+  const inhalt = istVers(t.form) ? inhaltVers(rumpf, false) : inhaltFliess(rumpf);
+  box.append(inhalt);
+  if (t.form === "bericht" && rolle === "aufmacher") {
     const kasten = absaetze(t.t).find((x) => /^Faktenkasten\b/.test(x));
-    if (kasten && rolle === "aufmacher") {
+    if (kasten) {
       const k = el("div", { class: "dm-kasten" });
       const zeilen = kasten.split("\n");
       k.append(el("div", { class: "dm-kastenkopf" }, zeilen.shift() || "Faktenkasten"));
       for (const z of zeilen) if (z.trim()) k.append(el("div", {}, z.trim()));
-      box.append(k);
+      // IN den Spaltenfluss haengen, nicht darunter: Als Block ueber die volle
+      // Breite schob er alles Weitere von der Seite.
+      inhalt.append(k);
     }
   }
   return box;
@@ -296,11 +299,12 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       + (nachFuellung ? "" : "");
     document.querySelectorAll(".zk-probe").forEach((x) => x.remove());
     document.querySelectorAll(".dm-print-aktiv").forEach((x) => x.remove());
-    for (const s2 of Array.from(blatt.children)) {
-      const kopie = s2.cloneNode(true) as HTMLElement;
-      kopie.classList.add("dm-print-aktiv");
-      document.body.append(kopie);
-    }
+    // EIN Behaelter fuer alle Seiten. Einzeln angehaengt bekam jede Seite
+    // position:absolute aus der Druckregel und lag auf der vorigen - gedruckt
+    // wurde die letzte, und der Zeitungskopf der ersten war verdeckt.
+    const mappe = el("div", { class: "dm-print-aktiv dm-seiten" });
+    for (const s2 of Array.from(blatt.children)) mappe.append(s2.cloneNode(true));
+    document.body.append(mappe);
   };
 
   const autoBtn = el("button", {}, icon("dice"), " Seiten füllen");
