@@ -272,10 +272,10 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     }
     misch.forEach((i, n) => gewaehlt.set(i, { rolle: rolleFuer(quellen[i]!, n === 0), titel: ueberschriftVon(quellen[i]!) }));
     bauListe();
-    zeichne(true);
+    zeichne();
   };
 
-  const zeichne = (nachFuellung = false): void => {
+  const zeichne = (): void => {
     sichereKopf(kopf);
     blatt.innerHTML = "";
     const ids = [...gewaehlt.keys()].sort((a, b) => a - b);
@@ -307,7 +307,12 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     const inhaltH = SEITE_H - fussH;
     // Der Aufmacher wird in voller Breite gemessen, alles Uebrige in Spaltenbreite.
     const aufId = ids.find((i) => rollen[i] === "aufmacher");
-    const o = { spaltenhoehe: inhaltH - kopfH, spalten, seiten: seitenZahl,
+    // Kleiner Sicherheitsstreifen. Er allein genuegt NICHT: Die Abweichung
+    // zwischen Vorschau und Druck entsteht je Beitrag, nicht einmal je Spalte -
+    // acht Beitraege koennen acht Zeilen mehr ergeben. Deshalb wird unten am
+    // fertigen Satz nachgemessen; die Reserve macht das nur seltener noetig.
+    const RESERVE = 12;
+    const o = { spaltenhoehe: inhaltH - kopfH - RESERVE, spalten, seiten: seitenZahl,
       aufmacherhoehe: aufId === undefined ? undefined : mess.aufmacher(aufId) };
     const seiten: Seite[] = umbrechen(teile, mess, o);
 
@@ -322,13 +327,27 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       blatt.append(el("div", { class: "zk-papier" }, dom));
     });
 
-    const gesetzt = seiten.reduce((a, s2) => a + s2.teile.length, 0);
+    // Nachmessen am fertigen Satz, nicht an der Probe: Was hier ueberlaeuft,
+    // ueberlaeuft auch auf dem Papier. Der letzte Beitrag einer zu vollen Spalte
+    // wird entfernt, bis sie passt - lieber ein Beitrag weniger als ein Text,
+    // der die Fusslinie durchbricht.
+    let entfernt = 0;
+    for (const box of Array.from(blatt.querySelectorAll(".zk-spaltebox")) as HTMLElement[]) {
+      let schutz = 0;
+      while (box.scrollHeight > box.clientHeight + 1 && box.children.length > 1 && schutz++ < 20) {
+        box.removeChild(box.lastElementChild!);
+        entfernt++;
+      }
+    }
+
+    const gesetzt = seiten.reduce((a, s2) => a + s2.teile.length, 0) - entfernt;
     const grad = Math.round(100 * seiten.reduce((a, s2) => a + fuellgrad(s2, mess, o), 0) / Math.max(1, seiten.length));
     status.textContent = `${seiten.length} Seite(n) · ${gesetzt} von ${ids.length} Beiträgen gesetzt · Füllung ${grad} %`
-      + (gesetzt < ids.length ? " · Rest passt nicht mehr — mehr Seiten wählen" : "")
-      + (nachFuellung ? "" : "");
+      + (entfernt ? ` · ${entfernt} beim Nachmessen entfernt` : "")
+      + (gesetzt < ids.length ? " · Rest passt nicht mehr — mehr Seiten wählen" : "");
     document.querySelectorAll(".zk-probe").forEach((x) => x.remove());
     document.querySelectorAll(".dm-print-aktiv").forEach((x) => x.remove());
+    // Erst jetzt kopieren - die Kopie soll den nachgemessenen Satz zeigen.
     // EIN Behaelter fuer alle Seiten. Einzeln angehaengt bekam jede Seite
     // position:absolute aus der Druckregel und lag auf der vorigen - gedruckt
     // wurde die letzte, und der Zeitungskopf der ersten war verdeckt.
