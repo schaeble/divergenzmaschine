@@ -1,5 +1,5 @@
 /* Divergenzmaschine – Service Worker (offline-fähig) */
-const CACHE = 'divergenzmaschine-ts-4.219.3';
+const CACHE = 'divergenzmaschine-ts-4.220.0';
 const PRECACHE = [
   './',
   './index.html',
@@ -30,6 +30,19 @@ self.addEventListener('fetch', (e) => {
 
   // API-Aufrufe (Anthropic) nie cachen – immer Netz
   if (url.hostname.endsWith('anthropic.com')) return;
+
+  // Wikipedia-Tagesfeed (Sammler): Netz zuerst, Cache als Rueckfall. Jeder Tag
+  // hat seine eigene Adresse, deshalb ist der Cache hier ein Gewinn: einmal
+  // geholte Tage bleiben offline lesbar, ohne je zu veralten.
+  if (url.hostname.endsWith('wikipedia.org') || url.hostname.endsWith('wikimedia.org')) {
+    e.respondWith(
+      fetch(req).then((res) => {
+        if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
+        return res;
+      }).catch(() => caches.match(req).then((hit) => hit || Response.error()))
+    );
+    return;
+  }
 
   // Seite selbst: network-first MIT Zeitlimit. Ohne Limit haengt der Start bei
   // langsamem/halbtotem Netz, bis der Browser-Timeout greift; deshalb nach 2,5 s
