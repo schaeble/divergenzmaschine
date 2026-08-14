@@ -339,6 +339,24 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
         entfernt++;
       }
     }
+    // Und die SEITE als Ganzes. Die Spaltenpruefung allein genuegt nicht: Der
+    // Aufmacher steht ausserhalb der Spaltenkaesten und wurde nie nachgemessen.
+    // Ist er eine Zeile hoeher als gerechnet, schiebt er alles nach unten aus
+    // der Seite - und genau das lief unten heraus.
+    for (const seite2 of Array.from(blatt.querySelectorAll(".zk-seite")) as HTMLElement[]) {
+      let schutz = 0;
+      while (seite2.scrollHeight > seite2.clientHeight + 1 && schutz++ < 40) {
+        // Immer aus der vollsten Spalte nehmen, sonst wird eine leer und eine
+        // bleibt zu voll.
+        const boxen = Array.from(seite2.querySelectorAll(".zk-spaltebox")) as HTMLElement[];
+        const vollste = boxen
+          .filter((b) => b.children.length > 0)
+          .sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
+        if (!vollste) break;
+        vollste.removeChild(vollste.lastElementChild!);
+        entfernt++;
+      }
+    }
 
     const gesetzt = seiten.reduce((a, s2) => a + s2.teile.length, 0) - entfernt;
     const grad = Math.round(100 * seiten.reduce((a, s2) => a + fuellgrad(s2, mess, o), 0) / Math.max(1, seiten.length));
