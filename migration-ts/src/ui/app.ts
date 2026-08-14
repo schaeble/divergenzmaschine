@@ -23,6 +23,7 @@ import { mountStudio } from "./studio";
 import { mountWordbank } from "./wordbankView";
 import { mountKorpus } from "./korpusView";
 import { mountIdeas } from "./ideasView";
+import { mountSammler } from "./sammlerView";
 import { mountTreasury } from "./treasuryView";
 import { mountWorld } from "./worldView";
 import { mountOscilloscope } from "./oscilloscopeView";
@@ -34,6 +35,7 @@ import { mountHelp } from "./helpView";
 const TABS: [string, (root: HTMLElement) => void][] = [
   ["Studio", mountStudio],
   ["Ideen", mountIdeas],
+  ["Sammler", mountSammler],
   ["Welt", mountWorld],
   ["Wortbank", mountWordbank],
   ["Korpus", mountKorpus],

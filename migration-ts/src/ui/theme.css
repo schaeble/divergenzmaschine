@@ -746,3 +746,11 @@ select.abweichend{border-color:var(--acc)}
   .dm-print-aktiv[data-profil="zeitungsseite"] .zk-fuss { position: static; }
   [data-profil="zeitungsseite"] .zk-beitrag { break-inside: avoid; }
 }
+
+/* Sammler: Funde aus dem Wikipedia-Tagesfeed */
+.fund{margin:10px 0}
+.fund-text{margin:6px 0 0;font:14px/1.55 var(--sans);color:var(--text)}
+.fund .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:9px}
+.fund .btnrow{margin-top:10px;align-items:center}
+.sam-w{color:var(--muted);font-weight:600}
+.sam-warn{margin:10px 0;padding:10px 12px;border-radius:8px;font:14px/1.5 var(--sans);color:var(--text);background:rgba(230,73,128,.12);border:1px solid rgba(230,73,128,.45)}

@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.219.1**, Zweig `typescript-migration`.
+Stand: **v4.220.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -89,6 +89,7 @@ Beide laufen bei `npm test` mit.
 | `test/regression.ts` | sechs benannte Fehlerfälle |
 | `test/pruefstand.ts` | Bericht: 2880 Läufe (8 Wer × 9 Was × 5 Wann × 4 Wo × 2 Töne), 12 Verbotsmuster, 7 semantische Prüfungen |
 | `test/pruefstand-formen.ts` | alle Formen: 2520 Läufe, Muster aus echten Funden, Strukturprüfungen je Form |
+| `test/sammler.ts` | Sammler: 43 Prüfungen gegen nachgebildete Feed-Daten, mit Gegentests |
 
 Der Formen-Prüfstand trennt **Formen im Gebrauch** (Prosa, Reim, Haiku,
 Multi-Shot) vom **Beiwerk** (Prosagedicht, Gedicht-Strang, Szene). Das Beiwerk
@@ -141,6 +142,15 @@ Wissenschaft, Gesellschaft, Gesundheit, Bildung, Wetter), fünf
 Konsistenzprüfungen, Blickrichtung über den Ton (Hoffnungsvoll/Humorvoll/
 Zärtlich melden Gewinn statt Verlust).
 
+**Sammler** (seit 4.220.0): eigener Reiter. Holt den öffentlichen Tagesfeed der
+deutschen Wikipedia (Artikel des Tages, „Was geschah am …", In den Nachrichten)
+für einen zufälligen Tag des zurückliegenden Jahres und zerlegt jeden Fund in
+4W-Vorschläge. Person/Ort werden aus den Strukturdaten bestimmt (Koordinaten,
+Kurzbeschreibung), Orte haben Vorrang; Unsicheres bleibt leer und lässt beim
+Übernehmen den Studio-Wert stehen. Übergabe über `dm_pending_ctx` wie bei Ideen
+und Schatzkammer. Reine Zerlegung in `features/wikisammler.ts`, Netzabruf davon
+getrennt — deshalb ohne Netz prüfbar.
+
 **Druck:** sechs Profile (zeitung, fliesstext, vers, haiku, buehne, shots) plus
 der **Zeitungssetzer** mit gestaltbarem Kopf, Automatik über mehrere Seiten und
 Nachmessen am fertigen Satz.
@@ -185,6 +195,12 @@ Nachmessen am fertigen Satz.
   Auswahl. Gemessen: Gift wirkt (Aufnahme 9,6 → 5,9 %), Nahrung kaum, auf
   Fremdzeichen gar nicht. Der Befund sagt, wohin es weitergeht — die Umwelt muss
   die **Variation** erreichen, nicht nur die Auswahl.
+
+- **Sammler**: Der Aufbau des Wikipedia-Feeds ist hier nie gegen den echten
+  Dienst geprüft worden (die Bauumgebung kommt nicht ins Wikipedia-Netz). Die
+  Zerlegung ist gegen fehlende Felder abgesichert und läuft gegen nachgebildete
+  Beispieldaten; bleibt der Reiter im Browser leer, zuerst die Adressen in
+  `feedAdressen()` gegen die aktuelle Wikimedia-Dokumentation halten.
 
 ## 9 · Wo die übrigen Papiere liegen
 

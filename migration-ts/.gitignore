@@ -1,1 +1,5 @@
 test/.property.cjs
+test/.regression.cjs
+test/.pruefstand.cjs
+test/.pf.cjs
+test/.sammler.cjs

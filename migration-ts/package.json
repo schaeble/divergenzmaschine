@@ -1,13 +1,13 @@
 {
   "name": "divergenzmaschine-ts",
-  "version": "4.219.3",
+  "version": "4.220.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "test": "esbuild test/property.ts --bundle --platform=node --format=cjs --outfile=test/.property.cjs --log-level=error && node test/.property.cjs && esbuild test/regression.ts --bundle --platform=node --format=cjs --outfile=test/.regression.cjs --log-level=error && node test/.regression.cjs && esbuild test/pruefstand.ts --bundle --platform=node --format=cjs --outfile=test/.pruefstand.cjs --log-level=error && node test/.pruefstand.cjs && esbuild test/pruefstand-formen.ts --bundle --platform=node --format=cjs --outfile=test/.pf.cjs --log-level=error && node test/.pf.cjs",
+    "test": "esbuild test/property.ts --bundle --platform=node --format=cjs --outfile=test/.property.cjs --log-level=error && node test/.property.cjs && esbuild test/regression.ts --bundle --platform=node --format=cjs --outfile=test/.regression.cjs --log-level=error && node test/.regression.cjs && esbuild test/pruefstand.ts --bundle --platform=node --format=cjs --outfile=test/.pruefstand.cjs --log-level=error && node test/.pruefstand.cjs && esbuild test/pruefstand-formen.ts --bundle --platform=node --format=cjs --outfile=test/.pf.cjs --log-level=error && node test/.pf.cjs && esbuild test/sammler.ts --bundle --platform=node --format=cjs --outfile=test/.sammler.cjs --log-level=error && node test/.sammler.cjs",
     "prebuild": "node scripts/sync-version.mjs"
   },
   "devDependencies": {
