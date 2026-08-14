@@ -675,7 +675,20 @@ select.abweichend{border-color:var(--acc)}
   padding:2mm 0 1.5mm}
 [data-profil="zeitungsseite"] .zk-name{font:700 calc(46pt * var(--dm-grad,1))/1 Georgia,serif;
   letter-spacing:.02em}
-[data-profil="zeitungsseite"] .zk-kopf.zk-fraktur .zk-name{font-family:"UnifrakturMaguntia","Old English Text MT",Georgia,serif;
+/* Gebrochene Schrift: Zuerst lokal Installiertes - "Old English Text MT" liegt
+   bei Office bei, auf einem frischen Rechner fehlt es. Deshalb zusaetzlich eine
+   Webschrift. Ist keine von beiden da (kein Netz, nichts installiert), bleibt es
+   bei Georgia; die Zeitung sieht dann nur nicht gebrochen aus. */
+@font-face{
+  font-family:"DM Fraktur";
+  src:local("UnifrakturMaguntia"), local("Old English Text MT"), local("Wittenberger Fraktur"),
+      local("Breitkopf Fraktur"), local("Fette Fraktur"), local("Cloister Black"),
+      url("https://fonts.gstatic.com/s/unifrakturmaguntia/v20/WWXPlieVYwiGNomYU-ciRLRvEmK7oaVemQ.woff2") format("woff2");
+  font-display:swap;
+}
+[data-profil="zeitungsseite"] .zk-kopf.zk-fraktur .zk-name{
+  font-family:"DM Fraktur","UnifrakturMaguntia","Old English Text MT",
+    "Wittenberger Fraktur","Fette Fraktur","Cloister Black",Georgia,serif;
   letter-spacing:0}
 [data-profil="zeitungsseite"] .zk-motto{font-size:calc(9pt * var(--dm-grad,1));letter-spacing:.12em;
   text-transform:uppercase;margin-top:1.5mm;color:#333}
