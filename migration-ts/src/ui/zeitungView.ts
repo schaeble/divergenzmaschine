@@ -15,7 +15,8 @@ import { umbrechen, fuellgrad, type Messbar, type UmbruchTeil, type Seite } from
 import {
   ladeBilder, sichereBilder, neuerRahmen, verschiebe, skaliereEcke, begrenze,
   leseBilddatei, stapelLege, stapelNimm, BILD_ANZAHL,
-  rasteRahmen, spaltenBreite, spaltenZahl, type Bildrahmen, type Raster,
+  rasteRahmen, spaltenBreite, spaltenZahl, bildplatz,
+  type Bildrahmen, type Raster,
 } from "../features/zeitungsbilder";
 import {
   ladeLayouts, sichereLayouts, legeLayout, entferneLayout, ordneZu, textSchluessel,
@@ -81,6 +82,28 @@ function rumpfVon(t: Treasure): string {
   if (t.form !== "bericht") return t.t;
   const abs = absaetze(t.t).filter((x) => !/^Faktenkasten\b/.test(x));
   return abs.slice(2).join("\n\n");
+}
+
+/** Nimmt den letzten Satz weg und setzt drei Punkte. Für Spalten, die auch
+ *  nach dem Entfernen ganzer Beiträge noch überlaufen.
+ *
+ *  Gibt "" zurück, wenn nichts Sinnvolles übrig bliebe — dann fällt der ganze
+ *  Absatz weg. Die Falle: `\d[\d.]*` verschluckt den Satzpunkt; deshalb wird
+ *  eine Ziffer vor dem Punkt ausgeschlossen, sonst endete der Text an „1902." */
+export function satzWeg(text: string): string {
+  const t = (text || "").replace(/\s*…\s*$/, "").trim();
+  if (t.length < 40) return "";
+  const treffer = [...t.matchAll(/(?<!\d)[.!?](?=\s|$)/g)];
+  const letzter = treffer.length > 1 ? treffer[treffer.length - 2] : undefined;
+  // Mindestens ein gutes Dutzend Zeichen müssen stehen bleiben — sonst wird aus
+  // dem Absatz ein Wortfetzen mit drei Punkten.
+  if (letzter && letzter.index !== undefined && letzter.index > 15) {
+    return t.slice(0, letzter.index + 1).trim() + " …";
+  }
+  // Kein zweiter Satz: die letzten Wörter wegnehmen.
+  const worte = t.split(/\s+/);
+  if (worte.length < 12) return "";
+  return worte.slice(0, Math.max(8, worte.length - 6)).join(" ") + " …";
 }
 
 function istVers(form?: string): boolean {
@@ -428,6 +451,15 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       blatt.append(el("div", { class: "zk-papier" }, dom));
     });
 
+    // Erst den Platz für die Bilder freihalten, DANN nachmessen: Der
+    // Platzhalter macht die Spalte höher, und was dadurch überläuft, muss die
+    // Nachmessung noch sehen. Andersherum stünde am Ende doch wieder Text
+    // hinter der Fußlinie.
+    {
+      const seitenEl = Array.from(blatt.querySelectorAll(".zk-seite")) as HTMLElement[];
+      seitenEl.forEach((sEl, n) => bildplaetzeSetzen(sEl, n, seitenEl.length));
+    }
+
     // Nachmessen am fertigen Satz, nicht an der Probe: Was hier ueberlaeuft,
     // ueberlaeuft auch auf dem Papier. Der letzte Beitrag einer zu vollen Spalte
     // wird entfernt, bis sie passt - lieber ein Beitrag weniger als ein Text,
@@ -435,8 +467,12 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     let entfernt = 0;
     for (const box of Array.from(blatt.querySelectorAll(".zk-spaltebox")) as HTMLElement[]) {
       let schutz = 0;
-      while (box.scrollHeight > box.clientHeight + 1 && box.children.length > 1 && schutz++ < 20) {
-        box.removeChild(box.lastElementChild!);
+      // Gezählt werden BEITRÄGE, nicht Kinder: Seit die Spalte einen
+      // Bildplatzhalter tragen kann, wäre eine Spalte mit einem Beitrag
+      // „zwei Kinder" — und der letzte Beitrag flöge heraus.
+      const beitraege = (): HTMLElement[] => Array.from(box.querySelectorAll(":scope > .zk-beitrag")) as HTMLElement[];
+      while (box.scrollHeight > box.clientHeight + 1 && beitraege().length > 1 && schutz++ < 20) {
+        box.removeChild(beitraege().pop()!);
         entfernt++;
       }
     }
@@ -451,18 +487,27 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
         // bleibt zu voll.
         const boxen = Array.from(seite2.querySelectorAll(".zk-spaltebox")) as HTMLElement[];
         const vollste = boxen
-          .filter((b) => b.children.length > 0)
+          .filter((b) => b.querySelectorAll(":scope > .zk-beitrag").length > 0)
           .sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
         if (!vollste) break;
-        vollste.removeChild(vollste.lastElementChild!);
+        const letzte = Array.from(vollste.querySelectorAll(":scope > .zk-beitrag"));
+        vollste.removeChild(letzte[letzte.length - 1]!);
         entfernt++;
       }
+    }
+
+    // Was jetzt noch übersteht, ist ein einzelner zu langer Beitrag — den kann
+    // die Entfernung nicht anfassen, ohne die Spalte zu leeren. Kürzen.
+    let gekuerzt = 0;
+    for (const kasten of Array.from(blatt.querySelectorAll(".zk-spaltebox")) as HTMLElement[]) {
+      if (kuerzeSpalte(kasten)) gekuerzt++;
     }
 
     const gesetzt = seiten.reduce((a, s2) => a + s2.teile.length, 0) - entfernt;
     const grad = Math.round(100 * seiten.reduce((a, s2) => a + fuellgrad(s2, mess, o), 0) / Math.max(1, seiten.length));
     const statusText = `${seiten.length} Seite(n) · ${gesetzt} von ${ids.length} Beiträgen gesetzt · Füllung ${grad} %`
       + (entfernt ? ` · ${entfernt} beim Nachmessen entfernt` : "")
+      + (gekuerzt ? ` · ${gekuerzt} Spalte(n) am Fuß gekürzt` : "")
       + (gesetzt < ids.length ? " · Rest passt nicht mehr — mehr Seiten wählen" : "");
     zeichneBilder();
     document.querySelectorAll(".zk-probe").forEach((x) => x.remove());
@@ -605,6 +650,66 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     box.addEventListener("pointerdown", (e) => griffAn(e as PointerEvent, "zieh"));
     griff.addEventListener("pointerdown", (e) => griffAn(e as PointerEvent, "skal"));
     return box;
+  };
+
+  /** Hält in jeder berührten Spalte das Band des Bildes frei, damit der Text
+   *  am Bild abbricht und darunter weiterläuft.
+   *
+   *  Gemessen wird am ECHTEN Kasten (`getBoundingClientRect`), nicht gerechnet:
+   *  Wo die Spalten anfangen, hängt an Kopfhöhe und Aufmacher, und die stehen
+   *  erst, wenn gesetzt ist. Ohne Maße (Prüfstand ohne Layout) passiert nichts.
+   *
+   *  Der Aufmacher bleibt außen vor: Sein Satz läuft über CSS-Spalten, und ein
+   *  Gleitkasten wirkt dort nur in der Spalte, in der er steht. Ein Bild über
+   *  dem Aufmacher verdeckt also weiterhin. */
+  const bildplaetzeSetzen = (seiteEl: HTMLElement, seiteNr: number, seitenGesamt: number): void => {
+    const seiteR = seiteEl.getBoundingClientRect();
+    if (!seiteR.width || !seiteR.height) return;
+    const f = seiteR.width / SEITE_B;                       // Bildschirm → Seitenmaß
+    const kaesten = Array.from(seiteEl.querySelectorAll(".zk-spaltebox")) as HTMLElement[];
+    const LUFT = Math.round(2 * MM);                        // Abstand Bild ↔ Text
+    for (const kasten of kaesten) {
+      const r = kasten.getBoundingClientRect();
+      if (!r.width) continue;
+      const lage = {
+        x: (r.left - seiteR.left) / f, b: r.width / f,
+        oben: (r.top - seiteR.top) / f, hoehe: r.height / f,
+      };
+      for (const b of bilder) {
+        const seite = Math.min(Math.max(0, b.seite | 0), Math.max(0, seitenGesamt - 1));
+        if (seite !== seiteNr) continue;
+        const platz = bildplatz(b, lage, LUFT);
+        if (!platz) continue;
+        const halter = el("div", { class: "zk-bildplatz" });
+        halter.style.height = platz.hoehe + "px";
+        halter.style.marginTop = platz.oben + "px";
+        // Als ERSTES Kind: Ein Gleitkasten wirkt nur auf das, was ihm im
+        // Quelltext folgt. Weiter hinten eingehängt bliebe der Text darüber
+        // unberührt — und genau der soll ja umbrechen.
+        kasten.insertBefore(halter, kasten.firstChild);
+      }
+    }
+  };
+
+  /** Kürzt den letzten Beitrag einer übervollen Spalte, bis er passt.
+   *
+   *  Das Entfernen ganzer Beiträge greift nicht, wenn nur EINER in der Spalte
+   *  steht — der wurde bisher von `overflow:hidden` auf halber Zeile
+   *  abgeschnitten und stieß an die Fußlinie. Lieber ein Satz weniger als eine
+   *  zerschnittene Zeile. */
+  const kuerzeSpalte = (kasten: HTMLElement): boolean => {
+    let gekuerzt = false, schutz = 0;
+    while (kasten.scrollHeight > kasten.clientHeight + 1 && schutz++ < 80) {
+      const inhalt = kasten.querySelector(".zk-beitrag:last-of-type .dm-inhalt") as HTMLElement | null;
+      const letzter = inhalt?.lastElementChild as HTMLElement | null;
+      if (!inhalt || !letzter) break;
+      if (inhalt.children.length > 1) { inhalt.removeChild(letzter); gekuerzt = true; continue; }
+      const kurz = satzWeg(letzter.textContent || "");
+      if (!kurz) { inhalt.removeChild(letzter); gekuerzt = true; continue; }
+      letzter.textContent = kurz;
+      gekuerzt = true;
+    }
+    return gekuerzt;
   };
 
   /** Bilder auf die fertig gesetzten Seiten legen. Läuft NACH dem Nachmessen

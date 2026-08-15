@@ -249,3 +249,50 @@ export function rasteRahmen(rahmen: Bildrahmen, r: Raster): Bildrahmen {
 
   return { ...rahmen, verh, x: Math.round(x), y: Math.round(y), b: Math.round(b), h: Math.round(h) };
 }
+
+// ── Platz für das Bild im Spaltensatz ───────────────────────────────────────
+// Bisher lag das Bild ÜBER dem Satz und verdeckte ihn. Damit der Text am Bild
+// abbricht und darunter weiterläuft, bekommt jede berührte Spalte einen
+// unsichtbaren Platzhalter: ein Gleitkasten (float) über die volle
+// Spaltenbreite, der genau das Band des Bildes besetzt. Zeilen oberhalb und
+// unterhalb bleiben stehen, Zeilen im Band rutschen darunter — das ist das
+// Verhalten, das eine Zeitung von Hand auch hätte.
+//
+// Warum ein Gleitkasten und kein Abstand: Ein Absatz kann quer durch das Band
+// laufen. Ein eingeschobener Block träfe immer die Absatzgrenze, nie die
+// Zeilengrenze — der Text spränge zu früh oder zu spät.
+
+/** Lage eines Spaltenkastens auf der Seite, in Seitenkoordinaten. */
+export interface Spaltenlage { x: number; b: number; oben: number; hoehe: number }
+
+/** Welches Band muss diese Spalte für das Bild freihalten?
+ *  Rückgabe in KASTENkoordinaten (oben = Abstand von der Spaltenoberkante),
+ *  oder null, wenn die Spalte das Bild nicht berührt.
+ *  `luft` ist der Abstand, den Bild und Text zueinander halten. */
+export function bildplatz(
+  bild: { x: number; y: number; b: number; h: number },
+  spalte: Spaltenlage,
+  luft = 0,
+): { oben: number; hoehe: number } | null {
+  // Waagerecht: Eine Berührung von wenigen Pixeln ist keine Überdeckung —
+  // sonst räumt ein Bild, das exakt an der Spaltenkante endet, die
+  // Nachbarspalte mit ab.
+  const EPS = 2;
+  const linksVon = bild.x + bild.b <= spalte.x + EPS;
+  const rechtsVon = bild.x >= spalte.x + spalte.b - EPS;
+  if (linksVon || rechtsVon) return null;
+
+  const von = Math.max(bild.y - luft, spalte.oben);
+  const bis = Math.min(bild.y + bild.h + luft, spalte.oben + spalte.hoehe);
+  if (bis - von <= 0) return null;                    // ganz über oder unter der Spalte
+  return { oben: Math.max(0, von - spalte.oben), hoehe: bis - von };
+}
+
+/** Die Spaltenkästen einer Seite als Lagen — aus derselben Rasterrechnung, mit
+ *  der auch eingerastet wird. */
+export function spaltenlagen(r: Raster, oben: number, hoehe: number): Spaltenlage[] {
+  const sp = spaltenBreite(r);
+  const raus: Spaltenlage[] = [];
+  for (let i = 0; i < Math.max(1, r.spalten); i++) raus.push({ x: i * (sp + r.steg), b: sp, oben, hoehe });
+  return raus;
+}

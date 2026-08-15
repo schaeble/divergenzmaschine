@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.224.0**, Zweig `typescript-migration`.
+Stand: **v4.225.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -90,8 +90,8 @@ Beide laufen bei `npm test` mit.
 | `test/pruefstand.ts` | Bericht: 2880 Läufe (8 Wer × 9 Was × 5 Wann × 4 Wo × 2 Töne), 12 Verbotsmuster, 7 semantische Prüfungen |
 | `test/pruefstand-formen.ts` | alle Formen: 2520 Läufe, Muster aus echten Funden, Strukturprüfungen je Form |
 | `test/sammler.ts` | Sammler: 61 Prüfungen gegen nachgebildete Feed-Daten, mit Gegentests |
-| `test/bildrahmen.ts` | Bildrahmen: 51 Prüfungen, 560 Skalier- und 1600 Rasterfälle als Matrix |
-| `test/zeitung.ts` | Zeitungssetzer: Layout-Logik + Rundgang (48 Prüfungen) im echten Setzer unter jsdom |
+| `test/bildrahmen.ts` | Bildrahmen: 67 Prüfungen, 560 Skalier- und 1600 Rasterfälle als Matrix |
+| `test/zeitung.ts` | Zeitungssetzer: Layout-Logik + Rundgang (61 Prüfungen) im echten Setzer unter jsdom |
 
 Der Formen-Prüfstand trennt **Formen im Gebrauch** (Prosa, Reim, Haiku,
 Multi-Shot) vom **Beiwerk** (Prosagedicht, Gedicht-Strang, Szene). Das Beiwerk
@@ -199,6 +199,25 @@ Verzerren ist der eine Fehler, den man einem Bild sofort ansieht. Reine
 Rechnung in `rasteRahmen()`. Beim Einschalten werden vorhandene Bilder sofort
 ausgerichtet — eine Taste, die erst beim nächsten Ziehen wirkt, sieht
 wirkungslos aus.
+
+**Textumbruch am Bild** (seit 4.225.0): Jede vom Bild berührte Spalte bekommt
+als ERSTES Kind einen unsichtbaren Gleitkasten (`.zk-bildplatz`, `float:left;
+width:100%`) mit `margin-top` = Bandanfang und `height` = Bandhöhe. Zeilen
+darüber und darunter bleiben stehen, Zeilen im Band rutschen unter das Bild.
+Ein eingeschobener Block hätte nur Absatzgrenzen getroffen, nie Zeilengrenzen.
+Reihenfolge in `zeichne()`: Seiten setzen → **Platzhalter** → Nachmessen →
+Kürzen → Bildschicht → Druckfassung. Der Platzhalter muss VOR die Nachmessung,
+sonst steht am Ende doch Text hinter der Fußlinie. Die Nachmessung zählt
+seither `.zk-beitrag`, nicht `children` — sonst hielte sie den Platzhalter für
+einen Beitrag und würfe den letzten Text hinaus. Der Aufmacher ist ausgenommen
+(CSS-Spalten; ein Gleitkasten wirkt dort nur in seiner eigenen Spalte).
+
+**Kürzen am Spaltenfuß**: Was auch nach dem Entfernen ganzer Beiträge noch
+übersteht — ein einzelner zu langer Beitrag —, wird satzweise gekürzt
+(`satzWeg()`), statt von `overflow:hidden` auf halber Zeile abgeschnitten zu
+werden. Die Statuszeile sagt, wie viele Spalten gekürzt wurden. UNGEPRÜFT: Der
+Auslöser hängt an `scrollHeight`, das jsdom nicht kennt; geprüft ist nur
+`satzWeg()` selbst.
 
 **Druck:** sechs Profile (zeitung, fliesstext, vers, haiku, buehne, shots) plus
 der **Zeitungssetzer** mit gestaltbarem Kopf, Automatik über mehrere Seiten und

@@ -15,7 +15,7 @@
 import {
   zielMasse, begrenze, begrenzeLage, verschiebe, skaliereEcke, neuerRahmen,
   ladeBilder, sichereBilder, stapelLege, stapelNimm,
-  rasteRahmen, spaltenBreite, spaltenSpanne, spaltenZahl,
+  rasteRahmen, spaltenBreite, spaltenSpanne, spaltenZahl, bildplatz, spaltenlagen,
   MIN_KANTE, BILD_MAX, BILD_KEY, STAPEL_TIEFE, type Bildrahmen, type Raster,
 } from "../src/features/zeitungsbilder";
 
@@ -175,6 +175,43 @@ ist(`Raster: ${faelle2} Fälle, keiner tritt aus der Seite`, ausSeite, 0);
 ist("Raster: keiner verzerrt", schief, 0);
 ist("Raster: alle sitzen auf Spaltenkanten", nichtImRaster, 0);
 ist("Spaltenzahl einer Spannbreite", spaltenZahl(spaltenSpanne(r3, 2), r3), 2);
+
+// ── 9 · Platz für das Bild im Spaltensatz ───────────────────────────────────
+// Die Spalten liegen bei y 300 und sind 600 hoch — wie auf einer Seite mit
+// Kopf und Aufmacher darüber.
+const lagen = spaltenlagen(r3, 300, 600);
+ist("drei Spaltenlagen", lagen.length, 3);
+ist("die erste beginnt links", lagen[0]!.x, 0);
+
+const bildL = { x: 0, y: 400, b: Math.round(spaltenBreite(r3)), h: 150 };
+const p0 = bildplatz(bildL, lagen[0]!);
+ist("die berührte Spalte bekommt ein Band", p0 === null, false);
+ist("Band beginnt beim Bild", p0!.oben, 100);
+ist("Band ist so hoch wie das Bild", p0!.hoehe, 150);
+ist("die Nachbarspalte bleibt frei", bildplatz(bildL, lagen[1]!), null);
+ist("die dritte erst recht", bildplatz(bildL, lagen[2]!), null);
+
+// Ein Bild über zwei Spalten trifft beide, die dritte nicht.
+const bild2 = { x: 0, y: 400, b: Math.round(spaltenSpanne(r3, 2)), h: 150 };
+wahr("zwei Spalten getroffen", !!bildplatz(bild2, lagen[0]!) && !!bildplatz(bild2, lagen[1]!));
+ist("die dritte nicht", bildplatz(bild2, lagen[2]!), null);
+
+// Randberührung darf NICHT zählen: ein Bild, das exakt an der Spaltenkante
+// endet, räumt sonst die Nachbarspalte mit ab.
+const bildKante = { x: 0, y: 400, b: Math.round(spaltenBreite(r3)) + r3.steg, h: 150 };
+ist("Kantenberührung zählt nicht", bildplatz(bildKante, lagen[1]!), null);
+
+// Ober- und unterhalb der Spalten passiert nichts.
+ist("Bild über den Spalten", bildplatz({ x: 0, y: 10, b: 200, h: 100 }, lagen[0]!), null);
+ist("Bild unter den Spalten", bildplatz({ x: 0, y: 950, b: 200, h: 100 }, lagen[0]!), null);
+// Ragt es hinein, wird nur der hineinragende Teil freigehalten.
+const teil = bildplatz({ x: 0, y: 250, b: 200, h: 100 }, lagen[0]!)!;
+ist("nur der hineinragende Teil", teil.oben, 0);
+ist("und nur dessen Höhe", teil.hoehe, 50);
+// Luft kommt oben UND unten dazu.
+const mitLuft = bildplatz(bildL, lagen[0]!, 10)!;
+ist("Luft oben", mitLuft.oben, 90);
+ist("Luft oben und unten", mitLuft.hoehe, 170);
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Bildrahmen — ${geprueft} Prüfungen (${faelle} Skalierfälle):`);

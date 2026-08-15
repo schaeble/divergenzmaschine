@@ -24,9 +24,9 @@ let gedruckt = 0;
 (dom.window as unknown as { prompt: () => string }).prompt = () => "Testlayout";
 (dom.window as unknown as { confirm: () => boolean }).confirm = () => true;
 
-import { oeffneZeitungssetzer } from "../src/ui/zeitungView";
+import { oeffneZeitungssetzer, satzWeg } from "../src/ui/zeitungView";
 import {
-  BILD_KEY, ladeBilder, spaltenBreite, spaltenSpanne, type Raster,
+  BILD_KEY, ladeBilder, spaltenBreite, spaltenSpanne, bildplatz, type Raster,
 } from "../src/features/zeitungsbilder";
 import {
   textSchluessel, ordneZu, legeLayout, entferneLayout, LAYOUT_KEY, LAYOUT_ANZAHL,
@@ -191,6 +191,61 @@ wahr("Laden stellt eine Auswahl her", nachher > 0);
 wahr("Meldung nennt die gefundenen Beiträge", /geladen/.test((q(".zk-layoutleiste .mini") as HTMLElement)?.textContent || ""));
 ist("Beitragszahl aus dem Layout", nachher, gespeichert[0]!.teile.length);
 wahr("die Auswahl war vorher eine andere oder gleich groß", vorher >= 0);
+
+// ── 6 · Kürzen am Spaltenfuß ────────────────────────────────────────────────
+ist("letzter Satz fällt weg", satzWeg("Erster Satz. Zweiter Satz. Dritter Satz folgt hier noch nach."),
+  "Erster Satz. Zweiter Satz. …");
+ist("Jahreszahl beendet keinen Satz",
+  satzWeg("Im Jahr 1902. Zeit verging langsam und der Fluss trug alles fort. Dann kam der Winter."),
+  "Im Jahr 1902. Zeit verging langsam und der Fluss trug alles fort. …");
+ist("zu kurzer Text wird ganz verworfen", satzWeg("Kurz."), "");
+wahr("ein einziger langer Satz verliert Wörter",
+  satzWeg("Ein einziger sehr langer Satz ohne jedes weitere Satzzeichen der einfach immer weiter laeuft").endsWith("…"));
+ist("dreifach angewandt wächst nichts an",
+  (satzWeg(satzWeg("Eins zwei drei. Vier fuenf sechs. Sieben acht neun. Zehn elf zwoelf.")).match(/…/g) || []).length, 1);
+
+// ── 7 · Der Text bricht am Bild ─────────────────────────────────────────────
+// jsdom rechnet kein Layout. Für diesen Punkt wird die Geometrie vorgetäuscht —
+// geprüft wird nicht, WIE der Browser umbricht, sondern ob der Platzhalter in
+// der richtigen Spalte, an der richtigen Stelle und in der richtigen Höhe
+// hängt. Das Umbrechen selbst macht CSS mit einem Gleitkasten.
+const SP_N = 3;
+const rr = raster(SP_N);
+const spB = spaltenBreite(rr);
+const kasten = (l: number, t: number, w: number, h: number): DOMRect =>
+  ({ left: l, top: t, width: w, height: h, right: l + w, bottom: t + h, x: l, y: t, toJSON: () => ({}) }) as DOMRect;
+(dom.window.Element.prototype as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect = function (this: Element): DOMRect {
+  if (this.classList.contains("zk-seite")) return kasten(0, 0, 658, 972);
+  if (this.classList.contains("zk-spaltebox")) {
+    const i = Array.from(this.parentElement?.children || []).indexOf(this);
+    return kasten(i * (spB + rr.steg), 300, spB, 600);
+  }
+  return kasten(0, 0, 0, 0);
+};
+
+// Auf drei Spalten stellen und das Bild in die erste Spalte legen.
+const spSel2 = alle(".druckfeld select")[0] as HTMLSelectElement;
+spSel2.value = String(SP_N);
+spSel2.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+localStorage.setItem(BILD_KEY, JSON.stringify([
+  { id: "b1", daten: GIF, seite: 0, x: 0, y: 400, b: Math.round(spB), h: 150, verh: Math.round(spB) / 150 },
+]));
+// Neu öffnen, damit der Setzer die Lage aus dem Speicher liest.
+klick(knopf(/Schließen/));
+oeffneZeitungssetzer("Ein Text aus dem Studio.", "prose");
+klick(knopf(/füllen/));
+
+const kaesten = alle(".zk-blatt .zk-seite .zk-spaltebox");
+wahr("Spaltenkästen da", kaesten.length === SP_N);
+const platz0 = kaesten[0]?.querySelector(".zk-bildplatz") as HTMLElement | null;
+wahr("die berührte Spalte hat einen Platzhalter", !!platz0);
+ist("kein Platzhalter in der Nachbarspalte", !!kaesten[1]?.querySelector(".zk-bildplatz"), false);
+ist("und keiner in der dritten", !!kaesten[2]?.querySelector(".zk-bildplatz"), false);
+const soll = bildplatz({ x: 0, y: 400, b: Math.round(spB), h: 150 }, { x: 0, b: spB, oben: 300, hoehe: 600 }, Math.round(2 * MM))!;
+ist("Platzhalter beginnt beim Bild", platz0?.style.marginTop, soll.oben + "px");
+ist("Platzhalter ist so hoch wie das Bild samt Luft", platz0?.style.height, soll.hoehe + "px");
+ist("er steht als erstes Kind", kaesten[0]?.firstElementChild?.classList.contains("zk-bildplatz"), true);
+ist("und er ist nicht in der Druckfassung vergessen", alle(".dm-print-aktiv .zk-bildplatz").length, 1);
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Zeitungssetzer — ${geprueft} Prüfungen (Layout-Logik + Rundgang in jsdom):`);
