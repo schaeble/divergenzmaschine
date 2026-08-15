@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.225.0**, Zweig `typescript-migration`.
+Stand: **v4.226.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -91,7 +91,7 @@ Beide laufen bei `npm test` mit.
 | `test/pruefstand-formen.ts` | alle Formen: 2520 Läufe, Muster aus echten Funden, Strukturprüfungen je Form |
 | `test/sammler.ts` | Sammler: 61 Prüfungen gegen nachgebildete Feed-Daten, mit Gegentests |
 | `test/bildrahmen.ts` | Bildrahmen: 67 Prüfungen, 560 Skalier- und 1600 Rasterfälle als Matrix |
-| `test/zeitung.ts` | Zeitungssetzer: Layout-Logik + Rundgang (61 Prüfungen) im echten Setzer unter jsdom |
+| `test/zeitung.ts` | Zeitungssetzer: Layout-Logik + Rundgang (65 Prüfungen) im echten Setzer unter jsdom |
 
 Der Formen-Prüfstand trennt **Formen im Gebrauch** (Prosa, Reim, Haiku,
 Multi-Shot) vom **Beiwerk** (Prosagedicht, Gedicht-Strang, Szene). Das Beiwerk
@@ -212,12 +212,21 @@ seither `.zk-beitrag`, nicht `children` — sonst hielte sie den Platzhalter fü
 einen Beitrag und würfe den letzten Text hinaus. Der Aufmacher ist ausgenommen
 (CSS-Spalten; ein Gleitkasten wirkt dort nur in seiner eigenen Spalte).
 
+**Seitenmaß (ab 4.226.0): 174 × 264 mm.** Die Ränder stehen als `RAND_OBEN`
+(15), `RAND_UNTEN` (18), `RAND_SEITE` (18) in `zeitungView.ts` UND in `@page`
+— beide müssen übereinstimmen. Vorher rechnete die Verteilung mit 297 − 2×20 =
+257 mm, gedruckt wurden 297 − 20 − 22 = 255 mm: zwei Millimeter zu viel, eine
+halbe Zeile, die unten abgeschnitten wurde.
+
 **Kürzen am Spaltenfuß**: Was auch nach dem Entfernen ganzer Beiträge noch
 übersteht — ein einzelner zu langer Beitrag —, wird satzweise gekürzt
 (`satzWeg()`), statt von `overflow:hidden` auf halber Zeile abgeschnitten zu
-werden. Die Statuszeile sagt, wie viele Spalten gekürzt wurden. UNGEPRÜFT: Der
-Auslöser hängt an `scrollHeight`, das jsdom nicht kennt; geprüft ist nur
-`satzWeg()` selbst.
+werden. Gemessen wird an der FUSSLINIE (`getBoundingClientRect`), nicht an
+`scrollHeight`: Der Spaltenkasten ist ein Rasterfeld und WÄCHST mit seinem
+Inhalt — die heraushängende Zeile machte ihn höher, statt einen Überlauf zu
+melden, und die Prüfung sah nichts. Dazu 3 mm Reserve für den Unterschied
+zwischen Bildschirm und Papier (andere Silbentrennung, eine Zeile mehr).
+Reihenfolge: Sätze, dann Absätze, dann ganze Beiträge.
 
 **Druck:** sechs Profile (zeitung, fliesstext, vers, haiku, buehne, shots) plus
 der **Zeitungssetzer** mit gestaltbarem Kopf, Automatik über mehrere Seiten und

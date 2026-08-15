@@ -609,7 +609,7 @@ select.abweichend{border-color:var(--acc)}
 [data-profil="shots"] .dm-meta{color:#333;margin-bottom:1mm}
 
 @media print {
-  @page { size: A4; margin: 20mm 18mm 22mm; }
+  @page { size: A4; margin: 15mm 18mm 18mm; }   /* muss zu RAND_* in zeitungView.ts passen */
   body > *:not(.dm-print-aktiv) { display: none !important; }
   /* Einzeltext: absolut ueber die Seite. Mehrere Zeitungsseiten duerfen das
      NICHT - sie lagen sonst alle uebereinander, und gedruckt wurde die
@@ -620,7 +620,7 @@ select.abweichend{border-color:var(--acc)}
      innerhalb der @page-Raender. Ohne diese Zeilen war die Seite im Druck
      hoeher als das Papier, und alles unter dem Aufmacher fiel auf Seite 2. */
   .dm-print-aktiv.dm-seiten > .zk-seite {
-    width: 174mm; height: 255mm; padding: 0; margin: 0; box-shadow: none;
+    width: 174mm; height: 264mm; padding: 0; margin: 0; box-shadow: none;
     display: flex; flex-direction: column; overflow: hidden;
     break-after: page;
   }
@@ -651,9 +651,9 @@ select.abweichend{border-color:var(--acc)}
    Vorschau wie im Druck dieselbe Groesse. Das weisse Papier drumherum macht
    die Huelle, damit es aussieht wie ein Blatt - es geht aber nicht in die
    Rechnung ein. */
-.zk-papier{background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.35);padding:20mm 18mm;
+.zk-papier{background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.35);padding:15mm 18mm 18mm;
   width:210mm;margin:0 auto 16px;box-sizing:border-box}
-.zk-blatt .zk-seite{width:174mm;height:255mm;padding:0;background:#fff;
+.zk-blatt .zk-seite{width:174mm;height:264mm;padding:0;background:#fff;
   display:flex;flex-direction:column;overflow:hidden}
 .zk-blatt .zk-raster{flex:1;min-height:0}
 .zk-status{margin:0 0 8px}
@@ -742,6 +742,7 @@ select.abweichend{border-color:var(--acc)}
 /* Bildrahmen: eine eigene Schicht ueber dem Satz. Die Seite bekommt dafuer
    position:relative - NICHT absolute: Eine absolut gesetzte Seite legt sich im
    Mehrseitendruck ueber die vorige, und gedruckt wird nur die oberste. */
+.zk-druckhinweis{margin:0 0 8px;line-height:1.45}
 .zk-layoutleiste{gap:8px;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:1px dotted var(--border2)}
 .zk-seite{position:relative}
 .zk-bilder{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2}

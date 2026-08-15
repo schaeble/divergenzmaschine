@@ -33,8 +33,18 @@ import {
 // war im Druck hoeher als das Papier: Alles ausser dem Aufmacher rutschte auf
 // Seite 2.
 const MM = 96 / 25.4;
-export const SEITE_B = Math.round((210 - 2 * 18) * MM);   // 658 px
-export const SEITE_H = Math.round((297 - 2 * 20) * MM);   // 972 px
+// Die Seitenränder. Sie stehen HIER und in @page (theme.css) — und müssen
+// übereinstimmen, sonst rechnet die Verteilung mit einer anderen Seite als der,
+// die gedruckt wird. Genau das war der Fall: Die Rechnung nahm 297 − 2×20 = 257
+// mm an, gedruckt wurden 297 − 20 − 22 = 255 mm. Zwei Millimeter zu viel, rund
+// eine halbe Zeile — die dann unten an der Fußlinie abgeschnitten wurde.
+//
+// Oben und unten sind schmaler als früher: Der Zeitungskopf sitzt damit höher
+// auf dem Blatt, wie es sich für einen Kopf gehört, und es passt mehr Satz auf
+// die Seite.
+export const RAND_OBEN = 15, RAND_UNTEN = 18, RAND_SEITE = 18;   // mm
+export const SEITE_B = Math.round((210 - 2 * RAND_SEITE) * MM);          // 658 px
+export const SEITE_H = Math.round((297 - RAND_OBEN - RAND_UNTEN) * MM);  // 998 px
 
 export type Rolle = "aufmacher" | "spalte" | "kasten";
 
@@ -496,18 +506,18 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       }
     }
 
-    // Was jetzt noch übersteht, ist ein einzelner zu langer Beitrag — den kann
-    // die Entfernung nicht anfassen, ohne die Spalte zu leeren. Kürzen.
+    // Was jetzt noch übersteht, kann die Entfernung nicht anfassen, ohne die
+    // Spalte zu leeren. Kürzen — gemessen an der Fußlinie jeder Seite.
     let gekuerzt = 0;
-    for (const kasten of Array.from(blatt.querySelectorAll(".zk-spaltebox")) as HTMLElement[]) {
-      if (kuerzeSpalte(kasten)) gekuerzt++;
+    for (const seiteEl of Array.from(blatt.querySelectorAll(".zk-seite")) as HTMLElement[]) {
+      gekuerzt += kuerzeAmFuss(seiteEl);
     }
 
     const gesetzt = seiten.reduce((a, s2) => a + s2.teile.length, 0) - entfernt;
     const grad = Math.round(100 * seiten.reduce((a, s2) => a + fuellgrad(s2, mess, o), 0) / Math.max(1, seiten.length));
     const statusText = `${seiten.length} Seite(n) · ${gesetzt} von ${ids.length} Beiträgen gesetzt · Füllung ${grad} %`
       + (entfernt ? ` · ${entfernt} beim Nachmessen entfernt` : "")
-      + (gekuerzt ? ` · ${gekuerzt} Spalte(n) am Fuß gekürzt` : "")
+      + (gekuerzt ? ` · ${gekuerzt}× am Fuß gekürzt` : "")
       + (gesetzt < ids.length ? " · Rest passt nicht mehr — mehr Seiten wählen" : "");
     zeichneBilder();
     document.querySelectorAll(".zk-probe").forEach((x) => x.remove());
@@ -691,23 +701,46 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     }
   };
 
-  /** Kürzt den letzten Beitrag einer übervollen Spalte, bis er passt.
+  /** Kürzt, bis kein Text mehr die Fußlinie berührt.
    *
-   *  Das Entfernen ganzer Beiträge greift nicht, wenn nur EINER in der Spalte
-   *  steht — der wurde bisher von `overflow:hidden` auf halber Zeile
-   *  abgeschnitten und stieß an die Fußlinie. Lieber ein Satz weniger als eine
-   *  zerschnittene Zeile. */
-  const kuerzeSpalte = (kasten: HTMLElement): boolean => {
-    let gekuerzt = false, schutz = 0;
-    while (kasten.scrollHeight > kasten.clientHeight + 1 && schutz++ < 80) {
-      const inhalt = kasten.querySelector(".zk-beitrag:last-of-type .dm-inhalt") as HTMLElement | null;
-      const letzter = inhalt?.lastElementChild as HTMLElement | null;
-      if (!inhalt || !letzter) break;
-      if (inhalt.children.length > 1) { inhalt.removeChild(letzter); gekuerzt = true; continue; }
-      const kurz = satzWeg(letzter.textContent || "");
-      if (!kurz) { inhalt.removeChild(letzter); gekuerzt = true; continue; }
-      letzter.textContent = kurz;
-      gekuerzt = true;
+   *  Gemessen wird an der FUSSLINIE selbst (`getBoundingClientRect`), nicht an
+   *  `scrollHeight` des Spaltenkastens. Grund: Der Kasten ist ein Rasterfeld
+   *  und wächst mit seinem Inhalt — die Zeile, die unten heraushängt, macht ihn
+   *  höher, statt einen Überlauf zu melden. Die Prüfung sah dann nichts, und
+   *  `overflow:hidden` schnitt die Zeile in der Mitte durch. Die Fußlinie
+   *  dagegen ist genau das, was der Text nicht berühren darf.
+   *
+   *  Die Reserve fängt zusätzlich den Unterschied zwischen Bildschirm und
+   *  Papier ab: Andere Silbentrennung, andere Rundung, eine Zeile mehr.
+   *
+   *  Erst Sätze, dann Absätze, zuletzt ganze Beiträge — in dieser Reihenfolge,
+   *  weil jeder Schritt mehr wegnimmt als der vorige. */
+  const RESERVE_FUSS = Math.round(3 * MM);
+  const kuerzeAmFuss = (seiteEl: HTMLElement): number => {
+    const sR = seiteEl.getBoundingClientRect();
+    if (!sR.height) return 0;                     // ohne Layout nichts zu messen
+    const fuss = seiteEl.querySelector(".zk-fuss") as HTMLElement | null;
+    const grenze = (fuss ? fuss.getBoundingClientRect().top : sR.bottom) - RESERVE_FUSS;
+    let gekuerzt = 0;
+    for (const kasten of Array.from(seiteEl.querySelectorAll(".zk-spaltebox")) as HTMLElement[]) {
+      let schutz = 0;
+      while (schutz++ < 150) {
+        const beitraege = Array.from(kasten.querySelectorAll(":scope > .zk-beitrag")) as HTMLElement[];
+        const letzter = beitraege[beitraege.length - 1];
+        if (!letzter) break;
+        if (letzter.getBoundingClientRect().bottom <= grenze) break;
+        const inhalt = letzter.querySelector(".dm-inhalt") as HTMLElement | null;
+        const letztesKind = inhalt?.lastElementChild as HTMLElement | null;
+        if (inhalt && letztesKind) {
+          if (inhalt.children.length > 1) { inhalt.removeChild(letztesKind); gekuerzt++; continue; }
+          const kurz = satzWeg(letztesKind.textContent || "");
+          if (kurz) { letztesKind.textContent = kurz; gekuerzt++; continue; }
+        }
+        // Am Beitrag ist nichts mehr zu kürzen: ganz heraus — außer er ist der
+        // einzige der Spalte, dann bliebe sie leer.
+        if (beitraege.length > 1) { kasten.removeChild(letzter); gekuerzt++; continue; }
+        break;
+      }
     }
     return gekuerzt;
   };
@@ -868,6 +901,10 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       feldC("Linien", () => kopf.linien, (v) => { kopf.linien = v; }),
       feldC("Gebrochene Schrift", () => kopf.fraktur, (v) => { kopf.fraktur = v; }),
       el("span", { class: "druckspacer" }), bildBtn, rasterBtn, zurueckBtn, autoBtn, drucken, zu, dateiWahl),
+    el("p", { class: "muted mini zk-druckhinweis" },
+      "Beim Drucken zeigt der Browser oben Datum und Seitentitel und unten die Adresse — das ist SEINE Kopfzeile, nicht die der Zeitung. "
+      + "Im Druckdialog unter „Weitere Einstellungen“ den Haken bei „Kopf- und Fußzeilen“ entfernen; dann rückt der Zeitungskopf nach oben. "
+      + "Der Browser merkt sich die Einstellung."),
     el("div", { class: "druckleiste zk-layoutleiste" },
       el("span", { class: "chips-label" }, "Layout:"), layoutSel,
       layoutSpeichern, layoutLaden, layoutWeg, layoutInfo),

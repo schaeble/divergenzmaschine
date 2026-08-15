@@ -24,7 +24,7 @@ let gedruckt = 0;
 (dom.window as unknown as { prompt: () => string }).prompt = () => "Testlayout";
 (dom.window as unknown as { confirm: () => boolean }).confirm = () => true;
 
-import { oeffneZeitungssetzer, satzWeg } from "../src/ui/zeitungView";
+import { oeffneZeitungssetzer, satzWeg, SEITE_B, SEITE_H } from "../src/ui/zeitungView";
 import {
   BILD_KEY, ladeBilder, spaltenBreite, spaltenSpanne, bildplatz, type Raster,
 } from "../src/features/zeitungsbilder";
@@ -215,7 +215,7 @@ const spB = spaltenBreite(rr);
 const kasten = (l: number, t: number, w: number, h: number): DOMRect =>
   ({ left: l, top: t, width: w, height: h, right: l + w, bottom: t + h, x: l, y: t, toJSON: () => ({}) }) as DOMRect;
 (dom.window.Element.prototype as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect = function (this: Element): DOMRect {
-  if (this.classList.contains("zk-seite")) return kasten(0, 0, 658, 972);
+  if (this.classList.contains("zk-seite")) return kasten(0, 0, SEITE_B, SEITE_H);
   if (this.classList.contains("zk-spaltebox")) {
     const i = Array.from(this.parentElement?.children || []).indexOf(this);
     return kasten(i * (spB + rr.steg), 300, spB, 600);
@@ -246,6 +246,52 @@ ist("Platzhalter beginnt beim Bild", platz0?.style.marginTop, soll.oben + "px");
 ist("Platzhalter ist so hoch wie das Bild samt Luft", platz0?.style.height, soll.hoehe + "px");
 ist("er steht als erstes Kind", kaesten[0]?.firstElementChild?.classList.contains("zk-bildplatz"), true);
 ist("und er ist nicht in der Druckfassung vergessen", alle(".dm-print-aktiv .zk-bildplatz").length, 1);
+
+// ── 8 · Kürzen an der Fußlinie ──────────────────────────────────────────────
+// Der gemeldete Fehler: Die letzte Zeile einer Spalte wurde von der Fußlinie
+// durchgeschnitten. Hier wird die Geometrie so vorgetäuscht, dass der letzte
+// Beitrag über die Linie ragt — und geprüft, dass er danach darüber endet.
+ist("Seitenmaß stimmt mit dem Papier überein (264 mm)", SEITE_H, Math.round(264 * 96 / 25.4));
+
+const FUSS_OBEN = 900;
+let beitragUnten = 960;                       // ragt zunächst 60 px über die Linie
+(dom.window.Element.prototype as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect = function (this: Element): DOMRect {
+  const c = this.classList;
+  if (c.contains("zk-seite")) return kasten(0, 0, SEITE_B, SEITE_H);
+  if (c.contains("zk-fuss")) return kasten(0, FUSS_OBEN, SEITE_B, 20);
+  if (c.contains("zk-spaltebox")) {
+    const i = Array.from(this.parentElement?.children || []).indexOf(this);
+    return kasten(i * (spB + rr.steg), 300, spB, 600);
+  }
+  if (c.contains("zk-beitrag")) {
+    // Die Messprobe muss KLEIN messen, sonst passt kein Beitrag in eine Spalte
+    // und es gibt nichts zu kürzen. Nur der gesetzte Beitrag ragt heraus.
+    if (this.closest(".zk-probe")) return kasten(0, 0, spB, 120);
+    return kasten(0, 300, spB, beitragUnten - 300);
+  }
+  return kasten(0, 0, 0, 0);
+};
+// Jeder weggenommene Absatz hebt die Unterkante um eine Zeile — wie im Satz.
+const echterEntfernen = dom.window.Element.prototype.removeChild;
+(dom.window.Element.prototype as unknown as { removeChild: unknown }).removeChild = function (this: Element, kind: Node): Node {
+  if ((kind as Element).tagName === "P") beitragUnten -= 20;
+  return (echterEntfernen as (k: Node) => Node).call(this, kind);
+};
+// Ein Text mit vielen Absätzen — sonst ist nach dem ersten nichts mehr zu nehmen.
+localStorage.setItem("dm_treasury_v1", JSON.stringify([
+  { t: Array.from({ length: 10 }, (_, i) => `Absatz ${i + 1} mit genug Text, damit er als eigener Absatz zählt.`).join("\n\n"),
+    form: "prose", d: "x" },
+  { t: "Ein kurzer zweiter Text.", form: "prose", d: "x" },
+]));
+klick(knopf(/Schließen/));
+oeffneZeitungssetzer("Noch ein Studiotext.", "prose");
+klick(knopf(/füllen/));
+(dom.window.Element.prototype as unknown as { removeChild: unknown }).removeChild = echterEntfernen;
+wahr("nach dem Kürzen endet der Satz über der Fußlinie", beitragUnten <= FUSS_OBEN);
+wahr("die Statuszeile nennt die Kürzung",
+  /am Fuß gekürzt/.test((q(".zk-status") as HTMLElement)?.textContent || ""));
+wahr("der Hinweis auf die Browser-Kopfzeile steht im Dialog",
+  /Kopf- und Fußzeilen/.test((q(".zk-druckhinweis") as HTMLElement)?.textContent || ""));
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Zeitungssetzer — ${geprueft} Prüfungen (Layout-Logik + Rundgang in jsdom):`);
