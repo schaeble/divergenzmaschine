@@ -17,6 +17,7 @@ import { buildModelFromCorpus, savePersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
 import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
+import { ziehVorrat, vorratStand, type VorratFund } from "../features/wikisammler";
 import { normWhere, normWhen, normWho, rateWhere, rateWhen, rateWho } from "../generation/ctxnorm";
 import { getTraceFor, fuegeteilAnteil } from "../atoms/trace";
 import { saveSchnappschuss, loadSchnappschuss } from "../features/sources";
@@ -96,6 +97,31 @@ export function mountStudio(root: HTMLElement): void {
 
   const ctxDice = el("button", {}, icon("dice"), " Kontext würfeln");
   ctxDice.addEventListener("click", () => { const c = randomContext(); if (!locked.has(where.id)) where.value = c.where; if (!locked.has(when.id)) when.value = c.when; if (!locked.has(who.id)) who.value = c.who; if (!locked.has(what.id)) what.value = c.what; updHints(); ctxSichern(); });
+  // Wiki-Taste: derselbe Griff wie der Würfel, nur aus dem Sammler-Vorrat.
+  // Sie greift NICHT ins Netz — sie liest, was der Reiter „Sammler“ abgelegt
+  // hat, und arbeitet damit auch offline.
+  const wikiBtn = el("button", {}, icon("book"), " Wiki");
+  const wikiHint = el("span", { class: "ctxhint" });
+  const wikiTitel = (): void => {
+    const st = vorratStand();
+    wikiBtn.title = st.funde
+      ? `Zufälliger Fund aus dem Sammler-Vorrat (${st.funde} Funde aus ${st.tage} ${st.tage === 1 ? "Tag" : "Tagen"}) — ohne Netz`
+      : "Der Sammler-Vorrat ist leer — im Reiter „Sammler“ einen Tag holen";
+  };
+  wikiTitel();
+  wikiBtn.addEventListener("click", () => {
+    const f: VorratFund | null = ziehVorrat();
+    if (!f) {
+      wikiHint.textContent = "Vorrat leer — im Reiter „Sammler“ einen Tag holen";
+      return;
+    }
+    // Leere Werte eines Fundes lassen das Feld stehen: Der Sammler füllt nur,
+    // was er aus den Strukturdaten sicher bestimmen konnte.
+    const setz = (inp: HTMLInputElement, v: string): void => { if (v && !locked.has(inp.id)) inp.value = v; };
+    setz(where, f.ctx.where); setz(when, f.ctx.when); setz(who, f.ctx.who); setz(what, f.ctx.what);
+    wikiHint.textContent = `${f.quelleLabel}: ${f.titel}`;
+    updHints(); ctxSichern(); wikiTitel();
+  });
   const ctxKeep = el("button", { class: "toggle" }, icon("pin"), " Kontext merken");
   const CTX_KEY = "divergenz_ctx_v1";
   ctxKeep.title = "Wo/Wann/Wer/Was sichern und bei jedem Start laden";
@@ -198,7 +224,7 @@ export function mountStudio(root: HTMLElement): void {
         el("span", { class: "hilfe", title: "Begriffe, Wörter, Zahlenkombinationen oder Zeichen. Sie erzeugen keinen Text — sie richten die Auswahl: Nahrung bevorzugt Fassungen, die sie aufnehmen, Gift bevorzugt Fassungen, die sie meiden. Wirkt nur bei eingeschalteter Bestenauslese." }, "Umwelt"),
         umweltSel),
       umweltIn, umweltHint),
-    el("div", { class: "btnrow" }, ctxDice, ctxKeep));
+    el("div", { class: "btnrow" }, ctxDice, wikiBtn, ctxKeep, wikiHint));
 
   const lockBar = el("div", { class: "lockbar" });
   const preset = select("f-preset", markedPresetOptions());

@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.220.0**, Zweig `typescript-migration`.
+Stand: **v4.221.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -89,7 +89,7 @@ Beide laufen bei `npm test` mit.
 | `test/regression.ts` | sechs benannte Fehlerfälle |
 | `test/pruefstand.ts` | Bericht: 2880 Läufe (8 Wer × 9 Was × 5 Wann × 4 Wo × 2 Töne), 12 Verbotsmuster, 7 semantische Prüfungen |
 | `test/pruefstand-formen.ts` | alle Formen: 2520 Läufe, Muster aus echten Funden, Strukturprüfungen je Form |
-| `test/sammler.ts` | Sammler: 43 Prüfungen gegen nachgebildete Feed-Daten, mit Gegentests |
+| `test/sammler.ts` | Sammler: 61 Prüfungen gegen nachgebildete Feed-Daten, mit Gegentests |
 
 Der Formen-Prüfstand trennt **Formen im Gebrauch** (Prosa, Reim, Haiku,
 Multi-Shot) vom **Beiwerk** (Prosagedicht, Gedicht-Strang, Szene). Das Beiwerk
@@ -150,6 +150,14 @@ Kurzbeschreibung), Orte haben Vorrang; Unsicheres bleibt leer und lässt beim
 Übernehmen den Studio-Wert stehen. Übergabe über `dm_pending_ctx` wie bei Ideen
 und Schatzkammer. Reine Zerlegung in `features/wikisammler.ts`, Netzabruf davon
 getrennt — deshalb ohne Netz prüfbar.
+
+Seit 4.221.0 hat der Sammler einen **Vorrat**: Jeder geholte Tag wird unter
+`divergenz_sammler_vorrat_v1` abgelegt (Deckel 300, das Älteste fällt heraus).
+Der Präfix genügt, damit `sammleRest()` ihn in die Projektdatei nimmt — ein
+eigenes Feld braucht es nicht. Die Taste **Wiki** im Studio, neben „Kontext
+würfeln“, zieht daraus einen zufälligen Fund und füllt die vier Felder; leere
+Werte des Fundes lassen das Feld stehen, gesperrte Felder bleiben unberührt.
+Sie greift nie ins Netz.
 
 **Druck:** sechs Profile (zeitung, fliesstext, vers, haiku, buehne, shots) plus
 der **Zeitungssetzer** mit gestaltbarem Kopf, Automatik über mehrere Seiten und

@@ -15,6 +15,7 @@
 // damit der Prüfstand ohne Netz gegen feste Beispieldaten laufen kann.
 
 import { guessGender } from "../generation/declension";
+import { safeSet } from "./storage-status";
 
 /** Ein Fund: eine Karte im Sammler, fertig für die Übernahme ins Studio. */
 export interface WikiFund {
@@ -316,4 +317,93 @@ export function zufallsTag(heute = new Date()): Date {
 export function datumLang(d: Date): string {
   const tage = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
   return `${tage[d.getDay()]}, ${d.getDate()}. ${MONATE[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// ── Vorrat ──────────────────────────────────────────────────────────────────
+// Was der Sammler geholt hat, bleibt liegen. Zwei Gründe: Der Feed braucht
+// eine Verbindung, das Schreiben nicht — und der Schlüssel beginnt mit
+// „divergenz_“, wandert also ohne weiteres Zutun in die Projektdatei
+// (siehe `sammleRest()` in features/project.ts).
+
+/** Ein Fund im Vorrat: derselbe Fund plus Herkunftstag und Zeitpunkt. */
+export interface VorratFund extends WikiFund {
+  /** Tag des Feeds als „2026-08-14“. */
+  tag: string;
+  /** Zeitpunkt der Aufnahme (ms), nur für die Reihenfolge. */
+  gespeichert: number;
+}
+
+export const VORRAT_KEY = "divergenz_sammler_vorrat_v1";
+/** Deckel. Rund zwanzig Tage — genug für langes Offline-Arbeiten, ohne den
+ *  localStorage zu füllen und damit ANDERE Daten am Sichern zu hindern. */
+export const VORRAT_DECKEL = 300;
+
+const tagVon = (d: Date): string =>
+  `${d.getFullYear()}-${zwei(d.getMonth() + 1)}-${zwei(d.getDate())}`;
+
+/** Kennung eines Fundes. Tag und Titel allein reichen nicht: ein Jahrestag
+ *  trägt nur die Jahreszahl als Titel, mehrere Ereignisse teilen sich also
+ *  einen. Der Ereignistext entscheidet mit. */
+export function fundSchluessel(f: { tag?: string; quelle: string; titel: string; ctx: { what: string } }): string {
+  return `${f.tag || ""}|${f.quelle}|${f.titel}|${f.ctx.what}`.toLowerCase();
+}
+
+/** Zusammenführen: Bekanntes bleibt in seiner alten Fassung stehen, Neues
+ *  kommt hinten dazu, und wenn der Deckel reißt, fällt das Älteste vorne
+ *  heraus. Rein — der Prüfstand kommt ohne Speicher aus. */
+export function mischeVorrat(alt: VorratFund[], neu: VorratFund[], deckel = VORRAT_DECKEL): VorratFund[] {
+  const bekannt = new Set(alt.map(fundSchluessel));
+  const raus = alt.slice();
+  for (const f of neu) {
+    // Ein Fund ohne „Was“ könnte im Studio nichts bewirken.
+    if (!f.ctx.what) continue;
+    const k = fundSchluessel(f);
+    if (bekannt.has(k)) continue;
+    bekannt.add(k);
+    raus.push(f);
+  }
+  return deckel > 0 && raus.length > deckel ? raus.slice(raus.length - deckel) : raus;
+}
+
+export function ladeVorrat(): VorratFund[] {
+  try {
+    const r = JSON.parse(localStorage.getItem(VORRAT_KEY) || "[]") as unknown;
+    if (!Array.isArray(r)) return [];
+    // Fremde oder halbe Einträge dürfen den Reiter nicht sprengen.
+    return (r as VorratFund[]).filter((f) => f && f.ctx && typeof f.ctx.what === "string");
+  } catch { return []; }
+}
+
+/** Speichert den Vorrat. Rückgabe false = Speicher voll (der Hinweisbalken
+ *  aus storage-status meldet es dem Benutzer selbst). */
+export function sichereVorrat(v: VorratFund[]): boolean {
+  return safeSet(VORRAT_KEY, JSON.stringify(v), "Sammler-Vorrat");
+}
+
+/** Funde eines Tages in den Vorrat legen. Gibt zurück, wie viele neu waren. */
+export function ergaenzeVorrat(funde: WikiFund[], datum: Date): { neu: number; gesamt: number } {
+  const alt = ladeVorrat();
+  const jetzt = Date.now();
+  const neu = funde.map((f): VorratFund => ({ ...f, tag: tagVon(datum), gespeichert: jetzt }));
+  const zusammen = mischeVorrat(alt, neu);
+  sichereVorrat(zusammen);
+  return { neu: zusammen.length - alt.length, gesamt: zusammen.length };
+}
+
+/** Zieht einen zufälligen Fund. `rnd` ist einsetzbar, damit der Prüfstand die
+ *  Ziehung ohne Zufall prüfen kann. */
+export function ziehVorrat(vorrat: VorratFund[] = ladeVorrat(), rnd: () => number = Math.random): VorratFund | null {
+  const brauchbar = vorrat.filter((f) => f.ctx && (f.ctx.what || f.ctx.who || f.ctx.where));
+  if (!brauchbar.length) return null;
+  const i = Math.min(brauchbar.length - 1, Math.max(0, Math.floor(rnd() * brauchbar.length)));
+  return brauchbar[i]!;
+}
+
+export function leereVorrat(): void {
+  try { localStorage.removeItem(VORRAT_KEY); } catch { /* gesperrt */ }
+}
+
+/** Wie viele Tage und Funde liegen im Vorrat? */
+export function vorratStand(vorrat: VorratFund[] = ladeVorrat()): { funde: number; tage: number } {
+  return { funde: vorrat.length, tage: new Set(vorrat.map((f) => f.tag)).size };
 }

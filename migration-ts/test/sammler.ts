@@ -15,7 +15,9 @@
 }
 import {
   zerlegeFeed, istPerson, istOrt, ortsPhrase, zeitPhrase, wasPhrase, ersterSatz,
-  entHtml, feedAdressen, zufallsTag, type WikiSeite,
+  entHtml, feedAdressen, zufallsTag, mischeVorrat, ergaenzeVorrat, ladeVorrat,
+  leereVorrat, ziehVorrat, vorratStand, fundSchluessel, VORRAT_KEY,
+  type WikiSeite, type VorratFund,
 } from "../src/features/wikisammler";
 import { rateWhere, rateWhen, rateWho } from "../src/generation/ctxnorm";
 
@@ -139,6 +141,49 @@ ist("Müll im Feed", zerlegeFeed({ onthisday: [{}, { text: "" }], tfa: {} }, TAG
 ist("Quellenwahl greift", zerlegeFeed(FEED, TAG, { tfa: false, jahrestage: true, nachrichten: false }).length, 3);
 wahr("zwei Adressen", feedAdressen(TAG).length === 2 && feedAdressen(TAG)[0]!.includes("2026/08/14"));
 wahr("Zufallstag liegt nicht in der Zukunft", zufallsTag(TAG).getTime() <= TAG.getTime());
+
+// ── 9 · Vorrat: Zusammenführen, Deckel, Ziehung ─────────────────────────────
+const vf = (tag: string, titel: string, was: string, uebrig: Partial<VorratFund> = {}): VorratFund => ({
+  quelle: "jahrestag", quelleLabel: "Was geschah am …", titel, text: was, url: "",
+  ctx: { who: "", what: was, when: "", where: "" }, tag, gespeichert: 1, ...uebrig,
+} as VorratFund);
+
+const a1 = vf("2026-08-14", "1902", "Der Damm bricht");
+const a2 = vf("2026-08-14", "1902", "Die Brücke stürzt ein");   // gleicher Titel, anderes Ereignis
+ist("gleicher Titel, anderer Text = zwei Funde", mischeVorrat([a1], [a2]).length, 2);
+ist("dieselbe Kennung = keine Dublette", mischeVorrat([a1], [vf("2026-08-14", "1902", "Der Damm bricht")]).length, 1);
+ist("anderer Tag = eigener Fund", mischeVorrat([a1], [vf("2025-08-14", "1902", "Der Damm bricht")]).length, 2);
+ist("Fund ohne Was wird nicht aufgenommen",
+  mischeVorrat([], [vf("2026-08-14", "1902", "", { ctx: { who: "X", what: "", when: "", where: "" } })]).length, 0);
+
+// Deckel: das Älteste fällt vorne heraus, das Neueste bleibt.
+const viele = Array.from({ length: 5 }, (_, i) => vf("2026-08-0" + (i + 1), "T" + i, "Ereignis " + i));
+const gedeckelt = mischeVorrat(viele.slice(0, 3), viele.slice(3), 4);
+ist("Deckel hält", gedeckelt.length, 4);
+ist("Ältestes fällt heraus", gedeckelt.some((f) => f.ctx.what === "Ereignis 0"), false);
+ist("Neuestes bleibt", gedeckelt[gedeckelt.length - 1]!.ctx.what, "Ereignis 4");
+
+// Ziehung: ohne Zufall prüfbar.
+ist("Ziehung erstes Element", ziehVorrat(viele, () => 0)!.ctx.what, "Ereignis 0");
+ist("Ziehung letztes Element", ziehVorrat(viele, () => 0.999)!.ctx.what, "Ereignis 4");
+ist("Ziehung aus leerem Vorrat", ziehVorrat([], () => 0), null);
+ist("Kennung berücksichtigt den Text",
+  fundSchluessel(a1) === fundSchluessel(a2), false);
+
+// Weg durch den Speicher: ablegen, wiederfinden, nicht verdoppeln.
+leereVorrat();
+const e1 = ergaenzeVorrat(funde, TAG);
+const e2 = ergaenzeVorrat(funde, TAG);
+ist("erste Ablage nimmt alle Funde", e1.neu, funde.length);
+ist("zweite Ablage nimmt nichts doppelt", e2.neu, 0);
+ist("Vorrat wiedergefunden", ladeVorrat().length, funde.length);
+ist("ein Tag im Stand", vorratStand().tage, 1);
+wahr("Ziehung aus dem Speicher liefert etwas", ziehVorrat() !== null);
+leereVorrat();
+ist("Leeren wirkt", ladeVorrat().length, 0);
+// Der Schlüssel MUSS mit „divergenz_“ beginnen: nur dann nimmt sammleRest()
+// in features/project.ts ihn in die Projektdatei auf (Präfix-Regel).
+wahr("Schlüssel wandert in die Projektdatei", VORRAT_KEY.startsWith("divergenz_"));
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Sammler — ${funde.length} Funde aus dem Beispielfeed, ${geprueft} Prüfungen:`);

@@ -9,6 +9,7 @@ import { el, button } from "./dom";
 import { icon } from "./icons";
 import {
   holeTagesfeed, zerlegeFeed, zufallsTag, datumLang,
+  ergaenzeVorrat, ladeVorrat, leereVorrat, vorratStand, ziehVorrat, VORRAT_DECKEL,
   type WikiFund, type QuellenWahl,
 } from "../features/wikisammler";
 
@@ -38,7 +39,11 @@ export function mountSammler(root: HTMLElement): void {
     el("p", { class: "muted" },
       "Dies ist der einzige Teil der Maschine, der ohne KI-Schlüssel ins Netz greift — abgerufen wird nur der öffentliche Tagesfeed, es werden keine Daten gesendet. "
       + "Personen und Orte werden aus den Strukturdaten des Feeds bestimmt (Koordinaten, Kurzbeschreibung), nicht geraten. "
-      + "Was nicht sicher bestimmbar ist, bleibt leer — und ein leeres Feld lässt beim Übernehmen den bisherigen Studio-Wert stehen.")));
+      + "Was nicht sicher bestimmbar ist, bleibt leer — und ein leeres Feld lässt beim Übernehmen den bisherigen Studio-Wert stehen."),
+    el("p", { class: "muted" },
+      `Jeder geholte Tag wandert in den Vorrat (bis ${VORRAT_DECKEL} Funde, danach fällt der älteste heraus). `
+      + "Der Vorrat liegt im Browser und wandert mit „Exportieren“ in die Projektdatei. "
+      + "Die Taste „Wiki“ im Studio zieht daraus — ohne Netz.")));
 
   // ── Bedienleiste ─────────────────────────────────────────────────────────
   const wuerfel = el("button", { class: "primary" }, icon("dice"), " Tag würfeln");
@@ -59,6 +64,35 @@ export function mountSammler(root: HTMLElement): void {
     hakenFuer("Artikel des Tages", "tfa"),
     hakenFuer("Was geschah am …", "jahrestage"),
     hakenFuer("In den Nachrichten", "nachrichten")));
+
+  // ── Vorrat ───────────────────────────────────────────────────────────────
+  const vorratTxt = el("span", { class: "muted" }, "");
+  const vorratProbe = button("Fund ziehen");
+  const vorratWeg = button("Vorrat leeren", "danger");
+  const zeigeVorrat = (): void => {
+    const st = vorratStand();
+    vorratTxt.textContent = st.funde
+      ? `Vorrat: ${st.funde} Funde aus ${st.tage} ${st.tage === 1 ? "Tag" : "Tagen"} — die Taste „Wiki“ im Studio zieht daraus`
+      : "Vorrat leer — die Taste „Wiki“ im Studio hat noch nichts zu ziehen";
+    if (st.funde) { vorratProbe.removeAttribute("disabled"); vorratWeg.removeAttribute("disabled"); }
+    else { vorratProbe.setAttribute("disabled", ""); vorratWeg.setAttribute("disabled", ""); }
+  };
+  const probeAus = el("p", { class: "muted" }, "");
+  vorratProbe.addEventListener("click", () => {
+    const f = ziehVorrat(ladeVorrat());
+    probeAus.textContent = f
+      ? `${f.tag} · ${f.quelleLabel}: ${[f.ctx.who, f.ctx.what, f.ctx.when, f.ctx.where].filter(Boolean).join(" · ")}`
+      : "";
+  });
+  vorratWeg.addEventListener("click", () => {
+    if (!confirm("Den ganzen Sammler-Vorrat löschen? Die Taste „Wiki“ im Studio hat danach nichts mehr zu ziehen.")) return;
+    leereVorrat(); probeAus.textContent = ""; zeigeVorrat();
+  });
+  wrap.append(el("div", { class: "card" },
+    el("div", { class: "btnrow" }, vorratTxt),
+    el("div", { class: "btnrow" }, vorratProbe, vorratWeg),
+    probeAus));
+  zeigeVorrat();
 
   const liste = el("div", {});
   wrap.append(liste);
@@ -112,7 +146,12 @@ export function mountSammler(root: HTMLElement): void {
       liste.append(el("p", { class: "muted" }, "Für diesen Tag liefert der Feed zu den gewählten Quellen nichts. Anderen Tag würfeln oder eine Quelle dazunehmen."));
       return;
     }
-    status.textContent = `${funde.length} Funde`;
+    // Ablegen beim Zeichnen, nicht beim Holen: So wandert auch mit, was erst
+    // durch das Nachträgliche Anhaken einer Quelle sichtbar wird. Doppeltes
+    // schadet nicht — `ergaenzeVorrat` führt Bekanntes zusammen.
+    const { neu, gesamt } = ergaenzeVorrat(funde, datum);
+    zeigeVorrat();
+    status.textContent = `${funde.length} Funde · ${neu} neu im Vorrat (${gesamt})`;
     funde.forEach((f) => liste.append(karte(f)));
   }
 
