@@ -14,7 +14,8 @@ import { inhaltVers, inhaltFliess, absaetze } from "./printView";
 import { umbrechen, fuellgrad, type Messbar, type UmbruchTeil, type Seite } from "./umbruch";
 import {
   ladeBilder, sichereBilder, neuerRahmen, verschiebe, skaliereEcke, begrenze,
-  leseBilddatei, stapelLege, stapelNimm, BILD_ANZAHL, type Bildrahmen,
+  leseBilddatei, stapelLege, stapelNimm, BILD_ANZAHL,
+  rasteRahmen, spaltenBreite, spaltenZahl, type Bildrahmen, type Raster,
 } from "../features/zeitungsbilder";
 import {
   ladeLayouts, sichereLayouts, legeLayout, entferneLayout, ordneZu, textSchluessel,
@@ -474,6 +475,39 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
   // Umbruch nicht teil: Der Text fließt nicht um sie herum. Das ist Absicht —
   // ein Umfluss müsste in die Höhenmessung eingreifen, und die entscheidet
   // hier über den Seitenumbruch.
+  // Das Raster der Seite: dieselben Zahlen, die der Satz benutzt. 6 mm Steg
+  // steht in der Stilvorlage (.zk-raster{gap:0 6mm}); das senkrechte Raster
+  // sind 5 mm — fein genug für Zwischenlagen, grob genug zum Ausrichten.
+  const RASTER_KEY = "divergenz_zeitung_raster_v1";
+  let rasterAn = (() => { try { return localStorage.getItem(RASTER_KEY) !== "0"; } catch { return true; } })();
+  const rasterVon = (): Raster => ({
+    spalten, seiteB: SEITE_B, seiteH: SEITE_H,
+    steg: Math.round(6 * MM), zeile: Math.round(5 * MM),
+  });
+  const rasterBtn = el("button", { class: "toggle" }, "▦ Raster") as HTMLButtonElement;
+  const rasterZeigen = (): void => {
+    rasterBtn.classList.toggle("on", rasterAn);
+    rasterBtn.setAttribute("aria-pressed", String(rasterAn));
+    rasterBtn.title = rasterAn
+      ? "Bilder rasten auf Spaltenkanten ein (Breite = ganze Spalten). Klicken für freies Ziehen."
+      : "Freies Ziehen. Klicken, um am Spaltenraster einzurasten.";
+  };
+  rasterBtn.addEventListener("click", () => {
+    rasterAn = !rasterAn;
+    try { localStorage.setItem(RASTER_KEY, rasterAn ? "1" : "0"); } catch { /* voll */ }
+    rasterZeigen();
+    if (rasterAn && bilder.length) {
+      // Beim Einschalten sofort ausrichten — sonst bliebe das Bild krumm
+      // stehen und die Taste sähe wirkungslos aus.
+      merkeStand();
+      bilder = bilder.map((b) => rasteRahmen(b, rasterVon()));
+      sichereBilder(bilder);
+      zeichne();
+    }
+    bildStand();
+  });
+  rasterZeigen();
+
   const dateiWahl = el("input", { type: "file", accept: "image/*", style: "display:none" }) as HTMLInputElement;
   const bildBtn = el("button", {}, icon("folder"), " Bild einfügen");
   const bildInfo = el("span", { class: "muted mini" }, "");
@@ -483,9 +517,11 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
   const bildStand = (live?: Bildrahmen): void => {
     if (!bilder.length) { bildInfo.textContent = ""; return; }
     const z = live || bilder[bilder.length - 1]!;
+    const k = spaltenZahl(z.b, rasterVon());
     bildInfo.textContent = `${bilder.length} Bild${bilder.length === 1 ? "" : "er"}`
       + ` · zuletzt: x ${Math.round(z.x)} · y ${Math.round(z.y)} · ${Math.round(z.b)} × ${Math.round(z.h)} px`
-      + ` (Seite ${((z.seite | 0) + 1)}) · ziehen zum Verschieben, Ecke unten rechts zum Aufziehen`;
+      + ` · Breite ${k} ${k === 1 ? "Spalte" : "Spalten"} (Seite ${((z.seite | 0) + 1)})`
+      + (rasterAn ? " · Raster an" : " · frei") + " — ziehen zum Verschieben, Ecke unten rechts zum Aufziehen";
   };
 
   /** Maßstab zwischen Bildschirm und Seitenrechnung. Die Seite ist in mm
@@ -531,6 +567,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       gewaehltesBild = bild.id;
       for (const a of Array.from(document.querySelectorAll(".zk-bild.on"))) a.classList.remove("on");
       box.classList.add("on");
+      if (rasterAn) box.parentElement?.classList.add("zeigt");
       const f = massstab(seiteEl) || 1;
       const startX = e.clientX, startY = e.clientY;
       const start: Bildrahmen = { ...bild };
@@ -541,10 +578,12 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
         jetzt = modus === "zieh"
           ? verschiebe(start, dx, dy, SEITE_B, SEITE_H)
           : skaliereEcke(start, dx, SEITE_B, SEITE_H);
+        if (rasterAn) jetzt = rasteRahmen(jetzt, rasterVon());
         legeAn(jetzt);
         bildStand(jetzt);
       };
       const los = (): void => {
+        box.parentElement?.classList.remove("zeigt");
         window.removeEventListener("pointermove", beweg, true);
         window.removeEventListener("pointerup", los, true);
         window.removeEventListener("pointercancel", los, true);
@@ -580,6 +619,14 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       // bildschirmfüllende Hülle. Das Bild schwebte dann neben dem Papier.
       if (!seiteEl.style.position) seiteEl.style.position = "relative";
       const schicht = el("div", { class: "zk-bilder" });
+      // Rasterlinien: nur beim Ziehen sichtbar (Klasse „zeigt"), damit die
+      // Vorschau sonst aussieht wie das Papier.
+      const r = rasterVon();
+      const sp = spaltenBreite(r);
+      const hilfe = el("div", { class: "zk-rasterhilfe" });
+      hilfe.style.backgroundImage =
+        `repeating-linear-gradient(to right, rgba(139,92,246,.16) 0 ${sp.toFixed(2)}px, rgba(139,92,246,0) ${sp.toFixed(2)}px ${(sp + r.steg).toFixed(2)}px)`;
+      schicht.append(hilfe);
       // Ein Bild auf einer Seite, die es nicht mehr gibt (Seitenzahl verkleinert),
       // wandert auf die letzte — sonst wäre es unsichtbar und unerreichbar.
       for (const b of bilder) {
@@ -587,7 +634,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
         if (seite !== n) continue;
         schicht.append(rahmenEl(begrenze(b, SEITE_B, SEITE_H), seiteEl, n));
       }
-      if (schicht.children.length) seiteEl.append(schicht);
+      if (schicht.children.length > 1) seiteEl.append(schicht);   // > 1: die Rasterhilfe zählt nicht
     });
   };
 
@@ -604,7 +651,8 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     if (!datei) return;
     leseBilddatei(datei).then(({ daten, b, h }) => {
       merkeStand();
-      const r = neuerRahmen(daten, b, h, SEITE_B, SEITE_H, 0);
+      let r = neuerRahmen(daten, b, h, SEITE_B, SEITE_H, 0);
+      if (rasterAn) r = rasteRahmen(r, rasterVon());
       bilder = [...bilder, r];
       gewaehltesBild = r.id;
       if (!sichereBilder(bilder)) status.textContent = "Bild eingefügt, aber nicht gesichert — der Browser-Speicher ist voll.";
@@ -714,7 +762,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       feldC("Datum", () => kopf.datum, (v) => { kopf.datum = v; }),
       feldC("Linien", () => kopf.linien, (v) => { kopf.linien = v; }),
       feldC("Gebrochene Schrift", () => kopf.fraktur, (v) => { kopf.fraktur = v; }),
-      el("span", { class: "druckspacer" }), bildBtn, zurueckBtn, autoBtn, drucken, zu, dateiWahl),
+      el("span", { class: "druckspacer" }), bildBtn, rasterBtn, zurueckBtn, autoBtn, drucken, zu, dateiWahl),
     el("div", { class: "druckleiste zk-layoutleiste" },
       el("span", { class: "chips-label" }, "Layout:"), layoutSel,
       layoutSpeichern, layoutLaden, layoutWeg, layoutInfo),

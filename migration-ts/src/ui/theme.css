@@ -745,6 +745,8 @@ select.abweichend{border-color:var(--acc)}
 .zk-layoutleiste{gap:8px;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:1px dotted var(--border2)}
 .zk-seite{position:relative}
 .zk-bilder{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2}
+.zk-rasterhilfe{position:absolute;inset:0;opacity:0;transition:opacity .12s;pointer-events:none}
+.zk-bilder.zeigt .zk-rasterhilfe{opacity:1}
 .zk-bild{position:absolute;pointer-events:auto;cursor:move;touch-action:none;
   border:1px solid rgba(0,0,0,.25);background:#fff;box-sizing:border-box}
 .zk-bild img{width:100%;height:100%;object-fit:cover;display:block;user-select:none}

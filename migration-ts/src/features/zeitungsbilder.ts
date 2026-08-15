@@ -181,3 +181,71 @@ export function leseBilddatei(datei: File): Promise<{ daten: string; b: number; 
     leser.readAsDataURL(datei);
   });
 }
+
+// ── Spaltenraster ───────────────────────────────────────────────────────────
+// Eine Zeitungsseite hat ihr Raster schon: N Spalten mit einem Steg dazwischen.
+// Ein Bild, dessen Kanten auf Spaltenkanten liegen, sieht auf Anhieb nach
+// Zeitung aus; eines mit 3 px Versatz sieht nach Versehen aus.
+//
+// Eingerastet wird die BREITE (auf ganze Spalten) und die LAGE (linke Kante auf
+// einen Spaltenanfang, Oberkante auf ein Zeilenraster). Die Höhe folgt dem
+// Seitenverhältnis und wird NICHT gerastert — sonst wäre das Bild verzerrt,
+// und Verzerren ist der eine Fehler, den man einem Bild sofort ansieht.
+
+export interface Raster {
+  /** Spaltenzahl der Seite. */
+  spalten: number;
+  seiteB: number;
+  seiteH: number;
+  /** Steg zwischen zwei Spalten in px. */
+  steg: number;
+  /** Senkrechtes Raster in px (Vorgabe: 5 mm). */
+  zeile: number;
+}
+
+/** Breite einer einzelnen Spalte. */
+export function spaltenBreite(r: Raster): number {
+  const n = Math.max(1, r.spalten);
+  return (r.seiteB - (n - 1) * r.steg) / n;
+}
+/** Breite über `k` Spalten — die Stege dazwischen gehören dazu. */
+export function spaltenSpanne(r: Raster, k: number): number {
+  const sp = spaltenBreite(r);
+  const n = Math.max(1, Math.min(Math.max(1, r.spalten), k));
+  return n * sp + (n - 1) * r.steg;
+}
+/** Über wie viele Spalten geht diese Breite? Für die Anzeige. */
+export function spaltenZahl(breite: number, r: Raster): number {
+  const schritt = spaltenBreite(r) + r.steg;
+  return Math.max(1, Math.min(r.spalten, Math.round((breite + r.steg) / schritt)));
+}
+
+/** Rastet einen Rahmen ein. Reine Rechnung, kein DOM. */
+export function rasteRahmen(rahmen: Bildrahmen, r: Raster): Bildrahmen {
+  const verh = rahmen.verh > 0 ? rahmen.verh : (rahmen.h > 0 ? rahmen.b / rahmen.h : 1);
+  const sp = spaltenBreite(r);
+  const schritt = sp + r.steg;
+
+  // Breite auf ganze Spalten. Ist das Bild damit höher als die Seite, eine
+  // Spalte weniger nehmen — lieber schmaler als abgeschnitten.
+  let k = spaltenZahl(rahmen.b, r);
+  let b = spaltenSpanne(r, k);
+  let h = b / verh;
+  while (h > r.seiteH && k > 1) { k--; b = spaltenSpanne(r, k); h = b / verh; }
+  // Selbst eine Spalte kann zu hoch sein (sehr hochformatige Bilder). Dann
+  // führt die Höhe, und die Breite verlässt das Raster — das Seitenverhältnis
+  // wiegt schwerer als die Rasterkante.
+  if (h > r.seiteH) { h = r.seiteH; b = h * verh; }
+
+  // Linke Kante auf einen Spaltenanfang, aber nur so weit, dass der Rahmen
+  // noch ganz auf die Seite passt.
+  const maxIndex = Math.max(0, Math.floor((r.seiteB - b + 0.5) / schritt));
+  const i = Math.max(0, Math.min(maxIndex, Math.round(rahmen.x / schritt)));
+  const x = Math.min(i * schritt, Math.max(0, r.seiteB - b));
+
+  // Oberkante auf das Zeilenraster.
+  const zeile = r.zeile > 0 ? r.zeile : 1;
+  const y = Math.max(0, Math.min(Math.round(rahmen.y / zeile) * zeile, r.seiteH - h));
+
+  return { ...rahmen, verh, x: Math.round(x), y: Math.round(y), b: Math.round(b), h: Math.round(h) };
+}

@@ -25,7 +25,9 @@ let gedruckt = 0;
 (dom.window as unknown as { confirm: () => boolean }).confirm = () => true;
 
 import { oeffneZeitungssetzer } from "../src/ui/zeitungView";
-import { BILD_KEY, ladeBilder } from "../src/features/zeitungsbilder";
+import {
+  BILD_KEY, ladeBilder, spaltenBreite, spaltenSpanne, type Raster,
+} from "../src/features/zeitungsbilder";
 import {
   textSchluessel, ordneZu, legeLayout, entferneLayout, LAYOUT_KEY, LAYOUT_ANZAHL,
   type Layout, type LayoutTeil,
@@ -114,10 +116,18 @@ ist("die Seite ist Bezugsrahmen", (q(".zk-blatt .zk-seite") as HTMLElement).styl
 const PE = (dom.window as unknown as { PointerEvent: typeof MouseEvent }).PointerEvent;
 const zeiger = (typ: string, x: number, y: number): Event =>
   new PE(typ, { bubbles: true, clientX: x, clientY: y } as MouseEventInit);
-const bild = q(".zk-blatt .zk-bild") as HTMLElement;
-bild.dispatchEvent(zeiger("pointerdown", 300, 300));
-dom.window.dispatchEvent(zeiger("pointermove", 380, 350));
-dom.window.dispatchEvent(zeiger("pointerup", 380, 350));
+const ziehe = (von: [number, number], nach: [number, number]): void => {
+  const b = q(".zk-blatt .zk-bild") as HTMLElement;
+  b.dispatchEvent(zeiger("pointerdown", von[0], von[1]));
+  dom.window.dispatchEvent(zeiger("pointermove", nach[0], nach[1]));
+  dom.window.dispatchEvent(zeiger("pointerup", nach[0], nach[1]));
+};
+// Erst ohne Raster: Das Bild muss genau dort liegen, wo es losgelassen wurde.
+const rasterKnopf = knopf(/Raster/);
+wahr("Raster ist voreingestellt an", rasterKnopf.classList.contains("on"));
+klick(rasterKnopf);
+wahr("Raster lässt sich abschalten", !rasterKnopf.classList.contains("on"));
+ziehe([300, 300], [380, 350]);
 ist("Ziehen bewegt das Bild", (q(".zk-blatt .zk-bild") as HTMLElement).style.left, "180px");
 ist("und die Lage steht im Speicher", ladeBilder()[0]?.x, 180);
 
@@ -132,9 +142,37 @@ wahr("die Statuszeile nennt die Druckfassung", /Druckfassung: \d+ Seite/.test((q
 klick(knopf(/Drucken/));
 ist("mit Inhalt wird gedruckt", gedruckt, 1);
 
+// ── 3b · Spaltenraster ──────────────────────────────────────────────────────
+// Nach dem Einschalten muss das krumm stehende Bild sofort ausgerichtet sein —
+// eine Taste, die erst beim nächsten Ziehen wirkt, sieht wirkungslos aus.
+const MM = 96 / 25.4;
+const raster = (n: number): Raster => ({ spalten: n, seiteB: 658, seiteH: 972, steg: Math.round(6 * MM), zeile: Math.round(5 * MM) });
+klick(knopf(/Raster/));
+wahr("Raster wieder an", knopf(/Raster/).classList.contains("on"));
+const nachRaster = ladeBilder()[0]!;
+const schritt2 = spaltenBreite(raster(2)) + raster(2).steg;   // die Seite steht auf 2 Spalten
+ist("Breite ist eine ganze Spalte", nachRaster.b, Math.round(spaltenSpanne(raster(2), 1)));
+wahr("linke Kante sitzt auf einer Spaltenkante",
+  Math.abs(nachRaster.x % schritt2) <= 1 || Math.abs((nachRaster.x % schritt2) - schritt2) <= 1);
+ist("Oberkante sitzt im Zeilenraster", nachRaster.y % raster(2).zeile, 0);
+// Und beim Ziehen bleibt es im Raster.
+ziehe([200, 200], [260, 240]);
+const gezogen = ladeBilder()[0]!;
+wahr("auch nach dem Ziehen auf einer Spaltenkante",
+  Math.abs(gezogen.x % schritt2) <= 1 || Math.abs((gezogen.x % schritt2) - schritt2) <= 1);
+const meldungen = (): string => alle(".zk-dialog .mini").map((x) => x.textContent || "").join(" ");
+wahr("die Statuszeile nennt die Spaltenbreite", /Breite \d+ Spalte/.test(meldungen()));
+wahr("und ob das Raster an ist", /Raster an/.test(meldungen()));
+
 // ── 4 · Zurück ──────────────────────────────────────────────────────────────
+// Selbsttragend: erst den Stand ablesen, dann ändern, dann zurücknehmen.
+const spSel = alle(".druckfeld select")[0] as HTMLSelectElement;
+const vorZurueck = spSel.value;
+spSel.value = spSel.value === "4" ? "5" : "4";
+spSel.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+wahr("Spaltenzahl geändert", spSel.value !== vorZurueck);
 klick(knopf(/Zurück/));
-ist("Zurück stellt die Spaltenzahl wieder her", (alle(".druckfeld select")[0] as HTMLSelectElement).value, "3");
+ist("Zurück stellt die Spaltenzahl wieder her", (alle(".druckfeld select")[0] as HTMLSelectElement).value, vorZurueck);
 
 // ── 5 · Layout speichern und laden ──────────────────────────────────────────
 klick(knopf(/Layout speichern/));

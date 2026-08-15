@@ -15,7 +15,8 @@
 import {
   zielMasse, begrenze, begrenzeLage, verschiebe, skaliereEcke, neuerRahmen,
   ladeBilder, sichereBilder, stapelLege, stapelNimm,
-  MIN_KANTE, BILD_MAX, BILD_KEY, STAPEL_TIEFE, type Bildrahmen,
+  rasteRahmen, spaltenBreite, spaltenSpanne, spaltenZahl,
+  MIN_KANTE, BILD_MAX, BILD_KEY, STAPEL_TIEFE, type Bildrahmen, type Raster,
 } from "../src/features/zeitungsbilder";
 
 const B = 658, H = 972;              // Seite: A4 minus Seitenränder, wie im Setzer
@@ -122,6 +123,58 @@ let tief: string[] = [];
 for (let i = 0; i < STAPEL_TIEFE + 25; i++) tief = stapelLege(tief, { i });
 ist("Stapeltiefe hält", tief.length, STAPEL_TIEFE);
 ist("das Älteste fällt heraus", tief[0], JSON.stringify({ i: 25 }));
+
+// ── 8 · Spaltenraster ───────────────────────────────────────────────────────
+// Dieselben Zahlen wie im Setzer: A4 minus Seitenränder, 6 mm Steg, 5 mm Zeile.
+const MM = 96 / 25.4;
+const R = (spalten: number): Raster => ({ spalten, seiteB: B, seiteH: H, steg: Math.round(6 * MM), zeile: Math.round(5 * MM) });
+
+const r3 = R(3);
+wahr("drei Spalten plus zwei Stege ergeben die Seite",
+  Math.abs(3 * spaltenBreite(r3) + 2 * r3.steg - B) < 0.01);
+ist("eine Spalte", Math.round(spaltenSpanne(r3, 1)), Math.round(spaltenBreite(r3)));
+wahr("zwei Spalten enthalten den Steg",
+  Math.abs(spaltenSpanne(r3, 2) - (2 * spaltenBreite(r3) + r3.steg)) < 0.01);
+ist("mehr Spalten als die Seite hat gibt es nicht", Math.round(spaltenSpanne(r3, 9)), Math.round(spaltenSpanne(r3, 3)));
+
+const ra1 = rasteRahmen(r({ x: 7, y: 11, b: 190, h: 143, verh: 190 / 143 }), r3);
+ist("Breite rastet auf eine Spalte", ra1.b, Math.round(spaltenSpanne(r3, 1)));
+ist("linke Kante rastet auf 0", ra1.x, 0);
+ist("Oberkante rastet auf das Zeilenraster", ra1.y % r3.zeile, 0);
+const ra2 = rasteRahmen(r({ x: 230, y: 100, b: 400, h: 300, verh: 4 / 3 }), r3);
+ist("Breite rastet auf zwei Spalten", ra2.b, Math.round(spaltenSpanne(r3, 2)));
+ist("und die linke Kante auf den zweiten Spaltenanfang", ra2.x, Math.round(spaltenBreite(r3) + r3.steg));
+
+// Matrix: jede Spaltenzahl, jede Lage, jedes Format. Vier Zusagen.
+let nichtImRaster = 0, ausSeite = 0, schief = 0, faelle2 = 0;
+for (const n of [2, 3, 4, 5]) {
+  const rr = R(n);
+  const schritt = spaltenBreite(rr) + rr.steg;
+  for (const verh of [0.4, 0.8, 1.4, 3]) {
+    for (const x of [0, 33, 210, 500, 900]) {
+      for (const y of [0, 7, 400, 1200]) {
+        for (const b of [30, 120, 300, 600, 2000]) {
+          const n2 = rasteRahmen(r({ x, y, b, h: Math.round(b / verh), verh }), rr);
+          faelle2++;
+          if (n2.x < 0 || n2.y < 0 || n2.x + n2.b > B + 1 || n2.y + n2.h > H + 1) ausSeite++;
+          if (Math.abs(n2.b / n2.h - verh) > verh * 0.05) schief++;
+          // Breite muss einer ganzen Spaltenzahl entsprechen — außer das Bild
+          // ist so hoch, dass die Höhe führen musste.
+          const k = spaltenZahl(n2.b, rr);
+          const passt = Math.abs(n2.b - spaltenSpanne(rr, k)) <= 1;
+          const hoehengefuehrt = n2.h >= H - 1;
+          const aufKante = Math.abs(n2.x % schritt) <= 1 || Math.abs((n2.x % schritt) - schritt) <= 1
+            || Math.abs(n2.x - (B - n2.b)) <= 1;
+          if ((!passt && !hoehengefuehrt) || !aufKante) nichtImRaster++;
+        }
+      }
+    }
+  }
+}
+ist(`Raster: ${faelle2} Fälle, keiner tritt aus der Seite`, ausSeite, 0);
+ist("Raster: keiner verzerrt", schief, 0);
+ist("Raster: alle sitzen auf Spaltenkanten", nichtImRaster, 0);
+ist("Spaltenzahl einer Spannbreite", spaltenZahl(spaltenSpanne(r3, 2), r3), 2);
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Bildrahmen — ${geprueft} Prüfungen (${faelle} Skalierfälle):`);

@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.223.0**, Zweig `typescript-migration`.
+Stand: **v4.224.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -90,8 +90,8 @@ Beide laufen bei `npm test` mit.
 | `test/pruefstand.ts` | Bericht: 2880 Läufe (8 Wer × 9 Was × 5 Wann × 4 Wo × 2 Töne), 12 Verbotsmuster, 7 semantische Prüfungen |
 | `test/pruefstand-formen.ts` | alle Formen: 2520 Läufe, Muster aus echten Funden, Strukturprüfungen je Form |
 | `test/sammler.ts` | Sammler: 61 Prüfungen gegen nachgebildete Feed-Daten, mit Gegentests |
-| `test/bildrahmen.ts` | Bildrahmen: 38 Prüfungen, davon 560 Skalierfälle als Matrix |
-| `test/zeitung.ts` | Zeitungssetzer: Layout-Logik + Rundgang durch den echten Setzer in jsdom |
+| `test/bildrahmen.ts` | Bildrahmen: 51 Prüfungen, 560 Skalier- und 1600 Rasterfälle als Matrix |
+| `test/zeitung.ts` | Zeitungssetzer: Layout-Logik + Rundgang (48 Prüfungen) im echten Setzer unter jsdom |
 
 Der Formen-Prüfstand trennt **Formen im Gebrauch** (Prosa, Reim, Haiku,
 Multi-Shot) vom **Beiwerk** (Prosagedicht, Gedicht-Strang, Szene). Das Beiwerk
@@ -190,6 +190,15 @@ unmittelbar vor `window.print()` selbst auslöst — vorher war sie eine
 Nebenwirkung des Zeichnens, und jeder Abbruch dort ließ den Browser ein
 Dokument drucken, in dem `body > *:not(.dm-print-aktiv)` alles ausblendet.
 Dazu ein Prüfstand, der den Setzer in jsdom wirklich öffnet.
+
+**Spaltenraster** (seit 4.224.0): Die Taste ▦ Raster lässt Bilder auf dem
+Raster der Seite einrasten — Breite auf ganze Spalten (Steg 6 mm aus
+`.zk-raster{gap:0 6mm}`), linke Kante auf einen Spaltenanfang, Oberkante auf
+5 mm. Die HÖHE wird nie gerastert: Sie folgt dem Seitenverhältnis, und
+Verzerren ist der eine Fehler, den man einem Bild sofort ansieht. Reine
+Rechnung in `rasteRahmen()`. Beim Einschalten werden vorhandene Bilder sofort
+ausgerichtet — eine Taste, die erst beim nächsten Ziehen wirkt, sieht
+wirkungslos aus.
 
 **Druck:** sechs Profile (zeitung, fliesstext, vers, haiku, buehne, shots) plus
 der **Zeitungssetzer** mit gestaltbarem Kopf, Automatik über mehrere Seiten und
