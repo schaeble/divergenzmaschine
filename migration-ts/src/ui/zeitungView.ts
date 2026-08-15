@@ -12,6 +12,10 @@ import { icon } from "./icons";
 import { loadTreasury, type Treasure } from "../features/treasury";
 import { inhaltVers, inhaltFliess, absaetze } from "./printView";
 import { umbrechen, fuellgrad, type Messbar, type UmbruchTeil, type Seite } from "./umbruch";
+import {
+  ladeBilder, sichereBilder, neuerRahmen, verschiebe, skaliereEcke, begrenze,
+  leseBilddatei, stapelLege, stapelNimm, BILD_ANZAHL, type Bildrahmen,
+} from "../features/zeitungsbilder";
 
 // A4 bei 96 dpi, abzueglich der Raender aus .druckblatt (16 mm oben/unten,
 // 14 mm seitlich). Die Zahlen stehen hier und nicht im CSS, weil die Verteilung
@@ -200,26 +204,78 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
   let spalten = 3, seitenZahl = 1;
   const gewaehlt = new Map<number, { rolle: Rolle; titel: string }>();
 
+  let bilder: Bildrahmen[] = ladeBilder();
+  let gewaehltesBild: string | null = null;
+
   const buehne = el("div", { class: "druckhuelle" });
   const blatt = el("div", { class: "druckblatt zk-blatt" });
   const status = el("div", { class: "zk-status muted mini" });
 
-  const feldT = (label: string, wert: string, cb: (v: string) => void): HTMLElement => {
-    const i = el("input", { type: "text", value: wert }) as HTMLInputElement;
+  // ── Rückgängig ──────────────────────────────────────────────────────────
+  // Eine Momentaufnahme des GANZEN Setzers, nicht nur der Bilder: Kopf,
+  // Spalten, Seitenzahl, Beitragsauswahl und Bilder. Der Stapel hält 40
+  // Schritte; zwei gleiche Aufnahmen hintereinander kommen nicht hinein.
+  interface Stand {
+    kopf: Zeitungskopf; spalten: number; seiten: number;
+    gewaehlt: [number, { rolle: Rolle; titel: string }][]; bilder: Bildrahmen[];
+  }
+  let stapel: string[] = [];
+  const zurueckBtn = el("button", { title: "Letzten Schritt zurücknehmen" }, "↶ Zurück") as HTMLButtonElement;
+  const standJetzt = (): Stand => ({
+    kopf: { ...kopf }, spalten, seiten: seitenZahl,
+    gewaehlt: [...gewaehlt.entries()].map(([i, v]) => [i, { ...v }]), bilder,
+  });
+  const zurueckZeigen = (): void => {
+    if (stapel.length) zurueckBtn.removeAttribute("disabled");
+    else zurueckBtn.setAttribute("disabled", "");
+  };
+  function merkeStand(): void { stapel = stapelLege(stapel, standJetzt()); zurueckZeigen(); }
+  const zurueck = (): void => {
+    const g = stapelNimm(stapel);
+    stapel = g.stapel;
+    zurueckZeigen();
+    if (!g.stand) return;
+    const s2 = JSON.parse(g.stand) as Stand;
+    Object.assign(kopf, s2.kopf);
+    spalten = s2.spalten; seitenZahl = s2.seiten;
+    gewaehlt.clear();
+    for (const [i, v] of s2.gewaehlt) gewaehlt.set(i, v);
+    bilder = s2.bilder;
+    gewaehltesBild = null;
+    sichereBilder(bilder);
+    nachzieher.forEach((fn) => fn());
+    bauListe();
+    zeichne();
+  };
+  zurueckBtn.addEventListener("click", zurueck);
+  zurueckZeigen();
+
+  // Die Felder lesen ihren Wert über eine Funktion statt einmalig beim Bauen.
+  // Nur so kann „Zurück" die Leiste nachziehen — vorher zeigte sie nach einem
+  // Rücksprung noch den alten Text, während die Seite schon den neuen setzte.
+  const nachzieher: (() => void)[] = [];
+  const feldT = (label: string, lies: () => string, cb: (v: string) => void): HTMLElement => {
+    const i = el("input", { type: "text", value: lies() }) as HTMLInputElement;
+    // Momentaufnahme beim Hineinklicken, nicht bei jedem Tastendruck: Sonst
+    // liegen dreißig Zwischenstände im Stapel und „Zurück" nimmt Buchstaben weg.
+    i.addEventListener("focus", merkeStand);
     i.addEventListener("input", () => { cb(i.value); zeichne(); });
+    nachzieher.push(() => { i.value = lies(); });
     return el("label", { class: "druckfeld" }, el("span", { class: "field-label" }, label), i);
   };
-  const feldC = (label: string, wert: boolean, cb: (v: boolean) => void): HTMLElement => {
+  const feldC = (label: string, lies: () => boolean, cb: (v: boolean) => void): HTMLElement => {
     const i = el("input", { type: "checkbox" }) as HTMLInputElement;
-    i.checked = wert;
-    i.addEventListener("change", () => { cb(i.checked); zeichne(); });
+    i.checked = lies();
+    i.addEventListener("change", () => { merkeStand(); cb(i.checked); zeichne(); });
+    nachzieher.push(() => { i.checked = lies(); });
     return el("label", { class: "druckfeld" }, el("span", { class: "field-label" }, label), i);
   };
-  const feldZ = (label: string, wert: number, min: number, max: number, cb: (v: number) => void): HTMLElement => {
+  const feldZ = (label: string, lies: () => number, min: number, max: number, cb: (v: number) => void): HTMLElement => {
     const sel = el("select", {}) as HTMLSelectElement;
     for (let v = min; v <= max; v++) sel.append(el("option", { value: String(v) }, String(v)));
-    sel.value = String(wert);
-    sel.addEventListener("change", () => { cb(parseInt(sel.value, 10)); zeichne(); });
+    sel.value = String(lies());
+    sel.addEventListener("change", () => { merkeStand(); cb(parseInt(sel.value, 10)); zeichne(); });
+    nachzieher.push(() => { sel.value = String(lies()); });
     return el("label", { class: "druckfeld" }, el("span", { class: "field-label" }, label), sel);
   };
 
@@ -243,7 +299,8 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
         else gewaehlt.delete(i);
         zeichne();
       };
-      [an, rolle].forEach((x) => x.addEventListener("change", merke));
+      [an, rolle].forEach((x) => { x.addEventListener("pointerdown", merkeStand); x.addEventListener("change", merke); });
+      titel.addEventListener("focus", merkeStand);
       titel.addEventListener("input", merke);
       const wc = (t.t.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
       liste.append(el("div", { class: "zk-zeile" },
@@ -255,6 +312,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
   /** Automatik: so viele Beiträge wählen, wie auf die Seiten passen. Gemischt
    *  nach Form, damit nicht drei Berichte hintereinander stehen. */
   const fuellen = (): void => {
+    merkeStand();
     gewaehlt.clear();
     const nachForm = new Map<string, number[]>();
     quellen.forEach((t, i) => {
@@ -363,6 +421,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     status.textContent = `${seiten.length} Seite(n) · ${gesetzt} von ${ids.length} Beiträgen gesetzt · Füllung ${grad} %`
       + (entfernt ? ` · ${entfernt} beim Nachmessen entfernt` : "")
       + (gesetzt < ids.length ? " · Rest passt nicht mehr — mehr Seiten wählen" : "");
+    zeichneBilder();
     document.querySelectorAll(".zk-probe").forEach((x) => x.remove());
     document.querySelectorAll(".dm-print-aktiv").forEach((x) => x.remove());
     // Erst jetzt kopieren - die Kopie soll den nachgemessenen Satz zeigen.
@@ -376,6 +435,127 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     }
     document.body.append(mappe);
   };
+
+  // ── Bildrahmen ──────────────────────────────────────────────────────────
+  // Die Bilder liegen in einer eigenen Schicht ÜBER dem Satz und nehmen am
+  // Umbruch nicht teil: Der Text fließt nicht um sie herum. Das ist Absicht —
+  // ein Umfluss müsste in die Höhenmessung eingreifen, und die entscheidet
+  // hier über den Seitenumbruch.
+  const dateiWahl = el("input", { type: "file", accept: "image/*", style: "display:none" }) as HTMLInputElement;
+  const bildBtn = el("button", {}, icon("folder"), " Bild einfügen");
+  const bildInfo = el("span", { class: "muted mini" }, "");
+
+  const bildStand = (): void => {
+    bildInfo.textContent = bilder.length
+      ? `${bilder.length} Bild${bilder.length === 1 ? "" : "er"} · ziehen zum Verschieben, Ecke zum Aufziehen`
+      : "";
+  };
+
+  /** Maßstab zwischen Bildschirm und Seitenrechnung. Die Seite ist in mm
+   *  gesetzt; bei anderer Bildschirmauflösung oder Zoom stimmen Zeigerwege und
+   *  Seitenpixel sonst nicht überein. */
+  const massstab = (seiteEl: HTMLElement): number => {
+    const w = seiteEl.getBoundingClientRect().width;
+    return w > 0 ? w / SEITE_B : 1;
+  };
+
+  const rahmenEl = (bild: Bildrahmen, seiteEl: HTMLElement, seiteNr: number): HTMLElement => {
+    const box = el("div", { class: "zk-bild" + (gewaehltesBild === bild.id ? " on" : "") });
+    const legeAn = (r: Bildrahmen): void => {
+      box.style.left = r.x + "px"; box.style.top = r.y + "px";
+      box.style.width = r.b + "px"; box.style.height = r.h + "px";
+    };
+    legeAn(bild);
+    box.append(el("img", { src: bild.daten, alt: "", draggable: "false" }));
+    const griff = el("div", { class: "zk-griff", title: "Aufziehen" });
+    const weg = el("button", { class: "zk-bildx", type: "button", title: "Bild entfernen" }, "✕");
+    box.append(griff, weg);
+
+    weg.addEventListener("click", (e) => {
+      e.stopPropagation();
+      merkeStand();
+      bilder = bilder.filter((b) => b.id !== bild.id);
+      sichereBilder(bilder); bildStand(); zeichne();
+    });
+
+    // Ziehen und Aufziehen laufen über dieselbe Schleife. Der Stand wird EINMAL
+    // vor dem Griff gemerkt, nicht bei jeder Mausbewegung — sonst räumt ein
+    // einziges Verschieben den ganzen Rückgängig-Stapel leer.
+    const griffAn = (e: PointerEvent, modus: "zieh" | "skal"): void => {
+      e.preventDefault(); e.stopPropagation();
+      merkeStand();
+      gewaehltesBild = bild.id;
+      box.classList.add("on");
+      const f = massstab(seiteEl);
+      const startX = e.clientX, startY = e.clientY;
+      const start: Bildrahmen = { ...bild };
+      let jetzt: Bildrahmen = { ...bild };
+      const ziel = e.currentTarget as HTMLElement;
+      ziel.setPointerCapture(e.pointerId);
+      const beweg = (ev: PointerEvent): void => {
+        const dx = (ev.clientX - startX) / f, dy = (ev.clientY - startY) / f;
+        jetzt = modus === "zieh"
+          ? verschiebe(start, dx, dy, SEITE_B, SEITE_H)
+          : skaliereEcke(start, dx, SEITE_B, SEITE_H);
+        legeAn(jetzt);
+      };
+      const los = (): void => {
+        ziel.removeEventListener("pointermove", beweg);
+        ziel.removeEventListener("pointerup", los);
+        ziel.removeEventListener("pointercancel", los);
+        const i = bilder.findIndex((b) => b.id === bild.id);
+        if (i >= 0) bilder[i] = { ...jetzt, seite: seiteNr };
+        sichereBilder(bilder);
+      };
+      ziel.addEventListener("pointermove", beweg);
+      ziel.addEventListener("pointerup", los);
+      ziel.addEventListener("pointercancel", los);
+    };
+    box.addEventListener("pointerdown", (e) => griffAn(e as PointerEvent, "zieh"));
+    griff.addEventListener("pointerdown", (e) => griffAn(e as PointerEvent, "skal"));
+    return box;
+  };
+
+  /** Bilder auf die fertig gesetzten Seiten legen. Läuft NACH dem Nachmessen
+   *  und VOR dem Kopieren für den Druck — sonst fehlten sie auf dem Papier. */
+  const zeichneBilder = (): void => {
+    const seitenEl = Array.from(blatt.querySelectorAll(".zk-seite")) as HTMLElement[];
+    if (!seitenEl.length) return;
+    seitenEl.forEach((seiteEl, n) => {
+      const schicht = el("div", { class: "zk-bilder" });
+      // Ein Bild auf einer Seite, die es nicht mehr gibt (Seitenzahl verkleinert),
+      // wandert auf die letzte — sonst wäre es unsichtbar und unerreichbar.
+      for (const b of bilder) {
+        const seite = Math.min(Math.max(0, b.seite | 0), seitenEl.length - 1);
+        if (seite !== n) continue;
+        schicht.append(rahmenEl(begrenze(b, SEITE_B, SEITE_H), seiteEl, n));
+      }
+      if (schicht.children.length) seiteEl.append(schicht);
+    });
+  };
+
+  bildBtn.addEventListener("click", () => {
+    if (bilder.length >= BILD_ANZAHL) {
+      status.textContent = `Höchstens ${BILD_ANZAHL} Bilder — erst eines entfernen.`;
+      return;
+    }
+    dateiWahl.value = "";
+    dateiWahl.click();
+  });
+  dateiWahl.addEventListener("change", () => {
+    const datei = dateiWahl.files && dateiWahl.files[0];
+    if (!datei) return;
+    leseBilddatei(datei).then(({ daten, b, h }) => {
+      merkeStand();
+      const r = neuerRahmen(daten, b, h, SEITE_B, SEITE_H, 0);
+      bilder = [...bilder, r];
+      gewaehltesBild = r.id;
+      if (!sichereBilder(bilder)) status.textContent = "Bild eingefügt, aber nicht gesichert — der Browser-Speicher ist voll.";
+      bildStand(); zeichne();
+    }).catch((e: unknown) => {
+      status.textContent = e instanceof Error ? e.message : "Das Bild ließ sich nicht einlesen.";
+    });
+  });
 
   const autoBtn = el("button", {}, icon("dice"), " Seiten füllen");
   autoBtn.addEventListener("click", fuellen);
@@ -391,19 +571,21 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
 
   buehne.append(el("div", { class: "druckdialog zk-dialog" },
     el("div", { class: "druckleiste" },
-      feldT("Zeitungstitel", kopf.titel, (v) => { kopf.titel = v; }),
-      feldT("Motto", kopf.motto, (v) => { kopf.motto = v; }),
-      feldT("Ausgabe", kopf.ausgabe, (v) => { kopf.ausgabe = v; }),
-      feldT("Preis", kopf.preis, (v) => { kopf.preis = v; }),
-      feldZ("Spalten", spalten, 2, 5, (v) => { spalten = v; }),
-      feldZ("Seiten", seitenZahl, 1, 8, (v) => { seitenZahl = v; }),
-      feldC("Datum", kopf.datum, (v) => { kopf.datum = v; }),
-      feldC("Linien", kopf.linien, (v) => { kopf.linien = v; }),
-      feldC("Gebrochene Schrift", kopf.fraktur, (v) => { kopf.fraktur = v; }),
-      el("span", { class: "druckspacer" }), autoBtn, drucken, zu),
+      feldT("Zeitungstitel", () => kopf.titel, (v) => { kopf.titel = v; }),
+      feldT("Motto", () => kopf.motto, (v) => { kopf.motto = v; }),
+      feldT("Ausgabe", () => kopf.ausgabe, (v) => { kopf.ausgabe = v; }),
+      feldT("Preis", () => kopf.preis, (v) => { kopf.preis = v; }),
+      feldZ("Spalten", () => spalten, 2, 5, (v) => { spalten = v; }),
+      feldZ("Seiten", () => seitenZahl, 1, 8, (v) => { seitenZahl = v; }),
+      feldC("Datum", () => kopf.datum, (v) => { kopf.datum = v; }),
+      feldC("Linien", () => kopf.linien, (v) => { kopf.linien = v; }),
+      feldC("Gebrochene Schrift", () => kopf.fraktur, (v) => { kopf.fraktur = v; }),
+      el("span", { class: "druckspacer" }), bildBtn, zurueckBtn, autoBtn, drucken, zu, dateiWahl),
+    bildInfo,
     status,
     el("div", { class: "zk-spalten" }, liste, blatt)));
   document.body.append(buehne);
   bauListe();
+  bildStand();
   zeichne();
 }

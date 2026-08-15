@@ -3,3 +3,4 @@ test/.regression.cjs
 test/.pruefstand.cjs
 test/.pf.cjs
 test/.sammler.cjs
+test/.bild.cjs

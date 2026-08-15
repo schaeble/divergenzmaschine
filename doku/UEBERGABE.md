@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.221.0**, Zweig `typescript-migration`.
+Stand: **v4.222.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -90,6 +90,7 @@ Beide laufen bei `npm test` mit.
 | `test/pruefstand.ts` | Bericht: 2880 Läufe (8 Wer × 9 Was × 5 Wann × 4 Wo × 2 Töne), 12 Verbotsmuster, 7 semantische Prüfungen |
 | `test/pruefstand-formen.ts` | alle Formen: 2520 Läufe, Muster aus echten Funden, Strukturprüfungen je Form |
 | `test/sammler.ts` | Sammler: 61 Prüfungen gegen nachgebildete Feed-Daten, mit Gegentests |
+| `test/bildrahmen.ts` | Bildrahmen: 38 Prüfungen, davon 560 Skalierfälle als Matrix |
 
 Der Formen-Prüfstand trennt **Formen im Gebrauch** (Prosa, Reim, Haiku,
 Multi-Shot) vom **Beiwerk** (Prosagedicht, Gedicht-Strang, Szene). Das Beiwerk
@@ -158,6 +159,18 @@ eigenes Feld braucht es nicht. Die Taste **Wiki** im Studio, neben „Kontext
 würfeln“, zieht daraus einen zufälligen Fund und füllt die vier Felder; leere
 Werte des Fundes lassen das Feld stehen, gesperrte Felder bleiben unberührt.
 Sie greift nie ins Netz.
+
+**Bildrahmen im Zeitungssetzer** (seit 4.222.0): „Bild einfügen" legt ein Bild
+vom Gerät in eine eigene Schicht ÜBER dem Satz (`.zk-bilder`, absolut in der
+`.zk-seite`). Verschieben per Zeiger, Aufziehen am Griff unten rechts unter
+Wahrung des Seitenverhältnisses. Kein Textumfluss — der müsste in die
+Höhenmessung eingreifen, und die entscheidet über den Seitenumbruch. Die
+Geometrie steht rein in `features/zeitungsbilder.ts` und ist deshalb ohne
+Browser prüfbar; die Bilder werden auf 1400 px verkleinert unter
+`divergenz_zeitung_bilder_v1` abgelegt (Präfix → Projektdatei). Gezeichnet wird
+NACH dem Nachmessen und VOR dem Kopieren für den Druck, sonst fehlen sie auf
+dem Papier. Dazu ein **Zurück-Knopf**: ein Stapel von 40 Momentaufnahmen über
+Kopf, Spalten, Seitenzahl, Beitragsauswahl und Bilder.
 
 **Druck:** sechs Profile (zeitung, fliesstext, vers, haiku, buehne, shots) plus
 der **Zeitungssetzer** mit gestaltbarem Kopf, Automatik über mehrere Seiten und

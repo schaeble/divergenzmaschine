@@ -739,12 +739,33 @@ select.abweichend{border-color:var(--acc)}
   font-size:calc(7.8pt * var(--dm-grad,1) * var(--zk-skala,1))}
 [data-profil="zeitungsseite"] p{margin:0 0 1.6mm;orphans:3;widows:3}
 
+/* Bildrahmen: eine eigene Schicht ueber dem Satz. Die Seite bekommt dafuer
+   position:relative - NICHT absolute: Eine absolut gesetzte Seite legt sich im
+   Mehrseitendruck ueber die vorige, und gedruckt wird nur die oberste. */
+.zk-seite{position:relative}
+.zk-bilder{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2}
+.zk-bild{position:absolute;pointer-events:auto;cursor:move;touch-action:none;
+  border:1px solid rgba(0,0,0,.25);background:#fff;box-sizing:border-box}
+.zk-bild img{width:100%;height:100%;object-fit:cover;display:block;user-select:none}
+.zk-griff{position:absolute;right:-6px;bottom:-6px;width:14px;height:14px;border-radius:3px;
+  background:var(--acc);border:2px solid #fff;cursor:nwse-resize;opacity:0;transition:opacity .15s;
+  touch-action:none}
+.zk-bildx{position:absolute;left:-8px;top:-8px;width:18px;height:18px;padding:0;line-height:1;
+  border-radius:50%;border:2px solid #fff;background:#E64980;color:#fff;font-size:10px;
+  cursor:pointer;opacity:0;transition:opacity .15s}
+.zk-bild:hover .zk-griff,.zk-bild:hover .zk-bildx,
+.zk-bild.on .zk-griff,.zk-bild.on .zk-bildx{opacity:1}
+.zk-bild.on{outline:2px solid var(--acc);outline-offset:1px}
+
 @media print {
   /* Die Seite bringt Kopf und Fuss selbst mit - die feste Positionierung der
      Einzeltext-Profile wuerde sie doppelt setzen. */
   .dm-print-aktiv[data-profil="zeitungsseite"] .zk-kopf,
   .dm-print-aktiv[data-profil="zeitungsseite"] .zk-fuss { position: static; }
   [data-profil="zeitungsseite"] .zk-beitrag { break-inside: avoid; }
+  /* Griffe und Loeschknopf sind Bedienelemente, kein Bildinhalt. */
+  .zk-griff, .zk-bildx { display: none !important; }
+  .zk-bild { border-color: rgba(0,0,0,.4); }
 }
 
 /* Sammler: Funde aus dem Wikipedia-Tagesfeed */
