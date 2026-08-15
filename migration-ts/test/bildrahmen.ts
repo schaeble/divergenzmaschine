@@ -33,8 +33,8 @@ const r = (o: Partial<Bildrahmen>): Bildrahmen =>
   ({ id: "t", daten: "data:,x", seite: 0, x: 0, y: 0, b: 200, h: 150, verh: 200 / 150, ...o });
 
 // ── 1 · Verkleinern beim Einlesen ───────────────────────────────────────────
-ist("querformat wird auf die lange Kante verkleinert", JSON.stringify(zielMasse(4000, 3000)), JSON.stringify({ b: 1400, h: 1050 }));
-ist("hochformat ebenso", JSON.stringify(zielMasse(3000, 4000)), JSON.stringify({ b: 1050, h: 1400 }));
+ist("querformat wird auf die lange Kante verkleinert", JSON.stringify(zielMasse(4000, 3000)), JSON.stringify({ b: BILD_MAX, h: Math.round(BILD_MAX * 0.75) }));
+ist("hochformat ebenso", JSON.stringify(zielMasse(3000, 4000)), JSON.stringify({ b: Math.round(BILD_MAX * 0.75), h: BILD_MAX }));
 ist("kleines Bild bleibt unverändert", JSON.stringify(zielMasse(800, 600)), JSON.stringify({ b: 800, h: 600 }));
 wahr("nie größer als die Grenze", zielMasse(9000, 200).b === BILD_MAX);
 ist("Unsinn ergibt nichts", JSON.stringify(zielMasse(0, 0)), JSON.stringify({ b: 0, h: 0 }));

@@ -16,6 +16,10 @@ import {
   ladeBilder, sichereBilder, neuerRahmen, verschiebe, skaliereEcke, begrenze,
   leseBilddatei, stapelLege, stapelNimm, BILD_ANZAHL, type Bildrahmen,
 } from "../features/zeitungsbilder";
+import {
+  ladeLayouts, sichereLayouts, legeLayout, entferneLayout, ordneZu, textSchluessel,
+  type Layout,
+} from "../features/zeitungslayout";
 
 // A4 bei 96 dpi, abzueglich der Raender aus .druckblatt (16 mm oben/unten,
 // 14 mm seitlich). Die Zahlen stehen hier und nicht im CSS, weil die Verteilung
@@ -333,11 +337,49 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     zeichne();
   };
 
+  /** Die Druckfassung: eine Kopie des fertigen Satzes als einziges sichtbares
+   *  Element im Druck (`body > *:not(.dm-print-aktiv){display:none}`).
+   *
+   *  Sie entsteht als eigener Schritt, nicht mehr nur als Nebenwirkung des
+   *  Zeichnens. Grund: Jeder Abbruch irgendwo im Zeichnen ließ die alte Kopie
+   *  stehen oder gar keine — und der Browser bekam ein Dokument, in dem ALLES
+   *  ausgeblendet ist. Der Druckdialog öffnet dann und lädt nichts.
+   *
+   *  EIN Behälter für alle Seiten. Einzeln angehängt bekam jede Seite
+   *  `position:absolute` aus der Druckregel und lag auf der vorigen — gedruckt
+   *  wurde die letzte, und der Zeitungskopf der ersten war verdeckt.
+   *
+   *  Rückgabe: Zahl der Seiten in der Kopie. */
+  const mappeBauen = (): number => {
+    document.querySelectorAll(".dm-print-aktiv").forEach((x) => x.remove());
+    const mappe = el("div", { class: "dm-print-aktiv dm-seiten" });
+    let n = 0;
+    for (const papier of Array.from(blatt.children)) {
+      const seite = papier.firstElementChild as HTMLElement | null;
+      if (!seite || !seite.classList.contains("zk-seite")) continue;
+      const kopie = seite.cloneNode(true) as HTMLElement;
+      // Bedienelemente gehören nicht aufs Papier. Die Druckregel blendet sie
+      // aus; hier fliegen sie ganz heraus, damit die Kopie nichts Totes trägt.
+      kopie.querySelectorAll(".zk-griff, .zk-bildx").forEach((x) => x.remove());
+      mappe.append(kopie);
+      n++;
+    }
+    if (n) document.body.append(mappe);
+    return n;
+  };
+
   const zeichne = (): void => {
     sichereKopf(kopf);
     blatt.innerHTML = "";
     const ids = [...gewaehlt.keys()].sort((a, b) => a - b);
-    if (!ids.length) { blatt.append(el("p", { class: "muted" }, "Nichts gewählt.")); status.textContent = ""; return; }
+    if (!ids.length) {
+      blatt.append(el("p", { class: "muted" }, "Nichts gewählt."));
+      // Auch die Druckfassung räumen: Sonst druckt der Browser die Seite, die
+      // vor dem Abwählen entstanden war — ein Satz, den niemand mehr sieht.
+      document.querySelectorAll(".dm-print-aktiv").forEach((x) => x.remove());
+      status.textContent = "";
+      return;
+    }
 
     // Erste Seite provisorisch setzen, um Kopfhöhe und Spaltenbreite zu messen.
     const roh = baueZeitungsseite(kopf, ids.map((i) => ({ t: quellen[i]!, rolle: gewaehlt.get(i)!.rolle, titel: gewaehlt.get(i)!.titel })), spalten, true);
@@ -418,22 +460,13 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
 
     const gesetzt = seiten.reduce((a, s2) => a + s2.teile.length, 0) - entfernt;
     const grad = Math.round(100 * seiten.reduce((a, s2) => a + fuellgrad(s2, mess, o), 0) / Math.max(1, seiten.length));
-    status.textContent = `${seiten.length} Seite(n) · ${gesetzt} von ${ids.length} Beiträgen gesetzt · Füllung ${grad} %`
+    const statusText = `${seiten.length} Seite(n) · ${gesetzt} von ${ids.length} Beiträgen gesetzt · Füllung ${grad} %`
       + (entfernt ? ` · ${entfernt} beim Nachmessen entfernt` : "")
       + (gesetzt < ids.length ? " · Rest passt nicht mehr — mehr Seiten wählen" : "");
     zeichneBilder();
     document.querySelectorAll(".zk-probe").forEach((x) => x.remove());
-    document.querySelectorAll(".dm-print-aktiv").forEach((x) => x.remove());
-    // Erst jetzt kopieren - die Kopie soll den nachgemessenen Satz zeigen.
-    // EIN Behaelter fuer alle Seiten. Einzeln angehaengt bekam jede Seite
-    // position:absolute aus der Druckregel und lag auf der vorigen - gedruckt
-    // wurde die letzte, und der Zeitungskopf der ersten war verdeckt.
-    const mappe = el("div", { class: "dm-print-aktiv dm-seiten" });
-    for (const papier of Array.from(blatt.children)) {
-      const seite = papier.firstElementChild;
-      if (seite) mappe.append(seite.cloneNode(true));
-    }
-    document.body.append(mappe);
+    const druckSeiten = mappeBauen();
+    status.textContent = statusText + ` · Druckfassung: ${druckSeiten} Seite(n)`;
   };
 
   // ── Bildrahmen ──────────────────────────────────────────────────────────
@@ -445,10 +478,14 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
   const bildBtn = el("button", {}, icon("folder"), " Bild einfügen");
   const bildInfo = el("span", { class: "muted mini" }, "");
 
-  const bildStand = (): void => {
-    bildInfo.textContent = bilder.length
-      ? `${bilder.length} Bild${bilder.length === 1 ? "" : "er"} · ziehen zum Verschieben, Ecke zum Aufziehen`
-      : "";
+  // Der Stand nennt Zahlen, nicht nur ein Gefühl: Wenn ein Bild „springt", muss
+  // ablesbar sein, WOHIN. Ohne diese Anzeige war der einzige Befund „geht nicht".
+  const bildStand = (live?: Bildrahmen): void => {
+    if (!bilder.length) { bildInfo.textContent = ""; return; }
+    const z = live || bilder[bilder.length - 1]!;
+    bildInfo.textContent = `${bilder.length} Bild${bilder.length === 1 ? "" : "er"}`
+      + ` · zuletzt: x ${Math.round(z.x)} · y ${Math.round(z.y)} · ${Math.round(z.b)} × ${Math.round(z.h)} px`
+      + ` (Seite ${((z.seite | 0) + 1)}) · ziehen zum Verschieben, Ecke unten rechts zum Aufziehen`;
   };
 
   /** Maßstab zwischen Bildschirm und Seitenrechnung. Die Seite ist in mm
@@ -478,38 +515,53 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       sichereBilder(bilder); bildStand(); zeichne();
     });
 
-    // Ziehen und Aufziehen laufen über dieselbe Schleife. Der Stand wird EINMAL
-    // vor dem Griff gemerkt, nicht bei jeder Mausbewegung — sonst räumt ein
-    // einziges Verschieben den ganzen Rückgängig-Stapel leer.
+    // Ziehen und Aufziehen laufen über dieselbe Schleife.
+    //
+    // Die Zuhörer hängen am FENSTER, nicht am Bild und nicht am Zeigerfang
+    // (setPointerCapture). Der Fang ist bequem, aber er bricht still: Er wirft
+    // bei fremder Zeiger-Kennung, und wo er ausfällt, endet die Bewegung, sobald
+    // der Zeiger den Rahmen verlässt — genau das sieht aus wie „das Bild lässt
+    // sich nicht verschieben". Am Fenster kommt jede Bewegung an.
+    //
+    // Der Stand wird EINMAL vor dem Griff gemerkt, nicht bei jeder Bewegung —
+    // sonst räumt ein einziges Verschieben den Rückgängig-Stapel leer.
     const griffAn = (e: PointerEvent, modus: "zieh" | "skal"): void => {
       e.preventDefault(); e.stopPropagation();
       merkeStand();
       gewaehltesBild = bild.id;
+      for (const a of Array.from(document.querySelectorAll(".zk-bild.on"))) a.classList.remove("on");
       box.classList.add("on");
-      const f = massstab(seiteEl);
+      const f = massstab(seiteEl) || 1;
       const startX = e.clientX, startY = e.clientY;
       const start: Bildrahmen = { ...bild };
       let jetzt: Bildrahmen = { ...bild };
-      const ziel = e.currentTarget as HTMLElement;
-      ziel.setPointerCapture(e.pointerId);
-      const beweg = (ev: PointerEvent): void => {
-        const dx = (ev.clientX - startX) / f, dy = (ev.clientY - startY) / f;
+      const beweg = (ev: Event): void => {
+        const pe = ev as PointerEvent;
+        const dx = (pe.clientX - startX) / f, dy = (pe.clientY - startY) / f;
         jetzt = modus === "zieh"
           ? verschiebe(start, dx, dy, SEITE_B, SEITE_H)
           : skaliereEcke(start, dx, SEITE_B, SEITE_H);
         legeAn(jetzt);
+        bildStand(jetzt);
       };
       const los = (): void => {
-        ziel.removeEventListener("pointermove", beweg);
-        ziel.removeEventListener("pointerup", los);
-        ziel.removeEventListener("pointercancel", los);
+        window.removeEventListener("pointermove", beweg, true);
+        window.removeEventListener("pointerup", los, true);
+        window.removeEventListener("pointercancel", los, true);
+        // In die EINE Wahrheit schreiben, aus der neu gezeichnet wird. Ohne
+        // diesen Schritt stünde die neue Lage nur im Stil des Elements — und
+        // wäre beim nächsten Neuzeichnen weg.
         const i = bilder.findIndex((b) => b.id === bild.id);
+        // Nur schreiben, wenn es das Bild noch gibt. Ein „sonst anhängen" wäre
+        // bequem, holte aber ein gerade gelöschtes Bild zurück — die Gegenprobe
+        // hat genau das gezeigt: aus einem Bild wurden zwei.
         if (i >= 0) bilder[i] = { ...jetzt, seite: seiteNr };
-        sichereBilder(bilder);
+        if (!sichereBilder(bilder)) status.textContent = "Lage geändert, aber nicht gesichert — der Browser-Speicher ist voll.";
+        bildStand();
       };
-      ziel.addEventListener("pointermove", beweg);
-      ziel.addEventListener("pointerup", los);
-      ziel.addEventListener("pointercancel", los);
+      window.addEventListener("pointermove", beweg, true);
+      window.addEventListener("pointerup", los, true);
+      window.addEventListener("pointercancel", los, true);
     };
     box.addEventListener("pointerdown", (e) => griffAn(e as PointerEvent, "zieh"));
     griff.addEventListener("pointerdown", (e) => griffAn(e as PointerEvent, "skal"));
@@ -522,6 +574,11 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     const seitenEl = Array.from(blatt.querySelectorAll(".zk-seite")) as HTMLElement[];
     if (!seitenEl.length) return;
     seitenEl.forEach((seiteEl, n) => {
+      // Bezugsrahmen der Bildschicht am Element festmachen, nicht nur in der
+      // Stilvorlage: Fehlt `position:relative` auf der Seite, bezieht sich die
+      // Schicht auf den nächsten gesetzten Vorfahren — im Setzer ist das die
+      // bildschirmfüllende Hülle. Das Bild schwebte dann neben dem Papier.
+      if (!seiteEl.style.position) seiteEl.style.position = "relative";
       const schicht = el("div", { class: "zk-bilder" });
       // Ein Bild auf einer Seite, die es nicht mehr gibt (Seitenzahl verkleinert),
       // wandert auf die letzte — sonst wäre es unsichtbar und unerreichbar.
@@ -557,10 +614,87 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     });
   });
 
+  // ── Layouts ─────────────────────────────────────────────────────────────
+  // Gespeichert wird der ganze Setzer: Kopf, Spalten, Seiten, Beitragsauswahl
+  // mit Rolle und Überschrift, dazu die Bilder. Die Beiträge merken sich über
+  // einen Textschlüssel, nicht über ihre Listenposition — die verschiebt sich
+  // beim nächsten „Merken" in der Schatzkammer.
+  let layouts: Layout[] = ladeLayouts();
+  const layoutSel = el("select", { title: "Gespeichertes Layout" }) as HTMLSelectElement;
+  const layoutInfo = el("span", { class: "muted mini" }, "");
+  const layoutListe = (auswahl?: string): void => {
+    layoutSel.innerHTML = "";
+    layoutSel.append(el("option", { value: "" }, layouts.length ? "— Layout wählen —" : "— noch keins gespeichert —"));
+    for (const l of layouts) layoutSel.append(el("option", { value: l.name }, `${l.name} (${l.teile.length} Beiträge${l.bilder.length ? ", " + l.bilder.length + " Bild" + (l.bilder.length === 1 ? "" : "er") : ""})`));
+    if (auswahl) layoutSel.value = auswahl;
+  };
+  const layoutSpeichern = el("button", {}, icon("floppy"), " Layout speichern");
+  const layoutLaden = el("button", {}, icon("folder"), " Laden");
+  const layoutWeg = el("button", { class: "danger" }, "Löschen");
+
+  layoutSpeichern.addEventListener("click", () => {
+    const ids = [...gewaehlt.keys()].sort((a, b) => a - b);
+    if (!ids.length && !bilder.length) { layoutInfo.textContent = "Nichts zu speichern — erst Beiträge wählen."; return; }
+    const vorschlag = layoutSel.value || (kopf.titel ? `${kopf.titel} ${new Date().toLocaleDateString("de-DE")}` : "Layout");
+    const name = (window.prompt("Name des Layouts:", vorschlag) || "").trim();
+    if (!name) return;
+    const neuLayout: Layout = {
+      name, d: new Date().toISOString(),
+      kopf: { ...kopf }, spalten, seiten: seitenZahl,
+      teile: ids.map((i) => ({ schluessel: textSchluessel(quellen[i]!), rolle: gewaehlt.get(i)!.rolle, titel: gewaehlt.get(i)!.titel })),
+      bilder: bilder.map((b) => ({ ...b })),
+    };
+    layouts = legeLayout(layouts, neuLayout);
+    const ok = sichereLayouts(layouts);
+    layoutListe(name);
+    layoutInfo.textContent = ok
+      ? `„${name}" gespeichert · ${neuLayout.teile.length} Beiträge, ${neuLayout.bilder.length} Bilder`
+      : `„${name}" passt nicht mehr in den Speicher — ältere Layouts oder Bilder löschen.`;
+  });
+
+  layoutLaden.addEventListener("click", () => {
+    const l = layouts.find((x) => x.name === layoutSel.value);
+    if (!l) { layoutInfo.textContent = "Erst ein Layout auswählen."; return; }
+    merkeStand();
+    Object.assign(kopf, l.kopf);
+    spalten = l.spalten; seitenZahl = l.seiten;
+    const { zuordnung, gefunden, fehlend } = ordneZu(l.teile, quellen);
+    gewaehlt.clear();
+    for (const [i, v] of zuordnung) gewaehlt.set(i, { ...v });
+    bilder = (l.bilder || []).map((b) => ({ ...b }));
+    sichereBilder(bilder);
+    nachzieher.forEach((fn) => fn());
+    bauListe(); bildStand(); zeichne();
+    // Ehrlich benennen, was NICHT wiederhergestellt werden konnte: Ein Layout
+    // kann Texte nennen, die inzwischen aus der Schatzkammer gelöscht wurden.
+    layoutInfo.textContent = `„${l.name}" geladen · ${gefunden} Beiträge gefunden`
+      + (fehlend ? ` · ${fehlend} fehlen (nicht mehr in der Schatzkammer)` : "");
+  });
+
+  layoutWeg.addEventListener("click", () => {
+    const name = layoutSel.value;
+    if (!name) { layoutInfo.textContent = "Erst ein Layout auswählen."; return; }
+    if (!confirm(`Layout „${name}" löschen?`)) return;
+    layouts = entferneLayout(layouts, name);
+    sichereLayouts(layouts);
+    layoutListe();
+    layoutInfo.textContent = `„${name}" gelöscht`;
+  });
+  layoutListe();
+
   const autoBtn = el("button", {}, icon("dice"), " Seiten füllen");
   autoBtn.addEventListener("click", fuellen);
   const drucken = el("button", { class: "primary" }, icon("play"), " Drucken");
-  drucken.addEventListener("click", () => window.print());
+  drucken.addEventListener("click", () => {
+    // Kopie unmittelbar vor dem Druck neu bauen — nicht darauf vertrauen, dass
+    // der letzte Zeichenlauf sie hinterlassen hat.
+    const n = mappeBauen();
+    if (!n) {
+      status.textContent = "Nichts zu drucken — erst Beiträge anhaken oder „Seiten füllen“ klicken.";
+      return;
+    }
+    window.print();
+  });
   const zu = el("button", {}, "Schließen");
   const schliessen = (): void => {
     document.querySelectorAll(".dm-print-aktiv, .zk-probe").forEach((x) => x.remove());
@@ -581,6 +715,9 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       feldC("Linien", () => kopf.linien, (v) => { kopf.linien = v; }),
       feldC("Gebrochene Schrift", () => kopf.fraktur, (v) => { kopf.fraktur = v; }),
       el("span", { class: "druckspacer" }), bildBtn, zurueckBtn, autoBtn, drucken, zu, dateiWahl),
+    el("div", { class: "druckleiste zk-layoutleiste" },
+      el("span", { class: "chips-label" }, "Layout:"), layoutSel,
+      layoutSpeichern, layoutLaden, layoutWeg, layoutInfo),
     bildInfo,
     status,
     el("div", { class: "zk-spalten" }, liste, blatt)));

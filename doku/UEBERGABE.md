@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.222.0**, Zweig `typescript-migration`.
+Stand: **v4.223.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -91,6 +91,7 @@ Beide laufen bei `npm test` mit.
 | `test/pruefstand-formen.ts` | alle Formen: 2520 Läufe, Muster aus echten Funden, Strukturprüfungen je Form |
 | `test/sammler.ts` | Sammler: 61 Prüfungen gegen nachgebildete Feed-Daten, mit Gegentests |
 | `test/bildrahmen.ts` | Bildrahmen: 38 Prüfungen, davon 560 Skalierfälle als Matrix |
+| `test/zeitung.ts` | Zeitungssetzer: Layout-Logik + Rundgang durch den echten Setzer in jsdom |
 
 Der Formen-Prüfstand trennt **Formen im Gebrauch** (Prosa, Reim, Haiku,
 Multi-Shot) vom **Beiwerk** (Prosagedicht, Gedicht-Strang, Szene). Das Beiwerk
@@ -171,6 +172,24 @@ Browser prüfbar; die Bilder werden auf 1400 px verkleinert unter
 NACH dem Nachmessen und VOR dem Kopieren für den Druck, sonst fehlen sie auf
 dem Papier. Dazu ein **Zurück-Knopf**: ein Stapel von 40 Momentaufnahmen über
 Kopf, Spalten, Seitenzahl, Beitragsauswahl und Bilder.
+
+**Layouts** (seit 4.223.0): Der ganze Setzer lässt sich benannt sichern
+(`divergenz_zeitung_layouts_v1`, bis 12). Beiträge merken sich über einen
+Textschlüssel, NICHT über den Listenindex — die Schatzkammer wächst, ein
+gespeicherter Index zeigte danach auf einen fremden Text.
+
+**Zwei Fehler aus dem Betrieb (4.223.0), beide vom Benutzer gefunden:**
+Ein verschobenes Bild sprang beim nächsten Zeichnen zurück, und der
+Druckdialog öffnete, ohne die Seite zu laden. Konsequenzen im Quelltext:
+Ziehen hängt jetzt am **Fenster** statt am Zeigerfang (`setPointerCapture`
+bricht still und lässt die Bewegung enden, sobald der Zeiger den Rahmen
+verlässt); die Bildschicht bekommt ihren Bezugsrahmen **am Element**
+(`style.position`), nicht nur aus der Stilvorlage; und die Druckfassung
+entsteht in `mappeBauen()` als eigener Schritt, den der Drucken-Knopf
+unmittelbar vor `window.print()` selbst auslöst — vorher war sie eine
+Nebenwirkung des Zeichnens, und jeder Abbruch dort ließ den Browser ein
+Dokument drucken, in dem `body > *:not(.dm-print-aktiv)` alles ausblendet.
+Dazu ein Prüfstand, der den Setzer in jsdom wirklich öffnet.
 
 **Druck:** sechs Profile (zeitung, fliesstext, vers, haiku, buehne, shots) plus
 der **Zeitungssetzer** mit gestaltbarem Kopf, Automatik über mehrere Seiten und

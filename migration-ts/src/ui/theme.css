@@ -742,6 +742,7 @@ select.abweichend{border-color:var(--acc)}
 /* Bildrahmen: eine eigene Schicht ueber dem Satz. Die Seite bekommt dafuer
    position:relative - NICHT absolute: Eine absolut gesetzte Seite legt sich im
    Mehrseitendruck ueber die vorige, und gedruckt wird nur die oberste. */
+.zk-layoutleiste{gap:8px;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:1px dotted var(--border2)}
 .zk-seite{position:relative}
 .zk-bilder{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2}
 .zk-bild{position:absolute;pointer-events:auto;cursor:move;touch-action:none;

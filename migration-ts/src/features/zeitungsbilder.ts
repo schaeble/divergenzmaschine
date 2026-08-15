@@ -7,8 +7,9 @@
 //
 // Warum verkleinert wird: Ein Foto aus der Kamera bringt mehrere Megabyte mit.
 // Als Base64 im localStorage abgelegt füllt EIN Bild den Speicher und hindert
-// danach Wortbank, Korpus und Schatzkammer am Sichern. 1400 px an der längsten
-// Kante reichen für A4-Druck (rund 200 dpi bei halber Seitenbreite).
+// danach Wortbank, Korpus und Schatzkammer am Sichern. 1200 px an der längsten
+// Kante reichen für A4-Druck (rund 350 dpi bei halber Seitenbreite) und halten die
+// Druckfassung klein genug, dass die Druckvorschau sie noch laden mag.
 import { safeSet } from "./storage-status";
 
 export interface Bildrahmen {
@@ -25,7 +26,7 @@ export interface Bildrahmen {
 
 export const BILD_KEY = "divergenz_zeitung_bilder_v1";
 /** Längste Kante nach dem Verkleinern. */
-export const BILD_MAX = 1400;
+export const BILD_MAX = 1200;
 /** Kleinste Kante eines Rahmens auf der Seite, damit er greifbar bleibt. */
 export const MIN_KANTE = 40;
 /** Mehr als das passt nicht sinnvoll in eine Projektdatei. */
@@ -173,7 +174,7 @@ export function leseBilddatei(datei: File): Promise<{ daten: string; b: number; 
         if (!ctx) { fertig({ daten: String(leser.result), b: bild.naturalWidth, h: bild.naturalHeight }); return; }
         ctx.drawImage(bild, 0, 0, ziel.b, ziel.h);
         const png = /png$/i.test(datei.type);
-        fertig({ daten: c.toDataURL(png ? "image/png" : "image/jpeg", 0.82), b: ziel.b, h: ziel.h });
+        fertig({ daten: c.toDataURL(png ? "image/png" : "image/jpeg", 0.78), b: ziel.b, h: ziel.h });
       };
       bild.src = String(leser.result);
     };
