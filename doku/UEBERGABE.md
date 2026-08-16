@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.228.0**, Zweig `typescript-migration`.
+Stand: **v4.228.1**, Zweig `typescript-migration`.
 
 ---
 

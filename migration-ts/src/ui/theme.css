@@ -777,8 +777,9 @@ select.abweichend{border-color:var(--acc)}
   .dm-print-aktiv [data-profil="zeitungsseite"] .dm-inhalt,
   .dm-print-aktiv[data-profil="zeitungsseite"] .dm-inhalt { margin-top: 0; }
   [data-profil="zeitungsseite"] .zk-beitrag { break-inside: avoid; }
-  /* Griffe und Loeschknopf sind Bedienelemente, kein Bildinhalt. */
+  /* Griffe, Loeschknopf und Auswahlmarke sind Bedienelemente, kein Bildinhalt. */
   .zk-griff, .zk-bildx { display: none !important; }
+  .zk-bild.on { outline: none !important; }
   .zk-bild { border-color: rgba(0,0,0,.4); }
 }
 

@@ -402,6 +402,10 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       // Bedienelemente gehören nicht aufs Papier. Die Druckregel blendet sie
       // aus; hier fliegen sie ganz heraus, damit die Kopie nichts Totes trägt.
       kopie.querySelectorAll(".zk-griff, .zk-bildx").forEach((x) => x.remove());
+      // Und die Auswahlmarke: „.on" ist der blaue Rahmen, mit dem das Bild am
+      // Bildschirm zeigt, dass es angefasst ist. Er wurde mitkopiert und stand
+      // im Druck um das Foto — eine Bedienspur auf dem Papier.
+      kopie.querySelectorAll(".zk-bild.on").forEach((x) => x.classList.remove("on"));
       mappe.append(kopie);
       n++;
     }

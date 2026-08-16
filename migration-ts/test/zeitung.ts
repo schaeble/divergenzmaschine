@@ -249,6 +249,12 @@ ist("Platzhalter beginnt beim Bild", platz0?.style.marginTop, soll.oben + "px");
 ist("Platzhalter ist so hoch wie das Bild samt Luft", platz0?.style.height, soll.hoehe + "px");
 ist("er steht als erstes Kind", kaesten[0]?.firstElementChild?.classList.contains("zk-bildplatz"), true);
 ist("und er ist nicht in der Druckfassung vergessen", alle(".dm-print-aktiv .zk-bildplatz").length, 1);
+// Die Auswahlmarke ist eine Bedienspur — sie stand als blauer Rahmen im Druck.
+(q(".zk-blatt .zk-bild") as HTMLElement).classList.add("on");
+klick(knopf(/Drucken/));
+ist("die Auswahlmarke wird nicht mitgedruckt", alle(".dm-print-aktiv .zk-bild.on").length, 0);
+wahr("und die Druckregel nimmt sie zusätzlich zurück",
+  /\.zk-bild\.on \{ outline: none/.test(readFileSync("src/ui/theme.css", "utf8")));
 
 // ── 8 · Kürzen an der Fußlinie ──────────────────────────────────────────────
 // Der gemeldete Fehler: Die letzte Zeile einer Spalte wurde von der Fußlinie
