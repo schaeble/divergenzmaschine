@@ -11,6 +11,7 @@
 // Browser. Geprüft wird der Ablauf: Entsteht die Druckfassung? Hält eine
 // verschobene Lage einen Neuaufbau aus?
 import { JSDOM } from "jsdom";
+import { readFileSync } from "fs";
 
 const dom = new JSDOM("<!doctype html><html><body><div id=app></div></body></html>",
   { pretendToBeVisual: true, url: "https://x.test/" });
@@ -24,7 +25,9 @@ let gedruckt = 0;
 (dom.window as unknown as { prompt: () => string }).prompt = () => "Testlayout";
 (dom.window as unknown as { confirm: () => boolean }).confirm = () => true;
 
-import { oeffneZeitungssetzer, satzWeg, SEITE_B, SEITE_H } from "../src/ui/zeitungView";
+import {
+  oeffneZeitungssetzer, satzWeg, SEITE_B, SEITE_H, RAND_OBEN, RAND_UNTEN, RAND_SEITE,
+} from "../src/ui/zeitungView";
 import {
   BILD_KEY, ladeBilder, spaltenBreite, spaltenSpanne, bildplatz, type Raster,
 } from "../src/features/zeitungsbilder";
@@ -292,6 +295,32 @@ wahr("die Statuszeile nennt die Kürzung",
   /am Fuß gekürzt/.test((q(".zk-status") as HTMLElement)?.textContent || ""));
 wahr("der Hinweis auf die Browser-Kopfzeile steht im Dialog",
   /Kopf- und Fußzeilen/.test((q(".zk-druckhinweis") as HTMLElement)?.textContent || ""));
+
+// ── 9 · Vorschau und Druck müssen dieselbe Seite meinen ─────────────────────
+// Geprüft wird die Stilvorlage selbst, im Quelltext. Beide Geometrien standen
+// schon zweimal auseinander — einmal um zwei Millimeter (Rechnung gegen @page),
+// einmal um 8 mm je Beitrag (eine Druckregel, die für den Einzeltext gedacht
+// war und die Zeitungsseite mittraf). Beides sieht man erst auf Papier.
+// Deshalb hier, wo es billig ist.
+const css = readFileSync("src/ui/theme.css", "utf8");
+const mm = (re: RegExp): number => { const m = css.match(re); return m ? parseFloat(m[1]!) : -1; };
+
+const vorschauH = mm(/\.zk-blatt \.zk-seite\{width:174mm;height:(\d+(?:\.\d+)?)mm/);
+const druckH = mm(/\.dm-print-aktiv\.dm-seiten > \.zk-seite \{[^}]*height: (\d+(?:\.\d+)?)mm/);
+ist("Vorschau und Druck haben dieselbe Seitenhöhe", vorschauH, druckH);
+ist("und sie passt zu SEITE_H", Math.round(vorschauH * 96 / 25.4), SEITE_H);
+const seitenRand = css.match(/@page \{ size: A4; margin: (\d+)mm (\d+)mm (\d+)mm; \}/);
+wahr("@page-Ränder stehen in der Vorlage", !!seitenRand);
+ist("oberer Rand passt zur Rechnung", Number(seitenRand?.[1]), RAND_OBEN);
+ist("seitlicher Rand passt", Number(seitenRand?.[2]), RAND_SEITE);
+ist("unterer Rand passt", Number(seitenRand?.[3]), RAND_UNTEN);
+ist("Seitenbreite passt zu SEITE_B", Math.round((210 - 2 * RAND_SEITE) * 96 / 25.4), SEITE_B);
+
+// Die 8-mm-Regel des Einzeltextdrucks darf die Zeitungsseite nicht treffen.
+wahr("Einzeltext-Abstand wird für die Zeitungsseite zurückgenommen",
+  /\.dm-print-aktiv \[data-profil="zeitungsseite"\] \.dm-inhalt[^{]*\{[^}]*margin-top: 0/.test(css));
+wahr("und die Regel, die ihn setzt, gibt es noch",
+  /\.dm-print-aktiv \.dm-inhalt \{ margin-top: 8mm; \}/.test(css));
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Zeitungssetzer — ${geprueft} Prüfungen (Layout-Logik + Rundgang in jsdom):`);

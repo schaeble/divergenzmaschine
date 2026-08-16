@@ -769,6 +769,13 @@ select.abweichend{border-color:var(--acc)}
      Einzeltext-Profile wuerde sie doppelt setzen. */
   .dm-print-aktiv[data-profil="zeitungsseite"] .zk-kopf,
   .dm-print-aktiv[data-profil="zeitungsseite"] .zk-fuss { position: static; }
+  /* Der Einzeltext-Druck haelt mit 8 mm Abstand die feste Kopfzeile frei. Auf
+     der Zeitungsseite gibt es die nicht — dort schob die Regel JEDEN
+     Beitragsrumpf um 8 mm nach unten, aber NUR im Druck. Folgen: Der Satz stand
+     tiefer als in der Vorschau, das absolut gesetzte Bild schien nach oben zu
+     springen, und die Spalten liefen um zwei Zeilen laenger als gemessen. */
+  .dm-print-aktiv [data-profil="zeitungsseite"] .dm-inhalt,
+  .dm-print-aktiv[data-profil="zeitungsseite"] .dm-inhalt { margin-top: 0; }
   [data-profil="zeitungsseite"] .zk-beitrag { break-inside: avoid; }
   /* Griffe und Loeschknopf sind Bedienelemente, kein Bildinhalt. */
   .zk-griff, .zk-bildx { display: none !important; }

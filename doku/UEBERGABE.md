@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.226.0**, Zweig `typescript-migration`.
+Stand: **v4.227.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -91,7 +91,7 @@ Beide laufen bei `npm test` mit.
 | `test/pruefstand-formen.ts` | alle Formen: 2520 Läufe, Muster aus echten Funden, Strukturprüfungen je Form |
 | `test/sammler.ts` | Sammler: 61 Prüfungen gegen nachgebildete Feed-Daten, mit Gegentests |
 | `test/bildrahmen.ts` | Bildrahmen: 67 Prüfungen, 560 Skalier- und 1600 Rasterfälle als Matrix |
-| `test/zeitung.ts` | Zeitungssetzer: Layout-Logik + Rundgang (65 Prüfungen) im echten Setzer unter jsdom |
+| `test/zeitung.ts` | Zeitungssetzer: Layout-Logik, jsdom-Rundgang und ein Abgleich der Stilvorlage gegen die Rechnung (74 Prüfungen) |
 
 Der Formen-Prüfstand trennt **Formen im Gebrauch** (Prosa, Reim, Haiku,
 Multi-Shot) vom **Beiwerk** (Prosagedicht, Gedicht-Strang, Szene). Das Beiwerk
@@ -217,6 +217,20 @@ einen Beitrag und würfe den letzten Text hinaus. Der Aufmacher ist ausgenommen
 — beide müssen übereinstimmen. Vorher rechnete die Verteilung mit 297 − 2×20 =
 257 mm, gedruckt wurden 297 − 20 − 22 = 255 mm: zwei Millimeter zu viel, eine
 halbe Zeile, die unten abgeschnitten wurde.
+
+**Vorschau ≠ Druck — die dritte Fundstelle** (4.227.0): Die Druckregel
+`.dm-print-aktiv .dm-inhalt{margin-top:8mm}` hält beim EINZELTEXT die feste
+Kopfzeile frei. Sie traf auch die Zeitungsseite und schob dort jeden
+Beitragsrumpf um 8 mm nach unten — nur im Druck. Der Satz stand tiefer als in
+der Vorschau, das absolut gesetzte Bild schien nach oben zu springen, und die
+Spalten liefen um rund zwei Zeilen länger als gemessen. Jetzt für
+`[data-profil="zeitungsseite"]` zurückgenommen.
+
+Seither prüft `test/zeitung.ts` die **Stilvorlage gegen die Rechnung**: gleiche
+Seitenhöhe in Vorschau und Druck, Übereinstimmung mit `SEITE_H`/`SEITE_B`, und
+`@page`-Ränder gleich `RAND_OBEN/UNTEN/SEITE`. Diese Geometrien sind schon
+dreimal auseinandergelaufen; der Abgleich kostet nichts und sieht, was sonst
+erst das Papier zeigt.
 
 **Kürzen am Spaltenfuß**: Was auch nach dem Entfernen ganzer Beiträge noch
 übersteht — ein einzelner zu langer Beitrag —, wird satzweise gekürzt
