@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.227.0**, Zweig `typescript-migration`.
+Stand: **v4.228.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -89,6 +89,7 @@ Beide laufen bei `npm test` mit.
 | `test/regression.ts` | sechs benannte Fehlerfälle |
 | `test/pruefstand.ts` | Bericht: 2880 Läufe (8 Wer × 9 Was × 5 Wann × 4 Wo × 2 Töne), 12 Verbotsmuster, 7 semantische Prüfungen |
 | `test/pruefstand-formen.ts` | alle Formen: 2520 Läufe, Muster aus echten Funden, Strukturprüfungen je Form |
+| `test/meldung.ts` | Meldung: 2880 Läufe über dieselbe Matrix wie der Bericht, dazu neun Gegenproben |
 | `test/sammler.ts` | Sammler: 61 Prüfungen gegen nachgebildete Feed-Daten, mit Gegentests |
 | `test/bildrahmen.ts` | Bildrahmen: 67 Prüfungen, 560 Skalier- und 1600 Rasterfälle als Matrix |
 | `test/zeitung.ts` | Zeitungssetzer: Layout-Logik, jsdom-Rundgang und ein Abgleich der Stilvorlage gegen die Rechnung (74 Prüfungen) |
@@ -131,7 +132,7 @@ migration-ts/src/
 ## 6 · Stand
 
 **Formen:** Prosa, Prosagedicht, Gedicht-Strang, Reim, Haiku, Szene/Dialog,
-Multi-Shot, **Bericht**. (`drama` existiert im Quelltext, steht aber nicht in
+Multi-Shot, **Bericht**, **Meldung**. (`drama` existiert im Quelltext, steht aber nicht in
 der Auswahlliste — entweder aufnehmen oder entfernen.)
 
 **Acht Stellschrauben** (`knobs.ts`), Vorgaben:
@@ -241,6 +242,24 @@ Inhalt — die heraushängende Zeile machte ihn höher, statt einen Überlauf zu
 melden, und die Prüfung sah nichts. Dazu 3 mm Reserve für den Unterschied
 zwischen Bildschirm und Papier (andere Silbentrennung, eine Zeile mehr).
 Reihenfolge: Sätze, dann Absätze, dann ganze Beiträge.
+
+**Meldung** (seit 4.228.0, `generation/meldung.ts`): die Kurzmeldung, 25–70
+Wörter. Gebaut wurde sie, weil dem Zeitungssetzer das kurze Format fehlte —
+und weil sie die strengsten prüfbaren Zusagen aller Formen hat: alle vier W im
+ersten Satz, höchstens vier Sätze, ein Ereignis, ein Tempus, keine Wertung,
+keine Zahl und kein Name ohne Faktenblatt. `pruefeMeldung()` prüft genau diese
+fünf; der Prüfstand ruft dieselbe Funktion, die auch das Programm benutzen
+könnte — ein Maß, nicht zwei.
+
+Sie greift als EINZIGE Form nicht in die Wortbank, sondern referiert nur aus
+dem Faktenblatt. Zwei Bauentscheidungen, die aus Fehlversuchen stammen: Der
+Doppelpunkt im Vorspann („Am Donnerstag ist in Dürrhausen bekannt geworden:
+Die Werft stellt den Betrieb ein.") ist Statik, kein Schmuck — jede Fassung,
+die das Was in einen dass-Satz zwingt, muss das finite Verb verschieben und
+zerlegt trennbare Verben. Und der Rumpf steht durchgehend im Präsens; die
+geläufige Formel „Das teilte … mit" mischte Präteritum hinein und verletzte
+die eigene vierte Zusage. Im Zeitungssetzer geht die Meldung automatisch in
+die Rolle „Kasten" und setzt unter „Kurz gemeldet".
 
 **Druck:** sechs Profile (zeitung, fliesstext, vers, haiku, buehne, shots) plus
 der **Zeitungssetzer** mit gestaltbarem Kopf, Automatik über mehrere Seiten und

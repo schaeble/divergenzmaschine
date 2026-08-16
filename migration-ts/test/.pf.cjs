@@ -9736,9 +9736,9 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
   if (sache) einheiten.unshift({ einheit: sache, rolle: "sache", min: 50, max: 9e3, rund: 10 });
   for (let i2 = 0; i2 < wieViele && einheiten.length; i2++) {
     const eigeneBetroffen = R.einheiten.filter((e2) => e2.rolle === "betroffene" && einheiten.includes(e2));
-    const quelle = i2 === 0 ? eigeneBetroffen.length ? eigeneBetroffen : einheiten.filter((e2) => e2.rolle === "betroffene") : i2 === 1 && sache ? einheiten.filter((e2) => e2.rolle === "sache") : einheiten.filter((e2) => !rollenDrin.has(e2.rolle));
-    if (!quelle.length) break;
-    const gewaehlt = quelle[Math.floor(Math.random() * quelle.length)];
+    const quelle2 = i2 === 0 ? eigeneBetroffen.length ? eigeneBetroffen : einheiten.filter((e2) => e2.rolle === "betroffene") : i2 === 1 && sache ? einheiten.filter((e2) => e2.rolle === "sache") : einheiten.filter((e2) => !rollenDrin.has(e2.rolle));
+    if (!quelle2.length) break;
+    const gewaehlt = quelle2[Math.floor(Math.random() * quelle2.length)];
     const e = einheiten.splice(einheiten.indexOf(gewaehlt), 1)[0];
     rollenDrin.add(e.rolle);
     genitivPlural.push(e.gen || e.einheit);
@@ -9996,6 +9996,46 @@ function buildBericht(bank, input, ressort = "auto") {
     ...fb.chronologie.map((c) => `\xB7 ${c.zeit}: ${c.was}`)
   ].join("\n");
   return { text: abschnitte.filter(Boolean).join("\n\n") + "\n\n" + kasten, fb, hergang: hergangText };
+}
+
+// src/generation/meldung.ts
+function zahlSatz2(z, blick) {
+  const menge = `${z.verbal || z.wortform} ${z.einheit}`;
+  return blick === "gut" ? `Hinzu kommen ${menge}.` : `Betroffen sind ${menge}.`;
+}
+function vorspann2(fb) {
+  return `${cap2(fb.wann.datum)} ist ${fb.wo.mitPraep} bekannt geworden: ${cap2(fb.wer.haupt)} ${fb.was}.`;
+}
+function quelle(fb) {
+  const p = fb.personen[0];
+  if (!p) return "";
+  return `Das teilt ${p.rolle} ${p.name} mit.`;
+}
+function schritt(fb) {
+  const c = fb.chronologie[1] || fb.chronologie[0];
+  return c ? `${cap2(c.zeit)} zeichnet sich ${c.was} ab.` : "";
+}
+var worte = (s) => (s.match(/[A-Za-zÄÖÜäöüß0-9][A-Za-zÄÖÜäöüß0-9.,-]*/g) || []).length;
+function buildMeldung(input, ressort = "auto") {
+  const fb = ziehFaktenblatt(input, ressort);
+  const blick = blickVonTon(input.tone || "");
+  const ziel = Number.isFinite(input.lenTarget) ? input.lenTarget : 60;
+  const wieviel = ziel <= 60 ? 1 : ziel <= 120 ? 2 : 3;
+  const saetze = [vorspann2(fb)];
+  const folge = [
+    fb.zahlen[0] ? zahlSatz2(fb.zahlen[0], blick) : "",
+    schritt(fb),
+    quelle(fb)
+  ].filter(Boolean);
+  const SCHLUSS = "Weitere Angaben liegen zun\xE4chst nicht vor.";
+  const MAX_SAETZE = 4;
+  for (const s of folge) {
+    if (saetze.length >= MAX_SAETZE) break;
+    if (saetze.length - 1 >= wieviel && worte(saetze.join(" ")) >= 30) break;
+    saetze.push(s);
+  }
+  if (saetze.length < MAX_SAETZE && worte(saetze.join(" ")) + worte(SCHLUSS) <= 70) saetze.push(SCHLUSS);
+  return { text: saetze.join(" "), fb };
 }
 
 // src/generation/emphasis.ts
@@ -11254,6 +11294,7 @@ function buildStory(bank, input, model) {
   const kit = buildKit(bank, input, model);
   const lenTarget = Number.isFinite(input.lenTarget) ? input.lenTarget : 110;
   if (input.form === "bericht") return buildBericht(bank, input, input.ressort ?? "auto").text;
+  if (input.form === "meldung") return buildMeldung(input, input.ressort ?? "auto").text;
   if (input.form === "script") return postProcessText(makeDialogueScene(kit, lenTarget), input);
   if (input.form === "video") {
     return postProcessText(buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? 15, lenTarget), input);

@@ -24,6 +24,7 @@ export const PROFIL_LABEL: Record<Profil, string> = {
 export function profilFuerForm(form: string): Profil {
   switch (form) {
     case "bericht": return "zeitung";
+    case "meldung": return "zeitung";
     case "haiku": return "haiku";
     case "reim": case "strang": case "poem": return "vers";
     case "drama": case "script": return "buehne";

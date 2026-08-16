@@ -343,7 +343,7 @@ export function mountStudio(root: HTMLElement): void {
   }
 
   const tone = select("f-tone", [["neutral", "Neutral"], ["mystery", "Mystery"], ["poetic", "Poetisch"], ["melancholisch", "Melancholisch"], ["dark", "Düster"], ["unheimlich", "Unheimlich"], ["uplifting", "Hoffnungsvoll"], ["zaertlich", "Zärtlich"], ["traeumerisch", "Träumerisch"], ["nuechtern", "Nüchtern"], ["ironisch", "Ironisch"], ["humorous", "Humorvoll"]], "mystery");
-  const form = select("f-form", [["prose", "Prosa"], ["poem", "Prosagedicht"], ["strang", "Gedicht-Strang"], ["reim", "Reim"], ["haiku", "Haiku"], ["script", "Szene/Dialog"], ["video", "Multi-Shot (Video)"], ["bericht", "Bericht (Zeitung)"]], "prose");
+  const form = select("f-form", [["prose", "Prosa"], ["poem", "Prosagedicht"], ["strang", "Gedicht-Strang"], ["reim", "Reim"], ["haiku", "Haiku"], ["script", "Szene/Dialog"], ["video", "Multi-Shot (Video)"], ["bericht", "Bericht (Zeitung)"], ["meldung", "Meldung (kurz)"]], "prose");
   const shots = el("input", { id: "f-shots", type: "number", value: "5", min: "3", max: "10" }) as HTMLInputElement;
   const secs = el("input", { id: "f-secs", type: "number", value: "15", min: "3", max: "600" }) as HTMLInputElement;
   const structure = select("f-structure", [["auto", "Auto"], ["linear", "Linear"], ["reverse", "Reverse"], ["circle", "Kreis"], ["fragment", "Fragment"], ["object", "Objekt"], ["dramaturgie", "Dramaturgie (Preset 2.0)"], ["rekombination", "Rekombination"]], "rekombination");
@@ -388,7 +388,7 @@ export function mountStudio(root: HTMLElement): void {
       nachTextwechsel();
       try { localStorage.setItem("dm_last_text", out.textContent || ""); } catch { /* voll */ }
       refreshFeeds();
-    } else if (form === "script" || form === "bericht") {
+    } else if (form === "script" || form === "bericht" || form === "meldung") {
       // Beide bauen ihre Laenge beim Erzeugen, nicht nachtraeglich: Ein Bericht
       // laesst sich nicht kuerzen, ohne Fakten zu verlieren.
       generate();

@@ -72,7 +72,7 @@ export function sichereKopf(k: Zeitungskopf): void {
 
 const FORM_LABEL: Record<string, string> = {
   prose: "Prosa", bericht: "Bericht", reim: "Reim", haiku: "Haiku",
-  poem: "Prosagedicht", strang: "Strang", script: "Szene", video: "Multi-Shot",
+  poem: "Prosagedicht", strang: "Strang", script: "Szene", video: "Multi-Shot", meldung: "Meldung",
 };
 
 /** Überschrift eines Beitrags. Der Bericht bringt seine eigene mit — sie steht
@@ -80,6 +80,10 @@ const FORM_LABEL: Record<string, string> = {
  *  haben keine, dort wird die erste Zeile gekürzt. */
 export function ueberschriftVon(t: Treasure): string {
   const abs = absaetze(t.t);
+  // Die Meldung ist zu kurz für eine eigene Überschrift: Die gekürzte erste
+  // Zeile wäre die halbe Meldung, und im Kasten stünde alles doppelt. Zeitungen
+  // setzen Kurzmeldungen deshalb unter eine gemeinsame Zeile.
+  if (t.form === "meldung") return "Kurz gemeldet";
   if (t.form === "bericht" && abs.length >= 2) return abs[1]!;
   const erste = (abs[0] || "").split("\n")[0] || "";
   const kurz = erste.replace(/[.!?…]+$/, "").trim();
@@ -229,6 +233,9 @@ export function browserMessung(quellen: Treasure[], rollen: Rolle[], titel: stri
 // ── Setzer ────────────────────────────────────────────────────────────────
 
 function rolleFuer(t: Treasure, ersteR: boolean): Rolle {
+  // Die Meldung gehört in den Kasten — so setzt eine Zeitung ihre Kurzmeldungen,
+  // und sie ist zu kurz, um eine Spalte zu tragen. Aufmacher wird sie nie.
+  if (t.form === "meldung") return "kasten";
   if (istVers(t.form)) return "kasten";
   return ersteR ? "aufmacher" : "spalte";
 }

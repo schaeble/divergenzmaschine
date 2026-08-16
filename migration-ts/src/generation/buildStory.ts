@@ -20,6 +20,7 @@ import { buildVideoSequenceText } from "./video";
 import { enforceWordTarget } from "./length";
 import { buildRekombination, buildVersAtome } from "../atoms/rekombination";
 import { buildBericht } from "./bericht";
+import { buildMeldung } from "./meldung";
 import { linkTrace } from "../atoms/trace";
 import { linkMarkovTrace } from "./markovTrace";
 import { applyEmphasis } from "./emphasis";
@@ -117,6 +118,9 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   // zieht Saetze zusammen und streut Ton ein - alles Eingriffe, die einem Bericht
   // Fakten hinzufuegen oder wegnehmen wuerden.
   if (input.form === "bericht") return buildBericht(bank, input, (input.ressort as Parameters<typeof buildBericht>[2]) ?? "auto").text;
+  // Die Meldung geht NICHT durch die Bank: Sie referiert nur aus dem
+  // Faktenblatt. Deshalb steht sie vor allem, was Atome zieht.
+  if (input.form === "meldung") return buildMeldung(input, (input.ressort as Parameters<typeof buildMeldung>[1]) ?? "auto").text;
   if (input.form === "script") return postProcessText(makeDialogueScene(kit, lenTarget), input);
   if (input.form === "video") {
     return postProcessText(buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? 15, lenTarget), input);

@@ -10,7 +10,7 @@ export type Bank = Record<BankKey, string[]>;
 
 /** Textform einer Generierung. */
 export type FormKind =
-  | "prose" | "drama" | "poem" | "strang" | "reim" | "haiku" | "script" | "video" | "bericht";
+  | "prose" | "drama" | "poem" | "strang" | "reim" | "haiku" | "script" | "video" | "bericht" | "meldung";
 
 /** Instabilitäts-Stufe (Aus / Subtil / Aggressiv). */
 export type Instability = 0 | 1 | 2;
@@ -56,7 +56,7 @@ export interface GenInput {
   lenTarget?: number; // Ziel-Wortzahl (Textlänge)
   emphasis?: { wo: number; wann: number; wer: number; was: number }; // 4W-Gewichtung (nur Prosa)
   tension?: string; // Spannungs-Peak-Position (off/top/mid/low), nur Prosa
-  /** Zeitungsressort, nur Form "bericht". "auto" raet aus dem Stoff. */
+  /** Zeitungsressort, Formen "bericht" und "meldung". "auto" raet aus dem Stoff. */
   ressort?: string;
 }
 
