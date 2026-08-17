@@ -21,12 +21,15 @@ g.HTMLElement = dom.window.HTMLElement; g.HTMLInputElement = dom.window.HTMLInpu
 g.HTMLSelectElement = dom.window.HTMLSelectElement; g.Event = dom.window.Event;
 g.localStorage = dom.window.localStorage; g.getComputedStyle = dom.window.getComputedStyle;
 let gedruckt = 0;
-(dom.window as unknown as { print: () => void }).print = () => { gedruckt++; };
+let titelBeimDruck = "";
+(dom.window as unknown as { print: () => void }).print = () => {
+  gedruckt++; titelBeimDruck = dom.window.document.title;
+};
 (dom.window as unknown as { prompt: () => string }).prompt = () => "Testlayout";
 (dom.window as unknown as { confirm: () => boolean }).confirm = () => true;
 
 import {
-  oeffneZeitungssetzer, satzWeg, SEITE_B, SEITE_H, RAND_OBEN, RAND_UNTEN, RAND_SEITE,
+  oeffneZeitungssetzer, satzWeg, druckName, SEITE_B, SEITE_H, RAND_OBEN, RAND_UNTEN, RAND_SEITE,
 } from "../src/ui/zeitungView";
 import {
   BILD_KEY, ladeBilder, spaltenBreite, spaltenSpanne, bildplatz, plaetze, platzBesetzt,
@@ -475,6 +478,41 @@ wahr("Platzfelder gehören nicht aufs Papier",
   /\.zk-griff, \.zk-bildx, \.zk-platz \{ display: none/.test(css));
 wahr("und werden aus der Druckkopie entfernt",
   /\.zk-griff, \.zk-bildx, \.zk-platz"\)\.forEach/.test(readFileSync("src/ui/zeitungView.ts", "utf8")));
+
+// ── 13 · Dateiname beim Speichern als PDF ───────────────────────────────────
+// Der Browser schlägt den DOKUMENTTITEL als Dateinamen vor. Einen anderen Weg
+// gibt es von hier aus nicht.
+const D = new Date(2026, 7, 17);                       // 17. August 2026
+ist("Name der Zeitung und Tagesdatum", druckName("Der Zeitstrom", D), "Der Zeitstrom 17.08.2026");
+ist("einstellige Tage und Monate bekommen eine Null",
+  druckName("X", new Date(2026, 0, 3)), "X 03.01.2026");
+// Zeichen, die in keinem Dateinamen stehen dürfen.
+ist("Schrägstriche und Doppelpunkte fliegen raus",
+  druckName('A/B\\C:D*E?F"G<H>I|J', D), "A B C D E F G H I J 17.08.2026");
+ist("mehrfache Leerzeichen werden zu einem", druckName("  Der    Zeitstrom  ", D), "Der Zeitstrom 17.08.2026");
+ist("ein führender Punkt macht die Datei sonst unsichtbar", druckName(".geheim", D), "geheim 17.08.2026");
+ist("ein abschließender Punkt bricht sie unter Windows", druckName("Zeitung.", D), "Zeitung 17.08.2026");
+ist("ohne Titel bleibt ein farbloser Name", druckName("   ", D), "Zeitung 17.08.2026");
+wahr("ein sehr langer Titel wird gekürzt", druckName("z".repeat(200), D).length <= 60 + 11);
+
+// Und der Weg durch den Setzer: Der Titel muss WÄHREND des Druckens stehen und
+// danach wieder der der App sein — sonst heißt die Anwendung von da an wie die
+// Ausgabe.
+klick(knopf(/Schließen/));
+localStorage.setItem("dm_zeitung_v1", JSON.stringify({ titel: "Der Zeitstrom" }));
+dom.window.document.title = "Divergenzmaschine";
+oeffneZeitungssetzer("Ein Text zum Drucken.", "prose");
+klick(knopf(/füllen/));
+const druckeVorher = gedruckt;
+klick(knopf(/Drucken/));
+wahr("es wurde gedruckt", gedruckt > druckeVorher);
+ist("beim Drucken trägt das Dokument den Namen der Ausgabe",
+  titelBeimDruck, druckName("Der Zeitstrom"));
+klick(knopf(/Schließen/));
+ist("nach dem Schließen heißt die App wieder wie vorher",
+  dom.window.document.title, "Divergenzmaschine");
+wahr("und der Hinweis nennt den Dateinamen",
+  /Als PDF speichern/.test(readFileSync("src/ui/zeitungView.ts", "utf8")));
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Zeitungssetzer — ${geprueft} Prüfungen (Layout-Logik + Rundgang in jsdom):`);

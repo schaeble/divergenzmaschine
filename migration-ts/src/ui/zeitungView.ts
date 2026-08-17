@@ -71,6 +71,30 @@ export function sichereKopf(k: Zeitungskopf): void {
   try { localStorage.setItem(KEY, JSON.stringify(k)); } catch { /* voll */ }
 }
 
+/** Der Name, unter dem der Browser die Seite ablegt.
+ *
+ *  Beim „Als PDF speichern“ schlägt jeder Browser den DOKUMENTTITEL als
+ *  Dateinamen vor — es gibt keinen anderen Weg, ihn von hier aus zu setzen.
+ *  Deshalb wird der Titel für die Dauer des Druckens ausgetauscht.
+ *
+ *  Ein Dateiname darf nicht alles enthalten: Schrägstriche, Doppelpunkte und
+ *  Anführungszeichen ersetzt der eine Browser stillschweigend, der andere
+ *  hängt sich daran auf. Sie fliegen deshalb hier heraus, nicht erst dort. */
+export function druckName(titel: string, d = new Date()): string {
+  const zwei = (n: number): string => String(n).padStart(2, "0");
+  const datum = `${zwei(d.getDate())}.${zwei(d.getMonth() + 1)}.${d.getFullYear()}`;
+  // Punkte am Rand fallen mit weg: Ein führender Punkt macht die Datei auf
+  // Linux und macOS unsichtbar, ein abschließender bricht sie unter Windows.
+  const roh = (titel || "")
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^[.\s]+|[.\s]+$/g, "");
+  const name = roh.slice(0, 60).replace(/[.\s]+$/, "");
+  // Ohne Titel bliebe nur das Datum — das sagt in einem Ordner voller Ausgaben
+  // nichts. Lieber ein farbloser Name als gar keiner.
+  return `${name || "Zeitung"} ${datum}`;
+}
+
 const FORM_LABEL: Record<string, string> = {
   prose: "Prosa", bericht: "Bericht", reim: "Reim", haiku: "Haiku",
   poem: "Prosagedicht", strang: "Strang", script: "Szene", video: "Multi-Shot", meldung: "Meldung",
@@ -1020,6 +1044,19 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
   const autoBtn = el("button", {}, icon("dice"), " Seiten füllen");
   autoBtn.addEventListener("click", fuellen);
   const drucken = el("button", { class: "primary" }, icon("play"), " Drucken");
+  // Der Titel, den die App sonst trägt. EINMAL beim Öffnen gemerkt, nicht bei
+  // jedem Druck: Wer zweimal hintereinander druckt, bevor der Browser das
+  // Zurücksetzen auslöst, hätte sonst den Druckttitel als „Grundtitel“
+  // festgehalten — und die App hieße von da an „Der Zeitstrom 17.08.2026“.
+  const grundTitel = document.title;
+  let titelLaeuft = 0;
+  const titelZurueck = (): void => {
+    if (!titelLaeuft) return;
+    clearTimeout(titelLaeuft);
+    titelLaeuft = 0;
+    document.title = grundTitel;
+    window.removeEventListener("afterprint", titelZurueck);
+  };
   drucken.addEventListener("click", () => {
     // Kopie unmittelbar vor dem Druck neu bauen — nicht darauf vertrauen, dass
     // der letzte Zeichenlauf sie hinterlassen hat.
@@ -1028,6 +1065,19 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       status.textContent = "Nichts zu drucken — erst Beiträge anhaken oder „Seiten füllen“ klicken.";
       return;
     }
+    // Der Dokumenttitel ist der Dateiname, den der Browser beim „Als PDF
+    // speichern“ vorschlägt. Er wird VOR dem Druck gesetzt und danach wieder
+    // zurückgenommen — sonst hieße die App weiter wie die Ausgabe.
+    //
+    // Zurückgenommen wird über `afterprint`; nicht jeder Browser meldet das
+    // zuverlässig (und im eingebetteten Fenster mancher Handy-Browser gar
+    // nicht), deshalb zusätzlich eine Uhr. Sie ist großzügig gestellt: Wer im
+    // Druckdialog noch Einstellungen ändert, braucht seine Zeit, und ein zu
+    // früh zurückgesetzter Titel wäre genau der Fehler, der behoben werden soll.
+    titelZurueck();
+    document.title = druckName(kopf.titel);
+    window.addEventListener("afterprint", titelZurueck);
+    titelLaeuft = setTimeout(titelZurueck, 120_000) as unknown as number;
     window.print();
   });
   const zu = el("button", {}, "Schließen");
@@ -1038,6 +1088,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
   window.addEventListener("resize", beiGroesse);
   window.addEventListener("orientationchange", beiGroesse);
   const schliessen = (): void => {
+    titelZurueck();
     window.removeEventListener("resize", beiGroesse);
     window.removeEventListener("orientationchange", beiGroesse);
     document.querySelectorAll(".dm-print-aktiv, .zk-probe").forEach((x) => x.remove());
@@ -1061,7 +1112,8 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     el("p", { class: "muted mini zk-druckhinweis" },
       "Beim Drucken zeigt der Browser oben Datum und Seitentitel und unten die Adresse — das ist SEINE Kopfzeile, nicht die der Zeitung. "
       + "Im Druckdialog unter „Weitere Einstellungen“ den Haken bei „Kopf- und Fußzeilen“ entfernen; dann rückt der Zeitungskopf nach oben. "
-      + "Der Browser merkt sich die Einstellung."),
+      + "Der Browser merkt sich die Einstellung. "
+      + "Beim „Als PDF speichern“ schlägt er den Namen der Zeitung mit dem Tagesdatum vor."),
     el("div", { class: "druckleiste zk-layoutleiste" },
       el("span", { class: "chips-label" }, "Layout:"), layoutSel,
       layoutSpeichern, layoutLaden, layoutWeg, layoutInfo),
