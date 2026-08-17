@@ -192,6 +192,19 @@ Nebenwirkung des Zeichnens, und jeder Abbruch dort ließ den Browser ein
 Dokument drucken, in dem `body > *:not(.dm-print-aktiv)` alles ausblendet.
 Dazu ein Prüfstand, der den Setzer in jsdom wirklich öffnet.
 
+**Feste Bildplätze** (seit 4.230.0): Die Taste ▤ Plätze zeigt leere Felder im
+Spaltenraster — je Spalte drei Bänder, zwischen ihnen 8 px Fuge. Ein Klick
+darauf öffnet die Dateiwahl, und das Bild bekommt die Maße des PLATZES, nicht
+seine eigenen; beschnitten wird über `object-fit:cover`. Damit gibt es nichts
+zu skalieren, was der eigentliche Grund war, dass der Bildteil auf dem Handy
+nicht benutzbar war. Reine Rechnung in `plaetze()`, `platzBesetzt()` und
+`rahmenAusPlatz()`; der senkrechte Bereich wird am echten `.zk-spaltebox`
+gemessen (`spaltenbereich()`), weil er an Kopfhöhe und Aufmacher hängt. Die
+Unterkante ist geklemmt: drei einzeln gerundete Bänder ergaben zusammen einen
+Pixel zu viel, und der stand unter der Fußlinie. Ein Bild in einem Platz ist
+ein ganz gewöhnlicher Bildrahmen — Textumbruch, Verschieben, Löschen und Druck
+laufen unverändert. Die Platzfelder fliegen aus der Druckkopie.
+
 **Spaltenraster** (seit 4.224.0): Die Taste ▦ Raster lässt Bilder auf dem
 Raster der Seite einrasten — Breite auf ganze Spalten (Steg 6 mm aus
 `.zk-raster{gap:0 6mm}`), linke Kante auf einen Spaltenanfang, Oberkante auf

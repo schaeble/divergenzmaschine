@@ -296,3 +296,86 @@ export function spaltenlagen(r: Raster, oben: number, hoehe: number): Spaltenlag
   for (let i = 0; i < Math.max(1, r.spalten); i++) raus.push({ x: i * (sp + r.steg), b: sp, oben, hoehe });
   return raus;
 }
+
+// ── Feste Bildplätze ────────────────────────────────────────────────────────
+// Ein Bild frei zu setzen heißt, drei Entscheidungen zu treffen (Lage, Breite,
+// Höhe), von denen zwei niemand treffen will. Ein Platz nimmt alle drei ab: Er
+// steht fest, bevor es ein Bild gibt, und das Bild wird HINEINGESCHNITTEN
+// (object-fit:cover), nicht eingepasst. Damit gibt es nichts zu skalieren.
+//
+// Die Plätze kommen aus dem Raster, das die Seite ohnehin hat: eine Spalte
+// breit, und der Spaltenbereich senkrecht in Bänder geteilt. Ein Bild auf
+// Spaltenkanten sieht auf Anhieb nach Zeitung aus; eines mit 3 px Versatz sieht
+// nach Versehen aus.
+//
+// Das Seitenverhältnis eines Platzes ist BELIEBIG — es entsteht aus dem Raster,
+// nicht aus dem Bild. Das ist zulässig, weil beschnitten und nicht verzerrt
+// wird. Verzerren ist der eine Fehler, den man einem Bild sofort ansieht.
+
+export interface Platz {
+  id: string;
+  /** Kurze Beschriftung für die Anzeige, z. B. „2 · Mitte“. */
+  name: string;
+  x: number; y: number; b: number; h: number;
+}
+
+/** Wie viele Bänder der Spaltenbereich bekommt. Drei ist der Kompromiss:
+ *  Zwei ergibt Plätze, die eine halbe Seite füllen; vier ergibt Briefmarken. */
+export const BAENDER = 3;
+
+/** Feste Plätze für eine Seite. `oben` und `hoehe` beschreiben den
+ *  Spaltenbereich (unter dem Kopf, über der Fußlinie) in Seitenkoordinaten —
+ *  gemessen, nicht geschätzt, denn wo die Spalten anfangen, hängt an Kopfhöhe
+ *  und Aufmacher. `luft` ist der Zwischenraum zwischen zwei Bändern. */
+export function plaetze(r: Raster, oben: number, hoehe: number,
+                        baender = BAENDER, luft = 8): Platz[] {
+  const raus: Platz[] = [];
+  const n = Math.max(1, r.spalten);
+  const z = Math.max(1, baender);
+  if (!(hoehe > 0) || !(r.seiteB > 0)) return raus;
+  // Die Luft liegt ZWISCHEN den Bändern, nicht am Rand: z Bänder haben z-1
+  // Fugen. Bleibt danach keine sinnvolle Höhe übrig, ohne Luft rechnen.
+  let bandH = (hoehe - (z - 1) * luft) / z;
+  let fuge = luft;
+  if (bandH < MIN_KANTE) { bandH = hoehe / z; fuge = 0; }
+  if (bandH < 1) return raus;
+  const sp = spaltenBreite(r);
+  const namen = z === 3 ? ["oben", "Mitte", "unten"] : null;
+  // Der Bereich endet an der Fußlinie. Gerundet wird jeder Platz einzeln, und
+  // drei aufgerundete Bänder können zusammen einen Pixel zu viel ergeben — ein
+  // Bild ragte dann unter den Satz. Deshalb wird die Unterkante geklemmt.
+  const ende = Math.round(oben + hoehe);
+  for (let b = 0; b < z; b++) {
+    const y = oben + b * (bandH + fuge);
+    const oberkante = Math.round(y);
+    const hoeheHier = Math.min(Math.round(bandH), ende - oberkante);
+    if (hoeheHier < 1) continue;
+    for (let i = 0; i < n; i++) {
+      raus.push({
+        id: `p${b}-${i}`,
+        name: `${i + 1} · ${namen ? namen[b] : `Band ${b + 1}`}`,
+        x: Math.round(i * (sp + r.steg)),
+        y: oberkante,
+        b: Math.round(sp),
+        h: hoeheHier,
+      });
+    }
+  }
+  return raus;
+}
+
+/** Ist der Platz schon besetzt? Gemessen am Mittelpunkt des Platzes: Ein Bild,
+ *  das ihn überdeckt, macht ihn unbrauchbar. Ein Bild, das ihn nur streift,
+ *  nicht — sonst verschwänden nach dem ersten Bild alle Nachbarplätze. */
+export function platzBesetzt(p: Platz, bilder: { x: number; y: number; b: number; h: number }[]): boolean {
+  const mx = p.x + p.b / 2, my = p.y + p.h / 2;
+  return bilder.some((b) => mx >= b.x && mx <= b.x + b.b && my >= b.y && my <= b.y + b.h);
+}
+
+/** Ein Bild in einen Platz legen. Die Geometrie kommt vom PLATZ, nie vom Bild;
+ *  `verh` bleibt das Verhältnis des Platzes, damit ein späteres Aufziehen die
+ *  Form behält, in der das Bild jetzt zu sehen ist. */
+export function rahmenAusPlatz(daten: string, p: Platz, seite = 0,
+                               id = "b" + Date.now().toString(36)): Bildrahmen {
+  return { id, daten, seite, x: p.x, y: p.y, b: p.b, h: p.h, verh: p.h > 0 ? p.b / p.h : 1 };
+}

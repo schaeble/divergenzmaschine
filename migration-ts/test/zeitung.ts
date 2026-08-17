@@ -29,7 +29,8 @@ import {
   oeffneZeitungssetzer, satzWeg, SEITE_B, SEITE_H, RAND_OBEN, RAND_UNTEN, RAND_SEITE,
 } from "../src/ui/zeitungView";
 import {
-  BILD_KEY, ladeBilder, spaltenBreite, spaltenSpanne, bildplatz, type Raster,
+  BILD_KEY, ladeBilder, spaltenBreite, spaltenSpanne, bildplatz, plaetze, platzBesetzt,
+  rahmenAusPlatz, type Raster,
 } from "../src/features/zeitungsbilder";
 import {
   textSchluessel, ordneZu, legeLayout, entferneLayout, LAYOUT_KEY, LAYOUT_ANZAHL,
@@ -394,6 +395,86 @@ wahr("im Druck bleibt keine Verkleinerung stehen",
 // ein noch nicht sichtbarer Dialog) darf NICHT in die kleinste Stufe fallen.
 wahr("ohne messbare Breite bleibt das Blatt unverkleinert",
   !(q(".zk-blatt") as HTMLElement).classList.contains("zk-eng"));
+
+// ── 11 · Zwei Griffe hintereinander ─────────────────────────────────────────
+// Gemeldet: Ein Bild verkleinern, dann verschieben — und es stand wieder in
+// Originalgröße da. Ursache: Jeder Griff startete bei dem Stand, den der Rahmen
+// beim ZEICHNEN mitbekommen hatte. Nach dem Loslassen wird aber nur die Liste
+// fortgeschrieben, nicht neu gezeichnet — also war dieser Stand veraltet.
+klick(knopf(/Schließen/));
+localStorage.setItem(BILD_KEY, JSON.stringify([
+  { id: "b7", daten: GIF, seite: 0, x: 100, y: 100, b: 200, h: 150, verh: 200 / 150 },
+]));
+oeffneZeitungssetzer("Ein Text für zwei Griffe.", "prose");
+klick(knopf(/füllen/));
+if (knopf(/Raster/).classList.contains("on")) klick(knopf(/Raster/));   // frei ziehen
+
+// Erst aufziehen: 60 px schmaler.
+const griffEl = q(".zk-blatt .zk-griff") as HTMLElement;
+griffEl.dispatchEvent(zeiger("pointerdown", 300, 300));
+dom.window.dispatchEvent(zeiger("pointermove", 240, 300));
+dom.window.dispatchEvent(zeiger("pointerup", 240, 300));
+const nachSkalieren = ladeBilder()[0]!;
+ist("Aufziehen ändert die Breite", nachSkalieren.b, 140);
+// Dann verschieben — die Breite darf sich dabei NICHT ändern.
+ziehe([300, 300], [330, 320]);
+const nachSchieben = ladeBilder()[0]!;
+ist("Verschieben lässt die Breite, wie sie war", nachSchieben.b, nachSkalieren.b);
+ist("und die Höhe auch", nachSchieben.h, nachSkalieren.h);
+ist("verschoben wurde trotzdem", nachSchieben.x, nachSkalieren.x + 30);
+// Gegenprobe: Zweimal verschieben muss sich addieren, nicht zurückspringen.
+ziehe([330, 320], [350, 320]);
+ist("und zwei Verschiebungen addieren sich", ladeBilder()[0]?.x, nachSchieben.x + 20);
+
+// ── 12 · Feste Bildplätze ───────────────────────────────────────────────────
+// Reine Rechnung — im Browser hängt sie am gemessenen Spaltenbereich, und der
+// ist in jsdom null. Geprüft wird deshalb die Geometrie, nicht die Anzeige.
+const rP: Raster = { spalten: 3, seiteB: SEITE_B, seiteH: SEITE_H, steg: 23, zeile: 19 };
+const ps = plaetze(rP, 200, 600, 3, 8);
+ist("drei Bänder mal drei Spalten", ps.length, 9);
+ist("der erste Platz beginnt am Spaltenbereich", ps[0]!.y, 200);
+ist("und an der linken Kante", ps[0]!.x, 0);
+ist("ein Platz ist genau eine Spalte breit", ps[0]!.b, Math.round(spaltenBreite(rP)));
+ist("die zweite Spalte beginnt nach dem Steg", ps[1]!.x, Math.round(spaltenBreite(rP) + rP.steg));
+// Die Bänder teilen den Bereich. Auf den Pixel geht das nicht auf — jeder Platz
+// wird für sich gerundet. Geprüft wird deshalb die Eigenschaft, die zählt: Kein
+// Platz darf unter die Fußlinie ragen, und die Bänder dürfen nicht klaffen.
+const bandH = ps[0]!.h;
+wahr("die Bänder füllen den Bereich bis auf die Fugen",
+  Math.abs(bandH * 3 + 2 * 8 - 600) <= 2);
+ist("das letzte Band endet am Bereichsende", ps[8]!.y + ps[8]!.h, 800);
+wahr("kein Platz ragt unter die Fußlinie", ps.every((p) => p.y + p.h <= 800));
+wahr("kein Platz ragt über die Seite", ps.every((p) => p.x + p.b <= SEITE_B + 1));
+// Gegenprobe zur Klemme: Auch bei krummen Zahlen darf nichts hinausragen.
+for (const hh of [301, 457, 599, 613, 1000]) {
+  const q3 = plaetze(rP, 137, hh);
+  wahr(`kein Überstand bei ${hh} px Bereichshöhe`, q3.every((p) => p.y + p.h <= Math.round(137 + hh)));
+}
+// Gegenprobe: Ohne Höhe gibt es keine Plätze — sonst entstünden Felder mit
+// Höhe 0, die man anklicken könnte und die nichts aufnehmen.
+ist("ohne Spaltenbereich keine Plätze", plaetze(rP, 0, 0).length, 0);
+
+// Besetzt heißt: ein Bild deckt die Mitte des Platzes. Ein Bild, das ihn nur
+// streift, darf die Nachbarplätze nicht mit abräumen.
+const mitte = ps[0]!;
+wahr("ein Bild auf dem Platz besetzt ihn",
+  platzBesetzt(mitte, [{ x: mitte.x, y: mitte.y, b: mitte.b, h: mitte.h }]));
+wahr("ein Bild daneben nicht",
+  !platzBesetzt(mitte, [{ x: mitte.x + mitte.b + 5, y: mitte.y, b: 40, h: 40 }]));
+wahr("und ein Bild, das nur die Ecke streift, auch nicht",
+  !platzBesetzt(mitte, [{ x: mitte.x - 20, y: mitte.y - 20, b: 25, h: 25 }]));
+
+// Der Rahmen aus dem Platz nimmt dessen Maße, NICHT die des Bildes — das ist
+// der ganze Sinn: Es gibt nichts zu skalieren.
+const rp = rahmenAusPlatz(GIF, mitte, 0, "px1");
+ist("der Rahmen übernimmt die Breite des Platzes", rp.b, mitte.b);
+ist("und die Höhe", rp.h, mitte.h);
+ist("und die Lage", rp.x + "," + rp.y, mitte.x + "," + mitte.y);
+ist("das Verhältnis ist das des Platzes", rp.verh, mitte.b / mitte.h);
+wahr("Platzfelder gehören nicht aufs Papier",
+  /\.zk-griff, \.zk-bildx, \.zk-platz \{ display: none/.test(css));
+wahr("und werden aus der Druckkopie entfernt",
+  /\.zk-griff, \.zk-bildx, \.zk-platz"\)\.forEach/.test(readFileSync("src/ui/zeitungView.ts", "utf8")));
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Zeitungssetzer — ${geprueft} Prüfungen (Layout-Logik + Rundgang in jsdom):`);

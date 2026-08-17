@@ -16,7 +16,8 @@ import {
   ladeBilder, sichereBilder, neuerRahmen, verschiebe, skaliereEcke, begrenze,
   leseBilddatei, stapelLege, stapelNimm, BILD_ANZAHL,
   rasteRahmen, spaltenBreite, spaltenZahl, bildplatz,
-  type Bildrahmen, type Raster,
+  plaetze, platzBesetzt, rahmenAusPlatz,
+  type Bildrahmen, type Raster, type Platz,
 } from "../features/zeitungsbilder";
 import {
   ladeLayouts, sichereLayouts, legeLayout, entferneLayout, ordneZu, textSchluessel,
@@ -424,7 +425,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       const kopie = seite.cloneNode(true) as HTMLElement;
       // Bedienelemente gehören nicht aufs Papier. Die Druckregel blendet sie
       // aus; hier fliegen sie ganz heraus, damit die Kopie nichts Totes trägt.
-      kopie.querySelectorAll(".zk-griff, .zk-bildx").forEach((x) => x.remove());
+      kopie.querySelectorAll(".zk-griff, .zk-bildx, .zk-platz").forEach((x) => x.remove());
       // Und die Auswahlmarke: „.on" ist der blaue Rahmen, mit dem das Bild am
       // Bildschirm zeigt, dass es angefasst ist. Er wurde mitkopiert und stand
       // im Druck um das Foto — eine Bedienspur auf dem Papier.
@@ -601,6 +602,33 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
   });
   rasterZeigen();
 
+  // ── Feste Bildplätze ──────────────────────────────────────────────────────
+  // Der freie Rahmen verlangt drei Entscheidungen (Lage, Breite, Höhe), von
+  // denen zwei niemand treffen will. Ein Platz nimmt alle drei ab: Er steht
+  // fest, bevor es ein Bild gibt, das Bild wird hineingeschnitten
+  // (object-fit:cover), und zu skalieren gibt es nichts. Der freie Rahmen
+  // bleibt daneben bestehen — ein Bild in einem Platz ist ein ganz gewöhnlicher
+  // Bildrahmen und lässt sich hinterher noch verschieben und aufziehen.
+  const PLATZ_KEY = "divergenz_zeitung_plaetze_v1";
+  let plaetzeAn = (() => { try { return localStorage.getItem(PLATZ_KEY) === "1"; } catch { return false; } })();
+  /** Der Platz, für den gerade eine Datei gewählt wird. */
+  let zielPlatz: { p: Platz; seite: number } | null = null;
+  const platzBtn = el("button", { class: "toggle" }, "▤ Plätze") as HTMLButtonElement;
+  const platzZeigen = (): void => {
+    platzBtn.classList.toggle("on", plaetzeAn);
+    platzBtn.setAttribute("aria-pressed", String(plaetzeAn));
+    platzBtn.title = plaetzeAn
+      ? "Feste Bildplätze werden angezeigt. Auf einen Platz tippen, um dort ein Bild einzusetzen."
+      : "Feste Bildplätze im Spaltenraster anzeigen — Bild einsetzen, ohne etwas zu skalieren.";
+  };
+  platzBtn.addEventListener("click", () => {
+    plaetzeAn = !plaetzeAn;
+    try { localStorage.setItem(PLATZ_KEY, plaetzeAn ? "1" : "0"); } catch { /* voll */ }
+    platzZeigen();
+    zeichne();
+  });
+  platzZeigen();
+
   const dateiWahl = el("input", { type: "file", accept: "image/*", style: "display:none" }) as HTMLInputElement;
   const bildBtn = el("button", {}, icon("folder"), " Bild einfügen");
   const bildInfo = el("span", { class: "muted mini" }, "");
@@ -627,6 +655,16 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
 
   const rahmenEl = (bild: Bildrahmen, seiteEl: HTMLElement, seiteNr: number): HTMLElement => {
     const box = el("div", { class: "zk-bild" + (gewaehltesBild === bild.id ? " on" : "") });
+    // Der Stand DIESES Rahmens, fortgeschrieben über mehrere Griffe hinweg.
+    //
+    // Vorher startete jeder Griff bei `bild` — dem Stand, den der Rahmen beim
+    // Zeichnen mitbekommen hatte. `los()` schreibt aber nur in die Liste
+    // `bilder` und zeichnet NICHT neu (das Element steht ja schon richtig).
+    // Damit war `bild` nach dem ersten Griff veraltet: Wer ein Bild verkleinert
+    // und danach verschiebt, verschob einen Rahmen, der noch die alte Größe
+    // trug — das Bild sprang auf seine Ausgangsgröße zurück. Dasselbe galt für
+    // zwei Verschiebungen hintereinander.
+    let stand: Bildrahmen = { ...bild };
     const legeAn = (r: Bildrahmen): void => {
       box.style.left = r.x + "px"; box.style.top = r.y + "px";
       box.style.width = r.b + "px"; box.style.height = r.h + "px";
@@ -674,8 +712,8 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       if (rasterAn) box.parentElement?.classList.add("zeigt");
       const f = massstab(seiteEl) || 1;
       const startX = e.clientX, startY = e.clientY;
-      const start: Bildrahmen = { ...bild };
-      let jetzt: Bildrahmen = { ...bild };
+      const start: Bildrahmen = { ...stand };
+      let jetzt: Bildrahmen = { ...stand };
       const beweg = (ev: Event): void => {
         const pe = ev as PointerEvent;
         const dx = (pe.clientX - startX) / f, dy = (pe.clientY - startY) / f;
@@ -699,6 +737,9 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
         // bequem, holte aber ein gerade gelöschtes Bild zurück — die Gegenprobe
         // hat genau das gezeigt: aus einem Bild wurden zwei.
         if (i >= 0) bilder[i] = { ...jetzt, seite: seiteNr };
+        // Und in den Stand DIESES Rahmens, sonst startet der nächste Griff
+        // wieder bei der Lage vom Zeichnen.
+        stand = { ...jetzt, seite: seiteNr };
         if (!sichereBilder(bilder)) status.textContent = "Lage geändert, aber nicht gesichert — der Browser-Speicher ist voll.";
         bildStand();
       };
@@ -794,6 +835,55 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     return gekuerzt;
   };
 
+  /** Wo fängt der Spaltenbereich an und wie hoch ist er — in Seitenkoordinaten.
+   *  Gemessen am echten Kasten, nicht gerechnet: Der Anfang hängt an Kopfhöhe
+   *  und Aufmacher, und die stehen erst, wenn gesetzt ist. Ohne Maße (Prüfstand
+   *  ohne Layout) gibt es null, und dann keine Plätze. */
+  const spaltenbereich = (seiteEl: HTMLElement): { oben: number; hoehe: number } | null => {
+    const seiteR = seiteEl.getBoundingClientRect();
+    if (!seiteR.width || !seiteR.height) return null;
+    const f = seiteR.width / SEITE_B;
+    const kaesten = Array.from(seiteEl.querySelectorAll(".zk-spaltebox")) as HTMLElement[];
+    let oben = Infinity, unten = -Infinity;
+    for (const k of kaesten) {
+      const r = k.getBoundingClientRect();
+      if (!r.height) continue;
+      oben = Math.min(oben, (r.top - seiteR.top) / f);
+      unten = Math.max(unten, (r.bottom - seiteR.top) / f);
+    }
+    if (!isFinite(oben) || unten <= oben) return null;
+    return { oben, hoehe: unten - oben };
+  };
+
+  /** Die freien Plätze einer Seite als anklickbare Felder. Besetzte Plätze
+   *  werden weggelassen — ein Feld über einem Bild wäre eine Falle. */
+  const platzElemente = (seiteEl: HTMLElement, seiteNr: number): HTMLElement[] => {
+    const bereich = spaltenbereich(seiteEl);
+    if (!bereich) return [];
+    const aufSeite = bilder.filter((b) => (b.seite | 0) === seiteNr);
+    const raus: HTMLElement[] = [];
+    for (const p of plaetze(rasterVon(), bereich.oben, bereich.hoehe)) {
+      if (platzBesetzt(p, aufSeite)) continue;
+      const f = el("button", { class: "zk-platz", type: "button",
+        title: `Bild in diesen Platz einsetzen (${p.name})` },
+        el("span", {}, p.name));
+      f.style.left = p.x + "px"; f.style.top = p.y + "px";
+      f.style.width = p.b + "px"; f.style.height = p.h + "px";
+      f.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (bilder.length >= BILD_ANZAHL) {
+          status.textContent = `Höchstens ${BILD_ANZAHL} Bilder — erst eines entfernen.`;
+          return;
+        }
+        zielPlatz = { p, seite: seiteNr };
+        dateiWahl.value = "";
+        dateiWahl.click();
+      });
+      raus.push(f);
+    }
+    return raus;
+  };
+
   /** Bilder auf die fertig gesetzten Seiten legen. Läuft NACH dem Nachmessen
    *  und VOR dem Kopieren für den Druck — sonst fehlten sie auf dem Papier. */
   const zeichneBilder = (): void => {
@@ -814,6 +904,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       hilfe.style.backgroundImage =
         `repeating-linear-gradient(to right, rgba(139,92,246,.16) 0 ${sp.toFixed(2)}px, rgba(139,92,246,0) ${sp.toFixed(2)}px ${(sp + r.steg).toFixed(2)}px)`;
       schicht.append(hilfe);
+      if (plaetzeAn) schicht.append(...platzElemente(seiteEl, n));
       // Ein Bild auf einer Seite, die es nicht mehr gibt (Seitenzahl verkleinert),
       // wandert auf die letzte — sonst wäre es unsichtbar und unerreichbar.
       for (const b of bilder) {
@@ -830,16 +921,25 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       status.textContent = `Höchstens ${BILD_ANZAHL} Bilder — erst eines entfernen.`;
       return;
     }
+    // Der freie Weg: kein Platz im Spiel, sonst läge das nächste Bild dort, wo
+    // zuletzt ein Platz angeklickt wurde.
+    zielPlatz = null;
     dateiWahl.value = "";
     dateiWahl.click();
   });
   dateiWahl.addEventListener("change", () => {
     const datei = dateiWahl.files && dateiWahl.files[0];
+    const ziel = zielPlatz;
+    zielPlatz = null;
     if (!datei) return;
     leseBilddatei(datei).then(({ daten, b, h }) => {
       merkeStand();
-      let r = neuerRahmen(daten, b, h, SEITE_B, SEITE_H, 0);
-      if (rasterAn) r = rasteRahmen(r, rasterVon());
+      // In einem Platz kommt die Geometrie vom PLATZ, nicht vom Bild — und
+      // deshalb wird auch nicht eingerastet: Der Platz LIEGT schon im Raster.
+      let r = ziel
+        ? rahmenAusPlatz(daten, ziel.p, ziel.seite)
+        : neuerRahmen(daten, b, h, SEITE_B, SEITE_H, 0);
+      if (!ziel && rasterAn) r = rasteRahmen(r, rasterVon());
       bilder = [...bilder, r];
       gewaehltesBild = r.id;
       if (!sichereBilder(bilder)) status.textContent = "Bild eingefügt, aber nicht gesichert — der Browser-Speicher ist voll.";
@@ -957,7 +1057,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       feldC("Datum", () => kopf.datum, (v) => { kopf.datum = v; }),
       feldC("Linien", () => kopf.linien, (v) => { kopf.linien = v; }),
       feldC("Gebrochene Schrift", () => kopf.fraktur, (v) => { kopf.fraktur = v; }),
-      el("span", { class: "druckspacer" }), bildBtn, rasterBtn, zurueckBtn, autoBtn, drucken, zu, dateiWahl),
+      el("span", { class: "druckspacer" }), bildBtn, platzBtn, rasterBtn, zurueckBtn, autoBtn, drucken, zu, dateiWahl),
     el("p", { class: "muted mini zk-druckhinweis" },
       "Beim Drucken zeigt der Browser oben Datum und Seitentitel und unten die Adresse — das ist SEINE Kopfzeile, nicht die der Zeitung. "
       + "Im Druckdialog unter „Weitere Einstellungen“ den Haken bei „Kopf- und Fußzeilen“ entfernen; dann rückt der Zeitungskopf nach oben. "

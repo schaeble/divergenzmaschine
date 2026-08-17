@@ -775,6 +775,16 @@ select.abweichend{border-color:var(--acc)}
 .zk-bild:hover .zk-griff,.zk-bild:hover .zk-bildx,
 .zk-bild.on .zk-griff,.zk-bild.on .zk-bildx{opacity:1}
 .zk-bild.on{outline:2px solid var(--acc);outline-offset:1px}
+/* Fester Bildplatz: ein leeres Feld, das VOR dem Bild feststeht. Gestrichelt,
+   damit man es nicht fuer Satz haelt, und beschriftet, damit man weiss, welche
+   Spalte und welches Band man trifft. Die Bildschicht hat pointer-events:none -
+   das Feld muss sie ausdruecklich zurueckholen, sonst ist es nicht anklickbar. */
+.zk-platz{position:absolute;pointer-events:auto;padding:0;margin:0;cursor:pointer;
+  border:1.5px dashed var(--acc);border-radius:4px;background:rgba(139,92,246,.07);
+  color:var(--acc);font:600 11px var(--sans);display:flex;align-items:center;
+  justify-content:center;text-align:center;opacity:.75;transition:opacity .12s,background .12s}
+.zk-platz:hover,.zk-platz:focus-visible{opacity:1;background:rgba(139,92,246,.18)}
+.zk-platz span{pointer-events:none;padding:2px 6px;border-radius:3px;background:rgba(255,255,255,.8)}
 /* Zeigegeraet ohne Hover (Handy, Tablet): Auf Beruehrung gibt es kein :hover,
    also blieben Griff und Loeschknopf unsichtbar, bis ein Antippen das Bild
    auswaehlte - und dasselbe Antippen begann schon eine Ziehbewegung.
@@ -808,7 +818,7 @@ select.abweichend{border-color:var(--acc)}
   .dm-print-aktiv[data-profil="zeitungsseite"] .dm-inhalt { margin-top: 0; }
   [data-profil="zeitungsseite"] .zk-beitrag { break-inside: avoid; }
   /* Griffe, Loeschknopf und Auswahlmarke sind Bedienelemente, kein Bildinhalt. */
-  .zk-griff, .zk-bildx { display: none !important; }
+  .zk-griff, .zk-bildx, .zk-platz { display: none !important; }
   /* Die Bildschirmverkleinerung gilt nur fuer die Vorschau. Gedruckt wird die
      Kopie ohne .zk-papier; diese Regel ist die zweite Sicherung, falls doch
      einmal ein Papierrahmen mit in die Druckfassung geraet. */
