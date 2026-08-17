@@ -44,9 +44,9 @@ const TABS: [string, (root: HTMLElement) => void][] = [
   ["Schatzkammer", mountTreasury],
   ["Montage", mountMontage],
   ["Werkstatt", mountWorkshop],
+  ["KI-Lehrer", mountLehrer],
   ["Diagnose", mountDiagnose],
   ["Hilfe", mountHelp],
-  ["KI-Lehrer", mountLehrer],
 ];
 
 export function mountApp(root: HTMLElement): void {

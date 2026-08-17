@@ -14,6 +14,7 @@ import {
   AUFTRAEGE, auftragVon, bauePrompt, schaetzeTokens, maxToken,
   MODELLE, modellVon, kostenUsd, euro,
   ladeKonto, bucheKonto, sichereKonto, KONTO_KEY,
+  teile, schluessel, markiereNeu, anteilNeu,
 } from "../src/features/lehrer";
 
 const fails: string[] = [];
@@ -115,7 +116,65 @@ localStorage.setItem(KONTO_KEY, JSON.stringify({ laeufe: "viele", ein: null, usd
 ist("und Unsinn in den Feldern ergibt Zahlen, nicht NaN", Number.isFinite(ladeKonto().usd), true);
 ist("auch bei den Läufen", ladeKonto().laeufe, 0);
 
-// ── Ergebnis ────────────────────────────────────────────────────────────────
+// ── 6 · Was ist neu? ────────────────────────────────────────────────────────
+const zusammen = (st: { text: string }[]): string => st.map((s) => s.text).join("");
+const neuText = (st: { text: string; neu: boolean }[]): string =>
+  st.filter((s) => s.neu).map((s) => s.text).join("|");
+
+// Verlustfrei zerlegen: Zusammengesetzt muss wieder der Text herauskommen —
+// sonst frisst die Anzeige Zeilenumbrueche, und ein Gedicht ist zerstoert.
+for (const p of ["a b", "a\n\nb", "  a  b  ", "", "eins\nzwei\tdrei"]) {
+  ist(`verlustfrei zerlegt: ${JSON.stringify(p)}`, teile(p).join(""), p);
+}
+ist("Satzzeichen am Rand zaehlen nicht", schluessel("Werkzeugen."), schluessel("Werkzeugen"));
+ist("Grossschreibung auch nicht", schluessel("Der"), schluessel("der"));
+ist("Anfuehrungszeichen ebenso", schluessel("„Wort“"), "wort");
+ist("Zwischenraum ist immer gleich", schluessel("\n\n"), schluessel(" "));
+
+// Der Regelfall: ein Wort kommt hinzu.
+const m1 = markiereNeu("Der Hund schläft.", "Der große Hund schläft.");
+ist("das Ergebnis bleibt unveraendert lesbar", zusammen(m1.stuecke), "Der große Hund schläft.");
+ist("nur das neue Wort ist markiert", neuText(m1.stuecke).trim(), "große");
+ist("und zwar Wort fuer Wort verglichen", m1.verfahren, "genau");
+
+// Nichts geaendert heisst nichts markiert. Ohne diese Pruefung koennte die
+// Markierung einfach immer alles einfaerben und saehe trotzdem plausibel aus.
+const m2 = markiereNeu("Der Hund schläft.", "Der Hund schläft.");
+ist("gleicher Text — nichts ist neu", neuText(m2.stuecke), "");
+ist("Anteil null", anteilNeu(m2.stuecke), 0);
+// Und die Gegenprobe dazu: ein voellig anderer Text faerbt alles.
+const m3 = markiereNeu("Der Hund schläft.", "Regen fällt auf Blech.");
+ist("voellig anderer Text — alles neu", anteilNeu(m3.stuecke), 100);
+
+// Eine reine Korrektur darf nur die Korrektur markieren, nicht den halben Satz.
+const m4 = markiereNeu("Er gieng nach hause.", "Er ging nach Hause.");
+ist("die Korrektur trifft nur die geaenderten Woerter", neuText(m4.stuecke).trim(), "ging");
+// „Hause“ mit grossem H gilt nicht als neu — Grossschreibung ist kein neues Wort.
+
+// Zeilenumbrueche ueberleben den Vergleich.
+const m5 = markiereNeu("eins\nzwei", "eins\nzwei\ndrei");
+ist("Umbrueche bleiben stehen", zusammen(m5.stuecke), "eins\nzwei\ndrei");
+ist("nur die neue Zeile ist markiert", neuText(m5.stuecke).trim(), "drei");
+
+// Randfaelle, die sonst als Absturz enden.
+ist("leeres Ergebnis gibt keine Stuecke", markiereNeu("abc", "").stuecke.length, 0);
+ist("ohne Ausgangstext ist alles neu", anteilNeu(markiereNeu("", "a b c").stuecke), 100);
+ist("und Zwischenraum wird dabei nicht markiert",
+  markiereNeu("", "a b").stuecke.filter((s) => s.neu && /^\s+$/.test(s.text)).length, 0);
+
+// Zwei lange, verschiedene Texte: Der genaue Vergleich waere hier sowohl teuer
+// als auch nutzlos (er faerbte alles), deshalb greift der Wortschatz-Weg.
+const lang1 = Array.from({ length: 1400 }, (_, i) => "wort" + i).join(" ");
+const lang2 = Array.from({ length: 1400 }, (_, i) => "anders" + i).join(" ");
+const m6 = markiereNeu(lang1, lang2);
+ist("bei sehr verschiedenen langen Texten der Wortschatz-Weg", m6.verfahren, "wortschatz");
+ist("und er markiert die unbekannten Woerter", anteilNeu(m6.stuecke), 100);
+// Gegenprobe: Zwei lange, aber fast gleiche Texte gehen weiter den genauen Weg,
+// weil gemeinsamer Anfang und Schluss vorher abgezogen werden.
+const m7 = markiereNeu(lang1, lang1 + " nachsatz");
+ist("zwei lange, fast gleiche Texte bleiben genau", m7.verfahren, "genau");
+ist("und nur der Nachsatz ist neu", neuText(m7.stuecke).trim(), "nachsatz");
+wahr("der Anteil ist dann verschwindend klein", anteilNeu(m7.stuecke) <= 1);
 console.log(`Prüfstand KI-Lehrer — ${geprueft} Prüfungen (ohne einen einzigen API-Aufruf):`);
 zeilen.forEach((z) => console.log(z));
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };

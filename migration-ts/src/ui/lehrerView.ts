@@ -17,6 +17,7 @@ import {
   AUFTRAEGE, auftragVon, bauePrompt, schaetzeTokens, maxToken,
   MODELLE, modellVon, PREIS_STAND, kostenUsd, euro,
   ladeKonto, bucheKonto, sichereKonto, KONTO_LEER,
+  markiereNeu, anteilNeu,
   type Auftragsart,
 } from "../features/lehrer";
 
@@ -158,8 +159,51 @@ export function mountLehrer(root: HTMLElement): void {
   let ac: AbortController | null = null;
   abbruch.addEventListener("click", () => ac?.abort());
 
-  const out = el("textarea", { class: "out", rows: "14", style: "width:100%",
+  const out = el("textarea", { class: "out", rows: "14", style: "width:100%;display:none",
     placeholder: "Das Ergebnis erscheint hier." }) as HTMLTextAreaElement;
+  // Die Anzeige ist ein eigener Kasten, weil ein Textfeld keine Farbe kann.
+  // Bearbeiten geht weiter — dafür wird auf das Textfeld umgeschaltet.
+  const anzeige = el("div", { class: "out lehrer-erg" });
+  const legende = el("p", { class: "muted mini", style: "margin:4px 0 0" }, "");
+  let ergebnis = "";
+  let vorlage = "";          // der Text, gegen den verglichen wird
+  let markiert = true;
+  let bearbeiten = false;
+
+  const markBtn = el("button", { class: "toggle on", type: "button" }, "Neues hervorheben") as HTMLButtonElement;
+  const bearbBtn = button("✎ bearbeiten");
+
+  const zeigeErgebnis = (): void => {
+    out.style.display = bearbeiten ? "" : "none";
+    anzeige.style.display = bearbeiten ? "none" : "";
+    markBtn.disabled = bearbeiten;
+    bearbBtn.textContent = bearbeiten ? "✓ fertig" : "✎ bearbeiten";
+    if (bearbeiten) { out.value = ergebnis; legende.textContent = "Bearbeiten — die Markierung ruht solange."; return; }
+    anzeige.textContent = "";
+    if (!ergebnis) { legende.textContent = ""; return; }
+    if (!markiert || !vorlage) {
+      anzeige.textContent = ergebnis;
+      legende.textContent = markiert ? "Kein Ausgangstext zum Vergleichen." : "";
+      return;
+    }
+    const { stuecke, verfahren } = markiereNeu(vorlage, ergebnis);
+    for (const s of stuecke) {
+      anzeige.append(s.neu ? el("mark", { class: "neu" }, s.text) : document.createTextNode(s.text));
+    }
+    const p = anteilNeu(stuecke);
+    legende.textContent = verfahren === "genau"
+      ? `Farbig: steht so nicht im Ausgangstext (Wort-für-Wort verglichen). ${p} % der Wörter.`
+      : `Farbig: kommt im Ausgangstext überhaupt nicht vor (die Texte sind zu verschieden für den `
+        + `Wort-für-Wort-Vergleich, deshalb nur der Wortschatz). ${p} % der Wörter.`;
+  };
+  markBtn.addEventListener("click", () => {
+    markiert = !markiert; markBtn.classList.toggle("on", markiert); zeigeErgebnis();
+  });
+  bearbBtn.addEventListener("click", () => {
+    if (bearbeiten) ergebnis = out.value;
+    bearbeiten = !bearbeiten; zeigeErgebnis();
+    if (bearbeiten) out.focus();
+  });
 
   const losBtn = el("button", { class: "primary" }, icon("play"), " Lehrer beauftragen") as HTMLButtonElement;
   losBtn.addEventListener("click", () => {
@@ -184,10 +228,18 @@ export function mountLehrer(root: HTMLElement): void {
     void (async () => {
       losBtn.disabled = true; abbruch.style.display = ""; status.textContent = "Der Lehrer liest…";
       ac = new AbortController();
-      out.value = "";
+      // Der Vergleichstext wird beim Start festgehalten, nicht beim Anzeigen:
+      // Wer waehrend des Laufs oben etwas aendert, verglich sonst gegen eine
+      // Vorlage, die es so nie gab.
+      vorlage = text;
+      ergebnis = ""; bearbeiten = false; zeigeErgebnis();
       try {
-        const r = await callClaudeStream(prompt, budget, (_c, full) => { out.value = full; }, ac.signal, m.id);
-        out.value = r.text;
+        // Waehrend des Laufs ohne Markierung — es gibt noch nichts Fertiges zu
+        // vergleichen, und ein bei jedem Zeichen neu gerechneter Vergleich
+        // wuerde die Anzeige ausbremsen.
+        const r = await callClaudeStream(prompt, budget, (_c, full) => { anzeige.textContent = full; }, ac.signal, m.id);
+        ergebnis = r.text;
+        zeigeErgebnis();
         // Mit den ECHTEN Zahlen buchen, nicht mit der Schätzung — sonst trüge
         // das Konto den Fehler der Schätzung dauerhaft mit.
         konto = bucheKonto(konto, r.usage.ein, r.usage.aus, m);
@@ -210,17 +262,17 @@ export function mountLehrer(root: HTMLElement): void {
   const merkInfo = el("span", { class: "muted mini" }, "");
   const merkBtn = el("button", {}, icon("star"), " In die Schatzkammer");
   merkBtn.addEventListener("click", () => {
-    if (!out.value.trim()) return;
-    const n = addToTreasury(out.value, { form: "lehrer" });
+    if (!ergebnis.trim()) return;
+    const n = addToTreasury(ergebnis, { form: "lehrer" });
     merkInfo.textContent = n < 0 ? "schon vorhanden" : `gemerkt (${n})`;
     setTimeout(() => (merkInfo.textContent = ""), 2000);
   });
   const leseBtn = el("button", {}, icon("book"), " Lesemodus");
-  leseBtn.addEventListener("click", () => { if (out.value.trim()) openReader(out.value); });
+  leseBtn.addEventListener("click", () => { if (ergebnis.trim()) openReader(ergebnis); });
   const kopierBtn = button("Kopieren");
   kopierBtn.addEventListener("click", () => {
-    if (!out.value.trim()) return;
-    void navigator.clipboard?.writeText(out.value);
+    if (!ergebnis.trim()) return;
+    void navigator.clipboard?.writeText(ergebnis);
     const o = kopierBtn.textContent; kopierBtn.textContent = "Kopiert ✓";
     setTimeout(() => (kopierBtn.textContent = o), 1200);
   });
@@ -229,8 +281,8 @@ export function mountLehrer(root: HTMLElement): void {
   // verlöre sonst das Original ohne ein Zurück.
   const weiterBtn = button("→ als Vorlage übernehmen");
   weiterBtn.addEventListener("click", () => {
-    if (!out.value.trim()) return;
-    quelle.value = out.value; rechne();
+    if (!ergebnis.trim()) return;
+    quelle.value = ergebnis; rechne();
     status.textContent = "Ergebnis steht jetzt oben als Vorlage. Der Studiotext selbst bleibt unverändert.";
   });
 
@@ -258,10 +310,11 @@ export function mountLehrer(root: HTMLElement): void {
 
     el("h3", { style: "margin:14px 0 6px" }, "Ergebnis"),
     el("div", { class: "btnrow" }, losBtn, abbruch, status),
-    out,
-    el("div", { class: "btnrow" }, merkBtn, leseBtn, kopierBtn, weiterBtn, merkInfo),
+    anzeige, out, legende,
+    el("div", { class: "btnrow" }, markBtn, bearbBtn, merkBtn, leseBtn, kopierBtn, weiterBtn, merkInfo),
   );
   root.append(wrap);
   artZeigen();
   rechne();
+  zeigeErgebnis();
 }

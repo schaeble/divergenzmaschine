@@ -219,3 +219,117 @@ export function maxToken(art: Auftragsart, text: string, woerter: number): numbe
   const n = Math.max(40, Math.min(3000, Math.round(woerter) || 300));
   return Math.min(8192, Math.ceil(n * 2.4) + 300);
 }
+
+// ── Was ist neu? ────────────────────────────────────────────────────────────
+// Der Lehrer gibt einen fertigen Text zurück, und man sieht ihm nicht an, was
+// aus dem eigenen Material stammt und was er hinzugebracht hat. Genau das ist
+// aber die Frage, die man an ihn hat.
+//
+// Zwei Verfahren, weil zwei verschiedene Fragen dahinterstehen:
+//
+//   „genau“      — Wort-für-Wort-Vergleich (längste gemeinsame Folge). Sagt:
+//                  DIESE Stelle stand vorher nicht da. Richtig bei der
+//                  Korrektur, wo sich fast nichts ändert.
+//   „wortschatz“ — Ein Wort gilt als neu, wenn es im Ausgangstext überhaupt
+//                  nicht vorkam. Richtig beim Umschreiben, wo der genaue
+//                  Vergleich alles markieren würde und damit nichts.
+//
+// Welches benutzt wurde, wird IMMER mitgeteilt. Eine Farbe, deren Bedeutung
+// man nicht kennt, ist schlimmer als keine Farbe.
+
+export interface Stueck { text: string; neu: boolean }
+export type Verfahren = "genau" | "wortschatz";
+
+/** Text in Wörter und Zwischenräume zerlegen, verlustfrei: aneinandergehängt
+ *  ergeben die Teile wieder den Text. Zeilenumbrüche bleiben dadurch erhalten —
+ *  bei einem Gedicht ist das nicht nebensächlich. */
+export function teile(s: string): string[] {
+  return (s || "").split(/(\s+)/).filter((t) => t !== "");
+}
+
+/** Vergleichsform eines Teils. Satzzeichen am Rand und Groß-/Kleinschreibung
+ *  sollen keinen Unterschied machen — sonst gälte „Werkzeugen.“ gegenüber
+ *  „Werkzeugen“ als neu, und die Markierung wäre Rauschen. */
+export function schluessel(t: string): string {
+  if (/^\s+$/.test(t)) return " ";
+  const k = t.toLowerCase().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+  return k || t.toLowerCase();
+}
+
+/** Obergrenze für den genauen Vergleich. Er braucht Platz im Verhältnis
+ *  alt × neu; bei zwei langen, völlig verschiedenen Texten wäre das sowohl
+ *  teuer als auch nutzlos. */
+export const GENAU_GRENZE = 1_500_000;
+
+function zusammenfassen(stuecke: Stueck[]): Stueck[] {
+  const raus: Stueck[] = [];
+  for (const s of stuecke) {
+    const letzt = raus[raus.length - 1];
+    if (letzt && letzt.neu === s.neu) letzt.text += s.text;
+    else raus.push({ text: s.text, neu: s.neu });
+  }
+  return raus;
+}
+
+/** Markiert im NEUEN Text, was gegenüber dem alten hinzugekommen ist.
+ *  Ausgegeben werden immer die Teile des neuen Textes — der alte bestimmt nur
+ *  die Kennzeichnung. */
+export function markiereNeu(alt: string, neu: string): { stuecke: Stueck[]; verfahren: Verfahren } {
+  const b = teile(neu);
+  if (!b.length) return { stuecke: [], verfahren: "genau" };
+  const a = teile(alt);
+  if (!a.length) return { stuecke: zusammenfassen(b.map((t) => ({ text: t, neu: !/^\s+$/.test(t) }))), verfahren: "genau" };
+
+  const ka = a.map(schluessel), kb = b.map(schluessel);
+
+  // Gemeinsamer Anfang und gemeinsames Ende zuerst abziehen. Bei der Korrektur
+  // ist danach fast nichts mehr übrig, und der teure Teil entfällt ganz.
+  let vorn = 0;
+  while (vorn < ka.length && vorn < kb.length && ka[vorn] === kb[vorn]) vorn++;
+  let hinten = 0;
+  while (hinten < ka.length - vorn && hinten < kb.length - vorn
+    && ka[ka.length - 1 - hinten] === kb[kb.length - 1 - hinten]) hinten++;
+
+  const ma = ka.slice(vorn, ka.length - hinten);
+  const mb = kb.slice(vorn, kb.length - hinten);
+  const kopf: Stueck[] = b.slice(0, vorn).map((t) => ({ text: t, neu: false }));
+  const fuss: Stueck[] = b.slice(b.length - hinten).map((t) => ({ text: t, neu: false }));
+
+  if (ma.length * mb.length > GENAU_GRENZE) {
+    const vorrat = new Set(ka);
+    const mitte = mb.map((k, i) => ({ text: b[vorn + i]!, neu: k !== " " && !vorrat.has(k) }));
+    return { stuecke: zusammenfassen([...kopf, ...mitte, ...fuss]), verfahren: "wortschatz" };
+  }
+
+  // Längste gemeinsame Folge. Uint32Array statt verschachtelter Felder: Bei
+  // 1,5 Mio. Zellen ist der Unterschied zwischen „läuft“ und „ruckelt“.
+  const n = ma.length, m = mb.length;
+  const t = new Uint32Array((n + 1) * (m + 1));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      t[i * (m + 1) + j] = ma[i] === mb[j]
+        ? t[(i + 1) * (m + 1) + j + 1]! + 1
+        : Math.max(t[(i + 1) * (m + 1) + j]!, t[i * (m + 1) + j + 1]!);
+    }
+  }
+  const mitte: Stueck[] = [];
+  let i = 0, j = 0;
+  while (j < m) {
+    if (i < n && ma[i] === mb[j]) { mitte.push({ text: b[vorn + j]!, neu: false }); i++; j++; }
+    else if (i < n && t[(i + 1) * (m + 1) + j]! >= t[i * (m + 1) + j + 1]!) i++;
+    else { mitte.push({ text: b[vorn + j]!, neu: mb[j] !== " " }); j++; }
+  }
+  return { stuecke: zusammenfassen([...kopf, ...mitte, ...fuss]), verfahren: "genau" };
+}
+
+/** Wie viel des Ergebnisses ist neu — in Prozent der Wörter. Eine Zahl neben
+ *  der Farbe: „fast alles neu“ ist ein anderer Befund als „drei Wörter“. */
+export function anteilNeu(stuecke: Stueck[]): number {
+  let alle = 0, neu = 0;
+  for (const s of stuecke) {
+    const w = (s.text.match(/\S+/g) || []).length;
+    alle += w;
+    if (s.neu) neu += w;
+  }
+  return alle ? Math.round((neu / alle) * 100) : 0;
+}

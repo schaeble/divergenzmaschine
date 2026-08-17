@@ -775,6 +775,17 @@ select.abweichend{border-color:var(--acc)}
 .zk-bild:hover .zk-griff,.zk-bild:hover .zk-bildx,
 .zk-bild.on .zk-griff,.zk-bild.on .zk-bildx{opacity:1}
 .zk-bild.on{outline:2px solid var(--acc);outline-offset:1px}
+/* Ergebnis des KI-Lehrers: kein Textfeld, weil ein Textfeld keine Farbe kann.
+   Die Zeilenumbrueche des Modells muessen trotzdem stehenbleiben — bei einem
+   Gedicht ist das nicht nebensaechlich. */
+.lehrer-erg{white-space:pre-wrap;min-height:180px;max-height:60vh;overflow:auto;
+  padding:10px 12px;border-radius:6px;line-height:1.55}
+.lehrer-erg mark.neu{background:rgba(139,92,246,.22);color:inherit;
+  border-radius:3px;padding:0 1px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+/* Die Farbe allein traegt die Aussage nicht: Wer sie nicht unterscheiden kann,
+   sieht sonst gar nichts. Deshalb zusaetzlich eine Unterlinie. */
+.lehrer-erg mark.neu{text-decoration:underline;text-decoration-color:var(--acc);
+  text-decoration-thickness:1px;text-underline-offset:2px}
 /* Fester Bildplatz: ein leeres Feld, das VOR dem Bild feststeht. Gestrichelt,
    damit man es nicht fuer Satz haelt, und beschriftet, damit man weiss, welche
    Spalte und welches Band man trifft. Die Bildschicht hat pointer-events:none -
