@@ -109,6 +109,25 @@ details.fine>div{padding:4px 14px 14px}
 .idea-text{margin:0;flex:1;font:14px/1.5 var(--sans)}
 .idea button{flex:0 0 auto;align-self:center}
 
+/* Fund des Bildsammlers. NICHT .idea benutzen: Das ist ein Zeilen-Flexkasten
+   („Text links, Knopf rechts"). Vier Bloecke darin stellte er nebeneinander —
+   am Rechner faellt das kaum auf, am Handy landete der Ausschuss am rechten
+   Rand und war nicht zu finden. Hier wird untereinander gesetzt. */
+.bsam-fund{background:var(--panel);border:1px solid var(--border);border-radius:8px;
+  padding:10px 12px;margin:8px 0}
+.bsam-fund>*{max-width:100%}
+/* Ein Satz mit Haekchen. Das Haekchen bleibt oben stehen, damit ein langer Satz
+   unter sich selbst weiterlaeuft und nicht neben dem Kaestchen einrueckt. */
+.bsam-satz{display:flex;align-items:flex-start;gap:9px;margin:6px 0;cursor:pointer;
+  font:14px/1.5 var(--sans)}
+.bsam-satz input{flex:0 0 auto;width:auto;margin:4px 0 0}
+/* Der Ausschuss ist die interessantere Haelfte — er darf nicht aussehen wie
+   Kleingedrucktes. Aufklapper mit Rahmen und fingergerechter Flaeche. */
+.bsam-weg{margin-top:8px;border:1px dashed var(--border2);border-radius:6px;padding:2px 10px}
+.bsam-weg>summary{cursor:pointer;padding:8px 0;font:600 12px var(--sans);color:var(--muted)}
+.bsam-weg>summary:hover{color:var(--text)}
+.bsam-weg p{margin:4px 0}
+
 /* Schatzkammer */
 .treasure{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin:12px 0}
 .treasure-meta{font:12px var(--sans);color:var(--muted);margin-bottom:6px}

@@ -4,6 +4,7 @@
 // Filter, der nie etwas verwirft, sieht genauso aus wie einer, der funktioniert.
 // Deshalb steht zu jeder Prüfung, was durchgehen MUSS, auch eine, was hängen
 // bleiben muss.
+import { readFileSync } from "fs";
 import {
   bildTokens, verraetBild, taugtSatz, beute, bauePrompt, leseErnte,
   maxToken, schaetzeLauf, zerlegeDatenUrl, VERRAETER, SAETZE_VORGABE,
@@ -148,6 +149,22 @@ ist("und eine gewöhnliche Adresse auch", zerlegeDatenUrl("https://x.test/a.jpg"
 ist("leere Eingabe stürzt nicht ab", zerlegeDatenUrl(""), null);
 
 wahr("es gibt mehr als eine Verräter-Regel", VERRAETER.length > 5);
+
+// ── 9 · Die Anzeige stellt untereinander ────────────────────────────────────
+// Gemeldet: Der Ausschuss war auf dem Handy am rechten Rand und nicht zu
+// finden. Ursache war .idea — ein ZEILEN-Flexkasten für „Text links, Knopf
+// rechts". Vier Blöcke darin stellte er nebeneinander. Am Rechner fällt das
+// kaum auf, am Handy schiebt es den letzten Block aus dem Blick.
+const view = readFileSync("src/ui/bildsammlerView.ts", "utf8");
+const css = readFileSync("src/ui/theme.css", "utf8");
+ist("der Fund benutzt nicht mehr den Zeilen-Flexkasten", /class: "idea"/.test(view), false);
+wahr("sondern einen eigenen Kasten", /class: "bsam-fund"/.test(view));
+// Gegenprobe zur Regel selbst: .idea IST ein Zeilen-Flexkasten — sonst prüfte
+// die Zeile oben nur, dass irgendein Klassenname nicht vorkommt.
+wahr(".idea ist tatsächlich ein Zeilen-Flexkasten", /\.idea\{display:flex/.test(css));
+wahr("der neue Kasten ist es nicht", /\.bsam-fund\{(?![^}]*display:flex)[^}]*\}/.test(css));
+wahr("der Ausschuss hat einen sichtbaren Aufklapper", /\.bsam-weg>summary\{/.test(css));
+wahr("und die Sätze stehen einzeln untereinander", /\.bsam-satz\{display:flex;align-items:flex-start/.test(css));
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Bildsammler — ${geprueft} Prüfungen (ohne API-Aufruf):`);

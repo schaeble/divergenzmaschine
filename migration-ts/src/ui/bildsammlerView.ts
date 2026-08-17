@@ -105,8 +105,8 @@ export function baueBildsammler(): HTMLElement {
     liste.innerHTML = "";
     if (!ernten.length) return;
     for (const e of ernten) {
-      const kasten = el("div", { class: "idea" });
-      const kopf = el("p", { class: "idea-text" }, el("b", {}, e.name));
+      const kasten = el("div", { class: "bsam-fund" });
+      const kopf = el("p", { style: "margin:0 0 6px;font:14px/1.5 var(--sans)" }, el("b", {}, e.name));
       kasten.append(kopf);
 
       // 4W zuerst: Sie gehen als Ganzes ins Studio, nicht satzweise.
@@ -127,7 +127,7 @@ export function baueBildsammler(): HTMLElement {
         const box = el("input", { type: "checkbox", id: `bs-${e.name}-${i}` }) as HTMLInputElement;
         box.checked = b.an;
         box.addEventListener("change", () => { b.an = box.checked; standZeigen(); });
-        saetze.append(el("label", { class: "chkrow" }, box, " ", b.satz));
+        saetze.append(el("label", { class: "bsam-satz" }, box, el("span", {}, b.satz)));
       });
       if (!e.behalten.length) saetze.append(el("p", { class: "sam-warn" },
         "Kein einziger Satz hat den Filter überstanden. Entweder gibt das Bild nichts her, "
@@ -137,8 +137,8 @@ export function baueBildsammler(): HTMLElement {
       if (e.verworfen.length) {
         // Das Verworfene ist die interessantere Hälfte: Daran sieht man, ob der
         // Prompt taugt oder der Filter zu scharf steht.
-        const det = el("details", {}, el("summary", { class: "mini muted" },
-          `${e.verworfen.length} verworfen (Bildbezug, zu kurz oder doppelt)`));
+        const det = el("details", { class: "bsam-weg" }, el("summary", {},
+          `▸ ${e.verworfen.length} verworfen ansehen (Bildbezug, zu kurz oder doppelt)`));
         for (const v of e.verworfen) det.append(el("p", { class: "muted mini" }, "· " + v));
         kasten.append(det);
       }
@@ -255,8 +255,10 @@ export function baueBildsammler(): HTMLElement {
     el("p", { class: "muted mini" },
       "Der Lehrer der Sätze ist ausdrücklich angewiesen, nüchtern und ohne jeden Bildbezug zu schreiben: "
       + "Kein Satz darf verraten, dass es ein Bild gab. Was trotzdem durchrutscht, filtert die Maschine "
-      + "selbst heraus — ein Prompt ist eine Bitte, kein Riegel. Anders als der Tagesfeed braucht dieser "
-      + "Teil einen API-Schlüssel und kostet Geld."),
+      + "selbst heraus — ein Prompt ist eine Bitte, kein Riegel. Was dabei weggefiltert wurde, steht "
+      + "unter jedem Fund im Aufklapper „verworfen ansehen“: Daran sieht man, ob der Prompt taugt oder "
+      + "der Filter zu scharf steht. Anders als der Tagesfeed braucht dieser Teil einen API-Schlüssel "
+      + "und kostet Geld."),
     el("div", { class: "grid3", style: "margin-top:10px" },
       field("Modell", modellSel), field("Sätze je Bild", anzahlIn), field("Kurs €/$", kursIn)),
     hinweisIn,
