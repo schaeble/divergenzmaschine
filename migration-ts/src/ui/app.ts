@@ -31,6 +31,7 @@ import { mountWorkshop } from "./workshopView";
 import { mountMontage } from "./montageView";
 import { mountDiagnose } from "./diagnoseView";
 import { mountHelp } from "./helpView";
+import { mountLehrer } from "./lehrerView";
 
 const TABS: [string, (root: HTMLElement) => void][] = [
   ["Studio", mountStudio],
@@ -45,6 +46,7 @@ const TABS: [string, (root: HTMLElement) => void][] = [
   ["Werkstatt", mountWorkshop],
   ["Diagnose", mountDiagnose],
   ["Hilfe", mountHelp],
+  ["KI-Lehrer", mountLehrer],
 ];
 
 export function mountApp(root: HTMLElement): void {

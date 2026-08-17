@@ -118,12 +118,20 @@ export async function callClaude(promptText: string, maxTokens?: number, prefill
 }
 
 /** Streaming: liefert Text-Deltas live über onDelta und gibt den Gesamttext zurück.
- *  Bei fehlender Streaming-Unterstützung fällt der Aufrufer auf callClaude zurück. */
+ *  Bei fehlender Streaming-Unterstützung fällt der Aufrufer auf callClaude zurück.
+ *
+ *  `modell` überschreibt die globale Modellwahl für DIESEN Aufruf — der
+ *  KI-Lehrer rechnet mit einem billigeren Modell, ohne die Einstellung des
+ *  Studios zu verstellen.
+ *
+ *  `usage` sind die ECHTEN Tokenzahlen aus der Antwort. Ohne sie bliebe jede
+ *  Kostenangabe eine Schätzung, die man nie gegen die Rechnung halten kann. */
 export async function callClaudeStream(
-  promptText: string, maxTokens: number, onDelta: (chunk: string, full: string) => void, signal?: AbortSignal,
-): Promise<{ text: string; truncated: boolean }> {
+  promptText: string, maxTokens: number, onDelta: (chunk: string, full: string) => void,
+  signal?: AbortSignal, modell?: string,
+): Promise<{ text: string; truncated: boolean; usage: { ein: number; aus: number } }> {
   if (!loadAiKey()) throw new Error("Kein API-Schlüssel hinterlegt.");
-  const model = loadAiModel();
+  const model = modell || loadAiModel();
   const body = {
     model, max_tokens: maxTokens || 4096, stream: true,
     thinking: { type: "disabled" as const },
@@ -138,6 +146,9 @@ export async function callClaudeStream(
   const reader = res.body.getReader();
   const dec = new TextDecoder();
   let buf = "", full = "", stop = "";
+  // Die Eingabemenge steht im ersten Ereignis, die Ausgabemenge wächst und
+  // steht endgültig im letzten. Beide werden mitgelesen, nicht geschätzt.
+  let einTok = 0, ausTok = 0;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -150,16 +161,25 @@ export async function callClaudeStream(
       const payload = t.slice(5).trim();
       if (payload === "[DONE]") continue;
       try {
-        const ev = JSON.parse(payload) as { type?: string; delta?: { type?: string; text?: string; stop_reason?: string } };
-        if (ev.type === "content_block_delta" && ev.delta?.type === "text_delta" && ev.delta.text) {
+        const ev = JSON.parse(payload) as {
+          type?: string; delta?: { type?: string; text?: string; stop_reason?: string };
+          message?: { usage?: { input_tokens?: number; output_tokens?: number } };
+          usage?: { input_tokens?: number; output_tokens?: number };
+        };
+        if (ev.type === "message_start") {
+          einTok = ev.message?.usage?.input_tokens || 0;
+          ausTok = ev.message?.usage?.output_tokens || 0;
+        } else if (ev.type === "content_block_delta" && ev.delta?.type === "text_delta" && ev.delta.text) {
           full += ev.delta.text; onDelta(ev.delta.text, full);
-        } else if (ev.type === "message_delta" && ev.delta?.stop_reason) {
-          stop = ev.delta.stop_reason;
+        } else if (ev.type === "message_delta") {
+          if (ev.delta?.stop_reason) stop = ev.delta.stop_reason;
+          if (ev.usage?.output_tokens) ausTok = ev.usage.output_tokens;
+          if (ev.usage?.input_tokens) einTok = ev.usage.input_tokens;
         }
       } catch { /* Zeile überspringen */ }
     }
   }
-  return { text: full.trim(), truncated: stop === "max_tokens" };
+  return { text: full.trim(), truncated: stop === "max_tokens", usage: { ein: einTok, aus: ausTok } };
 }
 
 export function extractJson(raw: string): unknown {
