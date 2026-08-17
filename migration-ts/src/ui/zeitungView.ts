@@ -256,6 +256,29 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
   const blatt = el("div", { class: "druckblatt zk-blatt" });
   const status = el("div", { class: "zk-status muted mini" });
 
+  /** Passt das Blatt an die Kastenbreite an. Auf dem Handy stand vorher ein
+   *  794 px breites Papier in einem rund 360 px breiten Kasten und musste
+   *  waagerecht gescrollt werden — man sah nie die ganze Seite und konnte ein
+   *  Bild nicht im Verhältnis zum Satz setzen.
+   *
+   *  Verkleinert wird das ganze Blatt, nicht der Satz: Ein transform ändert die
+   *  Layoutmaße nicht, also rechnen Umbruch und Nachmessung unverändert in
+   *  Seitenpixeln. Ziehen und Aufziehen stimmen automatisch mit, weil
+   *  `massstab()` und `bildplaetzeSetzen()` den Maßstab am gemessenen Kasten
+   *  nehmen (`rect.width / SEITE_B`) und nicht als 1 annehmen.
+   *
+   *  Nie vergrößern: Auf einem breiten Bildschirm soll die Seite ihre echte
+   *  Größe behalten. */
+  const PAPIER_B = Math.round(210 * MM);
+  const passeZoom = (): void => {
+    const platz = blatt.clientWidth;
+    const k = platz > 0 ? Math.min(1, platz / PAPIER_B) : 1;
+    // Unter einem Viertel wird nichts mehr erkennbar; dann lieber scrollen.
+    const eng = k < 0.995;
+    blatt.classList.toggle("zk-eng", eng);
+    blatt.style.setProperty("--zk-zoom", String(Math.max(0.25, k)));
+  };
+
   // ── Rückgängig ──────────────────────────────────────────────────────────
   // Eine Momentaufnahme des GANZEN Setzers, nicht nur der Bilder: Kopf,
   // Spalten, Seitenzahl, Beitragsauswahl und Bilder. Der Stapel hält 40
@@ -472,6 +495,10 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       blatt.append(el("div", { class: "zk-papier" }, dom));
     });
 
+    // Vor jeder Messung am fertigen Satz: Sonst rechnete `bildplaetzeSetzen`
+    // mit einem anderen Maßstab, als der Benutzer gleich vor sich sieht.
+    passeZoom();
+
     // Erst den Platz für die Bilder freihalten, DANN nachmessen: Der
     // Platzhalter macht die Spalte höher, und was dadurch überläuft, muss die
     // Nachmessung noch sehen. Andersherum stünde am Ende doch wieder Text
@@ -610,6 +637,17 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     const weg = el("button", { class: "zk-bildx", type: "button", title: "Bild entfernen" }, "✕");
     box.append(griff, weg);
 
+    // Der Löschknopf liegt IM Bildrahmen, und der Rahmen bricht sein
+    // `pointerdown` ab (preventDefault, damit das Ziehen nicht scrollt). Auf
+    // einem Zeigegerät ohne Maus unterdrückt ein abgebrochenes `pointerdown`
+    // aber die nachgereichten Maus-Ersatzereignisse — einschließlich `click`.
+    // Am Rechner feuerte der Klick trotzdem, auf dem Handy nie: Ein Bild ließ
+    // sich dort nicht entfernen.
+    //
+    // Die Berührung wird deshalb hier angehalten, BEVOR sie den Rahmen
+    // erreicht. Nicht abgebrochen — nur ein nicht abgebrochenes `pointerdown`
+    // lässt den Klick nachkommen.
+    weg.addEventListener("pointerdown", (e) => { e.stopPropagation(); });
     weg.addEventListener("click", (e) => {
       e.stopPropagation();
       merkeStand();
@@ -893,7 +931,15 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     window.print();
   });
   const zu = el("button", {}, "Schließen");
+  // Beim Drehen des Geräts ändert sich die Kastenbreite. Nur die Verkleinerung
+  // wird nachgezogen, NICHT neu gesetzt: Ein voller Zeichenlauf würde bei jedem
+  // Dreh die Nachmessung wiederholen und könnte Beiträge entfernen.
+  const beiGroesse = (): void => passeZoom();
+  window.addEventListener("resize", beiGroesse);
+  window.addEventListener("orientationchange", beiGroesse);
   const schliessen = (): void => {
+    window.removeEventListener("resize", beiGroesse);
+    window.removeEventListener("orientationchange", beiGroesse);
     document.querySelectorAll(".dm-print-aktiv, .zk-probe").forEach((x) => x.remove());
     buehne.remove();
   };

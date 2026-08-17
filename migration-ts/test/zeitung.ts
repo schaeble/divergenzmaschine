@@ -328,6 +328,73 @@ wahr("Einzeltext-Abstand wird für die Zeitungsseite zurückgenommen",
 wahr("und die Regel, die ihn setzt, gibt es noch",
   /\.dm-print-aktiv \.dm-inhalt \{ margin-top: 8mm; \}/.test(css));
 
+// ── 10 · Bedienung ohne Maus und auf schmalem Bildschirm ────────────────────
+// Drei Fehler, die am Rechner unsichtbar waren und den Bildteil auf dem Handy
+// unbrauchbar machten. Sie kamen aus der Benutzung, nicht aus diesem
+// Prüfstand — deshalb stehen sie jetzt hier.
+
+klick(knopf(/Schließen/));
+localStorage.setItem(BILD_KEY, JSON.stringify([
+  { id: "b9", daten: GIF, seite: 0, x: 40, y: 40, b: 120, h: 90, verh: 120 / 90 },
+]));
+oeffneZeitungssetzer("Ein Text für den Löschknopf.", "prose");
+klick(knopf(/füllen/));
+ist("ein Bild steht in der Vorschau", alle(".zk-blatt .zk-bild").length, 1);
+
+// (a) Der Rahmen bricht sein `pointerdown` ab, damit das Ziehen nicht scrollt.
+// Auf einem Zeigegerät ohne Maus unterdrückt ein abgebrochenes `pointerdown`
+// aber die nachgereichten Maus-Ersatzereignisse — einschließlich `click`. Der
+// Löschknopf liegt IM Rahmen und lauscht auf `click`: Am Rechner feuerte er,
+// auf dem Handy nie. Seine Berührung darf den Rahmen gar nicht erst erreichen.
+// Eigener Erzeuger MIT `cancelable`: Der Helfer aus Abschnitt 3 setzt es nicht,
+// und an einem nicht abbrechbaren Ereignis bleibt `preventDefault()` wirkungslos
+// — `defaultPrevented` wäre dann immer falsch, und beide Prüfungen unten
+// bestünden aus demselben Grund, nämlich gar keinem.
+const abbrechbar = (typ: string, x: number, y: number): Event =>
+  new PE(typ, { bubbles: true, cancelable: true, clientX: x, clientY: y } as MouseEventInit);
+const bildEl = q(".zk-blatt .zk-bild") as HTMLElement;
+const xKnopf = q(".zk-blatt .zk-bildx") as HTMLElement;
+const pdX = abbrechbar("pointerdown", 50, 50);
+xKnopf.dispatchEvent(pdX);
+wahr("die Berührung des Löschknopfs wird nicht abgebrochen", !pdX.defaultPrevented);
+// Gegenprobe: Am Rahmen selbst MUSS sie abgebrochen werden — sonst scrollt das
+// Handy, statt das Bild zu bewegen. Eine Regel, die überall gleich urteilt,
+// prüft nichts.
+const pdB = abbrechbar("pointerdown", 50, 50);
+bildEl.dispatchEvent(pdB);
+dom.window.dispatchEvent(zeiger("pointerup", 50, 50));
+wahr("am Bildrahmen dagegen schon", pdB.defaultPrevented);
+klick(xKnopf);
+ist("und der Klick entfernt das Bild", alle(".zk-blatt .zk-bild").length, 0);
+ist("auch aus dem Speicher", ladeBilder().length, 0);
+
+// (b) Ohne Hover gibt es keine Griffe: Auf Berührung wird `:hover` nie wahr,
+// also blieben Griff und Löschknopf unsichtbar. Beide lagen zudem AUSSERHALB
+// des Rahmens, und die Bildschicht schneidet ab.
+wahr("die Griffe stehen in der Grundregel auf unsichtbar",
+  /\.zk-griff\{[^}]*opacity:0/.test(css));
+wahr("ohne Hover werden sie dauerhaft eingeblendet",
+  /@media \(hover:none\)\{[^]*?\.zk-griff,\.zk-bildx\{opacity:1\}/.test(css));
+wahr("und liegen dort innerhalb des Rahmens",
+  /@media \(hover:none\)\{[^]*?\.zk-griff\{right:0;bottom:0/.test(css));
+wahr("denn die Bildschicht schneidet wirklich ab",
+  /\.zk-bilder\{[^}]*overflow:hidden/.test(css));
+
+// (c) Das Blatt ist 210 mm breit und stand auf dem Handy in einem rund 360 px
+// breiten Kasten. Verkleinert wird es als Ganzes — die Geometrie bleibt.
+wahr("es gibt eine Verkleinerungsregel für das Blatt",
+  /\.zk-blatt\.zk-eng \.zk-papier\{[^}]*transform:scale\(var\(--zk-zoom/.test(css));
+wahr("sie nimmt den Platz mit, den das Kastenmaß sonst stehen ließe",
+  /\.zk-blatt\.zk-eng \.zk-papier\{[^}]*margin:0 calc\(-210mm/.test(css));
+wahr("die Griffe werden gegenskaliert, sonst schrumpfen sie mit",
+  /\.zk-blatt\.zk-eng \.zk-griff[^{]*\{transform:scale\(calc\(1 \/ var\(--zk-zoom/.test(css));
+wahr("im Druck bleibt keine Verkleinerung stehen",
+  /\.zk-papier \{ transform: none !important;/.test(css));
+// Gegenprobe zur Rechnung: Ein Kasten ohne messbare Breite (jsdom, aber auch
+// ein noch nicht sichtbarer Dialog) darf NICHT in die kleinste Stufe fallen.
+wahr("ohne messbare Breite bleibt das Blatt unverkleinert",
+  !(q(".zk-blatt") as HTMLElement).classList.contains("zk-eng"));
+
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Zeitungssetzer — ${geprueft} Prüfungen (Layout-Logik + Rundgang in jsdom):`);
 zeilen.forEach((z) => console.log(z));

@@ -652,7 +652,19 @@ select.abweichend{border-color:var(--acc)}
    die Huelle, damit es aussieht wie ein Blatt - es geht aber nicht in die
    Rechnung ein. */
 .zk-papier{background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.35);padding:15mm 18mm 18mm;
-  width:210mm;margin:0 auto 16px;box-sizing:border-box}
+  width:210mm;margin:0 auto 16px;box-sizing:border-box;transform-origin:top left}
+/* Auf einem schmalen Bildschirm wird das Blatt VERKLEINERT, nicht umgebaut.
+   Vorher stand ein 794 px breites Blatt in einem 360 px breiten Kasten: Man sah
+   nie mehr als die halbe Seite und setzte Bilder blind. Ein Umbau der Geometrie
+   kommt nicht in Frage - Spaltenrechnung, Nachmessung und Druck haengen daran.
+   Ein transform aendert die Layoutmasse NICHT, deshalb rechnen Umbruch und
+   Nachmessung unveraendert in Seitenpixeln weiter.
+   Die negativen Raender schlucken den Platz, den das ungeschrumpfte Kastenmass
+   sonst stehen liesse; die Hoehe 297mm (264 Satz + 15 + 18 Rand) ist genau A4
+   und deshalb bekannt. Der Faktor kommt aus dem Skript: CSS kann Laenge nicht
+   durch Laenge teilen. */
+.zk-blatt.zk-eng .zk-papier{height:297mm;transform:scale(var(--zk-zoom,1));
+  margin:0 calc(-210mm * (1 - var(--zk-zoom,1))) calc(16px - 297mm * (1 - var(--zk-zoom,1))) 0}
 .zk-blatt .zk-seite{width:174mm;height:264mm;padding:0;background:#fff;
   display:flex;flex-direction:column;overflow:hidden}
 .zk-blatt .zk-raster{flex:1;min-height:0}
@@ -763,6 +775,24 @@ select.abweichend{border-color:var(--acc)}
 .zk-bild:hover .zk-griff,.zk-bild:hover .zk-bildx,
 .zk-bild.on .zk-griff,.zk-bild.on .zk-bildx{opacity:1}
 .zk-bild.on{outline:2px solid var(--acc);outline-offset:1px}
+/* Zeigegeraet ohne Hover (Handy, Tablet): Auf Beruehrung gibt es kein :hover,
+   also blieben Griff und Loeschknopf unsichtbar, bis ein Antippen das Bild
+   auswaehlte - und dasselbe Antippen begann schon eine Ziehbewegung.
+   Ausserdem lagen beide AUSSERHALB des Rahmens (right:-6px, left:-8px); die
+   Elternschicht .zk-bilder schneidet mit overflow:hidden ab, also waren sie an
+   der Seitenkante ganz weg. Deshalb hier: immer sichtbar, groesser und nach
+   innen gerueckt. */
+@media (hover:none){
+  .zk-griff,.zk-bildx{opacity:1}
+  .zk-griff{right:0;bottom:0;width:26px;height:26px;border-radius:5px 0 0 0;transform-origin:bottom right}
+  .zk-bildx{left:0;top:0;width:26px;height:26px;font-size:13px;border-radius:0 0 5px 0;transform-origin:top left}
+  /* Der sichtbare Knopf bleibt klein, die Trefferflaeche wird gross: 26 + 2x9
+     ergibt 44 px, das uebliche Mindestmass fuer einen Finger. */
+  .zk-griff::after,.zk-bildx::after{content:"";position:absolute;inset:-9px}
+  /* Gegenskalierung: Griff und Knopf stecken IM verkleinerten Blatt und
+     schrumpften sonst mit - bei Faktor 0,45 waeren aus 26 px noch 12 geworden. */
+  .zk-blatt.zk-eng .zk-griff,.zk-blatt.zk-eng .zk-bildx{transform:scale(calc(1 / var(--zk-zoom,1)))}
+}
 
 @media print {
   /* Die Seite bringt Kopf und Fuss selbst mit - die feste Positionierung der
@@ -779,6 +809,10 @@ select.abweichend{border-color:var(--acc)}
   [data-profil="zeitungsseite"] .zk-beitrag { break-inside: avoid; }
   /* Griffe, Loeschknopf und Auswahlmarke sind Bedienelemente, kein Bildinhalt. */
   .zk-griff, .zk-bildx { display: none !important; }
+  /* Die Bildschirmverkleinerung gilt nur fuer die Vorschau. Gedruckt wird die
+     Kopie ohne .zk-papier; diese Regel ist die zweite Sicherung, falls doch
+     einmal ein Papierrahmen mit in die Druckfassung geraet. */
+  .zk-papier { transform: none !important; height: auto !important; margin: 0 !important; }
   .zk-bild.on { outline: none !important; }
   .zk-bild { border-color: rgba(0,0,0,.4); }
 }
