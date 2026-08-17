@@ -12,6 +12,7 @@ import {
   ergaenzeVorrat, ladeVorrat, leereVorrat, vorratStand, ziehVorrat, VORRAT_DECKEL,
   type WikiFund, type QuellenWahl,
 } from "../features/wikisammler";
+import { baueBildsammler } from "./bildsammlerView";
 
 const WAHL_KEY = "divergenz_sammler_quellen_v1";
 
@@ -96,6 +97,10 @@ export function mountSammler(root: HTMLElement): void {
 
   const liste = el("div", {});
   wrap.append(liste);
+  // Der Bildsammler steht unter dem Tagesfeed: dieselbe Aufgabe — Material von
+  // aussen hereinholen —, aber ein anderer Weg hinein, und anders als der Feed
+  // kostet er Geld. Deshalb darunter und nicht darueber.
+  wrap.append(baueBildsammler());
   root.append(wrap);
 
   // ── Zustand ──────────────────────────────────────────────────────────────

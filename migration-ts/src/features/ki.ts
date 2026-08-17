@@ -182,8 +182,55 @@ export async function callClaudeStream(
   return { text: full.trim(), truncated: stop === "max_tokens", usage: { ein: einTok, aus: ausTok } };
 }
 
-export function extractJson(raw: string): unknown {
-  const s = (raw || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+/** Ein Bild plus Text an die Messages-API. Das Bild kommt als Base64 im
+ *  Nachrichtenkörper — genau die Form, in der es ohnehin im localStorage liegt.
+ *
+ *  Kein Streaming: Die Antwort ist JSON und wird als Ganzes ausgewertet;
+ *  Häppchen anzuzeigen, die man gleich wieder verwirft, wäre Theater.
+ *
+ *  `usage` sind die echten Tokenzahlen. Bei Bildern ist das wichtiger als
+ *  sonst: Wie viele Token ein Bild kostet, hängt an seiner Fläche, und die
+ *  Schätzung dafür ist gröber als bei Text. */
+export async function callClaudeBild(
+  promptText: string, bild: { media: string; daten: string },
+  maxTokens: number, modell?: string, signal?: AbortSignal,
+): Promise<{ text: string; truncated: boolean; usage: { ein: number; aus: number } }> {
+  if (!loadAiKey()) throw new Error("Kein API-Schlüssel hinterlegt.");
+  const body = {
+    model: modell || loadAiModel(),
+    max_tokens: maxTokens || 2048,
+    thinking: { type: "disabled" as const },
+    messages: [{
+      role: "user",
+      content: [
+        { type: "image", source: { type: "base64", media_type: bild.media, data: bild.daten } },
+        { type: "text", text: promptText },
+      ],
+    }],
+  };
+  const res = await postMessages(body, signal);
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { const e = await res.json() as { error?: { message?: string } }; if (e?.error?.message) msg = e.error.message; } catch { /* egal */ }
+    throw new Error(msg);
+  }
+  const data = await res.json() as {
+    content?: { type?: string; text?: string }[]; stop_reason?: string;
+    usage?: { input_tokens?: number; output_tokens?: number };
+  };
+  const text = Array.isArray(data.content)
+    ? data.content.filter((b) => b && b.type === "text" && typeof b.text === "string").map((b) => b.text).join("\n").trim()
+    : "";
+  const usage = { ein: data.usage?.input_tokens || 0, aus: data.usage?.output_tokens || 0 };
+  if (!text) {
+    throw new Error(data.stop_reason === "max_tokens"
+      ? "Token-Limit erschöpft, bevor Text zurückkam — weniger Sätze anfordern."
+      : "Antwort ohne Textblock.");
+  }
+  return { text, truncated: data.stop_reason === "max_tokens", usage };
+}
+
+export function extractJson(raw: string): unknown {  const s = (raw || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
   const start = s.indexOf("{");
   if (start === -1) throw new Error("Keine JSON-Antwort erhalten.");
   // Erstes vollständiges Objekt per balancierter Klammerung extrahieren (Strings/

@@ -278,6 +278,23 @@ die Rolle „Kasten" und setzt unter „Kurz gemeldet".
 der **Zeitungssetzer** mit gestaltbarem Kopf, Automatik über mehrere Seiten und
 Nachmessen am fertigen Satz.
 
+**Bildsammler** (seit 4.234.0, im Reiter „Sammler" unter dem Tagesfeed): Fotos
+werden zu Korpussätzen und 4W-Kontext — der erste Weg in die Maschine hinein,
+der nicht über Sprache führt. Das Bild wird geschickt und NICHT behalten; es
+bleibt nur Text, deshalb gibt es hier weder eine Bilderzahl noch ein
+Speicherlimit. Der Kern ist nicht die Anbindung (`callClaudeBild` in `ki.ts`,
+Base64 im Nachrichtenkörper), sondern der **Beutefilter** in
+`features/bildsammler.ts`: Ein Modell, das man um eine Bildbeschreibung bittet,
+liefert „Das Bild zeigt …", und als Korpusfutter ist das Gift — jeder Eintrag
+begänne gleich, und die Maschine würfelte fortan „Das Bild zeigt"-Sätze. Der
+Prompt verbietet jeden Bildbezug, `verraetBild()` setzt es durch (ein Prompt ist
+eine Bitte, kein Riegel), und die 4W-Felder laufen durch denselben Filter, weil
+sie im Studio in JEDEN erzeugten Text wandern. Nichts geht ungesehen in den
+Korpus: Zwischen Antwort und Übernahme steht eine Vorschau mit einzeln
+abwählbaren Sätzen, und das Verworfene ist aufklappbar — daran sieht man, ob
+der Prompt taugt oder der Filter zu scharf steht. Kostenkonto gemeinsam mit dem
+KI-Lehrer.
+
 ## 7 · Fallen in diesem Quelltext
 
 - **Deutsche Nomen sind groß.** „Großgeschrieben mitten im Satz" taugt nicht als
