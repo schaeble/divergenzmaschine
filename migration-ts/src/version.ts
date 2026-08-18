@@ -1,3 +1,3 @@
 // Eingebaute Versionsnummer - bei jedem Deploy hochzählen.
 // So lässt sich im Browser sofort erkennen, welcher Build geladen ist.
-export const VERSION = "4.236.1";
+export const VERSION = "4.237.0";

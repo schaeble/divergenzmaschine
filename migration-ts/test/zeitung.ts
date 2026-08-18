@@ -266,6 +266,7 @@ wahr("und die Druckregel nimmt sie zusätzlich zurück",
 // Beitrag über die Linie ragt — und geprüft, dass er danach darüber endet.
 ist("Seitenmaß stimmt mit dem Papier überein (264 mm)", SEITE_H, Math.round(264 * 96 / 25.4));
 
+let probenHoehe = 120;   // wie hoch ein Beitrag in der Messprobe „misst"
 const FUSS_OBEN = 900;
 let beitragUnten = 960;                       // ragt zunächst 60 px über die Linie
 (dom.window.Element.prototype as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect = function (this: Element): DOMRect {
@@ -279,7 +280,7 @@ let beitragUnten = 960;                       // ragt zunächst 60 px über die 
   if (c.contains("zk-beitrag")) {
     // Die Messprobe muss KLEIN messen, sonst passt kein Beitrag in eine Spalte
     // und es gibt nichts zu kürzen. Nur der gesetzte Beitrag ragt heraus.
-    if (this.closest(".zk-probe")) return kasten(0, 0, spB, 120);
+    if (this.closest(".zk-probe")) return kasten(0, 0, spB, probenHoehe);
     return kasten(0, 300, spB, beitragUnten - 300);
   }
   return kasten(0, 0, 0, 0);
@@ -299,6 +300,12 @@ localStorage.setItem("dm_treasury_v1", JSON.stringify([
 klick(knopf(/Schließen/));
 oeffneZeitungssetzer("Noch ein Studiotext.", "prose");
 klick(knopf(/füllen/));
+// Seit „Seiten füllen" würfelt, kann der lange Text als Aufmacher landen — und
+// der steht AUSSERHALB der Spaltenkästen, wo nicht gekürzt wird. Für diese
+// Prüfung müssen alle Beiträge in Spalten stehen.
+for (const sel of alle(".zk-zeile select") as HTMLSelectElement[]) {
+  if (sel.value === "aufmacher") { sel.value = "spalte"; sel.dispatchEvent(new dom.window.Event("change", { bubbles: true })); }
+}
 (dom.window.Element.prototype as unknown as { removeChild: unknown }).removeChild = echterEntfernen;
 wahr("nach dem Kürzen endet der Satz über der Fußlinie", beitragUnten <= FUSS_OBEN);
 wahr("die Statuszeile nennt die Kürzung",
@@ -513,6 +520,60 @@ ist("nach dem Schließen heißt die App wieder wie vorher",
   dom.window.document.title, "Divergenzmaschine");
 wahr("und der Hinweis nennt den Dateinamen",
   /Als PDF speichern/.test(readFileSync("src/ui/zeitungView.ts", "utf8")));
+
+// ── 10 · „Seiten füllen" würfelt ────────────────────────────────────────────
+// Der gemeldete Wunsch: Jeder Klick eine andere Seite. Vorher zog die Füllung
+// reihum nach Form — dieselbe Reihenfolge, also jedes Mal dasselbe Blatt.
+localStorage.setItem("dm_treasury_v1", JSON.stringify([
+  ...Array.from({ length: 9 }, (_, i) => ({
+    t: `Beitrag ${i + 1}. ` + "Ein Satz mit genug Wörtern, damit er als Aufmacher taugt und eine Spalte trägt. ".repeat(3),
+    form: "prose", d: "x",
+  })),
+  { t: "Ein Haiku steht\nfür sich allein im Kasten\nund zählt Silben ab", form: "haiku", d: "x" },
+  { t: "Am Donnerstag ist in Dürrhausen bekannt geworden: Die Werft schließt. Betroffen sind viele.", form: "meldung", d: "x" },
+]));
+klick(knopf(/Schließen/));
+oeffneZeitungssetzer("Ein Studiotext mit einigen Wörtern darin, damit er zählt.", "prose");
+
+const gesetzteFolge = (): string => alle(".zk-zeile")
+  .map((z, i) => ((z.querySelector("input[type=checkbox]") as HTMLInputElement).checked ? i : -1))
+  .filter((i) => i >= 0).join(",");
+const rollen = (): string[] => alle(".zk-zeile")
+  .filter((z) => (z.querySelector("input[type=checkbox]") as HTMLInputElement).checked)
+  .map((z) => (z.querySelector("select") as HTMLSelectElement).value);
+
+// Hoch genug, dass NICHT alles auf die Seite passt: Erst dann entscheidet die
+// gewürfelte Reihenfolge, WAS gesetzt wird — und nicht nur, in welcher Folge.
+probenHoehe = 320;
+const seitenBilder = new Set<string>();
+const gesetzteMengen = new Set<string>();
+for (let i = 0; i < 8; i++) {
+  klick(knopf(/füllen/));
+  const titel = alle(".zk-blatt .zk-beitrag").map((b) => (b.querySelector(".zk-titel")?.textContent || "").slice(0, 22));
+  seitenBilder.add(titel.join("|"));
+  gesetzteMengen.add([...titel].sort().join("|"));
+}
+wahr("acht Klicks ergeben mehr als eine Seite", seitenBilder.size > 1, `${seitenBilder.size} verschiedene`);
+wahr("und es stehen wirklich andere Texte darauf, nicht nur andere Reihenfolge",
+  gesetzteMengen.size > 1, `${gesetzteMengen.size} verschiedene Mengen`);
+// Der eigentliche Grund für die gewürfelte Reihenfolge: Der Umbruch füllt von
+// vorn und lässt den Rest fallen. Bei fester Folge käme das Ende der
+// Schatzkammer NIE aufs Blatt — egal wie oft man klickt.
+const jeGesehen = new Set<string>();
+for (let i = 0; i < 14; i++) {
+  klick(knopf(/füllen/));
+  for (const b of alle(".zk-blatt .zk-beitrag")) jeGesehen.add((b.querySelector(".zk-titel")?.textContent || "").slice(0, 22));
+}
+const quellenZahl = alle(".zk-zeile").length;
+wahr("über viele Klicks kommt fast jeder Text einmal aufs Blatt",
+  jeGesehen.size >= Math.ceil(quellenZahl * 0.7), `${jeGesehen.size} von ${quellenZahl}`);
+probenHoehe = 120;
+klick(knopf(/füllen/));
+const r = rollen();
+ist("genau ein Aufmacher", r.filter((x) => x === "aufmacher").length, 1);
+wahr("mindestens ein Kasten", r.filter((x) => x === "kasten").length >= 1, r.join(","));
+wahr("und Spalten dazwischen", r.filter((x) => x === "spalte").length >= 1);
+wahr("alle Beiträge sind gewählt", gesetzteFolge().split(",").length === alle(".zk-zeile").length);
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Zeitungssetzer — ${geprueft} Prüfungen (Layout-Logik + Rundgang in jsdom):`);

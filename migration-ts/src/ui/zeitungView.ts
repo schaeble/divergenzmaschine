@@ -274,6 +274,18 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
   let spalten = 3, seitenZahl = 1;
   const gewaehlt = new Map<number, { rolle: Rolle; titel: string }>();
 
+  // Die Reihenfolge, in der die Beiträge auf die Seite kommen. Sie ist NICHT
+  // die Listenreihenfolge: „Seiten füllen" würfelt sie, und der Umbruch füllt
+  // in genau dieser Folge, bis die Seite voll ist. Was danach kommt, fällt
+  // heraus — deshalb entscheidet die Reihenfolge, WAS auf dem Blatt steht.
+  let reihenfolge: number[] = [];
+  const mische = <T,>(xs: T[]): T[] => {
+    const a = [...xs];
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j]!, a[i]!]; }
+    return a;
+  };
+  const wortzahl = (t: string): number => (t.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+
   let bilder: Bildrahmen[] = ladeBilder();
   let gewaehltesBild: string | null = null;
 
@@ -404,24 +416,46 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
 
   /** Automatik: so viele Beiträge wählen, wie auf die Seiten passen. Gemischt
    *  nach Form, damit nicht drei Berichte hintereinander stehen. */
+  /** Seite füllen: eine neue, zufällige Seite aus der Schatzkammer.
+   *
+   *  Vorher wurde reihum nach Form gezogen — dieselbe Reihenfolge bei jedem
+   *  Klick, also jedes Mal dasselbe Blatt. Jetzt wird gemischt, und weil der
+   *  Umbruch in der gewürfelten Folge füllt, bis die Seite voll ist, steht bei
+   *  jedem Klick eine andere Auswahl auf dem Papier.
+   *
+   *  Die Rollen werden dabei gesetzt, nicht gewürfelt: EIN Aufmacher (ein
+   *  Vers oder eine Meldung taugt dafür nicht), Verse und Meldungen in den
+   *  Kasten, alles Übrige in die Spalten. Findet sich kein Kasten-Kandidat,
+   *  wird der kürzeste Beitrag dazu gemacht — eine Seite aus lauter Spalten
+   *  sieht aus wie ein Manuskript, nicht wie eine Zeitung.
+   */
   const fuellen = (): void => {
     merkeStand();
     gewaehlt.clear();
-    const nachForm = new Map<string, number[]>();
-    quellen.forEach((t, i) => {
-      const k = t.form || "?";
-      if (!nachForm.has(k)) nachForm.set(k, []);
-      nachForm.get(k)!.push(i);
-    });
-    // Reihum aus jeder Form ziehen: erst ein Bericht, dann Prosa, dann Vers …
-    const reihen = [...nachForm.values()];
-    const misch: number[] = [];
-    for (let r = 0; misch.length < quellen.length; r++) {
-      let leer = true;
-      for (const reihe of reihen) if (reihe[r] !== undefined) { misch.push(reihe[r]!); leer = false; }
-      if (leer) break;
+    if (!quellen.length) { reihenfolge = []; bauListe(); zeichne(); return; }
+
+    const idx = mische(quellen.map((_, i) => i));
+    const kastenTaugt = (i: number): boolean => istVers(quellen[i]!.form) || quellen[i]!.form === "meldung";
+    // Aufmacher: lang genug und keine Kurzform. Findet sich keiner, bleibt die
+    // Seite ohne Aufmacher — der Umbruch kommt damit zurecht.
+    const aufI = idx.find((i) => !kastenTaugt(i) && wortzahl(quellen[i]!.t) >= 60)
+      ?? idx.find((i) => !kastenTaugt(i));
+
+    reihenfolge = aufI === undefined ? idx : [aufI, ...idx.filter((i) => i !== aufI)];
+    for (const i of reihenfolge) {
+      gewaehlt.set(i, {
+        rolle: i === aufI ? "aufmacher" : rolleFuer(quellen[i]!, false),
+        titel: ueberschriftVon(quellen[i]!),
+      });
     }
-    misch.forEach((i, n) => gewaehlt.set(i, { rolle: rolleFuer(quellen[i]!, n === 0), titel: ueberschriftVon(quellen[i]!) }));
+    // Mindestens ein Kasten, wenn es überhaupt mehr als zwei Beiträge gibt.
+    const hatKasten = [...gewaehlt.values()].some((v) => v.rolle === "kasten");
+    if (!hatKasten && reihenfolge.length > 2) {
+      const kandidat = reihenfolge
+        .filter((i) => i !== aufI)
+        .sort((a, b) => wortzahl(quellen[a]!.t) - wortzahl(quellen[b]!.t))[0];
+      if (kandidat !== undefined) gewaehlt.set(kandidat, { ...gewaehlt.get(kandidat)!, rolle: "kasten" });
+    }
     bauListe();
     zeichne();
   };
@@ -464,7 +498,13 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
   const zeichne = (): void => {
     sichereKopf(kopf);
     blatt.innerHTML = "";
-    const ids = [...gewaehlt.keys()].sort((a, b) => a - b);
+    // Erst die gewürfelte Folge, dann alles, was von Hand dazugehakt wurde.
+    // Ohne diese Ordnung füllte der Umbruch immer von der kleinsten Nummer an —
+    // und „Seiten füllen" ergab bei jedem Klick dasselbe Blatt.
+    const ids = [
+      ...reihenfolge.filter((i) => gewaehlt.has(i)),
+      ...[...gewaehlt.keys()].filter((i) => !reihenfolge.includes(i)).sort((a, b) => a - b),
+    ];
     if (!ids.length) {
       blatt.append(el("p", { class: "muted" }, "Nichts gewählt."));
       // Auch die Druckfassung räumen: Sonst druckt der Browser die Seite, die
@@ -581,7 +621,11 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     const statusText = `${seiten.length} Seite(n) · ${gesetzt} von ${ids.length} Beiträgen gesetzt · Füllung ${grad} %`
       + (entfernt ? ` · ${entfernt} beim Nachmessen entfernt` : "")
       + (gekuerzt ? ` · ${gekuerzt}× am Fuß gekürzt` : "")
-      + (gesetzt < ids.length ? " · Rest passt nicht mehr — mehr Seiten wählen" : "");
+      + (gesetzt < ids.length ? " · Rest passt nicht mehr — mehr Seiten wählen" : "")
+      // Ehrlich sagen, wenn die Seite NICHT voll wird: Der Umbruch kann nur
+      // verteilen, was da ist. Bei zwei Texten in der Schatzkammer bleibt die
+      // Seite halb leer, und das ist kein Fehler des Setzers.
+      + (gesetzt >= ids.length && grad < 80 ? " · zu wenig Material für eine volle Seite — mehr Texte merken" : "");
     zeichneBilder();
     document.querySelectorAll(".zk-probe").forEach((x) => x.remove());
     const druckSeiten = mappeBauen();
@@ -1041,7 +1085,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
   });
   layoutListe();
 
-  const autoBtn = el("button", {}, icon("dice"), " Seiten füllen");
+  const autoBtn = el("button", { title: "Würfelt eine neue Seite aus der Schatzkammer — jeder Klick eine andere Auswahl" }, icon("dice"), " Seiten füllen");
   autoBtn.addEventListener("click", fuellen);
   const drucken = el("button", { class: "primary" }, icon("play"), " Drucken");
   // Der Titel, den die App sonst trägt. EINMAL beim Öffnen gemerkt, nicht bei

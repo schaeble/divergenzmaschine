@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.236.1**, Zweig `typescript-migration`.
+Stand: **v4.237.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -274,6 +274,15 @@ zerlegt trennbare Verben. Und der Rumpf steht durchgehend im Präsens; die
 geläufige Formel „Das teilte … mit" mischte Präteritum hinein und verletzte
 die eigene vierte Zusage. Im Zeitungssetzer geht die Meldung automatisch in
 die Rolle „Kasten" und setzt unter „Kurz gemeldet".
+
+**Seiten füllen würfelt** (seit 4.237.0): Vorher zog die Füllung reihum nach
+Form — dieselbe Folge bei jedem Klick, also jedes Mal dasselbe Blatt. Jetzt
+wird gemischt, und `zeichne()` benutzt diese `reihenfolge` statt der sortierten
+Indizes. Das ist der Punkt: Der Umbruch füllt von vorn und lässt den Rest
+fallen; bei sortierter Folge kam das Ende der Schatzkammer NIE aufs Blatt.
+Rollen werden gesetzt, nicht gewürfelt: ein Aufmacher (kein Vers, keine
+Meldung, mindestens 60 Wörter), Verse und Meldungen in den Kasten, der Rest in
+die Spalten; fehlt ein Kasten-Kandidat, wird der kürzeste Beitrag dazu gemacht.
 
 **Druck:** sechs Profile (zeitung, fliesstext, vers, haiku, buehne, shots) plus
 der **Zeitungssetzer** mit gestaltbarem Kopf, Automatik über mehrere Seiten und
