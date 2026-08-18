@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.236.0**, Zweig `typescript-migration`.
+Stand: **v4.236.1**, Zweig `typescript-migration`.
 
 ---
 
@@ -344,6 +344,11 @@ alles andere fest und misst je N Texte mit den vorhandenen Maßen. Der Wert ist
 **Ausschlag / Rauschen** — die Spanne der Mittelwerte über die Stellungen,
 geteilt durch die mittlere Streuung innerhalb einer Stellung. Unter 1 bewegt ein
 Regler weniger als der Zufall zwischen zwei Läufen derselben Einstellung.
+
+Die Balken sind in vier Bänder eingefärbt (): grau unter 1, gelb bis 2,
+grün bis 5, Akzentfarbe darüber — und der senkrechte Strich im Balken markiert
+die Rauschschwelle auf derselben Skala. Kein Qualitätsurteil: Ein starker
+Regler ist nicht besser, nur wirksamer.
 
 Die **Blindprobe** ist ein Regler in derselben Liste, der nichts ändert. Sie
 muss unter 1 bleiben; steht sie darüber, misst das Instrument Rauschen als

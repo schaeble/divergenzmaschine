@@ -13,7 +13,7 @@ const st: Record<string, string> = {};
 // der Schwelle, misst das Instrument Rauschen als Wirkung, und jede andere Zahl
 // wäre wertlos. Dazu die Gegenrichtung: Ein Regler, von dem wir wissen, dass er
 // den Text umkrempelt (die Form), muss deutlich darüber liegen.
-import { misseStellung, fasseZusammen, reglerListe, misseText, MASSE, type ReglerDef } from "../src/features/wirkung";
+import { misseStellung, fasseZusammen, reglerListe, misseText, band, MASSE, type ReglerDef } from "../src/features/wirkung";
 import { BUILTIN_PRESETS } from "../src/presets.data";
 import type { Bank, GenInput } from "../src/types";
 
@@ -82,6 +82,19 @@ wahr("Wirkung ist das stärkste Maß, nicht der Durchschnitt",
 const alle = reglerListe().slice(0, 4).map((r) => miss(r));
 wahr("jeder Regler liefert eine endliche Wirkung", alle.every((r) => Number.isFinite(r.wirkung)));
 wahr("jede Stellung wurde wirklich gemessen", alle.every((r) => r.stellungen.every((s) => s.n === N)));
+
+// ── 6 · Die Bänder der Anzeige ──────────────────────────────────────────────
+// Die Farbe ist die einzige Aussage, die ein Blick auf das Blatt liefert. Sie
+// muss an derselben Schwelle kippen wie die Zahl — sonst zeigt sie etwas
+// anderes an, als der Text darunter sagt.
+wahr("0,9 ist Rauschen", band(0.9) === "rauschen");
+wahr("genau 1 ist nicht mehr Rauschen", band(1) === "schwach");
+wahr("1,9 bleibt schwach", band(1.9) === "schwach");
+wahr("2 bewegt deutlich", band(2) === "deutlich");
+wahr("5 bewegt stark", band(5) === "stark");
+wahr("Unsinn gilt als Rauschen", band(NaN) === "rauschen");
+wahr("die Blindprobe fällt ins graue Band", band(blind.wirkung) === "rauschen", `Wirkung ${blind.wirkung.toFixed(2)}`);
+wahr("die Form fällt ins starke Band", band(form.wirkung) === "stark");
 
 console.log("Prüfstand Wirkungsmesser:");
 zeilen.forEach((z) => console.log(z));

@@ -879,13 +879,23 @@ select.abweichend{border-color:var(--acc)}
   padding:5px 4px;border-bottom:1px dotted var(--border2);font:12.5px var(--sans);cursor:pointer}
 .wm-zeile:hover{background:var(--panel2)}
 .wm-name{color:var(--text)}
-.wm-bar{display:block;height:9px;background:var(--panel2);border-radius:5px;overflow:hidden;position:relative}
-/* Die Rauschschwelle als Strich: Alles links davon bewegt weniger als der Zufall. */
-.wm-bar::after{content:"";position:absolute;top:-3px;bottom:-3px;left:0;width:1px;background:var(--border2)}
-.wm-fill{display:block;height:100%;background:var(--acc);border-radius:5px}
+.wm-bar{display:block;height:9px;background:var(--panel2);border-radius:5px;position:relative}
+/* Die Rauschschwelle: ein Strich bei 1 auf derselben Skala wie die Balken. */
+.wm-schwelle{position:absolute;top:-4px;bottom:-4px;width:1px;background:var(--text);opacity:.45}
+.wm-fill{display:block;height:100%;border-radius:5px;background:var(--acc)}
 .wm-wert{text-align:right;font-variant-numeric:tabular-nums;color:var(--text)}
-.wm-tot .wm-name,.wm-tot .wm-wert{color:var(--muted)}
-.wm-tot .wm-fill{background:var(--border2)}
+/* Vier Bänder. Kein Qualitätsurteil — nur, wie weit der Regler ausschlägt. */
+.wm-rauschen .wm-fill{background:#7b8394}
+.wm-schwach  .wm-fill{background:#d7a531}
+.wm-deutlich .wm-fill{background:#2f9e44}
+.wm-stark    .wm-fill{background:var(--acc)}
+.wm-rauschen .wm-name,.wm-rauschen .wm-wert{color:var(--muted)}
+.wm-legende{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;margin:2px 0 8px}
+.wm-punkt{display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:-1px}
+.wm-p-rauschen{background:#7b8394}
+.wm-p-schwach{background:#d7a531}
+.wm-p-deutlich{background:#2f9e44}
+.wm-p-stark{background:var(--acc)}
 .wm-detail{padding:0 4px}
 .wm-tab{width:100%;border-collapse:collapse;font:11.5px var(--sans);margin:4px 0 10px}
 .wm-tab th,.wm-tab td{padding:2px 6px;text-align:right;border-bottom:1px dotted var(--border2);color:var(--muted)}

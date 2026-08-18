@@ -120,6 +120,27 @@ export function fasseZusammen(id: string, label: string, stellungen: Stellung[])
   return { id, label, stellungen, wirkungJeMass, wirkung: best, staerkstesMass: bestName };
 }
 
+/** Vier Bänder statt einer Farbe. Ohne sie war jeder Balken gleich eingefärbt,
+ *  und die Zahl musste allein tragen — man sah nicht, was am Rand des Rauschens
+ *  steht und was den Text umkrempelt.
+ *
+ *  Die Grenzen sind gesetzt, nicht gemessen: 1 ist die Rauschschwelle (dort
+ *  bewegt der Regler so viel wie der Zufall), 2 ist der Punkt, ab dem der
+ *  Ausschlag das Rauschen sicher überragt, 5 der, ab dem er es dominiert.
+ *  Wichtig: Das ist KEIN Qualitätsurteil. Ein starker Regler ist nicht besser,
+ *  er ist nur wirksamer. */
+export type Band = "rauschen" | "schwach" | "deutlich" | "stark";
+export function band(wirkung: number): Band {
+  if (!Number.isFinite(wirkung) || wirkung < 1) return "rauschen";
+  if (wirkung < 2) return "schwach";
+  if (wirkung < 5) return "deutlich";
+  return "stark";
+}
+export const BAND_LABEL: Record<Band, string> = {
+  rauschen: "unter dem Rauschen", schwach: "knapp darüber",
+  deutlich: "bewegt deutlich", stark: "bewegt stark",
+};
+
 /** Die Regler, die gemessen werden. Zahlenregler sind hier bewusst NICHT dabei:
  *  Sie haben zu viele Stellungen, und ihr Ausschlag ließe sich nur über eine
  *  Kurve zeigen, nicht über eine Spanne. */

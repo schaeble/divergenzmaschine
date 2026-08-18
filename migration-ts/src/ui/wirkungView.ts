@@ -10,7 +10,7 @@ import { loadBank } from "../storage";
 import { buildModelFromCorpus, loadPersistentCorpus } from "../corpus";
 import { randomContext } from "../generation/context";
 import {
-  reglerListe, misseStellung, fasseZusammen, MASSE,
+  reglerListe, misseStellung, fasseZusammen, MASSE, band, BAND_LABEL,
   type ReglerMessung, type Stellung,
 } from "../features/wirkung";
 import type { GenInput } from "../types";
@@ -61,21 +61,34 @@ export function mountWirkung(): HTMLElement {
   const balken = el("div", { class: "wm-fortschritt" }, el("div", { class: "wm-fuellung" }));
   const liste = el("div", {});
 
+  const legende = el("div", { class: "wm-legende muted mini" },
+    el("span", {}, el("i", { class: "wm-punkt wm-p-rauschen" }), " unter 1 — unter dem Rauschen"),
+    el("span", {}, el("i", { class: "wm-punkt wm-p-schwach" }), " 1–2 — knapp darüber"),
+    el("span", {}, el("i", { class: "wm-punkt wm-p-deutlich" }), " 2–5 — bewegt deutlich"),
+    el("span", {}, el("i", { class: "wm-punkt wm-p-stark" }), " über 5 — bewegt stark"),
+    el("span", {}, "· der senkrechte Strich im Balken ist die Rauschschwelle · Zeile anklicken zeigt die Maße"));
+
   wrap.append(el("div", { class: "btnrow" },
     el("label", { class: "druckfeld" }, el("span", { class: "field-label" }, "Form"), formSel),
     el("label", { class: "druckfeld" }, el("span", { class: "field-label" }, "Läufe je Stellung"), nSel),
-    startBtn, status), balken, liste);
+    startBtn, status), balken, legende, liste);
 
   const zeichne = (mess: ReglerMessung[]): void => {
     liste.innerHTML = "";
     const sortiert = [...mess].sort((a, b) => b.wirkung - a.wirkung);
     const max = Math.max(1.5, ...sortiert.map((r) => r.wirkung));
+    // Die Rauschschwelle als Strich AN DER RICHTIGEN STELLE: bei 1 auf derselben
+    // Skala wie die Balken. Vorher saß sie am linken Rand und markierte damit
+    // die Null — sichtbar, aber sinnlos.
+    const schwelle = Math.min(100, (1 / max) * 100);
     for (const r of sortiert) {
       const anteil = Math.min(1, r.wirkung / max);
-      const tot = r.wirkung < 1;
-      const kopf = el("div", { class: "wm-zeile" + (tot ? " wm-tot" : "") },
+      const b = band(r.wirkung);
+      const kopf = el("div", { class: "wm-zeile wm-" + b, title: `${BAND_LABEL[b]} — Ausschlag ${r.wirkung.toFixed(2)}× so groß wie das Rauschen` },
         el("span", { class: "wm-name" }, r.label),
-        el("span", { class: "wm-bar" }, el("span", { class: "wm-fill", style: `width:${(anteil * 100).toFixed(1)}%` })),
+        el("span", { class: "wm-bar" },
+          el("span", { class: "wm-schwelle", style: `left:${schwelle.toFixed(2)}%` }),
+          el("span", { class: "wm-fill", style: `width:${(anteil * 100).toFixed(1)}%` })),
         el("span", { class: "wm-wert" }, r.wirkung.toFixed(2)),
         el("span", { class: "wm-mass muted mini" }, r.staerkstesMass));
       const detail = el("div", { class: "wm-detail" });
