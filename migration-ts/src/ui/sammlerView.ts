@@ -13,6 +13,7 @@ import {
   type WikiFund, type QuellenWahl,
 } from "../features/wikisammler";
 import { baueBildsammler } from "./bildsammlerView";
+import { baueAbschrift } from "./abschriftView";
 
 const WAHL_KEY = "divergenz_sammler_quellen_v1";
 
@@ -101,6 +102,9 @@ export function mountSammler(root: HTMLElement): void {
   // aussen hereinholen —, aber ein anderer Weg hinein, und anders als der Feed
   // kostet er Geld. Deshalb darunter und nicht darueber.
   wrap.append(baueBildsammler());
+  // Die Abschrift zuletzt: Sie ist das Gegenteil des Bildsammlers — nichts wird
+  // formuliert und nichts gefiltert — und liefert Text am Stueck statt 4W.
+  wrap.append(baueAbschrift());
   root.append(wrap);
 
   // ── Zustand ──────────────────────────────────────────────────────────────

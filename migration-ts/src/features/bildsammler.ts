@@ -169,3 +169,139 @@ export function zerlegeDatenUrl(url: string): { media: string; daten: string } |
   if (!/^image\/(jpeg|png|gif|webp)$/.test(media)) return null;
   return { media, daten: m[2]! };
 }
+
+// ── Der Bildvorrat ──────────────────────────────────────────────────────────
+// Eigene Ablage, NICHT der Sammler-Vorrat. Die Taste „Wiki“ im Studio zieht
+// aus dem Feed der Wikipedia, die Taste „Abschrift“ aus Bildern. Beides in
+// einen Topf zu werfen hieße, im Studio mal das eine und mal das andere zu
+// ziehen, ohne zu wissen, was kommt.
+//
+// Der Schlüssel beginnt mit „divergenz_“, wandert also von selbst in die
+// Projektdatei.
+
+export interface BildFund {
+  /** Dateiname, nur zur Anzeige. */
+  name: string;
+  ctx: { who: string; where: string; when: string; what: string };
+  /** Zeitpunkt der Aufnahme (ms), für Reihenfolge und Deckel. */
+  gespeichert: number;
+}
+
+export const BILDVORRAT_KEY = "divergenz_bildvorrat_v1";
+/** Deckel. Ein Fund ist winzig (vier kurze Felder), aber der localStorage ist
+ *  geteilt — ein unbegrenzter Vorrat hinderte irgendwann ANDERE Daten am
+ *  Sichern, und das fiele erst weit weg von hier auf. */
+export const BILDVORRAT_DECKEL = 400;
+
+/** Kennung eines Fundes. Der Dateiname taugt nicht: Handykameras vergeben
+ *  denselben Namen nach einem Zurücksetzen erneut. Die vier Felder
+ *  entscheiden. */
+export function bildSchluessel(f: BildFund): string {
+  const c = f.ctx;
+  // Jedes Feld FÜR SICH normalisieren, nicht die zusammengesetzte Zeichenkette:
+  // Sonst blieben Leerzeichen am Rand eines Feldes an der Trennstelle hängen,
+  // und „ Ankunft “ zählte gegenüber „Ankunft“ als eigener Fund.
+  const n = (v: string): string => (v || "").toLowerCase().replace(/\s+/g, " ").trim();
+  return [n(c.who), n(c.where), n(c.when), n(c.what)].join("|");
+}
+
+/** Ein Fund taugt nur, wenn er im Studio etwas bewirken kann. Vier leere
+ *  Felder wären ein Zug, bei dem sichtbar nichts geschieht. */
+export function taugtFund(f: BildFund): boolean {
+  const c = f?.ctx;
+  return !!c && !!(c.who || c.where || c.when || c.what);
+}
+
+/** Zusammenführen: Bekanntes bleibt stehen, Neues kommt hinten dazu, und wenn
+ *  der Deckel reißt, fällt das Älteste vorne heraus. Rein — der Prüfstand
+ *  kommt ohne Speicher aus. */
+export function mischeBildvorrat(alt: BildFund[], neu: BildFund[], deckel = BILDVORRAT_DECKEL): BildFund[] {
+  const bekannt = new Set(alt.filter(taugtFund).map(bildSchluessel));
+  const raus = alt.slice();
+  for (const f of neu) {
+    if (!taugtFund(f)) continue;
+    const k = bildSchluessel(f);
+    if (bekannt.has(k)) continue;
+    bekannt.add(k);
+    raus.push(f);
+  }
+  return deckel > 0 && raus.length > deckel ? raus.slice(raus.length - deckel) : raus;
+}
+
+export function ladeBildvorrat(): BildFund[] {
+  try {
+    const r = JSON.parse(localStorage.getItem(BILDVORRAT_KEY) || "[]") as unknown;
+    if (!Array.isArray(r)) return [];
+    return (r as BildFund[]).filter((f) => f && f.ctx && typeof f.ctx.what === "string");
+  } catch { return []; }
+}
+
+export function sichereBildvorrat(v: BildFund[]): boolean {
+  try { localStorage.setItem(BILDVORRAT_KEY, JSON.stringify(v)); return true; } catch { return false; }
+}
+
+export function leereBildvorrat(): void {
+  try { localStorage.removeItem(BILDVORRAT_KEY); } catch { /* gesperrt */ }
+}
+
+/** Zieht einen zufälligen Fund. `rnd` ist einsetzbar, damit der Prüfstand die
+ *  Ziehung ohne Zufall prüfen kann. */
+export function ziehBildvorrat(vorrat: BildFund[] = ladeBildvorrat(), rnd: () => number = Math.random): BildFund | null {
+  const gut = vorrat.filter(taugtFund);
+  if (!gut.length) return null;
+  const i = Math.min(gut.length - 1, Math.max(0, Math.floor(rnd() * gut.length)));
+  return gut[i]!;
+}
+
+// ── Abschrift ───────────────────────────────────────────────────────────────
+// Das genaue Gegenteil des Bildsammlers: Der liest ein Bild und formuliert
+// frei; die Abschrift will exakt das, was dasteht.
+//
+// Deshalb gibt es hier KEINEN Beutefilter. Eine Abschrift zu filtern hieße,
+// sie zu fälschen. Was durchkommt, kommt durch.
+
+/** Prompt für eine Abschrift. Der ganze Wert steckt in dem, was verboten wird:
+ *  Ein Modell ergänzt von sich aus abgeschnittene Wörter, korrigiert alte
+ *  Rechtschreibung und glättet Zeilenfall — alles drei macht aus einer
+ *  Abschrift eine Bearbeitung. */
+export function baueAbschriftPrompt(hinweis = ""): string {
+  const h = (hinweis || "").trim();
+  return "Du fertigst eine ABSCHRIFT an. Gib den Text wieder, der auf dem Bild steht — "
+    + "genau so, wie er dasteht.\n\n"
+    + "Verboten:\n"
+    + "- Etwas ergänzen, weiterschreiben oder erklären.\n"
+    + "- Rechtschreibung modernisieren. Alte Formen („thun“, „giebt“, „daß“) bleiben stehen.\n"
+    + "- Grammatik oder Zeichensetzung verbessern. Fehler in der Vorlage sind Teil der Vorlage.\n"
+    + "- Zeilen zusammenziehen, die im Original getrennt stehen, wenn es Verse oder eine Liste sind.\n"
+    + "- Kopfzeilen, Seitenzahlen, Marginalien oder Bildunterschriften stillschweigend weglassen.\n\n"
+    + "Erlaubt und erwünscht:\n"
+    + "- Silbentrennung am Zeilenende auflösen: „Werk-\\nzeug“ wird zu „Werkzeug“, in einer Zeile.\n"
+    + "- Absätze als Absätze wiedergeben, Fließtext als Fließtext.\n"
+    + "- Ist eine Stelle nicht lesbar, setze [unleserlich] statt zu raten.\n"
+    + "- Steht mehreres nebeneinander (Spalten), schreibe Spalte für Spalte, "
+    + "getrennt durch eine Leerzeile.\n\n"
+    + (h ? `Zusätzliche Vorgabe des Nutzers (vorrangig): ${h}\n\n` : "")
+    + "Gib NUR die Abschrift zurück. Keine Einleitung, kein Kommentar, keine Anführungszeichen "
+    + "um das Ganze, kein Markdown. Steht auf dem Bild kein lesbarer Text, antworte mit "
+    + "genau: KEIN TEXT";
+}
+
+/** Die Antwort auf eine Abschrift auswerten. */
+export function leseAbschrift(roh: string): { text: string; leer: boolean } {
+  let t = (roh || "").trim();
+  if (!t || /^KEIN TEXT$/i.test(t)) return { text: "", leer: true };
+  // Ein Modell legt trotz Anweisung gern einen Codeblock darum.
+  t = t.replace(/^```[a-z]*\s*\n?/i, "").replace(/\n?```\s*$/, "").trim();
+  // Und manchmal einen Vorspann. Nur eine EINZELNE erste Zeile, die sich
+  // selbst als Ankündigung zu erkennen gibt — nicht raten, sonst fiele der
+  // erste Satz einer Abschrift weg, die zufällig so beginnt.
+  t = t.replace(/^(?:hier ist |dies ist )?die abschrift(?: des textes)?:?\s*\n+/i, "").trim();
+  return { text: t, leer: !t };
+}
+
+/** Deckel für eine Abschrift. Eine dicht bedruckte Buchseite hat rund 400
+ *  Wörter; Verse deutlich weniger. Großzügig, aber nicht offen: Ein
+ *  abgeschnittener Text fällt auf, ein durchgelaufenes Budget nicht. */
+export function maxTokenAbschrift(): number {
+  return 4096;
+}

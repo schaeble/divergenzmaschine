@@ -18,6 +18,7 @@ import { feedLivePools, LIVE_W } from "../features/livepools";
 import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
 import { ziehVorrat, vorratStand, type VorratFund } from "../features/wikisammler";
+import { ziehBildvorrat, ladeBildvorrat, type BildFund } from "../features/bildsammler";
 import { normWhere, normWhen, normWho, rateWhere, rateWhen, rateWho } from "../generation/ctxnorm";
 import { getTraceFor, fuegeteilAnteil } from "../atoms/trace";
 import { saveSchnappschuss, loadSchnappschuss } from "../features/sources";
@@ -122,6 +123,31 @@ export function mountStudio(root: HTMLElement): void {
     wikiHint.textContent = `${f.quelleLabel}: ${f.titel}`;
     updHints(); ctxSichern(); wikiTitel();
   });
+  // Abschrift-Taste: derselbe Griff wie „Wiki", nur aus dem BILDvorrat. Zwei
+  // Ablagen und nicht eine, weil das Material verschieden ist — der Feed der
+  // Wikipedia gibt Ereignisse, ein Foto gibt Dinge und Orte. In einem Topf
+  // zoege man mal das eine und mal das andere, ohne zu wissen, was kommt.
+  // Greift ebenfalls NICHT ins Netz: Was der Bildsammler abgelegt hat, ist da.
+  const abschriftBtn = el("button", {}, icon("book"), " Abschrift");
+  const abschriftTitel = (): void => {
+    const n = ladeBildvorrat().length;
+    abschriftBtn.title = n
+      ? `Zufälliger Fund aus dem Bildvorrat (${n} ${n === 1 ? "Fund" : "Funde"}) — ohne Netz`
+      : "Der Bildvorrat ist leer — im Reiter \u201eSammler\u201c unter \u201eBilder als Material\u201c Funde in den Vorrat legen";
+  };
+  abschriftTitel();
+  abschriftBtn.addEventListener("click", () => {
+    const f: BildFund | null = ziehBildvorrat();
+    if (!f) {
+      wikiHint.textContent = "Bildvorrat leer \u2014 im Reiter \u201eSammler\u201c Bilder lesen und in den Vorrat legen";
+      return;
+    }
+    const setz = (inp: HTMLInputElement, v: string): void => { if (v && !locked.has(inp.id)) inp.value = v; };
+    setz(where, f.ctx.where); setz(when, f.ctx.when); setz(who, f.ctx.who); setz(what, f.ctx.what);
+    wikiHint.textContent = `Abschrift: ${f.name}`;
+    updHints(); ctxSichern(); abschriftTitel();
+  });
+
   const ctxKeep = el("button", { class: "toggle" }, icon("pin"), " Kontext merken");
   const CTX_KEY = "divergenz_ctx_v1";
   ctxKeep.title = "Wo/Wann/Wer/Was sichern und bei jedem Start laden";
@@ -224,7 +250,7 @@ export function mountStudio(root: HTMLElement): void {
         el("span", { class: "hilfe", title: "Begriffe, Wörter, Zahlenkombinationen oder Zeichen. Sie erzeugen keinen Text — sie richten die Auswahl: Nahrung bevorzugt Fassungen, die sie aufnehmen, Gift bevorzugt Fassungen, die sie meiden. Wirkt nur bei eingeschalteter Bestenauslese." }, "Umwelt"),
         umweltSel),
       umweltIn, umweltHint),
-    el("div", { class: "btnrow" }, ctxDice, wikiBtn, ctxKeep, wikiHint));
+    el("div", { class: "btnrow" }, ctxDice, wikiBtn, abschriftBtn, ctxKeep, wikiHint));
 
   const lockBar = el("div", { class: "lockbar" });
   const preset = select("f-preset", markedPresetOptions());

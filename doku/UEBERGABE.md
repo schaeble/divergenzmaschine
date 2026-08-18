@@ -295,6 +295,24 @@ abwählbaren Sätzen, und das Verworfene ist aufklappbar — daran sieht man, ob
 der Prompt taugt oder der Filter zu scharf steht. Kostenkonto gemeinsam mit dem
 KI-Lehrer.
 
+**Bildvorrat und Abschrift** (seit 4.235.0): Der Bildsammler legt seine 4W in
+einen EIGENEN Vorrat (`divergenz_bildvorrat_v1`), aus dem im Studio die Taste
+„Abschrift" zieht — so wie „Wiki" aus dem Sammler-Vorrat zieht. Zwei Ablagen
+und nicht eine, weil das Material verschieden ist: Der Feed gibt Ereignisse,
+ein Foto gibt Dinge und Orte. Kennung ist NICHT der Dateiname (Handykameras
+vergeben ihn nach einem Zurücksetzen erneut), sondern die vier Felder, jedes
+für sich normalisiert.
+
+Daneben der Bereich **Abschrift** im Sammler: Text von einer abfotografierten
+Seite, als zusammenhängender Text in den Korpus. Er ist das Gegenteil des
+Bildsammlers, obwohl beide `callClaudeBild` benutzen — hier wird NICHT
+gefiltert und NICHT formuliert. Eine Abschrift zu filtern hieße, sie zu
+fälschen. Der Wert des Prompts steckt in den Verboten: nicht ergänzen, nicht
+modernisieren, nicht verbessern, Unleserliches als `[unleserlich]` statt
+geraten. Vorgabe ist hier Sonnet und nicht Haiku — ein Verlesen an Fraktur
+kostet mehr als der Preisunterschied, weil es unbemerkt im Korpus landet. Der
+Text bleibt vor der Übernahme änderbar; Nachbessern ist die Regel.
+
 ## 7 · Fallen in diesem Quelltext
 
 - **Deutsche Nomen sind groß.** „Großgeschrieben mitten im Satz" taugt nicht als

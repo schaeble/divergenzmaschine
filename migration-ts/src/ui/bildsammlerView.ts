@@ -21,7 +21,8 @@ import { appendToPersistentCorpus, loadPersistentCorpus } from "../corpus";
 import { loadAiKey, callClaudeBild, extractJson, isOnline } from "../features/ki";
 import {
   bauePrompt, leseErnte, beute, maxToken, schaetzeLauf, zerlegeDatenUrl, bildTokens,
-  SAETZE_VORGABE,
+  SAETZE_VORGABE, ladeBildvorrat, sichereBildvorrat, mischeBildvorrat, leereBildvorrat,
+  type BildFund,
 } from "../features/bildsammler";
 import {
   MODELLE, modellVon, PREIS_STAND, euro,
@@ -153,6 +154,13 @@ export function baueBildsammler(): HTMLElement {
   const stand = el("span", { class: "muted mini" }, "");
   const korpusBtn = el("button", { class: "primary" }, icon("arrowRight"), " In den Korpus") as HTMLButtonElement;
   const studioBtn = button("4W ins Studio");
+  // Der Vorrat ist die Ablage fuer spaeter: Die Taste "Abschrift" im Studio
+  // zieht daraus, so wie "Wiki" aus dem Sammler-Vorrat zieht. Getrennte
+  // Ablagen, weil das Material verschieden ist — sonst zoege man im Studio mal
+  // das eine und mal das andere, ohne zu wissen, was kommt.
+  const vorratBtn = button("4W in den Vorrat");
+  const vorratTxt = el("span", { class: "muted mini" }, "");
+  const vorratWeg = button("Vorrat leeren", "danger");
   const wegBtn = button("Ernte verwerfen", "danger");
 
   const standZeigen = (): void => {
@@ -162,9 +170,44 @@ export function baueBildsammler(): HTMLElement {
       ? `${n} Sätze gewählt · ${zeichen} Zeichen · Korpus derzeit ${loadPersistentCorpus().length} Zeichen`
       : "";
     korpusBtn.disabled = !n;
-    studioBtn.disabled = !ernten.some((e) => e.ctx.who || e.ctx.where || e.ctx.when || e.ctx.what);
+    const mit4W = ernten.some((e) => e.ctx.who || e.ctx.where || e.ctx.when || e.ctx.what);
+    studioBtn.disabled = !mit4W;
+    vorratBtn.disabled = !mit4W;
     wegBtn.style.display = ernten.length ? "" : "none";
+    vorratZeigen();
   };
+
+  const vorratZeigen = (): void => {
+    const n = ladeBildvorrat().length;
+    vorratTxt.textContent = n
+      ? `Bildvorrat: ${n} ${n === 1 ? "Fund" : "Funde"} \u2014 die Taste \u201eAbschrift\u201c im Studio zieht daraus`
+      : "Bildvorrat leer \u2014 die Taste \u201eAbschrift\u201c im Studio hat noch nichts zu ziehen";
+    vorratWeg.style.display = n ? "" : "none";
+  };
+
+  vorratBtn.addEventListener("click", () => {
+    const jetzt = Date.now();
+    const neu: BildFund[] = ernten
+      .filter((e) => e.ctx.who || e.ctx.where || e.ctx.when || e.ctx.what)
+      .map((e) => ({ name: e.name, ctx: e.ctx, gespeichert: jetzt }));
+    if (!neu.length) return;
+    const alt = ladeBildvorrat();
+    const zusammen = mischeBildvorrat(alt, neu);
+    const dazu = zusammen.length - alt.length;
+    if (!sichereBildvorrat(zusammen)) {
+      status.textContent = "Der Browser-Speicher ist voll — der Vorrat wurde nicht gesichert.";
+      return;
+    }
+    status.textContent = dazu
+      ? `${dazu} ${dazu === 1 ? "Fund" : "Funde"} in den Bildvorrat gelegt (jetzt ${zusammen.length}).`
+      : "Alles davon lag schon im Vorrat.";
+    vorratZeigen();
+  });
+
+  vorratWeg.addEventListener("click", () => {
+    if (!confirm("Den ganzen Bildvorrat löschen? Die Taste „Abschrift\u201c im Studio hat danach nichts mehr zu ziehen.")) return;
+    leereBildvorrat(); vorratZeigen();
+  });
 
   korpusBtn.addEventListener("click", () => {
     const s = gewaehlteSaetze();
@@ -266,7 +309,9 @@ export function baueBildsammler(): HTMLElement {
     kontoZeile,
     el("div", { class: "btnrow", style: "margin-top:10px" }, waehlBtn, abbruch, status, dateiWahl),
     liste,
-    el("div", { class: "btnrow" }, korpusBtn, studioBtn, wegBtn, stand),
+    el("div", { class: "btnrow" }, korpusBtn, studioBtn, vorratBtn, wegBtn, stand),
+    el("div", { class: "btnrow" }, vorratTxt),
+    el("div", { class: "btnrow" }, vorratWeg),
   );
   rechne();
   standZeigen();

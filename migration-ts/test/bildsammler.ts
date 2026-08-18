@@ -8,6 +8,8 @@ import { readFileSync } from "fs";
 import {
   bildTokens, verraetBild, taugtSatz, beute, bauePrompt, leseErnte,
   maxToken, schaetzeLauf, zerlegeDatenUrl, VERRAETER, SAETZE_VORGABE,
+  BILDVORRAT_KEY, taugtFund, mischeBildvorrat, ziehBildvorrat,
+  baueAbschriftPrompt, leseAbschrift, maxTokenAbschrift, type BildFund,
 } from "../src/features/bildsammler";
 import { MODELLE } from "../src/features/lehrer";
 
@@ -165,6 +167,79 @@ wahr(".idea ist tatsächlich ein Zeilen-Flexkasten", /\.idea\{display:flex/.test
 wahr("der neue Kasten ist es nicht", /\.bsam-fund\{(?![^}]*display:flex)[^}]*\}/.test(css));
 wahr("der Ausschuss hat einen sichtbaren Aufklapper", /\.bsam-weg>summary\{/.test(css));
 wahr("und die Sätze stehen einzeln untereinander", /\.bsam-satz\{display:flex;align-items:flex-start/.test(css));
+
+// ── 9 · Der Bildvorrat ──────────────────────────────────────────────────────
+// Eigene Ablage, NICHT der Sammler-Vorrat: „Wiki“ zieht aus dem Feed,
+// „Abschrift“ aus Bildern. Getrennt, weil das Material verschieden ist.
+const fund = (w: string, n = "a.jpg", t = 1): BildFund =>
+  ({ name: n, ctx: { who: "", where: "", when: "", what: w }, gespeichert: t });
+
+wahr("die Schlüssel sind verschieden", BILDVORRAT_KEY !== "divergenz_sammler_vorrat_v1");
+wahr("der Bildvorrat wandert in die Projektdatei", BILDVORRAT_KEY.startsWith("divergenz_"));
+
+ist("ein Fund ohne jedes Feld taugt nicht", taugtFund(fund("")), false);
+wahr("mit einem Feld schon", taugtFund(fund("eine Ankunft")));
+wahr("auch wenn nur Wo gefüllt ist",
+  taugtFund({ name: "x", ctx: { who: "", where: "Hafen", when: "", what: "" }, gespeichert: 1 }));
+
+const v1 = mischeBildvorrat([], [fund("Ankunft"), fund("Abfahrt")]);
+ist("zwei Funde kommen an", v1.length, 2);
+// Der Dateiname taugt nicht als Kennung: Handykameras vergeben nach einem
+// Zurücksetzen dieselben Namen erneut. Die vier Felder entscheiden.
+const v2 = mischeBildvorrat(v1, [fund("Ankunft", "ganz-anderer-name.jpg")]);
+ist("dasselbe Was gilt als bekannt, trotz anderem Dateinamen", v2.length, 2);
+const v3 = mischeBildvorrat(v1, [fund("  ANKUNFT  ")]);
+ist("Schreibung und Leerraum machen keinen Unterschied", v3.length, 2);
+// Gegenprobe: Ein wirklich neuer Fund MUSS dazukommen — sonst prüfte die Regel
+// oben nur, dass nie etwas hinzugefügt wird.
+ist("ein wirklich neuer Fund kommt dazu", mischeBildvorrat(v1, [fund("Rückkehr")]).length, 3);
+ist("leere Funde werden gar nicht aufgenommen", mischeBildvorrat([], [fund("")]).length, 0);
+
+// Der Deckel: Ältestes fällt vorne heraus, damit der localStorage nicht
+// zuläuft und ANDERE Daten am Sichern hindert.
+const viele = Array.from({ length: 12 }, (_, i) => fund("was" + i));
+const v4 = mischeBildvorrat([], viele, 5);
+ist("der Deckel greift", v4.length, 5);
+ist("und das Älteste fällt heraus", v4[0]!.ctx.what, "was7");
+ist("ohne Deckel bleibt alles", mischeBildvorrat([], viele, 0).length, 12);
+
+// Ziehen ohne Zufall, damit der Prüfstand nicht würfelt.
+ist("aus dem leeren Vorrat kommt nichts", ziehBildvorrat([], () => 0), null);
+ist("der erste Fund lässt sich ziehen", ziehBildvorrat(v1, () => 0)?.ctx.what, "Ankunft");
+ist("und der letzte auch", ziehBildvorrat(v1, () => 0.999)?.ctx.what, "Abfahrt");
+ist("ein Vorrat nur aus leeren Funden gibt nichts her",
+  ziehBildvorrat([fund("")], () => 0), null);
+
+// ── 10 · Abschrift ──────────────────────────────────────────────────────────
+// Das Gegenteil des Bildsammlers: Hier wird NICHT gefiltert und NICHT
+// formuliert. Der ganze Wert des Prompts steckt in dem, was er verbietet.
+const ap = baueAbschriftPrompt();
+wahr("Ergänzen ist verboten", /Etwas ergänzen, weiterschreiben/.test(ap));
+wahr("Modernisieren ist verboten", /Rechtschreibung modernisieren/.test(ap));
+wahr("Verbessern ist verboten", /Grammatik oder Zeichensetzung verbessern/.test(ap));
+wahr("Unleserliches wird gekennzeichnet statt geraten", /\[unleserlich\] statt zu raten/.test(ap));
+wahr("Silbentrennung wird aufgelöst", /Silbentrennung am Zeilenende/.test(ap));
+wahr("es gibt eine Antwort für „kein Text“", /KEIN TEXT/.test(ap));
+wahr("ein Nutzerhinweis kommt hinein", baueAbschriftPrompt("nur die linke Spalte").includes("nur die linke Spalte"));
+// Gegenprobe zur Abgrenzung: Der Beutefilter des Bildsammlers darf hier NICHT
+// gelten. Eine Abschrift, in der „Das Bild zeigt“ steht, ist eine richtige
+// Abschrift eines Textes, in dem das steht.
+wahr("die Abschrift kennt keinen Beutefilter", !/Glätte|verworfen und war umsonst/.test(ap));
+
+ist("eine leere Antwort ist leer", leseAbschrift("").leer, true);
+ist("die Kein-Text-Antwort ebenso", leseAbschrift("KEIN TEXT").leer, true);
+ist("auch klein geschrieben", leseAbschrift("kein text").leer, true);
+ist("ein Codeblock wird abgestreift", leseAbschrift("```\nEs war ein Tag.\n```").text, "Es war ein Tag.");
+ist("auch einer mit Sprachangabe", leseAbschrift("```text\nEs war ein Tag.\n```").text, "Es war ein Tag.");
+ist("ein Vorspann fällt weg", leseAbschrift("Hier ist die Abschrift:\n\nEs war ein Tag.").text, "Es war ein Tag.");
+// Gegenprobe: Ein Text, der zufällig ähnlich anfängt, darf NICHT beschnitten
+// werden — sonst verlöre eine echte Abschrift ihren ersten Satz.
+ist("ein echter Satz über eine Abschrift bleibt stehen",
+  leseAbschrift("Die Abschrift des Protokolls lag auf dem Tisch.").text,
+  "Die Abschrift des Protokolls lag auf dem Tisch.");
+ist("und ein gewöhnlicher Text sowieso",
+  leseAbschrift("Es war ein Tag im Herbst.").text, "Es war ein Tag im Herbst.");
+wahr("der Deckel lässt eine volle Buchseite zu", maxTokenAbschrift() >= 2048);
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Bildsammler — ${geprueft} Prüfungen (ohne API-Aufruf):`);
