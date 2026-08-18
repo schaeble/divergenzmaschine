@@ -20,6 +20,8 @@ export interface PlatzierterTeil extends UmbruchTeil {
   spalte: number;        // 0-basiert; beim Aufmacher -1 (volle Breite)
   skala: number;         // Schriftskala, mit der er gesetzt wird
   zwischenraum: number;  // zusätzlicher Abstand darunter, in Pixeln
+  /** true = passt nicht mehr ganz und wird am Spaltenfuß gekürzt. */
+  gekuerzt?: boolean;
 }
 
 export interface Seite { teile: PlatzierterTeil[] }
@@ -31,6 +33,9 @@ export interface UmbruchOpts {
   seiten: number;
   minSkala?: number;         // wie weit die Schrift schrumpfen darf
   maxZwischenraum?: number;  // wie viel Luft je Fuge höchstens verteilt wird
+  /** Ab wie viel freier Höhe am Spaltenfuß noch ein Beitrag angesetzt wird, der
+   *  dann gekürzt wird. 0 = nie — dann bleibt lieber ein Loch stehen. */
+  mindestRest?: number;
 }
 
 /**
@@ -62,22 +67,39 @@ export function umbrechen(teile: UmbruchTeil[], mess: Messbar, o: UmbruchOpts): 
     }
 
     const rest = Math.max(0, o.spaltenhoehe - hoeheOben);
+    const mindestRest = o.mindestRest ?? 0;
     for (let sp = 0; sp < o.spalten; sp++) {
       const inSpalte: PlatzierterTeil[] = [];
       let gefuellt = 0;
-      while (offen.length) {
-        const kand = offen[0]!;
+      // WEITERSUCHEN, nicht abbrechen. Vorher wurde nur der vorderste Beitrag
+      // probiert: Passte der nicht, endete die Spalte — und weil derselbe
+      // Beitrag auch in der nächsten Spalte vorn stand, endete auch die. Bei
+      // einer Schatzkammer voller langer Texte blieb die Seite deshalb leer bis
+      // auf den Aufmacher: 1 von 101 Beiträgen gesetzt.
+      for (;;) {
         let gesetzt = false;
-        for (const skala of SKALEN) {
-          if (gefuellt + mess.hoehe(kand.id, skala) <= rest) {
-            inSpalte.push({ ...kand, spalte: sp, skala, zwischenraum: 0 });
-            gefuellt += mess.hoehe(kand.id, skala);
-            offen.shift();
-            gesetzt = true;
-            break;
+        for (let k = 0; k < offen.length && !gesetzt; k++) {
+          const kand = offen[k]!;
+          for (const skala of SKALEN) {
+            if (gefuellt + mess.hoehe(kand.id, skala) <= rest) {
+              inSpalte.push({ ...kand, spalte: sp, skala, zwischenraum: 0 });
+              gefuellt += mess.hoehe(kand.id, skala);
+              offen.splice(k, 1);
+              gesetzt = true;
+              break;
+            }
           }
         }
         if (!gesetzt) break;
+      }
+      // Und den Fuß auffüllen: Bleibt mehr Luft, als eine Überschrift mit ein
+      // paar Zeilen braucht, kommt der nächste Beitrag trotzdem hinein und wird
+      // am Spaltenfuß gekürzt. Eine halbleere Spalte sieht schlechter aus als
+      // ein Beitrag, der unten aufhört — so macht es der Zeitungssatz auch.
+      if (offen.length && mindestRest > 0 && rest - gefuellt >= mindestRest) {
+        const kand = offen.shift()!;
+        inSpalte.push({ ...kand, spalte: sp, skala: 1, zwischenraum: 0, gekuerzt: true });
+        gefuellt = rest;
       }
       const luft = rest - gefuellt;
       if (inSpalte.length > 1 && luft > 0) {
@@ -97,7 +119,10 @@ export function fuellgrad(seite: Seite, mess: Messbar, o: UmbruchOpts): number {
   const proSpalte: number[] = new Array(o.spalten).fill(0);
   let oben = 0;
   for (const t of seite.teile) {
-    const h = mess.hoehe(t.id, t.skala) + t.zwischenraum;
+    // Der Aufmacher läuft über ALLE Spalten. Ihn in Spaltenbreite zu messen
+    // ergibt die dreifache Höhe — die Füllung meldete 71 %, während die Seite
+    // fast leer war. Deshalb dieselbe Zahl wie bei der Verteilung.
+    const h = (t.spalte < 0 ? (o.aufmacherhoehe ?? mess.hoehe(t.id, t.skala)) : mess.hoehe(t.id, t.skala)) + t.zwischenraum;
     if (t.spalte < 0) oben += h; else proSpalte[t.spalte] = (proSpalte[t.spalte] || 0) + h;
   }
   const rest = Math.max(1, o.spaltenhoehe - oben);

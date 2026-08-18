@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.237.0**, Zweig `typescript-migration`.
+Stand: **v4.237.1**, Zweig `typescript-migration`.
 
 ---
 
@@ -92,6 +92,7 @@ Beide laufen bei `npm test` mit.
 | `test/meldung.ts` | Meldung: 2880 Läufe über dieselbe Matrix wie der Bericht, dazu neun Gegenproben |
 | `test/sammler.ts` | Sammler: 61 Prüfungen gegen nachgebildete Feed-Daten, mit Gegentests |
 | `test/bildrahmen.ts` | Bildrahmen: 67 Prüfungen, 560 Skalier- und 1600 Rasterfälle als Matrix |
+| `test/umbruch.ts` | Seitenumbruch: Verteilung, Fußauffüllung, Aufmacher, Füllgrad |
 | `test/wirkung.ts` | Wirkungsmesser: Blindprobe unter der Schwelle, Form darüber, Rechnung |
 | `test/zeitung.ts` | Zeitungssetzer: Layout-Logik, jsdom-Rundgang und ein Abgleich der Stilvorlage gegen die Rechnung (74 Prüfungen) |
 
@@ -274,6 +275,22 @@ zerlegt trennbare Verben. Und der Rumpf steht durchgehend im Präsens; die
 geläufige Formel „Das teilte … mit" mischte Präteritum hinein und verletzte
 die eigene vierte Zusage. Im Zeitungssetzer geht die Meldung automatisch in
 die Rolle „Kasten" und setzt unter „Kurz gemeldet".
+
+**Umbruch: drei Fehler auf einmal** (4.237.1). Die Verteilung war bis dahin
+ungeprüft — und trug den Fehler „1 von 101 Beiträgen gesetzt":
+
+1. Die Spaltenschleife probierte nur den VORDERSTEN offenen Beitrag. Passte der
+   nicht, endete die Spalte; weil er auch in der nächsten Spalte vorn stand,
+   endete auch die. Eine Schatzkammer mit langen Texten ergab eine Seite mit
+   nichts als dem Aufmacher. Jetzt wird die Warteschlange durchsucht.
+2. `fuellgrad()` maß den Aufmacher in SPALTENbreite statt in voller Breite —
+   dreifache Höhe. Die fast leere Seite meldete „Füllung 71 %". Jetzt benutzt
+   sie dieselbe `aufmacherhoehe` wie die Verteilung.
+3. Blieb am Spaltenfuß Luft übrig, blieb sie leer. Neu: `mindestRest` (22 mm im
+   Setzer) — ist mehr Platz als eine Überschrift mit ein paar Zeilen braucht,
+   kommt der nächste Beitrag hinein und wird von `kuerzeAmFuss()` unten
+   gekappt. Das ist der Zeitungssatz: lieber ein Beitrag, der unten aufhört,
+   als eine halbleere Spalte.
 
 **Seiten füllen würfelt** (seit 4.237.0): Vorher zog die Füllung reihum nach
 Form — dieselbe Folge bei jedem Klick, also jedes Mal dasselbe Blatt. Jetzt

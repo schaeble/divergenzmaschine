@@ -546,7 +546,10 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     // fertigen Satz nachgemessen; die Reserve macht das nur seltener noetig.
     const RESERVE = 12;
     const o = { spaltenhoehe: inhaltH - kopfH - RESERVE, spalten, seiten: seitenZahl,
-      aufmacherhoehe: aufId === undefined ? undefined : mess.aufmacher(aufId) };
+      aufmacherhoehe: aufId === undefined ? undefined : mess.aufmacher(aufId),
+      // Ab rund 22 mm Restluft kommt noch ein Beitrag hinein und wird unten
+      // gekürzt — die Seite soll voll werden, nicht ordentlich halb leer.
+      mindestRest: Math.round(22 * MM) };
     const seiten: Seite[] = umbrechen(teile, mess, o);
 
     seiten.forEach((seite, n) => {
@@ -621,7 +624,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     const statusText = `${seiten.length} Seite(n) · ${gesetzt} von ${ids.length} Beiträgen gesetzt · Füllung ${grad} %`
       + (entfernt ? ` · ${entfernt} beim Nachmessen entfernt` : "")
       + (gekuerzt ? ` · ${gekuerzt}× am Fuß gekürzt` : "")
-      + (gesetzt < ids.length ? " · Rest passt nicht mehr — mehr Seiten wählen" : "")
+      + (gesetzt < ids.length ? ` · ${ids.length - gesetzt} übrig (mehr Seiten wählen)` : "")
       // Ehrlich sagen, wenn die Seite NICHT voll wird: Der Umbruch kann nur
       // verteilen, was da ist. Bei zwei Texten in der Schatzkammer bleibt die
       // Seite halb leer, und das ist kein Fehler des Setzers.
