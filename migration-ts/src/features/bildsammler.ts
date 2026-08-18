@@ -65,11 +65,59 @@ export function taugtSatz(s: string, min = 20, max = 260): boolean {
   return (t.match(/\S+/g) || []).length >= 4;
 }
 
-/** Der Filter über eine ganze Ernte. Gibt Behaltenes und Verworfenes getrennt
- *  zurück — was weggefiltert wurde, ist die interessantere Hälfte: Daran sieht
- *  man, ob der Prompt taugt oder der Filter zu scharf steht. */
-export function beute(saetze: string[]): { behalten: string[]; verworfen: string[] } {
-  const behalten: string[] = [], verworfen: string[] = [];
+/** Artikel und andere Begleiter, an denen ein vollständiger deutscher Satz zu
+ *  erkennen ist. Possessiva und Demonstrativa gehören dazu: „ohne jede Pause“
+ *  ist kein Telegrammstil, auch wenn kein „der“ darin steht. */
+const ARTIKEL = new RegExp(
+  "\\b(?:"
+  + "der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines"
+  + "|am|im|zum|zur|vom|beim|ins|ans|aufs|fürs|durchs|ums"
+  + "|dies|diese[rmns]?|jene[rmns]?|jede[rmns]?|manche[rmns]?|solche[rmns]?"
+  + "|alle[rmns]?|beide[rn]?|welche[rmns]?|keine?[rmns]?"
+  + "|mein|dein|sein|ihr|unser|euer|meine[rmns]?|deine[rmns]?|seine[rmns]?"
+  + "|ihre[rmns]?|unsere[rmns]?|eure[rmns]?"
+  + ")\\b", "i");
+
+/** Wirkt der Satz wie eine Bildunterschrift statt wie ein Satz?
+ *
+ *  Der Fehler, um den es geht: „Mann sitzt auf Bank und hält Hut.“ Sachlich
+ *  richtig, als Material wertlos — Artikel und Präpositionen sind die
+ *  Scharniere, an denen die Markov-Kette umsteigt. Ein Satz ohne sie zerfällt
+ *  beim ersten Schnitt in Bruchstücke.
+ *
+ *  Die Erkennung bleibt UNSICHER: „Schnee liegt auf Dächern und Zäunen“ ist
+ *  richtiges Deutsch und fällt trotzdem darunter, weil bloße Pluralformen
+ *  keinen Artikel brauchen. Deshalb wird ein solcher Satz nicht verworfen,
+ *  sondern nur abgewählt vorgelegt — der Mensch entscheidet, und die sichere
+ *  Voreinstellung ist „nicht in den Korpus“. */
+export function wirktVerkuerzt(satz: string): boolean {
+  const t = (satz || "").trim();
+  const woerter = t.match(/\S+/g) || [];
+  // Unter fünf Wörtern ist ein fehlender Artikel kein Muster, sondern Zufall.
+  if (woerter.length < 5) return false;
+  if (ARTIKEL.test(t)) return false;
+  // Das ERSTE Wort zählt nicht mit: Im Deutschen steht am Satzanfang immer ein
+  // großer Buchstabe, es sagt also nichts darüber aus, ob dort ein Substantiv
+  // ohne Begleiter steht. „Regen fällt seit gestern ohne Pause“ hätte sonst
+  // zwei Treffer und wäre fälschlich als Telegrammstil gegolten.
+  const grosse = woerter.slice(1).filter((w) => /^[A-ZÄÖÜ]/.test(w)).length;
+  // Ein einzelnes artikelloses Substantiv kommt auch in gutem Deutsch vor.
+  // Erst mehrere zusammen ergeben den Telegrammstil.
+  return grosse >= 2;
+}
+
+/** Ein Satz, der die Ernte überstanden hat — mit dem Zweifel, falls einer
+ *  besteht. Ein leerer Zweifel heißt: unbedenklich. */
+export interface Fang { satz: string; zweifel: string }
+
+/** Der Filter über eine ganze Ernte. Drei Ausgänge statt zwei:
+ *  behalten und unbedenklich, behalten mit Zweifel, verworfen.
+ *
+ *  Verworfen wird nur, was sicher untauglich ist. Wo die Erkennung raten
+ *  müsste, wird gekennzeichnet — ein Filter, der bei Unsicherheit still
+ *  löscht, nimmt einem die Entscheidung ab, die man eigentlich treffen wollte. */
+export function beute(saetze: string[]): { behalten: Fang[]; verworfen: string[] } {
+  const behalten: Fang[] = [], verworfen: string[] = [];
   const gesehen = new Set<string>();
   for (const roh of saetze || []) {
     const s = String(roh || "").trim().replace(/\s+/g, " ");
@@ -77,7 +125,13 @@ export function beute(saetze: string[]): { behalten: string[]; verworfen: string
     const schluessel = s.toLowerCase();
     if (gesehen.has(schluessel)) { verworfen.push(s); continue; }
     gesehen.add(schluessel);
-    (taugtSatz(s) ? behalten : verworfen).push(s);
+    if (!taugtSatz(s)) { verworfen.push(s); continue; }
+    behalten.push({
+      satz: s,
+      zweifel: wirktVerkuerzt(s)
+        ? "wirkt verkürzt — ohne Artikel zerfällt der Satz beim Neuzusammensetzen"
+        : "",
+    });
   }
   return { behalten, verworfen };
 }
@@ -109,6 +163,14 @@ export function bauePrompt(anzahl = SAETZE_VORGABE, hinweis = ""): string {
     + "keine Metaphern, keine Adjektivketten. Dinge, Stoffe, Licht, Abnutzung, Gesten, "
     + "Wetter, Tageszeit, Kleidung, Geräusche, die dazugehören — benannt, nicht ausgeschmückt. "
     + "Die Fremdheit stellt die Maschine selbst her; Material, das schon schön ist, nimmt ihr die Arbeit ab.\n\n"
+    + "NÜCHTERN HEISST NICHT VERKÜRZT. Schreibe vollständige Sätze mit Artikeln, Präpositionen "
+    + "und gebeugten Verben. Kein Telegrammstil, keine Stichworte, keine Bildunterschriften.\n"
+    + "  FALSCH: „Mann sitzt auf Bank und hält Hut.“\n"
+    + "  RICHTIG: „Der Mann sitzt auf der Bank und hält den Hut in der Hand.“\n"
+    + "Der Grund: Die Sätze werden von einer Maschine zerlegt und neu zusammengesetzt. "
+    + "Artikel, Präpositionen und Endungen sind die Scharniere, an denen sie umsteigt. "
+    + "Ein Satz ohne sie zerfällt beim ersten Schnitt in Bruchstücke, die sich nicht mehr fügen "
+    + "lassen — er ist als Material wertlos, so richtig er auch gemeint war.\n\n"
     + `Liefere ${n} kurze Sätze, jeder 5 bis 25 Wörter, jeder für sich stehend, keine Aufzählungen.\n\n`
     + "Dazu vier Angaben für den Kontext, jede höchstens sechs Wörter, jede ohne Bildbezug:\n"
     + "- who: wer vorkommt (Person, Rolle, Tier — ohne Namen zu erfinden)\n"

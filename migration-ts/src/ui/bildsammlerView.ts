@@ -44,7 +44,7 @@ const sichereWahl = (w: Wahl): void => {
 
 interface Ernte {
   name: string;
-  behalten: { satz: string; an: boolean }[];
+  behalten: { satz: string; an: boolean; zweifel: string }[];
   verworfen: string[];
   ctx: { who: string; where: string; when: string; what: string };
 }
@@ -128,7 +128,9 @@ export function baueBildsammler(): HTMLElement {
         const box = el("input", { type: "checkbox", id: `bs-${e.name}-${i}` }) as HTMLInputElement;
         box.checked = b.an;
         box.addEventListener("change", () => { b.an = box.checked; standZeigen(); });
-        saetze.append(el("label", { class: "bsam-satz" }, box, el("span", {}, b.satz)));
+        saetze.append(el("label", { class: "bsam-satz" + (b.zweifel ? " zweifel" : "") }, box,
+          el("span", {}, b.satz,
+            ...(b.zweifel ? [el("span", { class: "bsam-zweifel" }, " \u2014 " + b.zweifel)] : []))));
       });
       if (!e.behalten.length) saetze.append(el("p", { class: "sam-warn" },
         "Kein einziger Satz hat den Filter überstanden. Entweder gibt das Bild nichts her, "
@@ -269,7 +271,10 @@ export function baueBildsammler(): HTMLElement {
           const { behalten, verworfen } = beute(roh.saetze);
           ernten = [...ernten, {
             name: d.name,
-            behalten: behalten.map((satz) => ({ satz, an: true })),
+            // Zweifelhafte Saetze kommen ABGEWAEHLT: Die Erkennung ist unsicher,
+            // und die sichere Voreinstellung ist „nicht in den Korpus". Wer
+            // widerspricht, hakt an.
+            behalten: behalten.map((f) => ({ satz: f.satz, an: !f.zweifel, zweifel: f.zweifel })),
             verworfen, ctx: roh.ctx,
           }];
           zeichne();

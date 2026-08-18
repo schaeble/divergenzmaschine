@@ -121,6 +121,12 @@ details.fine>div{padding:4px 14px 14px}
 .bsam-satz{display:flex;align-items:flex-start;gap:9px;margin:6px 0;cursor:pointer;
   font:14px/1.5 var(--sans)}
 .bsam-satz input{flex:0 0 auto;width:auto;margin:4px 0 0}
+/* Ein Satz, bei dem der Filter unsicher ist. Er wird NICHT verworfen, sondern
+   abgewaehlt vorgelegt — sichtbar, mit Grund, und die sichere Voreinstellung
+   ist „nicht in den Korpus". Gedaempft, aber nicht versteckt: Wer ihn behalten
+   will, muss ihn finden koennen. */
+.bsam-satz.zweifel{color:var(--muted)}
+.bsam-zweifel{font-style:italic;font-size:12px;color:var(--warn,#b45309)}
 /* Der Ausschuss ist die interessantere Haelfte — er darf nicht aussehen wie
    Kleingedrucktes. Aufklapper mit Rahmen und fingergerechter Flaeche. */
 .bsam-weg{margin-top:8px;border:1px dashed var(--border2);border-radius:6px;padding:2px 10px}

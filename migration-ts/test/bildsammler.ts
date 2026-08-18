@@ -8,7 +8,7 @@ import { readFileSync } from "fs";
 import {
   bildTokens, verraetBild, taugtSatz, beute, bauePrompt, leseErnte,
   maxToken, schaetzeLauf, zerlegeDatenUrl, VERRAETER, SAETZE_VORGABE,
-  BILDVORRAT_KEY, taugtFund, mischeBildvorrat, ziehBildvorrat,
+  BILDVORRAT_KEY, taugtFund, mischeBildvorrat, ziehBildvorrat, wirktVerkuerzt,
   baueAbschriftPrompt, leseAbschrift, maxTokenAbschrift, type BildFund,
 } from "../src/features/bildsammler";
 import { MODELLE } from "../src/features/lehrer";
@@ -86,6 +86,7 @@ ist("und ein Satz mit Bildbezug nie", taugtSatz("Das Bild zeigt ein Fahrrad an e
 const e1 = beute([...gut.slice(0, 4), ...gift.slice(0, 3)]);
 ist("die brauchbaren Sätze bleiben", e1.behalten.length, 4);
 ist("die Bildbeschreibungen fliegen raus", e1.verworfen.length, 3);
+wahr("und die guten Sätze tragen keinen Zweifel", e1.behalten.every((f) => !f.zweifel));
 // Doppelte sind im Korpus besonders schädlich: Die Markov-Kette gewichtet sie
 // doppelt und läuft dann bevorzugt durch diese Stelle.
 const e2 = beute([gut[0]!, gut[0]!, gut[0]!.toUpperCase()]);
@@ -240,6 +241,65 @@ ist("ein echter Satz über eine Abschrift bleibt stehen",
 ist("und ein gewöhnlicher Text sowieso",
   leseAbschrift("Es war ein Tag im Herbst.").text, "Es war ein Tag im Herbst.");
 wahr("der Deckel lässt eine volle Buchseite zu", maxTokenAbschrift() >= 2048);
+
+// ── 11 · Telegrammstil ──────────────────────────────────────────────────────
+// Aus einer echten Ausgabe: Der Bildsammler hatte Sätze ohne Artikel geliefert,
+// und in der fertigen Zeitung standen dann „Mann sitzt auf Bank und hält Hut"
+// und „ein älterer Mann hält ein Wetterumschwung am Nachmittag". Sachlich
+// richtig, als Material wertlos — Artikel und Präpositionen sind die
+// Scharniere, an denen die Markov-Kette umsteigt.
+ist("der gemeldete Satz wird erkannt", wirktVerkuerzt("Mann sitzt auf Bank und hält Hut"), true);
+ist("auch mit Punkt", wirktVerkuerzt("Mann sitzt auf Bank und hält Hut."), true);
+for (const s of [
+  "Frau steht vor Fenster und hält Buch",
+  "Fahrrad lehnt an Wand neben Tür",
+  "Staub liegt auf Boden und Fensterbrettern",
+]) wahr(`Telegrammstil erkannt: „${s}“`, wirktVerkuerzt(s));
+
+// Gegenprobe — und die ist die wichtigere: Vollständige Sätze dürfen NICHT
+// hängenbleiben, sonst käme keiner mehr durch.
+for (const s of gut) ist(`vollständiger Satz bleibt frei: „${s.slice(0, 40)}…“`, wirktVerkuerzt(s), false);
+ist("ein Satz mit verschmolzenem Artikel gilt als vollständig",
+  wirktVerkuerzt("Nebel steht im Hof und zieht langsam ab"), false);
+// Kurze Sätze werden nicht beurteilt: Dort ist ein fehlender Artikel Zufall,
+// kein Muster.
+ist("ein kurzer Satz wird nicht beurteilt", wirktVerkuerzt("Regen fällt seit gestern"), false);
+// Ein einzelnes artikelloses Substantiv kommt auch in gutem Deutsch vor.
+ist("ein einzelnes Substantiv ohne Artikel reicht nicht",
+  wirktVerkuerzt("Regen fällt seit gestern ohne jede Pause"), false);
+// Und derselbe Fall OHNE Begleitwort, damit wirklich die Zählung geprüft wird
+// und nicht bloß, dass irgendwo „jede“ steht. Setzt man die Schwelle von zwei
+// auf ein Substantiv herunter, schlägt genau diese Prüfung an — ohne sie wäre
+// der Prüfstand einseitig und meldete nur zu lockere Erkennung, nie zu scharfe.
+ist("auch ohne jedes Begleitwort", wirktVerkuerzt("Regen fällt seit gestern ohne Pause"), false);
+// GRENZE DER REGEL, offen benannt: Ein langer Satz mit mehreren artikellosen
+// Substantiven wird angezeichnet, auch wenn er richtig ist — etwa „Draußen
+// fällt seit gestern Abend leise und ohne Pause Schnee“. Die Regel kann das
+// nicht unterscheiden, und es ist auch nicht nötig: Angezeichnet heißt
+// abgewählt vorgelegt, nicht gelöscht. Genau deshalb wird nicht verworfen.
+wahr("und die Regel zeichnet einen solchen Satz eben mit an — bekannt und tragbar",
+  wirktVerkuerzt("Draußen fällt seit gestern Abend leise und ohne Pause Schnee"));
+
+// Der Zweifel VERWIRFT nicht — er wählt ab. Die Erkennung ist unsicher
+// („Schnee liegt auf Dächern und Zäunen" ist richtiges Deutsch und fällt
+// trotzdem darunter), und ein Filter, der bei Unsicherheit still löscht, nimmt
+// einem genau die Entscheidung ab, die man treffen wollte.
+const e9 = beute(["Mann sitzt auf Bank und hält Hut.", gut[0]!]);
+ist("der verkürzte Satz wird nicht verworfen", e9.verworfen.length, 0);
+ist("er bleibt in der Liste", e9.behalten.length, 2);
+const zw = e9.behalten.find((f) => f.satz.startsWith("Mann sitzt"));
+wahr("aber mit einem Grund versehen", !!zw && zw.zweifel.length > 0);
+wahr("und der Grund nennt den Artikel", !!zw && /Artikel/.test(zw.zweifel));
+wahr("der vollständige Satz bleibt ohne Zweifel",
+  !e9.behalten.find((f) => f.satz === gut[0])!.zweifel);
+
+// Und der Prompt sagt es jetzt auch, mit Begründung: Ein Modell, das nur ein
+// Verbot bekommt, rät sich eine Auslegung zusammen.
+wahr("der Prompt schließt Telegrammstil aus", /Kein Telegrammstil/.test(p));
+wahr("er nennt das Gegenbeispiel", /Mann sitzt auf Bank/.test(p));
+wahr("und die richtige Fassung dazu", /Der Mann sitzt auf der Bank/.test(p));
+wahr("er begründet es mit dem Zerlegen", /Scharniere/.test(p));
+wahr("und stellt klar, dass nüchtern nicht verkürzt heißt", /NÜCHTERN HEISST NICHT VERKÜRZT/.test(p));
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Bildsammler — ${geprueft} Prüfungen (ohne API-Aufruf):`);
