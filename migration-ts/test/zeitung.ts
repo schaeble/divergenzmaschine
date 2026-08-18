@@ -260,6 +260,27 @@ ist("die Auswahlmarke wird nicht mitgedruckt", alle(".dm-print-aktiv .zk-bild.on
 wahr("und die Druckregel nimmt sie zusätzlich zurück",
   /\.zk-bild\.on \{ outline: none/.test(readFileSync("src/ui/theme.css", "utf8")));
 
+// ── 7b · Zwei Bilder in EINER Spalte ────────────────────────────────────────
+// Der gemeldete Fehler: Danach war der Text über den Bildern weg. Die
+// Platzhalter sind Gleitkästen und stapeln sich; mit absoluten Abständen wurde
+// der reservierte Block höher als die Spalte und schob allen Text hinaus.
+localStorage.setItem(BILD_KEY, JSON.stringify([
+  { id: "b1", daten: GIF, seite: 0, x: 0, y: 380, b: Math.round(spB), h: 120, verh: Math.round(spB) / 120 },
+  { id: "b2", daten: GIF, seite: 0, x: 0, y: 640, b: Math.round(spB), h: 120, verh: Math.round(spB) / 120 },
+]));
+klick(knopf(/Schließen/));
+oeffneZeitungssetzer("Ein Text aus dem Studio.", "prose");
+klick(knopf(/füllen/));
+{
+  const kaesten2 = alle(".zk-blatt .zk-seite .zk-spaltebox");
+  const plaetze = Array.from(kaesten2[0]?.querySelectorAll(".zk-bildplatz") || []) as HTMLElement[];
+  ist("zwei Bilder ergeben zwei Platzhalter", plaetze.length, 2);
+  const summe = plaetze.reduce((a, h) => a + parseFloat(h.style.marginTop || "0") + parseFloat(h.style.height || "0"), 0);
+  // Die Spalte ist in der Attrappe 600 hoch; der Stapel darf sie nicht sprengen.
+  wahr("der Stapel bleibt in der Spalte", summe <= 600, `${summe} px`);
+  wahr("und endet an der Unterkante des unteren Bildes", Math.abs(summe - (640 + 120 + Math.round(2 * MM) - 300)) <= 2, `${summe} px`);
+}
+
 // ── 8 · Kürzen an der Fußlinie ──────────────────────────────────────────────
 // Der gemeldete Fehler: Die letzte Zeile einer Spalte wurde von der Fußlinie
 // durchgeschnitten. Hier wird die Geometrie so vorgetäuscht, dass der letzte

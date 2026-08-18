@@ -15,7 +15,7 @@
 import {
   zielMasse, begrenze, begrenzeLage, verschiebe, skaliereEcke, neuerRahmen,
   ladeBilder, sichereBilder, stapelLege, stapelNimm,
-  rasteRahmen, spaltenBreite, spaltenSpanne, spaltenZahl, bildplatz, spaltenlagen,
+  rasteRahmen, spaltenBreite, spaltenSpanne, spaltenZahl, bildplatz, spaltenlagen, baenderStapeln,
   MIN_KANTE, BILD_MAX, BILD_KEY, STAPEL_TIEFE, brauchtNeukodierung,
   type Bildrahmen, type Raster,
 } from "../src/features/zeitungsbilder";
@@ -241,6 +241,39 @@ ist("und eines genau auf Maximalkante", brauchtNeukodierung(BILD_MAX, 900, 1_000
 // Setzer haette stillschweigend seinen Qualitaetsvorteil verloren.
 ist("ohne das Kennzeichen bleibt derselbe Fall unveraendert",
   brauchtNeukodierung(800, 600, 120_000, false), false);
+
+// ── 10 · Mehrere Bilder in EINER Spalte ─────────────────────────────────────
+// Der gemeldete Fehler: Zwei Bilder in einer Spalte, und der Text darüber war
+// weg. Ursache: Gleitkästen stapeln sich, die Abstände waren aber absolut
+// gerechnet — zwei Bänder wurden zu einem Block höher als die Spalte.
+const gestapelt = (b: { oben: number; hoehe: number }[]): { abstand: number; hoehe: number }[] => baenderStapeln(b);
+ist("ein Band bleibt, wie es ist", JSON.stringify(gestapelt([{ oben: 100, hoehe: 50 }])),
+  JSON.stringify([{ abstand: 100, hoehe: 50 }]));
+ist("das zweite Band zählt ab dem ersten",
+  JSON.stringify(gestapelt([{ oben: 100, hoehe: 50 }, { oben: 300, hoehe: 80 }])),
+  JSON.stringify([{ abstand: 100, hoehe: 50 }, { abstand: 150, hoehe: 80 }]));
+ist("unsortierte Eingabe wird geordnet",
+  JSON.stringify(gestapelt([{ oben: 300, hoehe: 80 }, { oben: 100, hoehe: 50 }])),
+  JSON.stringify([{ abstand: 100, hoehe: 50 }, { abstand: 150, hoehe: 80 }]));
+ist("überlappende Bänder verschmelzen",
+  JSON.stringify(gestapelt([{ oben: 100, hoehe: 100 }, { oben: 150, hoehe: 100 }])),
+  JSON.stringify([{ abstand: 100, hoehe: 150 }]));
+ist("sich berührende auch",
+  JSON.stringify(gestapelt([{ oben: 100, hoehe: 50 }, { oben: 150, hoehe: 50 }])),
+  JSON.stringify([{ abstand: 100, hoehe: 100 }]));
+ist("leere Bänder fallen weg", gestapelt([{ oben: 10, hoehe: 0 }]).length, 0);
+
+// Die Zusage, an der alles hängt: Die Summe aus Abständen und Höhen darf nicht
+// über die Unterkante des letzten Bandes hinausgehen. Genau das war der Fehler —
+// bei absoluten Abständen wuchs sie ins Unermessliche und schob den Text hinaus.
+{
+  const eingabe = [{ oben: 60, hoehe: 90 }, { oben: 220, hoehe: 70 }, { oben: 400, hoehe: 60 }];
+  const raus = gestapelt(eingabe);
+  const gesamt = raus.reduce((a, p) => a + p.abstand + p.hoehe, 0);
+  const unterkante = Math.max(...eingabe.map((b) => b.oben + b.hoehe));
+  ist("die Stapelhöhe endet an der Unterkante des letzten Bandes", gesamt, unterkante);
+  wahr("und passt damit in eine Spalte dieser Höhe", gesamt <= 460);
+}
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Bildrahmen — ${geprueft} Prüfungen (${faelle} Skalierfälle):`);

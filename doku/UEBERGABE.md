@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.237.1**, Zweig `typescript-migration`.
+Stand: **v4.237.2**, Zweig `typescript-migration`.
 
 ---
 
@@ -247,6 +247,15 @@ Seitenhöhe in Vorschau und Druck, Übereinstimmung mit `SEITE_H`/`SEITE_B`, und
 `@page`-Ränder gleich `RAND_OBEN/UNTEN/SEITE`. Diese Geometrien sind schon
 dreimal auseinandergelaufen; der Abgleich kostet nichts und sieht, was sonst
 erst das Papier zeigt.
+
+**Gleitkästen stapeln sich** (4.237.2): Der Platzhalter für ein Bild ist ein
+Float. Zwei Bilder in EINER Spalte bekamen je ihren absoluten Abstand von oben
+als `margin-top` — aber der zweite Float beginnt unter dem ersten, nicht am
+Spaltenkopf. Die Abstände addierten sich zu einem Block höher als die Spalte
+und schoben allen Text hinaus („der Text über den Bildern verschwindet").
+`baenderStapeln()` rechnet jetzt Abstände VON BAND ZU BAND und verschmilzt
+Überlappungen; die Zusage ist geprüft: Die Summe aus Abständen und Höhen endet
+an der Unterkante des letzten Bandes.
 
 **Kürzen am Spaltenfuß**: Was auch nach dem Entfernen ganzer Beiträge noch
 übersteht — ein einzelner zu langer Beitrag —, wird satzweise gekürzt

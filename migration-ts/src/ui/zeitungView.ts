@@ -15,7 +15,7 @@ import { umbrechen, fuellgrad, type Messbar, type UmbruchTeil, type Seite } from
 import {
   ladeBilder, sichereBilder, neuerRahmen, verschiebe, skaliereEcke, begrenze,
   leseBilddatei, stapelLege, stapelNimm, BILD_ANZAHL,
-  rasteRahmen, spaltenBreite, spaltenZahl, bildplatz,
+  rasteRahmen, spaltenBreite, spaltenZahl, bildplatz, baenderStapeln,
   plaetze, platzBesetzt, rahmenAusPlatz,
   type Bildrahmen, type Raster, type Platz,
 } from "../features/zeitungsbilder";
@@ -846,19 +846,26 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
         x: (r.left - seiteR.left) / f, b: r.width / f,
         oben: (r.top - seiteR.top) / f, hoehe: r.height / f,
       };
+      // Erst ALLE Bänder dieser Spalte sammeln, dann stapeln. Einzeln
+      // eingehängt bekam jeder Platzhalter seinen absoluten Abstand von oben —
+      // aber Gleitkästen stapeln sich, also addierten sich zwei Bilder zu einem
+      // Block höher als die Spalte und schoben den Text hinaus.
+      const baender: { oben: number; hoehe: number }[] = [];
       for (const b of bilder) {
         const seite = Math.min(Math.max(0, b.seite | 0), Math.max(0, seitenGesamt - 1));
         if (seite !== seiteNr) continue;
         const platz = bildplatz(b, lage, LUFT);
-        if (!platz) continue;
-        const halter = el("div", { class: "zk-bildplatz" });
-        halter.style.height = platz.hoehe + "px";
-        halter.style.marginTop = platz.oben + "px";
-        // Als ERSTES Kind: Ein Gleitkasten wirkt nur auf das, was ihm im
-        // Quelltext folgt. Weiter hinten eingehängt bliebe der Text darüber
-        // unberührt — und genau der soll ja umbrechen.
-        kasten.insertBefore(halter, kasten.firstChild);
+        if (platz) baender.push(platz);
       }
+      // In Dokumentreihenfolge ganz vorn einhängen: Ein Gleitkasten wirkt nur
+      // auf das, was ihm im Quelltext folgt.
+      const halter = baenderStapeln(baender).map((p) => {
+        const h = el("div", { class: "zk-bildplatz" });
+        h.style.height = p.hoehe + "px";
+        h.style.marginTop = p.abstand + "px";
+        return h;
+      });
+      for (let i = halter.length - 1; i >= 0; i--) kasten.insertBefore(halter[i]!, kasten.firstChild);
     }
   };
 
