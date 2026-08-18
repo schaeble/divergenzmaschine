@@ -261,7 +261,9 @@ export function baueBildsammler(): HTMLElement {
         try {
           // Verkleinern passiert im Browser, VOR dem Senden: Ein Handyfoto mit
           // 12 Megapixeln kostete das Zehnfache und liefert nichts Besseres.
-          const { daten } = await leseBilddatei(d);
+          // true: IMMER neu kodieren. Dieser Weg verlaesst das Geraet, und das
+          // Neukodieren wirft die EXIF-Daten weg (GPS, Aufnahmezeit, Kamera).
+          const { daten } = await leseBilddatei(d, true);
           const teile = zerlegeDatenUrl(daten);
           if (!teile) throw new Error("Format wird nicht unterstützt.");
           const r = await callClaudeBild(prompt, teile, deckel, m.id, ac.signal);
@@ -301,7 +303,9 @@ export function baueBildsammler(): HTMLElement {
       + "Das Bild wird geschickt und nicht behalten — es bleibt nur Text, also gibt es "
       + "hier weder eine Bilderzahl noch ein Speicherlimit."),
     el("p", { class: "muted mini" },
-      "Der Lehrer der Sätze ist ausdrücklich angewiesen, nüchtern und ohne jeden Bildbezug zu schreiben: "
+      "Das Bild wird vor dem Senden verkleinert und neu kodiert; dabei fallen die EXIF-Daten weg \u2014 "
+      + "Aufnahmeort, Zeit und Kamera bleiben auf dem Gerät. "
+      + "Der Lehrer der Sätze ist ausdrücklich angewiesen, nüchtern und ohne jeden Bildbezug zu schreiben: "
       + "Kein Satz darf verraten, dass es ein Bild gab. Was trotzdem durchrutscht, filtert die Maschine "
       + "selbst heraus — ein Prompt ist eine Bitte, kein Riegel. Was dabei weggefiltert wurde, steht "
       + "unter jedem Fund im Aufklapper „verworfen ansehen“: Daran sieht man, ob der Prompt taugt oder "

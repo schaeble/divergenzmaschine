@@ -16,7 +16,8 @@ import {
   zielMasse, begrenze, begrenzeLage, verschiebe, skaliereEcke, neuerRahmen,
   ladeBilder, sichereBilder, stapelLege, stapelNimm,
   rasteRahmen, spaltenBreite, spaltenSpanne, spaltenZahl, bildplatz, spaltenlagen,
-  MIN_KANTE, BILD_MAX, BILD_KEY, STAPEL_TIEFE, type Bildrahmen, type Raster,
+  MIN_KANTE, BILD_MAX, BILD_KEY, STAPEL_TIEFE, brauchtNeukodierung,
+  type Bildrahmen, type Raster,
 } from "../src/features/zeitungsbilder";
 
 const B = 658, H = 972;              // Seite: A4 minus Seitenränder, wie im Setzer
@@ -212,6 +213,34 @@ ist("und nur dessen Höhe", teil.hoehe, 50);
 const mitLuft = bildplatz(bildL, lagen[0]!, 10)!;
 ist("Luft oben", mitLuft.oben, 90);
 ist("Luft oben und unten", mitLuft.hoehe, 170);
+
+// ── Neukodieren vor dem Senden ──────────────────────────────────────────────
+// Das Neukodieren ueber Canvas wirft die EXIF-Daten weg: GPS-Koordinaten,
+// Aufnahmezeit, Kameraseriennummer. Fuer den Zeitungssetzer ist es nur eine
+// Frage der Groesse; fuer jeden Weg, der das Geraet VERLAESST, ist es die
+// einzige Stelle, an der diese Daten haengenbleiben.
+
+// Der Setzer: nur neu kodieren, wenn noetig — sonst ein Qualitaetsverlust
+// ohne Gegenwert.
+ist("zu grosses Bild wird verkleinert", brauchtNeukodierung(3000, 2000, 900_000, false), true);
+ist("grosse Datei wird neu kodiert", brauchtNeukodierung(800, 600, 900_000, false), true);
+ist("kleines, leichtes Bild bleibt unveraendert", brauchtNeukodierung(800, 600, 120_000, false), false);
+ist("genau an der Dateigrenze wird neu kodiert", brauchtNeukodierung(800, 600, 400_000, false), true);
+ist("genau auf Maximalkante bleibt es", brauchtNeukodierung(BILD_MAX, 900, 100_000, false), false);
+ist("einen Pixel darueber nicht", brauchtNeukodierung(BILD_MAX + 1, 900, 100_000, false), true);
+
+// Der Weg nach draussen: IMMER. Das war die Luecke — ein Bildschirmfoto oder
+// ein kleiner Scan unter 400 KB ging mitsamt seinen Metadaten hinaus, und
+// niemand haette das vermutet.
+ist("kleines Bild wird fuer den Versand trotzdem neu kodiert",
+  brauchtNeukodierung(800, 600, 120_000, true), true);
+ist("auch ein winziges", brauchtNeukodierung(80, 60, 2_000, true), true);
+ist("und eines genau auf Maximalkante", brauchtNeukodierung(BILD_MAX, 900, 1_000, true), true);
+// Gegenprobe: Ohne das Kennzeichen MUSS derselbe Fall unveraendert bleiben —
+// sonst pruefte die Regel oben nur, dass immer neu kodiert wird, und der
+// Setzer haette stillschweigend seinen Qualitaetsvorteil verloren.
+ist("ohne das Kennzeichen bleibt derselbe Fall unveraendert",
+  brauchtNeukodierung(800, 600, 120_000, false), false);
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Bildrahmen — ${geprueft} Prüfungen (${faelle} Skalierfälle):`);

@@ -148,12 +148,34 @@ export function stapelNimm(stapel: string[]): { stapel: string[]; stand: string 
 
 // ── Einlesen vom Gerät ──────────────────────────────────────────────────────
 
+/** Muss das Bild neu kodiert werden?
+ *
+ *  Für den Zeitungssetzer lautet die Antwort „nur wenn nötig“: Ein Bild, das
+ *  ohnehin klein genug ist, unverändert zu übernehmen spart einen
+ *  Qualitätsverlust.
+ *
+ *  Für alles, was das Gerät VERLÄSST, lautet sie „immer“. Das Neukodieren über
+ *  Canvas wirft die EXIF-Daten weg — GPS-Koordinaten, Aufnahmezeit,
+ *  Kameraseriennummer. Die Abkürzung für kleine Dateien war deshalb eine
+ *  stille Ausnahme: Ein Bildschirmfoto oder ein kleiner Scan ging mitsamt
+ *  seinen Metadaten hinaus, und niemand hätte das vermutet. */
+export function brauchtNeukodierung(
+  b: number, h: number, groesse: number, immer: boolean, max = BILD_MAX,
+): boolean {
+  if (immer) return true;
+  const ziel = zielMasse(b, h, max);
+  return !(ziel.b === b && ziel.h === h && groesse < 400_000);
+}
+
 /** Liest eine Bilddatei, verkleinert sie auf `BILD_MAX` und gibt eine
  *  Data-URL zurück. Braucht den Browser (Image + Canvas) und wird deshalb im
  *  Prüfstand nicht aufgerufen. JPEG, außer das Bild hat Durchsichtigkeit —
  *  PNG bleibt PNG, sonst wird aus einem freigestellten Bild ein schwarzer
- *  Klotz. */
-export function leseBilddatei(datei: File): Promise<{ daten: string; b: number; h: number }> {
+ *  Klotz.
+ *
+ *  `immerNeuKodieren` für jeden Weg, der das Gerät verlässt: siehe
+ *  `brauchtNeukodierung`. */
+export function leseBilddatei(datei: File, immerNeuKodieren = false): Promise<{ daten: string; b: number; h: number }> {
   return new Promise((fertig, fehler) => {
     if (!/^image\//.test(datei.type)) { fehler(new Error("Das ist keine Bilddatei.")); return; }
     const leser = new FileReader();
@@ -163,7 +185,7 @@ export function leseBilddatei(datei: File): Promise<{ daten: string; b: number; 
       bild.onerror = () => fehler(new Error("Das Bildformat versteht der Browser nicht."));
       bild.onload = () => {
         const ziel = zielMasse(bild.naturalWidth, bild.naturalHeight);
-        if (ziel.b === bild.naturalWidth && ziel.h === bild.naturalHeight && datei.size < 400_000) {
+        if (!brauchtNeukodierung(bild.naturalWidth, bild.naturalHeight, datei.size, immerNeuKodieren)) {
           // Klein genug: unverändert übernehmen, kein Qualitätsverlust.
           fertig({ daten: String(leser.result), b: ziel.b, h: ziel.h });
           return;
@@ -171,7 +193,15 @@ export function leseBilddatei(datei: File): Promise<{ daten: string; b: number; 
         const c = document.createElement("canvas");
         c.width = ziel.b; c.height = ziel.h;
         const ctx = c.getContext("2d");
-        if (!ctx) { fertig({ daten: String(leser.result), b: bild.naturalWidth, h: bild.naturalHeight }); return; }
+        if (!ctx) {
+          // Ohne Canvas gibt es kein Neukodieren. Für den Setzer ist das
+          // Original ein tragbarer Notbehelf; für einen Weg nach draußen wäre
+          // es ein stiller Rückfall auf „mit EXIF senden“. Dann lieber
+          // scheitern — ein Fehler ist sichtbar, ein Leck nicht.
+          if (immerNeuKodieren) { fehler(new Error("Der Browser kann das Bild nicht neu kodieren — ohne das würde es mit allen Metadaten verschickt.")); return; }
+          fertig({ daten: String(leser.result), b: bild.naturalWidth, h: bild.naturalHeight });
+          return;
+        }
         ctx.drawImage(bild, 0, 0, ziel.b, ziel.h);
         const png = /png$/i.test(datei.type);
         fertig({ daten: c.toDataURL(png ? "image/png" : "image/jpeg", 0.78), b: ziel.b, h: ziel.h });

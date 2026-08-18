@@ -137,7 +137,9 @@ export function baueAbschrift(): HTMLElement {
         const d = dateien[i]!;
         status.textContent = `Seite ${i + 1} von ${dateien.length}: ${d.name} …`;
         try {
-          const { daten } = await leseBilddatei(d);
+          // true: IMMER neu kodieren. Dieser Weg verlaesst das Geraet, und das
+          // Neukodieren wirft die EXIF-Daten weg (GPS, Aufnahmezeit, Kamera).
+          const { daten } = await leseBilddatei(d, true);
           const teile = zerlegeDatenUrl(daten);
           if (!teile) throw new Error("Format wird nicht unterstützt.");
           const r = await callClaudeBild(prompt, teile, maxTokenAbschrift(), m.id, ac.signal);
@@ -175,7 +177,9 @@ export function baueAbschrift(): HTMLElement {
       + "nichts formuliert und nichts gefiltert: Was dasteht, kommt heraus — alte Rechtschreibung, "
       + "Fehler der Vorlage und Verse in ihrem Zeilenfall inbegriffen."),
     el("p", { class: "muted mini" },
-      "Unlesbare Stellen werden als [unleserlich] eingesetzt statt geraten. Nachbessern vor der "
+      "Das Bild wird vor dem Senden verkleinert und neu kodiert; dabei fallen die EXIF-Daten weg \u2014 "
+      + "Aufnahmeort, Zeit und Kamera bleiben auf dem Gerät. "
+      + "Unlesbare Stellen werden als [unleserlich] eingesetzt statt geraten. Nachbessern vor der "
       + "Übernahme ist die Regel und nicht die Ausnahme: An Fraktur und Handschrift verliest sich "
       + "auch ein gutes Modell, und nur wer die Vorlage vor sich hat, merkt es."),
     el("div", { class: "grid3", style: "margin-top:10px" },
