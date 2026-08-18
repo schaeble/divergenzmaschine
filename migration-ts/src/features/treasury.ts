@@ -8,7 +8,16 @@ import { safeSet } from "./storage-status";
 const TKEY = "dm_treasury_v1";
 const TCAP = 100;
 
-export interface Treasure { t: string; who?: string; where?: string; when?: string; what?: string; form?: string; d: string; secret?: boolean; }
+/** Ein gemerkter Text. `set` ist die Reglerstellung, mit der er entstanden ist —
+ *  seit 4.229.0. Sie wird mitgeschrieben, weil die Schatzkammer das einzige
+ *  belastbare „gut" dieses Programms ist: Was der Benutzer behält, ist das
+ *  Urteil. Ohne die Einstellungen ließ sich daraus nichts lernen. Ältere
+ *  Einträge haben kein `set` — jede Auswertung muss damit rechnen. */
+export interface Treasure {
+  t: string; who?: string; where?: string; when?: string; what?: string; form?: string;
+  d: string; secret?: boolean;
+  set?: Record<string, string>;
+}
 
 export function loadTreasury(): Treasure[] {
   try { const v = JSON.parse(localStorage.getItem(TKEY) || "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
@@ -16,12 +25,14 @@ export function loadTreasury(): Treasure[] {
 function saveTreasury(list: Treasure[]): void { safeSet(TKEY, JSON.stringify(list), "Schatzkammer"); }
 
 /** Legt den Text in die Schatzkammer. Rückgabe: neue Anzahl, oder -1 wenn Dublette/leer. */
-export function addToTreasury(text: string, ctx: { who?: string; where?: string; when?: string; what?: string; form?: string }): number {
+export interface TreasureCtx { who?: string; where?: string; when?: string; what?: string; form?: string; set?: Record<string, string> }
+
+export function addToTreasury(text: string, ctx: TreasureCtx): number {
   const t = (text || "").trim();
   if (!t) return -1;
   const list = loadTreasury();
   if (list.length && list[list.length - 1]!.t === t) return -1;
-  list.push({ t, who: ctx.who || "", where: ctx.where || "", when: ctx.when || "", what: ctx.what || "", form: ctx.form || "", d: new Date().toISOString().slice(0, 16).replace("T", " ") });
+  list.push({ t, who: ctx.who || "", where: ctx.where || "", when: ctx.when || "", what: ctx.what || "", form: ctx.form || "", d: new Date().toISOString().slice(0, 16).replace("T", " "), ...(ctx.set ? { set: ctx.set } : {}) });
   while (list.length > TCAP) list.shift();
   saveTreasury(list);
   try { appendToPersistentCorpus(t.replace(/\n+/g, " ").trim()); } catch { /* egal */ }
@@ -31,12 +42,12 @@ export function addToTreasury(text: string, ctx: { who?: string; where?: string;
 
 /** Legt den Text direkt in den Tresor (geheim). Füttert bewusst WEDER Korpus NOCH
  *  lebendige Pools — Tresor-Texte bleiben isoliert. Rückgabe: neue Anzahl, oder -1. */
-export function addToTreasurySecret(text: string, ctx: { who?: string; where?: string; when?: string; what?: string; form?: string }): number {
+export function addToTreasurySecret(text: string, ctx: TreasureCtx): number {
   const t = (text || "").trim();
   if (!t) return -1;
   const list = loadTreasury();
   if (list.length && list[list.length - 1]!.t === t) return -1;
-  list.push({ t, who: ctx.who || "", where: ctx.where || "", when: ctx.when || "", what: ctx.what || "", form: ctx.form || "", d: new Date().toISOString().slice(0, 16).replace("T", " "), secret: true });
+  list.push({ t, who: ctx.who || "", where: ctx.where || "", when: ctx.when || "", what: ctx.what || "", form: ctx.form || "", d: new Date().toISOString().slice(0, 16).replace("T", " "), secret: true, ...(ctx.set ? { set: ctx.set } : {}) });
   while (list.length > TCAP) list.shift();
   saveTreasury(list);
   return list.length;

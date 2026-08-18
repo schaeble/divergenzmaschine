@@ -7,6 +7,7 @@ import { runSelfTest, type FeatureResult } from "../features/selftest";
 import { renderSelfTest, renderSummary } from "./selftestView";
 import { loadSchnappschuss } from "../features/sources";
 import { renderTextstruktur } from "./structureView";
+import { mountWirkung } from "./wirkungView";
 
 
 export function mountDiagnose(root: HTMLElement): void {
@@ -53,6 +54,8 @@ export function mountDiagnose(root: HTMLElement): void {
     el("p", { class: "muted" }, "Zerlegt den zuletzt erzeugten Text nach Herkunft: Wortbank, Ton, 4W-Kontext, lebendige Pools, Markov. Darüber die Einstellungen, die zu diesem Text geführt haben."),
     el("div", { class: "btnrow" }, struktBtn),
     struktBox,
+    el("hr", {}),
+    mountWirkung(),
     el("hr", {}),
     el("h3", {}, "Selbsttest — greifen alle Features?"),
     el("div", { class: "btnrow" }, startBtn, status),

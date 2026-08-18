@@ -91,14 +91,25 @@ export function mountTreasury(root: HTMLElement): void {
     items.slice().reverse().forEach((it) => {
       const idx = all.indexOf(it);
       const ctxMeta = [it.who, it.where, it.when].filter(Boolean).join(" · ");
+      // Die Reglerstellung kurz: nur, was vom Standard abweicht, wäre schöner —
+      // aber der Standard ist der Zufall. Deshalb die vier Regler, die den
+      // Eindruck am stärksten tragen.
+      const setMeta = it.set
+        ? ["tone", "structure", "mode", "rhythm"].map((k) => it.set![k]).filter(Boolean).join(" · ")
+        : "";
       const type = treasureType(it);
       const wc = wordCount(it.t);
 
       const take = el("button", {}, icon("arrowRight"), " Studio");
+      take.title = it.set ? "Text UND Reglerstellung ins Studio zurückholen" : "Text ins Studio holen (dieser Eintrag trägt keine Reglerstellung)";
       take.addEventListener("click", () => {
         try {
           localStorage.setItem("dm_pending_ctx", JSON.stringify({ who: it.who, where: it.where, when: it.when, what: it.what }));
           localStorage.setItem("dm_pending_text", it.t);
+          // Seit 4.229.0 trägt jeder gemerkte Text die Regler, mit denen er
+          // entstanden ist. Damit wird aus „→ Studio" eine echte Rückkehr:
+          // dieselbe Einstellung, nicht nur derselbe Kontext.
+          if (it.set) localStorage.setItem("dm_pending_studio", JSON.stringify(it.set));
         } catch { /* Speicher gesperrt */ }
         const stab = [...document.querySelectorAll(".tabbar button")].find((b) => b.textContent === "Studio") as HTMLButtonElement | undefined;
         if (stab) stab.click();
@@ -129,7 +140,8 @@ export function mountTreasury(root: HTMLElement): void {
         el("span", { class: "tcount" }, `${nf(wc)} Wörter`),
         el("span", { class: "tdate" }, it.d),
         ...(it.secret ? [el("span", { class: "tsecret" }, icon("lock", 13), " Tresor")] : []),
-        ...(ctxMeta ? [el("span", { class: "tctx" }, ctxMeta)] : []));
+        ...(ctxMeta ? [el("span", { class: "tctx" }, ctxMeta)] : []),
+        ...(setMeta ? [el("span", { class: "tctx" }, setMeta)] : []));
 
       list.append(el("div", { class: "treasure" + (it.secret ? " secret" : "") },
         metaRow,

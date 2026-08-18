@@ -870,3 +870,25 @@ select.abweichend{border-color:var(--acc)}
 .fund .btnrow{margin-top:10px;align-items:center}
 .sam-w{color:var(--muted);font-weight:600}
 .sam-warn{margin:10px 0;padding:10px 12px;border-radius:8px;font:14px/1.5 var(--sans);color:var(--text);background:rgba(230,73,128,.12);border:1px solid rgba(230,73,128,.45)}
+
+/* Wirkungsmesser */
+.wm-h{margin:0 0 6px;font-size:15px;color:var(--acc)}
+.wm-fortschritt{height:5px;background:var(--panel2);border-radius:3px;overflow:hidden;margin:10px 0}
+.wm-fuellung{display:block;height:100%;width:0;background:var(--acc);transition:width .12s linear}
+.wm-zeile{display:grid;grid-template-columns:150px minmax(0,1fr) 54px 118px;gap:10px;align-items:center;
+  padding:5px 4px;border-bottom:1px dotted var(--border2);font:12.5px var(--sans);cursor:pointer}
+.wm-zeile:hover{background:var(--panel2)}
+.wm-name{color:var(--text)}
+.wm-bar{display:block;height:9px;background:var(--panel2);border-radius:5px;overflow:hidden;position:relative}
+/* Die Rauschschwelle als Strich: Alles links davon bewegt weniger als der Zufall. */
+.wm-bar::after{content:"";position:absolute;top:-3px;bottom:-3px;left:0;width:1px;background:var(--border2)}
+.wm-fill{display:block;height:100%;background:var(--acc);border-radius:5px}
+.wm-wert{text-align:right;font-variant-numeric:tabular-nums;color:var(--text)}
+.wm-tot .wm-name,.wm-tot .wm-wert{color:var(--muted)}
+.wm-tot .wm-fill{background:var(--border2)}
+.wm-detail{padding:0 4px}
+.wm-tab{width:100%;border-collapse:collapse;font:11.5px var(--sans);margin:4px 0 10px}
+.wm-tab th,.wm-tab td{padding:2px 6px;text-align:right;border-bottom:1px dotted var(--border2);color:var(--muted)}
+.wm-tab th:first-child,.wm-tab td:first-child{text-align:left;color:var(--text)}
+.wm-hoch{color:#2f9e44;font-weight:600}
+.wm-tief{color:#E64980;font-weight:600}

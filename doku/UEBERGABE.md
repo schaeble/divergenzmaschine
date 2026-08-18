@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.228.1**, Zweig `typescript-migration`.
+Stand: **v4.236.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -92,6 +92,7 @@ Beide laufen bei `npm test` mit.
 | `test/meldung.ts` | Meldung: 2880 Läufe über dieselbe Matrix wie der Bericht, dazu neun Gegenproben |
 | `test/sammler.ts` | Sammler: 61 Prüfungen gegen nachgebildete Feed-Daten, mit Gegentests |
 | `test/bildrahmen.ts` | Bildrahmen: 67 Prüfungen, 560 Skalier- und 1600 Rasterfälle als Matrix |
+| `test/wirkung.ts` | Wirkungsmesser: Blindprobe unter der Schwelle, Form darüber, Rechnung |
 | `test/zeitung.ts` | Zeitungssetzer: Layout-Logik, jsdom-Rundgang und ein Abgleich der Stilvorlage gegen die Rechnung (74 Prüfungen) |
 
 Der Formen-Prüfstand trennt **Formen im Gebrauch** (Prosa, Reim, Haiku,
@@ -336,6 +337,30 @@ Text bleibt vor der Übernahme änderbar; Nachbessern ist die Regel.
 - **Vorschau und Druck müssen dieselbe Geometrie haben.** Die Zeitungsseite
   benutzt in beiden Fällen 174 × 255 mm, den Bereich innerhalb der
   `@page`-Ränder.
+
+**Wirkungsmesser** (seit 4.236.0, `features/wirkung.ts` + `ui/wirkungView.ts`,
+im Reiter Diagnose): Er fährt jeden Regler einzeln durch alle Stellungen, hält
+alles andere fest und misst je N Texte mit den vorhandenen Maßen. Der Wert ist
+**Ausschlag / Rauschen** — die Spanne der Mittelwerte über die Stellungen,
+geteilt durch die mittlere Streuung innerhalb einer Stellung. Unter 1 bewegt ein
+Regler weniger als der Zufall zwischen zwei Läufen derselben Einstellung.
+
+Die **Blindprobe** ist ein Regler in derselben Liste, der nichts ändert. Sie
+muss unter 1 bleiben; steht sie darüber, misst das Instrument Rauschen als
+Wirkung und alle anderen Zahlen sind wertlos. Sie ist der eingebaute Gegentest
+und steht deshalb IM Instrument, nicht nur im Prüfstand.
+
+Kein Optimum, mit Absicht: Der Raum hat rund 10¹² Kombinationen, die Maße
+widersprechen einander, und der Mittelwert ist nicht der Eindruck. Erster
+Befund (Prosa, N=14): Form 16, Perspektive 8, Struktur 4, Ton 1,7, Modus 1,0 —
+Ton und Modus liegen am Rand des Rauschens.
+
+**Reglerstellung in der Schatzkammer** (4.236.0): Jeder gemerkte Text trägt
+jetzt `set` — die Reglerstellung, aus der er entstand, mit genau den
+Schlüsseln, die `dm_pending_studio` wieder einsetzen kann. „→ Studio" holt
+damit die Einstellung zurück. Ältere Einträge haben kein `set`; jede
+Auswertung muss damit rechnen. Damit wird die Sammlung zum Messgerät: Was der
+Benutzer behält, ist das einzige belastbare „gut" dieses Programms.
 
 ## 8 · Was offen ist
 

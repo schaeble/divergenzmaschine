@@ -965,6 +965,18 @@ export function mountStudio(root: HTMLElement): void {
     e.preventDefault(); e.stopPropagation(); openPop(t);
   });
 
+  /** Die Reglerstellung als flache Tabelle — genau die Schlüssel, die die
+   *  Übergabe `dm_pending_studio` beim nächsten Aufbau wieder einsetzen kann.
+   *  Sie wandert mit jedem gemerkten Text in die Schatzkammer: Ohne sie ist
+   *  nicht nachvollziehbar, welche Einstellung einen Treffer erzeugt hat. */
+  const einstellungen = (): Record<string, string> => ({
+    tone: tone.value, form: form.value, structure: structure.value, mode: mode.value,
+    perspective: persp.value, rhythm: rhythm.value, varLevel: varianz.value,
+    markovMode: markov.value, disruptor: disruptor.value, tension: tension.value,
+    archetypeA: archA.value, archetypeB: archB.value, instability: instab.value,
+    ressort: ressort.value, preset: preset.value, lenTarget: lenSlider.value,
+  });
+
   const genBtn = el("button", { class: "primary" }, icon("play"), " Generieren");
   const printBtn = el("button", { title: "Druckvorschau — Satzspiegel je Form, PDF über den Druckdialog" }, icon("floppy"), " Drucken");
   printBtn.addEventListener("click", () => oeffneDruckvorschau(out.textContent || "", readInput().form, loadActiveBankLabel()));
@@ -978,14 +990,14 @@ export function mountStudio(root: HTMLElement): void {
   const keepLbl = el("span", {}, "Merken");
   const keepBtn = el("button", {}, icon("star"), " ", keepLbl);
   keepBtn.addEventListener("click", () => {
-    const n = addToTreasury(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value });
+    const n = addToTreasury(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value, set: einstellungen() });
     keepLbl.textContent = n < 0 ? "— schon drin" : `Gemerkt (${n})`;
     setTimeout(() => (keepLbl.textContent = "Merken"), 1400);
   });
   const vaultLbl = el("span", {}, "Tresor");
   const vaultBtn = el("button", {}, icon("lock"), " ", vaultLbl);
   vaultBtn.addEventListener("click", () => {
-    const n = addToTreasurySecret(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value });
+    const n = addToTreasurySecret(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value, set: einstellungen() });
     vaultLbl.textContent = n < 0 ? "— schon drin" : `Im Tresor (${n})`;
     setTimeout(() => (vaultLbl.textContent = "Tresor"), 1400);
   });
