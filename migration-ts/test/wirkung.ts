@@ -13,7 +13,7 @@ const st: Record<string, string> = {};
 // der Schwelle, misst das Instrument Rauschen als Wirkung, und jede andere Zahl
 // wäre wertlos. Dazu die Gegenrichtung: Ein Regler, von dem wir wissen, dass er
 // den Text umkrempelt (die Form), muss deutlich darüber liegen.
-import { misseStellung, fasseZusammen, reglerListe, misseText, band, MASSE, type ReglerDef } from "../src/features/wirkung";
+import { misseStellung, fasseZusammen, reglerListe, misseText, band, spannErwartung, MASSE, type ReglerDef } from "../src/features/wirkung";
 import { BUILTIN_PRESETS } from "../src/presets.data";
 import type { Bank, GenInput } from "../src/types";
 
@@ -36,7 +36,7 @@ const wahr = (name: string, b: boolean, zusatz = ""): void => {
   if (!b) fails.push(name + (zusatz ? ": " + zusatz : ""));
 };
 
-const N = 14;
+const N = 30;   // klein genug für den Prüfstand, groß genug, dass die Blindprobe ruhig liegt
 const miss = (def: ReglerDef): ReturnType<typeof fasseZusammen> =>
   fasseZusammen(def.id, def.label, def.werte.map((w) => misseStellung(bank, basis, def, w, N)));
 
@@ -48,7 +48,11 @@ wahr("leerer Text wirft nicht", Number.isFinite(misseText("", basis).Wiederholun
 
 // ── 2 · Die Blindprobe — der eigentliche Test ───────────────────────────────
 const blind = miss(reglerListe().find((r) => r.id === "blindprobe")!);
-wahr("Blindprobe bleibt unter der Rauschschwelle", blind.wirkung < 1.0, `Wirkung ${blind.wirkung.toFixed(2)}`);
+// Ein Regler, der nichts ändert, muss bei 1 liegen — das ist die Bedeutung des
+// Maßes. Der Bereich ist weit, weil die Schätzung selbst streut; entscheidend
+// ist, dass er NICHT in einem der Wirkungsbänder landet.
+wahr("Blindprobe bleibt im Zufallsniveau", blind.wirkung < 2.5, `Wirkung ${blind.wirkung.toFixed(2)}`);
+wahr("und gilt damit als Zufall", band(blind.wirkung) === "rauschen");
 
 // ── 3 · Die Gegenrichtung: ein Regler, der nachweislich umkrempelt ──────────
 const formRegler: ReglerDef = {
@@ -56,8 +60,8 @@ const formRegler: ReglerDef = {
   setzen: (e, w) => ({ ...e, form: w as GenInput["form"] }),
 };
 const form = miss(formRegler);
-wahr("die Form schlägt deutlich aus", form.wirkung > 2.0, `Wirkung ${form.wirkung.toFixed(2)} am Maß „${form.staerkstesMass}"`);
-wahr("und stärker als die Blindprobe", form.wirkung > blind.wirkung * 2,
+wahr("die Form schlägt deutlich aus", form.wirkung > 10, `Wirkung ${form.wirkung.toFixed(2)} am Maß „${form.staerkstesMass}"`);
+wahr("und um ein Vielfaches stärker als die Blindprobe", form.wirkung > blind.wirkung * 4,
   `${form.wirkung.toFixed(2)} gegen ${blind.wirkung.toFixed(2)}`);
 
 // ── 4 · Rechnung ────────────────────────────────────────────────────────────
@@ -65,8 +69,26 @@ const kunst = fasseZusammen("x", "x", [
   { wert: "a", mittel: { Wiederholung: 0.10 }, sigma: { Wiederholung: 0.01 }, n: 10 },
   { wert: "b", mittel: { Wiederholung: 0.20 }, sigma: { Wiederholung: 0.01 }, n: 10 },
 ]);
-wahr("Ausschlag durch Rauschen", Math.abs(kunst.wirkungJeMass.Wiederholung! - 10) < 0.001,
-  String(kunst.wirkungJeMass.Wiederholung?.toFixed(2)));
+// Ausschlag 0,10 · √10 ÷ (0,01 · d₂(2)=1,128) = 28,04
+const sollA = (0.10 * Math.sqrt(10)) / (0.01 * spannErwartung(2));
+wahr("Ausschlag durch Zufallsausschlag", Math.abs(kunst.wirkungJeMass.Wiederholung! - sollA) < 0.01,
+  `${kunst.wirkungJeMass.Wiederholung?.toFixed(2)} gegen ${sollA.toFixed(2)}`);
+
+// Die Korrektur, um die es geht: Derselbe Ausschlag, dasselbe Rauschen, aber
+// mehr Stellungen — die Wirkung darf NICHT allein dadurch steigen.
+const dreiGleich = fasseZusammen("z", "z", [
+  { wert: "a", mittel: { Wiederholung: 0.10 }, sigma: { Wiederholung: 0.01 }, n: 10 },
+  { wert: "b", mittel: { Wiederholung: 0.15 }, sigma: { Wiederholung: 0.01 }, n: 10 },
+  { wert: "c", mittel: { Wiederholung: 0.20 }, sigma: { Wiederholung: 0.01 }, n: 10 },
+]);
+wahr("mehr Stellungen bringen keinen Bonus", dreiGleich.wirkung < kunst.wirkung,
+  `${dreiGleich.wirkung.toFixed(2)} gegen ${kunst.wirkung.toFixed(2)} bei gleichem Ausschlag`);
+wahr("mehr Läufe machen den Ausschlag aussagekräftiger",
+  fasseZusammen("w", "w", [
+    { wert: "a", mittel: { Wiederholung: 0.10 }, sigma: { Wiederholung: 0.01 }, n: 40 },
+    { wert: "b", mittel: { Wiederholung: 0.20 }, sigma: { Wiederholung: 0.01 }, n: 40 },
+  ]).wirkung > kunst.wirkung);
+wahr("d₂ wächst mit der Stellungszahl", spannErwartung(6) > spannErwartung(3) && spannErwartung(3) > spannErwartung(2));
 const gleich = fasseZusammen("y", "y", [
   { wert: "a", mittel: { Wiederholung: 0.10 }, sigma: { Wiederholung: 0.05 }, n: 10 },
   { wert: "b", mittel: { Wiederholung: 0.10 }, sigma: { Wiederholung: 0.05 }, n: 10 },
@@ -87,13 +109,14 @@ wahr("jede Stellung wurde wirklich gemessen", alle.every((r) => r.stellungen.eve
 // Die Farbe ist die einzige Aussage, die ein Blick auf das Blatt liefert. Sie
 // muss an derselben Schwelle kippen wie die Zahl — sonst zeigt sie etwas
 // anderes an, als der Text darunter sagt.
-wahr("0,9 ist Rauschen", band(0.9) === "rauschen");
-wahr("genau 1 ist nicht mehr Rauschen", band(1) === "schwach");
-wahr("1,9 bleibt schwach", band(1.9) === "schwach");
-wahr("2 bewegt deutlich", band(2) === "deutlich");
-wahr("5 bewegt stark", band(5) === "stark");
+wahr("1,0 ist Zufall", band(1.0) === "rauschen");
+wahr("2,4 auch noch — das Maximum von neun Maßen liegt über eins", band(2.4) === "rauschen");
+wahr("2,5 ist knapp darüber", band(2.5) === "schwach");
+wahr("3,9 bleibt knapp", band(3.9) === "schwach");
+wahr("4 bewegt deutlich", band(4) === "deutlich");
+wahr("10 bewegt stark", band(10) === "stark");
 wahr("Unsinn gilt als Rauschen", band(NaN) === "rauschen");
-wahr("die Blindprobe fällt ins graue Band", band(blind.wirkung) === "rauschen", `Wirkung ${blind.wirkung.toFixed(2)}`);
+
 wahr("die Form fällt ins starke Band", band(form.wirkung) === "stark");
 
 console.log("Prüfstand Wirkungsmesser:");

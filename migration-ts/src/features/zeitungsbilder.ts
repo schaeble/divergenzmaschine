@@ -426,19 +426,25 @@ export function rahmenAusPlatz(daten: string, p: Platz, seite = 0,
  *  Eingabe: Bänder in Spaltenkoordinaten (`oben` = Abstand von der
  *  Spaltenoberkante). Ausgabe: in Dokumentreihenfolge, mit `abstand` als
  *  `margin-top` je Gleitkasten. */
+/** Bänder sortieren und Überlappungen verschmelzen. Zwei Bänder, die einander
+ *  überschneiden, sind EIN gesperrter Bereich — getrennt gezählt sperren sie
+ *  mehr Höhe, als die Bilder zusammen einnehmen. */
+export function verschmelzeBaender(baender: { oben: number; hoehe: number }[]): { oben: number; hoehe: number }[] {
+  const sortiert = [...baender].filter((b) => b.hoehe > 0).sort((a, b) => a.oben - b.oben);
+  const raus: { oben: number; hoehe: number }[] = [];
+  for (const b of sortiert) {
+    const letzte = raus[raus.length - 1];
+    if (letzte && b.oben <= letzte.oben + letzte.hoehe) {
+      letzte.hoehe = Math.max(letzte.hoehe, b.oben + b.hoehe - letzte.oben);
+    } else raus.push({ oben: Math.max(0, b.oben), hoehe: b.hoehe });
+  }
+  return raus;
+}
+
 export function baenderStapeln(
   baender: { oben: number; hoehe: number }[],
 ): { abstand: number; hoehe: number }[] {
-  const sortiert = [...baender].filter((b) => b.hoehe > 0).sort((a, b) => a.oben - b.oben);
-  const zusammen: { oben: number; hoehe: number }[] = [];
-  for (const b of sortiert) {
-    const letzte = zusammen[zusammen.length - 1];
-    if (letzte && b.oben <= letzte.oben + letzte.hoehe) {
-      letzte.hoehe = Math.max(letzte.hoehe, b.oben + b.hoehe - letzte.oben);
-    } else {
-      zusammen.push({ oben: Math.max(0, b.oben), hoehe: b.hoehe });
-    }
-  }
+  const zusammen = verschmelzeBaender(baender);
   const raus: { abstand: number; hoehe: number }[] = [];
   let unten = 0;
   for (const b of zusammen) {

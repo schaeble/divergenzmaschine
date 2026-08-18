@@ -8,7 +8,7 @@
 //
 // Reine Rechnerei, deshalb ohne Browser prüfbar: Die Höhenmessung kommt als
 // Funktion herein.
-import { umbrechen, fuellgrad, type Messbar, type UmbruchTeil, type UmbruchOpts } from "../src/ui/umbruch";
+import { umbrechen, fuellgrad, freieAbschnitte, type Messbar, type UmbruchTeil, type UmbruchOpts } from "../src/ui/umbruch";
 
 const fails: string[] = [];
 const zeilen: string[] = [];
@@ -102,6 +102,55 @@ const opts = (o: Partial<UmbruchOpts> = {}): UmbruchOpts =>
   ist("drei Seiten", seiten.length, 3);
   const ids = seiten.flatMap((s) => s.teile.map((t) => t.id));
   ist("auch über Seiten hinweg keine Dublette", ids.length, new Set(ids).size);
+}
+
+// ── 7 · Bilder sperren Bänder in der Spalte ─────────────────────────────────
+// Der gemeldete Fehler: „Sobald ich ein Bild einfüge, ist der Text weg." Die
+// Verteilung wusste nichts von den Bildern, legte einen zu langen Beitrag in
+// die Spalte, der Gleitkasten schob ihn unter das Bild hinaus, und die
+// Nachmessung warf ihn ganz heraus.
+ist("ohne Bänder ist die ganze Spalte frei", JSON.stringify(freieAbschnitte(600)), JSON.stringify([{ von: 0, bis: 600 }]));
+ist("ein Band in der Mitte teilt sie",
+  JSON.stringify(freieAbschnitte(600, [{ oben: 300, hoehe: 200 }])),
+  JSON.stringify([{ von: 0, bis: 300 }, { von: 500, bis: 600 }]));
+ist("ein Band am Fuß kürzt sie",
+  JSON.stringify(freieAbschnitte(600, [{ oben: 480, hoehe: 120 }])),
+  JSON.stringify([{ von: 0, bis: 480 }]));
+ist("ein Band am Kopf schiebt sie nach unten",
+  JSON.stringify(freieAbschnitte(600, [{ oben: 0, hoehe: 150 }])),
+  JSON.stringify([{ von: 150, bis: 600 }]));
+ist("überlappende Bänder ergeben einen Block",
+  JSON.stringify(freieAbschnitte(600, [{ oben: 100, hoehe: 100 }, { oben: 150, hoehe: 100 }])),
+  JSON.stringify([{ von: 0, bis: 100 }, { von: 250, bis: 600 }]));
+ist("ein Band über die ganze Spalte lässt nichts übrig", freieAbschnitte(600, [{ oben: 0, hoehe: 600 }]).length, 0);
+
+{
+  // Eine Spalte, ein Bild am Fuß (480–600). Ein Beitrag von 700 passt auch
+  // verkleinert nicht mehr (0,82 × 700 = 574 > 480), einer von 400 schon.
+  // Vorher landete der lange in der Spalte und verschwand anschließend ganz.
+  const mess = messer([700, 400, 60]);
+  const o = opts({ spalten: 1, luecken: [[{ oben: 480, hoehe: 120 }]] });
+  const seiten = umbrechen(teile(3), mess, o);
+  const drin = seiten[0]!.teile.map((t) => t.id);
+  wahr("der zu lange Beitrag kommt nicht in die Spalte", !drin.includes(0), `drin: ${drin.join(",")}`);
+  wahr("der passende schon", drin.includes(1));
+  wahr("und die Spalte bleibt besetzt", drin.length >= 1);
+}
+{
+  // Bild in der MITTE: über und unter dem Bild muss gesetzt werden.
+  const mess = messer([250, 80, 80, 80]);
+  const o = opts({ spalten: 1, luecken: [[{ oben: 300, hoehe: 150 }]] });
+  const seiten = umbrechen(teile(4), mess, o);
+  ist("über und unter dem Bild wird gesetzt", seiten[0]!.teile.length >= 3, true);
+}
+{
+  // Gekürzt wird nur im LETZTEN Abschnitt — oberhalb eines Bildes greift das
+  // Kürzen am Spaltenfuß nicht.
+  const mess = messer([900, 900]);
+  const o = opts({ spalten: 1, mindestRest: 80, luecken: [[{ oben: 300, hoehe: 100 }]] });
+  const seiten = umbrechen(teile(2), mess, o);
+  const gek = seiten[0]!.teile.filter((t) => t.gekuerzt);
+  ist("nur einer wird gekürzt angesetzt", gek.length, 1);
 }
 
 console.log(`Prüfstand Umbruch — ${geprueft} Prüfungen:`);

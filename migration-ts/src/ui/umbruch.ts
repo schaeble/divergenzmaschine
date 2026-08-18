@@ -36,6 +36,31 @@ export interface UmbruchOpts {
   /** Ab wie viel freier Höhe am Spaltenfuß noch ein Beitrag angesetzt wird, der
    *  dann gekürzt wird. 0 = nie — dann bleibt lieber ein Loch stehen. */
   mindestRest?: number;
+  /** Gesperrte Bänder je Spalte, in Spaltenkoordinaten (0 = Oberkante der
+   *  Spalte). Dort steht ein Bild; Text kann darüber und darunter laufen, aber
+   *  kein Beitrag darf hindurchreichen.
+   *
+   *  Ohne diese Angabe wusste die Verteilung nichts von den Bildern: Sie legte
+   *  einen Beitrag in die Spalte, der Gleitkasten schob ihn unter das Bild
+   *  hinaus, und die Nachmessung warf ihn ganz heraus. Ein eingefügtes Bild
+   *  löschte damit den Text der ganzen Spalte. */
+  luecken?: { oben: number; hoehe: number }[][];
+}
+
+/** Die freien Abschnitte einer Spalte: das Gegenstück zu den gesperrten
+ *  Bändern. Reine Rechnung, deshalb hier und geprüft. */
+export function freieAbschnitte(hoehe: number, baender: { oben: number; hoehe: number }[] = []): { von: number; bis: number }[] {
+  const sortiert = [...baender].filter((b) => b.hoehe > 0).sort((a, b) => a.oben - b.oben);
+  const raus: { von: number; bis: number }[] = [];
+  let cursor = 0;
+  for (const b of sortiert) {
+    const von = Math.max(0, b.oben), bis = Math.min(hoehe, b.oben + b.hoehe);
+    if (bis <= 0 || von >= hoehe) continue;
+    if (von > cursor) raus.push({ von: cursor, bis: von });
+    cursor = Math.max(cursor, bis);
+  }
+  if (cursor < hoehe) raus.push({ von: cursor, bis: hoehe });
+  return raus.filter((a) => a.bis - a.von > 0);
 }
 
 /**
@@ -70,38 +95,50 @@ export function umbrechen(teile: UmbruchTeil[], mess: Messbar, o: UmbruchOpts): 
     const mindestRest = o.mindestRest ?? 0;
     for (let sp = 0; sp < o.spalten; sp++) {
       const inSpalte: PlatzierterTeil[] = [];
+      // Die Spalte zerfällt an den Bildern in Abschnitte. Gefüllt wird
+      // Abschnitt für Abschnitt; ein Beitrag muss ganz in EINEN passen —
+      // teilen kann der Satz ihn nicht.
+      const abschnitte = freieAbschnitte(rest, o.luecken?.[sp] ?? []);
       let gefuellt = 0;
       // WEITERSUCHEN, nicht abbrechen. Vorher wurde nur der vorderste Beitrag
       // probiert: Passte der nicht, endete die Spalte — und weil derselbe
       // Beitrag auch in der nächsten Spalte vorn stand, endete auch die. Bei
       // einer Schatzkammer voller langer Texte blieb die Seite deshalb leer bis
       // auf den Aufmacher: 1 von 101 Beiträgen gesetzt.
-      for (;;) {
-        let gesetzt = false;
-        for (let k = 0; k < offen.length && !gesetzt; k++) {
-          const kand = offen[k]!;
-          for (const skala of SKALEN) {
-            if (gefuellt + mess.hoehe(kand.id, skala) <= rest) {
-              inSpalte.push({ ...kand, spalte: sp, skala, zwischenraum: 0 });
-              gefuellt += mess.hoehe(kand.id, skala);
-              offen.splice(k, 1);
-              gesetzt = true;
-              break;
+      let luftGesamt = 0;
+      abschnitte.forEach((abschnitt, ai) => {
+        const platz = abschnitt.bis - abschnitt.von;
+        let inAbschnitt = 0;
+        for (;;) {
+          let gesetzt = false;
+          for (let k = 0; k < offen.length && !gesetzt; k++) {
+            const kand = offen[k]!;
+            for (const skala of SKALEN) {
+              if (inAbschnitt + mess.hoehe(kand.id, skala) <= platz) {
+                inSpalte.push({ ...kand, spalte: sp, skala, zwischenraum: 0 });
+                inAbschnitt += mess.hoehe(kand.id, skala);
+                offen.splice(k, 1);
+                gesetzt = true;
+                break;
+              }
             }
           }
+          if (!gesetzt) break;
         }
-        if (!gesetzt) break;
-      }
-      // Und den Fuß auffüllen: Bleibt mehr Luft, als eine Überschrift mit ein
-      // paar Zeilen braucht, kommt der nächste Beitrag trotzdem hinein und wird
-      // am Spaltenfuß gekürzt. Eine halbleere Spalte sieht schlechter aus als
-      // ein Beitrag, der unten aufhört — so macht es der Zeitungssatz auch.
-      if (offen.length && mindestRest > 0 && rest - gefuellt >= mindestRest) {
-        const kand = offen.shift()!;
-        inSpalte.push({ ...kand, spalte: sp, skala: 1, zwischenraum: 0, gekuerzt: true });
-        gefuellt = rest;
-      }
-      const luft = rest - gefuellt;
+        // Den Fuß auffüllen: Bleibt mehr Luft, als eine Überschrift mit ein paar
+        // Zeilen braucht, kommt der nächste Beitrag trotzdem hinein und wird am
+        // Spaltenfuß gekürzt. NUR im letzten Abschnitt: Das Kürzen greift am
+        // Fuß der Spalte, nicht oberhalb eines Bildes.
+        const letzter = ai === abschnitte.length - 1;
+        if (letzter && offen.length && mindestRest > 0 && platz - inAbschnitt >= mindestRest) {
+          const kand = offen.shift()!;
+          inSpalte.push({ ...kand, spalte: sp, skala: 1, zwischenraum: 0, gekuerzt: true });
+          inAbschnitt = platz;
+        }
+        gefuellt += inAbschnitt;
+        luftGesamt += platz - inAbschnitt;
+      });
+      const luft = luftGesamt;
       if (inSpalte.length > 1 && luft > 0) {
         const jeFuge = Math.min(maxZw, Math.floor(luft / (inSpalte.length - 1)));
         for (let i = 0; i < inSpalte.length - 1; i++) inSpalte[i]!.zwischenraum = jeFuge;

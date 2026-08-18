@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.237.2**, Zweig `typescript-migration`.
+Stand: **v4.238.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -257,6 +257,15 @@ und schoben allen Text hinaus („der Text über den Bildern verschwindet").
 Überlappungen; die Zusage ist geprüft: Die Summe aus Abständen und Höhen endet
 an der Unterkante des letzten Bandes.
 
+**Bilder sperren Bänder in der Verteilung** (4.238.0): `umbrechen()` bekommt
+`luecken` — je Spalte die gesperrten Bänder in Spaltenkoordinaten — und füllt
+Abschnitt für Abschnitt (`freieAbschnitte()`). Vorher wusste die Verteilung
+nichts von den Bildern: Sie legte einen zu langen Beitrag in die Spalte, der
+Gleitkasten schob ihn unter das Bild hinaus, und die Nachmessung warf ihn ganz
+heraus — ein eingefügtes Bild löschte den Text der ganzen Spalte. Gekürzt wird
+nur im LETZTEN Abschnitt, denn `kuerzeAmFuss()` greift am Spaltenfuß, nicht
+oberhalb eines Bildes.
+
 **Kürzen am Spaltenfuß**: Was auch nach dem Entfernen ganzer Beiträge noch
 übersteht — ein einzelner zu langer Beitrag —, wird satzweise gekürzt
 (`satzWeg()`), statt von `overflow:hidden` auf halber Zeile abgeschnitten zu
@@ -379,6 +388,15 @@ alles andere fest und misst je N Texte mit den vorhandenen Maßen. Der Wert ist
 **Ausschlag / Rauschen** — die Spanne der Mittelwerte über die Stellungen,
 geteilt durch die mittlere Streuung innerhalb einer Stellung. Unter 1 bewegt ein
 Regler weniger als der Zufall zwischen zwei Läufen derselben Einstellung.
+
+Seit 4.238.0 ist das Maß **umgerechnet**: Wirkung = Ausschlag ÷ dem Ausschlag,
+den das Rauschen allein erzeugt hätte (`Rauschen · d₂(k) / √n`). Ohne diese
+Korrektur wuchs der Zufallsausschlag mit der Zahl der Stellungen — ein Ton mit
+sechs Stellungen stand bei 1,7, die Blindprobe mit dreien bei 0,6, und beide
+bewegten gleich viel: nichts. Die Bandgrenzen (2,5 / 4 / 10) liegen nicht bei
+1, weil die Wirkung das STÄRKSTE von neun Maßen ist und ein Maximum über dem
+Mittel liegt; gemessen liegt das Zufallsniveau bei 1,3–1,9. Die Blindprobe
+zeigt es in jedem Lauf.
 
 Die Balken sind in vier Bänder eingefärbt (): grau unter 1, gelb bis 2,
 grün bis 5, Akzentfarbe darüber — und der senkrechte Strich im Balken markiert

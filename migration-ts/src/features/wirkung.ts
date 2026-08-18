@@ -8,10 +8,13 @@
 //   Ausschlag = Spanne der Mittelwerte über die Stellungen eines Reglers
 //   Rauschen  = mittlere Streuung innerhalb einer Stellung (dieselbe
 //               Einstellung, mehrfach gewürfelt)
-//   Wirkung   = Ausschlag / Rauschen
+//   Zufall    = der Ausschlag, den das Rauschen allein erzeugt hätte:
+//               Rauschen · d₂(Stellungen) / √Läufe
+//   Wirkung   = Ausschlag / Zufall
 //
-// Unter 1 bewegt der Regler weniger als der Zufall zwischen zwei Läufen
-// derselben Einstellung. Das ist der Punkt der ganzen Übung: „Ein Regler, der
+// 1 heißt: so viel wie der Zufall. Die Korrektur mit d₂ und √n ist nicht
+// Kosmetik — ohne sie hing die Schwelle an der Zahl der Stellungen und an der
+// Zahl der Läufe, und zwei Regler waren nicht vergleichbar. Das ist der Punkt der ganzen Übung: „Ein Regler, der
 // nichts bewegt, ist schlimmer als keiner" — bisher war das eine Vermutung,
 // jetzt ist es messbar.
 //
@@ -102,9 +105,36 @@ export function misseStellung(
   return { wert, mittel: mi, sigma: si, n };
 }
 
-/** Fasst die Stellungen eines Reglers zur Wirkung zusammen. */
+/** Erwartete Spannweite von k Stichproben aus einer Normalverteilung, in
+ *  Streuungen (die Tafel d₂ aus der Qualitätsregelung). Sie ist der Grund,
+ *  warum das Maß korrigiert werden MUSS: Je mehr Stellungen ein Regler hat,
+ *  desto größer wird die Spanne zwischen ihren Mittelwerten — allein durch den
+ *  Zufall. Ohne Korrektur stand ein Ton mit sechs Stellungen bei 1,7, während
+ *  die Blindprobe mit drei bei 0,6 lag; beide bewegten gleich viel: nichts. */
+const D2: Record<number, number> = { 2: 1.128, 3: 1.693, 4: 2.059, 5: 2.326, 6: 2.534, 7: 2.704, 8: 2.847, 9: 2.970, 10: 3.078 };
+export function spannErwartung(k: number): number {
+  if (k <= 1) return 1;
+  if (D2[k]) return D2[k]!;
+  // Über die Tafel hinaus: die Spanne wächst nur noch langsam.
+  return 3.078 + 0.09 * (k - 10);
+}
+
+/** Fasst die Stellungen eines Reglers zur Wirkung zusammen.
+ *
+ *  Wirkung = gemessener Ausschlag ÷ dem Ausschlag, den der Zufall allein
+ *  erzeugt hätte. Der Zufallsausschlag ist `rauschen · d₂(k) / √n`: Die
+ *  Mittelwerte streuen um `σ/√n`, und k davon spannen im Mittel `d₂(k)` solcher
+ *  Streuungen auf.
+ *
+ *  Damit heißt 1 immer dasselbe — so viel wie der Zufall —, unabhängig davon,
+ *  wie viele Stellungen der Regler hat und wie oft gewürfelt wurde. Vorher hing
+ *  die Schwelle an beidem, und die Zahlen zweier Regler waren nicht
+ *  vergleichbar. */
 export function fasseZusammen(id: string, label: string, stellungen: Stellung[]): ReglerMessung {
   const wirkungJeMass: Record<string, number> = {};
+  const k = stellungen.length;
+  const n = Math.max(1, mittel(stellungen.map((s) => s.n)));
+  const zufall = spannErwartung(k) / Math.sqrt(n);
   let best = 0, bestName = "";
   for (const { name } of MASSE) {
     const mittelwerte = stellungen.map((s) => s.mittel[name] ?? 0);
@@ -113,7 +143,7 @@ export function fasseZusammen(id: string, label: string, stellungen: Stellung[])
     // Ohne Rauschen (alle Läufe identisch) ist jeder Ausschlag unendlich stark —
     // deshalb eine Untergrenze. Sie ist bewusst klein: Sie soll nicht dämpfen,
     // sondern nur die Division retten.
-    const w = ausschlag / Math.max(rauschen, 1e-4);
+    const w = ausschlag / Math.max(rauschen * zufall, 1e-4);
     wirkungJeMass[name] = w;
     if (w > best) { best = w; bestName = name; }
   }
@@ -130,14 +160,20 @@ export function fasseZusammen(id: string, label: string, stellungen: Stellung[])
  *  Wichtig: Das ist KEIN Qualitätsurteil. Ein starker Regler ist nicht besser,
  *  er ist nur wirksamer. */
 export type Band = "rauschen" | "schwach" | "deutlich" | "stark";
+/** Die Schwellen liegen nicht bei 1, obwohl 1 „so viel wie der Zufall" heißt.
+ *  Grund: Die Wirkung ist das STÄRKSTE von neun Maßen, und das Maximum von neun
+ *  zufälligen Werten liegt systematisch über deren Mittel — gemessen bei 1,3
+ *  bis 1,9. Wer das ignoriert, hält jeden Regler für wirksam. Die Blindprobe
+ *  zeigt in jedem Lauf, wo dieses Zufallsniveau gerade liegt; sie ist der
+ *  Maßstab, nicht die Zahl 1. */
 export function band(wirkung: number): Band {
-  if (!Number.isFinite(wirkung) || wirkung < 1) return "rauschen";
-  if (wirkung < 2) return "schwach";
-  if (wirkung < 5) return "deutlich";
+  if (!Number.isFinite(wirkung) || wirkung < 2.5) return "rauschen";
+  if (wirkung < 4) return "schwach";
+  if (wirkung < 10) return "deutlich";
   return "stark";
 }
 export const BAND_LABEL: Record<Band, string> = {
-  rauschen: "unter dem Rauschen", schwach: "knapp darüber",
+  rauschen: "vom Zufall nicht zu unterscheiden", schwach: "knapp darüber",
   deutlich: "bewegt deutlich", stark: "bewegt stark",
 };
 

@@ -15,7 +15,7 @@ import { umbrechen, fuellgrad, type Messbar, type UmbruchTeil, type Seite } from
 import {
   ladeBilder, sichereBilder, neuerRahmen, verschiebe, skaliereEcke, begrenze,
   leseBilddatei, stapelLege, stapelNimm, BILD_ANZAHL,
-  rasteRahmen, spaltenBreite, spaltenZahl, bildplatz, baenderStapeln,
+  rasteRahmen, spaltenBreite, spaltenZahl, bildplatz, baenderStapeln, spaltenlagen,
   plaetze, platzBesetzt, rahmenAusPlatz,
   type Bildrahmen, type Raster, type Platz,
 } from "../features/zeitungsbilder";
@@ -545,11 +545,33 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     // acht Beitraege koennen acht Zeilen mehr ergeben. Deshalb wird unten am
     // fertigen Satz nachgemessen; die Reserve macht das nur seltener noetig.
     const RESERVE = 12;
+    const aufH = aufId === undefined ? 0 : mess.aufmacher(aufId);
+    const spaltenH = Math.max(0, inhaltH - kopfH - RESERVE - aufH);
+    // Die Bilder VOR der Verteilung einrechnen: Sie sperren Bänder in den
+    // Spalten, und ein Beitrag, der dort nicht mehr hineinpasst, darf gar nicht
+    // erst dorthin gelegt werden. Ohne diesen Schritt legte die Verteilung ihn
+    // hin, der Gleitkasten schob ihn unter das Bild hinaus, und die Nachmessung
+    // warf ihn heraus: Ein eingefügtes Bild löschte den Text der ganzen Spalte.
+    //
+    // Gerechnet wird hier, nicht gemessen: Die Spalten stehen zu diesem
+    // Zeitpunkt noch nicht. Kopfhöhe und Aufmacher sind aber bekannt, und die
+    // Spaltenkanten kommen aus demselben Raster, mit dem auch eingerastet wird.
+    const LUFT_BILD = Math.round(2 * MM);
+    const luecken = spaltenlagen(rasterVon(), kopfH + aufH, spaltenH).map((lage) => {
+      const raus: { oben: number; hoehe: number }[] = [];
+      for (const b of bilder) {
+        if ((b.seite | 0) !== 0) continue;   // Lücken nur für die erste Seite berechenbar
+        const platz = bildplatz(b, lage, LUFT_BILD);
+        if (platz) raus.push(platz);
+      }
+      return raus;
+    });
     const o = { spaltenhoehe: inhaltH - kopfH - RESERVE, spalten, seiten: seitenZahl,
-      aufmacherhoehe: aufId === undefined ? undefined : mess.aufmacher(aufId),
+      aufmacherhoehe: aufId === undefined ? undefined : aufH,
       // Ab rund 22 mm Restluft kommt noch ein Beitrag hinein und wird unten
       // gekürzt — die Seite soll voll werden, nicht ordentlich halb leer.
-      mindestRest: Math.round(22 * MM) };
+      mindestRest: Math.round(22 * MM),
+      luecken };
     const seiten: Seite[] = umbrechen(teile, mess, o);
 
     seiten.forEach((seite, n) => {

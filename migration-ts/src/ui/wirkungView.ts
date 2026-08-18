@@ -43,30 +43,33 @@ export function mountWirkung(): HTMLElement {
     el("h3", { class: "wm-h" }, "Wirkungsmesser"),
     el("p", { class: "muted" },
       "Für jeden Regler einzeln: alle Stellungen durchfahren, alles andere festhalten, je N Texte messen. "
-      + "Der Wert ist der ", el("b", {}, "Ausschlag im Verhältnis zum Rauschen"), " — die Spanne zwischen den Stellungen, "
-      + "geteilt durch die Streuung innerhalb einer Stellung. Unter 1 bewegt der Regler weniger als der Zufall "
-      + "zwischen zwei Läufen derselben Einstellung."),
+      + "Der Wert ist der ", el("b", {}, "Ausschlag im Verhältnis zum Zufall"), " — die Spanne zwischen den Stellungen, "
+      + "geteilt durch die Spanne, die das bloße Rauschen bei so vielen Stellungen und so vielen Läufen erzeugt hätte. "
+      + "Ohne diese Umrechnung bekämen Regler mit mehr Stellungen allein durch den Zufall höhere Zahlen."),
     el("p", { class: "muted" },
-      "Die ", el("b", {}, "Blindprobe"), " ist ein Regler, der nichts ändert. Sie muss unter 1 bleiben. "
-      + "Tut sie es nicht, misst das Instrument Rauschen als Wirkung und alle anderen Zahlen sind wertlos — "
-      + "lies sie zuerst."));
+      "Die ", el("b", {}, "Blindprobe"), " ist ein Regler, der nichts ändert — sie zeigt dir in jedem Lauf, wo das "
+      + "Zufallsniveau gerade liegt. Sie steht typisch zwischen 1,3 und 1,9 (die Wirkung ist das stärkste von neun Maßen, "
+      + "und ein Maximum liegt immer über dem Mittel). ", el("b", {}, "Lies sie zuerst:"), " Alles, was nicht deutlich über "
+      + "ihr liegt, ist Zufall. Steht sie selbst im gelben Band, waren es zu wenige Läufe — dann hilft nur eine höhere Zahl."));
 
   const formSel = select("wm-form", [
     ["prose", "Prosa"], ["bericht", "Bericht"], ["meldung", "Meldung"],
     ["reim", "Reim"], ["haiku", "Haiku"], ["script", "Szene/Dialog"], ["poem", "Prosagedicht"],
   ], "prose");
-  const nSel = select("wm-n", [["8", "8"], ["14", "14"], ["24", "24"], ["40", "40"]], "14");
+  // Vorgabe 24: Bei 14 lag die Blindprobe so nah an den Wirkungsbändern, dass
+  // die Zahlen darüber nicht mehr zu trauen waren.
+  const nSel = select("wm-n", [["14", "14"], ["24", "24"], ["40", "40"], ["60", "60"]], "24");
   const startBtn = el("button", { class: "primary" }, icon("play"), " Messen") as HTMLButtonElement;
   const status = el("span", { class: "muted mini" }, "");
   const balken = el("div", { class: "wm-fortschritt" }, el("div", { class: "wm-fuellung" }));
   const liste = el("div", {});
 
   const legende = el("div", { class: "wm-legende muted mini" },
-    el("span", {}, el("i", { class: "wm-punkt wm-p-rauschen" }), " unter 1 — unter dem Rauschen"),
-    el("span", {}, el("i", { class: "wm-punkt wm-p-schwach" }), " 1–2 — knapp darüber"),
-    el("span", {}, el("i", { class: "wm-punkt wm-p-deutlich" }), " 2–5 — bewegt deutlich"),
-    el("span", {}, el("i", { class: "wm-punkt wm-p-stark" }), " über 5 — bewegt stark"),
-    el("span", {}, "· der senkrechte Strich im Balken ist die Rauschschwelle · Zeile anklicken zeigt die Maße"));
+    el("span", {}, el("i", { class: "wm-punkt wm-p-rauschen" }), " unter 2,5 — vom Zufall nicht zu unterscheiden"),
+    el("span", {}, el("i", { class: "wm-punkt wm-p-schwach" }), " 2,5–4 — knapp darüber"),
+    el("span", {}, el("i", { class: "wm-punkt wm-p-deutlich" }), " 4–10 — bewegt deutlich"),
+    el("span", {}, el("i", { class: "wm-punkt wm-p-stark" }), " über 10 — bewegt stark"),
+    el("span", {}, "· der senkrechte Strich im Balken steht bei 1 (reiner Zufall) · Zeile anklicken zeigt die Maße"));
 
   wrap.append(el("div", { class: "btnrow" },
     el("label", { class: "druckfeld" }, el("span", { class: "field-label" }, "Form"), formSel),
@@ -156,7 +159,7 @@ export function mountWirkung(): HTMLElement {
       zeichne(mess);
       const blind = mess.find((x) => x.id === "blindprobe");
       status.textContent = `${aufgaben.length} Stellungen · ${aufgaben.length * N} Texte`
-        + (blind ? ` · Blindprobe ${blind.wirkung.toFixed(2)}${blind.wirkung >= 1 ? " — ACHTUNG: über der Schwelle, die Messung trägt nicht" : ""}` : "")
+        + (blind ? ` · Blindprobe ${blind.wirkung.toFixed(2)}${blind.wirkung >= 2.5 ? " — ACHTUNG: Zufallsniveau im Wirkungsband, mehr Läufe nötig" : ""}` : "")
         + (model ? "" : " · Korpus zu klein: Markov kann nicht wirken");
       startBtn.disabled = false;
     };
