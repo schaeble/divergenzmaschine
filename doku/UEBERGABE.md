@@ -367,6 +367,28 @@ geraten. Vorgabe ist hier Sonnet und nicht Haiku — ein Verlesen an Fraktur
 kostet mehr als der Preisunterschied, weil es unbemerkt im Korpus landet. Der
 Text bleibt vor der Übernahme änderbar; Nachbessern ist die Regel.
 
+**Bildwelt** (seit 4.236.0, ersetzt den Reiter „Montage"): Wortbänke aus
+Bildern. Gelesen wird im Sammler unter „Bilder als Material" — dasselbe Foto
+durch mehrere Blickwinkel (die sechs Realitätsmodi aus `modes.data.ts`, keine
+eigene Liste), je Blickwinkel Substantive, Verben und kurze Fügungen. Drei
+Entscheidungen tragen den Bau: MODUS statt Stil (jede Lesung gleich flach, die
+Reibung entsteht erst beim Rekombinieren), AUFSUMMIEREN statt ein Preset je
+Bild (fünfzehn Substantive tragen nichts), ETIKETT statt Schublade (freies
+Textfeld, die Maschine deutet nichts davon — was beim Sammeln getrennt wird,
+bekommt man nicht mehr zusammen).
+
+Doppelte Bilder: Fingerabdruck ist SHA-256 über die Datei, und der Schlüssel
+ist **Abdruck UND Modus** — eine Sperre nur über den Abdruck verhinderte genau
+die Mehrfachlesung, die den Reiz ausmacht. Geprüft wird VOR dem Senden. Grenze:
+Ein neu komprimiertes Bild (Messenger, Drehen) hat einen anderen Abdruck und
+gilt als neu.
+
+Kosten: Die Wortbänke laufen als zweiter Aufruf über dasselbe Bild, alle
+offenen Blickwinkel auf einmal. Das Bild wird dabei ein zweites Mal bezahlt;
+die Alternative — eine einzige Riesenantwort für Sätze, 4W und Bänke — hätte
+bei einem Formfehler beides verloren. Ein Fehlschlag bei den Bänken lässt die
+Sätze stehen.
+
 ## 7 · Fallen in diesem Quelltext
 
 - **Deutsche Nomen sind groß.** „Großgeschrieben mitten im Satz" taugt nicht als

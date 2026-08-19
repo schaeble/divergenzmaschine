@@ -81,6 +81,8 @@ export function exportTreasuryTxt(): string {
 const FORM_LABEL: Record<string, string> = {
   prose: "Prosa", poem: "Prosagedicht", strang: "Gedicht-Strang", reim: "Reim",
   haiku: "Haiku", drama: "Drama", script: "Szene/Dialog", video: "Multi-Shot",
+  // „montage" bleibt: Der Reiter ist seit 4.236.0 weg, aber alte Einträge in
+  // der Schatzkammer tragen die Form noch und sollen nicht namenlos werden.
   montage: "Montage", workshop: "Werkstatt", assoz: "Assoziation",
 };
 

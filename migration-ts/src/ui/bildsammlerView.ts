@@ -25,13 +25,19 @@ import {
   type BildFund,
 } from "../features/bildsammler";
 import {
+  modi as alleModi, MODI_VORGABE, leseEtiketten, offeneLesungen, leseSchluessel,
+  baueBankPrompt, leseBaenke, maxTokenBaenke, ladeBildwelt, sichereBildwelt,
+  mischeBildwelt, type Bildernte,
+} from "../features/bildwelt";
+import {
   MODELLE, modellVon, PREIS_STAND, euro,
   ladeKonto, bucheKonto, sichereKonto,
 } from "../features/lehrer";
 
 const WAHL_KEY = "divergenz_bildsammler_v1";
-interface Wahl { modell: string; saetze: number; kurs: number }
-const VORGABE: Wahl = { modell: MODELLE[0]!.id, saetze: SAETZE_VORGABE, kurs: 0.92 };
+interface Wahl { modell: string; saetze: number; kurs: number; modi: string[]; etikett: string }
+const VORGABE: Wahl = { modell: MODELLE[0]!.id, saetze: SAETZE_VORGABE, kurs: 0.92,
+  modi: [...MODI_VORGABE], etikett: "" };
 const ladeWahl = (): Wahl => {
   try {
     const r = JSON.parse(localStorage.getItem(WAHL_KEY) || "null") as Partial<Wahl> | null;
@@ -62,6 +68,28 @@ export function baueBildsammler(): HTMLElement {
     value: String(wahl.saetze), style: "width:100px" }) as HTMLInputElement;
   const kursIn = el("input", { type: "number", min: "0.1", max: "3", step: "0.01",
     value: String(wahl.kurs), style: "width:90px" }) as HTMLInputElement;
+  // ── Blickwinkel und Etikett ───────────────────────────────────────────────
+  // Ein Bild wird in mehreren Modi gelesen, aber in EINEM Aufruf: Das Bild
+  // kostet rund 1440 Eingabe-Token, und die zahlt man bei getrennten Aufrufen
+  // mehrfach. Drei Blickwinkel kosten so etwa den anderthalbfachen Preis eines.
+  const modusKnoepfe: HTMLButtonElement[] = [];
+  const modusReihe = el("div", { class: "btnrow" });
+  const modusZeigen = (): void => {
+    modusKnoepfe.forEach((b) => b.classList.toggle("on", wahl.modi.includes(b.dataset.mid || "")));
+  };
+  for (const m of alleModi()) {
+    const b = el("button", { class: "toggle", type: "button", title: m.label }, m.label) as HTMLButtonElement;
+    b.dataset.mid = m.id;
+    b.addEventListener("click", () => {
+      wahl.modi = wahl.modi.includes(m.id) ? wahl.modi.filter((x) => x !== m.id) : [...wahl.modi, m.id];
+      sichereWahl(wahl); modusZeigen(); rechne();
+    });
+    modusKnoepfe.push(b); modusReihe.append(b);
+  }
+  const etikettIn = el("input", { type: "text", style: "width:100%", value: wahl.etikett,
+    placeholder: "Etikett für diesen Stapel, frei — z. B. „Kreta 2011“ oder „Gedanken1“, mehrere durch Komma" }) as HTMLInputElement;
+  etikettIn.addEventListener("input", () => { wahl.etikett = etikettIn.value; sichereWahl(wahl); });
+
   const hinweisIn = el("input", { type: "text", style: "width:100%",
     placeholder: "Zusätzliche Vorgabe, optional — z. B. „nur Gegenstände, keine Menschen“" }) as HTMLInputElement;
 
@@ -85,7 +113,11 @@ export function baueBildsammler(): HTMLElement {
     schaetzung.textContent =
       `Schätzung je Bild: höchstens ${euro(s.usd, kurs)} (≈ ${bildTokens(1200, 900)} Token fürs Bild, `
       + `bis zu ${maxToken(n)} für die Antwort; ${m.ein} $ / ${m.aus} $ je Mio. Token, Stand ${PREIS_STAND}, `
-      + `Kurs ${kurs} €/$). Die Antwortlänge ist hier der teure Teil, nicht das Bild.`;
+      + `Kurs ${kurs} €/$). Die Antwortlänge ist hier der teure Teil, nicht das Bild.`
+      + (wahl.modi.length
+        ? ` Dazu ${wahl.modi.length} Blickwinkel im SELBEN Aufruf: bis zu ${maxTokenBaenke(wahl.modi.length)} Token `
+          + "mehr für die Antwort — das Bild wird dabei nur einmal bezahlt."
+        : " Keine Blickwinkel gewählt — es entstehen nur Sätze und 4W, keine Wortbänke.");
     zeigeKonto();
   };
   modellSel.addEventListener("change", () => { wahl.modell = modellSel.value; sichereWahl(wahl); rechne(); });
@@ -243,6 +275,21 @@ export function baueBildsammler(): HTMLElement {
     dateiWahl.click();
   });
 
+  /** Fingerabdruck einer Datei: SHA-256 über die Bytes. Der Dateiname taugt
+   *  nicht — Handykameras vergeben ihn nach einem Zurücksetzen erneut, und
+   *  Messenger benennen alles um. Zwei Dateien mit demselben Abdruck sind
+   *  bitgenau dieselbe.
+   *
+   *  Die Grenze, ehrlich benannt: Ein NEU KOMPRIMIERTES Bild — durch einen
+   *  Messenger geschickt, in der Galerie gedreht — hat einen anderen Abdruck
+   *  und gilt als neu. Das zu lösen bräuchte einen Wahrnehmungs-Hash, und der
+   *  erzeugt Fehlalarme bei Serienaufnahmen, die sich wirklich unterscheiden. */
+  const abdruckVon = async (d: File): Promise<string> => {
+    const buf = await d.arrayBuffer();
+    const h = await crypto.subtle.digest("SHA-256", buf);
+    return [...new Uint8Array(h)].map((x) => x.toString(16).padStart(2, "0")).join("");
+  };
+
   dateiWahl.addEventListener("change", () => {
     const dateien = Array.from(dateiWahl.files || []);
     if (!dateien.length) return;
@@ -250,13 +297,42 @@ export function baueBildsammler(): HTMLElement {
     const anzahl = parseInt(anzahlIn.value, 10) || SAETZE_VORGABE;
     const prompt = bauePrompt(anzahl, hinweisIn.value);
     const deckel = maxToken(anzahl);
+    const gewaehlteModi = wahl.modi.slice();
+    const etiketten = leseEtiketten(etikettIn.value);
 
     void (async () => {
       waehlBtn.disabled = true; abbruch.style.display = ""; ac = new AbortController();
-      let fehler = 0;
+      let fehler = 0, uebersprungen = 0, baenkeGezaehlt = 0;
+
+      // Abdrücke ZUERST, alle auf einmal, VOR dem ersten Senden. Ein doppeltes
+      // Bild kostet sonst Geld und verzerrt obendrein die Bank, weil doppeltes
+      // Material doppelt gewichtet wird.
+      status.textContent = `Prüfe ${dateien.length} Bilder auf schon Gelesenes …`;
+      const abdruecke = new Map<File, string>();
+      for (const d of dateien) {
+        if (ac.signal.aborted) break;
+        try { abdruecke.set(d, await abdruckVon(d)); } catch { /* dann eben ohne Sperre */ }
+      }
+      const welt0 = ladeBildwelt();
+      const offen = gewaehlteModi.length
+        ? new Set(offeneLesungen([...abdruecke.values()], gewaehlteModi, welt0)
+            .map((x) => leseSchluessel(x.abdruck, x.modus)))
+        : null;
+
       for (let i = 0; i < dateien.length; i++) {
         if (ac.signal.aborted) break;
         const d = dateien[i]!;
+        const abdruck = abdruecke.get(d) || "";
+        // Welche Blickwinkel sind für DIESES Bild noch offen? Ein Bild, dessen
+        // Lesungen alle schon vorliegen, wird gar nicht erst verschickt.
+        const nochOffen = offen && abdruck
+          ? gewaehlteModi.filter((mm) => offen.has(leseSchluessel(abdruck, mm)))
+          : gewaehlteModi;
+        if (gewaehlteModi.length && !nochOffen.length) {
+          uebersprungen++;
+          status.textContent = `Bild ${i + 1} von ${dateien.length}: ${d.name} — schon gelesen, übersprungen.`;
+          continue;
+        }
         status.textContent = `Bild ${i + 1} von ${dateien.length}: ${d.name} …`;
         try {
           // Verkleinern passiert im Browser, VOR dem Senden: Ein Handyfoto mit
@@ -270,6 +346,39 @@ export function baueBildsammler(): HTMLElement {
           konto = bucheKonto(konto, r.usage.ein, r.usage.aus, m);
           sichereKonto(konto);
           const roh = leseErnte(extractJson(r.text));
+
+          // Zweiter Aufruf für die Wortbänke — mit DEMSELBEN Bild, aber allen
+          // offenen Blickwinkeln auf einmal. Das Bild kostet dabei ein zweites
+          // Mal; die Alternative wäre eine einzige Riesenantwort gewesen, bei
+          // der ein Formfehler beides verlöre. Ein Fehlschlag hier lässt die
+          // Sätze stehen, die schon da sind.
+          if (nochOffen.length) {
+            try {
+              const rb = await callClaudeBild(
+                baueBankPrompt(nochOffen, hinweisIn.value), teile,
+                maxTokenBaenke(nochOffen.length), m.id, ac.signal);
+              konto = bucheKonto(konto, rb.usage.ein, rb.usage.aus, m);
+              sichereKonto(konto);
+              const baenke = leseBaenke(extractJson(rb.text), nochOffen);
+              const neueErnten: Bildernte[] = Object.keys(baenke).map((mm) => ({
+                abdruck, name: d.name, modus: mm, etiketten,
+                nomen: baenke[mm]!.nomen, verben: baenke[mm]!.verben,
+                bilder: baenke[mm]!.bilder, gelesen: Date.now(),
+              }));
+              if (neueErnten.length) {
+                const zusammen = mischeBildwelt(ladeBildwelt(), neueErnten);
+                if (!sichereBildwelt(zusammen)) {
+                  status.textContent = "Wortbänke konnten nicht gesichert werden — der Browser-Speicher ist voll.";
+                }
+                baenkeGezaehlt += neueErnten.length;
+              }
+            } catch (e) {
+              if (!ac.signal.aborted) {
+                fehler++;
+                status.textContent = `${d.name}: Wortbänke fehlgeschlagen (${e instanceof Error ? e.message : String(e)}) — die Sätze bleiben.`;
+              }
+            }
+          }
           const { behalten, verworfen } = beute(roh.saetze);
           ernten = [...ernten, {
             name: d.name,
@@ -288,7 +397,11 @@ export function baueBildsammler(): HTMLElement {
       }
       const kurs = parseFloat(kursIn.value) || 1;
       status.textContent = (ac?.signal.aborted ? "Abgebrochen. " : "Fertig. ")
-        + (fehler ? `${fehler} Bild(er) fehlgeschlagen. ` : "")
+        + (fehler ? `${fehler} Fehlschlag/Fehlschläge. ` : "")
+        // Die Zahl der Übersprungenen wird ausdrücklich gemeldet: Eine Sperre,
+        // die nie zuschlägt, sieht aus wie eine, die funktioniert.
+        + (uebersprungen ? `${uebersprungen} schon gelesen und übersprungen. ` : "")
+        + (baenkeGezaehlt ? `${baenkeGezaehlt} Wortbänke in die Bildwelt. ` : "")
         + `Konto jetzt ${konto.laeufe} Läufe, rund ${euro(konto.usd, kurs)}.`;
       waehlBtn.disabled = false; abbruch.style.display = "none"; ac = null;
       zeigeKonto();
@@ -313,6 +426,12 @@ export function baueBildsammler(): HTMLElement {
       + "und kostet Geld."),
     el("div", { class: "grid3", style: "margin-top:10px" },
       field("Modell", modellSel), field("Sätze je Bild", anzahlIn), field("Kurs €/$", kursIn)),
+    el("p", { class: "muted mini", style: "margin:10px 0 4px" },
+      "Blickwinkel: Dasselbe Bild wird durch verschiedene Wortfelder gelesen. Keine Lesung ist "
+      + "literarischer als die andere — die Reibung entsteht erst, wenn die Maschine später "
+      + "Wörter aus zwei Feldern in einen Satz zieht. Die Wortbänke sammeln sich in der Bildwelt."),
+    modusReihe,
+    etikettIn,
     hinweisIn,
     schaetzung,
     kontoZeile,

@@ -25,7 +25,9 @@ export function mountWorkshop(root: HTMLElement): void {
 
   // ---- Quelle ----
   const rawPane = ta("6", "Rohtext — aus dem Studio, der Schatzkammer oder selbst eingefügt.");
-  // Übergabe aus der Montage hat Vorrang.
+  // Eine hinterlegte Übergabe hat Vorrang. Der Ablageplatz stammt aus der
+  // Montage (bis 4.235.2); er bleibt, weil er nichts kostet und ein künftiger
+  // Zubringer ihn wieder benutzen kann.
   let pendingSrc = "";
   try { pendingSrc = localStorage.getItem("dm_pending_workshop_src") || ""; if (pendingSrc) localStorage.removeItem("dm_pending_workshop_src"); } catch { /* egal */ }
   rawPane.value = pendingSrc || saved?.raw || lastText();
