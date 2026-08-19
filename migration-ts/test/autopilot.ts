@@ -7,6 +7,7 @@ import { readFileSync } from "fs";
 import {
   baueBesetzung, baueEingabe, titelAus, naechsteAusgabe, layoutName, verteileRollen,
   SEITEN_FORMEN, BEITRAEGE_MIN, BEITRAEGE_MAX, BEITRAEGE_VORGABE,
+  ktxSchluessel, merkeGedaechtnis, GEDAECHTNIS_TIEFE, KTX_KEY,
 } from "../src/features/autopilot";
 import type { FormKind } from "../src/types";
 
@@ -168,7 +169,38 @@ ist("aber nicht gelesen", /callClaudeBild|baueBankPrompt/.test(ansicht), false);
 // einer Datei, die voller Aufrufe steckt.
 wahr("die Prüfung schlägt bei einem Aufruf an", "await callClaudeBild(x)".includes("callClaude"));
 
-// ── 7 · Der Titel ───────────────────────────────────────────────────────────
+// ── 7 · Gedächtnis über Ausgaben hinweg ─────────────────────────────────────
+// Gemeldet: zwei Ausgaben hintereinander mit „Eine Bibliothek will die
+// Verfolger abschütteln". Innerhalb einer Ausgabe wurde schon nicht wiederholt,
+// über Ausgaben hinweg nicht — und dort fällt es stärker auf.
+ist("der Schlüssel fasst Wer, Wo und Was",
+  ktxSchluessel({ who: "Eine Bibliothek", where: "Hafen", what: "will die Verfolger abschütteln" }),
+  "eine bibliothek|hafen|will die verfolger abschütteln");
+// Wann bleibt draußen: Dieselbe Figur am selben Ort mit derselben Absicht ist
+// eine Wiederholung, auch wenn es diesmal im Frühjahr spielt.
+ist("das Wann zählt nicht mit",
+  ktxSchluessel({ who: "A", where: "B", what: "C" }),
+  ktxSchluessel({ who: "A", where: "B", what: "C" }));
+ist("Schreibung und Leerraum ebenso wenig",
+  ktxSchluessel({ who: "  Eine   Bibliothek ", where: "HAFEN", what: "C" }),
+  ktxSchluessel({ who: "eine bibliothek", where: "hafen", what: "c" }));
+wahr("ein anderes Was ergibt einen anderen Schlüssel",
+  ktxSchluessel({ who: "A", where: "B", what: "C" }) !== ktxSchluessel({ who: "A", where: "B", what: "D" }));
+
+ist("neue Kontexte kommen dazu", merkeGedaechtnis([], ["a", "b"]).join(","), "a,b");
+// Bekanntes rutscht ans Ende, statt liegenzubleiben — sonst verfiele ein oft
+// benutzter Kontext irgendwann aus dem Gedächtnis und käme sofort wieder.
+ist("Bekanntes rutscht ans Ende", merkeGedaechtnis(["a", "b", "c"], ["a"]).join(","), "b,c,a");
+ist("Doppelte im Zulauf zählen einmal", merkeGedaechtnis([], ["a", "a", "b"]).join(","), "a,b");
+ist("Leeres kommt nicht hinein", merkeGedaechtnis([], [""]).length, 0);
+// Der Deckel: Das Älteste fällt vorn heraus.
+const voll = Array.from({ length: 8 }, (_, i) => "k" + i);
+ist("der Deckel greift", merkeGedaechtnis(voll, ["neu"], 5).length, 5);
+ist("und das Älteste fällt heraus", merkeGedaechtnis(voll, ["neu"], 5)[0], "k4");
+wahr("die Tiefe reicht über mehrere Ausgaben", GEDAECHTNIS_TIEFE >= 20);
+wahr("das Gedächtnis wandert in die Projektdatei", KTX_KEY.startsWith("divergenz_"));
+
+// ── 8 · Der Titel ───────────────────────────────────────────────────────────
 ist("Wer und Was zusammen", titelAus({ who: "Ein Ermittler", what: "wartet" }), "Ein Ermittler wartet");
 ist("ohne Kontext ein Ersatz", titelAus({ who: "", what: "" }), "Ohne Titel");
 wahr("lange Titel werden gekürzt", titelAus({ who: "w".repeat(90), what: "x" }).length <= 61);

@@ -183,3 +183,50 @@ export function verteileRollen(texte: { text: string; form: FormKind }[]): Rolle
   }
   return rollen;
 }
+
+// ── Gedächtnis über Ausgaben hinweg ─────────────────────────────────────────
+// Innerhalb einer Ausgabe wird kein Kontext zweimal gezogen. Über AUSGABEN
+// hinweg war das nicht so — und dort fällt es stärker auf: Zwei Zeitungen
+// hintereinander mit derselben Schlagzeile sehen nicht nach Zufall aus,
+// sondern nach Defekt.
+//
+// Der Weltwürfel begünstigt das systematisch. `worldFillContext` bevorzugt
+// Figuren mit einem Spannungsvermerk, und zwar nicht als Neigung, sondern als
+// harten Filter: Sobald EINE Figur „gejagt" oder „vermisst" heißt, kommen die
+// übrigen gar nicht mehr an die Reihe. Steht dann nur eine solche Figur in der
+// Welt, liefert der Würfel dauerhaft dieselbe — samt derselben Absicht, denn
+// `whatFromStatus` leitet das Was aus genau diesem Vermerk ab.
+
+export const KTX_KEY = "divergenz_autopilot_ktx_v1";
+/** Wie viele zuletzt benutzte Kontexte gemieden werden. Dreißig sind rund
+ *  sechs Ausgaben — weit genug, dass eine Wiederholung nicht auffällt, und eng
+ *  genug, dass ein kleiner Vorrat nicht vollständig gesperrt wird. */
+export const GEDAECHTNIS_TIEFE = 30;
+
+/** Die Kennung eines Kontexts. Wann bleibt draußen: Dieselbe Figur am selben
+ *  Ort mit derselben Absicht ist eine Wiederholung, auch wenn es diesmal im
+ *  Frühjahr spielt. */
+export function ktxSchluessel(c: { who?: string; where?: string; what?: string }): string {
+  const n = (v?: string): string => (v || "").toLowerCase().replace(/\s+/g, " ").trim();
+  return `${n(c.who)}|${n(c.where)}|${n(c.what)}`;
+}
+
+export function ladeGedaechtnis(): string[] {
+  try {
+    const r = JSON.parse(localStorage.getItem(KTX_KEY) || "[]") as unknown;
+    return Array.isArray(r) ? r.filter((x): x is string => typeof x === "string") : [];
+  } catch { return []; }
+}
+
+/** Schreibt benutzte Kontexte fort. Das Älteste fällt vorn heraus, Bekanntes
+ *  rutscht ans Ende — sonst verfiele ein oft benutzter Kontext irgendwann aus
+ *  dem Gedächtnis und käme sofort wieder. */
+export function merkeGedaechtnis(alt: string[], neu: string[], tiefe = GEDAECHTNIS_TIEFE): string[] {
+  const raus = alt.filter((k) => !neu.includes(k));
+  raus.push(...neu.filter((k, i) => k && neu.indexOf(k) === i));
+  return raus.length > tiefe ? raus.slice(raus.length - tiefe) : raus;
+}
+
+export function sichereGedaechtnis(liste: string[]): boolean {
+  try { localStorage.setItem(KTX_KEY, JSON.stringify(liste)); return true; } catch { return false; }
+}

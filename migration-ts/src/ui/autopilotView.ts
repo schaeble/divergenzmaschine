@@ -26,6 +26,7 @@ import { ziehBildvorrat } from "../features/bildsammler";
 import { worldFillContext } from "../features/world";
 import {
   baueBesetzung, baueEingabe, titelAus, naechsteAusgabe, layoutName, verteileRollen,
+  ktxSchluessel, ladeGedaechtnis, merkeGedaechtnis, sichereGedaechtnis, GEDAECHTNIS_TIEFE,
   BEITRAEGE_MIN, BEITRAEGE_MAX, BEITRAEGE_VORGABE, type Quelle,
 } from "../features/autopilot";
 
@@ -67,13 +68,24 @@ export function mountAutopilot(root: HTMLElement): void {
   [nameIn, anzahlIn, spaltenIn, seitenIn].forEach((x) => x.addEventListener("input", merke));
 
   const stand = el("p", { class: "muted mini" }, "");
+  // Das Gedächtnis sichtbar und leerbar machen. Eine Sperre, die man nicht
+  // sieht, wird für einen Fehler gehalten, sobald sie einmal im Weg steht.
+  const ktxWeg = button("Kontext-Gedächtnis leeren", "danger");
+  ktxWeg.addEventListener("click", () => {
+    if (!confirm("Die zuletzt benutzten Kontexte vergessen? Danach können frühere Figuren und Orte wieder vorkommen.")) return;
+    sichereGedaechtnis([]);
+    zeigeStand();
+  });
   const zeigeStand = (): void => {
     const korpus = loadPersistentCorpus().length;
     const naechste = naechsteAusgabe(kopf.ausgabe);
+    const g = ladeGedaechtnis().length;
     stand.textContent =
       `Nächste Ausgabe: „${kopf.ausgabe}“ → „${naechste}“ · `
       + `Layout wird abgelegt als „${layoutName(nameIn.value || kopf.titel, naechste)}“ · `
-      + `Korpus ${korpus} Zeichen · Schatzkammer ${loadTreasury().length} Beiträge`;
+      + `Korpus ${korpus} Zeichen · Schatzkammer ${loadTreasury().length} Beiträge · `
+      + `${g} von ${GEDAECHTNIS_TIEFE} zuletzt benutzten Kontexten werden gemieden`;
+    ktxWeg.style.display = g ? "" : "none";
   };
 
   const status = el("p", { class: "muted" }, "");
@@ -95,6 +107,7 @@ export function mountAutopilot(root: HTMLElement): void {
    *  genommen, was kommt: Bei einem Vorrat aus drei Funden gibt es keine
    *  fünfte neue Kombination, und ein leerer Kontext wäre schlechter als ein
    *  wiederholter. */
+  let erschoepft = 0;
   const holeKontext = (q: Quelle, benutzt: Set<string>): { who: string; where: string; when: string; what: string } => {
     const zieh = (): { who: string; where: string; when: string; what: string } => {
       if (q === "vorrat") {
@@ -110,10 +123,15 @@ export function mountAutopilot(root: HTMLElement): void {
     };
     let letzter = zieh();
     for (let i = 0; i < 8; i++) {
-      const k = `${letzter.who}|${letzter.where}|${letzter.what}`.toLowerCase();
+      const k = ktxSchluessel(letzter);
       if (!benutzt.has(k)) { benutzt.add(k); return letzter; }
       letzter = zieh();
     }
+    // Nach acht Versuchen genommen, was kommt — und mitgezählt, damit die
+    // Meldung es sagen kann. Ein stiller Rückfall auf eine Wiederholung ist
+    // genau das, was hier abgestellt werden soll.
+    erschoepft++;
+    benutzt.add(ktxSchluessel(letzter));
     return letzter;
   };
 
@@ -135,10 +153,17 @@ export function mountAutopilot(root: HTMLElement): void {
         const auftraege = baueBesetzung(parseInt(anzahlIn.value, 10) || BEITRAEGE_VORGABE, hatVorrat, hatBild);
 
         const erzeugt: { text: string; form: string; titel: string }[] = [];
-        const benutzt = new Set<string>();
+        // Das Gedächtnis früherer Ausgaben ist der Startbestand des
+        // Gemiedenen: Zwei Zeitungen hintereinander mit derselben Schlagzeile
+        // sehen nicht nach Zufall aus, sondern nach Defekt.
+        const gedaechtnis = ladeGedaechtnis();
+        const benutzt = new Set<string>(gedaechtnis);
+        const frisch: string[] = [];
+        erschoepft = 0;
         const quellenZaehler = new Map<string, number>();
         for (const a of auftraege) {
           const ctx = holeKontext(a.quelle, benutzt);
+          frisch.push(ktxSchluessel(ctx));
           quellenZaehler.set(a.quelle, (quellenZaehler.get(a.quelle) || 0) + 1);
           const text = buildStory(bank, baueEingabe(a, ctx), model).trim();
           if (!text) continue;
@@ -203,8 +228,12 @@ export function mountAutopilot(root: HTMLElement): void {
         const quellenText = [...quellenZaehler.entries()]
           .map(([q, n]) => `${n}× ${q === "wuerfel" ? "Weltwürfel" : q === "vorrat" ? "Sammler-Vorrat" : "Bildvorrat"}`)
           .join(", ");
+        sichereGedaechtnis(merkeGedaechtnis(gedaechtnis, frisch));
         status.textContent = ok
           ? `Fertig. ${teile.length} Beiträge, abgelegt als „${name}“. Kontext aus: ${quellenText}.`
+            + (erschoepft
+              ? ` ${erschoepft}× musste ein schon benutzter Kontext genommen werden — die Vorräte geben nicht mehr her.`
+              : "")
             + (doppelt ? ` ${doppelt} Text(e) gab es wortgleich schon — sie stehen nicht auf der Seite.` : "")
             + ` Ausgabe steht jetzt auf „${naechste}“.`
           : "Die Texte sind da, aber das Layout ließ sich nicht sichern — der Browser-Speicher ist voll. "
@@ -233,7 +262,7 @@ export function mountAutopilot(root: HTMLElement): void {
       field("Name", nameIn), field("Beiträge", anzahlIn),
       field("Spalten", spaltenIn), field("Seiten", seitenIn)),
     stand,
-    el("div", { class: "btnrow", style: "margin-top:10px" }, startBtn, oeffnenBtn),
+    el("div", { class: "btnrow", style: "margin-top:10px" }, startBtn, oeffnenBtn, ktxWeg),
     status,
     liste,
     el("p", { class: "muted mini", style: "margin-top:14px" },
