@@ -310,6 +310,21 @@ ist("nur die jüngsten zählen", letzteWas(["x|y|altes was", ...g], 3).has("alte
 ist("aber die jüngsten schon", letzteWas(["x|y|altes was", ...g], 3).has("zweites was"), true);
 ist("ein leeres Gedächtnis meidet nichts", letzteWas([]).size, 0);
 
+// ── 7b · Der leere Warnkasten ───────────────────────────────────────────────
+// Gemeldet mit Bildschirmfoto: ein roter Balken ohne Text ueber den Knoepfen.
+// Der Hinweis auf die Beitragsgrenze wird erst bei Bedarf gefuellt — der Rahmen
+// stand aber schon da, weil .sam-warn Rand, Fuellung und Hintergrund hat. Ein
+// Warnkasten ohne Text ist keine Warnung, sondern sieht nach Defekt aus.
+const css = readFileSync("src/ui/theme.css", "utf8");
+wahr("leere Warnkaesten werden ausgeblendet", /\.sam-warn:empty\{display:none\}/.test(css));
+// Gegenprobe: Die Regel muss VOR der Grundregel wirkungslos sein, also danach
+// stehen — sonst ueberschreibt die Grundregel sie wieder.
+wahr("und die Regel steht hinter der Grundregel",
+  css.indexOf(".sam-warn:empty") > css.indexOf(".sam-warn{"));
+// Und der Kasten wird in der Ansicht wirklich leer gelassen, wenn nichts zu
+// melden ist — sonst braeuchte es die CSS-Regel gar nicht.
+wahr("die Ansicht laesst ihn im Regelfall leer", /grenze\.textContent = gewuenscht > max/.test(ansicht));
+
 // ── 8 · Der Titel ───────────────────────────────────────────────────────────
 ist("Wer und Was zusammen", titelAus({ who: "Ein Ermittler", what: "wartet" }), "Ein Ermittler wartet");
 ist("ohne Kontext ein Ersatz", titelAus({ who: "", what: "" }), "Ohne Titel");

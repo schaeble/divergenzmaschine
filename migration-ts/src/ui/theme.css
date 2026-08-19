@@ -881,6 +881,11 @@ select.abweichend{border-color:var(--acc)}
 .fund .btnrow{margin-top:10px;align-items:center}
 .sam-w{color:var(--muted);font-weight:600}
 .sam-warn{margin:10px 0;padding:10px 12px;border-radius:8px;font:14px/1.5 var(--sans);color:var(--text);background:rgba(230,73,128,.12);border:1px solid rgba(230,73,128,.45)}
+/* Ein Warnkasten ohne Text ist keine Warnung, sondern ein roter Balken, der
+   nach einem Defekt aussieht. Er entsteht, wo die Meldung erst bei Bedarf
+   gefuellt wird — der Rahmen steht dann schon da. Die Regel gilt fuer die
+   ganze Klasse und nicht nur fuer die eine Stelle, an der es aufgefallen ist. */
+.sam-warn:empty{display:none}
 
 /* Wirkungsmesser */
 .wm-h{margin:0 0 6px;font-size:15px;color:var(--acc)}
