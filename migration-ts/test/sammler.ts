@@ -17,6 +17,7 @@ import {
   zerlegeFeed, istPerson, istOrt, ortsPhrase, zeitPhrase, wasPhrase, ersterSatz,
   entHtml, feedAdressen, zufallsTag, mischeVorrat, ergaenzeVorrat, ladeVorrat,
   leereVorrat, ziehVorrat, vorratStand, fundSchluessel, VORRAT_KEY,
+  istLexikon, JAHRESTAGE_VORGABE,
   type WikiSeite, type VorratFund,
 } from "../src/features/wikisammler";
 import { rateWhere, rateWhen, rateWho } from "../src/generation/ctxnorm";
@@ -184,6 +185,56 @@ ist("Leeren wirkt", ladeVorrat().length, 0);
 // Der Schlüssel MUSS mit „divergenz_“ beginnen: nur dann nimmt sammleRest()
 // in features/project.ts ihn in die Projektdatei auf (Präfix-Regel).
 wahr("Schlüssel wandert in die Projektdatei", VORRAT_KEY.startsWith("divergenz_"));
+
+// ── Vom Tagesfeed in den Korpus ─────────────────────────────────────────────
+// Bisher hatte der Feed gar keinen Ausgang zum Korpus: Ein Fund konnte nur ins
+// Studio (die vier W), sein TEXT wurde angezeigt und weggeworfen.
+
+// Der Volltext ist ungekuerzt, der Kartentext gekappt. Zwei Felder, weil beide
+// verschiedene Aufgaben haben — die Karte soll ueberschaubar sein, der Korpus
+// will Masse.
+const lang = "Ein sehr langer Artikelanfang. " + "Wort ".repeat(120) + "Ende.";
+const f2 = zerlegeFeed({ tfa: { title: "T", extract: lang } }, TAG, ALLES)[0]!;
+wahr("der Kartentext ist gekuerzt", f2.text.length <= 265);
+wahr("der Volltext nicht", f2.volltext.length > 400);
+ist("und er ist der ganze Text", f2.volltext, lang);
+// Gegenprobe: Waeren beide gleich, brauchte es das zweite Feld nicht.
+wahr("beide Felder sind wirklich verschieden", f2.text !== f2.volltext);
+wahr("jeder Fund traegt einen Volltext", funde.every((f) => typeof f.volltext === "string"));
+
+// Mehr Jahrestage. Der Feed liefert dreissig bis sechzig; vorher kamen
+// vierzehn durch.
+wahr("die Vorgabe ist deutlich groesser als vierzehn", JAHRESTAGE_VORGABE >= 30);
+const vieleTage = { onthisday: Array.from({ length: 60 }, (_, i) => ({ text: `Ereignis ${i}.`, year: 1900 + i })) };
+ist("und sie greift", zerlegeFeed(vieleTage, TAG, { tfa: false, jahrestage: true, nachrichten: false }).length, JAHRESTAGE_VORGABE);
+ist("eine eigene Grenze auch", zerlegeFeed(vieleTage, TAG, { tfa: false, jahrestage: true, nachrichten: false }, 5).length, 5);
+
+// Der Lexikonfilter. Dieselbe Aufgabe wie der Beutefilter beim Bildsammler:
+// Vierzig Definitionen im Korpus, und die Maschine schreibt Lexikon.
+for (const t of [
+  "Marie Curie war eine polnisch-französische Physikerin und Chemikerin.",
+  "Gattenhofen ist eine Gemeinde im Landkreis Ansbach.",
+  "Der Nordseewal gehört zur Familie der Furchenwale.",
+  "Als Fraktur bezeichnet man eine gebrochene Schrift.",
+  "Zeitstrom ist der Name eines Flusses.",
+]) wahr(`Lexikon erkannt: „${t.slice(0, 38)}…“`, istLexikon(t));
+
+// Gegenprobe — ohne sie koennte der Filter alles abwaehlen und saehe trotzdem
+// tadellos aus.
+for (const t of [
+  "Am 28. Juni 1936 nimmt sich Alexander Berkman das Leben.",
+  "Der Bau beginnt, und niemand weiss, wer ihn bezahlt.",
+  "Ein Kollektiv spricht in dir, sagte die Amtsaerztin.",
+  "Die Barrikade faellt, die Glocke bleibt.",
+  "1869 wird der Grundstein gelegt.",
+]) ist(`kein Lexikon: „${t.slice(0, 38)}…“`, istLexikon(t), false);
+
+// Geprueft wird am ANFANG: Dort steht bei Wikipedia die Definition. Ein „war
+// ein" weiter unten ist gewoehnliche Sprache.
+ist("weiter hinten zaehlt es nicht",
+  istLexikon("Der Bau beginnt im Regen. " + "Es folgt ein langer Absatz ohne Definition. ".repeat(4) + "Damals war ein Mann dabei."),
+  false);
+ist("leerer Text ist kein Lexikon", istLexikon(""), false);
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Sammler — ${funde.length} Funde aus dem Beispielfeed, ${geprueft} Prüfungen:`);

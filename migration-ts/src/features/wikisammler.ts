@@ -23,8 +23,17 @@ export interface WikiFund {
   quelleLabel: string;
   /** Kopfzeile der Karte. */
   titel: string;
-  /** Belegstelle: Ereignissatz bzw. Anfang des Artikels. */
+  /** Belegstelle: Ereignissatz bzw. Anfang des Artikels. Gekürzt, damit die
+   *  Karte lesbar bleibt. */
   text: string;
+  /** Der ungekürzte Text für den Korpus.
+   *
+   *  Getrennt vom Angezeigten, weil beide verschiedene Aufgaben haben: Die
+   *  Karte soll überschaubar sein, der Korpus will Masse. Vorher gab es nur
+   *  `text`, auf 260 Zeichen gekappt — und die Kappung war für das
+   *  Was-Feld gedacht, nicht für Sprachmaterial. Rund die Hälfte jeder
+   *  Zusammenfassung fiel dadurch weg, ohne dass es einen Grund gab. */
+  volltext: string;
   /** Link auf den Artikel (falls vorhanden). */
   url: string;
   /** Die vier W. Leere Zeichenketten bedeuten: nicht sicher bestimmbar. */
@@ -195,6 +204,33 @@ export function wasPhrase(roh: string, max = 170): string {
   return t.replace(/\s*[.]\s*$/, "").trim();
 }
 
+// ── Lexikonsätze ────────────────────────────────────────────────────────────
+// Wikipedia-Zusammenfassungen beginnen fast alle gleich: „X war ein deutscher
+// Politiker", „Y ist eine Gemeinde im Landkreis Z". Als Korpusfutter ist das
+// derselbe Fall wie die Bildunterschriften beim Bildsammler — vierzig davon,
+// und die Maschine schreibt Lexikon.
+//
+// Verworfen wird deshalb NICHT: Ein solcher Satz ist nicht falsch, nur
+// einförmig, und manchmal will man ihn. Er wird gekennzeichnet und abgewählt
+// vorgelegt; entschieden wird von Hand.
+
+const LEXIKON: RegExp[] = [
+  /\b(?:war|ist|sind|waren)\s+(?:ein|eine|einer|eines)\b/i,
+  /\bist\s+(?:eine\s+)?(?:Gemeinde|Stadt|Ortschaft|Dorf|Insel|Fluss|Berg|Gattung|Art|Familie)\b/i,
+  /\bgehört zur? (?:Gattung|Familie|Ordnung|Klasse)\b/i,
+  /\bbezeichnet (?:man |eine |einen |ein )/i,
+  /\bist der Name\b/i,
+  /\b(?:geboren|gestorben)\s+am\b/i,
+];
+
+/** Ist der Text vor allem eine Lexikondefinition? Geprüft wird am ANFANG:
+ *  Dort steht bei Wikipedia die Definition, und ein Satz weiter unten mit
+ *  „war ein" ist gewöhnliche Sprache. */
+export function istLexikon(text: string): boolean {
+  const anfang = (text || "").trim().slice(0, 160);
+  return LEXIKON.some((r) => r.test(anfang));
+}
+
 // ── Zerlegung ───────────────────────────────────────────────────────────────
 
 /** Erste Seite der Liste, die die Prüfung besteht. */
@@ -216,7 +252,15 @@ function werUndWo(seiten: WikiSeite[] | undefined): { who: string; where: string
 }
 
 /** Der Kern: Feed → Liste von Funden. Rein, ohne Netz, ohne Speicher. */
-export function zerlegeFeed(roh: unknown, datum: Date, wahl: QuellenWahl, maxJahrestage = 14): WikiFund[] {
+/** Wie viele Jahrestage übernommen werden.
+ *
+ *  Vorher vierzehn. Der Feed liefert je nach Tag dreißig bis sechzig, und die
+ *  Jahrestage sind die beste Ware darin: kurze, konkrete Ereignissätze mit
+ *  Jahreszahl, Ort und Namen — Handlung statt Definition. Genau die Bauteile,
+ *  aus denen die Berichte ihre Faktenkästen bauen. */
+export const JAHRESTAGE_VORGABE = 40;
+
+export function zerlegeFeed(roh: unknown, datum: Date, wahl: QuellenWahl, maxJahrestage = JAHRESTAGE_VORGABE): WikiFund[] {
   const feed = (roh || {}) as WikiFeed;
   const funde: WikiFund[] = [];
 
@@ -231,7 +275,7 @@ export function zerlegeFeed(roh: unknown, datum: Date, wahl: QuellenWahl, maxJah
     funde.push({
       quelle: "tfa", quelleLabel: "Artikel des Tages",
       titel: titel + (txt(s.description) ? ` — ${txt(s.description)}` : ""),
-      text: wasPhrase(extrakt, 260), url: seitenUrl(s),
+      text: wasPhrase(extrakt, 260), volltext: extrakt, url: seitenUrl(s),
       ctx: {
         who: istPerson(s) ? ohneKlammer(titel) : "",
         what: wasPhrase(ersterSatz(extrakt)),
@@ -252,7 +296,7 @@ export function zerlegeFeed(roh: unknown, datum: Date, wahl: QuellenWahl, maxJah
         titel: typeof e.year === "number"
           ? (e.year < 0 ? `${Math.abs(e.year)} v. Chr.` : String(e.year))
           : "Jahrestag",
-        text, url: seitenUrl((e.pages || [])[0]),
+        text, volltext: text, url: seitenUrl((e.pages || [])[0]),
         ctx: { who, what: wasPhrase(text), when: zeitPhrase(e.year, datum), where },
       });
     }
@@ -267,7 +311,7 @@ export function zerlegeFeed(roh: unknown, datum: Date, wahl: QuellenWahl, maxJah
       funde.push({
         quelle: "nachricht", quelleLabel: "In den Nachrichten",
         titel: ohneKlammer(seitenTitel((n.links || [])[0])) || "Meldung",
-        text, url: seitenUrl((n.links || [])[0]),
+        text, volltext: text, url: seitenUrl((n.links || [])[0]),
         ctx: { who, what: wasPhrase(text), when: zeitPhrase(undefined, datum), where },
       });
     }

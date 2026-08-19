@@ -11,7 +11,9 @@ import {
   holeTagesfeed, zerlegeFeed, zufallsTag, datumLang,
   ergaenzeVorrat, ladeVorrat, leereVorrat, vorratStand, ziehVorrat, VORRAT_DECKEL,
   type WikiFund, type QuellenWahl,
+  istLexikon,
 } from "../features/wikisammler";
+import { appendToPersistentCorpus, loadPersistentCorpus } from "../corpus";
 import { baueBildsammler } from "./bildsammlerView";
 import { baueAbschrift } from "./abschriftView";
 
@@ -97,7 +99,39 @@ export function mountSammler(root: HTMLElement): void {
   zeigeVorrat();
 
   const liste = el("div", {});
-  wrap.append(liste);
+  /** Welche Funde des Tages in den Korpus sollen. Ein WeakMap-artiger Bezug
+   *  auf die Fund-Objekte selbst: Beim Neuzeichnen entstehen neue Objekte, und
+   *  die Auswahl beginnt dann bewusst von vorn — sie gehört zum angezeigten
+   *  Tag, nicht zum Vorrat. */
+  const gewaehlt = new Map<WikiFund, boolean>();
+  const korpusStand = el("span", { class: "muted mini" }, "");
+  const korpusBtn = el("button", { class: "primary" }, icon("arrowRight"), " Auswahl in den Korpus") as HTMLButtonElement;
+  const korpusZeile = el("div", { class: "btnrow", style: "display:none" }, korpusBtn, korpusStand);
+
+  const gewaehlteTexte = (): string[] =>
+    [...gewaehlt.entries()].filter(([, an]) => an).map(([f]) => f.volltext.trim()).filter(Boolean);
+
+  function standZeigen(): void {
+    const t = gewaehlteTexte();
+    const zeichen = t.join(" ").length;
+    korpusStand.textContent = t.length
+      ? `${t.length} Funde · ${zeichen} Zeichen · Korpus derzeit ${loadPersistentCorpus().length}`
+      : `nichts gewählt · Korpus derzeit ${loadPersistentCorpus().length} Zeichen`;
+    korpusBtn.disabled = !t.length;
+  }
+
+  korpusBtn.addEventListener("click", () => {
+    const t = gewaehlteTexte();
+    if (!t.length) return;
+    const vorher = loadPersistentCorpus().length;
+    appendToPersistentCorpus(t.join(" "));
+    status.textContent = `${t.length} Funde übernommen — Korpus ${vorher} → ${loadPersistentCorpus().length} Zeichen.`;
+    standZeigen();
+  });
+
+  // Die Sammelzeile ueber der Liste: Bei vierzig Funden waere ein Knopf ganz
+  // unten nach dem Scrollen nicht mehr auffindbar.
+  wrap.append(korpusZeile, liste);
   // Der Bildsammler steht unter dem Tagesfeed: dieselbe Aufgabe — Material von
   // aussen hereinholen —, aber ein anderer Weg hinein, und anders als der Feed
   // kostet er Geld. Deshalb darunter und nicht darueber.
@@ -134,6 +168,16 @@ export function mountSammler(root: HTMLElement): void {
 
     const nimm = el("button", { class: "primary" }, icon("arrowRight"), " Studio");
     nimm.addEventListener("click", () => insStudio(f));
+    // Der fehlende Ausgang: Bisher konnte ein Fund nur ins Studio (die vier W),
+    // sein TEXT wurde angezeigt und dann weggeworfen.
+    const lex = istLexikon(f.volltext);
+    const box = el("input", { type: "checkbox" }) as HTMLInputElement;
+    box.checked = !lex;
+    box.addEventListener("change", () => { gewaehlt.set(f, box.checked); standZeigen(); });
+    gewaehlt.set(f, box.checked);
+    const marke = el("label", { class: "bsam-satz" + (lex ? " zweifel" : "") }, box,
+      el("span", {}, `für den Korpus (${f.volltext.length} Zeichen)`,
+        ...(lex ? [el("span", { class: "bsam-zweifel" }, " — beginnt wie eine Lexikondefinition")] : [])));
     const zeile = el("div", { class: "btnrow" }, nimm);
     if (f.url) {
       const a = el("a", { href: f.url, target: "_blank", rel: "noopener noreferrer", class: "kling-link" }, "Artikel lesen ↗");
@@ -144,11 +188,12 @@ export function mountSammler(root: HTMLElement): void {
         el("span", { class: "tbadge" }, f.quelleLabel),
         el("span", { class: "tcount" }, f.titel)),
       el("p", { class: "fund-text" }, f.text),
-      chips, zeile);
+      chips, marke, zeile);
   };
 
   function zeichne(): void {
     liste.innerHTML = "";
+    gewaehlt.clear();
     if (!rohFeed) return;
     const funde = zerlegeFeed(rohFeed, datum, wahl);
     if (!funde.length) {
@@ -162,6 +207,8 @@ export function mountSammler(root: HTMLElement): void {
     zeigeVorrat();
     status.textContent = `${funde.length} Funde · ${neu} neu im Vorrat (${gesamt})`;
     funde.forEach((f) => liste.append(karte(f)));
+    korpusZeile.style.display = funde.length ? "" : "none";
+    standZeigen();
   }
 
   function hole(d: Date): void {

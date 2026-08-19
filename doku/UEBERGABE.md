@@ -438,6 +438,21 @@ Werte, die es nicht gibt („ringkomposition", „duester", „wechsel", „mild
 Die Maschine variierte zum Schein. `test/autopilot.ts` würfelt 1000 Läufe und
 prüft jeden Wert gegen die echte Liste.
 
+**Tagesfeed in den Korpus** (seit 4.246.0): Der Feed hatte bis dahin gar keinen
+Ausgang zum Korpus — ein Fund konnte nur ins Studio (die vier W), sein Text
+wurde angezeigt und weggeworfen. Jetzt trägt jeder Fund neben `text` (gekürzt,
+für die Karte) ein Feld `volltext` (ungekürzt, für den Korpus); die alte
+Kappung bei 260 Zeichen war für das Was-Feld gedacht und hat rund die Hälfte
+jeder Zusammenfassung verworfen. Jahrestage: 14 → 40, weil der Feed dreißig bis
+sechzig liefert und die Ereignissätze die beste Ware darin sind (Handlung statt
+Definition). `istLexikon()` kennzeichnet Funde, die wie eine Lexikondefinition
+beginnen („X war ein…", „Y ist eine Gemeinde in…") — sie werden ABGEWÄHLT
+vorgelegt, nicht verworfen: einförmig ist nicht falsch. Geprüft wird nur der
+Anfang, weil dort bei Wikipedia die Definition steht.
+
+`mostread` aus dem Feed bleibt bewusst ungenutzt: vierzig Definitionen am Tag
+wären genau die Einseitigkeit, gegen die der Filter gebaut ist.
+
 ## 7 · Fallen in diesem Quelltext
 
 - **Deutsche Nomen sind groß.** „Großgeschrieben mitten im Satz" taugt nicht als
