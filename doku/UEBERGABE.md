@@ -453,6 +453,21 @@ Anfang, weil dort bei Wikipedia die Definition steht.
 `mostread` aus dem Feed bleibt bewusst ungenutzt: vierzig Definitionen am Tag
 wären genau die Einseitigkeit, gegen die der Filter gebaut ist.
 
+**Kürzen am Spaltenfuß ist formbewusst** (seit 4.247.0). `darfKuerzen()`:
+Bericht und Meldung dürfen von hinten verlieren — sie sind als umgekehrte
+Pyramide gebaut, dort steht das Unwichtigste. Alles andere nicht: Einem Gedicht
+die letzte Zeile zu nehmen heißt nicht kürzen, sondern ihm die Pointe nehmen,
+und bei Prosa steht am Ende oft die Wendung. Solche Beiträge fallen GANZ weg —
+auch als einziger einer Spalte, denn ein Text, der über die Fußlinie
+hinausläuft, steht auf dem Papier im Nichts.
+
+Der Grundsatz dahinter: Ein fehlender Text ist bloß abwesend und wird gemeldet;
+ein angeschnittener verfälscht das Urteil über ihn. Deshalb steht unter der
+Statuszeile jetzt ein Protokoll, das jeden gekürzten und jeden entfallenen
+Beitrag beim Titel nennt. `beitrag()` legt dafür Form und Titel als
+`data`-Attribute ans Element — vorher kannte die Nachmessung nur einen Kasten
+mit Absätzen.
+
 ## 7 · Fallen in diesem Quelltext
 
 - **Deutsche Nomen sind groß.** „Großgeschrieben mitten im Satz" taugt nicht als

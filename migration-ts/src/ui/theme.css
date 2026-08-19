@@ -886,6 +886,11 @@ select.abweichend{border-color:var(--acc)}
    gefuellt wird — der Rahmen steht dann schon da. Die Regel gilt fuer die
    ganze Klasse und nicht nur fuer die eine Stelle, an der es aufgefallen ist. */
 .sam-warn:empty{display:none}
+/* Protokoll des Umbruchs: Was gekuerzt wurde, was ganz fehlt. Abgesetzt, aber
+   nicht versteckt — es ist die Auskunft darueber, ob man einen ganzen Text
+   vor sich hat oder einen Rest. */
+.zk-protokoll{margin:6px 0 0}
+.zk-protokoll:empty{display:none}
 
 /* Wirkungsmesser */
 .wm-h{margin:0 0 6px;font-size:15px;color:var(--acc)}

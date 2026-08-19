@@ -154,6 +154,28 @@ export function ohneUeberschrift(rumpf: string, titel: string): string {
   return rest;
 }
 
+/** Darf dieser Form hinten etwas weggenommen werden?
+ *
+ *  Der Bericht ist als umgekehrte Pyramide gebaut: Hinten steht das
+ *  Unwichtigste, ihn dort zu kürzen ist genau das Verfahren, für das er
+ *  gemacht wurde. Die Meldung ebenso — sie hängt Nebenangaben an.
+ *
+ *  Bei allem anderen trägt das Ende. Einem Gedicht die letzte Zeile zu nehmen
+ *  heißt nicht, es zu kürzen, sondern ihm die Pointe zu nehmen; bei Prosa steht
+ *  dort oft die Wendung. Solche Beiträge fallen ganz weg statt angeschnitten zu
+ *  werden — ein fehlender Text ist bloß abwesend und wird gemeldet, ein
+ *  angeschnittener verfälscht das Urteil über ihn. */
+export function darfKuerzen(form: string): boolean {
+  return form === "bericht" || form === "meldung";
+}
+
+/** Was die Nachmessung am Fuß weggenommen hat. */
+export interface Kuerzung {
+  titel: string;
+  form: string;
+  art: "absatz" | "satz" | "entfallen";
+}
+
 /** Rumpf eines Beitrags — beim Bericht ohne Dachzeile, Schlagzeile und
  *  Faktenkasten, die setzt die Seite selbst. */
 function rumpfVon(t: Treasure): string {
@@ -190,6 +212,11 @@ function istVers(form?: string): boolean {
 
 function beitrag(t: Treasure, rolle: Rolle, titel: string, skala = 1, zwischenraum = 0, vorabstand = 0): HTMLElement {
   const box = el("div", { class: "zk-beitrag zk-" + rolle });
+  // Form und Titel am Element, damit die Nachmessung am Fuß weiß, WAS sie da
+  // kürzt. Vorher kannte sie nur einen Kasten mit Absätzen und behandelte einen
+  // Bericht wie ein Gedicht.
+  box.dataset.form = t.form || "";
+  box.dataset.titel = titel;
   // Die Schriftskala wirkt ueber eine eigene Variable, damit sie sich mit dem
   // Schriftgrad der Seite multipliziert statt ihn zu ueberschreiben.
   if (skala !== 1) box.style.setProperty("--zk-skala", String(skala));
@@ -336,6 +363,8 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
   const buehne = el("div", { class: "druckhuelle" });
   const blatt = el("div", { class: "druckblatt zk-blatt" });
   const status = el("div", { class: "zk-status muted mini" });
+  // Steht unter dem Status: Erst die Zahlen, dann die Einzelheiten.
+  const protokoll = el("div", { class: "zk-protokoll" });
 
   /** Passt das Blatt an die Kastenbreite an. Auf dem Handy stand vorher ein
    *  794 px breites Papier in einem rund 360 px breiten Kasten und musste
@@ -671,16 +700,19 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
 
     // Was jetzt noch übersteht, kann die Entfernung nicht anfassen, ohne die
     // Spalte zu leeren. Kürzen — gemessen an der Fußlinie jeder Seite.
-    let gekuerzt = 0;
+    const kuerzungen: Kuerzung[] = [];
     for (const seiteEl of Array.from(blatt.querySelectorAll(".zk-seite")) as HTMLElement[]) {
-      gekuerzt += kuerzeAmFuss(seiteEl);
+      kuerzungen.push(...kuerzeAmFuss(seiteEl));
     }
+    const gekuerzt = kuerzungen.length;
+    const entfallen = kuerzungen.filter((k) => k.art === "entfallen");
 
     const gesetzt = seiten.reduce((a, s2) => a + s2.teile.length, 0) - entfernt;
     const grad = Math.round(100 * seiten.reduce((a, s2) => a + fuellgrad(s2, mess, o), 0) / Math.max(1, seiten.length));
     const statusText = `${seiten.length} Seite(n) · ${gesetzt} von ${ids.length} Beiträgen gesetzt · Füllung ${grad} %`
       + (entfernt ? ` · ${entfernt} beim Nachmessen entfernt` : "")
       + (gekuerzt ? ` · ${gekuerzt}× am Fuß gekürzt` : "")
+      + (entfallen.length ? ` · ${entfallen.length} ganz entfallen` : "")
       + (gesetzt < ids.length ? ` · ${ids.length - gesetzt} übrig (mehr Seiten wählen)` : "")
       // Ehrlich sagen, wenn die Seite NICHT voll wird: Der Umbruch kann nur
       // verteilen, was da ist. Bei zwei Texten in der Schatzkammer bleibt die
@@ -690,6 +722,36 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     document.querySelectorAll(".zk-probe").forEach((x) => x.remove());
     const druckSeiten = mappeBauen();
     status.textContent = statusText + ` · Druckfassung: ${druckSeiten} Seite(n)`;
+
+    // Das Protokoll: WAS gekürzt wurde und WAS ganz fehlt. Eine Zahl allein
+    // („3× am Fuß gekürzt") sagt nicht, welcher Beitrag beschnitten ist — und
+    // wer einen Text schwach findet, weil sein Schluss abgeschnitten war,
+    // urteilt über etwas, das es nie gab.
+    protokoll.innerHTML = "";
+    if (kuerzungen.length) {
+      const nachTitel = new Map<string, Kuerzung[]>();
+      for (const k of kuerzungen) {
+        const l = nachTitel.get(k.titel);
+        if (l) l.push(k); else nachTitel.set(k.titel, [k]);
+      }
+      protokoll.append(el("p", { class: "mini", style: "margin:0 0 4px" },
+        el("b", {}, "Was der Umbruch weggenommen hat")));
+      for (const [titel, l] of nachTitel) {
+        const weg = l.some((k) => k.art === "entfallen");
+        const absaetze = l.filter((k) => k.art === "absatz").length;
+        const saetze = l.filter((k) => k.art === "satz").length;
+        const teile: string[] = [];
+        if (absaetze) teile.push(`${absaetze} Absatz${absaetze === 1 ? "" : "e"}`);
+        if (saetze) teile.push(`${saetze} Satz${saetze === 1 ? "" : "-Ende"}`);
+        protokoll.append(el("p", { class: weg ? "sam-warn mini" : "muted mini", style: "margin:2px 0" },
+          weg
+            ? `„${titel}" ist ganz entfallen — die Form wird nicht angeschnitten, sie passte nicht.`
+            : `„${titel}": ${teile.join(", ")} gekürzt.`));
+      }
+      protokoll.append(el("p", { class: "muted mini", style: "margin:6px 0 0" },
+        "Nur Bericht und Meldung werden von hinten gekürzt — sie sind so gebaut. "
+        + "Bei Prosa und Vers trägt das Ende; die fallen ganz weg statt beschnitten zu werden."));
+    }
   };
 
   // ── Bildrahmen ──────────────────────────────────────────────────────────
@@ -902,12 +964,12 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
    *  Erst Sätze, dann Absätze, zuletzt ganze Beiträge — in dieser Reihenfolge,
    *  weil jeder Schritt mehr wegnimmt als der vorige. */
   const RESERVE_FUSS = Math.round(3 * MM);
-  const kuerzeAmFuss = (seiteEl: HTMLElement): number => {
+  const kuerzeAmFuss = (seiteEl: HTMLElement): Kuerzung[] => {
+    const raus: Kuerzung[] = [];
     const sR = seiteEl.getBoundingClientRect();
-    if (!sR.height) return 0;                     // ohne Layout nichts zu messen
+    if (!sR.height) return raus;                  // ohne Layout nichts zu messen
     const fuss = seiteEl.querySelector(".zk-fuss") as HTMLElement | null;
     const grenze = (fuss ? fuss.getBoundingClientRect().top : sR.bottom) - RESERVE_FUSS;
-    let gekuerzt = 0;
     for (const kasten of Array.from(seiteEl.querySelectorAll(".zk-spaltebox")) as HTMLElement[]) {
       let schutz = 0;
       while (schutz++ < 150) {
@@ -915,20 +977,26 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
         const letzter = beitraege[beitraege.length - 1];
         if (!letzter) break;
         if (letzter.getBoundingClientRect().bottom <= grenze) break;
+        const form = letzter.dataset.form || "";
+        const titel = letzter.dataset.titel || "ohne Titel";
         const inhalt = letzter.querySelector(".dm-inhalt") as HTMLElement | null;
         const letztesKind = inhalt?.lastElementChild as HTMLElement | null;
-        if (inhalt && letztesKind) {
-          if (inhalt.children.length > 1) { inhalt.removeChild(letztesKind); gekuerzt++; continue; }
+        // NUR bei Formen, die von hinten her verlieren dürfen.
+        if (darfKuerzen(form) && inhalt && letztesKind) {
+          if (inhalt.children.length > 1) {
+            inhalt.removeChild(letztesKind); raus.push({ titel, form, art: "absatz" }); continue;
+          }
           const kurz = satzWeg(letztesKind.textContent || "");
-          if (kurz) { letztesKind.textContent = kurz; gekuerzt++; continue; }
+          if (kurz) { letztesKind.textContent = kurz; raus.push({ titel, form, art: "satz" }); continue; }
         }
-        // Am Beitrag ist nichts mehr zu kürzen: ganz heraus — außer er ist der
-        // einzige der Spalte, dann bliebe sie leer.
-        if (beitraege.length > 1) { kasten.removeChild(letzter); gekuerzt++; continue; }
-        break;
+        // Ganz heraus. Auch als einziger der Spalte: Ein Text, der über die
+        // Fußlinie hinausläuft, steht auf dem Papier im Nichts — eine leere
+        // Spalte ist die ehrlichere Auskunft und wird gemeldet.
+        kasten.removeChild(letzter);
+        raus.push({ titel, form, art: "entfallen" });
       }
     }
-    return gekuerzt;
+    return raus;
   };
 
   /** Wo fängt der Spaltenbereich an und wie hoch ist er — in Seitenkoordinaten.
@@ -1207,7 +1275,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       el("span", { class: "chips-label" }, "Layout:"), layoutSel,
       layoutSpeichern, layoutLaden, layoutWeg, layoutInfo),
     bildInfo,
-    status,
+    status, protokoll,
     el("div", { class: "zk-spalten" }, liste, blatt)));
   document.body.append(buehne);
   bauListe();

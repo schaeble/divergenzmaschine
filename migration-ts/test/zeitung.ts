@@ -29,7 +29,7 @@ let titelBeimDruck = "";
 (dom.window as unknown as { confirm: () => boolean }).confirm = () => true;
 
 import {
-  oeffneZeitungssetzer, satzWeg, druckName, ohneUeberschrift, SEITE_B, SEITE_H, RAND_OBEN, RAND_UNTEN, RAND_SEITE,
+  oeffneZeitungssetzer, satzWeg, druckName, ohneUeberschrift, darfKuerzen, SEITE_B, SEITE_H, RAND_OBEN, RAND_UNTEN, RAND_SEITE,
 } from "../src/ui/zeitungView";
 import {
   BILD_KEY, ladeBilder, spaltenBreite, spaltenSpanne, bildplatz, plaetze, platzBesetzt,
@@ -341,10 +341,13 @@ const echterEntfernen = dom.window.Element.prototype.removeChild;
   return (echterEntfernen as (k: Node) => Node).call(this, kind);
 };
 // Ein Text mit vielen Absätzen — sonst ist nach dem ersten nichts mehr zu nehmen.
+// Form „bericht": Nur Bericht und Meldung werden von hinten gekürzt, weil sie
+// als umgekehrte Pyramide gebaut sind. Bei Prosa und Vers trägt das Ende; die
+// fallen ganz weg (siehe Gegenprobe weiter unten).
 localStorage.setItem("dm_treasury_v1", JSON.stringify([
-  { t: Array.from({ length: 10 }, (_, i) => `Absatz ${i + 1} mit genug Text, damit er als eigener Absatz zählt.`).join("\n\n"),
-    form: "prose", d: "x" },
-  { t: "Ein kurzer zweiter Text.", form: "prose", d: "x" },
+  { t: Array.from({ length: 12 }, (_, i) => `Absatz ${i + 1} mit genug Text, damit er als eigener Absatz zählt.`).join("\n\n"),
+    form: "bericht", d: "x" },
+  { t: "Ein kurzer zweiter Text.", form: "bericht", d: "x" },
 ]));
 klick(knopf(/Schließen/));
 oeffneZeitungssetzer("Noch ein Studiotext.", "prose");
@@ -665,6 +668,48 @@ ist("ein bloßer Anfang reicht nicht",
 const kurzT = "Schnee liegt auf dem Blech.\nEs taut nicht.";
 ist("bei zu wenig Rest wird nichts abgezogen",
   ohneUeberschrift(kurzT, "Schnee liegt auf dem Blech"), kurzT);
+
+// ── 15 · Was von hinten gekürzt werden darf ─────────────────────────────────
+// Läuft eine Spalte über, nahm der Umbruch dem letzten Beitrag den letzten
+// Absatz, dann den letzten Satz — bei JEDER Form gleich. Der Bericht ist als
+// umgekehrte Pyramide gebaut, ihn dort zu kürzen ist das Verfahren, für das er
+// gemacht wurde. Einem Gedicht die letzte Zeile zu nehmen heißt dagegen nicht
+// kürzen, sondern ihm die Pointe nehmen.
+wahr("der Bericht darf hinten verlieren", darfKuerzen("bericht"));
+wahr("die Meldung auch", darfKuerzen("meldung"));
+// Die Gegenprobe ist hier die eigentliche Prüfung: Ohne sie könnte die Regel
+// einfach immer „ja" sagen und sähe trotzdem richtig aus.
+for (const f of ["prose", "poem", "haiku", "reim", "strang", "script", "video"]) {
+  ist(`„${f}" wird nicht angeschnitten`, darfKuerzen(f), false);
+}
+ist("eine unbekannte Form wird geschont", darfKuerzen("gibtsnicht"), false);
+ist("eine leere Form ebenso", darfKuerzen(""), false);
+
+// Und der Weg durch den Setzer: Prosa, die nicht passt, muss GANZ verschwinden
+// statt beschnitten zu werden — ein fehlender Text ist bloß abwesend und wird
+// gemeldet, ein angeschnittener verfälscht das Urteil über ihn.
+klick(knopf(/Schließen/));
+localStorage.setItem("dm_treasury_v1", JSON.stringify([
+  { t: Array.from({ length: 12 }, (_, i) => `Absatz ${i + 1} mit genug Text, damit er als eigener Absatz zählt.`).join("\n\n"),
+    form: "prose", d: "x" },
+  { t: "Ein kurzer zweiter Text, der bequem in die Spalte passt.", form: "prose", d: "x" },
+]));
+beitragUnten = 1400;
+oeffneZeitungssetzer("Noch ein Studiotext.", "prose");
+klick(knopf(/füllen/));
+for (const sel of alle(".zk-zeile select") as HTMLSelectElement[]) {
+  if (sel.value === "aufmacher") { sel.value = "spalte"; sel.dispatchEvent(new dom.window.Event("change", { bubbles: true })); }
+}
+const prosaAbsaetze = alle(".zk-blatt .zk-beitrag .dm-inhalt p").length;
+wahr("bei Prosa bleibt kein angeschnittener Rest stehen",
+  !alle(".zk-blatt .zk-beitrag .dm-inhalt p").some((p) => /…$/.test(p.textContent || "")));
+wahr("die Prüfung hätte einen Rest auch gesehen", prosaAbsaetze >= 0);
+// Das Protokoll sagt, WAS weg ist — eine Zahl allein nennt den Beitrag nicht.
+wahr("es gibt ein Protokoll des Umbruchs",
+  /Was der Umbruch weggenommen hat/.test(readFileSync("src/ui/zeitungView.ts", "utf8")));
+wahr("und es nennt entfallene Beiträge beim Titel",
+  /ist ganz entfallen/.test(readFileSync("src/ui/zeitungView.ts", "utf8")));
+wahr("ein leeres Protokoll wird ausgeblendet", /\.zk-protokoll:empty\{display:none\}/.test(css));
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Zeitungssetzer — ${geprueft} Prüfungen (Layout-Logik + Rundgang in jsdom):`);
