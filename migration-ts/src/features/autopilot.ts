@@ -230,3 +230,33 @@ export function merkeGedaechtnis(alt: string[], neu: string[], tiefe = GEDAECHTN
 export function sichereGedaechtnis(liste: string[]): boolean {
   try { localStorage.setItem(KTX_KEY, JSON.stringify(liste)); return true; } catch { return false; }
 }
+
+/** Wie viele zuletzt benutzte WAS-Formulierungen zusätzlich gemieden werden.
+ *
+ *  Der ganze Schlüssel reicht nicht. Die Schlagzeile eines Berichts ist „Wer +
+ *  Was" — steht dort zweimal dasselbe Was, sieht die Zeile gleich aus, auch
+ *  wenn ein anderer Name davorsteht: „Eine Bibliothek will die Verfolger
+ *  abschütteln", dann „Eine Klinik will die Verfolger abschütteln". Genau so
+ *  gemeldet.
+ *
+ *  Flacher als das Gedächtnis für ganze Kontexte: Es gibt nur eine Handvoll
+ *  Was-Formulierungen. Würden zu viele gesperrt, bliebe nichts übrig. */
+export const WAS_TIEFE = 8;
+
+/** Das Was aus einem Schlüssel. Der Schlüssel ist „wer|wo|was"; die Liste der
+ *  zuletzt benutzten Was-Formulierungen wird daraus abgeleitet statt getrennt
+ *  gespeichert — zwei Ablagen, die dasselbe meinen, laufen auseinander. */
+export function wasAusSchluessel(k: string): string {
+  const teile = (k || "").split("|");
+  return teile.length >= 3 ? teile[2]! : "";
+}
+
+/** Die zuletzt benutzten Was-Formulierungen, jüngste zuletzt. */
+export function letzteWas(gedaechtnis: string[], tiefe = WAS_TIEFE): Set<string> {
+  const raus = new Set<string>();
+  for (const k of gedaechtnis.slice(-tiefe)) {
+    const w = wasAusSchluessel(k);
+    if (w) raus.add(w);
+  }
+  return raus;
+}

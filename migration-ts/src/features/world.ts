@@ -130,13 +130,53 @@ export function worldTick(): string[] {
   return events;
 }
 
+/** Das Was aus dem Status einer Figur.
+ *
+ *  Je Klasse MEHRERE Formulierungen, aus denen gezogen wird. Vorher gab es
+ *  genau eine je Klasse, und weil `worldFillContext` Figuren mit
+ *  Spannungsvermerk hart bevorzugt, stand am Ende in Ausgabe um Ausgabe
+ *  derselbe Satz über dem Aufmacher — nur der Name davor wechselte
+ *  („Eine Bibliothek will die Verfolger abschütteln", dann „Eine Klinik will
+ *  die Verfolger abschütteln").
+ *
+ *  Die Klassen selbst bleiben, wie sie waren: Dieselben Vermerke lösen
+ *  dasselbe Motiv aus, nur nicht mehr denselben Wortlaut. */
+const WAS_ZU_STATUS: [RegExp, string[]][] = [
+  [/vermisst|taucht unter|gerücht/, [
+    "will unerkannt zurückkehren",
+    "will nicht gefunden werden",
+    "wartet, bis das Gerede aufhört",
+    "kommt zurück, ohne angekündigt zu sein",
+  ]],
+  [/beobacht/, [
+    "will den Beobachter stellen",
+    "sucht das Fenster gegenüber",
+    "merkt, dass jemand mitschreibt",
+    "dreht die Beobachtung um",
+  ]],
+  [/geheimnis|akte/, [
+    "will das Geheimnis beweisen",
+    "sucht die fehlende Seite",
+    "hält die Akte zurück",
+    "verlangt Einsicht",
+  ]],
+  [/gejagt|erkannt|entkommt/, [
+    "will die Verfolger abschütteln",
+    "nimmt einen Umweg, der länger dauert",
+    "wechselt den Namen und bleibt",
+    "geht dorthin zurück, wo man ihn kennt",
+  ]],
+  [/spur/, [
+    "will die Spur zu Ende verfolgen",
+    "findet den Anfang der Spur nicht",
+    "läuft der eigenen Spur nach",
+    "gibt die Spur bewusst auf",
+  ]],
+];
+
 function whatFromStatus(status: string): string {
   const s = (status || "").toLowerCase();
-  if (/vermisst|taucht unter|gerücht/.test(s)) return "will unerkannt zurückkehren";
-  if (/beobacht/.test(s)) return "will den Beobachter stellen";
-  if (/geheimnis|akte/.test(s)) return "will das Geheimnis beweisen";
-  if (/gejagt|erkannt|entkommt/.test(s)) return "will die Verfolger abschütteln";
-  if (/spur/.test(s)) return "will die Spur zu Ende verfolgen";
+  for (const [muster, saetze] of WAS_ZU_STATUS) if (muster.test(s)) return pick(saetze);
   return "";
 }
 

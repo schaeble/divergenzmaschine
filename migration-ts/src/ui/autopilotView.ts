@@ -27,6 +27,7 @@ import { worldFillContext } from "../features/world";
 import {
   baueBesetzung, baueEingabe, titelAus, naechsteAusgabe, layoutName, verteileRollen,
   ktxSchluessel, ladeGedaechtnis, merkeGedaechtnis, sichereGedaechtnis, GEDAECHTNIS_TIEFE,
+  letzteWas,
   BEITRAEGE_MIN, BEITRAEGE_MAX, BEITRAEGE_VORGABE, type Quelle,
 } from "../features/autopilot";
 
@@ -108,7 +109,9 @@ export function mountAutopilot(root: HTMLElement): void {
    *  fünfte neue Kombination, und ein leerer Kontext wäre schlechter als ein
    *  wiederholter. */
   let erschoepft = 0;
-  const holeKontext = (q: Quelle, benutzt: Set<string>): { who: string; where: string; when: string; what: string } => {
+  const holeKontext = (
+    q: Quelle, benutzt: Set<string>, wasGemieden: Set<string>,
+  ): { who: string; where: string; when: string; what: string } => {
     const zieh = (): { who: string; where: string; when: string; what: string } => {
       if (q === "vorrat") {
         const f = ziehVorrat();
@@ -124,7 +127,12 @@ export function mountAutopilot(root: HTMLElement): void {
     let letzter = zieh();
     for (let i = 0; i < 8; i++) {
       const k = ktxSchluessel(letzter);
-      if (!benutzt.has(k)) { benutzt.add(k); return letzter; }
+      const was = (letzter.what || "").toLowerCase().replace(/\s+/g, " ").trim();
+      // Beides muss frisch sein: der ganze Kontext UND die Absicht für sich.
+      if (!benutzt.has(k) && !wasGemieden.has(was)) {
+        benutzt.add(k); if (was) wasGemieden.add(was);
+        return letzter;
+      }
       letzter = zieh();
     }
     // Nach acht Versuchen genommen, was kommt — und mitgezählt, damit die
@@ -158,11 +166,12 @@ export function mountAutopilot(root: HTMLElement): void {
         // sehen nicht nach Zufall aus, sondern nach Defekt.
         const gedaechtnis = ladeGedaechtnis();
         const benutzt = new Set<string>(gedaechtnis);
+        const wasGemieden = letzteWas(gedaechtnis);
         const frisch: string[] = [];
         erschoepft = 0;
         const quellenZaehler = new Map<string, number>();
         for (const a of auftraege) {
-          const ctx = holeKontext(a.quelle, benutzt);
+          const ctx = holeKontext(a.quelle, benutzt, wasGemieden);
           frisch.push(ktxSchluessel(ctx));
           quellenZaehler.set(a.quelle, (quellenZaehler.get(a.quelle) || 0) + 1);
           const text = buildStory(bank, baueEingabe(a, ctx), model).trim();

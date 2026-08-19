@@ -8,6 +8,7 @@ import {
   baueBesetzung, baueEingabe, titelAus, naechsteAusgabe, layoutName, verteileRollen,
   SEITEN_FORMEN, BEITRAEGE_MIN, BEITRAEGE_MAX, BEITRAEGE_VORGABE,
   ktxSchluessel, merkeGedaechtnis, GEDAECHTNIS_TIEFE, KTX_KEY,
+  wasAusSchluessel, letzteWas, WAS_TIEFE,
 } from "../src/features/autopilot";
 import type { FormKind } from "../src/types";
 
@@ -199,6 +200,27 @@ ist("der Deckel greift", merkeGedaechtnis(voll, ["neu"], 5).length, 5);
 ist("und das Älteste fällt heraus", merkeGedaechtnis(voll, ["neu"], 5)[0], "k4");
 wahr("die Tiefe reicht über mehrere Ausgaben", GEDAECHTNIS_TIEFE >= 20);
 wahr("das Gedächtnis wandert in die Projektdatei", KTX_KEY.startsWith("divergenz_"));
+
+// Der ganze Schlüssel reicht NICHT. Gemeldet nach der ersten Reparatur: „Eine
+// Bibliothek will die Verfolger abschütteln", dann „Eine Klinik will die
+// Verfolger abschütteln". Verschiedene Kontexte — und trotzdem dieselbe Zeile,
+// weil die Schlagzeile aus „Wer + Was" gebaut wird.
+ist("das Was lässt sich aus dem Schlüssel lesen",
+  wasAusSchluessel("eine klinik|hochgebirge|will die verfolger abschütteln"),
+  "will die verfolger abschütteln");
+ist("ein unvollständiger Schlüssel ergibt nichts", wasAusSchluessel("nur|zwei"), "");
+ist("und ein leerer auch nicht", wasAusSchluessel(""), "");
+
+const g = ["a|b|erstes was", "c|d|zweites was", "e|f|erstes was"];
+wahr("die benutzten Was werden gesammelt", letzteWas(g).has("erstes was"));
+wahr("alle davon", letzteWas(g).has("zweites was"));
+ist("Doppelte zählen einmal", letzteWas(g).size, 2);
+// Flacher als das Kontext-Gedächtnis: Es gibt nur eine Handvoll
+// Was-Formulierungen. Würden zu viele gesperrt, bliebe nichts übrig.
+wahr("die Was-Tiefe ist flacher als das Gedächtnis", WAS_TIEFE < GEDAECHTNIS_TIEFE);
+ist("nur die jüngsten zählen", letzteWas(["x|y|altes was", ...g], 3).has("altes was"), false);
+ist("aber die jüngsten schon", letzteWas(["x|y|altes was", ...g], 3).has("zweites was"), true);
+ist("ein leeres Gedächtnis meidet nichts", letzteWas([]).size, 0);
 
 // ── 8 · Der Titel ───────────────────────────────────────────────────────────
 ist("Wer und Was zusammen", titelAus({ who: "Ein Ermittler", what: "wartet" }), "Ein Ermittler wartet");
