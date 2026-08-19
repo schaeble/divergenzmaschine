@@ -56,13 +56,20 @@ export function baueBesetzung(
   const quellen: Quelle[] = ["wuerfel"];
   if (hatVorrat) quellen.push("vorrat");
   if (hatBild) quellen.push("bild");
+  // REIHUM statt zufällig. Beim Ziehen kam es regelmäßig vor, dass alle
+  // Beiträge einer Ausgabe aus derselben Quelle stammten — und wenn der
+  // Bildvorrat gerade aus dreissig Tempelfotos besteht, handelt die ganze
+  // Zeitung von Tempeln. Reihum ist keine Geschmacksfrage, sondern der
+  // Unterschied zwischen einer Seite und einer Wiederholung.
+  let zaehler = 0;
+  const naechsteQuelle = (): Quelle => quellen[zaehler++ % quellen.length]!;
 
   const auftraege: Auftrag[] = [];
   // 1 · Der Aufmacher. Immer ein Bericht: Er ist die einzige Form, die von sich
   // aus Überschrift, Vorspann und Faktenkasten mitbringt.
-  auftraege.push({ form: "bericht" as FormKind, woerter: 260 + Math.floor(rnd() * 120), quelle: zieh(quellen, rnd), was: "Aufmacher" });
+  auftraege.push({ form: "bericht" as FormKind, woerter: 260 + Math.floor(rnd() * 120), quelle: naechsteQuelle(), was: "Aufmacher" });
   // 2 · Ein Kasten. Kurz, und die Kurzform trägt die Seite optisch.
-  auftraege.push({ form: "meldung" as FormKind, woerter: 70 + Math.floor(rnd() * 40), quelle: zieh(quellen, rnd), was: "Kasten" });
+  auftraege.push({ form: "meldung" as FormKind, woerter: 70 + Math.floor(rnd() * 40), quelle: naechsteQuelle(), was: "Kasten" });
   // 3 · Der Rest gemischt, damit die Längen auseinanderlaufen.
   const rest: FormKind[] = ["bericht", "prose", "meldung", "prose", "poem"] as FormKind[];
   for (let i = 2; i < n; i++) {
@@ -70,7 +77,7 @@ export function baueBesetzung(
     const woerter = form === "poem" ? 40 + Math.floor(rnd() * 30)
       : form === "meldung" ? 80 + Math.floor(rnd() * 50)
         : 130 + Math.floor(rnd() * 110);
-    auftraege.push({ form, woerter, quelle: zieh(quellen, rnd), was: `Beitrag ${i + 1}` });
+    auftraege.push({ form, woerter, quelle: naechsteQuelle(), was: `Beitrag ${i + 1}` });
   }
   return auftraege;
 }

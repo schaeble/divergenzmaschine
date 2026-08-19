@@ -74,11 +74,28 @@ ist("Unsinn ergibt die Vorgabe", baueBesetzung(NaN, false, false).length, BEITRA
 // funktioniert immer, ohne Netz und ohne Guthaben.
 wahr("ohne Vorräte wird nur gewürfelt",
   baueBesetzung(5, false, false).every((a) => a.quelle === "wuerfel"));
-// Gegenprobe: Mit Vorrat MUSS auch daraus gezogen werden können — sonst prüfte
-// die Regel oben nur, dass die Quelle nie wechselt.
+// Gegenprobe: Mit Vorrat MUSS auch daraus gezogen werden — sonst prüfte die
+// Regel oben nur, dass die Quelle nie wechselt.
 const mitVorrat = baueBesetzung(7, true, true, fest([0.99, 0.5, 0.1]));
 wahr("mit Vorräten kommen andere Quellen vor",
   mitVorrat.some((a) => a.quelle !== "wuerfel"));
+// Und zwar REIHUM, nicht gezogen. Beim Ziehen kam es regelmäßig vor, dass alle
+// Beiträge einer Ausgabe aus derselben Quelle stammten — und wenn der
+// Bildvorrat gerade aus dreißig Tempelfotos besteht, handelt die ganze Zeitung
+// von Tempeln.
+ist("bei drei Quellen kommt jede vor", new Set(mitVorrat.map((a) => a.quelle)).size, 3);
+ist("und sie wechseln der Reihe nach",
+  mitVorrat.slice(0, 3).map((a) => a.quelle).join(","), "wuerfel,vorrat,bild");
+ist("auch die zweite Runde", mitVorrat.slice(3, 6).map((a) => a.quelle).join(","), "wuerfel,vorrat,bild");
+// Bei nur zwei Quellen wechseln eben diese beiden ab.
+const zweiQ = baueBesetzung(5, true, false);
+ist("mit einem Vorrat wechseln zwei Quellen ab",
+  zweiQ.slice(0, 4).map((a) => a.quelle).join(","), "wuerfel,vorrat,wuerfel,vorrat");
+// Der Zufall darf die Verteilung NICHT mehr beeinflussen: Zwei Läufe mit
+// verschiedenem Zufall müssen dieselbe Quellenfolge ergeben.
+ist("die Quellenfolge hängt nicht mehr am Zufall",
+  baueBesetzung(6, true, true, fest([0.1])).map((a) => a.quelle).join(","),
+  baueBesetzung(6, true, true, fest([0.9])).map((a) => a.quelle).join(","));
 
 // ── 4 · Die Eingabe ─────────────────────────────────────────────────────────
 const ctx = { who: "Ein Ermittler", where: "Hafen", when: "im Herbst", what: "wartet" };

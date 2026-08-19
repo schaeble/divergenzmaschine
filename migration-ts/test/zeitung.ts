@@ -29,7 +29,7 @@ let titelBeimDruck = "";
 (dom.window as unknown as { confirm: () => boolean }).confirm = () => true;
 
 import {
-  oeffneZeitungssetzer, satzWeg, druckName, SEITE_B, SEITE_H, RAND_OBEN, RAND_UNTEN, RAND_SEITE,
+  oeffneZeitungssetzer, satzWeg, druckName, ohneUeberschrift, SEITE_B, SEITE_H, RAND_OBEN, RAND_UNTEN, RAND_SEITE,
 } from "../src/ui/zeitungView";
 import {
   BILD_KEY, ladeBilder, spaltenBreite, spaltenSpanne, bildplatz, plaetze, platzBesetzt,
@@ -623,6 +623,48 @@ ist("genau ein Aufmacher", r.filter((x) => x === "aufmacher").length, 1);
 wahr("mindestens ein Kasten", r.filter((x) => x === "kasten").length >= 1, r.join(","));
 wahr("und Spalten dazwischen", r.filter((x) => x === "spalte").length >= 1);
 wahr("alle Beiträge sind gewählt", gesetzteFolge().split(",").length === alle(".zk-zeile").length);
+
+// ── 14 · Die Überschrift steht nicht noch einmal im Text ────────────────────
+// Gemeldet aus einer gedruckten Ausgabe: Über jedem Artikel stand die
+// Schlagzeile, und der Text begann mit genau demselben Satz.
+//
+// Ursache im Bericht-Generator: `schlagzeile()` baut „Wer + Was", und der
+// Vorspann beginnt mit demselben Satz. Behoben wird es hier auf der Seite, weil
+// nur dort beides untereinander steht — der Bericht allein gelesen behält
+// seinen Vorspann.
+const V = "Ritter Gmbh produziert keine Lanzen mehr. Im Jahr 2011 wurde bekannt, dass 370 Anwohner betroffen sind.";
+ist("der doppelte Satz fällt weg",
+  ohneUeberschrift(V, "Ritter Gmbh produziert keine Lanzen mehr"),
+  "Im Jahr 2011 wurde bekannt, dass 370 Anwohner betroffen sind.");
+// Die Schlagzeile lässt den Artikel weg — verglichen wird trotzdem.
+ist("ein fehlender Artikel stört nicht",
+  ohneUeberschrift("Der Ritter produziert keine Lanzen mehr. " + "Und so weiter, mit genügend Text dahinter.", "Ritter produziert keine Lanzen mehr"),
+  "Und so weiter, mit genügend Text dahinter.");
+// Bei den übrigen Formen wird die Überschrift gekürzt und endet auf „…".
+ist("eine gekürzte Überschrift wird als Anfang erkannt",
+  ohneUeberschrift("Ein Waisenkind mit geerbtem Gedächtnis will verschwinden. Danach folgt noch reichlich weiterer Text.",
+    "Ein Waisenkind mit geerbtem Gedächtnis will …"),
+  "Danach folgt noch reichlich weiterer Text.");
+ist("auch über einen Zeilenumbruch hinweg",
+  ohneUeberschrift("Die Höhe nimmt den Atem\nund die Gedanken bleiben, wo sie waren, und noch etwas mehr.", "Die Höhe nimmt den Atem"),
+  "und die Gedanken bleiben, wo sie waren, und noch etwas mehr.");
+
+// Die Gegenproben — ohne sie könnte die Regel einfach immer den ersten Satz
+// abschneiden und sähe trotzdem tadellos aus.
+const W = "Ein ganz anderer erster Satz. Und danach kommt noch deutlich mehr Text hinterher.";
+ist("ein anderer Satz bleibt stehen", ohneUeberschrift(W, "Die Überschrift lautet anders"), W);
+ist("eine leere Überschrift ändert nichts", ohneUeberschrift(W, ""), W);
+ist("eine sehr kurze Überschrift wird ignoriert", ohneUeberschrift(W, "Ein"), W);
+ist("ein leerer Text bleibt leer", ohneUeberschrift("", "Irgendeine Überschrift"), "");
+// Nur teilweise gleich reicht nicht: „Ritter Gmbh produziert" ist nicht die
+// ganze Schlagzeile, und der Satz muss stehen bleiben.
+ist("ein bloßer Anfang reicht nicht",
+  ohneUeberschrift(V, "Ritter Gmbh produziert"), V);
+// Und die wichtigste Sperre: Bliebe zu wenig übrig, ist die Wiederholung das
+// kleinere Übel — ein Gedicht aus drei Zeilen verlöre sonst ein Drittel.
+const kurzT = "Schnee liegt auf dem Blech.\nEs taut nicht.";
+ist("bei zu wenig Rest wird nichts abgezogen",
+  ohneUeberschrift(kurzT, "Schnee liegt auf dem Blech"), kurzT);
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Zeitungssetzer — ${geprueft} Prüfungen (Layout-Logik + Rundgang in jsdom):`);

@@ -87,18 +87,34 @@ export function mountAutopilot(root: HTMLElement): void {
   });
 
   /** Holt einen 4W-Kontext aus der angefragten Quelle. Ist sie leer, fällt es
-   *  auf den Würfel zurück — der funktioniert immer und braucht kein Netz. */
-  const holeKontext = (q: Quelle): { who: string; where: string; when: string; what: string } => {
-    if (q === "vorrat") {
-      const f = ziehVorrat();
-      if (f) return { ...f.ctx };
+   *  auf den Würfel zurück — der funktioniert immer und braucht kein Netz.
+   *
+   *  `benutzt` sammelt, was in DIESER Ausgabe schon dran war. Ohne das kann
+   *  derselbe Fund mehrfach gezogen werden, und dann stehen zwei Artikel über
+   *  denselben Ort nebeneinander. Nach acht vergeblichen Versuchen wird
+   *  genommen, was kommt: Bei einem Vorrat aus drei Funden gibt es keine
+   *  fünfte neue Kombination, und ein leerer Kontext wäre schlechter als ein
+   *  wiederholter. */
+  const holeKontext = (q: Quelle, benutzt: Set<string>): { who: string; where: string; when: string; what: string } => {
+    const zieh = (): { who: string; where: string; when: string; what: string } => {
+      if (q === "vorrat") {
+        const f = ziehVorrat();
+        if (f) return { ...f.ctx };
+      }
+      if (q === "bild") {
+        const f = ziehBildvorrat();
+        if (f) return { ...f.ctx };
+      }
+      const w = worldFillContext();
+      return { who: w.who || "", where: w.where || "", when: w.when || "", what: w.what || "" };
+    };
+    let letzter = zieh();
+    for (let i = 0; i < 8; i++) {
+      const k = `${letzter.who}|${letzter.where}|${letzter.what}`.toLowerCase();
+      if (!benutzt.has(k)) { benutzt.add(k); return letzter; }
+      letzter = zieh();
     }
-    if (q === "bild") {
-      const f = ziehBildvorrat();
-      if (f) return { ...f.ctx };
-    }
-    const w = worldFillContext();
-    return { who: w.who || "", where: w.where || "", when: w.when || "", what: w.what || "" };
+    return letzter;
   };
 
   startBtn.addEventListener("click", () => {
@@ -119,8 +135,11 @@ export function mountAutopilot(root: HTMLElement): void {
         const auftraege = baueBesetzung(parseInt(anzahlIn.value, 10) || BEITRAEGE_VORGABE, hatVorrat, hatBild);
 
         const erzeugt: { text: string; form: string; titel: string }[] = [];
+        const benutzt = new Set<string>();
+        const quellenZaehler = new Map<string, number>();
         for (const a of auftraege) {
-          const ctx = holeKontext(a.quelle);
+          const ctx = holeKontext(a.quelle, benutzt);
+          quellenZaehler.set(a.quelle, (quellenZaehler.get(a.quelle) || 0) + 1);
           const text = buildStory(bank, baueEingabe(a, ctx), model).trim();
           if (!text) continue;
           erzeugt.push({ text, form: a.form, titel: titelAus(ctx) });
@@ -178,8 +197,14 @@ export function mountAutopilot(root: HTMLElement): void {
             el("b", {}, `${rollen[i]}`), ` · ${e.form} · ${w} Wörter — `, e.text.slice(0, 90).replace(/\s+/g, " ") + "…"));
         });
 
+        // Welche Quellen gezogen haben, wird genannt. Wer drei Ausgaben lang
+        // dieselben Orte liest, soll sehen können, woher sie kamen — sonst
+        // sucht man den Fehler im Generator, obwohl der Vorrat einseitig ist.
+        const quellenText = [...quellenZaehler.entries()]
+          .map(([q, n]) => `${n}× ${q === "wuerfel" ? "Weltwürfel" : q === "vorrat" ? "Sammler-Vorrat" : "Bildvorrat"}`)
+          .join(", ");
         status.textContent = ok
-          ? `Fertig. ${teile.length} Beiträge, abgelegt als „${name}“.`
+          ? `Fertig. ${teile.length} Beiträge, abgelegt als „${name}“. Kontext aus: ${quellenText}.`
             + (doppelt ? ` ${doppelt} Text(e) gab es wortgleich schon — sie stehen nicht auf der Seite.` : "")
             + ` Ausgabe steht jetzt auf „${naechste}“.`
           : "Die Texte sind da, aber das Layout ließ sich nicht sichern — der Browser-Speicher ist voll. "

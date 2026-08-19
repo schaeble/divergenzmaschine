@@ -115,6 +115,45 @@ export function ueberschriftVon(t: Treasure): string {
   return kurz.length > 60 ? kurz.slice(0, 57).replace(/\s+\S*$/, "") + " …" : kurz;
 }
 
+/** Zieht die Überschrift vom Textanfang ab, wenn sie dort wortgleich noch
+ *  einmal steht.
+ *
+ *  Der Bericht baut seine Schlagzeile aus „Wer + Was" und beginnt den Vorspann
+ *  mit genau demselben Satz — auf der Seite stand die Zeile dadurch zweimal
+ *  untereinander. Bei den übrigen Formen entsteht dasselbe, weil die
+ *  Überschrift aus der ersten Zeile gewonnen wird.
+ *
+ *  Verglichen wird nachsichtig: Die Schlagzeile lässt den Artikel weg („Der
+ *  Ritter" wird zu „Ritter") und trägt keinen Schlusspunkt. Und sie kann
+ *  gekürzt sein — dann endet sie auf „…" und gilt als Anfang.
+ *
+ *  Abgezogen wird nur, wenn genug stehen bleibt. Ein Gedicht aus drei Zeilen
+ *  verlöre sonst ein Drittel, und aus dem Beitrag würde ein Fetzen. */
+export function ohneUeberschrift(rumpf: string, titel: string): string {
+  const t = (rumpf || "").trim();
+  const norm = (s: string): string => s.toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/^(?:der|die|das|ein|eine)\s+/i, "")
+    .replace(/[.!?…\s]+$/, "")
+    .trim();
+  const ziel = norm(titel || "");
+  if (!t || ziel.length < 8) return t;
+
+  // Der Kandidat ist das, was vor dem ersten Satzende oder Zeilenumbruch steht.
+  const m = /^[\s\S]*?(?:[.!?](?=\s|$)|\n)/.exec(t);
+  const kandidat = (m ? m[0] : t).trim();
+  const nk = norm(kandidat);
+  if (!nk) return t;
+  const gekuerzt = /…$/.test((titel || "").trim());
+  const passt = gekuerzt ? nk.startsWith(ziel) : nk === ziel;
+  if (!passt) return t;
+
+  const rest = t.slice(kandidat.length).replace(/^[\s\u00a0]+/, "");
+  // Bleibt zu wenig übrig, ist die Wiederholung das kleinere Übel.
+  if (rest.replace(/\s+/g, " ").trim().length < 40) return t;
+  return rest;
+}
+
 /** Rumpf eines Beitrags — beim Bericht ohne Dachzeile, Schlagzeile und
  *  Faktenkasten, die setzt die Seite selbst. */
 function rumpfVon(t: Treasure): string {
@@ -165,7 +204,9 @@ function beitrag(t: Treasure, rolle: Rolle, titel: string, skala = 1, zwischenra
     box.append(el("div", { class: "zk-dach" }, FORM_LABEL[t.form] || t.form));
   }
   box.append(el(rolle === "aufmacher" ? "h1" : "h2", { class: "zk-titel" }, titel));
-  const rumpf = rumpfVon(t);
+  // Gegen die abgeleitete Überschrift geprüft, nicht gegen die angezeigte: Wer
+  // den Titel von Hand ändert, soll den Satz trotzdem nicht doppelt bekommen.
+  const rumpf = ohneUeberschrift(rumpfVon(t), ueberschriftVon(t));
   const inhalt = istVers(t.form) ? inhaltVers(rumpf, false) : inhaltFliess(rumpf);
   box.append(inhalt);
   if (t.form === "bericht" && rolle === "aufmacher") {
