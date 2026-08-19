@@ -7,6 +7,7 @@ import { readFileSync } from "fs";
 import {
   baueBesetzung, baueEingabe, titelAus, naechsteAusgabe, layoutName, verteileRollen,
   SEITEN_FORMEN, BEITRAEGE_MIN, BEITRAEGE_MAX, BEITRAEGE_VORGABE,
+  maxBeitraege, BEITRAEGE_JE_SEITE,
   ktxSchluessel, merkeGedaechtnis, GEDAECHTNIS_TIEFE, KTX_KEY,
   wasAusSchluessel, letzteWas, WAS_TIEFE,
 } from "../src/features/autopilot";
@@ -69,8 +70,24 @@ wahr("alle Formen taugen für eine Seite",
 wahr("die Längen laufen auseinander", new Set(b5.map((a) => a.woerter)).size >= 3);
 
 ist("zu wenige werden angehoben", baueBesetzung(1, false, false).length, BEITRAEGE_MIN);
-ist("zu viele werden gedeckelt", baueBesetzung(99, false, false).length, BEITRAEGE_MAX);
 ist("Unsinn ergibt die Vorgabe", baueBesetzung(NaN, false, false).length, BEITRAEGE_VORGABE);
+
+// Gemeldet: 16 Beitraege eingestellt, 7 erzeugt, zweite Seite fast leer. Die
+// Obergrenze war eine feste Sieben aus einer Zeit, in der es nur eine Seite
+// gab — und sie griff stillschweigend.
+ist("eine Seite fasst ein Dutzend", maxBeitraege(1), BEITRAEGE_JE_SEITE);
+ist("zwei Seiten das Doppelte", maxBeitraege(2), BEITRAEGE_JE_SEITE * 2);
+wahr("die gemeldeten 16 sind bei zwei Seiten drin", maxBeitraege(2) >= 16);
+ist("null Seiten gelten als eine", maxBeitraege(0), BEITRAEGE_JE_SEITE);
+ist("Unsinn ebenso", maxBeitraege(NaN), BEITRAEGE_JE_SEITE);
+wahr("nach oben ist trotzdem Schluss", maxBeitraege(99) <= BEITRAEGE_MAX);
+// Gegenprobe: Die Grenze muss auch wirklich greifen, sonst rechnet man bei
+// einem Vertipper minutenlang.
+ist("die Grenze wird eingehalten", baueBesetzung(99, false, false, Math.random, maxBeitraege(1)).length, BEITRAEGE_JE_SEITE);
+ist("und bei zwei Seiten die groessere", baueBesetzung(99, false, false, Math.random, maxBeitraege(2)).length, BEITRAEGE_JE_SEITE * 2);
+ist("16 bei zwei Seiten kommen durch", baueBesetzung(16, false, false, Math.random, maxBeitraege(2)).length, 16);
+// Und dieselbe Zahl bei EINER Seite wird gekappt — das ist der gemeldete Fall.
+ist("16 bei einer Seite werden gekappt", baueBesetzung(16, false, false, Math.random, maxBeitraege(1)).length, BEITRAEGE_JE_SEITE);
 
 // Die Kontextquellen: Ohne gefüllte Vorräte bleibt nur der Würfel — und der
 // funktioniert immer, ohne Netz und ohne Guthaben.

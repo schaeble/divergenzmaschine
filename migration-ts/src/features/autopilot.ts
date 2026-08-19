@@ -34,7 +34,27 @@ export const SEITEN_FORMEN: FormKind[] = ["bericht", "meldung", "prose", "poem"]
  *  mehr als sieben fällt beim Umbruch ohnehin hinten herunter — der Setzer
  *  füllt der Reihe nach, bis das Blatt voll ist. */
 export const BEITRAEGE_MIN = 3;
-export const BEITRAEGE_MAX = 7;
+/** Wie viele Beiträge EINE Seite verträgt. Der Setzer füllt der Reihe nach,
+ *  bis das Blatt voll ist, und lässt den Rest liegen — mehr zu erzeugen kostet
+ *  nur Rechenzeit. Großzügig gewählt, weil eine Seite mit fünf Spalten und
+ *  vielen Kurzformen deutlich mehr fasst als eine dreispaltige mit Aufmachern. */
+export const BEITRAEGE_JE_SEITE = 12;
+/** Harte Obergrenze über alle Seiten. Jeder Beitrag ist ein voller
+ *  Generatorlauf; bei fünfzig wartet man Minuten vor einer eingefrorenen
+ *  Ansicht. */
+export const BEITRAEGE_MAX = 40;
+
+/** Wie viele Beiträge bei dieser Seitenzahl sinnvoll sind.
+ *
+ *  Vorher stand hier eine feste Sieben — aus einer Zeit, in der es nur eine
+ *  Seite gab. Wer zwei Seiten und sechzehn Beiträge einstellte, bekam sieben
+ *  und eine fast leere zweite Seite, ohne dass irgendwo stand, warum. Eine
+ *  Grenze, die stillschweigend zugreift, ist schlimmer als eine, die zu eng
+ *  ist. */
+export function maxBeitraege(seiten: number): number {
+  const s = Math.max(1, Math.min(8, Math.round(seiten) || 1));
+  return Math.max(BEITRAEGE_MIN, Math.min(BEITRAEGE_MAX, s * BEITRAEGE_JE_SEITE));
+}
 export const BEITRAEGE_VORGABE = 5;
 
 const zieh = <T,>(liste: T[], rnd: () => number): T =>
@@ -51,8 +71,10 @@ const zieh = <T,>(liste: T[], rnd: () => number): T =>
  *  sind — ist keine da, bleibt der Würfel, und der funktioniert immer. */
 export function baueBesetzung(
   anzahl: number, hatVorrat: boolean, hatBild: boolean, rnd: () => number = Math.random,
+  max = BEITRAEGE_JE_SEITE,
 ): Auftrag[] {
-  const n = Math.max(BEITRAEGE_MIN, Math.min(BEITRAEGE_MAX, Math.round(anzahl) || BEITRAEGE_VORGABE));
+  const obergrenze = Math.max(BEITRAEGE_MIN, Math.min(BEITRAEGE_MAX, Math.round(max) || BEITRAEGE_JE_SEITE));
+  const n = Math.max(BEITRAEGE_MIN, Math.min(obergrenze, Math.round(anzahl) || BEITRAEGE_VORGABE));
   const quellen: Quelle[] = ["wuerfel"];
   if (hatVorrat) quellen.push("vorrat");
   if (hatBild) quellen.push("bild");

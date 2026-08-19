@@ -28,7 +28,7 @@ import {
   baueBesetzung, baueEingabe, titelAus, naechsteAusgabe, layoutName, verteileRollen,
   ktxSchluessel, ladeGedaechtnis, merkeGedaechtnis, sichereGedaechtnis, GEDAECHTNIS_TIEFE,
   letzteWas,
-  BEITRAEGE_MIN, BEITRAEGE_MAX, BEITRAEGE_VORGABE, type Quelle,
+  maxBeitraege, BEITRAEGE_MIN, BEITRAEGE_MAX, BEITRAEGE_VORGABE, type Quelle,
 } from "../features/autopilot";
 
 const WAHL_KEY = "divergenz_autopilot_v1";
@@ -69,6 +69,7 @@ export function mountAutopilot(root: HTMLElement): void {
   [nameIn, anzahlIn, spaltenIn, seitenIn].forEach((x) => x.addEventListener("input", merke));
 
   const stand = el("p", { class: "muted mini" }, "");
+  const grenze = el("p", { class: "sam-warn mini" }, "");
   // Das Gedächtnis sichtbar und leerbar machen. Eine Sperre, die man nicht
   // sieht, wird für einen Fehler gehalten, sobald sie einmal im Weg steht.
   const ktxWeg = button("Kontext-Gedächtnis leeren", "danger");
@@ -81,11 +82,22 @@ export function mountAutopilot(root: HTMLElement): void {
     const korpus = loadPersistentCorpus().length;
     const naechste = naechsteAusgabe(kopf.ausgabe);
     const g = ladeGedaechtnis().length;
+    const seiten = parseInt(seitenIn.value, 10) || 1;
+    const max = maxBeitraege(seiten);
+    anzahlIn.max = String(max);
+    const gewuenscht = parseInt(anzahlIn.value, 10) || BEITRAEGE_VORGABE;
     stand.textContent =
       `Nächste Ausgabe: „${kopf.ausgabe}“ → „${naechste}“ · `
       + `Layout wird abgelegt als „${layoutName(nameIn.value || kopf.titel, naechste)}“ · `
       + `Korpus ${korpus} Zeichen · Schatzkammer ${loadTreasury().length} Beiträge · `
       + `${g} von ${GEDAECHTNIS_TIEFE} zuletzt benutzten Kontexten werden gemieden`;
+    // Die Grenze VOR dem Druck nennen, nicht erst hinterher in der Meldung.
+    // Wer sechzehn einträgt und sieben bekommt, sucht den Fehler sonst dort,
+    // wo keiner ist.
+    grenze.textContent = gewuenscht > max
+      ? `Bei ${seiten} ${seiten === 1 ? "Seite" : "Seiten"} sind höchstens ${max} Beiträge sinnvoll — `
+        + `es werden ${max} erzeugt statt ${gewuenscht}. Für mehr die Seitenzahl erhöhen.`
+      : "";
     ktxWeg.style.display = g ? "" : "none";
   };
 
@@ -149,16 +161,20 @@ export function mountAutopilot(root: HTMLElement): void {
     liste.innerHTML = "";
     status.textContent = "Plane die Ausgabe …";
 
-    // Im nächsten Bilddurchlauf, damit die Meldung erscheint, bevor der
-    // Generator die Schleife blockiert — sonst steht die Ansicht still und der
-    // Knopfdruck wirkt folgenlos.
-    setTimeout(() => {
+    // Nach jedem Beitrag einen Bilddurchlauf abwarten, damit die Meldung
+    // wirklich erscheint. Ohne das rechnet der Browser die ganze Ausgabe
+    // durch, bevor er auch nur einmal neu zeichnet.
+    const warte = (): Promise<void> => new Promise((f) => setTimeout(f, 0));
+    void (async () => {
       try {
+        await warte();
         const bank = loadBank();
         const model = buildModelFromCorpus(2);
         const hatVorrat = !!ziehVorrat();
         const hatBild = !!ziehBildvorrat();
-        const auftraege = baueBesetzung(parseInt(anzahlIn.value, 10) || BEITRAEGE_VORGABE, hatVorrat, hatBild);
+        const seitenZahl = parseInt(seitenIn.value, 10) || 1;
+        const gewuenscht = parseInt(anzahlIn.value, 10) || BEITRAEGE_VORGABE;
+        const auftraege = baueBesetzung(gewuenscht, hatVorrat, hatBild, Math.random, maxBeitraege(seitenZahl));
 
         const erzeugt: { text: string; form: string; titel: string }[] = [];
         // Das Gedächtnis früherer Ausgaben ist der Startbestand des
@@ -170,7 +186,13 @@ export function mountAutopilot(root: HTMLElement): void {
         const frisch: string[] = [];
         erschoepft = 0;
         const quellenZaehler = new Map<string, number>();
-        for (const a of auftraege) {
+        // Beitrag fuer Beitrag, mit Atempause dazwischen. Bei sieben Stuecken
+        // fiel es nicht auf; bei zwoelf oder vierundzwanzig steht die Ansicht
+        // sonst minutenlang still, und der Knopfdruck sieht aus wie verpufft.
+        for (let bi = 0; bi < auftraege.length; bi++) {
+          const a = auftraege[bi]!;
+          status.textContent = `Erzeuge Beitrag ${bi + 1} von ${auftraege.length} (${a.was}) …`;
+          await warte();
           const ctx = holeKontext(a.quelle, benutzt, wasGemieden);
           frisch.push(ktxSchluessel(ctx));
           quellenZaehler.set(a.quelle, (quellenZaehler.get(a.quelle) || 0) + 1);
@@ -241,7 +263,13 @@ export function mountAutopilot(root: HTMLElement): void {
         status.textContent = ok
           ? `Fertig. ${teile.length} Beiträge, abgelegt als „${name}“. Kontext aus: ${quellenText}.`
             + (erschoepft
-              ? ` ${erschoepft}× musste ein schon benutzter Kontext genommen werden — die Vorräte geben nicht mehr her.`
+              ? ` ${erschoepft}× musste ein schon benutzter Kontext genommen werden. `
+                // Sagen, was zu tun ist. „Vorräte geben nicht mehr her" nennt
+                // den Zustand, aber nicht den Ausweg — und der Ausweg ist ein
+                // Knopf, der direkt daneben steht.
+                + (gedaechtnis.length >= GEDAECHTNIS_TIEFE
+                  ? "Das Gedächtnis ist voll und sperrt inzwischen mehr, als die Vorräte hergeben: leeren oder Sammler und Bildvorrat auffüllen."
+                  : "Die Vorräte geben nicht mehr her — im Sammler nachlegen.")
               : "")
             + (doppelt ? ` ${doppelt} Text(e) gab es wortgleich schon — sie stehen nicht auf der Seite.` : "")
             + ` Ausgabe steht jetzt auf „${naechste}“.`
@@ -254,7 +282,7 @@ export function mountAutopilot(root: HTMLElement): void {
       } finally {
         startBtn.disabled = false;
       }
-    }, 30);
+    })();
   });
 
   wrap.append(
@@ -271,6 +299,7 @@ export function mountAutopilot(root: HTMLElement): void {
       field("Name", nameIn), field("Beiträge", anzahlIn),
       field("Spalten", spaltenIn), field("Seiten", seitenIn)),
     stand,
+    grenze,
     el("div", { class: "btnrow", style: "margin-top:10px" }, startBtn, oeffnenBtn, ktxWeg),
     status,
     liste,
