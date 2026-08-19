@@ -2,13 +2,11 @@
 // Lesemodus (Vollbild) und Vorlesen (SpeechSynthesis).
 import type { GenInput, FormKind } from "../types";
 import { loadBank, saveBank } from "../storage";
-import { getAllPresets, saveActiveBankLabel, buildAutoMixBank, buildMergedBank, lastAutoMixSources, AUTOMIX_ID, loadActiveBankLabel } from "../wordbank";
+import { getAllPresets, saveActiveBankLabel, buildAutoMixBank, buildMergedBank, lastAutoMixSources, AUTOMIX_ID } from "../wordbank";
 import { markedPresetOptions, getUserPreset2 } from "../features/preset2";
 import { setDramaData, hasDramaData, loadDramaData } from "../generation/dramaturgie";
 import { loadUmwelt, saveUmwelt, umweltTeile, type UmweltWirkung } from "../features/umwelt";
 import { RESSORTS, RESSORT_IDS } from "../features/ressorts";
-import { oeffneDruckvorschau } from "./printView";
-import { oeffneZeitungssetzer } from "./zeitungView";
 import { builtinDrama } from "../presets.drama.data";
 import { loadKnobs, saveKnobs, KNOB_VORGABE, KNOB_SPANNE, regle, loadZiele, vergissVerlauf, type Knobs, type ZielQuelle } from "../features/knobs";
 import { buildStory } from "../generation/buildStory";
@@ -26,6 +24,10 @@ import { renderTextstruktur } from "./structureView";
 import { analysiereHerkunft, QUELLEN_LABEL, w4Varianten } from "../features/sources";
 import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "../generation/wordcls";
 import { el, select, field, textInput, button } from "./dom";
+import {
+  ladeStand as ladeReiter, sichereStand as sichereReiter, ordne as ordneReiter,
+  verschiebe as verschiebeReiter, schalte as schalteReiter, derKanon, PFLICHT as REITER_PFLICHT,
+} from "../features/reiter";
 import { icon } from "./icons";
 import { openReader } from "./reader";
 import { worldLogGeneration } from "../features/world";
@@ -978,10 +980,16 @@ export function mountStudio(root: HTMLElement): void {
   });
 
   const genBtn = el("button", { class: "primary" }, icon("play"), " Generieren");
-  const printBtn = el("button", { title: "Druckvorschau — Satzspiegel je Form, PDF über den Druckdialog" }, icon("floppy"), " Drucken");
-  printBtn.addEventListener("click", () => oeffneDruckvorschau(out.textContent || "", readInput().form, loadActiveBankLabel()));
-  const zeitungBtn = el("button", { title: "Zeitungsseite setzen — Kopf gestalten, Beiträge aus der Schatzkammer wählen" }, icon("folder"), " Zeitungsseite");
-  zeitungBtn.addEventListener("click", () => oeffneZeitungssetzer(out.textContent || "", readInput().form));
+  // „Drucken" und „Zeitungsseite" stehen seit 4.240.0 in der Reiterleiste.
+  // Hier standen sie zwischen Erzeugungsknoepfen, obwohl sie nichts erzeugen,
+  // sondern etwas Fertiges weiterverarbeiten — und liessen sich nicht
+  // ausblenden. Sie holen sich den Text aus „dm_last_text"; damit sie auch die
+  // Form kennen, wird die hier mitgeschrieben.
+  const merkeForm = (): void => {
+    try { localStorage.setItem("dm_last_form", form.value); } catch { /* voll */ }
+  };
+  form.addEventListener("change", merkeForm);
+  merkeForm();
   const varBtn = button("Variante");
   const copyBtn = el("button", {}, icon("copy"), " Kopieren");
   const diceBtn = el("button", {}, icon("dice"), " Würfeln");
@@ -1007,7 +1015,7 @@ export function mountStudio(root: HTMLElement): void {
   const bestChk = el("input", { type: "checkbox", id: "f-best" }) as HTMLInputElement;
   bestChk.checked = true;
   const bestLbl = el("label", { class: "chk", title: "Erzeugt bei jedem Klick 12 Kandidaten und zeigt den bestbewerteten (Längentreue, Wortvielfalt, Rhythmus, wenig Wiederholung, Grammatik, Abstand zur Schatzkammer)." }, bestChk, " Bestenauslese");
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, printBtn, zeitungBtn, lenRow, bestLbl), outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl), outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
 
   // ── Test & Ranking ──
   let lastRanking: Ranking | null = null;
@@ -1249,11 +1257,65 @@ export function mountStudio(root: HTMLElement): void {
     el("p", { class: "muted" }, "Setzt den Markov-Korpus und die Schatzkammer zurück (leert beide). Wortbank, Presets, Einstellungen und lebendige Pools bleiben erhalten. Für ein vollständiges Backup vorher oben rechts „Exportieren“."),
     el("p", { class: "muted" }, "Der Browser speichert alles lokal. Wird es eng, erscheint bei jedem Sichern oben ein Warnband; dann Korpus kürzen, Schatzkammer aufräumen oder ein Projekt exportieren und Daten löschen."));
 
+  // ── Reiter ein-, ausblenden und sortieren ─────────────────────────────────
+  // Dreizehn Reiter sind fuer ein Handy zu viele, und niemand benutzt alle.
+  // Die Rechnung dazu steht in features/reiter.ts — hier nur die Bedienung.
+  const tabReiter = el("button", { class: "subtab" }, "Reiter");
+  const reiterListe = el("div", {});
+  const reiterHinweis = el("p", { class: "muted mini" },
+    "Das Studio l\u00e4sst sich nicht ausblenden — diese Einstellung liegt darin. "
+    + "\u201eDrucken\u201c und \u201eZeitungsseite\u201c \u00f6ffnen ein Fenster und wechseln den Reiter nicht.");
+  const zeichneReiterListe = (): void => {
+    reiterListe.innerHTML = "";
+    const stand = ladeReiter();
+    const namen = ordneReiter(derKanon(), stand.ordnung);
+    const weg = new Set(stand.versteckt);
+    namen.forEach((name, i) => {
+      const an = el("input", { type: "checkbox", id: "rt-" + i }) as HTMLInputElement;
+      an.checked = !weg.has(name);
+      an.disabled = REITER_PFLICHT.includes(name);
+      an.addEventListener("change", () => {
+        sichereReiter(schalteReiter(ladeReiter(), name, an.checked));
+        reiterGeaendert();
+      });
+      const hoch = el("button", { title: "nach vorn" }, "\u2191") as HTMLButtonElement;
+      const runter = el("button", { title: "nach hinten" }, "\u2193") as HTMLButtonElement;
+      hoch.disabled = i === 0;
+      runter.disabled = i === namen.length - 1;
+      const schieb = (d: number): void => {
+        const st = ladeReiter();
+        sichereReiter({ ...st, ordnung: verschiebeReiter(ordneReiter(derKanon(), st.ordnung), name, d) });
+        reiterGeaendert();
+      };
+      hoch.addEventListener("click", () => schieb(-1));
+      runter.addEventListener("click", () => schieb(1));
+      reiterListe.append(el("div", { class: "reiterzeile" },
+        el("label", {}, an, " ", name), el("span", { class: "btnrow" }, hoch, runter)));
+    });
+  };
+  /** Nach jeder Aenderung neu zeichnen — die Liste hier UND die Leiste oben.
+   *  Die Leiste erfaehrt es ueber ein Ereignis am Fenster; eine direkte
+   *  Funktion waere ein Ringschluss der Einbindungen. */
+  const reiterGeaendert = (): void => {
+    zeichneReiterListe();
+    window.dispatchEvent(new CustomEvent("dm-reiter"));
+  };
+  const reiterZurueck = button("Reihenfolge zur\u00fccksetzen");
+  reiterZurueck.addEventListener("click", () => {
+    sichereReiter({ ordnung: [], versteckt: [] });
+    reiterGeaendert();
+  });
+  const reiterPanel = el("div", { style: "display:none" },
+    reiterHinweis, reiterListe, el("div", { class: "btnrow" }, reiterZurueck));
+
   const tabSchrift = el("button", { class: "subtab active" }, "Schrift");
   const tabFarbe = el("button", { class: "subtab" }, "Farbe");
   const tabKi = el("button", { class: "subtab" }, "KI-Zugang");
   const tabMem = el("button", { class: "subtab" }, "Speicher");
-  const showSettingsPanel = (which: "schrift" | "farbe" | "ki" | "mem"): void => {
+  const showSettingsPanel = (which: "schrift" | "farbe" | "ki" | "mem" | "reiter"): void => {
+    reiterPanel.style.display = which === "reiter" ? "" : "none";
+    tabReiter.classList.toggle("active", which === "reiter");
+    if (which === "reiter") zeichneReiterListe();
     schriftPanel.style.display = which === "schrift" ? "" : "none";
     themePanel.style.display = which === "farbe" ? "" : "none";
     kiPanel.style.display = which === "ki" ? "" : "none";
@@ -1268,9 +1330,10 @@ export function mountStudio(root: HTMLElement): void {
   tabFarbe.addEventListener("click", () => showSettingsPanel("farbe"));
   tabKi.addEventListener("click", () => showSettingsPanel("ki"));
   tabMem.addEventListener("click", () => showSettingsPanel("mem"));
+  tabReiter.addEventListener("click", () => showSettingsPanel("reiter"));
   const settings = el("details", { class: "fine" });
   settings.append(el("summary", {}, icon("settings"), " Einstellungen"),
-    el("div", { class: "subtabs" }, tabSchrift, tabFarbe, tabKi, tabMem), schriftPanel, themePanel, kiPanel, memPanel);
+    el("div", { class: "subtabs" }, tabSchrift, tabFarbe, tabReiter, tabKi, tabMem), schriftPanel, themePanel, reiterPanel, kiPanel, memPanel);
   wrap.append(settings);
 
   root.append(wrap);

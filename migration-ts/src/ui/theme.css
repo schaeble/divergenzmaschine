@@ -121,6 +121,20 @@ details.fine>div{padding:4px 14px 14px}
 .bsam-satz{display:flex;align-items:flex-start;gap:9px;margin:6px 0;cursor:pointer;
   font:14px/1.5 var(--sans)}
 .bsam-satz input{flex:0 0 auto;width:auto;margin:4px 0 0}
+/* Eine Zeile der Reiter-Einstellung: Name mit Haken links, Pfeile rechts.
+   Untereinander und nicht nebeneinander — dreizehn Zeilen nebeneinander waeren
+   auf einem Handy nicht zu treffen. */
+.reiterzeile{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:6px 0;border-bottom:1px solid var(--border)}
+.reiterzeile:last-child{border-bottom:none}
+.reiterzeile label{display:flex;align-items:center;gap:8px;cursor:pointer}
+.reiterzeile input{width:auto;margin:0}
+.reiterzeile button{padding:4px 10px;min-width:38px}
+/* Ein Reiter, der ein Fenster oeffnet statt die Ansicht zu wechseln. Leicht
+   abgesetzt, damit man nicht darauf wartet, dass sich die Flaeche darunter
+   aendert. */
+.tabbar button.tabaktion{border-style:dashed}
+
 /* Ein Satz, bei dem der Filter unsicher ist. Er wird NICHT verworfen, sondern
    abgewaehlt vorgelegt — sichtbar, mit Grund, und die sichere Voreinstellung
    ist „nicht in den Korpus". Gedaempft, aber nicht versteckt: Wer ihn behalten

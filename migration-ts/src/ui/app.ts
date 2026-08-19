@@ -29,9 +29,42 @@ import { mountWorld } from "./worldView";
 import { mountOscilloscope } from "./oscilloscopeView";
 import { mountWorkshop } from "./workshopView";
 import { mountBildwelt } from "./bildweltView";
+import { oeffneDruckvorschau } from "./printView";
+import { oeffneZeitungssetzer } from "./zeitungView";
+import { loadActiveBankLabel } from "../wordbank";
+import { ladeStand, sichtbar, setzeKanon } from "../features/reiter";
 import { mountDiagnose } from "./diagnoseView";
 import { mountHelp } from "./helpView";
 import { mountLehrer } from "./lehrerView";
+
+/** Reiter, die keine Ansicht öffnen, sondern ein Fenster. „Drucken" und
+ *  „Zeitungsseite" waren Knöpfe neben „Generieren" — dort standen sie zwischen
+ *  Erzeugungsknöpfen, obwohl sie nichts erzeugen, sondern etwas Fertiges
+ *  weiterverarbeiten. In der Leiste sind sie auffindbar, und beide lassen sich
+ *  jetzt wie jeder andere Reiter ausblenden.
+ *
+ *  Sie wechseln die Ansicht NICHT: Der Reiter, auf dem man stand, bleibt aktiv.
+ *  Ein Fenster über einer leeren Fläche zu öffnen und beim Schließen vor dem
+ *  Nichts zu stehen, wäre der schlechtere Weg. */
+const AKTIONEN: Record<string, (() => void) | undefined> = {
+  "Drucken": () => {
+    const t = leseText();
+    oeffneDruckvorschau(t.text, t.form, loadActiveBankLabel());
+  },
+  "Zeitungsseite": () => {
+    const t = leseText();
+    oeffneZeitungssetzer(t.text, t.form);
+  },
+};
+
+/** Der zuletzt im Studio erzeugte Text samt Form. Beide Fenster brauchen ihn,
+ *  und aus der Leiste heraus gibt es keinen Zugriff auf das Studio. */
+function leseText(): { text: string; form: string } {
+  let text = "", form = "prose";
+  try { text = localStorage.getItem("dm_last_text") || ""; } catch { /* gesperrt */ }
+  try { form = localStorage.getItem("dm_last_form") || "prose"; } catch { /* gesperrt */ }
+  return { text, form };
+}
 
 const TABS: [string, (root: HTMLElement) => void][] = [
   ["Studio", mountStudio],
@@ -46,6 +79,8 @@ const TABS: [string, (root: HTMLElement) => void][] = [
   ["Werkstatt", mountWorkshop],
   ["KI-Lehrer", mountLehrer],
   ["Diagnose", mountDiagnose],
+  ["Drucken", () => { /* Auslöser, siehe AKTIONEN */ }],
+  ["Zeitungsseite", () => { /* Auslöser, siehe AKTIONEN */ }],
   ["Hilfe", mountHelp],
 ];
 
@@ -81,20 +116,50 @@ export function mountApp(root: HTMLElement): void {
 
   const bar = el("div", { class: "tabbar" });
   const content = el("div", {});
-  const buttons: HTMLButtonElement[] = [];
+  const nachName = new Map(TABS);
+  /** Der Reiter, der gerade offen ist. Über das Neuzeichnen hinweg gemerkt:
+   *  Wer in den Einstellungen etwas umsortiert, soll danach dort stehen, wo er
+   *  war, und nicht wieder am Anfang. */
+  let offen = "";
 
-  TABS.forEach(([name, mount], i) => {
-    const b = el("button", {}, name);
-    b.addEventListener("click", () => {
-      buttons.forEach((x) => x.classList.remove("active"));
-      b.classList.add("active");
-      mount(content);
-    });
-    buttons.push(b);
-    bar.append(b);
-    if (i === 0) { b.classList.add("active"); mount(content); }
-  });
+  setzeKanon(TABS.map(([n]) => n));
 
+  const zeichneLeiste = (): void => {
+    bar.innerHTML = "";
+    const namen = sichtbar(TABS.map(([n]) => n), ladeStand());
+    if (!namen.includes(offen)) offen = "";
+    const knoepfe: HTMLButtonElement[] = [];
+    for (const name of namen) {
+      const aktion = AKTIONEN[name];
+      const b = el("button", aktion ? { class: "tabaktion", title: "Öffnet ein Fenster — der Reiter wechselt nicht" } : {}, name) as HTMLButtonElement;
+      b.addEventListener("click", () => {
+        if (aktion) { aktion(); return; }
+        knoepfe.forEach((x) => x.classList.remove("active"));
+        b.classList.add("active");
+        offen = name;
+        nachName.get(name)?.(content);
+      });
+      knoepfe.push(b);
+      bar.append(b);
+    }
+    // Beim ersten Zeichnen den ersten Reiter öffnen, der auch eine Ansicht hat
+    // — ein Auslöser an erster Stelle ließe die Fläche sonst leer.
+    if (!offen) {
+      const erster = namen.find((n) => !AKTIONEN[n]) || namen[0]!;
+      offen = erster;
+      const b = knoepfe[namen.indexOf(erster)];
+      if (b && !AKTIONEN[erster]) { b.classList.add("active"); nachName.get(erster)?.(content); }
+    } else {
+      const b = knoepfe[namen.indexOf(offen)];
+      if (b) b.classList.add("active");
+    }
+  };
+
+  // Kein Ringschluss der Einbindungen: Das Studio meldet die Änderung über ein
+  // Ereignis am Fenster, statt hier eine Funktion zu holen.
+  window.addEventListener("dm-reiter", () => zeichneLeiste());
+
+  zeichneLeiste();
   shell.append(bar, content);
   root.append(shell);
 }

@@ -389,6 +389,28 @@ die Alternative — eine einzige Riesenantwort für Sätze, 4W und Bänke — h�
 bei einem Formfehler beides verloren. Ein Fehlschlag bei den Bänken lässt die
 Sätze stehen.
 
+**Reiterleiste einstellbar** (seit 4.240.0): Unter Studio ▸ Einstellungen ▸
+Reiter lassen sich Reiter ein- und ausblenden und sortieren
+(`features/reiter.ts`, `divergenz_reiter_v1`). Zwei Fallen sind dort abgefangen:
+Ein SPÄTER hinzugekommener Reiter muss erscheinen — die gespeicherte Ordnung
+ist nur eine Namensliste, und würde allein sie angezeigt, bliebe er für immer
+unsichtbar; er wird deshalb an seiner angestammten Stelle eingefügt, nicht
+hinten angehängt (auch wenn er dabei in eine eigene Anordnung gerät — sichtbar
+schlägt unangetastet). Und das Studio lässt sich nicht ausblenden, weil die
+Einstellung darin liegt; wäre am Ende gar nichts sichtbar, wird die Ausblendung
+ignoriert. Beide Sperren stehen in der Rechnung und nicht nur in der
+Oberfläche, damit sie auch bei einem Stand aus der Projektdatei greifen.
+
+Die Namensliste wird beim Start von `ui/app.ts` über `setzeKanon()` eingetragen
+und im Studio mit `derKanon()` geholt — eine Liste und nicht zwei; ein direkter
+Zugriff wäre ein Ringschluss der Einbindungen. Änderungen melden sich über das
+Fensterereignis `dm-reiter`, aus demselben Grund.
+
+**Drucken und Zeitungsseite** sind seit 4.240.0 Reiter statt Knöpfe neben
+„Generieren". Sie öffnen ein Fenster und wechseln die Ansicht NICHT. Ihren Text
+holen sie aus `dm_last_text`, die Form aus `dm_last_form` (vom Studio bei jedem
+Formwechsel geschrieben).
+
 ## 7 · Fallen in diesem Quelltext
 
 - **Deutsche Nomen sind groß.** „Großgeschrieben mitten im Satz" taugt nicht als
