@@ -12,6 +12,10 @@ import {
   wasAusSchluessel, letzteWas, WAS_TIEFE,
 } from "../src/features/autopilot";
 import type { FormKind } from "../src/types";
+import {
+  TONE_OPTS, STRUCTURE_OPTS, MODE_OPTS, PERSP_OPTS, RHYTHM_OPTS,
+  VARIANZ_OPTS, DISRUPTOR_OPTS, ARCH_OPTS, gueltig,
+} from "../src/generation/optionen";
 
 const fails: string[] = [];
 const zeilen: string[] = [];
@@ -127,6 +131,73 @@ ist("die Länge auch", e.lenTarget, b5[0]!.woerter);
 ist("der Korpus wird benutzt", e.markovMode, "on");
 wahr("alle Regler sind gesetzt",
   [e.tone, e.structure, e.mode, e.perspective, e.rhythm, e.disruptor].every((x) => !!x));
+
+// ── 4b · Jeder gewürfelte Wert muss es wirklich geben ───────────────────────
+// Der teuerste Fehler dieses Bausteins: Der Autopilot würfelte aus EIGENEN
+// Listen, die nie mit den Reglern abgeglichen waren. Von fünf Reglern
+// enthielten vier überwiegend erfundene Werte — „ringkomposition", „duester",
+// „wechsel", „mild", „er", „sie". Ein unbekannter Wert erzeugt keine Meldung,
+// er tut nur nichts: Die Maschine variierte zum Schein und fuhr siebzehn
+// Ausgaben lang fast dieselbe Einstellung.
+//
+// Tausend Läufe, damit auch selten gezogene Werte drankommen. Ein einziger
+// Lauf träfe nur einen Wert je Regler und ginge fröhlich durch.
+const gesehen: Record<string, Set<string>> = {
+  tone: new Set(), structure: new Set(), mode: new Set(),
+  perspective: new Set(), rhythm: new Set(), varLevel: new Set(),
+  disruptor: new Set(), archetypeA: new Set(), archetypeB: new Set(),
+};
+let ungueltig = 0;
+const listen: Record<string, [string, string][]> = {
+  tone: TONE_OPTS, structure: STRUCTURE_OPTS, mode: MODE_OPTS,
+  perspective: PERSP_OPTS, rhythm: RHYTHM_OPTS, varLevel: VARIANZ_OPTS,
+  disruptor: DISRUPTOR_OPTS, archetypeA: ARCH_OPTS, archetypeB: ARCH_OPTS,
+};
+for (let i = 0; i < 1000; i++) {
+  const a = baueBesetzung(5, false, false)[0]!;
+  const e = baueEingabe(a, ctx) as unknown as Record<string, string>;
+  for (const k of Object.keys(listen)) {
+    gesehen[k]!.add(e[k]!);
+    if (!gueltig(listen[k]!, e[k]!)) ungueltig++;
+  }
+}
+ist("kein einziger erfundener Reglerwert in 1000 Läufen", ungueltig, 0);
+// Gegenprobe zur Prüfung selbst: Ein erfundener Wert MUSS auffallen — sonst
+// bestünde sie auch bei einer Liste voller Unsinn.
+ist("die Prüfung erkennt einen erfundenen Wert", gueltig(TONE_OPTS, "duester"), false);
+ist("und lässt einen echten durch", gueltig(TONE_OPTS, "melancholisch"), true);
+
+// Und es muss auch wirklich gestreut werden, nicht nur gültig sein.
+wahr("der Ton streut über mehrere Werte", gesehen.tone!.size >= 8);
+wahr("die Struktur ebenso", gesehen.structure!.size >= 6);
+wahr("die Perspektive auch", gesehen.perspective!.size >= 5);
+wahr("der Rhythmus auch", gesehen.rhythm!.size >= 5);
+wahr("die Archetypen auch", gesehen.archetypeA!.size >= 4);
+// Das Verfahren, das diese Maschine ausmacht, muss vorkommen — es fehlte
+// vollstaendig, weil „rekombination" in keiner der eigenen Listen stand.
+wahr("Rekombination kommt vor", gesehen.structure!.has("rekombination"));
+wahr("und zwar oft genug, um sichtbar zu sein",
+  Array.from({ length: 200 }, () => (baueEingabe(baueBesetzung(5, false, false)[0]!, ctx) as unknown as Record<string, string>).structure)
+    .filter((x) => x === "rekombination").length >= 10);
+
+// ── 4c · Die Formen einer Ausgabe ───────────────────────────────────────────
+// Gemeldet: „Die Aufmacher ausnahmslos Berichte. Warum keine Prosa bei 17
+// Läufen?" Der Aufmacher stand fest auf „bericht".
+const aufmacherFormen = new Set(Array.from({ length: 300 }, () => baueBesetzung(5, false, false)[0]!.form));
+wahr("der Aufmacher kann ein Bericht sein", aufmacherFormen.has("bericht" as FormKind));
+wahr("der Aufmacher kann Prosa sein", aufmacherFormen.has("prose" as FormKind));
+// Vorher lief der Rest in einem FESTEN Zyklus — jede Ausgabe hatte dieselbe
+// Gestalt. Zwei Ausgaben duerfen sich jetzt unterscheiden.
+const gestalt = new Set(Array.from({ length: 200 }, () =>
+  baueBesetzung(7, false, false).map((a) => a.form).join(",")));
+wahr("zwei Ausgaben haben nicht dieselbe Gestalt", gestalt.size > 20);
+// Gegenprobe: Trotz Ziehen muss die Mischung stimmen — fuenf Berichte
+// hintereinander waeren keine Seite.
+const formenVerteilung = Array.from({ length: 200 }, () => baueBesetzung(7, false, false))
+  .flat().map((a) => a.form);
+for (const f of ["bericht", "prose", "meldung", "poem"]) {
+  wahr(`„${f}" kommt in der Mischung vor`, formenVerteilung.includes(f as FormKind));
+}
 
 // ── 5 · Rollen nach der wirklichen Länge ────────────────────────────────────
 // Der Generator trifft die Zielwortzahl nicht genau. Ein Aufmacher, der kürzer

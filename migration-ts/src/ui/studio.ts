@@ -25,6 +25,10 @@ import { analysiereHerkunft, QUELLEN_LABEL, w4Varianten } from "../features/sour
 import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "../generation/wordcls";
 import { el, select, field, textInput, button } from "./dom";
 import {
+  TONE_OPTS, FORM_OPTS, STRUCTURE_OPTS, MODE_OPTS, PERSP_OPTS, RHYTHM_OPTS,
+  VARIANZ_OPTS, DISRUPTOR_OPTS, MARKOV_OPTS, ARCH_OPTS,
+} from "../generation/optionen";
+import {
   ladeStand as ladeReiter, sichereStand as sichereReiter, ordne as ordneReiter,
   verschiebe as verschiebeReiter, schalte as schalteReiter, derKanon, PFLICHT as REITER_PFLICHT,
 } from "../features/reiter";
@@ -370,25 +374,24 @@ export function mountStudio(root: HTMLElement): void {
     multiIds = ids; saveMulti(); applyMulti(); ensureMultiOption(); preset.value = MULTI_ID; renderPresetChecks(); liveRegen();
   }
 
-  const tone = select("f-tone", [["neutral", "Neutral"], ["mystery", "Mystery"], ["poetic", "Poetisch"], ["melancholisch", "Melancholisch"], ["dark", "Düster"], ["unheimlich", "Unheimlich"], ["uplifting", "Hoffnungsvoll"], ["zaertlich", "Zärtlich"], ["traeumerisch", "Träumerisch"], ["nuechtern", "Nüchtern"], ["ironisch", "Ironisch"], ["humorous", "Humorvoll"]], "mystery");
-  const form = select("f-form", [["prose", "Prosa"], ["poem", "Prosagedicht"], ["strang", "Gedicht-Strang"], ["reim", "Reim"], ["haiku", "Haiku"], ["script", "Szene/Dialog"], ["video", "Multi-Shot (Video)"], ["bericht", "Bericht (Zeitung)"], ["meldung", "Meldung (kurz)"]], "prose");
+  const tone = select("f-tone", TONE_OPTS, "mystery");
+  const form = select("f-form", FORM_OPTS, "prose");
   const shots = el("input", { id: "f-shots", type: "number", value: "5", min: "3", max: "10" }) as HTMLInputElement;
   const secs = el("input", { id: "f-secs", type: "number", value: "15", min: "3", max: "600" }) as HTMLInputElement;
-  const structure = select("f-structure", [["auto", "Auto"], ["linear", "Linear"], ["reverse", "Reverse"], ["circle", "Kreis"], ["fragment", "Fragment"], ["object", "Objekt"], ["dramaturgie", "Dramaturgie (Preset 2.0)"], ["rekombination", "Rekombination"]], "rekombination");
-  const mode = select("f-mode", [["auto", "Auto"], ["bureau", "Bürokratie"], ["tech", "Tech-Mystik"], ["body", "Body"], ["myth", "Myth"], ["absurd", "Absurd"], ["post", "Posthuman"]], "auto");
-  const persp = select("f-persp", [["auto", "Auto"], ["third", "Er/Sie"], ["first", "Ich"], ["second", "Du"], ["we", "Wir"], ["object", "Objekt"]], "auto");
-  const rhythm = select("f-rhythm", [["auto", "Auto"], ["breath", "Atem"], ["staccato", "Staccato"], ["long", "Lange Bögen"], ["fracture", "Fraktur"], ["clean", "Klar"]], "auto");
+  const structure = select("f-structure", STRUCTURE_OPTS, "rekombination");
+  const mode = select("f-mode", MODE_OPTS, "auto");
+  const persp = select("f-persp", PERSP_OPTS, "auto");
+  const rhythm = select("f-rhythm", RHYTHM_OPTS, "auto");
   const tension = select("f-tension", [["off", "Aus"], ["top", "Oben (12 Uhr)"], ["mid", "Mitte (3 Uhr)"], ["low", "Unten (6 Uhr)"]], "off");
   const cast = select("f-cast", [["0", "Offen"], ["0.5", "Mittel"], ["1", "Streng"]], "0.5");
   const instab = select("f-instab", [["0", "Aus"], ["1", "Subtil"], ["2", "Aggressiv"]], "2");
-  const markov = select("f-markov", [["off", "Aus"], ["mix", "Mix"], ["on", "Stark"]], "off");
-  const disruptor = select("f-disruptor", [["auto", "Auto"], ["off", "Aus"], ["on", "An"]], "auto");
+  const markov = select("f-markov", MARKOV_OPTS, "off");
+  const disruptor = select("f-disruptor", DISRUPTOR_OPTS, "auto");
   // Zeitungsseite - nur fuer die Form "Bericht". "Auto" raet aus Wer/Was/Wo.
   const ressort = select("f-ressort", [["auto", "Auto (aus dem Stoff)"],
     ...RESSORT_IDS.map((id) => [id, RESSORTS[id].label] as [string, string])], "auto");
-  const varianz = select("f-varianz", [["low", "Stabil"], ["mid", "Wild"], ["high", "Radikal"]], "mid");
-  const ARCH_OPTS: [string, string][] = [["neutral", "Neutral"], ["skorpion", "Skorpion"], ["psychopath", "Psychopath"], ["entdecker", "Entdecker"]];
-  const archA = select("f-archa", ARCH_OPTS, "neutral");
+  const varianz = select("f-varianz", VARIANZ_OPTS, "mid");
+    const archA = select("f-archa", ARCH_OPTS, "neutral");
   const archB = select("f-archb", ARCH_OPTS, "neutral");
   // Alle würfelbaren Stil-Regler (Würfeln-Knopf UND Zufallsstart nutzen dieselbe Liste)
   const ROLL_SELECTS = [tone, form, structure, mode, persp, rhythm, tension, cast, instab, markov, disruptor, varianz, ressort, archA, archB, preset];

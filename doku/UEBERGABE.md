@@ -430,6 +430,14 @@ enthält zwingend die Nummer, weil `legeLayout` gleichnamige Layouts ERSETZT.
 das beim Öffnen sofort angewandt wird. Dafür wurde die Anwendung aus dem
 Klick-Zuhörer in `wendeLayoutAn()` herausgelöst.
 
+**Reglerwerte stehen EINMAL** in `generation/optionen.ts` (seit 4.245.0).
+Studio und Autopilot ziehen daraus. Vorher hatte der Autopilot eigene, nie
+abgeglichene Listen — von fünf gewürfelten Reglern enthielten vier überwiegend
+Werte, die es nicht gibt („ringkomposition", „duester", „wechsel", „mild",
+„er", „sie"). Ein unbekannter Wert erzeugt keine Meldung, er tut nur nichts:
+Die Maschine variierte zum Schein. `test/autopilot.ts` würfelt 1000 Läufe und
+prüft jeden Wert gegen die echte Liste.
+
 ## 7 · Fallen in diesem Quelltext
 
 - **Deutsche Nomen sind groß.** „Großgeschrieben mitten im Satz" taugt nicht als

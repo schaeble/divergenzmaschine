@@ -10,6 +10,10 @@
 // vorhandenen Bausteinen — hier wäre es nicht prüfbar.
 
 import type { FormKind, GenInput } from "../types";
+import {
+  TONE_OPTS, STRUCTURE_OPTS, MODE_OPTS, PERSP_OPTS, RHYTHM_OPTS,
+  VARIANZ_OPTS, DISRUPTOR_OPTS, ARCH_OPTS, werte,
+} from "../generation/optionen";
 
 /** Was ein einzelner Beitrag werden soll. */
 export interface Auftrag {
@@ -87,15 +91,26 @@ export function baueBesetzung(
   const naechsteQuelle = (): Quelle => quellen[zaehler++ % quellen.length]!;
 
   const auftraege: Auftrag[] = [];
-  // 1 · Der Aufmacher. Immer ein Bericht: Er ist die einzige Form, die von sich
-  // aus Überschrift, Vorspann und Faktenkasten mitbringt.
-  auftraege.push({ form: "bericht" as FormKind, woerter: 260 + Math.floor(rnd() * 120), quelle: naechsteQuelle(), was: "Aufmacher" });
+  // 1 · Der Aufmacher. Bericht ODER Prosa — vorher stand hier fest „bericht",
+  // und über siebzehn Ausgaben war der Aufmacher ausnahmslos ein Bericht. Der
+  // Bericht bringt zwar von sich aus Schlagzeile, Vorspann und Faktenkasten
+  // mit; das macht ihn bequem, aber nicht zum einzig Möglichen. Eine
+  // Prosa-Titelgeschichte ist der Grund, warum das hier eine Divergenzmaschine
+  // ist und keine Nachrichtenagentur.
+  const aufmacherForm = (rnd() < 0.5 ? "bericht" : "prose") as FormKind;
+  auftraege.push({
+    form: aufmacherForm, woerter: 260 + Math.floor(rnd() * 120),
+    quelle: naechsteQuelle(), was: "Aufmacher",
+  });
   // 2 · Ein Kasten. Kurz, und die Kurzform trägt die Seite optisch.
   auftraege.push({ form: "meldung" as FormKind, woerter: 70 + Math.floor(rnd() * 40), quelle: naechsteQuelle(), was: "Kasten" });
-  // 3 · Der Rest gemischt, damit die Längen auseinanderlaufen.
-  const rest: FormKind[] = ["bericht", "prose", "meldung", "prose", "poem"] as FormKind[];
+  // 3 · Der Rest. Vorher lief hier ein FESTER Zyklus („bericht, prose, meldung,
+  // prose, poem", immer in dieser Reihenfolge) — jede Ausgabe hatte damit
+  // dieselbe Gestalt. Jetzt gezogen, aber aus einem Beutel, der die Mischung
+  // sichert: Ohne ihn kämen regelmäßig fünf Berichte hintereinander.
+  const beutel: FormKind[] = ["bericht", "prose", "prose", "meldung", "poem", "bericht", "prose", "meldung"] as FormKind[];
   for (let i = 2; i < n; i++) {
-    const form = rest[(i - 2) % rest.length]!;
+    const form = zieh(beutel, rnd);
     const woerter = form === "poem" ? 40 + Math.floor(rnd() * 30)
       : form === "meldung" ? 80 + Math.floor(rnd() * 50)
         : 130 + Math.floor(rnd() * 110);
@@ -119,15 +134,25 @@ export function baueEingabe(
     who: ctx.who, where: ctx.where, when: ctx.when, what: ctx.what,
     form: a.form,
     lenTarget: a.woerter,
-    tone: w(["neutral", "kalt", "warm", "ironisch", "duester"]),
-    varLevel: w(["mid", "high"]),
-    structure: w(["linear", "ringkomposition", "montage"]),
-    mode: w(["bureau", "tech", "body", "myth", "absurd", "post"]),
-    perspective: w(["auto", "er", "sie", "ich", "wir"]),
-    rhythm: w(["auto", "kurz", "lang", "wechsel"]),
+    // ALLE Werte kommen aus den echten Reglerlisten. Vorher standen hier
+    // eigene, nie abgeglichene Listen: „ringkomposition", „duester",
+    // „wechsel", „mild", „er", „sie" — Werte, die es nicht gibt. Sie fielen
+    // still auf die Vorgabe zurück, und die Maschine variierte nur zum Schein.
+    tone: w(werte(TONE_OPTS)),
+    varLevel: w(werte(VARIANZ_OPTS)),
+    // „rekombination" ist im Studio die VORGABE und war hier nie erreichbar —
+    // daher fehlten die Rekombinationstexte vollständig. Sie steht jetzt
+    // doppelt im Beutel, weil sie das Verfahren ist, das diese Maschine
+    // ausmacht.
+    structure: w([...werte(STRUCTURE_OPTS), "rekombination"]),
+    mode: w(werte(MODE_OPTS)),
+    perspective: w(werte(PERSP_OPTS)),
+    rhythm: w(werte(RHYTHM_OPTS)),
     markovMode: "on",
-    disruptor: w(["off", "mild", "stark"]),
-    archetypeA: "auto", archetypeB: "auto",
+    disruptor: w(werte(DISRUPTOR_OPTS)),
+    // „auto" gibt es bei den Archetypen nicht — es war schlicht falsch und
+    // ergab immer denselben Rückfall.
+    archetypeA: w(werte(ARCH_OPTS)), archetypeB: w(werte(ARCH_OPTS)),
     instability: w([0, 1, 1, 2]) as GenInput["instability"],
     ressort: "auto",
   };
