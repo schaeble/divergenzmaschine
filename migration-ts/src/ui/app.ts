@@ -29,6 +29,7 @@ import { mountWorld } from "./worldView";
 import { mountOscilloscope } from "./oscilloscopeView";
 import { mountWorkshop } from "./workshopView";
 import { mountBildwelt } from "./bildweltView";
+import { mountAutopilot } from "./autopilotView";
 import { oeffneDruckvorschau } from "./printView";
 import { oeffneZeitungssetzer } from "./zeitungView";
 import { loadActiveBankLabel } from "../wordbank";
@@ -76,6 +77,7 @@ const TABS: [string, (root: HTMLElement) => void][] = [
   ["Oszilloskop", mountOscilloscope],
   ["Schatzkammer", mountTreasury],
   ["Bildwelt", mountBildwelt],
+  ["Autopilot", mountAutopilot],
   ["Werkstatt", mountWorkshop],
   ["KI-Lehrer", mountLehrer],
   ["Diagnose", mountDiagnose],

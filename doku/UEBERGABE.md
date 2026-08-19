@@ -411,6 +411,25 @@ Fensterereignis `dm-reiter`, aus demselben Grund.
 holen sie aus `dm_last_text`, die Form aus `dm_last_form` (vom Studio bei jedem
 Formwechsel geschrieben).
 
+**Autopilot** (seit 4.241.0): Ein Druck, eine ganze Ausgabe — Beiträge
+erzeugen, Rollen verteilen, Layout ablegen, Ausgabennummer hochzählen.
+Vollständig OHNE bezahlte KI: `features/autopilot.ts` plant,
+`ui/autopilotView.ts` schaltet die vorhandenen Bausteine zusammen (Bank,
+Presets, Markov-Korpus, Sammler-Vorrat, Bildvorrat, Kontextwürfel). Die
+Kostenfreiheit steht nicht nur im Kommentar: `test/autopilot.ts` liest den
+Quelltext der Ansicht und schlägt an, sobald dort `features/ki`, `callClaude`
+oder ein anderer bezahlter Baustein auftaucht.
+
+Drei Stellen, die leicht falsch gehen: Die Texte MÜSSEN in die Schatzkammer,
+weil ein Layout seine Beiträge über `textSchluessel` genau dort wiedersucht.
+Die Ausgabennummer wird erst hochgezählt, wenn das Layout wirklich liegt —
+sonst trüge die nächste Zeitung eine Nummer, die es nie gab. Und der Layoutname
+enthält zwingend die Nummer, weil `legeLayout` gleichnamige Layouts ERSETZT.
+
+`oeffneZeitungssetzer` nimmt einen dritten Parameter: den Namen eines Layouts,
+das beim Öffnen sofort angewandt wird. Dafür wurde die Anwendung aus dem
+Klick-Zuhörer in `wendeLayoutAn()` herausgelöst.
+
 ## 7 · Fallen in diesem Quelltext
 
 - **Deutsche Nomen sind groß.** „Großgeschrieben mitten im Satz" taugt nicht als

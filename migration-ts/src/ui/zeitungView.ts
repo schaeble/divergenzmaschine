@@ -268,7 +268,7 @@ function rolleFuer(t: Treasure, ersteR: boolean): Rolle {
   return ersteR ? "aufmacher" : "spalte";
 }
 
-export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string): void {
+export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string, layoutSofort = ""): void {
   const kopf = ladeKopf();
   const quellen: Treasure[] = [];
   if (aktuellerText.trim()) quellen.push({ t: aktuellerText, form: aktuelleForm, d: "im Studio" });
@@ -1042,9 +1042,11 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       : `„${name}" passt nicht mehr in den Speicher — ältere Layouts oder Bilder löschen.`;
   });
 
-  layoutLaden.addEventListener("click", () => {
-    const l = layouts.find((x) => x.name === layoutSel.value);
-    if (!l) { layoutInfo.textContent = "Erst ein Layout auswählen."; return; }
+  /** Ein Layout anwenden. Als eigene Funktion, weil der Autopilot beim Öffnen
+   *  gleich sein frisch abgelegtes Layout haben will — der Weg über einen
+   *  nachgestellten Klick auf den Knopf wäre eine Wette darauf, dass die
+   *  Auswahlliste schon steht. */
+  const wendeLayoutAn = (l: Layout): void => {
     merkeStand();
     Object.assign(kopf, l.kopf);
     spalten = l.spalten; seitenZahl = l.seiten;
@@ -1059,6 +1061,12 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     // kann Texte nennen, die inzwischen aus der Schatzkammer gelöscht wurden.
     layoutInfo.textContent = `„${l.name}" geladen · ${gefunden} Beiträge gefunden`
       + (fehlend ? ` · ${fehlend} fehlen (nicht mehr in der Schatzkammer)` : "");
+  };
+
+  layoutLaden.addEventListener("click", () => {
+    const l = layouts.find((x) => x.name === layoutSel.value);
+    if (!l) { layoutInfo.textContent = "Erst ein Layout auswählen."; return; }
+    wendeLayoutAn(l);
   });
 
   layoutWeg.addEventListener("click", () => {
@@ -1071,6 +1079,15 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     layoutInfo.textContent = `„${name}" gelöscht`;
   });
   layoutListe();
+  // Der Autopilot legt ein Layout ab und oeffnet den Setzer damit. Nach
+  // `layoutListe()`, damit die Auswahl schon steht und der Name in der Liste
+  // sichtbar ist — sonst waere das Blatt gesetzt und die Liste zeigte etwas
+  // anderes an.
+  if (layoutSofort) {
+    const l = layouts.find((x) => x.name === layoutSofort);
+    if (l) { layoutSel.value = l.name; wendeLayoutAn(l); }
+    else layoutInfo.textContent = `Layout „${layoutSofort}" nicht gefunden.`;
+  }
 
   const autoBtn = el("button", { title: "Würfelt eine neue Seite aus der Schatzkammer — jeder Klick eine andere Auswahl" }, icon("dice"), " Seiten füllen");
   autoBtn.addEventListener("click", fuellen);
