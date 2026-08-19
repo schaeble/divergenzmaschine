@@ -15,7 +15,7 @@ import { umbrechen, fuellgrad, type Messbar, type UmbruchTeil, type Seite } from
 import {
   ladeBilder, sichereBilder, neuerRahmen, verschiebe, skaliereEcke, begrenze,
   leseBilddatei, stapelLege, stapelNimm, BILD_ANZAHL,
-  rasteRahmen, spaltenBreite, spaltenZahl, bildplatz, baenderStapeln, spaltenlagen,
+  rasteRahmen, spaltenBreite, spaltenZahl, bildplatz, spaltenlagen,
   plaetze, platzBesetzt, rahmenAusPlatz,
   type Bildrahmen, type Raster, type Platz,
 } from "../features/zeitungsbilder";
@@ -149,12 +149,15 @@ function istVers(form?: string): boolean {
   return form === "reim" || form === "haiku" || form === "strang" || form === "poem";
 }
 
-function beitrag(t: Treasure, rolle: Rolle, titel: string, skala = 1, zwischenraum = 0): HTMLElement {
+function beitrag(t: Treasure, rolle: Rolle, titel: string, skala = 1, zwischenraum = 0, vorabstand = 0): HTMLElement {
   const box = el("div", { class: "zk-beitrag zk-" + rolle });
   // Die Schriftskala wirkt ueber eine eigene Variable, damit sie sich mit dem
   // Schriftgrad der Seite multipliziert statt ihn zu ueberschreiben.
   if (skala !== 1) box.style.setProperty("--zk-skala", String(skala));
   if (zwischenraum) box.style.marginBottom = zwischenraum + "px";
+  // Der Platz, den ein Bild darüber belegt. Als Abstand, nicht als Gleitkasten:
+  // So ist die tatsächliche Höhe genau die gemessene.
+  if (vorabstand) box.style.marginTop = vorabstand + "px";
   if (t.form === "bericht") {
     const abs = absaetze(t.t);
     if (abs[0]) box.append(el("div", { class: "zk-dach" }, abs[0]));
@@ -182,7 +185,7 @@ function beitrag(t: Treasure, rolle: Rolle, titel: string, skala = 1, zwischenra
 
 export interface SeitenTeil { t: Treasure; rolle: Rolle; titel: string; }
 
-export interface SeitenTeil { t: Treasure; rolle: Rolle; titel: string; skala?: number; zwischenraum?: number }
+export interface SeitenTeil { t: Treasure; rolle: Rolle; titel: string; skala?: number; zwischenraum?: number; vorabstand?: number }
 
 /** Eine Seite bauen. `mitKopf` nur auf der ersten — der Zeitungskopf steht
  *  einmal, nicht auf jeder Seite. */
@@ -213,7 +216,7 @@ export function baueZeitungsseite(kopf: Zeitungskopf, teile: SeitenTeil[], spalt
   rest.forEach((x, i) => {
     const sp = (x as SeitenTeil & { spalte?: number }).spalte ?? (i % spalten);
     (boxen[Math.max(0, Math.min(spalten - 1, sp))] || boxen[0]!)
-      .append(beitrag(x.t, x.rolle, x.titel, x.skala ?? 1, x.zwischenraum ?? 0));
+      .append(beitrag(x.t, x.rolle, x.titel, x.skala ?? 1, x.zwischenraum ?? 0, x.vorabstand ?? 0));
   });
   wurzel.append(raster);
 
@@ -301,7 +304,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
    *  Verkleinert wird das ganze Blatt, nicht der Satz: Ein transform ändert die
    *  Layoutmaße nicht, also rechnen Umbruch und Nachmessung unverändert in
    *  Seitenpixeln. Ziehen und Aufziehen stimmen automatisch mit, weil
-   *  `massstab()` und `bildplaetzeSetzen()` den Maßstab am gemessenen Kasten
+   *  `massstab()` und die Bildschicht den Maßstab am gemessenen Kasten
    *  nehmen (`rect.width / SEITE_B`) und nicht als 1 annehmen.
    *
    *  Nie vergrößern: Auf einem breiten Bildschirm soll die Seite ihre echte
@@ -577,7 +580,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     seiten.forEach((seite, n) => {
       const st: (SeitenTeil & { spalte?: number })[] = seite.teile.map((p) => ({
         t: quellen[p.id]!, rolle: p.rolle, titel: titelAlle[p.id]!,
-        skala: p.skala, zwischenraum: p.zwischenraum, spalte: p.spalte,
+        skala: p.skala, zwischenraum: p.zwischenraum, vorabstand: p.vorabstand, spalte: p.spalte,
       }));
       const dom = baueZeitungsseite(kopf, st, spalten, n === 0);
       // In der Vorschau steckt die Seite in einem Papierrahmen; im Druck macht
@@ -585,18 +588,9 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       blatt.append(el("div", { class: "zk-papier" }, dom));
     });
 
-    // Vor jeder Messung am fertigen Satz: Sonst rechnete `bildplaetzeSetzen`
-    // mit einem anderen Maßstab, als der Benutzer gleich vor sich sieht.
+    // Vor jeder Messung am fertigen Satz: Sonst rechnete die Bildschicht mit
+    // einem anderen Maßstab, als der Benutzer gleich vor sich sieht.
     passeZoom();
-
-    // Erst den Platz für die Bilder freihalten, DANN nachmessen: Der
-    // Platzhalter macht die Spalte höher, und was dadurch überläuft, muss die
-    // Nachmessung noch sehen. Andersherum stünde am Ende doch wieder Text
-    // hinter der Fußlinie.
-    {
-      const seitenEl = Array.from(blatt.querySelectorAll(".zk-seite")) as HTMLElement[];
-      seitenEl.forEach((sEl, n) => bildplaetzeSetzen(sEl, n, seitenEl.length));
-    }
 
     // Nachmessen am fertigen Satz, nicht an der Probe: Was hier ueberlaeuft,
     // ueberlaeuft auch auf dem Papier. Der letzte Beitrag einer zu vollen Spalte
@@ -845,51 +839,12 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     return box;
   };
 
-  /** Hält in jeder berührten Spalte das Band des Bildes frei, damit der Text
-   *  am Bild abbricht und darunter weiterläuft.
-   *
-   *  Gemessen wird am ECHTEN Kasten (`getBoundingClientRect`), nicht gerechnet:
-   *  Wo die Spalten anfangen, hängt an Kopfhöhe und Aufmacher, und die stehen
-   *  erst, wenn gesetzt ist. Ohne Maße (Prüfstand ohne Layout) passiert nichts.
-   *
-   *  Der Aufmacher bleibt außen vor: Sein Satz läuft über CSS-Spalten, und ein
-   *  Gleitkasten wirkt dort nur in der Spalte, in der er steht. Ein Bild über
-   *  dem Aufmacher verdeckt also weiterhin. */
-  const bildplaetzeSetzen = (seiteEl: HTMLElement, seiteNr: number, seitenGesamt: number): void => {
-    const seiteR = seiteEl.getBoundingClientRect();
-    if (!seiteR.width || !seiteR.height) return;
-    const f = seiteR.width / SEITE_B;                       // Bildschirm → Seitenmaß
-    const kaesten = Array.from(seiteEl.querySelectorAll(".zk-spaltebox")) as HTMLElement[];
-    const LUFT = Math.round(2 * MM);                        // Abstand Bild ↔ Text
-    for (const kasten of kaesten) {
-      const r = kasten.getBoundingClientRect();
-      if (!r.width) continue;
-      const lage = {
-        x: (r.left - seiteR.left) / f, b: r.width / f,
-        oben: (r.top - seiteR.top) / f, hoehe: r.height / f,
-      };
-      // Erst ALLE Bänder dieser Spalte sammeln, dann stapeln. Einzeln
-      // eingehängt bekam jeder Platzhalter seinen absoluten Abstand von oben —
-      // aber Gleitkästen stapeln sich, also addierten sich zwei Bilder zu einem
-      // Block höher als die Spalte und schoben den Text hinaus.
-      const baender: { oben: number; hoehe: number }[] = [];
-      for (const b of bilder) {
-        const seite = Math.min(Math.max(0, b.seite | 0), Math.max(0, seitenGesamt - 1));
-        if (seite !== seiteNr) continue;
-        const platz = bildplatz(b, lage, LUFT);
-        if (platz) baender.push(platz);
-      }
-      // In Dokumentreihenfolge ganz vorn einhängen: Ein Gleitkasten wirkt nur
-      // auf das, was ihm im Quelltext folgt.
-      const halter = baenderStapeln(baender).map((p) => {
-        const h = el("div", { class: "zk-bildplatz" });
-        h.style.height = p.hoehe + "px";
-        h.style.marginTop = p.abstand + "px";
-        return h;
-      });
-      for (let i = halter.length - 1; i >= 0; i--) kasten.insertBefore(halter[i]!, kasten.firstChild);
-    }
-  };
+  // Der Platz für die Bilder wird nicht mehr hier freigehalten, sondern in der
+  // VERTEILUNG: `umbrechen()` bekommt die gesperrten Bänder und setzt den ersten
+  // Beitrag unter einem Bild mit einem Abstand an dessen Unterkante. Der frühere
+  // Gleitkasten (`.zk-bildplatz`) ist raus — er verschob nur Zeilen, zerriss
+  // Beiträge und machte sie höher als gemessen, worauf die Nachmessung sie
+  // hinauswarf: Ein eingefügtes Bild löschte den Text der ganzen Spalte.
 
   /** Kürzt, bis kein Text mehr die Fußlinie berührt.
    *

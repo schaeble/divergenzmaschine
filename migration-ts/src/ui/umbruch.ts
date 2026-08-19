@@ -7,6 +7,8 @@
 // echte über getBoundingClientRect, im Test eine berechnete aus der Wortzahl.
 // So ist der Teil, der schiefgehen kann, auch der Teil, der geprüft wird.
 
+import { verschmelzeBaender } from "../features/zeitungsbilder";
+
 export interface Messbar {
   /** Höhe in Pixeln, die dieser Beitrag in einer Spalte einnimmt — bei der
    *  Schriftskala `skala`. */
@@ -22,6 +24,18 @@ export interface PlatzierterTeil extends UmbruchTeil {
   zwischenraum: number;  // zusätzlicher Abstand darunter, in Pixeln
   /** true = passt nicht mehr ganz und wird am Spaltenfuß gekürzt. */
   gekuerzt?: boolean;
+  /** Abstand ÜBER diesem Beitrag in Pixeln. Er hält den Platz frei, den ein
+   *  Bild in der Spalte belegt: Der erste Beitrag unter einem Bild bekommt
+   *  genau den Abstand, der ihn an dessen Unterkante setzt.
+   *
+   *  Warum ein Abstand und kein Gleitkasten (float): Ein Gleitkasten schiebt
+   *  nur die ZEILEN, die in sein Band fallen. Ein Beitrag, der kurz über dem
+   *  Bild anfängt, wurde dadurch zerrissen — Überschrift oben, Rumpf unter dem
+   *  Bild — und er wurde HÖHER als gemessen. Die Verteilung rechnete mit der
+   *  Messung ohne Bild und lag deshalb systematisch daneben; die Nachmessung
+   *  warf den Beitrag anschließend heraus. Mit einem Abstand stimmt die
+   *  Rechnung: gemessene Höhe = tatsächliche Höhe. */
+  vorabstand?: number;
 }
 
 export interface Seite { teile: PlatzierterTeil[] }
@@ -50,7 +64,7 @@ export interface UmbruchOpts {
 /** Die freien Abschnitte einer Spalte: das Gegenstück zu den gesperrten
  *  Bändern. Reine Rechnung, deshalb hier und geprüft. */
 export function freieAbschnitte(hoehe: number, baender: { oben: number; hoehe: number }[] = []): { von: number; bis: number }[] {
-  const sortiert = [...baender].filter((b) => b.hoehe > 0).sort((a, b) => a.oben - b.oben);
+  const sortiert = verschmelzeBaender(baender);
   const raus: { von: number; bis: number }[] = [];
   let cursor = 0;
   for (const b of sortiert) {
@@ -106,17 +120,25 @@ export function umbrechen(teile: UmbruchTeil[], mess: Messbar, o: UmbruchOpts): 
       // einer Schatzkammer voller langer Texte blieb die Seite deshalb leer bis
       // auf den Aufmacher: 1 von 101 Beiträgen gesetzt.
       let luftGesamt = 0;
+      // Wo der Textfluss der Spalte gerade steht. Daraus wird der Abstand über
+      // dem ersten Beitrag eines Abschnitts: Er setzt ihn genau an die
+      // Unterkante des Bildes darüber.
+      let flussEnde = 0;
       abschnitte.forEach((abschnitt, ai) => {
         const platz = abschnitt.bis - abschnitt.von;
         let inAbschnitt = 0;
+        let erster = true;
         for (;;) {
           let gesetzt = false;
           for (let k = 0; k < offen.length && !gesetzt; k++) {
             const kand = offen[k]!;
             for (const skala of SKALEN) {
               if (inAbschnitt + mess.hoehe(kand.id, skala) <= platz) {
-                inSpalte.push({ ...kand, spalte: sp, skala, zwischenraum: 0 });
+                const vorab = erster ? Math.max(0, Math.round(abschnitt.von - flussEnde)) : 0;
+                inSpalte.push({ ...kand, spalte: sp, skala, zwischenraum: 0, ...(vorab ? { vorabstand: vorab } : {}) });
                 inAbschnitt += mess.hoehe(kand.id, skala);
+                flussEnde = abschnitt.von + inAbschnitt;
+                erster = false;
                 offen.splice(k, 1);
                 gesetzt = true;
                 break;
@@ -132,14 +154,19 @@ export function umbrechen(teile: UmbruchTeil[], mess: Messbar, o: UmbruchOpts): 
         const letzter = ai === abschnitte.length - 1;
         if (letzter && offen.length && mindestRest > 0 && platz - inAbschnitt >= mindestRest) {
           const kand = offen.shift()!;
-          inSpalte.push({ ...kand, spalte: sp, skala: 1, zwischenraum: 0, gekuerzt: true });
+          const vorab = erster ? Math.max(0, Math.round(abschnitt.von - flussEnde)) : 0;
+          inSpalte.push({ ...kand, spalte: sp, skala: 1, zwischenraum: 0, gekuerzt: true, ...(vorab ? { vorabstand: vorab } : {}) });
           inAbschnitt = platz;
+          flussEnde = abschnitt.bis;
         }
         gefuellt += inAbschnitt;
         luftGesamt += platz - inAbschnitt;
       });
       const luft = luftGesamt;
-      if (inSpalte.length > 1 && luft > 0) {
+      // Luft verteilen NUR in einer Spalte ohne Bilder: Sonst schöbe der
+      // Zwischenraum die Beiträge in die gesperrten Bänder hinein.
+      const ohneBild = abschnitte.length <= 1;
+      if (ohneBild && inSpalte.length > 1 && luft > 0) {
         const jeFuge = Math.min(maxZw, Math.floor(luft / (inSpalte.length - 1)));
         for (let i = 0; i < inSpalte.length - 1; i++) inSpalte[i]!.zwischenraum = jeFuge;
       }
@@ -159,7 +186,8 @@ export function fuellgrad(seite: Seite, mess: Messbar, o: UmbruchOpts): number {
     // Der Aufmacher läuft über ALLE Spalten. Ihn in Spaltenbreite zu messen
     // ergibt die dreifache Höhe — die Füllung meldete 71 %, während die Seite
     // fast leer war. Deshalb dieselbe Zahl wie bei der Verteilung.
-    const h = (t.spalte < 0 ? (o.aufmacherhoehe ?? mess.hoehe(t.id, t.skala)) : mess.hoehe(t.id, t.skala)) + t.zwischenraum;
+    const h = (t.spalte < 0 ? (o.aufmacherhoehe ?? mess.hoehe(t.id, t.skala)) : mess.hoehe(t.id, t.skala))
+      + t.zwischenraum + (t.vorabstand ?? 0);
     if (t.spalte < 0) oben += h; else proSpalte[t.spalte] = (proSpalte[t.spalte] || 0) + h;
   }
   const rest = Math.max(1, o.spaltenhoehe - oben);

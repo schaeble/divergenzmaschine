@@ -410,22 +410,6 @@ export function rahmenAusPlatz(daten: string, p: Platz, seite = 0,
   return { id, daten, seite, x: p.x, y: p.y, b: p.b, h: p.h, verh: p.h > 0 ? p.b / p.h : 1 };
 }
 
-/** Mehrere Bänder in EINER Spalte übereinanderlegen.
- *
- *  Der Platzhalter ist ein Gleitkasten, und Gleitkästen STAPELN sich: Der
- *  zweite beginnt nicht am oberen Rand der Spalte, sondern unter dem ersten.
- *  Sein `margin-top` ist deshalb kein Abstand von oben, sondern der Abstand zum
- *  vorigen Band. Mit absoluten Abständen addierten sich zwei Bilder zu einem
- *  Block, der höher war als die Spalte — und schob allen Text hinaus. Genau das
- *  war zu sehen: „Der Text über den Bildern verschwindet."
- *
- *  Überlappende Bänder werden verschmolzen; zwei Gleitkästen, die einander
- *  überschneiden, reservierten sonst mehr Höhe als die Bilder zusammen
- *  einnehmen.
- *
- *  Eingabe: Bänder in Spaltenkoordinaten (`oben` = Abstand von der
- *  Spaltenoberkante). Ausgabe: in Dokumentreihenfolge, mit `abstand` als
- *  `margin-top` je Gleitkasten. */
 /** Bänder sortieren und Überlappungen verschmelzen. Zwei Bänder, die einander
  *  überschneiden, sind EIN gesperrter Bereich — getrennt gezählt sperren sie
  *  mehr Höhe, als die Bilder zusammen einnehmen. */
@@ -437,19 +421,6 @@ export function verschmelzeBaender(baender: { oben: number; hoehe: number }[]): 
     if (letzte && b.oben <= letzte.oben + letzte.hoehe) {
       letzte.hoehe = Math.max(letzte.hoehe, b.oben + b.hoehe - letzte.oben);
     } else raus.push({ oben: Math.max(0, b.oben), hoehe: b.hoehe });
-  }
-  return raus;
-}
-
-export function baenderStapeln(
-  baender: { oben: number; hoehe: number }[],
-): { abstand: number; hoehe: number }[] {
-  const zusammen = verschmelzeBaender(baender);
-  const raus: { abstand: number; hoehe: number }[] = [];
-  let unten = 0;
-  for (const b of zusammen) {
-    raus.push({ abstand: Math.max(0, Math.round(b.oben - unten)), hoehe: Math.round(b.hoehe) });
-    unten = b.oben + b.hoehe;
   }
   return raus;
 }

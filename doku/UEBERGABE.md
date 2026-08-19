@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.238.0**, Zweig `typescript-migration`.
+Stand: **v4.238.1**, Zweig `typescript-migration`.
 
 ---
 
@@ -256,6 +256,15 @@ und schoben allen Text hinaus („der Text über den Bildern verschwindet").
 `baenderStapeln()` rechnet jetzt Abstände VON BAND ZU BAND und verschmilzt
 Überlappungen; die Zusage ist geprüft: Die Summe aus Abständen und Höhen endet
 an der Unterkante des letzten Bandes.
+
+**Warum der Gleitkasten weg ist** (4.238.1): Der Platzhalter war ein `float`.
+Ein Gleitkasten schiebt nur die ZEILEN, die in sein Band fallen — ein Beitrag,
+der kurz über dem Bild anfängt, wurde zerrissen (Überschrift oben, Rumpf
+darunter) und dabei HÖHER als gemessen. Die Verteilung rechnete mit der Messung
+ohne Bild, die Nachmessung warf den Beitrag hinaus: Ein Bild löschte den Text
+der Spalte. Jetzt trägt der erste Beitrag eines Abschnitts einen `vorabstand`
+(margin-top), der ihn genau an die Bildunterkante setzt. Damit gilt: gemessene
+Höhe = tatsächliche Höhe. `.zk-bildplatz` und `baenderStapeln()` sind entfallen.
 
 **Bilder sperren Bänder in der Verteilung** (4.238.0): `umbrechen()` bekommt
 `luecken` — je Spalte die gesperrten Bänder in Spaltenkoordinaten — und füllt

@@ -784,9 +784,6 @@ select.abweichend{border-color:var(--acc)}
 .zk-seite{position:relative}
 .zk-bilder{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2}
 .zk-rasterhilfe{position:absolute;inset:0;opacity:0;transition:opacity .12s;pointer-events:none}
-/* Platzhalter im Spaltensatz: haelt das Band des Bildes frei. Unsichtbar, aber
-   raumgreifend - er ist der Grund, warum der Text am Bild abbricht. */
-.zk-bildplatz{float:left;width:100%;pointer-events:none;visibility:hidden}
 .zk-bilder.zeigt .zk-rasterhilfe{opacity:1}
 .zk-bild{position:absolute;pointer-events:auto;cursor:move;touch-action:none;
   border:1px solid rgba(0,0,0,.25);background:#fff;box-sizing:border-box}

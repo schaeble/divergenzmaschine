@@ -215,18 +215,27 @@ ist("dreifach angewandt wächst nichts an",
 // jsdom rechnet kein Layout. Für diesen Punkt wird die Geometrie vorgetäuscht —
 // geprüft wird nicht, WIE der Browser umbricht, sondern ob der Platzhalter in
 // der richtigen Spalte, an der richtigen Stelle und in der richtigen Höhe
-// hängt. Das Umbrechen selbst macht CSS mit einem Gleitkasten.
+// hängt. Das Setzen selbst macht der Abstand über dem Beitrag.
 const SP_N = 3;
 const rr = raster(SP_N);
 const spB = spaltenBreite(rr);
 const kasten = (l: number, t: number, w: number, h: number): DOMRect =>
   ({ left: l, top: t, width: w, height: h, right: l + w, bottom: t + h, x: l, y: t, toJSON: () => ({}) }) as DOMRect;
 (dom.window.Element.prototype as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect = function (this: Element): DOMRect {
-  if (this.classList.contains("zk-seite")) return kasten(0, 0, SEITE_B, SEITE_H);
-  if (this.classList.contains("zk-spaltebox")) {
+  const c = this.classList;
+  if (c.contains("zk-seite")) return kasten(0, 0, SEITE_B, SEITE_H);
+  // Kopf 180 + Aufmacher 120 = 300: dieselbe Oberkante, die für die
+  // Spaltenkästen vorgetäuscht wird. Nur so rechnet der Setzer mit derselben
+  // Geometrie, die der Prüfstand behauptet.
+  if (c.contains("zk-kopf")) return kasten(0, 0, SEITE_B, 180);
+  // Ohne Fußlinie hielte das Kürzen am Fuß JEDEN Beitrag für überstehend und
+  // räumte die Spalten leer.
+  if (c.contains("zk-fuss")) return kasten(0, 900, SEITE_B, 20);
+  if (c.contains("zk-spaltebox")) {
     const i = Array.from(this.parentElement?.children || []).indexOf(this);
     return kasten(i * (spB + rr.steg), 300, spB, 600);
   }
+  if (c.contains("zk-beitrag")) return kasten(0, 0, spB, 120);
   return kasten(0, 0, 0, 0);
 };
 
@@ -244,41 +253,60 @@ klick(knopf(/füllen/));
 
 const kaesten = alle(".zk-blatt .zk-seite .zk-spaltebox");
 wahr("Spaltenkästen da", kaesten.length === SP_N);
-const platz0 = kaesten[0]?.querySelector(".zk-bildplatz") as HTMLElement | null;
-wahr("die berührte Spalte hat einen Platzhalter", !!platz0);
-ist("kein Platzhalter in der Nachbarspalte", !!kaesten[1]?.querySelector(".zk-bildplatz"), false);
-ist("und keiner in der dritten", !!kaesten[2]?.querySelector(".zk-bildplatz"), false);
-const soll = bildplatz({ x: 0, y: 400, b: Math.round(spB), h: 150 }, { x: 0, b: spB, oben: 300, hoehe: 600 }, Math.round(2 * MM))!;
-ist("Platzhalter beginnt beim Bild", platz0?.style.marginTop, soll.oben + "px");
-ist("Platzhalter ist so hoch wie das Bild samt Luft", platz0?.style.height, soll.hoehe + "px");
-ist("er steht als erstes Kind", kaesten[0]?.firstElementChild?.classList.contains("zk-bildplatz"), true);
-ist("und er ist nicht in der Druckfassung vergessen", alle(".dm-print-aktiv .zk-bildplatz").length, 1);
-// Die Auswahlmarke ist eine Bedienspur — sie stand als blauer Rahmen im Druck.
-(q(".zk-blatt .zk-bild") as HTMLElement).classList.add("on");
-klick(knopf(/Drucken/));
-ist("die Auswahlmarke wird nicht mitgedruckt", alle(".dm-print-aktiv .zk-bild.on").length, 0);
-wahr("und die Druckregel nimmt sie zusätzlich zurück",
-  /\.zk-bild\.on \{ outline: none/.test(readFileSync("src/ui/theme.css", "utf8")));
+// Der Platz für das Bild entsteht jetzt in der VERTEILUNG: Der erste Beitrag
+// unter dem Bild bekommt einen Abstand, der ihn an dessen Unterkante setzt.
+// Vorher war es ein Gleitkasten — der verschob nur Zeilen, zerriss Beiträge und
+// machte sie höher als gemessen, worauf die Nachmessung sie hinauswarf.
+const SPALTE_OBEN = 300, PROBE_H = 120;
+const flussVon = (kasten2: Element, ziel: HTMLElement): number => {
+  let fluss = 0;
+  for (const x of Array.from(kasten2.querySelectorAll(".zk-beitrag")) as HTMLElement[]) {
+    fluss += parseFloat(x.style.marginTop || "0");
+    if (x === ziel) return fluss;
+    fluss += PROBE_H;
+  }
+  return fluss;
+};
+{
+  const spalte0 = kaesten[0]!;
+  const beitraege0 = Array.from(spalte0.querySelectorAll(".zk-beitrag")) as HTMLElement[];
+  const mitAbstand = beitraege0.filter((x) => parseFloat(x.style.marginTop || "0") > 0);
+  wahr("die Spalte mit dem Bild hat Beiträge", beitraege0.length > 0, `${beitraege0.length}`);
+  ist("genau einer setzt unter dem Bild neu an", mitAbstand.length, 1);
+  const unterkante = 400 + 150 + Math.round(2 * MM);
+  const start = SPALTE_OBEN + flussVon(spalte0, mitAbstand[0]!);
+  wahr("und zwar an der Unterkante des Bildes", Math.abs(start - unterkante) <= 2, `${start} gegen ${unterkante}`);
+  wahr("die Nachbarspalte bekommt keinen Abstand",
+    !Array.from(kaesten[1]?.querySelectorAll(".zk-beitrag") || []).some((x) => parseFloat((x as HTMLElement).style.marginTop || "0") > 0));
+}
 
 // ── 7b · Zwei Bilder in EINER Spalte ────────────────────────────────────────
-// Der gemeldete Fehler: Danach war der Text über den Bildern weg. Die
-// Platzhalter sind Gleitkästen und stapeln sich; mit absoluten Abständen wurde
-// der reservierte Block höher als die Spalte und schob allen Text hinaus.
+// Der gemeldete Fehler: Danach war der Text weg. Jede Lücke braucht ihren
+// eigenen Wiedereinstieg — und die Spalte muss Text behalten.
 localStorage.setItem(BILD_KEY, JSON.stringify([
   { id: "b1", daten: GIF, seite: 0, x: 0, y: 380, b: Math.round(spB), h: 120, verh: Math.round(spB) / 120 },
-  { id: "b2", daten: GIF, seite: 0, x: 0, y: 640, b: Math.round(spB), h: 120, verh: Math.round(spB) / 120 },
+  { id: "b2", daten: GIF, seite: 0, x: 0, y: 700, b: Math.round(spB), h: 120, verh: Math.round(spB) / 120 },
 ]));
 klick(knopf(/Schließen/));
 oeffneZeitungssetzer("Ein Text aus dem Studio.", "prose");
 klick(knopf(/füllen/));
 {
-  const kaesten2 = alle(".zk-blatt .zk-seite .zk-spaltebox");
-  const plaetze = Array.from(kaesten2[0]?.querySelectorAll(".zk-bildplatz") || []) as HTMLElement[];
-  ist("zwei Bilder ergeben zwei Platzhalter", plaetze.length, 2);
-  const summe = plaetze.reduce((a, h) => a + parseFloat(h.style.marginTop || "0") + parseFloat(h.style.height || "0"), 0);
-  // Die Spalte ist in der Attrappe 600 hoch; der Stapel darf sie nicht sprengen.
-  wahr("der Stapel bleibt in der Spalte", summe <= 600, `${summe} px`);
-  wahr("und endet an der Unterkante des unteren Bildes", Math.abs(summe - (640 + 120 + Math.round(2 * MM) - 300)) <= 2, `${summe} px`);
+  const spalte0 = alle(".zk-blatt .zk-seite .zk-spaltebox")[0]!;
+  const beitraege0 = Array.from(spalte0.querySelectorAll(".zk-beitrag")) as HTMLElement[];
+  wahr("die Spalte behält Text", beitraege0.length > 0, `${beitraege0.length} Beiträge`);
+  const kanten = [380 + 120 + Math.round(2 * MM), 700 + 120 + Math.round(2 * MM)];
+  const abstaende = beitraege0.filter((x) => parseFloat(x.style.marginTop || "0") > 0);
+  wahr("mindestens ein Wiedereinstieg", abstaende.length >= 1, `${abstaende.length}`);
+  for (const x of abstaende) {
+    const start = SPALTE_OBEN + flussVon(spalte0, x);
+    wahr("ein Wiedereinstieg sitzt an einer Bildunterkante",
+      kanten.some((k) => Math.abs(start - k) <= 2), `${start} gegen ${kanten.join(" oder ")}`);
+  }
+  const inBand = beitraege0.some((x) => {
+    const start = SPALTE_OBEN + flussVon(spalte0, x);
+    return (start > 380 && start < 500) || (start > 700 && start < 820);
+  });
+  wahr("kein Beitrag beginnt mitten im Bild", !inBand);
 }
 
 // ── 8 · Kürzen an der Fußlinie ──────────────────────────────────────────────
