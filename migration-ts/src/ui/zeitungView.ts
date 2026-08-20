@@ -1189,15 +1189,27 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     for (const kasten of Array.from(seiteEl.querySelectorAll(".zk-spaltebox")) as HTMLElement[]) {
       const kR = kasten.getBoundingClientRect();
       if (!kR.width) continue;
-      const letzter = (Array.from(kasten.querySelectorAll(":scope > .zk-beitrag")) as HTMLElement[]).pop();
-      const unten = letzter ? letzter.getBoundingClientRect().bottom : kR.top;
-      const luecke = (grenze - unten) / (f || 1);
-      if (luecke < FUELLER_MIN) continue;
+      /** Die verbleibende Luft — nach jedem eingesetzten Füller neu gemessen. */
+      const restLuft = (): number => {
+        const l = (Array.from(kasten.querySelectorAll(":scope > .zk-beitrag, :scope > .zk-vignette")) as HTMLElement[]).pop();
+        return ((grenze - (l ? l.getBoundingClientRect().bottom : kR.top)) / (f || 1));
+      };
+      if (restLuft() < FUELLER_MIN) continue;
 
-      // Zuerst ein Text — aber nur, wenn er wirklich hineinpasst. Die Höhe
-      // steht erst im Satz fest, also wird eingesetzt und nachgemessen.
-      let gefuellt = false;
-      if (luecke >= FUELLER_TEXT_MIN) {
+      // MEHRERE Füller je Spalte, nicht einer.
+      //
+      // Das war der Fehler: Eine Spalte bekam genau einen Versuch. Ein Loch von
+      // zweihundert Millimetern — eine fast leere Spalte — wurde mit einem
+      // Beitrag von vierzig geschlossen, und die restlichen hundertsechzig
+      // blieben weiß. Schlimmer noch: Weil „gefüllt" wahr war, sprang die
+      // Schleife weiter, und auch die Zierfigur kam nicht mehr zum Zug. Genau
+      // so entstehen die gemeldeten leeren Stellen.
+      //
+      // Der Deckel gegen Endlosschleifen: Mehr als acht Beiträge stehen in
+      // keiner Spalte, und ein Füller, der nichts mehr verkleinert, bricht ab.
+      for (let runde = 0; runde < 8; runde++) {
+        const luecke = restLuft();
+        if (luecke < FUELLER_TEXT_MIN) break;
         const kandidaten: FuellKandidat[] = [];
         offen.forEach((t, k) => {
           const id = offenIds[k]!;
@@ -1205,32 +1217,30 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
           // Grobe Vorauswahl über die Wortzahl: Alles einzusetzen und wieder
           // herauszunehmen wäre bei hundert Beiträgen ein spürbares Ruckeln.
           const w = (t.t.match(/\S+/g) || []).length;
-          if (w > 140) return;
+          if (w > 260) return;
           kandidaten.push({ id, hoehe: w, kurz: istVers(t.form) || t.form === "meldung" });
         });
         // Hier zählt die Wortzahl als Näherung; die echte Höhe entscheidet gleich.
         const wahl = waehleFueller(luecke, kandidaten.map((k) => ({ ...k, hoehe: k.hoehe * 3 })));
-        if (wahl !== null) {
-          const t = offen[offenIds.indexOf(wahl)]!;
-          const box = beitrag(t, "spalte", ueberschriftVon(t));
-          box.dataset.fueller = "1";
-          kasten.append(box);
-          if (box.getBoundingClientRect().bottom <= grenze) {
-            benutzt.add(wahl);
-            raus.push({ titel: ueberschriftVon(t), art: "text" });
-            gefuellt = true;
-          } else {
-            // Passte doch nicht — spurlos zurücknehmen. Ein zu großer Füller
-            // wäre schlimmer als das Loch: Er würde am Fuß wieder gekürzt.
-            kasten.removeChild(box);
-          }
+        if (wahl === null) break;
+        const t = offen[offenIds.indexOf(wahl)]!;
+        const box = beitrag(t, "spalte", ueberschriftVon(t));
+        box.dataset.fueller = "1";
+        kasten.append(box);
+        if (box.getBoundingClientRect().bottom > grenze) {
+          // Passte doch nicht — spurlos zurücknehmen. Ein zu großer Füller
+          // wäre schlimmer als das Loch: Er würde am Fuß wieder gekürzt.
+          kasten.removeChild(box);
+          break;
         }
+        benutzt.add(wahl);
+        raus.push({ titel: ueberschriftVon(t), art: "text" });
       }
-      if (gefuellt) continue;
 
-      // Was bleibt, bekommt eine Zierfigur. Sie passt in jede Höhe, weil sie
-      // gerechnet und nicht gespeichert wird.
-      const rest = (grenze - (letzter ? letzter.getBoundingClientRect().bottom : kR.top)) / (f || 1);
+      // Und was DANACH noch offen ist, bekommt eine Zierfigur. Auch wenn schon
+      // ein Text eingesetzt wurde: Ein Rest von achtzig Millimetern unter einem
+      // Füller ist immer noch ein Loch.
+      const rest = restLuft();
       if (rest < FUELLER_MIN) continue;
       const zier = el("div", { class: "zk-vignette" });
       zier.dataset.fueller = "1";

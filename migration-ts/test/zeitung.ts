@@ -796,6 +796,27 @@ wahr("ein Tausch zaehlt nicht als Kuerzung",
   /kuerzungen\.filter\(\(k\) => k\.art !== "ersetzt"\)\.length/.test(readFileSync("src/ui/zeitungView.ts", "utf8")));
 wahr("und die Zaehlung der Reste bleibt moeglich", mitAus.length >= 0);
 
+// ── 17 · Eine Spalte bekommt MEHRERE Fuellungen ─────────────────────────────
+// Gemeldet: Trotz Fueller blieben leere Stellen. Die Ursache war eine Schleife,
+// die je Spalte genau EINEN Versuch machte: Ein Loch von zweihundert
+// Millimetern wurde mit einem Beitrag von vierzig geschlossen, die restlichen
+// hundertsechzig blieben weiss — und weil „gefuellt" wahr war, kam auch die
+// Zierfigur nicht mehr zum Zug.
+const fuellQuelle = readFileSync("src/ui/zeitungView.ts", "utf8");
+wahr("es wird mehrfach je Spalte gefuellt", /for \(let runde = 0; runde < 8; runde\+\+\)/.test(fuellQuelle));
+wahr("die Restluft wird nach jedem Fueller neu gemessen", /const restLuft = \(\): number/.test(fuellQuelle));
+// Die Zierfigur steht NACH der Schleife und nicht in einem sonst-Zweig — sonst
+// bliebe ein Rest unter einem eingesetzten Text ungefuellt.
+wahr("die Zierfigur kommt auch nach einem Textfueller",
+  /const rest = restLuft\(\);\s*\n\s*if \(rest < FUELLER_MIN\) continue;/.test(fuellQuelle));
+ist("es gibt keinen gefuellt-Sprung mehr", /if \(gefuellt\) continue;/.test(fuellQuelle), false);
+// Die Vorauswahl darf nicht zu eng sein: Bei 140 Woertern fiel alles heraus,
+// was ein grosses Loch haette schliessen koennen.
+wahr("auch laengere Beitraege kommen als Fueller in Frage", /if \(w > 260\) return;/.test(fuellQuelle));
+// Und die Restluft zaehlt die Zierfigur mit — sonst zaehlte die naechste Runde
+// den Platz doppelt.
+wahr("die Zierfigur zaehlt bei der Restluft mit", /\.zk-beitrag, :scope > \.zk-vignette/.test(fuellQuelle));
+
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Zeitungssetzer — ${geprueft} Prüfungen (Layout-Logik + Rundgang in jsdom):`);
 zeilen.forEach((z) => console.log(z));
