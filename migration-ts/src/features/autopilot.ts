@@ -109,13 +109,23 @@ export function baueBesetzung(
     form: aufmacherForm, woerter: 260 + Math.floor(rnd() * 120),
     quelle: naechsteQuelle(), was: "Aufmacher",
   });
-  // 2 · Ein Kasten. Kurz, und die Kurzform trägt die Seite optisch.
-  auftraege.push({ form: "meldung" as FormKind, woerter: 70 + Math.floor(rnd() * 40), quelle: naechsteQuelle(), was: "Kasten" });
+  // 2 · Ein Kasten. Kurz, und die Kurzform traegt die Seite optisch.
+  //
+  // Vorher stand hier fest „meldung", und das Haiku kam im ganzen Autopiloten
+  // nicht vor — obwohl es die einzige Form mit VORHERSAGBARER Hoehe ist: drei
+  // Zeilen, siebzehn Silben, der Platzbedarf steht fest, bevor ein Wort
+  // erzeugt ist. Genau das braucht ein Kasten.
+  const kastenForm = (rnd() < 0.4 ? "haiku" : "meldung") as FormKind;
+  auftraege.push({
+    form: kastenForm,
+    woerter: kastenForm === "haiku" ? 16 : 70 + Math.floor(rnd() * 40),
+    quelle: naechsteQuelle(), was: "Kasten",
+  });
   // 3 · Der Rest. Vorher lief hier ein FESTER Zyklus („bericht, prose, meldung,
   // prose, poem", immer in dieser Reihenfolge) — jede Ausgabe hatte damit
   // dieselbe Gestalt. Jetzt gezogen, aber aus einem Beutel, der die Mischung
   // sichert: Ohne ihn kämen regelmäßig fünf Berichte hintereinander.
-  const beutel: FormKind[] = ["bericht", "prose", "prose", "meldung", "poem", "bericht", "prose", "meldung"] as FormKind[];
+  const beutel: FormKind[] = ["bericht", "prose", "prose", "meldung", "poem", "haiku", "bericht", "prose", "meldung"] as FormKind[];
   for (let i = 2; i < n; i++) {
     const form = zieh(beutel, rnd);
     const woerter = form === "poem" ? 40 + Math.floor(rnd() * 30)

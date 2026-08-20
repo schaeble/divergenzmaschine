@@ -119,8 +119,9 @@ export function applyHaikuPoem(rawText: string, anchorLine = "", lenTarget = 0, 
   // dann ganze Einheit, dann Ausschnitt aus unbenutzter Quelle, dann Ausschnitt.
   // Die Silbenzahl muss dabei GENAU stimmen - fuer "eine daneben" gibt es eine
   // zweite Runde, die erst laeuft, wenn auch die Banken nichts hergeben.
-  const fromMaterial = (target: number, exakt = true): string | null => {
+  const fromMaterial = (target: number, exakt = true, nurGanz = false): string | null => {
     const free = cands.filter((c) => !used.has(c.text.toLowerCase())
+      && (nurGanz ? c.ganz : true)
       && (exakt ? c.syll === target : Math.abs(c.syll - target) === 1));
     const stufen: Cand[][] = [
       free.filter((c) => c.ganz && !usedSrc.has(c.src)),
@@ -167,7 +168,37 @@ export function applyHaikuPoem(rawText: string, anchorLine = "", lenTarget = 0, 
     const l1 = (chance(0.75) ? fromBank(HAIKU_KIGO, t1) : null) || fromMaterial(t1)
       || fromBank(HAIKU_KIGO, t1) || fromMaterial(t1, false) || greedyLine(t1);
     let l2 = fromMaterial(t2) || fromBank(HAIKU_NATURE7, t2) || fromMaterial(t2, false) || greedyLine(t2);
-    const l3 = fromMaterial(t3) || fromBank(HAIKU_CLOSERS, t3) || fromMaterial(t3, false) || greedyLine(t3);
+    // Die dritte Zeile SCHLIESST. Vorher gewann das Material vor der
+    // Schlusszeilen-Bank, und das Material besteht aus Anfangsstuecken von
+    // Saetzen — grammatisch zulaessig abgeschnitten, aber eben abgeschnitten.
+    // Ein Haiku endete auf „Ein Prozess, der dich" statt auf etwas, das steht.
+    //
+    // Jetzt wie bei der ersten Zeile: erst die Bank, dann NUR GANZE Fuegungen
+    // aus dem Material, und Anschnitte zuletzt. Ein Anschnitt als Schluss ist
+    // der Fehler, den man dem Haiku am deutlichsten anhoert.
+    // Reihenfolge: erst eine GANZE Fuegung aus dem Material, dann die Bank,
+    // Anschnitte zuletzt.
+    //
+    // Ein erster Versuch stellte die Bank nach vorn — und endete bei 100 %
+    // Konserve: Jedes Haiku schloss mit einer von zweiundzwanzig festen Zeilen,
+    // das eigene Material kam als Schluss nie mehr vor. Das ist die
+    // Vorverdichtung, gegen die diese Maschine sonst ankaempft, nur an einer
+    // neuen Stelle. Die Bank soll einspringen, wo das Material nichts Ganzes
+    // hergibt — nicht es verdraengen.
+    // Eine GANZE Fuegung mit einer Silbe daneben darf mit, ABER nur wenn
+    // passeSilben sie wirklich auf das Mass bringt. Ohne diese Pruefung traf
+    // die dritte Zeile nur 80 Prozent der Silbenzahl, waehrend Zeile 1 und 2
+    // bei 100 lagen — die Reparatur gelingt eben nicht immer, und ein
+    // ungeprueftes „wird schon" schlaegt genau hier durch.
+    const ganzKnapp = ((): string | null => {
+      const k = fromMaterial(t3, false, true);
+      if (!k) return null;
+      return haikuSyllOf(passeSilben(k, t3, haikuSyllOf)) === t3 ? k : null;
+    })();
+    const l3 = fromMaterial(t3, true, true)
+      || ganzKnapp
+      || fromBank(HAIKU_CLOSERS, t3)
+      || fromMaterial(t3) || fromMaterial(t3, false) || greedyLine(t3);
     if (chance(0.7)) l2 += " –";
     // Erst anpassen, dann setzen: capLine und cap veraendern die Silbenzahl nicht,
     // aber die Reihenfolge macht die Absicht klar.

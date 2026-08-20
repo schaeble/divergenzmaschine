@@ -43,5 +43,22 @@ export const HAIKU_CLOSERS: string[] = [
  "das Licht bleibt hängen",
  "und niemand sieht hin",
  "der Atem wird still",
- "alles bleibt stehen"
+ "alles bleibt stehen",
+ // Ergaenzt: Neun Schlusszeilen waren zu wenig. Die Auswahl merkt sich, was in
+ // EINEM Text schon benutzt wurde, und bei zwanzig Haiku am Stueck war die Bank
+ // nach neun erschoepft — danach nahm die dritte Zeile wieder Anschnitte aus dem
+ // Material, und genau die wirken abgehackt. Alle mit fuenf Silben geprueft.
+ "der Rest bleibt liegen",
+ "der Boden hält still",
+ "das Papier vergilbt",
+ "die Kante bleibt scharf",
+ "der Schnee bleibt liegen",
+ "der Schatten wandert",
+ "das Fenster beschlägt",
+ "der Nachhall verklingt",
+ "das Eisen rostet",
+ "die Kreide bleibt weiß",
+ "der Faden reißt still",
+ "das Wasser steht still",
+ "der Zug fährt vorbei"
 ];

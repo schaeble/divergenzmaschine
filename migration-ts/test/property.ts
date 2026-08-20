@@ -15,6 +15,7 @@
 }
 
 import { DEFAULT_BANK } from "../src/constants";
+import { estimateSyllables } from "../src/generation/verselib";
 import { buildStory } from "../src/generation/buildStory";
 import { mutateBank, bankEntryCount } from "../src/wordbank";
 import type { Bank, GenInput, FormKind } from "../src/types";
@@ -76,6 +77,38 @@ for (const form of ["poem", "drama", "strang", "reim", "haiku"] as FormKind[]) {
     catch (e) { fails.push(`${form} CRASH: ${(e as Error).message}`); continue; }
     check(t.trim().length > 0, `${form}: leer`);
   }
+}
+
+// ── Haiku: das Mass wird wirklich gemessen ──────────────────────────────────
+// Die Pruefung oben ist ein Rauchtest: kein Absturz, nicht leer. Eine 5-7-5-
+// Pruefung stand in pruefstand-formen.ts — und wurde von NIEMANDEM aufgerufen.
+// Gemessen traf die dritte Zeile nur 80 Prozent der Silbenzahl, waehrend
+// Zeile 1 und 2 bei 100 lagen, und das fiel nirgends auf.
+//
+// Eine Regel, die nirgends laeuft, sieht aus wie eine, die eingehalten wird.
+{
+  const silben = (l: string): number => l.replace(/\s*–\s*$/, "").split(/\s+/)
+    .filter(Boolean).reduce((a, w) => a + estimateSyllables(w), 0);
+  const soll = [5, 7, 5];
+  let zeilen = 0, treffer = [0, 0, 0], bloecke = 0, dreiZeilig = 0;
+  for (let i = 0; i < 60; i++) {
+    const t = buildStory(DEFAULT_BANK, base({ form: "haiku" as FormKind, lenTarget: 48 }));
+    for (const blk of t.split(/\n{2,}/)) {
+      const ls = blk.split("\n").map((x) => x.trim()).filter(Boolean);
+      bloecke++;
+      if (ls.length !== 3) continue;
+      dreiZeilig++;
+      ls.forEach((l, k) => { zeilen++; if (silben(l) === soll[k]) treffer[k]!++; });
+    }
+  }
+  check(bloecke > 0 && dreiZeilig === bloecke, `haiku: nicht jeder Block hat drei Zeilen (${dreiZeilig}/${bloecke})`);
+  // Je Zeile einzeln, nicht als Summe: Eine Gesamtquote von 93 Prozent verbirgt,
+  // dass EINE Zeile bei 80 liegt und die anderen bei 100.
+  for (let k = 0; k < 3; k++) {
+    const quote = dreiZeilig ? treffer[k]! / dreiZeilig : 0;
+    check(quote >= 0.98, `haiku: Zeile ${k + 1} trifft ${soll[k]} Silben nur zu ${Math.round(quote * 100)} %`);
+  }
+  check(zeilen > 100, `haiku: zu wenig gemessen (${zeilen} Zeilen)`);
 }
 
 // Mutation

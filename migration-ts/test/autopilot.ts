@@ -68,6 +68,18 @@ ist("fünf Beiträge", b5.length, 5);
 ist("der erste ist der Aufmacher", b5[0]?.was, "Aufmacher");
 ist("und ein Bericht", b5[0]?.form, "bericht");
 ist("der zweite ist der Kasten", b5[1]?.was, "Kasten");
+// Das Haiku kam im ganzen Autopiloten nicht vor — obwohl es die einzige Form
+// mit VORHERSAGBARER Hoehe ist: drei Zeilen, siebzehn Silben. Genau das
+// braucht ein Kasten.
+const kastenFormen = new Set(Array.from({ length: 300 }, () => baueBesetzung(5, false, false)[1]!.form));
+wahr("der Kasten kann ein Haiku sein", kastenFormen.has("haiku" as FormKind));
+wahr("und eine Meldung", kastenFormen.has("meldung" as FormKind));
+// Auch im Rest muss es vorkommen, sonst haengt alles am Kasten.
+const alleFormen = new Set(Array.from({ length: 200 }, () => baueBesetzung(9, false, false)).flat().map((a) => a.form));
+wahr("das Haiku kommt auch im Rest vor", alleFormen.has("haiku" as FormKind));
+// Und die Laengenverteilung darf es nicht sprengen.
+const mitHaiku = verteileLaengen([{ form: "haiku", woerter: 16 }, { form: "bericht", woerter: 400 }], 2000);
+wahr("das Haiku bleibt ein Haiku", mitHaiku[0]!.woerter <= LAENGEN_GRENZEN.haiku![1]);
 wahr("der Aufmacher ist der längste geplante", b5.every((a, i) => i === 0 || a.woerter <= b5[0]!.woerter));
 wahr("alle Formen taugen für eine Seite",
   b5.every((a) => (SEITEN_FORMEN as string[]).includes(a.form)));

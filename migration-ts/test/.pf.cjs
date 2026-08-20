@@ -10766,7 +10766,24 @@ var HAIKU_CLOSERS = [
   "das Licht bleibt h\xE4ngen",
   "und niemand sieht hin",
   "der Atem wird still",
-  "alles bleibt stehen"
+  "alles bleibt stehen",
+  // Ergaenzt: Neun Schlusszeilen waren zu wenig. Die Auswahl merkt sich, was in
+  // EINEM Text schon benutzt wurde, und bei zwanzig Haiku am Stueck war die Bank
+  // nach neun erschoepft — danach nahm die dritte Zeile wieder Anschnitte aus dem
+  // Material, und genau die wirken abgehackt. Alle mit fuenf Silben geprueft.
+  "der Rest bleibt liegen",
+  "der Boden h\xE4lt still",
+  "das Papier vergilbt",
+  "die Kante bleibt scharf",
+  "der Schnee bleibt liegen",
+  "der Schatten wandert",
+  "das Fenster beschl\xE4gt",
+  "der Nachhall verklingt",
+  "das Eisen rostet",
+  "die Kreide bleibt wei\xDF",
+  "der Faden rei\xDFt still",
+  "das Wasser steht still",
+  "der Zug f\xE4hrt vorbei"
 ];
 
 // src/generation/haiku.ts
@@ -10835,8 +10852,8 @@ function applyHaikuPoem(rawText, anchorLine = "", lenTarget = 0, atome = []) {
   if (!phrases.length) phrases = [anchor || "ein Satz bleibt zur\xFCck"];
   const cands = haikuCandidatesFromPhrases(phrases);
   const used = /* @__PURE__ */ new Set(), usedSrc = /* @__PURE__ */ new Set();
-  const fromMaterial = (target, exakt = true) => {
-    const free = cands.filter((c2) => !used.has(c2.text.toLowerCase()) && (exakt ? c2.syll === target : Math.abs(c2.syll - target) === 1));
+  const fromMaterial = (target, exakt = true, nurGanz = false) => {
+    const free = cands.filter((c2) => !used.has(c2.text.toLowerCase()) && (nurGanz ? c2.ganz : true) && (exakt ? c2.syll === target : Math.abs(c2.syll - target) === 1));
     const stufen = [
       free.filter((c2) => c2.ganz && !usedSrc.has(c2.src)),
       free.filter((c2) => c2.ganz),
@@ -10882,7 +10899,12 @@ function applyHaikuPoem(rawText, anchorLine = "", lenTarget = 0, atome = []) {
     const [t1, t2, t3] = opts.pattern;
     const l1 = (chance(0.75) ? fromBank(HAIKU_KIGO, t1) : null) || fromMaterial(t1) || fromBank(HAIKU_KIGO, t1) || fromMaterial(t1, false) || greedyLine(t1);
     let l2 = fromMaterial(t2) || fromBank(HAIKU_NATURE7, t2) || fromMaterial(t2, false) || greedyLine(t2);
-    const l3 = fromMaterial(t3) || fromBank(HAIKU_CLOSERS, t3) || fromMaterial(t3, false) || greedyLine(t3);
+    const ganzKnapp = (() => {
+      const k = fromMaterial(t3, false, true);
+      if (!k) return null;
+      return haikuSyllOf(passeSilben(k, t3, haikuSyllOf)) === t3 ? k : null;
+    })();
+    const l3 = fromMaterial(t3, true, true) || ganzKnapp || fromBank(HAIKU_CLOSERS, t3) || fromMaterial(t3) || fromMaterial(t3, false) || greedyLine(t3);
     if (chance(0.7)) l2 += " \u2013";
     const f1 = passeSilben(l1, t1, haikuSyllOf);
     const f2 = passeSilben(l2.replace(/\s*–\s*$/, ""), t2, haikuSyllOf) + (/–\s*$/.test(l2) ? " \u2013" : "");
