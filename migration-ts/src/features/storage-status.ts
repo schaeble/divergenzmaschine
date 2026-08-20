@@ -71,3 +71,92 @@ export async function storageReport(): Promise<StorageReport> {
   }
   return { localBytes, usage, quota, text };
 }
+
+// ── Aufschlüsselung ─────────────────────────────────────────────────────────
+// Eine Summe sagt nur, OB es eng wird, nicht WO. Und die Entscheidung, ob ein
+// Umzug nach IndexedDB fällig ist oder ein einzelner Posten aufgeräumt gehört,
+// hängt genau daran — sonst baut man eine Datenbank gegen eine Vermutung.
+
+export interface Posten {
+  /** Schlüssel im Speicher. */
+  key: string;
+  /** Verständlicher Name, falls bekannt. */
+  name: string;
+  bytes: number;
+  /** Anteil an der Gesamtbelegung in Prozent. */
+  anteil: number;
+  /** Wandert der Posten in die Projektdatei? */
+  wandert: boolean;
+}
+
+/** Namen für die bekannten Schlüssel. Ein Nutzer soll nicht raten müssen, was
+ *  „dm_zeitung_v1" ist. Unbekannte behalten ihren Schlüssel — eine erfundene
+ *  Beschriftung wäre schlimmer als gar keine. */
+const NAMEN: Record<string, string> = {
+  "divergenz_persistent_corpus_v1": "Korpus",
+  "dm_treasury_v1": "Schatzkammer",
+  "divergenz_zeitung_bilder_v1": "Bilder im Zeitungssetzer",
+  "divergenz_zeitung_layouts_v1": "Zeitungslayouts",
+  "dm_zeitung_v1": "Zeitungskopf",
+  "divergenz_bildwelt_v1": "Bildwelt (Wortbänke)",
+  "divergenz_bildvorrat_v1": "Bildvorrat (4W)",
+  "divergenz_sammler_vorrat_v1": "Sammler-Vorrat",
+  "divergenz_autopilot_ktx_v1": "Autopilot: Kontext-Gedächtnis",
+  "divergenz_lehrer_konto_v1": "KI-Lehrer: Konto",
+  "divergenz_wordbanks_v1": "Wortbänke",
+  "divergenz_presets2_v1": "Presets 2.0",
+  "divergenz_settings_v1": "Einstellungen",
+  "divergenz_reiter_v1": "Reiterleiste",
+  "dm_last_text": "Letzter Studiotext",
+  "divergenz_live_pools_v1": "Live-Pools",
+};
+
+/** Was in die Projektdatei wandert: alles mit diesen Präfixen.
+ *
+ *  Beim Bauen wäre mir hier fast ein falscher Alarm unterlaufen. In
+ *  `features/project.ts` gibt es eine Liste `REST_AUSNAHME` mit
+ *  `dm_treasury_v1`, `divergenz_settings_v1` und `divergenz_live_pools_v1` —
+ *  die sieht nach „wird nicht exportiert" aus, meint aber das Gegenteil: Diese
+ *  drei werden über EIGENE Felder der Datei gesichert und sollen nur nicht
+ *  doppelt im Sammelfeld liegen. Eine Anzeige „Schatzkammer wandert nicht mit"
+ *  wäre falsch gewesen und hätte zu einer unnötigen Sicherung geführt. */
+const EXPORT_PRAEFIX = ["dm_", "divergenz_"];
+
+/** Größe eines Eintrags in Byte. UTF-16, wie im Browser gespeichert — und der
+ *  Schlüssel zählt mit, sonst fehlen bei vielen kleinen Einträgen spürbar. */
+export function postenGroesse(key: string, wert: string): number {
+  return (key.length + (wert || "").length) * 2;
+}
+
+/** Alle Einträge, größter zuerst. `roh` ist einsetzbar, damit der Prüfstand
+ *  ohne Browser rechnen kann. */
+export function schluesselePosten(roh: [string, string][]): Posten[] {
+  const gesamt = roh.reduce((a, [k, v]) => a + postenGroesse(k, v), 0);
+  return roh
+    .map(([k, v]) => {
+      const bytes = postenGroesse(k, v);
+      return {
+        key: k,
+        name: NAMEN[k] || k,
+        bytes,
+        anteil: gesamt ? Math.round((bytes / gesamt) * 1000) / 10 : 0,
+        wandert: EXPORT_PRAEFIX.some((p) => k.startsWith(p)),
+      };
+    })
+    .sort((a, b) => b.bytes - a.bytes);
+}
+
+/** Die Posten aus dem echten Speicher. */
+export function lesePosten(): Posten[] {
+  const roh: [string, string][] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k === null) continue;
+      roh.push([k, localStorage.getItem(k) || ""]);
+    }
+  } catch { /* gesperrt */ }
+  return schluesselePosten(roh);
+}
+
+export const formatBytes = fmt;

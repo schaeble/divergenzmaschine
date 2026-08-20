@@ -173,7 +173,9 @@ export function darfKuerzen(form: string): boolean {
 export interface Kuerzung {
   titel: string;
   form: string;
-  art: "absatz" | "satz" | "entfallen";
+  art: "absatz" | "satz" | "entfallen" | "ersetzt";
+  /** Beim Tausch: der Titel des Beitrags, der stattdessen dort steht. */
+  ersatz?: string;
 }
 
 // ── Füller ──────────────────────────────────────────────────────────────────
@@ -768,18 +770,21 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
 
     // Was jetzt noch übersteht, kann die Entfernung nicht anfassen, ohne die
     // Spalte zu leeren. Kürzen — gemessen an der Fußlinie jeder Seite.
-    const kuerzungen: Kuerzung[] = [];
-    for (const seiteEl of Array.from(blatt.querySelectorAll(".zk-seite")) as HTMLElement[]) {
-      kuerzungen.push(...kuerzeAmFuss(seiteEl));
-    }
-    const gekuerzt = kuerzungen.length;
-    const entfallen = kuerzungen.filter((k) => k.art === "entfallen");
-
-    // Und die Löcher schließen, die das Kürzen hinterlässt. NACH dem Kürzen,
-    // nie davor: Vorher steht noch gar nicht fest, wo Platz frei wird.
+    // Die ungenutzten Beiträge stehen SCHON beim Kürzen zur Verfügung: Ein
+    // ganzer Text, der in den Platz passt, ist besser als ein angeschnittener.
     const gesetzteIds = new Set<number>(seiten.flatMap((s2) => s2.teile.map((p) => p.id)));
     const offenIds = quellen.map((_, i) => i).filter((i) => !gesetzteIds.has(i));
     const offen = offenIds.map((i) => quellen[i]!);
+
+    const kuerzungen: Kuerzung[] = [];
+    for (const seiteEl of Array.from(blatt.querySelectorAll(".zk-seite")) as HTMLElement[]) {
+      kuerzungen.push(...kuerzeAmFuss(seiteEl, offen, offenIds, gesetzteIds));
+    }
+    const gekuerzt = kuerzungen.filter((k) => k.art !== "ersetzt").length;
+    const entfallen = kuerzungen.filter((k) => k.art === "entfallen");
+    const ersetzt = kuerzungen.filter((k) => k.art === "ersetzt");
+
+    // Was danach noch offen ist, bekommt einen Füller oder eine Zierfigur.
     const fuellungen: { titel: string; art: "text" | "vignette" }[] = [];
     for (const seiteEl of Array.from(blatt.querySelectorAll(".zk-seite")) as HTMLElement[]) {
       fuellungen.push(...fuelleLuecken(seiteEl, offen, offenIds, gesetzteIds));
@@ -791,6 +796,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       + (entfernt ? ` · ${entfernt} beim Nachmessen entfernt` : "")
       + (gekuerzt ? ` · ${gekuerzt}× am Fuß gekürzt` : "")
       + (entfallen.length ? ` · ${entfallen.length} ganz entfallen` : "")
+      + (ersetzt.length ? ` · ${ersetzt.length}× durch einen ganzen Text ersetzt` : "")
       + (fuellungen.length ? ` · ${fuellungen.length} Lücke(n) gefüllt` : "")
       + (gesetzt < ids.length ? ` · ${ids.length - gesetzt} übrig (mehr Seiten wählen)` : "")
       // Ehrlich sagen, wenn die Seite NICHT voll wird: Der Umbruch kann nur
@@ -817,15 +823,18 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
         el("b", {}, "Was der Umbruch weggenommen hat")));
       for (const [titel, l] of nachTitel) {
         const weg = l.some((k) => k.art === "entfallen");
+        const tausch = l.find((k) => k.art === "ersetzt");
         const absaetze = l.filter((k) => k.art === "absatz").length;
         const saetze = l.filter((k) => k.art === "satz").length;
         const teile: string[] = [];
         if (absaetze) teile.push(`${absaetze} Absatz${absaetze === 1 ? "" : "e"}`);
         if (saetze) teile.push(`${saetze} Satz${saetze === 1 ? "" : "-Ende"}`);
         protokoll.append(el("p", { class: weg ? "sam-warn mini" : "muted mini", style: "margin:2px 0" },
-          weg
-            ? `„${titel}" ist ganz entfallen — die Form wird nicht angeschnitten, sie passte nicht.`
-            : `„${titel}": ${teile.join(", ")} gekürzt.`));
+          tausch
+            ? `„${titel}" passte nicht und wurde durch „${tausch.ersatz}" ersetzt — der steht dafür ganz da.`
+            : weg
+              ? `„${titel}" ist ganz entfallen — die Form wird nicht angeschnitten, sie passte nicht.`
+              : `„${titel}": ${teile.join(", ")} gekürzt.`));
       }
       protokoll.append(el("p", { class: "muted mini", style: "margin:6px 0 0" },
         "Nur Bericht und Meldung werden von hinten gekürzt — sie sind so gebaut. "
@@ -1054,7 +1063,9 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
    *  Erst Sätze, dann Absätze, zuletzt ganze Beiträge — in dieser Reihenfolge,
    *  weil jeder Schritt mehr wegnimmt als der vorige. */
   const RESERVE_FUSS = Math.round(3 * MM);
-  const kuerzeAmFuss = (seiteEl: HTMLElement): Kuerzung[] => {
+  const kuerzeAmFuss = (
+    seiteEl: HTMLElement, offen: Treasure[], offenIds: number[], benutzt: Set<number>,
+  ): Kuerzung[] => {
     const raus: Kuerzung[] = [];
     const sR = seiteEl.getBoundingClientRect();
     if (!sR.height) return raus;                  // ohne Layout nichts zu messen
@@ -1069,6 +1080,17 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
         if (letzter.getBoundingClientRect().bottom <= grenze) break;
         const form = letzter.dataset.form || "";
         const titel = letzter.dataset.titel || "ohne Titel";
+
+        // ZUERST TAUSCHEN, DANN KÜRZEN.
+        //
+        // Bisher stand hier gleich die Schere: Eine Meldung, die um zehn Wörter
+        // überstand, wurde angeschnitten und endete auf „…" — obwohl in
+        // denselben Platz ein ANDERER, vollständiger Text gepasst hätte. Ein
+        // ganzer Text ist immer besser als ein Rest, und die Kandidaten liegen
+        // ohnehin ungenutzt in der Schatzkammer.
+        const platz = grenze - letzter.getBoundingClientRect().top;
+        if (platz > 0 && tauscheEin(kasten, letzter, grenze, platz, offen, offenIds, benutzt, raus, titel, form)) continue;
+
         const inhalt = letzter.querySelector(".dm-inhalt") as HTMLElement | null;
         const letztesKind = inhalt?.lastElementChild as HTMLElement | null;
         // NUR bei Formen, die von hinten her verlieren dürfen.
@@ -1087,6 +1109,52 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       }
     }
     return raus;
+  };
+
+  /** Versucht, einen überstehenden Beitrag durch einen VOLLSTÄNDIGEN zu
+   *  ersetzen, der in denselben Platz passt.
+   *
+   *  Probiert wird der Reihe nach vom größten Kandidaten abwärts und nach
+   *  jedem Einsetzen gemessen — die Höhe eines Textes steht erst im Satz fest.
+   *  Sechs Versuche, dann ist Schluss: Bei hundert Beiträgen wäre das sonst ein
+   *  spürbares Ruckeln für einen Gewinn, den man kaum noch sieht.
+   *
+   *  Schlägt es fehl, steht der ursprüngliche Beitrag wieder da und die
+   *  Kaskade macht weiter wie bisher. */
+  const tauscheEin = (
+    kasten: HTMLElement, alt: HTMLElement, grenze: number, platz: number,
+    offen: Treasure[], offenIds: number[], benutzt: Set<number>,
+    protokoll2: Kuerzung[], titel: string, form: string,
+  ): boolean => {
+    if (platz < FUELLER_MIN) return false;
+    const sR = kasten.closest(".zk-seite")?.getBoundingClientRect();
+    const f = sR && sR.width ? sR.width / SEITE_B : 1;
+    const kandidaten = offenIds
+      .map((id, k) => ({ id, t: offen[k]!, w: (offen[k]!.t.match(/\S+/g) || []).length }))
+      .filter((c) => !benutzt.has(c.id) && c.w > 0 && c.w <= 160)
+      // Größte zuerst: Der beste Ersatz füllt den Platz aus, statt ihn halb
+      // leer zu lassen.
+      .sort((a, b) => b.w - a.w);
+    if (!kandidaten.length) return false;
+
+    kasten.removeChild(alt);
+    let versuche = 0;
+    for (const c of kandidaten) {
+      // Grobe Vorauswahl, damit nicht jeder Kandidat gesetzt werden muss.
+      if (c.w * 3 * f > platz * 1.6) continue;
+      if (versuche++ >= 6) break;
+      const box = beitrag(c.t, "spalte", ueberschriftVon(c.t));
+      box.dataset.fueller = "1";
+      kasten.append(box);
+      if (box.getBoundingClientRect().bottom <= grenze) {
+        benutzt.add(c.id);
+        protokoll2.push({ titel, form, art: "ersetzt", ersatz: ueberschriftVon(c.t) });
+        return true;
+      }
+      kasten.removeChild(box);
+    }
+    kasten.append(alt);                            // spurlos zurück
+    return false;
   };
 
   /** Füllt die Löcher, die das formbewusste Kürzen hinterlässt.

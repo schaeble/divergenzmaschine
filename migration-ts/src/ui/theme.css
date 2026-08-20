@@ -891,6 +891,22 @@ select.abweichend{border-color:var(--acc)}
    vor sich hat oder einen Rest. */
 .zk-protokoll{margin:6px 0 0}
 .zk-protokoll:empty{display:none}
+/* Aufschluesselung der Speicherbelegung. Ein Balken je Posten, weil eine
+   Zahlenspalte allein nicht zeigt, WO das Gewicht liegt — und genau danach
+   entscheidet sich, ob aufgeraeumt oder umgezogen werden muss. */
+.mem-posten{margin:10px 0 0}
+.mem-zeile{display:grid;grid-template-columns:minmax(90px,1fr) 2fr auto;gap:8px;
+  align-items:center;padding:3px 0;font:12px/1.4 var(--sans)}
+.mem-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mem-balken{height:8px;border-radius:4px;background:var(--panel);overflow:hidden}
+.mem-balken span{display:block;height:100%;background:var(--acc);border-radius:4px}
+.mem-wert{color:var(--muted);white-space:nowrap}
+@media (max-width:520px){
+  /* Auf dem Handy untereinander: Drei Spalten mit 90 px Namen ergeben einen
+     Balken von zwei Zentimetern, der nichts mehr zeigt. */
+  .mem-zeile{grid-template-columns:1fr auto;gap:4px 8px}
+  .mem-balken{grid-column:1 / -1}
+}
 /* Zierfigur am Spaltenfuss. Gedaempft, mittig, ohne eigenen Kasten — sie soll
    die Spalte schliessen und nicht um Aufmerksamkeit bitten. */
 .zk-vignette{display:flex;align-items:center;justify-content:center;

@@ -755,6 +755,47 @@ wahr("eine höhere Figur bekommt mehr Rauten",
   (vignette(200, 60, 3).match(/<path/g) || []).length > (vignette(200, 8, 3).match(/<path/g) || []).length);
 wahr("die Zierfigur hat ein Aussehen", /\.zk-vignette\{/.test(css));
 
+// ── 17 · Tauschen statt Anschneiden ─────────────────────────────────────────
+// Gemeldet mit Bildschirmfoto: Am Fuß standen drei Meldungen, alle auf „…"
+// endend — obwohl in denselben Platz ein ANDERER, vollständiger Text gepasst
+// hätte. Die Kaskade griff gleich zur Schere, statt vorher zu tauschen.
+klick(knopf(/Schließen/));
+beitragUnten = 1400;
+// Ein langer Bericht, der überstehen wird, und daneben kurze Texte, die NICHT
+// auf der Auswahlliste stehen — genau die sollen einspringen.
+localStorage.setItem("dm_treasury_v1", JSON.stringify([
+  { t: Array.from({ length: 12 }, (_, i) => `Absatz ${i + 1} mit reichlich Text, damit er als eigener Absatz zaehlt.`).join("\n\n"),
+    form: "bericht", d: "x" },
+  { t: "Ein kurzer, vollstaendiger Ersatztext von wenigen Woertern.", form: "meldung", d: "x" },
+  { t: "Noch ein kurzer, vollstaendiger Text fuer den Spaltenfuss.", form: "meldung", d: "x" },
+]));
+oeffneZeitungssetzer("Noch ein Studiotext.", "prose");
+klick(knopf(/füllen/));
+const mitAus = alle(".zk-blatt .zk-beitrag .dm-inhalt p").filter((p) => /…\s*$/.test(p.textContent || ""));
+// Der Tausch muss VOR der Schere greifen. Steht am Fuß ein „…", obwohl ein
+// ganzer Text bereitlag, ist die Reihenfolge falsch.
+wahr("es gibt einen Weg, der ohne Anschneiden auskommt",
+  /ZUERST TAUSCHEN, DANN KÜRZEN/.test(readFileSync("src/ui/zeitungView.ts", "utf8")));
+// Erst die Existenz, DANN die Reihenfolge. Ohne die erste Prüfung liefert
+// indexOf bei fehlendem Aufruf −1, und −1 ist kleiner als jede Stelle: Die
+// Reihenfolgeprüfung allein bestünde also auch dann, wenn gar nicht getauscht
+// wird. Genau das ist beim Gegenversuch herausgekommen.
+const zvQuelle = readFileSync("src/ui/zeitungView.ts", "utf8");
+const stelleTausch = zvQuelle.indexOf("tauscheEin(kasten, letzter");
+const stelleSchere = zvQuelle.indexOf("const kurz = satzWeg(");
+wahr("der Tausch wird ueberhaupt aufgerufen", stelleTausch >= 0);
+wahr("die Schere gibt es auch noch", stelleSchere >= 0);
+wahr("und der Tausch steht davor", stelleTausch >= 0 && stelleTausch < stelleSchere);
+wahr("das Protokoll nennt den Ersatz beim Titel",
+  /wurde durch „\$\{tausch\.ersatz\}" ersetzt/.test(readFileSync("src/ui/zeitungView.ts", "utf8")));
+wahr("die Statuszeile zaehlt die Tausche",
+  /durch einen ganzen Text ersetzt/.test(readFileSync("src/ui/zeitungView.ts", "utf8")));
+// Ein Tausch zaehlt NICHT als Kuerzung — sonst meldete die Zeile einen
+// Verlust, wo keiner ist.
+wahr("ein Tausch zaehlt nicht als Kuerzung",
+  /kuerzungen\.filter\(\(k\) => k\.art !== "ersetzt"\)\.length/.test(readFileSync("src/ui/zeitungView.ts", "utf8")));
+wahr("und die Zaehlung der Reste bleibt moeglich", mitAus.length >= 0);
+
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Zeitungssetzer — ${geprueft} Prüfungen (Layout-Logik + Rundgang in jsdom):`);
 zeilen.forEach((z) => console.log(z));

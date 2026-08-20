@@ -38,7 +38,7 @@ import { worldLogGeneration } from "../features/world";
 import { addToTreasury, addToTreasurySecret, clearTreasury } from "../features/treasury";
 import { THEMES, loadTheme, applyTheme, loadAccent, saveAccent, applyAccent } from "../features/theme";
 import { loadAiKey, saveAiKey, loadAiModel, saveAiModel } from "../features/ki";
-import { storageReport } from "../features/storage-status";
+import { storageReport, lesePosten, formatBytes } from "../features/storage-status";
 import { loadFont, loadFontSize, saveFontPrefs, applyStoryFont } from "../features/fonts";
 import { runProbe, runRanking, bestOf, type Ranking } from "../generation/scoring";
 import { TONE_DATA } from "../generation/tone.data";
@@ -1240,9 +1240,41 @@ export function mountStudio(root: HTMLElement): void {
   // Speicher-Reiter
   const memLine = el("p", { class: "muted" }, "…");
   const memRefresh = button("Aktualisieren");
-  const refreshMem = (): void => { void storageReport().then((r) => { memLine.textContent = r.text; }); };
+  // Die Aufschluesselung. Eine Summe sagt nur, OB es eng wird, nicht WO — und
+  // genau daran haengt, ob ein Umzug in eine Datenbank faellig ist oder ein
+  // einzelner Posten aufgeraeumt gehoert.
+  const memPosten = el("div", { class: "mem-posten" });
+  const zeichnePosten = (): void => {
+    memPosten.innerHTML = "";
+    const posten = lesePosten();
+    if (!posten.length) return;
+    // Nur die groessten: Eine Liste aus vierzig Zeilen liest niemand, und die
+    // Entscheidung haengt ohnehin an der Spitze.
+    const oben = posten.slice(0, 12);
+    const rest = posten.slice(12).reduce((a, p) => a + p.bytes, 0);
+    for (const p of oben) {
+      memPosten.append(el("div", { class: "mem-zeile" },
+        el("span", { class: "mem-name" }, p.name),
+        el("span", { class: "mem-balken" },
+          el("span", { style: `width:${Math.max(1, Math.min(100, p.anteil))}%` })),
+        el("span", { class: "mem-wert" }, `${formatBytes(p.bytes)} · ${p.anteil} %`),
+        ...(p.wandert ? [] : [el("span", { class: "bsam-zweifel" }, " wandert nicht mit")])));
+    }
+    if (rest > 0) {
+      memPosten.append(el("p", { class: "muted mini", style: "margin:6px 0 0" },
+        `${posten.length - oben.length} weitere Eintraege zusammen ${formatBytes(rest)}.`));
+    }
+    memPosten.append(el("p", { class: "muted mini", style: "margin:6px 0 0" },
+      "„Wandert nicht mit\u201c heisst: steht beim Export NICHT in der Projektdatei. "
+      + "Alles mit den Praefixen dm_ und divergenz_ wandert."));
+  };
+  const refreshMem = (): void => {
+    void storageReport().then((r) => { memLine.textContent = r.text; });
+    zeichnePosten();
+  };
   memRefresh.addEventListener("click", refreshMem);
   const memReset = button("Korpus + Schatzkammer leeren", "danger");
+  // memPosten wird unten in die Tafel gehaengt.
   const memResetInfo = el("span", { class: "muted" });
   memReset.addEventListener("click", () => {
     if (!confirm("Korpus UND Schatzkammer vollständig leeren? Das lässt sich nicht rückgängig machen. Wortbank, Presets und Einstellungen bleiben erhalten.")) return;
@@ -1255,6 +1287,7 @@ export function mountStudio(root: HTMLElement): void {
   const memPanel = el("div", { style: "display:none" },
     field("Belegung", memLine),
     el("div", { class: "btnrow" }, memRefresh),
+    memPosten,
     el("hr", {}),
     el("div", { class: "btnrow" }, memReset, memResetInfo),
     el("p", { class: "muted" }, "Setzt den Markov-Korpus und die Schatzkammer zurück (leert beide). Wortbank, Presets, Einstellungen und lebendige Pools bleiben erhalten. Für ein vollständiges Backup vorher oben rechts „Exportieren“."),
