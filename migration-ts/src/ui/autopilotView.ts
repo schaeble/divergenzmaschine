@@ -16,14 +16,17 @@
 import { el, button, field, textInput } from "./dom";
 import { icon } from "./icons";
 import { loadBank } from "../storage";
+import { getAllPresets } from "../wordbank";
+import { generateIdeaBatch } from "../generation/ideas";
 import { buildStory } from "../generation/buildStory";
 import { buildModelFromCorpus, loadPersistentCorpus } from "../corpus";
 import { addToTreasury, loadTreasury } from "../features/treasury";
 import { ladeKopf, sichereKopf, oeffneZeitungssetzer, ueberschriftVon } from "./zeitungView";
 import { ladeLayouts, sichereLayouts, legeLayout, textSchluessel, type Layout } from "../features/zeitungslayout";
 import { ziehVorrat } from "../features/wikisammler";
+import { worldFillContext, worldTick, worldLogGeneration } from "../features/world";
 import { ziehBildvorrat } from "../features/bildsammler";
-import { worldFillContext } from "../features/world";
+
 import {
   baueBesetzung, baueEingabe, titelAus, naechsteAusgabe, layoutName, verteileRollen,
   ktxSchluessel, ladeGedaechtnis, merkeGedaechtnis, sichereGedaechtnis, GEDAECHTNIS_TIEFE,
@@ -103,6 +106,8 @@ export function mountAutopilot(root: HTMLElement): void {
 
   const status = el("p", { class: "muted" }, "");
   const liste = el("div", {});
+  // Steht ueber der Beitragsliste: Erst was benutzt wurde, dann was entstand.
+  const herkunft = el("div", { class: "zk-protokoll" });
   const startBtn = el("button", { class: "primary" }, icon("play"), " Ausgabe erzeugen") as HTMLButtonElement;
   const oeffnenBtn = button("Zeitungsseite öffnen");
   oeffnenBtn.style.display = "none";
@@ -132,6 +137,13 @@ export function mountAutopilot(root: HTMLElement): void {
       if (q === "bild") {
         const f = ziehBildvorrat();
         if (f) return { ...f.ctx };
+      }
+      if (q === "idee") {
+        // Der Ideengenerator liefert einen ZUSAMMENHANG statt vier Felder
+        // nebeneinander: Figur, Ort, Zeit und Vorgang stammen aus derselben
+        // Prämisse. Das ist der Unterschied, den man einem Text ansieht.
+        const i = generateIdeaBatch(1)[0];
+        if (i) return { who: i.seedWho || "", where: i.seedWhere || "", when: i.seedWhen || "", what: i.seedWhat || "" };
       }
       const w = worldFillContext();
       return { who: w.who || "", where: w.where || "", when: w.when || "", what: w.what || "" };
@@ -168,15 +180,27 @@ export function mountAutopilot(root: HTMLElement): void {
     void (async () => {
       try {
         await warte();
-        const bank = loadBank();
+        // DIE WORTBANK JE BEITRAG. Bisher stand hier `loadBank()` — EINE Bank
+        // für alle Beiträge einer Ausgabe. Das war die groesste verbliebene
+        // Ursache fuer die Aehnlichkeit: Ton, Rhythmus und Struktur formen nur,
+        // die BANK bestimmt, wovon ein Text handelt. Acht Texte aus derselben
+        // Bank handeln von denselben Dingen, egal wie die Regler stehen.
+        const presets = Object.values(getAllPresets());
+        const grundBank = loadBank();
         const model = buildModelFromCorpus(2);
+
+        // Die Welt einen Tag weiterdrehen. Sie ist ein eigener Baustein, der
+        // sich nur bewegt, wenn ihn jemand anstoesst — sonst zieht der
+        // Weltwuerfel jede Ausgabe aus demselben eingefrorenen Zustand.
+        const weltEreignisse = worldTick();
         const hatVorrat = !!ziehVorrat();
         const hatBild = !!ziehBildvorrat();
         const seitenZahl = parseInt(seitenIn.value, 10) || 1;
         const gewuenscht = parseInt(anzahlIn.value, 10) || BEITRAEGE_VORGABE;
         const auftraege = baueBesetzung(gewuenscht, hatVorrat, hatBild, Math.random, maxBeitraege(seitenZahl));
 
-        const erzeugt: { text: string; form: string; titel: string }[] = [];
+        const erzeugt: { text: string; form: string; titel: string; preset: string }[] = [];
+        const presetZaehler = new Map<string, number>();
         // Das Gedächtnis früherer Ausgaben ist der Startbestand des
         // Gemiedenen: Zwei Zeitungen hintereinander mit derselben Schlagzeile
         // sehen nicht nach Zufall aus, sondern nach Defekt.
@@ -196,9 +220,17 @@ export function mountAutopilot(root: HTMLElement): void {
           const ctx = holeKontext(a.quelle, benutzt, wasGemieden);
           frisch.push(ktxSchluessel(ctx));
           quellenZaehler.set(a.quelle, (quellenZaehler.get(a.quelle) || 0) + 1);
+          // Je Beitrag ein anderes Preset — oder die eigene Bank, damit die
+          // aktuelle Einstellung nicht voellig verschwindet.
+          const p = presets.length ? presets[Math.floor(Math.random() * presets.length)] : null;
+          const bank = p ? p.bank : grundBank;
+          if (p) presetZaehler.set(p.label, (presetZaehler.get(p.label) || 0) + 1);
           const text = buildStory(bank, baueEingabe(a, ctx), model).trim();
           if (!text) continue;
-          erzeugt.push({ text, form: a.form, titel: titelAus(ctx) });
+          // Was erzeugt wurde, faellt in die Welt zurueck: Figuren und Orte
+          // dieser Ausgabe sind beim naechsten Wuerfeln bekannt.
+          worldLogGeneration(ctx);
+          erzeugt.push({ text, form: a.form, titel: titelAus(ctx), preset: p ? p.label : "eigene Bank" });
         }
         if (!erzeugt.length) {
           status.textContent = "Es ist kein Text entstanden. Ist die Wortbank leer?";
@@ -250,15 +282,38 @@ export function mountAutopilot(root: HTMLElement): void {
         erzeugt.forEach((e, i) => {
           const w = (e.text.match(/\S+/g) || []).length;
           liste.append(el("p", { class: "muted mini" },
-            el("b", {}, `${rollen[i]}`), ` · ${e.form} · ${w} Wörter — `, e.text.slice(0, 90).replace(/\s+/g, " ") + "…"));
+            el("b", {}, `${rollen[i]}`), ` · ${e.form} · ${e.preset} · ${w} Wörter — `,
+            e.text.slice(0, 90).replace(/\s+/g, " ") + "…"));
         });
 
         // Welche Quellen gezogen haben, wird genannt. Wer drei Ausgaben lang
         // dieselben Orte liest, soll sehen können, woher sie kamen — sonst
         // sucht man den Fehler im Generator, obwohl der Vorrat einseitig ist.
+        const quellenName: Record<string, string> = {
+          wuerfel: "Weltwürfel", vorrat: "Sammler-Vorrat", bild: "Bildvorrat", idee: "Ideengenerator",
+        };
         const quellenText = [...quellenZaehler.entries()]
-          .map(([q, n]) => `${n}× ${q === "wuerfel" ? "Weltwürfel" : q === "vorrat" ? "Sammler-Vorrat" : "Bildvorrat"}`)
+          .map(([q, n]) => `${n}× ${quellenName[q] || q}`)
           .join(", ");
+
+        // Was dieser Durchlauf benutzt hat — vollständig und nachlesbar. Ohne
+        // das ist der Autopilot eine Kiste, in die man oben drückt: Wer die
+        // Ausgaben einförmig findet, kann nicht sehen, woran es liegt.
+        herkunft.innerHTML = "";
+        const zeile = (titel: string, inhalt: string): void => {
+          herkunft.append(el("p", { class: "muted mini", style: "margin:2px 0" },
+            el("b", {}, titel + ": "), inhalt));
+        };
+        herkunft.append(el("p", { class: "mini", style: "margin:0 0 4px" },
+          el("b", {}, "Was dieser Durchlauf benutzt hat")));
+        zeile("Kontext", quellenText || "keiner");
+        zeile("Wortbänke", [...presetZaehler.entries()].map(([n, k]) => `${k}× ${n}`).join(", ") || "nur die eigene");
+        zeile("Formen", [...new Set(erzeugt.map((e) => e.form))].join(", "));
+        zeile("Korpus", `${loadPersistentCorpus().length} Zeichen, Markov-Kette 2. Ordnung`);
+        zeile("Welt", weltEreignisse.length
+          ? `einen Tag weitergedreht — ${weltEreignisse.slice(0, 3).join(" ")}`
+          : "unverändert");
+        zeile("Nicht benutzt", "KI-Lehrer, Bildsammler, Abschrift — der Autopilot kostet nichts");
         sichereGedaechtnis(merkeGedaechtnis(gedaechtnis, frisch));
         status.textContent = ok
           ? `Fertig. ${teile.length} Beiträge, abgelegt als „${name}“. Kontext aus: ${quellenText}.`
@@ -293,7 +348,8 @@ export function mountAutopilot(root: HTMLElement): void {
       + "nachbessern und drucken."),
     el("p", { class: "muted mini" },
       "Läuft vollständig offline und kostet nichts. Er benutzt Wortbank, Presets, Markov-Korpus, "
-      + "den Sammler-Vorrat, den Bildvorrat und den Kontextwürfel — aber keine der bezahlten "
+      + "den Sammler-Vorrat, den Bildvorrat, den Ideengenerator, die Welt und den Kontextwürfel — "
+      + "aber keine der bezahlten "
       + "KI-Funktionen. Eine Zeitung, die nur mit Guthaben entsteht, wäre kein Automat, sondern ein Abonnement."),
     el("div", { class: "grid3", style: "margin-top:12px" },
       field("Name", nameIn), field("Beiträge", anzahlIn),
@@ -302,6 +358,7 @@ export function mountAutopilot(root: HTMLElement): void {
     grenze,
     el("div", { class: "btnrow", style: "margin-top:10px" }, startBtn, oeffnenBtn, ktxWeg),
     status,
+    herkunft,
     liste,
     el("p", { class: "muted mini", style: "margin-top:14px" },
       "Die Beiträge landen in der Schatzkammer — dort sucht das Layout sie beim nächsten Öffnen "

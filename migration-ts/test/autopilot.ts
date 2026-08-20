@@ -95,8 +95,16 @@ ist("16 bei einer Seite werden gekappt", baueBesetzung(16, false, false, Math.ra
 
 // Die Kontextquellen: Ohne gefüllte Vorräte bleibt nur der Würfel — und der
 // funktioniert immer, ohne Netz und ohne Guthaben.
-wahr("ohne Vorräte wird nur gewürfelt",
-  baueBesetzung(5, false, false).every((a) => a.quelle === "wuerfel"));
+// Ohne gefüllte Vorräte bleiben Würfel und Ideengenerator — beide brauchen
+// weder Netz noch Guthaben. Der Ideengenerator ist IMMER dabei: Er liefert
+// einen Zusammenhang (Figur, Ort, Zeit, Vorgang aus derselben Prämisse) statt
+// vier Felder nebeneinander.
+ist("ohne Vorräte bleiben zwei Quellen",
+  new Set(baueBesetzung(6, false, false).map((a) => a.quelle)).size, 2);
+wahr("und zwar Würfel und Ideen",
+  baueBesetzung(6, false, false).every((a) => a.quelle === "wuerfel" || a.quelle === "idee"));
+wahr("der Ideengenerator ist auch ohne Vorrat dabei",
+  baueBesetzung(6, false, false).some((a) => a.quelle === "idee"));
 // Gegenprobe: Mit Vorrat MUSS auch daraus gezogen werden — sonst prüfte die
 // Regel oben nur, dass die Quelle nie wechselt.
 const mitVorrat = baueBesetzung(7, true, true, fest([0.99, 0.5, 0.1]));
@@ -106,14 +114,14 @@ wahr("mit Vorräten kommen andere Quellen vor",
 // Beiträge einer Ausgabe aus derselben Quelle stammten — und wenn der
 // Bildvorrat gerade aus dreißig Tempelfotos besteht, handelt die ganze Zeitung
 // von Tempeln.
-ist("bei drei Quellen kommt jede vor", new Set(mitVorrat.map((a) => a.quelle)).size, 3);
+ist("bei vier Quellen kommt jede vor", new Set(mitVorrat.map((a) => a.quelle)).size, 4);
 ist("und sie wechseln der Reihe nach",
-  mitVorrat.slice(0, 3).map((a) => a.quelle).join(","), "wuerfel,vorrat,bild");
-ist("auch die zweite Runde", mitVorrat.slice(3, 6).map((a) => a.quelle).join(","), "wuerfel,vorrat,bild");
-// Bei nur zwei Quellen wechseln eben diese beiden ab.
-const zweiQ = baueBesetzung(5, true, false);
-ist("mit einem Vorrat wechseln zwei Quellen ab",
-  zweiQ.slice(0, 4).map((a) => a.quelle).join(","), "wuerfel,vorrat,wuerfel,vorrat");
+  mitVorrat.slice(0, 4).map((a) => a.quelle).join(","), "wuerfel,vorrat,bild,idee");
+ist("auch die zweite Runde", mitVorrat.slice(4, 7).map((a) => a.quelle).join(","), "wuerfel,vorrat,bild");
+// Mit nur einem Vorrat wechseln eben drei ab.
+const dreiQ = baueBesetzung(6, true, false);
+ist("mit einem Vorrat wechseln drei Quellen ab",
+  dreiQ.slice(0, 6).map((a) => a.quelle).join(","), "wuerfel,vorrat,idee,wuerfel,vorrat,idee");
 // Der Zufall darf die Verteilung NICHT mehr beeinflussen: Zwei Läufe mit
 // verschiedenem Zufall müssen dieselbe Quellenfolge ergeben.
 ist("die Quellenfolge hängt nicht mehr am Zufall",
@@ -309,6 +317,37 @@ wahr("die Was-Tiefe ist flacher als das Gedächtnis", WAS_TIEFE < GEDAECHTNIS_TI
 ist("nur die jüngsten zählen", letzteWas(["x|y|altes was", ...g], 3).has("altes was"), false);
 ist("aber die jüngsten schon", letzteWas(["x|y|altes was", ...g], 3).has("zweites was"), true);
 ist("ein leeres Gedächtnis meidet nichts", letzteWas([]).size, 0);
+
+// ── 6b · Die Wortbank ist der eigentliche Hebel ─────────────────────────────
+// Gemeldet: „Die Varianz der Texte ist immer noch gering." Die Regler waren
+// seit 4.245.0 in Ordnung, aber die Ansicht rief EINMAL `loadBank()` und gab
+// dieselbe Bank an alle Beiträge einer Ausgabe.
+//
+// Ton, Rhythmus und Struktur FORMEN nur; die Bank bestimmt, WOVON ein Text
+// handelt — sie liefert Substantive, Verben und Bilder. Acht Texte aus
+// derselben Bank handeln von denselben Dingen, egal wie die Regler stehen.
+// Deshalb ist das der grössere Hebel als alle Regler zusammen.
+wahr("die Ansicht zieht ein Preset je Beitrag",
+  /presets\[Math\.floor\(Math\.random\(\) \* presets\.length\)\]/.test(ansicht));
+ist("und nicht mehr eine Bank für alle",
+  /const bank = loadBank\(\);/.test(ansicht), false);
+wahr("die eigene Bank bleibt als Rückfall", /grundBank/.test(ansicht));
+// Gegenprobe: Ohne die Preset-Liste waere die Regel oben wirkungslos.
+wahr("die Preset-Liste wird ueberhaupt geholt", /getAllPresets\(\)/.test(ansicht));
+
+// Ideen und Welt. Die Welt bewegt sich nur, wenn jemand sie anstoesst — sonst
+// zieht der Weltwuerfel jede Ausgabe aus demselben eingefrorenen Zustand.
+wahr("der Ideengenerator wird benutzt", /generateIdeaBatch/.test(ansicht));
+wahr("die Welt wird einen Tag weitergedreht", /worldTick\(\)/.test(ansicht));
+wahr("und das Erzeugte faellt in die Welt zurueck", /worldLogGeneration\(ctx\)/.test(ansicht));
+
+// Die Anzeige, was benutzt wurde. Ohne sie ist der Autopilot eine Kiste, in
+// die man oben drueckt: Wer die Ausgaben einfoermig findet, kann nicht sehen,
+// woran es liegt.
+wahr("es gibt ein Herkunftsprotokoll", /Was dieser Durchlauf benutzt hat/.test(ansicht));
+for (const feld of ["Kontext", "Wortbänke", "Formen", "Korpus", "Welt", "Nicht benutzt"]) {
+  wahr(`das Protokoll nennt „${feld}"`, ansicht.includes(`zeile("${feld}"`));
+}
 
 // ── 7b · Der leere Warnkasten ───────────────────────────────────────────────
 // Gemeldet mit Bildschirmfoto: ein roter Balken ohne Text ueber den Knoepfen.
