@@ -176,6 +176,74 @@ export interface Kuerzung {
   art: "absatz" | "satz" | "entfallen";
 }
 
+// ── Füller ──────────────────────────────────────────────────────────────────
+// Seit der Umbruch Prosa und Vers nicht mehr anschneidet, sondern ganz
+// weglässt, entstehen Löcher am Spaltenfuß. Sie zu füllen ist keine Notlösung,
+// sondern das, was eine Zeitung immer getan hat — nur muss eine Redaktion
+// einen Vorrat dafür halten, und wir haben einen Generator und eine
+// Schatzkammer.
+
+/** Ab wann ein Loch überhaupt auffällt. Darunter sieht der Spaltenfuß aus wie
+ *  gewollter Weißraum, und jeder Eingriff verschlimmert es. */
+export const FUELLER_MIN = Math.round(6 * MM);
+/** Ab wann ein TEXT hineinpasst. Darunter wird jeder Beitrag zum Fetzen — dort
+ *  bleibt nur die Vignette. */
+export const FUELLER_TEXT_MIN = Math.round(18 * MM);
+
+export interface FuellKandidat { id: number; hoehe: number; kurz: boolean }
+
+/** Welcher Beitrag füllt das Loch am besten?
+ *
+ *  Gesucht ist nicht der kürzeste, sondern der GRÖSSTE, der noch hineinpasst —
+ *  ein Haiku in einem 60-mm-Loch lässt vierzig Millimeter Weiß stehen und hat
+ *  nichts gelöst. Bei gleicher Ausbeute gewinnt die Kurzform: Sie ist als
+ *  Füller gedacht, ein angefangener Bericht wirkt wie ein Versehen.
+ *
+ *  Rein und damit ohne Browser prüfbar; die Höhen kommen von der Messung. */
+export function waehleFueller(luecke: number, kandidaten: FuellKandidat[]): number | null {
+  if (luecke < FUELLER_TEXT_MIN) return null;
+  let beste: FuellKandidat | null = null;
+  for (const k of kandidaten) {
+    if (!(k.hoehe > 0) || k.hoehe > luecke) continue;
+    if (!beste) { beste = k; continue; }
+    if (k.hoehe > beste.hoehe) { beste = k; continue; }
+    if (k.hoehe === beste.hoehe && k.kurz && !beste.kurz) beste = k;
+  }
+  return beste ? beste.id : null;
+}
+
+/** Eine Zierfigur für das, was übrig bleibt.
+ *
+ *  Kein Vorrat, kein Speicher, jede Größe: gerechnet statt gespeichert. Das ist
+ *  die Antwort für kleine Löcher, in die ohnehin kein Text und kein Bild
+ *  passt — dort wäre ein beschnittenes Foto ein Streifen.
+ *
+ *  Deterministisch aus einem Samen: Dieselbe Seite ergibt dieselbe Figur.
+ *  Zufall bei jedem Neuzeichnen sähe nach Flackern aus. */
+export function vignette(breite: number, hoehe: number, samen: number): string {
+  const b = Math.max(10, Math.round(breite));
+  const h = Math.max(4, Math.round(hoehe));
+  // Ein kleiner, eigener Zufall — kein Math.random, damit die Figur stehenbleibt.
+  let z = (Math.abs(Math.round(samen)) % 9973) + 7;
+  const w = (): number => { z = (z * 1103515245 + 12345) % 2147483648; return z / 2147483648; };
+  const mitte = h / 2;
+  const teile: string[] = [];
+  // Eine waagerechte Linie mit Rauten darauf — die klassische Zeitungsleiste.
+  // Sie funktioniert in jeder Höhe, weil nur die Anzahl der Rauten mitwächst.
+  const rauten = Math.max(1, Math.min(7, 1 + Math.floor(h / (6 * MM)) * 2));
+  const spanne = Math.min(b - 8, 14 * rauten);
+  const links = (b - spanne) / 2;
+  teile.push(`<line x1="6" y1="${mitte}" x2="${links - 6}" y2="${mitte}" />`);
+  teile.push(`<line x1="${links + spanne + 6}" y1="${mitte}" x2="${b - 6}" y2="${mitte}" />`);
+  for (let i = 0; i < rauten; i++) {
+    const x = rauten === 1 ? b / 2 : links + (spanne * i) / (rauten - 1);
+    const r = 2.5 + w() * 2;
+    teile.push(`<path d="M${x} ${mitte - r} L${x + r} ${mitte} L${x} ${mitte + r} L${x - r} ${mitte} Z" />`);
+  }
+  return `<svg viewBox="0 0 ${b} ${h}" width="${b}" height="${h}" aria-hidden="true">`
+    + `<g fill="currentColor" stroke="currentColor" stroke-width="0.8">${teile.join("")}</g></svg>`;
+}
+
 /** Rumpf eines Beitrags — beim Bericht ohne Dachzeile, Schlagzeile und
  *  Faktenkasten, die setzt die Seite selbst. */
 function rumpfVon(t: Treasure): string {
@@ -707,12 +775,23 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     const gekuerzt = kuerzungen.length;
     const entfallen = kuerzungen.filter((k) => k.art === "entfallen");
 
+    // Und die Löcher schließen, die das Kürzen hinterlässt. NACH dem Kürzen,
+    // nie davor: Vorher steht noch gar nicht fest, wo Platz frei wird.
+    const gesetzteIds = new Set<number>(seiten.flatMap((s2) => s2.teile.map((p) => p.id)));
+    const offenIds = quellen.map((_, i) => i).filter((i) => !gesetzteIds.has(i));
+    const offen = offenIds.map((i) => quellen[i]!);
+    const fuellungen: { titel: string; art: "text" | "vignette" }[] = [];
+    for (const seiteEl of Array.from(blatt.querySelectorAll(".zk-seite")) as HTMLElement[]) {
+      fuellungen.push(...fuelleLuecken(seiteEl, offen, offenIds, gesetzteIds));
+    }
+
     const gesetzt = seiten.reduce((a, s2) => a + s2.teile.length, 0) - entfernt;
     const grad = Math.round(100 * seiten.reduce((a, s2) => a + fuellgrad(s2, mess, o), 0) / Math.max(1, seiten.length));
     const statusText = `${seiten.length} Seite(n) · ${gesetzt} von ${ids.length} Beiträgen gesetzt · Füllung ${grad} %`
       + (entfernt ? ` · ${entfernt} beim Nachmessen entfernt` : "")
       + (gekuerzt ? ` · ${gekuerzt}× am Fuß gekürzt` : "")
       + (entfallen.length ? ` · ${entfallen.length} ganz entfallen` : "")
+      + (fuellungen.length ? ` · ${fuellungen.length} Lücke(n) gefüllt` : "")
       + (gesetzt < ids.length ? ` · ${ids.length - gesetzt} übrig (mehr Seiten wählen)` : "")
       // Ehrlich sagen, wenn die Seite NICHT voll wird: Der Umbruch kann nur
       // verteilen, was da ist. Bei zwei Texten in der Schatzkammer bleibt die
@@ -751,6 +830,17 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       protokoll.append(el("p", { class: "muted mini", style: "margin:6px 0 0" },
         "Nur Bericht und Meldung werden von hinten gekürzt — sie sind so gebaut. "
         + "Bei Prosa und Vers trägt das Ende; die fallen ganz weg statt beschnitten zu werden."));
+    }
+    if (fuellungen.length) {
+      // Füller werden benannt. Ein Text, der nur dort steht, weil eine Spalte
+      // aufgehen musste, könnte das Beste der Seite sein — oder das
+      // Schwächste. Beides sollte man beim Lesen wissen.
+      const texte = fuellungen.filter((f2) => f2.art === "text").map((f2) => `„${f2.titel}"`);
+      const zier = fuellungen.filter((f2) => f2.art === "vignette").length;
+      protokoll.append(el("p", { class: "muted mini", style: "margin:6px 0 0" },
+        el("b", {}, "Als Füller eingesetzt: "),
+        [texte.join(", "), zier ? `${zier}× Zierfigur` : ""].filter(Boolean).join(" · "),
+        " — sie standen nicht auf der Auswahlliste, sondern schließen ein Loch am Spaltenfuß."));
     }
   };
 
@@ -995,6 +1085,81 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
         kasten.removeChild(letzter);
         raus.push({ titel, form, art: "entfallen" });
       }
+    }
+    return raus;
+  };
+
+  /** Füllt die Löcher, die das formbewusste Kürzen hinterlässt.
+   *
+   *  Gemessen statt geschätzt: Für jede Spalte wird die tatsächliche Restluft
+   *  bestimmt, ein Kandidat probeweise eingesetzt und wieder herausgenommen,
+   *  wenn er doch nicht passt. Eine Staffel fester Formatgrößen wäre geraten —
+   *  ein Loch ist mal vier Millimeter groß und mal achtzig.
+   *
+   *  Kandidaten sind Beiträge aus der Schatzkammer, die NICHT auf dem Blatt
+   *  stehen. Kein neuer Generator, kein Vorrat: Was übrig blieb, ist ohnehin da. */
+  const fuelleLuecken = (
+    seiteEl: HTMLElement, offen: Treasure[], offenIds: number[], benutzt: Set<number>,
+  ): { titel: string; art: "text" | "vignette" }[] => {
+    const raus: { titel: string; art: "text" | "vignette" }[] = [];
+    const sR = seiteEl.getBoundingClientRect();
+    if (!sR.height) return raus;
+    const fussEl = seiteEl.querySelector(".zk-fuss") as HTMLElement | null;
+    const grenze = (fussEl ? fussEl.getBoundingClientRect().top : sR.bottom) - RESERVE_FUSS;
+    const f = sR.width / SEITE_B;                 // Bildschirm- auf Seitenmaß
+
+    for (const kasten of Array.from(seiteEl.querySelectorAll(".zk-spaltebox")) as HTMLElement[]) {
+      const kR = kasten.getBoundingClientRect();
+      if (!kR.width) continue;
+      const letzter = (Array.from(kasten.querySelectorAll(":scope > .zk-beitrag")) as HTMLElement[]).pop();
+      const unten = letzter ? letzter.getBoundingClientRect().bottom : kR.top;
+      const luecke = (grenze - unten) / (f || 1);
+      if (luecke < FUELLER_MIN) continue;
+
+      // Zuerst ein Text — aber nur, wenn er wirklich hineinpasst. Die Höhe
+      // steht erst im Satz fest, also wird eingesetzt und nachgemessen.
+      let gefuellt = false;
+      if (luecke >= FUELLER_TEXT_MIN) {
+        const kandidaten: FuellKandidat[] = [];
+        offen.forEach((t, k) => {
+          const id = offenIds[k]!;
+          if (benutzt.has(id)) return;
+          // Grobe Vorauswahl über die Wortzahl: Alles einzusetzen und wieder
+          // herauszunehmen wäre bei hundert Beiträgen ein spürbares Ruckeln.
+          const w = (t.t.match(/\S+/g) || []).length;
+          if (w > 140) return;
+          kandidaten.push({ id, hoehe: w, kurz: istVers(t.form) || t.form === "meldung" });
+        });
+        // Hier zählt die Wortzahl als Näherung; die echte Höhe entscheidet gleich.
+        const wahl = waehleFueller(luecke, kandidaten.map((k) => ({ ...k, hoehe: k.hoehe * 3 })));
+        if (wahl !== null) {
+          const t = offen[offenIds.indexOf(wahl)]!;
+          const box = beitrag(t, "spalte", ueberschriftVon(t));
+          box.dataset.fueller = "1";
+          kasten.append(box);
+          if (box.getBoundingClientRect().bottom <= grenze) {
+            benutzt.add(wahl);
+            raus.push({ titel: ueberschriftVon(t), art: "text" });
+            gefuellt = true;
+          } else {
+            // Passte doch nicht — spurlos zurücknehmen. Ein zu großer Füller
+            // wäre schlimmer als das Loch: Er würde am Fuß wieder gekürzt.
+            kasten.removeChild(box);
+          }
+        }
+      }
+      if (gefuellt) continue;
+
+      // Was bleibt, bekommt eine Zierfigur. Sie passt in jede Höhe, weil sie
+      // gerechnet und nicht gespeichert wird.
+      const rest = (grenze - (letzter ? letzter.getBoundingClientRect().bottom : kR.top)) / (f || 1);
+      if (rest < FUELLER_MIN) continue;
+      const zier = el("div", { class: "zk-vignette" });
+      zier.dataset.fueller = "1";
+      zier.style.height = Math.round(rest) + "px";
+      zier.innerHTML = vignette(kR.width / (f || 1), rest, kasten.offsetLeft + seiteEl.offsetTop + rest);
+      kasten.append(zier);
+      raus.push({ titel: "Zierfigur", art: "vignette" });
     }
     return raus;
   };

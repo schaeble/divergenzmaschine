@@ -468,6 +468,25 @@ Beitrag beim Titel nennt. `beitrag()` legt dafür Form und Titel als
 `data`-Attribute ans Element — vorher kannte die Nachmessung nur einen Kasten
 mit Absätzen.
 
+**Füller am Spaltenfuß** (seit 4.248.0, Stufe 2): Die Löcher, die das
+formbewusste Kürzen hinterlässt, werden geschlossen. GEMESSEN statt geschätzt —
+für jede Spalte die tatsächliche Restluft, dann ein Kandidat probeweise
+eingesetzt und wieder herausgenommen, wenn er doch nicht passt. Eine Staffel
+fester Formatgrößen wäre geraten: Ein Loch ist mal vier Millimeter groß und mal
+achtzig.
+
+Kandidaten sind Beiträge aus der Schatzkammer, die NICHT auf dem Blatt stehen —
+kein neuer Generator, kein Vorrat. `waehleFueller()` nimmt den GRÖSSTEN, der
+noch hineinpasst (ein Haiku in einem 60-mm-Loch lässt vierzig Millimeter Weiß
+stehen); bei gleicher Höhe gewinnt die Kurzform. Was übrig bleibt, bekommt eine
+`vignette()`: eine gerechnete SVG-Zierleiste, deterministisch aus einem Samen,
+passt in jede Höhe und braucht keinen Speicher.
+
+Füller werden im Protokoll benannt, nicht im Satz markiert: Ein Text, der nur
+dort steht, weil eine Spalte aufgehen musste, könnte das Beste der Seite sein
+oder das Schwächste — beides sollte man beim Lesen wissen. Eine Marke auf dem
+Papier wäre dagegen eine Bedienspur.
+
 ## 7 · Fallen in diesem Quelltext
 
 - **Deutsche Nomen sind groß.** „Großgeschrieben mitten im Satz" taugt nicht als

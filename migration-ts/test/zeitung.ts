@@ -29,7 +29,8 @@ let titelBeimDruck = "";
 (dom.window as unknown as { confirm: () => boolean }).confirm = () => true;
 
 import {
-  oeffneZeitungssetzer, satzWeg, druckName, ohneUeberschrift, darfKuerzen, SEITE_B, SEITE_H, RAND_OBEN, RAND_UNTEN, RAND_SEITE,
+  oeffneZeitungssetzer, satzWeg, druckName, ohneUeberschrift, darfKuerzen,
+  waehleFueller, vignette, FUELLER_MIN, FUELLER_TEXT_MIN, SEITE_B, SEITE_H, RAND_OBEN, RAND_UNTEN, RAND_SEITE,
 } from "../src/ui/zeitungView";
 import {
   BILD_KEY, ladeBilder, spaltenBreite, spaltenSpanne, bildplatz, plaetze, platzBesetzt,
@@ -710,6 +711,49 @@ wahr("es gibt ein Protokoll des Umbruchs",
 wahr("und es nennt entfallene Beiträge beim Titel",
   /ist ganz entfallen/.test(readFileSync("src/ui/zeitungView.ts", "utf8")));
 wahr("ein leeres Protokoll wird ausgeblendet", /\.zk-protokoll:empty\{display:none\}/.test(css));
+
+// ── 16 · Füller für die Löcher ──────────────────────────────────────────────
+// Seit der Umbruch Prosa und Vers nicht mehr anschneidet, entstehen Löcher am
+// Spaltenfuß. Gesucht ist nicht der KÜRZESTE Kandidat, sondern der GRÖSSTE,
+// der noch hineinpasst — ein Haiku in einem 60-mm-Loch lässt vierzig
+// Millimeter Weiß stehen und hat nichts gelöst.
+const K = (id: number, hoehe: number, kurz = false): { id: number; hoehe: number; kurz: boolean } =>
+  ({ id, hoehe, kurz });
+const grossesLoch = FUELLER_TEXT_MIN * 3;
+ist("der größte passende gewinnt",
+  waehleFueller(grossesLoch, [K(1, 40), K(2, grossesLoch - 5), K(3, 80)]), 2);
+ist("was zu groß ist, fällt weg",
+  waehleFueller(grossesLoch, [K(1, grossesLoch + 1), K(2, 60)]), 2);
+ist("passt gar nichts, gibt es nichts", waehleFueller(grossesLoch, [K(1, grossesLoch + 99)]), null);
+ist("ohne Kandidaten ebenso", waehleFueller(grossesLoch, []), null);
+// Bei gleicher Ausbeute gewinnt die Kurzform: Sie ist als Füller gedacht, ein
+// angefangener Bericht wirkt wie ein Versehen.
+ist("bei gleicher Höhe gewinnt die Kurzform",
+  waehleFueller(grossesLoch, [K(1, 90, false), K(2, 90, true)]), 2);
+// Und die Reihenfolge darf dabei nichts ändern.
+ist("auch andersherum",
+  waehleFueller(grossesLoch, [K(1, 90, true), K(2, 90, false)]), 1);
+// Ein zu kleines Loch bekommt gar keinen Text — dort wird jeder Beitrag zum
+// Fetzen. Das ist die Grenze, unter der nur die Zierfigur bleibt.
+ist("in ein winziges Loch kommt kein Text", waehleFueller(FUELLER_TEXT_MIN - 1, [K(1, 5)]), null);
+wahr("die Textgrenze liegt über der Sichtbarkeitsgrenze", FUELLER_TEXT_MIN > FUELLER_MIN);
+ist("Höhe null zählt nicht als passend", waehleFueller(grossesLoch, [K(1, 0)]), null);
+
+// Die Zierfigur: gerechnet statt gespeichert, deshalb jede Größe.
+const v1 = vignette(200, 40, 7);
+wahr("es entsteht ein SVG", /^<svg /.test(v1) && /<\/svg>$/.test(v1));
+wahr("es trägt die verlangten Maße", /width="200"/.test(v1) && /height="40"/.test(v1));
+// Deterministisch: Dieselbe Seite ergibt dieselbe Figur. Zufall bei jedem
+// Neuzeichnen sähe nach Flackern aus.
+ist("derselbe Samen ergibt dieselbe Figur", vignette(200, 40, 7), v1);
+wahr("ein anderer Samen eine andere", vignette(200, 40, 8) !== v1);
+// Und sie muss in jeder Größe entstehen, ohne zu entgleisen.
+for (const [b, h] of [[60, 6], [200, 12], [400, 90], [10, 4], [1, 1]] as [number, number][]) {
+  wahr(`Figur bei ${b}×${h} ist wohlgeformt`, /^<svg [\s\S]*<\/svg>$/.test(vignette(b, h, 3)));
+}
+wahr("eine höhere Figur bekommt mehr Rauten",
+  (vignette(200, 60, 3).match(/<path/g) || []).length > (vignette(200, 8, 3).match(/<path/g) || []).length);
+wahr("die Zierfigur hat ein Aussehen", /\.zk-vignette\{/.test(css));
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Zeitungssetzer — ${geprueft} Prüfungen (Layout-Logik + Rundgang in jsdom):`);

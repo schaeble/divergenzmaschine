@@ -891,6 +891,14 @@ select.abweichend{border-color:var(--acc)}
    vor sich hat oder einen Rest. */
 .zk-protokoll{margin:6px 0 0}
 .zk-protokoll:empty{display:none}
+/* Zierfigur am Spaltenfuss. Gedaempft, mittig, ohne eigenen Kasten — sie soll
+   die Spalte schliessen und nicht um Aufmerksamkeit bitten. */
+.zk-vignette{display:flex;align-items:center;justify-content:center;
+  color:rgba(0,0,0,.30);overflow:hidden}
+.zk-vignette svg{max-width:100%;display:block}
+/* Ein Fueller ist ein gewoehnlicher Beitrag; er wird nicht anders gesetzt.
+   Sichtbar gemacht wird er im Protokoll, nicht auf dem Papier — eine Marke im
+   Satz waere eine Bedienspur auf der Zeitung. */
 
 /* Wirkungsmesser */
 .wm-h{margin:0 0 6px;font-size:15px;color:var(--acc)}
