@@ -32,6 +32,7 @@ import {
   ktxSchluessel, ladeGedaechtnis, merkeGedaechtnis, sichereGedaechtnis, GEDAECHTNIS_TIEFE,
   letzteWas,
   maxBeitraege, BEITRAEGE_MIN, BEITRAEGE_MAX, BEITRAEGE_VORGABE, type Quelle,
+  platzBudget, verteileLaengen, kuerzeBericht, ladeFaktor, WOERTER_JE_SEITE,
 } from "../features/autopilot";
 
 const WAHL_KEY = "divergenz_autopilot_v1";
@@ -197,7 +198,15 @@ export function mountAutopilot(root: HTMLElement): void {
         const hatBild = !!ziehBildvorrat();
         const seitenZahl = parseInt(seitenIn.value, 10) || 1;
         const gewuenscht = parseInt(anzahlIn.value, 10) || BEITRAEGE_VORGABE;
-        const auftraege = baueBesetzung(gewuenscht, hatVorrat, hatBild, Math.random, maxBeitraege(seitenZahl));
+        // Die Laengen kommen jetzt aus dem PLATZ, nicht aus einem Gefuehl:
+        // So viel, wie die Seiten tragen, verteilt im Verhaeltnis der Rollen.
+        // Der Faktor ist die Selbstkorrektur aus dem gemessenen Fuellgrad des
+        // letzten Laufs — die geometrische Schaetzung kennt weder Schriftgroesse
+        // noch Preset-Wortlaengen.
+        const faktor = ladeFaktor();
+        const roh = baueBesetzung(gewuenscht, hatVorrat, hatBild, Math.random, maxBeitraege(seitenZahl));
+        const budget = platzBudget(seitenZahl, roh.length, faktor);
+        const auftraege = verteileLaengen(roh, budget);
 
         const erzeugt: { text: string; form: string; titel: string; preset: string }[] = [];
         const presetZaehler = new Map<string, number>();
@@ -225,8 +234,13 @@ export function mountAutopilot(root: HTMLElement): void {
           const p = presets.length ? presets[Math.floor(Math.random() * presets.length)] : null;
           const bank = p ? p.bank : grundBank;
           if (p) presetZaehler.set(p.label, (presetZaehler.get(p.label) || 0) + 1);
-          const text = buildStory(bank, baueEingabe(a, ctx), model).trim();
+          let text = buildStory(bank, baueEingabe(a, ctx), model).trim();
           if (!text) continue;
+          // Bericht und Meldung ignorieren die Ziellaenge in buildStory — sie
+          // kehren vor enforceWordTarget zurueck. Beim Bericht wird deshalb
+          // hier absatzweise gekuerzt: Das ist das Verfahren der umgekehrten
+          // Pyramide und nimmt ihm keine Fakten aus dem Zusammenhang.
+          if (a.form === "bericht") text = kuerzeBericht(text, a.woerter);
           // Was erzeugt wurde, faellt in die Welt zurueck: Figuren und Orte
           // dieser Ausgabe sind beim naechsten Wuerfeln bekannt.
           worldLogGeneration(ctx);
@@ -310,6 +324,9 @@ export function mountAutopilot(root: HTMLElement): void {
         zeile("Wortbänke", [...presetZaehler.entries()].map(([n, k]) => `${k}× ${n}`).join(", ") || "nur die eigene");
         zeile("Formen", [...new Set(erzeugt.map((e) => e.form))].join(", "));
         zeile("Korpus", `${loadPersistentCorpus().length} Zeichen, Markov-Kette 2. Ordnung`);
+        const istWoerter = erzeugt.reduce((a, e) => a + (e.text.match(/\S+/g) || []).length, 0);
+        zeile("Platz", `${budget} Wörter geplant, ${istWoerter} entstanden `
+          + `(${seitenZahl} × ${WOERTER_JE_SEITE} Wörter je Seite, Korrekturfaktor ${faktor})`);
         zeile("Welt", weltEreignisse.length
           ? `einen Tag weitergedreht — ${weltEreignisse.slice(0, 3).join(" ")}`
           : "unverändert");

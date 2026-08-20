@@ -238,6 +238,124 @@ export function verteileRollen(texte: { text: string; form: FormKind }[]): Rolle
   return rollen;
 }
 
+// ── Was eine Form wirklich liefert ──────────────────────────────────────────
+// Gemessen, nicht geschätzt: 12 Läufe je Form und Zielwortzahl, gegen die
+// tatsächliche Ausgabe gehalten (Stand 4.251.0).
+//
+//   prose    Ziel  40 → 35     Ziel 200 → 192    Ziel 350 → 341    folgt
+//   bericht  Ziel  40 → 152    Ziel 200 → 223    Ziel 350 → 379    ab ~200
+//   meldung  Ziel  40 → 29     Ziel 200 → 29     Ziel 350 → 29     folgt NICHT
+//   poem     Ziel  40 → 69     Ziel 200 → 71     Ziel 350 → 66     folgt NICHT
+//
+// Der Längenregler wird also sehr wohl benutzt — aber Meldung und Gedicht
+// haben eine feste Gestalt, und der Bericht kann unter 150 Wörtern gar nicht
+// existieren: Schlagzeile, Vorspann, zwei Zitate und Faktenkasten sind sein
+// Gerüst.
+//
+// Der Autopilot plante bisher eine Meldung mit 80 bis 130 Wörtern und bekam 29.
+// Bei acht Beiträgen summierte sich das auf mehrere hundert Wörter, die auf
+// dem Papier fehlten — genau die Leerstellen.
+
+export interface FormErtrag {
+  /** Was die Form mindestens liefert, egal welche Zielzahl man setzt. */
+  min: number;
+  /** Was sie höchstens liefert. */
+  max: number;
+  /** Folgt sie dem Längenregler überhaupt? */
+  steuerbar: boolean;
+}
+
+export const ERTRAG: Record<string, FormErtrag> = {
+  prose: { min: 60, max: 420, steuerbar: true },
+  bericht: { min: 150, max: 460, steuerbar: true },
+  meldung: { min: 28, max: 32, steuerbar: false },
+  poem: { min: 55, max: 80, steuerbar: false },
+  haiku: { min: 10, max: 22, steuerbar: false },
+  reim: { min: 40, max: 90, steuerbar: false },
+  strang: { min: 40, max: 120, steuerbar: false },
+};
+
+export function ertragVon(form: string): FormErtrag {
+  return ERTRAG[form] || { min: 60, max: 300, steuerbar: true };
+}
+
+/** Wie viele Wörter eine Seite fasst.
+ *
+ *  Aus gesetzten Ausgaben abgelesen: Eine dreispaltige A4-Seite trägt rund 620
+ *  Wörter, bis der Fuß erreicht ist. Mehr Spalten heißt mehr Stege und mehr
+ *  Überschriften, also etwas weniger Text — nicht mehr.
+ *
+ *  Eine Schätzung, und sie wird auch so genannt. Die genaue Zahl hängt an
+ *  Schriftgrad, Bildern und Formenmischung; korrigieren lässt sie sich am
+ *  Füllgrad, den der Setzer nach jedem Umbruch meldet. */
+export function woerterJeSeite(spalten: number): number {
+  const sp = Math.max(2, Math.min(5, Math.round(spalten) || 3));
+  return Math.round(620 - (sp - 3) * 35);
+}
+
+/** Verteilt die Zielwortzahlen so, dass die Seite aufgeht.
+ *
+ *  Die nicht steuerbaren Formen liefern, was sie liefern — sie werden zuerst
+ *  abgezogen. Was übrig bleibt, tragen Prosa und Bericht, und zwar nach ihrem
+ *  bisherigen Gewicht: Ein Aufmacher, der doppelt so lang geplant war wie ein
+ *  Spaltenstück, bleibt doppelt so lang. Am Ende wird auf das geklemmt, was die
+ *  Form überhaupt hergibt — und der Rest noch einmal umgelegt.
+ *
+ *  Rein und damit ohne Browser prüfbar. */
+export function planeLaengen(auftraege: Auftrag[], spalten: number, seiten: number): Auftrag[] {
+  const platz = woerterJeSeite(spalten) * Math.max(1, Math.min(8, Math.round(seiten) || 1));
+  const raus = auftraege.map((a) => ({ ...a }));
+  if (!raus.length) return raus;
+
+  // 1 · Feste Formen: Sie bekommen ihren Mittelwert und sind damit erledigt.
+  let fest = 0;
+  const flexibel: number[] = [];
+  raus.forEach((a, i) => {
+    const e = ertragVon(a.form);
+    if (!e.steuerbar) { a.woerter = Math.round((e.min + e.max) / 2); fest += a.woerter; }
+    else flexibel.push(i);
+  });
+  if (!flexibel.length) return raus;
+
+  // 2 · Der Rest wird nach bisherigem Gewicht verteilt.
+  const rest = Math.max(0, platz - fest);
+  const summe = flexibel.reduce((a, i) => a + Math.max(1, raus[i]!.woerter), 0);
+  for (const i of flexibel) {
+    raus[i]!.woerter = Math.round((rest * Math.max(1, raus[i]!.woerter)) / summe);
+  }
+
+  // 3 · Klemmen auf das, was die Form hergibt — und den Überschuss umlegen.
+  // Ohne diesen Schritt bekäme ein Bericht 40 Wörter zugeteilt und lieferte
+  // 150, und die Rechnung wäre für die Katz.
+  for (let runde = 0; runde < 4; runde++) {
+    let ueberschuss = 0;
+    const offen: number[] = [];
+    for (const i of flexibel) {
+      const e = ertragVon(raus[i]!.form);
+      if (raus[i]!.woerter < e.min) { ueberschuss -= e.min - raus[i]!.woerter; raus[i]!.woerter = e.min; }
+      else if (raus[i]!.woerter > e.max) { ueberschuss += raus[i]!.woerter - e.max; raus[i]!.woerter = e.max; }
+      else offen.push(i);
+    }
+    if (!ueberschuss || !offen.length) break;
+    const je = ueberschuss / offen.length;
+    for (const i of offen) raus[i]!.woerter = Math.round(raus[i]!.woerter + je);
+  }
+  return raus;
+}
+
+/** Was die geplante Besetzung voraussichtlich liefert — gegen den Platz
+ *  gehalten. Damit der Nutzer VOR dem Druck sieht, ob die Seite aufgeht. */
+export function platzBilanz(auftraege: Auftrag[], spalten: number, seiten: number): {
+  platz: number; erwartet: number; luecke: number;
+} {
+  const platz = woerterJeSeite(spalten) * Math.max(1, Math.min(8, Math.round(seiten) || 1));
+  const erwartet = auftraege.reduce((a, x) => {
+    const e = ertragVon(x.form);
+    return a + Math.max(e.min, Math.min(e.max, x.woerter));
+  }, 0);
+  return { platz, erwartet, luecke: platz - erwartet };
+}
+
 // ── Gedächtnis über Ausgaben hinweg ─────────────────────────────────────────
 // Innerhalb einer Ausgabe wird kein Kontext zweimal gezogen. Über AUSGABEN
 // hinweg war das nicht so — und dort fällt es stärker auf: Zwei Zeitungen
@@ -313,4 +431,153 @@ export function letzteWas(gedaechtnis: string[], tiefe = WAS_TIEFE): Set<string>
     if (w) raus.add(w);
   }
   return raus;
+}
+
+// ── Platzbedarf ─────────────────────────────────────────────────────────────
+// Gemeldet: Leerstellen auf der Zeitungsseite. Die Vermutung war, der
+// Textlängenregler werde nicht genutzt — er wird gesetzt, aber ZWEI FORMEN
+// ignorieren ihn: `bericht` und `meldung` kehren in `buildStory` zurück, bevor
+// `enforceWordTarget` läuft. Das steht dort mit gutem Grund (Kürzen würde einem
+// Bericht Fakten wegnehmen), heißt aber: Ausgerechnet die beiden Formen, die
+// der Autopilot am häufigsten setzt, richten sich nach keiner Vorgabe.
+//
+// Dazu kam, dass niemand ausgerechnet hat, wie viel Text die Seite überhaupt
+// fasst. Die Wortzahlen waren geraten.
+
+/** Wörter, die eine Seite ungefähr aufnimmt.
+ *
+ *  Aus der Geometrie: 264 mm Höhe abzüglich Kopf und Fußlinie ergibt rund
+ *  226 mm Spaltenraum, bei 4,4 mm Zeilenhöhe etwa 51 Zeilen je Spalte. Die
+ *  Spaltenbreite verschiebt nur, wie sich das auf Spalten verteilt — drei
+ *  breite Spalten fassen ungefähr so viel wie vier schmale.
+ *
+ *  Bewusst eine RUNDE Zahl: Sie ist ein Startwert, der sich selbst korrigiert
+ *  (siehe `neuerFaktor`). Sie auf drei Stellen auszurechnen täuschte eine
+ *  Genauigkeit vor, die die Schriftgröße jederzeit widerlegt. */
+export const WOERTER_JE_SEITE = 900;
+/** Was Überschrift, Dachzeile und Abstand je Beitrag kosten — gerechnet in
+ *  Wörtern, damit es sich mit dem Budget verrechnen lässt. */
+export const OVERHEAD_JE_BEITRAG = 28;
+
+/** Wie viele Wörter die Ausgabe insgesamt tragen soll.
+ *
+ *  `faktor` ist die Selbstkorrektur aus dem letzten Lauf: 1 heißt „Schätzung
+ *  stimmte", 1,2 heißt „es passte mehr hinein als gedacht". */
+export function platzBudget(seiten: number, anzahl: number, faktor = 1): number {
+  const s = Math.max(1, Math.min(8, Math.round(seiten) || 1));
+  const n = Math.max(1, Math.round(anzahl) || 1);
+  const f = Math.max(0.4, Math.min(2.5, faktor || 1));
+  return Math.max(120, Math.round(s * WOERTER_JE_SEITE * f - n * OVERHEAD_JE_BEITRAG));
+}
+
+/** Grenzen je Form. Ein Haiku mit 300 Wörtern ist keins mehr, und ein Bericht
+ *  unter 120 Wörtern hat keinen Vorspann. Ohne diese Klammern würde die
+ *  Verteilung die Formen zerstören, um das Budget zu treffen. */
+export const LAENGEN_GRENZEN: Record<string, [number, number]> = {
+  haiku: [12, 24], poem: [40, 160], reim: [40, 160], strang: [40, 200],
+  meldung: [30, 90], bericht: [140, 620], prose: [70, 480],
+};
+
+/** Verteilt das Budget auf die Aufträge — im Verhältnis ihrer geplanten Längen,
+ *  damit der Aufmacher Aufmacher bleibt und der Kasten Kasten.
+ *
+ *  Zwei Durchgänge: Erst proportional, dann werden die Werte in ihre
+ *  Formgrenzen gezwungen und der Rest auf die verteilt, die noch Luft haben.
+ *  Ohne den zweiten Durchgang bekäme ein Haiku bei großem Budget 300 Wörter
+ *  und ein Bericht bei kleinem 40. */
+export function verteileLaengen<T extends { form: string; woerter: number }>(
+  auftraege: T[], budget: number,
+): T[] {
+  if (!auftraege.length) return [];
+  const summe = auftraege.reduce((a, x) => a + Math.max(1, x.woerter), 0);
+  const grenze = (f: string): [number, number] => LAENGEN_GRENZEN[f] || [40, 500];
+
+  const erst = auftraege.map((a) => {
+    const anteil = Math.max(1, a.woerter) / summe;
+    const [min, max] = grenze(a.form);
+    const roh = Math.round(budget * anteil);
+    return { a, roh, min, max, wert: Math.max(min, Math.min(max, roh)) };
+  });
+
+  // Was durch die Klammern verloren ging oder zu viel wurde, wandert zu den
+  // Beiträgen, die noch Luft nach oben bzw. unten haben.
+  let rest = budget - erst.reduce((s2, x) => s2 + x.wert, 0);
+  for (let runde = 0; runde < 4 && Math.abs(rest) > 5; runde++) {
+    const offen = erst.filter((x) => (rest > 0 ? x.wert < x.max : x.wert > x.min));
+    if (!offen.length) break;
+    const je = rest / offen.length;
+    for (const x of offen) {
+      const neu = Math.max(x.min, Math.min(x.max, Math.round(x.wert + je)));
+      rest -= neu - x.wert;
+      x.wert = neu;
+    }
+  }
+  return erst.map((x) => ({ ...x.a, woerter: x.wert }));
+}
+
+// ── Selbstkorrektur ─────────────────────────────────────────────────────────
+// Die Schätzung oben ist geometrisch und kennt weder Schriftgröße noch
+// Preset-Wortlängen. Statt sie feiner zu rechnen — was eine Genauigkeit
+// vortäuschte, die es nicht gibt — lernt sie aus dem gemessenen Füllgrad des
+// letzten Laufs. Der Setzer kennt ihn ohnehin.
+
+export const KALIB_KEY = "divergenz_autopilot_kalib_v1";
+
+/** Der neue Faktor aus dem gemessenen Füllgrad.
+ *
+ *  Gedämpft: Nur ein Drittel des Fehlers wird ausgeglichen. Ein voller
+ *  Ausgleich schwingt — eine zu volle Seite führte zum Untermaß und umgekehrt,
+ *  und die Ausgaben wechselten zwischen Überlauf und Leere. */
+export function neuerFaktor(alt: number, fuellgradProzent: number): number {
+  const a = Math.max(0.4, Math.min(2.5, alt || 1));
+  const g = Math.max(1, Math.min(200, fuellgradProzent));
+  // Ziel sind 96 %: knapp voll, aber ohne dass der Umbruch am Fuß kürzen muss.
+  const soll = 96;
+  const roh = a * (soll / g);
+  return Math.max(0.4, Math.min(2.5, Math.round((a + (roh - a) / 3) * 1000) / 1000));
+}
+
+export function ladeFaktor(): number {
+  try {
+    const v = Number(JSON.parse(localStorage.getItem(KALIB_KEY) || "null"));
+    return Number.isFinite(v) && v > 0 ? Math.max(0.4, Math.min(2.5, v)) : 1;
+  } catch { return 1; }
+}
+
+export function sichereFaktor(f: number): void {
+  try { localStorage.setItem(KALIB_KEY, JSON.stringify(f)); } catch { /* voll */ }
+}
+
+// ── Bericht auf Länge bringen ───────────────────────────────────────────────
+
+/** Kürzt einen Bericht auf die Zielwortzahl, indem ABSÄTZE von hinten
+ *  wegfallen.
+ *
+ *  Nicht mit `enforceWordTarget`: Das schneidet Sätze und nähme dem Bericht
+ *  Fakten aus dem Zusammenhang — genau deshalb ist er dort ausgenommen. Ein
+ *  Bericht ist aber als umgekehrte Pyramide gebaut, hinten steht das
+ *  Unwichtigste. Absatzweise zu kürzen ist das Verfahren, für das er gemacht
+ *  wurde; der Setzer tut am Spaltenfuß dasselbe.
+ *
+ *  Dachzeile und Schlagzeile (die ersten beiden Absätze) und der Faktenkasten
+ *  bleiben immer stehen — ohne sie ist es kein Bericht mehr. */
+export function kuerzeBericht(text: string, ziel: number): string {
+  const abs = (text || "").split(/\n{2,}/).map((x) => x.trim()).filter(Boolean);
+  if (abs.length < 4) return text;
+  const zaehl = (s: string): number => (s.match(/\S+/g) || []).length;
+  const kastenAb = abs.findIndex((x) => /^Faktenkasten\b/.test(x));
+  const kasten = kastenAb >= 0 ? abs.slice(kastenAb) : [];
+  const rumpf = kastenAb >= 0 ? abs.slice(0, kastenAb) : abs.slice();
+  // Kopf: Dachzeile, Schlagzeile, Vorspann — darunter wird nicht gegangen.
+  const kopf = rumpf.slice(0, 3);
+  const koerper = rumpf.slice(3);
+  const fest = [...kopf, ...kasten].reduce((a, x) => a + zaehl(x), 0);
+  const behalten: string[] = [];
+  let summe = fest;
+  for (const a of koerper) {
+    const w = zaehl(a);
+    if (summe + w > ziel && behalten.length) break;
+    behalten.push(a); summe += w;
+  }
+  return [...kopf, ...behalten, ...kasten].join("\n\n");
 }

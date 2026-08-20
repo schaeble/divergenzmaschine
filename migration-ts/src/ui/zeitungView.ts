@@ -12,6 +12,7 @@ import { icon } from "./icons";
 import { loadTreasury, type Treasure } from "../features/treasury";
 import { inhaltVers, inhaltFliess, absaetze } from "./printView";
 import { umbrechen, fuellgrad, type Messbar, type UmbruchTeil, type Seite } from "./umbruch";
+import { ladeFaktor, sichereFaktor, neuerFaktor } from "../features/autopilot";
 import {
   ladeBilder, sichereBilder, neuerRahmen, verschiebe, skaliereEcke, begrenze,
   leseBilddatei, stapelLege, stapelNimm, BILD_ANZAHL,
@@ -807,6 +808,15 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     document.querySelectorAll(".zk-probe").forEach((x) => x.remove());
     const druckSeiten = mappeBauen();
     status.textContent = statusText + ` · Druckfassung: ${druckSeiten} Seite(n)`;
+
+    // Rueckkanal an den Autopiloten: Er schaetzt den Platzbedarf geometrisch
+    // und kennt weder Schriftgroesse noch Preset-Wortlaengen. Statt die
+    // Schaetzung feiner zu rechnen — was eine Genauigkeit vortaeuschte, die es
+    // nicht gibt — lernt sie aus dem hier GEMESSENEN Fuellgrad.
+    //
+    // Gedaempft (ein Drittel des Fehlers): Ein voller Ausgleich schwingt, und
+    // die Ausgaben wechselten zwischen Ueberlauf und Leere.
+    if (grad > 0) sichereFaktor(neuerFaktor(ladeFaktor(), grad));
 
     // Das Protokoll: WAS gekürzt wurde und WAS ganz fehlt. Eine Zahl allein
     // („3× am Fuß gekürzt") sagt nicht, welcher Beitrag beschnitten ist — und

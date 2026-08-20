@@ -8,6 +8,8 @@ import {
   baueBesetzung, baueEingabe, titelAus, naechsteAusgabe, layoutName, verteileRollen,
   SEITEN_FORMEN, BEITRAEGE_MIN, BEITRAEGE_MAX, BEITRAEGE_VORGABE,
   maxBeitraege, BEITRAEGE_JE_SEITE,
+  platzBudget, verteileLaengen, kuerzeBericht, neuerFaktor, LAENGEN_GRENZEN,
+  WOERTER_JE_SEITE, KALIB_KEY,
   ktxSchluessel, merkeGedaechtnis, GEDAECHTNIS_TIEFE, KTX_KEY,
   wasAusSchluessel, letzteWas, WAS_TIEFE,
 } from "../src/features/autopilot";
@@ -348,6 +350,82 @@ wahr("es gibt ein Herkunftsprotokoll", /Was dieser Durchlauf benutzt hat/.test(a
 for (const feld of ["Kontext", "Wortbänke", "Formen", "Korpus", "Welt", "Nicht benutzt"]) {
   wahr(`das Protokoll nennt „${feld}"`, ansicht.includes(`zeile("${feld}"`));
 }
+
+// ── 6c · Der Platz bestimmt die Laenge ──────────────────────────────────────
+// Gemeldet: Leerstellen auf der Zeitungsseite. Die Vermutung war, der
+// Textlaengenregler werde nicht genutzt. Er WIRD gesetzt — aber `bericht` und
+// `meldung` kehren in buildStory zurueck, BEVOR enforceWordTarget laeuft.
+// Ausgerechnet die beiden Formen, die der Autopilot am haeufigsten setzt,
+// richteten sich nach keiner Vorgabe. Und die Wortzahlen selbst waren geraten:
+// Niemand hatte ausgerechnet, wie viel Text eine Seite fasst.
+wahr("eine Seite fasst mehr als 500 Woerter", WOERTER_JE_SEITE > 500);
+wahr("zwei Seiten tragen mehr als eine", platzBudget(2, 8) > platzBudget(1, 8));
+wahr("mehr Beitraege kosten Platz fuer Ueberschriften", platzBudget(1, 12) < platzBudget(1, 3));
+wahr("der Korrekturfaktor wirkt", platzBudget(1, 8, 1.4) > platzBudget(1, 8, 1));
+wahr("und ist nach oben und unten geklammert",
+  platzBudget(1, 8, 99) === platzBudget(1, 8, 2.5) && platzBudget(1, 8, 0.01) === platzBudget(1, 8, 0.4));
+wahr("das Budget wird nie null", platzBudget(1, 99, 0.4) > 0);
+
+// Die Verteilung. Ein Haiku mit 300 Woertern ist keins mehr, ein Bericht mit 40
+// hat keinen Vorspann — ohne Formgrenzen zerstoerte die Verteilung die Formen,
+// um das Budget zu treffen.
+const auf = [
+  { form: "bericht", woerter: 300 }, { form: "haiku", woerter: 18 },
+  { form: "prose", woerter: 150 }, { form: "meldung", woerter: 60 },
+];
+const v = verteileLaengen(auf, 900);
+ist("es bleiben gleich viele Beitraege", v.length, 4);
+for (const x of v) {
+  const [min, max] = LAENGEN_GRENZEN[x.form]!;
+  wahr(`„${x.form}" bleibt in seinen Grenzen (${x.woerter})`, x.woerter >= min && x.woerter <= max);
+}
+// Das Verhaeltnis bleibt: Der Aufmacher bleibt Aufmacher, der Kasten Kasten.
+wahr("der Bericht bleibt der laengste", v[0]!.woerter > v[2]!.woerter);
+wahr("das Haiku bleibt das kuerzeste", v[1]!.woerter < v[3]!.woerter);
+// Ein grosses Budget darf die Formen nicht sprengen.
+const gross = verteileLaengen(auf, 5000);
+wahr("auch bei riesigem Budget bleibt das Haiku ein Haiku",
+  gross[1]!.woerter <= LAENGEN_GRENZEN.haiku![1]);
+// Und ein winziges darf den Bericht nicht ausloeschen.
+const klein = verteileLaengen(auf, 100);
+wahr("auch bei winzigem Budget behaelt der Bericht sein Mindestmass",
+  klein[0]!.woerter >= LAENGEN_GRENZEN.bericht![0]);
+ist("eine leere Liste ergibt nichts", verteileLaengen([], 900).length, 0);
+
+// Die Selbstkorrektur. Gedaempft: Ein voller Ausgleich schwingt — eine zu
+// volle Seite fuehrte zum Untermass und umgekehrt.
+wahr("eine zu leere Seite erhoeht den Faktor", neuerFaktor(1, 60) > 1);
+wahr("eine zu volle senkt ihn", neuerFaktor(1, 140) < 1);
+wahr("bei Punktlandung bleibt er nahezu gleich", Math.abs(neuerFaktor(1, 96) - 1) < 0.01);
+// Gegenprobe zur Daempfung: Der Ausschlag muss KLEINER sein als der Fehler,
+// sonst schwingt es.
+const roh60 = 1 * (96 / 60);
+wahr("die Korrektur ist gedaempft", neuerFaktor(1, 60) < roh60);
+wahr("der Faktor bleibt geklammert", neuerFaktor(1, 1) <= 2.5 && neuerFaktor(1, 200) >= 0.4);
+wahr("die Kalibrierung wandert in die Projektdatei", KALIB_KEY.startsWith("divergenz_"));
+
+// Bericht auf Laenge: ABSATZWEISE, nicht satzweise. Satzweise naehme ihm Fakten
+// aus dem Zusammenhang — genau deshalb ist er in buildStory ausgenommen.
+const bericht = [
+  "ORT · RESSORT", "Eine Klinik wechselt den Namen",
+  "Am Tag der Sonnenfinsternis wurde bekannt, dass rund 180 Gemeinden betroffen sind.",
+  "Absatz vier mit einigen Woertern darin, die zusammen etwas Platz brauchen.",
+  "Absatz fuenf mit einigen Woertern darin, die zusammen etwas Platz brauchen.",
+  "Absatz sechs mit einigen Woertern darin, die zusammen etwas Platz brauchen.",
+  "Faktenkasten\n· Betroffen: 180 Gemeinden",
+].join("\n\n");
+const gekuerzterBericht = kuerzeBericht(bericht, 40);
+wahr("die Dachzeile bleibt", gekuerzterBericht.startsWith("ORT · RESSORT"));
+wahr("die Schlagzeile bleibt", gekuerzterBericht.includes("Eine Klinik wechselt den Namen"));
+wahr("der Vorspann bleibt", gekuerzterBericht.includes("Am Tag der Sonnenfinsternis"));
+// Der Faktenkasten steht am ENDE und darf trotzdem nicht wegfallen — er ist
+// kein Rumpfabsatz, sondern Teil der Form.
+wahr("der Faktenkasten bleibt", gekuerzterBericht.includes("Faktenkasten"));
+wahr("hintere Absaetze fallen weg", !gekuerzterBericht.includes("Absatz sechs"));
+wahr("es wird wirklich kuerzer", gekuerzterBericht.length < bericht.length);
+// Gegenprobe: Ein grosszuegiges Ziel darf NICHTS wegnehmen.
+ist("bei genug Platz bleibt alles stehen", kuerzeBericht(bericht, 9999), bericht);
+ist("ein zu kurzer Text wird nicht angefasst", kuerzeBericht("A\n\nB", 5), "A\n\nB");
 
 // ── 7b · Der leere Warnkasten ───────────────────────────────────────────────
 // Gemeldet mit Bildschirmfoto: ein roter Balken ohne Text ueber den Knoepfen.
