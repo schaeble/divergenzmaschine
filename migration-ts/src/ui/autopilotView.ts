@@ -24,6 +24,7 @@ import { addToTreasury, loadTreasury } from "../features/treasury";
 import { ladeKopf, sichereKopf, oeffneZeitungssetzer, ueberschriftVon } from "./zeitungView";
 import { ladeLayouts, sichereLayouts, legeLayout, textSchluessel, type Layout } from "../features/zeitungslayout";
 import { ziehVorrat } from "../features/wikisammler";
+import { schemaVon, schemaPlaetze, schemaAuftraege } from "../features/musterseite";
 import { worldFillContext, worldTick, worldLogGeneration } from "../features/world";
 import { ziehBildvorrat } from "../features/bildsammler";
 
@@ -204,9 +205,34 @@ export function mountAutopilot(root: HTMLElement): void {
         // letzten Laufs — die geometrische Schaetzung kennt weder Schriftgroesse
         // noch Preset-Wortlaengen.
         const faktor = ladeFaktor();
-        const roh = baueBesetzung(gewuenscht, hatVorrat, hatBild, Math.random, maxBeitraege(seitenZahl));
-        const budget = platzBudget(seitenZahl, roh.length, faktor);
-        const auftraege = verteileLaengen(roh, budget);
+        const spaltenZahl = parseInt(spaltenIn.value, 10) || 3;
+        // Ist im Setzer eine MUSTERSEITE eingestellt, kommen Zahl, Form und
+        // Länge der Beiträge aus ihren Plätzen. Das ist der Kern der Sache:
+        // Nicht die Texte bestimmen das Bild, sondern der Platz bestimmt den
+        // Text — „vierzig Zeilen", wie eine Redaktion es bestellt. Die
+        // Spaltenzahl wirkt dabei weiter, denn sie formt die Plätze.
+        const schemaId = (() => { try { return localStorage.getItem("divergenz_zeitung_schema_v1") || ""; } catch { return ""; } })();
+        const schema = schemaVon(schemaId);
+        let auftraege;
+        let schemaRollen: ("aufmacher" | "spalte" | "kasten")[] = [];
+        if (schema) {
+          const H = 1000;   // Nur Verhältnisse zählen — die echte Höhe steht erst im Setzer.
+          const plaetze = schemaPlaetze(schema, spaltenZahl, H);
+          const proSeite = plaetze.length;
+          const roh2 = baueBesetzung(proSeite * seitenZahl, hatVorrat, hatBild, Math.random, maxBeitraege(seitenZahl));
+          const pa = schemaAuftraege(plaetze, spaltenZahl, H, Math.round(WOERTER_JE_SEITE * faktor));
+          auftraege = roh2.slice(0, proSeite * seitenZahl).map((r, i) => {
+            const a = pa[i % proSeite]!;
+            // Die Quelle bleibt aus der Besetzung — sie sagt, WOHER der Stoff
+            // kommt, und das hat mit dem Platz nichts zu tun.
+            return { ...r, form: a.form as typeof r.form, woerter: a.woerter, was: `${a.form}, ${a.woerter} W` };
+          });
+          schemaRollen = auftraege.map((_, i) => pa[i % proSeite]!.rolle);
+        } else {
+          const roh = baueBesetzung(gewuenscht, hatVorrat, hatBild, Math.random, maxBeitraege(seitenZahl));
+          const budget = platzBudget(seitenZahl, roh.length, faktor);
+          auftraege = verteileLaengen(roh, budget);
+        }
 
         const erzeugt: { text: string; form: string; titel: string; preset: string }[] = [];
         const presetZaehler = new Map<string, number>();
@@ -257,7 +283,11 @@ export function mountAutopilot(root: HTMLElement): void {
         // nicht in der Schatzkammer und sein Platz im Layout bliebe leer.
         const teile: Layout["teile"] = [];
         let doppelt = 0;
-        const rollen = verteileRollen(erzeugt.map((e) => ({ text: e.text, form: e.form as never })));
+        // Bei einer Musterseite stehen die Rollen schon fest: Sie gehören zum
+        // Platz, nicht zum Text. Die freie Verteilung würde sie überschreiben.
+        const rollen = schemaRollen.length
+          ? schemaRollen
+          : verteileRollen(erzeugt.map((e) => ({ text: e.text, form: e.form as never })));
         erzeugt.forEach((e, i) => {
           const n = addToTreasury(e.text, { who: "", where: "", when: "", what: "", form: e.form });
           if (n < 0) { doppelt++; return; }
@@ -269,7 +299,7 @@ export function mountAutopilot(root: HTMLElement): void {
             // anderer Name. Die Uebersetzung steht hier und nicht in der
             // Rechnung, damit der Autopilot nicht an den Bezeichnungen des
             // Setzers klebt.
-            rolle: rollen[i] === "normal" ? "spalte" : rollen[i]!,
+            rolle: (rollen[i] === "normal" ? "spalte" : rollen[i]!) as "aufmacher" | "spalte" | "kasten",
             titel: eintrag ? ueberschriftVon(eintrag) : e.titel,
           });
         });
@@ -284,7 +314,7 @@ export function mountAutopilot(root: HTMLElement): void {
           kopf: neuKopf,
           spalten: parseInt(spaltenIn.value, 10) || 3,
           seiten: parseInt(seitenIn.value, 10) || 1,
-          teile, bilder: [],
+          teile, bilder: [], schema: schemaId,
         };
         const ok = sichereLayouts(legeLayout(ladeLayouts(), layout));
         // Die Nummer wird ERST hochgezählt, wenn das Layout wirklich liegt.
@@ -325,8 +355,11 @@ export function mountAutopilot(root: HTMLElement): void {
         zeile("Formen", [...new Set(erzeugt.map((e) => e.form))].join(", "));
         zeile("Korpus", `${loadPersistentCorpus().length} Zeichen, Markov-Kette 2. Ordnung`);
         const istWoerter = erzeugt.reduce((a, e) => a + (e.text.match(/\S+/g) || []).length, 0);
-        zeile("Platz", `${budget} Wörter geplant, ${istWoerter} entstanden `
-          + `(${seitenZahl} × ${WOERTER_JE_SEITE} Wörter je Seite, Korrekturfaktor ${faktor})`);
+        const geplant = auftraege.reduce((a, x) => a + x.woerter, 0);
+        zeile("Platz", `${geplant} Wörter geplant, ${istWoerter} entstanden `
+          + (schema
+            ? `(Musterseite „${schema.name.split(" —")[0]}", ${auftraege.length} Plätze, Korrekturfaktor ${faktor})`
+            : `(${seitenZahl} × ${WOERTER_JE_SEITE} Wörter je Seite, Korrekturfaktor ${faktor})`));
         zeile("Welt", weltEreignisse.length
           ? `einen Tag weitergedreht — ${weltEreignisse.slice(0, 3).join(" ")}`
           : "unverändert");

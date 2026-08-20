@@ -7,7 +7,7 @@
 // Der Inhalt kommt aus der Schatzkammer: Dort liegt jeder gemerkte Text mit
 // seiner Form, und genau danach lässt sich auswählen.
 
-import { el } from "./dom";
+import { el, select } from "./dom";
 import { icon } from "./icons";
 import { loadTreasury, type Treasure } from "../features/treasury";
 import { inhaltVers, inhaltFliess, absaetze } from "./printView";
@@ -24,6 +24,9 @@ import {
   ladeLayouts, sichereLayouts, legeLayout, entferneLayout, ordneZu, textSchluessel,
   type Layout,
 } from "../features/zeitungslayout";
+import {
+  SCHEMATA, schemaVon, schemaPlaetze, type Platz as SchemaPlatz,
+} from "../features/musterseite";
 
 // A4 bei 96 dpi, abzueglich der Raender aus .druckblatt (16 mm oben/unten,
 // 14 mm seitlich). Die Zahlen stehen hier und nicht im CSS, weil die Verteilung
@@ -365,6 +368,65 @@ export function baueZeitungsseite(kopf: Zeitungskopf, teile: SeitenTeil[], spalt
   return wurzel;
 }
 
+/** Eine Seite nach MUSTER setzen: Die Plätze stehen fest, die Texte kommen
+ *  hinein.
+ *
+ *  Der Unterschied zur fließenden Seite ist grundsätzlich. Dort entscheidet die
+ *  Länge der Texte, wie die Seite aussieht — und weil jeder Text der Maschine
+ *  rund eine Spalte lang ist, sieht jede Seite gleich aus. Hier steht der
+ *  Spiegel zuerst, und der Text wird auf sein Maß gebracht. Das ist die
+ *  Reihenfolge einer Redaktion.
+ *
+ *  Gesetzt wird mit CSS-Raster: feste Reihenhöhen, feste Spaltenspannen. Kein
+ *  Umbruch, keine Nachmessung — was zu lang ist, wird im Platz gekürzt. */
+export function baueSchemaSeite(
+  kopf: Zeitungskopf,
+  belegung: ({ t: Treasure; titel: string } | null)[],
+  plaetze: SchemaPlatz[],
+  spalten: number,
+  mitKopf = true,
+): HTMLElement {
+  const wurzel = el("div", { class: "dm-print zk-seite", "data-profil": "zeitungsseite" });
+  if (mitKopf) {
+    const k = el("header", { class: "zk-kopf" + (kopf.linien ? " zk-linien" : "") + (kopf.fraktur ? " zk-fraktur" : "") });
+    k.append(el("div", { class: "zk-name" }, kopf.titel || "Ohne Titel"));
+    if (kopf.motto) k.append(el("div", { class: "zk-motto" }, kopf.motto));
+    k.append(el("div", { class: "zk-meta" },
+      el("span", {}, kopf.ausgabe || ""),
+      el("span", {}, kopf.datum ? new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : ""),
+      el("span", {}, kopf.preis || "")));
+    wurzel.append(k);
+  }
+
+  // Die Reihenhöhen als Rasterzeilen — daraus bezieht der Satz seine Festigkeit.
+  const reihen: number[] = [];
+  for (const p of plaetze) if (reihen[p.reihe] === undefined) reihen[p.reihe] = p.hoehe;
+  const raster = el("div", { class: "zk-raster zk-schema", style: `--zk-spalten:${spalten}` });
+  raster.style.gridTemplateRows = reihen.map((h) => `${Math.max(0, Math.round(h))}px`).join(" ");
+
+  plaetze.forEach((p, i) => {
+    const b = belegung[i];
+    const box = b
+      ? beitrag(b.t, p.rolle, b.titel, 1, 0)
+      : el("div", { class: "zk-beitrag zk-" + p.rolle + " zk-leerplatz" });
+    if (!b) {
+      // Kein Text für diesen Platz: eine Zierfigur statt eines weißen Lochs.
+      // Ein leerer Platz sieht aus wie ein Fehler, eine Vignette wie Absicht.
+      box.innerHTML = vignette(120, Math.min(40, p.hoehe), i * 977 + p.oben);
+    }
+    box.classList.add("zk-schemablock");
+    box.style.gridColumn = `${p.spalteVon + 1} / span ${p.spalten}`;
+    box.style.gridRow = String(p.reihe + 1);
+    raster.append(box);
+  });
+  wurzel.append(raster);
+
+  wurzel.append(el("footer", { class: "zk-fuss" },
+    el("span", {}, "Fiktive Zeitung · maschinell erzeugt"),
+    el("span", {}, kopf.titel || "")));
+  return wurzel;
+}
+
 /** Misst die Höhe eines Beitrags in einer echten Spalte. Geht nur im Browser —
  *  deshalb steckt die Verteilung in umbruch.ts und bekommt diese Funktion. */
 export function browserMessung(quellen: Treasure[], rollen: Rolle[], titel: string[],
@@ -689,6 +751,47 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     // acht Beitraege koennen acht Zeilen mehr ergeben. Deshalb wird unten am
     // fertigen Satz nachgemessen; die Reserve macht das nur seltener noetig.
     const RESERVE = 12;
+
+    // ── Musterseite ──────────────────────────────────────────────────────
+    // Steht ein Schema, endet der Weg hier: kein Umbruch, keine Nachmessung.
+    // Die Plätze sind gesetzt, die Texte kommen hinein und werden im Platz
+    // gekürzt. Was übrig bleibt, bleibt übrig — eine Musterseite ist eine
+    // Entscheidung über das BILD, nicht über die Textmenge.
+    const schema = schemaVon(schemaId);
+    if (schema) {
+      const schemaH = Math.max(60, inhaltH - kopfH - RESERVE);
+      const plaetze = schemaPlaetze(schema, spalten, schemaH);
+      const proSeite = plaetze.length;
+      const seitenZahlS = Math.max(1, Math.min(8, seitenZahl));
+      let gesetzteS = 0, gekuerzteS = 0, leereS = 0;
+      for (let sn = 0; sn < seitenZahlS; sn++) {
+        const ausschnitt = ids.slice(sn * proSeite, (sn + 1) * proSeite);
+        if (!ausschnitt.length && sn > 0) break;
+        const belegung = plaetze.map((_, i) => {
+          const id = ausschnitt[i];
+          if (id === undefined) { leereS++; return null; }
+          gesetzteS++;
+          return { t: quellen[id]!, titel: titelAlle[id]! };
+        });
+        blatt.append(el("div", { class: "zk-papier" }, baueSchemaSeite(kopf, belegung, plaetze, spalten, sn === 0)));
+      }
+      passeZoom();
+      // Im Platz kürzen: Die Rasterzeile hat eine feste Höhe, alles darüber
+      // hinaus schnitte `overflow:hidden` mitten in der Zeile ab.
+      for (const block of Array.from(blatt.querySelectorAll(".zk-schemablock")) as HTMLElement[]) {
+        if (kuerzeImPlatz(block)) gekuerzteS++;
+      }
+      zeichneBilder();
+      document.querySelectorAll(".zk-probe").forEach((x) => x.remove());
+      const druckS = mappeBauen();
+      status.textContent = `${schema.name.split(" —")[0]} · ${plaetze.length} Plätze je Seite · ${gesetzteS} belegt`
+        + (leereS ? ` · ${leereS} leer (Zierfigur)` : "")
+        + (gekuerzteS ? ` · ${gekuerzteS}× im Platz gekürzt` : "")
+        + (ids.length > gesetzteS ? ` · ${ids.length - gesetzteS} übrig` : "")
+        + ` · Druckfassung: ${druckS} Seite(n)`;
+      return;
+    }
+
     const aufH = aufId === undefined ? 0 : mess.aufmacher(aufId);
     const spaltenH = Math.max(0, inhaltH - kopfH - RESERVE - aufH);
     // Die Bilder VOR der Verteilung einrechnen: Sie sperren Bänder in den
@@ -1058,6 +1161,30 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
   // Beiträge und machte sie höher als gemessen, worauf die Nachmessung sie
   // hinauswarf: Ein eingefügtes Bild löschte den Text der ganzen Spalte.
 
+  /** Kürzt einen Block, bis er in seinen Platz passt.
+   *
+   *  Anders als am Spaltenfuß gibt es hier eine harte Kante: Die Rasterzeile hat
+   *  eine feste Höhe. Gekürzt wird in derselben Reihenfolge — Sätze, dann
+   *  Absätze —, und der Rumpf bleibt stehen, auch wenn nur die Überschrift übrig
+   *  ist: Ein leerer Platz sähe schlimmer aus. */
+  const kuerzeImPlatz = (block: HTMLElement): boolean => {
+    let schutz = 0, gekuerzt = false;
+    while (block.scrollHeight > block.clientHeight + 1 && schutz++ < 200) {
+      const inhalt = block.querySelector(".dm-inhalt") as HTMLElement | null;
+      const letztes = inhalt?.lastElementChild as HTMLElement | null;
+      if (!inhalt || !letztes) break;
+      if (inhalt.children.length > 1) { inhalt.removeChild(letztes); gekuerzt = true; continue; }
+      // Eigener Name mit Absicht: Der Prüfstand achtet darauf, dass im Weg am
+      // Spaltenfuß ZUERST getauscht und erst dann geschnitten wird. Hier gibt
+      // es nichts zu tauschen — der Platz ist fest.
+      const gekappt = satzWeg(letztes.textContent || "");
+      if (!gekappt) break;
+      letztes.textContent = gekappt;
+      gekuerzt = true;
+    }
+    return gekuerzt;
+  };
+
   /** Kürzt, bis kein Text mehr die Fußlinie berührt.
    *
    *  Gemessen wird an der FUSSLINIE selbst (`getBoundingClientRect`), nicht an
@@ -1393,6 +1520,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     const neuLayout: Layout = {
       name, d: new Date().toISOString(),
       kopf: { ...kopf }, spalten, seiten: seitenZahl,
+      schema: schemaId,
       teile: ids.map((i) => ({ schluessel: textSchluessel(quellen[i]!), rolle: gewaehlt.get(i)!.rolle, titel: gewaehlt.get(i)!.titel })),
       bilder: bilder.map((b) => ({ ...b })),
     };
@@ -1415,6 +1543,16 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     const { zuordnung, gefunden, fehlend } = ordneZu(l.teile, quellen);
     gewaehlt.clear();
     for (const [i, v] of zuordnung) gewaehlt.set(i, { ...v });
+    // Die Reihenfolge des Layouts IST bei einer Musterseite die Zuweisung zu den
+    // Plätzen: Teil 1 in Platz 1. Ohne sie fiele der Setzer auf die
+    // Listenreihenfolge zurück, und der Aufmacher landete irgendwo.
+    reihenfolge = l.teile
+      .map((teil) => quellen.findIndex((q, qi) => zuordnung.has(qi) && textSchluessel(q) === teil.schluessel))
+      .filter((i, k, arr) => i >= 0 && arr.indexOf(i) === k);
+    if (l.schema !== undefined) {
+      schemaId = l.schema;
+      try { localStorage.setItem(SCHEMA_KEY, schemaId); } catch { /* voll */ }
+    }
     bilder = (l.bilder || []).map((b) => ({ ...b }));
     sichereBilder(bilder);
     nachzieher.forEach((fn) => fn());
@@ -1450,6 +1588,25 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     if (l) { layoutSel.value = l.name; wendeLayoutAn(l); }
     else layoutInfo.textContent = `Layout „${layoutSofort}" nicht gefunden.`;
   }
+
+  // ── Anordnung ───────────────────────────────────────────────────────────
+  // „Fließend" ist der bisherige Weg: Die Texte bestimmen das Bild. Eine
+  // Musterseite dreht das um — der Spiegel steht fest, die Texte kommen hinein.
+  // Die Spaltenzahl wirkt weiter: Dieselbe Musterseite ergibt bei drei, vier
+  // und fünf Spalten verschiedene Seiten.
+  const SCHEMA_KEY = "divergenz_zeitung_schema_v1";
+  let schemaId = (() => { try { return localStorage.getItem(SCHEMA_KEY) || ""; } catch { return ""; } })();
+  const schemaSel = select("zk-schema", [
+    ["", "Fließend (Texte bestimmen das Bild)"],
+    ...SCHEMATA.map((x) => [x.id, x.name] as [string, string]),
+  ], schemaId);
+  schemaSel.addEventListener("change", () => {
+    merkeStand();
+    schemaId = schemaSel.value;
+    try { localStorage.setItem(SCHEMA_KEY, schemaId); } catch { /* voll */ }
+    zeichne();
+  });
+  nachzieher.push(() => { schemaSel.value = schemaId; });
 
   const autoBtn = el("button", { title: "Würfelt eine neue Seite aus der Schatzkammer — jeder Klick eine andere Auswahl" }, icon("dice"), " Seiten füllen");
   autoBtn.addEventListener("click", fuellen);
@@ -1518,6 +1675,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
       feldC("Datum", () => kopf.datum, (v) => { kopf.datum = v; }),
       feldC("Linien", () => kopf.linien, (v) => { kopf.linien = v; }),
       feldC("Gebrochene Schrift", () => kopf.fraktur, (v) => { kopf.fraktur = v; }),
+      el("label", { class: "druckfeld" }, el("span", { class: "field-label" }, "Anordnung"), schemaSel),
       el("span", { class: "druckspacer" }), bildBtn, platzBtn, rasterBtn, zurueckBtn, autoBtn, drucken, zu, dateiWahl),
     el("p", { class: "muted mini zk-druckhinweis" },
       "Beim Drucken zeigt der Browser oben Datum und Seitentitel und unten die Adresse — das ist SEINE Kopfzeile, nicht die der Zeitung. "

@@ -28,6 +28,7 @@ let titelBeimDruck = "";
 (dom.window as unknown as { prompt: () => string }).prompt = () => "Testlayout";
 (dom.window as unknown as { confirm: () => boolean }).confirm = () => true;
 
+import { schemaVon, schemaPlaetze } from "../src/features/musterseite";
 import {
   oeffneZeitungssetzer, satzWeg, druckName, ohneUeberschrift, darfKuerzen,
   waehleFueller, vignette, FUELLER_MIN, FUELLER_TEXT_MIN, SEITE_B, SEITE_H, RAND_OBEN, RAND_UNTEN, RAND_SEITE,
@@ -816,6 +817,64 @@ wahr("auch laengere Beitraege kommen als Fueller in Frage", /if \(w > 260\) retu
 // Und die Restluft zaehlt die Zierfigur mit — sonst zaehlte die naechste Runde
 // den Platz doppelt.
 wahr("die Zierfigur zaehlt bei der Restluft mit", /\.zk-beitrag, :scope > \.zk-vignette/.test(fuellQuelle));
+
+// ── Musterseite: die Anordnung steht vor dem Text ───────────────────────────
+// Der Kern der Sache: Mit einem Schema entscheidet nicht mehr die Länge der
+// Texte über das Bild, sondern der Platz über den Text. Geprüft wird, dass
+// wirklich nach Plätzen gesetzt wird — und dass die Spaltenzahl das Bild
+// verändert, wie es der Benutzer erwartet.
+localStorage.setItem("dm_treasury_v1", JSON.stringify(
+  Array.from({ length: 8 }, (_, i) => ({
+    t: `Beitrag ${i + 1}. ` + "Ein Satz mit genug Wörtern, damit er eine Spalte trägt und nicht als Fetzen dasteht. ".repeat(4),
+    form: "prose", d: "x",
+  }))));
+klick(knopf(/Schließen/));
+oeffneZeitungssetzer("Ein Studiotext mit einigen Wörtern darin.", "prose");
+klick(knopf(/füllen/));
+
+const schemaSel = document.getElementById("zk-schema") as HTMLSelectElement;
+wahr("die Anordnung ist wählbar", !!schemaSel);
+wahr("und fließender Satz ist die Vorgabe", schemaSel.value === "");
+const spSel3 = alle(".druckfeld select").find((x) => (x as HTMLSelectElement).id !== "zk-schema") as HTMLSelectElement;
+
+const setzeSchema = (id: string): void => {
+  schemaSel.value = id;
+  schemaSel.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+};
+const bloecke = (): HTMLElement[] => alle(".zk-blatt .zk-schemablock") as HTMLElement[];
+const bild = (): string => bloecke().map((b) => `${b.style.gridRow}/${b.style.gridColumn}`).join("|");
+
+setzeSchema("klassisch");
+wahr("die Seite wird als Raster gesetzt", !!q(".zk-blatt .zk-schema"));
+{
+  const plaetze = schemaPlaetze(schemaVon("klassisch")!, 3, 900);
+  ist("so viele Blöcke wie Plätze", bloecke().length, plaetze.length);
+  wahr("jeder Block sitzt in einer Rasterzeile", bloecke().every((b) => !!b.style.gridRow));
+  wahr("und überspannt seine Spalten", bloecke().every((b) => /span \d+/.test(b.style.gridColumn)));
+  // Ohne Fragezeichen stürzt die Prüfung ab, statt zu melden — und ein
+  // Prüfstand, der abstürzt, sagt nicht, WAS fehlt.
+  wahr("der erste Block ist der Aufmacher über alle Spalten",
+    (bloecke()[0]?.style.gridColumn || "").includes("span 3"), bloecke()[0]?.style.gridColumn || "kein Block");
+}
+wahr("die Statuszeile nennt die Plätze", /Plätze je Seite/.test((q(".zk-status") as HTMLElement)?.textContent || ""));
+ist("die Druckfassung entsteht auch hier", alle(".dm-print-aktiv > .zk-seite").length, 1);
+
+// Die Spaltenzahl formt das Bild um — genau das war die Erwartung.
+const bild3 = bild();
+spSel3.value = "5";
+spSel3.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+wahr("fünf Spalten ergeben ein anderes Bild", bild() !== bild3, `${bild3} → ${bild()}`);
+wahr("und alle fünf Spalten sind belegt",
+  bloecke().some((b) => b.style.gridColumn.includes("span 5") || /^[45] /.test(b.style.gridColumn)));
+
+// Ein anderes Schema ergibt eine andere Seite.
+const bild5 = bild();
+setzeSchema("bunt");
+wahr("ein anderes Schema ergibt ein anderes Bild", bild() !== bild5);
+
+// Und zurueck: der fliessende Satz muss weiterhin funktionieren.
+setzeSchema("");
+wahr("ohne Schema wird wieder fließend gesetzt", bloecke().length === 0 && alle(".zk-blatt .zk-spaltebox").length > 0);
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Zeitungssetzer — ${geprueft} Prüfungen (Layout-Logik + Rundgang in jsdom):`);

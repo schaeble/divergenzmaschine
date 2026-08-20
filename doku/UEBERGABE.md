@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.238.1**, Zweig `typescript-migration`.
+Stand: **v4.254.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -92,6 +92,7 @@ Beide laufen bei `npm test` mit.
 | `test/meldung.ts` | Meldung: 2880 Läufe über dieselbe Matrix wie der Bericht, dazu neun Gegenproben |
 | `test/sammler.ts` | Sammler: 61 Prüfungen gegen nachgebildete Feed-Daten, mit Gegentests |
 | `test/bildrahmen.ts` | Bildrahmen: 67 Prüfungen, 560 Skalier- und 1600 Rasterfälle als Matrix |
+| `test/musterseite.ts` | Musterseiten: Spaltenverteilung, Deckung, Wortziele — 71 Prüfungen |
 | `test/umbruch.ts` | Seitenumbruch: Verteilung, Fußauffüllung, Aufmacher, Füllgrad |
 | `test/wirkung.ts` | Wirkungsmesser: Blindprobe unter der Schwelle, Form darüber, Rechnung |
 | `test/zeitung.ts` | Zeitungssetzer: Layout-Logik, jsdom-Rundgang und ein Abgleich der Stilvorlage gegen die Rechnung (74 Prüfungen) |
@@ -327,6 +328,27 @@ fallen; bei sortierter Folge kam das Ende der Schatzkammer NIE aufs Blatt.
 Rollen werden gesetzt, nicht gewürfelt: ein Aufmacher (kein Vers, keine
 Meldung, mindestens 60 Wörter), Verse und Meldungen in den Kasten, der Rest in
 die Spalten; fehlt ein Kasten-Kandidat, wird der kürzeste Beitrag dazu gemacht.
+
+**Musterseiten** (seit 4.254.0, `features/musterseite.ts`): Die Anordnung steht
+VOR dem Text. Grund ist eine Rechnung, keine Meinung: Eine Spalte von 54 mm
+fasst bei 9 pt rund 200–280 Wörter, und die Beiträge der Maschine haben 200–250
+— jeder Text ist genau eine Spalte, es gibt nichts zu verteilen. Deshalb sah
+jede Seite gleich aus, egal wie oft der Umbruch verbessert wurde.
+
+Ein Schema ist eine Liste von Reihen mit relativen Höhen und relativen Breiten.
+Erst die Spaltenzahl macht daraus ganze Spalten (`verteileSpalten`, größter
+Bruchteil, Mindestbreite 1) — dieselbe Musterseite ergibt bei 3, 4 und 5
+Spalten verschiedene Seiten. `schemaPlaetze()` liefert die Plätze, `wortZiel()`
+die Wortzahl je Platz (Fläche × Wörter je Seite), `formFuer()` die Form nach
+Fläche: ≤ 70 Wörter Meldung, kleiner Kasten Vers, Aufmacher Bericht.
+
+Gesetzt wird in `baueSchemaSeite()` mit CSS-Raster: feste Reihenhöhen, feste
+Spaltenspannen, kein Umbruch, keine Nachmessung. Was zu lang ist, kürzt
+`kuerzeImPlatz()`; ein leerer Platz bekommt eine Vignette. Der Autopilot
+bestellt bei gewähltem Schema für JEDEN Platz einen Text in dessen Länge und
+Form — das ist „auf Maß schreiben", der Vorteil einer Maschine gegenüber einer
+Redaktion. Das Schema wandert im Layout mit (`Layout.schema`), und beim Laden
+stellt der Setzer die Reihenfolge der Teile wieder her: Teil 1 in Platz 1.
 
 **Druck:** sechs Profile (zeitung, fliesstext, vers, haiku, buehne, shots) plus
 der **Zeitungssetzer** mit gestaltbarem Kopf, Automatik über mehrere Seiten und

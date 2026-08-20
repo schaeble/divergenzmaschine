@@ -20,6 +20,10 @@ export interface Layout {
   seiten: number;
   teile: LayoutTeil[];
   bilder: Bildrahmen[];
+  /** Musterseite, in die dieses Layout gehört. Leer = fließender Satz. Steht
+   *  sie, entscheidet die REIHENFOLGE der Teile, welcher Text in welchen Platz
+   *  kommt — deshalb muss sie beim Laden erhalten bleiben. */
+  schema?: string;
 }
 
 export const LAYOUT_KEY = "divergenz_zeitung_layouts_v1";

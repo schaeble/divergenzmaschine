@@ -795,6 +795,11 @@ select.abweichend{border-color:var(--acc)}
    Mehrseitendruck ueber die vorige, und gedruckt wird nur die oberste. */
 .zk-druckhinweis{margin:0 0 8px;line-height:1.45}
 .zk-layoutleiste{gap:8px;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:1px dotted var(--border2)}
+/* Musterseite: feste Plätze im Raster. Die Reihenhöhen setzt der Setzer inline —
+   sie hängen an der Seitenhöhe und am Schema. */
+[data-profil="zeitungsseite"] .zk-schema{display:grid;gap:0 6mm;flex:1;min-height:0}
+[data-profil="zeitungsseite"] .zk-schemablock{overflow:hidden;min-height:0;min-width:0;margin-bottom:0}
+[data-profil="zeitungsseite"] .zk-leerplatz{display:flex;align-items:center;justify-content:center;color:#666}
 .zk-seite{position:relative}
 .zk-bilder{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2}
 .zk-rasterhilfe{position:absolute;inset:0;opacity:0;transition:opacity .12s;pointer-events:none}
