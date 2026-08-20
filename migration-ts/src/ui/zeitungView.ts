@@ -483,6 +483,14 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
   // in genau dieser Folge, bis die Seite voll ist. Was danach kommt, fällt
   // heraus — deshalb entscheidet die Reihenfolge, WAS auf dem Blatt steht.
   let reihenfolge: number[] = [];
+  // Die gewählte Musterseite. Sie steht HIER oben bei den übrigen Zuständen und
+  // nicht unten beim Auswahlfeld — `wendeLayoutAn()` liest sie, und der
+  // Autopilot ruft das über `layoutSofort` auf, BEVOR die Zeilen weiter unten
+  // gelaufen sind. Eine `let`-Bindung ist bis zu ihrer Zeile gesperrt; der
+  // Zugriff davor warf einen Fehler, der den ganzen Setzer abbrach — „Zeitungs-
+  // seite öffnen" tat dann gar nichts.
+  const SCHEMA_KEY = "divergenz_zeitung_schema_v1";
+  let schemaId = (() => { try { return localStorage.getItem(SCHEMA_KEY) || ""; } catch { return ""; } })();
   const mische = <T,>(xs: T[]): T[] => {
     const a = [...xs];
     for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j]!, a[i]!]; }
@@ -1594,8 +1602,6 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
   // Musterseite dreht das um — der Spiegel steht fest, die Texte kommen hinein.
   // Die Spaltenzahl wirkt weiter: Dieselbe Musterseite ergibt bei drei, vier
   // und fünf Spalten verschiedene Seiten.
-  const SCHEMA_KEY = "divergenz_zeitung_schema_v1";
-  let schemaId = (() => { try { return localStorage.getItem(SCHEMA_KEY) || ""; } catch { return ""; } })();
   const schemaSel = select("zk-schema", [
     ["", "Fließend (Texte bestimmen das Bild)"],
     ...SCHEMATA.map((x) => [x.id, x.name] as [string, string]),

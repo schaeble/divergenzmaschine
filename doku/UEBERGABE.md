@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.254.0**, Zweig `typescript-migration`.
+Stand: **v4.254.1**, Zweig `typescript-migration`.
 
 ---
 
@@ -510,6 +510,15 @@ oder das Schwächste — beides sollte man beim Lesen wissen. Eine Marke auf dem
 Papier wäre dagegen eine Bedienspur.
 
 ## 7 · Fallen in diesem Quelltext
+
+- **`let` im Setzer steht in einer Reihenfolge.** `oeffneZeitungssetzer()` ist
+  eine sehr lange Funktion; `wendeLayoutAn()` steht darin weit oben, der
+  Aufruf über `layoutSofort` ebenfalls — der Autopilot öffnet den Setzer so.
+  Jede `let`-Bindung, die weiter unten steht und von `wendeLayoutAn()` gelesen
+  wird, ist zu diesem Zeitpunkt gesperrt und wirft „Cannot access … before
+  initialization". Der Fehler bricht den ganzen Setzer ab: Der Knopf tut
+  scheinbar nichts. Zustand deshalb IMMER oben zu den übrigen Zuständen legen,
+  nicht neben das Bedienelement, das ihn benutzt.
 
 - **Deutsche Nomen sind groß.** „Großgeschrieben mitten im Satz" taugt nicht als
   Eigennamen-Erkennung. `properNames` in `coherence.ts` löst das bereits —

@@ -876,6 +876,32 @@ wahr("ein anderes Schema ergibt ein anderes Bild", bild() !== bild5);
 setzeSchema("");
 wahr("ohne Schema wird wieder fließend gesetzt", bloecke().length === 0 && alle(".zk-blatt .zk-spaltebox").length > 0);
 
+// ── Der Weg des Autopiloten: Setzer MIT Layoutnamen öffnen ──────────────────
+// „Zeitungsseite öffnen" ruft `oeffneZeitungssetzer("", "prose", name)`. Dieser
+// Weg wendet das Layout an, BEVOR die unteren Zeilen des Setzers gelaufen sind
+// — und traf damit eine `let`-Bindung, die es zu diesem Zeitpunkt noch nicht
+// gab. Der Fehler brach den ganzen Setzer ab, und der Knopf tat gar nichts.
+// Genau dieser Weg wurde nie geprüft: Alle bisherigen Läufe luden das Layout
+// über den Knopf „Laden", also NACH dem Aufbau.
+{
+  klick(knopf(/Schließen/));
+  oeffneZeitungssetzer("Ein Studiotext.", "prose");
+  klick(knopf(/füllen/));
+  klick(knopf(/Layout speichern/));
+  const gespeichert2 = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "[]") as Layout[];
+  const name2 = gespeichert2[gespeichert2.length - 1]?.name || "";
+  wahr("ein Layout liegt zum Öffnen bereit", !!name2, name2);
+  klick(knopf(/Schließen/));
+  let geworfen2 = "";
+  try { oeffneZeitungssetzer("", "prose", name2); }
+  catch (e) { geworfen2 = e instanceof Error ? e.message : String(e); }
+  ist("der Setzer öffnet mit Layoutnamen ohne Ausnahme", geworfen2, "");
+  wahr("und der Dialog steht", !!q(".zk-dialog"));
+  wahr("die Seite ist gesetzt", alle(".zk-blatt .zk-beitrag").length > 0 || alle(".zk-blatt .zk-schemablock").length > 0);
+  wahr("die Meldung nennt das geladene Layout",
+    /geladen/.test((q(".zk-layoutleiste .mini") as HTMLElement)?.textContent || ""));
+}
+
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Zeitungssetzer — ${geprueft} Prüfungen (Layout-Logik + Rundgang in jsdom):`);
 zeilen.forEach((z) => console.log(z));
