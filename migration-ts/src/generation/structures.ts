@@ -3,6 +3,7 @@ import type { StoryKit } from "../types";
 import { pick, ensurePunct } from "../text-utils";
 import { joinBeats, frameTurn, reframeStake, weaveMotif, randomFragmentTime, cap } from "./beats";
 import { pickFreshIndex } from "./cooldown";
+import { objektName } from "./shape";
 
 type Builder = (kit: StoryKit) => string;
 
@@ -118,7 +119,8 @@ export function buildObjectCentric(kit: StoryKit): string {
   const M = kit.mode;
   const obj = pick(M.nouns);
   const P = kit.P;
-  const a = `Ich bin ${obj}. Ich liege ${kit.W}.`;
+  // „Ich bin Prozess" stand ohne Artikel im Text — siehe Ausgabe Nr. 40.
+  const a = `Ich bin ${objektName(obj)}. Ich liege ${kit.W}.`;
   const b = `Ich kenne ${P}. Ich kenne ${kit.hookAcc}.`;
   const c = `Sie nennen es ${pick(["Fehler", "Vorgang", "Omen", "Signal", "Symptom", "Protokoll", "Zufall", "Nichts"])}. Ich nenne es ${pick(["Erinnerung", "Beweis", "Anfang", "Schuld"])}.`;
   const d = ensurePunct(rot("mode.rule", M.rules));

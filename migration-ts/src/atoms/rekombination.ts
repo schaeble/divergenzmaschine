@@ -17,6 +17,7 @@ import { properNames } from "../generation/coherence";
 import { hatFinitesVerb } from "./derive";
 import { ICH_DU_ZU_ER } from "../generation/wordcls";
 import { traceMarkov } from "../generation/markovTrace";
+import { MODE_DATA } from "../modes.data";
 
 interface TemplateAtom { id: string; text: string; typ: string; verlangt: PoolAtom["verlangt"]; oeffnet: boolean }
 
@@ -406,7 +407,11 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
   // B: Perspektivwechsel — im Rekombinationspfad lief er bisher gar nicht, die
   // Einstellung „Ich/Du/Wir“ blieb wirkungslos.
   if (input.perspective && input.perspective !== "third" && input.perspective !== "auto") {
-    fertig = applyPerspective([fertig], input.perspective, ctx.figur, "das Objekt").join(" ");
+    // Ein wirkliches Ding statt des Wortes „das Objekt": Der Realitaetsmodus
+    // bringt seine Gegenstaende mit, und das Ding soll zum Text passen.
+    const dinge = MODE_DATA[input.mode || ""]?.nouns || [];
+    const ding = dinge.length ? dinge[Math.floor(Math.random() * dinge.length)]! : "";
+    fertig = applyPerspective([fertig], input.perspective, ctx.figur, ding).join(" ");
   } else if (input.perspective === "third") {
     fertig = pronominalize(fertig, ctx.figur, guessPronoun(ctx.figur));
   }

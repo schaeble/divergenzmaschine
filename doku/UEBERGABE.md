@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.261.0**, Zweig `typescript-migration`.
+Stand: **v4.262.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,42 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Gemeldet und behoben (4.262.0): **Die Perspektive „Objekt" stand im Text.**
+Ausgabe Nr. 40, Aufmacher: „(das Objekt) Ein Augenblick dauert eine ganze
+Straße …". `applyPerspective()` setzte für diese Perspektive nur eine
+Regieanweisung vor jeden Absatz — ein Etikett, keine Perspektive. Der
+Zeitungssetzer baut die Überschrift aus dem Textanfang, also stand es fett auf
+der Seite.
+
+Jetzt spricht das Ding: ein Rahmensatz in der ERSTEN Person am Anfang, der
+Körper des Absatzes bleibt in der DRITTEN. Das ist keine Bequemlichkeit — ein
+Gegenstand, der von Menschen erzählt, tut das in der dritten Person, und jede
+andere Fassung müsste jedes Verb im Text umbeugen. Genau daran ist die
+Umstellung „Ich/Du/Wir" schon einmal gescheitert.
+
+Drei Nebenbefunde beim Messen:
+
+* Der Rekombinationsweg hatte das Wort `"das Objekt"` fest im Programm. Er zieht
+  jetzt ein Ding aus dem Realitätsmodus.
+* „Ich bin Prozess." — `buildObjectCentric()` setzte das Nomen ohne Artikel.
+  Neu: `objektName()` in `shape.ts`.
+* Die Endungsregel von `guessGender()` riet bei „Frist" maskulin und bei
+  „Beweis" neutrum. Alle 58 Nomen der Realitätsmodi stehen jetzt in
+  `NOUN_GENDER`, und der Prüfstand schlägt an, sobald jemand eines hinzufügt,
+  ohne es einzutragen.
+
+**Falle:** Die Ton-Einleitung wird in `postProcessText()` VOR den Text gesetzt.
+Sie hätte den Rahmensatz nach hinten geschoben und die Überschrift wieder
+mitten im Satz abgeschnitten. `OBJEKT_KOPF_RE` hält sie dahinter. Wer die
+Rahmensätze ändert, muss diese Regex mitändern.
+
+**Verworfen und warum:** Eine Schlusszeile („Sie nennen es Zufall. Ich nenne es
+Erinnerung.") stand in 12 von 30 gemessenen Texten am Ende nicht mehr da, wo sie
+hingehört — die Nachbearbeitung hängt weiter an, die Satzlängen-Zusammenziehung
+zerlegt sie. Ein Rahmen, der nur manchmal hält, ist keiner.
+
+**Neu:** `test/perspektive.ts`, 31 Prüfungen, vier Gegenproben.
 
 Gemeldet und behoben (4.261.0): **„Bei dem Werkzeugkasten funktioniert das
 Schloss nicht."** Der Verdacht des Benutzers traf: Werkzeugkasten und die Chips

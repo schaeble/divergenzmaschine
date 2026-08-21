@@ -7,6 +7,7 @@ import { VERB_CONJ } from "./verbconj.data";
 import { KEIN_NOMEN } from "./polish";
 import { conjugateVerbToken } from "./verbconj";
 import { ICH_DU_ZU_ER } from "./wordcls";
+import { guessGender } from "./declension";
 
 export interface DisruptorResult { text: string; fired: boolean; kind: string; }
 
@@ -148,9 +149,49 @@ export function guessPronoun(P: string): string {
   return "er";
 }
 
+// ── Perspektive „Objekt" ──────────────────────────────────────────────────
+// Sie setzte bis 4.261.0 nur eine Regieanweisung vor jeden Absatz:
+// „(das Objekt) Ein Augenblick dauert eine ganze Straße …". Das ist keine
+// Perspektive, das ist ein Etikett — und im Zeitungssatz wurde daraus die
+// Überschrift (Ausgabe Nr. 40, Aufmacher).
+//
+// Jetzt spricht das Ding. Der RAHMEN steht in der ersten Person, der Körper des
+// Absatzes bleibt in der dritten: Ein Gegenstand, der von Menschen erzählt, tut
+// das in der dritten Person. Jede andere Fassung müsste jedes Verb im Text
+// umbeugen — genau daran ist die Umstellung „Ich/Du/Wir" schon einmal
+// gescheitert. Die Rahmensätze sind deshalb in sich abgeschlossen und hängen an
+// keinem Wort des Textes.
+const DEF_ART: Record<string, string> = { m: "der", f: "die", n: "das" };
+/** „Antrag" → „der Antrag". Ohne Artikel entstand „Ich bin Prozess". */
+export function objektName(o: string): string {
+  const t = clean(o);
+  if (!t) return "das Ding";
+  if (/^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines)\s/i.test(t)) return t;
+  const kern = t.split(" ")[0]!.replace(/[^A-Za-zÄÖÜäöüß]/g, "");
+  return `${DEF_ART[guessGender(kern) || "n"]} ${t}`;
+}
+const DING_VORRAT = ["Tür", "Uhr", "Karteikarte", "Lampe", "Schlüssel", "Fenster", "Bank",
+  "Treppe", "Spiegel", "Kiste", "Zettel", "Mauer", "Stuhl", "Leitung", "Schwelle"];
+const OBJEKT_EINSTIEG = [
+  "Ich bin %O. Ich liege hier und zähle mit.",
+  "Ich bin %O. Man hat mich hier vergessen.",
+  "Ich bin %O. Niemand fragt mich, und ich sehe alles.",
+  "Ich bin %O. Ich habe keine Augen und trotzdem einen Blick.",
+  "Ich bin %O. Ich bleibe, wo man mich hingestellt hat.",
+  "Ich bin %O. Man geht an mir vorbei, seit Jahren.",
+];
+/** Erkennt den Rahmensatz am Textanfang — zwei Sätze, der erste nennt das Ding.
+ *  Die Nachbearbeitung braucht das, um ihre Ton-Einleitung NICHT davorzusetzen:
+ *  Die Zeitung baut ihre Überschrift aus dem Textanfang, und der Rahmen stand
+ *  sonst abgeschnitten in der Zeile („… So liegt der Fall. Ich bin das …"). */
+export const OBJEKT_KOPF_RE = /^(Ich bin (?:der|die|das) [^.!?]{1,40}\.\s+[^.!?]{1,70}\.)\s*/;
+
+const OBJEKT_ZWISCHENRUF = ["Ich sehe zu.", "Ich liege dabei.", "Ich zähle mit.",
+  "Ich rühre mich nicht.", "Ich habe Zeit.", "Ich merke es mir."];
+
 export function applyPerspective(paras: string[], perspective: string, who: string, objName: string): string[] {
   const P = clean(who) || "Jemand";
-  const O = clean(objName) || "das Objekt";
+  const O = objektName(clean(objName) || pick(DING_VORRAT));
   const swap = (s: string, person: string, pronoun: string): string => {
     if (!P) return s;
     try {
@@ -204,12 +245,21 @@ export function applyPerspective(paras: string[], perspective: string, who: stri
   const toFirst = (s: string) => swap(s, "ich", "ich");
   const toSecond = (s: string) => swap(s, "du", "du");
   const toWe = (s: string) => swap(s, "wir", "wir");
-  const toObject = (s: string) => `(${O}) ${s}`;
+  // Im Wechsel („split") wird das Ding nur kurz hörbar: Der volle Rahmen mit
+  // Namen wiederholte sich sonst alle vier Absätze.
+  const toObject = (s: string) => `${pick(OBJEKT_ZWISCHENRUF)} ${s}`;
   if (perspective === "third") return paras;
   if (perspective === "first") return paras.map(toFirst);
   if (perspective === "second") return paras.map(toSecond);
   if (perspective === "we") return paras.map(toWe);
-  if (perspective === "object") return paras.map(toObject);
+  if (perspective === "object") {
+    // Nur der EINSTIEG, keine Schlusszeile. Eine solche stand in 12 von 30
+    // gemessenen Texten am Ende nicht mehr da, wo sie hingehoert: Die
+    // Nachbearbeitung haengt weiter an, und die Satzlaengen-Zusammenziehung
+    // zerlegte sie. Ein Rahmen, der nur manchmal haelt, ist keiner.
+    const einstieg = pick(OBJEKT_EINSTIEG).replace("%O", O);
+    return paras.map((p, i) => (i === 0 ? `${einstieg} ${p}` : p));
+  }
   const cycle = ["first", "second", "third", "object"];
   return paras.map((p, i) => {
     const k = cycle[i % cycle.length];

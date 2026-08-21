@@ -10,7 +10,7 @@ import { loadKnobs } from "../features/knobs";
 import { applyToneRegister } from "./tone.shape";
 import { insertToneFlavor } from "./beats";
 import { polishGerman } from "./polish";
-import { applySatzlaenge } from "./shape";
+import { applySatzlaenge, OBJEKT_KOPF_RE } from "./shape";
 
 type Input = Partial<GenInput>;
 
@@ -190,7 +190,14 @@ export function postProcessText(txt: string, input?: Input): string {
   // nichts. Die Menge steuert jetzt allein der Regler "Ton-Einschuebe", 0 = aus.
   if (!isLineForm(input) && input?.tone && TONE_DATA[input.tone]) {
     const td = TONE_DATA[input.tone]!;
-    if (td.opener.length) t = `${pick(td.opener)} ${t}`;
+    // Die Ton-Einleitung gehoert hinter den Rahmensatz der Objektperspektive,
+    // nicht davor. Sonst beginnt der Text mit dem Ton, und die Zeitung schnitt
+    // die Ueberschrift mitten im Rahmen ab: „Kurz und ohne Pathos: So liegt der
+    // Fall. Ich bin das …"
+    if (td.opener.length) {
+      const kopf = t.match(OBJEKT_KOPF_RE);
+      t = kopf ? `${kopf[1]} ${pick(td.opener)} ${t.slice(kopf[0].length)}` : `${pick(td.opener)} ${t}`;
+    }
     if (td.flavor.length) {
       const wc = t.trim().split(/\s+/).filter(Boolean).length;
       // A.3: Der Ton-Regler skaliert die Zahl der Einschuebe. Bei 0 bleibt nur die
