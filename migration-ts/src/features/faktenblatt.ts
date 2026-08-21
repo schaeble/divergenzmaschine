@@ -9,7 +9,7 @@
 // Personen, Zahlen und Chronologie werden gezogen.
 
 import type { GenInput } from "../types";
-import { pick } from "../text-utils";
+import { pick, kuerzeAmBruch } from "../text-utils";
 import { normWhere, normWhen, normWho } from "../generation/ctxnorm";
 import { guessGender } from "../generation/declension";
 import { RESSORTS, rateRessort, type RessortId } from "./ressorts";
@@ -271,7 +271,10 @@ export function formeWas(roh: string): string {
   // Ein Semikolon trennt zwei gleichrangige Aussagen — die zweite fällt weg.
   const semi = w.indexOf(";");
   if (semi > 12) w = w.slice(0, semi);
-  return w.replace(/[\s,;:–—-]+$/, "").replace(/[.!?…]+$/, "").trim();
+  w = w.replace(/[\s,;:–—-]+$/, "").replace(/[.!?…]+$/, "").trim();
+  // Was schon abgeschnitten im Vorrat liegt, wird hier noch gerettet: am
+  // letzten Komma kürzen, statt einen halben Satz zu setzen.
+  return kuerzeAmBruch(w);
 }
 
 /** Die Kurzform einer Person.

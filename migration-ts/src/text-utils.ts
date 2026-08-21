@@ -47,3 +47,60 @@ export function escapeRegExp(s: string): string {
 export function splitSentences(txt: string): string[] {
   return txt.replace(/\s+/g, " ").trim().split(/(?<=[.!?…])\s+/).filter(Boolean);
 }
+
+/** Kürzt einen abgeschnittenen Satz an der letzten Fuge.
+ *
+ *  Der Sammler kappt lange Wikipedia-Sätze nach 170 Zeichen. Bleibt dabei ein
+ *  Rest stehen, der mitten in einer Phrase endet, ist er kein Satz mehr:
+ *
+ *      In der Toskana wird der italienische Festungsbaumeister und Militär
+ *      Rochus zu Lynar geboren, der insbesondere durch Bauten im Dienst
+ *      deutscher Fürsten wie der.
+ *
+ *  Vorschlag des Benutzers, und er ist der richtige: am letzten Komma kürzen.
+ *  Übrig bleibt „… Rochus zu Lynar geboren." — ein ganzer Satz, nur kürzer.
+ *
+ *  Erkannt wird der Bruch am LETZTEN WORT. Ein deutscher Satz endet nie auf
+ *  einem Artikel, einer Präposition oder einer Konjunktion; steht dort eines
+ *  davon, fehlt der Rest. Bleibt nach vier Schnitten immer noch ein Bruchstück
+ *  übrig, ist der Fund unbrauchbar und es kommt nichts zurück — ein halber Satz
+ *  ist schlechter als kein Satz.
+ */
+// Bewusst NUR Wörter, die einen deutschen Satz NIE beenden können: Artikel,
+// Konjunktionen und Präpositionen ohne Präfixgebrauch. Trennbare Präfixe stehen
+// NICHT darin — „Er kommt an.", „Das Licht geht aus.", „Er hört zu." sind ganze
+// Sätze. Dieselbe Unterscheidung hat schon der Bruchstück-Filter in
+// postprocess.ts gebraucht; die erste Fassung hier machte aus „Er kommt an"
+// wieder „Er kommt".
+const HAENGT_IN_DER_LUFT = /(^|\s)(ein|eine|einem|einen|einer|eines|der|die|das|dem|den|des|und|oder|aber|wie|als|im|am|beim|zum|zur|vom|von|für|ohne|durch|gegen|bei|seit|während|wegen|trotz|dass|weil|denn|sondern|sowie|bzw|etwa|sehr|dessen|deren|welche[rsmn]?)$/i;
+
+export function kuerzeAmBruch(text: string): string {
+  let t = (text || "").replace(/\s*…\s*$/, "").replace(/\s*[.,;:–—-]+\s*$/, "").trim();
+  for (let i = 0; i < 8 && t && HAENGT_IN_DER_LUFT.test(t); i++) {
+    const komma = t.lastIndexOf(",");
+    if (komma >= 12) {
+      t = t.slice(0, komma).replace(/\s*[.,;:–—-]+\s*$/, "").trim();
+      continue;
+    }
+    // Kein Komma in Reichweite: das letzte Wort abwerfen. Einen brauchbaren
+    // Satz wegen eines hängenden Wortes ganz zu verlieren wäre der schlechtere
+    // Tausch — „… seit vielen Jahren auf dem" wird zu „… seit vielen Jahren".
+    const ohneWort = t.replace(/\s+\S+$/, "").replace(/\s*[.,;:–—-]+\s*$/, "").trim();
+    if (!ohneWort || ohneWort === t) { t = ""; break; }
+    t = ohneWort;
+  }
+  // Zweiter Durchgang für die trennbaren Präfixe. Sie beenden einen Satz
+  // durchaus („Er kommt an."), aber nur nach einem VERB. Steht davor ein Nomen,
+  // ist es keine Verbklammer, sondern ein abgeschnittenes Satzglied: „… seit
+  // vielen Jahren auf". Deutsche Nomen sind groß, Verben klein — das ist hier
+  // die verlässlichste Auskunft, die die Schreibung hergibt.
+  for (let i = 0; i < 4; i++) {
+    const m = t.match(/(\S+)\s+(an|auf|aus|ein|mit|nach|vor|zu|über|unter|um|ab|bei|los|weg|hin|her)$/i);
+    if (!m || !/^[A-ZÄÖÜ]/.test(m[1]!)) break;
+    t = t.replace(/\s+\S+$/, "").trim();
+  }
+  // KEINE Mindestlänge hier. Die Funktion läuft auch über frei getippte Felder
+  // („sucht eine Akte", drei Wörter) — eine Untergrenze hätte die stillschweigend
+  // geleert. Wer eine braucht, prüft sie beim Aufrufer.
+  return HAENGT_IN_DER_LUFT.test(t) ? "" : t;
+}

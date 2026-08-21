@@ -15,6 +15,7 @@
 // damit der Prüfstand ohne Netz gegen feste Beispieldaten laufen kann.
 
 import { guessGender } from "../generation/declension";
+import { kuerzeAmBruch } from "../text-utils";
 import { safeSet } from "./storage-status";
 
 /** Ein Fund: eine Karte im Sammler, fertig für die Übernahme ins Studio. */
@@ -199,9 +200,22 @@ export function wasPhrase(roh: string, max = 170): string {
   if (t.length > max) {
     const teil = t.slice(0, max);
     const p = Math.max(teil.lastIndexOf(". "), teil.lastIndexOf("; "));
-    t = p > 40 ? teil.slice(0, p) : teil.replace(/\s+\S*$/, "") + " …";
+    // Kein Satzende in Reichweite? Dann am letzten Komma kürzen statt mitten in
+    // der Phrase abzubrechen. „… im Dienst deutscher Fürsten wie der." war kein
+    // Satz mehr; „… Rochus zu Lynar geboren." ist einer.
+    if (p > 40) t = teil.slice(0, p);
+    else {
+      // Kein Satzende in Reichweite: DAS ENDE FEHLT. Dann am letzten Komma
+      // kürzen — dort endet die letzte vollständige Fügung. Vorher wurde
+      // mitten in der Phrase abgebrochen: „… im Dienst deutscher Fürsten wie
+      // der." war kein Satz mehr, „… Rochus zu Lynar geboren." ist einer.
+      const komma = teil.lastIndexOf(",");
+      t = komma > 40 ? teil.slice(0, komma) : teil.replace(/\s+\S*$/, "") + " …";
+    }
   }
-  return t.replace(/\s*[.]\s*$/, "").trim();
+  // Auch ungekürzte Funde können mitten in der Phrase enden — der Feed liefert
+  // gelegentlich schon abgeschnittene Auszüge.
+  return kuerzeAmBruch(t.replace(/\s*[.]\s*$/, "").trim());
 }
 
 // ── Lexikonsätze ────────────────────────────────────────────────────────────

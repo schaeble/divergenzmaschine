@@ -19,6 +19,8 @@ import { normWho } from "../src/generation/ctxnorm";
 import { WHO_TWISTS } from "../src/generation/ideas.data";
 import { corpusSanitize, GERUEST_ZEILE } from "../src/corpus";
 import { dachOrt, kurzPerson, formeWas } from "../src/features/faktenblatt";
+import { wasPhrase } from "../src/features/wikisammler";
+import { kuerzeAmBruch } from "../src/text-utils";
 import { buildMeldung, pruefeMeldung, tragtPraedikat } from "../src/generation/meldung";
 import { BUILTIN_PRESETS } from "../src/presets.data";
 import type { Bank, GenInput } from "../src/types";
@@ -181,6 +183,33 @@ wahr("eine Nominalphrase trägt keines", !tragtPraedikat("eine Wandmalerei"));
   }
   ist("in 120 Texten keine Satzdublette", dubletten, 0);
   ist("und die Verzierung kommt im Text gar nicht mehr vor", phrase, 0);
+}
+
+
+// ── § 7 · Abgeschnittene Sammler-Funde am Komma kürzen ────────────────────
+// Gemeldet an Ausgabe Nr. 45: „In der Toskana wird der italienische
+// Festungsbaumeister und Militär Rochus zu Lynar geboren, der insbesondere
+// durch Bauten im Dienst deutscher Fürsten wie der." Der Sammler kappt lange
+// Auszüge nach 170 Zeichen; fehlt das Ende, ist der Rest kein Satz mehr.
+// Vorschlag des Benutzers: am letzten Komma kürzen.
+const LANG = "In der Toskana wird der italienische Festungsbaumeister und Militär Rochus zu Lynar geboren, "
+  + "der insbesondere durch Bauten im Dienst deutscher Fürsten wie der Markgrafen von Brandenburg bekannt wurde.";
+const GEKUERZT = "In der Toskana wird der italienische Festungsbaumeister und Militär Rochus zu Lynar geboren";
+ist("der Sammler kürzt am Komma", wasPhrase(LANG), GEKUERZT);
+ist("und was schon im Vorrat liegt, wird beim Bauen gerettet",
+  formeWas(GEKUERZT + ", der insbesondere durch Bauten im Dienst deutscher Fürsten wie der"), GEKUERZT);
+ist("ein hängender Artikel am Ende verschwindet", kuerzeAmBruch("Ein Weg führt zu dem Haus und der"), "Ein Weg führt zu dem Haus");
+ist("ohne Komma fällt das hängende Wort weg", kuerzeAmBruch("Er läuft seit vielen Jahren auf dem"), "Er läuft seit vielen Jahren");
+ist("ein ganzer Satz bleibt ganz", kuerzeAmBruch("Die Archivarin sucht eine Akte"), "Die Archivarin sucht eine Akte");
+// Trennbare Präfixe beenden einen deutschen Satz sehr wohl — die erste Fassung
+// machte aus „Er kommt an" ein „Er kommt".
+ist("ein trennbares Präfix bleibt stehen", kuerzeAmBruch("Er kommt an"), "Er kommt an");
+ist("und noch eines", kuerzeAmBruch("Das Licht geht aus"), "Das Licht geht aus");
+ist("bleibt nichts Ganzes übrig, kommt nichts zurück", kuerzeAmBruch("wie der"), "");
+// Kurze, frei getippte Felder dürfen NICHT verschwinden — die Funktion läuft
+// auch über sie.
+for (const kurz of ["sucht eine Akte", "gewinnt", "eine Wandmalerei"]) {
+  ist(`„${kurz}“ bleibt unangetastet`, formeWas(kurz), kurz);
 }
 
 console.log(`Prüfstand Nr. 44 — ${geprueft} Prüfungen, ${bestanden} bestanden`);

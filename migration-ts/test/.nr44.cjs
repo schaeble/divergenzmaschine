@@ -260,6 +260,29 @@ function escapeRegExp(s) {
 function splitSentences(txt) {
   return txt.replace(/\s+/g, " ").trim().split(/(?<=[.!?…])\s+/).filter(Boolean);
 }
+var HAENGT_IN_DER_LUFT = /(^|\s)(ein|eine|einem|einen|einer|eines|der|die|das|dem|den|des|und|oder|aber|wie|als|im|am|beim|zum|zur|vom|von|für|ohne|durch|gegen|bei|seit|während|wegen|trotz|dass|weil|denn|sondern|sowie|bzw|etwa|sehr|dessen|deren|welche[rsmn]?)$/i;
+function kuerzeAmBruch(text) {
+  let t = (text || "").replace(/\s*…\s*$/, "").replace(/\s*[.,;:–—-]+\s*$/, "").trim();
+  for (let i = 0; i < 8 && t && HAENGT_IN_DER_LUFT.test(t); i++) {
+    const komma = t.lastIndexOf(",");
+    if (komma >= 12) {
+      t = t.slice(0, komma).replace(/\s*[.,;:–—-]+\s*$/, "").trim();
+      continue;
+    }
+    const ohneWort = t.replace(/\s+\S+$/, "").replace(/\s*[.,;:–—-]+\s*$/, "").trim();
+    if (!ohneWort || ohneWort === t) {
+      t = "";
+      break;
+    }
+    t = ohneWort;
+  }
+  for (let i = 0; i < 4; i++) {
+    const m = t.match(/(\S+)\s+(an|auf|aus|ein|mit|nach|vor|zu|über|unter|um|ab|bei|los|weg|hin|her)$/i);
+    if (!m || !/^[A-ZÄÖÜ]/.test(m[1])) break;
+    t = t.replace(/\s+\S+$/, "").trim();
+  }
+  return HAENGT_IN_DER_LUFT.test(t) ? "" : t;
+}
 
 // src/generation/nouns.data.ts
 var NOUN_GENDER = {
@@ -10213,7 +10236,8 @@ function formeWas(roh) {
   }
   const semi = w.indexOf(";");
   if (semi > 12) w = w.slice(0, semi);
-  return w.replace(/[\s,;:–—-]+$/, "").replace(/[.!?…]+$/, "").trim();
+  w = w.replace(/[\s,;:–—-]+$/, "").replace(/[.!?…]+$/, "").trim();
+  return kuerzeAmBruch(w);
 }
 function kurzPerson(werRoh) {
   const w = (werRoh || "").trim().split(/\s+/).filter(Boolean).filter((x) => !/^(Dr\.|Prof\.|Ing\.|Dipl\.-?\w*\.?|med\.|jur\.|rer\.|nat\.|h\.c\.|Sir|Lady|Herr|Frau)$/i.test(x));
@@ -12496,6 +12520,26 @@ var WHO_TWISTS = [
   "im letzten Anzug des Vaters"
 ];
 
+// src/features/wikisammler.ts
+function entHtml(s) {
+  return (s || "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, " ").trim();
+}
+function wasPhrase(roh, max = 170) {
+  let t = entHtml(roh);
+  t = t.replace(/^\d{1,4}\s*[:–-]\s*/, "");
+  t = t.replace(/\s*\(\s*\*[^)]*\)/, "");
+  if (t.length > max) {
+    const teil = t.slice(0, max);
+    const p = Math.max(teil.lastIndexOf(". "), teil.lastIndexOf("; "));
+    if (p > 40) t = teil.slice(0, p);
+    else {
+      const komma = teil.lastIndexOf(",");
+      t = komma > 40 ? teil.slice(0, komma) : teil.replace(/\s+\S*$/, "") + " \u2026";
+    }
+  }
+  return kuerzeAmBruch(t.replace(/\s*[.]\s*$/, "").trim());
+}
+
 // test/nr44.ts
 {
   const g = globalThis;
@@ -12715,6 +12759,23 @@ wahr("eine Nominalphrase tr\xE4gt keines", !tragtPraedikat("eine Wandmalerei"));
   }
   ist("in 120 Texten keine Satzdublette", dubletten, 0);
   ist("und die Verzierung kommt im Text gar nicht mehr vor", phrase, 0);
+}
+var LANG = "In der Toskana wird der italienische Festungsbaumeister und Milit\xE4r Rochus zu Lynar geboren, der insbesondere durch Bauten im Dienst deutscher F\xFCrsten wie der Markgrafen von Brandenburg bekannt wurde.";
+var GEKUERZT = "In der Toskana wird der italienische Festungsbaumeister und Milit\xE4r Rochus zu Lynar geboren";
+ist("der Sammler k\xFCrzt am Komma", wasPhrase(LANG), GEKUERZT);
+ist(
+  "und was schon im Vorrat liegt, wird beim Bauen gerettet",
+  formeWas(GEKUERZT + ", der insbesondere durch Bauten im Dienst deutscher F\xFCrsten wie der"),
+  GEKUERZT
+);
+ist("ein h\xE4ngender Artikel am Ende verschwindet", kuerzeAmBruch("Ein Weg f\xFChrt zu dem Haus und der"), "Ein Weg f\xFChrt zu dem Haus");
+ist("ohne Komma f\xE4llt das h\xE4ngende Wort weg", kuerzeAmBruch("Er l\xE4uft seit vielen Jahren auf dem"), "Er l\xE4uft seit vielen Jahren");
+ist("ein ganzer Satz bleibt ganz", kuerzeAmBruch("Die Archivarin sucht eine Akte"), "Die Archivarin sucht eine Akte");
+ist("ein trennbares Pr\xE4fix bleibt stehen", kuerzeAmBruch("Er kommt an"), "Er kommt an");
+ist("und noch eines", kuerzeAmBruch("Das Licht geht aus"), "Das Licht geht aus");
+ist("bleibt nichts Ganzes \xFCbrig, kommt nichts zur\xFCck", kuerzeAmBruch("wie der"), "");
+for (const kurz of ["sucht eine Akte", "gewinnt", "eine Wandmalerei"]) {
+  ist(`\u201E${kurz}\u201C bleibt unangetastet`, formeWas(kurz), kurz);
 }
 console.log(`Pr\xFCfstand Nr. 44 \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

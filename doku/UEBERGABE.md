@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.266.0**, Zweig `typescript-migration`.
+Stand: **v4.267.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,32 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Vorgeschlagen und gebaut (4.267.0): **Abgeschnittene Sammler-Funde am Komma
+kürzen.** Im Blatt stand „… wird der italienische Festungsbaumeister und Militär
+Rochus zu Lynar geboren, der insbesondere durch Bauten im Dienst deutscher
+Fürsten wie der." `wasPhrase()` kappt lange Wikipedia-Auszüge nach 170 Zeichen
+und suchte nur nach einem Satzende; fand es keines, brach es mitten in der
+Phrase ab. Jetzt wird am letzten Komma gekürzt — dort endet die letzte
+vollständige Fügung. Übrig bleibt ein ganzer Satz, nur kürzer.
+
+Dazu `kuerzeAmBruch()` in `text-utils.ts`, das auch rettet, was schon
+abgeschnitten im Vorrat liegt (`formeWas` ruft es). Ohne Komma fällt das
+hängende Wort weg statt des ganzen Fundes.
+
+**Zwei Fallen dabei, beide beim Messen aufgefallen:**
+
+1. Die Liste der hängenden Wörter darf KEINE trennbaren Präfixe enthalten. Die
+   erste Fassung machte aus „Er kommt an" ein „Er kommt". Dieselbe
+   Unterscheidung braucht schon `istAbgeschnitten()` in `postprocess.ts`.
+   Ein Präfix am Ende wird nur dann abgeworfen, wenn das Wort davor
+   GROSSGESCHRIEBEN ist — „… seit vielen Jahren auf" ist abgeschnitten,
+   „Er kommt an" nicht.
+2. Eine Mindestlänge in `kuerzeAmBruch()` wäre verheerend: Die Funktion läuft
+   auch über frei getippte Felder. Eine Untergrenze von fünf Wörtern hätte
+   „sucht eine Akte" stillschweigend geleert.
+
+Prüfstand Nr. 44 63 → 74, drei Gegenproben.
 
 Gefragt (4.266.0): **„Wie kann die Textmaschine mit der Perspektive Du bei so
 einer Vorgabe umgehen?"** Vorgelegt war ein Absatz mit drei verschiedenen

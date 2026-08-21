@@ -260,6 +260,29 @@ function escapeRegExp(s) {
 function splitSentences(txt) {
   return txt.replace(/\s+/g, " ").trim().split(/(?<=[.!?…])\s+/).filter(Boolean);
 }
+var HAENGT_IN_DER_LUFT = /(^|\s)(ein|eine|einem|einen|einer|eines|der|die|das|dem|den|des|und|oder|aber|wie|als|im|am|beim|zum|zur|vom|von|für|ohne|durch|gegen|bei|seit|während|wegen|trotz|dass|weil|denn|sondern|sowie|bzw|etwa|sehr|dessen|deren|welche[rsmn]?)$/i;
+function kuerzeAmBruch(text) {
+  let t = (text || "").replace(/\s*…\s*$/, "").replace(/\s*[.,;:–—-]+\s*$/, "").trim();
+  for (let i = 0; i < 8 && t && HAENGT_IN_DER_LUFT.test(t); i++) {
+    const komma = t.lastIndexOf(",");
+    if (komma >= 12) {
+      t = t.slice(0, komma).replace(/\s*[.,;:–—-]+\s*$/, "").trim();
+      continue;
+    }
+    const ohneWort = t.replace(/\s+\S+$/, "").replace(/\s*[.,;:–—-]+\s*$/, "").trim();
+    if (!ohneWort || ohneWort === t) {
+      t = "";
+      break;
+    }
+    t = ohneWort;
+  }
+  for (let i = 0; i < 4; i++) {
+    const m = t.match(/(\S+)\s+(an|auf|aus|ein|mit|nach|vor|zu|über|unter|um|ab|bei|los|weg|hin|her)$/i);
+    if (!m || !/^[A-ZÄÖÜ]/.test(m[1])) break;
+    t = t.replace(/\s+\S+$/, "").trim();
+  }
+  return HAENGT_IN_DER_LUFT.test(t) ? "" : t;
+}
 
 // src/generation/nouns.data.ts
 var NOUN_GENDER = {
@@ -10213,7 +10236,8 @@ function formeWas(roh) {
   }
   const semi = w.indexOf(";");
   if (semi > 12) w = w.slice(0, semi);
-  return w.replace(/[\s,;:–—-]+$/, "").replace(/[.!?…]+$/, "").trim();
+  w = w.replace(/[\s,;:–—-]+$/, "").replace(/[.!?…]+$/, "").trim();
+  return kuerzeAmBruch(w);
 }
 function kurzPerson(werRoh) {
   const w = (werRoh || "").trim().split(/\s+/).filter(Boolean).filter((x) => !/^(Dr\.|Prof\.|Ing\.|Dipl\.-?\w*\.?|med\.|jur\.|rer\.|nat\.|h\.c\.|Sir|Lady|Herr|Frau)$/i.test(x));
