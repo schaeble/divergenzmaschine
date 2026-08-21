@@ -2253,6 +2253,32 @@ var ROLLE_LABEL = {
   vorgaenge: "Vorg\xE4nge",
   geld: "Volumen"
 };
+var VORGESCHICHTE_ZEIT = [
+  "im Fr\xFChjahr",
+  "im vergangenen Herbst",
+  "im Sommer davor",
+  "vor zwei Jahren",
+  "im Winter zuvor",
+  "vor einigen Monaten",
+  "im Jahr davor",
+  "kurz nach der Wende"
+];
+var VORGESCHICHTE_SACHLICH = [
+  "die erste Meldung",
+  "der erste Hinweis",
+  "die erste Beschwerde",
+  "die erste Anfrage",
+  "der erste Zweifel",
+  "das erste Ger\xFCcht"
+];
+var VORGESCHICHTE_GUT = [
+  "die erste Zusage",
+  "das erste Angebot",
+  "die erste Anfrage",
+  "der erste Zuspruch",
+  "die erste Unterst\xFCtzung",
+  "das erste Interesse"
+];
 var ZEITPUNKT = [
   "am vergangenen Donnerstag",
   "am Montagabend",
@@ -2318,8 +2344,16 @@ function kurzform(haupt, genus) {
   return `${art} ${teil}`;
 }
 var TITEL = /^(Dr|Prof|Ing|Dipl|Mag|Med|Rer|Nat|Phil|h\.c|Jun|Sen|MdB|MdL)\.?$/i;
+var PERSON_NOMEN = /(mädchen|junge|kind|frau|mann|männer|dame|herr|schüler|schülerin|lehrer|lehrerin|wächter|wächterin|arzt|ärztin|bäcker|bäckerin|gärtner|gärtnerin|fischer|fischerin|bote|botin|wanderer|wanderin|reisende|reisender|nachbar|nachbarin|greis|greisin|witwe|witwer|zwilling|bruder|schwester|sohn|tochter|vater|mutter|onkel|tante|neffe|nichte|freund|freundin|gast|fremde|fremder|meister|meisterin|gesell|lehrling|soldat|soldatin|matrose|matrosin|pilot|pilotin|köchin|koch|wirt|wirtin|müller|müllerin|schmied|schmiedin|hirte|hirtin|jäger|jägerin|sammler|sammlerin)$/i;
+function istGattungsperson(haupt) {
+  const w = haupt.trim().replace(/[^A-Za-zÄÖÜäöüß\s-]/g, "").split(/\s+/).filter(Boolean);
+  const letztes = w[w.length - 1] || "";
+  if (!letztes || !/^[A-ZÄÖÜ]/.test(letztes)) return false;
+  return PERSON_NOMEN.test(letztes);
+}
 function istPerson(haupt) {
   let w = haupt.trim().split(/\s+/);
+  if (istGattungsperson(haupt)) return true;
   if (/^(der|die|das|ein|eine)$/i.test(w[0] || "")) return false;
   const mitTitel = w.length;
   w = w.filter((x) => !TITEL.test(x.replace(/[^A-Za-z.]/g, "")));
@@ -2390,7 +2424,12 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
     { id: "c1", zeit: String(jahr), was: "der Anfang" },
     // Auch die Chronologie kennt die Blickrichtung: Im Faktenkasten stand sonst
     // "die erste Meldung", waehrend im Text "die erste Zusage" lief.
-    { id: "c2", zeit: "im Fr\xFChjahr", was: gutesLicht ? "die erste Zusage" : "die erste Meldung" },
+    // FRÜHER FEST: „im Frühjahr" und „die erste Meldung". Damit stand in jedem
+    // Bericht und in jeder Meldung derselbe Satz — in einer Ausgabe mit acht
+    // Beiträgen viermal wörtlich. Das war der auffälligste Wiederholungsbefund
+    // des ganzen Blattes und kein Fehler des Generators, sondern eine
+    // Konstante an der falschen Stelle.
+    { id: "c2", zeit: pick(VORGESCHICHTE_ZEIT), was: pick(gutesLicht ? VORGESCHICHTE_GUT : VORGESCHICHTE_SACHLICH) },
     // Dieselbe Form wie im Vorspann, sonst steht dort "Im Frühjahr 2001" und
     // im Hergang "Frühjahr 2001 folgte der Schritt".
     { id: "c3", zeit: mitPraeposition(wann) || pick(ZEITPUNKT), was: (input.what || "das Ereignis").trim() }
@@ -2398,7 +2437,7 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
   return {
     id: "fb-" + Date.now().toString(36),
     ressort,
-    wer: person ? { haupt: werRoh, kurz: werRoh.split(/\s+/).pop(), genus, art: "person" } : { haupt: werRoh, kurz: kurzform(werRoh, genus), genus, art: "organisation" },
+    wer: person ? istGattungsperson(werRoh) ? { haupt: werRoh, kurz: werRoh.replace(/^(ein|eine|einer|einem)\s+/i, (m) => /^eine\s/i.test(m) ? "die " : "das "), genus, art: "person" } : { haupt: werRoh, kurz: werRoh.split(/\s+/).pop(), genus, art: "person" } : { haupt: werRoh, kurz: kurzform(werRoh, genus), genus, art: "organisation" },
     was: (input.what || "meldet einen Vorfall").trim().replace(/[.!?…]+$/, ""),
     // Zwei Formen: `ort` fuer die Dachzeile ("Unterelbe · Wetter"), `mitPraep`
     // fuer den Satz. Ohne die zweite stand "Wie es in Unterelbe weitergeht" -
@@ -3526,7 +3565,7 @@ var GUTE_TOENE = /* @__PURE__ */ new Set(["uplifting", "humorous", "zaertlich"])
 var blickVonTon = (ton) => GUTE_TOENE.has((ton || "").toLowerCase()) ? "gut" : "sachlich";
 var WORTE = {
   sachlich: {
-    vorspann: (n2) => `wurde bekannt, dass ${n2} betroffen sind`,
+    vorspann: (n2) => `wurde, dass ${n2} betroffen sind`,
     ersteMeldung: "die erste Meldung",
     // Das Bezugswort steckt im Satz: "der Schritt, ueber DEN". Als ich nur das
     // Nomen austauschte, stand "folgte der Schritt, ueber die ...".
@@ -3536,7 +3575,7 @@ var WORTE = {
     weitere: (x) => `Betroffen sind au\xDFerdem ${x}.`
   },
   gut: {
-    vorspann: (n2) => `wurde bekannt, dass ${n2} hinzukommen`,
+    vorspann: (n2) => `wurde, dass ${n2} hinzukommen`,
     ersteMeldung: "die erste Zusage",
     schritt: (wer) => `folgte die Entscheidung, \xFCber die ${wer} nun informiert`,
     haelfte: (l, w) => `${cap(l)} \u2014 ${w} \u2014 entsteht im ersten Jahr.`,
@@ -3564,20 +3603,24 @@ var Buchfuehrung = class {
 };
 var EINSATZ_FORMEL = /^(Der Einsatz ist|Es geht um|Auf dem Spiel steht|Alles dreht sich um|Was zählt, ist|Am Ende bleibt nur|Verlieren hieße)\b/i;
 var ZAHLWORT = /(?<![a-zäöüß])(zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|dreizehn|vierzehn|fünfzehn|sechzehn|siebzehn|achtzehn|neunzehn|zwanzig|dreißig|vierzig|fünfzig|hundert|tausend|dutzend|hunderte|tausende|dutzende)(?![a-zäöüß])/i;
+function satzSchluessel(s) {
+  return (s || "").toLowerCase().replace(/[.!?…,;:]+/g, "").replace(/\s+/g, " ").trim();
+}
+var istIchOderDu = (s) => isFirstPerson(s) || isSecondPerson(s);
 function satzOhneZahl(bank, kats, benutzt, zusatz = []) {
   const kandidaten = [];
   for (const k of kats) for (const x of bank[k] || []) {
-    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x)) continue;
-    if (benutzt.has(x)) continue;
+    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || istIchOderDu(x)) continue;
+    if (benutzt.has(satzSchluessel(x))) continue;
     kandidaten.push(x);
   }
   for (const x of zusatz) {
-    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || benutzt.has(x)) continue;
+    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || istIchOderDu(x) || benutzt.has(satzSchluessel(x))) continue;
     kandidaten.push(x);
   }
   if (!kandidaten.length) return null;
   const s = pick(kandidaten);
-  benutzt.add(s);
+  benutzt.add(satzSchluessel(s));
   return s.replace(/[.!?…]+$/, "");
 }
 function schlagzeile(fb) {
@@ -3590,15 +3633,26 @@ function dachzeile(fb) {
 function vorspann(fb, b, blick) {
   const z = fb.zahlen[0];
   const w = WORTE[blick];
-  const s1 = `${cap(b.organisation(fb))} ${fb.was}.`;
-  const s2 = z ? `${cap(fb.wann.datum)} ${w.vorspann(`${z.verbal || z.wortform} ${z.einheit}`)}.` : `${cap(fb.wann.datum)} wurde es ${fb.wo.mitPraep} bekannt.`;
+  const s1 = `${cap(fb.wann.datum)}: ${cap(b.organisation(fb))} ${fb.was}.`;
+  const s2 = z ? `Bekannt ${w.vorspann(`${z.verbal || z.wortform} ${z.einheit}`)}.` : `Bekannt wurde es erst sp\xE4ter.`;
   return `${s1} ${s2}`;
 }
 function hergang(fb, bank, b, benutzt, extra, vorrat, blick) {
   const teile = [];
   const w = WORTE[blick];
   const c2 = fb.chronologie[1], c3 = fb.chronologie[2];
-  if (c2) teile.push(`${cap(c2.zeit)} zeichnete sich ${blick === "gut" ? w.ersteMeldung : c2.was} ab.`);
+  if (c2) {
+    const was2 = blick === "gut" ? w.ersteMeldung : c2.was;
+    const fassungen = [
+      `${cap(c2.zeit)} zeichnete sich ${was2} ab.`,
+      `${cap(c2.zeit)} gab es ${was2}.`,
+      // Ohne Präposition: „mit der erste Anfrage" war der erste Versuch — der
+      // Artikel wurde gebeugt, das Adjektiv nicht. Ein Doppelpunkt braucht
+      // keinen Kasus.
+      `Angefangen hatte es ${c2.zeit}: ${was2}.`
+    ];
+    teile.push(pick(fassungen));
+  }
   for (let i2 = 0; i2 < 1 + extra; i2++) {
     const roh = satzOhneZahl(bank, ["obstacles", "turns"], benutzt, vorrat);
     if (roh) teile.push(`${cap(roh)}.`);
@@ -3696,7 +3750,10 @@ function buildBericht(bank, input, ressort = "auto") {
   const blick = blickVonTon(input.tone || "");
   const abschnitte = [];
   abschnitte.push(dachzeile(fb));
-  abschnitte.push(schlagzeile(fb));
+  const zeile = schlagzeile(fb);
+  benutzt.add(satzSchluessel(zeile));
+  benutzt.add(satzSchluessel(fb.was));
+  abschnitte.push(zeile);
   abschnitte.push(vorspann(fb, b, blick));
   const hergangText = hergang(fb, bank, b, benutzt, extra, vorrat, blick);
   abschnitte.push(hergangText);
@@ -7118,8 +7175,25 @@ var VERBOTEN = [
   // traf "1902. Zeit beschleunigt sich" - dieselbe Falle wie bei "210." in der
   // Zahlenpruefung des Programms.
   ["Singular als Menge", /\b\d+(?:\.\d+)* (Sonne|Bühne|Konzern|Wahrheit|Zeit|Welt|Dauerregen|Gewittern|Regen|Boden|Wagen)\b/],
-  ["Ort ohne Pr\xE4position", /\b(Wie es|wurde es) in (der|die|das) /]
+  ["Ort ohne Pr\xE4position", /\b(Wie es|wurde es) in (der|die|das) /],
+  // Aus der Ausgabe „Zeitzeichen" vom 21.08.2026, alle vier im selben Blatt:
+  ["Gattungsperson besteht seit", /\b(Schulmädchen|Kind|Junge|Mädchen|Frau|Mann|Wächter|Nachbar) besteht seit\b/],
+  ["Kurzform ohne Artikel", /(^|\. )(Schulmädchen|Mädchen|Junge|Kind|Wächter) (ist seit|besteht seit)\b/],
+  ["Ich-Form im Bericht", /(^|\. )(Ich|Wir) (bin|bins|sehne|will|weiß|kenne|erinnere|liege|gehe|sehe|höre|fühle|habe|muss)\b/],
+  ["Du-Form im Bericht", /(^|\. )(Du|Dein|Deine) \w+/],
+  ["Kasus nach mit", /\bmit (der|dem) erste (Meldung|Anfrage|Beschwerde|Zusage)\b/]
 ];
+function satzDublette(text) {
+  const saetze = text.split(/(?<!\d)[.!?](?=\s|$)/).map((x) => x.trim().toLowerCase().replace(/[.!?…,;:]+/g, "").replace(/\s+/g, " ")).filter((x) => x.length > 12);
+  for (let i2 = 1; i2 < saetze.length; i2++) if (saetze[i2] === saetze[i2 - 1]) return saetze[i2];
+  return null;
+}
+function vorspannWiederholtSchlagzeile(text) {
+  const abs = text.split(/\n{2,}/).map((x) => x.trim()).filter(Boolean);
+  const zeile = (abs[1] || "").toLowerCase().replace(/[.!?…\s]+$/, "").trim();
+  const vor = (abs[2] || "").split(/(?<!\d)[.!?](?=\s|$)/)[0]?.toLowerCase().replace(/[.!?…\s]+$/, "").trim() || "";
+  return !!zeile && zeile.length > 8 && vor === zeile;
+}
 function semantisch(text, fb) {
   const out = [];
   const z1 = fb.zahlen[0];
@@ -7148,6 +7222,7 @@ var basis = {
   instability: 2
 };
 var zaehl = /* @__PURE__ */ new Map();
+var chronoZeilen = /* @__PURE__ */ new Map();
 var bsp = /* @__PURE__ */ new Map();
 var n = 0;
 var sauber = 0;
@@ -7168,6 +7243,10 @@ for (const wer of WER) for (const was of WAS) for (const wann of WANN) for (cons
     n++;
     const funde = [];
     for (const [name, re] of VERBOTEN) if (re.test(b.text)) funde.push(name);
+    if (satzDublette(b.text)) funde.push("derselbe Satz zweimal hintereinander");
+    if (vorspannWiederholtSchlagzeile(b.text)) funde.push("Vorspann wiederholt die Schlagzeile");
+    const chron = b.text.match(/(Im |Vor |Kurz |Angefangen)[^.]*?(erste (Meldung|Anfrage|Beschwerde|Zusage|Zweifel|Hinweis)|erstes? (Gerücht|Angebot|Interesse|Zuspruch|Unterstützung))[^.]*\./);
+    if (chron) chronoZeilen.set(chron[0], (chronoZeilen.get(chron[0]) || 0) + 1);
     funde.push(...semantisch(b.text, b.fb));
     funde.push(...pruefeBericht(b.text, b.fb, b.hergang).map((x) => x.art));
     if (!funde.length) {
@@ -7179,10 +7258,32 @@ for (const wer of WER) for (const was of WAS) for (const wann of WANN) for (cons
       if (!bsp.has(f)) bsp.set(f, `${wer} / ${was} / ${wann || "\u2014"} / ${ressort}`);
     }
   }
+var fehler = false;
 console.log(`Pr\xFCfstand Bericht: ${n} L\xE4ufe (${WER.length}\xD7${WAS.length}\xD7${WANN.length}\xD7${WO.length}\xD7${TOENE.length} T\xF6ne)`);
 console.log(`  ${sauber} ohne Befund (${Math.round(100 * sauber / n)} %)`);
 if (zaehl.size) {
   console.log(`  ${zaehl.size} Fehlerklassen:`);
   [...zaehl].sort((a, b2) => b2[1] - a[1]).forEach(([f, c]) => console.log(`    ${String(c).padStart(4)}\xD7  ${f}
            bei: ${bsp.get(f)}`));
+  fehler = true;
 } else console.log("  keine Fehlerklasse ausgel\xF6st");
+{
+  const gesamt = [...chronoZeilen.values()].reduce((a, b) => a + b, 0);
+  const haeufigste = [...chronoZeilen.entries()].sort((a, b) => b[1] - a[1])[0];
+  const anteil = gesamt ? haeufigste ? haeufigste[1] / gesamt : 0 : 0;
+  console.log(`  Vorgeschichte: ${chronoZeilen.size} verschiedene Fassungen, h\xE4ufigste ${Math.round(anteil * 100)} %`);
+  if (anteil > 0.35) {
+    console.error(`
+\u274C Die Vorgeschichte lautet in ${Math.round(anteil * 100)} % der Berichte gleich: \u201E${haeufigste?.[0]}"`);
+    fehler = true;
+  }
+}
+var proc = globalThis;
+if (fehler) {
+  console.error(`
+\u274C Bericht: ${zaehl.size} Fehlerklasse(n) in ${n} L\xE4ufen.`);
+  proc.process?.exit(1);
+} else {
+  console.log(`
+\u2705 Bericht: ${n} L\xE4ufe ohne Befund.`);
+}

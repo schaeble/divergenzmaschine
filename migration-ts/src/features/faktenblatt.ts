@@ -90,6 +90,21 @@ export const ROLLE_LABEL: Record<ZahlRolle, string> = {
   vorgaenge: "Vorgänge", geld: "Volumen",
 };
 
+/** Wann sich die Sache das erste Mal zeigte. Relative Angaben, damit sie zu
+ *  jedem Ereignisjahr passen. */
+const VORGESCHICHTE_ZEIT = [
+  "im Frühjahr", "im vergangenen Herbst", "im Sommer davor", "vor zwei Jahren",
+  "im Winter zuvor", "vor einigen Monaten", "im Jahr davor", "kurz nach der Wende",
+];
+const VORGESCHICHTE_SACHLICH = [
+  "die erste Meldung", "der erste Hinweis", "die erste Beschwerde",
+  "die erste Anfrage", "der erste Zweifel", "das erste Gerücht",
+];
+const VORGESCHICHTE_GUT = [
+  "die erste Zusage", "das erste Angebot", "die erste Anfrage",
+  "der erste Zuspruch", "die erste Unterstützung", "das erste Interesse",
+];
+
 const ZEITPUNKT = ["am vergangenen Donnerstag", "am Montagabend", "in der Nacht zum Sonntag",
   "am frühen Morgen", "gegen Mittag", "am Dienstag"];
 const RELATIV = ["vor vier Tagen", "vor einer Woche", "seit dem Wochenende", "am Vortag", "vor drei Tagen"];
@@ -205,8 +220,27 @@ function kurzform(haupt: string, genus: Genus): string {
  *  kein Artikel davor, zwei grossgeschriebene Woerter, keine Rechtsform. */
 const TITEL = /^(Dr|Prof|Ing|Dipl|Mag|Med|Rer|Nat|Phil|h\.c|Jun|Sen|MdB|MdL)\.?$/i;
 
+/** Gattungsbezeichnungen für Menschen. Sie sind der zweite Weg zur Person:
+ *  „ein Schulmädchen" trägt keinen Eigennamen und fiel deshalb durch — im
+ *  Blatt stand „Das Schulmädchen besteht seit 1965", als wäre es ein Verein,
+ *  und seine Laufbahn wurde mit der Spanne einer Einrichtung gerechnet.
+ *
+ *  Eng gehalten: „das Stadttheater" darf keine Person werden. Geprüft wird das
+ *  LETZTE Wort, denn im Deutschen bestimmt das Grundwort das Kompositum —
+ *  „Schulmädchen" ist ein Mädchen, „Mädchenschule" eine Schule. */
+const PERSON_NOMEN = /(mädchen|junge|kind|frau|mann|männer|dame|herr|schüler|schülerin|lehrer|lehrerin|wächter|wächterin|arzt|ärztin|bäcker|bäckerin|gärtner|gärtnerin|fischer|fischerin|bote|botin|wanderer|wanderin|reisende|reisender|nachbar|nachbarin|greis|greisin|witwe|witwer|zwilling|bruder|schwester|sohn|tochter|vater|mutter|onkel|tante|neffe|nichte|freund|freundin|gast|fremde|fremder|meister|meisterin|gesell|lehrling|soldat|soldatin|matrose|matrosin|pilot|pilotin|köchin|koch|wirt|wirtin|müller|müllerin|schmied|schmiedin|hirte|hirtin|jäger|jägerin|sammler|sammlerin)$/i;
+function istGattungsperson(haupt: string): boolean {
+  const w = haupt.trim().replace(/[^A-Za-zÄÖÜäöüß\s-]/g, "").split(/\s+/).filter(Boolean);
+  const letztes = w[w.length - 1] || "";
+  if (!letztes || !/^[A-ZÄÖÜ]/.test(letztes)) return false;
+  return PERSON_NOMEN.test(letztes);
+}
+
 function istPerson(haupt: string): boolean {
   let w = haupt.trim().split(/\s+/);
+  // Zuerst die Gattung: „ein Schulmädchen" beginnt mit einem Artikel und wäre
+  // sonst gleich am nächsten Prüfschritt gescheitert.
+  if (istGattungsperson(haupt)) return true;
   if (/^(der|die|das|ein|eine)$/i.test(w[0] || "")) return false;
   // Titel abziehen: "Dr. Ing. Richard Doll" sind vier Woerter, davon zwei Titel.
   // Ohne das galt der Name als Einrichtung, und im Text stand "der Doll".
@@ -333,7 +367,12 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
     { id: "c1", zeit: String(jahr), was: "der Anfang" },
     // Auch die Chronologie kennt die Blickrichtung: Im Faktenkasten stand sonst
     // "die erste Meldung", waehrend im Text "die erste Zusage" lief.
-    { id: "c2", zeit: "im Frühjahr", was: gutesLicht ? "die erste Zusage" : "die erste Meldung" },
+    // FRÜHER FEST: „im Frühjahr" und „die erste Meldung". Damit stand in jedem
+    // Bericht und in jeder Meldung derselbe Satz — in einer Ausgabe mit acht
+    // Beiträgen viermal wörtlich. Das war der auffälligste Wiederholungsbefund
+    // des ganzen Blattes und kein Fehler des Generators, sondern eine
+    // Konstante an der falschen Stelle.
+    { id: "c2", zeit: pick(VORGESCHICHTE_ZEIT), was: pick(gutesLicht ? VORGESCHICHTE_GUT : VORGESCHICHTE_SACHLICH) },
     // Dieselbe Form wie im Vorspann, sonst steht dort "Im Frühjahr 2001" und
     // im Hergang "Frühjahr 2001 folgte der Schritt".
     { id: "c3", zeit: mitPraeposition(wann) || pick(ZEITPUNKT), was: (input.what || "das Ereignis").trim() },
@@ -343,7 +382,13 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
     id: "fb-" + Date.now().toString(36),
     ressort,
     wer: person
-      ? { haupt: werRoh, kurz: werRoh.split(/\s+/).pop()!, genus, art: "person" }
+      // Die Kurzform einer Person ist ihr Nachname — „Doll ist seit 1984
+      // dabei". Eine GATTUNGSperson hat aber keinen: „Schulmädchen ist seit
+      // 1984 dabei" fehlt der Artikel. Sie behält deshalb ihre volle Form mit
+      // bestimmtem Artikel.
+      ? istGattungsperson(werRoh)
+        ? { haupt: werRoh, kurz: werRoh.replace(/^(ein|eine|einer|einem)\s+/i, (m) => (/^eine\s/i.test(m) ? "die " : "das ")), genus, art: "person" as const }
+        : { haupt: werRoh, kurz: werRoh.split(/\s+/).pop()!, genus, art: "person" as const }
       : { haupt: werRoh, kurz: kurzform(werRoh, genus), genus, art: "organisation" },
     was: (input.what || "meldet einen Vorfall").trim().replace(/[.!?…]+$/, ""),
     // Zwei Formen: `ort` fuer die Dachzeile ("Unterelbe · Wetter"), `mitPraep`

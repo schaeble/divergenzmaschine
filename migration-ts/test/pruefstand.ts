@@ -67,7 +67,37 @@ const VERBOTEN: [string, RegExp][] = [
   // Zahlenpruefung des Programms.
   ["Singular als Menge", /\b\d+(?:\.\d+)* (Sonne|Bühne|Konzern|Wahrheit|Zeit|Welt|Dauerregen|Gewittern|Regen|Boden|Wagen)\b/],
   ["Ort ohne Präposition", /\b(Wie es|wurde es) in (der|die|das) /],
+  // Aus der Ausgabe „Zeitzeichen" vom 21.08.2026, alle vier im selben Blatt:
+  ["Gattungsperson besteht seit", /\b(Schulmädchen|Kind|Junge|Mädchen|Frau|Mann|Wächter|Nachbar) besteht seit\b/],
+  ["Kurzform ohne Artikel", /(^|\. )(Schulmädchen|Mädchen|Junge|Kind|Wächter) (ist seit|besteht seit)\b/],
+  ["Ich-Form im Bericht", /(^|\. )(Ich|Wir) (bin|bins|sehne|will|weiß|kenne|erinnere|liege|gehe|sehe|höre|fühle|habe|muss)\b/],
+  ["Du-Form im Bericht", /(^|\. )(Du|Dein|Deine) \w+/],
+  ["Kasus nach mit", /\bmit (der|dem) erste (Meldung|Anfrage|Beschwerde|Zusage)\b/],
 ];
+
+/** Zwei gleiche Sätze hintereinander. Im Blatt stand „Jemand hat an etwas
+ *  gedacht. Jemand hat an etwas gedacht." — die Sperre merkte sich den ROHEN
+ *  Eintrag, gedruckt wurde der um Satzzeichen gekürzte, und zwei Einträge, die
+ *  sich nur im Schlusspunkt unterschieden, kamen beide durch. */
+function satzDublette(text: string): string | null {
+  const saetze = text.split(/(?<!\d)[.!?](?=\s|$)/)
+    .map((x) => x.trim().toLowerCase().replace(/[.!?…,;:]+/g, "").replace(/\s+/g, " "))
+    .filter((x) => x.length > 12);
+  for (let i = 1; i < saetze.length; i++) if (saetze[i] === saetze[i - 1]) return saetze[i]!;
+  return null;
+}
+
+/** Der Vorspann darf die Schlagzeile nicht wörtlich wiederholen. Tut er es,
+ *  streicht der Setzer ihn als Dublette — und der Bericht beginnt mit einer
+ *  Passivkonstruktion ohne Subjekt: „Während der Mittagspause wurde bekannt,
+ *  dass rund 1.300 Haushalte betroffen sind." Wer? Stand nur in der
+ *  Überschrift. */
+function vorspannWiederholtSchlagzeile(text: string): boolean {
+  const abs = text.split(/\n{2,}/).map((x) => x.trim()).filter(Boolean);
+  const zeile = (abs[1] || "").toLowerCase().replace(/[.!?…\s]+$/, "").trim();
+  const vor = (abs[2] || "").split(/(?<!\d)[.!?](?=\s|$)/)[0]?.toLowerCase().replace(/[.!?…\s]+$/, "").trim() || "";
+  return !!zeile && zeile.length > 8 && vor === zeile;
+}
 
 /** Prüfungen, die das Faktenblatt brauchen. */
 function semantisch(text: string, fb: ReturnType<typeof buildBericht>["fb"]): string[] {
@@ -90,6 +120,7 @@ const basis = { tone: "neutral", varLevel: "wild", structure: "rekombination", m
   archetypeB: "neutral", instability: 2 } as unknown as GenInput;
 
 const zaehl = new Map<string, number>();
+const chronoZeilen = new Map<string, number>();
 const bsp = new Map<string, string>();
 let n = 0, sauber = 0, i = 0;
 for (const wer of WER) for (const was of WAS) for (const wann of WANN) for (const wo of WO)
@@ -106,6 +137,13 @@ for (const wer of WER) for (const was of WAS) for (const wann of WANN) for (cons
     n++;
     const funde: string[] = [];
     for (const [name, re] of VERBOTEN) if (re.test(b.text)) funde.push(name);
+    if (satzDublette(b.text)) funde.push("derselbe Satz zweimal hintereinander");
+    if (vorspannWiederholtSchlagzeile(b.text)) funde.push("Vorspann wiederholt die Schlagzeile");
+    // Der Chronologiesatz stand wörtlich in jedem Bericht. Gezählt wird er
+    // hier, ausgewertet unten als ANTEIL — ein einzelnes Vorkommen ist kein
+    // Fehler, dieselbe Zeile in jedem Bericht schon.
+    const chron = b.text.match(/(Im |Vor |Kurz |Angefangen)[^.]*?(erste (Meldung|Anfrage|Beschwerde|Zusage|Zweifel|Hinweis)|erstes? (Gerücht|Angebot|Interesse|Zuspruch|Unterstützung))[^.]*\./);
+    if (chron) chronoZeilen.set(chron[0], (chronoZeilen.get(chron[0]) || 0) + 1);
     funde.push(...semantisch(b.text, b.fb));
     funde.push(...pruefeBericht(b.text, b.fb, b.hergang).map((x) => x.art));
     if (!funde.length) { sauber++; continue; }
@@ -115,10 +153,36 @@ for (const wer of WER) for (const was of WAS) for (const wann of WANN) for (cons
     }
   }
 
+// Bisher hat dieser Prüfstand nur GEMELDET. Ein Lauf mit Befunden lief grün
+// durch, weil er den Rückgabewert nie setzte — eine Sperre, die nie zuschlägt.
+let fehler = false;
 console.log(`Prüfstand Bericht: ${n} Läufe (${WER.length}×${WAS.length}×${WANN.length}×${WO.length}×${TOENE.length} Töne)`);
 console.log(`  ${sauber} ohne Befund (${Math.round(100 * sauber / n)} %)`);
 if (zaehl.size) {
   console.log(`  ${zaehl.size} Fehlerklassen:`);
   [...zaehl].sort((a, b2) => b2[1] - a[1]).forEach(([f, c]) =>
     console.log(`    ${String(c).padStart(4)}×  ${f}\n           bei: ${bsp.get(f)}`));
+  fehler = true;
 } else console.log("  keine Fehlerklasse ausgelöst");
+
+// Die Vorgeschichte darf nicht in jedem Bericht gleich lauten. Vorher standen
+// „im Frühjahr" und „die erste Meldung" als Konstanten im Faktenblatt — in
+// einer Ausgabe mit acht Beiträgen viermal wörtlich derselbe Satz.
+{
+  const gesamt = [...chronoZeilen.values()].reduce((a, b) => a + b, 0);
+  const haeufigste = [...chronoZeilen.entries()].sort((a, b) => b[1] - a[1])[0];
+  const anteil = gesamt ? (haeufigste ? haeufigste[1] / gesamt : 0) : 0;
+  console.log(`  Vorgeschichte: ${chronoZeilen.size} verschiedene Fassungen, häufigste ${Math.round(anteil * 100)} %`);
+  if (anteil > 0.35) {
+    console.error(`\n❌ Die Vorgeschichte lautet in ${Math.round(anteil * 100)} % der Berichte gleich: „${haeufigste?.[0]}"`);
+    fehler = true;
+  }
+}
+
+const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
+if (fehler) {
+  console.error(`\n❌ Bericht: ${zaehl.size} Fehlerklasse(n) in ${n} Läufen.`);
+  proc.process?.exit(1);
+} else {
+  console.log(`\n✅ Bericht: ${n} Läufe ohne Befund.`);
+}

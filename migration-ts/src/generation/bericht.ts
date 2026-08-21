@@ -11,6 +11,7 @@ import type { Bank, GenInput } from "../types";
 import { pick } from "../text-utils";
 import { cap } from "./beats";
 import { hatFinitesVerb } from "../atoms/derive";
+import { isFirstPerson, isSecondPerson } from "./coherence";
 
 import { ziehFaktenblatt, erlaubteZahlen, ALLE_NAMEN, ROLLE_LABEL, type Faktenblatt, type FbPerson, type FbZahl } from "../features/faktenblatt";
 import { buildVersAtome } from "../atoms/rekombination";
@@ -30,7 +31,7 @@ export const blickVonTon = (ton: string): Blick =>
  *  laesst sich nachlesen, worin sich die beiden Fassungen unterscheiden. */
 const WORTE = {
   sachlich: {
-    vorspann: (n: string) => `wurde bekannt, dass ${n} betroffen sind`,
+    vorspann: (n: string) => `wurde, dass ${n} betroffen sind`,
     ersteMeldung: "die erste Meldung",
     // Das Bezugswort steckt im Satz: "der Schritt, ueber DEN". Als ich nur das
     // Nomen austauschte, stand "folgte der Schritt, ueber die ...".
@@ -40,7 +41,7 @@ const WORTE = {
     weitere: (x: string) => `Betroffen sind außerdem ${x}.`,
   },
   gut: {
-    vorspann: (n: string) => `wurde bekannt, dass ${n} hinzukommen`,
+    vorspann: (n: string) => `wurde, dass ${n} hinzukommen`,
     ersteMeldung: "die erste Zusage",
     schritt: (wer: string) => `folgte die Entscheidung, über die ${wer} nun informiert`,
     haelfte: (l: string, w: string) => `${cap(l)} — ${w} — entsteht im ersten Jahr.`,
@@ -79,23 +80,40 @@ const ZAHLWORT = /(?<![a-zäöüß])(zwei|drei|vier|fünf|sechs|sieben|acht|neun
 
 /** Ein Satz aus dem Vorrat, der keine Ziffer enthält — Zahlen kommen NUR aus
  *  dem Faktenblatt, sonst bricht die Konsistenzprüfung. */
+/** Der Schlüssel, unter dem ein Satz als „schon benutzt" gilt.
+ *
+ *  Vorher wurde der ROHE Eintrag gemerkt, gedruckt aber der um Satzzeichen
+ *  gekürzte. Zwei Einträge, die sich nur im Schlusspunkt unterscheiden, kamen
+ *  damit beide durch — im Blatt stand „Jemand hat an etwas gedacht. Jemand hat
+ *  an etwas gedacht." unmittelbar hintereinander. */
+function satzSchluessel(s: string): string {
+  return (s || "").toLowerCase().replace(/[.!?…,;:]+/g, "").replace(/\s+/g, " ").trim();
+}
+
+/** Ein Bericht referiert in der dritten Person. Im Blatt standen mitten im
+ *  Hergang Sätze wie „Ich sehne mich nach einem klaren Ufer" und „Ich bin müde
+ *  vom grenzenlosen Blau" — aus dem Preset-Vorrat, der für Prosa gedacht ist.
+ *  Sie sind kein Widerspruch zu den Fakten, aber ein Perspektivbruch, und sie
+ *  machen den Hergang unlesbar. */
+const istIchOderDu = (s: string): boolean => isFirstPerson(s) || isSecondPerson(s);
+
 function satzOhneZahl(bank: Bank, kats: (keyof Bank)[], benutzt: Set<string>, zusatz: string[] = []): string | null {
   const kandidaten: string[] = [];
   for (const k of kats) for (const x of bank[k] || []) {
-    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x)) continue;
-    if (benutzt.has(x)) continue;
+    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || istIchOderDu(x)) continue;
+    if (benutzt.has(satzSchluessel(x))) continue;
     kandidaten.push(x);
   }
   // Zusatzvorrat aus den Atomen: Zehn Eintraege je Kategorie reichen fuer einen
   // kurzen Bericht, nicht fuer einen langen - bei Ziel 400 blieb es sonst bei
   // 66 Prozent der Marke, weil kein Satz mehr uebrig war.
   for (const x of zusatz) {
-    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || benutzt.has(x)) continue;
+    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || istIchOderDu(x) || benutzt.has(satzSchluessel(x))) continue;
     kandidaten.push(x);
   }
   if (!kandidaten.length) return null;
   const s = pick(kandidaten);
-  benutzt.add(s);
+  benutzt.add(satzSchluessel(s));
   return s.replace(/[.!?…]+$/, "");
 }
 
@@ -112,13 +130,27 @@ function dachzeile(fb: Faktenblatt): string {
   return `${fb.wo.ort} · ${RESSORTS[fb.ressort].label}`;
 }
 
+/** Der Vorspann.
+ *
+ *  Er darf die Schlagzeile NICHT wörtlich wiederholen. Vorher lautete beides
+ *  „Ein Schulmädchen gibt die Spur bewusst auf" — der Setzer erkennt die
+ *  Dublette und streicht sie, und übrig blieb ein Bericht, der mit einer
+ *  Passivkonstruktion ohne Subjekt beginnt: „Während der Mittagspause wurde
+ *  bekannt, dass rund 1.300 Haushalte betroffen sind." Wer? Stand nur noch in
+ *  der Überschrift.
+ *
+ *  Deshalb trägt der erste Satz jetzt Ort UND Zeit — das ist ohnehin der
+ *  Nachrichtenvorspann — und der zweite beginnt mit dem Partizip, damit die
+ *  Zeitangabe nicht zweimal vorn steht. */
 function vorspann(fb: Faktenblatt, b: Buchfuehrung, blick: Blick): string {
   const z = fb.zahlen[0];
   const w = WORTE[blick];
-  const s1 = `${cap(b.organisation(fb))} ${fb.was}.`;
+  // Zeit voran, Doppelpunkt, dann die Tatsache. Der Ort steht schon in der
+  // Dachzeile („HÜRTGENWALD · GESELLSCHAFT") und käme hier ein zweites Mal.
+  const s1 = `${cap(fb.wann.datum)}: ${cap(b.organisation(fb))} ${fb.was}.`;
   const s2 = z
-    ? `${cap(fb.wann.datum)} ${w.vorspann(`${z.verbal || z.wortform} ${z.einheit}`)}.`
-    : `${cap(fb.wann.datum)} wurde es ${fb.wo.mitPraep} bekannt.`;
+    ? `Bekannt ${w.vorspann(`${z.verbal || z.wortform} ${z.einheit}`)}.`
+    : `Bekannt wurde es erst später.`;
   return `${s1} ${s2}`;
 }
 
@@ -126,7 +158,21 @@ function hergang(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<stri
   const teile: string[] = [];
   const w = WORTE[blick];
   const c2 = fb.chronologie[1], c3 = fb.chronologie[2];
-  if (c2) teile.push(`${cap(c2.zeit)} zeichnete sich ${blick === "gut" ? w.ersteMeldung : c2.was} ab.`);
+  if (c2) {
+    // Drei Fassungen statt einer. „Im Frühjahr zeichnete sich die erste Meldung
+    // ab" stand wörtlich in jedem Bericht — bei acht Beiträgen viermal auf
+    // derselben Seite.
+    const was2 = blick === "gut" ? w.ersteMeldung : c2.was;
+    const fassungen = [
+      `${cap(c2.zeit)} zeichnete sich ${was2} ab.`,
+      `${cap(c2.zeit)} gab es ${was2}.`,
+      // Ohne Präposition: „mit der erste Anfrage" war der erste Versuch — der
+      // Artikel wurde gebeugt, das Adjektiv nicht. Ein Doppelpunkt braucht
+      // keinen Kasus.
+      `Angefangen hatte es ${c2.zeit}: ${was2}.`,
+    ];
+    teile.push(pick(fassungen));
+  }
   for (let i = 0; i < 1 + extra; i++) {
     const roh = satzOhneZahl(bank, ["obstacles", "turns"], benutzt, vorrat);
     if (roh) teile.push(`${cap(roh)}.`);
@@ -260,7 +306,13 @@ export function buildBericht(bank: Bank, input: GenInput, ressort: RessortId | "
 
   const abschnitte: string[] = [];
   abschnitte.push(dachzeile(fb));
-  abschnitte.push(schlagzeile(fb));
+  const zeile = schlagzeile(fb);
+  // Die Schlagzeile ist verbraucht: Ihr Wortlaut steckt auch im Atomvorrat
+  // (er stammt aus „Was passiert?"), und im Blatt stand „Ein Schulmädchen gibt
+  // die Spur bewusst auf" ein zweites Mal mitten im Hergang.
+  benutzt.add(satzSchluessel(zeile));
+  benutzt.add(satzSchluessel(fb.was));
+  abschnitte.push(zeile);
   abschnitte.push(vorspann(fb, b, blick));
   const hergangText = hergang(fb, bank, b, benutzt, extra, vorrat, blick);
   abschnitte.push(hergangText);

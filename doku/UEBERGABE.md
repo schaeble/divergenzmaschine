@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.256.0**, Zweig `typescript-migration`.
+Stand: **v4.257.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -390,6 +390,41 @@ Mischung. Die 4W-Quellen laufen REIHUM, nicht gezogen. Mit Musterseite kommt
 die Reihenfolge aus den Plätzen, Form und Länge ebenso; die Quellen laufen
 weiter reihum. Im Setzer entscheidet `reihenfolge` — bei einer Musterseite
 Teil 1 in Platz 1.
+
+**Der Bericht, nach einem gedruckten Blatt** (4.257.0). Fünf Befunde aus einer
+echten Ausgabe, alle auf derselben Seite:
+
+1. **Der Vorspann wiederholte die Schlagzeile** wörtlich. Der Setzer erkennt
+   die Dublette und streicht sie — übrig blieb ein Bericht, der mit einer
+   Passivkonstruktion ohne Subjekt beginnt („Während der Mittagspause wurde
+   bekannt, dass rund 1.300 Haushalte betroffen sind"). Wer? Stand nur in der
+   Überschrift. Der Vorspann setzt jetzt die Zeit voran: „Während der
+   Mittagspause: Das Schulmädchen gibt die Spur bewusst auf."
+2. **„Das Schulmädchen besteht seit 1965."** `istPerson()` verlangte einen
+   Eigennamen aus zwei großgeschriebenen Wörtern. Eine Gattungsbezeichnung
+   („ein Schulmädchen") fiel durch und galt als Einrichtung — samt der
+   Laufbahn-Spanne einer Einrichtung (12–110 Jahre statt 4–38). Neu:
+   `istGattungsperson()` prüft das GRUNDWORT, denn im Deutschen bestimmt das
+   letzte Glied das Kompositum: „Schulmädchen" ist ein Mädchen,
+   „Mädchenschule" eine Schule. Die Kurzform behält dann ihren Artikel.
+3. **„Im Frühjahr zeichnete sich die erste Meldung ab."** stand wörtlich in
+   jedem Bericht und in jeder Meldung — bei acht Beiträgen viermal auf einer
+   Seite. Ursache: `zeit` und `was` der zweiten Chronologiezeile waren
+   Konstanten im Faktenblatt. Jetzt acht Zeiten × sechs Ereignisse × drei
+   Satzfassungen.
+4. **Derselbe Satz zweimal hintereinander.** Die Dublettensperre merkte sich
+   den ROHEN Eintrag, gedruckt wurde der um Satzzeichen gekürzte — zwei
+   Einträge, die sich nur im Schlusspunkt unterschieden, kamen beide durch.
+   `satzSchluessel()` normalisiert jetzt.
+5. **Ich-Sätze im Bericht.** Aus dem Preset-Vorrat, der für Prosa gedacht ist:
+   „Ich sehne mich nach einem klaren Ufer" mitten im Hergang. Kein Widerspruch
+   zu den Fakten, aber ein Perspektivbruch — ein Bericht referiert in der
+   dritten Person. `satzOhneZahl()` verwirft sie.
+
+Der Prüfstand `test/pruefstand.ts` hat außerdem **nie den Rückgabewert
+gesetzt**: Ein Lauf mit Befunden lief grün durch. Er scheitert jetzt, und die
+fünf Befunde stehen als Muster darin (drei Verbotsmuster, zwei eigene
+Prüfungen) samt einer Varianzprüfung auf die Vorgeschichte.
 
 **Druck:** sechs Profile (zeitung, fliesstext, vers, haiku, buehne, shots) plus
 der **Zeitungssetzer** mit gestaltbarem Kopf, Automatik über mehrere Seiten und
