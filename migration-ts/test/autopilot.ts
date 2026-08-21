@@ -109,14 +109,17 @@ ist("16 bei einer Seite werden gekappt", baueBesetzung(16, false, false, Math.ra
 
 // Die Kontextquellen: Ohne gefüllte Vorräte bleibt nur der Würfel — und der
 // funktioniert immer, ohne Netz und ohne Guthaben.
-// Ohne gefüllte Vorräte bleiben Würfel und Ideengenerator — beide brauchen
-// weder Netz noch Guthaben. Der Ideengenerator ist IMMER dabei: Er liefert
-// einen Zusammenhang (Figur, Ort, Zeit, Vorgang aus derselben Prämisse) statt
-// vier Felder nebeneinander.
-ist("ohne Vorräte bleiben zwei Quellen",
-  new Set(baueBesetzung(6, false, false).map((a) => a.quelle)).size, 2);
-wahr("und zwar Würfel und Ideen",
-  baueBesetzung(6, false, false).every((a) => a.quelle === "wuerfel" || a.quelle === "idee"));
+// Ohne gefüllte Vorräte bleiben Welt, Ideengenerator und Omnikognition — alle
+// drei brauchen weder Netz noch Guthaben. Der Ideengenerator liefert einen
+// Zusammenhang (Figur, Ort, Zeit, Vorgang aus derselben Prämisse) statt vier
+// Felder nebeneinander; die Omnikognition liefert dazu eine andere Art zu
+// sehen — samt eigener Wortbank aus Sinneskanälen.
+ist("ohne Vorräte bleiben drei Quellen",
+  new Set(baueBesetzung(6, false, false).map((a) => a.quelle)).size, 3);
+wahr("und zwar Welt, Ideen und Wahrnehmung",
+  baueBesetzung(6, false, false).every((a) => ["wuerfel", "idee", "wahrnehmung"].includes(a.quelle)));
+wahr("die Wahrnehmung ist auch ohne Vorrat dabei",
+  baueBesetzung(6, false, false).some((a) => a.quelle === "wahrnehmung"));
 wahr("der Ideengenerator ist auch ohne Vorrat dabei",
   baueBesetzung(6, false, false).some((a) => a.quelle === "idee"));
 // Gegenprobe: Mit Vorrat MUSS auch daraus gezogen werden — sonst prüfte die
@@ -128,14 +131,14 @@ wahr("mit Vorräten kommen andere Quellen vor",
 // Beiträge einer Ausgabe aus derselben Quelle stammten — und wenn der
 // Bildvorrat gerade aus dreißig Tempelfotos besteht, handelt die ganze Zeitung
 // von Tempeln.
-ist("bei vier Quellen kommt jede vor", new Set(mitVorrat.map((a) => a.quelle)).size, 4);
+ist("bei fünf Quellen kommt jede vor", new Set(mitVorrat.map((a) => a.quelle)).size, 5);
 ist("und sie wechseln der Reihe nach",
-  mitVorrat.slice(0, 4).map((a) => a.quelle).join(","), "wuerfel,vorrat,bild,idee");
-ist("auch die zweite Runde", mitVorrat.slice(4, 7).map((a) => a.quelle).join(","), "wuerfel,vorrat,bild");
+  mitVorrat.slice(0, 5).map((a) => a.quelle).join(","), "wuerfel,vorrat,bild,idee,wahrnehmung");
+ist("auch die zweite Runde", mitVorrat.slice(5, 7).map((a) => a.quelle).join(","), "wuerfel,vorrat");
 // Mit nur einem Vorrat wechseln eben drei ab.
 const dreiQ = baueBesetzung(6, true, false);
-ist("mit einem Vorrat wechseln drei Quellen ab",
-  dreiQ.slice(0, 6).map((a) => a.quelle).join(","), "wuerfel,vorrat,idee,wuerfel,vorrat,idee");
+ist("mit einem Vorrat wechseln vier Quellen ab",
+  dreiQ.slice(0, 6).map((a) => a.quelle).join(","), "wuerfel,vorrat,idee,wahrnehmung,wuerfel,vorrat");
 // Der Zufall darf die Verteilung NICHT mehr beeinflussen: Zwei Läufe mit
 // verschiedenem Zufall müssen dieselbe Quellenfolge ergeben.
 ist("die Quellenfolge hängt nicht mehr am Zufall",
@@ -359,7 +362,27 @@ wahr("und das Erzeugte faellt in die Welt zurueck", /worldLogGeneration\(ctx\)/.
 // die man oben drueckt: Wer die Ausgaben einfoermig findet, kann nicht sehen,
 // woran es liegt.
 wahr("es gibt ein Herkunftsprotokoll", /Was dieser Durchlauf benutzt hat/.test(ansicht));
-for (const feld of ["Kontext", "Wortbänke", "Formen", "Korpus", "Welt", "Nicht benutzt"]) {
+// Die drei Lücken, die den Autopiloten einförmig gemacht haben — geprüft am
+// Quelltext der Ansicht, weil die Erzeugungsschleife dort steht:
+//
+// 1. Gezählt wurde die GEWÜNSCHTE Quelle. War der Vorrat leer, stand im
+//    Protokoll trotzdem „Sammler-Vorrat", obwohl die Welt geliefert hatte.
+wahr("gezählt wird die tatsächliche Quelle", /quellenZaehler\.set\(erg\.quelle/.test(ansicht));
+wahr("und nicht mehr die gewünschte", !/quellenZaehler\.set\(a\.quelle/.test(ansicht));
+// 2. Der Ideengenerator lief OHNE Konfiguration — also in seiner zahmsten
+//    Einstellung. Eigene Profile und der Divergenz-Regler kamen nie an.
+wahr("der Ideengenerator bekommt ein Profil", /generateIdeaBatch\(1, ip \?/.test(ansicht));
+wahr("und läuft nicht mehr nackt", !/generateIdeaBatch\(1\)/.test(ansicht));
+// 3. Die Omnikognition war überhaupt nicht angeschlossen — dabei liefert sie
+//    als einzige Quelle eine eigene WORTBANK aus Sinneskanälen.
+wahr("die Wahrnehmung ist eine Quelle", /quelle: "wahrnehmung"/.test(ansicht));
+wahr("sie setzt ihre eigene Wortbank", /bank = ps\.bank/.test(ansicht));
+wahr("und ihre eigene Perspektive", /perspective: ps\.perspective/.test(ansicht));
+// Die Form gehört zum Platz, nicht zur Wahrnehmung — sie darf NICHT
+// überschrieben werden.
+wahr("die Form bleibt beim Platz", !/form: ps\.form/.test(ansicht));
+
+for (const feld of ["4W-Herkunft", "4W je Beitrag", "Wortbänke", "Formen", "Korpus", "Welt", "Nicht benutzt"]) {
   wahr(`das Protokoll nennt „${feld}"`, ansicht.includes(`zeile("${feld}"`));
 }
 

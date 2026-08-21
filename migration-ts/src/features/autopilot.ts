@@ -32,7 +32,7 @@ export interface Auftrag {
  *  „idee" ist der Ideengenerator: Er liefert eine Prämisse samt Figur, Ort,
  *  Zeit und Vorgang — anders als Würfel und Vorrat erfindet er einen
  *  ZUSAMMENHANG, statt vier Felder nebeneinanderzustellen. */
-export type Quelle = "vorrat" | "bild" | "wuerfel" | "idee";
+export type Quelle = "vorrat" | "bild" | "wuerfel" | "idee" | "wahrnehmung";
 
 /** Die Formen, die auf einer Zeitungsseite Sinn ergeben. „video" und „shots"
  *  fehlen mit Absicht: Sie erzeugen Drehbuchlisten, die im Satzspiegel wie ein
@@ -89,6 +89,12 @@ export function baueBesetzung(
   if (hatBild) quellen.push("bild");
   // Die Ideen sind immer da — sie brauchen keinen Vorrat, nur den Generator.
   quellen.push("idee");
+  // Die Wahrnehmung ebenso: Die Omnikognition bringt acht fertige Profile mit
+  // (Fledermaus, Oktopus, Ameise, Zugvogel, Hai, Tiefsee, Säugling, fremdes
+  // Wesen) und dazu eigene. Sie ist die stärkste Varianzquelle der App, denn
+  // sie liefert nicht nur vier W, sondern eine eigene WORTBANK aus
+  // Sinneskanälen — und war im Autopiloten überhaupt nicht angeschlossen.
+  quellen.push("wahrnehmung");
   // REIHUM statt zufällig. Beim Ziehen kam es regelmäßig vor, dass alle
   // Beiträge einer Ausgabe aus derselben Quelle stammten — und wenn der
   // Bildvorrat gerade aus dreissig Tempelfotos besteht, handelt die ganze

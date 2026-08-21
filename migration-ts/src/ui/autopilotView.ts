@@ -25,6 +25,12 @@ import { ladeKopf, sichereKopf, oeffneZeitungssetzer, ueberschriftVon } from "./
 import { ladeLayouts, sichereLayouts, legeLayout, textSchluessel, type Layout } from "../features/zeitungslayout";
 import { ziehVorrat } from "../features/wikisammler";
 import { schemaVon, schemaPlaetze, schemaAuftraege } from "../features/musterseite";
+import {
+  OMNI_PRESETS, loadOmniUserPresets, profileToStudio, type CognitiveProfile,
+} from "../features/omnikognition";
+import {
+  IDEA_PRESETS, loadIdeaUserPresets, ideaProfileToConfig, type IdeaProfile,
+} from "../features/ideaprofile";
 import { worldFillContext, worldTick, worldLogGeneration } from "../features/world";
 import { ziehBildvorrat } from "../features/bildsammler";
 
@@ -128,27 +134,60 @@ export function mountAutopilot(root: HTMLElement): void {
    *  fünfte neue Kombination, und ein leerer Kontext wäre schlechter als ein
    *  wiederholter. */
   let erschoepft = 0;
+  /** Ein Kontext samt der Quelle, die ihn WIRKLICH geliefert hat — und, wenn
+   *  es eine Wahrnehmung war, dem Profil dahinter.
+   *
+   *  Vorher wurde die gewünschte Quelle gezählt. War der Vorrat leer, stand im
+   *  Protokoll trotzdem „Sammler-Vorrat", obwohl die Welt eingesprungen war.
+   *  Eine Herkunftsangabe, die den Wunsch nennt statt der Tatsache, ist keine. */
+  interface KtxErgebnis {
+    who: string; where: string; when: string; what: string;
+    quelle: Quelle; profil?: CognitiveProfile;
+  }
+  const omniProfile = (): CognitiveProfile[] => {
+    const eigene = Object.values(loadOmniUserPresets());
+    return [...Object.values(OMNI_PRESETS), ...eigene];
+  };
+  const ideenProfile = (): IdeaProfile[] => {
+    const eigene = Object.values(loadIdeaUserPresets());
+    return [...eigene, ...Object.values(IDEA_PRESETS)];
+  };
   const holeKontext = (
     q: Quelle, benutzt: Set<string>, wasGemieden: Set<string>,
-  ): { who: string; where: string; when: string; what: string } => {
-    const zieh = (): { who: string; where: string; when: string; what: string } => {
+  ): KtxErgebnis => {
+    const zieh = (): KtxErgebnis => {
       if (q === "vorrat") {
         const f = ziehVorrat();
-        if (f) return { ...f.ctx };
+        if (f) return { ...f.ctx, quelle: "vorrat" };
       }
       if (q === "bild") {
         const f = ziehBildvorrat();
-        if (f) return { ...f.ctx };
+        if (f) return { ...f.ctx, quelle: "bild" };
+      }
+      if (q === "wahrnehmung") {
+        // Die Omnikognition liefert nicht nur vier W, sondern eine ganze
+        // Einstellung samt Sinnes-Wortbank. Beides wird weiter unten benutzt.
+        const alle = omniProfile();
+        const p = alle[Math.floor(Math.random() * alle.length)];
+        if (p) {
+          const ps = profileToStudio(p);
+          return { who: ps.who, where: ps.where, when: ps.when, what: ps.what, quelle: "wahrnehmung", profil: p };
+        }
       }
       if (q === "idee") {
         // Der Ideengenerator liefert einen ZUSAMMENHANG statt vier Felder
         // nebeneinander: Figur, Ort, Zeit und Vorgang stammen aus derselben
         // Prämisse. Das ist der Unterschied, den man einem Text ansieht.
-        const i = generateIdeaBatch(1)[0];
-        if (i) return { who: i.seedWho || "", where: i.seedWhere || "", when: i.seedWhen || "", what: i.seedWhat || "" };
+        // MIT Profil, nicht mit der Vorgabe. Ohne Konfiguration liefert der
+        // Ideengenerator seine zahmste Einstellung — deine eigenen Profile und
+        // der Divergenz-Regler kamen im Autopiloten nie an.
+        const profile = ideenProfile();
+        const ip = profile[Math.floor(Math.random() * profile.length)];
+        const i = generateIdeaBatch(1, ip ? ideaProfileToConfig(ip, 0.2) : undefined)[0];
+        if (i) return { who: i.seedWho || "", where: i.seedWhere || "", when: i.seedWhen || "", what: i.seedWhat || "", quelle: "idee" };
       }
       const w = worldFillContext();
-      return { who: w.who || "", where: w.where || "", when: w.when || "", what: w.what || "" };
+      return { who: w.who || "", where: w.where || "", when: w.when || "", what: w.what || "", quelle: "wuerfel" };
     };
     let letzter = zieh();
     for (let i = 0; i < 8; i++) {
@@ -234,7 +273,7 @@ export function mountAutopilot(root: HTMLElement): void {
           auftraege = verteileLaengen(roh, budget);
         }
 
-        const erzeugt: { text: string; form: string; titel: string; preset: string }[] = [];
+        const erzeugt: { text: string; form: string; titel: string; preset: string; quelle: Quelle; ktx: string }[] = [];
         const presetZaehler = new Map<string, number>();
         // Das Gedächtnis früherer Ausgaben ist der Startbestand des
         // Gemiedenen: Zwei Zeitungen hintereinander mit derselben Schlagzeile
@@ -252,15 +291,38 @@ export function mountAutopilot(root: HTMLElement): void {
           const a = auftraege[bi]!;
           status.textContent = `Erzeuge Beitrag ${bi + 1} von ${auftraege.length} (${a.was}) …`;
           await warte();
-          const ctx = holeKontext(a.quelle, benutzt, wasGemieden);
+          const erg = holeKontext(a.quelle, benutzt, wasGemieden);
+          const ctx = { who: erg.who, where: erg.where, when: erg.when, what: erg.what };
           frisch.push(ktxSchluessel(ctx));
-          quellenZaehler.set(a.quelle, (quellenZaehler.get(a.quelle) || 0) + 1);
+          // Gezählt wird, was WIRKLICH geliefert hat — nicht, was bestellt war.
+          quellenZaehler.set(erg.quelle, (quellenZaehler.get(erg.quelle) || 0) + 1);
           // Je Beitrag ein anderes Preset — oder die eigene Bank, damit die
           // aktuelle Einstellung nicht voellig verschwindet.
           const p = presets.length ? presets[Math.floor(Math.random() * presets.length)] : null;
-          const bank = p ? p.bank : grundBank;
-          if (p) presetZaehler.set(p.label, (presetZaehler.get(p.label) || 0) + 1);
-          let text = buildStory(bank, baueEingabe(a, ctx), model).trim();
+          let bank = p ? p.bank : grundBank;
+          let bankName = p ? p.label : "eigene Bank";
+          let eingabe = baueEingabe(a, ctx);
+          if (erg.profil) {
+            // Die Wahrnehmung bringt ihre eigene Welt mit: eine Wortbank aus
+            // den Sinneskanälen (Schall, Vibration, E-Feld, Magnetfeld …) und
+            // dazu Perspektive, Rhythmus, Auflösung, Betonung. Genau DAS ist
+            // die Varianz, die im Autopiloten fehlte — das Preset liefert
+            // Stoff, das Profil liefert eine andere Art zu sehen.
+            //
+            // Die FORM bleibt, wie sie ist: Sie gehört zum Platz auf der Seite,
+            // nicht zur Wahrnehmung.
+            const ps = profileToStudio(erg.profil);
+            bank = ps.bank;
+            bankName = `Wahrnehmung: ${erg.profil.name}`;
+            eingabe = {
+              ...eingabe,
+              structure: ps.structure, perspective: ps.perspective, rhythm: ps.rhythm,
+              varLevel: ps.varLevel, mode: ps.mode, tone: ps.tone, markovMode: ps.markovMode,
+              archetypeA: ps.archetypeA, archetypeB: ps.archetypeB, emphasis: ps.emphasis,
+            } as typeof eingabe;
+          }
+          presetZaehler.set(bankName, (presetZaehler.get(bankName) || 0) + 1);
+          let text = buildStory(bank, eingabe, model).trim();
           if (!text) continue;
           // Bericht und Meldung ignorieren die Ziellaenge in buildStory — sie
           // kehren vor enforceWordTarget zurueck. Beim Bericht wird deshalb
@@ -270,7 +332,14 @@ export function mountAutopilot(root: HTMLElement): void {
           // Was erzeugt wurde, faellt in die Welt zurueck: Figuren und Orte
           // dieser Ausgabe sind beim naechsten Wuerfeln bekannt.
           worldLogGeneration(ctx);
-          erzeugt.push({ text, form: a.form, titel: titelAus(ctx), preset: p ? p.label : "eigene Bank" });
+          erzeugt.push({
+            text, form: a.form, titel: titelAus(ctx), preset: bankName,
+            quelle: erg.quelle,
+            // Die vier W, mit denen dieser Beitrag gebaut wurde. Ohne sie steht
+            // im Protokoll die Herkunft, aber nicht das Geschehen — und genau
+            // danach war gefragt.
+            ktx: [ctx.who, ctx.what, ctx.when, ctx.where].filter(Boolean).join(" · "),
+          });
         }
         if (!erzeugt.length) {
           status.textContent = "Es ist kein Text entstanden. Ist die Wortbank leer?";
@@ -326,7 +395,8 @@ export function mountAutopilot(root: HTMLElement): void {
         erzeugt.forEach((e, i) => {
           const w = (e.text.match(/\S+/g) || []).length;
           liste.append(el("p", { class: "muted mini" },
-            el("b", {}, `${rollen[i]}`), ` · ${e.form} · ${e.preset} · ${w} Wörter — `,
+            el("b", {}, `${rollen[i]}`), ` · ${e.form} · ${e.preset} · ${w} Wörter`,
+            e.ktx ? ` · 4W: ${e.ktx}` : "", " — ",
             e.text.slice(0, 90).replace(/\s+/g, " ") + "…"));
         });
 
@@ -334,7 +404,8 @@ export function mountAutopilot(root: HTMLElement): void {
         // dieselben Orte liest, soll sehen können, woher sie kamen — sonst
         // sucht man den Fehler im Generator, obwohl der Vorrat einseitig ist.
         const quellenName: Record<string, string> = {
-          wuerfel: "Weltwürfel", vorrat: "Sammler-Vorrat", bild: "Bildvorrat", idee: "Ideengenerator",
+          wuerfel: "Welt", vorrat: "Sammler-Vorrat", bild: "Bildvorrat",
+          idee: "Ideengenerator", wahrnehmung: "Omnikognition",
         };
         const quellenText = [...quellenZaehler.entries()]
           .map(([q, n]) => `${n}× ${quellenName[q] || q}`)
@@ -350,7 +421,12 @@ export function mountAutopilot(root: HTMLElement): void {
         };
         herkunft.append(el("p", { class: "mini", style: "margin:0 0 4px" },
           el("b", {}, "Was dieser Durchlauf benutzt hat")));
-        zeile("Kontext", quellenText || "keiner");
+        // Die Herkunft der vier W — und zwar die tatsächliche. „Welt" heißt:
+        // Figur und Ort kamen aus dem Weltzustand, nicht aus einem Würfel.
+        zeile("4W-Herkunft", quellenText || "keiner");
+        // Und die vier W selbst, Beitrag für Beitrag. Ohne sie sagt das
+        // Protokoll, WOHER der Stoff kam, aber nicht, WAS daraus wurde.
+        zeile("4W je Beitrag", erzeugt.map((e, i) => `${i + 1}. ${e.ktx || "—"}`).join(" | ") || "—");
         zeile("Wortbänke", [...presetZaehler.entries()].map(([n, k]) => `${k}× ${n}`).join(", ") || "nur die eigene");
         zeile("Formen", [...new Set(erzeugt.map((e) => e.form))].join(", "));
         zeile("Korpus", `${loadPersistentCorpus().length} Zeichen, Markov-Kette 2. Ordnung`);

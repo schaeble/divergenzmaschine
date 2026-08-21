@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.254.1**, Zweig `typescript-migration`.
+Stand: **v4.255.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -349,6 +349,27 @@ bestellt bei gewähltem Schema für JEDEN Platz einen Text in dessen Länge und
 Form — das ist „auf Maß schreiben", der Vorteil einer Maschine gegenüber einer
 Redaktion. Das Schema wandert im Layout mit (`Layout.schema`), und beim Laden
 stellt der Setzer die Reihenfolge der Teile wieder her: Teil 1 in Platz 1.
+
+**Woher die Varianz im Autopiloten kommt** (4.255.0). Der Befund lautete: „Ich
+sehe wenig Varianz — über Omnikognition und Ideen kann ich viel schaffen, aber
+kaum etwas kommt an." Er stimmte, und zwar aus drei Gründen:
+
+1. Die Kontextquelle „idee" rief `generateIdeaBatch(1)` OHNE Konfiguration —
+   also die zahmste Vorgabe. Eigene Ideen-Profile und der Divergenz-Regler
+   kamen nie an. Jetzt wird ein Profil gezogen (eigene zuerst, dann die
+   eingebauten) und über `ideaProfileToConfig` übergeben.
+2. Die **Omnikognition war überhaupt nicht angeschlossen.** Sie ist die
+   stärkste Varianzquelle der App, weil sie als einzige eine eigene WORTBANK
+   liefert: `buildSenseBank(channels)` baut Motive, Haken und Wendungen aus den
+   Sinneskanälen (Schall, Vibration, Geruch, E-Feld, Magnetfeld, Temperatur).
+   Neue Quelle `wahrnehmung`: Sie liefert die vier W aus `profileToStudio(p)`
+   und setzt zusätzlich Perspektive, Rhythmus, Auflösung, Modus, Ton und
+   Betonung. Die FORM bleibt beim Platz — sie gehört zur Seite, nicht zur
+   Wahrnehmung.
+3. Das Protokoll zählte die GEWÜNSCHTE Quelle, nicht die benutzte. War der
+   Vorrat leer, stand dort „Sammler-Vorrat", obwohl die Welt eingesprungen war.
+   `holeKontext()` gibt jetzt die tatsächliche Quelle zurück; das Protokoll
+   nennt sie und dazu die vier W jedes Beitrags.
 
 **Druck:** sechs Profile (zeitung, fliesstext, vers, haiku, buehne, shots) plus
 der **Zeitungssetzer** mit gestaltbarem Kopf, Automatik über mehrere Seiten und
