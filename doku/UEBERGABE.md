@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.257.0**, Zweig `typescript-migration`.
+Stand: **v4.258.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -425,6 +425,36 @@ Der Prüfstand `test/pruefstand.ts` hat außerdem **nie den Rückgabewert
 gesetzt**: Ein Lauf mit Befunden lief grün durch. Er scheitert jetzt, und die
 fünf Befunde stehen als Muster darin (drei Verbotsmuster, zwei eigene
 Prüfungen) samt einer Varianzprüfung auf die Vorgeschichte.
+
+**Die Meldung, nach dem zweiten Blatt** (4.258.0). Vier Befunde, alle im
+Vorspann, alle aus Angaben, die der Sammler liefert:
+
+1. **„Im lange vor den Namen"**, **„Im Mittags, Frühsommer"** —
+   `mitPraeposition()` setzte blind ein „im" davor. Neu: Zeitadverbien
+   (`ZEIT_ADVERB`) und Angaben mit Komma tragen sich selbst.
+2. **„In der Stunde, die nicht gezählt wird wurde bekannt …"** — ein Nebensatz
+   in Zeit oder Ort braucht ein Abschlusskomma (`mitAbschlusskomma()`).
+3. **„ist Baustelle in städtischem Gebiet bekannt geworden"** — ein roher
+   Nominalausdruck an der Stelle einer Ortsangabe. `ortTauglich()` verlangt
+   eine Präposition; sonst bleibt der Ort weg. Eine Meldung ohne Ort ist
+   unvollständig, eine mit falschem Deutsch ist kaputt.
+4. **„Eine Einrichtung Der Flughafen Salzburg, …"** — zwei Subjekte. Trägt das
+   „Was" schon einen eigenen Hauptsatz (`tragtEigenesSubjekt()`) oder ist das
+   „Wer" nur der Platzhalter `WER_ERSATZ`, steht nach dem Doppelpunkt allein
+   das Was. Die 4W-Prüfung überspringt dann folgerichtig den Wer.
+
+**Ressort-Vorrat verdoppelt** (4.258.0): `betroffen` von 5–8 auf 9–14,
+`einsatz` auf 8–10, `gewinn` auf 6–8, Zusatzrahmen und Ausblicke auf je 6,
+Rollen auf 7. Grund: Bei fünf Einträgen stand in jedem Bericht desselben
+Ressorts dieselbe Aufzählung. Der Prüfstand hält jetzt Mindestgrößen fest,
+verbietet Dubletten INNERHALB einer Liste (über Listen hinweg ist eine
+Wiederholung richtig — „das Ehrenamt" kann betroffen sein UND auf dem Spiel
+stehen) und misst, wie oft dieselbe Aufzählung wiederkehrt: 2850 Fassungen in
+2880 Läufen.
+
+**Dateiname beim Drucken**: `druckName()` nimmt jetzt die Ausgabennummer
+dazu — „Zeitzeichen 21.08.2026 Nr. 36". Zwei Ausgaben am selben Tag hießen
+sonst gleich.
 
 **Druck:** sechs Profile (zeitung, fliesstext, vers, haiku, buehne, shots) plus
 der **Zeitungssetzer** mit gestaltbarem Kopf, Automatik über mehrere Seiten und

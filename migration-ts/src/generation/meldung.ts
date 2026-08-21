@@ -22,9 +22,10 @@ import type { GenInput } from "../types";
 import { cap } from "./beats";
 import { blickVonTon, type Blick } from "./bericht";
 import {
-  ziehFaktenblatt, erlaubteZahlen, ALLE_NAMEN,
+  ziehFaktenblatt, erlaubteZahlen, ALLE_NAMEN, mitAbschlusskomma, WER_ERSATZ,
   type Faktenblatt, type FbZahl,
 } from "../features/faktenblatt";
+import { looksLikeFullClause, extractLeadVerb } from "./wordcls";
 import { type RessortId } from "../features/ressorts";
 
 export interface MeldungErgebnis { text: string; fb: Faktenblatt }
@@ -45,8 +46,50 @@ function zahlSatz(z: FbZahl, blick: Blick): string {
  *  das Was in einen dass-Satz oder hinter eine Umstellung zwingt, muss das
  *  finite Verb verschieben — und das geht bei trennbaren Verben schief
  *  („stellt den Betrieb ein" → „…, dass die Werft den Betrieb ein stellt"). */
+/** Trägt das „Was" schon sein eigenes Subjekt?
+ *
+ *  Der Sammler liefert aus Wikipedia ganze Sätze: „Der Flughafen Salzburg,
+ *  Eigenbezeichnung …, ist der zweitgrößte Flughafen Österreichs". Davor noch
+ *  das Wer zu setzen ergab „Eine Einrichtung Der Flughafen Salzburg, …" — zwei
+ *  Subjekte in einem Satz. In dem Fall spricht der Satz für sich. */
+export function tragtEigenesSubjekt(was: string): boolean {
+  const w = (was || "").trim();
+  if (!w) return false;
+  // Groß- oder Kleinschreibung ist gleichgültig: Der Sammler liefert „Der
+  // Flughafen Salzburg … ist …", das Studio „ein Zimmer wandert" — beides sind
+  // Hauptsätze mit eigenem Subjekt.
+  const lead = extractLeadVerb(w);
+  return looksLikeFullClause(lead.verb, lead.rest)
+    || /^(der|die|das|ein|eine)\s+\S+.*\b(ist|sind|war|waren|wird|werden|hat|haben|liegt|gilt|zählt|gehört|wandert|fährt|steht)\b/i.test(w);
+}
+
+/** Steht als „Wer" nur der Platzhalter, darf er nicht in den Satz. */
+const werTaugt = (fb: Faktenblatt): boolean => fb.wer.haupt.trim().toLowerCase() !== WER_ERSATZ.toLowerCase();
+
+/** Taugt die Ortsangabe für einen Satz?
+ *
+ *  Sie muss eine Präposition tragen. Kommt aus dem Sammler ein roher
+ *  Nominalausdruck („Baustelle in städtischem Gebiet", „Flughafen Salzburg"),
+ *  entstand daraus „ist Baustelle in städtischem Gebiet bekannt geworden" —
+ *  ein Satz ohne Ortsangabe, nur mit einem Nomen an ihrer Stelle. Dann bleibt
+ *  der Ort lieber ganz weg: Eine Meldung ohne Ort ist unvollständig, eine mit
+ *  falschem Deutsch ist kaputt. */
+export function ortTauglich(mitPraep: string): boolean {
+  const o = (mitPraep || "").trim();
+  if (!o) return false;
+  return /^(in|im|an|am|auf|bei|beim|vor|hinter|neben|unter|über|zwischen|nahe|innerhalb|außerhalb|entlang)\b/i.test(o);
+}
+
 function vorspann(fb: Faktenblatt): string {
-  return `${cap(fb.wann.datum)} ist ${fb.wo.mitPraep} bekannt geworden: ${cap(fb.wer.haupt)} ${fb.was}.`;
+  // Nebensätze in Zeit und Ort schließen mit Komma, sonst laufen sie in den
+  // Hauptsatz: „In der Stunde, die nicht gezählt wird wurde bekannt …"
+  const wann = mitAbschlusskomma(cap(fb.wann.datum));
+  const wo = fb.wo.mitPraep;
+  const kern = tragtEigenesSubjekt(fb.was) || !werTaugt(fb)
+    ? cap(fb.was)
+    : `${cap(fb.wer.haupt)} ${fb.was}`;
+  const ort = ortTauglich(wo) ? ` ${mitAbschlusskomma(wo)}` : "";
+  return `${wann} ist${ort} bekannt geworden: ${kern}.`;
 }
 
 /** Woher die Meldung kommt. Eine Meldung nennt ihre Quelle — und die Person
@@ -114,7 +157,7 @@ export interface MeldungMangel { art: string; stelle: string }
  *  Punkt beendet keinen Satz („1902. Zeit"), und ein Titel auch nicht — an
  *  „Prof. Schwarz warnt" zerfiel der erste Satz, und die Prüfung meldete, das
  *  Was fehle im Vorspann. */
-const ABK = /(?:Prof|Dr|Ing|Dipl|Nr|St|ca|bzw|usw|evtl|Abs|Art|Jh|Mio|Mrd)$/;
+const ABK = /(?:Prof|Dr|Ing|Dipl|Nr|St|ca|bzw|usw|evtl|Abs|Art|Jh|Mio|Mrd|[A-ZÄÖÜ])$/;
 export function saetzeVon(text: string): string[] {
   const roh = (text || "").split(/(?<!\d)([.!?])(?=\s|$)/);
   const raus: string[] = [];
@@ -148,6 +191,11 @@ export function pruefeMeldung(text: string, fb: Faktenblatt): MeldungMangel[] {
     ["Was", kern(fb.was)],
   ];
   for (const [name, wort] of vier) {
+    // Trägt das „Was" sein eigenes Subjekt, steht der Wer bewusst NICHT im
+    // Satz — sonst stünden zwei Subjekte darin. Dann ist sein Fehlen richtig.
+    if (name === "Wer" && (tragtEigenesSubjekt(fb.was) || !werTaugt(fb))) continue;
+    // Und eine Ortsangabe ohne Präposition wird bewusst weggelassen.
+    if (name === "Wo" && !ortTauglich(fb.wo.mitPraep)) continue;
     if (wort && !erster.toLowerCase().includes(wort.toLowerCase())) {
       m.push({ art: `${name} fehlt im ersten Satz`, stelle: wort });
     }

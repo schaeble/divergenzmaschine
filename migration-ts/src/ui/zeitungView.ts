@@ -84,7 +84,7 @@ export function sichereKopf(k: Zeitungskopf): void {
  *  Ein Dateiname darf nicht alles enthalten: Schrägstriche, Doppelpunkte und
  *  Anführungszeichen ersetzt der eine Browser stillschweigend, der andere
  *  hängt sich daran auf. Sie fliegen deshalb hier heraus, nicht erst dort. */
-export function druckName(titel: string, d = new Date()): string {
+export function druckName(titel: string, d = new Date(), ausgabe = ""): string {
   const zwei = (n: number): string => String(n).padStart(2, "0");
   const datum = `${zwei(d.getDate())}.${zwei(d.getMonth() + 1)}.${d.getFullYear()}`;
   // Punkte am Rand fallen mit weg: Ein führender Punkt macht die Datei auf
@@ -94,9 +94,17 @@ export function druckName(titel: string, d = new Date()): string {
     .replace(/\s+/g, " ")
     .replace(/^[.\s]+|[.\s]+$/g, "");
   const name = roh.slice(0, 60).replace(/[.\s]+$/, "");
+  // Die Ausgabennummer gehört dazu: Zwei Ausgaben am selben Tag hießen sonst
+  // gleich, und der Browser hängt „(1)" an — eine Zeitung, die sich selbst
+  // nicht auseinanderhalten kann. „Nr. 36" steht schon im Kopf; hier wird es
+  // nur übernommen, samt Punkten, die im Dateinamen erlaubt sind.
+  const nr = (ausgabe || "")
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   // Ohne Titel bliebe nur das Datum — das sagt in einem Ordner voller Ausgaben
   // nichts. Lieber ein farbloser Name als gar keiner.
-  return `${name || "Zeitung"} ${datum}`;
+  return `${name || "Zeitung"} ${datum}${nr ? " " + nr : ""}`;
 }
 
 const FORM_LABEL: Record<string, string> = {
@@ -1648,7 +1656,7 @@ export function oeffneZeitungssetzer(aktuellerText: string, aktuelleForm: string
     // Druckdialog noch Einstellungen ändert, braucht seine Zeit, und ein zu
     // früh zurückgesetzter Titel wäre genau der Fehler, der behoben werden soll.
     titelZurueck();
-    document.title = druckName(kopf.titel);
+    document.title = druckName(kopf.titel, new Date(), kopf.ausgabe);
     window.addEventListener("afterprint", titelZurueck);
     titelLaeuft = setTimeout(titelZurueck, 120_000) as unknown as number;
     window.print();

@@ -11,7 +11,7 @@ const st={};global.localStorage={getItem:k=>st[k]??null,setItem:(k,v)=>{st[k]=St
 // kann er nicht zweimal auftreten, ohne dass es auffällt.
 
 import { buildBericht, pruefeBericht } from "../src/generation/bericht";
-import { RESSORT_IDS } from "../src/features/ressorts";
+import { RESSORT_IDS, RESSORTS } from "../src/features/ressorts";
 import { BUILTIN_PRESETS } from "../src/presets.data";
 import type { GenInput, Bank } from "../src/types";
 
@@ -121,6 +121,7 @@ const basis = { tone: "neutral", varLevel: "wild", structure: "rekombination", m
 
 const zaehl = new Map<string, number>();
 const chronoZeilen = new Map<string, number>();
+const aufzaehlungen = new Map<string, number>();
 const bsp = new Map<string, string>();
 let n = 0, sauber = 0, i = 0;
 for (const wer of WER) for (const was of WAS) for (const wann of WANN) for (const wo of WO)
@@ -144,6 +145,8 @@ for (const wer of WER) for (const was of WAS) for (const wann of WANN) for (cons
     // Fehler, dieselbe Zeile in jedem Bericht schon.
     const chron = b.text.match(/(Im |Vor |Kurz |Angefangen)[^.]*?(erste (Meldung|Anfrage|Beschwerde|Zusage|Zweifel|Hinweis)|erstes? (Gerücht|Angebot|Interesse|Zuspruch|Unterstützung))[^.]*\./);
     if (chron) chronoZeilen.set(chron[0], (chronoZeilen.get(chron[0]) || 0) + 1);
+    const auf = b.text.match(/(Betroffen sind außerdem|Profitieren werden außerdem)[^.]*\./);
+    if (auf) aufzaehlungen.set(auf[0], (aufzaehlungen.get(auf[0]) || 0) + 1);
     funde.push(...semantisch(b.text, b.fb));
     funde.push(...pruefeBericht(b.text, b.fb, b.hergang).map((x) => x.art));
     if (!funde.length) { sauber++; continue; }
@@ -164,6 +167,49 @@ if (zaehl.size) {
     console.log(`    ${String(c).padStart(4)}×  ${f}\n           bei: ${bsp.get(f)}`));
   fehler = true;
 } else console.log("  keine Fehlerklasse ausgelöst");
+
+// Der Ressort-Vorrat: Zu kleine Listen ergeben in jedem Bericht desselben
+// Ressorts dieselbe Aufzählung. Im Blatt stand dreimal „Betroffen sind
+// außerdem die Nachbarschaft, die Beratungsstelle, die Familien und das
+// Ehrenamt" — bei fünf Einträgen gibt es kaum etwas anderes zu sagen.
+{
+  const zuKlein: string[] = [];
+  for (const id of RESSORT_IDS) {
+    const r = RESSORTS[id];
+    if (r.betroffen.length < 9) zuKlein.push(`${id}.betroffen ${r.betroffen.length}`);
+    if (r.einsatz.length < 8) zuKlein.push(`${id}.einsatz ${r.einsatz.length}`);
+    if (r.gewinn.length < 6) zuKlein.push(`${id}.gewinn ${r.gewinn.length}`);
+    if (r.zusatz.rahmen.length < 5) zuKlein.push(`${id}.rahmen ${r.zusatz.rahmen.length}`);
+    if (r.ausblick.length < 4) zuKlein.push(`${id}.ausblick ${r.ausblick.length}`);
+    // Dubletten INNERHALB einer Liste. Über die Listen hinweg ist eine
+    // Wiederholung richtig: „das Ehrenamt" kann betroffen sein UND auf dem
+    // Spiel stehen — das ist nicht dasselbe.
+    for (const [feld, werte] of [
+      ["betroffen", r.betroffen],
+      ["einsatz", r.einsatz.map((x) => x.t)],
+      ["gewinn", r.gewinn.map((x) => x.t)],
+      ["rahmen", r.zusatz.rahmen],
+      ["ausblick", r.ausblick],
+    ] as [string, string[]][]) {
+      if (new Set(werte).size !== werte.length) zuKlein.push(`${id}.${feld}: Dublette`);
+    }
+  }
+  console.log(`  Ressort-Vorrat: ${zuKlein.length ? zuKlein.join(", ") : "alle Listen groß genug"}`);
+  if (zuKlein.length) { console.error(`\n❌ Ressort-Vorrat zu klein: ${zuKlein.join(", ")}`); fehler = true; }
+}
+
+// Die Aufzählung „Betroffen sind außerdem …" darf sich nicht in jedem Bericht
+// desselben Ressorts wiederholen.
+{
+  const haeufigste = [...aufzaehlungen.entries()].sort((a, b) => b[1] - a[1])[0];
+  const gesamt = [...aufzaehlungen.values()].reduce((a, b) => a + b, 0);
+  const anteil = gesamt && haeufigste ? haeufigste[1] / gesamt : 0;
+  console.log(`  „Betroffen sind außerdem": ${aufzaehlungen.size} Fassungen, häufigste ${Math.round(anteil * 100)} %`);
+  if (anteil > 0.15) {
+    console.error(`\n❌ Dieselbe Aufzählung in ${Math.round(anteil * 100)} % der Berichte: „${haeufigste?.[0]}"`);
+    fehler = true;
+  }
+}
 
 // Die Vorgeschichte darf nicht in jedem Bericht gleich lauten. Vorher standen
 // „im Frühjahr" und „die erste Meldung" als Konstanten im Faktenblatt — in

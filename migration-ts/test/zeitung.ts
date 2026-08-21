@@ -30,7 +30,7 @@ let titelBeimDruck = "";
 
 import { schemaVon, schemaPlaetze } from "../src/features/musterseite";
 import {
-  oeffneZeitungssetzer, satzWeg, druckName, ohneUeberschrift, darfKuerzen,
+  oeffneZeitungssetzer, satzWeg, druckName, ohneUeberschrift, darfKuerzen, ladeKopf,
   waehleFueller, vignette, FUELLER_MIN, FUELLER_TEXT_MIN, SEITE_B, SEITE_H, RAND_OBEN, RAND_UNTEN, RAND_SEITE,
 } from "../src/ui/zeitungView";
 import {
@@ -545,6 +545,14 @@ wahr("und werden aus der Druckkopie entfernt",
 // gibt es von hier aus nicht.
 const D = new Date(2026, 7, 17);                       // 17. August 2026
 ist("Name der Zeitung und Tagesdatum", druckName("Der Zeitstrom", D), "Der Zeitstrom 17.08.2026");
+// Die Ausgabennummer gehört in den Dateinamen: Zwei Ausgaben am selben Tag
+// hießen sonst gleich, und der Browser hängt „(1)" an.
+ist("mit Ausgabennummer", druckName("Zeitzeichen", new Date(2026, 7, 21), "Nr. 36"),
+  "Zeitzeichen 21.08.2026 Nr. 36");
+ist("leere Ausgabe ändert nichts", druckName("Zeitzeichen", new Date(2026, 7, 21), ""),
+  "Zeitzeichen 21.08.2026");
+ist("unerlaubte Zeichen fallen auch dort weg",
+  druckName("Z", new Date(2026, 7, 21), "Nr/36"), "Z 21.08.2026 Nr 36");
 ist("einstellige Tage und Monate bekommen eine Null",
   druckName("X", new Date(2026, 0, 3)), "X 03.01.2026");
 // Zeichen, die in keinem Dateinamen stehen dürfen.
@@ -567,8 +575,10 @@ klick(knopf(/füllen/));
 const druckeVorher = gedruckt;
 klick(knopf(/Drucken/));
 wahr("es wurde gedruckt", gedruckt > druckeVorher);
+// Samt Ausgabennummer aus dem Zeitungskopf — das ist der Dateiname, unter dem
+// der Browser das PDF anbietet.
 ist("beim Drucken trägt das Dokument den Namen der Ausgabe",
-  titelBeimDruck, druckName("Der Zeitstrom"));
+  titelBeimDruck, druckName("Der Zeitstrom", new Date(), ladeKopf().ausgabe));
 klick(knopf(/Schließen/));
 ist("nach dem Schließen heißt die App wieder wie vorher",
   dom.window.document.title, "Divergenzmaschine");

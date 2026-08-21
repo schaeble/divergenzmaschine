@@ -27,6 +27,13 @@ export interface FbAbgeleitet {
 }
 export interface FbChrono { id: string; zeit: string; was: string; }
 
+/** Der Platzhalter, wenn „Wer?" leer bleibt. Er ist keine Information: Im Blatt
+ *  stand „Eine Einrichtung Fußweg entlang von Hochbaustellen" — ein Subjekt,
+ *  das niemand gemeint hat, vor einem Ausdruck, der keines braucht. Wer ihn
+ *  liest, muss ihn weglassen können; deshalb steht er hier und nicht als
+ *  Zeichenkette im Text. */
+export const WER_ERSATZ = "eine Einrichtung";
+
 export interface Faktenblatt {
   id: string;
   ressort: RessortId;
@@ -258,14 +265,32 @@ function istPerson(haupt: string): boolean {
 
 /** Zeitangabe satzfaehig machen: "Frühjahr 2001" ist keine Adverbiale, "Im
  *  Frühjahr 2001" schon. Steht schon eine Praeposition davor, bleibt alles. */
+/** Zeitadverbien und Zeitwörter, die schon für sich eine Angabe SIND. Ohne
+ *  diese Liste stand im Blatt „Im lange vor den Namen" und „Im Mittags,
+ *  Frühsommer": Die Regel setzte blind ein „im" davor. */
+const ZEIT_ADVERB = /^(lange|kurz|damals|einst|früher|später|gestern|heute|morgen|neulich|jüngst|mittags|morgens|abends|nachts|vormittags|nachmittags|wochentags|jahrelang|tagelang|monatelang|irgendwann|niemals|immer|jederzeit|zuletzt|zuerst|anfangs|schließlich|inzwischen|unterdessen|seither|seitdem|dereinst)\b/i;
+
 function mitPraeposition(wann: string): string {
   const w = (wann || "").trim();
   if (!w) return "";
-  if (/^(am|im|um|an|in|zu|seit|vor|nach|gegen|während|zwischen|beim)\b/i.test(w)) return w;
+  if (/^(am|im|um|an|in|zu|seit|vor|nach|gegen|während|zwischen|beim|bis|ab)\b/i.test(w)) return w;
   if (/^\d{4}$/.test(w)) return w;                       // reine Jahreszahl steht allein
+  if (ZEIT_ADVERB.test(w)) return w;                      // „lange vor den Namen" trägt sich selbst
+  // Eine Angabe mit Komma trägt einen Nebensatz oder eine Aufzählung; ein
+  // vorangestelltes „im" passt dann auf keinen der Teile.
+  if (w.includes(",")) return w;
   // NICHT kleinschreiben: "Frühjahr" ist ein Nomen. Der erste Versuch machte
   // daraus "Im frühjahr 2001".
   return "im " + w;
+}
+
+/** Eine Angabe, die einen Nebensatz enthält, braucht vor dem folgenden
+ *  Satzteil ein Komma: „In der Stunde, die nicht gezählt wird, wurde bekannt …"
+ *  Ohne es lief der Nebensatz in den Hauptsatz. */
+export function mitAbschlusskomma(angabe: string): string {
+  const a = (angabe || "").trim();
+  if (!a || !a.includes(",")) return a;
+  return a.replace(/[,\s]+$/, "") + ",";
 }
 
 export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto" = "auto"): Faktenblatt {
@@ -275,7 +300,7 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
     : ressortWahl;
   const R = RESSORTS[ressort];
   const gutesLicht = /^(uplifting|humorous|zaertlich)$/i.test(input.tone || "");
-  const werRoh = (normWho(input.who || "").split(",")[0] || "").trim() || "eine Einrichtung";
+  const werRoh = (normWho(input.who || "").split(",")[0] || "").trim() || WER_ERSATZ;
   const person = istPerson(werRoh);
   const genus = person ? "mask" : genusVon(werRoh);
   // Auch den Artikel: "an der Unterelbe" ergab sonst die Dachzeile
