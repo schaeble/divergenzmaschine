@@ -975,3 +975,11 @@ select.abweichend{border-color:var(--acc)}
   line-height:1;border-radius:6px;font-size:12px;opacity:.55}
 .fine-x:hover{opacity:1}
 .fine:not([open]) .fine-x{display:none}
+
+/* Schloss am Chip der Textstruktur: Es zeigt DASSELBE Schloss wie der
+   Werkzeugkasten - klein genug, dass es die Chipzeile nicht sprengt. */
+.src-chipwrap .lockbtn{padding:0 2px;margin-left:2px;line-height:1;background:none;border:none;opacity:.55;cursor:pointer}
+.src-chipwrap .lockbtn.on{opacity:1;color:var(--accent)}
+.src-chipwrap .lockbtn svg{width:13px;height:13px}
+/* Stellschrauben-Zeile mit Schloss: Beschriftung links, Schloss rechts. */
+.field-label.hilfe.lockrow{display:flex;align-items:center;justify-content:space-between;gap:6px}

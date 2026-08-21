@@ -71,7 +71,12 @@ export function mountStudio(root: HTMLElement): void {
   const lockVals: Record<string, string> = (() => { try { return JSON.parse(localStorage.getItem(LOCKVAL_KEY) || "{}") as Record<string, string>; } catch { return {}; } })();
   const saveLockVals = (): void => { try { localStorage.setItem(LOCKVAL_KEY, JSON.stringify(lockVals)); } catch { /* voll */ } };
   const lockCtrls: Record<string, HTMLSelectElement | HTMLInputElement> = {};
-  const lockPainters: Record<string, Array<() => void>> = {};
+  // Ein Schloss kann jetzt an MEHREREN Stellen stehen (Werkzeugkasten und Chip).
+  // Die Maler werden deshalb mit ihrem Knopf gefuehrt: Die Chipzeile wird bei
+  // jeder Erzeugung neu gebaut, ihre alten Knoepfe haengen dann im Nichts und
+  // wuerden die Liste sonst unbegrenzt fuellen.
+  type Maler = { b: HTMLButtonElement; paint: () => void };
+  const lockPainters: Record<string, Maler[]> = {};
   // Haekchen speichern ihren Zustand in .checked, nicht in .value - ohne diese
   // Unterscheidung merkte sich das Schloss bei Editieren, Struktur und Bauplan nichts.
   const istHaken = (c: HTMLSelectElement | HTMLInputElement): boolean =>
@@ -91,8 +96,14 @@ export function mountStudio(root: HTMLElement): void {
     ctrl.addEventListener("input", upd); ctrl.addEventListener("change", upd);
     const b = el("button", { class: "lockbtn", type: "button", title: "Beim Würfeln festhalten (Wert bleibt auch nach Neustart)" }) as HTMLButtonElement;
     const paint = (): void => { b.innerHTML = ""; b.append(icon(locked.has(ctrl.id) ? "lock" : "lockOpen")); b.classList.toggle("on", locked.has(ctrl.id)); };
-    (lockPainters[ctrl.id] ||= []).push(paint);
-    const repaint = (): void => { (lockPainters[ctrl.id] || [paint]).forEach((fn) => fn()); };
+    const liste = (lockPainters[ctrl.id] ||= []);
+    liste.push({ b, paint });
+    const repaint = (): void => {
+      const l = lockPainters[ctrl.id] || [];
+      const lebend = l.filter((m) => m.b === b || m.b.isConnected);
+      l.length = 0; l.push(...lebend);
+      lebend.forEach((m) => m.paint());
+    };
     b.addEventListener("click", () => {
       if (locked.has(ctrl.id)) { locked.delete(ctrl.id); delete lockVals[ctrl.id]; }
       else { locked.add(ctrl.id); lockVals[ctrl.id] = wertVon(ctrl); }
@@ -647,7 +658,7 @@ export function mountStudio(root: HTMLElement): void {
       ...(knobSel.ton ? { "Ton-Einschübe": knobSel.ton } : {}),
       ...(knobSel.korpus ? { "Korpus-Bausteine": knobSel.korpus } : {}),
       ...(knobSel.phrase ? { "Phrasensperre": knobSel.phrase } : {}),
-    }, (host) => renderPresetChecks(host)));
+    }, (host) => renderPresetChecks(host), (sel) => lockBtn(sel)));
     struktBox.append(quelleHint, zielHint);
     try {
       const hh = analysiereHerkunft(out.textContent || "", (snap?.tonId || snap?.ton || "neutral").toLowerCase(),
@@ -688,7 +699,9 @@ export function mountStudio(root: HTMLElement): void {
     const z = loadZiele();
     const offen = (Object.keys(z) as ZielQuelle[]).filter((q) => z[q] !== undefined);
     if (!offen.length) { zielHint.style.display = "none"; return; }
-    const r = regle(anteile);
+    // Gesperrte Stellschrauben ruehrt die Regelung nicht an - ein Schloss, das
+    // eine selbsttaetige Regelung nicht aufhaelt, ist keines.
+    const r = regle(anteile, (feld) => locked.has("k-" + feld));
     const teile = offen.map((q) => {
       const ist = Math.round((anteile[q] ?? 0) * 100);
       const marke = r.fest.includes(q) ? " — nicht erreichbar" : "";
@@ -706,7 +719,10 @@ export function mountStudio(root: HTMLElement): void {
     }
   };
   // Schnellwahl an den Chips: Einstellung ändern und sofort neu erzeugen.
-  document.addEventListener("dm-schnellwahl", () => { renderPresetChecks(); generate(); });
+  // Nur noch die Ankreuzliste nachziehen: Das Erzeugen besorgt seit dieser
+  // Fassung der change-Horcher am Regler selbst. Beides zusammen erzeugte zwei
+  // Texte je Klick - man sah den zweiten und hielt den ersten fuer verloren.
+  document.addEventListener("dm-schnellwahl", () => { renderPresetChecks(); });
   document.addEventListener("dm-ziel", (e) => { vergissVerlauf((e as CustomEvent).detail?.quelle); renderStruktur(); });
   document.addEventListener("dm-quelle", (e) => {
     const q = (e as CustomEvent).detail as string;
@@ -1189,8 +1205,10 @@ export function mountStudio(root: HTMLElement): void {
     // Erklaerung als Mouseover statt als Fliesstext: Sechs Beschreibungen
     // untereinander kosteten mehr Hoehe als die Regler selbst.
     sel.title = hinweis;
+    // Auch die Stellschrauben bekommen ein Schloss. Ohne es verstellte die
+    // Zielregelung sie nach jeder Erzeugung, und nichts konnte das aufhalten.
     return el("div", { class: "field", id: "knob-" + feld, title: hinweis },
-      el("span", { class: "field-label hilfe" }, label), sel);
+      el("span", { class: "field-label hilfe lockrow" }, el("span", {}, label), lockBtn(sel)), sel);
   };
   const knobBox = el("div", { class: "grid3", id: "knobs" },
     knobRow("fuegeteil", "Fügeteil-Deckel", "Höchstanteil der Verbindungsstücke — steuert den Balken „Vorlagen“", " %"),
@@ -1494,11 +1512,12 @@ export function mountStudio(root: HTMLElement): void {
   varBtn.addEventListener("click", generate);
   // Echtzeit: Preset/Ton/Form sofort anwenden (außer während "Würfeln")
   const liveRegen = (): void => { if (!rolling) generate(); };
-  preset.addEventListener("change", liveRegen);
-  tension.addEventListener("change", liveRegen);
-  cast.addEventListener("change", liveRegen);
-  tone.addEventListener("change", liveRegen);
-  form.addEventListener("change", liveRegen);
+  // Alle Regler erzeugen neu, nicht nur fuenf. Vorher taten es Preset, Ton,
+  // Form, Spannung und Figurendisziplin - Struktur, Modus, Perspektive,
+  // Rhythmus, Instabilitaet, Markov, Disruptor und Varianz nicht. Dieselbe
+  // Einstellung wirkte also sofort, wenn man sie am Chip unter dem Text
+  // umstellte, und schien tot, wenn man sie im Werkzeugkasten umstellte.
+  ROLL_SELECTS.forEach((sl) => sl.addEventListener("change", liveRegen));
   // 4W-Gewichtung: live + nur bei Prosa sichtbar
   let emphTimer: ReturnType<typeof setTimeout> | undefined;
   [wWo, wWann, wWer, wWas].forEach((s) => {
@@ -1588,7 +1607,7 @@ export function mountStudio(root: HTMLElement): void {
     applyBtn.addEventListener("click", () => {
       for (const b of blocked) { locked.delete(b.el.id); delete lockVals[b.el.id]; b.el.value = b.want; }
       saveLocks(); saveLockVals();
-      lockPainters && Object.keys(lockPainters).forEach((id) => (lockPainters[id] || []).forEach((fn) => fn()));
+      Object.keys(lockPainters).forEach((id) => (lockPainters[id] || []).forEach((m) => m.paint()));
       lockBar.remove(); updHints(); renderPresetChecks(); generate();
     });
     const closeBtn = el("button", { class: "x", type: "button", "aria-label": "Hinweis schließen" }, "✕");

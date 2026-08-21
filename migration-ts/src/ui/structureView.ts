@@ -13,8 +13,15 @@ export type Schnellwahl = Record<string, HTMLSelectElement>;
 // liegt deshalb ausserhalb der Ansicht. Geschlossen wird nur ueber das Kreuz.
 let presetPopOffen = false;
 
+/** Liefert den Schlossknopf zu einem Auswahlfeld. Die Chips zeigen dasselbe
+ *  Bedienelement wie der Werkzeugkasten - dann muessen sie auch dasselbe Schloss
+ *  zeigen, sonst haelt man eine Einstellung fest und stellt sie zwei Zeilen
+ *  weiter unbemerkt wieder um. */
+export type Schlossgeber = (sel: HTMLSelectElement) => HTMLElement | null;
+
 export function renderTextstruktur(text: string, snap: Schnappschuss | null, schnell?: Schnellwahl,
-                                   presetPanel?: (host: HTMLElement) => void): HTMLElement {
+                                   presetPanel?: (host: HTMLElement) => void,
+                                   schloss?: Schlossgeber): HTMLElement {
   const box = el("div", {});
   if (!text.trim()) { box.append(el("p", { class: "muted" }, "Noch kein Text erzeugt.")); return box; }
   const h = analysiereHerkunft(text, (snap?.tonId || snap?.ton || "neutral").toLowerCase(),
@@ -73,7 +80,8 @@ export function renderTextstruktur(text: string, snap: Schnappschuss | null, sch
         sel.dispatchEvent(new Event("change"));
         document.dispatchEvent(new CustomEvent("dm-schnellwahl", { detail: k }));
       });
-      host.append(el("span", { class: "src-chipwrap" }, el("b", {}, k), " ", mini));
+      const sch = schloss ? schloss(sel) : null;
+      host.append(el("span", { class: "src-chipwrap" }, el("b", {}, k), " ", mini, ...(sch ? [sch] : [])));
     }
     };
     zeichneChips(paare, chips);

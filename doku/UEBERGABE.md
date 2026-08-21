@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.260.1**, Zweig `typescript-migration`.
+Stand: **v4.261.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,32 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Gemeldet und behoben (4.261.0): **„Bei dem Werkzeugkasten funktioniert das
+Schloss nicht."** Der Verdacht des Benutzers traf: Werkzeugkasten und die Chips
+unter der Ansicht „Struktur" zeigen DASSELBE Auswahlfeld, waren aber nicht
+gleichgeschaltet. Gemessen an der laufenden Oberfläche (jsdom): Der Chip erzeugte
+sofort neu, das Feld im Werkzeugkasten NICHT — `liveRegen` hing nur an fünf von
+sechzehn Reglern (Preset, Ton, Form, Spannung, Figurendisziplin). Struktur,
+Modus, Perspektive, Rhythmus, Instabilität, Markov, Disruptor, Varianz änderten
+still den Zustand und ließen den alten Text stehen. Und nur das Feld im
+Werkzeugkasten trug ein Schloss; am Chip ließ sich dieselbe Einstellung
+unbemerkt wieder umstellen, wobei der gemerkte Schlosswert stumm mitwanderte.
+
+Jetzt: `liveRegen` an allen Reglern, ein Schloss an beiden Stellen mit
+gemeinsamem Zustand, und die Stellschrauben (Fügeteil-Deckel, Satzlänge …)
+haben erstmals überhaupt eines — samt `regle(ist, gesperrt?)`, das eine
+gesperrte Schraube nicht mehr nachregelt.
+
+**Falle:** Ein Schloss kann seit dieser Fassung an mehreren Stellen im DOM
+stehen. `lockPainters` führt die Maler deshalb MIT ihrem Knopf und wirft
+abgehängte weg — die Chipzeile wird bei jeder Erzeugung neu gebaut.
+
+**Neu am Prüfstand Studio:** Er baut das Studio jetzt wirklich auf. jsdom mit
+`pretendToBeVisual` und rund zwanzig gesetzten Globals trägt `mountStudio()`;
+Knöpfe werden geklickt, Werte gelesen, Erzeugungen über den Schnappschuss
+gezählt. Die Kopfzeile des Prüfstands behauptete acht Monate lang das Gegenteil.
+Was jsdom NICHT kann: Layout rechnen — wie es aussieht, bleibt ungeprüft.
 
 Gemeldet und behoben (4.260.1): **„Wer wird nicht gewürfelt."** Gemessen: Eine
 frische Welt hatte GENAU EINE Figur und EINEN Ort — dreißig Züge ergaben

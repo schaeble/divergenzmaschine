@@ -94,13 +94,18 @@ export function vergissVerlauf(q?: ZielQuelle): void {
 
 export interface RegelErgebnis { bewegt: boolean; fest: ZielQuelle[] }
 
-export function regle(ist: Partial<Record<ZielQuelle, number>>): RegelErgebnis {
+export function regle(ist: Partial<Record<ZielQuelle, number>>,
+                      gesperrt?: (feld: keyof Knobs) => boolean): RegelErgebnis {
   const z = loadZiele(); const k = loadKnobs(); const v = ladeVerlauf();
   let geaendert = false; const fest: ZielQuelle[] = [];
   for (const q of Object.keys(z) as ZielQuelle[]) {
     const ziel = z[q]; if (ziel === undefined) continue;
     const i = (ist[q] ?? 0) * 100;
     const feld = ZIEL_KNOB[q], sp = KNOB_SPANNE[feld];
+    // Ein geschlossenes Schloss haelt auch die selbsttaetige Regelung an. Sie
+    // meldet die Quelle als „fest“, damit die Oberflaeche sagen kann, warum das
+    // Ziel nicht naeher kommt, statt stumm danebenzuliegen.
+    if (gesperrt && gesperrt(feld)) { fest.push(q); continue; }
     // Im Totband nichts tun, aber den Verlauf BEHALTEN: Loeschte man ihn hier,
     // begaenne die Pendelei bei der naechsten Messschwankung von vorn.
     if (Math.abs(i - ziel) <= TOTBAND) { v[q] = { vor: k[feld], istVor: i, fest: v[q]?.fest }; continue; }
