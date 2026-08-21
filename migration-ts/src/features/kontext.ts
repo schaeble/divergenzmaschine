@@ -40,3 +40,35 @@ export function geaendert(
 ): W4[] {
   return W4_FELDER.filter((f) => felder[f].wert !== neu[f]);
 }
+
+// ── Quellen für „Alles würfeln" ────────────────────────────────────────────
+// Gefragt: „Wird bei Alles würfeln auch Wiki und Abschrift mitgenommen?" Bis
+// 4.263.0 nicht — der Knopf zog die vier W allein aus der Welt, und die beiden
+// Vorräte lagen daneben, jeder hinter einer eigenen Taste. Ein Knopf, der
+// „alles" heißt und eine von drei Quellen benutzt, verspricht zu viel.
+//
+// Jetzt wird die Quelle mitgewürfelt. Die Welt ist immer dabei: Sie legt sich
+// selbst an und liefert auch beim ersten Start etwas. Wiki und Abschrift kommen
+// nur mit gefülltem Vorrat in den Topf — eine leere Quelle zu ziehen hieße, dass
+// der Knopf mal wirkt und mal nicht, ohne dass man sähe, warum.
+
+export const QUELLEN = ["welt", "wiki", "abschrift"] as const;
+export type Quelle = typeof QUELLEN[number];
+export const QUELLE_LABEL: Record<Quelle, string> = {
+  welt: "Welt", wiki: "Wiki", abschrift: "Abschrift",
+};
+
+/** Welche Quellen stehen bereit? */
+export function offeneQuellen(wikiFunde: number, bildFunde: number): Quelle[] {
+  const raus: Quelle[] = ["welt"];
+  if (wikiFunde > 0) raus.push("wiki");
+  if (bildFunde > 0) raus.push("abschrift");
+  return raus;
+}
+
+/** Zieht eine davon. Der Zufall ist ein Parameter, damit die Prüfung ihn
+ *  festhalten kann — sonst ließe sich „jede Quelle kommt vor" nicht messen. */
+export function ziehQuelle(offen: Quelle[], zufall: () => number = Math.random): Quelle {
+  if (!offen.length) return "welt";
+  return offen[Math.min(offen.length - 1, Math.floor(zufall() * offen.length))]!;
+}

@@ -26,7 +26,7 @@ Object.defineProperty(G, "matchMedia", { value: keinMedia, writable: true, confi
 (dom.window as unknown as Record<string, unknown>)["matchMedia"] = keinMedia;
 (dom.window.Element.prototype as unknown as Record<string, unknown>)["scrollIntoView"] = function (): void {};
 import { TONE_DATA } from "../src/generation/tone.data";
-import { uebernehmeKontext, geaendert, W4_FELDER } from "../src/features/kontext";
+import { uebernehmeKontext, geaendert, W4_FELDER, offeneQuellen, ziehQuelle, QUELLEN, QUELLE_LABEL } from "../src/features/kontext";
 import { worldFillContext, WELT_SAAT } from "../src/features/world";
 import { mountStudio } from "../src/ui/studio";
 import { regle, saveZiele, loadKnobs, saveKnobs, KNOB_VORGABE, ZIEL_KNOB } from "../src/features/knobs";
@@ -48,10 +48,12 @@ wahr("er steht in der Knopfzeile neben dem Kontextwürfel",
   /btnrow" \}, ctxDice, alleBtn/.test(studio));
 // Der Kontext kommt aus der WELT — das ist der Unterschied zum vorhandenen
 // Würfel, der aus einem festen Vorrat zieht.
-wahr("er zieht die vier W aus der Welt", /alleBtn\.addEventListener[\s\S]{0,900}worldFillContext\(\)/.test(studio));
-// Und er würfelt die Regler gleich mit.
-wahr("und würfelt die Stilregler mit", /alleBtn\.addEventListener[\s\S]{0,1400}ROLL_SELECTS\.forEach\(rollSel\)/.test(studio));
-wahr("die Übernahme läuft über die geprüfte Regel", /uebernehmeKontext\(felder, worldFillContext\(\)/.test(studio));
+// Was der Knopf TUT, steht weiter unten als Messung an der laufenden
+// Oberfläche (Abschnitt 4 und 6). Hier bleibt nur, was eine Messung nicht
+// sieht: dass die Welt überhaupt eine der Quellen ist. Die drei Regex-Prüfungen,
+// die vorher hier standen, mussten bei jeder Umformulierung des Klick-Rumpfs
+// nachgezogen werden und haben nie einen echten Fehler gefunden.
+wahr("die Welt ist eine der Quellen", /worldFillContext\(\)/.test(studio));
 wahr("und die Schlösser gehen als Frage hinein", /\(id\) => locked\.has\(id\)/.test(studio));
 
 // ── 1b · Die Regel selbst, nicht ihr Abbild im Quelltext ────────────────────
@@ -206,6 +208,33 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
   // Die Stellschrauben im selben Kasten hatten gar keines.
   wahr("auch die Stellschrauben tragen ein Schloss",
     !!schlossVon(D.getElementById("knob-satzlaenge")));
+
+  // Und die gewürfelte Quelle an der laufenden Oberfläche: Mit gefüllten
+  // Vorräten müssen über viele Klicks alle drei vorkommen, und die Zeile unter
+  // dem Knopf muss sagen, welche es war.
+  D.defaultView!.localStorage.setItem("divergenz_sammler_vorrat_v1", JSON.stringify(
+    [{ tag: "2026-01-01", titel: "Artikel A", quelleLabel: "Artikel des Tages",
+       ctx: { where: "in Wien", when: "1889", who: "Ada Lovelace", what: "stellt eine Rechnung auf" } }]));
+  D.defaultView!.localStorage.setItem("divergenz_bildvorrat_v1", JSON.stringify(
+    [{ name: "Foto 1", ctx: { where: "am Kai", when: "im Nebel", who: "ein Kranführer", what: "wartet" } }]));
+  const wurzel2 = D.createElement("div"); D.body.append(wurzel2);
+  mountStudio(wurzel2);
+  const zeilen = (): string[] => Array.from(wurzel2.querySelectorAll(".ctxhint")).map((h) => h.textContent || "").filter(Boolean);
+  const alleKnopf = Array.from(wurzel2.querySelectorAll("button")).find((b) => /Alles würfeln/.test(b.textContent || "")) as HTMLButtonElement;
+  const quellen = new Set<string>();
+  const stil = (wurzel2.querySelector("#f-tone")
+    || Array.from(wurzel2.querySelectorAll("select")).find((x) => /tone|ton/i.test(x.id))) as HTMLSelectElement;
+  wahr("das Tonfeld ist da", !!stil);
+  const stilWerte = new Set<string>();
+  for (let i = 0; i < 80; i++) {
+    alleKnopf.click();
+    const z = zeilen().pop() || "";
+    quellen.add(z.split(":")[0]!.split(" · ")[0]!);
+    if (stil) stilWerte.add(stil.value);
+  }
+  ist("alle drei Quellen kommen im Studio vor", [...quellen].sort().join(","), "Abschrift,Welt,Wiki");
+  // Gemessen statt im Quelltext nachgelesen: Der Knopf würfelt die Stilregler mit.
+  wahr(`und die Stilregler werden mitgewürfelt (${stilWerte.size} Töne)`, stilWerte.size >= 3);
 }
 
 // ── 5 · Die Zielregelung hält vor einem Schloss an ──────────────────────────
@@ -224,6 +253,30 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
   ist("und sie meldet die Quelle als fest", zu.fest.includes("vorlage"), true);
   ist("der Wert steht unverändert", loadKnobs()[feld], KNOB_VORGABE[feld]);
   saveZiele({}); saveKnobs(vorher);
+}
+
+
+// ── 6 · Die Quellen von „Alles würfeln" ────────────────────────────────────
+// Gefragt: „Wird bei Alles würfeln auch Wiki und Abschrift mitgenommen?" Bis
+// 4.263.0 nicht — es zog allein aus der Welt. Jetzt wird die Quelle
+// mitgewürfelt, aber nur unter denen, die etwas hergeben.
+{
+  ist("ohne Vorräte bleibt nur die Welt", offeneQuellen(0, 0).join(","), "welt");
+  ist("mit Wiki-Vorrat kommt Wiki dazu", offeneQuellen(7, 0).join(","), "welt,wiki");
+  ist("mit Bildvorrat die Abschrift", offeneQuellen(0, 3).join(","), "welt,abschrift");
+  ist("mit beiden alle drei", offeneQuellen(7, 3).join(","), "welt,wiki,abschrift");
+  // Der Zufall ist ein Parameter — sonst ließe sich das hier nicht messen.
+  const offen = offeneQuellen(1, 1);
+  ist("erster Zug", ziehQuelle(offen, () => 0), "welt");
+  ist("mittlerer Zug", ziehQuelle(offen, () => 0.5), "wiki");
+  ist("letzter Zug", ziehQuelle(offen, () => 0.99), "abschrift");
+  ist("und 1.0 fällt nicht heraus", ziehQuelle(offen, () => 1), "abschrift");
+  ist("aus dem Nichts kommt die Welt", ziehQuelle([], () => 0.5), "welt");
+  // Über viele Züge muss jede offene Quelle wirklich vorkommen.
+  const gesehen = new Set<string>();
+  for (let i = 0; i < 200; i++) gesehen.add(ziehQuelle(offen));
+  ist("in 200 Zügen kommen alle drei vor", gesehen.size, 3);
+  ist("jede Quelle hat eine Beschriftung", QUELLEN.every((q) => !!QUELLE_LABEL[q]), true);
 }
 
 console.log(`Prüfstand Studio — ${geprueft} Prüfungen, ${bestanden} bestanden`);

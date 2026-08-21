@@ -35,7 +35,7 @@ import {
 import { icon } from "./icons";
 import { openReader } from "./reader";
 import { worldLogGeneration, worldFillContext } from "../features/world";
-import { uebernehmeKontext, geaendert as geaenderteFelder } from "../features/kontext";
+import { uebernehmeKontext, geaendert as geaenderteFelder, offeneQuellen, ziehQuelle, QUELLE_LABEL, W4_FELDER, type W4 } from "../features/kontext";
 import { addToTreasury, addToTreasurySecret, clearTreasury } from "../features/treasury";
 import { THEMES, loadTheme, applyTheme, loadAccent, saveAccent, applyAccent } from "../features/theme";
 import { loadAiKey, saveAiKey, loadAiModel, saveAiModel } from "../features/ki";
@@ -125,20 +125,40 @@ export function mountStudio(root: HTMLElement): void {
   // würfeln": Dort kommen die vier W aus einem festen Zufallsvorrat, hier aus
   // dem, was in deiner Welt schon geschehen ist. Gesperrte Felder und Regler
   // bleiben, wie sie sind — sonst wäre das Schloss wertlos.
-  const alleBtn = el("button", { class: "primary", title: "Vier W aus der Welt + alle Stilregler würfeln (gesperrte bleiben)" }, icon("dice"), " Alles würfeln");
+  const alleBtn = el("button", { class: "primary", title: "Vier W aus einer gewürfelten Quelle (Welt, Wiki-Vorrat oder Bildvorrat) + alle Stilregler (gesperrte bleiben)" }, icon("dice"), " Alles würfeln");
   alleBtn.addEventListener("click", () => {
     const felder = {
       where: { id: where.id, wert: where.value }, when: { id: when.id, wert: when.value },
       who: { id: who.id, wert: who.value }, what: { id: what.id, wert: what.value },
     };
+    // Die Quelle wird mitgewürfelt: Welt, Wiki-Vorrat oder Bildvorrat, je
+    // nachdem, was gefüllt ist. Welche es war, sagt die Zeile darunter — sonst
+    // wüsste man bei vier gleichen Feldern nicht, ob der Vorrat leer war.
+    const quelle = ziehQuelle(offeneQuellen(vorratStand().funde, ladeBildvorrat().length));
+    let vorschlag: Partial<Record<W4, string>> = {};
+    let woher: string = QUELLE_LABEL[quelle];
+    if (quelle === "wiki") {
+      const f = ziehVorrat();
+      if (f) { vorschlag = f.ctx; woher = `Wiki · ${f.titel}`; } else vorschlag = worldFillContext();
+    } else if (quelle === "abschrift") {
+      const f = ziehBildvorrat();
+      if (f) { vorschlag = f.ctx; woher = `Abschrift · ${f.name}`; } else vorschlag = worldFillContext();
+    } else {
+      vorschlag = worldFillContext();
+    }
     // Die Regel steht in `uebernehmeKontext` und wird dort geprüft: Ein
     // gesperrtes Feld bleibt, ein leerer Vorschlag überschreibt nichts.
-    const neu = uebernehmeKontext(felder, worldFillContext(), (id) => locked.has(id));
+    const neu = uebernehmeKontext(felder, vorschlag, (id) => locked.has(id));
     const bewegt = geaenderteFelder(felder, neu);
     where.value = neu.where; when.value = neu.when; who.value = neu.who; what.value = neu.what;
-    wikiHint.textContent = bewegt.length
-      ? `aus der Welt: ${bewegt.length} von 4 Feldern`
-      : "alle vier Felder sind gesperrt";
+    // Drei Fälle, drei Sätze. „Alle gesperrt" und „der Vorschlag stand schon
+    // da" sehen gleich aus und sind es nicht — bei einem Vorrat mit einem
+    // einzigen Fund passiert das Zweite dauernd.
+    const alleZu = W4_FELDER.every((f) => locked.has(felder[f].id));
+    wikiHint.textContent = bewegt.length ? `${woher}: ${bewegt.length} von 4 Feldern`
+      : alleZu ? "alle vier Felder sind gesperrt"
+      : `${woher}: nichts Neues dabei`;
+    wikiTitel(); abschriftTitel();
     updHints(); ctxSichern();
     rolling = true; ROLL_SELECTS.forEach(rollSel); rolling = false;
     renderPresetChecks();

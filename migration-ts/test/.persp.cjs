@@ -11787,7 +11787,7 @@ var ohneRahmen = 0;
 var ohneArtikel = 0;
 var nichtVorn = 0;
 var ohneZweiten = 0;
-var RAHMEN_ZWEI = OBJEKT_EINSTIEG.map((r) => r.split(". ").slice(1).join(". "));
+var RAHMEN_ZWEI = OBJEKT_EINSTIEG.map((r) => r.split(". ").slice(1).join(". ").replace(/[.!?…]+$/, ""));
 var LAEUFE = 60;
 for (let i = 0; i < LAEUFE; i++) {
   const bank = BUILTIN_PRESETS[ids[i % ids.length]];

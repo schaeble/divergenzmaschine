@@ -89,7 +89,10 @@ const basis = {
 
 let etikett = 0, wortObjekt = 0, ohneRahmen = 0, ohneArtikel = 0, nichtVorn = 0, ohneZweiten = 0;
 // Aus der Quelle, nicht abgeschrieben: Eine Kopie der Liste veraltet stumm.
-const RAHMEN_ZWEI = OBJEKT_EINSTIEG.map((r) => r.split(". ").slice(1).join(". "));
+// Ohne Schlusspunkt vergleichen: Die Satzlängen-Zusammenziehung darf den Satz
+// an seinen Nachbarn binden („… und ich sehe alles, und der Weg führt weiter"),
+// dabei verliert er sein Satzzeichen. Verschwinden darf er trotzdem nicht.
+const RAHMEN_ZWEI = OBJEKT_EINSTIEG.map((r) => r.split(". ").slice(1).join(". ").replace(/[.!?…]+$/, ""));
 const LAEUFE = 60;
 for (let i = 0; i < LAEUFE; i++) {
   const bank = BUILTIN_PRESETS[ids[i % ids.length]!] as Bank;

@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.263.0**, Zweig `typescript-migration`.
+Stand: **v4.264.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,43 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Gefragt und geändert (4.264.0): **„Wird bei Alles würfeln auch Wiki und
+Abschrift mitgenommen?"** Bis dahin nicht — der Knopf zog die vier W allein aus
+der Welt, während zwei gefüllte Vorräte danebenlagen. Jetzt wird die QUELLE
+mitgewürfelt: Welt, Wiki-Vorrat oder Bildvorrat. Die Welt ist immer dabei (sie
+legt sich selbst an), Wiki und Abschrift nur mit gefülltem Vorrat — sonst würfe
+der Knopf mal ins Leere, ohne dass man sähe, warum. Die Regel steht rein und
+geprüft in `features/kontext.ts` (`offeneQuellen`, `ziehQuelle`; der Zufall ist
+ein Parameter, sonst ließe sich „jede Quelle kommt vor" nicht messen).
+
+Die Hinweiszeile unterscheidet jetzt drei Fälle statt zwei: „Wiki · Titel: 3 von
+4 Feldern", „alle vier Felder sind gesperrt" und „Welt: nichts Neues dabei".
+Bei einem Vorrat mit einem einzigen Fund passiert das Dritte dauernd, und es
+sah bisher aus wie das Zweite.
+
+**Hilfe vollständig überarbeitet** — Reiter Autopilot, KI-Lehrer, Drucken; Form
+Bericht; Wiki, Abschrift und die Schlösser in der Kontextzeile; die
+Perspektive Objekt; die Stellschrauben, ihre Schlösser und die Sofortwirkung im
+Werkzeugkasten; die Ansicht „Struktur" mit den Chips und den ziehbaren Balken;
+Varianzanzeige und Musterseite beim Autopiloten.
+
+**Neu: `test/hilfe.ts`, 24 Prüfungen.** Eine Hilfe veraltet lautlos — sie wird
+nicht ausgeführt. Der Prüfstand liest die Reiterliste AUS `app.ts` (eine Kopie
+veraltete genauso) und fordert für jeden einen eigenen Eintrag, prüft jeden
+Querverweis gegen die vorhandenen Abschnitte und hält 19 Neuerungen als Marke
+fest. Dazu die alte Falle: ein gerades `"` als schließendes deutsches
+Anführungszeichen beendet in TypeScript die Zeichenkette — das hat `helpView.ts`
+schon mehrfach zerlegt und wird jetzt gemeldet statt gebaut.
+
+**Aufgeräumt:** Drei Regex-Prüfungen im Prüfstand Studio, die den Klick-Rumpf von
+„Alles würfeln" im Quelltext nachlasen, sind weg. Sie mussten bei jeder
+Umformulierung nachgezogen werden und haben nie einen Fehler gefunden; was der
+Knopf tut, wird jetzt an der laufenden Oberfläche gemessen.
+
+**Falle:** Prüfungen auf einen erzeugten Satz dürfen NICHT auf dem Schlusspunkt
+bestehen. Die Satzlängen-Zusammenziehung bindet ihn an seinen Nachbarn und
+nimmt ihm das Satzzeichen — das ergab einen Wackelkandidaten mit 1 Fehler in 60.
 
 Aus Ausgabe Nr. 41 (4.263.0): Die Objektperspektive steht, aber die Probe hat
 zwei ältere Filter aufgedeckt, die mehr wegwarfen als gedacht.
