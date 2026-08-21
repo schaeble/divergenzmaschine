@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.259.0**, Zweig `typescript-migration`.
+Stand: **v4.260.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -93,6 +93,7 @@ Beide laufen bei `npm test` mit.
 | `test/sammler.ts` | Sammler: 61 Prüfungen gegen nachgebildete Feed-Daten, mit Gegentests |
 | `test/bildrahmen.ts` | Bildrahmen: 67 Prüfungen, 560 Skalier- und 1600 Rasterfälle als Matrix |
 | `test/varianz.ts` | Varianzmesser: Ähnlichkeit, Bänder, Gegenfall Dublette — 26 Prüfungen |
+| `test/studio.ts` | Studio: „Alles würfeln", Schließkreuze, Ton-Vorräte — 19 Prüfungen |
 | `test/musterseite.ts` | Musterseiten: Spaltenverteilung, Deckung, Wortziele — 71 Prüfungen |
 | `test/umbruch.ts` | Seitenumbruch: Verteilung, Fußauffüllung, Aufmacher, Füllgrad |
 | `test/wirkung.ts` | Wirkungsmesser: Blindprobe unter der Schwelle, Form darüber, Rechnung |
@@ -481,6 +482,22 @@ Vorrat liefert im Nominativ — also nur Rahmen, die den brauchen.
 
 Neu im Prüfstand: der **Vorratsanteil** — wie viele Sätze tragen keine
 Faktenmarke? 57 % nach der Änderung, 66 % davor; über 60 % schlägt er an.
+
+**„Alles würfeln"** (4.260.0, Studio): ein Knopf neben „Kontext würfeln", der
+die vier W aus der WELT zieht (`worldFillContext()` — Figur bevorzugt aus den
+gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
+Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
+gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
+sonst wäre das Schloss wertlos.
+
+**Ton-Vorräte verdoppelt**: 12 Eröffnungen und 18–20 Einschübe je Ton (vorher 6
+und 10–12). Der Prüfstand hält Mindestgrößen fest, verbietet Dubletten und
+prüft, dass kein Einschub in zwei Tönen steht — ein Ton, dessen Sätze auch
+anderswo vorkommen, ist kein eigener Ton.
+
+**Schließkreuz** in Test & Ranking, Werkzeugkasten und Einstellungen. Es klappt
+zu statt umzuschalten (`stopPropagation`), und es ist nur im offenen Feld
+sichtbar.
 
 **Druck:** sechs Profile (zeitung, fliesstext, vers, haiku, buehne, shots) plus
 der **Zeitungssetzer** mit gestaltbarem Kopf, Automatik über mehrere Seiten und

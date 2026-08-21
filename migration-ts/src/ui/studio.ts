@@ -34,7 +34,7 @@ import {
 } from "../features/reiter";
 import { icon } from "./icons";
 import { openReader } from "./reader";
-import { worldLogGeneration } from "../features/world";
+import { worldLogGeneration, worldFillContext } from "../features/world";
 import { addToTreasury, addToTreasurySecret, clearTreasury } from "../features/treasury";
 import { THEMES, loadTheme, applyTheme, loadAccent, saveAccent, applyAccent } from "../features/theme";
 import { loadAiKey, saveAiKey, loadAiModel, saveAiModel } from "../features/ki";
@@ -107,6 +107,25 @@ export function mountStudio(root: HTMLElement): void {
   // Wiki-Taste: derselbe Griff wie der Würfel, nur aus dem Sammler-Vorrat.
   // Sie greift NICHT ins Netz — sie liest, was der Reiter „Sammler“ abgelegt
   // hat, und arbeitet damit auch offline.
+  // „Alles würfeln": der Kontext aus der WELT (Figuren, Orte, Zeitleiste des
+  // Reiters Welt — bevorzugt eine Figur mit Spannung, das „Was" aus ihrem
+  // Status) UND alle Stilregler in einem Griff. Der Unterschied zu „Kontext
+  // würfeln": Dort kommen die vier W aus einem festen Zufallsvorrat, hier aus
+  // dem, was in deiner Welt schon geschehen ist. Gesperrte Felder und Regler
+  // bleiben, wie sie sind — sonst wäre das Schloss wertlos.
+  const alleBtn = el("button", { class: "primary", title: "Vier W aus der Welt + alle Stilregler würfeln (gesperrte bleiben)" }, icon("dice"), " Alles würfeln");
+  alleBtn.addEventListener("click", () => {
+    const w = worldFillContext();
+    if (w.where && !locked.has(where.id)) where.value = w.where;
+    if (w.when && !locked.has(when.id)) when.value = w.when;
+    if (w.who && !locked.has(who.id)) who.value = w.who;
+    if (w.what && !locked.has(what.id)) what.value = w.what;
+    updHints(); ctxSichern();
+    rolling = true; ROLL_SELECTS.forEach(rollSel); rolling = false;
+    renderPresetChecks();
+    generate();
+  });
+
   const wikiBtn = el("button", {}, icon("book"), " Wiki");
   const wikiHint = el("span", { class: "ctxhint" });
   const wikiTitel = (): void => {
@@ -256,7 +275,7 @@ export function mountStudio(root: HTMLElement): void {
         el("span", { class: "hilfe", title: "Begriffe, Wörter, Zahlenkombinationen oder Zeichen. Sie erzeugen keinen Text — sie richten die Auswahl: Nahrung bevorzugt Fassungen, die sie aufnehmen, Gift bevorzugt Fassungen, die sie meiden. Wirkt nur bei eingeschalteter Bestenauslese." }, "Umwelt"),
         umweltSel),
       umweltIn, umweltHint),
-    el("div", { class: "btnrow" }, ctxDice, wikiBtn, abschriftBtn, ctxKeep, wikiHint));
+    el("div", { class: "btnrow" }, ctxDice, alleBtn, wikiBtn, abschriftBtn, ctxKeep, wikiHint));
 
   const lockBar = el("div", { class: "lockbar" });
   const preset = select("f-preset", markedPresetOptions());
@@ -1092,8 +1111,22 @@ export function mountStudio(root: HTMLElement): void {
       el("div", { class: "rankslide" }, sl, val),
       el("span", { class: "muted mini" }, hint));
 
+  /** Ein ✕ oben rechts, das die Klappe zumacht.
+   *
+   *  Die Kopfzeile eines `details` klappt zu, wenn man sie anklickt — aber sie
+   *  ist breit, und wer im offenen Feld arbeitet, sucht den Weg heraus dort,
+   *  wo er in jedem Fenster steht: rechts oben. */
+  const schliesser = (d: HTMLElement): HTMLElement => {
+    const x = el("button", { class: "fine-x", type: "button", title: "Zuklappen", "aria-label": "Zuklappen" }, "✕");
+    x.addEventListener("click", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      (d as HTMLDetailsElement).open = false;
+    });
+    return x;
+  };
+
   const rankDetails = el("details", { class: "fine" });
-  rankDetails.append(el("summary", {}, icon("flask"), " Test & Ranking"),
+  rankDetails.append(schliesser(rankDetails), el("summary", {}, icon("flask"), " Test & Ranking"),
     // 1 Erzeugen & bewerten
     el("div", { class: "ranksec" },
       el("div", { class: "ranksec-h" }, "1 · Erzeugen und bewerten"),
@@ -1119,7 +1152,7 @@ export function mountStudio(root: HTMLElement): void {
   wrap.append(rankDetails);
 
   const fine = el("details", { class: "fine" });
-  fine.append(el("summary", {}, icon("tool"), " Werkzeugkasten"));
+  fine.append(schliesser(fine), el("summary", {}, icon("tool"), " Werkzeugkasten"));
 
   // ── Stellschrauben der Rekombination (A.2) ─────────────────────────────
   // Drei Zahlen standen fest im Code und wirkten wie Regler, ohne welche zu sein.
@@ -1368,7 +1401,7 @@ export function mountStudio(root: HTMLElement): void {
   tabMem.addEventListener("click", () => showSettingsPanel("mem"));
   tabReiter.addEventListener("click", () => showSettingsPanel("reiter"));
   const settings = el("details", { class: "fine" });
-  settings.append(el("summary", {}, icon("settings"), " Einstellungen"),
+  settings.append(schliesser(settings), el("summary", {}, icon("settings"), " Einstellungen"),
     el("div", { class: "subtabs" }, tabSchrift, tabFarbe, tabReiter, tabKi, tabMem), schriftPanel, themePanel, reiterPanel, kiPanel, memPanel);
   wrap.append(settings);
 

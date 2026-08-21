@@ -13,7 +13,13 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Später würde niemand sagen können, wann es genau begann.",
       "Es gibt eine Version der Geschichte, und dann die wahre.",
       "Irgendetwas stimmt nicht, lange bevor es jemand bemerkt.",
-      "Die Wahrheit liegt näher, als alle glauben - und tiefer."
+      "Die Wahrheit liegt näher, als alle glauben - und tiefer.",
+      "Der Anfang liegt weiter zurück, als es den Anschein hat.",
+      "Was hier steht, ist die zweitbeste Erklärung.",
+      "Niemand hat es kommen sehen, und alle wussten es.",
+      "Es beginnt mit einer Zahl, die nicht stimmt.",
+      "Zwei Zeugen, zwei Geschichten, ein Abend.",
+      "Am Ende fehlt genau ein Satz."
     ],
     "flavor": [
       "Etwas darin bleibt bewusst unausgesprochen.",
@@ -27,7 +33,15 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Jede Antwort öffnet zwei neue Türen.",
       "Man ahnt, dass die Spur im Kreis führt.",
       "Zwischen den Zeilen wartete eine zweite Geschichte.",
-      "Niemand hat den Anfang gesehen, nur die Folgen."
+      "Niemand hat den Anfang gesehen, nur die Folgen.",
+      "Ein Name fällt zu oft, um zufällig zu sein.",
+      "Die Reihenfolge stimmt, die Uhrzeit nicht.",
+      "Wer zuhört, hört zwei Dinge gleichzeitig.",
+      "Ein Zeuge widerspricht sich freundlich.",
+      "Etwas wurde weggeräumt, bevor jemand fragte.",
+      "Der kürzeste Weg wird nie genommen.",
+      "Ein Zufall wiederholt sich und heißt dann anders.",
+      "Es bleibt eine Tür, die niemand aufschließt."
     ]
   },
 
@@ -38,7 +52,13 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Alles daran hat den Klang von etwas Vergangenem.",
       "Es ist einer jener Momente, die länger dauern als ihre Minute.",
       "Das Licht fällt so, dass Worte fast überflüssig werden.",
-      "Vielleicht ist es weniger ein Ereignis als ein Nachhall."
+      "Vielleicht ist es weniger ein Ereignis als ein Nachhall.",
+      "Der Tag beginnt, als hätte er nichts vor.",
+      "Zuerst ist da nur ein Geräusch, das nicht aufhört.",
+      "Es ist eine Stunde ohne Namen.",
+      "Das Licht steht schief und bleibt so.",
+      "Zwischen zwei Atemzügen liegt der ganze Anfang.",
+      "Alles hier ist zu leise für seine Größe."
     ],
     "flavor": [
       "Die Worte dafür kommen, wenn überhaupt, erst viel später.",
@@ -52,7 +72,15 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Es ist schön auf die Weise, die auch wehtut.",
       "Man hört die Dinge atmen, wenn man still genug ist.",
       "Die Ränder der Welt schienen kurz weicher zu werden.",
-      "Ein Duft von etwas, das es so nie gegeben hat."
+      "Ein Duft von etwas, das es so nie gegeben hat.",
+      "Das Licht bleibt an den Kanten hängen.",
+      "Die Luft trägt weiter als der Ruf.",
+      "Etwas Kleines behauptet sich gegen den Raum.",
+      "Ein Schatten legt sich hin und bleibt.",
+      "Die Farben werden langsamer als die Formen.",
+      "Der Klang bleibt länger als sein Grund.",
+      "Ein Rest Wärme steht noch im Türrahmen.",
+      "Zwischen den Dingen wächst eine Stille an."
     ]
   },
 
@@ -63,7 +91,13 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Manches endet, lange bevor man es merkt.",
       "Es ist die Art von Nachmittag, an dem alles ein wenig verblasst.",
       "Irgendwo darin steckt ein Abschied, den keiner ausgesprochen hat.",
-      "Später würde man sich an diesen Tag erinnern, ohne zu wissen, warum."
+      "Später würde man sich an diesen Tag erinnern, ohne zu wissen, warum.",
+      "Es hätte auch anders kommen können, aber nicht sehr.",
+      "Vieles davon ist schon vorbei, während es geschieht.",
+      "Der Abschied hat lange vorher angefangen.",
+      "Man merkt es erst, wenn es ruhiger wird.",
+      "Was bleibt, ist kleiner als erwartet.",
+      "Es ist ein Tag zum Aufräumen."
     ],
     "flavor": [
       "Etwas darin fühlt sich an wie das Ende eines langen Sommers.",
@@ -75,7 +109,15 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Die Freude kommt mit einem feinen Riss darin.",
       "Man weiß, dass man diesen Moment später vermissen wird.",
       "Selbst das Licht scheint sich langsam zu verabschieden.",
-      "Es ist schön, und genau das macht es schwer."
+      "Es ist schön, und genau das macht es schwer.",
+      "Was gewesen ist, nimmt mehr Platz ein als das Übrige.",
+      "Ein Zimmer, das größer wurde, ohne zu wachsen.",
+      "Die Gewohnheit bleibt, der Grund ist fort.",
+      "Man legt es zurück, wo es nie hingehörte.",
+      "Der zweite Stuhl steht weiter am Tisch.",
+      "Es fehlt niemand, und doch ist es leer.",
+      "Ein Satz bleibt unbeantwortet und stört nicht mehr.",
+      "Die Jahreszeit wechselt schneller als der Blick."
     ]
   },
 
@@ -86,7 +128,13 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Manche Orte warten nur darauf, dass jemand kommt.",
       "Es gibt keinen Ausweg, nur die Illusion davon.",
       "Was folgte, hätte niemand aufhalten können.",
-      "Die Dunkelheit hier ist älter als das Haus, das sie birgt."
+      "Die Dunkelheit hier ist älter als das Haus, das sie birgt.",
+      "Nichts davon endet gut, und das ist bekannt.",
+      "Es beginnt mit einer Rechnung, die offen bleibt.",
+      "Die Sache war lange faul, bevor sie roch.",
+      "Von hier führt kein Weg zurück, nur weiter.",
+      "Jemand hat entschieden, und niemand hat gefragt.",
+      "Der Preis stand von Anfang an fest."
     ],
     "flavor": [
       "Nichts daran fühlt sich je wirklich sicher an.",
@@ -100,7 +148,15 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Die Hoffnung ist das Erste, was hier stirbt.",
       "Man spürt, dass die Wände zuhören.",
       "Es ist zu spät, schon bevor es beginnt.",
-      "Selbst das Schweigen hat hier Zähne."
+      "Selbst das Schweigen hat hier Zähne.",
+      "Was schützt, kostet mehr, als es hält.",
+      "Der Ausweg ist verstellt, seit Wochen.",
+      "Es wird kälter, wo vorher gewartet wurde.",
+      "Der Schaden ist alt und trägt einen neuen Namen.",
+      "Niemand meldet sich, und das ist die Antwort.",
+      "Die Frist läuft, auch wenn niemand zählt.",
+      "Was fehlt, wird nicht ersetzt.",
+      "Am Ende bleibt jemand zurück, der nicht gemeint war."
     ]
   },
 
@@ -111,7 +167,13 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Die Dinge stehen zu still, um natürlich zu sein.",
       "Es ist, als hätte jemand die Welt fast, aber nicht ganz richtig nachgebaut.",
       "Man hat das Gefühl, nicht allein zu sein - ohne Beweis dafür.",
-      "Etwas stimmt mit den Schatten nicht."
+      "Etwas stimmt mit den Schatten nicht.",
+      "Etwas ist verstellt worden, und niemand weiß von wem.",
+      "Es riecht nach einem Raum, der lange zu war.",
+      "Die Zahlen stimmen, die Stimmung nicht.",
+      "Von draußen sieht alles gewöhnlich aus.",
+      "Man sollte hier nicht stehen bleiben.",
+      "Der Ort hat gewartet."
     ],
     "flavor": [
       "Die Spiegel scheinen einen Sekundenbruchteil zu spät zu reagieren.",
@@ -123,7 +185,15 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Die Stille hat eine Form, und sie kommt näher.",
       "Irgendwo atmet etwas im Takt der eigenen Schritte.",
       "Ein Detail ist zu viel im Bild, und keiner sieht es an.",
-      "Es fühlt sich an, als würde man erwartet."
+      "Es fühlt sich an, als würde man erwartet.",
+      "Das Geräusch kommt von innen, nicht von der Straße.",
+      "Etwas atmet mit, kaum hörbar.",
+      "Der Boden gibt an einer Stelle nach.",
+      "Zwei Türen führen in denselben Raum.",
+      "Es wird still, sobald man hinsieht.",
+      "Eine Uhr geht nach und niemand stellt sie.",
+      "Der Abdruck passt zu keiner Hand.",
+      "Was hier bleibt, war schon vorher da."
     ]
   },
 
@@ -134,7 +204,13 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Manchmal reicht ein einziger Moment, um alles zu wenden.",
       "Es sieht aussichtslos aus - und ist es dann doch nicht.",
       "Irgendwo darin liegt der Anfang von etwas Besserem.",
-      "Gerade wenn alles verloren scheint, kommt das Licht zurück."
+      "Gerade wenn alles verloren scheint, kommt das Licht zurück.",
+      "Es fängt klein an und bleibt nicht klein.",
+      "Etwas geht auf, das lange gelegen hat.",
+      "Der Tag hat mehr vor als gedacht.",
+      "Einer fängt an, und dann sind es viele.",
+      "Es gibt gute Gründe, heute zu bleiben.",
+      "Der Anfang ist gemacht, mehr braucht es nicht."
     ],
     "flavor": [
       "Und doch bleibt, gegen jede Erwartung, ein Rest Hoffnung.",
@@ -148,7 +224,15 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Es ist schwer, aber es lohnt sich.",
       "Manchmal ist der Sturz nur der Anlauf.",
       "Etwas darin richtet sich wieder auf.",
-      "Und plötzlich scheint alles möglich."
+      "Und plötzlich scheint alles möglich.",
+      "Etwas löst sich, ohne dass jemand zieht.",
+      "Zwei, die nichts verband, arbeiten zusammen.",
+      "Der Weg wird breiter, je weiter man geht.",
+      "Was fehlt, wird von selbst ergänzt.",
+      "Der Raum füllt sich, ohne eng zu werden.",
+      "Aus einer Zusage werden drei.",
+      "Es reicht diesmal für alle.",
+      "Der zweite Versuch gelingt leichter."
     ]
   },
 
@@ -159,7 +243,13 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Es ist klein und warm und leicht zu übersehen.",
       "Zwischen ihnen liegt eine Sanftheit, für die es kein Wort gibt.",
       "Es beginnt mit einer Geste, die niemand sonst bemerkt.",
-      "Alles daran ist sacht, fast wie Atem im Schlaf."
+      "Alles daran ist sacht, fast wie Atem im Schlaf.",
+      "Es wird niemand laut in dieser Geschichte.",
+      "Jemand hält etwas fest, ohne zu drücken.",
+      "Der Anfang ist so behutsam, dass man ihn übersieht.",
+      "Es ist eine Stunde, in der nichts verlangt wird.",
+      "Man macht Platz, bevor gefragt wird.",
+      "Alles hier hat Zeit."
     ],
     "flavor": [
       "Eine Hand, die blieb, obwohl sie gehen durfte.",
@@ -171,7 +261,15 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Jemand hält etwas Zerbrechliches, ohne es zu drücken.",
       "Wärme, die keine Gegenleistung will.",
       "Es fühlt sich an wie Ankommen.",
-      "Ein Trost, der einfach nur dablieb."
+      "Ein Trost, der einfach nur dablieb.",
+      "Eine Hand bleibt liegen, wo sie ist.",
+      "Es wird leiser gesprochen als nötig.",
+      "Jemand deckt zu, ohne zu wecken.",
+      "Der Weg wird kürzer gemacht, ohne davon zu reden.",
+      "Etwas Warmes bleibt stehen und wartet.",
+      "Man reicht das Bessere weiter.",
+      "Ein Name wird ausgesprochen wie eine Zusage.",
+      "Es ist Platz genug für zwei Meinungen."
     ]
   },
 
@@ -182,7 +280,13 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Alles treibt ein wenig, wie Boote ohne Anker.",
       "Es fühlt sich an, als wäre man mitten in einem fremden Traum aufgewacht.",
       "Die Logik hat hier Urlaub genommen.",
-      "Zeit und Ort sind nur Vorschläge."
+      "Zeit und Ort sind nur Vorschläge.",
+      "Die Reihenfolge ist hier nicht das Wichtigste.",
+      "Es beginnt mittendrin, wie immer.",
+      "Etwas geht auf, das keine Tür hat.",
+      "Der Weg führt weiter, obwohl er endet.",
+      "Zwei Orte fallen zusammen, ohne sich zu stören.",
+      "Es ist später, als es sein dürfte."
     ],
     "flavor": [
       "Die Dinge verwandeln sich, kaum dass man wegsieht.",
@@ -194,7 +298,15 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Die Erinnerung läuft der Gegenwart voraus.",
       "Ein Gedanke wird Landschaft.",
       "Nichts steht fest, und nichts fällt.",
-      "Es ist schön und ungereimt wie ein Traum kurz vor dem Erwachen."
+      "Es ist schön und ungereimt wie ein Traum kurz vor dem Erwachen.",
+      "Ein Raum öffnet sich, wo keiner war.",
+      "Die Treppe führt zweimal nach oben.",
+      "Etwas wiederholt sich mit anderem Ausgang.",
+      "Der Weg kennt sein Ziel besser als der Gehende.",
+      "Ein Fenster zeigt eine andere Jahreszeit.",
+      "Die Entfernung ändert sich beim Hinsehen.",
+      "Man kommt an, ohne gegangen zu sein.",
+      "Etwas Bekanntes trägt einen fremden Namen."
     ]
   },
 
@@ -205,7 +317,13 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Es gibt daran nichts zu beschönigen.",
       "Die Fakten sind übersichtlich, die Folgen weniger.",
       "Man muss es nicht ausschmücken, es genügt so.",
-      "Kurz und ohne Pathos: So liegt der Fall."
+      "Kurz und ohne Pathos: So liegt der Fall.",
+      "Der Vorgang ist überschaubar.",
+      "Es liegt eine Reihenfolge vor.",
+      "Die Zuständigkeit ist geklärt.",
+      "Der Rahmen steht, der Rest folgt.",
+      "Es gibt dazu eine Akte.",
+      "Die Sache ist erledigt, bis auf zwei Punkte."
     ],
     "flavor": [
       "Mehr ist dazu nicht zu sagen.",
@@ -217,7 +335,15 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Man notiert es und geht weiter.",
       "Kein Drama, nur der nächste Schritt.",
       "So einfach, so unausweichlich.",
-      "Am Ende zählen nur die Zahlen."
+      "Am Ende zählen nur die Zahlen.",
+      "Der Vorgang ist abgelegt.",
+      "Eine Frist wurde notiert.",
+      "Zwei Angaben widersprechen sich geringfügig.",
+      "Der Ablauf wurde eingehalten.",
+      "Die Unterlagen liegen vollständig vor.",
+      "Es bleibt bei der bisherigen Regelung.",
+      "Der Fall wird weitergeleitet.",
+      "Eine Rückmeldung steht noch aus."
     ]
   },
 
@@ -228,7 +354,13 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Es ist, mit Verlaub, eine glänzende Idee. Fast.",
       "Was hätte dabei schon schiefgehen können.",
       "Wie schön, dass wenigstens einer den Überblick behielt. Behauptete er.",
-      "Der Plan ist wasserdicht. Das Wasser findet trotzdem einen Weg."
+      "Der Plan ist wasserdicht. Das Wasser findet trotzdem einen Weg.",
+      "Es lief alles nach Plan, nur nicht nach diesem.",
+      "Eine hervorragende Gelegenheit, es nicht zu tun.",
+      "Man kann viel falsch machen, und man tut es.",
+      "Der Anfang war gut gemeint.",
+      "Zum Glück gibt es eine Zuständigkeit.",
+      "Alles bestens, sagt jedenfalls das Formular."
     ],
     "flavor": [
       "Es läuft exakt so gut, wie zu erwarten ist.",
@@ -240,7 +372,15 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Ein Meisterwerk der Planung, rückwärts betrachtet.",
       "Alles unter Kontrolle, versichert die Kontrolle.",
       "Bemerkenswert, wie zuverlässig das Unwahrscheinliche eintraf.",
-      "Es hätte schlimmer kommen können. Kam es dann auch."
+      "Es hätte schlimmer kommen können. Kam es dann auch.",
+      "Der Vorschlag wird gelobt und abgeheftet.",
+      "Zuständig ist, wer gerade nicht da ist.",
+      "Man einigt sich darauf, sich zu einigen.",
+      "Die Lösung wartet auf ein passendes Problem.",
+      "Ein Ausschuss beschäftigt sich damit, gründlich.",
+      "Der kürzeste Weg wurde geprüft und verworfen.",
+      "Es gibt jetzt ein Merkblatt dazu.",
+      "Alle sind einverstanden, aber anders."
     ]
   },
 
@@ -251,7 +391,13 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Was folgt, ist mit Ansage albern.",
       "Es beginnt harmlos und entgleitet dann auf komische Weise.",
       "Man sollte das nicht so ernst nehmen. Die Beteiligten taten es auch nicht.",
-      "Vorweg: Niemand kommt ernsthaft zu Schaden, nur die Würde."
+      "Vorweg: Niemand kommt ernsthaft zu Schaden, nur die Würde.",
+      "Es ging schief, aber mit Anlauf.",
+      "Zwei Dinge fehlten: der Plan und der Rest.",
+      "Man hätte es wissen können, wollte aber nicht.",
+      "Der Anfang war schon das Beste daran.",
+      "Es gab Kaffee, sonst nichts.",
+      "Jemand hat das ernst gemeint."
     ],
     "flavor": [
       "Absurd genug, um fast schon wieder normal zu wirken.",
@@ -263,7 +409,15 @@ export const TONE_DATA: Record<string, ToneData> = {
       "Es ist ein Chaos, aber ein gut gelauntes.",
       "Die Peinlichkeit ist beeindruckend gleichmütig.",
       "Am Ende lachen alle - manche sogar freiwillig.",
-      "Der Ernst der Lage hat sichtlich Feierabend."
+      "Der Ernst der Lage hat sichtlich Feierabend.",
+      "Der Zettel dazu ist unauffindbar, natürlich.",
+      "Es fehlt genau das eine Teil.",
+      "Zwei halten es für erledigt, drei nicht.",
+      "Der Ersatz ist besser als das Original, leider.",
+      "Es funktioniert, solange niemand hinsieht.",
+      "Der Hund hat es gesehen und schweigt.",
+      "Man einigt sich auf später.",
+      "Ein Erfolg, wenn man nicht so genau hinschaut."
     ]
   }
 };

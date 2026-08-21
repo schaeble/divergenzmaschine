@@ -15,6 +15,7 @@ const st: Record<string, string> = {};
 // nicht an, ist sie keine Prüfung, sondern Zierrat — und ein grüner Lauf über
 // 2880 Meldungen wäre wertlos.
 import { buildMeldung, pruefeMeldung, saetzeVon } from "../src/generation/meldung";
+import { ALLE_NAMEN } from "../src/features/faktenblatt";
 import { hatFinitesVerb } from "../src/atoms/derive";
 import type { GenInput } from "../src/types";
 
@@ -78,8 +79,14 @@ for (const who of WER) for (const was of WAS) for (const wann of WANN) for (cons
 // ── 2 · Gegenproben: Jede Sperre bekommt ihren Fehler ───────────────────────
 const { fb: gfb } = buildMeldung(ein("die Ostmoor-Werft", "stellt den Betrieb ein", "am Donnerstag", "in Dürrhausen", "dark"));
 const arten = (t: string): string[] => pruefeMeldung(t, gfb).map((x) => x.art);
+const imBlatt = JSON.stringify(gfb).toLowerCase();
+const fremderName = ALLE_NAMEN.find((n) => !imBlatt.includes(n.toLowerCase())) || "Siewert";
 const gegen: [string, string, string][] = [
-  ["fremder Name", "Am Donnerstag ist in Dürrhausen bekannt geworden: Die Ostmoor-Werft stellt den Betrieb ein. Das teilt Sprecherin Judith Siewert mit. Weitere Angaben liegen zunächst nicht vor.", "fremder Personenname"],
+  // Der fremde Name muss WIRKLICH fremd sein: Die Namen des Faktenblatts werden
+  // gezogen, und „Judith Siewert" stand gelegentlich selbst darin — dann war
+  // der Name nicht fremd, die Gegenprobe schlug nicht an, und der Prüfstand
+  // meldete zufällig einen Fehler. Also einen suchen, der sicher nicht drin ist.
+  ["fremder Name", `Am Donnerstag ist in Dürrhausen bekannt geworden: Die Ostmoor-Werft stellt den Betrieb ein. Das teilt Sprecherin ${fremderName} mit. Weitere Angaben liegen zunächst nicht vor.`, "fremder Personenname"],
   ["erfundene Zahl", "Am Donnerstag ist in Dürrhausen bekannt geworden: Die Ostmoor-Werft stellt den Betrieb ein. Betroffen sind 99999 Beschäftigte. Weitere Angaben liegen zunächst nicht vor.", "Zahl ohne Faktenblatt"],
   ["Wertung", "Am Donnerstag ist in Dürrhausen bekannt geworden: Die Ostmoor-Werft stellt den Betrieb ein. Das ist schrecklich für alle. Weitere Angaben liegen zunächst nicht vor.", "Wertung"],
   ["zu lang", "Am Donnerstag ist in Dürrhausen bekannt geworden: Die Ostmoor-Werft stellt den Betrieb ein. " + "Es geht weiter und weiter und immer noch weiter und kein Ende ist in Sicht ".repeat(6), "zu lang"],

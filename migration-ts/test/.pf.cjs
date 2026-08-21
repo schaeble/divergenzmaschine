@@ -3014,7 +3014,13 @@ var TONE_DATA = {
       "Sp\xE4ter w\xFCrde niemand sagen k\xF6nnen, wann es genau begann.",
       "Es gibt eine Version der Geschichte, und dann die wahre.",
       "Irgendetwas stimmt nicht, lange bevor es jemand bemerkt.",
-      "Die Wahrheit liegt n\xE4her, als alle glauben - und tiefer."
+      "Die Wahrheit liegt n\xE4her, als alle glauben - und tiefer.",
+      "Der Anfang liegt weiter zur\xFCck, als es den Anschein hat.",
+      "Was hier steht, ist die zweitbeste Erkl\xE4rung.",
+      "Niemand hat es kommen sehen, und alle wussten es.",
+      "Es beginnt mit einer Zahl, die nicht stimmt.",
+      "Zwei Zeugen, zwei Geschichten, ein Abend.",
+      "Am Ende fehlt genau ein Satz."
     ],
     "flavor": [
       "Etwas darin bleibt bewusst unausgesprochen.",
@@ -3028,7 +3034,15 @@ var TONE_DATA = {
       "Jede Antwort \xF6ffnet zwei neue T\xFCren.",
       "Man ahnt, dass die Spur im Kreis f\xFChrt.",
       "Zwischen den Zeilen wartete eine zweite Geschichte.",
-      "Niemand hat den Anfang gesehen, nur die Folgen."
+      "Niemand hat den Anfang gesehen, nur die Folgen.",
+      "Ein Name f\xE4llt zu oft, um zuf\xE4llig zu sein.",
+      "Die Reihenfolge stimmt, die Uhrzeit nicht.",
+      "Wer zuh\xF6rt, h\xF6rt zwei Dinge gleichzeitig.",
+      "Ein Zeuge widerspricht sich freundlich.",
+      "Etwas wurde wegger\xE4umt, bevor jemand fragte.",
+      "Der k\xFCrzeste Weg wird nie genommen.",
+      "Ein Zufall wiederholt sich und hei\xDFt dann anders.",
+      "Es bleibt eine T\xFCr, die niemand aufschlie\xDFt."
     ]
   },
   "poetic": {
@@ -3038,7 +3052,13 @@ var TONE_DATA = {
       "Alles daran hat den Klang von etwas Vergangenem.",
       "Es ist einer jener Momente, die l\xE4nger dauern als ihre Minute.",
       "Das Licht f\xE4llt so, dass Worte fast \xFCberfl\xFCssig werden.",
-      "Vielleicht ist es weniger ein Ereignis als ein Nachhall."
+      "Vielleicht ist es weniger ein Ereignis als ein Nachhall.",
+      "Der Tag beginnt, als h\xE4tte er nichts vor.",
+      "Zuerst ist da nur ein Ger\xE4usch, das nicht aufh\xF6rt.",
+      "Es ist eine Stunde ohne Namen.",
+      "Das Licht steht schief und bleibt so.",
+      "Zwischen zwei Atemz\xFCgen liegt der ganze Anfang.",
+      "Alles hier ist zu leise f\xFCr seine Gr\xF6\xDFe."
     ],
     "flavor": [
       "Die Worte daf\xFCr kommen, wenn \xFCberhaupt, erst viel sp\xE4ter.",
@@ -3052,7 +3072,15 @@ var TONE_DATA = {
       "Es ist sch\xF6n auf die Weise, die auch wehtut.",
       "Man h\xF6rt die Dinge atmen, wenn man still genug ist.",
       "Die R\xE4nder der Welt schienen kurz weicher zu werden.",
-      "Ein Duft von etwas, das es so nie gegeben hat."
+      "Ein Duft von etwas, das es so nie gegeben hat.",
+      "Das Licht bleibt an den Kanten h\xE4ngen.",
+      "Die Luft tr\xE4gt weiter als der Ruf.",
+      "Etwas Kleines behauptet sich gegen den Raum.",
+      "Ein Schatten legt sich hin und bleibt.",
+      "Die Farben werden langsamer als die Formen.",
+      "Der Klang bleibt l\xE4nger als sein Grund.",
+      "Ein Rest W\xE4rme steht noch im T\xFCrrahmen.",
+      "Zwischen den Dingen w\xE4chst eine Stille an."
     ]
   },
   "melancholisch": {
@@ -3062,7 +3090,13 @@ var TONE_DATA = {
       "Manches endet, lange bevor man es merkt.",
       "Es ist die Art von Nachmittag, an dem alles ein wenig verblasst.",
       "Irgendwo darin steckt ein Abschied, den keiner ausgesprochen hat.",
-      "Sp\xE4ter w\xFCrde man sich an diesen Tag erinnern, ohne zu wissen, warum."
+      "Sp\xE4ter w\xFCrde man sich an diesen Tag erinnern, ohne zu wissen, warum.",
+      "Es h\xE4tte auch anders kommen k\xF6nnen, aber nicht sehr.",
+      "Vieles davon ist schon vorbei, w\xE4hrend es geschieht.",
+      "Der Abschied hat lange vorher angefangen.",
+      "Man merkt es erst, wenn es ruhiger wird.",
+      "Was bleibt, ist kleiner als erwartet.",
+      "Es ist ein Tag zum Aufr\xE4umen."
     ],
     "flavor": [
       "Etwas darin f\xFChlt sich an wie das Ende eines langen Sommers.",
@@ -3074,7 +3108,15 @@ var TONE_DATA = {
       "Die Freude kommt mit einem feinen Riss darin.",
       "Man wei\xDF, dass man diesen Moment sp\xE4ter vermissen wird.",
       "Selbst das Licht scheint sich langsam zu verabschieden.",
-      "Es ist sch\xF6n, und genau das macht es schwer."
+      "Es ist sch\xF6n, und genau das macht es schwer.",
+      "Was gewesen ist, nimmt mehr Platz ein als das \xDCbrige.",
+      "Ein Zimmer, das gr\xF6\xDFer wurde, ohne zu wachsen.",
+      "Die Gewohnheit bleibt, der Grund ist fort.",
+      "Man legt es zur\xFCck, wo es nie hingeh\xF6rte.",
+      "Der zweite Stuhl steht weiter am Tisch.",
+      "Es fehlt niemand, und doch ist es leer.",
+      "Ein Satz bleibt unbeantwortet und st\xF6rt nicht mehr.",
+      "Die Jahreszeit wechselt schneller als der Blick."
     ]
   },
   "dark": {
@@ -3084,7 +3126,13 @@ var TONE_DATA = {
       "Manche Orte warten nur darauf, dass jemand kommt.",
       "Es gibt keinen Ausweg, nur die Illusion davon.",
       "Was folgte, h\xE4tte niemand aufhalten k\xF6nnen.",
-      "Die Dunkelheit hier ist \xE4lter als das Haus, das sie birgt."
+      "Die Dunkelheit hier ist \xE4lter als das Haus, das sie birgt.",
+      "Nichts davon endet gut, und das ist bekannt.",
+      "Es beginnt mit einer Rechnung, die offen bleibt.",
+      "Die Sache war lange faul, bevor sie roch.",
+      "Von hier f\xFChrt kein Weg zur\xFCck, nur weiter.",
+      "Jemand hat entschieden, und niemand hat gefragt.",
+      "Der Preis stand von Anfang an fest."
     ],
     "flavor": [
       "Nichts daran f\xFChlt sich je wirklich sicher an.",
@@ -3098,7 +3146,15 @@ var TONE_DATA = {
       "Die Hoffnung ist das Erste, was hier stirbt.",
       "Man sp\xFCrt, dass die W\xE4nde zuh\xF6ren.",
       "Es ist zu sp\xE4t, schon bevor es beginnt.",
-      "Selbst das Schweigen hat hier Z\xE4hne."
+      "Selbst das Schweigen hat hier Z\xE4hne.",
+      "Was sch\xFCtzt, kostet mehr, als es h\xE4lt.",
+      "Der Ausweg ist verstellt, seit Wochen.",
+      "Es wird k\xE4lter, wo vorher gewartet wurde.",
+      "Der Schaden ist alt und tr\xE4gt einen neuen Namen.",
+      "Niemand meldet sich, und das ist die Antwort.",
+      "Die Frist l\xE4uft, auch wenn niemand z\xE4hlt.",
+      "Was fehlt, wird nicht ersetzt.",
+      "Am Ende bleibt jemand zur\xFCck, der nicht gemeint war."
     ]
   },
   "unheimlich": {
@@ -3108,7 +3164,13 @@ var TONE_DATA = {
       "Die Dinge stehen zu still, um nat\xFCrlich zu sein.",
       "Es ist, als h\xE4tte jemand die Welt fast, aber nicht ganz richtig nachgebaut.",
       "Man hat das Gef\xFChl, nicht allein zu sein - ohne Beweis daf\xFCr.",
-      "Etwas stimmt mit den Schatten nicht."
+      "Etwas stimmt mit den Schatten nicht.",
+      "Etwas ist verstellt worden, und niemand wei\xDF von wem.",
+      "Es riecht nach einem Raum, der lange zu war.",
+      "Die Zahlen stimmen, die Stimmung nicht.",
+      "Von drau\xDFen sieht alles gew\xF6hnlich aus.",
+      "Man sollte hier nicht stehen bleiben.",
+      "Der Ort hat gewartet."
     ],
     "flavor": [
       "Die Spiegel scheinen einen Sekundenbruchteil zu sp\xE4t zu reagieren.",
@@ -3120,7 +3182,15 @@ var TONE_DATA = {
       "Die Stille hat eine Form, und sie kommt n\xE4her.",
       "Irgendwo atmet etwas im Takt der eigenen Schritte.",
       "Ein Detail ist zu viel im Bild, und keiner sieht es an.",
-      "Es f\xFChlt sich an, als w\xFCrde man erwartet."
+      "Es f\xFChlt sich an, als w\xFCrde man erwartet.",
+      "Das Ger\xE4usch kommt von innen, nicht von der Stra\xDFe.",
+      "Etwas atmet mit, kaum h\xF6rbar.",
+      "Der Boden gibt an einer Stelle nach.",
+      "Zwei T\xFCren f\xFChren in denselben Raum.",
+      "Es wird still, sobald man hinsieht.",
+      "Eine Uhr geht nach und niemand stellt sie.",
+      "Der Abdruck passt zu keiner Hand.",
+      "Was hier bleibt, war schon vorher da."
     ]
   },
   "uplifting": {
@@ -3130,7 +3200,13 @@ var TONE_DATA = {
       "Manchmal reicht ein einziger Moment, um alles zu wenden.",
       "Es sieht aussichtslos aus - und ist es dann doch nicht.",
       "Irgendwo darin liegt der Anfang von etwas Besserem.",
-      "Gerade wenn alles verloren scheint, kommt das Licht zur\xFCck."
+      "Gerade wenn alles verloren scheint, kommt das Licht zur\xFCck.",
+      "Es f\xE4ngt klein an und bleibt nicht klein.",
+      "Etwas geht auf, das lange gelegen hat.",
+      "Der Tag hat mehr vor als gedacht.",
+      "Einer f\xE4ngt an, und dann sind es viele.",
+      "Es gibt gute Gr\xFCnde, heute zu bleiben.",
+      "Der Anfang ist gemacht, mehr braucht es nicht."
     ],
     "flavor": [
       "Und doch bleibt, gegen jede Erwartung, ein Rest Hoffnung.",
@@ -3144,7 +3220,15 @@ var TONE_DATA = {
       "Es ist schwer, aber es lohnt sich.",
       "Manchmal ist der Sturz nur der Anlauf.",
       "Etwas darin richtet sich wieder auf.",
-      "Und pl\xF6tzlich scheint alles m\xF6glich."
+      "Und pl\xF6tzlich scheint alles m\xF6glich.",
+      "Etwas l\xF6st sich, ohne dass jemand zieht.",
+      "Zwei, die nichts verband, arbeiten zusammen.",
+      "Der Weg wird breiter, je weiter man geht.",
+      "Was fehlt, wird von selbst erg\xE4nzt.",
+      "Der Raum f\xFCllt sich, ohne eng zu werden.",
+      "Aus einer Zusage werden drei.",
+      "Es reicht diesmal f\xFCr alle.",
+      "Der zweite Versuch gelingt leichter."
     ]
   },
   "zaertlich": {
@@ -3154,7 +3238,13 @@ var TONE_DATA = {
       "Es ist klein und warm und leicht zu \xFCbersehen.",
       "Zwischen ihnen liegt eine Sanftheit, f\xFCr die es kein Wort gibt.",
       "Es beginnt mit einer Geste, die niemand sonst bemerkt.",
-      "Alles daran ist sacht, fast wie Atem im Schlaf."
+      "Alles daran ist sacht, fast wie Atem im Schlaf.",
+      "Es wird niemand laut in dieser Geschichte.",
+      "Jemand h\xE4lt etwas fest, ohne zu dr\xFCcken.",
+      "Der Anfang ist so behutsam, dass man ihn \xFCbersieht.",
+      "Es ist eine Stunde, in der nichts verlangt wird.",
+      "Man macht Platz, bevor gefragt wird.",
+      "Alles hier hat Zeit."
     ],
     "flavor": [
       "Eine Hand, die blieb, obwohl sie gehen durfte.",
@@ -3166,7 +3256,15 @@ var TONE_DATA = {
       "Jemand h\xE4lt etwas Zerbrechliches, ohne es zu dr\xFCcken.",
       "W\xE4rme, die keine Gegenleistung will.",
       "Es f\xFChlt sich an wie Ankommen.",
-      "Ein Trost, der einfach nur dablieb."
+      "Ein Trost, der einfach nur dablieb.",
+      "Eine Hand bleibt liegen, wo sie ist.",
+      "Es wird leiser gesprochen als n\xF6tig.",
+      "Jemand deckt zu, ohne zu wecken.",
+      "Der Weg wird k\xFCrzer gemacht, ohne davon zu reden.",
+      "Etwas Warmes bleibt stehen und wartet.",
+      "Man reicht das Bessere weiter.",
+      "Ein Name wird ausgesprochen wie eine Zusage.",
+      "Es ist Platz genug f\xFCr zwei Meinungen."
     ]
   },
   "traeumerisch": {
@@ -3176,7 +3274,13 @@ var TONE_DATA = {
       "Alles treibt ein wenig, wie Boote ohne Anker.",
       "Es f\xFChlt sich an, als w\xE4re man mitten in einem fremden Traum aufgewacht.",
       "Die Logik hat hier Urlaub genommen.",
-      "Zeit und Ort sind nur Vorschl\xE4ge."
+      "Zeit und Ort sind nur Vorschl\xE4ge.",
+      "Die Reihenfolge ist hier nicht das Wichtigste.",
+      "Es beginnt mittendrin, wie immer.",
+      "Etwas geht auf, das keine T\xFCr hat.",
+      "Der Weg f\xFChrt weiter, obwohl er endet.",
+      "Zwei Orte fallen zusammen, ohne sich zu st\xF6ren.",
+      "Es ist sp\xE4ter, als es sein d\xFCrfte."
     ],
     "flavor": [
       "Die Dinge verwandeln sich, kaum dass man wegsieht.",
@@ -3188,7 +3292,15 @@ var TONE_DATA = {
       "Die Erinnerung l\xE4uft der Gegenwart voraus.",
       "Ein Gedanke wird Landschaft.",
       "Nichts steht fest, und nichts f\xE4llt.",
-      "Es ist sch\xF6n und ungereimt wie ein Traum kurz vor dem Erwachen."
+      "Es ist sch\xF6n und ungereimt wie ein Traum kurz vor dem Erwachen.",
+      "Ein Raum \xF6ffnet sich, wo keiner war.",
+      "Die Treppe f\xFChrt zweimal nach oben.",
+      "Etwas wiederholt sich mit anderem Ausgang.",
+      "Der Weg kennt sein Ziel besser als der Gehende.",
+      "Ein Fenster zeigt eine andere Jahreszeit.",
+      "Die Entfernung \xE4ndert sich beim Hinsehen.",
+      "Man kommt an, ohne gegangen zu sein.",
+      "Etwas Bekanntes tr\xE4gt einen fremden Namen."
     ]
   },
   "nuechtern": {
@@ -3198,7 +3310,13 @@ var TONE_DATA = {
       "Es gibt daran nichts zu besch\xF6nigen.",
       "Die Fakten sind \xFCbersichtlich, die Folgen weniger.",
       "Man muss es nicht ausschm\xFCcken, es gen\xFCgt so.",
-      "Kurz und ohne Pathos: So liegt der Fall."
+      "Kurz und ohne Pathos: So liegt der Fall.",
+      "Der Vorgang ist \xFCberschaubar.",
+      "Es liegt eine Reihenfolge vor.",
+      "Die Zust\xE4ndigkeit ist gekl\xE4rt.",
+      "Der Rahmen steht, der Rest folgt.",
+      "Es gibt dazu eine Akte.",
+      "Die Sache ist erledigt, bis auf zwei Punkte."
     ],
     "flavor": [
       "Mehr ist dazu nicht zu sagen.",
@@ -3210,7 +3328,15 @@ var TONE_DATA = {
       "Man notiert es und geht weiter.",
       "Kein Drama, nur der n\xE4chste Schritt.",
       "So einfach, so unausweichlich.",
-      "Am Ende z\xE4hlen nur die Zahlen."
+      "Am Ende z\xE4hlen nur die Zahlen.",
+      "Der Vorgang ist abgelegt.",
+      "Eine Frist wurde notiert.",
+      "Zwei Angaben widersprechen sich geringf\xFCgig.",
+      "Der Ablauf wurde eingehalten.",
+      "Die Unterlagen liegen vollst\xE4ndig vor.",
+      "Es bleibt bei der bisherigen Regelung.",
+      "Der Fall wird weitergeleitet.",
+      "Eine R\xFCckmeldung steht noch aus."
     ]
   },
   "ironisch": {
@@ -3220,7 +3346,13 @@ var TONE_DATA = {
       "Es ist, mit Verlaub, eine gl\xE4nzende Idee. Fast.",
       "Was h\xE4tte dabei schon schiefgehen k\xF6nnen.",
       "Wie sch\xF6n, dass wenigstens einer den \xDCberblick behielt. Behauptete er.",
-      "Der Plan ist wasserdicht. Das Wasser findet trotzdem einen Weg."
+      "Der Plan ist wasserdicht. Das Wasser findet trotzdem einen Weg.",
+      "Es lief alles nach Plan, nur nicht nach diesem.",
+      "Eine hervorragende Gelegenheit, es nicht zu tun.",
+      "Man kann viel falsch machen, und man tut es.",
+      "Der Anfang war gut gemeint.",
+      "Zum Gl\xFCck gibt es eine Zust\xE4ndigkeit.",
+      "Alles bestens, sagt jedenfalls das Formular."
     ],
     "flavor": [
       "Es l\xE4uft exakt so gut, wie zu erwarten ist.",
@@ -3232,7 +3364,15 @@ var TONE_DATA = {
       "Ein Meisterwerk der Planung, r\xFCckw\xE4rts betrachtet.",
       "Alles unter Kontrolle, versichert die Kontrolle.",
       "Bemerkenswert, wie zuverl\xE4ssig das Unwahrscheinliche eintraf.",
-      "Es h\xE4tte schlimmer kommen k\xF6nnen. Kam es dann auch."
+      "Es h\xE4tte schlimmer kommen k\xF6nnen. Kam es dann auch.",
+      "Der Vorschlag wird gelobt und abgeheftet.",
+      "Zust\xE4ndig ist, wer gerade nicht da ist.",
+      "Man einigt sich darauf, sich zu einigen.",
+      "Die L\xF6sung wartet auf ein passendes Problem.",
+      "Ein Ausschuss besch\xE4ftigt sich damit, gr\xFCndlich.",
+      "Der k\xFCrzeste Weg wurde gepr\xFCft und verworfen.",
+      "Es gibt jetzt ein Merkblatt dazu.",
+      "Alle sind einverstanden, aber anders."
     ]
   },
   "humorous": {
@@ -3242,7 +3382,13 @@ var TONE_DATA = {
       "Was folgt, ist mit Ansage albern.",
       "Es beginnt harmlos und entgleitet dann auf komische Weise.",
       "Man sollte das nicht so ernst nehmen. Die Beteiligten taten es auch nicht.",
-      "Vorweg: Niemand kommt ernsthaft zu Schaden, nur die W\xFCrde."
+      "Vorweg: Niemand kommt ernsthaft zu Schaden, nur die W\xFCrde.",
+      "Es ging schief, aber mit Anlauf.",
+      "Zwei Dinge fehlten: der Plan und der Rest.",
+      "Man h\xE4tte es wissen k\xF6nnen, wollte aber nicht.",
+      "Der Anfang war schon das Beste daran.",
+      "Es gab Kaffee, sonst nichts.",
+      "Jemand hat das ernst gemeint."
     ],
     "flavor": [
       "Absurd genug, um fast schon wieder normal zu wirken.",
@@ -3254,7 +3400,15 @@ var TONE_DATA = {
       "Es ist ein Chaos, aber ein gut gelauntes.",
       "Die Peinlichkeit ist beeindruckend gleichm\xFCtig.",
       "Am Ende lachen alle - manche sogar freiwillig.",
-      "Der Ernst der Lage hat sichtlich Feierabend."
+      "Der Ernst der Lage hat sichtlich Feierabend.",
+      "Der Zettel dazu ist unauffindbar, nat\xFCrlich.",
+      "Es fehlt genau das eine Teil.",
+      "Zwei halten es f\xFCr erledigt, drei nicht.",
+      "Der Ersatz ist besser als das Original, leider.",
+      "Es funktioniert, solange niemand hinsieht.",
+      "Der Hund hat es gesehen und schweigt.",
+      "Man einigt sich auf sp\xE4ter.",
+      "Ein Erfolg, wenn man nicht so genau hinschaut."
     ]
   }
 };

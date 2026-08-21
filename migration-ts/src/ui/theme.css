@@ -966,3 +966,12 @@ select.abweichend{border-color:var(--acc)}
 .va-wert.va-hoch{background:none;color:#2f9e44}
 .va-wert.va-mittel{background:none;color:#d7a531}
 .va-wert.va-gering{background:none;color:#E64980}
+
+/* Schließkreuz in den Klappfeldern (Test & Ranking, Werkzeugkasten,
+   Einstellungen). Nur sichtbar, wenn das Feld offen ist — zugeklappt wäre es
+   ein Knopf ohne Wirkung. */
+.fine{position:relative}
+.fine-x{position:absolute;top:6px;right:8px;z-index:2;width:24px;height:24px;padding:0;
+  line-height:1;border-radius:6px;font-size:12px;opacity:.55}
+.fine-x:hover{opacity:1}
+.fine:not([open]) .fine-x{display:none}
