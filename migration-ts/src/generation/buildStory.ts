@@ -11,9 +11,9 @@ import { resetMarkovTrace, traceMarkov } from "./markovTrace";
 import { markovSeenRecently, noteMarkov } from "./cooldown";
 import { toneRhythm } from "./tone.shape";
 import { archetypeAugmentList } from "./archetype";
-import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "./wordcls";
+import { extractLeadVerb, looksLikeFullClause, splitSpeakers, personKopf } from "./wordcls";
 import { declineHookPhrase, ensureArticle } from "./declension";
-import { applyDisruptor, applyRhythm, applyTension, paragraphize, applyPerspective, pronominalize, guessPronoun } from "./shape";
+import { applyDisruptor, applyRhythm, applyTension, paragraphize, applyPerspective, pronominalize, guessPronoun, entferneDubletten } from "./shape";
 import { MarkovModel, isSaneMarkov, smoothMarkov } from "../corpus";
 import { biasedAutoChoice } from "./autochoice";
 import { buildVideoSequenceText } from "./video";
@@ -55,7 +55,11 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
   const T = normWhen(clean(input.when)) || "zu einer Zeit";
   const PRaw = normWho(clean(input.who)) || "Jemand";
   const speakers = splitSpeakers(PRaw);
-  const P = speakers[0] || PRaw;
+  // Der KOPF, nicht die ganze Figur: Die angehängte Verzierung des
+  // Kontextwürfels („…, voller ungestellter Fragen") taugt nicht als
+  // Satzsubjekt, und Rhythmus und Disruptor machten aus ihrem Komma eine
+  // Satzgrenze — dann stand sie am Satzanfang und war wieder ein Subjekt.
+  const P = personKopf(speakers[0] || PRaw);
   const A = clean(input.what) || "etwas";
 
   const aLead = extractLeadVerb(A);
@@ -175,5 +179,9 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   }
   if (input.form === "strang") return asStrang(finalText, anchor, lenTarget);
   if (input.form === "drama") return asDrama(finalText, kit.speakerA, kit.speakerB || kit.P);
-  return enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix");
+  // Ganz zum Schluss noch einmal: Das Auffüllen auf die Ziellänge hängt Material
+  // an und kann dabei denselben Satz zweimal nebeneinander stellen. Gemessen war
+  // das die Hauptquelle der Satzdubletten — vor dem Auffüllen zu putzen half
+  // fast nichts.
+  return entferneDubletten(enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix"));
 }

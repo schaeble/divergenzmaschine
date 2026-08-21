@@ -2,6 +2,7 @@
 // die Satzschablonen erwarten (Ortsangabe mit Präposition, Zeitangabe, Nominativ-
 // Phrase). Konservativ: greift nur ein, wenn die Form sicher bestimmbar ist.
 import { guessGender } from "./declension";
+import { istEigenePerson } from "./wordcls";
 
 const PREPS = /^(in|im|an|am|auf|bei|beim|unter|über|vor|hinter|neben|zwischen|durch|entlang|inmitten|nahe|außerhalb|innerhalb|jenseits|diesseits|um|ums|zu|zur|zum|während|seit|nach|gegen|ab|aus|von|vom|unterwegs|irgendwo|nirgendwo|überall|dort|draußen|drinnen|hier|daheim|zuhause|unten|oben)\b/i;
 const cap = (s: string): string => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
@@ -78,11 +79,15 @@ export function normWho(s: string): string {
   const t = (s || "").trim();
   if (!t) return t;
   const parts = t.split(",").map((p) => p.trim()).filter(Boolean);
-  const fixed = parts.map((p) => {
+  const fixed = parts.map((p, i) => {
     // „müde Wächterin" → „eine müde Wächterin" (nur wenn klein beginnend + Genus sicher)
     const m = p.match(/^([a-zäöüß][a-zäöüß-]*)\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
     if (m && !/^(der|die|das|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses)$/i.test(m[1]!)) { const g = guessGender(m[2]!) || (/in$/.test(m[2]!.toLowerCase()) ? "f" : undefined); if (g === "f") return `eine ${m[1]} ${m[2]}`; if (g === "m" || g === "n") return `ein ${m[1]} ${m[2]}`; }
-    return cap(p);
+    // Ein Zusatz wird NICHT großgeschrieben. Er ist kein Satzanfang und keine
+    // Person — „die Archivarin, Voller ungestellter Fragen" war der erste
+    // sichtbare Schritt auf dem Weg zu einer erfundenen zweiten Figur.
+    // Der erste Teil ist immer der Kopf der Phrase und wird großgeschrieben.
+    return i === 0 || istEigenePerson(p) ? cap(p) : low(p);
   });
   return fixed.join(", ");
 }

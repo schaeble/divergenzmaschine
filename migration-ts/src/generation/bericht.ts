@@ -189,7 +189,9 @@ function schlagzeile(fb: Faktenblatt): string {
 function dachzeile(fb: Faktenblatt): string {
   // Vorher stand hier fest "Wirtschaft", weil `art` beim Ziehen immer auf
   // "organisation" gesetzt wurde: Es gab genau eine Zeitungsseite.
-  return `${fb.wo.ort} · ${RESSORTS[fb.ressort].label}`;
+  // Ohne brauchbaren Ort nur das Ressort. Eine Dachzeile ohne Ort ist üblich;
+  // eine Dachzeile über vier Zeilen ist es nicht.
+  return fb.wo.ort ? `${fb.wo.ort} · ${RESSORTS[fb.ressort].label}` : RESSORTS[fb.ressort].label;
 }
 
 /** Der Vorspann.

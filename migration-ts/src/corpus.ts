@@ -19,6 +19,11 @@ export function savePersistentCorpus(text: string): void {
   safeSet(STORAGE_CORPUS, text, "Korpus");
 }
 
+/** Ganze Zeilen, die kein Satz sind, sondern Gerüst: Kopfzeilen des Berichts,
+ *  der Meldung und der Zeitungsseite selbst. Die Marke steht am Zeilenanfang —
+ *  „Faktenkasten" mitten in einem Satz ist ein Wort wie jedes andere. */
+export const GERUEST_ZEILE = /^\s*(Faktenkasten\b|Kurz gemeldet\s*$|Fiktive Zeitung\b|Zeitzeichen\s*[·|]|Nr\.\s*\d+\s*[·|]|UNABHÄNGIG\b|SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/;
+
 /** Entfernt typische Selbstfütterungs-Rückstände vor dem Lernen. */
 export function corpusSanitize(text: string): string {
   let s = (text ?? "").toString();
@@ -33,9 +38,18 @@ export function corpusSanitize(text: string): string {
     .map((z) => z.replace(/^\s*(?:Shot\s*\d+\s*\([^)]*\)|(?:DE|EN)\s*:)\s*/, ""))
     .join("\n");
   s = s.replace(/\([^()]*\)/g, " ");                                   // Meta-Klammern
-  s = s.replace(/\b\d{1,2}:\d{2}\b\s*—\s*/g, "");                      // Zeitstempel-Shards
+  // Zeitstempel-Shards. Die Präposition muss MIT weg: „Gegen 00:39 — und der
+  // Blick blieb." wurde sonst zu „Gegen und der Blick blieb."
+  s = s.replace(/\b(?:gegen|um|ab|seit|bis)\s+\d{1,2}:\d{2}\b\s*(?:—|–)?\s*/gi, "");
+  s = s.replace(/\b\d{1,2}:\d{2}\b\s*—\s*/g, "");
   s = s.replace(/\b(Schluss|Notiz|Rand|Gestern|Jetzt|Später|Drei Tage später)\s*—\s*/g, "");
   s = s.replace(/\bSZENE:\s*/g, "");                                   // Dialog-Kopf
+  // Das Gerüst des BERICHTS und der Zeitungsseite. Der Autopilot legt seine
+  // Ausgaben in die Schatzkammer, die Schatzkammer füttert den Korpus — das
+  // Gerüst wächst also mit jeder Ausgabe ins Material hinein. In Nr. 44 stand
+  // „Faktenkasten · Betroffen: 3.840 Haushalte · Dauer: 50 Stunden" mitten in
+  // einem Prosaabsatz.
+  s = s.split(/\r?\n/).filter((z) => !GERUEST_ZEILE.test(z)).join("\n");
   s = s.replace(/—\s*(?=[.—])/g, "");                                  // verwaiste Gedankenstriche
   s = s.replace(/\.{2,}/g, ".");                                       // Doppel-Punkte
   s = s.replace(/\s+/g, " ").trim();

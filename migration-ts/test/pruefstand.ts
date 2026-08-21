@@ -110,7 +110,16 @@ function semantisch(text: string, fb: ReturnType<typeof buildBericht>["fb"]): st
   const jahre = fb.chronologie.map((c) => Number((c.zeit.match(/\b(1[0-9]{3}|2[0-9]{3})\b/) || [])[1])).filter(Number.isFinite);
   for (let i = 1; i < jahre.length; i++) if (jahre[i]! < jahre[i - 1]!) out.push("Jahreszahlen verdreht");
   if (fb.wer.art === "person" && /^(der|die|das) /i.test(fb.wer.kurz)) out.push("Artikel vor Personenname");
-  if (text.split("\n\n").some((p) => p.trim().length < 12)) out.push("leerer Abschnitt");
+  // Der ERSTE Abschnitt ist die Dachzeile. Sie darf kurz sein — „Bildung" ist
+  // eine gültige Dachzeile, wenn kein brauchbarer Ort vorliegt. Vorher stand
+  // dort der Platzhalter „der Ort · Bildung", und der war lang genug, um dieser
+  // Regel zu entgehen. Statt der Länge wird die Dachzeile jetzt auf das geprüft,
+  // worauf es ankommt: kein Platzhalter, eine Zeile.
+  const teile = text.split("\n\n");
+  const dach = (teile[0] || "").trim();
+  if (/\b(der|am) Ort\b/.test(dach)) out.push("Platzhalter in der Dachzeile");
+  if (dach.length > 46 || dach.includes("\n")) out.push("Dachzeile zu lang");
+  if (teile.slice(1).some((p) => p.trim().length < 12)) out.push("leerer Abschnitt");
   return out;
 }
 

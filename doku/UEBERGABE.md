@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.264.0**, Zweig `typescript-migration`.
+Stand: **v4.265.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,68 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Aus der Analyse von Ausgabe Nr. 44 (4.265.0) — fünf Reparaturen, alle vorher
+gemessen:
+
+**§ 1 · Der Kontextwürfel baute eine zweite Figur.** `roll()` hängt in der
+Hälfte aller Würfe einen Zusatz mit KOMMA an die Figur an. Das Komma ist aber
+schon vergeben: Es trennt die Sprecher einer Szene. 4 der 20 Zusätze rutschten
+durch `splitSpeakers()` und wurden zum Satzsubjekt: „Voller ungestellter Fragen
+tritt einen Schritt zurück." Die alte Fassung zählte auf, was ein Zusatz IST —
+eine Aufzählung wird nie vollständig. `istEigenePerson()` fragt jetzt umgekehrt:
+Sieht der Teil aus wie eine Nominalphrase (Begleiter oder großgeschriebener
+Name)? Alles andere gehört zur vorigen Person. Dazu `personKopf()`: Als
+SATZSUBJEKT taugt nur der Kopf ohne Verzierung — Rhythmus und Disruptor machen
+aus dem Komma eine Satzgrenze, und dann stand die Verzierung wieder am
+Satzanfang. Ein bestimmender Relativsatz bleibt („ein Schulmädchen, das Karten
+fälscht"). Und `rekombination.ts` trennte an derselben Stelle von Hand am Komma
+statt über `splitSpeakers` — 35 % der Sätze bekamen dort die Verzierung als
+Nebenfigur.
+
+**§ 2 · Die Meldung prüfte ihr fremdes Material nicht.** Alle vier Meldungen aus
+Nr. 44 nachgestellt: `pruefeMeldung` meldete in allen vier NICHTS. Behoben:
+Platzhalter „am Ort" ersatzlos gestrichen (eine Meldung ohne Ort lässt ihn weg,
+statt ihn zu behaupten), „tagsüber" in die Zeitadverbien (daher „Im tagsüber bei
+teilweise bewölktem Himmel"), `formeWas()` formt Sammler-Material um
+(Klammereinschub, weiches Trennzeichen, alles hinter dem ersten Satzende und
+hinter einem Semikolon), und der Vorspann kennt jetzt DREI Fälle statt zwei —
+eine bloße Nominalphrase steht allein hinter dem Doppelpunkt, statt ein Subjekt
+davorgesetzt zu bekommen („Die Person eine Wandmalerei"). Vier neue Prüfungen.
+
+**Falle bei § 2:** Die erste Fassung der neuen Prüfung suchte nach einem
+FEHLENDEN PRÄDIKAT und meldete 1400 von 2880 tadellosen Meldungen. Einen
+verlässlichen Erkenner für das finite Verb im deutschen Hauptsatz gibt es hier
+nicht. Gesucht wird jetzt nach der FORM des Fehlers: zwei Nominalphrasen
+hintereinander.
+
+**§ 3 · Zwei Türen, ein Schloss.** `corpusSanitize()` reinigte nur das
+Markov-Lernen; der Regler „Korpus-Bausteine" las den Korpus ROH. So kam
+„Faktenkasten · Betroffen: 3.840 Haushalte" in einen Prosaabsatz. Beide Wege
+gehen jetzt durch dieselbe Reinigung, und `GERUEST_ZEILE` kennt auch den
+Faktenkasten, „Kurz gemeldet" und die Fußzeile der Zeitung selbst. Nebenbei: Die
+Zeitstempel-Regel entfernte die Uhrzeit und ließ die Präposition stehen —
+„Gegen und der Blick blieb."
+
+**§ 4 · Satzdubletten.** Gemessen 22 von 200 Texten (11 %).
+`entferneDubletten()` wirft den zweiten von zwei gleichen Nachbarsätzen weg,
+auch die verkleidete Fassung mit Gedankenstrich. Sie läuft GANZ ZUM SCHLUSS,
+nach `enforceWordTarget` — das Auffüllen auf die Ziellänge war die Hauptquelle,
+vorher zu putzen half fast nichts. Neu 0 von 200.
+
+**§ 5 + § 6 · Dachzeile und Kurzname.** `dachOrt()` wirft auch den unbestimmten
+Artikel, alles hinter dem ersten Komma und einen angehängten Relativsatz weg;
+bleibt etwas über 28 Zeichen übrig, gibt es KEINEN Ort und die Dachzeile trägt
+nur das Ressort. `kurzPerson()` nimmt das letzte Wort nur noch, wenn kein
+Begleiter davorsteht und die Angabe kurz ist — „das Register aller falschen
+Namen" wurde sonst zu „Namen".
+
+**Prüfstand angepasst:** Die Regel „Abschnitt unter 12 Zeichen = leer" traf jetzt
+die kurze, richtige Dachzeile („Bildung"). Sie gilt nur noch ab dem zweiten
+Abschnitt; die Dachzeile wird stattdessen auf Platzhalter und Länge geprüft —
+eine schärfere Regel, keine weichere.
+
+**Neu:** `test/nr44.ts`, 63 Prüfungen, neun Gegenproben.
 
 Gefragt und geändert (4.264.0): **„Wird bei Alles würfeln auch Wiki und
 Abschrift mitgenommen?"** Bis dahin nicht — der Knopf zog die vier W allein aus

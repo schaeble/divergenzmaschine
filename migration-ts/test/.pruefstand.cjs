@@ -1537,6 +1537,39 @@ function looksLikeFullClause(leadVerb, rest) {
   if (leadVerb) return false;
   return VERB_TOKEN_RE.test(rest || "") || EXTRA_FINITE_RE.test(rest || "");
 }
+var SP_REL = /^(der|die|das|den|dem|des|deren|dessen|welche[rsmn]?|wo|worin|woran|womit|wovon)\b/i;
+var SP_CONJ = /^(als|während|weil|wenn|da|obwohl|nachdem|bevor|sodass|damit|dass|ob|indem|sobald|solange)\b/i;
+var SP_PREP = /^(mit|ohne|aus|von|vom|in|im|auf|an|am|für|bei|zu|zum|zur|über|unter|vor|nach|durch|gegen|seit|um|entlang|trotz|wegen|innerhalb|außerhalb|samt|nebst|zwischen|entgegen|gemäß|laut|binnen|jenseits|diesseits)\b/i;
+var SP_ENDS_VERB = /(?:\b(hat|hatte|ist|war|sind|waren|wird|wurde|wurden|kann|konnte|will|wollte|muss|musste|bleibt|blieb|kommt|kam|geht|ging)|\b[a-zäöüß]{2,}(?:t|te|en|st|et))\.?$/;
+var SP_DET = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses|jener|jene|jenes|beide|alle|zwei|drei|vier)\b/i;
+function istEigenePerson(teil) {
+  const p = clean(teil);
+  if (!p) return false;
+  if (SP_REL.test(p) && SP_ENDS_VERB.test(p)) return false;
+  if (SP_CONJ.test(p) || SP_PREP.test(p)) return false;
+  if (SP_DET.test(p)) return true;
+  if (/^[A-ZÄÖÜ]/.test(p)) return true;
+  return !/\s/.test(p);
+}
+function personKopf(person) {
+  const teile = (person || "").split(",").map((x) => clean(x)).filter(Boolean);
+  if (teile.length <= 1) return (person || "").trim();
+  const raus = [teile[0]];
+  for (let i2 = 1; i2 < teile.length; i2++) {
+    if (SP_REL.test(teile[i2]) && SP_ENDS_VERB.test(teile[i2])) raus.push(teile[i2]);
+  }
+  return raus.join(", ");
+}
+function splitSpeakers(who) {
+  const parts = (who || "").split(",").map((s) => clean(s)).filter(Boolean);
+  if (parts.length <= 1) return parts;
+  const out = [parts[0]];
+  for (let i2 = 1; i2 < parts.length; i2++) {
+    if (istEigenePerson(parts[i2])) out.push(parts[i2]);
+    else out[out.length - 1] += ", " + parts[i2];
+  }
+  return out;
+}
 
 // src/generation/coherence.ts
 var PRAET_STRONG = /\b(war|waren|warst|hatte|hatten|wurde|wurden|ging|gingen|kam|kamen|sah|sahen|gab|gaben|stand|standen|blieb|blieben|hielt|hielten|ließ|ließen|fand|fanden|nahm|nahmen|sprach|sprachen|schrieb|schrieben|trug|trugen|fuhr|fuhren|lief|liefen|saß|saßen|lag|lagen|hieß|hießen|zog|zogen|schlief|schliefen|rief|riefen|fiel|fielen|sang|sangen|trank|tranken|schwieg|schwiegen|floss|flossen|stieg|stiegen|sank|sanken|bot|boten|schloss|schlossen|verlor|verloren|begann|begannen|geschah|geschahen|konnte|konnten|musste|mussten|wollte|wollten|sollte|sollten|durfte|durften|wusste|wussten|dachte|dachten|brachte|brachten)\b/i;
@@ -1943,6 +1976,7 @@ var CLAUSE_VERBS = /* @__PURE__ */ new Set(["antworten", "antwortet", "atmen", "
 // src/generation/ctxnorm.ts
 var PREPS = /^(in|im|an|am|auf|bei|beim|unter|über|vor|hinter|neben|zwischen|durch|entlang|inmitten|nahe|außerhalb|innerhalb|jenseits|diesseits|um|ums|zu|zur|zum|während|seit|nach|gegen|ab|aus|von|vom|unterwegs|irgendwo|nirgendwo|überall|dort|draußen|drinnen|hier|daheim|zuhause|unten|oben)\b/i;
 var cap2 = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+var low = (s) => s ? s.charAt(0).toLowerCase() + s.slice(1) : s;
 function parseNP(s) {
   const m = s.trim().match(/^(?:(der|die|das|ein|eine|einen|einem|einer)\s+)?(?:([a-zäöüß][a-zäöüß-]*)\s+)?([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
   if (!m) return null;
@@ -2005,14 +2039,14 @@ function normWho(s) {
   const t = (s || "").trim();
   if (!t) return t;
   const parts = t.split(",").map((p) => p.trim()).filter(Boolean);
-  const fixed = parts.map((p) => {
+  const fixed = parts.map((p, i2) => {
     const m = p.match(/^([a-zäöüß][a-zäöüß-]*)\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
     if (m && !/^(der|die|das|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses)$/i.test(m[1])) {
       const g = guessGender(m[2]) || (/in$/.test(m[2].toLowerCase()) ? "f" : void 0);
       if (g === "f") return `eine ${m[1]} ${m[2]}`;
       if (g === "m" || g === "n") return `ein ${m[1]} ${m[2]}`;
     }
-    return cap2(p);
+    return i2 === 0 || istEigenePerson(p) ? cap2(p) : low(p);
   });
   return fixed.join(", ");
 }
@@ -2357,6 +2391,32 @@ function kurzform(haupt, genus) {
 }
 var TITEL = /^(Dr|Prof|Ing|Dipl|Mag|Med|Rer|Nat|Phil|h\.c|Jun|Sen|MdB|MdL)\.?$/i;
 var PERSON_NOMEN = /(mädchen|junge|kind|frau|mann|männer|dame|herr|schüler|schülerin|lehrer|lehrerin|wächter|wächterin|arzt|ärztin|bäcker|bäckerin|gärtner|gärtnerin|fischer|fischerin|bote|botin|wanderer|wanderin|reisende|reisender|nachbar|nachbarin|greis|greisin|witwe|witwer|zwilling|bruder|schwester|sohn|tochter|vater|mutter|onkel|tante|neffe|nichte|freund|freundin|gast|fremde|fremder|meister|meisterin|gesell|lehrling|soldat|soldatin|matrose|matrosin|pilot|pilotin|köchin|koch|wirt|wirtin|müller|müllerin|schmied|schmiedin|hirte|hirtin|jäger|jägerin|sammler|sammlerin)$/i;
+function formeWas(roh) {
+  let w = (roh || "").replace(/\u00ad/g, "").replace(/\u200b/g, "").replace(/\([^()]*\)/g, " ").replace(/\[[^\]]*\]/g, " ").replace(/\s+/g, " ").trim();
+  const ende = w.match(/^([\s\S]{10,}?[.!?…])\s+[A-ZÄÖÜ]/);
+  if (ende && !/(?:\d|\b(?:Dr|Prof|Ing|Dipl|Nr|St|ca|bzw|usw|evtl|Abs|Art|Jh|Mio|Mrd|Bd|Hrsg|geb|gest|verh|u|z|B))\.$/.test(ende[1])) {
+    w = ende[1];
+  }
+  const semi = w.indexOf(";");
+  if (semi > 12) w = w.slice(0, semi);
+  return w.replace(/[\s,;:–—-]+$/, "").replace(/[.!?…]+$/, "").trim();
+}
+function kurzPerson(werRoh) {
+  const w = (werRoh || "").trim().split(/\s+/).filter(Boolean).filter((x) => !/^(Dr\.|Prof\.|Ing\.|Dipl\.-?\w*\.?|med\.|jur\.|rer\.|nat\.|h\.c\.|Sir|Lady|Herr|Frau)$/i.test(x));
+  if (!w.length) return werRoh;
+  const hatBegleiter = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|sein|seine|ihr|ihre|unser|unsere|kein|keine|jeder|jede|jedes|dieser|diese|dieses)$/i.test(w[0]);
+  const letztes = w[w.length - 1];
+  if (hatBegleiter || w.length > 3 || !/^[A-ZÄÖÜ]/.test(letztes)) return werRoh.trim();
+  return letztes;
+}
+function dachOrt(roh) {
+  let o = (roh || "").replace(/^(in|an|auf|bei|im|am|vor|über|unter|zu|zur|zum)\s+/i, "").replace(/^(der|die|das|dem|den|des|ein|eine|einen|einem|einer|eines)\s+/i, "").trim();
+  o = (o.split(",")[0] || "").trim();
+  o = o.replace(/\s+(wo|worin|woran|die|der|das|welche[rs]?)\s+.*$/i, "").trim();
+  o = o.replace(/[.,;:!?…]+$/, "").trim();
+  if (!o || o.length > 28) return "";
+  return o.charAt(0).toUpperCase() + o.slice(1);
+}
 function istGattungsperson(haupt) {
   const w = haupt.trim().replace(/[^A-Za-zÄÖÜäöüß\s-]/g, "").split(/\s+/).filter(Boolean);
   const letztes = w[w.length - 1] || "";
@@ -2375,7 +2435,7 @@ function istPerson(haupt) {
   if (/^(FC|SV|TSV|SC|VfB|VfL|BSC|1\.)$/i.test(w[0])) return false;
   return w.every((x) => /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(x));
 }
-var ZEIT_ADVERB = /^(lange|kurz|damals|einst|früher|später|gestern|heute|morgen|neulich|jüngst|mittags|morgens|abends|nachts|vormittags|nachmittags|wochentags|jahrelang|tagelang|monatelang|irgendwann|niemals|immer|jederzeit|zuletzt|zuerst|anfangs|schließlich|inzwischen|unterdessen|seither|seitdem|dereinst)\b/i;
+var ZEIT_ADVERB = /^(lange|kurz|damals|einst|früher|später|gestern|heute|morgen|neulich|jüngst|mittags|morgens|abends|nachts|vormittags|nachmittags|tagsüber|nachtsüber|wochentags|werktags|sonntags|samstags|jahrelang|tagelang|monatelang|irgendwann|niemals|immer|jederzeit|zuletzt|zuerst|anfangs|schließlich|inzwischen|unterdessen|seither|seitdem|dereinst|derzeit|momentan|gerade|eben|bald|demnächst|künftig|abermals)\b/i;
 function mitPraeposition(wann) {
   const w = (wann || "").trim();
   if (!w) return "";
@@ -2392,8 +2452,8 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
   const werRoh = (normWho(input.who || "").split(",")[0] || "").trim() || WER_ERSATZ;
   const person = istPerson(werRoh);
   const genus = person ? "mask" : genusVon(werRoh);
-  const ortMitPraep = (normWhere(input.where || "") || "").trim() || "am Ort";
-  const ort = (normWhere(input.where || "") || "").replace(/^(in|an|auf|bei|im|am|vor|über|unter)\s+/i, "").replace(/^(der|die|das|dem|den)\s+/i, "").trim() || "der Ort";
+  const ortMitPraep = (normWhere(input.where || "") || "").trim();
+  const ort = dachOrt(normWhere(input.where || "") || "");
   const wann = (normWhen(input.when || "") || "").trim();
   const nachnamen = [...NACHNAME];
   const zieheNach = () => nachnamen.splice(Math.floor(Math.random() * nachnamen.length), 1)[0];
@@ -2452,8 +2512,8 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
   return {
     id: "fb-" + Date.now().toString(36),
     ressort,
-    wer: person ? istGattungsperson(werRoh) ? { haupt: werRoh, kurz: werRoh.replace(/^(ein|eine|einer|einem)\s+/i, (m) => /^eine\s/i.test(m) ? "die " : "das "), genus, art: "person" } : { haupt: werRoh, kurz: werRoh.split(/\s+/).pop(), genus, art: "person" } : { haupt: werRoh, kurz: kurzform(werRoh, genus), genus, art: "organisation" },
-    was: (input.what || "meldet einen Vorfall").trim().replace(/[.!?…]+$/, ""),
+    wer: person ? istGattungsperson(werRoh) ? { haupt: werRoh, kurz: werRoh.replace(/^(ein|eine|einer|einem)\s+/i, (m) => /^eine\s/i.test(m) ? "die " : "das "), genus, art: "person" } : { haupt: werRoh, kurz: kurzPerson(werRoh), genus, art: "person" } : { haupt: werRoh, kurz: kurzform(werRoh, genus), genus, art: "organisation" },
+    was: formeWas(input.what || "") || "meldet einen Vorfall",
     // Zwei Formen: `ort` fuer die Dachzeile ("Unterelbe · Wetter"), `mitPraep`
     // fuer den Satz. Ohne die zweite stand "Wie es in Unterelbe weitergeht" -
     // es heisst "an der Unterelbe".
@@ -3367,6 +3427,21 @@ function loadPersistentCorpus() {
     return "";
   }
 }
+var GERUEST_ZEILE = /^\s*(Faktenkasten\b|Kurz gemeldet\s*$|Fiktive Zeitung\b|Zeitzeichen\s*[·|]|Nr\.\s*\d+\s*[·|]|UNABHÄNGIG\b|SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/;
+function corpusSanitize(text) {
+  let s = (text ?? "").toString();
+  s = s.split(/\r?\n/).filter((z) => !/^\s*(SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/.test(z)).map((z) => z.replace(/^\s*(?:Shot\s*\d+\s*\([^)]*\)|(?:DE|EN)\s*:)\s*/, "")).join("\n");
+  s = s.replace(/\([^()]*\)/g, " ");
+  s = s.replace(/\b(?:gegen|um|ab|seit|bis)\s+\d{1,2}:\d{2}\b\s*(?:—|–)?\s*/gi, "");
+  s = s.replace(/\b\d{1,2}:\d{2}\b\s*—\s*/g, "");
+  s = s.replace(/\b(Schluss|Notiz|Rand|Gestern|Jetzt|Später|Drei Tage später)\s*—\s*/g, "");
+  s = s.replace(/\bSZENE:\s*/g, "");
+  s = s.split(/\r?\n/).filter((z) => !GERUEST_ZEILE.test(z)).join("\n");
+  s = s.replace(/—\s*(?=[.—])/g, "");
+  s = s.replace(/\.{2,}/g, ".");
+  s = s.replace(/\s+/g, " ").trim();
+  return s;
+}
 function isSaneMarkov(s) {
   if (!s || s.length < 20) return false;
   const words = s.split(/\s+/);
@@ -3509,7 +3584,7 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
   const korpusDeckel = loadKnobs().korpus;
   if (korpusDeckel > 0) {
     const eigene2 = new Set((figur || "").toLowerCase().split(/[,;]/).map((x) => x.trim()).filter(Boolean));
-    const roh = loadPersistentCorpus();
+    const roh = corpusSanitize(loadPersistentCorpus());
     const saetze = roh.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter((x) => x.length > 12);
     let genommen = 0;
     for (const satz of saetze) {
@@ -3561,7 +3636,7 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
 }
 var wirktNominal = (t) => /^\s*(ein|eine|einen|einem|eines|einer|der|die|das|den|dem|des|mein|meine|meinen|sein|seine|ihr|ihre|kein|keine|viele|manche|jede|jeden|etwas|nichts|[A-ZÄÖÜ])/.test(t);
 function buildVersAtome(bank, input, model) {
-  const figur = (normWho(input.who || "").split(",")[0] || "Jemand").trim();
+  const figur = (personKopf(splitSpeakers(normWho(input.who || ""))[0] || "") || "Jemand").trim();
   const pool = buildPool(bank, input.perspective, input.what, figur, model, input.markovMode);
   const ctx = {
     ort: normWhere(input.where || "") || "an einem Ort",
@@ -3664,7 +3739,7 @@ function schlagzeile(fb) {
   return cap(`${wer} ${fb.was}`);
 }
 function dachzeile(fb) {
-  return `${fb.wo.ort} \xB7 ${RESSORTS[fb.ressort].label}`;
+  return fb.wo.ort ? `${fb.wo.ort} \xB7 ${RESSORTS[fb.ressort].label}` : RESSORTS[fb.ressort].label;
 }
 function vorspann(fb, b, blick) {
   const z = fb.zahlen[0];
@@ -7252,7 +7327,11 @@ function semantisch(text, fb) {
   const jahre = fb.chronologie.map((c) => Number((c.zeit.match(/\b(1[0-9]{3}|2[0-9]{3})\b/) || [])[1])).filter(Number.isFinite);
   for (let i2 = 1; i2 < jahre.length; i2++) if (jahre[i2] < jahre[i2 - 1]) out.push("Jahreszahlen verdreht");
   if (fb.wer.art === "person" && /^(der|die|das) /i.test(fb.wer.kurz)) out.push("Artikel vor Personenname");
-  if (text.split("\n\n").some((p) => p.trim().length < 12)) out.push("leerer Abschnitt");
+  const teile = text.split("\n\n");
+  const dach = (teile[0] || "").trim();
+  if (/\b(der|am) Ort\b/.test(dach)) out.push("Platzhalter in der Dachzeile");
+  if (dach.length > 46 || dach.includes("\n")) out.push("Dachzeile zu lang");
+  if (teile.slice(1).some((p) => p.trim().length < 12)) out.push("leerer Abschnitt");
   return out;
 }
 var presets = Object.keys(BUILTIN_PRESETS);

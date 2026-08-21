@@ -143,21 +143,70 @@ export function looksLikeFullClause(leadVerb: string | null, rest: string): bool
 // ("eine Nonne, die die Welt bereist hat" = eine Person).
 const SP_REL = /^(der|die|das|den|dem|des|deren|dessen|welche[rsmn]?|wo|worin|woran|womit|wovon)\b/i;
 const SP_CONJ = /^(als|während|weil|wenn|da|obwohl|nachdem|bevor|sodass|damit|dass|ob|indem|sobald|solange)\b/i;
-const SP_PREP = /^(mit|ohne|aus|von|vom|in|im|auf|an|am|für|bei|zu|zum|zur|über|unter|vor|nach|durch|gegen|seit|um|entlang|trotz|wegen|innerhalb|außerhalb|samt|nebst)\b/i;
-const SP_ENDS_VERB = /(?:\b(hat|hatte|ist|war|sind|waren|wird|wurde|wurden|kann|konnte|will|wollte|muss|musste|bleibt|blieb|kommt|kam|geht|ging)|\w{2,}(?:t|te|en|st|et))\.?$/i;
+const SP_PREP = /^(mit|ohne|aus|von|vom|in|im|auf|an|am|für|bei|zu|zum|zur|über|unter|vor|nach|durch|gegen|seit|um|entlang|trotz|wegen|innerhalb|außerhalb|samt|nebst|zwischen|entgegen|gemäß|laut|binnen|jenseits|diesseits)\b/i;
+// Das letzte Wort muss KLEIN geschrieben sein, damit es als Verb zählt. Ohne
+// diese Bedingung galt „die alten Frauen" als Relativsatz, weil „Frauen" auf
+// -en endet — deutsche Verben sind klein, Nomen groß, und das ist hier die
+// verlässlichste Auskunft, die die Schreibung hergibt.
+const SP_ENDS_VERB = /(?:\b(hat|hatte|ist|war|sind|waren|wird|wurde|wurden|kann|konnte|will|wollte|muss|musste|bleibt|blieb|kommt|kam|geht|ging)|\b[a-zäöüß]{2,}(?:t|te|en|st|et))\.?$/;
+/** Begleiter: Wer damit anfängt, ist eine Nominalphrase — also eine Person. */
+const SP_DET = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses|jener|jene|jenes|beide|alle|zwei|drei|vier)\b/i;
+
+/** Ist dieser Teil hinter dem Komma eine EIGENE Person — oder ein Zusatz zur
+ *  vorigen?
+ *
+ *  Anlass: Ausgabe Nr. 44. Der Kontextwürfel hängt in der Hälfte aller Würfe
+ *  einen Zusatz mit Komma an die Figur an („eine Archivarin ohne Namen, voller
+ *  ungestellter Fragen"). Das Komma ist aber schon vergeben — es trennt die
+ *  Sprecher einer Szene. Vier der zwanzig Zusätze wurden deshalb zur zweiten
+ *  Figur und danach zum Satzsubjekt: „Voller ungestellter Fragen tritt einen
+ *  Schritt zurück."
+ *
+ *  Die alte Fassung zählte auf, was ein Zusatz IST (Präposition, Konjunktion,
+ *  Relativsatz). Eine Aufzählung kann man nicht vollständig bekommen. Gefragt
+ *  wird jetzt umgekehrt: Sieht der Teil aus wie eine Nominalphrase? Er muss mit
+ *  einem Begleiter oder einem großgeschriebenen Namen anfangen. Alles andere
+ *  gehört zur vorigen Person. */
+export function istEigenePerson(teil: string): boolean {
+  const p = clean(teil);
+  if (!p) return false;
+  if (SP_REL.test(p) && SP_ENDS_VERB.test(p)) return false;   // nachgestellter Relativsatz
+  if (SP_CONJ.test(p) || SP_PREP.test(p)) return false;
+  if (SP_DET.test(p)) return true;
+  if (/^[A-ZÄÖÜ]/.test(p)) return true;                        // Eigenname
+  // Ein EINZELNES Wort hinter dem Komma ist ein Name, auch klein getippt
+  // („baucis, philemon"). Kein Zusatz der App besteht aus einem Wort.
+  return !/\s/.test(p);
+}
+
+/** Der KOPF einer Figur: ihr Name samt bestimmendem Relativsatz, aber ohne die
+ *  angehängte Verzierung.
+ *
+ *  „eine Archivarin ohne Namen, voller ungestellter Fragen" ist EINE Figur —
+ *  aber als Satzsubjekt taugt nur der Kopf. Der Grund ist nicht Stil, sondern
+ *  Bruchgefahr: Rhythmus und Disruptor setzen an Kommas Satzgrenzen, und dann
+ *  stand die Verzierung plötzlich am Satzanfang und war wieder ein Subjekt:
+ *  „Voller ungestellter Fragen greift nach dem, was bleibt."
+ *
+ *  Ein bestimmender Relativsatz bleibt: „ein Schulmädchen, das Karten fälscht"
+ *  ist ohne ihn eine andere Figur. */
+export function personKopf(person: string): string {
+  const teile = (person || "").split(",").map((x) => clean(x)).filter(Boolean);
+  if (teile.length <= 1) return (person || "").trim();
+  const raus = [teile[0]!];
+  for (let i = 1; i < teile.length; i++) {
+    if (SP_REL.test(teile[i]!) && SP_ENDS_VERB.test(teile[i]!)) raus.push(teile[i]!);
+  }
+  return raus.join(", ");
+}
 
 export function splitSpeakers(who: string): string[] {
   const parts = (who || "").split(",").map((s) => clean(s)).filter(Boolean);
   if (parts.length <= 1) return parts;
-  const isContinuation = (p: string): boolean => {
-    if (SP_CONJ.test(p) || SP_PREP.test(p)) return true;
-    if (SP_REL.test(p) && SP_ENDS_VERB.test(p)) return true;
-    return false;
-  };
   const out: string[] = [parts[0]!];
   for (let i = 1; i < parts.length; i++) {
-    if (isContinuation(parts[i]!)) out[out.length - 1] += ", " + parts[i]!;
-    else out.push(parts[i]!);
+    if (istEigenePerson(parts[i]!)) out.push(parts[i]!);
+    else out[out.length - 1] += ", " + parts[i]!;
   }
   return out;
 }

@@ -1,0 +1,194 @@
+// Prüfstand Nr. 44: die fünf Reparaturen aus der Analyse von Ausgabe 44.
+//
+// Jede Prüfung hier steht für eine Stelle, die im gedruckten Blatt zu lesen
+// war. Wer eine davon wieder ausbaut, merkt es hier und nicht erst in der
+// nächsten Ausgabe.
+{
+  const g = globalThis as unknown as { localStorage?: Storage };
+  if (typeof g.localStorage === "undefined") {
+    const m: Record<string, string> = {};
+    g.localStorage = { getItem: (k: string) => (k in m ? m[k]! : null), setItem: (k: string, v: string) => { m[k] = String(v); },
+      removeItem: (k: string) => { delete m[k]; }, clear: () => { for (const k of Object.keys(m)) delete m[k]; },
+      key: () => null, length: 0 } as unknown as Storage;
+  }
+}
+import { buildStory } from "../src/generation/buildStory";
+import { entferneDubletten } from "../src/generation/shape";
+import { splitSpeakers, istEigenePerson } from "../src/generation/wordcls";
+import { normWho } from "../src/generation/ctxnorm";
+import { WHO_TWISTS } from "../src/generation/ideas.data";
+import { corpusSanitize, GERUEST_ZEILE } from "../src/corpus";
+import { dachOrt, kurzPerson, formeWas } from "../src/features/faktenblatt";
+import { buildMeldung, pruefeMeldung, tragtPraedikat } from "../src/generation/meldung";
+import { BUILTIN_PRESETS } from "../src/presets.data";
+import type { Bank, GenInput } from "../src/types";
+
+const fails: string[] = [];
+let geprueft = 0, bestanden = 0;
+const ist = (name: string, wert: unknown, soll: unknown): void => {
+  geprueft++;
+  if (wert === soll) bestanden++; else fails.push(`${name}: „${String(wert)}“ — erwartet „${String(soll)}“`);
+};
+const wahr = (name: string, b: boolean): void => ist(name, b, true);
+
+// ── § 4 · Satzdubletten ────────────────────────────────────────────────────
+// Im Blatt: „Aus Symmetrie wird Unterschied — Aus Symmetrie wird Unterschied."
+// Gemessen vorher: 22 von 200 Texten (11 %).
+ist("zwei gleiche Nachbarsätze werden einer",
+  entferneDubletten("Flüsse als Adern. Flüsse als Adern. Der Rest bleibt."),
+  "Flüsse als Adern. Der Rest bleibt.");
+ist("auch die verkleidete Dublette mit Gedankenstrich",
+  entferneDubletten("Aus Symmetrie wird Unterschied — Aus Symmetrie wird Unterschied. Weiter."),
+  "Aus Symmetrie wird Unterschied. Weiter.");
+ist("eine Wiederholung MIT Abstand bleibt — sie ist ein Mittel",
+  entferneDubletten("Der Kreis schließt sich. Etwas dazwischen. Der Kreis schließt sich."),
+  "Der Kreis schließt sich. Etwas dazwischen. Der Kreis schließt sich.");
+ist("und ein einzelner Satz bleibt unangetastet",
+  entferneDubletten("Nur ein Satz."), "Nur ein Satz.");
+
+// ── § 1 · Der Figuren-Zusatz ist keine zweite Figur ────────────────────────
+// Im Blatt: „Voller ungestellter Fragen tritt einen Schritt zurück."
+{
+  const durch = WHO_TWISTS.filter((t) => splitSpeakers(`eine Archivarin ohne Namen, ${t}`).length > 1);
+  ist("kein Figuren-Zusatz wird zur zweiten Figur", durch.join(", "), "");
+  wahr(`es gibt überhaupt Zusätze (${WHO_TWISTS.length})`, WHO_TWISTS.length >= 15);
+  // Gegenrichtung: echte zweite Personen müssen zwei bleiben.
+  for (const [w, n] of [["Baucis, Philemon", 2], ["die Archivarin, der Fährmann", 2],
+    ["Tom, die alten Frauen", 2], ["baucis, philemon", 2],
+    ["eine Nonne, die die Welt bereist hat", 1], ["ein Mann, während der Nacht", 1],
+    ["die Wächterin, mit einem fremden Koffer", 1]] as [string, number][]) {
+    ist(`„${w}“`, splitSpeakers(w).length, n);
+  }
+  wahr("ein Zusatz gilt nicht als eigene Person", !istEigenePerson("voller ungestellter Fragen"));
+  wahr("ein Name schon", istEigenePerson("Philemon"));
+  ist("und der Zusatz wird nicht großgeschrieben",
+    normWho("eine Archivarin ohne Namen, voller ungestellter Fragen"),
+    "Eine Archivarin ohne Namen, voller ungestellter Fragen");
+}
+
+// ── § 3 · Das Gerüst der eigenen Ausgabe im Korpus ─────────────────────────
+// Im Blatt, mitten in einem Prosaabsatz: „Faktenkasten · Betroffen: 3.840
+// Haushalte · Dauer: 50 Stunden".
+{
+  const GERUEST = [
+    "Faktenkasten · Betroffen: 3.840 Haushalte · Dauer: 50 Stunden",
+    "Fiktive Zeitung · maschinell erzeugt",
+    "Kurz gemeldet",
+    "WAS: will die Spur bewusst auf",
+    "SEQUENZ — Die Spur",
+  ];
+  for (const z of GERUEST) wahr(`als Gerüst erkannt: „${z.slice(0, 30)}…“`, GERUEST_ZEILE.test(z));
+  wahr("ein gewöhnlicher Satz nicht", !GERUEST_ZEILE.test("Die Tür steht offen und niemand geht hindurch."));
+  ist("die Reinigung wirft die Gerüstzeile weg", corpusSanitize(GERUEST[0]!).trim(), "");
+  ist("und behält den Satz daneben",
+    corpusSanitize(GERUEST[0]! + "\nDie Tür steht offen.").trim(), "Die Tür steht offen.");
+  // Der Zeitstempel-Rest: „Gegen 00:39 — und der Blick blieb." wurde zu
+  // „Gegen und der Blick blieb." — die Präposition blieb stehen.
+  ist("der Zeitstempel nimmt seine Präposition mit",
+    corpusSanitize("Gegen 00:39 — und der Blick blieb.").trim(), "und der Blick blieb.");
+}
+
+// ── § 5 + § 6 · Dachzeile und Kurzname ─────────────────────────────────────
+// Im Blatt: „EINER STRASSE, DIE ZWEIMAL EXISTIERT, WO DIE STRASSEN KEINE NAMEN
+// TRAGEN · GESELLSCHAFT" und „…über die das Namen nun informiert."
+ist("der Dativ wird zum Namen", dachOrt("an der Unterelbe"), "Unterelbe");
+ist("der unbestimmte Artikel fällt auch", dachOrt("in einem Hafen"), "Hafen");
+ist("alles hinter dem Komma fällt weg",
+  dachOrt("in einer Straße, die zweimal existiert, wo die Straßen keine Namen tragen"), "Straße");
+ist("zu lang heißt: gar kein Ort", dachOrt("vor einer bemalten Außenmauer an einem Gehweg"), "");
+ist("und leer bleibt leer", dachOrt(""), "");
+ist("der Nachname bleibt der Nachname", kurzPerson("Dr. Ing. Richard Doll"), "Doll");
+ist("auch ohne Titel", kurzPerson("Reinhard Kraus"), "Kraus");
+ist("eine Phrase behält ihre volle Form",
+  kurzPerson("das Register aller falschen Namen"), "das Register aller falschen Namen");
+ist("und eine Gattungsbezeichnung auch", kurzPerson("die Archivarin"), "die Archivarin");
+
+// ── § 2 · Die Meldung formt fremdes Material um ────────────────────────────
+ist("der Klammereinschub fällt weg",
+  formeWas("Die Schriftstellerin Marie von Ebner-Eschenbach (Lotti, die Uhrmacherin; Das Gemeindekind) wird geboren."),
+  "Die Schriftstellerin Marie von Ebner-Eschenbach wird geboren");
+ist("das weiche Trennzeichen auch", formeWas("Der deutsche Leicht­athlet gewinnt"), "Der deutsche Leichtathlet gewinnt");
+ist("nur der erste Satz", formeWas("Er kommt an. Danach geht er wieder."), "Er kommt an");
+ist("und eine Nominalphrase bleibt, was sie ist", formeWas("eine Wandmalerei"), "eine Wandmalerei");
+wahr("ein Prädikat wird erkannt", tragtPraedikat("sucht eine Akte"));
+wahr("eine Nominalphrase trägt keines", !tragtPraedikat("eine Wandmalerei"));
+
+{
+  const basis = {
+    tone: "nuechtern", form: "meldung", lenTarget: 60, mode: "bureau", structure: "linear",
+    perspective: "third", rhythm: "auto", disruptor: "off", instability: 0, markovMode: "off",
+    varLevel: "wild", archetypeA: "neutral", archetypeB: "neutral",
+  };
+  // Genau die vier Eingaben, die in Nr. 44 die vier Meldungen ergaben.
+  const FAELLE: [string, string, string, string][] = [
+    ["", "am 15. August 2026", "", "Der deutsche Leichtathlet Owen Ansah hat bei der EM in Birmingham Gold gewonnen"],
+    ["vor einer bemalten Außenmauer an einem Gehweg", "tagsüber bei teilweise bewölktem Himmel", "die Person", "eine Wandmalerei"],
+    ["", "am 13. September 1830", "", "Die Schriftstellerin Marie von Ebner-Eschenbach (Lotti, die Uhrmacherin; Das Gemeindekind) wird geboren"],
+    ["im Archiv", "am Morgen", "die Archivarin", "sucht eine Akte"],
+  ];
+  for (const [wo, wann, wer, was] of FAELLE) {
+    const erg = buildMeldung({ ...basis, where: wo, when: wann, who: wer, what: was } as unknown as GenInput, "gesellschaft");
+    const maengel = pruefeMeldung(erg.text, erg.fb).map((x) => x.art);
+    ist(`Meldung ohne Mangel: „${(wann || wo).slice(0, 26)}…“`, maengel.join(", "), "");
+    wahr(`kein Platzhalter darin: „${(wann || wo).slice(0, 20)}…“`, !/\b(am|der) Ort\b/.test(erg.text));
+    wahr(`keine Klammer darin: „${(wann || wo).slice(0, 20)}…“`, !/\([^)]*\)/.test(erg.text));
+    wahr(`kein „Im tagsüber“: „${(wann || wo).slice(0, 20)}…“`, !/\bIm tagsüber\b/.test(erg.text));
+  }
+}
+
+// Und die Prüfung muss die alten Fassungen als mangelhaft erkennen — sonst ist
+// sie nur höflich.
+{
+  const erg = buildMeldung({
+    where: "im Archiv", when: "am Morgen", who: "die Archivarin", what: "sucht eine Akte",
+    tone: "nuechtern", form: "meldung", lenTarget: 60, mode: "bureau", structure: "linear",
+    perspective: "third", rhythm: "auto", disruptor: "off", instability: 0, markovMode: "off",
+    varLevel: "wild", archetypeA: "neutral", archetypeB: "neutral",
+  } as unknown as GenInput, "gesellschaft");
+  const ALT: [string, string][] = [
+    ["Platzhalter", "Am 15. August 2026 ist am Ort bekannt geworden: Ein Fund wird gemeldet. Weitere Angaben liegen zunächst nicht vor."],
+    ["zwei Nominalphrasen", "Am Morgen ist im Archiv bekannt geworden: Die Person eine Wandmalerei. Weitere Angaben liegen zunächst nicht vor."],
+    ["Fremdmaterial", "Am Morgen ist im Archiv bekannt geworden: Die Schriftstellerin (Lotti) wird geboren. Weitere Angaben liegen zunächst nicht vor."],
+    ["Großschreibung im Satz", "Am Morgen ist Vor einer bemalten Außenmauer bekannt geworden: Ein Fund wird gemeldet. Weitere Angaben liegen zunächst nicht vor."],
+  ];
+  for (const [name, text] of ALT) {
+    wahr(`die Prüfung erkennt: ${name}`, pruefeMeldung(text, erg.fb).length > 0);
+  }
+  wahr("und lässt die saubere Meldung in Ruhe", pruefeMeldung(erg.text, erg.fb).length === 0);
+}
+
+// ── Am fertigen Text: keine Dubletten, keine Phrase als Subjekt ────────────
+{
+  const ids = Object.keys(BUILTIN_PRESETS);
+  let dubletten = 0, phrase = 0;
+  for (let i = 0; i < 120; i++) {
+    const t = buildStory(BUILTIN_PRESETS[ids[i % ids.length]!] as Bank, {
+      where: "im Archiv", when: "am Morgen", who: "eine Archivarin ohne Namen, voller ungestellter Fragen",
+      what: "sucht eine Akte", tone: "nuechtern", form: "prose", lenTarget: 200, tension: "auto",
+      cast: "auto", mode: "auto", structure: i % 2 ? "rekombination" : "linear", perspective: "third",
+      rhythm: "auto", disruptor: "off", instability: 0, markovMode: "off", varLevel: "wild",
+      archetypeA: "neutral", archetypeB: "neutral",
+    } as unknown as GenInput);
+    const ss = t.split(/(?<=[.!?…])\s+/).map((x) => x.replace(/^[—–\s]+/, "").trim()).filter(Boolean);
+    for (let k = 1; k < ss.length; k++) {
+      const a = ss[k - 1]!.replace(/[.!?…—–]/g, "").trim().toLowerCase();
+      const b = ss[k]!.replace(/[.!?…—–]/g, "").trim().toLowerCase();
+      if (a && a === b) dubletten++;
+    }
+    // Nicht nur am Satzanfang suchen: Rhythmus und Disruptor machen aus dem
+    // Komma der Figur eine Satzgrenze, und dann steht die Verzierung dort.
+    if (/[Vv]oller ungestellter Fragen/.test(t)) phrase++;
+  }
+  ist("in 120 Texten keine Satzdublette", dubletten, 0);
+  ist("und die Verzierung kommt im Text gar nicht mehr vor", phrase, 0);
+}
+
+console.log(`Prüfstand Nr. 44 — ${geprueft} Prüfungen, ${bestanden} bestanden`);
+const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
+if (fails.length) {
+  console.error(`\n❌ Nr. 44: ${fails.length} Fehler:`);
+  fails.forEach((f) => console.error("  - " + f));
+  proc.process?.exit(1);
+} else {
+  console.log(`\n✅ Nr. 44: alle ${geprueft} Prüfungen bestanden.`);
+}

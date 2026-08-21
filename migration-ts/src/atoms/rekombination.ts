@@ -6,13 +6,13 @@ import { passt, fortschreiben, fuelleKontext, fuelleSlot, offeneSlots, verfugen,
 import TEMPLATES from "./templates.data.json";
 import { normWhere, normWhen, normWho } from "../generation/ctxnorm";
 import { isFirstPerson, isSecondPerson } from "../generation/coherence";
-import { extractLeadVerb, looksLikeFullClause } from "../generation/wordcls";
+import { extractLeadVerb, looksLikeFullClause, splitSpeakers, personKopf } from "../generation/wordcls";
 import { NOUN_GENDER } from "../generation/nouns.data";
 import { applyPerspective, pronominalize, guessPronoun } from "../generation/shape";
 import { resetTrace, pushTrace, pruefeAbgleich } from "./trace";
 import { loadDramaData } from "../generation/dramaturgie";
 import { loadKnobs } from "../features/knobs";
-import { isSaneMarkov, loadPersistentCorpus, type MarkovModel } from "../corpus";
+import { isSaneMarkov, loadPersistentCorpus, corpusSanitize, type MarkovModel } from "../corpus";
 import { properNames } from "../generation/coherence";
 import { hatFinitesVerb } from "./derive";
 import { ICH_DU_ZU_ER } from "../generation/wordcls";
@@ -122,7 +122,10 @@ export function buildPool(bank: Bank, perspektive: string, what?: string, figur?
   const korpusDeckel = loadKnobs().korpus;
   if (korpusDeckel > 0) {
     const eigene2 = new Set((figur || "").toLowerCase().split(/[,;]/).map((x) => x.trim()).filter(Boolean));
-    const roh = loadPersistentCorpus();
+    // DIESELBE Reinigung wie beim Markov-Lernen. Bis 4.264.0 las dieser Zweig
+    // den Korpus roh: Es gab zwei Türen in den Text und nur an einer ein
+    // Schloss. Genau so kam das Gerüst der Zeitung in die Prosa.
+    const roh = corpusSanitize(loadPersistentCorpus());
     const saetze = roh.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter((x) => x.length > 12);
     let genommen = 0;
     for (const satz of saetze) {
@@ -182,12 +185,12 @@ const FLACH = new Set(["nominalphrase", "praepositionalphrase", "fragment", "ein
 
 
 export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovModel): string {
-  const pool = buildPool(bank, input.perspective, input.what, (normWho(input.who || "").split(",")[0] || "Jemand").trim(),
+  const pool = buildPool(bank, input.perspective, input.what, (personKopf(splitSpeakers(normWho(input.who || ""))[0] || "") || "Jemand").trim(),
     model, input.markovMode);
   const ctx = {
     ort: normWhere(input.where || "") || "an einem Ort",
     zeit: normWhen(input.when || "") || "zu einer Zeit",
-    figur: (normWho(input.who || "").split(",")[0] || "Jemand").trim(),
+    figur: (personKopf(splitSpeakers(normWho(input.who || ""))[0] || "") || "Jemand").trim(),
     verb: "will",
   };
   // Bis zur ZIELWORTZAHL bauen, nicht bis zu einer geschätzten Atomzahl: Atome sind
@@ -209,7 +212,11 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
   const ENDE_MARGE = 20;   // ab so vielen Restwoertern darf ein Schlussbild kommen
   const FUEGE_DECKEL = knobs.fuegeteil / 100;
   // Nebenfiguren seltener als die Hauptfigur: Sie sollen vorkommen, nicht dominieren.
-  const figuren = normWho(input.who || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean);
+  // NICHT einfach am Komma trennen: Der Kontextwürfel hängt Zusätze mit Komma
+  // an („eine Archivarin ohne Namen, voller ungestellter Fragen"), und die
+  // wurden hier zur Nebenfigur — in 35 % der Sätze zum Satzsubjekt.
+  // splitSpeakers kennt den Unterschied und wird dafür geprüft.
+  const figuren = splitSpeakers(normWho(input.who || "")).map(personKopf);
   const waehleFigur = (): string => {
     if (figuren.length < 2) return ctx.figur;
     return Math.random() < 0.65 ? figuren[0]! : figuren[1 + Math.floor(Math.random() * (figuren.length - 1))]!;
@@ -338,7 +345,7 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
       const istNomen = !!w1 && (!!NOUN_GENDER[w1.toLowerCase()] || /(ung|heit|keit|schaft|nis|tum|chen|lein|er|el|en|ucht|acht|icht|ion|tät|ei|ie|ur|us|um)$/.test(w1.toLowerCase()));
       // Figurennamen bleiben gross - "denn tom wartet auf einen Bescheid" sonst.
       const istFigur = !!w1 && (w1.toLowerCase() === ctx.figur.toLowerCase()
-        || normWho(input.who || "").split(/[,;]/).some((x) => x.trim().toLowerCase() === w1.toLowerCase()));
+        || splitSpeakers(normWho(input.who || "")).some((x) => x.trim().toLowerCase() === w1.toLowerCase()));
       if (!f.fuehrt_ein.length && !istNomen && !istFigur && /^[A-ZÄÖÜ][a-zäöüß]/.test(fill)) fill = fill.charAt(0).toLowerCase() + fill.slice(1);
       text = fuelleSlot(text, fill);
       fueller.push({ text: fill, kategorie: f.kategorie || "—", quelle: f.quelle });
@@ -446,7 +453,7 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
  * unbrauchbar.
  */
 export function buildVersAtome(bank: Bank, input: GenInput, model?: MarkovModel): string[] {
-  const figur = (normWho(input.who || "").split(",")[0] || "Jemand").trim();
+  const figur = (personKopf(splitSpeakers(normWho(input.who || ""))[0] || "") || "Jemand").trim();
   const pool = buildPool(bank, input.perspective, input.what, figur, model, input.markovMode);
   const ctx = {
     ort: normWhere(input.where || "") || "an einem Ort",

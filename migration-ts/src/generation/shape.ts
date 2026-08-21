@@ -346,6 +346,42 @@ function verbinde(a: string, b: string, satzartig: boolean): string {
  *  Schritt. Gemessen liegt der Schnitt bei Marke 15 bei rund 9 Wörtern. Bei 9
  *  verschwinden vor allem die Stummelsätze (1–3 Wörter von 15 auf 6 Prozent),
  *  die Zahl der Sätze ab zwölf Wörtern bleibt unverändert bei 1,5 je Text. */
+/** Wirft einen Satz weg, der seinem Vorgänger wörtlich gleicht.
+ *
+ *  Gemessen in 200 Texten über beide Bauwege: 22 (11 %) enthielten zwei gleiche
+ *  Nachbarsätze — „Der Fluss hat mich losgeschnitten. Der Fluss hat mich
+ *  losgeschnitten." Es gibt keinen Fall, in dem das gewollt wäre; die Kreis-
+ *  Struktur wiederholt ihren Anfang am ENDE, nicht daneben.
+ *
+ *  Verglichen wird ohne Satzzeichen und ohne Groß-/Kleinschreibung: Die
+ *  Zusammenziehung schreibt den zweiten Satz klein und hängt ihn mit einem
+ *  Gedankenstrich an — „Aus Symmetrie wird Unterschied — aus Symmetrie wird
+ *  Unterschied." ist dieselbe Dublette, nur verkleidet. */
+export function entferneDubletten(text: string): string {
+  const kern = (x: string): string => x
+    .replace(/^[—–\s]+/, "").replace(/[.!?…,;:—–\s]+$/, "")
+    .replace(/\s+/g, " ").toLowerCase().trim();
+  const ohne = text.split(/\n{2,}/).map((absatz) => {
+    const s = splitSentences(absatz);
+    if (s.length < 2) return absatz;
+    const raus: string[] = [];
+    for (const satz of s) {
+      const k = kern(satz);
+      // Nur der DIREKTE Nachbar. Eine Wiederholung mit Abstand ist ein Mittel.
+      if (k && raus.length && kern(raus[raus.length - 1]!) === k) continue;
+      raus.push(satz);
+    }
+    return raus.join(" ");
+  }).join("\n\n");
+  // Die verkleidete Dublette: Die Zusammenziehung hat die beiden schon mit
+  // Gedankenstrich, Semikolon oder „, und" verbunden. splitSentences sieht dann
+  // EINEN Satz — „Aus Symmetrie wird Unterschied — aus Symmetrie wird
+  // Unterschied." Deshalb hier zusätzlich die Fuge selbst betrachten.
+  return ohne.replace(/([^.!?…\n]{6,})\s*(?:—|–|;|,\s+und)\s*([^.!?…\n]{6,})/g,
+    (ganz: string, links: string, rechts: string) =>
+      (kern(links) && kern(links) === kern(rechts) ? links.replace(/\s+$/, "") : ganz));
+}
+
 export function applySatzlaenge(text: string, ziel: number): string {
   if (!ziel || ziel < 6) return text;
   const w = (x: string): number => (x.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;

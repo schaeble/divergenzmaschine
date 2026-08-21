@@ -236,6 +236,88 @@ const TITEL = /^(Dr|Prof|Ing|Dipl|Mag|Med|Rer|Nat|Phil|h\.c|Jun|Sen|MdB|MdL)\.?$
  *  LETZTE Wort, denn im Deutschen bestimmt das Grundwort das Kompositum —
  *  „Schulmädchen" ist ein Mädchen, „Mädchenschule" eine Schule. */
 const PERSON_NOMEN = /(mädchen|junge|kind|frau|mann|männer|dame|herr|schüler|schülerin|lehrer|lehrerin|wächter|wächterin|arzt|ärztin|bäcker|bäckerin|gärtner|gärtnerin|fischer|fischerin|bote|botin|wanderer|wanderin|reisende|reisender|nachbar|nachbarin|greis|greisin|witwe|witwer|zwilling|bruder|schwester|sohn|tochter|vater|mutter|onkel|tante|neffe|nichte|freund|freundin|gast|fremde|fremder|meister|meisterin|gesell|lehrling|soldat|soldatin|matrose|matrosin|pilot|pilotin|köchin|koch|wirt|wirtin|müller|müllerin|schmied|schmiedin|hirte|hirtin|jäger|jägerin|sammler|sammlerin)$/i;
+/** Bringt das „Was" in eine Form, die in einen Meldungssatz passt.
+ *
+ *  Anlass: Ausgabe Nr. 44. Der Sammler liefert ganze Wikipedia-Sätze mit
+ *  Klammern, Semikolon und Werktiteln:
+ *
+ *      Die Schriftstellerin Marie von Ebner-Eschenbach (Lotti, die
+ *      Uhrmacherin; Das Gemeinde­kind) wird geboren.
+ *
+ *  Eingesetzt wird das an einer Stelle, die eine VERBALPHRASE erwartet. Statt
+ *  solches Material abzulehnen — dann fiele der halbe Sammler-Vorrat für diese
+ *  Form aus — wird es umgeformt: Klammern weg, weiches Trennzeichen weg, alles
+ *  hinter dem ersten Satzende weg, alles hinter einem Semikolon weg.
+ *
+ *  Was übrig bleibt, ist entweder ein Hauptsatz („… wird geboren") oder eine
+ *  Nominalphrase („eine Wandmalerei"). Beides kann der Vorspann verarbeiten —
+ *  er muss nur wissen, welches von beidem er hat. */
+export function formeWas(roh: string): string {
+  let w = (roh || "")
+    .replace(/\u00ad/g, "")                       // weiches Trennzeichen: „Gemeinde kind"
+    .replace(/\u200b/g, "")
+    .replace(/\([^()]*\)/g, " ")                  // Klammereinschub samt Inhalt
+    .replace(/\[[^\]]*\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  // Nur der erste Satz. Der Rest gehört in einen Artikel, nicht in eine Meldung.
+  // Geschnitten wird am Punkt, hinter dem ein GROSSBUCHSTABE folgt — und nur,
+  // wenn davor keine Abkürzung und keine Ziffer steht: „am 15. August" und
+  // „Dr. Ing. Doll" sind keine Satzenden.
+  const ende = w.match(/^([\s\S]{10,}?[.!?…])\s+[A-ZÄÖÜ]/);
+  if (ende && !/(?:\d|\b(?:Dr|Prof|Ing|Dipl|Nr|St|ca|bzw|usw|evtl|Abs|Art|Jh|Mio|Mrd|Bd|Hrsg|geb|gest|verh|u|z|B))\.$/.test(ende[1]!)) {
+    w = ende[1]!;
+  }
+  // Ein Semikolon trennt zwei gleichrangige Aussagen — die zweite fällt weg.
+  const semi = w.indexOf(";");
+  if (semi > 12) w = w.slice(0, semi);
+  return w.replace(/[\s,;:–—-]+$/, "").replace(/[.!?…]+$/, "").trim();
+}
+
+/** Die Kurzform einer Person.
+ *
+ *  Vorher: das LETZTE WORT. Bei „Dr. Ing. Richard Doll" ist das der Nachname
+ *  und richtig. Bei „das Register aller falschen Namen" wurde daraus „Namen",
+ *  und in Nr. 44 stand: „…die Entscheidung, über die das Namen nun informiert."
+ *
+ *  Das letzte Wort taugt nur als Nachname, wenn davor kein Artikel steht und
+ *  die Angabe kurz ist. Sonst bleibt die volle Form stehen — sie ist länger,
+ *  aber sie stimmt. */
+export function kurzPerson(werRoh: string): string {
+  // Titel zählen nicht mit: „Dr. Ing. Richard Doll" sind vier Wörter, aber nur
+  // zwei davon sind der Name.
+  const w = (werRoh || "").trim().split(/\s+/).filter(Boolean)
+    .filter((x) => !/^(Dr\.|Prof\.|Ing\.|Dipl\.-?\w*\.?|med\.|jur\.|rer\.|nat\.|h\.c\.|Sir|Lady|Herr|Frau)$/i.test(x));
+  if (!w.length) return werRoh;
+  const hatBegleiter = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|sein|seine|ihr|ihre|unser|unsere|kein|keine|jeder|jede|jedes|dieser|diese|dieses)$/i.test(w[0]!);
+  const letztes = w[w.length - 1]!;
+  if (hatBegleiter || w.length > 3 || !/^[A-ZÄÖÜ]/.test(letztes)) return werRoh.trim();
+  return letztes;
+}
+
+/** Der Ort für die DACHZEILE — eine Zeile, kein Satz.
+ *
+ *  Vorher stand hier nur „Präposition weg, bestimmten Artikel weg". In Nr. 44
+ *  ergab das eine Dachzeile über vier Zeilen in Versalien:
+ *  „EINER STRASSE, DIE ZWEIMAL EXISTIERT, WO DIE STRASSEN KEINE NAMEN TRAGEN".
+ *  Zwei Fehler: der Dativ „einer" statt des Nominativs, und keine Grenze.
+ *
+ *  Jetzt fällt auch der unbestimmte Artikel weg, alles hinter dem ersten Komma
+ *  und ein angehängter Relativsatz. Bleibt etwas zu Langes übrig, gibt es
+ *  KEINEN Ort — die Dachzeile trägt dann nur das Ressort. Lieber weniger als
+ *  falsch. */
+export function dachOrt(roh: string): string {
+  let o = (roh || "")
+    .replace(/^(in|an|auf|bei|im|am|vor|über|unter|zu|zur|zum)\s+/i, "")
+    .replace(/^(der|die|das|dem|den|des|ein|eine|einen|einem|einer|eines)\s+/i, "")
+    .trim();
+  o = (o.split(",")[0] || "").trim();
+  o = o.replace(/\s+(wo|worin|woran|die|der|das|welche[rs]?)\s+.*$/i, "").trim();
+  o = o.replace(/[.,;:!?…]+$/, "").trim();
+  if (!o || o.length > 28) return "";
+  return o.charAt(0).toUpperCase() + o.slice(1);
+}
+
 function istGattungsperson(haupt: string): boolean {
   const w = haupt.trim().replace(/[^A-Za-zÄÖÜäöüß\s-]/g, "").split(/\s+/).filter(Boolean);
   const letztes = w[w.length - 1] || "";
@@ -268,7 +350,10 @@ function istPerson(haupt: string): boolean {
 /** Zeitadverbien und Zeitwörter, die schon für sich eine Angabe SIND. Ohne
  *  diese Liste stand im Blatt „Im lange vor den Namen" und „Im Mittags,
  *  Frühsommer": Die Regel setzte blind ein „im" davor. */
-const ZEIT_ADVERB = /^(lange|kurz|damals|einst|früher|später|gestern|heute|morgen|neulich|jüngst|mittags|morgens|abends|nachts|vormittags|nachmittags|wochentags|jahrelang|tagelang|monatelang|irgendwann|niemals|immer|jederzeit|zuletzt|zuerst|anfangs|schließlich|inzwischen|unterdessen|seither|seitdem|dereinst)\b/i;
+// „tagsüber" fehlte: Der Bildvorrat liefert Zeitangaben wie „tagsüber bei
+// teilweise bewölktem Himmel", und daraus wurde „Im tagsüber bei teilweise
+// bewölktem Himmel" (Ausgabe Nr. 44).
+const ZEIT_ADVERB = /^(lange|kurz|damals|einst|früher|später|gestern|heute|morgen|neulich|jüngst|mittags|morgens|abends|nachts|vormittags|nachmittags|tagsüber|nachtsüber|wochentags|werktags|sonntags|samstags|jahrelang|tagelang|monatelang|irgendwann|niemals|immer|jederzeit|zuletzt|zuerst|anfangs|schließlich|inzwischen|unterdessen|seither|seitdem|dereinst|derzeit|momentan|gerade|eben|bald|demnächst|künftig|abermals)\b/i;
 
 function mitPraeposition(wann: string): string {
   const w = (wann || "").trim();
@@ -305,10 +390,13 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
   const genus = person ? "mask" : genusVon(werRoh);
   // Auch den Artikel: "an der Unterelbe" ergab sonst die Dachzeile
   // "der Unterelbe · Wetter".
-  const ortMitPraep = (normWhere(input.where || "") || "").trim() || "am Ort";
-  const ort = (normWhere(input.where || "") || "")
-    .replace(/^(in|an|auf|bei|im|am|vor|über|unter)\s+/i, "")
-    .replace(/^(der|die|das|dem|den)\s+/i, "").trim() || "der Ort";
+  // KEIN Platzhalter mehr. „am Ort" stand zweimal im Blatt (Nr. 44): „Am 15.
+  // August 2026 ist am Ort bekannt geworden". Der Sammler lässt das Wo oft leer
+  // — bei „Was geschah am …" gibt es meist keinen Ort. Eine Meldung ohne Ort
+  // soll ihn WEGLASSEN, nicht behaupten. Die beiden Stellen, die das Feld
+  // benutzen, fragen vorher (`ortTauglich`).
+  const ortMitPraep = (normWhere(input.where || "") || "").trim();
+  const ort = dachOrt(normWhere(input.where || "") || "");
   const wann = (normWhen(input.when || "") || "").trim();
 
   // Personen: eine weiblich, eine männlich — so ist die Kongruenz in den Zitaten
@@ -413,9 +501,9 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
       // bestimmtem Artikel.
       ? istGattungsperson(werRoh)
         ? { haupt: werRoh, kurz: werRoh.replace(/^(ein|eine|einer|einem)\s+/i, (m) => (/^eine\s/i.test(m) ? "die " : "das ")), genus, art: "person" as const }
-        : { haupt: werRoh, kurz: werRoh.split(/\s+/).pop()!, genus, art: "person" as const }
+        : { haupt: werRoh, kurz: kurzPerson(werRoh), genus, art: "person" as const }
       : { haupt: werRoh, kurz: kurzform(werRoh, genus), genus, art: "organisation" },
-    was: (input.what || "meldet einen Vorfall").trim().replace(/[.!?…]+$/, ""),
+    was: formeWas(input.what || "") || "meldet einen Vorfall",
     // Zwei Formen: `ort` fuer die Dachzeile ("Unterelbe · Wetter"), `mitPraep`
     // fuer den Satz. Ohne die zweite stand "Wie es in Unterelbe weitergeht" -
     // es heisst "an der Unterelbe".

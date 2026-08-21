@@ -10,7 +10,7 @@ import { loadKnobs } from "../features/knobs";
 import { applyToneRegister } from "./tone.shape";
 import { insertToneFlavor } from "./beats";
 import { polishGerman } from "./polish";
-import { applySatzlaenge, OBJEKT_KOPF_RE } from "./shape";
+import { applySatzlaenge, entferneDubletten, OBJEKT_KOPF_RE } from "./shape";
 import { hatFinitesVerb } from "../atoms/derive";
 
 type Input = Partial<GenInput>;
@@ -238,7 +238,13 @@ export function postProcessText(txt: string, input?: Input): string {
   // Nicht bei Zeilenformen: Dort ist die Zeile die Einheit, nicht der Satz -
   // "Shot 1 (3s)" und "DE: ..." wuerden sonst zu einer Zeile verschmelzen, und
   // ein Vers waere kein Vers mehr.
+  // VOR der Zusammenziehung: Sie verkleidet die Dublette als Halbsatz mit
+  // Gedankenstrich, und dann ist sie schwerer zu erkennen als vorher.
+  if (!isLineForm(input)) t = entferneDubletten(t);
   if (!isLineForm(input)) t = applySatzlaenge(t, loadKnobs().satzlaenge);
+  // Und danach noch einmal: Die Zusammenziehung kann zwei gleiche Sätze erst
+  // nebeneinander bringen, indem sie einen dritten dazwischen wegnimmt.
+  if (!isLineForm(input)) t = entferneDubletten(t);
 
   // Sprachschliff: laeuft immer. Was uebrig ist, ist in jedem Text richtig.
   t = polishGerman(t, { who: name });

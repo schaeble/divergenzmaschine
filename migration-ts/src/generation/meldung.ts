@@ -66,6 +66,24 @@ export function tragtEigenesSubjekt(was: string): boolean {
 /** Steht als „Wer" nur der Platzhalter, darf er nicht in den Satz. */
 const werTaugt = (fb: Faktenblatt): boolean => fb.wer.haupt.trim().toLowerCase() !== WER_ERSATZ.toLowerCase();
 
+/** Trägt das „Was" ein PRÄDIKAT — also ein finites Verb, an das sich ein
+ *  Subjekt hängen lässt?
+ *
+ *  Anlass: Ausgabe Nr. 44. Der Bildvorrat lieferte „eine Wandmalerei", und der
+ *  Vorspann setzte den Wer davor: „Die Person eine Wandmalerei." Ein Satz ohne
+ *  Verb. Eine Nominalphrase kann hinter dem Doppelpunkt allein stehen
+ *  („… ist bekannt geworden: eine Wandmalerei.") — davor ein Subjekt zu setzen
+ *  ergibt nichts. */
+export function tragtPraedikat(was: string): boolean {
+  const w = (was || "").trim();
+  if (!w) return false;
+  const lead = extractLeadVerb(w);
+  if (lead.verb) return true;
+  // Ein finites Verb irgendwo im Rest: „wird geboren", „hat gewonnen".
+  return /\b(ist|sind|war|waren|wird|werden|wurde|wurden|hat|hatte|haben|hatten|kann|konnte|will|wollte|muss|musste|soll|sollte|darf|durfte|bleibt|blieb|steht|stand|geht|ging|kommt|kam|liegt|lag|geboren|gestorben)\b/i.test(w)
+    || /\b[a-zäöüß]{3,}(?:t|te|en|ten)\b\s*$/.test(w);
+}
+
 /** Taugt die Ortsangabe für einen Satz?
  *
  *  Sie muss eine Präposition tragen. Kommt aus dem Sammler ein roher
@@ -85,7 +103,10 @@ function vorspann(fb: Faktenblatt): string {
   // Hauptsatz: „In der Stunde, die nicht gezählt wird wurde bekannt …"
   const wann = mitAbschlusskomma(cap(fb.wann.datum));
   const wo = fb.wo.mitPraep;
-  const kern = tragtEigenesSubjekt(fb.was) || !werTaugt(fb)
+  // Drei Fälle statt zwei. Das „Was" bringt entweder sein eigenes Subjekt mit,
+  // oder es ist ein Prädikat und bekommt den Wer davor, oder es ist eine bloße
+  // Nominalphrase — dann steht es allein hinter dem Doppelpunkt.
+  const kern = tragtEigenesSubjekt(fb.was) || !werTaugt(fb) || !tragtPraedikat(fb.was)
     ? cap(fb.was)
     : `${cap(fb.wer.haupt)} ${fb.was}`;
   const ort = ortTauglich(wo) ? ` ${mitAbschlusskomma(wo)}` : "";
@@ -193,12 +214,41 @@ export function pruefeMeldung(text: string, fb: Faktenblatt): MeldungMangel[] {
   for (const [name, wort] of vier) {
     // Trägt das „Was" sein eigenes Subjekt, steht der Wer bewusst NICHT im
     // Satz — sonst stünden zwei Subjekte darin. Dann ist sein Fehlen richtig.
-    if (name === "Wer" && (tragtEigenesSubjekt(fb.was) || !werTaugt(fb))) continue;
+    if (name === "Wer" && (tragtEigenesSubjekt(fb.was) || !werTaugt(fb) || !tragtPraedikat(fb.was))) continue;
     // Und eine Ortsangabe ohne Präposition wird bewusst weggelassen.
     if (name === "Wo" && !ortTauglich(fb.wo.mitPraep)) continue;
     if (wort && !erster.toLowerCase().includes(wort.toLowerCase())) {
       m.push({ art: `${name} fehlt im ersten Satz`, stelle: wort });
     }
+  }
+
+  // 1b · Kein Platzhalter im Text. Bis 4.264.0 schrieb das Faktenblatt „am Ort",
+  //      wenn das Wo leer war — zweimal im Blatt zu lesen (Nr. 44).
+  const platz = text.match(/\b(?:am|der|dem) Ort\b|\beine Einrichtung\b/);
+  if (platz) m.push({ art: "Platzhalter im Text", stelle: platz[0] });
+
+  // 1c · „Die Person eine Wandmalerei." ist kein Satz — und die Prüfung meldete
+  //      das nicht.
+  //
+  //      Gesucht wird bewusst NICHT nach einem fehlenden Prädikat. Ein
+  //      verlässlicher Erkenner für das finite Verb im deutschen Hauptsatz
+  //      existiert in diesem Programm nicht (siehe UEBERGABE); der erste
+  //      Versuch meldete 1400 tadellose Meldungen von 2880. Gesucht wird
+  //      stattdessen nach der FORM des Fehlers: zwei Nominalphrasen
+  //      hintereinander, ohne etwas dazwischen.
+  const nachDoppel = (erster.split(":")[1] || "").trim();
+  if (/^(der|die|das|ein|eine)\s+\S+\s+(ein|eine|einen|einem|einer)\b/i.test(nachDoppel)) {
+    m.push({ art: "zwei Nominalphrasen ohne Verb", stelle: nachDoppel.slice(0, 50) });
+  }
+
+  // 1d · Rohes Sammler-Material: Klammereinschub oder Semikolon im Kernsatz.
+  const roh = nachDoppel.match(/\([^)]*\)|;/);
+  if (roh) m.push({ art: "unumgeformtes Fremdmaterial", stelle: roh[0] });
+
+  // 1e · Großschreibung mitten im Satz — „ist Vor einer bemalten Außenmauer".
+  const grossImSatz = erster.match(/\b(?:ist|sind|wird|war)\s+([A-ZÄÖÜ][a-zäöüß]{2,})\s/);
+  if (grossImSatz && !/^(Bekannt|Betroffen|Ort|Uhr)$/.test(grossImSatz[1]!)) {
+    m.push({ art: "Großschreibung mitten im Satz", stelle: grossImSatz[1]! });
   }
 
   // 2 · Umfang.
