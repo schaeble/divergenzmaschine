@@ -3871,7 +3871,10 @@ var DING_VORRAT = [
   "Schwelle"
 ];
 var OBJEKT_EINSTIEG = [
-  "Ich bin %O. Ich liege hier und z\xE4hle mit.",
+  // NICHT „… und zaehle mit.": Der Bruchstueck-Filter braucht dort ein finites
+  // Verb, und hatFinitesVerb() erkennt die erste Person nicht. Ein Rahmensatz,
+  // der von einem unzuverlaessigen Erkenner abhaengt, ist ein Rahmensatz auf Zeit.
+  "Ich bin %O. Ich liege hier und z\xE4hle die Tage.",
   "Ich bin %O. Man hat mich hier vergessen.",
   "Ich bin %O. Niemand fragt mich, und ich sehe alles.",
   "Ich bin %O. Ich habe keine Augen und trotzdem einen Blick.",
@@ -4033,6 +4036,13 @@ var isLineForm = (input) => !!input && !!input.form && LINE_FORMS.has(input.form
 function glaetten(t) {
   return t.replace(/[ \t]{2,}/g, " ").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]+([,.;:!?])/g, "$1").trim();
 }
+var ABGESCHNITTEN = /(^|\s)(eine|einem|einen|einer|eines|der|die|dem|den|des|und|oder|aber|wie|als|im|am|bei|für|ohne)$/i;
+var NUR_OHNE_VERB = /(^|\s)(mit|an|auf|zu|vor|nach|aus|ist|sind|wird|ein|das)$/i;
+function istAbgeschnitten(bare) {
+  if (!bare || bare.split(/\s+/).length > 12) return false;
+  if (ABGESCHNITTEN.test(bare)) return true;
+  return NUR_OHNE_VERB.test(bare) && !hatFinitesVerb(bare);
+}
 function coherencePass(text, input) {
   try {
     if (isLineForm(input)) return text;
@@ -4052,7 +4062,7 @@ function coherencePass(text, input) {
       const sents = splitSentences(p);
       const kept = sents.filter((s, si) => {
         const bare = s.trim().replace(/["»«)\]]+$/, "").replace(/[.!?…]+$/, "").trim();
-        if (/(^|\s)(ein|eine|einem|einen|einer|eines|der|die|das|dem|den|des|und|oder|aber|wie|mit|an|auf|zu|im|am|vor|nach|für|ohne|als|bei|aus|ist|sind|wird)$/i.test(bare) && bare.split(/\s+/).length <= 12) {
+        if (istAbgeschnitten(bare)) {
           removed++;
           return false;
         }
@@ -9258,6 +9268,8 @@ function pruefeAbgleich(endtext) {
 }
 
 // src/atoms/rekombination.ts
+var GERUESTZEILE = /(^|\s)(SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE|DE|EN)\s*:|Shot\s*\d+\s*\()/;
+var GERUEST_MARKE = /^(?:SEQUENZ\s*—[^\n]*|(?:WER|WO|WANN|WAS|GESAMTLÄNGE|DE|EN)\s*:|Shot\s*\d+\s*\([^)]*\))\s*/;
 var traegtPerson = (t) => (t.toLowerCase().match(/[a-zäöüß]+/g) || []).some((w) => !!ICH_DU_ZU_ER[w]);
 function buildPool(bank, perspektive, what, figur, model, markovMode) {
   const pool = [];
@@ -9329,11 +9341,14 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
     let genommen = 0;
     for (const satz of saetze) {
       if (genommen >= korpusDeckel) break;
-      const d = deriveAtom(satz);
+      const rein = satz.replace(GERUEST_MARKE, "").trim();
+      if (rein !== satz && !/[.!?…]$/.test(rein)) continue;
+      if (GERUESTZEILE.test(rein)) continue;
+      const d = deriveAtom(rein);
       if (d.tempus === "praeteritum") continue;
       if (d.rhythmus.woerter > 22) continue;
-      if (properNames(satz).some((nm) => !eigene2.has(nm.toLowerCase()))) continue;
-      if (traegtPerson(satz)) continue;
+      if (properNames(rein).some((nm) => !eigene2.has(nm.toLowerCase()))) continue;
+      if (traegtPerson(rein)) continue;
       pool.push({ ...d, id: `kp-${++i}`, quelle: "korpus", kategorie: "", verlangt: null, bruchgrad: 1 });
       genommen++;
     }
@@ -11771,6 +11786,8 @@ var wortObjekt = 0;
 var ohneRahmen = 0;
 var ohneArtikel = 0;
 var nichtVorn = 0;
+var ohneZweiten = 0;
+var RAHMEN_ZWEI = OBJEKT_EINSTIEG.map((r) => r.split(". ").slice(1).join(". "));
 var LAEUFE = 60;
 for (let i = 0; i < LAEUFE; i++) {
   const bank = BUILTIN_PRESETS[ids[i % ids.length]];
@@ -11784,8 +11801,10 @@ for (let i = 0; i < LAEUFE; i++) {
   if (!/[Ii]ch bin (der|die|das) /.test(t)) ohneRahmen++;
   if (/[Ii]ch bin (?!der |die |das )[A-ZÄÖÜ]/.test(t)) ohneArtikel++;
   if (!/^Ich bin (der|die|das) /.test(t)) nichtVorn++;
+  if (!RAHMEN_ZWEI.some((r) => t.includes(r) || t.includes(r.charAt(0).toLowerCase() + r.slice(1)))) ohneZweiten++;
 }
 ist("kein Etikett in Klammern in 60 Texten", etikett, 0);
+ist("und der zweite Rahmensatz \xFCberlebt", ohneZweiten, 0);
 ist("und der Rahmen steht ganz vorn, vor der Ton-Einleitung", nichtVorn, 0);
 ist("und das Wort \u201Edas Objekt\u201C steht nirgends mehr", wortObjekt, 0);
 ist("jeder Text nennt sein Ding", ohneRahmen, 0);

@@ -11,6 +11,7 @@ import { applyToneRegister } from "./tone.shape";
 import { insertToneFlavor } from "./beats";
 import { polishGerman } from "./polish";
 import { applySatzlaenge, OBJEKT_KOPF_RE } from "./shape";
+import { hatFinitesVerb } from "../atoms/derive";
 
 type Input = Partial<GenInput>;
 
@@ -34,6 +35,30 @@ function glaetten(t: string): string {
 }
 
 /** Entfernt abgebrochene und themenfremde Sätze (semantische Gewichtung). */
+/** Ist der Satz mitten im Wort abgebrochen?
+ *
+ *  Die erste Fassung fragte nur: „Endet er auf einem Funktionswort?" — und
+ *  loeschte damit 73 tadellose Saetze aus den Presets, gemessen 3 Prozent aller
+ *  Bank-Saetze bis zwoelf Woerter: „Die Stadt springt mich an.", „ein Blick loest
+ *  Panik aus", „Und das Meer bleibt, wie es ist." Auch der Rahmensatz der
+ *  Objektperspektive verschwand so („… und zaehle mit.").
+ *
+ *  Deshalb zwei Klassen. Artikel und Konjunktionen koennen einen deutschen Satz
+ *  NIE beenden — dort bleibt es beim Verwerfen. Trennbare Praefixe und die
+ *  Kopula koennen es sehr wohl; sie gelten nur als Bruchstueck, wenn im Satz
+ *  ueberhaupt kein finites Verb steht. */
+const ABGESCHNITTEN = /(^|\s)(eine|einem|einen|einer|eines|der|die|dem|den|des|und|oder|aber|wie|als|im|am|bei|für|ohne)$/i;
+// „ein" und „das" stehen bewusst hier und nicht oben: „Der Wartende steigt doch
+// ein." ist ein trennbares Praefix, „Sag ehrlich, fuehlst du das?" ein
+// Demonstrativpronomen. Als Artikel koennen sie nicht am Satzende stehen — der
+// Unterschied ist das finite Verb.
+const NUR_OHNE_VERB = /(^|\s)(mit|an|auf|zu|vor|nach|aus|ist|sind|wird|ein|das)$/i;
+export function istAbgeschnitten(bare: string): boolean {
+  if (!bare || bare.split(/\s+/).length > 12) return false;
+  if (ABGESCHNITTEN.test(bare)) return true;
+  return NUR_OHNE_VERB.test(bare) && !hatFinitesVerb(bare);
+}
+
 export function coherencePass(text: string, input?: Input): string {
   try {
     if (isLineForm(input)) return text;
@@ -55,10 +80,7 @@ export function coherencePass(text: string, input?: Input): string {
       const sents = splitSentences(p);
       const kept = sents.filter((s, si) => {
         const bare = s.trim().replace(/["»«)\]]+$/, "").replace(/[.!?…]+$/, "").trim();
-        if (/(^|\s)(ein|eine|einem|einen|einer|eines|der|die|das|dem|den|des|und|oder|aber|wie|mit|an|auf|zu|im|am|vor|nach|für|ohne|als|bei|aus|ist|sind|wird)$/i.test(bare)
-          && bare.split(/\s+/).length <= 12) {
-          removed++; return false;
-        }
+        if (istAbgeschnitten(bare)) { removed++; return false; }
         if (removed >= maxRemove) return true;
         const late = pi === paras.length - 1 && sents.length >= 4 && si >= Math.floor(sents.length / 2);
         if (late) {

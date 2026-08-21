@@ -19,6 +19,11 @@ import { ICH_DU_ZU_ER } from "../generation/wordcls";
 import { traceMarkov } from "../generation/markovTrace";
 import { MODE_DATA } from "../modes.data";
 
+/** Kopfzeile einer Multi-Shot-Ausgabe (SEQUENZ —, WER:, WAS:, Shot 3 (3s), DE:). */
+export const GERUESTZEILE = /(^|\s)(SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE|DE|EN)\s*:|Shot\s*\d+\s*\()/;
+/** Dieselbe Marke, aber nur am Anfang — zum Abziehen. */
+export const GERUEST_MARKE = /^(?:SEQUENZ\s*—[^\n]*|(?:WER|WO|WANN|WAS|GESAMTLÄNGE|DE|EN)\s*:|Shot\s*\d+\s*\([^)]*\))\s*/;
+
 interface TemplateAtom { id: string; text: string; typ: string; verlangt: PoolAtom["verlangt"]; oeffnet: boolean }
 
 /** Baut den Atom-Pool aus Bank und Vorlagen. Perspektivfremde Vorlagen bleiben draußen. */
@@ -122,11 +127,20 @@ export function buildPool(bank: Bank, perspektive: string, what?: string, figur?
     let genommen = 0;
     for (const satz of saetze) {
       if (genommen >= korpusDeckel) break;
-      const d = deriveAtom(satz);
+      // Kopfzeilen der eigenen Multi-Shot-Ausgabe sind keine Saetze. Sie stehen
+      // roh im Korpus, wenn der Benutzer eine Sequenz abgelegt hat, und landeten
+      // so als Baustein in der Prosa (Ausgabe Nr. 41: „WAS: will die Spur …").
+      // Die Marke abziehen statt die Zeile wegzuwerfen: Hinter „Shot 2 (3s)"
+      // steht ein richtiger Satz. Ohne abschliessendes Satzzeichen ist der Rest
+      // aber ein Feldwert („WAS: will die Spur bewusst auf") und kein Satz.
+      const rein = satz.replace(GERUEST_MARKE, "").trim();
+      if (rein !== satz && !/[.!?…]$/.test(rein)) continue;
+      if (GERUESTZEILE.test(rein)) continue;
+      const d = deriveAtom(rein);
       if (d.tempus === "praeteritum") continue;
       if (d.rhythmus.woerter > 22) continue;
-      if (properNames(satz).some((nm) => !eigene2.has(nm.toLowerCase()))) continue;
-      if (traegtPerson(satz)) continue;                      // eigene Person, siehe oben
+      if (properNames(rein).some((nm) => !eigene2.has(nm.toLowerCase()))) continue;
+      if (traegtPerson(rein)) continue;                      // eigene Person, siehe oben
       pool.push({ ...d, id: `kp-${++i}`, quelle: "korpus", kategorie: "", verlangt: null, bruchgrad: 1 });
       genommen++;
     }

@@ -172,8 +172,11 @@ export function objektName(o: string): string {
 }
 const DING_VORRAT = ["Tür", "Uhr", "Karteikarte", "Lampe", "Schlüssel", "Fenster", "Bank",
   "Treppe", "Spiegel", "Kiste", "Zettel", "Mauer", "Stuhl", "Leitung", "Schwelle"];
-const OBJEKT_EINSTIEG = [
-  "Ich bin %O. Ich liege hier und zähle mit.",
+export const OBJEKT_EINSTIEG = [
+  // NICHT „… und zaehle mit.": Der Bruchstueck-Filter braucht dort ein finites
+  // Verb, und hatFinitesVerb() erkennt die erste Person nicht. Ein Rahmensatz,
+  // der von einem unzuverlaessigen Erkenner abhaengt, ist ein Rahmensatz auf Zeit.
+  "Ich bin %O. Ich liege hier und zähle die Tage.",
   "Ich bin %O. Man hat mich hier vergessen.",
   "Ich bin %O. Niemand fragt mich, und ich sehe alles.",
   "Ich bin %O. Ich habe keine Augen und trotzdem einen Blick.",

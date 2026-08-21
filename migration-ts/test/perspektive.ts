@@ -19,7 +19,7 @@
   }
 }
 import { buildStory } from "../src/generation/buildStory";
-import { applyPerspective, objektName } from "../src/generation/shape";
+import { applyPerspective, objektName, OBJEKT_EINSTIEG } from "../src/generation/shape";
 import { BUILTIN_PRESETS } from "../src/presets.data";
 import type { Bank, GenInput } from "../src/types";
 import { MODE_DATA } from "../src/modes.data";
@@ -87,7 +87,9 @@ const basis = {
   varLevel: "wild", archetypeA: "neutral", archetypeB: "neutral",
 } as unknown as GenInput;
 
-let etikett = 0, wortObjekt = 0, ohneRahmen = 0, ohneArtikel = 0, nichtVorn = 0;
+let etikett = 0, wortObjekt = 0, ohneRahmen = 0, ohneArtikel = 0, nichtVorn = 0, ohneZweiten = 0;
+// Aus der Quelle, nicht abgeschrieben: Eine Kopie der Liste veraltet stumm.
+const RAHMEN_ZWEI = OBJEKT_EINSTIEG.map((r) => r.split(". ").slice(1).join(". "));
 const LAEUFE = 60;
 for (let i = 0; i < LAEUFE; i++) {
   const bank = BUILTIN_PRESETS[ids[i % ids.length]!] as Bank;
@@ -103,8 +105,15 @@ for (let i = 0; i < LAEUFE; i++) {
   // Ton-Einleitung davor, wird der Rahmen mitten im Satz abgeschnitten —
   // genau das war in Ausgabe Nr. 40 zu sehen.
   if (!/^Ich bin (der|die|das) /.test(t)) nichtVorn++;
+  // Er darf gebunden werden („… — ich liege hier"), verschwinden darf er nicht.
+  if (!RAHMEN_ZWEI.some((r) => t.includes(r) || t.includes(r.charAt(0).toLowerCase() + r.slice(1)))) ohneZweiten++;
 }
 ist("kein Etikett in Klammern in 60 Texten", etikett, 0);
+// Ausgabe Nr. 41: Der zweite Rahmensatz fehlte in 3 bis 5 von 40 Texten, an
+// seiner Stelle stand die Ton-Einleitung. Ursache war NICHT die Perspektive,
+// sondern der Bruchstück-Filter in coherencePass: „Ich liege hier und zähle
+// mit." endet auf „mit" und galt damit als abgeschnitten.
+ist("und der zweite Rahmensatz überlebt", ohneZweiten, 0);
 ist("und der Rahmen steht ganz vorn, vor der Ton-Einleitung", nichtVorn, 0);
 ist("und das Wort „das Objekt“ steht nirgends mehr", wortObjekt, 0);
 ist("jeder Text nennt sein Ding", ohneRahmen, 0);

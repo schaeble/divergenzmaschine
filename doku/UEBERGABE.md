@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.262.0**, Zweig `typescript-migration`.
+Stand: **v4.263.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,35 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Aus Ausgabe Nr. 41 (4.263.0): Die Objektperspektive steht, aber die Probe hat
+zwei ältere Filter aufgedeckt, die mehr wegwarfen als gedacht.
+
+**Der Bruchstück-Filter in `coherencePass()`.** Er fragte nur: „Endet der Satz
+auf einem Funktionswort?" Gemessen warf er damit **73 tadellose Preset-Sätze**
+weg — 3 % aller Bank-Sätze bis zwölf Wörter: „Die Stadt springt mich an.", „ein
+Blick löst Panik aus", „Und das Meer bleibt, wie es ist." Deutsche Sätze enden
+sehr wohl auf einem trennbaren Präfix oder auf der Kopula. Jetzt zwei Klassen
+(`istAbgeschnitten()`): Artikel und Konjunktionen bleiben verboten, trennbare
+Präfixe und `ist/sind/wird` nur ohne finites Verb im Satz. Neu 1 statt 73.
+
+**Das Gerüst der eigenen Multi-Shot-Ausgabe im Korpus.** „WAS: will die Spur
+bewusst auf" stand mitten in einem Prosaabsatz. Wer eine Sequenz in den Korpus
+legt, legt ihre Kopfzeilen mit hinein. `corpusSanitize()` wirft sie jetzt
+zeilenweise weg (VOR dem Entfernen der Klammern, sonst ist „(3s)" schon weg),
+behält aber die Sätze hinter `Shot n (3s)` und `DE:`. Dieselbe Marke prüft der
+Korpus-Zweig in `rekombination.ts`.
+
+**Falle:** `hatFinitesVerb()` erkennt die ERSTE PERSON nicht. Deshalb heißt der
+Rahmensatz „… und zähle die Tage." und nicht „… und zähle mit." — sonst hätte
+ihn der Bruchstück-Filter weiter geschluckt (gemessen 9 von 60).
+
+**Neu:** `test/schliff.ts`, 43 Prüfungen, zwei Gegenproben.
+
+**Noch offen, in Nr. 41 gesehen, nicht angefasst:** „Kaum ausgesprochen, Die
+Sonne steht still" (Großschreibung nach Komma), „ist in der Flughafen Salzburg
+bekannt geworden" (Kasus bei Sammler-Namen im Meldungsrahmen), „Die Burg liegt
+tiefer im Nebel des Saals verliert" (zwei Verben aus zwei Bausteinen).
 
 Gemeldet und behoben (4.262.0): **Die Perspektive „Objekt" stand im Text.**
 Ausgabe Nr. 40, Aufmacher: „(das Objekt) Ein Augenblick dauert eine ganze

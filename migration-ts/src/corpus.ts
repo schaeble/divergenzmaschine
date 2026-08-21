@@ -22,6 +22,16 @@ export function savePersistentCorpus(text: string): void {
 /** Entfernt typische Selbstfütterungs-Rückstände vor dem Lernen. */
 export function corpusSanitize(text: string): string {
   let s = (text ?? "").toString();
+  // ZUERST zeilenweise: das Geruest der eigenen Multi-Shot-Ausgabe. Wer seine
+  // Texte in den Korpus legt, legt es mit hinein — in Ausgabe Nr. 41 stand
+  // „WAS: will die Spur bewusst auf" mitten in einem Prosaabsatz. Kopfzeilen
+  // fliegen ganz raus, bei Shot- und Sprachzeilen nur die Marke: Dahinter steht
+  // ein richtiger Satz, den zu verlieren schade waere.
+  // Muss vor dem Entfernen der Klammern stehen, sonst ist „(3s)" schon weg.
+  s = s.split(/\r?\n/)
+    .filter((z) => !/^\s*(SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/.test(z))
+    .map((z) => z.replace(/^\s*(?:Shot\s*\d+\s*\([^)]*\)|(?:DE|EN)\s*:)\s*/, ""))
+    .join("\n");
   s = s.replace(/\([^()]*\)/g, " ");                                   // Meta-Klammern
   s = s.replace(/\b\d{1,2}:\d{2}\b\s*—\s*/g, "");                      // Zeitstempel-Shards
   s = s.replace(/\b(Schluss|Notiz|Rand|Gestern|Jetzt|Später|Drei Tage später)\s*—\s*/g, "");
