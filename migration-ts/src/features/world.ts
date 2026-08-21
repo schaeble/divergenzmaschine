@@ -180,17 +180,39 @@ function whatFromStatus(status: string): string {
   return "";
 }
 
-/** Zieht Kontext aus der Welt (ohne DOM) — für "In Generator übernehmen". */
+/** So viele Figuren und Orte bekommt eine leere Welt beim ersten Griff.
+ *
+ *  Vorher war es je EINER. Gemessen: Dreißig Züge aus einer frischen Welt
+ *  ergaben genau eine Figur und einen Ort — „Alles würfeln" würfelte alles
+ *  außer dem Wer und dem Wo. Eine Welt mit einem Einwohner ist kein Vorrat,
+ *  sondern eine Konstante. */
+export const WELT_SAAT = 6;
+
+/** Zieht Kontext aus der Welt (ohne DOM) — für „In Generator übernehmen" und
+ *  „Alles würfeln".
+ *
+ *  Die gespannten Figuren werden BEVORZUGT, nicht ausschließlich genommen: Hat
+ *  nur eine einzige Spannung, kam sonst bei jedem Zug dieselbe. Zwei von drei
+ *  Zügen greifen zu den gespannten, der dritte zu allen — so bleibt die
+ *  Spannung ein Sog und wird keine Schranke. */
 export function worldFillContext(): { who: string; where: string; when: string; what: string } {
   const w = loadWorld();
   let dirty = false;
-  if (!w.figuren.length) { w.figuren.push(joinEntry(pick(CTX_WHO), "taucht zum ersten Mal auf")); dirty = true; }
-  if (!w.orte.length) { w.orte.push(joinEntry(pick(CTX_WHERE), "wird zum ersten Mal erwähnt")); dirty = true; }
+  while (w.figuren.length < WELT_SAAT) {
+    const name = pick(CTX_WHO);
+    if (w.figuren.some((l) => splitEntry(l).name === name)) { if (w.figuren.length >= CTX_WHO.length) break; continue; }
+    w.figuren.push(joinEntry(name, "taucht zum ersten Mal auf")); dirty = true;
+  }
+  while (w.orte.length < WELT_SAAT) {
+    const ort = pick(CTX_WHERE);
+    if (w.orte.some((l) => splitEntry(l).name === ort)) { if (w.orte.length >= CTX_WHERE.length) break; continue; }
+    w.orte.push(joinEntry(ort, "wird zum ersten Mal erwähnt")); dirty = true;
+  }
   if (dirty) saveWorld(w);
   const tense = w.figuren.filter((l) => WORLD_TENSION.test(l));
-  const fig = splitEntry(pick(tense.length ? tense : w.figuren));
+  const fig = splitEntry(pick(tense.length && Math.random() < 0.67 ? tense : w.figuren));
   const lived = w.orte.filter((l) => !/zum ersten Mal erwähnt/i.test(l));
-  const ort = splitEntry(pick(lived.length ? lived : w.orte));
+  const ort = splitEntry(pick(lived.length && Math.random() < 0.67 ? lived : w.orte));
   return { who: fig.name, where: ort.name, when: pick(CTX_WHEN), what: whatFromStatus(fig.status) || pick(CTX_WHAT) };
 }
 

@@ -35,6 +35,7 @@ import {
 import { icon } from "./icons";
 import { openReader } from "./reader";
 import { worldLogGeneration, worldFillContext } from "../features/world";
+import { uebernehmeKontext, geaendert as geaenderteFelder } from "../features/kontext";
 import { addToTreasury, addToTreasurySecret, clearTreasury } from "../features/treasury";
 import { THEMES, loadTheme, applyTheme, loadAccent, saveAccent, applyAccent } from "../features/theme";
 import { loadAiKey, saveAiKey, loadAiModel, saveAiModel } from "../features/ki";
@@ -115,11 +116,18 @@ export function mountStudio(root: HTMLElement): void {
   // bleiben, wie sie sind — sonst wäre das Schloss wertlos.
   const alleBtn = el("button", { class: "primary", title: "Vier W aus der Welt + alle Stilregler würfeln (gesperrte bleiben)" }, icon("dice"), " Alles würfeln");
   alleBtn.addEventListener("click", () => {
-    const w = worldFillContext();
-    if (w.where && !locked.has(where.id)) where.value = w.where;
-    if (w.when && !locked.has(when.id)) when.value = w.when;
-    if (w.who && !locked.has(who.id)) who.value = w.who;
-    if (w.what && !locked.has(what.id)) what.value = w.what;
+    const felder = {
+      where: { id: where.id, wert: where.value }, when: { id: when.id, wert: when.value },
+      who: { id: who.id, wert: who.value }, what: { id: what.id, wert: what.value },
+    };
+    // Die Regel steht in `uebernehmeKontext` und wird dort geprüft: Ein
+    // gesperrtes Feld bleibt, ein leerer Vorschlag überschreibt nichts.
+    const neu = uebernehmeKontext(felder, worldFillContext(), (id) => locked.has(id));
+    const bewegt = geaenderteFelder(felder, neu);
+    where.value = neu.where; when.value = neu.when; who.value = neu.who; what.value = neu.what;
+    wikiHint.textContent = bewegt.length
+      ? `aus der Welt: ${bewegt.length} von 4 Feldern`
+      : "alle vier Felder sind gesperrt";
     updHints(); ctxSichern();
     rolling = true; ROLL_SELECTS.forEach(rollSel); rolling = false;
     renderPresetChecks();

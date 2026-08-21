@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.260.0**, Zweig `typescript-migration`.
+Stand: **v4.260.1**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,20 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Gemeldet und behoben (4.260.1): **„Wer wird nicht gewürfelt."** Gemessen: Eine
+frische Welt hatte GENAU EINE Figur und EINEN Ort — dreißig Züge ergaben
+dreißigmal dasselbe. `WELT_SAAT` legt jetzt sechs Figuren und sechs Orte an,
+und die gespannten Figuren werden BEVORZUGT statt ausschließlich gezogen (zwei
+von drei Zügen): Hat nur eine Spannung, kam sonst immer dieselbe. Jetzt 6
+verschiedene Figuren und 5 Orte in 30 Zügen.
+
+Und die Frage nach den Schlössern: Sie gelten — aber die Antwort stand nur im
+Klickzusammenhang eines 1600-Zeilen-Moduls. Die Regel ist jetzt eine reine
+Funktion (`features/kontext.ts`, `uebernehmeKontext()`) mit eigenen Prüfungen:
+Gesperrtes Feld bleibt, leerer Vorschlag überschreibt nichts. Die Knopfzeile
+meldet außerdem, wie viele der vier Felder wirklich bewegt wurden — „alle vier
+Felder sind gesperrt" ist etwas anderes als „nichts passiert".
 
 **Ton-Vorräte verdoppelt**: 12 Eröffnungen und 18–20 Einschübe je Ton (vorher 6
 und 10–12). Der Prüfstand hält Mindestgrößen fest, verbietet Dubletten und
