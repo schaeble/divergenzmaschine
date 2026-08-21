@@ -122,6 +122,7 @@ const basis = { tone: "neutral", varLevel: "wild", structure: "rekombination", m
 const zaehl = new Map<string, number>();
 const chronoZeilen = new Map<string, number>();
 const aufzaehlungen = new Map<string, number>();
+const texte: string[] = [];
 const bsp = new Map<string, string>();
 let n = 0, sauber = 0, i = 0;
 for (const wer of WER) for (const was of WAS) for (const wann of WANN) for (const wo of WO)
@@ -147,6 +148,7 @@ for (const wer of WER) for (const was of WAS) for (const wann of WANN) for (cons
     if (chron) chronoZeilen.set(chron[0], (chronoZeilen.get(chron[0]) || 0) + 1);
     const auf = b.text.match(/(Betroffen sind außerdem|Profitieren werden außerdem)[^.]*\./);
     if (auf) aufzaehlungen.set(auf[0], (aufzaehlungen.get(auf[0]) || 0) + 1);
+    if (texte.length < 400) texte.push(b.text);
     funde.push(...semantisch(b.text, b.fb));
     funde.push(...pruefeBericht(b.text, b.fb, b.hergang).map((x) => x.art));
     if (!funde.length) { sauber++; continue; }
@@ -167,6 +169,29 @@ if (zaehl.size) {
     console.log(`    ${String(c).padStart(4)}×  ${f}\n           bei: ${bsp.get(f)}`));
   fehler = true;
 } else console.log("  keine Fehlerklasse ausgelöst");
+
+// Wie viel vom Bericht ist Fakt, wie viel Vorratsbild? Der Eindruck „Rauschen
+// zwischen den Fakten" hat eine Zahl: den Anteil der Sätze OHNE Faktenmarke.
+// Er darf nicht überwiegen — sonst ist es kein Bericht mehr, sondern Prosa mit
+// Zahlen darin.
+{
+  const marke = /\d|Betroffen|Auf dem Spiel|In Aussicht|Profitieren|folgte|zeichnete|Angefangen|gab es|kam die|Gemessen|Es geht um|ist seit|besteht seit|sagte|Bekannt wurde|entsteht im ersten Jahr/;
+  let ohne = 0, gesamt = 0;
+  for (const t of texte) {
+    for (const satz of t.split(/(?<!\d)[.!?](?=\s|$)/)) {
+      const x = satz.trim();
+      if (x.length < 12) continue;
+      gesamt++;
+      if (!marke.test(x)) ohne++;
+    }
+  }
+  const anteil = gesamt ? ohne / gesamt : 0;
+  console.log(`  Vorratsanteil: ${Math.round(anteil * 100)} % der Sätze ohne Faktenmarke`);
+  if (anteil > 0.6) {
+    console.error(`\n❌ ${Math.round(anteil * 100)} % der Sätze tragen keinen Fakt — das ist kein Bericht mehr.`);
+    fehler = true;
+  }
+}
 
 // Der Ressort-Vorrat: Zu kleine Listen ergeben in jedem Bericht desselben
 // Ressorts dieselbe Aufzählung. Im Blatt stand dreimal „Betroffen sind

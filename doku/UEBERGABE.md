@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.258.0**, Zweig `typescript-migration`.
+Stand: **v4.259.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -455,6 +455,32 @@ stehen) und misst, wie oft dieselbe Aufzählung wiederkehrt: 2850 Fassungen in
 **Dateiname beim Drucken**: `druckName()` nimmt jetzt die Ausgabennummer
 dazu — „Zeitzeichen 21.08.2026 Nr. 36". Zwei Ausgaben am selben Tag hießen
 sonst gleich.
+
+**Der Hergang** (4.259.0). Aus Ausgabe 37: Nach dem ersten Faktensatz standen
+fünfzehn Bilder aus dem Preset hintereinander, dann wieder Fakten. Nicht die
+Bilder sind das Problem, sondern ihre Häufung.
+
+`mische()` verteilt sie jetzt zwischen die Faktensätze und deckelt sie auf
+deren Zahl — höchstens so viele Vorratssätze wie Faktensätze, nie zwei
+nebeneinander. Bei großer Ziellänge wird der Bericht dadurch kürzer als
+bestellt; das ist der Preis.
+
+Kurze Bildfetzen („Eine violette Brandung.") bekommen einen Rahmen: „Geblieben
+ist eine violette Brandung." Dabei ein ehrliches Eingeständnis im Quelltext: Es
+gibt hier KEINEN verlässlichen Test auf einen deutschen Hauptsatz.
+`hatFinitesVerb` hält „Eine violette Brandung" für einen Satz,
+`looksLikeFullClause` hält „Der Himmel stürzt ins Wasser" für keinen — beide
+sind für ihre eigene Aufgabe gebaut. Gerahmt wird deshalb nur, was kurz ist
+(bis vier Wörter), kein Hilfsverb enthält und auch von `looksLikeFullClause`
+nicht als Satz erkannt wird. Im Zweifel lieber nicht rahmen.
+
+Die Rahmen verlangen jetzt alle den NOMINATIV. „Die Rede ist von eine violette
+Brandung" war Dativ; „Erinnert wird an" und „Im Ort verbindet man damit"
+verlangen den Akkusativ und gehen im Maskulinum schief („an ein Mast"). Der
+Vorrat liefert im Nominativ — also nur Rahmen, die den brauchen.
+
+Neu im Prüfstand: der **Vorratsanteil** — wie viele Sätze tragen keine
+Faktenmarke? 57 % nach der Änderung, 66 % davor; über 60 % schlägt er an.
 
 **Druck:** sechs Profile (zeitung, fliesstext, vers, haiku, buehne, shots) plus
 der **Zeitungssetzer** mit gestaltbarem Kopf, Automatik über mehrere Seiten und

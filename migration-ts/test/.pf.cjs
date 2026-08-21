@@ -9811,6 +9811,13 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
 }
 
 // src/generation/bericht.ts
+var NOMINALRAHMEN = ["Geblieben ist", "Zu sehen ist", "Im Gespr\xE4ch ist", "Zu h\xF6ren ist", "Geblieben ist auch"];
+function brauchtRahmen(satz) {
+  const w = (satz || "").trim().split(/\s+/).filter(Boolean);
+  if (w.length === 0 || w.length > 4) return false;
+  if (/\b(ist|sind|war|waren|wird|werden|hat|haben|hatte|bleibt|blieb|kommt|kam|geht|ging|steht|stand)\b/i.test(satz)) return false;
+  return !looksLikeFullClause(null, satz);
+}
 var GUTE_TOENE = /* @__PURE__ */ new Set(["uplifting", "humorous", "zaertlich"]);
 var blickVonTon = (ton) => GUTE_TOENE.has((ton || "").toLowerCase()) ? "gut" : "sachlich";
 var WORTE = {
@@ -9857,15 +9864,24 @@ function satzSchluessel(s) {
   return (s || "").toLowerCase().replace(/[.!?…,;:]+/g, "").replace(/\s+/g, " ").trim();
 }
 var istIchOderDu = (s) => isFirstPerson(s) || isSecondPerson(s);
+function berichtTauglich(satz) {
+  const s2 = (satz || "").trim();
+  if (s2.length < 12) return false;
+  if (istIchOderDu(s2)) return false;
+  if (!hatFinitesVerb(s2)) return false;
+  if (/^(er|sie|es|ihn|ihm|ihr|dessen|deren|derselbe|jener|dieser)\b/i.test(s2)) return false;
+  if (/\b(ist|sind|war|waren|hat|haben|hatte|hatten)\b[^.]*\b(worden|gewesen)\b/i.test(s2)) return false;
+  return true;
+}
 function satzOhneZahl(bank, kats, benutzt, zusatz = []) {
   const kandidaten = [];
   for (const k of kats) for (const x of bank[k] || []) {
-    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || istIchOderDu(x)) continue;
+    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || !berichtTauglich(x)) continue;
     if (benutzt.has(satzSchluessel(x))) continue;
     kandidaten.push(x);
   }
   for (const x of zusatz) {
-    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || istIchOderDu(x) || benutzt.has(satzSchluessel(x))) continue;
+    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || !berichtTauglich(x) || benutzt.has(satzSchluessel(x))) continue;
     kandidaten.push(x);
   }
   if (!kandidaten.length) return null;
@@ -9887,8 +9903,19 @@ function vorspann(fb, b, blick) {
   const s2 = z ? `Bekannt ${w.vorspann(`${z.verbal || z.wortform} ${z.einheit}`)}.` : `Bekannt wurde es erst sp\xE4ter.`;
   return `${s1} ${s2}`;
 }
+function mische(fakten, frei) {
+  const raus = [];
+  const gedeckelt = frei.slice(0, Math.max(1, fakten.length));
+  const n2 = Math.max(fakten.length, gedeckelt.length);
+  for (let i2 = 0; i2 < n2; i2++) {
+    if (fakten[i2]) raus.push(fakten[i2]);
+    if (gedeckelt[i2]) raus.push(gedeckelt[i2]);
+  }
+  return raus;
+}
 function hergang(fb, bank, b, benutzt, extra, vorrat, blick) {
   const teile = [];
+  const frei = [];
   const w = WORTE[blick];
   const c2 = fb.chronologie[1], c3 = fb.chronologie[2];
   if (c2) {
@@ -9905,7 +9932,7 @@ function hergang(fb, bank, b, benutzt, extra, vorrat, blick) {
   }
   for (let i2 = 0; i2 < 1 + extra; i2++) {
     const roh = satzOhneZahl(bank, ["obstacles", "turns"], benutzt, vorrat);
-    if (roh) teile.push(`${cap2(roh)}.`);
+    if (roh) frei.push(brauchtRahmen(roh) ? `${pick(NOMINALRAHMEN)} ${roh}.` : `${cap2(roh)}.`);
   }
   const z2 = fb.zahlen[1];
   if (z2) teile.push(zahlSatz(z2));
@@ -9922,11 +9949,11 @@ function hergang(fb, bank, b, benutzt, extra, vorrat, blick) {
   const bt = RESSORTS[fb.ressort].betroffen;
   if (bt.length >= 3) {
     const schon = fb.zahlen.map((z) => z.einheit.toLowerCase());
-    const frei = bt.filter((x) => !schon.some((e) => x.toLowerCase().includes(e)));
-    const aus = reihenfolge2(frei.length >= 2 ? frei : bt).slice(0, 2 + Math.min(2, Math.floor(extra / 3)));
+    const frei2 = bt.filter((x) => !schon.some((e) => x.toLowerCase().includes(e)));
+    const aus = reihenfolge2(frei2.length >= 2 ? frei2 : bt).slice(0, 2 + Math.min(2, Math.floor(extra / 3)));
     teile.push(w.weitere(aufzaehlung(aus)));
   }
-  return teile.join(" ");
+  return mische(teile, frei).join(" ");
 }
 function zitat(fb, bank, b, benutzt, welche, vorrat) {
   const p = fb.personen[welche];
@@ -9939,17 +9966,18 @@ function hintergrund(fb, bank, b, benutzt, extra, vorrat) {
   const c1 = fb.chronologie[0];
   const RK = RESSORTS[fb.ressort].hintergrundKopf;
   if (c1) teile.push(RK ? RK(b.organisation(fb), c1.zeit) : fb.wer.art === "person" ? `${cap2(b.organisation(fb))} ist seit ${c1.zeit} dabei.` : `${cap2(b.organisation(fb))} besteht seit ${c1.zeit}.`);
-  const rahmen = ["Im Ort verbindet man damit", "Erinnert wird an", "Geblieben ist"];
+  const rahmen = reihenfolge2(NOMINALRAHMEN);
   let r = 0;
+  const frei = [];
   for (let i2 = 0; i2 < 1 + extra; i2++) {
     const roh = satzOhneZahl(bank, ["motifs", "props"], benutzt, vorrat);
     if (!roh) continue;
-    if (!hatFinitesVerb(roh) && r < rahmen.length) teile.push(`${rahmen[r++]} ${roh}.`);
-    else teile.push(`${cap2(roh)}.`);
+    if (brauchtRahmen(roh) && r < rahmen.length) frei.push(`${rahmen[r++]} ${roh}.`);
+    else frei.push(`${cap2(roh)}.`);
   }
   const z3 = fb.zahlen[2];
   if (z3) teile.push(zahlSatz(z3));
-  return teile.join(" ");
+  return mische(teile, frei).join(" ");
 }
 function ausblick(fb, blick) {
   const R = RESSORTS[fb.ressort];

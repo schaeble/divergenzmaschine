@@ -12,6 +12,7 @@ import { pick } from "../text-utils";
 import { cap } from "./beats";
 import { hatFinitesVerb } from "../atoms/derive";
 import { isFirstPerson, isSecondPerson } from "./coherence";
+import { looksLikeFullClause } from "./wordcls";
 
 import { ziehFaktenblatt, erlaubteZahlen, ALLE_NAMEN, ROLLE_LABEL, type Faktenblatt, type FbPerson, type FbZahl } from "../features/faktenblatt";
 import { buildVersAtome } from "../atoms/rekombination";
@@ -23,6 +24,41 @@ import { RESSORTS, type RessortId } from "../features/ressorts";
  *  sind", "auf dem Spiel steht", "die erste Meldung" - Wörter, die die Richtung
  *  vorgeben, gleich wie der Ton eingestellt war. */
 export type Blick = "gut" | "sachlich";
+/** Rahmen für Nominalphrasen. Sie machen aus einem Bild eine Aussage, ohne ein
+ *  Verb erfinden zu müssen. */
+/** Nur Rahmen, die den NOMINATIV verlangen.
+ *
+ *  „Die Rede ist von eine violette Brandung" — Dativ verlangt, Nominativ
+ *  bekommen. Dasselbe gilt für die alten Rahmen „Erinnert wird an" und „Im Ort
+ *  verbindet man damit": Beide verlangen den Akkusativ, und der unterscheidet
+ *  sich im Maskulinum („an einen Mast", nicht „an ein Mast"). Der Vorrat
+ *  liefert seine Phrasen im Nominativ, also nehmen wir nur Rahmen, die genau
+ *  den brauchen. Eine Beugung wäre möglich, aber sie hinge wieder an einer
+ *  Genus-Schätzung — und die ist im Deutschen die unzuverlässigste Zutat. */
+const NOMINALRAHMEN = ["Geblieben ist", "Zu sehen ist", "Im Gespräch ist", "Zu hören ist", "Geblieben ist auch"];
+
+/** Braucht dieser Vorratssatz einen Rahmen?
+ *
+ *  Ehrlich gesagt: Es gibt in diesem Quelltext KEINEN verlässlichen Test auf
+ *  einen deutschen Hauptsatz. `hatFinitesVerb` hält „Eine violette Brandung"
+ *  für einen Satz, `looksLikeFullClause` hält „Der Himmel stürzt ins Wasser"
+ *  für keinen — beide sind für ihre eigene Aufgabe gebaut, nicht für diese.
+ *
+ *  Deshalb eine bewusst enge Regel: gerahmt wird nur, was KURZ ist (bis vier
+ *  Wörter) und auch von `looksLikeFullClause` nicht als Satz erkannt wird. Das
+ *  trifft die kurzen Bildfetzen, die am meisten stören, und rahmt im
+ *  Zweifelsfall lieber nicht. Ein falsch gerahmter Satz („Geblieben ist der
+ *  Himmel stürzt ins Wasser") wäre schlimmer als ein ungerahmtes Bild. */
+export function brauchtRahmen(satz: string): boolean {
+  const w = (satz || "").trim().split(/\s+/).filter(Boolean);
+  if (w.length === 0 || w.length > 4) return false;
+  // Ein Hilfsverb im Rahmen ergibt zwei finite Verben: „Geblieben ist der Kurs
+  // wird eng." Der Prüfstand hat genau dafür ein Verbotsmuster — es hat hier
+  // vierzehnmal angeschlagen, bevor diese Zeile kam.
+  if (/\b(ist|sind|war|waren|wird|werden|hat|haben|hatte|bleibt|blieb|kommt|kam|geht|ging|steht|stand)\b/i.test(satz)) return false;
+  return !looksLikeFullClause(null, satz);
+}
+
 const GUTE_TOENE = new Set(["uplifting", "humorous", "zaertlich"]);
 export const blickVonTon = (ton: string): Blick =>
   GUTE_TOENE.has((ton || "").toLowerCase()) ? "gut" : "sachlich";
@@ -97,10 +133,36 @@ function satzSchluessel(s: string): string {
  *  machen den Hergang unlesbar. */
 const istIchOderDu = (s: string): boolean => isFirstPerson(s) || isSecondPerson(s);
 
+/** Taugt dieser Satz für einen Bericht?
+ *
+ *  Aus Ausgabe 37, alles aus dem Preset-Vorrat und alles im Hergang:
+ *
+ *    „Die Trennung von der eigenen Vergangenheit."   — kein Verb
+ *    „Ein Kompass, der nach innen zeigt."            — Nominalphrase
+ *    „Er schließt die Augen und weiß, …"             — ein „Er" ohne Bezug
+ *    „Die Berliner Mauer ist zerstört worden."       — Perfekt im Präteritum
+ *
+ *  Keiner dieser Sätze widerspricht den Fakten; sie sind trotzdem falsch am
+ *  Platz. Ein Bericht referiert — er deutet nicht an, er springt nicht in eine
+ *  andere Zeit, und er nennt niemanden, den er nicht eingeführt hat. */
+export function berichtTauglich(satz: string): boolean {
+  const s2 = (satz || "").trim();
+  if (s2.length < 12) return false;
+  if (istIchOderDu(s2)) return false;
+  // Ohne finites Verb ist es ein Bild, kein Bericht.
+  if (!hatFinitesVerb(s2)) return false;
+  // Ein Pronomen am Satzanfang zeigt auf etwas, was der Bericht nie genannt
+  // hat. „Man" bleibt: Es zeigt auf niemanden.
+  if (/^(er|sie|es|ihn|ihm|ihr|dessen|deren|derselbe|jener|dieser)\b/i.test(s2)) return false;
+  // Perfekt und Passiv-Perfekt brechen das Tempus des Berichts.
+  if (/\b(ist|sind|war|waren|hat|haben|hatte|hatten)\b[^.]*\b(worden|gewesen)\b/i.test(s2)) return false;
+  return true;
+}
+
 function satzOhneZahl(bank: Bank, kats: (keyof Bank)[], benutzt: Set<string>, zusatz: string[] = []): string | null {
   const kandidaten: string[] = [];
   for (const k of kats) for (const x of bank[k] || []) {
-    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || istIchOderDu(x)) continue;
+    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || !berichtTauglich(x)) continue;
     if (benutzt.has(satzSchluessel(x))) continue;
     kandidaten.push(x);
   }
@@ -108,7 +170,7 @@ function satzOhneZahl(bank: Bank, kats: (keyof Bank)[], benutzt: Set<string>, zu
   // kurzen Bericht, nicht fuer einen langen - bei Ziel 400 blieb es sonst bei
   // 66 Prozent der Marke, weil kein Satz mehr uebrig war.
   for (const x of zusatz) {
-    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || istIchOderDu(x) || benutzt.has(satzSchluessel(x))) continue;
+    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || !berichtTauglich(x) || benutzt.has(satzSchluessel(x))) continue;
     kandidaten.push(x);
   }
   if (!kandidaten.length) return null;
@@ -154,8 +216,31 @@ function vorspann(fb: Faktenblatt, b: Buchfuehrung, blick: Blick): string {
   return `${s1} ${s2}`;
 }
 
+/** Mischt Vorratssätze zwischen die Faktensätze — und deckelt sie.
+ *
+ *  Der Hergang las sich als Block: erst ein Faktensatz, dann fünfzehn Bilder
+ *  aus dem Preset hintereinander, dann wieder Fakten. Nicht die Bilder sind
+ *  das Problem, sondern ihre Häufung; sie ist der Grund für den Eindruck
+ *  „Rauschen zwischen den Fakten".
+ *
+ *  Zwei Regeln, beide zählbar: höchstens so viele Vorratssätze wie
+ *  Faktensätze, und keine zwei davon nebeneinander. Bei großer Ziellänge wird
+ *  der Bericht dadurch kürzer als bestellt — das ist der Preis, und er ist
+ *  billiger als eine Seite, die niemand liest. */
+function mische(fakten: string[], frei: string[]): string[] {
+  const raus: string[] = [];
+  const gedeckelt = frei.slice(0, Math.max(1, fakten.length));
+  const n = Math.max(fakten.length, gedeckelt.length);
+  for (let i = 0; i < n; i++) {
+    if (fakten[i]) raus.push(fakten[i]!);
+    if (gedeckelt[i]) raus.push(gedeckelt[i]!);
+  }
+  return raus;
+}
+
 function hergang(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<string>, extra: number, vorrat: string[], blick: Blick): string {
   const teile: string[] = [];
+  const frei: string[] = [];
   const w = WORTE[blick];
   const c2 = fb.chronologie[1], c3 = fb.chronologie[2];
   if (c2) {
@@ -175,7 +260,11 @@ function hergang(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<stri
   }
   for (let i = 0; i < 1 + extra; i++) {
     const roh = satzOhneZahl(bank, ["obstacles", "turns"], benutzt, vorrat);
-    if (roh) teile.push(`${cap(roh)}.`);
+    // Ein Vorratssatz ohne erkennbares finites Verb bekommt einen Rahmen —
+    // „Geblieben ist eine violette Brandung." statt „Eine violette Brandung."
+    // Der Rahmen ist die Zeitungswendung, die aus einem Bild eine Aussage
+    // macht.
+    if (roh) frei.push(brauchtRahmen(roh) ? `${pick(NOMINALRAHMEN)} ${roh}.` : `${cap(roh)}.`);
   }
   const z2 = fb.zahlen[1];
   if (z2) teile.push(zahlSatz(z2));
@@ -207,7 +296,7 @@ function hergang(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<stri
     const aus = reihenfolge(frei.length >= 2 ? frei : bt).slice(0, 2 + Math.min(2, Math.floor(extra / 3)));
     teile.push(w.weitere(aufzaehlung(aus)));
   }
-  return teile.join(" ");
+  return mische(teile, frei).join(" ");
 }
 
 function zitat(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<string>, welche: number, vorrat: string[]): string {
@@ -231,17 +320,20 @@ function hintergrund(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<
   // Saetze, und "Geblieben ist die Zuständigkeit ist unklar" hat zwei finite
   // Verben. Jeder Rahmen zudem hoechstens einmal - beim Reihum-Zaehlen stand
   // "Im Ort verbindet man damit" zweimal im selben Absatz.
-  const rahmen = ["Im Ort verbindet man damit", "Erinnert wird an", "Geblieben ist"];
+  // Jeder Rahmen höchstens einmal — beim Reihum-Zählen stand „Im Ort verbindet
+  // man damit" zweimal im selben Absatz.
+  const rahmen = reihenfolge(NOMINALRAHMEN);
   let r = 0;
+  const frei: string[] = [];
   for (let i = 0; i < 1 + extra; i++) {
     const roh = satzOhneZahl(bank, ["motifs", "props"], benutzt, vorrat);
     if (!roh) continue;
-    if (!hatFinitesVerb(roh) && r < rahmen.length) teile.push(`${rahmen[r++]} ${roh}.`);
-    else teile.push(`${cap(roh)}.`);
+    if (brauchtRahmen(roh) && r < rahmen.length) frei.push(`${rahmen[r++]} ${roh}.`);
+    else frei.push(`${cap(roh)}.`);
   }
   const z3 = fb.zahlen[2];
   if (z3) teile.push(zahlSatz(z3));
-  return teile.join(" ");
+  return mische(teile, frei).join(" ");
 }
 
 function ausblick(fb: Faktenblatt, blick: Blick): string {
