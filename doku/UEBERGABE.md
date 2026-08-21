@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.255.0**, Zweig `typescript-migration`.
+Stand: **v4.256.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -92,6 +92,7 @@ Beide laufen bei `npm test` mit.
 | `test/meldung.ts` | Meldung: 2880 Läufe über dieselbe Matrix wie der Bericht, dazu neun Gegenproben |
 | `test/sammler.ts` | Sammler: 61 Prüfungen gegen nachgebildete Feed-Daten, mit Gegentests |
 | `test/bildrahmen.ts` | Bildrahmen: 67 Prüfungen, 560 Skalier- und 1600 Rasterfälle als Matrix |
+| `test/varianz.ts` | Varianzmesser: Ähnlichkeit, Bänder, Gegenfall Dublette — 26 Prüfungen |
 | `test/musterseite.ts` | Musterseiten: Spaltenverteilung, Deckung, Wortziele — 71 Prüfungen |
 | `test/umbruch.ts` | Seitenumbruch: Verteilung, Fußauffüllung, Aufmacher, Füllgrad |
 | `test/wirkung.ts` | Wirkungsmesser: Blindprobe unter der Schwelle, Form darüber, Rechnung |
@@ -370,6 +371,25 @@ kaum etwas kommt an." Er stimmte, und zwar aus drei Gründen:
    Vorrat leer, stand dort „Sammler-Vorrat", obwohl die Welt eingesprungen war.
    `holeKontext()` gibt jetzt die tatsächliche Quelle zurück; das Protokoll
    nennt sie und dazu die vier W jedes Beitrags.
+
+**Varianzmesser** (seit 4.256.0, `features/varianz.ts`): Wie verschieden sind
+die Beiträge EINER Ausgabe? Gemessen wird die Ähnlichkeit zum NÄCHSTEN
+Nachbarn, nicht der Durchschnitt aller Paare — bei zwölf Beiträgen gibt es 66
+Paare, und zwei fast gleiche verschwinden im Mittel, während der Leser sie
+sofort sieht. Zwei Ebenen, weil beide für sich täuschen: Inhaltswörter
+(Jaccard, trifft gleiche Motive) und Dreiwortgruppen (trifft wörtliche
+Übernahmen aus derselben Wortbank, zählt doppelt). Bänder: ab 0,75 grün, ab
+0,55 gelb, darunter rot. Die Anzeige im Autopiloten nennt zusätzlich die
+ÄHNLICHSTEN PAARE als Belegstelle und die Vielfalt der Einstellungen (Formen,
+Wortbänke, 4W-Quellen, Längen) — eine Farbe ohne Begründung wäre ein Urteil.
+
+**Reihenfolge der Beiträge** (zur Erinnerung, oft gefragt): Ohne Musterseite
+baut `baueBesetzung()` fest: 1. Aufmacher (Bericht oder Prosa, 50:50),
+2. Kasten (Haiku 40 %, sonst Meldung), 3. Rest aus einem Beutel mit fester
+Mischung. Die 4W-Quellen laufen REIHUM, nicht gezogen. Mit Musterseite kommt
+die Reihenfolge aus den Plätzen, Form und Länge ebenso; die Quellen laufen
+weiter reihum. Im Setzer entscheidet `reihenfolge` — bei einer Musterseite
+Teil 1 in Platz 1.
 
 **Druck:** sechs Profile (zeitung, fliesstext, vers, haiku, buehne, shots) plus
 der **Zeitungssetzer** mit gestaltbarem Kopf, Automatik über mehrere Seiten und

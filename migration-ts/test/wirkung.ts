@@ -47,7 +47,13 @@ wahr("alle Maße liefern eine Zahl", MASSE.every((x) => Number.isFinite(m[x.name
 wahr("leerer Text wirft nicht", Number.isFinite(misseText("", basis).Wiederholung));
 
 // ── 2 · Die Blindprobe — der eigentliche Test ───────────────────────────────
-const blind = miss(reglerListe().find((r) => r.id === "blindprobe")!);
+// DREI Läufe, Median. Die Blindprobe ist selbst eine Zufallsgröße: Bei einem
+// einzelnen Lauf mit 30 Würfen streute sie zwischen 1,2 und 2,6 und schlug
+// gelegentlich über die Schwelle — der Prüfstand meldete dann einen Fehler, den
+// es nicht gab. Ein Prüfstand, der zufällig rot wird, erzieht dazu, ihn zu
+// ignorieren.
+const blindLaeufe = [0, 1, 2].map(() => miss(reglerListe().find((r) => r.id === "blindprobe")!));
+const blind = blindLaeufe.slice().sort((a, b) => a.wirkung - b.wirkung)[1]!;
 // Ein Regler, der nichts ändert, muss bei 1 liegen — das ist die Bedeutung des
 // Maßes. Der Bereich ist weit, weil die Schätzung selbst streut; entscheidend
 // ist, dass er NICHT in einem der Wirkungsbänder landet.

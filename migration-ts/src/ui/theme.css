@@ -952,3 +952,17 @@ select.abweichend{border-color:var(--acc)}
 .wm-tab th:first-child,.wm-tab td:first-child{text-align:left;color:var(--text)}
 .wm-hoch{color:#2f9e44;font-weight:600}
 .wm-tief{color:#E64980;font-weight:600}
+
+/* Varianzanzeige im Autopiloten: gruen = hoch, gelb = mittel, rot = gering.
+   Die Farbe ist die einzige Aussage, die ein Blick liefert — deshalb dieselben
+   Bänder wie beim Wirkungsmesser, damit sie nicht zweierlei bedeuten. */
+.va-zeile{display:flex;align-items:center;gap:8px;margin:6px 0 2px}
+.va-balken{flex:0 0 160px;height:9px;background:var(--panel2);border-radius:5px;overflow:hidden}
+.va-fuell{display:block;height:100%;border-radius:5px;background:var(--acc)}
+.va-wert{font-variant-numeric:tabular-nums;font-weight:600}
+.va-hoch{background:#2f9e44}
+.va-mittel{background:#d7a531}
+.va-gering{background:#E64980}
+.va-wert.va-hoch{background:none;color:#2f9e44}
+.va-wert.va-mittel{background:none;color:#d7a531}
+.va-wert.va-gering{background:none;color:#E64980}

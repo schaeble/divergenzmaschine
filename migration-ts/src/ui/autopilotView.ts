@@ -25,6 +25,7 @@ import { ladeKopf, sichereKopf, oeffneZeitungssetzer, ueberschriftVon } from "./
 import { ladeLayouts, sichereLayouts, legeLayout, textSchluessel, type Layout } from "../features/zeitungslayout";
 import { ziehVorrat } from "../features/wikisammler";
 import { schemaVon, schemaPlaetze, schemaAuftraege } from "../features/musterseite";
+import { varianzBericht, type VarianzBand } from "../features/varianz";
 import {
   OMNI_PRESETS, loadOmniUserPresets, profileToStudio, type CognitiveProfile,
 } from "../features/omnikognition";
@@ -439,6 +440,42 @@ export function mountAutopilot(root: HTMLElement): void {
         zeile("Welt", weltEreignisse.length
           ? `einen Tag weitergedreht — ${weltEreignisse.slice(0, 3).join(" ")}`
           : "unverändert");
+        // ── Varianzanzeige ────────────────────────────────────────────────
+        // Der Befund war „immer wieder ähnliche Beiträge". Hier steht die Zahl
+        // dazu — und zwar die Ähnlichkeit zum NÄCHSTEN Nachbarn, nicht der
+        // Durchschnitt aller Paare: Zwei fast gleiche Stücke in einer sonst
+        // bunten Ausgabe verschwinden im Mittel, dem Leser fallen sie auf.
+        const vb = varianzBericht(erzeugt.map((e, i) => ({
+          titel: `${i + 1}`, text: e.text, form: e.form, bank: e.preset, quelle: e.quelle,
+        })));
+        const bandWort: Record<VarianzBand, string> = {
+          hoch: "hoch — die Beiträge stehen für sich",
+          mittel: "mittel — einzelne Stücke ähneln einander",
+          gering: "gering — mehrere Beiträge sind verwandt",
+        };
+        const balken = el("div", { class: "va-balken" });
+        const fuell = el("span", { class: "va-fuell va-" + vb.band });
+        fuell.style.width = `${Math.round(vb.wert * 100)}%`;
+        balken.append(fuell);
+        herkunft.append(el("p", { class: "mini va-zeile" },
+          el("b", {}, "Varianz: "), balken,
+          el("span", { class: "va-wert va-" + vb.band }, `${Math.round(vb.wert * 100)} %`),
+          el("span", { class: "muted" }, ` ${bandWort[vb.band]}`)));
+        // Die Belegstellen: WELCHE Stücke sich ähneln. Ohne sie ist die Zahl
+        // ein Urteil ohne Begründung.
+        if (vb.paare.length && vb.paare[0]!.wert > 0.12) {
+          const naechste = vb.paare
+            .filter((x) => x.wert > 0.12)
+            .map((x) => `${x.a + 1}↔${x.b + 1} (${Math.round(x.wert * 100)} %)`)
+            .join(", ");
+          zeile("Ähnlichste Paare", naechste);
+        }
+        zeile("Vielfalt", [
+          `Formen ${Math.round(vb.vielfalt.formen * 100)} %`,
+          `Wortbänke ${Math.round(vb.vielfalt.baenke * 100)} %`,
+          `4W-Quellen ${Math.round(vb.vielfalt.quellen * 100)} %`,
+          `Längen ${Math.round(vb.vielfalt.laengen * 100)} %`,
+        ].join(" · "));
         zeile("Nicht benutzt", "KI-Lehrer, Bildsammler, Abschrift — der Autopilot kostet nichts");
         sichereGedaechtnis(merkeGedaechtnis(gedaechtnis, frisch));
         status.textContent = ok

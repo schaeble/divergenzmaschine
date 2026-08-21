@@ -382,6 +382,14 @@ wahr("und ihre eigene Perspektive", /perspective: ps\.perspective/.test(ansicht)
 // überschrieben werden.
 wahr("die Form bleibt beim Platz", !/form: ps\.form/.test(ansicht));
 
+// Die Varianzanzeige: Sie ist die Antwort auf „immer wieder ähnliche
+// Beiträge" und muss deshalb im Protokoll stehen — mit Balken, Zahl UND
+// Belegstellen. Eine Farbe ohne Begründung wäre ein Urteil.
+wahr("die Varianz wird gemessen", /varianzBericht\(/.test(ansicht));
+wahr("und farbig angezeigt", /va-fuell va-/.test(ansicht));
+wahr("die ähnlichsten Paare werden benannt", /Ähnlichste Paare/.test(ansicht));
+wahr("und die Vielfalt der Einstellungen dazu", /zeile\("Vielfalt"/.test(ansicht));
+
 for (const feld of ["4W-Herkunft", "4W je Beitrag", "Wortbänke", "Formen", "Korpus", "Welt", "Nicht benutzt"]) {
   wahr(`das Protokoll nennt „${feld}"`, ansicht.includes(`zeile("${feld}"`));
 }
