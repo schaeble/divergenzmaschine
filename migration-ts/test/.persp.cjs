@@ -1028,7 +1028,173 @@ var NOUN_GENDER = {
   "f\xE4hrmann": "m",
   "hintert\xFCr": "f",
   "instanz": "f",
-  "sachbearbeiter": "m"
+  "sachbearbeiter": "m",
+  "abstand": "m",
+  "airpod": "m",
+  "amulett": "n",
+  "art": "f",
+  "atmosph\xE4re": "f",
+  "augenlid": "n",
+  "axiom": "n",
+  "begriff": "m",
+  "bericht": "m",
+  "besitz": "m",
+  "betonprobe": "f",
+  "beutel": "m",
+  "bibel": "f",
+  "blechdose": "f",
+  "bleistift": "m",
+  "blumenstrau\xDF": "m",
+  "bohrprobe": "f",
+  "boje": "f",
+  "briefumschlag": "m",
+  "brotlaib": "m",
+  "cadtablet": "n",
+  "clown": "m",
+  "couch": "f",
+  "dattel": "f",
+  "dnaspirale": "f",
+  "dolch": "m",
+  "duft": "m",
+  "ebene": "f",
+  "emoji": "n",
+  "entwurf": "m",
+  "erdbeben": "n",
+  "fahne": "f",
+  "fessel": "f",
+  "fibel": "f",
+  "flakon": "m",
+  "flaute": "f",
+  "fl\xE4che": "f",
+  "fossil": "n",
+  "fossilie": "f",
+  "galaxie": "f",
+  "gebetsschale": "f",
+  "geb\xE4ude": "n",
+  "gegenstand": "m",
+  "geruch": "m",
+  "geschenk": "n",
+  "gewehr": "n",
+  "gewicht": "n",
+  "glasplatte": "f",
+  "granitblock": "m",
+  "grenze": "f",
+  "grundrissplan": "m",
+  "gruppenchat": "m",
+  "handschuhspitze": "f",
+  "handvoll": "f",
+  "handy": "n",
+  "harpune": "f",
+  "helm": "m",
+  "herrscherstab": "m",
+  "herzschlag": "m",
+  "hierarchie": "f",
+  "hirtenstab": "m",
+  "hoodie": "m",
+  "insekt": "n",
+  "instastory": "f",
+  "kanten": "m",
+  "kelch": "m",
+  "kinderspielzeug": "n",
+  "klingel": "f",
+  "kohleschale": "f",
+  "komet": "m",
+  "kommentar": "m",
+  "kommissar": "m",
+  "kristall": "m",
+  "kuss": "m",
+  "kutsche": "f",
+  "labyrinth": "n",
+  "laterne": "f",
+  "laute": "f",
+  "lederbeutel": "m",
+  "leuchten": "n",
+  "lupe": "f",
+  "mala": "f",
+  "manuskript": "n",
+  "ma\xDF": "n",
+  "meme": "n",
+  "mikroskop": "n",
+  "modellplaneten": "m",
+  "notiz": "f",
+  "notizblock": "m",
+  "opferschale": "f",
+  "opiumdose": "f",
+  "organ": "n",
+  "paar": "n",
+  "pakt": "m",
+  "paragraph": "m",
+  "passierschein": "m",
+  "pergamentrolle": "f",
+  "petrischale": "f",
+  "pfeife": "f",
+  "phiole": "f",
+  "pipette": "f",
+  "plakat": "n",
+  "planet": "m",
+  "planke": "f",
+  "raumkapsel": "f",
+  "regel": "f",
+  "reigen": "m",
+  "ritterhelm": "m",
+  "ruf": "m",
+  "samen": "m",
+  "satellit": "m",
+  "schale": "f",
+  "schatulle": "f",
+  "schicht": "f",
+  "schiffssextanten": "m",
+  "schl\xFCsselbund": "m",
+  "schwertgriff": "m",
+  "screenshot": "m",
+  "skalpell": "n",
+  "skelett": "n",
+  "skizze": "f",
+  "smartphone": "n",
+  "sporn": "m",
+  "stahlstrebe": "f",
+  "standarte": "f",
+  "stethoskop": "n",
+  "stoff": "m",
+  "sturmlaterne": "f",
+  "symptom": "n",
+  "system": "n",
+  "tabelle": "f",
+  "tafelrunde": "f",
+  "takt": "m",
+  "taschenradio": "n",
+  "tau": "n",
+  "teeschale": "f",
+  "teil": "m",
+  "telefon": "n",
+  "thron": "m",
+  "tiktoksound": "m",
+  "tonschale": "f",
+  "tontafel": "f",
+  "trapezhaken": "m",
+  "trend": "m",
+  "umschlag": "m",
+  "verfahren": "n",
+  "vermerk": "m",
+  "vertrag": "m",
+  "virus": "n",
+  "wappen": "n",
+  "weite": "f",
+  "wei\xDF": "n",
+  "werk": "n",
+  "widerstand": "m",
+  "windhauch": "m",
+  "windsto\xDF": "m",
+  "witz": "m",
+  "wollschal": "m",
+  "wurzel": "f",
+  "zahl": "f",
+  "zelle": "f",
+  "zeuge": "m",
+  "zigarettenstummel": "m",
+  "zigarre": "f",
+  "z\xF6gern": "n",
+  "\xF6llaterne": "f"
 };
 
 // src/generation/declension.ts
@@ -3860,6 +4026,50 @@ function guessPronoun(P2) {
   if (/(a|e|in)$/i.test(p)) return "sie";
   return "er";
 }
+var KEIN_VERB_AUF_T = /* @__PURE__ */ new Set([
+  "alt",
+  "kalt",
+  "laut",
+  "bunt",
+  "hart",
+  "zart",
+  "satt",
+  "glatt",
+  "weit",
+  "breit",
+  "rot",
+  "tot",
+  "gut",
+  "sp\xE4t",
+  "echt",
+  "leicht",
+  "dicht",
+  "recht",
+  "schlecht",
+  "nackt",
+  "fest",
+  "letzt",
+  "jetzt",
+  "sanft",
+  "ernst",
+  "wert",
+  "leer",
+  "seit",
+  "statt",
+  "samt",
+  "nicht",
+  "mit",
+  "seid",
+  "zuletzt",
+  "zuerst",
+  "oft",
+  "fast",
+  "erst",
+  "sonst",
+  "meist",
+  "direkt"
+]);
+var SUBJ_FUGE = /^(und|oder|aber|denn|doch|sondern|dann|da|weil|dass|als|wenn|während|obwohl|bevor|nachdem|sobald|solange|ob|wie|so|auch|nur|jetzt|dort|hier|heute|gestern|morgen|plötzlich|dabei|dadurch|deshalb|trotzdem|später|zuerst|zuletzt|außerdem|schließlich)$/i;
 var DEF_ART = { m: "der", f: "die", n: "das" };
 function objektName(o) {
   const t = clean(o);
@@ -3934,7 +4144,10 @@ function applyPerspective(paras, perspective, who, objName) {
           if (person === "wir") return hatE ? stamm + "n" : stamm + "en";
           return v;
         };
-        const kennt = (v) => !!VERB_CONJ[v.toLowerCase()] || /^[a-zäöüß]{4,}t$/.test(v);
+        const kennt = (v) => !!VERB_CONJ[v.toLowerCase()] || /^[a-zäöüß]{3,}t$/.test(v) && !KEIN_VERB_AUF_T.has(v.toLowerCase());
+        const letztesWort = (davor.match(/[A-Za-zÄÖÜäöüß-]+$/) || [""])[0];
+        const subjektstelle = gross || /[,;]$/.test(davor) || SUBJ_FUGE.test(letztesWort) || !!bw && kennt(bw3);
+        if (!subjektstelle) return _m;
         if (bw && kennt(bw3)) return beuge(bw3) + " " + pron + (after || "");
         if (aw && kennt(aw3)) return (before || "") + pron + " " + beuge(aw3);
         return (before || "") + pron + (after || "");
@@ -11897,6 +12110,60 @@ for (const p of ["third", "first", "second", "we", "split"]) {
   const t = buildStory(bank, { ...basis, perspective: p, structure: "rekombination" });
   wahr(`Perspektive ${p} liefert Text`, t.trim().length > 40);
   wahr(`Perspektive ${p} ohne Etikett`, !/^\s*\(/.test(t));
+}
+{
+  const name = "Giovanni Salustio Peruzzi";
+  const fremd = `In der Toskana wird der italienische Festungsbaumeister und Milit\xE4r ${name} geboren.`;
+  for (const p of ["second", "first", "we"]) {
+    const raus = applyPerspective([fremd], p, name, "Stempel")[0] || "";
+    wahr(`${p}: die Apposition bleibt unangetastet`, raus === fremd);
+  }
+  ist(
+    "am Satzanfang wird umgestellt",
+    applyPerspective(["Die Archivarin h\xE4lt einen Stempel fest."], "second", "die Archivarin", "Akte")[0],
+    "Du h\xE4ltst einen Stempel fest."
+  );
+  ist(
+    "und bei Inversion auch",
+    applyPerspective(["Am Morgen bemerkt die Archivarin den Stempel."], "second", "die Archivarin", "Akte")[0],
+    "Am Morgen bemerkst du den Stempel."
+  );
+  ist(
+    "nach einer Konjunktion ebenso",
+    applyPerspective(["Es regnet, und die Archivarin wartet."], "second", "die Archivarin", "Akte")[0],
+    "Es regnet, und du wartest."
+  );
+  ist(
+    "kurze Verben werden gebeugt",
+    applyPerspective(["Der Sohn eines F\xE4lschers erbt ein Amt."], "second", "der Sohn eines F\xE4lschers", "Akte")[0],
+    "Du erbst ein Amt."
+  );
+  ist(
+    "und in der ersten Person auch",
+    applyPerspective(["Der Sohn eines F\xE4lschers erbt ein Amt."], "first", "der Sohn eines F\xE4lschers", "Akte")[0],
+    "Ich erbe ein Amt."
+  );
+}
+{
+  ist("Thron wird zu einen Thron", declineHookPhrase("ein leerer Thron", "acc"), "einen leeren Thron");
+  ist("auch mit Anhang", declineHookPhrase("ein leerer Thron unter einem Baum", "acc"), "einen leeren Thron unter einem Baum");
+  ist("und Takt", declineHookPhrase("ein Takt, der \xE4lter ist als ihr L\xE4cheln", "acc"), "einen Takt, der \xE4lter ist als ihr L\xE4cheln");
+  ist("weiblich bleibt weiblich", declineHookPhrase("eine rostige Klinge", "acc"), "eine rostige Klinge");
+  const ohne = /* @__PURE__ */ new Set();
+  for (const id of Object.keys(BUILTIN_PRESETS)) {
+    const bank = BUILTIN_PRESETS[id];
+    for (const kat of Object.keys(bank)) {
+      const arr = bank[kat];
+      if (!Array.isArray(arr)) continue;
+      for (const roh of arr) {
+        const m = String(roh).match(/^(?:ein|eine|einen|einem|einer|eines)\s+(.*)$/i);
+        if (!m) continue;
+        const w = (m[1].split(" ").find((x) => /^[A-ZÄÖÜ]/.test(x)) || "").replace(/[^A-Za-zÄÖÜäöüß]/g, "");
+        if (w && !guessGender(w)) ohne.add(w);
+      }
+    }
+  }
+  ist("jedes Preset-Nomen hat ein Geschlecht", [...ohne].sort().join(", "), "");
 }
 console.log(`Pr\xFCfstand Perspektive \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

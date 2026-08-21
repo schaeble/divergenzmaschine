@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.265.0**, Zweig `typescript-migration`.
+Stand: **v4.266.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,39 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Gefragt (4.266.0): **„Wie kann die Textmaschine mit der Perspektive Du bei so
+einer Vorgabe umgehen?"** Vorgelegt war ein Absatz mit drei verschiedenen
+Fehlern, alle nachgemessen:
+
+**1 · Das Pronomen stand in einer Apposition.** „In der Toskana wird der
+italienische Festungsbaumeister und Militär **du** geboren." Der Figurenname kam
+aus dem Sammler und stand im selben gesammelten Satz — `swap()` ersetzte ihn
+überall, auch dort, wo kein Pronomen stehen kann. Gemessen: 31 % der Du-Texte.
+Ersetzt wird jetzt nur in SUBJEKTSTELLUNG: am Satzanfang, nach Satzzeichen, nach
+einer Konjunktion oder nach einem finiten Verb (Inversion). Steht davor ein
+Nomen oder Adjektiv, bleibt der Satz in der dritten Person. Der Preis ist eine
+gemischte Perspektive im selben Text — in deutscher Prosa üblich, ein Pronomen
+in einer Apposition nicht.
+
+**2 · Kurze Verben wurden nicht gebeugt.** „Du erbt ein Amt." Die Erkennung
+verlangte `{4,}` Buchstaben vor dem -t, „erbt" hat drei. Gemessen: 28 % der
+Du-Texte. Jetzt `{3,}` mit einer Sperrliste für Adjektive auf -t
+(`KEIN_VERB_AUF_T`) — sonst würde aus „alt" ein „alst".
+
+**3 · Der Akkusativ entstand nicht.** „Du hältst **ein leerer Thron** unter einem
+Baum fest." `declineHookPhrase()` gibt die Phrase unverändert zurück, wenn das
+Geschlecht des Nomens unbekannt ist — und **166 Nomen** der Presets hatten
+keinen Eintrag in `NOUN_GENDER`: Thron, Takt, Duft, Vertrag, Umschlag … Alle
+eingetragen. Der Prüfstand Perspektive fordert das jetzt für JEDES Nomen, das
+ein Preset mit unbestimmtem Artikel führt.
+
+**Merksatz zu 3:** Das ist die dritte Ausgabe in Folge, in der eine fehlende
+Genus-Angabe den Fehler verursacht hat (4.262: Frist/Beweis, 4.266: 166 Nomen).
+Wer ein Preset erweitert, muss `NOUN_GENDER` mit erweitern — die Endungsregel
+rät, und sie rät oft falsch.
+
+Prüfstand Perspektive 32 → 45, drei Gegenproben.
 
 Aus der Analyse von Ausgabe Nr. 44 (4.265.0) — fünf Reparaturen, alle vorher
 gemessen:

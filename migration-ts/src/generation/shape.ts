@@ -161,6 +161,16 @@ export function guessPronoun(P: string): string {
 // umbeugen — genau daran ist die Umstellung „Ich/Du/Wir" schon einmal
 // gescheitert. Die Rahmensätze sind deshalb in sich abgeschlossen und hängen an
 // keinem Wort des Textes.
+/** Wörter auf -t, die keine Verben sind. Ohne sie machte die Beugung aus
+ *  „alt" ein „alst". */
+const KEIN_VERB_AUF_T = new Set(["alt", "kalt", "laut", "bunt", "hart", "zart", "satt", "glatt",
+  "weit", "breit", "rot", "tot", "gut", "spät", "echt", "leicht", "dicht", "recht", "schlecht",
+  "nackt", "fest", "letzt", "jetzt", "sanft", "ernst", "wert", "leer", "seit", "statt", "samt",
+  "nicht", "mit", "seid", "zuletzt", "zuerst", "oft", "fast", "erst", "sonst", "meist", "direkt"]);
+
+/** Wörter, nach denen ein Subjekt folgen darf. */
+const SUBJ_FUGE = /^(und|oder|aber|denn|doch|sondern|dann|da|weil|dass|als|wenn|während|obwohl|bevor|nachdem|sobald|solange|ob|wie|so|auch|nur|jetzt|dort|hier|heute|gestern|morgen|plötzlich|dabei|dadurch|deshalb|trotzdem|später|zuerst|zuletzt|außerdem|schließlich)$/i;
+
 const DEF_ART: Record<string, string> = { m: "der", f: "die", n: "das" };
 /** „Antrag" → „der Antrag". Ohne Artikel entstand „Ich bin Prozess". */
 export function objektName(o: string): string {
@@ -236,7 +246,32 @@ export function applyPerspective(paras: string[], perspective: string, who: stri
           if (person === "wir") return hatE ? stamm + "n" : stamm + "en";
           return v;
         };
-        const kennt = (v: string): boolean => !!VERB_CONJ[v.toLowerCase()] || /^[a-zäöüß]{4,}t$/.test(v);
+        // Vier Buchstaben reichen: „erbt" fiel durch das alte {4,} und ergab
+        // „Du erbt ein Amt" — gemessen in 28 % der Du-Texte. Adjektive auf -t
+        // („alt", „kalt") stehen in der Sperrliste, sonst würde daraus „kalst".
+        const kennt = (v: string): boolean =>
+          !!VERB_CONJ[v.toLowerCase()]
+          || (/^[a-zäöüß]{3,}t$/.test(v) && !KEIN_VERB_AUF_T.has(v.toLowerCase()));
+
+        // ── Nur in SUBJEKTSTELLUNG ersetzen ──────────────────────────────
+        // Gemeldet an einem gesammelten Wikipedia-Satz: „In der Toskana wird
+        // der italienische Festungsbaumeister und Militär du geboren." Der Name
+        // steckt dort in einer Apposition — an dieser Stelle kann kein Pronomen
+        // stehen, in keiner Sprache. Gemessen: 31 % der Du-Texte.
+        //
+        // Subjektstellung heißt: am Satzanfang, nach einem Satzzeichen, nach
+        // einer Konjunktion — oder nach einem finiten Verb (Inversion: „Am
+        // Morgen bemerkt der Sohn eines Fälschers …"). Steht davor ein Nomen
+        // oder ein Adjektiv, bleibt der Satz in der dritten Person. Eine
+        // gemischte Perspektive ist in deutscher Prosa üblich; ein Pronomen in
+        // einer Apposition ist es nicht.
+        const letztesWort = (davor.match(/[A-Za-zÄÖÜäöüß-]+$/) || [""])[0]!;
+        const subjektstelle = gross
+          || /[,;]$/.test(davor)
+          || SUBJ_FUGE.test(letztesWort)
+          || (!!bw && kennt(bw3));
+        if (!subjektstelle) return _m;
+
         if (bw && kennt(bw3)) return beuge(bw3) + " " + pron + (after || "");
         if (aw && kennt(aw3)) return (before || "") + pron + " " + beuge(aw3);
         return (before || "") + pron + (after || "");

@@ -1,5 +1,3 @@
-"use strict";
-
 // src/modes.data.ts
 var MODE_DATA = {
   "bureau": {
@@ -1763,22 +1761,22 @@ function pickFresh(key, opts) {
   while (seen.length > Math.min(KEEP, opts.length - 1)) seen.shift();
   return choice;
 }
-function pickFreshIndex(key, n) {
-  if (n <= 1) return 0;
-  const idxs = Array.from({ length: n }, (_, i) => String(i));
+function pickFreshIndex(key, n2) {
+  if (n2 <= 1) return 0;
+  const idxs = Array.from({ length: n2 }, (_, i) => String(i));
   return Number(pickFresh(key, idxs));
 }
 var recentMarkov = [];
 var MK_KEEP = 24;
 var mkNorm = (s) => s.toLowerCase().replace(/[^a-zäöüß ]/g, "").replace(/\s+/g, " ").trim();
 function markovSeenRecently(s) {
-  const n = mkNorm(s);
-  return n.length > 0 && recentMarkov.includes(n);
+  const n2 = mkNorm(s);
+  return n2.length > 0 && recentMarkov.includes(n2);
 }
 function noteMarkov(s) {
-  const n = mkNorm(s);
-  if (!n) return;
-  recentMarkov.push(n);
+  const n2 = mkNorm(s);
+  if (!n2) return;
+  recentMarkov.push(n2);
   while (recentMarkov.length > MK_KEEP) recentMarkov.shift();
 }
 
@@ -2065,7 +2063,7 @@ var ARTIKEL = /^(ein|eine|einen|einem|einer|eines|der|die|das|den|dem|des|kein|k
 var PRON_START = /^(er|sie|es|ihm|ihr|ihn|ihnen|dessen|deren|diese[rs]?|jene[rs]?)\b/i;
 var silben = (t) => {
   const w = t.toLowerCase().match(/[a-zäöüß]+/g) || [];
-  return w.reduce((n, x) => n + Math.max(1, (x.match(/[aeiouäöüy]+/g) || []).length), 0);
+  return w.reduce((n2, x) => n2 + Math.max(1, (x.match(/[aeiouäöüy]+/g) || []).length), 0);
 };
 var woerter = (t) => (t.match(/\S+/g) || []).length;
 var tiefe = (t) => (t.match(/,\s*(dass|weil|obwohl|wenn|als|während|nachdem|bevor|damit|ob|indem|der|die|das|den|dem|welche)/gi) || []).length;
@@ -2257,7 +2255,7 @@ function fortschreiben(k, a) {
   k.offenerKopf = a.oeffnet || !!a.verlangt;
   if (a.tempus !== "kein" && !k.tempus) k.tempus = a.tempus;
   for (const e of k.entitaeten.values()) e.abstand++;
-  for (const n of a.fuehrt_ein) k.entitaeten.set(n, { abstand: 0 });
+  for (const n2 of a.fuehrt_ein) k.entitaeten.set(n2, { abstand: 0 });
 }
 function fuelleKontext(text, ctx) {
   return text.replace(/⟨ORT⟩/g, ctx.ort).replace(/⟨ZEIT⟩/g, ctx.zeit).replace(/⟨FIGUR⟩/g, ctx.figur).replace(/⟨VERB⟩/g, ctx.verb);
@@ -2329,8 +2327,8 @@ function verfugen(teile) {
     const naechsterFolgtDirekt = t.endsWith(":") || t.endsWith("\u2014");
     if (!endet) t += ".";
     if (naechsterFolgtDirekt && i + 1 < teile.length) {
-      const n = teile[i + 1].trim();
-      teile[i + 1] = n.charAt(0).toLowerCase() + n.slice(1);
+      const n2 = teile[i + 1].trim();
+      teile[i + 1] = n2.charAt(0).toLowerCase() + n2.slice(1);
     }
     out.push(t);
   }
@@ -2352,7 +2350,7 @@ function ziehe(kandidaten, sollGewicht, bisher, phase) {
     if (a.quelle === "dramaturgie") s = bogenGewicht === 0 ? 1e-4 : s * bogenGewicht;
     return s;
   };
-  const total = kandidaten.reduce((n, a) => n + score(a), 0);
+  const total = kandidaten.reduce((n2, a) => n2 + score(a), 0);
   let r = Math.random() * total;
   for (const a of kandidaten) {
     r -= score(a);
@@ -2367,8 +2365,8 @@ function cap(s) {
   return s ? s[0].toUpperCase() + s.slice(1) : s;
 }
 function isFragmentSentence(s) {
-  const n = clean(s).split(/\s+/).filter(Boolean).length;
-  return n > 0 && n <= 3;
+  const n2 = clean(s).split(/\s+/).filter(Boolean).length;
+  return n2 > 0 && n2 <= 3;
 }
 var CLAUSE_VERBS = /* @__PURE__ */ new Set(["antworten", "antwortet", "atmen", "atmet", "bebt", "begann", "beginnen", "beginnt", "beobachten", "beobachtet", "ber\xFChren", "ber\xFChrt", "bin", "bist", "bleiben", "bleibt", "blieb", "blitzt", "brannte", "brennen", "brennt", "brummt", "br\xFCllen", "br\xFCllt", "dachte", "darf", "denken", "denkt", "donnert", "drehen", "dreht", "drehte", "durfte", "d\xFCrfen", "enden", "endet", "endete", "erinnern", "erinnert", "fahren", "fallen", "fand", "fiel", "fielen", "finden", "findet", "fliegen", "fliegt", "fliehen", "flieht", "flie\xDFen", "flie\xDFt", "flog", "floss", "fl\xFCstern", "fl\xFCstert", "folgen", "folgt", "folgte", "formen", "formt", "fragen", "fragt", "fragte", "fuhr", "f\xE4hrt", "f\xE4llt", "f\xFChlen", "f\xFChlt", "f\xFChren", "f\xFChrt", "f\xFChrte", "f\xFCrchten", "f\xFCrchtet", "gab", "gaben", "galt", "geben", "gehen", "geht", "gelten", "geschah", "geschehen", "geschieht", "gibt", "gilt", "ging", "gingen", "glauben", "glaubt", "haben", "habt", "halten", "hat", "hatte", "hatten", "hielt", "hielten", "hoffen", "hofft", "h\xE4lt", "h\xE4tte", "h\xF6ren", "h\xF6rt", "h\xF6rte", "ist", "jagen", "jagt", "kam", "kamen", "kann", "kannte", "kennen", "kennt", "kippen", "kippt", "knistert", "kommen", "kommt", "konnte", "konnten", "kreisen", "kreist", "k\xF6nnen", "lachen", "lacht", "lag", "lagen", "laufen", "leuchten", "leuchtet", "lief", "liefen", "liegen", "liegt", "l\xE4uft", "l\xF6schen", "l\xF6scht", "machen", "macht", "machte", "machten", "mag", "muss", "musste", "mussten", "m\xF6chte", "m\xF6chten", "m\xF6gen", "m\xFCssen", "nahm", "nahmen", "nehmen", "nimmt", "passieren", "passiert", "passierte", "planen", "plant", "pulsiert", "raschelt", "reagieren", "reagiert", "regnet", "retten", "rettet", "rief", "rinnt", "riskiert", "rufen", "ruft", "sah", "sahen", "sang", "sank", "sa\xDF", "schlafen", "schlief", "schlie\xDFen", "schlie\xDFt", "schloss", "schl\xE4ft", "schmelzen", "schmilzt", "schneit", "schreien", "schreit", "schrie", "schweigen", "schweigt", "schwieg", "sehen", "seid", "sieht", "sind", "singen", "singt", "sinken", "sinkt", "sitzen", "sitzt", "soll", "sollen", "sollte", "sprach", "sprachen", "sprang", "sprechen", "spricht", "springen", "springt", "stand", "standen", "stehen", "steht", "steigen", "steigt", "stieg", "suchen", "sucht", "suchte", "summt", "tanzen", "tanzt", "tat", "taten", "ticken", "tickt", "tragen", "tropft", "trug", "trugen", "tr\xE4gt", "tr\xE4umen", "tr\xE4umt", "tun", "tut", "unterschreiben", "unterschreibt", "verfolgen", "verfolgt", "vergessen", "vergisst", "verlangen", "verlangt", "verraten", "verr\xE4t", "ver\xE4ndern", "ver\xE4ndert", "vibriert", "wachsen", "wagen", "wagt", "wandern", "wandert", "war", "waren", "warten", "wartet", "wartete", "wechseln", "wechselt", "weigern", "weigert", "weinen", "weint", "wei\xDF", "werden", "werdet", "wiederholen", "wiederholt", "will", "wird", "wirst", "wissen", "wollen", "wollte", "wollten", "wurde", "wurden", "wusste", "w\xE4chst", "w\xE4re", "w\xE4ren", "w\xFCrde", "w\xFCrden", "zeigen", "zeigt", "zeigte", "zerbrechen", "zerbricht", "ziehen", "zieht", "zittern", "zittert", "zog", "zogen", "\xF6ffnen", "\xF6ffnet", "\xFCberschreiben", "\xFCberschreibt"]);
 var CLAUSE_STOP = /* @__PURE__ */ new Set([
@@ -2603,7 +2601,7 @@ function insertToneFlavor(text, line) {
 function weaveCast(text, _P, cast) {
   const others = (cast || []).slice(1).map((c) => clean(c)).filter(Boolean);
   if (!others.length) return text;
-  const nm = (n) => (n.split(",")[0] || n).trim();
+  const nm = (n2) => (n2.split(",")[0] || n2).trim();
   const soloVerbs = ["steht daneben und schweigt", "wartet", "sieht zu", "z\xF6gert", "sagt nichts", "nickt kaum", "atmet flach", "tritt einen Schritt zur\xFCck", "h\xE4lt sich zur\xFCck"];
   const soloWants = ["das Gegenteil", "mehr", "weg", "bleiben", "die Wahrheit", "nichts davon"];
   const beats = [];
@@ -3946,8 +3944,8 @@ function applyTension(text, peak, material) {
   const s = splitSentences(text);
   if (s.length < 5) return text;
   const width = 0.26;
-  const intensity = (i, n) => {
-    const pos = n <= 1 ? 0 : i / (n - 1);
+  const intensity = (i, n2) => {
+    const pos = n2 <= 1 ? 0 : i / (n2 - 1);
     const d = (pos - center) / width;
     return Math.exp(-0.5 * d * d);
   };
@@ -4256,12 +4254,12 @@ function applySatzlaenge(text, ziel) {
     for (let runde = 0; runde < 200; runde++) {
       let beste = -1, kuerzeste = Infinity;
       for (let i = 0; i + 1 < s.length; i++) {
-        const n = w(s[i]) + w(s[i + 1]);
-        if (n > ziel) continue;
+        const n2 = w(s[i]) + w(s[i + 1]);
+        if (n2 > ziel) continue;
         if (bleibtKurz.has(s[i]) || bleibtKurz.has(s[i + 1])) continue;
         if (!darfVerbinden(s[i], s[i + 1], ziel)) continue;
-        if (n < kuerzeste) {
-          kuerzeste = n;
+        if (n2 < kuerzeste) {
+          kuerzeste = n2;
           beste = i;
         }
       }
@@ -4347,10 +4345,10 @@ function coherenceRepairV2(t, input) {
   }
   t = t.replace(/\bich'(?=\s)/gi, "meine").replace(/\bdu'(?=\s)/gi, "deine").replace(/\bwir'(?=\s)/gi, "unsere").replace(/\ber'(?=\s)/gi, "seine").replace(/\bsie'(?=\s)/gi, "ihre").replace(/\bes'(?=\s)/gi, "seine");
   t = t.replace(/(:\s+)([a-zäöüß][^.!?…]*)/g, (m, p1, rest) => looksLikeFullClause(null, rest) || /^(warum|weshalb|wieso|wie|was|wer|wen|wem|wann|wo|wohin|woher|ob)\b/i.test(rest) ? p1 + rest.charAt(0).toUpperCase() + rest.slice(1) : m);
-  String(input?.who || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean).forEach((n) => {
-    const esc = escapeRegExp(n);
+  String(input?.who || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean).forEach((n2) => {
+    const esc = escapeRegExp(n2);
     try {
-      t = t.replace(new RegExp("\\b" + esc + "(s|')?\\b", "giu"), (_m, suf) => n + (suf || ""));
+      t = t.replace(new RegExp("\\b" + esc + "(s|')?\\b", "giu"), (_m, suf) => n2 + (suf || ""));
     } catch {
     }
   });
@@ -4405,8 +4403,8 @@ function coherenceRepairV2(t, input) {
   t = t.replace(/([A-ZÄÖÜ][\wäöüß]+ und ich[^.!?…]*?)\bsie sich\b/gu, "$1wir uns");
   const CONN = [/\bDann kippt es\b/gi, /\bDabei:\s*plötzlich\b/gi, /\bUnd immer wieder\b/gi, /\bAm Ende bleibt klar\b/gi];
   CONN.forEach((re) => {
-    let n = 0;
-    t = t.replace(re, (m) => ++n > 1 ? "" : m);
+    let n2 = 0;
+    t = t.replace(re, (m) => ++n2 > 1 ? "" : m);
   });
   t = glaetten(t).replace(/„[ \t]+/g, "\u201E");
   return t;
@@ -4891,13 +4889,13 @@ function loadPersistentCorpus() {
 var GERUEST_ZEILE = /^\s*(Faktenkasten\b|Kurz gemeldet\s*$|Fiktive Zeitung\b|Zeitzeichen\s*[·|]|Nr\.\s*\d+\s*[·|]|UNABHÄNGIG\b|SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/;
 function corpusSanitize(text) {
   let s = (text ?? "").toString();
-  s = s.split(/\r?\n/).filter((z) => !/^\s*(SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/.test(z)).map((z) => z.replace(/^\s*(?:Shot\s*\d+\s*\([^)]*\)|(?:DE|EN)\s*:)\s*/, "")).join("\n");
+  s = s.split(/\r?\n/).filter((z2) => !/^\s*(SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/.test(z2)).map((z2) => z2.replace(/^\s*(?:Shot\s*\d+\s*\([^)]*\)|(?:DE|EN)\s*:)\s*/, "")).join("\n");
   s = s.replace(/\([^()]*\)/g, " ");
   s = s.replace(/\b(?:gegen|um|ab|seit|bis)\s+\d{1,2}:\d{2}\b\s*(?:—|–)?\s*/gi, "");
   s = s.replace(/\b\d{1,2}:\d{2}\b\s*—\s*/g, "");
   s = s.replace(/\b(Schluss|Notiz|Rand|Gestern|Jetzt|Später|Drei Tage später)\s*—\s*/g, "");
   s = s.replace(/\bSZENE:\s*/g, "");
-  s = s.split(/\r?\n/).filter((z) => !GERUEST_ZEILE.test(z)).join("\n");
+  s = s.split(/\r?\n/).filter((z2) => !GERUEST_ZEILE.test(z2)).join("\n");
   s = s.replace(/—\s*(?=[.—])/g, "");
   s = s.replace(/\.{2,}/g, ".");
   s = s.replace(/\s+/g, " ").trim();
@@ -4944,8 +4942,8 @@ function isSaneMarkov(s) {
   if (fn / words.length > 0.6) return false;
   const sentences = s.split(/[.!?]+/).filter(Boolean);
   for (const sentence of sentences) {
-    const n = sentence.trim().split(/\s+/).length;
-    if (n > 30 || n < 2) return false;
+    const n2 = sentence.trim().split(/\s+/).length;
+    if (n2 > 30 || n2 < 2) return false;
   }
   const phrases = [];
   for (let i = 0; i < words.length - 2; i++) phrases.push(words.slice(i, i + 3).join(" "));
@@ -8425,8 +8423,8 @@ function loadActiveBankLabel() {
 }
 
 // src/generation/video.ts
-var clampShotCount = (n) => Math.max(3, Math.min(10, Number.isFinite(n) ? n : 5));
-var clampTotalSec = (n) => Math.max(3, Math.min(600, Number.isFinite(n) ? n : 15));
+var clampShotCount = (n2) => Math.max(3, Math.min(10, Number.isFinite(n2) ? n2 : 5));
+var clampTotalSec = (n2) => Math.max(3, Math.min(600, Number.isFinite(n2) ? n2 : 15));
 var fmtSec = (x) => {
   if (!isFinite(x)) return "0s";
   const v = Math.round(x * 10) / 10;
@@ -8461,7 +8459,7 @@ function bogenSaetze(d, kit) {
   if (aend.length) fest.push(`Etwas kippt: ${stripTailPunct(pick(aend))}.`);
   const frei = [];
   for (const r of s(d.regeln)) frei.push(`Regel: ${ensurePunct(r)}`);
-  for (const z of s(d.zeitanomalien)) frei.push(ensurePunct(z));
+  for (const z2 of s(d.zeitanomalien)) frei.push(ensurePunct(z2));
   const K_RAHMEN = [`${P2} wei\xDF, worum es geht:`, "Im Bild bleibt:", "Der Einsatz sichtbar:", "Alles zielt auf:"];
   const A_RAHMEN = ["Dann, unvermittelt:", "Ohne Vorwarnung:", "Ein Schnitt, und:", "Und pl\xF6tzlich:"];
   s(d.konflikte).forEach((k, i) => frei.push(`${K_RAHMEN[i % K_RAHMEN.length]} ${stripTailPunct(k)}.`));
@@ -8548,10 +8546,10 @@ function reihenfolge(a) {
   return x;
 }
 function buildVideoSequenceText(kit, shotCount = 5, totalSec = 15, lenTarget = 0) {
-  const n = clampShotCount(shotCount);
+  const n2 = clampShotCount(shotCount);
   const total = clampTotalSec(totalSec);
-  const dur = total / n;
-  const shots = buildVideoShots(kit, n, lenTarget);
+  const dur = total / n2;
+  const shots = buildVideoShots(kit, n2, lenTarget);
   const titel = [loadActiveBankLabel(), kit.mode.label].filter(Boolean).join(" \xB7 ");
   const out = [`SEQUENZ \u2014 ${titel}`.trim(), `WER: ${kit.PRaw || kit.P}`, `WO: ${kit.W}`, `WANN: ${kit.T}`, `WAS: ${kit.A}`, `GESAMTL\xC4NGE: ${fmtSec(total)} \u2022 ${fmtSec(dur)} pro Shot`, ""];
   for (let i = 0; i < shots.length; i++) {
@@ -9542,8 +9540,8 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
     const lead = extractLeadVerb(w);
     const kern = lead.rest.replace(/[.!?…]+$/, "");
     const P2 = figur || "Jemand";
-    const saetze = lead.isInfinitiveLed ? [`${P2} will ${kern}`, `Alles dr\xE4ngt darauf, ${kern.replace(/(\S+)$/, "zu $1")}`] : lead.verb ? [`${P2} ${lead.verb} ${kern}`] : looksLikeFullClause(lead.verb, kern) || hatFinitesVerb(kern) || !wirktNominal(kern) ? [kern] : [`Es geht um eines: ${kern}`, `${P2} sucht ${kern}`];
-    for (const t of saetze) {
+    const saetze2 = lead.isInfinitiveLed ? [`${P2} will ${kern}`, `Alles dr\xE4ngt darauf, ${kern.replace(/(\S+)$/, "zu $1")}`] : lead.verb ? [`${P2} ${lead.verb} ${kern}`] : looksLikeFullClause(lead.verb, kern) || hatFinitesVerb(kern) || !wirktNominal(kern) ? [kern] : [`Es geht um eines: ${kern}`, `${P2} sucht ${kern}`];
+    for (const t of saetze2) {
       const d = deriveAtom(t);
       pool.push({ ...d, id: `was-${pool.length}`, quelle: "kontext", kategorie: "was", verlangt: null, bruchgrad: 0 });
     }
@@ -9582,7 +9580,7 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
     const wieViele = markovMode === "on" ? 34 : 16;
     const eigene = new Set((figur || "").toLowerCase().split(/[,;]/).map((x) => x.trim()).filter(Boolean));
     const gesehen = /* @__PURE__ */ new Set();
-    for (let n = 0; n < wieViele * 3 && gesehen.size < wieViele; n++) {
+    for (let n2 = 0; n2 < wieViele * 3 && gesehen.size < wieViele; n2++) {
       const roh = (model.generate(14) || "").trim();
       if (!roh || !isSaneMarkov(roh)) continue;
       const sig = roh.toLowerCase();
@@ -9600,9 +9598,9 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
   if (korpusDeckel > 0) {
     const eigene2 = new Set((figur || "").toLowerCase().split(/[,;]/).map((x) => x.trim()).filter(Boolean));
     const roh = corpusSanitize(loadPersistentCorpus());
-    const saetze = roh.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter((x) => x.length > 12);
+    const saetze2 = roh.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter((x) => x.length > 12);
     let genommen = 0;
-    for (const satz of saetze) {
+    for (const satz of saetze2) {
       if (genommen >= korpusDeckel) break;
       const rein = satz.replace(GERUEST_MARKE, "").trim();
       if (rein !== satz && !/[.!?…]$/.test(rein)) continue;
@@ -10176,11 +10174,11 @@ function sachNomen(was) {
 }
 function zahlIn(min, max, rund) {
   const roh = min + Math.random() * (max - min);
-  const n = Math.max(min, Math.round(roh / rund) * rund);
-  return n % 2 === 0 ? n : n + 1;
+  const n2 = Math.max(min, Math.round(roh / rund) * rund);
+  return n2 % 2 === 0 ? n2 : n2 + 1;
 }
-function zahlwort(n) {
-  return Math.round(n).toLocaleString("de-DE");
+function zahlwort(n2) {
+  return Math.round(n2).toLocaleString("de-DE");
 }
 function genusVon(phrase) {
   const art = (phrase.match(/^(der|die|das)\s/i) || [])[1]?.toLowerCase();
@@ -10345,14 +10343,6 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
     fiktion: true
   };
 }
-function erlaubteZahlen(fb) {
-  const out = [...fb.zahlen.map((z) => z.wortform), ...fb.abgeleitet.map((a) => a.wortform)];
-  for (const z of fb.zahlen) if (z.verbal) out.push(z.verbal.replace(/^rund\s+/, ""));
-  for (const treffer of JSON.stringify(fb).match(/\d[\d.,]*/g) || []) {
-    out.push(treffer.replace(/[.,]+$/, ""));
-  }
-  return out;
-}
 
 // src/generation/bericht.ts
 var NOMINALRAHMEN = ["Geblieben ist", "Zu sehen ist", "Im Gespr\xE4ch ist", "Zu h\xF6ren ist", "Geblieben ist auch"];
@@ -10366,7 +10356,7 @@ var GUTE_TOENE = /* @__PURE__ */ new Set(["uplifting", "humorous", "zaertlich"])
 var blickVonTon = (ton) => GUTE_TOENE.has((ton || "").toLowerCase()) ? "gut" : "sachlich";
 var WORTE = {
   sachlich: {
-    vorspann: (n) => `wurde, dass ${n} betroffen sind`,
+    vorspann: (n2) => `wurde, dass ${n2} betroffen sind`,
     ersteMeldung: "die erste Meldung",
     // Das Bezugswort steckt im Satz: "der Schritt, ueber DEN". Als ich nur das
     // Nomen austauschte, stand "folgte der Schritt, ueber die ...".
@@ -10376,7 +10366,7 @@ var WORTE = {
     weitere: (x) => `Betroffen sind au\xDFerdem ${x}.`
   },
   gut: {
-    vorspann: (n) => `wurde, dass ${n} hinzukommen`,
+    vorspann: (n2) => `wurde, dass ${n2} hinzukommen`,
     ersteMeldung: "die erste Zusage",
     schritt: (wer) => `folgte die Entscheidung, \xFCber die ${wer} nun informiert`,
     haelfte: (l, w) => `${cap(l)} \u2014 ${w} \u2014 entsteht im ersten Jahr.`,
@@ -10441,17 +10431,17 @@ function dachzeile(fb) {
   return fb.wo.ort ? `${fb.wo.ort} \xB7 ${RESSORTS[fb.ressort].label}` : RESSORTS[fb.ressort].label;
 }
 function vorspann(fb, b, blick) {
-  const z = fb.zahlen[0];
+  const z2 = fb.zahlen[0];
   const w = WORTE[blick];
   const s1 = `${cap(fb.wann.datum)}: ${cap(b.organisation(fb))} ${fb.was}.`;
-  const s2 = z ? `Bekannt ${w.vorspann(`${z.verbal || z.wortform} ${z.einheit}`)}.` : `Bekannt wurde es erst sp\xE4ter.`;
+  const s2 = z2 ? `Bekannt ${w.vorspann(`${z2.verbal || z2.wortform} ${z2.einheit}`)}.` : `Bekannt wurde es erst sp\xE4ter.`;
   return `${s1} ${s2}`;
 }
 function mische(fakten, frei) {
   const raus = [];
   const gedeckelt = frei.slice(0, Math.max(1, fakten.length));
-  const n = Math.max(fakten.length, gedeckelt.length);
-  for (let i = 0; i < n; i++) {
+  const n2 = Math.max(fakten.length, gedeckelt.length);
+  for (let i = 0; i < n2; i++) {
     if (fakten[i]) raus.push(fakten[i]);
     if (gedeckelt[i]) raus.push(gedeckelt[i]);
   }
@@ -10492,7 +10482,7 @@ function hergang(fb, bank, b, benutzt, extra, vorrat, blick) {
   }
   const bt = RESSORTS[fb.ressort].betroffen;
   if (bt.length >= 3) {
-    const schon = fb.zahlen.map((z) => z.einheit.toLowerCase());
+    const schon = fb.zahlen.map((z3) => z3.einheit.toLowerCase());
     const frei2 = bt.filter((x) => !schon.some((e) => x.toLowerCase().includes(e)));
     const aus = reihenfolge2(frei2.length >= 2 ? frei2 : bt).slice(0, 2 + Math.min(2, Math.floor(extra / 3)));
     teile.push(w.weitere(aufzaehlung(aus)));
@@ -10531,23 +10521,23 @@ function ausblick(fb, blick) {
     `Ob der Schritt zur\xFCckgenommen wird, blieb ${fb.wann.relativ} unbeantwortet.`
   ]);
 }
-function zahlSatz(z) {
-  const n = `${z.wortform} ${z.einheit}`;
-  switch (z.rolle) {
+function zahlSatz(z2) {
+  const n2 = `${z2.wortform} ${z2.einheit}`;
+  switch (z2.rolle) {
     case "betroffene":
-      return `Betroffen sind ${n}.`;
+      return `Betroffen sind ${n2}.`;
     case "sache":
-      return pick([`Zuletzt waren es ${n} im Jahr.`, `Es geht um ${n}.`, `${cap(n)} standen zuletzt in den B\xFCchern.`]);
+      return pick([`Zuletzt waren es ${n2} im Jahr.`, `Es geht um ${n2}.`, `${cap(n2)} standen zuletzt in den B\xFCchern.`]);
     case "dauer":
-      return `${cap(n)} dauerte es.`;
+      return `${cap(n2)} dauerte es.`;
     case "groesse":
-      return `Gemessen wurden ${n}.`;
+      return `Gemessen wurden ${n2}.`;
     case "vorgaenge":
-      return `${cap(n)} liegen inzwischen vor.`;
+      return `${cap(n2)} liegen inzwischen vor.`;
     case "geld":
-      return `Es geht um ${n}.`;
+      return `Es geht um ${n2}.`;
     default:
-      return `${cap(n)}.`;
+      return `${cap(n2)}.`;
   }
 }
 function aufzaehlung(xs) {
@@ -10606,16 +10596,15 @@ function buildBericht(bank, input, ressort = "auto") {
     `Faktenkasten`,
     // Auch die Beschriftung dreht sich: "Betroffen: 480 Beschaeftigte" unter
     // einer guten Nachricht liest sich wie ein Widerspruch.
-    ...fb.zahlen.map((z) => `\xB7 ${z.rolle === "betroffene" && blick === "gut" ? "Neu" : ROLLE_LABEL[z.rolle]}: ${z.wortform} ${z.einheit}`),
+    ...fb.zahlen.map((z3) => `\xB7 ${z3.rolle === "betroffene" && blick === "gut" ? "Neu" : ROLLE_LABEL[z3.rolle]}: ${z3.wortform} ${z3.einheit}`),
     ...fb.chronologie.map((c) => `\xB7 ${c.zeit}: ${c.was}`)
   ].join("\n");
   return { text: abschnitte.filter(Boolean).join("\n\n") + "\n\n" + kasten, fb, hergang: hergangText };
 }
 
 // src/generation/meldung.ts
-var WERTUNG = /\b(herrlich|wunderbar|schrecklich|furchtbar|grausam|unglaublich|erschütternd|empörend|skandalös|traurig|erfreulich|glücklicherweise|leider|zum Glück|katastrophal|dramatisch|schockierend|beeindruckend|großartig|fantastisch|bedauerlich)\b/i;
-function zahlSatz2(z, blick) {
-  const menge = `${z.verbal || z.wortform} ${z.einheit}`;
+function zahlSatz2(z2, blick) {
+  const menge = `${z2.verbal || z2.wortform} ${z2.einheit}`;
   return blick === "gut" ? `Hinzu kommen ${menge}.` : `Betroffen sind ${menge}.`;
 }
 function tragtEigenesSubjekt(was) {
@@ -10659,7 +10648,7 @@ function buildMeldung(input, ressort = "auto") {
   const blick = blickVonTon(input.tone || "");
   const ziel = Number.isFinite(input.lenTarget) ? input.lenTarget : 60;
   const wieviel = ziel <= 60 ? 1 : ziel <= 120 ? 2 : 3;
-  const saetze = [vorspann2(fb)];
+  const saetze2 = [vorspann2(fb)];
   const folge = [
     fb.zahlen[0] ? zahlSatz2(fb.zahlen[0], blick) : "",
     schritt(fb),
@@ -10668,88 +10657,12 @@ function buildMeldung(input, ressort = "auto") {
   const SCHLUSS = "Weitere Angaben liegen zun\xE4chst nicht vor.";
   const MAX_SAETZE = 4;
   for (const s of folge) {
-    if (saetze.length >= MAX_SAETZE) break;
-    if (saetze.length - 1 >= wieviel && worte(saetze.join(" ")) >= 30) break;
-    saetze.push(s);
+    if (saetze2.length >= MAX_SAETZE) break;
+    if (saetze2.length - 1 >= wieviel && worte(saetze2.join(" ")) >= 30) break;
+    saetze2.push(s);
   }
-  if (saetze.length < MAX_SAETZE && worte(saetze.join(" ")) + worte(SCHLUSS) <= 70) saetze.push(SCHLUSS);
-  return { text: saetze.join(" "), fb };
-}
-var ABK = /(?:Prof|Dr|Ing|Dipl|Nr|St|ca|bzw|usw|evtl|Abs|Art|Jh|Mio|Mrd|[A-ZÄÖÜ])$/;
-function saetzeVon(text) {
-  const roh = (text || "").split(/(?<!\d)([.!?])(?=\s|$)/);
-  const raus = [];
-  let puffer = "";
-  for (let i = 0; i < roh.length; i += 2) {
-    puffer += (roh[i] || "") + (roh[i + 1] || "");
-    const ohne = puffer.trim().replace(/[.!?]$/, "");
-    if (ABK.test(ohne.split(/\s+/).pop() || "")) {
-      puffer += " ";
-      continue;
-    }
-    if (puffer.trim()) raus.push(puffer.trim());
-    puffer = "";
-  }
-  if (puffer.trim()) raus.push(puffer.trim());
-  return raus;
-}
-function pruefeMeldung(text, fb) {
-  const m = [];
-  const saetze = saetzeVon(text);
-  const erster = saetze[0] || "";
-  const kern = (s) => (s.replace(/^(der|die|das|dem|den|im|in|am|an|zu|zur|zum)\s+/i, "").split(/\s+/)[0] || "").replace(/[^A-Za-zÄÖÜäöüß0-9-]/g, "");
-  const vier = [
-    ["Wo", kern(fb.wo.ort)],
-    ["Wann", kern(fb.wann.datum)],
-    ["Wer", kern(fb.wer.haupt)],
-    ["Was", kern(fb.was)]
-  ];
-  for (const [name, wort] of vier) {
-    if (name === "Wer" && (tragtEigenesSubjekt(fb.was) || !werTaugt(fb) || !tragtPraedikat(fb.was))) continue;
-    if (name === "Wo" && !ortTauglich(fb.wo.mitPraep)) continue;
-    if (wort && !erster.toLowerCase().includes(wort.toLowerCase())) {
-      m.push({ art: `${name} fehlt im ersten Satz`, stelle: wort });
-    }
-  }
-  const platz = text.match(/\b(?:am|der|dem) Ort\b|\beine Einrichtung\b/);
-  if (platz) m.push({ art: "Platzhalter im Text", stelle: platz[0] });
-  const nachDoppel = (erster.split(":")[1] || "").trim();
-  if (/^(der|die|das|ein|eine)\s+\S+\s+(ein|eine|einen|einem|einer)\b/i.test(nachDoppel)) {
-    m.push({ art: "zwei Nominalphrasen ohne Verb", stelle: nachDoppel.slice(0, 50) });
-  }
-  const roh = nachDoppel.match(/\([^)]*\)|;/);
-  if (roh) m.push({ art: "unumgeformtes Fremdmaterial", stelle: roh[0] });
-  const grossImSatz = erster.match(/\b(?:ist|sind|wird|war)\s+([A-ZÄÖÜ][a-zäöüß]{2,})\s/);
-  if (grossImSatz && !/^(Bekannt|Betroffen|Ort|Uhr)$/.test(grossImSatz[1])) {
-    m.push({ art: "Gro\xDFschreibung mitten im Satz", stelle: grossImSatz[1] });
-  }
-  const n = worte(text);
-  if (n < 25) m.push({ art: "zu kurz", stelle: `${n} W\xF6rter` });
-  if (n > 70) m.push({ art: "zu lang", stelle: `${n} W\xF6rter` });
-  if (saetze.length > 4) m.push({ art: "zu viele S\xE4tze", stelle: `${saetze.length}` });
-  const rumpf = saetze.slice(1).join(". ");
-  const praet = /\b(war|waren|wurde|wurden|hatte|hatten|lagen|lag|teilte|folgte|fiel|kam|kamen|zeichnete)\b/.test(rumpf);
-  const praes = /\b(ist|sind|wird|werden|hat|haben|kommt|kommen|steht|stehen|liegt|liegen)\b/.test(rumpf);
-  if (praet && praes) m.push({ art: "zwei Tempora im Rumpf", stelle: rumpf.slice(0, 60) });
-  const w = text.match(WERTUNG);
-  if (w) m.push({ art: "Wertung", stelle: w[0] });
-  const erlaubt = new Set(erlaubteZahlen(fb));
-  for (const roh2 of text.match(/\d[\d.,]*/g) || []) {
-    const z = roh2.replace(/[.,]+$/, "");
-    if (!erlaubt.has(z)) m.push({ art: "Zahl ohne Faktenblatt", stelle: z });
-  }
-  const drin = /* @__PURE__ */ new Set([
-    ...fb.personen.flatMap((p) => [p.kurz.toLowerCase(), ...p.name.toLowerCase().split(/\s+/)]),
-    ...fb.wer.haupt.toLowerCase().split(/\s+/),
-    fb.wer.kurz.toLowerCase()
-  ]);
-  for (const name of ALLE_NAMEN) {
-    if (drin.has(name.toLowerCase())) continue;
-    if (new RegExp("(?<![A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])" + name + "(?![A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])").test(text)) {
-      m.push({ art: "fremder Personenname", stelle: name });
-    }
-  }
-  return m;
+  if (saetze2.length < MAX_SAETZE && worte(saetze2.join(" ")) + worte(SCHLUSS) <= 70) saetze2.push(SCHLUSS);
+  return { text: saetze2.join(" "), fb };
 }
 
 // src/generation/emphasis.ts
@@ -10819,8 +10732,8 @@ function applyEmphasis(text, kit, w) {
     [w.was, () => plotLine(kit)]
   ];
   const lines = [];
-  for (const [n, gen] of gens) {
-    const count2 = Math.max(0, Math.min(3, n | 0));
+  for (const [n2, gen] of gens) {
+    const count2 = Math.max(0, Math.min(3, n2 | 0));
     for (let i = 0; i < count2; i++) lines.push(ensurePunct(clean(gen())));
   }
   const uniq = [...new Set(lines)].filter(Boolean);
@@ -11251,9 +11164,9 @@ function estimateSyllables(word) {
   const w = String(word || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
   if (!w) return 0;
   const clusters = w.match(/[aeiouyäöü]+/g) || [];
-  let n = clusters.length;
-  for (const c of clusters) n += (c.match(/e[oa]/g) || []).length;
-  return Math.max(1, n);
+  let n2 = clusters.length;
+  for (const c of clusters) n2 += (c.match(/e[oa]/g) || []).length;
+  return Math.max(1, n2);
 }
 function buildSyllableLine(stream, targetSyll) {
   const words = [];
@@ -11506,15 +11419,15 @@ var darfEnden = (w) => !KEIN_ENDE.test(w.replace(/[^A-Za-zÄÖÜäöüß]/g, "")
 var FUELL_VORN = ["Nun", "Still", "Kaum", "Hier", "Dann", "Schon", "Noch"];
 var STREICHBAR = /^(und|noch|schon|nur|auch|doch|dann|hier|so|sehr|ganz|mal|der|die|das|den|dem|des|ein|im|am|zu|in|an|auf|bei|mit|von|für)$/i;
 function passeSilben(line, ziel, syllOf) {
-  const ist2 = syllOf(line);
-  if (ist2 === ziel) return line;
-  if (ist2 === ziel - 1) {
+  const ist = syllOf(line);
+  if (ist === ziel) return line;
+  if (ist === ziel - 1) {
     for (const f of FUELL_VORN) {
       const neu = f + " " + line.charAt(0).toLowerCase() + line.slice(1);
       if (syllOf(neu) === ziel) return neu;
     }
   }
-  if (ist2 === ziel + 1) {
+  if (ist === ziel + 1) {
     const w = line.split(/\s+/);
     for (let i = 0; i < w.length; i++) {
       if (!STREICHBAR.test(w[i])) continue;
@@ -11533,16 +11446,16 @@ function haikuCandidatesFromPhrases(phrases) {
   phrases.forEach((p, src) => {
     const words = p.replace(/[.,;:!?…()]/g, "").split(/\s+/).filter(Boolean);
     for (let a = 0; a < 1; a++) {
-      for (let n = a + 2; n <= Math.min(a + 8, words.length); n++) {
-        const sub = stripDanglingTail(words.slice(a, n));
+      for (let n2 = a + 2; n2 <= Math.min(a + 8, words.length); n2++) {
+        const sub = stripDanglingTail(words.slice(a, n2));
         if (sub.length < 2) continue;
         if (!darfEnden(sub[sub.length - 1])) continue;
-        const last = sub[sub.length - 1], next = words[n];
+        const last = sub[sub.length - 1], next = words[n2];
         if (next && /^[A-ZÄÖÜ]/.test(next) && /^[a-zäöü]/.test(last) && /(em|en|er|es|e)$/.test(last)) continue;
         const text = sub.join(" "), key = text.toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
-        out.push({ text, syll: haikuSyllOf(text), src, ganz: a === 0 && n === words.length });
+        out.push({ text, syll: haikuSyllOf(text), src, ganz: a === 0 && n2 === words.length });
       }
     }
   });
@@ -12078,554 +11991,43 @@ function buildStory(bank, input, model) {
   return entferneDubletten(enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix"));
 }
 
-// src/generation/ideas.data.ts
-var WHO_TAGGED = [
-  { t: "eine Uhrmacherin", tags: ["einzel"] },
-  { t: "ein pensionierter Richter", tags: ["einzel"] },
-  { t: "eine Archivarin ohne Namen", tags: ["einzel"] },
-  { t: "ein \xDCbersetzer f\xFCr tote Sprachen", tags: ["einzel"] },
-  { t: "eine Kartographin ohne Karten", tags: ["einzel"] },
-  { t: "ein Fremder, der jeden Namen kennt", tags: ["einzel"] },
-  { t: "eine Chirurgin mit zitternden H\xE4nden", tags: ["einzel"] },
-  { t: "ein M\xF6nch, der das Schweigen gebrochen hat", tags: ["einzel"] },
-  { t: "eine Diplomatin ohne Land", tags: ["einzel"] },
-  { t: "ein Leuchtturmw\xE4rter im letzten Dienstjahr", tags: ["einzel"] },
-  { t: "eine Restauratorin alter Fresken", tags: ["einzel"] },
-  { t: "ein Nachtportier mit fotografischem Ged\xE4chtnis", tags: ["einzel"] },
-  { t: "eine Seismologin, die niemand ernst nimmt", tags: ["einzel"] },
-  { t: "ein Totengr\xE4ber, der Briefe schreibt", tags: ["einzel"] },
-  { t: "eine Glasbl\xE4serin mit vernarbten H\xE4nden", tags: ["einzel"] },
-  { t: "ein Kanalarbeiter, der Stimmen h\xF6rt", tags: ["einzel"] },
-  { t: "eine Bibliothekarin ohne Namen", tags: ["einzel"] },
-  { t: "ein Boxer im Ruhestand", tags: ["einzel"] },
-  { t: "ein Buchhalter mit doppeltem Ged\xE4chtnis", tags: ["einzel"] },
-  { t: "eine Witwe, die nichts geerbt hat", tags: ["einzel"] },
-  { t: "eine Handvoll \xDCberlebender", tags: ["kollektiv"] },
-  { t: "ein Chor ohne Dirigent", tags: ["kollektiv"] },
-  { t: "eine Belegschaft, die nicht mehr nach Hause geht", tags: ["kollektiv"] },
-  { t: "ein Ensemble im Dauerstreik", tags: ["kollektiv"] },
-  { t: "das Dorf hinter dem Deich", tags: ["kollektiv"] },
-  { t: "eine Kommune ohne Anf\xFChrer", tags: ["kollektiv"] },
-  { t: "ein Schwarm ohne Zentrum", tags: ["kollektiv", "nichtmensch"] },
-  { t: "die Nachtschicht einer stillen Fabrik", tags: ["kollektiv"] },
-  { t: "eine Expedition, die sich verlaufen hat", tags: ["kollektiv"] },
-  { t: "ein Geschworenengericht ohne Angeklagten", tags: ["kollektiv", "institution"] },
-  { t: "die Besatzung eines Frachtschiffs", tags: ["kollektiv"] },
-  { t: "eine Familie mit zu vielen Geheimnissen", tags: ["kollektiv"] },
-  { t: "ein Orchester, das nicht aufh\xF6ren kann", tags: ["kollektiv"] },
-  { t: "eine Sekte ohne Gott", tags: ["kollektiv", "institution"] },
-  { t: "ein Rettungstrupp ohne Auftrag", tags: ["kollektiv"] },
-  { t: "eine Reisegruppe, die niemand abgeholt hat", tags: ["kollektiv"] },
-  { t: "ein Kind, das zu viel wei\xDF", tags: ["kind", "einzel"] },
-  { t: "ein Junge mit zwei Schatten", tags: ["kind"] },
-  { t: "ein M\xE4dchen, das die Zukunft tr\xE4umt", tags: ["kind"] },
-  { t: "ein stummes Kind mit fremder Handschrift", tags: ["kind"] },
-  { t: "der j\xFCngste Zeuge einer langen Nacht", tags: ["kind"] },
-  { t: "ein Waisenkind mit geerbtem Ged\xE4chtnis", tags: ["kind"] },
-  { t: "ein Schulm\xE4dchen, das Karten f\xE4lscht", tags: ["kind", "antiheld"] },
-  { t: "ein Junge, der jede L\xFCge h\xF6rt", tags: ["kind"] },
-  { t: "ein Kind, das man vergessen hat abzuholen", tags: ["kind"] },
-  { t: "eine Zw\xF6lfj\xE4hrige mit einem Vertrag", tags: ["kind"] },
-  { t: "ein Findelkind ohne Spiegelbild", tags: ["kind"] },
-  { t: "ein Junge, der einen Fluss gro\xDFzieht", tags: ["kind"] },
-  { t: "ein M\xE4dchen mit dem Ged\xE4chtnis eines Hauses", tags: ["kind"] },
-  { t: "ein Kind, das nur nachts spricht", tags: ["kind"] },
-  { t: "der Sohn eines F\xE4lschers", tags: ["kind", "antiheld"] },
-  { t: "ein Ministerium ohne Minister", tags: ["institution"] },
-  { t: "eine Beh\xF6rde f\xFCr Verlorenes", tags: ["institution"] },
-  { t: "ein Gericht im Exil", tags: ["institution"] },
-  { t: "ein Archiv mit eigenem Willen", tags: ["institution", "nichtmensch"] },
-  { t: "eine Bibliothek, die Entscheidungen trifft", tags: ["institution", "nichtmensch"] },
-  { t: "ein Orden ohne Glauben", tags: ["institution"] },
-  { t: "eine Klinik, die niemanden entl\xE4sst", tags: ["institution"] },
-  { t: "das Amt f\xFCr unerledigte Dinge", tags: ["institution"] },
-  { t: "eine Schule ohne Sch\xFCler", tags: ["institution"] },
-  { t: "ein Museum, das seine Exponate verliert", tags: ["institution"] },
-  { t: "eine Redaktion, die nur Dementis druckt", tags: ["institution"] },
-  { t: "ein Konzern mit vergessener Zentrale", tags: ["institution"] },
-  { t: "das Register aller falschen Namen", tags: ["institution", "nichtmensch"] },
-  { t: "eine Kommission ohne Auftrag", tags: ["institution"] },
-  { t: "ein Kloster mit fremdem Kalender", tags: ["institution"] },
-  { t: "die Zensurbeh\xF6rde einer freien Stadt", tags: ["institution"] },
-  { t: "ein Algorithmus mit Namen", tags: ["nichtmensch"] },
-  { t: "eine Maschine, die zu tr\xE4umen beginnt", tags: ["nichtmensch"] },
-  { t: "ein Fluss, der sich erinnert", tags: ["nichtmensch"] },
-  { t: "eine Stimme ohne K\xF6rper", tags: ["nichtmensch"] },
-  { t: "ein Tier, das ein Versprechen h\xE4lt", tags: ["nichtmensch"] },
-  { t: "ein Haus mit eigenem Willen", tags: ["nichtmensch"] },
-  { t: "eine Uhr, die zur\xFCckz\xE4hlt", tags: ["nichtmensch"] },
-  { t: "ein Wald, der Namen vergibt", tags: ["nichtmensch"] },
-  { t: "eine Kolonie unter dem Eis", tags: ["nichtmensch", "kollektiv"] },
-  { t: "ein Signal, das antwortet", tags: ["nichtmensch"] },
-  { t: "eine Karte, die sich selbst zeichnet", tags: ["nichtmensch"] },
-  { t: "ein Spiegel mit Ged\xE4chtnis", tags: ["nichtmensch"] },
-  { t: "eine Wolke, die einem Menschen folgt", tags: ["nichtmensch"] },
-  { t: "ein Schiff ohne Besatzung, das Kurs h\xE4lt", tags: ["nichtmensch"] },
-  { t: "eine Sprache, die aussterben will", tags: ["nichtmensch"] },
-  { t: "ein Schatten, der fr\xFCher ankommt", tags: ["nichtmensch"] },
-  { t: "ein Bahnhof, der Reisende beh\xE4lt", tags: ["nichtmensch"] },
-  { t: "eine Falschm\xFCnzerin mit Prinzipien", tags: ["antiheld"] },
-  { t: "ein Spion im Ruhestand", tags: ["antiheld", "einzel"] },
-  { t: "eine Diebin, die nur Erinnerungen stiehlt", tags: ["antiheld"] },
-  { t: "ein Verr\xE4ter aus Loyalit\xE4t", tags: ["antiheld"] },
-  { t: "ein Hochstapler mit echtem Titel", tags: ["antiheld"] },
-  { t: "eine Anw\xE4ltin f\xFCr aussichtslose F\xE4lle", tags: ["antiheld", "einzel"] },
-  { t: "ein Erpresser mit gutem Ged\xE4chtnis", tags: ["antiheld"] },
-  { t: "eine Schmugglerin von B\xFCchern", tags: ["antiheld"] },
-  { t: "ein S\xF6ldner, der nicht mehr schie\xDFt", tags: ["antiheld"] },
-  { t: "eine Betr\xFCgerin mit sauberem Gewissen", tags: ["antiheld"] },
-  { t: "ein Kronzeuge, der l\xFCgt", tags: ["antiheld"] },
-  { t: "eine Grabr\xE4uberin mit Doktortitel", tags: ["antiheld"] },
-  { t: "ein Henker, der Gnade sammelt", tags: ["antiheld"] },
-  { t: "eine F\xE4lscherin echter Dokumente", tags: ["antiheld"] },
-  { t: "ein Deserteur mit Orden", tags: ["antiheld"] },
-  { t: "eine Wilderin im Naturschutzgebiet", tags: ["antiheld"] },
-  { t: "eine Pilotin ohne Lizenz", tags: ["antiheld", "einzel"] }
+// ../../dumess.ts
+var st = {};
+globalThis.localStorage = { getItem: (k) => st[k] ?? null, setItem: (k, v) => {
+  st[k] = String(v);
+}, removeItem: (k) => {
+  delete st[k];
+} };
+globalThis.window = { localStorage: globalThis.localStorage };
+var ids = Object.keys(BUILTIN_PRESETS);
+var W4 = [
+  ["in der Toskana", "im Jahr 1548", "Giovanni Salustio Peruzzi", "wird der italienische Festungsbaumeister und Milit\xE4r Giovanni Salustio Peruzzi geboren"],
+  ["im Archiv", "am Morgen", "die Archivarin", "sucht eine Akte"],
+  ["am Deich", "im Winter", "der Sohn eines F\xE4lschers", "erbt ein Amt"]
 ];
-var WHERE_TAGGED = [
-  { t: "in einer schlaflosen Stadt", tags: ["urban"] },
-  { t: "in einem verlassenen Bahnhof", tags: ["urban"] },
-  { t: "in einem Hinterhof ohne Ausgang", tags: ["urban", "raum"] },
-  { t: "auf einem n\xE4chtlichen Boulevard", tags: ["urban"] },
-  { t: "in einem Hochhaus ohne Erdgeschoss", tags: ["urban"] },
-  { t: "in der U-Bahn nach Mitternacht", tags: ["urban"] },
-  { t: "in einem Viertel, das abgerissen wird", tags: ["urban"] },
-  { t: "auf einem Parkdeck \xFCber der Stadt", tags: ["urban"] },
-  { t: "in einer Markthalle vor Sonnenaufgang", tags: ["urban"] },
-  { t: "in einem Hotel mit zu vielen Zimmern", tags: ["urban"] },
-  { t: "unter einer Autobahnbr\xFCcke", tags: ["urban"] },
-  { t: "in einer Stra\xDFe, die zweimal existiert", tags: ["urban", "nirgendwo"] },
-  { t: "in Paris", tags: ["urban"] },
-  { t: "in einem Nachtbus ohne Fahrg\xE4ste", tags: ["urban", "raum"] },
-  { t: "in einem Kino, das nie schlie\xDFt", tags: ["urban"] },
-  { t: "auf einem Dach \xFCber dem Verkehr", tags: ["urban"] },
-  { t: "in einer Telefonzelle, die noch klingelt", tags: ["urban"] },
-  { t: "in einem Kellerclub ohne Namen", tags: ["urban"] },
-  { t: "am Rand eines Moors", tags: ["natur"] },
-  { t: "in einem Wald ohne V\xF6gel", tags: ["natur"] },
-  { t: "an einer versinkenden K\xFCste", tags: ["natur"] },
-  { t: "auf einem Gletscher, der schmilzt", tags: ["natur"] },
-  { t: "in einer W\xFCste mit T\xFCren", tags: ["natur", "nirgendwo"] },
-  { t: "am Ufer eines toten Flusses", tags: ["natur"] },
-  { t: "am Fluss", tags: ["natur"] },
-  { t: "in einem Tal, das verstummt ist", tags: ["natur"] },
-  { t: "auf einer Insel ohne Hafen", tags: ["natur"] },
-  { t: "in einer H\xF6hle mit warmem Wind", tags: ["natur", "raum"] },
-  { t: "auf einem Feld nach der Ernte", tags: ["natur"] },
-  { t: "an einem See, der nie zufriert", tags: ["natur"] },
-  { t: "im Schilf hinter dem Deich", tags: ["natur"] },
-  { t: "auf einem Pass im ersten Schnee", tags: ["natur", "grenze"] },
-  { t: "in einem Obstgarten, der nicht mehr tr\xE4gt", tags: ["natur"] },
-  { t: "an einer Steilk\xFCste im Nebel", tags: ["natur"] },
-  { t: "unter einem Baum, der \xE4lter ist als das Dorf", tags: ["natur"] },
-  { t: "in einem Sumpf voller Wracks", tags: ["natur"] },
-  { t: "in einem versiegelten Zimmer", tags: ["raum"] },
-  { t: "in einem Aufzug zwischen zwei Stockwerken", tags: ["raum", "grenze"] },
-  { t: "in einer Kabine auf hoher See", tags: ["raum"] },
-  { t: "in einem Bunker ohne Uhr", tags: ["raum"] },
-  { t: "in einem Wartesaal ohne Z\xFCge", tags: ["raum"] },
-  { t: "hinter einer T\xFCr, die nicht schlie\xDFt", tags: ["raum"] },
-  { t: "in einem Zugabteil ohne Fenster", tags: ["raum"] },
-  { t: "in einer Dunkelkammer", tags: ["raum"] },
-  { t: "in einem Treppenhaus ohne Ausgang", tags: ["raum"] },
-  { t: "in einem Beichtstuhl", tags: ["raum", "institution"] },
-  { t: "in einer K\xFChlkammer", tags: ["raum"] },
-  { t: "in einem Auto am Stra\xDFenrand", tags: ["raum"] },
-  { t: "in einem Zelt im Dauerregen", tags: ["raum", "natur"] },
-  { t: "in einem Fahrstuhlschacht", tags: ["raum"] },
-  { t: "in einer Zelle mit Aussicht", tags: ["raum", "institution"] },
-  { t: "auf einem Dachboden voller Uhren", tags: ["raum"] },
-  { t: "an der Grenze zweier L\xE4nder", tags: ["grenze"] },
-  { t: "auf einer Br\xFCcke im Niemandsland", tags: ["grenze"] },
-  { t: "an der Schwelle zweier Zeiten", tags: ["grenze", "nirgendwo"] },
-  { t: "in einer Zollstation im Nebel", tags: ["grenze"] },
-  { t: "auf der Linie zwischen Traum und Wachen", tags: ["grenze", "nirgendwo"] },
-  { t: "am \xDCbergang, den keiner bewacht", tags: ["grenze"] },
-  { t: "auf einer F\xE4hre zwischen zwei Ufern", tags: ["grenze"] },
-  { t: "an einem Grenzfluss ohne Br\xFCcke", tags: ["grenze", "natur"] },
-  { t: "im Transitbereich eines Flughafens", tags: ["grenze"] },
-  { t: "an der K\xFCstenlinie bei Flut", tags: ["grenze", "natur"] },
-  { t: "auf dem letzten Meter vor der Sperre", tags: ["grenze"] },
-  { t: "in einem Korridor zwischen zwei Staaten", tags: ["grenze"] },
-  { t: "am Waldrand vor der Lichtung", tags: ["grenze", "natur"] },
-  { t: "auf der T\xFCrschwelle, die niemand \xFCberschreitet", tags: ["grenze"] },
-  { t: "an einem Ort ohne Namen", tags: ["nirgendwo"] },
-  { t: "in einer Stadt, die es nicht gibt", tags: ["nirgendwo", "urban"] },
-  { t: "im wei\xDFen Raum dazwischen", tags: ["nirgendwo"] },
-  { t: "auf einer Karte ohne Legende", tags: ["nirgendwo"] },
-  { t: "im Nichts nach dem letzten Halt", tags: ["nirgendwo"] },
-  { t: "an einem vergessenen Koordinatenpunkt", tags: ["nirgendwo"] },
-  { t: "zwischen zwei S\xE4tzen", tags: ["nirgendwo"] },
-  { t: "in einem Traum, der jemand anderem geh\xF6rt", tags: ["nirgendwo"] },
-  { t: "an einem Ort, den alle anders erinnern", tags: ["nirgendwo"] },
-  { t: "im Zwischenraum einer Erinnerung", tags: ["nirgendwo"] },
-  { t: "hinter der letzten bekannten Adresse", tags: ["nirgendwo"] },
-  { t: "in einer Gegend, die keine Karte erfasst", tags: ["nirgendwo"] },
-  { t: "auf einem Bahnsteig ohne Gleise", tags: ["nirgendwo"] },
-  { t: "dort, wo die Stra\xDFe einfach aufh\xF6rt", tags: ["nirgendwo"] },
-  { t: "in einem Archiv der Universit\xE4t", tags: ["institution"] },
-  { t: "in einer geschlossenen Klinik", tags: ["institution"] },
-  { t: "in einer stillgelegten Fabrik", tags: ["institution", "urban"] },
-  { t: "in einem Ministerium bei Nacht", tags: ["institution"] },
-  { t: "in einer Bibliothek ohne B\xFCcher", tags: ["institution"] },
-  { t: "in einem Gericht ohne Richter", tags: ["institution"] },
-  { t: "im Archiv", tags: ["institution"] },
-  { t: "in einem Amtszimmer im vierten Stock", tags: ["institution"] },
-  { t: "in einer Kaserne ohne Rekruten", tags: ["institution"] },
-  { t: "in einem Museum nach Schlie\xDFung", tags: ["institution"] },
-  { t: "in einem Internat im Winter", tags: ["institution"] },
-  { t: "in einer Wahlkabine", tags: ["institution"] },
-  { t: "in einem Rechenzentrum", tags: ["institution"] },
-  { t: "in einer Anstalt mit offenen T\xFCren", tags: ["institution"] },
-  { t: "im Keller eines Standesamts", tags: ["institution"] },
-  { t: "in einer Kirche ohne Gemeinde", tags: ["institution"] }
-];
-var WHEN_TAGGED = [
-  { t: "heute, kurz vor Feierabend", tags: ["gegenwart"] },
-  { t: "an einem Sonntagnachmittag", tags: ["gegenwart"] },
-  { t: "w\xE4hrend eines Stromausfalls", tags: ["gegenwart", "umbruch"] },
-  { t: "in der Woche des gro\xDFen Sturms", tags: ["gegenwart"] },
-  { t: "an einem ganz gew\xF6hnlichen Dienstag", tags: ["gegenwart"] },
-  { t: "im Winter", tags: ["gegenwart", "zeitlos"] },
-  { t: "kurz vor Mitternacht", tags: ["gegenwart", "zeitlos"] },
-  { t: "im Morgengrauen", tags: ["gegenwart", "zeitlos"] },
-  { t: "an einem Montag im November", tags: ["gegenwart"] },
-  { t: "w\xE4hrend der Mittagspause", tags: ["gegenwart"] },
-  { t: "in der Nacht nach dem Umzug", tags: ["gegenwart"] },
-  { t: "am Tag der Beerdigung", tags: ["gegenwart"] },
-  { t: "zwischen zwei Terminen", tags: ["gegenwart"] },
-  { t: "an einem Abend ohne Strom", tags: ["gegenwart"] },
-  { t: "im Sommer der langen D\xFCrre", tags: ["gegenwart"] },
-  { t: "an einem Freitag im Regen", tags: ["gegenwart"] },
-  { t: "1789", tags: ["historisch"] },
-  { t: "1917", tags: ["historisch"] },
-  { t: "1348", tags: ["historisch"] },
-  { t: "im Jahr der gro\xDFen Flut", tags: ["historisch", "zeitlos"] },
-  { t: "w\xE4hrend einer Belagerung", tags: ["historisch", "umbruch"] },
-  { t: "1848", tags: ["historisch"] },
-  { t: "im Herbst 1923", tags: ["historisch"] },
-  { t: "1889", tags: ["historisch"] },
-  { t: "w\xE4hrend der Choleraepidemie", tags: ["historisch"] },
-  { t: "im Jahr nach dem Krieg", tags: ["historisch"] },
-  { t: "1666", tags: ["historisch"] },
-  { t: "in der Woche der Kr\xF6nung", tags: ["historisch", "umbruch"] },
-  { t: "1961", tags: ["historisch"] },
-  { t: "w\xE4hrend der gro\xDFen Auswanderung", tags: ["historisch"] },
-  { t: "im letzten Sommer der Monarchie", tags: ["historisch", "umbruch"] },
-  { t: "1492", tags: ["historisch"] },
-  { t: "im Winter der Hungersnot", tags: ["historisch"] },
-  { t: "am Vorabend der Revolution", tags: ["historisch", "umbruch"] },
-  { t: "2041", tags: ["zukunft"] },
-  { t: "im dritten Jahr der Stille", tags: ["zukunft"] },
-  { t: "nach dem letzten Winter", tags: ["zukunft"] },
-  { t: "als die Meere zur\xFCckwichen", tags: ["zukunft"] },
-  { t: "im Jahrhundert der Karten ohne L\xE4nder", tags: ["zukunft"] },
-  { t: "2103", tags: ["zukunft"] },
-  { t: "im zweiten Jahr der neuen Zeitrechnung", tags: ["zukunft", "umbruch"] },
-  { t: "nach der gro\xDFen Abschaltung", tags: ["zukunft", "umbruch"] },
-  { t: "als die St\xE4dte zu wandern begannen", tags: ["zukunft"] },
-  { t: "2077", tags: ["zukunft"] },
-  { t: "im Sommer ohne Nacht", tags: ["zukunft", "zeitlos"] },
-  { t: "nachdem die letzte Grenze fiel", tags: ["zukunft", "umbruch"] },
-  { t: "im Jahr der ersten R\xFCckkehr", tags: ["zukunft"] },
-  { t: "als niemand mehr schrieb", tags: ["zukunft"] },
-  { t: "2199", tags: ["zukunft"] },
-  { t: "nach dem Ende der Vorhersagen", tags: ["zukunft"] },
-  { t: "zu einer Zeit, die niemand z\xE4hlt", tags: ["zeitlos"] },
-  { t: "im Jahr Null", tags: ["zeitlos"] },
-  { t: "als die Uhren noch schwiegen", tags: ["zeitlos"] },
-  { t: "irgendwann, immer", tags: ["zeitlos"] },
-  { t: "in einem Sommer ohne Ende", tags: ["zeitlos"] },
-  { t: "lange vor den Namen", tags: ["zeitlos"] },
-  { t: "in einer Woche, die sich wiederholt", tags: ["zeitlos"] },
-  { t: "zwischen zwei Herzschl\xE4gen", tags: ["zeitlos"] },
-  { t: "als die Zeit noch niemandem geh\xF6rte", tags: ["zeitlos"] },
-  { t: "an einem Tag, der zweimal stattfindet", tags: ["zeitlos"] },
-  { t: "im ewigen Nachmittag", tags: ["zeitlos"] },
-  { t: "bevor die Kalender erfunden wurden", tags: ["zeitlos"] },
-  { t: "in der Stunde, die nicht gez\xE4hlt wird", tags: ["zeitlos"] },
-  { t: "zu einer Zeit ohne Zeugen", tags: ["zeitlos"] },
-  { t: "in einem Jahr ohne Zahl", tags: ["zeitlos"] },
-  { t: "am Tag der Sonnenfinsternis", tags: ["umbruch"] },
-  { t: "in der Nacht des Umsturzes", tags: ["umbruch"] },
-  { t: "w\xE4hrend eines Generalstreiks", tags: ["umbruch"] },
-  { t: "am letzten Tag des Jahres", tags: ["umbruch"] },
-  { t: "in der Stunde der Entscheidung", tags: ["umbruch"] },
-  { t: "am Morgen nach der Wahl", tags: ["umbruch"] },
-  { t: "w\xE4hrend der Evakuierung", tags: ["umbruch"] },
-  { t: "in der Nacht, als die Grenze fiel", tags: ["umbruch"] },
-  { t: "am Tag der gro\xDFen Abstimmung", tags: ["umbruch"] },
-  { t: "w\xE4hrend des letzten Prozesses", tags: ["umbruch"] },
-  { t: "als die Fabrik schloss", tags: ["umbruch"] },
-  { t: "in der Woche der R\xE4umung", tags: ["umbruch"] },
-  { t: "am Vorabend des Aufbruchs", tags: ["umbruch"] },
-  { t: "w\xE4hrend des Erdbebens", tags: ["umbruch"] },
-  { t: "in den Stunden vor der Verk\xFCndung", tags: ["umbruch"] }
-];
-var WHAT_TAGGED = [
-  { t: "sucht eine Spur, die keiner hinterlie\xDF", tags: ["mystery"] },
-  { t: "findet einen Brief, der nicht an sie gerichtet war", tags: ["mystery"] },
-  { t: "entdeckt ein zweites Testament", tags: ["mystery"] },
-  { t: "verfolgt eine L\xFCge bis zur Wurzel", tags: ["mystery"] },
-  { t: "st\xF6\xDFt auf einen Namen, den es nicht geben d\xFCrfte", tags: ["mystery"] },
-  { t: "rekonstruiert eine Nacht, die niemand erlebt hat", tags: ["mystery"] },
-  { t: "sucht eine Spur", tags: ["mystery"] },
-  { t: "findet ein Foto mit einer Person zu viel", tags: ["mystery", "horror"] },
-  { t: "erbt einen Schl\xFCssel ohne Schloss", tags: ["mystery"] },
-  { t: "entziffert ein Tagebuch in fremder Hand", tags: ["mystery"] },
-  { t: "verh\xF6rt einen Zeugen, der l\xE4ngst tot ist", tags: ["mystery", "horror"] },
-  { t: "\xF6ffnet einen Fall, den alle geschlossen haben", tags: ["mystery"] },
-  { t: "bemerkt, dass zwei Uhren nicht \xFCbereinstimmen", tags: ["mystery"] },
-  { t: "verfolgt jemanden, der die eigene Route kennt", tags: ["mystery"] },
-  { t: "findet die eigene Unterschrift auf fremdem Papier", tags: ["mystery"] },
-  { t: "erh\xE4lt eine Nachricht aus der Zukunft", tags: ["scifi"] },
-  { t: "findet eine T\xFCr, die es nicht geben d\xFCrfte", tags: ["scifi", "maerchen"] },
-  { t: "verliert die Kontrolle \xFCber die eigene Stimme", tags: ["scifi", "horror"] },
-  { t: "erwacht in einem K\xF6rper mit fremdem Ged\xE4chtnis", tags: ["scifi"] },
-  { t: "entziffert ein Signal aus dem Nichts", tags: ["scifi"] },
-  { t: "tauscht Zeit gegen eine Erinnerung", tags: ["scifi"] },
-  { t: "wird von der eigenen Kopie verklagt", tags: ["scifi", "satire"] },
-  { t: "verkauft eine Erinnerung zu teuer", tags: ["scifi"] },
-  { t: "entdeckt eine L\xFCcke in der Simulation", tags: ["scifi"] },
-  { t: "verliert eine Woche und findet sie woanders", tags: ["scifi"] },
-  { t: "spricht mit einer Maschine, die l\xFCgt", tags: ["scifi"] },
-  { t: "bekommt ein Angebot von der eigenen Zukunft", tags: ["scifi"] },
-  { t: "muss beweisen, real zu sein", tags: ["scifi", "absurd"] },
-  { t: "findet den letzten Menschen ohne Anschluss", tags: ["scifi"] },
-  { t: "erbt ein fremdes Bewusstsein", tags: ["scifi"] },
-  { t: "schlie\xDFt einen Pakt, den keiner versteht", tags: ["maerchen"] },
-  { t: "folgt einem Licht in den Wald", tags: ["maerchen"] },
-  { t: "erbt einen Fluch mit gutem Kern", tags: ["maerchen"] },
-  { t: "verspricht drei Dinge, die sich widersprechen", tags: ["maerchen"] },
-  { t: "sucht einen Namen, um frei zu werden", tags: ["maerchen"] },
-  { t: "\xF6ffnet die verbotene T\xFCr", tags: ["maerchen", "horror"] },
-  { t: "tauscht den Schatten gegen einen Wunsch", tags: ["maerchen"] },
-  { t: "bekommt eine Gabe, die keiner will", tags: ["maerchen"] },
-  { t: "muss sieben N\xE4chte schweigen", tags: ["maerchen"] },
-  { t: "weckt etwas, das schlafen sollte", tags: ["maerchen", "horror"] },
-  { t: "verhandelt mit dem Fluss um einen \xDCbergang", tags: ["maerchen"] },
-  { t: "verliert das Gesicht an einen Spiegel", tags: ["maerchen", "horror"] },
-  { t: "gibt das eigene Herz als Pfand", tags: ["maerchen"] },
-  { t: "l\xF6st ein R\xE4tsel und verliert dabei alles", tags: ["maerchen"] },
-  { t: "wird von einem Tier um Hilfe gebeten", tags: ["maerchen"] },
-  { t: "f\xFCllt ein Formular f\xFCr die eigene Abwesenheit", tags: ["absurd", "satire"] },
-  { t: "verklagt den eigenen Schatten", tags: ["absurd"] },
-  { t: "wartet auf einen Termin, der nie kommt", tags: ["absurd"] },
-  { t: "erbt ein Amt ohne Aufgabe", tags: ["absurd", "satire"] },
-  { t: "verliert die Erinnerung an einen Namen", tags: ["absurd"] },
-  { t: "wird f\xFCr tot erkl\xE4rt und muss es widerlegen", tags: ["absurd"] },
-  { t: "beantragt eine Genehmigung zu existieren", tags: ["absurd", "satire"] },
-  { t: "wird in eine Abteilung ohne T\xFCr bef\xF6rdert", tags: ["absurd", "satire"] },
-  { t: "muss einen Fehler verwalten, den es nicht gibt", tags: ["absurd"] },
-  { t: "steht in einer Schlange, die sich selbst anstellt", tags: ["absurd"] },
-  { t: "bekommt einen Ausweis f\xFCr ein anderes Leben", tags: ["absurd"] },
-  { t: "soll das eigene Verschwinden protokollieren", tags: ["absurd"] },
-  { t: "sucht ein Zimmer, dessen Nummer wandert", tags: ["absurd"] },
-  { t: "erh\xE4lt Post von einer Beh\xF6rde ohne Existenz", tags: ["absurd"] },
-  { t: "muss die eigene Vergangenheit erst beantragen", tags: ["absurd"] },
-  { t: "will einfach nur verschwinden", tags: ["alltag"] },
-  { t: "trifft eine Entscheidung binnen einer Stunde", tags: ["alltag"] },
-  { t: "bricht ein Versprechen aus Kindheitstagen", tags: ["alltag"] },
-  { t: "kehrt an einen alten Ort zur\xFCck", tags: ["alltag"] },
-  { t: "sagt endlich einen Satz zu sp\xE4t", tags: ["alltag"] },
-  { t: "r\xE4umt ein Zimmer und findet ein Leben", tags: ["alltag"] },
-  { t: "will verschwinden", tags: ["alltag"] },
-  { t: "wartet auf einen Anruf, der nicht kommt", tags: ["alltag"] },
-  { t: "verpasst einen Zug mit Absicht", tags: ["alltag"] },
-  { t: "trifft jemanden, den es nicht mehr geben sollte", tags: ["alltag", "horror"] },
-  { t: "beantwortet einen zwanzig Jahre alten Brief", tags: ["alltag"] },
-  { t: "k\xFCndigt ohne Plan", tags: ["alltag"] },
-  { t: "erkennt sich auf einem fremden Foto", tags: ["alltag", "mystery"] },
-  { t: "verschiebt eine Beerdigung", tags: ["alltag"] },
-  { t: "beginnt ein Gespr\xE4ch, das alles \xE4ndert", tags: ["alltag"] },
-  { t: "h\xF6rt Schritte im leeren Haus", tags: ["horror"] },
-  { t: "bemerkt, dass die Spiegel nicht mehr stimmen", tags: ["horror"] },
-  { t: "z\xE4hlt eine Person zu viel", tags: ["horror"] },
-  { t: "findet die eigene Handschrift an fremder Wand", tags: ["horror"] },
-  { t: "verliert jede Nacht eine Erinnerung mehr", tags: ["horror"] },
-  { t: "wird von etwas erkannt, das keiner sieht", tags: ["horror"] },
-  { t: "h\xF6rt den eigenen Namen aus dem Nebenzimmer", tags: ["horror"] },
-  { t: "entdeckt, dass das Haus gr\xF6\xDFer wird", tags: ["horror"] },
-  { t: "findet Fu\xDFspuren, die zur\xFCckf\xFChren", tags: ["horror"] },
-  { t: "wacht jede Nacht eine Stunde fr\xFCher auf", tags: ["horror"] },
-  { t: "bemerkt, dass niemand mehr blinzelt", tags: ["horror"] },
-  { t: "gr\xE4bt etwas aus, das noch warm ist", tags: ["horror"] },
-  { t: "bekommt Anrufe von der eigenen Nummer", tags: ["horror"] },
-  { t: "sieht dasselbe Gesicht in jeder Menge", tags: ["horror"] },
-  { t: "schlie\xDFt eine T\xFCr, die offen bleibt", tags: ["horror"] },
-  { t: "gr\xFCndet ein Amt gegen die Wirklichkeit", tags: ["satire"] },
-  { t: "gewinnt einen Preis f\xFCr nichts", tags: ["satire"] },
-  { t: "verwaltet das Ende der Welt in Ordnern", tags: ["satire"] },
-  { t: "beruft eine Sitzung \xFCber Sitzungen ein", tags: ["satire"] },
-  { t: "optimiert sich selbst weg", tags: ["satire"] },
-  { t: "verkauft Zeit an die, die keine haben", tags: ["satire"] },
-  { t: "erfindet ein Problem und die passende L\xF6sung", tags: ["satire"] },
-  { t: "wird zum Gesicht einer Kampagne gegen sich selbst", tags: ["satire"] },
-  { t: "reformiert eine Beh\xF6rde in eine gr\xF6\xDFere", tags: ["satire"] },
-  { t: "l\xE4sst die Wahrheit auslagern", tags: ["satire"] },
-  { t: "schreibt ein Gutachten \xFCber das eigene Gutachten", tags: ["satire"] },
-  { t: "privatisiert das Wetter", tags: ["satire"] },
-  { t: "gr\xFCndet eine Kommission zur Abschaffung von Kommissionen", tags: ["satire"] },
-  { t: "macht Karriere durch konsequentes Nichtstun", tags: ["satire"] },
-  { t: "digitalisiert ein Formular, das niemand braucht", tags: ["satire"] }
-];
-var CTX_WHO = WHO_TAGGED.map((e) => e.t);
-var CTX_WHERE = WHERE_TAGGED.map((e) => e.t);
-var CTX_WHEN = WHEN_TAGGED.map((e) => e.t);
-var CTX_WHAT = WHAT_TAGGED.map((e) => e.t);
-var WHO_TWISTS = [
-  "mit einem geliehenen Namen",
-  "ohne Erinnerung an den gestrigen Tag",
-  "auf der Flucht vor einem Versprechen",
-  "mit zitternden H\xE4nden",
-  "kurz vor dem Aufbruch",
-  "voller ungestellter Fragen",
-  "mit einem fremden Koffer",
-  "zwischen zwei Loyalit\xE4ten",
-  "mit einer alten Schuld im Gep\xE4ck",
-  "ohne Papiere",
-  "mit einem zweiten Gesicht",
-  "mit einem halb vergessenen Auftrag",
-  "im falschen Jahrzehnt geboren",
-  "mit geliehener Stimme",
-  "mit einer Narbe, die niemand erkl\xE4rt",
-  "ohne R\xFCckfahrkarte",
-  "mit einem Brief, der nie abgeschickt wurde",
-  "unter fremder Aufsicht",
-  "mit einem Namen, den zwei Menschen tragen",
-  "im letzten Anzug des Vaters"
-];
-
-// test/nr44.ts
-{
-  const g = globalThis;
-  if (typeof g.localStorage === "undefined") {
-    const m = {};
-    g.localStorage = {
-      getItem: (k) => k in m ? m[k] : null,
-      setItem: (k, v) => {
-        m[k] = String(v);
-      },
-      removeItem: (k) => {
-        delete m[k];
-      },
-      clear: () => {
-        for (const k of Object.keys(m)) delete m[k];
-      },
-      key: () => null,
-      length: 0
-    };
-  }
-}
-var fails = [];
-var geprueft = 0;
-var bestanden = 0;
-var ist = (name, wert, soll) => {
-  geprueft++;
-  if (wert === soll) bestanden++;
-  else fails.push(`${name}: \u201E${String(wert)}\u201C \u2014 erwartet \u201E${String(soll)}\u201C`);
+var z = /* @__PURE__ */ new Map();
+var bsp = /* @__PURE__ */ new Map();
+var melde = (a, s) => {
+  z.set(a, (z.get(a) || 0) + 1);
+  if (!bsp.has(a)) bsp.set(a, s.trim().slice(0, 100));
 };
-var wahr = (name, b) => ist(name, b, true);
-ist(
-  "zwei gleiche Nachbars\xE4tze werden einer",
-  entferneDubletten("Fl\xFCsse als Adern. Fl\xFCsse als Adern. Der Rest bleibt."),
-  "Fl\xFCsse als Adern. Der Rest bleibt."
-);
-ist(
-  "auch die verkleidete Dublette mit Gedankenstrich",
-  entferneDubletten("Aus Symmetrie wird Unterschied \u2014 Aus Symmetrie wird Unterschied. Weiter."),
-  "Aus Symmetrie wird Unterschied. Weiter."
-);
-ist(
-  "eine Wiederholung MIT Abstand bleibt \u2014 sie ist ein Mittel",
-  entferneDubletten("Der Kreis schlie\xDFt sich. Etwas dazwischen. Der Kreis schlie\xDFt sich."),
-  "Der Kreis schlie\xDFt sich. Etwas dazwischen. Der Kreis schlie\xDFt sich."
-);
-ist(
-  "und ein einzelner Satz bleibt unangetastet",
-  entferneDubletten("Nur ein Satz."),
-  "Nur ein Satz."
-);
-{
-  const durch = WHO_TWISTS.filter((t) => splitSpeakers(`eine Archivarin ohne Namen, ${t}`).length > 1);
-  ist("kein Figuren-Zusatz wird zur zweiten Figur", durch.join(", "), "");
-  wahr(`es gibt \xFCberhaupt Zus\xE4tze (${WHO_TWISTS.length})`, WHO_TWISTS.length >= 15);
-  for (const [w, n] of [
-    ["Baucis, Philemon", 2],
-    ["die Archivarin, der F\xE4hrmann", 2],
-    ["Tom, die alten Frauen", 2],
-    ["baucis, philemon", 2],
-    ["eine Nonne, die die Welt bereist hat", 1],
-    ["ein Mann, w\xE4hrend der Nacht", 1],
-    ["die W\xE4chterin, mit einem fremden Koffer", 1]
-  ]) {
-    ist(`\u201E${w}\u201C`, splitSpeakers(w).length, n);
-  }
-  wahr("ein Zusatz gilt nicht als eigene Person", !istEigenePerson("voller ungestellter Fragen"));
-  wahr("ein Name schon", istEigenePerson("Philemon"));
-  ist(
-    "und der Zusatz wird nicht gro\xDFgeschrieben",
-    normWho("eine Archivarin ohne Namen, voller ungestellter Fragen"),
-    "Eine Archivarin ohne Namen, voller ungestellter Fragen"
-  );
-}
-{
-  const GERUEST = [
-    "Faktenkasten \xB7 Betroffen: 3.840 Haushalte \xB7 Dauer: 50 Stunden",
-    "Fiktive Zeitung \xB7 maschinell erzeugt",
-    "Kurz gemeldet",
-    "WAS: will die Spur bewusst auf",
-    "SEQUENZ \u2014 Die Spur"
-  ];
-  for (const z of GERUEST) wahr(`als Ger\xFCst erkannt: \u201E${z.slice(0, 30)}\u2026\u201C`, GERUEST_ZEILE.test(z));
-  wahr("ein gew\xF6hnlicher Satz nicht", !GERUEST_ZEILE.test("Die T\xFCr steht offen und niemand geht hindurch."));
-  ist("die Reinigung wirft die Ger\xFCstzeile weg", corpusSanitize(GERUEST[0]).trim(), "");
-  ist(
-    "und beh\xE4lt den Satz daneben",
-    corpusSanitize(GERUEST[0] + "\nDie T\xFCr steht offen.").trim(),
-    "Die T\xFCr steht offen."
-  );
-  ist(
-    "der Zeitstempel nimmt seine Pr\xE4position mit",
-    corpusSanitize("Gegen 00:39 \u2014 und der Blick blieb.").trim(),
-    "und der Blick blieb."
-  );
-}
-ist("der Dativ wird zum Namen", dachOrt("an der Unterelbe"), "Unterelbe");
-ist("der unbestimmte Artikel f\xE4llt auch", dachOrt("in einem Hafen"), "Hafen");
-ist(
-  "alles hinter dem Komma f\xE4llt weg",
-  dachOrt("in einer Stra\xDFe, die zweimal existiert, wo die Stra\xDFen keine Namen tragen"),
-  "Stra\xDFe"
-);
-ist("zu lang hei\xDFt: gar kein Ort", dachOrt("vor einer bemalten Au\xDFenmauer an einem Gehweg"), "");
-ist("und leer bleibt leer", dachOrt(""), "");
-ist("der Nachname bleibt der Nachname", kurzPerson("Dr. Ing. Richard Doll"), "Doll");
-ist("auch ohne Titel", kurzPerson("Reinhard Kraus"), "Kraus");
-ist(
-  "eine Phrase beh\xE4lt ihre volle Form",
-  kurzPerson("das Register aller falschen Namen"),
-  "das Register aller falschen Namen"
-);
-ist("und eine Gattungsbezeichnung auch", kurzPerson("die Archivarin"), "die Archivarin");
-ist(
-  "der Klammereinschub f\xE4llt weg",
-  formeWas("Die Schriftstellerin Marie von Ebner-Eschenbach (Lotti, die Uhrmacherin; Das Gemeindekind) wird geboren."),
-  "Die Schriftstellerin Marie von Ebner-Eschenbach wird geboren"
-);
-ist("das weiche Trennzeichen auch", formeWas("Der deutsche Leicht\xADathlet gewinnt"), "Der deutsche Leichtathlet gewinnt");
-ist("nur der erste Satz", formeWas("Er kommt an. Danach geht er wieder."), "Er kommt an");
-ist("und eine Nominalphrase bleibt, was sie ist", formeWas("eine Wandmalerei"), "eine Wandmalerei");
-wahr("ein Pr\xE4dikat wird erkannt", tragtPraedikat("sucht eine Akte"));
-wahr("eine Nominalphrase tr\xE4gt keines", !tragtPraedikat("eine Wandmalerei"));
-{
-  const basis = {
+var n = 0;
+var saetze = 0;
+for (let i = 0; i < 180; i++) {
+  const [wo, wann, wer, was] = W4[i % W4.length];
+  const t = buildStory(BUILTIN_PRESETS[ids[i % ids.length]], {
+    where: wo,
+    when: wann,
+    who: wer,
+    what: was,
     tone: "nuechtern",
-    form: "meldung",
-    lenTarget: 60,
-    mode: "bureau",
-    structure: "linear",
-    perspective: "third",
+    form: "prose",
+    lenTarget: 200,
+    tension: "auto",
+    cast: "auto",
+    mode: "auto",
+    structure: i % 2 ? "rekombination" : "linear",
+    perspective: "second",
     rhythm: "auto",
     disruptor: "off",
     instability: 0,
@@ -12633,97 +12035,15 @@ wahr("eine Nominalphrase tr\xE4gt keines", !tragtPraedikat("eine Wandmalerei"));
     varLevel: "wild",
     archetypeA: "neutral",
     archetypeB: "neutral"
-  };
-  const FAELLE = [
-    ["", "am 15. August 2026", "", "Der deutsche Leichtathlet Owen Ansah hat bei der EM in Birmingham Gold gewonnen"],
-    ["vor einer bemalten Au\xDFenmauer an einem Gehweg", "tags\xFCber bei teilweise bew\xF6lktem Himmel", "die Person", "eine Wandmalerei"],
-    ["", "am 13. September 1830", "", "Die Schriftstellerin Marie von Ebner-Eschenbach (Lotti, die Uhrmacherin; Das Gemeindekind) wird geboren"],
-    ["im Archiv", "am Morgen", "die Archivarin", "sucht eine Akte"]
-  ];
-  for (const [wo, wann, wer, was] of FAELLE) {
-    const erg = buildMeldung({ ...basis, where: wo, when: wann, who: wer, what: was }, "gesellschaft");
-    const maengel = pruefeMeldung(erg.text, erg.fb).map((x) => x.art);
-    ist(`Meldung ohne Mangel: \u201E${(wann || wo).slice(0, 26)}\u2026\u201C`, maengel.join(", "), "");
-    wahr(`kein Platzhalter darin: \u201E${(wann || wo).slice(0, 20)}\u2026\u201C`, !/\b(am|der) Ort\b/.test(erg.text));
-    wahr(`keine Klammer darin: \u201E${(wann || wo).slice(0, 20)}\u2026\u201C`, !/\([^)]*\)/.test(erg.text));
-    wahr(`kein \u201EIm tags\xFCber\u201C: \u201E${(wann || wo).slice(0, 20)}\u2026\u201C`, !/\bIm tagsüber\b/.test(erg.text));
+  });
+  n++;
+  for (const s of t.split(/(?<=[.!?…])\s+/)) {
+    saetze++;
+    if (/[A-ZÄÖÜ][a-zäöüß]{3,}\s+(du|dich|dir)\b/.test(s)) melde("Pronomen hinter einem Nomen (Apposition)", s);
+    if (/\bDu\s+[a-zäöüß]*[^s\s]t\b/.test(s)) melde("Verb nicht auf du gebeugt", s);
+    if (/\b(hältst|bemerkst|siehst|findest|hörst)\s+(ein|eine)\s+[a-zäöüß]*er?\s+[A-ZÄÖÜ]/.test(s)) melde("Akkusativ nicht gebildet", s);
   }
 }
-{
-  const erg = buildMeldung({
-    where: "im Archiv",
-    when: "am Morgen",
-    who: "die Archivarin",
-    what: "sucht eine Akte",
-    tone: "nuechtern",
-    form: "meldung",
-    lenTarget: 60,
-    mode: "bureau",
-    structure: "linear",
-    perspective: "third",
-    rhythm: "auto",
-    disruptor: "off",
-    instability: 0,
-    markovMode: "off",
-    varLevel: "wild",
-    archetypeA: "neutral",
-    archetypeB: "neutral"
-  }, "gesellschaft");
-  const ALT = [
-    ["Platzhalter", "Am 15. August 2026 ist am Ort bekannt geworden: Ein Fund wird gemeldet. Weitere Angaben liegen zun\xE4chst nicht vor."],
-    ["zwei Nominalphrasen", "Am Morgen ist im Archiv bekannt geworden: Die Person eine Wandmalerei. Weitere Angaben liegen zun\xE4chst nicht vor."],
-    ["Fremdmaterial", "Am Morgen ist im Archiv bekannt geworden: Die Schriftstellerin (Lotti) wird geboren. Weitere Angaben liegen zun\xE4chst nicht vor."],
-    ["Gro\xDFschreibung im Satz", "Am Morgen ist Vor einer bemalten Au\xDFenmauer bekannt geworden: Ein Fund wird gemeldet. Weitere Angaben liegen zun\xE4chst nicht vor."]
-  ];
-  for (const [name, text] of ALT) {
-    wahr(`die Pr\xFCfung erkennt: ${name}`, pruefeMeldung(text, erg.fb).length > 0);
-  }
-  wahr("und l\xE4sst die saubere Meldung in Ruhe", pruefeMeldung(erg.text, erg.fb).length === 0);
-}
-{
-  const ids = Object.keys(BUILTIN_PRESETS);
-  let dubletten = 0, phrase = 0;
-  for (let i = 0; i < 120; i++) {
-    const t = buildStory(BUILTIN_PRESETS[ids[i % ids.length]], {
-      where: "im Archiv",
-      when: "am Morgen",
-      who: "eine Archivarin ohne Namen, voller ungestellter Fragen",
-      what: "sucht eine Akte",
-      tone: "nuechtern",
-      form: "prose",
-      lenTarget: 200,
-      tension: "auto",
-      cast: "auto",
-      mode: "auto",
-      structure: i % 2 ? "rekombination" : "linear",
-      perspective: "third",
-      rhythm: "auto",
-      disruptor: "off",
-      instability: 0,
-      markovMode: "off",
-      varLevel: "wild",
-      archetypeA: "neutral",
-      archetypeB: "neutral"
-    });
-    const ss = t.split(/(?<=[.!?…])\s+/).map((x) => x.replace(/^[—–\s]+/, "").trim()).filter(Boolean);
-    for (let k = 1; k < ss.length; k++) {
-      const a = ss[k - 1].replace(/[.!?…—–]/g, "").trim().toLowerCase();
-      const b = ss[k].replace(/[.!?…—–]/g, "").trim().toLowerCase();
-      if (a && a === b) dubletten++;
-    }
-    if (/[Vv]oller ungestellter Fragen/.test(t)) phrase++;
-  }
-  ist("in 120 Texten keine Satzdublette", dubletten, 0);
-  ist("und die Verzierung kommt im Text gar nicht mehr vor", phrase, 0);
-}
-console.log(`Pr\xFCfstand Nr. 44 \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
-var proc = globalThis;
-if (fails.length) {
-  console.error(`
-\u274C Nr. 44: ${fails.length} Fehler:`);
-  fails.forEach((f) => console.error("  - " + f));
-  proc.process?.exit(1);
-} else {
-  console.log(`
-\u2705 Nr. 44: alle ${geprueft} Pr\xFCfungen bestanden.`);
-}
+console.log(`${n} Texte, ${saetze} S\xE4tze \u2014 Perspektive Du`);
+[...z].sort((a, b) => b[1] - a[1]).forEach(([k, v]) => console.log(`  ${String(v).padStart(4)}\xD7  ${k}
+         \u201E${bsp.get(k)}\u201C`));

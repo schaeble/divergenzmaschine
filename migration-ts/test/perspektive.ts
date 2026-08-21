@@ -23,6 +23,7 @@ import { applyPerspective, objektName, OBJEKT_EINSTIEG } from "../src/generation
 import { BUILTIN_PRESETS } from "../src/presets.data";
 import type { Bank, GenInput } from "../src/types";
 import { MODE_DATA } from "../src/modes.data";
+import { declineHookPhrase, guessGender } from "../src/generation/declension";
 import { NOUN_GENDER } from "../src/generation/nouns.data";
 
 const fails: string[] = [];
@@ -129,6 +130,68 @@ for (const p of ["third", "first", "second", "we", "split"]) {
   const t = buildStory(bank, { ...basis, perspective: p, structure: "rekombination" } as GenInput);
   wahr(`Perspektive ${p} liefert Text`, t.trim().length > 40);
   wahr(`Perspektive ${p} ohne Etikett`, !/^\s*\(/.test(t));
+}
+
+
+// ── 6 · Du/Ich/Wir: nur in Subjektstellung ─────────────────────────────────
+// Gemeldet an einem gesammelten Wikipedia-Satz: „In der Toskana wird der
+// italienische Festungsbaumeister und Militär du geboren." Der Figurenname
+// steckt dort in einer Apposition — an dieser Stelle kann kein Pronomen stehen.
+// Gemessen: 31 % der Du-Texte trugen so eine Stelle.
+{
+  const name = "Giovanni Salustio Peruzzi";
+  const fremd = `In der Toskana wird der italienische Festungsbaumeister und Militär ${name} geboren.`;
+  for (const p of ["second", "first", "we"]) {
+    const raus = applyPerspective([fremd], p, name, "Stempel")[0] || "";
+    wahr(`${p}: die Apposition bleibt unangetastet`, raus === fremd);
+  }
+  // Und die Gegenrichtung: In Subjektstellung wird sehr wohl umgestellt.
+  ist("am Satzanfang wird umgestellt",
+    applyPerspective(["Die Archivarin hält einen Stempel fest."], "second", "die Archivarin", "Akte")[0],
+    "Du hältst einen Stempel fest.");
+  ist("und bei Inversion auch",
+    applyPerspective(["Am Morgen bemerkt die Archivarin den Stempel."], "second", "die Archivarin", "Akte")[0],
+    "Am Morgen bemerkst du den Stempel.");
+  ist("nach einer Konjunktion ebenso",
+    applyPerspective(["Es regnet, und die Archivarin wartet."], "second", "die Archivarin", "Akte")[0],
+    "Es regnet, und du wartest.");
+  // Kurze Verben: „Du erbt ein Amt" — vier Buchstaben fielen durch die alte
+  // Erkennung. Gemessen in 28 % der Du-Texte.
+  ist("kurze Verben werden gebeugt",
+    applyPerspective(["Der Sohn eines Fälschers erbt ein Amt."], "second", "der Sohn eines Fälschers", "Akte")[0],
+    "Du erbst ein Amt.");
+  ist("und in der ersten Person auch",
+    applyPerspective(["Der Sohn eines Fälschers erbt ein Amt."], "first", "der Sohn eines Fälschers", "Akte")[0],
+    "Ich erbe ein Amt.");
+}
+
+// ── 7 · Der Akkusativ braucht ein eingetragenes Geschlecht ────────────────
+// Im Blatt: „Du hältst ein leerer Thron unter einem Baum fest." Die
+// Endungsregel kannte weder „Thron" noch „Takt", und ohne Genus bildet
+// declineHookPhrase keinen Akkusativ. 166 Nomen der Presets fehlten.
+{
+  ist("Thron wird zu einen Thron", declineHookPhrase("ein leerer Thron", "acc"), "einen leeren Thron");
+  ist("auch mit Anhang", declineHookPhrase("ein leerer Thron unter einem Baum", "acc"), "einen leeren Thron unter einem Baum");
+  ist("und Takt", declineHookPhrase("ein Takt, der älter ist als ihr Lächeln", "acc"), "einen Takt, der älter ist als ihr Lächeln");
+  ist("weiblich bleibt weiblich", declineHookPhrase("eine rostige Klinge", "acc"), "eine rostige Klinge");
+  // Die eigentliche Zusage: JEDES Nomen, das ein Preset mit unbestimmtem
+  // Artikel führt, hat ein Geschlecht. Diese Prüfung schlägt an, sobald jemand
+  // eines hinzufügt, ohne es einzutragen.
+  const ohne = new Set<string>();
+  for (const id of Object.keys(BUILTIN_PRESETS)) {
+    const bank = BUILTIN_PRESETS[id] as unknown as Record<string, unknown>;
+    for (const kat of Object.keys(bank)) {
+      const arr = bank[kat];
+      if (!Array.isArray(arr)) continue;
+      for (const roh of arr as string[]) {
+        const m = String(roh).match(/^(?:ein|eine|einen|einem|einer|eines)\s+(.*)$/i);
+        if (!m) continue;
+        const w = (m[1]!.split(" ").find((x) => /^[A-ZÄÖÜ]/.test(x)) || "").replace(/[^A-Za-zÄÖÜäöüß]/g, "");
+        if (w && !guessGender(w)) ohne.add(w);
+      }
+    }
+  }
+  ist("jedes Preset-Nomen hat ein Geschlecht", [...ohne].sort().join(", "), "");
 }
 
 console.log(`Prüfstand Perspektive — ${geprueft} Prüfungen, ${bestanden} bestanden`);
