@@ -988,7 +988,25 @@ var NOUN_GENDER = {
   "zigarettenstummel": "m",
   "zigarre": "f",
   "z\xF6gern": "n",
-  "\xF6llaterne": "f"
+  "\xF6llaterne": "f",
+  "asche": "f",
+  "gesetz": "n",
+  "jazz": "m",
+  "miene": "f",
+  "neigung": "f",
+  "riegel": "m",
+  "sammlung": "f",
+  "sanduhr": "f",
+  "verdacht": "m",
+  "fernrohr": "n",
+  "kollegheft": "n",
+  "lineal": "n",
+  "lot": "n",
+  "pendel": "n",
+  "prisma": "n",
+  "stundenplan": "m",
+  "tafel": "f",
+  "zirkel": "m"
 };
 
 // src/generation/coherence.ts

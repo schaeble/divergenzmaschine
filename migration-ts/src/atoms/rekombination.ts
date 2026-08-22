@@ -1,6 +1,6 @@
 // Rekombinations-Modus: baut den Text aus geprüften Atomen statt aus Schablonen.
 // Pool = aktive Wortbank (offline annotiert) + geerntete Satzvorlagen.
-import type { Bank, GenInput } from "../types";
+import { KEINE_KATEGORIE, type Bank, type GenInput } from "../types";
 import { deriveAtom } from "./derive";
 import { passt, fortschreiben, fuelleKontext, fuelleSlot, offeneSlots, verfugen, ziehe, phasenFolge, STRUKTUR_PHASEN, type PoolAtom, type Kontext, naechsterSlot }  from "./assemble";
 import TEMPLATES from "./templates.data.json";
@@ -150,6 +150,10 @@ export function buildPool(bank: Bank, perspektive: string, what?: string, figur?
   }
   for (const [kat, arr] of Object.entries(bank as unknown as Record<string, string[]>)) {
     if (!Array.isArray(arr)) continue;
+    // `verwandlungen` steht in der Bank, ist aber keine Textkategorie: Die
+    // Einträge („Telefon→Stille") gehören nicht in den Text, sondern sagen, was
+    // aus einem Motiv wird, wenn es wiederkehrt.
+    if (KEINE_KATEGORIE.has(kat)) continue;
     for (const t of arr) {
       const d = deriveAtom(t);
       pool.push({ ...d, id: `wb-${++i}`, quelle: "wortbank", kategorie: kat, verlangt: null,

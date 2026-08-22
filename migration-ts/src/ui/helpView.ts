@@ -153,6 +153,7 @@ export function mountHelp(root: HTMLElement): void {
     ["Dramaturgie-Struktur", P("Im Studio unter ", lnk("Struktur", "werkzeug"), " die Option „Dramaturgie (Preset 2.0)“: baut den Text entlang des Erzählbogens des aktiven 2.0-Presets.")],
     ["2.0-Felder übernehmen", P("Im Wortbank-Tab editierbar (nur bei aktivem 2.0-Preset); übernimmt Dramaturgie, Pools und Ton. Eigene Presets mit 2.0-Daten sind in der Preset-Liste mit ✦ 2.0 markiert.")],
     ["Per KI aktualisieren", P("Verbessert das aktive Preset per KI (Grammatik/Artikel, mehr Einträge, füllt die Dramaturgie-/2.0-Felder) — das Thema bleibt. „Mehrere Presets per KI aktualisieren“ erledigt das im Stapel. Braucht einen API-Schlüssel.")],
+    ["Motivverwandlung", P("Ein Preset kann eine Liste von Paaren tragen: ", el("b", {}, "Bibliothek→Sammlung"), ", ", el("b", {}, "Zweifel→Verdacht"), ". Kehrt ein Motiv im Text wieder, wird es beim ZWEITEN Mal zu seinem Ziel — das erste Vorkommen bleibt stehen, denn ohne Einführung ist die Verwandlung keine. Gemessen greift das in 87 Prozent der Texte, rund zweimal je Text. Bedingung: Beide Wörter brauchen dasselbe Geschlecht. Sonst stünde „das Stille“ im Text, weil der Artikel davor nicht mitverwandelt wird; ein Paar, das nur manchmal stimmt, wird deshalb abgelehnt und sagt auch warum. Das eingebaute Preset ", el("b", {}, "Philosophie"), " führt zwölf solcher Paare.")],
     ["Preset 2.0 erzeugen", P("Baut per KI ein komplettes neues 2.0-Preset aus einer kurzen Vorgabe. Braucht einen API-Schlüssel.")],
   ]));
 

@@ -98,7 +98,14 @@ export function buildAutoMixBank(): Bank {
     (sources[src.id] ||= []).push(k);
   }
   try { localStorage.setItem(AUTOMIX_SRC_KEY, JSON.stringify(sources)); } catch { /* voll */ }
-  return normalizeBankShape(out);
+  // Auch der Auto-Mix nimmt die Verwandlungen der beteiligten Presets mit.
+  const verw = new Set<string>();
+  for (const id of Object.keys(sources)) for (const x of getAllPresets()[id]?.bank.verwandlungen || []) {
+    const v = (x || "").trim(); if (v) verw.add(v);
+  }
+  const fertig = normalizeBankShape(out);
+  if (verw.size) fertig.verwandlungen = [...verw];
+  return fertig;
 }
 
 /** Mehrere Presets aktiv: pro Kategorie die Einträge aller gewählten Presets vereinen (dedupliziert). */
@@ -113,7 +120,16 @@ export function buildMergedBank(ids: string[]): Bank {
     }
     out[k] = [...set];
   }
-  return normalizeBankShape(out);
+  // Die Verwandlungen wandern mit. Sie sind keine Kategorie und fallen deshalb
+  // durch die Schleife oben — ohne diesen Schritt verliert jede Mehrfachauswahl
+  // die Motivverwandlung der beteiligten Presets.
+  const verw = new Set<string>();
+  for (const id of ids) for (const x of all[id]?.bank.verwandlungen || []) {
+    const v = (x || "").trim(); if (v) verw.add(v);
+  }
+  const fertig = normalizeBankShape(out);
+  if (verw.size) fertig.verwandlungen = [...verw];
+  return fertig;
 }
 
 // ── Verstärkte Mutations-Engine (v2), jetzt als reine Funktion ───────

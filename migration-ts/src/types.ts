@@ -5,8 +5,16 @@
 export type BankKey =
   | "motifs" | "hooks" | "props" | "turns" | "obstacles" | "stakes" | "endings";
 
-/** Eine Wortbank: je Kategorie eine Liste von Einträgen. */
-export type Bank = Record<BankKey, string[]>;
+/** Eine Wortbank: je Kategorie eine Liste von Einträgen.
+ *
+ *  `verwandlungen` ist KEINE Kategorie: Die Einträge stehen nicht im Text,
+ *  sondern sagen, was aus einem Motiv wird, wenn es wiederkehrt („Telefon→
+ *  Stille"). Sie sind deshalb optional und werden überall dort ausgenommen, wo
+ *  über die Kategorien gelaufen wird. */
+export type Bank = Record<BankKey, string[]> & { verwandlungen?: string[] };
+
+/** Schlüssel, die in einer Bank stehen dürfen, aber KEINE Textkategorie sind. */
+export const KEINE_KATEGORIE = new Set(["verwandlungen"]);
 
 /** Textform einer Generierung. */
 export type FormKind =

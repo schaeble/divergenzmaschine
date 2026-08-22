@@ -1227,7 +1227,25 @@ var NOUN_GENDER = {
   "zigarettenstummel": "m",
   "zigarre": "f",
   "z\xF6gern": "n",
-  "\xF6llaterne": "f"
+  "\xF6llaterne": "f",
+  "asche": "f",
+  "gesetz": "n",
+  "jazz": "m",
+  "miene": "f",
+  "neigung": "f",
+  "riegel": "m",
+  "sammlung": "f",
+  "sanduhr": "f",
+  "verdacht": "m",
+  "fernrohr": "n",
+  "kollegheft": "n",
+  "lineal": "n",
+  "lot": "n",
+  "pendel": "n",
+  "prisma": "n",
+  "stundenplan": "m",
+  "tafel": "f",
+  "zirkel": "m"
 };
 
 // src/generation/declension.ts
@@ -5026,6 +5044,45 @@ function archetypeAugmentList(baseList, archA, archB, key) {
   return base;
 }
 
+// src/generation/verwandlung.ts
+function geschlecht(w) {
+  const kern = (w || "").trim().split(/\s+/).pop() || "";
+  return guessGender(kern.replace(/[^A-Za-zÄÖÜäöüß]/g, ""));
+}
+function leseVerwandlungen(roh) {
+  const raus = [];
+  for (const z of roh || []) {
+    const m = String(z).split(/\s*(?:→|->|>)\s*/);
+    if (m.length !== 2) continue;
+    const von = m[0].trim(), nach = m[1].trim();
+    if (!von || !nach || von.toLowerCase() === nach.toLowerCase()) continue;
+    const g1 = geschlecht(von), g2 = geschlecht(nach);
+    if (!g1 || !g2 || g1 !== g2) continue;
+    raus.push({ von, nach });
+  }
+  return raus;
+}
+function wieGefunden(gefunden, ziel) {
+  const grossAmAnfang = /^[A-ZÄÖÜ]/.test(gefunden);
+  return grossAmAnfang ? ziel.charAt(0).toUpperCase() + ziel.slice(1) : ziel.charAt(0).toLowerCase() + ziel.slice(1);
+}
+function verwandleMotive(text, paare) {
+  if (!text || !paare.length) return text;
+  let t = text;
+  for (const { von, nach } of paare) {
+    let gesehen = 0;
+    try {
+      const re = new RegExp(`(^|[^A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])(${escapeRegExp(von)})(?![A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])`, "gi");
+      t = t.replace(re, (ganz, davor, wort) => {
+        gesehen++;
+        return gesehen === 1 ? ganz : davor + wieGefunden(wort, nach);
+      });
+    } catch {
+    }
+  }
+  return t;
+}
+
 // src/constants.ts
 var STORAGE_CORPUS = "divergenz_persistent_corpus_v1";
 
@@ -6467,14 +6524,49 @@ var BUILTIN_PRESETS = {
       "ein Kreis ohne Mittelpunkt",
       "eine Uhr, die M\xF6glichkeiten misst",
       "eine T\xFCr zwischen Sein und Werden",
-      "ein Fluss, in dem Gedanken treiben"
+      "ein Fluss, in dem Gedanken treiben",
+      "ein H\xF6rsaal, aus dem alle gegangen sind",
+      "eine Landkarte des Denkbaren",
+      "ein Satz, der sich selbst bestreitet",
+      "ein Hof, in dem zwei Schulen sich meiden",
+      "eine Treppe, die im selben Stockwerk endet",
+      "ein Wort, f\xFCr das es keinen Gegenstand gibt",
+      "ein Schatten ohne K\xF6rper",
+      "eine Bank, auf der zwei Fremde schweigen",
+      "ein Regal voller ungelesener Widerlegungen",
+      "eine H\xF6hle mit dem Ausgang nach innen",
+      "ein Beweis, den niemand nachrechnet",
+      "das Ger\xFCst eines Systems ohne Geb\xE4ude",
+      "eine Grenze, die von beiden Seiten anders aussieht",
+      "ein Faden, der aus dem Labyrinth herausf\xFChrt und hinein",
+      "eine Sammlung von Anf\xE4ngen",
+      "ein Glas, halb voll mit Definitionen",
+      "ein Nebel, in dem die Umrisse deutlicher werden",
+      "ein K\xE4fig, dessen T\xFCr nach innen aufgeht",
+      "ein Wegweiser, der auf sich selbst zeigt",
+      "eine Bibliothek, in der ein Buch fehlt"
     ],
     "hooks": [
       "Was, wenn das Offensichtliche die gr\xF6\xDFte T\xE4uschung w\xE4re?",
       "Ich wusste pl\xF6tzlich nicht mehr, was Wissen bedeutet.",
       "Eine einfache Frage bringt die Welt ins Wanken.",
       "Der Widerspruch scheint vern\xFCnftiger als die Gewissheit.",
-      "Vielleicht beginnt Wahrheit dort, wo Antworten enden."
+      "Vielleicht beginnt Wahrheit dort, wo Antworten enden.",
+      "Der Satz stimmt, und er hilft nichts.",
+      "Wer fragt, hat die Antwort schon halb ver\xE4ndert.",
+      "Zwei Menschen meinen dasselbe und streiten seit Jahren.",
+      "Das Beispiel widerlegt die Regel, an der es h\xE4ngt.",
+      "Etwas ist wahr, seit niemand mehr hinsieht.",
+      "Die Begr\xFCndung ist l\xE4nger als das, was sie begr\xFCndet.",
+      "Ein Irrtum h\xE4lt sich, weil er n\xFCtzlich ist.",
+      "Das Wort passt, aber die Sache nicht.",
+      "Was sich beweisen l\xE4sst, war ohnehin nie strittig.",
+      "Der Zweifel kommt zu sp\xE4t und trifft trotzdem.",
+      "Jemand hat recht und wei\xDF nicht, warum.",
+      "Die Ordnung stimmt, nur die Wirklichkeit nicht.",
+      "Der Widerspruch war von Anfang an eingebaut.",
+      "Am Ende der Kette h\xE4ngt niemand.",
+      "Eine Antwort steht fest und sucht ihre Frage."
     ],
     "props": [
       "ein leeres Buch",
@@ -6486,7 +6578,25 @@ var BUILTIN_PRESETS = {
       "ein Schachbrett",
       "einen Stein",
       "eine Maske",
-      "einen Schl\xFCssel"
+      "einen Schl\xFCssel",
+      "ein Kollegheft",
+      "eine Uhr ohne Zeiger",
+      "einen Zirkel",
+      "ein Fernrohr",
+      "eine Waage",
+      "einen Faden",
+      "ein Prisma",
+      "eine Tafel",
+      "einen W\xFCrfel",
+      "eine Karteikarte",
+      "ein Lot",
+      "einen Spiegel",
+      "eine Landkarte",
+      "ein Lineal",
+      "einen Zettel mit einem Wort",
+      "ein Pendel",
+      "eine Brille",
+      "einen Stundenplan"
     ],
     "turns": [
       "ein Axiom zerf\xE4llt",
@@ -6495,7 +6605,22 @@ var BUILTIN_PRESETS = {
       "zwei Gegens\xE4tze erweisen sich als identisch",
       "Zeit wird zur Illusion",
       "Freiheit widerspricht der Sicherheit",
-      "die Frage wird wichtiger als die Antwort"
+      "die Frage wird wichtiger als die Antwort",
+      "die Voraussetzung war der Schluss",
+      "das Beispiel wird zur Regel",
+      "der Streit betraf nie die Sache",
+      "die Ausnahme tr\xE4gt das Gesetz",
+      "das Werkzeug bestimmt, was gefunden wird",
+      "der Zweifel best\xE4tigt, was er pr\xFCfen sollte",
+      "die Grenze verschiebt sich, sobald man sie beschreibt",
+      "aus dem Nebensatz wird die Hauptsache",
+      "die Frage war falsch gestellt und deshalb fruchtbar",
+      "das Ganze zeigt sich als Teil",
+      "die Regel gilt, aber f\xFCr etwas anderes",
+      "der Einwand wird zum besseren Argument",
+      "die Ordnung war eine Gewohnheit",
+      "das Wissen kehrt zum Nichtwissen zur\xFCck",
+      "die Definition schlie\xDFt aus, worum es ging"
     ],
     "obstacles": [
       "ein Paradoxon blockiert den Weg",
@@ -6504,21 +6629,65 @@ var BUILTIN_PRESETS = {
       "jede L\xF6sung erzeugt eine neue Frage",
       "der Zweifel w\xE4chst",
       "Logik widerspricht Intuition",
-      "Wahrheit besitzt mehrere Gesichter"
+      "Wahrheit besitzt mehrere Gesichter",
+      "der Begriff h\xE4lt der Sache nicht stand",
+      "jeder Schritt setzt den n\xE4chsten voraus",
+      "die Regel gilt f\xFCr alle au\xDFer f\xFCr sich selbst",
+      "das Beispiel ist zu gut gew\xE4hlt",
+      "der Beweis st\xFCtzt sich auf das Bewiesene",
+      "die Erfahrung sagt das Gegenteil",
+      "es fehlt ein Wort f\xFCr das, was gemeint ist",
+      "die Zeit reicht f\xFCr das Denken nicht",
+      "wer widerlegt, muss zuerst verstehen",
+      "die Aussage l\xE4sst sich nicht pr\xFCfen",
+      "zwei Gr\xFCnde gelten und schlie\xDFen sich aus",
+      "die Sprache legt fest, bevor gedacht wird",
+      "das Naheliegende blockiert das Genaue",
+      "der Zweifel frisst auch sich selbst"
     ],
     "stakes": [
       "Der Einsatz ist Erkenntnis: Was kann ich wissen?",
       "Der Einsatz ist Freiheit: Wer entscheidet?",
       "Der Einsatz ist Identit\xE4t: Wer bin ich?",
       "Der Einsatz ist Moral: Was soll ich tun?",
-      "Der Einsatz ist Wirklichkeit: Was ist wirklich?"
+      "Der Einsatz ist Wirklichkeit: Was ist wirklich?",
+      "Der Einsatz ist Zeit: Was bleibt von einem Gedanken?",
+      "Der Einsatz ist Sprache: Reicht sie f\xFCr die Sache?",
+      "Der Einsatz ist Ordnung: Tr\xE4gt sie oder bricht sie?",
+      "Der Einsatz ist Zweifel: Wo h\xF6rt er auf?",
+      "Der Einsatz ist Verantwortung: Wer tr\xE4gt sie?",
+      "Der Einsatz ist Ma\xDF: Wonach wird gemessen?",
+      "Der Einsatz ist Grund: Wo steht der letzte?",
+      "Der Einsatz ist Grenze: Was liegt dahinter?"
     ],
     "endings": [
       "Und die Frage bleibt bestehen.",
       "Und der Zweifel wird zum Anfang.",
       "So entsteht eine neue Perspektive.",
       "Und die Wahrheit l\xE4chelt schweigend.",
-      "Und das Denken beginnt von vorn."
+      "Und das Denken beginnt von vorn.",
+      "Und das Argument bleibt liegen, wo es hinfiel.",
+      "So endet der Satz und die Frage nicht.",
+      "Und die Ordnung h\xE4lt, f\xFCr heute.",
+      "Und was \xFCbrig bleibt, l\xE4sst sich nicht widerlegen.",
+      "So beginnt das Nichtwissen von vorn.",
+      "Und der Begriff geht weiter als der, der ihn braucht.",
+      "Und die Grenze bleibt, wo sie gezogen wurde.",
+      "So bleibt eine Regel und ihr Gegenteil."
+    ],
+    "verwandlungen": [
+      "Bibliothek\u2192Sammlung",
+      "Spiegel\u2192Schatten",
+      "Labyrinth\u2192Gitter",
+      "Waage\u2192Neigung",
+      "Uhr\u2192Sanduhr",
+      "Kerze\u2192Asche",
+      "Schl\xFCssel\u2192Riegel",
+      "Maske\u2192Miene",
+      "Paradoxon\u2192Gesetz",
+      "Zweifel\u2192Verdacht",
+      "Frage\u2192Antwort",
+      "Begriff\u2192Name"
     ]
   },
   "klimakrise": {
@@ -8739,6 +8908,9 @@ function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
   return ensurePunct(out);
 }
 
+// src/types.ts
+var KEINE_KATEGORIE = /* @__PURE__ */ new Set(["verwandlungen"]);
+
 // src/atoms/templates.data.json
 var templates_data_default = {
   erzeugt_am: "2026-08-05",
@@ -9736,6 +9908,7 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
   }
   for (const [kat, arr] of Object.entries(bank)) {
     if (!Array.isArray(arr)) continue;
+    if (KEINE_KATEGORIE.has(kat)) continue;
     for (const t of arr) {
       const d = deriveAtom(t);
       pool.push({
@@ -12171,7 +12344,10 @@ function buildStory(bank, input, model) {
   }
   if (input.form === "strang") return asStrang(finalText, anchor, lenTarget);
   if (input.form === "drama") return asDrama(finalText, kit.speakerA, kit.speakerB || kit.P);
-  return entferneDubletten(enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix"));
+  return verwandleMotive(
+    entferneDubletten(enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix")),
+    leseVerwandlungen(bank.verwandlungen)
+  );
 }
 
 // src/presets.drama.data.ts

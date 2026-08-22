@@ -14,6 +14,7 @@ import { archetypeAugmentList } from "./archetype";
 import { extractLeadVerb, looksLikeFullClause, splitSpeakers, personKopf } from "./wordcls";
 import { declineHookPhrase, ensureArticle } from "./declension";
 import { applyDisruptor, applyRhythm, applyTension, paragraphize, applyPerspective, pronominalize, guessPronoun, entferneDubletten } from "./shape";
+import { verwandleMotive, leseVerwandlungen } from "./verwandlung";
 import { MarkovModel, isSaneMarkov, smoothMarkov } from "../corpus";
 import { biasedAutoChoice } from "./autochoice";
 import { buildVideoSequenceText } from "./video";
@@ -194,5 +195,10 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   // an und kann dabei denselben Satz zweimal nebeneinander stellen. Gemessen war
   // das die Hauptquelle der Satzdubletten — vor dem Auffüllen zu putzen half
   // fast nichts.
-  return entferneDubletten(enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix"));
+  // Motivverwandlung ganz zum Schluss: Sie zählt Vorkommen im FERTIGEN Text.
+  // Vorher gezählt, würde die Längenauffüllung ihr Material nachliefern und die
+  // Zählung wäre falsch.
+  return verwandleMotive(
+    entferneDubletten(enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix")),
+    leseVerwandlungen(bank.verwandlungen));
 }

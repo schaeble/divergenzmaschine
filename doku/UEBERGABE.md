@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.273.0**, Zweig `typescript-migration`.
+Stand: **v4.274.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,45 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Gebaut (4.274.0): **Motivverwandlung — das erste Feld einer „Narrative DNA".**
+
+Vorgelegt war ein DNA-Format mit vierzig Feldern. Gezählt trägt es **26
+einsetzbare Wörter**, ein Preset im Median **270** — als Antwort auf fehlende
+Masse taugt es also nicht. Es ist Steuerung, keine Sprache.
+
+Genommen wurde das eine Feld, das reines MATERIAL ist statt einer Regel in
+Prosa: `motivrekursion.transformation`. Eine Liste von Paaren kann man
+aufschreiben und ausführen; „Ein Zufall erzeugt mindestens zwei neue Fragen"
+kann man nicht.
+
+**Wie es arbeitet:** `bank.verwandlungen` trägt Paare („Bibliothek→Sammlung").
+Kehrt ein Motiv wieder, wird es beim ZWEITEN Mal zu seinem Ziel — das erste
+bleibt, denn ohne Einführung ist die Verwandlung keine. Gemessen: In 85 % der
+Texte kommt mindestens ein Motivwort doppelt vor, und die Verwandlung greift in
+**87 % der Texte, rund zweimal je Text**.
+
+**Die harte Bedingung: beide Wörter brauchen dasselbe Geschlecht.** Sonst steht
+„das Stille" im Text — der Artikel davor wird nicht mitverwandelt. Ihn
+mitzuändern ginge nur halb: Aus „das" ließe sich nicht ablesen, ob Nominativ
+oder Akkusativ gemeint war, und bei maskulinen Zielen unterscheiden die sich.
+Ein Paar, das nur manchmal stimmt, wird deshalb abgelehnt — mit Begründung
+(`pruefePaar`). Von den fünf Paaren des Vorschlags kämen drei nicht durch.
+
+**`verwandlungen` ist KEINE Bank-Kategorie.** `KEINE_KATEGORIE` in `types.ts`
+nimmt sie überall aus, wo über die Kategorien gelaufen wird — sonst stünde
+„Bibliothek→Sammlung" als Satz im Blatt. Auto-Mix und Mehrfachauswahl führen sie
+mit.
+
+**Und: Philosophie hat Masse bekommen.** 48 → **147 Einträge** (828 Wörter),
+jede Kategorie mindestens verdoppelt, dazu zwölf Verwandlungen. Das ist das
+erste Preset über 100; der Median der übrigen liegt weiter bei 48.
+
+**Nebenbei:** Die Prüfung aus 4.266 („jedes Preset-Nomen hat ein Geschlecht")
+hat sofort angeschlagen — sechs der neuen Requisiten fehlten in der Tabelle.
+Genau dafür ist sie da.
+
+**Neu:** `test/verwandlung.ts`, 42 Prüfungen, vier Gegenproben.
 
 Gefragt (4.273.0): **„Wie können denn die Regler unter 2,5 zu stärkeren
 Ausschlägen kommen?"** Zwei Antworten, beide gemessen — und die erste war ein
