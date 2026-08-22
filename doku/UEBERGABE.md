@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.272.0**, Zweig `typescript-migration`.
+Stand: **v4.273.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,52 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Gefragt (4.273.0): **„Wie können denn die Regler unter 2,5 zu stärkeren
+Ausschlägen kommen?"** Zwei Antworten, beide gemessen — und die erste war ein
+Fehler im Instrument, nicht in den Reglern.
+
+**1 · Der Wirkungsmesser drehte an Stellungen, die es nicht gibt.**
+`reglerListe()` hatte eine ABGESCHRIEBENE Liste, und sie war veraltet:
+
+| Regler | gemessen | wirklich | falsch |
+|---|---|---|---|
+| Disruptor | none, cut, echo, swap | auto, off, on | **4 von 4** |
+| Archetyp A | neutral, wanderer, waechter, trickster, schoepfer | neutral, skorpion, psychopath, entdecker | **4 von 5** |
+| Ton | … melancholic, ironic … | … melancholisch, ironisch … | 2 von 6 |
+| Markov | off, mix, strong | off, mix, on | 1 von 3 |
+| Perspektive | … split | (kein split) | 1 von 6 |
+
+Der Generator machte aus jeder unbekannten Stellung dasselbe — der Regler war
+also eine zweite Blindprobe. Disruptor: **1,25 mit den erfundenen Stellungen,
+3,34 mit den echten.**
+
+Die Stellungen kommen jetzt aus `optionen.ts`, derselben Quelle wie die
+Auswahlfelder. „auto" fällt weg: Es würfelt selbst und verschmiert die Messung.
+
+**2 · Die Zahl der Läufe.** Die Blindprobe im Bild des Benutzers stand bei 2,46
+— sie lag also selbst im Wirkungsband, und alles darunter war nicht schwach,
+sondern ununterscheidbar. Gemessen, fünf Wiederholungen je Stufe:
+
+| Läufe | Blindprobe (Median) | Spanne |
+|---|---|---|
+| 14 | 2,10 | 1,33–2,33 |
+| 24 | 2,06 | 1,49–2,89 |
+| 40 | **1,74** | 1,14–2,09 |
+| 60 | 1,72 | 1,31–2,00 |
+
+Vorgabe deshalb 40 statt 24, dazu die Stufe 90. Und der Hinweis unter dem
+Ergebnis sagt jetzt, was zu tun ist, statt nur zu warnen.
+
+**Was bleibt:** Modus (1,40) und Struktur (1,72) liegen auch mit richtigen
+Stellungen und vielen Läufen nahe am Rauschen. Das ist kein Fehler des
+Instruments — die neun Maße sehen schlicht nicht, was diese Regler tun. Ein Maß
+dafür zu erfinden wäre der falsche Weg: „Ein Maß, das nur für dieses Instrument
+erfunden wird, misst das Instrument."
+
+**Neu am Prüfstand Wirkungsmesser:** Jede gemessene Stellung muss in der
+Optionsliste stehen — die Prüfung, die den abgeschriebenen Stand verhindert
+hätte. 22 → 53 Prüfungen, zwei Gegenproben.
 
 Gewünscht und gebaut (4.272.0): **Themenpool im Sammler — 4W aus Wikidata.**
 

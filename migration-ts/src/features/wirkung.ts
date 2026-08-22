@@ -21,6 +21,8 @@
 // Gemessen wird mit den Maßen, die es schon gibt. Kein neues Qualitätsmaß:
 // Ein Maß, das nur für dieses Instrument erfunden wird, misst das Instrument.
 import type { Bank, GenInput } from "../types";
+import { TONE_OPTS, STRUCTURE_OPTS, MODE_OPTS, PERSP_OPTS, RHYTHM_OPTS,
+  VARIANZ_OPTS, DISRUPTOR_OPTS, ARCH_OPTS, MARKOV_OPTS, werte, type Wahlliste } from "../generation/optionen";
 import { buildStory } from "../generation/buildStory";
 import { analyzeText, repetitionRatio } from "../generation/scoring";
 import { phraseRepeatRatio, tenseBreakRatio, perspectiveBreakRatio, castSpread } from "../generation/coherence";
@@ -183,16 +185,32 @@ export const BAND_LABEL: Record<Band, string> = {
 export function reglerListe(): ReglerDef[] {
   const s = (id: string, label: string, werte: string[], feld: keyof GenInput): ReglerDef =>
     ({ id, label, werte, setzen: (e, w) => ({ ...e, [feld]: w }) });
+  // Die Stellungen kommen aus DERSELBEN Quelle wie die Auswahlfelder der
+  // Oberfläche. Vorher stand hier eine abgeschriebene Liste, und sie war
+  // veraltet: Der Disruptor wurde mit „none, cut, echo, swap" gemessen, während
+  // die App „auto, off, on" führt — VIER von vier Stellungen gab es nicht. Der
+  // Generator machte aus allen dasselbe, und der Regler erschien als tot.
+  // Gemessen: 1,25 mit den erfundenen Stellungen, 3,34 mit den echten.
+  //
+  // Ebenso „strong" bei Markov, „split" bei der Perspektive, vier von fünf
+  // Archetypen und zwei von sechs Tönen („melancholic" statt „melancholisch").
+  //
+  // „auto" fällt weg: Es würfelt selbst und verschmiert damit die Messung —
+  // eine Stellung, die zufällig eine andere ist, hat keinen eigenen Ausschlag.
+  const ohneAuto = (l: Wahlliste): string[] => werte(l).filter((w) => w !== "auto");
+  // Struktur nur die fünf Erzählformen: „rekombination" und „dramaturgie"
+  // liegen als eigene Bauwege daneben, „auto" würfelt.
+  const strukturen = ohneAuto(STRUCTURE_OPTS).filter((w) => w !== "rekombination" && w !== "dramaturgie");
   return [
-    s("tone", "Ton", ["neutral", "dark", "uplifting", "melancholic", "ironic", "humorous"], "tone"),
-    s("structure", "Struktur", ["linear", "reverse", "circle", "fragment", "object"], "structure"),
-    s("mode", "Modus", ["bureau", "tech", "body", "myth", "absurd", "post"], "mode"),
-    s("perspective", "Perspektive", ["third", "first", "second", "we", "object", "split"], "perspective"),
-    s("rhythm", "Rhythmus", ["breath", "staccato", "long", "fracture", "clean"], "rhythm"),
-    s("varLevel", "Varianz", ["low", "mid", "high"], "varLevel"),
-    s("markovMode", "Markov", ["off", "mix", "strong"], "markovMode"),
-    s("disruptor", "Disruptor", ["none", "cut", "echo", "swap"], "disruptor"),
-    s("archetypeA", "Archetyp A", ["neutral", "wanderer", "waechter", "trickster", "schoepfer"], "archetypeA"),
+    s("tone", "Ton", ohneAuto(TONE_OPTS), "tone"),
+    s("structure", "Struktur", strukturen, "structure"),
+    s("mode", "Modus", ohneAuto(MODE_OPTS), "mode"),
+    s("perspective", "Perspektive", ohneAuto(PERSP_OPTS), "perspective"),
+    s("rhythm", "Rhythmus", ohneAuto(RHYTHM_OPTS), "rhythm"),
+    s("varLevel", "Varianz", ohneAuto(VARIANZ_OPTS), "varLevel"),
+    s("markovMode", "Markov", ohneAuto(MARKOV_OPTS), "markovMode"),
+    s("disruptor", "Disruptor", ohneAuto(DISRUPTOR_OPTS), "disruptor"),
+    s("archetypeA", "Archetyp A", ohneAuto(ARCH_OPTS), "archetypeA"),
     {
       id: "instability", label: "Instabilität", werte: ["0", "1", "2"],
       setzen: (e, w) => ({ ...e, instability: Number(w) as 0 | 1 | 2 }),

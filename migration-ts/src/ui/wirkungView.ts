@@ -58,7 +58,11 @@ export function mountWirkung(): HTMLElement {
   ], "prose");
   // Vorgabe 24: Bei 14 lag die Blindprobe so nah an den Wirkungsbändern, dass
   // die Zahlen darüber nicht mehr zu trauen waren.
-  const nSel = select("wm-n", [["14", "14"], ["24", "24"], ["40", "40"], ["60", "60"]], "24");
+  // Vorgabe 40 statt 24. Gemessen liegt die Blindprobe bei 24 Läufen im Median
+  // bei 2,06 und schwankt zwischen 1,49 und 2,89 — sie steht damit selbst im
+  // Wirkungsband, und alles darunter ist nicht schwach, sondern ununterscheidbar.
+  // Bei 40 fällt sie auf 1,74 (Spanne 1,14–2,09).
+  const nSel = select("wm-n", [["14", "14"], ["24", "24"], ["40", "40"], ["60", "60"], ["90", "90"]], "40");
   const startBtn = el("button", { class: "primary" }, icon("play"), " Messen") as HTMLButtonElement;
   const status = el("span", { class: "muted mini" }, "");
   const balken = el("div", { class: "wm-fortschritt" }, el("div", { class: "wm-fuellung" }));
@@ -159,7 +163,10 @@ export function mountWirkung(): HTMLElement {
       zeichne(mess);
       const blind = mess.find((x) => x.id === "blindprobe");
       status.textContent = `${aufgaben.length} Stellungen · ${aufgaben.length * N} Texte`
-        + (blind ? ` · Blindprobe ${blind.wirkung.toFixed(2)}${blind.wirkung >= 2.5 ? " — ACHTUNG: Zufallsniveau im Wirkungsband, mehr Läufe nötig" : ""}` : "")
+        + (blind ? ` · Blindprobe ${blind.wirkung.toFixed(2)}${
+          blind.wirkung >= 2.5 ? " — ACHTUNG: Zufallsniveau im Wirkungsband. Alles unter dieser Zahl ist nicht schwach, sondern noch nicht messbar — mehr Läufe wählen."
+          : blind.wirkung >= 2.0 ? " — hoch. Regler knapp darüber sind noch nicht belegt; mit mehr Läufen wird das Bild schärfer."
+          : ""}` : "")
         + (model ? "" : " · Korpus zu klein: Markov kann nicht wirken");
       startBtn.disabled = false;
     };

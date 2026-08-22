@@ -16,6 +16,8 @@ const st: Record<string, string> = {};
 import { misseStellung, fasseZusammen, reglerListe, misseText, band, spannErwartung, MASSE, type ReglerDef } from "../src/features/wirkung";
 import { BUILTIN_PRESETS } from "../src/presets.data";
 import type { Bank, GenInput } from "../src/types";
+import { TONE_OPTS, STRUCTURE_OPTS, MODE_OPTS, PERSP_OPTS, RHYTHM_OPTS,
+  VARIANZ_OPTS, DISRUPTOR_OPTS, ARCH_OPTS, MARKOV_OPTS, werte } from "../src/generation/optionen";
 
 const bank = BUILTIN_PRESETS["standard"] as Bank || Object.values(BUILTIN_PRESETS)[0] as Bank;
 const basis: GenInput = {
@@ -124,6 +126,34 @@ wahr("10 bewegt stark", band(10) === "stark");
 wahr("Unsinn gilt als Rauschen", band(NaN) === "rauschen");
 
 wahr("die Form fällt ins starke Band", band(form.wirkung) === "stark");
+
+// ── Jede gemessene Stellung muss es auch geben ────────────────────────────
+// Der Wirkungsmesser hatte eine ABGESCHRIEBENE Liste der Reglerstellungen, und
+// sie war veraltet: Der Disruptor wurde mit „none, cut, echo, swap" gemessen,
+// während die App „auto, off, on" führt — vier von vier Stellungen gab es
+// nicht. Der Generator machte aus allen dasselbe, und der Regler erschien als
+// tot (1,25). Mit den echten Stellungen: 3,34.
+//
+// Diese Prüfung ist der Grund, warum das nicht wiederkommt: Die Stellungen
+// müssen aus derselben Quelle stammen wie die Auswahlfelder der Oberfläche.
+{
+  const QUELLE: Record<string, string[]> = {
+    tone: werte(TONE_OPTS), structure: werte(STRUCTURE_OPTS), mode: werte(MODE_OPTS),
+    perspective: werte(PERSP_OPTS), rhythm: werte(RHYTHM_OPTS), varLevel: werte(VARIANZ_OPTS),
+    markovMode: werte(MARKOV_OPTS), disruptor: werte(DISRUPTOR_OPTS), archetypeA: werte(ARCH_OPTS),
+    instability: ["0", "1", "2"],
+  };
+  for (const r of reglerListe()) {
+    const q = QUELLE[r.id];
+    if (!q) continue;                       // die Blindprobe hat keine Quelle
+    const fremd = r.werte.filter((w) => !q.includes(w));
+    wahr(`${r.label}: jede gemessene Stellung gibt es`, fremd.length === 0, fremd.join(", "));
+    wahr(`${r.label}: mindestens zwei Stellungen`, r.werte.length >= 2);
+    // „auto" würfelt selbst und verschmiert die Messung.
+    wahr(`${r.label}: ohne auto`, !r.werte.includes("auto"));
+  }
+  wahr("es gibt eine Blindprobe", reglerListe().some((r) => r.id === "blindprobe"));
+}
 
 console.log("Prüfstand Wirkungsmesser:");
 zeilen.forEach((z) => console.log(z));
