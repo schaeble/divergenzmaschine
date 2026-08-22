@@ -43,7 +43,9 @@ var MUSS = [
   ["die Musterseite", "Musterseite"],
   ["das Bild auf der Zeitungsseite", "Bild einf\xFCgen"],
   ["der Wirkungsmesser", "Wirkungsmesser"],
-  ["die Blindprobe", "Blindprobe"]
+  ["die Blindprobe", "Blindprobe"],
+  ["den Themenpool", "Themenpool"],
+  ["die Taste Thema", '["Thema", P(']
 ];
 for (const [was, marke] of MUSS) wahr(`die Hilfe erkl\xE4rt ${was}`, hilfe.includes(marke));
 var kaputt = Array.from(hilfe.matchAll(/„[^"„“\n]{0,160}"/g)).map((m) => m[0].slice(0, 40));

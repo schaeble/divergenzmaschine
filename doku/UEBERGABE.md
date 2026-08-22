@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.271.1**, Zweig `typescript-migration`.
+Stand: **v4.272.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,53 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Gewünscht und gebaut (4.272.0): **Themenpool im Sammler — 4W aus Wikidata.**
+
+Gefragt war ein Themenpool („berühmte Filme und ihre Protagonisten,
+Persönlichkeiten aus der Politik"), gefüllt über die KI, und dazu: „Oder kann
+ich das kostenlos über einen Prompt über Wiki generieren?"
+
+**Antwort: kostenlos ja — aber nicht mit einem Prompt, sondern mit Wikidata.**
+Dort steht dieselbe Wissensbasis wie hinter Wikipedia, nur STRUKTURIERT: Beruf,
+Geburtsort, Jahr, Werk als eigene Felder. Genau die vier W, ohne dass sie aus
+einem Fließtext geraten werden müssen — derselbe Grundsatz, nach dem schon der
+Tagesfeed zerlegt wird.
+
+Drei Gründe, warum das der KI vorzuziehen ist:
+
+* Jeder Eintrag trägt eine **Q-Nummer**. Man kann nachsehen, ob es die Person
+  gibt. Ein Sprachmodell erfindet plausible Namen — für einen Pool, der echte
+  Menschen enthalten soll, ist das der schlechteste Tausch.
+* Es kostet nichts und braucht keinen Schlüssel.
+* Die Felder kommen fertig getrennt, statt aus Prosa geschätzt zu werden.
+
+Der Preis: Es gibt nur die Themen, für die eine Abfrage hinterlegt ist. Acht
+sind es (Filmfiguren, Regie, Politik, Erfindungen, Musik, Entdeckungen,
+Literatur, Bauwerke); SPARQL schreibt man nicht nebenbei.
+
+**Neu:** `features/themenpool.ts` (Abfragen, Zerlegung, eigener Vorrat, Deckel
+400), `ui/themenpoolView.ts` (Abschnitt im Sammler), Taste „Thema" im Studio und
+der Pool als **vierte Quelle** in `offeneQuellen`/`ziehQuelle`.
+
+**Entwurfsentscheidung, die beim Messen entstand:** Je Thema ein eigenes
+Handlungsverb (`wasSatz`). Ein allgemeines trug nicht — „arbeitet an Die
+Dreigroschenoper" hatte den Kasus verfehlt, und eine Filmfigur „arbeitet" nicht
+an ihrem Film. Jetzt: „schreibt „X"", „dreht „X"", „ersinnt X", „ist X".
+Werktitel stehen in Anführungszeichen, dann müssen sie nicht gebeugt werden.
+
+**Drei Fallen der Wikidata-Antwort, alle geprüft:** Ohne Beschriftung liefert
+sie die nackte Q-Nummer zurück (die gehört nicht in einen Text); dieselbe Zeile
+kommt mehrfach, sobald eine optionale Angabe mehrere Werte hat; und Jahre vor
+Christus stehen negativ da.
+
+**Ungeprüft und nicht prüfbar:** ob Wikidata antwortet. Der Sandkasten dieses
+Bauraums kommt nicht ins Wikimedia-Netz — dasselbe gilt seit jeher für den
+Tagesfeed. Geprüft ist die Zerlegung gegen nachgebildete Antworten, die Form
+der Abfragen, der Vorrat und das Ziehen. Ein grüner Lauf sagt nichts über den
+Dienst; das sieht nur der Browser.
+
+**Neu:** `test/themenpool.ts`, 114 Prüfungen, vier Gegenproben.
 
 Gemeldet und behoben (4.271.1): **„Die Schrift in den Shots ist kaum lesbar."**
 `.kling-shot span` hatte `color:#e7ebf2` fest in der Regel — den Textton des

@@ -16,6 +16,7 @@ import {
 import { appendToPersistentCorpus, loadPersistentCorpus } from "../corpus";
 import { baueBildsammler } from "./bildsammlerView";
 import { baueAbschrift } from "./abschriftView";
+import { baueThemenpool } from "./themenpoolView";
 
 const WAHL_KEY = "divergenz_sammler_quellen_v1";
 
@@ -139,6 +140,7 @@ export function mountSammler(root: HTMLElement): void {
   // Die Abschrift zuletzt: Sie ist das Gegenteil des Bildsammlers — nichts wird
   // formuliert und nichts gefiltert — und liefert Text am Stueck statt 4W.
   wrap.append(baueAbschrift());
+  wrap.append(baueThemenpool());
   root.append(wrap);
 
   // ── Zustand ──────────────────────────────────────────────────────────────

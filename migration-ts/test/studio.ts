@@ -233,6 +233,13 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
     if (stil) stilWerte.add(stil.value);
   }
   ist("alle drei Quellen kommen im Studio vor", [...quellen].sort().join(","), "Abschrift,Welt,Wiki");
+  // Die vierte Quelle: der Themenpool. Er ist in diesem Lauf leer und darf
+  // deshalb NICHT vorkommen — eine leere Quelle zu ziehen hieße, dass der Knopf
+  // mal wirkt und mal nicht.
+  wahr("der leere Themenpool kommt nicht in den Topf", !quellen.has("Thema"));
+  // Und die Taste dazu gibt es.
+  wahr("es gibt eine Taste „Thema“",
+    !!Array.from(wurzel2.querySelectorAll("button")).find((b) => /^\s*Thema\s*$/.test(b.textContent || "")));
   // Gemessen statt im Quelltext nachgelesen: Der Knopf würfelt die Stilregler mit.
   wahr(`und die Stilregler werden mitgewürfelt (${stilWerte.size} Töne)`, stilWerte.size >= 3);
 }

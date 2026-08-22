@@ -17,6 +17,7 @@ import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
 import { ziehVorrat, vorratStand, type VorratFund } from "../features/wikisammler";
 import { ziehBildvorrat, ladeBildvorrat, type BildFund } from "../features/bildsammler";
+import { ziehThema, themenStand } from "../features/themenpool";
 import { normWhere, normWhen, normWho, rateWhere, rateWhen, rateWho } from "../generation/ctxnorm";
 import { getTraceFor, fuegeteilAnteil } from "../atoms/trace";
 import { saveSchnappschuss, loadSchnappschuss } from "../features/sources";
@@ -134,7 +135,7 @@ export function mountStudio(root: HTMLElement): void {
     // Die Quelle wird mitgewürfelt: Welt, Wiki-Vorrat oder Bildvorrat, je
     // nachdem, was gefüllt ist. Welche es war, sagt die Zeile darunter — sonst
     // wüsste man bei vier gleichen Feldern nicht, ob der Vorrat leer war.
-    const quelle = ziehQuelle(offeneQuellen(vorratStand().funde, ladeBildvorrat().length));
+    const quelle = ziehQuelle(offeneQuellen(vorratStand().funde, ladeBildvorrat().length, themenStand().funde));
     let vorschlag: Partial<Record<W4, string>> = {};
     let woher: string = QUELLE_LABEL[quelle];
     if (quelle === "wiki") {
@@ -143,6 +144,9 @@ export function mountStudio(root: HTMLElement): void {
     } else if (quelle === "abschrift") {
       const f = ziehBildvorrat();
       if (f) { vorschlag = f.ctx; woher = `Abschrift · ${f.name}`; } else vorschlag = worldFillContext();
+    } else if (quelle === "thema") {
+      const f = ziehThema();
+      if (f) { vorschlag = f.ctx; woher = `Thema · ${f.themaLabel}`; } else vorschlag = worldFillContext();
     } else {
       vorschlag = worldFillContext();
     }
@@ -158,7 +162,7 @@ export function mountStudio(root: HTMLElement): void {
     wikiHint.textContent = bewegt.length ? `${woher}: ${bewegt.length} von 4 Feldern`
       : alleZu ? "alle vier Felder sind gesperrt"
       : `${woher}: nichts Neues dabei`;
-    wikiTitel(); abschriftTitel();
+    wikiTitel(); abschriftTitel(); themaTitel();
     updHints(); ctxSichern();
     rolling = true; ROLL_SELECTS.forEach(rollSel); rolling = false;
     renderPresetChecks();
@@ -192,6 +196,29 @@ export function mountStudio(root: HTMLElement): void {
   // Wikipedia gibt Ereignisse, ein Foto gibt Dinge und Orte. In einem Topf
   // zoege man mal das eine und mal das andere, ohne zu wissen, was kommt.
   // Greift ebenfalls NICHT ins Netz: Was der Bildsammler abgelegt hat, ist da.
+  // Themen-Taste: derselbe Griff wie „Wiki" und „Abschrift", nur aus dem
+  // Themenpool des Sammlers — Personen und ihre Werke, aus Wikidata geholt.
+  // Greift ebenfalls NICHT ins Netz: Was im Pool liegt, ist da.
+  const themaBtn = el("button", {}, icon("book"), " Thema");
+  const themaTitel = (): void => {
+    const st = themenStand();
+    themaBtn.title = st.funde
+      ? `Zufälliger Fund aus dem Themenpool (${st.funde} Funde aus ${st.themen} ${st.themen === 1 ? "Thema" : "Themen"}) — ohne Netz`
+      : "Der Themenpool ist leer — im Reiter „Sammler“ unter „Themenpool“ ein Thema holen";
+  };
+  themaTitel();
+  themaBtn.addEventListener("click", () => {
+    const f = ziehThema();
+    if (!f) {
+      wikiHint.textContent = "Themenpool leer — im Reiter „Sammler“ unter „Themenpool“ ein Thema holen";
+      return;
+    }
+    const setz = (inp: HTMLInputElement, v: string): void => { if (v && !locked.has(inp.id)) inp.value = v; };
+    setz(where, f.ctx.where); setz(when, f.ctx.when); setz(who, f.ctx.who); setz(what, f.ctx.what);
+    wikiHint.textContent = `${f.themaLabel}: ${f.titel}`;
+    updHints(); ctxSichern(); themaTitel();
+  });
+
   const abschriftBtn = el("button", {}, icon("book"), " Abschrift");
   const abschriftTitel = (): void => {
     const n = ladeBildvorrat().length;
@@ -314,7 +341,7 @@ export function mountStudio(root: HTMLElement): void {
         el("span", { class: "hilfe", title: "Begriffe, Wörter, Zahlenkombinationen oder Zeichen. Sie erzeugen keinen Text — sie richten die Auswahl: Nahrung bevorzugt Fassungen, die sie aufnehmen, Gift bevorzugt Fassungen, die sie meiden. Wirkt nur bei eingeschalteter Bestenauslese." }, "Umwelt"),
         umweltSel),
       umweltIn, umweltHint),
-    el("div", { class: "btnrow" }, ctxDice, alleBtn, wikiBtn, abschriftBtn, ctxKeep, wikiHint));
+    el("div", { class: "btnrow" }, ctxDice, alleBtn, wikiBtn, abschriftBtn, themaBtn, ctxKeep, wikiHint));
 
   const lockBar = el("div", { class: "lockbar" });
   const preset = select("f-preset", markedPresetOptions());

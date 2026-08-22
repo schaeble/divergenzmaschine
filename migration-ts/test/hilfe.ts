@@ -64,6 +64,8 @@ const MUSS: [string, string][] = [
   ["das Bild auf der Zeitungsseite", "Bild einfügen"],
   ["der Wirkungsmesser", "Wirkungsmesser"],
   ["die Blindprobe", "Blindprobe"],
+  ["den Themenpool", "Themenpool"],
+  ["die Taste Thema", '["Thema", P('],
 ];
 for (const [was, marke] of MUSS) wahr(`die Hilfe erklärt ${was}`, hilfe.includes(marke));
 

@@ -52,17 +52,18 @@ export function geaendert(
 // nur mit gefülltem Vorrat in den Topf — eine leere Quelle zu ziehen hieße, dass
 // der Knopf mal wirkt und mal nicht, ohne dass man sähe, warum.
 
-export const QUELLEN = ["welt", "wiki", "abschrift"] as const;
+export const QUELLEN = ["welt", "wiki", "abschrift", "thema"] as const;
 export type Quelle = typeof QUELLEN[number];
 export const QUELLE_LABEL: Record<Quelle, string> = {
-  welt: "Welt", wiki: "Wiki", abschrift: "Abschrift",
+  welt: "Welt", wiki: "Wiki", abschrift: "Abschrift", thema: "Thema",
 };
 
 /** Welche Quellen stehen bereit? */
-export function offeneQuellen(wikiFunde: number, bildFunde: number): Quelle[] {
+export function offeneQuellen(wikiFunde: number, bildFunde: number, themaFunde = 0): Quelle[] {
   const raus: Quelle[] = ["welt"];
   if (wikiFunde > 0) raus.push("wiki");
   if (bildFunde > 0) raus.push("abschrift");
+  if (themaFunde > 0) raus.push("thema");
   return raus;
 }
 

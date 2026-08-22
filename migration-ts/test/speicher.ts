@@ -68,7 +68,8 @@ wahr("der Korpus wandert mit", p.find((x) => x.key === "divergenz_persistent_cor
 wahr("die Schatzkammer wandert mit — trotz REST_AUSNAHME",
   p.find((x) => x.key === "dm_treasury_v1")!.wandert);
 ist("ein fremder Schlüssel wandert nicht", p.find((x) => x.key === "fremder_schluessel")!.wandert, false);
-for (const k of ["divergenz_settings_v1", "divergenz_live_pools_v1", "dm_knobs_v1", "dm_umwelt_v1"]) {
+for (const k of ["divergenz_settings_v1", "divergenz_live_pools_v1", "dm_knobs_v1", "dm_umwelt_v1",
+  "divergenz_sammler_vorrat_v1", "divergenz_bildvorrat_v1", "divergenz_themenpool_v1"]) {
   wahr(`„${k}" wandert mit`, schluesselePosten([[k, "x"]])[0]!.wandert);
 }
 
