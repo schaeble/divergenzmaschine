@@ -170,11 +170,17 @@ ist("ohne Paare bleibt alles", verwandleMotive("Der Regen fällt.", []), "Der Re
 // steht hier, damit er sichtbar bleibt — und was einmal ausgebaut ist, darf
 // nicht wieder schrumpfen.
 {
-  const gross = Object.keys(BUILTIN_PRESETS).filter((id) => {
+  // 4.280.0: Das Maß ist die WORTZAHL, nicht die Eintragszahl. Bis hierher zählte
+  // diese Zeile Einträge und hat damit „goethe" (119 Einträge, 821 Wörter) als
+  // nicht ausgebaut geführt und ein Preset mit 120 kurzen Brocken als ausgebaut.
+  // Gemessen sagt die Eintragszahl nichts voraus, sobald die Wörter bekannt sind.
+  const woerterVon = (id: string): number => {
     const b = BUILTIN_PRESETS[id] as Bank;
-    return BANK_KEYS.reduce((s, k) => s + (b[k] || []).length, 0) >= 120;
-  });
-  console.log(`  Ausgebaut (120+): ${gross.length} von ${Object.keys(BUILTIN_PRESETS).length} — ${gross.join(", ")}`);
+    return BANK_KEYS.reduce((s, k) => s + (b[k] || []).reduce(
+      (t, e) => t + String(e).split(/\s+/).filter(Boolean).length, 0), 0);
+  };
+  const gross = Object.keys(BUILTIN_PRESETS).filter((id) => woerterVon(id) >= 800);
+  console.log(`  Ausgebaut (800+ Wörter): ${gross.length} von ${Object.keys(BUILTIN_PRESETS).length} — ${gross.join(", ")}`);
   // NACHTRAG 4.277.0: Die Zahl 120 zählt Einträge und sagt wenig voraus. Über
   // diese Presets gemessen liegt der Zusammenhang zwischen der WORTZAHL der Bank
   // und der erreichten Berichtslänge bei r = 0,80, der zwischen Eintragszahl und
@@ -182,13 +188,7 @@ ist("ohne Paare bleibt alles", verwandleMotive("Der Regen fällt.", []), "Der Re
   // 128 Einträge, 923 Wörter, 108 %. Rund 850 Wörter braucht ein Preset für
   // volle Treue — sieben je Eintrag. Die Zahl steht seit 4.277.0 im KI-Auftrag.
   {
-    const arm = gross.map((n) => {
-      const b = BUILTIN_PRESETS[n] as Bank;
-      let w = 0;
-      for (const [k, v] of Object.entries(b)) { if (k === "verwandlungen") continue;
-        for (const e of v as string[]) w += String(e).split(/\s+/).filter(Boolean).length; }
-      return { n, w };
-    }).sort((a, b) => a.w - b.w);
+    const arm = gross.map((n) => ({ n, w: woerterVon(n) })).sort((a, b) => a.w - b.w);
     console.log(`  Wortzahl der ausgebauten Presets: ${arm[0]!.w} bis ${arm[arm.length - 1]!.w}` +
       ` — am dünnsten ${arm.slice(0, 3).map((x) => `${x.n} (${x.w})`).join(", ")}`);
     // NACHTRAG 4.278.0: Die fünf dünnsten wurden nachverdichtet, und dabei wurde

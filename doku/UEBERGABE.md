@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.279.0**, Zweig `typescript-migration`.
+Stand: **v4.280.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,42 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Sechster Stapel (4.280.0): **6 weitere Presets — und der Zähler wurde ehrlich
+gemacht.**
+
+| Preset | Einträge | Wörter | Bericht 450 | Prosa 400 | kürzester Lauf |
+|---|---|---|---|---|---|
+| liebesromane | 117 | 886 | 105,3 % | 95,4 % | 371 |
+| christentum | 130 | 869 | 99,3 % | 95,5 % | 352 |
+| baudelaire | 124 | 866 | 104,4 % | 91,9 % | 306 |
+| gaia | 127 | 851 | 99,8 % | 93,9 % | 350 |
+| goethe | 119 | 821 | 104,2 % | 96,6 % | 349 |
+| absurd | 124 | 814 | 100,5 % | 94,8 % | 340 |
+
+**Der Prüfstand zählt jetzt Wörter statt Einträge — und der Stand fällt von 31
+auf 23 von 51.** Das ist keine Verschlechterung, sondern die Korrektur eines
+falschen Maßes. „goethe" hat 119 Einträge und 821 Wörter und galt bis eben als
+nicht ausgebaut; „geologie" hat 129 Einträge und 688 Wörter und galt als fertig.
+Seit 4.279.0 ist gemessen, dass die Eintragszahl nichts vorhersagt, sobald die
+Wörter bekannt sind — also darf sie auch nicht mehr die Liste führen. Schwelle:
+**800 Wörter.**
+
+Damit stehen als Nächstes nicht nur die 20 unausgebauten an, sondern auch die
+zwölf, die nach altem Maß fertig waren und nach neuem nicht: geologie (688),
+freud (695), biologie (710), hunger (712), mystery (737), haute_couture (739),
+bureau (749), jugendsprache (765), hafen (770), kafka (791), alltag (794),
+astrologie (722).
+
+**Die Regel aus 4.279.0 gleich angewandt.** „gaia" und „absurd" trugen genau die
+Bruchstücke, die bei „hugo" den Zusammenbau abgewürgt haben — „Ozeane als Blut",
+„Wolken als Gedanken", „Flüsse als Adern", „eine Tür ohne Wand", „ein Witz mit
+Zähnen". Sechzehn davon umgeschrieben zu Nominalphrasen mit eigenem Kopf („ein
+Ozean, der wie Blut im Kreis läuft"). Beide waren vorher in der Liste der
+Presets mit einzelnen Kurzläufen; jetzt liegt der kürzeste Lauf bei 340 und 350
+von 400 Wörtern.
+
+Genustabelle 1259 → 1278.
 
 Fünfter Stapel (4.279.0): **6 weitere Presets — Stand 27 von 51.** Und ein
 Fehler, der seit Jahren im Blatt stand.
