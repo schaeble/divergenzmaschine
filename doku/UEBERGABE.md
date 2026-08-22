@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.278.0**, Zweig `typescript-migration`.
+Stand: **v4.279.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,76 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Fünfter Stapel (4.279.0): **6 weitere Presets — Stand 27 von 51.** Und ein
+Fehler, der seit Jahren im Blatt stand.
+
+| Preset | Einträge | Wörter | Bericht 450 | Prosa 400 |
+|---|---|---|---|---|
+| faust | 125 | 916 | 103,9 % | 94,5 % |
+| expressionismus | 127 | 858 | 103,5 % | 96,1 % |
+| buddhismus | 127 | 868 | 104,0 % | 93,7 % |
+| tech | 123 | 858 | 103,1 % | 93,8 % |
+| eichendorff | 119 | 845 | 104,5 % | 96,2 % |
+| hugo | 119 | 843 | 105,0 % | 95,5 % |
+
+**Zuerst die Streichung einer eigenen Regel.** Bis 4.278 stand in Auftrag, Hilfe
+und Übergabe: „Der Knick liegt bei rund 120 Einträgen." Nachgemessen, indem aus
+vier ausgebauten Presets 25 % der Einträge entfernt wurden — einmal die
+kürzesten, einmal zufällig:
+
+| | Einträge | Wörter | Bericht |
+|---|---|---|---|
+| bergwelt ganz | 128 | 923 | 107,8 % |
+| ohne die kürzesten 25 % | 93 | 738 | 95,0 % |
+| ohne 25 % zufällig | 93 | 676 | 88,5 % |
+
+Beide gestutzten Fassungen haben dieselbe Eintragszahl und liegen 6,5 Punkte
+auseinander — genau so weit, wie ihre Wortzahl auseinanderliegt. Über alle 23
+Presets: **Eintragszahl gegen Rest nach Wörtern r = −0,04.** Die Eintragszahl
+sagt nichts mehr voraus, sobald die Wortzahl bekannt ist. Der „Knick bei 120"
+war ein Nebeneffekt davon, dass längere Listen mehr Wörter tragen. 90 lange
+Einträge sind so gut wie 120 kurze. Steht so im Auftrag, in der Hilfe und hier.
+
+**Dann der alte Fehler: „hugo" hat den Zusammenbau abgewürgt.** Bei Ziel 400
+Wörter lag der Median bei **90**, einzelne Texte hatten **17 Wörter**. Der
+Assembler brach in 33 von 60 Läufen mit leerer Kandidatenliste ab, mitten in der
+Exposition. Ausgeschlossen wurden der Reihe nach: Pool-Größe (153 Atome gegen
+159 bei faust), Wortzahl, Eintragszahl, Anteil kasusgebundener Nominalphrasen
+(5 % gegen 6 % im Mittel), Bruchstück-Filter (kein Treffer).
+
+Die Ursache lag in der **Form von zehn Motiven**: „Brot und Ketten", „Kanäle
+unter der Stadt", „die Kathedrale im Regen", „der Aufruhr in engen Gassen" —
+Bruchstücke ohne eigenen Kopf, an die kein Atom anschließt. Umgeschrieben zu
+vollen Nominalphrasen mit Relativsatz („ein Laib Brot neben einer Kette"):
+**Median 387, kein Lauf mehr unter 120 Wörtern.** Neue Regel im Auftrag an die
+KI: Jedes Motiv ist eine Nominalphrase mit Artikel und eigenem Kopf.
+
+**Prüfstand Struktur § 8 fängt diese Klasse ab jetzt ab:** Kein Preset darf in
+12 Läufen mehr als zwei Texte unter 120 Wörtern liefern. Der Prüfstand misst
+nicht die Länge — die schwankt mit dem Material —, sondern den ABBRUCH.
+Gegenprobe: mit den alten hugo-Motiven schlägt er an (5 von 12).
+
+**Ein zu grobes Verbotsmuster.** „Kopfsatz ohne Aussage" lautete
+`\b\w+ (stellt fest|begreift|bemerkt|nimmt wahr)\.` und traf damit JEDEN Satz,
+der auf eines dieser Verben endet. Der neue buddhismus-Eintrag „Ein Schüler
+sitzt seit dem Morgen und hat nichts bemerkt." schlug prompt an — ein
+vollständiger, richtiger Satz, 9 von 2880 Läufen. Gemeint war ein Rahmen mit
+leerem Slot („Die Archivarin bemerkt."), also zählt jetzt die Länge: höchstens
+drei Wörter vor dem Verb. Mit Gegenprobe in derselben Datei.
+
+**Und die dritte Schranke im Rauschen.** „linear findet ein Schlussbild" stand
+bei 25 von 40; gemessen sind es im Mittel 27,1 mit einer Spanne von 21 bis 33 —
+jeder vierte Lauf wurde grundlos rot. Jetzt 18. Damit ist in dieser Sitzung die
+dritte Schranke aufgefallen, die **knapp unter den Wert eines einzelnen Laufs**
+gesetzt worden war (Höhepunkt 3 %, Blindprobe 2,5, Schlussbild 25). Das ist ein
+Muster und keine Häufung: **Wer eine Schranke aus einer Messung ableitet, würfelt.
+Schranken gehören außerhalb der gemessenen Streuung.**
+
+Genustabelle 1239 → 1259.
+
+**Noch 24 Presets.** Am dünnsten unter den ausgebauten: geologie (688), freud
+(695), biologie (710).
 
 Nachverdichtung (4.278.0): **Die fünf dünnen Presets aufgefüllt — und dabei
 gemessen, WO Wörter zählen.**

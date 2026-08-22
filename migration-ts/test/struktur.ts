@@ -83,7 +83,13 @@ const schlussStelle = (struktur: string, n = 40): { mittel: number; gefunden: nu
 };
 {
   const lin = schlussStelle("linear"), rev = schlussStelle("reverse");
-  wahr(`linear findet ein Schlussbild (${lin.gefunden}/40)`, lin.gefunden >= 25);
+  // Dritte Schranke in dieser Datei, die im Rauschen saß, und dieselbe Ursache:
+  // Sie wurde knapp unter den Wert EINES Laufs gesetzt. 15 Messungen zu je 40
+  // Texten ergeben im Mittel 27,1 Fundstellen mit einer Spanne von 21 bis 33 —
+  // bei einer Schranke von 25 wird also rund jeder vierte Lauf grundlos rot.
+  // 18 liegt unter dem beobachteten Kleinstwert und trifft trotzdem den Zustand,
+  // gegen den geprüft wird: ein Schlussbild, das gar nicht mehr gezogen wird.
+  wahr(`linear findet ein Schlussbild (${lin.gefunden}/40)`, lin.gefunden >= 18);
   wahr(`reverse auch (${rev.gefunden}/40)`, rev.gefunden >= 25);
   wahr(`linear setzt es ans Ende (${(lin.mittel * 100).toFixed(0)} %)`, lin.mittel > 0.9);
   wahr(`reverse an den Anfang (${(rev.mittel * 100).toFixed(0)} %)`, rev.mittel < 0.3);
@@ -235,6 +241,37 @@ for (const s of FUENF) {
   const raus = coherencePass(text, { who: "die Archivarin", where: "im Archiv", what: "sucht eine Akte", form: "prose" } as unknown as GenInput);
   wahr("ein verirrter Satz am Ende fliegt weiter raus", !raus.includes("Zeppelin"));
   wahr("und der verbundene Text bleibt stehen", raus.includes("Die Akte liegt im Archiv"));
+}
+
+
+// ── 8 · Kein Preset darf den Zusammenbau abwürgen ─────────────────────────
+// Gefunden beim Ausbau in 4.279.0: „hugo" lieferte bei Ziel 400 Wörter einen
+// Median von 90 und einzelne Texte von 17 Wörtern. Der Assembler brach in 33
+// von 60 Läufen mit leerer Kandidatenliste ab, mitten in der Exposition.
+//
+// Pool-Größe, Wortzahl, Eintragszahl und Kasusverteilung waren dabei völlig
+// unauffällig (153 Atome gegen 159 bei „faust"). Die Ursache lag in der FORM
+// von zehn Motiven: „Brot und Ketten", „Kanäle unter der Stadt", „die
+// Kathedrale im Regen" — Bruchstücke ohne eigenen Kopf, die als Atom nirgends
+// anschließen. Umgeschrieben zu vollen Nominalphrasen mit Relativsatz („ein
+// Laib Brot neben einer Kette") stieg der Median auf 387 und kein Lauf blieb
+// mehr unter 120 Wörtern.
+//
+// Diese Prüfung hätte den Fehler jahrelang früher gefunden. Sie misst nicht die
+// Länge — die schwankt mit der Materialmenge —, sondern den ABBRUCH: Texte weit
+// unter einem Drittel des Ziels entstehen nicht durch wenig Material, sondern
+// weil der Zusammenbau stehenbleibt.
+{
+  const schwach: string[] = [];
+  for (const id of ids) {
+    let kurz = 0;
+    for (let i = 0; i < 12; i++) {
+      const t = buildStory(BUILTIN_PRESETS[id] as Bank, eingabe("rekombination"));
+      if (t.split(/\s+/).filter(Boolean).length < 120) kurz++;
+    }
+    if (kurz >= 3) schwach.push(`${id} (${kurz} von 12)`);
+  }
+  ist("kein Preset würgt den Zusammenbau ab", schwach.join(", "), "");
 }
 
 console.log(`Prüfstand Struktur — ${geprueft} Prüfungen, ${bestanden} bestanden`);

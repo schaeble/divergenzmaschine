@@ -53,7 +53,13 @@ const VERBOTEN: [string, RegExp][] = [
   ["Zeitangabe ohne Präposition", /(^|\n)[A-ZÄÖÜ][a-zäöüß]+ \d{4} (wurde|folgte)\b/],
   ["Nomen kleingeschrieben nach im", /\bIm [a-zäöüß]+ \d{4}\b/],
   ["literarische Einsatz-Formel", /Der Einsatz ist |Was zählt, ist |Alles dreht sich um /],
-  ["Kopfsatz ohne Aussage", /\b\w+ (stellt fest|begreift|bemerkt|nimmt wahr)\.(\s|$)/],
+  // Gemeint ist ein Rahmen mit leerem Slot: „Die Archivarin bemerkt." — Subjekt,
+  // Verb, Punkt. Bis 4.278 stand hier \b\w+ vor dem Verb, und damit traf das
+  // Muster JEDEN Satz, der auf eines dieser Verben endet. Ein neuer Preset-Eintrag
+  // („Ein Schüler sitzt seit dem Morgen und hat nichts bemerkt.") schlug prompt an
+  // — ein vollständiger, richtiger Satz. Jetzt zählt die Länge: höchstens drei
+  // Wörter vor dem Verb, dann ist es wirklich ein leerer Kopfsatz.
+  ["Kopfsatz ohne Aussage", /(?:^|[.!?…]\s|\n)(?:\S+\s+){0,3}(stellt fest|begreift|bemerkt|nimmt wahr)\.(\s|$)/],
   ["Rahmen mit zwei finiten Verben", /(Geblieben ist|Erinnert wird an|Im Ort verbindet man damit) [^.]*\b(ist|sind|wird|werden|hat|haben)\b[^.]*\./],
   ["doppelter Bildrahmen", /(Im Ort verbindet man damit)[^]*\1/],
   ["Genitiv Plural falsch", /die Hälfte der (Beschäftigte|Teilnehmende)\b/],
@@ -127,6 +133,19 @@ const presets = Object.keys(BUILTIN_PRESETS);
 const basis = { tone: "neutral", varLevel: "wild", structure: "rekombination", mode: "auto",
   perspective: "third", rhythm: "auto", markovMode: "off", disruptor: "off", archetypeA: "neutral",
   archetypeB: "neutral", instability: 2 } as unknown as GenInput;
+
+// Gegenprobe zum Muster „Kopfsatz ohne Aussage": Es MUSS den leeren Rahmen
+// fangen und den vollständigen Satz durchlassen.
+{
+  const re = VERBOTEN.find(([n]) => n === "Kopfsatz ohne Aussage")![1];
+  const soll = re.test("Am Morgen. Die Archivarin bemerkt. Danach nichts.");
+  const darfNicht = re.test("Ein Schüler sitzt seit dem Morgen und hat nichts bemerkt. ");
+  if (!soll || darfNicht) {
+    console.error(`  ✗ Gegenprobe Kopfsatz: leerer Rahmen ${soll ? "erkannt" : "NICHT erkannt"}, ` +
+      `vollständiger Satz ${darfNicht ? "FÄLSCHLICH erkannt" : "durchgelassen"}`);
+    (process as unknown as { exitCode?: number }).exitCode = 1;
+  }
+}
 
 const zaehl = new Map<string, number>();
 const chronoZeilen = new Map<string, number>();
