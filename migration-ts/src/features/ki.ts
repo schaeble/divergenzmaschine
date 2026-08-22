@@ -261,6 +261,14 @@ function buildWordbankPrompt(ctx: WordbankCtx): string {
     // einen 450-Wörter-Bericht auf 56 % der Vorgabe, bei 89 auf 66 %, bei 112
     // auf 87 %, bei 147 auf 95 %. Der Knick liegt bei rund 120 — darüber gewinnt
     // man fast nichts mehr, darunter bricht es ein.
+    //
+    // NACHTRAG 4.277.0: Die Zahl 120 zählt EINTRÄGE, und das ist das falsche Maß.
+    // Über 23 ausgebaute Presets gemessen: Die Zahl der Einträge (120-147) sagt
+    // fast nichts über die Treue voraus, die Zahl der WÖRTER dagegen viel —
+    // r = 0,80. jugendsprache trägt 123 Einträge mit 557 Wörtern und kommt auf
+    // 72 %; bergwelt trägt 128 Einträge mit 923 Wörtern und kommt auf 108 %.
+    // Rund 850 Wörter braucht ein Preset für volle Treue, also im Schnitt sieben
+    // Wörter je Eintrag. Deshalb steht die Wortzahl jetzt im Auftrag.
     + "Die Wortbank besteht aus 7 Kategorien mit ZUSAMMEN rund 120 kurzen, stimmungsvollen deutschen "
     + "Phrasen (keine ganzen Absätze, meist 3-10 Wörter), passend zu folgendem Kontext:\n"
     + `Ort: ${ctx.where || "(offen)"}\nZeit: ${ctx.when || "(offen)"}\nFigur(en): ${ctx.who || "(offen)"}\n`
@@ -279,6 +287,13 @@ function buildWordbankPrompt(ctx: WordbankCtx): string {
     + "einer Hand trägt einen langen Text auf 95 % der Vorgabe, eine Mischung aus drei Presets bei "
     + "GLEICHER Größe nur auf 84 %. Der Generator prüft jeden Anschluss auf Kasus, Tempus und Satztyp und "
     + "verwirft mehr, wenn das Material auseinanderfällt. Lieber 120 Einträge aus einer Welt als 200 aus dreien.\n\n"
+    + "WORTZAHL — das eigentliche Maß: Die 120 Einträge sollen ZUSAMMEN rund 850 Wörter tragen, "
+    + "im Schnitt also SIEBEN Wörter je Eintrag. Das ist gemessen, nicht geschätzt: Über 23 Presets "
+    + "sagt die Zahl der Einträge kaum etwas über die erreichte Textlänge voraus, die Zahl der Wörter "
+    + "dagegen deutlich (r = 0,80). Ein Preset mit 123 Einträgen und 557 Wörtern trägt einen "
+    + "450-Wörter-Bericht nur auf 72 %; eines mit 128 Einträgen und 923 Wörtern auf 108 %. "
+    + "Drei- und Vierwortbrocken (\"Das ist so random.\") füllen die Liste, aber nicht den Text. "
+    + "Schreibe also lieber \"ein Wappen ohne Farbe an kalter Mauer\" als \"ein Wappen\".\n\n"
     + "KEINE DUBLETTEN: Kein Eintrag darf zweimal vorkommen, auch nicht leicht abgewandelt. "
     + "Ein Eintrag zweimal ist kein zweiter Eintrag.\n\n"
     + "ZEITFORM: Satzartige Einträge (hooks, turns, obstacles, endings) im PRÄSENS. Kein Präteritum, kein Perfekt.\n\n"

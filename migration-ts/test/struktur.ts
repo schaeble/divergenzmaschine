@@ -207,7 +207,22 @@ for (const s of FUENF) {
   wahr(`alle Presets mit Bogen wurden geprüft (${n})`, n >= 140);
   wahr(`der Einstieg steht im Text (${ohneEinstieg} Ausfälle von ${n})`, ohneEinstieg <= n * 0.03);
   wahr(`die Mitte auch (${ohneMitte} von ${n})`, ohneMitte <= n * 0.03);
-  wahr(`und der Höhepunkt (${ohneHoehepunkt} von ${n})`, ohneHoehepunkt <= n * 0.03);
+  // Die Schranke für den Höhepunkt ist bewusst weiter als die beiden darüber.
+  // Grund: Sie lag bei 3 % und schlug in jedem fünften Lauf grundlos an. 15
+  // Messungen zu je 153 Texten ergaben 1 bis 6 Ausfälle, im Mittel 3,3 (2,1 %)
+  // — die Schranke saß mit 4,59 mitten im Rauschen. Bei n = 153 und p = 2 % ist
+  // eine Streuung von ±2 Zählern normal; eine Schranke muss außerhalb davon
+  // liegen, sonst prüft sie den Zufall.
+  //
+  // 8 % ist außerhalb (Höchstwert 6 von 153 = 3,9 %) und trotzdem streng: Der
+  // Zustand, gegen den diese Prüfung gebaut wurde, lag bei 34 % — 52 Ausfälle.
+  // Sie würde ihn um das Vierfache verfehlen.
+  //
+  // NACHTRAG 4.277.0: Diese Änderung stand in der Übergabe zu 4.276.0 und war
+  // im Quelltext nicht angekommen — ein Skript hatte sie überschrieben. Der
+  // Prüfstand meldete danach weiter grundlos rot. Wer eine Schranke verschiebt,
+  // prüft danach, ob sie verschoben IST.
+  wahr(`und der Höhepunkt (${ohneHoehepunkt} von ${n})`, ohneHoehepunkt <= n * 0.08);
 }
 
 // ── 7 · Die Regel darf dabei nicht stumpf werden ──────────────────────────

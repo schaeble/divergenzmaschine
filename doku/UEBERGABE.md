@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.276.0**, Zweig `typescript-migration`.
+Stand: **v4.277.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,68 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Vierter Stapel (4.277.0): **6 weitere Presets — Stand 23 von 51.** Und die
+Erkenntnis, dass die Zahl 120 das falsche Maß war.
+
+| Preset | Einträge | Wörter | Bericht 450 | Prosa 400 |
+|---|---|---|---|---|
+| griechischetragoedie | 122 | 837 | 101 % | 95 % |
+| hunger | 124 | 712 | 96 % | 98 % |
+| modernarchitecture | 125 | 673 | 90 % | 96 % |
+| freud | 121 | 695 | 80 % | 94 % |
+| bureau | 125 | 748 | 79 % | 94 % |
+| astrologie | 121 | 722 | 78 % | 95 % |
+
+**Drei von sechs unter 81 % — und damit war das Muster nicht mehr zu übersehen.**
+jugendsprache (72 %) und biologie (83 %) fielen aus demselben Grund heraus, und
+zweimal stand hier die Vermutung, es liege an kurzen Einträgen. Jetzt gemessen,
+über alle 23 ausgebauten Presets:
+
+**Der Zusammenhang zwischen der WORTZAHL einer Bank und der erreichten
+Berichtslänge liegt bei r = 0,80. Der zwischen Eintragszahl und Länge liegt nahe
+null.**
+
+| Preset | Einträge | Wörter | Ø je Eintrag | Bericht |
+|---|---|---|---|---|
+| jugendsprache | 123 | 557 | 4,5 | 72 % |
+| astrologie | 121 | 722 | 6,0 | 78 % |
+| … | | | | |
+| melville | 130 | 808 | 6,2 | 99 % |
+| tanz | 123 | 884 | 7,2 | 104 % |
+| bergwelt | 128 | 923 | 7,2 | 108 % |
+
+Die Eintragszahlen liegen alle zwischen 120 und 147 und erklären nichts. Die
+Wortzahlen liegen zwischen 557 und 923 und erklären fast alles. **Rund 850
+Wörter braucht ein Preset für volle Treue — im Schnitt sieben Wörter je
+Eintrag.** Das steht jetzt im Auftrag an die KI (`ki.ts` und `preset2.ts`), in
+der Hilfe und im Prüfstand, der die Wortzahl mit ausdruckt und die dünnsten drei
+beim Namen nennt.
+
+Damit ist auch klar, was als Nächstes ansteht und was nicht: **jugendsprache
+(557), urknall (623), alltag (624), dickens (634) und hafen (640) sind bei den
+Einträgen fertig und bei den Wörtern nicht.** Sie brauchen keine neuen Zeilen,
+sondern längere.
+
+**Und eine Selbstkorrektur.** Die Übergabe zu 4.276.0 beschrieb, dass die
+Höhepunkt-Schranke im Prüfstand Struktur von 3 % auf 8 % gesetzt wurde. Im
+Quelltext war sie das nicht — ein Skript hatte die Änderung überschrieben, und
+der Commit ging so hinaus. Aufgefallen ist es, weil der Prüfstand im nächsten
+Lauf wieder grundlos rot wurde. Jetzt gesetzt und über fünf Läufe geprüft. Merke:
+**Wer eine Schranke verschiebt, prüft danach, ob sie verschoben IST** — dieselbe
+Regel, die dieses Papier für Detektoren aufstellt, gilt für die eigenen Eingriffe.
+
+**Genustabelle: 1167 → 1239 Einträge.** Der Prüfstand aus 4.276.0 hat wieder
+geliefert, und diesmal zeigte er eine ganze Klasse: `guessGender` gibt bei
+unbekanntem Wort auf `-er` maskulin zurück. Von 142 solchen Wörtern im Material
+waren rund fünfzig falsch — Wartezimmer, Schaufenster, Trinkwasser, Quecksilber,
+Speisekammer, Opfer. Der Fehler saß nicht in der `-er`-Regel, sondern davor: Die
+Kompositumsregel sucht das längste bekannte Wortende, und „Zimmer", „Fenster",
+„Wasser", „Kammer", „Pulver" standen gar nicht in der Tabelle. **35 Grundwörter
+eingetragen — 32 Zusammensetzungen lösen sich seitdem richtig auf.** Drei kippten
+dabei in die andere Richtung (Höhenmesser über „Messer", Platzhalter über
+„Alter", Passagier über „Gier") und haben nun eigene Einträge. Das ist der Preis
+der Regel: Jedes Grundwort hilft vielen Zusammensetzungen und schadet wenigen.
 
 Dritter Stapel (4.276.0): **6 weitere Presets — Stand 17 von 51.** Und zwei
 Prüfstände, die nicht das geprüft haben, was auf ihnen stand.
