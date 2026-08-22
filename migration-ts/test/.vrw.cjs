@@ -1013,7 +1013,53 @@ var NOUN_GENDER = {
   "prisma": "n",
   "stundenplan": "m",
   "tafel": "f",
-  "zirkel": "m"
+  "zirkel": "m",
+  "adressbuch": "n",
+  "adresse": "f",
+  "aktendeckel": "m",
+  "aktennotiz": "f",
+  "amt": "n",
+  "bonbon": "n",
+  "brotdose": "f",
+  "durchschlag": "m",
+  "fahrschein": "m",
+  "fernglas": "n",
+  "feuerzeug": "n",
+  "fund": "m",
+  "f\xE4hrplan": "m",
+  "haarnadel": "f",
+  "haken": "m",
+  "kassenbuch": "n",
+  "klammer": "f",
+  "kleingeldfach": "n",
+  "kran": "m",
+  "kuvert": "n",
+  "ladekabel": "n",
+  "laufzettel": "m",
+  "logbuch": "n",
+  "merkblatt": "n",
+  "paket": "n",
+  "peilstock": "m",
+  "postkarte": "f",
+  "quittung": "f",
+  "schiffszwieback": "m",
+  "schuppen": "m",
+  "seekarte": "f",
+  "segeltuch": "n",
+  "signalflagge": "f",
+  "stelle": "f",
+  "stempelhalter": "m",
+  "streichholzschachtel": "f",
+  "terminzettel": "m",
+  "thermoskanne": "f",
+  "tonband": "n",
+  "t\xFCte": "f",
+  "vollmacht": "f",
+  "vordruck": "m",
+  "w\xE4schekorb": "m",
+  "zweitschl\xFCssel": "m",
+  "\xF6llampe": "f",
+  "\xF6lschl\xFCssel": "m"
 };
 
 // src/generation/declension.ts
@@ -5460,7 +5506,27 @@ var BUILTIN_PRESETS = {
       "eine Akte mit falschem Namen",
       "eine Uhr, die in Abs\xE4tzen tickt",
       "ein Bescheid mit leerem Grund",
-      "eine Treppe, die nach unten f\xFChrt und h\xF6her endet"
+      "eine Treppe, die nach unten f\xFChrt und h\xF6her endet",
+      "ein Schalter, an dem niemand sitzt",
+      "eine Nummer, die zweimal vergeben wurde",
+      "ein Aktenschrank ohne Schl\xFCssel",
+      "ein Gang, der schmaler wird",
+      "eine Sitzung, die schon begonnen hat",
+      "ein Vermerk am Rand, von fremder Hand",
+      "eine Treppe zwischen zwei Stockwerken",
+      "ein Wartezimmer mit zu vielen St\xFChlen",
+      "ein Namensschild, das abf\xE4llt",
+      "eine Kopie, die deutlicher ist als das Original",
+      "ein Fahrstuhl, der nur abw\xE4rts f\xE4hrt",
+      "ein Register mit fehlender Seite",
+      "eine Klingel ohne Draht",
+      "ein Amt, das seit Jahren umzieht",
+      "ein Protokoll \xFCber ein Gespr\xE4ch, das nicht stattfand",
+      "eine T\xFCr mit zwei Nummern",
+      "ein Zettel, der die Auskunft widerruft",
+      "ein Fenster zum Innenhof des Amtes",
+      "eine Schlange, die sich nicht bewegt",
+      "ein Kalender ohne Feiertage"
     ],
     "hooks": [
       "Der Brief ist da, bevor ich ihn erwarte.",
@@ -5469,7 +5535,20 @@ var BUILTIN_PRESETS = {
       "Mein Name klingt pl\xF6tzlich wie ein Fehler im System.",
       "Die Luft roch nach Papier und geduldeter Angst.",
       "Ich habe eine Nummer, aber keinen Platz.",
-      "Der Wachmann nickt, als h\xE4tte er mich erfunden."
+      "Der Wachmann nickt, als h\xE4tte er mich erfunden.",
+      "Die Auskunft widerspricht der von gestern, beide gelten.",
+      "Ein Zimmer wird genannt, das es im Plan nicht gibt.",
+      "Der Vorgang l\xE4uft, seit ich ihn nicht gestellt habe.",
+      "Man bittet mich, das Formular selbst zu bewerten.",
+      "Die Nummer auf meinem Zettel ist l\xE4ngst aufgerufen.",
+      "Jemand kennt meinen Fall besser als ich.",
+      "Der Antrag ist bewilligt und gleichzeitig ung\xFCltig.",
+      "Die Frist beginnt erst mit ihrem Ende.",
+      "Ich soll die Akte holen, die \xFCber mich gef\xFChrt wird.",
+      "Die Zust\xE4ndigkeit liegt bei einer Stelle ohne Adresse.",
+      "Der Stempel fehlt, der den fehlenden Stempel best\xE4tigt.",
+      "Man erwartet mich, ohne mich einbestellt zu haben.",
+      "Jede Antwort verweist auf denselben Absatz."
     ],
     "props": [
       "einen Bleistift ohne Spitze",
@@ -5481,7 +5560,24 @@ var BUILTIN_PRESETS = {
       "einen Ausweis mit fremdem Foto",
       "einen Schl\xFCssel ohne Schloss",
       "eine Wartemarke",
-      "ein Protokollheft"
+      "ein Protokollheft",
+      "ein Durchschlag",
+      "eine Aktennotiz",
+      "einen Aktendeckel",
+      "eine Klammer",
+      "ein Kuvert ohne Absender",
+      "einen Vordruck",
+      "ein Siegel",
+      "einen Terminzettel",
+      "eine Quittung",
+      "ein Namensschild",
+      "einen Ordner ohne R\xFCcken",
+      "eine Karteikarte",
+      "einen Stempelhalter",
+      "ein Merkblatt",
+      "eine Vollmacht",
+      "einen Laufzettel",
+      "ein Kassenbuch"
     ],
     "turns": [
       "die Begr\xFCndung fehlt, aber gilt",
@@ -5490,7 +5586,18 @@ var BUILTIN_PRESETS = {
       "die T\xFCr f\xFChrt in denselben Raum zur\xFCck",
       "der Zeuge ist identisch mit dem Angeklagten",
       "die Akte verlangt eine Akte",
-      "die Zeit wird zum Formularfeld"
+      "die Zeit wird zum Formularfeld",
+      "die Akte wird an den Anfang zur\xFCckgereicht",
+      "der Bescheid wird aufgehoben und best\xE4tigt",
+      "eine zweite Stelle erkl\xE4rt sich f\xFCr zust\xE4ndig",
+      "der Fall wechselt den Namen",
+      "die Auskunft gilt r\xFCckwirkend",
+      "die Sitzung wird auf gestern verlegt",
+      "der Vorgang wird zusammengelegt und getrennt",
+      "die Unterschrift stammt aus dem eigenen Haus",
+      "der Antrag wird als gestellt betrachtet",
+      "die Abteilung existiert nur noch im Plan",
+      "der Bescheid tr\xE4gt ein Datum von morgen"
     ],
     "obstacles": [
       "die Zust\xE4ndigkeit ist unklar",
@@ -5499,21 +5606,44 @@ var BUILTIN_PRESETS = {
       "die Regel wird erst nach dem Versto\xDF erkl\xE4rt",
       "das Formular hat ein Feld zu viel",
       "der Schalter schlie\xDFt genau beim Satzanfang",
-      "ein Protokoll widerspricht dem n\xE4chsten"
+      "ein Protokoll widerspricht dem n\xE4chsten",
+      "das Zimmer ist heute geschlossen",
+      "die Vollmacht wird nicht anerkannt",
+      "der Vorgang ruht ohne Grund",
+      "eine Unterlage fehlt, die es nicht gibt",
+      "der Zust\xE4ndige ist im selben Haus unerreichbar",
+      "die Nummer ist g\xFCltig, aber nicht f\xFCr hier",
+      "das Merkblatt widerspricht dem Formular",
+      "die Auskunft wird nur schriftlich erteilt",
+      "der Termin liegt hinter der Frist",
+      "niemand darf die Regel nennen"
     ],
     "stakes": [
       "Der Einsatz ist Identit\xE4t: Sie wird zu einer Aktennummer.",
       "Der Einsatz ist Freiheit: Sie h\xE4ngt an einem Stempel.",
       "Der Einsatz ist Zeit: Sie wird verwaltet.",
       "Der Einsatz ist Sprache: Sie wird als Beweis benutzt.",
-      "Der Einsatz ist Schuld: Sie existiert vor der Tat."
+      "Der Einsatz ist Schuld: Sie existiert vor der Tat.",
+      "Der Einsatz ist Ordnung: Sie h\xE4lt oder frisst.",
+      "Der Einsatz ist Geduld: Sie wird gemessen.",
+      "Der Einsatz ist ein Name: Er steht in keiner Liste.",
+      "Der Einsatz ist Zust\xE4ndigkeit: Jemand muss sie tragen.",
+      "Der Einsatz ist ein Datum: Alles h\xE4ngt daran.",
+      "Der Einsatz ist Auskunft: Sie wird verwaltet."
     ],
     "endings": [
       "Damit ist der Vorgang er\xF6ffnet.",
       "Und es gibt keinen n\xE4chsten Schalter.",
       "So bleibt nur das Warten als Entscheidung.",
       "Und der Bescheid ist schon g\xFCltig.",
-      "Und ich unterschrieb, ohne zu wissen, was ich war."
+      "Und ich unterschrieb, ohne zu wissen, was ich war.",
+      "Der Vorgang wird fortgesetzt, an anderer Stelle.",
+      "Und die Marke bleibt in der Hand.",
+      "So schlie\xDFt das Amt, und der Fall bleibt offen.",
+      "Und im Flur geht das Licht nach der Zeit aus.",
+      "Damit gilt der Antrag als eingegangen.",
+      "Und der n\xE4chste Zettel tr\xE4gt dieselbe Nummer.",
+      "So endet der Tag im selben Wartezimmer."
     ]
   },
   "expressionismus": {
@@ -7542,7 +7672,25 @@ var BUILTIN_PRESETS = {
       "ein Name, der nicht ausgesprochen werden kann",
       "ein Licht, das die falschen Dinge zeigt",
       "ein Ger\xE4usch, das nur in Gedanken existiert",
-      "eine Karte, die Orte erfindet"
+      "eine Karte, die Orte erfindet",
+      "eine Treppe, die einen Absatz zu viel hat",
+      "ein Vorhang, der ohne Wind f\xE4llt",
+      "eine Adresse, die zweimal existiert",
+      "ein Anruf aus dem Nebenzimmer",
+      "ein Schatten, der fr\xFCher da ist",
+      "eine Notiz in der eigenen Handschrift",
+      "ein Zimmer, das nach Regen riecht",
+      "eine T\xFCr, die von au\xDFen abgeschlossen wurde",
+      "ein Bild, auf dem jemand fehlt",
+      "ein Ger\xE4usch unter dem Boden",
+      "eine Kerze, die nicht k\xFCrzer wird",
+      "ein Weg, der zur\xFCckf\xFChrt und nicht",
+      "ein Koffer ohne Griff",
+      "eine Zahl, die \xFCberall auftaucht",
+      "ein Fenster, das nachts heller ist",
+      "eine Stimme im Treppenhaus",
+      "ein Kalenderblatt vom falschen Jahr",
+      "ein Handabdruck an der Innenseite"
     ],
     "hooks": [
       "eine rote Feder im falschen Winkel",
@@ -7551,7 +7699,19 @@ var BUILTIN_PRESETS = {
       "ein Foto, das ein Detail mehr zeigt als gestern",
       "ein Schatten, der nicht zur Figur passt",
       "eine Nachricht ohne Absender",
-      "eine T\xFCr, die pl\xF6tzlich nicht mehr T\xFCr sein will"
+      "eine T\xFCr, die pl\xF6tzlich nicht mehr T\xFCr sein will",
+      "Der Schl\xFCssel passt in ein Schloss, das es nicht gibt.",
+      "Jemand hat abger\xE4umt, bevor jemand da war.",
+      "Die Uhr im Flur geht der im Zimmer voraus.",
+      "Ein Name f\xE4llt, den niemand ausgesprochen hat.",
+      "Der Hund weicht seit gestern der T\xFCr aus.",
+      "Die Nachricht kommt an, bevor sie geschrieben wird.",
+      "Ein Fenster steht offen, das verriegelt war.",
+      "Der Zettel liegt anders herum als vorhin.",
+      "Zwei Zeugen erinnern dieselbe Stunde verschieden.",
+      "Etwas fehlt im Regal, und niemand vermisst es.",
+      "Der Schritt hallt einmal zu oft.",
+      "Die Karte zeigt eine Stra\xDFe, die es nicht mehr gibt."
     ],
     "props": [
       "einen Schl\xFCssel",
@@ -7563,34 +7723,87 @@ var BUILTIN_PRESETS = {
       "ein St\xFCck Kreide",
       "einen Kompass",
       "einen Ausweis",
-      "ein Siegel"
+      "ein Siegel",
+      "einen Notizblock",
+      "eine Taschenlampe",
+      "einen Umschlag",
+      "ein Tonband",
+      "einen Fahrschein",
+      "eine Haarnadel",
+      "einen Zettel mit einer Zahl",
+      "ein Fernglas",
+      "eine Postkarte",
+      "einen Handschuh",
+      "ein Adressbuch",
+      "einen Zweitschl\xFCssel",
+      "eine Streichholzschachtel",
+      "ein Notizbuch mit fehlenden Seiten"
     ],
     "turns": [
       "pl\xF6tzlich passt die Zeit nicht mehr zu den Uhren",
       "die Spur f\xFChrt nicht nach au\xDFen, sondern nach innen",
       "das Offensichtliche wird unbenennbar",
       "etwas antwortet \u2013 ohne Stimme",
-      "die Logik bleibt bestehen, aber in falscher Reihenfolge"
+      "die Logik bleibt bestehen, aber in falscher Reihenfolge",
+      "der Zeuge war nie am Ort",
+      "die Spur f\xFChrt in die eigene Wohnung",
+      "das Alibi stimmt und hilft nicht",
+      "der Zettel war schon immer da",
+      "die Zeugin kennt den Namen aus dem Traum",
+      "eine zweite T\xFCr wird gefunden",
+      "die Aufnahme tr\xE4gt eine fremde Stimme",
+      "der Fall geh\xF6rte jemand anderem",
+      "die Ordnung war die Spur",
+      "das Fehlende war der Hinweis",
+      "die Frage wird von der Antwort gestellt",
+      "ein Fund datiert von morgen",
+      "der Beobachter wird beobachtet"
     ],
     "obstacles": [
       "die T\xFCr ist verschlossen",
       "jemand h\xF6rt mit",
       "die eigene Wahrnehmung wackelt",
       "eine Regel gilt, die niemand erkl\xE4rt",
-      "die Akte tr\xE4gt das falsche Datum"
+      "die Akte tr\xE4gt das falsche Datum",
+      "die Zeit stimmt nicht mit der Uhr",
+      "der Zeuge schweigt aus H\xF6flichkeit",
+      "ein Name fehlt an entscheidender Stelle",
+      "die Erinnerung \xE4ndert sich beim Erz\xE4hlen",
+      "der Weg ist gesperrt und war es nie",
+      "niemand gibt zu, dass er wartet",
+      "das Licht reicht nur bis zur Biegung",
+      "die Aufnahme bricht an derselben Stelle ab",
+      "zwei Spuren f\xFChren zueinander",
+      "das Zimmer wurde bereits ger\xE4umt",
+      "die Karte endet vor dem Ziel",
+      "der Schl\xFCssel dreht sich zweimal"
     ],
     "stakes": [
       "Der Einsatz ist Mut.",
       "Der Einsatz ist Zeit: Ein Teil des Abends kommt nicht zur\xFCck.",
       "Der Einsatz ist Wahrheit: Etwas am Selbstbild verschiebt sich.",
-      "Der Einsatz ist Vertrauen: in sich selbst."
+      "Der Einsatz ist Vertrauen: in sich selbst.",
+      "Der Einsatz ist Gewissheit: Sie wackelt.",
+      "Der Einsatz ist ein Name: Er steht auf zwei Listen.",
+      "Der Einsatz ist die Nacht: Sie hat einen Zeugen.",
+      "Der Einsatz ist ein Zimmer: Es geh\xF6rt jemandem.",
+      "Der Einsatz ist eine Stunde: Sie fehlt.",
+      "Der Einsatz ist ein Wort: Es wurde geh\xF6rt.",
+      "Der Einsatz ist Erinnerung: Sie wird gepr\xFCft."
     ],
     "endings": [
       "Damit ist es entschieden.",
       "So schlie\xDFt sich der Kreis.",
       "Und vielleicht beginnt es erst hier.",
       "Und die T\xFCr f\xE4llt ins Schloss.",
-      "Und es ist, als h\xE4tte der Ort kurz geblinzelt."
+      "Und es ist, als h\xE4tte der Ort kurz geblinzelt.",
+      "Und die Treppe hat wieder die richtige Zahl von Stufen.",
+      "So bleibt der Schl\xFCssel liegen, wo er lag.",
+      "Und im Flur riecht es weiter nach Regen.",
+      "Damit ist nichts erkl\xE4rt und alles gesagt.",
+      "Und das Licht im Nebenhaus geht endlich aus.",
+      "So endet die Nacht, ohne dass jemand kam.",
+      "Und die Zahl steht am n\xE4chsten Morgen woanders."
     ]
   },
   "bureau": {
@@ -8462,14 +8675,44 @@ var BUILTIN_PRESETS = {
       "das Tuten in der Nacht",
       "Seile, dick wie Arme",
       "eine Uhr am Kaischuppen",
-      "Salz auf jeder Fl\xE4che"
+      "Salz auf jeder Fl\xE4che",
+      "ein Kran, der \xFCber Nacht stehen blieb",
+      "Rost an der Ankerkette",
+      "ein F\xE4hrplan mit \xFCbermalten Zeiten",
+      "Netze, die niemand mehr flickt",
+      "ein Leuchtfeuer im Nebel",
+      "Kreide auf einem Frachtbrief",
+      "eine Boje, die sich losgerissen hat",
+      "Salz auf den Fensterscheiben",
+      "ein Schuppen mit offener T\xFCr",
+      "M\xF6wen \xFCber einem leeren Kai",
+      "ein Schiffsname unter neuer Farbe",
+      "die Uhr am Zollhaus",
+      "ein Steg, dem eine Planke fehlt",
+      "\xD6lspuren in Regenbogenfarben",
+      "ein Container mit fremder Beschriftung",
+      "eine Laterne, die im Wind schl\xE4gt",
+      "Kisten ohne Adresse",
+      "der Abdruck eines Taus im Holz"
     ],
     "hooks": [
       "ein Container steht ohne Papiere da",
       "das Schiff l\xE4uft ohne Namen ein",
       "eine Leine l\xF6st sich von selbst",
       "jemand wartet seit Tagen am Kai",
-      "die Ladeliste z\xE4hlt einen Posten zu viel"
+      "die Ladeliste z\xE4hlt einen Posten zu viel",
+      "Das Schiff liegt einen Tag zu lange am Kai.",
+      "Ein Name auf der Ladeliste fehlt heute.",
+      "Die Flut kommt eine Stunde zu fr\xFCh.",
+      "Jemand fragt nach einem Schiff, das nicht mehr f\xE4hrt.",
+      "Die Papiere tragen den Stempel eines anderen Hafens.",
+      "Ein Licht brennt im Schuppen, der leer sein sollte.",
+      "Der Kran hebt eine Kiste, die niemand angemeldet hat.",
+      "Die Leine ist geschnitten, nicht gerissen.",
+      "Zwei Frachtbriefe nennen dieselbe Nummer.",
+      "Am Kai wartet jemand ohne Gep\xE4ck.",
+      "Das Wasser steht heute anders als sonst.",
+      "Ein Boot fehlt und niemand meldet es."
     ],
     "props": [
       "ein Tau",
@@ -8479,35 +8722,82 @@ var BUILTIN_PRESETS = {
       "einen Frachtbrief",
       "einen Anker",
       "eine Trillerpfeife",
-      "eine Seekarte"
+      "eine Seekarte",
+      "eine Signalflagge",
+      "ein Fernrohr",
+      "einen Haken",
+      "eine Kette",
+      "ein Logbuch",
+      "einen \xD6lschl\xFCssel",
+      "ein Netz",
+      "einen Schiffszwieback",
+      "eine \xD6llampe",
+      "einen Peilstock",
+      "ein St\xFCck Segeltuch"
     ],
     "turns": [
       "das Schiff legt fr\xFCher ab als angek\xFCndigt",
       "der Wartende steigt doch ein",
       "die Ladung geh\xF6rt jemand anderem",
       "der Kapit\xE4n kennt den Namen im Brief",
-      "der Nebel hebt sich und zeigt nichts"
+      "der Nebel hebt sich und zeigt nichts",
+      "die Ladung wird zweimal verzollt",
+      "der Name auf dem Bug ist \xFCbermalt",
+      "die F\xE4hre nimmt keine Fracht mehr",
+      "der Kai geh\xF6rt seit gestern jemand anderem",
+      "ein Passagier steht auf keiner Liste",
+      "das Schiff kehrt am selben Tag zur\xFCck",
+      "der Zoll findet, was niemand suchte",
+      "die Flut legt frei, was lag",
+      "der Kapit\xE4n geht nicht von Bord",
+      "die Papiere stimmen und das Schiff nicht",
+      "ein Frachtbrief taucht doppelt auf"
     ],
     "obstacles": [
       "die Papiere fehlen",
       "die Flut kommt zu sp\xE4t",
       "niemand spricht dieselbe Sprache",
       "der Zoll schlie\xDFt den Kai",
-      "das Tau h\xE4lt nicht"
+      "das Tau h\xE4lt nicht",
+      "der Nebel legt den Betrieb still",
+      "der Kran hat keinen F\xFChrer",
+      "die Schleuse \xF6ffnet erst am Morgen",
+      "der Liegeplatz ist vergeben",
+      "niemand unterschreibt die \xDCbernahme",
+      "das Wetter dreht",
+      "die Ladung passt nicht durch die Luke",
+      "der Zollbeamte kennt den Stempel nicht",
+      "die Leine ist zu kurz",
+      "das Log fehlt f\xFCr drei Tage",
+      "am Kai gibt es keinen Strom"
     ],
     "stakes": [
       "Der Einsatz ist eine \xDCberfahrt.",
       "Der Einsatz ist ein Name auf der Liste.",
       "Der Einsatz ist die letzte Fracht.",
       "Der Einsatz ist ein Wiedersehen.",
-      "Der Einsatz ist der Weg zur\xFCck."
+      "Der Einsatz ist der Weg zur\xFCck.",
+      "Der Einsatz ist eine Ladung, die verderben kann.",
+      "Der Einsatz ist ein Liegeplatz.",
+      "Der Einsatz ist die Tide: Sie wartet nicht.",
+      "Der Einsatz ist ein Papier mit einem Stempel.",
+      "Der Einsatz ist die Heuer f\xFCr den Winter.",
+      "Der Einsatz ist ein Hafen, der zumacht.",
+      "Der Einsatz ist eine Nacht ohne Nebel."
     ],
     "endings": [
       "Das Schiff l\xE4uft aus, der Kai bleibt leer.",
       "Am Morgen liegt nur noch \xD6l auf dem Wasser.",
       "Sie wartet weiter, die Uhr am Schuppen geht falsch.",
       "Die M\xF6wen bleiben, alles andere f\xE4hrt.",
-      "Das Tuten kommt zur\xFCck und findet niemanden."
+      "Das Tuten kommt zur\xFCck und findet niemanden.",
+      "Der Kran senkt den Haken, und es wird still.",
+      "Und am Morgen liegt der Kai unter Reif.",
+      "So l\xE4uft die Tide ab und nimmt es mit.",
+      "Und im Schuppen bleibt das Licht an.",
+      "Damit ist die Ladung \xFCbergeben.",
+      "Und die F\xE4hre legt ohne sie ab.",
+      "So bleibt nur das Wasser, das gegen die Steine schl\xE4gt."
     ]
   },
   "alltag": {
@@ -8521,14 +8811,43 @@ var BUILTIN_PRESETS = {
       "eine Kaffeetasse mit Rand",
       "der Wecker vor dem Wecker",
       "ein Einkaufszettel ohne Ende",
-      "Fernsehen ohne Ton"
+      "Fernsehen ohne Ton",
+      "W\xE4sche, die nicht trocknet",
+      "ein Aufzug mit einem Zettel",
+      "Rechnungen in zwei Stapeln",
+      "die Uhr \xFCber der Sp\xFCle",
+      "ein Fahrradschloss ohne Fahrrad",
+      "der Automat, der nur M\xFCnzen nimmt",
+      "Werbung im Briefkasten",
+      "ein Blumentopf im Treppenhaus",
+      "die Ampel, die zu kurz gr\xFCn ist",
+      "eine T\xFCte, die rei\xDFt",
+      "der Kalender an der K\xFChlschrankt\xFCr",
+      "ein Anrufbeantworter mit einer Nachricht",
+      "die Kasse mit dem l\xE4ngsten Band",
+      "ein Regenschirm im Schirmst\xE4nder",
+      "der Nachbarshund hinter der T\xFCr",
+      "Kaffeeflecken auf dem Antrag",
+      "eine Gl\xFChbirne, die flackert",
+      "der Sperrm\xFCll vor dem Haus"
     ],
     "hooks": [
       "der Bus kommt heute nicht",
       "ein Umschlag ohne Absender liegt da",
       "der Nachbar gr\xFC\xDFt zum ersten Mal",
       "der Aufzug h\xE4lt im falschen Stock",
-      "eine Zahl auf der Rechnung stimmt nicht"
+      "eine Zahl auf der Rechnung stimmt nicht",
+      "Der Aufzug bleibt zwischen zwei Stockwerken stehen.",
+      "Ein Paket kommt, das niemand bestellt hat.",
+      "Die Heizung wird warm, obwohl sie aus ist.",
+      "Der Nachbar zieht aus, ohne dass jemand es merkte.",
+      "Die Rechnung ist zwei Wochen alt und heute f\xE4llig.",
+      "Ein Kind fragt etwas, das niemand beantwortet.",
+      "Das Radio spielt ein Lied von damals.",
+      "Der Schl\xFCssel steckt von innen.",
+      "Die Bank hat schon geschlossen.",
+      "Der Zug f\xE4hrt heute von einem anderen Gleis.",
+      "Jemand hat den M\xFCll schon runtergebracht."
     ],
     "props": [
       "einen Schl\xFCsselbund",
@@ -8538,35 +8857,84 @@ var BUILTIN_PRESETS = {
       "einen Regenschirm",
       "ein Handy",
       "einen Kalender",
-      "einen Blumentopf"
+      "einen Blumentopf",
+      "eine Thermoskanne",
+      "eine Zeitung",
+      "ein Feuerzeug",
+      "eine Brotdose",
+      "einen Bonbon",
+      "ein Handtuch",
+      "einen Zettel am K\xFChlschrank",
+      "eine Fahrkarte",
+      "ein Ladekabel",
+      "einen W\xE4schekorb",
+      "eine Einkaufstasche",
+      "ein Kleingeldfach"
     ],
     "turns": [
       "der freie Tag f\xFCllt sich ungefragt",
       "jemand ruft nach Jahren wieder an",
       "der Umzug f\xE4llt aus",
       "die Routine bricht an einem Dienstag",
-      "der Nachbar bleibt in der T\xFCr stehen"
+      "der Nachbar bleibt in der T\xFCr stehen",
+      "der Anruf kommt doch noch",
+      "das Paket geh\xF6rt dem Nachbarn",
+      "die Rechnung war l\xE4ngst bezahlt",
+      "der Termin verschiebt sich um eine Woche",
+      "jemand bietet an mitzufahren",
+      "das Radio bleibt an",
+      "der Bus wartet ausnahmsweise",
+      "der Zettel war f\xFCr jemand anderen",
+      "die Wohnung nebenan wird gestrichen",
+      "der Regen h\xF6rt zur falschen Zeit auf",
+      "das Fahrrad steht wieder da",
+      "die T\xFCr f\xE4llt zu und der Schl\xFCssel liegt drinnen"
     ],
     "obstacles": [
       "der Tag hat zu wenig Stunden",
       "niemand ist erreichbar",
       "das Formular verlangt eine Nummer",
       "der Bus f\xE4hrt nur bis zur Br\xFCcke",
-      "die Wohnung bleibt zu klein"
+      "die Wohnung bleibt zu klein",
+      "die Kasse nimmt keine Karten",
+      "das Amt hat mittwochs zu",
+      "der Aufzug ist au\xDFer Betrieb",
+      "die Nummer ist besetzt",
+      "das Formular braucht eine Unterschrift von jemand anderem",
+      "der Laden schlie\xDFt in zehn Minuten",
+      "die Waschmaschine ist belegt",
+      "es fehlt Kleingeld",
+      "der Termin liegt in der Arbeitszeit",
+      "die Post kommt heute sp\xE4ter",
+      "niemand hat den Schl\xFCssel"
     ],
     "stakes": [
       "Der Einsatz ist ein freier Nachmittag.",
       "Der Einsatz ist die Miete.",
       "Der Einsatz ist ein Anruf, der \xFCberf\xE4llig ist.",
       "Der Einsatz ist der Platz am Fenster.",
-      "Der Einsatz ist die Ruhe nach Feierabend."
+      "Der Einsatz ist die Ruhe nach Feierabend.",
+      "Der Einsatz ist der Feierabend.",
+      "Der Einsatz ist ein Termin, der nicht wiederkommt.",
+      "Der Einsatz ist die Ruhe im Treppenhaus.",
+      "Der Einsatz ist ein Gespr\xE4ch, das ansteht.",
+      "Der Einsatz ist ein Umzug, der bevorsteht.",
+      "Der Einsatz ist die Woche, die noch zu tragen ist."
     ],
     "endings": [
       "Der K\xFChlschrank brummt weiter, das Licht geht aus.",
       "Morgen kommt der Bus wieder p\xFCnktlich.",
       "Sie r\xE4umt die Tasse weg und macht das Fenster zu.",
       "Im Treppenhaus geht das Licht von selbst aus.",
-      "Der Zettel bleibt liegen, unvollst\xE4ndig."
+      "Der Zettel bleibt liegen, unvollst\xE4ndig.",
+      "Die T\xFCr f\xE4llt zu, und es riecht nach Abendessen.",
+      "Und der Automat gibt das Kleingeld doch heraus.",
+      "So bleibt der Zettel am K\xFChlschrank h\xE4ngen.",
+      "Und im Treppenhaus wird es wieder still.",
+      "Der Aufzug f\xE4hrt weiter, ohne jemanden.",
+      "Und morgen ist der M\xFCll dran.",
+      "So geht das Licht im Flur von selbst aus.",
+      "Und die W\xE4sche h\xE4ngt noch immer."
     ]
   },
   "goethe": {
@@ -12518,6 +12886,49 @@ ist("ohne Paare bleibt alles", verwandleMotive("Der Regen f\xE4llt.", []), "Der 
   }
   const treue = woerter2 / N2 / 450;
   wahr(`Philosophie allein tr\xE4gt einen 450-W\xF6rter-Bericht (${Math.round(treue * 100)} %)`, treue >= 0.85);
+}
+{
+  const gross = Object.keys(BUILTIN_PRESETS).filter((id) => {
+    const b = BUILTIN_PRESETS[id];
+    return BANK_KEYS.reduce((s, k) => s + (b[k] || []).length, 0) >= 120;
+  });
+  console.log(`  Ausgebaut (120+): ${gross.length} von ${Object.keys(BUILTIN_PRESETS).length} \u2014 ${gross.join(", ")}`);
+  wahr(`mindestens f\xFCnf Presets sind ausgebaut (${gross.length})`, gross.length >= 5);
+  const W = (x) => x.split(/\s+/).filter(Boolean).length;
+  for (const id of gross) {
+    const b = BUILTIN_PRESETS[id];
+    let w = 0;
+    const N2 = 15;
+    for (let i = 0; i < N2; i++) {
+      w += W(buildStory(b, {
+        where: "im Hof",
+        when: "am Abend",
+        who: "die Wartende",
+        what: "sucht eine Auskunft",
+        tone: "nuechtern",
+        form: "prose",
+        lenTarget: 400,
+        tension: "off",
+        cast: "auto",
+        mode: "auto",
+        structure: "rekombination",
+        perspective: "third",
+        rhythm: "clean",
+        disruptor: "off",
+        instability: 0,
+        markovMode: "off",
+        varLevel: "mid",
+        archetypeA: "neutral",
+        archetypeB: "neutral"
+      }));
+    }
+    const treue2 = w / N2 / 400;
+    wahr(`${id} tr\xE4gt 400 W\xF6rter Prosa (${Math.round(treue2 * 100)} %)`, treue2 >= 0.8);
+    for (const k of BANK_KEYS) {
+      const arr = (b[k] || []).map((x) => x.trim().toLowerCase());
+      ist(`${id}.${k}: ohne Dubletten`, arr.length - new Set(arr).size, 0);
+    }
+  }
 }
 console.log(`Pr\xFCfstand Verwandlung \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

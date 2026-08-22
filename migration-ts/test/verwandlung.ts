@@ -165,6 +165,43 @@ ist("ohne Paare bleibt alles", verwandleMotive("Der Regen fällt.", []), "Der Re
   wahr(`Philosophie allein trägt einen 450-Wörter-Bericht (${Math.round(treue * 100)} %)`, treue >= 0.85);
 }
 
+// ── 7 · Der Ausbau der Presets ────────────────────────────────────────────
+// Ziel: jedes Preset auf rund 120 Einträge, aus EINER Hand. Der Fortschritt
+// steht hier, damit er sichtbar bleibt — und was einmal ausgebaut ist, darf
+// nicht wieder schrumpfen.
+{
+  const gross = Object.keys(BUILTIN_PRESETS).filter((id) => {
+    const b = BUILTIN_PRESETS[id] as Bank;
+    return BANK_KEYS.reduce((s, k) => s + (b[k] || []).length, 0) >= 120;
+  });
+  console.log(`  Ausgebaut (120+): ${gross.length} von ${Object.keys(BUILTIN_PRESETS).length} — ${gross.join(", ")}`);
+  wahr(`mindestens fünf Presets sind ausgebaut (${gross.length})`, gross.length >= 5);
+
+  // Jedes ausgebaute Preset muss die Länge auch WIRKLICH tragen. Einträge zu
+  // zählen ist keine Messung; 120 Zeilen Füllmaterial wären keine 120 Einträge.
+  const W = (x: string): number => x.split(/\s+/).filter(Boolean).length;
+  for (const id of gross) {
+    const b = BUILTIN_PRESETS[id] as Bank;
+    let w = 0;
+    const N = 15;
+    for (let i = 0; i < N; i++) {
+      w += W(buildStory(b, {
+        where: "im Hof", when: "am Abend", who: "die Wartende", what: "sucht eine Auskunft",
+        tone: "nuechtern", form: "prose", lenTarget: 400, tension: "off", cast: "auto", mode: "auto",
+        structure: "rekombination", perspective: "third", rhythm: "clean", disruptor: "off",
+        instability: 0, markovMode: "off", varLevel: "mid", archetypeA: "neutral", archetypeB: "neutral",
+      } as unknown as GenInput));
+    }
+    const treue2 = w / N / 400;
+    wahr(`${id} trägt 400 Wörter Prosa (${Math.round(treue2 * 100)} %)`, treue2 >= 0.8);
+    // Und keine Dubletten — beim Ausbauen ist das die häufigste Nachlässigkeit.
+    for (const k of BANK_KEYS) {
+      const arr = (b[k] || []).map((x) => x.trim().toLowerCase());
+      ist(`${id}.${k}: ohne Dubletten`, arr.length - new Set(arr).size, 0);
+    }
+  }
+}
+
 console.log(`Prüfstand Verwandlung — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

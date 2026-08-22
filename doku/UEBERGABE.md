@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.274.1**, Zweig `typescript-migration`.
+Stand: **v4.275.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,44 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Begonnen (4.275.0): **Der Ausbau der Presets auf 120 Einträge.**
+
+Die Zahl steht seit 4.274.1 fest. Jetzt wird sie umgesetzt — an drei Stellen:
+
+**1 · Die Prompts ziehen mit.** `buildWordbankPrompt()` und der 2.0-Prompt
+verlangten je Kategorie 5 bis 12 Einträge, zusammen also rund 50 — genau die
+alte Größe. Sie verlangen jetzt **je Kategorie eine Zahl** (motifs 24, hooks 16,
+props 22, turns 18, obstacles 17, stakes 11, endings 12 = 120) und begründen
+sie mit der Messung. Dazu zwei neue Absätze: **„EINE HAND, NICHT DREI"** (mit
+der Zahl 95 gegen 84) und **„KEINE DUBLETTEN"**. Und das Token-Fenster von 4096
+auf 8192 — bei 120 Einträgen riss die Antwort sonst mittendrin ab.
+
+**2 · Vier Presets ausgebaut.** kafka 48→135, mystery 48→129, alltag 48→121,
+hafen 48→120. Gemessen bestätigt sich die Vorhersage an vier unabhängigen
+Presets:
+
+| Preset | Einträge | Bericht 450 | Prosa 400 | Phrasenwdh |
+|---|---|---|---|---|
+| haute_couture | 48 | 56 % | 54 % | 0,021 |
+| alltag | 121 | 85 % | 97 % | 0,008 |
+| hafen | 120 | 90 % | 100 % | 0,012 |
+| mystery | 129 | 96 % | 94 % | 0,010 |
+| kafka | 135 | 95 % | 95 % | 0,007 |
+| philosophie | 147 | 96 % | 94 % | 0,006 |
+
+**3 · Die Hilfe korrigiert einen Rat, der falsch geworden ist.** Sie riet, für
+lange Texte mehrere Presets anzukreuzen. Das galt, solange die einzelnen klein
+waren — jetzt steht dort die Zahl 120 und der Satz, dass eines aus einer Hand
+eine Mischung schlägt.
+
+**Stand: 5 von 51.** Der Prüfstand nennt die ausgebauten beim Namen und prüft
+für jedes, dass es 400 Wörter Prosa auf mindestens 80 % trägt — Einträge zu
+zählen ist keine Messung. 46 Presets fehlen, Median 49 Einträge.
+
+**Nebenbefund, zum dritten Mal:** Die Genusprüfung schlug bei 21 neuen
+Requisiten an. Beim Ausbauen ist das der Regelfall, nicht die Ausnahme — 46
+Nomen ergänzt.
 
 Gemessen (4.274.1): **Wie groß muss ein Preset sein?** Die Weiche aus der
 Zwischenbilanz ist entschieden — und die Antwort ist kleiner als gedacht.

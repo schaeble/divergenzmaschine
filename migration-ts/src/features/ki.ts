@@ -257,15 +257,31 @@ export interface WordbankCtx { where?: string; when?: string; who?: string; what
 
 function buildWordbankPrompt(ctx: WordbankCtx): string {
   let p = 'Du erstellst eine "Wortbank" für einen prozeduralen, deutschsprachigen Kreativ-Textgenerator. '
-    + "Die Wortbank besteht aus 7 Kategorien mit je 8 bis 10 kurzen, stimmungsvollen deutschen Phrasen "
-    + "(keine ganzen Absätze, meist 3-10 Wörter), passend zu folgendem Kontext:\n"
+    // Die Zahlen sind gemessen, nicht geraten: Bei 44 Einträgen trägt ein Preset
+    // einen 450-Wörter-Bericht auf 56 % der Vorgabe, bei 89 auf 66 %, bei 112
+    // auf 87 %, bei 147 auf 95 %. Der Knick liegt bei rund 120 — darüber gewinnt
+    // man fast nichts mehr, darunter bricht es ein.
+    + "Die Wortbank besteht aus 7 Kategorien mit ZUSAMMEN rund 120 kurzen, stimmungsvollen deutschen "
+    + "Phrasen (keine ganzen Absätze, meist 3-10 Wörter), passend zu folgendem Kontext:\n"
     + `Ort: ${ctx.where || "(offen)"}\nZeit: ${ctx.when || "(offen)"}\nFigur(en): ${ctx.who || "(offen)"}\n`
     + `Handlung: ${ctx.what || "(offen)"}\nTon: ${ctx.tone || "(offen)"}\n`;
   if (ctx.userPrompt) p += `\nZUSÄTZLICHE VORGABE DES NUTZERS (vorrangig): ${ctx.userPrompt}\n`;
-  p += "\nKategorien (Beispiele nur zur Orientierung):\n"
-    + '- motifs (wiederkehrende, unheimliche/poetische Bilder)\n- hooks (kleine, irritierende Details)\n'
-    + '- props (Gegenstände mit Artikel im Akkusativ, z.B. "einen Schlüssel")\n- turns (Wendepunkte, ganzer Satz)\n'
-    + '- obstacles (Hindernisse, ganzer Satz)\n- stakes (Satz, beginnend mit "Der Einsatz ist")\n- endings (Schlusssätze)\n\n'
+  p += "\nKategorien mit ANZAHL (die Zahlen bitte einhalten, sie sind gemessen):\n"
+    + '- motifs: 24 wiederkehrende, unheimliche/poetische Bilder, Nominalphrase MIT Artikel\n'
+    + '- hooks: 16 kleine, irritierende Details oder Sätze\n'
+    + '- props: 22 Gegenstände MIT unbestimmtem Artikel im Akkusativ, z.B. "einen Schlüssel"\n'
+    + '- turns: 18 Wendepunkte, je ein knapper Satz\n'
+    + '- obstacles: 17 Hindernisse, je ein knapper Satz\n'
+    + '- stakes: 11 Sätze, beginnend mit "Der Einsatz ist"\n'
+    + '- endings: 12 Schlusssätze\n\n'
+    + "EINE HAND, NICHT DREI: Alle Einträge müssen aus DERSELBEN Welt stammen — gleiches Register, "
+    + "gleiche Bildwelt, gleicher Wortschatz. Das ist keine Stilfrage, sondern gemessen: Ein Preset aus "
+    + "einer Hand trägt einen langen Text auf 95 % der Vorgabe, eine Mischung aus drei Presets bei "
+    + "GLEICHER Größe nur auf 84 %. Der Generator prüft jeden Anschluss auf Kasus, Tempus und Satztyp und "
+    + "verwirft mehr, wenn das Material auseinanderfällt. Lieber 120 Einträge aus einer Welt als 200 aus dreien.\n\n"
+    + "KEINE DUBLETTEN: Kein Eintrag darf zweimal vorkommen, auch nicht leicht abgewandelt. "
+    + "Ein Eintrag zweimal ist kein zweiter Eintrag.\n\n"
+    + "ZEITFORM: Satzartige Einträge (hooks, turns, obstacles, endings) im PRÄSENS. Kein Präteritum, kein Perfekt.\n\n"
     + "WICHTIG: Deine Antwort MUSS mit { beginnen und mit } enden — nur reines JSON mit genau diesen 7 Schlüsseln "
     + "(motifs, hooks, props, turns, obstacles, stakes, endings), jeweils ein Array von Strings. Keine Erklärungen, kein Markdown.";
   return p;
@@ -273,7 +289,8 @@ function buildWordbankPrompt(ctx: WordbankCtx): string {
 
 /** Erzeugt eine Wortbank per KI und gibt sie normalisiert zurück (Aufrufer speichert sie als Preset). */
 export async function generateAiWordbank(ctx: WordbankCtx): Promise<Bank> {
-  const raw = await callClaude(buildWordbankPrompt(ctx), 4096, "{");
+  // 120 statt 50 Einträge brauchen mehr Platz — bei 4096 riss die Antwort mittendrin ab.
+  const raw = await callClaude(buildWordbankPrompt(ctx), 8192, "{");
   return normalizeBankShape(extractJson(raw));
 }
 

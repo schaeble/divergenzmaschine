@@ -119,16 +119,23 @@ function buildPreset2Prompt(inspiration: string, seed?: string, kontext?: VierW 
     + '  "logik": { "regeln": ["3-4 Erzaehl-/Logikregeln, je ein ganzer Satz"] },\n'
     + '  "dramaturgie": { "einstieg": ["3 knappe Anfangs-Phasen"], "mitte": ["3-4 Mittel-Phasen"], "hoehepunkt": ["2 Hoehepunkt-Phasen"], "schluss": ["2-3 Schluss-Stilworte, z.B. offen, melancholisch"] },\n'
     + '  "generatoren": {\n'
-    + '    "motifs": ["10-12 wiederkehrende, poetische Bilder als Nominalphrase MIT Artikel, z.B. \\"eine Nachtigall im dunklen Laub\\""],\n'
-    + '    "hooks": ["5-6 kleine, irritierende Sätze"],\n'
-    + '    "props": ["8-10 Gegenstände je MIT unbestimmtem Artikel, z.B. \\"ein Kompass\\", \\"eine Muschel\\", \\"ein zerbrochenes Segel\\""],\n'
-    + '    "turns": ["6-7 Wendepunkte, je kurzer Satz/Phrase"],\n'
-    + '    "obstacles": ["5-6 Hindernisse, je kurzer Satz"],\n'
-    + '    "stakes": ["5-6 Einsätze, kurze Nominalphrasen"],\n'
-    + '    "endings": ["5-6 Schlusssätze"]\n'
+    + '    "motifs": ["24 wiederkehrende, poetische Bilder als Nominalphrase MIT Artikel, z.B. \\"eine Nachtigall im dunklen Laub\\""],\n'
+    + '    "hooks": ["16 kleine, irritierende Sätze"],\n'
+    + '    "props": ["22 Gegenstände je MIT unbestimmtem Artikel, z.B. \\"ein Kompass\\", \\"eine Muschel\\", \\"ein zerbrochenes Segel\\""],\n'
+    + '    "turns": ["18 Wendepunkte, je kurzer Satz/Phrase"],\n'
+    + '    "obstacles": ["17 Hindernisse, je kurzer Satz"],\n'
+    + '    "stakes": ["11 Einsätze, kurze Nominalphrasen"],\n'
+    + '    "endings": ["12 Schlusssätze"]\n'
     + "  }\n"
     + "}\n\n"
     + "Alles auf Deutsch, konkret und stimmig zur Inspiration. Der generatoren-Block UND der dramaturgie-/transformation-Block sind am wichtigsten und muessen vollstaendig gefuellt sein.\n\n"
+    + "UMFANG — GEMESSEN, NICHT GERATEN: Der generatoren-Block soll ZUSAMMEN rund 120 Eintraege tragen. "
+    + "Bei 44 Eintraegen traegt ein Preset einen langen Text auf 56 Prozent der Vorgabe, bei 112 auf 87, bei 147 auf 95. "
+    + "Der Knick liegt bei rund 120; darueber gewinnt man fast nichts mehr, darunter bricht es ein.\n\n"
+    + "EINE HAND, NICHT DREI: Alle Eintraege muessen aus DERSELBEN Welt stammen — gleiches Register, gleiche "
+    + "Bildwelt, gleicher Wortschatz. Ein Preset aus einer Hand traegt einen langen Text auf 95 Prozent, eine "
+    + "Mischung aus drei Presets bei GLEICHER Groesse nur auf 84. Lieber 120 Eintraege aus einer Welt als 200 aus dreien.\n\n"
+    + "KEINE DUBLETTEN: Kein Eintrag zweimal, auch nicht leicht abgewandelt.\n\n"
     + "ZEITFORM — WICHTIG: Die Engine baut ihre Saetze im Praesens. Alle satzartigen Eintraege "
     + "(hooks, turns, obstacles, endings, veraenderungen, naturgesetze, regeln, dramaturgie-Phasen) MUESSEN im Praesens stehen "
     + "(\"die Tuer bleibt verschlossen\", NICHT \"die Tuer blieb verschlossen\"). Nominalphrasen ohne Verb (motifs, props, stakes, "
