@@ -97,11 +97,14 @@ details.fine>div{padding:4px 14px 14px}
 .kling{margin-top:12px}
 .kling:empty{display:none}
 .kling-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;font:600 13px var(--sans)}
-.kling-link{background:var(--acc);color:#fff;text-decoration:none;padding:7px 12px;border-radius:8px;font:600 13px var(--sans)}
-.kling-link:hover{background:#7c4ddb}
+.kling-link{background:var(--acc);color:var(--on-acc);text-decoration:none;padding:7px 12px;border-radius:8px;font:600 13px var(--sans)}
+.kling-link:hover{background:var(--acc-hover)}
 .kling-shot{display:grid;grid-template-columns:70px 1fr auto;gap:10px;align-items:center;
   background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin:6px 0}
-.kling-shot span{font:14px/1.5 var(--serif);color:#e7ebf2}
+/* Die Schrift der Shots stand fest auf #e7ebf2 — dem Textton des DUNKLEN
+   Themes. Im hellen Thema „Papier" ist --text fast schwarz, und die Shots
+   standen weiß auf weiß. Farben gehören in die Variablen, nicht in die Regel. */
+.kling-shot span{font:14px/1.5 var(--serif);color:var(--text)}
 .kling-shot b{color:var(--acc2);font:600 12px var(--sans)}
 
 /* Ideen-Zeile mit Übernahme */

@@ -279,6 +279,42 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
   ist("jede Quelle hat eine Beschriftung", QUELLEN.every((q) => !!QUELLE_LABEL[q]), true);
 }
 
+
+// ── 7 · Keine Theme-Farbe fest in einer Regel ─────────────────────────────
+// Gemeldet: „Die Schrift in den Shots ist kaum lesbar." Ursache war
+// `.kling-shot span{color:#e7ebf2}` — der Textton des DUNKLEN Themes, fest in
+// die Regel geschrieben. Im hellen Thema „Papier" ist --text fast schwarz, und
+// die Shots standen weiß auf weiß.
+//
+// Geprüft wird die Klasse, nicht der Einzelfall: Kein Selektor außerhalb der
+// Theme-Blöcke darf einen Farbwert benutzen, den ein Theme als Variable führt.
+// Wer die Farbe braucht, nimmt die Variable — dann wandert sie beim
+// Themenwechsel mit.
+{
+  // Kommentare zuerst raus: Sie nennen die alte Farbe, um zu erklären, warum sie
+  // weg musste — und lösten damit die eigene Prüfung aus.
+  const zeilen = css.replace(/\/\*[\s\S]*?\*\//g, "").split("\n");
+  // Werte, die in einem Theme-Block als Variable stehen. #fff bleibt außen vor:
+  // Weiß auf einer Akzentfläche und das Papier der Druckseite sind gewollt und
+  // gerade NICHT themenabhängig.
+  const werte = new Set<string>();
+  for (const m of css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/--(?:text|bg|panel2?|muted|border2?|acc-hover|input-bg|out-fg):\s*(#[0-9a-fA-F]{3,6})/g)) {
+    const w = m[1]!.toLowerCase();
+    if (w !== "#fff" && w !== "#ffffff") werte.add(w);
+  }
+  wahr(`es gibt Theme-Farben zu prüfen (${werte.size})`, werte.size >= 8);
+  let inBlock = false;
+  const funde: string[] = [];
+  for (const z of zeilen) {
+    if (/^\s*(:root|\[data-theme=)/.test(z)) inBlock = true;
+    if (inBlock) { if (z.includes("}")) inBlock = false; continue; }
+    for (const w of werte) {
+      if (z.toLowerCase().includes(w)) { funde.push(`${w} in „${z.trim().slice(0, 60)}“`); break; }
+    }
+  }
+  ist("keine Theme-Farbe steht fest in einer Regel", funde.join(" | "), "");
+}
+
 console.log(`Prüfstand Studio — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

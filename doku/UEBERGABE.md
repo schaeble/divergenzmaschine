@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.271.0**, Zweig `typescript-migration`.
+Stand: **v4.271.1**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,22 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Gemeldet und behoben (4.271.1): **„Die Schrift in den Shots ist kaum lesbar."**
+`.kling-shot span` hatte `color:#e7ebf2` fest in der Regel — den Textton des
+DUNKLEN Themes. Im hellen Thema „Papier" ist `--text` fast schwarz, und die
+Shots standen weiß auf weiß. Dazu `.kling-link:hover` mit dem dunklen
+Akzent-Hover: Der blaue Knopf wurde beim Überfahren violett.
+
+**Neu am Prüfstand Studio, und wichtiger als der Einzelfall:** Kein Selektor
+außerhalb der Theme-Blöcke darf mehr einen Farbwert benutzen, den ein Theme als
+Variable führt. Ausgenommen ist `#fff` — Weiß auf einer Akzentfläche und das
+Papier der Druckseite sind gewollt und gerade nicht themenabhängig. Von 19
+verdächtigen Stellen war genau eine ein Fehler; die Prüfung hält das jetzt fest.
+
+**Falle:** Die erste Fassung der Prüfung schlug auf ihrem eigenen Kommentar an —
+der nennt die alte Farbe, um zu erklären, warum sie weg musste. CSS-Kommentare
+werden jetzt vorher entfernt.
 
 Zwei Befunde am Bericht (4.271.0):
 
