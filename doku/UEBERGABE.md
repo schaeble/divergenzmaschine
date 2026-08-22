@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.274.0**, Zweig `typescript-migration`.
+Stand: **v4.274.1**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,48 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Gemessen (4.274.1): **Wie groß muss ein Preset sein?** Die Weiche aus der
+Zwischenbilanz ist entschieden — und die Antwort ist kleiner als gedacht.
+
+Dasselbe Material, nur weniger davon (Teilmengen von Philosophie):
+
+| Einträge | Bericht bei Ziel 450 | Prosa bei Ziel 400 |
+|---|---|---|
+| 44 | 56 % | 52 % |
+| 67 | 59 % | 71 % |
+| 89 | 66 % | 88 % |
+| **112** | **87 %** | **94 %** |
+| 133 | 94 % | 93 % |
+| 147 | 95 % | 94 % |
+
+**Der Knick liegt bei rund 120 Einträgen.** Darüber gewinnt man fast nichts
+mehr, darunter bricht es ein. Nicht 500, nicht 48 — etwa 120.
+
+**Und die zweite Zahl ist die überraschende:** Philosophie mit 147 Einträgen ist
+so gut wie oder besser als **zehn vereinte Presets mit 509**:
+
+| | 48 Einträge | Philosophie 147 | zehn vereint 509 |
+|---|---|---|---|
+| Bericht 450 | 55 % | **95 %** | 91 % |
+| Bericht 600 | 44 % | **78 %** | 74 % |
+| Prosa 400 | 51 % | **96 %** | 89 % |
+| Phrasenwiederholung | 0,014 | 0,007 | 0,004 |
+
+Gegenprobe bei GLEICHER Größe (147 aus einer Hand gegen 146 aus dreien):
+**95 % gegen 84 %** beim Bericht, **94 % gegen 86 %** bei der Prosa.
+
+**Nicht die Menge allein zählt, sondern dass das Material zusammenpasst.** Der
+Assembler verwirft weniger, wenn Kasus, Tempus und Ton der Bausteine zueinander
+finden — eine gemischte Bank bietet mehr Einträge, aber weniger brauchbare
+Verbindungen je Eintrag.
+
+**Folge für die Arbeit an den Presets:** Ein Preset auf 120 Einträge bringen ist
+besser, als drei zu mischen. Auto-Mix bleibt ein Mittel für Überraschung, nicht
+für Länge.
+
+Die Zahl steht jetzt als Prüfung fest: Philosophie allein muss einen
+450-Wörter-Bericht auf mindestens 85 % tragen.
 
 Gebaut (4.274.0): **Motivverwandlung — das erste Feld einer „Narrative DNA".**
 

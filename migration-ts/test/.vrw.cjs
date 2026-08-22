@@ -12491,6 +12491,33 @@ ist("ohne Paare bleibt alles", verwandleMotive("Der Regen f\xE4llt.", []), "Der 
     const arr = (b[k] || []).map((x) => x.trim().toLowerCase());
     ist(`${k}: ohne Dubletten`, arr.length - new Set(arr).size, 0);
   }
+  const W = (x) => x.split(/\s+/).filter(Boolean).length;
+  let woerter2 = 0;
+  const N2 = 25;
+  for (let i = 0; i < N2; i++) {
+    const e = buildBericht(b, {
+      where: "an der Unterelbe",
+      when: "im Herbst 1923",
+      who: "die Ostmoor-Werft",
+      what: "meldet einen Vorfall",
+      tone: "nuechtern",
+      form: "bericht",
+      lenTarget: 450,
+      mode: "auto",
+      structure: "linear",
+      perspective: "third",
+      rhythm: "auto",
+      disruptor: "off",
+      instability: 0,
+      markovMode: "off",
+      varLevel: "wild",
+      archetypeA: "neutral",
+      archetypeB: "neutral"
+    }, "wirtschaft");
+    woerter2 += W(typeof e === "string" ? e : e.text);
+  }
+  const treue = woerter2 / N2 / 450;
+  wahr(`Philosophie allein tr\xE4gt einen 450-W\xF6rter-Bericht (${Math.round(treue * 100)} %)`, treue >= 0.85);
 }
 console.log(`Pr\xFCfstand Verwandlung \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
