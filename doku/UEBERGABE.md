@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.275.0**, Zweig `typescript-migration`.
+Stand: **v4.275.1**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,29 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Zweiter Stapel (4.275.1): **6 weitere Presets ausgebaut — Stand 11 von 51.**
+
+ritterromane 129, bergwelt 128, mystery-Nachbarn klimakrise 128, jugendsprache
+123, dickens 124, urknall 121. Gemessen:
+
+| Preset | Einträge | Bericht 450 | Prosa 400 | Phrasenwdh |
+|---|---|---|---|---|
+| ritterromane | 129 | 106 % | 97 % | 0,007 |
+| bergwelt | 128 | 108 % | 96 % | 0,011 |
+| klimakrise | 128 | 104 % | 93 % | 0,010 |
+| dickens | 124 | 91 % | 100 % | 0,007 |
+| urknall | 121 | 91 % | 98 % | 0,006 |
+| jugendsprache | 123 | **73 %** | 95 % | 0,009 |
+
+**jugendsprache fällt heraus, und das ist kein Fehler:** Seine Einträge sind
+kurz („Das ist so random."), also tragen 123 Einträge dort weniger Wörter als
+anderswo. Die Prosa erreicht trotzdem 95 %. Für den Bericht wäre eine Zahl in
+WÖRTERN das bessere Maß als eine in Einträgen — vermerkt, nicht gebaut.
+
+**Nebenbefund, zum vierten Mal in Folge:** Die Genusprüfung schlug bei 49 neuen
+Requisiten an. 89 Nomen ergänzt. Wer Material schreibt, schreibt die Genustabelle
+mit — das gehört zum Arbeitsgang und nicht in die Nachbereitung.
 
 Begonnen (4.275.0): **Der Ausbau der Presets auf 120 Einträge.**
 
