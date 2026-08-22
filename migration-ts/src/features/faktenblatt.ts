@@ -83,8 +83,14 @@ const EINHEIT: EinheitDef[] = [
   { einheit: "Arbeitsplätze", rolle: "betroffene", min: 15, max: 700, rund: 5 },
   { einheit: "Stunden", rolle: "dauer", min: 2, max: 72, rund: 1 },
   { einheit: "Tage", rolle: "dauer", min: 2, max: 40, rund: 1 },
-  { einheit: "Meter", rolle: "groesse", min: 8, max: 400, rund: 1 },
-  { einheit: "Quadratmeter", rolle: "groesse", min: 200, max: 40000, rund: 100 },
+  // KEINE allgemeine Größe mehr. „Ausdehnung: 278 Meter" stand in etwa jedem
+  // zweiten Bericht von sieben der neun Ressorts und sagte nirgends etwas: Ein
+  // Bildungsbericht hat keine Meter. Jedes Ressort führt jetzt seine eigene
+  // Größe (Sitzplätze, Klassenräume, Stimmbezirke, Messreihen …), und die
+  // allgemeine Liste muss nicht mehr einspringen.
+  //
+  // Wo eine Länge wirklich passt, steht sie beim Ressort selbst: „Meter
+  // Kaimauer" bei der Wirtschaft, „Meter Laufbahn" beim Sport.
   { einheit: "Unterschriften", rolle: "vorgaenge", min: 200, max: 9000, rund: 50 },
   { einheit: "Anträge", rolle: "vorgaenge", min: 12, max: 600, rund: 1 },
   { einheit: "Beschwerden", rolle: "vorgaenge", min: 5, max: 400, rund: 1 },
@@ -386,6 +392,12 @@ export function mitAbschlusskomma(angabe: string): string {
 }
 
 export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto" = "auto"): Faktenblatt {
+  // Ein Bericht wächst durch BELEGE, nicht durch Bilder. Gemessen lieferte er
+  // bei Ziel 600 nur 186 Wörter (31 %) — weniger als bei Ziel 220 —, weil
+  // `mische()` die freien Sätze auf die Zahl der Faktensätze deckelt und die
+  // Fakten fest waren. Der Deckel bleibt; die Fakten wachsen.
+  const zielWorte = Number.isFinite(input.lenTarget as number) ? (input.lenTarget as number) : 220;
+  const mehr = Math.max(0, Math.min(3, Math.floor((zielWorte - 200) / 120)));
   // Ressort zuerst: Es bestimmt Rollen, Einheiten und den Zusatzabschnitt.
   const ressort = ressortWahl === "auto"
     ? rateRessort([input.who, input.what, input.where].filter(Boolean).join(" "))
@@ -416,6 +428,13 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
     { id: "p1", name: `${pick(VORNAME_F)} ${n1}`, kurz: n1, rolle: pick(R.rollenF.length ? R.rollenF : ROLLE_F), genus: "fem", zitierfaehig: true },
     { id: "p2", name: `${pick(VORNAME_M)} ${n2}`, kurz: n2, rolle: pick(R.rollenM.length ? R.rollenM : ROLLE_M), genus: "mask", zitierfaehig: true },
   ];
+  // Eine dritte Stimme erst bei langen Berichten — in einem kurzen wäre sie
+  // Ballast, in einem langen fehlt sie.
+  if (zielWorte >= 380) {
+    const n3 = zieheNach();
+    personen.push({ id: "p3", name: `${pick(VORNAME_F)} ${n3}`, kurz: n3,
+      rolle: pick(R.rollenF.length ? R.rollenF : ROLLE_F), genus: "fem", zitierfaehig: true });
+  }
 
   // Zahlen: zwei bis drei, jede Einheit höchstens einmal.
   // Allgemeine Einheiten nur fuer Rollen, die das Ressort NICHT abdeckt. Sonst
@@ -424,7 +443,7 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
   const eigeneRollen = new Set(R.einheiten.map((e) => e.rolle));
   const einheiten: EinheitDef[] = [...R.einheiten, ...EINHEIT.filter((e) => !eigeneRollen.has(e.rolle))];
   const zahlen: FbZahl[] = [];
-  const wieViele = 2 + Math.floor(Math.random() * 2);
+  const wieViele = 2 + Math.floor(Math.random() * 2) + mehr;
   // z1 muss eine Einheit sein, von der man "betroffen" sagen kann - der Vorspann
   // und der abgeleitete Wert bauen darauf auf.
   // z1 ist immer eine Betroffenen-Zahl - der Vorspann baut darauf auf. Danach je
@@ -497,6 +516,19 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
     // im Hergang "Frühjahr 2001 folgte der Schritt".
     { id: "c3", zeit: mitPraeposition(wann) || pick(ZEITPUNKT), was: (input.what || "das Ereignis").trim() },
   ];
+  // Zwischenschritte für lange Berichte. Sie stehen ZWISCHEN Anfang und
+  // Ereignis, tragen also keine eigene Jahreszahl — sonst müsste die
+  // Reihenfolge der Jahre gerechnet werden, und der Prüfstand meldet
+  // „Jahreszahlen verdreht", sobald sie einmal nicht aufgeht.
+  {
+    const gemischt = (a: string[]): string[] => a.slice().sort(() => Math.random() - 0.5);
+    const zeiten = gemischt(VORGESCHICHTE_ZEIT).filter((z: string) => z !== chronologie[1]!.zeit);
+    const sachen = gemischt(gutesLicht ? VORGESCHICHTE_GUT : VORGESCHICHTE_SACHLICH)
+      .filter((x: string) => x !== chronologie[1]!.was);
+    for (let i = 0; i < mehr && i < zeiten.length && i < sachen.length; i++) {
+      chronologie.splice(2 + i, 0, { id: `c${4 + i}`, zeit: zeiten[i]!, was: sachen[i]! });
+    }
+  }
 
   return {
     id: "fb-" + Date.now().toString(36),

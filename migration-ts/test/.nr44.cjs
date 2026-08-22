@@ -9969,7 +9969,9 @@ var RESSORTS = {
       { einheit: "Besch\xE4ftigte", rolle: "betroffene", min: 40, max: 900, rund: 10, gen: "Besch\xE4ftigten" },
       { einheit: "Zulieferer", rolle: "betroffene", min: 12, max: 120, rund: 1 },
       { einheit: "Millionen Euro Umsatz", rolle: "geld", min: 2, max: 900, rund: 1 },
-      { einheit: "Standorte", rolle: "vorgaenge", min: 2, max: 40, rund: 1 }
+      { einheit: "Standorte", rolle: "vorgaenge", min: 2, max: 40, rund: 1 },
+      { einheit: "Meter Kaimauer", rolle: "groesse", min: 40, max: 900, rund: 10 },
+      { einheit: "Quadratmeter Hallenfl\xE4che", rolle: "groesse", min: 400, max: 24e3, rund: 100 }
     ],
     zusatz: { titel: "Marktreaktion", rahmen: ["Am Markt hei\xDFt es:", "In der Branche gilt:", "Beobachter verweisen auf:", "Aus der Belegschaft:", "Im Betriebsrat:", "Am Werkstor:"] },
     einsatz: [S("der Standort"), S("die Altersversorgung der Belegschaft"), P("die Ausbildungspl\xE4tze"), S("der Name des Hauses"), S("die Lieferkette"), S("das Werksgel\xE4nde"), S("die Tarifbindung"), S("der Standort selbst")],
@@ -9988,7 +9990,9 @@ var RESSORTS = {
       { einheit: "Wahlberechtigte", rolle: "betroffene", min: 500, max: 9e4, rund: 100, gen: "Wahlberechtigten" },
       { einheit: "Kommunen", rolle: "betroffene", min: 12, max: 200, rund: 1 },
       { einheit: "Stimmen", rolle: "vorgaenge", min: 20, max: 700, rund: 1 },
-      { einheit: "Sitzungen", rolle: "vorgaenge", min: 2, max: 60, rund: 1 }
+      { einheit: "Sitzungen", rolle: "vorgaenge", min: 2, max: 60, rund: 1 },
+      { einheit: "Sitze", rolle: "groesse", min: 5, max: 120, rund: 1 },
+      { einheit: "Stimmbezirke", rolle: "groesse", min: 4, max: 90, rund: 1 }
     ],
     zusatz: { titel: "Reaktionen", rahmen: ["Aus der Regierung hei\xDFt es:", "Die Opposition h\xE4lt dagegen:", "Aus den L\xE4ndern kommt:", "Im Rathaus:", "Aus der Fraktion:", "In der Sitzung:"] },
     einsatz: [S("die Mehrheit"), S("der Zeitplan des Verfahrens"), S("das Vertrauen in die Zusage"), S("die Zust\xE4ndigkeit der Kommunen"), S("der Haushaltsansatz"), S("die Mehrheit im Rat"), S("der Haushalt"), P("die Fristen"), S("das Vertrauen in die Verwaltung")],
@@ -10007,7 +10011,9 @@ var RESSORTS = {
       { einheit: "Ensemblemitglieder", rolle: "betroffene", min: 12, max: 200, rund: 1 },
       { einheit: "Abonnenten", rolle: "betroffene", min: 50, max: 8e3, rund: 10 },
       { einheit: "Vorstellungen", rolle: "vorgaenge", min: 3, max: 200, rund: 1 },
-      { einheit: "Minuten Spieldauer", rolle: "dauer", min: 45, max: 240, rund: 5 }
+      { einheit: "Minuten Spieldauer", rolle: "dauer", min: 45, max: 240, rund: 5 },
+      { einheit: "Sitzpl\xE4tze", rolle: "groesse", min: 90, max: 1400, rund: 10 },
+      { einheit: "Exponate", rolle: "groesse", min: 12, max: 600, rund: 2 }
     ],
     zusatz: { titel: "Zum Werk", rahmen: ["Zu sehen ist:", "Die Arbeit zeigt:", "Auf der B\xFChne steht:", "Aus dem Ensemble:", "An der Kasse:", "In der Probe:"] },
     einsatz: [S("der Spielplan der kommenden Saison"), S("das Ensemble in seiner jetzigen Form"), P("die Werkst\xE4tten"), S("das Haus als Ort"), S("die Nachwuchsarbeit"), S("die Urauff\xFChrung"), S("der Spielplan"), P("die Gastspiele"), S("das Ensemble selbst")],
@@ -10026,7 +10032,9 @@ var RESSORTS = {
       { einheit: "Vereinsmitglieder", rolle: "betroffene", min: 50, max: 4e4, rund: 10 },
       { einheit: "Dauerkarten", rolle: "betroffene", min: 100, max: 3e4, rund: 100 },
       { einheit: "Zuschauer", rolle: "betroffene", min: 200, max: 6e4, rund: 100 },
-      { einheit: "Minuten", rolle: "dauer", min: 5, max: 120, rund: 1 }
+      { einheit: "Minuten", rolle: "dauer", min: 5, max: 120, rund: 1 },
+      { einheit: "Punkte", rolle: "groesse", min: 3, max: 60, rund: 1 },
+      { einheit: "Meter Laufbahn", rolle: "groesse", min: 100, max: 800, rund: 50 }
     ],
     zusatz: { titel: "Spielverlauf", rahmen: ["Nach der Pause:", "In der Schlussphase:", "Zur Halbzeit:", "In der Kabine:", "Auf der Trib\xFCne:", "In der Gesch\xE4ftsstelle:"] },
     einsatz: [S("der Klassenerhalt"), S("die Lizenz"), S("die Nachwuchsabteilung"), S("der Name des Vereins"), S("die Heimspielst\xE4tte"), S("das Traineramt"), S("der Aufstieg"), P("die Heimspiele"), S("der Trainingsbetrieb")],
@@ -10045,7 +10053,9 @@ var RESSORTS = {
       { einheit: "Teilnehmende", rolle: "betroffene", min: 12, max: 4e3, rund: 1, gen: "Teilnehmenden" },
       { einheit: "Institute", rolle: "betroffene", min: 12, max: 40, rund: 1 },
       { einheit: "Proben", rolle: "vorgaenge", min: 12, max: 4e3, rund: 1 },
-      { einheit: "Monate Laufzeit", rolle: "dauer", min: 3, max: 96, rund: 1 }
+      { einheit: "Monate Laufzeit", rolle: "dauer", min: 3, max: 96, rund: 1 },
+      { einheit: "Messreihen", rolle: "groesse", min: 6, max: 220, rund: 2 },
+      { einheit: "Datens\xE4tze", rolle: "groesse", min: 40, max: 9e3, rund: 10 }
     ],
     zusatz: { titel: "Methode", rahmen: ["Untersucht wurde:", "Erhoben wurden:", "Verglichen wurde:", "Im Labor:", "Aus der Arbeitsgruppe:", "Am Rande der Tagung:"] },
     einsatz: [S("die F\xF6rderung"), S("die Vergleichbarkeit der Daten"), S("die Ver\xF6ffentlichung"), S("der Standort des Instituts"), S("die Fortsetzung der Reihe"), S("die F\xF6rderzusage"), S("die Messreihe"), P("die Nachwuchsstellen"), S("der Zugang zur Sammlung")],
@@ -10064,7 +10074,9 @@ var RESSORTS = {
       { einheit: "Haushalte", rolle: "betroffene", min: 20, max: 4e3, rund: 10 },
       { einheit: "Familien", rolle: "betroffene", min: 12, max: 2e3, rund: 10 },
       { einheit: "Haushalte", rolle: "betroffene", min: 20, max: 4e3, rund: 10 },
-      { einheit: "Beratungen", rolle: "vorgaenge", min: 10, max: 900, rund: 1 }
+      { einheit: "Beratungen", rolle: "vorgaenge", min: 10, max: 900, rund: 1 },
+      { einheit: "Quadratmeter Nutzfl\xE4che", rolle: "groesse", min: 60, max: 3e3, rund: 10 },
+      { einheit: "Pl\xE4tze", rolle: "groesse", min: 8, max: 300, rund: 2 }
     ],
     zusatz: { titel: "Vor Ort", rahmen: ["Im Viertel hei\xDFt es:", "Nachbarn berichten:", "In der Beratungsstelle:", "Am Tresen:", "Im Gemeindehaus:", "Auf dem Wochenmarkt:"] },
     einsatz: [S("der Treffpunkt im Viertel"), S("die Beratung vor Ort"), S("das Ehrenamt"), S("die Mietbindung"), S("der Zusammenhalt in der Nachbarschaft"), S("die Nachbarschaftshilfe"), P("die \xD6ffnungszeiten"), S("das Gemeindehaus"), S("die Tafel")],
@@ -10104,7 +10116,9 @@ var RESSORTS = {
       { einheit: "Sch\xFClerinnen und Sch\xFCler", rolle: "betroffene", min: 30, max: 2e3, rund: 10 },
       { einheit: "Lehrkr\xE4fte", rolle: "betroffene", min: 12, max: 200, rund: 1 },
       { einheit: "Sch\xFClerinnen und Sch\xFCler", rolle: "betroffene", min: 30, max: 2e3, rund: 10 },
-      { einheit: "Unterrichtsstunden", rolle: "dauer", min: 4, max: 400, rund: 2 }
+      { einheit: "Unterrichtsstunden", rolle: "dauer", min: 4, max: 400, rund: 2 },
+      { einheit: "Klassenr\xE4ume", rolle: "groesse", min: 3, max: 60, rund: 1 },
+      { einheit: "Wochenstunden", rolle: "groesse", min: 4, max: 40, rund: 1 }
     ],
     zusatz: { titel: "An der Schule", rahmen: ["Im Kollegium hei\xDFt es:", "Aus der Elternschaft:", "Im Unterricht zeigt sich:", "Im Lehrerzimmer:", "Auf dem Schulhof:", "In der Elternversammlung:"] },
     einsatz: [S("der Ganztag"), S("das Abschlussjahr"), P("die Stellen im Kollegium"), S("der Schulstandort"), S("die Betreuung am Nachmittag"), P("die Werkr\xE4ume"), S("die Schulbusverbindung"), S("das Kollegium")],
@@ -10188,8 +10202,14 @@ var EINHEIT = [
   { einheit: "Arbeitspl\xE4tze", rolle: "betroffene", min: 15, max: 700, rund: 5 },
   { einheit: "Stunden", rolle: "dauer", min: 2, max: 72, rund: 1 },
   { einheit: "Tage", rolle: "dauer", min: 2, max: 40, rund: 1 },
-  { einheit: "Meter", rolle: "groesse", min: 8, max: 400, rund: 1 },
-  { einheit: "Quadratmeter", rolle: "groesse", min: 200, max: 4e4, rund: 100 },
+  // KEINE allgemeine Größe mehr. „Ausdehnung: 278 Meter" stand in etwa jedem
+  // zweiten Bericht von sieben der neun Ressorts und sagte nirgends etwas: Ein
+  // Bildungsbericht hat keine Meter. Jedes Ressort führt jetzt seine eigene
+  // Größe (Sitzplätze, Klassenräume, Stimmbezirke, Messreihen …), und die
+  // allgemeine Liste muss nicht mehr einspringen.
+  //
+  // Wo eine Länge wirklich passt, steht sie beim Ressort selbst: „Meter
+  // Kaimauer" bei der Wirtschaft, „Meter Laufbahn" beim Sport.
   { einheit: "Unterschriften", rolle: "vorgaenge", min: 200, max: 9e3, rund: 50 },
   { einheit: "Antr\xE4ge", rolle: "vorgaenge", min: 12, max: 600, rund: 1 },
   { einheit: "Beschwerden", rolle: "vorgaenge", min: 5, max: 400, rund: 1 },
@@ -10358,6 +10378,8 @@ function mitAbschlusskomma(angabe) {
   return a.replace(/[,\s]+$/, "") + ",";
 }
 function ziehFaktenblatt(input, ressortWahl = "auto") {
+  const zielWorte = Number.isFinite(input.lenTarget) ? input.lenTarget : 220;
+  const mehr = Math.max(0, Math.min(3, Math.floor((zielWorte - 200) / 120)));
   const ressort = ressortWahl === "auto" ? rateRessort([input.who, input.what, input.where].filter(Boolean).join(" ")) : ressortWahl;
   const R = RESSORTS[ressort];
   const gutesLicht = /^(uplifting|humorous|zaertlich)$/i.test(input.tone || "");
@@ -10374,10 +10396,21 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
     { id: "p1", name: `${pick(VORNAME_F)} ${n1}`, kurz: n1, rolle: pick(R.rollenF.length ? R.rollenF : ROLLE_F), genus: "fem", zitierfaehig: true },
     { id: "p2", name: `${pick(VORNAME_M)} ${n2}`, kurz: n2, rolle: pick(R.rollenM.length ? R.rollenM : ROLLE_M), genus: "mask", zitierfaehig: true }
   ];
+  if (zielWorte >= 380) {
+    const n3 = zieheNach();
+    personen.push({
+      id: "p3",
+      name: `${pick(VORNAME_F)} ${n3}`,
+      kurz: n3,
+      rolle: pick(R.rollenF.length ? R.rollenF : ROLLE_F),
+      genus: "fem",
+      zitierfaehig: true
+    });
+  }
   const eigeneRollen = new Set(R.einheiten.map((e) => e.rolle));
   const einheiten = [...R.einheiten, ...EINHEIT.filter((e) => !eigeneRollen.has(e.rolle))];
   const zahlen = [];
-  const wieViele = 2 + Math.floor(Math.random() * 2);
+  const wieViele = 2 + Math.floor(Math.random() * 2) + mehr;
   const rollenDrin = /* @__PURE__ */ new Set();
   const genitivPlural = [];
   const sache = sachNomen(input.what || "");
@@ -10421,6 +10454,14 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
     // im Hergang "Frühjahr 2001 folgte der Schritt".
     { id: "c3", zeit: mitPraeposition(wann) || pick(ZEITPUNKT), was: (input.what || "das Ereignis").trim() }
   ];
+  {
+    const gemischt = (a) => a.slice().sort(() => Math.random() - 0.5);
+    const zeiten = gemischt(VORGESCHICHTE_ZEIT).filter((z) => z !== chronologie[1].zeit);
+    const sachen = gemischt(gutesLicht ? VORGESCHICHTE_GUT : VORGESCHICHTE_SACHLICH).filter((x) => x !== chronologie[1].was);
+    for (let i = 0; i < mehr && i < zeiten.length && i < sachen.length; i++) {
+      chronologie.splice(2 + i, 0, { id: `c${4 + i}`, zeit: zeiten[i], was: sachen[i] });
+    }
+  }
   return {
     id: "fb-" + Date.now().toString(36),
     ressort,
@@ -10681,6 +10722,8 @@ function buildBericht(bank, input, ressort = "auto") {
   abschnitte.push(hintergrund(fb, bank, b, benutzt, extra, vorrat));
   const z2 = zitat(fb, bank, b, benutzt, 1, vorrat);
   if (z2) abschnitte.push(z2);
+  const z3s = zitat(fb, bank, b, benutzt, 2, vorrat);
+  if (z3s) abschnitte.push(z3s);
   if (extra >= 3) {
     const teile = [];
     for (let i = 0; i < extra - 2; i++) {
@@ -10688,6 +10731,15 @@ function buildBericht(bank, input, ressort = "auto") {
       if (roh) teile.push(`${cap(roh)}.`);
     }
     if (teile.length) abschnitte.push(`Zur Einordnung: ${teile.join(" ")}`);
+  }
+  if (fb.chronologie.length > 3) {
+    const mitte = fb.chronologie.slice(1, -1);
+    const zeilen = mitte.map((c) => `${cap(c.zeit)}: ${c.was}.`);
+    if (zeilen.length >= 2) abschnitte.push(`Chronik: ${zeilen.join(" ")}`);
+  }
+  {
+    const rest = fb.zahlen.slice(3);
+    if (rest.length) abschnitte.push(`In Zahlen: ${rest.map((z) => zahlSatz(z)).join(" ")}`);
   }
   {
     const R = RESSORTS[fb.ressort];

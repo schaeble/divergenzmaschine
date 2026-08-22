@@ -438,6 +438,9 @@ export function buildBericht(bank: Bank, input: GenInput, ressort: RessortId | "
   abschnitte.push(hintergrund(fb, bank, b, benutzt, extra, vorrat));
   const z2 = zitat(fb, bank, b, benutzt, 1, vorrat);
   if (z2) abschnitte.push(z2);
+  // Eine dritte Stimme, wenn das Faktenblatt eine dritte Person führt.
+  const z3s = zitat(fb, bank, b, benutzt, 2, vorrat);
+  if (z3s) abschnitte.push(z3s);
   // Einordnung ist im Schema optional - sie kommt dazu, wenn Platz da ist, und
   // bringt laut Regel KEINE neue Zahl.
   if (extra >= 3) {
@@ -447,6 +450,21 @@ export function buildBericht(bank: Bank, input: GenInput, ressort: RessortId | "
       if (roh) teile.push(`${cap(roh)}.`);
     }
     if (teile.length) abschnitte.push(`Zur Einordnung: ${teile.join(" ")}`);
+  }
+  // Chronik: Die zusätzlichen Chronologieschritte, die das Faktenblatt bei
+  // großem Ziel mitliefert. So wächst ein Bericht in Wirklichkeit — durch mehr
+  // Belege, nicht durch mehr Bilder.
+  if (fb.chronologie.length > 3) {
+    const mitte = fb.chronologie.slice(1, -1);
+    const zeilen = mitte.map((c) => `${cap(c.zeit)}: ${c.was}.`);
+    if (zeilen.length >= 2) abschnitte.push(`Chronik: ${zeilen.join(" ")}`);
+  }
+  // Die Zahlen, die in Hergang und Hintergrund nicht untergekommen sind. Eine
+  // Zahl ohne Satz steht sonst nur im Faktenkasten — und der wird beim Setzen
+  // abgetrennt.
+  {
+    const rest = fb.zahlen.slice(3);
+    if (rest.length) abschnitte.push(`In Zahlen: ${rest.map((z) => zahlSatz(z)).join(" ")}`);
   }
   // Zusatzabschnitt des Ressorts - die einzige Abweichung vom Grundgeruest.
   {

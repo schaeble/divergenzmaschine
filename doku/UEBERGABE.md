@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.270.0**, Zweig `typescript-migration`.
+Stand: **v4.271.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,54 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Zwei Befunde am Bericht (4.271.0):
+
+**1 · „Bei Berichten fällt das Wetter kurz."** Gemessen galt das für ALLE
+Ressorts — und schlimmer: Der Bericht wurde bei großen Zielen KÜRZER.
+
+| Ziel | vorher | nachher (ein Preset) | nachher (zehn Presets) |
+|---|---|---|---|
+| 220 | 237 (108 %) | 236 | 241 (110 %) |
+| 320 | 212 (66 %) | 244 | 329 (103 %) |
+| 450 | 189 (42 %) | 251 | 409 (91 %) |
+| 600 | 186 (31 %) | 267 | 446 (74 %) |
+
+Ursache: `mische()` deckelt die freien Sätze auf die Zahl der FAKTENsätze, und
+die Fakten lagen fest (2–3 Zahlen, 3 Chronologieschritte, 2 Zitate). `extra`
+wuchs bis 22, die Schleifen sammelten 23 freie Sätze — und der Deckel warf alle
+bis auf fünf weg.
+
+**Der Deckel bleibt.** Er hält das Verhältnis Fakt zu Bild, und das ist der
+Grund, warum der Bericht ein Bericht ist. Stattdessen wachsen die FAKTEN mit dem
+Ziel: bis zu drei Zahlen mehr, bis zu zwei Chronologieschritte mehr, eine dritte
+Stimme ab Ziel 380. Dazu zwei neue Abschnitte, beide faktisch: **Chronik**
+(die Zwischenschritte) und **In Zahlen** (was in Hergang und Hintergrund nicht
+untergekommen ist).
+
+**Die verbleibende Grenze ist die Wortbank**, nicht mehr die Bauart: mit einem
+einzelnen Preset (51 Einträge) endet der Bericht bei 43 % einer
+600-Wörter-Vorgabe, mit zehn vereinten Presets bei 74 %. Für lange Berichte
+mehrere Presets ankreuzen — dasselbe gilt seit jeher für die Rekombination.
+
+**2 · „Immer wieder Meter-Angaben."** „Ausdehnung: 278 Meter" stand in etwa
+jedem zweiten Bericht von sieben der neun Ressorts. Gesundheit und Wetter hatten
+schon eigene Größen und deshalb gar keine Meter — genau das war der Hinweis.
+
+Jetzt führt JEDES Ressort seine eigene Größe: Meter Kaimauer und Quadratmeter
+Hallenfläche (Wirtschaft), Sitze und Stimmbezirke (Politik), Sitzplätze und
+Exponate (Kultur), Punkte und Meter Laufbahn (Sport), Messreihen und Datensätze
+(Wissenschaft), Quadratmeter Nutzfläche und Plätze (Gesellschaft), Klassenräume
+und Wochenstunden (Bildung). Die nackten Einheiten „Meter" und „Quadratmeter"
+sind aus der allgemeinen Liste entfernt.
+
+**Warum das reicht:** `ziehFaktenblatt` nimmt aus der allgemeinen Liste nur
+Rollen, die das Ressort NICHT abdeckt. Da jedes Ressort jetzt eine `groesse`
+führt, kann keine allgemeine mehr einspringen. Die Prüfung setzt genau dort an —
+die Gegenprobe „einem Ressort die Größe nehmen" bringt die nackten Meter sofort
+zurück.
+
+**Neu:** `test/ressort.ts`, 22 Prüfungen, vier Gegenproben.
 
 Behoben (4.270.0): **Die Dramaturgie verlor ihren Höhepunkt.**
 

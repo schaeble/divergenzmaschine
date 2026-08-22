@@ -1,5 +1,3 @@
-"use strict";
-
 // src/text-utils.ts
 function clean(s) {
   return (s ?? "").toString().trim().replace(/\s+/g, " ");
@@ -13,7 +11,7 @@ function splitSentences(txt) {
 var HAENGT_IN_DER_LUFT = /(^|\s)(ein|eine|einem|einen|einer|eines|der|die|das|dem|den|des|und|oder|aber|wie|als|im|am|beim|zum|zur|vom|von|für|ohne|durch|gegen|bei|seit|während|wegen|trotz|dass|weil|denn|sondern|sowie|bzw|etwa|sehr|dessen|deren|welche[rsmn]?)$/i;
 function kuerzeAmBruch(text) {
   let t = (text || "").replace(/\s*…\s*$/, "").replace(/\s*[.,;:–—-]+\s*$/, "").trim();
-  for (let i2 = 0; i2 < 8 && t && HAENGT_IN_DER_LUFT.test(t); i2++) {
+  for (let i = 0; i < 8 && t && HAENGT_IN_DER_LUFT.test(t); i++) {
     const komma = t.lastIndexOf(",");
     if (komma >= 12) {
       t = t.slice(0, komma).replace(/\s*[.,;:–—-]+\s*$/, "").trim();
@@ -36,7 +34,7 @@ function kuerzeAmBruch(text) {
       if (relativ && endetAufNomen && !hatVerb) t = t.slice(0, komma).trim();
     }
   }
-  for (let i2 = 0; i2 < 4; i2++) {
+  for (let i = 0; i < 4; i++) {
     const m = t.match(/(\S+)\s+(an|auf|aus|ein|mit|nach|vor|zu|über|unter|um|ab|bei|los|weg|hin|her)$/i);
     if (!m || !/^[A-ZÄÖÜ]/.test(m[1])) break;
     t = t.replace(/\s+\S+$/, "").trim();
@@ -1754,8 +1752,8 @@ function personKopf(person) {
   const teile = (person || "").split(",").map((x) => clean(x)).filter(Boolean);
   if (teile.length <= 1) return (person || "").trim();
   const raus = [teile[0]];
-  for (let i2 = 1; i2 < teile.length; i2++) {
-    if (SP_REL.test(teile[i2]) && SP_ENDS_VERB.test(teile[i2])) raus.push(teile[i2]);
+  for (let i = 1; i < teile.length; i++) {
+    if (SP_REL.test(teile[i]) && SP_ENDS_VERB.test(teile[i])) raus.push(teile[i]);
   }
   return raus.join(", ");
 }
@@ -1763,9 +1761,9 @@ function splitSpeakers(who) {
   const parts = (who || "").split(",").map((s) => clean(s)).filter(Boolean);
   if (parts.length <= 1) return parts;
   const out = [parts[0]];
-  for (let i2 = 1; i2 < parts.length; i2++) {
-    if (istEigenePerson(parts[i2])) out.push(parts[i2]);
-    else out[out.length - 1] += ", " + parts[i2];
+  for (let i = 1; i < parts.length; i++) {
+    if (istEigenePerson(parts[i])) out.push(parts[i]);
+    else out[out.length - 1] += ", " + parts[i];
   }
   return out;
 }
@@ -1797,13 +1795,13 @@ function properNames(text) {
   const out = /* @__PURE__ */ new Set();
   for (const sent of splitSentences(text)) {
     const w = sent.trim().split(/\s+/);
-    for (let i2 = 1; i2 < w.length; i2++) {
-      const raw = w[i2].replace(/[^A-Za-zÄÖÜäöüß-]/g, "");
+    for (let i = 1; i < w.length; i++) {
+      const raw = w[i].replace(/[^A-Za-zÄÖÜäöüß-]/g, "");
       if (raw.length < 3 || !/^[A-ZÄÖÜ]/.test(raw)) continue;
       const lowRaw = raw.toLowerCase();
       if (NAME_STOP.has(lowRaw)) continue;
       if (NOUN_GENDER[lowRaw]) continue;
-      const prev = (w[i2 - 1] || "").replace(/[^A-Za-zÄÖÜäöüß]/g, "");
+      const prev = (w[i - 1] || "").replace(/[^A-Za-zÄÖÜäöüß]/g, "");
       if (DETERMINER.test(prev) || PREP.test(prev)) continue;
       out.add(raw);
     }
@@ -2034,7 +2032,7 @@ var ARTIKEL = /^(ein|eine|einen|einem|einer|eines|der|die|das|den|dem|des|kein|k
 var PRON_START = /^(er|sie|es|ihm|ihr|ihn|ihnen|dessen|deren|diese[rs]?|jene[rs]?)\b/i;
 var silben = (t) => {
   const w = t.toLowerCase().match(/[a-zäöüß]+/g) || [];
-  return w.reduce((n2, x) => n2 + Math.max(1, (x.match(/[aeiouäöüy]+/g) || []).length), 0);
+  return w.reduce((n, x) => n + Math.max(1, (x.match(/[aeiouäöüy]+/g) || []).length), 0);
 };
 var woerter = (t) => (t.match(/\S+/g) || []).length;
 var tiefe = (t) => (t.match(/,\s*(dass|weil|obwohl|wenn|als|während|nachdem|bevor|damit|ob|indem|der|die|das|den|dem|welche)/gi) || []).length;
@@ -2238,14 +2236,14 @@ function normWho(s) {
   const t = (s || "").trim();
   if (!t) return t;
   const parts = t.split(",").map((p) => p.trim()).filter(Boolean);
-  const fixed = parts.map((p, i2) => {
+  const fixed = parts.map((p, i) => {
     const m = p.match(/^([a-zäöüß][a-zäöüß-]*)\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
     if (m && !/^(der|die|das|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses)$/i.test(m[1])) {
       const g = guessGender(m[2]) || (/in$/.test(m[2].toLowerCase()) ? "f" : void 0);
       if (g === "f") return `eine ${m[1]} ${m[2]}`;
       if (g === "m" || g === "n") return `ein ${m[1]} ${m[2]}`;
     }
-    return i2 === 0 || istEigenePerson(p) ? cap2(p) : low(p);
+    return i === 0 || istEigenePerson(p) ? cap2(p) : low(p);
   });
   return fixed.join(", ");
 }
@@ -2564,14 +2562,14 @@ var EN_SINGULAR = /(regen|wagen|boden|garten|kuchen|schatten|rücken|bogen|laden
 var KEIN_SACHNOMEN = /^(Jahr|Jahre|Monat|Monate|Tag|Tage|Woche|Wochen|Stunde|Stunden|Mal|Uhr|Zeit|Welt|Leben|Anfang|Nacht|Morgen|Abend|Ende|Reihe|Farbe|Sprache|Straße|Grenze|Klasse|Frage|Stelle|Weise|Seite|Liebe|Sorge|Ruhe|Stille|Ferne|Nähe|Fenster|Wasser|Feuer|Zimmer|Wetter|Messer|Muster|Ufer|Alter|Fieber|Wunder|Zeichen|Wesen)$/;
 function sachNomen(was) {
   const woerter2 = (was || "").split(/\s+/);
-  for (let i2 = 0; i2 < woerter2.length; i2++) {
-    const w = (woerter2[i2] || "").replace(/[^A-Za-zÄÖÜäöüß-]/g, "");
+  for (let i = 0; i < woerter2.length; i++) {
+    const w = (woerter2[i] || "").replace(/[^A-Za-zÄÖÜäöüß-]/g, "");
     if (!/^[A-ZÄÖÜ][a-zäöüß]{3,}$/.test(w)) continue;
     if (KEIN_SACHNOMEN.test(w)) continue;
     if (!PLURAL_ENDUNG.test(w)) continue;
     if (EN_SINGULAR.test(w)) continue;
-    const zwei = (woerter2[i2 - 2] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
-    const davor = (woerter2[i2 - 1] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
+    const zwei = (woerter2[i - 2] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
+    const davor = (woerter2[i - 1] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
     if (/^(der|des|dem|den|das|ein|eine|einen|einem|einer|eines|jeder|jede|jedes|dieser|diese|dieses|diesem|diesen)$/.test(davor)) continue;
     const PRAEP = /^(mit|bei|seit|von|zu|aus|nach|vor|in|an|auf|über|unter|neben|zwischen|hinter|durch|gegen|ohne|um|für)$/;
     if (PRAEP.test(davor) || PRAEP.test(zwei)) continue;
@@ -2581,11 +2579,11 @@ function sachNomen(was) {
 }
 function zahlIn(min, max, rund) {
   const roh = min + Math.random() * (max - min);
-  const n2 = Math.max(min, Math.round(roh / rund) * rund);
-  return n2 % 2 === 0 ? n2 : n2 + 1;
+  const n = Math.max(min, Math.round(roh / rund) * rund);
+  return n % 2 === 0 ? n : n + 1;
 }
-function zahlwort(n2) {
-  return Math.round(n2).toLocaleString("de-DE");
+function zahlwort(n) {
+  return Math.round(n).toLocaleString("de-DE");
 }
 function genusVon(phrase) {
   const art = (phrase.match(/^(der|die|das)\s/i) || [])[1]?.toLowerCase();
@@ -2705,9 +2703,9 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
   const genitivPlural = [];
   const sache = sachNomen(input.what || "");
   if (sache) einheiten.unshift({ einheit: sache, rolle: "sache", min: 50, max: 9e3, rund: 10 });
-  for (let i2 = 0; i2 < wieViele && einheiten.length; i2++) {
+  for (let i = 0; i < wieViele && einheiten.length; i++) {
     const eigeneBetroffen = R.einheiten.filter((e2) => e2.rolle === "betroffene" && einheiten.includes(e2));
-    const quelle = i2 === 0 ? eigeneBetroffen.length ? eigeneBetroffen : einheiten.filter((e2) => e2.rolle === "betroffene") : i2 === 1 && sache ? einheiten.filter((e2) => e2.rolle === "sache") : einheiten.filter((e2) => !rollenDrin.has(e2.rolle));
+    const quelle = i === 0 ? eigeneBetroffen.length ? eigeneBetroffen : einheiten.filter((e2) => e2.rolle === "betroffene") : i === 1 && sache ? einheiten.filter((e2) => e2.rolle === "sache") : einheiten.filter((e2) => !rollenDrin.has(e2.rolle));
     if (!quelle.length) break;
     const gewaehlt = quelle[Math.floor(Math.random() * quelle.length)];
     const e = einheiten.splice(einheiten.indexOf(gewaehlt), 1)[0];
@@ -2715,7 +2713,7 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
     genitivPlural.push(e.gen || e.einheit);
     const wert = zahlIn(e.min, e.max, e.rund);
     zahlen.push({
-      id: `z${i2 + 1}`,
+      id: `z${i + 1}`,
       wert,
       einheit: e.einheit,
       wortform: zahlwort(wert),
@@ -2748,8 +2746,8 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
     const gemischt = (a) => a.slice().sort(() => Math.random() - 0.5);
     const zeiten = gemischt(VORGESCHICHTE_ZEIT).filter((z) => z !== chronologie[1].zeit);
     const sachen = gemischt(gutesLicht ? VORGESCHICHTE_GUT : VORGESCHICHTE_SACHLICH).filter((x) => x !== chronologie[1].was);
-    for (let i2 = 0; i2 < mehr && i2 < zeiten.length && i2 < sachen.length; i2++) {
-      chronologie.splice(2 + i2, 0, { id: `c${4 + i2}`, zeit: zeiten[i2], was: sachen[i2] });
+    for (let i = 0; i < mehr && i < zeiten.length && i < sachen.length; i++) {
+      chronologie.splice(2 + i, 0, { id: `c${4 + i}`, zeit: zeiten[i], was: sachen[i] });
     }
   }
   return {
@@ -2768,14 +2766,6 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
     chronologie,
     fiktion: true
   };
-}
-function erlaubteZahlen(fb) {
-  const out = [...fb.zahlen.map((z) => z.wortform), ...fb.abgeleitet.map((a) => a.wortform)];
-  for (const z of fb.zahlen) if (z.verbal) out.push(z.verbal.replace(/^rund\s+/, ""));
-  for (const treffer of JSON.stringify(fb).match(/\d[\d.,]*/g) || []) {
-    out.push(treffer.replace(/[.,]+$/, ""));
-  }
-  return out;
 }
 
 // src/atoms/templates.data.json
@@ -3729,11 +3719,11 @@ function isSaneMarkov(s) {
   if (fn / words.length > 0.6) return false;
   const sentences = s.split(/[.!?]+/).filter(Boolean);
   for (const sentence of sentences) {
-    const n2 = sentence.trim().split(/\s+/).length;
-    if (n2 > 30 || n2 < 2) return false;
+    const n = sentence.trim().split(/\s+/).length;
+    if (n > 30 || n < 2) return false;
   }
   const phrases = [];
-  for (let i2 = 0; i2 < words.length - 2; i2++) phrases.push(words.slice(i2, i2 + 3).join(" "));
+  for (let i = 0; i < words.length - 2; i++) phrases.push(words.slice(i, i + 3).join(" "));
   const pc = {};
   for (const p of phrases) pc[p] = (pc[p] || 0) + 1;
   for (const c of Object.values(pc)) if (c >= 3) return false;
@@ -3741,10 +3731,10 @@ function isSaneMarkov(s) {
   if (/[—–]\s*$/.test(s.trim())) return false;
   const AUX_MK = /* @__PURE__ */ new Set(["bin", "bist", "ist", "sind", "seid", "war", "warst", "waren", "wart", "hatte", "hattest", "hatten", "hat", "habe", "hast", "habt", "haben", "wurde", "wurdest", "wurden", "wird", "werde", "werden", "w\xE4re", "w\xE4rst", "w\xE4ren"]);
   const CONN_MK = /* @__PURE__ */ new Set(["und", "oder", "aber", "denn", "sondern", "doch", "weil", "dass", "wenn", "als", "w\xE4hrend", "obwohl", "damit", "sodass", "bevor", "nachdem", "ob", "wie", "wo", "der", "die", "das", "dem", "den"]);
-  for (let i2 = 0; i2 < words.length; i2++) {
-    const wi = words[i2].toLowerCase().replace(/[^a-zäöüß]/g, "");
+  for (let i = 0; i < words.length; i++) {
+    const wi = words[i].toLowerCase().replace(/[^a-zäöüß]/g, "");
     if (!AUX_MK.has(wi)) continue;
-    for (let j = i2 + 1; j <= Math.min(words.length - 1, i2 + 3); j++) {
+    for (let j = i + 1; j <= Math.min(words.length - 1, i + 3); j++) {
       const wj = words[j].toLowerCase().replace(/[^a-zäöüß]/g, "");
       if (CONN_MK.has(wj) || /[,;:]/.test(words[j])) break;
       const finite = /(t|te|ten|st)$/.test(wj) && CLAUSE_VERBS.has(wj) && !/^ge/.test(wj) && !AUX_MK.has(wj);
@@ -3752,10 +3742,10 @@ function isSaneMarkov(s) {
     }
   }
   const lw = words.map((w) => w.toLowerCase().replace(/[^a-zäöüß]/g, ""));
-  for (let i2 = 0; i2 < lw.length; i2++) {
-    if (lw[i2].length < 5) continue;
-    for (let j = i2 + 1; j <= Math.min(lw.length - 1, i2 + 3); j++) {
-      if (lw[j] === lw[i2]) return false;
+  for (let i = 0; i < lw.length; i++) {
+    if (lw[i].length < 5) continue;
+    for (let j = i + 1; j <= Math.min(lw.length - 1, i + 3); j++) {
+      if (lw[j] === lw[i]) return false;
     }
   }
   return true;
@@ -3767,7 +3757,7 @@ var GERUEST_MARKE = /^(?:SEQUENZ\s*—[^\n]*|(?:WER|WO|WANN|WAS|GESAMTLÄNGE|DE|
 var traegtPerson = (t) => (t.toLowerCase().match(/[a-zäöüß]+/g) || []).some((w) => !!ICH_DU_ZU_ER[w]);
 function buildPool(bank, perspektive, what, figur, model, markovMode) {
   const pool = [];
-  let i2 = 0;
+  let i = 0;
   const w = (what || "").trim();
   if (w) {
     const lead = extractLeadVerb(w);
@@ -3800,7 +3790,7 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
         const d = deriveAtom(roh);
         pool.push({
           ...d,
-          id: `dr-${kat}-${++i2}`,
+          id: `dr-${kat}-${++i}`,
           quelle: "dramaturgie",
           kategorie: kat,
           verlangt: null,
@@ -3813,7 +3803,7 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
     const wieViele = markovMode === "on" ? 34 : 16;
     const eigene = new Set((figur || "").toLowerCase().split(/[,;]/).map((x) => x.trim()).filter(Boolean));
     const gesehen = /* @__PURE__ */ new Set();
-    for (let n2 = 0; n2 < wieViele * 3 && gesehen.size < wieViele; n2++) {
+    for (let n = 0; n < wieViele * 3 && gesehen.size < wieViele; n++) {
       const roh = (model.generate(14) || "").trim();
       if (!roh || !isSaneMarkov(roh)) continue;
       const sig = roh.toLowerCase();
@@ -3824,7 +3814,7 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
       if (properNames(roh).some((nm) => !eigene.has(nm.toLowerCase()))) continue;
       if (traegtPerson(roh)) continue;
       gesehen.add(sig);
-      pool.push({ ...d, id: `mk-${++i2}`, quelle: "markov", kategorie: "", verlangt: null, bruchgrad: 1 });
+      pool.push({ ...d, id: `mk-${++i}`, quelle: "markov", kategorie: "", verlangt: null, bruchgrad: 1 });
     }
   }
   const korpusDeckel = loadKnobs().korpus;
@@ -3843,7 +3833,7 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
       if (d.rhythmus.woerter > 22) continue;
       if (properNames(rein).some((nm) => !eigene2.has(nm.toLowerCase()))) continue;
       if (traegtPerson(rein)) continue;
-      pool.push({ ...d, id: `kp-${++i2}`, quelle: "korpus", kategorie: "", verlangt: null, bruchgrad: 1 });
+      pool.push({ ...d, id: `kp-${++i}`, quelle: "korpus", kategorie: "", verlangt: null, bruchgrad: 1 });
       genommen++;
     }
   }
@@ -3853,7 +3843,7 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
       const d = deriveAtom(t);
       pool.push({
         ...d,
-        id: `wb-${++i2}`,
+        id: `wb-${++i}`,
         quelle: "wortbank",
         kategorie: kat,
         verlangt: null,
@@ -3914,7 +3904,7 @@ var GUTE_TOENE = /* @__PURE__ */ new Set(["uplifting", "humorous", "zaertlich"])
 var blickVonTon = (ton) => GUTE_TOENE.has((ton || "").toLowerCase()) ? "gut" : "sachlich";
 var WORTE = {
   sachlich: {
-    vorspann: (n2) => `wurde, dass ${n2} betroffen sind`,
+    vorspann: (n) => `wurde, dass ${n} betroffen sind`,
     ersteMeldung: "die erste Meldung",
     // Das Bezugswort steckt im Satz: "der Schritt, ueber DEN". Als ich nur das
     // Nomen austauschte, stand "folgte der Schritt, ueber die ...".
@@ -3924,7 +3914,7 @@ var WORTE = {
     weitere: (x) => `Betroffen sind au\xDFerdem ${x}.`
   },
   gut: {
-    vorspann: (n2) => `wurde, dass ${n2} hinzukommen`,
+    vorspann: (n) => `wurde, dass ${n} hinzukommen`,
     ersteMeldung: "die erste Zusage",
     schritt: (wer) => `folgte die Entscheidung, \xFCber die ${wer} nun informiert`,
     haelfte: (l, w) => `${cap(l)} \u2014 ${w} \u2014 entsteht im ersten Jahr.`,
@@ -4002,10 +3992,10 @@ function vorspann(fb, b, blick) {
 function mische(fakten, frei) {
   const raus = [];
   const gedeckelt = frei.slice(0, Math.max(1, fakten.length));
-  const n2 = Math.max(fakten.length, gedeckelt.length);
-  for (let i2 = 0; i2 < n2; i2++) {
-    if (fakten[i2]) raus.push(fakten[i2]);
-    if (gedeckelt[i2]) raus.push(gedeckelt[i2]);
+  const n = Math.max(fakten.length, gedeckelt.length);
+  for (let i = 0; i < n; i++) {
+    if (fakten[i]) raus.push(fakten[i]);
+    if (gedeckelt[i]) raus.push(gedeckelt[i]);
   }
   return raus;
 }
@@ -4026,7 +4016,7 @@ function hergang(fb, bank, b, benutzt, extra, vorrat, blick) {
     ];
     teile.push(pick(fassungen));
   }
-  for (let i2 = 0; i2 < 1 + extra; i2++) {
+  for (let i = 0; i < 1 + extra; i++) {
     const roh = satzOhneZahl(bank, ["obstacles", "turns"], benutzt, vorrat);
     if (roh) frei.push(brauchtRahmen(roh) ? `${pick(NOMINALRAHMEN)} ${roh}.` : `${cap(roh)}.`);
   }
@@ -4065,7 +4055,7 @@ function hintergrund(fb, bank, b, benutzt, extra, vorrat) {
   const rahmen = reihenfolge(NOMINALRAHMEN);
   let r = 0;
   const frei = [];
-  for (let i2 = 0; i2 < 1 + extra; i2++) {
+  for (let i = 0; i < 1 + extra; i++) {
     const roh = satzOhneZahl(bank, ["motifs", "props"], benutzt, vorrat);
     if (!roh) continue;
     if (brauchtRahmen(roh) && r < rahmen.length) frei.push(`${rahmen[r++]} ${roh}.`);
@@ -4084,22 +4074,22 @@ function ausblick(fb, blick) {
   ]);
 }
 function zahlSatz(z) {
-  const n2 = `${z.wortform} ${z.einheit}`;
+  const n = `${z.wortform} ${z.einheit}`;
   switch (z.rolle) {
     case "betroffene":
-      return `Betroffen sind ${n2}.`;
+      return `Betroffen sind ${n}.`;
     case "sache":
-      return pick([`Zuletzt waren es ${n2} im Jahr.`, `Es geht um ${n2}.`, `${cap(n2)} standen zuletzt in den B\xFCchern.`]);
+      return pick([`Zuletzt waren es ${n} im Jahr.`, `Es geht um ${n}.`, `${cap(n)} standen zuletzt in den B\xFCchern.`]);
     case "dauer":
-      return `${cap(n2)} dauerte es.`;
+      return `${cap(n)} dauerte es.`;
     case "groesse":
-      return `Gemessen wurden ${n2}.`;
+      return `Gemessen wurden ${n}.`;
     case "vorgaenge":
-      return `${cap(n2)} liegen inzwischen vor.`;
+      return `${cap(n)} liegen inzwischen vor.`;
     case "geld":
-      return `Es geht um ${n2}.`;
+      return `Es geht um ${n}.`;
     default:
-      return `${cap(n2)}.`;
+      return `${cap(n)}.`;
   }
 }
 function aufzaehlung(xs) {
@@ -4108,9 +4098,9 @@ function aufzaehlung(xs) {
 }
 function reihenfolge(a) {
   const x = a.slice();
-  for (let i2 = x.length - 1; i2 > 0; i2--) {
-    const j = Math.floor(Math.random() * (i2 + 1));
-    [x[i2], x[j]] = [x[j], x[i2]];
+  for (let i = x.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [x[i], x[j]] = [x[j], x[i]];
   }
   return x;
 }
@@ -4140,7 +4130,7 @@ function buildBericht(bank, input, ressort = "auto") {
   if (z3s) abschnitte.push(z3s);
   if (extra >= 3) {
     const teile = [];
-    for (let i2 = 0; i2 < extra - 2; i2++) {
+    for (let i = 0; i < extra - 2; i++) {
       const roh = satzOhneZahl(bank, ["turns", "obstacles", "motifs"], benutzt, vorrat);
       if (roh) teile.push(`${cap(roh)}.`);
     }
@@ -4158,9 +4148,9 @@ function buildBericht(bank, input, ressort = "auto") {
   {
     const R = RESSORTS[fb.ressort];
     const teile = [];
-    for (let i2 = 0; i2 < Math.min(R.zusatz.rahmen.length, 1 + Math.floor(extra / 3)); i2++) {
+    for (let i = 0; i < Math.min(R.zusatz.rahmen.length, 1 + Math.floor(extra / 3)); i++) {
       const roh = satzOhneZahl(bank, ["hooks", "turns", "stakes"], benutzt, vorrat);
-      if (roh) teile.push(`${R.zusatz.rahmen[i2]} ${roh}.`);
+      if (roh) teile.push(`${R.zusatz.rahmen[i]} ${roh}.`);
     }
     if (teile.length) abschnitte.push(`${R.zusatz.titel}: ${teile.join(" ")}`);
   }
@@ -4173,56 +4163,6 @@ function buildBericht(bank, input, ressort = "auto") {
     ...fb.chronologie.map((c) => `\xB7 ${c.zeit}: ${c.was}`)
   ].join("\n");
   return { text: abschnitte.filter(Boolean).join("\n\n") + "\n\n" + kasten, fb, hergang: hergangText };
-}
-function pruefeBericht(text, fb, hergang2 = "") {
-  const m = [];
-  const erlaubtZ = new Set(erlaubteZahlen(fb));
-  for (const roh of text.match(/\d[\d.,]*/g) || []) {
-    const z = roh.replace(/[.,]+$/, "");
-    if (!erlaubtZ.has(z)) m.push({ art: "Zahl ohne Faktenblatt", stelle: z });
-  }
-  const fbText = JSON.stringify(fb).toLowerCase();
-  for (const w of text.match(new RegExp(ZAHLWORT.source, "gi")) || []) {
-    if (!fbText.includes(w.toLowerCase())) m.push({ art: "Zahlwort ohne Faktenblatt", stelle: w });
-  }
-  const drin = /* @__PURE__ */ new Set([
-    ...fb.personen.flatMap((p) => [p.kurz.toLowerCase(), ...p.name.toLowerCase().split(/\s+/)]),
-    // Der Name aus "Wer?" gehoert dazu: "Reinhard Kraus" wurde als fremd
-    // gemeldet, weil "Reinhard" auch im Ziehvorrat steht.
-    ...fb.wer.haupt.toLowerCase().split(/\s+/),
-    fb.wer.kurz.toLowerCase()
-  ]);
-  for (const name of ALLE_NAMEN) {
-    if (drin.has(name.toLowerCase())) continue;
-    if (new RegExp("(?<![A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])" + name + "(?![A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])").test(text)) {
-      m.push({ art: "fremder Personenname", stelle: name });
-    }
-  }
-  const zitate = text.match(/„[^“]*“,\s*sagte\s+([^.]+)\./g) || [];
-  for (const z of zitate) {
-    const wer = (z.match(/sagte\s+([^.]+)\./) || [])[1] || "";
-    const p = fb.personen.find((x) => wer.includes(x.kurz) || wer.includes(x.name));
-    if (!p) m.push({ art: "Zitat ohne bekannten Sprecher", stelle: wer.trim() });
-    else if (!p.zitierfaehig) m.push({ art: "Sprecher nicht zitierf\xE4hig", stelle: p.name });
-  }
-  const jahre = fb.chronologie.map((c) => ({ id: c.id, jahr: Number((c.zeit.match(/\b(1[0-9]{3}|2[0-9]{3})\b/) || [])[1]) })).filter((x) => Number.isFinite(x.jahr));
-  for (let i2 = 1; i2 < jahre.length; i2++) {
-    if (jahre[i2].jahr < jahre[i2 - 1].jahr) {
-      m.push({ art: "Jahreszahlen der Chronologie verdreht", stelle: `${jahre[i2 - 1].jahr} vor ${jahre[i2].jahr}` });
-      break;
-    }
-  }
-  if (hergang2) {
-    const hgLow = hergang2.toLowerCase();
-    const pos = fb.chronologie.map((c) => ({ id: c.id, at: hgLow.indexOf(c.zeit.toLowerCase()) })).filter((x) => x.at >= 0);
-    for (let i2 = 1; i2 < pos.length; i2++) {
-      if (pos[i2].at < pos[i2 - 1].at) {
-        m.push({ art: "Chronologie im Hergang nicht monoton", stelle: `${pos[i2 - 1].id} nach ${pos[i2].id}` });
-        break;
-      }
-    }
-  }
-  return m;
 }
 
 // src/presets.data.ts
@@ -7489,251 +7429,52 @@ var BUILTIN_PRESETS = {
   }
 };
 
-// test/pruefstand.ts
+// ../../ber4.ts
 var st = {};
-global.localStorage = { getItem: (k) => st[k] ?? null, setItem: (k, v) => {
+globalThis.localStorage = { getItem: (k) => st[k] ?? null, setItem: (k, v) => {
   st[k] = String(v);
 }, removeItem: (k) => {
   delete st[k];
 } };
-global.window = { localStorage: global.localStorage };
-var WER = [
-  "Dr. Ing. Richard Doll",
-  // Person mit Titeln
-  "Reinhard Kraus",
-  // Person schlicht
-  "die Ostmoor-Werft",
-  // Einrichtung mit Artikel
-  "Ritter Ltd",
-  // Einrichtung mit Rechtsform
-  "FC Liverpool",
-  // Einrichtung ohne Artikel
-  "das Stadttheater",
-  // Einrichtung neutrum
-  "das Tief Ottilie",
-  // Wetterlage
-  "Prof. Schwarz"
-  // Titel ohne Vornamen
-];
-var WAS = [
-  "will den Konzern DAS GmbH schlie\xDFen",
-  // singularer Begleiter vor -ern
-  "produziert keine Lanzen mehr",
-  // zählbarer Plural
-  "probt den Aufstand auf der B\xFChne",
-  // Genitiv/Präposition, kein Objekt
-  "spielt f\xFCr FC Liverpool",
-  // Sport
-  "zeigt keine Opern mehr",
-  // Plural auf -ern
-  "stellt den Betrieb ein",
-  // kein zählbares Objekt
-  "will die Sonne ausknipsen",
-  // Singular auf -e hinter "die"
-  "warnt vor schweren Gewittern",
-  // Dativ Plural, kein Objekt
-  "bringt Dauerregen \xFCber die K\xFCste"
-  // Einzahlwort auf -en
-];
-var WANN = ["Fr\xFChjahr 2001", "im Jahr 1855", "am Donnerstag", "2100", ""];
-var TOENE = ["uplifting", "dark"];
-var WO = ["in D\xFCrrhausen", "in London", "Ostmoor", ""];
-var VERBOTEN = [
-  ["Artikel vor Rechtsform", /\b(der|die|das) (Ltd|GmbH|AG|SE|KG|Inc)\b/],
-  ["Artikel vor Nachname", /\bDer (Doll|Kraus|Reimers|Rehm|Klasen|Vogt|Siewert|Brandes|Lohmann|Petersen|Kruse|Harmsen|Overbeck|Thiessen|Rademacher|Wendt|Möller|Sander)\b/],
-  ["Person besteht seit", /\b(Doll|Kraus|Lessing|Travolta) besteht seit\b/],
-  ["Kongruenz Einsatz", /Auf dem Spiel steht (die|der|das) \S*(plätze|stätten|zeiten|Stellen|bücher)\b/],
-  ["Kongruenz Einsatz mehrfach", /Auf dem Spiel steht [^.]+ und /],
-  ["Zeitangabe ohne Pr\xE4position", /(^|\n)[A-ZÄÖÜ][a-zäöüß]+ \d{4} (wurde|folgte)\b/],
-  ["Nomen kleingeschrieben nach im", /\bIm [a-zäöüß]+ \d{4}\b/],
-  ["literarische Einsatz-Formel", /Der Einsatz ist |Was zählt, ist |Alles dreht sich um /],
-  ["Kopfsatz ohne Aussage", /\b\w+ (stellt fest|begreift|bemerkt|nimmt wahr)\.(\s|$)/],
-  ["Rahmen mit zwei finiten Verben", /(Geblieben ist|Erinnert wird an|Im Ort verbindet man damit) [^.]*\b(ist|sind|wird|werden|hat|haben)\b[^.]*\./],
-  ["doppelter Bildrahmen", /(Im Ort verbindet man damit)[^]*\1/],
-  ["Genitiv Plural falsch", /die Hälfte der (Beschäftigte|Teilnehmende)\b/],
-  ["Bezugswort passt nicht", /folgte (der Schritt, über die|die Entscheidung, über den)\b/],
-  ["Artikel vor Titelnamen", /\b(Der|Die|Das) (Schwarz|Doll|Kraus|Lessing) \b/],
-  // Kein blindes Muster fuer Zahlwoerter: "vor vier Tagen" steht im Faktenblatt
-  // und ist erlaubt. Die Pruefung im Programm vergleicht gegen das Faktenblatt
-  // und meldet nur, was dort NICHT steht - sie laeuft unten ohnehin mit.
-  // \d+(?:\.\d+)* statt \d[\d.]*: Das erste Muster verschluckte den Satzpunkt und
-  // traf "1902. Zeit beschleunigt sich" - dieselbe Falle wie bei "210." in der
-  // Zahlenpruefung des Programms.
-  ["Singular als Menge", /\b\d+(?:\.\d+)* (Sonne|Bühne|Konzern|Wahrheit|Zeit|Welt|Dauerregen|Gewittern|Regen|Boden|Wagen)\b/],
-  ["Ort ohne Pr\xE4position", /\b(Wie es|wurde es) in (der|die|das) /],
-  // Aus der Ausgabe „Zeitzeichen" vom 21.08.2026, alle vier im selben Blatt:
-  ["Gattungsperson besteht seit", /\b(Schulmädchen|Kind|Junge|Mädchen|Frau|Mann|Wächter|Nachbar) besteht seit\b/],
-  ["Kurzform ohne Artikel", /(^|\. )(Schulmädchen|Mädchen|Junge|Kind|Wächter) (ist seit|besteht seit)\b/],
-  ["Ich-Form im Bericht", /(^|\. )(Ich|Wir) (bin|bins|sehne|will|weiß|kenne|erinnere|liege|gehe|sehe|höre|fühle|habe|muss)\b/],
-  ["Du-Form im Bericht", /(^|\. )(Du|Dein|Deine) \w+/],
-  ["Kasus nach mit", /\bmit (der|dem) erste (Meldung|Anfrage|Beschwerde|Zusage)\b/]
-];
-function satzDublette(text) {
-  const saetze = text.split(/(?<!\d)[.!?](?=\s|$)/).map((x) => x.trim().toLowerCase().replace(/[.!?…,;:]+/g, "").replace(/\s+/g, " ")).filter((x) => x.length > 12);
-  for (let i2 = 1; i2 < saetze.length; i2++) if (saetze[i2] === saetze[i2 - 1]) return saetze[i2];
-  return null;
-}
-function vorspannWiederholtSchlagzeile(text) {
-  const abs = text.split(/\n{2,}/).map((x) => x.trim()).filter(Boolean);
-  const zeile = (abs[1] || "").toLowerCase().replace(/[.!?…\s]+$/, "").trim();
-  const vor = (abs[2] || "").split(/(?<!\d)[.!?](?=\s|$)/)[0]?.toLowerCase().replace(/[.!?…\s]+$/, "").trim() || "";
-  return !!zeile && zeile.length > 8 && vor === zeile;
-}
-function semantisch(text, fb) {
-  const out = [];
-  const z1 = fb.zahlen[0];
-  if (z1 && z1.wert < 12) out.push(`Vorspannzahl zu klein (${z1.wert} ${z1.einheit})`);
-  const a1 = fb.abgeleitet[0];
-  if (a1 && z1 && Number(a1.wortform.replace(/\./g, "")) * 2 !== z1.wert) out.push("Ableitung geht nicht auf");
-  if (a1 && z1 && z1.wert < 40) out.push("Ableitung aus zu kleiner Zahl");
-  const jahre = fb.chronologie.map((c) => Number((c.zeit.match(/\b(1[0-9]{3}|2[0-9]{3})\b/) || [])[1])).filter(Number.isFinite);
-  for (let i2 = 1; i2 < jahre.length; i2++) if (jahre[i2] < jahre[i2 - 1]) out.push("Jahreszahlen verdreht");
-  if (fb.wer.art === "person" && /^(der|die|das) /i.test(fb.wer.kurz)) out.push("Artikel vor Personenname");
-  const teile = text.split("\n\n");
-  const dach = (teile[0] || "").trim();
-  if (/\b(der|am) Ort\b/.test(dach)) out.push("Platzhalter in der Dachzeile");
-  if (dach.length > 46 || dach.includes("\n")) out.push("Dachzeile zu lang");
-  if (teile.slice(1).some((p) => p.trim().length < 12)) out.push("leerer Abschnitt");
-  return out;
-}
-var presets = Object.keys(BUILTIN_PRESETS);
-var basis = {
-  tone: "neutral",
-  varLevel: "wild",
-  structure: "rekombination",
-  mode: "auto",
-  perspective: "third",
-  rhythm: "auto",
-  markovMode: "off",
-  disruptor: "off",
-  archetypeA: "neutral",
-  archetypeB: "neutral",
-  instability: 2
-};
-var zaehl = /* @__PURE__ */ new Map();
-var chronoZeilen = /* @__PURE__ */ new Map();
-var aufzaehlungen = /* @__PURE__ */ new Map();
-var texte = [];
-var bsp = /* @__PURE__ */ new Map();
-var n = 0;
-var sauber = 0;
-var i = 0;
-for (const wer of WER) for (const was of WAS) for (const wann of WANN) for (const wo of WO)
-  for (const ton of TOENE) {
-    const ziel = 220;
-    const preset = presets[i++ % presets.length];
-    const ressort = RESSORT_IDS[i % RESSORT_IDS.length];
-    const b = buildBericht(
-      BUILTIN_PRESETS[preset],
-      { ...basis, who: wer, what: was, when: wann, where: wo, tone: ton, lenTarget: ziel },
-      ressort
-    );
-    const gut = ton === "uplifting";
-    if (gut && /betroffen sind|Auf dem Spiel|die erste Meldung/.test(b.text)) zaehl.set("Verlustwort bei gutem Ton", (zaehl.get("Verlustwort bei gutem Ton") || 0) + 1);
-    if (!gut && /hinzukommen|In Aussicht|Profitieren werden/.test(b.text)) zaehl.set("Gewinnwort bei d\xFCsterem Ton", (zaehl.get("Gewinnwort bei d\xFCsterem Ton") || 0) + 1);
-    n++;
-    const funde = [];
-    for (const [name, re] of VERBOTEN) if (re.test(b.text)) funde.push(name);
-    if (satzDublette(b.text)) funde.push("derselbe Satz zweimal hintereinander");
-    if (vorspannWiederholtSchlagzeile(b.text)) funde.push("Vorspann wiederholt die Schlagzeile");
-    const chron = b.text.match(/(Im |Vor |Kurz |Angefangen)[^.]*?(erste (Meldung|Anfrage|Beschwerde|Zusage|Zweifel|Hinweis)|erstes? (Gerücht|Angebot|Interesse|Zuspruch|Unterstützung))[^.]*\./);
-    if (chron) chronoZeilen.set(chron[0], (chronoZeilen.get(chron[0]) || 0) + 1);
-    const auf = b.text.match(/(Betroffen sind außerdem|Profitieren werden außerdem)[^.]*\./);
-    if (auf) aufzaehlungen.set(auf[0], (aufzaehlungen.get(auf[0]) || 0) + 1);
-    if (texte.length < 400) texte.push(b.text);
-    funde.push(...semantisch(b.text, b.fb));
-    funde.push(...pruefeBericht(b.text, b.fb, b.hergang).map((x) => x.art));
-    if (!funde.length) {
-      sauber++;
-      continue;
+globalThis.window = { localStorage: globalThis.localStorage };
+var ids = Object.keys(BUILTIN_PRESETS);
+var W = (s) => s.split(/\s+/).filter(Boolean).length;
+var gross = { motifs: [], hooks: [], props: [], turns: [], obstacles: [], stakes: [], endings: [] };
+for (const id of ids.slice(0, 10)) for (const k of Object.keys(gross)) gross[k].push(...BUILTIN_PRESETS[id][k] || []);
+console.log(
+  "Vorrat: ein Preset ~",
+  Object.keys(gross).reduce((a, k) => a + (BUILTIN_PRESETS[ids[0]][k] || []).length, 0),
+  "Eintr\xE4ge \xB7 zehn Presets:",
+  Object.keys(gross).reduce((a, k) => a + gross[k].length, 0)
+);
+for (const [name, bank] of [["ein Preset", BUILTIN_PRESETS[ids[0]]], ["zehn Presets", gross]]) {
+  const zeile = [];
+  for (const ziel of [220, 320, 450, 600, 800]) {
+    let w = 0, n = 0;
+    for (let i = 0; i < 25; i++) {
+      const t = buildBericht(bank, {
+        where: "an der Unterelbe",
+        when: "im Herbst 1923",
+        who: "die Ostmoor-Werft",
+        what: "meldet einen Vorfall",
+        tone: "nuechtern",
+        form: "bericht",
+        lenTarget: ziel,
+        mode: "auto",
+        structure: "linear",
+        perspective: "third",
+        rhythm: "auto",
+        disruptor: "off",
+        instability: 0,
+        markovMode: "off",
+        varLevel: "wild",
+        archetypeA: "neutral",
+        archetypeB: "neutral"
+      }, "wirtschaft");
+      w += W(typeof t === "string" ? t : t.text);
+      n++;
     }
-    for (const f of funde) {
-      zaehl.set(f, (zaehl.get(f) || 0) + 1);
-      if (!bsp.has(f)) bsp.set(f, `${wer} / ${was} / ${wann || "\u2014"} / ${ressort}`);
-    }
+    zeile.push(`${ziel}\u2192${Math.round(w / n)} (${Math.round(100 * w / n / ziel)}%)`);
   }
-var fehler = false;
-console.log(`Pr\xFCfstand Bericht: ${n} L\xE4ufe (${WER.length}\xD7${WAS.length}\xD7${WANN.length}\xD7${WO.length}\xD7${TOENE.length} T\xF6ne)`);
-console.log(`  ${sauber} ohne Befund (${Math.round(100 * sauber / n)} %)`);
-if (zaehl.size) {
-  console.log(`  ${zaehl.size} Fehlerklassen:`);
-  [...zaehl].sort((a, b2) => b2[1] - a[1]).forEach(([f, c]) => console.log(`    ${String(c).padStart(4)}\xD7  ${f}
-           bei: ${bsp.get(f)}`));
-  fehler = true;
-} else console.log("  keine Fehlerklasse ausgel\xF6st");
-{
-  const marke = /\d|Betroffen|Auf dem Spiel|In Aussicht|Profitieren|folgte|zeichnete|Angefangen|gab es|kam die|Gemessen|Es geht um|ist seit|besteht seit|sagte|Bekannt wurde|entsteht im ersten Jahr/;
-  let ohne = 0, gesamt = 0;
-  for (const t of texte) {
-    for (const satz of t.split(/(?<!\d)[.!?](?=\s|$)/)) {
-      const x = satz.trim();
-      if (x.length < 12) continue;
-      gesamt++;
-      if (!marke.test(x)) ohne++;
-    }
-  }
-  const anteil = gesamt ? ohne / gesamt : 0;
-  console.log(`  Vorratsanteil: ${Math.round(anteil * 100)} % der S\xE4tze ohne Faktenmarke`);
-  if (anteil > 0.6) {
-    console.error(`
-\u274C ${Math.round(anteil * 100)} % der S\xE4tze tragen keinen Fakt \u2014 das ist kein Bericht mehr.`);
-    fehler = true;
-  }
-}
-{
-  const zuKlein = [];
-  for (const id of RESSORT_IDS) {
-    const r = RESSORTS[id];
-    if (r.betroffen.length < 9) zuKlein.push(`${id}.betroffen ${r.betroffen.length}`);
-    if (r.einsatz.length < 8) zuKlein.push(`${id}.einsatz ${r.einsatz.length}`);
-    if (r.gewinn.length < 6) zuKlein.push(`${id}.gewinn ${r.gewinn.length}`);
-    if (r.zusatz.rahmen.length < 5) zuKlein.push(`${id}.rahmen ${r.zusatz.rahmen.length}`);
-    if (r.ausblick.length < 4) zuKlein.push(`${id}.ausblick ${r.ausblick.length}`);
-    for (const [feld, werte] of [
-      ["betroffen", r.betroffen],
-      ["einsatz", r.einsatz.map((x) => x.t)],
-      ["gewinn", r.gewinn.map((x) => x.t)],
-      ["rahmen", r.zusatz.rahmen],
-      ["ausblick", r.ausblick]
-    ]) {
-      if (new Set(werte).size !== werte.length) zuKlein.push(`${id}.${feld}: Dublette`);
-    }
-  }
-  console.log(`  Ressort-Vorrat: ${zuKlein.length ? zuKlein.join(", ") : "alle Listen gro\xDF genug"}`);
-  if (zuKlein.length) {
-    console.error(`
-\u274C Ressort-Vorrat zu klein: ${zuKlein.join(", ")}`);
-    fehler = true;
-  }
-}
-{
-  const haeufigste = [...aufzaehlungen.entries()].sort((a, b) => b[1] - a[1])[0];
-  const gesamt = [...aufzaehlungen.values()].reduce((a, b) => a + b, 0);
-  const anteil = gesamt && haeufigste ? haeufigste[1] / gesamt : 0;
-  console.log(`  \u201EBetroffen sind au\xDFerdem": ${aufzaehlungen.size} Fassungen, h\xE4ufigste ${Math.round(anteil * 100)} %`);
-  if (anteil > 0.15) {
-    console.error(`
-\u274C Dieselbe Aufz\xE4hlung in ${Math.round(anteil * 100)} % der Berichte: \u201E${haeufigste?.[0]}"`);
-    fehler = true;
-  }
-}
-{
-  const gesamt = [...chronoZeilen.values()].reduce((a, b) => a + b, 0);
-  const haeufigste = [...chronoZeilen.entries()].sort((a, b) => b[1] - a[1])[0];
-  const anteil = gesamt ? haeufigste ? haeufigste[1] / gesamt : 0 : 0;
-  console.log(`  Vorgeschichte: ${chronoZeilen.size} verschiedene Fassungen, h\xE4ufigste ${Math.round(anteil * 100)} %`);
-  if (anteil > 0.35) {
-    console.error(`
-\u274C Die Vorgeschichte lautet in ${Math.round(anteil * 100)} % der Berichte gleich: \u201E${haeufigste?.[0]}"`);
-    fehler = true;
-  }
-}
-var proc = globalThis;
-if (fehler) {
-  console.error(`
-\u274C Bericht: ${zaehl.size} Fehlerklasse(n) in ${n} L\xE4ufen.`);
-  proc.process?.exit(1);
-} else {
-  console.log(`
-\u2705 Bericht: ${n} L\xE4ufe ohne Befund.`);
+  console.log("  " + name.padEnd(14) + zeile.join("  "));
 }

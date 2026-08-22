@@ -79,6 +79,8 @@ export const RESSORTS: Record<RessortId, Ressort> = {
      
       { einheit: "Millionen Euro Umsatz", rolle: "geld", min: 2, max: 900, rund: 1 },
       { einheit: "Standorte", rolle: "vorgaenge", min: 2, max: 40, rund: 1 },
+      { einheit: "Meter Kaimauer", rolle: "groesse", min: 40, max: 900, rund: 10 },
+      { einheit: "Quadratmeter Hallenfläche", rolle: "groesse", min: 400, max: 24000, rund: 100 },
     ],
     zusatz: { titel: "Marktreaktion", rahmen: ["Am Markt heißt es:", "In der Branche gilt:", "Beobachter verweisen auf:", "Aus der Belegschaft:", "Im Betriebsrat:", "Am Werkstor:"] },
     einsatz: [S("der Standort"), S("die Altersversorgung der Belegschaft"), P("die Ausbildungsplätze"), S("der Name des Hauses"), S("die Lieferkette"), S("das Werksgelände"), S("die Tarifbindung"), S("der Standort selbst")],
@@ -98,6 +100,8 @@ export const RESSORTS: Record<RessortId, Ressort> = {
      
       { einheit: "Stimmen", rolle: "vorgaenge", min: 20, max: 700, rund: 1 },
       { einheit: "Sitzungen", rolle: "vorgaenge", min: 2, max: 60, rund: 1 },
+      { einheit: "Sitze", rolle: "groesse", min: 5, max: 120, rund: 1 },
+      { einheit: "Stimmbezirke", rolle: "groesse", min: 4, max: 90, rund: 1 },
     ],
     zusatz: { titel: "Reaktionen", rahmen: ["Aus der Regierung heißt es:", "Die Opposition hält dagegen:", "Aus den Ländern kommt:", "Im Rathaus:", "Aus der Fraktion:", "In der Sitzung:"] },
     einsatz: [S("die Mehrheit"), S("der Zeitplan des Verfahrens"), S("das Vertrauen in die Zusage"), S("die Zuständigkeit der Kommunen"), S("der Haushaltsansatz"), S("die Mehrheit im Rat"), S("der Haushalt"), P("die Fristen"), S("das Vertrauen in die Verwaltung")],
@@ -117,6 +121,8 @@ export const RESSORTS: Record<RessortId, Ressort> = {
      
       { einheit: "Vorstellungen", rolle: "vorgaenge", min: 3, max: 200, rund: 1 },
       { einheit: "Minuten Spieldauer", rolle: "dauer", min: 45, max: 240, rund: 5 },
+      { einheit: "Sitzplätze", rolle: "groesse", min: 90, max: 1400, rund: 10 },
+      { einheit: "Exponate", rolle: "groesse", min: 12, max: 600, rund: 2 },
     ],
     zusatz: { titel: "Zum Werk", rahmen: ["Zu sehen ist:", "Die Arbeit zeigt:", "Auf der Bühne steht:", "Aus dem Ensemble:", "An der Kasse:", "In der Probe:"] },
     einsatz: [S("der Spielplan der kommenden Saison"), S("das Ensemble in seiner jetzigen Form"), P("die Werkstätten"), S("das Haus als Ort"), S("die Nachwuchsarbeit"), S("die Uraufführung"), S("der Spielplan"), P("die Gastspiele"), S("das Ensemble selbst")],
@@ -136,6 +142,8 @@ export const RESSORTS: Record<RessortId, Ressort> = {
      
       { einheit: "Zuschauer", rolle: "betroffene", min: 200, max: 60000, rund: 100 },
       { einheit: "Minuten", rolle: "dauer", min: 5, max: 120, rund: 1 },
+      { einheit: "Punkte", rolle: "groesse", min: 3, max: 60, rund: 1 },
+      { einheit: "Meter Laufbahn", rolle: "groesse", min: 100, max: 800, rund: 50 },
     ],
     zusatz: { titel: "Spielverlauf", rahmen: ["Nach der Pause:", "In der Schlussphase:", "Zur Halbzeit:", "In der Kabine:", "Auf der Tribüne:", "In der Geschäftsstelle:"] },
     einsatz: [S("der Klassenerhalt"), S("die Lizenz"), S("die Nachwuchsabteilung"), S("der Name des Vereins"), S("die Heimspielstätte"), S("das Traineramt"), S("der Aufstieg"), P("die Heimspiele"), S("der Trainingsbetrieb")],
@@ -155,6 +163,8 @@ export const RESSORTS: Record<RessortId, Ressort> = {
      
       { einheit: "Proben", rolle: "vorgaenge", min: 12, max: 4000, rund: 1 },
       { einheit: "Monate Laufzeit", rolle: "dauer", min: 3, max: 96, rund: 1 },
+      { einheit: "Messreihen", rolle: "groesse", min: 6, max: 220, rund: 2 },
+      { einheit: "Datensätze", rolle: "groesse", min: 40, max: 9000, rund: 10 },
     ],
     zusatz: { titel: "Methode", rahmen: ["Untersucht wurde:", "Erhoben wurden:", "Verglichen wurde:", "Im Labor:", "Aus der Arbeitsgruppe:", "Am Rande der Tagung:"] },
     einsatz: [S("die Förderung"), S("die Vergleichbarkeit der Daten"), S("die Veröffentlichung"), S("der Standort des Instituts"), S("die Fortsetzung der Reihe"), S("die Förderzusage"), S("die Messreihe"), P("die Nachwuchsstellen"), S("der Zugang zur Sammlung")],
@@ -174,6 +184,8 @@ export const RESSORTS: Record<RessortId, Ressort> = {
      
       { einheit: "Haushalte", rolle: "betroffene", min: 20, max: 4000, rund: 10 },
       { einheit: "Beratungen", rolle: "vorgaenge", min: 10, max: 900, rund: 1 },
+      { einheit: "Quadratmeter Nutzfläche", rolle: "groesse", min: 60, max: 3000, rund: 10 },
+      { einheit: "Plätze", rolle: "groesse", min: 8, max: 300, rund: 2 },
     ],
     zusatz: { titel: "Vor Ort", rahmen: ["Im Viertel heißt es:", "Nachbarn berichten:", "In der Beratungsstelle:", "Am Tresen:", "Im Gemeindehaus:", "Auf dem Wochenmarkt:"] },
     einsatz: [S("der Treffpunkt im Viertel"), S("die Beratung vor Ort"), S("das Ehrenamt"), S("die Mietbindung"), S("der Zusammenhalt in der Nachbarschaft"), S("die Nachbarschaftshilfe"), P("die Öffnungszeiten"), S("das Gemeindehaus"), S("die Tafel")],
@@ -214,6 +226,8 @@ export const RESSORTS: Record<RessortId, Ressort> = {
      
       { einheit: "Schülerinnen und Schüler", rolle: "betroffene", min: 30, max: 2000, rund: 10 },
       { einheit: "Unterrichtsstunden", rolle: "dauer", min: 4, max: 400, rund: 2 },
+      { einheit: "Klassenräume", rolle: "groesse", min: 3, max: 60, rund: 1 },
+      { einheit: "Wochenstunden", rolle: "groesse", min: 4, max: 40, rund: 1 },
     ],
     zusatz: { titel: "An der Schule", rahmen: ["Im Kollegium heißt es:", "Aus der Elternschaft:", "Im Unterricht zeigt sich:", "Im Lehrerzimmer:", "Auf dem Schulhof:", "In der Elternversammlung:"] },
     einsatz: [S("der Ganztag"), S("das Abschlussjahr"), P("die Stellen im Kollegium"), S("der Schulstandort"), S("die Betreuung am Nachmittag"), P("die Werkräume"), S("die Schulbusverbindung"), S("das Kollegium")],
