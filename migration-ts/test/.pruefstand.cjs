@@ -3078,7 +3078,8 @@ var templates_data_default = {
       typ: "kopf",
       verlangt: null,
       oeffnet: true,
-      platzhalter: []
+      platzhalter: [],
+      stelle: "anfang"
     },
     {
       id: "vl-0023",
@@ -3306,7 +3307,8 @@ var templates_data_default = {
       typ: "kopf",
       verlangt: null,
       oeffnet: true,
-      platzhalter: []
+      platzhalter: [],
+      stelle: "ende"
     },
     {
       id: "vl-0039",
@@ -3832,7 +3834,8 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
       verlangt: a.verlangt,
       oeffnet: a.oeffnet,
       bruchgrad: 0,
-      fuehrt_ein: []
+      fuehrt_ein: [],
+      stelle: a.stelle
     });
   }
   return pool;

@@ -2,7 +2,7 @@
 // Pool = aktive Wortbank (offline annotiert) + geerntete Satzvorlagen.
 import type { Bank, GenInput } from "../types";
 import { deriveAtom } from "./derive";
-import { passt, fortschreiben, fuelleKontext, fuelleSlot, offeneSlots, verfugen, ziehe, type PoolAtom, type Kontext, naechsterSlot }  from "./assemble";
+import { passt, fortschreiben, fuelleKontext, fuelleSlot, offeneSlots, verfugen, ziehe, phasenFolge, STRUKTUR_PHASEN, type PoolAtom, type Kontext, naechsterSlot }  from "./assemble";
 import TEMPLATES from "./templates.data.json";
 import { normWhere, normWhen, normWho } from "../generation/ctxnorm";
 import { isFirstPerson, isSecondPerson } from "../generation/coherence";
@@ -24,7 +24,7 @@ export const GERUESTZEILE = /(^|\s)(SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNG
 /** Dieselbe Marke, aber nur am Anfang — zum Abziehen. */
 export const GERUEST_MARKE = /^(?:SEQUENZ\s*—[^\n]*|(?:WER|WO|WANN|WAS|GESAMTLÄNGE|DE|EN)\s*:|Shot\s*\d+\s*\([^)]*\))\s*/;
 
-interface TemplateAtom { id: string; text: string; typ: string; verlangt: PoolAtom["verlangt"]; oeffnet: boolean }
+interface TemplateAtom { id: string; text: string; typ: string; verlangt: PoolAtom["verlangt"]; oeffnet: boolean; stelle?: string }
 
 /** Baut den Atom-Pool aus Bank und Vorlagen. Perspektivfremde Vorlagen bleiben draußen. */
 /** Traegt der Satz eine eigene Perspektive? Bausteine aus Korpus und Markov
@@ -165,7 +165,8 @@ export function buildPool(bank: Bank, perspektive: string, what?: string, figur?
     if (isSecondPerson(a.text) && perspektive !== "second" && perspektive !== "auto") continue;
     const d = deriveAtom(a.text.replace(/⟨[A-ZÄÖÜ]+⟩/g, "Ding"));
     pool.push({ ...d, id: a.id, text: a.text, typ: a.typ as PoolAtom["typ"], quelle: "vorlage",
-      verlangt: a.verlangt, oeffnet: a.oeffnet, bruchgrad: 0, fuehrt_ein: [] });
+      verlangt: a.verlangt, oeffnet: a.oeffnet, bruchgrad: 0, fuehrt_ein: [],
+      stelle: a.stelle as PoolAtom["stelle"] });
   }
   return pool;
 }
@@ -251,13 +252,20 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
   // 0.6 Harte Dublettensperre: jedes Atom höchstens EINMAL je Text. Lieber ein
   // kürzerer Text als eine Phrasenschleife — für lange Texte mehrere Presets wählen.
   let fuegeteile = 0;
+  // Erzählt diese Struktur den Bogen vorwärts? Dann beendet ein Schlussbild den
+  // Text. Bei Reverse und Kreis steht am Textende eine andere Phase.
+  const schlussAmEnde = (STRUKTUR_PHASEN[input.structure || "rekombination"]
+    || STRUKTUR_PHASEN["linear"]!).slice(-1)[0] === "schluss";
   const woerterJetzt = (): number => out.join(" ").split(/\s+/).filter(Boolean).length;
 
   for (let s = 0; s < 600; s++) {
     const fortschritt = woerterJetzt() / zielWoerter;
     if (fortschritt >= 1) break;
     // Phase aus dem Fortschritt in Wörtern ableiten (nicht aus der Position)
-    const phase = fortschritt < 0.3 ? "exposition" : fortschritt < 0.6 ? "verdichtung" : fortschritt < 0.8 ? "umschlag" : "schluss";
+    // Die Struktur bestimmt die Phasenfolge. Für „rekombination" ist sie
+    // Zeichen für Zeichen die alte 30/30/20/20-Verteilung — dieser Umbau soll
+    // den vorhandenen Bauweg nicht verändern.
+    const phase = phasenFolge(input.structure || "rekombination", fortschritt);
     const letzte = fortschritt >= 0.92;
     // Die Handlung aus "Was passiert?" liegt als mehrere Fassungen im Vorrat.
     // Steht eine davon im Text, sind die anderen nur noch Wiederholung derselben
@@ -308,7 +316,18 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
     // 150 Laeufen war DAS der Abbruchgrund, nicht fehlendes Material). 95 % wiederum
     // liessen bei Ziel 180 kaum noch Platz, ein Schlussbild ueberhaupt zu ziehen.
     // Eine feste Marge trifft beide Faelle.
-    if (zielWoerter - woerterJetzt() > ENDE_MARGE) kand = kand.filter((a) => a.kategorie !== "endings");
+    // Das Schlussbild darf erst kurz vor dem Ziel kommen — ABER nur, wenn die
+    // Struktur den Bogen überhaupt vorwärts erzählt. Bei „Reverse" liegt die
+    // Phase „schluss" am ANFANG des Textes; dort war noch der ganze Text übrig,
+    // und diese Regel hat das Schlussbild in 80 von 80 Läufen weggefiltert.
+    if (schlussAmEnde && zielWoerter - woerterJetzt() > ENDE_MARGE) kand = kand.filter((a) => a.kategorie !== "endings");
+    // Kennsätze mit fester Stelle im Text: „Du erfährst erst später:" nur vorn,
+    // „Der Kreis schließt sich:" nur hinten.
+    // Die Schwelle für „ende" liegt hoch: Der Text erreicht sein Ziel selten
+    // ganz (gemessen rund 86 %), und die Längenauffüllung hängt danach noch
+    // etwas an. Bei 0,7 stand der Kennsatz in 3 von 14 Fällen in der ersten
+    // Hälfte des fertigen Textes.
+    kand = kand.filter((a) => !a.stelle || (a.stelle === "anfang" ? fortschritt < 0.25 : fortschritt > 0.82));
     if (!kand.length) { if (!nachlegen()) break; continue; }
     if (!kand.length) { if (!nachlegen()) break; continue; }
     // Die Handlung aus „Was passiert?“ muss vorkommen — spätestens zur Hälfte
@@ -422,7 +441,10 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
     // Regel standen zwei Schlussformeln in kausal verkehrter Reihenfolge im Text
     // ("Und der Bescheid war schon gueltig." vor "Damit war der Vorgang eroeffnet.")
     // und dahinter noch eine lose Requisite ("eine bleiche Boje").
-    if (a.kategorie === "endings") break;
+    // ... aber nur, wenn das Schlussbild auch am Schluss steht. Bei „Reverse"
+    // kommt die Phase „schluss" ZUERST — dort würde der Text nach dem ersten
+    // Atom enden.
+    if (a.kategorie === "endings" && schlussAmEnde) break;
   }
   let fertig = verfugen(out);
   // B: Perspektivwechsel — im Rekombinationspfad lief er bisher gar nicht, die

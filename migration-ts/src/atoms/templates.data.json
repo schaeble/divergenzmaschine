@@ -338,7 +338,8 @@
    "typ": "kopf",
    "verlangt": null,
    "oeffnet": true,
-   "platzhalter": []
+   "platzhalter": [],
+   "stelle": "anfang"
   },
   {
    "id": "vl-0023",
@@ -566,7 +567,8 @@
    "typ": "kopf",
    "verlangt": null,
    "oeffnet": true,
-   "platzhalter": []
+   "platzhalter": [],
+   "stelle": "ende"
   },
   {
    "id": "vl-0039",

@@ -141,8 +141,19 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
 
   const verseForm = input.form === "reim" || input.form === "haiku" || input.form === "strang" || input.form === "drama";
   const effStructure = verseForm && kit.structure === "fragment" ? "linear" : kit.structure;
-  // Rekombination: Atome mit geprüfter Schnittstelle statt Schablonen
-  if (input.form === "prose" && input.structure === "rekombination") {
+  // Rekombination: Atome mit geprüfter Schnittstelle statt Schablonen.
+  //
+  // Seit 4.269 gilt das auch für die fünf Erzählformen. Sie sind dem Sinn nach
+  // keine eigenen Maschinen, sondern ANORDNUNGEN desselben geprüften Materials
+  // (siehe STRUKTUR_PHASEN in assemble.ts). Gemessen glichen die fünf einander
+  // zu 57–63 %, während die Rekombination bei 37–41 % zu allen lag — die Wahl
+  // zwischen ihnen änderte weniger als die Wahl des Bauwegs.
+  //
+  // Die alten Schablonenbauer bleiben als AUFFANG stehen: Liefert der Assembler
+  // nichts (leerer Vorrat, zu enge Filter), wird gebaut wie bisher. Ein Umbau,
+  // der im Zweifel gar keinen Text erzeugt, wäre kein Fortschritt.
+  const ASSEMBLER = new Set(["rekombination", "linear", "reverse", "circle", "fragment", "object"]);
+  if (input.form === "prose" && ASSEMBLER.has(input.structure || "")) {
     const rk = buildRekombination(bank, input, model);
     // Absaetze auch auf diesem Weg: Der Zweig kehrt vor paragraphize() zurueck,
     // die Rekombination lieferte deshalb immer einen einzigen Block - gemessen

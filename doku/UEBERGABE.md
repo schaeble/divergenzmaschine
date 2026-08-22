@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.268.0**, Zweig `typescript-migration`.
+Stand: **v4.269.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,64 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Gefragt und umgebaut (4.269.0): **„Wie unterscheiden sich Linear bis Objekt von
+der Rekombination — und können sie dem Sinn nach genauso gebaut werden?"**
+
+Gemessen zuerst, je 120 Texte mit festgehaltenen übrigen Einstellungen:
+
+| | Phrasenwdh. | Tempusbruch | Perspektivbruch | Wörter (Ziel 200) |
+|---|---|---|---|---|
+| linear | 0,039 | 0,078 | 0,059 | 191 |
+| reverse | 0,040 | **0,183** | 0,096 | 191 |
+| circle | 0,057 | 0,075 | 0,066 | 191 |
+| fragment | 0,056 | 0,080 | 0,057 | 191 |
+| object | 0,047 | 0,081 | **0,190** | 191 |
+| rekombination | **0,010** | 0,057 | 0,046 | 171 |
+
+Und die Ähnlichkeit untereinander: Die fünf Schablonen glichen einander zu
+**0,57–0,63**, die Rekombination lag bei **0,37–0,41** zu allen. Die Wahl
+zwischen den fünf änderte also weniger als die Wahl des Bauwegs.
+
+**Die Antwort: ja — die fünf sind dem Sinn nach keine eigenen Maschinen,
+sondern ANORDNUNGEN.** Der Assembler baut ohnehin in Phasen (Exposition,
+Verdichtung, Umschlag, Schluss). Linear erzählt sie vorwärts, Reverse
+rückwärts, der Kreis kehrt am Ende zur Exposition zurück, das Fragment springt,
+das Objekt dehnt die Mitte. `STRUKTUR_PHASEN` in `assemble.ts` hält die fünf
+Folgen; jede hat zehn Schritte.
+
+Nach dem Umbau: Phrasenwiederholung 0,010–0,012 bei allen, Tempusbruch
+0,045–0,055, Perspektivbruch 0,046–0,050. Reverse von 0,183 auf 0,050, Objekt
+von 0,190 auf 0,048. Der Preis ist die Länge: 172–179 statt 191 von 200.
+
+**Das Risiko war die Angleichung — sie ist nicht eingetreten.** Die fünf gleichen
+einander jetzt zu 0,41–0,47 statt 0,57–0,63: Sie sind einander UNÄHNLICHER
+geworden, nicht ähnlicher.
+
+**Belegt an der Stelle des Schlussbildes:** linear 100 % der Textlänge, reverse
+7 %, circle 76 %. Die Anordnung kommt also wirklich an.
+
+**Drei Fallen dabei:**
+
+1. `if (zielWoerter - woerterJetzt() > ENDE_MARGE)` filterte das Schlussbild weg,
+   solange noch viel Text fehlte. Bei Reverse liegt die Phase „schluss" am
+   ANFANG — die Regel hat das Schlussbild in 80 von 80 Läufen entfernt. Sie gilt
+   jetzt nur, wenn die Struktur den Bogen vorwärts erzählt (`schlussAmEnde`).
+2. Dasselbe für `if (a.kategorie === "endings") break;` — bei Reverse hätte das
+   den Text nach dem ersten Atom beendet.
+3. **Phase ≠ Stelle im Text.** „Der Kreis schließt sich:" gehört ans ENDE DES
+   TEXTES. Als Phasenmarke „schluss" stand der Satz bei Reverse im ersten
+   Absatz. Kennsätze tragen deshalb `stelle: "anfang" | "ende"`, nicht `phase`.
+
+**Nicht zusagbar:** dass der Kennsatz NIE nach vorn rutscht. Der Assembler setzt
+ihn bei 82 % der Ziellänge, danach hängt `enforceWordTarget` noch an. Der
+Prüfstand sagt deshalb den MEDIAN zu (90 %), nicht den Einzelfall — zwei
+schärfere Fassungen waren Wackelkandidaten.
+
+**Auffang:** Die alten Schablonenbauer bleiben. Liefert der Assembler nichts
+(leere Wortbank), wird gebaut wie bisher.
+
+**Neu:** `test/struktur.ts`, 34 Prüfungen, vier Gegenproben.
 
 Aus Ausgabe Nr. 46 und den zwei offenen Punkten (4.268.0):
 

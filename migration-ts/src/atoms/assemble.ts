@@ -13,6 +13,13 @@ export interface PoolAtom extends DerivedAtom {
   bruchgrad: number;
   verlangt: { rolle: string; kasus: string; art: string } | null;
   platzhalter?: string[];
+  /** Feste STELLE im Text — nicht Phase des Bogens.
+   *
+   *  Der Unterschied ist wesentlich: „Der Kreis schließt sich:" gehört ans Ende
+   *  des TEXTES. Beim Rückwärtserzählen liegt dort die Exposition, nicht der
+   *  Schluss des Bogens — als Phasenmarke stand der Satz plötzlich im ersten
+   *  Absatz. */
+  stelle?: "anfang" | "ende";
   kategorie?: string;      // Bank-Kategorie: motifs | hooks | props | turns | obstacles | stakes | endings
 }
 
@@ -31,6 +38,41 @@ const PHASEN_KATEGORIEN: Record<Phase, string[]> = {
   umschlag:    ["turns", "hoehepunkt", "ausloeser", "veraenderungen"],
   schluss:     ["endings"],
 };
+
+// ── Die Struktur IST die Phasenfolge ───────────────────────────────────────
+// Bis 4.268 waren Linear, Reverse, Kreis, Fragment und Objekt fünf eigene
+// Schablonenbauer mit festem Gerüst — und gemessen glichen sie einander zu
+// 57 bis 63 Prozent, während die Rekombination bei 37 bis 41 Prozent zu allen
+// lag. Die Wahl zwischen ihnen änderte also weniger als die Wahl des Bauwegs.
+//
+// Dem Sinn nach sind die fünf keine verschiedenen Maschinen, sondern
+// verschiedene ANORDNUNGEN derselben Teile: Linear erzählt den Bogen vorwärts,
+// Reverse rückwärts, der Kreis kehrt am Ende zum Anfang zurück, das Fragment
+// springt. Genau das kann der Assembler — er baut ohnehin in Phasen.
+//
+// Zehn Schritte je Folge, damit sich die Anteile fein genug abbilden lassen.
+export const STRUKTUR_PHASEN: Record<string, Phase[]> = {
+  // Unverändert die alte Verteilung 30/30/20/20 — die Rekombination soll sich
+  // durch diesen Umbau NICHT ändern.
+  rekombination: ["exposition", "exposition", "exposition", "verdichtung", "verdichtung", "verdichtung", "umschlag", "umschlag", "schluss", "schluss"],
+  linear:        ["exposition", "exposition", "exposition", "verdichtung", "verdichtung", "verdichtung", "umschlag", "umschlag", "schluss", "schluss"],
+  // Vom Ende her: erst das Ergebnis, dann die Wende, zuletzt der Anlass.
+  reverse:       ["schluss", "schluss", "umschlag", "umschlag", "verdichtung", "verdichtung", "verdichtung", "exposition", "exposition", "exposition"],
+  // Der Kreis kehrt zurück: Die letzte Position trägt wieder die Eröffnung.
+  circle:        ["exposition", "exposition", "verdichtung", "verdichtung", "verdichtung", "umschlag", "umschlag", "schluss", "exposition", "exposition"],
+  // Das Fragment springt. Kein Zufall zur Laufzeit: Eine feste, unruhige Folge
+  // ist reproduzierbar und damit prüfbar.
+  fragment:      ["verdichtung", "exposition", "umschlag", "verdichtung", "schluss", "exposition", "umschlag", "verdichtung", "exposition", "schluss"],
+  // Das Ding sieht zu: langer Mittelteil, kurzer Anfang, kurzer Schluss.
+  object:        ["exposition", "verdichtung", "verdichtung", "umschlag", "verdichtung", "umschlag", "verdichtung", "umschlag", "schluss", "schluss"],
+};
+
+/** Welche Phase gilt bei diesem Fortschritt (0…1) in dieser Struktur? */
+export function phasenFolge(struktur: string, fortschritt: number): Phase {
+  const f = STRUKTUR_PHASEN[struktur] || STRUKTUR_PHASEN["linear"]!;
+  const i = Math.min(f.length - 1, Math.max(0, Math.floor(fortschritt * f.length)));
+  return f[i]!;
+}
 
 /** Verteilt n Positionen auf den Erzählbogen (30 / 30 / 20 / 20). */
 export function phasenplan(n: number): Phase[] {

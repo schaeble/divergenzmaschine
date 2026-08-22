@@ -2232,6 +2232,26 @@ var PHASEN_KATEGORIEN = {
   umschlag: ["turns", "hoehepunkt", "ausloeser", "veraenderungen"],
   schluss: ["endings"]
 };
+var STRUKTUR_PHASEN = {
+  // Unverändert die alte Verteilung 30/30/20/20 — die Rekombination soll sich
+  // durch diesen Umbau NICHT ändern.
+  rekombination: ["exposition", "exposition", "exposition", "verdichtung", "verdichtung", "verdichtung", "umschlag", "umschlag", "schluss", "schluss"],
+  linear: ["exposition", "exposition", "exposition", "verdichtung", "verdichtung", "verdichtung", "umschlag", "umschlag", "schluss", "schluss"],
+  // Vom Ende her: erst das Ergebnis, dann die Wende, zuletzt der Anlass.
+  reverse: ["schluss", "schluss", "umschlag", "umschlag", "verdichtung", "verdichtung", "verdichtung", "exposition", "exposition", "exposition"],
+  // Der Kreis kehrt zurück: Die letzte Position trägt wieder die Eröffnung.
+  circle: ["exposition", "exposition", "verdichtung", "verdichtung", "verdichtung", "umschlag", "umschlag", "schluss", "exposition", "exposition"],
+  // Das Fragment springt. Kein Zufall zur Laufzeit: Eine feste, unruhige Folge
+  // ist reproduzierbar und damit prüfbar.
+  fragment: ["verdichtung", "exposition", "umschlag", "verdichtung", "schluss", "exposition", "umschlag", "verdichtung", "exposition", "schluss"],
+  // Das Ding sieht zu: langer Mittelteil, kurzer Anfang, kurzer Schluss.
+  object: ["exposition", "verdichtung", "verdichtung", "umschlag", "verdichtung", "umschlag", "verdichtung", "umschlag", "schluss", "schluss"]
+};
+function phasenFolge(struktur, fortschritt) {
+  const f = STRUKTUR_PHASEN[struktur] || STRUKTUR_PHASEN["linear"];
+  const i = Math.min(f.length - 1, Math.max(0, Math.floor(fortschritt * f.length)));
+  return f[i];
+}
 function phasenBonus(a, phase) {
   if (a.quelle === "vorlage") return phase === "exposition" ? 1.2 : 0.4;
   if (a.kategorie === "was") return phase === "schluss" ? 0.5 : 3.5;
@@ -4462,7 +4482,7 @@ function coherenceRepairV2(t, input) {
 function postProcessText(txt, input) {
   let t = (txt ?? "").toString();
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
-  t = t.replace(/\b(und|oder|aber|denn|sondern|sowie)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
+  t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
   const name = (input?.who ?? "").toString().trim();
   if (name) {
     const esc = escapeRegExp(name);
@@ -4494,7 +4514,7 @@ function postProcessText(txt, input) {
   t = coherencePass(t, input);
   t = coherenceRepairV2(t, input);
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
-  t = t.replace(/\b(und|oder|aber|denn|sondern|sowie)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
+  t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
   return t.trim();
 }
 
@@ -9017,7 +9037,8 @@ var templates_data_default = {
       typ: "kopf",
       verlangt: null,
       oeffnet: true,
-      platzhalter: []
+      platzhalter: [],
+      stelle: "anfang"
     },
     {
       id: "vl-0023",
@@ -9245,7 +9266,8 @@ var templates_data_default = {
       typ: "kopf",
       verlangt: null,
       oeffnet: true,
-      platzhalter: []
+      platzhalter: [],
+      stelle: "ende"
     },
     {
       id: "vl-0039",
@@ -9694,7 +9716,8 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
       verlangt: a.verlangt,
       oeffnet: a.oeffnet,
       bruchgrad: 0,
-      fuehrt_ein: []
+      fuehrt_ein: [],
+      stelle: a.stelle
     });
   }
   return pool;
@@ -9761,11 +9784,12 @@ function buildRekombination(bank, input, model) {
   const anfangVon = (t) => t.toLowerCase().replace(/[^a-zäöüß ]/g, "").trim().split(/\s+/).slice(0, 3).join(" ");
   resetTrace();
   let fuegeteile = 0;
+  const schlussAmEnde = (STRUKTUR_PHASEN[input.structure || "rekombination"] || STRUKTUR_PHASEN["linear"]).slice(-1)[0] === "schluss";
   const woerterJetzt = () => out.join(" ").split(/\s+/).filter(Boolean).length;
   for (let s = 0; s < 600; s++) {
     const fortschritt = woerterJetzt() / zielWoerter;
     if (fortschritt >= 1) break;
-    const phase = fortschritt < 0.3 ? "exposition" : fortschritt < 0.6 ? "verdichtung" : fortschritt < 0.8 ? "umschlag" : "schluss";
+    const phase = phasenFolge(input.structure || "rekombination", fortschritt);
     const letzte = fortschritt >= 0.92;
     let kand = pool.filter((a2) => passt(a2, k, phase) && !kurzGesperrt.has(a2.id) && !(wasGesetzt && a2.kategorie === "was"));
     if (out.length >= 3 && fuegeteile / out.length >= FUEGE_DECKEL) {
@@ -9786,7 +9810,8 @@ function buildRekombination(bank, input, model) {
       const tief = kand.filter((a2) => !FLACH.has(a2.typ));
       if (tief.length) kand = tief;
     }
-    if (zielWoerter - woerterJetzt() > ENDE_MARGE) kand = kand.filter((a2) => a2.kategorie !== "endings");
+    if (schlussAmEnde && zielWoerter - woerterJetzt() > ENDE_MARGE) kand = kand.filter((a2) => a2.kategorie !== "endings");
+    kand = kand.filter((a2) => !a2.stelle || (a2.stelle === "anfang" ? fortschritt < 0.25 : fortschritt > 0.82));
     if (!kand.length) {
       if (!nachlegen()) break;
       continue;
@@ -9882,7 +9907,7 @@ function buildRekombination(bank, input, model) {
     if (a.verlangt) k.offenerKopf = false;
     if (a.quelle === "vorlage") fuegeteile++;
     if (a.kategorie === "was") wasGesetzt = true;
-    if (a.kategorie === "endings") break;
+    if (a.kategorie === "endings" && schlussAmEnde) break;
   }
   let fertig = verfugen(out);
   if (input.perspective && input.perspective !== "third" && input.perspective !== "auto") {
@@ -12020,7 +12045,8 @@ function buildStory(bank, input, model) {
   }
   const verseForm = input.form === "reim" || input.form === "haiku" || input.form === "strang" || input.form === "drama";
   const effStructure = verseForm && kit.structure === "fragment" ? "linear" : kit.structure;
-  if (input.form === "prose" && input.structure === "rekombination") {
+  const ASSEMBLER = /* @__PURE__ */ new Set(["rekombination", "linear", "reverse", "circle", "fragment", "object"]);
+  if (input.form === "prose" && ASSEMBLER.has(input.structure || "")) {
     const rk = buildRekombination(bank, input, model);
     if (rk.trim()) {
       const fertig = postProcessText(paragraphize(rk), input);

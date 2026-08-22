@@ -216,7 +216,7 @@ export function postProcessText(txt: string, input?: Input): string {
   // Nach Konjunktion mitten im Satz: gross geschriebene Artikel/Pronomen klein
   // ("…, und Die Vergangenheit" -> "…, und die Vergangenheit"). Nomen (Realitaet)
   // stehen nicht in der Liste und bleiben gross.
-  t = t.replace(/\b(und|oder|aber|denn|sondern|sowie)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m: string, c: string, sp: string, w: string) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
+  t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m: string, c: string, sp: string, w: string) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
 
   const name = (input?.who ?? "").toString().trim();
   if (name) {
@@ -285,6 +285,6 @@ export function postProcessText(txt: string, input?: Input): string {
   // Nach Konjunktion mitten im Satz: gross geschriebene Artikel/Pronomen klein
   // ("…, und Die Vergangenheit" -> "…, und die Vergangenheit"). Nomen (Realitaet)
   // stehen nicht in der Liste und bleiben gross.
-  t = t.replace(/\b(und|oder|aber|denn|sondern|sowie)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m: string, c: string, sp: string, w: string) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
+  t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m: string, c: string, sp: string, w: string) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
   return t.trim();
 }
