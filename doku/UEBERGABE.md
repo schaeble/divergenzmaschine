@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.275.1**, Zweig `typescript-migration`.
+Stand: **v4.276.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,79 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Dritter Stapel (4.276.0): **6 weitere Presets — Stand 17 von 51.** Und zwei
+Prüfstände, die nicht das geprüft haben, was auf ihnen stand.
+
+| Preset | Einträge | Bericht 450 | Prosa 400 | Phrasenwdh |
+|---|---|---|---|---|
+| melville | 130 | 97 % | 96 % | 0,006 |
+| geologie | 129 | 91 % | 96 % | 0,003 |
+| clown | 127 | 104 % | 96 % | 0,005 |
+| haute_couture | 125 | 95 % | 97 % | 0,007 |
+| tanz | 123 | 105 % | 97 % | 0,008 |
+| biologie | 126 | **83 %** | 93 % | 0,006 |
+
+biologie bleibt beim Bericht zurück, aus demselben Grund wie jugendsprache im
+Stapel davor: kurze Einträge („ein Ei ohne Schale"). Zweiter Beleg für dieselbe
+Sache — die Zahl 120 misst Einträge, der Bericht braucht Wörter.
+
+**Neu: 53 Motivverwandlungen für die sechs Presets** — und daraus ein Befund.
+`leseVerwandlungen` wirft ein Paar mit unbekanntem oder ungleichem Geschlecht
+STILL weg. 18 der 53 fielen durch. Die meisten, weil ein Wort in der
+Genustabelle fehlte. **Zwei fielen durch, weil `guessGender` FALSCH riet, nicht
+gar nicht:** Die Kompositumsregel sucht das längste bekannte Wortende und findet
+in „Direktor" das sächliche „Tor", in „Gestein" das maskuline „Stein". Ein
+fehlendes Genus lässt den Artikel weg; ein falsches schreibt „der Gestein" in
+den Satz. Gemessen an allen 2275 Preset-Nomen: 3 von 20 geratenen Ge-Wörtern und
+1 von 6 -or-Wörtern sind falsch — zu wenig für eine neue Regel, genug für
+Einträge in der Tabelle. Prüfstand Verwandlung § 8 hält ab jetzt fest, dass kein
+eingebautes Paar still verfällt (Gegenprobe: „Harpune→Anker" schlägt an).
+
+**Zwei Schranken saßen im Rauschen.** Beide sind neu vermessen worden, statt sie
+zu verschieben, bis es grün wird.
+
+*Der Höhepunkt (Prüfstand Struktur).* Schranke war 3 % von 153; der wahre Wert
+liegt bei 2,1 % mit einer Spanne von 1 bis 6 Ausfällen — die Schranke saß mit
+4,59 mitten darin und schlug in jedem fünften Lauf grundlos an. Jetzt 8 %: über
+dem Höchstwert, weit unter dem Zustand, gegen den die Prüfung gebaut wurde
+(34 %).
+
+*Die Blindprobe (Prüfstand Wirkungsmesser).* Schranke war 2,5; in zwei von fünf
+Gesamtläufen rot. 21 Wiederholungen je Stellung von N:
+
+| N | Mittel | Spanne | über 2,5 |
+|---|---|---|---|
+| 24 | 1,72 ± 0,09 | 1,11–2,58 | 2 von 21 |
+| 40 | 2,07 ± 0,12 | 1,27–3,80 | 2 von 21 |
+| 120 | 1,87 ± 0,11 | 0,98–2,82 | 3 von 21 |
+
+Daraus zwei Schlüsse, und der zweite widerspricht der Hilfe:
+
+1. **Der Nullpunkt des Wirkungsmessers ist nicht 1, sondern rund 1,9.** Ein
+   Regler, der nachweislich nichts ändert, misst 1,9. „Wirkung" ist ein
+   Höchstwert über neun Maße, und der Höchstwert mehrerer verrauschter
+   Quotienten ist nach oben verzerrt.
+2. **Mehr Läufe senken den Blindwert nicht.** Von 24 auf 120 bleibt er innerhalb
+   von zwei Standardfehlern gleich. Die Hilfe behauptete bis 4.275 das Gegenteil
+   („bei 40 fällt sie auf 1,74, bei 60 auf 1,72") — das waren drei
+   Einzelmessungen aus einer Verteilung, die von 1,0 bis 3,8 streut. Rauschen,
+   als Trend gelesen, von genau der Sorte, gegen die dieses Papier sonst
+   argumentiert. Hilfe korrigiert.
+
+Die Schranke steht jetzt bei 3,5, und die Einordnung wird am gemessenen
+Nullpunkt geprüft (`band(1.9) === "rauschen"`) statt am gewürfelten Wert des
+Laufs. **Offen und bewusst nicht entschieden:** Das Band „schwach" beginnt im
+Erzeugnis bei 2,5, aber ein toter Regler erreicht in 10 % der Läufe 2,8. Nach
+der Messung müsste die Grenze bei 3,0 liegen. Das ändert, was der Benutzer bei
+schon gesehenen Reglern liest (der Disruptor mit 3,34 fiele von „knapp darüber"
+auf „vom Zufall nicht zu unterscheiden") — deshalb liegt es beim Benutzer.
+
+**Nebenbei:** Die Genustabelle enthielt 51 doppelte Schlüssel (ohne
+Widerspruch). `npm test` sieht das nicht, weil esbuild Dubletten schluckt;
+`npm run build` sieht es, weil `tsc --noEmit` davorsteht. Tabelle entdoppelt und
+alphabetisch sortiert, 1167 Einträge. **Merke: veröffentlicht wird mit
+`npm run build`, nicht mit `npx vite build`** — sonst fällt der Typprüfer aus.
 
 Zweiter Stapel (4.275.1): **6 weitere Presets ausgebaut — Stand 11 von 51.**
 

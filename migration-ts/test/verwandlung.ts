@@ -202,6 +202,40 @@ ist("ohne Paare bleibt alles", verwandleMotive("Der Regen fällt.", []), "Der Re
   }
 }
 
+
+// ── 8 · Jedes geschriebene Paar muss auch wirken ──────────────────────────
+// `leseVerwandlungen` wirft ein Paar mit ungleichem oder unbekanntem Geschlecht
+// STILL weg — richtig für die Laufzeit, falsch für den, der das Material
+// schreibt: Er sieht ein Paar im Preset stehen und im Text nie eine Wirkung.
+//
+// Beim Ausbau dieses Stapels hat genau das zugeschlagen: 18 von 53 neu
+// geschriebenen Paaren fielen durch. Die meisten, weil ein Wort in der
+// Genustabelle fehlte — das ist Fleißarbeit und wurde nachgetragen.
+//
+// Zwei fielen aus einem anderen Grund durch, den kein bestehender Prüfstand
+// gefunden hätte: `guessGender` hat FALSCH geraten, nicht gar nicht. Die
+// Kompositumsregel sucht das längste bekannte Wortende. In „Direktor" findet
+// sie „Tor" (sächlich), in „Gestein" findet sie „Stein" (maskulin). Beides ist
+// falsch, und beides bleibt still: Ein fehlendes Genus lässt den Artikel weg,
+// ein falsches schreibt „der Gestein" mitten in den Satz. Gemessen an allen
+// 2275 Nomen aller Presets betrifft das 3 von 20 geratenen Ge-Wörtern und 1 von
+// 6 -or-Wörtern — zu wenig für eine neue Regel, genug für Einträge in der
+// Tabelle. Wer die Regel doch anfasst: Die Fehlgriffe stehen dort, wo der
+// Wortanfang KEIN Bestimmungswort ist („Ge-", „Direk-").
+{
+  let paare = 0;
+  const durchgefallen: string[] = [];
+  for (const [name, bank] of Object.entries(BUILTIN_PRESETS)) {
+    for (const p of ((bank as Bank).verwandlungen || [])) {
+      paare++;
+      const r = pruefePaar(p);
+      if (!r.ok) durchgefallen.push(`${name}: ${p} (${r.grund})`);
+    }
+  }
+  wahr(`es gibt überhaupt Paare (${paare})`, paare >= 40);
+  ist("kein eingebautes Paar fällt durch", durchgefallen.join(" · "), "");
+}
+
 console.log(`Prüfstand Verwandlung — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

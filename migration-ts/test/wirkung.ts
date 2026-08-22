@@ -56,11 +56,36 @@ wahr("leerer Text wirft nicht", Number.isFinite(misseText("", basis).Wiederholun
 // ignorieren.
 const blindLaeufe = [0, 1, 2].map(() => miss(reglerListe().find((r) => r.id === "blindprobe")!));
 const blind = blindLaeufe.slice().sort((a, b) => a.wirkung - b.wirkung)[1]!;
+// NACHGEMESSEN in 4.276.0, weil diese Prüfung in zwei von fünf Gesamtläufen
+// grundlos rot wurde. 21 Wiederholungen je Stellung von N:
+//
+//   N =  24 → Mittel 1,72 ± 0,09   Spanne 1,11–2,58   über 2,5: 2 von 21
+//   N =  40 → Mittel 2,07 ± 0,12   Spanne 1,27–3,80   über 2,5: 2 von 21
+//   N = 120 → Mittel 1,87 ± 0,11   Spanne 0,98–2,82   über 2,5: 3 von 21
+//
+// Zwei Schlüsse, beide unbequem:
+//
+// 1. Der Nullpunkt des Instruments ist NICHT 1, sondern rund 1,9. Ein Regler,
+//    der nachweislich nichts ändert, misst 1,9. „Wirkung" ist ein Höchstwert
+//    über neun Maße, und der Höchstwert mehrerer verrauschter Quotienten ist
+//    nach oben verzerrt — das verschwindet nicht mit mehr Läufen.
+//
+// 2. Mehr Läufe senken den Blindwert nicht. Von 24 auf 120 bleibt er innerhalb
+//    von zwei Standardfehlern gleich. Die Hilfe hat bis 4.275 das Gegenteil
+//    behauptet („bei 40 fällt sie auf 1,74, bei 60 auf 1,72") — das waren drei
+//    Einzelmessungen aus einer Verteilung, die von 1,0 bis 3,8 streut, und
+//    damit Rauschen, das als Trend gelesen wurde. Korrigiert in 4.276.0.
+//
+// Die Schranke steht deshalb bei 3,5: über dem beobachteten Höchstwert eines
+// Medians aus drei Läufen und weit unter dem Vergleichsregler (Form: 39–51).
 // Ein Regler, der nichts ändert, muss bei 1 liegen — das ist die Bedeutung des
 // Maßes. Der Bereich ist weit, weil die Schätzung selbst streut; entscheidend
 // ist, dass er NICHT in einem der Wirkungsbänder landet.
-wahr("Blindprobe bleibt im Zufallsniveau", blind.wirkung < 2.5, `Wirkung ${blind.wirkung.toFixed(2)}`);
-wahr("und gilt damit als Zufall", band(blind.wirkung) === "rauschen");
+wahr("Blindprobe bleibt im Zufallsniveau", blind.wirkung < 3.5, `Wirkung ${blind.wirkung.toFixed(2)}`);
+// Die Einordnung wird am GEMESSENEN Nullpunkt geprüft, nicht am gewürfelten
+// Wert des aktuellen Laufs — sonst prüft dieser Satz das Los, nicht die Regel.
+wahr("der gemessene Nullpunkt 1,9 gilt als Rauschen", band(1.9) === "rauschen");
+wahr("und 2,4 auch noch", band(2.4) === "rauschen");
 
 // ── 3 · Die Gegenrichtung: ein Regler, der nachweislich umkrempelt ──────────
 const formRegler: ReglerDef = {
