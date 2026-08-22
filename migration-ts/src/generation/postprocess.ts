@@ -12,6 +12,8 @@ import { insertToneFlavor } from "./beats";
 import { polishGerman } from "./polish";
 import { applySatzlaenge, entferneDubletten, OBJEKT_KOPF_RE } from "./shape";
 import { hatFinitesVerb } from "../atoms/derive";
+import { personKopf, splitSpeakers } from "./wordcls";
+import { normWho } from "./ctxnorm";
 
 type Input = Partial<GenInput>;
 
@@ -57,6 +59,26 @@ export function istAbgeschnitten(bare: string): boolean {
   if (!bare || bare.split(/\s+/).length > 12) return false;
   if (ABGESCHNITTEN.test(bare)) return true;
   return NUR_OHNE_VERB.test(bare) && !hatFinitesVerb(bare);
+}
+
+/** Setzt das schließende Komma hinter den Relativsatz der Figur. */
+export function schliesseFigurenkomma(text: string, who?: string): string {
+  const roh = (who || "").trim();
+  if (!roh || !roh.includes(",")) return text;
+  const figur = personKopf(splitSpeakers(normWho(roh))[0] || "");
+  // Nur wenn der KOPF selbst einen Relativsatz trägt — ein abgetrennter Zusatz
+  // steht gar nicht mehr im Text.
+  if (!figur.includes(",")) return text;
+  try {
+    // Danach ein Kleinbuchstabe: Dort geht der Satz mit einem Verb weiter.
+    // Vor Satzzeichen, Doppelpunkt oder Großbuchstaben wird nichts eingefügt.
+    // OHNE Rücksicht auf Groß-/Kleinschreibung: Ein Schritt weiter oben setzt
+    // die Figur auf die Roheingabe zurück („ein Schulmädchen …"), und die
+    // Satzanfänge werden erst ganz zum Schluss wieder groß. Gesucht wird
+    // deshalb in beiden Schreibungen, ersetzt wird die gefundene.
+    const re = new RegExp("(" + escapeRegExp(figur) + ")(\\s+)(?=[a-zäöüß])", "gi");
+    return text.replace(re, "$1,$2");
+  } catch { return text; }
 }
 
 export function coherencePass(text: string, input?: Input): string {
@@ -249,6 +271,14 @@ export function postProcessText(txt: string, input?: Input): string {
   // Sprachschliff: laeuft immer. Was uebrig ist, ist in jedem Text richtig.
   t = polishGerman(t, { who: name });
 
+  // Der nachgestellte Relativsatz der Figur muss geschlossen werden. Im Blatt
+  // stand „Ein Schulmädchen, das Karten fälscht bemerkt: …" — der Satz öffnet
+  // ein Komma und schließt es nie. Gemessen: 6 von 250 Texten.
+  //
+  // Möglich ist die Reparatur nur, WEIL die Figur wörtlich bekannt ist. Ein
+  // allgemeiner Erkenner für Relativsätze wäre hier so unzuverlässig wie alle
+  // anderen; hier wird eine bekannte Zeichenkette gesucht, sonst nichts.
+  t = schliesseFigurenkomma(t, input?.who);
   t = coherencePass(t, input);
   t = coherenceRepairV2(t, input);
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1: string, p2: string) => p1 + p2.toUpperCase());

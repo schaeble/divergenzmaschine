@@ -50,6 +50,13 @@ export function corpusSanitize(text: string): string {
   // „Faktenkasten · Betroffen: 3.840 Haushalte · Dauer: 50 Stunden" mitten in
   // einem Prosaabsatz.
   s = s.split(/\r?\n/).filter((z) => !GERUEST_ZEILE.test(z)).join("\n");
+  // Und dasselbe SATZWEISE. In Ausgabe Nr. 46 stand der Faktenkasten mitten in
+  // einem Absatz („Ein Geruch aus der Kindheit. Faktenkasten · Neu: 3.660
+  // Haushalte · …") — dort greift eine Zeilenregel nicht. Die Marke ist
+  // eindeutig genug, um bis zum nächsten Satzende zu löschen.
+  // Bis zu einem Punkt, dem ein Leerzeichen und ein Großbuchstabe folgen — der
+  // Punkt in „3.660" ist keiner.
+  s = s.replace(/Faktenkasten\s*·[^\n]*?(?:\.(?=\s+[A-ZÄÖÜ])|$)/g, " ");
   s = s.replace(/—\s*(?=[.—])/g, "");                                  // verwaiste Gedankenstriche
   s = s.replace(/\.{2,}/g, ".");                                       // Doppel-Punkte
   s = s.replace(/\s+/g, " ").trim();

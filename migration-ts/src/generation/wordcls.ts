@@ -148,7 +148,10 @@ const SP_PREP = /^(mit|ohne|aus|von|vom|in|im|auf|an|am|für|bei|zu|zum|zur|übe
 // diese Bedingung galt „die alten Frauen" als Relativsatz, weil „Frauen" auf
 // -en endet — deutsche Verben sind klein, Nomen groß, und das ist hier die
 // verlässlichste Auskunft, die die Schreibung hergibt.
-const SP_ENDS_VERB = /(?:\b(hat|hatte|ist|war|sind|waren|wird|wurde|wurden|kann|konnte|will|wollte|muss|musste|bleibt|blieb|kommt|kam|geht|ging)|\b[a-zäöüß]{2,}(?:t|te|en|st|et))\.?$/;
+// Die zweite Alternative OHNE \b: Die Wortgrenze in JavaScript ist ASCII und
+// sieht zwischen „F" und „ü" eine Grenze — „Fürsten" galt dadurch als Verb
+// „ürsten", und „die deutschen Fürsten" wurde für einen Relativsatz gehalten.
+const SP_ENDS_VERB = /(?:\b(hat|hatte|ist|war|sind|waren|wird|wurde|wurden|kann|konnte|will|wollte|muss|musste|bleibt|blieb|kommt|kam|geht|ging)|(?:^|[^A-Za-zÄÖÜäöüß])[a-zäöüß]{2,}(?:t|te|en|st|et))\.?$/;
 /** Begleiter: Wer damit anfängt, ist eine Nominalphrase — also eine Person. */
 const SP_DET = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses|jener|jene|jenes|beide|alle|zwei|drei|vier)\b/i;
 

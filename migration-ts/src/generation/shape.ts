@@ -27,6 +27,9 @@ export function applyDisruptor(text: string, level: string): DisruptorResult {
 
 const FRAGMENTS = ["Stille.", "Zu nah.", "Zu klar.", "Ein Fehler.", "Noch nicht.", "Dann.", "Nein.", "Vielleicht.", "Fast.", "Genau jetzt."];
 
+/** Womit ein Teilsatz anfängt, der NIE allein stehen kann. */
+const NEBENSATZ_ANFANG = /^(der|die|das|dem|den|des|deren|dessen|welche[rsmn]?|wo|worin|woran|worauf|als|wenn|weil|obwohl|während|nachdem|bevor|damit|dass|ob|sodass|indem|sobald|solange|bis|seit|falls|wobei|wodurch|womit)\b/i;
+
 export function applyRhythm(text: string, rhythm: string): string {
   const s = splitSentences(text);
   const insertFrag = (prob: number): void => {
@@ -41,7 +44,9 @@ export function applyRhythm(text: string, rhythm: string): string {
     insertFrag(0.75);
     if (s.length >= 4 && chance(0.6)) {
       const i = Math.floor(1 + Math.random() * (s.length - 2)); const t = s[i]!; const cut = t.indexOf(", ");
-      if (cut > 10 && cut < 80) { s[i] = t.slice(0, cut) + "."; s.splice(i + 1, 0, t.slice(cut + 2)); }
+      // Dieselbe Regel wie in applyTension: Ein Komma vor einem Nebensatz ist
+      // keine Satzgrenze.
+      if (cut > 10 && cut < 80 && !NEBENSATZ_ANFANG.test(t.slice(cut + 2))) { s[i] = t.slice(0, cut) + "."; s.splice(i + 1, 0, t.slice(cut + 2)); }
     }
     if (chance(0.35)) { const at = Math.min(2, s.length); if (!isFragmentSentence(s[at - 1] || "") && !isFragmentSentence(s[at] || "")) s.splice(at, 0, pick(["Stille.", "Warte.", "So.", "Gut."])); }
   }
@@ -83,7 +88,13 @@ export function applyTension(text: string, peak?: string, material?: TensionMate
     const it = intensity(i, s.length);
     if (it > 0.6 && chance(it * 0.7)) {
       const t = s[i]!; const cut = t.indexOf(", ");
-      if (cut > 10 && cut < 90) { s[i] = t.slice(0, cut) + "."; s.splice(i + 1, 0, cap(t.slice(cut + 2))); }
+      // NICHT an jedem Komma trennen. Führt es einen Nebensatz oder Relativsatz
+      // ein, ist der Teil dahinter kein eigener Satz — im Blatt stand „Das
+      // Karten fälscht sucht die Spur", weil „ein Schulmädchen, das Karten
+      // fälscht" hier auseinandergeschnitten wurde.
+      const rest = t.slice(cut + 2);
+      const unteilbar = NEBENSATZ_ANFANG.test(rest);
+      if (cut > 10 && cut < 90 && !unteilbar) { s[i] = t.slice(0, cut) + "."; s.splice(i + 1, 0, cap(rest)); }
     }
   }
   // Ein, zwei kurze Fragmente direkt am Peak einstreuen

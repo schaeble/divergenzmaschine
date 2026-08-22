@@ -1,5 +1,3 @@
-"use strict";
-
 // src/modes.data.ts
 var MODE_DATA = {
   "bureau": {
@@ -275,16 +273,6 @@ function kuerzeAmBruch(text) {
       break;
     }
     t = ohneWort;
-  }
-  {
-    const komma = t.lastIndexOf(",");
-    if (komma >= 12) {
-      const schwanz = t.slice(komma + 1).trim();
-      const relativ = /^(der|die|das|dem|den|dessen|deren|welche[rsmn]?|wo|worin|woran)\s/i.test(schwanz);
-      const hatVerb = /(?:^|[^A-Za-zÄÖÜäöüß])[a-zäöüß]{2,}(?:t|te|en|st|et)(?![A-Za-zÄÖÜäöüß])/.test(schwanz);
-      const endetAufNomen = /[A-ZÄÖÜ][a-zäöüß]+$/.test(schwanz);
-      if (relativ && endetAufNomen && !hatVerb) t = t.slice(0, komma).trim();
-    }
   }
   for (let i = 0; i < 4; i++) {
     const m = t.match(/(\S+)\s+(an|auf|aus|ein|mit|nach|vor|zu|über|unter|um|ab|bei|los|weg|hin|her)$/i);
@@ -1796,22 +1784,22 @@ function pickFresh(key, opts) {
   while (seen.length > Math.min(KEEP, opts.length - 1)) seen.shift();
   return choice;
 }
-function pickFreshIndex(key, n) {
-  if (n <= 1) return 0;
-  const idxs = Array.from({ length: n }, (_, i) => String(i));
+function pickFreshIndex(key, n2) {
+  if (n2 <= 1) return 0;
+  const idxs = Array.from({ length: n2 }, (_, i) => String(i));
   return Number(pickFresh(key, idxs));
 }
 var recentMarkov = [];
 var MK_KEEP = 24;
 var mkNorm = (s) => s.toLowerCase().replace(/[^a-zäöüß ]/g, "").replace(/\s+/g, " ").trim();
 function markovSeenRecently(s) {
-  const n = mkNorm(s);
-  return n.length > 0 && recentMarkov.includes(n);
+  const n2 = mkNorm(s);
+  return n2.length > 0 && recentMarkov.includes(n2);
 }
 function noteMarkov(s) {
-  const n = mkNorm(s);
-  if (!n) return;
-  recentMarkov.push(n);
+  const n2 = mkNorm(s);
+  if (!n2) return;
+  recentMarkov.push(n2);
   while (recentMarkov.length > MK_KEEP) recentMarkov.shift();
 }
 
@@ -2098,7 +2086,7 @@ var ARTIKEL = /^(ein|eine|einen|einem|einer|eines|der|die|das|den|dem|des|kein|k
 var PRON_START = /^(er|sie|es|ihm|ihr|ihn|ihnen|dessen|deren|diese[rs]?|jene[rs]?)\b/i;
 var silben = (t) => {
   const w = t.toLowerCase().match(/[a-zäöüß]+/g) || [];
-  return w.reduce((n, x) => n + Math.max(1, (x.match(/[aeiouäöüy]+/g) || []).length), 0);
+  return w.reduce((n2, x) => n2 + Math.max(1, (x.match(/[aeiouäöüy]+/g) || []).length), 0);
 };
 var woerter = (t) => (t.match(/\S+/g) || []).length;
 var tiefe = (t) => (t.match(/,\s*(dass|weil|obwohl|wenn|als|während|nachdem|bevor|damit|ob|indem|der|die|das|den|dem|welche)/gi) || []).length;
@@ -2290,7 +2278,7 @@ function fortschreiben(k, a) {
   k.offenerKopf = a.oeffnet || !!a.verlangt;
   if (a.tempus !== "kein" && !k.tempus) k.tempus = a.tempus;
   for (const e of k.entitaeten.values()) e.abstand++;
-  for (const n of a.fuehrt_ein) k.entitaeten.set(n, { abstand: 0 });
+  for (const n2 of a.fuehrt_ein) k.entitaeten.set(n2, { abstand: 0 });
 }
 function fuelleKontext(text, ctx) {
   return text.replace(/⟨ORT⟩/g, ctx.ort).replace(/⟨ZEIT⟩/g, ctx.zeit).replace(/⟨FIGUR⟩/g, ctx.figur).replace(/⟨VERB⟩/g, ctx.verb);
@@ -2362,8 +2350,8 @@ function verfugen(teile) {
     const naechsterFolgtDirekt = t.endsWith(":") || t.endsWith("\u2014");
     if (!endet) t += ".";
     if (naechsterFolgtDirekt && i + 1 < teile.length) {
-      const n = teile[i + 1].trim();
-      teile[i + 1] = n.charAt(0).toLowerCase() + n.slice(1);
+      const n2 = teile[i + 1].trim();
+      teile[i + 1] = n2.charAt(0).toLowerCase() + n2.slice(1);
     }
     out.push(t);
   }
@@ -2385,7 +2373,7 @@ function ziehe(kandidaten, sollGewicht, bisher, phase) {
     if (a.quelle === "dramaturgie") s = bogenGewicht === 0 ? 1e-4 : s * bogenGewicht;
     return s;
   };
-  const total = kandidaten.reduce((n, a) => n + score(a), 0);
+  const total = kandidaten.reduce((n2, a) => n2 + score(a), 0);
   let r = Math.random() * total;
   for (const a of kandidaten) {
     r -= score(a);
@@ -2400,8 +2388,8 @@ function cap(s) {
   return s ? s[0].toUpperCase() + s.slice(1) : s;
 }
 function isFragmentSentence(s) {
-  const n = clean(s).split(/\s+/).filter(Boolean).length;
-  return n > 0 && n <= 3;
+  const n2 = clean(s).split(/\s+/).filter(Boolean).length;
+  return n2 > 0 && n2 <= 3;
 }
 var CLAUSE_VERBS = /* @__PURE__ */ new Set(["antworten", "antwortet", "atmen", "atmet", "bebt", "begann", "beginnen", "beginnt", "beobachten", "beobachtet", "ber\xFChren", "ber\xFChrt", "bin", "bist", "bleiben", "bleibt", "blieb", "blitzt", "brannte", "brennen", "brennt", "brummt", "br\xFCllen", "br\xFCllt", "dachte", "darf", "denken", "denkt", "donnert", "drehen", "dreht", "drehte", "durfte", "d\xFCrfen", "enden", "endet", "endete", "erinnern", "erinnert", "fahren", "fallen", "fand", "fiel", "fielen", "finden", "findet", "fliegen", "fliegt", "fliehen", "flieht", "flie\xDFen", "flie\xDFt", "flog", "floss", "fl\xFCstern", "fl\xFCstert", "folgen", "folgt", "folgte", "formen", "formt", "fragen", "fragt", "fragte", "fuhr", "f\xE4hrt", "f\xE4llt", "f\xFChlen", "f\xFChlt", "f\xFChren", "f\xFChrt", "f\xFChrte", "f\xFCrchten", "f\xFCrchtet", "gab", "gaben", "galt", "geben", "gehen", "geht", "gelten", "geschah", "geschehen", "geschieht", "gibt", "gilt", "ging", "gingen", "glauben", "glaubt", "haben", "habt", "halten", "hat", "hatte", "hatten", "hielt", "hielten", "hoffen", "hofft", "h\xE4lt", "h\xE4tte", "h\xF6ren", "h\xF6rt", "h\xF6rte", "ist", "jagen", "jagt", "kam", "kamen", "kann", "kannte", "kennen", "kennt", "kippen", "kippt", "knistert", "kommen", "kommt", "konnte", "konnten", "kreisen", "kreist", "k\xF6nnen", "lachen", "lacht", "lag", "lagen", "laufen", "leuchten", "leuchtet", "lief", "liefen", "liegen", "liegt", "l\xE4uft", "l\xF6schen", "l\xF6scht", "machen", "macht", "machte", "machten", "mag", "muss", "musste", "mussten", "m\xF6chte", "m\xF6chten", "m\xF6gen", "m\xFCssen", "nahm", "nahmen", "nehmen", "nimmt", "passieren", "passiert", "passierte", "planen", "plant", "pulsiert", "raschelt", "reagieren", "reagiert", "regnet", "retten", "rettet", "rief", "rinnt", "riskiert", "rufen", "ruft", "sah", "sahen", "sang", "sank", "sa\xDF", "schlafen", "schlief", "schlie\xDFen", "schlie\xDFt", "schloss", "schl\xE4ft", "schmelzen", "schmilzt", "schneit", "schreien", "schreit", "schrie", "schweigen", "schweigt", "schwieg", "sehen", "seid", "sieht", "sind", "singen", "singt", "sinken", "sinkt", "sitzen", "sitzt", "soll", "sollen", "sollte", "sprach", "sprachen", "sprang", "sprechen", "spricht", "springen", "springt", "stand", "standen", "stehen", "steht", "steigen", "steigt", "stieg", "suchen", "sucht", "suchte", "summt", "tanzen", "tanzt", "tat", "taten", "ticken", "tickt", "tragen", "tropft", "trug", "trugen", "tr\xE4gt", "tr\xE4umen", "tr\xE4umt", "tun", "tut", "unterschreiben", "unterschreibt", "verfolgen", "verfolgt", "vergessen", "vergisst", "verlangen", "verlangt", "verraten", "verr\xE4t", "ver\xE4ndern", "ver\xE4ndert", "vibriert", "wachsen", "wagen", "wagt", "wandern", "wandert", "war", "waren", "warten", "wartet", "wartete", "wechseln", "wechselt", "weigern", "weigert", "weinen", "weint", "wei\xDF", "werden", "werdet", "wiederholen", "wiederholt", "will", "wird", "wirst", "wissen", "wollen", "wollte", "wollten", "wurde", "wurden", "wusste", "w\xE4chst", "w\xE4re", "w\xE4ren", "w\xFCrde", "w\xFCrden", "zeigen", "zeigt", "zeigte", "zerbrechen", "zerbricht", "ziehen", "zieht", "zittern", "zittert", "zog", "zogen", "\xF6ffnen", "\xF6ffnet", "\xFCberschreiben", "\xFCberschreibt"]);
 var CLAUSE_STOP = /* @__PURE__ */ new Set([
@@ -2636,7 +2624,7 @@ function insertToneFlavor(text, line) {
 function weaveCast(text, _P, cast) {
   const others = (cast || []).slice(1).map((c) => clean(c)).filter(Boolean);
   if (!others.length) return text;
-  const nm = (n) => (n.split(",")[0] || n).trim();
+  const nm = (n2) => (n2.split(",")[0] || n2).trim();
   const soloVerbs = ["steht daneben und schweigt", "wartet", "sieht zu", "z\xF6gert", "sagt nichts", "nickt kaum", "atmet flach", "tritt einen Schritt zur\xFCck", "h\xE4lt sich zur\xFCck"];
   const soloWants = ["das Gegenteil", "mehr", "weg", "bleiben", "die Wahrheit", "nichts davon"];
   const beats = [];
@@ -2956,7 +2944,7 @@ function looksLikeFullClause(leadVerb, rest) {
 var SP_REL = /^(der|die|das|den|dem|des|deren|dessen|welche[rsmn]?|wo|worin|woran|womit|wovon)\b/i;
 var SP_CONJ = /^(als|während|weil|wenn|da|obwohl|nachdem|bevor|sodass|damit|dass|ob|indem|sobald|solange)\b/i;
 var SP_PREP = /^(mit|ohne|aus|von|vom|in|im|auf|an|am|für|bei|zu|zum|zur|über|unter|vor|nach|durch|gegen|seit|um|entlang|trotz|wegen|innerhalb|außerhalb|samt|nebst|zwischen|entgegen|gemäß|laut|binnen|jenseits|diesseits)\b/i;
-var SP_ENDS_VERB = /(?:\b(hat|hatte|ist|war|sind|waren|wird|wurde|wurden|kann|konnte|will|wollte|muss|musste|bleibt|blieb|kommt|kam|geht|ging)|(?:^|[^A-Za-zÄÖÜäöüß])[a-zäöüß]{2,}(?:t|te|en|st|et))\.?$/;
+var SP_ENDS_VERB = /(?:\b(hat|hatte|ist|war|sind|waren|wird|wurde|wurden|kann|konnte|will|wollte|muss|musste|bleibt|blieb|kommt|kam|geht|ging)|\b[a-zäöüß]{2,}(?:t|te|en|st|et))\.?$/;
 var SP_DET = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses|jener|jene|jenes|beide|alle|zwei|drei|vier)\b/i;
 function istEigenePerson(teil) {
   const p = clean(teil);
@@ -3980,8 +3968,8 @@ function applyTension(text, peak, material) {
   const s = splitSentences(text);
   if (s.length < 5) return text;
   const width = 0.26;
-  const intensity = (i, n) => {
-    const pos = n <= 1 ? 0 : i / (n - 1);
+  const intensity = (i, n2) => {
+    const pos = n2 <= 1 ? 0 : i / (n2 - 1);
     const d = (pos - center) / width;
     return Math.exp(-0.5 * d * d);
   };
@@ -4292,12 +4280,12 @@ function applySatzlaenge(text, ziel) {
     for (let runde = 0; runde < 200; runde++) {
       let beste = -1, kuerzeste = Infinity;
       for (let i = 0; i + 1 < s.length; i++) {
-        const n = w(s[i]) + w(s[i + 1]);
-        if (n > ziel) continue;
+        const n2 = w(s[i]) + w(s[i + 1]);
+        if (n2 > ziel) continue;
         if (bleibtKurz.has(s[i]) || bleibtKurz.has(s[i + 1])) continue;
         if (!darfVerbinden(s[i], s[i + 1], ziel)) continue;
-        if (n < kuerzeste) {
-          kuerzeste = n;
+        if (n2 < kuerzeste) {
+          kuerzeste = n2;
           beste = i;
         }
       }
@@ -4395,10 +4383,10 @@ function coherenceRepairV2(t, input) {
   }
   t = t.replace(/\bich'(?=\s)/gi, "meine").replace(/\bdu'(?=\s)/gi, "deine").replace(/\bwir'(?=\s)/gi, "unsere").replace(/\ber'(?=\s)/gi, "seine").replace(/\bsie'(?=\s)/gi, "ihre").replace(/\bes'(?=\s)/gi, "seine");
   t = t.replace(/(:\s+)([a-zäöüß][^.!?…]*)/g, (m, p1, rest) => looksLikeFullClause(null, rest) || /^(warum|weshalb|wieso|wie|was|wer|wen|wem|wann|wo|wohin|woher|ob)\b/i.test(rest) ? p1 + rest.charAt(0).toUpperCase() + rest.slice(1) : m);
-  String(input?.who || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean).forEach((n) => {
-    const esc = escapeRegExp(n);
+  String(input?.who || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean).forEach((n2) => {
+    const esc = escapeRegExp(n2);
     try {
-      t = t.replace(new RegExp("\\b" + esc + "(s|')?\\b", "giu"), (_m, suf) => n + (suf || ""));
+      t = t.replace(new RegExp("\\b" + esc + "(s|')?\\b", "giu"), (_m, suf) => n2 + (suf || ""));
     } catch {
     }
   });
@@ -4453,8 +4441,8 @@ function coherenceRepairV2(t, input) {
   t = t.replace(/([A-ZÄÖÜ][\wäöüß]+ und ich[^.!?…]*?)\bsie sich\b/gu, "$1wir uns");
   const CONN = [/\bDann kippt es\b/gi, /\bDabei:\s*plötzlich\b/gi, /\bUnd immer wieder\b/gi, /\bAm Ende bleibt klar\b/gi];
   CONN.forEach((re) => {
-    let n = 0;
-    t = t.replace(re, (m) => ++n > 1 ? "" : m);
+    let n2 = 0;
+    t = t.replace(re, (m) => ++n2 > 1 ? "" : m);
   });
   t = glaetten(t).replace(/„[ \t]+/g, "\u201E");
   return t;
@@ -4940,14 +4928,13 @@ function loadPersistentCorpus() {
 var GERUEST_ZEILE = /^\s*(Faktenkasten\b|Kurz gemeldet\s*$|Fiktive Zeitung\b|Zeitzeichen\s*[·|]|Nr\.\s*\d+\s*[·|]|UNABHÄNGIG\b|SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/;
 function corpusSanitize(text) {
   let s = (text ?? "").toString();
-  s = s.split(/\r?\n/).filter((z) => !/^\s*(SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/.test(z)).map((z) => z.replace(/^\s*(?:Shot\s*\d+\s*\([^)]*\)|(?:DE|EN)\s*:)\s*/, "")).join("\n");
+  s = s.split(/\r?\n/).filter((z2) => !/^\s*(SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/.test(z2)).map((z2) => z2.replace(/^\s*(?:Shot\s*\d+\s*\([^)]*\)|(?:DE|EN)\s*:)\s*/, "")).join("\n");
   s = s.replace(/\([^()]*\)/g, " ");
   s = s.replace(/\b(?:gegen|um|ab|seit|bis)\s+\d{1,2}:\d{2}\b\s*(?:—|–)?\s*/gi, "");
   s = s.replace(/\b\d{1,2}:\d{2}\b\s*—\s*/g, "");
   s = s.replace(/\b(Schluss|Notiz|Rand|Gestern|Jetzt|Später|Drei Tage später)\s*—\s*/g, "");
   s = s.replace(/\bSZENE:\s*/g, "");
-  s = s.split(/\r?\n/).filter((z) => !GERUEST_ZEILE.test(z)).join("\n");
-  s = s.replace(/Faktenkasten\s*·[^\n]*?(?:\.(?=\s+[A-ZÄÖÜ])|$)/g, " ");
+  s = s.split(/\r?\n/).filter((z2) => !GERUEST_ZEILE.test(z2)).join("\n");
   s = s.replace(/—\s*(?=[.—])/g, "");
   s = s.replace(/\.{2,}/g, ".");
   s = s.replace(/\s+/g, " ").trim();
@@ -4994,8 +4981,8 @@ function isSaneMarkov(s) {
   if (fn / words.length > 0.6) return false;
   const sentences = s.split(/[.!?]+/).filter(Boolean);
   for (const sentence of sentences) {
-    const n = sentence.trim().split(/\s+/).length;
-    if (n > 30 || n < 2) return false;
+    const n2 = sentence.trim().split(/\s+/).length;
+    if (n2 > 30 || n2 < 2) return false;
   }
   const phrases = [];
   for (let i = 0; i < words.length - 2; i++) phrases.push(words.slice(i, i + 3).join(" "));
@@ -8475,8 +8462,8 @@ function loadActiveBankLabel() {
 }
 
 // src/generation/video.ts
-var clampShotCount = (n) => Math.max(3, Math.min(10, Number.isFinite(n) ? n : 5));
-var clampTotalSec = (n) => Math.max(3, Math.min(600, Number.isFinite(n) ? n : 15));
+var clampShotCount = (n2) => Math.max(3, Math.min(10, Number.isFinite(n2) ? n2 : 5));
+var clampTotalSec = (n2) => Math.max(3, Math.min(600, Number.isFinite(n2) ? n2 : 15));
 var fmtSec = (x) => {
   if (!isFinite(x)) return "0s";
   const v = Math.round(x * 10) / 10;
@@ -8511,7 +8498,7 @@ function bogenSaetze(d, kit) {
   if (aend.length) fest.push(`Etwas kippt: ${stripTailPunct(pick(aend))}.`);
   const frei = [];
   for (const r of s(d.regeln)) frei.push(`Regel: ${ensurePunct(r)}`);
-  for (const z of s(d.zeitanomalien)) frei.push(ensurePunct(z));
+  for (const z2 of s(d.zeitanomalien)) frei.push(ensurePunct(z2));
   const K_RAHMEN = [`${P2} wei\xDF, worum es geht:`, "Im Bild bleibt:", "Der Einsatz sichtbar:", "Alles zielt auf:"];
   const A_RAHMEN = ["Dann, unvermittelt:", "Ohne Vorwarnung:", "Ein Schnitt, und:", "Und pl\xF6tzlich:"];
   s(d.konflikte).forEach((k, i) => frei.push(`${K_RAHMEN[i % K_RAHMEN.length]} ${stripTailPunct(k)}.`));
@@ -8598,10 +8585,10 @@ function reihenfolge(a) {
   return x;
 }
 function buildVideoSequenceText(kit, shotCount = 5, totalSec = 15, lenTarget = 0) {
-  const n = clampShotCount(shotCount);
+  const n2 = clampShotCount(shotCount);
   const total = clampTotalSec(totalSec);
-  const dur = total / n;
-  const shots = buildVideoShots(kit, n, lenTarget);
+  const dur = total / n2;
+  const shots = buildVideoShots(kit, n2, lenTarget);
   const titel = [loadActiveBankLabel(), kit.mode.label].filter(Boolean).join(" \xB7 ");
   const out = [`SEQUENZ \u2014 ${titel}`.trim(), `WER: ${kit.PRaw || kit.P}`, `WO: ${kit.W}`, `WANN: ${kit.T}`, `WAS: ${kit.A}`, `GESAMTL\xC4NGE: ${fmtSec(total)} \u2022 ${fmtSec(dur)} pro Shot`, ""];
   for (let i = 0; i < shots.length; i++) {
@@ -9592,8 +9579,8 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
     const lead = extractLeadVerb(w);
     const kern = lead.rest.replace(/[.!?…]+$/, "");
     const P2 = figur || "Jemand";
-    const saetze = lead.isInfinitiveLed ? [`${P2} will ${kern}`, `Alles dr\xE4ngt darauf, ${kern.replace(/(\S+)$/, "zu $1")}`] : lead.verb ? [`${P2} ${lead.verb} ${kern}`] : looksLikeFullClause(lead.verb, kern) || hatFinitesVerb(kern) || !wirktNominal(kern) ? [kern] : [`Es geht um eines: ${kern}`, `${P2} sucht ${kern}`];
-    for (const t of saetze) {
+    const saetze2 = lead.isInfinitiveLed ? [`${P2} will ${kern}`, `Alles dr\xE4ngt darauf, ${kern.replace(/(\S+)$/, "zu $1")}`] : lead.verb ? [`${P2} ${lead.verb} ${kern}`] : looksLikeFullClause(lead.verb, kern) || hatFinitesVerb(kern) || !wirktNominal(kern) ? [kern] : [`Es geht um eines: ${kern}`, `${P2} sucht ${kern}`];
+    for (const t of saetze2) {
       const d = deriveAtom(t);
       pool.push({ ...d, id: `was-${pool.length}`, quelle: "kontext", kategorie: "was", verlangt: null, bruchgrad: 0 });
     }
@@ -9632,7 +9619,7 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
     const wieViele = markovMode === "on" ? 34 : 16;
     const eigene = new Set((figur || "").toLowerCase().split(/[,;]/).map((x) => x.trim()).filter(Boolean));
     const gesehen = /* @__PURE__ */ new Set();
-    for (let n = 0; n < wieViele * 3 && gesehen.size < wieViele; n++) {
+    for (let n2 = 0; n2 < wieViele * 3 && gesehen.size < wieViele; n2++) {
       const roh = (model.generate(14) || "").trim();
       if (!roh || !isSaneMarkov(roh)) continue;
       const sig = roh.toLowerCase();
@@ -9650,9 +9637,9 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
   if (korpusDeckel > 0) {
     const eigene2 = new Set((figur || "").toLowerCase().split(/[,;]/).map((x) => x.trim()).filter(Boolean));
     const roh = corpusSanitize(loadPersistentCorpus());
-    const saetze = roh.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter((x) => x.length > 12);
+    const saetze2 = roh.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter((x) => x.length > 12);
     let genommen = 0;
-    for (const satz of saetze) {
+    for (const satz of saetze2) {
       if (genommen >= korpusDeckel) break;
       const rein = satz.replace(GERUEST_MARKE, "").trim();
       if (rein !== satz && !/[.!?…]$/.test(rein)) continue;
@@ -10226,11 +10213,11 @@ function sachNomen(was) {
 }
 function zahlIn(min, max, rund) {
   const roh = min + Math.random() * (max - min);
-  const n = Math.max(min, Math.round(roh / rund) * rund);
-  return n % 2 === 0 ? n : n + 1;
+  const n2 = Math.max(min, Math.round(roh / rund) * rund);
+  return n2 % 2 === 0 ? n2 : n2 + 1;
 }
-function zahlwort(n) {
-  return Math.round(n).toLocaleString("de-DE");
+function zahlwort(n2) {
+  return Math.round(n2).toLocaleString("de-DE");
 }
 function genusVon(phrase) {
   const art = (phrase.match(/^(der|die|das)\s/i) || [])[1]?.toLowerCase();
@@ -10254,7 +10241,7 @@ function kurzform(haupt, genus) {
   return `${art} ${teil}`;
 }
 var TITEL = /^(Dr|Prof|Ing|Dipl|Mag|Med|Rer|Nat|Phil|h\.c|Jun|Sen|MdB|MdL)\.?$/i;
-var PERSON_NOMEN = /(jugendliche|jugendlicher|erwachsene|erwachsener|alte|alter|kranke|kranker|gefangene|gefangener|angestellte|angestellter|beamte|beamter|verwandte|verwandter|bekannte|bekannter|vorsitzende|vorsitzender|abgeordnete|abgeordneter|obdachlose|obdachloser|pensionär|pensionärin|rentner|rentnerin|zeuge|zeugin|täter|täterin|opfer|passant|passantin|kellner|kellnerin|pfarrer|pfarrerin|richter|richterin|händler|händlerin|bauer|bäuerin|förster|försterin|schneider|schneiderin|weber|weberin|uhrmacher|uhrmacherin|archivar|archivarin|übersetzer|übersetzerin|magd|knecht|ritter|ritterin|nonne|mönch|clown|boxer|boxerin|grabräuber|grabräuberin|mädchen|junge|kind|frau|mann|männer|dame|herr|schüler|schülerin|lehrer|lehrerin|wächter|wächterin|arzt|ärztin|bäcker|bäckerin|gärtner|gärtnerin|fischer|fischerin|bote|botin|wanderer|wanderin|reisende|reisender|nachbar|nachbarin|greis|greisin|witwe|witwer|zwilling|bruder|schwester|sohn|tochter|vater|mutter|onkel|tante|neffe|nichte|freund|freundin|gast|fremde|fremder|meister|meisterin|gesell|lehrling|soldat|soldatin|matrose|matrosin|pilot|pilotin|köchin|koch|wirt|wirtin|müller|müllerin|schmied|schmiedin|hirte|hirtin|jäger|jägerin|sammler|sammlerin)$/i;
+var PERSON_NOMEN = /(mädchen|junge|kind|frau|mann|männer|dame|herr|schüler|schülerin|lehrer|lehrerin|wächter|wächterin|arzt|ärztin|bäcker|bäckerin|gärtner|gärtnerin|fischer|fischerin|bote|botin|wanderer|wanderin|reisende|reisender|nachbar|nachbarin|greis|greisin|witwe|witwer|zwilling|bruder|schwester|sohn|tochter|vater|mutter|onkel|tante|neffe|nichte|freund|freundin|gast|fremde|fremder|meister|meisterin|gesell|lehrling|soldat|soldatin|matrose|matrosin|pilot|pilotin|köchin|koch|wirt|wirtin|müller|müllerin|schmied|schmiedin|hirte|hirtin|jäger|jägerin|sammler|sammlerin)$/i;
 function formeWas(roh) {
   let w = (roh || "").replace(/\u00ad/g, "").replace(/\u200b/g, "").replace(/\([^()]*\)/g, " ").replace(/\[[^\]]*\]/g, " ").replace(/\s+/g, " ").trim();
   const ende = w.match(/^([\s\S]{10,}?[.!?…])\s+[A-ZÄÖÜ]/);
@@ -10275,11 +10262,9 @@ function kurzPerson(werRoh) {
   return letztes;
 }
 function dachOrt(roh) {
-  let o = (roh || "").trim();
-  o = o.replace(/^(hoch|tief|weit|mitten|ganz|dicht|nahe|irgendwo|weit draußen|draußen|drinnen|oben|unten|dort|hier)\s+/i, "");
-  o = o.replace(/^(in|an|auf|bei|im|am|vor|über|unter|zu|zur|zum)\s+/i, "").replace(/^(der|die|das|dem|den|des|ein|eine|einen|einem|einer|eines)\s+/i, "").trim();
+  let o = (roh || "").replace(/^(in|an|auf|bei|im|am|vor|über|unter|zu|zur|zum)\s+/i, "").replace(/^(der|die|das|dem|den|des|ein|eine|einen|einem|einer|eines)\s+/i, "").trim();
   o = (o.split(",")[0] || "").trim();
-  o = o.replace(/\s+(wo|worin|woran|worauf|welche[rs]?)\s+.*$/i, "").trim();
+  o = o.replace(/\s+(wo|worin|woran|die|der|das|welche[rs]?)\s+.*$/i, "").trim();
   o = o.replace(/[.,;:!?…]+$/, "").trim();
   if (!o || o.length > 28) return "";
   return o.charAt(0).toUpperCase() + o.slice(1);
@@ -10411,7 +10396,7 @@ var GUTE_TOENE = /* @__PURE__ */ new Set(["uplifting", "humorous", "zaertlich"])
 var blickVonTon = (ton) => GUTE_TOENE.has((ton || "").toLowerCase()) ? "gut" : "sachlich";
 var WORTE = {
   sachlich: {
-    vorspann: (n) => `wurde, dass ${n} betroffen sind`,
+    vorspann: (n2) => `wurde, dass ${n2} betroffen sind`,
     ersteMeldung: "die erste Meldung",
     // Das Bezugswort steckt im Satz: "der Schritt, ueber DEN". Als ich nur das
     // Nomen austauschte, stand "folgte der Schritt, ueber die ...".
@@ -10421,7 +10406,7 @@ var WORTE = {
     weitere: (x) => `Betroffen sind au\xDFerdem ${x}.`
   },
   gut: {
-    vorspann: (n) => `wurde, dass ${n} hinzukommen`,
+    vorspann: (n2) => `wurde, dass ${n2} hinzukommen`,
     ersteMeldung: "die erste Zusage",
     schritt: (wer) => `folgte die Entscheidung, \xFCber die ${wer} nun informiert`,
     haelfte: (l, w) => `${cap(l)} \u2014 ${w} \u2014 entsteht im ersten Jahr.`,
@@ -10478,10 +10463,6 @@ function satzOhneZahl(bank, kats, benutzt, zusatz = []) {
   benutzt.add(satzSchluessel(s));
   return s.replace(/[.!?…]+$/, "");
 }
-var EINRICHTUNG = /(GmbH|AG|SE|KG|OHG|e\.?V\.?|Ltd|Inc|Stiftung|Verein|Verband|Genossenschaft|Werft|Werke?|Fabrik|Amt|Behörde|Ministerium|Institut|Akademie|Hochschule|Universität|Schule|Gymnasium|Theater|Museum|Bibliothek|Klinik|Krankenhaus|Kanzlei|Redaktion|Agentur|Bank|Sparkasse|Kammer|Innung|Gilde|Orden|Kloster|Abtei|Zunft|Gesellschaft|Anstalt|Betrieb|Firma|Konzern|Holding|Ausschuss|Kommission|Partei|Gewerkschaft|Bahn|Post|Wache|Feuerwehr|Zentrum|Mühle|Brauerei|Molkerei|Reederei|Druckerei|Bäckerei|Schmiede)\b/i;
-function istEinrichtung(wer) {
-  return EINRICHTUNG.test(wer || "");
-}
 function schlagzeile(fb) {
   const wer = fb.wer.haupt.replace(/^(der|die|das)\s+/i, "");
   return cap(`${wer} ${fb.was}`);
@@ -10490,17 +10471,17 @@ function dachzeile(fb) {
   return fb.wo.ort ? `${fb.wo.ort} \xB7 ${RESSORTS[fb.ressort].label}` : RESSORTS[fb.ressort].label;
 }
 function vorspann(fb, b, blick) {
-  const z = fb.zahlen[0];
+  const z2 = fb.zahlen[0];
   const w = WORTE[blick];
   const s1 = `${cap(fb.wann.datum)}: ${cap(b.organisation(fb))} ${fb.was}.`;
-  const s2 = z ? `Bekannt ${w.vorspann(`${z.verbal || z.wortform} ${z.einheit}`)}.` : `Bekannt wurde es erst sp\xE4ter.`;
+  const s2 = z2 ? `Bekannt ${w.vorspann(`${z2.verbal || z2.wortform} ${z2.einheit}`)}.` : `Bekannt wurde es erst sp\xE4ter.`;
   return `${s1} ${s2}`;
 }
 function mische(fakten, frei) {
   const raus = [];
   const gedeckelt = frei.slice(0, Math.max(1, fakten.length));
-  const n = Math.max(fakten.length, gedeckelt.length);
-  for (let i = 0; i < n; i++) {
+  const n2 = Math.max(fakten.length, gedeckelt.length);
+  for (let i = 0; i < n2; i++) {
     if (fakten[i]) raus.push(fakten[i]);
     if (gedeckelt[i]) raus.push(gedeckelt[i]);
   }
@@ -10541,7 +10522,7 @@ function hergang(fb, bank, b, benutzt, extra, vorrat, blick) {
   }
   const bt = RESSORTS[fb.ressort].betroffen;
   if (bt.length >= 3) {
-    const schon = fb.zahlen.map((z) => z.einheit.toLowerCase());
+    const schon = fb.zahlen.map((z3) => z3.einheit.toLowerCase());
     const frei2 = bt.filter((x) => !schon.some((e) => x.toLowerCase().includes(e)));
     const aus = reihenfolge2(frei2.length >= 2 ? frei2 : bt).slice(0, 2 + Math.min(2, Math.floor(extra / 3)));
     teile.push(w.weitere(aufzaehlung(aus)));
@@ -10558,7 +10539,7 @@ function hintergrund(fb, bank, b, benutzt, extra, vorrat) {
   const teile = [];
   const c1 = fb.chronologie[0];
   const RK = RESSORTS[fb.ressort].hintergrundKopf;
-  if (c1) teile.push(RK ? RK(b.organisation(fb), c1.zeit) : fb.wer.art === "person" ? `${cap(b.organisation(fb))} ist seit ${c1.zeit} dabei.` : istEinrichtung(fb.wer.haupt) ? `${cap(b.organisation(fb))} besteht seit ${c1.zeit}.` : `Der Vorgang reicht bis ${c1.zeit} zur\xFCck.`);
+  if (c1) teile.push(RK ? RK(b.organisation(fb), c1.zeit) : fb.wer.art === "person" ? `${cap(b.organisation(fb))} ist seit ${c1.zeit} dabei.` : `${cap(b.organisation(fb))} besteht seit ${c1.zeit}.`);
   const rahmen = reihenfolge2(NOMINALRAHMEN);
   let r = 0;
   const frei = [];
@@ -10580,23 +10561,23 @@ function ausblick(fb, blick) {
     `Ob der Schritt zur\xFCckgenommen wird, blieb ${fb.wann.relativ} unbeantwortet.`
   ]);
 }
-function zahlSatz(z) {
-  const n = `${z.wortform} ${z.einheit}`;
-  switch (z.rolle) {
+function zahlSatz(z2) {
+  const n2 = `${z2.wortform} ${z2.einheit}`;
+  switch (z2.rolle) {
     case "betroffene":
-      return `Betroffen sind ${n}.`;
+      return `Betroffen sind ${n2}.`;
     case "sache":
-      return pick([`Zuletzt waren es ${n} im Jahr.`, `Es geht um ${n}.`, `${cap(n)} standen zuletzt in den B\xFCchern.`]);
+      return pick([`Zuletzt waren es ${n2} im Jahr.`, `Es geht um ${n2}.`, `${cap(n2)} standen zuletzt in den B\xFCchern.`]);
     case "dauer":
-      return `${cap(n)} dauerte es.`;
+      return `${cap(n2)} dauerte es.`;
     case "groesse":
-      return `Gemessen wurden ${n}.`;
+      return `Gemessen wurden ${n2}.`;
     case "vorgaenge":
-      return `${cap(n)} liegen inzwischen vor.`;
+      return `${cap(n2)} liegen inzwischen vor.`;
     case "geld":
-      return `Es geht um ${n}.`;
+      return `Es geht um ${n2}.`;
     default:
-      return `${cap(n)}.`;
+      return `${cap(n2)}.`;
   }
 }
 function aufzaehlung(xs) {
@@ -10655,15 +10636,15 @@ function buildBericht(bank, input, ressort = "auto") {
     `Faktenkasten`,
     // Auch die Beschriftung dreht sich: "Betroffen: 480 Beschaeftigte" unter
     // einer guten Nachricht liest sich wie ein Widerspruch.
-    ...fb.zahlen.map((z) => `\xB7 ${z.rolle === "betroffene" && blick === "gut" ? "Neu" : ROLLE_LABEL[z.rolle]}: ${z.wortform} ${z.einheit}`),
+    ...fb.zahlen.map((z3) => `\xB7 ${z3.rolle === "betroffene" && blick === "gut" ? "Neu" : ROLLE_LABEL[z3.rolle]}: ${z3.wortform} ${z3.einheit}`),
     ...fb.chronologie.map((c) => `\xB7 ${c.zeit}: ${c.was}`)
   ].join("\n");
   return { text: abschnitte.filter(Boolean).join("\n\n") + "\n\n" + kasten, fb, hergang: hergangText };
 }
 
 // src/generation/meldung.ts
-function zahlSatz2(z, blick) {
-  const menge = `${z.verbal || z.wortform} ${z.einheit}`;
+function zahlSatz2(z2, blick) {
+  const menge = `${z2.verbal || z2.wortform} ${z2.einheit}`;
   return blick === "gut" ? `Hinzu kommen ${menge}.` : `Betroffen sind ${menge}.`;
 }
 function tragtEigenesSubjekt(was) {
@@ -10707,7 +10688,7 @@ function buildMeldung(input, ressort = "auto") {
   const blick = blickVonTon(input.tone || "");
   const ziel = Number.isFinite(input.lenTarget) ? input.lenTarget : 60;
   const wieviel = ziel <= 60 ? 1 : ziel <= 120 ? 2 : 3;
-  const saetze = [vorspann2(fb)];
+  const saetze2 = [vorspann2(fb)];
   const folge = [
     fb.zahlen[0] ? zahlSatz2(fb.zahlen[0], blick) : "",
     schritt(fb),
@@ -10716,12 +10697,12 @@ function buildMeldung(input, ressort = "auto") {
   const SCHLUSS = "Weitere Angaben liegen zun\xE4chst nicht vor.";
   const MAX_SAETZE = 4;
   for (const s of folge) {
-    if (saetze.length >= MAX_SAETZE) break;
-    if (saetze.length - 1 >= wieviel && worte(saetze.join(" ")) >= 30) break;
-    saetze.push(s);
+    if (saetze2.length >= MAX_SAETZE) break;
+    if (saetze2.length - 1 >= wieviel && worte(saetze2.join(" ")) >= 30) break;
+    saetze2.push(s);
   }
-  if (saetze.length < MAX_SAETZE && worte(saetze.join(" ")) + worte(SCHLUSS) <= 70) saetze.push(SCHLUSS);
-  return { text: saetze.join(" "), fb };
+  if (saetze2.length < MAX_SAETZE && worte(saetze2.join(" ")) + worte(SCHLUSS) <= 70) saetze2.push(SCHLUSS);
+  return { text: saetze2.join(" "), fb };
 }
 
 // src/generation/emphasis.ts
@@ -10791,8 +10772,8 @@ function applyEmphasis(text, kit, w) {
     [w.was, () => plotLine(kit)]
   ];
   const lines = [];
-  for (const [n, gen] of gens) {
-    const count2 = Math.max(0, Math.min(3, n | 0));
+  for (const [n2, gen] of gens) {
+    const count2 = Math.max(0, Math.min(3, n2 | 0));
     for (let i = 0; i < count2; i++) lines.push(ensurePunct(clean(gen())));
   }
   const uniq = [...new Set(lines)].filter(Boolean);
@@ -11223,9 +11204,9 @@ function estimateSyllables(word) {
   const w = String(word || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
   if (!w) return 0;
   const clusters = w.match(/[aeiouyäöü]+/g) || [];
-  let n = clusters.length;
-  for (const c of clusters) n += (c.match(/e[oa]/g) || []).length;
-  return Math.max(1, n);
+  let n2 = clusters.length;
+  for (const c of clusters) n2 += (c.match(/e[oa]/g) || []).length;
+  return Math.max(1, n2);
 }
 function buildSyllableLine(stream, targetSyll) {
   const words = [];
@@ -11478,15 +11459,15 @@ var darfEnden = (w) => !KEIN_ENDE.test(w.replace(/[^A-Za-zÄÖÜäöüß]/g, "")
 var FUELL_VORN = ["Nun", "Still", "Kaum", "Hier", "Dann", "Schon", "Noch"];
 var STREICHBAR = /^(und|noch|schon|nur|auch|doch|dann|hier|so|sehr|ganz|mal|der|die|das|den|dem|des|ein|im|am|zu|in|an|auf|bei|mit|von|für)$/i;
 function passeSilben(line, ziel, syllOf) {
-  const ist2 = syllOf(line);
-  if (ist2 === ziel) return line;
-  if (ist2 === ziel - 1) {
+  const ist = syllOf(line);
+  if (ist === ziel) return line;
+  if (ist === ziel - 1) {
     for (const f of FUELL_VORN) {
       const neu = f + " " + line.charAt(0).toLowerCase() + line.slice(1);
       if (syllOf(neu) === ziel) return neu;
     }
   }
-  if (ist2 === ziel + 1) {
+  if (ist === ziel + 1) {
     const w = line.split(/\s+/);
     for (let i = 0; i < w.length; i++) {
       if (!STREICHBAR.test(w[i])) continue;
@@ -11505,16 +11486,16 @@ function haikuCandidatesFromPhrases(phrases) {
   phrases.forEach((p, src) => {
     const words = p.replace(/[.,;:!?…()]/g, "").split(/\s+/).filter(Boolean);
     for (let a = 0; a < 1; a++) {
-      for (let n = a + 2; n <= Math.min(a + 8, words.length); n++) {
-        const sub = stripDanglingTail(words.slice(a, n));
+      for (let n2 = a + 2; n2 <= Math.min(a + 8, words.length); n2++) {
+        const sub = stripDanglingTail(words.slice(a, n2));
         if (sub.length < 2) continue;
         if (!darfEnden(sub[sub.length - 1])) continue;
-        const last = sub[sub.length - 1], next = words[n];
+        const last = sub[sub.length - 1], next = words[n2];
         if (next && /^[A-ZÄÖÜ]/.test(next) && /^[a-zäöü]/.test(last) && /(em|en|er|es|e)$/.test(last)) continue;
         const text = sub.join(" "), key = text.toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
-        out.push({ text, syll: haikuSyllOf(text), src, ganz: a === 0 && n === words.length });
+        out.push({ text, syll: haikuSyllOf(text), src, ganz: a === 0 && n2 === words.length });
       }
     }
   });
@@ -12050,186 +12031,53 @@ function buildStory(bank, input, model) {
   return entferneDubletten(enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix"));
 }
 
-// test/perspektive.ts
-{
-  const g = globalThis;
-  if (typeof g.localStorage === "undefined") {
-    const m = {};
-    g.localStorage = {
-      getItem: (k) => k in m ? m[k] : null,
-      setItem: (k, v) => {
-        m[k] = String(v);
-      },
-      removeItem: (k) => {
-        delete m[k];
-      },
-      clear: () => {
-        for (const k of Object.keys(m)) delete m[k];
-      },
-      key: () => null,
-      length: 0
-    };
-  }
-}
-var fails = [];
-var geprueft = 0;
-var bestanden = 0;
-var ist = (name, wert, soll) => {
-  geprueft++;
-  if (wert === soll) bestanden++;
-  else fails.push(`${name}: \u201E${String(wert)}\u201C \u2014 erwartet \u201E${String(soll)}\u201C`);
-};
-var wahr = (name, b) => ist(name, b, true);
-ist("Antrag wird zu der Antrag", objektName("Antrag"), "der Antrag");
-ist("Akte wird zu die Akte", objektName("Akte"), "die Akte");
-ist("Fenster wird zu das Fenster", objektName("Fenster"), "das Fenster");
-ist("ein vorhandener Artikel bleibt", objektName("die Wartemarke"), "die Wartemarke");
-ist("und ohne Wort bleibt ein Ding \xFCbrig", objektName(""), "das Ding");
-wahr(
-  "ein unbekanntes Wort bekommt trotzdem einen Artikel",
-  /^(der|die|das) Zwirbelgerät$/.test(objektName("Zwirbelger\xE4t"))
-);
-{
-  const ohne = [];
-  for (const k of Object.keys(MODE_DATA)) for (const n of MODE_DATA[k].nouns) {
-    if (!NOUN_GENDER[n.toLowerCase()]) ohne.push(n);
-  }
-  ist("jedes Modus-Nomen hat ein eingetragenes Geschlecht", ohne.join(", "), "");
-  ist("Frist ist feminin, nicht maskulin", objektName("Frist"), "die Frist");
-  ist("Beweis ist maskulin, nicht neutrum", objektName("Beweis"), "der Beweis");
-}
-{
-  const raus = applyPerspective(["Die Archivarin sucht die Akte.", "Der Flur ist leer."], "object", "die Archivarin", "Stempel");
-  wahr("das Ding stellt sich vor", /^Ich bin der Stempel\./.test(raus[0] || ""));
-  wahr("und der erste Absatz steht dahinter", (raus[0] || "").includes("Die Archivarin sucht die Akte."));
-  ist("der zweite Absatz bleibt unangetastet", raus[1], "Der Flur ist leer.");
-  wahr("kein Etikett in Klammern", !raus.some((p) => /^\s*\(/.test(p)));
-  wahr("die Figur bleibt in der dritten Person", (raus[0] || "").includes("Die Archivarin sucht"));
-}
-{
-  const raus = applyPerspective(["A.", "B.", "C.", "D.", "E."], "split", "die Archivarin", "Stempel");
-  wahr("auch im Wechsel steht kein Etikett", !raus.some((p) => /^\s*\(/.test(p)));
-  wahr(
-    "aber das Ding meldet sich kurz",
-    raus.some((p) => /^Ich (sehe zu|liege dabei|zähle mit|rühre mich nicht|habe Zeit|merke es mir)\./.test(p))
-  );
-}
+// ../../rede.ts
+var st = {};
+globalThis.localStorage = { getItem: (k) => st[k] ?? null, setItem: (k, v) => {
+  st[k] = String(v);
+}, removeItem: (k) => {
+  delete st[k];
+} };
+globalThis.window = { localStorage: globalThis.localStorage };
 var ids = Object.keys(BUILTIN_PRESETS);
-var basis = {
-  where: "im Archiv",
-  when: "am Morgen",
-  who: "die Archivarin",
-  what: "sucht eine Akte",
-  tone: "nuechtern",
-  form: "prose",
-  lenTarget: 180,
-  tension: "auto",
-  cast: "auto",
-  mode: "bureau",
-  rhythm: "auto",
-  disruptor: "off",
-  instability: 0,
-  markovMode: "off",
-  varLevel: "wild",
-  archetypeA: "neutral",
-  archetypeB: "neutral"
+var z = /* @__PURE__ */ new Map();
+var bsp = /* @__PURE__ */ new Map();
+var melde = (a, s) => {
+  z.set(a, (z.get(a) || 0) + 1);
+  if (!bsp.has(a)) bsp.set(a, s.trim().slice(0, 110));
 };
-var etikett = 0;
-var wortObjekt = 0;
-var ohneRahmen = 0;
-var ohneArtikel = 0;
-var nichtVorn = 0;
-var ohneZweiten = 0;
-var RAHMEN_ZWEI = OBJEKT_EINSTIEG.map((r) => r.split(". ").slice(1).join(". ").replace(/[.!?…]+$/, ""));
-var LAEUFE = 60;
-for (let i = 0; i < LAEUFE; i++) {
-  const bank = BUILTIN_PRESETS[ids[i % ids.length]];
-  const t = buildStory(bank, {
-    ...basis,
-    perspective: "object",
-    structure: i % 2 ? "rekombination" : "linear"
+var n = 0;
+var saetze = 0;
+for (let i = 0; i < 250; i++) {
+  const t = buildStory(BUILTIN_PRESETS[ids[i % ids.length]], {
+    where: "in der Markthalle",
+    when: "am Nachmittag",
+    who: "ein Schulm\xE4dchen, das Karten f\xE4lscht",
+    what: "sucht die Spur",
+    tone: i % 3 ? "nuechtern" : "traeumerisch",
+    form: "prose",
+    lenTarget: 220,
+    tension: "auto",
+    cast: "auto",
+    mode: "auto",
+    structure: i % 2 ? "rekombination" : "linear",
+    perspective: "auto",
+    rhythm: "auto",
+    disruptor: "off",
+    instability: 0,
+    markovMode: "off",
+    varLevel: "wild",
+    archetypeA: "neutral",
+    archetypeB: "neutral"
   });
-  if (/\((?:das Objekt|der |die |das )[^)]{0,40}\)/.test(t)) etikett++;
-  if (/\bdas Objekt\b/.test(t)) wortObjekt++;
-  if (!/[Ii]ch bin (der|die|das) /.test(t)) ohneRahmen++;
-  if (/[Ii]ch bin (?!der |die |das )[A-ZÄÖÜ]/.test(t)) ohneArtikel++;
-  if (!/^Ich bin (der|die|das) /.test(t)) nichtVorn++;
-  if (!RAHMEN_ZWEI.some((r) => t.includes(r) || t.includes(r.charAt(0).toLowerCase() + r.slice(1)))) ohneZweiten++;
-}
-ist("kein Etikett in Klammern in 60 Texten", etikett, 0);
-ist("und der zweite Rahmensatz \xFCberlebt", ohneZweiten, 0);
-ist("und der Rahmen steht ganz vorn, vor der Ton-Einleitung", nichtVorn, 0);
-ist("und das Wort \u201Edas Objekt\u201C steht nirgends mehr", wortObjekt, 0);
-ist("jeder Text nennt sein Ding", ohneRahmen, 0);
-ist("und immer mit Artikel", ohneArtikel, 0);
-for (const p of ["third", "first", "second", "we", "split"]) {
-  const bank = BUILTIN_PRESETS[ids[0]];
-  const t = buildStory(bank, { ...basis, perspective: p, structure: "rekombination" });
-  wahr(`Perspektive ${p} liefert Text`, t.trim().length > 40);
-  wahr(`Perspektive ${p} ohne Etikett`, !/^\s*\(/.test(t));
-}
-{
-  const name = "Giovanni Salustio Peruzzi";
-  const fremd = `In der Toskana wird der italienische Festungsbaumeister und Milit\xE4r ${name} geboren.`;
-  for (const p of ["second", "first", "we"]) {
-    const raus = applyPerspective([fremd], p, name, "Stempel")[0] || "";
-    wahr(`${p}: die Apposition bleibt unangetastet`, raus === fremd);
+  n++;
+  for (const s of t.split(/(?<=[.!?…])\s+/)) {
+    saetze++;
+    if (/f[äa]lscht\s+[a-zäöüß]/.test(s)) melde("Relativsatz nicht geschlossen", s);
+    if (/\b(sagt|ruft|flüstert|antwortet|spricht)\s+[A-ZÄÖÜ][a-zäöüß]/.test(s) && !/[„"»]/.test(s)) melde("Rede ohne Anf\xFChrungszeichen", s);
+    if (/\blegt\b[^.!?]{0,40}:\s/.test(s)) melde("Vorlage abgebrochen", s);
   }
-  ist(
-    "am Satzanfang wird umgestellt",
-    applyPerspective(["Die Archivarin h\xE4lt einen Stempel fest."], "second", "die Archivarin", "Akte")[0],
-    "Du h\xE4ltst einen Stempel fest."
-  );
-  ist(
-    "und bei Inversion auch",
-    applyPerspective(["Am Morgen bemerkt die Archivarin den Stempel."], "second", "die Archivarin", "Akte")[0],
-    "Am Morgen bemerkst du den Stempel."
-  );
-  ist(
-    "nach einer Konjunktion ebenso",
-    applyPerspective(["Es regnet, und die Archivarin wartet."], "second", "die Archivarin", "Akte")[0],
-    "Es regnet, und du wartest."
-  );
-  ist(
-    "kurze Verben werden gebeugt",
-    applyPerspective(["Der Sohn eines F\xE4lschers erbt ein Amt."], "second", "der Sohn eines F\xE4lschers", "Akte")[0],
-    "Du erbst ein Amt."
-  );
-  ist(
-    "und in der ersten Person auch",
-    applyPerspective(["Der Sohn eines F\xE4lschers erbt ein Amt."], "first", "der Sohn eines F\xE4lschers", "Akte")[0],
-    "Ich erbe ein Amt."
-  );
 }
-{
-  ist("Thron wird zu einen Thron", declineHookPhrase("ein leerer Thron", "acc"), "einen leeren Thron");
-  ist("auch mit Anhang", declineHookPhrase("ein leerer Thron unter einem Baum", "acc"), "einen leeren Thron unter einem Baum");
-  ist("und Takt", declineHookPhrase("ein Takt, der \xE4lter ist als ihr L\xE4cheln", "acc"), "einen Takt, der \xE4lter ist als ihr L\xE4cheln");
-  ist("weiblich bleibt weiblich", declineHookPhrase("eine rostige Klinge", "acc"), "eine rostige Klinge");
-  const ohne = /* @__PURE__ */ new Set();
-  for (const id of Object.keys(BUILTIN_PRESETS)) {
-    const bank = BUILTIN_PRESETS[id];
-    for (const kat of Object.keys(bank)) {
-      const arr = bank[kat];
-      if (!Array.isArray(arr)) continue;
-      for (const roh of arr) {
-        const m = String(roh).match(/^(?:ein|eine|einen|einem|einer|eines)\s+(.*)$/i);
-        if (!m) continue;
-        const w = (m[1].split(" ").find((x) => /^[A-ZÄÖÜ]/.test(x)) || "").replace(/[^A-Za-zÄÖÜäöüß]/g, "");
-        if (w && !guessGender(w)) ohne.add(w);
-      }
-    }
-  }
-  ist("jedes Preset-Nomen hat ein Geschlecht", [...ohne].sort().join(", "), "");
-}
-console.log(`Pr\xFCfstand Perspektive \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
-var proc = globalThis;
-if (fails.length) {
-  console.error(`
-\u274C Perspektive: ${fails.length} Fehler:`);
-  fails.forEach((f) => console.error("  - " + f));
-  proc.process?.exit(1);
-} else {
-  console.log(`
-\u2705 Perspektive: alle ${geprueft} Pr\xFCfungen bestanden.`);
-}
+console.log(`${n} Texte, ${saetze} S\xE4tze`);
+[...z].sort((a, b) => b[1] - a[1]).forEach(([k, v]) => console.log(`  ${String(v).padStart(4)}\xD7  ${k}
+         \u201E${bsp.get(k)}\u201C`));

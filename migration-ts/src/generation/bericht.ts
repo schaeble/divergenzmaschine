@@ -179,6 +179,19 @@ function satzOhneZahl(bank: Bank, kats: (keyof Bank)[], benutzt: Set<string>, zu
   return s.replace(/[.!?…]+$/, "");
 }
 
+/** Ist das erkennbar eine EINRICHTUNG? Nur dann darf sie „bestehen".
+ *
+ *  Bewusst eng: Rechtsformen, Amtswörter und die üblichen Grundwörter. Wer
+ *  nicht auf dieser Liste steht, bekommt den neutralen Satz — lieber blass als
+ *  falsch. */
+// Ohne führende Wortgrenze, damit Komposita mitzählen („Stadttheater",
+// „Landesamt"). „Haus" und „Hof" stehen bewusst NICHT darin — sonst wäre ein
+// „Hochhaus ohne Erdgeschoss" eine Einrichtung.
+const EINRICHTUNG = /(GmbH|AG|SE|KG|OHG|e\.?V\.?|Ltd|Inc|Stiftung|Verein|Verband|Genossenschaft|Werft|Werke?|Fabrik|Amt|Behörde|Ministerium|Institut|Akademie|Hochschule|Universität|Schule|Gymnasium|Theater|Museum|Bibliothek|Klinik|Krankenhaus|Kanzlei|Redaktion|Agentur|Bank|Sparkasse|Kammer|Innung|Gilde|Orden|Kloster|Abtei|Zunft|Gesellschaft|Anstalt|Betrieb|Firma|Konzern|Holding|Ausschuss|Kommission|Partei|Gewerkschaft|Bahn|Post|Wache|Feuerwehr|Zentrum|Mühle|Brauerei|Molkerei|Reederei|Druckerei|Bäckerei|Schmiede)\b/i;
+export function istEinrichtung(wer: string): boolean {
+  return EINRICHTUNG.test(wer || "");
+}
+
 function schlagzeile(fb: Faktenblatt): string {
   // Ohne Artikel am Anfang, ohne Zahl — Zeitungskonvention und zugleich die
   // Regel, an der sich die Prüfung festmacht.
@@ -314,10 +327,20 @@ function hintergrund(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<
   // Eine Person "besteht" nicht seit 1988. Im Beispiel stand "Der Kraus besteht
   // seit 1988", weil `art` fest auf "organisation" stand.
   const RK = RESSORTS[fb.ressort].hintergrundKopf;
+  // Drei Fälle statt zwei. „Besteht seit" gilt NUR für etwas, das erkennbar
+  // eine Einrichtung ist — Rechtsform, Amt, Verein, Werk, Haus. Alles andere
+  // bekommt einen Satz, der nichts über die Art des Wer behauptet.
+  //
+  // Grund: Im Blatt stand „Der Jugendliche besteht seit 1861." Die Liste der
+  // Gattungspersonen ist eine Aufzählung, und Aufzählungen werden nie
+  // vollständig. Die Vorgabe war „alles, was keine erkannte Person ist, ist
+  // eine Einrichtung" — jetzt ist sie umgekehrt.
   if (c1) teile.push(RK ? RK(b.organisation(fb), c1.zeit)
     : fb.wer.art === "person"
       ? `${cap(b.organisation(fb))} ist seit ${c1.zeit} dabei.`
-      : `${cap(b.organisation(fb))} besteht seit ${c1.zeit}.`);
+      : istEinrichtung(fb.wer.haupt)
+        ? `${cap(b.organisation(fb))} besteht seit ${c1.zeit}.`
+        : `Der Vorgang reicht bis ${c1.zeit} zurück.`);
   // Rahmen nur fuer Nominalphrasen. Der Vorrat aus Atomen liefert auch ganze
   // Saetze, und "Geblieben ist die Zuständigkeit ist unklar" hat zwei finite
   // Verben. Jeder Rahmen zudem hoechstens einmal - beim Reihum-Zaehlen stand

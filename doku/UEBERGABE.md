@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.267.0**, Zweig `typescript-migration`.
+Stand: **v4.268.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,50 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Aus Ausgabe Nr. 46 und den zwei offenen Punkten (4.268.0):
+
+**1 · „Der Jugendliche besteht seit 1861."** Die Bestandsformel gilt für
+Einrichtungen. Die Vorgabe war: alles, was keine ERKANNTE Person ist, ist eine
+Einrichtung — und die Liste der Gattungspersonen ist eine Aufzählung. Jetzt
+umgekehrt: `istEinrichtung()` (Rechtsform, Amt, Verein, Werk, Theater …) muss
+zutreffen, sonst gibt es den neutralen Satz „Der Vorgang reicht bis … zurück."
+Lieber blass als falsch. `PERSON_NOMEN` zusätzlich um rund 40 Einträge erweitert.
+
+**2 · „Ein Schulmädchen, das Karten fälscht bemerkt: …"** Der nachgestellte
+Relativsatz der Figur wurde nie geschlossen. `schliesseFigurenkomma()` setzt das
+Komma — möglich nur, WEIL die Figur wörtlich bekannt ist; ein allgemeiner
+Relativsatz-Erkenner wäre hier so unzuverlässig wie alle anderen. Dazu:
+`applyTension()` und `applyRhythm()` trennten an JEDEM Komma und schnitten die
+Figur auseinander („Das Karten fälscht sucht die Spur"). `NEBENSATZ_ANFANG`
+hält sie davon ab.
+
+**3 · „HOCH IN · WETTER"** — ein Fehler MEINER Reparatur aus 4.265: `dachOrt()`
+kappte auch an einem bloßen „der", und aus „hoch in der Luft" wurde „Hoch in".
+Jetzt fallen führende Umstandswörter weg, und gekappt wird nur an eindeutigen
+Marken (wo/worin/woran/welcher).
+
+**4 · Der Faktenkasten mitten im Absatz.** Die Zeilenregel aus 4.265 greift
+nicht, wenn er in einem Satz steht. Jetzt zusätzlich satzweise — bis zu einem
+Punkt, dem ein Großbuchstabe folgt, denn der Punkt in „3.660" ist keiner.
+
+**5 · Der abgeschnittene Relativsatz** („…, der insbesondere durch Bauten im
+Dienst deutscher Fürsten") endet auf einem Nomen; die Wortprüfung sah nichts.
+Ein deutscher Relativsatz steht in Verbletztstellung — endet er auf einem
+GROSSGESCHRIEBENEN Wort und trägt kein kleingeschriebenes Verb, fehlt sein Ende.
+
+**Falle, die zweimal zugeschlagen hat: `\b` ist in JavaScript ASCII.** Zwischen
+„F" und „ü" sieht die Wortgrenze eine Grenze — „Fürsten" galt dadurch als Verb
+„ürsten". Betroffen waren `SP_ENDS_VERB` (seit 4.265) und die neue
+Relativsatz-Regel. Für deutsche Wörter immer explizite Grenzen:
+`(?:^|[^A-Za-zÄÖÜäöüß])…(?![A-Za-zÄÖÜäöüß])`.
+
+Prüfstand Nr. 44 74 → 90, acht Gegenproben.
+
+**Wichtig für die Beurteilung von Ausgaben:** Nr. 46 wurde vor 4.267 gesetzt.
+Der Lynar-Satz und der Faktenkasten darin waren bereits behoben — sie standen
+nur noch in dieser Ausgabe. Vor dem Reparieren immer erst nachstellen, ob der
+Befund mit dem aktuellen Stand überhaupt noch auftritt.
 
 Vorgeschlagen und gebaut (4.267.0): **Abgeschnittene Sammler-Funde am Komma
 kürzen.** Im Blatt stand „… wird der italienische Festungsbaumeister und Militär

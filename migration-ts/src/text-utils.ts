@@ -89,6 +89,25 @@ export function kuerzeAmBruch(text: string): string {
     if (!ohneWort || ohneWort === t) { t = ""; break; }
     t = ohneWort;
   }
+  // Der abgeschnittene RELATIVSATZ. „… Rochus zu Lynar geboren, der
+  // insbesondere durch Bauten im Dienst deutscher Fürsten" endet auf einem
+  // Nomen — die Wortprüfung oben sieht nichts. Ein deutscher Relativsatz steht
+  // aber in Verbletztstellung: Endet er auf einem GROSSGESCHRIEBENEN Wort und
+  // trägt er nirgends ein kleingeschriebenes Verb, fehlt sein Ende.
+  {
+    const komma = t.lastIndexOf(",");
+    if (komma >= 12) {
+      const schwanz = t.slice(komma + 1).trim();
+      const relativ = /^(der|die|das|dem|den|dessen|deren|welche[rsmn]?|wo|worin|woran)\s/i.test(schwanz);
+      // KEIN \b: In JavaScript ist die Wortgrenze ASCII. Zwischen „F" und „ü"
+      // sieht sie eine — und „Fürsten" galt als Verb „ürsten". Deshalb hier
+      // explizite Grenzen aus dem deutschen Alphabet.
+      const hatVerb = /(?:^|[^A-Za-zÄÖÜäöüß])[a-zäöüß]{2,}(?:t|te|en|st|et)(?![A-Za-zÄÖÜäöüß])/.test(schwanz);
+      const endetAufNomen = /[A-ZÄÖÜ][a-zäöüß]+$/.test(schwanz);
+      if (relativ && endetAufNomen && !hatVerb) t = t.slice(0, komma).trim();
+    }
+  }
+
   // Zweiter Durchgang für die trennbaren Präfixe. Sie beenden einen Satz
   // durchaus („Er kommt an."), aber nur nach einem VERB. Steht davor ein Nomen,
   // ist es keine Verbklammer, sondern ein abgeschnittenes Satzglied: „… seit

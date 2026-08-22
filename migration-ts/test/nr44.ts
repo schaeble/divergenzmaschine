@@ -19,6 +19,8 @@ import { normWho } from "../src/generation/ctxnorm";
 import { WHO_TWISTS } from "../src/generation/ideas.data";
 import { corpusSanitize, GERUEST_ZEILE } from "../src/corpus";
 import { dachOrt, kurzPerson, formeWas } from "../src/features/faktenblatt";
+import { istEinrichtung } from "../src/generation/bericht";
+import { schliesseFigurenkomma } from "../src/generation/postprocess";
 import { wasPhrase } from "../src/features/wikisammler";
 import { kuerzeAmBruch } from "../src/text-utils";
 import { buildMeldung, pruefeMeldung, tragtPraedikat } from "../src/generation/meldung";
@@ -210,6 +212,71 @@ ist("bleibt nichts Ganzes übrig, kommt nichts zurück", kuerzeAmBruch("wie der"
 // auch über sie.
 for (const kurz of ["sucht eine Akte", "gewinnt", "eine Wandmalerei"]) {
   ist(`„${kurz}“ bleibt unangetastet`, formeWas(kurz), kurz);
+}
+
+
+// ── § 8 · Befunde aus Ausgabe Nr. 46 ──────────────────────────────────────
+{
+  // Die Dachzeile: „HOCH IN · WETTER". Ein Fehler der Reparatur aus 4.265 —
+  // sie kappte auch an einem bloßen „der".
+  ist("führende Umstandswörter fallen weg", dachOrt("hoch in der Luft"), "Luft");
+  ist("und ein Ort mit Ergänzung bleibt ganz", dachOrt("in einem Hochhaus ohne Erdgeschoss"), "Hochhaus ohne Erdgeschoss");
+  ist("der Nebensatz nach Komma fällt weiter weg", dachOrt("zu einer Zeit, die niemand zählt"), "Zeit");
+
+  // Die Bestandsformel: „Der Jugendliche besteht seit 1861."
+  wahr("eine Werft ist eine Einrichtung", istEinrichtung("die Ostmoor-Werft"));
+  wahr("ein Stadttheater auch", istEinrichtung("das Stadttheater"));
+  wahr("ein Jugendlicher nicht", !istEinrichtung("der Jugendliche"));
+  wahr("ein Hochhaus ohne Erdgeschoss auch nicht", !istEinrichtung("ein Hochhaus ohne Erdgeschoss"));
+
+  // Der Faktenkasten stand mitten im Absatz — dort greift keine Zeilenregel.
+  ist("der Faktenkasten fällt auch mitten im Absatz weg",
+    corpusSanitize("Ein Geruch aus der Kindheit. Faktenkasten · Neu: 3.660 Haushalte · Ausdehnung: 278 Meter · im Frühjahr: die erste Meldung. Die Karte bleibt.").trim(),
+    "Ein Geruch aus der Kindheit. Die Karte bleibt.");
+
+  // Der abgeschnittene Relativsatz: „…, der insbesondere durch Bauten im
+  // Dienst deutscher Fürsten" endet auf einem Nomen und trägt kein Verb.
+  ist("ein Relativsatz ohne Verb fällt weg",
+    kuerzeAmBruch("Rochus zu Lynar geboren, der insbesondere durch Bauten im Dienst deutscher Fürsten"),
+    "Rochus zu Lynar geboren");
+  ist("ein Relativsatz MIT Verb bleibt",
+    kuerzeAmBruch("Eine Münze, die niemals ihren Glanz verliert"),
+    "Eine Münze, die niemals ihren Glanz verliert");
+  // Die ASCII-Wortgrenze: „Fürsten" galt als Verb „ürsten".
+  ist("und ein Nomen mit Umlaut ist kein Verb",
+    kuerzeAmBruch("Ein Zug durch das Land, der die Fürsten"), "Ein Zug durch das Land");
+
+  // Der Relativsatz der Figur wird geschlossen.
+  ist("das Komma hinter dem Relativsatz der Figur",
+    schliesseFigurenkomma("Ein Schulmädchen, das Karten fälscht bemerkt: Der Einsatz ist ein Ja.", "ein Schulmädchen, das Karten fälscht"),
+    "Ein Schulmädchen, das Karten fälscht, bemerkt: Der Einsatz ist ein Ja.");
+  ist("am Satzende wird keines gesetzt",
+    schliesseFigurenkomma("Dort steht ein Schulmädchen, das Karten fälscht.", "ein Schulmädchen, das Karten fälscht"),
+    "Dort steht ein Schulmädchen, das Karten fälscht.");
+  ist("und ohne Relativsatz passiert nichts",
+    schliesseFigurenkomma("Die Archivarin sucht eine Akte.", "die Archivarin"),
+    "Die Archivarin sucht eine Akte.");
+
+  // Und am fertigen Text — sonst prüft das Obige nur eine Funktion, die
+  // niemand aufruft.
+  const ids2 = Object.keys(BUILTIN_PRESETS);
+  let offen = 0, zerschnitten = 0;
+  for (let i = 0; i < 90; i++) {
+    const t = buildStory(BUILTIN_PRESETS[ids2[i % ids2.length]!] as Bank, {
+      where: "in der Markthalle", when: "am Nachmittag", who: "ein Schulmädchen, das Karten fälscht",
+      what: "sucht die Spur", tone: "nuechtern", form: "prose", lenTarget: 220, tension: "auto",
+      cast: "auto", mode: "auto", structure: i % 2 ? "rekombination" : "linear", perspective: "third",
+      rhythm: "auto", disruptor: "off", instability: 0, markovMode: "off", varLevel: "wild",
+      archetypeA: "neutral", archetypeB: "neutral",
+    } as unknown as GenInput);
+    // Der Relativsatz muss geschlossen sein: nach „fälscht" folgt nie direkt
+    // ein kleingeschriebenes Wort.
+    if (/f[äa]lscht\s+[a-zäöüß]/.test(t)) offen++;
+    // Und er darf nicht zu einem eigenen Satz zerschnitten werden.
+    if (/(^|[.!?…]\s+)[Dd]as Karten f[äa]lscht/.test(t)) zerschnitten++;
+  }
+  ist("in 90 Texten kein offener Relativsatz", offen, 0);
+  ist("und keiner wird zum eigenen Satz zerschnitten", zerschnitten, 0);
 }
 
 console.log(`Prüfstand Nr. 44 — ${geprueft} Prüfungen, ${bestanden} bestanden`);
