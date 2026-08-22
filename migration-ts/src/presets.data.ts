@@ -321,7 +321,10 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "die Unterschrift stammt aus dem eigenen Haus",
       "der Antrag wird als gestellt betrachtet",
       "die Abteilung existiert nur noch im Plan",
-      "der Bescheid trägt ein Datum von morgen"
+      "der Bescheid trägt ein Datum von morgen",
+      "die Auskunft ist richtig und macht die Sache schlimmer",
+      "ein Beamter erkennt ihn wieder, aus einem anderen Vorgang",
+      "die Zuständigkeit kehrt zurück zu dem, der abgelehnt hat"
     ],
     "obstacles": [
       "die Zuständigkeit ist unklar",
@@ -340,7 +343,9 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "das Merkblatt widerspricht dem Formular",
       "die Auskunft wird nur schriftlich erteilt",
       "der Termin liegt hinter der Frist",
-      "niemand darf die Regel nennen"
+      "niemand darf die Regel nennen",
+      "der Bescheid nennt eine Vorschrift, die es nicht mehr gibt",
+      "die Anhörung findet statt, während er im Flur wartet"
     ],
     "stakes": [
       "Der Einsatz ist Identität: Sie wird zu einer Aktennummer.",
@@ -367,7 +372,9 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Und im Flur geht das Licht nach der Zeit aus.",
       "Damit gilt der Antrag als eingegangen.",
       "Und der nächste Zettel trägt dieselbe Nummer.",
-      "So endet der Tag im selben Wartezimmer."
+      "So endet der Tag im selben Wartezimmer.",
+      "Und im Flur wartet jemand mit demselben Blatt.",
+      "So bleibt der Vorgang anhängig, auf unbestimmte Zeit."
     ]
   },
   "expressionismus": {
@@ -1348,7 +1355,12 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "der Versuch gelingt nur einmal",
       "die Grenze verschiebt sich um zehn Kilometer",
       "die Art war nie getrennt",
-      "die Reihe von 1974 sagt etwas anderes"
+      "die Reihe von 1974 sagt etwas anderes",
+      "die zweite Zählung findet mehr, und das ist schlimmer",
+      "eine Art taucht auf, die hier seit hundert Jahren fehlt",
+      "der Versuch widerlegt die Annahme und bestätigt den Zufall",
+      "der Bestand erholt sich, seit niemand mehr eingreift",
+      "die Beringung von 1974 kommt an einem fremden Ort zurück"
     ],
     "obstacles": [
       "das Gewebe zerfällt",
@@ -1368,7 +1380,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "das Gelände wird im Frühjahr bebaut",
       "niemand hat die Reihe von 1974 aufgehoben",
       "der Regen macht die Zählung unmöglich",
-      "die Falle ist leer und der Köder weg"
+      "die Falle ist leer und der Köder weg",
+      "die Zählfläche wird im Sommer als Weide genutzt",
+      "das Präparat verliert die Farbe, bevor es fotografiert ist",
+      "die Bestimmung ist nur mit einem zweiten Merkmal sicher",
+      "der Bau darf während der Brutzeit nicht betreten werden",
+      "die Genehmigung nennt eine Art, die nicht mehr so heißt",
+      "das Wetter verschiebt die Zählung um zwei Wochen"
     ],
     "stakes": [
       "Der Einsatz ist Anpassung: Überleben oder Aussterben.",
@@ -1396,7 +1414,12 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "So trägt der Name jetzt ein Datum.",
       "Und im nächsten Frühjahr steht wieder jemand am Rand des Feldes.",
       "Das Feldbuch schließt mit einer offenen Zeile.",
-      "Und der Bau bleibt bewohnt, ohne uns."
+      "Und der Bau bleibt bewohnt, ohne uns.",
+      "Und die Zahl geht in die Reihe ein, mit einem Fragezeichen.",
+      "So liegt das Präparat im Schrank, beschriftet und blass.",
+      "Am Ende steht eine Art auf einer anderen Liste.",
+      "Und der Bau bleibt bewohnt, das zeigt der Aushub.",
+      "So zählt jemand im nächsten Frühjahr an derselben Stelle."
     ],
     "verwandlungen": [
       "Zelle→Kammer",
@@ -1502,7 +1525,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "der Findling verrät seine Herkunft",
       "ein zweiter Riss kreuzt den ersten",
       "die Messung wiederholt sich nicht",
-      "unter der Asche liegt noch eine Asche"
+      "unter der Asche liegt noch eine Asche",
+      "die Schichtfolge stimmt, aber die Reihenfolge nicht",
+      "ein zweiter Bohrkern widerspricht dem ersten um Jahrtausende",
+      "der Hang bewegt sich langsamer, seit man ihn beobachtet",
+      "eine alte Grubenkarte zeigt einen Stollen, den es geben müsste",
+      "das Gestein stammt aus einem Gebirge, das nicht mehr steht",
+      "der Riss hört auf zu wachsen, ohne dass jemand etwas tat"
     ],
     "obstacles": [
       "die Höhle endet im Nichts",
@@ -1522,7 +1551,14 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "die Karte ist vierzig Jahre alt",
       "der Stollen ist verbrochen",
       "das Gerät zeigt zwei Werte",
-      "der Frost sprengt die Wand über dem Weg"
+      "der Frost sprengt die Wand über dem Weg",
+      "die Probe muss ins Labor, und das Labor ist geschlossen",
+      "der Hang darf erst nach der Schneeschmelze betreten werden",
+      "die Bohrgenehmigung gilt für ein anderes Flurstück",
+      "die alte Karte nennt Höhen in einem anderen Bezugssystem",
+      "der Steinbruch gehört jemandem, der nicht antwortet",
+      "die Messung braucht eine Woche ohne Erschütterung",
+      "das Gerät zeigt nach dem Frost andere Werte als davor"
     ],
     "stakes": [
       "Der Einsatz ist Stabilität: Der Boden trägt oder bricht.",
@@ -1551,7 +1587,12 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "So misst es weiter, ohne uns.",
       "Und das Wasser findet seinen Weg trotzdem.",
       "Der Stein hat Zeit, wir nicht.",
-      "Und über der Asche wächst wieder Gras."
+      "Und über der Asche wächst wieder Gras.",
+      "Und die Probe steht beschriftet im Regal des Instituts.",
+      "So bleibt der Hang stehen, bis er es nicht mehr tut.",
+      "Am Ende trägt die Karte eine Linie mehr als vorher.",
+      "Und im Frühjahr geht jemand denselben Weg noch einmal.",
+      "So bleibt eine Zahl im Bericht, mit einer Unsicherheit dahinter."
     ],
     "verwandlungen": [
       "Stein→Knochen",
@@ -1653,7 +1694,12 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "zwei Sternwarten sehen dasselbe zur selben Sekunde",
       "die Rechnung stimmt und die Annahme nicht",
       "der Fehler liegt in der Uhr, nicht am Himmel",
-      "die Wolken reißen für vier Minuten auf"
+      "die Wolken reißen für vier Minuten auf",
+      "die Bahn passt, wenn man die Uhr um Sekunden verschiebt",
+      "ein anderes Observatorium hat dasselbe zwei Nächte früher",
+      "der Punkt war schon auf einer Platte von 1912",
+      "die Störung kommt aus dem Haus und nicht vom Himmel",
+      "die Rechnung ergibt zwei Lösungen, und beide sind möglich"
     ],
     "obstacles": [
       "der Horizont verschluckt die Sterne",
@@ -1672,7 +1718,12 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "der Streulichtschein der Stadt wächst",
       "die Rechenzeit ist auf zwei Stunden begrenzt",
       "das Objekt steht zu tief über dem Horizont",
-      "die Beobachtungszeit gehört einem anderen"
+      "die Beobachtungszeit gehört einem anderen",
+      "die Kuppel lässt sich bei Frost nur halb drehen",
+      "die Platten müssen entwickelt werden, bevor sie altern",
+      "die Nacht wird durch einen Stromausfall unterbrochen",
+      "der Vergleichsstern steht in diesem Monat zu tief",
+      "die Auswertung braucht die Zeit von drei Winternächten"
     ],
     "stakes": [
       "Der Einsatz ist Schwerkraft: Sie hält oder lässt los.",
@@ -1699,7 +1750,12 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Und das Licht war schon unterwegs, als es niemanden gab.",
       "So bleibt es dabei: eine Beobachtung, keine zwei.",
       "Und die nächste Nacht ist in einem Jahr.",
-      "Der Himmel dreht sich weiter, ob jemand hinsieht oder nicht."
+      "Der Himmel dreht sich weiter, ob jemand hinsieht oder nicht.",
+      "Und die Platte trocknet, mit einem Punkt darauf.",
+      "So steht die Beobachtung im Buch und wartet auf eine zweite.",
+      "Am Ende ist es eine Zahl, die niemand bestätigen kann.",
+      "Und die Kuppel wird geschlossen, bevor es hell wird.",
+      "So bleibt der Himmel, wie er war, nur genauer."
     ],
     "verwandlungen": [
       "Stern→Punkt",
@@ -1953,7 +2009,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "was harmlos schien, trägt das Gewicht",
       "die Kindheit ändert ihr Datum",
       "der Patient deutet den Arzt",
-      "ein Traum wiederholt sich, aber mit fremdem Personal"
+      "ein Traum wiederholt sich, aber mit fremdem Personal",
+      "die Stunde wird verschoben, und das ist die Deutung",
+      "ein Traum der Mutter erklärt den Traum des Sohnes",
+      "der Widerstand wird höflich und damit schwerer zu fassen",
+      "ein Detail aus der ersten Stunde kommt nach Jahren wieder",
+      "die Erinnerung stimmt, nur gehört sie einem anderen",
+      "er erzählt zum ersten Mal etwas, das er für belanglos hielt"
     ],
     "obstacles": [
       "Erinnerung verweigert sich",
@@ -1972,7 +2034,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "der Patient hört auf zu kommen",
       "eine Frage ist zu direkt gestellt",
       "die Sprache reicht für das Gefühl nicht",
-      "der Termin fällt auf dasselbe Datum"
+      "der Termin fällt auf dasselbe Datum",
+      "die Familie erwartet einen Bericht, den es nicht geben darf",
+      "die Wohnung über der Praxis wird gerade umgebaut",
+      "ein Kollege deutet dasselbe anders und veröffentlicht zuerst",
+      "der Patient bezahlt und will dafür ein Ergebnis",
+      "die Stunde fällt in dieselbe Woche wie in jedem Jahr",
+      "ein Wort trifft nicht, was gemeint ist"
     ],
     "stakes": [
       "Der Einsatz ist Wahrheit: Verdrängt oder erkannt.",
@@ -1999,7 +2067,12 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Und beim nächsten Mal beginnt er woanders.",
       "So kehrt der Traum zurück, mit anderem Personal.",
       "Und das Wort fehlt weiter.",
-      "Der Termin bleibt bestehen, das Symptom auch."
+      "Der Termin bleibt bestehen, das Symptom auch.",
+      "Und die Karteikarte bekommt ein Datum und drei Zeilen.",
+      "So bleibt der Traum unaufgeschrieben bis zum nächsten Mal.",
+      "Am Ende steht die Uhr, und niemand sagt etwas dazu.",
+      "Und im Wartezimmer sitzt schon jemand anderes.",
+      "So endet die Stunde, wie sie begonnen hat, mit einer Frage."
     ],
     "verwandlungen": [
       "Traum→Bericht",
@@ -2103,7 +2176,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "der Trend kippt über Nacht",
       "aus dem Spaß wird eine Sache",
       "jemand blockt zurück, ohne ein Wort",
-      "die Stille wird zur Antwort"
+      "die Stille wird zur Antwort",
+      "jemand schickt einen Screenshot und meint es nicht böse",
+      "die Gruppe entscheidet sich, ohne dass jemand abstimmt",
+      "ein alter Chat wird gefunden, und alles sieht anders aus",
+      "er entschuldigt sich in der Gruppe und nicht bei ihr"
     ],
     "obstacles": [
       "ein Moment, an den sich alle erinnern werden",
@@ -2122,7 +2199,10 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "zu Hause fragt jemand nach",
       "das Handy liegt in der Schublade",
       "die Antwort kommt drei Tage später",
-      "keiner will der Erste sein"
+      "keiner will der Erste sein",
+      "die Antwort stand da und wurde wieder gelöscht",
+      "alle sind online, und niemand schreibt",
+      "der Trend läuft, und er versteht ihn immer noch nicht"
     ],
     "stakes": [
       "Der Einsatz ist Zugehörigkeit: Drin oder raus.",
@@ -2148,7 +2228,10 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Und am Montag redet keiner mehr davon.",
       "Und der Bus fährt weiter, alle steigen aus.",
       "So endet die Story, ungespeichert.",
-      "Und das Wort benutzt jetzt niemand mehr."
+      "Und das Wort benutzt jetzt niemand mehr.",
+      "Und der Chat bleibt auf gelesen, den ganzen Abend.",
+      "So redet am Montag keiner mehr davon, aber alle wissen es.",
+      "Und irgendwer macht ein Foto, das bleibt."
     ]
   },
   "modernarchitecture": {
@@ -4076,7 +4159,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "das Fehlende war der Hinweis",
       "die Frage wird von der Antwort gestellt",
       "ein Fund datiert von morgen",
-      "der Beobachter wird beobachtet"
+      "der Beobachter wird beobachtet",
+      "die Zeugin nennt eine Uhrzeit, die es zweimal gab",
+      "der Gegenstand fehlt, und das ist der eigentliche Fund",
+      "die eigene Aussage stimmt nicht mit der eigenen Erinnerung",
+      "der Fall war schon einmal gelöst, unter anderem Namen"
     ],
     "obstacles": [
       "die Tür ist verschlossen",
@@ -4095,7 +4182,12 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "zwei Spuren führen zueinander",
       "das Zimmer wurde bereits geräumt",
       "die Karte endet vor dem Ziel",
-      "der Schlüssel dreht sich zweimal"
+      "der Schlüssel dreht sich zweimal",
+      "die Akte ist vollständig und darum verdächtig",
+      "ein Zeuge sagt aus und war nachweislich woanders",
+      "die Kamera lief, aber die Aufnahme fehlt für vier Minuten",
+      "niemand meldet den Vermissten, und das ist die Frage",
+      "die Spur hört an einer Tür auf, die immer offen stand"
     ],
     "stakes": [
       "Der Einsatz ist Mut.",
@@ -4122,7 +4214,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Damit ist nichts erklärt und alles gesagt.",
       "Und das Licht im Nebenhaus geht endlich aus.",
       "So endet die Nacht, ohne dass jemand kam.",
-      "Und die Zahl steht am nächsten Morgen woanders."
+      "Und die Zahl steht am nächsten Morgen woanders.",
+      "Und der Fall bleibt geschlossen, an einer Stelle offen.",
+      "So bleibt die Frage, wer die Uhr gestellt hat.",
+      "Am Ende passt alles, bis auf eine Kleinigkeit.",
+      "Und niemand fragt nach den vier fehlenden Minuten."
     ]
   },
   "bureau": {
@@ -4217,7 +4313,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine zweite Unterschrift fehlt, immer",
       "die Auskunft widerspricht dem Merkblatt",
       "ein Stempel macht wahr, was nicht stimmt",
-      "die Sache ist erledigt, aber nicht bei dir"
+      "die Sache ist erledigt, aber nicht bei dir",
+      "der Vorgang wird abgeschlossen und gleichzeitig neu eröffnet",
+      "ein Beamter hilft, und danach ist er nicht mehr zuständig",
+      "die Frist verlängert sich, weil niemand die Post geholt hat",
+      "ein Formular wird abgeschafft und einen Monat später gebraucht"
     ],
     "obstacles": [
       "die Tür ist verschlossen",
@@ -4236,7 +4336,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "die Auskunft gilt nur mündlich",
       "die Frist lief, während du wartetest",
       "das Formular gibt es nur auf Papier",
-      "eine Nummer wird gezogen, keine vergeben"
+      "eine Nummer wird gezogen, keine vergeben",
+      "der Nachweis liegt in einem Amt, das umgezogen ist",
+      "die Auskunft ist richtig und für diesen Fall nicht anwendbar",
+      "der Termin lässt sich nur telefonisch vergeben, ab acht",
+      "das Formular gibt es in zwei Fassungen, beide gültig"
     ],
     "stakes": [
       "Der Einsatz ist Zeit: Die Frist ist real.",
@@ -4263,7 +4367,10 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Und die Nummer wird morgen wieder gezogen.",
       "So schließt der Schalter pünktlich.",
       "Und im Flur wartet der Nächste mit demselben Blatt.",
-      "Der Bescheid ist da, die Sache nicht."
+      "Der Bescheid ist da, die Sache nicht.",
+      "Und der Vorgang bekommt eine neue Nummer.",
+      "So wird der Antrag weitergeleitet, an dieselbe Stelle.",
+      "Am Ende liegt ein Schreiben im Kasten, ohne Absender."
     ],
     "verwandlungen": [
       "Formular→Papier",
@@ -4855,7 +4962,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "die Schau wird vorgezogen",
       "ein Ärmel wird geopfert für den Rest",
       "der Entwurf gehört plötzlich dem Haus",
-      "die Hand erinnert sich an einen Griff von früher"
+      "die Hand erinnert sich an einen Griff von früher",
+      "der Fehler in der Naht wird zum Zeichen des Hauses",
+      "die Kundin will das Kleid einer anderen Saison",
+      "ein Zulieferer stellt die Farbe ein, mitten in der Reihe",
+      "die Näherin ändert den Schnitt und behält es für sich"
     ],
     "obstacles": [
       "der Stoff widersetzt sich der Schere",
@@ -4874,7 +4985,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "das Licht im Atelier fällt aus",
       "der Entwurf ist schon woanders gesehen worden",
       "die Schere ist stumpf und keine zweite da",
-      "die Zeit reicht für Naht oder Saum, nicht für beides"
+      "die Zeit reicht für Naht oder Saum, nicht für beides",
+      "der Stoff ist nur noch in einem Lager in Como",
+      "die Anprobe fällt aus, und die Schau ist am Freitag",
+      "die Perlen kommen aus einer Werkstatt, die geschlossen hat",
+      "diese Naht zu lernen dauert länger als die Kollektion"
     ],
     "stakes": [
       "Der Einsatz ist der Ruf eines Hauses.",
@@ -4903,7 +5018,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "So bleibt der Schnitt im Karton, für später.",
       "Und die Kreidestriche werden ausgebürstet.",
       "Der Saum sitzt, der Rest war Arbeit.",
-      "Und am Montag beginnt die nächste Kollektion."
+      "Und am Montag beginnt die nächste Kollektion.",
+      "Und die Puppe steht wieder ohne Kleid im Atelier.",
+      "So geht das Licht aus, und der Saum bleibt offen.",
+      "Am Ende hängt es in einem Schrank in einer anderen Stadt.",
+      "Und die Näherinnen räumen die Fäden vom Boden."
     ],
     "verwandlungen": [
       "Kleid→Gewand",
@@ -5488,7 +5607,12 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "geteilt wird, bevor gezählt wird",
       "der Hunger hört auf, das ist das Schlimme",
       "einer isst nicht und sagt, er habe schon",
-      "ein Sack steht am Morgen vor der Tür"
+      "ein Sack steht am Morgen vor der Tür",
+      "die Marken gelten weiter, aber es gibt nichts dafür",
+      "ein Fremder bringt Mehl und will kein Geld dafür",
+      "die Ernte kommt, und die Preise fallen zu spät",
+      "das Saatgut wird gegessen, und alle wissen es",
+      "der Nachbar zählt mit und sagt nichts dazu"
     ],
     "obstacles": [
       "die Felder tragen nichts",
@@ -5507,7 +5631,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "das Vieh ist zuerst verkauft",
       "der Winter dauert länger als gerechnet",
       "das Brot ist da, aber nicht zu bezahlen",
-      "die Stadt gibt nichts an Fremde"
+      "die Stadt gibt nichts an Fremde",
+      "die Mühle mahlt nur gegen einen Teil des Mehls",
+      "der Wagen kommt nicht durch, der Weg ist aufgeweicht",
+      "die Ausgabe ist bis Donnerstag ausgesetzt",
+      "die Kammer ist voll und gehört jemand anderem",
+      "das Vieh frisst, was die Menschen essen könnten",
+      "die Suppe reicht, wenn nicht alle kommen"
     ],
     "stakes": [
       "Der Einsatz ist ein Winter.",
@@ -5536,7 +5666,12 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "So zählt jemand weiter, leise.",
       "Und im Frühjahr wächst wieder etwas, für die, die da sind.",
       "Der Tisch bleibt gedeckt, aus Gewohnheit.",
-      "Und niemand spricht beim Essen."
+      "Und niemand spricht beim Essen.",
+      "Und die Waage steht wieder auf demselben Strich.",
+      "So bleibt ein Rest im Sack, für morgen.",
+      "Am Ende geht jemand ohne etwas nach Hause.",
+      "Und der Kessel wird ausgekratzt, bis er blank ist.",
+      "So beginnt der nächste Tag mit derselben Frage."
     ],
     "verwandlungen": [
       "Brot→Papier",
@@ -5840,7 +5975,10 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "die Flut legt frei, was lag",
       "der Kapitän geht nicht von Bord",
       "die Papiere stimmen und das Schiff nicht",
-      "ein Frachtbrief taucht doppelt auf"
+      "ein Frachtbrief taucht doppelt auf",
+      "die Ladung ist da, und das Papier gehört zu einer anderen",
+      "der Kapitän meldet sich krank, bevor der Zoll kommt",
+      "die Fähre nimmt einen Passagier mehr, als sie darf"
     ],
     "obstacles": [
       "die Papiere fehlen",
@@ -5858,7 +5996,10 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "der Zollbeamte kennt den Stempel nicht",
       "die Leine ist zu kurz",
       "das Log fehlt für drei Tage",
-      "am Kai gibt es keinen Strom"
+      "am Kai gibt es keinen Strom",
+      "der Kran fällt aus, und die Tide läuft weiter ab",
+      "die Papiere sind in einer Sprache, die hier niemand liest",
+      "der Liegeplatz wird gebraucht, bevor die Ladung gelöscht ist"
     ],
     "stakes": [
       "Der Einsatz ist eine Überfahrt, für die das Geld reicht.",
@@ -5886,7 +6027,10 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Und im Schuppen bleibt das Licht an.",
       "Damit ist die Ladung übergeben.",
       "Und die Fähre legt ohne sie ab.",
-      "So bleibt nur das Wasser, das gegen die Steine schlägt."
+      "So bleibt nur das Wasser, das gegen die Steine schlägt.",
+      "Und der Frachtbrief wandert in einen anderen Ordner.",
+      "So bleibt die Kiste stehen, bis jemand sie holt.",
+      "Am Ende läuft die Tide ab, mit uns oder ohne uns."
     ]
   },
   "alltag": {
@@ -5977,7 +6121,10 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "die Wohnung nebenan wird gestrichen",
       "der Regen hört zur falschen Zeit auf",
       "das Fahrrad steht wieder da",
-      "die Tür fällt zu und der Schlüssel liegt drinnen"
+      "die Tür fällt zu und der Schlüssel liegt drinnen",
+      "der Handwerker kommt, und es war nur eine Sicherung",
+      "die Nachbarin klingelt und bleibt eine Stunde",
+      "der freie Tag geht mit lauter kleinen Wegen hin"
     ],
     "obstacles": [
       "der Tag hat zu wenig Stunden",
@@ -5995,7 +6142,9 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "es fehlt Kleingeld",
       "der Termin liegt in der Arbeitszeit",
       "die Post kommt heute später",
-      "niemand hat den Schlüssel"
+      "niemand hat den Schlüssel",
+      "der Automat nimmt die Karte und gibt sie nicht zurück",
+      "die Öffnungszeit hat sich geändert und steht nirgends"
     ],
     "stakes": [
       "Der Einsatz ist ein freier Nachmittag, der erste seit Wochen.",
@@ -6023,7 +6172,9 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Aufzug fährt weiter, ohne jemanden.",
       "Und morgen ist der Müll dran.",
       "So geht das Licht im Flur von selbst aus.",
-      "Und die Wäsche hängt noch immer."
+      "Und die Wäsche hängt noch immer.",
+      "Und im Flur riecht es nach dem Essen von nebenan.",
+      "So bleibt der Einkaufszettel für morgen liegen."
     ]
   },
   "goethe": {

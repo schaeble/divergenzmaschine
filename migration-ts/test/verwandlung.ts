@@ -206,6 +206,24 @@ ist("ohne Paare bleibt alles", verwandleMotive("Der Regen fällt.", []), "Der Re
     // einer Nominal-Kategorie. Zwei Presets je Gruppe sind eine erste Messung und
     // kein Gesetz — aber es ist eine EINGRIFFS-Messung, keine Korrelation: Es
     // wurde je Gruppe genau eine Sache geändert.
+    // NACHTRAG 4.281.0: Der Ertrag zusätzlicher Wörter SÄTTIGT. Die zwölf
+    // Nachzügler wurden alle auf rund 850 Wörter gebracht, ausschließlich über
+    // Satz-Kategorien. Punkte je 100 Wörter, nach Ausgangslage sortiert:
+    //
+    //   bureau        79,3 → 97,0 %   +98 Wörter   = 18,1 Punkte je 100
+    //   astrologie    78,4 → 99,7 %  +133          = 16,0
+    //   freud         80,1 → 96,9 %  +153          = 11,0
+    //   biologie      83,2 → 99,0 %  +146          = 10,8
+    //   geologie      91,9 → 96,6 %  +163          =  2,9
+    //   mystery       96,2 → 98,6 %  +115          =  2,1
+    //   hafen         95,5 → 97,2 %   +86          =  2,0
+    //   alltag        94,6 → 95,3 %   +60          =  1,2
+    //
+    // Unter 85 % bringen hundert Wörter 11 bis 18 Punkte, über 91 % nur noch 1
+    // bis 3. Der Bericht kann seine Vorgabe nicht wesentlich überschreiten, also
+    // läuft die Kurve gegen rund 97 %. 850 Wörter sind damit nicht nur ein Ziel,
+    // sondern auch eine Grenze: Was darüber hinaus geschrieben wird, zahlt sich
+    // in der Länge nicht mehr aus. Es zahlt sich nur noch in Abwechslung aus.
     // Die Schranke steht bei 650 und nicht bei 850. 850 ist das ZIEL, 650 ist der
     // Boden: Diese Prüfung soll merken, wenn jemand Material kürzt, nicht das Ziel
     // erzwingen, das noch nicht überall erreicht ist. Heute am dünnsten: geologie

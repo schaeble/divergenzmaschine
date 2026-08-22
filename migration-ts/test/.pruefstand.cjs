@@ -4896,7 +4896,10 @@ var BUILTIN_PRESETS = {
       "die Unterschrift stammt aus dem eigenen Haus",
       "der Antrag wird als gestellt betrachtet",
       "die Abteilung existiert nur noch im Plan",
-      "der Bescheid tr\xE4gt ein Datum von morgen"
+      "der Bescheid tr\xE4gt ein Datum von morgen",
+      "die Auskunft ist richtig und macht die Sache schlimmer",
+      "ein Beamter erkennt ihn wieder, aus einem anderen Vorgang",
+      "die Zust\xE4ndigkeit kehrt zur\xFCck zu dem, der abgelehnt hat"
     ],
     "obstacles": [
       "die Zust\xE4ndigkeit ist unklar",
@@ -4915,7 +4918,9 @@ var BUILTIN_PRESETS = {
       "das Merkblatt widerspricht dem Formular",
       "die Auskunft wird nur schriftlich erteilt",
       "der Termin liegt hinter der Frist",
-      "niemand darf die Regel nennen"
+      "niemand darf die Regel nennen",
+      "der Bescheid nennt eine Vorschrift, die es nicht mehr gibt",
+      "die Anh\xF6rung findet statt, w\xE4hrend er im Flur wartet"
     ],
     "stakes": [
       "Der Einsatz ist Identit\xE4t: Sie wird zu einer Aktennummer.",
@@ -4942,7 +4947,9 @@ var BUILTIN_PRESETS = {
       "Und im Flur geht das Licht nach der Zeit aus.",
       "Damit gilt der Antrag als eingegangen.",
       "Und der n\xE4chste Zettel tr\xE4gt dieselbe Nummer.",
-      "So endet der Tag im selben Wartezimmer."
+      "So endet der Tag im selben Wartezimmer.",
+      "Und im Flur wartet jemand mit demselben Blatt.",
+      "So bleibt der Vorgang anh\xE4ngig, auf unbestimmte Zeit."
     ]
   },
   "expressionismus": {
@@ -5923,7 +5930,12 @@ var BUILTIN_PRESETS = {
       "der Versuch gelingt nur einmal",
       "die Grenze verschiebt sich um zehn Kilometer",
       "die Art war nie getrennt",
-      "die Reihe von 1974 sagt etwas anderes"
+      "die Reihe von 1974 sagt etwas anderes",
+      "die zweite Z\xE4hlung findet mehr, und das ist schlimmer",
+      "eine Art taucht auf, die hier seit hundert Jahren fehlt",
+      "der Versuch widerlegt die Annahme und best\xE4tigt den Zufall",
+      "der Bestand erholt sich, seit niemand mehr eingreift",
+      "die Beringung von 1974 kommt an einem fremden Ort zur\xFCck"
     ],
     "obstacles": [
       "das Gewebe zerf\xE4llt",
@@ -5943,7 +5955,13 @@ var BUILTIN_PRESETS = {
       "das Gel\xE4nde wird im Fr\xFChjahr bebaut",
       "niemand hat die Reihe von 1974 aufgehoben",
       "der Regen macht die Z\xE4hlung unm\xF6glich",
-      "die Falle ist leer und der K\xF6der weg"
+      "die Falle ist leer und der K\xF6der weg",
+      "die Z\xE4hlfl\xE4che wird im Sommer als Weide genutzt",
+      "das Pr\xE4parat verliert die Farbe, bevor es fotografiert ist",
+      "die Bestimmung ist nur mit einem zweiten Merkmal sicher",
+      "der Bau darf w\xE4hrend der Brutzeit nicht betreten werden",
+      "die Genehmigung nennt eine Art, die nicht mehr so hei\xDFt",
+      "das Wetter verschiebt die Z\xE4hlung um zwei Wochen"
     ],
     "stakes": [
       "Der Einsatz ist Anpassung: \xDCberleben oder Aussterben.",
@@ -5971,7 +5989,12 @@ var BUILTIN_PRESETS = {
       "So tr\xE4gt der Name jetzt ein Datum.",
       "Und im n\xE4chsten Fr\xFChjahr steht wieder jemand am Rand des Feldes.",
       "Das Feldbuch schlie\xDFt mit einer offenen Zeile.",
-      "Und der Bau bleibt bewohnt, ohne uns."
+      "Und der Bau bleibt bewohnt, ohne uns.",
+      "Und die Zahl geht in die Reihe ein, mit einem Fragezeichen.",
+      "So liegt das Pr\xE4parat im Schrank, beschriftet und blass.",
+      "Am Ende steht eine Art auf einer anderen Liste.",
+      "Und der Bau bleibt bewohnt, das zeigt der Aushub.",
+      "So z\xE4hlt jemand im n\xE4chsten Fr\xFChjahr an derselben Stelle."
     ],
     "verwandlungen": [
       "Zelle\u2192Kammer",
@@ -6077,7 +6100,13 @@ var BUILTIN_PRESETS = {
       "der Findling verr\xE4t seine Herkunft",
       "ein zweiter Riss kreuzt den ersten",
       "die Messung wiederholt sich nicht",
-      "unter der Asche liegt noch eine Asche"
+      "unter der Asche liegt noch eine Asche",
+      "die Schichtfolge stimmt, aber die Reihenfolge nicht",
+      "ein zweiter Bohrkern widerspricht dem ersten um Jahrtausende",
+      "der Hang bewegt sich langsamer, seit man ihn beobachtet",
+      "eine alte Grubenkarte zeigt einen Stollen, den es geben m\xFCsste",
+      "das Gestein stammt aus einem Gebirge, das nicht mehr steht",
+      "der Riss h\xF6rt auf zu wachsen, ohne dass jemand etwas tat"
     ],
     "obstacles": [
       "die H\xF6hle endet im Nichts",
@@ -6097,7 +6126,14 @@ var BUILTIN_PRESETS = {
       "die Karte ist vierzig Jahre alt",
       "der Stollen ist verbrochen",
       "das Ger\xE4t zeigt zwei Werte",
-      "der Frost sprengt die Wand \xFCber dem Weg"
+      "der Frost sprengt die Wand \xFCber dem Weg",
+      "die Probe muss ins Labor, und das Labor ist geschlossen",
+      "der Hang darf erst nach der Schneeschmelze betreten werden",
+      "die Bohrgenehmigung gilt f\xFCr ein anderes Flurst\xFCck",
+      "die alte Karte nennt H\xF6hen in einem anderen Bezugssystem",
+      "der Steinbruch geh\xF6rt jemandem, der nicht antwortet",
+      "die Messung braucht eine Woche ohne Ersch\xFCtterung",
+      "das Ger\xE4t zeigt nach dem Frost andere Werte als davor"
     ],
     "stakes": [
       "Der Einsatz ist Stabilit\xE4t: Der Boden tr\xE4gt oder bricht.",
@@ -6126,7 +6162,12 @@ var BUILTIN_PRESETS = {
       "So misst es weiter, ohne uns.",
       "Und das Wasser findet seinen Weg trotzdem.",
       "Der Stein hat Zeit, wir nicht.",
-      "Und \xFCber der Asche w\xE4chst wieder Gras."
+      "Und \xFCber der Asche w\xE4chst wieder Gras.",
+      "Und die Probe steht beschriftet im Regal des Instituts.",
+      "So bleibt der Hang stehen, bis er es nicht mehr tut.",
+      "Am Ende tr\xE4gt die Karte eine Linie mehr als vorher.",
+      "Und im Fr\xFChjahr geht jemand denselben Weg noch einmal.",
+      "So bleibt eine Zahl im Bericht, mit einer Unsicherheit dahinter."
     ],
     "verwandlungen": [
       "Stein\u2192Knochen",
@@ -6228,7 +6269,12 @@ var BUILTIN_PRESETS = {
       "zwei Sternwarten sehen dasselbe zur selben Sekunde",
       "die Rechnung stimmt und die Annahme nicht",
       "der Fehler liegt in der Uhr, nicht am Himmel",
-      "die Wolken rei\xDFen f\xFCr vier Minuten auf"
+      "die Wolken rei\xDFen f\xFCr vier Minuten auf",
+      "die Bahn passt, wenn man die Uhr um Sekunden verschiebt",
+      "ein anderes Observatorium hat dasselbe zwei N\xE4chte fr\xFCher",
+      "der Punkt war schon auf einer Platte von 1912",
+      "die St\xF6rung kommt aus dem Haus und nicht vom Himmel",
+      "die Rechnung ergibt zwei L\xF6sungen, und beide sind m\xF6glich"
     ],
     "obstacles": [
       "der Horizont verschluckt die Sterne",
@@ -6247,7 +6293,12 @@ var BUILTIN_PRESETS = {
       "der Streulichtschein der Stadt w\xE4chst",
       "die Rechenzeit ist auf zwei Stunden begrenzt",
       "das Objekt steht zu tief \xFCber dem Horizont",
-      "die Beobachtungszeit geh\xF6rt einem anderen"
+      "die Beobachtungszeit geh\xF6rt einem anderen",
+      "die Kuppel l\xE4sst sich bei Frost nur halb drehen",
+      "die Platten m\xFCssen entwickelt werden, bevor sie altern",
+      "die Nacht wird durch einen Stromausfall unterbrochen",
+      "der Vergleichsstern steht in diesem Monat zu tief",
+      "die Auswertung braucht die Zeit von drei Wintern\xE4chten"
     ],
     "stakes": [
       "Der Einsatz ist Schwerkraft: Sie h\xE4lt oder l\xE4sst los.",
@@ -6274,7 +6325,12 @@ var BUILTIN_PRESETS = {
       "Und das Licht war schon unterwegs, als es niemanden gab.",
       "So bleibt es dabei: eine Beobachtung, keine zwei.",
       "Und die n\xE4chste Nacht ist in einem Jahr.",
-      "Der Himmel dreht sich weiter, ob jemand hinsieht oder nicht."
+      "Der Himmel dreht sich weiter, ob jemand hinsieht oder nicht.",
+      "Und die Platte trocknet, mit einem Punkt darauf.",
+      "So steht die Beobachtung im Buch und wartet auf eine zweite.",
+      "Am Ende ist es eine Zahl, die niemand best\xE4tigen kann.",
+      "Und die Kuppel wird geschlossen, bevor es hell wird.",
+      "So bleibt der Himmel, wie er war, nur genauer."
     ],
     "verwandlungen": [
       "Stern\u2192Punkt",
@@ -6528,7 +6584,13 @@ var BUILTIN_PRESETS = {
       "was harmlos schien, tr\xE4gt das Gewicht",
       "die Kindheit \xE4ndert ihr Datum",
       "der Patient deutet den Arzt",
-      "ein Traum wiederholt sich, aber mit fremdem Personal"
+      "ein Traum wiederholt sich, aber mit fremdem Personal",
+      "die Stunde wird verschoben, und das ist die Deutung",
+      "ein Traum der Mutter erkl\xE4rt den Traum des Sohnes",
+      "der Widerstand wird h\xF6flich und damit schwerer zu fassen",
+      "ein Detail aus der ersten Stunde kommt nach Jahren wieder",
+      "die Erinnerung stimmt, nur geh\xF6rt sie einem anderen",
+      "er erz\xE4hlt zum ersten Mal etwas, das er f\xFCr belanglos hielt"
     ],
     "obstacles": [
       "Erinnerung verweigert sich",
@@ -6547,7 +6609,13 @@ var BUILTIN_PRESETS = {
       "der Patient h\xF6rt auf zu kommen",
       "eine Frage ist zu direkt gestellt",
       "die Sprache reicht f\xFCr das Gef\xFChl nicht",
-      "der Termin f\xE4llt auf dasselbe Datum"
+      "der Termin f\xE4llt auf dasselbe Datum",
+      "die Familie erwartet einen Bericht, den es nicht geben darf",
+      "die Wohnung \xFCber der Praxis wird gerade umgebaut",
+      "ein Kollege deutet dasselbe anders und ver\xF6ffentlicht zuerst",
+      "der Patient bezahlt und will daf\xFCr ein Ergebnis",
+      "die Stunde f\xE4llt in dieselbe Woche wie in jedem Jahr",
+      "ein Wort trifft nicht, was gemeint ist"
     ],
     "stakes": [
       "Der Einsatz ist Wahrheit: Verdr\xE4ngt oder erkannt.",
@@ -6574,7 +6642,12 @@ var BUILTIN_PRESETS = {
       "Und beim n\xE4chsten Mal beginnt er woanders.",
       "So kehrt der Traum zur\xFCck, mit anderem Personal.",
       "Und das Wort fehlt weiter.",
-      "Der Termin bleibt bestehen, das Symptom auch."
+      "Der Termin bleibt bestehen, das Symptom auch.",
+      "Und die Karteikarte bekommt ein Datum und drei Zeilen.",
+      "So bleibt der Traum unaufgeschrieben bis zum n\xE4chsten Mal.",
+      "Am Ende steht die Uhr, und niemand sagt etwas dazu.",
+      "Und im Wartezimmer sitzt schon jemand anderes.",
+      "So endet die Stunde, wie sie begonnen hat, mit einer Frage."
     ],
     "verwandlungen": [
       "Traum\u2192Bericht",
@@ -6678,7 +6751,11 @@ var BUILTIN_PRESETS = {
       "der Trend kippt \xFCber Nacht",
       "aus dem Spa\xDF wird eine Sache",
       "jemand blockt zur\xFCck, ohne ein Wort",
-      "die Stille wird zur Antwort"
+      "die Stille wird zur Antwort",
+      "jemand schickt einen Screenshot und meint es nicht b\xF6se",
+      "die Gruppe entscheidet sich, ohne dass jemand abstimmt",
+      "ein alter Chat wird gefunden, und alles sieht anders aus",
+      "er entschuldigt sich in der Gruppe und nicht bei ihr"
     ],
     "obstacles": [
       "ein Moment, an den sich alle erinnern werden",
@@ -6697,7 +6774,10 @@ var BUILTIN_PRESETS = {
       "zu Hause fragt jemand nach",
       "das Handy liegt in der Schublade",
       "die Antwort kommt drei Tage sp\xE4ter",
-      "keiner will der Erste sein"
+      "keiner will der Erste sein",
+      "die Antwort stand da und wurde wieder gel\xF6scht",
+      "alle sind online, und niemand schreibt",
+      "der Trend l\xE4uft, und er versteht ihn immer noch nicht"
     ],
     "stakes": [
       "Der Einsatz ist Zugeh\xF6rigkeit: Drin oder raus.",
@@ -6723,7 +6803,10 @@ var BUILTIN_PRESETS = {
       "Und am Montag redet keiner mehr davon.",
       "Und der Bus f\xE4hrt weiter, alle steigen aus.",
       "So endet die Story, ungespeichert.",
-      "Und das Wort benutzt jetzt niemand mehr."
+      "Und das Wort benutzt jetzt niemand mehr.",
+      "Und der Chat bleibt auf gelesen, den ganzen Abend.",
+      "So redet am Montag keiner mehr davon, aber alle wissen es.",
+      "Und irgendwer macht ein Foto, das bleibt."
     ]
   },
   "modernarchitecture": {
@@ -8651,7 +8734,11 @@ var BUILTIN_PRESETS = {
       "das Fehlende war der Hinweis",
       "die Frage wird von der Antwort gestellt",
       "ein Fund datiert von morgen",
-      "der Beobachter wird beobachtet"
+      "der Beobachter wird beobachtet",
+      "die Zeugin nennt eine Uhrzeit, die es zweimal gab",
+      "der Gegenstand fehlt, und das ist der eigentliche Fund",
+      "die eigene Aussage stimmt nicht mit der eigenen Erinnerung",
+      "der Fall war schon einmal gel\xF6st, unter anderem Namen"
     ],
     "obstacles": [
       "die T\xFCr ist verschlossen",
@@ -8670,7 +8757,12 @@ var BUILTIN_PRESETS = {
       "zwei Spuren f\xFChren zueinander",
       "das Zimmer wurde bereits ger\xE4umt",
       "die Karte endet vor dem Ziel",
-      "der Schl\xFCssel dreht sich zweimal"
+      "der Schl\xFCssel dreht sich zweimal",
+      "die Akte ist vollst\xE4ndig und darum verd\xE4chtig",
+      "ein Zeuge sagt aus und war nachweislich woanders",
+      "die Kamera lief, aber die Aufnahme fehlt f\xFCr vier Minuten",
+      "niemand meldet den Vermissten, und das ist die Frage",
+      "die Spur h\xF6rt an einer T\xFCr auf, die immer offen stand"
     ],
     "stakes": [
       "Der Einsatz ist Mut.",
@@ -8697,7 +8789,11 @@ var BUILTIN_PRESETS = {
       "Damit ist nichts erkl\xE4rt und alles gesagt.",
       "Und das Licht im Nebenhaus geht endlich aus.",
       "So endet die Nacht, ohne dass jemand kam.",
-      "Und die Zahl steht am n\xE4chsten Morgen woanders."
+      "Und die Zahl steht am n\xE4chsten Morgen woanders.",
+      "Und der Fall bleibt geschlossen, an einer Stelle offen.",
+      "So bleibt die Frage, wer die Uhr gestellt hat.",
+      "Am Ende passt alles, bis auf eine Kleinigkeit.",
+      "Und niemand fragt nach den vier fehlenden Minuten."
     ]
   },
   "bureau": {
@@ -8792,7 +8888,11 @@ var BUILTIN_PRESETS = {
       "eine zweite Unterschrift fehlt, immer",
       "die Auskunft widerspricht dem Merkblatt",
       "ein Stempel macht wahr, was nicht stimmt",
-      "die Sache ist erledigt, aber nicht bei dir"
+      "die Sache ist erledigt, aber nicht bei dir",
+      "der Vorgang wird abgeschlossen und gleichzeitig neu er\xF6ffnet",
+      "ein Beamter hilft, und danach ist er nicht mehr zust\xE4ndig",
+      "die Frist verl\xE4ngert sich, weil niemand die Post geholt hat",
+      "ein Formular wird abgeschafft und einen Monat sp\xE4ter gebraucht"
     ],
     "obstacles": [
       "die T\xFCr ist verschlossen",
@@ -8811,7 +8911,11 @@ var BUILTIN_PRESETS = {
       "die Auskunft gilt nur m\xFCndlich",
       "die Frist lief, w\xE4hrend du wartetest",
       "das Formular gibt es nur auf Papier",
-      "eine Nummer wird gezogen, keine vergeben"
+      "eine Nummer wird gezogen, keine vergeben",
+      "der Nachweis liegt in einem Amt, das umgezogen ist",
+      "die Auskunft ist richtig und f\xFCr diesen Fall nicht anwendbar",
+      "der Termin l\xE4sst sich nur telefonisch vergeben, ab acht",
+      "das Formular gibt es in zwei Fassungen, beide g\xFCltig"
     ],
     "stakes": [
       "Der Einsatz ist Zeit: Die Frist ist real.",
@@ -8838,7 +8942,10 @@ var BUILTIN_PRESETS = {
       "Und die Nummer wird morgen wieder gezogen.",
       "So schlie\xDFt der Schalter p\xFCnktlich.",
       "Und im Flur wartet der N\xE4chste mit demselben Blatt.",
-      "Der Bescheid ist da, die Sache nicht."
+      "Der Bescheid ist da, die Sache nicht.",
+      "Und der Vorgang bekommt eine neue Nummer.",
+      "So wird der Antrag weitergeleitet, an dieselbe Stelle.",
+      "Am Ende liegt ein Schreiben im Kasten, ohne Absender."
     ],
     "verwandlungen": [
       "Formular\u2192Papier",
@@ -9430,7 +9537,11 @@ var BUILTIN_PRESETS = {
       "die Schau wird vorgezogen",
       "ein \xC4rmel wird geopfert f\xFCr den Rest",
       "der Entwurf geh\xF6rt pl\xF6tzlich dem Haus",
-      "die Hand erinnert sich an einen Griff von fr\xFCher"
+      "die Hand erinnert sich an einen Griff von fr\xFCher",
+      "der Fehler in der Naht wird zum Zeichen des Hauses",
+      "die Kundin will das Kleid einer anderen Saison",
+      "ein Zulieferer stellt die Farbe ein, mitten in der Reihe",
+      "die N\xE4herin \xE4ndert den Schnitt und beh\xE4lt es f\xFCr sich"
     ],
     "obstacles": [
       "der Stoff widersetzt sich der Schere",
@@ -9449,7 +9560,11 @@ var BUILTIN_PRESETS = {
       "das Licht im Atelier f\xE4llt aus",
       "der Entwurf ist schon woanders gesehen worden",
       "die Schere ist stumpf und keine zweite da",
-      "die Zeit reicht f\xFCr Naht oder Saum, nicht f\xFCr beides"
+      "die Zeit reicht f\xFCr Naht oder Saum, nicht f\xFCr beides",
+      "der Stoff ist nur noch in einem Lager in Como",
+      "die Anprobe f\xE4llt aus, und die Schau ist am Freitag",
+      "die Perlen kommen aus einer Werkstatt, die geschlossen hat",
+      "diese Naht zu lernen dauert l\xE4nger als die Kollektion"
     ],
     "stakes": [
       "Der Einsatz ist der Ruf eines Hauses.",
@@ -9478,7 +9593,11 @@ var BUILTIN_PRESETS = {
       "So bleibt der Schnitt im Karton, f\xFCr sp\xE4ter.",
       "Und die Kreidestriche werden ausgeb\xFCrstet.",
       "Der Saum sitzt, der Rest war Arbeit.",
-      "Und am Montag beginnt die n\xE4chste Kollektion."
+      "Und am Montag beginnt die n\xE4chste Kollektion.",
+      "Und die Puppe steht wieder ohne Kleid im Atelier.",
+      "So geht das Licht aus, und der Saum bleibt offen.",
+      "Am Ende h\xE4ngt es in einem Schrank in einer anderen Stadt.",
+      "Und die N\xE4herinnen r\xE4umen die F\xE4den vom Boden."
     ],
     "verwandlungen": [
       "Kleid\u2192Gewand",
@@ -10063,7 +10182,12 @@ var BUILTIN_PRESETS = {
       "geteilt wird, bevor gez\xE4hlt wird",
       "der Hunger h\xF6rt auf, das ist das Schlimme",
       "einer isst nicht und sagt, er habe schon",
-      "ein Sack steht am Morgen vor der T\xFCr"
+      "ein Sack steht am Morgen vor der T\xFCr",
+      "die Marken gelten weiter, aber es gibt nichts daf\xFCr",
+      "ein Fremder bringt Mehl und will kein Geld daf\xFCr",
+      "die Ernte kommt, und die Preise fallen zu sp\xE4t",
+      "das Saatgut wird gegessen, und alle wissen es",
+      "der Nachbar z\xE4hlt mit und sagt nichts dazu"
     ],
     "obstacles": [
       "die Felder tragen nichts",
@@ -10082,7 +10206,13 @@ var BUILTIN_PRESETS = {
       "das Vieh ist zuerst verkauft",
       "der Winter dauert l\xE4nger als gerechnet",
       "das Brot ist da, aber nicht zu bezahlen",
-      "die Stadt gibt nichts an Fremde"
+      "die Stadt gibt nichts an Fremde",
+      "die M\xFChle mahlt nur gegen einen Teil des Mehls",
+      "der Wagen kommt nicht durch, der Weg ist aufgeweicht",
+      "die Ausgabe ist bis Donnerstag ausgesetzt",
+      "die Kammer ist voll und geh\xF6rt jemand anderem",
+      "das Vieh frisst, was die Menschen essen k\xF6nnten",
+      "die Suppe reicht, wenn nicht alle kommen"
     ],
     "stakes": [
       "Der Einsatz ist ein Winter.",
@@ -10111,7 +10241,12 @@ var BUILTIN_PRESETS = {
       "So z\xE4hlt jemand weiter, leise.",
       "Und im Fr\xFChjahr w\xE4chst wieder etwas, f\xFCr die, die da sind.",
       "Der Tisch bleibt gedeckt, aus Gewohnheit.",
-      "Und niemand spricht beim Essen."
+      "Und niemand spricht beim Essen.",
+      "Und die Waage steht wieder auf demselben Strich.",
+      "So bleibt ein Rest im Sack, f\xFCr morgen.",
+      "Am Ende geht jemand ohne etwas nach Hause.",
+      "Und der Kessel wird ausgekratzt, bis er blank ist.",
+      "So beginnt der n\xE4chste Tag mit derselben Frage."
     ],
     "verwandlungen": [
       "Brot\u2192Papier",
@@ -10415,7 +10550,10 @@ var BUILTIN_PRESETS = {
       "die Flut legt frei, was lag",
       "der Kapit\xE4n geht nicht von Bord",
       "die Papiere stimmen und das Schiff nicht",
-      "ein Frachtbrief taucht doppelt auf"
+      "ein Frachtbrief taucht doppelt auf",
+      "die Ladung ist da, und das Papier geh\xF6rt zu einer anderen",
+      "der Kapit\xE4n meldet sich krank, bevor der Zoll kommt",
+      "die F\xE4hre nimmt einen Passagier mehr, als sie darf"
     ],
     "obstacles": [
       "die Papiere fehlen",
@@ -10433,7 +10571,10 @@ var BUILTIN_PRESETS = {
       "der Zollbeamte kennt den Stempel nicht",
       "die Leine ist zu kurz",
       "das Log fehlt f\xFCr drei Tage",
-      "am Kai gibt es keinen Strom"
+      "am Kai gibt es keinen Strom",
+      "der Kran f\xE4llt aus, und die Tide l\xE4uft weiter ab",
+      "die Papiere sind in einer Sprache, die hier niemand liest",
+      "der Liegeplatz wird gebraucht, bevor die Ladung gel\xF6scht ist"
     ],
     "stakes": [
       "Der Einsatz ist eine \xDCberfahrt, f\xFCr die das Geld reicht.",
@@ -10461,7 +10602,10 @@ var BUILTIN_PRESETS = {
       "Und im Schuppen bleibt das Licht an.",
       "Damit ist die Ladung \xFCbergeben.",
       "Und die F\xE4hre legt ohne sie ab.",
-      "So bleibt nur das Wasser, das gegen die Steine schl\xE4gt."
+      "So bleibt nur das Wasser, das gegen die Steine schl\xE4gt.",
+      "Und der Frachtbrief wandert in einen anderen Ordner.",
+      "So bleibt die Kiste stehen, bis jemand sie holt.",
+      "Am Ende l\xE4uft die Tide ab, mit uns oder ohne uns."
     ]
   },
   "alltag": {
@@ -10552,7 +10696,10 @@ var BUILTIN_PRESETS = {
       "die Wohnung nebenan wird gestrichen",
       "der Regen h\xF6rt zur falschen Zeit auf",
       "das Fahrrad steht wieder da",
-      "die T\xFCr f\xE4llt zu und der Schl\xFCssel liegt drinnen"
+      "die T\xFCr f\xE4llt zu und der Schl\xFCssel liegt drinnen",
+      "der Handwerker kommt, und es war nur eine Sicherung",
+      "die Nachbarin klingelt und bleibt eine Stunde",
+      "der freie Tag geht mit lauter kleinen Wegen hin"
     ],
     "obstacles": [
       "der Tag hat zu wenig Stunden",
@@ -10570,7 +10717,9 @@ var BUILTIN_PRESETS = {
       "es fehlt Kleingeld",
       "der Termin liegt in der Arbeitszeit",
       "die Post kommt heute sp\xE4ter",
-      "niemand hat den Schl\xFCssel"
+      "niemand hat den Schl\xFCssel",
+      "der Automat nimmt die Karte und gibt sie nicht zur\xFCck",
+      "die \xD6ffnungszeit hat sich ge\xE4ndert und steht nirgends"
     ],
     "stakes": [
       "Der Einsatz ist ein freier Nachmittag, der erste seit Wochen.",
@@ -10598,7 +10747,9 @@ var BUILTIN_PRESETS = {
       "Der Aufzug f\xE4hrt weiter, ohne jemanden.",
       "Und morgen ist der M\xFCll dran.",
       "So geht das Licht im Flur von selbst aus.",
-      "Und die W\xE4sche h\xE4ngt noch immer."
+      "Und die W\xE4sche h\xE4ngt noch immer.",
+      "Und im Flur riecht es nach dem Essen von nebenan.",
+      "So bleibt der Einkaufszettel f\xFCr morgen liegen."
     ]
   },
   "goethe": {

@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.280.0**, Zweig `typescript-migration`.
+Stand: **v4.281.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,45 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Die zwoelf Nachzuegler (4.281.0): **Stand 35 von 51.** Alle zwölf, die nach dem
+neuen Maß zurückgefallen waren, stehen jetzt bei rund 850 Wörtern — ausgebaut
+ausschließlich über die Satz-Kategorien.
+
+| Preset | Wörter | Bericht 450 | Punkte je 100 Wörter |
+|---|---|---|---|
+| bureau | 749 → 847 | 79,3 → 97,0 % | **18,1** |
+| astrologie | 722 → 855 | 78,4 → 99,7 % | **16,0** |
+| freud | 695 → 848 | 80,1 → 96,9 % | **11,0** |
+| biologie | 710 → 856 | 83,2 → 99,0 % | **10,8** |
+| geologie | 688 → 851 | 91,9 → 96,6 % | 2,9 |
+| haute_couture | 739 → 853 | 95,1 → 98,4 % | 2,9 |
+| kafka | 791 → 853 | 94,2 → 95,9 % | 2,7 |
+| mystery | 737 → 852 | 96,2 → 98,6 % | 2,1 |
+| hafen | 770 → 856 | 95,5 → 97,2 % | 2,0 |
+| hunger | 712 → 843 | 95,5 → 97,9 % | 1,8 |
+| jugendsprache | 765 → 853 | 93,7 → 95,1 % | 1,6 |
+| alltag | 794 → 854 | 94,6 → 95,3 % | 1,2 |
+
+**Und daraus die dritte Verfeinerung der Regel: Der Ertrag sättigt.** Unterhalb
+von 85 Prozent bringen hundert zusätzliche Wörter 11 bis 18 Punkte, oberhalb von
+91 Prozent nur noch 1 bis 3. Der Bericht kann seine Vorgabe nicht wesentlich
+überschreiten, also läuft die Kurve gegen rund 97 Prozent.
+
+Damit ist die Zahl 850 nicht nur ein Ziel, sondern auch eine **Grenze**: Was
+darüber hinaus geschrieben wird, zahlt sich in der Länge nicht mehr aus. Es
+zahlt sich nur noch in Abwechslung aus — das ist ein Grund, aber ein anderer,
+und er gehört getrennt begründet. Steht so im Auftrag an die KI, in der Hilfe
+und im Prüfstand.
+
+Die Reihenfolge der Sitzung war damit rückblickend die richtige: Erst 120
+Einträge (falsch), dann 850 Wörter (richtig, aber unvollständig), dann Wörter in
+Satz-Kategorien (1,6-mal so viel wert), dann die Form der Motive (sonst bricht
+der Zusammenbau ab), und jetzt die Sättigung. Jede Stufe hat die vorige nicht
+umgeworfen, sondern eingegrenzt.
+
+**Noch 16 Presets** — und das sind jetzt wirklich nur noch die, die nie ausgebaut
+wurden.
 
 Sechster Stapel (4.280.0): **6 weitere Presets — und der Zähler wurde ehrlich
 gemacht.**
