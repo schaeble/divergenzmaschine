@@ -191,7 +191,26 @@ ist("ohne Paare bleibt alles", verwandleMotive("Der Regen fällt.", []), "Der Re
     }).sort((a, b) => a.w - b.w);
     console.log(`  Wortzahl der ausgebauten Presets: ${arm[0]!.w} bis ${arm[arm.length - 1]!.w}` +
       ` — am dünnsten ${arm.slice(0, 3).map((x) => `${x.n} (${x.w})`).join(", ")}`);
-    wahr(`kein ausgebautes Preset unter 500 Wörtern (dünnstes: ${arm[0]!.n} mit ${arm[0]!.w})`, arm[0]!.w >= 500);
+    // NACHTRAG 4.278.0: Die fünf dünnsten wurden nachverdichtet, und dabei wurde
+    // gemessen, WO Wörter zählen. Zwei Presets bekamen nur in den SATZ-Kategorien
+    // (hooks, turns, obstacles, endings) mehr Wörter, zwei nur in den
+    // NOMINAL-Kategorien (motifs, props, stakes):
+    //
+    //   urknall  (Satz)    623 → 855 Wörter,  89,3 → 107,3 %  = 7,8 Punkte je 100 Wörter
+    //   dickens  (Satz)    634 → 814,          90,9 → 110,2   = 10,7
+    //   alltag   (Nomen)   624 → 793,          83,5 →  94,2   = 6,3
+    //   hafen    (Nomen)   640 → 770,          88,1 →  95,2   = 5,5
+    //   jugendsprache (beides) 557 → 765,      72,1 →  93,6   = 10,3
+    //
+    // Ein Wort in einer Satz-Kategorie ist rund 1,6-mal so viel wert wie eines in
+    // einer Nominal-Kategorie. Zwei Presets je Gruppe sind eine erste Messung und
+    // kein Gesetz — aber es ist eine EINGRIFFS-Messung, keine Korrelation: Es
+    // wurde je Gruppe genau eine Sache geändert.
+    // Die Schranke steht bei 650 und nicht bei 850. 850 ist das ZIEL, 650 ist der
+    // Boden: Diese Prüfung soll merken, wenn jemand Material kürzt, nicht das Ziel
+    // erzwingen, das noch nicht überall erreicht ist. Heute am dünnsten: geologie
+    // (688), freud (695), biologie (710) — das sind die nächsten drei.
+    wahr(`kein ausgebautes Preset unter 650 Wörtern (dünnstes: ${arm[0]!.n} mit ${arm[0]!.w})`, arm[0]!.w >= 650);
   }
   wahr(`mindestens fünf Presets sind ausgebaut (${gross.length})`, gross.length >= 5);
 

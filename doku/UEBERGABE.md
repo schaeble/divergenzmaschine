@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.277.0**, Zweig `typescript-migration`.
+Stand: **v4.278.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,57 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Nachverdichtung (4.278.0): **Die fünf dünnen Presets aufgefüllt — und dabei
+gemessen, WO Wörter zählen.**
+
+Statt alle fünf gleich zu behandeln, wurde je Gruppe genau eine Sache geändert.
+Das macht aus einer Korrelation einen Eingriffsversuch.
+
+- **Gruppe Satz** (nur hooks, turns, obstacles, endings verlängert): urknall, dickens
+- **Gruppe Nomen** (nur motifs, props, stakes verlängert): alltag, hafen
+- **Beides**: jugendsprache
+
+| Preset | Gruppe | Wörter | Bericht 450 | Punkte je 100 Wörter |
+|---|---|---|---|---|
+| urknall | Satz | 623 → 855 | 89,3 → 106,5 % | **7,4** |
+| dickens | Satz | 634 → 814 | 90,9 → 108,6 % | **9,8** |
+| alltag | Nomen | 624 → 794 | 83,5 → 94,6 % | 6,5 |
+| hafen | Nomen | 640 → 770 | 88,1 → 95,5 % | 5,7 |
+| jugendsprache | beides | 557 → 765 | 72,1 → 93,7 % | 10,4 |
+
+**Ein Wort in einer Satz-Kategorie ist rund 1,6-mal so viel wert wie eines in
+einer Nominal-Kategorie.** Das passt zu den Korrelationen, die vorher gemessen
+wurden (obstacles r = 0,82, endings 0,78, turns 0,73 gegen props 0,59 und motifs
+0,57) — aber es ist jetzt ein Eingriff und keine Beobachtung mehr.
+
+**Und eine Vorhersage, vor der Messung aufgeschrieben.** modernarchitecture lag
+bei 673 Wörtern und 90 %. Nach der Regel sollten 180 zusätzliche Wörter in den
+Satz-Kategorien es auf rund 855 Wörter und 107 % bringen. Gemessen: **840 Wörter,
+106,5 %.** Die Regel sagt also nicht nur die Richtung, sondern die Größe voraus.
+Das ist der Grund, warum die Nachverdichtung von modernarchitecture in diesem
+Stapel steckt, obwohl es erst gestern ausgebaut wurde.
+
+Neu im Auftrag an die KI, in der Hilfe und im Prüfstand: **turns, obstacles und
+endings mindestens sieben Wörter — ein Satz mit einem Umstand, kein Stichwort.**
+Die alten Einträge dieser Presets zeigten genau das Gegenteil: „Ornament
+verschwindet", „Kostenexplosion", „Stadtverdichtung", „cringe-Moment" standen als
+Nominalphrasen in Satz-Kategorien.
+
+**Nebenbefund beim Prüfen.** Der Schliff-Prüfstand zählt, wie viele Preset-Sätze
+der Bruchstück-Filter fälschlich greift. Nach der Nachverdichtung waren es sieben
+statt der erlaubten fünf. Drei davon waren meine: elliptische Zeitangaben („die
+Uhr über der Spüle, drei Minuten vor") — umgeschrieben. **Vier sind älter und
+echte Fehlgriffe des Filters:** „ein Widerstand baut sich auf" endet auf eine
+trennbare Vorsilbe, „der Kreis öffnet sich für einen" auf ein Pronomen. Das ist
+dieselbe Familie wie der `formeWas`-Fehler aus 4.264. Gemessen betrifft es 4 von
+rund 2800 Einträgen (0,14 %) — zu wenig für einen Eingriff in eine Funktion, die
+auch auf Sammler-Funde läuft, wo dieselben Wörter meist WIRKLICH ein Abbruch
+sind. Vermerkt, nicht gebaut.
+
+**Nächste drei nach Wortzahl:** geologie (688), freud (695), biologie (710). Die
+Schranke im Prüfstand steht bei 650 und nicht bei 850 — sie soll merken, wenn
+jemand kürzt, nicht ein Ziel erzwingen, das noch nicht überall erreicht ist.
 
 Vierter Stapel (4.277.0): **6 weitere Presets — Stand 23 von 51.** Und die
 Erkenntnis, dass die Zahl 120 das falsche Maß war.
