@@ -23,6 +23,9 @@ import { STRUKTUR_PHASEN, phasenFolge } from "../src/atoms/assemble";
 import { getTrace } from "../src/atoms/trace";
 import { phraseRepeatRatio } from "../src/generation/coherence";
 import { BUILTIN_PRESETS } from "../src/presets.data";
+import { BUILTIN_DRAMA } from "../src/presets.drama.data";
+import { setDramaData } from "../src/generation/dramaturgie";
+import { coherencePass } from "../src/generation/postprocess";
 import type { Bank, GenInput } from "../src/types";
 
 const fails: string[] = [];
@@ -162,6 +165,61 @@ for (const s of FUENF) {
     const t = buildStory(leer, eingabe(s));
     wahr(`${s} liefert auch bei leerer Wortbank Text`, t.trim().length > 30);
   }
+}
+
+
+// ── 6 · Die Dramaturgie muss ihren Bogen behalten ─────────────────────────
+// Sie ist die einzige Struktur, die noch über die Schablonen baut, und die
+// einzige, die aus dem ERZÄHLBOGEN des Presets schöpft statt aus den sieben
+// Bank-Kategorien. Ihr Versprechen: Einstieg, Mitte und Höhepunkt stehen im
+// Text.
+//
+// Gemessen hat sie es nicht gehalten: Der Höhepunkt fehlte in 41 von 120
+// Texten (34 %). Ursache war die Regel in `coherencePass`, die späte Sätze
+// ohne Motivbezug wegwirft — der Höhepunkt steht am Ende, und sein Wortlaut
+// teilt oft kein Wort mit dem übrigen Text. Genau das Merkmal, an dem die Regel
+// ein verirrtes Atom erkennt.
+{
+  const norm = (x: string): string[] => x.toLowerCase().match(/[a-zäöüß]{4,}/g) || [];
+  const steht = (t: string, arr: string[]): boolean => {
+    const tw = norm(t).join(" ");
+    return arr.some((x) => {
+      const w = norm(x);
+      if (w.length < 3) return w.length > 0 && w.every((y) => tw.includes(y));
+      for (let j = 0; j + 3 <= w.length; j++) if (tw.includes(w.slice(j, j + 3).join(" "))) return true;
+      return false;
+    });
+  };
+  let n = 0, ohneEinstieg = 0, ohneMitte = 0, ohneHoehepunkt = 0;
+  for (const id of ids) {
+    const D = BUILTIN_DRAMA[id];
+    if (!D) continue;
+    setDramaData(D);
+    for (let i = 0; i < 3; i++) {
+      const t = buildStory(BUILTIN_PRESETS[id] as Bank, eingabe("dramaturgie"));
+      n++;
+      if (D.einstieg.length && !steht(t, D.einstieg)) ohneEinstieg++;
+      if (D.mitte.length && !steht(t, D.mitte)) ohneMitte++;
+      if (D.hoehepunkt.length && !steht(t, D.hoehepunkt)) ohneHoehepunkt++;
+    }
+  }
+  setDramaData(null);
+  wahr(`alle Presets mit Bogen wurden geprüft (${n})`, n >= 140);
+  wahr(`der Einstieg steht im Text (${ohneEinstieg} Ausfälle von ${n})`, ohneEinstieg <= n * 0.03);
+  wahr(`die Mitte auch (${ohneMitte} von ${n})`, ohneMitte <= n * 0.03);
+  wahr(`und der Höhepunkt (${ohneHoehepunkt} von ${n})`, ohneHoehepunkt <= n * 0.03);
+}
+
+// ── 7 · Die Regel darf dabei nicht stumpf werden ──────────────────────────
+// Sie soll weiterhin wegwerfen, was am Ende ohne Bezug dasteht — sonst ist der
+// Schutz des Bogens mit dem Verlust der Reinigung bezahlt.
+{
+  setDramaData(null);
+  const text = "Die Archivarin sucht eine Akte. Die Akte liegt im Archiv. Die Archivarin blättert. "
+    + "Ein Zeppelin verliert seine Schrauben über Feuerland.";
+  const raus = coherencePass(text, { who: "die Archivarin", where: "im Archiv", what: "sucht eine Akte", form: "prose" } as unknown as GenInput);
+  wahr("ein verirrter Satz am Ende fliegt weiter raus", !raus.includes("Zeppelin"));
+  wahr("und der verbundene Text bleibt stehen", raus.includes("Die Akte liegt im Archiv"));
 }
 
 console.log(`Prüfstand Struktur — ${geprueft} Prüfungen, ${bestanden} bestanden`);

@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.269.0**, Zweig `typescript-migration`.
+Stand: **v4.270.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,41 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Behoben (4.270.0): **Die Dramaturgie verlor ihren Höhepunkt.**
+
+Sie ist die einzige Struktur, die noch über die Schablonen baut, und die
+einzige, die aus dem ERZÄHLBOGEN des Presets schöpft statt aus den sieben
+Bank-Kategorien. Ihr Versprechen ist der vollständige Bogen — und sie hielt es
+nicht: Der Höhepunkt fehlte in **41 von 120 Texten (34 %)**.
+
+Ursache war `coherencePass`. Die Regel wirft im letzten Absatz ab der Mitte
+jeden Satz weg, dessen Inhaltswörter nichts mit dem Motivgeflecht teilen. Der
+Höhepunkt steht am Ende, und sein Wortlaut („die Akte trägt den eigenen Namen")
+teilt oft kein Wort mit dem übrigen Text — genau das Merkmal, an dem die Regel
+ein verirrtes Atom erkennt. Bisektiert: Mit ausgeschalteter Regel 0 von 120, mit
+ihr 41.
+
+Behoben an der Wurzel: **Der Erzählbogen gehört zum Motivgeflecht — er IST es.**
+Alle Wörter der acht Bogen-Felder gehen jetzt in die Motivmenge. Damit gilt kein
+Wortlaut des Bogens mehr als unverbunden, und die Regel bleibt für alles andere
+scharf.
+
+Gemessen über ALLE 51 Presets mit Bogen, je drei Läufe, drei Ziellängen:
+Einstieg 0 Ausfälle, Mitte 0, Höhepunkt 1–3 von 204 (unter 1,5 %).
+
+**Falle beim Messen:** Der erste Matcher verlangte drei aufeinanderfolgende
+Inhaltswörter und meldete deshalb jeden kurzen Bogen-Eintrag als fehlend — 11
+von 204 „Ausfällen" waren meine Messung, nicht das Programm. Kurze Einträge
+brauchen eine eigene Regel (alle Wörter müssen vorkommen).
+
+**Zweiter Befund, nicht behoben:** `enforceWordTarget` kürzt einen zu langen
+Text VOM ENDE her. Bei einer Ziellänge unter der Rohlänge fällt damit der
+Schluss des Bogens weg. In der Messung trat das nicht auf (die
+Dramaturgie-Texte liegen bei 190–199 Wörtern), bei kleinen Zielen ist es aber
+angelegt.
+
+Prüfstand Struktur 34 → 40, zwei Gegenproben.
 
 Gefragt und umgebaut (4.269.0): **„Wie unterscheiden sich Linear bis Objekt von
 der Rekombination — und können sie dem Sinn nach genauso gebaut werden?"**

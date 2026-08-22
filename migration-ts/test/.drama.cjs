@@ -1,5 +1,3 @@
-"use strict";
-
 // src/modes.data.ts
 var MODE_DATA = {
   "bureau": {
@@ -1854,6 +1852,29 @@ function isPastTense(s) {
   if (PRAET_WEAK.test(t) && weakLooksVerbal(t) && !ADJ_CONTEXT.test(t)) return true;
   return (t.toLowerCase().match(/[a-zäöüß]+/g) || []).some((w) => !!PAST2PRES[w]);
 }
+function tenseBreakRatio(text) {
+  const sents = splitSentences(text).filter((s) => s.trim().length > 3);
+  if (sents.length < 3) return 0;
+  let past = 0, pres = 0;
+  const tags = sents.map((s) => {
+    const isPast = PRAET_STRONG.test(s) || PRAET_WEAK.test(s);
+    const isPres = PRAES_MARK.test(s);
+    if (isPast && !isPres) {
+      past++;
+      return "past";
+    }
+    if (isPres && !isPast) {
+      pres++;
+      return "pres";
+    }
+    return null;
+  });
+  const decided = past + pres;
+  if (decided < 3) return 0;
+  const major = past >= pres ? "past" : "pres";
+  const off = tags.filter((t) => t && t !== major).length;
+  return off / decided;
+}
 var tokens = (t) => t.toLowerCase().match(/[a-zäöüß]{2,}/g) || [];
 function ngrams(t, n) {
   const w = tokens(t);
@@ -2104,6 +2125,20 @@ function isSecondPerson(s) {
 }
 function isFirstPerson(s) {
   return ICH_FORM.test(s || "");
+}
+function perspectiveBreakRatio(text, perspective) {
+  if (!perspective || perspective === "auto") return 0;
+  const sents = splitSentences(text).filter((x) => x.trim().length > 3);
+  if (sents.length < 3) return 0;
+  let off = 0;
+  for (const s of sents) {
+    if (perspective !== "second" && DU_FORM.test(s)) {
+      off++;
+      continue;
+    }
+    if (perspective !== "first" && perspective !== "we" && ICH_FORM.test(s)) off++;
+  }
+  return off / sents.length;
 }
 
 // src/atoms/derive.ts
@@ -4353,50 +4388,6 @@ function hatFinitesVerbLeicht(satz) {
   return (satz.match(/[a-zäöüß]{3,}/g) || []).some((w) => !!VERB_CONJ[w] || /^(ist|sind|war|waren|hat|haben|wird|werden|kann|muss|will|bleibt|steht|geht|kommt)$/.test(w));
 }
 
-// src/generation/dramaturgie.ts
-var DKEY = "dm_dramaturgie_v1";
-function setDramaData(d) {
-  try {
-    if (d) localStorage.setItem(DKEY, JSON.stringify(d));
-    else localStorage.removeItem(DKEY);
-  } catch {
-  }
-}
-function loadDramaData() {
-  try {
-    const r = localStorage.getItem(DKEY);
-    return r ? JSON.parse(r) : null;
-  } catch {
-    return null;
-  }
-}
-function hasDramaData() {
-  const d = loadDramaData();
-  return !!(d && (d.einstieg.length || d.mitte.length || d.hoehepunkt.length || d.veraenderungen.length));
-}
-var some = (a) => Array.isArray(a) && a.length > 0;
-function buildDramaturgie(kit) {
-  const d = loadDramaData();
-  const M = kit.mode;
-  const beats = [];
-  beats.push(d && some(d.einstieg) ? `${cap(kit.T)} ${kit.W}. ${cap(pick(d.einstieg))}.` : `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.`);
-  beats.push(cap(ensurePunct(kit.hook)));
-  beats.push(d && some(d.regeln) && chance(0.7) ? cap(ensurePunct(pick(d.regeln))) : ensurePunct(pick(M.rules)));
-  if (d && some(d.mitte)) {
-    beats.push(`${cap(pick(d.mitte))}.`);
-    if (d.mitte.length > 1 && chance(0.6)) beats.push(`${cap(pick(d.mitte))}.`);
-  }
-  const konf = d && some(d.konflikte) ? pick(d.konflikte) : "";
-  beats.push(konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`);
-  if (d && some(d.ausloeser)) beats.push(`Dann, unvermittelt: ${cap(pick(d.ausloeser))}.`);
-  beats.push(frameTurn(d && some(d.veraenderungen) ? pick(d.veraenderungen) : kit.turn));
-  if (d && some(d.zeitanomalien) && chance(0.4)) beats.push(cap(ensurePunct(pick(d.zeitanomalien))));
-  if (d && some(d.hoehepunkt)) beats.push(`Und dann: ${cap(pick(d.hoehepunkt))}.`);
-  beats.push(reframeStake(kit.stake));
-  beats.push(ensurePunct(kit.ending));
-  return joinBeats(beats, kit.P);
-}
-
 // src/generation/postprocess.ts
 var LINE_FORMS = /* @__PURE__ */ new Set(["script", "video", "strang", "reim", "haiku", "poem"]);
 var isLineForm = (input) => !!input && !!input.form && LINE_FORMS.has(input.form);
@@ -4433,21 +4424,6 @@ function coherencePass(text, input) {
     });
     const motif = new Set(Object.keys(freq).filter((w) => freq[w] >= 2));
     [input?.who, input?.where, input?.what].forEach((s) => coherenceWords(s || "").forEach((w) => motif.add(w)));
-    const bogen = loadDramaData();
-    if (bogen) {
-      for (const feld of [
-        bogen.einstieg,
-        bogen.mitte,
-        bogen.hoehepunkt,
-        bogen.ausloeser,
-        bogen.veraenderungen,
-        bogen.konflikte,
-        bogen.zeitanomalien,
-        bogen.regeln
-      ]) {
-        for (const satz of feld || []) coherenceWords(satz).forEach((w) => motif.add(w));
-      }
-    }
     const allowBreaks = input?.disruptor === "on";
     const maxRemove = Math.max(1, Math.floor(splitSentences(t).length * 0.25));
     let removed = 0;
@@ -5262,6 +5238,50 @@ var VIDEO_TEX = [
   "condensation on glass",
   "ice crystals"
 ];
+
+// src/generation/dramaturgie.ts
+var DKEY = "dm_dramaturgie_v1";
+function setDramaData(d) {
+  try {
+    if (d) localStorage.setItem(DKEY, JSON.stringify(d));
+    else localStorage.removeItem(DKEY);
+  } catch {
+  }
+}
+function loadDramaData() {
+  try {
+    const r = localStorage.getItem(DKEY);
+    return r ? JSON.parse(r) : null;
+  } catch {
+    return null;
+  }
+}
+function hasDramaData() {
+  const d = loadDramaData();
+  return !!(d && (d.einstieg.length || d.mitte.length || d.hoehepunkt.length || d.veraenderungen.length));
+}
+var some = (a) => Array.isArray(a) && a.length > 0;
+function buildDramaturgie(kit) {
+  const d = loadDramaData();
+  const M = kit.mode;
+  const beats = [];
+  beats.push(d && some(d.einstieg) ? `${cap(kit.T)} ${kit.W}. ${cap(pick(d.einstieg))}.` : `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.`);
+  beats.push(cap(ensurePunct(kit.hook)));
+  beats.push(d && some(d.regeln) && chance(0.7) ? cap(ensurePunct(pick(d.regeln))) : ensurePunct(pick(M.rules)));
+  if (d && some(d.mitte)) {
+    beats.push(`${cap(pick(d.mitte))}.`);
+    if (d.mitte.length > 1 && chance(0.6)) beats.push(`${cap(pick(d.mitte))}.`);
+  }
+  const konf = d && some(d.konflikte) ? pick(d.konflikte) : "";
+  beats.push(konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`);
+  if (d && some(d.ausloeser)) beats.push(`Dann, unvermittelt: ${cap(pick(d.ausloeser))}.`);
+  beats.push(frameTurn(d && some(d.veraenderungen) ? pick(d.veraenderungen) : kit.turn));
+  if (d && some(d.zeitanomalien) && chance(0.4)) beats.push(cap(ensurePunct(pick(d.zeitanomalien))));
+  if (d && some(d.hoehepunkt)) beats.push(`Und dann: ${cap(pick(d.hoehepunkt))}.`);
+  beats.push(reframeStake(kit.stake));
+  beats.push(ensurePunct(kit.ending));
+  return joinBeats(beats, kit.P);
+}
 
 // src/presets.data.ts
 var BUILTIN_PRESETS = {
@@ -8557,8 +8577,8 @@ function verbAnsEnde(satz) {
   const verb = w[vi];
   return [...w.slice(0, vi), ...w.slice(vi + 1), verb].join(" ");
 }
-function normalizePlace(W) {
-  const w = clean(W);
+function normalizePlace(W2) {
+  const w = clean(W2);
   if (!w) return "an einem Ort";
   if (/^(im|am|in|auf|bei|unter|über|vor|hinter)\b/i.test(w)) return w;
   return "an einem " + w;
@@ -9620,9 +9640,6 @@ function resetTrace() {
 }
 function pushTrace(s) {
   spur.push(s);
-}
-function getTrace() {
-  return spur.slice();
 }
 var nachText2 = /* @__PURE__ */ new Map();
 var schluessel2 = (t) => t.toLowerCase().replace(/[^a-zäöüß]/g, "").slice(0, 400);
@@ -11549,15 +11566,15 @@ var darfEnden = (w) => !KEIN_ENDE.test(w.replace(/[^A-Za-zÄÖÜäöüß]/g, "")
 var FUELL_VORN = ["Nun", "Still", "Kaum", "Hier", "Dann", "Schon", "Noch"];
 var STREICHBAR = /^(und|noch|schon|nur|auch|doch|dann|hier|so|sehr|ganz|mal|der|die|das|den|dem|des|ein|im|am|zu|in|an|auf|bei|mit|von|für)$/i;
 function passeSilben(line, ziel, syllOf) {
-  const ist2 = syllOf(line);
-  if (ist2 === ziel) return line;
-  if (ist2 === ziel - 1) {
+  const ist = syllOf(line);
+  if (ist === ziel) return line;
+  if (ist === ziel - 1) {
     for (const f of FUELL_VORN) {
       const neu = f + " " + line.charAt(0).toLowerCase() + line.slice(1);
       if (syllOf(neu) === ziel) return neu;
     }
   }
-  if (ist2 === ziel + 1) {
+  if (ist === ziel + 1) {
     const w = line.split(/\s+/);
     for (let i = 0; i < w.length; i++) {
       if (!STREICHBAR.test(w[i])) continue;
@@ -12000,7 +12017,7 @@ function buildKit(bank, input, model) {
     const tr = toneRhythm(input.tone);
     if (tr && RHYTHMS.includes(tr) && chance(0.7)) rhythm = tr;
   }
-  const W = normWhere(clean(input.where)) || "an einem Ort";
+  const W2 = normWhere(clean(input.where)) || "an einem Ort";
   const T = normWhen(clean(input.when)) || "zu einer Zeit";
   const PRaw = normWho(clean(input.who)) || "Jemand";
   const speakers = splitSpeakers(PRaw);
@@ -12035,7 +12052,7 @@ function buildKit(bank, input, model) {
   const propAcc = safeCaseForm(prop, declineHookPhrase(prop, "acc"));
   const propDat = safeCaseForm(prop, declineHookPhrase(prop, "dat"));
   return {
-    W,
+    W: W2,
     T,
     P: P2,
     PRaw,
@@ -12688,198 +12705,83 @@ var BUILTIN_DRAMA = {
   )
 };
 
-// test/struktur.ts
-{
-  const g = globalThis;
-  if (typeof g.localStorage === "undefined") {
-    const m = {};
-    g.localStorage = {
-      getItem: (k) => k in m ? m[k] : null,
-      setItem: (k, v) => {
-        m[k] = String(v);
-      },
-      removeItem: (k) => {
-        delete m[k];
-      },
-      clear: () => {
-        for (const k of Object.keys(m)) delete m[k];
-      },
-      key: () => null,
-      length: 0
-    };
-  }
-}
-var fails = [];
-var geprueft = 0;
-var bestanden = 0;
-var ist = (name, wert, soll) => {
-  geprueft++;
-  if (wert === soll) bestanden++;
-  else fails.push(`${name}: \u201E${String(wert)}\u201C \u2014 erwartet \u201E${String(soll)}\u201C`);
-};
-var wahr = (name, b) => ist(name, b, true);
-var FUENF = ["linear", "reverse", "circle", "fragment", "object"];
-for (const s of [...FUENF, "rekombination"]) {
-  wahr(`${s} hat eine Phasenfolge`, (STRUKTUR_PHASEN[s] || []).length === 10);
-}
-ist(
-  "die Rekombination beh\xE4lt 30/30/20/20",
-  STRUKTUR_PHASEN["rekombination"].join(","),
-  "exposition,exposition,exposition,verdichtung,verdichtung,verdichtung,umschlag,umschlag,schluss,schluss"
-);
-ist(
-  "linear ist dasselbe vorw\xE4rts",
-  STRUKTUR_PHASEN["linear"].join(","),
-  STRUKTUR_PHASEN["rekombination"].join(",")
-);
-ist("reverse f\xE4ngt mit dem Schluss an", STRUKTUR_PHASEN["reverse"][0], "schluss");
-ist("und h\xF6rt mit der Exposition auf", STRUKTUR_PHASEN["reverse"].slice(-1)[0], "exposition");
-ist("der Kreis kehrt zur Exposition zur\xFCck", STRUKTUR_PHASEN["circle"].slice(-1)[0], "exposition");
-ist("und f\xE4ngt auch dort an", STRUKTUR_PHASEN["circle"][0], "exposition");
-wahr("das Fragment springt", STRUKTUR_PHASEN["fragment"][0] !== STRUKTUR_PHASEN["fragment"][1]);
-ist("Fortschritt 0 trifft die erste Phase", phasenFolge("reverse", 0), "schluss");
-ist("Fortschritt 1 die letzte", phasenFolge("reverse", 1), "exposition");
-ist("und dar\xFCber hinaus auch", phasenFolge("reverse", 5), "exposition");
-ist("eine unbekannte Struktur erz\xE4hlt linear", phasenFolge("gibtesnicht", 0), "exposition");
+// ../../drama.ts
+var st = {};
+globalThis.localStorage = { getItem: (k) => st[k] ?? null, setItem: (k, v) => {
+  st[k] = String(v);
+}, removeItem: (k) => {
+  delete st[k];
+} };
+globalThis.window = { localStorage: globalThis.localStorage };
 var ids = Object.keys(BUILTIN_PRESETS);
-var eingabe = (struktur) => ({
-  where: "im Archiv",
-  when: "am Morgen",
-  who: "die Archivarin",
-  what: "sucht eine Akte",
-  tone: "nuechtern",
-  form: "prose",
-  lenTarget: 200,
-  tension: "off",
-  cast: "auto",
-  mode: "bureau",
-  structure: struktur,
-  perspective: "third",
-  rhythm: "clean",
-  disruptor: "off",
-  instability: 0,
-  markovMode: "off",
-  varLevel: "mid",
-  archetypeA: "neutral",
-  archetypeB: "neutral"
-});
-var schlussStelle = (struktur, n = 40) => {
-  const pos = [];
-  for (let i = 0; i < n; i++) {
-    buildStory(BUILTIN_PRESETS[ids[i % ids.length]], eingabe(struktur));
-    const tr = getTrace();
-    const k = tr.findIndex((x) => x.kategorie === "endings");
-    if (k >= 0 && tr.length > 1) pos.push(k / (tr.length - 1));
-  }
-  return { mittel: pos.length ? pos.reduce((a, b) => a + b, 0) / pos.length : NaN, gefunden: pos.length };
-};
-{
-  const lin = schlussStelle("linear"), rev = schlussStelle("reverse");
-  wahr(`linear findet ein Schlussbild (${lin.gefunden}/40)`, lin.gefunden >= 25);
-  wahr(`reverse auch (${rev.gefunden}/40)`, rev.gefunden >= 25);
-  wahr(`linear setzt es ans Ende (${(lin.mittel * 100).toFixed(0)} %)`, lin.mittel > 0.9);
-  wahr(`reverse an den Anfang (${(rev.mittel * 100).toFixed(0)} %)`, rev.mittel < 0.3);
-}
-{
-  const stellen = [];
-  for (const s of FUENF) {
-    for (let i = 0; i < 60; i++) {
-      const t = buildStory(BUILTIN_PRESETS[ids[i % ids.length]], eingabe(s));
-      const k = t.indexOf("Der Kreis schlie\xDFt sich");
-      if (k >= 0) stellen.push(k / t.length);
-    }
-  }
-  stellen.sort((a, b) => a - b);
-  const median = stellen.length ? stellen[Math.floor(stellen.length / 2)] : 0;
-  wahr(`der Kennsatz kommt \xFCberhaupt vor (${stellen.length}\xD7)`, stellen.length >= 3);
-  wahr(`er steht im Median ganz hinten (${(median * 100).toFixed(0)} %)`, median > 0.7);
-}
-{
-  const proben = {};
-  for (const s of FUENF) {
-    proben[s] = [];
-    for (let i = 0; i < 12; i++) proben[s].push(buildStory(BUILTIN_PRESETS[ids[i % ids.length]], eingabe(s)));
-  }
-  const worte2 = (t) => new Set(t.toLowerCase().match(/[a-zäöüß]{4,}/g) || []);
-  const jac = (a, b) => {
-    let s = 0;
-    a.forEach((x) => {
-      if (b.has(x)) s++;
+var STRUK = ["linear", "reverse", "circle", "fragment", "object", "rekombination", "dramaturgie"];
+var W = (s) => s.split(/\s+/).filter(Boolean).length;
+var proben = {};
+console.log("\u2500\u2500 Sieben Strukturen, je 120 Texte, alles andere festgehalten \u2500\u2500");
+for (const stk of STRUK) {
+  let rep = 0, tem = 0, per = 0, w = 0, n = 0, saetze = 0;
+  proben[stk] = [];
+  const anf = /* @__PURE__ */ new Set();
+  for (let i = 0; i < 120; i++) {
+    const id = ids[i % ids.length];
+    setDramaData(BUILTIN_DRAMA[id] || null);
+    const t = buildStory(BUILTIN_PRESETS[id], {
+      where: "im Archiv",
+      when: "am Morgen",
+      who: "die Archivarin",
+      what: "sucht eine Akte",
+      tone: "nuechtern",
+      form: "prose",
+      lenTarget: 200,
+      tension: "off",
+      cast: "auto",
+      mode: "bureau",
+      structure: stk,
+      perspective: "third",
+      rhythm: "clean",
+      disruptor: "off",
+      instability: 0,
+      markovMode: "off",
+      varLevel: "mid",
+      archetypeA: "neutral",
+      archetypeB: "neutral"
     });
-    return s / (a.size + b.size - s);
-  };
-  let hoechste = 0, paar = "";
-  for (let x = 0; x < FUENF.length; x++) {
-    for (let y = x + 1; y < FUENF.length; y++) {
-      let sum = 0;
-      for (let i = 0; i < 12; i++) sum += jac(worte2(proben[FUENF[x]][i]), worte2(proben[FUENF[y]][i]));
-      const m = sum / 12;
-      if (m > hoechste) {
-        hoechste = m;
-        paar = `${FUENF[x]}/${FUENF[y]}`;
+    rep += phraseRepeatRatio(t);
+    tem += tenseBreakRatio(t);
+    per += perspectiveBreakRatio(t, "third");
+    w += W(t);
+    n++;
+    if (proben[stk].length < 40) proben[stk].push(t);
+    for (const s of t.split(/(?<=[.!?…])\s+/)) {
+      const k = s.trim().split(/\s+/).slice(0, 3).join(" ").toLowerCase();
+      if (k) {
+        anf.add(k);
+        saetze++;
       }
     }
   }
-  wahr(`keine zwei Strukturen gleichen einander \xFCber 0,55 (h\xF6chste: ${paar} ${hoechste.toFixed(2)})`, hoechste < 0.55);
+  console.log(`  ${stk.padEnd(14)} Phrasenwdh ${(rep / n).toFixed(3)}  Tempusbruch ${(tem / n).toFixed(3)}  Perspektivbruch ${(per / n).toFixed(3)}  W\xF6rter ${Math.round(w / n)}  versch. Satzanf\xE4nge ${Math.round(100 * anf.size / saetze)} %`);
 }
-for (const s of FUENF) {
-  let rep = 0;
-  for (let i = 0; i < 25; i++) rep += phraseRepeatRatio(buildStory(BUILTIN_PRESETS[ids[i % ids.length]], eingabe(s)));
-  const m = rep / 25;
-  wahr(`${s}: Phrasenwiederholung unter 0,02 (${m.toFixed(3)})`, m < 0.02);
-}
-{
-  const leer = { motifs: [], hooks: [], props: [], turns: [], obstacles: [], stakes: [], endings: [] };
-  for (const s of FUENF) {
-    const t = buildStory(leer, eingabe(s));
-    wahr(`${s} liefert auch bei leerer Wortbank Text`, t.trim().length > 30);
-  }
-}
-{
-  const norm = (x) => x.toLowerCase().match(/[a-zäöüß]{4,}/g) || [];
-  const steht = (t, arr) => {
-    const tw = norm(t).join(" ");
-    return arr.some((x) => {
-      const w = norm(x);
-      if (w.length < 3) return w.length > 0 && w.every((y) => tw.includes(y));
-      for (let j = 0; j + 3 <= w.length; j++) if (tw.includes(w.slice(j, j + 3).join(" "))) return true;
-      return false;
-    });
-  };
-  let n = 0, ohneEinstieg = 0, ohneMitte = 0, ohneHoehepunkt = 0;
-  for (const id of ids) {
-    const D2 = BUILTIN_DRAMA[id];
-    if (!D2) continue;
-    setDramaData(D2);
-    for (let i = 0; i < 3; i++) {
-      const t = buildStory(BUILTIN_PRESETS[id], eingabe("dramaturgie"));
-      n++;
-      if (D2.einstieg.length && !steht(t, D2.einstieg)) ohneEinstieg++;
-      if (D2.mitte.length && !steht(t, D2.mitte)) ohneMitte++;
-      if (D2.hoehepunkt.length && !steht(t, D2.hoehepunkt)) ohneHoehepunkt++;
+var worte2 = (t) => new Set(t.toLowerCase().match(/[a-zäöüß]{4,}/g) || []);
+var jac = (a, b) => {
+  let s = 0;
+  a.forEach((x) => {
+    if (b.has(x)) s++;
+  });
+  return s / (a.size + b.size - s);
+};
+console.log("\n\u2500\u2500 \xC4hnlichkeit untereinander \u2500\u2500");
+console.log("                " + STRUK.map((s) => s.slice(0, 6).padStart(8)).join(""));
+for (const a of STRUK) {
+  console.log("  " + a.padEnd(14) + STRUK.map((b) => {
+    let s = 0, c = 0;
+    for (let i = 0; i < 20; i++) {
+      const x = proben[a][i], y = proben[b][i];
+      if (x && y) {
+        s += jac(worte2(x), worte2(y));
+        c++;
+      }
     }
-  }
-  setDramaData(null);
-  wahr(`alle Presets mit Bogen wurden gepr\xFCft (${n})`, n >= 140);
-  wahr(`der Einstieg steht im Text (${ohneEinstieg} Ausf\xE4lle von ${n})`, ohneEinstieg <= n * 0.03);
-  wahr(`die Mitte auch (${ohneMitte} von ${n})`, ohneMitte <= n * 0.03);
-  wahr(`und der H\xF6hepunkt (${ohneHoehepunkt} von ${n})`, ohneHoehepunkt <= n * 0.03);
-}
-{
-  setDramaData(null);
-  const text = "Die Archivarin sucht eine Akte. Die Akte liegt im Archiv. Die Archivarin bl\xE4ttert. Ein Zeppelin verliert seine Schrauben \xFCber Feuerland.";
-  const raus = coherencePass(text, { who: "die Archivarin", where: "im Archiv", what: "sucht eine Akte", form: "prose" });
-  wahr("ein verirrter Satz am Ende fliegt weiter raus", !raus.includes("Zeppelin"));
-  wahr("und der verbundene Text bleibt stehen", raus.includes("Die Akte liegt im Archiv"));
-}
-console.log(`Pr\xFCfstand Struktur \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
-var proc = globalThis;
-if (fails.length) {
-  console.error(`
-\u274C Struktur: ${fails.length} Fehler:`);
-  fails.forEach((f) => console.error("  - " + f));
-  proc.process?.exit(1);
-} else {
-  console.log(`
-\u2705 Struktur: alle ${geprueft} Pr\xFCfungen bestanden.`);
+    return (s / c).toFixed(2).padStart(8);
+  }).join(""));
 }
