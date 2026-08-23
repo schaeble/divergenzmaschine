@@ -164,7 +164,7 @@ export function mountStudio(root: HTMLElement): void {
       : `${woher}: nichts Neues dabei`;
     wikiTitel(); abschriftTitel(); themaTitel();
     updHints(); ctxSichern();
-    rolling = true; ROLL_SELECTS.forEach(rollSel); rolling = false;
+    rollAlle();
     renderPresetChecks();
     generate();
   });
@@ -1087,7 +1087,28 @@ export function mountStudio(root: HTMLElement): void {
   const copyBtn = el("button", {}, icon("copy"), " Kopieren");
   const diceBtn = el("button", {}, icon("dice"), " Würfeln");
   const rollSel = (s: HTMLSelectElement): void => { if (locked.has(s.id)) return; s.selectedIndex = Math.floor(Math.random() * s.options.length); s.dispatchEvent(new Event("change")); };
-  diceBtn.addEventListener("click", () => { rolling = true; ROLL_SELECTS.forEach(rollSel); rolling = false; renderPresetChecks(); generate(); });
+  // Gewürfelt wird, was ein SCHLOSS trägt — nicht, was in einer Liste steht.
+  //
+  // Bis 4.283 stand hier `ROLL_SELECTS`, eine von Hand gepflegte Aufzählung. Die
+  // acht Stellschrauben der Rekombination (k-fuegeteil … k-satzlaenge) kamen
+  // später dazu und wurden nie eingetragen: Sie bekamen ein Schloss, aber der
+  // Würfel fasste sie nie an. Gemessen an der laufenden Oberfläche bewegten sich
+  // bei 25 Klicks 16 von 24 Auswahlfeldern — die acht Stellschrauben blieben in
+  // JEDEM Lauf stehen, bei „Würfeln" wie bei „Alles würfeln".
+  //
+  // Dieselbe Familie wie „zwei Türen, ein Schloss" und die veraltete Reglerliste
+  // im Wirkungsmesser: Eine abgeschriebene Liste veraltet, sobald jemand etwas
+  // hinzufügt. Deshalb wird die Frage umgedreht — nicht „welche Felder gehören
+  // in den Würfel?", sondern „welches Feld trägt ein Schloss?". Ein Schloss gibt
+  // es nur, damit man etwas VOR dem Würfel schützen kann; wo eines steht, wird
+  // also gewürfelt. Neue Regler sind damit automatisch dabei.
+  const wuerfelbar = (): HTMLSelectElement[] =>
+    Array.from(wrap.querySelectorAll("select")).filter((s) => {
+      const feld = s.closest(".field");
+      return !!feld && !!feld.querySelector(".lockbtn");
+    }) as HTMLSelectElement[];
+  const rollAlle = (): void => { rolling = true; wuerfelbar().forEach(rollSel); rolling = false; };
+  diceBtn.addEventListener("click", () => { rollAlle(); renderPresetChecks(); generate(); });
   const keepLbl = el("span", {}, "Merken");
   const keepBtn = el("button", {}, icon("star"), " ", keepLbl);
   keepBtn.addEventListener("click", () => {
@@ -1247,7 +1268,9 @@ export function mountStudio(root: HTMLElement): void {
       sel.classList.toggle("abweichend", knobs[feld] !== KNOB_VORGABE[feld]);
     };
     sel.addEventListener("input", merke);
-    sel.addEventListener("change", () => { merke(); saveKnobs(knobs); generate(); });
+    // `rolling` beachten: Ohne diese Bedingung erzeugte ein Würfelwurf acht
+    // zusätzliche Texte — einen je Stellschraube —, bevor der eigentliche kam.
+    sel.addEventListener("change", () => { merke(); saveKnobs(knobs); if (!rolling) generate(); });
     merke();
     // Erklaerung als Mouseover statt als Fliesstext: Sechs Beschreibungen
     // untereinander kosteten mehr Hoehe als die Regler selbst.

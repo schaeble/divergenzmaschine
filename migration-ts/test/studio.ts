@@ -322,6 +322,65 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
   ist("keine Theme-Farbe steht fest in einer Regel", funde.join(" | "), "");
 }
 
+
+// ── Der Würfel fasst alles an, was ein Schloss trägt ──────────────────────
+// Gemeldet: „Alles würfeln — die Stellschrauben für die Rekombination bleiben
+// immer gleich, keine Änderung über drei Läufe." Nachgestellt an der laufenden
+// Oberfläche: Von 24 Auswahlfeldern mit Schloss bewegten sich bei 25 Klicks
+// genau 16. Die acht Stellschrauben (k-fuegeteil, k-w4max, k-abstand, k-bogen,
+// k-ton, k-korpus, k-phrase, k-satzlaenge) blieben in JEDEM Lauf stehen — bei
+// „Würfeln" wie bei „Alles würfeln".
+//
+// Ursache war eine abgeschriebene Liste: `ROLL_SELECTS` wurde von Hand gepflegt,
+// die Stellschrauben kamen später dazu und wurden nie eingetragen. Ihr Schloss
+// war damit Zierrat: Es schützte vor etwas, das nie geschah.
+//
+// Diese Prüfung zählt nicht die Liste nach, sondern misst am gemounteten Studio,
+// dass sich JEDES Auswahlfeld mit Schloss bei genuegend Wuerfen mindestens einmal
+// bewegt. Eine neue Liste wäre derselbe Fehler noch einmal.
+{
+  const Dok = dom.window.document;
+  const wurzel3 = Dok.createElement("div");
+  Dok.body.append(wurzel3);
+  mountStudio(wurzel3);
+  const alleKnopf3 = Array.from(wurzel3.querySelectorAll("button"))
+    .find((b) => /Alles würfeln/.test(b.textContent || "")) as HTMLButtonElement | undefined;
+  const mitSchloss = (): HTMLSelectElement[] =>
+    Array.from(wurzel3.querySelectorAll("select")).filter((sel) => {
+      const feld = sel.closest(".field");
+      return !!feld && !!feld.querySelector(".lockbtn");
+    }) as HTMLSelectElement[];
+  const felder = mitSchloss();
+  wahr(`es gibt Auswahlfelder mit Schloss (${felder.length})`, felder.length >= 20);
+  wahr("die Taste Alles wuerfeln ist da", !!alleKnopf3);
+  if (alleKnopf3 && felder.length) {
+    const start: Record<string, string> = {};
+    for (const sel of felder) start[sel.id] = sel.value;
+    const bewegt = new Set<string>();
+    // 30 Würfe: Ein Feld mit zwei Stellungen bleibt mit 2^-30 zufällig stehen.
+    for (let i = 0; i < 30; i++) {
+      alleKnopf3.click();
+      for (const sel of felder) if (sel.value !== start[sel.id]) bewegt.add(sel.id);
+    }
+    const tot = felder.filter((sel) => !bewegt.has(sel.id)).map((sel) => sel.id);
+    ist("jedes Feld mit Schloss wird auch gewürfelt", tot.join(", "), "");
+
+    // Gegenrichtung: Ein Schloss muss weiterhin halten. Ohne diese Prüfung wäre
+    // „alles würfeln" auch dann grün, wenn der Würfel die Schlösser ignoriert.
+    const korpus = wurzel3.querySelector("#k-korpus") as HTMLSelectElement | null;
+    const feld = korpus ? (korpus.closest(".field") as HTMLElement | null) : null;
+    const schloss = feld ? (feld.querySelector(".lockbtn") as HTMLButtonElement | null) : null;
+    if (korpus && schloss) {
+      const gehalten = korpus.value;
+      schloss.click();
+      let verschoben = 0;
+      for (let i = 0; i < 20; i++) { alleKnopf3.click(); if (korpus.value !== gehalten) verschoben++; }
+      ist("eine gesperrte Stellschraube bleibt stehen", verschoben, 0);
+      schloss.click();
+    }
+  }
+}
+
 console.log(`Prüfstand Studio — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

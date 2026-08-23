@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.283.0**, Zweig `typescript-migration`.
+Stand: **v4.284.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,47 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Der Würfel fasste acht Regler nie an (4.284.0)
+
+**Gemeldet:** „Alles würfeln — die Stellschrauben für die Rekombination bleiben
+immer gleich. Keine Änderung über drei Läufe."
+
+**Nachgestellt an der laufenden Oberfläche** (Studio in jsdom, 25 Klicks): Von
+24 Auswahlfeldern mit Schloss bewegten sich genau **16**. Die acht
+Stellschrauben — `k-fuegeteil`, `k-w4max`, `k-abstand`, `k-bogen`, `k-ton`,
+`k-korpus`, `k-phrase`, `k-satzlaenge` — standen in **jedem** Lauf still, bei
+„Würfeln" wie bei „Alles würfeln".
+
+**Ursache:** `ROLL_SELECTS` war eine von Hand gepflegte Aufzählung. Die
+Stellschrauben kamen mit A.2 später dazu, bekamen ein Schloss und wurden nie
+eingetragen. Damit war ihr Schloss Zierrat — es schützte vor etwas, das nie
+geschah.
+
+**Dieselbe Familie wie zwei ältere Befunde:** „zwei Türen, ein Schloss" beim
+Korpus (4.264) und die abgeschriebene Reglerliste im Wirkungsmesser (4.272, der
+Disruptor wurde mit vier Stellungen gemessen, die es nicht gab). Eine
+abgeschriebene Liste veraltet, sobald jemand etwas hinzufügt.
+
+**Deshalb ist die Frage umgedreht worden.** Nicht mehr „welche Felder gehören in
+den Würfel?", sondern **„welches Feld trägt ein Schloss?"** — der Würfel liest
+zur Klickzeit aus der Oberfläche. Ein Schloss gibt es nur, damit man etwas VOR
+dem Würfel schützen kann; wo eines steht, wird also gewürfelt. Neue Regler sind
+damit von selbst dabei.
+
+Nebenbei behoben: Die Stellschrauben erzeugen beim Würfeln nicht mehr einzeln
+neu. Ohne die `rolling`-Bedingung hätte ein Wurf acht zusätzliche Texte erzeugt,
+bevor der eigentliche kam.
+
+**Gemessen nach dem Umbau:** 24 von 24 Feldern bewegen sich, die Textlänge
+bleibt gesund (Median 111 Wörter über 30 Würfe, kein leerer Text), und ein
+geschlossenes Schloss hält: 0 von 20 Würfen verschoben eine gesperrte
+Stellschraube.
+
+**Prüfstand Studio § neu** zählt keine Liste nach, sondern misst am gemounteten
+Studio, dass sich jedes Auswahlfeld mit Schloss bei 30 Würfen mindestens einmal
+bewegt — eine neue Liste wäre derselbe Fehler noch einmal. Gegenprobe: Mit der
+alten Aufzählung schlägt er an und nennt genau die acht.
 
 Achter Stapel (4.283.0): **Die letzten 8 — Stand 51 von 51.**
 
