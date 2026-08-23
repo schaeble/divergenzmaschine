@@ -22,7 +22,7 @@
 // Ein Maß, das nur für dieses Instrument erfunden wird, misst das Instrument.
 import type { Bank, GenInput } from "../types";
 import { TONE_OPTS, STRUCTURE_OPTS, MODE_OPTS, PERSP_OPTS, RHYTHM_OPTS,
-  VARIANZ_OPTS, DISRUPTOR_OPTS, ARCH_OPTS, MARKOV_OPTS, werte, type Wahlliste } from "../generation/optionen";
+  VARIANZ_OPTS, DISRUPTOR_OPTS, ARCH_OPTS, MARKOV_OPTS, INSTAB_OPTS, werte, type Wahlliste } from "../generation/optionen";
 import { buildStory } from "../generation/buildStory";
 import { analyzeText, repetitionRatio } from "../generation/scoring";
 import { phraseRepeatRatio, tenseBreakRatio, perspectiveBreakRatio, castSpread } from "../generation/coherence";
@@ -212,7 +212,7 @@ export function reglerListe(): ReglerDef[] {
     s("disruptor", "Disruptor", ohneAuto(DISRUPTOR_OPTS), "disruptor"),
     s("archetypeA", "Archetyp A", ohneAuto(ARCH_OPTS), "archetypeA"),
     {
-      id: "instability", label: "Instabilität", werte: ["0", "1", "2"],
+      id: "instability", label: "Instabilität", werte: werte(INSTAB_OPTS),
       setzen: (e, w) => ({ ...e, instability: Number(w) as 0 | 1 | 2 }),
     },
     {

@@ -27,6 +27,7 @@ import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "../generati
 import { el, select, field, textInput, button } from "./dom";
 import {
   TONE_OPTS, FORM_OPTS, STRUCTURE_OPTS, MODE_OPTS, PERSP_OPTS, RHYTHM_OPTS,
+  TENSION_OPTS, CAST_OPTS, INSTAB_OPTS,
   VARIANZ_OPTS, DISRUPTOR_OPTS, MARKOV_OPTS, ARCH_OPTS,
 } from "../generation/optionen";
 import {
@@ -50,6 +51,13 @@ import { liveTexts } from "../features/livepools";
 // Überlebt den Tab-Wechsel: mountStudio läuft bei jeder Rückkehr neu.
 let studioSchonGewuerfelt = false;
 const studioReglerStand: Record<string, string> = {};
+/** Ein Wurf, der ANDERSWO gefallen ist (Schaltplan im Reiter Diagnose), wird
+ *  hier hinterlegt. Ohne das zeigte der Plan Stellungen, die das Studio bei der
+ *  Rückkehr gar nicht hätte — der Plan wäre dann selbst die Rateei, die er
+ *  abschaffen soll. Die Rückkehr in den Reiter liest genau diesen Stand. */
+export function uebernimmWurf(nachId: Record<string, string>): void {
+  for (const [id, wert] of Object.entries(nachId)) studioReglerStand[id] = wert;
+}
 
 export function mountStudio(root: HTMLElement): void {
   root.innerHTML = "";
@@ -468,9 +476,9 @@ export function mountStudio(root: HTMLElement): void {
   const mode = select("f-mode", MODE_OPTS, "auto");
   const persp = select("f-persp", PERSP_OPTS, "auto");
   const rhythm = select("f-rhythm", RHYTHM_OPTS, "auto");
-  const tension = select("f-tension", [["off", "Aus"], ["top", "Oben (12 Uhr)"], ["mid", "Mitte (3 Uhr)"], ["low", "Unten (6 Uhr)"]], "off");
-  const cast = select("f-cast", [["0", "Offen"], ["0.5", "Mittel"], ["1", "Streng"]], "0.5");
-  const instab = select("f-instab", [["0", "Aus"], ["1", "Subtil"], ["2", "Aggressiv"]], "2");
+  const tension = select("f-tension", TENSION_OPTS, "off");
+  const cast = select("f-cast", CAST_OPTS, "0.5");
+  const instab = select("f-instab", INSTAB_OPTS, "2");
   const markov = select("f-markov", MARKOV_OPTS, "off");
   const disruptor = select("f-disruptor", DISRUPTOR_OPTS, "auto");
   // Zeitungsseite - nur fuer die Form "Bericht". "Auto" raet aus Wer/Was/Wo.

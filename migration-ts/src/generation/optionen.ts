@@ -62,3 +62,14 @@ export const werte = (l: Wahlliste): string[] => l.map(([v]) => v);
 
 /** Ist der Wert für diesen Regler überhaupt vorgesehen? */
 export const gueltig = (l: Wahlliste, v: string): boolean => l.some(([x]) => x === v);
+
+// Drei Listen, die bis 4.285 im Studio inmitten des Aufbaus standen und
+// nirgends sonst — der Wirkungsmesser führte für die Instabilität eine eigene
+// Abschrift („0","1","2"), und ein Würfel außerhalb des Studios hätte eine
+// vierte gebraucht. Genau so ist der Disruptor mit vier Stellungen gemessen
+// worden, die es nicht gab. Deshalb stehen sie jetzt hier.
+export const TENSION_OPTS: Wahlliste = [
+  ["off", "Aus"], ["top", "Oben (12 Uhr)"], ["mid", "Mitte (3 Uhr)"], ["low", "Unten (6 Uhr)"],
+];
+export const CAST_OPTS: Wahlliste = [["0", "Offen"], ["0.5", "Mittel"], ["1", "Streng"]];
+export const INSTAB_OPTS: Wahlliste = [["0", "Aus"], ["1", "Subtil"], ["2", "Aggressiv"]];

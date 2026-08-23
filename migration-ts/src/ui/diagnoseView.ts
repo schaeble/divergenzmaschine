@@ -10,6 +10,10 @@ import { renderTextstruktur } from "./structureView";
 import { mountWirkung } from "./wirkungView";
 import { baueAnlage, sammleUmgebung, loadAnlage } from "../features/schaltplan";
 import { renderSchaltplan, befundListe } from "./schaltplanView";
+import { wuerfleAlles } from "../features/wuerfeln";
+import { saveAnlage } from "../features/schaltplan";
+import { loadKnobs, saveKnobs } from "../features/knobs";
+import { uebernimmWurf } from "./studio";
 
 
 export function mountDiagnose(root: HTMLElement): void {
@@ -58,6 +62,27 @@ export function mountDiagnose(root: HTMLElement): void {
   };
   const planBtn = button("Schaltplan aktualisieren");
   planBtn.addEventListener("click", renderPlan);
+  // Würfeln, ohne den Reiter zu wechseln: Der Wurf fällt hier, wird gespeichert
+  // und sofort gezeichnet. Das Studio übernimmt ihn bei der Rückkehr — sonst
+  // zeigte der Plan eine Anlage, die es nirgends gibt.
+  const wuerfelBtn = el("button", {
+    title: "Alle Regler und Stellschrauben neu würfeln — gesperrte bleiben stehen. Der Plan zeichnet sich sofort neu.",
+  }, icon("dice"), " Alles würfeln") as HTMLButtonElement;
+  const wuerfelHint = el("span", { class: "muted mini" });
+  wuerfelBtn.addEventListener("click", () => {
+    const stand = loadAnlage();
+    if (!stand) { wuerfelHint.textContent = "Noch kein Stand — einmal in den Reiter Studio wechseln."; return; }
+    let gesperrt = new Set<string>();
+    try { gesperrt = new Set(JSON.parse(localStorage.getItem("divergenz_studio_locks_v1") || "[]") as string[]); } catch { /* leer */ }
+    const wurf = wuerfleAlles(stand.regler, gesperrt, loadKnobs());
+    saveKnobs(wurf.knobs);
+    saveAnlage({ ...stand, regler: wurf.regler, zeit: new Date().toISOString() });
+    uebernimmWurf(wurf.nachId);
+    wuerfelHint.textContent = gesperrt.size
+      ? `gewürfelt — ${gesperrt.size} ${gesperrt.size === 1 ? "Schloss hält" : "Schlösser halten"}`
+      : "gewürfelt";
+    renderPlan();
+  });
   const legende = el("div", { class: "sp-legende" },
     el("span", {}, el("i", { class: "sp-punkt", style: "border-color:var(--acc2)" }), "verdrahtet"),
     el("span", {}, el("i", { class: "sp-punkt", style: "border-color:var(--danger)" }), "an, aber die Quelle ist leer"),
@@ -82,7 +107,7 @@ export function mountDiagnose(root: HTMLElement): void {
     el("h2", {}, "Diagnose — greifen alle Features?"),
     el("h3", {}, "Schaltplan — was ist gerade verdrahtet?"),
     el("p", { class: "muted" }, "Zeigt die Stellungen zum Zeitpunkt der Anfrage: jeden Regler, die acht Stellschrauben, die vier W samt Vorräten, Korpus, Markov, Welt und die Ausgabe. Der Plan erzeugt dafür keinen Text — er liest ab. Was er zusätzlich kann, ist der Abgleich zwischen Schalter und Quelle: Ein Schalter kann an sein, während seine Quelle leer ist (Markov ohne Korpus, Dramaturgie ohne Bogen, Korpus-Bausteine ohne Korpus). Solche Leitungen stehen rot und gestrichelt."),
-    el("div", { class: "btnrow" }, planBtn),
+    el("div", { class: "btnrow" }, planBtn, wuerfelBtn, wuerfelHint),
     legende,
     planHint,
     planBox,

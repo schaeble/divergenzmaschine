@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.285.0**, Zweig `typescript-migration`.
+Stand: **v4.286.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,49 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Würfeln im Schaltplan (4.286.0)
+
+**Gebeten:** „Neben Schaltplan aktualisieren soll ein zusätzlicher
+Alles-würfeln-Schalter, um die Änderungen direkt sichtbar zu machen, ohne
+Fensterwechsel."
+
+Der Knopf steht jetzt daneben. Ein Druck würfelt alle Regler und alle acht
+Stellschrauben und zeichnet den Plan sofort neu.
+
+**Der Haken, den es zu vermeiden galt.** „Alles würfeln" gab es bisher nur im
+Studio, und dort arbeitet es auf den Auswahlfeldern selbst. Im Reiter Diagnose
+ist kein Studio gemountet. Ein Wurf, der nur den Plan verändert, hätte
+Stellungen gezeigt, die das Studio bei der Rückkehr gar nicht hat — der Plan
+wäre selbst die Rateei geworden, die er abschaffen soll. Deshalb wird der Wurf
+gespeichert UND dem Studio hinterlegt (`uebernimmWurf`), das ihn beim
+Zurückwechseln übernimmt.
+
+**Und der Haken davor: die vierte Abschrift.** Ein Würfel ohne Oberfläche
+braucht die Stellungen der Auswahlfelder. Drei Listen standen bis hierher
+mitten im Aufbau des Studios und nirgends sonst — Spannung, Figurendisziplin,
+Instabilität —, und der Wirkungsmesser führte für die Instabilität bereits eine
+eigene Abschrift (`["0","1","2"]`). Eine vierte Kopie in einem neuen Modul wäre
+genau der Fehler gewesen, an dem der Disruptor 2019 Stellungen gemessen bekam,
+die es nicht gab. **Die drei Listen stehen jetzt in `optionen.ts`**, und Studio,
+Wirkungsmesser und Würfel lesen dieselbe Quelle.
+
+Das Preset wird nicht abgeschrieben, sondern frisch geholt: Seine Liste wächst
+mit eigenen Presets und trägt einen Sondereintrag für die Mischung mehrerer.
+Der Sondereintrag fällt heraus, weil er ohne die zugehörige Auswahl nichts
+bedeutet.
+
+**Prüfstand Schaltplan 32 → 39.** Neu:
+
+- jeder gewürfelte Wert steht in der ECHTEN Liste seines Auswahlfelds (40 Würfe)
+- gesperrte Regler UND gesperrte Stellschrauben bleiben stehen (40 Würfe)
+- jeder offene Regler und jede offene Stellschraube bewegt sich in 60 Würfen
+- der Reiter Diagnose baut sich in jsdom auf, der Knopf steht da, und acht
+  Drücke zeichnen achtmal ein anderes Bild
+
+Gegenproben: Ignoriert der Würfel die Schlösser der Stellschrauben, schlägt die
+zweite Prüfung mit 68 Verschiebungen an; zeichnet der Knopf nicht neu, meldet
+die letzte 0 von 8.
 
 Schaltplan im Reiter Diagnose (4.285.0)
 
