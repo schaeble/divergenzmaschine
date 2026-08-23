@@ -1,8 +1,11 @@
 // Welt-Tab: Omnikognition (Wahrnehmungs-Modus).
 import { el, button, select, textInput } from "./dom";
 import { icon } from "./icons";
-import { OMNI_PRESETS, OMNI_PRESET_LABELS, alleOmniProfile, profileToStudio, buildProfilePrompt, normalizeProfile, loadOmniUserPresets, saveOmniUserPreset, deleteOmniUserPreset, type CognitiveProfile } from "../features/omnikognition";
+import { OMNI_PRESETS, OMNI_PRESET_LABELS, alleOmniProfile, profileToStudio, buildProfilePrompt, normalizeProfile, loadOmniUserPresets, saveOmniUserPreset, deleteOmniUserPreset, saveOmniStand, loadOmniStand, type CognitiveProfile } from "../features/omnikognition";
 import { loadAiKey, callClaude, extractJson } from "../features/ki";
+
+/** Über den Reiterwechsel hinweg gemerkt — siehe die Begründung am Aufbau. */
+let weltSchonGewuerfelt = false;
 
 type Chk = { v: string; box: HTMLInputElement; el: HTMLElement };
 function chkGroup(opts: [string, string][]): Chk[] {
@@ -85,8 +88,27 @@ export function mountWorld(root: HTMLElement): void {
       || "";
     presetSel.value = id;
     updDel();
+    merkeWelt();
   };
-  randomize();
+  // Das eingestellte Wesen wird gemerkt — auf Platte, nicht nur im Modul. Der
+  // Schaltplan unter Diagnose liest dieselbe Ablage, und der läuft ohne diesen
+  // Reiter.
+  const merkeWelt = (): void => { saveOmniStand(readProfile(), presetSel.value); };
+  [presetSel, dim, reach, medium, zeit, aufl, ged, komm, strat, modell]
+    .forEach((c) => c.addEventListener("change", merkeWelt));
+  [...channels, ...fokus, ...ziel].forEach((c) => c.box.addEventListener("change", merkeWelt));
+  nameIn.addEventListener("input", merkeWelt);
+
+  // NUR beim ersten Aufbau je Sitzung würfeln. `mountWorld` läuft bei jedem
+  // Reiterwechsel erneut, und ein Neuwürfeln dort warf jedes eingestellte Wesen
+  // weg: Wer ein Wesen gewählt, ins Studio geschaut und zurückgewechselt hat,
+  // fand ein fremdes vor. Dieselbe Regel gilt im Studio und im Reiter Ideen.
+  if (!weltSchonGewuerfelt) { randomize(); weltSchonGewuerfelt = true; }
+  else {
+    const st = loadOmniStand();
+    if (st) { applyProfile(st.profil); presetSel.value = st.id; updDel(); }
+    else randomize();
+  }
 
   const transferBtn = el("button", { class: "primary" }, icon("play"), " Ins Studio übertragen");
   transferBtn.addEventListener("click", () => {
@@ -103,7 +125,7 @@ export function mountWorld(root: HTMLElement): void {
       try {
         const raw = await callClaude(buildProfilePrompt(nameIn.value.trim() || "ein Wesen"), 800);
         applyProfile(normalizeProfile(extractJson(raw), nameIn.value.trim() || "ein Wesen"));
-        presetSel.value = ""; updDel();
+        presetSel.value = ""; updDel(); merkeWelt();
       } catch (e) { alert("Fehlgeschlagen: " + (e instanceof Error ? e.message : String(e))); }
       finally { profBtn.disabled = false; profLbl.textContent = old || "KI-Profil erzeugen"; }
     })();
@@ -113,7 +135,7 @@ export function mountWorld(root: HTMLElement): void {
   const saveBtn = button("Als Preset speichern");
   saveBtn.addEventListener("click", () => {
     const p = readProfile(); if (!p.name.trim()) { alert("Bitte einen Namen für das Wesen eintragen."); return; }
-    const id = saveOmniUserPreset(p); rebuildPresetSel(); presetSel.value = id; updDel();
+    const id = saveOmniUserPreset(p); rebuildPresetSel(); presetSel.value = id; updDel(); merkeWelt();
   });
   delBtn.addEventListener("click", () => { const v = presetSel.value; if (v.startsWith("user:")) { deleteOmniUserPreset(v); rebuildPresetSel(); presetSel.value = ""; updDel(); } });
 

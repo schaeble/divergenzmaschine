@@ -98,6 +98,8 @@ export interface Umgebung {
   ideenProfil: string;
   /** Wie viele Wahrnehmungsprofile es gibt (eingebaute und eigene). */
   omniProfile: number;
+  /** Name des eingestellten Wesens im Reiter Welt, leer wenn keines steht. */
+  omniProfil: string;
   /** Liegt ein Erzählbogen bereit? Gelesen wird DIESELBE Ablage, aus der der
    *  Bauweg liest (`dm_dramaturgie_v1`), nicht die Tabelle der eingebauten
    *  Presets. Bis 4.286 stand hier `builtinDrama(preset)` — das stimmt für die
@@ -151,13 +153,24 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   // Der Würfel nimmt seit 4.298.0 ein GEWÜRFELTES Profil, nicht das
   // eingestellte. Der Knoten zeigt trotzdem, was eingestellt ist: Danach richtet
   // sich, was „Ideen generieren" und „→ Studio" im Reiter selbst liefern.
-  knoten("ideen", 0, "Ideen", u.ideenProfil ? u.ideenProfil + " · Würfel: zufällig" : "Profil wird gewürfelt", "an",
+  //
+  // Bis 4.300 stand hier fest, was beim ERSTEN Aufbau des Reiters gewürfelt
+  // wurde: Der Knopf „Würfeln" im Reiter schrieb das Ergebnis nicht in die
+  // Ablage, aus der dieser Plan liest. Wer würfelte und dann in die Diagnose
+  // sah, bekam ein Profil gezeigt, das längst nicht mehr eingestellt war.
+  knoten("ideen", 0, "Ideen", (u.ideenProfil || "frei gewürfelt") + " · Würfel: zufällig", "an",
     "Beim Würfeln im Studio wird das Profil mitgewürfelt — das eingestellte gilt im Reiter Ideen selbst");
   // Die Wahrnehmung (Reiter Welt) ist seit 4.299.0 eine eigene Quelle. Sie
   // liefert vier W UND die dazu passenden Stilregler — Perspektive, Rhythmus,
   // Modus, Ton. Die Wortbank nimmt sie bewusst nicht mit.
-  knoten("omni", 0, "Wahrnehmung", `${u.omniProfile} Wesen`, u.omniProfile ? "an" : "aus",
-    "Reiter Welt: Zieht ein Wesen und setzt Wo/Wann/Wer/Was samt Perspektive, Rhythmus, Modus und Ton");
+  //
+  // Der Knoten zeigt das EINGESTELLTE Wesen, nicht die Zahl der vorhandenen.
+  // „8 Wesen" stand fest und sagte nichts darüber, was gerade wirkt; wie viele
+  // es gibt, steht jetzt im Hinweis.
+  knoten("omni", 0, "Wahrnehmung",
+    (u.omniProfil || "kein Wesen eingestellt") + (u.omniProfil ? " · Würfel: zufällig" : ""),
+    u.omniProfil ? "an" : (u.omniProfile ? "leer" : "aus"),
+    `Reiter Welt: Zieht ein Wesen und setzt Wo/Wann/Wer/Was samt Perspektive, Rhythmus, Modus und Ton · ${u.omniProfile} Wesen vorhanden`);
 
   // ── Spalte 1: Eingang ────────────────────────────────────────────────────
   const w4 = stand.w4 || { where: "", when: "", who: "", what: "" };
@@ -330,7 +343,7 @@ import { liveCount } from "./livepools";
 import { loadTreasury } from "./treasury";
 import { hasDramaData } from "../generation/dramaturgie";
 import { loadIdeaProfile } from "./ideaprofile";
-import { alleOmniProfile } from "./omnikognition";
+import { alleOmniProfile, loadOmniStand } from "./omnikognition";
 import { PRESET_LABELS } from "../presets.data";
 
 const LOCK_KEY = "divergenz_studio_locks_v1";
@@ -355,6 +368,7 @@ export function sammleUmgebung(preset: string): Umgebung {
     dramaVorhanden: zahl(() => hasDramaData(), false),
     ideenProfil: zahl(() => { const p = loadIdeaProfile(); return p ? (p.profil.name || p.profil.genre) : ""; }, ""),
     omniProfile: zahl(() => alleOmniProfile().length, 0),
+    omniProfil: zahl(() => { const st = loadOmniStand(); return st ? (st.profil.name || "") : ""; }, ""),
     presetLabel: ids.map((id) => PRESET_LABELS[id.replace(/^builtin:/, "")] || id).join(" + ") || "—",
   };
 }

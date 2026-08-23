@@ -5123,6 +5123,68 @@ var OMNI_PRESETS = {
   saeugling: { name: "ein S\xE4ugling", channels: ["licht", "schall", "temperatur"], dim: "3d", reach: "nah", medium: "luft", zeit: "langsam", aufloesung: "grob", fokus: ["sozial", "bewegung"], gedaechtnis: "kurz", kommunikation: "laut", strategie: "reflex", modell: "schwach", ziel: ["kooperation"] },
   alien: { name: "ein fremdes Wesen", channels: ["magnet", "efeld", "temperatur"], dim: "3d", reach: "fern", medium: "luft", zeit: "langsam", aufloesung: "fein", fokus: ["muster"], gedaechtnis: "lang", kommunikation: "efeld", strategie: "planend", modell: "stark", ziel: ["ueberleben"] }
 };
+var OMNI_PRESET_LABELS = [
+  ["fledermaus", "Fledermaus"],
+  ["oktopus", "Oktopus"],
+  ["ameise", "Ameisenvolk"],
+  ["zugvogel", "Zugvogel"],
+  ["hai", "Hai"],
+  ["tiefsee", "Tiefseewesen"],
+  ["saeugling", "S\xE4ugling"],
+  ["alien", "Fremdes Wesen"]
+];
+var CH_ALL = ["licht", "schall", "geruch", "efeld", "magnet", "vibration", "temperatur"];
+var FK_ALL = ["objekt", "bewegung", "nahrung", "feind", "sozial", "muster"];
+var ZL_ALL = ["nahrung", "fortpflanzung", "kooperation", "revier", "schwarm", "ueberleben"];
+var KOMM_ALL = ["sprache", "laut", "duft", "licht", "efeld", "chem", "beruehrung"];
+function pickOne2(v, allowed, def) {
+  return typeof v === "string" && allowed.includes(v) ? v : def;
+}
+function pickMany(v, allowed) {
+  return Array.isArray(v) ? v.filter((x) => typeof x === "string" && allowed.includes(x)) : [];
+}
+function buildProfilePrompt(name) {
+  return `Erzeuge ein Wahrnehmungsprofil (Umwelt) f\xFCr das Lebewesen: "${name}".
+Antworte NUR mit einem einzigen JSON-Objekt in GENAU diesem Format (ersetze die Beispielwerte, keine Kommentare, kein weiterer Text):
+{"channels":["schall","vibration"],"dim":"3d","reach":"nah","medium":"luft","zeit":"schnell","aufloesung":"fein","fokus":["bewegung","nahrung"],"gedaechtnis":"kurz","kommunikation":"laut","strategie":"reflex","modell":"schwach","ziel":["nahrung"]}
+
+Erlaubte Werte:
+- channels (ein oder mehrere): licht, schall, geruch, efeld, magnet, vibration, temperatur
+- dim: 2d oder 3d
+- reach: nah oder fern
+- medium: wasser, luft oder boden
+- zeit: schnell, mittel oder langsam
+- aufloesung: grob, mittel oder fein
+- fokus (ein oder mehrere): objekt, bewegung, nahrung, feind, sozial, muster
+- gedaechtnis: angeboren, kurz oder lang
+- kommunikation (genau einer): sprache, laut, duft, licht, efeld, chem, beruehrung
+- strategie: reflex, instinkt, lern oder planend
+- modell: kein, schwach, stark oder verteilt
+- ziel (ein oder mehrere): nahrung, fortpflanzung, kooperation, revier, schwarm, ueberleben
+
+Gib jetzt NUR das JSON f\xFCr "${name}" zur\xFCck.`;
+}
+function normalizeProfile(raw, name) {
+  const o = raw && typeof raw === "object" ? raw : {};
+  const channels = pickMany(o["channels"], CH_ALL);
+  const fokus = pickMany(o["fokus"], FK_ALL);
+  const ziel = pickMany(o["ziel"], ZL_ALL);
+  return {
+    name: name.trim() || (typeof o["name"] === "string" ? o["name"] : "ein Wesen"),
+    channels: channels.length ? channels : ["licht"],
+    dim: pickOne2(o["dim"], ["2d", "3d"], "3d"),
+    reach: pickOne2(o["reach"], ["nah", "fern"], "nah"),
+    medium: pickOne2(o["medium"], ["wasser", "luft", "boden"], "luft"),
+    zeit: pickOne2(o["zeit"], ["schnell", "mittel", "langsam"], "mittel"),
+    aufloesung: pickOne2(o["aufloesung"], ["grob", "mittel", "fein"], "mittel"),
+    fokus: fokus.length ? fokus : ["bewegung"],
+    gedaechtnis: pickOne2(o["gedaechtnis"], ["angeboren", "kurz", "lang"], "kurz"),
+    kommunikation: pickOne2(o["kommunikation"], KOMM_ALL, "laut"),
+    strategie: pickOne2(o["strategie"], ["reflex", "instinkt", "lern", "planend"], "instinkt"),
+    modell: pickOne2(o["modell"], ["kein", "schwach", "stark", "verteilt"], "schwach"),
+    ziel: ziel.length ? ziel : ["ueberleben"]
+  };
+}
 var OMNI_USER_KEY = "divergenz_omni_presets_v1";
 function loadOmniUserPresets() {
   try {
@@ -5130,6 +5192,25 @@ function loadOmniUserPresets() {
     return o && typeof o === "object" ? o : {};
   } catch {
     return {};
+  }
+}
+function saveOmniUserPreset(p) {
+  const users = loadOmniUserPresets();
+  const slug = (p.name.trim() || "wesen").toLowerCase().replace(/[^a-z0-9äöüß]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "wesen";
+  const id = "user:" + slug;
+  users[id] = p;
+  try {
+    localStorage.setItem(OMNI_USER_KEY, JSON.stringify(users));
+  } catch {
+  }
+  return id;
+}
+function deleteOmniUserPreset(id) {
+  const u = loadOmniUserPresets();
+  delete u[id];
+  try {
+    localStorage.setItem(OMNI_USER_KEY, JSON.stringify(u));
+  } catch {
   }
 }
 function alleOmniProfile() {
@@ -5141,6 +5222,22 @@ function alleOmniProfile() {
     }
   })();
   return [...Object.values(OMNI_PRESETS), ...eigene];
+}
+var OMNI_STAND_KEY = "dm_omni_stand_v1";
+function saveOmniStand(profil, id) {
+  try {
+    localStorage.setItem(OMNI_STAND_KEY, JSON.stringify({ profil, id }));
+  } catch {
+  }
+}
+function loadOmniStand() {
+  try {
+    const o = JSON.parse(localStorage.getItem(OMNI_STAND_KEY) || "null");
+    if (!o || typeof o !== "object" || !o.profil) return null;
+    return { profil: o.profil, id: String(o.id || "") };
+  } catch {
+    return null;
+  }
 }
 
 // src/presets.data.ts
@@ -12972,7 +13069,7 @@ function baueAnlage(stand, u) {
     "ideen",
     0,
     "Ideen",
-    u.ideenProfil ? u.ideenProfil + " \xB7 W\xFCrfel: zuf\xE4llig" : "Profil wird gew\xFCrfelt",
+    (u.ideenProfil || "frei gew\xFCrfelt") + " \xB7 W\xFCrfel: zuf\xE4llig",
     "an",
     "Beim W\xFCrfeln im Studio wird das Profil mitgew\xFCrfelt \u2014 das eingestellte gilt im Reiter Ideen selbst"
   );
@@ -12980,9 +13077,9 @@ function baueAnlage(stand, u) {
     "omni",
     0,
     "Wahrnehmung",
-    `${u.omniProfile} Wesen`,
-    u.omniProfile ? "an" : "aus",
-    "Reiter Welt: Zieht ein Wesen und setzt Wo/Wann/Wer/Was samt Perspektive, Rhythmus, Modus und Ton"
+    (u.omniProfil || "kein Wesen eingestellt") + (u.omniProfil ? " \xB7 W\xFCrfel: zuf\xE4llig" : ""),
+    u.omniProfil ? "an" : u.omniProfile ? "leer" : "aus",
+    `Reiter Welt: Zieht ein Wesen und setzt Wo/Wann/Wer/Was samt Perspektive, Rhythmus, Modus und Ton \xB7 ${u.omniProfile} Wesen vorhanden`
   );
   const w4 = stand.w4 || { where: "", when: "", who: "", what: "" };
   const gefuellt = [w4.where, w4.when, w4.who, w4.what].filter((x) => (x || "").trim()).length;
@@ -13197,6 +13294,10 @@ function sammleUmgebung(preset) {
       return p ? p.profil.name || p.profil.genre : "";
     }, ""),
     omniProfile: zahl(() => alleOmniProfile().length, 0),
+    omniProfil: zahl(() => {
+      const st = loadOmniStand();
+      return st ? st.profil.name || "" : "";
+    }, ""),
     presetLabel: ids.map((id) => PRESET_LABELS[id.replace(/^builtin:/, "")] || id).join(" + ") || "\u2014"
   };
 }
@@ -24282,6 +24383,7 @@ function mountIdeas(root) {
   const rndBtn = el("button", {}, icon("refresh"), " W\xFCrfeln");
   rndBtn.addEventListener("click", () => {
     randomize();
+    merkeIdeen();
     render();
   });
   const profLbl = el("span", {}, "KI-Profil erzeugen");
@@ -24368,6 +24470,206 @@ function mountIdeas(root) {
   root.append(wrap);
   updLive();
   render();
+}
+
+// src/ui/worldView.ts
+var weltSchonGewuerfelt = false;
+function chkGroup(opts) {
+  return opts.map(([v, l]) => {
+    const box = el("input", { type: "checkbox", value: v });
+    return { v, box, el: el("label", { class: "chk" }, box, " " + l) };
+  });
+}
+var readChk = (g) => g.filter((c) => c.box.checked).map((c) => c.v);
+var setChk = (g, vals) => g.forEach((c) => {
+  c.box.checked = vals.includes(c.v);
+});
+function mountWorld(root) {
+  root.innerHTML = "";
+  const wrap = el("div", {});
+  const nameIn = textInput("omni-name", "Name des Wesens", "");
+  const presetSel = select("omni-preset", [["", "\u2014 eigenes \u2014"], ...OMNI_PRESET_LABELS]);
+  const channels = chkGroup([["licht", "Licht"], ["schall", "Schall"], ["geruch", "Ger\xFCche"], ["efeld", "E-Feld"], ["magnet", "Magnet"], ["vibration", "Vibration"], ["temperatur", "Temperatur"]]);
+  const fokus = chkGroup([["objekt", "Objekt"], ["bewegung", "Bewegung"], ["nahrung", "Nahrung"], ["feind", "Feind"], ["sozial", "Sozial"], ["muster", "Muster"]]);
+  const ziel = chkGroup([["nahrung", "Nahrung"], ["fortpflanzung", "Fortpflanzung"], ["kooperation", "Kooperation"], ["revier", "Revier"], ["schwarm", "Schwarm"], ["ueberleben", "\xDCberleben"]]);
+  const dim = select("omni-dim", [["2d", "2D"], ["3d", "3D"]], "3d");
+  const reach = select("omni-reach", [["nah", "Nahbereich"], ["fern", "Fernbereich"]], "nah");
+  const medium = select("omni-medium", [["wasser", "Wasser"], ["luft", "Luft"], ["boden", "Boden"]], "luft");
+  const zeit = select("omni-zeit", [["schnell", "schnell"], ["mittel", "mittel"], ["langsam", "langsam"]], "mittel");
+  const aufl = select("omni-aufl", [["grob", "grob"], ["mittel", "mittel"], ["fein", "fein"]], "mittel");
+  const ged = select("omni-ged", [["angeboren", "angeboren"], ["kurz", "kurzfristig"], ["lang", "langfristig"]], "kurz");
+  const komm = select("omni-komm", [["sprache", "Sprache"], ["laut", "Laute"], ["duft", "Duft"], ["licht", "Licht"], ["efeld", "elektrisch"], ["chem", "chemisch"], ["beruehrung", "Ber\xFChrung"]], "laut");
+  const strat = select("omni-strat", [["reflex", "reflexartig"], ["instinkt", "instinktiv"], ["lern", "lernbasiert"], ["planend", "planend"]], "instinkt");
+  const modell = select("omni-modell", [["kein", "kein Selbst"], ["schwach", "schwaches"], ["stark", "starkes"], ["verteilt", "verteilt"]], "schwach");
+  const fld = (l, n) => el("label", { class: "field" }, el("span", { class: "field-label" }, l), n);
+  const grp = (l, g) => el("div", { class: "field" }, el("span", { class: "field-label" }, l), el("div", { class: "chkrow" }, ...g.map((c) => c.el)));
+  const readProfile = () => ({
+    name: nameIn.value.trim(),
+    channels: readChk(channels),
+    dim: dim.value,
+    reach: reach.value,
+    medium: medium.value,
+    zeit: zeit.value,
+    aufloesung: aufl.value,
+    fokus: readChk(fokus),
+    gedaechtnis: ged.value,
+    kommunikation: komm.value,
+    strategie: strat.value,
+    modell: modell.value,
+    ziel: readChk(ziel)
+  });
+  const applyProfile = (p) => {
+    nameIn.value = p.name;
+    setChk(channels, p.channels);
+    setChk(fokus, p.fokus);
+    setChk(ziel, p.ziel);
+    dim.value = p.dim;
+    reach.value = p.reach;
+    medium.value = p.medium;
+    zeit.value = p.zeit;
+    aufl.value = p.aufloesung;
+    ged.value = p.gedaechtnis;
+    komm.value = p.kommunikation;
+    strat.value = p.strategie;
+    modell.value = p.modell;
+  };
+  const delBtn = button("Preset l\xF6schen", "danger");
+  const updDel = () => {
+    delBtn.style.display = presetSel.value.startsWith("user:") ? "" : "none";
+  };
+  const rebuildPresetSel = () => {
+    const cur = presetSel.value;
+    presetSel.innerHTML = "";
+    const add = (v, l) => {
+      const o = document.createElement("option");
+      o.value = v;
+      o.textContent = l;
+      presetSel.appendChild(o);
+    };
+    add("", "\u2014 eigenes \u2014");
+    OMNI_PRESET_LABELS.forEach(([v, l]) => add(v, l));
+    Object.entries(loadOmniUserPresets()).forEach(([id, pr]) => add(id, "\u2605 " + (pr.name || id.replace("user:", ""))));
+    presetSel.value = cur;
+  };
+  presetSel.addEventListener("change", () => {
+    const v = presetSel.value;
+    if (v.startsWith("user:")) {
+      const p = loadOmniUserPresets()[v];
+      if (p) applyProfile(p);
+    } else if (v) {
+      const p = OMNI_PRESETS[v];
+      if (p) applyProfile(p);
+    }
+    updDel();
+  });
+  rebuildPresetSel();
+  const randomize = () => {
+    const alle = alleOmniProfile();
+    if (!alle.length) return;
+    const p = alle[Math.floor(Math.random() * alle.length)];
+    applyProfile(p);
+    const id = Object.entries(OMNI_PRESETS).find(([, v]) => v === p)?.[0] || Object.entries((() => {
+      try {
+        return loadOmniUserPresets();
+      } catch {
+        return {};
+      }
+    })()).find(([, v]) => v.name === p.name)?.[0] || "";
+    presetSel.value = id;
+    updDel();
+    merkeWelt();
+  };
+  const merkeWelt = () => {
+    saveOmniStand(readProfile(), presetSel.value);
+  };
+  [presetSel, dim, reach, medium, zeit, aufl, ged, komm, strat, modell].forEach((c) => c.addEventListener("change", merkeWelt));
+  [...channels, ...fokus, ...ziel].forEach((c) => c.box.addEventListener("change", merkeWelt));
+  nameIn.addEventListener("input", merkeWelt);
+  if (!weltSchonGewuerfelt) {
+    randomize();
+    weltSchonGewuerfelt = true;
+  } else {
+    const st = loadOmniStand();
+    if (st) {
+      applyProfile(st.profil);
+      presetSel.value = st.id;
+      updDel();
+    } else randomize();
+  }
+  const transferBtn = el("button", { class: "primary" }, icon("play"), " Ins Studio \xFCbertragen");
+  transferBtn.addEventListener("click", () => {
+    try {
+      localStorage.setItem("dm_pending_studio", JSON.stringify(profileToStudio(readProfile())));
+    } catch {
+    }
+    const st = [...document.querySelectorAll(".tabbar button")].find((b) => b.textContent === "Studio");
+    if (st) st.click();
+  });
+  const profLbl = el("span", {}, "KI-Profil erzeugen");
+  const profBtn = el("button", {}, icon("flask"), " ", profLbl);
+  profBtn.addEventListener("click", () => {
+    void (async () => {
+      if (!loadAiKey()) {
+        alert("Kein API-Schl\xFCssel \u2014 bitte im KI-Tab hinterlegen.");
+        return;
+      }
+      profBtn.disabled = true;
+      const old = profLbl.textContent;
+      profLbl.textContent = "Erzeuge\u2026";
+      try {
+        const raw = await callClaude(buildProfilePrompt(nameIn.value.trim() || "ein Wesen"), 800);
+        applyProfile(normalizeProfile(extractJson(raw), nameIn.value.trim() || "ein Wesen"));
+        presetSel.value = "";
+        updDel();
+        merkeWelt();
+      } catch (e2) {
+        alert("Fehlgeschlagen: " + (e2 instanceof Error ? e2.message : String(e2)));
+      } finally {
+        profBtn.disabled = false;
+        profLbl.textContent = old || "KI-Profil erzeugen";
+      }
+    })();
+  });
+  const rndBtn = el("button", {}, icon("refresh"), " W\xFCrfeln");
+  rndBtn.addEventListener("click", () => {
+    randomize();
+  });
+  const saveBtn = button("Als Preset speichern");
+  saveBtn.addEventListener("click", () => {
+    const p = readProfile();
+    if (!p.name.trim()) {
+      alert("Bitte einen Namen f\xFCr das Wesen eintragen.");
+      return;
+    }
+    const id = saveOmniUserPreset(p);
+    rebuildPresetSel();
+    presetSel.value = id;
+    updDel();
+    merkeWelt();
+  });
+  delBtn.addEventListener("click", () => {
+    const v = presetSel.value;
+    if (v.startsWith("user:")) {
+      deleteOmniUserPreset(v);
+      rebuildPresetSel();
+      presetSel.value = "";
+      updDel();
+    }
+  });
+  wrap.append(
+    el("h2", {}, "Omnikognition \u2014 Wahrnehmungs-Modus"),
+    el("p", { class: "muted" }, "Formt Perspektive, Rhythmus und Bildwelt eines Textes aus der Umwelt eines Lebewesens. W\xE4hle ein Preset oder stelle die zehn Kriterien selbst ein."),
+    el("div", { class: "grid2" }, fld("Preset", presetSel), fld("Name", nameIn)),
+    grp("Sinneskan\xE4le", channels),
+    el("div", { class: "grid3" }, fld("Dimension", dim), fld("Reichweite", reach), fld("Medium", medium)),
+    el("div", { class: "grid3" }, fld("Zeitwahrnehmung", zeit), fld("Aufl\xF6sung", aufl), fld("Ged\xE4chtnis", ged)),
+    grp("Aufmerksamkeitsfokus", fokus),
+    el("div", { class: "grid3" }, fld("Kommunikation", komm), fld("Entscheidung", strat), fld("Selbst-/Umweltmodell", modell)),
+    grp("Lebensziel", ziel),
+    el("div", { class: "btnrow" }, transferBtn, rndBtn, profBtn),
+    el("div", { class: "btnrow" }, saveBtn, delBtn)
+  );
+  root.append(wrap);
 }
 
 // src/ui/schaltplanView.ts
@@ -25323,6 +25625,8 @@ var UMGEBUNG = (u = {}) => ({
   dramaVorhanden: false,
   presetLabel: "Kafka",
   ideenProfil: "",
+  omniProfile: 8,
+  omniProfil: "",
   ...u
 });
 var knoten = (a, id) => a.knoten.find((k) => k.id === id);
@@ -25818,9 +26122,10 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
     if (w.w4.who !== vorher.who) verschoben++;
   }
   ist("ein gesperrtes W bleibt auch bei der Wahrnehmung stehen", verschoben, 0);
-  const a = baueAnlage(STAND(), UMGEBUNG({ omniProfile: 8 }));
+  const a = baueAnlage(STAND(), UMGEBUNG({ omniProfile: 8, omniProfil: "Hai" }));
   ist("die Wahrnehmung steht im Plan", knoten(a, "omni")?.zustand, "an");
-  wahr("mit der Zahl der Wesen", /8 Wesen/.test(knoten(a, "omni")?.wert || ""));
+  wahr("mit dem eingestellten Wesen", /^Hai · /.test(knoten(a, "omni")?.wert || ""));
+  wahr("und der Zahl der vorhandenen im Hinweis", /8 Wesen vorhanden/.test(knoten(a, "omni")?.hinweis || ""));
   wahr("und einer Leitung zu den vier W", a.kanten.some((k) => k.von === "omni" && k.nach === "w4"));
 }
 {
@@ -25903,6 +26208,82 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
     if (soll !== stand()) luegt++;
   }
   ist("der W\xE4hler zeigt an, woher die Einstellung stammt", luegt, 0);
+}
+{
+  const dom6 = new import_jsdom.JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/", pretendToBeVisual: true });
+  const G = globalThis;
+  for (const k of [
+    "window",
+    "document",
+    "localStorage",
+    "navigator",
+    "HTMLElement",
+    "HTMLInputElement",
+    "HTMLTextAreaElement",
+    "HTMLSelectElement",
+    "HTMLButtonElement",
+    "Event",
+    "CustomEvent",
+    "Node",
+    "getComputedStyle",
+    "requestAnimationFrame",
+    "cancelAnimationFrame",
+    "MutationObserver",
+    "Blob",
+    "URL",
+    "FileReader",
+    "Image",
+    "DOMParser"
+  ]) {
+    try {
+      Object.defineProperty(G, k, { value: dom6.window[k], writable: true, configurable: true });
+    } catch {
+    }
+  }
+  const km6 = () => ({ matches: false, addEventListener: () => {
+  }, removeEventListener: () => {
+  }, addListener: () => {
+  }, removeListener: () => {
+  } });
+  Object.defineProperty(G, "matchMedia", { value: km6, writable: true, configurable: true });
+  dom6.window["matchMedia"] = km6;
+  dom6.window.Element.prototype["scrollIntoView"] = function() {
+  };
+  const D6 = dom6.window.document;
+  const wertVon = (id) => {
+    const a = baueAnlage(STAND(), sammleUmgebung("kafka"));
+    return knoten(a, id)?.wert || "";
+  };
+  const wuerfelnIn = (root) => Array.from(root.querySelectorAll("button")).find((b) => /Würfeln/.test(b.textContent || ""));
+  const wI = D6.createElement("div");
+  D6.body.append(wI);
+  mountIdeas(wI);
+  const knopfI = wuerfelnIn(wI);
+  const werteI = /* @__PURE__ */ new Set();
+  for (let i = 0; i < 40; i++) {
+    knopfI.click();
+    werteI.add(wertVon("ideen"));
+  }
+  wahr(`der Knoten Ideen folgt dem W\xFCrfel (${werteI.size} verschiedene in 40 W\xFCrfen)`, werteI.size >= 5);
+  wahr("und nennt den W\xFCrfel beim Namen", [...werteI].every((v) => v.includes("W\xFCrfel: zuf\xE4llig")));
+  const wW = D6.createElement("div");
+  D6.body.append(wW);
+  mountWorld(wW);
+  const knopfW = wuerfelnIn(wW);
+  const werteW = /* @__PURE__ */ new Set();
+  for (let i = 0; i < 40; i++) {
+    knopfW.click();
+    werteW.add(wertVon("omni"));
+  }
+  wahr(`der Knoten Wahrnehmung folgt dem W\xFCrfel (${werteW.size} verschiedene in 40 W\xFCrfen)`, werteW.size >= 4);
+  wahr("und zeigt kein blankes Z\xE4hlwerk mehr", [...werteW].every((v) => !/^\d+ Wesen$/.test(v)));
+  const nameW = wW.querySelector('[id="omni-name"]').value;
+  wahr(`der gezeigte Name ist der eingestellte (\u201E${nameW}")`, wertVon("omni").startsWith(nameW + " \xB7 "));
+  const vorher = wW.querySelector('[id="omni-name"]').value;
+  const wW2 = D6.createElement("div");
+  D6.body.append(wW2);
+  mountWorld(wW2);
+  ist("ein Reiterwechsel l\xE4sst das Wesen stehen", wW2.querySelector('[id="omni-name"]').value, vorher);
 }
 console.log(`Pr\xFCfstand Schaltplan \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

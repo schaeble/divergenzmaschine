@@ -148,7 +148,9 @@ export function mountIdeas(root: HTMLElement): void {
   const genBtn = el("button", { class: "primary" }, icon("dice"), " Ideen generieren");
   genBtn.addEventListener("click", render);
   const rndBtn = el("button", {}, icon("refresh"), " Würfeln");
-  rndBtn.addEventListener("click", () => { randomize(); render(); });
+  // `merkeIdeen()` muss mit: Ohne das blieb der Knoten Ideen im Schaltplan auf
+  // dem Profil stehen, das beim ersten Aufbau gewürfelt wurde.
+  rndBtn.addEventListener("click", () => { randomize(); merkeIdeen(); render(); });
 
   const profLbl = el("span", {}, "KI-Profil erzeugen");
   const profBtn = el("button", {}, icon("flask"), " ", profLbl);

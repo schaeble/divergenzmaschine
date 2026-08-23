@@ -215,3 +215,25 @@ export function alleOmniProfile(): CognitiveProfile[] {
   const eigene = (() => { try { return Object.values(loadOmniUserPresets()); } catch { return []; } })();
   return [...Object.values(OMNI_PRESETS), ...eigene];
 }
+
+/** Der EINGESTELLTE Stand des Reiters Welt — welches Wesen gerade in den zwölf
+ *  Feldern steht und aus welchem Preset es stammt.
+ *
+ *  Gebraucht wird das an zwei Stellen: Der Schaltplan unter Diagnose zeigte
+ *  bisher nur „8 Wesen" und stand damit fest, egal was gewürfelt war; und der
+ *  Reiter selbst warf bei jedem Reiterwechsel das eingestellte Wesen weg, weil
+ *  `randomize()` beim Aufbau lief. Beides braucht eine Ablage.
+ *
+ *  `id` ist leer, wenn die zwölf Felder von Hand stehen. */
+const OMNI_STAND_KEY = "dm_omni_stand_v1";
+export interface OmniStand { profil: CognitiveProfile; id: string }
+export function saveOmniStand(profil: CognitiveProfile, id: string): void {
+  try { localStorage.setItem(OMNI_STAND_KEY, JSON.stringify({ profil, id })); } catch { /* voll */ }
+}
+export function loadOmniStand(): OmniStand | null {
+  try {
+    const o = JSON.parse(localStorage.getItem(OMNI_STAND_KEY) || "null");
+    if (!o || typeof o !== "object" || !o.profil) return null;
+    return { profil: o.profil as CognitiveProfile, id: String(o.id || "") };
+  } catch { return null; }
+}

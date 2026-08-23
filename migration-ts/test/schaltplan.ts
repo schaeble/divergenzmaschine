@@ -11,11 +11,12 @@
 // Die Anordnung wird mitgeprüft: Ein Plan mit übereinanderliegenden Feldern
 // wäre schlimmer als keiner. jsdom rechnet kein Layout, deshalb rechnet der
 // Plan seine Koordinaten selbst — und deshalb sind sie hier nachprüfbar.
-import { baueAnlage, SCHLOSS_ZU_KNOTEN, type AnlageStand, type Umgebung } from "../src/features/schaltplan";
+import { baueAnlage, sammleUmgebung, SCHLOSS_ZU_KNOTEN, type AnlageStand, type Umgebung } from "../src/features/schaltplan";
 import { mountStudio } from "../src/ui/studio";
 import { KNOB_VORGABE, KNOB_SPANNE } from "../src/features/knobs";
 import { saveIdeaProfile, saveIdeaUserPreset, loadIdeaUserPresets, IDEA_PRESETS } from "../src/features/ideaprofile";
 import { mountIdeas } from "../src/ui/ideasView";
+import { mountWorld } from "../src/ui/worldView";
 import { wuerfleAlles, wuerfleVierW, REGLER, SCHIEBER } from "../src/features/wuerfeln";
 import { werte } from "../src/generation/optionen";
 import { ordne, BAND_NAME, renderSchaltplan, befundListe } from "../src/ui/schaltplanView";
@@ -42,7 +43,7 @@ const STAND = (regler: Record<string, string> = {}): AnlageStand => ({
 const UMGEBUNG = (u: Partial<Umgebung> = {}): Umgebung => ({
   korpusZeichen: 0, sammlerFunde: 0, bildFunde: 0, themenFunde: 0, weltFiguren: 0, weltOrte: 0,
   livePools: 0, schatzkammer: 0, knobs: { ...KNOB_VORGABE }, gesperrt: new Set<string>(),
-  dramaVorhanden: false, presetLabel: "Kafka", ideenProfil: "", ...u,
+  dramaVorhanden: false, presetLabel: "Kafka", ideenProfil: "", omniProfile: 8, omniProfil: "", ...u,
 });
 const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((k) => k.id === id);
 
@@ -594,9 +595,10 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   ist("ein gesperrtes W bleibt auch bei der Wahrnehmung stehen", verschoben, 0);
 
   // Und der Plan kennt die Quelle.
-  const a = baueAnlage(STAND(), UMGEBUNG({ omniProfile: 8 }));
+  const a = baueAnlage(STAND(), UMGEBUNG({ omniProfile: 8, omniProfil: "Hai" }));
   ist("die Wahrnehmung steht im Plan", knoten(a, "omni")?.zustand, "an");
-  wahr("mit der Zahl der Wesen", /8 Wesen/.test(knoten(a, "omni")?.wert || ""));
+  wahr("mit dem eingestellten Wesen", /^Hai · /.test(knoten(a, "omni")?.wert || ""));
+  wahr("und der Zahl der vorhandenen im Hinweis", /8 Wesen vorhanden/.test(knoten(a, "omni")?.hinweis || ""));
   wahr("und einer Leitung zu den vier W", a.kanten.some((k) => k.von === "omni" && k.nach === "w4"));
 }
 
@@ -664,6 +666,68 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
     if (soll !== stand()) luegt++;
   }
   ist("der Wähler zeigt an, woher die Einstellung stammt", luegt, 0);
+}
+
+
+// ── 16 · Ideen und Wahrnehmung stehen nicht mehr fest ────────────────────
+// Befund: „In der Diagnose bleiben Ideen und Wahrnehmung fest. Hier soll das
+// aktuelle Preset — Würfel — angezeigt werden."
+//
+// Zwei verschiedene Ursachen unter einer Beobachtung:
+//
+//   Ideen        Der Knopf „Würfeln" im Reiter schrieb sein Ergebnis nicht in
+//                die Ablage, aus der der Plan liest. Gezeigt wurde, was beim
+//                ersten Aufbau des Reiters gewürfelt worden war.
+//   Wahrnehmung  Der Knoten zeigte „8 Wesen" — die Zahl der VORHANDENEN. Die
+//                ändert sich beim Würfeln naturgemäß nie. Das eingestellte
+//                Wesen wurde nirgends abgelegt.
+//
+// Der Prüfstand hängt beide Reiter, würfelt und sieht im Plan nach.
+{
+  const dom6 = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/", pretendToBeVisual: true });
+  const G = globalThis as unknown as Record<string, unknown>;
+  for (const k of ["window", "document", "localStorage", "navigator", "HTMLElement", "HTMLInputElement",
+    "HTMLTextAreaElement", "HTMLSelectElement", "HTMLButtonElement", "Event", "CustomEvent", "Node",
+    "getComputedStyle", "requestAnimationFrame", "cancelAnimationFrame", "MutationObserver", "Blob",
+    "URL", "FileReader", "Image", "DOMParser"]) {
+    try { Object.defineProperty(G, k, { value: (dom6.window as unknown as Record<string, unknown>)[k], writable: true, configurable: true }); } catch { /* da */ }
+  }
+  const km6 = (): unknown => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} });
+  Object.defineProperty(G, "matchMedia", { value: km6, writable: true, configurable: true });
+  (dom6.window as unknown as Record<string, unknown>)["matchMedia"] = km6;
+  (dom6.window.Element.prototype as unknown as Record<string, unknown>)["scrollIntoView"] = function (): void {};
+  const D6 = dom6.window.document;
+
+  const wertVon = (id: string): string => {
+    const a = baueAnlage(STAND(), sammleUmgebung("kafka"));
+    return knoten(a, id)?.wert || "";
+  };
+  const wuerfelnIn = (root: HTMLElement): HTMLButtonElement =>
+    Array.from(root.querySelectorAll("button")).find((b) => /Würfeln/.test(b.textContent || "")) as HTMLButtonElement;
+
+  // --- Ideen ---
+  const wI = D6.createElement("div"); D6.body.append(wI); mountIdeas(wI);
+  const knopfI = wuerfelnIn(wI);
+  const werteI = new Set<string>();
+  for (let i = 0; i < 40; i++) { knopfI.click(); werteI.add(wertVon("ideen")); }
+  wahr(`der Knoten Ideen folgt dem Würfel (${werteI.size} verschiedene in 40 Würfen)`, werteI.size >= 5);
+  wahr("und nennt den Würfel beim Namen", [...werteI].every((v) => v.includes("Würfel: zufällig")));
+
+  // --- Wahrnehmung ---
+  const wW = D6.createElement("div"); D6.body.append(wW); mountWorld(wW);
+  const knopfW = wuerfelnIn(wW);
+  const werteW = new Set<string>();
+  for (let i = 0; i < 40; i++) { knopfW.click(); werteW.add(wertVon("omni")); }
+  wahr(`der Knoten Wahrnehmung folgt dem Würfel (${werteW.size} verschiedene in 40 Würfen)`, werteW.size >= 4);
+  wahr("und zeigt kein blankes Zählwerk mehr", [...werteW].every((v) => !/^\d+ Wesen$/.test(v)));
+  const nameW = (wW.querySelector('[id="omni-name"]') as HTMLInputElement).value;
+  wahr(`der gezeigte Name ist der eingestellte („${nameW}")`, wertVon("omni").startsWith(nameW + " · "));
+
+  // Und der Reiter Welt wirft das eingestellte Wesen beim Reiterwechsel nicht
+  // mehr weg — bisher lief `randomize()` bei jedem Aufbau.
+  const vorher = (wW.querySelector('[id="omni-name"]') as HTMLInputElement).value;
+  const wW2 = D6.createElement("div"); D6.body.append(wW2); mountWorld(wW2);
+  ist("ein Reiterwechsel lässt das Wesen stehen", (wW2.querySelector('[id="omni-name"]') as HTMLInputElement).value, vorher);
 }
 
 console.log(`Prüfstand Schaltplan — ${geprueft} Prüfungen, ${bestanden} bestanden`);
