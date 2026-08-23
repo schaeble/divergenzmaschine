@@ -14,6 +14,11 @@ const BREITE = RAND * 2 + PRO_REIHE * CHIP_W + (PRO_REIHE - 1) * GAP_X;
 
 export const BAND_NAME = ["Vorräte", "Material", "Steuerung", "Schliff", "Ausgabe"];
 
+/** Jeder Zustand trägt ein eigenes Zeichen — ein voller Kreis wirkt, ein
+ *  leerer ist aus, ein Dreieck läuft ins Leere. Zusammen mit Strichstärke und
+ *  Strichart sind das drei Merkmale neben der Farbe. */
+const ZEICHEN: Record<Zustand, string> = { an: "\u25CF", leer: "\u25B2", aus: "\u25CB", fest: "\u25CB" };
+
 const FARBE: Record<Zustand, string> = {
   an: "var(--acc2)", leer: "var(--danger)", aus: "var(--muted)", fest: "var(--muted)",
 };
@@ -97,8 +102,14 @@ export function renderSchaltplan(anlage: Anlage): SVGElement {
     const g = e("g", { class: "sp-chip sp-" + k.zustand });
     if (k.hinweis) { const t = e("title", {}); t.textContent = k.hinweis; g.append(t); }
     g.append(e("rect", { x: p.x, y: p.y, width: p.w, height: p.h, rx: 8, stroke: FARBE[k.zustand] }));
-    g.append(txt(p.x + 10, p.y + 18, kurz(k.label, 24), "sp-label"));
-    g.append(txt(p.x + 10, p.y + 34, kurz(k.wert, 26), "sp-wert"));
+    // Ein Zeichen VOR der Beschriftung. Farbe allein trug den Unterschied nicht
+    // (gemeldet: „die aktiven Rahmen sind schlecht unterscheidbar"), und ein
+    // Plan, der nur über Farbe spricht, ist für einen Teil der Leser stumm.
+    const zeichen = e("text", { x: p.x + 10, y: p.y + 18, class: "sp-zeichen", fill: FARBE[k.zustand] });
+    zeichen.textContent = ZEICHEN[k.zustand];
+    g.append(zeichen);
+    g.append(txt(p.x + 24, p.y + 18, kurz(k.label, 21), "sp-label"));
+    g.append(txt(p.x + 24, p.y + 34, kurz(k.wert, 24), "sp-wert"));
     if (k.gesperrt) g.append(txt(p.x + p.w - 14, p.y + 18, "\u{1F512}", "sp-schloss"));
     svg.append(g);
   }

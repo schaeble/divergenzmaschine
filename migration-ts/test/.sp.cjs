@@ -23134,6 +23134,7 @@ var BAND_TITEL = 26;
 var BAND_ABSTAND = 34;
 var BREITE = RAND * 2 + PRO_REIHE * CHIP_W + (PRO_REIHE - 1) * GAP_X;
 var BAND_NAME = ["Vorr\xE4te", "Material", "Steuerung", "Schliff", "Ausgabe"];
+var ZEICHEN = { an: "\u25CF", leer: "\u25B2", aus: "\u25CB", fest: "\u25CB" };
 var FARBE = {
   an: "var(--acc2)",
   leer: "var(--danger)",
@@ -23213,8 +23214,11 @@ function renderSchaltplan(anlage) {
       g.append(t);
     }
     g.append(e("rect", { x: p.x, y: p.y, width: p.w, height: p.h, rx: 8, stroke: FARBE[k.zustand] }));
-    g.append(txt(p.x + 10, p.y + 18, kurz(k.label, 24), "sp-label"));
-    g.append(txt(p.x + 10, p.y + 34, kurz(k.wert, 26), "sp-wert"));
+    const zeichen = e("text", { x: p.x + 10, y: p.y + 18, class: "sp-zeichen", fill: FARBE[k.zustand] });
+    zeichen.textContent = ZEICHEN[k.zustand];
+    g.append(zeichen);
+    g.append(txt(p.x + 24, p.y + 18, kurz(k.label, 21), "sp-label"));
+    g.append(txt(p.x + 24, p.y + 34, kurz(k.wert, 24), "sp-wert"));
     if (k.gesperrt) g.append(txt(p.x + p.w - 14, p.y + 18, "\u{1F512}", "sp-schloss"));
     svg.append(g);
   }
@@ -23972,9 +23976,9 @@ function mountDiagnose(root) {
   const legende = el(
     "div",
     { class: "sp-legende" },
-    el("span", {}, el("i", { class: "sp-punkt", style: "border-color:var(--acc2)" }), "verdrahtet"),
-    el("span", {}, el("i", { class: "sp-punkt", style: "border-color:var(--danger)" }), "an, aber die Quelle ist leer"),
-    el("span", {}, el("i", { class: "sp-punkt", style: "border-color:var(--muted)" }), "aus"),
+    el("span", {}, el("i", { class: "sp-punkt", style: "border-color:var(--acc2);background:color-mix(in srgb, var(--acc2) 40%, transparent)" }), "\u25CF verdrahtet (kr\xE4ftiger Rahmen)"),
+    el("span", {}, el("i", { class: "sp-punkt", style: "border-color:var(--danger)" }), "\u25B2 an, aber die Quelle ist leer (grob gestrichelt)"),
+    el("span", {}, el("i", { class: "sp-punkt", style: "border-color:var(--muted)" }), "\u25CB aus (fein gestrichelt)"),
     el("span", {}, "\u{1F512} gesperrt (bleibt beim W\xFCrfeln stehen)")
   );
   const startBtn = el("button", { class: "primary" }, icon("play"), " Selbsttest starten");
@@ -24168,6 +24172,21 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
   wahr("die Bandtitel stehen im Bild", BAND_NAME.every((n) => (svg.textContent || "").includes(n)));
   const b = befundListe(a);
   wahr(`die Befundzeile nennt die toten Leitungen (${b.leer})`, b.leer >= 1 && /Korpus/.test(b.text));
+  const zeichenVon = (zustand) => {
+    const raus = /* @__PURE__ */ new Set();
+    for (const g of Array.from(svg.querySelectorAll("g.sp-" + zustand))) {
+      const t = g.querySelector("text.sp-zeichen");
+      if (t) raus.add(t.textContent || "");
+    }
+    return raus;
+  };
+  const anZ = zeichenVon("an"), ausZ = zeichenVon("aus"), leerZ = zeichenVon("leer");
+  ist("jeder aktive Knoten tr\xE4gt genau ein Zeichen", anZ.size, 1);
+  ist("jeder abgeschaltete auch", ausZ.size, 1);
+  ist("und jeder tote auch", leerZ.size, 1);
+  const alleZ = /* @__PURE__ */ new Set([...anZ, ...ausZ, ...leerZ]);
+  ist("die drei Zust\xE4nde tragen drei verschiedene Zeichen", alleZ.size, 3);
+  wahr("kein Zeichen ist leer", ![...alleZ].some((z) => !z.trim()));
 }
 {
   const listen = new Map(REGLER.map((r) => [r.schluessel, new Set(werte(r.liste))]));

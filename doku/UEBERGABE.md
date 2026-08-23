@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.292.0**, Zweig `typescript-migration`.
+Stand: **v4.293.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,42 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Drei Merkmale statt einer Farbe (4.293.0)
+
+**Gemeldet:** „Die aktiven Rahmen sind schlecht unterscheidbar zu den
+inaktiven." — mit einem Bild aus dem hellen Thema: „Ton / Mystery" neben
+„Markov / Aus", beide mit einem dünnen Rahmen, der eine bläulich, der andere
+grau.
+
+**Zwei Ursachen, und die zweite ist die peinlichere.**
+
+*Erstens* lag der Unterschied **allein in der Farbe** bei gleicher Strichstärke.
+Im dunklen Thema trägt das noch; im hellen liegen Akzent und Grau im selben
+Helligkeitsbereich, und bei anderthalb Pixeln bleibt davon wenig.
+
+*Zweitens* stand im Stylesheet `opacity:.55` auf dem Rechteck der
+abgeschalteten Felder. Das verblasste **auch den Rahmen** — also genau das
+Merkmal, das unterscheiden sollte. Die Abblendung hat den Unterschied nicht
+gezeigt, sondern zugedeckt.
+
+**Jetzt tragen die drei Zustände drei Merkmale neben der Farbe:**
+
+| Zustand | Zeichen | Rahmen | Füllung |
+|---|---|---|---|
+| verdrahtet | ● | 2,5 px durchgezogen | Akzent, 10 % |
+| aus | ○ | 1 px fein gestrichelt | keine |
+| läuft ins Leere | ▲ | 2,5 px grob gestrichelt | Rot, 14 % |
+
+Abgeblendet wird nur noch die **Schrift**, nicht der Rahmen.
+
+Das ist kein Schönheitsbedürfnis: Ein Plan, der nur über Farbe spricht, ist für
+einen Teil der Leser stumm — und dieser Plan soll gerade denen helfen, die
+raten, woran ein Ergebnis liegt.
+
+Prüfstand Schaltplan 56 → 61: Jeder Zustand trägt genau ein Zeichen, und die
+drei Zeichen sind verschieden. Gegenprobe: Überall dasselbe Zeichen gesetzt →
+„die drei Zustände tragen drei verschiedene Zeichen: 1 — erwartet 3".
 
 Die achte Liste fehlte im Editor (4.292.0)
 

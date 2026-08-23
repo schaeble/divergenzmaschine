@@ -994,9 +994,21 @@ select.abweichend{border-color:var(--acc)}
 .schaltplan .sp-label { fill:var(--text); font:600 12px var(--sans); }
 .schaltplan .sp-wert { fill:var(--muted); font:11px var(--sans); }
 .schaltplan .sp-schloss { font:11px var(--sans); }
+/* Gemeldet: „Die aktiven Rahmen sind schlecht unterscheidbar zu den inaktiven."
+   Die Ursache war zweifach. Erstens lag der Unterschied allein in der FARBE
+   (Akzent gegen Grau) bei gleicher Strichstärke — im hellen Thema liegen beide
+   im selben Helligkeitsbereich. Zweitens verblasste `opacity:.55` auf dem Rect
+   auch den Rahmen, also genau das Merkmal, das unterscheiden sollte.
+   Jetzt tragen die drei Zustände DREI Merkmale: Strichstärke, Strichart und
+   Füllung. Wer die Farben nicht unterscheiden kann, sieht es trotzdem. */
 .schaltplan .sp-chip rect { fill:var(--panel2); stroke-width:1.5; }
-.schaltplan .sp-aus rect, .schaltplan .sp-fest rect { opacity:.55; }
-.schaltplan .sp-leer rect { fill:color-mix(in srgb, var(--danger) 12%, var(--panel2)); }
+.schaltplan .sp-an rect { stroke-width:2.5; fill:color-mix(in srgb, var(--acc2) 10%, var(--panel2)); }
+.schaltplan .sp-aus rect, .schaltplan .sp-fest rect { stroke-width:1; stroke-dasharray:3 3; fill:var(--panel); }
+/* Nicht das Rect blass machen, sondern die Schrift: Der Rahmen bleibt scharf. */
+.schaltplan .sp-aus .sp-label, .schaltplan .sp-fest .sp-label { fill:var(--muted); }
+.schaltplan .sp-aus .sp-wert, .schaltplan .sp-fest .sp-wert { opacity:.7; }
+.schaltplan .sp-leer rect { stroke-width:2.5; stroke-dasharray:6 3; fill:color-mix(in srgb, var(--danger) 14%, var(--panel2)); }
+.schaltplan .sp-zeichen { font:11px var(--sans); }
 .schaltplan .sp-kante { fill:none; stroke-width:1.5; opacity:.9; }
 .schaltplan .sp-bus { stroke:var(--border2); stroke-width:2; }
 .schaltplan .sp-bus-spitze { fill:var(--border2); }

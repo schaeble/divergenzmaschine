@@ -151,6 +151,29 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   wahr("die Bandtitel stehen im Bild", BAND_NAME.every((n) => (svg.textContent || "").includes(n)));
   const b = befundListe(a);
   wahr(`die Befundzeile nennt die toten Leitungen (${b.leer})`, b.leer >= 1 && /Korpus/.test(b.text));
+
+  // Gemeldet: „Die aktiven Rahmen sind schlecht unterscheidbar zu den
+  // inaktiven." Der Unterschied lag allein in der Farbe, bei gleicher
+  // Strichstärke — und `opacity:.55` verblasste ausgerechnet den Rahmen.
+  //
+  // Ein Plan, der nur über Farbe spricht, ist für einen Teil der Leser stumm.
+  // Diese Prüfung hält fest, dass jeder Zustand ein eigenes ZEICHEN trägt; die
+  // Strichstärke und die Strichart stehen im Stylesheet daneben.
+  const zeichenVon = (zustand: string): Set<string> => {
+    const raus = new Set<string>();
+    for (const g of Array.from(svg.querySelectorAll("g.sp-" + zustand))) {
+      const t = g.querySelector("text.sp-zeichen");
+      if (t) raus.add(t.textContent || "");
+    }
+    return raus;
+  };
+  const anZ = zeichenVon("an"), ausZ = zeichenVon("aus"), leerZ = zeichenVon("leer");
+  ist("jeder aktive Knoten trägt genau ein Zeichen", anZ.size, 1);
+  ist("jeder abgeschaltete auch", ausZ.size, 1);
+  ist("und jeder tote auch", leerZ.size, 1);
+  const alleZ = new Set([...anZ, ...ausZ, ...leerZ]);
+  ist("die drei Zustände tragen drei verschiedene Zeichen", alleZ.size, 3);
+  wahr("kein Zeichen ist leer", ![...alleZ].some((z) => !z.trim()));
 }
 
 

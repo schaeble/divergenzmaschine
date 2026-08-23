@@ -83,10 +83,11 @@ export function mountDiagnose(root: HTMLElement): void {
       : "gewürfelt";
     renderPlan();
   });
+  // Die Legende nennt jetzt das Zeichen mit, nicht nur die Farbe.
   const legende = el("div", { class: "sp-legende" },
-    el("span", {}, el("i", { class: "sp-punkt", style: "border-color:var(--acc2)" }), "verdrahtet"),
-    el("span", {}, el("i", { class: "sp-punkt", style: "border-color:var(--danger)" }), "an, aber die Quelle ist leer"),
-    el("span", {}, el("i", { class: "sp-punkt", style: "border-color:var(--muted)" }), "aus"),
+    el("span", {}, el("i", { class: "sp-punkt", style: "border-color:var(--acc2);background:color-mix(in srgb, var(--acc2) 40%, transparent)" }), "● verdrahtet (kräftiger Rahmen)"),
+    el("span", {}, el("i", { class: "sp-punkt", style: "border-color:var(--danger)" }), "▲ an, aber die Quelle ist leer (grob gestrichelt)"),
+    el("span", {}, el("i", { class: "sp-punkt", style: "border-color:var(--muted)" }), "○ aus (fein gestrichelt)"),
     el("span", {}, "🔒 gesperrt (bleibt beim Würfeln stehen)"));
 
   const startBtn = el("button", { class: "primary" }, icon("play"), " Selbsttest starten") as HTMLButtonElement;
