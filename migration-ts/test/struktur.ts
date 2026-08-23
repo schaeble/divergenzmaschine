@@ -112,7 +112,14 @@ const schlussStelle = (struktur: string, n = 40): { mittel: number; gefunden: nu
   }
   stellen.sort((a, b) => a - b);
   const median = stellen.length ? stellen[Math.floor(stellen.length / 2)]! : 0;
-  wahr(`der Kennsatz kommt überhaupt vor (${stellen.length}×)`, stellen.length >= 3);
+  // Vierte Schranke aus derselben Familie. Gemessen in 4.283.0 über 12
+  // Wiederholungen zu je 300 Texten: Mittel 8,1 Treffer, Spanne 5 bis 12. Bei
+  // einer Schranke von 3 ist ein Fehlalarm selten, aber möglich — bei Poisson mit
+  // Mittel 8 liegt P(≤2) bei rund 1,4 %, und genau das ist einmal passiert.
+  // Diese Zeile prüft ihrem eigenen Text nach, ob der Kennsatz ÜBERHAUPT
+  // vorkommt; dafür ist 1 die richtige Zahl. Was er inhaltlich soll — hinten
+  // stehen —, prüft die Zeile darunter, und die ist die eigentliche Aussage.
+  wahr(`der Kennsatz kommt überhaupt vor (${stellen.length}×)`, stellen.length >= 1);
   wahr(`er steht im Median ganz hinten (${(median * 100).toFixed(0)} %)`, median > 0.7);
   // Zugesagt wird NUR der Median. Der Assembler setzt den Kennsatz bei 82 % der
   // ZIELlänge; danach hängt die Längenauffüllung noch an, und bei einem Text,

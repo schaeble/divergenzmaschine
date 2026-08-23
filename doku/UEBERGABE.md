@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.282.0**, Zweig `typescript-migration`.
+Stand: **v4.283.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,46 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Achter Stapel (4.283.0): **Die letzten 8 — Stand 51 von 51.**
+
+| Preset | Wörter | Bericht 450 | Prosa 400 | kürzester Lauf |
+|---|---|---|---|---|
+| traumbilder | 944 | 110,7 % | 97,0 % | 371 |
+| glueck | 892 | 104,8 % | 94,8 % | 356 |
+| lebenreicher | 878 | 102,6 % | 95,5 % | 351 |
+| gruendungsmythos | 875 | 105,8 % | 97,0 % | 365 |
+| myth | 874 | 103,4 % | 96,7 % | 364 |
+| staatsphilosophie | 815 | 105,8 % | 93,7 % | 330 |
+| body | 812 | 102,4 % | 96,0 % | 344 |
+| post | 806 | 103,2 % | 95,5 % | 353 |
+
+**Alle 51 Presets tragen jetzt mindestens 800 Wörter.** Die Spanne reicht von
+806 (post) bis 944 (traumbilder). Vor dieser Sitzung lag der Median bei 48
+EINTRÄGEN und einer Berichtstreue um 56 Prozent; jetzt liegt jedes einzelne
+Preset zwischen 95 und 111 Prozent.
+
+**Drei Presets teilten sich vorher dieselben Füllsätze.** „body", „myth" und
+„post" trugen wörtlich gleiche Einträge — „jemand hört mit", „die Tür ist
+verschlossen", „deine Wahrnehmung wackelt", „Der Einsatz ist Mut." Das ist der
+Rest einer Zeit, in der Presets aus einer Vorlage entstanden. Jeder dieser Sätze
+steht jetzt in seiner eigenen Welt: im Körper („der Kopf sagt etwas anderes als
+der Körper"), im Mythos („die Schwelle ist bei Nacht nicht zu finden"), im
+Archiv („die Erinnerung wackelt gegen die Aufzeichnung").
+
+**Die vierte Schranke im Rauschen.** „Der Kennsatz kommt überhaupt vor" stand bei
+3 von 300 Texten. Gemessen über 12 Wiederholungen: Mittel 8,1, Spanne 5 bis 12 —
+bei Poisson mit Mittel 8 liegt P(≤2) bei rund 1,4 Prozent, und genau das ist
+einmal eingetreten. Die Zeile prüft laut ihrem eigenen Text, ob der Kennsatz
+ÜBERHAUPT vorkommt; dafür ist 1 die richtige Zahl. Was er inhaltlich soll —
+hinten stehen —, prüft die Zeile darunter.
+
+Damit sind in dieser Sitzung **vier Schranken** aufgefallen, die knapp unter dem
+Wert eines einzelnen Laufs gesetzt worden waren: Höhepunkt 3 %, Blindprobe 2,5,
+Schlussbild 25 von 40, Kennsatz 3 von 300. Wer eine Schranke aus einer Messung
+ableitet, würfelt.
+
+Genustabelle 1292 → 1313.
 
 Siebter Stapel (4.282.0): **8 Presets — Stand 43 von 51.**
 

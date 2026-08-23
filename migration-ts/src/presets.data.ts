@@ -255,7 +255,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "der Hafen ist zu Fuß nicht zu erreichen"
     ],
     "stakes": [
-      "Der Einsatz ist Würde.",
+      "Der Einsatz ist ein Körper, mit dem man weiter auskommt.",
       "Der Einsatz ist Begehren: Es frisst, was es berührt.",
       "Der Einsatz ist Wahrheit: Sie kommt im Kostüm.",
       "Der Einsatz ist Erinnerung: Sie parfümiert den Schmerz.",
@@ -1286,7 +1286,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "das Gebet wird erhört, aber anders",
       "ein Gelübde bindet über den Tod hinaus",
       "die Armenliste wird länger als die Gemeinde",
-      "das Brot reicht, und niemand weiß wie"
+      "das Brot reicht, und niemand kann es erklären"
     ],
     "obstacles": [
       "der Glaube verlangt einen Sprung",
@@ -3844,7 +3844,14 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Ring, der Erinnerung statt Macht bedeutet",
       "ein Brief, der wahren Reichtum beschreibt",
       "eine Kerze, die Freundschaft erhellt",
-      "ein Spiegel, der die Seele reicher zeigt"
+      "ein Spiegel, der die Seele reicher zeigt",
+      "ein Haus mit zwölf Zimmern und zwei bewohnten",
+      "ein Kontostand, der niemanden mehr freut",
+      "eine Einladung, die man nicht ausschlagen kann",
+      "ein Geschenk, das eine Rechnung ist",
+      "ein Türsteher, der jeden Gast kennt",
+      "ein Nachbar, der nie klingelt",
+      "ein Zimmer, das für Besuch bereitsteht und leer bleibt"
     ],
     "hooks": [
       "ein Fremder spricht eine unbekannte Sprache in der Dunkelheit",
@@ -3854,7 +3861,15 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Duft nach Zimt, wo Blut sein sollte",
       "ein Lächeln, das nicht zum Elend passt",
       "ein Lied klingt vertraut, obwohl es niemand kennt",
-      "ein Kind schenkt einem Fremden sein letztes Brot"
+      "ein Kind schenkt einem Fremden sein letztes Brot",
+      "Ein Geschenk liegt auf der Fensterbank, ohne Karte.",
+      "Der Gast kommt und will nichts.",
+      "Der Nachbar grüßt zum ersten Mal in zehn Jahren.",
+      "Im Haus fehlt etwas, das niemand vermisst hat.",
+      "Die Einladung gilt für einen, der nicht kommen kann.",
+      "Jemand bringt zurück, was verloren war.",
+      "Ein Bettler nennt seinen Namen und wartet.",
+      "Die Rechnung ist beglichen, von wem, sagt niemand."
     ],
     "props": [
       "einen goldenen Siegelring",
@@ -3865,7 +3880,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Medaillon mit zwei Gesichtern",
       "eine Kerze aus geschmolzenem Wachs",
       "einen Beutel mit unbekannten Samen",
-      "eine Uhr ohne Zeiger"
+      "eine Uhr ohne Zeiger",
+      "eine Einladung mit gedrucktem Namen",
+      "einen Mantel für den Gast",
+      "eine Rechnung ohne Betrag",
+      "einen Schlüssel für ein Zimmer, das leer bleibt",
+      "ein Geschenk ohne Karte",
+      "einen Stuhl, der immer frei bleibt"
     ],
     "turns": [
       "plötzlich zählt nicht mehr der Besitz, sondern die Geste",
@@ -3874,7 +3895,23 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "die Menge verstummt vor einem Akt der Güte",
       "aus Feinden werden für einen Moment Freunde",
       "der wahre Schatz liegt in einem geteilten Brot",
-      "niemand weiß mehr, wer hier wirklich herrscht"
+      "niemand weiß mehr, wer hier wirklich herrscht",
+      "der Gast gibt mehr, als das Haus ihm bietet",
+      "ein Geschenk erweist sich als Abschied",
+      "das Misstrauen kostet mehr als jeder Betrug",
+      "ein Fremder wird eingelassen, und nichts fehlt",
+      "der Nachbar bittet um etwas und bekommt es",
+      "die Schatulle enthält Briefe an ihn, ungelesen",
+      "das Haus wird voll, und der Besitzer geht",
+      "er lädt ein und weiß nicht, wen",
+      "eine Geste bleibt, und der Anlass ist vergessen",
+      "er verliert alles und behält, worauf es ankam",
+      "der Bettler kennt seinen Vornamen",
+      "ein Brief von früher erklärt eine alte Feindschaft",
+      "der Erbe verzichtet und nennt keinen Grund",
+      "das Fest findet statt, und es kommen die Falschen",
+      "er zahlt eine Schuld, die keiner mehr eintreibt",
+      "ein Zimmer wird vermietet, für nichts"
     ],
     "obstacles": [
       "alle misstrauen jedem freundlichen Wort",
@@ -3883,7 +3920,23 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "der Fremde wird verdächtigt, etwas zu wollen",
       "die Straßen sind zu gefährlich für offene Worte",
       "niemand glaubt an uneigennützige Gaben",
-      "die Zeit drängt, doch die Wahrheit wartet"
+      "die Zeit drängt, doch die Wahrheit wartet",
+      "ein Geschenk verpflichtet, und beide wissen es",
+      "niemand glaubt, dass es umsonst ist",
+      "der Türsteher lässt keinen ohne Namen herein",
+      "die Familie erwartet, dass nichts weggegeben wird",
+      "die Einladung wird nur aus Berechnung angenommen",
+      "das Zimmer für Besuch steht seit Jahren leer",
+      "wer gibt, wird gefragt, was er will",
+      "die Sprache des Gastes versteht im Haus niemand",
+      "der Winter macht den Weg zum Nachbarn weit",
+      "ein Erbe wacht über jede Ausgabe",
+      "Freundlichkeit gilt hier als Schwäche",
+      "das Haus ist zu groß für die Heizung",
+      "niemand im Viertel gibt eine Einladung zurück",
+      "der Anwalt rät ausdrücklich davon ab",
+      "die Nachbarn zählen, wer wie oft kommt",
+      "das Geschenk ist zu teuer, um es anzunehmen"
     ],
     "stakes": [
       "Der Einsatz ist Menschlichkeit: in einer Zeit des Hasses.",
@@ -3892,7 +3945,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Vertrauen: zwischen Fremden, die es nicht müssten.",
       "Der Einsatz ist Erinnerung: an das, was wirklich zählt.",
       "Der Einsatz ist Mitgefühl: in einer kalten Zeit.",
-      "Der Einsatz ist Hoffnung: für ein reicheres Morgen."
+      "Der Einsatz ist Hoffnung: für ein reicheres Morgen.",
+      "Der Einsatz ist ein Zimmer, das jemand bewohnen könnte.",
+      "Der Einsatz ist eine Geste, die niemand erwartet.",
+      "Der Einsatz ist die Frage, ob es umsonst sein darf.",
+      "Der Einsatz ist ein Name, den ein Bettler kennt."
     ],
     "endings": [
       "So wird aus Gold nur Staub, aus Güte aber Ewigkeit.",
@@ -3901,7 +3958,26 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Zwei Vermögen vergehen, ein Herz bleibt bestehen.",
       "So schließt sich der Kreis aus Haben und Geben.",
       "Am Ende zählt nur, was man verschenkt hat.",
-      "So bleibt von allen nur, was sie gaben."
+      "So bleibt von allen nur, was sie gaben.",
+      "Und das Geschenk liegt am Morgen noch auf der Bank.",
+      "Am Ende steht das Zimmer offen, für irgendwen.",
+      "Und der Nachbar grüßt am nächsten Tag wieder.",
+      "So bleibt die Schatulle zu, und die Briefe ungelesen.",
+      "Und der Gast ist fort, mit dem Mantel.",
+      "Der Ring liegt auf dem Tisch, und niemand nimmt ihn.",
+      "Und im Haus ist es wärmer als sonst.",
+      "Und die Einladung liegt ungeöffnet auf dem Tisch.",
+      "So bleibt der Stuhl am Kopfende frei.",
+      "Am Ende ist das Haus voll und der Hof leer.",
+      "Und der Türsteher lässt zum ersten Mal jemanden durch."
+    ],
+    "verwandlungen": [
+      "Haus→Gehäuse",
+      "Gast→Bote",
+      "Geschenk→Pfand",
+      "Ring→Reif",
+      "Zimmer→Grab",
+      "Mantel→Schleier"
     ]
   },
   "tanz": {
@@ -4210,7 +4286,17 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Hände, die sich halten, seit Ewigkeiten",
       "ein Kreis aus Schafen, der sich niemals schließt",
       "ein Glücksfaden, unsichtbar gesponnen",
-      "zwei Herzen, die im gleichen Takt schlagen"
+      "zwei Herzen, die im gleichen Takt schlagen",
+      "ein Tisch, an dem seit dreißig Jahren dieselben zwei sitzen",
+      "ein Garten, der genau so groß ist, wie zwei ihn schaffen",
+      "ein Vorrat, der bis zum Frühjahr reicht und nicht weiter",
+      "eine Bank, auf der die Sonne bis vier Uhr steht",
+      "ein Brot, das noch warm auf den Tisch kommt",
+      "ein Abend, an dem nichts zu erledigen ist",
+      "ein Weg zum Brunnen, den beide auswendig gehen",
+      "eine Katze, die immer denselben Platz wählt",
+      "ein Fenster, aus dem man das Wetter kommen sieht",
+      "ein Krug, der zweimal am Tag gefüllt wird"
     ],
     "hooks": [
       "ein Lamm, das nicht altert",
@@ -4220,7 +4306,17 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Schaf, das mit menschlicher Stimme meckert",
       "ein Stein, der warm bleibt trotz der Kälte",
       "ein Weg, der sich hinter ihnen auflöst",
-      "eine Feder, die vom Himmel fällt, ohne Vogel"
+      "eine Feder, die vom Himmel fällt, ohne Vogel",
+      "Es klopft, und es sind Fremde, und sie werden hereingebeten.",
+      "Der Vorrat reicht für zwei, und es sind vier am Tisch.",
+      "Ein Nachbar fragt, was sie eigentlich noch wollen.",
+      "Die Sonne steht schon tief, und keiner steht auf.",
+      "Jemand bietet ihnen ein besseres Haus an.",
+      "Die Katze bleibt zum ersten Mal draußen.",
+      "Ein Brief kündigt eine Erbschaft an.",
+      "Im Dorf wird gesagt, sie hätten zu wenig.",
+      "Der Krug steht voll, und niemand hat ihn gefüllt.",
+      "Es regnet, und beide sitzen nur da."
     ],
     "props": [
       "einen alten Hirtenstab",
@@ -4230,7 +4326,15 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "einen Ring aus Schilf",
       "eine Decke aus Schafwolle",
       "einen Krug voll Wein für Fremde",
-      "eine kleine hölzerne Flöte"
+      "eine kleine hölzerne Flöte",
+      "einen Krug, der nie ganz leer wird",
+      "eine Bank vor dem Haus",
+      "einen Laib Brot vom Morgen",
+      "eine Schale mit Milch für die Katze",
+      "eine Decke für zwei Knie",
+      "einen Stock für den Weg zum Brunnen",
+      "ein Fenster mit einem Geranientopf",
+      "eine Schüssel für die Gäste"
     ],
     "turns": [
       "plötzlich wissen sie, dass die Fremden keine Fremden sind",
@@ -4238,7 +4342,21 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "die Schafe verstummen alle zur gleichen Zeit",
       "ihr Glück scheint größer als die Weide selbst",
       "der Himmel färbt sich golden, ohne dass die Sonne sinkt",
-      "ihre Hände finden sich, wie es immer schon ist"
+      "ihre Hände finden sich, wie es immer schon ist",
+      "die Fremden bleiben, und der Tisch reicht doch",
+      "ein Angebot kommt, und beide lehnen ab, ohne zu reden",
+      "was fehlt, fällt erst auf, als jemand danach fragt",
+      "das Dorf verliert, was die beiden behalten",
+      "der Krug bleibt voll, und niemand redet darüber",
+      "die Erbschaft kommt und ändert nichts",
+      "einer wird krank, und der andere lernt kochen",
+      "der Nachbar sieht zum ersten Mal herüber",
+      "das Glück wird bemerkt und dadurch zerbrechlich",
+      "ein Fremder segnet das Haus und geht weiter",
+      "der Garten trägt in diesem Jahr mehr als nötig",
+      "sie wünschen sich etwas, und es ist wenig",
+      "ein Wunsch wird erfüllt und war der richtige",
+      "am Ende bitten beide um dieselbe Stunde"
     ],
     "obstacles": [
       "die Fremden werden von allen anderen abgewiesen",
@@ -4246,21 +4364,58 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "das Wetter schlägt unerwartet um",
       "die Vorräte reichen kaum für zwei",
       "die Nacht bricht früher herein, als sie sollte",
-      "ihre Nachbarn misstrauen jedem Besucher"
+      "ihre Nachbarn misstrauen jedem Besucher",
+      "das Dorf hält Gastfreundschaft für Torheit",
+      "der Vorrat reicht für zwei, nicht für vier",
+      "der Winter kommt früher als in anderen Jahren",
+      "niemand versteht, warum sie nichts wollen",
+      "die Beine tragen den Weg zum Brunnen nicht mehr",
+      "ein Angebot ist zu gut, um es abzulehnen",
+      "die Nachbarn erwarten eine Gegeneinladung",
+      "das Dach hält den nächsten Regen nicht",
+      "einer von beiden hört schlechter als früher",
+      "das Glück lässt sich nicht erzählen, ohne kleiner zu werden",
+      "der Sohn schreibt aus der Stadt und drängt",
+      "die Katze bleibt eine Nacht zu lang weg",
+      "was reicht, reicht nur bis zum Frühjahr",
+      "niemand will hören, dass es genug ist"
     ],
     "stakes": [
       "Der Einsatz ist Glück: geteilt, nicht gehortet.",
       "Der Einsatz ist Gastfreundschaft, die alles verändert.",
       "Der Einsatz ist die stille Freude zweier alter Herzen.",
       "Der Einsatz ist ein Segen, den niemand kommen sah.",
-      "Der Einsatz ist Vertrauen in das Unbekannte."
+      "Der Einsatz ist Vertrauen in das Unbekannte.",
+      "Der Einsatz ist ein Abend, an dem nichts zu tun ist.",
+      "Der Einsatz ist ein Tisch, an dem noch zwei Platz haben.",
+      "Der Einsatz ist die Frage, ob genug wirklich genug ist.",
+      "Der Einsatz ist eine Stunde, um die beide bitten.",
+      "Der Einsatz ist ein Haus, das niemand größer will."
     ],
     "endings": [
       "So bleibt ihr Lächeln, wenn alles andere vergeht.",
       "Und das Glück wächst leise weiter, wie Gras auf der Weide.",
       "So schließt sich der Kreis aus Milde und Licht.",
       "Ihr stilles Glück wird zur Legende der Weide.",
-      "So wird aus Armut ein Wunder, das lächelt."
+      "So wird aus Armut ein Wunder, das lächelt.",
+      "Und der Krug steht am Morgen wieder voll.",
+      "So bleibt der Tisch gedeckt für zwei und für Gäste.",
+      "Am Ende sitzen sie da, und es ist genug.",
+      "Und im Garten wächst, was sie im Frühjahr säten.",
+      "So geht der Weg zum Brunnen, wie er immer ging.",
+      "Und die Katze liegt wieder auf demselben Platz.",
+      "Der Abend wird kühl, und beide bleiben sitzen.",
+      "Und niemand im Dorf versteht es, bis heute.",
+      "So bleibt das Haus, wie es war, nur älter.",
+      "Und die Bank steht in der Sonne bis vier."
+    ],
+    "verwandlungen": [
+      "Krug→Becher",
+      "Garten→Park",
+      "Brot→Pfand",
+      "Bank→Mauer",
+      "Katze→Wolke",
+      "Abend→Morgen"
     ]
   },
   "gruendungsmythos": {
@@ -4272,7 +4427,17 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Licht ohne Quelle über den Hügeln",
       "uralte Steine, die nach Namen flüstern",
       "ein Baum, der aus zwei Wurzeln wächst",
-      "der Himmel, der sich über der Weide neigt"
+      "der Himmel, der sich über der Weide neigt",
+      "ein Feuer, das seit der ersten Nacht nicht ausging",
+      "ein Pflug, mit dem eine Grenze gezogen wurde",
+      "ein Stein, auf dem der erste Name steht",
+      "eine Quelle, die den Ort entschieden hat",
+      "ein Baum, der älter ist als die Häuser",
+      "ein Tag im Jahr, an dem alle dasselbe tun",
+      "ein Grab am Anfang der Straße",
+      "eine Furt, an der zwei Wege sich trafen",
+      "ein Name, der von einem Missverständnis kommt",
+      "ein Zeichen an der ältesten Mauer"
     ],
     "hooks": [
       "ein Lämmchen, das rückwärts geht",
@@ -4282,7 +4447,17 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Vogel, der über derselben Stelle kreist",
       "ein Klang wie ein zweiter Herzschlag im Boden",
       "ein Schatten, der länger bleibt als die Sonne erlaubt",
-      "Gras, das sich weigert zu welken"
+      "Gras, das sich weigert zu welken",
+      "Das Feuer geht aus, zum ersten Mal seit Menschengedenken.",
+      "Der Grenzpflug wird gefunden, wo er nicht liegen dürfte.",
+      "Ein Fremder erzählt die Gründung anders.",
+      "Die Quelle versiegt in dem Jahr, in dem gefeiert wird.",
+      "Der erste Name auf dem Stein ist nicht zu lesen.",
+      "Zwei Familien behaupten dieselbe Herkunft.",
+      "Der Baum verliert im Sommer alle Blätter.",
+      "Am Grab am Straßenanfang liegen frische Blumen.",
+      "Die Furt ist verlandet, und der Weg bleibt.",
+      "Jemand fragt, warum der Ort so heißt."
     ],
     "props": [
       "einen alten Hirtenstab",
@@ -4292,7 +4467,14 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "einen Ring aus verwittertem Holz",
       "eine Schale mit Milch und Honig",
       "einen Stein mit eingeritzten Zeichen",
-      "eine kleine Opferschale"
+      "eine kleine Opferschale",
+      "einen Pflug mit hölzerner Schar",
+      "einen Stein mit dem ersten Namen",
+      "eine Schale für das erste Feuer",
+      "ein Horn für den Tag im Jahr",
+      "einen Krug aus der ältesten Werkstatt",
+      "ein Seil, mit dem gemessen wurde",
+      "eine Tafel mit den Namen der Gründer"
     ],
     "turns": [
       "plötzlich lächeln beide, als wüssten sie, was noch niemand weiß",
@@ -4300,7 +4482,21 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "dann verändert sich das Licht, als beginne die Welt von vorn",
       "in diesem Moment wird aus zwei Hirten ein Ursprung",
       "unvermittelt spricht das Gras mit zwei Stimmen zugleich",
-      "dann erkennt man: sie sind schon immer hier"
+      "dann erkennt man: sie sind schon immer hier",
+      "die Gründung war anders, und niemand ändert die Geschichte",
+      "das Feuer wird neu entzündet, und alle tun, als wäre nichts",
+      "ein Grab wird geöffnet und ist leer",
+      "der Name kommt von einem Wort, das niemand mehr kennt",
+      "die Grenze war ein Zufall und ist jetzt heilig",
+      "zwei Erzählungen werden zu einer, und beide verlieren",
+      "die Quelle kommt wieder, an einer anderen Stelle",
+      "ein Fremder wird zum Ahnen erklärt",
+      "der Feiertag verschiebt sich um eine Woche und bleibt",
+      "die älteste Familie war nicht die erste",
+      "das Zeichen an der Mauer ist jünger als gedacht",
+      "der Ort wird gegründet, ein zweites Mal",
+      "was Brauch war, wird Vorschrift",
+      "die Geschichte wird aufgeschrieben und damit endlich"
     ],
     "obstacles": [
       "die Fremden erkennen die Weide nicht wieder",
@@ -4308,7 +4504,21 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "die Götter verlangen ein Zeichen, das niemand deuten kann",
       "der Nebel lässt die Grenzen der Weide verschwimmen",
       "die Zeit weigert sich, weiterzugehen",
-      "die Schafe folgen keinem Ruf mehr"
+      "die Schafe folgen keinem Ruf mehr",
+      "niemand weiß mehr, wer die ersten Regeln aufstellte",
+      "die Quelle liegt heute außerhalb der Grenze",
+      "der Stein ist verwittert und nicht zu lesen",
+      "die beiden Familien reden seit drei Jahren nicht",
+      "das Feuer braucht Holz, und der Wald gehört anderen",
+      "der Feiertag fällt in die Ernte",
+      "die Furt ist verlandet und der Umweg lang",
+      "niemand darf den Baum beschneiden",
+      "die Tafel nennt Namen, die es im Ort nicht gibt",
+      "die Fremden werden nicht in die Geschichte aufgenommen",
+      "der Brauch verlangt etwas, das keiner mehr kann",
+      "das Grab liegt im Weg für die neue Straße",
+      "wer die Geschichte anzweifelt, sitzt bald allein",
+      "der Ort ist zu klein für zwei Gründungen"
     ],
     "stakes": [
       "Der Einsatz ist die Erinnerung eines ganzen Volkes.",
@@ -4316,7 +4526,12 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist die Gunst der Götter.",
       "Der Einsatz ist das Bestehen der Weide selbst.",
       "Der Einsatz ist die Treue zweier Herzen über die Zeit hinaus.",
-      "Der Einsatz ist die Wahrheit hinter jedem Mythos."
+      "Der Einsatz ist die Wahrheit hinter jedem Mythos.",
+      "Der Einsatz ist ein Feuer, das nicht ausgehen darf.",
+      "Der Einsatz ist die Frage, wer zuerst da war.",
+      "Der Einsatz ist eine Grenze, die ein Zufall gezogen hat.",
+      "Der Einsatz ist ein Name und woher er kommt.",
+      "Der Einsatz ist ein Tag, an dem alle dasselbe tun."
     ],
     "endings": [
       "So beginnt die Legende, die man sich noch heute erzählt.",
@@ -4324,7 +4539,24 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "So verwandelt sich die Weide in heiligen Boden.",
       "So schließt sich der Kreis der ersten Geschichte.",
       "So bleibt ihr Lächeln in jedem Stein der Weide.",
-      "So wird aus zwei Hirten ein Anfang."
+      "So wird aus zwei Hirten ein Anfang.",
+      "Und das Feuer brennt weiter, mit neuem Holz.",
+      "So bleibt der Stein stehen, unleserlich.",
+      "Am Ende erzählt man es, wie man es immer erzählt hat.",
+      "Und der Baum treibt im Frühjahr wieder aus.",
+      "So wird aus einem Zufall ein Anfang.",
+      "Und die Grenze läuft, wo der Pflug ging.",
+      "Der Feiertag bleibt, und der Grund ist vergessen.",
+      "Und die Tafel bekommt einen Namen mehr.",
+      "Und am Grab am Straßenanfang liegen wieder Blumen."
+    ],
+    "verwandlungen": [
+      "Feuer→Gerücht",
+      "Grenze→Naht",
+      "Stein→Knochen",
+      "Quelle→Wunde",
+      "Baum→Zeuge",
+      "Name→Schatten"
     ]
   },
   "staatsphilosophie": {
@@ -4337,7 +4569,16 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Vertrag, in Leinen eingewebt",
       "die Stille eines Gesetzes vor seiner Verkündung",
       "ein Herrscherblick in den Augen der Beherrschten",
-      "die Wiederkehr eines alten Eids"
+      "die Wiederkehr eines alten Eids",
+      "ein Grenzstein, den niemand gesetzt hat",
+      "ein Vertrag, den keiner unterschrieben hat und alle halten",
+      "ein Platz, auf dem Entscheidungen laut gesagt werden",
+      "ein Amt, das der Nachfolger nicht ablehnen darf",
+      "eine Waage über einem Tor",
+      "eine Versammlung, die sich selbst die Regeln gibt",
+      "ein Schwur, den ein ganzes Volk gesprochen hat",
+      "ein Gesetz, das älter ist als der Staat",
+      "ein Herrscher, der von einer Regel abhängt"
     ],
     "hooks": [
       "ein Kind trägt ein Amulett mit einem fremden Wappen",
@@ -4347,7 +4588,17 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "der Wind trägt eine Stimme, die von Pflicht spricht",
       "zwischen den Pflastersteinen liegt ein Siegel aus Ton",
       "alle folgen einer Ordnung, die niemand befahl",
-      "ein Stein in der Erde trägt eingeritzte Paragraphen"
+      "ein Stein in der Erde trägt eingeritzte Paragraphen",
+      "Zwei Dörfer teilen ein Feld und nennen keinen Richter.",
+      "Der Grenzstein steht zwanzig Schritte weiter als früher.",
+      "Eine Versammlung entscheidet, und niemand hat einberufen.",
+      "Der Herrscher fragt, wer ihn eingesetzt hat.",
+      "Ein Fremder fordert dasselbe Recht wie alle.",
+      "Der Eid wird gesprochen, und einer schweigt.",
+      "Ein Gesetz wird verlesen, das keiner beschlossen hat.",
+      "Im Rat sitzt einer, der nicht gewählt wurde.",
+      "Die Waage über dem Tor ist verschwunden.",
+      "Ein Beschluss gilt, obwohl die Hälfte fehlte."
     ],
     "props": [
       "einen zerbrochenen Herrscherstab",
@@ -4358,35 +4609,88 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein vergilbtes Pergament ohne Unterschrift",
       "einen Gehstock mit eingeschnitzter Krone",
       "ein verrostetes Schloss ohne Schlüssel",
-      "eine Münze mit unbekanntem Antlitz"
+      "eine Münze mit unbekanntem Antlitz",
+      "einen Grenzstein mit einem Zeichen",
+      "eine Waage aus Bronze",
+      "ein Verzeichnis der Stimmberechtigten",
+      "einen Stab, den man weiterreicht",
+      "eine Tafel mit den ersten Sätzen",
+      "ein Siegel, das zwei Häuser tragen",
+      "einen Losbehälter aus Ton"
     ],
     "turns": [
       "plötzlich zeigt sich im Lärm der Menge eine Ordnung, die einem Gesetz gleicht",
       "ein Lächeln verrät, dass jemand die stumme Verfassung längst versteht",
       "auf einmal scheint die ganze Stadt einem unsichtbaren Herrscher zu gehorchen",
       "ohne Vorwarnung spricht der Wind wie ein Urteil",
-      "es scheint, als hätte das Land seit jeher eigene Gesetze"
+      "es scheint, als hätte das Land seit jeher eigene Gesetze",
+      "die Ordnung hält, ohne dass jemand sie durchsetzt",
+      "der Herrscher gehorcht einer Regel und wird dadurch stärker",
+      "die Mehrheit entscheidet gegen ihren eigenen Vorteil",
+      "ein Recht wird gewährt und lässt sich nicht zurücknehmen",
+      "der Vertrag gilt, weil beide glauben, der andere halte ihn",
+      "die Grenze verschwindet, und das Feld wird geteilt wie vorher",
+      "eine Ausnahme wird gemacht und ist von da an die Regel",
+      "der Rat setzt sich selbst ab",
+      "die Gewohnheit siegt über das geschriebene Gesetz",
+      "wer die Macht hat, fragt nach der Erlaubnis",
+      "ein Fremder bekommt Recht, und die Ordnung hält",
+      "die Versammlung schweigt, und das gilt als Zustimmung",
+      "ein Amt wird angenommen, das niemand wollte",
+      "das Los entscheidet, und alle nehmen es an"
     ],
     "obstacles": [
       "die Grenze lässt sich nicht mit Worten erklären",
       "niemand erinnert sich, wer die ersten Regeln aufstellte",
       "niemand gehorcht mehr einem Ruf",
       "der alte Vertrag ist im Boden versunken",
-      "ein Nebel verwischt jede sichtbare Ordnung"
+      "ein Nebel verwischt jede sichtbare Ordnung",
+      "der Rat ist beschlussfähig und uneins",
+      "das Gesetz gilt für alle und trifft am Ende einen",
+      "die Mehrheit ist da und hat unrecht",
+      "der Vertrag hat keine Zeugen mehr",
+      "ein Amt bleibt unbesetzt, weil niemand es will",
+      "die Ordnung hängt an einem einzigen Mann",
+      "der Fremde hat kein Recht, es zu verlangen",
+      "die Versammlung tagt nur einmal im Jahr",
+      "die Grenze ist gerecht und für beide unbrauchbar",
+      "niemand kann die Regel ändern, die das Ändern regelt",
+      "die Waage ist geeicht und wird nicht benutzt",
+      "wer widerspricht, wird nicht mehr geladen"
     ],
     "stakes": [
       "Der Einsatz ist Gerechtigkeit: für ein Land ohne Namen.",
       "Der Einsatz ist Ordnung: bewahrt von niemandem und doch von allen.",
       "Der Einsatz ist Macht: verborgen im Lächeln der Weise.",
       "Der Einsatz ist Frieden: erkauft mit Schweigen.",
-      "Der Einsatz ist Herrschaft: über etwas, das niemand sieht."
+      "Der Einsatz ist Herrschaft: über etwas, das niemand sieht.",
+      "Der Einsatz ist eine Ordnung, die niemand befiehlt.",
+      "Der Einsatz ist ein Feld, das zwei Dörfern gehört.",
+      "Der Einsatz ist die Frage, wer den Herrscher einsetzt.",
+      "Der Einsatz ist ein Recht, das auch für Fremde gilt.",
+      "Der Einsatz ist ein Vertrag ohne Zeugen."
     ],
     "endings": [
       "So bleibt die Ordnung ungeschrieben, aber lebendig.",
       "Und alle folgen weiterhin einem Gesetz ohne Namen.",
       "So verschwimmt Herrschaft mit Gewohnheit.",
       "Am Ende lächeln alle, als wüssten sie, wer wirklich regiert.",
-      "So schließt sich der Kreis von Macht und Stille."
+      "So schließt sich der Kreis von Macht und Stille.",
+      "Am Ende steht der Grenzstein, wo er stehen soll.",
+      "Und das Los wird zurück in den Behälter gelegt.",
+      "Und die Versammlung geht auseinander, ohne Beschluss.",
+      "Der Stab wird weitergereicht, an den Nächsten.",
+      "Und das Feld wird geteilt wie in jedem Jahr.",
+      "So hält der Vertrag, weil beide es glauben.",
+      "Und die Waage hängt wieder über dem Tor."
+    ],
+    "verwandlungen": [
+      "Vertrag→Faden",
+      "Grenze→Naht",
+      "Waage→Uhr",
+      "Gesetz→Gitter",
+      "Stab→Zeiger",
+      "Ordnung→Gewohnheit"
     ]
   },
   "traumbilder": {
@@ -4398,7 +4702,15 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Treppe, die nach unten führt und höher endet",
       "Wolken, die wie erinnerte Gesichter ziehen",
       "ein Licht zwischen den Bäumen, das niemand entzündet hat",
-      "eine Ebene, die sich in einen See aus Schlaf verwandelt"
+      "eine Ebene, die sich in einen See aus Schlaf verwandelt",
+      "ein Haus, in dem ein Zimmer mehr ist als gestern",
+      "eine Treppe, die im Hinaufgehen flacher wird",
+      "eine Straße, auf der alle in dieselbe Richtung gehen",
+      "ein Telefon, das klingelt und keinen Anschluss hat",
+      "ein Prüfungssaal, in dem das Fach nicht genannt wird",
+      "ein Zug, der abfährt, während man auf ihn zuläuft",
+      "ein Gesicht, das man kennt und nicht benennen kann",
+      "ein Zimmer aus der Kindheit mit falschen Maßen"
     ],
     "hooks": [
       "ein Lächeln, das älter wirkt als das Gesicht",
@@ -4408,7 +4720,17 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Schatten, der jemandem folgt, aber nicht ihm gehört",
       "ein Klang wie ferne Schritte über Wolken",
       "ein Geräusch, das erst beim Aufwachen aufhört",
-      "ein Zimmer, das man betritt und längst kennt"
+      "ein Zimmer, das man betritt und längst kennt",
+      "Die Tür führt in ein Zimmer, das es im Haus nicht gibt.",
+      "Alle sprechen weiter, und niemand bewegt den Mund.",
+      "Der Zug fährt ab, und die Beine werden schwer.",
+      "Ein Bekannter hat das Gesicht von jemand anderem.",
+      "Die Prüfung beginnt, und das Fach wird nicht genannt.",
+      "Das Telefon klingelt, und der Hörer ist warm.",
+      "Der Flur wird länger, je weiter er geht.",
+      "Jemand sagt einen Satz, den man gleich vergisst.",
+      "Im Spiegel steht das Zimmer seitenverkehrt und richtig.",
+      "Der Wecker geht, und der Traum geht weiter."
     ],
     "props": [
       "einen Wecker, der rückwärts läuft",
@@ -4419,7 +4741,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "einen Ring, der nachts enger sitzt",
       "eine Schale mit stillem Wasser",
       "einen Spiegel, der eine Spur zu spät reagiert",
-      "eine Feder, die im Wind nicht fällt"
+      "eine Feder, die im Wind nicht fällt",
+      "ein Telefon ohne Anschluss",
+      "eine Fahrkarte für einen Zug, der schon weg ist",
+      "ein Heft mit einer Aufgabe darin",
+      "eine Uhr, deren Zeiger man nicht ablesen kann",
+      "eine Tür ohne Klinke",
+      "eine Lampe, die im Traum nicht angeht"
     ],
     "turns": [
       "Plötzlich ist klar: hier wird geträumt, und niemand will erwachen.",
@@ -4427,7 +4755,23 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Ein Windstoß trägt eine Stimme, die niemand ausgesprochen hat.",
       "Der Boden beginnt sich zu drehen, als läge er in einem Traum.",
       "Im Spiegel bewegt sich das Bild einen Atemzug zu spät.",
-      "Der Himmel färbt sich golden, obwohl es Nacht sein sollte."
+      "Der Himmel färbt sich golden, obwohl es Nacht sein sollte.",
+      "der Raum ordnet sich neu, sobald man wegsieht",
+      "ein Fremder betritt das Zimmer, das es nicht gibt",
+      "die Sprache funktioniert und ergibt keinen Sinn",
+      "das Haus hat ein Zimmer mehr, und es war immer da",
+      "der Zug hält, und alle steigen an derselben Stelle aus",
+      "er erkennt die Regel des Traums und verliert sie sofort",
+      "die Toten sitzen mit am Tisch, und niemand wundert sich",
+      "der Wecker klingelt im Traum und weckt niemanden",
+      "die Prüfung ist bestanden, ohne dass etwas geschrieben wurde",
+      "er erwacht in einen zweiten Traum",
+      "das Gesicht bekommt einen Namen, und der ist falsch",
+      "die Angst kommt später als die Situation",
+      "der Raum wird kleiner, und das ist beruhigend",
+      "plötzlich ist klar, dass geträumt wird, und niemand will erwachen",
+      "das Zimmer hat ein Fenster, das gestern eine Wand war",
+      "jemand ruft einen Namen, und alle drehen sich um"
     ],
     "obstacles": [
       "Alle sprechen eine Sprache, die nur im Traum verständlich ist.",
@@ -4435,7 +4779,20 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Weg zurück liegt offen, doch niemand findet ihn.",
       "Ein unsichtbares Gewicht hält jeden Schritt zurück.",
       "Die Zeit scheint sich zu verdoppeln, ohne Fortschritt zu machen.",
-      "Jede Stimme verhallt, bevor sie ihr Ende erreicht."
+      "Jede Stimme verhallt, bevor sie ihr Ende erreicht.",
+      "die Beine gehen und kommen nicht vom Fleck",
+      "das Wort für die Sache fehlt genau jetzt",
+      "die Treppe hat eine Stufe zu viel",
+      "der Wecker ist im Traum kaputt",
+      "niemand hört, was gerufen wird",
+      "die Tür lässt sich öffnen und nicht durchschreiten",
+      "die Zeit im Traum hält sich an nichts",
+      "der Koffer wird leichter und ist immer noch zu tragen",
+      "das Zimmer ist bekannt und stimmt in keinem Maß",
+      "wer aufwacht, verliert alles außer einem Bild",
+      "die Prüfung wird von jemandem ohne Gesicht abgenommen",
+      "der Weg zurück liegt offen, und niemand findet ihn",
+      "alle sprechen eine Sprache, die nur im Traum verständlich ist"
     ],
     "stakes": [
       "Der Einsatz ist der Schlaf: das Letzte, was verlässlich bleibt.",
@@ -4443,7 +4800,11 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist die Erinnerung, die beim Erwachen zerfällt.",
       "Der Einsatz ist die Grenze zwischen Traum und Erwachen.",
       "Der Einsatz ist die Gewissheit, wach zu sein.",
-      "Der Einsatz ist das, was der Traum nicht hergeben will."
+      "Der Einsatz ist das, was der Traum nicht hergeben will.",
+      "Der Einsatz ist ein Bild, das beim Erwachen bleibt.",
+      "Der Einsatz ist ein Zimmer, das es geben müsste.",
+      "Der Einsatz ist die Frage, wer hier träumt.",
+      "Der Einsatz ist ein Name für ein bekanntes Gesicht."
     ],
     "endings": [
       "So verschwimmt der Traum mit dem Zimmer, für immer.",
@@ -4451,7 +4812,24 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "So schließt sich der Raum, kaum dass man ihn benannt hat.",
       "So bleibt vom Traum nur ein Wort, das niemand kennt.",
       "So endet der Traum, doch das Lächeln bleibt wach.",
-      "So verklingt alles im ersten Licht des Erwachens."
+      "So verklingt alles im ersten Licht des Erwachens.",
+      "Und der Wecker geht, und ein Bild bleibt.",
+      "Am Ende ist der Koffer leer und schwer.",
+      "Und der Zug fährt ab, wie in jeder Nacht.",
+      "So bleibt das Gesicht ohne Namen.",
+      "Und der Flur wird kürzer, sobald man sich umdreht.",
+      "Das Telefon hört auf zu klingeln.",
+      "Und am Morgen fehlt genau ein Zimmer.",
+      "So schließt sich das Zimmer, kaum dass es benannt ist.",
+      "Und die Prüfung ist bestanden, ohne Fach."
+    ],
+    "verwandlungen": [
+      "Traum→Bericht",
+      "Zimmer→Grab",
+      "Treppe→Rampe",
+      "Gesicht→Zeichen",
+      "Zug→Bote",
+      "Uhr→Waage"
     ]
   },
   "mystery": {
@@ -4461,7 +4839,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Spiegelbild, das zu spät reagiert",
       "ein Formular mit einem Feld zu viel",
       "ein Kabel, das warm wird, ohne Strom",
-      "eine Narbe, die sich erinnert",
+      "eine Narbe, die sich an das Wetter erinnert",
       "ein Name, der nicht ausgesprochen werden kann",
       "ein Licht, das die falschen Dinge zeigt",
       "ein Geräusch, das nur in Gedanken existiert",
@@ -4557,10 +4935,10 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "der Fall war schon einmal gelöst, unter anderem Namen"
     ],
     "obstacles": [
-      "die Tür ist verschlossen",
-      "jemand hört mit",
-      "die eigene Wahrnehmung wackelt",
-      "eine Regel gilt, die niemand erklärt",
+      "die Schwelle ist bei Nacht nicht zu finden",
+      "im Nebenzimmer wird es still, sobald er spricht",
+      "der Kopf sagt etwas anderes als der Körper",
+      "eine Regel gilt am Brunnen, die niemand erklärt",
       "die Akte trägt das falsche Datum",
       "die Zeit stimmt nicht mit der Uhr",
       "der Zeuge schweigt aus Höflichkeit",
@@ -4581,7 +4959,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "die Spur hört an einer Tür auf, die immer offen stand"
     ],
     "stakes": [
-      "Der Einsatz ist Mut.",
+      "Der Einsatz ist ein Weg, den man nur einmal geht.",
       "Der Einsatz ist Zeit: Ein Teil des Abends kommt nicht zurück.",
       "Der Einsatz ist Wahrheit: Etwas am Selbstbild verschiebt sich.",
       "Der Einsatz ist Vertrauen: in sich selbst.",
@@ -4594,9 +4972,9 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Der Einsatz ist Erinnerung: Sie wird geprüft."
     ],
     "endings": [
-      "Damit ist es entschieden.",
-      "So schließt sich der Kreis.",
-      "Und vielleicht beginnt es erst hier.",
+      "Damit ist es entschieden, und der Termin steht.",
+      "So schließt sich die Schwelle hinter ihm.",
+      "Und irgendwann öffnet es niemand mehr.",
       "Und die Tür fällt ins Schloss.",
       "Und es ist, als hätte der Ort kurz geblinzelt.",
       "Und die Treppe hat wieder die richtige Zahl von Stufen.",
@@ -4749,7 +5127,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     "endings": [
       "Und niemand unterschrieb.",
       "So schließt sich der Kreis.",
-      "Und es beginnt erst dort.",
+      "Und im Dorf erzählt man es anders.",
       "Und die Tür fällt ins Schloss.",
       "Und der Bescheid bleibt ohne Antwort.",
       "Und der Vorgang wird zu den Akten genommen.",
@@ -4866,9 +5244,9 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     "obstacles": [
       "das Signal bricht ab",
       "die Schnittstelle verlangt eine Geste",
-      "deine Wahrnehmung wackelt",
+      "die Erinnerung wackelt gegen die Aufzeichnung",
       "ein Protokoll widerspricht sich",
-      "die Verbindung ist da – aber ohne Netzwerk",
+      "die Verbindung steht, und es ist kein Netz da",
       "die Kennung gehört jemandem, der nicht mehr da ist",
       "niemand weiß mehr, wofür dieser Dienst gebaut wurde",
       "der Bereitschaftsdienst ist eine Person für vier Systeme",
@@ -4899,9 +5277,9 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
     "endings": [
       "Und das System schweigt – mit Absicht.",
       "Und der Bildschirm blinkt einmal zu viel.",
-      "Und die Datei wirkt nach.",
+      "Und die Sicherung liegt weiter im Regal.",
       "Und vielleicht beginnt es erst hier.",
-      "Und alles bleibt korrekt.",
+      "Und das Konto läuft weiter, Monat für Monat.",
       "Und die Statusseite ist wieder grün, wie vorher.",
       "So bleibt das Ticket offen und wandert in die nächste Woche.",
       "Am Ende steht ein Bericht, den drei Leute lesen.",
@@ -4927,24 +5305,44 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
   "myth": {
     "motifs": [
       "ein Name, der ein Schlüssel ist",
-      "ein Omen, das dreimal erscheint",
-      "ein Faden, der nicht reißt",
+      "ein Omen, das dreimal erscheint und beim dritten Mal bleibt",
+      "ein Faden, der auch unter Zug nicht reißt",
       "eine Maske, die dich auswählt",
       "ein Schrein im Alltag",
       "ein Fluss, der zuhört",
       "ein Segen mit Widerhaken",
       "ein Bote in ziviler Kleidung",
       "ein Orakel aus Papier",
-      "ein Zeichen aus Ruß auf Gold"
+      "ein Zeichen aus Ruß auf Gold",
+      "ein Name, den man nur einmal nennen darf",
+      "eine Schwelle, über die niemand ungebeten geht",
+      "ein Zeichen, das dreimal an denselben Ort kommt",
+      "ein Faden, der aus einer Höhle führt",
+      "ein Opfer, das an einem Baum hängt",
+      "ein Fluss, den man nur mit einer Gabe überquert",
+      "eine Alte am Wegrand, die eine Frage stellt",
+      "ein Tier, das den Weg kennt",
+      "ein Brunnen, in den man etwas werfen muss",
+      "eine Geschichte, die im Dorf jeder anders erzählt"
     ],
     "hooks": [
-      "eine Feder im falschen Winkel",
-      "ein Flüstern im Wasser",
-      "ein Schatten, der Opfer verlangt",
+      "eine Feder, die im falschen Winkel im Weg liegt",
+      "ein Flüstern, das aus dem Wasser kommt",
+      "ein Schatten, der ein Opfer verlangt und wartet",
       "ein Brot, das nach Asche schmeckt",
       "eine Münze, die zurückkehrt",
       "eine Tür, die den Namen sagt",
-      "eine Krähe, die dich erkennt"
+      "eine Krähe, die dich erkennt",
+      "Das Zeichen kommt zum dritten Mal, an derselben Stelle.",
+      "Eine Alte fragt nach dem Namen und bekommt einen falschen.",
+      "Am Brunnen liegt eine Gabe, die niemand gebracht hat.",
+      "Der Hund geht nicht über die Schwelle, zum ersten Mal.",
+      "Ein Kind wiederholt einen Satz aus der alten Geschichte.",
+      "Der Fluss steht still, und das gab es noch nie.",
+      "Jemand nennt den Namen laut, und alle sehen weg.",
+      "Am Baum hängt etwas, das vorher nicht da war.",
+      "Der Weg ist plötzlich kürzer als jedes Mal davor.",
+      "Die Alte ist fort, und die Frage steht noch."
     ],
     "props": [
       "eine Münze",
@@ -4956,7 +5354,15 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Lampe",
       "ein Stück Kreide",
       "einen Schlüssel",
-      "einen Faden"
+      "einen Faden",
+      "einen Faden, der aus einer Höhle führt",
+      "eine Münze für den Fährmann",
+      "ein Bündel Kräuter für die Schwelle",
+      "einen Ring, den man nicht verlieren darf",
+      "eine Gabe für den Brunnen",
+      "ein Messer mit einem alten Griff",
+      "eine Schale mit Milch für die Nacht",
+      "einen Stein mit einem Loch darin"
     ],
     "turns": [
       "der Ort verlangt eine Gabe",
@@ -4964,50 +5370,130 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Versprechen bindet die Richtung",
       "die Spur führt nach innen, nicht nach außen",
       "ein Gott trägt deinen Mantel",
-      "der Alltag wird zum Ritual"
+      "der Alltag wird zum Ritual",
+      "der Ort verlangt eine Gabe, und sie wird gegeben",
+      "das Zeichen kommt zum dritten Mal und meint etwas anderes",
+      "ein Versprechen bindet die Richtung für alle weiteren Wege",
+      "der Name wird genannt, und es geschieht nichts",
+      "die Alte war die, nach der er suchte",
+      "die Gabe wird angenommen und reicht nicht",
+      "der Faden reißt, und der Weg ist trotzdem da",
+      "die alte Geschichte hat ein anderes Ende",
+      "das Tier bleibt stehen, wo der Weg abzweigt",
+      "der Fluss lässt ihn durch, aber nicht zurück",
+      "was er mitbringt, gehört ihm nicht mehr",
+      "die Schwelle wird überschritten und schließt sich",
+      "eine Regel wird gebrochen, und niemand straft",
+      "ein Zeichen wird missdeutet und führt trotzdem richtig",
+      "die Alte nennt einen Preis, der erst später fällig wird",
+      "der Ring wird verloren und findet sich am falschen Ort",
+      "das Opfer am Baum ist keins mehr",
+      "die Milch steht am Morgen unberührt vor der Tür"
     ],
     "obstacles": [
       "die Tür ist verschlossen",
       "eine Regel gilt, die niemand erklärt",
       "jemand hört mit",
       "der Name darf nicht ausgesprochen werden",
-      "du musst etwas geben, bevor du nimmst"
+      "du musst etwas geben, bevor du nimmst",
+      "der Name darf nur einmal genannt werden",
+      "die Gabe muss von jemandem sein, der sie vermisst",
+      "der Fährmann nimmt kein Geld von Lebenden",
+      "niemand im Dorf will den Weg zeigen",
+      "die Alte antwortet nur auf die richtige Frage",
+      "das Zeichen kommt nicht zum dritten Mal",
+      "wer sich umdreht, verliert alles",
+      "die Geschichte wird im Nachbardorf anders erzählt",
+      "das Tier folgt nur einem, nicht zweien",
+      "der Fluss steigt vor der Dämmerung",
+      "die Kräuter wachsen nur an einem Hang",
+      "man darf nicht danken, und niemand weiß warum",
+      "der Rückweg ist nicht derselbe",
+      "die Schwelle darf nur bei Tageslicht überschritten werden",
+      "der Brunnen nimmt keine zweite Gabe an",
+      "niemand darf den Weg zweimal in einem Jahr gehen",
+      "die Kräuter müssen vor Sonnenaufgang geschnitten werden",
+      "wer den Namen hört, ist damit gebunden",
+      "die Höhle hat einen zweiten Ausgang, den keiner kennt"
     ],
     "stakes": [
       "Der Einsatz ist Mut.",
       "Der Einsatz ist Wahrheit: ein Bild kippt.",
       "Der Einsatz ist Bindung: an Ort und Zeichen.",
-      "Der Einsatz ist Erinnerung: was du nicht verlieren wolltest."
+      "Der Einsatz ist Erinnerung: was du nicht verlieren wolltest.",
+      "Der Einsatz ist ein Name, den man nicht zurücknehmen kann.",
+      "Der Einsatz ist eine Gabe, die jemandem fehlen wird.",
+      "Der Einsatz ist die Frage der Alten am Wegrand.",
+      "Der Einsatz ist das Versprechen, sich nicht umzudrehen."
     ],
     "endings": [
       "So schließt sich der Kreis.",
-      "Und der Ort blinzelt.",
+      "Und der Brunnen gibt etwas zurück, das älter ist.",
       "Und es beginnt erst dort.",
       "Und die Maske bleibt zurück.",
-      "Und die Tür fällt ins Schloss."
+      "Und die Tür fällt ins Schloss.",
+      "Und der Faden liegt am Eingang der Höhle.",
+      "So bleibt die Gabe im Brunnen, für immer.",
+      "Am Ende wird der Name nicht mehr genannt.",
+      "Und die Alte sitzt am nächsten Tag wieder da.",
+      "Und das Tier geht zurück, allein.",
+      "Der Fluss steht still, bis der Morgen kommt.",
+      "So bleibt die Geschichte, und der Weg bleibt zu.",
+      "Und niemand dankt, wie es sich gehört.",
+      "Und die Milch steht am Morgen unberührt da.",
+      "So bleibt der Ring verloren, und das ist gut.",
+      "Am Ende geht der Weg nur in eine Richtung.",
+      "Und der Baum trägt, was jemand hingehängt hat."
+    ],
+    "verwandlungen": [
+      "Name→Schatten",
+      "Faden→Weg",
+      "Brunnen→Spiegel",
+      "Gabe→Schuld",
+      "Tier→Zeichen",
+      "Fluss→Faden"
     ]
   },
   "body": {
     "motifs": [
       "eine Narbe, die sich erinnert",
-      "ein Atem, der zu spät kommt",
-      "ein Puls, der Antworten klopft",
+      "ein Atem, der immer einen Schlag zu spät kommt",
+      "ein Puls, der eine Antwort in die Schläfe klopft",
       "eine Kehle voller Wahrheit",
       "eine Hand, die nicht loslässt",
       "ein Augenlid wie ein Vorhang",
       "ein Zittern als Nachricht",
       "eine Wärme ohne Ursache",
       "eine Kälte im Knochen",
-      "ein Salzgeschmack auf der Zunge"
+      "ein Salzgeschmack auf der Zunge",
+      "ein Wartezimmer mit einer Waage in der Ecke",
+      "eine Narbe, die bei Wetterwechsel meldet",
+      "ein Herzschlag, den man im Kissen hört",
+      "ein Befund, der aus drei Zeilen besteht",
+      "ein Rücken, der sich an eine Bewegung erinnert",
+      "eine Hand, die zittert, sobald jemand hinsieht",
+      "ein Körper, der früher weiß als der Kopf",
+      "eine Untersuchungsliege mit Papier darauf",
+      "ein Spiegel im Bad, morgens um sechs"
     ],
     "hooks": [
-      "ein Druck unter der Haut",
-      "ein Geräusch im Brustbein",
-      "ein Blick von innen",
+      "ein Druck unter der Haut, der nicht wandert",
+      "ein Geräusch im Brustbein, nur beim Einatmen",
+      "ein Blick von innen auf einen fremden Körper",
       "ein Kribbeln als Warnung",
       "ein Schmerz, der Richtung hat",
       "ein Geschmack, der lügt",
-      "eine Stille, die im Körper sitzt"
+      "eine Stille, die im Körper sitzt",
+      "Der Befund kommt, und er ist unauffällig.",
+      "Etwas zieht im Rücken, seit Dienstag, immer gleich.",
+      "Sie schläft ein und wacht müder auf.",
+      "Die Hand zittert, und niemand hat gefragt.",
+      "Der Termin ist in vier Wochen, und es ist jetzt.",
+      "Er läuft die Treppe und muss oben stehen bleiben.",
+      "Ein Schmerz wandert und lässt sich nicht zeigen.",
+      "Die Waage im Wartezimmer stimmt nicht mit der zu Hause.",
+      "Ein Geräusch im Ohr ist da, seit dem Winter.",
+      "Der Arzt hört zweimal an derselben Stelle."
     ],
     "props": [
       "eine Lampe",
@@ -5019,35 +5505,101 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Karte",
       "einen Kompass",
       "einen Ausweis",
-      "ein Siegel"
+      "ein Siegel",
+      "einen Befund auf zwei Seiten",
+      "eine Waage mit einer klemmenden Anzeige",
+      "ein Rezept mit unleserlicher Schrift",
+      "einen Verband, der zu fest sitzt",
+      "ein Glas Wasser für die Tabletten",
+      "eine Karte mit Terminen",
+      "einen Spiegel im Bad"
     ],
     "turns": [
-      "der Körper weiß es zuerst",
-      "die Wahrheit sitzt im Hals",
-      "der Schmerz ist ein Hinweis, kein Fehler",
+      "der Körper weiß es zuerst und sagt es zuletzt",
+      "die Wahrheit sitzt im Hals und kommt nicht heraus",
+      "der Schmerz ist ein Hinweis und kein Fehler im System",
       "die Nähe kippt in Kontrolle",
       "das Offensichtliche wird unbenennbar",
-      "etwas antwortet – ohne Stimme"
+      "etwas antwortet – ohne Stimme",
+      "der Befund ist unauffällig, und das Gefühl bleibt",
+      "eine Bewegung geht wieder, nach acht Wochen",
+      "die Angst legt sich, und der Puls bleibt oben",
+      "das Zittern hört auf, sobald niemand hinsieht",
+      "eine alte Verletzung meldet sich an einem neuen Ort",
+      "er hört auf zu zählen und schläft ein",
+      "die Diagnose kommt und macht es leichter",
+      "der Körper hält, was der Vorsatz nicht hält",
+      "die Berührung nimmt mehr als jedes Mittel",
+      "eine Zahl im Befund erklärt drei Jahre",
+      "der Atem wird tiefer, ohne dass jemand es befiehlt",
+      "die Untersuchung findet nichts, und das ist die Auskunft",
+      "ein Mittel wirkt, und niemand weiß warum",
+      "der Schlaf kommt zurück, in der dritten Woche",
+      "eine Frage des Arztes trifft die falsche Stelle richtig",
+      "er sagt es aus, und der Druck lässt nach"
     ],
     "obstacles": [
       "die eigene Wahrnehmung wackelt",
       "jemand hört mit",
-      "die Luft wird zu dicht",
+      "die Luft im Zimmer wird zu dicht zum Atmen",
       "dein Atem passt nicht in den Raum",
-      "du erkennst dich zu spät"
+      "du erkennst dich zu spät",
+      "der Termin ist erst in vier Wochen frei",
+      "das Mittel hilft und macht müde",
+      "niemand findet etwas, und es ist trotzdem da",
+      "der Schmerz lässt sich nicht auf einer Skala sagen",
+      "die Treppe im Haus hat achtundzwanzig Stufen",
+      "das Gespräch dauert sieben Minuten",
+      "der Befund kommt per Post, nicht per Anruf",
+      "die Nacht ist die schlechteste Zeit dafür",
+      "die Arbeit fragt nach einer Bescheinigung",
+      "der Körper hält sich an keine Woche",
+      "die Übung müsste täglich sein",
+      "die Kasse zahlt die andere Behandlung nicht",
+      "niemand im Haus soll etwas merken",
+      "die Angst ist größer als der Anlass",
+      "die Beschwerde ist nicht messbar und trotzdem da",
+      "die Behandlung müsste am Vormittag stattfinden",
+      "der Weg zur Praxis dauert vierzig Minuten",
+      "die Zahlen sind gut, und das Gefühl ist es nicht",
+      "ein zweiter Termin würde eine Überweisung brauchen"
     ],
     "stakes": [
-      "Der Einsatz ist Nähe.",
+      "Der Einsatz ist eine Nacht ohne Aufwachen.",
       "Der Einsatz ist Würde.",
       "Der Einsatz ist Wahrheit: im Körper gespeichert.",
-      "Der Einsatz ist Kontrolle: über Zittern und Stimme."
+      "Der Einsatz ist Kontrolle: über Zittern und Stimme.",
+      "Der Einsatz ist eine Bewegung, die wieder gehen soll.",
+      "Der Einsatz ist ein Befund und was danach kommt.",
+      "Der Einsatz ist die Frage, ob man es sagen soll."
     ],
     "endings": [
-      "Und es ist, als hätte der Ort geblinzelt.",
+      "Und der Befund liegt auf dem Küchentisch.",
       "Und vielleicht beginnt es erst hier.",
       "Damit ist es entschieden.",
       "Und die Luft wird dünn.",
-      "Und du weißt es schon vorher."
+      "Und du weißt es schon vorher.",
+      "So bleibt der Termin stehen, in vier Wochen.",
+      "Am Ende hilft die Bewegung mehr als das Mittel.",
+      "Und die Treppe geht wieder, langsam.",
+      "So schläft sie ein, gegen drei.",
+      "Und am Morgen ist es leichter oder nicht.",
+      "Der Körper macht weiter, ob man will oder nicht.",
+      "Und das Glas Wasser steht neben dem Bett.",
+      "So bleibt die Narbe und meldet das Wetter.",
+      "Und niemand im Haus hat etwas gemerkt.",
+      "Und der Verband kommt am Freitag ab.",
+      "So steht die Waage im Wartezimmer wie immer.",
+      "Am Ende bleibt eine Zahl und eine Frage.",
+      "Und die Nacht ist kürzer als die davor."
+    ],
+    "verwandlungen": [
+      "Narbe→Naht",
+      "Befund→Bescheid",
+      "Körper→Bau",
+      "Atem→Faden",
+      "Spiegel→Schatten",
+      "Hand→Klaue"
     ]
   },
   "absurd": {
@@ -5211,7 +5763,17 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Satz, der entfernt wird",
       "eine Instanz ohne Körper",
       "ein Backup als Erinnerung",
-      "ein Rauschen als Kollektiv"
+      "ein Rauschen als Kollektiv",
+      "ein Archiv, in dem eine Person vollständig steht",
+      "eine Sicherung, die älter ist als die Erinnerung",
+      "ein Modell, das aus fremden Sätzen besteht",
+      "eine Stimme, die aus zweitausend Aufnahmen gemittelt ist",
+      "ein Konto, das weiterläuft, nachdem jemand gegangen ist",
+      "eine Fassung von 2019, die noch antwortet",
+      "ein Nachlass in einem Ordner ohne Namen",
+      "ein Gesicht, das aus Durchschnitten gebaut ist",
+      "ein Satz, der von niemandem stammt und von allen",
+      "ein Löschauftrag, der eine Kopie übersieht"
     ],
     "hooks": [
       "eine Datei wirkt nach",
@@ -5220,7 +5782,17 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Index zeigt auf dich",
       "ein Kollektiv sagt deinen Namen",
       "ein Schatten aus Code",
-      "ein Ping im Gedächtnis"
+      "ein Ping im Gedächtnis",
+      "Der Dienst antwortet mit einem Satz, den sie gesagt hätte.",
+      "Eine Sicherung von 2019 lässt sich noch öffnen.",
+      "Das Konto meldet sich, ein Jahr nach der Beerdigung.",
+      "Zwei Fassungen widersprechen sich über dasselbe Ereignis.",
+      "Der Löschauftrag ist bestätigt, und die Datei ist noch da.",
+      "Ein Modell erkennt eine Handschrift, die niemand hochgeladen hat.",
+      "Die Stimme klingt richtig und sagt etwas Falsches.",
+      "Ein Archiv verlangt eine Freigabe von jemandem, den es nicht gibt.",
+      "Die Erinnerung stimmt nicht mit der Aufzeichnung überein.",
+      "Jemand fragt die Kopie nach etwas, das nur das Original wusste."
     ],
     "props": [
       "ein Archiv",
@@ -5232,35 +5804,101 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Foto",
       "eine Lampe",
       "einen Schlüssel",
-      "einen Ausweis"
+      "einen Ausweis",
+      "eine Festplatte mit einer Beschriftung von 2011",
+      "einen Ausdruck aus dem Archiv",
+      "ein Mikrofon für zweitausend Sätze",
+      "einen Schlüssel zu einem Datenraum",
+      "eine Liste der Fassungen",
+      "ein Gerät ohne Netzverbindung",
+      "einen Löschauftrag mit Eingangsstempel",
+      "ein Foto in schlechter Auflösung"
     ],
     "turns": [
-      "ich bin nicht ich, nur Version",
-      "die Datei ist älter als du",
-      "ein Satz wird entfernt – und wirkt nach",
+      "er ist nicht er, sondern eine Fassung von sich",
+      "die Datei ist älter als der, den sie beschreibt",
+      "ein Satz wird entfernt und wirkt im Modell weiter",
       "die Gegenwart ist nur ein Abgleich",
       "das Kollektiv spricht in dir",
-      "die Realität ist ein Protokoll"
+      "die Realität ist ein Protokoll",
+      "die Kopie weiß etwas, das das Original vergessen hat",
+      "die Sicherung ist vollständig und trifft die Person nicht",
+      "das Archiv rekonstruiert jemanden, der so nie war",
+      "die Löschung gelingt, und eine Kopie bleibt in Ordnung",
+      "die Stimme wird abgeschaltet, und jemand vermisst sie",
+      "die Fassung von 2019 widerspricht der von heute",
+      "niemand kann sagen, welche Version gilt",
+      "das Modell erfindet und trifft dabei zufällig zu",
+      "ein Erbe verlangt die Herausgabe der Aufnahmen",
+      "die Erinnerung passt sich der Aufzeichnung an",
+      "der Dienst wird eingestellt, und das ist der zweite Tod",
+      "eine Fassung wird archiviert und damit unantastbar",
+      "das Original meldet sich und wird nicht anerkannt",
+      "die Fassung wird eingefroren und altert trotzdem",
+      "ein Zugang bleibt bestehen, weil ihn niemand kennt",
+      "das Original stimmt der Kopie zu und ändert nichts",
+      "zwei Erben streiten über eine Stimme"
     ],
     "obstacles": [
       "deine Wahrnehmung wackelt",
       "die Verbindung ist da – aber ohne Netzwerk",
-      "ein Prozess blockiert den Ausgang",
+      "ein Prozess blockiert den Ausgang und meldet nichts",
       "jemand hört mit (im Rauschen)",
-      "du findest dich als Eintrag"
+      "du findest dich als Eintrag",
+      "die Freigabe müsste von der Person selbst kommen",
+      "die Sicherung ist da und nicht mehr lesbar",
+      "das Format braucht ein Programm von 2006",
+      "die Löschung gilt nur für den Hauptbestand",
+      "niemand ist berechtigt, das zu entscheiden",
+      "die Kopien liegen in drei Ländern mit drei Gesetzen",
+      "der Dienst wird zum Jahresende eingestellt",
+      "die Stimme klingt richtig und darf nicht benutzt werden",
+      "ein Vertrag verbietet den Export",
+      "die Erinnerung der Angehörigen widerspricht den Daten",
+      "das Archiv ist vollständig und darum unbrauchbar",
+      "die Anfrage braucht eine Kennung, die abgelaufen ist",
+      "eine Sperre gilt für fünfzig Jahre",
+      "wer löscht, kann nichts mehr prüfen",
+      "das Rechenzentrum steht in einem anderen Rechtsraum",
+      "die Freigabe hängt an einem Passwort ohne Besitzer",
+      "die Kopie wurde vor dem Widerruf gezogen",
+      "die Prüfung des Bestands würde Jahre dauern",
+      "niemand hat das je für diesen Fall vorgesehen"
     ],
     "stakes": [
-      "Der Einsatz ist Identität.",
-      "Der Einsatz ist Erinnerung.",
+      "Der Einsatz ist die Frage, welche Fassung gilt.",
+      "Der Einsatz ist eine Erinnerung gegen eine Aufzeichnung.",
       "Der Einsatz ist Wahrheit: welche Version bleibt.",
-      "Der Einsatz ist Kontrolle: über das Überschreiben."
+      "Der Einsatz ist Kontrolle: über das Überschreiben.",
+      "Der Einsatz ist eine Stimme, die niemand abschalten will.",
+      "Der Einsatz ist ein Nachlass, den niemand angeordnet hat.",
+      "Der Einsatz ist eine Löschung, die vollständig sein müsste."
     ],
     "endings": [
       "Und die Datei wirkt nach.",
       "Und vielleicht beginnt es erst hier.",
       "Und alles bleibt korrekt.",
       "Und der Satz fehlt weiter.",
-      "Und es beginnt erst dort."
+      "Und es beginnt erst dort.",
+      "So bleibt die Fassung von 2019 erreichbar.",
+      "Am Ende antwortet der Dienst noch eine Weile.",
+      "Und der Löschauftrag ist bestätigt und unvollständig.",
+      "So bleibt eine Kopie, von der niemand weiß.",
+      "Der Ordner behält seinen Namen von damals.",
+      "So wird aus einer Person ein Bestand.",
+      "Und die Stimme klingt weiter richtig.",
+      "Und die Liste der Fassungen wird länger.",
+      "So bleibt der Datenraum verschlossen und voll.",
+      "Am Ende entscheidet die Frist und nicht der Wille.",
+      "Und das Mikrofon steht abgeschaltet im Regal."
+    ],
+    "verwandlungen": [
+      "Archiv→Grab",
+      "Stimme→Spur",
+      "Datei→Akte",
+      "Modell→Gerüst",
+      "Konto→Grab",
+      "Kopie→Maske"
     ]
   },
   "haute_couture": {
