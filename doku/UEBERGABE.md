@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.288.0**, Zweig `typescript-migration`.
+Stand: **v4.289.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,48 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Die Schieber würfeln mit (4.289.0)
+
+**Gemeldet:** „Länge und Überraschung würfelt sich nicht mit."
+
+Stimmt, und es ist dieselbe Lücke wie zweimal zuvor — nur eine Ebene tiefer.
+Der Umbau in 4.284 sagte „gewürfelt wird, was ein Schloss trägt", und er suchte
+dafür nach `select`. **Textlänge, Neuheit, Überraschung und die vier Gewichte
+sind Schieberegler.** Sie tragen ein Schloss, standen seit 4.288 im Schaltplan —
+und blieben beim Würfeln stehen.
+
+Nicht die Liste war veraltet, sondern **die Frage zu eng gestellt**. Das ist die
+dritte Ausprägung derselben Sache:
+
+| Version | Die zu enge Frage |
+|---|---|
+| 4.272 | Der Wirkungsmesser fragte eine abgeschriebene Liste |
+| 4.284 | Der Würfel fragte eine von Hand gepflegte Liste |
+| 4.288 | Der Schaltplan kannte 24 von 37 Schlössern |
+| 4.289 | Der Würfel fragte nur nach `select` |
+
+Gemessen an der laufenden Oberfläche: vorher bewegten sich 24 von 31
+Bedienelementen mit Schloss, jetzt 31 von 31.
+
+**Die Häkchen bleiben absichtlich draußen.** Die drei Ansichten (Editieren,
+Struktur, Bauplan) tragen auch ein Schloss, aber es bedeutet dort etwas anderes:
+Es merkt sich eine Anzeige über den Neustart, es schützt nichts vor dem Würfel.
+Ein Würfel, der die Ansicht umschaltet, wäre eine Zumutung. Das steht jetzt als
+Begründung im Quelltext — sonst „repariert" es der Nächste.
+
+**Auch der kopflose Würfel im Reiter Diagnose kann die Schieber.** Ihre Spannen
+(min/max/step) sind Eigenschaften des Eingabefelds und ohne DOM nicht auslesbar,
+stehen also zwangsläufig zweimal. **Der Prüfstand hält beide gegeneinander** —
+genau so ist der Disruptor mit vier Stellungen gemessen worden, die es nicht gab.
+
+Ende zu Ende geprüft: Wurf im Reiter Diagnose → Wert im Plan → Wert im Studio
+nach der Rückkehr, zehnmal in Folge dieselbe Zahl an allen drei Stellen.
+
+Prüfstand Schaltplan 51 → 56, Prüfstand Studio auf Schieber erweitert.
+**Gegenproben:** Weicht eine Spanne ab, meldet der Prüfstand
+„f-len: Feld 40–300/5, Würfel 40–250/5". Sucht der Würfel wieder nur nach
+`select`, nennt er alle sieben Schieber beim Namen.
 
 Schlösser im Schaltplan (4.288.0)
 

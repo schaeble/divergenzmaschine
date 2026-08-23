@@ -22187,13 +22187,25 @@ function mountStudio(root) {
     s.selectedIndex = Math.floor(Math.random() * s.options.length);
     s.dispatchEvent(new Event("change"));
   };
-  const wuerfelbar = () => Array.from(wrap.querySelectorAll("select")).filter((s) => {
-    const feld = s.closest(".field");
+  const wuerfelbar = () => Array.from(wrap.querySelectorAll("select, input[type=range]")).filter((s) => {
+    const feld = s.closest(".field") || s.closest(".lenrow") || s.closest(".rankrow");
     return !!feld && !!feld.querySelector(".lockbtn");
   });
+  const rollRange = (r) => {
+    if (locked.has(r.id)) return;
+    const min = parseFloat(r.min || "0"), max = parseFloat(r.max || "100"), step = parseFloat(r.step || "1") || 1;
+    const stufen = Math.floor((max - min) / step) + 1;
+    r.value = String(min + Math.floor(Math.random() * stufen) * step);
+    r.dispatchEvent(new Event("input"));
+    r.dispatchEvent(new Event("change"));
+  };
+  const rollEins = (c) => {
+    if (c instanceof HTMLInputElement) rollRange(c);
+    else rollSel(c);
+  };
   const rollAlle = () => {
     rolling = true;
-    wuerfelbar().forEach(rollSel);
+    wuerfelbar().forEach(rollEins);
     rolling = false;
   };
   diceBtn.addEventListener("click", () => {
@@ -22917,12 +22929,24 @@ function mountStudio(root) {
     }
   }
   restoreLocked();
+  const ROLL_RANGES = [lenSlider, novSlider, surpSlider, wWo, wWann, wWer, wWas];
   const merkeRegler = () => {
     for (const s of ROLL_SELECTS) studioReglerStand[s.id] = s.value;
+    for (const r of ROLL_RANGES) studioReglerStand[r.id] = r.value;
   };
   ROLL_SELECTS.forEach((s) => s.addEventListener("change", () => {
     studioReglerStand[s.id] = s.value;
   }));
+  ROLL_RANGES.forEach((r) => r.addEventListener("input", () => {
+    studioReglerStand[r.id] = r.value;
+  }));
+  for (const r of ROLL_RANGES) {
+    const v = studioReglerStand[r.id];
+    if (v !== void 0) {
+      r.value = v;
+      r.dispatchEvent(new Event("input"));
+    }
+  }
   merkeRegler();
   const anlageSichern = () => saveAnlage({
     regler: {
@@ -23035,6 +23059,15 @@ var REGLER = [
     liste: [["auto", "Auto (aus dem Stoff)"], ...RESSORT_IDS.map((id) => [id, RESSORTS[id].label])]
   }
 ];
+var SCHIEBER = [
+  { id: "f-len", schluessel: "lenTarget", min: 40, max: 300, step: 5 },
+  { id: "f-novelty", schluessel: "novelty", min: 0, max: 100, step: 5 },
+  { id: "f-surprise", schluessel: "surprise", min: 0, max: 100, step: 5 },
+  { id: "f-w-wo", schluessel: "gew-wo", min: 0, max: 3, step: 1 },
+  { id: "f-w-wann", schluessel: "gew-wann", min: 0, max: 3, step: 1 },
+  { id: "f-w-wer", schluessel: "gew-wer", min: 0, max: 3, step: 1 },
+  { id: "f-w-was", schluessel: "gew-was", min: 0, max: 3, step: 1 }
+];
 var zieh = (l) => l[Math.floor(Math.random() * l.length)];
 function wuerfleAlles(vorher, gesperrt, knobsVorher = loadKnobs()) {
   const regler = { ...vorher };
@@ -23051,6 +23084,17 @@ function wuerfleAlles(vorher, gesperrt, knobsVorher = loadKnobs()) {
     regler[r.schluessel] = neu;
     nachId[r.id] = neu;
   }
+  const gew = (vorher["gewicht"] || "0/0/0/0").split("/");
+  const gewIndex = { "gew-wo": 0, "gew-wann": 1, "gew-wer": 2, "gew-was": 3 };
+  for (const sch of SCHIEBER) {
+    const stufen = Math.floor((sch.max - sch.min) / sch.step) + 1;
+    const alt = sch.schluessel in gewIndex ? gew[gewIndex[sch.schluessel]] ?? "0" : vorher[sch.schluessel] ?? String(sch.min);
+    const neu = gesperrt.has(sch.id) ? alt : String(sch.min + Math.floor(Math.random() * stufen) * sch.step);
+    nachId[sch.id] = neu;
+    if (sch.schluessel in gewIndex) gew[gewIndex[sch.schluessel]] = neu;
+    else regler[sch.schluessel] = neu;
+  }
+  regler["gewicht"] = gew.join("/");
   const knobs = { ...knobsVorher };
   for (const feld of Object.keys(KNOB_SPANNE)) {
     if (gesperrt.has("k-" + feld)) continue;
@@ -24276,6 +24320,96 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
   wahr("aber der Hinweis z\xE4hlt sie", /3 von 4/.test(knoten(drei, "w4")?.hinweis || ""));
   const vier = baueAnlage(STAND(), UMGEBUNG({ gesperrt: /* @__PURE__ */ new Set(["f-where", "f-when", "f-who", "f-what"]) }));
   ist("alle vier schon", knoten(vier, "w4")?.gesperrt, true);
+}
+{
+  const start = { ...STAND().regler, lenTarget: "110", novelty: "30", surprise: "0", gewicht: "0/0/0/0" };
+  const bewegt = /* @__PURE__ */ new Set();
+  for (let i = 0; i < 60; i++) {
+    const w = wuerfleAlles(start, /* @__PURE__ */ new Set());
+    for (const sch of SCHIEBER) if (w.nachId[sch.id] !== void 0 && w.nachId[sch.id] !== (start[sch.schluessel] ?? "")) bewegt.add(sch.id);
+  }
+  const tot = SCHIEBER.filter((sch) => !bewegt.has(sch.id)).map((sch) => sch.id);
+  ist("jeder Schieber bewegt sich in 60 W\xFCrfen", tot.join(", "), "");
+  let daneben = 0;
+  for (let i = 0; i < 40; i++) {
+    const w = wuerfleAlles(start, /* @__PURE__ */ new Set());
+    for (const sch of SCHIEBER) {
+      const v = parseFloat(w.nachId[sch.id] || "NaN");
+      if (!(v >= sch.min && v <= sch.max && Math.abs((v - sch.min) % sch.step) < 1e-9)) daneben++;
+    }
+  }
+  ist("jeder Schieberwert liegt auf einer echten Stufe", daneben, 0);
+  const zu = /* @__PURE__ */ new Set(["f-len", "f-surprise"]);
+  let verschoben = 0;
+  for (let i = 0; i < 40; i++) {
+    const w = wuerfleAlles(start, zu);
+    if (w.nachId["f-len"] !== "110") verschoben++;
+    if (w.nachId["f-surprise"] !== "0") verschoben++;
+  }
+  ist("gesperrte Schieber bleiben stehen", verschoben, 0);
+  const w2 = wuerfleAlles(start, /* @__PURE__ */ new Set());
+  const a = baueAnlage({ ...STAND(), regler: w2.regler }, UMGEBUNG());
+  ist(
+    "die L\xE4nge im Plan ist die gew\xFCrfelte",
+    knoten(a, "laenge")?.wert,
+    w2.regler["lenTarget"] + " W\xF6rter"
+  );
+}
+{
+  const dom4 = new import_jsdom.JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/", pretendToBeVisual: true });
+  const G = globalThis;
+  for (const k of [
+    "window",
+    "document",
+    "localStorage",
+    "navigator",
+    "HTMLElement",
+    "HTMLInputElement",
+    "HTMLSelectElement",
+    "HTMLButtonElement",
+    "Event",
+    "CustomEvent",
+    "Node",
+    "getComputedStyle",
+    "requestAnimationFrame",
+    "cancelAnimationFrame",
+    "MutationObserver",
+    "Blob",
+    "URL",
+    "FileReader",
+    "Image",
+    "DOMParser"
+  ]) {
+    try {
+      Object.defineProperty(G, k, { value: dom4.window[k], writable: true, configurable: true });
+    } catch {
+    }
+  }
+  const km2 = () => ({ matches: false, addEventListener: () => {
+  }, removeEventListener: () => {
+  }, addListener: () => {
+  }, removeListener: () => {
+  } });
+  Object.defineProperty(G, "matchMedia", { value: km2, writable: true, configurable: true });
+  dom4.window["matchMedia"] = km2;
+  dom4.window.Element.prototype["scrollIntoView"] = function() {
+  };
+  const D4 = dom4.window.document;
+  const w = D4.createElement("div");
+  D4.body.append(w);
+  mountStudio(w);
+  const falsch = [];
+  for (const sch of SCHIEBER) {
+    const el2 = w.querySelector("#" + sch.id);
+    if (!el2) {
+      falsch.push(`${sch.id} gibt es nicht`);
+      continue;
+    }
+    if (parseFloat(el2.min) !== sch.min || parseFloat(el2.max) !== sch.max || parseFloat(el2.step) !== sch.step) {
+      falsch.push(`${sch.id}: Feld ${el2.min}\u2013${el2.max}/${el2.step}, W\xFCrfel ${sch.min}\u2013${sch.max}/${sch.step}`);
+    }
+  }
+  ist("die Spannen der Schieber stimmen mit den Eingabefeldern \xFCberein", falsch.join(" \xB7 "), "");
 }
 console.log(`Pr\xFCfstand Schaltplan \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

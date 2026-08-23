@@ -14,7 +14,7 @@
 import { baueAnlage, SCHLOSS_ZU_KNOTEN, type AnlageStand, type Umgebung } from "../src/features/schaltplan";
 import { mountStudio } from "../src/ui/studio";
 import { KNOB_VORGABE, KNOB_SPANNE } from "../src/features/knobs";
-import { wuerfleAlles, REGLER } from "../src/features/wuerfeln";
+import { wuerfleAlles, REGLER, SCHIEBER } from "../src/features/wuerfeln";
 import { werte } from "../src/generation/optionen";
 import { ordne, BAND_NAME, renderSchaltplan, befundListe } from "../src/ui/schaltplanView";
 import { JSDOM } from "jsdom";
@@ -306,6 +306,81 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   wahr("aber der Hinweis zählt sie", /3 von 4/.test(knoten(drei, "w4")?.hinweis || ""));
   const vier = baueAnlage(STAND(), UMGEBUNG({ gesperrt: new Set(["f-where", "f-when", "f-who", "f-what"]) }));
   ist("alle vier schon", knoten(vier, "w4")?.gesperrt, true);
+}
+
+
+// ── 9 · Die Schieber würfeln mit ──────────────────────────────────────────
+// Gemeldet: „Länge und Überraschung würfelt sich nicht mit." Der kopflose
+// Würfel kannte nur Auswahlfelder. Drei Zusagen, dieselben wie für die Regler.
+{
+  const start = { ...STAND().regler, lenTarget: "110", novelty: "30", surprise: "0", gewicht: "0/0/0/0" };
+  const bewegt = new Set<string>();
+  for (let i = 0; i < 60; i++) {
+    const w = wuerfleAlles(start, new Set<string>());
+    for (const sch of SCHIEBER) if (w.nachId[sch.id] !== undefined && w.nachId[sch.id] !== (start[sch.schluessel] ?? "")) bewegt.add(sch.id);
+  }
+  const tot = SCHIEBER.filter((sch) => !bewegt.has(sch.id)).map((sch) => sch.id);
+  ist("jeder Schieber bewegt sich in 60 Würfen", tot.join(", "), "");
+
+  // Nur gültige Stufen
+  let daneben = 0;
+  for (let i = 0; i < 40; i++) {
+    const w = wuerfleAlles(start, new Set<string>());
+    for (const sch of SCHIEBER) {
+      const v = parseFloat(w.nachId[sch.id] || "NaN");
+      if (!(v >= sch.min && v <= sch.max && Math.abs((v - sch.min) % sch.step) < 1e-9)) daneben++;
+    }
+  }
+  ist("jeder Schieberwert liegt auf einer echten Stufe", daneben, 0);
+
+  // Schlösser halten
+  const zu = new Set(["f-len", "f-surprise"]);
+  let verschoben = 0;
+  for (let i = 0; i < 40; i++) {
+    const w = wuerfleAlles(start, zu);
+    if (w.nachId["f-len"] !== "110") verschoben++;
+    if (w.nachId["f-surprise"] !== "0") verschoben++;
+  }
+  ist("gesperrte Schieber bleiben stehen", verschoben, 0);
+
+  // Und der Plan zeigt den gewürfelten Wert
+  const w2 = wuerfleAlles(start, new Set<string>());
+  const a = baueAnlage({ ...STAND(), regler: w2.regler }, UMGEBUNG());
+  ist("die Länge im Plan ist die gewürfelte",
+    knoten(a, "laenge")?.wert, w2.regler["lenTarget"] + " Wörter");
+}
+
+// ── 10 · Die Spannen der Schieber stimmen mit der Oberfläche überein ──────
+// Die Spannen stehen zweimal: als min/max/step am Eingabefeld und in SCHIEBER.
+// Ohne DOM lassen sie sich nicht auslesen, also müssen sie doppelt stehen — und
+// deshalb hier gegeneinander gehalten. Genau so ist der Disruptor mit vier
+// Stellungen gemessen worden, die es nicht gab.
+{
+  const dom4 = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/", pretendToBeVisual: true });
+  const G = globalThis as unknown as Record<string, unknown>;
+  for (const k of ["window", "document", "localStorage", "navigator", "HTMLElement", "HTMLInputElement",
+    "HTMLSelectElement", "HTMLButtonElement", "Event", "CustomEvent", "Node", "getComputedStyle",
+    "requestAnimationFrame", "cancelAnimationFrame", "MutationObserver", "Blob", "URL", "FileReader",
+    "Image", "DOMParser"]) {
+    try { Object.defineProperty(G, k, { value: (dom4.window as unknown as Record<string, unknown>)[k], writable: true, configurable: true }); } catch { /* da */ }
+  }
+  const km2 = (): unknown => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} });
+  Object.defineProperty(G, "matchMedia", { value: km2, writable: true, configurable: true });
+  (dom4.window as unknown as Record<string, unknown>)["matchMedia"] = km2;
+  (dom4.window.Element.prototype as unknown as Record<string, unknown>)["scrollIntoView"] = function (): void {};
+  const D4 = dom4.window.document;
+  const w = D4.createElement("div");
+  D4.body.append(w);
+  mountStudio(w);
+  const falsch: string[] = [];
+  for (const sch of SCHIEBER) {
+    const el2 = w.querySelector("#" + sch.id) as HTMLInputElement | null;
+    if (!el2) { falsch.push(`${sch.id} gibt es nicht`); continue; }
+    if (parseFloat(el2.min) !== sch.min || parseFloat(el2.max) !== sch.max || parseFloat(el2.step) !== sch.step) {
+      falsch.push(`${sch.id}: Feld ${el2.min}–${el2.max}/${el2.step}, Würfel ${sch.min}–${sch.max}/${sch.step}`);
+    }
+  }
+  ist("die Spannen der Schieber stimmen mit den Eingabefeldern überein", falsch.join(" · "), "");
 }
 
 console.log(`Prüfstand Schaltplan — ${geprueft} Prüfungen, ${bestanden} bestanden`);

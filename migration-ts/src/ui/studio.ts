@@ -1111,12 +1111,34 @@ export function mountStudio(root: HTMLElement): void {
   // in den Würfel?", sondern „welches Feld trägt ein Schloss?". Ein Schloss gibt
   // es nur, damit man etwas VOR dem Würfel schützen kann; wo eines steht, wird
   // also gewürfelt. Neue Regler sind damit automatisch dabei.
-  const wuerfelbar = (): HTMLSelectElement[] =>
-    Array.from(wrap.querySelectorAll("select")).filter((s) => {
-      const feld = s.closest(".field");
+  // NACHTRAG 4.289.0: „Länge und Überraschung würfelt sich nicht mit."
+  // Der Umbau in 4.284 sagte „gewürfelt wird, was ein Schloss trägt", suchte
+  // aber nur nach `select`. Textlänge, Neuheit, Überraschung und die
+  // 4W-Gewichtung sind Schieberegler — sie tragen ein Schloss und blieben
+  // trotzdem stehen. Dieselbe Lücke, eine Ebene tiefer: nicht die Liste war
+  // veraltet, sondern die Frage zu eng gestellt.
+  //
+  // Häkchen bleiben bewusst draußen. Ihr Schloss bedeutet dort etwas anderes:
+  // Die drei Ansichten (Editieren, Struktur, Bauplan) merken sich damit ihren
+  // Zustand über den Neustart — es schützt nicht vor dem Würfel, sondern hält
+  // eine Anzeige. Ein Würfel, der die Ansicht umschaltet, wäre eine Zumutung.
+  const wuerfelbar = (): (HTMLSelectElement | HTMLInputElement)[] =>
+    Array.from(wrap.querySelectorAll("select, input[type=range]")).filter((s) => {
+      const feld = s.closest(".field") || s.closest(".lenrow") || s.closest(".rankrow");
       return !!feld && !!feld.querySelector(".lockbtn");
-    }) as HTMLSelectElement[];
-  const rollAlle = (): void => { rolling = true; wuerfelbar().forEach(rollSel); rolling = false; };
+    }) as (HTMLSelectElement | HTMLInputElement)[];
+  const rollRange = (r: HTMLInputElement): void => {
+    if (locked.has(r.id)) return;
+    const min = parseFloat(r.min || "0"), max = parseFloat(r.max || "100"), step = parseFloat(r.step || "1") || 1;
+    const stufen = Math.floor((max - min) / step) + 1;
+    r.value = String(min + Math.floor(Math.random() * stufen) * step);
+    r.dispatchEvent(new Event("input"));
+    r.dispatchEvent(new Event("change"));
+  };
+  const rollEins = (c: HTMLSelectElement | HTMLInputElement): void => {
+    if (c instanceof HTMLInputElement) rollRange(c); else rollSel(c);
+  };
+  const rollAlle = (): void => { rolling = true; wuerfelbar().forEach(rollEins); rolling = false; };
   diceBtn.addEventListener("click", () => { rollAlle(); renderPresetChecks(); generate(); });
   const keepLbl = el("span", {}, "Merken");
   const keepBtn = el("button", {}, icon("star"), " ", keepLbl);
@@ -1679,8 +1701,16 @@ export function mountStudio(root: HTMLElement): void {
   }
   restoreLocked();
   // Reglerstand festhalten, damit die Rückkehr in den Tab ihn wiederherstellen kann
-  const merkeRegler = (): void => { for (const s of ROLL_SELECTS) studioReglerStand[s.id] = s.value; };
+  // Die Schieber gehören in denselben Merkzettel: Sonst käme ein Wurf, der im
+  // Reiter Diagnose gefallen ist, beim Zurückwechseln nur zur Hälfte an.
+  const ROLL_RANGES: HTMLInputElement[] = [lenSlider, novSlider, surpSlider, wWo, wWann, wWer, wWas];
+  const merkeRegler = (): void => {
+    for (const s of ROLL_SELECTS) studioReglerStand[s.id] = s.value;
+    for (const r of ROLL_RANGES) studioReglerStand[r.id] = r.value;
+  };
   ROLL_SELECTS.forEach((s) => s.addEventListener("change", () => { studioReglerStand[s.id] = s.value; }));
+  ROLL_RANGES.forEach((r) => r.addEventListener("input", () => { studioReglerStand[r.id] = r.value; }));
+  for (const r of ROLL_RANGES) { const v = studioReglerStand[r.id]; if (v !== undefined) { r.value = v; r.dispatchEvent(new Event("input")); } }
   merkeRegler();
   // Der Schaltplan im Reiter Diagnose liest diesen Stand. Geschrieben wird bei
   // JEDER Änderung, nicht erst beim Erzeugen: Sonst zeigte der Plan, was beim

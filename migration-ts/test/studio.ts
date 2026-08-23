@@ -345,19 +345,24 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
   mountStudio(wurzel3);
   const alleKnopf3 = Array.from(wurzel3.querySelectorAll("button"))
     .find((b) => /Alles würfeln/.test(b.textContent || "")) as HTMLButtonElement | undefined;
-  const mitSchloss = (): HTMLSelectElement[] =>
-    Array.from(wurzel3.querySelectorAll("select")).filter((sel) => {
-      const feld = sel.closest(".field");
+  // NACHTRAG 4.289.0: Auch die SCHIEBER zählen. Gemeldet: „Länge und
+  // Überraschung würfelt sich nicht mit." Diese Prüfung suchte bis hierher nur
+  // nach `select` — genau wie der Würfel, den sie prüfen sollte. Ein Prüfstand,
+  // der dieselbe zu enge Frage stellt wie der Code, bestätigt ihn nur.
+  const mitSchloss = (): (HTMLSelectElement | HTMLInputElement)[] =>
+    Array.from(wurzel3.querySelectorAll("select, input[type=range]")).filter((sel) => {
+      const feld = sel.closest(".field") || sel.closest(".lenrow") || sel.closest(".rankrow");
       return !!feld && !!feld.querySelector(".lockbtn");
-    }) as HTMLSelectElement[];
+    }) as (HTMLSelectElement | HTMLInputElement)[];
   const felder = mitSchloss();
-  wahr(`es gibt Auswahlfelder mit Schloss (${felder.length})`, felder.length >= 20);
+  wahr(`es gibt Bedienelemente mit Schloss (${felder.length})`, felder.length >= 30);
   wahr("die Taste Alles wuerfeln ist da", !!alleKnopf3);
   if (alleKnopf3 && felder.length) {
     const start: Record<string, string> = {};
     for (const sel of felder) start[sel.id] = sel.value;
     const bewegt = new Set<string>();
     // 30 Würfe: Ein Feld mit zwei Stellungen bleibt mit 2^-30 zufällig stehen.
+    // Der Schieber der Textlänge hat 53 Stufen, die Gewichtung vier.
     for (let i = 0; i < 30; i++) {
       alleKnopf3.click();
       for (const sel of felder) if (sel.value !== start[sel.id]) bewegt.add(sel.id);

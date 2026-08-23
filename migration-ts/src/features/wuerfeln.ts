@@ -40,6 +40,22 @@ export const REGLER: ReglerWahl[] = [
     liste: [["auto", "Auto (aus dem Stoff)"], ...RESSORT_IDS.map((id) => [id, RESSORTS[id].label] as [string, string])] },
 ];
 
+/** Die Schieberegler. Sie tragen ein Schloss wie die Auswahlfelder und wurden
+ *  bis 4.288 von keinem Würfel angefasst — gemeldet als „Länge und Überraschung
+ *  würfelt sich nicht mit". Die Spannen stehen hier UND in der Oberfläche; sie
+ *  sind Eigenschaften des Eingabefelds (min/max/step) und lassen sich ohne DOM
+ *  nicht auslesen. Der Prüfstand hält beide gegeneinander. */
+export interface SchieberWahl { id: string; schluessel: string; min: number; max: number; step: number }
+export const SCHIEBER: SchieberWahl[] = [
+  { id: "f-len", schluessel: "lenTarget", min: 40, max: 300, step: 5 },
+  { id: "f-novelty", schluessel: "novelty", min: 0, max: 100, step: 5 },
+  { id: "f-surprise", schluessel: "surprise", min: 0, max: 100, step: 5 },
+  { id: "f-w-wo", schluessel: "gew-wo", min: 0, max: 3, step: 1 },
+  { id: "f-w-wann", schluessel: "gew-wann", min: 0, max: 3, step: 1 },
+  { id: "f-w-wer", schluessel: "gew-wer", min: 0, max: 3, step: 1 },
+  { id: "f-w-was", schluessel: "gew-was", min: 0, max: 3, step: 1 },
+];
+
 const zieh = <T,>(l: T[]): T => l[Math.floor(Math.random() * l.length)] as T;
 
 export interface Wurf { regler: Record<string, string>; nachId: Record<string, string>; knobs: Knobs }
@@ -66,6 +82,22 @@ export function wuerfleAlles(vorher: Record<string, string>, gesperrt: Set<strin
     regler[r.schluessel] = neu;
     nachId[r.id] = neu;
   }
+  // Die Schieber. `gewicht` steht im Anlagenstand als ein Feld „0/0/2/1", weil
+  // der Plan die vier zusammen zeigt — hier werden sie einzeln gewürfelt und
+  // danach zusammengesetzt.
+  const gew: string[] = (vorher["gewicht"] || "0/0/0/0").split("/");
+  const gewIndex: Record<string, number> = { "gew-wo": 0, "gew-wann": 1, "gew-wer": 2, "gew-was": 3 };
+  for (const sch of SCHIEBER) {
+    const stufen = Math.floor((sch.max - sch.min) / sch.step) + 1;
+    const alt = sch.schluessel in gewIndex ? (gew[gewIndex[sch.schluessel]!] ?? "0") : (vorher[sch.schluessel] ?? String(sch.min));
+    const neu = gesperrt.has(sch.id) ? alt
+      : String(sch.min + Math.floor(Math.random() * stufen) * sch.step);
+    nachId[sch.id] = neu;
+    if (sch.schluessel in gewIndex) gew[gewIndex[sch.schluessel]!] = neu;
+    else regler[sch.schluessel] = neu;
+  }
+  regler["gewicht"] = gew.join("/");
+
   const knobs: Knobs = { ...knobsVorher };
   for (const feld of Object.keys(KNOB_SPANNE) as (keyof Knobs)[]) {
     if (gesperrt.has("k-" + feld)) continue;
