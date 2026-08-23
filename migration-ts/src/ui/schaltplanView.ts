@@ -17,10 +17,10 @@ export const BAND_NAME = ["Vorräte", "Material", "Steuerung", "Schliff", "Ausga
 /** Jeder Zustand trägt ein eigenes Zeichen — ein voller Kreis wirkt, ein
  *  leerer ist aus, ein Dreieck läuft ins Leere. Zusammen mit Strichstärke und
  *  Strichart sind das drei Merkmale neben der Farbe. */
-const ZEICHEN: Record<Zustand, string> = { an: "\u25CF", leer: "\u25B2", aus: "\u25CB", fest: "\u25CB" };
+const ZEICHEN: Record<Zustand, string> = { an: "\u25CF", leer: "\u25B2", aus: "\u25CB" };
 
 const FARBE: Record<Zustand, string> = {
-  an: "var(--acc2)", leer: "var(--danger)", aus: "var(--muted)", fest: "var(--muted)",
+  an: "var(--acc2)", leer: "var(--danger)", aus: "var(--muted)",
 };
 
 const e = (name: string, attrs: Record<string, string | number>, ...kinder: Element[]): SVGElement => {

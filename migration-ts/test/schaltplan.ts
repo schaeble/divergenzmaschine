@@ -458,6 +458,34 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   wahr("der Plan zeigt die gewürfelten vier W als gefüllt", (knoten4?.wert || "").startsWith("4 von 4"));
 }
 
+
+// ── 12 · Die Länge wirkt — außer bei der Meldung ─────────────────────────
+// Gemeldet: „Sollte der Länge-Button nicht blau sein? Ist eigentlich immer
+// aktiv, ob bei 40 oder bei 300 Wörtern." Richtig. Der Knoten trug einen
+// vierten Zustand „fest", der aussah wie „aus" — eine Falschaussage über einen
+// Regler, der bei acht von neun Formen wirkt.
+//
+// Nachgemessen, je 12 Läufe bei Ziel 40 gegen Ziel 300:
+//   prose 43→273 · poem 44→299 · reim 52→319 · haiku 34→307 · video 133→264
+//   bericht 167→308 · script 63→221 · strang 59→93 · meldung 32→32
+//
+// Die Meldung ist die Ausnahme, und für die gibt es „leer": eingeschaltet,
+// wirkt nicht.
+{
+  for (const form of ["prose", "haiku", "bericht", "reim", "video", "script", "poem", "strang"]) {
+    const a = baueAnlage(STAND({ form }), UMGEBUNG());
+    ist(`die Länge wirkt bei ${form}`, knoten(a, "laenge")?.zustand, "an");
+  }
+  const m = baueAnlage(STAND({ form: "meldung" }), UMGEBUNG());
+  ist("bei der Meldung wirkt sie nicht", knoten(m, "laenge")?.zustand, "leer");
+  wahr("und der Plan sagt warum", /feste Länge/.test(knoten(m, "laenge")?.hinweis || ""));
+  wahr("der Wert nennt es auch", /ohne Wirkung/.test(knoten(m, "laenge")?.wert || ""));
+  // Und den vierten Zustand gibt es nicht mehr.
+  const alle = baueAnlage(STAND(), UMGEBUNG());
+  ist("es gibt nur noch drei Zustände",
+    [...new Set(alle.knoten.map((k) => k.zustand))].filter((z) => !["an", "leer", "aus"].includes(z)).join(", "), "");
+}
+
 console.log(`Prüfstand Schaltplan — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

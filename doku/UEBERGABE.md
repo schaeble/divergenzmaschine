@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.295.0**, Zweig `typescript-migration`.
+Stand: **v4.296.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,47 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Der vierte Zustand war eine Falschaussage (4.296.0)
+
+**Gemeldet:** „Sollte der Länge-Button nicht blau sein? Ist eigentlich immer
+aktiv, ob bei 40 Wörtern oder 300 Wörtern."
+
+**Richtig.** Der Knoten trug einen vierten Zustand `fest`, eingeführt mit der
+Begründung, eine Zahl habe keine Ein-Aus-Stellung. Gezeichnet wurde er wie `aus`
+— grau, gestrichelt, ○. Damit sagte der Plan über einen Regler, der immer wirkt,
+er sei abgeschaltet.
+
+**Nachgemessen über alle neun Formen**, je zwölf Läufe bei Ziel 40 gegen Ziel
+300 Wörter:
+
+| Form | 40 | 300 |
+|---|---|---|
+| Prosa | 43 | 273 |
+| Prosagedicht | 44 | 299 |
+| Reim | 52 | 319 |
+| Haiku | 34 | 307 |
+| Multi-Shot | 133 | 264 |
+| Bericht | 167 | 308 |
+| Szene/Dialog | 63 | 221 |
+| Gedicht-Strang | 59 | 93 |
+| **Meldung** | **32** | **32** |
+
+Der Regler wirkt bei **acht von neun** Formen. Er steht jetzt auf „verdrahtet".
+
+**Und die Meldung ist der Fall, für den es den Plan gibt.** Dort ist der Regler
+eingeschaltet und wirkt nicht — die Meldung hat eine feste Länge. Also „läuft
+ins Leere", mit dem Grund im Mouseover und „(ohne Wirkung)" im Wert. Ohne die
+Messung hätte ich den Knoten einfach auf „an" gestellt und damit die
+Falschaussage nur umgedreht.
+
+**Der vierte Zustand ist ersatzlos weg.** Er hatte genau einen Knoten, und den
+hat er falsch beschriftet. Drei Zustände genügen: wirkt · wirkt nicht · aus.
+
+Prüfstand Schaltplan 66 → 78: Die Länge wirkt bei acht Formen einzeln geprüft,
+bei der Meldung nicht, und kein Knoten trägt einen anderen Zustand als die drei.
+Gegenprobe: die Meldung als wirksam gemeldet → „bei der Meldung wirkt sie nicht:
+an — erwartet leer".
 
 Der Reiter Ideen: nachgesehen und drei Befunde (4.295.0)
 

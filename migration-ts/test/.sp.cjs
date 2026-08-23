@@ -12830,7 +12830,16 @@ function baueAnlage(stand, u) {
     bericht ? "" : "",
     "f-ressort"
   );
-  knoten2("laenge", 4, "L\xE4nge", (r["lenTarget"] || "?") + " W\xF6rter", "fest", "", "f-len");
+  const meldung = form === "meldung";
+  knoten2(
+    "laenge",
+    4,
+    "L\xE4nge",
+    (r["lenTarget"] || "?") + " W\xF6rter" + (meldung ? " (ohne Wirkung)" : ""),
+    meldung ? "leer" : "an",
+    meldung ? "Die Meldung hat eine feste L\xE4nge \u2014 gemessen 32 W\xF6rter, ob der Regler auf 40 oder auf 300 steht" : "",
+    "f-len"
+  );
   for (const [a, b] of [
     ["korpus", "markov"],
     ["korpus", "k-korpus"],
@@ -23187,12 +23196,11 @@ var BAND_TITEL = 26;
 var BAND_ABSTAND = 34;
 var BREITE = RAND * 2 + PRO_REIHE * CHIP_W + (PRO_REIHE - 1) * GAP_X;
 var BAND_NAME = ["Vorr\xE4te", "Material", "Steuerung", "Schliff", "Ausgabe"];
-var ZEICHEN = { an: "\u25CF", leer: "\u25B2", aus: "\u25CB", fest: "\u25CB" };
+var ZEICHEN = { an: "\u25CF", leer: "\u25B2", aus: "\u25CB" };
 var FARBE = {
   an: "var(--acc2)",
   leer: "var(--danger)",
-  aus: "var(--muted)",
-  fest: "var(--muted)"
+  aus: "var(--muted)"
 };
 var e = (name, attrs, ...kinder) => {
   const n = document.createElementNS(NS, name);
@@ -24530,6 +24538,22 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
   const a = baueAnlage({ ...STAND(), w4: w.w4 }, UMGEBUNG());
   const knoten4 = knoten(a, "w4");
   wahr("der Plan zeigt die gew\xFCrfelten vier W als gef\xFCllt", (knoten4?.wert || "").startsWith("4 von 4"));
+}
+{
+  for (const form of ["prose", "haiku", "bericht", "reim", "video", "script", "poem", "strang"]) {
+    const a = baueAnlage(STAND({ form }), UMGEBUNG());
+    ist(`die L\xE4nge wirkt bei ${form}`, knoten(a, "laenge")?.zustand, "an");
+  }
+  const m = baueAnlage(STAND({ form: "meldung" }), UMGEBUNG());
+  ist("bei der Meldung wirkt sie nicht", knoten(m, "laenge")?.zustand, "leer");
+  wahr("und der Plan sagt warum", /feste Länge/.test(knoten(m, "laenge")?.hinweis || ""));
+  wahr("der Wert nennt es auch", /ohne Wirkung/.test(knoten(m, "laenge")?.wert || ""));
+  const alle = baueAnlage(STAND(), UMGEBUNG());
+  ist(
+    "es gibt nur noch drei Zust\xE4nde",
+    [...new Set(alle.knoten.map((k) => k.zustand))].filter((z) => !["an", "leer", "aus"].includes(z)).join(", "),
+    ""
+  );
 }
 console.log(`Pr\xFCfstand Schaltplan \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

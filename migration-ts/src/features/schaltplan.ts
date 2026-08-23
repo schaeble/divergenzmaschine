@@ -20,9 +20,15 @@ import { KNOB_VORGABE, type Knobs } from "./knobs";
 import { TONE_OPTS, FORM_OPTS, STRUCTURE_OPTS, MODE_OPTS, PERSP_OPTS, RHYTHM_OPTS,
   VARIANZ_OPTS, DISRUPTOR_OPTS, ARCH_OPTS, MARKOV_OPTS, type Wahlliste } from "../generation/optionen";
 
-/** an = Schalter an und Quelle vorhanden · leer = an, aber die Quelle ist leer
- *  · aus = abgeschaltet · fest = eine Zahl, die keine Stellung hat (Länge). */
-export type Zustand = "an" | "leer" | "aus" | "fest";
+/** an = wirkt · leer = eingeschaltet, wirkt aber nicht · aus = abgeschaltet.
+ *
+ *  Es gab einmal einen vierten Zustand „fest" für die Länge, mit der Begründung,
+ *  eine Zahl habe keine Ein-Aus-Stellung. Er sah aus wie „aus" und war damit
+ *  eine Falschaussage: „Sollte der Länge-Button nicht blau sein? Ist eigentlich
+ *  immer aktiv." Stimmt — nachgemessen wirkt der Regler bei acht von neun
+ *  Formen. Drei Zustände genügen; der vierte hat nur einen Knoten falsch
+ *  beschriftet. */
+export type Zustand = "an" | "leer" | "aus";
 
 export interface Knoten {
   id: string;
@@ -252,7 +258,18 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   // Der Grund war eine vergessene Kennung — der Knoten wurde ohne Schloss-Id
   // angelegt und konnte deshalb nie gesperrt aussehen. Seit 4.288 prüft der
   // Prüfstand jedes Bedienelement mit Schloss gegen den Plan.
-  knoten("laenge", 4, "Länge", (r["lenTarget"] || "?") + " Wörter", "fest", "", "f-len");
+  // Nachgemessen über alle neun Formen, je 12 Läufe bei Ziel 40 gegen Ziel 300:
+  //
+  //   prose 43→273 · poem 44→299 · reim 52→319 · haiku 34→307 · video 133→264
+  //   bericht 167→308 · script 63→221 · strang 59→93 · MELDUNG 32→32
+  //
+  // Die Meldung hat eine feste Länge — dort ist der Regler eingeschaltet und
+  // wirkt nicht. Genau der Fall, für den es den Zustand „leer" gibt.
+  const meldung = form === "meldung";
+  knoten("laenge", 4, "Länge", (r["lenTarget"] || "?") + " Wörter" + (meldung ? " (ohne Wirkung)" : ""),
+    meldung ? "leer" : "an",
+    meldung ? "Die Meldung hat eine feste Länge — gemessen 32 Wörter, ob der Regler auf 40 oder auf 300 steht" : "",
+    "f-len");
 
   // ── Leitungen ────────────────────────────────────────────────────────────
   // Gezeichnet werden NUR die Leitungen, die tot sein können — also die, bei

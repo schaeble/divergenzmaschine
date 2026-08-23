@@ -1003,10 +1003,10 @@ select.abweichend{border-color:var(--acc)}
    Füllung. Wer die Farben nicht unterscheiden kann, sieht es trotzdem. */
 .schaltplan .sp-chip rect { fill:var(--panel2); stroke-width:1.5; }
 .schaltplan .sp-an rect { stroke-width:2.5; fill:color-mix(in srgb, var(--acc2) 10%, var(--panel2)); }
-.schaltplan .sp-aus rect, .schaltplan .sp-fest rect { stroke-width:1; stroke-dasharray:3 3; fill:var(--panel); }
+.schaltplan .sp-aus rect { stroke-width:1; stroke-dasharray:3 3; fill:var(--panel); }
 /* Nicht das Rect blass machen, sondern die Schrift: Der Rahmen bleibt scharf. */
-.schaltplan .sp-aus .sp-label, .schaltplan .sp-fest .sp-label { fill:var(--muted); }
-.schaltplan .sp-aus .sp-wert, .schaltplan .sp-fest .sp-wert { opacity:.7; }
+.schaltplan .sp-aus .sp-label { fill:var(--muted); }
+.schaltplan .sp-aus .sp-wert { opacity:.7; }
 .schaltplan .sp-leer rect { stroke-width:2.5; stroke-dasharray:6 3; fill:color-mix(in srgb, var(--danger) 14%, var(--panel2)); }
 .schaltplan .sp-zeichen { font:11px var(--sans); }
 .schaltplan .sp-kante { fill:none; stroke-width:1.5; opacity:.9; }
