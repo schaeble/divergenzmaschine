@@ -29,6 +29,9 @@ import { TONE_DATA } from "../src/generation/tone.data";
 import { uebernehmeKontext, geaendert, W4_FELDER, offeneQuellen, ziehQuelle, QUELLEN, QUELLE_LABEL } from "../src/features/kontext";
 import { worldFillContext, WELT_SAAT } from "../src/features/world";
 import { mountStudio } from "../src/ui/studio";
+import { mountWordbank } from "../src/ui/wordbankView";
+import { loadBank } from "../src/storage";
+import { BUILTIN_PRESETS } from "../src/presets.data";
 import { regle, saveZiele, loadKnobs, saveKnobs, KNOB_VORGABE, ZIEL_KNOB } from "../src/features/knobs";
 
 const fails: string[] = [];
@@ -383,6 +386,55 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
       ist("eine gesperrte Stellschraube bleibt stehen", verschoben, 0);
       schloss.click();
     }
+  }
+}
+
+
+// ── Der Preset-Editor listet jede Liste, die ein Preset tragen kann ───────
+// Gefragt: „Wortbank, Preset bearbeiten und sichern — sind alle neuen
+// Kategorien aufgelistet?" Nein: `verwandlungen` fehlte. Der Editor läuft über
+// `CATS`, und `CATS` zählt TEXTkategorien auf — die Motivverwandlungen sind
+// keine, ihre Einträge stehen nie im Text. Genau deshalb sind sie durchgefallen.
+//
+// Folge, still wie immer: 41 der 51 eingebauten Presets tragen Paare. Wer eines
+// bearbeitete, sah sie nicht und konnte sie beim Speichern nicht behalten.
+//
+// Diese Prüfung zählt keine Liste nach, sondern hält den Editor gegen das, was
+// die Presets WIRKLICH tragen.
+{
+  const Dok2 = dom.window.document;
+  const wurzelW = Dok2.createElement("div");
+  Dok2.body.append(wurzelW);
+  mountWordbank(wurzelW);
+  const imEditor = new Set(Array.from(wurzelW.querySelectorAll("textarea[id^=wb-full-]"))
+    .map((t) => (t as HTMLElement).id.replace("wb-full-", "")));
+  const imBestand = new Set<string>();
+  for (const b of Object.values(BUILTIN_PRESETS) as unknown as Record<string, unknown>[]) {
+    for (const k of Object.keys(b)) { const v = b[k]; if (Array.isArray(v) && v.length) imBestand.add(k); }
+  }
+  wahr(`der Editor hat Felder (${imEditor.size})`, imEditor.size >= 8);
+  const fehlt = [...imBestand].filter((k) => !imEditor.has(k)).sort();
+  ist("jede Liste des Bestands hat ein Feld im Editor", fehlt.join(", "), "");
+  const zuviel = [...imEditor].filter((k) => !imBestand.has(k)).sort();
+  ist("und der Editor erfindet keine", zuviel.join(", "), "");
+
+  // Ein Feld, das man sieht und beim Speichern verliert, wäre schlimmer als
+  // keines. Also einmal durch: eintragen, übernehmen, zurücklesen.
+  const feld = wurzelW.querySelector("#wb-full-verwandlungen") as HTMLTextAreaElement | null;
+  const uebernehmen = Array.from(wurzelW.querySelectorAll("button"))
+    .find((b) => /Alle übernehmen/.test(b.textContent || "")) as HTMLButtonElement | undefined;
+  wahr("das Feld für die Verwandlungen ist da", !!feld);
+  wahr("und die Taste Alle uebernehmen auch", !!uebernehmen);
+  if (feld && uebernehmen) {
+    feld.value = "Glocke→Stimme\nTurm→Berg";
+    feld.dispatchEvent(new dom.window.Event("input"));
+    uebernehmen.click();
+    ist("die Paare überstehen das Speichern", (loadBank().verwandlungen || []).join(" "), "Glocke→Stimme Turm→Berg");
+    // Und der Hinweis meldet ein Paar, das nicht wirkt.
+    feld.value = "Glocke→Stimme\nGlocke→Berg";
+    feld.dispatchEvent(new dom.window.Event("input"));
+    const hinweis = (feld.parentElement?.textContent || "");
+    wahr("ein Paar mit falschem Geschlecht wird angezeigt", /wirken nicht|verschiedenes Geschlecht/.test(hinweis));
   }
 }
 

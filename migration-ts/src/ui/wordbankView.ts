@@ -16,6 +16,7 @@ import { bankFromCorpus } from "../features/corpusbank";
 import { icon } from "./icons";
 import { loadAiKey } from "../features/ki";
 import { loadSchnappschuss } from "../features/sources";
+import { pruefePaar } from "../generation/verwandlung";
 
 const CATS: [BankKey, string][] = [
   ["motifs", "Motive"], ["hooks", "Hooks"], ["props", "Requisiten"], ["turns", "Wendungen"],
@@ -232,7 +233,39 @@ export function mountWordbank(root: HTMLElement): void {
     t.addEventListener("input", () => updTenseHint(key));
     fullGrid.append(el("div", { class: "field" }, el("span", { class: "field-label" }, label), t, hint));
   }
-  renderFull = (): void => { const bank = loadBank(); for (const [key] of CATS) if (fullAreas[key]) { fullAreas[key]!.value = (bank[key as BankKey] || []).join("\n"); updTenseHint(key); } };
+  // Die achte Liste: Motivverwandlungen. Sie ist KEINE Textkategorie — ihre
+  // Einträge stehen nie im Text, sie sagen, was aus einem Bild wird, wenn es
+  // wiederkehrt. Genau deshalb fehlte sie hier: `CATS` zählt Textkategorien auf.
+  //
+  // Ein Preset ohne dieses Feld zu bearbeiten war gefährlich still: 41 der 51
+  // eingebauten Presets tragen Paare, und wer sie hier nicht sah, konnte sie
+  // beim Speichern auch nicht behalten.
+  //
+  // Der Hinweis darunter prüft jede Zeile mit derselben Funktion wie der
+  // Bauweg. Ein Paar mit verschiedenem Geschlecht wird dort STILL verworfen —
+  // hier steht wenigstens, warum.
+  const verwArea = el("textarea", { id: "wb-full-verwandlungen", style: "height:88px",
+    placeholder: "Ein Paar pro Zeile, z. B. Glocke→Stimme" }) as HTMLTextAreaElement;
+  const verwHint = el("div", { class: "muted mini" });
+  const updVerwHint = (): void => {
+    const zeilen = verwArea.value.split("\n").map((x) => x.trim()).filter(Boolean);
+    const schlecht = zeilen.map((z) => ({ z, r: pruefePaar(z) })).filter((x) => !x.r.ok);
+    if (!schlecht.length) {
+      verwHint.className = "muted mini";
+      verwHint.textContent = zeilen.length ? `${zeilen.length} Paare, alle gültig` : "";
+      return;
+    }
+    verwHint.className = "muted mini tensewarn";
+    verwHint.textContent = `⚠ ${schlecht.length} Paar(e) wirken nicht: `
+      + schlecht.slice(0, 3).map((x) => `„${x.z}“ (${x.r.grund})`).join(" · ");
+  };
+  verwArea.addEventListener("input", updVerwHint);
+  fullGrid.append(el("div", { class: "field" },
+    el("span", { class: "field-label" }, "Motivverwandlungen"),
+    el("span", { class: "muted mini" }, "Wort→Wort, beide mit demselben Geschlecht"),
+    verwArea, verwHint));
+  const verwLesen = (): string[] => verwArea.value.split("\n").map((x) => x.trim()).filter(Boolean);
+  renderFull = (): void => { const bank = loadBank(); verwArea.value = (bank.verwandlungen || []).join("\n"); updVerwHint(); for (const [key] of CATS) if (fullAreas[key]) { fullAreas[key]!.value = (bank[key as BankKey] || []).join("\n"); updTenseHint(key); } };
   // Offline-Konverter: wandelt eindeutige Präteritum-Formen in Präsens; unsichere bleiben stehen.
   const tenseFixBtn = button("Präteritum → Präsens");
   tenseFixBtn.title = "Wandelt eindeutige Vergangenheitsformen in Präsens. Unsichere Fälle bleiben unverändert und werden weiter markiert.";
@@ -257,6 +290,7 @@ export function mountWordbank(root: HTMLElement): void {
   applyAllBtn.addEventListener("click", () => {
     const bank = loadBank();
     for (const [key] of CATS) bank[key as BankKey] = fullAreas[key]!.value.split("\n").map((x) => x.trim()).filter(Boolean);
+    const vw = verwLesen(); if (vw.length) bank.verwandlungen = vw; else delete bank.verwandlungen;
     if (!saveBank(bank)) { fullInfo.textContent = "Speichern fehlgeschlagen — Speicher voll. Erst Korpus/Schatzkammer leeren (Einstellungen ▸ Speicher) oder exportieren."; return; }
     load(); renderFull();
     let extra = "";
@@ -268,6 +302,7 @@ export function mountWordbank(root: HTMLElement): void {
     // erst die Textfelder in die Bank übernehmen, dann als Datei sichern
     const bank = loadBank();
     for (const [key] of CATS) bank[key as BankKey] = fullAreas[key]!.value.split("\n").map((x) => x.trim()).filter(Boolean);
+    const vw = verwLesen(); if (vw.length) bank.verwandlungen = vw; else delete bank.verwandlungen;
     if (!saveBank(bank)) { fullInfo.textContent = "Speichern fehlgeschlagen — Speicher voll."; return; }
     load();
     if (preset.value.startsWith("user:")) saveCurrentBankAsUserPreset(preset.value.slice(5));
@@ -370,7 +405,7 @@ export function mountWordbank(root: HTMLElement): void {
   fullBox.addEventListener("toggle", () => { if (fullBox.open) { renderFull(); render2(); } });
   fullBox.append(
     el("summary", {}, icon("floppy"), " Preset bearbeiten und sichern"),
-    el("p", { class: "muted" }, "Alle Kategorien direkt bearbeiten. „Alle übernehmen“ speichert in die aktive Wortbank; „Speichern unter“ schreibt sie als JSON-Datei; „Aus Datei laden“ liest eine gespeicherte Wortbank (oder ein Projekt) wieder ein."),
+    el("p", { class: "muted" }, "Alle acht Listen direkt bearbeiten — die sieben Textkategorien und die Motivverwandlungen. „Alle übernehmen“ speichert in die aktive Wortbank; „Speichern unter“ schreibt sie als JSON-Datei; „Aus Datei laden“ liest eine gespeicherte Wortbank (oder ein Projekt) wieder ein."),
     fullGrid,
     el("div", { class: "btnrow" }, applyAllBtn, tenseFixBtn, saveAsFileBtn, loadFileBtn, fileIn),
     p2Wrap,

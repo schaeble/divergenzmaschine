@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.291.0**, Zweig `typescript-migration`.
+Stand: **v4.292.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,36 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Die achte Liste fehlte im Editor (4.292.0)
+
+**Gefragt:** „Wortbank, Preset bearbeiten und sichern — sind alle neuen
+Kategorien aufgelistet?"
+
+**Nein.** `verwandlungen` fehlte. Der Editor lief über `CATS`, und `CATS` zählt
+**Text**kategorien auf — die Motivverwandlungen sind keine, ihre Einträge stehen
+nie im Text. Genau deshalb sind sie durchgefallen, hier wie im KI-Auftrag
+(4.290) und in der Normalisierung (ebenfalls 4.290). Dreimal dieselbe Ursache:
+Eine Liste, die „alle Kategorien" heißt, meint die Textkategorien.
+
+**Die Folge war still.** 41 der 51 eingebauten Presets tragen Paare. Wer eines
+bearbeitete, sah sie nicht — und konnte sie damit auch nicht behalten.
+
+Jetzt steht das Feld im Editor, wird gefüllt, gespeichert und in die Datei
+geschrieben. Darunter prüft ein Hinweis **jede Zeile mit derselben Funktion wie
+der Bauweg** und nennt die Paare, die nicht wirken: „Glocke→Berg (verschiedenes
+Geschlecht (f gegen m))". Der Generator verwirft solche Paare stillschweigend —
+hier steht wenigstens, warum.
+
+**Prüfstand Studio 63 → 70.** Der Kern ist wieder eine umgedrehte Frage: Nicht
+„welche Felder soll der Editor haben?", sondern **„welche Listen tragen die
+Presets wirklich?"** — die Vereinigung über alle 51 wird gegen die Felder des
+gemounteten Editors gehalten. Dazu ein Rundlauf: eintragen, „Alle übernehmen",
+zurücklesen.
+
+Gegenproben: Das Feld nicht eingehängt → „jede Liste des Bestands hat ein Feld
+im Editor: verwandlungen". Beim Übernehmen nicht mitgeschrieben → der Rundlauf
+liest die alten Paare des Presets zurück statt der eingetippten.
 
 Ein Update hätte halbiert (4.291.0)
 
