@@ -6718,7 +6718,7 @@ var BUILTIN_PRESETS = {
       "die Uhr weicht ab und niemand wei\xDF seit wann",
       "der Streulichtschein der Stadt w\xE4chst",
       "die Rechenzeit ist auf zwei Stunden begrenzt",
-      "das Objekt steht zu tief \xFCber dem Horizont",
+      "der K\xF6rper steht zu tief \xFCber dem Horizont",
       "die Beobachtungszeit geh\xF6rt einem anderen",
       "die Kuppel l\xE4sst sich bei Frost nur halb drehen",
       "die Platten m\xFCssen entwickelt werden, bevor sie altern",

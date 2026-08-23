@@ -88,6 +88,7 @@ const basis = {
   varLevel: "wild", archetypeA: "neutral", archetypeB: "neutral",
 } as unknown as GenInput;
 
+let objektBsp = "";
 let etikett = 0, wortObjekt = 0, ohneRahmen = 0, ohneArtikel = 0, nichtVorn = 0, ohneZweiten = 0;
 // Aus der Quelle, nicht abgeschrieben: Eine Kopie der Liste veraltet stumm.
 // Ohne Schlusspunkt vergleichen: Die Satzlängen-Zusammenziehung darf den Satz
@@ -100,7 +101,7 @@ for (let i = 0; i < LAEUFE; i++) {
   const t = buildStory(bank, { ...basis, perspective: "object",
     structure: i % 2 ? "rekombination" : "linear" } as GenInput);
   if (/\((?:das Objekt|der |die |das )[^)]{0,40}\)/.test(t)) etikett++;
-  if (/\bdas Objekt\b/.test(t)) wortObjekt++;
+  if (/\bdas Objekt\b/.test(t)) { wortObjekt++; if (!objektBsp) objektBsp = (t.split(/(?<=[.!?])\s+/).find((x) => /\bdas Objekt\b/.test(x)) || t.slice(0, 90)); }
   // Der Rahmen darf durch die Satzlängen-Zusammenziehung gebunden werden
   // („… — ich bin die Akte"), verschwinden darf er nicht.
   if (!/[Ii]ch bin (der|die|das) /.test(t)) ohneRahmen++;
@@ -119,7 +120,14 @@ ist("kein Etikett in Klammern in 60 Texten", etikett, 0);
 // mit." endet auf „mit" und galt damit als abgeschnitten.
 ist("und der zweite Rahmensatz überlebt", ohneZweiten, 0);
 ist("und der Rahmen steht ganz vorn, vor der Ton-Einleitung", nichtVorn, 0);
-ist("und das Wort „das Objekt“ steht nirgends mehr", wortObjekt, 0);
+// Die Meldung nennt den Satz. Ohne ihn stand hier nur „1 — erwartet 0", und die
+// Suche nach der Stelle dauerte länger als die Reparatur. Beim ersten Anschlagen
+// war es übrigens kein Programmfehler, sondern MATERIAL: „das Objekt steht zu
+// tief über dem Horizont" im Preset „astrologie" — in der Astronomie ein
+// normaler Satz, hier eine Kollision mit dem verbotenen Platzhalter. Der Eintrag
+// heißt jetzt „der Körper …"; die Regel bleibt streng, denn sie kann beides
+// nicht unterscheiden.
+ist(`und das Wort „das Objekt“ steht nirgends mehr${objektBsp ? ` — z. B. „${objektBsp}“` : ""}`, wortObjekt, 0);
 ist("jeder Text nennt sein Ding", ohneRahmen, 0);
 ist("und immer mit Artikel", ohneArtikel, 0);
 

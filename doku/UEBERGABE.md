@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.294.0**, Zweig `typescript-migration`.
+Stand: **v4.295.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,54 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Der Reiter Ideen: nachgesehen und drei Befunde (4.295.0)
+
+**Gefragt:** „Werden beim ,Alles würfeln' im Studio die Einstellungen unter
+Reiter Ideen mit den Presets, Reglern, Ideen generieren und ins Studio
+übertragen — oder steht das still?"
+
+**Die Antwort ist dreiteilig, und zwei Teile waren Fehler.**
+
+**1. Nein, und das ist Absicht.** Das Ideen-Profil (zehn Merkmale, Divergenz,
+Pool-Anteil) steuert die PRÄMISSEN-Erzeugung, nicht den Textbau. Es hat im
+Reiter Ideen einen eigenen Würfel. Der Studio-Würfel greift nur, was in seinem
+eigenen Baum ein Schloss trägt — die Ideen-Regler haben keins und stehen auch
+nicht im Schaltplan. Das bleibt so; steht jetzt aber in der Hilfe, statt dass man
+es raten muss.
+
+**2. „→ Studio" war kaputt — und zwar seit gestern, durch eigenes Verschulden.**
+In 4.294.0 kamen die vier W in den Merkzettel, damit ein Wurf aus dem Reiter
+Diagnose beim Zurückwechseln ankommt. Dessen Wiederherstellung lief **nach** der
+Übergabe aus `dm_pending_ctx` und setzte den alten Kontext zurück. Wer eine Idee
+ins Studio schickte, sah dort weiter „auf der Schafsweide / Baucis, Philemon".
+Der Weg sah aus, als täte er nichts — genau die Vermutung in der Frage.
+
+Die Regel steht jetzt im Quelltext: **Was ein anderer Reiter übergibt, hat
+Vorrang vor dem Gemerkten.** Der Merkzettel soll einen Reiterwechsel
+überbrücken, nicht eine Absicht überschreiben. Betroffen waren alle vier
+Übergabewege: Ideen, Schatzkammer, Assoziationskette, Sammler.
+
+**3. Der Reiter Ideen warf beim Öffnen jedes Mal alles weg.** `mountIdeas` rief
+`randomize()` bei JEDEM Aufbau — und der läuft bei jedem Reiterwechsel. Wer zehn
+Merkmale von Hand gesetzt, ins Studio geschaut und zurückgewechselt hat, fand ein
+fremdes Profil vor. Im Studio gibt es dieselbe Regel seit langem
+(`studioSchonGewuerfelt`) und aus demselben Grund; im Reiter Ideen fehlte sie.
+Jetzt wird nur beim ersten Aufbau je Sitzung gewürfelt, danach wird die
+Einstellung wiederhergestellt.
+
+**Nebenbei: ein Prüfstand, der seinen Fund nicht nannte.** Beim Durchlauf schlug
+„das Wort ‚das Objekt' steht nirgends mehr" an — mit der Meldung „1 — erwartet
+0". Die Suche dauerte länger als die Reparatur. Es war **kein Programmfehler,
+sondern Material**: „das Objekt steht zu tief über dem Horizont" im Preset
+`astrologie` — in der Astronomie ein normaler Satz, hier eine Kollision mit dem
+verbotenen Platzhalter aus Ausgabe Nr. 40. Der Eintrag heißt jetzt „der Körper
+…", die Regel bleibt streng (sie kann beides nicht unterscheiden), **und die
+Meldung nennt ab jetzt den Satz.**
+
+Prüfstand Studio 70 → 76. Gegenproben: Merkzettel ohne Vorrang → die Übergabe
+kommt nicht an (3 Prüfungen); Ideen würfelt bei jedem Aufbau → die Merkmale
+überleben den Reiterwechsel nicht.
 
 Die vier W würfeln mit (4.294.0)
 

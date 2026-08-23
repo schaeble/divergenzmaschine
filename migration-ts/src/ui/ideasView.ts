@@ -13,6 +13,12 @@ import { loadAiKey, callClaude, extractJson } from "../features/ki";
 import { liveCount, clearLivePools } from "../features/livepools";
 import { mountAssoc } from "./assocView";
 
+/** Über den Reiterwechsel hinweg gemerkt — siehe die Begründung unten am
+ *  Zufallsstart. */
+let ideenSchonGewuerfelt = false;
+let ideenStand: IdeaProfile | null = null;
+let ideenLive: string | null = null;
+
 export function mountIdeas(root: HTMLElement): void {
   root.innerHTML = "";
   const wrap = el("div", {});
@@ -91,7 +97,23 @@ export function mountIdeas(root: HTMLElement): void {
     divVal.textContent = diverg.value;
     nameIn.value = ""; presetSel.value = ""; updDel();
   };
-  randomize();
+  // NUR beim ersten Aufbau je Sitzung würfeln. `mountIdeas` läuft bei jedem
+  // Reiterwechsel erneut, und ein Neuwürfeln dort warf jede eingestellte
+  // Kombination weg: Wer zehn Merkmale von Hand gesetzt, ins Studio geschaut und
+  // zurückgewechselt hat, fand ein fremdes Profil vor.
+  //
+  // Dieselbe Regel gilt im Studio seit langem (`studioSchonGewuerfelt`), aus
+  // demselben Grund. Hier fehlte sie.
+  if (!ideenSchonGewuerfelt) { randomize(); ideenSchonGewuerfelt = true; ideenStand = readProfile(); ideenLive = live.value; }
+  else {
+    if (ideenStand) applyProfile(ideenStand);
+    if (ideenLive !== null) { live.value = ideenLive; }
+    updLive();
+  }
+  const merkeIdeen = (): void => { ideenStand = readProfile(); ideenLive = live.value; };
+  [genre, ton, prot, konflikt, ort, zeit, massstab, wendung, fokus, presetSel]
+    .forEach((c) => c.addEventListener("change", merkeIdeen));
+  [diverg, live, nameIn].forEach((c) => c.addEventListener("input", merkeIdeen));
 
   // ---- Ausgabe ----
   const list = el("div", {});

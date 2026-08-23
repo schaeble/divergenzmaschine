@@ -7763,7 +7763,7 @@ var BUILTIN_PRESETS = {
       "die Uhr weicht ab und niemand wei\xDF seit wann",
       "der Streulichtschein der Stadt w\xE4chst",
       "die Rechenzeit ist auf zwei Stunden begrenzt",
-      "das Objekt steht zu tief \xFCber dem Horizont",
+      "der K\xF6rper steht zu tief \xFCber dem Horizont",
       "die Beobachtungszeit geh\xF6rt einem anderen",
       "die Kuppel l\xE4sst sich bei Frost nur halb drehen",
       "die Platten m\xFCssen entwickelt werden, bevor sie altern",
@@ -17063,6 +17063,7 @@ var basis = {
   archetypeA: "neutral",
   archetypeB: "neutral"
 };
+var objektBsp = "";
 var etikett = 0;
 var wortObjekt = 0;
 var ohneRahmen = 0;
@@ -17079,7 +17080,10 @@ for (let i = 0; i < LAEUFE; i++) {
     structure: i % 2 ? "rekombination" : "linear"
   });
   if (/\((?:das Objekt|der |die |das )[^)]{0,40}\)/.test(t)) etikett++;
-  if (/\bdas Objekt\b/.test(t)) wortObjekt++;
+  if (/\bdas Objekt\b/.test(t)) {
+    wortObjekt++;
+    if (!objektBsp) objektBsp = t.split(/(?<=[.!?])\s+/).find((x) => /\bdas Objekt\b/.test(x)) || t.slice(0, 90);
+  }
   if (!/[Ii]ch bin (der|die|das) /.test(t)) ohneRahmen++;
   if (/[Ii]ch bin (?!der |die |das )[A-ZÄÖÜ]/.test(t)) ohneArtikel++;
   if (!/^Ich bin (der|die|das) /.test(t)) nichtVorn++;
@@ -17088,7 +17092,7 @@ for (let i = 0; i < LAEUFE; i++) {
 ist("kein Etikett in Klammern in 60 Texten", etikett, 0);
 ist("und der zweite Rahmensatz \xFCberlebt", ohneZweiten, 0);
 ist("und der Rahmen steht ganz vorn, vor der Ton-Einleitung", nichtVorn, 0);
-ist("und das Wort \u201Edas Objekt\u201C steht nirgends mehr", wortObjekt, 0);
+ist(`und das Wort \u201Edas Objekt\u201C steht nirgends mehr${objektBsp ? ` \u2014 z. B. \u201E${objektBsp}\u201C` : ""}`, wortObjekt, 0);
 ist("jeder Text nennt sein Ding", ohneRahmen, 0);
 ist("und immer mit Artikel", ohneArtikel, 0);
 for (const p of ["third", "first", "second", "we", "split"]) {

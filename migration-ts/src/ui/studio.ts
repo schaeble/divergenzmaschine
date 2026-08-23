@@ -1655,10 +1655,16 @@ export function mountStudio(root: HTMLElement): void {
   } catch { /* ignore */ }
   // Übergaben aus anderen Tabs: gewünschte Werte merken, um blockierte Schlösser zu melden
   const handedOver: { el: HTMLInputElement | HTMLSelectElement; label: string; want: string }[] = [];
+  // Was von einem anderen Reiter übergeben wurde, darf der Merkzettel unten
+  // NICHT überschreiben. Genau das ist in 4.294.0 passiert: Seit die vier W im
+  // Merkzettel stehen, kam „→ Studio" aus dem Reiter Ideen nicht mehr an — die
+  // Wiederherstellung lief nach der Übergabe und setzte den alten Kontext
+  // zurück. Der Weg sah aus, als täte er nichts.
+  const uebergeben = new Set<string>();
   const hand = (el: HTMLInputElement | HTMLSelectElement, label: string, v: unknown): void => {
     if (typeof v !== "string" || !v) return;
     if (el instanceof HTMLSelectElement && !Array.from(el.options).some((o) => o.value === v)) return;
-    handedOver.push({ el, label, want: v }); el.value = v;
+    handedOver.push({ el, label, want: v }); el.value = v; uebergeben.add(el.id);
   };
   // Übergabe aus Ideen/Schatzkammer/Assoziation überschreibt den Kontext
   try {
@@ -1680,7 +1686,11 @@ export function mountStudio(root: HTMLElement): void {
     hand(tone, "Ton", P["tone"]); hand(markov, "Markov", P["markovMode"]); hand(archA, "Archetyp A", P["archetypeA"]);
     hand(archB, "Archetyp B", P["archetypeB"]); hand(disruptor, "Disruptor", P["disruptor"]); hand(instab, "Instabilität", P["instability"]);
     const emp = P["emphasis"] as Record<string, number> | undefined;
-    if (emp) { wWo.value = String(emp.wo ?? 0); wWann.value = String(emp.wann ?? 0); wWer.value = String(emp.wer ?? 0); wWas.value = String(emp.was ?? 0); }
+    if (emp) {
+      wWo.value = String(emp.wo ?? 0); wWann.value = String(emp.wann ?? 0);
+      wWer.value = String(emp.wer ?? 0); wWas.value = String(emp.was ?? 0);
+      for (const w of [wWo, wWann, wWer, wWas]) uebergeben.add(w.id);
+    }
     if (P["bank"]) {
       saveBank(P["bank"] as never); saveActiveBankLabel("Wahrnehmung (Omnikognition)");
       if (!preset.querySelector('option[value="__omni__"]')) {
@@ -1716,8 +1726,8 @@ export function mountStudio(root: HTMLElement): void {
   };
   ROLL_SELECTS.forEach((s) => s.addEventListener("change", () => { studioReglerStand[s.id] = s.value; }));
   [...ROLL_RANGES, ...ROLL_TEXTE].forEach((r) => r.addEventListener("input", () => { studioReglerStand[r.id] = r.value; }));
-  for (const r of ROLL_RANGES) { const v = studioReglerStand[r.id]; if (v !== undefined) { r.value = v; r.dispatchEvent(new Event("input")); } }
-  for (const r of ROLL_TEXTE) { const v = studioReglerStand[r.id]; if (v !== undefined && v !== "") r.value = v; }
+  for (const r of ROLL_RANGES) { const v = studioReglerStand[r.id]; if (v !== undefined && !uebergeben.has(r.id)) { r.value = v; r.dispatchEvent(new Event("input")); } }
+  for (const r of ROLL_TEXTE) { const v = studioReglerStand[r.id]; if (v !== undefined && v !== "" && !uebergeben.has(r.id)) r.value = v; }
   updHints(); ctxSichern();
   merkeRegler();
   // Der Schaltplan im Reiter Diagnose liest diesen Stand. Geschrieben wird bei

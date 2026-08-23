@@ -2108,7 +2108,7 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "die Uhr weicht ab und niemand weiß seit wann",
       "der Streulichtschein der Stadt wächst",
       "die Rechenzeit ist auf zwei Stunden begrenzt",
-      "das Objekt steht zu tief über dem Horizont",
+      "der Körper steht zu tief über dem Horizont",
       "die Beobachtungszeit gehört einem anderen",
       "die Kuppel lässt sich bei Frost nur halb drehen",
       "die Platten müssen entwickelt werden, bevor sie altern",

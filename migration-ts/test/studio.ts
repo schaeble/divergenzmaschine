@@ -30,6 +30,7 @@ import { uebernehmeKontext, geaendert, W4_FELDER, offeneQuellen, ziehQuelle, QUE
 import { worldFillContext, WELT_SAAT } from "../src/features/world";
 import { mountStudio } from "../src/ui/studio";
 import { mountWordbank } from "../src/ui/wordbankView";
+import { mountIdeas } from "../src/ui/ideasView";
 import { loadBank } from "../src/storage";
 import { BUILTIN_PRESETS } from "../src/presets.data";
 import { regle, saveZiele, loadKnobs, saveKnobs, KNOB_VORGABE, ZIEL_KNOB } from "../src/features/knobs";
@@ -436,6 +437,64 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
     const hinweis = (feld.parentElement?.textContent || "");
     wahr("ein Paar mit falschem Geschlecht wird angezeigt", /wirken nicht|verschiedenes Geschlecht/.test(hinweis));
   }
+}
+
+
+// ── Übergaben aus anderen Reitern kommen an ──────────────────────────────
+// Gefragt: „Werden die Ideen ins Studio übertragen oder steht das still?"
+// Nachgestellt — und es stand still, seit 4.294.0 und durch eigenes Verschulden:
+// Damit ein Wurf aus dem Reiter Diagnose beim Zurückwechseln ankommt, wurden die
+// vier W in den Merkzettel aufgenommen. Dessen Wiederherstellung lief NACH der
+// Übergabe aus `dm_pending_ctx` und setzte den alten Kontext zurück. „→ Studio"
+// aus dem Reiter Ideen sah aus, als täte es nichts.
+//
+// Die Regel dahinter: Was ein anderer Reiter übergibt, hat Vorrang vor dem
+// Gemerkten. Der Merkzettel soll einen Reiterwechsel überbrücken, nicht eine
+// Absicht überschreiben.
+{
+  const Dok3 = dom.window.document;
+  const wurzelS = Dok3.createElement("div");
+  Dok3.body.append(wurzelS);
+  mountStudio(wurzelS);
+  // Attributwähler statt „#id": Im Prüfstand hängen mehrere Studios im selben
+  // Dokument, und jsdom findet eine doppelt vergebene Kennung im Teilbaum nicht
+  // zuverlässig über den Id-Wähler.
+  const feld = (id: string): HTMLInputElement => wurzelS.querySelector(`[id="${id}"]`) as HTMLInputElement;
+  const wert = (id: string): string => feld(id).value;
+  const vorher = wert("f-where");
+  localStorage.setItem("dm_pending_ctx", JSON.stringify({
+    who: "ein Spiegel mit Gedächtnis", where: "an einem vergessenen Koordinatenpunkt",
+    when: "kurz vor dem Aufbruch", what: "beantragt eine Genehmigung zu existieren",
+  }));
+  mountStudio(wurzelS);
+  ist("die Übergabe aus einem anderen Reiter kommt an", wert("f-where"), "an einem vergessenen Koordinatenpunkt");
+  ist("und auch das Wer", wert("f-who"), "ein Spiegel mit Gedächtnis");
+  wahr("sie ersetzt den vorherigen Kontext", wert("f-where") !== vorher);
+  mountStudio(wurzelS);
+  ist("und überlebt den nächsten Reiterwechsel", wert("f-where"), "an einem vergessenen Koordinatenpunkt");
+}
+
+// ── Der Reiter Ideen behält seine Einstellung ────────────────────────────
+// Beim Nachsehen mitgefunden: `mountIdeas` würfelte bei JEDEM Aufbau alle zehn
+// Merkmale neu. Wer sie von Hand gesetzt, ins Studio geschaut und
+// zurückgewechselt hat, fand ein fremdes Profil vor. Im Studio gibt es dieselbe
+// Regel seit langem; hier fehlte sie.
+{
+  const Dok4 = dom.window.document;
+  const wurzelI = Dok4.createElement("div");
+  Dok4.body.append(wurzelI);
+  mountIdeas(wurzelI);
+  const lesen = (): string => ["idea-genre", "idea-ton", "idea-mass", "idea-div"]
+    .map((id) => (wurzelI.querySelector(`[id="${id}"]`) as HTMLSelectElement | HTMLInputElement).value).join("/");
+  const setz = (id: string, v: string): void => {
+    const e = wurzelI.querySelector(`[id="${id}"]`) as HTMLSelectElement;
+    e.value = v; e.dispatchEvent(new dom.window.Event("change"));
+  };
+  setz("idea-genre", "horror"); setz("idea-ton", "ironisch"); setz("idea-mass", "kosmisch");
+  const gesetzt = lesen();
+  mountIdeas(wurzelI);
+  ist("die eingestellten Merkmale überleben den Reiterwechsel", lesen(), gesetzt);
+  wahr("und sie sind wirklich gesetzt", /horror\/ironisch\/kosmisch/.test(gesetzt));
 }
 
 console.log(`Prüfstand Studio — ${geprueft} Prüfungen, ${bestanden} bestanden`);

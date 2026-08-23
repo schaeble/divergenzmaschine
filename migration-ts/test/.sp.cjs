@@ -6961,7 +6961,7 @@ var BUILTIN_PRESETS = {
       "die Uhr weicht ab und niemand wei\xDF seit wann",
       "der Streulichtschein der Stadt w\xE4chst",
       "die Rechenzeit ist auf zwei Stunden begrenzt",
-      "das Objekt steht zu tief \xFCber dem Horizont",
+      "der K\xF6rper steht zu tief \xFCber dem Horizont",
       "die Beobachtungszeit geh\xF6rt einem anderen",
       "die Kuppel l\xE4sst sich bei Frost nur halb drehen",
       "die Platten m\xFCssen entwickelt werden, bevor sie altern",
@@ -22871,11 +22871,13 @@ function mountStudio(root) {
   } catch {
   }
   const handedOver = [];
+  const uebergeben = /* @__PURE__ */ new Set();
   const hand = (el2, label, v) => {
     if (typeof v !== "string" || !v) return;
     if (el2 instanceof HTMLSelectElement && !Array.from(el2.options).some((o) => o.value === v)) return;
     handedOver.push({ el: el2, label, want: v });
     el2.value = v;
+    uebergeben.add(el2.id);
   };
   try {
     const pend = localStorage.getItem("dm_pending_ctx");
@@ -22922,6 +22924,7 @@ function mountStudio(root) {
       wWann.value = String(emp.wann ?? 0);
       wWer.value = String(emp.wer ?? 0);
       wWas.value = String(emp.was ?? 0);
+      for (const w of [wWo, wWann, wWer, wWas]) uebergeben.add(w.id);
     }
     if (P3["bank"]) {
       saveBank(P3["bank"]);
@@ -22960,14 +22963,14 @@ function mountStudio(root) {
   }));
   for (const r of ROLL_RANGES) {
     const v = studioReglerStand[r.id];
-    if (v !== void 0) {
+    if (v !== void 0 && !uebergeben.has(r.id)) {
       r.value = v;
       r.dispatchEvent(new Event("input"));
     }
   }
   for (const r of ROLL_TEXTE) {
     const v = studioReglerStand[r.id];
-    if (v !== void 0 && v !== "") r.value = v;
+    if (v !== void 0 && v !== "" && !uebergeben.has(r.id)) r.value = v;
   }
   updHints();
   ctxSichern();
