@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.281.0**, Zweig `typescript-migration`.
+Stand: **v4.282.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,38 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Siebter Stapel (4.282.0): **8 Presets — Stand 43 von 51.**
+
+| Preset | Wörter | Bericht 450 | Prosa 400 | kürzester Lauf |
+|---|---|---|---|---|
+| transzendenz | 876 | 102,4 % | 94,5 % | 348 |
+| koran | 865 | 102,6 % | 95,2 % | 351 |
+| sinnlich | 863 | 104,6 % | 97,3 % | 361 |
+| romantik | 859 | 105,7 % | 98,0 % | 371 |
+| surrealismus1920 | 858 | 105,3 % | 93,7 % | 332 |
+| formalismus | 856 | 106,5 % | 97,6 % | 378 |
+| erotik | 849 | 102,4 % | 96,7 % | 353 |
+| rimbaud | 811 | 102,0 % | 93,2 % | 327 |
+
+**Zwei Presets waren nach der Regel aus 4.279.0 reparaturbedürftig, bevor sie
+wachsen konnten.** „formalismus" trug in den Satz-Kategorien lauter Bruchstücke:
+„Abschnitt 1: Sachverhalt", „Die Ordnung gilt", „Es wird festgestellt", „Der
+Einsatz ist Gültigkeit." — Nominalfetzen an Stellen, an denen der Assembler
+einen Satz anschließt. „rimbaud" hatte dasselbe in den obstacles: „Strömungen
+ohne Richtung", „Sturm ohne Zentrum", „Fieber unter Deck". 51 Einträge
+umgeschrieben, bevor überhaupt etwas hinzukam.
+
+**Verlust und Wiederholung.** Der Arbeitsstand dieses Stapels ging einmal
+vollständig verloren, weil der Zwischenspeicher der Sitzung geleert wurde, bevor
+etwas eingecheckt war. Die Arbeit war in einer Stunde noch einmal gemacht, aber
+die Regel daraus ist billiger als der Verlust: **Ein Stapel wird eingecheckt,
+sobald er grün ist, nicht wenn er schön ist.**
+
+Genustabelle 1282 → 1292.
+
+**Noch 8:** glueck, staatsphilosophie, body, myth, post, gruendungsmythos,
+traumbilder, lebenreicher.
 
 Die zwoelf Nachzuegler (4.281.0): **Stand 35 von 51.** Alle zwölf, die nach dem
 neuen Maß zurückgefallen waren, stehen jetzt bei rund 850 Wörtern — ausgebaut
