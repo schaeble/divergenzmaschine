@@ -74,13 +74,14 @@ export function mountDiagnose(root: HTMLElement): void {
     if (!stand) { wuerfelHint.textContent = "Noch kein Stand — einmal in den Reiter Studio wechseln."; return; }
     let gesperrt = new Set<string>();
     try { gesperrt = new Set(JSON.parse(localStorage.getItem("divergenz_studio_locks_v1") || "[]") as string[]); } catch { /* leer */ }
-    const wurf = wuerfleAlles(stand.regler, gesperrt, loadKnobs());
+    const wurf = wuerfleAlles(stand.regler, gesperrt, loadKnobs(), stand.w4);
     saveKnobs(wurf.knobs);
-    saveAnlage({ ...stand, regler: wurf.regler, zeit: new Date().toISOString() });
+    saveAnlage({ ...stand, regler: wurf.regler, w4: wurf.w4, zeit: new Date().toISOString() });
     uebernimmWurf(wurf.nachId);
-    wuerfelHint.textContent = gesperrt.size
-      ? `gewürfelt — ${gesperrt.size} ${gesperrt.size === 1 ? "Schloss hält" : "Schlösser halten"}`
-      : "gewürfelt";
+    // Die Quelle der vier W gehört dazu: Bei vier gleichen Feldern wüsste man
+    // sonst nicht, ob der Vorrat leer war oder ob dasselbe gezogen wurde.
+    wuerfelHint.textContent = `gewürfelt · Vier W aus ${wurf.quelle}`
+      + (gesperrt.size ? ` — ${gesperrt.size} ${gesperrt.size === 1 ? "Schloss hält" : "Schlösser halten"}` : "");
     renderPlan();
   });
   // Die Legende nennt jetzt das Zeichen mit, nicht nur die Farbe.

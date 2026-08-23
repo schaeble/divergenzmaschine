@@ -1704,13 +1704,21 @@ export function mountStudio(root: HTMLElement): void {
   // Die Schieber gehören in denselben Merkzettel: Sonst käme ein Wurf, der im
   // Reiter Diagnose gefallen ist, beim Zurückwechseln nur zur Hälfte an.
   const ROLL_RANGES: HTMLInputElement[] = [lenSlider, novSlider, surpSlider, wWo, wWann, wWer, wWas];
+  // Die vier W gehören seit 4.294.0 dazu. Gemeldet: „Material, Vier W werden
+  // nicht gewürfelt bei Alles würfeln." Sie werden jetzt auch im Reiter
+  // Diagnose gewürfelt — und damit dieser Wurf beim Zurückwechseln ankommt,
+  // muss der Merkzettel sie kennen. Nebeneffekt, der lange fällig war: Der
+  // Kontext überlebt jetzt einen Reiterwechsel auch ohne „Kontext merken".
+  const ROLL_TEXTE: HTMLInputElement[] = [where, when, who, what];
   const merkeRegler = (): void => {
     for (const s of ROLL_SELECTS) studioReglerStand[s.id] = s.value;
-    for (const r of ROLL_RANGES) studioReglerStand[r.id] = r.value;
+    for (const r of [...ROLL_RANGES, ...ROLL_TEXTE]) studioReglerStand[r.id] = r.value;
   };
   ROLL_SELECTS.forEach((s) => s.addEventListener("change", () => { studioReglerStand[s.id] = s.value; }));
-  ROLL_RANGES.forEach((r) => r.addEventListener("input", () => { studioReglerStand[r.id] = r.value; }));
+  [...ROLL_RANGES, ...ROLL_TEXTE].forEach((r) => r.addEventListener("input", () => { studioReglerStand[r.id] = r.value; }));
   for (const r of ROLL_RANGES) { const v = studioReglerStand[r.id]; if (v !== undefined) { r.value = v; r.dispatchEvent(new Event("input")); } }
+  for (const r of ROLL_TEXTE) { const v = studioReglerStand[r.id]; if (v !== undefined && v !== "") r.value = v; }
+  updHints(); ctxSichern();
   merkeRegler();
   // Der Schaltplan im Reiter Diagnose liest diesen Stand. Geschrieben wird bei
   // JEDER Änderung, nicht erst beim Erzeugen: Sonst zeigte der Plan, was beim

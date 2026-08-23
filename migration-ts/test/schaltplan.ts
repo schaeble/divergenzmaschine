@@ -406,6 +406,58 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   ist("die Spannen der Schieber stimmen mit den Eingabefeldern überein", falsch.join(" · "), "");
 }
 
+
+// ── 11 · Die vier W würfeln mit ───────────────────────────────────────────
+// Gemeldet: „Material, Vier W werden nicht gewürfelt bei Alles würfeln." Der
+// kopflose Würfel kannte Regler, Schieber und Stellschrauben — die vier W
+// standen im Plan und blieben stehen. Sie brauchen kein DOM: Die Quellen (Welt,
+// Wiki-Vorrat, Bildvorrat, Themenpool) sind Feature-Funktionen. Es hatte nur
+// niemand verbunden.
+{
+  const vorher = { where: "im Archiv", when: "am Morgen", who: "die Archivarin", what: "sucht eine Akte" };
+  let bewegt = 0;
+  const gesehen = new Set<string>();
+  for (let i = 0; i < 20; i++) {
+    const w = wuerfleAlles(STAND().regler, new Set<string>(), undefined, vorher);
+    if (JSON.stringify(w.w4) !== JSON.stringify(vorher)) bewegt++;
+    gesehen.add(w.w4.where);
+    wahr(`der Wurf nennt eine Quelle (${w.quelle})`, !!w.quelle);
+    break;   // die Meldung reicht einmal; gezählt wird unten
+  }
+  for (let i = 0; i < 20; i++) {
+    const w = wuerfleAlles(STAND().regler, new Set<string>(), undefined, vorher);
+    if (JSON.stringify(w.w4) !== JSON.stringify(vorher)) bewegt++;
+    gesehen.add(w.w4.where);
+  }
+  wahr(`die vier W bewegen sich (${bewegt} von 21 Würfen)`, bewegt >= 18);
+  // Die Schranke steht bei 2 und nicht höher, und der Grund ist messbar: In
+  // einem leeren Browser liefern 21 Würfe 5 bis 6 verschiedene Orte (15
+  // Wiederholungen: 5 5 6 6 6 …). Hier laufen vorher §7, §8 und §10, die ein
+  // Studio mounten und dabei eine WELT anlegen — und aus einer kleinen Welt
+  // kommen wenige Orte. Das ist kein Fehler, sondern die Welt.
+  //
+  // Geprüft wird deshalb, was die Meldung wirklich meint: Der Würfel darf nicht
+  // auf EINEM Wert kleben. Die harte Zusage steht in der Zeile darüber — in 21
+  // Würfen bewegen sich die Felder mindestens 18-mal.
+  wahr(`und nicht immer gleich (${gesehen.size} verschiedene Orte)`, gesehen.size >= 2);
+
+  // Schlösser halten — dieselbe Regel wie überall.
+  const zu = new Set(["f-where", "f-what"]);
+  let verschoben = 0;
+  for (let i = 0; i < 20; i++) {
+    const w = wuerfleAlles(STAND().regler, zu, undefined, vorher);
+    if (w.w4.where !== vorher.where) verschoben++;
+    if (w.w4.what !== vorher.what) verschoben++;
+  }
+  ist("gesperrte W-Felder bleiben stehen", verschoben, 0);
+
+  // Und im Plan steht danach ein gefülltes Feld.
+  const w = wuerfleAlles(STAND().regler, new Set<string>(), undefined, vorher);
+  const a = baueAnlage({ ...STAND(), w4: w.w4 }, UMGEBUNG());
+  const knoten4 = knoten(a, "w4");
+  wahr("der Plan zeigt die gewürfelten vier W als gefüllt", (knoten4?.wert || "").startsWith("4 von 4"));
+}
+
 console.log(`Prüfstand Schaltplan — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

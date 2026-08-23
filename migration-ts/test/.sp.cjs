@@ -22947,14 +22947,15 @@ function mountStudio(root) {
   }
   restoreLocked();
   const ROLL_RANGES = [lenSlider, novSlider, surpSlider, wWo, wWann, wWer, wWas];
+  const ROLL_TEXTE = [where, when, who, what];
   const merkeRegler = () => {
     for (const s of ROLL_SELECTS) studioReglerStand[s.id] = s.value;
-    for (const r of ROLL_RANGES) studioReglerStand[r.id] = r.value;
+    for (const r of [...ROLL_RANGES, ...ROLL_TEXTE]) studioReglerStand[r.id] = r.value;
   };
   ROLL_SELECTS.forEach((s) => s.addEventListener("change", () => {
     studioReglerStand[s.id] = s.value;
   }));
-  ROLL_RANGES.forEach((r) => r.addEventListener("input", () => {
+  [...ROLL_RANGES, ...ROLL_TEXTE].forEach((r) => r.addEventListener("input", () => {
     studioReglerStand[r.id] = r.value;
   }));
   for (const r of ROLL_RANGES) {
@@ -22964,6 +22965,12 @@ function mountStudio(root) {
       r.dispatchEvent(new Event("input"));
     }
   }
+  for (const r of ROLL_TEXTE) {
+    const v = studioReglerStand[r.id];
+    if (v !== void 0 && v !== "") r.value = v;
+  }
+  updHints();
+  ctxSichern();
   merkeRegler();
   const anlageSichern = () => saveAnlage({
     regler: {
@@ -23086,7 +23093,48 @@ var SCHIEBER = [
   { id: "f-w-was", schluessel: "gew-was", min: 0, max: 3, step: 1 }
 ];
 var zieh = (l) => l[Math.floor(Math.random() * l.length)];
-function wuerfleAlles(vorher, gesperrt, knobsVorher = loadKnobs()) {
+var W4_ID = { where: "f-where", when: "f-when", who: "f-who", what: "f-what" };
+function wuerfleVierW(vorher, gesperrt) {
+  const quelle2 = ziehQuelle(offeneQuellen(
+    sicher(() => vorratStand().funde, 0),
+    sicher(() => ladeBildvorrat().length, 0),
+    sicher(() => themenStand().funde, 0)
+  ));
+  let vorschlag = {};
+  let woher = QUELLE_LABEL[quelle2];
+  if (quelle2 === "wiki") {
+    const f = sicher(() => ziehVorrat(), null);
+    if (f) {
+      vorschlag = f.ctx;
+      woher = `Wiki \xB7 ${f.titel}`;
+    } else vorschlag = sicher(() => worldFillContext(), {});
+  } else if (quelle2 === "abschrift") {
+    const f = sicher(() => ziehBildvorrat(), null);
+    if (f) {
+      vorschlag = f.ctx;
+      woher = `Abschrift \xB7 ${f.name}`;
+    } else vorschlag = sicher(() => worldFillContext(), {});
+  } else if (quelle2 === "thema") {
+    const f = sicher(() => ziehThema(), null);
+    if (f) {
+      vorschlag = f.ctx;
+      woher = `Thema \xB7 ${f.themaLabel}`;
+    } else vorschlag = sicher(() => worldFillContext(), {});
+  } else {
+    vorschlag = sicher(() => worldFillContext(), {});
+  }
+  const felder = {};
+  for (const f of W4_FELDER) felder[f] = { id: W4_ID[f], wert: vorher[f] || "" };
+  return { w4: uebernehmeKontext(felder, vorschlag, (id) => gesperrt.has(id)), quelle: woher };
+}
+var sicher = (f, ersatz) => {
+  try {
+    return f();
+  } catch {
+    return ersatz;
+  }
+};
+function wuerfleAlles(vorher, gesperrt, knobsVorher = loadKnobs(), vorherW4) {
   const regler = { ...vorher };
   const nachId = {};
   const presets = markedPresetOptions().map(([v]) => v).filter((v) => !v.startsWith("__"));
@@ -23119,7 +23167,9 @@ function wuerfleAlles(vorher, gesperrt, knobsVorher = loadKnobs()) {
     const stufen = Math.floor((sp.max - sp.min) / sp.step) + 1;
     knobs[feld] = sp.min + Math.floor(Math.random() * stufen) * sp.step;
   }
-  return { regler, nachId, knobs };
+  const vw = wuerfleVierW(vorherW4 || { where: "", when: "", who: "", what: "" }, gesperrt);
+  for (const f of W4_FELDER) nachId[W4_ID[f]] = vw.w4[f];
+  return { regler, nachId, knobs, w4: vw.w4, quelle: vw.quelle };
 }
 
 // src/ui/schaltplanView.ts
@@ -23966,11 +24016,11 @@ function mountDiagnose(root) {
       gesperrt = new Set(JSON.parse(localStorage.getItem("divergenz_studio_locks_v1") || "[]"));
     } catch {
     }
-    const wurf = wuerfleAlles(stand.regler, gesperrt, loadKnobs());
+    const wurf = wuerfleAlles(stand.regler, gesperrt, loadKnobs(), stand.w4);
     saveKnobs(wurf.knobs);
-    saveAnlage({ ...stand, regler: wurf.regler, zeit: (/* @__PURE__ */ new Date()).toISOString() });
+    saveAnlage({ ...stand, regler: wurf.regler, w4: wurf.w4, zeit: (/* @__PURE__ */ new Date()).toISOString() });
     uebernimmWurf(wurf.nachId);
-    wuerfelHint.textContent = gesperrt.size ? `gew\xFCrfelt \u2014 ${gesperrt.size} ${gesperrt.size === 1 ? "Schloss h\xE4lt" : "Schl\xF6sser halten"}` : "gew\xFCrfelt";
+    wuerfelHint.textContent = `gew\xFCrfelt \xB7 Vier W aus ${wurf.quelle}` + (gesperrt.size ? ` \u2014 ${gesperrt.size} ${gesperrt.size === 1 ? "Schloss h\xE4lt" : "Schl\xF6sser halten"}` : "");
     renderPlan();
   });
   const legende = el(
@@ -24446,6 +24496,37 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
     }
   }
   ist("die Spannen der Schieber stimmen mit den Eingabefeldern \xFCberein", falsch.join(" \xB7 "), "");
+}
+{
+  const vorher = { where: "im Archiv", when: "am Morgen", who: "die Archivarin", what: "sucht eine Akte" };
+  let bewegt = 0;
+  const gesehen = /* @__PURE__ */ new Set();
+  for (let i = 0; i < 20; i++) {
+    const w2 = wuerfleAlles(STAND().regler, /* @__PURE__ */ new Set(), void 0, vorher);
+    if (JSON.stringify(w2.w4) !== JSON.stringify(vorher)) bewegt++;
+    gesehen.add(w2.w4.where);
+    wahr(`der Wurf nennt eine Quelle (${w2.quelle})`, !!w2.quelle);
+    break;
+  }
+  for (let i = 0; i < 20; i++) {
+    const w2 = wuerfleAlles(STAND().regler, /* @__PURE__ */ new Set(), void 0, vorher);
+    if (JSON.stringify(w2.w4) !== JSON.stringify(vorher)) bewegt++;
+    gesehen.add(w2.w4.where);
+  }
+  wahr(`die vier W bewegen sich (${bewegt} von 21 W\xFCrfen)`, bewegt >= 18);
+  wahr(`und nicht immer gleich (${gesehen.size} verschiedene Orte)`, gesehen.size >= 2);
+  const zu = /* @__PURE__ */ new Set(["f-where", "f-what"]);
+  let verschoben = 0;
+  for (let i = 0; i < 20; i++) {
+    const w2 = wuerfleAlles(STAND().regler, zu, void 0, vorher);
+    if (w2.w4.where !== vorher.where) verschoben++;
+    if (w2.w4.what !== vorher.what) verschoben++;
+  }
+  ist("gesperrte W-Felder bleiben stehen", verschoben, 0);
+  const w = wuerfleAlles(STAND().regler, /* @__PURE__ */ new Set(), void 0, vorher);
+  const a = baueAnlage({ ...STAND(), w4: w.w4 }, UMGEBUNG());
+  const knoten4 = knoten(a, "w4");
+  wahr("der Plan zeigt die gew\xFCrfelten vier W als gef\xFCllt", (knoten4?.wert || "").startsWith("4 von 4"));
 }
 console.log(`Pr\xFCfstand Schaltplan \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

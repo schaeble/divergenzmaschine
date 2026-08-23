@@ -16,6 +16,12 @@ import { TONE_OPTS, FORM_OPTS, STRUCTURE_OPTS, MODE_OPTS, PERSP_OPTS, RHYTHM_OPT
 import { RESSORTS, RESSORT_IDS } from "./ressorts";
 import { KNOB_SPANNE, KNOB_VORGABE, loadKnobs, type Knobs } from "./knobs";
 import { markedPresetOptions } from "./preset2";
+import { offeneQuellen, ziehQuelle, uebernehmeKontext, QUELLE_LABEL, W4_FELDER,
+  type W4, type Feld } from "./kontext";
+import { worldFillContext } from "./world";
+import { ziehVorrat, vorratStand } from "./wikisammler";
+import { ziehBildvorrat, ladeBildvorrat } from "./bildsammler";
+import { ziehThema, themenStand } from "./themenpool";
 
 /** Ein würfelbarer Regler: die Kennung des Auswahlfelds (dieselbe, die das
  *  Schloss trägt) und der Schlüssel, unter dem der Wert im Anlagenstand steht. */
@@ -58,13 +64,57 @@ export const SCHIEBER: SchieberWahl[] = [
 
 const zieh = <T,>(l: T[]): T => l[Math.floor(Math.random() * l.length)] as T;
 
-export interface Wurf { regler: Record<string, string>; nachId: Record<string, string>; knobs: Knobs }
+/** Die Kennungen der vier Felder in der Oberfläche — dieselben, die das Schloss
+ *  tragen und im Schaltplan auf den Knoten „Vier W" zeigen. */
+export const W4_ID: Record<W4, string> = { where: "f-where", when: "f-when", who: "f-who", what: "f-what" };
+
+export interface Wurf {
+  regler: Record<string, string>;
+  nachId: Record<string, string>;
+  knobs: Knobs;
+  w4: Record<W4, string>;
+  quelle: string;
+}
+
+/** Die vier W würfeln — mit derselben Quellenwahl wie „Alles würfeln" im Studio.
+ *
+ *  Gemeldet: „Material, Vier W werden nicht gewürfelt bei Alles würfeln." Der
+ *  kopflose Würfel kannte nur Regler, Schieber und Stellschrauben; die vier W
+ *  standen im Schaltplan und blieben stehen. Sie brauchen keinen DOM — die
+ *  Quellen sind Feature-Funktionen —, es hatte nur niemand verbunden. */
+export function wuerfleVierW(vorher: Record<W4, string>, gesperrt: Set<string>):
+{ w4: Record<W4, string>; quelle: string } {
+  const quelle = ziehQuelle(offeneQuellen(
+    sicher(() => vorratStand().funde, 0),
+    sicher(() => ladeBildvorrat().length, 0),
+    sicher(() => themenStand().funde, 0)));
+  let vorschlag: Partial<Record<W4, string>> = {};
+  let woher: string = QUELLE_LABEL[quelle];
+  if (quelle === "wiki") {
+    const f = sicher(() => ziehVorrat(), null);
+    if (f) { vorschlag = f.ctx; woher = `Wiki · ${f.titel}`; } else vorschlag = sicher(() => worldFillContext() as Partial<Record<W4, string>>, {} as Partial<Record<W4, string>>);
+  } else if (quelle === "abschrift") {
+    const f = sicher(() => ziehBildvorrat(), null);
+    if (f) { vorschlag = f.ctx; woher = `Abschrift · ${f.name}`; } else vorschlag = sicher(() => worldFillContext() as Partial<Record<W4, string>>, {} as Partial<Record<W4, string>>);
+  } else if (quelle === "thema") {
+    const f = sicher(() => ziehThema(), null);
+    if (f) { vorschlag = f.ctx; woher = `Thema · ${f.themaLabel}`; } else vorschlag = sicher(() => worldFillContext() as Partial<Record<W4, string>>, {} as Partial<Record<W4, string>>);
+  } else {
+    vorschlag = sicher(() => worldFillContext() as Partial<Record<W4, string>>, {} as Partial<Record<W4, string>>);
+  }
+  const felder = {} as Record<W4, Feld>;
+  for (const f of W4_FELDER) felder[f] = { id: W4_ID[f], wert: vorher[f] || "" };
+  return { w4: uebernehmeKontext(felder, vorschlag, (id) => gesperrt.has(id)), quelle: woher };
+}
+
+const sicher = <T,>(f: () => T, ersatz: T): T => { try { return f(); } catch { return ersatz; } };
 
 /** Ein Wurf über alle Regler und alle Stellschrauben. Gesperrtes bleibt stehen —
  *  dieselbe Regel wie im Studio, und aus demselben Grund: Ein Schloss, das nur
  *  an einer Stelle gilt, ist kein Schloss. */
 export function wuerfleAlles(vorher: Record<string, string>, gesperrt: Set<string>,
-                             knobsVorher: Knobs = loadKnobs()): Wurf {
+                             knobsVorher: Knobs = loadKnobs(),
+                             vorherW4?: Record<W4, string>): Wurf {
   const regler: Record<string, string> = { ...vorher };
   const nachId: Record<string, string> = {};
   // Das Preset steht nicht in REGLER: Seine Liste wächst mit eigenen Presets
@@ -106,5 +156,7 @@ export function wuerfleAlles(vorher: Record<string, string>, gesperrt: Set<strin
     knobs[feld] = sp.min + Math.floor(Math.random() * stufen) * sp.step;
   }
   void KNOB_VORGABE;
-  return { regler, nachId, knobs };
+  const vw = wuerfleVierW(vorherW4 || { where: "", when: "", who: "", what: "" }, gesperrt);
+  for (const f of W4_FELDER) nachId[W4_ID[f]] = vw.w4[f];
+  return { regler, nachId, knobs, w4: vw.w4, quelle: vw.quelle };
 }

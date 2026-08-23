@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.293.0**, Zweig `typescript-migration`.
+Stand: **v4.294.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,37 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Die vier W würfeln mit (4.294.0)
+
+**Gemeldet:** „Material, Vier W werden nicht gewürfelt bei ,Alles würfeln'."
+
+Richtig. Der kopflose Würfel im Reiter Diagnose kannte Regler (4.286), Schieber
+(4.289) und Stellschrauben — die vier W standen im Plan und blieben als
+**einzige** stehen. Sie hätten kein DOM gebraucht: Die Quellenwahl (Welt,
+Wiki-Vorrat, Bildvorrat, Themenpool) sind Feature-Funktionen, dieselben, die
+„Alles würfeln" im Studio benutzt. Es hatte nur niemand verbunden.
+
+Jetzt würfeln sie mit, **aus derselben gewürfelten Quelle wie im Studio**, und
+der Hinweis neben dem Knopf nennt sie: „gewürfelt · Vier W aus Wiki · Rochus zu
+Lynar". Ohne diese Angabe wüsste man bei vier gleichen Feldern nicht, ob der
+Vorrat leer war oder ob dasselbe gezogen wurde.
+
+**Ein Nebeneffekt, der lange fällig war:** Damit der Wurf beim Zurückwechseln
+ankommt, musste der Merkzettel des Studios die vier W kennen. Damit überlebt der
+Kontext jetzt einen Reiterwechsel — auch ohne „Kontext merken".
+
+**Und noch eine Schranke, die im Rauschen saß.** Die neue Prüfung „nicht immer
+gleich" stand bei drei verschiedenen Orten in 21 Würfen. Gemessen in einem leeren
+Browser sind es 5 bis 6 (15 Wiederholungen: 5 5 6 6 6 …) — aber in diesem
+Prüfstand laufen vorher drei Abschnitte, die ein Studio mounten und dabei eine
+WELT anlegen. Aus einer kleinen Welt kommen wenige Orte, und das ist kein Fehler,
+sondern die Welt. Die Schranke steht deshalb bei 2: Der Würfel darf nicht auf
+EINEM Wert kleben. Die harte Zusage steht daneben — in 21 Würfen bewegen sich die
+Felder mindestens 18-mal.
+
+Prüfstand Schaltplan 61 → 66. Gegenprobe: Den Aufruf durch den alten Wert
+ersetzt, meldet er „die vier W bewegen sich (0 von 21 Würfen)".
 
 Drei Merkmale statt einer Farbe (4.293.0)
 
