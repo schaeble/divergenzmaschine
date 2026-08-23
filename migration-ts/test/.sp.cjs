@@ -1865,17 +1865,17 @@ function guessGender(noun) {
 function ensureArticle(phrase) {
   const s = clean(phrase);
   if (/^(ein|eine|einen|einem|einer|eines|der|die|das|den|dem|des|kein|keine|mein|dein|sein|ihr|unser)\b/i.test(s)) return s;
-  const words2 = s.split(" ");
-  if (words2.length > 5) return s;
-  let nounIdx = words2.findIndex((w) => /^[A-ZÄÖÜ]/.test(w));
+  const words3 = s.split(" ");
+  if (words3.length > 5) return s;
+  let nounIdx = words3.findIndex((w) => /^[A-ZÄÖÜ]/.test(w));
   if (nounIdx === -1) return s;
-  if (nounIdx + 1 < words2.length && /^[A-ZÄÖÜ]/.test(words2[nounIdx + 1]) && /(e|er|es|en|em|te|ne)$/.test(words2[nounIdx])) {
-    words2[nounIdx] = words2[nounIdx].charAt(0).toLowerCase() + words2[nounIdx].slice(1);
+  if (nounIdx + 1 < words3.length && /^[A-ZÄÖÜ]/.test(words3[nounIdx + 1]) && /(e|er|es|en|em|te|ne)$/.test(words3[nounIdx])) {
+    words3[nounIdx] = words3[nounIdx].charAt(0).toLowerCase() + words3[nounIdx].slice(1);
     nounIdx++;
   }
-  const g = guessGender(words2[nounIdx].replace(/[^A-Za-zÄÖÜäöüß]/g, ""));
-  if (!g) return words2.join(" ");
-  return `${g === "f" ? "eine" : "ein"} ${words2.join(" ")}`;
+  const g = guessGender(words3[nounIdx].replace(/[^A-Za-zÄÖÜäöüß]/g, ""));
+  if (!g) return words3.join(" ");
+  return `${g === "f" ? "eine" : "ein"} ${words3.join(" ")}`;
 }
 var ART_GENUS = {
   ein: void 0,
@@ -1908,9 +1908,9 @@ function declineHookPhrase(phrase, targetCase) {
     n: { nom: "ein", acc: "ein", dat: "einem" }
   };
   const newArt = artForms[gender][targetCase] || artForms[gender].nom;
-  const words2 = restWords.slice();
-  for (let i = 0; i < nounIdx; i++) words2[i] = adjustAdjectiveEnding(words2[i], gender, targetCase);
-  return `${newArt} ${words2.join(" ")}`;
+  const words3 = restWords.slice();
+  for (let i = 0; i < nounIdx; i++) words3[i] = adjustAdjectiveEnding(words3[i], gender, targetCase);
+  return `${newArt} ${words3.join(" ")}`;
 }
 
 // src/generation/verbconj.data.ts
@@ -3450,12 +3450,12 @@ function looksLikeClausePhrase(phrase) {
   const mainPart = (s.split(",")[0] || s).trim();
   return mainHasFiniteVerb(mainPart);
 }
-function chooseInsertPos(sentences) {
-  if (!sentences || sentences.length < 2) return -1;
+function chooseInsertPos(sentences2) {
+  if (!sentences2 || sentences2.length < 2) return -1;
   const candidates = [];
-  for (let pos = 1; pos <= sentences.length; pos++) {
-    const prev = sentences[pos - 1];
-    const next = sentences[pos];
+  for (let pos = 1; pos <= sentences2.length; pos++) {
+    const prev = sentences2[pos - 1];
+    const next = sentences2[pos];
     if (isFragmentSentence(prev)) continue;
     if (next !== void 0 && isFragmentSentence(next)) continue;
     const w = clean(prev).split(/\s+/).filter(Boolean).length;
@@ -3541,15 +3541,15 @@ function insertToneFlavor(text, line) {
   const paras = text.split(/\n\n+/);
   let target = 0;
   for (let i = 1; i < paras.length; i++) if (paras[i].length > paras[target].length) target = i;
-  const sentences = splitSentences(paras[target]);
-  if (sentences.length < 2) {
+  const sentences2 = splitSentences(paras[target]);
+  if (sentences2.length < 2) {
     paras[target] = (paras[target] + " " + line).trim();
     return paras.join("\n\n");
   }
-  let idx = chooseInsertPos(sentences);
-  if (idx < 0) idx = sentences.length;
-  sentences.splice(idx, 0, line);
-  paras[target] = sentences.join(" ");
+  let idx = chooseInsertPos(sentences2);
+  if (idx < 0) idx = sentences2.length;
+  sentences2.splice(idx, 0, line);
+  paras[target] = sentences2.join(" ");
   return paras.join("\n\n");
 }
 function weaveCast(text, _P, cast) {
@@ -3710,6 +3710,12 @@ function liveTexts() {
 function liveCount() {
   return loadLive().length;
 }
+function clearLivePools() {
+  try {
+    localStorage.removeItem(LP_KEY);
+  } catch {
+  }
+}
 
 // src/corpus.ts
 function loadPersistentCorpus() {
@@ -3757,12 +3763,12 @@ function appendToPersistentCorpus(textToAdd) {
 }
 function isSaneMarkov(s) {
   if (!s || s.length < 20) return false;
-  const words2 = s.split(/\s+/);
-  if (words2.length < 5) return false;
+  const words3 = s.split(/\s+/);
+  if (words3.length < 5) return false;
   const freq = {};
-  for (const w of words2) freq[w] = (freq[w] || 0) + 1;
+  for (const w of words3) freq[w] = (freq[w] || 0) + 1;
   const maxFreq = Math.max(...Object.values(freq));
-  if (maxFreq / words2.length > 0.5) return false;
+  if (maxFreq / words3.length > 0.5) return false;
   const functionWords = /* @__PURE__ */ new Set([
     "der",
     "die",
@@ -3792,15 +3798,15 @@ function isSaneMarkov(s) {
     "zwischen"
   ]);
   let fn = 0;
-  for (const w of words2) if (functionWords.has(w.toLowerCase())) fn++;
-  if (fn / words2.length > 0.6) return false;
-  const sentences = s.split(/[.!?]+/).filter(Boolean);
-  for (const sentence of sentences) {
+  for (const w of words3) if (functionWords.has(w.toLowerCase())) fn++;
+  if (fn / words3.length > 0.6) return false;
+  const sentences2 = s.split(/[.!?]+/).filter(Boolean);
+  for (const sentence of sentences2) {
     const n = sentence.trim().split(/\s+/).length;
     if (n > 30 || n < 2) return false;
   }
   const phrases = [];
-  for (let i = 0; i < words2.length - 2; i++) phrases.push(words2.slice(i, i + 3).join(" "));
+  for (let i = 0; i < words3.length - 2; i++) phrases.push(words3.slice(i, i + 3).join(" "));
   const pc = {};
   for (const p of phrases) pc[p] = (pc[p] || 0) + 1;
   for (const c of Object.values(pc)) if (c >= 3) return false;
@@ -3808,17 +3814,17 @@ function isSaneMarkov(s) {
   if (/[—–]\s*$/.test(s.trim())) return false;
   const AUX_MK = /* @__PURE__ */ new Set(["bin", "bist", "ist", "sind", "seid", "war", "warst", "waren", "wart", "hatte", "hattest", "hatten", "hat", "habe", "hast", "habt", "haben", "wurde", "wurdest", "wurden", "wird", "werde", "werden", "w\xE4re", "w\xE4rst", "w\xE4ren"]);
   const CONN_MK = /* @__PURE__ */ new Set(["und", "oder", "aber", "denn", "sondern", "doch", "weil", "dass", "wenn", "als", "w\xE4hrend", "obwohl", "damit", "sodass", "bevor", "nachdem", "ob", "wie", "wo", "der", "die", "das", "dem", "den"]);
-  for (let i = 0; i < words2.length; i++) {
-    const wi = words2[i].toLowerCase().replace(/[^a-zäöüß]/g, "");
+  for (let i = 0; i < words3.length; i++) {
+    const wi = words3[i].toLowerCase().replace(/[^a-zäöüß]/g, "");
     if (!AUX_MK.has(wi)) continue;
-    for (let j = i + 1; j <= Math.min(words2.length - 1, i + 3); j++) {
-      const wj = words2[j].toLowerCase().replace(/[^a-zäöüß]/g, "");
-      if (CONN_MK.has(wj) || /[,;:]/.test(words2[j])) break;
+    for (let j = i + 1; j <= Math.min(words3.length - 1, i + 3); j++) {
+      const wj = words3[j].toLowerCase().replace(/[^a-zäöüß]/g, "");
+      if (CONN_MK.has(wj) || /[,;:]/.test(words3[j])) break;
       const finite = /(t|te|ten|st)$/.test(wj) && CLAUSE_VERBS.has(wj) && !/^ge/.test(wj) && !AUX_MK.has(wj);
       if (finite) return false;
     }
   }
-  const lw = words2.map((w) => w.toLowerCase().replace(/[^a-zäöüß]/g, ""));
+  const lw = words3.map((w) => w.toLowerCase().replace(/[^a-zäöüß]/g, ""));
   for (let i = 0; i < lw.length; i++) {
     if (lw[i].length < 5) continue;
     for (let j = i + 1; j <= Math.min(lw.length - 1, i + 3); j++) {
@@ -3885,18 +3891,18 @@ var MK_TAIL_STOP = /* @__PURE__ */ new Set([
   "ums"
 ]);
 function smoothMarkov(s) {
-  let words2 = (s || "").trim().split(/\s+/).filter(Boolean);
-  if (!words2.length) return "";
+  let words3 = (s || "").trim().split(/\s+/).filter(Boolean);
+  if (!words3.length) return "";
   const norm = (w) => w.toLowerCase().replace(/[^a-zäöüß]/g, "");
   const dedup = [];
-  for (const w of words2) {
+  for (const w of words3) {
     const prev = dedup[dedup.length - 1];
     if (prev && norm(prev) && norm(prev) === norm(w)) continue;
     dedup.push(w);
   }
-  words2 = dedup;
-  while (words2.length > 3 && MK_TAIL_STOP.has(norm(words2[words2.length - 1]))) words2.pop();
-  let t = words2.join(" ").replace(/\s+([,.;:!?…])/g, "$1").trim();
+  words3 = dedup;
+  while (words3.length > 3 && MK_TAIL_STOP.has(norm(words3[words3.length - 1]))) words3.pop();
+  let t = words3.join(" ").replace(/\s+([,.;:!?…])/g, "$1").trim();
   t = t.replace(/[\s,;:—–-]+$/, "");
   if (t && !/[.!?…]$/.test(t)) t += ".";
   t = t.replace(/^([a-zäöüß])/, (c) => c.toUpperCase());
@@ -4885,6 +4891,24 @@ function ideaProfileToConfig(p, liveShare = 0) {
     liveShare: Math.max(0, Math.min(1, liveShare))
   };
 }
+var IDEA_PRESETS = {
+  noir: { name: "Noir", genre: "mystery", ton: "duester", protagonist: "antiheld", konflikt: "raetsel", ort: "urban", zeit: "historisch", massstab: "intim", wendung: "enthuellung", fokus: "figur", divergenz: 45 },
+  kosmos: { name: "Kosmischer Horror", genre: "horror", ton: "unheimlich", protagonist: "nichtmensch", konflikt: "natur", ort: "nirgendwo", zeit: "zeitlos", massstab: "kosmisch", wendung: "enthuellung", fokus: "atmo", divergenz: 70 },
+  kafka: { name: "Kafkaesk", genre: "absurd", ton: "unheimlich", protagonist: "einzel", konflikt: "system", ort: "institution", zeit: "gegenwart", massstab: "intim", wendung: "paradox", fokus: "konzept", divergenz: 55 },
+  alltag: { name: "Alltagspoesie", genre: "alltag", ton: "melancholisch", protagonist: "einzel", konflikt: "inner", ort: "urban", zeit: "gegenwart", massstab: "intim", wendung: "offen", fokus: "figur", divergenz: 25 },
+  maerchen: { name: "M\xE4rchen-Umkehr", genre: "maerchen", ton: "verspielt", protagonist: "kind", konflikt: "raetsel", ort: "natur", zeit: "zeitlos", massstab: "mittel", wendung: "umkehr", fokus: "handlung", divergenz: 45 },
+  techno: { name: "Techno-Thriller", genre: "scifi", ton: "duester", protagonist: "kollektiv", konflikt: "kampf", ort: "urban", zeit: "zukunft", massstab: "episch", wendung: "eskalation", fokus: "handlung", divergenz: 50 },
+  buero: { name: "Absurde B\xFCrokratie", genre: "satire", ton: "ironisch", protagonist: "institution", konflikt: "system", ort: "institution", zeit: "gegenwart", massstab: "mittel", wendung: "ironie", fokus: "konzept", divergenz: 40 }
+};
+var IDEA_PRESET_LABELS = [
+  ["noir", "Noir"],
+  ["kosmos", "Kosmischer Horror"],
+  ["kafka", "Kafkaesk"],
+  ["alltag", "Alltagspoesie"],
+  ["maerchen", "M\xE4rchen-Umkehr"],
+  ["techno", "Techno-Thriller"],
+  ["buero", "Absurde B\xFCrokratie"]
+];
 var GENRE_ALL = ["mystery", "scifi", "maerchen", "absurd", "alltag", "horror", "satire"];
 var TON_ALL = ["duester", "hoffnung", "ironisch", "melancholisch", "unheimlich", "verspielt"];
 var PROT_ALL = ["einzel", "kollektiv", "kind", "institution", "nichtmensch", "antiheld"];
@@ -4896,6 +4920,25 @@ var WEND_ALL = ["umkehr", "enthuellung", "eskalation", "offen", "paradox", "iron
 var FOK_ALL = ["figur", "konzept", "atmo", "handlung", "form"];
 function pickOne(v, allowed, def) {
   return typeof v === "string" && allowed.includes(v) ? v : def;
+}
+function buildIdeaProfilePrompt(name) {
+  return `Erzeuge ein Ideen-Profil f\xFCr das Thema/Motiv: "${name}".
+Antworte NUR mit einem einzigen JSON-Objekt in GENAU diesem Format (ersetze die Beispielwerte, keine Kommentare, kein weiterer Text):
+{"genre":"mystery","ton":"duester","protagonist":"antiheld","konflikt":"raetsel","ort":"urban","zeit":"historisch","massstab":"intim","wendung":"enthuellung","fokus":"figur","divergenz":50}
+
+Erlaubte Werte (jeweils genau einer):
+- genre: mystery, scifi, maerchen, absurd, alltag, horror, satire
+- ton: duester, hoffnung, ironisch, melancholisch, unheimlich, verspielt
+- protagonist: einzel, kollektiv, kind, institution, nichtmensch, antiheld
+- konflikt: raetsel, kampf, inner, natur, system, zeit
+- ort: urban, natur, raum, grenze, nirgendwo, institution
+- zeit: gegenwart, historisch, zukunft, zeitlos, umbruch
+- massstab: intim, mittel, episch, kosmisch
+- wendung: umkehr, enthuellung, eskalation, offen, paradox, ironie
+- fokus: figur, konzept, atmo, handlung, form
+- divergenz: ganze Zahl von 0 (zahm) bis 100 (radikal)
+
+Gib jetzt NUR das JSON f\xFCr "${name}" zur\xFCck.`;
 }
 function normalizeIdeaProfile(raw, name) {
   const o = raw && typeof raw === "object" ? raw : {};
@@ -4916,6 +4959,34 @@ function normalizeIdeaProfile(raw, name) {
     divergenz: div
   };
 }
+var IDEA_USER_KEY = "divergenz_idea_presets_v1";
+function loadIdeaUserPresets() {
+  try {
+    const o = JSON.parse(localStorage.getItem(IDEA_USER_KEY) || "{}");
+    return o && typeof o === "object" ? o : {};
+  } catch {
+    return {};
+  }
+}
+function saveIdeaUserPreset(p) {
+  const users = loadIdeaUserPresets();
+  const slug = (p.name.trim() || "idee").toLowerCase().replace(/[^a-z0-9äöüß]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "idee";
+  const id = "user:" + slug;
+  users[id] = p;
+  try {
+    localStorage.setItem(IDEA_USER_KEY, JSON.stringify(users));
+  } catch {
+  }
+  return id;
+}
+function deleteIdeaUserPreset(id) {
+  const u = loadIdeaUserPresets();
+  delete u[id];
+  try {
+    localStorage.setItem(IDEA_USER_KEY, JSON.stringify(u));
+  } catch {
+  }
+}
 var PROFIL_KEY = "dm_idea_profile_v1";
 function saveIdeaProfile(p, liveAnteil) {
   try {
@@ -4932,6 +5003,14 @@ function loadIdeaProfile() {
   } catch {
     return null;
   }
+}
+function wuerfleIdeenProfil(bestand, zufall = Math.random) {
+  if (bestand.length > 0 && zufall() < 0.5) {
+    const i = Math.min(bestand.length - 1, Math.floor(zufall() * bestand.length));
+    const paar = bestand[i];
+    return { id: paar[0], profil: { ...paar[1] } };
+  }
+  return { id: "", profil: wuerfleIdeaProfile(zufall) };
 }
 function wuerfleIdeaProfile(zufall = Math.random) {
   const w = (l) => l[Math.min(l.length - 1, Math.floor(zufall() * l.length))];
@@ -13591,6 +13670,126 @@ function saveAiModel(m) {
   } catch {
   }
 }
+function isOnline() {
+  try {
+    return navigator.onLine !== false;
+  } catch {
+    return true;
+  }
+}
+var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function postMessages(body, signal) {
+  if (!isOnline()) throw new Error("Keine Internetverbindung \u2014 KI-Funktionen sind offline nicht verf\xFCgbar.");
+  const key = loadAiKey();
+  const url = "https://api.anthropic.com/v1/messages";
+  const headers = {
+    "content-type": "application/json",
+    "x-api-key": key,
+    "anthropic-version": "2023-06-01",
+    "anthropic-dangerous-direct-browser-access": "true"
+  };
+  const delays = [1e3, 2e3, 4e3];
+  let lastErr;
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    try {
+      const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal });
+      if ((res.status === 429 || res.status === 529 || res.status >= 500) && attempt < delays.length) {
+        await sleep(delays[attempt]);
+        continue;
+      }
+      return res;
+    } catch (e2) {
+      if (signal?.aborted) throw e2;
+      lastErr = e2;
+      if (attempt < delays.length) {
+        await sleep(delays[attempt]);
+        continue;
+      }
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("Netzwerkfehler bei der KI-Anfrage.");
+}
+async function callClaudeRaw(promptText, maxTokens, prefill, noThinking = false) {
+  const model = loadAiModel();
+  const messages = [{ role: "user", content: promptText }];
+  if (prefill) messages.push({ role: "assistant", content: prefill });
+  const body = noThinking ? { model, max_tokens: maxTokens || 4096, messages, thinking: { type: "disabled" } } : { model, max_tokens: maxTokens || 4096, messages };
+  const res = await postMessages(body);
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const e2 = await res.json();
+      if (e2?.error?.message) msg = e2.error.message;
+    } catch {
+    }
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  let text = "";
+  const kinds = [];
+  if (Array.isArray(data.content)) {
+    for (const b of data.content) if (b && typeof b.type === "string") kinds.push(b.type);
+    text = data.content.filter((b) => b && b.type === "text" && typeof b.text === "string").map((b) => b.text).join("\n").trim();
+  }
+  if (text && prefill) text = prefill + text;
+  const truncated = data.stop_reason === "max_tokens";
+  if (!text) {
+    const diag = `Modell ${model} \xB7 angefordert ${maxTokens || 4096} \xB7 verbraucht ${data.usage?.output_tokens ?? "?"} \xB7 Blocktypen [${kinds.join(", ") || "keine"}] \xB7 stop_reason ${data.stop_reason || "unbekannt"}`;
+    throw new Error(truncated ? `Token-Limit ersch\xF6pft, bevor Text zur\xFCckkam.
+${diag}
+` + (kinds.includes("thinking") ? "Das Modell hat das Budget f\xFCr interne \xDCberlegungen verbraucht. Bitte ein Modell ohne erweitertes Nachdenken eintragen (Studio \u25B8 Einstellungen \u25B8 KI-Zugang)." : "Bitte eine k\xFCrzere Ziell\xE4nge w\xE4hlen oder erneut versuchen.") : `Antwort ohne Textblock.
+${diag}`);
+  }
+  return { text, truncated };
+}
+async function callClaudeEx(promptText, maxTokens, prefill) {
+  const isParamProblem = (m) => /thinking|unexpected|unsupported|not supported|invalid/i.test(m);
+  const isPrefillProblem = (m) => /prefill/i.test(m);
+  try {
+    return await callClaudeRaw(promptText, maxTokens, prefill, true);
+  } catch (e2) {
+    const m = String(e2.message || "");
+    if (isPrefillProblem(m) && prefill) return await callClaudeRaw(promptText, maxTokens, null, true);
+    if (!isParamProblem(m)) throw e2;
+    try {
+      return await callClaudeRaw(promptText, maxTokens, prefill, false);
+    } catch (e22) {
+      const m2 = String(e22.message || "");
+      if (isPrefillProblem(m2) && prefill) return await callClaudeRaw(promptText, maxTokens, null, false);
+      throw e22;
+    }
+  }
+}
+async function callClaude(promptText, maxTokens, prefill) {
+  return (await callClaudeEx(promptText, maxTokens, prefill)).text;
+}
+function extractJson(raw) {
+  const s = (raw || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+  const start = s.indexOf("{");
+  if (start === -1) throw new Error("Keine JSON-Antwort erhalten.");
+  let depth = 0, inStr = false, esc = false, end = -1;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === "{") depth++;
+    else if (c === "}") {
+      depth--;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
+  }
+  if (end === -1) throw new Error("Antwort abgeschnitten (kein schlie\xDFendes '}').");
+  const body = s.slice(start, end + 1).replace(/,\s*([}\]])/g, "$1");
+  return JSON.parse(body);
+}
 
 // src/features/preset2.ts
 var USER2_KEY = "dm_user_presets2_v1";
@@ -16643,10 +16842,10 @@ function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
   let wc = count(out);
   if (Number.isFinite(target) && Math.abs(wc - target) <= tol) return out;
   if (wc > target + tol) {
-    const sentences = splitSentences(out);
+    const sentences2 = splitSentences(out);
     const acc = [];
     let c = 0;
-    for (const s of sentences) {
+    for (const s of sentences2) {
       const sw = count(s);
       if (c + sw > target + tol) break;
       acc.push(s);
@@ -19071,8 +19270,8 @@ function insertStanzas(lines, everyN) {
   }
   return out;
 }
-function stripDanglingTail(words2) {
-  const w = words2.slice();
+function stripDanglingTail(words3) {
+  const w = words3.slice();
   let guard = 0;
   while (w.length > 1 && REIM_DANGLING_RX.test((w[w.length - 1] || "").replace(/[.,;:!?…]/g, "")) && guard++ < 10) w.pop();
   return w;
@@ -19105,25 +19304,25 @@ function estimateSyllables(word) {
   return Math.max(1, n);
 }
 function buildSyllableLine(stream, targetSyll) {
-  const words2 = [];
+  const words3 = [];
   let syll = 0;
   while (stream.length) {
     const w = stream[0];
     const s = estimateSyllables(w);
     if (syll > 0 && syll + s > targetSyll + 1) break;
-    words2.push(stream.shift());
+    words3.push(stream.shift());
     syll += s;
     if (syll >= targetSyll) break;
   }
-  return { words: words2, syll };
+  return { words: words3, syll };
 }
 function breakIntoLines(phrase, maxWords, maxChars) {
-  const words2 = String(phrase).replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
-  if (!words2.length) return [];
-  if (words2.length <= maxWords && phrase.length <= maxChars) return [capLine(phrase)];
+  const words3 = String(phrase).replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  if (!words3.length) return [];
+  if (words3.length <= maxWords && phrase.length <= maxChars) return [capLine(phrase)];
   const out = [];
   let buf = [];
-  for (const w of words2) {
+  for (const w of words3) {
     const next = [...buf, w].join(" ");
     if (buf.length >= maxWords || next.length > maxChars) {
       if (buf.length) {
@@ -19195,20 +19394,20 @@ function verseLine(s) {
 var REIM_KEIN_ENDE = /^(ich|du|er|sie|es|wir|man|ihn|ihm|mir|mich|dir|dich|uns|euch|sich|selbst|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|jede|jeder|jedes|alle|viele|manche|diese|dieser|dieses|keinen|keinem|keiner|genau|sehr|ganz|so|noch|nur|auch|schon|immer|wieder)$/i;
 function reimCoreOf(phrase, targetWords) {
   const alle = String(phrase || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
-  let words2 = alle.length > targetWords ? alle.slice(0, targetWords) : alle.slice();
-  while (words2.length > 2) {
-    const letzt = words2[words2.length - 1];
-    const danach = alle[words2.length];
-    if (danach && /^[A-ZÄÖÜ]/.test(danach) && /^[a-zäöüß]+(en|er|es|em|e)$/.test(letzt)) words2.pop();
+  let words3 = alle.length > targetWords ? alle.slice(0, targetWords) : alle.slice();
+  while (words3.length > 2) {
+    const letzt = words3[words3.length - 1];
+    const danach = alle[words3.length];
+    if (danach && /^[A-ZÄÖÜ]/.test(danach) && /^[a-zäöüß]+(en|er|es|em|e)$/.test(letzt)) words3.pop();
     else break;
   }
-  words2 = stripDanglingTail(words2);
+  words3 = stripDanglingTail(words3);
   let guard = 0;
-  while (words2.length > 2 && REIM_KEIN_ENDE.test((words2[words2.length - 1] || "").replace(/[.,;:!?…]/g, "")) && guard++ < 6) {
-    words2.pop();
-    words2 = stripDanglingTail(words2);
+  while (words3.length > 2 && REIM_KEIN_ENDE.test((words3[words3.length - 1] || "").replace(/[.,;:!?…]/g, "")) && guard++ < 6) {
+    words3.pop();
+    words3 = stripDanglingTail(words3);
   }
-  return words2.join(" ").replace(/[.,;:!?…]+$/, "").trim();
+  return words3.join(" ").replace(/[.,;:!?…]+$/, "").trim();
 }
 function reimGroupOfWord(word) {
   const w = (word || "").toLowerCase().replace(/[.,;:!?…]/g, "");
@@ -19380,18 +19579,18 @@ function haikuCandidatesFromPhrases(phrases) {
   const out = [];
   const seen = /* @__PURE__ */ new Set();
   phrases.forEach((p, src) => {
-    const words2 = p.replace(/[.,;:!?…()]/g, "").split(/\s+/).filter(Boolean);
+    const words3 = p.replace(/[.,;:!?…()]/g, "").split(/\s+/).filter(Boolean);
     for (let a = 0; a < 1; a++) {
-      for (let n = a + 2; n <= Math.min(a + 8, words2.length); n++) {
-        const sub = stripDanglingTail(words2.slice(a, n));
+      for (let n = a + 2; n <= Math.min(a + 8, words3.length); n++) {
+        const sub = stripDanglingTail(words3.slice(a, n));
         if (sub.length < 2) continue;
         if (!darfEnden(sub[sub.length - 1])) continue;
-        const last = sub[sub.length - 1], next = words2[n];
+        const last = sub[sub.length - 1], next = words3[n];
         if (next && /^[A-ZÄÖÜ]/.test(next) && /^[a-zäöü]/.test(last) && /(em|en|er|es|e)$/.test(last)) continue;
         const text = sub.join(" "), key = text.toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
-        out.push({ text, syll: haikuSyllOf(text), src, ganz: a === 0 && n === words2.length });
+        out.push({ text, syll: haikuSyllOf(text), src, ganz: a === 0 && n === words3.length });
       }
     }
   });
@@ -21128,14 +21327,14 @@ var CONN = /* @__PURE__ */ new Set([
   "den"
 ]);
 function verbCollisions(text) {
-  const words2 = (text || "").split(/\s+/).filter(Boolean);
+  const words3 = (text || "").split(/\s+/).filter(Boolean);
   const norm = (w) => w.toLowerCase().replace(/[^a-zäöüß]/g, "");
   let hits = 0;
-  for (let i = 0; i < words2.length; i++) {
-    if (!AUX.has(norm(words2[i]))) continue;
-    for (let j = i + 1; j <= Math.min(words2.length - 1, i + 3); j++) {
-      const wj = norm(words2[j]);
-      if (CONN.has(wj) || /[,;:]/.test(words2[j])) break;
+  for (let i = 0; i < words3.length; i++) {
+    if (!AUX.has(norm(words3[i]))) continue;
+    for (let j = i + 1; j <= Math.min(words3.length - 1, i + 3); j++) {
+      const wj = norm(words3[j]);
+      if (CONN.has(wj) || /[,;:]/.test(words3[j])) break;
       const finite = /(t|te|ten|st)$/.test(wj) && wj.length >= 4 && !/^ge/.test(wj) && !AUX.has(wj);
       if (finite) {
         hits++;
@@ -21174,9 +21373,9 @@ function grammarFlags(text) {
 function splitSentences2(raw) {
   return raw.replace(/\s+/g, " ").trim().split(/(?<=[.!?…])\s+/).filter((s) => s.trim().length > 0);
 }
-function ngrams2(words2, n) {
+function ngrams2(words3, n) {
   const out = [];
-  for (let i = 0; i <= words2.length - n; i++) out.push(words2.slice(i, i + n).join(" "));
+  for (let i = 0; i <= words3.length - n; i++) out.push(words3.slice(i, i + n).join(" "));
   return out;
 }
 function countRepeats(arr) {
@@ -21212,12 +21411,12 @@ function flowMetrics(txt2) {
 function analyzeText(txt2, lenTarget) {
   const raw = txt2 || "";
   const t = raw.toLowerCase().replace(/\s+/g, " ").trim();
-  const words2 = t.split(" ").filter(Boolean);
-  const repBi = countRepeats(ngrams2(words2, 2)), repTri = countRepeats(ngrams2(words2, 3));
-  const wordCount = words2.length;
+  const words3 = t.split(" ").filter(Boolean);
+  const repBi = countRepeats(ngrams2(words3, 2)), repTri = countRepeats(ngrams2(words3, 3));
+  const wordCount = words3.length;
   const target = lenTarget > 0 ? lenTarget : 110;
   const lenFit = Math.max(0, 1 - Math.abs(wordCount - target) / target);
-  const ttr = words2.length ? new Set(words2).size / words2.length : 0;
+  const ttr = words3.length ? new Set(words3).size / words3.length : 0;
   const sentLens = splitSentences2(raw).map((s) => (s.toLowerCase().match(/[a-zäöüßA-ZÄÖÜ]+/g) || []).length);
   const meanLen = sentLens.length ? sentLens.reduce((x, y) => x + y, 0) / sentLens.length : 0;
   const stdLen = sentLens.length > 1 ? Math.sqrt(sentLens.map((x) => (x - meanLen) ** 2).reduce((x, y) => x + y, 0) / sentLens.length) : 0;
@@ -23649,6 +23848,528 @@ function mountStudio(root) {
   }
 }
 
+// src/generation/assoc.ts
+var ASSOC_FORMS = [
+  ["prose", "Prosa"],
+  ["poem", "Prosagedicht"],
+  ["strang", "Gedicht-Strang"],
+  ["reim", "Reim"],
+  ["haiku", "Haiku"],
+  ["script", "Szene/Dialog"],
+  ["video", "Multi-Shot"]
+];
+var FILLER = /* @__PURE__ */ new Set([
+  "kommt",
+  "kommen",
+  "kam",
+  "geht",
+  "gehen",
+  "ging",
+  "steht",
+  "stehen",
+  "stand",
+  "liegt",
+  "liegen",
+  "sieht",
+  "sehen",
+  "sah",
+  "immer",
+  "wieder",
+  "schon",
+  "noch",
+  "jetzt",
+  "dann",
+  "auch",
+  "sehr",
+  "mehr",
+  "nichts",
+  "etwas",
+  "alles",
+  "niemand",
+  "jemand",
+  "einmal",
+  "vielleicht",
+  "wieder",
+  "hatte",
+  "hatten",
+  "wurde",
+  "wurden",
+  "sagte",
+  "sagen",
+  "macht",
+  "machen",
+  "gibt",
+  "geben"
+]);
+var pick2 = (a) => a[Math.floor(Math.random() * a.length)];
+var words = (s) => s.match(/[A-Za-zÄÖÜäöüß-]{3,}/g) || [];
+function extractSeeds(text, max = 40) {
+  const out = [];
+  for (const w of words(text || "")) {
+    if (COHERENCE_STOPWORDS.has(w.toLowerCase())) continue;
+    if (w.length < 4) continue;
+    out.push(w);
+  }
+  const uniq = [...new Set(out)];
+  uniq.sort((a, b) => Number(/^[A-ZÄÖÜ]/.test(b)) - Number(/^[A-ZÄÖÜ]/.test(a)));
+  return uniq.slice(0, max);
+}
+function sentences(text) {
+  return (text || "").split(/[.!?;:\n]+/).map((s) => words(s)).filter((a) => a.length > 2);
+}
+function proseChain(seed, text, n) {
+  const sents = sentences(text);
+  const links = [seed];
+  let cur = seed;
+  const seen = /* @__PURE__ */ new Set([seed.toLowerCase()]);
+  for (let i = 1; i < n; i++) {
+    const hosts = sents.filter((s) => s.some((w) => w.toLowerCase() === cur.toLowerCase()));
+    const ok = (w) => w.length >= 4 && !COHERENCE_STOPWORDS.has(w.toLowerCase()) && !FILLER.has(w.toLowerCase()) && !seen.has(w.toLowerCase());
+    let pool = (hosts.length ? hosts.flat() : []).filter(ok);
+    if (!pool.length) pool = sents.flat().filter(ok);
+    if (!pool.length) break;
+    const nouns = pool.filter((w) => /^[A-ZÄÖÜ]/.test(w));
+    cur = pick2(nouns.length ? nouns : pool);
+    seen.add(cur.toLowerCase());
+    links.push(cur);
+  }
+  return links;
+}
+function reimChain(seed, n) {
+  const low2 = seed.toLowerCase();
+  let group = REIM_GROUPS.find((g) => low2.endsWith(g.key));
+  let jump = false;
+  if (!group) {
+    const v = (low2.match(/[aeiouäöü]/) || ["e"])[0];
+    const near = REIM_GROUPS.filter((g) => g.key.includes(v));
+    group = near.length ? pick2(near) : pick2(REIM_GROUPS);
+    jump = true;
+  }
+  const links = [seed];
+  const rest = group.words.filter((w) => w.toLowerCase() !== low2);
+  for (let i = 1; i < n && rest.length; i++) {
+    const idx = Math.floor(Math.random() * rest.length);
+    links.push(rest.splice(idx, 1)[0]);
+  }
+  return jump ? { links, jumpAt: 1 } : { links };
+}
+function poolChain(seed, pools, n) {
+  const links = [seed];
+  const flat = pools.flat();
+  const used = /* @__PURE__ */ new Set();
+  for (let i = 1; i < n && used.size < flat.length; i++) {
+    let c = pick2(flat), guard = 0;
+    while (used.has(c) && guard++ < 30) c = pick2(flat);
+    used.add(c);
+    links.push(c);
+  }
+  return links;
+}
+function scriptChain(seed, text, n) {
+  const parts = (text || "").split(/[.!?\n]+/).map((s) => s.trim()).filter((s) => s.length > 8);
+  const links = [seed];
+  const used = /* @__PURE__ */ new Set();
+  for (let i = 1; i < n && parts.length; i++) {
+    let c = pick2(parts), guard = 0;
+    while (used.has(c) && guard++ < 30) c = pick2(parts);
+    used.add(c);
+    const w = words(c).filter((x) => x.length > 3);
+    links.push(w.length ? w.slice(0, 4).join(" ") : c.slice(0, 40));
+  }
+  return links;
+}
+function chainFor(form, seed, text, n) {
+  switch (form) {
+    case "reim":
+      return reimChain(seed, n).links;
+    case "haiku":
+      return poolChain(seed, [HAIKU_KIGO, HAIKU_NATURE7, HAIKU_CLOSERS], n);
+    case "strang":
+      return poolChain(seed, [STRANG_IMAGES], n);
+    case "video":
+      return poolChain(seed, [VIDEO_CAM_EXTENDED, VIDEO_LIGHT, VIDEO_TEX], n);
+    case "script":
+      return scriptChain(seed, text, n);
+    case "poem": {
+      const a = proseChain(seed, text, n);
+      return a.map((w, i) => i > 0 && i % 2 === 0 ? pick2(STRANG_IMAGES) : w);
+    }
+    default:
+      return proseChain(seed, text, n);
+  }
+}
+function buildAllChains(seed, text, n) {
+  return ASSOC_FORMS.map(([form, label]) => {
+    if (form === "reim") {
+      const r = reimChain(seed, n);
+      return { form, label, links: r.links, ...r.jumpAt ? { jumpAt: r.jumpAt } : {} };
+    }
+    return { form, label, links: chainFor(form, seed, text, n) };
+  });
+}
+
+// src/ui/assocView.ts
+var lastText = () => {
+  try {
+    return localStorage.getItem("dm_last_text") || "";
+  } catch {
+    return "";
+  }
+};
+var joinLinks = (c, arrow = " \u2192 ", jumpArrow = " \u21E2 ") => c.links.map((w, i) => i === 0 ? w : (i === c.jumpAt ? jumpArrow : arrow) + w).join("");
+var chainText = (c) => `${c.label}: ${joinLinks(c)}`;
+function mountAssoc(root) {
+  root.innerHTML = "";
+  const wrap = el("div", {});
+  const src = el("textarea", { class: "out", rows: "6", placeholder: "Studio-Text \u2014 Grundlage der R\xFCckprojektion.", style: "width:100%" });
+  src.value = lastText();
+  const seedSel = select("as-seed", [["", "\u2014 Saatwort \u2014"]]);
+  const rebuildSeeds = () => {
+    const seeds = extractSeeds(src.value);
+    seedSel.innerHTML = "";
+    const add = (v, l) => {
+      const o = document.createElement("option");
+      o.value = v;
+      o.textContent = l;
+      seedSel.appendChild(o);
+    };
+    if (!seeds.length) {
+      add("", "\u2014 kein Text \u2014");
+      return;
+    }
+    seeds.forEach((s) => add(s, s));
+    seedSel.value = seeds[0];
+  };
+  const fetchBtn = button("Letzten Studio-Text holen");
+  fetchBtn.addEventListener("click", () => {
+    src.value = lastText();
+    rebuildSeeds();
+  });
+  src.addEventListener("input", rebuildSeeds);
+  const diceBtn = el("button", {}, icon("dice"), " Saatwort w\xFCrfeln");
+  diceBtn.addEventListener("click", () => {
+    const n = seedSel.options.length;
+    if (n) seedSel.selectedIndex = Math.floor(Math.random() * n);
+    render();
+  });
+  const lenIn = el("input", { type: "range", min: "4", max: "10", step: "1", value: "6" });
+  const lenVal = el("span", { class: "muted" }, "6");
+  lenIn.addEventListener("input", () => {
+    lenVal.textContent = lenIn.value;
+  });
+  const list = el("div", {});
+  let current = [];
+  const render = () => {
+    const seed = seedSel.value.trim();
+    list.innerHTML = "";
+    if (!seed) {
+      list.append(el("p", { class: "muted" }, "Kein Saatwort \u2014 erst einen Studio-Text holen."));
+      return;
+    }
+    current = buildAllChains(seed, src.value, parseInt(lenIn.value, 10) || 6);
+    for (const c of current) {
+      const line = el("p", { class: "idea-text" }, joinLinks(c, "  \u2192  ", "  \u21E2  "));
+      const toStudio = button("\u2192 Studio");
+      toStudio.addEventListener("click", () => {
+        const L = c.links;
+        try {
+          localStorage.setItem("dm_pending_ctx", JSON.stringify({
+            who: L[0] || "",
+            where: L[1] || "",
+            when: L[2] || "",
+            what: L.slice(3).join(", ") || L[1] || ""
+          }));
+        } catch {
+        }
+        const st = [...document.querySelectorAll(".tabbar button")].find((b) => b.textContent === "Studio");
+        if (st) st.click();
+      });
+      const copy = button("Kopieren");
+      copy.addEventListener("click", () => {
+        void navigator.clipboard?.writeText(chainText(c));
+        const o = copy.textContent;
+        copy.textContent = "Kopiert \u2713";
+        setTimeout(() => copy.textContent = o, 1200);
+      });
+      const keepInfo = el("span", { class: "muted" }, "");
+      const keep = el("button", {}, icon("star"), " Merken");
+      keep.addEventListener("click", () => {
+        const n = addToTreasury(chainText(c), { form: "assoz" });
+        keepInfo.textContent = n < 0 ? "schon vorhanden" : `gemerkt (${n})`;
+        setTimeout(() => keepInfo.textContent = "", 2e3);
+      });
+      list.append(el(
+        "div",
+        { class: "idea" },
+        el("p", { class: "field-label" }, c.label),
+        line,
+        el("div", { class: "btnrow" }, toStudio, copy, keep, keepInfo)
+      ));
+    }
+  };
+  const goBtn = el("button", { class: "primary" }, icon("refresh"), " Ketten erzeugen");
+  goBtn.addEventListener("click", render);
+  const readBtn = el("button", {}, icon("book"), " Lesemodus");
+  readBtn.addEventListener("click", () => {
+    if (current.length) openReader(current.map(chainText).join("\n\n"));
+  });
+  rebuildSeeds();
+  wrap.append(
+    el("h3", {}, "Assoziationskette"),
+    el("p", { class: "muted" }, "R\xFCckprojektion: Ein Wort aus dem Studio-Text l\xE4uft durch jede Form. Prosa bleibt im Text und wandert \xFCber gemeinsame S\xE4tze weiter; Reim assoziiert \xFCber den Klang; Haiku, Gedicht-Strang und Multi-Shot ziehen in ihren eigenen Bildwortschatz ab. Ein \u21E2 bedeutet: Hier gibt es keinen echten Reim, die Kette springt \xFCber die Vokalverwandtschaft in eine Reimfamilie."),
+    src,
+    el("div", { class: "btnrow" }, fetchBtn),
+    el("div", { class: "grid2" }, field("Saatwort", seedSel), field("Kettenl\xE4nge", el("div", { class: "chkrow" }, lenIn, " ", lenVal))),
+    el("div", { class: "btnrow" }, goBtn, diceBtn, readBtn),
+    list
+  );
+  root.append(wrap);
+  render();
+}
+
+// src/ui/ideasView.ts
+var ideenSchonGewuerfelt = false;
+var ideenStand = null;
+var ideenLive = null;
+function mountIdeas(root) {
+  root.innerHTML = "";
+  const wrap = el("div", {});
+  const nameIn = textInput("idea-name", "Thema/Motiv (optional)", "");
+  const presetSel = select("idea-preset", [["", "\u2014 eigenes \u2014"], ...IDEA_PRESET_LABELS]);
+  const genre = select("idea-genre", [["mystery", "Mystery"], ["scifi", "SciFi"], ["maerchen", "M\xE4rchen"], ["absurd", "Absurd"], ["alltag", "Alltag"], ["horror", "Horror"], ["satire", "Satire"]], "mystery");
+  const ton = select("idea-ton", [["duester", "d\xFCster"], ["hoffnung", "hoffnungsvoll"], ["ironisch", "ironisch"], ["melancholisch", "melancholisch"], ["unheimlich", "unheimlich"], ["verspielt", "verspielt"]], "duester");
+  const prot = select("idea-prot", [["einzel", "Einzelg\xE4nger"], ["kollektiv", "Kollektiv"], ["kind", "Kind"], ["institution", "Institution"], ["nichtmensch", "Nicht-Mensch"], ["antiheld", "Antiheld"]], "einzel");
+  const konflikt = select("idea-konf", [["raetsel", "R\xE4tsel"], ["kampf", "gegen anderen"], ["inner", "innerer Konflikt"], ["natur", "gegen Natur"], ["system", "gegen System"], ["zeit", "gegen die Zeit"]], "raetsel");
+  const ort = select("idea-ort", [["urban", "urban"], ["natur", "Natur"], ["raum", "geschlossener Raum"], ["grenze", "Grenze/\xDCbergang"], ["nirgendwo", "Nirgendwo"], ["institution", "Institution"]], "urban");
+  const zeit = select("idea-zeit", [["gegenwart", "Gegenwart"], ["historisch", "historisch"], ["zukunft", "Zukunft"], ["zeitlos", "zeitlos"], ["umbruch", "Umbruch"]], "gegenwart");
+  const massstab = select("idea-mass", [["intim", "intim"], ["mittel", "mittel"], ["episch", "episch"], ["kosmisch", "kosmisch"]], "intim");
+  const wendung = select("idea-wend", [["umkehr", "Umkehr"], ["enthuellung", "Enth\xFCllung"], ["eskalation", "Eskalation"], ["offen", "offenes Ende"], ["paradox", "Paradox"], ["ironie", "Ironie"]], "enthuellung");
+  const fokus = select("idea-fok", [["figur", "Figur"], ["konzept", "Konzept"], ["atmo", "Atmosph\xE4re"], ["handlung", "Handlung"], ["form", "Form/Sprache"]], "figur");
+  const diverg = el("input", { type: "range", min: "0", max: "100", step: "5", value: "40", id: "idea-div" });
+  const divVal = el("span", { class: "muted" }, "40");
+  diverg.addEventListener("input", () => {
+    divVal.textContent = diverg.value;
+  });
+  const live = el("input", { type: "range", min: "0", max: "40", step: "5", value: "20", id: "idea-live" });
+  const liveVal = el("span", { class: "muted" }, "20 %");
+  const liveInfo = el("span", { class: "muted" }, "");
+  const clrBtn = button("Pool leeren", "danger");
+  const updLive = () => {
+    liveVal.textContent = live.value + " %";
+    const n = liveCount();
+    liveInfo.textContent = n ? `${n} Begriffe aus deinen Texten` : "noch leer \u2014 schreibt sich beim Generieren und Aufheben voll";
+    clrBtn.style.display = n ? "" : "none";
+  };
+  live.addEventListener("input", updLive);
+  clrBtn.addEventListener("click", () => {
+    clearLivePools();
+    updLive();
+  });
+  const fld = (l, n) => el("label", { class: "field" }, el("span", { class: "field-label" }, l), n);
+  const readProfile = () => ({
+    name: nameIn.value.trim(),
+    genre: genre.value,
+    ton: ton.value,
+    protagonist: prot.value,
+    konflikt: konflikt.value,
+    ort: ort.value,
+    zeit: zeit.value,
+    massstab: massstab.value,
+    wendung: wendung.value,
+    fokus: fokus.value,
+    divergenz: parseInt(diverg.value, 10) || 0
+  });
+  const applyProfile = (p) => {
+    nameIn.value = p.name;
+    genre.value = p.genre;
+    ton.value = p.ton;
+    prot.value = p.protagonist;
+    konflikt.value = p.konflikt;
+    ort.value = p.ort;
+    zeit.value = p.zeit;
+    massstab.value = p.massstab;
+    wendung.value = p.wendung;
+    fokus.value = p.fokus;
+    diverg.value = String(p.divergenz);
+    divVal.textContent = String(p.divergenz);
+  };
+  const delBtn = button("Preset l\xF6schen", "danger");
+  const updDel = () => {
+    delBtn.style.display = presetSel.value.startsWith("user:") ? "" : "none";
+  };
+  const rebuildPresetSel = () => {
+    const cur = presetSel.value;
+    presetSel.innerHTML = "";
+    const add = (v, l) => {
+      const o = document.createElement("option");
+      o.value = v;
+      o.textContent = l;
+      presetSel.appendChild(o);
+    };
+    add("", "\u2014 eigenes \u2014");
+    IDEA_PRESET_LABELS.forEach(([v, l]) => add(v, l));
+    Object.entries(loadIdeaUserPresets()).forEach(([id, pr]) => add(id, "\u2605 " + (pr.name || id.replace("user:", ""))));
+    presetSel.value = cur;
+  };
+  presetSel.addEventListener("change", () => {
+    const v = presetSel.value;
+    if (v.startsWith("user:")) {
+      const p = loadIdeaUserPresets()[v];
+      if (p) applyProfile({ ...p, name: p.name });
+    } else if (v) {
+      const p = IDEA_PRESETS[v];
+      if (p) applyProfile(p);
+    }
+    updDel();
+  });
+  rebuildPresetSel();
+  const bestand = () => [
+    ...Object.entries(IDEA_PRESETS),
+    ...Object.entries(loadIdeaUserPresets())
+  ];
+  const randomize = () => {
+    const { id, profil } = wuerfleIdeenProfil(bestand());
+    applyProfile(profil);
+    presetSel.value = id;
+    updDel();
+  };
+  if (!ideenSchonGewuerfelt) {
+    randomize();
+    ideenSchonGewuerfelt = true;
+    ideenStand = readProfile();
+    ideenLive = live.value;
+    saveIdeaProfile(ideenStand, (parseInt(live.value, 10) || 0) / 100);
+  } else {
+    if (ideenStand) applyProfile(ideenStand);
+    if (ideenLive !== null) {
+      live.value = ideenLive;
+    }
+    updLive();
+  }
+  const merkeIdeen = () => {
+    ideenStand = readProfile();
+    ideenLive = live.value;
+    saveIdeaProfile(ideenStand, (parseInt(live.value, 10) || 0) / 100);
+  };
+  [genre, ton, prot, konflikt, ort, zeit, massstab, wendung, fokus, presetSel].forEach((c) => c.addEventListener("change", merkeIdeen));
+  [diverg, live, nameIn].forEach((c) => c.addEventListener("input", merkeIdeen));
+  const list = el("div", {});
+  const count2 = el("input", { type: "number", value: "10", min: "1", max: "30", style: "width:70px" });
+  const render = () => {
+    list.innerHTML = "";
+    const cfg = ideaProfileToConfig(readProfile(), (parseInt(live.value, 10) || 0) / 100);
+    updLive();
+    for (const idea of generateIdeaBatch(parseInt(count2.value, 10) || 10, cfg)) {
+      const take = button("\u2192 Studio");
+      take.addEventListener("click", () => {
+        try {
+          localStorage.setItem("dm_pending_ctx", JSON.stringify({ who: idea.seedWho, where: idea.seedWhere, when: idea.seedWhen, what: idea.seedWhat }));
+        } catch {
+        }
+        const st = [...document.querySelectorAll(".tabbar button")].find((b) => b.textContent === "Studio");
+        if (st) st.click();
+      });
+      list.append(el(
+        "div",
+        { class: "idea" },
+        el("p", { class: "idea-text" }, idea.text, el("span", { class: "muted" }, `  \xB7 ${idea.archetype} \xB7 ${idea.presetLabel}`)),
+        take
+      ));
+    }
+  };
+  const genBtn = el("button", { class: "primary" }, icon("dice"), " Ideen generieren");
+  genBtn.addEventListener("click", render);
+  const rndBtn = el("button", {}, icon("refresh"), " W\xFCrfeln");
+  rndBtn.addEventListener("click", () => {
+    randomize();
+    render();
+  });
+  const profLbl = el("span", {}, "KI-Profil erzeugen");
+  const profBtn = el("button", {}, icon("flask"), " ", profLbl);
+  profBtn.addEventListener("click", () => {
+    void (async () => {
+      if (!loadAiKey()) {
+        alert("Kein API-Schl\xFCssel \u2014 bitte im KI-Tab hinterlegen.");
+        return;
+      }
+      profBtn.disabled = true;
+      const old = profLbl.textContent;
+      profLbl.textContent = "Erzeuge\u2026";
+      try {
+        const nm = nameIn.value.trim() || "Idee";
+        const raw = await callClaude(buildIdeaProfilePrompt(nm), 800);
+        applyProfile(normalizeIdeaProfile(extractJson(raw), nm));
+        presetSel.value = "";
+        updDel();
+      } catch (e2) {
+        alert("Fehlgeschlagen: " + (e2 instanceof Error ? e2.message : String(e2)));
+      } finally {
+        profBtn.disabled = false;
+        profLbl.textContent = old || "KI-Profil erzeugen";
+      }
+    })();
+  });
+  const saveBtn = button("Als Preset speichern");
+  saveBtn.addEventListener("click", () => {
+    const p = readProfile();
+    if (!p.name.trim()) {
+      alert("Bitte ein Thema/Motiv als Namen eintragen.");
+      return;
+    }
+    const id = saveIdeaUserPreset(p);
+    rebuildPresetSel();
+    presetSel.value = id;
+    updDel();
+  });
+  delBtn.addEventListener("click", () => {
+    const v = presetSel.value;
+    if (v.startsWith("user:")) {
+      deleteIdeaUserPreset(v);
+      rebuildPresetSel();
+      presetSel.value = "";
+      updDel();
+    }
+  });
+  const panelPraem = el("div", {});
+  panelPraem.append(
+    el("p", { class: "muted" }, "Zehn Merkmale formen die Richtung der Pr\xE4missen. W\xE4hle ein Preset, stelle die Regler selbst ein oder lass die KI aus einem Thema ein Profil bauen. Der Divergenz-Regler steuert, wie wild die Streuung wird."),
+    el("div", { class: "grid2" }, fld("Preset", presetSel), fld("Thema/Motiv", nameIn)),
+    el("div", { class: "grid3" }, fld("Genre", genre), fld("Ton", ton), fld("Protagonist", prot)),
+    el("div", { class: "grid3" }, fld("Konfliktart", konflikt), fld("Ort-Typ", ort), fld("Zeit/Epoche", zeit)),
+    el("div", { class: "grid3" }, fld("Ma\xDFstab", massstab), fld("Wendungstyp", wendung), fld("Fokus", fokus)),
+    fld("Divergenz (zahm \u2192 radikal)", el("div", { class: "chkrow" }, diverg, " ", divVal)),
+    fld("Lebendige Pools (Anteil eigener Begriffe)", el("div", { class: "chkrow" }, live, " ", liveVal, " \xB7 ", liveInfo, " ", clrBtn)),
+    el("div", { class: "btnrow" }, "Anzahl ", count2, " ", genBtn, rndBtn, profBtn),
+    el("div", { class: "btnrow" }, saveBtn, delBtn),
+    list
+  );
+  const panelAssoc = el("div", { style: "display:none" });
+  let assocReady = false;
+  const tabP = el("button", { class: "subtab active" }, "Pr\xE4missen");
+  const tabA = el("button", { class: "subtab" }, "Assoziationskette");
+  const showPanel = (praem) => {
+    panelPraem.style.display = praem ? "" : "none";
+    panelAssoc.style.display = praem ? "none" : "";
+    tabP.classList.toggle("active", praem);
+    tabA.classList.toggle("active", !praem);
+    if (!praem && !assocReady) {
+      mountAssoc(panelAssoc);
+      assocReady = true;
+    }
+  };
+  tabP.addEventListener("click", () => showPanel(true));
+  tabA.addEventListener("click", () => showPanel(false));
+  wrap.append(
+    el("h2", {}, "Ideen"),
+    el("div", { class: "subtabs" }, tabP, tabA),
+    panelPraem,
+    panelAssoc
+  );
+  root.append(wrap);
+  updLive();
+  render();
+}
+
 // src/ui/schaltplanView.ts
 var NS = "http://www.w3.org/2000/svg";
 var CHIP_W = 176;
@@ -23799,7 +24520,7 @@ var avgSentLen = (t) => {
   if (!s.length) return 0;
   return s.reduce((n, x) => n + (x.match(/\S+/g) || []).length, 0) / s.length;
 };
-var words = (t) => (t.match(/\S+/g) || []).length;
+var words2 = (t) => (t.match(/\S+/g) || []).length;
 var EMPH_MARK = /(Der Ort |liegt die Luft schwer|verschieben sich die Schatten|hat jedes Ding zwei Gesichter|klingt jeder Schritt doppelt|scheint die Entfernung zu lügen|hält der Raum den Atem an|scheint zuzuhören|gibt keine Auskunft|merkt sich jede Bewegung|ordnet die Dinge neu|lässt niemanden unberührt|Es war die Zeit, als|und die Zeit |hält \S+ inne|sucht \S+ nach Worten|spürt \S+ die Kälte|Reglos steht|Lange wartet|Still bleibt|Aufmerksam beobachtet|Und wieder: |Denn genau das geschieht|Im Kern bleibt es dabei|Es geht weiter um eines)/;
 function runSelfTest(onStep) {
   const bank = loadBank();
@@ -24012,7 +24733,7 @@ function runSelfTest(onStep) {
       group: "Steuerung",
       note: "Zielwortzahl wird angesteuert",
       probe: () => {
-        const k = words(gen({ lenTarget: 60 }, bank)), l = words(gen({ lenTarget: 260 }, bank));
+        const k = words2(gen({ lenTarget: 60 }, bank)), l = words2(gen({ lenTarget: 260 }, bank));
         return l > k + 40;
       }
     },
@@ -25101,6 +25822,87 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
   ist("die Wahrnehmung steht im Plan", knoten(a, "omni")?.zustand, "an");
   wahr("mit der Zahl der Wesen", /8 Wesen/.test(knoten(a, "omni")?.wert || ""));
   wahr("und einer Leitung zu den vier W", a.kanten.some((k) => k.von === "omni" && k.nach === "w4"));
+}
+{
+  const dom5 = new import_jsdom.JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/", pretendToBeVisual: true });
+  const G = globalThis;
+  for (const k of [
+    "window",
+    "document",
+    "localStorage",
+    "navigator",
+    "HTMLElement",
+    "HTMLInputElement",
+    "HTMLTextAreaElement",
+    "HTMLSelectElement",
+    "HTMLButtonElement",
+    "Event",
+    "CustomEvent",
+    "Node",
+    "getComputedStyle",
+    "requestAnimationFrame",
+    "cancelAnimationFrame",
+    "MutationObserver",
+    "Blob",
+    "URL",
+    "FileReader",
+    "Image",
+    "DOMParser"
+  ]) {
+    try {
+      Object.defineProperty(G, k, { value: dom5.window[k], writable: true, configurable: true });
+    } catch {
+    }
+  }
+  const km5 = () => ({ matches: false, addEventListener: () => {
+  }, removeEventListener: () => {
+  }, addListener: () => {
+  }, removeListener: () => {
+  } });
+  Object.defineProperty(G, "matchMedia", { value: km5, writable: true, configurable: true });
+  dom5.window["matchMedia"] = km5;
+  dom5.window.Element.prototype["scrollIntoView"] = function() {
+  };
+  saveIdeaUserPreset({ ...IDEA_PRESETS["noir"], name: "Mein Hafen" });
+  saveIdeaUserPreset({ ...IDEA_PRESETS["kafka"], name: "Mein Amt" });
+  const D5 = dom5.window.document;
+  const w5 = D5.createElement("div");
+  D5.body.append(w5);
+  mountIdeas(w5);
+  const sel = w5.querySelector('[id="idea-preset"]');
+  const felder = ["idea-genre", "idea-ton", "idea-prot", "idea-konf", "idea-ort", "idea-zeit", "idea-mass", "idea-wend", "idea-fok"];
+  const stand = () => felder.map((f) => w5.querySelector(`[id="${f}"]`).value).join("|");
+  const knopf = Array.from(w5.querySelectorAll("button")).find((b) => /Würfeln/.test(b.textContent || ""));
+  let ausBestand = 0, eigene = 0, frei = 0;
+  const komb = /* @__PURE__ */ new Set();
+  for (let i = 0; i < 200; i++) {
+    knopf.click();
+    const v = sel.value;
+    komb.add(stand());
+    if (v === "") frei++;
+    else {
+      ausBestand++;
+      if (v.startsWith("user:")) eigene++;
+    }
+  }
+  wahr(`der W\xFCrfel zieht Presets (${ausBestand} von 200)`, ausBestand >= 60);
+  wahr(`darunter eigene (${eigene} von 200)`, eigene >= 10);
+  wahr(`und w\xFCrfelt weiter frei (${frei} von 200)`, frei >= 60);
+  wahr(`die freie Kombination bleibt breit (${komb.size} verschiedene)`, komb.size >= 60);
+  let luegt = 0;
+  for (let i = 0; i < 200; i++) {
+    knopf.click();
+    const v = sel.value;
+    if (!v) continue;
+    const p = v.startsWith("user:") ? loadIdeaUserPresets()[v] : IDEA_PRESETS[v];
+    if (!p) {
+      luegt++;
+      continue;
+    }
+    const soll = [p.genre, p.ton, p.protagonist, p.konflikt, p.ort, p.zeit, p.massstab, p.wendung, p.fokus].join("|");
+    if (soll !== stand()) luegt++;
+  }
+  ist("der W\xE4hler zeigt an, woher die Einstellung stammt", luegt, 0);
 }
 console.log(`Pr\xFCfstand Schaltplan \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

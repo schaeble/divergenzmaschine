@@ -7,6 +7,7 @@ import {
   IDEA_PRESETS, IDEA_PRESET_LABELS, ideaProfileToConfig,
   buildIdeaProfilePrompt, normalizeIdeaProfile,
   loadIdeaUserPresets, saveIdeaUserPreset, deleteIdeaUserPreset, saveIdeaProfile,
+  wuerfleIdeenProfil,
   type IdeaProfile,
 } from "../features/ideaprofile";
 import { loadAiKey, callClaude, extractJson } from "../features/ki";
@@ -87,15 +88,19 @@ export function mountIdeas(root: HTMLElement): void {
   });
   rebuildPresetSel();
 
-  // Zufallsstart: alle Merkmale auswürfeln.
-  const randSel = (s: HTMLSelectElement): void => {
-    if (s.options.length) s.value = s.options[Math.floor(Math.random() * s.options.length)]!.value;
-  };
+  // Zufallsstart. Der Würfel nimmt seit 4.300.0 mal ein vorhandenes Preset,
+  // mal eine freie Kombination — vorher setzte er den Wähler immer auf
+  // „— eigenes —", und die eigenen Profile kamen nie vor. Siehe
+  // `wuerfleIdeenProfil`.
+  const bestand = (): Array<[string, IdeaProfile]> => [
+    ...Object.entries(IDEA_PRESETS),
+    ...Object.entries(loadIdeaUserPresets()),
+  ];
   const randomize = (): void => {
-    [genre, ton, prot, konflikt, ort, zeit, massstab, wendung, fokus].forEach(randSel);
-    diverg.value = String(Math.floor(Math.random() * 21) * 5);
-    divVal.textContent = diverg.value;
-    nameIn.value = ""; presetSel.value = ""; updDel();
+    const { id, profil } = wuerfleIdeenProfil(bestand());
+    applyProfile(profil);
+    presetSel.value = id;   // leer = „— eigenes —"
+    updDel();
   };
   // NUR beim ersten Aufbau je Sitzung würfeln. `mountIdeas` läuft bei jedem
   // Reiterwechsel erneut, und ein Neuwürfeln dort warf jede eingestellte

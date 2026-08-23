@@ -178,6 +178,29 @@ export function loadIdeaProfile(): { profil: IdeaProfile; liveAnteil: number } |
  *  Gewürfelt wird NUR für diesen einen Zug. Das eingestellte Profil bleibt
  *  unangetastet — „der Würfel wählt, er füllt nicht" gilt weiter, und ein
  *  gewürfeltes Profil ist eine Wahl, kein Überschreiben. */
+/** Der Würfel im Reiter Ideen — er entscheidet ZUERST, woher er nimmt:
+ *  aus dem Bestand (7 eingebaute Presets + eigene) oder frei aus den zehn
+ *  Merkmalen. Bisher zog er immer frei und stellte den Preset-Wähler stumm auf
+ *  „— eigenes —"; die eigenen Profile kamen so nie vor.
+ *
+ *  Beide Wege bleiben, weil beide etwas können, was der andere nicht kann:
+ *  Ein reiner Bestandszug erreicht nur sieben plus die eigenen Kombinationen,
+ *  ein reiner Freizug nie die eigenen. Halb und halb.
+ *
+ *  Gibt `id` zurück, damit der Wähler ehrlich anzeigen kann, woher die
+ *  Einstellung stammt — leer heißt „freie Kombination". */
+export function wuerfleIdeenProfil(
+  bestand: ReadonlyArray<readonly [string, IdeaProfile]>,
+  zufall: () => number = Math.random,
+): { id: string; profil: IdeaProfile } {
+  if (bestand.length > 0 && zufall() < 0.5) {
+    const i = Math.min(bestand.length - 1, Math.floor(zufall() * bestand.length));
+    const paar = bestand[i]!;
+    return { id: paar[0], profil: { ...paar[1] } };
+  }
+  return { id: "", profil: wuerfleIdeaProfile(zufall) };
+}
+
 export function wuerfleIdeaProfile(zufall: () => number = Math.random): IdeaProfile {
   const w = <T,>(l: readonly T[]): T => l[Math.min(l.length - 1, Math.floor(zufall() * l.length))] as T;
   return {

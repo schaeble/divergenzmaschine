@@ -14,7 +14,8 @@
 import { baueAnlage, SCHLOSS_ZU_KNOTEN, type AnlageStand, type Umgebung } from "../src/features/schaltplan";
 import { mountStudio } from "../src/ui/studio";
 import { KNOB_VORGABE, KNOB_SPANNE } from "../src/features/knobs";
-import { saveIdeaProfile } from "../src/features/ideaprofile";
+import { saveIdeaProfile, saveIdeaUserPreset, loadIdeaUserPresets, IDEA_PRESETS } from "../src/features/ideaprofile";
+import { mountIdeas } from "../src/ui/ideasView";
 import { wuerfleAlles, wuerfleVierW, REGLER, SCHIEBER } from "../src/features/wuerfeln";
 import { werte } from "../src/generation/optionen";
 import { ordne, BAND_NAME, renderSchaltplan, befundListe } from "../src/ui/schaltplanView";
@@ -597,6 +598,72 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   ist("die Wahrnehmung steht im Plan", knoten(a, "omni")?.zustand, "an");
   wahr("mit der Zahl der Wesen", /8 Wesen/.test(knoten(a, "omni")?.wert || ""));
   wahr("und einer Leitung zu den vier W", a.kanten.some((k) => k.von === "omni" && k.nach === "w4"));
+}
+
+
+// ── 15 · Der Würfel im Reiter Ideen nimmt das Preset mit ─────────────────
+// Befund: „Ideen Reiter, beim Würfeln wird das Preset nicht mitgewürfelt."
+// Stimmte — `randomize()` loste die zehn Merkmale einzeln aus und setzte den
+// Wähler anschließend fest auf „— eigenes —". Die sieben eingebauten Presets
+// und die eigenen Profile kamen dabei NIE vor.
+//
+// Jetzt entscheidet der Würfel zuerst, woher er nimmt: halb aus dem Bestand,
+// halb frei. Beide Wege bleiben, weil beide etwas können, was der andere
+// nicht kann.
+{
+  const dom5 = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/", pretendToBeVisual: true });
+  const G = globalThis as unknown as Record<string, unknown>;
+  for (const k of ["window", "document", "localStorage", "navigator", "HTMLElement", "HTMLInputElement",
+    "HTMLTextAreaElement", "HTMLSelectElement", "HTMLButtonElement", "Event", "CustomEvent", "Node",
+    "getComputedStyle", "requestAnimationFrame", "cancelAnimationFrame", "MutationObserver", "Blob",
+    "URL", "FileReader", "Image", "DOMParser"]) {
+    try { Object.defineProperty(G, k, { value: (dom5.window as unknown as Record<string, unknown>)[k], writable: true, configurable: true }); } catch { /* da */ }
+  }
+  const km5 = (): unknown => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} });
+  Object.defineProperty(G, "matchMedia", { value: km5, writable: true, configurable: true });
+  (dom5.window as unknown as Record<string, unknown>)["matchMedia"] = km5;
+  (dom5.window.Element.prototype as unknown as Record<string, unknown>)["scrollIntoView"] = function (): void {};
+
+  // Zwei eigene Profile anlegen — sonst prüft der Lauf nur die eingebauten.
+  saveIdeaUserPreset({ ...IDEA_PRESETS["noir"]!, name: "Mein Hafen" });
+  saveIdeaUserPreset({ ...IDEA_PRESETS["kafka"]!, name: "Mein Amt" });
+
+  const D5 = dom5.window.document;
+  const w5 = D5.createElement("div");
+  D5.body.append(w5);
+  mountIdeas(w5);
+
+  const sel = w5.querySelector('[id="idea-preset"]') as HTMLSelectElement;
+  const felder = ["idea-genre", "idea-ton", "idea-prot", "idea-konf", "idea-ort", "idea-zeit", "idea-mass", "idea-wend", "idea-fok"];
+  const stand = (): string => felder.map((f) => (w5.querySelector(`[id="${f}"]`) as HTMLSelectElement).value).join("|");
+  const knopf = Array.from(w5.querySelectorAll("button")).find((b) => /Würfeln/.test(b.textContent || "")) as HTMLButtonElement;
+
+  let ausBestand = 0, eigene = 0, frei = 0;
+  const komb = new Set<string>();
+  for (let i = 0; i < 200; i++) {
+    knopf.click();
+    const v = sel.value;
+    komb.add(stand());
+    if (v === "") frei++; else { ausBestand++; if (v.startsWith("user:")) eigene++; }
+  }
+  wahr(`der Würfel zieht Presets (${ausBestand} von 200)`, ausBestand >= 60);
+  wahr(`darunter eigene (${eigene} von 200)`, eigene >= 10);
+  wahr(`und würfelt weiter frei (${frei} von 200)`, frei >= 60);
+  wahr(`die freie Kombination bleibt breit (${komb.size} verschiedene)`, komb.size >= 60);
+
+  // Der Wähler muss zum Inhalt passen — eine Anzeige, die lügt, wäre schlimmer
+  // als keine. Also: Wenn er ein Preset nennt, müssen die Merkmale dessen sein.
+  let luegt = 0;
+  for (let i = 0; i < 200; i++) {
+    knopf.click();
+    const v = sel.value;
+    if (!v) continue;
+    const p = v.startsWith("user:") ? loadIdeaUserPresets()[v] : IDEA_PRESETS[v];
+    if (!p) { luegt++; continue; }
+    const soll = [p.genre, p.ton, p.protagonist, p.konflikt, p.ort, p.zeit, p.massstab, p.wendung, p.fokus].join("|");
+    if (soll !== stand()) luegt++;
+  }
+  ist("der Wähler zeigt an, woher die Einstellung stammt", luegt, 0);
 }
 
 console.log(`Prüfstand Schaltplan — ${geprueft} Prüfungen, ${bestanden} bestanden`);
