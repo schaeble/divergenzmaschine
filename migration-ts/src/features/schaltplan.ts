@@ -43,6 +43,31 @@ export interface AnlageStand {
   w4: { where: string; when: string; who: string; what: string };
   zeit: string;
 }
+/** Welches Feld im Plan zeigt das Schloss welches Bedienelements?
+ *
+ *  Gemeldet: „Bei Länge ist das Schloss gesetzt, wird aber nicht angezeigt."
+ *  Die Ursache war eine vergessene Kennung, und das ist eine Fehlerart, die sich
+ *  von selbst wiederholt: Wer einen Regler hinzufügt, denkt nicht an den Plan.
+ *
+ *  Deshalb steht die Zuordnung an EINER Stelle, und der Prüfstand hält sie gegen
+ *  das laufende Studio: Jedes Bedienelement mit Schloss muss hier auftauchen und
+ *  auf einen Knoten zeigen, den es wirklich gibt. Mehrere Kennungen dürfen auf
+ *  denselben Knoten zeigen — die vier W sind ein Feld im Plan und vier in der
+ *  Oberfläche. */
+export const SCHLOSS_ZU_KNOTEN: Record<string, string> = {
+  "f-preset": "preset", "f-tone": "ton", "f-form": "form", "f-structure": "struktur",
+  "f-mode": "modus", "f-markov": "markov", "f-disruptor": "disruptor", "f-varianz": "varianz",
+  "f-instab": "instab", "f-archa": "archa", "f-archb": "archb", "f-cast": "cast",
+  "f-persp": "persp", "f-rhythm": "rhythm", "f-tension": "spannung", "f-ressort": "ressort",
+  "f-len": "laenge", "f-novelty": "neuheit", "f-surprise": "ueberraschung",
+  "f-umwelt": "umwelt", "f-umwelt-wirkung": "umwelt",
+  "f-where": "w4", "f-when": "w4", "f-who": "w4", "f-what": "w4",
+  "f-w-wo": "gewicht", "f-w-wann": "gewicht", "f-w-wer": "gewicht", "f-w-was": "gewicht",
+  "k-fuegeteil": "k-fuegeteil", "k-w4max": "k-w4max", "k-abstand": "k-abstand",
+  "k-bogen": "k-bogen", "k-ton": "k-ton", "k-korpus": "k-korpus",
+  "k-phrase": "k-phrase", "k-satzlaenge": "k-satzlaenge",
+};
+
 export const ANLAGE_KEY = "dm_anlage_v1";
 export function saveAnlage(s: AnlageStand): void {
   try { localStorage.setItem(ANLAGE_KEY, JSON.stringify(s)); } catch { /* Speicher voll */ }
@@ -114,8 +139,23 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   // ── Spalte 1: Eingang ────────────────────────────────────────────────────
   const w4 = stand.w4 || { where: "", when: "", who: "", what: "" };
   const gefuellt = [w4.where, w4.when, w4.who, w4.what].filter((x) => (x || "").trim()).length;
-  knoten("w4", 1, "Vier W", `${gefuellt} von 4 gefüllt`, gefuellt ? "an" : "leer",
-    gefuellt ? "" : "alle vier Felder sind leer — der Kontext trägt nichts bei");
+  // Vier Felder, ein Knoten — also auch vier Schlösser. Gezeichnet wird das
+  // Schloss, wenn ALLE vier zu sind; wie viele es sind, sagt der Hinweis.
+  const w4Ids = ["f-where", "f-when", "f-who", "f-what"];
+  const w4Zu = w4Ids.filter((id) => g(id)).length;
+  K.push({
+    id: "w4", band: 1, label: "Vier W", wert: `${gefuellt} von 4 gefüllt`,
+    zustand: gefuellt ? "an" : "leer", gesperrt: false,
+    hinweis: (gefuellt ? "" : "alle vier Felder sind leer — der Kontext trägt nichts bei. ")
+      + (w4Zu ? `${w4Zu} von 4 Feldern gesperrt` : ""),
+  });
+  if (!gefuellt) befunde.push("Vier W: alle vier Felder sind leer");
+  // Die Gewichtung der vier W ist ein eigener Regler mit eigenen Schlössern —
+  // sie stand bis 4.288 nicht im Plan.
+  const gew = (r["gewicht"] || "0/0/0/0").split("/");
+  const gewAn = gew.some((x) => (parseInt(x, 10) || 0) !== 0);
+  knoten("gewicht", 1, "4W-Gewichtung", gew.join(" · "), gewAn ? "an" : "aus",
+    gewAn ? "" : "alle vier gleich gewichtet");
   knoten("preset", 1, "Wortbank", u.presetLabel || r["preset"] || "—", "an", "", "f-preset");
   knoten("ton", 1, "Ton", bez(TONE_OPTS, r["tone"] || "neutral"), "an", "", "f-tone");
 
@@ -174,6 +214,17 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   schraube("phrase", "Phrasensperre", "");
   schraube("satzlaenge", "Satzlänge", "");
 
+  // Figurendisziplin stand bis 4.288 nicht im Plan, obwohl sie ein Schloss
+  // trägt und in jeden Text geht.
+  const cast = r["cast"] ?? "0.5";
+  knoten("cast", 2, "Figurendisziplin",
+    cast === "0" ? "Offen" : cast === "1" ? "Streng" : "Mittel", "an", "", "f-cast");
+  // Die Umwelt beschreibt nicht den Text, sie wirkt auf die Auswahl. Leer heißt
+  // aus — und das ist der Normalfall, deshalb kein Befund.
+  const umwelt = (r["umwelt"] || "").trim();
+  knoten("umwelt", 2, "Umwelt", umwelt ? (r["umweltWirkung"] || "an") : "aus",
+    umwelt ? "an" : "aus", umwelt ? "" : "kein Umweltzeichen eingetragen", "f-umwelt");
+
   // ── Spalte 3: Schliff ────────────────────────────────────────────────────
   knoten("persp", 3, "Perspektive", bez(PERSP_OPTS, r["perspective"] || "third"), "an", "", "f-persp");
   knoten("rhythm", 3, "Rhythmus", bez(RHYTHM_OPTS, r["rhythm"] || "auto"), "an", "", "f-rhythm");
@@ -182,13 +233,26 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   knoten("schliff", 3, "Schliff", "Dubletten · Kohärenz · Bruchstücke", "an",
     "läuft immer: gleiche Nachbarsätze, Motivbezug, abgeschnittene Bausteine");
 
+  // Neuheit und Überraschung steuern nicht den Satzbau, sondern die AUSWAHL
+  // unter mehreren Fassungen. Sie gehören deshalb hinter den Schliff und nicht
+  // in die Steuerung — und sie standen bis 4.288 gar nicht im Plan.
+  const nov = parseInt(r["novelty"] ?? "0", 10) || 0;
+  knoten("neuheit", 3, "Neuheit", nov + " %", nov ? "an" : "aus", "", "f-novelty");
+  const surp = parseInt(r["surprise"] ?? "0", 10) || 0;
+  knoten("ueberraschung", 3, "Überraschung", surp ? "Ziel " + surp + " %" : "aus",
+    surp ? "an" : "aus", "", "f-surprise");
+
   // ── Spalte 4: Ausgabe ────────────────────────────────────────────────────
   const form = r["form"] || "prose";
   knoten("form", 4, "Form", bez(FORM_OPTS, form), "an", "", "f-form");
   const bericht = form === "bericht" || form === "meldung";
   knoten("ressort", 4, "Ressort", bericht ? (r["ressort"] || "auto") : "nur bei Bericht/Meldung",
     bericht ? "an" : "aus", bericht ? "" : "", "f-ressort");
-  knoten("laenge", 4, "Länge", (r["lenTarget"] || "?") + " Wörter", "fest");
+  // Gemeldet: „Bei Länge ist das Schloss gesetzt, wird aber nicht angezeigt."
+  // Der Grund war eine vergessene Kennung — der Knoten wurde ohne Schloss-Id
+  // angelegt und konnte deshalb nie gesperrt aussehen. Seit 4.288 prüft der
+  // Prüfstand jedes Bedienelement mit Schloss gegen den Plan.
+  knoten("laenge", 4, "Länge", (r["lenTarget"] || "?") + " Wörter", "fest", "", "f-len");
 
   // ── Leitungen ────────────────────────────────────────────────────────────
   // Gezeichnet werden NUR die Leitungen, die tot sein können — also die, bei
@@ -201,6 +265,19 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
     ["sammler", "w4"], ["bilder", "w4"], ["themen", "w4"], ["welt", "w4"],
     ["preset", "drama"],
   ] as [string, string][]) kante(a, b);
+
+  // Das Schloss kommt aus der Karte, nicht aus dem einzelnen Aufruf. Zeigen
+  // mehrere Kennungen auf denselben Knoten (die vier W, Umwelt und ihre
+  // Wirkung), gilt er als gesperrt, wenn ALLE zu sind — ein halb geschlossenes
+  // Feld als „gesperrt" zu zeichnen wäre eine halbe Wahrheit.
+  const proKnoten = new Map<string, string[]>();
+  for (const [id, ziel] of Object.entries(SCHLOSS_ZU_KNOTEN)) {
+    const l = proKnoten.get(ziel) || []; l.push(id); proKnoten.set(ziel, l);
+  }
+  for (const k of K) {
+    const ids = proKnoten.get(k.id);
+    if (ids) k.gesperrt = ids.every((id) => g(id));
+  }
 
   return { knoten: K, kanten: E, zeit: new Date().toLocaleString("de-DE"), befunde };
 }

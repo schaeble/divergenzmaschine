@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.287.0**, Zweig `typescript-migration`.
+Stand: **v4.288.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,44 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Schlösser im Schaltplan (4.288.0)
+
+**Gemeldet:** „Bei Länge ist das Schloss gesetzt, wird aber nicht angezeigt."
+
+Stimmt — und es war nicht die einzige Stelle. Der Knoten „Länge" wurde ohne
+Schloss-Kennung angelegt und konnte deshalb nie gesperrt aussehen. Beim
+Nachzählen an der laufenden Oberfläche kam heraus: **Das Studio hat 37
+Bedienelemente mit Schloss, der Plan kannte 24.**
+
+Es fehlten nicht nur Kennungen, sondern ganze Felder:
+
+- **Textlänge** (`f-len`) — Knoten da, Kennung vergessen
+- **Figurendisziplin** (`f-cast`) — gar nicht im Plan
+- **Umwelt** samt Wirkung (`f-umwelt`, `f-umwelt-wirkung`) — gar nicht im Plan
+- **Neuheit** und **Überraschung** (`f-novelty`, `f-surprise`) — gar nicht im Plan
+- **4W-Gewichtung** (`f-w-wo` … `f-w-was`) — gar nicht im Plan
+- die vier W hatten vier Schlösser und der Knoten keins
+
+Der Plan hat jetzt 38 Felder statt 33.
+
+**Die Fehlerart ist bekannt, und sie wiederholt sich von selbst:** Wer einen
+Regler hinzufügt, denkt nicht an den Plan. Dieselbe Familie wie die
+Würfelliste (4.284) und die Reglerliste des Wirkungsmessers (4.272).
+
+**Deshalb steht die Zuordnung jetzt an EINER Stelle** — `SCHLOSS_ZU_KNOTEN` —
+und der Prüfstand hält sie gegen das laufende Studio: Jedes Bedienelement mit
+Schloss muss dort auftauchen und auf einen Knoten zeigen, den es wirklich gibt.
+Das Schloss eines Knotens wird aus dieser Karte berechnet, nicht mehr beim
+einzelnen Aufruf mitgegeben. Zeigen mehrere Kennungen auf dasselbe Feld (die
+vier W, die Umwelt mit ihrer Wirkung), gilt es als gesperrt, wenn ALLE zu sind —
+ein halb geschlossenes Feld als „gesperrt" zu zeichnen wäre eine halbe Wahrheit;
+wie viele es sind, sagt das Mouseover.
+
+Prüfstand Schaltplan 43 → 51. Neu: jedes einzelne Schloss schlägt auf seinen
+Knoten durch (32 Einzelproben), drei von vier W schließen das Feld noch nicht,
+alle vier schon. **Gegenprobe: Nimmt man `f-len` wieder aus der Karte, meldet
+der Prüfstand genau diese Kennung** — also den gemeldeten Fehler.
 
 Dramaturgie hat keinen Schalter (4.287.0)
 

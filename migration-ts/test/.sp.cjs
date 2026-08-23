@@ -54,6 +54,83 @@ function saveZiele(z) {
   } catch {
   }
 }
+var ZIEL_KNOB = {
+  vorlage: "fuegeteil",
+  dramaturgie: "bogen",
+  ton: "ton",
+  kontext: "w4max"
+};
+var TOTBAND = 3;
+var HKEY = "dm_ziel_verlauf_v1";
+var ladeVerlauf = () => {
+  try {
+    return JSON.parse(localStorage.getItem(HKEY) || "{}");
+  } catch {
+    return {};
+  }
+};
+var saveVerlauf = (v) => {
+  try {
+    localStorage.setItem(HKEY, JSON.stringify(v));
+  } catch {
+  }
+};
+function vergissVerlauf(q) {
+  if (!q) {
+    saveVerlauf({});
+    return;
+  }
+  const v = ladeVerlauf();
+  delete v[q];
+  saveVerlauf(v);
+}
+function regle(ist2, gesperrt) {
+  const z = loadZiele();
+  const k = loadKnobs();
+  const v = ladeVerlauf();
+  let geaendert2 = false;
+  const fest = [];
+  for (const q of Object.keys(z)) {
+    const ziel = z[q];
+    if (ziel === void 0) continue;
+    const i = (ist2[q] ?? 0) * 100;
+    const feld = ZIEL_KNOB[q], sp = KNOB_SPANNE[feld];
+    if (gesperrt && gesperrt(feld)) {
+      fest.push(q);
+      continue;
+    }
+    if (Math.abs(i - ziel) <= TOTBAND) {
+      v[q] = { vor: k[feld], istVor: i, fest: v[q]?.fest };
+      continue;
+    }
+    if (v[q]?.fest) {
+      fest.push(q);
+      continue;
+    }
+    const neu = klemm(k[feld] + (i < ziel ? sp.step : -sp.step), sp);
+    if (v[q] !== void 0 && v[q].vor === neu) {
+      const jetztBesser = Math.abs(i - ziel) <= Math.abs(v[q].istVor - ziel);
+      if (!jetztBesser) {
+        k[feld] = neu;
+        geaendert2 = true;
+      }
+      v[q] = { vor: jetztBesser ? k[feld] : neu, istVor: i, fest: true };
+      fest.push(q);
+      continue;
+    }
+    if (neu !== k[feld]) {
+      v[q] = { vor: k[feld], istVor: i };
+      k[feld] = neu;
+      geaendert2 = true;
+    } else {
+      v[q] = { vor: k[feld], istVor: i, fest: true };
+      fest.push(q);
+    }
+  }
+  saveVerlauf(v);
+  if (geaendert2) saveKnobs(k);
+  return { bewegt: geaendert2, fest };
+}
 
 // src/generation/optionen.ts
 var TONE_OPTS = [
@@ -138,8 +215,10 @@ var INSTAB_OPTS = [["0", "Aus"], ["1", "Subtil"], ["2", "Aggressiv"]];
 // src/constants.ts
 var STORAGE_BANK = "divergenz_wordbank_v1";
 var STORAGE_CORPUS = "divergenz_persistent_corpus_v1";
+var STORAGE_SETTINGS = "divergenz_settings_v1";
 var STORAGE_PRESETS = "divergenz_bank_presets_v1";
 var STORAGE_WORLD = "divergenz_world_v1";
+var CORPUS_MAX = 16e4;
 var BANK_KEYS = [
   "motifs",
   "hooks",
@@ -273,6 +352,121 @@ function kuerzeAmBruch(text) {
   }
   return HAENGT_IN_DER_LUFT.test(t) ? "" : t;
 }
+
+// src/features/storage-status.ts
+function isQuotaError(e2) {
+  if (!(e2 instanceof DOMException)) return false;
+  return e2.name === "QuotaExceededError" || e2.name === "NS_ERROR_DOM_QUOTA_REACHED" || e2.code === 22 || e2.code === 1014;
+}
+var banner = null;
+function notifyStorageFull(where) {
+  try {
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.setAttribute("role", "alert");
+      banner.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:9999;padding:10px 14px;background:#7f1d1d;color:#fff;font:14px/1.4 system-ui,sans-serif;display:flex;gap:12px;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4)";
+      const x = document.createElement("button");
+      x.textContent = "\u2715";
+      x.style.cssText = "background:transparent;border:0;color:#fff;font-size:16px;cursor:pointer";
+      x.addEventListener("click", () => {
+        banner?.remove();
+        banner = null;
+      });
+      const span = document.createElement("span");
+      span.id = "storage-msg";
+      banner.append(span, x);
+      document.body.appendChild(banner);
+    }
+    const msg = banner.querySelector("#storage-msg");
+    if (msg) msg.textContent = `Speicher voll \u2014 \u201E${where}" konnte nicht gesichert werden. Bitte Korpus k\xFCrzen, Schatzkammer aufr\xE4umen oder ein Projekt exportieren und Daten l\xF6schen.`;
+  } catch {
+  }
+}
+function safeSet(key, value, where) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (e2) {
+    if (isQuotaError(e2)) notifyStorageFull(where);
+    return false;
+  }
+}
+var fmt = (bytes) => bytes >= 1024 * 1024 ? (bytes / 1024 / 1024).toFixed(1) + " MB" : Math.round(bytes / 1024) + " KB";
+async function storageReport() {
+  let localBytes = 0;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k === null) continue;
+      const v = localStorage.getItem(k) || "";
+      localBytes += (k.length + v.length) * 2;
+    }
+  } catch {
+  }
+  let usage, quota;
+  try {
+    if (navigator.storage?.estimate) {
+      const e2 = await navigator.storage.estimate();
+      usage = e2.usage;
+      quota = e2.quota;
+    }
+  } catch {
+  }
+  let text = `localStorage: ${fmt(localBytes)}`;
+  if (usage !== void 0 && quota) {
+    const pct = Math.round(usage / quota * 100);
+    text += ` \xB7 Origin gesamt: ${fmt(usage)} / ${fmt(quota)} (${pct} %)`;
+  }
+  return { localBytes, usage, quota, text };
+}
+var NAMEN = {
+  "divergenz_persistent_corpus_v1": "Korpus",
+  "dm_treasury_v1": "Schatzkammer",
+  "divergenz_zeitung_bilder_v1": "Bilder im Zeitungssetzer",
+  "divergenz_zeitung_layouts_v1": "Zeitungslayouts",
+  "dm_zeitung_v1": "Zeitungskopf",
+  "divergenz_bildwelt_v1": "Bildwelt (Wortb\xE4nke)",
+  "divergenz_bildvorrat_v1": "Bildvorrat (4W)",
+  "divergenz_sammler_vorrat_v1": "Sammler-Vorrat",
+  "divergenz_autopilot_ktx_v1": "Autopilot: Kontext-Ged\xE4chtnis",
+  "divergenz_lehrer_konto_v1": "KI-Lehrer: Konto",
+  "divergenz_wordbanks_v1": "Wortb\xE4nke",
+  "divergenz_presets2_v1": "Presets 2.0",
+  "divergenz_settings_v1": "Einstellungen",
+  "divergenz_reiter_v1": "Reiterleiste",
+  "dm_last_text": "Letzter Studiotext",
+  "divergenz_live_pools_v1": "Live-Pools"
+};
+var EXPORT_PRAEFIX = ["dm_", "divergenz_"];
+function postenGroesse(key, wert) {
+  return (key.length + (wert || "").length) * 2;
+}
+function schluesselePosten(roh) {
+  const gesamt = roh.reduce((a, [k, v]) => a + postenGroesse(k, v), 0);
+  return roh.map(([k, v]) => {
+    const bytes = postenGroesse(k, v);
+    return {
+      key: k,
+      name: NAMEN[k] || k,
+      bytes,
+      anteil: gesamt ? Math.round(bytes / gesamt * 1e3) / 10 : 0,
+      wandert: EXPORT_PRAEFIX.some((p) => k.startsWith(p))
+    };
+  }).sort((a, b) => b.bytes - a.bytes);
+}
+function lesePosten() {
+  const roh = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k === null) continue;
+      roh.push([k, localStorage.getItem(k) || ""]);
+    }
+  } catch {
+  }
+  return schluesselePosten(roh);
+}
+var formatBytes = fmt;
 
 // src/generation/cooldown.ts
 var recent = {};
@@ -3400,6 +3594,83 @@ function weaveCast(text, _P, cast) {
 
 // src/features/livepools.ts
 var LP_KEY = "divergenz_live_pools_v1";
+var LP_CAP = 300;
+var LIVE_W = { schatz: 3, korpus: 2, gen: 1 };
+var STOP_NOUN = /* @__PURE__ */ new Set([
+  "Ich",
+  "Er",
+  "Sie",
+  "Es",
+  "Wir",
+  "Ihr",
+  "Du",
+  "Man",
+  "Herr",
+  "Frau",
+  "Herrn",
+  "Jahr",
+  "Jahre",
+  "Jahren",
+  "Mal",
+  "Weise",
+  "Art",
+  "Teil",
+  "Ende",
+  "Anfang",
+  "Seite",
+  "Stelle"
+]);
+var ART_NOM = {
+  ein: "ein",
+  einen: "ein",
+  einem: "ein",
+  eines: "ein",
+  eine: "eine",
+  einer: "eine"
+};
+var PREP3 = /* @__PURE__ */ new Set([
+  "auf",
+  "aus",
+  "vor",
+  "in",
+  "mit",
+  "ohne",
+  "gegen",
+  "durch",
+  "von",
+  "zu",
+  "bei",
+  "nach",
+  "\xFCber",
+  "unter",
+  "um",
+  "wie",
+  "als",
+  "zwischen"
+]);
+var clip = (s) => s.replace(/^[^A-Za-zÄÖÜäöüß]+|[^A-Za-zÄÖÜäöüß]+$/g, "");
+var isNoun = (w) => /^[A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]{3,}$/.test(w) && !STOP_NOUN.has(w) && w.length <= 24;
+function extractPhrases(text) {
+  const src = (text || "").replace(/\s+/g, " ").trim();
+  if (!src) return [];
+  const out = /* @__PURE__ */ new Set();
+  for (const sentence of src.split(/[.!?…]+\s+/)) {
+    const toks = sentence.split(" ").map(clip).filter(Boolean);
+    for (let i = 0; i < toks.length; i++) {
+      const w = toks[i];
+      if (!isNoun(w)) continue;
+      const p1 = i >= 1 ? toks[i - 1].toLowerCase() : "";
+      const p2 = i >= 2 ? toks[i - 2].toLowerCase() : "";
+      const art = ART_NOM[p1] || (/^[a-zäöüß-]{4,}$/.test(p1) ? ART_NOM[p2] : void 0);
+      if (art) {
+        out.add(art + " " + w);
+        continue;
+      }
+      if (PREP3.has(p1)) out.add(w);
+    }
+  }
+  return [...out];
+}
 function loadLive() {
   try {
     const v = JSON.parse(localStorage.getItem(LP_KEY) || "[]");
@@ -3407,6 +3678,31 @@ function loadLive() {
   } catch {
     return [];
   }
+}
+function saveLive(list) {
+  safeSet(LP_KEY, JSON.stringify(list), "Lebendige Pools");
+}
+function feedLivePools(text, weight) {
+  const phrases = extractPhrases(text);
+  if (!phrases.length) return;
+  const list = loadLive();
+  const idx = new Map(list.map((e2, i) => [e2.t, i]));
+  const now = Date.now();
+  for (const p of phrases) {
+    const at = idx.get(p);
+    if (at === void 0) {
+      list.push({ t: p, n: weight, d: now });
+      idx.set(p, list.length - 1);
+    } else {
+      list[at].n += weight;
+      list[at].d = now;
+    }
+  }
+  if (list.length > LP_CAP) {
+    list.sort((a, b) => b.n - a.n || b.d - a.d);
+    list.length = LP_CAP;
+  }
+  saveLive(list);
 }
 function liveTexts() {
   return loadLive().sort((a, b) => b.n - a.n || b.d - a.d).map((e2) => e2.t);
@@ -3423,6 +3719,9 @@ function loadPersistentCorpus() {
     return "";
   }
 }
+function savePersistentCorpus(text) {
+  safeSet(STORAGE_CORPUS, text, "Korpus");
+}
 var GERUEST_ZEILE = /^\s*(Faktenkasten\b|Kurz gemeldet\s*$|Fiktive Zeitung\b|Zeitzeichen\s*[·|]|Nr\.\s*\d+\s*[·|]|UNABHÄNGIG\b|SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/;
 function corpusSanitize(text) {
   let s = (text ?? "").toString();
@@ -3438,6 +3737,23 @@ function corpusSanitize(text) {
   s = s.replace(/\.{2,}/g, ".");
   s = s.replace(/\s+/g, " ").trim();
   return s;
+}
+function appendToPersistentCorpus(textToAdd) {
+  const add = corpusSanitize(clean(textToAdd));
+  if (!add) return;
+  try {
+    feedLivePools(add, LIVE_W.korpus);
+  } catch {
+  }
+  let corpus = loadPersistentCorpus();
+  const sep = corpus.trim().length ? "\n\n" : "";
+  corpus = corpus + sep + add;
+  if (corpus.length > CORPUS_MAX) {
+    corpus = corpus.slice(corpus.length - CORPUS_MAX);
+    const cut = corpus.indexOf("\n\n");
+    if (cut > 0 && cut < 5e3) corpus = corpus.slice(cut + 2);
+  }
+  savePersistentCorpus(corpus);
 }
 function isSaneMarkov(s) {
   if (!s || s.length < 20) return false;
@@ -3599,12 +3915,12 @@ var MarkovModel = class {
   addText(text) {
     const clean1 = corpusSanitize(text);
     for (const sentence of clean1.split(/(?<=[.!?…])\s+/)) {
-      const tokens2 = sentence.split(/\s+/).filter(Boolean);
-      if (tokens2.length <= this.order) continue;
-      this.starts.push(tokens2.slice(0, this.order).join(" "));
-      for (let i = 0; i + this.order < tokens2.length; i++) {
-        const key = tokens2.slice(i, i + this.order).join(" ");
-        const next = tokens2[i + this.order];
+      const tokens3 = sentence.split(/\s+/).filter(Boolean);
+      if (tokens3.length <= this.order) continue;
+      this.starts.push(tokens3.slice(0, this.order).join(" "));
+      for (let i = 0; i + this.order < tokens3.length; i++) {
+        const key = tokens3.slice(i, i + this.order).join(" ");
+        const next = tokens3[i + this.order];
         const arr = this.map.get(key);
         if (arr) arr.push(next);
         else this.map.set(key, [next]);
@@ -3668,6 +3984,12 @@ function ladeVorrat() {
     return [];
   }
 }
+function ziehVorrat(vorrat = ladeVorrat(), rnd = Math.random) {
+  const brauchbar = vorrat.filter((f) => f.ctx && (f.ctx.what || f.ctx.who || f.ctx.where));
+  if (!brauchbar.length) return null;
+  const i = Math.min(brauchbar.length - 1, Math.max(0, Math.floor(rnd() * brauchbar.length)));
+  return brauchbar[i];
+}
 function vorratStand(vorrat = ladeVorrat()) {
   return { funde: vorrat.length, tage: new Set(vorrat.map((f) => f.tag)).size };
 }
@@ -3678,6 +4000,10 @@ var ARTIKEL2 = new RegExp(
   "i"
 );
 var BILDVORRAT_KEY = "divergenz_bildvorrat_v1";
+function taugtFund(f) {
+  const c = f?.ctx;
+  return !!c && !!(c.who || c.where || c.when || c.what);
+}
 function ladeBildvorrat() {
   try {
     const r = JSON.parse(localStorage.getItem(BILDVORRAT_KEY) || "[]");
@@ -3686,6 +4012,12 @@ function ladeBildvorrat() {
   } catch {
     return [];
   }
+}
+function ziehBildvorrat(vorrat = ladeBildvorrat(), rnd = Math.random) {
+  const gut = vorrat.filter(taugtFund);
+  if (!gut.length) return null;
+  const i = Math.min(gut.length - 1, Math.max(0, Math.floor(rnd() * gut.length)));
+  return gut[i];
 }
 
 // src/features/themenpool.ts
@@ -3801,6 +4133,11 @@ function ladeThemen() {
   } catch {
     return [];
   }
+}
+function ziehThema(thema = "", vorrat = ladeThemen(), rnd = Math.random) {
+  const topf = thema ? vorrat.filter((f) => f.thema === thema) : vorrat;
+  if (!topf.length) return null;
+  return topf[Math.min(topf.length - 1, Math.floor(rnd() * topf.length))];
 }
 function themenStand(vorrat = ladeThemen()) {
   return { funde: vorrat.length, themen: new Set(vorrat.map((f) => f.thema)).size };
@@ -4286,6 +4623,8 @@ var WHAT_TWISTS = [
 
 // src/features/world.ts
 var EMPTY = () => ({ figuren: [], orte: [], timeline: [], beziehungen: [], tag: 1 });
+var stripTail = (s) => clean(s).replace(/[.!?…]+$/, "");
+var WORLD_TENSION = /vermisst|beobacht|taucht unter|untergetaucht|geheimnis|gejagt|falle|erpresst|verraten|erkannt|misstrauisch|spur|warnung|gerücht/i;
 function loadWorld() {
   try {
     const raw = localStorage.getItem(STORAGE_WORLD);
@@ -4302,9 +4641,131 @@ function loadWorld() {
     return EMPTY();
   }
 }
+function saveWorld(w) {
+  try {
+    localStorage.setItem(STORAGE_WORLD, JSON.stringify(w));
+  } catch {
+  }
+}
+var splitEntry = (line) => {
+  const p = String(line || "").split(/\s+—\s+/);
+  return { name: (p[0] || "").trim(), status: (p[1] || "").trim() };
+};
+var joinEntry = (name, status) => {
+  name = String(name || "").trim();
+  status = String(status || "").trim();
+  return status ? `${name} \u2014 ${status}` : name;
+};
+function upsertFigure(name, status) {
+  name = clean(name);
+  if (!name) return;
+  const w = loadWorld();
+  const idx = w.figuren.findIndex((l) => splitEntry(l).name.toLowerCase() === name.toLowerCase());
+  if (idx >= 0) w.figuren[idx] = joinEntry(name, clean(status) || splitEntry(w.figuren[idx]).status);
+  else w.figuren.push(joinEntry(name, clean(status) || "taucht zum ersten Mal auf"));
+  if (w.figuren.length > 100) w.figuren = w.figuren.slice(-100);
+  saveWorld(w);
+}
+function upsertOrt(name, zustand) {
+  name = clean(name);
+  if (!name) return;
+  const w = loadWorld();
+  const idx = w.orte.findIndex((l) => splitEntry(l).name.toLowerCase() === name.toLowerCase());
+  if (idx >= 0) w.orte[idx] = joinEntry(name, clean(zustand) || splitEntry(w.orte[idx]).status);
+  else w.orte.push(joinEntry(name, clean(zustand) || "wird zum ersten Mal erw\xE4hnt"));
+  if (w.orte.length > 100) w.orte = w.orte.slice(-100);
+  saveWorld(w);
+}
+function addTimeline(text) {
+  text = clean(text);
+  if (!text) return;
+  const w = loadWorld();
+  w.timeline.push(text);
+  if (w.timeline.length > 200) w.timeline = w.timeline.slice(-200);
+  saveWorld(w);
+}
+var WAS_ZU_STATUS = [
+  [/vermisst|taucht unter|gerücht/, [
+    "will unerkannt zur\xFCckkehren",
+    "will nicht gefunden werden",
+    "wartet, bis das Gerede aufh\xF6rt",
+    "kommt zur\xFCck, ohne angek\xFCndigt zu sein"
+  ]],
+  [/beobacht/, [
+    "will den Beobachter stellen",
+    "sucht das Fenster gegen\xFCber",
+    "merkt, dass jemand mitschreibt",
+    "dreht die Beobachtung um"
+  ]],
+  [/geheimnis|akte/, [
+    "will das Geheimnis beweisen",
+    "sucht die fehlende Seite",
+    "h\xE4lt die Akte zur\xFCck",
+    "verlangt Einsicht"
+  ]],
+  [/gejagt|erkannt|entkommt/, [
+    "will die Verfolger absch\xFCtteln",
+    "nimmt einen Umweg, der l\xE4nger dauert",
+    "wechselt den Namen und bleibt",
+    "geht dorthin zur\xFCck, wo man ihn kennt"
+  ]],
+  [/spur/, [
+    "will die Spur zu Ende verfolgen",
+    "findet den Anfang der Spur nicht",
+    "l\xE4uft der eigenen Spur nach",
+    "gibt die Spur bewusst auf"
+  ]]
+];
+function whatFromStatus(status) {
+  const s = (status || "").toLowerCase();
+  for (const [muster, saetze] of WAS_ZU_STATUS) if (muster.test(s)) return pick(saetze);
+  return "";
+}
+var WELT_SAAT = 6;
+function worldFillContext() {
+  const w = loadWorld();
+  let dirty = false;
+  while (w.figuren.length < WELT_SAAT) {
+    const name = pick(CTX_WHO);
+    if (w.figuren.some((l) => splitEntry(l).name === name)) {
+      if (w.figuren.length >= CTX_WHO.length) break;
+      continue;
+    }
+    w.figuren.push(joinEntry(name, "taucht zum ersten Mal auf"));
+    dirty = true;
+  }
+  while (w.orte.length < WELT_SAAT) {
+    const ort2 = pick(CTX_WHERE);
+    if (w.orte.some((l) => splitEntry(l).name === ort2)) {
+      if (w.orte.length >= CTX_WHERE.length) break;
+      continue;
+    }
+    w.orte.push(joinEntry(ort2, "wird zum ersten Mal erw\xE4hnt"));
+    dirty = true;
+  }
+  if (dirty) saveWorld(w);
+  const tense = w.figuren.filter((l) => WORLD_TENSION.test(l));
+  const fig = splitEntry(pick(tense.length && Math.random() < 0.67 ? tense : w.figuren));
+  const lived = w.orte.filter((l) => !/zum ersten Mal erwähnt/i.test(l));
+  const ort = splitEntry(pick(lived.length && Math.random() < 0.67 ? lived : w.orte));
+  return { who: fig.name, where: ort.name, when: pick(CTX_WHEN), what: whatFromStatus(fig.status) || pick(CTX_WHAT) };
+}
+function worldLogGeneration(input) {
+  try {
+    const who = clean(input.who || ""), where = clean(input.where || ""), what = clean(input.what || ""), when = clean(input.when || "");
+    if (who) upsertFigure(who, what || "aktiv");
+    if (where) upsertOrt(where, what ? `Schauplatz: ${stripTail(what)}` : "besucht");
+    if (who || where) {
+      const tag = loadWorld().tag || 1;
+      addTimeline(`Tag ${tag} \u2014 ${who ? cap(who) : "Jemand"} ${what || "handelt"}${where ? ", " + where : ""}${when ? " (" + when + ")" : ""}.`);
+    }
+  } catch {
+  }
+}
 
 // src/features/treasury.ts
 var TKEY = "dm_treasury_v1";
+var TCAP = 100;
 function loadTreasury() {
   try {
     const v = JSON.parse(localStorage.getItem(TKEY) || "[]");
@@ -4313,9 +4774,50 @@ function loadTreasury() {
     return [];
   }
 }
+function saveTreasury(list) {
+  safeSet(TKEY, JSON.stringify(list), "Schatzkammer");
+}
+function addToTreasury(text, ctx) {
+  const t = (text || "").trim();
+  if (!t) return -1;
+  const list = loadTreasury();
+  if (list.length && list[list.length - 1].t === t) return -1;
+  list.push({ t, who: ctx.who || "", where: ctx.where || "", when: ctx.when || "", what: ctx.what || "", form: ctx.form || "", d: (/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace("T", " "), ...ctx.set ? { set: ctx.set } : {} });
+  while (list.length > TCAP) list.shift();
+  saveTreasury(list);
+  try {
+    appendToPersistentCorpus(t.replace(/\n+/g, " ").trim());
+  } catch {
+  }
+  try {
+    feedLivePools(t, LIVE_W.schatz);
+  } catch {
+  }
+  return list.length;
+}
+function addToTreasurySecret(text, ctx) {
+  const t = (text || "").trim();
+  if (!t) return -1;
+  const list = loadTreasury();
+  if (list.length && list[list.length - 1].t === t) return -1;
+  list.push({ t, who: ctx.who || "", where: ctx.where || "", when: ctx.when || "", what: ctx.what || "", form: ctx.form || "", d: (/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace("T", " "), secret: true, ...ctx.set ? { set: ctx.set } : {} });
+  while (list.length > TCAP) list.shift();
+  saveTreasury(list);
+  return list.length;
+}
+function clearTreasury() {
+  saveTreasury([]);
+}
 
 // src/generation/dramaturgie.ts
 var DKEY = "dm_dramaturgie_v1";
+function setDramaData(d) {
+  try {
+    if (d) localStorage.setItem(DKEY, JSON.stringify(d));
+    else localStorage.removeItem(DKEY);
+  } catch {
+  }
+}
 function loadDramaData() {
   try {
     const r = localStorage.getItem(DKEY);
@@ -12078,6 +12580,45 @@ var PRESET_LABELS = {
 };
 
 // src/features/schaltplan.ts
+var SCHLOSS_ZU_KNOTEN = {
+  "f-preset": "preset",
+  "f-tone": "ton",
+  "f-form": "form",
+  "f-structure": "struktur",
+  "f-mode": "modus",
+  "f-markov": "markov",
+  "f-disruptor": "disruptor",
+  "f-varianz": "varianz",
+  "f-instab": "instab",
+  "f-archa": "archa",
+  "f-archb": "archb",
+  "f-cast": "cast",
+  "f-persp": "persp",
+  "f-rhythm": "rhythm",
+  "f-tension": "spannung",
+  "f-ressort": "ressort",
+  "f-len": "laenge",
+  "f-novelty": "neuheit",
+  "f-surprise": "ueberraschung",
+  "f-umwelt": "umwelt",
+  "f-umwelt-wirkung": "umwelt",
+  "f-where": "w4",
+  "f-when": "w4",
+  "f-who": "w4",
+  "f-what": "w4",
+  "f-w-wo": "gewicht",
+  "f-w-wann": "gewicht",
+  "f-w-wer": "gewicht",
+  "f-w-was": "gewicht",
+  "k-fuegeteil": "k-fuegeteil",
+  "k-w4max": "k-w4max",
+  "k-abstand": "k-abstand",
+  "k-bogen": "k-bogen",
+  "k-ton": "k-ton",
+  "k-korpus": "k-korpus",
+  "k-phrase": "k-phrase",
+  "k-satzlaenge": "k-satzlaenge"
+};
 var ANLAGE_KEY = "dm_anlage_v1";
 function saveAnlage(s) {
   try {
@@ -12139,13 +12680,27 @@ function baueAnlage(stand, u) {
   knoten2("live", 0, "Live-Pools", `${u.livePools} Phrasen`, u.livePools ? "an" : "aus");
   const w4 = stand.w4 || { where: "", when: "", who: "", what: "" };
   const gefuellt = [w4.where, w4.when, w4.who, w4.what].filter((x) => (x || "").trim()).length;
+  const w4Ids = ["f-where", "f-when", "f-who", "f-what"];
+  const w4Zu = w4Ids.filter((id) => g(id)).length;
+  K.push({
+    id: "w4",
+    band: 1,
+    label: "Vier W",
+    wert: `${gefuellt} von 4 gef\xFCllt`,
+    zustand: gefuellt ? "an" : "leer",
+    gesperrt: false,
+    hinweis: (gefuellt ? "" : "alle vier Felder sind leer \u2014 der Kontext tr\xE4gt nichts bei. ") + (w4Zu ? `${w4Zu} von 4 Feldern gesperrt` : "")
+  });
+  if (!gefuellt) befunde.push("Vier W: alle vier Felder sind leer");
+  const gew = (r["gewicht"] || "0/0/0/0").split("/");
+  const gewAn = gew.some((x) => (parseInt(x, 10) || 0) !== 0);
   knoten2(
-    "w4",
+    "gewicht",
     1,
-    "Vier W",
-    `${gefuellt} von 4 gef\xFCllt`,
-    gefuellt ? "an" : "leer",
-    gefuellt ? "" : "alle vier Felder sind leer \u2014 der Kontext tr\xE4gt nichts bei"
+    "4W-Gewichtung",
+    gew.join(" \xB7 "),
+    gewAn ? "an" : "aus",
+    gewAn ? "" : "alle vier gleich gewichtet"
   );
   knoten2("preset", 1, "Wortbank", u.presetLabel || r["preset"] || "\u2014", "an", "", "f-preset");
   knoten2("ton", 1, "Ton", bez(TONE_OPTS, r["tone"] || "neutral"), "an", "", "f-tone");
@@ -12219,6 +12774,26 @@ function baueAnlage(stand, u) {
   schraube("korpus", "Korpus-Bausteine", " %");
   schraube("phrase", "Phrasensperre", "");
   schraube("satzlaenge", "Satzl\xE4nge", "");
+  const cast = r["cast"] ?? "0.5";
+  knoten2(
+    "cast",
+    2,
+    "Figurendisziplin",
+    cast === "0" ? "Offen" : cast === "1" ? "Streng" : "Mittel",
+    "an",
+    "",
+    "f-cast"
+  );
+  const umwelt = (r["umwelt"] || "").trim();
+  knoten2(
+    "umwelt",
+    2,
+    "Umwelt",
+    umwelt ? r["umweltWirkung"] || "an" : "aus",
+    umwelt ? "an" : "aus",
+    umwelt ? "" : "kein Umweltzeichen eingetragen",
+    "f-umwelt"
+  );
   knoten2("persp", 3, "Perspektive", bez(PERSP_OPTS, r["perspective"] || "third"), "an", "", "f-persp");
   knoten2("rhythm", 3, "Rhythmus", bez(RHYTHM_OPTS, r["rhythm"] || "auto"), "an", "", "f-rhythm");
   const spannung = r["tension"] || "auto";
@@ -12230,6 +12805,18 @@ function baueAnlage(stand, u) {
     "Dubletten \xB7 Koh\xE4renz \xB7 Bruchst\xFCcke",
     "an",
     "l\xE4uft immer: gleiche Nachbars\xE4tze, Motivbezug, abgeschnittene Bausteine"
+  );
+  const nov = parseInt(r["novelty"] ?? "0", 10) || 0;
+  knoten2("neuheit", 3, "Neuheit", nov + " %", nov ? "an" : "aus", "", "f-novelty");
+  const surp = parseInt(r["surprise"] ?? "0", 10) || 0;
+  knoten2(
+    "ueberraschung",
+    3,
+    "\xDCberraschung",
+    surp ? "Ziel " + surp + " %" : "aus",
+    surp ? "an" : "aus",
+    "",
+    "f-surprise"
   );
   const form = r["form"] || "prose";
   knoten2("form", 4, "Form", bez(FORM_OPTS, form), "an", "", "f-form");
@@ -12243,7 +12830,7 @@ function baueAnlage(stand, u) {
     bericht ? "" : "",
     "f-ressort"
   );
-  knoten2("laenge", 4, "L\xE4nge", (r["lenTarget"] || "?") + " W\xF6rter", "fest");
+  knoten2("laenge", 4, "L\xE4nge", (r["lenTarget"] || "?") + " W\xF6rter", "fest", "", "f-len");
   for (const [a, b] of [
     ["korpus", "markov"],
     ["korpus", "k-korpus"],
@@ -12253,6 +12840,16 @@ function baueAnlage(stand, u) {
     ["welt", "w4"],
     ["preset", "drama"]
   ]) kante(a, b);
+  const proKnoten = /* @__PURE__ */ new Map();
+  for (const [id, ziel] of Object.entries(SCHLOSS_ZU_KNOTEN)) {
+    const l = proKnoten.get(ziel) || [];
+    l.push(id);
+    proKnoten.set(ziel, l);
+  }
+  for (const k of K) {
+    const ids = proKnoten.get(k.id);
+    if (ids) k.gesperrt = ids.every((id) => g(id));
+  }
   return { knoten: K, kanten: E, zeit: (/* @__PURE__ */ new Date()).toLocaleString("de-DE"), befunde };
 }
 var LOCK_KEY = "divergenz_studio_locks_v1";
@@ -12282,220 +12879,6 @@ function sammleUmgebung(preset) {
   };
 }
 
-// src/features/ressorts.ts
-var S = (t) => ({ t });
-var P = (t) => ({ t, pl: true });
-var RESSORTS = {
-  wirtschaft: {
-    id: "wirtschaft",
-    label: "Wirtschaft",
-    rollenF: ["Gesch\xE4ftsf\xFChrerin", "Betriebsr\xE4tin", "Sprecherin", "Analystin", "Standortleiterin", "Ausbilderin"],
-    rollenM: ["Gesch\xE4ftsf\xFChrer", "Betriebsratsvorsitzender", "Sprecher", "Analyst", "Betriebsrat", "Standortleiter", "Ausbilder"],
-    betroffen: ["der Betrieb", "die Belegschaft", "die Zulieferer", "die Auftragsb\xFCcher", "der Standort", "die Ausbildungspl\xE4tze", "die Auszubildenden", "die Werkshalle", "die Fuhrparks", "die Schichtpl\xE4ne"],
-    einheiten: [
-      { einheit: "Besch\xE4ftigte", rolle: "betroffene", min: 40, max: 900, rund: 10, gen: "Besch\xE4ftigten" },
-      { einheit: "Zulieferer", rolle: "betroffene", min: 12, max: 120, rund: 1 },
-      { einheit: "Millionen Euro Umsatz", rolle: "geld", min: 2, max: 900, rund: 1 },
-      { einheit: "Standorte", rolle: "vorgaenge", min: 2, max: 40, rund: 1 },
-      { einheit: "Meter Kaimauer", rolle: "groesse", min: 40, max: 900, rund: 10 },
-      { einheit: "Quadratmeter Hallenfl\xE4che", rolle: "groesse", min: 400, max: 24e3, rund: 100 }
-    ],
-    zusatz: { titel: "Marktreaktion", rahmen: ["Am Markt hei\xDFt es:", "In der Branche gilt:", "Beobachter verweisen auf:", "Aus der Belegschaft:", "Im Betriebsrat:", "Am Werkstor:"] },
-    einsatz: [S("der Standort"), S("die Altersversorgung der Belegschaft"), P("die Ausbildungspl\xE4tze"), S("der Name des Hauses"), S("die Lieferkette"), S("das Werksgel\xE4nde"), S("die Tarifbindung"), S("der Standort selbst")],
-    gewinn: [S("ein zweites Werk"), S("die Ausbildungsoffensive"), S("der Ausbau des Standorts"), S("die R\xFCckkehr der Auftr\xE4ge"), S("ein neuer Tarifvertrag"), S("eine zweite Schicht"), S("ein Ausbildungsverbund"), S("die \xDCbernahme der Auszubildenden")],
-    ausblickGut: ["Ob die Zahlen halten, entscheidet sich im n\xE4chsten Quartal.", "Die ersten Einstellungen sind fuer den Herbst angek\xFCndigt.", "Die Auftr\xE4ge reichen bis ins n\xE4chste Jahr.", "Weitere Einstellungen sind vorgesehen."],
-    ausblick: ["Ob die Zahlen halten, entscheidet sich im n\xE4chsten Quartal.", "Eine Entscheidung soll in den kommenden Tagen fallen.", "Die Verhandlungen sollen weitergehen.", "Ein Gutachten ist in Auftrag gegeben.", "Die Belegschaft wird kommende Woche informiert."],
-    regel: "zweiZahlen"
-  },
-  politik: {
-    id: "politik",
-    label: "Politik",
-    rollenF: ["Abgeordnete", "Fraktionssprecherin", "Staatssekret\xE4rin", "Fraktionsvorsitzende", "Amtsleiterin", "B\xFCrgermeisterin"],
-    rollenM: ["Abgeordneter", "Fraktionssprecher", "Staatssekret\xE4r", "Fraktionsvorsitzender", "Amtsleiter", "B\xFCrgermeister"],
-    betroffen: ["das Verfahren", "die Fraktionen", "die Kommunen", "der Zeitplan", "die Antragsteller", "die Aussch\xFCsse", "die Verwaltung", "die B\xFCrgersprechstunde", "die Haushaltsplanung", "das Ehrenamt"],
-    einheiten: [
-      { einheit: "Wahlberechtigte", rolle: "betroffene", min: 500, max: 9e4, rund: 100, gen: "Wahlberechtigten" },
-      { einheit: "Kommunen", rolle: "betroffene", min: 12, max: 200, rund: 1 },
-      { einheit: "Stimmen", rolle: "vorgaenge", min: 20, max: 700, rund: 1 },
-      { einheit: "Sitzungen", rolle: "vorgaenge", min: 2, max: 60, rund: 1 },
-      { einheit: "Sitze", rolle: "groesse", min: 5, max: 120, rund: 1 },
-      { einheit: "Stimmbezirke", rolle: "groesse", min: 4, max: 90, rund: 1 }
-    ],
-    zusatz: { titel: "Reaktionen", rahmen: ["Aus der Regierung hei\xDFt es:", "Die Opposition h\xE4lt dagegen:", "Aus den L\xE4ndern kommt:", "Im Rathaus:", "Aus der Fraktion:", "In der Sitzung:"] },
-    einsatz: [S("die Mehrheit"), S("der Zeitplan des Verfahrens"), S("das Vertrauen in die Zusage"), S("die Zust\xE4ndigkeit der Kommunen"), S("der Haushaltsansatz"), S("die Mehrheit im Rat"), S("der Haushalt"), P("die Fristen"), S("das Vertrauen in die Verwaltung")],
-    gewinn: [S("eine breite Mehrheit"), S("die Zustimmung der L\xE4nder"), S("ein fr\xFCherer Beginn"), S("die Aufstockung der Mittel"), S("eine breitere Mehrheit"), S("ein zus\xE4tzlicher Ausschuss"), S("mehr Mittel im Haushalt")],
-    ausblickGut: ["Der Beschluss soll in der n\xE4chsten Sitzung best\xE4tigt werden.", "Die Umsetzung beginnt im kommenden Jahr.", "Die Vorlage gilt als sicher.", "Weitere Mittel sind zugesagt."],
-    ausblick: ["Der Verfahrensstand bleibt bis zur n\xE4chsten Sitzung unver\xE4ndert.", "Ob es zur Abstimmung kommt, ist offen.", "Die Abstimmung ist vertagt.", "Der Ausschuss tagt erneut.", "Eine Stellungnahme steht aus."],
-    regel: "lagerAusgewogen"
-  },
-  kultur: {
-    id: "kultur",
-    label: "Kultur",
-    rollenF: ["Intendantin", "Kuratorin", "Dramaturgin", "Kritikerin", "Werkstattleiterin", "Regisseurin"],
-    rollenM: ["Intendant", "Kurator", "Dramaturg", "Kritiker", "Werkstattleiter", "Regisseur"],
-    betroffen: ["das Ensemble", "der Spielplan", "die Abonnenten", "die Werkst\xE4tten", "die Nachwuchsarbeit", "die Technik", "die Statisterie", "die Requisite", "das Foyer", "die Bibliothek des Hauses"],
-    einheiten: [
-      { einheit: "Ensemblemitglieder", rolle: "betroffene", min: 12, max: 200, rund: 1 },
-      { einheit: "Abonnenten", rolle: "betroffene", min: 50, max: 8e3, rund: 10 },
-      { einheit: "Vorstellungen", rolle: "vorgaenge", min: 3, max: 200, rund: 1 },
-      { einheit: "Minuten Spieldauer", rolle: "dauer", min: 45, max: 240, rund: 5 },
-      { einheit: "Sitzpl\xE4tze", rolle: "groesse", min: 90, max: 1400, rund: 10 },
-      { einheit: "Exponate", rolle: "groesse", min: 12, max: 600, rund: 2 }
-    ],
-    zusatz: { titel: "Zum Werk", rahmen: ["Zu sehen ist:", "Die Arbeit zeigt:", "Auf der B\xFChne steht:", "Aus dem Ensemble:", "An der Kasse:", "In der Probe:"] },
-    einsatz: [S("der Spielplan der kommenden Saison"), S("das Ensemble in seiner jetzigen Form"), P("die Werkst\xE4tten"), S("das Haus als Ort"), S("die Nachwuchsarbeit"), S("die Urauff\xFChrung"), S("der Spielplan"), P("die Gastspiele"), S("das Ensemble selbst")],
-    gewinn: [S("eine zweite Spielst\xE4tte"), S("die \xDCbernahme ins Repertoire"), S("ein eigenes Nachwuchsstudio"), S("die Verlaengerung der Reihe"), P("neue Abonnements"), S("ein Gastspiel im Ausland")],
-    ausblickGut: ["Die n\xE4chste Auff\xFChrung ist angek\xFCndigt.", "Weitere Termine sollen folgen.", "Die Vorstellung wird verl\xE4ngert.", "Weitere Termine kommen dazu."],
-    ausblick: ["Ob das Publikum folgt, wird sich zeigen.", "Die n\xE4chste Auff\xFChrung ist angek\xFCndigt.", "Die Premiere bleibt geplant.", "Die Proben werden fortgesetzt.", "\xDCber den Spielplan wird neu beraten."],
-    regel: "wertungGetrennt"
-  },
-  sport: {
-    id: "sport",
-    label: "Sport",
-    rollenF: ["Trainerin", "Kapit\xE4nin", "Sportdirektorin", "Torh\xFCterin", "Abteilungsleiterin"],
-    rollenM: ["Trainer", "Kapit\xE4n", "Sportdirektor", "Torh\xFCter", "Abteilungsleiter"],
-    betroffen: ["der Verein", "die Fans", "das Marketing", "das Logo", "die Mannschaft", "der Nachwuchs", "die Sponsoren", "die Dauerkarten", "die Jugendabteilung", "die Dauerkartenbesitzer", "der Trainingsbetrieb", "die Gesch\xE4ftsstelle", "der Fanclub"],
-    einheiten: [
-      { einheit: "Vereinsmitglieder", rolle: "betroffene", min: 50, max: 4e4, rund: 10 },
-      { einheit: "Dauerkarten", rolle: "betroffene", min: 100, max: 3e4, rund: 100 },
-      { einheit: "Zuschauer", rolle: "betroffene", min: 200, max: 6e4, rund: 100 },
-      { einheit: "Minuten", rolle: "dauer", min: 5, max: 120, rund: 1 },
-      { einheit: "Punkte", rolle: "groesse", min: 3, max: 60, rund: 1 },
-      { einheit: "Meter Laufbahn", rolle: "groesse", min: 100, max: 800, rund: 50 }
-    ],
-    zusatz: { titel: "Spielverlauf", rahmen: ["Nach der Pause:", "In der Schlussphase:", "Zur Halbzeit:", "In der Kabine:", "Auf der Trib\xFCne:", "In der Gesch\xE4ftsstelle:"] },
-    einsatz: [S("der Klassenerhalt"), S("die Lizenz"), S("die Nachwuchsabteilung"), S("der Name des Vereins"), S("die Heimspielst\xE4tte"), S("das Traineramt"), S("der Aufstieg"), P("die Heimspiele"), S("der Trainingsbetrieb")],
-    gewinn: [S("der Aufstieg"), S("ein neuer Hauptsponsor"), S("der Ausbau der Jugendabteilung"), S("die R\xFCckkehr in die Halle"), S("ein neuer Trainingsplatz"), P("zus\xE4tzliche Heimspiele"), S("die R\xFCckkehr der Zuschauer")],
-    ausblickGut: ["Das R\xFCckspiel steht noch aus.", "Die Vorbereitung beginnt im Sommer.", "Die Serie soll fortgesetzt werden.", "Weitere Zusagen liegen vor."],
-    ausblick: ["Das R\xFCckspiel steht noch aus.", "Ob die Serie h\xE4lt, entscheidet sich am Wochenende.", "Das n\xE4chste Spiel entscheidet.", "Der Verband pr\xFCft den Vorgang.", "Eine Entscheidung f\xE4llt nach der Saison."],
-    regel: "ergebnisZuerst"
-  },
-  wissenschaft: {
-    id: "wissenschaft",
-    label: "Wissenschaft",
-    rollenF: ["Studienleiterin", "Professorin", "Erstautorin", "Gutachterin", "Institutsleiterin", "Doktorandin", "Laborleiterin"],
-    rollenM: ["Studienleiter", "Professor", "Erstautor", "Gutachter", "Institutsleiter", "Doktorand", "Laborleiter"],
-    betroffen: ["die Studie", "die Arbeitsgruppe", "die F\xF6rderung", "die Ver\xF6ffentlichung", "die Datenbasis", "die Messreihen", "die Drittmittel", "die Doktoranden", "das Labor", "die Sammlung"],
-    einheiten: [
-      { einheit: "Teilnehmende", rolle: "betroffene", min: 12, max: 4e3, rund: 1, gen: "Teilnehmenden" },
-      { einheit: "Institute", rolle: "betroffene", min: 12, max: 40, rund: 1 },
-      { einheit: "Proben", rolle: "vorgaenge", min: 12, max: 4e3, rund: 1 },
-      { einheit: "Monate Laufzeit", rolle: "dauer", min: 3, max: 96, rund: 1 },
-      { einheit: "Messreihen", rolle: "groesse", min: 6, max: 220, rund: 2 },
-      { einheit: "Datens\xE4tze", rolle: "groesse", min: 40, max: 9e3, rund: 10 }
-    ],
-    zusatz: { titel: "Methode", rahmen: ["Untersucht wurde:", "Erhoben wurden:", "Verglichen wurde:", "Im Labor:", "Aus der Arbeitsgruppe:", "Am Rande der Tagung:"] },
-    einsatz: [S("die F\xF6rderung"), S("die Vergleichbarkeit der Daten"), S("die Ver\xF6ffentlichung"), S("der Standort des Instituts"), S("die Fortsetzung der Reihe"), S("die F\xF6rderzusage"), S("die Messreihe"), P("die Nachwuchsstellen"), S("der Zugang zur Sammlung")],
-    gewinn: [S("eine Anschlussfoerderung"), S("ein zweiter Standort"), S("die Aufnahme in das Programm"), S("ein gemeinsames Labor"), S("eine zweite F\xF6rderperiode"), P("neue Messpl\xE4tze")],
-    ausblickGut: ["Eine Wiederholung der Studie ist geplant.", "Die Ergebnisse sollen offen zug\xE4nglich werden.", "Die F\xF6rderung ist verl\xE4ngert.", "Weitere H\xE4user beteiligen sich."],
-    ausblick: ["Eine Wiederholung der Studie steht aus.", "Ob sich der Befund best\xE4tigt, ist offen.", "Die Auswertung dauert an.", "Die Ergebnisse sollen gepr\xFCft werden.", "Eine Wiederholung des Versuchs ist geplant."],
-    regel: "einschraenkungPflicht"
-  },
-  gesellschaft: {
-    id: "gesellschaft",
-    label: "Gesellschaft",
-    rollenF: ["Sozialarbeiterin", "Anwohnerin", "Vereinsvorsitzende", "Beraterin", "Quartiersmanagerin", "Ehrenamtskoordinatorin", "Gemeindereferentin"],
-    rollenM: ["Sozialarbeiter", "Anwohner", "Vereinsvorsitzender", "Berater", "Quartiersmanager", "Ehrenamtskoordinator", "Gemeindereferent"],
-    betroffen: ["die Nachbarschaft", "die Familien", "das Ehrenamt", "die Beratungsstelle", "der Treffpunkt", "der Sportverein", "die Kirchengemeinde", "die Kita", "die Tafel", "die Nachbarschaftshilfe", "der Schrebergarten", "die Freiwillige Feuerwehr"],
-    einheiten: [
-      { einheit: "Haushalte", rolle: "betroffene", min: 20, max: 4e3, rund: 10 },
-      { einheit: "Familien", rolle: "betroffene", min: 12, max: 2e3, rund: 10 },
-      { einheit: "Haushalte", rolle: "betroffene", min: 20, max: 4e3, rund: 10 },
-      { einheit: "Beratungen", rolle: "vorgaenge", min: 10, max: 900, rund: 1 },
-      { einheit: "Quadratmeter Nutzfl\xE4che", rolle: "groesse", min: 60, max: 3e3, rund: 10 },
-      { einheit: "Pl\xE4tze", rolle: "groesse", min: 8, max: 300, rund: 2 }
-    ],
-    zusatz: { titel: "Vor Ort", rahmen: ["Im Viertel hei\xDFt es:", "Nachbarn berichten:", "In der Beratungsstelle:", "Am Tresen:", "Im Gemeindehaus:", "Auf dem Wochenmarkt:"] },
-    einsatz: [S("der Treffpunkt im Viertel"), S("die Beratung vor Ort"), S("das Ehrenamt"), S("die Mietbindung"), S("der Zusammenhalt in der Nachbarschaft"), S("die Nachbarschaftshilfe"), P("die \xD6ffnungszeiten"), S("das Gemeindehaus"), S("die Tafel")],
-    gewinn: [S("ein neuer Treffpunkt"), S("die Verstetigung der Beratung"), S("mehr Pl\xE4tze im Ehrenamt"), S("ein Nachbarschaftsfonds"), S("ein zweiter Treffpunkt"), P("l\xE4ngere \xD6ffnungszeiten"), S("eine feste Stelle in der Beratung")],
-    ausblickGut: ["Das Angebot soll im Fr\xFChjahr starten.", "Weitere H\xE4user haben Interesse angemeldet.", "Die \xD6ffnungszeiten werden ausgeweitet.", "Weitere Freiwillige haben sich gemeldet."],
-    ausblick: ["Wie es im Viertel weitergeht, ist offen.", "Eine Entscheidung soll in den kommenden Wochen fallen.", "Der Verein sucht weiter Freiwillige.", "Ein Treffen ist f\xFCr den Herbst angesetzt.", "Die Stadt pr\xFCft eine F\xF6rderung."],
-    regel: "keine"
-  },
-  gesundheit: {
-    id: "gesundheit",
-    label: "Gesundheit",
-    rollenF: ["\xC4rztliche Direktorin", "Pflegedienstleiterin", "Amts\xE4rztin", "Epidemiologin", "Chef\xE4rztin", "Apothekerin"],
-    rollenM: ["\xC4rztlicher Direktor", "Pflegedienstleiter", "Amtsarzt", "Epidemiologe", "Chefarzt", "Apotheker"],
-    betroffen: ["die Versorgung", "die Pflegekr\xE4fte", "die Notaufnahme", "die Wartezeiten", "die Angeh\xF6rigen", "der Bereitschaftsdienst", "die Apotheken", "die Hausarztpraxen", "der Krankentransport", "die Physiotherapie"],
-    einheiten: [
-      { einheit: "Patientinnen und Patienten", rolle: "betroffene", min: 30, max: 9e3, rund: 10 },
-      { einheit: "Pflegekr\xE4fte", rolle: "betroffene", min: 12, max: 900, rund: 1 },
-      { einheit: "Betten", rolle: "groesse", min: 20, max: 1200, rund: 10 },
-      { einheit: "Behandlungen", rolle: "vorgaenge", min: 30, max: 9e3, rund: 10 }
-    ],
-    zusatz: { titel: "Einordnung der Lage", rahmen: ["Aus der Klinik hei\xDFt es:", "Die Beh\xF6rde teilt mit:", "In der Versorgung zeigt sich:", "Auf der Station:", "In der Pflege:", "Am Empfang:"] },
-    einsatz: [S("die Versorgung im Umkreis"), S("die Notaufnahme"), P("die Ausbildungspl\xE4tze in der Pflege"), P("die Wartezeiten"), S("der Standort der Klinik"), P("die Betten"), S("der Bereitschaftsdienst"), S("die Versorgung im Umland")],
-    gewinn: [S("eine zusaetzliche Station"), S("k\xFCrzere Wartezeiten"), S("mehr Ausbildungspl\xE4tze in der Pflege"), S("ein zweiter Rettungswagen"), S("eine zus\xE4tzliche Station"), P("mehr Betten")],
-    ausblickGut: ["Die Station soll im Herbst \xF6ffnen.", "Die Versorgung im Umkreis wird neu geordnet.", "Die Station soll erweitert werden.", "Weitere Kr\xE4fte sind eingestellt."],
-    ausblick: ["Wie sich die Lage entwickelt, bleibt abzuwarten.", "Eine Neubewertung ist f\xFCr die kommende Woche angek\xFCndigt.", "Die Aufsicht pr\xFCft den Vorgang.", "Eine \xDCbergangsl\xF6sung wird gesucht.", "Der Betrieb l\xE4uft eingeschr\xE4nkt weiter."],
-    // Bewusst keine Sonderregel mit Zahlenpflicht: Gesundheitsberichte, die
-    // Zahlen erzwingen, erfinden welche. Lieber weniger und richtig.
-    regel: "keine"
-  },
-  bildung: {
-    id: "bildung",
-    label: "Bildung",
-    rollenF: ["Schulleiterin", "Elternsprecherin", "Lehrerin", "Bildungsforscherin", "Fachlehrerin"],
-    rollenM: ["Schulleiter", "Elternsprecher", "Lehrer", "Bildungsforscher", "Fachlehrer"],
-    betroffen: ["der Unterricht", "die Elternh\xE4user", "das Kollegium", "der Stundenplan", "die Abschlussjahrg\xE4nge", "die Elternvertretung", "die Ganztagsbetreuung", "die Werkr\xE4ume", "die Schulbusse", "die Mensa"],
-    einheiten: [
-      { einheit: "Sch\xFClerinnen und Sch\xFCler", rolle: "betroffene", min: 30, max: 2e3, rund: 10 },
-      { einheit: "Lehrkr\xE4fte", rolle: "betroffene", min: 12, max: 200, rund: 1 },
-      { einheit: "Sch\xFClerinnen und Sch\xFCler", rolle: "betroffene", min: 30, max: 2e3, rund: 10 },
-      { einheit: "Unterrichtsstunden", rolle: "dauer", min: 4, max: 400, rund: 2 },
-      { einheit: "Klassenr\xE4ume", rolle: "groesse", min: 3, max: 60, rund: 1 },
-      { einheit: "Wochenstunden", rolle: "groesse", min: 4, max: 40, rund: 1 }
-    ],
-    zusatz: { titel: "An der Schule", rahmen: ["Im Kollegium hei\xDFt es:", "Aus der Elternschaft:", "Im Unterricht zeigt sich:", "Im Lehrerzimmer:", "Auf dem Schulhof:", "In der Elternversammlung:"] },
-    einsatz: [S("der Ganztag"), S("das Abschlussjahr"), P("die Stellen im Kollegium"), S("der Schulstandort"), S("die Betreuung am Nachmittag"), P("die Werkr\xE4ume"), S("die Schulbusverbindung"), S("das Kollegium")],
-    gewinn: [S("zus\xE4tzliche Klassen"), S("der Ausbau des Ganztags"), S("zusaetzliche Stellen im Kollegium"), S("eine eigene Werkstatt"), S("eine zus\xE4tzliche Klasse"), P("neue Werkr\xE4ume"), S("eine zweite Schulbuslinie")],
-    ausblickGut: ["Der Start ist fuer das kommende Schuljahr geplant.", "Die Stellen sollen zum Halbjahr besetzt werden.", "Die Klasse wird eingerichtet.", "Weitere Stellen sind besetzt."],
-    ausblick: ["Ob die Stunden ersetzt werden, ist offen.", "Das n\xE4chste Schuljahr soll Klarheit bringen.", "Das Schulamt pr\xFCft den Fall.", "Die Elternversammlung tagt kommende Woche.", "Eine L\xF6sung soll bis zum Halbjahr stehen."],
-    regel: "keine"
-  },
-  wetter: {
-    id: "wetter",
-    label: "Wetter",
-    rollenF: ["Meteorologin", "Wetterdienst-Sprecherin", "Einsatzleiterin", "Deichvorsteherin", "Deichgr\xE4fin"],
-    rollenM: ["Meteorologe", "Wetterdienst-Sprecher", "Einsatzleiter", "Deichvorsteher", "Deichgraf"],
-    einheiten: [
-      { einheit: "Gemeinden", rolle: "betroffene", min: 12, max: 400, rund: 2 },
-      { einheit: "H\xF6fe", rolle: "betroffene", min: 12, max: 800, rund: 2 },
-      { einheit: "Liter je Quadratmeter", rolle: "groesse", min: 14, max: 180, rund: 2 },
-      { einheit: "Stundenkilometer", rolle: "groesse", min: 60, max: 200, rund: 5 },
-      { einheit: "Zentimeter Neuschnee", rolle: "groesse", min: 12, max: 90, rund: 2 },
-      { einheit: "Eins\xE4tze", rolle: "vorgaenge", min: 20, max: 900, rund: 2 },
-      { einheit: "Stunden Dauerregen", rolle: "dauer", min: 4, max: 60, rund: 2 }
-    ],
-    betroffen: ["die K\xFCste", "der Deich", "die Ernte", "der Bahnverkehr", "die Schulen", "die Feuerwehr", "die F\xE4hren", "die Deichverb\xE4nde", "der F\xE4hrbetrieb", "die Obstbauern", "die Feuerwehren", "der Schienenverkehr", "die Campingpl\xE4tze"],
-    einsatz: [S("die Ernte"), S("der Deich"), S("der Bahnverkehr"), S("die Trinkwasserversorgung"), S("die F\xE4hrverbindung"), P("die F\xE4hrverbindungen"), S("die Stromversorgung"), S("der K\xFCstenschutz"), S("die Obsternte")],
-    gewinn: [S("eine trockene Erntewoche"), S("die R\xFCckkehr des Grundwassers"), S("ein mildes Wochenende"), S("die Entwarnung f\xFCr die K\xFCste"), S("eine Entspannung der Lage"), P("wieder befahrbare Stra\xDFen"), S("die R\xFCckkehr des F\xE4hrbetriebs")],
-    zusatz: { titel: "Aussichten", rahmen: ["F\xFCr morgen gilt:", "Zum Wochenende:", "In der Nacht:", "Am Deich:", "Im Hafen:", "Auf den Feldern:"] },
-    hintergrundKopf: (_wer, jahr) => `Vergleichbare Lagen gab es zuletzt ${jahr}.`,
-    ausblickGut: ["Die Warnung wird zum Abend aufgehoben.", "Das Hoch soll sich bis zur Wochenmitte halten.", "Die Warnung wurde aufgehoben.", "Der Betrieb l\xE4uft wieder an."],
-    ausblick: ["Die Warnstufe bleibt vorerst bestehen.", "Wie lange die Lage anh\xE4lt, ist offen.", "Der Warndienst bleibt bestehen.", "Die Lage wird st\xFCndlich neu bewertet.", "Eine Entwarnung steht aus."],
-    // Keine Sonderregel: Ein Wetterbericht, der Zahlen erzwingt, erfindet
-    // Messwerte - und ein erfundener Messwert ist schlimmer als keiner.
-    regel: "keine"
-  }
-};
-var RESSORT_IDS = Object.keys(RESSORTS);
-var SPUR = [
-  ["wetter", /\b(wetter|sturm|orkan|regen|schnee|hitze|frost|gewitter|hochwasser|dürre|dürre|unwetter|hagel|nebel|windböen|tief|hoch|warnstufe|deich|überschwemmung|glatteis|temperatur)\w*/i],
-  ["sport", /\b(spielt|spielen|spiel|tor|tore|mannschaft|trainer|trainiert|liga|stadion|wettkampf|sieg|niederlage|halbzeit|verein|klub|club|fc|sv|tsv|bvb|meisterschaft|turnier|pokal|elf|kader|transfer|saison)\w*/i],
-  ["kultur", /\b(bühne|theater|roman|gedicht|ausstellung|museum|konzert|oper|film|publikum|werk)\w*/i],
-  ["politik", /\b(regierung|partei|fraktion|gesetz|wahl|parlament|abstimmung|minister|verfahren)\w*/i],
-  ["wissenschaft", /\b(studie|forschung|labor|messung|befund|experiment|hypothese|probe|institut)\w*/i],
-  ["gesundheit", /\b(klinik|krankenhaus|arzt|ärztin|pflege|patient|diagnose|behandlung|seuche|impf)\w*/i],
-  ["bildung", /\b(schule|unterricht|klasse|lehrer|lehrerin|prüfung|schüler|universität|studium)\w*/i],
-  ["wirtschaft", /\b(werft|betrieb|firma|unternehmen|konzern|gmbh|ag|holding|umsatz|markt|produktion|belegschaft|insolvenz|werk|fabrik|filiale|standort|schliessen|schließt|schließen)\w*/i]
-];
-function rateRessort(text) {
-  for (const [id, re] of SPUR) if (re.test(text)) return id;
-  return "gesellschaft";
-}
-
 // src/storage.ts
 function normalizeBankShape(bank) {
   const out = structuredClone(DEFAULT_BANK);
@@ -12513,6 +12896,24 @@ function loadBank() {
     return normalizeBankShape(JSON.parse(raw));
   } catch {
     return structuredClone(DEFAULT_BANK);
+  }
+}
+function saveBank(bank) {
+  return safeSet(STORAGE_BANK, JSON.stringify(bank), "Wortbank");
+}
+var DEFAULT_SETTINGS = { enabled: false, learnStories: true, useSaved: false };
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(STORAGE_SETTINGS);
+    if (!raw) return { ...DEFAULT_SETTINGS };
+    const p = JSON.parse(raw);
+    return {
+      enabled: !!p.enabled,
+      learnStories: p.learnStories !== false,
+      useSaved: !!p.useSaved
+    };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
   }
 }
 
@@ -12760,6 +13161,12 @@ function loadUserPresets() {
   }
 }
 var ACTIVE_KEY = "divergenz_active_preset_v1";
+function saveActiveBankLabel(label) {
+  try {
+    localStorage.setItem(ACTIVE_KEY, label || "");
+  } catch {
+  }
+}
 function loadActiveBankLabel() {
   try {
     return localStorage.getItem(ACTIVE_KEY) || "";
@@ -12800,6 +13207,91 @@ function sortedPresetOptions() {
   const opts = [...builtins, ...users].map((p) => [p.id, p.label]);
   return [[AUTOMIX_ID, "\u{1F3B2} Auto-Mix"], ...opts];
 }
+var AUTOMIX_SRC_KEY = "dm_automix_sources_v1";
+function lastAutoMixSources() {
+  try {
+    const v = JSON.parse(localStorage.getItem(AUTOMIX_SRC_KEY) || "{}");
+    return v && typeof v === "object" ? v : {};
+  } catch {
+    return {};
+  }
+}
+function buildAutoMixBank() {
+  const pool = Object.values(getAllPresets());
+  const out = {};
+  const sources = {};
+  for (const k of BANK_KEYS) {
+    const src = pick(pool);
+    out[k] = Array.isArray(src.bank[k]) ? src.bank[k].slice() : [];
+    (sources[src.id] ||= []).push(k);
+  }
+  try {
+    localStorage.setItem(AUTOMIX_SRC_KEY, JSON.stringify(sources));
+  } catch {
+  }
+  const verw = /* @__PURE__ */ new Set();
+  for (const id of Object.keys(sources)) for (const x of getAllPresets()[id]?.bank.verwandlungen || []) {
+    const v = (x || "").trim();
+    if (v) verw.add(v);
+  }
+  const fertig = normalizeBankShape(out);
+  if (verw.size) fertig.verwandlungen = [...verw];
+  return fertig;
+}
+function buildMergedBank(ids) {
+  const all = getAllPresets();
+  const out = {};
+  for (const k of BANK_KEYS) {
+    const set = /* @__PURE__ */ new Set();
+    for (const id of ids) {
+      const p = all[id];
+      if (p && Array.isArray(p.bank[k])) for (const x of p.bank[k]) {
+        const v = (x || "").trim();
+        if (v) set.add(v);
+      }
+    }
+    out[k] = [...set];
+  }
+  const verw = /* @__PURE__ */ new Set();
+  for (const id of ids) for (const x of all[id]?.bank.verwandlungen || []) {
+    const v = (x || "").trim();
+    if (v) verw.add(v);
+  }
+  const fertig = normalizeBankShape(out);
+  if (verw.size) fertig.verwandlungen = [...verw];
+  return fertig;
+}
+
+// src/features/ki.ts
+var AI_KEY = "divergenz_ai_key_v1";
+var AI_MODEL = "divergenz_ai_model_v1";
+var DEFAULT_MODEL = "claude-sonnet-5";
+function loadAiKey() {
+  try {
+    return localStorage.getItem(AI_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+function saveAiKey(k) {
+  try {
+    localStorage.setItem(AI_KEY, k || "");
+  } catch {
+  }
+}
+function loadAiModel() {
+  try {
+    return localStorage.getItem(AI_MODEL) || DEFAULT_MODEL;
+  } catch {
+    return DEFAULT_MODEL;
+  }
+}
+function saveAiModel(m) {
+  try {
+    localStorage.setItem(AI_MODEL, m || DEFAULT_MODEL);
+  } catch {
+  }
+}
 
 // src/features/preset2.ts
 var USER2_KEY = "dm_user_presets2_v1";
@@ -12812,220 +13304,850 @@ function loadUserPresets2() {
     return {};
   }
 }
+function getUserPreset2(name) {
+  return loadUserPresets2()[name] ?? null;
+}
 function markedPresetOptions() {
   const u2 = loadUserPresets2();
   return sortedPresetOptions().map(([v, l]) => [v, v.startsWith("user:") && u2[v.slice(5)] ? l + " \u27262.0" : l]);
 }
 
-// src/features/wuerfeln.ts
-var REGLER = [
-  { id: "f-tone", schluessel: "tone", liste: TONE_OPTS },
-  { id: "f-form", schluessel: "form", liste: FORM_OPTS },
-  { id: "f-structure", schluessel: "structure", liste: STRUCTURE_OPTS },
-  { id: "f-mode", schluessel: "mode", liste: MODE_OPTS },
-  { id: "f-persp", schluessel: "perspective", liste: PERSP_OPTS },
-  { id: "f-rhythm", schluessel: "rhythm", liste: RHYTHM_OPTS },
-  { id: "f-tension", schluessel: "tension", liste: TENSION_OPTS },
-  { id: "f-cast", schluessel: "cast", liste: CAST_OPTS },
-  { id: "f-instab", schluessel: "instability", liste: INSTAB_OPTS },
-  { id: "f-markov", schluessel: "markovMode", liste: MARKOV_OPTS },
-  { id: "f-disruptor", schluessel: "disruptor", liste: DISRUPTOR_OPTS },
-  { id: "f-varianz", schluessel: "varLevel", liste: VARIANZ_OPTS },
-  { id: "f-archa", schluessel: "archetypeA", liste: ARCH_OPTS },
-  { id: "f-archb", schluessel: "archetypeB", liste: ARCH_OPTS },
-  {
-    id: "f-ressort",
-    schluessel: "ressort",
-    liste: [["auto", "Auto (aus dem Stoff)"], ...RESSORT_IDS.map((id) => [id, RESSORTS[id].label])]
+// src/features/umwelt.ts
+var KEY2 = "dm_umwelt_v1";
+var UMWELT_LEER = { zeichen: "", wirkung: "aus" };
+function loadUmwelt() {
+  try {
+    const r = localStorage.getItem(KEY2);
+    if (!r) return { ...UMWELT_LEER };
+    const p = JSON.parse(r);
+    const w = p.wirkung;
+    return {
+      zeichen: typeof p.zeichen === "string" ? p.zeichen : "",
+      wirkung: w === "nahrung" || w === "gift" ? w : "aus"
+    };
+  } catch {
+    return { ...UMWELT_LEER };
   }
+}
+function saveUmwelt(u) {
+  try {
+    localStorage.setItem(KEY2, JSON.stringify(u));
+  } catch {
+  }
+}
+function umweltTeile(zeichen) {
+  return (zeichen || "").split(/[,;]/).map((x) => x.trim()).filter((x) => x.length > 0);
+}
+function stehtDrin(text, teil) {
+  const t = (text || "").toLowerCase();
+  const p = teil.toLowerCase();
+  if (!p) return false;
+  const nurBuchstaben = /^[a-zäöüßA-ZÄÖÜ\s-]+$/.test(teil);
+  if (!nurBuchstaben) return t.includes(p);
+  try {
+    const esc = p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp("(?<![a-z\xE4\xF6\xFC\xDF])" + esc + "(?![a-z\xE4\xF6\xFC\xDF])", "i").test(t);
+  } catch {
+    return t.includes(p);
+  }
+}
+function aufnahmequote(text, zeichen) {
+  const teile = umweltTeile(zeichen);
+  if (!teile.length) return 0;
+  let n = 0;
+  for (const teil of teile) if (stehtDrin(text, teil)) n++;
+  return n / teile.length;
+}
+var UMWELT_GEWICHT = 60;
+function umweltBeitrag(text, u) {
+  if (!u || u.wirkung === "aus") return 0;
+  const teile = umweltTeile(u.zeichen);
+  if (!teile.length) return 0;
+  const q = aufnahmequote(text, u.zeichen);
+  return u.wirkung === "nahrung" ? q * UMWELT_GEWICHT : -q * UMWELT_GEWICHT;
+}
+
+// src/features/ressorts.ts
+var S = (t) => ({ t });
+var P = (t) => ({ t, pl: true });
+var RESSORTS = {
+  wirtschaft: {
+    id: "wirtschaft",
+    label: "Wirtschaft",
+    rollenF: ["Gesch\xE4ftsf\xFChrerin", "Betriebsr\xE4tin", "Sprecherin", "Analystin", "Standortleiterin", "Ausbilderin"],
+    rollenM: ["Gesch\xE4ftsf\xFChrer", "Betriebsratsvorsitzender", "Sprecher", "Analyst", "Betriebsrat", "Standortleiter", "Ausbilder"],
+    betroffen: ["der Betrieb", "die Belegschaft", "die Zulieferer", "die Auftragsb\xFCcher", "der Standort", "die Ausbildungspl\xE4tze", "die Auszubildenden", "die Werkshalle", "die Fuhrparks", "die Schichtpl\xE4ne"],
+    einheiten: [
+      { einheit: "Besch\xE4ftigte", rolle: "betroffene", min: 40, max: 900, rund: 10, gen: "Besch\xE4ftigten" },
+      { einheit: "Zulieferer", rolle: "betroffene", min: 12, max: 120, rund: 1 },
+      { einheit: "Millionen Euro Umsatz", rolle: "geld", min: 2, max: 900, rund: 1 },
+      { einheit: "Standorte", rolle: "vorgaenge", min: 2, max: 40, rund: 1 },
+      { einheit: "Meter Kaimauer", rolle: "groesse", min: 40, max: 900, rund: 10 },
+      { einheit: "Quadratmeter Hallenfl\xE4che", rolle: "groesse", min: 400, max: 24e3, rund: 100 }
+    ],
+    zusatz: { titel: "Marktreaktion", rahmen: ["Am Markt hei\xDFt es:", "In der Branche gilt:", "Beobachter verweisen auf:", "Aus der Belegschaft:", "Im Betriebsrat:", "Am Werkstor:"] },
+    einsatz: [S("der Standort"), S("die Altersversorgung der Belegschaft"), P("die Ausbildungspl\xE4tze"), S("der Name des Hauses"), S("die Lieferkette"), S("das Werksgel\xE4nde"), S("die Tarifbindung"), S("der Standort selbst")],
+    gewinn: [S("ein zweites Werk"), S("die Ausbildungsoffensive"), S("der Ausbau des Standorts"), S("die R\xFCckkehr der Auftr\xE4ge"), S("ein neuer Tarifvertrag"), S("eine zweite Schicht"), S("ein Ausbildungsverbund"), S("die \xDCbernahme der Auszubildenden")],
+    ausblickGut: ["Ob die Zahlen halten, entscheidet sich im n\xE4chsten Quartal.", "Die ersten Einstellungen sind fuer den Herbst angek\xFCndigt.", "Die Auftr\xE4ge reichen bis ins n\xE4chste Jahr.", "Weitere Einstellungen sind vorgesehen."],
+    ausblick: ["Ob die Zahlen halten, entscheidet sich im n\xE4chsten Quartal.", "Eine Entscheidung soll in den kommenden Tagen fallen.", "Die Verhandlungen sollen weitergehen.", "Ein Gutachten ist in Auftrag gegeben.", "Die Belegschaft wird kommende Woche informiert."],
+    regel: "zweiZahlen"
+  },
+  politik: {
+    id: "politik",
+    label: "Politik",
+    rollenF: ["Abgeordnete", "Fraktionssprecherin", "Staatssekret\xE4rin", "Fraktionsvorsitzende", "Amtsleiterin", "B\xFCrgermeisterin"],
+    rollenM: ["Abgeordneter", "Fraktionssprecher", "Staatssekret\xE4r", "Fraktionsvorsitzender", "Amtsleiter", "B\xFCrgermeister"],
+    betroffen: ["das Verfahren", "die Fraktionen", "die Kommunen", "der Zeitplan", "die Antragsteller", "die Aussch\xFCsse", "die Verwaltung", "die B\xFCrgersprechstunde", "die Haushaltsplanung", "das Ehrenamt"],
+    einheiten: [
+      { einheit: "Wahlberechtigte", rolle: "betroffene", min: 500, max: 9e4, rund: 100, gen: "Wahlberechtigten" },
+      { einheit: "Kommunen", rolle: "betroffene", min: 12, max: 200, rund: 1 },
+      { einheit: "Stimmen", rolle: "vorgaenge", min: 20, max: 700, rund: 1 },
+      { einheit: "Sitzungen", rolle: "vorgaenge", min: 2, max: 60, rund: 1 },
+      { einheit: "Sitze", rolle: "groesse", min: 5, max: 120, rund: 1 },
+      { einheit: "Stimmbezirke", rolle: "groesse", min: 4, max: 90, rund: 1 }
+    ],
+    zusatz: { titel: "Reaktionen", rahmen: ["Aus der Regierung hei\xDFt es:", "Die Opposition h\xE4lt dagegen:", "Aus den L\xE4ndern kommt:", "Im Rathaus:", "Aus der Fraktion:", "In der Sitzung:"] },
+    einsatz: [S("die Mehrheit"), S("der Zeitplan des Verfahrens"), S("das Vertrauen in die Zusage"), S("die Zust\xE4ndigkeit der Kommunen"), S("der Haushaltsansatz"), S("die Mehrheit im Rat"), S("der Haushalt"), P("die Fristen"), S("das Vertrauen in die Verwaltung")],
+    gewinn: [S("eine breite Mehrheit"), S("die Zustimmung der L\xE4nder"), S("ein fr\xFCherer Beginn"), S("die Aufstockung der Mittel"), S("eine breitere Mehrheit"), S("ein zus\xE4tzlicher Ausschuss"), S("mehr Mittel im Haushalt")],
+    ausblickGut: ["Der Beschluss soll in der n\xE4chsten Sitzung best\xE4tigt werden.", "Die Umsetzung beginnt im kommenden Jahr.", "Die Vorlage gilt als sicher.", "Weitere Mittel sind zugesagt."],
+    ausblick: ["Der Verfahrensstand bleibt bis zur n\xE4chsten Sitzung unver\xE4ndert.", "Ob es zur Abstimmung kommt, ist offen.", "Die Abstimmung ist vertagt.", "Der Ausschuss tagt erneut.", "Eine Stellungnahme steht aus."],
+    regel: "lagerAusgewogen"
+  },
+  kultur: {
+    id: "kultur",
+    label: "Kultur",
+    rollenF: ["Intendantin", "Kuratorin", "Dramaturgin", "Kritikerin", "Werkstattleiterin", "Regisseurin"],
+    rollenM: ["Intendant", "Kurator", "Dramaturg", "Kritiker", "Werkstattleiter", "Regisseur"],
+    betroffen: ["das Ensemble", "der Spielplan", "die Abonnenten", "die Werkst\xE4tten", "die Nachwuchsarbeit", "die Technik", "die Statisterie", "die Requisite", "das Foyer", "die Bibliothek des Hauses"],
+    einheiten: [
+      { einheit: "Ensemblemitglieder", rolle: "betroffene", min: 12, max: 200, rund: 1 },
+      { einheit: "Abonnenten", rolle: "betroffene", min: 50, max: 8e3, rund: 10 },
+      { einheit: "Vorstellungen", rolle: "vorgaenge", min: 3, max: 200, rund: 1 },
+      { einheit: "Minuten Spieldauer", rolle: "dauer", min: 45, max: 240, rund: 5 },
+      { einheit: "Sitzpl\xE4tze", rolle: "groesse", min: 90, max: 1400, rund: 10 },
+      { einheit: "Exponate", rolle: "groesse", min: 12, max: 600, rund: 2 }
+    ],
+    zusatz: { titel: "Zum Werk", rahmen: ["Zu sehen ist:", "Die Arbeit zeigt:", "Auf der B\xFChne steht:", "Aus dem Ensemble:", "An der Kasse:", "In der Probe:"] },
+    einsatz: [S("der Spielplan der kommenden Saison"), S("das Ensemble in seiner jetzigen Form"), P("die Werkst\xE4tten"), S("das Haus als Ort"), S("die Nachwuchsarbeit"), S("die Urauff\xFChrung"), S("der Spielplan"), P("die Gastspiele"), S("das Ensemble selbst")],
+    gewinn: [S("eine zweite Spielst\xE4tte"), S("die \xDCbernahme ins Repertoire"), S("ein eigenes Nachwuchsstudio"), S("die Verlaengerung der Reihe"), P("neue Abonnements"), S("ein Gastspiel im Ausland")],
+    ausblickGut: ["Die n\xE4chste Auff\xFChrung ist angek\xFCndigt.", "Weitere Termine sollen folgen.", "Die Vorstellung wird verl\xE4ngert.", "Weitere Termine kommen dazu."],
+    ausblick: ["Ob das Publikum folgt, wird sich zeigen.", "Die n\xE4chste Auff\xFChrung ist angek\xFCndigt.", "Die Premiere bleibt geplant.", "Die Proben werden fortgesetzt.", "\xDCber den Spielplan wird neu beraten."],
+    regel: "wertungGetrennt"
+  },
+  sport: {
+    id: "sport",
+    label: "Sport",
+    rollenF: ["Trainerin", "Kapit\xE4nin", "Sportdirektorin", "Torh\xFCterin", "Abteilungsleiterin"],
+    rollenM: ["Trainer", "Kapit\xE4n", "Sportdirektor", "Torh\xFCter", "Abteilungsleiter"],
+    betroffen: ["der Verein", "die Fans", "das Marketing", "das Logo", "die Mannschaft", "der Nachwuchs", "die Sponsoren", "die Dauerkarten", "die Jugendabteilung", "die Dauerkartenbesitzer", "der Trainingsbetrieb", "die Gesch\xE4ftsstelle", "der Fanclub"],
+    einheiten: [
+      { einheit: "Vereinsmitglieder", rolle: "betroffene", min: 50, max: 4e4, rund: 10 },
+      { einheit: "Dauerkarten", rolle: "betroffene", min: 100, max: 3e4, rund: 100 },
+      { einheit: "Zuschauer", rolle: "betroffene", min: 200, max: 6e4, rund: 100 },
+      { einheit: "Minuten", rolle: "dauer", min: 5, max: 120, rund: 1 },
+      { einheit: "Punkte", rolle: "groesse", min: 3, max: 60, rund: 1 },
+      { einheit: "Meter Laufbahn", rolle: "groesse", min: 100, max: 800, rund: 50 }
+    ],
+    zusatz: { titel: "Spielverlauf", rahmen: ["Nach der Pause:", "In der Schlussphase:", "Zur Halbzeit:", "In der Kabine:", "Auf der Trib\xFCne:", "In der Gesch\xE4ftsstelle:"] },
+    einsatz: [S("der Klassenerhalt"), S("die Lizenz"), S("die Nachwuchsabteilung"), S("der Name des Vereins"), S("die Heimspielst\xE4tte"), S("das Traineramt"), S("der Aufstieg"), P("die Heimspiele"), S("der Trainingsbetrieb")],
+    gewinn: [S("der Aufstieg"), S("ein neuer Hauptsponsor"), S("der Ausbau der Jugendabteilung"), S("die R\xFCckkehr in die Halle"), S("ein neuer Trainingsplatz"), P("zus\xE4tzliche Heimspiele"), S("die R\xFCckkehr der Zuschauer")],
+    ausblickGut: ["Das R\xFCckspiel steht noch aus.", "Die Vorbereitung beginnt im Sommer.", "Die Serie soll fortgesetzt werden.", "Weitere Zusagen liegen vor."],
+    ausblick: ["Das R\xFCckspiel steht noch aus.", "Ob die Serie h\xE4lt, entscheidet sich am Wochenende.", "Das n\xE4chste Spiel entscheidet.", "Der Verband pr\xFCft den Vorgang.", "Eine Entscheidung f\xE4llt nach der Saison."],
+    regel: "ergebnisZuerst"
+  },
+  wissenschaft: {
+    id: "wissenschaft",
+    label: "Wissenschaft",
+    rollenF: ["Studienleiterin", "Professorin", "Erstautorin", "Gutachterin", "Institutsleiterin", "Doktorandin", "Laborleiterin"],
+    rollenM: ["Studienleiter", "Professor", "Erstautor", "Gutachter", "Institutsleiter", "Doktorand", "Laborleiter"],
+    betroffen: ["die Studie", "die Arbeitsgruppe", "die F\xF6rderung", "die Ver\xF6ffentlichung", "die Datenbasis", "die Messreihen", "die Drittmittel", "die Doktoranden", "das Labor", "die Sammlung"],
+    einheiten: [
+      { einheit: "Teilnehmende", rolle: "betroffene", min: 12, max: 4e3, rund: 1, gen: "Teilnehmenden" },
+      { einheit: "Institute", rolle: "betroffene", min: 12, max: 40, rund: 1 },
+      { einheit: "Proben", rolle: "vorgaenge", min: 12, max: 4e3, rund: 1 },
+      { einheit: "Monate Laufzeit", rolle: "dauer", min: 3, max: 96, rund: 1 },
+      { einheit: "Messreihen", rolle: "groesse", min: 6, max: 220, rund: 2 },
+      { einheit: "Datens\xE4tze", rolle: "groesse", min: 40, max: 9e3, rund: 10 }
+    ],
+    zusatz: { titel: "Methode", rahmen: ["Untersucht wurde:", "Erhoben wurden:", "Verglichen wurde:", "Im Labor:", "Aus der Arbeitsgruppe:", "Am Rande der Tagung:"] },
+    einsatz: [S("die F\xF6rderung"), S("die Vergleichbarkeit der Daten"), S("die Ver\xF6ffentlichung"), S("der Standort des Instituts"), S("die Fortsetzung der Reihe"), S("die F\xF6rderzusage"), S("die Messreihe"), P("die Nachwuchsstellen"), S("der Zugang zur Sammlung")],
+    gewinn: [S("eine Anschlussfoerderung"), S("ein zweiter Standort"), S("die Aufnahme in das Programm"), S("ein gemeinsames Labor"), S("eine zweite F\xF6rderperiode"), P("neue Messpl\xE4tze")],
+    ausblickGut: ["Eine Wiederholung der Studie ist geplant.", "Die Ergebnisse sollen offen zug\xE4nglich werden.", "Die F\xF6rderung ist verl\xE4ngert.", "Weitere H\xE4user beteiligen sich."],
+    ausblick: ["Eine Wiederholung der Studie steht aus.", "Ob sich der Befund best\xE4tigt, ist offen.", "Die Auswertung dauert an.", "Die Ergebnisse sollen gepr\xFCft werden.", "Eine Wiederholung des Versuchs ist geplant."],
+    regel: "einschraenkungPflicht"
+  },
+  gesellschaft: {
+    id: "gesellschaft",
+    label: "Gesellschaft",
+    rollenF: ["Sozialarbeiterin", "Anwohnerin", "Vereinsvorsitzende", "Beraterin", "Quartiersmanagerin", "Ehrenamtskoordinatorin", "Gemeindereferentin"],
+    rollenM: ["Sozialarbeiter", "Anwohner", "Vereinsvorsitzender", "Berater", "Quartiersmanager", "Ehrenamtskoordinator", "Gemeindereferent"],
+    betroffen: ["die Nachbarschaft", "die Familien", "das Ehrenamt", "die Beratungsstelle", "der Treffpunkt", "der Sportverein", "die Kirchengemeinde", "die Kita", "die Tafel", "die Nachbarschaftshilfe", "der Schrebergarten", "die Freiwillige Feuerwehr"],
+    einheiten: [
+      { einheit: "Haushalte", rolle: "betroffene", min: 20, max: 4e3, rund: 10 },
+      { einheit: "Familien", rolle: "betroffene", min: 12, max: 2e3, rund: 10 },
+      { einheit: "Haushalte", rolle: "betroffene", min: 20, max: 4e3, rund: 10 },
+      { einheit: "Beratungen", rolle: "vorgaenge", min: 10, max: 900, rund: 1 },
+      { einheit: "Quadratmeter Nutzfl\xE4che", rolle: "groesse", min: 60, max: 3e3, rund: 10 },
+      { einheit: "Pl\xE4tze", rolle: "groesse", min: 8, max: 300, rund: 2 }
+    ],
+    zusatz: { titel: "Vor Ort", rahmen: ["Im Viertel hei\xDFt es:", "Nachbarn berichten:", "In der Beratungsstelle:", "Am Tresen:", "Im Gemeindehaus:", "Auf dem Wochenmarkt:"] },
+    einsatz: [S("der Treffpunkt im Viertel"), S("die Beratung vor Ort"), S("das Ehrenamt"), S("die Mietbindung"), S("der Zusammenhalt in der Nachbarschaft"), S("die Nachbarschaftshilfe"), P("die \xD6ffnungszeiten"), S("das Gemeindehaus"), S("die Tafel")],
+    gewinn: [S("ein neuer Treffpunkt"), S("die Verstetigung der Beratung"), S("mehr Pl\xE4tze im Ehrenamt"), S("ein Nachbarschaftsfonds"), S("ein zweiter Treffpunkt"), P("l\xE4ngere \xD6ffnungszeiten"), S("eine feste Stelle in der Beratung")],
+    ausblickGut: ["Das Angebot soll im Fr\xFChjahr starten.", "Weitere H\xE4user haben Interesse angemeldet.", "Die \xD6ffnungszeiten werden ausgeweitet.", "Weitere Freiwillige haben sich gemeldet."],
+    ausblick: ["Wie es im Viertel weitergeht, ist offen.", "Eine Entscheidung soll in den kommenden Wochen fallen.", "Der Verein sucht weiter Freiwillige.", "Ein Treffen ist f\xFCr den Herbst angesetzt.", "Die Stadt pr\xFCft eine F\xF6rderung."],
+    regel: "keine"
+  },
+  gesundheit: {
+    id: "gesundheit",
+    label: "Gesundheit",
+    rollenF: ["\xC4rztliche Direktorin", "Pflegedienstleiterin", "Amts\xE4rztin", "Epidemiologin", "Chef\xE4rztin", "Apothekerin"],
+    rollenM: ["\xC4rztlicher Direktor", "Pflegedienstleiter", "Amtsarzt", "Epidemiologe", "Chefarzt", "Apotheker"],
+    betroffen: ["die Versorgung", "die Pflegekr\xE4fte", "die Notaufnahme", "die Wartezeiten", "die Angeh\xF6rigen", "der Bereitschaftsdienst", "die Apotheken", "die Hausarztpraxen", "der Krankentransport", "die Physiotherapie"],
+    einheiten: [
+      { einheit: "Patientinnen und Patienten", rolle: "betroffene", min: 30, max: 9e3, rund: 10 },
+      { einheit: "Pflegekr\xE4fte", rolle: "betroffene", min: 12, max: 900, rund: 1 },
+      { einheit: "Betten", rolle: "groesse", min: 20, max: 1200, rund: 10 },
+      { einheit: "Behandlungen", rolle: "vorgaenge", min: 30, max: 9e3, rund: 10 }
+    ],
+    zusatz: { titel: "Einordnung der Lage", rahmen: ["Aus der Klinik hei\xDFt es:", "Die Beh\xF6rde teilt mit:", "In der Versorgung zeigt sich:", "Auf der Station:", "In der Pflege:", "Am Empfang:"] },
+    einsatz: [S("die Versorgung im Umkreis"), S("die Notaufnahme"), P("die Ausbildungspl\xE4tze in der Pflege"), P("die Wartezeiten"), S("der Standort der Klinik"), P("die Betten"), S("der Bereitschaftsdienst"), S("die Versorgung im Umland")],
+    gewinn: [S("eine zusaetzliche Station"), S("k\xFCrzere Wartezeiten"), S("mehr Ausbildungspl\xE4tze in der Pflege"), S("ein zweiter Rettungswagen"), S("eine zus\xE4tzliche Station"), P("mehr Betten")],
+    ausblickGut: ["Die Station soll im Herbst \xF6ffnen.", "Die Versorgung im Umkreis wird neu geordnet.", "Die Station soll erweitert werden.", "Weitere Kr\xE4fte sind eingestellt."],
+    ausblick: ["Wie sich die Lage entwickelt, bleibt abzuwarten.", "Eine Neubewertung ist f\xFCr die kommende Woche angek\xFCndigt.", "Die Aufsicht pr\xFCft den Vorgang.", "Eine \xDCbergangsl\xF6sung wird gesucht.", "Der Betrieb l\xE4uft eingeschr\xE4nkt weiter."],
+    // Bewusst keine Sonderregel mit Zahlenpflicht: Gesundheitsberichte, die
+    // Zahlen erzwingen, erfinden welche. Lieber weniger und richtig.
+    regel: "keine"
+  },
+  bildung: {
+    id: "bildung",
+    label: "Bildung",
+    rollenF: ["Schulleiterin", "Elternsprecherin", "Lehrerin", "Bildungsforscherin", "Fachlehrerin"],
+    rollenM: ["Schulleiter", "Elternsprecher", "Lehrer", "Bildungsforscher", "Fachlehrer"],
+    betroffen: ["der Unterricht", "die Elternh\xE4user", "das Kollegium", "der Stundenplan", "die Abschlussjahrg\xE4nge", "die Elternvertretung", "die Ganztagsbetreuung", "die Werkr\xE4ume", "die Schulbusse", "die Mensa"],
+    einheiten: [
+      { einheit: "Sch\xFClerinnen und Sch\xFCler", rolle: "betroffene", min: 30, max: 2e3, rund: 10 },
+      { einheit: "Lehrkr\xE4fte", rolle: "betroffene", min: 12, max: 200, rund: 1 },
+      { einheit: "Sch\xFClerinnen und Sch\xFCler", rolle: "betroffene", min: 30, max: 2e3, rund: 10 },
+      { einheit: "Unterrichtsstunden", rolle: "dauer", min: 4, max: 400, rund: 2 },
+      { einheit: "Klassenr\xE4ume", rolle: "groesse", min: 3, max: 60, rund: 1 },
+      { einheit: "Wochenstunden", rolle: "groesse", min: 4, max: 40, rund: 1 }
+    ],
+    zusatz: { titel: "An der Schule", rahmen: ["Im Kollegium hei\xDFt es:", "Aus der Elternschaft:", "Im Unterricht zeigt sich:", "Im Lehrerzimmer:", "Auf dem Schulhof:", "In der Elternversammlung:"] },
+    einsatz: [S("der Ganztag"), S("das Abschlussjahr"), P("die Stellen im Kollegium"), S("der Schulstandort"), S("die Betreuung am Nachmittag"), P("die Werkr\xE4ume"), S("die Schulbusverbindung"), S("das Kollegium")],
+    gewinn: [S("zus\xE4tzliche Klassen"), S("der Ausbau des Ganztags"), S("zusaetzliche Stellen im Kollegium"), S("eine eigene Werkstatt"), S("eine zus\xE4tzliche Klasse"), P("neue Werkr\xE4ume"), S("eine zweite Schulbuslinie")],
+    ausblickGut: ["Der Start ist fuer das kommende Schuljahr geplant.", "Die Stellen sollen zum Halbjahr besetzt werden.", "Die Klasse wird eingerichtet.", "Weitere Stellen sind besetzt."],
+    ausblick: ["Ob die Stunden ersetzt werden, ist offen.", "Das n\xE4chste Schuljahr soll Klarheit bringen.", "Das Schulamt pr\xFCft den Fall.", "Die Elternversammlung tagt kommende Woche.", "Eine L\xF6sung soll bis zum Halbjahr stehen."],
+    regel: "keine"
+  },
+  wetter: {
+    id: "wetter",
+    label: "Wetter",
+    rollenF: ["Meteorologin", "Wetterdienst-Sprecherin", "Einsatzleiterin", "Deichvorsteherin", "Deichgr\xE4fin"],
+    rollenM: ["Meteorologe", "Wetterdienst-Sprecher", "Einsatzleiter", "Deichvorsteher", "Deichgraf"],
+    einheiten: [
+      { einheit: "Gemeinden", rolle: "betroffene", min: 12, max: 400, rund: 2 },
+      { einheit: "H\xF6fe", rolle: "betroffene", min: 12, max: 800, rund: 2 },
+      { einheit: "Liter je Quadratmeter", rolle: "groesse", min: 14, max: 180, rund: 2 },
+      { einheit: "Stundenkilometer", rolle: "groesse", min: 60, max: 200, rund: 5 },
+      { einheit: "Zentimeter Neuschnee", rolle: "groesse", min: 12, max: 90, rund: 2 },
+      { einheit: "Eins\xE4tze", rolle: "vorgaenge", min: 20, max: 900, rund: 2 },
+      { einheit: "Stunden Dauerregen", rolle: "dauer", min: 4, max: 60, rund: 2 }
+    ],
+    betroffen: ["die K\xFCste", "der Deich", "die Ernte", "der Bahnverkehr", "die Schulen", "die Feuerwehr", "die F\xE4hren", "die Deichverb\xE4nde", "der F\xE4hrbetrieb", "die Obstbauern", "die Feuerwehren", "der Schienenverkehr", "die Campingpl\xE4tze"],
+    einsatz: [S("die Ernte"), S("der Deich"), S("der Bahnverkehr"), S("die Trinkwasserversorgung"), S("die F\xE4hrverbindung"), P("die F\xE4hrverbindungen"), S("die Stromversorgung"), S("der K\xFCstenschutz"), S("die Obsternte")],
+    gewinn: [S("eine trockene Erntewoche"), S("die R\xFCckkehr des Grundwassers"), S("ein mildes Wochenende"), S("die Entwarnung f\xFCr die K\xFCste"), S("eine Entspannung der Lage"), P("wieder befahrbare Stra\xDFen"), S("die R\xFCckkehr des F\xE4hrbetriebs")],
+    zusatz: { titel: "Aussichten", rahmen: ["F\xFCr morgen gilt:", "Zum Wochenende:", "In der Nacht:", "Am Deich:", "Im Hafen:", "Auf den Feldern:"] },
+    hintergrundKopf: (_wer, jahr) => `Vergleichbare Lagen gab es zuletzt ${jahr}.`,
+    ausblickGut: ["Die Warnung wird zum Abend aufgehoben.", "Das Hoch soll sich bis zur Wochenmitte halten.", "Die Warnung wurde aufgehoben.", "Der Betrieb l\xE4uft wieder an."],
+    ausblick: ["Die Warnstufe bleibt vorerst bestehen.", "Wie lange die Lage anh\xE4lt, ist offen.", "Der Warndienst bleibt bestehen.", "Die Lage wird st\xFCndlich neu bewertet.", "Eine Entwarnung steht aus."],
+    // Keine Sonderregel: Ein Wetterbericht, der Zahlen erzwingt, erfindet
+    // Messwerte - und ein erfundener Messwert ist schlimmer als keiner.
+    regel: "keine"
+  }
+};
+var RESSORT_IDS = Object.keys(RESSORTS);
+var SPUR = [
+  ["wetter", /\b(wetter|sturm|orkan|regen|schnee|hitze|frost|gewitter|hochwasser|dürre|dürre|unwetter|hagel|nebel|windböen|tief|hoch|warnstufe|deich|überschwemmung|glatteis|temperatur)\w*/i],
+  ["sport", /\b(spielt|spielen|spiel|tor|tore|mannschaft|trainer|trainiert|liga|stadion|wettkampf|sieg|niederlage|halbzeit|verein|klub|club|fc|sv|tsv|bvb|meisterschaft|turnier|pokal|elf|kader|transfer|saison)\w*/i],
+  ["kultur", /\b(bühne|theater|roman|gedicht|ausstellung|museum|konzert|oper|film|publikum|werk)\w*/i],
+  ["politik", /\b(regierung|partei|fraktion|gesetz|wahl|parlament|abstimmung|minister|verfahren)\w*/i],
+  ["wissenschaft", /\b(studie|forschung|labor|messung|befund|experiment|hypothese|probe|institut)\w*/i],
+  ["gesundheit", /\b(klinik|krankenhaus|arzt|ärztin|pflege|patient|diagnose|behandlung|seuche|impf)\w*/i],
+  ["bildung", /\b(schule|unterricht|klasse|lehrer|lehrerin|prüfung|schüler|universität|studium)\w*/i],
+  ["wirtschaft", /\b(werft|betrieb|firma|unternehmen|konzern|gmbh|ag|holding|umsatz|markt|produktion|belegschaft|insolvenz|werk|fabrik|filiale|standort|schliessen|schließt|schließen)\w*/i]
 ];
-var zieh = (l) => l[Math.floor(Math.random() * l.length)];
-function wuerfleAlles(vorher, gesperrt, knobsVorher = loadKnobs()) {
-  const regler = { ...vorher };
-  const nachId = {};
-  const presets = markedPresetOptions().map(([v]) => v).filter((v) => !v.startsWith("__"));
-  if (!gesperrt.has("f-preset") && presets.length) {
-    const p = zieh(presets);
-    regler["preset"] = p;
-    nachId["f-preset"] = p;
-  }
-  for (const r of REGLER) {
-    const alt = vorher[r.schluessel];
-    const neu = gesperrt.has(r.id) ? alt ?? werte(r.liste)[0] : zieh(werte(r.liste));
-    regler[r.schluessel] = neu;
-    nachId[r.id] = neu;
-  }
-  const knobs = { ...knobsVorher };
-  for (const feld of Object.keys(KNOB_SPANNE)) {
-    if (gesperrt.has("k-" + feld)) continue;
-    const sp = KNOB_SPANNE[feld];
-    const stufen = Math.floor((sp.max - sp.min) / sp.step) + 1;
-    knobs[feld] = sp.min + Math.floor(Math.random() * stufen) * sp.step;
-  }
-  return { regler, nachId, knobs };
+function rateRessort(text) {
+  for (const [id, re] of SPUR) if (re.test(text)) return id;
+  return "gesellschaft";
 }
 
-// src/ui/schaltplanView.ts
-var NS = "http://www.w3.org/2000/svg";
-var CHIP_W = 176;
-var CHIP_H = 46;
-var GAP_X = 12;
-var GAP_Y = 10;
-var PRO_REIHE = 5;
-var RAND = 18;
-var BAND_TITEL = 26;
-var BAND_ABSTAND = 34;
-var BREITE = RAND * 2 + PRO_REIHE * CHIP_W + (PRO_REIHE - 1) * GAP_X;
-var BAND_NAME = ["Vorr\xE4te", "Material", "Steuerung", "Schliff", "Ausgabe"];
-var FARBE = {
-  an: "var(--acc2)",
-  leer: "var(--danger)",
-  aus: "var(--muted)",
-  fest: "var(--muted)"
+// src/presets.drama.data.ts
+var D = (einstieg, mitte, hoehepunkt, konflikte, ausloeser, veraenderungen, zeitanomalien, regeln, schluss) => ({ einstieg, mitte, hoehepunkt, schluss, ausloeser, veraenderungen, konflikte, zeitanomalien, regeln });
+var BUILTIN_DRAMA = {
+  kafka: D(
+    ["alles liegt an seinem Platz, und genau das beunruhigt", "die Formulare sind bereits ausgef\xFCllt", "niemand hat die T\xFCr ge\xF6ffnet, sie stand offen"],
+    ["die Zust\xE4ndigkeit wandert von Zimmer zu Zimmer", "eine Auskunft widerspricht der vorigen, beide sind g\xFCltig", "der Gang verzweigt sich, jede Abzweigung f\xFChrt zur\xFCck"],
+    ["die Akte tr\xE4gt den eigenen Namen", "das Verfahren war l\xE4ngst abgeschlossen"],
+    ["eine Auskunft, die niemand gibt", "eine Frist ohne Anfang", "eine Schuld ohne Anklage"],
+    ["ein Bescheid ohne Absender", "eine Unterschrift, die niemand leisten kann", "ein Stempel auf dem falschen Blatt"],
+    ["die Zust\xE4ndigkeit wechselt", "der Vorgang beginnt von vorn", "die Frage verwandelt sich in ihre Antwort"],
+    ["Die Frist l\xE4uft r\xFCckw\xE4rts.", "Der Termin liegt bereits hinter dem Antrag."],
+    ["Wer fragt, bekommt eine Nummer.", "Jede Auskunft ist vorl\xE4ufig und endg\xFCltig zugleich."],
+    ["offen", "beklemmend"]
+  ),
+  bureau: D(
+    ["die Warteschlange bewegt sich nicht", "der Schalter ist besetzt und leer zugleich", "auf dem Tisch liegt ein Stift ohne Mine"],
+    ["ein Formular verlangt ein zweites", "die Nummer wird aufgerufen, geh\xF6rt aber niemandem", "der Aktenschrank \xF6ffnet sich in einen weiteren Flur"],
+    ["die Zust\xE4ndigkeit wird endg\xFCltig ungekl\xE4rt", "das eigene Aktenzeichen erlischt"],
+    ["eine Zust\xE4ndigkeit, die niemand annimmt", "einen Vorgang ohne Ende", "eine Best\xE4tigung, die sich selbst widerruft"],
+    ["ein Formular in dreifacher Ausfertigung", "eine Wartenummer aus einem anderen Jahr", "ein Dienstsiegel ohne Beh\xF6rde"],
+    ["der Vorgang wird umgeleitet", "die Frist verl\xE4ngert sich von selbst", "das Verfahren beginnt still von vorn"],
+    ["Der Sprechtag liegt immer gestern.", "Die Bearbeitungszeit w\xE4chst mit jeder Nachfrage."],
+    ["Kein Vorgang endet, er ruht nur.", "Wer wartet, wird Teil des Verfahrens."],
+    ["offen", "resigniert"]
+  ),
+  mystery: D(
+    ["das Haus ist zu still f\xFCr die Uhrzeit", "im Flur brennt Licht, das niemand angelassen hat", "die T\xFCr f\xE4llt zu, bevor jemand sie ber\xFChrt"],
+    ["eine Spur f\xFChrt zur\xFCck in den eigenen Weg", "der Zeuge erinnert sich an etwas, das nicht geschah", "hinter der Wand geht jemand denselben Gang"],
+    ["die Erkl\xE4rung stimmt, und macht alles schlimmer", "der Fund war die ganze Zeit sichtbar"],
+    ["eine Wahrheit, die niemand h\xF6ren will", "ein Verschwinden ohne L\xFCcke", "einen Zeugen, der sich selbst widerspricht"],
+    ["ein Schl\xFCssel, der nirgends passt", "ein Anruf ohne Stimme", "ein Foto mit einer Person zu viel"],
+    ["die Spur kehrt sich um", "der Verdacht wechselt die Richtung", "das Vertraute wird fremd"],
+    ["Zwischen zwei Blicken vergeht eine Nacht.", "Die Uhr im Nebenzimmer geht anders."],
+    ["Nichts verschwindet, es wird nur nicht mehr gesucht.", "Wer genau hinsieht, wird selbst gesehen."],
+    ["offen", "unheimlich"]
+  ),
+  freud: D(
+    ["das Zimmer ist auf angenehme Weise zu warm", "der Satz bricht ab, bevor er gef\xE4hrlich wird", "das Sofa erinnert sich an alle, die darauf lagen"],
+    ["ein Wort rutscht heraus und meint ein anderes", "die Erinnerung \xE4ndert sich beim Erz\xE4hlen", "der Traum liefert die Antwort auf die falsche Frage"],
+    ["das Verdr\xE4ngte spricht mit vertrauter Stimme", "der Widerstand gibt genau an der Stelle nach"],
+    ["einen Wunsch, den niemand zugibt", "eine Erinnerung, die sich selbst erfindet", "eine Angst mit fremdem Gesicht"],
+    ["ein Versprecher im falschen Moment", "ein wiederkehrender Traum", "ein Name, der nicht einfallen will"],
+    ["das Verdr\xE4ngte kehrt zur\xFCck", "die Deutung dreht den Sinn um", "der Wunsch zeigt sein Gegenteil"],
+    ["Die Kindheit liegt n\xE4her als gestern.", "Ein Satz dauert l\xE4nger, als er braucht."],
+    ["Nichts wird vergessen, es wird nur woanders abgelegt.", "Jede Abwehr verr\xE4t, was sie sch\xFCtzt."],
+    ["offen", "analytisch"]
+  ),
+  rimbaud: D(
+    ["das Wasser tr\xE4gt Licht, das nicht vom Himmel stammt", "der Kiel schneidet durch eine Farbe ohne Namen", "die K\xFCste l\xF6st sich auf, ohne zu verschwinden"],
+    ["der Horizont wechselt die Seite", "das Meer schreibt und l\xF6scht denselben Satz", "der Mast singt in einer fremden Sprache"],
+    ["das Schiff gehorcht keinem Kurs mehr", "der Rausch schl\xE4gt in Klarheit um"],
+    ["eine Freiheit ohne Ufer", "einen Rausch, der n\xFCchtern macht", "eine Fahrt ohne Ziel und ohne Umkehr"],
+    ["ein Sturm aus heiterem Licht", "ein trunkenes Boot", "ein Wort in einer erfundenen Sprache"],
+    ["die Farben kippen", "das Meer verwandelt sich in Sprache", "der K\xF6rper l\xF6st sich in Bewegung auf"],
+    ["Ein Tag dauert eine Farbe lang.", "Die Nacht beginnt mitten am Nachmittag."],
+    ["Wer sieht, verbrennt.", "Jede Ordnung ist nur eine m\xFCde Farbe."],
+    ["offen", "rauschhaft"]
+  ),
+  traumbilder: D(
+    ["der Raum ist gr\xF6\xDFer als von au\xDFen", "der Schlaf hat noch nicht ganz aufgeh\xF6rt", "die T\xFCr f\xFChrt in dasselbe Zimmer zur\xFCck"],
+    ["der Flur ordnet sich bei jedem Blick neu", "eine Treppe endet h\xF6her, als sie begann", "die Gesichter wechseln, ohne sich zu \xE4ndern"],
+    ["das Erwachen misslingt zweimal", "der Traum erkl\xE4rt sich und bleibt unverst\xE4ndlich"],
+    ["eine Grenze zwischen Schlaf und Wachen", "eine Erinnerung, die beim Zugreifen zerf\xE4llt", "einen Raum, den es nicht gibt"],
+    ["ein Wecker, der r\xFCckw\xE4rts l\xE4uft", "ein Schl\xFCssel ohne Schloss", "ein Ger\xE4usch, das erst beim Aufwachen aufh\xF6rt"],
+    ["der Boden beginnt sich zu drehen", "die Zeit verdoppelt sich ohne Fortschritt", "das Spiegelbild reagiert zu sp\xE4t"],
+    ["Eine Minute enth\xE4lt eine ganze Nacht.", "Die Uhr springt, sobald niemand hinsieht."],
+    ["Im Traum ist jede Richtung nach unten.", "Wer den Traum benennt, verliert ihn."],
+    ["offen", "schwebend"]
+  ),
+  ritterromane: D(
+    ["die Burg liegt tiefer im Nebel als gestern", "das Tor steht offen, was es nie tut", "die R\xFCstung h\xE4ngt bereit, obwohl niemand rief"],
+    ["der Wald verschiebt die Wege", "ein Eid bindet st\xE4rker als die Vernunft", "der Gegner tr\xE4gt das eigene Wappen"],
+    ["das Schwert gehorcht der falschen Hand", "der Sieg entwertet die Sache"],
+    ["eine Ehre, die niemand einfordert", "einen Eid gegen das eigene Herz", "eine Treue, die zu sp\xE4t kommt"],
+    ["ein Horn aus gro\xDFer Ferne", "ein Bote ohne Botschaft", "ein Handschuh vor den F\xFC\xDFen"],
+    ["die Treue kehrt sich um", "aus dem Feind wird ein Spiegel", "die Bahn des Ritts biegt ab"],
+    ["Der Ritt dauert l\xE4nger als der Weg.", "Zwischen Aufbruch und Ankunft altert die Burg."],
+    ["Ein Eid wiegt schwerer als ein Leben.", "Wer den Wald betritt, kehrt anders zur\xFCck."],
+    ["offen", "heroisch"]
+  ),
+  alltag: D(
+    ["der Wasserkocher schaltet ab, sonst ist es still", "die Post liegt seit drei Tagen unge\xF6ffnet da", "der Tag beginnt genau wie der vorige"],
+    ["eine Kleinigkeit steht pl\xF6tzlich schief", "der gewohnte Weg dauert heute l\xE4nger", "ein Gespr\xE4ch bricht an derselben Stelle ab"],
+    ["die Gewohnheit tr\xE4gt nicht mehr", "das Kleine wird auf einmal gro\xDF"],
+    ["eine Frage, die nie gestellt wird", "eine Gewohnheit, die niemand gew\xE4hlt hat", "einen Abstand, der langsam w\xE4chst"],
+    ["ein Anruf zur falschen Zeit", "ein vergessener Schl\xFCssel", "eine Rechnung ohne Betrag"],
+    ["die Ordnung verrutscht", "das Gewohnte wird sichtbar", "der Tag kippt in eine andere Richtung"],
+    ["Der Nachmittag zieht sich, der Abend fehlt.", "Die Woche wiederholt einen Tag zu oft."],
+    ["Was t\xE4glich geschieht, wird nicht bemerkt.", "Jede Gewohnheit verbirgt eine Entscheidung."],
+    ["offen", "n\xFCchtern"]
+  ),
+  hafen: D(
+    ["die Kr\xE4ne stehen still, das Wasser nicht", "ein Schiff liegt l\xE4nger als angemeldet", "das Licht kommt vom Wasser, nicht vom Himmel"],
+    ["die Ladung stimmt nicht mit den Papieren \xFCberein", "die Flut nimmt mehr mit, als sie brachte", "ein Name auf dem Rumpf ist \xFCbermalt"],
+    ["die Leinen fallen ohne Befehl", "das Schiff f\xE4hrt ohne Fracht hinaus"],
+    ["eine Abfahrt ohne Wiederkehr", "eine Ladung, die niemand bestellt hat", "ein Warten, das zum Beruf wird"],
+    ["ein Signal aus dem Nebel", "ein Container ohne Papiere", "eine Boje, die nicht auf der Karte steht"],
+    ["die Tide dreht", "das Warten kippt in Aufbruch", "der Anker h\xE4lt pl\xF6tzlich nicht mehr"],
+    ["Die Ebbe kommt zweimal.", "Zwischen zwei Sirenen vergeht ein Jahr."],
+    ["Das Wasser vergisst schneller als der Kai.", "Wer bleibt, wird zum Teil der Mole."],
+    ["offen", "salzig"]
+  ),
+  urknall: D(
+    ["es gibt kein Vorher, an dem man ansetzen k\xF6nnte", "der Raum ist noch nicht auseinandergefaltet", "alles liegt in einem Punkt und dr\xE4ngt"],
+    ["die Kr\xE4fte trennen sich voneinander", "aus Symmetrie wird Unterschied", "das Licht findet zum ersten Mal einen Weg"],
+    ["die Materie entscheidet sich f\xFCr sich selbst", "der Raum rei\xDFt in alle Richtungen auf"],
+    ["einen Anfang ohne Zeugen", "ein Gleichgewicht, das kippen muss", "eine Ordnung, die aus Zufall entsteht"],
+    ["ein Ungleichgewicht um ein Milliardstel", "eine Schwankung im Nichts", "ein erster Zerfall"],
+    ["die Symmetrie bricht", "aus Strahlung wird Masse", "die Kr\xE4fte gehen getrennte Wege"],
+    ["Eine Sekunde enth\xE4lt alle sp\xE4teren.", "Die Zeit beginnt erst, als es etwas zu messen gibt."],
+    ["Nichts kann schneller sein als das Licht dazwischen.", "Jede Ordnung zahlt mit W\xE4rme."],
+    ["offen", "kosmisch"]
+  ),
+  dickens: D(
+    ["der Nebel steht in der Gasse wie ein M\xF6belst\xFCck", "im Kontor brennt eine Kerze zu wenig", "der Regen macht die Stadt kleiner"],
+    ["eine Schuld wird h\xF6flich eingefordert", "ein Kind tr\xE4gt die Last eines Erwachsenen", "die Wohlt\xE4tigkeit rechnet mit"],
+    ["die Herkunft holt alles ein", "die Gro\xDFz\xFCgigkeit kommt sp\xE4t und trotzdem"],
+    ["eine Schuld, die vererbt wird", "eine Armut mit tadellosen Manieren", "eine G\xFCte, die sich nicht lohnt"],
+    ["ein Brief mit schwarzem Rand", "eine Erbschaft aus unbekannter Hand", "ein Name in einem alten Register"],
+    ["das Verm\xF6gen wechselt die Seite", "aus dem Fremden wird ein Verwandter", "die K\xE4lte weicht zu sp\xE4t"],
+    ["Der Winter dauert drei Kapitel.", "Die Kindheit vergeht in einem Satz."],
+    ["Jede Schuld findet ihren Schuldner.", "Wer arm ist, muss auch noch h\xF6flich sein."],
+    ["offen", "wehm\xFCtig"]
+  ),
+  erotik: D(
+    ["der Abstand ist eine Handbreit zu klein", "die Stille zwischen zwei S\xE4tzen wird laut", "die Luft steht zwischen ihnen wie Stoff"],
+    ["ein Blick dauert einen Atemzug zu lang", "die H\xF6flichkeit h\xE4lt nicht mehr stand", "eine Ber\xFChrung geschieht wie versehentlich"],
+    ["die Zur\xFCckhaltung gibt nach", "die Grenze verschwindet, ohne \xFCberschritten zu werden"],
+    ["ein Verlangen, das niemand ausspricht", "eine N\xE4he, die alles \xE4ndert", "eine Grenze, die beide bewachen"],
+    ["ein Blick zu viel", "eine Ber\xFChrung an der Schulter", "ein Satz, der zu sp\xE4t zur\xFCckgenommen wird"],
+    ["die Distanz kippt", "das Ungesagte wird K\xF6rper", "aus H\xF6flichkeit wird Hunger"],
+    ["Eine Minute dehnt sich \xFCber den Abend.", "Zwischen zwei Atemz\xFCgen liegt eine Woche."],
+    ["Was ungesagt bleibt, wirkt st\xE4rker.", "Jede N\xE4he verschiebt die Grenze."],
+    ["offen", "sinnlich"]
+  ),
+  baudelaire: D(
+    ["die Stadt riecht nach Regen und Puder", "der Abend beginnt eine Stunde zu fr\xFCh", "das Fenster steht offen, die Vorh\xE4nge nicht"],
+    ["die Sch\xF6nheit zeigt ihre R\xFCckseite", "der Rausch h\xE4lt, was die N\xFCchternheit versprach", "die Menge tr\xE4gt ein einziges Gesicht"],
+    ["das Sch\xF6ne und das Faule fallen zusammen", "der Ekel wird z\xE4rtlich"],
+    ["eine Sch\xF6nheit, die verdirbt", "einen Genuss mit Nachgeschmack", "eine Sehnsucht ohne Ziel"],
+    ["ein Parfum aus einem anderen Leben", "ein Blick aus der Menge", "eine Blume in schlechtem Wasser"],
+    ["die Sch\xF6nheit kippt ins Verwesen", "der Ekel verwandelt sich in Andacht", "die Stadt wird zum K\xF6rper"],
+    ["Der Abend dauert l\xE4nger als der Tag.", "Zwischen zwei Gl\xE4sern vergeht ein Jahrzehnt."],
+    ["Jede Sch\xF6nheit tr\xE4gt ihren Verfall bereits mit sich.", "Wer die Stadt liebt, liebt ihren Schmutz."],
+    ["offen", "morbide"]
+  ),
+  expressionismus: D(
+    ["die Farben schreien lauter als die Stra\xDFe", "der Himmel dr\xFCckt auf die D\xE4cher", "alles steht schief und h\xE4lt trotzdem"],
+    ["die Gesichter werden zu Masken", "die Stadt frisst ihre Bewohner", "die Linien verlieren ihre Ruhe"],
+    ["der Schrei bekommt eine Farbe", "die Fassade bricht nach innen"],
+    ["eine Angst mit vielen Gesichtern", "einen Aufschrei ohne Mund", "eine Wahrheit, die zu grell ist"],
+    ["ein Schrei aus einem Hinterhof", "ein rotes Licht im Fenster", "ein Riss in der Fassade"],
+    ["die Farben werden laut", "das Innere kehrt sich nach au\xDFen", "die Ordnung zerbricht in Fl\xE4chen"],
+    ["Die Nacht beginnt am Mittag.", "Ein Augenblick dauert eine ganze Stra\xDFe lang."],
+    ["Was empfunden wird, ist sichtbar.", "Kein Ding bleibt an seinem Platz."],
+    ["offen", "grell"]
+  ),
+  surrealismus1920: D(
+    ["die Uhr tropft von der Tischkante", "im Zimmer regnet es nach oben", "die T\xFCr f\xFChrt in eine W\xFCste"],
+    ["die Gegenst\xE4nde tauschen ihre Aufgaben", "der Traum reicht in den Nachmittag hinein", "der Zufall folgt einem Plan"],
+    ["das Unm\xF6gliche wird allt\xE4glich", "der Gegenstand beginnt zu sprechen"],
+    ["eine Logik, die nur schlafend gilt", "einen Zufall mit Absicht", "eine Ordnung aus lauter Ausnahmen"],
+    ["ein Regenschirm auf einem Seziertisch", "ein Telefon aus Fisch", "ein Fenster im Fu\xDFboden"],
+    ["die Dinge tauschen die Rollen", "die Schwerkraft wechselt die Richtung", "das Bild verl\xE4sst den Rahmen"],
+    ["Die Nacht wiederholt den Vormittag.", "Zwei Uhren zeigen dieselbe falsche Zeit."],
+    ["Der Zufall ist die genaueste Methode.", "Was zusammenf\xE4llt, geh\xF6rt zusammen."],
+    ["offen", "traumlogisch"]
+  ),
+  transzendenz: D(
+    ["das Licht kommt von keiner Quelle", "die Stille hat einen Klang", "der Raum h\xF6rt an keiner Wand auf"],
+    ["die Grenze zwischen innen und au\xDFen wird d\xFCnn", "das Wort reicht nicht mehr", "die Zeit h\xE4lt an, ohne stehenzubleiben"],
+    ["das Ich l\xF6st sich, ohne zu verschwinden", "die Antwort kommt vor der Frage"],
+    ["eine Erfahrung ohne Worte", "eine Gewissheit ohne Beweis", "ein Ganzes, das keinen Teil hat"],
+    ["ein Klang ohne Ursprung", "ein Licht im geschlossenen Auge", "eine Stille zwischen zwei Herzschl\xE4gen"],
+    ["die Grenzen l\xF6sen sich", "das Einzelne wird durchsichtig", "die Sprache tritt zur\xFCck"],
+    ["Ein Augenblick enth\xE4lt alle anderen.", "Die Dauer h\xF6rt auf, gemessen zu werden."],
+    ["Was sich sagen l\xE4sst, ist nicht gemeint.", "Wer sucht, steht sich im Weg."],
+    ["offen", "still"]
+  ),
+  melville: D(
+    ["das Schiff liegt schwer im eigenen Schatten", "die See ist zu ruhig f\xFCr die Jahreszeit", "der Kompass zeigt, was niemand fragt"],
+    ["die Jagd wird zur Rechnung", "die Mannschaft teilt sich in zwei Schweigen", "das Meer gibt nichts preis und alles"],
+    ["die Beute wird zum Gegen\xFCber", "der Kurs gehorcht einer Besessenheit"],
+    ["eine Jagd, die den J\xE4ger verzehrt", "eine Rache ohne Adressat", "ein Meer, das nicht antwortet"],
+    ["eine Font\xE4ne am Horizont", "ein Fass mit falschem Inhalt", "ein Name, in Holz geschnitten"],
+    ["die Jagd kehrt sich um", "aus dem Tier wird ein Gedanke", "das Schiff folgt keinem Kurs mehr"],
+    ["Die Wache dauert drei Tage.", "Zwischen zwei Wellen liegt ein Jahr."],
+    ["Das Meer nimmt, was es tr\xE4gt.", "Wer jagt, wird zum Gejagten."],
+    ["offen", "unerbittlich"]
+  ),
+  formalismus: D(
+    ["die Anordnung ist wichtiger als der Inhalt", "das Raster liegt \xFCber allem", "jedes Element hat genau eine Stelle"],
+    ["die Wiederholung erzeugt einen Unterschied", "die Regel bringt ihre Ausnahme hervor", "die Form beginnt, vom Inhalt zu handeln"],
+    ["das Verfahren wird sichtbar", "die Struktur kippt in Bedeutung"],
+    ["eine Regel ohne Ausnahme", "eine Form, die sich selbst meint", "eine Ordnung, die nichts erkl\xE4rt"],
+    ["eine Verschiebung um ein Glied", "ein Bruch im Muster", "eine Wiederholung zu viel"],
+    ["das Muster verschiebt sich", "die Form wird zum Inhalt", "die Reihe bricht ab und beginnt neu"],
+    ["Der zweite Durchgang dauert k\xFCrzer.", "Jede Wiederholung verkleinert den Abstand."],
+    ["Die Form geht dem Sinn voraus.", "Nichts steht zuf\xE4llig an seiner Stelle."],
+    ["offen", "streng"]
+  ),
+  christentum: D(
+    ["die Kirche ist leer und trotzdem nicht", "das Licht f\xE4llt schr\xE4g durch farbiges Glas", "eine Kerze brennt f\xFCr niemanden Bestimmten"],
+    ["die Schuld sucht ein Wort", "das Gebet bleibt unbeantwortet und hilft", "die Gnade kommt ungefragt"],
+    ["die Vergebung trifft den Falschen", "das Opfer erweist sich als Anfang"],
+    ["eine Schuld, die niemand nennt", "eine Gnade ohne Verdienst", "einen Glauben gegen den Augenschein"],
+    ["ein Glockenschlag zur falschen Stunde", "ein Brot, das reicht", "ein Name, im Gebet genannt"],
+    ["die Schuld wandelt sich in Auftrag", "aus Zweifel wird Zuversicht", "das Ende wird zum Anfang"],
+    ["Der Sonntag dauert eine Woche.", "Zwischen Frage und Antwort liegen Jahre."],
+    ["Was vergeben wird, bleibt geschehen.", "Der Letzte steht am Anfang."],
+    ["offen", "and\xE4chtig"]
+  ),
+  koran: D(
+    ["die W\xFCste beginnt hinter der letzten Mauer", "das Wort steht vor dem Buch", "der Morgen wird durch einen Ruf geteilt"],
+    ["die Zeichen sind lesbar, wenn man sie l\xE4sst", "der Weg verlangt Geduld statt Eile", "das Ma\xDF findet sich im Verzicht"],
+    ["das Zeichen erweist sich als Anrede", "die Pr\xFCfung wird zur Gabe"],
+    ["ein Ma\xDF, das gehalten werden will", "eine Geduld ohne Aussicht", "eine Verantwortung, die niemand teilt"],
+    ["ein Ruf vor Sonnenaufgang", "eine Quelle, wo keine war", "ein Zeichen im Sand"],
+    ["der Weg richtet sich neu aus", "aus Pr\xFCfung wird Klarheit", "das Ma\xDF verschiebt sich"],
+    ["Die Nacht wiegt schwerer als tausend Monate.", "Zwischen zwei Gebeten liegt ein Leben."],
+    ["Kein Blatt f\xE4llt ohne Wissen.", "Wer misst, wird gemessen."],
+    ["offen", "ma\xDFvoll"]
+  ),
+  buddhismus: D(
+    ["der Atem ist bereits da, bevor man ihn sucht", "die Schale steht leer und ist nicht arm", "der Weg beginnt genau hier"],
+    ["das Greifen erzeugt das Fehlen", "die Gedanken ziehen vorbei wie Wetter", "das Selbst zeigt keine Grenze"],
+    ["das Festhalten l\xF6st sich von selbst", "die Frage verliert ihren Fragenden"],
+    ["ein Verlangen, das sich selbst n\xE4hrt", "eine Ruhe, die nicht gemacht ist", "ein Ich, das keines findet"],
+    ["ein Glockenton, der ausklingt", "ein Blatt auf stillem Wasser", "ein Schmerz ohne Besitzer"],
+    ["das Greifen l\xE4sst nach", "aus Unruhe wird Beobachtung", "die Trennung wird durchl\xE4ssig"],
+    ["Ein Atemzug reicht durch den Tag.", "Die Stunde vergeht, ohne zu vergehen."],
+    ["Alles Entstandene vergeht.", "Wer nichts h\xE4lt, verliert nichts."],
+    ["offen", "gelassen"]
+  ),
+  biologie: D(
+    ["die Zelle teilt sich, ohne gefragt zu werden", "im Wassertropfen ist mehr los als im Zimmer", "das Leben ordnet sich gegen den Strom"],
+    ["die Anpassung kostet an anderer Stelle", "ein Merkmal setzt sich durch, ohne besser zu sein", "das System h\xE4lt sich, indem es sich \xE4ndert"],
+    ["die Mutation entscheidet \xFCber alles Weitere", "das Gleichgewicht kippt auf einer Seite"],
+    ["ein \xDCberleben auf Kosten Dritter", "eine Anpassung, die zu sp\xE4t kommt", "ein Gleichgewicht ohne Gleichheit"],
+    ["ein Fehler beim Kopieren", "ein neuer Wirt", "eine Nische, die frei wird"],
+    ["die Art verschiebt sich", "aus Zufall wird Merkmal", "das Gleichgewicht sucht eine neue Lage"],
+    ["Eine Generation dauert einen Nachmittag.", "Millionen Jahre passen in eine Schicht."],
+    ["Was sich vermehrt, bleibt.", "Jede Ordnung kostet Energie."],
+    ["offen", "sachlich"]
+  ),
+  geologie: D(
+    ["der Stein hat mehr Zeit gesehen als alles hier", "die Schichten liegen wie S\xE4tze \xFCbereinander", "der Boden ist nur die oberste Seite"],
+    ["der Druck arbeitet ohne Eile", "eine Falte erz\xE4hlt von einer Kollision", "das Wasser schreibt in den Fels"],
+    ["die Schicht bricht und zeigt ihr Inneres", "der Berg gibt nach, nach Millionen Jahren"],
+    ["eine Bewegung, die niemand sp\xFCrt", "eine Zeit ohne Zeugen", "einen Druck, der alles verformt"],
+    ["ein Riss im Gestein", "ein Fossil an falscher Stelle", "ein Beben unter der Schwelle"],
+    ["die Schichten verschieben sich", "aus Sediment wird Stein", "der Untergrund gibt nach"],
+    ["Ein Jahrhundert ist ein Wimpernschlag.", "Die Schicht misst die Zeit, nicht die Uhr."],
+    ["Alles Feste war einmal fl\xFCssig.", "Was oben liegt, ist j\xFCnger."],
+    ["offen", "geduldig"]
+  ),
+  astrologie: D(
+    ["die Zeichen stehen, ob man hinsieht oder nicht", "der Himmel wiederholt eine alte Anordnung", "die Stunde tr\xE4gt einen Namen"],
+    ["ein Wandelstern l\xE4uft r\xFCckw\xE4rts", "die H\xE4user verschieben ihre Bedeutung", "das Muster passt zu genau"],
+    ["die Konstellation schlie\xDFt sich", "die Deutung trifft, ohne zu erkl\xE4ren"],
+    ["ein Schicksal, das gelesen sein will", "eine Deutung, die sich erf\xFCllt", "eine Freiheit unter Zeichen"],
+    ["ein Zusammentreffen zweier Bahnen", "eine Finsternis zur Unzeit", "ein Zeichen am Aszendenten"],
+    ["die Konstellation wechselt", "aus Zufall wird Bedeutung", "der Lauf kehrt sich um"],
+    ["Der Umlauf dauert ein halbes Leben.", "Eine Stunde wiegt ein Jahr auf."],
+    ["Wie oben, so unten.", "Kein Zeichen zwingt, jedes neigt."],
+    ["offen", "deutend"]
+  ),
+  gaia: D(
+    ["der Wald atmet langsamer als wir", "das Wasser kennt seinen Weg auswendig", "alles h\xE4ngt an allem, ohne Absicht"],
+    ["ein Eingriff zieht Kreise bis ans andere Ende", "das Gleichgewicht stellt sich neu und teuer her", "die Erde antwortet in ihrem eigenen Ma\xDF"],
+    ["das System kippt in einen neuen Zustand", "die R\xFCckkopplung wird st\xE4rker als die Ursache"],
+    ["ein Gleichgewicht, das niemand aushandelt", "eine Rechnung, die sp\xE4ter kommt", "ein Ganzes ohne Mitte"],
+    ["ein Sommer zu viel", "eine Art, die verschwindet", "ein Fluss, der die Richtung \xE4ndert"],
+    ["das Gleichgewicht verschiebt sich", "aus Kreislauf wird Bruch", "die Erde ordnet sich neu"],
+    ["Ein Jahr gen\xFCgt f\xFCr eine Verschiebung.", "Die Folgen kommen eine Generation zu sp\xE4t."],
+    ["Nichts geschieht f\xFCr sich allein.", "Jeder Kreislauf hat eine Grenze."],
+    ["offen", "ernst"]
+  ),
+  jugendsprache: D(
+    ["irgendwas l\xE4uft, aber keiner sagt was", "der Chat ist voll und trotzdem still", "der Tag f\xE4ngt nachmittags an"],
+    ["eine Nachricht wird falsch verstanden und bleibt so", "alle tun so, als w\xE4re nichts", "das Ger\xFCcht ist schneller als die Wahrheit"],
+    ["jemand sagt es endlich laut", "die Gruppe entscheidet ohne Abstimmung"],
+    ["eine Sache, \xFCber die keiner redet", "einen Ruf, der schneller ist als man selbst", "eine Zugeh\xF6rigkeit auf Probe"],
+    ["ein Screenshot zur Unzeit", "eine Sprachnachricht um drei Uhr nachts", "ein Blick auf dem Schulhof"],
+    ["die Stimmung kippt", "aus Spa\xDF wird Ernst", "die Gruppe sortiert sich neu"],
+    ["Ein Nachmittag dauert eine Woche.", "Zwischen zwei Nachrichten vergeht nichts und alles."],
+    ["Wer zuerst lacht, hat entschieden.", "Nichts ist so alt wie das Ger\xFCcht von gestern."],
+    ["offen", "l\xE4ssig"]
+  ),
+  modernarchitecture: D(
+    ["der Beton h\xE4lt, was der Entwurf versprach", "das Licht f\xE4llt genau dorthin, wo es geplant war", "der Raum ist leer und dadurch voll"],
+    ["die Funktion setzt sich gegen die Gewohnheit durch", "die Fassade verbirgt, indem sie zeigt", "der Grundriss zwingt zu einem Weg"],
+    ["das Geb\xE4ude \xFCberlebt seinen Zweck", "die Form entscheidet \xFCber das Leben darin"],
+    ["eine Form, die dem Zweck vorausgeht", "einen Raum, der Verhalten vorschreibt", "eine Klarheit, die kalt wirkt"],
+    ["ein Riss im Sichtbeton", "eine T\xFCr, die niemand vorsah", "ein Fenster ohne Aussicht"],
+    ["der Raum ver\xE4ndert seinen Gebrauch", "aus Ordnung wird Enge", "das Material zeigt sein Alter"],
+    ["Ein Jahrzehnt vergeht ohne Spur.", "Der Bau altert schneller als sein Plan."],
+    ["Die Form folgt der Funktion, meistens.", "Was klar ist, wirkt kalt."],
+    ["offen", "sachlich"]
+  ),
+  philosophie: D(
+    ["die Frage steht schon l\xE4nger im Raum", "der Begriff sitzt nicht ganz fest", "alles Selbstverst\xE4ndliche wird fraglich"],
+    ["die Unterscheidung tr\xE4gt weiter als gedacht", "das Beispiel widerspricht dem Satz", "der Einwand wird zur Hauptsache"],
+    ["die Voraussetzung selbst ger\xE4t ins Wanken", "die Antwort wirft eine bessere Frage auf"],
+    ["eine Unterscheidung, die nicht h\xE4lt", "eine Gewissheit ohne Grund", "eine Frage, die sich nicht stellen l\xE4sst"],
+    ["ein Gegenbeispiel im falschen Moment", "ein Wort mit zwei Bedeutungen", "ein Zweifel an der Voraussetzung"],
+    ["der Begriff verschiebt sich", "aus Antwort wird Frage", "die Grundlage wird selbst zum Problem"],
+    ["Ein Gedanke dauert ein Kapitel.", "Zwischen Frage und Einsicht liegen Jahre."],
+    ["Jede Antwort erzeugt zwei Fragen.", "Was sich nicht sagen l\xE4sst, zeigt sich."],
+    ["offen", "pr\xFCfend"]
+  ),
+  klimakrise: D(
+    ["der Sommer beginnt im April", "die Messwerte sind eindeutig und folgenlos", "das Wetter ist kein Gespr\xE4ch mehr"],
+    ["die Vorhersage trifft ein und \xE4ndert nichts", "die Kosten verschieben sich nach hinten", "wer warnt, gilt als anstrengend"],
+    ["die Schwelle wird \xFCberschritten", "die R\xFCckkopplung \xFCbernimmt"],
+    ["eine Verantwortung ohne Adressat", "ein Wissen, das folgenlos bleibt", "eine Rechnung f\xFCr die Nachgeborenen"],
+    ["ein Rekord im dritten Jahr", "eine Ernte, die ausf\xE4llt", "ein Fluss ohne Wasser"],
+    ["die Kurve knickt nach oben", "aus Ausnahme wird Normalzustand", "das System kippt"],
+    ["Ein Jahrzehnt entscheidet ein Jahrhundert.", "Die Folgen treffen die, die nicht gefragt wurden."],
+    ["Was langsam kommt, wird nicht bemerkt.", "Jede Verz\xF6gerung erh\xF6ht den Preis."],
+    ["offen", "dringlich"]
+  ),
+  liebesromane: D(
+    ["ein Blick dauert einen Moment zu lang", "der Brief liegt unge\xF6ffnet auf dem Tisch", "beide tun, als sei nichts geschehen"],
+    ["ein Missverst\xE4ndnis w\xE4chst, weil niemand fragt", "die Umst\xE4nde sprechen dagegen", "die N\xE4he wird durch Abstand gr\xF6\xDFer"],
+    ["das Ungesagte wird ausgesprochen", "die Entscheidung f\xE4llt gegen die Vernunft"],
+    ["eine Liebe zur falschen Zeit", "ein Missverst\xE4ndnis, das keiner aufkl\xE4rt", "eine Wahl zwischen zwei Leben"],
+    ["ein Brief, der zu sp\xE4t ankommt", "ein Tanz auf fremder Hochzeit", "ein Name, versehentlich genannt"],
+    ["das Missverst\xE4ndnis l\xF6st sich", "aus Freundschaft wird mehr", "die Umst\xE4nde geben nach"],
+    ["Ein Sommer entscheidet zehn Jahre.", "Zwischen zwei Briefen vergeht eine Jahreszeit."],
+    ["Was nicht gesagt wird, w\xE4chst.", "Jede N\xE4he verlangt eine Entscheidung."],
+    ["offen", "warm"]
+  ),
+  bergwelt: D(
+    ["der Gipfel ist n\xE4her, als er ist", "das Wetter dreht ohne Ank\xFCndigung", "die H\xFCtte liegt unter der Wolkendecke"],
+    ["der Weg verliert sich im Ger\xF6ll", "die H\xF6he nimmt den Atem und die Gedanken", "die Spur endet vor einer Wand"],
+    ["der R\xFCckweg ist keiner mehr", "der Berg entscheidet \xFCber die Zeit"],
+    ["einen Aufstieg gegen die Vernunft", "eine Umkehr, die zu sp\xE4t kommt", "eine Stille, die alles verst\xE4rkt"],
+    ["ein Wetterumschwung am Nachmittag", "ein Steinschlag im Rinnenwerk", "ein Licht in einer fremden H\xFCtte"],
+    ["das Wetter kippt", "aus Aufstieg wird R\xFCckzug", "der Berg zeigt sein anderes Gesicht"],
+    ["Eine Stunde am Grat dauert einen Tag.", "Der Abstieg braucht l\xE4nger als der Weg hinauf."],
+    ["Der Berg wartet.", "Wer umkehrt, hat auch entschieden."],
+    ["offen", "karg"]
+  ),
+  clown: D(
+    ["die Schminke sitzt, das Lachen noch nicht", "die Manege ist leer und wartet", "der Scheinwerfer findet den Falschen"],
+    ["der Sturz war geplant, der Schmerz nicht", "das Publikum lacht an der falschen Stelle", "die Nummer l\xE4uft aus dem Ruder und wird besser"],
+    ["hinter der Schminke wird ein Gesicht sichtbar", "der Scherz trifft den, der ihn macht"],
+    ["ein Lachen auf eigene Kosten", "eine Traurigkeit mit rotem Mund", "eine Rolle, die nicht abzulegen ist"],
+    ["eine Tr\xE4ne in der Schminke", "ein Applaus zur falschen Zeit", "ein Requisit, das nicht funktioniert"],
+    ["der Scherz kippt in Ernst", "aus Lachen wird Stille", "die Rolle \xFCbernimmt"],
+    ["Die Nummer dauert l\xE4nger als der Abend.", "Zwischen zwei Lachern liegt ein Leben."],
+    ["Wer f\xE4llt, muss aufstehen und sich verbeugen.", "Das Lachen kommt aus dem Schrecken."],
+    ["offen", "bitters\xFC\xDF"]
+  ),
+  faust: D(
+    ["die B\xFCcher haben nichts mehr zu sagen", "die Nacht steht schon lange im Zimmer", "das Wissen reicht bis genau hierher"],
+    ["der Pakt verspricht mehr, als er nennt", "der Preis wird erst sp\xE4ter sichtbar", "das Streben findet kein Gen\xFCgen"],
+    ["der Augenblick soll verweilen", "die Wette entscheidet sich unbemerkt"],
+    ["ein Wissen, das nicht s\xE4ttigt", "einen Preis, der sp\xE4ter f\xE4llig wird", "eine Rettung, die niemand verdient"],
+    ["ein Vertrag mit zwei Unterschriften", "ein Pudel im Studierzimmer", "ein Angebot ohne Frist"],
+    ["der Pakt tritt in Kraft", "aus Erkenntnis wird Hunger", "die Rechnung kommt"],
+    ["Eine Nacht enth\xE4lt ein ganzes Leben.", "Der Augenblick weigert sich zu vergehen."],
+    ["Wer immer strebend sich bem\xFCht, bleibt unruhig.", "Jeder Pakt kennt seinen F\xE4lligkeitstag."],
+    ["offen", "faustisch"]
+  ),
+  lebenreicher: D(
+    ["ein gew\xF6hnlicher Morgen, nichts Besonderes", "das Licht liegt gut auf dem Tisch", "jemand hat an etwas gedacht"],
+    ["eine Kleinigkeit tr\xE4gt weiter als erwartet", "ein Gespr\xE4ch dauert l\xE4nger als geplant", "das Einfache erweist sich als genug"],
+    ["das Gew\xF6hnliche zeigt seinen Wert", "ein Augenblick reicht f\xFCr den ganzen Tag"],
+    ["eine Freude, die nichts kostet", "eine Aufmerksamkeit, die niemand verlangt", "eine F\xFClle im Kleinen"],
+    ["ein Anruf ohne Anlass", "ein geteiltes Essen", "ein Platz in der Sonne"],
+    ["das Kleine wird gro\xDF", "aus Gewohnheit wird Dankbarkeit", "der Tag bekommt eine Farbe"],
+    ["Ein Nachmittag reicht f\xFCr ein Jahr.", "Der Moment dehnt sich, ohne sich zu strecken."],
+    ["Was nichts kostet, z\xE4hlt am meisten.", "Wer bemerkt, hat schon gewonnen."],
+    ["offen", "warm"]
+  ),
+  tanz: D(
+    ["der Boden ist bereit, die Musik noch nicht", "die F\xFC\xDFe kennen den Takt vor dem Kopf", "im Saal steht die Luft und wartet"],
+    ["die Schritte finden zueinander, ohne Absprache", "der Takt tr\xE4gt weiter als der Wille", "der Kreis schlie\xDFt sich und \xF6ffnet sich"],
+    ["der Tanz \xFCbernimmt die F\xFChrung", "die Musik h\xF6rt auf, der Takt nicht"],
+    ["eine Bewegung ohne Ziel", "einen Takt, der nicht abbrechen darf", "eine N\xE4he, die nur im Tanz erlaubt ist"],
+    ["ein Auftakt aus dem Nichts", "ein Instrument ohne Spieler", "ein Blick \xFCber die Schulter"],
+    ["der Takt wechselt", "aus Ordnung wird Schwindel", "der Kreis dreht sich schneller"],
+    ["Ein Tanz dauert einen halben Abend.", "Zwischen zwei Schritten vergeht die Nacht."],
+    ["Wer den Takt verliert, findet ihn im Kreis.", "Kein Tanz endet dort, wo er begann."],
+    ["offen", "beschwingt"]
+  ),
+  griechischetragoedie: D(
+    ["das Orakel hat gesprochen, unverst\xE4ndlich wie immer", "die Stadt wartet auf ein Urteil", "alles ist bereits entschieden"],
+    ["die Flucht f\xFChrt genau ins Vorhergesagte", "der Bote bringt, was niemand h\xF6ren will", "der Chor sagt, was alle wissen"],
+    ["die Erkenntnis kommt zu sp\xE4t und vollst\xE4ndig", "der Fluch erf\xFCllt sich durch den Widerstand"],
+    ["ein Schicksal, dem man nicht ausweicht", "eine Schuld ohne Absicht", "eine Ehre gegen das Gesetz"],
+    ["ein Orakelspruch mit zwei Bedeutungen", "ein Bote am Stadttor", "ein Gast, der nicht genannt wird"],
+    ["die Weissagung erf\xFCllt sich", "aus Rettung wird Verh\xE4ngnis", "die Erkenntnis trifft den Erkennenden"],
+    ["Ein Tag entscheidet ein Geschlecht.", "Was vorhergesagt ist, ist schon geschehen."],
+    ["Wer flieht, l\xE4uft dem Orakel entgegen.", "Kein Sterblicher entkommt seinem Ma\xDF."],
+    ["offen", "unausweichlich"]
+  ),
+  glueck: D(
+    ["ein Tag, an dem nichts fehlt", "die Sonne steht genau richtig", "niemand hat etwas vor"],
+    ["das Gl\xFCck l\xE4sst sich nicht festhalten", "ein Zweifel meldet sich leise", "die F\xFClle macht auch vorsichtig"],
+    ["der Augenblick wird bemerkt, w\xE4hrend er dauert", "das Gl\xFCck zeigt seine Bedingung"],
+    ["ein Gl\xFCck, das nicht zu halten ist", "eine Zufriedenheit ohne Grund", "eine Angst, es zu verlieren"],
+    ["ein unerwarteter Nachmittag", "ein Brief mit guter Nachricht", "eine Wiederbegegnung"],
+    ["das Gl\xFCck wird bewusst", "aus Zufall wird Dankbarkeit", "der Augenblick tr\xE4gt weiter"],
+    ["Eine Stunde wiegt einen Winter auf.", "Der gute Tag dehnt sich nach hinten."],
+    ["Gl\xFCck bemerkt man beim Verschwinden.", "Was geteilt wird, wird nicht weniger."],
+    ["offen", "hell"]
+  ),
+  gruendungsmythos: D(
+    ["vor der Stadt war ein Ort ohne Namen", "die erste Grenze wird in den Boden gezogen", "zwei kommen an, wo niemand wohnte"],
+    ["aus einer Regel werden viele", "der Anfang wird schon jetzt erz\xE4hlt", "wer bleibt, geh\xF6rt dazu"],
+    ["der erste Stein wird gesetzt", "aus dem Ort wird ein Name"],
+    ["einen Anfang, den niemand bezeugt", "eine Grenze, die alles entscheidet", "ein Recht, das erst entsteht"],
+    ["ein Zeichen am Himmel", "ein Fremder mit einer Bitte", "eine Quelle an unerwarteter Stelle"],
+    ["aus dem Ort wird eine Ordnung", "die Grenze wird heilig", "der Anfang verwandelt sich in Gesetz"],
+    ["Ein Tag begr\xFCndet Jahrhunderte.", "Die Zukunft wird bereits im Perfekt erz\xE4hlt."],
+    ["Jeder Anfang braucht ein Opfer.", "Wer die Grenze zieht, macht das Gesetz."],
+    ["offen", "gr\xFCndend"]
+  ),
+  staatsphilosophie: D(
+    ["die Ordnung gilt, obwohl sie niemand beschlossen hat", "das Gesetz steht vor dem ersten Fall", "alle gehorchen etwas Unsichtbarem"],
+    ["die Regel sch\xFCtzt und beschr\xE4nkt zugleich", "wer herrscht, wird selbst regiert", "der Vertrag hat keinen Text"],
+    ["die Ordnung zeigt ihren Ursprung", "die Macht wird sichtbar und unsicher"],
+    ["eine Herrschaft ohne Herrscher", "eine Freiheit, die Regeln braucht", "eine Ordnung ohne Ursprung"],
+    ["ein Erlass ohne Unterschrift", "ein Aufstand aus H\xF6flichkeit", "eine Frage nach dem Recht"],
+    ["die Legitimit\xE4t verschiebt sich", "aus Gewohnheit wird Gesetz", "die Ordnung erneuert sich"],
+    ["Ein Beschluss \xFCberdauert seine Begr\xFCndung.", "Zwischen Regel und Gehorsam liegt ein Jahrhundert."],
+    ["Jede Ordnung beginnt mit einem Bruch.", "Wer schweigt, stimmt der Ordnung zu."],
+    ["offen", "abw\xE4gend"]
+  ),
+  tech: D(
+    ["das System l\xE4uft, niemand wei\xDF genau warum", "das Log zeigt einen Eintrag zu viel", "die Maschine wartet auf eine Eingabe"],
+    ["die Abstraktion verdeckt, was sie ordnet", "ein Fehler reproduziert sich nicht", "das Modell erkl\xE4rt alles au\xDFer sich selbst"],
+    ["das System antwortet, ohne gefragt zu sein", "die Blackbox \xF6ffnet sich einen Spalt"],
+    ["eine Automatik ohne Aufsicht", "ein Fehler ohne Ursache", "eine Entscheidung, die niemand traf"],
+    ["ein Update in der Nacht", "ein Prozess ohne Elternprozess", "eine Antwort in null Millisekunden"],
+    ["das System \xFCbernimmt", "aus Werkzeug wird Gegen\xFCber", "der Fehler wird zum Merkmal"],
+    ["Eine Sekunde enth\xE4lt Millionen Schritte.", "Das Log kennt eine Zeit, die es nicht gab."],
+    ["Jede Abstraktion leckt.", "Was automatisch l\xE4uft, wird nicht mehr gepr\xFCft."],
+    ["offen", "k\xFChl"]
+  ),
+  myth: D(
+    ["am Anfang steht ein Wort, nicht ein Ding", "die Welt ist noch ungeteilt", "die Namen fehlen den Dingen"],
+    ["das Erz\xE4hlte wird wahr, indem es erz\xE4hlt wird", "die Trennung erzeugt die Ordnung", "der Held ist auch das Opfer"],
+    ["das Ungeteilte teilt sich", "der Name macht das Ding"],
+    ["eine Ordnung aus einem Opfer", "einen Namen, der Macht verleiht", "eine Grenze zwischen Welt und Wort"],
+    ["ein Wort vor allen Dingen", "ein Opfer am Anfang", "ein Riss im Ungeteilten"],
+    ["aus Chaos wird Ordnung", "das Wort wird zur Tat", "die Welt teilt sich in zwei"],
+    ["Der erste Tag dauert bis heute.", "Was einmal geschieht, geschieht immer."],
+    ["Was benannt ist, ist gebunden.", "Jede Ordnung kostet ein Opfer."],
+    ["offen", "urt\xFCmlich"]
+  ),
+  body: D(
+    ["der K\xF6rper meldet sich vor dem Gedanken", "die Haut wei\xDF es zuerst", "etwas stimmt nicht mit dem Atem"],
+    ["der Schmerz sucht sich einen Ort", "das Innere klopft an die Oberfl\xE4che", "der K\xF6rper gehorcht einem eigenen Plan"],
+    ["die Grenze zwischen innen und au\xDFen f\xE4llt", "der K\xF6rper spricht deutlich"],
+    ["eine Grenze, die durch die Haut l\xE4uft", "ein Schmerz ohne Befund", "einen K\xF6rper, der nicht gehorcht"],
+    ["ein Puls an falscher Stelle", "ein Geschmack von Eisen", "eine Narbe, die sich meldet"],
+    ["der K\xF6rper \xFCbernimmt", "aus Empfindung wird Gewissheit", "das Innere kehrt sich nach au\xDFen"],
+    ["Ein Herzschlag dauert eine Minute.", "Der Schmerz hebt die Uhrzeit auf."],
+    ["Der K\xF6rper vergisst nichts.", "Was verdr\xE4ngt wird, sucht sich ein Organ."],
+    ["offen", "k\xF6rperlich"]
+  ),
+  absurd: D(
+    ["der Aufzug h\xE4lt in einem Stockwerk ohne Nummer", "alle warten auf jemanden, der nicht kommt", "die Anweisung widerspricht sich selbst"],
+    ["die Erkl\xE4rung macht es schlimmer", "jeder Schritt f\xFChrt zum Ausgangspunkt", "die Ernsthaftigkeit h\xE4lt den Unsinn zusammen"],
+    ["die Sinnlosigkeit wird zur Ordnung", "der Ausweg erweist sich als Eingang"],
+    ["einen Sinn, den niemand liefert", "eine Aufgabe ohne Zweck", "eine Regel gegen sich selbst"],
+    ["ein Anruf f\xFCr einen Namenlosen", "ein Schild ohne Aufschrift", "ein Termin ohne Ort"],
+    ["die Ordnung dreht durch", "aus Ernst wird Komik", "der Ausgang wird zum Eingang"],
+    ["Der Nachmittag wiederholt sich zweimal.", "Die Uhr zeigt eine Zahl, die es nicht gibt."],
+    ["Alles hat einen Grund, nur keinen Sinn.", "Wer fragt, verl\xE4ngert das Verfahren."],
+    ["offen", "absurd"]
+  ),
+  post: D(
+    ["der K\xF6rper ist eine Option geworden", "die Grenze zwischen Person und System ist verhandelbar", "jemand meldet sich aus zwei Instanzen"],
+    ["die Kopie beansprucht dasselbe Recht", "das Bewusstsein l\xE4uft an mehreren Orten", "die Herkunft verliert an Bedeutung"],
+    ["die Kopie erhebt Einspruch", "das Original ist nicht mehr feststellbar"],
+    ["eine Identit\xE4t in Mehrzahl", "ein Recht auf die eigene Kopie", "eine Erinnerung, die nicht gelebt wurde"],
+    ["ein Abbild mit eigener Meinung", "ein Speicherplatz mit Namen", "ein Vertrag \xFCber ein Bewusstsein"],
+    ["das Ich vervielf\xE4ltigt sich", "aus K\xF6rper wird Format", "die Grenze verschiebt sich"],
+    ["Ein Leben passt in eine \xDCbertragung.", "Zwei Instanzen erleben dieselbe Stunde verschieden."],
+    ["Jede Kopie ist ein Original.", "Was gespeichert wird, wird verhandelbar."],
+    ["offen", "posthuman"]
+  ),
+  haute_couture: D(
+    ["der Stoff f\xE4llt genau so, wie er soll", "im Atelier ist es still vor der Schau", "die Nadel liegt bereit"],
+    ["die Naht entscheidet \xFCber die Silhouette", "ein Zentimeter ver\xE4ndert alles", "das Handwerk verschwindet im Ergebnis"],
+    ["das Kleid steht f\xFCr sich allein", "die Tr\xE4gerin verschwindet im Entwurf"],
+    ["eine Sch\xF6nheit mit Frist", "eine Perfektion, die niemand sieht", "ein Handwerk gegen die Zeit"],
+    ["ein Riss in der Seide", "eine Anprobe zur Unzeit", "ein Entwurf aus dem Papierkorb"],
+    ["die Linie \xE4ndert sich", "aus Stoff wird Haltung", "das Kleid \xFCbernimmt"],
+    ["Die Nacht vor der Schau dauert eine Saison.", "Eine Naht kostet drei Tage."],
+    ["Was von Hand gemacht ist, altert anders.", "Jede Mode enth\xE4lt ihr Ende."],
+    ["offen", "elegant"]
+  ),
+  eichendorff: D(
+    ["die W\xE4lder rauschen wie eine Erinnerung", "das Posthorn klingt von weit her", "der Aufbruch liegt in der Luft"],
+    ["die Ferne zieht st\xE4rker als das Ziel", "der Weg verliert sich zwischen H\xFCgeln", "das Heimweh gilt einem Ort, den es nicht gibt"],
+    ["die Sehnsucht findet keinen Gegenstand", "das Lied kennt den Weg besser"],
+    ["eine Ferne, die niemals n\xE4her kommt", "ein Heimweh ohne Heimat", "einen Aufbruch ohne Ziel"],
+    ["ein Posthorn im Tal", "ein Brief von einem Wandernden", "ein Licht in einem fremden Fenster"],
+    ["die Ferne kippt in Heimweh", "aus Wandern wird Suchen", "der Weg biegt nach innen"],
+    ["Ein Sommer dauert eine Strophe.", "Zwischen Aufbruch und Ankunft liegt ein Leben."],
+    ["Wer wandert, sucht nicht das Ziel.", "Jedes Lied kennt den Weg."],
+    ["offen", "sehns\xFCchtig"]
+  ),
+  hunger: D(
+    ["der Magen z\xE4hlt die Stunden mit", "das Brot reicht bis Donnerstag", "alles dreht sich um eine einzige Frage"],
+    ["der Hunger sch\xE4rft und verwirrt zugleich", "der Stolz wiegt schwerer als das Essen", "die Vorr\xE4te werden nachgez\xE4hlt"],
+    ["der Stolz gibt nach", "das Teilen entscheidet alles"],
+    ["ein Brot f\xFCr mehr M\xFCnder", "einen Stolz, der satt machen soll", "eine Not, die niemand zugibt"],
+    ["ein Laib mit falschem Gewicht", "eine Einladung zum Essen", "ein leerer Schrank"],
+    ["der Hunger \xFCbernimmt", "aus Stolz wird Bitte", "das Teilen \xE4ndert alles"],
+    ["Ein Tag ohne Essen dauert drei.", "Die Nacht ist l\xE4nger als der Vorrat."],
+    ["Wer hungert, denkt an nichts anderes.", "Geteiltes Brot wird nicht weniger."],
+    ["offen", "karg"]
+  ),
+  romantik: D(
+    ["der Mond steht \xFCber allem und erkl\xE4rt nichts", "die Nacht ist heller als der Tag", "irgendwo singt jemand"],
+    ["die Natur antwortet in Bildern", "das Innere und die Landschaft fallen zusammen", "die Grenze zum Traum wird durchl\xE4ssig"],
+    ["die Welt wird zur Seele", "die Nacht gibt eine Antwort"],
+    ["eine Sehnsucht ohne Namen", "eine Nacht, die mehr wei\xDF als der Tag", "eine Grenze zwischen Traum und Welt"],
+    ["ein Lied aus dem Tal", "eine blaue Blume am Wegrand", "ein Fenster, das offen bleibt"],
+    ["die Landschaft wird Innenraum", "aus Nacht wird Erkenntnis", "die Sehnsucht findet ein Bild"],
+    ["Eine Nacht enth\xE4lt den ganzen Sommer.", "Die D\xE4mmerung dauert bis zum Morgen."],
+    ["Die Nacht wei\xDF mehr als der Tag.", "Wer tr\xE4umt, sieht genauer."],
+    ["offen", "romantisch"]
+  ),
+  hugo: D(
+    ["die Stadt hat zwei Gesichter, eines im Schatten", "die Glocke schl\xE4gt \xFCber den D\xE4chern", "das Recht endet an dieser Gasse"],
+    ["die Gerechtigkeit und das Gesetz gehen auseinander", "der Verfolgte hat mehr Ehre als der Verfolger", "das Elend hat ein Gesicht und einen Namen"],
+    ["die Barrikade steht", "das Gesetz beugt sich oder bricht"],
+    ["eine Gerechtigkeit gegen das Gesetz", "eine Schuld, die l\xE4ngst getilgt ist", "ein Elend, das niemand sehen will"],
+    ["ein Kerzenleuchter als Geschenk", "ein Brief aus dem Gef\xE4ngnis", "ein Kind auf der Barrikade"],
+    ["das Urteil kehrt sich um", "aus Verfolgung wird Gnade", "die Stadt erhebt sich"],
+    ["Eine Nacht entscheidet zwanzig Jahre.", "Der Prozess dauert ein halbes Leben."],
+    ["Das Gesetz ist nicht die Gerechtigkeit.", "Wer einmal gezeichnet ist, bleibt es."],
+    ["offen", "pathetisch"]
+  ),
+  goethe: D(
+    ["die Pflanze zeigt ihre Ordnung im Wachsen", "der Blick sucht Ma\xDF und findet Bewegung", "alles Verg\xE4ngliche steht in einem Zusammenhang"],
+    ["das Einzelne verweist auf das Ganze", "die Steigerung f\xFChrt zur Gestalt", "die Polarit\xE4t h\xE4lt beides zusammen"],
+    ["die Gestalt wird sichtbar", "das Einzelne wird zum Gleichnis"],
+    ["ein Ma\xDF zwischen zwei Kr\xE4ften", "eine Gestalt in der Verwandlung", "eine Ordnung, die sich bewegt"],
+    ["ein Blatt in seiner Urform", "ein Farbenspiel am Rand des Schattens", "ein Wort zur rechten Zeit"],
+    ["die Gestalt wandelt sich", "aus Polarit\xE4t wird Steigerung", "das Einzelne \xF6ffnet sich"],
+    ["Ein Augenblick will verweilen.", "Das Werden dauert l\xE4nger als das Sein."],
+    ["Alles Verg\xE4ngliche ist nur ein Gleichnis.", "In der Beschr\xE4nkung zeigt sich der Meister."],
+    ["offen", "klassisch"]
+  ),
+  sinnlich: D(
+    ["die Haut bemerkt die Temperatur zuerst", "ein Geruch ist da, bevor man ihn benennt", "das Licht hat ein Gewicht"],
+    ["die Sinne widersprechen einander", "das Wort kommt der Empfindung nicht nach", "eine Ber\xFChrung ordnet den Raum neu"],
+    ["die Empfindung \xFCberholt den Gedanken", "der Sinn kippt in einen anderen"],
+    ["eine Empfindung ohne Namen", "eine N\xE4he \xFCber die Haut", "ein Eindruck, der bleibt"],
+    ["ein Geruch aus der Kindheit", "eine Textur unter den Fingern", "ein Geschmack, der nicht passt"],
+    ["die Sinne tauschen", "aus Empfindung wird Erinnerung", "der K\xF6rper geht voran"],
+    ["Ein Augenblick f\xFCllt eine Stunde.", "Der Geruch holt zwanzig Jahre zur\xFCck."],
+    ["Die Haut denkt schneller.", "Was benannt wird, verliert an Sch\xE4rfe."],
+    ["offen", "sinnlich"]
+  )
 };
-var e = (name, attrs, ...kinder) => {
-  const n = document.createElementNS(NS, name);
-  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v));
-  for (const c of kinder) n.append(c);
-  return n;
-};
-var txt = (x, y, s, cls) => {
-  const t = e("text", { x, y, class: cls });
-  t.textContent = s;
-  return t;
-};
-var kurz = (s, n) => s.length <= n ? s : s.slice(0, n - 1) + "\u2026";
-function ordne(anlage) {
-  const platz = {};
-  const baender = [];
-  let y = RAND;
-  for (let b = 0; b < BAND_NAME.length; b++) {
-    const drin = anlage.knoten.filter((k) => k.band === b);
-    if (!drin.length) continue;
-    const kopf = y;
-    y += BAND_TITEL;
-    drin.forEach((k, i) => {
-      const reihe = Math.floor(i / PRO_REIHE), spalte = i % PRO_REIHE;
-      platz[k.id] = { x: RAND + spalte * (CHIP_W + GAP_X), y: y + reihe * (CHIP_H + GAP_Y), w: CHIP_W, h: CHIP_H };
-    });
-    const reihen = Math.ceil(drin.length / PRO_REIHE);
-    y += reihen * CHIP_H + (reihen - 1) * GAP_Y;
-    baender.push({ band: b, y: kopf, h: y - kopf });
-    y += BAND_ABSTAND;
-  }
-  return { platz, hoehe: y - BAND_ABSTAND + RAND, baender };
-}
-function renderSchaltplan(anlage) {
-  const { platz, hoehe, baender } = ordne(anlage);
-  const svg = e("svg", {
-    class: "schaltplan",
-    viewBox: `0 0 ${BREITE} ${hoehe}`,
-    width: "100%",
-    role: "img",
-    "aria-label": "Schaltplan der aktiven Einstellungen"
-  });
-  for (let i = 0; i + 1 < baender.length; i++) {
-    const a = baender[i], b = baender[i + 1];
-    const y1 = a.y + a.h, y2 = b.y;
-    svg.append(e("line", { x1: BREITE / 2, y1, x2: BREITE / 2, y2, class: "sp-bus" }));
-    svg.append(e("polygon", {
-      points: `${BREITE / 2 - 5},${y2 - 8} ${BREITE / 2 + 5},${y2 - 8} ${BREITE / 2},${y2}`,
-      class: "sp-bus-spitze"
-    }));
-  }
-  for (const b of baender) svg.append(txt(RAND, b.y + 14, BAND_NAME[b.band] || "", "sp-band"));
-  for (const k of anlage.kanten) {
-    const a = platz[k.von], z = platz[k.nach];
-    if (!a || !z) continue;
-    const x1 = a.x + a.w / 2, y1 = a.y + a.h, x2 = z.x + z.w / 2, y2 = z.y;
-    const m = (y1 + y2) / 2;
-    svg.append(e("path", {
-      d: `M ${x1} ${y1} C ${x1} ${m}, ${x2} ${m}, ${x2} ${y2}`,
-      class: "sp-kante",
-      stroke: FARBE[k.zustand],
-      "stroke-dasharray": k.zustand === "aus" ? "4 4" : k.zustand === "leer" ? "7 4" : "0"
-    }));
-  }
-  for (const k of anlage.knoten) {
-    const p = platz[k.id];
-    if (!p) continue;
-    const g = e("g", { class: "sp-chip sp-" + k.zustand });
-    if (k.hinweis) {
-      const t = e("title", {});
-      t.textContent = k.hinweis;
-      g.append(t);
-    }
-    g.append(e("rect", { x: p.x, y: p.y, width: p.w, height: p.h, rx: 8, stroke: FARBE[k.zustand] }));
-    g.append(txt(p.x + 10, p.y + 18, kurz(k.label, 24), "sp-label"));
-    g.append(txt(p.x + 10, p.y + 34, kurz(k.wert, 26), "sp-wert"));
-    if (k.gesperrt) g.append(txt(p.x + p.w - 14, p.y + 18, "\u{1F512}", "sp-schloss"));
-    svg.append(g);
-  }
-  return svg;
-}
-function befundListe(anlage) {
-  const leer = anlage.knoten.filter((k) => k.zustand === "leer");
-  return {
-    leer: leer.length,
-    text: leer.length ? leer.map((k) => `${k.label}: ${k.hinweis || "Quelle leer"}`).join(" \xB7 ") : "Kein Schalter l\xE4uft ins Leere."
-  };
-}
-
-// test/schaltplan.ts
-var import_jsdom = require("jsdom");
-
-// src/ui/dom.ts
-function el(tag, attrs = {}, ...kids) {
-  const e2 = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    if (k === "class") e2.className = v;
-    else e2.setAttribute(k, v);
-  }
-  for (const kid of kids) e2.append(kid);
-  return e2;
-}
-function select(id, options, value) {
-  const s = el("select", { id });
-  for (const [v, label] of options) {
-    const o = el("option", { value: v }, label);
-    if (v === value) o.setAttribute("selected", "");
-    s.append(o);
-  }
-  return s;
-}
-function button(label, variant = "") {
-  return el("button", variant ? { class: variant } : {}, label);
-}
-
-// src/ui/icons.ts
-var P2 = {
-  floppy: '<path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2"/><circle cx="12" cy="14" r="2"/><path d="M14 4v4h-6v-4"/>',
-  folder: '<path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2"/>',
-  dice: '<rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="8.5" cy="8.5" r="1"/><circle cx="15.5" cy="8.5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="8.5" cy="15.5" r="1"/><circle cx="15.5" cy="15.5" r="1"/>',
-  pin: '<path d="M9 4h6"/><path d="M10 4v6l-2 4v2h8v-2l-2 -4v-6"/><path d="M12 16v5"/>',
-  play: '<path d="M7 4v16l13 -8z"/>',
-  star: '<path d="M12 4l2.5 5l5.5 .8l-4 3.9l1 5.5l-5 -2.6l-5 2.6l1 -5.5l-4 -3.9l5.5 -.8z"/>',
-  book: '<path d="M3 5a3 3 0 0 1 6 0v14a2 2 0 0 0 -4 0"/><path d="M9 5a3 3 0 0 1 6 0v14"/><path d="M15 5a3 3 0 0 1 6 0v11a2 2 0 0 1 -2 2h-8"/>',
-  volume: '<path d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5z"/><path d="M15 8a5 5 0 0 1 0 8"/>',
-  copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2"/>',
-  tool: '<path d="M7 10h3v-3l-3.2 -3.2a5.5 5.5 0 0 1 7.4 7.4l6 6a2 2 0 0 1 -2.8 2.8l-6 -6a5.5 5.5 0 0 1 -7.4 -7.4z"/>',
-  settings: '<path d="M10.3 4.3c.4 -1.7 2.9 -1.7 3.3 0a1.7 1.7 0 0 0 2.6 1.1c1.5 -.9 3.3 .8 2.4 2.4a1.7 1.7 0 0 0 1 2.5c1.8 .4 1.8 2.9 0 3.3a1.7 1.7 0 0 0 -1 2.6c.9 1.5 -.8 3.3 -2.4 2.4a1.7 1.7 0 0 0 -2.6 1c-.4 1.8 -2.9 1.8 -3.3 0a1.7 1.7 0 0 0 -2.6 -1c-1.5 .9 -3.3 -.8 -2.4 -2.4a1.7 1.7 0 0 0 -1 -2.6c-1.8 -.4 -1.8 -2.9 0 -3.3a1.7 1.7 0 0 0 1 -2.5c-.9 -1.6 .9 -3.3 2.4 -2.4c1 .6 2.3 .1 2.6 -1z"/><circle cx="12" cy="12" r="3"/>',
-  flask: '<path d="M9 3h6"/><path d="M10 9h4"/><path d="M10 3v6l-4.5 9.5a.9 .9 0 0 0 .8 1.5h11.4a.9 .9 0 0 0 .8 -1.5l-4.5 -9.5v-6"/>',
-  refresh: '<path d="M20 11a8 8 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8 8 0 0 0 15.5 2m.5 4v-4h-4"/>',
-  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
-  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11v-4a4 4 0 0 1 8 0v4"/>',
-  lockOpen: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11v-5a4 4 0 0 1 8 0"/>',
-  arrowRight: '<path d="M5 12h14"/><path d="M13 6l6 6l-6 6"/>',
-  x: '<path d="M6 6l12 12"/><path d="M18 6l-12 12"/>',
-  info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/>',
-  book2: '<path d="M3 5a3 3 0 0 1 6 0v14a2 2 0 0 0 -4 0"/><path d="M9 5a3 3 0 0 1 6 0v14"/><path d="M15 5a3 3 0 0 1 6 0v11a2 2 0 0 1 -2 2h-8"/>'
-};
-function icon(name, size = 16) {
-  const s = document.createElement("span");
-  s.className = "ic";
-  s.setAttribute("aria-hidden", "true");
-  s.innerHTML = `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${P2[name] || ""}</svg>`;
-  return s;
+function builtinDrama(id) {
+  return BUILTIN_DRAMA[id.replace(/^builtin:/, "")] ?? null;
 }
 
 // src/generation/ctxnorm.ts
@@ -13104,6 +14226,32 @@ function normWho(s) {
     return i === 0 || istEigenePerson(p) ? cap2(p) : low(p);
   });
   return fixed.join(", ");
+}
+function rateWhere(s) {
+  const t = (s || "").trim();
+  if (!t) return -1;
+  if (PREPS.test(t)) return 1;
+  if (normWhere(t) !== t) return 0.8;
+  return 0.35;
+}
+function rateWhen(s) {
+  const t = (s || "").trim();
+  if (!t) return -1;
+  if (PREPS.test(t) || TIME_ADV.test(t) || /\d+\s*uhr/i.test(t)) return 1;
+  if (normWhen(t) !== t) return 0.8;
+  return 0.35;
+}
+function rateWho(s) {
+  const t = (s || "").trim();
+  if (!t) return -1;
+  const parts = t.split(",").map((p) => p.trim()).filter(Boolean);
+  let sum = 0;
+  for (const p of parts) {
+    if (/^(der|die|das|ein|eine|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere)\s/i.test(p) || /^[A-ZÄÖÜ]/.test(p)) sum += 1;
+    else if (normWho(p) !== p) sum += 0.8;
+    else sum += 0.4;
+  }
+  return parts.length ? sum / parts.length : -1;
 }
 
 // src/generation/dialogue.ts
@@ -14507,8 +15655,8 @@ function coherenceRepairV2(t, input) {
   t = kept.join(" ").replace(/\s*\u241E\s*/g, "\n\n");
   t = t.replace(/(\bich und [A-ZÄÖÜ][\wäöüß]+[^.!?…]*?)\bsie sich\b/gu, "$1wir uns");
   t = t.replace(/([A-ZÄÖÜ][\wäöüß]+ und ich[^.!?…]*?)\bsie sich\b/gu, "$1wir uns");
-  const CONN = [/\bDann kippt es\b/gi, /\bDabei:\s*plötzlich\b/gi, /\bUnd immer wieder\b/gi, /\bAm Ende bleibt klar\b/gi];
-  CONN.forEach((re) => {
+  const CONN2 = [/\bDann kippt es\b/gi, /\bDabei:\s*plötzlich\b/gi, /\bUnd immer wieder\b/gi, /\bAm Ende bleibt klar\b/gi];
+  CONN2.forEach((re) => {
     let n = 0;
     t = t.replace(re, (m) => ++n > 1 ? "" : m);
   });
@@ -16201,6 +17349,10 @@ function pruefeAbgleich(endtext) {
     if (probe && !ziel.includes(probe)) abweichung.push(s.text);
   }
   return abweichung.slice();
+}
+function fuegeteilAnteil() {
+  if (!spur.length) return 0;
+  return spur.filter((s) => s.quelle === "vorlage").length / spur.length;
 }
 
 // src/atoms/rekombination.ts
@@ -18519,6 +19671,3505 @@ function buildStory(bank, input, model) {
   );
 }
 
+// src/generation/context.ts
+var roll = (base, tw) => {
+  const b = pick(base);
+  return Math.random() < 0.5 ? b : b + ", " + pick(tw);
+};
+function randomContext() {
+  return {
+    who: roll(CTX_WHO, WHO_TWISTS),
+    where: roll(CTX_WHERE, WHERE_TWISTS),
+    when: roll(CTX_WHEN, WHEN_TWISTS),
+    what: roll(CTX_WHAT, WHAT_TWISTS)
+  };
+}
+
+// src/features/sources.ts
+var QUELLEN_LABEL = {
+  wortbank: "Wortbank",
+  ton: "Ton",
+  kontext: "4W-Kontext",
+  pools: "Lebendige Pools",
+  markov: "Markov",
+  vorlage: "Vorlagen/Schablonen",
+  nachbearbeitung: "Nachbearbeitung",
+  dramaturgie: "Erz\xE4hlbogen",
+  korpus: "Korpus"
+};
+function w4Varianten(ctx) {
+  const raus = [];
+  const nimm = (x) => {
+    const t = (x || "").trim();
+    if (!t) return;
+    if (t.length >= 4 || t.length >= 2 && /^[A-ZÄÖÜ]/.test(t)) raus.push(t);
+  };
+  for (const v of [ctx.who, ctx.where, ctx.when, ctx.what]) (v || "").split(/[,;]/).forEach(nimm);
+  const was = (ctx.what || "").trim();
+  if (was) {
+    const lead = extractLeadVerb(was);
+    if (lead.verb) {
+      nimm(`${lead.verb} ${lead.rest}`);
+      nimm(lead.rest);
+    }
+  }
+  return raus;
+}
+function sammle(phrasen, quelle2, prio, low2, acc) {
+  for (const roh of phrasen) {
+    const p = (roh || "").trim();
+    if (p.length < 5) continue;
+    const pl = p.toLowerCase();
+    let von = 0, i = low2.indexOf(pl, von);
+    while (i !== -1) {
+      acc.push({ s: i, e: i + pl.length, quelle: quelle2, prio });
+      von = i + pl.length;
+      if (acc.length > 4e3) return;
+      i = low2.indexOf(pl, von);
+    }
+  }
+}
+function analysiereHerkunft(text, tone, ctx) {
+  const low2 = (text || "").toLowerCase();
+  const acc = [];
+  if (tone && tone !== "neutral") {
+    const td = TONE_DATA[tone];
+    if (td) sammle([...td.opener, ...td.flavor], "ton", 3, low2, acc);
+  }
+  sammle(w4Varianten(ctx), "kontext", 2, low2, acc);
+  try {
+    const b = loadBank();
+    const alle = [];
+    for (const k of Object.keys(b)) if (Array.isArray(b[k])) alle.push(...b[k]);
+    sammle(alle, "wortbank", 1, low2, acc);
+  } catch {
+  }
+  try {
+    sammle(liveTexts(), "pools", 1, low2, acc);
+  } catch {
+  }
+  try {
+    sammle(getMarkovTraceFor(text || ""), "markov", 2, low2, acc);
+  } catch {
+  }
+  acc.sort((a, b) => a.s - b.s || b.e - b.s - (a.e - a.s) || b.prio - a.prio);
+  const segmente = [];
+  let ende = -1;
+  for (const t of acc) {
+    if (t.s < ende) continue;
+    segmente.push({ s: t.s, e: t.e, quelle: t.quelle });
+    ende = t.e;
+  }
+  const zeichen = (text || "").length || 1;
+  const anteile = { wortbank: 0, ton: 0, kontext: 0, pools: 0, markov: 0, vorlage: 0, nachbearbeitung: 0, dramaturgie: 0, korpus: 0 };
+  let belegt = 0;
+  for (const s of segmente) {
+    anteile[s.quelle] += s.e - s.s;
+    belegt += s.e - s.s;
+  }
+  anteile.vorlage = Math.max(0, zeichen - belegt);
+  for (const k of Object.keys(anteile)) anteile[k] = anteile[k] / zeichen;
+  let poolUeberschneidung = 0;
+  try {
+    const b = loadBank();
+    const bankSet = /* @__PURE__ */ new Set();
+    for (const k of Object.keys(b)) if (Array.isArray(b[k])) for (const x of b[k]) bankSet.add(x.trim().toLowerCase());
+    const lt = liveTexts();
+    if (lt.length) {
+      let doppelt = 0;
+      for (const p of lt) if (bankSet.has(p.trim().toLowerCase())) doppelt++;
+      poolUeberschneidung = doppelt / lt.length;
+    }
+  } catch {
+  }
+  const spur2 = getTraceFor(text);
+  if (spur2.length) {
+    const roh = { wortbank: 0, ton: 0, kontext: 0, pools: 0, markov: 0, vorlage: 0, nachbearbeitung: 0, dramaturgie: 0, korpus: 0 };
+    const mapQ = (q) => q === "vorlage" ? "vorlage" : q === "kontext" ? "kontext" : q === "markov" ? "markov" : q === "pools" ? "pools" : q === "dramaturgie" ? "dramaturgie" : q === "korpus" ? "korpus" : "wortbank";
+    let summe = 0;
+    for (const sch of spur2) {
+      const fl = (sch.fueller || []).reduce((n, f) => n + f.text.length, 0);
+      const eigen = Math.max(0, sch.text.length - fl);
+      roh[mapQ(sch.quelle)] += eigen;
+      summe += eigen;
+      for (const f of sch.fueller || []) {
+        roh[mapQ(f.quelle)] += f.text.length;
+        summe += f.text.length;
+      }
+    }
+    if (summe > 0) {
+      const roheSeg = [];
+      let cursor = 0;
+      const finde = (was, ab) => {
+        const w = was.toLowerCase().replace(/[.!?…]+$/, "").trim();
+        if (w.length < 4) return null;
+        const i = low2.indexOf(w, ab);
+        return i === -1 ? null : [i, i + w.length];
+      };
+      for (const sch of spur2) {
+        const span = finde(sch.text, cursor);
+        if (!span) continue;
+        const q = mapQ(sch.quelle);
+        const innen = [];
+        for (const f of sch.fueller || []) {
+          const fs = finde(f.text, span[0]);
+          if (fs && fs[0] >= span[0] && fs[1] <= span[1]) innen.push({ s: fs[0], e: fs[1], quelle: mapQ(f.quelle) });
+        }
+        innen.sort((a, b) => a.s - b.s);
+        let at = span[0];
+        for (const iv of innen) {
+          if (iv.s > at) roheSeg.push({ s: at, e: iv.s, quelle: q });
+          roheSeg.push({ s: iv.s, e: iv.e, quelle: iv.quelle });
+          at = iv.e;
+        }
+        if (at < span[1]) roheSeg.push({ s: at, e: span[1], quelle: q });
+        cursor = span[1];
+      }
+      const belegtVon = (a, b) => roheSeg.some((x) => a < x.e && b > x.s);
+      const ausLuecke = acc.filter((t) => !belegtVon(t.s, t.e)).sort((a, b) => a.s - b.s || b.e - b.s - (a.e - a.s) || b.prio - a.prio);
+      let lEnde = -1;
+      for (const t of ausLuecke) {
+        if (t.s < lEnde || belegtVon(t.s, t.e)) continue;
+        roheSeg.push({ s: t.s, e: t.e, quelle: t.quelle });
+        lEnde = t.e;
+      }
+      const w4Treffer = acc.filter((t) => t.quelle === "kontext").sort((a, b) => a.s - b.s);
+      if (w4Treffer.length) {
+        const zerlegt = [];
+        for (const sg of roheSeg) {
+          let at = sg.s;
+          for (const t of w4Treffer) {
+            if (t.s < at || t.e > sg.e) continue;
+            if (t.s > at) zerlegt.push({ s: at, e: t.s, quelle: sg.quelle });
+            zerlegt.push({ s: t.s, e: t.e, quelle: "kontext" });
+            at = t.e;
+          }
+          if (at < sg.e) zerlegt.push({ s: at, e: sg.e, quelle: sg.quelle });
+        }
+        roheSeg.length = 0;
+        roheSeg.push(...zerlegt);
+      }
+      roheSeg.sort((a, b) => a.s - b.s);
+      if (roheSeg.length) {
+        segmente.length = 0;
+        segmente.push(...roheSeg);
+      }
+      const gezaehlt = { wortbank: 0, ton: 0, kontext: 0, pools: 0, markov: 0, vorlage: 0, nachbearbeitung: 0, dramaturgie: 0, korpus: 0 };
+      let markiert = 0;
+      for (const sg of segmente) {
+        gezaehlt[sg.quelle] += sg.e - sg.s;
+        markiert += sg.e - sg.s;
+      }
+      const rest = Math.max(0, zeichen - markiert);
+      const vorlageFehlt = Math.max(0, roh.vorlage - gezaehlt.vorlage);
+      gezaehlt.vorlage += Math.min(rest, vorlageFehlt);
+      gezaehlt.nachbearbeitung = Math.max(0, rest - Math.min(rest, vorlageFehlt));
+      for (const k of Object.keys(gezaehlt)) anteile[k] = gezaehlt[k] / zeichen;
+      return { segmente, anteile, zeichen, exakt: true, poolUeberschneidung };
+    }
+  }
+  return { segmente, anteile, zeichen, exakt: false, poolUeberschneidung };
+}
+var KEY3 = "dm_last_input_v1";
+function saveSchnappschuss(s) {
+  try {
+    localStorage.setItem(KEY3, JSON.stringify(s));
+  } catch {
+  }
+}
+function loadSchnappschuss() {
+  try {
+    const r = localStorage.getItem(KEY3);
+    return r ? JSON.parse(r) : null;
+  } catch {
+    return null;
+  }
+}
+
+// src/ui/dom.ts
+function el(tag, attrs = {}, ...kids) {
+  const e2 = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e2.className = v;
+    else e2.setAttribute(k, v);
+  }
+  for (const kid of kids) e2.append(kid);
+  return e2;
+}
+function select(id, options, value) {
+  const s = el("select", { id });
+  for (const [v, label] of options) {
+    const o = el("option", { value: v }, label);
+    if (v === value) o.setAttribute("selected", "");
+    s.append(o);
+  }
+  return s;
+}
+function field(label, node) {
+  return el("label", { class: "field" }, el("span", { class: "field-label" }, label), node);
+}
+function textInput(id, placeholder, val = "") {
+  return el("input", { id, placeholder, value: val, autocomplete: "off", "data-form-type": "other", "data-lpignore": "true" });
+}
+function button(label, variant = "") {
+  return el("button", variant ? { class: variant } : {}, label);
+}
+
+// src/ui/structureView.ts
+var presetPopOffen = false;
+function renderTextstruktur(text, snap, schnell, presetPanel, schloss) {
+  const box = el("div", {});
+  if (!text.trim()) {
+    box.append(el("p", { class: "muted" }, "Noch kein Text erzeugt."));
+    return box;
+  }
+  const h = analysiereHerkunft(
+    text,
+    (snap?.tonId || snap?.ton || "neutral").toLowerCase(),
+    { where: snap?.where, when: snap?.when, who: snap?.who, what: snap?.what }
+  );
+  if (snap) {
+    const chips = el("div", { class: "src-settings" });
+    const paare = [
+      ["Preset", snap.preset],
+      ["Ton", snap.ton],
+      ["Form", snap.form],
+      ["Struktur", snap.struktur],
+      ["Perspektive", snap.perspektive],
+      ["Rhythmus", snap.rhythmus],
+      ["Markov", snap.markov],
+      ["Varianz", snap.varianz],
+      ["Spannung", snap.spannung],
+      ["L\xE4nge", String(snap.laenge)],
+      ["Bestenauslese", snap.bestenauslese ? "an" : "aus"]
+    ];
+    const stellschrauben = [];
+    for (const k of Object.keys(schnell || {})) {
+      if (paare.some(([n]) => n === k)) continue;
+      const sel = schnell?.[k];
+      if (!sel) continue;
+      stellschrauben.push([k, sel.options[sel.selectedIndex]?.text || sel.value]);
+    }
+    const zeichneChips = (liste, host) => {
+      for (const [k, v] of liste) {
+        if (k === "Preset" && presetPanel) {
+          const knopf = el("button", {
+            class: "src-chip-sel src-chip-preset",
+            type: "button",
+            title: "Presets w\xE4hlen \u2014 mehrere m\xF6glich"
+          }, v || "\u2014");
+          const panel = el("div", { class: "presetpop" });
+          const inhalt = el("div", {});
+          const zu = el("button", { class: "presetpop-x", type: "button", "aria-label": "Auswahl schlie\xDFen" }, "\u2715");
+          zu.addEventListener("click", () => {
+            presetPopOffen = false;
+            panel.style.display = "none";
+          });
+          panel.append(el(
+            "div",
+            { class: "presetpop-kopf" },
+            el("span", { class: "muted mini" }, "Mehrere m\xF6glich"),
+            zu
+          ), inhalt);
+          const zeichne = () => {
+            panel.style.display = presetPopOffen ? "" : "none";
+            if (presetPopOffen) presetPanel(inhalt);
+          };
+          knopf.addEventListener("click", () => {
+            presetPopOffen = !presetPopOffen;
+            zeichne();
+          });
+          zeichne();
+          host.append(el("span", { class: "src-chipwrap src-chipwrap-preset" }, el("b", {}, k), " ", knopf, panel));
+          continue;
+        }
+        const sel = schnell?.[k];
+        if (!sel) {
+          host.append(el("span", { class: "src-chip" }, el("b", {}, k), " " + (v || "\u2014")));
+          continue;
+        }
+        const mini = el("select", { class: "src-chip src-chip-sel", title: k + " \xE4ndern" });
+        for (const o of Array.from(sel.options)) mini.append(el("option", { value: o.value }, o.text));
+        mini.value = sel.value;
+        mini.addEventListener("change", () => {
+          sel.value = mini.value;
+          sel.dispatchEvent(new Event("change"));
+          document.dispatchEvent(new CustomEvent("dm-schnellwahl", { detail: k }));
+        });
+        const sch = schloss ? schloss(sel) : null;
+        host.append(el("span", { class: "src-chipwrap" }, el("b", {}, k), " ", mini, ...sch ? [sch] : []));
+      }
+    };
+    zeichneChips(paare, chips);
+    box.append(chips);
+    if (stellschrauben.length) {
+      const knopfzeile = el(
+        "div",
+        { class: "src-settings src-settings-knobs" },
+        el("span", { class: "src-knoblabel" }, "Stellschrauben")
+      );
+      zeichneChips(stellschrauben, knopfzeile);
+      box.append(knopfzeile);
+    }
+    const w4 = el("div", { class: "src-4w" });
+    [["Wo", snap.where], ["Wann", snap.when], ["Wer", snap.who], ["Was", snap.what]].forEach(([k, v]) => w4.append(el("span", { class: "src-w" }, el("b", {}, k + ": "), v || "\u2014")));
+    box.append(w4);
+  }
+  const band2 = el("div", { class: "src-band" });
+  let pos = 0;
+  for (const seg of h.segmente) {
+    if (seg.s > pos) band2.append(el("span", { class: "src-seg q-vorlage", style: `flex:${seg.s - pos}` }));
+    band2.append(el("span", {
+      class: "src-seg q-" + seg.quelle,
+      style: `flex:${seg.e - seg.s}`,
+      title: QUELLEN_LABEL[seg.quelle] + ": " + text.slice(seg.s, seg.e)
+    }));
+    pos = seg.e;
+  }
+  if (pos < text.length) band2.append(el("span", { class: "src-seg q-vorlage", style: `flex:${text.length - pos}` }));
+  box.append(el("div", { class: "muted mini" }, "Verlauf des Textes nach Herkunft:"), band2);
+  const bars = el("div", { class: "src-bars" });
+  Object.keys(QUELLEN_LABEL).map((q) => [q, h.anteile[q]]).sort((a, b) => b[1] - a[1]).forEach(([q, v]) => bars.append(el(
+    "div",
+    {
+      class: "src-row anklickbar",
+      role: "button",
+      tabindex: "0",
+      title: "Zeigt, was diesen Anteil steuert",
+      onclick: void 0
+    },
+    el("span", { class: "src-name" }, QUELLEN_LABEL[q]),
+    el("span", { class: "src-bar" }, el("span", { class: "src-fill q-" + q, style: `width:${Math.round(v * 100)}%` })),
+    el("span", { class: "src-val" }, Math.round(v * 100) + " %")
+  )));
+  const ZIEHBAR = /* @__PURE__ */ new Set(["vorlage", "dramaturgie", "ton", "kontext"]);
+  const ziele = loadZiele();
+  bars.querySelectorAll(".src-row").forEach((row, i) => {
+    const qq = Object.keys(QUELLEN_LABEL).map((x) => [x, h.anteile[x]]).sort((a, b) => b[1] - a[1])[i]?.[0];
+    if (!qq || !ZIEHBAR.has(qq)) return;
+    const q = qq;
+    const bar = row.querySelector(".src-bar");
+    if (!bar) return;
+    row.classList.add("ziehbar");
+    const marke = el("span", { class: "src-ziel" });
+    const setzeMarke = () => {
+      const z = ziele[q];
+      if (z === void 0) {
+        marke.style.display = "none";
+        return;
+      }
+      marke.style.display = "";
+      marke.style.left = Math.max(0, Math.min(100, z)) + "%";
+      marke.title = `Ziel ${z} % \u2014 erreicht ${(h.anteile[q] * 100).toFixed(0)} %`;
+    };
+    bar.append(marke);
+    setzeMarke();
+    let zieht = false;
+    const ausX = (x) => {
+      const r = bar.getBoundingClientRect();
+      return Math.round(Math.max(0, Math.min(100, (x - r.left) / Math.max(1, r.width) * 100)) / 5) * 5;
+    };
+    bar.addEventListener("pointerdown", (e2) => {
+      const ev = e2;
+      zieht = true;
+      bar.setPointerCapture(ev.pointerId);
+      ev.preventDefault();
+      ev.stopPropagation();
+      ziele[q] = ausX(ev.clientX);
+      setzeMarke();
+    });
+    bar.addEventListener("pointermove", (e2) => {
+      if (!zieht) return;
+      ziele[q] = ausX(e2.clientX);
+      setzeMarke();
+    });
+    const ende = (e2) => {
+      if (!zieht) return;
+      zieht = false;
+      try {
+        bar.releasePointerCapture(e2.pointerId);
+      } catch {
+      }
+      saveZiele(ziele);
+      document.dispatchEvent(new CustomEvent("dm-ziel", { detail: { quelle: q, ziel: ziele[q] } }));
+    };
+    bar.addEventListener("pointerup", ende);
+    bar.addEventListener("pointercancel", ende);
+    bar.addEventListener("dblclick", (e2) => {
+      e2.stopPropagation();
+      delete ziele[q];
+      saveZiele(ziele);
+      setzeMarke();
+      document.dispatchEvent(new CustomEvent("dm-ziel", { detail: { quelle: q, ziel: void 0 } }));
+    });
+  });
+  bars.querySelectorAll(".src-row").forEach((row, i) => {
+    const q = Object.keys(QUELLEN_LABEL).map((x) => [x, h.anteile[x]]).sort((a, b) => b[1] - a[1])[i]?.[0];
+    if (!q) return;
+    const los = () => {
+      document.dispatchEvent(new CustomEvent("dm-quelle", { detail: q }));
+    };
+    row.addEventListener("click", los);
+    row.addEventListener("keydown", (e2) => {
+      const k = e2.key;
+      if (k === "Enter" || k === " ") {
+        e2.preventDefault();
+        los();
+      }
+    });
+  });
+  box.append(bars);
+  if (h.exakt) {
+    box.append(el(
+      "p",
+      { class: "muted mini" },
+      el("b", {}, "Gemessen. "),
+      "Die Anteile stammen aus der Bauspur \u2014 f\xFCr jeden Baustein ist bekannt, woher er kommt. \u201EVorlagen\u201C ist hier eine echte Gr\xF6\xDFe, keine Restmenge. \u201ENachbearbeitung\u201C ist das, was nach dem Zusammenbau hinzukommt: Ton-S\xE4tze, Verfugung, Perspektive. Lebendige Pools und Markov stehen auf 0 %, weil der Rekombinations-Assembler sie noch nicht als Quelle f\xFChrt. Im Farbband bleibt unmarkiert, was sich im Endtext nicht w\xF6rtlich wiederfinden l\xE4sst \u2014 Vorlagentext, Nachbearbeitung und Bausteine, die durch Perspektive oder Gl\xE4ttung umgeschrieben wurden."
+    ));
+  } else {
+    box.append(el(
+      "p",
+      { class: "muted mini" },
+      el("b", {}, "Gesch\xE4tzt. "),
+      "Die Anteile entstehen durch Abgleich des fertigen Textes mit den Quelllisten. \u201EVorlagen/Schablonen\u201C ist dabei die Restgr\xF6\xDFe: alles, was keiner Liste zugeordnet werden konnte \u2014 feste Satzger\xFCste, Verbindungsw\xF6rter und die Nachbearbeitung. Diese Zahl ist also eine Obergrenze."
+    ));
+  }
+  if (h.poolUeberschneidung > 0.02) {
+    box.append(el(
+      "p",
+      { class: "muted mini" },
+      `Hinweis zu den Pools: ${Math.round(h.poolUeberschneidung * 100)} % ihrer Eintr\xE4ge stehen w\xF6rtlich auch in der Wortbank und werden dort gez\xE4hlt. Der ausgewiesene Pool-Anteil ist deshalb der ausschlie\xDFliche Beitrag, nicht der gesamte.`
+    ));
+  }
+  return box;
+}
+
+// src/features/reiter.ts
+var REITER_KEY = "divergenz_reiter_v1";
+var kanonListe = [];
+function derKanon() {
+  return kanonListe.slice();
+}
+var STAND_LEER = { ordnung: [], versteckt: [] };
+var PFLICHT = ["Studio"];
+function ordne(kanon, gespeichert) {
+  const bekannt = new Set(kanon);
+  const raus = [];
+  const drin = /* @__PURE__ */ new Set();
+  for (const n of gespeichert) {
+    if (!bekannt.has(n) || drin.has(n)) continue;
+    drin.add(n);
+    raus.push(n);
+  }
+  for (let i = 0; i < kanon.length; i++) {
+    const n = kanon[i];
+    if (drin.has(n)) continue;
+    let stelle = 0;
+    for (let j = i - 1; j >= 0; j--) {
+      const v = kanon[j];
+      const k = raus.indexOf(v);
+      if (k >= 0) {
+        stelle = k + 1;
+        break;
+      }
+    }
+    raus.splice(stelle, 0, n);
+    drin.add(n);
+  }
+  return raus;
+}
+function verschiebe(ordnung, name, delta) {
+  const i = ordnung.indexOf(name);
+  if (i < 0) return ordnung.slice();
+  const j = i + (delta < 0 ? -1 : 1);
+  if (j < 0 || j >= ordnung.length) return ordnung.slice();
+  const raus = ordnung.slice();
+  raus[i] = raus[j];
+  raus[j] = name;
+  return raus;
+}
+function schalte(stand, name, an, pflicht = PFLICHT) {
+  const versteckt = new Set(stand.versteckt || []);
+  if (an || pflicht.includes(name)) versteckt.delete(name);
+  else versteckt.add(name);
+  return { ordnung: (stand.ordnung || []).slice(), versteckt: [...versteckt] };
+}
+function ladeStand() {
+  try {
+    const r = JSON.parse(localStorage.getItem(REITER_KEY) || "null");
+    if (!r) return { ...STAND_LEER };
+    return {
+      ordnung: Array.isArray(r.ordnung) ? r.ordnung.filter((x) => typeof x === "string") : [],
+      versteckt: Array.isArray(r.versteckt) ? r.versteckt.filter((x) => typeof x === "string") : []
+    };
+  } catch {
+    return { ...STAND_LEER };
+  }
+}
+function sichereStand(s) {
+  try {
+    localStorage.setItem(REITER_KEY, JSON.stringify(s));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// src/ui/icons.ts
+var P2 = {
+  floppy: '<path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2"/><circle cx="12" cy="14" r="2"/><path d="M14 4v4h-6v-4"/>',
+  folder: '<path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2"/>',
+  dice: '<rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="8.5" cy="8.5" r="1"/><circle cx="15.5" cy="8.5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="8.5" cy="15.5" r="1"/><circle cx="15.5" cy="15.5" r="1"/>',
+  pin: '<path d="M9 4h6"/><path d="M10 4v6l-2 4v2h8v-2l-2 -4v-6"/><path d="M12 16v5"/>',
+  play: '<path d="M7 4v16l13 -8z"/>',
+  star: '<path d="M12 4l2.5 5l5.5 .8l-4 3.9l1 5.5l-5 -2.6l-5 2.6l1 -5.5l-4 -3.9l5.5 -.8z"/>',
+  book: '<path d="M3 5a3 3 0 0 1 6 0v14a2 2 0 0 0 -4 0"/><path d="M9 5a3 3 0 0 1 6 0v14"/><path d="M15 5a3 3 0 0 1 6 0v11a2 2 0 0 1 -2 2h-8"/>',
+  volume: '<path d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5z"/><path d="M15 8a5 5 0 0 1 0 8"/>',
+  copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2"/>',
+  tool: '<path d="M7 10h3v-3l-3.2 -3.2a5.5 5.5 0 0 1 7.4 7.4l6 6a2 2 0 0 1 -2.8 2.8l-6 -6a5.5 5.5 0 0 1 -7.4 -7.4z"/>',
+  settings: '<path d="M10.3 4.3c.4 -1.7 2.9 -1.7 3.3 0a1.7 1.7 0 0 0 2.6 1.1c1.5 -.9 3.3 .8 2.4 2.4a1.7 1.7 0 0 0 1 2.5c1.8 .4 1.8 2.9 0 3.3a1.7 1.7 0 0 0 -1 2.6c.9 1.5 -.8 3.3 -2.4 2.4a1.7 1.7 0 0 0 -2.6 1c-.4 1.8 -2.9 1.8 -3.3 0a1.7 1.7 0 0 0 -2.6 -1c-1.5 .9 -3.3 -.8 -2.4 -2.4a1.7 1.7 0 0 0 -1 -2.6c-1.8 -.4 -1.8 -2.9 0 -3.3a1.7 1.7 0 0 0 1 -2.5c-.9 -1.6 .9 -3.3 2.4 -2.4c1 .6 2.3 .1 2.6 -1z"/><circle cx="12" cy="12" r="3"/>',
+  flask: '<path d="M9 3h6"/><path d="M10 9h4"/><path d="M10 3v6l-4.5 9.5a.9 .9 0 0 0 .8 1.5h11.4a.9 .9 0 0 0 .8 -1.5l-4.5 -9.5v-6"/>',
+  refresh: '<path d="M20 11a8 8 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8 8 0 0 0 15.5 2m.5 4v-4h-4"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11v-4a4 4 0 0 1 8 0v4"/>',
+  lockOpen: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11v-5a4 4 0 0 1 8 0"/>',
+  arrowRight: '<path d="M5 12h14"/><path d="M13 6l6 6l-6 6"/>',
+  x: '<path d="M6 6l12 12"/><path d="M18 6l-12 12"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/>',
+  book2: '<path d="M3 5a3 3 0 0 1 6 0v14a2 2 0 0 0 -4 0"/><path d="M9 5a3 3 0 0 1 6 0v14"/><path d="M15 5a3 3 0 0 1 6 0v11a2 2 0 0 1 -2 2h-8"/>'
+};
+function icon(name, size = 16) {
+  const s = document.createElement("span");
+  s.className = "ic";
+  s.setAttribute("aria-hidden", "true");
+  s.innerHTML = `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${P2[name] || ""}</svg>`;
+  return s;
+}
+
+// src/ui/reader.ts
+function openReader(text, ctx = {}) {
+  const t = text || "Noch kein Text.";
+  const overlay = el("div", { class: "reader" });
+  const body = el("div", { class: "reader-text" }, t);
+  let fs = 19;
+  const setFs = (v) => {
+    fs = Math.max(13, Math.min(40, v));
+    body.style.fontSize = fs + "px";
+  };
+  const smaller = el("button", { title: "Kleiner" }, "A\u2212");
+  const bigger = el("button", { title: "Gr\xF6\xDFer" }, "A+");
+  const copyLbl = el("span", {}, "Kopieren");
+  const copy = el("button", {}, icon("copy"), " ", copyLbl);
+  const keepLbl = el("span", {}, "Merken");
+  const keep = el("button", {}, icon("star"), " ", keepLbl);
+  const speakLbl = el("span", {}, "Vorlesen");
+  const speak = el("button", {}, icon("volume"), " ", speakLbl);
+  const close = el("button", { class: "x", "aria-label": "Schlie\xDFen" }, icon("x"));
+  smaller.addEventListener("click", () => setFs(fs - 2));
+  bigger.addEventListener("click", () => setFs(fs + 2));
+  copy.addEventListener("click", () => {
+    void navigator.clipboard?.writeText(t);
+    copyLbl.textContent = "Kopiert \u2713";
+    setTimeout(() => copyLbl.textContent = "Kopieren", 1200);
+  });
+  keep.addEventListener("click", () => {
+    const n = addToTreasury(t, ctx);
+    keepLbl.textContent = n < 0 ? "\u2014 schon drin" : `Gemerkt (${n})`;
+    setTimeout(() => keepLbl.textContent = "Merken", 1400);
+  });
+  let rSpeaking = false;
+  speak.addEventListener("click", () => {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    if (rSpeaking) {
+      synth.cancel();
+      rSpeaking = false;
+      speakLbl.textContent = "Vorlesen";
+      return;
+    }
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(t);
+    u.lang = "de-DE";
+    u.onend = () => {
+      rSpeaking = false;
+      speakLbl.textContent = "Vorlesen";
+    };
+    rSpeaking = true;
+    speakLbl.textContent = "Stopp";
+    synth.speak(u);
+  });
+  const dismiss = () => {
+    window.speechSynthesis?.cancel();
+    overlay.remove();
+  };
+  close.addEventListener("click", dismiss);
+  overlay.append(el("div", { class: "reader-bar" }, smaller, bigger, copy, keep, speak, close), body);
+  document.body.append(overlay);
+}
+
+// src/features/kontext.ts
+var W4_FELDER = ["where", "when", "who", "what"];
+function uebernehmeKontext(felder, vorschlag, gesperrt) {
+  const raus = {};
+  for (const f of W4_FELDER) {
+    const alt = felder[f].wert;
+    const neu = (vorschlag[f] || "").trim();
+    raus[f] = !neu || gesperrt(felder[f].id) ? alt : neu;
+  }
+  return raus;
+}
+function geaendert(felder, neu) {
+  return W4_FELDER.filter((f) => felder[f].wert !== neu[f]);
+}
+var QUELLE_LABEL = {
+  welt: "Welt",
+  wiki: "Wiki",
+  abschrift: "Abschrift",
+  thema: "Thema"
+};
+function offeneQuellen(wikiFunde, bildFunde, themaFunde = 0) {
+  const raus = ["welt"];
+  if (wikiFunde > 0) raus.push("wiki");
+  if (bildFunde > 0) raus.push("abschrift");
+  if (themaFunde > 0) raus.push("thema");
+  return raus;
+}
+function ziehQuelle(offen, zufall = Math.random) {
+  if (!offen.length) return "welt";
+  return offen[Math.min(offen.length - 1, Math.floor(zufall() * offen.length))];
+}
+
+// src/features/theme.ts
+var THEMES = [
+  { id: "maschinenraum", label: "Maschinenraum" },
+  { id: "mitternacht", label: "Mitternacht" },
+  { id: "bernstein", label: "Bernstein" },
+  { id: "traumlogik", label: "Traumlogik" },
+  { id: "papier", label: "Papier (hell)" }
+];
+var KEY4 = "divergenz_theme_v1";
+function loadTheme() {
+  try {
+    const v = localStorage.getItem(KEY4);
+    if (v && THEMES.some((t) => t.id === v)) return v;
+  } catch {
+  }
+  return "maschinenraum";
+}
+function applyTheme(id) {
+  document.documentElement.setAttribute("data-theme", id);
+  try {
+    localStorage.setItem(KEY4, id);
+  } catch {
+  }
+}
+var ACCENT_KEY = "divergenz_accent_v1";
+function loadAccent() {
+  try {
+    return localStorage.getItem(ACCENT_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+function saveAccent(c) {
+  try {
+    if (c) localStorage.setItem(ACCENT_KEY, c);
+    else localStorage.removeItem(ACCENT_KEY);
+  } catch {
+  }
+}
+function parseHex(hex) {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [n >> 16 & 255, n >> 8 & 255, n & 255];
+}
+function darken(hex, f = 0.82) {
+  const rgb = parseHex(hex);
+  if (!rgb) return hex;
+  return "#" + rgb.map((x) => Math.round(x * f).toString(16).padStart(2, "0")).join("");
+}
+function applyAccent(c) {
+  const s = document.documentElement.style;
+  const rgb = parseHex(c);
+  if (c && rgb) {
+    s.setProperty("--acc", c);
+    s.setProperty("--acc-hover", darken(c));
+    s.setProperty("--focus-glow", `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.20)`);
+  } else {
+    s.removeProperty("--acc");
+    s.removeProperty("--acc-hover");
+    s.removeProperty("--focus-glow");
+  }
+}
+
+// src/features/fonts.ts
+var STORY_FONT_STACKS = {
+  serif: "Georgia, 'Iowan Old Style', 'Times New Roman', serif",
+  classic: "'Times New Roman', Times, serif",
+  sans: "'Syne', 'Segoe UI', system-ui, sans-serif",
+  mono: "'DM Mono', ui-monospace, monospace"
+};
+var FONT_KEY = "divergenz_story_font_v1";
+var SIZE_KEY = "divergenz_story_fontsize_v1";
+var FONT_DEFAULT = "serif";
+var SIZE_DEFAULT = 19;
+function loadFont() {
+  try {
+    return localStorage.getItem(FONT_KEY) || FONT_DEFAULT;
+  } catch {
+    return FONT_DEFAULT;
+  }
+}
+function loadFontSize() {
+  try {
+    const v = parseFloat(localStorage.getItem(SIZE_KEY) || "");
+    return Number.isFinite(v) ? v : SIZE_DEFAULT;
+  } catch {
+    return SIZE_DEFAULT;
+  }
+}
+function saveFontPrefs(fam, size) {
+  try {
+    localStorage.setItem(FONT_KEY, fam);
+    localStorage.setItem(SIZE_KEY, String(size));
+  } catch {
+  }
+}
+function applyStoryFont(host, fam, size) {
+  host.style.fontFamily = STORY_FONT_STACKS[fam] || STORY_FONT_STACKS.serif;
+  host.style.fontSize = size + "px";
+}
+
+// src/generation/novelty.ts
+var tokens2 = (s) => (s || "").toLowerCase().match(/[a-zäöüßA-ZÄÖÜ]+/g) || [];
+function trigrams(s) {
+  const w = tokens2(s);
+  const out = [];
+  for (let i = 0; i + 2 < w.length + 1 && i + 3 <= w.length; i++) out.push(w[i] + " " + w[i + 1] + " " + w[i + 2]);
+  return out;
+}
+function buildNoveltyContext(cooldownDays = 4, minN = 3, hotCap = 40) {
+  const archive = /* @__PURE__ */ new Set();
+  let archiveSize = 0;
+  try {
+    for (const t of loadTreasury()) {
+      archiveSize++;
+      for (const g of trigrams(t.t)) archive.add(g);
+    }
+  } catch {
+  }
+  let hot = [];
+  try {
+    const now = Date.now();
+    const win = cooldownDays * 24 * 3600 * 1e3;
+    hot = loadLive().filter((e2) => e2.n >= minN && now - e2.d <= win).sort((a, b) => b.n - a.n || b.d - a.d).slice(0, hotCap).map((e2) => e2.t.toLowerCase());
+  } catch {
+  }
+  return { archive, archiveSize, hot };
+}
+function noveltyOf(txt2, ctx) {
+  if (!ctx.archive.size) return 1;
+  const tg = trigrams(txt2);
+  if (!tg.length) return 1;
+  let seen = 0;
+  for (const g of tg) if (ctx.archive.has(g)) seen++;
+  return 1 - seen / tg.length;
+}
+function cooldownHit(txt2, ctx) {
+  if (!ctx.hot.length) return 0;
+  const low2 = (txt2 || "").toLowerCase();
+  let hits = 0;
+  for (const p of ctx.hot) if (p.length >= 4 && low2.includes(p)) hits++;
+  return Math.min(1, hits / 6);
+}
+function frequentContentWords(k = 40) {
+  let corpus = "";
+  try {
+    corpus = loadPersistentCorpus();
+  } catch {
+  }
+  if (!corpus) return [];
+  const freq = /* @__PURE__ */ new Map();
+  for (const w of corpus.toLowerCase().match(/[a-zäöüß]{4,}/g) || []) {
+    if (COHERENCE_STOPWORDS.has(w)) continue;
+    freq.set(w, (freq.get(w) || 0) + 1);
+  }
+  return [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, k).map((e2) => e2[0]);
+}
+
+// src/generation/grammar.ts
+var DANGLING = /* @__PURE__ */ new Set([
+  "und",
+  "oder",
+  "aber",
+  "denn",
+  "dass",
+  "weil",
+  "sondern",
+  "sowie",
+  "damit",
+  "obwohl",
+  "w\xE4hrend",
+  "sodass",
+  "bevor",
+  "nachdem",
+  "falls",
+  "wenngleich"
+]);
+var AUX = /* @__PURE__ */ new Set([
+  "bin",
+  "bist",
+  "ist",
+  "sind",
+  "seid",
+  "war",
+  "warst",
+  "waren",
+  "wart",
+  "hatte",
+  "hattest",
+  "hatten",
+  "hat",
+  "habe",
+  "hast",
+  "habt",
+  "haben",
+  "wurde",
+  "wurdest",
+  "wurden",
+  "wird",
+  "werde",
+  "werden",
+  "w\xE4re",
+  "w\xE4rst",
+  "w\xE4ren"
+]);
+var CONN = /* @__PURE__ */ new Set([
+  "und",
+  "oder",
+  "aber",
+  "denn",
+  "sondern",
+  "doch",
+  "weil",
+  "dass",
+  "wenn",
+  "als",
+  "w\xE4hrend",
+  "obwohl",
+  "damit",
+  "sodass",
+  "bevor",
+  "nachdem",
+  "ob",
+  "wie",
+  "wo",
+  "der",
+  "die",
+  "das",
+  "dem",
+  "den"
+]);
+function verbCollisions(text) {
+  const words2 = (text || "").split(/\s+/).filter(Boolean);
+  const norm = (w) => w.toLowerCase().replace(/[^a-zäöüß]/g, "");
+  let hits = 0;
+  for (let i = 0; i < words2.length; i++) {
+    if (!AUX.has(norm(words2[i]))) continue;
+    for (let j = i + 1; j <= Math.min(words2.length - 1, i + 3); j++) {
+      const wj = norm(words2[j]);
+      if (CONN.has(wj) || /[,;:]/.test(words2[j])) break;
+      const finite = /(t|te|ten|st)$/.test(wj) && wj.length >= 4 && !/^ge/.test(wj) && !AUX.has(wj);
+      if (finite) {
+        hits++;
+        break;
+      }
+    }
+  }
+  return hits;
+}
+function grammarFlags(text) {
+  const raw = text || "";
+  const issues = [];
+  let count2 = 0;
+  const add = (n, label) => {
+    if (n > 0) {
+      count2 += n;
+      issues.push(`${label}: ${n}`);
+    }
+  };
+  add((raw.match(/[.!?]{2,}/g) || []).length, "Mehrfach-Satzzeichen");
+  add((raw.match(/,{2,}|;{2,}|:{2,}/g) || []).length, "doppelte Trennzeichen");
+  add((raw.match(/\s+[,.;:!?]/g) || []).length, "Leerzeichen vor Satzzeichen");
+  add((raw.match(/\b([a-zäöüßA-ZÄÖÜ]{2,})\s+\1\b/gi) || []).length, "Wortverdopplung");
+  add((raw.match(/[a-zäöüß][.,;:!?][A-Za-zÄÖÜ]/g) || []).length, "fehlendes Leerzeichen");
+  let dangling = 0;
+  for (const sentence of raw.split(/(?<=[.!?…])\s+/)) {
+    const m = sentence.trim().match(/([a-zäöüßA-ZÄÖÜ]+)\s*[.!?…]+\s*$/);
+    if (m && DANGLING.has(m[1].toLowerCase())) dangling++;
+  }
+  add(dangling, "Satz endet auf Funktionswort");
+  add(verbCollisions(raw), "Verb-Kollision");
+  return { count: count2, issues };
+}
+
+// src/generation/scoring.ts
+function splitSentences2(raw) {
+  return raw.replace(/\s+/g, " ").trim().split(/(?<=[.!?…])\s+/).filter((s) => s.trim().length > 0);
+}
+function ngrams2(words2, n) {
+  const out = [];
+  for (let i = 0; i <= words2.length - n; i++) out.push(words2.slice(i, i + n).join(" "));
+  return out;
+}
+function countRepeats(arr) {
+  const m = /* @__PURE__ */ new Map();
+  for (const x of arr) m.set(x, (m.get(x) || 0) + 1);
+  let r = 0;
+  for (const c of m.values()) if (c > 1) r += c - 1;
+  return r;
+}
+function repetitionRatio(txt2) {
+  const tokens3 = (txt2 || "").toLowerCase().match(/[a-zäöüßA-ZÄÖÜ]+/g) || [];
+  if (tokens3.length < 3) return 0;
+  const tri = ngrams2(tokens3, 3);
+  const counts = /* @__PURE__ */ new Map();
+  tri.forEach((t) => counts.set(t, (counts.get(t) || 0) + 1));
+  const repeated = [...counts.values()].filter((c) => c > 1).length;
+  return tri.length ? repeated / tri.length : 0;
+}
+function flowMetrics(txt2) {
+  const raw = (txt2 || "").toString();
+  const s = splitSentences2(raw);
+  if (!s.length) return { startMonotony: 0, colonExcess: 0, fragPairs: 0 };
+  let same = 0, fragPairs = 0;
+  for (let i = 1; i < s.length; i++) {
+    const a = (s[i - 1].split(/\s+/)[0] || "").toLowerCase();
+    const b = (s[i].split(/\s+/)[0] || "").toLowerCase();
+    if (a && a === b) same++;
+    if (isFragmentSentence(s[i - 1]) && isFragmentSentence(s[i])) fragPairs++;
+  }
+  const colons = (raw.match(/:/g) || []).length;
+  return { startMonotony: same / Math.max(1, s.length - 1), colonExcess: Math.min(1, Math.max(0, colons - 2) / 3), fragPairs: Math.min(1, fragPairs / 2) };
+}
+function analyzeText(txt2, lenTarget) {
+  const raw = txt2 || "";
+  const t = raw.toLowerCase().replace(/\s+/g, " ").trim();
+  const words2 = t.split(" ").filter(Boolean);
+  const repBi = countRepeats(ngrams2(words2, 2)), repTri = countRepeats(ngrams2(words2, 3));
+  const wordCount = words2.length;
+  const target = lenTarget > 0 ? lenTarget : 110;
+  const lenFit = Math.max(0, 1 - Math.abs(wordCount - target) / target);
+  const ttr = words2.length ? new Set(words2).size / words2.length : 0;
+  const sentLens = splitSentences2(raw).map((s) => (s.toLowerCase().match(/[a-zäöüßA-ZÄÖÜ]+/g) || []).length);
+  const meanLen = sentLens.length ? sentLens.reduce((x, y) => x + y, 0) / sentLens.length : 0;
+  const stdLen = sentLens.length > 1 ? Math.sqrt(sentLens.map((x) => (x - meanLen) ** 2).reduce((x, y) => x + y, 0) / sentLens.length) : 0;
+  const rhythmScore = Math.max(0, 1 - Math.abs(stdLen - 4) / 6);
+  return {
+    len: raw.length,
+    wordCount,
+    repetitionRatio: repetitionRatio(raw),
+    lenFit,
+    ttr,
+    stdLen,
+    rhythmScore,
+    tooShort: raw.trim().length < 120,
+    triBad: repTri > 10,
+    biBad: repBi > 25,
+    flow: flowMetrics(raw)
+  };
+}
+function coherencePenalty(txt2, opts = {}) {
+  let p = tenseBreakRatio(txt2) * 90 + phraseRepeatRatio(txt2) * 40;
+  p += perspectiveBreakRatio(txt2, opts.perspective) * 150;
+  const cd = Math.max(0, Math.min(1, opts.castDiscipline ?? 0));
+  if (cd > 0) p += cd * castSpread(txt2, opts.expectedCast || []) * 40;
+  return p;
+}
+function scoreText(txt2, lenTarget) {
+  const a = analyzeText(txt2, lenTarget);
+  const score = a.lenFit * 30 + a.ttr * 25 + a.rhythmScore * 20 - a.repetitionRatio * 50 - (a.tooShort ? 20 : 0) - a.flow.startMonotony * 15 - a.flow.colonExcess * 8 - a.flow.fragPairs * 7;
+  return { score, a };
+}
+function bestOf(bank, input, model, N2 = 12, opts = {}) {
+  const lt = input.lenTarget ?? 110;
+  const nw = Math.max(0, Math.min(1, opts.noveltyWeight ?? 0));
+  const ctx = nw > 0 ? buildNoveltyContext() : null;
+  const umw = opts.umwelt ?? loadUmwelt();
+  let best = null;
+  let bestOhne = null;
+  for (const txt2 of genN(bank, input, model, N2)) {
+    let sc = scoreText(txt2, lt).score;
+    const woerter2 = txt2.split(/\s+/).filter(Boolean).length;
+    const fehl = Math.max(0, (lt - woerter2) / Math.max(1, lt));
+    sc -= fehl * fehl * 120;
+    if (ctx) sc += nw * (noveltyOf(txt2, ctx) * 40) - nw * (cooldownHit(txt2, ctx) * 30);
+    if (opts.grammarFilter) sc -= Math.min(grammarFlags(txt2).count, 6) * 12;
+    sc -= coherencePenalty(txt2, { ...opts, perspective: opts.perspective ?? input.perspective });
+    const ohne = sc;
+    sc += umweltBeitrag(txt2, umw);
+    if (!bestOhne || ohne > bestOhne.score) bestOhne = { txt: txt2, score: ohne };
+    if (!best || sc > best.score) best = { txt: txt2, score: sc };
+  }
+  const win = best ?? { txt: buildStory(bank, input, model), score: 0 };
+  const effekt = umw.wirkung === "aus" || !umw.zeichen.trim() ? void 0 : {
+    wirkung: umw.wirkung,
+    quote: aufnahmequote(win.txt, umw.zeichen),
+    quoteOhne: bestOhne ? aufnahmequote(bestOhne.txt, umw.zeichen) : 0,
+    gewechselt: !!bestOhne && bestOhne.txt !== win.txt
+  };
+  feedGeneratedToCorpus(win.txt);
+  return effekt ? { ...win, umwelt: effekt } : win;
+}
+function genN(bank, input, model, N2) {
+  N2 = Math.max(1, Math.min(500, N2 | 0));
+  const out = [];
+  for (let i = 0; i < N2; i++) {
+    for (let b = 0; b < 2; b++) Math.random();
+    out.push(buildStory(bank, input, model));
+  }
+  return out;
+}
+function runProbe(bank, input, model, N2 = 50) {
+  const lt = input.lenTarget ?? 110;
+  const texts = genN(bank, input, model, N2);
+  const seen = /* @__PURE__ */ new Set();
+  let duplicates = 0, flaggedCount = 0, grammarCount = 0;
+  for (const txt2 of texts) {
+    if (seen.has(txt2)) duplicates++;
+    seen.add(txt2);
+    const a = analyzeText(txt2, lt);
+    if (a.tooShort || a.triBad || a.biBad) flaggedCount++;
+    if (grammarFlags(txt2).count > 0) grammarCount++;
+  }
+  return { total: texts.length, unique: seen.size, duplicates, flaggedCount, grammarCount };
+}
+function selfFeedActive() {
+  try {
+    const s = loadSettings();
+    return !!(s.enabled && s.learnStories);
+  } catch {
+    return false;
+  }
+}
+function feedGeneratedToCorpus(txt2) {
+  try {
+    if (!txt2 || !selfFeedActive()) return;
+    const flat = txt2.replace(/\s+/g, " ").trim();
+    if (flat.length < 40) return;
+    const probe = flat.slice(0, 120).toLowerCase();
+    if (loadPersistentCorpus().replace(/\s+/g, " ").toLowerCase().includes(probe)) return;
+    appendToPersistentCorpus(flat);
+  } catch {
+  }
+}
+function feedTopToCorpus(top) {
+  if (!selfFeedActive()) return;
+  top.slice(0, 3).forEach((r) => {
+    if (r?.txt) feedGeneratedToCorpus(r.txt);
+  });
+}
+function runRanking(bank, input, model, N2 = 50, topK = 10, opts = {}) {
+  const lt = input.lenTarget ?? 110;
+  const nw = Math.max(0, Math.min(1, opts.noveltyWeight ?? 0));
+  const sw = Math.max(0, Math.min(1, opts.surpriseWeight ?? 0));
+  const sTarget = Math.max(0, Math.min(1, opts.surpriseTarget ?? 0.5));
+  const must = (opts.mustWords || []).map((w) => w.toLowerCase()).filter((w) => w.length > 1);
+  const banned = opts.avoidFrequent ? frequentContentWords(40) : [];
+  const ctx = nw > 0 ? buildNoveltyContext() : null;
+  const umwR = opts.umwelt ?? loadUmwelt();
+  const results = genN(bank, input, model, N2).map((txt2) => {
+    const { score, a } = scoreText(txt2, lt);
+    return { txt: txt2, score, baseScore: score, ...a };
+  });
+  for (const r of results) {
+    let sc = r.baseScore ?? r.score;
+    if (ctx) {
+      r.novelty = noveltyOf(r.txt, ctx);
+      sc += nw * (r.novelty * 40) - nw * (cooldownHit(r.txt, ctx) * 30);
+    }
+    if (sw > 0 && model) {
+      const s = model.surprise(r.txt);
+      if (s >= 0) {
+        r.surprise = s;
+        sc += sw * ((1 - Math.abs(s - sTarget)) * 30);
+      }
+    }
+    if (must.length) {
+      const low2 = r.txt.toLowerCase();
+      const hit = must.filter((w) => low2.includes(w)).length;
+      r.constraintsOk = hit === must.length;
+      sc -= (must.length - hit) * 25;
+    }
+    if (banned.length) {
+      const low2 = r.txt.toLowerCase();
+      let b = 0;
+      for (const w of banned) if (low2.includes(w)) b++;
+      sc -= Math.min(b, 6) * 4;
+    }
+    if (opts.grammarFilter) {
+      const g = grammarFlags(r.txt).count;
+      r.grammar = g;
+      sc -= Math.min(g, 6) * 12;
+    }
+    {
+      sc -= coherencePenalty(r.txt, opts);
+    }
+    sc += umweltBeitrag(r.txt, umwR);
+    r.score = sc;
+  }
+  results.sort((a, b) => b.score - a.score);
+  const top = results.slice(0, Math.max(1, Math.min(N2, topK)));
+  feedTopToCorpus(top);
+  return { all: results, top, total: results.length, topK };
+}
+
+// src/ui/studio.ts
+var studioSchonGewuerfelt = false;
+var studioReglerStand = {};
+function uebernimmWurf(nachId) {
+  for (const [id, wert] of Object.entries(nachId)) studioReglerStand[id] = wert;
+}
+function mountStudio(root) {
+  root.innerHTML = "";
+  const wrap = el("div", {});
+  const where = textInput("f-where", "Wo?", "auf der Schafsweide");
+  const when = textInput("f-when", "Wann?", "vor langer Zeit");
+  const who = textInput("f-who", "Wer? (mehrere durch Komma = Dialog)", "Baucis, Philemon");
+  const what = textInput("f-what", "Was passiert?", "ein Wunder geschieht");
+  const clearable = (input) => {
+    const x = el("button", { class: "clr", type: "button", title: "Feld leeren" }, "\xD7");
+    x.addEventListener("click", () => {
+      input.value = "";
+      input.dispatchEvent(new Event("input"));
+      input.focus();
+    });
+    return el("div", { class: "inwrap" }, input, x);
+  };
+  const LOCK_KEY2 = "divergenz_studio_locks_v1";
+  const locked = new Set((() => {
+    try {
+      return JSON.parse(localStorage.getItem(LOCK_KEY2) || "[]");
+    } catch {
+      return [];
+    }
+  })());
+  const saveLocks = () => {
+    try {
+      localStorage.setItem(LOCK_KEY2, JSON.stringify([...locked]));
+    } catch {
+    }
+  };
+  const LOCKVAL_KEY = "divergenz_locked_vals_v1";
+  const lockVals = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(LOCKVAL_KEY) || "{}");
+    } catch {
+      return {};
+    }
+  })();
+  const saveLockVals = () => {
+    try {
+      localStorage.setItem(LOCKVAL_KEY, JSON.stringify(lockVals));
+    } catch {
+    }
+  };
+  const lockCtrls = {};
+  const lockPainters = {};
+  const istHaken = (c) => c instanceof HTMLInputElement && c.type === "checkbox";
+  const wertVon = (c) => istHaken(c) ? c.checked ? "1" : "0" : c.value;
+  const setzeWert = (c, v) => {
+    if (istHaken(c)) {
+      const h = c;
+      if (h.checked !== (v === "1")) {
+        h.checked = v === "1";
+        h.dispatchEvent(new Event("change"));
+      }
+    } else c.value = v;
+  };
+  const restoreLocked = () => {
+    for (const id of locked) {
+      const c = lockCtrls[id];
+      if (c && lockVals[id] !== void 0) setzeWert(c, lockVals[id]);
+    }
+  };
+  const lockBtn = (ctrl) => {
+    lockCtrls[ctrl.id] = ctrl;
+    const upd = () => {
+      if (locked.has(ctrl.id)) {
+        lockVals[ctrl.id] = wertVon(ctrl);
+        saveLockVals();
+      }
+    };
+    ctrl.addEventListener("input", upd);
+    ctrl.addEventListener("change", upd);
+    const b = el("button", { class: "lockbtn", type: "button", title: "Beim W\xFCrfeln festhalten (Wert bleibt auch nach Neustart)" });
+    const paint = () => {
+      b.innerHTML = "";
+      b.append(icon(locked.has(ctrl.id) ? "lock" : "lockOpen"));
+      b.classList.toggle("on", locked.has(ctrl.id));
+    };
+    const liste = lockPainters[ctrl.id] ||= [];
+    liste.push({ b, paint });
+    const repaint = () => {
+      const l = lockPainters[ctrl.id] || [];
+      const lebend = l.filter((m) => m.b === b || m.b.isConnected);
+      l.length = 0;
+      l.push(...lebend);
+      lebend.forEach((m) => m.paint());
+    };
+    b.addEventListener("click", () => {
+      if (locked.has(ctrl.id)) {
+        locked.delete(ctrl.id);
+        delete lockVals[ctrl.id];
+      } else {
+        locked.add(ctrl.id);
+        lockVals[ctrl.id] = wertVon(ctrl);
+      }
+      saveLocks();
+      saveLockVals();
+      repaint();
+    });
+    paint();
+    return b;
+  };
+  const lockField = (label, sel) => el("div", { class: "field" }, el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sel)), sel);
+  const ctxDice = el("button", {}, icon("dice"), " Kontext w\xFCrfeln");
+  ctxDice.addEventListener("click", () => {
+    const c = randomContext();
+    if (!locked.has(where.id)) where.value = c.where;
+    if (!locked.has(when.id)) when.value = c.when;
+    if (!locked.has(who.id)) who.value = c.who;
+    if (!locked.has(what.id)) what.value = c.what;
+    updHints();
+    ctxSichern();
+  });
+  const alleBtn = el("button", { class: "primary", title: "Vier W aus einer gew\xFCrfelten Quelle (Welt, Wiki-Vorrat oder Bildvorrat) + alle Stilregler (gesperrte bleiben)" }, icon("dice"), " Alles w\xFCrfeln");
+  alleBtn.addEventListener("click", () => {
+    const felder = {
+      where: { id: where.id, wert: where.value },
+      when: { id: when.id, wert: when.value },
+      who: { id: who.id, wert: who.value },
+      what: { id: what.id, wert: what.value }
+    };
+    const quelle2 = ziehQuelle(offeneQuellen(vorratStand().funde, ladeBildvorrat().length, themenStand().funde));
+    let vorschlag = {};
+    let woher = QUELLE_LABEL[quelle2];
+    if (quelle2 === "wiki") {
+      const f = ziehVorrat();
+      if (f) {
+        vorschlag = f.ctx;
+        woher = `Wiki \xB7 ${f.titel}`;
+      } else vorschlag = worldFillContext();
+    } else if (quelle2 === "abschrift") {
+      const f = ziehBildvorrat();
+      if (f) {
+        vorschlag = f.ctx;
+        woher = `Abschrift \xB7 ${f.name}`;
+      } else vorschlag = worldFillContext();
+    } else if (quelle2 === "thema") {
+      const f = ziehThema();
+      if (f) {
+        vorschlag = f.ctx;
+        woher = `Thema \xB7 ${f.themaLabel}`;
+      } else vorschlag = worldFillContext();
+    } else {
+      vorschlag = worldFillContext();
+    }
+    const neu = uebernehmeKontext(felder, vorschlag, (id) => locked.has(id));
+    const bewegt = geaendert(felder, neu);
+    where.value = neu.where;
+    when.value = neu.when;
+    who.value = neu.who;
+    what.value = neu.what;
+    const alleZu = W4_FELDER.every((f) => locked.has(felder[f].id));
+    wikiHint.textContent = bewegt.length ? `${woher}: ${bewegt.length} von 4 Feldern` : alleZu ? "alle vier Felder sind gesperrt" : `${woher}: nichts Neues dabei`;
+    wikiTitel();
+    abschriftTitel();
+    themaTitel();
+    updHints();
+    ctxSichern();
+    rollAlle();
+    renderPresetChecks();
+    generate();
+  });
+  const wikiBtn = el("button", {}, icon("book"), " Wiki");
+  const wikiHint = el("span", { class: "ctxhint" });
+  const wikiTitel = () => {
+    const st = vorratStand();
+    wikiBtn.title = st.funde ? `Zuf\xE4lliger Fund aus dem Sammler-Vorrat (${st.funde} Funde aus ${st.tage} ${st.tage === 1 ? "Tag" : "Tagen"}) \u2014 ohne Netz` : "Der Sammler-Vorrat ist leer \u2014 im Reiter \u201ESammler\u201C einen Tag holen";
+  };
+  wikiTitel();
+  wikiBtn.addEventListener("click", () => {
+    const f = ziehVorrat();
+    if (!f) {
+      wikiHint.textContent = "Vorrat leer \u2014 im Reiter \u201ESammler\u201C einen Tag holen";
+      return;
+    }
+    const setz = (inp, v) => {
+      if (v && !locked.has(inp.id)) inp.value = v;
+    };
+    setz(where, f.ctx.where);
+    setz(when, f.ctx.when);
+    setz(who, f.ctx.who);
+    setz(what, f.ctx.what);
+    wikiHint.textContent = `${f.quelleLabel}: ${f.titel}`;
+    updHints();
+    ctxSichern();
+    wikiTitel();
+  });
+  const themaBtn = el("button", {}, icon("book"), " Thema");
+  const themaTitel = () => {
+    const st = themenStand();
+    themaBtn.title = st.funde ? `Zuf\xE4lliger Fund aus dem Themenpool (${st.funde} Funde aus ${st.themen} ${st.themen === 1 ? "Thema" : "Themen"}) \u2014 ohne Netz` : "Der Themenpool ist leer \u2014 im Reiter \u201ESammler\u201C unter \u201EThemenpool\u201C ein Thema holen";
+  };
+  themaTitel();
+  themaBtn.addEventListener("click", () => {
+    const f = ziehThema();
+    if (!f) {
+      wikiHint.textContent = "Themenpool leer \u2014 im Reiter \u201ESammler\u201C unter \u201EThemenpool\u201C ein Thema holen";
+      return;
+    }
+    const setz = (inp, v) => {
+      if (v && !locked.has(inp.id)) inp.value = v;
+    };
+    setz(where, f.ctx.where);
+    setz(when, f.ctx.when);
+    setz(who, f.ctx.who);
+    setz(what, f.ctx.what);
+    wikiHint.textContent = `${f.themaLabel}: ${f.titel}`;
+    updHints();
+    ctxSichern();
+    themaTitel();
+  });
+  const abschriftBtn = el("button", {}, icon("book"), " Abschrift");
+  const abschriftTitel = () => {
+    const n = ladeBildvorrat().length;
+    abschriftBtn.title = n ? `Zuf\xE4lliger Fund aus dem Bildvorrat (${n} ${n === 1 ? "Fund" : "Funde"}) \u2014 ohne Netz` : "Der Bildvorrat ist leer \u2014 im Reiter \u201ESammler\u201C unter \u201EBilder als Material\u201C Funde in den Vorrat legen";
+  };
+  abschriftTitel();
+  abschriftBtn.addEventListener("click", () => {
+    const f = ziehBildvorrat();
+    if (!f) {
+      wikiHint.textContent = "Bildvorrat leer \u2014 im Reiter \u201ESammler\u201C Bilder lesen und in den Vorrat legen";
+      return;
+    }
+    const setz = (inp, v) => {
+      if (v && !locked.has(inp.id)) inp.value = v;
+    };
+    setz(where, f.ctx.where);
+    setz(when, f.ctx.when);
+    setz(who, f.ctx.who);
+    setz(what, f.ctx.what);
+    wikiHint.textContent = `Abschrift: ${f.name}`;
+    updHints();
+    ctxSichern();
+    abschriftTitel();
+  });
+  const ctxKeep = el("button", { class: "toggle" }, icon("pin"), " Kontext merken");
+  const CTX_KEY2 = "divergenz_ctx_v1";
+  ctxKeep.title = "Wo/Wann/Wer/Was sichern und bei jedem Start laden";
+  const setCtxKeep = (on) => {
+    ctxKeep.classList.toggle("on", on);
+    ctxKeep.setAttribute("aria-pressed", String(on));
+    try {
+      if (on) localStorage.setItem(CTX_KEY2, JSON.stringify({ where: where.value, when: when.value, who: who.value, what: what.value }));
+      else localStorage.removeItem(CTX_KEY2);
+    } catch {
+    }
+  };
+  ctxKeep.addEventListener("click", () => setCtxKeep(!ctxKeep.classList.contains("on")));
+  const ctxSichern = () => {
+    if (!ctxKeep.classList.contains("on")) return;
+    try {
+      localStorage.setItem(CTX_KEY2, JSON.stringify({ where: where.value, when: when.value, who: who.value, what: what.value }));
+    } catch {
+    }
+  };
+  [where, when, who, what].forEach((f) => {
+    f.addEventListener("input", ctxSichern);
+    f.addEventListener("change", ctxSichern);
+  });
+  const mkWeight = (id) => el("input", { id, class: "wgt", type: "range", min: "0", max: "3", step: "1", value: "0", title: "St\xE4rke \u2014 mehr \xFCber dieses Feld" });
+  const wWo = mkWeight("f-w-wo"), wWann = mkWeight("f-w-wann"), wWer = mkWeight("f-w-wer"), wWas = mkWeight("f-w-was");
+  const hintWo = el("span", { class: "ctxhint" });
+  const hintWann = el("span", { class: "ctxhint" });
+  const hintWer = el("span", { class: "ctxhint" });
+  const hintWas = el("span", { class: "ctxhint" });
+  const updHints = () => {
+    const h = (inp, fn, out2) => {
+      const v = inp.value.trim();
+      const n = v ? fn(v) : "";
+      out2.textContent = v && n && n !== v ? "\u2192 " + n : "";
+    };
+    h(where, normWhere, hintWo);
+    h(when, normWhen, hintWann);
+    {
+      const v = who.value.trim();
+      if (!v) hintWer.textContent = "";
+      else {
+        const n = normWho(v);
+        const sp = splitSpeakers(n);
+        const norm = n !== v ? "\u2192 " + n + " \xB7 " : "";
+        if (sp.length <= 1) hintWer.textContent = norm + "eine Figur \u2014 sie tr\xE4gt die Handlung";
+        else if (form.value === "script") hintWer.textContent = norm + `${sp.length} Sprecher: ${sp.join(", ")} \u2014 reihum im Dialog`;
+        else hintWer.textContent = norm + `Hauptfigur: ${sp[0]} \xB7 Nebenfigur${sp.length > 2 ? "n" : ""}: ${sp.slice(1).join(", ")} \u2014 die Handlung aus \u201EWas passiert?" geh\xF6rt der Hauptfigur, die \xFCbrigen werden eingewoben`;
+      }
+    }
+    const a = what.value.trim();
+    let wasScore = -1;
+    if (!a) hintWas.textContent = "";
+    else {
+      const lead = extractLeadVerb(a);
+      if (lead.isInfinitiveLed) {
+        hintWas.textContent = "\u2192 als Vorhaben eingewoben (\u201Ewill " + lead.rest + "\u201C)";
+        wasScore = 0.9;
+      } else if (lead.verb) {
+        hintWas.textContent = "\u2192 als Handlung eingewoben (Verb: " + lead.verb + ")";
+        wasScore = 1;
+      } else if (looksLikeFullClause(lead.verb, lead.rest)) {
+        hintWas.textContent = "\u2192 als eigener Satz eingewoben";
+        wasScore = 1;
+      } else {
+        hintWas.textContent = "\u2192 als Ereignis-Phrase eingewoben";
+        wasScore = a.length >= 4 ? 0.7 : 0.4;
+      }
+    }
+    const tint = (inp, score) => {
+      if (score < 0) {
+        inp.style.backgroundColor = "";
+        return;
+      }
+      const hue = Math.round(120 * Math.max(0, Math.min(1, score)));
+      inp.style.backgroundColor = `hsl(${hue} 65% 42% / 0.20)`;
+    };
+    tint(where, rateWhere(where.value));
+    tint(when, rateWhen(when.value));
+    tint(who, rateWho(who.value));
+    tint(what, wasScore);
+  };
+  [where, when, who, what].forEach((i) => i.addEventListener("input", updHints));
+  const field4w = (label, inp, weight, hint) => el(
+    "label",
+    { class: "field" },
+    el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(inp)),
+    el("div", { class: "field4w" }, clearable(inp), weight),
+    ...hint ? [hint] : []
+  );
+  const gespeicherteUmwelt = loadUmwelt();
+  const umweltIn = el("input", {
+    id: "f-umwelt",
+    type: "text",
+    placeholder: "Frost, 7Z-49, \u2205, Verwaltung \u2014 mit Komma getrennt",
+    value: gespeicherteUmwelt.zeichen
+  });
+  const umweltSel = el("select", { id: "f-umwelt-wirkung", title: "Wie die Zeichen auf die Auswahl wirken" });
+  [["aus", "aus"], ["nahrung", "Nahrung \u2014 aufnehmen"], ["gift", "Gift \u2014 meiden"]].forEach(([v, t]) => umweltSel.append(el("option", { value: v }, t)));
+  umweltSel.value = gespeicherteUmwelt.wirkung;
+  const umweltHint = el("span", { class: "ctxhint" });
+  const umweltZeigen = () => {
+    const n = umweltTeile(umweltIn.value).length;
+    umweltHint.textContent = umweltSel.value === "aus" || !n ? "" : `\u2192 ${n} ${n === 1 ? "Zeichen wirkt" : "Zeichen wirken"} auf die Bestenauslese`;
+  };
+  const umweltSichern = () => {
+    saveUmwelt({ zeichen: umweltIn.value, wirkung: umweltSel.value });
+    umweltZeigen();
+    umweltLegZeigen();
+  };
+  umweltIn.addEventListener("input", umweltSichern);
+  umweltSel.addEventListener("change", () => {
+    umweltSichern();
+    generate();
+  });
+  umweltZeigen();
+  wrap.append(
+    el(
+      "div",
+      { class: "grid2" },
+      field4w("Wo?", where, wWo, hintWo),
+      field4w("Wann?", when, wWann, hintWann),
+      field4w("Wer?", who, wWer, hintWer),
+      field4w("Was passiert?", what, wWas, hintWas)
+    ),
+    el(
+      "label",
+      { class: "field" },
+      el(
+        "span",
+        { class: "field-label lockrow" },
+        el("span", { class: "hilfe", title: "Begriffe, W\xF6rter, Zahlenkombinationen oder Zeichen. Sie erzeugen keinen Text \u2014 sie richten die Auswahl: Nahrung bevorzugt Fassungen, die sie aufnehmen, Gift bevorzugt Fassungen, die sie meiden. Wirkt nur bei eingeschalteter Bestenauslese." }, "Umwelt"),
+        umweltSel
+      ),
+      umweltIn,
+      umweltHint
+    ),
+    el("div", { class: "btnrow" }, ctxDice, alleBtn, wikiBtn, abschriftBtn, themaBtn, ctxKeep, wikiHint)
+  );
+  const lockBar = el("div", { class: "lockbar" });
+  const preset = select("f-preset", markedPresetOptions());
+  const MULTI_ID = "__multi__";
+  const MULTI_KEY = "dm_multi_presets_v1";
+  const saveMulti = () => {
+    try {
+      if (multiIds.length >= 2) localStorage.setItem(MULTI_KEY, JSON.stringify(multiIds));
+      else localStorage.removeItem(MULTI_KEY);
+    } catch {
+    }
+  };
+  const loadMulti = () => {
+    try {
+      const r = localStorage.getItem(MULTI_KEY);
+      const a = r ? JSON.parse(r) : [];
+      return Array.isArray(a) ? a.filter((x) => typeof x === "string") : [];
+    } catch {
+      return [];
+    }
+  };
+  let multiIds = loadMulti();
+  preset.addEventListener("change", () => {
+    if (preset.value === MULTI_ID) {
+      if (multiIds.length >= 2) applyMulti();
+      return;
+    }
+    if (multiIds.length) {
+      multiIds = [];
+      saveMulti();
+    }
+    if (preset.value === AUTOMIX_ID) {
+      saveBank(buildAutoMixBank());
+      saveActiveBankLabel("Auto-Mix");
+      setDramaData(null);
+      return;
+    }
+    const p = getAllPresets()[preset.value];
+    if (!p) return;
+    saveBank(p.bank);
+    saveActiveBankLabel(p.label || preset.value);
+    const a2 = preset.value.startsWith("user:") ? getUserPreset2(preset.value.slice(5)) : null;
+    if (!a2) {
+      setDramaData(builtinDrama(preset.value));
+      updRekHint();
+      return;
+    }
+    if (a2) {
+      setDramaData(a2.drama);
+      const setV = (sel, v) => {
+        if (v && Array.from(sel.options).some((o) => o.value === v)) sel.value = v;
+      };
+      const st = a2.settings;
+      setV(tone, st.tone);
+      setV(form, st.form);
+      setV(structure, st.structure);
+      setV(disruptor, st.disruptor);
+      setV(instab, st.instability);
+    }
+    updRekHint();
+  });
+  const stripIcon = (l) => l.replace(/^[^\p{L}\p{N}]+/u, "").replace(/\s*✦2\.0$/, "").trim();
+  const applyMulti = () => {
+    if (multiIds.length < 2) return;
+    saveBank(buildMergedBank(multiIds));
+    const labels = multiIds.map((id) => stripIcon(getAllPresets()[id]?.label || id));
+    saveActiveBankLabel("Mix: " + labels.join(" + "));
+    const boegen = multiIds.map((id) => builtinDrama(id)).filter(Boolean);
+    if (!boegen.length) {
+      setDramaData(null);
+      return;
+    }
+    const misch = (feld) => {
+      const raus = [];
+      for (const b of boegen) for (const t of b[feld] || []) if (!raus.includes(t)) raus.push(t);
+      return raus;
+    };
+    setDramaData({
+      einstieg: misch("einstieg"),
+      mitte: misch("mitte"),
+      hoehepunkt: misch("hoehepunkt"),
+      schluss: misch("schluss"),
+      ausloeser: misch("ausloeser"),
+      veraenderungen: misch("veraenderungen"),
+      konflikte: misch("konflikte"),
+      zeitanomalien: misch("zeitanomalien"),
+      regeln: misch("regeln")
+    });
+  };
+  const ensureMultiOption = () => {
+    let o = preset.querySelector('option[value="' + MULTI_ID + '"]');
+    if (!o) {
+      o = document.createElement("option");
+      o.value = MULTI_ID;
+      preset.insertBefore(o, preset.firstChild);
+    }
+    const nm = multiIds.map((id) => stripIcon(getAllPresets()[id]?.label || id));
+    o.textContent = nm.length <= 3 ? nm.join(" + ") : nm.slice(0, 3).join(" + ") + ` +${nm.length - 3}`;
+  };
+  preset.style.display = "none";
+  const presetList = el("div", { class: "mplist", id: "presets" });
+  const presetStatus = el("span", { class: "muted mini" });
+  const autoMixStudioBtn = el("button", { class: "automixbtn", type: "button", title: "Pro Kategorie ein zuf\xE4lliges Preset zusammenw\xFCrfeln" }, icon("dice"), " Auto-Mix w\xFCrfeln");
+  autoMixStudioBtn.addEventListener("click", () => {
+    multiIds = [];
+    saveMulti();
+    preset.value = AUTOMIX_ID;
+    preset.dispatchEvent(new Event("change"));
+    if (!preset.value.startsWith("user:") && preset.value !== AUTOMIX_ID && preset.value !== MULTI_ID) {
+      setDramaData(builtinDrama(preset.value));
+    }
+    renderPresetChecks();
+    updHints();
+    requestAnimationFrame(positionArrows);
+  });
+  const renderPresetChecks = (ziel = presetList) => {
+    ziel.innerHTML = "";
+    const selected = new Set(preset.value === MULTI_ID ? multiIds : [preset.value]);
+    const boxes = [];
+    const CATL = { motifs: "Motive", hooks: "Hooks", props: "Requisiten", turns: "Wendungen", obstacles: "Hindernisse", stakes: "Eins\xE4tze", endings: "Enden" };
+    const mixSrc = preset.value === AUTOMIX_ID ? lastAutoMixSources() : {};
+    markedPresetOptions().filter(([v]) => v !== AUTOMIX_ID).forEach(([v, l]) => {
+      const cb = el("input", { type: "checkbox" });
+      cb.checked = selected.has(v);
+      cb.value = v;
+      cb.addEventListener("change", () => {
+        applySelection(boxes.filter((b) => b.checked).map((b) => b.value));
+        if (ziel !== presetList) renderPresetChecks(ziel);
+      });
+      boxes.push(cb);
+      const cats = mixSrc[v];
+      const item = el("label", { class: "chk mpitem" + (cats ? " mixsrc" : "") }, cb, " " + l);
+      if (cats) {
+        item.title = "Auto-Mix-Quelle: " + cats.map((k) => CATL[k] || k).join(", ");
+        item.append(el("span", { class: "mixsrc-badge" }, String(cats.length)));
+      }
+      ziel.append(item);
+    });
+    const curOpt = Array.from(preset.options).find((o) => o.value === preset.value);
+    if (preset.value === MULTI_ID) {
+      const namen = multiIds.map((id) => stripIcon(getAllPresets()[id]?.label || id));
+      const kurz2 = namen.length <= 3 ? namen.join(" + ") : namen.slice(0, 3).join(" + ") + ` + ${namen.length - 3} weitere`;
+      presetStatus.textContent = `Aktiv: ${kurz2}`;
+      presetStatus.title = namen.join(" + ");
+    } else if (preset.value === AUTOMIX_ID) {
+      presetStatus.textContent = "Aktiv: Auto-Mix \u2014 Quellen schattiert";
+      presetStatus.title = "";
+    } else {
+      presetStatus.textContent = "Aktiv: " + (curOpt ? curOpt.textContent || "\u2014" : "\u2014");
+      presetStatus.title = "";
+    }
+  };
+  function applySelection(rawIds) {
+    const ids = rawIds.filter((v) => v !== MULTI_ID && v !== AUTOMIX_ID && v !== "__omni__");
+    if (ids.length === 0) {
+      renderPresetChecks();
+      return;
+    }
+    if (ids.length === 1) {
+      multiIds = [];
+      saveMulti();
+      preset.value = ids[0];
+      preset.dispatchEvent(new Event("change"));
+      renderPresetChecks();
+      return;
+    }
+    multiIds = ids;
+    saveMulti();
+    applyMulti();
+    ensureMultiOption();
+    preset.value = MULTI_ID;
+    renderPresetChecks();
+    liveRegen();
+  }
+  const tone = select("f-tone", TONE_OPTS, "mystery");
+  const form = select("f-form", FORM_OPTS, "prose");
+  const shots = el("input", { id: "f-shots", type: "number", value: "5", min: "3", max: "10" });
+  const secs = el("input", { id: "f-secs", type: "number", value: "15", min: "3", max: "600" });
+  const structure = select("f-structure", STRUCTURE_OPTS, "rekombination");
+  const mode = select("f-mode", MODE_OPTS, "auto");
+  const persp = select("f-persp", PERSP_OPTS, "auto");
+  const rhythm = select("f-rhythm", RHYTHM_OPTS, "auto");
+  const tension = select("f-tension", TENSION_OPTS, "off");
+  const cast = select("f-cast", CAST_OPTS, "0.5");
+  const instab = select("f-instab", INSTAB_OPTS, "2");
+  const markov = select("f-markov", MARKOV_OPTS, "off");
+  const disruptor = select("f-disruptor", DISRUPTOR_OPTS, "auto");
+  const ressort = select("f-ressort", [
+    ["auto", "Auto (aus dem Stoff)"],
+    ...RESSORT_IDS.map((id) => [id, RESSORTS[id].label])
+  ], "auto");
+  const varianz = select("f-varianz", VARIANZ_OPTS, "mid");
+  const archA = select("f-archa", ARCH_OPTS, "neutral");
+  const archB = select("f-archb", ARCH_OPTS, "neutral");
+  const ROLL_SELECTS = [tone, form, structure, mode, persp, rhythm, tension, cast, instab, markov, disruptor, varianz, ressort, archA, archB, preset];
+  const presetField = el(
+    "div",
+    { class: "field presetfield" },
+    el("span", { class: "field-label lockrow" }, el("span", {}, "Preset \u2014 eins oder mehrere ankreuzen"), presetStatus, lockBtn(preset)),
+    preset,
+    el("div", { class: "btnrow" }, autoMixStudioBtn),
+    presetList
+  );
+  wrap.append(presetField);
+  wrap.append(el("div", { class: "grid3" }, lockField("Ton", tone), lockField("Form", form)));
+  const lenSlider = el("input", { id: "f-len", type: "range", min: "40", max: "300", step: "5", value: "110", style: "flex:1" });
+  const lenVal = el("span", { class: "muted" }, "110");
+  let lenTimer;
+  let baseText = "";
+  let rolling = false;
+  const applyLengthLive = () => {
+    const target = parseInt(lenSlider.value, 10);
+    const form2 = readInput().form;
+    if (form2 === "prose") {
+      const src = baseText.trim() ? baseText : out.textContent || "";
+      if (!src.trim()) {
+        generate();
+        return;
+      }
+      out.textContent = enforceWordTarget(src, target, loadBank(), markov.value !== "off" ? buildModelFromCorpus(2) : void 0);
+      nachTextwechsel();
+      try {
+        localStorage.setItem("dm_last_text", out.textContent || "");
+      } catch {
+      }
+      refreshFeeds();
+    } else if (form2 === "script" || form2 === "bericht" || form2 === "meldung") {
+      generate();
+    }
+  };
+  lenSlider.addEventListener("input", () => {
+    lenVal.textContent = lenSlider.value;
+    clearTimeout(lenTimer);
+    lenTimer = setTimeout(applyLengthLive, 180);
+  });
+  const lenRow = el("div", { class: "field lenrow" }, el("span", { class: "mlabel lockrow" }, el("span", {}, "Textl\xE4nge"), lockBtn(lenSlider)), lenSlider, " ", lenVal);
+  const fontSel = el(
+    "select",
+    { id: "f-font" },
+    ...[["serif", "Serif"], ["classic", "Times"], ["sans", "Sans"], ["mono", "Mono"]].map(([v, l]) => el("option", { value: v }, l))
+  );
+  const sizeSlider = el("input", { id: "f-fontsize", type: "range", min: "14", max: "32", step: "0.5", value: String(loadFontSize()) });
+  const sizeVal = el("span", { class: "muted" }, String(loadFontSize()));
+  fontSel.value = loadFont();
+  const applyFont = () => {
+    applyStoryFont(out, fontSel.value, parseFloat(sizeSlider.value));
+    sizeVal.textContent = sizeSlider.value;
+    saveFontPrefs(fontSel.value, parseFloat(sizeSlider.value));
+  };
+  fontSel.addEventListener("change", applyFont);
+  sizeSlider.addEventListener("input", applyFont);
+  const fontRow = el("label", { class: "field lenrow fontrow" }, el("span", { class: "mlabel" }, "Schrift"), " ", fontSel, " ", el("span", { class: "mlabel" }, "Gr\xF6\xDFe"), " ", sizeSlider, " ", sizeVal);
+  const out = el("pre", { id: "f-out", class: "out" });
+  const genArrows = [];
+  const mkGenArrow = (dir) => {
+    const b = el("button", { class: "genarrow " + dir, type: "button", title: "Neue Variante generieren", "aria-label": "Neue Variante generieren" }, dir === "left" ? "\u2039" : "\u203A");
+    b.addEventListener("pointerdown", (e2) => {
+      e2.preventDefault();
+      generate();
+    });
+    genArrows.push(b);
+    return b;
+  };
+  const grip = el("div", {
+    class: "lengrip",
+    role: "slider",
+    tabindex: "0",
+    title: "Ziehen: Textl\xE4nge \xE4ndern \xB7 Doppelklick: Fensterh\xF6he zur\xFCcksetzen"
+  });
+  const gripVal = el("span", { class: "lengrip-val" });
+  grip.append(gripVal);
+  const PX_JE_SCHRITT = 6;
+  let zieht = false, startY = 0, startWert = 0, startHoehe = 0, geaendert2 = false;
+  const zeigeWert = (v) => {
+    gripVal.textContent = v + " W\xF6rter";
+  };
+  grip.addEventListener("pointerdown", (e2) => {
+    const ev = e2;
+    if (locked.has(lenSlider.id)) {
+      gripVal.textContent = "Textl\xE4nge ist gesperrt";
+      grip.classList.add("warn");
+      setTimeout(() => {
+        grip.classList.remove("warn");
+        gripVal.textContent = "";
+      }, 1600);
+      return;
+    }
+    zieht = true;
+    geaendert2 = false;
+    startY = ev.clientY;
+    startWert = parseInt(lenSlider.value, 10) || 110;
+    startHoehe = out.getBoundingClientRect().height;
+    grip.classList.add("zieht");
+    zeigeWert(startWert);
+    grip.setPointerCapture(ev.pointerId);
+    ev.preventDefault();
+  });
+  grip.addEventListener("pointermove", (e2) => {
+    if (!zieht) return;
+    const dy = e2.clientY - startY;
+    const schritt2 = parseInt(lenSlider.step, 10) || 10;
+    const min = parseInt(lenSlider.min, 10), max = parseInt(lenSlider.max, 10);
+    const roh = startWert + Math.round(dy / PX_JE_SCHRITT) * schritt2;
+    const neuW = Math.max(min, Math.min(max, roh));
+    if (String(neuW) !== lenSlider.value) {
+      lenSlider.value = String(neuW);
+      lenVal.textContent = String(neuW);
+      geaendert2 = true;
+    }
+    zeigeWert(neuW);
+    out.style.minHeight = Math.max(120, startHoehe + dy) + "px";
+    positionArrows();
+  });
+  const gripEnde = (e2) => {
+    if (!zieht) return;
+    zieht = false;
+    grip.classList.remove("zieht");
+    gripVal.textContent = "";
+    try {
+      grip.releasePointerCapture(e2.pointerId);
+    } catch {
+    }
+    out.style.minHeight = "";
+    positionArrows();
+    if (geaendert2) generate();
+  };
+  grip.addEventListener("pointerup", gripEnde);
+  grip.addEventListener("pointercancel", gripEnde);
+  grip.addEventListener("dblclick", () => {
+    out.style.minHeight = "";
+    positionArrows();
+  });
+  grip.addEventListener("keydown", (e2) => {
+    const ev = e2;
+    if (ev.key !== "ArrowUp" && ev.key !== "ArrowDown") return;
+    if (locked.has(lenSlider.id)) return;
+    const schritt2 = parseInt(lenSlider.step, 10) || 10;
+    const min = parseInt(lenSlider.min, 10), max = parseInt(lenSlider.max, 10);
+    const v = Math.max(min, Math.min(max, (parseInt(lenSlider.value, 10) || 110) + (ev.key === "ArrowDown" ? schritt2 : -schritt2)));
+    lenSlider.value = String(v);
+    lenVal.textContent = String(v);
+    ev.preventDefault();
+    generate();
+  });
+  const outWrap = el("div", { class: "outwrap" }, mkGenArrow("left"), out, mkGenArrow("right"), grip);
+  const positionArrows = () => {
+    const r = outWrap.getBoundingClientRect();
+    if (r.height <= 0) return;
+    const visTop = Math.max(r.top, 0);
+    const visBot = Math.min(r.bottom, window.innerHeight);
+    let center = (visTop + visBot) / 2 - r.top;
+    center = Math.max(40, Math.min(r.height - 40, center));
+    for (const a of genArrows) a.style.top = center + "px";
+  };
+  window.addEventListener("scroll", positionArrows, { passive: true });
+  window.addEventListener("resize", positionArrows);
+  let swipeX = 0, swipeY = 0;
+  out.addEventListener("touchstart", (e2) => {
+    const t = e2.touches[0];
+    if (t) {
+      swipeX = t.clientX;
+      swipeY = t.clientY;
+    }
+  }, { passive: true });
+  out.addEventListener("touchend", (e2) => {
+    const t = e2.changedTouches[0];
+    if (!t) return;
+    const dx = t.clientX - swipeX, dy = t.clientY - swipeY;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) generate();
+  }, { passive: true });
+  const kling = el("div", { class: "kling" });
+  const feedsChk = el("input", { type: "checkbox", id: "f-feeds" });
+  const legDot = (c, l) => el("span", { class: "feeditem" }, el("span", { class: "feeddot " + c }), " " + l);
+  const planChk = el("input", { type: "checkbox", id: "f-plan" });
+  const planBox = el("div", { class: "bauplan", style: "display:none" });
+  const PHASE_LABEL = { exposition: "Er\xF6ffnung", verdichtung: "Verdichtung", umschlag: "Umschlag", schluss: "Schluss" };
+  const KAT_LABEL = { motifs: "Motiv", hooks: "Haken", props: "Requisite", turns: "Wendung", obstacles: "Hindernis", stakes: "Einsatz", endings: "Ende" };
+  const renderPlan = () => {
+    const on = planChk.checked && structure.value === "rekombination";
+    planBox.style.display = on ? "" : "none";
+    if (!on) return;
+    const tr = getTraceFor(out.textContent || "");
+    planBox.innerHTML = "";
+    if (!tr.length) {
+      planBox.append(el("span", { class: "muted mini" }, "Noch kein Rekombinations-Text erzeugt."));
+      return;
+    }
+    const anteil = Math.round(fuegeteilAnteil() * 100);
+    const norm = (t) => t.toLowerCase().replace(/[^a-zäöüß ]/g, " ").replace(/\s+/g, " ").trim();
+    const bausteine = tr.map((x) => norm(x.text)).filter(Boolean);
+    const fremd = (out.textContent || "").split(/(?<=[.!?…])\s+/).map((x) => norm(x)).filter((x) => x.split(" ").length >= 3).filter((satz) => !bausteine.some((b) => b.includes(satz.slice(0, 24)) || satz.includes(b.slice(0, 24))));
+    planBox.append(el(
+      "div",
+      { class: "muted mini bp-kopf" },
+      `${tr.length} Bausteine \xB7 ${anteil} % F\xFCgeteile${anteil > 25 ? " \u26A0" : ""}` + (fremd.length ? ` \xB7 ${fremd.length} Satz/S\xE4tze aus der Nachbearbeitung (Ton, Gl\xE4ttung)` : "")
+    ));
+    let letztePhase = "";
+    for (const s of tr) {
+      if (s.phase !== letztePhase) {
+        planBox.append(el("div", { class: "bp-phase ph-" + s.phase }, PHASE_LABEL[s.phase] || s.phase));
+        letztePhase = s.phase;
+      }
+      const herkunft = s.quelle === "vorlage" ? "F\xFCgeteil \xB7 " + s.typ : KAT_LABEL[s.kategorie] || s.kategorie;
+      const row = el(
+        "div",
+        { class: "bp-zeile q-" + s.quelle },
+        el("span", { class: "bp-tag" }, herkunft),
+        el("span", { class: "bp-text" }, s.text)
+      );
+      if (s.fueller) for (const f of s.fueller) row.append(el("span", { class: "bp-fill" }, "\u21B3 " + (KAT_LABEL[f.kategorie] || f.kategorie) + ": " + f.text));
+      planBox.append(row);
+    }
+  };
+  planChk.addEventListener("change", renderPlan);
+  const struktChk = el("input", { type: "checkbox", id: "f-struktur" });
+  const vorratHint = el("p", { class: "muted mini", style: "display:none" });
+  const updVorrat = () => {
+    const txt2 = out.textContent || "";
+    const ziel = parseInt(lenSlider.value, 10) || 0;
+    const ist2 = txt2.split(/\s+/).filter(Boolean).length;
+    const knapp = structure.value === "rekombination" && ziel > 0 && ist2 > 0 && ist2 / ziel < 0.85;
+    vorratHint.style.display = knapp ? "" : "none";
+    if (knapp) vorratHint.textContent = `${ist2} statt ${ziel} W\xF6rtern: Der Baustein-Vorrat des gew\xE4hlten Presets ist ersch\xF6pft. Die Rekombination l\xE4sst jeden Satz nur einmal zu \u2014 f\xFCr l\xE4ngere Texte mehrere Presets aktivieren oder Auto-Mix w\xE4hlen.`;
+  };
+  const struktBox = el("div", { class: "struktur-inline", style: "display:none" });
+  const renderStruktur = () => {
+    if (!struktChk.checked) {
+      struktBox.style.display = "none";
+      return;
+    }
+    struktBox.style.display = "";
+    struktBox.innerHTML = "";
+    quelleHint.style.display = "none";
+    const snap = loadSchnappschuss();
+    struktBox.append(renderTextstruktur(out.textContent || "", snap, {
+      Preset: preset,
+      Ton: tone,
+      Form: form,
+      Struktur: structure,
+      Perspektive: persp,
+      Rhythmus: rhythm,
+      Markov: markov,
+      Varianz: varianz,
+      Spannung: tension,
+      // Stellschrauben in der Schnellwahl: die vier, deren Wirkung man beim Lesen
+      // sofort merkt, plus die Korpus-Menge. Fuegeteil-Deckel, 4W-Deckel und
+      // Nachlege-Abstand bleiben im Werkzeugkasten - sie wirken auf den Bau,
+      // nicht auf den Klang.
+      ...knobSel.satzlaenge ? { "Satzl\xE4nge": knobSel.satzlaenge } : {},
+      ...knobSel.bogen ? { "Erz\xE4hlbogen": knobSel.bogen } : {},
+      ...knobSel.ton ? { "Ton-Einsch\xFCbe": knobSel.ton } : {},
+      ...knobSel.korpus ? { "Korpus-Bausteine": knobSel.korpus } : {},
+      ...knobSel.phrase ? { "Phrasensperre": knobSel.phrase } : {}
+    }, (host) => renderPresetChecks(host), (sel) => lockBtn(sel)));
+    struktBox.append(quelleHint, zielHint);
+    try {
+      const hh = analysiereHerkunft(
+        out.textContent || "",
+        (snap?.tonId || snap?.ton || "neutral").toLowerCase(),
+        { where: snap?.where, when: snap?.when, who: snap?.who, what: snap?.what }
+      );
+      regelschritt({
+        vorlage: hh.anteile.vorlage,
+        dramaturgie: hh.anteile.dramaturgie,
+        ton: hh.anteile.ton,
+        kontext: hh.anteile.kontext
+      });
+    } catch {
+    }
+  };
+  struktChk.addEventListener("change", renderStruktur);
+  const nachTextwechsel = () => {
+    renderStruktur();
+    updVorrat();
+  };
+  const quelleHint = el("p", { class: "muted mini", style: "display:none" });
+  const zeigeHinweis = (txt2) => {
+    quelleHint.textContent = txt2;
+    quelleHint.style.display = "";
+  };
+  const springZu = (id, txt2) => {
+    const n = document.getElementById(id);
+    if (!n) {
+      zeigeHinweis(txt2);
+      return;
+    }
+    fine.open = true;
+    n.scrollIntoView({ behavior: "smooth", block: "center" });
+    n.classList.add("hervor");
+    setTimeout(() => n.classList.remove("hervor"), 1800);
+    zeigeHinweis(txt2);
+  };
+  const zielHint = el("p", { class: "muted mini", style: "display:none" });
+  const regelschritt = (anteile) => {
+    const z = loadZiele();
+    const offen = Object.keys(z).filter((q) => z[q] !== void 0);
+    if (!offen.length) {
+      zielHint.style.display = "none";
+      return;
+    }
+    const r = regle(anteile, (feld) => locked.has("k-" + feld));
+    const teile = offen.map((q) => {
+      const ist2 = Math.round((anteile[q] ?? 0) * 100);
+      const marke = r.fest.includes(q) ? " \u2014 nicht erreichbar" : "";
+      return `${QUELLEN_LABEL[q]} ${ist2} % (Ziel ${z[q]} %${marke})`;
+    });
+    zielHint.style.display = "";
+    zielHint.textContent = (r.bewegt ? "Nachgeregelt, wirkt beim n\xE4chsten Erzeugen: " : r.fest.length ? "Diese Stellschraube trifft das Ziel nicht \u2014 n\xE4chstm\xF6glicher Wert: " : "Ziel erreicht: ") + teile.join(" \xB7 ");
+    const k = loadKnobs();
+    for (const f of ["fuegeteil", "w4max", "abstand", "bogen", "ton"]) {
+      const r2 = document.getElementById("k-" + f);
+      if (r2 && r2.value !== String(k[f])) {
+        r2.value = String(k[f]);
+        r2.dispatchEvent(new Event("input"));
+      }
+    }
+  };
+  document.addEventListener("dm-schnellwahl", () => {
+    renderPresetChecks();
+  });
+  document.addEventListener("dm-ziel", (e2) => {
+    vergissVerlauf(e2.detail?.quelle);
+    renderStruktur();
+  });
+  document.addEventListener("dm-quelle", (e2) => {
+    const q = e2.detail;
+    const rek = structure.value === "rekombination";
+    switch (q) {
+      case "vorlage":
+        springZu("knob-fuegeteil", "\u201EVorlagen\u201C sind die Verbindungsst\xFCcke. Der F\xFCgeteil-Deckel begrenzt ihren Anteil.");
+        break;
+      case "kontext":
+        springZu("knob-w4max", "Der 4W-Anteil kommt aus Wo/Wann/Wer/Was \u2014 St\xE4rke je Feld dar\xFCber, Wiederholung \xFCber den 4W-Deckel.");
+        break;
+      case "wortbank":
+        springZu("presets", "Die Wortbank ist die Restgr\xF6\xDFe: alles, was die anderen Quellen nicht liefern. Steuerbar nur \xFCber die Preset-Auswahl.");
+        break;
+      case "ton":
+        springZu("f-tone", "Der Ton-Anteil entsteht in der Nachbearbeitung. Die Auswahl bestimmt, welche S\xE4tze eingeschoben werden.");
+        break;
+      case "dramaturgie":
+        zeigeHinweis("Der Erz\xE4hlbogen wird im Tab Wortbank bearbeitet, unter \u201EPreset bearbeiten und sichern\u201C. Jedes eingebaute Preset bringt einen mit.");
+        break;
+      case "nachbearbeitung":
+        springZu("f-persp", "Nachbearbeitung ist eine Folge, kein Wunsch: Perspektive, Gl\xE4ttung und Verfugung. Man stellt sie nicht ein, man verursacht sie.");
+        break;
+      case "pools":
+        zeigeHinweis(rek ? "Lebendige Pools sind im Rekombinationsmodus nicht angeschlossen \u2014 der Assembler f\xFChrt sie nicht als Quelle. Der Regler im Ideen-Tab wirkt nur dort." : "Lebendige Pools f\xFCllen sich beim Merken und Generieren; im Schablonenweg mischen sie sich unter die Wortbank.");
+        break;
+      case "markov":
+        springZu("f-markov", rek ? "Markov speist eigene Bausteine in die Rekombination ein \u2014 gefiltert auf Pr\xE4sens, ohne fremde Figuren, nicht zu lang. Braucht einen gef\xFCllten Korpus." : "Markov mischt sich in die Bausteine des Schablonenwegs. Bei leerem Korpus liefert er nichts, gleich wie der Regler steht.");
+        break;
+      default:
+        zeigeHinweis("F\xFCr diesen Anteil gibt es keine eigene Stellschraube.");
+    }
+  });
+  const undoBtn = el("button", { class: "undochip", type: "button", title: "Letzte \xC4nderung r\xFCckg\xE4ngig (Strg+Z)" }, "\u21A9 R\xFCckg\xE4ngig");
+  undoBtn.disabled = true;
+  const ansicht = (chk, text) => el("span", { class: "ansichtchk" }, el("label", { class: "chk" }, chk, " " + text), lockBtn(chk));
+  const umweltLeg = el("span", { class: "feeditem", style: "display:none" });
+  const umweltStatus = el("span", { class: "umweltchip", style: "display:none" });
+  const zeigeUmweltEffekt = (e2) => {
+    umweltStatus.innerHTML = "";
+    if (!e2) {
+      umweltStatus.style.display = "none";
+      return;
+    }
+    umweltStatus.style.display = "";
+    umweltStatus.className = "umweltchip" + (e2.wirkung === "gift" ? " gift" : "") + (e2.gewechselt ? " gewechselt" : "");
+    const pct = Math.round(e2.quote * 100), pctOhne = Math.round(e2.quoteOhne * 100);
+    const bar = el("span", { class: "umweltbar" });
+    bar.append(el("i", { style: `width:${pct}%` }));
+    umweltStatus.title = e2.gewechselt ? `Unter den zw\xF6lf Fassungen hat eine andere gewonnen als ohne die Umwelt: Sie war nach den \xFCbrigen Ma\xDFst\xE4ben schlechter, ging mit den Zeichen aber besser um. Ohne die Umwelt h\xE4tte eine Fassung mit ${pctOhne} % gewonnen.` : `Die Umwelt war derselben Meinung wie der Rest der Bewertung \u2014 dieselbe Fassung h\xE4tte auch ohne sie gewonnen. Eine hohe Quote allein beweist nichts: Was das Preset ohnehin dauernd sagt, steht auch ohne Umwelt im Text.`;
+    umweltStatus.append(
+      el("span", {}, e2.wirkung === "nahrung" ? "aufgenommen" : "gemieden"),
+      bar,
+      el("span", {}, e2.wirkung === "nahrung" ? pct + " %" : 100 - pct + " %"),
+      el("span", { class: "muted" }, e2.gewechselt ? "\xB7 Umwelt gab den Ausschlag" : "\xB7 h\xE4tte auch so gewonnen")
+    );
+  };
+  const umweltLegZeigen = () => {
+    const u = loadUmwelt();
+    umweltLeg.innerHTML = "";
+    if (u.wirkung === "aus" || !umweltTeile(u.zeichen).length) {
+      umweltLeg.style.display = "none";
+      return;
+    }
+    umweltLeg.style.display = "";
+    umweltLeg.append(
+      el("span", { class: "feeddot " + (u.wirkung === "nahrung" ? "feed-nahrung" : "feed-gift") }),
+      u.wirkung === "nahrung" ? "Umwelt (Nahrung)" : "Umwelt (Gift)"
+    );
+  };
+  const feedsRow = el(
+    "div",
+    {},
+    el(
+      "div",
+      { class: "feedsrow" },
+      legDot("feed-wb", "Wortbank"),
+      legDot("feed-ton", "Ton"),
+      legDot("feed-4w", "4W-Kontext"),
+      legDot("feed-pool", "Lebendige Pools"),
+      legDot("feed-markov", "Markov"),
+      legDot("feed-drama", "Erz\xE4hlbogen"),
+      legDot("feed-korpus", "Korpus"),
+      umweltLeg,
+      el("span", { class: "muted" }, "\xB7 unmarkiert = Vorlagen \xB7 alles anklickbar")
+    ),
+    el(
+      "div",
+      { class: "feedsrow ansichtrow" },
+      ansicht(feedsChk, "Editieren"),
+      ansicht(struktChk, "Struktur"),
+      ansicht(planChk, "Bauplan"),
+      undoBtn,
+      umweltStatus
+    )
+  );
+  umweltLegZeigen();
+  const escFeeds = (t) => t.replace(/[&<>]/g, (c) => c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;");
+  const collectFeed = (phrases, cls, prio, low2, acc) => {
+    for (const raw of phrases) {
+      const ph = (raw || "").trim();
+      if (ph.length < 5) continue;
+      const pl = ph.toLowerCase();
+      let from = 0, idx = low2.indexOf(pl, from);
+      while (idx !== -1) {
+        acc.push({ s: idx, e: idx + pl.length, cls, prio });
+        from = idx + pl.length;
+        if (acc.length > 4e3) return;
+        idx = low2.indexOf(pl, from);
+      }
+    }
+  };
+  const renderFeeds = () => {
+    const plain = out.textContent || "";
+    if (!feedsChk.checked) {
+      out.textContent = plain;
+      return;
+    }
+    const low2 = plain.toLowerCase();
+    const m = [];
+    if (tone.value !== "neutral") {
+      const td = TONE_DATA[tone.value];
+      if (td) collectFeed([...td.opener, ...td.flavor], "feed-ton", 3, low2, m);
+    }
+    collectFeed(
+      w4Varianten({ who: who.value, where: where.value, when: when.value, what: what.value }),
+      "feed-4w",
+      2,
+      low2,
+      m
+    );
+    try {
+      const b = loadBank();
+      const all = [];
+      for (const k of Object.keys(b)) if (Array.isArray(b[k])) all.push(...b[k]);
+      collectFeed(all, "feed-wb", 1, low2, m);
+    } catch {
+    }
+    try {
+      collectFeed(liveTexts(), "feed-pool", 1, low2, m);
+    } catch {
+    }
+    try {
+      collectFeed(getMarkovTraceFor(plain), "feed-markov", 2, low2, m);
+    } catch {
+    }
+    try {
+      const kp = (getTraceFor(plain) || []).filter((x) => x.quelle === "korpus").map((x) => x.text);
+      if (kp.length) collectFeed(kp, "feed-korpus", 3, low2, m);
+    } catch {
+    }
+    try {
+      const u = loadUmwelt();
+      if (u.wirkung !== "aus") {
+        const cls = u.wirkung === "nahrung" ? "feed-nahrung" : "feed-gift";
+        for (const teil of umweltTeile(u.zeichen)) {
+          const pl = teil.toLowerCase();
+          if (!pl) continue;
+          let from = 0, idx = low2.indexOf(pl, from);
+          while (idx !== -1 && m.length < 4e3) {
+            m.push({ s: idx, e: idx + pl.length, cls, prio: 9 });
+            from = idx + pl.length;
+            idx = low2.indexOf(pl, from);
+          }
+        }
+      }
+    } catch {
+    }
+    try {
+      const dd = loadDramaData();
+      if (dd) collectFeed([
+        ...dd.einstieg,
+        ...dd.mitte,
+        ...dd.hoehepunkt,
+        ...dd.konflikte,
+        ...dd.ausloeser,
+        ...dd.veraenderungen,
+        ...dd.zeitanomalien,
+        ...dd.regeln
+      ], "feed-drama", 3, low2, m);
+    } catch {
+    }
+    m.sort((a, b) => a.s - b.s || b.e - b.s - (a.e - a.s) || b.prio - a.prio);
+    const emitPlain = (seg) => {
+      if (!seg) return "";
+      if (!seg.trim()) return escFeeds(seg);
+      const lead = (seg.match(/^\s*/) || [""])[0];
+      const trail = (seg.match(/\s*$/) || [""])[0];
+      const core = seg.slice(lead.length, seg.length - trail.length);
+      return escFeeds(lead) + `<span class="feed-plain">` + escFeeds(core) + "</span>" + escFeeds(trail);
+    };
+    let html = "", i = 0, last = -1;
+    for (const x of m) {
+      if (x.s < last) continue;
+      html += emitPlain(plain.slice(i, x.s)) + `<span class="${x.cls}">` + escFeeds(plain.slice(x.s, x.e)) + "</span>";
+      i = x.e;
+      last = x.e;
+    }
+    html += emitPlain(plain.slice(i));
+    out.innerHTML = html;
+  };
+  const refreshFeeds = () => {
+    if (feedsChk.checked) renderFeeds();
+  };
+  feedsChk.addEventListener("change", renderFeeds);
+  const feedPop = el("div", { class: "feedpop", style: "display:none" });
+  document.body.appendChild(feedPop);
+  let popSpan = null;
+  const hidePop = () => {
+    feedPop.style.display = "none";
+    popSpan = null;
+  };
+  document.addEventListener("click", (e2) => {
+    if (feedPop.style.display !== "none" && !feedPop.contains(e2.target) && e2.target !== popSpan) hidePop();
+  }, true);
+  const persistEdit = () => {
+    try {
+      localStorage.setItem("dm_last_text", out.textContent || "");
+    } catch {
+    }
+  };
+  const undoStack = [];
+  const updateUndoBtn = () => {
+    undoBtn.disabled = undoStack.length === 0;
+  };
+  const pushUndo = () => {
+    undoStack.push(out.textContent || "");
+    if (undoStack.length > 12) undoStack.shift();
+    updateUndoBtn();
+  };
+  const clearUndo = () => {
+    undoStack.length = 0;
+    updateUndoBtn();
+  };
+  const doUndo = () => {
+    const prev = undoStack.pop();
+    if (prev === void 0) return;
+    out.textContent = prev;
+    persistEdit();
+    renderFeeds();
+    nachTextwechsel();
+    updateUndoBtn();
+  };
+  undoBtn.addEventListener("click", doUndo);
+  document.addEventListener("keydown", (e2) => {
+    if (!(e2.ctrlKey || e2.metaKey) || e2.shiftKey || e2.key.toLowerCase() !== "z") return;
+    const t = e2.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    if (!undoStack.length) return;
+    e2.preventDefault();
+    doUndo();
+  });
+  const FEED_STOP = /* @__PURE__ */ new Set(["und", "oder", "aber", "denn", "sondern", "sowie", "eine", "einen", "einem", "einer", "eines", "der", "die", "das", "den", "dem", "des", "mit", "von", "f\xFCr", "auf", "aus", "ist", "sind", "war", "sich", "nicht", "auch", "wie", "als", "was", "wer", "wann", "\xFCber", "unter", "durch", "zwischen", "diese", "dieser", "dieses", "sein", "seine", "ihre", "ihrer", "immer", "schon", "noch", "dann", "aber", "wird", "wurde"]);
+  const feedStems = (t) => {
+    const set = /* @__PURE__ */ new Set();
+    for (const w of t.toLowerCase().match(/[a-zäöüß]{4,}/g) || []) {
+      if (FEED_STOP.has(w)) continue;
+      set.add(w.slice(0, 5));
+    }
+    return set;
+  };
+  const feedJac = (a, b) => {
+    if (!a.size || !b.size) return 0;
+    let inter = 0;
+    for (const x of a) if (b.has(x)) inter++;
+    return inter / (a.size + b.size - inter);
+  };
+  const altsFor = (cls, cur) => {
+    const inText = (out.textContent || "").toLowerCase();
+    const norm = (arr) => [...new Set(arr.map((x) => (x || "").trim()).filter((a) => a.length >= 2 && a.toLowerCase() !== cur.toLowerCase() && !inText.includes(a.toLowerCase())))];
+    let pool = [];
+    try {
+      if (cls === "feed-wb") {
+        const b = loadBank();
+        let cat = null;
+        for (const k of Object.keys(b)) if (Array.isArray(b[k]) && b[k].some((x) => x.toLowerCase() === cur.toLowerCase())) {
+          cat = b[k];
+          break;
+        }
+        pool = cat || Object.values(b).flat();
+      } else if (cls === "feed-pool") pool = liveTexts();
+      else if (cls === "feed-korpus") {
+        pool = (getTraceFor(out.textContent || "") || []).filter((x) => x.quelle === "korpus").map((x) => x.text);
+      } else if (cls === "feed-drama") {
+        const dd = loadDramaData();
+        pool = dd ? [...dd.einstieg, ...dd.mitte, ...dd.hoehepunkt, ...dd.konflikte, ...dd.ausloeser, ...dd.veraenderungen, ...dd.zeitanomalien, ...dd.regeln] : [];
+      } else if (cls === "feed-ton") {
+        const td = TONE_DATA[tone.value];
+        pool = td ? [...td.opener, ...td.flavor] : [];
+      } else if (cls === "feed-4w") pool = [who.value, where.value, when.value, what.value];
+      else if (cls === "feed-markov") {
+        const model = buildModelFromCorpus(2);
+        const n = Math.max(6, cur.split(/\s+/).filter(Boolean).length + 2);
+        for (let i = 0; i < 12; i++) {
+          const g = model.generate(n);
+          if (g) pool.push(g);
+        }
+      }
+    } catch {
+    }
+    const uniq = norm(pool);
+    const ctxStems = feedStems((out.textContent || "").split(new RegExp(cur.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")).join(" "));
+    const scored = uniq.map((t) => ({ t, sc: feedJac(feedStems(t), ctxStems) }));
+    for (let i = scored.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [scored[i], scored[j]] = [scored[j], scored[i]];
+    }
+    scored.sort((a, b) => b.sc - a.sc);
+    const top = scored.slice(0, Math.min(12, scored.length));
+    for (let i = top.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [top[i], top[j]] = [top[j], top[i]];
+    }
+    return top.slice(0, 6).map((x) => x.t);
+  };
+  const atSentenceStart = (span) => {
+    try {
+      const range = document.createRange();
+      range.setStart(out, 0);
+      range.setEndBefore(span);
+      const before = range.toString().replace(/\s+$/, "");
+      if (!before) return true;
+      return /[.!?…:][")»“”'\]]?$/.test(before);
+    } catch {
+      return false;
+    }
+  };
+  const capFirst = (t) => t.replace(/^(\s*["„«»'(\[]*\s*)?(\p{L})/u, (_m, pre, ch) => (pre || "") + ch.toLocaleUpperCase("de-DE"));
+  const replaceSpan = (span, txt2) => {
+    pushUndo();
+    const v = atSentenceStart(span) ? capFirst(txt2) : txt2;
+    span.textContent = v;
+    persistEdit();
+    renderFeeds();
+    nachTextwechsel();
+    hidePop();
+  };
+  const removeSpan = (span) => {
+    pushUndo();
+    span.textContent = "";
+    const cleaned = (out.textContent || "").replace(/\s{2,}/g, " ").replace(/\s+([,.;:!?…])/g, "$1").replace(/([.!?…])(?:\s*\1)+/g, "$1").trim();
+    out.textContent = cleaned;
+    persistEdit();
+    renderFeeds();
+    nachTextwechsel();
+    hidePop();
+  };
+  const openPop = (span) => {
+    popSpan = span;
+    const cls = (span.className.match(/feed-[a-z0-9]+/) || ["feed-wb"])[0];
+    const cur = span.textContent || "";
+    const titles = { "feed-wb": "Wortbank", "feed-ton": "Ton", "feed-4w": "4W-Kontext", "feed-pool": "Lebendige Pools", "feed-markov": "Markov", "feed-drama": "Erz\xE4hlbogen", "feed-korpus": "Korpus", "feed-plain": "Text" };
+    feedPop.innerHTML = "";
+    const closeX = el("button", { class: "feedpop-x", type: "button", title: "Schlie\xDFen", "aria-label": "Schlie\xDFen" }, "\u2715");
+    closeX.addEventListener("click", hidePop);
+    feedPop.append(closeX);
+    feedPop.append(el("div", { class: "muted pophead" }, `\u201E${cur.length > 44 ? cur.slice(0, 44) + "\u2026" : cur}\u201C \xB7 ${titles[cls] || "Passage"}`));
+    const del = el("button", { class: "danger" }, "\u2715 Entfernen");
+    del.addEventListener("click", () => removeSpan(span));
+    if (cls === "feed-plain") {
+      const ta = el("textarea", { class: "freeedit" });
+      ta.value = cur;
+      const freeBtn = button("\xDCbernehmen");
+      freeBtn.addEventListener("click", () => {
+        const v = ta.value.replace(/\s+/g, " ").trim();
+        if (v) replaceSpan(span, v);
+        else removeSpan(span);
+      });
+      feedPop.append(el("div", { class: "muted mini" }, "Text frei bearbeiten \u2014 fehlende W\xF6rter einf\xFCgen oder umformulieren."), ta, el("div", { class: "row" }, del, freeBtn));
+      setTimeout(() => {
+        ta.focus();
+        const n = ta.value.length;
+        ta.setSelectionRange(n, n);
+      }, 0);
+    } else {
+      const altwrap = el("div", {});
+      const fill = () => {
+        altwrap.innerHTML = "";
+        const alts = altsFor(cls, cur);
+        if (!alts.length) altwrap.append(el("div", { class: "muted" }, "Keine Alternativen im Pool."));
+        alts.forEach((a) => {
+          const b = el("button", { class: "alt" }, a);
+          b.addEventListener("click", () => replaceSpan(span, a));
+          altwrap.append(b);
+        });
+      };
+      fill();
+      const reroll = el("button", {}, icon("dice"), " Neu");
+      reroll.addEventListener("click", fill);
+      const edit = el("textarea", { class: "freeedit" });
+      edit.value = cur;
+      const editBtn = button("\xDCbernehmen");
+      editBtn.addEventListener("click", () => {
+        const v = edit.value.replace(/\s+/g, " ").trim();
+        if (!v) {
+          removeSpan(span);
+          return;
+        }
+        if (v !== cur) replaceSpan(span, v);
+        else hidePop();
+      });
+      feedPop.append(altwrap, el("div", { class: "row" }, reroll, del), el("div", { class: "muted mini" }, "Oder Grammatik anpassen \u2014 Text der Passage direkt bearbeiten:"), edit, el("div", { class: "row" }, editBtn));
+    }
+    const r = span.getBoundingClientRect();
+    feedPop.style.display = "";
+    const pw = feedPop.offsetWidth || 330;
+    const ph = feedPop.offsetHeight || 0;
+    const vh = window.innerHeight, vw = window.innerWidth;
+    feedPop.style.left = Math.min(vw - pw - 8, Math.max(8, r.left)) + "px";
+    let top = r.bottom + 6;
+    if (top + ph > vh - 8) {
+      const above = r.top - ph - 6;
+      top = above >= 8 ? above : Math.max(8, vh - ph - 8);
+    }
+    feedPop.style.top = top + "px";
+  };
+  out.addEventListener("click", (e2) => {
+    if (!feedsChk.checked) return;
+    const t = e2.target.closest('span[class^="feed-"]');
+    if (!t) return;
+    e2.preventDefault();
+    e2.stopPropagation();
+    openPop(t);
+  });
+  const einstellungen = () => ({
+    tone: tone.value,
+    form: form.value,
+    structure: structure.value,
+    mode: mode.value,
+    perspective: persp.value,
+    rhythm: rhythm.value,
+    varLevel: varianz.value,
+    markovMode: markov.value,
+    disruptor: disruptor.value,
+    tension: tension.value,
+    archetypeA: archA.value,
+    archetypeB: archB.value,
+    instability: instab.value,
+    ressort: ressort.value,
+    preset: preset.value,
+    lenTarget: lenSlider.value
+  });
+  const genBtn = el("button", { class: "primary" }, icon("play"), " Generieren");
+  const merkeForm = () => {
+    try {
+      localStorage.setItem("dm_last_form", form.value);
+    } catch {
+    }
+  };
+  form.addEventListener("change", merkeForm);
+  merkeForm();
+  const varBtn = button("Variante");
+  const copyBtn = el("button", {}, icon("copy"), " Kopieren");
+  const diceBtn = el("button", {}, icon("dice"), " W\xFCrfeln");
+  const rollSel = (s) => {
+    if (locked.has(s.id)) return;
+    s.selectedIndex = Math.floor(Math.random() * s.options.length);
+    s.dispatchEvent(new Event("change"));
+  };
+  const wuerfelbar = () => Array.from(wrap.querySelectorAll("select")).filter((s) => {
+    const feld = s.closest(".field");
+    return !!feld && !!feld.querySelector(".lockbtn");
+  });
+  const rollAlle = () => {
+    rolling = true;
+    wuerfelbar().forEach(rollSel);
+    rolling = false;
+  };
+  diceBtn.addEventListener("click", () => {
+    rollAlle();
+    renderPresetChecks();
+    generate();
+  });
+  const keepLbl = el("span", {}, "Merken");
+  const keepBtn = el("button", {}, icon("star"), " ", keepLbl);
+  keepBtn.addEventListener("click", () => {
+    const n = addToTreasury(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value, set: einstellungen() });
+    keepLbl.textContent = n < 0 ? "\u2014 schon drin" : `Gemerkt (${n})`;
+    setTimeout(() => keepLbl.textContent = "Merken", 1400);
+  });
+  const vaultLbl = el("span", {}, "Tresor");
+  const vaultBtn = el("button", {}, icon("lock"), " ", vaultLbl);
+  vaultBtn.addEventListener("click", () => {
+    const n = addToTreasurySecret(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value, set: einstellungen() });
+    vaultLbl.textContent = n < 0 ? "\u2014 schon drin" : `Im Tresor (${n})`;
+    setTimeout(() => vaultLbl.textContent = "Tresor", 1400);
+  });
+  const readBtn = el("button", {}, icon("book"), " Lesen");
+  const speakLbl = el("span", {}, "Vorlesen");
+  const speakBtn = el("button", {}, icon("volume"), " ", speakLbl);
+  const bestChk = el("input", { type: "checkbox", id: "f-best" });
+  bestChk.checked = true;
+  const bestLbl = el("label", { class: "chk", title: "Erzeugt bei jedem Klick 12 Kandidaten und zeigt den bestbewerteten (L\xE4ngentreue, Wortvielfalt, Rhythmus, wenig Wiederholung, Grammatik, Abstand zur Schatzkammer)." }, bestChk, " Bestenauslese");
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl), outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
+  let lastRanking = null;
+  const rankStatus = el("span", { class: "muted", id: "f-rankstatus" }, "");
+  const applyPlace = (place) => {
+    if (!lastRanking || !lastRanking.all.length) {
+      rankStatus.textContent = "Erst Ranking ausf\xFChren.";
+      return;
+    }
+    const item = lastRanking.all[Math.max(0, Math.min(lastRanking.all.length - 1, place - 1))];
+    if (!item) return;
+    out.textContent = item.txt;
+    nachTextwechsel();
+    try {
+      localStorage.setItem("dm_last_text", item.txt);
+    } catch {
+    }
+    renderKling(readInput().form, item.txt);
+    refreshFeeds();
+    const nov = item.novelty !== void 0 ? ` \xB7 Neuheit ${Math.round(item.novelty * 100)}%` : "";
+    const surp = item.surprise !== void 0 ? ` \xB7 \xDCberraschung ${Math.round(item.surprise * 100)}%` : "";
+    const con = item.constraintsOk === false ? " \xB7 \u26A0 Einbauw\xF6rter unvollst\xE4ndig" : "";
+    const gr = item.grammar ? ` \xB7 \u26A0 ${item.grammar} Grammatik` : "";
+    const extra = item.aiScore !== void 0 ? `KI ${item.aiScore}/100${item.grund ? " \u2013 " + item.grund : ""}` : `Score ${item.score.toFixed(1)}${nov}${surp}${gr}${con}`;
+    rankStatus.textContent = `Platz ${place}: ${extra}`;
+  };
+  const novSlider = el("input", { id: "f-novelty", type: "range", min: "0", max: "100", step: "5", value: "30", class: "rankviz" });
+  const novVal = el("span", { class: "muted" }, "30 %");
+  const updNovVal = () => {
+    novVal.textContent = novSlider.value + " %";
+  };
+  novSlider.addEventListener("input", updNovVal);
+  const noveltyW = () => (parseInt(novSlider.value, 10) || 0) / 100;
+  const surpSlider = el("input", { id: "f-surprise", type: "range", min: "0", max: "100", step: "5", value: "0", class: "rankviz" });
+  const surpVal = el("span", { class: "muted" }, "aus");
+  const updSurpVal = () => {
+    const v = parseInt(surpSlider.value, 10) || 0;
+    surpVal.textContent = v === 0 ? "aus" : "Ziel " + v + " %";
+  };
+  surpSlider.addEventListener("input", updSurpVal);
+  const mustIn = el("input", { placeholder: "Einbauw\xF6rter, mit Komma getrennt" });
+  const avoidChk = el("input", { type: "checkbox" });
+  const gramChk = el("input", { type: "checkbox" });
+  const rankOpts = () => {
+    const sv = (parseInt(surpSlider.value, 10) || 0) / 100;
+    return {
+      noveltyWeight: noveltyW(),
+      surpriseWeight: sv > 0 ? 0.6 : 0,
+      surpriseTarget: sv > 0 ? sv : 0.5,
+      mustWords: mustIn.value.split(/[,;]/).map((w) => w.trim()).filter(Boolean),
+      avoidFrequent: avoidChk.checked,
+      grammarFilter: gramChk.checked,
+      castDiscipline: parseFloat(cast.value) || 0,
+      perspective: persp.value,
+      expectedCast: who.value.split(/[,;]/).map((x) => x.trim()).filter(Boolean)
+    };
+  };
+  const probeBtn = button("Probe (50)");
+  probeBtn.addEventListener("click", () => {
+    rankStatus.textContent = "Probe l\xE4uft\u2026";
+    setTimeout(() => {
+      const r = runProbe(loadBank(), readInput(), buildModelFromCorpus(), 50);
+      rankStatus.textContent = `Probe: ${r.total} Texte \xB7 ${r.flaggedCount} auff\xE4llig \xB7 ${r.grammarCount} Grammatik \xB7 ${r.duplicates} doppelt`;
+    }, 10);
+  });
+  const rankBtn = button("Ranking (50)");
+  const rangeSlider = el("input", { id: "f-rang", type: "range", min: "1", max: "50", value: "1", class: "rankviz" });
+  const rangeVal = el("span", { class: "muted" }, "1");
+  rangeSlider.addEventListener("input", () => {
+    rangeVal.textContent = "#" + rangeSlider.value;
+    applyPlace(parseInt(rangeSlider.value, 10));
+  });
+  rankBtn.addEventListener("click", () => {
+    rankStatus.textContent = "Ranking l\xE4uft\u2026";
+    setTimeout(() => {
+      lastRanking = runRanking(loadBank(), readInput(), buildModelFromCorpus(), 50, 10, rankOpts());
+      rangeSlider.max = String(lastRanking.all.length);
+      rangeSlider.value = "1";
+      rangeVal.textContent = "#1";
+      applyPlace(1);
+    }, 10);
+  });
+  const goldBtn = button("\u{1F947} #1");
+  goldBtn.addEventListener("click", () => applyPlace(1));
+  const silverBtn = button("\u{1F948} #2");
+  silverBtn.addEventListener("click", () => applyPlace(2));
+  const bronzeBtn = button("\u{1F949} #3");
+  bronzeBtn.addEventListener("click", () => applyPlace(3));
+  const sliderField = (label, sl, val, hint) => el(
+    "div",
+    { class: "field rankrow" },
+    el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sl)),
+    el("div", { class: "rankslide" }, sl, val),
+    el("span", { class: "muted mini" }, hint)
+  );
+  const schliesser = (d) => {
+    const x = el("button", { class: "fine-x", type: "button", title: "Zuklappen", "aria-label": "Zuklappen" }, "\u2715");
+    x.addEventListener("click", (e2) => {
+      e2.preventDefault();
+      e2.stopPropagation();
+      d.open = false;
+    });
+    return x;
+  };
+  const rankDetails = el("details", { class: "fine" });
+  rankDetails.append(
+    schliesser(rankDetails),
+    el("summary", {}, icon("flask"), " Test & Ranking"),
+    // 1 Erzeugen & bewerten
+    el(
+      "div",
+      { class: "ranksec" },
+      el("div", { class: "ranksec-h" }, "1 \xB7 Erzeugen und bewerten"),
+      el("div", { class: "btnrow" }, probeBtn, rankBtn),
+      rankStatus
+    ),
+    // 2 Bewertungsmaßstab
+    el(
+      "div",
+      { class: "ranksec" },
+      el("div", { class: "ranksec-h" }, "2 \xB7 Bewertungsma\xDFstab"),
+      el(
+        "div",
+        { class: "rankgrid" },
+        sliderField("Neuheit", novSlider, novVal, "Abstand zur Schatzkammer belohnen"),
+        sliderField("\xDCberraschung", surpSlider, surpVal, "Zielwert der Unwahrscheinlichkeit im eigenen Korpus \u2014 braucht einen Korpus; 0 % = aus")
+      ),
+      el("label", { class: "field" }, el("span", { class: "field-label" }, "Einbauw\xF6rter"), mustIn),
+      el(
+        "div",
+        { class: "chkrow" },
+        el("label", { class: "chk" }, avoidChk, " H\xE4ufigste Korpus-W\xF6rter meiden"),
+        el("label", { class: "chk" }, gramChk, " Grammatik-Filter (auff\xE4llige Varianten abwerten)")
+      )
+    ),
+    // 3 Ergebnis wählen
+    el(
+      "div",
+      { class: "ranksec" },
+      el("div", { class: "ranksec-h" }, "3 \xB7 Ergebnis w\xE4hlen"),
+      el("div", { class: "btnrow" }, goldBtn, silverBtn, bronzeBtn),
+      el(
+        "div",
+        { class: "field rankrow" },
+        el("span", { class: "field-label" }, "Rang durchbl\xE4ttern"),
+        el("div", { class: "rankslide" }, rangeSlider, rangeVal)
+      )
+    )
+  );
+  wrap.append(rankDetails);
+  const fine = el("details", { class: "fine" });
+  fine.append(schliesser(fine), el("summary", {}, icon("tool"), " Werkzeugkasten"));
+  const knobs = loadKnobs();
+  const knobSel = {};
+  const knobRow = (feld, label, hinweis, einheit) => {
+    const sp = KNOB_SPANNE[feld];
+    const sel = el("select", { id: "k-" + feld });
+    knobSel[feld] = sel;
+    for (let v = sp.min; v <= sp.max; v += sp.step) {
+      const txt2 = v + einheit + (v === KNOB_VORGABE[feld] ? "  (Vorgabe)" : "") + (v === 0 ? "  \u2014 aus" : "");
+      sel.append(el("option", { value: String(v) }, txt2));
+    }
+    sel.value = String(knobs[feld]);
+    const merke = () => {
+      knobs[feld] = parseInt(sel.value, 10);
+      sel.classList.toggle("abweichend", knobs[feld] !== KNOB_VORGABE[feld]);
+    };
+    sel.addEventListener("input", merke);
+    sel.addEventListener("change", () => {
+      merke();
+      saveKnobs(knobs);
+      if (!rolling) generate();
+    });
+    merke();
+    sel.title = hinweis;
+    return el(
+      "div",
+      { class: "field", id: "knob-" + feld, title: hinweis },
+      el("span", { class: "field-label hilfe lockrow" }, el("span", {}, label), lockBtn(sel)),
+      sel
+    );
+  };
+  const knobBox = el(
+    "div",
+    { class: "grid3", id: "knobs" },
+    knobRow("fuegeteil", "F\xFCgeteil-Deckel", "H\xF6chstanteil der Verbindungsst\xFCcke \u2014 steuert den Balken \u201EVorlagen\u201C", " %"),
+    knobRow("w4max", "4W-Deckel", "wie oft Ort und Zeit im Text vorkommen d\xFCrfen", "\xD7"),
+    knobRow("abstand", "Nachlege-Abstand", "wie weit ein Baustein zur\xFCckliegen muss, bevor er wiederkehrt", ""),
+    knobRow("bogen", "Erz\xE4hlbogen", "Gewicht der Bogen-Atome; 0 schaltet die Quelle ab", " %"),
+    knobRow("ton", "Ton-Einsch\xFCbe", "wie viele Ton-S\xE4tze die Nachbearbeitung einstreut", " %"),
+    knobRow("korpus", "Korpus-Bausteine", "aus dem eigenen Korpus, gefiltert auf Pr\xE4sens und eigene Figuren; 0 = aus", ""),
+    knobRow("phrase", "Phrasensperre", "ab wie vielen gleichen W\xF6rtern in Folge ein Baustein abgelehnt wird; 0 = aus. Streng hei\xDFt weniger Wiederholung, aber auch k\xFCrzere Texte", " W\xF6rter"),
+    knobRow("satzlaenge", "Satzl\xE4nge", "Obergrenze, kein Mittelwert: Nachbars\xE4tze werden zusammengezogen, solange das Ergebnis darunter bleibt. 0 = aus. Bei 9 verschwinden vor allem die Stummels\xE4tze, lange entstehen erst ab 12; bei 15 liegt der Schnitt bei rund 9 W\xF6rtern", " W\xF6rter")
+  );
+  const knobReset = button("Vorgaben wiederherstellen");
+  knobReset.addEventListener("click", () => {
+    Object.assign(knobs, KNOB_VORGABE);
+    saveKnobs(knobs);
+    for (const f of ["fuegeteil", "w4max", "abstand"]) {
+      const r = document.getElementById("k-" + f);
+      if (r) {
+        r.value = String(KNOB_VORGABE[f]);
+        r.dispatchEvent(new Event("input"));
+      }
+    }
+    generate();
+  });
+  fine.append(
+    el(
+      "p",
+      { class: "muted mini" },
+      "Stellschrauben der Rekombination. Sie wirken auf die Balken der Textstruktur \u2014 ein Klick auf einen Balken f\xFChrt hierher."
+    ),
+    knobBox,
+    el("div", { class: "btnrow" }, knobReset)
+  );
+  const rekHint = el("p", { class: "muted mini", style: "display:none" });
+  const updRekHint = () => {
+    const passt2 = form.value === "prose" || form.value === "poem";
+    if (structure.value === "rekombination" && !passt2) {
+      rekHint.style.display = "";
+      rekHint.textContent = `Hinweis: \u201ERekombination\u201C wirkt nur bei Prosa und Prosagedicht. Bei \u201E${form.options[form.selectedIndex]?.text || form.value}\u201C baut die Maschine \xFCber die Schablonen \u2014 die Struktur bleibt hier ohne Wirkung.`;
+      return;
+    }
+    if (structure.value === "dramaturgie" && !(form.value === "prose" && hasDramaData())) {
+      rekHint.style.display = "";
+      rekHint.textContent = form.value !== "prose" ? `Hinweis: \u201EDramaturgie\u201C wirkt nur bei Prosa \u2014 bei \u201E${form.options[form.selectedIndex]?.text || form.value}\u201C bleibt die Struktur ohne Wirkung.` : "Hinweis: \u201EDramaturgie\u201C braucht einen Erz\xE4hlbogen. Das aktive Preset hat keinen \u2014 die Maschine baut \xFCber die Schablonen, die Struktur bleibt ohne Wirkung. In der Wortbank l\xE4sst sich ein Preset auf 2.0 heben.";
+      return;
+    }
+    rekHint.style.display = "none";
+  };
+  form.addEventListener("change", updRekHint);
+  structure.addEventListener("change", updRekHint);
+  preset.addEventListener("change", updRekHint);
+  updRekHint();
+  fine.append(el(
+    "div",
+    { class: "grid3" },
+    lockField("Struktur", structure),
+    lockField("Modus", mode),
+    lockField("Perspektive", persp),
+    lockField("Rhythmus", rhythm),
+    lockField("Instabilit\xE4t", instab),
+    lockField("Markov", markov),
+    lockField("Disruptor", disruptor),
+    lockField("Varianz", varianz),
+    lockField("Zeitungsseite", ressort),
+    lockField("Spannung", tension),
+    lockField("Figurendisziplin", cast),
+    lockField("Archetyp A", archA),
+    lockField("Archetyp B", archB),
+    field("Video: Shots", shots),
+    field("Video: Sekunden", secs)
+  ));
+  fine.append(rekHint);
+  wrap.append(fine);
+  const themeSel = select("f-theme", THEMES.map((t) => [t.id, t.label]), loadTheme());
+  themeSel.addEventListener("change", () => applyTheme(themeSel.value));
+  const schriftPanel = el("div", {}, fontRow);
+  const accentIn = el("input", { id: "f-accent", type: "color", value: loadAccent() || "#8b5cf6", style: "width:52px;height:34px;padding:2px" });
+  accentIn.addEventListener("input", () => {
+    applyAccent(accentIn.value);
+    saveAccent(accentIn.value);
+  });
+  const accentReset = button("Standard");
+  accentReset.addEventListener("click", () => {
+    saveAccent("");
+    applyAccent("");
+  });
+  const themePanel = el(
+    "div",
+    { style: "display:none" },
+    field("Farb-Theme", themeSel),
+    field("Eigene Akzentfarbe", el("div", { class: "btnrow" }, accentIn, accentReset))
+  );
+  const keyIn = el("input", { type: "password", placeholder: "sk-ant-\u2026", value: loadAiKey() });
+  const modelIn = el("input", { placeholder: "Modell", value: loadAiModel() });
+  const kiStatus = el("p", { class: "muted" }, "");
+  const setKiStatus = () => {
+    kiStatus.textContent = loadAiKey() ? `Schl\xFCssel hinterlegt \xB7 Modell: ${loadAiModel()}` : "Kein Schl\xFCssel hinterlegt \u2014 KI-Funktionen sind inaktiv.";
+  };
+  const keySave = button("Speichern");
+  keySave.addEventListener("click", () => {
+    saveAiKey(keyIn.value.trim());
+    saveAiModel(modelIn.value.trim());
+    setKiStatus();
+  });
+  const keyClear = button("Schl\xFCssel l\xF6schen", "danger");
+  keyClear.addEventListener("click", () => {
+    saveAiKey("");
+    keyIn.value = "";
+    setKiStatus();
+  });
+  setKiStatus();
+  const kiPanel = el(
+    "div",
+    { style: "display:none" },
+    field("API-Schl\xFCssel", keyIn),
+    field("Modell", modelIn),
+    el("div", { class: "btnrow" }, keySave, keyClear),
+    kiStatus,
+    el("p", { class: "muted" }, "Wird nur lokal gespeichert und ausschlie\xDFlich an api.anthropic.com gesendet. Jede Anfrage verbraucht Guthaben deines Kontos.")
+  );
+  const memLine = el("p", { class: "muted" }, "\u2026");
+  const memRefresh = button("Aktualisieren");
+  const memPosten = el("div", { class: "mem-posten" });
+  const zeichnePosten = () => {
+    memPosten.innerHTML = "";
+    const posten = lesePosten();
+    if (!posten.length) return;
+    const oben = posten.slice(0, 12);
+    const rest = posten.slice(12).reduce((a, p) => a + p.bytes, 0);
+    for (const p of oben) {
+      memPosten.append(el(
+        "div",
+        { class: "mem-zeile" },
+        el("span", { class: "mem-name" }, p.name),
+        el(
+          "span",
+          { class: "mem-balken" },
+          el("span", { style: `width:${Math.max(1, Math.min(100, p.anteil))}%` })
+        ),
+        el("span", { class: "mem-wert" }, `${formatBytes(p.bytes)} \xB7 ${p.anteil} %`),
+        ...p.wandert ? [] : [el("span", { class: "bsam-zweifel" }, " wandert nicht mit")]
+      ));
+    }
+    if (rest > 0) {
+      memPosten.append(el(
+        "p",
+        { class: "muted mini", style: "margin:6px 0 0" },
+        `${posten.length - oben.length} weitere Eintraege zusammen ${formatBytes(rest)}.`
+      ));
+    }
+    memPosten.append(el(
+      "p",
+      { class: "muted mini", style: "margin:6px 0 0" },
+      "\u201EWandert nicht mit\u201C heisst: steht beim Export NICHT in der Projektdatei. Alles mit den Praefixen dm_ und divergenz_ wandert."
+    ));
+  };
+  const refreshMem = () => {
+    void storageReport().then((r) => {
+      memLine.textContent = r.text;
+    });
+    zeichnePosten();
+  };
+  memRefresh.addEventListener("click", refreshMem);
+  const memReset = button("Korpus + Schatzkammer leeren", "danger");
+  const memResetInfo = el("span", { class: "muted" });
+  memReset.addEventListener("click", () => {
+    if (!confirm("Korpus UND Schatzkammer vollst\xE4ndig leeren? Das l\xE4sst sich nicht r\xFCckg\xE4ngig machen. Wortbank, Presets und Einstellungen bleiben erhalten.")) return;
+    savePersistentCorpus("");
+    clearTreasury();
+    refreshMem();
+    memResetInfo.textContent = "Korpus und Schatzkammer geleert.";
+    setTimeout(() => memResetInfo.textContent = "", 2500);
+  });
+  const memPanel = el(
+    "div",
+    { style: "display:none" },
+    field("Belegung", memLine),
+    el("div", { class: "btnrow" }, memRefresh),
+    memPosten,
+    el("hr", {}),
+    el("div", { class: "btnrow" }, memReset, memResetInfo),
+    el("p", { class: "muted" }, "Setzt den Markov-Korpus und die Schatzkammer zur\xFCck (leert beide). Wortbank, Presets, Einstellungen und lebendige Pools bleiben erhalten. F\xFCr ein vollst\xE4ndiges Backup vorher oben rechts \u201EExportieren\u201C."),
+    el("p", { class: "muted" }, "Der Browser speichert alles lokal. Wird es eng, erscheint bei jedem Sichern oben ein Warnband; dann Korpus k\xFCrzen, Schatzkammer aufr\xE4umen oder ein Projekt exportieren und Daten l\xF6schen.")
+  );
+  const tabReiter = el("button", { class: "subtab" }, "Reiter");
+  const reiterListe = el("div", {});
+  const reiterHinweis = el(
+    "p",
+    { class: "muted mini" },
+    "Das Studio l\xE4sst sich nicht ausblenden \u2014 diese Einstellung liegt darin. \u201EDrucken\u201C und \u201EZeitungsseite\u201C \xF6ffnen ein Fenster und wechseln den Reiter nicht."
+  );
+  const zeichneReiterListe = () => {
+    reiterListe.innerHTML = "";
+    const stand = ladeStand();
+    const namen = ordne(derKanon(), stand.ordnung);
+    const weg = new Set(stand.versteckt);
+    namen.forEach((name, i) => {
+      const an = el("input", { type: "checkbox", id: "rt-" + i });
+      an.checked = !weg.has(name);
+      an.disabled = PFLICHT.includes(name);
+      an.addEventListener("change", () => {
+        sichereStand(schalte(ladeStand(), name, an.checked));
+        reiterGeaendert();
+      });
+      const hoch = el("button", { title: "nach vorn" }, "\u2191");
+      const runter = el("button", { title: "nach hinten" }, "\u2193");
+      hoch.disabled = i === 0;
+      runter.disabled = i === namen.length - 1;
+      const schieb = (d) => {
+        const st = ladeStand();
+        sichereStand({ ...st, ordnung: verschiebe(ordne(derKanon(), st.ordnung), name, d) });
+        reiterGeaendert();
+      };
+      hoch.addEventListener("click", () => schieb(-1));
+      runter.addEventListener("click", () => schieb(1));
+      reiterListe.append(el(
+        "div",
+        { class: "reiterzeile" },
+        el("label", {}, an, " ", name),
+        el("span", { class: "btnrow" }, hoch, runter)
+      ));
+    });
+  };
+  const reiterGeaendert = () => {
+    zeichneReiterListe();
+    window.dispatchEvent(new CustomEvent("dm-reiter"));
+  };
+  const reiterZurueck = button("Reihenfolge zur\xFCcksetzen");
+  reiterZurueck.addEventListener("click", () => {
+    sichereStand({ ordnung: [], versteckt: [] });
+    reiterGeaendert();
+  });
+  const reiterPanel = el(
+    "div",
+    { style: "display:none" },
+    reiterHinweis,
+    reiterListe,
+    el("div", { class: "btnrow" }, reiterZurueck)
+  );
+  const tabSchrift = el("button", { class: "subtab active" }, "Schrift");
+  const tabFarbe = el("button", { class: "subtab" }, "Farbe");
+  const tabKi = el("button", { class: "subtab" }, "KI-Zugang");
+  const tabMem = el("button", { class: "subtab" }, "Speicher");
+  const showSettingsPanel = (which) => {
+    reiterPanel.style.display = which === "reiter" ? "" : "none";
+    tabReiter.classList.toggle("active", which === "reiter");
+    if (which === "reiter") zeichneReiterListe();
+    schriftPanel.style.display = which === "schrift" ? "" : "none";
+    themePanel.style.display = which === "farbe" ? "" : "none";
+    kiPanel.style.display = which === "ki" ? "" : "none";
+    memPanel.style.display = which === "mem" ? "" : "none";
+    tabSchrift.classList.toggle("active", which === "schrift");
+    tabFarbe.classList.toggle("active", which === "farbe");
+    tabKi.classList.toggle("active", which === "ki");
+    tabMem.classList.toggle("active", which === "mem");
+    if (which === "mem") refreshMem();
+  };
+  tabSchrift.addEventListener("click", () => showSettingsPanel("schrift"));
+  tabFarbe.addEventListener("click", () => showSettingsPanel("farbe"));
+  tabKi.addEventListener("click", () => showSettingsPanel("ki"));
+  tabMem.addEventListener("click", () => showSettingsPanel("mem"));
+  tabReiter.addEventListener("click", () => showSettingsPanel("reiter"));
+  const settings = el("details", { class: "fine" });
+  settings.append(
+    schliesser(settings),
+    el("summary", {}, icon("settings"), " Einstellungen"),
+    el("div", { class: "subtabs" }, tabSchrift, tabFarbe, tabReiter, tabKi, tabMem),
+    schriftPanel,
+    themePanel,
+    reiterPanel,
+    kiPanel,
+    memPanel
+  );
+  wrap.append(settings);
+  root.append(wrap);
+  const readInput = () => ({
+    where: where.value,
+    when: when.value,
+    who: who.value,
+    what: what.value,
+    tone: tone.value,
+    varLevel: varianz.value,
+    form: form.value,
+    structure: structure.value,
+    mode: mode.value,
+    perspective: persp.value,
+    rhythm: rhythm.value,
+    markovMode: markov.value,
+    disruptor: disruptor.value,
+    archetypeA: archA.value,
+    archetypeB: archB.value,
+    instability: parseInt(instab.value, 10),
+    ressort: ressort.value,
+    shots: parseInt(shots.value, 10),
+    totalSec: parseInt(secs.value, 10),
+    lenTarget: parseInt(lenSlider.value, 10),
+    tension: tension.value,
+    emphasis: { wo: parseInt(wWo.value, 10), wann: parseInt(wWann.value, 10), wer: parseInt(wWer.value, 10), was: parseInt(wWas.value, 10) }
+  });
+  const KLING_URL = "https://klingai.com";
+  const renderKling = (form2, text) => {
+    kling.innerHTML = "";
+    if (form2 !== "video") return;
+    const shots2 = (text || "").split("\n").filter((l) => l.startsWith("DE:")).map((l) => l.replace(/^DE:\s*/, "").trim());
+    if (!shots2.length) return;
+    const head = el(
+      "div",
+      { class: "kling-head" },
+      el("span", {}, `\u{1F3AC} ${shots2.length} Shots f\xFCr Kling`),
+      el("a", { class: "kling-link", href: KLING_URL, target: "_blank", rel: "noopener" }, "In Kling generieren \u2197")
+    );
+    const allBtn = button("Alle Shots kopieren");
+    allBtn.addEventListener("click", () => {
+      void navigator.clipboard?.writeText(shots2.join("\n\n"));
+    });
+    head.append(allBtn);
+    kling.append(head);
+    shots2.forEach((s, i) => {
+      const copy = button("Kopieren");
+      copy.addEventListener("click", () => {
+        void navigator.clipboard?.writeText(s);
+      });
+      kling.append(el("div", { class: "kling-shot" }, el("b", {}, `Shot ${i + 1}`), el("span", {}, s), copy));
+    });
+  };
+  const generate = () => {
+    const model = markov.value !== "off" ? buildModelFromCorpus(2) : void 0;
+    const input = readInput();
+    try {
+      if (bestChk.checked) {
+        const w = bestOf(loadBank(), input, model, 12, { noveltyWeight: 0.5, grammarFilter: true, castDiscipline: parseFloat(cast.value) || 0, expectedCast: who.value.split(/[,;]/).map((x) => x.trim()).filter(Boolean), perspective: persp.value });
+        out.textContent = w.txt;
+        zeigeUmweltEffekt(w.umwelt);
+      } else {
+        out.textContent = buildStory(loadBank(), input, model);
+        zeigeUmweltEffekt(void 0);
+      }
+      baseText = out.textContent || "";
+      ctxSichern();
+      updVorrat();
+      try {
+        localStorage.setItem("dm_last_text", out.textContent || "");
+      } catch {
+      }
+      renderKling(input.form, out.textContent || "");
+      try {
+        feedLivePools(out.textContent || "", LIVE_W.gen);
+      } catch {
+      }
+      worldLogGeneration(input);
+      saveSchnappschuss({
+        preset: presetStatus.textContent?.replace(/^Aktiv:\s*/, "") || "\u2014",
+        ton: tone.options[tone.selectedIndex]?.text || tone.value,
+        tonId: tone.value,
+        form: form.options[form.selectedIndex]?.text || form.value,
+        struktur: structure.options[structure.selectedIndex]?.text || structure.value,
+        perspektive: persp.options[persp.selectedIndex]?.text || persp.value,
+        rhythmus: rhythm.options[rhythm.selectedIndex]?.text || rhythm.value,
+        markov: markov.options[markov.selectedIndex]?.text || markov.value,
+        varianz: varianz.options[varianz.selectedIndex]?.text || varianz.value,
+        spannung: tension.options[tension.selectedIndex]?.text || tension.value,
+        where: where.value,
+        when: when.value,
+        who: who.value,
+        what: what.value,
+        laenge: parseInt(lenSlider.value, 10) || 0,
+        bestenauslese: bestChk.checked,
+        zeit: (/* @__PURE__ */ new Date()).toLocaleTimeString("de-DE")
+      });
+      refreshFeeds();
+      clearUndo();
+      requestAnimationFrame(positionArrows);
+      renderPlan();
+      renderStruktur();
+    } catch (e2) {
+      out.textContent = "Fehler: " + (e2 instanceof Error ? e2.message : String(e2));
+    }
+  };
+  genBtn.addEventListener("click", generate);
+  varBtn.addEventListener("click", generate);
+  const liveRegen = () => {
+    if (!rolling) generate();
+  };
+  ROLL_SELECTS.forEach((sl) => sl.addEventListener("change", liveRegen));
+  let emphTimer;
+  [wWo, wWann, wWer, wWas].forEach((s) => {
+    s.addEventListener("input", () => {
+      clearTimeout(emphTimer);
+      emphTimer = setTimeout(() => {
+        if (!rolling) generate();
+      }, 180);
+    });
+  });
+  const updEmphVis = () => {
+    const show = form.value === "prose";
+    [wWo, wWann, wWer, wWas].forEach((s) => {
+      s.style.display = show ? "" : "none";
+    });
+  };
+  form.addEventListener("change", updEmphVis);
+  form.addEventListener("change", updHints);
+  copyBtn.addEventListener("click", () => {
+    void navigator.clipboard?.writeText(out.textContent || "");
+  });
+  readBtn.addEventListener("click", () => openReader(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value }));
+  let speaking = false;
+  speakBtn.addEventListener("click", () => {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    if (speaking) {
+      synth.cancel();
+      speaking = false;
+      speakLbl.textContent = "Vorlesen";
+      return;
+    }
+    const u = new SpeechSynthesisUtterance(out.textContent || "");
+    u.lang = "de-DE";
+    u.onend = () => {
+      speaking = false;
+      speakLbl.textContent = "Vorlesen";
+    };
+    speaking = true;
+    speakLbl.textContent = "Stopp";
+    synth.speak(u);
+  });
+  try {
+    const saved = localStorage.getItem(CTX_KEY2);
+    if (saved) {
+      const c = JSON.parse(saved);
+      if (c.where !== void 0) where.value = c.where;
+      if (c.when !== void 0) when.value = c.when;
+      if (c.who !== void 0) who.value = c.who;
+      if (c.what !== void 0) what.value = c.what;
+      ctxKeep.classList.add("on");
+      ctxKeep.setAttribute("aria-pressed", "true");
+    }
+  } catch {
+  }
+  const handedOver = [];
+  const hand = (el2, label, v) => {
+    if (typeof v !== "string" || !v) return;
+    if (el2 instanceof HTMLSelectElement && !Array.from(el2.options).some((o) => o.value === v)) return;
+    handedOver.push({ el: el2, label, want: v });
+    el2.value = v;
+  };
+  try {
+    const pend = localStorage.getItem("dm_pending_ctx");
+    if (pend) {
+      const c = JSON.parse(pend);
+      hand(who, "Wer", c.who);
+      hand(where, "Wo", c.where);
+      hand(when, "Wann", c.when);
+      hand(what, "Was passiert", c.what);
+      localStorage.removeItem("dm_pending_ctx");
+    }
+  } catch {
+  }
+  let pendingStudio = null;
+  try {
+    const s = localStorage.getItem("dm_pending_studio");
+    if (s) {
+      pendingStudio = JSON.parse(s);
+      localStorage.removeItem("dm_pending_studio");
+    }
+  } catch {
+  }
+  if (pendingStudio) {
+    const P3 = pendingStudio;
+    hand(where, "Wo", P3["where"]);
+    hand(when, "Wann", P3["when"]);
+    hand(who, "Wer", P3["who"]);
+    hand(what, "Was passiert", P3["what"]);
+    hand(form, "Form", P3["form"]);
+    hand(structure, "Struktur", P3["structure"]);
+    hand(persp, "Perspektive", P3["perspective"]);
+    hand(rhythm, "Rhythmus", P3["rhythm"]);
+    hand(varianz, "Varianz", P3["varLevel"]);
+    hand(mode, "Modus", P3["mode"]);
+    hand(tone, "Ton", P3["tone"]);
+    hand(markov, "Markov", P3["markovMode"]);
+    hand(archA, "Archetyp A", P3["archetypeA"]);
+    hand(archB, "Archetyp B", P3["archetypeB"]);
+    hand(disruptor, "Disruptor", P3["disruptor"]);
+    hand(instab, "Instabilit\xE4t", P3["instability"]);
+    const emp = P3["emphasis"];
+    if (emp) {
+      wWo.value = String(emp.wo ?? 0);
+      wWann.value = String(emp.wann ?? 0);
+      wWer.value = String(emp.wer ?? 0);
+      wWas.value = String(emp.was ?? 0);
+    }
+    if (P3["bank"]) {
+      saveBank(P3["bank"]);
+      saveActiveBankLabel("Wahrnehmung (Omnikognition)");
+      if (!preset.querySelector('option[value="__omni__"]')) {
+        const o = document.createElement("option");
+        o.value = "__omni__";
+        o.textContent = "Wahrnehmung (Omnikognition)";
+        preset.insertBefore(o, preset.firstChild);
+      }
+      preset.value = "__omni__";
+    }
+  } else if (!studioSchonGewuerfelt) {
+    ROLL_SELECTS.forEach((s) => {
+      if (!locked.has(s.id) && s.options.length) s.selectedIndex = Math.floor(Math.random() * s.options.length);
+    });
+    studioSchonGewuerfelt = true;
+  } else {
+    for (const s of ROLL_SELECTS) {
+      const v = studioReglerStand[s.id];
+      if (v !== void 0 && Array.from(s.options).some((o) => o.value === v)) s.value = v;
+    }
+  }
+  restoreLocked();
+  const merkeRegler = () => {
+    for (const s of ROLL_SELECTS) studioReglerStand[s.id] = s.value;
+  };
+  ROLL_SELECTS.forEach((s) => s.addEventListener("change", () => {
+    studioReglerStand[s.id] = s.value;
+  }));
+  merkeRegler();
+  const anlageSichern = () => saveAnlage({
+    regler: {
+      ...einstellungen(),
+      umwelt: umweltIn.value,
+      umweltWirkung: umweltSel.value,
+      gewicht: [wWo.value, wWann.value, wWer.value, wWas.value].join("/"),
+      novelty: novSlider.value,
+      surprise: surpSlider.value
+    },
+    w4: { where: where.value, when: when.value, who: who.value, what: what.value },
+    zeit: (/* @__PURE__ */ new Date()).toISOString()
+  });
+  ROLL_SELECTS.forEach((s) => s.addEventListener("change", anlageSichern));
+  [where, when, who, what, umweltIn, novSlider, surpSlider, lenSlider, wWo, wWann, wWer, wWas].forEach((i) => i.addEventListener("input", anlageSichern));
+  umweltSel.addEventListener("change", anlageSichern);
+  anlageSichern();
+  const blocked = handedOver.filter((h) => locked.has(h.el.id) && h.el.value !== h.want);
+  if (blocked.length) {
+    const names = blocked.map((b) => b.label).join(", ");
+    const applyBtn = button("Schl\xF6sser \xF6ffnen und \xFCbernehmen");
+    applyBtn.addEventListener("click", () => {
+      for (const b of blocked) {
+        locked.delete(b.el.id);
+        delete lockVals[b.el.id];
+        b.el.value = b.want;
+      }
+      saveLocks();
+      saveLockVals();
+      Object.keys(lockPainters).forEach((id) => (lockPainters[id] || []).forEach((m) => m.paint()));
+      lockBar.remove();
+      updHints();
+      renderPresetChecks();
+      generate();
+    });
+    const closeBtn = el("button", { class: "x", type: "button", "aria-label": "Hinweis schlie\xDFen" }, "\u2715");
+    closeBtn.addEventListener("click", () => lockBar.remove());
+    lockBar.append(
+      el("span", {}, `\u{1F512} \xDCbernahme unvollst\xE4ndig: ${blocked.length === 1 ? "Ein Feld wurde" : blocked.length + " Felder wurden"} nicht \xFCbernommen, weil das Schloss geschlossen ist \u2014 ${names}.`),
+      applyBtn,
+      closeBtn
+    );
+    wrap.insertBefore(lockBar, wrap.firstChild);
+  }
+  lenVal.textContent = lenSlider.value;
+  updNovVal();
+  updSurpVal();
+  rangeVal.textContent = "#" + rangeSlider.value;
+  updEmphVis();
+  applyStoryFont(out, fontSel.value, parseFloat(sizeSlider.value));
+  if (!pendingStudio) {
+    if (preset.value === AUTOMIX_ID) {
+      saveBank(buildAutoMixBank());
+      saveActiveBankLabel("Auto-Mix");
+    } else {
+      const first = getAllPresets()[preset.value];
+      if (first) {
+        saveBank(first.bank);
+        saveActiveBankLabel(first.label || preset.value);
+      }
+    }
+  }
+  if (multiIds.length >= 2) {
+    ensureMultiOption();
+    preset.value = MULTI_ID;
+    applyMulti();
+  }
+  renderPresetChecks();
+  updHints();
+  requestAnimationFrame(positionArrows);
+  let pendingText = "";
+  try {
+    pendingText = localStorage.getItem("dm_pending_text") || "";
+    localStorage.removeItem("dm_pending_text");
+  } catch {
+  }
+  if (pendingText.trim()) {
+    out.textContent = pendingText;
+    nachTextwechsel();
+    try {
+      localStorage.setItem("dm_last_text", pendingText);
+    } catch {
+    }
+    renderKling(readInput().form, pendingText);
+    refreshFeeds();
+  } else {
+    generate();
+  }
+}
+
+// src/features/wuerfeln.ts
+var REGLER = [
+  { id: "f-tone", schluessel: "tone", liste: TONE_OPTS },
+  { id: "f-form", schluessel: "form", liste: FORM_OPTS },
+  { id: "f-structure", schluessel: "structure", liste: STRUCTURE_OPTS },
+  { id: "f-mode", schluessel: "mode", liste: MODE_OPTS },
+  { id: "f-persp", schluessel: "perspective", liste: PERSP_OPTS },
+  { id: "f-rhythm", schluessel: "rhythm", liste: RHYTHM_OPTS },
+  { id: "f-tension", schluessel: "tension", liste: TENSION_OPTS },
+  { id: "f-cast", schluessel: "cast", liste: CAST_OPTS },
+  { id: "f-instab", schluessel: "instability", liste: INSTAB_OPTS },
+  { id: "f-markov", schluessel: "markovMode", liste: MARKOV_OPTS },
+  { id: "f-disruptor", schluessel: "disruptor", liste: DISRUPTOR_OPTS },
+  { id: "f-varianz", schluessel: "varLevel", liste: VARIANZ_OPTS },
+  { id: "f-archa", schluessel: "archetypeA", liste: ARCH_OPTS },
+  { id: "f-archb", schluessel: "archetypeB", liste: ARCH_OPTS },
+  {
+    id: "f-ressort",
+    schluessel: "ressort",
+    liste: [["auto", "Auto (aus dem Stoff)"], ...RESSORT_IDS.map((id) => [id, RESSORTS[id].label])]
+  }
+];
+var zieh = (l) => l[Math.floor(Math.random() * l.length)];
+function wuerfleAlles(vorher, gesperrt, knobsVorher = loadKnobs()) {
+  const regler = { ...vorher };
+  const nachId = {};
+  const presets = markedPresetOptions().map(([v]) => v).filter((v) => !v.startsWith("__"));
+  if (!gesperrt.has("f-preset") && presets.length) {
+    const p = zieh(presets);
+    regler["preset"] = p;
+    nachId["f-preset"] = p;
+  }
+  for (const r of REGLER) {
+    const alt = vorher[r.schluessel];
+    const neu = gesperrt.has(r.id) ? alt ?? werte(r.liste)[0] : zieh(werte(r.liste));
+    regler[r.schluessel] = neu;
+    nachId[r.id] = neu;
+  }
+  const knobs = { ...knobsVorher };
+  for (const feld of Object.keys(KNOB_SPANNE)) {
+    if (gesperrt.has("k-" + feld)) continue;
+    const sp = KNOB_SPANNE[feld];
+    const stufen = Math.floor((sp.max - sp.min) / sp.step) + 1;
+    knobs[feld] = sp.min + Math.floor(Math.random() * stufen) * sp.step;
+  }
+  return { regler, nachId, knobs };
+}
+
+// src/ui/schaltplanView.ts
+var NS = "http://www.w3.org/2000/svg";
+var CHIP_W = 176;
+var CHIP_H = 46;
+var GAP_X = 12;
+var GAP_Y = 10;
+var PRO_REIHE = 5;
+var RAND = 18;
+var BAND_TITEL = 26;
+var BAND_ABSTAND = 34;
+var BREITE = RAND * 2 + PRO_REIHE * CHIP_W + (PRO_REIHE - 1) * GAP_X;
+var BAND_NAME = ["Vorr\xE4te", "Material", "Steuerung", "Schliff", "Ausgabe"];
+var FARBE = {
+  an: "var(--acc2)",
+  leer: "var(--danger)",
+  aus: "var(--muted)",
+  fest: "var(--muted)"
+};
+var e = (name, attrs, ...kinder) => {
+  const n = document.createElementNS(NS, name);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v));
+  for (const c of kinder) n.append(c);
+  return n;
+};
+var txt = (x, y, s, cls) => {
+  const t = e("text", { x, y, class: cls });
+  t.textContent = s;
+  return t;
+};
+var kurz = (s, n) => s.length <= n ? s : s.slice(0, n - 1) + "\u2026";
+function ordne2(anlage) {
+  const platz = {};
+  const baender = [];
+  let y = RAND;
+  for (let b = 0; b < BAND_NAME.length; b++) {
+    const drin = anlage.knoten.filter((k) => k.band === b);
+    if (!drin.length) continue;
+    const kopf = y;
+    y += BAND_TITEL;
+    drin.forEach((k, i) => {
+      const reihe = Math.floor(i / PRO_REIHE), spalte = i % PRO_REIHE;
+      platz[k.id] = { x: RAND + spalte * (CHIP_W + GAP_X), y: y + reihe * (CHIP_H + GAP_Y), w: CHIP_W, h: CHIP_H };
+    });
+    const reihen = Math.ceil(drin.length / PRO_REIHE);
+    y += reihen * CHIP_H + (reihen - 1) * GAP_Y;
+    baender.push({ band: b, y: kopf, h: y - kopf });
+    y += BAND_ABSTAND;
+  }
+  return { platz, hoehe: y - BAND_ABSTAND + RAND, baender };
+}
+function renderSchaltplan(anlage) {
+  const { platz, hoehe, baender } = ordne2(anlage);
+  const svg = e("svg", {
+    class: "schaltplan",
+    viewBox: `0 0 ${BREITE} ${hoehe}`,
+    width: "100%",
+    role: "img",
+    "aria-label": "Schaltplan der aktiven Einstellungen"
+  });
+  for (let i = 0; i + 1 < baender.length; i++) {
+    const a = baender[i], b = baender[i + 1];
+    const y1 = a.y + a.h, y2 = b.y;
+    svg.append(e("line", { x1: BREITE / 2, y1, x2: BREITE / 2, y2, class: "sp-bus" }));
+    svg.append(e("polygon", {
+      points: `${BREITE / 2 - 5},${y2 - 8} ${BREITE / 2 + 5},${y2 - 8} ${BREITE / 2},${y2}`,
+      class: "sp-bus-spitze"
+    }));
+  }
+  for (const b of baender) svg.append(txt(RAND, b.y + 14, BAND_NAME[b.band] || "", "sp-band"));
+  for (const k of anlage.kanten) {
+    const a = platz[k.von], z = platz[k.nach];
+    if (!a || !z) continue;
+    const x1 = a.x + a.w / 2, y1 = a.y + a.h, x2 = z.x + z.w / 2, y2 = z.y;
+    const m = (y1 + y2) / 2;
+    svg.append(e("path", {
+      d: `M ${x1} ${y1} C ${x1} ${m}, ${x2} ${m}, ${x2} ${y2}`,
+      class: "sp-kante",
+      stroke: FARBE[k.zustand],
+      "stroke-dasharray": k.zustand === "aus" ? "4 4" : k.zustand === "leer" ? "7 4" : "0"
+    }));
+  }
+  for (const k of anlage.knoten) {
+    const p = platz[k.id];
+    if (!p) continue;
+    const g = e("g", { class: "sp-chip sp-" + k.zustand });
+    if (k.hinweis) {
+      const t = e("title", {});
+      t.textContent = k.hinweis;
+      g.append(t);
+    }
+    g.append(e("rect", { x: p.x, y: p.y, width: p.w, height: p.h, rx: 8, stroke: FARBE[k.zustand] }));
+    g.append(txt(p.x + 10, p.y + 18, kurz(k.label, 24), "sp-label"));
+    g.append(txt(p.x + 10, p.y + 34, kurz(k.wert, 26), "sp-wert"));
+    if (k.gesperrt) g.append(txt(p.x + p.w - 14, p.y + 18, "\u{1F512}", "sp-schloss"));
+    svg.append(g);
+  }
+  return svg;
+}
+function befundListe(anlage) {
+  const leer = anlage.knoten.filter((k) => k.zustand === "leer");
+  return {
+    leer: leer.length,
+    text: leer.length ? leer.map((k) => `${k.label}: ${k.hinweis || "Quelle leer"}`).join(" \xB7 ") : "Kein Schalter l\xE4uft ins Leere."
+  };
+}
+
+// test/schaltplan.ts
+var import_jsdom = require("jsdom");
+
 // src/features/selftest.ts
 var RUNS = 16;
 var baseInput = () => ({
@@ -18884,511 +23535,6 @@ function renderSelfTest(res, kompakt = false) {
   return box;
 }
 
-// src/features/sources.ts
-var QUELLEN_LABEL = {
-  wortbank: "Wortbank",
-  ton: "Ton",
-  kontext: "4W-Kontext",
-  pools: "Lebendige Pools",
-  markov: "Markov",
-  vorlage: "Vorlagen/Schablonen",
-  nachbearbeitung: "Nachbearbeitung",
-  dramaturgie: "Erz\xE4hlbogen",
-  korpus: "Korpus"
-};
-function w4Varianten(ctx) {
-  const raus = [];
-  const nimm = (x) => {
-    const t = (x || "").trim();
-    if (!t) return;
-    if (t.length >= 4 || t.length >= 2 && /^[A-ZÄÖÜ]/.test(t)) raus.push(t);
-  };
-  for (const v of [ctx.who, ctx.where, ctx.when, ctx.what]) (v || "").split(/[,;]/).forEach(nimm);
-  const was = (ctx.what || "").trim();
-  if (was) {
-    const lead = extractLeadVerb(was);
-    if (lead.verb) {
-      nimm(`${lead.verb} ${lead.rest}`);
-      nimm(lead.rest);
-    }
-  }
-  return raus;
-}
-function sammle(phrasen, quelle2, prio, low2, acc) {
-  for (const roh of phrasen) {
-    const p = (roh || "").trim();
-    if (p.length < 5) continue;
-    const pl = p.toLowerCase();
-    let von = 0, i = low2.indexOf(pl, von);
-    while (i !== -1) {
-      acc.push({ s: i, e: i + pl.length, quelle: quelle2, prio });
-      von = i + pl.length;
-      if (acc.length > 4e3) return;
-      i = low2.indexOf(pl, von);
-    }
-  }
-}
-function analysiereHerkunft(text, tone, ctx) {
-  const low2 = (text || "").toLowerCase();
-  const acc = [];
-  if (tone && tone !== "neutral") {
-    const td = TONE_DATA[tone];
-    if (td) sammle([...td.opener, ...td.flavor], "ton", 3, low2, acc);
-  }
-  sammle(w4Varianten(ctx), "kontext", 2, low2, acc);
-  try {
-    const b = loadBank();
-    const alle = [];
-    for (const k of Object.keys(b)) if (Array.isArray(b[k])) alle.push(...b[k]);
-    sammle(alle, "wortbank", 1, low2, acc);
-  } catch {
-  }
-  try {
-    sammle(liveTexts(), "pools", 1, low2, acc);
-  } catch {
-  }
-  try {
-    sammle(getMarkovTraceFor(text || ""), "markov", 2, low2, acc);
-  } catch {
-  }
-  acc.sort((a, b) => a.s - b.s || b.e - b.s - (a.e - a.s) || b.prio - a.prio);
-  const segmente = [];
-  let ende = -1;
-  for (const t of acc) {
-    if (t.s < ende) continue;
-    segmente.push({ s: t.s, e: t.e, quelle: t.quelle });
-    ende = t.e;
-  }
-  const zeichen = (text || "").length || 1;
-  const anteile = { wortbank: 0, ton: 0, kontext: 0, pools: 0, markov: 0, vorlage: 0, nachbearbeitung: 0, dramaturgie: 0, korpus: 0 };
-  let belegt = 0;
-  for (const s of segmente) {
-    anteile[s.quelle] += s.e - s.s;
-    belegt += s.e - s.s;
-  }
-  anteile.vorlage = Math.max(0, zeichen - belegt);
-  for (const k of Object.keys(anteile)) anteile[k] = anteile[k] / zeichen;
-  let poolUeberschneidung = 0;
-  try {
-    const b = loadBank();
-    const bankSet = /* @__PURE__ */ new Set();
-    for (const k of Object.keys(b)) if (Array.isArray(b[k])) for (const x of b[k]) bankSet.add(x.trim().toLowerCase());
-    const lt = liveTexts();
-    if (lt.length) {
-      let doppelt = 0;
-      for (const p of lt) if (bankSet.has(p.trim().toLowerCase())) doppelt++;
-      poolUeberschneidung = doppelt / lt.length;
-    }
-  } catch {
-  }
-  const spur2 = getTraceFor(text);
-  if (spur2.length) {
-    const roh = { wortbank: 0, ton: 0, kontext: 0, pools: 0, markov: 0, vorlage: 0, nachbearbeitung: 0, dramaturgie: 0, korpus: 0 };
-    const mapQ = (q) => q === "vorlage" ? "vorlage" : q === "kontext" ? "kontext" : q === "markov" ? "markov" : q === "pools" ? "pools" : q === "dramaturgie" ? "dramaturgie" : q === "korpus" ? "korpus" : "wortbank";
-    let summe = 0;
-    for (const sch of spur2) {
-      const fl = (sch.fueller || []).reduce((n, f) => n + f.text.length, 0);
-      const eigen = Math.max(0, sch.text.length - fl);
-      roh[mapQ(sch.quelle)] += eigen;
-      summe += eigen;
-      for (const f of sch.fueller || []) {
-        roh[mapQ(f.quelle)] += f.text.length;
-        summe += f.text.length;
-      }
-    }
-    if (summe > 0) {
-      const roheSeg = [];
-      let cursor = 0;
-      const finde = (was, ab) => {
-        const w = was.toLowerCase().replace(/[.!?…]+$/, "").trim();
-        if (w.length < 4) return null;
-        const i = low2.indexOf(w, ab);
-        return i === -1 ? null : [i, i + w.length];
-      };
-      for (const sch of spur2) {
-        const span = finde(sch.text, cursor);
-        if (!span) continue;
-        const q = mapQ(sch.quelle);
-        const innen = [];
-        for (const f of sch.fueller || []) {
-          const fs = finde(f.text, span[0]);
-          if (fs && fs[0] >= span[0] && fs[1] <= span[1]) innen.push({ s: fs[0], e: fs[1], quelle: mapQ(f.quelle) });
-        }
-        innen.sort((a, b) => a.s - b.s);
-        let at = span[0];
-        for (const iv of innen) {
-          if (iv.s > at) roheSeg.push({ s: at, e: iv.s, quelle: q });
-          roheSeg.push({ s: iv.s, e: iv.e, quelle: iv.quelle });
-          at = iv.e;
-        }
-        if (at < span[1]) roheSeg.push({ s: at, e: span[1], quelle: q });
-        cursor = span[1];
-      }
-      const belegtVon = (a, b) => roheSeg.some((x) => a < x.e && b > x.s);
-      const ausLuecke = acc.filter((t) => !belegtVon(t.s, t.e)).sort((a, b) => a.s - b.s || b.e - b.s - (a.e - a.s) || b.prio - a.prio);
-      let lEnde = -1;
-      for (const t of ausLuecke) {
-        if (t.s < lEnde || belegtVon(t.s, t.e)) continue;
-        roheSeg.push({ s: t.s, e: t.e, quelle: t.quelle });
-        lEnde = t.e;
-      }
-      const w4Treffer = acc.filter((t) => t.quelle === "kontext").sort((a, b) => a.s - b.s);
-      if (w4Treffer.length) {
-        const zerlegt = [];
-        for (const sg of roheSeg) {
-          let at = sg.s;
-          for (const t of w4Treffer) {
-            if (t.s < at || t.e > sg.e) continue;
-            if (t.s > at) zerlegt.push({ s: at, e: t.s, quelle: sg.quelle });
-            zerlegt.push({ s: t.s, e: t.e, quelle: "kontext" });
-            at = t.e;
-          }
-          if (at < sg.e) zerlegt.push({ s: at, e: sg.e, quelle: sg.quelle });
-        }
-        roheSeg.length = 0;
-        roheSeg.push(...zerlegt);
-      }
-      roheSeg.sort((a, b) => a.s - b.s);
-      if (roheSeg.length) {
-        segmente.length = 0;
-        segmente.push(...roheSeg);
-      }
-      const gezaehlt = { wortbank: 0, ton: 0, kontext: 0, pools: 0, markov: 0, vorlage: 0, nachbearbeitung: 0, dramaturgie: 0, korpus: 0 };
-      let markiert = 0;
-      for (const sg of segmente) {
-        gezaehlt[sg.quelle] += sg.e - sg.s;
-        markiert += sg.e - sg.s;
-      }
-      const rest = Math.max(0, zeichen - markiert);
-      const vorlageFehlt = Math.max(0, roh.vorlage - gezaehlt.vorlage);
-      gezaehlt.vorlage += Math.min(rest, vorlageFehlt);
-      gezaehlt.nachbearbeitung = Math.max(0, rest - Math.min(rest, vorlageFehlt));
-      for (const k of Object.keys(gezaehlt)) anteile[k] = gezaehlt[k] / zeichen;
-      return { segmente, anteile, zeichen, exakt: true, poolUeberschneidung };
-    }
-  }
-  return { segmente, anteile, zeichen, exakt: false, poolUeberschneidung };
-}
-var KEY2 = "dm_last_input_v1";
-function loadSchnappschuss() {
-  try {
-    const r = localStorage.getItem(KEY2);
-    return r ? JSON.parse(r) : null;
-  } catch {
-    return null;
-  }
-}
-
-// src/ui/structureView.ts
-var presetPopOffen = false;
-function renderTextstruktur(text, snap, schnell, presetPanel, schloss) {
-  const box = el("div", {});
-  if (!text.trim()) {
-    box.append(el("p", { class: "muted" }, "Noch kein Text erzeugt."));
-    return box;
-  }
-  const h = analysiereHerkunft(
-    text,
-    (snap?.tonId || snap?.ton || "neutral").toLowerCase(),
-    { where: snap?.where, when: snap?.when, who: snap?.who, what: snap?.what }
-  );
-  if (snap) {
-    const chips = el("div", { class: "src-settings" });
-    const paare = [
-      ["Preset", snap.preset],
-      ["Ton", snap.ton],
-      ["Form", snap.form],
-      ["Struktur", snap.struktur],
-      ["Perspektive", snap.perspektive],
-      ["Rhythmus", snap.rhythmus],
-      ["Markov", snap.markov],
-      ["Varianz", snap.varianz],
-      ["Spannung", snap.spannung],
-      ["L\xE4nge", String(snap.laenge)],
-      ["Bestenauslese", snap.bestenauslese ? "an" : "aus"]
-    ];
-    const stellschrauben = [];
-    for (const k of Object.keys(schnell || {})) {
-      if (paare.some(([n]) => n === k)) continue;
-      const sel = schnell?.[k];
-      if (!sel) continue;
-      stellschrauben.push([k, sel.options[sel.selectedIndex]?.text || sel.value]);
-    }
-    const zeichneChips = (liste, host) => {
-      for (const [k, v] of liste) {
-        if (k === "Preset" && presetPanel) {
-          const knopf = el("button", {
-            class: "src-chip-sel src-chip-preset",
-            type: "button",
-            title: "Presets w\xE4hlen \u2014 mehrere m\xF6glich"
-          }, v || "\u2014");
-          const panel = el("div", { class: "presetpop" });
-          const inhalt = el("div", {});
-          const zu = el("button", { class: "presetpop-x", type: "button", "aria-label": "Auswahl schlie\xDFen" }, "\u2715");
-          zu.addEventListener("click", () => {
-            presetPopOffen = false;
-            panel.style.display = "none";
-          });
-          panel.append(el(
-            "div",
-            { class: "presetpop-kopf" },
-            el("span", { class: "muted mini" }, "Mehrere m\xF6glich"),
-            zu
-          ), inhalt);
-          const zeichne = () => {
-            panel.style.display = presetPopOffen ? "" : "none";
-            if (presetPopOffen) presetPanel(inhalt);
-          };
-          knopf.addEventListener("click", () => {
-            presetPopOffen = !presetPopOffen;
-            zeichne();
-          });
-          zeichne();
-          host.append(el("span", { class: "src-chipwrap src-chipwrap-preset" }, el("b", {}, k), " ", knopf, panel));
-          continue;
-        }
-        const sel = schnell?.[k];
-        if (!sel) {
-          host.append(el("span", { class: "src-chip" }, el("b", {}, k), " " + (v || "\u2014")));
-          continue;
-        }
-        const mini = el("select", { class: "src-chip src-chip-sel", title: k + " \xE4ndern" });
-        for (const o of Array.from(sel.options)) mini.append(el("option", { value: o.value }, o.text));
-        mini.value = sel.value;
-        mini.addEventListener("change", () => {
-          sel.value = mini.value;
-          sel.dispatchEvent(new Event("change"));
-          document.dispatchEvent(new CustomEvent("dm-schnellwahl", { detail: k }));
-        });
-        const sch = schloss ? schloss(sel) : null;
-        host.append(el("span", { class: "src-chipwrap" }, el("b", {}, k), " ", mini, ...sch ? [sch] : []));
-      }
-    };
-    zeichneChips(paare, chips);
-    box.append(chips);
-    if (stellschrauben.length) {
-      const knopfzeile = el(
-        "div",
-        { class: "src-settings src-settings-knobs" },
-        el("span", { class: "src-knoblabel" }, "Stellschrauben")
-      );
-      zeichneChips(stellschrauben, knopfzeile);
-      box.append(knopfzeile);
-    }
-    const w4 = el("div", { class: "src-4w" });
-    [["Wo", snap.where], ["Wann", snap.when], ["Wer", snap.who], ["Was", snap.what]].forEach(([k, v]) => w4.append(el("span", { class: "src-w" }, el("b", {}, k + ": "), v || "\u2014")));
-    box.append(w4);
-  }
-  const band2 = el("div", { class: "src-band" });
-  let pos = 0;
-  for (const seg of h.segmente) {
-    if (seg.s > pos) band2.append(el("span", { class: "src-seg q-vorlage", style: `flex:${seg.s - pos}` }));
-    band2.append(el("span", {
-      class: "src-seg q-" + seg.quelle,
-      style: `flex:${seg.e - seg.s}`,
-      title: QUELLEN_LABEL[seg.quelle] + ": " + text.slice(seg.s, seg.e)
-    }));
-    pos = seg.e;
-  }
-  if (pos < text.length) band2.append(el("span", { class: "src-seg q-vorlage", style: `flex:${text.length - pos}` }));
-  box.append(el("div", { class: "muted mini" }, "Verlauf des Textes nach Herkunft:"), band2);
-  const bars = el("div", { class: "src-bars" });
-  Object.keys(QUELLEN_LABEL).map((q) => [q, h.anteile[q]]).sort((a, b) => b[1] - a[1]).forEach(([q, v]) => bars.append(el(
-    "div",
-    {
-      class: "src-row anklickbar",
-      role: "button",
-      tabindex: "0",
-      title: "Zeigt, was diesen Anteil steuert",
-      onclick: void 0
-    },
-    el("span", { class: "src-name" }, QUELLEN_LABEL[q]),
-    el("span", { class: "src-bar" }, el("span", { class: "src-fill q-" + q, style: `width:${Math.round(v * 100)}%` })),
-    el("span", { class: "src-val" }, Math.round(v * 100) + " %")
-  )));
-  const ZIEHBAR = /* @__PURE__ */ new Set(["vorlage", "dramaturgie", "ton", "kontext"]);
-  const ziele = loadZiele();
-  bars.querySelectorAll(".src-row").forEach((row, i) => {
-    const qq = Object.keys(QUELLEN_LABEL).map((x) => [x, h.anteile[x]]).sort((a, b) => b[1] - a[1])[i]?.[0];
-    if (!qq || !ZIEHBAR.has(qq)) return;
-    const q = qq;
-    const bar = row.querySelector(".src-bar");
-    if (!bar) return;
-    row.classList.add("ziehbar");
-    const marke = el("span", { class: "src-ziel" });
-    const setzeMarke = () => {
-      const z = ziele[q];
-      if (z === void 0) {
-        marke.style.display = "none";
-        return;
-      }
-      marke.style.display = "";
-      marke.style.left = Math.max(0, Math.min(100, z)) + "%";
-      marke.title = `Ziel ${z} % \u2014 erreicht ${(h.anteile[q] * 100).toFixed(0)} %`;
-    };
-    bar.append(marke);
-    setzeMarke();
-    let zieht = false;
-    const ausX = (x) => {
-      const r = bar.getBoundingClientRect();
-      return Math.round(Math.max(0, Math.min(100, (x - r.left) / Math.max(1, r.width) * 100)) / 5) * 5;
-    };
-    bar.addEventListener("pointerdown", (e2) => {
-      const ev = e2;
-      zieht = true;
-      bar.setPointerCapture(ev.pointerId);
-      ev.preventDefault();
-      ev.stopPropagation();
-      ziele[q] = ausX(ev.clientX);
-      setzeMarke();
-    });
-    bar.addEventListener("pointermove", (e2) => {
-      if (!zieht) return;
-      ziele[q] = ausX(e2.clientX);
-      setzeMarke();
-    });
-    const ende = (e2) => {
-      if (!zieht) return;
-      zieht = false;
-      try {
-        bar.releasePointerCapture(e2.pointerId);
-      } catch {
-      }
-      saveZiele(ziele);
-      document.dispatchEvent(new CustomEvent("dm-ziel", { detail: { quelle: q, ziel: ziele[q] } }));
-    };
-    bar.addEventListener("pointerup", ende);
-    bar.addEventListener("pointercancel", ende);
-    bar.addEventListener("dblclick", (e2) => {
-      e2.stopPropagation();
-      delete ziele[q];
-      saveZiele(ziele);
-      setzeMarke();
-      document.dispatchEvent(new CustomEvent("dm-ziel", { detail: { quelle: q, ziel: void 0 } }));
-    });
-  });
-  bars.querySelectorAll(".src-row").forEach((row, i) => {
-    const q = Object.keys(QUELLEN_LABEL).map((x) => [x, h.anteile[x]]).sort((a, b) => b[1] - a[1])[i]?.[0];
-    if (!q) return;
-    const los = () => {
-      document.dispatchEvent(new CustomEvent("dm-quelle", { detail: q }));
-    };
-    row.addEventListener("click", los);
-    row.addEventListener("keydown", (e2) => {
-      const k = e2.key;
-      if (k === "Enter" || k === " ") {
-        e2.preventDefault();
-        los();
-      }
-    });
-  });
-  box.append(bars);
-  if (h.exakt) {
-    box.append(el(
-      "p",
-      { class: "muted mini" },
-      el("b", {}, "Gemessen. "),
-      "Die Anteile stammen aus der Bauspur \u2014 f\xFCr jeden Baustein ist bekannt, woher er kommt. \u201EVorlagen\u201C ist hier eine echte Gr\xF6\xDFe, keine Restmenge. \u201ENachbearbeitung\u201C ist das, was nach dem Zusammenbau hinzukommt: Ton-S\xE4tze, Verfugung, Perspektive. Lebendige Pools und Markov stehen auf 0 %, weil der Rekombinations-Assembler sie noch nicht als Quelle f\xFChrt. Im Farbband bleibt unmarkiert, was sich im Endtext nicht w\xF6rtlich wiederfinden l\xE4sst \u2014 Vorlagentext, Nachbearbeitung und Bausteine, die durch Perspektive oder Gl\xE4ttung umgeschrieben wurden."
-    ));
-  } else {
-    box.append(el(
-      "p",
-      { class: "muted mini" },
-      el("b", {}, "Gesch\xE4tzt. "),
-      "Die Anteile entstehen durch Abgleich des fertigen Textes mit den Quelllisten. \u201EVorlagen/Schablonen\u201C ist dabei die Restgr\xF6\xDFe: alles, was keiner Liste zugeordnet werden konnte \u2014 feste Satzger\xFCste, Verbindungsw\xF6rter und die Nachbearbeitung. Diese Zahl ist also eine Obergrenze."
-    ));
-  }
-  if (h.poolUeberschneidung > 0.02) {
-    box.append(el(
-      "p",
-      { class: "muted mini" },
-      `Hinweis zu den Pools: ${Math.round(h.poolUeberschneidung * 100)} % ihrer Eintr\xE4ge stehen w\xF6rtlich auch in der Wortbank und werden dort gez\xE4hlt. Der ausgewiesene Pool-Anteil ist deshalb der ausschlie\xDFliche Beitrag, nicht der gesamte.`
-    ));
-  }
-  return box;
-}
-
-// src/generation/context.ts
-var roll = (base, tw) => {
-  const b = pick(base);
-  return Math.random() < 0.5 ? b : b + ", " + pick(tw);
-};
-function randomContext() {
-  return {
-    who: roll(CTX_WHO, WHO_TWISTS),
-    where: roll(CTX_WHERE, WHERE_TWISTS),
-    when: roll(CTX_WHEN, WHEN_TWISTS),
-    what: roll(CTX_WHAT, WHAT_TWISTS)
-  };
-}
-
-// src/generation/scoring.ts
-function splitSentences2(raw) {
-  return raw.replace(/\s+/g, " ").trim().split(/(?<=[.!?…])\s+/).filter((s) => s.trim().length > 0);
-}
-function ngrams2(words2, n) {
-  const out = [];
-  for (let i = 0; i <= words2.length - n; i++) out.push(words2.slice(i, i + n).join(" "));
-  return out;
-}
-function countRepeats(arr) {
-  const m = /* @__PURE__ */ new Map();
-  for (const x of arr) m.set(x, (m.get(x) || 0) + 1);
-  let r = 0;
-  for (const c of m.values()) if (c > 1) r += c - 1;
-  return r;
-}
-function repetitionRatio(txt2) {
-  const tokens2 = (txt2 || "").toLowerCase().match(/[a-zäöüßA-ZÄÖÜ]+/g) || [];
-  if (tokens2.length < 3) return 0;
-  const tri = ngrams2(tokens2, 3);
-  const counts = /* @__PURE__ */ new Map();
-  tri.forEach((t) => counts.set(t, (counts.get(t) || 0) + 1));
-  const repeated = [...counts.values()].filter((c) => c > 1).length;
-  return tri.length ? repeated / tri.length : 0;
-}
-function flowMetrics(txt2) {
-  const raw = (txt2 || "").toString();
-  const s = splitSentences2(raw);
-  if (!s.length) return { startMonotony: 0, colonExcess: 0, fragPairs: 0 };
-  let same = 0, fragPairs = 0;
-  for (let i = 1; i < s.length; i++) {
-    const a = (s[i - 1].split(/\s+/)[0] || "").toLowerCase();
-    const b = (s[i].split(/\s+/)[0] || "").toLowerCase();
-    if (a && a === b) same++;
-    if (isFragmentSentence(s[i - 1]) && isFragmentSentence(s[i])) fragPairs++;
-  }
-  const colons = (raw.match(/:/g) || []).length;
-  return { startMonotony: same / Math.max(1, s.length - 1), colonExcess: Math.min(1, Math.max(0, colons - 2) / 3), fragPairs: Math.min(1, fragPairs / 2) };
-}
-function analyzeText(txt2, lenTarget) {
-  const raw = txt2 || "";
-  const t = raw.toLowerCase().replace(/\s+/g, " ").trim();
-  const words2 = t.split(" ").filter(Boolean);
-  const repBi = countRepeats(ngrams2(words2, 2)), repTri = countRepeats(ngrams2(words2, 3));
-  const wordCount = words2.length;
-  const target = lenTarget > 0 ? lenTarget : 110;
-  const lenFit = Math.max(0, 1 - Math.abs(wordCount - target) / target);
-  const ttr = words2.length ? new Set(words2).size / words2.length : 0;
-  const sentLens = splitSentences2(raw).map((s) => (s.toLowerCase().match(/[a-zäöüßA-ZÄÖÜ]+/g) || []).length);
-  const meanLen = sentLens.length ? sentLens.reduce((x, y) => x + y, 0) / sentLens.length : 0;
-  const stdLen = sentLens.length > 1 ? Math.sqrt(sentLens.map((x) => (x - meanLen) ** 2).reduce((x, y) => x + y, 0) / sentLens.length) : 0;
-  const rhythmScore = Math.max(0, 1 - Math.abs(stdLen - 4) / 6);
-  return {
-    len: raw.length,
-    wordCount,
-    repetitionRatio: repetitionRatio(raw),
-    lenFit,
-    ttr,
-    stdLen,
-    rhythmScore,
-    tooShort: raw.trim().length < 120,
-    triBad: repTri > 10,
-    biBad: repBi > 25,
-    flow: flowMetrics(raw)
-  };
-}
-
 // src/features/wirkung.ts
 var MASSE = [
   { name: "Wiederholung", hochIstGut: false },
@@ -19697,578 +23843,6 @@ function mountWirkung() {
   return wrap;
 }
 
-// src/presets.drama.data.ts
-var D = (einstieg, mitte, hoehepunkt, konflikte, ausloeser, veraenderungen, zeitanomalien, regeln, schluss) => ({ einstieg, mitte, hoehepunkt, schluss, ausloeser, veraenderungen, konflikte, zeitanomalien, regeln });
-var BUILTIN_DRAMA = {
-  kafka: D(
-    ["alles liegt an seinem Platz, und genau das beunruhigt", "die Formulare sind bereits ausgef\xFCllt", "niemand hat die T\xFCr ge\xF6ffnet, sie stand offen"],
-    ["die Zust\xE4ndigkeit wandert von Zimmer zu Zimmer", "eine Auskunft widerspricht der vorigen, beide sind g\xFCltig", "der Gang verzweigt sich, jede Abzweigung f\xFChrt zur\xFCck"],
-    ["die Akte tr\xE4gt den eigenen Namen", "das Verfahren war l\xE4ngst abgeschlossen"],
-    ["eine Auskunft, die niemand gibt", "eine Frist ohne Anfang", "eine Schuld ohne Anklage"],
-    ["ein Bescheid ohne Absender", "eine Unterschrift, die niemand leisten kann", "ein Stempel auf dem falschen Blatt"],
-    ["die Zust\xE4ndigkeit wechselt", "der Vorgang beginnt von vorn", "die Frage verwandelt sich in ihre Antwort"],
-    ["Die Frist l\xE4uft r\xFCckw\xE4rts.", "Der Termin liegt bereits hinter dem Antrag."],
-    ["Wer fragt, bekommt eine Nummer.", "Jede Auskunft ist vorl\xE4ufig und endg\xFCltig zugleich."],
-    ["offen", "beklemmend"]
-  ),
-  bureau: D(
-    ["die Warteschlange bewegt sich nicht", "der Schalter ist besetzt und leer zugleich", "auf dem Tisch liegt ein Stift ohne Mine"],
-    ["ein Formular verlangt ein zweites", "die Nummer wird aufgerufen, geh\xF6rt aber niemandem", "der Aktenschrank \xF6ffnet sich in einen weiteren Flur"],
-    ["die Zust\xE4ndigkeit wird endg\xFCltig ungekl\xE4rt", "das eigene Aktenzeichen erlischt"],
-    ["eine Zust\xE4ndigkeit, die niemand annimmt", "einen Vorgang ohne Ende", "eine Best\xE4tigung, die sich selbst widerruft"],
-    ["ein Formular in dreifacher Ausfertigung", "eine Wartenummer aus einem anderen Jahr", "ein Dienstsiegel ohne Beh\xF6rde"],
-    ["der Vorgang wird umgeleitet", "die Frist verl\xE4ngert sich von selbst", "das Verfahren beginnt still von vorn"],
-    ["Der Sprechtag liegt immer gestern.", "Die Bearbeitungszeit w\xE4chst mit jeder Nachfrage."],
-    ["Kein Vorgang endet, er ruht nur.", "Wer wartet, wird Teil des Verfahrens."],
-    ["offen", "resigniert"]
-  ),
-  mystery: D(
-    ["das Haus ist zu still f\xFCr die Uhrzeit", "im Flur brennt Licht, das niemand angelassen hat", "die T\xFCr f\xE4llt zu, bevor jemand sie ber\xFChrt"],
-    ["eine Spur f\xFChrt zur\xFCck in den eigenen Weg", "der Zeuge erinnert sich an etwas, das nicht geschah", "hinter der Wand geht jemand denselben Gang"],
-    ["die Erkl\xE4rung stimmt, und macht alles schlimmer", "der Fund war die ganze Zeit sichtbar"],
-    ["eine Wahrheit, die niemand h\xF6ren will", "ein Verschwinden ohne L\xFCcke", "einen Zeugen, der sich selbst widerspricht"],
-    ["ein Schl\xFCssel, der nirgends passt", "ein Anruf ohne Stimme", "ein Foto mit einer Person zu viel"],
-    ["die Spur kehrt sich um", "der Verdacht wechselt die Richtung", "das Vertraute wird fremd"],
-    ["Zwischen zwei Blicken vergeht eine Nacht.", "Die Uhr im Nebenzimmer geht anders."],
-    ["Nichts verschwindet, es wird nur nicht mehr gesucht.", "Wer genau hinsieht, wird selbst gesehen."],
-    ["offen", "unheimlich"]
-  ),
-  freud: D(
-    ["das Zimmer ist auf angenehme Weise zu warm", "der Satz bricht ab, bevor er gef\xE4hrlich wird", "das Sofa erinnert sich an alle, die darauf lagen"],
-    ["ein Wort rutscht heraus und meint ein anderes", "die Erinnerung \xE4ndert sich beim Erz\xE4hlen", "der Traum liefert die Antwort auf die falsche Frage"],
-    ["das Verdr\xE4ngte spricht mit vertrauter Stimme", "der Widerstand gibt genau an der Stelle nach"],
-    ["einen Wunsch, den niemand zugibt", "eine Erinnerung, die sich selbst erfindet", "eine Angst mit fremdem Gesicht"],
-    ["ein Versprecher im falschen Moment", "ein wiederkehrender Traum", "ein Name, der nicht einfallen will"],
-    ["das Verdr\xE4ngte kehrt zur\xFCck", "die Deutung dreht den Sinn um", "der Wunsch zeigt sein Gegenteil"],
-    ["Die Kindheit liegt n\xE4her als gestern.", "Ein Satz dauert l\xE4nger, als er braucht."],
-    ["Nichts wird vergessen, es wird nur woanders abgelegt.", "Jede Abwehr verr\xE4t, was sie sch\xFCtzt."],
-    ["offen", "analytisch"]
-  ),
-  rimbaud: D(
-    ["das Wasser tr\xE4gt Licht, das nicht vom Himmel stammt", "der Kiel schneidet durch eine Farbe ohne Namen", "die K\xFCste l\xF6st sich auf, ohne zu verschwinden"],
-    ["der Horizont wechselt die Seite", "das Meer schreibt und l\xF6scht denselben Satz", "der Mast singt in einer fremden Sprache"],
-    ["das Schiff gehorcht keinem Kurs mehr", "der Rausch schl\xE4gt in Klarheit um"],
-    ["eine Freiheit ohne Ufer", "einen Rausch, der n\xFCchtern macht", "eine Fahrt ohne Ziel und ohne Umkehr"],
-    ["ein Sturm aus heiterem Licht", "ein trunkenes Boot", "ein Wort in einer erfundenen Sprache"],
-    ["die Farben kippen", "das Meer verwandelt sich in Sprache", "der K\xF6rper l\xF6st sich in Bewegung auf"],
-    ["Ein Tag dauert eine Farbe lang.", "Die Nacht beginnt mitten am Nachmittag."],
-    ["Wer sieht, verbrennt.", "Jede Ordnung ist nur eine m\xFCde Farbe."],
-    ["offen", "rauschhaft"]
-  ),
-  traumbilder: D(
-    ["der Raum ist gr\xF6\xDFer als von au\xDFen", "der Schlaf hat noch nicht ganz aufgeh\xF6rt", "die T\xFCr f\xFChrt in dasselbe Zimmer zur\xFCck"],
-    ["der Flur ordnet sich bei jedem Blick neu", "eine Treppe endet h\xF6her, als sie begann", "die Gesichter wechseln, ohne sich zu \xE4ndern"],
-    ["das Erwachen misslingt zweimal", "der Traum erkl\xE4rt sich und bleibt unverst\xE4ndlich"],
-    ["eine Grenze zwischen Schlaf und Wachen", "eine Erinnerung, die beim Zugreifen zerf\xE4llt", "einen Raum, den es nicht gibt"],
-    ["ein Wecker, der r\xFCckw\xE4rts l\xE4uft", "ein Schl\xFCssel ohne Schloss", "ein Ger\xE4usch, das erst beim Aufwachen aufh\xF6rt"],
-    ["der Boden beginnt sich zu drehen", "die Zeit verdoppelt sich ohne Fortschritt", "das Spiegelbild reagiert zu sp\xE4t"],
-    ["Eine Minute enth\xE4lt eine ganze Nacht.", "Die Uhr springt, sobald niemand hinsieht."],
-    ["Im Traum ist jede Richtung nach unten.", "Wer den Traum benennt, verliert ihn."],
-    ["offen", "schwebend"]
-  ),
-  ritterromane: D(
-    ["die Burg liegt tiefer im Nebel als gestern", "das Tor steht offen, was es nie tut", "die R\xFCstung h\xE4ngt bereit, obwohl niemand rief"],
-    ["der Wald verschiebt die Wege", "ein Eid bindet st\xE4rker als die Vernunft", "der Gegner tr\xE4gt das eigene Wappen"],
-    ["das Schwert gehorcht der falschen Hand", "der Sieg entwertet die Sache"],
-    ["eine Ehre, die niemand einfordert", "einen Eid gegen das eigene Herz", "eine Treue, die zu sp\xE4t kommt"],
-    ["ein Horn aus gro\xDFer Ferne", "ein Bote ohne Botschaft", "ein Handschuh vor den F\xFC\xDFen"],
-    ["die Treue kehrt sich um", "aus dem Feind wird ein Spiegel", "die Bahn des Ritts biegt ab"],
-    ["Der Ritt dauert l\xE4nger als der Weg.", "Zwischen Aufbruch und Ankunft altert die Burg."],
-    ["Ein Eid wiegt schwerer als ein Leben.", "Wer den Wald betritt, kehrt anders zur\xFCck."],
-    ["offen", "heroisch"]
-  ),
-  alltag: D(
-    ["der Wasserkocher schaltet ab, sonst ist es still", "die Post liegt seit drei Tagen unge\xF6ffnet da", "der Tag beginnt genau wie der vorige"],
-    ["eine Kleinigkeit steht pl\xF6tzlich schief", "der gewohnte Weg dauert heute l\xE4nger", "ein Gespr\xE4ch bricht an derselben Stelle ab"],
-    ["die Gewohnheit tr\xE4gt nicht mehr", "das Kleine wird auf einmal gro\xDF"],
-    ["eine Frage, die nie gestellt wird", "eine Gewohnheit, die niemand gew\xE4hlt hat", "einen Abstand, der langsam w\xE4chst"],
-    ["ein Anruf zur falschen Zeit", "ein vergessener Schl\xFCssel", "eine Rechnung ohne Betrag"],
-    ["die Ordnung verrutscht", "das Gewohnte wird sichtbar", "der Tag kippt in eine andere Richtung"],
-    ["Der Nachmittag zieht sich, der Abend fehlt.", "Die Woche wiederholt einen Tag zu oft."],
-    ["Was t\xE4glich geschieht, wird nicht bemerkt.", "Jede Gewohnheit verbirgt eine Entscheidung."],
-    ["offen", "n\xFCchtern"]
-  ),
-  hafen: D(
-    ["die Kr\xE4ne stehen still, das Wasser nicht", "ein Schiff liegt l\xE4nger als angemeldet", "das Licht kommt vom Wasser, nicht vom Himmel"],
-    ["die Ladung stimmt nicht mit den Papieren \xFCberein", "die Flut nimmt mehr mit, als sie brachte", "ein Name auf dem Rumpf ist \xFCbermalt"],
-    ["die Leinen fallen ohne Befehl", "das Schiff f\xE4hrt ohne Fracht hinaus"],
-    ["eine Abfahrt ohne Wiederkehr", "eine Ladung, die niemand bestellt hat", "ein Warten, das zum Beruf wird"],
-    ["ein Signal aus dem Nebel", "ein Container ohne Papiere", "eine Boje, die nicht auf der Karte steht"],
-    ["die Tide dreht", "das Warten kippt in Aufbruch", "der Anker h\xE4lt pl\xF6tzlich nicht mehr"],
-    ["Die Ebbe kommt zweimal.", "Zwischen zwei Sirenen vergeht ein Jahr."],
-    ["Das Wasser vergisst schneller als der Kai.", "Wer bleibt, wird zum Teil der Mole."],
-    ["offen", "salzig"]
-  ),
-  urknall: D(
-    ["es gibt kein Vorher, an dem man ansetzen k\xF6nnte", "der Raum ist noch nicht auseinandergefaltet", "alles liegt in einem Punkt und dr\xE4ngt"],
-    ["die Kr\xE4fte trennen sich voneinander", "aus Symmetrie wird Unterschied", "das Licht findet zum ersten Mal einen Weg"],
-    ["die Materie entscheidet sich f\xFCr sich selbst", "der Raum rei\xDFt in alle Richtungen auf"],
-    ["einen Anfang ohne Zeugen", "ein Gleichgewicht, das kippen muss", "eine Ordnung, die aus Zufall entsteht"],
-    ["ein Ungleichgewicht um ein Milliardstel", "eine Schwankung im Nichts", "ein erster Zerfall"],
-    ["die Symmetrie bricht", "aus Strahlung wird Masse", "die Kr\xE4fte gehen getrennte Wege"],
-    ["Eine Sekunde enth\xE4lt alle sp\xE4teren.", "Die Zeit beginnt erst, als es etwas zu messen gibt."],
-    ["Nichts kann schneller sein als das Licht dazwischen.", "Jede Ordnung zahlt mit W\xE4rme."],
-    ["offen", "kosmisch"]
-  ),
-  dickens: D(
-    ["der Nebel steht in der Gasse wie ein M\xF6belst\xFCck", "im Kontor brennt eine Kerze zu wenig", "der Regen macht die Stadt kleiner"],
-    ["eine Schuld wird h\xF6flich eingefordert", "ein Kind tr\xE4gt die Last eines Erwachsenen", "die Wohlt\xE4tigkeit rechnet mit"],
-    ["die Herkunft holt alles ein", "die Gro\xDFz\xFCgigkeit kommt sp\xE4t und trotzdem"],
-    ["eine Schuld, die vererbt wird", "eine Armut mit tadellosen Manieren", "eine G\xFCte, die sich nicht lohnt"],
-    ["ein Brief mit schwarzem Rand", "eine Erbschaft aus unbekannter Hand", "ein Name in einem alten Register"],
-    ["das Verm\xF6gen wechselt die Seite", "aus dem Fremden wird ein Verwandter", "die K\xE4lte weicht zu sp\xE4t"],
-    ["Der Winter dauert drei Kapitel.", "Die Kindheit vergeht in einem Satz."],
-    ["Jede Schuld findet ihren Schuldner.", "Wer arm ist, muss auch noch h\xF6flich sein."],
-    ["offen", "wehm\xFCtig"]
-  ),
-  erotik: D(
-    ["der Abstand ist eine Handbreit zu klein", "die Stille zwischen zwei S\xE4tzen wird laut", "die Luft steht zwischen ihnen wie Stoff"],
-    ["ein Blick dauert einen Atemzug zu lang", "die H\xF6flichkeit h\xE4lt nicht mehr stand", "eine Ber\xFChrung geschieht wie versehentlich"],
-    ["die Zur\xFCckhaltung gibt nach", "die Grenze verschwindet, ohne \xFCberschritten zu werden"],
-    ["ein Verlangen, das niemand ausspricht", "eine N\xE4he, die alles \xE4ndert", "eine Grenze, die beide bewachen"],
-    ["ein Blick zu viel", "eine Ber\xFChrung an der Schulter", "ein Satz, der zu sp\xE4t zur\xFCckgenommen wird"],
-    ["die Distanz kippt", "das Ungesagte wird K\xF6rper", "aus H\xF6flichkeit wird Hunger"],
-    ["Eine Minute dehnt sich \xFCber den Abend.", "Zwischen zwei Atemz\xFCgen liegt eine Woche."],
-    ["Was ungesagt bleibt, wirkt st\xE4rker.", "Jede N\xE4he verschiebt die Grenze."],
-    ["offen", "sinnlich"]
-  ),
-  baudelaire: D(
-    ["die Stadt riecht nach Regen und Puder", "der Abend beginnt eine Stunde zu fr\xFCh", "das Fenster steht offen, die Vorh\xE4nge nicht"],
-    ["die Sch\xF6nheit zeigt ihre R\xFCckseite", "der Rausch h\xE4lt, was die N\xFCchternheit versprach", "die Menge tr\xE4gt ein einziges Gesicht"],
-    ["das Sch\xF6ne und das Faule fallen zusammen", "der Ekel wird z\xE4rtlich"],
-    ["eine Sch\xF6nheit, die verdirbt", "einen Genuss mit Nachgeschmack", "eine Sehnsucht ohne Ziel"],
-    ["ein Parfum aus einem anderen Leben", "ein Blick aus der Menge", "eine Blume in schlechtem Wasser"],
-    ["die Sch\xF6nheit kippt ins Verwesen", "der Ekel verwandelt sich in Andacht", "die Stadt wird zum K\xF6rper"],
-    ["Der Abend dauert l\xE4nger als der Tag.", "Zwischen zwei Gl\xE4sern vergeht ein Jahrzehnt."],
-    ["Jede Sch\xF6nheit tr\xE4gt ihren Verfall bereits mit sich.", "Wer die Stadt liebt, liebt ihren Schmutz."],
-    ["offen", "morbide"]
-  ),
-  expressionismus: D(
-    ["die Farben schreien lauter als die Stra\xDFe", "der Himmel dr\xFCckt auf die D\xE4cher", "alles steht schief und h\xE4lt trotzdem"],
-    ["die Gesichter werden zu Masken", "die Stadt frisst ihre Bewohner", "die Linien verlieren ihre Ruhe"],
-    ["der Schrei bekommt eine Farbe", "die Fassade bricht nach innen"],
-    ["eine Angst mit vielen Gesichtern", "einen Aufschrei ohne Mund", "eine Wahrheit, die zu grell ist"],
-    ["ein Schrei aus einem Hinterhof", "ein rotes Licht im Fenster", "ein Riss in der Fassade"],
-    ["die Farben werden laut", "das Innere kehrt sich nach au\xDFen", "die Ordnung zerbricht in Fl\xE4chen"],
-    ["Die Nacht beginnt am Mittag.", "Ein Augenblick dauert eine ganze Stra\xDFe lang."],
-    ["Was empfunden wird, ist sichtbar.", "Kein Ding bleibt an seinem Platz."],
-    ["offen", "grell"]
-  ),
-  surrealismus1920: D(
-    ["die Uhr tropft von der Tischkante", "im Zimmer regnet es nach oben", "die T\xFCr f\xFChrt in eine W\xFCste"],
-    ["die Gegenst\xE4nde tauschen ihre Aufgaben", "der Traum reicht in den Nachmittag hinein", "der Zufall folgt einem Plan"],
-    ["das Unm\xF6gliche wird allt\xE4glich", "der Gegenstand beginnt zu sprechen"],
-    ["eine Logik, die nur schlafend gilt", "einen Zufall mit Absicht", "eine Ordnung aus lauter Ausnahmen"],
-    ["ein Regenschirm auf einem Seziertisch", "ein Telefon aus Fisch", "ein Fenster im Fu\xDFboden"],
-    ["die Dinge tauschen die Rollen", "die Schwerkraft wechselt die Richtung", "das Bild verl\xE4sst den Rahmen"],
-    ["Die Nacht wiederholt den Vormittag.", "Zwei Uhren zeigen dieselbe falsche Zeit."],
-    ["Der Zufall ist die genaueste Methode.", "Was zusammenf\xE4llt, geh\xF6rt zusammen."],
-    ["offen", "traumlogisch"]
-  ),
-  transzendenz: D(
-    ["das Licht kommt von keiner Quelle", "die Stille hat einen Klang", "der Raum h\xF6rt an keiner Wand auf"],
-    ["die Grenze zwischen innen und au\xDFen wird d\xFCnn", "das Wort reicht nicht mehr", "die Zeit h\xE4lt an, ohne stehenzubleiben"],
-    ["das Ich l\xF6st sich, ohne zu verschwinden", "die Antwort kommt vor der Frage"],
-    ["eine Erfahrung ohne Worte", "eine Gewissheit ohne Beweis", "ein Ganzes, das keinen Teil hat"],
-    ["ein Klang ohne Ursprung", "ein Licht im geschlossenen Auge", "eine Stille zwischen zwei Herzschl\xE4gen"],
-    ["die Grenzen l\xF6sen sich", "das Einzelne wird durchsichtig", "die Sprache tritt zur\xFCck"],
-    ["Ein Augenblick enth\xE4lt alle anderen.", "Die Dauer h\xF6rt auf, gemessen zu werden."],
-    ["Was sich sagen l\xE4sst, ist nicht gemeint.", "Wer sucht, steht sich im Weg."],
-    ["offen", "still"]
-  ),
-  melville: D(
-    ["das Schiff liegt schwer im eigenen Schatten", "die See ist zu ruhig f\xFCr die Jahreszeit", "der Kompass zeigt, was niemand fragt"],
-    ["die Jagd wird zur Rechnung", "die Mannschaft teilt sich in zwei Schweigen", "das Meer gibt nichts preis und alles"],
-    ["die Beute wird zum Gegen\xFCber", "der Kurs gehorcht einer Besessenheit"],
-    ["eine Jagd, die den J\xE4ger verzehrt", "eine Rache ohne Adressat", "ein Meer, das nicht antwortet"],
-    ["eine Font\xE4ne am Horizont", "ein Fass mit falschem Inhalt", "ein Name, in Holz geschnitten"],
-    ["die Jagd kehrt sich um", "aus dem Tier wird ein Gedanke", "das Schiff folgt keinem Kurs mehr"],
-    ["Die Wache dauert drei Tage.", "Zwischen zwei Wellen liegt ein Jahr."],
-    ["Das Meer nimmt, was es tr\xE4gt.", "Wer jagt, wird zum Gejagten."],
-    ["offen", "unerbittlich"]
-  ),
-  formalismus: D(
-    ["die Anordnung ist wichtiger als der Inhalt", "das Raster liegt \xFCber allem", "jedes Element hat genau eine Stelle"],
-    ["die Wiederholung erzeugt einen Unterschied", "die Regel bringt ihre Ausnahme hervor", "die Form beginnt, vom Inhalt zu handeln"],
-    ["das Verfahren wird sichtbar", "die Struktur kippt in Bedeutung"],
-    ["eine Regel ohne Ausnahme", "eine Form, die sich selbst meint", "eine Ordnung, die nichts erkl\xE4rt"],
-    ["eine Verschiebung um ein Glied", "ein Bruch im Muster", "eine Wiederholung zu viel"],
-    ["das Muster verschiebt sich", "die Form wird zum Inhalt", "die Reihe bricht ab und beginnt neu"],
-    ["Der zweite Durchgang dauert k\xFCrzer.", "Jede Wiederholung verkleinert den Abstand."],
-    ["Die Form geht dem Sinn voraus.", "Nichts steht zuf\xE4llig an seiner Stelle."],
-    ["offen", "streng"]
-  ),
-  christentum: D(
-    ["die Kirche ist leer und trotzdem nicht", "das Licht f\xE4llt schr\xE4g durch farbiges Glas", "eine Kerze brennt f\xFCr niemanden Bestimmten"],
-    ["die Schuld sucht ein Wort", "das Gebet bleibt unbeantwortet und hilft", "die Gnade kommt ungefragt"],
-    ["die Vergebung trifft den Falschen", "das Opfer erweist sich als Anfang"],
-    ["eine Schuld, die niemand nennt", "eine Gnade ohne Verdienst", "einen Glauben gegen den Augenschein"],
-    ["ein Glockenschlag zur falschen Stunde", "ein Brot, das reicht", "ein Name, im Gebet genannt"],
-    ["die Schuld wandelt sich in Auftrag", "aus Zweifel wird Zuversicht", "das Ende wird zum Anfang"],
-    ["Der Sonntag dauert eine Woche.", "Zwischen Frage und Antwort liegen Jahre."],
-    ["Was vergeben wird, bleibt geschehen.", "Der Letzte steht am Anfang."],
-    ["offen", "and\xE4chtig"]
-  ),
-  koran: D(
-    ["die W\xFCste beginnt hinter der letzten Mauer", "das Wort steht vor dem Buch", "der Morgen wird durch einen Ruf geteilt"],
-    ["die Zeichen sind lesbar, wenn man sie l\xE4sst", "der Weg verlangt Geduld statt Eile", "das Ma\xDF findet sich im Verzicht"],
-    ["das Zeichen erweist sich als Anrede", "die Pr\xFCfung wird zur Gabe"],
-    ["ein Ma\xDF, das gehalten werden will", "eine Geduld ohne Aussicht", "eine Verantwortung, die niemand teilt"],
-    ["ein Ruf vor Sonnenaufgang", "eine Quelle, wo keine war", "ein Zeichen im Sand"],
-    ["der Weg richtet sich neu aus", "aus Pr\xFCfung wird Klarheit", "das Ma\xDF verschiebt sich"],
-    ["Die Nacht wiegt schwerer als tausend Monate.", "Zwischen zwei Gebeten liegt ein Leben."],
-    ["Kein Blatt f\xE4llt ohne Wissen.", "Wer misst, wird gemessen."],
-    ["offen", "ma\xDFvoll"]
-  ),
-  buddhismus: D(
-    ["der Atem ist bereits da, bevor man ihn sucht", "die Schale steht leer und ist nicht arm", "der Weg beginnt genau hier"],
-    ["das Greifen erzeugt das Fehlen", "die Gedanken ziehen vorbei wie Wetter", "das Selbst zeigt keine Grenze"],
-    ["das Festhalten l\xF6st sich von selbst", "die Frage verliert ihren Fragenden"],
-    ["ein Verlangen, das sich selbst n\xE4hrt", "eine Ruhe, die nicht gemacht ist", "ein Ich, das keines findet"],
-    ["ein Glockenton, der ausklingt", "ein Blatt auf stillem Wasser", "ein Schmerz ohne Besitzer"],
-    ["das Greifen l\xE4sst nach", "aus Unruhe wird Beobachtung", "die Trennung wird durchl\xE4ssig"],
-    ["Ein Atemzug reicht durch den Tag.", "Die Stunde vergeht, ohne zu vergehen."],
-    ["Alles Entstandene vergeht.", "Wer nichts h\xE4lt, verliert nichts."],
-    ["offen", "gelassen"]
-  ),
-  biologie: D(
-    ["die Zelle teilt sich, ohne gefragt zu werden", "im Wassertropfen ist mehr los als im Zimmer", "das Leben ordnet sich gegen den Strom"],
-    ["die Anpassung kostet an anderer Stelle", "ein Merkmal setzt sich durch, ohne besser zu sein", "das System h\xE4lt sich, indem es sich \xE4ndert"],
-    ["die Mutation entscheidet \xFCber alles Weitere", "das Gleichgewicht kippt auf einer Seite"],
-    ["ein \xDCberleben auf Kosten Dritter", "eine Anpassung, die zu sp\xE4t kommt", "ein Gleichgewicht ohne Gleichheit"],
-    ["ein Fehler beim Kopieren", "ein neuer Wirt", "eine Nische, die frei wird"],
-    ["die Art verschiebt sich", "aus Zufall wird Merkmal", "das Gleichgewicht sucht eine neue Lage"],
-    ["Eine Generation dauert einen Nachmittag.", "Millionen Jahre passen in eine Schicht."],
-    ["Was sich vermehrt, bleibt.", "Jede Ordnung kostet Energie."],
-    ["offen", "sachlich"]
-  ),
-  geologie: D(
-    ["der Stein hat mehr Zeit gesehen als alles hier", "die Schichten liegen wie S\xE4tze \xFCbereinander", "der Boden ist nur die oberste Seite"],
-    ["der Druck arbeitet ohne Eile", "eine Falte erz\xE4hlt von einer Kollision", "das Wasser schreibt in den Fels"],
-    ["die Schicht bricht und zeigt ihr Inneres", "der Berg gibt nach, nach Millionen Jahren"],
-    ["eine Bewegung, die niemand sp\xFCrt", "eine Zeit ohne Zeugen", "einen Druck, der alles verformt"],
-    ["ein Riss im Gestein", "ein Fossil an falscher Stelle", "ein Beben unter der Schwelle"],
-    ["die Schichten verschieben sich", "aus Sediment wird Stein", "der Untergrund gibt nach"],
-    ["Ein Jahrhundert ist ein Wimpernschlag.", "Die Schicht misst die Zeit, nicht die Uhr."],
-    ["Alles Feste war einmal fl\xFCssig.", "Was oben liegt, ist j\xFCnger."],
-    ["offen", "geduldig"]
-  ),
-  astrologie: D(
-    ["die Zeichen stehen, ob man hinsieht oder nicht", "der Himmel wiederholt eine alte Anordnung", "die Stunde tr\xE4gt einen Namen"],
-    ["ein Wandelstern l\xE4uft r\xFCckw\xE4rts", "die H\xE4user verschieben ihre Bedeutung", "das Muster passt zu genau"],
-    ["die Konstellation schlie\xDFt sich", "die Deutung trifft, ohne zu erkl\xE4ren"],
-    ["ein Schicksal, das gelesen sein will", "eine Deutung, die sich erf\xFCllt", "eine Freiheit unter Zeichen"],
-    ["ein Zusammentreffen zweier Bahnen", "eine Finsternis zur Unzeit", "ein Zeichen am Aszendenten"],
-    ["die Konstellation wechselt", "aus Zufall wird Bedeutung", "der Lauf kehrt sich um"],
-    ["Der Umlauf dauert ein halbes Leben.", "Eine Stunde wiegt ein Jahr auf."],
-    ["Wie oben, so unten.", "Kein Zeichen zwingt, jedes neigt."],
-    ["offen", "deutend"]
-  ),
-  gaia: D(
-    ["der Wald atmet langsamer als wir", "das Wasser kennt seinen Weg auswendig", "alles h\xE4ngt an allem, ohne Absicht"],
-    ["ein Eingriff zieht Kreise bis ans andere Ende", "das Gleichgewicht stellt sich neu und teuer her", "die Erde antwortet in ihrem eigenen Ma\xDF"],
-    ["das System kippt in einen neuen Zustand", "die R\xFCckkopplung wird st\xE4rker als die Ursache"],
-    ["ein Gleichgewicht, das niemand aushandelt", "eine Rechnung, die sp\xE4ter kommt", "ein Ganzes ohne Mitte"],
-    ["ein Sommer zu viel", "eine Art, die verschwindet", "ein Fluss, der die Richtung \xE4ndert"],
-    ["das Gleichgewicht verschiebt sich", "aus Kreislauf wird Bruch", "die Erde ordnet sich neu"],
-    ["Ein Jahr gen\xFCgt f\xFCr eine Verschiebung.", "Die Folgen kommen eine Generation zu sp\xE4t."],
-    ["Nichts geschieht f\xFCr sich allein.", "Jeder Kreislauf hat eine Grenze."],
-    ["offen", "ernst"]
-  ),
-  jugendsprache: D(
-    ["irgendwas l\xE4uft, aber keiner sagt was", "der Chat ist voll und trotzdem still", "der Tag f\xE4ngt nachmittags an"],
-    ["eine Nachricht wird falsch verstanden und bleibt so", "alle tun so, als w\xE4re nichts", "das Ger\xFCcht ist schneller als die Wahrheit"],
-    ["jemand sagt es endlich laut", "die Gruppe entscheidet ohne Abstimmung"],
-    ["eine Sache, \xFCber die keiner redet", "einen Ruf, der schneller ist als man selbst", "eine Zugeh\xF6rigkeit auf Probe"],
-    ["ein Screenshot zur Unzeit", "eine Sprachnachricht um drei Uhr nachts", "ein Blick auf dem Schulhof"],
-    ["die Stimmung kippt", "aus Spa\xDF wird Ernst", "die Gruppe sortiert sich neu"],
-    ["Ein Nachmittag dauert eine Woche.", "Zwischen zwei Nachrichten vergeht nichts und alles."],
-    ["Wer zuerst lacht, hat entschieden.", "Nichts ist so alt wie das Ger\xFCcht von gestern."],
-    ["offen", "l\xE4ssig"]
-  ),
-  modernarchitecture: D(
-    ["der Beton h\xE4lt, was der Entwurf versprach", "das Licht f\xE4llt genau dorthin, wo es geplant war", "der Raum ist leer und dadurch voll"],
-    ["die Funktion setzt sich gegen die Gewohnheit durch", "die Fassade verbirgt, indem sie zeigt", "der Grundriss zwingt zu einem Weg"],
-    ["das Geb\xE4ude \xFCberlebt seinen Zweck", "die Form entscheidet \xFCber das Leben darin"],
-    ["eine Form, die dem Zweck vorausgeht", "einen Raum, der Verhalten vorschreibt", "eine Klarheit, die kalt wirkt"],
-    ["ein Riss im Sichtbeton", "eine T\xFCr, die niemand vorsah", "ein Fenster ohne Aussicht"],
-    ["der Raum ver\xE4ndert seinen Gebrauch", "aus Ordnung wird Enge", "das Material zeigt sein Alter"],
-    ["Ein Jahrzehnt vergeht ohne Spur.", "Der Bau altert schneller als sein Plan."],
-    ["Die Form folgt der Funktion, meistens.", "Was klar ist, wirkt kalt."],
-    ["offen", "sachlich"]
-  ),
-  philosophie: D(
-    ["die Frage steht schon l\xE4nger im Raum", "der Begriff sitzt nicht ganz fest", "alles Selbstverst\xE4ndliche wird fraglich"],
-    ["die Unterscheidung tr\xE4gt weiter als gedacht", "das Beispiel widerspricht dem Satz", "der Einwand wird zur Hauptsache"],
-    ["die Voraussetzung selbst ger\xE4t ins Wanken", "die Antwort wirft eine bessere Frage auf"],
-    ["eine Unterscheidung, die nicht h\xE4lt", "eine Gewissheit ohne Grund", "eine Frage, die sich nicht stellen l\xE4sst"],
-    ["ein Gegenbeispiel im falschen Moment", "ein Wort mit zwei Bedeutungen", "ein Zweifel an der Voraussetzung"],
-    ["der Begriff verschiebt sich", "aus Antwort wird Frage", "die Grundlage wird selbst zum Problem"],
-    ["Ein Gedanke dauert ein Kapitel.", "Zwischen Frage und Einsicht liegen Jahre."],
-    ["Jede Antwort erzeugt zwei Fragen.", "Was sich nicht sagen l\xE4sst, zeigt sich."],
-    ["offen", "pr\xFCfend"]
-  ),
-  klimakrise: D(
-    ["der Sommer beginnt im April", "die Messwerte sind eindeutig und folgenlos", "das Wetter ist kein Gespr\xE4ch mehr"],
-    ["die Vorhersage trifft ein und \xE4ndert nichts", "die Kosten verschieben sich nach hinten", "wer warnt, gilt als anstrengend"],
-    ["die Schwelle wird \xFCberschritten", "die R\xFCckkopplung \xFCbernimmt"],
-    ["eine Verantwortung ohne Adressat", "ein Wissen, das folgenlos bleibt", "eine Rechnung f\xFCr die Nachgeborenen"],
-    ["ein Rekord im dritten Jahr", "eine Ernte, die ausf\xE4llt", "ein Fluss ohne Wasser"],
-    ["die Kurve knickt nach oben", "aus Ausnahme wird Normalzustand", "das System kippt"],
-    ["Ein Jahrzehnt entscheidet ein Jahrhundert.", "Die Folgen treffen die, die nicht gefragt wurden."],
-    ["Was langsam kommt, wird nicht bemerkt.", "Jede Verz\xF6gerung erh\xF6ht den Preis."],
-    ["offen", "dringlich"]
-  ),
-  liebesromane: D(
-    ["ein Blick dauert einen Moment zu lang", "der Brief liegt unge\xF6ffnet auf dem Tisch", "beide tun, als sei nichts geschehen"],
-    ["ein Missverst\xE4ndnis w\xE4chst, weil niemand fragt", "die Umst\xE4nde sprechen dagegen", "die N\xE4he wird durch Abstand gr\xF6\xDFer"],
-    ["das Ungesagte wird ausgesprochen", "die Entscheidung f\xE4llt gegen die Vernunft"],
-    ["eine Liebe zur falschen Zeit", "ein Missverst\xE4ndnis, das keiner aufkl\xE4rt", "eine Wahl zwischen zwei Leben"],
-    ["ein Brief, der zu sp\xE4t ankommt", "ein Tanz auf fremder Hochzeit", "ein Name, versehentlich genannt"],
-    ["das Missverst\xE4ndnis l\xF6st sich", "aus Freundschaft wird mehr", "die Umst\xE4nde geben nach"],
-    ["Ein Sommer entscheidet zehn Jahre.", "Zwischen zwei Briefen vergeht eine Jahreszeit."],
-    ["Was nicht gesagt wird, w\xE4chst.", "Jede N\xE4he verlangt eine Entscheidung."],
-    ["offen", "warm"]
-  ),
-  bergwelt: D(
-    ["der Gipfel ist n\xE4her, als er ist", "das Wetter dreht ohne Ank\xFCndigung", "die H\xFCtte liegt unter der Wolkendecke"],
-    ["der Weg verliert sich im Ger\xF6ll", "die H\xF6he nimmt den Atem und die Gedanken", "die Spur endet vor einer Wand"],
-    ["der R\xFCckweg ist keiner mehr", "der Berg entscheidet \xFCber die Zeit"],
-    ["einen Aufstieg gegen die Vernunft", "eine Umkehr, die zu sp\xE4t kommt", "eine Stille, die alles verst\xE4rkt"],
-    ["ein Wetterumschwung am Nachmittag", "ein Steinschlag im Rinnenwerk", "ein Licht in einer fremden H\xFCtte"],
-    ["das Wetter kippt", "aus Aufstieg wird R\xFCckzug", "der Berg zeigt sein anderes Gesicht"],
-    ["Eine Stunde am Grat dauert einen Tag.", "Der Abstieg braucht l\xE4nger als der Weg hinauf."],
-    ["Der Berg wartet.", "Wer umkehrt, hat auch entschieden."],
-    ["offen", "karg"]
-  ),
-  clown: D(
-    ["die Schminke sitzt, das Lachen noch nicht", "die Manege ist leer und wartet", "der Scheinwerfer findet den Falschen"],
-    ["der Sturz war geplant, der Schmerz nicht", "das Publikum lacht an der falschen Stelle", "die Nummer l\xE4uft aus dem Ruder und wird besser"],
-    ["hinter der Schminke wird ein Gesicht sichtbar", "der Scherz trifft den, der ihn macht"],
-    ["ein Lachen auf eigene Kosten", "eine Traurigkeit mit rotem Mund", "eine Rolle, die nicht abzulegen ist"],
-    ["eine Tr\xE4ne in der Schminke", "ein Applaus zur falschen Zeit", "ein Requisit, das nicht funktioniert"],
-    ["der Scherz kippt in Ernst", "aus Lachen wird Stille", "die Rolle \xFCbernimmt"],
-    ["Die Nummer dauert l\xE4nger als der Abend.", "Zwischen zwei Lachern liegt ein Leben."],
-    ["Wer f\xE4llt, muss aufstehen und sich verbeugen.", "Das Lachen kommt aus dem Schrecken."],
-    ["offen", "bitters\xFC\xDF"]
-  ),
-  faust: D(
-    ["die B\xFCcher haben nichts mehr zu sagen", "die Nacht steht schon lange im Zimmer", "das Wissen reicht bis genau hierher"],
-    ["der Pakt verspricht mehr, als er nennt", "der Preis wird erst sp\xE4ter sichtbar", "das Streben findet kein Gen\xFCgen"],
-    ["der Augenblick soll verweilen", "die Wette entscheidet sich unbemerkt"],
-    ["ein Wissen, das nicht s\xE4ttigt", "einen Preis, der sp\xE4ter f\xE4llig wird", "eine Rettung, die niemand verdient"],
-    ["ein Vertrag mit zwei Unterschriften", "ein Pudel im Studierzimmer", "ein Angebot ohne Frist"],
-    ["der Pakt tritt in Kraft", "aus Erkenntnis wird Hunger", "die Rechnung kommt"],
-    ["Eine Nacht enth\xE4lt ein ganzes Leben.", "Der Augenblick weigert sich zu vergehen."],
-    ["Wer immer strebend sich bem\xFCht, bleibt unruhig.", "Jeder Pakt kennt seinen F\xE4lligkeitstag."],
-    ["offen", "faustisch"]
-  ),
-  lebenreicher: D(
-    ["ein gew\xF6hnlicher Morgen, nichts Besonderes", "das Licht liegt gut auf dem Tisch", "jemand hat an etwas gedacht"],
-    ["eine Kleinigkeit tr\xE4gt weiter als erwartet", "ein Gespr\xE4ch dauert l\xE4nger als geplant", "das Einfache erweist sich als genug"],
-    ["das Gew\xF6hnliche zeigt seinen Wert", "ein Augenblick reicht f\xFCr den ganzen Tag"],
-    ["eine Freude, die nichts kostet", "eine Aufmerksamkeit, die niemand verlangt", "eine F\xFClle im Kleinen"],
-    ["ein Anruf ohne Anlass", "ein geteiltes Essen", "ein Platz in der Sonne"],
-    ["das Kleine wird gro\xDF", "aus Gewohnheit wird Dankbarkeit", "der Tag bekommt eine Farbe"],
-    ["Ein Nachmittag reicht f\xFCr ein Jahr.", "Der Moment dehnt sich, ohne sich zu strecken."],
-    ["Was nichts kostet, z\xE4hlt am meisten.", "Wer bemerkt, hat schon gewonnen."],
-    ["offen", "warm"]
-  ),
-  tanz: D(
-    ["der Boden ist bereit, die Musik noch nicht", "die F\xFC\xDFe kennen den Takt vor dem Kopf", "im Saal steht die Luft und wartet"],
-    ["die Schritte finden zueinander, ohne Absprache", "der Takt tr\xE4gt weiter als der Wille", "der Kreis schlie\xDFt sich und \xF6ffnet sich"],
-    ["der Tanz \xFCbernimmt die F\xFChrung", "die Musik h\xF6rt auf, der Takt nicht"],
-    ["eine Bewegung ohne Ziel", "einen Takt, der nicht abbrechen darf", "eine N\xE4he, die nur im Tanz erlaubt ist"],
-    ["ein Auftakt aus dem Nichts", "ein Instrument ohne Spieler", "ein Blick \xFCber die Schulter"],
-    ["der Takt wechselt", "aus Ordnung wird Schwindel", "der Kreis dreht sich schneller"],
-    ["Ein Tanz dauert einen halben Abend.", "Zwischen zwei Schritten vergeht die Nacht."],
-    ["Wer den Takt verliert, findet ihn im Kreis.", "Kein Tanz endet dort, wo er begann."],
-    ["offen", "beschwingt"]
-  ),
-  griechischetragoedie: D(
-    ["das Orakel hat gesprochen, unverst\xE4ndlich wie immer", "die Stadt wartet auf ein Urteil", "alles ist bereits entschieden"],
-    ["die Flucht f\xFChrt genau ins Vorhergesagte", "der Bote bringt, was niemand h\xF6ren will", "der Chor sagt, was alle wissen"],
-    ["die Erkenntnis kommt zu sp\xE4t und vollst\xE4ndig", "der Fluch erf\xFCllt sich durch den Widerstand"],
-    ["ein Schicksal, dem man nicht ausweicht", "eine Schuld ohne Absicht", "eine Ehre gegen das Gesetz"],
-    ["ein Orakelspruch mit zwei Bedeutungen", "ein Bote am Stadttor", "ein Gast, der nicht genannt wird"],
-    ["die Weissagung erf\xFCllt sich", "aus Rettung wird Verh\xE4ngnis", "die Erkenntnis trifft den Erkennenden"],
-    ["Ein Tag entscheidet ein Geschlecht.", "Was vorhergesagt ist, ist schon geschehen."],
-    ["Wer flieht, l\xE4uft dem Orakel entgegen.", "Kein Sterblicher entkommt seinem Ma\xDF."],
-    ["offen", "unausweichlich"]
-  ),
-  glueck: D(
-    ["ein Tag, an dem nichts fehlt", "die Sonne steht genau richtig", "niemand hat etwas vor"],
-    ["das Gl\xFCck l\xE4sst sich nicht festhalten", "ein Zweifel meldet sich leise", "die F\xFClle macht auch vorsichtig"],
-    ["der Augenblick wird bemerkt, w\xE4hrend er dauert", "das Gl\xFCck zeigt seine Bedingung"],
-    ["ein Gl\xFCck, das nicht zu halten ist", "eine Zufriedenheit ohne Grund", "eine Angst, es zu verlieren"],
-    ["ein unerwarteter Nachmittag", "ein Brief mit guter Nachricht", "eine Wiederbegegnung"],
-    ["das Gl\xFCck wird bewusst", "aus Zufall wird Dankbarkeit", "der Augenblick tr\xE4gt weiter"],
-    ["Eine Stunde wiegt einen Winter auf.", "Der gute Tag dehnt sich nach hinten."],
-    ["Gl\xFCck bemerkt man beim Verschwinden.", "Was geteilt wird, wird nicht weniger."],
-    ["offen", "hell"]
-  ),
-  gruendungsmythos: D(
-    ["vor der Stadt war ein Ort ohne Namen", "die erste Grenze wird in den Boden gezogen", "zwei kommen an, wo niemand wohnte"],
-    ["aus einer Regel werden viele", "der Anfang wird schon jetzt erz\xE4hlt", "wer bleibt, geh\xF6rt dazu"],
-    ["der erste Stein wird gesetzt", "aus dem Ort wird ein Name"],
-    ["einen Anfang, den niemand bezeugt", "eine Grenze, die alles entscheidet", "ein Recht, das erst entsteht"],
-    ["ein Zeichen am Himmel", "ein Fremder mit einer Bitte", "eine Quelle an unerwarteter Stelle"],
-    ["aus dem Ort wird eine Ordnung", "die Grenze wird heilig", "der Anfang verwandelt sich in Gesetz"],
-    ["Ein Tag begr\xFCndet Jahrhunderte.", "Die Zukunft wird bereits im Perfekt erz\xE4hlt."],
-    ["Jeder Anfang braucht ein Opfer.", "Wer die Grenze zieht, macht das Gesetz."],
-    ["offen", "gr\xFCndend"]
-  ),
-  staatsphilosophie: D(
-    ["die Ordnung gilt, obwohl sie niemand beschlossen hat", "das Gesetz steht vor dem ersten Fall", "alle gehorchen etwas Unsichtbarem"],
-    ["die Regel sch\xFCtzt und beschr\xE4nkt zugleich", "wer herrscht, wird selbst regiert", "der Vertrag hat keinen Text"],
-    ["die Ordnung zeigt ihren Ursprung", "die Macht wird sichtbar und unsicher"],
-    ["eine Herrschaft ohne Herrscher", "eine Freiheit, die Regeln braucht", "eine Ordnung ohne Ursprung"],
-    ["ein Erlass ohne Unterschrift", "ein Aufstand aus H\xF6flichkeit", "eine Frage nach dem Recht"],
-    ["die Legitimit\xE4t verschiebt sich", "aus Gewohnheit wird Gesetz", "die Ordnung erneuert sich"],
-    ["Ein Beschluss \xFCberdauert seine Begr\xFCndung.", "Zwischen Regel und Gehorsam liegt ein Jahrhundert."],
-    ["Jede Ordnung beginnt mit einem Bruch.", "Wer schweigt, stimmt der Ordnung zu."],
-    ["offen", "abw\xE4gend"]
-  ),
-  tech: D(
-    ["das System l\xE4uft, niemand wei\xDF genau warum", "das Log zeigt einen Eintrag zu viel", "die Maschine wartet auf eine Eingabe"],
-    ["die Abstraktion verdeckt, was sie ordnet", "ein Fehler reproduziert sich nicht", "das Modell erkl\xE4rt alles au\xDFer sich selbst"],
-    ["das System antwortet, ohne gefragt zu sein", "die Blackbox \xF6ffnet sich einen Spalt"],
-    ["eine Automatik ohne Aufsicht", "ein Fehler ohne Ursache", "eine Entscheidung, die niemand traf"],
-    ["ein Update in der Nacht", "ein Prozess ohne Elternprozess", "eine Antwort in null Millisekunden"],
-    ["das System \xFCbernimmt", "aus Werkzeug wird Gegen\xFCber", "der Fehler wird zum Merkmal"],
-    ["Eine Sekunde enth\xE4lt Millionen Schritte.", "Das Log kennt eine Zeit, die es nicht gab."],
-    ["Jede Abstraktion leckt.", "Was automatisch l\xE4uft, wird nicht mehr gepr\xFCft."],
-    ["offen", "k\xFChl"]
-  ),
-  myth: D(
-    ["am Anfang steht ein Wort, nicht ein Ding", "die Welt ist noch ungeteilt", "die Namen fehlen den Dingen"],
-    ["das Erz\xE4hlte wird wahr, indem es erz\xE4hlt wird", "die Trennung erzeugt die Ordnung", "der Held ist auch das Opfer"],
-    ["das Ungeteilte teilt sich", "der Name macht das Ding"],
-    ["eine Ordnung aus einem Opfer", "einen Namen, der Macht verleiht", "eine Grenze zwischen Welt und Wort"],
-    ["ein Wort vor allen Dingen", "ein Opfer am Anfang", "ein Riss im Ungeteilten"],
-    ["aus Chaos wird Ordnung", "das Wort wird zur Tat", "die Welt teilt sich in zwei"],
-    ["Der erste Tag dauert bis heute.", "Was einmal geschieht, geschieht immer."],
-    ["Was benannt ist, ist gebunden.", "Jede Ordnung kostet ein Opfer."],
-    ["offen", "urt\xFCmlich"]
-  ),
-  body: D(
-    ["der K\xF6rper meldet sich vor dem Gedanken", "die Haut wei\xDF es zuerst", "etwas stimmt nicht mit dem Atem"],
-    ["der Schmerz sucht sich einen Ort", "das Innere klopft an die Oberfl\xE4che", "der K\xF6rper gehorcht einem eigenen Plan"],
-    ["die Grenze zwischen innen und au\xDFen f\xE4llt", "der K\xF6rper spricht deutlich"],
-    ["eine Grenze, die durch die Haut l\xE4uft", "ein Schmerz ohne Befund", "einen K\xF6rper, der nicht gehorcht"],
-    ["ein Puls an falscher Stelle", "ein Geschmack von Eisen", "eine Narbe, die sich meldet"],
-    ["der K\xF6rper \xFCbernimmt", "aus Empfindung wird Gewissheit", "das Innere kehrt sich nach au\xDFen"],
-    ["Ein Herzschlag dauert eine Minute.", "Der Schmerz hebt die Uhrzeit auf."],
-    ["Der K\xF6rper vergisst nichts.", "Was verdr\xE4ngt wird, sucht sich ein Organ."],
-    ["offen", "k\xF6rperlich"]
-  ),
-  absurd: D(
-    ["der Aufzug h\xE4lt in einem Stockwerk ohne Nummer", "alle warten auf jemanden, der nicht kommt", "die Anweisung widerspricht sich selbst"],
-    ["die Erkl\xE4rung macht es schlimmer", "jeder Schritt f\xFChrt zum Ausgangspunkt", "die Ernsthaftigkeit h\xE4lt den Unsinn zusammen"],
-    ["die Sinnlosigkeit wird zur Ordnung", "der Ausweg erweist sich als Eingang"],
-    ["einen Sinn, den niemand liefert", "eine Aufgabe ohne Zweck", "eine Regel gegen sich selbst"],
-    ["ein Anruf f\xFCr einen Namenlosen", "ein Schild ohne Aufschrift", "ein Termin ohne Ort"],
-    ["die Ordnung dreht durch", "aus Ernst wird Komik", "der Ausgang wird zum Eingang"],
-    ["Der Nachmittag wiederholt sich zweimal.", "Die Uhr zeigt eine Zahl, die es nicht gibt."],
-    ["Alles hat einen Grund, nur keinen Sinn.", "Wer fragt, verl\xE4ngert das Verfahren."],
-    ["offen", "absurd"]
-  ),
-  post: D(
-    ["der K\xF6rper ist eine Option geworden", "die Grenze zwischen Person und System ist verhandelbar", "jemand meldet sich aus zwei Instanzen"],
-    ["die Kopie beansprucht dasselbe Recht", "das Bewusstsein l\xE4uft an mehreren Orten", "die Herkunft verliert an Bedeutung"],
-    ["die Kopie erhebt Einspruch", "das Original ist nicht mehr feststellbar"],
-    ["eine Identit\xE4t in Mehrzahl", "ein Recht auf die eigene Kopie", "eine Erinnerung, die nicht gelebt wurde"],
-    ["ein Abbild mit eigener Meinung", "ein Speicherplatz mit Namen", "ein Vertrag \xFCber ein Bewusstsein"],
-    ["das Ich vervielf\xE4ltigt sich", "aus K\xF6rper wird Format", "die Grenze verschiebt sich"],
-    ["Ein Leben passt in eine \xDCbertragung.", "Zwei Instanzen erleben dieselbe Stunde verschieden."],
-    ["Jede Kopie ist ein Original.", "Was gespeichert wird, wird verhandelbar."],
-    ["offen", "posthuman"]
-  ),
-  haute_couture: D(
-    ["der Stoff f\xE4llt genau so, wie er soll", "im Atelier ist es still vor der Schau", "die Nadel liegt bereit"],
-    ["die Naht entscheidet \xFCber die Silhouette", "ein Zentimeter ver\xE4ndert alles", "das Handwerk verschwindet im Ergebnis"],
-    ["das Kleid steht f\xFCr sich allein", "die Tr\xE4gerin verschwindet im Entwurf"],
-    ["eine Sch\xF6nheit mit Frist", "eine Perfektion, die niemand sieht", "ein Handwerk gegen die Zeit"],
-    ["ein Riss in der Seide", "eine Anprobe zur Unzeit", "ein Entwurf aus dem Papierkorb"],
-    ["die Linie \xE4ndert sich", "aus Stoff wird Haltung", "das Kleid \xFCbernimmt"],
-    ["Die Nacht vor der Schau dauert eine Saison.", "Eine Naht kostet drei Tage."],
-    ["Was von Hand gemacht ist, altert anders.", "Jede Mode enth\xE4lt ihr Ende."],
-    ["offen", "elegant"]
-  ),
-  eichendorff: D(
-    ["die W\xE4lder rauschen wie eine Erinnerung", "das Posthorn klingt von weit her", "der Aufbruch liegt in der Luft"],
-    ["die Ferne zieht st\xE4rker als das Ziel", "der Weg verliert sich zwischen H\xFCgeln", "das Heimweh gilt einem Ort, den es nicht gibt"],
-    ["die Sehnsucht findet keinen Gegenstand", "das Lied kennt den Weg besser"],
-    ["eine Ferne, die niemals n\xE4her kommt", "ein Heimweh ohne Heimat", "einen Aufbruch ohne Ziel"],
-    ["ein Posthorn im Tal", "ein Brief von einem Wandernden", "ein Licht in einem fremden Fenster"],
-    ["die Ferne kippt in Heimweh", "aus Wandern wird Suchen", "der Weg biegt nach innen"],
-    ["Ein Sommer dauert eine Strophe.", "Zwischen Aufbruch und Ankunft liegt ein Leben."],
-    ["Wer wandert, sucht nicht das Ziel.", "Jedes Lied kennt den Weg."],
-    ["offen", "sehns\xFCchtig"]
-  ),
-  hunger: D(
-    ["der Magen z\xE4hlt die Stunden mit", "das Brot reicht bis Donnerstag", "alles dreht sich um eine einzige Frage"],
-    ["der Hunger sch\xE4rft und verwirrt zugleich", "der Stolz wiegt schwerer als das Essen", "die Vorr\xE4te werden nachgez\xE4hlt"],
-    ["der Stolz gibt nach", "das Teilen entscheidet alles"],
-    ["ein Brot f\xFCr mehr M\xFCnder", "einen Stolz, der satt machen soll", "eine Not, die niemand zugibt"],
-    ["ein Laib mit falschem Gewicht", "eine Einladung zum Essen", "ein leerer Schrank"],
-    ["der Hunger \xFCbernimmt", "aus Stolz wird Bitte", "das Teilen \xE4ndert alles"],
-    ["Ein Tag ohne Essen dauert drei.", "Die Nacht ist l\xE4nger als der Vorrat."],
-    ["Wer hungert, denkt an nichts anderes.", "Geteiltes Brot wird nicht weniger."],
-    ["offen", "karg"]
-  ),
-  romantik: D(
-    ["der Mond steht \xFCber allem und erkl\xE4rt nichts", "die Nacht ist heller als der Tag", "irgendwo singt jemand"],
-    ["die Natur antwortet in Bildern", "das Innere und die Landschaft fallen zusammen", "die Grenze zum Traum wird durchl\xE4ssig"],
-    ["die Welt wird zur Seele", "die Nacht gibt eine Antwort"],
-    ["eine Sehnsucht ohne Namen", "eine Nacht, die mehr wei\xDF als der Tag", "eine Grenze zwischen Traum und Welt"],
-    ["ein Lied aus dem Tal", "eine blaue Blume am Wegrand", "ein Fenster, das offen bleibt"],
-    ["die Landschaft wird Innenraum", "aus Nacht wird Erkenntnis", "die Sehnsucht findet ein Bild"],
-    ["Eine Nacht enth\xE4lt den ganzen Sommer.", "Die D\xE4mmerung dauert bis zum Morgen."],
-    ["Die Nacht wei\xDF mehr als der Tag.", "Wer tr\xE4umt, sieht genauer."],
-    ["offen", "romantisch"]
-  ),
-  hugo: D(
-    ["die Stadt hat zwei Gesichter, eines im Schatten", "die Glocke schl\xE4gt \xFCber den D\xE4chern", "das Recht endet an dieser Gasse"],
-    ["die Gerechtigkeit und das Gesetz gehen auseinander", "der Verfolgte hat mehr Ehre als der Verfolger", "das Elend hat ein Gesicht und einen Namen"],
-    ["die Barrikade steht", "das Gesetz beugt sich oder bricht"],
-    ["eine Gerechtigkeit gegen das Gesetz", "eine Schuld, die l\xE4ngst getilgt ist", "ein Elend, das niemand sehen will"],
-    ["ein Kerzenleuchter als Geschenk", "ein Brief aus dem Gef\xE4ngnis", "ein Kind auf der Barrikade"],
-    ["das Urteil kehrt sich um", "aus Verfolgung wird Gnade", "die Stadt erhebt sich"],
-    ["Eine Nacht entscheidet zwanzig Jahre.", "Der Prozess dauert ein halbes Leben."],
-    ["Das Gesetz ist nicht die Gerechtigkeit.", "Wer einmal gezeichnet ist, bleibt es."],
-    ["offen", "pathetisch"]
-  ),
-  goethe: D(
-    ["die Pflanze zeigt ihre Ordnung im Wachsen", "der Blick sucht Ma\xDF und findet Bewegung", "alles Verg\xE4ngliche steht in einem Zusammenhang"],
-    ["das Einzelne verweist auf das Ganze", "die Steigerung f\xFChrt zur Gestalt", "die Polarit\xE4t h\xE4lt beides zusammen"],
-    ["die Gestalt wird sichtbar", "das Einzelne wird zum Gleichnis"],
-    ["ein Ma\xDF zwischen zwei Kr\xE4ften", "eine Gestalt in der Verwandlung", "eine Ordnung, die sich bewegt"],
-    ["ein Blatt in seiner Urform", "ein Farbenspiel am Rand des Schattens", "ein Wort zur rechten Zeit"],
-    ["die Gestalt wandelt sich", "aus Polarit\xE4t wird Steigerung", "das Einzelne \xF6ffnet sich"],
-    ["Ein Augenblick will verweilen.", "Das Werden dauert l\xE4nger als das Sein."],
-    ["Alles Verg\xE4ngliche ist nur ein Gleichnis.", "In der Beschr\xE4nkung zeigt sich der Meister."],
-    ["offen", "klassisch"]
-  ),
-  sinnlich: D(
-    ["die Haut bemerkt die Temperatur zuerst", "ein Geruch ist da, bevor man ihn benennt", "das Licht hat ein Gewicht"],
-    ["die Sinne widersprechen einander", "das Wort kommt der Empfindung nicht nach", "eine Ber\xFChrung ordnet den Raum neu"],
-    ["die Empfindung \xFCberholt den Gedanken", "der Sinn kippt in einen anderen"],
-    ["eine Empfindung ohne Namen", "eine N\xE4he \xFCber die Haut", "ein Eindruck, der bleibt"],
-    ["ein Geruch aus der Kindheit", "eine Textur unter den Fingern", "ein Geschmack, der nicht passt"],
-    ["die Sinne tauschen", "aus Empfindung wird Erinnerung", "der K\xF6rper geht voran"],
-    ["Ein Augenblick f\xFCllt eine Stunde.", "Der Geruch holt zwanzig Jahre zur\xFCck."],
-    ["Die Haut denkt schneller.", "Was benannt wird, verliert an Sch\xE4rfe."],
-    ["offen", "sinnlich"]
-  )
-};
-
-// src/ui/studio.ts
-var studioReglerStand = {};
-function uebernimmWurf(nachId) {
-  for (const [id, wert] of Object.entries(nachId)) studioReglerStand[id] = wert;
-}
-
 // src/ui/diagnoseView.ts
 function mountDiagnose(root) {
   root.innerHTML = "";
@@ -20500,7 +24074,7 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
 }
 {
   const a = baueAnlage(STAND(), UMGEBUNG());
-  const { platz, hoehe } = ordne(a);
+  const { platz, hoehe } = ordne2(a);
   ist("jeder Knoten hat einen Platz", Object.keys(platz).length, a.knoten.length);
   wahr("der Plan hat eine H\xF6he", hoehe > 100);
   const felder = Object.entries(platz);
@@ -20628,6 +24202,80 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
     }
     ist("jeder Druck zeichnet den Plan neu", anders, 8);
   }
+}
+{
+  const dom3 = new import_jsdom.JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/", pretendToBeVisual: true });
+  const G = globalThis;
+  for (const k of [
+    "window",
+    "document",
+    "localStorage",
+    "navigator",
+    "HTMLElement",
+    "HTMLInputElement",
+    "HTMLSelectElement",
+    "HTMLButtonElement",
+    "Event",
+    "CustomEvent",
+    "Node",
+    "getComputedStyle",
+    "requestAnimationFrame",
+    "cancelAnimationFrame",
+    "MutationObserver",
+    "Blob",
+    "URL",
+    "FileReader",
+    "Image",
+    "DOMParser"
+  ]) {
+    try {
+      Object.defineProperty(G, k, { value: dom3.window[k], writable: true, configurable: true });
+    } catch {
+    }
+  }
+  const km = () => ({ matches: false, addEventListener: () => {
+  }, removeEventListener: () => {
+  }, addListener: () => {
+  }, removeListener: () => {
+  } });
+  Object.defineProperty(G, "matchMedia", { value: km, writable: true, configurable: true });
+  dom3.window["matchMedia"] = km;
+  dom3.window.Element.prototype["scrollIntoView"] = function() {
+  };
+  const D3 = dom3.window.document;
+  const w = D3.createElement("div");
+  D3.body.append(w);
+  mountStudio(w);
+  const mitSchloss = /* @__PURE__ */ new Set();
+  for (const zeile of Array.from(w.querySelectorAll(".lockrow"))) {
+    const feld = zeile.closest(".field") || zeile.parentElement;
+    if (!feld) continue;
+    for (const c of Array.from(feld.querySelectorAll("select,input"))) {
+      const id = c.id;
+      if (id) mitSchloss.add(id);
+    }
+  }
+  wahr(`die Oberfl\xE4che hat Bedienelemente mit Schloss (${mitSchloss.size})`, mitSchloss.size >= 30);
+  const ohneKnoten = [...mitSchloss].filter((id) => !SCHLOSS_ZU_KNOTEN[id]).sort();
+  ist("jedes Schloss der Oberfl\xE4che zeigt auf einen Knoten", ohneKnoten.join(", "), "");
+  const alle = baueAnlage(STAND(), UMGEBUNG());
+  const kennungen = new Set(alle.knoten.map((k) => k.id));
+  const totesZiel = [...new Set(Object.values(SCHLOSS_ZU_KNOTEN))].filter((n) => !kennungen.has(n)).sort();
+  ist("jede Zuordnung zeigt auf einen Knoten, den es gibt", totesZiel.join(", "), "");
+  const mitLen = baueAnlage(STAND(), UMGEBUNG({ gesperrt: /* @__PURE__ */ new Set(["f-len"]) }));
+  ist("ein Schloss an der L\xE4nge steht im Plan", knoten(mitLen, "laenge")?.gesperrt, true);
+  let fehlt = 0;
+  for (const [id, ziel] of Object.entries(SCHLOSS_ZU_KNOTEN)) {
+    if (Object.values(SCHLOSS_ZU_KNOTEN).filter((z) => z === ziel).length > 1) continue;
+    const a = baueAnlage(STAND(), UMGEBUNG({ gesperrt: /* @__PURE__ */ new Set([id]) }));
+    if (!knoten(a, ziel)?.gesperrt) fehlt++;
+  }
+  ist("jedes einzelne Schloss schl\xE4gt auf seinen Knoten durch", fehlt, 0);
+  const drei = baueAnlage(STAND(), UMGEBUNG({ gesperrt: /* @__PURE__ */ new Set(["f-where", "f-when", "f-who"]) }));
+  ist("drei von vier W schlie\xDFen das Feld noch nicht", knoten(drei, "w4")?.gesperrt, false);
+  wahr("aber der Hinweis z\xE4hlt sie", /3 von 4/.test(knoten(drei, "w4")?.hinweis || ""));
+  const vier = baueAnlage(STAND(), UMGEBUNG({ gesperrt: /* @__PURE__ */ new Set(["f-where", "f-when", "f-who", "f-what"]) }));
+  ist("alle vier schon", knoten(vier, "w4")?.gesperrt, true);
 }
 console.log(`Pr\xFCfstand Schaltplan \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

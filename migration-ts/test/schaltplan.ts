@@ -11,7 +11,8 @@
 // Die Anordnung wird mitgeprüft: Ein Plan mit übereinanderliegenden Feldern
 // wäre schlimmer als keiner. jsdom rechnet kein Layout, deshalb rechnet der
 // Plan seine Koordinaten selbst — und deshalb sind sie hier nachprüfbar.
-import { baueAnlage, type AnlageStand, type Umgebung } from "../src/features/schaltplan";
+import { baueAnlage, SCHLOSS_ZU_KNOTEN, type AnlageStand, type Umgebung } from "../src/features/schaltplan";
+import { mountStudio } from "../src/ui/studio";
 import { KNOB_VORGABE, KNOB_SPANNE } from "../src/features/knobs";
 import { wuerfleAlles, REGLER } from "../src/features/wuerfeln";
 import { werte } from "../src/generation/optionen";
@@ -238,6 +239,73 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
     // eine Wahrscheinlichkeit jenseits jeder Vorstellung.
     ist("jeder Druck zeichnet den Plan neu", anders, 8);
   }
+}
+
+
+// ── 8 · Jedes Schloss der Oberfläche steht im Plan ────────────────────────
+// Gemeldet: „Bei Länge ist das Schloss gesetzt, wird aber nicht angezeigt."
+// Der Knoten „Länge" war ohne Schloss-Kennung angelegt und konnte deshalb nie
+// gesperrt aussehen. Dabei fehlten auch drei Knoten ganz: Figurendisziplin,
+// Umwelt, Neuheit und Überraschung tragen ein Schloss und standen nicht im Plan.
+//
+// Eine Aufzählung im Kopf des Plans hätte denselben Fehler beim nächsten Regler
+// wiederholt. Deshalb wird sie hier gegen das LAUFENDE Studio gehalten: Was ein
+// Schloss trägt, muss im Plan vorkommen.
+{
+  const dom3 = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/", pretendToBeVisual: true });
+  const G = globalThis as unknown as Record<string, unknown>;
+  for (const k of ["window", "document", "localStorage", "navigator", "HTMLElement", "HTMLInputElement",
+    "HTMLSelectElement", "HTMLButtonElement", "Event", "CustomEvent", "Node", "getComputedStyle",
+    "requestAnimationFrame", "cancelAnimationFrame", "MutationObserver", "Blob", "URL", "FileReader",
+    "Image", "DOMParser"]) {
+    try { Object.defineProperty(G, k, { value: (dom3.window as unknown as Record<string, unknown>)[k], writable: true, configurable: true }); } catch { /* da */ }
+  }
+  const km = (): unknown => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} });
+  Object.defineProperty(G, "matchMedia", { value: km, writable: true, configurable: true });
+  (dom3.window as unknown as Record<string, unknown>)["matchMedia"] = km;
+  (dom3.window.Element.prototype as unknown as Record<string, unknown>)["scrollIntoView"] = function (): void {};
+  const D3 = dom3.window.document;
+  const w = D3.createElement("div");
+  D3.body.append(w);
+  mountStudio(w);
+
+  const mitSchloss = new Set<string>();
+  for (const zeile of Array.from(w.querySelectorAll(".lockrow"))) {
+    const feld = zeile.closest(".field") || zeile.parentElement;
+    if (!feld) continue;
+    for (const c of Array.from(feld.querySelectorAll("select,input"))) {
+      const id = (c as HTMLElement).id;
+      if (id) mitSchloss.add(id);
+    }
+  }
+  wahr(`die Oberfläche hat Bedienelemente mit Schloss (${mitSchloss.size})`, mitSchloss.size >= 30);
+  const ohneKnoten = [...mitSchloss].filter((id) => !SCHLOSS_ZU_KNOTEN[id]).sort();
+  ist("jedes Schloss der Oberfläche zeigt auf einen Knoten", ohneKnoten.join(", "), "");
+
+  // Und die Zuordnung darf nicht ins Leere zeigen.
+  const alle = baueAnlage(STAND(), UMGEBUNG());
+  const kennungen = new Set(alle.knoten.map((k) => k.id));
+  const totesZiel = [...new Set(Object.values(SCHLOSS_ZU_KNOTEN))].filter((n) => !kennungen.has(n)).sort();
+  ist("jede Zuordnung zeigt auf einen Knoten, den es gibt", totesZiel.join(", "), "");
+
+  // Der gemeldete Fall, direkt geprüft: Länge gesperrt → Schloss im Plan.
+  const mitLen = baueAnlage(STAND(), UMGEBUNG({ gesperrt: new Set(["f-len"]) }));
+  ist("ein Schloss an der Länge steht im Plan", knoten(mitLen, "laenge")?.gesperrt, true);
+  // Und jedes andere Schloss ebenso — einmal quer durch.
+  let fehlt = 0;
+  for (const [id, ziel] of Object.entries(SCHLOSS_ZU_KNOTEN)) {
+    // Knoten mit mehreren Kennungen brauchen alle Schlösser — eigene Probe unten.
+    if (Object.values(SCHLOSS_ZU_KNOTEN).filter((z) => z === ziel).length > 1) continue;
+    const a = baueAnlage(STAND(), UMGEBUNG({ gesperrt: new Set([id]) }));
+    if (!knoten(a, ziel)?.gesperrt) fehlt++;
+  }
+  ist("jedes einzelne Schloss schlägt auf seinen Knoten durch", fehlt, 0);
+  // Die vier W: erst wenn alle vier zu sind, ist das Feld zu.
+  const drei = baueAnlage(STAND(), UMGEBUNG({ gesperrt: new Set(["f-where", "f-when", "f-who"]) }));
+  ist("drei von vier W schließen das Feld noch nicht", knoten(drei, "w4")?.gesperrt, false);
+  wahr("aber der Hinweis zählt sie", /3 von 4/.test(knoten(drei, "w4")?.hinweis || ""));
+  const vier = baueAnlage(STAND(), UMGEBUNG({ gesperrt: new Set(["f-where", "f-when", "f-who", "f-what"]) }));
+  ist("alle vier schon", knoten(vier, "w4")?.gesperrt, true);
 }
 
 console.log(`Prüfstand Schaltplan — ${geprueft} Prüfungen, ${bestanden} bestanden`);

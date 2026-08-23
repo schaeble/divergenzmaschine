@@ -1685,14 +1685,23 @@ export function mountStudio(root: HTMLElement): void {
   // Der Schaltplan im Reiter Diagnose liest diesen Stand. Geschrieben wird bei
   // JEDER Änderung, nicht erst beim Erzeugen: Sonst zeigte der Plan, was beim
   // vorletzten Text galt, und wäre damit genau die Rateei, die er abstellen soll.
+  // Vier Werte stehen nicht in `einstellungen()`, gehören aber in den Plan:
+  // Sie steuern nicht den Satzbau, sondern die AUSWAHL unter den Fassungen
+  // (Neuheit, Überraschung) und die Umwelt. Gemeldet wurde ein verwandter Fall:
+  // „Bei Länge ist das Schloss gesetzt, wird aber nicht angezeigt."
   const anlageSichern = (): void => saveAnlage({
-    regler: einstellungen(),
+    regler: {
+      ...einstellungen(),
+      umwelt: umweltIn.value, umweltWirkung: umweltSel.value,
+      gewicht: [wWo.value, wWann.value, wWer.value, wWas.value].join("/"),
+      novelty: novSlider.value, surprise: surpSlider.value,
+    },
     w4: { where: where.value, when: when.value, who: who.value, what: what.value },
     zeit: new Date().toISOString(),
   });
   ROLL_SELECTS.forEach((s) => s.addEventListener("change", anlageSichern));
-  [where, when, who, what].forEach((i) => i.addEventListener("input", anlageSichern));
-  lenSlider.addEventListener("input", anlageSichern);
+  [where, when, who, what, umweltIn, novSlider, surpSlider, lenSlider, wWo, wWann, wWer, wWas].forEach((i) => i.addEventListener("input", anlageSichern));
+  umweltSel.addEventListener("change", anlageSichern);
   anlageSichern();
   // Schlösser haben Übergabewerte überschrieben? Hinweis mit Sofortlösung zeigen.
   const blocked = handedOver.filter((h) => locked.has(h.el.id) && h.el.value !== h.want);
