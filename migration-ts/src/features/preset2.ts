@@ -119,17 +119,22 @@ function buildPreset2Prompt(inspiration: string, seed?: string, kontext?: VierW 
     + '  "logik": { "regeln": ["3-4 Erzaehl-/Logikregeln, je ein ganzer Satz"] },\n'
     + '  "dramaturgie": { "einstieg": ["3 knappe Anfangs-Phasen"], "mitte": ["3-4 Mittel-Phasen"], "hoehepunkt": ["2 Hoehepunkt-Phasen"], "schluss": ["2-3 Schluss-Stilworte, z.B. offen, melancholisch"] },\n'
     + '  "generatoren": {\n'
-    + '    "motifs": ["24 wiederkehrende, poetische Bilder als Nominalphrase MIT Artikel, z.B. \\"eine Nachtigall im dunklen Laub\\""],\n'
-    + '    "hooks": ["16 kleine, irritierende Sätze"],\n'
-    + '    "props": ["22 Gegenstände je MIT unbestimmtem Artikel, z.B. \\"ein Kompass\\", \\"eine Muschel\\", \\"ein zerbrochenes Segel\\""],\n'
-    + '    "turns": ["18 Wendepunkte, je kurzer Satz/Phrase"],\n'
-    + '    "obstacles": ["17 Hindernisse, je kurzer Satz"],\n'
-    + '    "stakes": ["11 Einsätze, kurze Nominalphrasen"],\n'
-    + '    "endings": ["12 Schlusssätze"]\n'
+    + '    "motifs": ["22 wiederkehrende Bilder als Nominalphrase MIT Artikel und eigenem Kopf, ~6 Woerter, z.B. \\"eine Nachtigall, die im dunklen Laub sitzt\\""],\n'
+    + '    "hooks": ["17 kleine, irritierende Saetze, ~8 Woerter"],\n'
+    + '    "props": ["20 Gegenstaende je MIT unbestimmtem Artikel im Akkusativ, ~4 Woerter, z.B. \\"einen Kompass mit beschlagenem Glas\\""],\n'
+    + '    "turns": ["21 Wendepunkte, je ein knapper Satz, ~8 Woerter"],\n'
+    + '    "obstacles": ["20 Hindernisse, je ein knapper Satz, ~7 Woerter"],\n'
+    + '    "stakes": ["11 Saetze, jeder beginnt mit \\"Der Einsatz ist\\", ~9 Woerter"],\n'
+    + '    "endings": ["15 Schlusssaetze, ~8 Woerter"],\n'
+    + '    "verwandlungen": ["8 Motivpaare in der Form \\"Wort→Wort\\", beide Woerter mit DEMSELBEN Geschlecht"]\n'
     + "  }\n"
     + "}\n\n"
     + "Alles auf Deutsch, konkret und stimmig zur Inspiration. Der generatoren-Block UND der dramaturgie-/transformation-Block sind am wichtigsten und muessen vollstaendig gefuellt sein.\n\n"
-    + "UMFANG — GEMESSEN, NICHT GERATEN: Der generatoren-Block soll ZUSAMMEN rund 120 Eintraege tragen. "
+    // NACHGEZAEHLT 4.290.0 am Bestand aller 51 eingebauten Presets. Die alten
+    // Zahlen stammten aus der Zeit vor dem Ausbau; „stakes: kurze
+    // Nominalphrasen" war zudem schlicht falsch — im Bestand ist jeder Einsatz
+    // ein ganzer Satz, der mit „Der Einsatz ist" beginnt.
+    + "UMFANG — GEMESSEN, NICHT GERATEN: Der generatoren-Block soll ZUSAMMEN rund 125 Eintraege tragen. "
     + "Bei 44 Eintraegen traegt ein Preset einen langen Text auf 56 Prozent der Vorgabe, bei 112 auf 87, bei 147 auf 95. "
     + "Der Knick liegt bei rund 120; darueber gewinnt man fast nichts mehr, darunter bricht es ein.\n\n"
     + "WORTZAHL — das eigentliche Mass: Die 120 Eintraege sollen ZUSAMMEN rund 850 Woerter tragen, im "
@@ -137,6 +142,10 @@ function buildPreset2Prompt(inspiration: string, seed?: string, kontext?: VierW 
     + "Eintraege kaum etwas ueber die erreichte Textlaenge voraus, die Zahl der Woerter dagegen deutlich "
     + "(r = 0,80): 123 Eintraege mit 557 Woertern tragen einen 450-Woerter-Bericht auf 72 Prozent, "
     + "128 Eintraege mit 923 Woertern auf 108. Kurze Brocken fuellen die Liste, aber nicht den Text.\n\n"
+    + "MOTIVVERWANDLUNGEN: 41 der 51 eingebauten Presets tragen sie, im Median acht Paare. Ein Paar sagt, "
+    + "was aus einem Bild wird, wenn es WIEDERKEHRT — das erste Vorkommen bleibt stehen, jedes weitere wird "
+    + "verwandelt. Form \"Wort→Wort\". Harte Bedingung: beide Woerter mit demselben Geschlecht, sonst steht "
+    + "im Text \"das Stille\" und der Generator wirft das Paar still weg.\n\n"
     + "WO die Woerter stehen, entscheidet mit: turns, obstacles und endings tragen den Bericht "
     + "staerker als props und motifs. Gemessen an fuenf nachverdichteten Presets brachten hundert "
     + "zusaetzliche Woerter in den Satz-Kategorien rund 9 Prozentpunkte, hundert in den "

@@ -12879,13 +12879,69 @@ function sammleUmgebung(preset) {
   };
 }
 
+// src/generation/verwandlung.ts
+function geschlecht(w) {
+  const kern = (w || "").trim().split(/\s+/).pop() || "";
+  return guessGender(kern.replace(/[^A-Za-zÄÖÜäöüß]/g, ""));
+}
+function pruefePaar(roh) {
+  const m = String(roh).split(/\s*(?:→|->|>)\s*/);
+  if (m.length !== 2) return { ok: false, grund: "kein Pfeil zwischen zwei W\xF6rtern" };
+  const von = m[0].trim(), nach = m[1].trim();
+  if (!von || !nach) return { ok: false, grund: "eine Seite ist leer" };
+  if (von.toLowerCase() === nach.toLowerCase()) return { ok: false, grund: "beide Seiten gleich" };
+  const g1 = geschlecht(von), g2 = geschlecht(nach);
+  if (!g1) return { ok: false, grund: `Geschlecht von \u201E${von}\u201C unbekannt` };
+  if (!g2) return { ok: false, grund: `Geschlecht von \u201E${nach}\u201C unbekannt` };
+  if (g1 !== g2) return { ok: false, grund: `verschiedenes Geschlecht (${g1} gegen ${g2})` };
+  return { ok: true, grund: "" };
+}
+function leseVerwandlungen(roh) {
+  const raus = [];
+  for (const z of roh || []) {
+    const m = String(z).split(/\s*(?:→|->|>)\s*/);
+    if (m.length !== 2) continue;
+    const von = m[0].trim(), nach = m[1].trim();
+    if (!von || !nach || von.toLowerCase() === nach.toLowerCase()) continue;
+    const g1 = geschlecht(von), g2 = geschlecht(nach);
+    if (!g1 || !g2 || g1 !== g2) continue;
+    raus.push({ von, nach });
+  }
+  return raus;
+}
+function wieGefunden(gefunden, ziel) {
+  const grossAmAnfang = /^[A-ZÄÖÜ]/.test(gefunden);
+  return grossAmAnfang ? ziel.charAt(0).toUpperCase() + ziel.slice(1) : ziel.charAt(0).toLowerCase() + ziel.slice(1);
+}
+function verwandleMotive(text, paare) {
+  if (!text || !paare.length) return text;
+  let t = text;
+  for (const { von, nach } of paare) {
+    let gesehen = 0;
+    try {
+      const re = new RegExp(`(^|[^A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])(${escapeRegExp(von)})(?![A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])`, "gi");
+      t = t.replace(re, (ganz, davor, wort) => {
+        gesehen++;
+        return gesehen === 1 ? ganz : davor + wieGefunden(wort, nach);
+      });
+    } catch {
+    }
+  }
+  return t;
+}
+
 // src/storage.ts
 function normalizeBankShape(bank) {
   const out = structuredClone(DEFAULT_BANK);
   const src = bank ?? {};
   for (const k of BANK_KEYS) {
-    const v = src[k];
-    if (Array.isArray(v)) out[k] = v.map(clean).filter(Boolean);
+    const v2 = src[k];
+    if (Array.isArray(v2)) out[k] = v2.map(clean).filter(Boolean);
+  }
+  const v = src["verwandlungen"];
+  if (Array.isArray(v)) {
+    const gut = v.map(clean).filter(Boolean).filter((x) => pruefePaar(x).ok);
+    if (gut.length) out.verwandlungen = gut;
   }
   return out;
 }
@@ -16134,45 +16190,6 @@ function archetypeAugmentList(baseList, archA, archB, key) {
   const base = Array.isArray(baseList) ? baseList : [];
   if (extra.length) return base.concat(extra, extra);
   return base;
-}
-
-// src/generation/verwandlung.ts
-function geschlecht(w) {
-  const kern = (w || "").trim().split(/\s+/).pop() || "";
-  return guessGender(kern.replace(/[^A-Za-zÄÖÜäöüß]/g, ""));
-}
-function leseVerwandlungen(roh) {
-  const raus = [];
-  for (const z of roh || []) {
-    const m = String(z).split(/\s*(?:→|->|>)\s*/);
-    if (m.length !== 2) continue;
-    const von = m[0].trim(), nach = m[1].trim();
-    if (!von || !nach || von.toLowerCase() === nach.toLowerCase()) continue;
-    const g1 = geschlecht(von), g2 = geschlecht(nach);
-    if (!g1 || !g2 || g1 !== g2) continue;
-    raus.push({ von, nach });
-  }
-  return raus;
-}
-function wieGefunden(gefunden, ziel) {
-  const grossAmAnfang = /^[A-ZÄÖÜ]/.test(gefunden);
-  return grossAmAnfang ? ziel.charAt(0).toUpperCase() + ziel.slice(1) : ziel.charAt(0).toLowerCase() + ziel.slice(1);
-}
-function verwandleMotive(text, paare) {
-  if (!text || !paare.length) return text;
-  let t = text;
-  for (const { von, nach } of paare) {
-    let gesehen = 0;
-    try {
-      const re = new RegExp(`(^|[^A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])(${escapeRegExp(von)})(?![A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])`, "gi");
-      t = t.replace(re, (ganz, davor, wort) => {
-        gesehen++;
-        return gesehen === 1 ? ganz : davor + wieGefunden(wort, nach);
-      });
-    } catch {
-    }
-  }
-  return t;
 }
 
 // src/generation/autochoice.ts

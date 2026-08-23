@@ -253,6 +253,36 @@ export function extractJson(raw: string): unknown {  const s = (raw || "").trim(
   return JSON.parse(body);
 }
 
+
+/** Was der Auftrag je Kategorie verlangt — NACHGEZÄHLT am Bestand.
+ *
+ *  Gefragt wurde: „Spiegelt der Prompt für eigene Presets die aktuelle Fassung
+ *  der Presets im Bestand wider?" Er tat es nicht: Die Zahlen
+ *  (24/16/22/18/17/11/12) stammten aus der Zeit vor dem Ausbau und lagen bei
+ *  turns, obstacles und endings deutlich zu niedrig; „verwandlungen" kam gar
+ *  nicht vor, obwohl 41 der 51 eingebauten Presets welche tragen.
+ *
+ *  Damit die Frage nicht wieder gestellt werden muss, steht die Vorgabe hier als
+ *  DATEN und nicht als Fließtext — der Prüfstand hält sie gegen den Bestand und
+ *  meldet, sobald beide auseinanderlaufen. `anzahl` ist der Median, `min`/`max`
+ *  die beobachtete Spanne, `woerter` die mittlere Länge eines Eintrags. */
+export interface KatVorgabe { key: string; anzahl: number; min: number; max: number; woerter: number; text: string }
+export const KATEGORIE_VORGABE: KatVorgabe[] = [
+  { key: "motifs", anzahl: 22, min: 16, max: 30, woerter: 6,
+    text: "wiederkehrende Bilder, Nominalphrase MIT Artikel und eigenem Kopf" },
+  { key: "hooks", anzahl: 17, min: 14, max: 20, woerter: 8,
+    text: "kleine, irritierende Details oder Sätze" },
+  { key: "props", anzahl: 20, min: 15, max: 28, woerter: 4,
+    text: 'Gegenstände MIT unbestimmtem Artikel im Akkusativ, z.B. "einen Schlüssel zum Kerker"' },
+  { key: "turns", anzahl: 21, min: 18, max: 26, woerter: 8, text: "Wendepunkte, je ein knapper Satz" },
+  { key: "obstacles", anzahl: 20, min: 17, max: 26, woerter: 7, text: "Hindernisse, je ein knapper Satz" },
+  { key: "stakes", anzahl: 11, min: 7, max: 14, woerter: 9,
+    text: 'Sätze, jeder beginnt mit "Der Einsatz ist"' },
+  { key: "endings", anzahl: 15, min: 11, max: 18, woerter: 8, text: "Schlusssätze" },
+  { key: "verwandlungen", anzahl: 8, min: 4, max: 12, woerter: 0,
+    text: "Motivpaare — siehe unten" },
+];
+
 export interface WordbankCtx { where?: string; when?: string; who?: string; what?: string; tone?: string; userPrompt?: string; }
 
 function buildWordbankPrompt(ctx: WordbankCtx): string {
@@ -269,19 +299,16 @@ function buildWordbankPrompt(ctx: WordbankCtx): string {
     // 72 %; bergwelt trägt 128 Einträge mit 923 Wörtern und kommt auf 108 %.
     // Rund 850 Wörter braucht ein Preset für volle Treue, also im Schnitt sieben
     // Wörter je Eintrag. Deshalb steht die Wortzahl jetzt im Auftrag.
-    + "Die Wortbank besteht aus 7 Kategorien mit ZUSAMMEN rund 120 kurzen, stimmungsvollen deutschen "
+    + "Die Wortbank besteht aus 7 Textkategorien mit ZUSAMMEN rund 125 kurzen, stimmungsvollen deutschen "
     + "Phrasen (keine ganzen Absätze, meist 3-10 Wörter), passend zu folgendem Kontext:\n"
     + `Ort: ${ctx.where || "(offen)"}\nZeit: ${ctx.when || "(offen)"}\nFigur(en): ${ctx.who || "(offen)"}\n`
     + `Handlung: ${ctx.what || "(offen)"}\nTon: ${ctx.tone || "(offen)"}\n`;
   if (ctx.userPrompt) p += `\nZUSÄTZLICHE VORGABE DES NUTZERS (vorrangig): ${ctx.userPrompt}\n`;
   p += "\nKategorien mit ANZAHL (die Zahlen bitte einhalten, sie sind gemessen):\n"
-    + '- motifs: 24 wiederkehrende, unheimliche/poetische Bilder, Nominalphrase MIT Artikel\n'
-    + '- hooks: 16 kleine, irritierende Details oder Sätze\n'
-    + '- props: 22 Gegenstände MIT unbestimmtem Artikel im Akkusativ, z.B. "einen Schlüssel"\n'
-    + '- turns: 18 Wendepunkte, je ein knapper Satz\n'
-    + '- obstacles: 17 Hindernisse, je ein knapper Satz\n'
-    + '- stakes: 11 Sätze, beginnend mit "Der Einsatz ist"\n'
-    + '- endings: 12 Schlusssätze\n\n'
+    + KATEGORIE_VORGABE.map((k) =>
+      `- ${k.key}: ${k.anzahl} ${k.text} (${k.min}–${k.max})` +
+      (k.woerter ? `, ~${k.woerter} Wörter je Eintrag` : "") + "\n").join("")
+    + "\n"
     + "EINE HAND, NICHT DREI: Alle Einträge müssen aus DERSELBEN Welt stammen — gleiches Register, "
     + "gleiche Bildwelt, gleicher Wortschatz. Das ist keine Stilfrage, sondern gemessen: Ein Preset aus "
     + "einer Hand trägt einen langen Text auf 95 % der Vorgabe, eine Mischung aus drei Presets bei "
@@ -298,7 +325,11 @@ function buildWordbankPrompt(ctx: WordbankCtx): string {
     + "deutlich stärker als props und motifs. In einem Versuch mit fünf Presets brachten hundert "
     + "zusätzliche Wörter in den SATZ-Kategorien rund 9 Prozentpunkte Länge, hundert Wörter in den "
     + "Nominal-Kategorien nur rund 6. Halte turns, obstacles und endings deshalb bei mindestens "
-    + "sieben Wörtern — ein vollständiger Satz mit einem Umstand, nicht ein Stichwort.\n\n"
+    + "sieben Wörtern — ein vollständiger Satz mit einem Umstand, nicht ein Stichwort. "
+    + "Für props gilt das NICHT: Sie stehen im Bestand bei rund vier Wörtern, weil sie als Objekt in "
+    + "einen fremden Satz gesetzt werden — \"einen Kompass mit beschlagenem Glas\" ist die richtige Länge, "
+    + "ein ganzer Satz wäre dort falsch. Über alle Kategorien tragen die Satz-Kategorien (hooks, turns, "
+    + "obstacles, endings) rund 65 Prozent der Wörter; das ist die Verteilung, die der Bestand hat.\n\n"
     + "MOTIVE MÜSSEN ALLEIN STEHEN KÖNNEN: Jedes motif ist eine Nominalphrase mit Artikel und "
     + "eigenem Kopf, am besten mit Relativsatz — \"eine Glocke, die über allen Dächern hängt\". "
     + "NICHT: \"Brot und Ketten\", \"Kanäle unter der Stadt\", \"die Kathedrale im Regen\". "
@@ -312,11 +343,20 @@ function buildWordbankPrompt(ctx: WordbankCtx): string {
     + "bringen hundert zusätzliche Wörter unterhalb von 85 Prozent Länge noch 11 bis 18 Punkte, "
     + "oberhalb von 91 Prozent nur noch 1 bis 3. Wer über 850 hinausschreibt, gewinnt keine Länge "
     + "mehr, sondern nur noch Abwechslung — das ist ein Grund, aber ein anderer.\n\n"
+    + "MOTIVVERWANDLUNGEN — die achte Liste: 41 der 51 eingebauten Presets tragen sie, im Median acht "
+    + "Paare. Ein Paar sagt, was aus einem Bild wird, wenn es WIEDERKEHRT: Das erste Vorkommen bleibt "
+    + "stehen und führt das Motiv ein, jedes weitere wird verwandelt. Der Leser sieht dasselbe Ding "
+    + "zweimal, und beim zweiten Mal ist es etwas anderes geworden.\n"
+    + "Form: \"Wort→Wort\", ein Paar je Eintrag, z.B. \"Glocke→Stimme\", \"Harpune→Feder\", \"Akte→Mappe\".\n"
+    + "HARTE BEDINGUNG: Beide Wörter müssen DASSELBE GESCHLECHT haben (der/der, die/die, das/das). "
+    + "Sonst steht im Text \"das Stille\", weil der Artikel davor nicht mitverwandelt wird — und der "
+    + "Generator wirft solche Paare still weg. Nimm Grundwörter im Singular, keine Wortgruppen.\n\n"
     + "KEINE DUBLETTEN: Kein Eintrag darf zweimal vorkommen, auch nicht leicht abgewandelt. "
     + "Ein Eintrag zweimal ist kein zweiter Eintrag.\n\n"
     + "ZEITFORM: Satzartige Einträge (hooks, turns, obstacles, endings) im PRÄSENS. Kein Präteritum, kein Perfekt.\n\n"
-    + "WICHTIG: Deine Antwort MUSS mit { beginnen und mit } enden — nur reines JSON mit genau diesen 7 Schlüsseln "
-    + "(motifs, hooks, props, turns, obstacles, stakes, endings), jeweils ein Array von Strings. Keine Erklärungen, kein Markdown.";
+    + "WICHTIG: Deine Antwort MUSS mit { beginnen und mit } enden — nur reines JSON mit genau diesen 8 Schlüsseln "
+    + "(motifs, hooks, props, turns, obstacles, stakes, endings, verwandlungen), jeweils ein Array von Strings. "
+    + "Keine Erklärungen, kein Markdown.";
   return p;
 }
 

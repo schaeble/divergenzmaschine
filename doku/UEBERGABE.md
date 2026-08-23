@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.289.0**, Zweig `typescript-migration`.
+Stand: **v4.290.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,58 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Der Auftrag gegen den Bestand (4.290.0)
+
+**Gefragt:** „Spiegelt der jetzige Prompt für eigene Presets die aktuelle Fassung
+der Presets im Bestand wider?"
+
+**Nein.** Nachgezählt an allen 51 eingebauten Presets:
+
+| Kategorie | Auftrag alt | Bestand (Median · Spanne) | Wörter je Eintrag |
+|---|---|---|---|
+| motifs | 24 | **22** · 16–30 | 6 |
+| hooks | 16 | **17** · 14–20 | 8 |
+| props | 22 | **20** · 15–28 | 4 |
+| turns | 18 | **21** · 18–26 | 8 |
+| obstacles | 17 | **20** · 17–26 | 7 |
+| stakes | 11 | 11 · 7–14 | 9 |
+| endings | 12 | **15** · 11–18 | 8 |
+| verwandlungen | — | **8** · 4–12 | — |
+
+Die alten Zahlen stammten aus der Zeit vor dem Ausbau. Bei turns, obstacles und
+endings lagen sie um drei Einträge zu niedrig — also genau in den
+Satz-Kategorien, von denen seit 4.278 bekannt ist, dass sie die Länge tragen.
+
+**Der größere Fehler war ein anderer.** „verwandlungen" kam im Auftrag nicht vor,
+obwohl **41 der 51 Presets** sie tragen. Und selbst wenn das Modell welche
+geliefert hätte: `normalizeBankShape` übernahm nur `BANK_KEYS` und warf das Feld
+**still weg**. Ein selbst erzeugtes Preset konnte nie Motivverwandlungen haben —
+ohne Meldung, ohne Spur. Beides behoben; übernommen werden nur Paare mit
+gleichem Geschlecht auf beiden Seiten, weil der Bauweg alle anderen ohnehin
+verwirft.
+
+Dazu zwei kleinere Unstimmigkeiten:
+
+- **props**: Die Regel „mindestens sieben Wörter" galt im Auftrag für alle
+  Kategorien. Im Bestand stehen props bei **vier** Wörtern, und das ist richtig
+  so — sie werden als Objekt in einen fremden Satz gesetzt, ein ganzer Satz wäre
+  dort falsch. Steht jetzt als Ausnahme dabei.
+- **stakes** hießen in `preset2.ts` „kurze Nominalphrasen". Im Bestand ist jeder
+  Einsatz ein ganzer Satz, der mit „Der Einsatz ist" beginnt.
+
+**Damit die Frage nicht wieder gestellt werden muss**, steht die Vorgabe jetzt
+als DATEN (`KATEGORIE_VORGABE`) und nicht als Fließtext, und ein neuer
+**Prüfstand Prompt** hält sie gegen den Bestand: Zahl nah am Median (±2), Zahl in
+der beobachteten Spanne, angegebene Spanne deckt den Bestand, Wortlänge (±2), und
+— umgedreht gefragt — **jede Kategorie des Bestands kommt im Auftrag vor**.
+
+Die Schranke ±2 ist nicht willkürlich: Bei ±3 wäre die alte Zahl für turns (18
+gegen 21) durchgerutscht. Eine Schranke, die den gemeldeten Fall nicht fängt,
+ist keine.
+
+Gegenproben: turns zurück auf 18 → „liegt nah am Median" fällt; verwandlungen
+aus der Vorgabe genommen → „der Auftrag kennt jede Kategorie" nennt sie.
 
 Die Schieber würfeln mit (4.289.0)
 
