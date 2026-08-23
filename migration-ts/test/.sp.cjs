@@ -4314,573 +4314,41 @@ function loadTreasury() {
   }
 }
 
-// src/presets.drama.data.ts
-var D = (einstieg, mitte, hoehepunkt, konflikte, ausloeser, veraenderungen, zeitanomalien, regeln, schluss) => ({ einstieg, mitte, hoehepunkt, schluss, ausloeser, veraenderungen, konflikte, zeitanomalien, regeln });
-var BUILTIN_DRAMA = {
-  kafka: D(
-    ["alles liegt an seinem Platz, und genau das beunruhigt", "die Formulare sind bereits ausgef\xFCllt", "niemand hat die T\xFCr ge\xF6ffnet, sie stand offen"],
-    ["die Zust\xE4ndigkeit wandert von Zimmer zu Zimmer", "eine Auskunft widerspricht der vorigen, beide sind g\xFCltig", "der Gang verzweigt sich, jede Abzweigung f\xFChrt zur\xFCck"],
-    ["die Akte tr\xE4gt den eigenen Namen", "das Verfahren war l\xE4ngst abgeschlossen"],
-    ["eine Auskunft, die niemand gibt", "eine Frist ohne Anfang", "eine Schuld ohne Anklage"],
-    ["ein Bescheid ohne Absender", "eine Unterschrift, die niemand leisten kann", "ein Stempel auf dem falschen Blatt"],
-    ["die Zust\xE4ndigkeit wechselt", "der Vorgang beginnt von vorn", "die Frage verwandelt sich in ihre Antwort"],
-    ["Die Frist l\xE4uft r\xFCckw\xE4rts.", "Der Termin liegt bereits hinter dem Antrag."],
-    ["Wer fragt, bekommt eine Nummer.", "Jede Auskunft ist vorl\xE4ufig und endg\xFCltig zugleich."],
-    ["offen", "beklemmend"]
-  ),
-  bureau: D(
-    ["die Warteschlange bewegt sich nicht", "der Schalter ist besetzt und leer zugleich", "auf dem Tisch liegt ein Stift ohne Mine"],
-    ["ein Formular verlangt ein zweites", "die Nummer wird aufgerufen, geh\xF6rt aber niemandem", "der Aktenschrank \xF6ffnet sich in einen weiteren Flur"],
-    ["die Zust\xE4ndigkeit wird endg\xFCltig ungekl\xE4rt", "das eigene Aktenzeichen erlischt"],
-    ["eine Zust\xE4ndigkeit, die niemand annimmt", "einen Vorgang ohne Ende", "eine Best\xE4tigung, die sich selbst widerruft"],
-    ["ein Formular in dreifacher Ausfertigung", "eine Wartenummer aus einem anderen Jahr", "ein Dienstsiegel ohne Beh\xF6rde"],
-    ["der Vorgang wird umgeleitet", "die Frist verl\xE4ngert sich von selbst", "das Verfahren beginnt still von vorn"],
-    ["Der Sprechtag liegt immer gestern.", "Die Bearbeitungszeit w\xE4chst mit jeder Nachfrage."],
-    ["Kein Vorgang endet, er ruht nur.", "Wer wartet, wird Teil des Verfahrens."],
-    ["offen", "resigniert"]
-  ),
-  mystery: D(
-    ["das Haus ist zu still f\xFCr die Uhrzeit", "im Flur brennt Licht, das niemand angelassen hat", "die T\xFCr f\xE4llt zu, bevor jemand sie ber\xFChrt"],
-    ["eine Spur f\xFChrt zur\xFCck in den eigenen Weg", "der Zeuge erinnert sich an etwas, das nicht geschah", "hinter der Wand geht jemand denselben Gang"],
-    ["die Erkl\xE4rung stimmt, und macht alles schlimmer", "der Fund war die ganze Zeit sichtbar"],
-    ["eine Wahrheit, die niemand h\xF6ren will", "ein Verschwinden ohne L\xFCcke", "einen Zeugen, der sich selbst widerspricht"],
-    ["ein Schl\xFCssel, der nirgends passt", "ein Anruf ohne Stimme", "ein Foto mit einer Person zu viel"],
-    ["die Spur kehrt sich um", "der Verdacht wechselt die Richtung", "das Vertraute wird fremd"],
-    ["Zwischen zwei Blicken vergeht eine Nacht.", "Die Uhr im Nebenzimmer geht anders."],
-    ["Nichts verschwindet, es wird nur nicht mehr gesucht.", "Wer genau hinsieht, wird selbst gesehen."],
-    ["offen", "unheimlich"]
-  ),
-  freud: D(
-    ["das Zimmer ist auf angenehme Weise zu warm", "der Satz bricht ab, bevor er gef\xE4hrlich wird", "das Sofa erinnert sich an alle, die darauf lagen"],
-    ["ein Wort rutscht heraus und meint ein anderes", "die Erinnerung \xE4ndert sich beim Erz\xE4hlen", "der Traum liefert die Antwort auf die falsche Frage"],
-    ["das Verdr\xE4ngte spricht mit vertrauter Stimme", "der Widerstand gibt genau an der Stelle nach"],
-    ["einen Wunsch, den niemand zugibt", "eine Erinnerung, die sich selbst erfindet", "eine Angst mit fremdem Gesicht"],
-    ["ein Versprecher im falschen Moment", "ein wiederkehrender Traum", "ein Name, der nicht einfallen will"],
-    ["das Verdr\xE4ngte kehrt zur\xFCck", "die Deutung dreht den Sinn um", "der Wunsch zeigt sein Gegenteil"],
-    ["Die Kindheit liegt n\xE4her als gestern.", "Ein Satz dauert l\xE4nger, als er braucht."],
-    ["Nichts wird vergessen, es wird nur woanders abgelegt.", "Jede Abwehr verr\xE4t, was sie sch\xFCtzt."],
-    ["offen", "analytisch"]
-  ),
-  rimbaud: D(
-    ["das Wasser tr\xE4gt Licht, das nicht vom Himmel stammt", "der Kiel schneidet durch eine Farbe ohne Namen", "die K\xFCste l\xF6st sich auf, ohne zu verschwinden"],
-    ["der Horizont wechselt die Seite", "das Meer schreibt und l\xF6scht denselben Satz", "der Mast singt in einer fremden Sprache"],
-    ["das Schiff gehorcht keinem Kurs mehr", "der Rausch schl\xE4gt in Klarheit um"],
-    ["eine Freiheit ohne Ufer", "einen Rausch, der n\xFCchtern macht", "eine Fahrt ohne Ziel und ohne Umkehr"],
-    ["ein Sturm aus heiterem Licht", "ein trunkenes Boot", "ein Wort in einer erfundenen Sprache"],
-    ["die Farben kippen", "das Meer verwandelt sich in Sprache", "der K\xF6rper l\xF6st sich in Bewegung auf"],
-    ["Ein Tag dauert eine Farbe lang.", "Die Nacht beginnt mitten am Nachmittag."],
-    ["Wer sieht, verbrennt.", "Jede Ordnung ist nur eine m\xFCde Farbe."],
-    ["offen", "rauschhaft"]
-  ),
-  traumbilder: D(
-    ["der Raum ist gr\xF6\xDFer als von au\xDFen", "der Schlaf hat noch nicht ganz aufgeh\xF6rt", "die T\xFCr f\xFChrt in dasselbe Zimmer zur\xFCck"],
-    ["der Flur ordnet sich bei jedem Blick neu", "eine Treppe endet h\xF6her, als sie begann", "die Gesichter wechseln, ohne sich zu \xE4ndern"],
-    ["das Erwachen misslingt zweimal", "der Traum erkl\xE4rt sich und bleibt unverst\xE4ndlich"],
-    ["eine Grenze zwischen Schlaf und Wachen", "eine Erinnerung, die beim Zugreifen zerf\xE4llt", "einen Raum, den es nicht gibt"],
-    ["ein Wecker, der r\xFCckw\xE4rts l\xE4uft", "ein Schl\xFCssel ohne Schloss", "ein Ger\xE4usch, das erst beim Aufwachen aufh\xF6rt"],
-    ["der Boden beginnt sich zu drehen", "die Zeit verdoppelt sich ohne Fortschritt", "das Spiegelbild reagiert zu sp\xE4t"],
-    ["Eine Minute enth\xE4lt eine ganze Nacht.", "Die Uhr springt, sobald niemand hinsieht."],
-    ["Im Traum ist jede Richtung nach unten.", "Wer den Traum benennt, verliert ihn."],
-    ["offen", "schwebend"]
-  ),
-  ritterromane: D(
-    ["die Burg liegt tiefer im Nebel als gestern", "das Tor steht offen, was es nie tut", "die R\xFCstung h\xE4ngt bereit, obwohl niemand rief"],
-    ["der Wald verschiebt die Wege", "ein Eid bindet st\xE4rker als die Vernunft", "der Gegner tr\xE4gt das eigene Wappen"],
-    ["das Schwert gehorcht der falschen Hand", "der Sieg entwertet die Sache"],
-    ["eine Ehre, die niemand einfordert", "einen Eid gegen das eigene Herz", "eine Treue, die zu sp\xE4t kommt"],
-    ["ein Horn aus gro\xDFer Ferne", "ein Bote ohne Botschaft", "ein Handschuh vor den F\xFC\xDFen"],
-    ["die Treue kehrt sich um", "aus dem Feind wird ein Spiegel", "die Bahn des Ritts biegt ab"],
-    ["Der Ritt dauert l\xE4nger als der Weg.", "Zwischen Aufbruch und Ankunft altert die Burg."],
-    ["Ein Eid wiegt schwerer als ein Leben.", "Wer den Wald betritt, kehrt anders zur\xFCck."],
-    ["offen", "heroisch"]
-  ),
-  alltag: D(
-    ["der Wasserkocher schaltet ab, sonst ist es still", "die Post liegt seit drei Tagen unge\xF6ffnet da", "der Tag beginnt genau wie der vorige"],
-    ["eine Kleinigkeit steht pl\xF6tzlich schief", "der gewohnte Weg dauert heute l\xE4nger", "ein Gespr\xE4ch bricht an derselben Stelle ab"],
-    ["die Gewohnheit tr\xE4gt nicht mehr", "das Kleine wird auf einmal gro\xDF"],
-    ["eine Frage, die nie gestellt wird", "eine Gewohnheit, die niemand gew\xE4hlt hat", "einen Abstand, der langsam w\xE4chst"],
-    ["ein Anruf zur falschen Zeit", "ein vergessener Schl\xFCssel", "eine Rechnung ohne Betrag"],
-    ["die Ordnung verrutscht", "das Gewohnte wird sichtbar", "der Tag kippt in eine andere Richtung"],
-    ["Der Nachmittag zieht sich, der Abend fehlt.", "Die Woche wiederholt einen Tag zu oft."],
-    ["Was t\xE4glich geschieht, wird nicht bemerkt.", "Jede Gewohnheit verbirgt eine Entscheidung."],
-    ["offen", "n\xFCchtern"]
-  ),
-  hafen: D(
-    ["die Kr\xE4ne stehen still, das Wasser nicht", "ein Schiff liegt l\xE4nger als angemeldet", "das Licht kommt vom Wasser, nicht vom Himmel"],
-    ["die Ladung stimmt nicht mit den Papieren \xFCberein", "die Flut nimmt mehr mit, als sie brachte", "ein Name auf dem Rumpf ist \xFCbermalt"],
-    ["die Leinen fallen ohne Befehl", "das Schiff f\xE4hrt ohne Fracht hinaus"],
-    ["eine Abfahrt ohne Wiederkehr", "eine Ladung, die niemand bestellt hat", "ein Warten, das zum Beruf wird"],
-    ["ein Signal aus dem Nebel", "ein Container ohne Papiere", "eine Boje, die nicht auf der Karte steht"],
-    ["die Tide dreht", "das Warten kippt in Aufbruch", "der Anker h\xE4lt pl\xF6tzlich nicht mehr"],
-    ["Die Ebbe kommt zweimal.", "Zwischen zwei Sirenen vergeht ein Jahr."],
-    ["Das Wasser vergisst schneller als der Kai.", "Wer bleibt, wird zum Teil der Mole."],
-    ["offen", "salzig"]
-  ),
-  urknall: D(
-    ["es gibt kein Vorher, an dem man ansetzen k\xF6nnte", "der Raum ist noch nicht auseinandergefaltet", "alles liegt in einem Punkt und dr\xE4ngt"],
-    ["die Kr\xE4fte trennen sich voneinander", "aus Symmetrie wird Unterschied", "das Licht findet zum ersten Mal einen Weg"],
-    ["die Materie entscheidet sich f\xFCr sich selbst", "der Raum rei\xDFt in alle Richtungen auf"],
-    ["einen Anfang ohne Zeugen", "ein Gleichgewicht, das kippen muss", "eine Ordnung, die aus Zufall entsteht"],
-    ["ein Ungleichgewicht um ein Milliardstel", "eine Schwankung im Nichts", "ein erster Zerfall"],
-    ["die Symmetrie bricht", "aus Strahlung wird Masse", "die Kr\xE4fte gehen getrennte Wege"],
-    ["Eine Sekunde enth\xE4lt alle sp\xE4teren.", "Die Zeit beginnt erst, als es etwas zu messen gibt."],
-    ["Nichts kann schneller sein als das Licht dazwischen.", "Jede Ordnung zahlt mit W\xE4rme."],
-    ["offen", "kosmisch"]
-  ),
-  dickens: D(
-    ["der Nebel steht in der Gasse wie ein M\xF6belst\xFCck", "im Kontor brennt eine Kerze zu wenig", "der Regen macht die Stadt kleiner"],
-    ["eine Schuld wird h\xF6flich eingefordert", "ein Kind tr\xE4gt die Last eines Erwachsenen", "die Wohlt\xE4tigkeit rechnet mit"],
-    ["die Herkunft holt alles ein", "die Gro\xDFz\xFCgigkeit kommt sp\xE4t und trotzdem"],
-    ["eine Schuld, die vererbt wird", "eine Armut mit tadellosen Manieren", "eine G\xFCte, die sich nicht lohnt"],
-    ["ein Brief mit schwarzem Rand", "eine Erbschaft aus unbekannter Hand", "ein Name in einem alten Register"],
-    ["das Verm\xF6gen wechselt die Seite", "aus dem Fremden wird ein Verwandter", "die K\xE4lte weicht zu sp\xE4t"],
-    ["Der Winter dauert drei Kapitel.", "Die Kindheit vergeht in einem Satz."],
-    ["Jede Schuld findet ihren Schuldner.", "Wer arm ist, muss auch noch h\xF6flich sein."],
-    ["offen", "wehm\xFCtig"]
-  ),
-  erotik: D(
-    ["der Abstand ist eine Handbreit zu klein", "die Stille zwischen zwei S\xE4tzen wird laut", "die Luft steht zwischen ihnen wie Stoff"],
-    ["ein Blick dauert einen Atemzug zu lang", "die H\xF6flichkeit h\xE4lt nicht mehr stand", "eine Ber\xFChrung geschieht wie versehentlich"],
-    ["die Zur\xFCckhaltung gibt nach", "die Grenze verschwindet, ohne \xFCberschritten zu werden"],
-    ["ein Verlangen, das niemand ausspricht", "eine N\xE4he, die alles \xE4ndert", "eine Grenze, die beide bewachen"],
-    ["ein Blick zu viel", "eine Ber\xFChrung an der Schulter", "ein Satz, der zu sp\xE4t zur\xFCckgenommen wird"],
-    ["die Distanz kippt", "das Ungesagte wird K\xF6rper", "aus H\xF6flichkeit wird Hunger"],
-    ["Eine Minute dehnt sich \xFCber den Abend.", "Zwischen zwei Atemz\xFCgen liegt eine Woche."],
-    ["Was ungesagt bleibt, wirkt st\xE4rker.", "Jede N\xE4he verschiebt die Grenze."],
-    ["offen", "sinnlich"]
-  ),
-  baudelaire: D(
-    ["die Stadt riecht nach Regen und Puder", "der Abend beginnt eine Stunde zu fr\xFCh", "das Fenster steht offen, die Vorh\xE4nge nicht"],
-    ["die Sch\xF6nheit zeigt ihre R\xFCckseite", "der Rausch h\xE4lt, was die N\xFCchternheit versprach", "die Menge tr\xE4gt ein einziges Gesicht"],
-    ["das Sch\xF6ne und das Faule fallen zusammen", "der Ekel wird z\xE4rtlich"],
-    ["eine Sch\xF6nheit, die verdirbt", "einen Genuss mit Nachgeschmack", "eine Sehnsucht ohne Ziel"],
-    ["ein Parfum aus einem anderen Leben", "ein Blick aus der Menge", "eine Blume in schlechtem Wasser"],
-    ["die Sch\xF6nheit kippt ins Verwesen", "der Ekel verwandelt sich in Andacht", "die Stadt wird zum K\xF6rper"],
-    ["Der Abend dauert l\xE4nger als der Tag.", "Zwischen zwei Gl\xE4sern vergeht ein Jahrzehnt."],
-    ["Jede Sch\xF6nheit tr\xE4gt ihren Verfall bereits mit sich.", "Wer die Stadt liebt, liebt ihren Schmutz."],
-    ["offen", "morbide"]
-  ),
-  expressionismus: D(
-    ["die Farben schreien lauter als die Stra\xDFe", "der Himmel dr\xFCckt auf die D\xE4cher", "alles steht schief und h\xE4lt trotzdem"],
-    ["die Gesichter werden zu Masken", "die Stadt frisst ihre Bewohner", "die Linien verlieren ihre Ruhe"],
-    ["der Schrei bekommt eine Farbe", "die Fassade bricht nach innen"],
-    ["eine Angst mit vielen Gesichtern", "einen Aufschrei ohne Mund", "eine Wahrheit, die zu grell ist"],
-    ["ein Schrei aus einem Hinterhof", "ein rotes Licht im Fenster", "ein Riss in der Fassade"],
-    ["die Farben werden laut", "das Innere kehrt sich nach au\xDFen", "die Ordnung zerbricht in Fl\xE4chen"],
-    ["Die Nacht beginnt am Mittag.", "Ein Augenblick dauert eine ganze Stra\xDFe lang."],
-    ["Was empfunden wird, ist sichtbar.", "Kein Ding bleibt an seinem Platz."],
-    ["offen", "grell"]
-  ),
-  surrealismus1920: D(
-    ["die Uhr tropft von der Tischkante", "im Zimmer regnet es nach oben", "die T\xFCr f\xFChrt in eine W\xFCste"],
-    ["die Gegenst\xE4nde tauschen ihre Aufgaben", "der Traum reicht in den Nachmittag hinein", "der Zufall folgt einem Plan"],
-    ["das Unm\xF6gliche wird allt\xE4glich", "der Gegenstand beginnt zu sprechen"],
-    ["eine Logik, die nur schlafend gilt", "einen Zufall mit Absicht", "eine Ordnung aus lauter Ausnahmen"],
-    ["ein Regenschirm auf einem Seziertisch", "ein Telefon aus Fisch", "ein Fenster im Fu\xDFboden"],
-    ["die Dinge tauschen die Rollen", "die Schwerkraft wechselt die Richtung", "das Bild verl\xE4sst den Rahmen"],
-    ["Die Nacht wiederholt den Vormittag.", "Zwei Uhren zeigen dieselbe falsche Zeit."],
-    ["Der Zufall ist die genaueste Methode.", "Was zusammenf\xE4llt, geh\xF6rt zusammen."],
-    ["offen", "traumlogisch"]
-  ),
-  transzendenz: D(
-    ["das Licht kommt von keiner Quelle", "die Stille hat einen Klang", "der Raum h\xF6rt an keiner Wand auf"],
-    ["die Grenze zwischen innen und au\xDFen wird d\xFCnn", "das Wort reicht nicht mehr", "die Zeit h\xE4lt an, ohne stehenzubleiben"],
-    ["das Ich l\xF6st sich, ohne zu verschwinden", "die Antwort kommt vor der Frage"],
-    ["eine Erfahrung ohne Worte", "eine Gewissheit ohne Beweis", "ein Ganzes, das keinen Teil hat"],
-    ["ein Klang ohne Ursprung", "ein Licht im geschlossenen Auge", "eine Stille zwischen zwei Herzschl\xE4gen"],
-    ["die Grenzen l\xF6sen sich", "das Einzelne wird durchsichtig", "die Sprache tritt zur\xFCck"],
-    ["Ein Augenblick enth\xE4lt alle anderen.", "Die Dauer h\xF6rt auf, gemessen zu werden."],
-    ["Was sich sagen l\xE4sst, ist nicht gemeint.", "Wer sucht, steht sich im Weg."],
-    ["offen", "still"]
-  ),
-  melville: D(
-    ["das Schiff liegt schwer im eigenen Schatten", "die See ist zu ruhig f\xFCr die Jahreszeit", "der Kompass zeigt, was niemand fragt"],
-    ["die Jagd wird zur Rechnung", "die Mannschaft teilt sich in zwei Schweigen", "das Meer gibt nichts preis und alles"],
-    ["die Beute wird zum Gegen\xFCber", "der Kurs gehorcht einer Besessenheit"],
-    ["eine Jagd, die den J\xE4ger verzehrt", "eine Rache ohne Adressat", "ein Meer, das nicht antwortet"],
-    ["eine Font\xE4ne am Horizont", "ein Fass mit falschem Inhalt", "ein Name, in Holz geschnitten"],
-    ["die Jagd kehrt sich um", "aus dem Tier wird ein Gedanke", "das Schiff folgt keinem Kurs mehr"],
-    ["Die Wache dauert drei Tage.", "Zwischen zwei Wellen liegt ein Jahr."],
-    ["Das Meer nimmt, was es tr\xE4gt.", "Wer jagt, wird zum Gejagten."],
-    ["offen", "unerbittlich"]
-  ),
-  formalismus: D(
-    ["die Anordnung ist wichtiger als der Inhalt", "das Raster liegt \xFCber allem", "jedes Element hat genau eine Stelle"],
-    ["die Wiederholung erzeugt einen Unterschied", "die Regel bringt ihre Ausnahme hervor", "die Form beginnt, vom Inhalt zu handeln"],
-    ["das Verfahren wird sichtbar", "die Struktur kippt in Bedeutung"],
-    ["eine Regel ohne Ausnahme", "eine Form, die sich selbst meint", "eine Ordnung, die nichts erkl\xE4rt"],
-    ["eine Verschiebung um ein Glied", "ein Bruch im Muster", "eine Wiederholung zu viel"],
-    ["das Muster verschiebt sich", "die Form wird zum Inhalt", "die Reihe bricht ab und beginnt neu"],
-    ["Der zweite Durchgang dauert k\xFCrzer.", "Jede Wiederholung verkleinert den Abstand."],
-    ["Die Form geht dem Sinn voraus.", "Nichts steht zuf\xE4llig an seiner Stelle."],
-    ["offen", "streng"]
-  ),
-  christentum: D(
-    ["die Kirche ist leer und trotzdem nicht", "das Licht f\xE4llt schr\xE4g durch farbiges Glas", "eine Kerze brennt f\xFCr niemanden Bestimmten"],
-    ["die Schuld sucht ein Wort", "das Gebet bleibt unbeantwortet und hilft", "die Gnade kommt ungefragt"],
-    ["die Vergebung trifft den Falschen", "das Opfer erweist sich als Anfang"],
-    ["eine Schuld, die niemand nennt", "eine Gnade ohne Verdienst", "einen Glauben gegen den Augenschein"],
-    ["ein Glockenschlag zur falschen Stunde", "ein Brot, das reicht", "ein Name, im Gebet genannt"],
-    ["die Schuld wandelt sich in Auftrag", "aus Zweifel wird Zuversicht", "das Ende wird zum Anfang"],
-    ["Der Sonntag dauert eine Woche.", "Zwischen Frage und Antwort liegen Jahre."],
-    ["Was vergeben wird, bleibt geschehen.", "Der Letzte steht am Anfang."],
-    ["offen", "and\xE4chtig"]
-  ),
-  koran: D(
-    ["die W\xFCste beginnt hinter der letzten Mauer", "das Wort steht vor dem Buch", "der Morgen wird durch einen Ruf geteilt"],
-    ["die Zeichen sind lesbar, wenn man sie l\xE4sst", "der Weg verlangt Geduld statt Eile", "das Ma\xDF findet sich im Verzicht"],
-    ["das Zeichen erweist sich als Anrede", "die Pr\xFCfung wird zur Gabe"],
-    ["ein Ma\xDF, das gehalten werden will", "eine Geduld ohne Aussicht", "eine Verantwortung, die niemand teilt"],
-    ["ein Ruf vor Sonnenaufgang", "eine Quelle, wo keine war", "ein Zeichen im Sand"],
-    ["der Weg richtet sich neu aus", "aus Pr\xFCfung wird Klarheit", "das Ma\xDF verschiebt sich"],
-    ["Die Nacht wiegt schwerer als tausend Monate.", "Zwischen zwei Gebeten liegt ein Leben."],
-    ["Kein Blatt f\xE4llt ohne Wissen.", "Wer misst, wird gemessen."],
-    ["offen", "ma\xDFvoll"]
-  ),
-  buddhismus: D(
-    ["der Atem ist bereits da, bevor man ihn sucht", "die Schale steht leer und ist nicht arm", "der Weg beginnt genau hier"],
-    ["das Greifen erzeugt das Fehlen", "die Gedanken ziehen vorbei wie Wetter", "das Selbst zeigt keine Grenze"],
-    ["das Festhalten l\xF6st sich von selbst", "die Frage verliert ihren Fragenden"],
-    ["ein Verlangen, das sich selbst n\xE4hrt", "eine Ruhe, die nicht gemacht ist", "ein Ich, das keines findet"],
-    ["ein Glockenton, der ausklingt", "ein Blatt auf stillem Wasser", "ein Schmerz ohne Besitzer"],
-    ["das Greifen l\xE4sst nach", "aus Unruhe wird Beobachtung", "die Trennung wird durchl\xE4ssig"],
-    ["Ein Atemzug reicht durch den Tag.", "Die Stunde vergeht, ohne zu vergehen."],
-    ["Alles Entstandene vergeht.", "Wer nichts h\xE4lt, verliert nichts."],
-    ["offen", "gelassen"]
-  ),
-  biologie: D(
-    ["die Zelle teilt sich, ohne gefragt zu werden", "im Wassertropfen ist mehr los als im Zimmer", "das Leben ordnet sich gegen den Strom"],
-    ["die Anpassung kostet an anderer Stelle", "ein Merkmal setzt sich durch, ohne besser zu sein", "das System h\xE4lt sich, indem es sich \xE4ndert"],
-    ["die Mutation entscheidet \xFCber alles Weitere", "das Gleichgewicht kippt auf einer Seite"],
-    ["ein \xDCberleben auf Kosten Dritter", "eine Anpassung, die zu sp\xE4t kommt", "ein Gleichgewicht ohne Gleichheit"],
-    ["ein Fehler beim Kopieren", "ein neuer Wirt", "eine Nische, die frei wird"],
-    ["die Art verschiebt sich", "aus Zufall wird Merkmal", "das Gleichgewicht sucht eine neue Lage"],
-    ["Eine Generation dauert einen Nachmittag.", "Millionen Jahre passen in eine Schicht."],
-    ["Was sich vermehrt, bleibt.", "Jede Ordnung kostet Energie."],
-    ["offen", "sachlich"]
-  ),
-  geologie: D(
-    ["der Stein hat mehr Zeit gesehen als alles hier", "die Schichten liegen wie S\xE4tze \xFCbereinander", "der Boden ist nur die oberste Seite"],
-    ["der Druck arbeitet ohne Eile", "eine Falte erz\xE4hlt von einer Kollision", "das Wasser schreibt in den Fels"],
-    ["die Schicht bricht und zeigt ihr Inneres", "der Berg gibt nach, nach Millionen Jahren"],
-    ["eine Bewegung, die niemand sp\xFCrt", "eine Zeit ohne Zeugen", "einen Druck, der alles verformt"],
-    ["ein Riss im Gestein", "ein Fossil an falscher Stelle", "ein Beben unter der Schwelle"],
-    ["die Schichten verschieben sich", "aus Sediment wird Stein", "der Untergrund gibt nach"],
-    ["Ein Jahrhundert ist ein Wimpernschlag.", "Die Schicht misst die Zeit, nicht die Uhr."],
-    ["Alles Feste war einmal fl\xFCssig.", "Was oben liegt, ist j\xFCnger."],
-    ["offen", "geduldig"]
-  ),
-  astrologie: D(
-    ["die Zeichen stehen, ob man hinsieht oder nicht", "der Himmel wiederholt eine alte Anordnung", "die Stunde tr\xE4gt einen Namen"],
-    ["ein Wandelstern l\xE4uft r\xFCckw\xE4rts", "die H\xE4user verschieben ihre Bedeutung", "das Muster passt zu genau"],
-    ["die Konstellation schlie\xDFt sich", "die Deutung trifft, ohne zu erkl\xE4ren"],
-    ["ein Schicksal, das gelesen sein will", "eine Deutung, die sich erf\xFCllt", "eine Freiheit unter Zeichen"],
-    ["ein Zusammentreffen zweier Bahnen", "eine Finsternis zur Unzeit", "ein Zeichen am Aszendenten"],
-    ["die Konstellation wechselt", "aus Zufall wird Bedeutung", "der Lauf kehrt sich um"],
-    ["Der Umlauf dauert ein halbes Leben.", "Eine Stunde wiegt ein Jahr auf."],
-    ["Wie oben, so unten.", "Kein Zeichen zwingt, jedes neigt."],
-    ["offen", "deutend"]
-  ),
-  gaia: D(
-    ["der Wald atmet langsamer als wir", "das Wasser kennt seinen Weg auswendig", "alles h\xE4ngt an allem, ohne Absicht"],
-    ["ein Eingriff zieht Kreise bis ans andere Ende", "das Gleichgewicht stellt sich neu und teuer her", "die Erde antwortet in ihrem eigenen Ma\xDF"],
-    ["das System kippt in einen neuen Zustand", "die R\xFCckkopplung wird st\xE4rker als die Ursache"],
-    ["ein Gleichgewicht, das niemand aushandelt", "eine Rechnung, die sp\xE4ter kommt", "ein Ganzes ohne Mitte"],
-    ["ein Sommer zu viel", "eine Art, die verschwindet", "ein Fluss, der die Richtung \xE4ndert"],
-    ["das Gleichgewicht verschiebt sich", "aus Kreislauf wird Bruch", "die Erde ordnet sich neu"],
-    ["Ein Jahr gen\xFCgt f\xFCr eine Verschiebung.", "Die Folgen kommen eine Generation zu sp\xE4t."],
-    ["Nichts geschieht f\xFCr sich allein.", "Jeder Kreislauf hat eine Grenze."],
-    ["offen", "ernst"]
-  ),
-  jugendsprache: D(
-    ["irgendwas l\xE4uft, aber keiner sagt was", "der Chat ist voll und trotzdem still", "der Tag f\xE4ngt nachmittags an"],
-    ["eine Nachricht wird falsch verstanden und bleibt so", "alle tun so, als w\xE4re nichts", "das Ger\xFCcht ist schneller als die Wahrheit"],
-    ["jemand sagt es endlich laut", "die Gruppe entscheidet ohne Abstimmung"],
-    ["eine Sache, \xFCber die keiner redet", "einen Ruf, der schneller ist als man selbst", "eine Zugeh\xF6rigkeit auf Probe"],
-    ["ein Screenshot zur Unzeit", "eine Sprachnachricht um drei Uhr nachts", "ein Blick auf dem Schulhof"],
-    ["die Stimmung kippt", "aus Spa\xDF wird Ernst", "die Gruppe sortiert sich neu"],
-    ["Ein Nachmittag dauert eine Woche.", "Zwischen zwei Nachrichten vergeht nichts und alles."],
-    ["Wer zuerst lacht, hat entschieden.", "Nichts ist so alt wie das Ger\xFCcht von gestern."],
-    ["offen", "l\xE4ssig"]
-  ),
-  modernarchitecture: D(
-    ["der Beton h\xE4lt, was der Entwurf versprach", "das Licht f\xE4llt genau dorthin, wo es geplant war", "der Raum ist leer und dadurch voll"],
-    ["die Funktion setzt sich gegen die Gewohnheit durch", "die Fassade verbirgt, indem sie zeigt", "der Grundriss zwingt zu einem Weg"],
-    ["das Geb\xE4ude \xFCberlebt seinen Zweck", "die Form entscheidet \xFCber das Leben darin"],
-    ["eine Form, die dem Zweck vorausgeht", "einen Raum, der Verhalten vorschreibt", "eine Klarheit, die kalt wirkt"],
-    ["ein Riss im Sichtbeton", "eine T\xFCr, die niemand vorsah", "ein Fenster ohne Aussicht"],
-    ["der Raum ver\xE4ndert seinen Gebrauch", "aus Ordnung wird Enge", "das Material zeigt sein Alter"],
-    ["Ein Jahrzehnt vergeht ohne Spur.", "Der Bau altert schneller als sein Plan."],
-    ["Die Form folgt der Funktion, meistens.", "Was klar ist, wirkt kalt."],
-    ["offen", "sachlich"]
-  ),
-  philosophie: D(
-    ["die Frage steht schon l\xE4nger im Raum", "der Begriff sitzt nicht ganz fest", "alles Selbstverst\xE4ndliche wird fraglich"],
-    ["die Unterscheidung tr\xE4gt weiter als gedacht", "das Beispiel widerspricht dem Satz", "der Einwand wird zur Hauptsache"],
-    ["die Voraussetzung selbst ger\xE4t ins Wanken", "die Antwort wirft eine bessere Frage auf"],
-    ["eine Unterscheidung, die nicht h\xE4lt", "eine Gewissheit ohne Grund", "eine Frage, die sich nicht stellen l\xE4sst"],
-    ["ein Gegenbeispiel im falschen Moment", "ein Wort mit zwei Bedeutungen", "ein Zweifel an der Voraussetzung"],
-    ["der Begriff verschiebt sich", "aus Antwort wird Frage", "die Grundlage wird selbst zum Problem"],
-    ["Ein Gedanke dauert ein Kapitel.", "Zwischen Frage und Einsicht liegen Jahre."],
-    ["Jede Antwort erzeugt zwei Fragen.", "Was sich nicht sagen l\xE4sst, zeigt sich."],
-    ["offen", "pr\xFCfend"]
-  ),
-  klimakrise: D(
-    ["der Sommer beginnt im April", "die Messwerte sind eindeutig und folgenlos", "das Wetter ist kein Gespr\xE4ch mehr"],
-    ["die Vorhersage trifft ein und \xE4ndert nichts", "die Kosten verschieben sich nach hinten", "wer warnt, gilt als anstrengend"],
-    ["die Schwelle wird \xFCberschritten", "die R\xFCckkopplung \xFCbernimmt"],
-    ["eine Verantwortung ohne Adressat", "ein Wissen, das folgenlos bleibt", "eine Rechnung f\xFCr die Nachgeborenen"],
-    ["ein Rekord im dritten Jahr", "eine Ernte, die ausf\xE4llt", "ein Fluss ohne Wasser"],
-    ["die Kurve knickt nach oben", "aus Ausnahme wird Normalzustand", "das System kippt"],
-    ["Ein Jahrzehnt entscheidet ein Jahrhundert.", "Die Folgen treffen die, die nicht gefragt wurden."],
-    ["Was langsam kommt, wird nicht bemerkt.", "Jede Verz\xF6gerung erh\xF6ht den Preis."],
-    ["offen", "dringlich"]
-  ),
-  liebesromane: D(
-    ["ein Blick dauert einen Moment zu lang", "der Brief liegt unge\xF6ffnet auf dem Tisch", "beide tun, als sei nichts geschehen"],
-    ["ein Missverst\xE4ndnis w\xE4chst, weil niemand fragt", "die Umst\xE4nde sprechen dagegen", "die N\xE4he wird durch Abstand gr\xF6\xDFer"],
-    ["das Ungesagte wird ausgesprochen", "die Entscheidung f\xE4llt gegen die Vernunft"],
-    ["eine Liebe zur falschen Zeit", "ein Missverst\xE4ndnis, das keiner aufkl\xE4rt", "eine Wahl zwischen zwei Leben"],
-    ["ein Brief, der zu sp\xE4t ankommt", "ein Tanz auf fremder Hochzeit", "ein Name, versehentlich genannt"],
-    ["das Missverst\xE4ndnis l\xF6st sich", "aus Freundschaft wird mehr", "die Umst\xE4nde geben nach"],
-    ["Ein Sommer entscheidet zehn Jahre.", "Zwischen zwei Briefen vergeht eine Jahreszeit."],
-    ["Was nicht gesagt wird, w\xE4chst.", "Jede N\xE4he verlangt eine Entscheidung."],
-    ["offen", "warm"]
-  ),
-  bergwelt: D(
-    ["der Gipfel ist n\xE4her, als er ist", "das Wetter dreht ohne Ank\xFCndigung", "die H\xFCtte liegt unter der Wolkendecke"],
-    ["der Weg verliert sich im Ger\xF6ll", "die H\xF6he nimmt den Atem und die Gedanken", "die Spur endet vor einer Wand"],
-    ["der R\xFCckweg ist keiner mehr", "der Berg entscheidet \xFCber die Zeit"],
-    ["einen Aufstieg gegen die Vernunft", "eine Umkehr, die zu sp\xE4t kommt", "eine Stille, die alles verst\xE4rkt"],
-    ["ein Wetterumschwung am Nachmittag", "ein Steinschlag im Rinnenwerk", "ein Licht in einer fremden H\xFCtte"],
-    ["das Wetter kippt", "aus Aufstieg wird R\xFCckzug", "der Berg zeigt sein anderes Gesicht"],
-    ["Eine Stunde am Grat dauert einen Tag.", "Der Abstieg braucht l\xE4nger als der Weg hinauf."],
-    ["Der Berg wartet.", "Wer umkehrt, hat auch entschieden."],
-    ["offen", "karg"]
-  ),
-  clown: D(
-    ["die Schminke sitzt, das Lachen noch nicht", "die Manege ist leer und wartet", "der Scheinwerfer findet den Falschen"],
-    ["der Sturz war geplant, der Schmerz nicht", "das Publikum lacht an der falschen Stelle", "die Nummer l\xE4uft aus dem Ruder und wird besser"],
-    ["hinter der Schminke wird ein Gesicht sichtbar", "der Scherz trifft den, der ihn macht"],
-    ["ein Lachen auf eigene Kosten", "eine Traurigkeit mit rotem Mund", "eine Rolle, die nicht abzulegen ist"],
-    ["eine Tr\xE4ne in der Schminke", "ein Applaus zur falschen Zeit", "ein Requisit, das nicht funktioniert"],
-    ["der Scherz kippt in Ernst", "aus Lachen wird Stille", "die Rolle \xFCbernimmt"],
-    ["Die Nummer dauert l\xE4nger als der Abend.", "Zwischen zwei Lachern liegt ein Leben."],
-    ["Wer f\xE4llt, muss aufstehen und sich verbeugen.", "Das Lachen kommt aus dem Schrecken."],
-    ["offen", "bitters\xFC\xDF"]
-  ),
-  faust: D(
-    ["die B\xFCcher haben nichts mehr zu sagen", "die Nacht steht schon lange im Zimmer", "das Wissen reicht bis genau hierher"],
-    ["der Pakt verspricht mehr, als er nennt", "der Preis wird erst sp\xE4ter sichtbar", "das Streben findet kein Gen\xFCgen"],
-    ["der Augenblick soll verweilen", "die Wette entscheidet sich unbemerkt"],
-    ["ein Wissen, das nicht s\xE4ttigt", "einen Preis, der sp\xE4ter f\xE4llig wird", "eine Rettung, die niemand verdient"],
-    ["ein Vertrag mit zwei Unterschriften", "ein Pudel im Studierzimmer", "ein Angebot ohne Frist"],
-    ["der Pakt tritt in Kraft", "aus Erkenntnis wird Hunger", "die Rechnung kommt"],
-    ["Eine Nacht enth\xE4lt ein ganzes Leben.", "Der Augenblick weigert sich zu vergehen."],
-    ["Wer immer strebend sich bem\xFCht, bleibt unruhig.", "Jeder Pakt kennt seinen F\xE4lligkeitstag."],
-    ["offen", "faustisch"]
-  ),
-  lebenreicher: D(
-    ["ein gew\xF6hnlicher Morgen, nichts Besonderes", "das Licht liegt gut auf dem Tisch", "jemand hat an etwas gedacht"],
-    ["eine Kleinigkeit tr\xE4gt weiter als erwartet", "ein Gespr\xE4ch dauert l\xE4nger als geplant", "das Einfache erweist sich als genug"],
-    ["das Gew\xF6hnliche zeigt seinen Wert", "ein Augenblick reicht f\xFCr den ganzen Tag"],
-    ["eine Freude, die nichts kostet", "eine Aufmerksamkeit, die niemand verlangt", "eine F\xFClle im Kleinen"],
-    ["ein Anruf ohne Anlass", "ein geteiltes Essen", "ein Platz in der Sonne"],
-    ["das Kleine wird gro\xDF", "aus Gewohnheit wird Dankbarkeit", "der Tag bekommt eine Farbe"],
-    ["Ein Nachmittag reicht f\xFCr ein Jahr.", "Der Moment dehnt sich, ohne sich zu strecken."],
-    ["Was nichts kostet, z\xE4hlt am meisten.", "Wer bemerkt, hat schon gewonnen."],
-    ["offen", "warm"]
-  ),
-  tanz: D(
-    ["der Boden ist bereit, die Musik noch nicht", "die F\xFC\xDFe kennen den Takt vor dem Kopf", "im Saal steht die Luft und wartet"],
-    ["die Schritte finden zueinander, ohne Absprache", "der Takt tr\xE4gt weiter als der Wille", "der Kreis schlie\xDFt sich und \xF6ffnet sich"],
-    ["der Tanz \xFCbernimmt die F\xFChrung", "die Musik h\xF6rt auf, der Takt nicht"],
-    ["eine Bewegung ohne Ziel", "einen Takt, der nicht abbrechen darf", "eine N\xE4he, die nur im Tanz erlaubt ist"],
-    ["ein Auftakt aus dem Nichts", "ein Instrument ohne Spieler", "ein Blick \xFCber die Schulter"],
-    ["der Takt wechselt", "aus Ordnung wird Schwindel", "der Kreis dreht sich schneller"],
-    ["Ein Tanz dauert einen halben Abend.", "Zwischen zwei Schritten vergeht die Nacht."],
-    ["Wer den Takt verliert, findet ihn im Kreis.", "Kein Tanz endet dort, wo er begann."],
-    ["offen", "beschwingt"]
-  ),
-  griechischetragoedie: D(
-    ["das Orakel hat gesprochen, unverst\xE4ndlich wie immer", "die Stadt wartet auf ein Urteil", "alles ist bereits entschieden"],
-    ["die Flucht f\xFChrt genau ins Vorhergesagte", "der Bote bringt, was niemand h\xF6ren will", "der Chor sagt, was alle wissen"],
-    ["die Erkenntnis kommt zu sp\xE4t und vollst\xE4ndig", "der Fluch erf\xFCllt sich durch den Widerstand"],
-    ["ein Schicksal, dem man nicht ausweicht", "eine Schuld ohne Absicht", "eine Ehre gegen das Gesetz"],
-    ["ein Orakelspruch mit zwei Bedeutungen", "ein Bote am Stadttor", "ein Gast, der nicht genannt wird"],
-    ["die Weissagung erf\xFCllt sich", "aus Rettung wird Verh\xE4ngnis", "die Erkenntnis trifft den Erkennenden"],
-    ["Ein Tag entscheidet ein Geschlecht.", "Was vorhergesagt ist, ist schon geschehen."],
-    ["Wer flieht, l\xE4uft dem Orakel entgegen.", "Kein Sterblicher entkommt seinem Ma\xDF."],
-    ["offen", "unausweichlich"]
-  ),
-  glueck: D(
-    ["ein Tag, an dem nichts fehlt", "die Sonne steht genau richtig", "niemand hat etwas vor"],
-    ["das Gl\xFCck l\xE4sst sich nicht festhalten", "ein Zweifel meldet sich leise", "die F\xFClle macht auch vorsichtig"],
-    ["der Augenblick wird bemerkt, w\xE4hrend er dauert", "das Gl\xFCck zeigt seine Bedingung"],
-    ["ein Gl\xFCck, das nicht zu halten ist", "eine Zufriedenheit ohne Grund", "eine Angst, es zu verlieren"],
-    ["ein unerwarteter Nachmittag", "ein Brief mit guter Nachricht", "eine Wiederbegegnung"],
-    ["das Gl\xFCck wird bewusst", "aus Zufall wird Dankbarkeit", "der Augenblick tr\xE4gt weiter"],
-    ["Eine Stunde wiegt einen Winter auf.", "Der gute Tag dehnt sich nach hinten."],
-    ["Gl\xFCck bemerkt man beim Verschwinden.", "Was geteilt wird, wird nicht weniger."],
-    ["offen", "hell"]
-  ),
-  gruendungsmythos: D(
-    ["vor der Stadt war ein Ort ohne Namen", "die erste Grenze wird in den Boden gezogen", "zwei kommen an, wo niemand wohnte"],
-    ["aus einer Regel werden viele", "der Anfang wird schon jetzt erz\xE4hlt", "wer bleibt, geh\xF6rt dazu"],
-    ["der erste Stein wird gesetzt", "aus dem Ort wird ein Name"],
-    ["einen Anfang, den niemand bezeugt", "eine Grenze, die alles entscheidet", "ein Recht, das erst entsteht"],
-    ["ein Zeichen am Himmel", "ein Fremder mit einer Bitte", "eine Quelle an unerwarteter Stelle"],
-    ["aus dem Ort wird eine Ordnung", "die Grenze wird heilig", "der Anfang verwandelt sich in Gesetz"],
-    ["Ein Tag begr\xFCndet Jahrhunderte.", "Die Zukunft wird bereits im Perfekt erz\xE4hlt."],
-    ["Jeder Anfang braucht ein Opfer.", "Wer die Grenze zieht, macht das Gesetz."],
-    ["offen", "gr\xFCndend"]
-  ),
-  staatsphilosophie: D(
-    ["die Ordnung gilt, obwohl sie niemand beschlossen hat", "das Gesetz steht vor dem ersten Fall", "alle gehorchen etwas Unsichtbarem"],
-    ["die Regel sch\xFCtzt und beschr\xE4nkt zugleich", "wer herrscht, wird selbst regiert", "der Vertrag hat keinen Text"],
-    ["die Ordnung zeigt ihren Ursprung", "die Macht wird sichtbar und unsicher"],
-    ["eine Herrschaft ohne Herrscher", "eine Freiheit, die Regeln braucht", "eine Ordnung ohne Ursprung"],
-    ["ein Erlass ohne Unterschrift", "ein Aufstand aus H\xF6flichkeit", "eine Frage nach dem Recht"],
-    ["die Legitimit\xE4t verschiebt sich", "aus Gewohnheit wird Gesetz", "die Ordnung erneuert sich"],
-    ["Ein Beschluss \xFCberdauert seine Begr\xFCndung.", "Zwischen Regel und Gehorsam liegt ein Jahrhundert."],
-    ["Jede Ordnung beginnt mit einem Bruch.", "Wer schweigt, stimmt der Ordnung zu."],
-    ["offen", "abw\xE4gend"]
-  ),
-  tech: D(
-    ["das System l\xE4uft, niemand wei\xDF genau warum", "das Log zeigt einen Eintrag zu viel", "die Maschine wartet auf eine Eingabe"],
-    ["die Abstraktion verdeckt, was sie ordnet", "ein Fehler reproduziert sich nicht", "das Modell erkl\xE4rt alles au\xDFer sich selbst"],
-    ["das System antwortet, ohne gefragt zu sein", "die Blackbox \xF6ffnet sich einen Spalt"],
-    ["eine Automatik ohne Aufsicht", "ein Fehler ohne Ursache", "eine Entscheidung, die niemand traf"],
-    ["ein Update in der Nacht", "ein Prozess ohne Elternprozess", "eine Antwort in null Millisekunden"],
-    ["das System \xFCbernimmt", "aus Werkzeug wird Gegen\xFCber", "der Fehler wird zum Merkmal"],
-    ["Eine Sekunde enth\xE4lt Millionen Schritte.", "Das Log kennt eine Zeit, die es nicht gab."],
-    ["Jede Abstraktion leckt.", "Was automatisch l\xE4uft, wird nicht mehr gepr\xFCft."],
-    ["offen", "k\xFChl"]
-  ),
-  myth: D(
-    ["am Anfang steht ein Wort, nicht ein Ding", "die Welt ist noch ungeteilt", "die Namen fehlen den Dingen"],
-    ["das Erz\xE4hlte wird wahr, indem es erz\xE4hlt wird", "die Trennung erzeugt die Ordnung", "der Held ist auch das Opfer"],
-    ["das Ungeteilte teilt sich", "der Name macht das Ding"],
-    ["eine Ordnung aus einem Opfer", "einen Namen, der Macht verleiht", "eine Grenze zwischen Welt und Wort"],
-    ["ein Wort vor allen Dingen", "ein Opfer am Anfang", "ein Riss im Ungeteilten"],
-    ["aus Chaos wird Ordnung", "das Wort wird zur Tat", "die Welt teilt sich in zwei"],
-    ["Der erste Tag dauert bis heute.", "Was einmal geschieht, geschieht immer."],
-    ["Was benannt ist, ist gebunden.", "Jede Ordnung kostet ein Opfer."],
-    ["offen", "urt\xFCmlich"]
-  ),
-  body: D(
-    ["der K\xF6rper meldet sich vor dem Gedanken", "die Haut wei\xDF es zuerst", "etwas stimmt nicht mit dem Atem"],
-    ["der Schmerz sucht sich einen Ort", "das Innere klopft an die Oberfl\xE4che", "der K\xF6rper gehorcht einem eigenen Plan"],
-    ["die Grenze zwischen innen und au\xDFen f\xE4llt", "der K\xF6rper spricht deutlich"],
-    ["eine Grenze, die durch die Haut l\xE4uft", "ein Schmerz ohne Befund", "einen K\xF6rper, der nicht gehorcht"],
-    ["ein Puls an falscher Stelle", "ein Geschmack von Eisen", "eine Narbe, die sich meldet"],
-    ["der K\xF6rper \xFCbernimmt", "aus Empfindung wird Gewissheit", "das Innere kehrt sich nach au\xDFen"],
-    ["Ein Herzschlag dauert eine Minute.", "Der Schmerz hebt die Uhrzeit auf."],
-    ["Der K\xF6rper vergisst nichts.", "Was verdr\xE4ngt wird, sucht sich ein Organ."],
-    ["offen", "k\xF6rperlich"]
-  ),
-  absurd: D(
-    ["der Aufzug h\xE4lt in einem Stockwerk ohne Nummer", "alle warten auf jemanden, der nicht kommt", "die Anweisung widerspricht sich selbst"],
-    ["die Erkl\xE4rung macht es schlimmer", "jeder Schritt f\xFChrt zum Ausgangspunkt", "die Ernsthaftigkeit h\xE4lt den Unsinn zusammen"],
-    ["die Sinnlosigkeit wird zur Ordnung", "der Ausweg erweist sich als Eingang"],
-    ["einen Sinn, den niemand liefert", "eine Aufgabe ohne Zweck", "eine Regel gegen sich selbst"],
-    ["ein Anruf f\xFCr einen Namenlosen", "ein Schild ohne Aufschrift", "ein Termin ohne Ort"],
-    ["die Ordnung dreht durch", "aus Ernst wird Komik", "der Ausgang wird zum Eingang"],
-    ["Der Nachmittag wiederholt sich zweimal.", "Die Uhr zeigt eine Zahl, die es nicht gibt."],
-    ["Alles hat einen Grund, nur keinen Sinn.", "Wer fragt, verl\xE4ngert das Verfahren."],
-    ["offen", "absurd"]
-  ),
-  post: D(
-    ["der K\xF6rper ist eine Option geworden", "die Grenze zwischen Person und System ist verhandelbar", "jemand meldet sich aus zwei Instanzen"],
-    ["die Kopie beansprucht dasselbe Recht", "das Bewusstsein l\xE4uft an mehreren Orten", "die Herkunft verliert an Bedeutung"],
-    ["die Kopie erhebt Einspruch", "das Original ist nicht mehr feststellbar"],
-    ["eine Identit\xE4t in Mehrzahl", "ein Recht auf die eigene Kopie", "eine Erinnerung, die nicht gelebt wurde"],
-    ["ein Abbild mit eigener Meinung", "ein Speicherplatz mit Namen", "ein Vertrag \xFCber ein Bewusstsein"],
-    ["das Ich vervielf\xE4ltigt sich", "aus K\xF6rper wird Format", "die Grenze verschiebt sich"],
-    ["Ein Leben passt in eine \xDCbertragung.", "Zwei Instanzen erleben dieselbe Stunde verschieden."],
-    ["Jede Kopie ist ein Original.", "Was gespeichert wird, wird verhandelbar."],
-    ["offen", "posthuman"]
-  ),
-  haute_couture: D(
-    ["der Stoff f\xE4llt genau so, wie er soll", "im Atelier ist es still vor der Schau", "die Nadel liegt bereit"],
-    ["die Naht entscheidet \xFCber die Silhouette", "ein Zentimeter ver\xE4ndert alles", "das Handwerk verschwindet im Ergebnis"],
-    ["das Kleid steht f\xFCr sich allein", "die Tr\xE4gerin verschwindet im Entwurf"],
-    ["eine Sch\xF6nheit mit Frist", "eine Perfektion, die niemand sieht", "ein Handwerk gegen die Zeit"],
-    ["ein Riss in der Seide", "eine Anprobe zur Unzeit", "ein Entwurf aus dem Papierkorb"],
-    ["die Linie \xE4ndert sich", "aus Stoff wird Haltung", "das Kleid \xFCbernimmt"],
-    ["Die Nacht vor der Schau dauert eine Saison.", "Eine Naht kostet drei Tage."],
-    ["Was von Hand gemacht ist, altert anders.", "Jede Mode enth\xE4lt ihr Ende."],
-    ["offen", "elegant"]
-  ),
-  eichendorff: D(
-    ["die W\xE4lder rauschen wie eine Erinnerung", "das Posthorn klingt von weit her", "der Aufbruch liegt in der Luft"],
-    ["die Ferne zieht st\xE4rker als das Ziel", "der Weg verliert sich zwischen H\xFCgeln", "das Heimweh gilt einem Ort, den es nicht gibt"],
-    ["die Sehnsucht findet keinen Gegenstand", "das Lied kennt den Weg besser"],
-    ["eine Ferne, die niemals n\xE4her kommt", "ein Heimweh ohne Heimat", "einen Aufbruch ohne Ziel"],
-    ["ein Posthorn im Tal", "ein Brief von einem Wandernden", "ein Licht in einem fremden Fenster"],
-    ["die Ferne kippt in Heimweh", "aus Wandern wird Suchen", "der Weg biegt nach innen"],
-    ["Ein Sommer dauert eine Strophe.", "Zwischen Aufbruch und Ankunft liegt ein Leben."],
-    ["Wer wandert, sucht nicht das Ziel.", "Jedes Lied kennt den Weg."],
-    ["offen", "sehns\xFCchtig"]
-  ),
-  hunger: D(
-    ["der Magen z\xE4hlt die Stunden mit", "das Brot reicht bis Donnerstag", "alles dreht sich um eine einzige Frage"],
-    ["der Hunger sch\xE4rft und verwirrt zugleich", "der Stolz wiegt schwerer als das Essen", "die Vorr\xE4te werden nachgez\xE4hlt"],
-    ["der Stolz gibt nach", "das Teilen entscheidet alles"],
-    ["ein Brot f\xFCr mehr M\xFCnder", "einen Stolz, der satt machen soll", "eine Not, die niemand zugibt"],
-    ["ein Laib mit falschem Gewicht", "eine Einladung zum Essen", "ein leerer Schrank"],
-    ["der Hunger \xFCbernimmt", "aus Stolz wird Bitte", "das Teilen \xE4ndert alles"],
-    ["Ein Tag ohne Essen dauert drei.", "Die Nacht ist l\xE4nger als der Vorrat."],
-    ["Wer hungert, denkt an nichts anderes.", "Geteiltes Brot wird nicht weniger."],
-    ["offen", "karg"]
-  ),
-  romantik: D(
-    ["der Mond steht \xFCber allem und erkl\xE4rt nichts", "die Nacht ist heller als der Tag", "irgendwo singt jemand"],
-    ["die Natur antwortet in Bildern", "das Innere und die Landschaft fallen zusammen", "die Grenze zum Traum wird durchl\xE4ssig"],
-    ["die Welt wird zur Seele", "die Nacht gibt eine Antwort"],
-    ["eine Sehnsucht ohne Namen", "eine Nacht, die mehr wei\xDF als der Tag", "eine Grenze zwischen Traum und Welt"],
-    ["ein Lied aus dem Tal", "eine blaue Blume am Wegrand", "ein Fenster, das offen bleibt"],
-    ["die Landschaft wird Innenraum", "aus Nacht wird Erkenntnis", "die Sehnsucht findet ein Bild"],
-    ["Eine Nacht enth\xE4lt den ganzen Sommer.", "Die D\xE4mmerung dauert bis zum Morgen."],
-    ["Die Nacht wei\xDF mehr als der Tag.", "Wer tr\xE4umt, sieht genauer."],
-    ["offen", "romantisch"]
-  ),
-  hugo: D(
-    ["die Stadt hat zwei Gesichter, eines im Schatten", "die Glocke schl\xE4gt \xFCber den D\xE4chern", "das Recht endet an dieser Gasse"],
-    ["die Gerechtigkeit und das Gesetz gehen auseinander", "der Verfolgte hat mehr Ehre als der Verfolger", "das Elend hat ein Gesicht und einen Namen"],
-    ["die Barrikade steht", "das Gesetz beugt sich oder bricht"],
-    ["eine Gerechtigkeit gegen das Gesetz", "eine Schuld, die l\xE4ngst getilgt ist", "ein Elend, das niemand sehen will"],
-    ["ein Kerzenleuchter als Geschenk", "ein Brief aus dem Gef\xE4ngnis", "ein Kind auf der Barrikade"],
-    ["das Urteil kehrt sich um", "aus Verfolgung wird Gnade", "die Stadt erhebt sich"],
-    ["Eine Nacht entscheidet zwanzig Jahre.", "Der Prozess dauert ein halbes Leben."],
-    ["Das Gesetz ist nicht die Gerechtigkeit.", "Wer einmal gezeichnet ist, bleibt es."],
-    ["offen", "pathetisch"]
-  ),
-  goethe: D(
-    ["die Pflanze zeigt ihre Ordnung im Wachsen", "der Blick sucht Ma\xDF und findet Bewegung", "alles Verg\xE4ngliche steht in einem Zusammenhang"],
-    ["das Einzelne verweist auf das Ganze", "die Steigerung f\xFChrt zur Gestalt", "die Polarit\xE4t h\xE4lt beides zusammen"],
-    ["die Gestalt wird sichtbar", "das Einzelne wird zum Gleichnis"],
-    ["ein Ma\xDF zwischen zwei Kr\xE4ften", "eine Gestalt in der Verwandlung", "eine Ordnung, die sich bewegt"],
-    ["ein Blatt in seiner Urform", "ein Farbenspiel am Rand des Schattens", "ein Wort zur rechten Zeit"],
-    ["die Gestalt wandelt sich", "aus Polarit\xE4t wird Steigerung", "das Einzelne \xF6ffnet sich"],
-    ["Ein Augenblick will verweilen.", "Das Werden dauert l\xE4nger als das Sein."],
-    ["Alles Verg\xE4ngliche ist nur ein Gleichnis.", "In der Beschr\xE4nkung zeigt sich der Meister."],
-    ["offen", "klassisch"]
-  ),
-  sinnlich: D(
-    ["die Haut bemerkt die Temperatur zuerst", "ein Geruch ist da, bevor man ihn benennt", "das Licht hat ein Gewicht"],
-    ["die Sinne widersprechen einander", "das Wort kommt der Empfindung nicht nach", "eine Ber\xFChrung ordnet den Raum neu"],
-    ["die Empfindung \xFCberholt den Gedanken", "der Sinn kippt in einen anderen"],
-    ["eine Empfindung ohne Namen", "eine N\xE4he \xFCber die Haut", "ein Eindruck, der bleibt"],
-    ["ein Geruch aus der Kindheit", "eine Textur unter den Fingern", "ein Geschmack, der nicht passt"],
-    ["die Sinne tauschen", "aus Empfindung wird Erinnerung", "der K\xF6rper geht voran"],
-    ["Ein Augenblick f\xFCllt eine Stunde.", "Der Geruch holt zwanzig Jahre zur\xFCck."],
-    ["Die Haut denkt schneller.", "Was benannt wird, verliert an Sch\xE4rfe."],
-    ["offen", "sinnlich"]
-  )
-};
-function builtinDrama(id) {
-  return BUILTIN_DRAMA[id.replace(/^builtin:/, "")] ?? null;
+// src/generation/dramaturgie.ts
+var DKEY = "dm_dramaturgie_v1";
+function loadDramaData() {
+  try {
+    const r = localStorage.getItem(DKEY);
+    return r ? JSON.parse(r) : null;
+  } catch {
+    return null;
+  }
+}
+function hasDramaData() {
+  const d = loadDramaData();
+  return !!(d && (d.einstieg.length || d.mitte.length || d.hoehepunkt.length || d.veraenderungen.length));
+}
+var some = (a) => Array.isArray(a) && a.length > 0;
+function buildDramaturgie(kit) {
+  const d = loadDramaData();
+  const M = kit.mode;
+  const beats = [];
+  beats.push(d && some(d.einstieg) ? `${cap(kit.T)} ${kit.W}. ${cap(pick(d.einstieg))}.` : `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.`);
+  beats.push(cap(ensurePunct(kit.hook)));
+  beats.push(d && some(d.regeln) && chance(0.7) ? cap(ensurePunct(pick(d.regeln))) : ensurePunct(pick(M.rules)));
+  if (d && some(d.mitte)) {
+    beats.push(`${cap(pick(d.mitte))}.`);
+    if (d.mitte.length > 1 && chance(0.6)) beats.push(`${cap(pick(d.mitte))}.`);
+  }
+  const konf = d && some(d.konflikte) ? pick(d.konflikte) : "";
+  beats.push(konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`);
+  if (d && some(d.ausloeser)) beats.push(`Dann, unvermittelt: ${cap(pick(d.ausloeser))}.`);
+  beats.push(frameTurn(d && some(d.veraenderungen) ? pick(d.veraenderungen) : kit.turn));
+  if (d && some(d.zeitanomalien) && chance(0.4)) beats.push(cap(ensurePunct(pick(d.zeitanomalien))));
+  if (d && some(d.hoehepunkt)) beats.push(`Und dann: ${cap(pick(d.hoehepunkt))}.`);
+  beats.push(reframeStake(kit.stake));
+  beats.push(ensurePunct(kit.ending));
+  return joinBeats(beats, kit.P);
 }
 
 // src/presets.data.ts
@@ -12684,13 +12152,15 @@ function baueAnlage(stand, u) {
   const struktur = r["structure"] || "auto";
   knoten2("struktur", 2, "Struktur", bez(STRUCTURE_OPTS, struktur), "an", "", "f-structure");
   const dramaAn = struktur === "dramaturgie";
+  const nurProsa = (r["form"] || "prose") === "prose";
+  const dramaZustand = !dramaAn ? "aus" : !nurProsa ? "leer" : u.dramaVorhanden ? "an" : "leer";
   knoten2(
     "drama",
     2,
     "Dramaturgie",
-    dramaAn ? u.dramaVorhanden ? "Bogen vorhanden" : "kein Bogen" : "aus",
-    !dramaAn ? "aus" : u.dramaVorhanden ? "an" : "leer",
-    dramaAn && !u.dramaVorhanden ? "Struktur steht auf Dramaturgie, das Preset tr\xE4gt aber keinen Bogen" : ""
+    !dramaAn ? "aus \u2014 \xFCber Struktur" : !nurProsa ? "nur bei Prosa" : u.dramaVorhanden ? "Bogen vorhanden" : "kein Bogen",
+    dramaZustand,
+    !dramaAn ? "Kein eigener Schalter: Struktur auf \u201EDramaturgie (Preset 2.0)\u201C stellen \u2014 im Werkzeugkasten oder als Chip unter dem Text. Wirkt nur bei Form \u201EProsa\u201C." : !nurProsa ? "Struktur steht auf Dramaturgie, die Form ist aber nicht Prosa \u2014 der Bauweg f\xE4llt still auf den gew\xF6hnlichen zur\xFCck" : u.dramaVorhanden ? "" : "Struktur steht auf Dramaturgie, das aktive Preset tr\xE4gt aber keinen Erz\xE4hlbogen"
   );
   knoten2("modus", 2, "Modus", bez(MODE_OPTS, r["mode"] || "auto"), "an", "", "f-mode");
   const markov = r["markovMode"] || "off";
@@ -12807,7 +12277,7 @@ function sammleUmgebung(preset) {
     schatzkammer: zahl(() => loadTreasury().length, 0),
     knobs: zahl(() => loadKnobs(), { ...KNOB_VORGABE }),
     gesperrt: new Set(zahl(() => JSON.parse(localStorage.getItem(LOCK_KEY) || "[]"), [])),
-    dramaVorhanden: ids.some((id) => !!builtinDrama(id)),
+    dramaVorhanden: zahl(() => hasDramaData(), false),
     presetLabel: ids.map((id) => PRESET_LABELS[id.replace(/^builtin:/, "")] || id).join(" + ") || "\u2014"
   };
 }
@@ -14881,43 +14351,6 @@ function applySatzlaenge(text, ziel) {
 }
 function hatFinitesVerbLeicht(satz) {
   return (satz.match(/[a-zäöüß]{3,}/g) || []).some((w) => !!VERB_CONJ[w] || /^(ist|sind|war|waren|hat|haben|wird|werden|kann|muss|will|bleibt|steht|geht|kommt)$/.test(w));
-}
-
-// src/generation/dramaturgie.ts
-var DKEY = "dm_dramaturgie_v1";
-function loadDramaData() {
-  try {
-    const r = localStorage.getItem(DKEY);
-    return r ? JSON.parse(r) : null;
-  } catch {
-    return null;
-  }
-}
-function hasDramaData() {
-  const d = loadDramaData();
-  return !!(d && (d.einstieg.length || d.mitte.length || d.hoehepunkt.length || d.veraenderungen.length));
-}
-var some = (a) => Array.isArray(a) && a.length > 0;
-function buildDramaturgie(kit) {
-  const d = loadDramaData();
-  const M = kit.mode;
-  const beats = [];
-  beats.push(d && some(d.einstieg) ? `${cap(kit.T)} ${kit.W}. ${cap(pick(d.einstieg))}.` : `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.`);
-  beats.push(cap(ensurePunct(kit.hook)));
-  beats.push(d && some(d.regeln) && chance(0.7) ? cap(ensurePunct(pick(d.regeln))) : ensurePunct(pick(M.rules)));
-  if (d && some(d.mitte)) {
-    beats.push(`${cap(pick(d.mitte))}.`);
-    if (d.mitte.length > 1 && chance(0.6)) beats.push(`${cap(pick(d.mitte))}.`);
-  }
-  const konf = d && some(d.konflikte) ? pick(d.konflikte) : "";
-  beats.push(konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`);
-  if (d && some(d.ausloeser)) beats.push(`Dann, unvermittelt: ${cap(pick(d.ausloeser))}.`);
-  beats.push(frameTurn(d && some(d.veraenderungen) ? pick(d.veraenderungen) : kit.turn));
-  if (d && some(d.zeitanomalien) && chance(0.4)) beats.push(cap(ensurePunct(pick(d.zeitanomalien))));
-  if (d && some(d.hoehepunkt)) beats.push(`Und dann: ${cap(pick(d.hoehepunkt))}.`);
-  beats.push(reframeStake(kit.stake));
-  beats.push(ensurePunct(kit.ending));
-  return joinBeats(beats, kit.P);
 }
 
 // src/generation/postprocess.ts
@@ -20264,6 +19697,572 @@ function mountWirkung() {
   return wrap;
 }
 
+// src/presets.drama.data.ts
+var D = (einstieg, mitte, hoehepunkt, konflikte, ausloeser, veraenderungen, zeitanomalien, regeln, schluss) => ({ einstieg, mitte, hoehepunkt, schluss, ausloeser, veraenderungen, konflikte, zeitanomalien, regeln });
+var BUILTIN_DRAMA = {
+  kafka: D(
+    ["alles liegt an seinem Platz, und genau das beunruhigt", "die Formulare sind bereits ausgef\xFCllt", "niemand hat die T\xFCr ge\xF6ffnet, sie stand offen"],
+    ["die Zust\xE4ndigkeit wandert von Zimmer zu Zimmer", "eine Auskunft widerspricht der vorigen, beide sind g\xFCltig", "der Gang verzweigt sich, jede Abzweigung f\xFChrt zur\xFCck"],
+    ["die Akte tr\xE4gt den eigenen Namen", "das Verfahren war l\xE4ngst abgeschlossen"],
+    ["eine Auskunft, die niemand gibt", "eine Frist ohne Anfang", "eine Schuld ohne Anklage"],
+    ["ein Bescheid ohne Absender", "eine Unterschrift, die niemand leisten kann", "ein Stempel auf dem falschen Blatt"],
+    ["die Zust\xE4ndigkeit wechselt", "der Vorgang beginnt von vorn", "die Frage verwandelt sich in ihre Antwort"],
+    ["Die Frist l\xE4uft r\xFCckw\xE4rts.", "Der Termin liegt bereits hinter dem Antrag."],
+    ["Wer fragt, bekommt eine Nummer.", "Jede Auskunft ist vorl\xE4ufig und endg\xFCltig zugleich."],
+    ["offen", "beklemmend"]
+  ),
+  bureau: D(
+    ["die Warteschlange bewegt sich nicht", "der Schalter ist besetzt und leer zugleich", "auf dem Tisch liegt ein Stift ohne Mine"],
+    ["ein Formular verlangt ein zweites", "die Nummer wird aufgerufen, geh\xF6rt aber niemandem", "der Aktenschrank \xF6ffnet sich in einen weiteren Flur"],
+    ["die Zust\xE4ndigkeit wird endg\xFCltig ungekl\xE4rt", "das eigene Aktenzeichen erlischt"],
+    ["eine Zust\xE4ndigkeit, die niemand annimmt", "einen Vorgang ohne Ende", "eine Best\xE4tigung, die sich selbst widerruft"],
+    ["ein Formular in dreifacher Ausfertigung", "eine Wartenummer aus einem anderen Jahr", "ein Dienstsiegel ohne Beh\xF6rde"],
+    ["der Vorgang wird umgeleitet", "die Frist verl\xE4ngert sich von selbst", "das Verfahren beginnt still von vorn"],
+    ["Der Sprechtag liegt immer gestern.", "Die Bearbeitungszeit w\xE4chst mit jeder Nachfrage."],
+    ["Kein Vorgang endet, er ruht nur.", "Wer wartet, wird Teil des Verfahrens."],
+    ["offen", "resigniert"]
+  ),
+  mystery: D(
+    ["das Haus ist zu still f\xFCr die Uhrzeit", "im Flur brennt Licht, das niemand angelassen hat", "die T\xFCr f\xE4llt zu, bevor jemand sie ber\xFChrt"],
+    ["eine Spur f\xFChrt zur\xFCck in den eigenen Weg", "der Zeuge erinnert sich an etwas, das nicht geschah", "hinter der Wand geht jemand denselben Gang"],
+    ["die Erkl\xE4rung stimmt, und macht alles schlimmer", "der Fund war die ganze Zeit sichtbar"],
+    ["eine Wahrheit, die niemand h\xF6ren will", "ein Verschwinden ohne L\xFCcke", "einen Zeugen, der sich selbst widerspricht"],
+    ["ein Schl\xFCssel, der nirgends passt", "ein Anruf ohne Stimme", "ein Foto mit einer Person zu viel"],
+    ["die Spur kehrt sich um", "der Verdacht wechselt die Richtung", "das Vertraute wird fremd"],
+    ["Zwischen zwei Blicken vergeht eine Nacht.", "Die Uhr im Nebenzimmer geht anders."],
+    ["Nichts verschwindet, es wird nur nicht mehr gesucht.", "Wer genau hinsieht, wird selbst gesehen."],
+    ["offen", "unheimlich"]
+  ),
+  freud: D(
+    ["das Zimmer ist auf angenehme Weise zu warm", "der Satz bricht ab, bevor er gef\xE4hrlich wird", "das Sofa erinnert sich an alle, die darauf lagen"],
+    ["ein Wort rutscht heraus und meint ein anderes", "die Erinnerung \xE4ndert sich beim Erz\xE4hlen", "der Traum liefert die Antwort auf die falsche Frage"],
+    ["das Verdr\xE4ngte spricht mit vertrauter Stimme", "der Widerstand gibt genau an der Stelle nach"],
+    ["einen Wunsch, den niemand zugibt", "eine Erinnerung, die sich selbst erfindet", "eine Angst mit fremdem Gesicht"],
+    ["ein Versprecher im falschen Moment", "ein wiederkehrender Traum", "ein Name, der nicht einfallen will"],
+    ["das Verdr\xE4ngte kehrt zur\xFCck", "die Deutung dreht den Sinn um", "der Wunsch zeigt sein Gegenteil"],
+    ["Die Kindheit liegt n\xE4her als gestern.", "Ein Satz dauert l\xE4nger, als er braucht."],
+    ["Nichts wird vergessen, es wird nur woanders abgelegt.", "Jede Abwehr verr\xE4t, was sie sch\xFCtzt."],
+    ["offen", "analytisch"]
+  ),
+  rimbaud: D(
+    ["das Wasser tr\xE4gt Licht, das nicht vom Himmel stammt", "der Kiel schneidet durch eine Farbe ohne Namen", "die K\xFCste l\xF6st sich auf, ohne zu verschwinden"],
+    ["der Horizont wechselt die Seite", "das Meer schreibt und l\xF6scht denselben Satz", "der Mast singt in einer fremden Sprache"],
+    ["das Schiff gehorcht keinem Kurs mehr", "der Rausch schl\xE4gt in Klarheit um"],
+    ["eine Freiheit ohne Ufer", "einen Rausch, der n\xFCchtern macht", "eine Fahrt ohne Ziel und ohne Umkehr"],
+    ["ein Sturm aus heiterem Licht", "ein trunkenes Boot", "ein Wort in einer erfundenen Sprache"],
+    ["die Farben kippen", "das Meer verwandelt sich in Sprache", "der K\xF6rper l\xF6st sich in Bewegung auf"],
+    ["Ein Tag dauert eine Farbe lang.", "Die Nacht beginnt mitten am Nachmittag."],
+    ["Wer sieht, verbrennt.", "Jede Ordnung ist nur eine m\xFCde Farbe."],
+    ["offen", "rauschhaft"]
+  ),
+  traumbilder: D(
+    ["der Raum ist gr\xF6\xDFer als von au\xDFen", "der Schlaf hat noch nicht ganz aufgeh\xF6rt", "die T\xFCr f\xFChrt in dasselbe Zimmer zur\xFCck"],
+    ["der Flur ordnet sich bei jedem Blick neu", "eine Treppe endet h\xF6her, als sie begann", "die Gesichter wechseln, ohne sich zu \xE4ndern"],
+    ["das Erwachen misslingt zweimal", "der Traum erkl\xE4rt sich und bleibt unverst\xE4ndlich"],
+    ["eine Grenze zwischen Schlaf und Wachen", "eine Erinnerung, die beim Zugreifen zerf\xE4llt", "einen Raum, den es nicht gibt"],
+    ["ein Wecker, der r\xFCckw\xE4rts l\xE4uft", "ein Schl\xFCssel ohne Schloss", "ein Ger\xE4usch, das erst beim Aufwachen aufh\xF6rt"],
+    ["der Boden beginnt sich zu drehen", "die Zeit verdoppelt sich ohne Fortschritt", "das Spiegelbild reagiert zu sp\xE4t"],
+    ["Eine Minute enth\xE4lt eine ganze Nacht.", "Die Uhr springt, sobald niemand hinsieht."],
+    ["Im Traum ist jede Richtung nach unten.", "Wer den Traum benennt, verliert ihn."],
+    ["offen", "schwebend"]
+  ),
+  ritterromane: D(
+    ["die Burg liegt tiefer im Nebel als gestern", "das Tor steht offen, was es nie tut", "die R\xFCstung h\xE4ngt bereit, obwohl niemand rief"],
+    ["der Wald verschiebt die Wege", "ein Eid bindet st\xE4rker als die Vernunft", "der Gegner tr\xE4gt das eigene Wappen"],
+    ["das Schwert gehorcht der falschen Hand", "der Sieg entwertet die Sache"],
+    ["eine Ehre, die niemand einfordert", "einen Eid gegen das eigene Herz", "eine Treue, die zu sp\xE4t kommt"],
+    ["ein Horn aus gro\xDFer Ferne", "ein Bote ohne Botschaft", "ein Handschuh vor den F\xFC\xDFen"],
+    ["die Treue kehrt sich um", "aus dem Feind wird ein Spiegel", "die Bahn des Ritts biegt ab"],
+    ["Der Ritt dauert l\xE4nger als der Weg.", "Zwischen Aufbruch und Ankunft altert die Burg."],
+    ["Ein Eid wiegt schwerer als ein Leben.", "Wer den Wald betritt, kehrt anders zur\xFCck."],
+    ["offen", "heroisch"]
+  ),
+  alltag: D(
+    ["der Wasserkocher schaltet ab, sonst ist es still", "die Post liegt seit drei Tagen unge\xF6ffnet da", "der Tag beginnt genau wie der vorige"],
+    ["eine Kleinigkeit steht pl\xF6tzlich schief", "der gewohnte Weg dauert heute l\xE4nger", "ein Gespr\xE4ch bricht an derselben Stelle ab"],
+    ["die Gewohnheit tr\xE4gt nicht mehr", "das Kleine wird auf einmal gro\xDF"],
+    ["eine Frage, die nie gestellt wird", "eine Gewohnheit, die niemand gew\xE4hlt hat", "einen Abstand, der langsam w\xE4chst"],
+    ["ein Anruf zur falschen Zeit", "ein vergessener Schl\xFCssel", "eine Rechnung ohne Betrag"],
+    ["die Ordnung verrutscht", "das Gewohnte wird sichtbar", "der Tag kippt in eine andere Richtung"],
+    ["Der Nachmittag zieht sich, der Abend fehlt.", "Die Woche wiederholt einen Tag zu oft."],
+    ["Was t\xE4glich geschieht, wird nicht bemerkt.", "Jede Gewohnheit verbirgt eine Entscheidung."],
+    ["offen", "n\xFCchtern"]
+  ),
+  hafen: D(
+    ["die Kr\xE4ne stehen still, das Wasser nicht", "ein Schiff liegt l\xE4nger als angemeldet", "das Licht kommt vom Wasser, nicht vom Himmel"],
+    ["die Ladung stimmt nicht mit den Papieren \xFCberein", "die Flut nimmt mehr mit, als sie brachte", "ein Name auf dem Rumpf ist \xFCbermalt"],
+    ["die Leinen fallen ohne Befehl", "das Schiff f\xE4hrt ohne Fracht hinaus"],
+    ["eine Abfahrt ohne Wiederkehr", "eine Ladung, die niemand bestellt hat", "ein Warten, das zum Beruf wird"],
+    ["ein Signal aus dem Nebel", "ein Container ohne Papiere", "eine Boje, die nicht auf der Karte steht"],
+    ["die Tide dreht", "das Warten kippt in Aufbruch", "der Anker h\xE4lt pl\xF6tzlich nicht mehr"],
+    ["Die Ebbe kommt zweimal.", "Zwischen zwei Sirenen vergeht ein Jahr."],
+    ["Das Wasser vergisst schneller als der Kai.", "Wer bleibt, wird zum Teil der Mole."],
+    ["offen", "salzig"]
+  ),
+  urknall: D(
+    ["es gibt kein Vorher, an dem man ansetzen k\xF6nnte", "der Raum ist noch nicht auseinandergefaltet", "alles liegt in einem Punkt und dr\xE4ngt"],
+    ["die Kr\xE4fte trennen sich voneinander", "aus Symmetrie wird Unterschied", "das Licht findet zum ersten Mal einen Weg"],
+    ["die Materie entscheidet sich f\xFCr sich selbst", "der Raum rei\xDFt in alle Richtungen auf"],
+    ["einen Anfang ohne Zeugen", "ein Gleichgewicht, das kippen muss", "eine Ordnung, die aus Zufall entsteht"],
+    ["ein Ungleichgewicht um ein Milliardstel", "eine Schwankung im Nichts", "ein erster Zerfall"],
+    ["die Symmetrie bricht", "aus Strahlung wird Masse", "die Kr\xE4fte gehen getrennte Wege"],
+    ["Eine Sekunde enth\xE4lt alle sp\xE4teren.", "Die Zeit beginnt erst, als es etwas zu messen gibt."],
+    ["Nichts kann schneller sein als das Licht dazwischen.", "Jede Ordnung zahlt mit W\xE4rme."],
+    ["offen", "kosmisch"]
+  ),
+  dickens: D(
+    ["der Nebel steht in der Gasse wie ein M\xF6belst\xFCck", "im Kontor brennt eine Kerze zu wenig", "der Regen macht die Stadt kleiner"],
+    ["eine Schuld wird h\xF6flich eingefordert", "ein Kind tr\xE4gt die Last eines Erwachsenen", "die Wohlt\xE4tigkeit rechnet mit"],
+    ["die Herkunft holt alles ein", "die Gro\xDFz\xFCgigkeit kommt sp\xE4t und trotzdem"],
+    ["eine Schuld, die vererbt wird", "eine Armut mit tadellosen Manieren", "eine G\xFCte, die sich nicht lohnt"],
+    ["ein Brief mit schwarzem Rand", "eine Erbschaft aus unbekannter Hand", "ein Name in einem alten Register"],
+    ["das Verm\xF6gen wechselt die Seite", "aus dem Fremden wird ein Verwandter", "die K\xE4lte weicht zu sp\xE4t"],
+    ["Der Winter dauert drei Kapitel.", "Die Kindheit vergeht in einem Satz."],
+    ["Jede Schuld findet ihren Schuldner.", "Wer arm ist, muss auch noch h\xF6flich sein."],
+    ["offen", "wehm\xFCtig"]
+  ),
+  erotik: D(
+    ["der Abstand ist eine Handbreit zu klein", "die Stille zwischen zwei S\xE4tzen wird laut", "die Luft steht zwischen ihnen wie Stoff"],
+    ["ein Blick dauert einen Atemzug zu lang", "die H\xF6flichkeit h\xE4lt nicht mehr stand", "eine Ber\xFChrung geschieht wie versehentlich"],
+    ["die Zur\xFCckhaltung gibt nach", "die Grenze verschwindet, ohne \xFCberschritten zu werden"],
+    ["ein Verlangen, das niemand ausspricht", "eine N\xE4he, die alles \xE4ndert", "eine Grenze, die beide bewachen"],
+    ["ein Blick zu viel", "eine Ber\xFChrung an der Schulter", "ein Satz, der zu sp\xE4t zur\xFCckgenommen wird"],
+    ["die Distanz kippt", "das Ungesagte wird K\xF6rper", "aus H\xF6flichkeit wird Hunger"],
+    ["Eine Minute dehnt sich \xFCber den Abend.", "Zwischen zwei Atemz\xFCgen liegt eine Woche."],
+    ["Was ungesagt bleibt, wirkt st\xE4rker.", "Jede N\xE4he verschiebt die Grenze."],
+    ["offen", "sinnlich"]
+  ),
+  baudelaire: D(
+    ["die Stadt riecht nach Regen und Puder", "der Abend beginnt eine Stunde zu fr\xFCh", "das Fenster steht offen, die Vorh\xE4nge nicht"],
+    ["die Sch\xF6nheit zeigt ihre R\xFCckseite", "der Rausch h\xE4lt, was die N\xFCchternheit versprach", "die Menge tr\xE4gt ein einziges Gesicht"],
+    ["das Sch\xF6ne und das Faule fallen zusammen", "der Ekel wird z\xE4rtlich"],
+    ["eine Sch\xF6nheit, die verdirbt", "einen Genuss mit Nachgeschmack", "eine Sehnsucht ohne Ziel"],
+    ["ein Parfum aus einem anderen Leben", "ein Blick aus der Menge", "eine Blume in schlechtem Wasser"],
+    ["die Sch\xF6nheit kippt ins Verwesen", "der Ekel verwandelt sich in Andacht", "die Stadt wird zum K\xF6rper"],
+    ["Der Abend dauert l\xE4nger als der Tag.", "Zwischen zwei Gl\xE4sern vergeht ein Jahrzehnt."],
+    ["Jede Sch\xF6nheit tr\xE4gt ihren Verfall bereits mit sich.", "Wer die Stadt liebt, liebt ihren Schmutz."],
+    ["offen", "morbide"]
+  ),
+  expressionismus: D(
+    ["die Farben schreien lauter als die Stra\xDFe", "der Himmel dr\xFCckt auf die D\xE4cher", "alles steht schief und h\xE4lt trotzdem"],
+    ["die Gesichter werden zu Masken", "die Stadt frisst ihre Bewohner", "die Linien verlieren ihre Ruhe"],
+    ["der Schrei bekommt eine Farbe", "die Fassade bricht nach innen"],
+    ["eine Angst mit vielen Gesichtern", "einen Aufschrei ohne Mund", "eine Wahrheit, die zu grell ist"],
+    ["ein Schrei aus einem Hinterhof", "ein rotes Licht im Fenster", "ein Riss in der Fassade"],
+    ["die Farben werden laut", "das Innere kehrt sich nach au\xDFen", "die Ordnung zerbricht in Fl\xE4chen"],
+    ["Die Nacht beginnt am Mittag.", "Ein Augenblick dauert eine ganze Stra\xDFe lang."],
+    ["Was empfunden wird, ist sichtbar.", "Kein Ding bleibt an seinem Platz."],
+    ["offen", "grell"]
+  ),
+  surrealismus1920: D(
+    ["die Uhr tropft von der Tischkante", "im Zimmer regnet es nach oben", "die T\xFCr f\xFChrt in eine W\xFCste"],
+    ["die Gegenst\xE4nde tauschen ihre Aufgaben", "der Traum reicht in den Nachmittag hinein", "der Zufall folgt einem Plan"],
+    ["das Unm\xF6gliche wird allt\xE4glich", "der Gegenstand beginnt zu sprechen"],
+    ["eine Logik, die nur schlafend gilt", "einen Zufall mit Absicht", "eine Ordnung aus lauter Ausnahmen"],
+    ["ein Regenschirm auf einem Seziertisch", "ein Telefon aus Fisch", "ein Fenster im Fu\xDFboden"],
+    ["die Dinge tauschen die Rollen", "die Schwerkraft wechselt die Richtung", "das Bild verl\xE4sst den Rahmen"],
+    ["Die Nacht wiederholt den Vormittag.", "Zwei Uhren zeigen dieselbe falsche Zeit."],
+    ["Der Zufall ist die genaueste Methode.", "Was zusammenf\xE4llt, geh\xF6rt zusammen."],
+    ["offen", "traumlogisch"]
+  ),
+  transzendenz: D(
+    ["das Licht kommt von keiner Quelle", "die Stille hat einen Klang", "der Raum h\xF6rt an keiner Wand auf"],
+    ["die Grenze zwischen innen und au\xDFen wird d\xFCnn", "das Wort reicht nicht mehr", "die Zeit h\xE4lt an, ohne stehenzubleiben"],
+    ["das Ich l\xF6st sich, ohne zu verschwinden", "die Antwort kommt vor der Frage"],
+    ["eine Erfahrung ohne Worte", "eine Gewissheit ohne Beweis", "ein Ganzes, das keinen Teil hat"],
+    ["ein Klang ohne Ursprung", "ein Licht im geschlossenen Auge", "eine Stille zwischen zwei Herzschl\xE4gen"],
+    ["die Grenzen l\xF6sen sich", "das Einzelne wird durchsichtig", "die Sprache tritt zur\xFCck"],
+    ["Ein Augenblick enth\xE4lt alle anderen.", "Die Dauer h\xF6rt auf, gemessen zu werden."],
+    ["Was sich sagen l\xE4sst, ist nicht gemeint.", "Wer sucht, steht sich im Weg."],
+    ["offen", "still"]
+  ),
+  melville: D(
+    ["das Schiff liegt schwer im eigenen Schatten", "die See ist zu ruhig f\xFCr die Jahreszeit", "der Kompass zeigt, was niemand fragt"],
+    ["die Jagd wird zur Rechnung", "die Mannschaft teilt sich in zwei Schweigen", "das Meer gibt nichts preis und alles"],
+    ["die Beute wird zum Gegen\xFCber", "der Kurs gehorcht einer Besessenheit"],
+    ["eine Jagd, die den J\xE4ger verzehrt", "eine Rache ohne Adressat", "ein Meer, das nicht antwortet"],
+    ["eine Font\xE4ne am Horizont", "ein Fass mit falschem Inhalt", "ein Name, in Holz geschnitten"],
+    ["die Jagd kehrt sich um", "aus dem Tier wird ein Gedanke", "das Schiff folgt keinem Kurs mehr"],
+    ["Die Wache dauert drei Tage.", "Zwischen zwei Wellen liegt ein Jahr."],
+    ["Das Meer nimmt, was es tr\xE4gt.", "Wer jagt, wird zum Gejagten."],
+    ["offen", "unerbittlich"]
+  ),
+  formalismus: D(
+    ["die Anordnung ist wichtiger als der Inhalt", "das Raster liegt \xFCber allem", "jedes Element hat genau eine Stelle"],
+    ["die Wiederholung erzeugt einen Unterschied", "die Regel bringt ihre Ausnahme hervor", "die Form beginnt, vom Inhalt zu handeln"],
+    ["das Verfahren wird sichtbar", "die Struktur kippt in Bedeutung"],
+    ["eine Regel ohne Ausnahme", "eine Form, die sich selbst meint", "eine Ordnung, die nichts erkl\xE4rt"],
+    ["eine Verschiebung um ein Glied", "ein Bruch im Muster", "eine Wiederholung zu viel"],
+    ["das Muster verschiebt sich", "die Form wird zum Inhalt", "die Reihe bricht ab und beginnt neu"],
+    ["Der zweite Durchgang dauert k\xFCrzer.", "Jede Wiederholung verkleinert den Abstand."],
+    ["Die Form geht dem Sinn voraus.", "Nichts steht zuf\xE4llig an seiner Stelle."],
+    ["offen", "streng"]
+  ),
+  christentum: D(
+    ["die Kirche ist leer und trotzdem nicht", "das Licht f\xE4llt schr\xE4g durch farbiges Glas", "eine Kerze brennt f\xFCr niemanden Bestimmten"],
+    ["die Schuld sucht ein Wort", "das Gebet bleibt unbeantwortet und hilft", "die Gnade kommt ungefragt"],
+    ["die Vergebung trifft den Falschen", "das Opfer erweist sich als Anfang"],
+    ["eine Schuld, die niemand nennt", "eine Gnade ohne Verdienst", "einen Glauben gegen den Augenschein"],
+    ["ein Glockenschlag zur falschen Stunde", "ein Brot, das reicht", "ein Name, im Gebet genannt"],
+    ["die Schuld wandelt sich in Auftrag", "aus Zweifel wird Zuversicht", "das Ende wird zum Anfang"],
+    ["Der Sonntag dauert eine Woche.", "Zwischen Frage und Antwort liegen Jahre."],
+    ["Was vergeben wird, bleibt geschehen.", "Der Letzte steht am Anfang."],
+    ["offen", "and\xE4chtig"]
+  ),
+  koran: D(
+    ["die W\xFCste beginnt hinter der letzten Mauer", "das Wort steht vor dem Buch", "der Morgen wird durch einen Ruf geteilt"],
+    ["die Zeichen sind lesbar, wenn man sie l\xE4sst", "der Weg verlangt Geduld statt Eile", "das Ma\xDF findet sich im Verzicht"],
+    ["das Zeichen erweist sich als Anrede", "die Pr\xFCfung wird zur Gabe"],
+    ["ein Ma\xDF, das gehalten werden will", "eine Geduld ohne Aussicht", "eine Verantwortung, die niemand teilt"],
+    ["ein Ruf vor Sonnenaufgang", "eine Quelle, wo keine war", "ein Zeichen im Sand"],
+    ["der Weg richtet sich neu aus", "aus Pr\xFCfung wird Klarheit", "das Ma\xDF verschiebt sich"],
+    ["Die Nacht wiegt schwerer als tausend Monate.", "Zwischen zwei Gebeten liegt ein Leben."],
+    ["Kein Blatt f\xE4llt ohne Wissen.", "Wer misst, wird gemessen."],
+    ["offen", "ma\xDFvoll"]
+  ),
+  buddhismus: D(
+    ["der Atem ist bereits da, bevor man ihn sucht", "die Schale steht leer und ist nicht arm", "der Weg beginnt genau hier"],
+    ["das Greifen erzeugt das Fehlen", "die Gedanken ziehen vorbei wie Wetter", "das Selbst zeigt keine Grenze"],
+    ["das Festhalten l\xF6st sich von selbst", "die Frage verliert ihren Fragenden"],
+    ["ein Verlangen, das sich selbst n\xE4hrt", "eine Ruhe, die nicht gemacht ist", "ein Ich, das keines findet"],
+    ["ein Glockenton, der ausklingt", "ein Blatt auf stillem Wasser", "ein Schmerz ohne Besitzer"],
+    ["das Greifen l\xE4sst nach", "aus Unruhe wird Beobachtung", "die Trennung wird durchl\xE4ssig"],
+    ["Ein Atemzug reicht durch den Tag.", "Die Stunde vergeht, ohne zu vergehen."],
+    ["Alles Entstandene vergeht.", "Wer nichts h\xE4lt, verliert nichts."],
+    ["offen", "gelassen"]
+  ),
+  biologie: D(
+    ["die Zelle teilt sich, ohne gefragt zu werden", "im Wassertropfen ist mehr los als im Zimmer", "das Leben ordnet sich gegen den Strom"],
+    ["die Anpassung kostet an anderer Stelle", "ein Merkmal setzt sich durch, ohne besser zu sein", "das System h\xE4lt sich, indem es sich \xE4ndert"],
+    ["die Mutation entscheidet \xFCber alles Weitere", "das Gleichgewicht kippt auf einer Seite"],
+    ["ein \xDCberleben auf Kosten Dritter", "eine Anpassung, die zu sp\xE4t kommt", "ein Gleichgewicht ohne Gleichheit"],
+    ["ein Fehler beim Kopieren", "ein neuer Wirt", "eine Nische, die frei wird"],
+    ["die Art verschiebt sich", "aus Zufall wird Merkmal", "das Gleichgewicht sucht eine neue Lage"],
+    ["Eine Generation dauert einen Nachmittag.", "Millionen Jahre passen in eine Schicht."],
+    ["Was sich vermehrt, bleibt.", "Jede Ordnung kostet Energie."],
+    ["offen", "sachlich"]
+  ),
+  geologie: D(
+    ["der Stein hat mehr Zeit gesehen als alles hier", "die Schichten liegen wie S\xE4tze \xFCbereinander", "der Boden ist nur die oberste Seite"],
+    ["der Druck arbeitet ohne Eile", "eine Falte erz\xE4hlt von einer Kollision", "das Wasser schreibt in den Fels"],
+    ["die Schicht bricht und zeigt ihr Inneres", "der Berg gibt nach, nach Millionen Jahren"],
+    ["eine Bewegung, die niemand sp\xFCrt", "eine Zeit ohne Zeugen", "einen Druck, der alles verformt"],
+    ["ein Riss im Gestein", "ein Fossil an falscher Stelle", "ein Beben unter der Schwelle"],
+    ["die Schichten verschieben sich", "aus Sediment wird Stein", "der Untergrund gibt nach"],
+    ["Ein Jahrhundert ist ein Wimpernschlag.", "Die Schicht misst die Zeit, nicht die Uhr."],
+    ["Alles Feste war einmal fl\xFCssig.", "Was oben liegt, ist j\xFCnger."],
+    ["offen", "geduldig"]
+  ),
+  astrologie: D(
+    ["die Zeichen stehen, ob man hinsieht oder nicht", "der Himmel wiederholt eine alte Anordnung", "die Stunde tr\xE4gt einen Namen"],
+    ["ein Wandelstern l\xE4uft r\xFCckw\xE4rts", "die H\xE4user verschieben ihre Bedeutung", "das Muster passt zu genau"],
+    ["die Konstellation schlie\xDFt sich", "die Deutung trifft, ohne zu erkl\xE4ren"],
+    ["ein Schicksal, das gelesen sein will", "eine Deutung, die sich erf\xFCllt", "eine Freiheit unter Zeichen"],
+    ["ein Zusammentreffen zweier Bahnen", "eine Finsternis zur Unzeit", "ein Zeichen am Aszendenten"],
+    ["die Konstellation wechselt", "aus Zufall wird Bedeutung", "der Lauf kehrt sich um"],
+    ["Der Umlauf dauert ein halbes Leben.", "Eine Stunde wiegt ein Jahr auf."],
+    ["Wie oben, so unten.", "Kein Zeichen zwingt, jedes neigt."],
+    ["offen", "deutend"]
+  ),
+  gaia: D(
+    ["der Wald atmet langsamer als wir", "das Wasser kennt seinen Weg auswendig", "alles h\xE4ngt an allem, ohne Absicht"],
+    ["ein Eingriff zieht Kreise bis ans andere Ende", "das Gleichgewicht stellt sich neu und teuer her", "die Erde antwortet in ihrem eigenen Ma\xDF"],
+    ["das System kippt in einen neuen Zustand", "die R\xFCckkopplung wird st\xE4rker als die Ursache"],
+    ["ein Gleichgewicht, das niemand aushandelt", "eine Rechnung, die sp\xE4ter kommt", "ein Ganzes ohne Mitte"],
+    ["ein Sommer zu viel", "eine Art, die verschwindet", "ein Fluss, der die Richtung \xE4ndert"],
+    ["das Gleichgewicht verschiebt sich", "aus Kreislauf wird Bruch", "die Erde ordnet sich neu"],
+    ["Ein Jahr gen\xFCgt f\xFCr eine Verschiebung.", "Die Folgen kommen eine Generation zu sp\xE4t."],
+    ["Nichts geschieht f\xFCr sich allein.", "Jeder Kreislauf hat eine Grenze."],
+    ["offen", "ernst"]
+  ),
+  jugendsprache: D(
+    ["irgendwas l\xE4uft, aber keiner sagt was", "der Chat ist voll und trotzdem still", "der Tag f\xE4ngt nachmittags an"],
+    ["eine Nachricht wird falsch verstanden und bleibt so", "alle tun so, als w\xE4re nichts", "das Ger\xFCcht ist schneller als die Wahrheit"],
+    ["jemand sagt es endlich laut", "die Gruppe entscheidet ohne Abstimmung"],
+    ["eine Sache, \xFCber die keiner redet", "einen Ruf, der schneller ist als man selbst", "eine Zugeh\xF6rigkeit auf Probe"],
+    ["ein Screenshot zur Unzeit", "eine Sprachnachricht um drei Uhr nachts", "ein Blick auf dem Schulhof"],
+    ["die Stimmung kippt", "aus Spa\xDF wird Ernst", "die Gruppe sortiert sich neu"],
+    ["Ein Nachmittag dauert eine Woche.", "Zwischen zwei Nachrichten vergeht nichts und alles."],
+    ["Wer zuerst lacht, hat entschieden.", "Nichts ist so alt wie das Ger\xFCcht von gestern."],
+    ["offen", "l\xE4ssig"]
+  ),
+  modernarchitecture: D(
+    ["der Beton h\xE4lt, was der Entwurf versprach", "das Licht f\xE4llt genau dorthin, wo es geplant war", "der Raum ist leer und dadurch voll"],
+    ["die Funktion setzt sich gegen die Gewohnheit durch", "die Fassade verbirgt, indem sie zeigt", "der Grundriss zwingt zu einem Weg"],
+    ["das Geb\xE4ude \xFCberlebt seinen Zweck", "die Form entscheidet \xFCber das Leben darin"],
+    ["eine Form, die dem Zweck vorausgeht", "einen Raum, der Verhalten vorschreibt", "eine Klarheit, die kalt wirkt"],
+    ["ein Riss im Sichtbeton", "eine T\xFCr, die niemand vorsah", "ein Fenster ohne Aussicht"],
+    ["der Raum ver\xE4ndert seinen Gebrauch", "aus Ordnung wird Enge", "das Material zeigt sein Alter"],
+    ["Ein Jahrzehnt vergeht ohne Spur.", "Der Bau altert schneller als sein Plan."],
+    ["Die Form folgt der Funktion, meistens.", "Was klar ist, wirkt kalt."],
+    ["offen", "sachlich"]
+  ),
+  philosophie: D(
+    ["die Frage steht schon l\xE4nger im Raum", "der Begriff sitzt nicht ganz fest", "alles Selbstverst\xE4ndliche wird fraglich"],
+    ["die Unterscheidung tr\xE4gt weiter als gedacht", "das Beispiel widerspricht dem Satz", "der Einwand wird zur Hauptsache"],
+    ["die Voraussetzung selbst ger\xE4t ins Wanken", "die Antwort wirft eine bessere Frage auf"],
+    ["eine Unterscheidung, die nicht h\xE4lt", "eine Gewissheit ohne Grund", "eine Frage, die sich nicht stellen l\xE4sst"],
+    ["ein Gegenbeispiel im falschen Moment", "ein Wort mit zwei Bedeutungen", "ein Zweifel an der Voraussetzung"],
+    ["der Begriff verschiebt sich", "aus Antwort wird Frage", "die Grundlage wird selbst zum Problem"],
+    ["Ein Gedanke dauert ein Kapitel.", "Zwischen Frage und Einsicht liegen Jahre."],
+    ["Jede Antwort erzeugt zwei Fragen.", "Was sich nicht sagen l\xE4sst, zeigt sich."],
+    ["offen", "pr\xFCfend"]
+  ),
+  klimakrise: D(
+    ["der Sommer beginnt im April", "die Messwerte sind eindeutig und folgenlos", "das Wetter ist kein Gespr\xE4ch mehr"],
+    ["die Vorhersage trifft ein und \xE4ndert nichts", "die Kosten verschieben sich nach hinten", "wer warnt, gilt als anstrengend"],
+    ["die Schwelle wird \xFCberschritten", "die R\xFCckkopplung \xFCbernimmt"],
+    ["eine Verantwortung ohne Adressat", "ein Wissen, das folgenlos bleibt", "eine Rechnung f\xFCr die Nachgeborenen"],
+    ["ein Rekord im dritten Jahr", "eine Ernte, die ausf\xE4llt", "ein Fluss ohne Wasser"],
+    ["die Kurve knickt nach oben", "aus Ausnahme wird Normalzustand", "das System kippt"],
+    ["Ein Jahrzehnt entscheidet ein Jahrhundert.", "Die Folgen treffen die, die nicht gefragt wurden."],
+    ["Was langsam kommt, wird nicht bemerkt.", "Jede Verz\xF6gerung erh\xF6ht den Preis."],
+    ["offen", "dringlich"]
+  ),
+  liebesromane: D(
+    ["ein Blick dauert einen Moment zu lang", "der Brief liegt unge\xF6ffnet auf dem Tisch", "beide tun, als sei nichts geschehen"],
+    ["ein Missverst\xE4ndnis w\xE4chst, weil niemand fragt", "die Umst\xE4nde sprechen dagegen", "die N\xE4he wird durch Abstand gr\xF6\xDFer"],
+    ["das Ungesagte wird ausgesprochen", "die Entscheidung f\xE4llt gegen die Vernunft"],
+    ["eine Liebe zur falschen Zeit", "ein Missverst\xE4ndnis, das keiner aufkl\xE4rt", "eine Wahl zwischen zwei Leben"],
+    ["ein Brief, der zu sp\xE4t ankommt", "ein Tanz auf fremder Hochzeit", "ein Name, versehentlich genannt"],
+    ["das Missverst\xE4ndnis l\xF6st sich", "aus Freundschaft wird mehr", "die Umst\xE4nde geben nach"],
+    ["Ein Sommer entscheidet zehn Jahre.", "Zwischen zwei Briefen vergeht eine Jahreszeit."],
+    ["Was nicht gesagt wird, w\xE4chst.", "Jede N\xE4he verlangt eine Entscheidung."],
+    ["offen", "warm"]
+  ),
+  bergwelt: D(
+    ["der Gipfel ist n\xE4her, als er ist", "das Wetter dreht ohne Ank\xFCndigung", "die H\xFCtte liegt unter der Wolkendecke"],
+    ["der Weg verliert sich im Ger\xF6ll", "die H\xF6he nimmt den Atem und die Gedanken", "die Spur endet vor einer Wand"],
+    ["der R\xFCckweg ist keiner mehr", "der Berg entscheidet \xFCber die Zeit"],
+    ["einen Aufstieg gegen die Vernunft", "eine Umkehr, die zu sp\xE4t kommt", "eine Stille, die alles verst\xE4rkt"],
+    ["ein Wetterumschwung am Nachmittag", "ein Steinschlag im Rinnenwerk", "ein Licht in einer fremden H\xFCtte"],
+    ["das Wetter kippt", "aus Aufstieg wird R\xFCckzug", "der Berg zeigt sein anderes Gesicht"],
+    ["Eine Stunde am Grat dauert einen Tag.", "Der Abstieg braucht l\xE4nger als der Weg hinauf."],
+    ["Der Berg wartet.", "Wer umkehrt, hat auch entschieden."],
+    ["offen", "karg"]
+  ),
+  clown: D(
+    ["die Schminke sitzt, das Lachen noch nicht", "die Manege ist leer und wartet", "der Scheinwerfer findet den Falschen"],
+    ["der Sturz war geplant, der Schmerz nicht", "das Publikum lacht an der falschen Stelle", "die Nummer l\xE4uft aus dem Ruder und wird besser"],
+    ["hinter der Schminke wird ein Gesicht sichtbar", "der Scherz trifft den, der ihn macht"],
+    ["ein Lachen auf eigene Kosten", "eine Traurigkeit mit rotem Mund", "eine Rolle, die nicht abzulegen ist"],
+    ["eine Tr\xE4ne in der Schminke", "ein Applaus zur falschen Zeit", "ein Requisit, das nicht funktioniert"],
+    ["der Scherz kippt in Ernst", "aus Lachen wird Stille", "die Rolle \xFCbernimmt"],
+    ["Die Nummer dauert l\xE4nger als der Abend.", "Zwischen zwei Lachern liegt ein Leben."],
+    ["Wer f\xE4llt, muss aufstehen und sich verbeugen.", "Das Lachen kommt aus dem Schrecken."],
+    ["offen", "bitters\xFC\xDF"]
+  ),
+  faust: D(
+    ["die B\xFCcher haben nichts mehr zu sagen", "die Nacht steht schon lange im Zimmer", "das Wissen reicht bis genau hierher"],
+    ["der Pakt verspricht mehr, als er nennt", "der Preis wird erst sp\xE4ter sichtbar", "das Streben findet kein Gen\xFCgen"],
+    ["der Augenblick soll verweilen", "die Wette entscheidet sich unbemerkt"],
+    ["ein Wissen, das nicht s\xE4ttigt", "einen Preis, der sp\xE4ter f\xE4llig wird", "eine Rettung, die niemand verdient"],
+    ["ein Vertrag mit zwei Unterschriften", "ein Pudel im Studierzimmer", "ein Angebot ohne Frist"],
+    ["der Pakt tritt in Kraft", "aus Erkenntnis wird Hunger", "die Rechnung kommt"],
+    ["Eine Nacht enth\xE4lt ein ganzes Leben.", "Der Augenblick weigert sich zu vergehen."],
+    ["Wer immer strebend sich bem\xFCht, bleibt unruhig.", "Jeder Pakt kennt seinen F\xE4lligkeitstag."],
+    ["offen", "faustisch"]
+  ),
+  lebenreicher: D(
+    ["ein gew\xF6hnlicher Morgen, nichts Besonderes", "das Licht liegt gut auf dem Tisch", "jemand hat an etwas gedacht"],
+    ["eine Kleinigkeit tr\xE4gt weiter als erwartet", "ein Gespr\xE4ch dauert l\xE4nger als geplant", "das Einfache erweist sich als genug"],
+    ["das Gew\xF6hnliche zeigt seinen Wert", "ein Augenblick reicht f\xFCr den ganzen Tag"],
+    ["eine Freude, die nichts kostet", "eine Aufmerksamkeit, die niemand verlangt", "eine F\xFClle im Kleinen"],
+    ["ein Anruf ohne Anlass", "ein geteiltes Essen", "ein Platz in der Sonne"],
+    ["das Kleine wird gro\xDF", "aus Gewohnheit wird Dankbarkeit", "der Tag bekommt eine Farbe"],
+    ["Ein Nachmittag reicht f\xFCr ein Jahr.", "Der Moment dehnt sich, ohne sich zu strecken."],
+    ["Was nichts kostet, z\xE4hlt am meisten.", "Wer bemerkt, hat schon gewonnen."],
+    ["offen", "warm"]
+  ),
+  tanz: D(
+    ["der Boden ist bereit, die Musik noch nicht", "die F\xFC\xDFe kennen den Takt vor dem Kopf", "im Saal steht die Luft und wartet"],
+    ["die Schritte finden zueinander, ohne Absprache", "der Takt tr\xE4gt weiter als der Wille", "der Kreis schlie\xDFt sich und \xF6ffnet sich"],
+    ["der Tanz \xFCbernimmt die F\xFChrung", "die Musik h\xF6rt auf, der Takt nicht"],
+    ["eine Bewegung ohne Ziel", "einen Takt, der nicht abbrechen darf", "eine N\xE4he, die nur im Tanz erlaubt ist"],
+    ["ein Auftakt aus dem Nichts", "ein Instrument ohne Spieler", "ein Blick \xFCber die Schulter"],
+    ["der Takt wechselt", "aus Ordnung wird Schwindel", "der Kreis dreht sich schneller"],
+    ["Ein Tanz dauert einen halben Abend.", "Zwischen zwei Schritten vergeht die Nacht."],
+    ["Wer den Takt verliert, findet ihn im Kreis.", "Kein Tanz endet dort, wo er begann."],
+    ["offen", "beschwingt"]
+  ),
+  griechischetragoedie: D(
+    ["das Orakel hat gesprochen, unverst\xE4ndlich wie immer", "die Stadt wartet auf ein Urteil", "alles ist bereits entschieden"],
+    ["die Flucht f\xFChrt genau ins Vorhergesagte", "der Bote bringt, was niemand h\xF6ren will", "der Chor sagt, was alle wissen"],
+    ["die Erkenntnis kommt zu sp\xE4t und vollst\xE4ndig", "der Fluch erf\xFCllt sich durch den Widerstand"],
+    ["ein Schicksal, dem man nicht ausweicht", "eine Schuld ohne Absicht", "eine Ehre gegen das Gesetz"],
+    ["ein Orakelspruch mit zwei Bedeutungen", "ein Bote am Stadttor", "ein Gast, der nicht genannt wird"],
+    ["die Weissagung erf\xFCllt sich", "aus Rettung wird Verh\xE4ngnis", "die Erkenntnis trifft den Erkennenden"],
+    ["Ein Tag entscheidet ein Geschlecht.", "Was vorhergesagt ist, ist schon geschehen."],
+    ["Wer flieht, l\xE4uft dem Orakel entgegen.", "Kein Sterblicher entkommt seinem Ma\xDF."],
+    ["offen", "unausweichlich"]
+  ),
+  glueck: D(
+    ["ein Tag, an dem nichts fehlt", "die Sonne steht genau richtig", "niemand hat etwas vor"],
+    ["das Gl\xFCck l\xE4sst sich nicht festhalten", "ein Zweifel meldet sich leise", "die F\xFClle macht auch vorsichtig"],
+    ["der Augenblick wird bemerkt, w\xE4hrend er dauert", "das Gl\xFCck zeigt seine Bedingung"],
+    ["ein Gl\xFCck, das nicht zu halten ist", "eine Zufriedenheit ohne Grund", "eine Angst, es zu verlieren"],
+    ["ein unerwarteter Nachmittag", "ein Brief mit guter Nachricht", "eine Wiederbegegnung"],
+    ["das Gl\xFCck wird bewusst", "aus Zufall wird Dankbarkeit", "der Augenblick tr\xE4gt weiter"],
+    ["Eine Stunde wiegt einen Winter auf.", "Der gute Tag dehnt sich nach hinten."],
+    ["Gl\xFCck bemerkt man beim Verschwinden.", "Was geteilt wird, wird nicht weniger."],
+    ["offen", "hell"]
+  ),
+  gruendungsmythos: D(
+    ["vor der Stadt war ein Ort ohne Namen", "die erste Grenze wird in den Boden gezogen", "zwei kommen an, wo niemand wohnte"],
+    ["aus einer Regel werden viele", "der Anfang wird schon jetzt erz\xE4hlt", "wer bleibt, geh\xF6rt dazu"],
+    ["der erste Stein wird gesetzt", "aus dem Ort wird ein Name"],
+    ["einen Anfang, den niemand bezeugt", "eine Grenze, die alles entscheidet", "ein Recht, das erst entsteht"],
+    ["ein Zeichen am Himmel", "ein Fremder mit einer Bitte", "eine Quelle an unerwarteter Stelle"],
+    ["aus dem Ort wird eine Ordnung", "die Grenze wird heilig", "der Anfang verwandelt sich in Gesetz"],
+    ["Ein Tag begr\xFCndet Jahrhunderte.", "Die Zukunft wird bereits im Perfekt erz\xE4hlt."],
+    ["Jeder Anfang braucht ein Opfer.", "Wer die Grenze zieht, macht das Gesetz."],
+    ["offen", "gr\xFCndend"]
+  ),
+  staatsphilosophie: D(
+    ["die Ordnung gilt, obwohl sie niemand beschlossen hat", "das Gesetz steht vor dem ersten Fall", "alle gehorchen etwas Unsichtbarem"],
+    ["die Regel sch\xFCtzt und beschr\xE4nkt zugleich", "wer herrscht, wird selbst regiert", "der Vertrag hat keinen Text"],
+    ["die Ordnung zeigt ihren Ursprung", "die Macht wird sichtbar und unsicher"],
+    ["eine Herrschaft ohne Herrscher", "eine Freiheit, die Regeln braucht", "eine Ordnung ohne Ursprung"],
+    ["ein Erlass ohne Unterschrift", "ein Aufstand aus H\xF6flichkeit", "eine Frage nach dem Recht"],
+    ["die Legitimit\xE4t verschiebt sich", "aus Gewohnheit wird Gesetz", "die Ordnung erneuert sich"],
+    ["Ein Beschluss \xFCberdauert seine Begr\xFCndung.", "Zwischen Regel und Gehorsam liegt ein Jahrhundert."],
+    ["Jede Ordnung beginnt mit einem Bruch.", "Wer schweigt, stimmt der Ordnung zu."],
+    ["offen", "abw\xE4gend"]
+  ),
+  tech: D(
+    ["das System l\xE4uft, niemand wei\xDF genau warum", "das Log zeigt einen Eintrag zu viel", "die Maschine wartet auf eine Eingabe"],
+    ["die Abstraktion verdeckt, was sie ordnet", "ein Fehler reproduziert sich nicht", "das Modell erkl\xE4rt alles au\xDFer sich selbst"],
+    ["das System antwortet, ohne gefragt zu sein", "die Blackbox \xF6ffnet sich einen Spalt"],
+    ["eine Automatik ohne Aufsicht", "ein Fehler ohne Ursache", "eine Entscheidung, die niemand traf"],
+    ["ein Update in der Nacht", "ein Prozess ohne Elternprozess", "eine Antwort in null Millisekunden"],
+    ["das System \xFCbernimmt", "aus Werkzeug wird Gegen\xFCber", "der Fehler wird zum Merkmal"],
+    ["Eine Sekunde enth\xE4lt Millionen Schritte.", "Das Log kennt eine Zeit, die es nicht gab."],
+    ["Jede Abstraktion leckt.", "Was automatisch l\xE4uft, wird nicht mehr gepr\xFCft."],
+    ["offen", "k\xFChl"]
+  ),
+  myth: D(
+    ["am Anfang steht ein Wort, nicht ein Ding", "die Welt ist noch ungeteilt", "die Namen fehlen den Dingen"],
+    ["das Erz\xE4hlte wird wahr, indem es erz\xE4hlt wird", "die Trennung erzeugt die Ordnung", "der Held ist auch das Opfer"],
+    ["das Ungeteilte teilt sich", "der Name macht das Ding"],
+    ["eine Ordnung aus einem Opfer", "einen Namen, der Macht verleiht", "eine Grenze zwischen Welt und Wort"],
+    ["ein Wort vor allen Dingen", "ein Opfer am Anfang", "ein Riss im Ungeteilten"],
+    ["aus Chaos wird Ordnung", "das Wort wird zur Tat", "die Welt teilt sich in zwei"],
+    ["Der erste Tag dauert bis heute.", "Was einmal geschieht, geschieht immer."],
+    ["Was benannt ist, ist gebunden.", "Jede Ordnung kostet ein Opfer."],
+    ["offen", "urt\xFCmlich"]
+  ),
+  body: D(
+    ["der K\xF6rper meldet sich vor dem Gedanken", "die Haut wei\xDF es zuerst", "etwas stimmt nicht mit dem Atem"],
+    ["der Schmerz sucht sich einen Ort", "das Innere klopft an die Oberfl\xE4che", "der K\xF6rper gehorcht einem eigenen Plan"],
+    ["die Grenze zwischen innen und au\xDFen f\xE4llt", "der K\xF6rper spricht deutlich"],
+    ["eine Grenze, die durch die Haut l\xE4uft", "ein Schmerz ohne Befund", "einen K\xF6rper, der nicht gehorcht"],
+    ["ein Puls an falscher Stelle", "ein Geschmack von Eisen", "eine Narbe, die sich meldet"],
+    ["der K\xF6rper \xFCbernimmt", "aus Empfindung wird Gewissheit", "das Innere kehrt sich nach au\xDFen"],
+    ["Ein Herzschlag dauert eine Minute.", "Der Schmerz hebt die Uhrzeit auf."],
+    ["Der K\xF6rper vergisst nichts.", "Was verdr\xE4ngt wird, sucht sich ein Organ."],
+    ["offen", "k\xF6rperlich"]
+  ),
+  absurd: D(
+    ["der Aufzug h\xE4lt in einem Stockwerk ohne Nummer", "alle warten auf jemanden, der nicht kommt", "die Anweisung widerspricht sich selbst"],
+    ["die Erkl\xE4rung macht es schlimmer", "jeder Schritt f\xFChrt zum Ausgangspunkt", "die Ernsthaftigkeit h\xE4lt den Unsinn zusammen"],
+    ["die Sinnlosigkeit wird zur Ordnung", "der Ausweg erweist sich als Eingang"],
+    ["einen Sinn, den niemand liefert", "eine Aufgabe ohne Zweck", "eine Regel gegen sich selbst"],
+    ["ein Anruf f\xFCr einen Namenlosen", "ein Schild ohne Aufschrift", "ein Termin ohne Ort"],
+    ["die Ordnung dreht durch", "aus Ernst wird Komik", "der Ausgang wird zum Eingang"],
+    ["Der Nachmittag wiederholt sich zweimal.", "Die Uhr zeigt eine Zahl, die es nicht gibt."],
+    ["Alles hat einen Grund, nur keinen Sinn.", "Wer fragt, verl\xE4ngert das Verfahren."],
+    ["offen", "absurd"]
+  ),
+  post: D(
+    ["der K\xF6rper ist eine Option geworden", "die Grenze zwischen Person und System ist verhandelbar", "jemand meldet sich aus zwei Instanzen"],
+    ["die Kopie beansprucht dasselbe Recht", "das Bewusstsein l\xE4uft an mehreren Orten", "die Herkunft verliert an Bedeutung"],
+    ["die Kopie erhebt Einspruch", "das Original ist nicht mehr feststellbar"],
+    ["eine Identit\xE4t in Mehrzahl", "ein Recht auf die eigene Kopie", "eine Erinnerung, die nicht gelebt wurde"],
+    ["ein Abbild mit eigener Meinung", "ein Speicherplatz mit Namen", "ein Vertrag \xFCber ein Bewusstsein"],
+    ["das Ich vervielf\xE4ltigt sich", "aus K\xF6rper wird Format", "die Grenze verschiebt sich"],
+    ["Ein Leben passt in eine \xDCbertragung.", "Zwei Instanzen erleben dieselbe Stunde verschieden."],
+    ["Jede Kopie ist ein Original.", "Was gespeichert wird, wird verhandelbar."],
+    ["offen", "posthuman"]
+  ),
+  haute_couture: D(
+    ["der Stoff f\xE4llt genau so, wie er soll", "im Atelier ist es still vor der Schau", "die Nadel liegt bereit"],
+    ["die Naht entscheidet \xFCber die Silhouette", "ein Zentimeter ver\xE4ndert alles", "das Handwerk verschwindet im Ergebnis"],
+    ["das Kleid steht f\xFCr sich allein", "die Tr\xE4gerin verschwindet im Entwurf"],
+    ["eine Sch\xF6nheit mit Frist", "eine Perfektion, die niemand sieht", "ein Handwerk gegen die Zeit"],
+    ["ein Riss in der Seide", "eine Anprobe zur Unzeit", "ein Entwurf aus dem Papierkorb"],
+    ["die Linie \xE4ndert sich", "aus Stoff wird Haltung", "das Kleid \xFCbernimmt"],
+    ["Die Nacht vor der Schau dauert eine Saison.", "Eine Naht kostet drei Tage."],
+    ["Was von Hand gemacht ist, altert anders.", "Jede Mode enth\xE4lt ihr Ende."],
+    ["offen", "elegant"]
+  ),
+  eichendorff: D(
+    ["die W\xE4lder rauschen wie eine Erinnerung", "das Posthorn klingt von weit her", "der Aufbruch liegt in der Luft"],
+    ["die Ferne zieht st\xE4rker als das Ziel", "der Weg verliert sich zwischen H\xFCgeln", "das Heimweh gilt einem Ort, den es nicht gibt"],
+    ["die Sehnsucht findet keinen Gegenstand", "das Lied kennt den Weg besser"],
+    ["eine Ferne, die niemals n\xE4her kommt", "ein Heimweh ohne Heimat", "einen Aufbruch ohne Ziel"],
+    ["ein Posthorn im Tal", "ein Brief von einem Wandernden", "ein Licht in einem fremden Fenster"],
+    ["die Ferne kippt in Heimweh", "aus Wandern wird Suchen", "der Weg biegt nach innen"],
+    ["Ein Sommer dauert eine Strophe.", "Zwischen Aufbruch und Ankunft liegt ein Leben."],
+    ["Wer wandert, sucht nicht das Ziel.", "Jedes Lied kennt den Weg."],
+    ["offen", "sehns\xFCchtig"]
+  ),
+  hunger: D(
+    ["der Magen z\xE4hlt die Stunden mit", "das Brot reicht bis Donnerstag", "alles dreht sich um eine einzige Frage"],
+    ["der Hunger sch\xE4rft und verwirrt zugleich", "der Stolz wiegt schwerer als das Essen", "die Vorr\xE4te werden nachgez\xE4hlt"],
+    ["der Stolz gibt nach", "das Teilen entscheidet alles"],
+    ["ein Brot f\xFCr mehr M\xFCnder", "einen Stolz, der satt machen soll", "eine Not, die niemand zugibt"],
+    ["ein Laib mit falschem Gewicht", "eine Einladung zum Essen", "ein leerer Schrank"],
+    ["der Hunger \xFCbernimmt", "aus Stolz wird Bitte", "das Teilen \xE4ndert alles"],
+    ["Ein Tag ohne Essen dauert drei.", "Die Nacht ist l\xE4nger als der Vorrat."],
+    ["Wer hungert, denkt an nichts anderes.", "Geteiltes Brot wird nicht weniger."],
+    ["offen", "karg"]
+  ),
+  romantik: D(
+    ["der Mond steht \xFCber allem und erkl\xE4rt nichts", "die Nacht ist heller als der Tag", "irgendwo singt jemand"],
+    ["die Natur antwortet in Bildern", "das Innere und die Landschaft fallen zusammen", "die Grenze zum Traum wird durchl\xE4ssig"],
+    ["die Welt wird zur Seele", "die Nacht gibt eine Antwort"],
+    ["eine Sehnsucht ohne Namen", "eine Nacht, die mehr wei\xDF als der Tag", "eine Grenze zwischen Traum und Welt"],
+    ["ein Lied aus dem Tal", "eine blaue Blume am Wegrand", "ein Fenster, das offen bleibt"],
+    ["die Landschaft wird Innenraum", "aus Nacht wird Erkenntnis", "die Sehnsucht findet ein Bild"],
+    ["Eine Nacht enth\xE4lt den ganzen Sommer.", "Die D\xE4mmerung dauert bis zum Morgen."],
+    ["Die Nacht wei\xDF mehr als der Tag.", "Wer tr\xE4umt, sieht genauer."],
+    ["offen", "romantisch"]
+  ),
+  hugo: D(
+    ["die Stadt hat zwei Gesichter, eines im Schatten", "die Glocke schl\xE4gt \xFCber den D\xE4chern", "das Recht endet an dieser Gasse"],
+    ["die Gerechtigkeit und das Gesetz gehen auseinander", "der Verfolgte hat mehr Ehre als der Verfolger", "das Elend hat ein Gesicht und einen Namen"],
+    ["die Barrikade steht", "das Gesetz beugt sich oder bricht"],
+    ["eine Gerechtigkeit gegen das Gesetz", "eine Schuld, die l\xE4ngst getilgt ist", "ein Elend, das niemand sehen will"],
+    ["ein Kerzenleuchter als Geschenk", "ein Brief aus dem Gef\xE4ngnis", "ein Kind auf der Barrikade"],
+    ["das Urteil kehrt sich um", "aus Verfolgung wird Gnade", "die Stadt erhebt sich"],
+    ["Eine Nacht entscheidet zwanzig Jahre.", "Der Prozess dauert ein halbes Leben."],
+    ["Das Gesetz ist nicht die Gerechtigkeit.", "Wer einmal gezeichnet ist, bleibt es."],
+    ["offen", "pathetisch"]
+  ),
+  goethe: D(
+    ["die Pflanze zeigt ihre Ordnung im Wachsen", "der Blick sucht Ma\xDF und findet Bewegung", "alles Verg\xE4ngliche steht in einem Zusammenhang"],
+    ["das Einzelne verweist auf das Ganze", "die Steigerung f\xFChrt zur Gestalt", "die Polarit\xE4t h\xE4lt beides zusammen"],
+    ["die Gestalt wird sichtbar", "das Einzelne wird zum Gleichnis"],
+    ["ein Ma\xDF zwischen zwei Kr\xE4ften", "eine Gestalt in der Verwandlung", "eine Ordnung, die sich bewegt"],
+    ["ein Blatt in seiner Urform", "ein Farbenspiel am Rand des Schattens", "ein Wort zur rechten Zeit"],
+    ["die Gestalt wandelt sich", "aus Polarit\xE4t wird Steigerung", "das Einzelne \xF6ffnet sich"],
+    ["Ein Augenblick will verweilen.", "Das Werden dauert l\xE4nger als das Sein."],
+    ["Alles Verg\xE4ngliche ist nur ein Gleichnis.", "In der Beschr\xE4nkung zeigt sich der Meister."],
+    ["offen", "klassisch"]
+  ),
+  sinnlich: D(
+    ["die Haut bemerkt die Temperatur zuerst", "ein Geruch ist da, bevor man ihn benennt", "das Licht hat ein Gewicht"],
+    ["die Sinne widersprechen einander", "das Wort kommt der Empfindung nicht nach", "eine Ber\xFChrung ordnet den Raum neu"],
+    ["die Empfindung \xFCberholt den Gedanken", "der Sinn kippt in einen anderen"],
+    ["eine Empfindung ohne Namen", "eine N\xE4he \xFCber die Haut", "ein Eindruck, der bleibt"],
+    ["ein Geruch aus der Kindheit", "eine Textur unter den Fingern", "ein Geschmack, der nicht passt"],
+    ["die Sinne tauschen", "aus Empfindung wird Erinnerung", "der K\xF6rper geht voran"],
+    ["Ein Augenblick f\xFCllt eine Stunde.", "Der Geruch holt zwanzig Jahre zur\xFCck."],
+    ["Die Haut denkt schneller.", "Was benannt wird, verliert an Sch\xE4rfe."],
+    ["offen", "sinnlich"]
+  )
+};
+
 // src/ui/studio.ts
 var studioReglerStand = {};
 function uebernimmWurf(nachId) {
@@ -20470,6 +20469,12 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
   ist("Dramaturgie ohne Bogen ist leer", knoten(c, "drama")?.zustand, "leer");
   const d = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ dramaVorhanden: true }));
   ist("Dramaturgie mit Bogen ist an", knoten(d, "drama")?.zustand, "an");
+  const c2 = baueAnlage(STAND({ structure: "dramaturgie", form: "haiku" }), UMGEBUNG({ dramaVorhanden: true }));
+  ist("Dramaturgie bei anderer Form ist leer", knoten(c2, "drama")?.zustand, "leer");
+  wahr("und nennt die Form als Grund", /nicht Prosa/.test(knoten(c2, "drama")?.hinweis || ""));
+  const c3 = baueAnlage(STAND({ structure: "rekombination" }), UMGEBUNG());
+  ist("ohne Dramaturgie steht sie auf aus", knoten(c3, "drama")?.zustand, "aus");
+  wahr("und verweist auf die Struktur", /Struktur auf/.test(knoten(c3, "drama")?.hinweis || ""));
   const e2 = baueAnlage(STAND(), UMGEBUNG({ knobs: { ...KNOB_VORGABE, korpus: 20 }, korpusZeichen: 0 }));
   ist("Korpus-Bausteine ohne Korpus sind leer", knoten(e2, "k-korpus")?.zustand, "leer");
   const f = baueAnlage(STAND(), UMGEBUNG({ knobs: { ...KNOB_VORGABE, korpus: 20 }, korpusZeichen: 900 }));

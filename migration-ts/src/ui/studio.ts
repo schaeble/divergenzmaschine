@@ -1322,14 +1322,18 @@ export function mountStudio(root: HTMLElement): void {
         + `Bei „${form.options[form.selectedIndex]?.text || form.value}“ baut die Maschine über die Schablonen — die Struktur bleibt hier ohne Wirkung.`;
       return;
     }
-    // Dieselbe stumme Wirkungslosigkeit: „Dramaturgie“ verlangt einen Dramaturgie-Block,
-    // den KEINES der eingebauten Presets mitbringt. Ohne ihn faellt die Engine
-    // wortlos auf den gewoehnlichen Bauweg zurueck.
+    // Dieselbe stumme Wirkungslosigkeit: „Dramaturgie“ verlangt einen
+    // Dramaturgie-Block. Der Satz „den KEINES der eingebauten Presets mitbringt“
+    // stand hier bis 4.287 und war überholt — seit die Bögen in
+    // `presets.drama.data.ts` liegen, tragen alle 51 eingebauten einen, und die
+    // Preset-Auswahl legt ihn beim Umschalten ab. Die Prüfung bleibt trotzdem
+    // richtig: Eigene Presets ohne 2.0-Block haben weiterhin keinen, und bei
+    // jeder Form außer Prosa fällt der Bauweg ebenfalls zurück.
     if (structure.value === "dramaturgie" && !(form.value === "prose" && hasDramaData())) {
       rekHint.style.display = "";
       rekHint.textContent = form.value !== "prose"
         ? `Hinweis: „Dramaturgie“ wirkt nur bei Prosa — bei „${form.options[form.selectedIndex]?.text || form.value}“ bleibt die Struktur ohne Wirkung.`
-        : "Hinweis: „Dramaturgie“ braucht ein Preset 2.0 mit Dramaturgie-Block. Das aktive Preset hat keinen — "
+        : "Hinweis: „Dramaturgie“ braucht einen Erzählbogen. Das aktive Preset hat keinen — "
           + "die Maschine baut über die Schablonen, die Struktur bleibt ohne Wirkung. In der Wortbank lässt sich ein Preset auf 2.0 heben.";
       return;
     }

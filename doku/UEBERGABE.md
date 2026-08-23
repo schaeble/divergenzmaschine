@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.286.0**, Zweig `typescript-migration`.
+Stand: **v4.287.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,41 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Dramaturgie hat keinen Schalter (4.287.0)
+
+**Gefragt:** „Wo ist denn der Schalter für die Dramaturgie?"
+
+**Antwort: Es gibt keinen.** Dramaturgie ist eine Stellung der **Struktur** —
+„Dramaturgie (Preset 2.0)" im Werkzeugkasten oder als Chip unter dem Text. Die
+Frage kam, weil der Schaltplan sie als eigenes Feld zeichnet und damit aussieht
+wie ein Schalter. Das Feld sagt es jetzt selbst: Es steht auf „aus — über
+Struktur" und nennt im Mouseover, wo man es findet.
+
+**Die Frage hat zwei echte Fehler mitgebracht.**
+
+*Erstens: Der Plan las die falsche Quelle.* `dramaVorhanden` prüfte
+`builtinDrama(preset)` — die Tabelle der 51 eingebauten Bögen. Der Bauweg liest
+aber `dm_dramaturgie_v1`, die Ablage, in die die Preset-Auswahl den Bogen legt.
+Für die eingebauten stimmen beide überein. **Für jedes eigene 2.0-Preset war der
+Plan falsch:** Dessen Bogen steht nur in der Ablage, nie in der Tabelle — der
+Plan hätte „kein Bogen" gezeigt, während der Text längst einem folgte. Gelesen
+wird jetzt dieselbe Ablage wie im Bauweg.
+
+*Zweitens: Ein stummer Ausfall fehlte im Plan.* Dramaturgie wirkt **nur bei Form
+„Prosa"**. Bei jeder anderen Form fällt der Bauweg wortlos auf den gewöhnlichen
+zurück. Das Studio warnt an dieser Stelle seit langem, der Plan tat es nicht.
+Jetzt steht die Leitung auch dann rot.
+
+**Und ein überholter Kommentar.** In `studio.ts` stand: „Dramaturgie verlangt
+einen Dramaturgie-Block, den KEINES der eingebauten Presets mitbringt." Das war
+einmal wahr. Seit die Bögen in `presets.drama.data.ts` liegen, tragen **alle 51**
+einen, und die Preset-Auswahl legt ihn beim Umschalten ab. Die Prüfung daneben
+bleibt richtig — eigene Presets ohne 2.0-Block haben weiterhin keinen —, aber
+die Begründung war falsch und hätte den nächsten Leser in die Irre geführt.
+
+Prüfstand Schaltplan 39 → 43. Gegenprobe: Ignoriert der Plan die Form, meldet er
+„an" statt „leer".
 
 Würfeln im Schaltplan (4.286.0)
 

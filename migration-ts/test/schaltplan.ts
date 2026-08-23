@@ -74,6 +74,14 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   ist("Dramaturgie ohne Bogen ist leer", knoten(c, "drama")?.zustand, "leer");
   const d = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ dramaVorhanden: true }));
   ist("Dramaturgie mit Bogen ist an", knoten(d, "drama")?.zustand, "an");
+  // Der zweite stumme Ausfall: Dramaturgie wirkt nur bei Prosa.
+  const c2 = baueAnlage(STAND({ structure: "dramaturgie", form: "haiku" }), UMGEBUNG({ dramaVorhanden: true }));
+  ist("Dramaturgie bei anderer Form ist leer", knoten(c2, "drama")?.zustand, "leer");
+  wahr("und nennt die Form als Grund", /nicht Prosa/.test(knoten(c2, "drama")?.hinweis || ""));
+  // Und wo der Schalter steht, sagt der Plan selbst — danach war gefragt.
+  const c3 = baueAnlage(STAND({ structure: "rekombination" }), UMGEBUNG());
+  ist("ohne Dramaturgie steht sie auf aus", knoten(c3, "drama")?.zustand, "aus");
+  wahr("und verweist auf die Struktur", /Struktur auf/.test(knoten(c3, "drama")?.hinweis || ""));
 
   // d) Korpus-Bausteine auf 20 %, Korpus leer.
   const e = baueAnlage(STAND(), UMGEBUNG({ knobs: { ...KNOB_VORGABE, korpus: 20 }, korpusZeichen: 0 }));

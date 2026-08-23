@@ -63,7 +63,12 @@ export interface Umgebung {
   schatzkammer: number;
   knobs: Knobs;
   gesperrt: Set<string>;
-  /** Trägt das gewählte Preset einen Erzählbogen (Preset 2.0 / Dramaturgie)? */
+  /** Liegt ein Erzählbogen bereit? Gelesen wird DIESELBE Ablage, aus der der
+   *  Bauweg liest (`dm_dramaturgie_v1`), nicht die Tabelle der eingebauten
+   *  Presets. Bis 4.286 stand hier `builtinDrama(preset)` — das stimmt für die
+   *  51 eingebauten und ist bei jedem eigenen 2.0-Preset falsch: Deren Bogen
+   *  steht nur in der Ablage. Der Plan hätte „kein Bogen" gezeigt, während der
+   *  Text längst einem folgte. */
   dramaVorhanden: boolean;
   presetLabel: string;
 }
@@ -117,12 +122,23 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   // ── Spalte 2: Bau ────────────────────────────────────────────────────────
   const struktur = r["structure"] || "auto";
   knoten("struktur", 2, "Struktur", bez(STRUCTURE_OPTS, struktur), "an", "", "f-structure");
-  // Dramaturgie ist der Fall, in dem ein Schalter an sein kann und trotzdem
-  // nichts tut: Ohne Bogen im Preset fällt die Struktur still auf Linear zurück.
+  // Dramaturgie hat KEINEN eigenen Schalter — sie ist eine Stellung der
+  // Struktur. Genau danach wurde gefragt („Wo ist denn der Schalter für die
+  // Dramaturgie?"), und die Frage kam, weil dieser Plan sie als eigenes Feld
+  // zeichnet. Der Wert sagt es jetzt selbst.
+  //
+  // Zwei Wege, auf denen sie stumm ausfällt, und beide sieht man dem Regler
+  // nicht an: ohne Erzählbogen im aktiven Preset, und bei jeder Form außer
+  // Prosa. Der Bauweg fällt dann wortlos auf den gewöhnlichen zurück.
   const dramaAn = struktur === "dramaturgie";
-  knoten("drama", 2, "Dramaturgie", dramaAn ? (u.dramaVorhanden ? "Bogen vorhanden" : "kein Bogen") : "aus",
-    !dramaAn ? "aus" : u.dramaVorhanden ? "an" : "leer",
-    dramaAn && !u.dramaVorhanden ? "Struktur steht auf Dramaturgie, das Preset trägt aber keinen Bogen" : "");
+  const nurProsa = (r["form"] || "prose") === "prose";
+  const dramaZustand: Zustand = !dramaAn ? "aus" : !nurProsa ? "leer" : u.dramaVorhanden ? "an" : "leer";
+  knoten("drama", 2, "Dramaturgie",
+    !dramaAn ? "aus — über Struktur" : !nurProsa ? "nur bei Prosa" : u.dramaVorhanden ? "Bogen vorhanden" : "kein Bogen",
+    dramaZustand,
+    !dramaAn ? "Kein eigener Schalter: Struktur auf „Dramaturgie (Preset 2.0)“ stellen — im Werkzeugkasten oder als Chip unter dem Text. Wirkt nur bei Form „Prosa“."
+      : !nurProsa ? "Struktur steht auf Dramaturgie, die Form ist aber nicht Prosa — der Bauweg fällt still auf den gewöhnlichen zurück"
+      : u.dramaVorhanden ? "" : "Struktur steht auf Dramaturgie, das aktive Preset trägt aber keinen Erzählbogen");
   knoten("modus", 2, "Modus", bez(MODE_OPTS, r["mode"] || "auto"), "an", "", "f-mode");
   const markov = r["markovMode"] || "off";
   knoten("markov", 1, "Markov", bez(MARKOV_OPTS, markov),
@@ -201,7 +217,7 @@ import { themenStand } from "./themenpool";
 import { loadWorld } from "./world";
 import { liveCount } from "./livepools";
 import { loadTreasury } from "./treasury";
-import { builtinDrama } from "../presets.drama.data";
+import { hasDramaData } from "../generation/dramaturgie";
 import { PRESET_LABELS } from "../presets.data";
 
 const LOCK_KEY = "divergenz_studio_locks_v1";
@@ -223,7 +239,7 @@ export function sammleUmgebung(preset: string): Umgebung {
     schatzkammer: zahl(() => loadTreasury().length, 0),
     knobs: zahl(() => loadKnobs(), { ...KNOB_VORGABE }),
     gesperrt: new Set<string>(zahl(() => JSON.parse(localStorage.getItem(LOCK_KEY) || "[]") as string[], [])),
-    dramaVorhanden: ids.some((id) => !!builtinDrama(id)),
+    dramaVorhanden: zahl(() => hasDramaData(), false),
     presetLabel: ids.map((id) => PRESET_LABELS[id.replace(/^builtin:/, "")] || id).join(" + ") || "—",
   };
 }
