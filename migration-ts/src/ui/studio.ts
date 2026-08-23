@@ -34,6 +34,7 @@ import {
   verschiebe as verschiebeReiter, schalte as schalteReiter, derKanon, PFLICHT as REITER_PFLICHT,
 } from "../features/reiter";
 import { icon } from "./icons";
+import { saveAnlage } from "../features/schaltplan";
 import { openReader } from "./reader";
 import { worldLogGeneration, worldFillContext } from "../features/world";
 import { uebernehmeKontext, geaendert as geaenderteFelder, offeneQuellen, ziehQuelle, QUELLE_LABEL, W4_FELDER, type W4 } from "../features/kontext";
@@ -1669,6 +1670,18 @@ export function mountStudio(root: HTMLElement): void {
   const merkeRegler = (): void => { for (const s of ROLL_SELECTS) studioReglerStand[s.id] = s.value; };
   ROLL_SELECTS.forEach((s) => s.addEventListener("change", () => { studioReglerStand[s.id] = s.value; }));
   merkeRegler();
+  // Der Schaltplan im Reiter Diagnose liest diesen Stand. Geschrieben wird bei
+  // JEDER Änderung, nicht erst beim Erzeugen: Sonst zeigte der Plan, was beim
+  // vorletzten Text galt, und wäre damit genau die Rateei, die er abstellen soll.
+  const anlageSichern = (): void => saveAnlage({
+    regler: einstellungen(),
+    w4: { where: where.value, when: when.value, who: who.value, what: what.value },
+    zeit: new Date().toISOString(),
+  });
+  ROLL_SELECTS.forEach((s) => s.addEventListener("change", anlageSichern));
+  [where, when, who, what].forEach((i) => i.addEventListener("input", anlageSichern));
+  lenSlider.addEventListener("input", anlageSichern);
+  anlageSichern();
   // Schlösser haben Übergabewerte überschrieben? Hinweis mit Sofortlösung zeigen.
   const blocked = handedOver.filter((h) => locked.has(h.el.id) && h.el.value !== h.want);
   if (blocked.length) {

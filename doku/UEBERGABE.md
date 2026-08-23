@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.284.0**, Zweig `typescript-migration`.
+Stand: **v4.285.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,53 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Schaltplan im Reiter Diagnose (4.285.0)
+
+**Gewünscht:** „Ein visualisierter Schaltplan, der zeigt, welche Einstellungen
+gegenwärtig aktiv sind. Es ist für mich immer ein Raten, was wohl gerade die
+Ursache für dies und jenes ist."
+
+Das Studio hat rund dreißig Schalter, acht Stellschrauben, vier Vorräte und
+einen Korpus. Welche davon in einem bestimmten Augenblick wirklich in den Text
+führen, stand nirgends.
+
+**Der Plan zeigt Stellungen, nicht Wirkung — und das ist eine Entscheidung.**
+Er erzeugt keinen Text und liest keine Spur. Ein Plan, der beim Ansehen etwas
+erzeugt, hätte den Zustand verändert, den er zeigen soll. Er kann also NICHT
+sagen, ob eine Leitung in einem bestimmten Text Material getragen hat.
+
+**Was er kann, ist der Abgleich zwischen SCHALTER und QUELLE** — und der
+beantwortet die häufigste Ratefrage von selbst. Ein Schalter kann an sein,
+während seine Quelle leer ist, und sieht dabei aus wie ein Schalter, der wirkt:
+
+- „Markov: Stark" bei leerem Korpus — lernt aus nichts
+- „Struktur: Dramaturgie" bei einem Preset ohne Bogen — fällt still auf Linear zurück
+- „Korpus-Bausteine: 20 %" ohne Korpus — setzt nichts ein
+- alle vier W leer — der Kontext trägt nichts bei
+
+Solche Leitungen stehen rot und gestrichelt und werden über dem Bild beim Namen
+genannt. Das ist der ganze diagnostische Gehalt, und er ist ehrlich abgegrenzt.
+
+**Aufbau:** fünf Bänder von oben nach unten — Vorräte, Material, Steuerung,
+Schliff, Ausgabe. Dazwischen eine Sammelschiene statt sechzig Einzellinien; die
+Einzellinien gibt es nur dort, wo eine Leitung tot sein KANN. Ein geschlossenes
+Schloss steht als Symbol im Feld.
+
+**Warum SVG mit gerechneten Koordinaten und nicht CSS-Gitter:** jsdom rechnet
+kein Layout. Ein Plan, dessen Maße erst der Browser bestimmt, wäre im Prüfstand
+nicht prüfbar. So sind die Koordinaten nachrechenbar — und der Prüfstand prüft
+sie: **keine zwei Felder überlappen**, jedes liegt im Bild, und die Bänder
+stehen in der richtigen Reihenfolge.
+
+**Neuer Prüfstand Schaltplan, 32 Prüfungen.** Der Kern sind die drei Fälle oben,
+jeweils mit Gegenstück (mit Korpus ist Markov an, mit Bogen ist Dramaturgie an).
+Gegenproben: Meldet der Plan „leer" nie, fallen 3 Prüfungen; bekommen die Bänder
+keine Höhe, fallen 2 mit 9 Überlappungen.
+
+**Neu geschrieben wird `dm_anlage_v1`** — der Reglerstand des Studios, bei JEDER
+Änderung, nicht erst beim Erzeugen. Sonst zeigte der Plan, was beim vorletzten
+Text galt, und wäre genau die Rateei, die er abstellen soll.
 
 Der Würfel fasste acht Regler nie an (4.284.0)
 

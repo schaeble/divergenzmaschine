@@ -986,3 +986,21 @@ select.abweichend{border-color:var(--acc)}
 .src-chipwrap .lockbtn svg{width:13px;height:13px}
 /* Stellschrauben-Zeile mit Schloss: Beschriftung links, Schloss rechts. */
 .field-label.hilfe.lockrow{display:flex;align-items:center;justify-content:space-between;gap:6px}
+
+/* ── Schaltplan (Diagnose) ────────────────────────────────────────────────
+   Ein SVG mit fest gerechneten Koordinaten; hier steht nur, wie es aussieht. */
+.schaltplan { display:block; max-width:100%; height:auto; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); }
+.schaltplan .sp-band { fill:var(--muted); font:600 12px var(--sans); letter-spacing:.08em; text-transform:uppercase; }
+.schaltplan .sp-label { fill:var(--text); font:600 12px var(--sans); }
+.schaltplan .sp-wert { fill:var(--muted); font:11px var(--sans); }
+.schaltplan .sp-schloss { font:11px var(--sans); }
+.schaltplan .sp-chip rect { fill:var(--panel2); stroke-width:1.5; }
+.schaltplan .sp-aus rect, .schaltplan .sp-fest rect { opacity:.55; }
+.schaltplan .sp-leer rect { fill:color-mix(in srgb, var(--danger) 12%, var(--panel2)); }
+.schaltplan .sp-kante { fill:none; stroke-width:1.5; opacity:.9; }
+.schaltplan .sp-bus { stroke:var(--border2); stroke-width:2; }
+.schaltplan .sp-bus-spitze { fill:var(--border2); }
+.sp-legende { display:flex; flex-wrap:wrap; gap:.75rem; margin:.5rem 0; font-size:.82rem; color:var(--muted); }
+.sp-legende span { display:inline-flex; align-items:center; gap:.35rem; }
+.sp-punkt { width:.7rem; height:.7rem; border-radius:50%; display:inline-block; border:1.5px solid; }
+.sp-warn { color:var(--danger); }
