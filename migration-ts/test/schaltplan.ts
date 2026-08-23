@@ -11,10 +11,12 @@
 // Die Anordnung wird mitgeprüft: Ein Plan mit übereinanderliegenden Feldern
 // wäre schlimmer als keiner. jsdom rechnet kein Layout, deshalb rechnet der
 // Plan seine Koordinaten selbst — und deshalb sind sie hier nachprüfbar.
-import { baueAnlage, sammleUmgebung, SCHLOSS_ZU_KNOTEN, type AnlageStand, type Umgebung } from "../src/features/schaltplan";
+import { baueAnlage, sammleUmgebung, loadAnlage, SCHLOSS_ZU_KNOTEN, QUELLE_ZU_KNOTEN, type AnlageStand, type Umgebung } from "../src/features/schaltplan";
 import { mountStudio } from "../src/ui/studio";
 import { KNOB_VORGABE, KNOB_SPANNE } from "../src/features/knobs";
-import { saveIdeaProfile, saveIdeaUserPreset, loadIdeaUserPresets, IDEA_PRESETS } from "../src/features/ideaprofile";
+import { saveIdeaProfile, loadIdeaProfile, saveIdeaUserPreset, loadIdeaUserPresets, IDEA_PRESETS } from "../src/features/ideaprofile";
+import { loadOmniStand } from "../src/features/omnikognition";
+import { QUELLE_LABEL } from "../src/features/kontext";
 import { mountIdeas } from "../src/ui/ideasView";
 import { mountWorld } from "../src/ui/worldView";
 import { wuerfleAlles, wuerfleVierW, REGLER, SCHIEBER } from "../src/features/wuerfeln";
@@ -537,7 +539,8 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
     a.kanten.some((k) => k.von === "ideen" && k.nach === "w4"));
   const b = baueAnlage(STAND(), UMGEBUNG({ ideenProfil: "" }));
   ist("ohne eigenes Profil sind sie trotzdem bereit", knoten(b, "ideen")?.zustand, "an");
-  wahr("und der Plan sagt, dass gewürfelt wird", /gewürfelt/.test(knoten(b, "ideen")?.wert || ""));
+  ist("und der Plan sagt, dass keines eingestellt ist", knoten(b, "ideen")?.wert, "kein Profil eingestellt");
+  wahr("dass gewürfelt wird, steht im Hinweis", /mitgewürfelt/.test(knoten(b, "ideen")?.hinweis || ""));
 
   // Der eigentliche Einwand: Der Würfel soll würfeln, nicht das Profil nehmen.
   // Gemessen an 300 Zügen: festes Profil 141/126/142/124 verschiedene Werte,
@@ -597,7 +600,7 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   // Und der Plan kennt die Quelle.
   const a = baueAnlage(STAND(), UMGEBUNG({ omniProfile: 8, omniProfil: "Hai" }));
   ist("die Wahrnehmung steht im Plan", knoten(a, "omni")?.zustand, "an");
-  wahr("mit dem eingestellten Wesen", /^Hai · /.test(knoten(a, "omni")?.wert || ""));
+  ist("mit dem eingestellten Wesen", knoten(a, "omni")?.wert, "Hai");
   wahr("und der Zahl der vorhandenen im Hinweis", /8 Wesen vorhanden/.test(knoten(a, "omni")?.hinweis || ""));
   wahr("und einer Leitung zu den vier W", a.kanten.some((k) => k.von === "omni" && k.nach === "w4"));
 }
@@ -711,7 +714,7 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   const werteI = new Set<string>();
   for (let i = 0; i < 40; i++) { knopfI.click(); werteI.add(wertVon("ideen")); }
   wahr(`der Knoten Ideen folgt dem Würfel (${werteI.size} verschiedene in 40 Würfen)`, werteI.size >= 5);
-  wahr("und nennt den Würfel beim Namen", [...werteI].every((v) => v.includes("Würfel: zufällig")));
+  wahr("und nennt den Würfel im Hinweis", (baueAnlage(STAND(), sammleUmgebung("kafka")).knoten.find((k) => k.id === "ideen")?.hinweis || "").includes("mitgewürfelt"));
 
   // --- Wahrnehmung ---
   const wW = D6.createElement("div"); D6.body.append(wW); mountWorld(wW);
@@ -721,13 +724,82 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   wahr(`der Knoten Wahrnehmung folgt dem Würfel (${werteW.size} verschiedene in 40 Würfen)`, werteW.size >= 4);
   wahr("und zeigt kein blankes Zählwerk mehr", [...werteW].every((v) => !/^\d+ Wesen$/.test(v)));
   const nameW = (wW.querySelector('[id="omni-name"]') as HTMLInputElement).value;
-  wahr(`der gezeigte Name ist der eingestellte („${nameW}")`, wertVon("omni").startsWith(nameW + " · "));
+  ist(`der gezeigte Name ist der eingestellte („${nameW}")`, wertVon("omni"), nameW);
 
   // Und der Reiter Welt wirft das eingestellte Wesen beim Reiterwechsel nicht
   // mehr weg — bisher lief `randomize()` bei jedem Aufbau.
   const vorher = (wW.querySelector('[id="omni-name"]') as HTMLInputElement).value;
   const wW2 = D6.createElement("div"); D6.body.append(wW2); mountWorld(wW2);
   ist("ein Reiterwechsel lässt das Wesen stehen", (wW2.querySelector('[id="omni-name"]') as HTMLInputElement).value, vorher);
+}
+
+
+// ── 17 · Der Plan zeigt, was DIESEN Wurf gespeist hat ────────────────────
+// Gefragt: „Warum ändert sich beim Alles Würfeln in der Diagnose die Idee und
+// die Wahrnehmung nicht?"
+//
+// Weil beide Knoten zeigen, was im REITER eingestellt ist, und der Würfel sein
+// Profil nur für den einen Wurf zieht, ohne es zurückzuschreiben — „der Würfel
+// wählt, er füllt nicht". Gemessen an 60 Klicks: die vier W bewegten sich
+// 56-mal, die beiden Knoten kein einziges Mal. Beides für sich richtig, aber
+// der Plan verschwieg damit die Hälfte: Das eingestellte Profil stand neben
+// vier W, die aus einem ganz anderen stammten.
+//
+// Der Wurf schreibt jetzt seine Quelle mit in die Ablage, und der speisende
+// Knoten trägt sie. Die Reiter bleiben unangetastet.
+{
+  const dom7 = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/", pretendToBeVisual: true });
+  const G = globalThis as unknown as Record<string, unknown>;
+  for (const k of ["window", "document", "localStorage", "navigator", "HTMLElement", "HTMLInputElement",
+    "HTMLTextAreaElement", "HTMLSelectElement", "HTMLButtonElement", "Event", "CustomEvent", "Node",
+    "getComputedStyle", "requestAnimationFrame", "cancelAnimationFrame", "MutationObserver", "Blob",
+    "URL", "FileReader", "Image", "DOMParser"]) {
+    try { Object.defineProperty(G, k, { value: (dom7.window as unknown as Record<string, unknown>)[k], writable: true, configurable: true }); } catch { /* da */ }
+  }
+  const km7 = (): unknown => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} });
+  Object.defineProperty(G, "matchMedia", { value: km7, writable: true, configurable: true });
+  (dom7.window as unknown as Record<string, unknown>)["matchMedia"] = km7;
+  (dom7.window.Element.prototype as unknown as Record<string, unknown>)["scrollIntoView"] = function (): void {};
+  const D7 = dom7.window.document;
+
+  const wS = D7.createElement("div"); D7.body.append(wS); mountStudio(wS);
+  const wD = D7.createElement("div"); D7.body.append(wD); mountDiagnose(wD);
+  const knopf = Array.from(wD.querySelectorAll("button")).find((b) => /Alles würfeln/.test(b.textContent || "")) as HTMLButtonElement;
+  const plan = (): ReturnType<typeof baueAnlage> => baueAnlage(loadAnlage()!, sammleUmgebung("kafka"));
+
+  const werteI = new Set<string>(), werteO = new Set<string>();
+  let genauEiner = 0, mitLeitung = 0;
+  for (let i = 0; i < 60; i++) {
+    knopf.click();
+    const a = plan();
+    werteI.add(a.knoten.find((k) => k.id === "ideen")?.wert || "");
+    werteO.add(a.knoten.find((k) => k.id === "omni")?.wert || "");
+    const gespeist = a.knoten.filter((k) => /dieser Wurf/.test(k.wert));
+    if (gespeist.length === 1) genauEiner++;
+    const q = gespeist[0];
+    if (q && a.kanten.some((k) => k.von === q.id && k.nach === "w4" && k.zustand === "an")) mitLeitung++;
+  }
+  ist("bei jedem Wurf ist genau ein Knoten die Quelle", genauEiner, 60);
+  ist("und seine Leitung zu den vier W liegt an", mitLeitung, 60);
+  wahr(`der Knoten Ideen bewegt sich mit (${werteI.size} verschiedene in 60 Würfen)`, werteI.size >= 5);
+  wahr(`der Knoten Wahrnehmung bewegt sich mit (${werteO.size} verschiedene in 60 Würfen)`, werteO.size >= 4);
+
+  // Die Regel bleibt: Der Würfel wählt, er füllt nicht. Was der Wurf zieht,
+  // darf die Einstellung des Reiters NICHT überschreiben.
+  const vorherI = JSON.stringify(loadIdeaProfile());
+  const vorherO = JSON.stringify(loadOmniStand());
+  for (let i = 0; i < 20; i++) knopf.click();
+  ist("der Wurf lässt das eingestellte Ideen-Profil stehen", JSON.stringify(loadIdeaProfile()), vorherI);
+  ist("und das eingestellte Wesen ebenso", JSON.stringify(loadOmniStand()), vorherO);
+
+  // Jede Quellenbezeichnung des Würfels muss einen Knoten treffen — sonst
+  // fällt ein Wurf stumm unter den Tisch. Dieselbe Fehlerart wie beim
+  // vergessenen Schloss: Wer eine Quelle hinzufügt, denkt nicht an den Plan.
+  const ohneKnoten = Object.values(QUELLE_LABEL).filter((l) => !QUELLE_ZU_KNOTEN[l]);
+  ist("jede Quelle des Würfels hat einen Knoten", ohneKnoten.join(","), "");
+  const K0 = baueAnlage(STAND(), UMGEBUNG()).knoten.map((k) => k.id);
+  const falsch = Object.entries(QUELLE_ZU_KNOTEN).filter(([, id]) => !K0.includes(id)).map(([l]) => l);
+  ist("und jeder benannte Knoten gibt es auch", falsch.join(","), "");
 }
 
 console.log(`Prüfstand Schaltplan — ${geprueft} Prüfungen, ${bestanden} bestanden`);

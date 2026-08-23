@@ -76,7 +76,9 @@ export function mountDiagnose(root: HTMLElement): void {
     try { gesperrt = new Set(JSON.parse(localStorage.getItem("divergenz_studio_locks_v1") || "[]") as string[]); } catch { /* leer */ }
     const wurf = wuerfleAlles(stand.regler, gesperrt, loadKnobs(), stand.w4);
     saveKnobs(wurf.knobs);
-    saveAnlage({ ...stand, regler: wurf.regler, w4: wurf.w4, zeit: new Date().toISOString() });
+    // Die Quelle gehört in die Ablage, nicht nur in die graue Zeile: Der Plan
+    // soll zeigen, WAS diesen Wurf gespeist hat.
+    saveAnlage({ ...stand, regler: wurf.regler, w4: wurf.w4, quelle: wurf.quelle, zeit: new Date().toISOString() });
     uebernimmWurf(wurf.nachId);
     // Die Quelle der vier W gehört dazu: Bei vier gleichen Feldern wüsste man
     // sonst nicht, ob der Vorrat leer war oder ob dasselbe gezogen wurde.

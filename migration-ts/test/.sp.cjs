@@ -12967,6 +12967,14 @@ var PRESET_LABELS = {
 };
 
 // src/features/schaltplan.ts
+var QUELLE_ZU_KNOTEN = {
+  "Welt": "welt",
+  "Wiki": "sammler",
+  "Abschrift": "bilder",
+  "Thema": "themen",
+  "Ideen": "ideen",
+  "Wahrnehmung": "omni"
+};
 var SCHLOSS_ZU_KNOTEN = {
   "f-preset": "preset",
   "f-tone": "ton",
@@ -13069,15 +13077,15 @@ function baueAnlage(stand, u) {
     "ideen",
     0,
     "Ideen",
-    (u.ideenProfil || "frei gew\xFCrfelt") + " \xB7 W\xFCrfel: zuf\xE4llig",
+    u.ideenProfil || "kein Profil eingestellt",
     "an",
-    "Beim W\xFCrfeln im Studio wird das Profil mitgew\xFCrfelt \u2014 das eingestellte gilt im Reiter Ideen selbst"
+    "Reiter Ideen \xB7 beim W\xFCrfeln im Studio wird das Profil mitgew\xFCrfelt, das eingestellte gilt im Reiter selbst"
   );
   knoten2(
     "omni",
     0,
     "Wahrnehmung",
-    (u.omniProfil || "kein Wesen eingestellt") + (u.omniProfil ? " \xB7 W\xFCrfel: zuf\xE4llig" : ""),
+    u.omniProfil || "kein Wesen eingestellt",
     u.omniProfil ? "an" : u.omniProfile ? "leer" : "aus",
     `Reiter Welt: Zieht ein Wesen und setzt Wo/Wann/Wer/Was samt Perspektive, Rhythmus, Modus und Ton \xB7 ${u.omniProfile} Wesen vorhanden`
   );
@@ -13254,6 +13262,18 @@ function baueAnlage(stand, u) {
     ["omni", "w4"],
     ["preset", "drama"]
   ]) kante(a, b);
+  const rohQuelle = String(stand.quelle || "").trim();
+  if (rohQuelle) {
+    const teile = rohQuelle.split("\xB7").map((x) => x.trim());
+    const ziel = QUELLE_ZU_KNOTEN[teile[0] || ""];
+    const kn = ziel ? K.find((k) => k.id === ziel) : void 0;
+    if (kn) {
+      const rest = teile.slice(1).join(" \xB7 ");
+      kn.wert += rest ? ` \xB7 dieser Wurf: ${rest}` : " \xB7 dieser Wurf";
+      kn.hinweis = (kn.hinweis ? kn.hinweis + " \xB7 " : "") + "aus diesem Knoten kamen die vier W des letzten Wurfs";
+      for (const k of E) if (k.von === ziel && k.nach === "w4") k.zustand = "an";
+    }
+  }
   const proKnoten = /* @__PURE__ */ new Map();
   for (const [id, ziel] of Object.entries(SCHLOSS_ZU_KNOTEN)) {
     const l = proKnoten.get(ziel) || [];
@@ -21688,6 +21708,7 @@ function uebernimmWurf(nachId) {
   for (const [id, wert] of Object.entries(nachId)) studioReglerStand[id] = wert;
 }
 function mountStudio(root) {
+  let letzteQuelle = "";
   root.innerHTML = "";
   const wrap = el("div", {});
   const where = textInput("f-where", "Wo?", "auf der Schafsweide");
@@ -21864,6 +21885,7 @@ function mountStudio(root) {
     wikiTitel();
     abschriftTitel();
     themaTitel();
+    letzteQuelle = woher;
     updHints();
     ctxSichern();
     rollAlle();
@@ -21895,6 +21917,7 @@ function mountStudio(root) {
     }
     renderPresetChecks();
     generate();
+    anlageSichern();
   });
   const wikiBtn = el("button", {}, icon("book"), " Wiki");
   const wikiHint = el("span", { class: "ctxhint" });
@@ -23870,7 +23893,8 @@ function mountStudio(root) {
       surprise: surpSlider.value
     },
     w4: { where: where.value, when: when.value, who: who.value, what: what.value },
-    zeit: (/* @__PURE__ */ new Date()).toISOString()
+    zeit: (/* @__PURE__ */ new Date()).toISOString(),
+    quelle: letzteQuelle
   });
   ROLL_SELECTS.forEach((s) => s.addEventListener("change", anlageSichern));
   [where, when, who, what, umweltIn, novSlider, surpSlider, lenSlider, wWo, wWann, wWer, wWas].forEach((i) => i.addEventListener("input", anlageSichern));
@@ -25517,7 +25541,7 @@ function mountDiagnose(root) {
     }
     const wurf = wuerfleAlles(stand.regler, gesperrt, loadKnobs(), stand.w4);
     saveKnobs(wurf.knobs);
-    saveAnlage({ ...stand, regler: wurf.regler, w4: wurf.w4, zeit: (/* @__PURE__ */ new Date()).toISOString() });
+    saveAnlage({ ...stand, regler: wurf.regler, w4: wurf.w4, quelle: wurf.quelle, zeit: (/* @__PURE__ */ new Date()).toISOString() });
     uebernimmWurf(wurf.nachId);
     wuerfelHint.textContent = `gew\xFCrfelt \xB7 Vier W aus ${wurf.quelle}` + (gesperrt.size ? ` \u2014 ${gesperrt.size} ${gesperrt.size === 1 ? "Schloss h\xE4lt" : "Schl\xF6sser halten"}` : "");
     renderPlan();
@@ -26080,7 +26104,8 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
   );
   const b = baueAnlage(STAND(), UMGEBUNG({ ideenProfil: "" }));
   ist("ohne eigenes Profil sind sie trotzdem bereit", knoten(b, "ideen")?.zustand, "an");
-  wahr("und der Plan sagt, dass gew\xFCrfelt wird", /gewürfelt/.test(knoten(b, "ideen")?.wert || ""));
+  ist("und der Plan sagt, dass keines eingestellt ist", knoten(b, "ideen")?.wert, "kein Profil eingestellt");
+  wahr("dass gew\xFCrfelt wird, steht im Hinweis", /mitgewürfelt/.test(knoten(b, "ideen")?.hinweis || ""));
   saveIdeaProfile({
     name: "Fest",
     genre: "mystery",
@@ -26124,7 +26149,7 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
   ist("ein gesperrtes W bleibt auch bei der Wahrnehmung stehen", verschoben, 0);
   const a = baueAnlage(STAND(), UMGEBUNG({ omniProfile: 8, omniProfil: "Hai" }));
   ist("die Wahrnehmung steht im Plan", knoten(a, "omni")?.zustand, "an");
-  wahr("mit dem eingestellten Wesen", /^Hai · /.test(knoten(a, "omni")?.wert || ""));
+  ist("mit dem eingestellten Wesen", knoten(a, "omni")?.wert, "Hai");
   wahr("und der Zahl der vorhandenen im Hinweis", /8 Wesen vorhanden/.test(knoten(a, "omni")?.hinweis || ""));
   wahr("und einer Leitung zu den vier W", a.kanten.some((k) => k.von === "omni" && k.nach === "w4"));
 }
@@ -26265,7 +26290,7 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
     werteI.add(wertVon("ideen"));
   }
   wahr(`der Knoten Ideen folgt dem W\xFCrfel (${werteI.size} verschiedene in 40 W\xFCrfen)`, werteI.size >= 5);
-  wahr("und nennt den W\xFCrfel beim Namen", [...werteI].every((v) => v.includes("W\xFCrfel: zuf\xE4llig")));
+  wahr("und nennt den W\xFCrfel im Hinweis", (baueAnlage(STAND(), sammleUmgebung("kafka")).knoten.find((k) => k.id === "ideen")?.hinweis || "").includes("mitgew\xFCrfelt"));
   const wW = D6.createElement("div");
   D6.body.append(wW);
   mountWorld(wW);
@@ -26278,12 +26303,88 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
   wahr(`der Knoten Wahrnehmung folgt dem W\xFCrfel (${werteW.size} verschiedene in 40 W\xFCrfen)`, werteW.size >= 4);
   wahr("und zeigt kein blankes Z\xE4hlwerk mehr", [...werteW].every((v) => !/^\d+ Wesen$/.test(v)));
   const nameW = wW.querySelector('[id="omni-name"]').value;
-  wahr(`der gezeigte Name ist der eingestellte (\u201E${nameW}")`, wertVon("omni").startsWith(nameW + " \xB7 "));
+  ist(`der gezeigte Name ist der eingestellte (\u201E${nameW}")`, wertVon("omni"), nameW);
   const vorher = wW.querySelector('[id="omni-name"]').value;
   const wW2 = D6.createElement("div");
   D6.body.append(wW2);
   mountWorld(wW2);
   ist("ein Reiterwechsel l\xE4sst das Wesen stehen", wW2.querySelector('[id="omni-name"]').value, vorher);
+}
+{
+  const dom7 = new import_jsdom.JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/", pretendToBeVisual: true });
+  const G = globalThis;
+  for (const k of [
+    "window",
+    "document",
+    "localStorage",
+    "navigator",
+    "HTMLElement",
+    "HTMLInputElement",
+    "HTMLTextAreaElement",
+    "HTMLSelectElement",
+    "HTMLButtonElement",
+    "Event",
+    "CustomEvent",
+    "Node",
+    "getComputedStyle",
+    "requestAnimationFrame",
+    "cancelAnimationFrame",
+    "MutationObserver",
+    "Blob",
+    "URL",
+    "FileReader",
+    "Image",
+    "DOMParser"
+  ]) {
+    try {
+      Object.defineProperty(G, k, { value: dom7.window[k], writable: true, configurable: true });
+    } catch {
+    }
+  }
+  const km7 = () => ({ matches: false, addEventListener: () => {
+  }, removeEventListener: () => {
+  }, addListener: () => {
+  }, removeListener: () => {
+  } });
+  Object.defineProperty(G, "matchMedia", { value: km7, writable: true, configurable: true });
+  dom7.window["matchMedia"] = km7;
+  dom7.window.Element.prototype["scrollIntoView"] = function() {
+  };
+  const D7 = dom7.window.document;
+  const wS = D7.createElement("div");
+  D7.body.append(wS);
+  mountStudio(wS);
+  const wD = D7.createElement("div");
+  D7.body.append(wD);
+  mountDiagnose(wD);
+  const knopf = Array.from(wD.querySelectorAll("button")).find((b) => /Alles würfeln/.test(b.textContent || ""));
+  const plan = () => baueAnlage(loadAnlage(), sammleUmgebung("kafka"));
+  const werteI = /* @__PURE__ */ new Set(), werteO = /* @__PURE__ */ new Set();
+  let genauEiner = 0, mitLeitung = 0;
+  for (let i = 0; i < 60; i++) {
+    knopf.click();
+    const a = plan();
+    werteI.add(a.knoten.find((k) => k.id === "ideen")?.wert || "");
+    werteO.add(a.knoten.find((k) => k.id === "omni")?.wert || "");
+    const gespeist = a.knoten.filter((k) => /dieser Wurf/.test(k.wert));
+    if (gespeist.length === 1) genauEiner++;
+    const q = gespeist[0];
+    if (q && a.kanten.some((k) => k.von === q.id && k.nach === "w4" && k.zustand === "an")) mitLeitung++;
+  }
+  ist("bei jedem Wurf ist genau ein Knoten die Quelle", genauEiner, 60);
+  ist("und seine Leitung zu den vier W liegt an", mitLeitung, 60);
+  wahr(`der Knoten Ideen bewegt sich mit (${werteI.size} verschiedene in 60 W\xFCrfen)`, werteI.size >= 5);
+  wahr(`der Knoten Wahrnehmung bewegt sich mit (${werteO.size} verschiedene in 60 W\xFCrfen)`, werteO.size >= 4);
+  const vorherI = JSON.stringify(loadIdeaProfile());
+  const vorherO = JSON.stringify(loadOmniStand());
+  for (let i = 0; i < 20; i++) knopf.click();
+  ist("der Wurf l\xE4sst das eingestellte Ideen-Profil stehen", JSON.stringify(loadIdeaProfile()), vorherI);
+  ist("und das eingestellte Wesen ebenso", JSON.stringify(loadOmniStand()), vorherO);
+  const ohneKnoten = Object.values(QUELLE_LABEL).filter((l) => !QUELLE_ZU_KNOTEN[l]);
+  ist("jede Quelle des W\xFCrfels hat einen Knoten", ohneKnoten.join(","), "");
+  const K0 = baueAnlage(STAND(), UMGEBUNG()).knoten.map((k) => k.id);
+  const falsch = Object.entries(QUELLE_ZU_KNOTEN).filter(([, id]) => !K0.includes(id)).map(([l]) => l);
+  ist("und jeder benannte Knoten gibt es auch", falsch.join(","), "");
 }
 console.log(`Pr\xFCfstand Schaltplan \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

@@ -61,6 +61,9 @@ export function uebernimmWurf(nachId: Record<string, string>): void {
 }
 
 export function mountStudio(root: HTMLElement): void {
+  // Woher die vier W beim letzten Wurf kamen — wandert in die Ablage, aus der
+  // der Schaltplan unter Diagnose liest.
+  let letzteQuelle = "";
   root.innerHTML = "";
   const wrap = el("div", {});
 
@@ -188,6 +191,7 @@ export function mountStudio(root: HTMLElement): void {
       : alleZu ? "alle vier Felder sind gesperrt"
       : `${woher}: nichts Neues dabei`;
     wikiTitel(); abschriftTitel(); themaTitel();
+    letzteQuelle = woher;
     updHints(); ctxSichern();
     rollAlle();
     // Erst jetzt: Was die Wahrnehmung vorgibt, steht über dem allgemeinen Wurf.
@@ -212,6 +216,7 @@ export function mountStudio(root: HTMLElement): void {
     }
     renderPresetChecks();
     generate();
+    anlageSichern();
   });
 
   const wikiBtn = el("button", {}, icon("book"), " Wiki");
@@ -1782,6 +1787,7 @@ export function mountStudio(root: HTMLElement): void {
     },
     w4: { where: where.value, when: when.value, who: who.value, what: what.value },
     zeit: new Date().toISOString(),
+    quelle: letzteQuelle,
   });
   ROLL_SELECTS.forEach((s) => s.addEventListener("change", anlageSichern));
   [where, when, who, what, umweltIn, novSlider, surpSlider, lenSlider, wWo, wWann, wWer, wWas].forEach((i) => i.addEventListener("input", anlageSichern));

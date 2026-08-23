@@ -48,7 +48,25 @@ export interface AnlageStand {
   regler: Record<string, string>;
   w4: { where: string; when: string; who: string; what: string };
   zeit: string;
+  /** Woher die vier W beim letzten Wurf kamen, in der Form „Wahrnehmung · ein
+   *  Oktopus". Leer, wenn seit dem letzten Aufbau nicht gewürfelt wurde. */
+  quelle?: string;
 }
+
+/** Welcher Knoten gehört zu welcher Quellenbezeichnung des Würfels?
+ *
+ *  Gefragt wurde: „Warum ändert sich beim Alles Würfeln in der Diagnose die
+ *  Idee und die Wahrnehmung nicht?" Weil beide Knoten zeigen, was im REITER
+ *  eingestellt ist, und der Würfel zieht sein Profil nur für den einen Wurf —
+ *  „der Würfel wählt, er füllt nicht". Gemessen an 60 Klicks: die vier W
+ *  bewegten sich 56-mal, die beiden Knoten kein einziges Mal.
+ *
+ *  Beides ist richtig, aber der Plan verschwieg die Hälfte. Jetzt trägt der
+ *  speisende Knoten zusätzlich, was DIESER Wurf gezogen hat. */
+export const QUELLE_ZU_KNOTEN: Record<string, string> = {
+  "Welt": "welt", "Wiki": "sammler", "Abschrift": "bilder",
+  "Thema": "themen", "Ideen": "ideen", "Wahrnehmung": "omni",
+};
 /** Welches Feld im Plan zeigt das Schloss welches Bedienelements?
  *
  *  Gemeldet: „Bei Länge ist das Schloss gesetzt, wird aber nicht angezeigt."
@@ -158,8 +176,8 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   // wurde: Der Knopf „Würfeln" im Reiter schrieb das Ergebnis nicht in die
   // Ablage, aus der dieser Plan liest. Wer würfelte und dann in die Diagnose
   // sah, bekam ein Profil gezeigt, das längst nicht mehr eingestellt war.
-  knoten("ideen", 0, "Ideen", (u.ideenProfil || "frei gewürfelt") + " · Würfel: zufällig", "an",
-    "Beim Würfeln im Studio wird das Profil mitgewürfelt — das eingestellte gilt im Reiter Ideen selbst");
+  knoten("ideen", 0, "Ideen", u.ideenProfil || "kein Profil eingestellt", "an",
+    "Reiter Ideen · beim Würfeln im Studio wird das Profil mitgewürfelt, das eingestellte gilt im Reiter selbst");
   // Die Wahrnehmung (Reiter Welt) ist seit 4.299.0 eine eigene Quelle. Sie
   // liefert vier W UND die dazu passenden Stilregler — Perspektive, Rhythmus,
   // Modus, Ton. Die Wortbank nimmt sie bewusst nicht mit.
@@ -168,7 +186,7 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   // „8 Wesen" stand fest und sagte nichts darüber, was gerade wirkt; wie viele
   // es gibt, steht jetzt im Hinweis.
   knoten("omni", 0, "Wahrnehmung",
-    (u.omniProfil || "kein Wesen eingestellt") + (u.omniProfil ? " · Würfel: zufällig" : ""),
+    u.omniProfil || "kein Wesen eingestellt",
     u.omniProfil ? "an" : (u.omniProfile ? "leer" : "aus"),
     `Reiter Welt: Zieht ein Wesen und setzt Wo/Wann/Wer/Was samt Perspektive, Rhythmus, Modus und Ton · ${u.omniProfile} Wesen vorhanden`);
 
@@ -312,6 +330,21 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
     ["sammler", "w4"], ["bilder", "w4"], ["themen", "w4"], ["welt", "w4"], ["ideen", "w4"], ["omni", "w4"],
     ["preset", "drama"],
   ] as [string, string][]) kante(a, b);
+
+  // Der Wurf wird am speisenden Knoten vermerkt — sonst steht im Plan das
+  // eingestellte Profil neben vier W, die aus einem ganz anderen stammen.
+  const rohQuelle = String(stand.quelle || "").trim();
+  if (rohQuelle) {
+    const teile = rohQuelle.split("·").map((x) => x.trim());
+    const ziel = QUELLE_ZU_KNOTEN[teile[0] || ""];
+    const kn = ziel ? K.find((k) => k.id === ziel) : undefined;
+    if (kn) {
+      const rest = teile.slice(1).join(" · ");
+      kn.wert += rest ? ` · dieser Wurf: ${rest}` : " · dieser Wurf";
+      kn.hinweis = (kn.hinweis ? kn.hinweis + " · " : "") + "aus diesem Knoten kamen die vier W des letzten Wurfs";
+      for (const k of E) if (k.von === ziel && k.nach === "w4") k.zustand = "an";
+    }
+  }
 
   // Das Schloss kommt aus der Karte, nicht aus dem einzelnen Aufruf. Zeigen
   // mehrere Kennungen auf denselben Knoten (die vier W, Umwelt und ihre
