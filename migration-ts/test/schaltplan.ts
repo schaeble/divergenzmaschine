@@ -14,6 +14,7 @@
 import { baueAnlage, SCHLOSS_ZU_KNOTEN, type AnlageStand, type Umgebung } from "../src/features/schaltplan";
 import { mountStudio } from "../src/ui/studio";
 import { KNOB_VORGABE, KNOB_SPANNE } from "../src/features/knobs";
+import { saveIdeaProfile } from "../src/features/ideaprofile";
 import { wuerfleAlles, wuerfleVierW, REGLER, SCHIEBER } from "../src/features/wuerfeln";
 import { werte } from "../src/generation/optionen";
 import { ordne, BAND_NAME, renderSchaltplan, befundListe } from "../src/ui/schaltplanView";
@@ -369,8 +370,10 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   // Und der Plan zeigt den gewürfelten Wert
   const w2 = wuerfleAlles(start, new Set<string>());
   const a = baueAnlage({ ...STAND(), regler: w2.regler }, UMGEBUNG());
-  ist("die Länge im Plan ist die gewürfelte",
-    knoten(a, "laenge")?.wert, w2.regler["lenTarget"] + " Wörter");
+  // Nur die Zahl vergleichen: Fällt die gewürfelte Form auf „Meldung", hängt
+  // seit 4.296.0 ein „(ohne Wirkung)" dahinter — richtig, aber hier nicht Thema.
+  wahr("die Länge im Plan ist die gewürfelte",
+    (knoten(a, "laenge")?.wert || "").startsWith(w2.regler["lenTarget"] + " Wörter"));
 }
 
 // ── 10 · Die Spannen der Schieber stimmen mit der Oberfläche überein ──────
@@ -527,12 +530,28 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   // Und der Plan kennt die Quelle.
   const a = baueAnlage(STAND(), UMGEBUNG({ ideenProfil: "Noir" }));
   ist("die Ideen stehen im Plan", knoten(a, "ideen")?.zustand, "an");
-  ist("mit dem eingestellten Profil", knoten(a, "ideen")?.wert, "Noir");
+  wahr("mit dem eingestellten Profil", /Noir/.test(knoten(a, "ideen")?.wert || ""));
   wahr("und einer Leitung zu den vier W",
     a.kanten.some((k) => k.von === "ideen" && k.nach === "w4"));
   const b = baueAnlage(STAND(), UMGEBUNG({ ideenProfil: "" }));
   ist("ohne eigenes Profil sind sie trotzdem bereit", knoten(b, "ideen")?.zustand, "an");
-  wahr("und sagen warum", /eingebautes/.test(knoten(b, "ideen")?.wert || ""));
+  wahr("und der Plan sagt, dass gewürfelt wird", /gewürfelt/.test(knoten(b, "ideen")?.wert || ""));
+
+  // Der eigentliche Einwand: Der Würfel soll würfeln, nicht das Profil nehmen.
+  // Gemessen an 300 Zügen: festes Profil 141/126/142/124 verschiedene Werte,
+  // gewürfeltes 193/187/213/224.
+  //
+  // WICHTIG für die Gegenprobe: Es muss ein Profil GESPEICHERT sein. Ohne das
+  // fiele auch die alte Fassung auf einen Würfelwurf zurück, und die Prüfung
+  // wäre grün, obwohl sie nichts prüft — beim ersten Versuch war sie genau das.
+  saveIdeaProfile({
+    name: "Fest", genre: "mystery", ton: "duester", protagonist: "einzel", konflikt: "raetsel",
+    ort: "urban", zeit: "gegenwart", massstab: "intim", wendung: "enthuellung", fokus: "figur",
+    divergenz: 40,
+  }, 0);
+  const richtungen = new Set<string>();
+  for (let i = 0; i < 30; i++) richtungen.add(wuerfleVierW(vorher, new Set<string>(), "ideen").quelle);
+  wahr(`das Profil wird mitgewürfelt (${richtungen.size} Richtungen in 30 Zügen)`, richtungen.size >= 8);
 }
 
 console.log(`Prüfstand Schaltplan — ${geprueft} Prüfungen, ${bestanden} bestanden`);

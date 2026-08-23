@@ -4885,15 +4885,6 @@ function ideaProfileToConfig(p, liveShare = 0) {
     liveShare: Math.max(0, Math.min(1, liveShare))
   };
 }
-var IDEA_PRESETS = {
-  noir: { name: "Noir", genre: "mystery", ton: "duester", protagonist: "antiheld", konflikt: "raetsel", ort: "urban", zeit: "historisch", massstab: "intim", wendung: "enthuellung", fokus: "figur", divergenz: 45 },
-  kosmos: { name: "Kosmischer Horror", genre: "horror", ton: "unheimlich", protagonist: "nichtmensch", konflikt: "natur", ort: "nirgendwo", zeit: "zeitlos", massstab: "kosmisch", wendung: "enthuellung", fokus: "atmo", divergenz: 70 },
-  kafka: { name: "Kafkaesk", genre: "absurd", ton: "unheimlich", protagonist: "einzel", konflikt: "system", ort: "institution", zeit: "gegenwart", massstab: "intim", wendung: "paradox", fokus: "konzept", divergenz: 55 },
-  alltag: { name: "Alltagspoesie", genre: "alltag", ton: "melancholisch", protagonist: "einzel", konflikt: "inner", ort: "urban", zeit: "gegenwart", massstab: "intim", wendung: "offen", fokus: "figur", divergenz: 25 },
-  maerchen: { name: "M\xE4rchen-Umkehr", genre: "maerchen", ton: "verspielt", protagonist: "kind", konflikt: "raetsel", ort: "natur", zeit: "zeitlos", massstab: "mittel", wendung: "umkehr", fokus: "handlung", divergenz: 45 },
-  techno: { name: "Techno-Thriller", genre: "scifi", ton: "duester", protagonist: "kollektiv", konflikt: "kampf", ort: "urban", zeit: "zukunft", massstab: "episch", wendung: "eskalation", fokus: "handlung", divergenz: 50 },
-  buero: { name: "Absurde B\xFCrokratie", genre: "satire", ton: "ironisch", protagonist: "institution", konflikt: "system", ort: "institution", zeit: "gegenwart", massstab: "mittel", wendung: "ironie", fokus: "konzept", divergenz: 40 }
-};
 var GENRE_ALL = ["mystery", "scifi", "maerchen", "absurd", "alltag", "horror", "satire"];
 var TON_ALL = ["duester", "hoffnung", "ironisch", "melancholisch", "unheimlich", "verspielt"];
 var PROT_ALL = ["einzel", "kollektiv", "kind", "institution", "nichtmensch", "antiheld"];
@@ -4926,6 +4917,12 @@ function normalizeIdeaProfile(raw, name) {
   };
 }
 var PROFIL_KEY = "dm_idea_profile_v1";
+function saveIdeaProfile(p, liveAnteil) {
+  try {
+    localStorage.setItem(PROFIL_KEY, JSON.stringify({ ...p, liveAnteil }));
+  } catch {
+  }
+}
 function loadIdeaProfile() {
   try {
     const r = localStorage.getItem(PROFIL_KEY);
@@ -4935,6 +4932,22 @@ function loadIdeaProfile() {
   } catch {
     return null;
   }
+}
+function wuerfleIdeaProfile(zufall = Math.random) {
+  const w = (l) => l[Math.min(l.length - 1, Math.floor(zufall() * l.length))];
+  return {
+    name: "",
+    genre: w(GENRE_ALL),
+    ton: w(TON_ALL),
+    protagonist: w(PROT_ALL),
+    konflikt: w(KONF_ALL),
+    ort: w(ORT_ALL),
+    zeit: w(ZEIT_ALL),
+    massstab: w(MASS_ALL),
+    wendung: w(WEND_ALL),
+    fokus: w(FOK_ALL),
+    divergenz: Math.floor(zufall() * 21) * 5
+  };
 }
 
 // src/presets.data.ts
@@ -12766,9 +12779,9 @@ function baueAnlage(stand, u) {
     "ideen",
     0,
     "Ideen",
-    u.ideenProfil || "eingebautes Profil",
+    u.ideenProfil ? u.ideenProfil + " \xB7 W\xFCrfel: zuf\xE4llig" : "Profil wird gew\xFCrfelt",
     "an",
-    u.ideenProfil ? "" : "noch kein eigenes Profil eingestellt \u2014 der W\xFCrfel nimmt ein eingebautes"
+    "Beim W\xFCrfeln im Studio wird das Profil mitgew\xFCrfelt \u2014 das eingestellte gilt im Reiter Ideen selbst"
   );
   const w4 = stand.w4 || { where: "", when: "", who: "", what: "" };
   const gefuellt = [w4.where, w4.when, w4.who, w4.what].filter((x) => (x || "").trim()).length;
@@ -20589,12 +20602,12 @@ function wuerfleVierW(vorher, gesperrt, feste) {
     } else vorschlag = sicher(() => worldFillContext(), {});
   } else if (quelle2 === "ideen") {
     const p = sicher(() => loadIdeaProfile(), null);
-    const profil = p ? p.profil : zieh(Object.values(IDEA_PRESETS));
+    const profil = wuerfleIdeaProfile();
     const ideen = sicher(() => generateIdeaBatch(1, ideaProfileToConfig(profil, p ? p.liveAnteil : 0)), []);
     const i = ideen[0];
     if (i) {
       vorschlag = { where: i.seedWhere, when: i.seedWhen, who: i.seedWho, what: i.seedWhat };
-      woher = `Ideen \xB7 ${profil.name || profil.genre}`;
+      woher = `Ideen \xB7 ${profil.genre}/${profil.ton}`;
     } else vorschlag = sicher(() => worldFillContext(), {});
   } else {
     vorschlag = sicher(() => worldFillContext(), {});
@@ -24688,10 +24701,9 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
   ist("gesperrte Schieber bleiben stehen", verschoben, 0);
   const w2 = wuerfleAlles(start, /* @__PURE__ */ new Set());
   const a = baueAnlage({ ...STAND(), regler: w2.regler }, UMGEBUNG());
-  ist(
+  wahr(
     "die L\xE4nge im Plan ist die gew\xFCrfelte",
-    knoten(a, "laenge")?.wert,
-    w2.regler["lenTarget"] + " W\xF6rter"
+    (knoten(a, "laenge")?.wert || "").startsWith(w2.regler["lenTarget"] + " W\xF6rter")
   );
 }
 {
@@ -24825,14 +24837,30 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
   ist("ein gesperrtes Feld bleibt auch bei den Ideen stehen", verschoben, 0);
   const a = baueAnlage(STAND(), UMGEBUNG({ ideenProfil: "Noir" }));
   ist("die Ideen stehen im Plan", knoten(a, "ideen")?.zustand, "an");
-  ist("mit dem eingestellten Profil", knoten(a, "ideen")?.wert, "Noir");
+  wahr("mit dem eingestellten Profil", /Noir/.test(knoten(a, "ideen")?.wert || ""));
   wahr(
     "und einer Leitung zu den vier W",
     a.kanten.some((k) => k.von === "ideen" && k.nach === "w4")
   );
   const b = baueAnlage(STAND(), UMGEBUNG({ ideenProfil: "" }));
   ist("ohne eigenes Profil sind sie trotzdem bereit", knoten(b, "ideen")?.zustand, "an");
-  wahr("und sagen warum", /eingebautes/.test(knoten(b, "ideen")?.wert || ""));
+  wahr("und der Plan sagt, dass gew\xFCrfelt wird", /gewürfelt/.test(knoten(b, "ideen")?.wert || ""));
+  saveIdeaProfile({
+    name: "Fest",
+    genre: "mystery",
+    ton: "duester",
+    protagonist: "einzel",
+    konflikt: "raetsel",
+    ort: "urban",
+    zeit: "gegenwart",
+    massstab: "intim",
+    wendung: "enthuellung",
+    fokus: "figur",
+    divergenz: 40
+  }, 0);
+  const richtungen = /* @__PURE__ */ new Set();
+  for (let i = 0; i < 30; i++) richtungen.add(wuerfleVierW(vorher, /* @__PURE__ */ new Set(), "ideen").quelle);
+  wahr(`das Profil wird mitgew\xFCrfelt (${richtungen.size} Richtungen in 30 Z\xFCgen)`, richtungen.size >= 8);
 }
 console.log(`Pr\xFCfstand Schaltplan \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

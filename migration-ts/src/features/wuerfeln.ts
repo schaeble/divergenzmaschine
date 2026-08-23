@@ -23,7 +23,7 @@ import { ziehVorrat, vorratStand } from "./wikisammler";
 import { ziehBildvorrat, ladeBildvorrat } from "./bildsammler";
 import { ziehThema, themenStand } from "./themenpool";
 import { generateIdeaBatch } from "../generation/ideas";
-import { ideaProfileToConfig, loadIdeaProfile, IDEA_PRESETS } from "./ideaprofile";
+import { ideaProfileToConfig, loadIdeaProfile, wuerfleIdeaProfile } from "./ideaprofile";
 
 /** Ein würfelbarer Regler: die Kennung des Auswahlfelds (dieselbe, die das
  *  Schloss trägt) und der Schlüssel, unter dem der Wert im Anlagenstand steht. */
@@ -104,15 +104,24 @@ export function wuerfleVierW(vorher: Record<W4, string>, gesperrt: Set<string>, 
   } else if (quelle === "ideen") {
     // Eine Prämisse trägt dieselben vier W wie jede andere Quelle — der Weg
     // „→ Studio" im Reiter Ideen übergibt seit jeher genau diese vier Felder.
-    // Gebaut wird nach dem EINGESTELLTEN Profil; gibt es keines (noch nie
-    // geöffnet), nimmt der Würfel eines der eingebauten.
+    //
+    // Gewürfelt wird auch das PROFIL, nicht nur die Prämisse daraus. Bis 4.297
+    // nahm der Würfel das eingestellte Profil, und das war die schwächere Wahl:
+    // 300 Züge ergaben mit festem Profil 141/126/142/124 verschiedene Werte in
+    // den vier Feldern, mit gewürfeltem 193/187/213/224. Das eingestellte Profil
+    // bleibt unangetastet — es gilt weiter für „Ideen generieren" und „→ Studio"
+    // im Reiter selbst.
+    //
+    // Der Anteil eigener Begriffe (lebendige Pools) kommt weiterhin aus dem
+    // eingestellten Profil: Das ist eine Materialentscheidung des Benutzers und
+    // keine Geschmacksrichtung.
     const p = sicher(() => loadIdeaProfile(), null);
-    const profil = p ? p.profil : zieh(Object.values(IDEA_PRESETS));
+    const profil = wuerfleIdeaProfile();
     const ideen = sicher(() => generateIdeaBatch(1, ideaProfileToConfig(profil, p ? p.liveAnteil : 0)), []);
     const i = ideen[0];
     if (i) {
       vorschlag = { where: i.seedWhere, when: i.seedWhen, who: i.seedWho, what: i.seedWhat };
-      woher = `Ideen · ${profil.name || profil.genre}`;
+      woher = `Ideen · ${profil.genre}/${profil.ton}`;
     } else vorschlag = sicher(() => worldFillContext() as Partial<Record<W4, string>>, {} as Partial<Record<W4, string>>);
   } else {
     vorschlag = sicher(() => worldFillContext() as Partial<Record<W4, string>>, {} as Partial<Record<W4, string>>);

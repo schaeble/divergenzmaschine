@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.297.0**, Zweig `typescript-migration`.
+Stand: **v4.298.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,62 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Der Würfel würfelt jetzt auch das Ideen-Profil (4.298.0)
+
+**Eingewandt:** „Da auch im Reiter Ideen schon die Würfelfunktion vorliegt, ist
+es naheliegend, hier zu würfeln statt aus dem Profil zu nehmen. Das gleiche gilt
+für den Reiter Welt."
+
+**Für die Ideen: richtig, und es ist messbar besser.** 300 Züge, verschiedene
+Werte in den vier Feldern:
+
+| | Wo | Wann | Wer | Was |
+|---|---|---|---|---|
+| festes Profil (bisher) | 141 | 126 | 142 | 124 |
+| **gewürfeltes Profil** | **193** | **187** | **213** | **224** |
+
+Gewürfelt wird nur für den einen Zug; das eingestellte Profil bleibt
+unangetastet und gilt weiter für „Ideen generieren" und „→ Studio" im Reiter
+selbst. Die Hinweiszeile nennt die Richtung: „Ideen · horror/ironisch".
+
+Das widerspricht der Regel aus 4.297 nicht — es korrigiert ihre **Anwendung**.
+„Der Würfel wählt, er füllt nicht": Ein gewürfeltes Profil ist eine Wahl. Ein
+gespeichertes Profil zu überschreiben wäre ein Füllen, und das passiert nicht.
+Der Anteil eigener Begriffe (lebendige Pools) kommt weiter aus dem eingestellten
+Profil — eine Materialentscheidung, keine Geschmacksrichtung.
+
+**Für die Welt: nachgemessen, und die Antwort ist nein.** Der Vorschlag beruht
+auf einer Namensgleichheit, die die App selbst gemacht hat:
+
+- Der **Reiter „Welt"** ist die **Omnikognition** — ein Wahrnehmungsprofil eines
+  Wesens (Dimension, Reichweite, Medium, Gedächtnis …). Dessen Würfel meint
+  dieses Profil.
+- Die **Quelle „Welt"** im Würfel ist die **Welt-Chronik** — Figuren, Orte und
+  Zeitleiste, die beim Schreiben mitwachsen. Sie hat keinen eigenen Reiter.
+
+Nimmt man den Würfel des Reiters als Quelle der vier W, wird es **ärmer**, nicht
+reicher (300 Züge, verschiedene Werte):
+
+| | Wo | Wann | Wer | Was |
+|---|---|---|---|---|
+| Omnikognition (Reiter Welt) | 3 | 2 | 8 | 4 |
+| Welt-Chronik (heutige Quelle) | 6 | 80 | 6 | 99 |
+
+Der Grund steht in `profileToStudio`: Das „Wer" ist dort `p.name`, und der
+Würfel des Reiters leert den Namen — es käme immer „ein Wesen" heraus. Das
+Profil ist als **ganze Studio-Einstellung** gedacht (Regler, Wortbank, vier W),
+nicht als Kontextquelle; dafür gibt es den Knopf „Ins Studio übertragen".
+
+**Offen und für dich zu entscheiden:** Die Omnikognition könnte eine eigene
+Quelle sein, die nicht nur die vier W, sondern die ganze Einstellung würfelt.
+Das griffe aber in dieselben Regler, die „Alles würfeln" gerade selbst würfelt —
+zwei Würfel auf einem Feld. Nicht gebaut, sondern gefragt.
+
+Prüfstand Schaltplan 87 → 88, und die Gegenprobe wurde dabei **zweimal**
+geschrieben: Beim ersten Versuch war kein Profil gespeichert, also fiel auch die
+alte Fassung auf einen Würfelwurf zurück und die Prüfung war grün, ohne etwas zu
+prüfen. Jetzt legt sie erst ein Profil ab.
 
 Die Ideen sind eine Quelle wie die Welt (4.297.0)
 

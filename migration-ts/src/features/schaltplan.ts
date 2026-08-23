@@ -146,8 +146,11 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   // Der Reiter Ideen ist seit 4.297.0 eine Quelle der vier W, gleichwertig zur
   // Welt — er stand vorher gar nicht im Plan. Er ist immer bereit: Fehlt ein
   // eingestelltes Profil, nimmt der Würfel eines der eingebauten.
-  knoten("ideen", 0, "Ideen", u.ideenProfil || "eingebautes Profil", "an",
-    u.ideenProfil ? "" : "noch kein eigenes Profil eingestellt — der Würfel nimmt ein eingebautes");
+  // Der Würfel nimmt seit 4.298.0 ein GEWÜRFELTES Profil, nicht das
+  // eingestellte. Der Knoten zeigt trotzdem, was eingestellt ist: Danach richtet
+  // sich, was „Ideen generieren" und „→ Studio" im Reiter selbst liefern.
+  knoten("ideen", 0, "Ideen", u.ideenProfil ? u.ideenProfil + " · Würfel: zufällig" : "Profil wird gewürfelt", "an",
+    "Beim Würfeln im Studio wird das Profil mitgewürfelt — das eingestellte gilt im Reiter Ideen selbst");
 
   // ── Spalte 1: Eingang ────────────────────────────────────────────────────
   const w4 = stand.w4 || { where: "", when: "", who: "", what: "" };

@@ -164,3 +164,26 @@ export function loadIdeaProfile(): { profil: IdeaProfile; liveAnteil: number } |
     return { profil: normalizeIdeaProfile(o, String(o["name"] || "")), liveAnteil: Number(o["liveAnteil"]) || 0 };
   } catch { return null; }
 }
+
+/** Ein zufälliges Profil — derselbe Griff wie die Taste „Würfeln" im Reiter
+ *  Ideen, nur ohne Oberfläche.
+ *
+ *  Eingewandt wurde: „Da auch im Reiter Ideen schon die Würfelfunktion vorliegt,
+ *  ist es naheliegend, hier zu würfeln statt aus dem Profil zu nehmen." Richtig,
+ *  und es ist auch messbar besser — 300 Züge, verschiedene Werte:
+ *
+ *    festes Profil     wo 141 · wann 126 · wer 142 · was 124
+ *    gewürfelt         wo 193 · wann 187 · wer 213 · was 224
+ *
+ *  Gewürfelt wird NUR für diesen einen Zug. Das eingestellte Profil bleibt
+ *  unangetastet — „der Würfel wählt, er füllt nicht" gilt weiter, und ein
+ *  gewürfeltes Profil ist eine Wahl, kein Überschreiben. */
+export function wuerfleIdeaProfile(zufall: () => number = Math.random): IdeaProfile {
+  const w = <T,>(l: readonly T[]): T => l[Math.min(l.length - 1, Math.floor(zufall() * l.length))] as T;
+  return {
+    name: "",
+    genre: w(GENRE_ALL), ton: w(TON_ALL), protagonist: w(PROT_ALL), konflikt: w(KONF_ALL),
+    ort: w(ORT_ALL), zeit: w(ZEIT_ALL), massstab: w(MASS_ALL), wendung: w(WEND_ALL), fokus: w(FOK_ALL),
+    divergenz: Math.floor(zufall() * 21) * 5,
+  };
+}
