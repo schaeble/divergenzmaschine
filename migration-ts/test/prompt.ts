@@ -23,6 +23,8 @@ import { BUILTIN_PRESETS } from "../src/presets.data";
 import { KATEGORIE_VORGABE } from "../src/features/ki";
 import { normalizeBankShape } from "../src/storage";
 import { pruefePaar } from "../src/generation/verwandlung";
+import { buildWordbankPrompt } from "../src/features/ki";
+import { buildPreset2Prompt } from "../src/features/preset2";
 
 const fails: string[] = [];
 let geprueft = 0, bestanden = 0;
@@ -100,6 +102,46 @@ for (const v of KATEGORIE_VORGABE) {
   const anteil = Math.round(satz / alle * 100);
   console.log(`  Anteil der Satz-Kategorien an den Wörtern: ${anteil} %`);
   wahr(`der im Auftrag genannte Anteil stimmt (${anteil} % gegen 65 %)`, Math.abs(anteil - 65) <= 5);
+}
+
+
+// ── 5 · Der Auftrag steht auch im Text, nicht nur in den Daten ────────────
+{
+  const auftrag = buildWordbankPrompt({});
+  const fehlt = KATEGORIE_VORGABE.filter((v) => !auftrag.includes(`- ${v.key}: ${v.anzahl} `)).map((v) => v.key);
+  ist("jede Kategorie steht mit ihrer Zahl im Auftrag", fehlt.join(", "), "");
+  wahr("die Motivverwandlungen sind erklärt", /MOTIVVERWANDLUNGEN/i.test(auftrag) && /DASSELBE GESCHLECHT/.test(auftrag));
+  wahr("das JSON verlangt acht Schlüssel", /8 Schlüsseln/.test(auftrag) && /verwandlungen\)/.test(auftrag));
+}
+
+// ── 6 · Ein Update darf ein Preset nicht schrumpfen ───────────────────────
+// Gefragt: „Das heißt, ich sollte die Presets updaten." Der Weg dafür ist
+// „Preset verbessern" — und der trug bis 4.291 die Anweisung „pro
+// generatoren-Kategorie 8-12 Eintraege", also rund 70 statt der gemessenen 125.
+// Der Auftrag widersprach sich damit selbst, und der widersprechende Teil stand
+// ZUERST. Wer ein ausgebautes Preset aktualisieren ließ, bekam es halbiert
+// zurück — ohne Warnung, die Datei sah danach normal aus.
+{
+  const neu2 = buildPreset2Prompt("Hafen");
+  const mitSeed = buildPreset2Prompt("Hafen", '{"generatoren":{"motifs":["ein Kran im Nebel"]}}');
+
+  // a) Keine zweite, eigene Mengenangabe.
+  const eigene = [...mitSeed.matchAll(/(\d+)\s*-\s*(\d+)\s*Eintr/g)].map((m) => m[0]);
+  ist("der Update-Auftrag nennt keine eigene Eintragszahl", eigene.join(" · "), "");
+
+  // b) Der Kategorienblock ist in beiden Fassungen derselbe.
+  // Von HINTEN suchen: Das Ausgangsmaterial steht mit im Auftrag und enthält
+  // selbst einen generatoren-Block. Wer von vorn sucht, vergleicht den Seed.
+  const block = (t: string): string => {
+    const i = t.lastIndexOf('"generatoren": {');
+    return i < 0 ? "" : t.slice(i, i + 900);
+  };
+  wahr("Neubau und Update verlangen denselben Kategorienblock", block(neu2) === block(mitSeed) && block(neu2).length > 100);
+
+  // c) Und das Update sagt ausdrücklich, dass nichts wegfallen darf.
+  wahr("das Update verbietet das Schrumpfen", /KEINER Kategorie weniger/.test(mitSeed));
+  wahr("und nennt die Verwandlungen unter den zu füllenden Feldern", /verwandlungen/.test(mitSeed));
+  wahr("ohne Ausgangsmaterial steht der Absatz nicht da", !/ERWEITERE es/.test(neu2));
 }
 
 console.log(`Prüfstand Prompt — ${geprueft} Prüfungen, ${bestanden} bestanden`);

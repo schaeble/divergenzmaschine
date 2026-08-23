@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.290.0**, Zweig `typescript-migration`.
+Stand: **v4.291.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,41 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Ein Update hätte halbiert (4.291.0)
+
+**Festgestellt:** „Das heißt, ich sollte die Presets updaten." — Ja. Aber nicht
+mit dem Auftrag, der bis eben im Weg „Preset verbessern" stand.
+
+Dort stand: **„pro generatoren-Kategorie 8-12 Eintraege"** — also rund 70 statt
+der gemessenen 125. Weiter unten im selben Auftrag standen die richtigen Zahlen,
+aber der widersprechende Satz kam **zuerst**, direkt vor dem Ausgangsmaterial.
+
+**Wer ein ausgebautes Preset hätte aktualisieren lassen, hätte es halbiert
+zurückbekommen** — ohne Warnung, ohne Meldung; die Datei sieht danach normal aus,
+nur der Bericht fällt wieder auf 70 Prozent.
+
+Der Satz ist ersetzt durch das Gegenteil und ohne eigene Zahl:
+
+> ERWEITERE es, ohne etwas wegzuwerfen: Vorhandene Einträge bleiben, sofern sie
+> nicht falsch sind; ergänzt wird bis zu den Zahlen, die unten je Kategorie
+> stehen. Das Ergebnis darf in KEINER Kategorie weniger Einträge haben als das
+> Ausgangsmaterial.
+
+Dazu `verwandlungen` in der Liste der Felder, die ein Update nachtragen soll.
+
+**Prüfstand Prompt 38 → 46.** Die neuen Prüfungen sind die interessanten:
+
+- der Update-Auftrag nennt **keine eigene** Eintragszahl (Muster `\d+-\d+ Eintr`)
+- Neubau und Update verlangen **denselben** Kategorienblock, Zeichen für Zeichen
+- das Update verbietet ausdrücklich das Schrumpfen
+- ohne Ausgangsmaterial steht der Absatz gar nicht da
+
+Beim Schreiben der zweiten Prüfung ist mir derselbe Fehler selbst unterlaufen:
+Der Vergleich suchte den generatoren-Block von VORN — und fand den des
+Ausgangsmaterials, das ja mit im Auftrag steht. Jetzt wird von hinten gesucht.
+
+Gegenprobe: Den alten Satz wieder eingesetzt, meldet der Prüfstand „8-12 Eintr".
 
 Der Auftrag gegen den Bestand (4.290.0)
 

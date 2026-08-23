@@ -285,7 +285,7 @@ export const KATEGORIE_VORGABE: KatVorgabe[] = [
 
 export interface WordbankCtx { where?: string; when?: string; who?: string; what?: string; tone?: string; userPrompt?: string; }
 
-function buildWordbankPrompt(ctx: WordbankCtx): string {
+export function buildWordbankPrompt(ctx: WordbankCtx): string {
   let p = 'Du erstellst eine "Wortbank" für einen prozeduralen, deutschsprachigen Kreativ-Textgenerator. '
     // Die Zahlen sind gemessen, nicht geraten: Bei 44 Einträgen trägt ein Preset
     // einen 450-Wörter-Bericht auf 56 % der Vorgabe, bei 89 auf 66 %, bei 112

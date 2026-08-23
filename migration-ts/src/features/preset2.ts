@@ -86,7 +86,7 @@ export async function generateAiPreset2(inspiration: string, seed?: string, kont
   return { obj, bank, name: preset2Name(obj), json: JSON.stringify(obj, null, 2) };
 }
 
-function buildPreset2Prompt(inspiration: string, seed?: string, kontext?: VierW | null): string {
+export function buildPreset2Prompt(inspiration: string, seed?: string, kontext?: VierW | null): string {
   // Der 4W-Kontext wird nur auf ausdrueckliche Anforderung mitgeschickt. Frueher
   // flossen Ort und Figuren ueber den Wortbank-Prompt unbemerkt ein - so bekamen
   // sechs eingebaute Presets die Voreinstellung "Schafsweide / Baucis, Philemon"
@@ -97,7 +97,22 @@ function buildPreset2Prompt(inspiration: string, seed?: string, kontext?: VierW 
       + `Figur(en): ${kontext.who || "(offen)"}\nHandlung: ${kontext.what || "(offen)"}\n\n`
     : "";
   const seedPart = seed
-    ? "Hier ist ein BESTEHENDES Preset/Material zum selben Thema. Verbessere und erweitere es: Thema beibehalten und schaerfen, Grammatik korrigieren, bei Requisiten/Motiven Artikel ergaenzen, ALLE satzartigen Eintraege ins PRAESENS setzen (Praeteritum-Formen wie \"erkannte\", \"war\", \"ging\" umschreiben zu \"erkennt\", \"ist\", \"geht\"), fehlende Felder (dramaturgie, transformation, konflikte, zeitanomalien, regeln) ausfuellen, pro generatoren-Kategorie 8-12 Eintraege. Ausgangsmaterial:\n" + seed + "\n\n"
+    // „pro generatoren-Kategorie 8-12 Eintraege" stand hier bis 4.291 — und das
+    // war eine Falle. Der Auftrag weiter unten verlangt die gemessenen Zahlen
+    // (22/17/20/21/20/11/15, zusammen rund 125). Wer ein bestehendes Preset
+    // aktualisieren liess, bekam also zuerst die Anweisung, auf rund 70 Eintraege
+    // zu gehen: Ein Update haette das Preset auf die HAELFTE geschrumpft.
+    //
+    // Ein Update darf nie kleiner machen. Deshalb steht hier jetzt das Gegenteil
+    // und keine eigene Zahl — die Zahlen stehen an einer Stelle, unten.
+    ? "Hier ist ein BESTEHENDES Preset/Material zum selben Thema. ERWEITERE es, ohne etwas wegzuwerfen: "
+      + "Vorhandene Eintraege bleiben, sofern sie nicht falsch sind; ergaenzt wird bis zu den Zahlen, die unten "
+      + "je Kategorie stehen. Das Ergebnis darf in KEINER Kategorie weniger Eintraege haben als das "
+      + "Ausgangsmaterial. Ausserdem: Thema beibehalten und schaerfen, Grammatik korrigieren, bei "
+      + "Requisiten/Motiven Artikel ergaenzen, ALLE satzartigen Eintraege ins PRAESENS setzen "
+      + "(Praeteritum-Formen wie \"erkannte\", \"war\", \"ging\" umschreiben zu \"erkennt\", \"ist\", \"geht\"), "
+      + "fehlende Felder (dramaturgie, transformation, konflikte, zeitanomalien, regeln, verwandlungen) "
+      + "ausfuellen. Ausgangsmaterial:\n" + seed + "\n\n"
     : "";
   return k + seedPart + 'Du erstellst ein "Preset 2.0" für einen prozeduralen, deutschsprachigen Kreativ-Textgenerator (Divergenzmaschine). '
     + "Inspiration/Ausgangspunkt: " + (inspiration || "(frei wählbar)") + ".\n\n"
