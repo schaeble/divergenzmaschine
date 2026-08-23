@@ -204,15 +204,16 @@ function themenStand(vorrat = ladeThemen()) {
 }
 
 // src/features/kontext.ts
-var QUELLEN = ["welt", "wiki", "abschrift", "thema"];
+var QUELLEN = ["welt", "wiki", "abschrift", "thema", "ideen"];
 var QUELLE_LABEL = {
   welt: "Welt",
   wiki: "Wiki",
   abschrift: "Abschrift",
-  thema: "Thema"
+  thema: "Thema",
+  ideen: "Ideen"
 };
 function offeneQuellen(wikiFunde, bildFunde, themaFunde = 0) {
-  const raus = ["welt"];
+  const raus = ["welt", "ideen"];
   if (wikiFunde > 0) raus.push("wiki");
   if (bildFunde > 0) raus.push("abschrift");
   if (themaFunde > 0) raus.push("thema");
@@ -375,11 +376,11 @@ ist("null ebenso", zerlegeAntwort(null, lit).length, 0);
   ist("der Stand z\xE4hlt die Funde", st.funde, 3);
   ist("und die Themen", st.themen, 2);
 }
-ist("ohne Vorr\xE4te bleibt nur die Welt", offeneQuellen(0, 0, 0).join(","), "welt");
-ist("mit Themenpool kommt Thema dazu", offeneQuellen(0, 0, 5).join(","), "welt,thema");
-ist("mit allen vieren", offeneQuellen(1, 1, 1).join(","), "welt,wiki,abschrift,thema");
+ist("ohne Vorr\xE4te bleiben Welt und Ideen", offeneQuellen(0, 0, 0).join(","), "welt,ideen");
+ist("mit Themenpool kommt Thema dazu", offeneQuellen(0, 0, 5).join(","), "welt,ideen,thema");
+ist("mit allen Vorr\xE4ten", offeneQuellen(1, 1, 1).join(","), "welt,ideen,wiki,abschrift,thema");
 wahr("jede Quelle hat eine Beschriftung", QUELLEN.every((q) => !!QUELLE_LABEL[q]));
-ist("es sind vier", QUELLEN.length, 4);
+ist("es sind f\xFCnf", QUELLEN.length, 5);
 var proc = globalThis;
 setTimeout(() => {
   console.log(`Pr\xFCfstand Themenpool \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);

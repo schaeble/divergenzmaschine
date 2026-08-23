@@ -36,6 +36,7 @@ import {
 } from "../features/reiter";
 import { icon } from "./icons";
 import { saveAnlage } from "../features/schaltplan";
+import { wuerfleVierW } from "../features/wuerfeln";
 import { openReader } from "./reader";
 import { worldLogGeneration, worldFillContext } from "../features/world";
 import { uebernehmeKontext, geaendert as geaenderteFelder, offeneQuellen, ziehQuelle, QUELLE_LABEL, W4_FELDER, type W4 } from "../features/kontext";
@@ -156,6 +157,13 @@ export function mountStudio(root: HTMLElement): void {
     } else if (quelle === "thema") {
       const f = ziehThema();
       if (f) { vorschlag = f.ctx; woher = `Thema · ${f.themaLabel}`; } else vorschlag = worldFillContext();
+    } else if (quelle === "ideen") {
+      // Der Reiter Ideen ist seit 4.297.0 eine Quelle wie die Welt. Der Einwand
+      // dazu war berechtigt: Eine Prämisse trägt dieselben vier W, und der Weg
+      // „→ Studio" übergibt seit jeher genau die.
+      const iw = wuerfleVierW({ where: where.value, when: when.value, who: who.value, what: what.value },
+        locked, "ideen");
+      vorschlag = iw.w4; woher = iw.quelle;
     } else {
       vorschlag = worldFillContext();
     }

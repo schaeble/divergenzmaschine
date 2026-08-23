@@ -146,3 +146,21 @@ export function deleteIdeaUserPreset(id: string): void {
   const u = loadIdeaUserPresets(); delete u[id];
   try { localStorage.setItem(IDEA_USER_KEY, JSON.stringify(u)); } catch { /* voll */ }
 }
+
+// ── Das eingestellte Profil, über Reiter hinweg lesbar ────────────────────
+// Es lag bisher nur im gemounteten Reiter. Seit der Reiter Ideen eine QUELLE
+// der vier W ist (wie Welt, Wiki, Abschrift, Thema), muss auch ein Würfel
+// außerhalb wissen, wonach die Prämissen gebaut werden sollen — sonst zöge er
+// aus einem Profil, das der Benutzer nie gesehen hat.
+const PROFIL_KEY = "dm_idea_profile_v1";
+export function saveIdeaProfile(p: IdeaProfile, liveAnteil: number): void {
+  try { localStorage.setItem(PROFIL_KEY, JSON.stringify({ ...p, liveAnteil })); } catch { /* voll */ }
+}
+export function loadIdeaProfile(): { profil: IdeaProfile; liveAnteil: number } | null {
+  try {
+    const r = localStorage.getItem(PROFIL_KEY);
+    if (!r) return null;
+    const o = JSON.parse(r) as Record<string, unknown>;
+    return { profil: normalizeIdeaProfile(o, String(o["name"] || "")), liveAnteil: Number(o["liveAnteil"]) || 0 };
+  } catch { return null; }
+}

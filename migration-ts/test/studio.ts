@@ -236,7 +236,8 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
     quellen.add(z.split(":")[0]!.split(" · ")[0]!);
     if (stil) stilWerte.add(stil.value);
   }
-  ist("alle drei Quellen kommen im Studio vor", [...quellen].sort().join(","), "Abschrift,Welt,Wiki");
+  // Seit 4.297.0 ist „Ideen" eine Quelle wie die Welt — beide sind immer dabei.
+  ist("alle offenen Quellen kommen im Studio vor", [...quellen].sort().join(","), "Abschrift,Ideen,Welt,Wiki");
   // Die vierte Quelle: der Themenpool. Er ist in diesem Lauf leer und darf
   // deshalb NICHT vorkommen — eine leere Quelle zu ziehen hieße, dass der Knopf
   // mal wirkt und mal nicht.
@@ -272,21 +273,24 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
 // 4.263.0 nicht — es zog allein aus der Welt. Jetzt wird die Quelle
 // mitgewürfelt, aber nur unter denen, die etwas hergeben.
 {
-  ist("ohne Vorräte bleibt nur die Welt", offeneQuellen(0, 0).join(","), "welt");
-  ist("mit Wiki-Vorrat kommt Wiki dazu", offeneQuellen(7, 0).join(","), "welt,wiki");
-  ist("mit Bildvorrat die Abschrift", offeneQuellen(0, 3).join(","), "welt,abschrift");
-  ist("mit beiden alle drei", offeneQuellen(7, 3).join(","), "welt,wiki,abschrift");
+  // Seit 4.297.0 sind Welt UND Ideen immer dabei: Beide liefern auch beim
+  // ersten Start etwas, die drei Vorräte nur mit Inhalt.
+  ist("ohne Vorräte bleiben Welt und Ideen", offeneQuellen(0, 0).join(","), "welt,ideen");
+  ist("mit Wiki-Vorrat kommt Wiki dazu", offeneQuellen(7, 0).join(","), "welt,ideen,wiki");
+  ist("mit Bildvorrat die Abschrift", offeneQuellen(0, 3).join(","), "welt,ideen,abschrift");
+  ist("mit beiden alle vier", offeneQuellen(7, 3).join(","), "welt,ideen,wiki,abschrift");
   // Der Zufall ist ein Parameter — sonst ließe sich das hier nicht messen.
   const offen = offeneQuellen(1, 1);
   ist("erster Zug", ziehQuelle(offen, () => 0), "welt");
-  ist("mittlerer Zug", ziehQuelle(offen, () => 0.5), "wiki");
+  ist("zweiter Zug", ziehQuelle(offen, () => 0.3), "ideen");
+  ist("dritter Zug", ziehQuelle(offen, () => 0.6), "wiki");
   ist("letzter Zug", ziehQuelle(offen, () => 0.99), "abschrift");
   ist("und 1.0 fällt nicht heraus", ziehQuelle(offen, () => 1), "abschrift");
   ist("aus dem Nichts kommt die Welt", ziehQuelle([], () => 0.5), "welt");
   // Über viele Züge muss jede offene Quelle wirklich vorkommen.
   const gesehen = new Set<string>();
   for (let i = 0; i < 200; i++) gesehen.add(ziehQuelle(offen));
-  ist("in 200 Zügen kommen alle drei vor", gesehen.size, 3);
+  ist("in 200 Zügen kommt jede offene Quelle vor", gesehen.size, offen.length);
   ist("jede Quelle hat eine Beschriftung", QUELLEN.every((q) => !!QUELLE_LABEL[q]), true);
 }
 

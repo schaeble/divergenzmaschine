@@ -6,7 +6,7 @@ import { generateIdeaBatch } from "../generation/ideas";
 import {
   IDEA_PRESETS, IDEA_PRESET_LABELS, ideaProfileToConfig,
   buildIdeaProfilePrompt, normalizeIdeaProfile,
-  loadIdeaUserPresets, saveIdeaUserPreset, deleteIdeaUserPreset,
+  loadIdeaUserPresets, saveIdeaUserPreset, deleteIdeaUserPreset, saveIdeaProfile,
   type IdeaProfile,
 } from "../features/ideaprofile";
 import { loadAiKey, callClaude, extractJson } from "../features/ki";
@@ -104,13 +104,18 @@ export function mountIdeas(root: HTMLElement): void {
   //
   // Dieselbe Regel gilt im Studio seit langem (`studioSchonGewuerfelt`), aus
   // demselben Grund. Hier fehlte sie.
-  if (!ideenSchonGewuerfelt) { randomize(); ideenSchonGewuerfelt = true; ideenStand = readProfile(); ideenLive = live.value; }
+  if (!ideenSchonGewuerfelt) { randomize(); ideenSchonGewuerfelt = true; ideenStand = readProfile(); ideenLive = live.value; saveIdeaProfile(ideenStand, (parseInt(live.value, 10) || 0) / 100); }
   else {
     if (ideenStand) applyProfile(ideenStand);
     if (ideenLive !== null) { live.value = ideenLive; }
     updLive();
   }
-  const merkeIdeen = (): void => { ideenStand = readProfile(); ideenLive = live.value; };
+  const merkeIdeen = (): void => {
+    ideenStand = readProfile(); ideenLive = live.value;
+    // Auch auf Platte: Der Würfel im Studio zieht die vier W aus diesem Profil,
+    // und der läuft ohne diesen Reiter.
+    saveIdeaProfile(ideenStand, (parseInt(live.value, 10) || 0) / 100);
+  };
   [genre, ton, prot, konflikt, ort, zeit, massstab, wendung, fokus, presetSel]
     .forEach((c) => c.addEventListener("change", merkeIdeen));
   [diverg, live, nameIn].forEach((c) => c.addEventListener("input", merkeIdeen));

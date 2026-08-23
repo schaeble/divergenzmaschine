@@ -474,8 +474,8 @@ var KEEP = 5;
 function pickFresh(key, opts) {
   if (!opts.length) return opts[0];
   const seen = recent[key] || (recent[key] = []);
-  const fresh = opts.filter((o) => !seen.includes(o));
-  const choice = fresh.length ? pick(fresh) : pick(opts);
+  const fresh2 = opts.filter((o) => !seen.includes(o));
+  const choice = fresh2.length ? pick(fresh2) : pick(opts);
   seen.push(choice);
   while (seen.length > Math.min(KEEP, opts.length - 1)) seen.shift();
   return choice;
@@ -4538,6 +4538,10 @@ var CTX_WHO = WHO_TAGGED.map((e2) => e2.t);
 var CTX_WHERE = WHERE_TAGGED.map((e2) => e2.t);
 var CTX_WHEN = WHEN_TAGGED.map((e2) => e2.t);
 var CTX_WHAT = WHAT_TAGGED.map((e2) => e2.t);
+function byTag(pool, tag) {
+  const hit = pool.filter((e2) => e2.tags.includes(tag)).map((e2) => e2.t);
+  return hit.length ? hit : pool.map((e2) => e2.t);
+}
 var WHO_TWISTS = [
   "mit einem geliehenen Namen",
   "ohne Erinnerung an den gestrigen Tag",
@@ -4851,6 +4855,86 @@ function buildDramaturgie(kit) {
   beats.push(reframeStake(kit.stake));
   beats.push(ensurePunct(kit.ending));
   return joinBeats(beats, kit.P);
+}
+
+// src/features/ideaprofile.ts
+var TON_ARCH = {
+  duester: "psychopath",
+  unheimlich: "skorpion",
+  verspielt: "entdecker",
+  hoffnung: "entdecker",
+  ironisch: "neutral",
+  melancholisch: "neutral"
+};
+function ideaProfileToConfig(p, liveShare = 0) {
+  const d = Math.max(0, Math.min(100, p.divergenz));
+  let archetypeId = TON_ARCH[p.ton] || "neutral";
+  if (p.protagonist === "antiheld" && archetypeId === "neutral") archetypeId = "skorpion";
+  const tags = [p.konflikt, p.fokus, p.wendung];
+  if (p.massstab !== "mittel") tags.push(p.massstab);
+  return {
+    archetypeId,
+    whoPool: byTag(WHO_TAGGED, p.protagonist),
+    wherePool: byTag(WHERE_TAGGED, p.ort),
+    whenPool: byTag(WHEN_TAGGED, p.zeit),
+    whatPool: byTag(WHAT_TAGGED, p.genre),
+    tags,
+    twistProb: 0.2 + 6e-3 * d,
+    doubleTwist: d >= 75,
+    mashupCount: d >= 55 ? 2 : 1,
+    liveShare: Math.max(0, Math.min(1, liveShare))
+  };
+}
+var IDEA_PRESETS = {
+  noir: { name: "Noir", genre: "mystery", ton: "duester", protagonist: "antiheld", konflikt: "raetsel", ort: "urban", zeit: "historisch", massstab: "intim", wendung: "enthuellung", fokus: "figur", divergenz: 45 },
+  kosmos: { name: "Kosmischer Horror", genre: "horror", ton: "unheimlich", protagonist: "nichtmensch", konflikt: "natur", ort: "nirgendwo", zeit: "zeitlos", massstab: "kosmisch", wendung: "enthuellung", fokus: "atmo", divergenz: 70 },
+  kafka: { name: "Kafkaesk", genre: "absurd", ton: "unheimlich", protagonist: "einzel", konflikt: "system", ort: "institution", zeit: "gegenwart", massstab: "intim", wendung: "paradox", fokus: "konzept", divergenz: 55 },
+  alltag: { name: "Alltagspoesie", genre: "alltag", ton: "melancholisch", protagonist: "einzel", konflikt: "inner", ort: "urban", zeit: "gegenwart", massstab: "intim", wendung: "offen", fokus: "figur", divergenz: 25 },
+  maerchen: { name: "M\xE4rchen-Umkehr", genre: "maerchen", ton: "verspielt", protagonist: "kind", konflikt: "raetsel", ort: "natur", zeit: "zeitlos", massstab: "mittel", wendung: "umkehr", fokus: "handlung", divergenz: 45 },
+  techno: { name: "Techno-Thriller", genre: "scifi", ton: "duester", protagonist: "kollektiv", konflikt: "kampf", ort: "urban", zeit: "zukunft", massstab: "episch", wendung: "eskalation", fokus: "handlung", divergenz: 50 },
+  buero: { name: "Absurde B\xFCrokratie", genre: "satire", ton: "ironisch", protagonist: "institution", konflikt: "system", ort: "institution", zeit: "gegenwart", massstab: "mittel", wendung: "ironie", fokus: "konzept", divergenz: 40 }
+};
+var GENRE_ALL = ["mystery", "scifi", "maerchen", "absurd", "alltag", "horror", "satire"];
+var TON_ALL = ["duester", "hoffnung", "ironisch", "melancholisch", "unheimlich", "verspielt"];
+var PROT_ALL = ["einzel", "kollektiv", "kind", "institution", "nichtmensch", "antiheld"];
+var KONF_ALL = ["raetsel", "kampf", "inner", "natur", "system", "zeit"];
+var ORT_ALL = ["urban", "natur", "raum", "grenze", "nirgendwo", "institution"];
+var ZEIT_ALL = ["gegenwart", "historisch", "zukunft", "zeitlos", "umbruch"];
+var MASS_ALL = ["intim", "mittel", "episch", "kosmisch"];
+var WEND_ALL = ["umkehr", "enthuellung", "eskalation", "offen", "paradox", "ironie"];
+var FOK_ALL = ["figur", "konzept", "atmo", "handlung", "form"];
+function pickOne(v, allowed, def) {
+  return typeof v === "string" && allowed.includes(v) ? v : def;
+}
+function normalizeIdeaProfile(raw, name) {
+  const o = raw && typeof raw === "object" ? raw : {};
+  let div = typeof o["divergenz"] === "number" ? o["divergenz"] : parseInt(String(o["divergenz"]), 10);
+  if (!isFinite(div)) div = 50;
+  div = Math.max(0, Math.min(100, Math.round(div)));
+  return {
+    name: name.trim() || "Idee",
+    genre: pickOne(o["genre"], GENRE_ALL, "mystery"),
+    ton: pickOne(o["ton"], TON_ALL, "duester"),
+    protagonist: pickOne(o["protagonist"], PROT_ALL, "einzel"),
+    konflikt: pickOne(o["konflikt"], KONF_ALL, "raetsel"),
+    ort: pickOne(o["ort"], ORT_ALL, "urban"),
+    zeit: pickOne(o["zeit"], ZEIT_ALL, "gegenwart"),
+    massstab: pickOne(o["massstab"], MASS_ALL, "intim"),
+    wendung: pickOne(o["wendung"], WEND_ALL, "enthuellung"),
+    fokus: pickOne(o["fokus"], FOK_ALL, "figur"),
+    divergenz: div
+  };
+}
+var PROFIL_KEY = "dm_idea_profile_v1";
+function loadIdeaProfile() {
+  try {
+    const r = localStorage.getItem(PROFIL_KEY);
+    if (!r) return null;
+    const o = JSON.parse(r);
+    return { profil: normalizeIdeaProfile(o, String(o["name"] || "")), liveAnteil: Number(o["liveAnteil"]) || 0 };
+  } catch {
+    return null;
+  }
 }
 
 // src/presets.data.ts
@@ -12678,6 +12762,14 @@ function baueAnlage(stand, u) {
     u.weltFiguren || u.weltOrte ? "an" : "aus"
   );
   knoten2("live", 0, "Live-Pools", `${u.livePools} Phrasen`, u.livePools ? "an" : "aus");
+  knoten2(
+    "ideen",
+    0,
+    "Ideen",
+    u.ideenProfil || "eingebautes Profil",
+    "an",
+    u.ideenProfil ? "" : "noch kein eigenes Profil eingestellt \u2014 der W\xFCrfel nimmt ein eingebautes"
+  );
   const w4 = stand.w4 || { where: "", when: "", who: "", what: "" };
   const gefuellt = [w4.where, w4.when, w4.who, w4.what].filter((x) => (x || "").trim()).length;
   const w4Ids = ["f-where", "f-when", "f-who", "f-what"];
@@ -12847,6 +12939,7 @@ function baueAnlage(stand, u) {
     ["bilder", "w4"],
     ["themen", "w4"],
     ["welt", "w4"],
+    ["ideen", "w4"],
     ["preset", "drama"]
   ]) kante(a, b);
   const proKnoten = /* @__PURE__ */ new Map();
@@ -12884,6 +12977,10 @@ function sammleUmgebung(preset) {
     knobs: zahl(() => loadKnobs(), { ...KNOB_VORGABE }),
     gesperrt: new Set(zahl(() => JSON.parse(localStorage.getItem(LOCK_KEY) || "[]"), [])),
     dramaVorhanden: zahl(() => hasDramaData(), false),
+    ideenProfil: zahl(() => {
+      const p = loadIdeaProfile();
+      return p ? p.profil.name || p.profil.genre : "";
+    }, ""),
     presetLabel: ids.map((id) => PRESET_LABELS[id.replace(/^builtin:/, "")] || id).join(" + ") || "\u2014"
   };
 }
@@ -14436,9 +14533,9 @@ function makeDialogueScene(kit, lenTarget = 110) {
     const P3 = useArch ? POOLS[archetype] || POOLS.neutral : STANCE_LINES[stance] || POOLS.neutral;
     const arr = P3[key] || [];
     if (!arr.length) return "\u2026";
-    const fresh = arr.filter((l) => l !== prevRaw && !usedRaw.has(l));
+    const fresh2 = arr.filter((l) => l !== prevRaw && !usedRaw.has(l));
     let cand;
-    if (fresh.length) cand = pick(fresh);
+    if (fresh2.length) cand = pick(fresh2);
     else {
       const notPrev = arr.filter((l) => l !== prevRaw);
       cand = notPrev.length ? pick(notPrev) : pick(arr);
@@ -16444,11 +16541,11 @@ function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
     }
     const cands = [...bank.motifs || [], ...bank.turns || [], ...bank.hooks || []];
     if (!cands.length) return null;
-    const fresh = cands.filter((c) => {
+    const fresh2 = cands.filter((c) => {
       const k = clean(c).toLowerCase();
       return k && !used.has(k) && !out.toLowerCase().includes(k);
     });
-    const chosen = pick(fresh.length ? fresh : cands);
+    const chosen = pick(fresh2.length ? fresh2 : cands);
     used.add(clean(chosen).toLowerCase());
     return { text: chosen, raw: true };
   };
@@ -20272,6 +20369,285 @@ function icon(name, size = 16) {
   return s;
 }
 
+// src/features/kontext.ts
+var W4_FELDER = ["where", "when", "who", "what"];
+function uebernehmeKontext(felder, vorschlag, gesperrt) {
+  const raus = {};
+  for (const f of W4_FELDER) {
+    const alt = felder[f].wert;
+    const neu = (vorschlag[f] || "").trim();
+    raus[f] = !neu || gesperrt(felder[f].id) ? alt : neu;
+  }
+  return raus;
+}
+function geaendert(felder, neu) {
+  return W4_FELDER.filter((f) => felder[f].wert !== neu[f]);
+}
+var QUELLE_LABEL = {
+  welt: "Welt",
+  wiki: "Wiki",
+  abschrift: "Abschrift",
+  thema: "Thema",
+  ideen: "Ideen"
+};
+function offeneQuellen(wikiFunde, bildFunde, themaFunde = 0) {
+  const raus = ["welt", "ideen"];
+  if (wikiFunde > 0) raus.push("wiki");
+  if (bildFunde > 0) raus.push("abschrift");
+  if (themaFunde > 0) raus.push("thema");
+  return raus;
+}
+function ziehQuelle(offen, zufall = Math.random) {
+  if (!offen.length) return "welt";
+  return offen[Math.min(offen.length - 1, Math.floor(zufall() * offen.length))];
+}
+
+// src/generation/ideas.ts
+var recent2 = {};
+function pickFresh2(pool, tag) {
+  if (!pool || !pool.length) return "etwas Unbenanntes";
+  const memo = recent2[tag] || (recent2[tag] = []);
+  const cap3 = Math.max(0, Math.min(pool.length - 1, 40));
+  let cand = pool.filter((x) => memo.indexOf(x) === -1);
+  if (!cand.length) {
+    recent2[tag] = [];
+    cand = pool.slice();
+  }
+  const chosen = cand[Math.floor(Math.random() * cand.length)];
+  memo.push(chosen);
+  while (memo.length > cap3) memo.shift();
+  return chosen;
+}
+var fresh = (base, tw, tag, prob, dbl) => {
+  const b = pickFresh2(base, tag);
+  if (Math.random() >= prob) return b;
+  let out = b + ", " + pickFresh2(tw, tag + "T");
+  if (dbl && Math.random() < prob) out += ", " + pickFresh2(tw, tag + "T");
+  return out;
+};
+function ideaPoolFor(a, presetBank, cat) {
+  const fromArch = a && a.add && a.add[cat] || [];
+  const fromPreset = presetBank[cat] || [];
+  const combined = [...fromArch, ...fromPreset];
+  return combined.length ? combined : ["etwas Unbenanntes"];
+}
+var TEMPLATES = [
+  { tags: ["raetsel", "konzept", "offen"], f: (s) => `Was, wenn ${s.W} ${s.O} ${s.A} \u2014 und dabei auf ${s.M} st\xF6\xDFt?` },
+  { tags: ["atmo", "figur"], f: (s) => `${cap(s.W)} ${s.A}. Doch ${s.O} wartet ${s.H}.` },
+  { tags: ["handlung", "enthuellung"], f: (s) => `Die Pr\xE4misse: ${s.W} ${s.A}, ${s.N}. ${cap(s.T)}.` },
+  { tags: ["figur", "umkehr"], f: (s) => `${cap(s.W)} glaubt, alles im Griff zu haben \u2014 bis ${s.M} auftaucht.` },
+  { tags: ["atmo", "intim"], f: (s) => `${cap(s.O)}, ${s.N}: ${s.W} ${s.A}. ${cap(s.B)}.` },
+  { tags: ["figur", "eskalation"], f: (s) => `${cap(s.W)} ${s.A}. ${s.S}` },
+  { tags: ["konzept", "raetsel"], f: (s) => `Kern der Idee: ${s.W} st\xF6\xDFt ${s.O} auf ${s.H} \u2014 und ${s.T}.` },
+  { tags: ["handlung", "zeit"], f: (s) => `${cap(s.N)}: ${s.W} ${s.A} \u2014 und ${s.T}.` },
+  { tags: ["atmo", "enthuellung"], f: (s) => `Alles beginnt damit, dass ${s.W} ${s.O} etwas findet: ${s.M}.` },
+  { tags: ["eskalation", "episch"], f: (s) => `Niemand rechnet damit, doch ${s.W} ${s.A} \u2014 ${s.O}. ${s.S}` },
+  { tags: ["kampf", "system"], f: (s) => `${cap(s.W)} stellt sich ${s.B} entgegen \u2014 ${s.O}, ${s.N}.` },
+  { tags: ["inner", "figur", "intim"], f: (s) => `Niemand wei\xDF, dass ${s.W} ${s.A}. Am Ende bleibt nur ${s.M}.` },
+  { tags: ["natur", "atmo"], f: (s) => `${cap(s.O)} kippt: ${s.W} ${s.A}, w\xE4hrend ${s.H} n\xE4her r\xFCckt.` },
+  { tags: ["paradox", "konzept"], f: (s) => `Je mehr ${s.W} ${s.A}, desto n\xE4her r\xFCckt ${s.M}.` },
+  { tags: ["ironie", "figur"], f: (s) => `${cap(s.W)} sucht ${s.M} \u2014 und findet ausgerechnet ${s.H}.` },
+  { tags: ["kosmisch", "konzept"], f: (s) => `Eine einzige Frage bleibt: was, wenn ${s.M} nie existierte und ${s.W} es ${s.N} beweisen muss?` },
+  { tags: ["umkehr", "enthuellung"], f: (s) => `Was wie ${s.H} beginnt, entpuppt sich als ${s.M}: ${s.W} ${s.A}.` },
+  { tags: ["offen", "form"], f: (s) => `${cap(s.W)}, ${s.O}, ${s.N}. Und dann: ${s.T}.` },
+  { tags: ["zeit", "eskalation"], f: (s) => `${cap(s.N)} bleibt ${s.W}, um ${s.A} \u2014 bevor ${s.B}.` },
+  { tags: ["form", "atmo", "intim"], f: (s) => `Nur ein Bild: ${s.W} ${s.O}, ${s.M}, und ${s.S}` }
+];
+function chooseTemplate(cfg) {
+  if (!cfg || !cfg.tags.length) return pick(TEMPLATES).f;
+  const want = new Set(cfg.tags);
+  const scored = TEMPLATES.map((t) => ({ t, sc: t.tags.reduce((n, tg) => n + (want.has(tg) ? 1 : 0), 0) }));
+  const max = Math.max(...scored.map((x) => x.sc));
+  const cand = max > 0 ? scored.filter((x) => x.sc === max).map((x) => x.t) : TEMPLATES;
+  return pick(cand).f;
+}
+function mergedBank(count2) {
+  const presetPool = Object.values(getAllPresets());
+  if (!presetPool.length) return { bank: {}, label: "\u2013" };
+  const n = Math.max(1, Math.min(count2, presetPool.length));
+  const chosen = [];
+  const used = /* @__PURE__ */ new Set();
+  let guard = 0;
+  while (chosen.length < n && guard++ < n * 6) {
+    const i = Math.floor(Math.random() * presetPool.length);
+    if (used.has(i)) continue;
+    used.add(i);
+    chosen.push(presetPool[i]);
+  }
+  const bank = {};
+  for (const pr of chosen) {
+    const b = pr.bank || {};
+    for (const [k, v] of Object.entries(b)) bank[k] = [...bank[k] || [], ...v];
+  }
+  return { bank, label: chosen.map((c) => c.label).join(" \xD7 ") };
+}
+function pickMotif(a, pb, cfg) {
+  const share = cfg ? cfg.liveShare : 0;
+  if (share > 0 && Math.random() < share) {
+    const live = liveTexts();
+    if (live.length >= 5) return pickFresh2(live, "live");
+  }
+  return pickFresh2(ideaPoolFor(a, pb, "motifs"), "motifs");
+}
+function buildIdeaPremise(cfg) {
+  const archId = cfg ? cfg.archetypeId : pick(["neutral", "skorpion", "psychopath", "entdecker"]);
+  const a = arch(archId);
+  const { bank: pb, label: presetLabel2 } = mergedBank(cfg ? cfg.mashupCount : 1);
+  const prob = cfg ? cfg.twistProb : 0.5;
+  const dbl = cfg ? cfg.doubleTwist : false;
+  const whoP = cfg && cfg.whoPool.length ? cfg.whoPool : CTX_WHO;
+  const whereP = cfg && cfg.wherePool.length ? cfg.wherePool : CTX_WHERE;
+  const whenP = cfg && cfg.whenPool.length ? cfg.whenPool : CTX_WHEN;
+  const whatP = cfg && cfg.whatPool.length ? cfg.whatPool : CTX_WHAT;
+  const s = {
+    W: fresh(whoP, WHO_TWISTS, "who", prob, dbl),
+    O: fresh(whereP, WHERE_TWISTS, "where", prob, dbl),
+    N: fresh(whenP, WHEN_TWISTS, "when", prob, dbl),
+    A: fresh(whatP, WHAT_TWISTS, "what", prob, dbl),
+    M: pickMotif(a, pb, cfg),
+    H: pickFresh2(ideaPoolFor(a, pb, "hooks"), "hooks"),
+    T: pickFresh2(ideaPoolFor(a, pb, "turns"), "turns"),
+    B: pickFresh2(ideaPoolFor(a, pb, "obstacles"), "obstacles"),
+    S: pickFresh2(ideaPoolFor(a, pb, "stakes"), "stakes")
+  };
+  let text = chooseTemplate(cfg)(s);
+  text = clean(text).replace(/\s+([,.!?;:])/g, "$1");
+  text = ensurePunct(text);
+  return { text, archetype: a.label || archId, presetLabel: presetLabel2, seedWho: s.W, seedWhere: s.O, seedWhen: s.N, seedWhat: s.A };
+}
+function generateIdeaBatch(n, cfg) {
+  const out = [];
+  const seen = /* @__PURE__ */ new Set();
+  let guard = 0;
+  while (out.length < n && guard++ < n * 8) {
+    const idea = buildIdeaPremise(cfg);
+    if (seen.has(idea.text)) continue;
+    seen.add(idea.text);
+    out.push(idea);
+  }
+  return out;
+}
+
+// src/features/wuerfeln.ts
+var REGLER = [
+  { id: "f-tone", schluessel: "tone", liste: TONE_OPTS },
+  { id: "f-form", schluessel: "form", liste: FORM_OPTS },
+  { id: "f-structure", schluessel: "structure", liste: STRUCTURE_OPTS },
+  { id: "f-mode", schluessel: "mode", liste: MODE_OPTS },
+  { id: "f-persp", schluessel: "perspective", liste: PERSP_OPTS },
+  { id: "f-rhythm", schluessel: "rhythm", liste: RHYTHM_OPTS },
+  { id: "f-tension", schluessel: "tension", liste: TENSION_OPTS },
+  { id: "f-cast", schluessel: "cast", liste: CAST_OPTS },
+  { id: "f-instab", schluessel: "instability", liste: INSTAB_OPTS },
+  { id: "f-markov", schluessel: "markovMode", liste: MARKOV_OPTS },
+  { id: "f-disruptor", schluessel: "disruptor", liste: DISRUPTOR_OPTS },
+  { id: "f-varianz", schluessel: "varLevel", liste: VARIANZ_OPTS },
+  { id: "f-archa", schluessel: "archetypeA", liste: ARCH_OPTS },
+  { id: "f-archb", schluessel: "archetypeB", liste: ARCH_OPTS },
+  {
+    id: "f-ressort",
+    schluessel: "ressort",
+    liste: [["auto", "Auto (aus dem Stoff)"], ...RESSORT_IDS.map((id) => [id, RESSORTS[id].label])]
+  }
+];
+var SCHIEBER = [
+  { id: "f-len", schluessel: "lenTarget", min: 40, max: 300, step: 5 },
+  { id: "f-novelty", schluessel: "novelty", min: 0, max: 100, step: 5 },
+  { id: "f-surprise", schluessel: "surprise", min: 0, max: 100, step: 5 },
+  { id: "f-w-wo", schluessel: "gew-wo", min: 0, max: 3, step: 1 },
+  { id: "f-w-wann", schluessel: "gew-wann", min: 0, max: 3, step: 1 },
+  { id: "f-w-wer", schluessel: "gew-wer", min: 0, max: 3, step: 1 },
+  { id: "f-w-was", schluessel: "gew-was", min: 0, max: 3, step: 1 }
+];
+var zieh = (l) => l[Math.floor(Math.random() * l.length)];
+var W4_ID = { where: "f-where", when: "f-when", who: "f-who", what: "f-what" };
+function wuerfleVierW(vorher, gesperrt, feste) {
+  const quelle2 = feste || ziehQuelle(offeneQuellen(
+    sicher(() => vorratStand().funde, 0),
+    sicher(() => ladeBildvorrat().length, 0),
+    sicher(() => themenStand().funde, 0)
+  ));
+  let vorschlag = {};
+  let woher = QUELLE_LABEL[quelle2];
+  if (quelle2 === "wiki") {
+    const f = sicher(() => ziehVorrat(), null);
+    if (f) {
+      vorschlag = f.ctx;
+      woher = `Wiki \xB7 ${f.titel}`;
+    } else vorschlag = sicher(() => worldFillContext(), {});
+  } else if (quelle2 === "abschrift") {
+    const f = sicher(() => ziehBildvorrat(), null);
+    if (f) {
+      vorschlag = f.ctx;
+      woher = `Abschrift \xB7 ${f.name}`;
+    } else vorschlag = sicher(() => worldFillContext(), {});
+  } else if (quelle2 === "thema") {
+    const f = sicher(() => ziehThema(), null);
+    if (f) {
+      vorschlag = f.ctx;
+      woher = `Thema \xB7 ${f.themaLabel}`;
+    } else vorschlag = sicher(() => worldFillContext(), {});
+  } else if (quelle2 === "ideen") {
+    const p = sicher(() => loadIdeaProfile(), null);
+    const profil = p ? p.profil : zieh(Object.values(IDEA_PRESETS));
+    const ideen = sicher(() => generateIdeaBatch(1, ideaProfileToConfig(profil, p ? p.liveAnteil : 0)), []);
+    const i = ideen[0];
+    if (i) {
+      vorschlag = { where: i.seedWhere, when: i.seedWhen, who: i.seedWho, what: i.seedWhat };
+      woher = `Ideen \xB7 ${profil.name || profil.genre}`;
+    } else vorschlag = sicher(() => worldFillContext(), {});
+  } else {
+    vorschlag = sicher(() => worldFillContext(), {});
+  }
+  const felder = {};
+  for (const f of W4_FELDER) felder[f] = { id: W4_ID[f], wert: vorher[f] || "" };
+  return { w4: uebernehmeKontext(felder, vorschlag, (id) => gesperrt.has(id)), quelle: woher };
+}
+var sicher = (f, ersatz) => {
+  try {
+    return f();
+  } catch {
+    return ersatz;
+  }
+};
+function wuerfleAlles(vorher, gesperrt, knobsVorher = loadKnobs(), vorherW4) {
+  const regler = { ...vorher };
+  const nachId = {};
+  const presets = markedPresetOptions().map(([v]) => v).filter((v) => !v.startsWith("__"));
+  if (!gesperrt.has("f-preset") && presets.length) {
+    const p = zieh(presets);
+    regler["preset"] = p;
+    nachId["f-preset"] = p;
+  }
+  for (const r of REGLER) {
+    const alt = vorher[r.schluessel];
+    const neu = gesperrt.has(r.id) ? alt ?? werte(r.liste)[0] : zieh(werte(r.liste));
+    regler[r.schluessel] = neu;
+    nachId[r.id] = neu;
+  }
+  const gew = (vorher["gewicht"] || "0/0/0/0").split("/");
+  const gewIndex = { "gew-wo": 0, "gew-wann": 1, "gew-wer": 2, "gew-was": 3 };
+  for (const sch of SCHIEBER) {
+    const stufen = Math.floor((sch.max - sch.min) / sch.step) + 1;
+    const alt = sch.schluessel in gewIndex ? gew[gewIndex[sch.schluessel]] ?? "0" : vorher[sch.schluessel] ?? String(sch.min);
+    const neu = gesperrt.has(sch.id) ? alt : String(sch.min + Math.floor(Math.random() * stufen) * sch.step);
+    nachId[sch.id] = neu;
+    if (sch.schluessel in gewIndex) gew[gewIndex[sch.schluessel]] = neu;
+    else regler[sch.schluessel] = neu;
+  }
+  regler["gewicht"] = gew.join("/");
+  const knobs = { ...knobsVorher };
+  for (const feld of Object.keys(KNOB_SPANNE)) {
+    if (gesperrt.has("k-" + feld)) continue;
+    const sp = KNOB_SPANNE[feld];
+    const stufen = Math.floor((sp.max - sp.min) / sp.step) + 1;
+    knobs[feld] = sp.min + Math.floor(Math.random() * stufen) * sp.step;
+  }
+  const vw = wuerfleVierW(vorherW4 || { where: "", when: "", who: "", what: "" }, gesperrt);
+  for (const f of W4_FELDER) nachId[W4_ID[f]] = vw.w4[f];
+  return { regler, nachId, knobs, w4: vw.w4, quelle: vw.quelle };
+}
+
 // src/ui/reader.ts
 function openReader(text, ctx = {}) {
   const t = text || "Noch kein Text.";
@@ -20331,38 +20707,6 @@ function openReader(text, ctx = {}) {
   close.addEventListener("click", dismiss);
   overlay.append(el("div", { class: "reader-bar" }, smaller, bigger, copy, keep, speak, close), body);
   document.body.append(overlay);
-}
-
-// src/features/kontext.ts
-var W4_FELDER = ["where", "when", "who", "what"];
-function uebernehmeKontext(felder, vorschlag, gesperrt) {
-  const raus = {};
-  for (const f of W4_FELDER) {
-    const alt = felder[f].wert;
-    const neu = (vorschlag[f] || "").trim();
-    raus[f] = !neu || gesperrt(felder[f].id) ? alt : neu;
-  }
-  return raus;
-}
-function geaendert(felder, neu) {
-  return W4_FELDER.filter((f) => felder[f].wert !== neu[f]);
-}
-var QUELLE_LABEL = {
-  welt: "Welt",
-  wiki: "Wiki",
-  abschrift: "Abschrift",
-  thema: "Thema"
-};
-function offeneQuellen(wikiFunde, bildFunde, themaFunde = 0) {
-  const raus = ["welt"];
-  if (wikiFunde > 0) raus.push("wiki");
-  if (bildFunde > 0) raus.push("abschrift");
-  if (themaFunde > 0) raus.push("thema");
-  return raus;
-}
-function ziehQuelle(offen, zufall = Math.random) {
-  if (!offen.length) return "welt";
-  return offen[Math.min(offen.length - 1, Math.floor(zufall() * offen.length))];
 }
 
 // src/features/theme.ts
@@ -21000,6 +21344,14 @@ function mountStudio(root) {
         vorschlag = f.ctx;
         woher = `Thema \xB7 ${f.themaLabel}`;
       } else vorschlag = worldFillContext();
+    } else if (quelle2 === "ideen") {
+      const iw = wuerfleVierW(
+        { where: where.value, when: when.value, who: who.value, what: what.value },
+        locked,
+        "ideen"
+      );
+      vorschlag = iw.w4;
+      woher = iw.quelle;
     } else {
       vorschlag = worldFillContext();
     }
@@ -23073,117 +23425,6 @@ function mountStudio(root) {
   }
 }
 
-// src/features/wuerfeln.ts
-var REGLER = [
-  { id: "f-tone", schluessel: "tone", liste: TONE_OPTS },
-  { id: "f-form", schluessel: "form", liste: FORM_OPTS },
-  { id: "f-structure", schluessel: "structure", liste: STRUCTURE_OPTS },
-  { id: "f-mode", schluessel: "mode", liste: MODE_OPTS },
-  { id: "f-persp", schluessel: "perspective", liste: PERSP_OPTS },
-  { id: "f-rhythm", schluessel: "rhythm", liste: RHYTHM_OPTS },
-  { id: "f-tension", schluessel: "tension", liste: TENSION_OPTS },
-  { id: "f-cast", schluessel: "cast", liste: CAST_OPTS },
-  { id: "f-instab", schluessel: "instability", liste: INSTAB_OPTS },
-  { id: "f-markov", schluessel: "markovMode", liste: MARKOV_OPTS },
-  { id: "f-disruptor", schluessel: "disruptor", liste: DISRUPTOR_OPTS },
-  { id: "f-varianz", schluessel: "varLevel", liste: VARIANZ_OPTS },
-  { id: "f-archa", schluessel: "archetypeA", liste: ARCH_OPTS },
-  { id: "f-archb", schluessel: "archetypeB", liste: ARCH_OPTS },
-  {
-    id: "f-ressort",
-    schluessel: "ressort",
-    liste: [["auto", "Auto (aus dem Stoff)"], ...RESSORT_IDS.map((id) => [id, RESSORTS[id].label])]
-  }
-];
-var SCHIEBER = [
-  { id: "f-len", schluessel: "lenTarget", min: 40, max: 300, step: 5 },
-  { id: "f-novelty", schluessel: "novelty", min: 0, max: 100, step: 5 },
-  { id: "f-surprise", schluessel: "surprise", min: 0, max: 100, step: 5 },
-  { id: "f-w-wo", schluessel: "gew-wo", min: 0, max: 3, step: 1 },
-  { id: "f-w-wann", schluessel: "gew-wann", min: 0, max: 3, step: 1 },
-  { id: "f-w-wer", schluessel: "gew-wer", min: 0, max: 3, step: 1 },
-  { id: "f-w-was", schluessel: "gew-was", min: 0, max: 3, step: 1 }
-];
-var zieh = (l) => l[Math.floor(Math.random() * l.length)];
-var W4_ID = { where: "f-where", when: "f-when", who: "f-who", what: "f-what" };
-function wuerfleVierW(vorher, gesperrt) {
-  const quelle2 = ziehQuelle(offeneQuellen(
-    sicher(() => vorratStand().funde, 0),
-    sicher(() => ladeBildvorrat().length, 0),
-    sicher(() => themenStand().funde, 0)
-  ));
-  let vorschlag = {};
-  let woher = QUELLE_LABEL[quelle2];
-  if (quelle2 === "wiki") {
-    const f = sicher(() => ziehVorrat(), null);
-    if (f) {
-      vorschlag = f.ctx;
-      woher = `Wiki \xB7 ${f.titel}`;
-    } else vorschlag = sicher(() => worldFillContext(), {});
-  } else if (quelle2 === "abschrift") {
-    const f = sicher(() => ziehBildvorrat(), null);
-    if (f) {
-      vorschlag = f.ctx;
-      woher = `Abschrift \xB7 ${f.name}`;
-    } else vorschlag = sicher(() => worldFillContext(), {});
-  } else if (quelle2 === "thema") {
-    const f = sicher(() => ziehThema(), null);
-    if (f) {
-      vorschlag = f.ctx;
-      woher = `Thema \xB7 ${f.themaLabel}`;
-    } else vorschlag = sicher(() => worldFillContext(), {});
-  } else {
-    vorschlag = sicher(() => worldFillContext(), {});
-  }
-  const felder = {};
-  for (const f of W4_FELDER) felder[f] = { id: W4_ID[f], wert: vorher[f] || "" };
-  return { w4: uebernehmeKontext(felder, vorschlag, (id) => gesperrt.has(id)), quelle: woher };
-}
-var sicher = (f, ersatz) => {
-  try {
-    return f();
-  } catch {
-    return ersatz;
-  }
-};
-function wuerfleAlles(vorher, gesperrt, knobsVorher = loadKnobs(), vorherW4) {
-  const regler = { ...vorher };
-  const nachId = {};
-  const presets = markedPresetOptions().map(([v]) => v).filter((v) => !v.startsWith("__"));
-  if (!gesperrt.has("f-preset") && presets.length) {
-    const p = zieh(presets);
-    regler["preset"] = p;
-    nachId["f-preset"] = p;
-  }
-  for (const r of REGLER) {
-    const alt = vorher[r.schluessel];
-    const neu = gesperrt.has(r.id) ? alt ?? werte(r.liste)[0] : zieh(werte(r.liste));
-    regler[r.schluessel] = neu;
-    nachId[r.id] = neu;
-  }
-  const gew = (vorher["gewicht"] || "0/0/0/0").split("/");
-  const gewIndex = { "gew-wo": 0, "gew-wann": 1, "gew-wer": 2, "gew-was": 3 };
-  for (const sch of SCHIEBER) {
-    const stufen = Math.floor((sch.max - sch.min) / sch.step) + 1;
-    const alt = sch.schluessel in gewIndex ? gew[gewIndex[sch.schluessel]] ?? "0" : vorher[sch.schluessel] ?? String(sch.min);
-    const neu = gesperrt.has(sch.id) ? alt : String(sch.min + Math.floor(Math.random() * stufen) * sch.step);
-    nachId[sch.id] = neu;
-    if (sch.schluessel in gewIndex) gew[gewIndex[sch.schluessel]] = neu;
-    else regler[sch.schluessel] = neu;
-  }
-  regler["gewicht"] = gew.join("/");
-  const knobs = { ...knobsVorher };
-  for (const feld of Object.keys(KNOB_SPANNE)) {
-    if (gesperrt.has("k-" + feld)) continue;
-    const sp = KNOB_SPANNE[feld];
-    const stufen = Math.floor((sp.max - sp.min) / sp.step) + 1;
-    knobs[feld] = sp.min + Math.floor(Math.random() * stufen) * sp.step;
-  }
-  const vw = wuerfleVierW(vorherW4 || { where: "", when: "", who: "", what: "" }, gesperrt);
-  for (const f of W4_FELDER) nachId[W4_ID[f]] = vw.w4[f];
-  return { regler, nachId, knobs, w4: vw.w4, quelle: vw.quelle };
-}
-
 // src/ui/schaltplanView.ts
 var NS = "http://www.w3.org/2000/svg";
 var CHIP_W = 176;
@@ -24136,6 +24377,7 @@ var UMGEBUNG = (u = {}) => ({
   gesperrt: /* @__PURE__ */ new Set(),
   dramaVorhanden: false,
   presetLabel: "Kafka",
+  ideenProfil: "",
   ...u
 });
 var knoten = (a, id) => a.knoten.find((k) => k.id === id);
@@ -24554,6 +24796,43 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
     [...new Set(alle.knoten.map((k) => k.zustand))].filter((z) => !["an", "leer", "aus"].includes(z)).join(", "),
     ""
   );
+}
+{
+  const vorher = { where: "im Archiv", when: "am Morgen", who: "die Archivarin", what: "sucht eine Akte" };
+  const felder = /* @__PURE__ */ new Set();
+  let leer = 0;
+  for (let i = 0; i < 20; i++) {
+    const w = wuerfleVierW(vorher, /* @__PURE__ */ new Set(), "ideen");
+    wahr("die Quelle hei\xDFt Ideen", /^Ideen/.test(w.quelle));
+    for (const f of ["where", "when", "who", "what"]) {
+      if (!(w.w4[f] || "").trim()) leer++;
+      felder.add(w.w4[f]);
+    }
+    break;
+  }
+  for (let i = 0; i < 20; i++) {
+    const w = wuerfleVierW(vorher, /* @__PURE__ */ new Set(), "ideen");
+    for (const f of ["where", "when", "who", "what"]) {
+      if (!(w.w4[f] || "").trim()) leer++;
+      felder.add(w.w4[f]);
+    }
+  }
+  ist("eine Pr\xE4misse f\xFCllt alle vier Felder", leer, 0);
+  wahr(`und liefert verschiedene Werte (${felder.size})`, felder.size >= 8);
+  const zu = /* @__PURE__ */ new Set(["f-where"]);
+  let verschoben = 0;
+  for (let i = 0; i < 20; i++) if (wuerfleVierW(vorher, zu, "ideen").w4.where !== vorher.where) verschoben++;
+  ist("ein gesperrtes Feld bleibt auch bei den Ideen stehen", verschoben, 0);
+  const a = baueAnlage(STAND(), UMGEBUNG({ ideenProfil: "Noir" }));
+  ist("die Ideen stehen im Plan", knoten(a, "ideen")?.zustand, "an");
+  ist("mit dem eingestellten Profil", knoten(a, "ideen")?.wert, "Noir");
+  wahr(
+    "und einer Leitung zu den vier W",
+    a.kanten.some((k) => k.von === "ideen" && k.nach === "w4")
+  );
+  const b = baueAnlage(STAND(), UMGEBUNG({ ideenProfil: "" }));
+  ist("ohne eigenes Profil sind sie trotzdem bereit", knoten(b, "ideen")?.zustand, "an");
+  wahr("und sagen warum", /eingebautes/.test(knoten(b, "ideen")?.wert || ""));
 }
 console.log(`Pr\xFCfstand Schaltplan \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

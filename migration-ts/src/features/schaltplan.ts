@@ -94,6 +94,8 @@ export interface Umgebung {
   schatzkammer: number;
   knobs: Knobs;
   gesperrt: Set<string>;
+  /** Name des eingestellten Ideen-Profils, leer wenn noch keines gesetzt ist. */
+  ideenProfil: string;
   /** Liegt ein Erzählbogen bereit? Gelesen wird DIESELBE Ablage, aus der der
    *  Bauweg liest (`dm_dramaturgie_v1`), nicht die Tabelle der eingebauten
    *  Presets. Bis 4.286 stand hier `builtinDrama(preset)` — das stimmt für die
@@ -141,6 +143,11 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   knoten("welt", 0, "Welt", `${u.weltFiguren} Figuren · ${u.weltOrte} Orte`,
     u.weltFiguren || u.weltOrte ? "an" : "aus");
   knoten("live", 0, "Live-Pools", `${u.livePools} Phrasen`, u.livePools ? "an" : "aus");
+  // Der Reiter Ideen ist seit 4.297.0 eine Quelle der vier W, gleichwertig zur
+  // Welt — er stand vorher gar nicht im Plan. Er ist immer bereit: Fehlt ein
+  // eingestelltes Profil, nimmt der Würfel eines der eingebauten.
+  knoten("ideen", 0, "Ideen", u.ideenProfil || "eingebautes Profil", "an",
+    u.ideenProfil ? "" : "noch kein eigenes Profil eingestellt — der Würfel nimmt ein eingebautes");
 
   // ── Spalte 1: Eingang ────────────────────────────────────────────────────
   const w4 = stand.w4 || { where: "", when: "", who: "", what: "" };
@@ -279,7 +286,7 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   // Auskunft.
   for (const [a, b] of [
     ["korpus", "markov"], ["korpus", "k-korpus"],
-    ["sammler", "w4"], ["bilder", "w4"], ["themen", "w4"], ["welt", "w4"],
+    ["sammler", "w4"], ["bilder", "w4"], ["themen", "w4"], ["welt", "w4"], ["ideen", "w4"],
     ["preset", "drama"],
   ] as [string, string][]) kante(a, b);
 
@@ -312,6 +319,7 @@ import { loadWorld } from "./world";
 import { liveCount } from "./livepools";
 import { loadTreasury } from "./treasury";
 import { hasDramaData } from "../generation/dramaturgie";
+import { loadIdeaProfile } from "./ideaprofile";
 import { PRESET_LABELS } from "../presets.data";
 
 const LOCK_KEY = "divergenz_studio_locks_v1";
@@ -334,6 +342,7 @@ export function sammleUmgebung(preset: string): Umgebung {
     knobs: zahl(() => loadKnobs(), { ...KNOB_VORGABE }),
     gesperrt: new Set<string>(zahl(() => JSON.parse(localStorage.getItem(LOCK_KEY) || "[]") as string[], [])),
     dramaVorhanden: zahl(() => hasDramaData(), false),
+    ideenProfil: zahl(() => { const p = loadIdeaProfile(); return p ? (p.profil.name || p.profil.genre) : ""; }, ""),
     presetLabel: ids.map((id) => PRESET_LABELS[id.replace(/^builtin:/, "")] || id).join(" + ") || "—",
   };
 }

@@ -14,7 +14,7 @@
 import { baueAnlage, SCHLOSS_ZU_KNOTEN, type AnlageStand, type Umgebung } from "../src/features/schaltplan";
 import { mountStudio } from "../src/ui/studio";
 import { KNOB_VORGABE, KNOB_SPANNE } from "../src/features/knobs";
-import { wuerfleAlles, REGLER, SCHIEBER } from "../src/features/wuerfeln";
+import { wuerfleAlles, wuerfleVierW, REGLER, SCHIEBER } from "../src/features/wuerfeln";
 import { werte } from "../src/generation/optionen";
 import { ordne, BAND_NAME, renderSchaltplan, befundListe } from "../src/ui/schaltplanView";
 import { JSDOM } from "jsdom";
@@ -40,7 +40,7 @@ const STAND = (regler: Record<string, string> = {}): AnlageStand => ({
 const UMGEBUNG = (u: Partial<Umgebung> = {}): Umgebung => ({
   korpusZeichen: 0, sammlerFunde: 0, bildFunde: 0, themenFunde: 0, weltFiguren: 0, weltOrte: 0,
   livePools: 0, schatzkammer: 0, knobs: { ...KNOB_VORGABE }, gesperrt: new Set<string>(),
-  dramaVorhanden: false, presetLabel: "Kafka", ...u,
+  dramaVorhanden: false, presetLabel: "Kafka", ideenProfil: "", ...u,
 });
 const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((k) => k.id === id);
 
@@ -484,6 +484,55 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   const alle = baueAnlage(STAND(), UMGEBUNG());
   ist("es gibt nur noch drei Zustände",
     [...new Set(alle.knoten.map((k) => k.zustand))].filter((z) => !["an", "leer", "aus"].includes(z)).join(", "), "");
+}
+
+
+// ── 13 · Die Ideen sind eine Quelle wie die Welt ─────────────────────────
+// Einwand: „Der Ideen-Knopf könnte doch gleichwertig neben der Welt stehen. Die
+// Welt speist auch das Studio." Berechtigt — und die Begründung dagegen war
+// keine. Eine Prämisse trägt Wo/Wann/Wer/Was wie jede andere Quelle; der Weg
+// „→ Studio" im Reiter Ideen übergibt seit jeher genau diese vier Felder. Dass
+// der Reiter daneben noch Sätze formuliert, macht ihn nicht zu einer anderen
+// Art von Quelle.
+{
+  const vorher = { where: "im Archiv", when: "am Morgen", who: "die Archivarin", what: "sucht eine Akte" };
+  // Fest auf die Ideen gestellt, damit die Prüfung nicht auf den Zufall wartet.
+  const felder = new Set<string>();
+  let leer = 0;
+  for (let i = 0; i < 20; i++) {
+    const w = wuerfleVierW(vorher, new Set<string>(), "ideen");
+    wahr("die Quelle heißt Ideen", /^Ideen/.test(w.quelle));
+    for (const f of ["where", "when", "who", "what"] as const) {
+      if (!(w.w4[f] || "").trim()) leer++;
+      felder.add(w.w4[f]);
+    }
+    break;   // die Meldung einmal; gezählt wird unten
+  }
+  for (let i = 0; i < 20; i++) {
+    const w = wuerfleVierW(vorher, new Set<string>(), "ideen");
+    for (const f of ["where", "when", "who", "what"] as const) {
+      if (!(w.w4[f] || "").trim()) leer++;
+      felder.add(w.w4[f]);
+    }
+  }
+  ist("eine Prämisse füllt alle vier Felder", leer, 0);
+  wahr(`und liefert verschiedene Werte (${felder.size})`, felder.size >= 8);
+
+  // Ein Schloss hält auch hier.
+  const zu = new Set(["f-where"]);
+  let verschoben = 0;
+  for (let i = 0; i < 20; i++) if (wuerfleVierW(vorher, zu, "ideen").w4.where !== vorher.where) verschoben++;
+  ist("ein gesperrtes Feld bleibt auch bei den Ideen stehen", verschoben, 0);
+
+  // Und der Plan kennt die Quelle.
+  const a = baueAnlage(STAND(), UMGEBUNG({ ideenProfil: "Noir" }));
+  ist("die Ideen stehen im Plan", knoten(a, "ideen")?.zustand, "an");
+  ist("mit dem eingestellten Profil", knoten(a, "ideen")?.wert, "Noir");
+  wahr("und einer Leitung zu den vier W",
+    a.kanten.some((k) => k.von === "ideen" && k.nach === "w4"));
+  const b = baueAnlage(STAND(), UMGEBUNG({ ideenProfil: "" }));
+  ist("ohne eigenes Profil sind sie trotzdem bereit", knoten(b, "ideen")?.zustand, "an");
+  wahr("und sagen warum", /eingebautes/.test(knoten(b, "ideen")?.wert || ""));
 }
 
 console.log(`Prüfstand Schaltplan — ${geprueft} Prüfungen, ${bestanden} bestanden`);

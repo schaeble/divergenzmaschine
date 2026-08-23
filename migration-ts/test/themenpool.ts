@@ -138,12 +138,17 @@ ist("null ebenso", zerlegeAntwort(null, lit).length, 0);
   ist("und die Themen", st.themen, 2);
 }
 
-// ── 6 · Der Themenpool als vierte Würfelquelle ────────────────────────────
-ist("ohne Vorräte bleibt nur die Welt", offeneQuellen(0, 0, 0).join(","), "welt");
-ist("mit Themenpool kommt Thema dazu", offeneQuellen(0, 0, 5).join(","), "welt,thema");
-ist("mit allen vieren", offeneQuellen(1, 1, 1).join(","), "welt,wiki,abschrift,thema");
+// ── 6 · Der Themenpool als Würfelquelle ───────────────────────────────────
+// Seit 4.297.0 sind es fünf: „ideen" kam dazu. Der Einwand dahinter war
+// berechtigt — eine Prämisse trägt dieselben vier W wie die Welt, und der Weg
+// „→ Studio" übergibt seit jeher genau die. Welt und Ideen sind immer dabei,
+// weil beide auch beim ersten Start etwas liefern; die drei Vorräte kommen nur
+// mit Inhalt dazu.
+ist("ohne Vorräte bleiben Welt und Ideen", offeneQuellen(0, 0, 0).join(","), "welt,ideen");
+ist("mit Themenpool kommt Thema dazu", offeneQuellen(0, 0, 5).join(","), "welt,ideen,thema");
+ist("mit allen Vorräten", offeneQuellen(1, 1, 1).join(","), "welt,ideen,wiki,abschrift,thema");
 wahr("jede Quelle hat eine Beschriftung", QUELLEN.every((q) => !!QUELLE_LABEL[q]));
-ist("es sind vier", QUELLEN.length, 4);
+ist("es sind fünf", QUELLEN.length, 5);
 
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 // Erst zählen, wenn auch die Netz-Attrappen durch sind — sonst meldet der Kopf

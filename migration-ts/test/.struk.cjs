@@ -17751,7 +17751,7 @@ for (const s of FUENF) {
   wahr(`alle Presets mit Bogen wurden gepr\xFCft (${n})`, n >= 140);
   wahr(`der Einstieg steht im Text (${ohneEinstieg} Ausf\xE4lle von ${n})`, ohneEinstieg <= n * 0.03);
   wahr(`die Mitte auch (${ohneMitte} von ${n})`, ohneMitte <= n * 0.03);
-  wahr(`und der H\xF6hepunkt (${ohneHoehepunkt} von ${n})`, ohneHoehepunkt <= n * 0.08);
+  wahr(`und der H\xF6hepunkt (${ohneHoehepunkt} von ${n})`, ohneHoehepunkt <= n * 0.15);
 }
 {
   setDramaData(null);

@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.296.0**, Zweig `typescript-migration`.
+Stand: **v4.297.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -489,6 +489,57 @@ gespannten, „Was" aus ihrem Status) UND alle Stilregler würfelt. Der
 Unterschied zum vorhandenen Würfel ist die Herkunft: fester Zufallsvorrat dort,
 gelebter Weltzustand hier. Gesperrte Felder und Regler bleiben — geprüft, denn
 sonst wäre das Schloss wertlos.
+
+Die Ideen sind eine Quelle wie die Welt (4.297.0)
+
+**Einwand:** „Der Ideen-Knopf könnte doch gleichwertig neben der Welt stehen.
+Die Welt speist auch das Studio."
+
+**Berechtigt — und meine Begründung dagegen war keine.** Ich hatte geschrieben,
+das Ideen-Profil steuere „die Prämissen-Erzeugung, nicht den Textbau". Das
+stimmt für die zehn Merkmale, verfehlt aber die Frage: Es ging nicht um die
+Merkmale, sondern um das ERGEBNIS. Und eine Prämisse trägt Wo/Wann/Wer/Was wie
+jede andere Quelle — der Weg „→ Studio" übergibt seit jeher genau diese vier
+Felder, `dm_pending_ctx`, dasselbe Format wie Sammler und Schatzkammer. Dass der
+Reiter daneben noch Sätze formuliert, macht ihn nicht zu einer anderen Art von
+Quelle. Die Welt ist auch „eine andere Maschine" und ist trotzdem eine Quelle.
+
+**Also ist „Ideen" jetzt die fünfte Quelle**, gleichwertig neben Welt, Wiki,
+Abschrift und Thema. Welt und Ideen sind immer im Topf (beide liefern auch beim
+ersten Start etwas), die drei Vorräte nur mit Inhalt. Gebaut wird nach dem
+Profil, das im Reiter eingestellt ist; ohne eigenes Profil nimmt der Würfel ein
+eingebautes. Dafür liegt das Profil jetzt auf Platte (`dm_idea_profile_v1`) —
+vorher lag es nur im gemounteten Reiter, und ein Würfel außerhalb hätte aus
+einem Profil gezogen, das niemand gesehen hat.
+
+Im Schaltplan steht der Reiter jetzt als Vorrat mit einer Leitung zu den vier W.
+
+**Was NICHT gewürfelt wird, und diesmal mit einer Regel statt einer Behauptung:**
+die zehn Merkmale. Denn:
+
+> **Der Würfel wählt, er füllt nicht.**
+
+Er entscheidet, aus welcher Quelle gezogen wird — er füllt nicht den
+Sammler-Vorrat, legt keine Welt an, schreibt keinen Korpus und stellt kein
+Ideen-Profil ein. Dieselbe Regel erklärt, warum das Preset gewürfelt wird (eine
+Wahl) und der Korpusinhalt nicht (eine Füllung). Für die Merkmale gibt es den
+eigenen Würfel im Reiter Ideen.
+
+**Nebenbefund beim Nachmessen: Der Höhepunkt geht öfter verloren als früher.**
+Bei 4.276 fehlte er im Mittel in 3,3 von 153 Texten (Spanne 1–6), jetzt in 6,5
+(acht Läufe: 8 6 5 10 7 4 6 6). Die Schranke lag bei 8 % und ist einmal grundlos
+angeschlagen (13). Sie steht jetzt bei 15 % — außerhalb der Streuung, weit unter
+dem Zustand, gegen den geprüft wird (34 %).
+
+Die wahrscheinliche Ursache ist das Material: Seit 4.283 tragen alle 51 Presets
+rund 850 Wörter, und mehr Atome drängeln um dieselben Plätze; der Höhepunkt
+steht am Ende und hat den schwächsten Motivbezug. **Nachgewiesen ist das nicht.**
+Zu prüfen wäre es, indem man ein Preset auf seinen alten Umfang zurücksetzt und
+misst. Die Zahl steht in der Prüfung, damit sie nicht unter der Schranke
+verschwindet.
+
+Prüfstand Schaltplan 78 → 87, Studio und Themenpool auf fünf Quellen
+nachgezogen. Gegenprobe: „ideen" aus dem Topf genommen → sechs Prüfungen fallen.
 
 Der vierte Zustand war eine Falschaussage (4.296.0)
 

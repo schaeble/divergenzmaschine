@@ -17,11 +17,13 @@ import { RESSORTS, RESSORT_IDS } from "./ressorts";
 import { KNOB_SPANNE, KNOB_VORGABE, loadKnobs, type Knobs } from "./knobs";
 import { markedPresetOptions } from "./preset2";
 import { offeneQuellen, ziehQuelle, uebernehmeKontext, QUELLE_LABEL, W4_FELDER,
-  type W4, type Feld } from "./kontext";
+  type W4, type Feld, type Quelle } from "./kontext";
 import { worldFillContext } from "./world";
 import { ziehVorrat, vorratStand } from "./wikisammler";
 import { ziehBildvorrat, ladeBildvorrat } from "./bildsammler";
 import { ziehThema, themenStand } from "./themenpool";
+import { generateIdeaBatch } from "../generation/ideas";
+import { ideaProfileToConfig, loadIdeaProfile, IDEA_PRESETS } from "./ideaprofile";
 
 /** Ein würfelbarer Regler: die Kennung des Auswahlfelds (dieselbe, die das
  *  Schloss trägt) und der Schlüssel, unter dem der Wert im Anlagenstand steht. */
@@ -82,9 +84,9 @@ export interface Wurf {
  *  kopflose Würfel kannte nur Regler, Schieber und Stellschrauben; die vier W
  *  standen im Schaltplan und blieben stehen. Sie brauchen keinen DOM — die
  *  Quellen sind Feature-Funktionen —, es hatte nur niemand verbunden. */
-export function wuerfleVierW(vorher: Record<W4, string>, gesperrt: Set<string>):
+export function wuerfleVierW(vorher: Record<W4, string>, gesperrt: Set<string>, feste?: Quelle):
 { w4: Record<W4, string>; quelle: string } {
-  const quelle = ziehQuelle(offeneQuellen(
+  const quelle = feste || ziehQuelle(offeneQuellen(
     sicher(() => vorratStand().funde, 0),
     sicher(() => ladeBildvorrat().length, 0),
     sicher(() => themenStand().funde, 0)));
@@ -99,6 +101,19 @@ export function wuerfleVierW(vorher: Record<W4, string>, gesperrt: Set<string>):
   } else if (quelle === "thema") {
     const f = sicher(() => ziehThema(), null);
     if (f) { vorschlag = f.ctx; woher = `Thema · ${f.themaLabel}`; } else vorschlag = sicher(() => worldFillContext() as Partial<Record<W4, string>>, {} as Partial<Record<W4, string>>);
+  } else if (quelle === "ideen") {
+    // Eine Prämisse trägt dieselben vier W wie jede andere Quelle — der Weg
+    // „→ Studio" im Reiter Ideen übergibt seit jeher genau diese vier Felder.
+    // Gebaut wird nach dem EINGESTELLTEN Profil; gibt es keines (noch nie
+    // geöffnet), nimmt der Würfel eines der eingebauten.
+    const p = sicher(() => loadIdeaProfile(), null);
+    const profil = p ? p.profil : zieh(Object.values(IDEA_PRESETS));
+    const ideen = sicher(() => generateIdeaBatch(1, ideaProfileToConfig(profil, p ? p.liveAnteil : 0)), []);
+    const i = ideen[0];
+    if (i) {
+      vorschlag = { where: i.seedWhere, when: i.seedWhen, who: i.seedWho, what: i.seedWhat };
+      woher = `Ideen · ${profil.name || profil.genre}`;
+    } else vorschlag = sicher(() => worldFillContext() as Partial<Record<W4, string>>, {} as Partial<Record<W4, string>>);
   } else {
     vorschlag = sicher(() => worldFillContext() as Partial<Record<W4, string>>, {} as Partial<Record<W4, string>>);
   }
