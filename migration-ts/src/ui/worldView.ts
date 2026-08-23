@@ -1,7 +1,7 @@
 // Welt-Tab: Omnikognition (Wahrnehmungs-Modus).
 import { el, button, select, textInput } from "./dom";
 import { icon } from "./icons";
-import { OMNI_PRESETS, OMNI_PRESET_LABELS, profileToStudio, buildProfilePrompt, normalizeProfile, loadOmniUserPresets, saveOmniUserPreset, deleteOmniUserPreset, type CognitiveProfile } from "../features/omnikognition";
+import { OMNI_PRESETS, OMNI_PRESET_LABELS, alleOmniProfile, profileToStudio, buildProfilePrompt, normalizeProfile, loadOmniUserPresets, saveOmniUserPreset, deleteOmniUserPreset, type CognitiveProfile } from "../features/omnikognition";
 import { loadAiKey, callClaude, extractJson } from "../features/ki";
 
 type Chk = { v: string; box: HTMLInputElement; el: HTMLElement };
@@ -65,19 +65,26 @@ export function mountWorld(root: HTMLElement): void {
   });
   rebuildPresetSel();
 
-  // Zufallsstart: alle Kriterien auswürfeln.
-  const randSel = (s: HTMLSelectElement): void => {
-    if (s.options.length) s.value = s.options[Math.floor(Math.random() * s.options.length)]!.value;
-  };
-  const randChk = (g: Chk[], min: number, max: number): void => {
-    const n = Math.min(g.length, min + Math.floor(Math.random() * (max - min + 1)));
-    const order = g.map((_, i) => i).sort(() => Math.random() - 0.5).slice(0, n);
-    g.forEach((c, i) => { c.box.checked = order.includes(i); });
-  };
+  // Der Würfel zieht ein vorhandenes Profil — eingebaute und eigene.
+  //
+  // Vorher wurde jede der zwölf Angaben einzeln ausgelost. Das ergibt Wesen, die
+  // es so nicht gibt: ein Tiefseewesen, das spricht; ein Säugling mit
+  // Magnetsinn. Und es ergab Profile OHNE NAMEN — im Studio wurde daraus dann
+  // immer „ein Wesen", weil das Wer aus dem Namen kommt.
+  //
+  // Die Presets sind aufeinander abgestimmt und benannt. Wer trotzdem frei
+  // mischen will, stellt die zwölf Felder von Hand — sie bleiben, wie sie sind.
   const randomize = (): void => {
-    [dim, reach, medium, zeit, aufl, ged, komm, strat, modell].forEach(randSel);
-    randChk(channels, 1, 3); randChk(fokus, 1, 3); randChk(ziel, 1, 2);
-    nameIn.value = ""; presetSel.value = ""; updDel();
+    const alle = alleOmniProfile();
+    if (!alle.length) return;
+    const p = alle[Math.floor(Math.random() * alle.length)]!;
+    applyProfile(p);
+    // Die Auswahlliste mitziehen, damit sichtbar ist, WELCHES Wesen gezogen wurde.
+    const id = Object.entries(OMNI_PRESETS).find(([, v]) => v === p)?.[0]
+      || Object.entries((() => { try { return loadOmniUserPresets(); } catch { return {}; } })()).find(([, v]) => v.name === p.name)?.[0]
+      || "";
+    presetSel.value = id;
+    updDel();
   };
   randomize();
 

@@ -202,3 +202,16 @@ export function deleteOmniUserPreset(id: string): void {
   const u = loadOmniUserPresets(); delete u[id];
   try { localStorage.setItem(OMNI_USER_KEY, JSON.stringify(u)); } catch { /* voll */ }
 }
+
+/** Alle Profile, eingebaute und eigene, in einer Liste.
+ *
+ *  Gewünscht: „Ändere die Würfelfunktion auf die vorhandenen Presets inkl.
+ *  eigenem." Der bisherige Würfel im Reiter Welt hat jede der zwölf Angaben
+ *  einzeln ausgelost — dabei entstehen Wesen, die es so nicht gibt: ein
+ *  Tiefseewesen mit Sprache, ein Säugling mit Magnetsinn. Die Presets sind
+ *  aufeinander abgestimmt, und sie tragen einen NAMEN; der gewürfelte hatte
+ *  keinen, weshalb aus ihm im Studio immer „ein Wesen" wurde. */
+export function alleOmniProfile(): CognitiveProfile[] {
+  const eigene = (() => { try { return Object.values(loadOmniUserPresets()); } catch { return []; } })();
+  return [...Object.values(OMNI_PRESETS), ...eigene];
+}

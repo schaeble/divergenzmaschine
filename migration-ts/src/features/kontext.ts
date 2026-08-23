@@ -58,17 +58,21 @@ export function geaendert(
 // jede andere Quelle — der Weg „→ Studio" übergibt seit jeher nichts anderes.
 // Dass der Reiter Ideen daneben noch etwas anderes tut (Prämissensätze
 // formulieren), macht ihn nicht zu einer anderen Art von Quelle.
-export const QUELLEN = ["welt", "wiki", "abschrift", "thema", "ideen"] as const;
+// „omni" kam in 4.299.0 dazu: die Omnikognition aus dem Reiter Welt, gewünscht
+// als eigene Quelle. Sie liefert nicht nur die vier W, sondern die passenden
+// Stilregler dazu — ein Wesen wahrzunehmen ist eine Haltung, keine Ortsangabe.
+export const QUELLEN = ["welt", "wiki", "abschrift", "thema", "ideen", "omni"] as const;
 export type Quelle = typeof QUELLEN[number];
 export const QUELLE_LABEL: Record<Quelle, string> = {
-  welt: "Welt", wiki: "Wiki", abschrift: "Abschrift", thema: "Thema", ideen: "Ideen",
+  welt: "Welt", wiki: "Wiki", abschrift: "Abschrift", thema: "Thema", ideen: "Ideen", omni: "Wahrnehmung",
 };
 
 /** Welche Quellen stehen bereit? */
 export function offeneQuellen(wikiFunde: number, bildFunde: number, themaFunde = 0): Quelle[] {
-  // Welt und Ideen sind immer dabei: Beide legen sich selbst an und liefern auch
-  // beim ersten Start etwas.
-  const raus: Quelle[] = ["welt", "ideen"];
+  // Welt, Ideen und Wahrnehmung sind immer dabei: Alle drei liefern auch beim
+  // ersten Start etwas (die Welt legt sich selbst an, die beiden anderen haben
+  // eingebaute Profile).
+  const raus: Quelle[] = ["welt", "ideen", "omni"];
   if (wikiFunde > 0) raus.push("wiki");
   if (bildFunde > 0) raus.push("abschrift");
   if (themaFunde > 0) raus.push("thema");

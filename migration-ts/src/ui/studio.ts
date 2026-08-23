@@ -148,6 +148,8 @@ export function mountStudio(root: HTMLElement): void {
     const quelle = ziehQuelle(offeneQuellen(vorratStand().funde, ladeBildvorrat().length, themenStand().funde));
     let vorschlag: Partial<Record<W4, string>> = {};
     let woher: string = QUELLE_LABEL[quelle];
+    let omniStil: Record<string, string> | null = null;
+    let omniGew = "";
     if (quelle === "wiki") {
       const f = ziehVorrat();
       if (f) { vorschlag = f.ctx; woher = `Wiki · ${f.titel}`; } else vorschlag = worldFillContext();
@@ -157,6 +159,12 @@ export function mountStudio(root: HTMLElement): void {
     } else if (quelle === "thema") {
       const f = ziehThema();
       if (f) { vorschlag = f.ctx; woher = `Thema · ${f.themaLabel}`; } else vorschlag = worldFillContext();
+    } else if (quelle === "omni") {
+      // Die Wahrnehmung gibt die Stilregler mit vor; sie werden weiter unten
+      // NACH dem allgemeinen Wurf gesetzt, sonst überschriebe er sie sofort.
+      const ow = wuerfleVierW({ where: where.value, when: when.value, who: who.value, what: what.value },
+        locked, "omni");
+      vorschlag = ow.w4; woher = ow.quelle; omniStil = ow.regler || null; omniGew = ow.gewicht || "";
     } else if (quelle === "ideen") {
       // Der Reiter Ideen ist seit 4.297.0 eine Quelle wie die Welt. Der Einwand
       // dazu war berechtigt: Eine Prämisse trägt dieselben vier W, und der Weg
@@ -182,6 +190,26 @@ export function mountStudio(root: HTMLElement): void {
     wikiTitel(); abschriftTitel(); themaTitel();
     updHints(); ctxSichern();
     rollAlle();
+    // Erst jetzt: Was die Wahrnehmung vorgibt, steht über dem allgemeinen Wurf.
+    if (omniStil) {
+      const setzeStil = (el: HTMLSelectElement, v: string | undefined): void => {
+        if (!v || locked.has(el.id)) return;
+        if (!Array.from(el.options).some((o) => o.value === v)) return;
+        el.value = v; studioReglerStand[el.id] = v;
+      };
+      setzeStil(form, omniStil["form"]); setzeStil(structure, omniStil["structure"]);
+      setzeStil(persp, omniStil["perspective"]); setzeStil(rhythm, omniStil["rhythm"]);
+      setzeStil(varianz, omniStil["varLevel"]); setzeStil(mode, omniStil["mode"]);
+      setzeStil(tone, omniStil["tone"]); setzeStil(markov, omniStil["markovMode"]);
+      setzeStil(archA, omniStil["archetypeA"]); setzeStil(archB, omniStil["archetypeB"]);
+      if (omniGew) {
+        const g = omniGew.split("/");
+        [wWo, wWann, wWer, wWas].forEach((sl, i) => {
+          if (locked.has(sl.id) || g[i] === undefined) return;
+          sl.value = g[i]!; sl.dispatchEvent(new Event("input"));
+        });
+      }
+    }
     renderPresetChecks();
     generate();
   });

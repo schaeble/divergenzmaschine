@@ -4950,6 +4950,120 @@ function wuerfleIdeaProfile(zufall = Math.random) {
   };
 }
 
+// src/features/omnikognition.ts
+var SENSE = {
+  licht: {
+    motifs: ["ein Flackern am Rand des Sehfelds", "ein Schatten, der sich zu fr\xFCh bewegt", "ein Glanz auf nasser Haut", "ein Muster aus Hell und Dunkel", "eine Farbe, die keinen Namen kennt"],
+    hooks: ["ein Aufblitzen", "ein Umriss gegen die Helligkeit", "ein Reflex auf der Oberfl\xE4che", "ein Wechsel im Licht"],
+    turns: ["das Licht kippt und alles wird flach", "ein Schatten l\xF6st sich vom Grund", "die Helligkeit frisst die Form"]
+  },
+  schall: {
+    motifs: ["ein Echo, das zu sp\xE4t zur\xFCckkommt", "ein Ton unter der H\xF6rschwelle", "ein Puls, der den Raum abtastet", "eine Stille mit Kanten", "ein Nachhall ohne Ursprung"],
+    hooks: ["ein fernes Klopfen", "ein Ping aus der Schw\xE4rze", "ein Rascheln, das n\xE4her kommt", "ein doppeltes Echo"],
+    turns: ["das Echo verr\xE4t die Wand", "der Klang biegt sich um ein Hindernis", "die Stille bricht in Fragmente"]
+  },
+  geruch: {
+    motifs: ["eine Duftspur, die noch warm ist", "ein Geruch von gestern", "eine F\xE4hrte, die sich verzweigt", "ein s\xFC\xDFlicher Faden in der Luft", "eine Marke, die jemand hinterlie\xDF"],
+    hooks: ["ein Hauch von N\xE4he", "eine fremde Note", "ein Umschlag im Geruch", "eine Spur, die abrei\xDFt"],
+    turns: ["die F\xE4hrte teilt sich", "der Duft kippt von s\xFC\xDF zu sauer", "der Wind l\xF6scht die Spur"]
+  },
+  efeld: {
+    motifs: ["ein Kribbeln im Wasser", "ein Feld, das sich zusammenzieht", "eine Ladung, die n\xE4herkommt", "ein Muster aus Spannung", "eine St\xF6rung im leeren Raum"],
+    hooks: ["ein Zucken im Feld", "eine Spannung, die anschwillt", "ein toter Fleck ohne Ladung", "ein Knistern der N\xE4he"],
+    turns: ["das Feld verr\xE4t den K\xF6rper dahinter", "die Ladung kippt und wird zur Falle", "der Raum l\xE4dt sich auf"]
+  },
+  magnet: {
+    motifs: ["eine Richtung, die im K\xF6rper sitzt", "eine Linie, die nach Norden zieht", "ein stiller Kompass im Kopf", "ein Gef\xE4lle ohne Hang", "eine Karte aus Kraftlinien"],
+    hooks: ["ein Zug nach einer Seite", "eine Abweichung der inneren Nadel", "ein Knick in der Richtung"],
+    turns: ["die Linie verschiebt sich", "der Norden l\xFCgt heute", "das Feld dreht die Absicht"]
+  },
+  vibration: {
+    motifs: ["ein Zittern im Boden", "eine Welle durch die Fl\xE4che", "ein Beben, kaum sp\xFCrbar", "ein Puls im Untergrund", "eine Ersch\xFCtterung ohne Ger\xE4usch"],
+    hooks: ["ein Schritt weit entfernt", "ein Beben unter den F\xFC\xDFen", "eine Welle, die anrollt"],
+    turns: ["die Ersch\xFCtterung wird zur Warnung", "das Zittern verdichtet sich", "der Boden antwortet"]
+  },
+  temperatur: {
+    motifs: ["ein W\xE4rmefleck in der K\xE4lte", "ein Gef\xE4lle aus W\xE4rme", "ein kalter Sog", "eine Spur aus K\xF6rperw\xE4rme", "eine Grenze zwischen warm und kalt"],
+    hooks: ["ein Hauch von W\xE4rme", "ein kalter Zug", "ein warmer Schatten", "ein Umschlag der Temperatur"],
+    turns: ["die W\xE4rme verr\xE4t den K\xF6rper", "die K\xE4lte kriecht n\xE4her", "das Gef\xE4lle kehrt sich um"]
+  }
+};
+var BASE = {
+  props: ["den eigenen K\xF6rper", "die Grenze der Wahrnehmung", "einen Rest der letzten Spur", "den n\xE4chsten Reiz", "das Muster der Umgebung", "ein Signal ohne Absender"],
+  obstacles: ["der Reiz bricht ab", "zwei Signale \xFCberlagern sich", "die Spur f\xFChrt ins Leere", "etwas st\xF6rt das Feld", "die Wahrnehmung tr\xFCgt", "der Reiz kommt zu sp\xE4t"],
+  stakes: ["Der Einsatz ist Nahrung.", "Der Einsatz ist \xDCberleben.", "Der Einsatz ist die richtige Richtung.", "Der Einsatz ist N\xE4he.", "Der Einsatz ist der n\xE4chste Atemzug."],
+  endings: ["Und der Reiz verlischt.", "So bleibt nur das Muster.", "Und die Spur war schon vergangen.", "Am Ende z\xE4hlt nur der n\xE4chste Reiz.", "Und die Welt schrumpft auf ein Signal."]
+};
+function buildSenseBank(channels) {
+  const chs = (channels.length ? channels : ["licht", "schall"]).filter((c) => SENSE[c]);
+  const motifs = [], hooks = [], turns = [];
+  for (const c of chs) {
+    const p = SENSE[c];
+    motifs.push(...p.motifs);
+    hooks.push(...p.hooks);
+    turns.push(...p.turns);
+  }
+  return { motifs, hooks, props: [...BASE.props], turns, obstacles: [...BASE.obstacles], stakes: [...BASE.stakes], endings: [...BASE.endings] };
+}
+var MEDIUM_WHERE = { wasser: "im offenen Wasser", luft: "hoch in der Luft", boden: "tief im Boden" };
+var ZIEL_WHAT = { nahrung: "sucht Nahrung", fortpflanzung: "sucht einen Partner", kooperation: "h\xE4lt den Verband", revier: "verteidigt das Revier", schwarm: "folgt dem Schwarm", ueberleben: "will \xFCberleben" };
+function profileToStudio(p) {
+  const cap3 = (n) => Math.max(0, Math.min(3, n));
+  const isVerbal = p.kommunikation === "sprache" || p.kommunikation === "laut";
+  return {
+    where: MEDIUM_WHERE[p.medium] || "an einem Ort",
+    when: p.gedaechtnis === "lang" ? "nach vielen Wanderungen" : "",
+    who: p.name || "ein Wesen",
+    what: ZIEL_WHAT[p.ziel[0] || "ueberleben"] || "will \xFCberleben",
+    form: isVerbal ? "script" : "prose",
+    structure: { reflex: "linear", instinkt: "circle", lern: "reverse", planend: "linear" }[p.strategie],
+    perspective: { kein: "object", schwach: "third", stark: "first", verteilt: "we" }[p.modell],
+    rhythm: { schnell: "staccato", mittel: "auto", langsam: "long" }[p.zeit],
+    varLevel: { grob: "low", mittel: "mid", fein: "high" }[p.aufloesung],
+    mode: "body",
+    tone: p.ziel.includes("ueberleben") || p.ziel.includes("revier") || p.fokus.includes("feind") ? "dark" : "poetic",
+    markovMode: p.gedaechtnis === "lang" ? "mix" : "off",
+    archetypeA: "neutral",
+    archetypeB: p.fokus.includes("feind") || p.ziel.includes("revier") ? "skorpion" : "neutral",
+    emphasis: {
+      wo: p.reach === "fern" ? 2 : 1,
+      wann: p.gedaechtnis === "lang" ? 2 : p.gedaechtnis === "kurz" ? 1 : 0,
+      wer: p.fokus.includes("sozial") ? 2 : 0,
+      was: cap3((p.fokus.some((f) => ["nahrung", "feind", "bewegung"].includes(f)) ? 2 : 0) + (p.ziel.length ? 1 : 0))
+    },
+    bank: buildSenseBank(p.channels)
+  };
+}
+var OMNI_PRESETS = {
+  fledermaus: { name: "eine Fledermaus", channels: ["schall", "vibration"], dim: "3d", reach: "nah", medium: "luft", zeit: "schnell", aufloesung: "fein", fokus: ["bewegung", "nahrung"], gedaechtnis: "kurz", kommunikation: "laut", strategie: "reflex", modell: "schwach", ziel: ["nahrung"] },
+  oktopus: { name: "ein Oktopus", channels: ["licht", "geruch"], dim: "3d", reach: "nah", medium: "wasser", zeit: "mittel", aufloesung: "fein", fokus: ["objekt", "muster"], gedaechtnis: "lang", kommunikation: "licht", strategie: "lern", modell: "verteilt", ziel: ["ueberleben"] },
+  ameise: { name: "ein Ameisenvolk", channels: ["geruch", "vibration"], dim: "2d", reach: "nah", medium: "boden", zeit: "mittel", aufloesung: "mittel", fokus: ["sozial", "muster"], gedaechtnis: "kurz", kommunikation: "duft", strategie: "instinkt", modell: "verteilt", ziel: ["schwarm", "kooperation"] },
+  zugvogel: { name: "ein Zugvogel", channels: ["licht", "magnet"], dim: "3d", reach: "fern", medium: "luft", zeit: "mittel", aufloesung: "mittel", fokus: ["muster", "bewegung"], gedaechtnis: "lang", kommunikation: "laut", strategie: "planend", modell: "schwach", ziel: ["ueberleben", "schwarm"] },
+  hai: { name: "ein Hai", channels: ["efeld", "geruch", "vibration"], dim: "3d", reach: "nah", medium: "wasser", zeit: "schnell", aufloesung: "fein", fokus: ["bewegung", "nahrung", "feind"], gedaechtnis: "angeboren", kommunikation: "efeld", strategie: "reflex", modell: "kein", ziel: ["nahrung"] },
+  tiefsee: { name: "ein Tiefseewesen", channels: ["licht", "vibration", "efeld"], dim: "3d", reach: "nah", medium: "wasser", zeit: "langsam", aufloesung: "grob", fokus: ["bewegung", "nahrung"], gedaechtnis: "angeboren", kommunikation: "licht", strategie: "reflex", modell: "kein", ziel: ["nahrung", "ueberleben"] },
+  saeugling: { name: "ein S\xE4ugling", channels: ["licht", "schall", "temperatur"], dim: "3d", reach: "nah", medium: "luft", zeit: "langsam", aufloesung: "grob", fokus: ["sozial", "bewegung"], gedaechtnis: "kurz", kommunikation: "laut", strategie: "reflex", modell: "schwach", ziel: ["kooperation"] },
+  alien: { name: "ein fremdes Wesen", channels: ["magnet", "efeld", "temperatur"], dim: "3d", reach: "fern", medium: "luft", zeit: "langsam", aufloesung: "fein", fokus: ["muster"], gedaechtnis: "lang", kommunikation: "efeld", strategie: "planend", modell: "stark", ziel: ["ueberleben"] }
+};
+var OMNI_USER_KEY = "divergenz_omni_presets_v1";
+function loadOmniUserPresets() {
+  try {
+    const o = JSON.parse(localStorage.getItem(OMNI_USER_KEY) || "{}");
+    return o && typeof o === "object" ? o : {};
+  } catch {
+    return {};
+  }
+}
+function alleOmniProfile() {
+  const eigene = (() => {
+    try {
+      return Object.values(loadOmniUserPresets());
+    } catch {
+      return [];
+    }
+  })();
+  return [...Object.values(OMNI_PRESETS), ...eigene];
+}
+
 // src/presets.data.ts
 var BUILTIN_PRESETS = {
   "rimbaud": {
@@ -12783,6 +12897,14 @@ function baueAnlage(stand, u) {
     "an",
     "Beim W\xFCrfeln im Studio wird das Profil mitgew\xFCrfelt \u2014 das eingestellte gilt im Reiter Ideen selbst"
   );
+  knoten2(
+    "omni",
+    0,
+    "Wahrnehmung",
+    `${u.omniProfile} Wesen`,
+    u.omniProfile ? "an" : "aus",
+    "Reiter Welt: Zieht ein Wesen und setzt Wo/Wann/Wer/Was samt Perspektive, Rhythmus, Modus und Ton"
+  );
   const w4 = stand.w4 || { where: "", when: "", who: "", what: "" };
   const gefuellt = [w4.where, w4.when, w4.who, w4.what].filter((x) => (x || "").trim()).length;
   const w4Ids = ["f-where", "f-when", "f-who", "f-what"];
@@ -12953,6 +13075,7 @@ function baueAnlage(stand, u) {
     ["themen", "w4"],
     ["welt", "w4"],
     ["ideen", "w4"],
+    ["omni", "w4"],
     ["preset", "drama"]
   ]) kante(a, b);
   const proKnoten = /* @__PURE__ */ new Map();
@@ -12994,6 +13117,7 @@ function sammleUmgebung(preset) {
       const p = loadIdeaProfile();
       return p ? p.profil.name || p.profil.genre : "";
     }, ""),
+    omniProfile: zahl(() => alleOmniProfile().length, 0),
     presetLabel: ids.map((id) => PRESET_LABELS[id.replace(/^builtin:/, "")] || id).join(" + ") || "\u2014"
   };
 }
@@ -20401,10 +20525,11 @@ var QUELLE_LABEL = {
   wiki: "Wiki",
   abschrift: "Abschrift",
   thema: "Thema",
-  ideen: "Ideen"
+  ideen: "Ideen",
+  omni: "Wahrnehmung"
 };
 function offeneQuellen(wikiFunde, bildFunde, themaFunde = 0) {
-  const raus = ["welt", "ideen"];
+  const raus = ["welt", "ideen", "omni"];
   if (wikiFunde > 0) raus.push("wiki");
   if (bildFunde > 0) raus.push("abschrift");
   if (themaFunde > 0) raus.push("thema");
@@ -20582,6 +20707,8 @@ function wuerfleVierW(vorher, gesperrt, feste) {
   ));
   let vorschlag = {};
   let woher = QUELLE_LABEL[quelle2];
+  let omniRegler = null;
+  let omniGewicht = "";
   if (quelle2 === "wiki") {
     const f = sicher(() => ziehVorrat(), null);
     if (f) {
@@ -20609,12 +20736,37 @@ function wuerfleVierW(vorher, gesperrt, feste) {
       vorschlag = { where: i.seedWhere, when: i.seedWhen, who: i.seedWho, what: i.seedWhat };
       woher = `Ideen \xB7 ${profil.genre}/${profil.ton}`;
     } else vorschlag = sicher(() => worldFillContext(), {});
+  } else if (quelle2 === "omni") {
+    const profile = sicher(() => alleOmniProfile(), []);
+    const prof = profile.length ? zieh(profile) : null;
+    if (prof) {
+      const st = profileToStudio(prof);
+      vorschlag = { where: st.where, when: st.when, who: st.who, what: st.what };
+      omniRegler = {
+        form: st.form,
+        structure: st.structure,
+        perspective: st.perspective,
+        rhythm: st.rhythm,
+        varLevel: st.varLevel,
+        mode: st.mode,
+        tone: st.tone,
+        markovMode: st.markovMode,
+        archetypeA: st.archetypeA,
+        archetypeB: st.archetypeB
+      };
+      omniGewicht = [st.emphasis.wo, st.emphasis.wann, st.emphasis.wer, st.emphasis.was].join("/");
+      woher = `Wahrnehmung \xB7 ${prof.name}`;
+    } else vorschlag = sicher(() => worldFillContext(), {});
   } else {
     vorschlag = sicher(() => worldFillContext(), {});
   }
   const felder = {};
   for (const f of W4_FELDER) felder[f] = { id: W4_ID[f], wert: vorher[f] || "" };
-  return { w4: uebernehmeKontext(felder, vorschlag, (id) => gesperrt.has(id)), quelle: woher };
+  return {
+    w4: uebernehmeKontext(felder, vorschlag, (id) => gesperrt.has(id)),
+    quelle: woher,
+    ...omniRegler ? { regler: omniRegler, gewicht: omniGewicht } : {}
+  };
 }
 var sicher = (f, ersatz) => {
   try {
@@ -20658,6 +20810,27 @@ function wuerfleAlles(vorher, gesperrt, knobsVorher = loadKnobs(), vorherW4) {
   }
   const vw = wuerfleVierW(vorherW4 || { where: "", when: "", who: "", what: "" }, gesperrt);
   for (const f of W4_FELDER) nachId[W4_ID[f]] = vw.w4[f];
+  if (vw.regler) {
+    for (const r of REGLER) {
+      const v = vw.regler[r.schluessel];
+      if (v === void 0 || gesperrt.has(r.id)) continue;
+      if (!werte(r.liste).includes(v)) continue;
+      regler[r.schluessel] = v;
+      nachId[r.id] = v;
+    }
+    if (vw.gewicht) {
+      const g = vw.gewicht.split("/");
+      const ids = ["f-w-wo", "f-w-wann", "f-w-wer", "f-w-was"];
+      const alt = (regler["gewicht"] || "0/0/0/0").split("/");
+      ids.forEach((id, i) => {
+        if (!gesperrt.has(id) && g[i] !== void 0) {
+          nachId[id] = g[i];
+          alt[i] = g[i];
+        }
+      });
+      regler["gewicht"] = alt.join("/");
+    }
+  }
   return { regler, nachId, knobs, w4: vw.w4, quelle: vw.quelle };
 }
 
@@ -21339,6 +21512,8 @@ function mountStudio(root) {
     const quelle2 = ziehQuelle(offeneQuellen(vorratStand().funde, ladeBildvorrat().length, themenStand().funde));
     let vorschlag = {};
     let woher = QUELLE_LABEL[quelle2];
+    let omniStil = null;
+    let omniGew = "";
     if (quelle2 === "wiki") {
       const f = ziehVorrat();
       if (f) {
@@ -21357,6 +21532,16 @@ function mountStudio(root) {
         vorschlag = f.ctx;
         woher = `Thema \xB7 ${f.themaLabel}`;
       } else vorschlag = worldFillContext();
+    } else if (quelle2 === "omni") {
+      const ow = wuerfleVierW(
+        { where: where.value, when: when.value, who: who.value, what: what.value },
+        locked,
+        "omni"
+      );
+      vorschlag = ow.w4;
+      woher = ow.quelle;
+      omniStil = ow.regler || null;
+      omniGew = ow.gewicht || "";
     } else if (quelle2 === "ideen") {
       const iw = wuerfleVierW(
         { where: where.value, when: when.value, who: who.value, what: what.value },
@@ -21382,6 +21567,32 @@ function mountStudio(root) {
     updHints();
     ctxSichern();
     rollAlle();
+    if (omniStil) {
+      const setzeStil = (el2, v) => {
+        if (!v || locked.has(el2.id)) return;
+        if (!Array.from(el2.options).some((o) => o.value === v)) return;
+        el2.value = v;
+        studioReglerStand[el2.id] = v;
+      };
+      setzeStil(form, omniStil["form"]);
+      setzeStil(structure, omniStil["structure"]);
+      setzeStil(persp, omniStil["perspective"]);
+      setzeStil(rhythm, omniStil["rhythm"]);
+      setzeStil(varianz, omniStil["varLevel"]);
+      setzeStil(mode, omniStil["mode"]);
+      setzeStil(tone, omniStil["tone"]);
+      setzeStil(markov, omniStil["markovMode"]);
+      setzeStil(archA, omniStil["archetypeA"]);
+      setzeStil(archB, omniStil["archetypeB"]);
+      if (omniGew) {
+        const g = omniGew.split("/");
+        [wWo, wWann, wWer, wWas].forEach((sl, i) => {
+          if (locked.has(sl.id) || g[i] === void 0) return;
+          sl.value = g[i];
+          sl.dispatchEvent(new Event("input"));
+        });
+      }
+    }
     renderPresetChecks();
     generate();
   });
@@ -24861,6 +25072,35 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
   const richtungen = /* @__PURE__ */ new Set();
   for (let i = 0; i < 30; i++) richtungen.add(wuerfleVierW(vorher, /* @__PURE__ */ new Set(), "ideen").quelle);
   wahr(`das Profil wird mitgew\xFCrfelt (${richtungen.size} Richtungen in 30 Z\xFCgen)`, richtungen.size >= 8);
+}
+{
+  const vorher = { where: "im Archiv", when: "am Morgen", who: "die Archivarin", what: "sucht eine Akte" };
+  const wesen = /* @__PURE__ */ new Set();
+  let ohneStil = 0, leer = 0;
+  for (let i = 0; i < 30; i++) {
+    const w = wuerfleVierW(vorher, /* @__PURE__ */ new Set(), "omni");
+    wesen.add(w.quelle);
+    if (!w.regler) ohneStil++;
+    for (const f of ["where", "who", "what"]) if (!(w.w4[f] || "").trim()) leer++;
+  }
+  wahr(`die Quelle zieht verschiedene Wesen (${wesen.size} in 30 Z\xFCgen)`, wesen.size >= 4);
+  ist("und liefert immer die Stilregler mit", ohneStil, 0);
+  ist("Wo, Wer und Was sind gef\xFCllt", leer, 0);
+  const eins = wuerfleVierW(vorher, /* @__PURE__ */ new Set(), "omni");
+  wahr("die Quelle nennt das Wesen beim Namen", /^Wahrnehmung · \S/.test(eins.quelle));
+  wahr("der Modus passt zur Wahrnehmung", eins.regler?.["mode"] === "body");
+  wahr("und die Gewichtung kommt mit", /^\d\/\d\/\d\/\d$/.test(eins.gewicht || ""));
+  const zu = /* @__PURE__ */ new Set(["f-who"]);
+  let verschoben = 0;
+  for (let i = 0; i < 20; i++) {
+    const w = wuerfleVierW(vorher, zu, "omni");
+    if (w.w4.who !== vorher.who) verschoben++;
+  }
+  ist("ein gesperrtes W bleibt auch bei der Wahrnehmung stehen", verschoben, 0);
+  const a = baueAnlage(STAND(), UMGEBUNG({ omniProfile: 8 }));
+  ist("die Wahrnehmung steht im Plan", knoten(a, "omni")?.zustand, "an");
+  wahr("mit der Zahl der Wesen", /8 Wesen/.test(knoten(a, "omni")?.wert || ""));
+  wahr("und einer Leitung zu den vier W", a.kanten.some((k) => k.von === "omni" && k.nach === "w4"));
 }
 console.log(`Pr\xFCfstand Schaltplan \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

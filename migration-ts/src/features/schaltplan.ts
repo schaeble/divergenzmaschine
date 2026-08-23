@@ -96,6 +96,8 @@ export interface Umgebung {
   gesperrt: Set<string>;
   /** Name des eingestellten Ideen-Profils, leer wenn noch keines gesetzt ist. */
   ideenProfil: string;
+  /** Wie viele Wahrnehmungsprofile es gibt (eingebaute und eigene). */
+  omniProfile: number;
   /** Liegt ein Erzählbogen bereit? Gelesen wird DIESELBE Ablage, aus der der
    *  Bauweg liest (`dm_dramaturgie_v1`), nicht die Tabelle der eingebauten
    *  Presets. Bis 4.286 stand hier `builtinDrama(preset)` — das stimmt für die
@@ -151,6 +153,11 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   // sich, was „Ideen generieren" und „→ Studio" im Reiter selbst liefern.
   knoten("ideen", 0, "Ideen", u.ideenProfil ? u.ideenProfil + " · Würfel: zufällig" : "Profil wird gewürfelt", "an",
     "Beim Würfeln im Studio wird das Profil mitgewürfelt — das eingestellte gilt im Reiter Ideen selbst");
+  // Die Wahrnehmung (Reiter Welt) ist seit 4.299.0 eine eigene Quelle. Sie
+  // liefert vier W UND die dazu passenden Stilregler — Perspektive, Rhythmus,
+  // Modus, Ton. Die Wortbank nimmt sie bewusst nicht mit.
+  knoten("omni", 0, "Wahrnehmung", `${u.omniProfile} Wesen`, u.omniProfile ? "an" : "aus",
+    "Reiter Welt: Zieht ein Wesen und setzt Wo/Wann/Wer/Was samt Perspektive, Rhythmus, Modus und Ton");
 
   // ── Spalte 1: Eingang ────────────────────────────────────────────────────
   const w4 = stand.w4 || { where: "", when: "", who: "", what: "" };
@@ -289,7 +296,7 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   // Auskunft.
   for (const [a, b] of [
     ["korpus", "markov"], ["korpus", "k-korpus"],
-    ["sammler", "w4"], ["bilder", "w4"], ["themen", "w4"], ["welt", "w4"], ["ideen", "w4"],
+    ["sammler", "w4"], ["bilder", "w4"], ["themen", "w4"], ["welt", "w4"], ["ideen", "w4"], ["omni", "w4"],
     ["preset", "drama"],
   ] as [string, string][]) kante(a, b);
 
@@ -323,6 +330,7 @@ import { liveCount } from "./livepools";
 import { loadTreasury } from "./treasury";
 import { hasDramaData } from "../generation/dramaturgie";
 import { loadIdeaProfile } from "./ideaprofile";
+import { alleOmniProfile } from "./omnikognition";
 import { PRESET_LABELS } from "../presets.data";
 
 const LOCK_KEY = "divergenz_studio_locks_v1";
@@ -346,6 +354,7 @@ export function sammleUmgebung(preset: string): Umgebung {
     gesperrt: new Set<string>(zahl(() => JSON.parse(localStorage.getItem(LOCK_KEY) || "[]") as string[], [])),
     dramaVorhanden: zahl(() => hasDramaData(), false),
     ideenProfil: zahl(() => { const p = loadIdeaProfile(); return p ? (p.profil.name || p.profil.genre) : ""; }, ""),
+    omniProfile: zahl(() => alleOmniProfile().length, 0),
     presetLabel: ids.map((id) => PRESET_LABELS[id.replace(/^builtin:/, "")] || id).join(" + ") || "—",
   };
 }

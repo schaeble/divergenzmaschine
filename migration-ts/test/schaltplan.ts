@@ -554,6 +554,51 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   wahr(`das Profil wird mitgewürfelt (${richtungen.size} Richtungen in 30 Zügen)`, richtungen.size >= 8);
 }
 
+
+// ── 14 · Die Wahrnehmung als eigene Quelle ───────────────────────────────
+// Gewünscht: „Welt, Omnikognition — ändere die Würfelfunktion auf die
+// vorhandenen Presets inkl. eigenem. Dann als eigene Quelle."
+//
+// Beides gebaut. Der Würfel im Reiter Welt zieht jetzt ein VORHANDENES Profil
+// statt zwölf Angaben einzeln auszulosen — das ergab Wesen, die es nicht gibt.
+// Und die Wahrnehmung ist eine Quelle wie Welt und Ideen.
+//
+// Sie liefert mehr als vier Felder: Ein Wesen wahrzunehmen ist eine Haltung.
+// „Ein Hai, dritte Person, Fraktur" wäre kein Hai.
+{
+  const vorher = { where: "im Archiv", when: "am Morgen", who: "die Archivarin", what: "sucht eine Akte" };
+  const wesen = new Set<string>();
+  let ohneStil = 0, leer = 0;
+  for (let i = 0; i < 30; i++) {
+    const w = wuerfleVierW(vorher, new Set<string>(), "omni");
+    wesen.add(w.quelle);
+    if (!w.regler) ohneStil++;
+    for (const f of ["where", "who", "what"] as const) if (!(w.w4[f] || "").trim()) leer++;
+  }
+  wahr(`die Quelle zieht verschiedene Wesen (${wesen.size} in 30 Zügen)`, wesen.size >= 4);
+  ist("und liefert immer die Stilregler mit", ohneStil, 0);
+  ist("Wo, Wer und Was sind gefüllt", leer, 0);
+  const eins = wuerfleVierW(vorher, new Set<string>(), "omni");
+  wahr("die Quelle nennt das Wesen beim Namen", /^Wahrnehmung · \S/.test(eins.quelle));
+  wahr("der Modus passt zur Wahrnehmung", eins.regler?.["mode"] === "body");
+  wahr("und die Gewichtung kommt mit", /^\d\/\d\/\d\/\d$/.test(eins.gewicht || ""));
+
+  // Ein Schloss hält auch hier.
+  const zu = new Set(["f-who"]);
+  let verschoben = 0;
+  for (let i = 0; i < 20; i++) {
+    const w = wuerfleVierW(vorher, zu, "omni");
+    if (w.w4.who !== vorher.who) verschoben++;
+  }
+  ist("ein gesperrtes W bleibt auch bei der Wahrnehmung stehen", verschoben, 0);
+
+  // Und der Plan kennt die Quelle.
+  const a = baueAnlage(STAND(), UMGEBUNG({ omniProfile: 8 }));
+  ist("die Wahrnehmung steht im Plan", knoten(a, "omni")?.zustand, "an");
+  wahr("mit der Zahl der Wesen", /8 Wesen/.test(knoten(a, "omni")?.wert || ""));
+  wahr("und einer Leitung zu den vier W", a.kanten.some((k) => k.von === "omni" && k.nach === "w4"));
+}
+
 console.log(`Prüfstand Schaltplan — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

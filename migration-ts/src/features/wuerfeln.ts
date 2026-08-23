@@ -24,6 +24,7 @@ import { ziehBildvorrat, ladeBildvorrat } from "./bildsammler";
 import { ziehThema, themenStand } from "./themenpool";
 import { generateIdeaBatch } from "../generation/ideas";
 import { ideaProfileToConfig, loadIdeaProfile, wuerfleIdeaProfile } from "./ideaprofile";
+import { alleOmniProfile, profileToStudio } from "./omnikognition";
 
 /** Ein würfelbarer Regler: die Kennung des Auswahlfelds (dieselbe, die das
  *  Schloss trägt) und der Schlüssel, unter dem der Wert im Anlagenstand steht. */
@@ -85,13 +86,15 @@ export interface Wurf {
  *  standen im Schaltplan und blieben stehen. Sie brauchen keinen DOM — die
  *  Quellen sind Feature-Funktionen —, es hatte nur niemand verbunden. */
 export function wuerfleVierW(vorher: Record<W4, string>, gesperrt: Set<string>, feste?: Quelle):
-{ w4: Record<W4, string>; quelle: string } {
+{ w4: Record<W4, string>; quelle: string; regler?: Record<string, string>; gewicht?: string } {
   const quelle = feste || ziehQuelle(offeneQuellen(
     sicher(() => vorratStand().funde, 0),
     sicher(() => ladeBildvorrat().length, 0),
     sicher(() => themenStand().funde, 0)));
   let vorschlag: Partial<Record<W4, string>> = {};
   let woher: string = QUELLE_LABEL[quelle];
+  let omniRegler: Record<string, string> | null = null;
+  let omniGewicht = "";
   if (quelle === "wiki") {
     const f = sicher(() => ziehVorrat(), null);
     if (f) { vorschlag = f.ctx; woher = `Wiki · ${f.titel}`; } else vorschlag = sicher(() => worldFillContext() as Partial<Record<W4, string>>, {} as Partial<Record<W4, string>>);
@@ -123,12 +126,36 @@ export function wuerfleVierW(vorher: Record<W4, string>, gesperrt: Set<string>, 
       vorschlag = { where: i.seedWhere, when: i.seedWhen, who: i.seedWho, what: i.seedWhat };
       woher = `Ideen · ${profil.genre}/${profil.ton}`;
     } else vorschlag = sicher(() => worldFillContext() as Partial<Record<W4, string>>, {} as Partial<Record<W4, string>>);
+  } else if (quelle === "omni") {
+    // Die Omnikognition liefert mehr als vier Felder: Sie beschreibt eine
+    // WAHRNEHMUNG, und dazu gehören Perspektive, Rhythmus, Modus und Ton. Ein
+    // halb übernommenes Wesen wäre ein Widerspruch — „ein Hai, dritte Person,
+    // Fraktur" ist kein Hai.
+    //
+    // Die Wortbank wird bewusst NICHT mitgenommen. Der Würfel würfelt sie
+    // ohnehin selbst; zwei Würfel auf einem Feld ergeben keinen Sinn, und ein
+    // stillschweigend ausgetauschtes Preset wäre eine böse Überraschung. Wer die
+    // volle Übernahme will, drückt im Reiter Welt „Ins Studio übertragen".
+    const profile = sicher(() => alleOmniProfile(), []);
+    const prof = profile.length ? zieh(profile) : null;
+    if (prof) {
+      const st = profileToStudio(prof);
+      vorschlag = { where: st.where, when: st.when, who: st.who, what: st.what };
+      omniRegler = {
+        form: st.form, structure: st.structure, perspective: st.perspective, rhythm: st.rhythm,
+        varLevel: st.varLevel, mode: st.mode, tone: st.tone, markovMode: st.markovMode,
+        archetypeA: st.archetypeA, archetypeB: st.archetypeB,
+      };
+      omniGewicht = [st.emphasis.wo, st.emphasis.wann, st.emphasis.wer, st.emphasis.was].join("/");
+      woher = `Wahrnehmung · ${prof.name}`;
+    } else vorschlag = sicher(() => worldFillContext() as Partial<Record<W4, string>>, {} as Partial<Record<W4, string>>);
   } else {
     vorschlag = sicher(() => worldFillContext() as Partial<Record<W4, string>>, {} as Partial<Record<W4, string>>);
   }
   const felder = {} as Record<W4, Feld>;
   for (const f of W4_FELDER) felder[f] = { id: W4_ID[f], wert: vorher[f] || "" };
-  return { w4: uebernehmeKontext(felder, vorschlag, (id) => gesperrt.has(id)), quelle: woher };
+  return { w4: uebernehmeKontext(felder, vorschlag, (id) => gesperrt.has(id)), quelle: woher,
+    ...(omniRegler ? { regler: omniRegler, gewicht: omniGewicht } : {}) };
 }
 
 const sicher = <T,>(f: () => T, ersatz: T): T => { try { return f(); } catch { return ersatz; } };
@@ -182,5 +209,23 @@ export function wuerfleAlles(vorher: Record<string, string>, gesperrt: Set<strin
   void KNOB_VORGABE;
   const vw = wuerfleVierW(vorherW4 || { where: "", when: "", who: "", what: "" }, gesperrt);
   for (const f of W4_FELDER) nachId[W4_ID[f]] = vw.w4[f];
+  // Zieht der Würfel die Wahrnehmung, gibt sie die Stilregler vor — sie kommen
+  // NACH dem allgemeinen Wurf, sonst würde er sie gleich wieder überschreiben.
+  // Gesperrtes bleibt auch hier stehen.
+  if (vw.regler) {
+    for (const r of REGLER) {
+      const v = vw.regler[r.schluessel];
+      if (v === undefined || gesperrt.has(r.id)) continue;
+      if (!werte(r.liste).includes(v)) continue;
+      regler[r.schluessel] = v; nachId[r.id] = v;
+    }
+    if (vw.gewicht) {
+      const g = vw.gewicht.split("/");
+      const ids = ["f-w-wo", "f-w-wann", "f-w-wer", "f-w-was"];
+      const alt = (regler["gewicht"] || "0/0/0/0").split("/");
+      ids.forEach((id, i) => { if (!gesperrt.has(id) && g[i] !== undefined) { nachId[id] = g[i]!; alt[i] = g[i]!; } });
+      regler["gewicht"] = alt.join("/");
+    }
+  }
   return { regler, nachId, knobs, w4: vw.w4, quelle: vw.quelle };
 }
