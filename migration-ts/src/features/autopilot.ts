@@ -690,3 +690,52 @@ export function kuerzeBericht(text: string, ziel: number): string {
   }
   return [...kopf, ...behalten, ...kasten].join("\n\n");
 }
+
+// ── Wie viele Presets in eine Bank ──────────────────────────────────────────
+// Der Autopilot zog je Beitrag GENAU EIN Preset. Das gibt Abwechslung zwischen
+// den Artikeln, aber nie die Kollision INNERHALB eines Textes.
+//
+// Anlass ist ein Text, der von Hand mit drei gemischten Presets entstand
+// (Bergwelt + Formalismus + Griechische Tragödie) und der beste war, den diese
+// Maschine bisher hervorgebracht hat. Sätze wie „Die Unterlagen liegen
+// vollständig vor — nur der Einsatz ist ein Kind, das nicht sterben durfte"
+// entstehen nur, wenn zwei Register im selben Satz aufeinandertreffen.
+//
+// Die Hilfe sagt dazu, nachgemessen: Ein Preset aus einer Hand schlägt eine
+// Mischung aus dreien, 95 gegen 84 Prozent. Gemessen wurde aber LÄNGENTREUE —
+// der Generator verwirft bei gemischtem Material mehr Anschlüsse, weil Kasus
+// und Tempus öfter nicht passen, und wird deshalb kürzer. Ob etwas dabei
+// herauskommt, das man behalten will, misst diese Zahl nicht. Die 84 Prozent
+// sind der Preis für die Reibung.
+//
+// Deshalb GEMISCHT, aber nicht durchgehend: Wer alles mischt, hat wieder nur
+// eine Sorte Text. Ein Teil der Beiträge bleibt einstimmig, damit auf der Seite
+// beides steht.
+
+/** Wie viele Presets ein Beitrag bekommt.
+ *
+ *  Zwei Drittel gemischt, ein Drittel aus einer Hand. Drei ist die Obergrenze:
+ *  Bei vieren wird die Bank so groß, dass kein Register mehr durchkommt — die
+ *  Mischung hebt sich selbst auf. */
+export function presetZahl(rnd: () => number = Math.random): number {
+  const w = rnd();
+  if (w < 0.34) return 1;
+  if (w < 0.72) return 2;
+  return 3;
+}
+
+/** Die Mischung braucht ENTFERNTE Register, nicht irgendwelche drei.
+ *
+ *  Bergwelt und Formalismus stoßen aufeinander, zwei Naturpresets nicht. Ohne
+ *  ein Maß dafür bleibt nur die Streuung über den Beutel: Die Presets kommen
+ *  aus einem Beutel ohne Zurücklegen, also sind aufeinanderfolgende Ziehungen
+ *  garantiert verschieden — und über einundfünfzig Presets hinweg ist die
+ *  Wahrscheinlichkeit gering, dass drei gezogene aus derselben Ecke stammen.
+ *
+ *  Das ist eine Annahme und keine Messung. Sie steht hier, damit sie widerlegt
+ *  werden kann. */
+export function mischName(labels: string[]): string {
+  if (!labels.length) return "eigene Bank";
+  if (labels.length === 1) return labels[0]!;
+  return labels.join(" + ");
+}

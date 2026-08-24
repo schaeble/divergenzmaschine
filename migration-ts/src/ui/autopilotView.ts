@@ -16,7 +16,7 @@
 import { el, button, field, textInput } from "./dom";
 import { icon } from "./icons";
 import { loadBank } from "../storage";
-import { getAllPresets } from "../wordbank";
+import { getAllPresets, buildMergedBank } from "../wordbank";
 import { generateIdeaBatch } from "../generation/ideas";
 import { buildStory } from "../generation/buildStory";
 import { buildModelFromCorpus, loadPersistentCorpus } from "../corpus";
@@ -42,6 +42,7 @@ import {
   letzteWas,
   maxBeitraege, BEITRAEGE_MIN, BEITRAEGE_MAX, BEITRAEGE_VORGABE, type Quelle,
   platzBudget, verteileLaengen, kuerzeBericht, ladeFaktor, WOERTER_JE_SEITE,
+  presetZahl, mischName,
 } from "../features/autopilot";
 
 const WAHL_KEY = "divergenz_autopilot_v1";
@@ -319,11 +320,19 @@ export function mountAutopilot(root: HTMLElement): void {
           frisch.push(ktxSchluessel(ctx));
           // Gezählt wird, was WIRKLICH geliefert hat — nicht, was bestellt war.
           quellenZaehler.set(erg.quelle, (quellenZaehler.get(erg.quelle) || 0) + 1);
-          // Je Beitrag ein anderes Preset — oder die eigene Bank, damit die
-          // aktuelle Einstellung nicht voellig verschwindet.
-          const p = ziehePreset();
-          let bank = p ? p.bank : grundBank;
-          let bankName = p ? p.label : "eigene Bank";
+          // Ein bis DREI Presets, gemischt. Vorher war es immer genau eines —
+          // das gibt Abwechslung zwischen den Artikeln, aber nie die Kollision
+          // INNERHALB eines Textes. Saetze, in denen zwei Register
+          // aufeinandertreffen, entstehen nur aus einer gemischten Bank.
+          //
+          // Ein Drittel bleibt einstimmig: Wer alles mischt, hat wieder nur
+          // eine Sorte Text.
+          const zahl = presetZahl();
+          const gezogen = Array.from({ length: zahl }, () => ziehePreset()).filter(Boolean) as typeof presets;
+          let bank = gezogen.length
+            ? (gezogen.length === 1 ? gezogen[0]!.bank : buildMergedBank(gezogen.map((x) => x.id)))
+            : grundBank;
+          let bankName = mischName(gezogen.map((x) => x.label));
           let eingabe = baueEingabe(a, ctx);
           if (erg.profil) {
             // Die Wahrnehmung bringt ihre eigene Welt mit: eine Wortbank aus

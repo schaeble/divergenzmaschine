@@ -9,6 +9,7 @@ import {
   SEITEN_FORMEN, BEITRAEGE_MIN, BEITRAEGE_MAX, BEITRAEGE_VORGABE,
   maxBeitraege, BEITRAEGE_JE_SEITE,
   platzBudget, verteileLaengen, kuerzeBericht, neuerFaktor, LAENGEN_GRENZEN,
+  presetZahl, mischName,
   WOERTER_JE_SEITE, KALIB_KEY,
   ktxSchluessel, merkeGedaechtnis, GEDAECHTNIS_TIEFE, KTX_KEY,
   wasAusSchluessel, letzteWas, WAS_TIEFE,
@@ -345,7 +346,12 @@ ist("ein leeres Gedächtnis meidet nichts", letzteWas([]).size, 0);
 // handelt — sie liefert Substantive, Verben und Bilder. Acht Texte aus
 // derselben Bank handeln von denselben Dingen, egal wie die Regler stehen.
 // Deshalb ist das der grössere Hebel als alle Regler zusammen.
-wahr("die Ansicht zieht ein Preset je Beitrag", /const p = ziehePreset\(\);/.test(ansicht));
+// Bis 4.310 stand hier „genau EIN Preset je Beitrag". Das war der Fortschritt
+// gegenueber „eine Bank fuer alle" — und die naechste Enge: Abwechslung
+// zwischen den Artikeln, aber nie eine Kollision im selben Satz.
+wahr("die Ansicht zieht ein bis drei Presets je Beitrag", /const zahl = presetZahl\(\);/.test(ansicht));
+wahr("und mischt sie zu einer Bank", /buildMergedBank\(gezogen\.map/.test(ansicht));
+wahr("bei einem Preset wird nicht gemischt", /gezogen\.length === 1 \? gezogen\[0\]!\.bank/.test(ansicht));
 // Und zwar OHNE Zurücklegen. Mit Zurücklegen kam bei acht Beiträgen im Mittel
 // nur auf 85 % der Plätze eine noch nicht benutzte Bank — bei einundfünfzig
 // vorhandenen ist das eine Wiederholung ohne Grund.
@@ -473,6 +479,37 @@ wahr("es wird wirklich kuerzer", gekuerzterBericht.length < bericht.length);
 // Gegenprobe: Ein grosszuegiges Ziel darf NICHTS wegnehmen.
 ist("bei genug Platz bleibt alles stehen", kuerzeBericht(bericht, 9999), bericht);
 ist("ein zu kurzer Text wird nicht angefasst", kuerzeBericht("A\n\nB", 5), "A\n\nB");
+
+// ── 6d · Mehrere Presets in eine Bank ───────────────────────────────────────
+// Der Autopilot zog je Beitrag GENAU EIN Preset. Das gibt Abwechslung zwischen
+// den Artikeln, aber nie die Kollision INNERHALB eines Textes. Anlass ist ein
+// von Hand mit drei gemischten Presets erzeugter Text (Bergwelt + Formalismus
+// + Griechische Tragoedie), der beste bisher — Saetze, in denen zwei Register
+// aufeinandertreffen, entstehen nur aus einer gemischten Bank.
+{
+  const zahlen = Array.from({ length: 2000 }, () => presetZahl());
+  wahr("es gibt einstimmige Beitraege", zahlen.includes(1));
+  wahr("es gibt zweistimmige", zahlen.includes(2));
+  wahr("es gibt dreistimmige", zahlen.includes(3));
+  ist("und nie mehr als drei", zahlen.filter((x) => x > 3).length, 0);
+  ist("und nie weniger als eins", zahlen.filter((x) => x < 1).length, 0);
+  // Ein Drittel bleibt einstimmig: Wer alles mischt, hat wieder nur eine Sorte
+  // Text. Die Gegenprobe zur Mischung ist also, dass sie NICHT immer greift.
+  const einzeln = zahlen.filter((x) => x === 1).length / zahlen.length;
+  wahr(`rund ein Drittel bleibt einstimmig (${Math.round(einzeln * 100)} %)`, einzeln > 0.25 && einzeln < 0.45);
+  const gemischt = zahlen.filter((x) => x > 1).length / zahlen.length;
+  wahr(`und die Mehrheit ist gemischt (${Math.round(gemischt * 100)} %)`, gemischt > 0.5);
+  // Ohne Zufall pruefbar: Die Schwellen muessen in der richtigen Reihenfolge
+  // liegen, sonst kaeme bei kleinem Wurf die groesste Mischung heraus.
+  ist("ein kleiner Wurf ergibt eine Stimme", presetZahl(() => 0.1), 1);
+  ist("ein mittlerer zwei", presetZahl(() => 0.5), 2);
+  ist("ein grosser drei", presetZahl(() => 0.9), 3);
+}
+// Der Name nennt alle beteiligten Baenke — sonst steht im Protokoll eine Bank,
+// aus der der Text gar nicht allein stammt.
+ist("eine Bank steht allein da", mischName(["Bergwelt"]), "Bergwelt");
+ist("drei werden genannt", mischName(["Bergwelt", "Formalismus", "Tragödie"]), "Bergwelt + Formalismus + Tragödie");
+ist("ohne Bank ein Ersatz", mischName([]), "eigene Bank");
 
 // ── 7b · Der leere Warnkasten ───────────────────────────────────────────────
 // Gemeldet mit Bildschirmfoto: ein roter Balken ohne Text ueber den Knoepfen.
