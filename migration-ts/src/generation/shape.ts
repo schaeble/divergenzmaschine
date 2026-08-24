@@ -233,7 +233,13 @@ export function applyPerspective(paras: string[], perspective: string, who: stri
         // IMMER gross, ein Pronomen nur am Satzanfang. So entstand "bemerke Ich
         // einen Stempel" und "Was Ich will". Massgeblich ist die Stelle im Text.
         const davor = voll.slice(0, posP).replace(/\s+$/, "");
-        const gross = davor === "" || /[.!?…:;—–„"»(]$/.test(davor);
+        // Nach einem SEMIKOLON und nach einem GEDANKENSTRICH geht der Satz
+        // weiter — beide standen hier trotzdem in der Liste der Satzanfänge.
+        // Ergebnis in einer gedruckten Ausgabe: „Das System lernt zu schnell;
+        // Wir sind Mitglied des Kronrates" und „… Königreichs; Dann bricht die
+        // Ordnung". Der Doppelpunkt bleibt: Nach ihm kann im Deutschen ein
+        // ganzer Satz folgen, und der wird großgeschrieben.
+        const gross = davor === "" || /[.!?…:„"»(]$/.test(davor);
         const pron = gross ? pronoun.charAt(0).toUpperCase() + pronoun.slice(1) : pronoun;
         const bw = before ? before.trim() : "";
         const aw = after ? after.trim() : "";

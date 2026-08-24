@@ -202,6 +202,27 @@ for (const p of ["third", "first", "second", "we", "split"]) {
   ist("jedes Preset-Nomen hat ein Geschlecht", [...ohne].sort().join(", "), "");
 }
 
+// ── Satzanfang nach Semikolon ───────────────────────────────────────────────
+// Aus einem erzeugten Text: „Das System lernt zu schnell; Wir sind Mitglied
+// des Kronrates" und „… Königreichs; Dann bricht die Ordnung". Das Semikolon
+// stand in der Liste der Satzanfänge — nach ihm geht der Satz aber weiter, und
+// das Pronomen bleibt klein.
+{
+  const f = (t: string, p = "we"): string => applyPerspective([t], p, "Der Wanderer", "Stab")[0]!;
+  wahr("nach dem Semikolon bleibt das Pronomen klein",
+    /; wir /.test(f("Das System lernt zu schnell; Der Wanderer nimmt einen Stab.")));
+  wahr("auch in der Ich-Form",
+    /; ich /.test(f("Das System lernt zu schnell; Der Wanderer nimmt einen Stab.", "first")));
+  // Gegenproben: Am Satzanfang und nach einem Punkt MUSS gross geschrieben
+  // werden — sonst prüfte die Regel oben nur, dass nie gross geschrieben wird.
+  wahr("am Absatzanfang gross", /^Wir /.test(f("Der Wanderer nimmt einen Stab.")));
+  wahr("nach einem Punkt gross", /\. Wir /.test(f("Es regnet. Der Wanderer nimmt einen Stab.")));
+  // Der Doppelpunkt bleibt ein Satzanfang: Nach ihm kann im Deutschen ein
+  // ganzer Satz folgen, und der wird gross geschrieben.
+  wahr("nach dem Doppelpunkt weiter gross",
+    /: Wir /.test(f("Es geht weiter: Der Wanderer nimmt einen Stab.")));
+}
+
 console.log(`Prüfstand Perspektive — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {
