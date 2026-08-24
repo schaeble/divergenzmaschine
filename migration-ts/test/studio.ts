@@ -94,6 +94,13 @@ const welt = { where: "am Deich", when: "im Winter", who: "Ines", what: "sucht d
 // Gemeldet: „Wer aus den 4W wird nicht gewürfelt." Gemessen: Eine frische Welt
 // hatte genau EINE Figur und EINEN Ort — da gab es nichts zu würfeln.
 {
+  // Die Voraussetzung wird HERGESTELLT, nicht angenommen. Der Prüfstand
+  // behauptet „eine frische Welt" — er lief aber gegen die Welt, die zufällig
+  // gerade in der Ablage stand. Hat ein anderer Teil des Laufs vorher Figuren
+  // gelernt, misst er etwas anderes als seinen eigenen Satz und fällt
+  // sporadisch: einmal „3 in 30 Zügen", während er allein 5 bis 6 liefert
+  // (3000 Versuche: 97,8 % sechs, 2,2 % fünf, nie weniger).
+  try { localStorage.removeItem("divergenz_world_v1"); } catch { /* egal */ }
   const wer = new Set<string>(), wo = new Set<string>();
   for (let i = 0; i < 30; i++) { const c = worldFillContext(); wer.add(c.who); wo.add(c.where); }
   wahr("eine frische Welt liefert verschiedene Figuren", wer.size >= 4, `${wer.size} in 30 Zügen`);

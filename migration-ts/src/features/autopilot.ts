@@ -12,7 +12,7 @@
 import type { FormKind, GenInput } from "../types";
 import {
   TONE_OPTS, STRUCTURE_OPTS, MODE_OPTS, PERSP_OPTS, RHYTHM_OPTS,
-  VARIANZ_OPTS, DISRUPTOR_OPTS, ARCH_OPTS, werte,
+  VARIANZ_OPTS, DISRUPTOR_OPTS, ARCH_OPTS, FORM_OPTS, werte,
 } from "../generation/optionen";
 
 /** Was ein einzelner Beitrag werden soll. */
@@ -32,12 +32,103 @@ export interface Auftrag {
  *  „idee" ist der Ideengenerator: Er liefert eine Prämisse samt Figur, Ort,
  *  Zeit und Vorgang — anders als Würfel und Vorrat erfindet er einen
  *  ZUSAMMENHANG, statt vier Felder nebeneinanderzustellen. */
-export type Quelle = "vorrat" | "bild" | "wuerfel" | "idee" | "wahrnehmung";
+export type Quelle = "vorrat" | "bild" | "wuerfel" | "idee" | "wahrnehmung" | "thema";
 
-/** Die Formen, die auf einer Zeitungsseite Sinn ergeben. „video" und „shots"
- *  fehlen mit Absicht: Sie erzeugen Drehbuchlisten, die im Satzspiegel wie ein
- *  Fehler aussehen. */
-export const SEITEN_FORMEN: FormKind[] = ["bericht", "meldung", "prose", "poem"] as FormKind[];
+/** Der Formbeutel — und zwar ein echter.
+ *
+ *  Vorher stand hier eine handgeschriebene Liste mit neun Plätzen, in der aber
+ *  nur FÜNF Formen vorkamen: Reim, Gedicht-Strang, Szene/Dialog und Multi-Shot
+ *  konnte der Autopilot überhaupt nicht erzeugen. Vier von neun Formen der
+ *  Maschine waren für ihn nicht vorhanden — dieselbe Fehlerart wie überall
+ *  sonst: eine Liste, die von Hand geführt wird und stillschweigend veraltet.
+ *  Die Formen kommen jetzt aus `SEITEN_FORMEN`, das aus `FORM_OPTS` abgeleitet
+ *  ist — aus derselben Liste, aus der auch das Studio seinen Regler baut.
+ *
+ *  Und es wird OHNE Zurücklegen gezogen. „Beutel" stand schon vorher im
+ *  Kommentar, gezogen wurde aber mit Zurücklegen; bei acht Beiträgen kamen so
+ *  regelmäßig drei Prosastücke. Acht Züge, acht verschiedene Formen — mehr
+ *  Streuung ist rechnerisch nicht möglich. */
+export interface FormBeutel {
+  /** Die nächste Form aus dem Beutel. */
+  zieh: () => FormKind;
+  /** Eine Form aus einer erlaubten Auswahl — für Plätze, die die Seite
+   *  vorgibt: Der Aufmacher braucht Fließtext, der Kasten eine Kurzform.
+   *  Auch sie wird dem Beutel ENTNOMMEN, sonst käme sie im selben Umlauf ein
+   *  zweites Mal. Genau daran hingen die letzten Prozente. */
+  nimm: (erlaubt: FormKind[]) => FormKind;
+}
+export function formBeutel(rnd: () => number = Math.random): FormBeutel {
+  const alle = SEITEN_FORMEN;
+  let rest: FormKind[] = [];
+  const fuellen = (): void => {
+    rest = alle.slice();
+    for (let i = rest.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [rest[i], rest[j]] = [rest[j]!, rest[i]!];
+    }
+  };
+  const zieh = (): FormKind => {
+    if (!rest.length) fuellen();
+    return rest.pop()!;
+  };
+  const nimm = (erlaubt: FormKind[]): FormKind => {
+    if (!erlaubt.length) return zieh();
+    if (!rest.length) fuellen();
+    const i = rest.findIndex((f) => erlaubt.includes(f));
+    // Ist keine der erlaubten mehr im Beutel, wird aus der Auswahl gelost —
+    // eine leere Rückgabe wäre hier schlimmer als eine Wiederholung.
+    if (i < 0) return erlaubt[Math.floor(rnd() * erlaubt.length)]!;
+    return rest.splice(i, 1)[0]!;
+  };
+  return { zieh, nimm };
+}
+
+/** Wie lang ein Beitrag dieser Form werden soll.
+ *
+ *  Gemessen, je 12 Läufe gegen die tatsächliche Ausgabe (Stand 4.303.0):
+ *
+ *    Ziel        60    150    300
+ *    prose       71    163    315     folgt
+ *    reim        63    160    319     folgt
+ *    haiku       57    147    289     folgt
+ *    bericht    151    169    292     ab ~150
+ *    video      126    175    250     folgt grob
+ *    script      94    175    221     folgt grob
+ *    poem        74     77    150     Boden bei ~74
+ *    strang      62     88     87     Decke bei ~88
+ *    meldung     31     31     31     folgt NICHT
+ *
+ *  Deshalb bekommen die kurzen Formen keine großen Ziele: Ein Gedicht-Strang
+ *  mit Ziel 300 wird trotzdem 88 Wörter lang, und der Umbruch rechnet dann mit
+ *  einer Fläche, die nie gefüllt wird. */
+export function formLaenge(form: FormKind, rnd: () => number = Math.random): number {
+  if (form === "haiku") return 16;
+  if (form === "poem" || form === "strang" || form === "reim") return 40 + Math.floor(rnd() * 40);
+  if (form === "meldung") return 80 + Math.floor(rnd() * 50);
+  return 130 + Math.floor(rnd() * 110);
+}
+
+/** Die Formen, die auf einer Zeitungsseite Sinn ergeben.
+ *
+ *  Abgeleitet aus `FORM_OPTS` — also aus derselben Liste, aus der das Studio
+ *  seinen Regler baut — MINUS der ausdrücklich ausgeschlossenen. Vorher stand
+ *  hier eine Aufzählung mit vier Einträgen, in der sogar das Haiku fehlte,
+ *  obwohl der Kasten es seit 4.251 erzeugt; der Prüfstand ging nur deshalb
+ *  durch, weil sein fester Würfel nie ein Haiku ergab.
+ *
+ *  „video" bleibt draußen, und zwar aus einem gemessenen Grund. Die Form
+ *  liefert kein Fließtextstück, sondern ein Produktionspapier:
+ *
+ *    SEQUENZ — Bürokratischer Horror
+ *    WER: die Archivarin
+ *    GESAMTLÄNGE: 15s • 3s pro Shot
+ *
+ *  Das ist im Satzspiegel keine Divergenz, sondern ein Fehler. Szene/Dialog,
+ *  Reim und Gedicht-Strang dagegen lesen sich als Feuilleton und waren nur
+ *  deshalb nie zu sehen, weil sie in keiner der beiden Listen standen. */
+const NICHT_AUF_DIE_SEITE: FormKind[] = ["video"] as FormKind[];
+export const SEITEN_FORMEN: FormKind[] =
+  (werte(FORM_OPTS) as FormKind[]).filter((f) => !NICHT_AUF_DIE_SEITE.includes(f));
 
 /** Wie viele Beiträge eine Seite verträgt. Weniger als drei füllt sie nicht,
  *  mehr als sieben fällt beim Umbruch ohnehin hinten herunter — der Setzer
@@ -80,7 +171,7 @@ const zieh = <T,>(liste: T[], rnd: () => number): T =>
  *  sind — ist keine da, bleibt der Würfel, und der funktioniert immer. */
 export function baueBesetzung(
   anzahl: number, hatVorrat: boolean, hatBild: boolean, rnd: () => number = Math.random,
-  max = BEITRAEGE_JE_SEITE,
+  max = BEITRAEGE_JE_SEITE, hatThema = false,
 ): Auftrag[] {
   const obergrenze = Math.max(BEITRAEGE_MIN, Math.min(BEITRAEGE_MAX, Math.round(max) || BEITRAEGE_JE_SEITE));
   const n = Math.max(BEITRAEGE_MIN, Math.min(obergrenze, Math.round(anzahl) || BEITRAEGE_VORGABE));
@@ -95,6 +186,11 @@ export function baueBesetzung(
   // sie liefert nicht nur vier W, sondern eine eigene WORTBANK aus
   // Sinneskanälen — und war im Autopiloten überhaupt nicht angeschlossen.
   quellen.push("wahrnehmung");
+  // Der Themenpool war die einzige Quelle des Studios, die es nie in den
+  // Autopiloten geschafft hat — fünf Quellen hier gegen sechs dort. Er braucht
+  // Funde, sonst spränge nur die Welt ein und die Herkunftsangabe wäre eine
+  // Behauptung.
+  if (hatThema) quellen.push("thema");
   // REIHUM statt zufällig. Beim Ziehen kam es regelmäßig vor, dass alle
   // Beiträge einer Ausgabe aus derselben Quelle stammten — und wenn der
   // Bildvorrat gerade aus dreissig Tempelfotos besteht, handelt die ganze
@@ -110,7 +206,8 @@ export function baueBesetzung(
   // mit; das macht ihn bequem, aber nicht zum einzig Möglichen. Eine
   // Prosa-Titelgeschichte ist der Grund, warum das hier eine Divergenzmaschine
   // ist und keine Nachrichtenagentur.
-  const aufmacherForm = (rnd() < 0.5 ? "bericht" : "prose") as FormKind;
+  const beutel = formBeutel(rnd);
+  const aufmacherForm = beutel.nimm(["bericht", "prose"] as FormKind[]);
   auftraege.push({
     form: aufmacherForm, woerter: 260 + Math.floor(rnd() * 120),
     quelle: naechsteQuelle(), was: "Aufmacher",
@@ -121,7 +218,7 @@ export function baueBesetzung(
   // nicht vor — obwohl es die einzige Form mit VORHERSAGBARER Hoehe ist: drei
   // Zeilen, siebzehn Silben, der Platzbedarf steht fest, bevor ein Wort
   // erzeugt ist. Genau das braucht ein Kasten.
-  const kastenForm = (rnd() < 0.4 ? "haiku" : "meldung") as FormKind;
+  const kastenForm = beutel.nimm(["haiku", "meldung"] as FormKind[]);
   auftraege.push({
     form: kastenForm,
     woerter: kastenForm === "haiku" ? 16 : 70 + Math.floor(rnd() * 40),
@@ -131,13 +228,9 @@ export function baueBesetzung(
   // prose, poem", immer in dieser Reihenfolge) — jede Ausgabe hatte damit
   // dieselbe Gestalt. Jetzt gezogen, aber aus einem Beutel, der die Mischung
   // sichert: Ohne ihn kämen regelmäßig fünf Berichte hintereinander.
-  const beutel: FormKind[] = ["bericht", "prose", "prose", "meldung", "poem", "haiku", "bericht", "prose", "meldung"] as FormKind[];
   for (let i = 2; i < n; i++) {
-    const form = zieh(beutel, rnd);
-    const woerter = form === "poem" ? 40 + Math.floor(rnd() * 30)
-      : form === "meldung" ? 80 + Math.floor(rnd() * 50)
-        : 130 + Math.floor(rnd() * 110);
-    auftraege.push({ form, woerter, quelle: naechsteQuelle(), was: `Beitrag ${i + 1}` });
+    const form = beutel.zieh();
+    auftraege.push({ form, woerter: formLaenge(form, rnd), quelle: naechsteQuelle(), was: `Beitrag ${i + 1}` });
   }
   return auftraege;
 }

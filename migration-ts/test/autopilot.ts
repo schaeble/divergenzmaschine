@@ -14,6 +14,7 @@ import {
   wasAusSchluessel, letzteWas, WAS_TIEFE,
 } from "../src/features/autopilot";
 import type { FormKind } from "../src/types";
+import { werte, FORM_OPTS } from "../src/generation/optionen";
 import {
   TONE_OPTS, STRUCTURE_OPTS, MODE_OPTS, PERSP_OPTS, RHYTHM_OPTS,
   VARIANZ_OPTS, DISRUPTOR_OPTS, ARCH_OPTS, gueltig,
@@ -344,8 +345,11 @@ ist("ein leeres Gedächtnis meidet nichts", letzteWas([]).size, 0);
 // handelt — sie liefert Substantive, Verben und Bilder. Acht Texte aus
 // derselben Bank handeln von denselben Dingen, egal wie die Regler stehen.
 // Deshalb ist das der grössere Hebel als alle Regler zusammen.
-wahr("die Ansicht zieht ein Preset je Beitrag",
-  /presets\[Math\.floor\(Math\.random\(\) \* presets\.length\)\]/.test(ansicht));
+wahr("die Ansicht zieht ein Preset je Beitrag", /const p = ziehePreset\(\);/.test(ansicht));
+// Und zwar OHNE Zurücklegen. Mit Zurücklegen kam bei acht Beiträgen im Mittel
+// nur auf 85 % der Plätze eine noch nicht benutzte Bank — bei einundfünfzig
+// vorhandenen ist das eine Wiederholung ohne Grund.
+wahr("und zwar ohne Zurücklegen", /presetBeutel\.pop\(\)/.test(ansicht));
 ist("und nicht mehr eine Bank für alle",
   /const bank = loadBank\(\);/.test(ansicht), false);
 wahr("die eigene Bank bleibt als Rückfall", /grundBank/.test(ansicht));
@@ -495,6 +499,68 @@ wahr("und enden mit Auslassung", titelAus({ who: "wort ".repeat(30), what: "x" }
 console.log(`Prüfstand Autopilot — ${geprueft} Prüfungen (ohne API-Aufruf):`);
 zeilen.forEach((z) => console.log(z));
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
+
+// ── 9 · Die Streuung ist rechnerisch ausgereizt ─────────────────────────────
+// Gewünscht: „Hier kommt es mir nur auf die Varianz an. Diese soll maximal
+// sein."
+//
+// Gemessen wurde vorher, nicht danach. 25 Läufe zu je acht Beiträgen, durch
+// den Varianzbericht:
+//
+//   Varianzwert 93,4 % · Formen 49,5 % · Wortbänke 83,5 % · Quellen 37,5 %
+//
+// Zwei Ursachen, beide dieselbe Bauart: eine handgeführte Liste.
+//
+//   Formen   Der „Beutel" hatte neun Plätze, aber nur FÜNF Formen. Reim,
+//            Gedicht-Strang, Szene/Dialog und Multi-Shot konnte der Autopilot
+//            gar nicht erzeugen. Und gezogen wurde MIT Zurücklegen — ein
+//            Beutel, der keiner war.
+//   Quellen  Der Themenpool war nie angeschlossen: fünf Quellen hier gegen
+//            sechs im Studio.
+//
+// Die Obergrenze ist der Anteil verschiedener Werte, also min(Auswahl, n)/n.
+// Genau daran wird gemessen — nicht an einer Wunschzahl.
+{
+  const anteil = (l: string[]): number => new Set(l).size / l.length;
+  const mittel = (l: number[]): number => l.reduce((a, b) => a + b, 0) / l.length;
+  const lauf = (n: number, v: boolean, b: boolean, t: boolean): { f: number; q: number } => {
+    const fs: number[] = [], qs: number[] = [];
+    for (let i = 0; i < 200; i++) {
+      const a = baueBesetzung(n, v, b, Math.random, 30, t);
+      fs.push(anteil(a.map((x) => x.form)));
+      qs.push(anteil(a.map((x) => String(x.quelle))));
+    }
+    return { f: mittel(fs), q: mittel(qs) };
+  };
+
+  // Acht Beiträge, acht seitentaugliche Formen: jede höchstens einmal.
+  const acht = lauf(8, true, true, true);
+  ist(`acht Beiträge tragen acht Formen (${Math.round(acht.f * 100)} %)`, acht.f, 1);
+  // Sechs Quellen auf acht Plätzen — mehr als sechs verschiedene gibt es nicht.
+  ist(`und sechs Quellen auf acht Plätzen (${Math.round(acht.q * 100)} %)`, Math.round(acht.q * 8), 6);
+  // Sechs Plätze, sechs Quellen: keine einzige Wiederholung.
+  const sechs = lauf(6, true, true, true);
+  ist(`sechs Beiträge, sechs Quellen (${Math.round(sechs.q * 100)} %)`, sechs.q, 1);
+
+  // Jede Form der Maschine muss vorkommen können — bis auf die eine, die
+  // ausdrücklich nicht auf die Seite gehört.
+  const gesehen = new Set<string>();
+  for (let i = 0; i < 400; i++) baueBesetzung(9, true, true, Math.random, 30, true).forEach((a) => gesehen.add(a.form));
+  ist("alle seitentauglichen Formen kommen vor", [...SEITEN_FORMEN].filter((f) => !gesehen.has(f)).join(","), "");
+  ist("und keine, die nicht auf die Seite gehört", [...gesehen].filter((f) => !(SEITEN_FORMEN as string[]).includes(f)).join(","), "");
+  // Die Liste selbst darf nicht wieder veralten: Sie wird aus FORM_OPTS
+  // abgeleitet, nicht gepflegt. Fällt eine Form aus beiden heraus, fällt das
+  // hier auf.
+  ist("die Seitenformen sind alle Formen bis auf video",
+    (werte(FORM_OPTS) as string[]).filter((f) => !(SEITEN_FORMEN as string[]).includes(f)).join(","), "video");
+
+  // Der Themenpool ist eine Quelle — aber nur mit Funden.
+  const mitThema = new Set(baueBesetzung(9, true, true, Math.random, 30, true).map((a) => String(a.quelle)));
+  const ohneThema = new Set(baueBesetzung(9, true, true, Math.random, 30, false).map((a) => String(a.quelle)));
+  wahr("mit Funden kommt der Themenpool vor", mitThema.has("thema"));
+  wahr("ohne Funde bleibt er draußen", !ohneThema.has("thema"));
+}
+
 if (fails.length) {
   console.error(`\n❌ ${fails.length} Fehler im Autopiloten:`);
   fails.forEach((f) => console.error("  - " + f));

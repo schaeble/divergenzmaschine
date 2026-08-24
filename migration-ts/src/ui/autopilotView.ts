@@ -24,6 +24,7 @@ import { addToTreasury, loadTreasury } from "../features/treasury";
 import { ladeKopf, sichereKopf, oeffneZeitungssetzer, ueberschriftVon } from "./zeitungView";
 import { ladeLayouts, sichereLayouts, legeLayout, textSchluessel, type Layout } from "../features/zeitungslayout";
 import { ziehVorrat } from "../features/wikisammler";
+import { ziehThema, themenStand } from "../features/themenpool";
 import { schemaVon, schemaPlaetze, schemaAuftraege } from "../features/musterseite";
 import { varianzBericht, type VarianzBand } from "../features/varianz";
 import {
@@ -165,6 +166,10 @@ export function mountAutopilot(root: HTMLElement): void {
         const f = ziehBildvorrat();
         if (f) return { ...f.ctx, quelle: "bild" };
       }
+      if (q === "thema") {
+        const f = ziehThema();
+        if (f) return { ...f.ctx, quelle: "thema" };
+      }
       if (q === "wahrnehmung") {
         // Die Omnikognition liefert nicht nur vier W, sondern eine ganze
         // Einstellung samt Sinnes-Wortbank. Beides wird weiter unten benutzt.
@@ -237,6 +242,7 @@ export function mountAutopilot(root: HTMLElement): void {
         const weltEreignisse = worldTick();
         const hatVorrat = !!ziehVorrat();
         const hatBild = !!ziehBildvorrat();
+        const hatThema = themenStand().funde > 0;
         const seitenZahl = parseInt(seitenIn.value, 10) || 1;
         const gewuenscht = parseInt(anzahlIn.value, 10) || BEITRAEGE_VORGABE;
         // Die Laengen kommen jetzt aus dem PLATZ, nicht aus einem Gefuehl:
@@ -259,7 +265,7 @@ export function mountAutopilot(root: HTMLElement): void {
           const H = 1000;   // Nur Verhältnisse zählen — die echte Höhe steht erst im Setzer.
           const plaetze = schemaPlaetze(schema, spaltenZahl, H);
           const proSeite = plaetze.length;
-          const roh2 = baueBesetzung(proSeite * seitenZahl, hatVorrat, hatBild, Math.random, maxBeitraege(seitenZahl));
+          const roh2 = baueBesetzung(proSeite * seitenZahl, hatVorrat, hatBild, Math.random, maxBeitraege(seitenZahl), hatThema);
           const pa = schemaAuftraege(plaetze, spaltenZahl, H, Math.round(WOERTER_JE_SEITE * faktor));
           auftraege = roh2.slice(0, proSeite * seitenZahl).map((r, i) => {
             const a = pa[i % proSeite]!;
@@ -269,7 +275,7 @@ export function mountAutopilot(root: HTMLElement): void {
           });
           schemaRollen = auftraege.map((_, i) => pa[i % proSeite]!.rolle);
         } else {
-          const roh = baueBesetzung(gewuenscht, hatVorrat, hatBild, Math.random, maxBeitraege(seitenZahl));
+          const roh = baueBesetzung(gewuenscht, hatVorrat, hatBild, Math.random, maxBeitraege(seitenZahl), hatThema);
           const budget = platzBudget(seitenZahl, roh.length, faktor);
           auftraege = verteileLaengen(roh, budget);
         }
@@ -285,6 +291,22 @@ export function mountAutopilot(root: HTMLElement): void {
         const frisch: string[] = [];
         erschoepft = 0;
         const quellenZaehler = new Map<string, number>();
+        // Auch die Wortbänke kommen aus einem Beutel OHNE Zurücklegen. Mit
+        // Zurücklegen kam bei acht Beiträgen im Mittel nur auf 85 % der Plätze
+        // eine noch nicht benutzte Bank; bei einundfünfzig vorhandenen ist das
+        // eine Wiederholung, für die es keinen Grund gibt.
+        let presetBeutel: typeof presets = [];
+        const ziehePreset = (): typeof presets[number] | null => {
+          if (!presets.length) return null;
+          if (!presetBeutel.length) {
+            presetBeutel = presets.slice();
+            for (let i = presetBeutel.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [presetBeutel[i], presetBeutel[j]] = [presetBeutel[j]!, presetBeutel[i]!];
+            }
+          }
+          return presetBeutel.pop() || null;
+        };
         // Beitrag fuer Beitrag, mit Atempause dazwischen. Bei sieben Stuecken
         // fiel es nicht auf; bei zwoelf oder vierundzwanzig steht die Ansicht
         // sonst minutenlang still, und der Knopfdruck sieht aus wie verpufft.
@@ -299,7 +321,7 @@ export function mountAutopilot(root: HTMLElement): void {
           quellenZaehler.set(erg.quelle, (quellenZaehler.get(erg.quelle) || 0) + 1);
           // Je Beitrag ein anderes Preset — oder die eigene Bank, damit die
           // aktuelle Einstellung nicht voellig verschwindet.
-          const p = presets.length ? presets[Math.floor(Math.random() * presets.length)] : null;
+          const p = ziehePreset();
           let bank = p ? p.bank : grundBank;
           let bankName = p ? p.label : "eigene Bank";
           let eingabe = baueEingabe(a, ctx);
@@ -406,7 +428,7 @@ export function mountAutopilot(root: HTMLElement): void {
         // sucht man den Fehler im Generator, obwohl der Vorrat einseitig ist.
         const quellenName: Record<string, string> = {
           wuerfel: "Welt", vorrat: "Sammler-Vorrat", bild: "Bildvorrat",
-          idee: "Ideengenerator", wahrnehmung: "Omnikognition",
+          idee: "Ideengenerator", wahrnehmung: "Omnikognition", thema: "Themenpool",
         };
         const quellenText = [...quellenZaehler.entries()]
           .map(([q, n]) => `${n}× ${quellenName[q] || q}`)
