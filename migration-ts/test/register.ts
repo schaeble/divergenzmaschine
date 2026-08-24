@@ -8,10 +8,13 @@
 // — es wird gezogen, zählt aber als Abstand null und zieht damit jede Mischung
 // herunter, in der es steckt. Kein Fehler, keine Meldung. Dieselbe Lücke wie
 // beim Selbsttest mit den drei fehlenden Formen.
+import { JSDOM } from "jsdom";
+const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/" });
+(globalThis as unknown as Record<string, unknown>).localStorage = dom.window.localStorage;
 import { BUILTIN_PRESETS } from "../src/presets.data";
 import {
   REGISTER, registerVon, abstand, mischAbstand, waehleGespreizt,
-  WELT_LABEL, SPRACHE_LABEL,
+  WELT_LABEL, SPRACHE_LABEL, bekannteRegister, setzeEigenes, ladeEigene, EIGEN_KEY,
 } from "../src/features/register";
 
 const fails: string[] = [];
@@ -120,6 +123,39 @@ ist("nie mehr als der Vorrat hergibt", waehleGespreizt(["kafka", "myth"], 5, zuf
 ist("ein leerer Vorrat ergibt nichts", waehleGespreizt([], 3, zufall).length, 0);
 wahr("keine Wiederholung in einer Mischung",
   new Set(waehleGespreizt(vorrat, 3, zufall)).size === 3);
+
+// ── 5 · Unbekanntes enthaelt sich, statt zu schaden ─────────────────────────
+// Ein eigenes Preset hat kein Register, und `abstand(null, x)` gibt 0. Bis
+// 4.313.0 zaehlte das in die Mischung ein: Die Spreizung hielt ein eigenes
+// Preset fuer dasselbe Register wie jedes andere und MIED es systematisch —
+// jeder Partner zog die Mischung auf null. Ein eigenes Preset wurde also
+// benachteiligt, ohne dass es dafuer einen Grund gaebe.
+//
+// „Unbekannt" ist eben nicht neutral. Wer nichts weiss, darf nicht das
+// Schlechteste annehmen; er muss sich enthalten.
+localStorage.removeItem(EIGEN_KEY);
+const weitOhne = mischAbstand(["formalismus", "griechischetragoedie", "user:Eigenes"]);
+const weitMit = mischAbstand(["formalismus", "griechischetragoedie"]);
+ist("ein Preset ohne Register zieht die Mischung nicht herunter", weitOhne, weitMit);
+ist("und zaehlt nicht als bekannt", bekannteRegister(["formalismus", "user:Eigenes"]), 1);
+// Gegenprobe: Sind zu wenige bekannt, gibt es KEINEN Abstand — sonst kaeme aus
+// einem einzigen bekannten Preset eine Zahl, die nichts vergleicht.
+ist("ein einzelnes bekanntes Preset ergibt keinen Abstand",
+  mischAbstand(["formalismus", "user:A", "user:B"]), 0);
+ist("und gar keines auch nicht", mischAbstand(["user:A", "user:B"]), 0);
+
+// Eigene Presets lassen sich einordnen — wer sie geschrieben hat, weiss am
+// besten, wohin sie gehoeren.
+setzeEigenes("Eigenes", "irreal", "amtlich");
+ist("die Zuordnung wird gemerkt", registerVon("user:Eigenes")?.welt, "irreal");
+ist("auch ohne Vorsatz", registerVon("Eigenes")?.sprache, "amtlich");
+wahr("und wirkt in der Spreizung", mischAbstand(["alltag", "user:Eigenes"]) > 0.5);
+// Leere Angaben LOESCHEN die Zuordnung: „unbekannt" ist ein zulaessiger
+// Zustand und besser als eine geratene Ecke.
+setzeEigenes("Eigenes", "", "");
+ist("leere Angaben loeschen sie wieder", registerVon("user:Eigenes"), null);
+ist("und die Ablage bleibt sauber", Object.keys(ladeEigene()).length, 0);
+wahr("die Ablage wandert in die Projektdatei", EIGEN_KEY.startsWith("divergenz_"));
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Register — ${geprueft} Prüfungen:`);

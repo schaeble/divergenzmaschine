@@ -1667,14 +1667,23 @@ export function mountStudio(root: HTMLElement): void {
         const txt = out.textContent || "";
         const h = analysiereHerkunft(txt, (tone.value || "neutral").toLowerCase(),
           { where: where.value, when: when.value, who: who.value, what: what.value });
-        const aktiv = presetStatus.textContent?.replace(/^Aktiv:\s*/, "").split(" + ").map((x) => x.trim()).filter(Boolean) || [];
+        // Die IDs, nicht die Anzeigenamen. Ein erster Versuch rechnete vom
+        // Namen auf die ID zurueck („Griechische Tragoedie" →
+        // „griechischetragödie") — und traf nicht, weil die ID
+        // „griechischetragoedie" heisst. Ausgerechnet fuer die gemeldete
+        // Mischung stand damit eine Spreizung von 0 im Index, obwohl sie hoch
+        // ist. Namen sind fuer Menschen, IDs fuer die Rechnung.
+        const aktivIds = preset.value === MULTI_ID ? multiIds.slice()
+          : preset.value === AUTOMIX_ID ? Object.keys(lastAutoMixSources())
+            : preset.value ? [preset.value] : [];
+        const aktiv = aktivIds.map((id) => stripIcon(getAllPresets()[id]?.label || id));
         sichereIndex(mischeIndex(ladeIndex(), {
           schluessel: indexSchluessel(txt),
           zeit: new Date().toISOString().slice(0, 16),
           form: form.value,
           woerter: woerterVon(txt),
           presets: aktiv,
-          spreizung: mischAbstand(aktiv.map((x) => x.toLowerCase().replace(/\s+/g, ""))),
+          spreizung: mischAbstand(aktivIds),
           regler: {
             ton: tone.value, struktur: structure.value, perspektive: persp.value,
             rhythmus: rhythm.value, markov: markov.value, varianz: varianz.value,

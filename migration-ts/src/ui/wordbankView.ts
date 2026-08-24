@@ -8,6 +8,7 @@ import { loadPersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
 import { openPresetWizard } from "./presetWizard";
 import { openArchive } from "./archiveView";
+import { setzeEigenes, type Welt, type Sprache } from "../features/register";
 import { preset2ToBank, preset2Name, preset2Active, builtinSettings, generateAiPreset2, setActive2, getActive2, saveUserPreset2, saveUserPresets2All, getUserPreset2, deleteUserPreset2, loadUserPresets2, type Active2 } from "../features/preset2";
 import { setDramaData, loadDramaData } from "../generation/dramaturgie";
 import { builtinDrama } from "../presets.drama.data";
@@ -173,6 +174,27 @@ export function mountWordbank(root: HTMLElement): void {
     const name = prompt("Name für dein Preset:", def);
     if (name) {
       saveCurrentBankAsUserPreset(name);
+      // Register mit abfragen. Ohne Zuordnung bleibt ein eigenes Preset aus der
+      // Spreizung des Autopiloten heraus — es schadet nicht mehr (bis 4.313.0
+      // zaehlte es als Abstand null und wurde dadurch gemieden), aber es
+      // spreizt eben auch nicht. Wer das Preset geschrieben hat, weiss am
+      // besten, in welche Ecke es gehoert.
+      const w = (prompt(
+        `Welche Welt baut „${name}“?\n\n`
+        + "real  — Kausalität gilt (Alltag, Behörde, Hafen)\n"
+        + "gehoben — erhöht, aber nicht gebrochen (Romantik, Bergwelt)\n"
+        + "irreal — Kausalität gebrochen (Mythos, Traum)\n\n"
+        + "Leer lassen, wenn unsicher — dann bleibt es ohne Zuordnung.", "") || "").trim().toLowerCase();
+      const sp = w ? (prompt(
+        `Wie wird in „${name}“ gesprochen?\n\n`
+        + "nuechtern · amtlich · erzaehlend · feierlich · koerperlich · bildhaft\n\n"
+        + "erzählend = ein Vorgang mit Vorher und Nachher\n"
+        + "feierlich = ein Zustand, der beschworen wird", "") || "").trim().toLowerCase() : "";
+      try {
+        setzeEigenes(name,
+          (["real", "gehoben", "irreal"].includes(w) ? w : "") as Welt | "",
+          (["nuechtern", "amtlich", "erzaehlend", "feierlich", "koerperlich", "bildhaft"].includes(sp) ? sp : "") as Sprache | "");
+      } catch { /* Zuordnung ist Zugabe, sie darf das Speichern nicht aufhalten */ }
       // Auch eingebaute Presets haben einen Bogen — ohne diese Zeile verlor jede
       // gespeicherte Kopie ihre Dramaturgie.
       const d = loadDramaData();

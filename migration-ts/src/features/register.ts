@@ -115,9 +115,34 @@ export const REGISTER: Record<string, Register> = {
  *  Ein eigenes Preset hat keines. Es bekommt KEINEN Ersatzwert: Ein geratenes
  *  Register wäre schlechter als gar keines, weil die Spreizung dann auf einer
  *  Erfindung rechnet. Wer eigene Presets mischen will, mischt sie wie bisher. */
+export const EIGEN_KEY = "divergenz_eigene_register_v1";
+
+/** Register eigener Presets. Getrennt von der Bank abgelegt: Die Bank ist eine
+ *  Sammlung von Wortlisten, und ein Feld anderer Art darin haette jede Stelle
+ *  gestoert, die ueber sie laeuft. */
+export function ladeEigene(): Record<string, Register> {
+  try {
+    const r = JSON.parse(localStorage.getItem(EIGEN_KEY) || "{}") as Record<string, Register>;
+    return r && typeof r === "object" ? r : {};
+  } catch { return {}; }
+}
+export function sichereEigene(m: Record<string, Register>): boolean {
+  try { localStorage.setItem(EIGEN_KEY, JSON.stringify(m)); return true; } catch { return false; }
+}
+/** Ordnet ein eigenes Preset ein. Leere Angaben LOESCHEN die Zuordnung —
+ *  „unbekannt" ist ein zulaessiger Zustand und besser als eine geratene Ecke. */
+export function setzeEigenes(id: string, welt: Welt | "", sprache: Sprache | ""): void {
+  const m = ladeEigene();
+  const k = id.replace(/^user:/, "");
+  if (welt && sprache) m[k] = { welt, sprache }; else delete m[k];
+  sichereEigene(m);
+}
+
+/** Das Register eines Presets. Eingebaute stehen in der Tabelle, eigene in der
+ *  Ablage; unbekannte geben null zurueck. */
 export function registerVon(id: string): Register | null {
-  const k = id.replace(/^builtin:/, "");
-  return REGISTER[k] || null;
+  const k = id.replace(/^builtin:/, "").replace(/^user:/, "");
+  return REGISTER[k] || ladeEigene()[k] || null;
 }
 
 // ── Abstand ─────────────────────────────────────────────────────────────────
@@ -151,13 +176,29 @@ export function abstand(a: Register | null, b: Register | null): number {
  *  kommen, sind in Wahrheit zwei Register und nicht drei — der Durchschnitt
  *  verdeckt das, das Minimum zeigt es. */
 export function mischAbstand(ids: string[]): number {
-  const regs = ids.map(registerVon);
+  // Presets OHNE Register bleiben draußen, statt als Abstand null zu zählen.
+  //
+  // Das war ein Fehler mit Folgen: Ein eigenes Preset hat kein Register, und
+  // `abstand(null, x)` gab 0. Die Spreizung hielt es damit für dasselbe
+  // Register wie jedes andere und MIED es systematisch — jeder Partner zog die
+  // Mischung auf null. Ein eigenes Preset wurde also benachteiligt, ohne dass
+  // es dafür einen Grund gäbe.
+  //
+  // „Unbekannt" ist eben nicht neutral. Wer nichts weiß, darf nicht das
+  // Schlechteste annehmen; er muss sich enthalten.
+  const regs = ids.map(registerVon).filter((r): r is Register => r !== null);
   if (regs.length < 2) return 0;
   let min = 1;
   for (let i = 0; i < regs.length; i++) {
     for (let j = i + 1; j < regs.length; j++) min = Math.min(min, abstand(regs[i]!, regs[j]!));
   }
   return min;
+}
+
+/** Wie viele der Presets ein Register tragen. Steht neben dem Abstand, damit
+ *  eine 0 lesbar bleibt: Sie heißt „ein Register" — oder „zu wenige bekannt". */
+export function bekannteRegister(ids: string[]): number {
+  return ids.filter((i) => registerVon(i) !== null).length;
 }
 
 /** Wählt aus dem Vorrat eine Mischung mit möglichst großem Abstand.
