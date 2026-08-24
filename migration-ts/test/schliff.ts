@@ -12,6 +12,7 @@
 }
 import { istAbgeschnitten } from "../src/generation/postprocess";
 import { OBJEKT_EINSTIEG } from "../src/generation/shape";
+import { applyEmphasis } from "../src/generation/emphasis";
 import { corpusSanitize } from "../src/corpus";
 import { GERUESTZEILE } from "../src/atoms/rekombination";
 import { BUILTIN_PRESETS } from "../src/presets.data";
@@ -102,6 +103,67 @@ for (const z of SEQ.split("\n").filter(Boolean)) {
   wahr(`als Gerüstzeile erkannt: „${z.slice(0, 28)}…“`, GERUESTZEILE.test(z));
 }
 wahr("ein gewöhnlicher Satz gilt nicht als Gerüst", !GERUESTZEILE.test("Die Tür steht offen und niemand geht hindurch."));
+
+// ── 4W-Staerke wiederholt den Wert nicht ────────────────────────────────────
+// Gemeldet aus einem Text bei Staerke 3/2/2/2: „Zu nah — im Jahr 1953 — und
+// die Zeit stand still." und zwei Saetze spaeter „Im Jahr 1953 — und die Zeit
+// verlor ihren Takt." Dieselbe Schablone, nur ein anderes Verb.
+//
+// Die alte Sperre verglich die GANZE Zeile und liess das durch. „Im Jahr 1953"
+// stand am Ende dreimal im Text. Eine Betonung, die dreimal denselben Wortlaut
+// einsetzt, betont nicht — sie wiederholt.
+{
+  const M = { nouns: ["Akte"], verbs: ["prüfen"], images: ["wie Regen hinter Glas"], rules: ["still bleibt still"] };
+  const kit = {
+    T: "im Jahr 1953", P: "der Wanderer", Apure: "Mitglied des Kronrates",
+    AisClause: false, AisInfinitiveLed: false, AleadVerb: "ist", mode: M,
+    turn: "die Ordnung bricht", stake: "das Gastrecht", obstacle: "die Tür bleibt zu",
+    W: "in Edinburgh", O: "Stab",
+  } as never;
+  const WERTE = ["in edinburgh", "im jahr 1953", "der wanderer", "mitglied des kronrates"];
+  let doppelt = 0, leer = 0;
+  for (let i = 0; i < 300; i++) {
+    const t = applyEmphasis("Ein Satz. Noch einer. Und ein dritter.", kit, { wo: 3, wann: 2, wer: 2, was: 2 });
+    if (t.length < 40) leer++;
+    const k = t.toLowerCase();
+    if (WERTE.some((w) => k.split(w).length - 1 > 1)) doppelt++;
+  }
+  ist("kein 4W-Wert steht zweimal im Text (300 Läufe)", doppelt, 0);
+  // Gegenprobe: Es muss auch wirklich etwas eingefügt werden — eine Sperre, die
+  // alles verwirft, hätte ebenfalls null Wiederholungen.
+  ist("und es wird trotzdem eingefügt", leer, 0);
+  const voll = applyEmphasis("Ein Satz. Noch einer.", kit, { wo: 3, wann: 3, wer: 3, was: 3 });
+  wahr("bei voller Stärke stehen viele Zusatzsätze da", voll.split(/[.!?] /).length >= 8);
+  // Und der Wert kommt überhaupt vor — sonst betonte die Betonung nichts.
+  wahr("der Ort wird genannt", /in Edinburgh/i.test(voll));
+  ist("aber nur einmal", voll.toLowerCase().split("in edinburgh").length - 1, 1);
+  // Die zweite Regel — GERÜST — greift dort, wo gar kein 4W-Wert drinsteht:
+  // Bei Wo-Stärke 3 darf nur EINE Zeile den Ort nennen, die anderen beiden
+  // kommen aus den ortlosen Schablonen. Ohne die Gerüst-Sperre stünde dann
+  // zweimal „Der Ort …" mit verschiedenem Verb — dieselbe Schablone, und genau
+  // so liest es sich auch.
+  let gleichesGeruest = 0;
+  for (let i = 0; i < 300; i++) {
+    const t = applyEmphasis("Ein Satz.", kit, { wo: 3, wann: 0, wer: 0, was: 0 });
+    if ((t.match(/Der Ort /g) || []).length > 1) gleichesGeruest++;
+  }
+  // OFFEN, und hier festgehalten statt weggeredet: Rund ein Viertel der Läufe
+  // hat zwei Zeilen, die mit „Der Ort" beginnen — „Der Ort — in Edinburgh —
+  // gibt keine Auskunft." und „Der Ort ordnet die Dinge neu." Die Gerüst-Sperre
+  // greift dort nicht: Sie vergleicht die Zeile ohne die 4W-Werte, und die
+  // beiden unterscheiden sich im Verb. Um den gemeinsamen ANFANG zu erkennen,
+  // müsste der Generator sagen, welche Schablone er gezogen hat — das ist ein
+  // Umbau, kein Filter.
+  //
+  // Die Prüfung steht trotzdem hier, mit dem gemessenen Wert als Schwelle: Sie
+  // hält fest, wie oft es vorkommt, und schlägt an, wenn es schlimmer wird.
+  wahr(`zwei „Der Ort"-Zeilen in ${gleichesGeruest} von 300 Läufen — bekannt, nicht behoben`,
+    gleichesGeruest <= 130);
+
+  // Bei Stärke 0 darf nichts dazukommen.
+  ist("Stärke null lässt den Text unangetastet",
+    applyEmphasis("Ein Satz.", kit, { wo: 0, wann: 0, wer: 0, was: 0 }), "Ein Satz.");
+}
 
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };

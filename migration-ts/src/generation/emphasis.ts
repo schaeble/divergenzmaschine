@@ -83,12 +83,54 @@ export function applyEmphasis(text: string, kit: StoryKit, w: Emphasis): string 
     [w.wo, () => placeLine(kit)], [w.wann, () => timeLine(kit)],
     [w.wer, () => charLine(kit)], [w.was, () => plotLine(kit)],
   ];
+  // Aus einem erzeugten Text bei Stärke 3/2/2/2: „Zu nah — im Jahr 1953 — und
+  // die Zeit stand still." und zwei Sätze später „Im Jahr 1953 — und die Zeit
+  // verlor ihren Takt." Dieselbe Schablone, nur ein anderes Verb — die alte
+  // Sperre verglich die ganze Zeile und ließ das durch. „Im Jahr 1953" stand
+  // am Ende dreimal im Text.
+  //
+  // Zwei Regeln statt einer:
+  //
+  //   GERÜST: Die Zeile ohne ihre eingesetzten Werte. Zweimal dasselbe Gerüst
+  //   liest sich als Versehen, auch wenn ein Wort abweicht.
+  //
+  //   WÖRTLICH GENANNT: Ein 4W-Wert darf HÖCHSTENS EINMAL im Klartext stehen.
+  //   Eine Betonung, die dreimal denselben Wortlaut einsetzt, betont nicht —
+  //   sie wiederholt. Die weiteren Sätze müssen den Wert umschreiben; dafür hat
+  //   jeder Generator Schablonen ohne ihn.
+  // Klein verglichen: Die Schablonen setzen den Wert am Satzanfang groß
+  // („Im Jahr 1953"), im Kit steht er klein („im Jahr 1953"). Ein Vergleich,
+  // der die Schreibung mitnimmt, findet genau die Fälle nicht, um die es geht.
+  const werte = [kit.W, kit.T, kit.P, strip(kit.Apure)]
+    .map((x) => clean(x || "").toLowerCase()).filter((x) => x.length > 3);
+  const geruest = (z: string): string => {
+    let g = z.toLowerCase();
+    for (const w of werte) if (w) g = g.split(w).join("§");
+    return g.replace(/[^a-zäöüß§]+/g, " ").trim();
+  };
   const lines: string[] = [];
+  const gesehen = new Set<string>();
+  const genannt = new Set<string>();
   for (const [n, gen] of gens) {
     const count = Math.max(0, Math.min(3, n | 0));
-    for (let i = 0; i < count; i++) lines.push(ensurePunct(clean(gen())));
+    for (let i = 0; i < count; i++) {
+      // Mehrere Versuche: Die Schablonen werden gezogen, nicht durchlaufen —
+      // ohne Wiederholung käme sonst bei count 3 oft nur eine Zeile heraus.
+      for (let versuch = 0; versuch < 12; versuch++) {
+        const z = ensurePunct(clean(gen()));
+        if (!z) continue;
+        const g = geruest(z);
+        if (gesehen.has(g)) continue;
+        const dazu = werte.filter((w) => z.toLowerCase().includes(w));
+        if (dazu.some((w) => genannt.has(w))) continue;
+        gesehen.add(g);
+        dazu.forEach((w) => genannt.add(w));
+        lines.push(z);
+        break;
+      }
+    }
   }
-  const uniq = [...new Set(lines)].filter(Boolean);
+  const uniq = lines.filter(Boolean);
   if (!uniq.length) return text;
   const sents = splitSentences(text);
   for (const line of uniq) {
