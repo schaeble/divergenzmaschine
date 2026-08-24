@@ -598,28 +598,40 @@ export function mountWordbank(root: HTMLElement): void {
       registerListe.append(el("p", { class: "muted mini" }, "Noch keine eigenen Presets."));
       return;
     }
-    const ohne = eigene.filter((n) => !registerVon("user:" + n)).length;
-    registerListe.append(el("p", { class: "muted mini" },
-      `${eigene.length} eigene Presets, ${ohne} noch ohne Zuordnung. `
-      + "Ohne Zuordnung bleibt ein Preset aus der Spreizung heraus — es schadet nicht, spreizt aber auch nicht."));
+    const kopf = el("p", { class: "muted mini" }, "");
+    const zaehleKopf = (): void => {
+      const ohne = eigene.filter((n) => !registerVon("user:" + n)).length;
+      kopf.textContent = `${eigene.length} eigene Presets, ${ohne} noch ohne Zuordnung. `
+        + "Ohne Zuordnung bleibt ein Preset aus der Spreizung heraus — es schadet nicht, spreizt aber auch nicht.";
+    };
+    registerListe.append(kopf);
     for (const name of eigene) {
       const r = ladeEigene()[name];
       const wSel = select("rg-w-" + name,
         [["", "— Welt —"], ...Object.entries(WELT_LABEL)] as [string, string][], r?.welt || "");
       const sSel = select("rg-s-" + name,
         [["", "— Sprache —"], ...Object.entries(SPRACHE_LABEL)] as [string, string][], r?.sprache || "");
+      const hinweis = el("span", { class: "bsam-zweifel" }, "");
+      // NICHT neu zeichnen. Ein erster Bau rief hier `zeichneRegister()` — und
+      // weil eine halbe Angabe bewusst nicht gespeichert wird, standen danach
+      // BEIDE Felder wieder auf leer. Wer die Welt einstellte, verlor sie beim
+      // Griff zur Sprache; beide zu setzen war unmoeglich.
+      //
+      // Die Regel „beide oder keins" war richtig, das sofortige Neuzeichnen
+      // falsch: Es warf die Eingabe weg, die gerade erst begonnen hatte.
       const merke = (): void => {
-        // Beide oder keins: Ein halbes Register waere kein Register, und die
-        // Rechnung braucht beide Achsen.
         setzeEigenes(name, wSel.value as Welt | "", sSel.value as Sprache | "");
-        zeichneRegister();
+        const halb = (!!wSel.value) !== (!!sSel.value);
+        hinweis.textContent = halb ? " — noch nicht gespeichert, beide Angaben nötig" : "";
+        zaehleKopf();
       };
       wSel.addEventListener("change", merke);
       sSel.addEventListener("change", merke);
       registerListe.append(el("div", { class: "reiterzeile" },
-        el("span", { class: "mem-name" }, name),
+        el("span", { class: "mem-name" }, name, hinweis),
         el("span", { class: "btnrow" }, wSel, sSel)));
     }
+    zaehleKopf();
   };
   const registerBox = el("details", {},
     el("summary", { class: "mini" }, "Register eigener Presets"),
