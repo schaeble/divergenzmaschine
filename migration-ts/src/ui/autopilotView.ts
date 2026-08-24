@@ -44,6 +44,9 @@ import {
   platzBudget, verteileLaengen, kuerzeBericht, ladeFaktor, WOERTER_JE_SEITE,
   presetZahl, mischName,
 } from "../features/autopilot";
+import { waehleGespreizt, mischAbstand } from "../features/register";
+import {
+} from "../features/autopilot";
 
 const WAHL_KEY = "divergenz_autopilot_v1";
 interface Wahl { name: string; anzahl: number; spalten: number; seiten: number }
@@ -283,6 +286,7 @@ export function mountAutopilot(root: HTMLElement): void {
 
         const erzeugt: { text: string; form: string; titel: string; preset: string; quelle: Quelle; ktx: string }[] = [];
         const presetZaehler = new Map<string, number>();
+        const abstaende: number[] = [];
         // Das Gedächtnis früherer Ausgaben ist der Startbestand des
         // Gemiedenen: Zwei Zeitungen hintereinander mit derselben Schlagzeile
         // sehen nicht nach Zufall aus, sondern nach Defekt.
@@ -328,11 +332,35 @@ export function mountAutopilot(root: HTMLElement): void {
           // Ein Drittel bleibt einstimmig: Wer alles mischt, hat wieder nur
           // eine Sorte Text.
           const zahl = presetZahl();
-          const gezogen = Array.from({ length: zahl }, () => ziehePreset()).filter(Boolean) as typeof presets;
+          // GESPREIZT statt blind. Bis 4.311.0 wurden einfach drei aus dem
+          // Beutel genommen und gehofft, dass sie weit genug auseinanderliegen
+          // — Bergwelt und Formalismus stossen aufeinander, zwei Naturpresets
+          // nicht. Jetzt entscheidet der gemessene Abstand der Register.
+          //
+          // Der erste kommt weiter aus dem Beutel ohne Zuruecklegen: So bleibt
+          // ueber die Ausgabe hinweg die Streuung erhalten. Nur die PARTNER
+          // werden gespreizt gewaehlt.
+          const erster = ziehePreset();
+          const gezogen: typeof presets = erster ? [erster] : [];
+          if (erster && zahl > 1) {
+            const kandidaten = presets.filter((x) => x.id !== erster.id).map((x) => x.id);
+            for (const id of waehleGespreizt([erster.id, ...kandidaten], zahl).slice(1)) {
+              const p2 = presets.find((x) => x.id === id);
+              if (p2) gezogen.push(p2);
+            }
+          }
           let bank = gezogen.length
             ? (gezogen.length === 1 ? gezogen[0]!.bank : buildMergedBank(gezogen.map((x) => x.id)))
             : grundBank;
           let bankName = mischName(gezogen.map((x) => x.label));
+          // Der Abstand wird MITGENANNT. Ohne ihn steht im Protokoll zwar die
+          // Mischung, aber nicht, ob sie eine war: „Bergwelt + Romantik" sind
+          // zwei Namen und ein Register.
+          if (gezogen.length > 1) {
+            const ab = mischAbstand(gezogen.map((x) => x.id));
+            bankName += ` (Abstand ${ab.toFixed(2)})`;
+            abstaende.push(ab);
+          }
           let eingabe = baueEingabe(a, ctx);
           if (erg.profil) {
             // Die Wahrnehmung bringt ihre eigene Welt mit: eine Wortbank aus
@@ -460,6 +488,11 @@ export function mountAutopilot(root: HTMLElement): void {
         // Protokoll, WOHER der Stoff kam, aber nicht, WAS daraus wurde.
         zeile("4W je Beitrag", erzeugt.map((e, i) => `${i + 1}. ${e.ktx || "—"}`).join(" | ") || "—");
         zeile("Wortbänke", [...presetZaehler.entries()].map(([n, k]) => `${k}× ${n}`).join(", ") || "nur die eigene");
+        zeile("Spreizung", abstaende.length
+          ? `${abstaende.length} gemischte Bänke, Abstand im Mittel `
+            + (abstaende.reduce((a, b) => a + b, 0) / abstaende.length).toFixed(2)
+            + ` (0 = ein Register, 1 = die beiden entferntesten)`
+          : "keine gemischte Bank in diesem Lauf");
         zeile("Formen", [...new Set(erzeugt.map((e) => e.form))].join(", "));
         zeile("Korpus", `${loadPersistentCorpus().length} Zeichen, Markov-Kette 2. Ordnung`);
         const istWoerter = erzeugt.reduce((a, e) => a + (e.text.match(/\S+/g) || []).length, 0);

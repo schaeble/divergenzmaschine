@@ -135,6 +135,24 @@ wahr(`er prüft ${geprueft_formen.length} Formen`, geprueft_formen.length >= all
 const zuviel = geprueft_formen.filter((f) => !alleFormen.includes(f));
 ist("und keine, die es nicht gibt", zuviel.join(", "), "");
 
+// ── 3b · Jedes Preset hat ein Register ──────────────────────────────────────
+// Die Register-Zuordnung sagt, welche Welt ein Preset baut und wie darin
+// gesprochen wird; der Autopilot mischt danach gespreizt. Ein NEUES Preset ohne
+// Eintrag ist für die Spreizung unsichtbar: Es wird gezogen, zählt aber als
+// Abstand null und zieht jede Mischung herunter, in der es steckt.
+//
+// Das ist derselbe Fall wie die drei Formen, die im Selbsttest fehlten — eine
+// unvollständige Liste, die genauso grün aussieht wie eine vollständige.
+const presetsQ = inhalt.get("src/presets.data.ts") || "";
+const registerQ = inhalt.get("src/features/register.ts") || "";
+const presetIds = [...presetsQ.matchAll(/^ {2}"?([a-z0-9_]+)"?: \{$/gm)].map((m) => m[1]!);
+const registerIds = [...registerQ.matchAll(/^ {2}([a-z0-9_]+): \{ welt:/gm)].map((m) => m[1]!);
+wahr(`die Preset-Liste wurde gefunden (${presetIds.length})`, presetIds.length >= 50);
+ist("jedes Preset hat ein Register",
+  presetIds.filter((i) => !registerIds.includes(i)).join(", "), "");
+ist("und kein Register zeigt ins Leere",
+  registerIds.filter((i) => !presetIds.includes(i)).join(", "), "");
+
 // ── 4 · Verwaiste Module ────────────────────────────────────────────────────
 // Ein Modul, das niemand einbindet, läuft nie — und veraltet deshalb
 // unbemerkt. Es ist kein Fehler, aber eine Entscheidung, die jemand treffen
