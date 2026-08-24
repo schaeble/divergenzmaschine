@@ -30,7 +30,7 @@ let titelBeimDruck = "";
 
 import { schemaVon, schemaPlaetze } from "../src/features/musterseite";
 import {
-  oeffneZeitungssetzer, satzWeg, druckName, ohneUeberschrift, darfKuerzen, ladeKopf,
+  oeffneZeitungssetzer, satzWeg, druckName, ohneUeberschrift, darfKuerzen, ueberschriftVon, ladeKopf,
   waehleFueller, vignette, FUELLER_MIN, FUELLER_TEXT_MIN, SEITE_B, SEITE_H, RAND_OBEN, RAND_UNTEN, RAND_SEITE,
 } from "../src/ui/zeitungView";
 import {
@@ -911,6 +911,37 @@ wahr("ohne Schema wird wieder fließend gesetzt", bloecke().length === 0 && alle
   wahr("die Meldung nennt das geladene Layout",
     /geladen/.test((q(".zk-layoutleiste .mini") as HTMLElement)?.textContent || ""));
 }
+
+// ── 18 · Ueberschriften brechen nicht mitten im Satz ab ─────────────────────
+// Aus einer gedruckten Ausgabe (Nr. 55): Ueber einem Prosatext stand „Etwas
+// geht auf, das keine Tuer hat. Die Aenderung gilt ab …" — die Ueberschrift
+// lief ueber das Satzende hinaus und brach im naechsten Satz ab. Sie war weder
+// Satz noch Titel, sondern ein Anschnitt.
+const u = (t: string, form = "prose"): string => ueberschriftVon({ t, form } as never);
+ist("die Ueberschrift endet am ersten Satz",
+  u("Etwas geht auf, das keine Tür hat. Die Änderung gilt ab einem Datum in der Vergangenheit. Mehr."),
+  "Etwas geht auf, das keine Tür hat");
+// Zweiter Fall derselben Ausgabe: „Am 4" als ganze Ueberschrift. Die
+// Satztrennung hielt den Punkt der Ordnungszahl fuer ein Satzende.
+wahr("eine Ordnungszahl beendet den Satz nicht",
+  u("Am 4. Juli 1991 an einem Ort steht jemand vor dem Satz. Und dann.").startsWith("Am 4. Juli"));
+wahr("und der Titel ist mehr als zwei Woerter",
+  (u("Am 4. Juli 1991 an einem Ort steht jemand vor dem Satz. Und dann.").match(/\S+/g) || []).length >= 4);
+// Ein sehr kurzer erster Satz wird ergaenzt, statt als Titel zu gelten.
+wahr("ein Zweiwortsatz wird ergaenzt",
+  (u("Dabei: ein Satz. Weiter geht es hier.").match(/\S+/g) || []).length >= 4);
+
+// Muss doch gekuerzt werden, dann an einer FUGE — nicht mitten im Satzglied.
+const lang = u("Zuerst im offenen Wasser, zu einer Zeit: ein Tiefseewesen sucht Nahrung und rechnet damit.");
+wahr("ein langer Satz wird gekuerzt", lang.endsWith("…"));
+wahr("und zwar an einer Fuge", /(?:Wasser|Zeit) …$/.test(lang));
+ist("kein Satzzeichen bleibt vor der Auslassung stehen", /[,;:—–] …$/.test(lang), false);
+// Gegenprobe: Ein kurzer Satz darf NICHT gekuerzt werden — sonst pruefte die
+// Regel oben nur, dass immer drei Punkte drankommen.
+ist("ein kurzer Satz bleibt unangetastet", u("Kurz."), "Kurz");
+ist("und traegt keine Auslassung", /…/.test(u("Ein kurzer Titel ohne Not.")), false);
+// Die Meldung behaelt ihre gemeinsame Zeile.
+ist("die Meldung behaelt ihre gemeinsame Zeile", u("Irgendein Meldungstext.", "meldung"), "Kurz gemeldet");
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Zeitungssetzer — ${geprueft} Prüfungen (Layout-Logik + Rundgang in jsdom):`);

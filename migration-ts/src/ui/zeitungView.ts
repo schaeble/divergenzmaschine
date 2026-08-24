@@ -12,6 +12,7 @@ import { icon } from "./icons";
 import { loadTreasury, type Treasure } from "../features/treasury";
 import { inhaltVers, inhaltFliess, absaetze } from "./printView";
 import { umbrechen, fuellgrad, type Messbar, type UmbruchTeil, type Seite } from "./umbruch";
+import { splitSentences } from "../text-utils";
 import { ladeFaktor, sichereFaktor, neuerFaktor } from "../features/autopilot";
 import {
   ladeBilder, sichereBilder, neuerRahmen, verschiebe, skaliereEcke, begrenze,
@@ -123,8 +124,29 @@ export function ueberschriftVon(t: Treasure): string {
   if (t.form === "meldung") return "Kurz gemeldet";
   if (t.form === "bericht" && abs.length >= 2) return abs[1]!;
   const erste = (abs[0] || "").split("\n")[0] || "";
-  const kurz = erste.replace(/[.!?…]+$/, "").trim();
-  return kurz.length > 60 ? kurz.slice(0, 57).replace(/\s+\S*$/, "") + " …" : kurz;
+  // Am SATZ kürzen, nicht am Zeichen.
+  //
+  // Gefunden an einer gedruckten Ausgabe: „Etwas geht auf, das keine Tür hat.
+  // Die Änderung gilt ab …" — die Überschrift lief über das Satzende hinaus und
+  // brach im nächsten Satz ab. Sie war weder ein Satz noch ein Titel, sondern
+  // ein Anschnitt. Ein zweiter Fall lautete nur „Am 4", weil die
+  // Satztrennung den Punkt der Ordnungszahl für ein Satzende hielt.
+  const saetze = splitSentences(erste);
+  let kurz = (saetze[0] || erste).replace(/[.!?…]+$/, "").trim();
+  // Ein Ein- oder Zweiwort-Titel sagt nichts („Am 4", „Dabei"). Dann lieber den
+  // nächsten Satz dazunehmen, solange die Zeile nicht zu lang wird.
+  for (let i = 1; i < saetze.length && (kurz.match(/\S+/g) || []).length < 4 && kurz.length < 40; i++) {
+    kurz = (kurz + " " + saetze[i]!.replace(/[.!?…]+$/, "")).trim();
+  }
+  if (kurz.length <= 60) return kurz;
+  // Muss doch gekürzt werden, dann an einer FUGE — Komma, Gedankenstrich,
+  // Doppelpunkt — und erst zuletzt am Wort. Ein Titel, der an einer Fuge
+  // endet, liest sich als Auslassung; einer mitten im Satzglied als Fehler.
+  const stumpf = kurz.slice(0, 57);
+  const fuge = Math.max(stumpf.lastIndexOf(", "), stumpf.lastIndexOf(" — "),
+    stumpf.lastIndexOf(" – "), stumpf.lastIndexOf(": "), stumpf.lastIndexOf("; "));
+  const rumpf = fuge > 20 ? stumpf.slice(0, fuge) : stumpf.replace(/\s+\S*$/, "");
+  return rumpf.replace(/[,;:—–\s]+$/, "") + " …";
 }
 
 /** Zieht die Überschrift vom Textanfang ab, wenn sie dort wortgleich noch

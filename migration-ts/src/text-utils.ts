@@ -44,8 +44,51 @@ export function escapeRegExp(s: string): string {
 }
 
 /** Zerlegt einen Text in Sätze (nach . ! ? …). */
+/** Punkte, die KEINE Satzgrenze sind.
+ *
+ *  Gefunden an einer gedruckten Ausgabe: Aus „Am 4. Juli 1991 …" wurde die
+ *  Überschrift „Am 4" und ein Textbruch dahinter. Und aus „… der Streich Hurz!
+ *  von Hape Kerkeling …" wurde „Hurz! Von Hape Kerkeling" — der Titel endete
+ *  den Satz, das nächste Wort begann groß.
+ *
+ *  Deutsch setzt den Punkt hinter ORDNUNGSZAHLEN: Datumsangaben, „im 19.
+ *  Jahrhundert", Gliederungsnummern. Die Heuristik ist bewusst eng — sie greift
+ *  nur, wenn nach der Zahl ein Monat, eine Jahrhundertangabe oder eine weitere
+ *  Zahl folgt. Ein echter Satzschluss nach einer Zahl („Es waren 144.") bleibt
+ *  damit eine Grenze. */
+const MONATE = /^(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember|Jahrhunderts?|Jh\.|Hälfte|Auflage|Band|Kapitel|Absatz|Teil)\b/u;
+/** Endet der Teil auf einer Ordnungszahl? */
+const ORDNUNGSZAHL = /\d\.$/;
+/** Endet der Teil auf einer Abkürzung, hinter der es weitergeht? */
+// Ein EINZELNER Buchstabe mit Punkt ist im Deutschen immer eine Abkürzung
+// („z. B.", „u. a.", Initialen) — ein Satz, der auf einem einzelnen Buchstaben
+// endet, kommt in diesem Material nicht vor.
+const ABKUERZUNG = /(?:^|\s)(?:[A-Za-zÄÖÜäöü]|ca|bzw|bspw|evtl|ggf|inkl|Nr|St|Dr|Prof|Abs|Art|Bd|Hrsg|usw|etc)\.$/u;
+
+/** Gehören die beiden Teile in Wahrheit zusammen? */
+function keineGrenze(vor: string, nach: string): boolean {
+  if (ABKUERZUNG.test(vor)) return true;
+  if (!ORDNUNGSZAHL.test(vor)) return false;
+  // Nach einer Ordnungszahl nur dann weiterlesen, wenn das Folgende zu ihr
+  // gehört: ein Monat, eine Jahrhundertangabe, eine weitere Zahl. „Es waren
+  // 144. Danach …" bleibt damit eine Grenze.
+  return MONATE.test(nach) || /^\d/.test(nach);
+}
+
 export function splitSentences(txt: string): string[] {
-  return txt.replace(/\s+/g, " ").trim().split(/(?<=[.!?…])\s+/).filter(Boolean);
+  const flach = txt.replace(/\s+/g, " ").trim();
+  const roh = flach.split(/(?<=[.!?…])\s+/).filter(Boolean);
+  // Wieder zusammenfügen, wo die Grenze keine war. Nachträglich statt in einem
+  // Muster: Ein einziger Ausdruck, der alle Ausnahmen enthält, ist nach dem
+  // dritten Zusatz nicht mehr zu lesen — und genau das ist die Stelle, an der
+  // ein späterer Zusatz still danebengeht.
+  const raus: string[] = [];
+  for (const teil of roh) {
+    const vor = raus[raus.length - 1];
+    if (vor && keineGrenze(vor, teil)) raus[raus.length - 1] = vor + " " + teil;
+    else raus.push(teil);
+  }
+  return raus;
 }
 
 /** Kürzt einen abgeschnittenen Satz an der letzten Fuge.
