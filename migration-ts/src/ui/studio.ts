@@ -22,6 +22,11 @@ import { normWhere, normWhen, normWho, rateWhere, rateWhen, rateWho } from "../g
 import { getTraceFor, fuegeteilAnteil } from "../atoms/trace";
 import { saveSchnappschuss, loadSchnappschuss } from "../features/sources";
 import { renderTextstruktur } from "./structureView";
+import { mischAbstand } from "../features/register";
+import {
+  ladeIndex, sichereIndex, mischeIndex, woerterVon, markiereBehalten,
+  textSchluessel as indexSchluessel,
+} from "../features/textindex";
 import { analysiereHerkunft, QUELLEN_LABEL, w4Varianten } from "../features/sources";
 import { extractLeadVerb, looksLikeFullClause, splitSpeakers } from "../generation/wordcls";
 import { el, select, field, textInput, button } from "./dom";
@@ -1185,6 +1190,13 @@ export function mountStudio(root: HTMLElement): void {
   const keepBtn = el("button", {}, icon("star"), " ", keepLbl);
   keepBtn.addEventListener("click", () => {
     const n = addToTreasury(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value, set: einstellungen() });
+    // Erst HIER weiss man, dass der Text behalten wird. Der Index traegt es
+    // nach; ohne diesen Schritt saehe jeder Eintrag gleich aus und die
+    // Auswertung koennte nichts unterscheiden.
+    try {
+      const idx = ladeIndex();
+      if (markiereBehalten(idx, indexSchluessel(out.textContent || ""))) sichereIndex(idx);
+    } catch { /* egal */ }
     keepLbl.textContent = n < 0 ? "— schon drin" : `Gemerkt (${n})`;
     setTimeout(() => (keepLbl.textContent = "Merken"), 1400);
   });
@@ -1647,6 +1659,40 @@ export function mountStudio(root: HTMLElement): void {
         laenge: parseInt(lenSlider.value, 10) || 0, bestenauslese: bestChk.checked,
         zeit: new Date().toLocaleTimeString("de-DE"),
       });
+      // JEDEN Text in den Index, nicht nur den behaltenen. Ein Index nur ueber
+      // Behaltenes zeigt, was gute Texte gemeinsam haben — aber nicht, ob die
+      // schlechten es auch hatten. Erst der Vergleich beider Klassen sagt
+      // etwas. „Behalten" wird spaeter nachgetragen.
+      try {
+        const txt = out.textContent || "";
+        const h = analysiereHerkunft(txt, (tone.value || "neutral").toLowerCase(),
+          { where: where.value, when: when.value, who: who.value, what: what.value });
+        const aktiv = presetStatus.textContent?.replace(/^Aktiv:\s*/, "").split(" + ").map((x) => x.trim()).filter(Boolean) || [];
+        sichereIndex(mischeIndex(ladeIndex(), {
+          schluessel: indexSchluessel(txt),
+          zeit: new Date().toISOString().slice(0, 16),
+          form: form.value,
+          woerter: woerterVon(txt),
+          presets: aktiv,
+          spreizung: mischAbstand(aktiv.map((x) => x.toLowerCase().replace(/\s+/g, ""))),
+          regler: {
+            ton: tone.value, struktur: structure.value, perspektive: persp.value,
+            rhythmus: rhythm.value, markov: markov.value, varianz: varianz.value,
+            spannung: tension.value, modus: mode.value,
+            laenge: String(parseInt(lenSlider.value, 10) || 0),
+            bestenauslese: bestChk.checked ? "an" : "aus",
+          },
+          ctx: { who: who.value, where: where.value, when: when.value, what: what.value },
+          // Die Herkunft rechnet ihre Anteile schon aus — als Bruch von 0 bis 1
+          // und ueber ZEICHEN, nicht ueber Segmente. Sie hier neu zu zaehlen
+          // haette eine zweite Rechnung fuer dieselbe Sache ergeben, die
+          // irgendwann anders ausfaellt.
+          herkunft: Object.fromEntries(Object.entries(h.anteile || {})
+            .map(([k, v]) => [k, Math.round((v as number) * 100)])
+            .filter(([, v]) => (v as number) > 0)),
+          behalten: false,
+        }));
+      } catch { /* der Index darf das Erzeugen nie aufhalten */ }
       refreshFeeds();
       clearUndo();
       requestAnimationFrame(positionArrows);

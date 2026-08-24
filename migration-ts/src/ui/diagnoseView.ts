@@ -2,6 +2,7 @@
 // Ampel-Kachel (greift / sporadisch / greift nicht / nicht prüfbar) und darunter
 // eine Pulsreihe: ein Punkt je Testlauf, leuchtend wenn das Feature gewirkt hat.
 import { el, button } from "./dom";
+import { ladeIndex, sichereIndex, werteAus, grundquote, alsCsv } from "../features/textindex";
 import { ladeNutzung, sichereNutzung, alsListe, seitWann } from "../features/nutzung";
 import { derKanon } from "../features/reiter";
 import { icon } from "./icons";
@@ -84,6 +85,60 @@ export function mountDiagnose(root: HTMLElement): void {
   // stellt, nicht beim Nachmessen der Maschine. Im Studio steht sie ohnehin
   // schon; hier war sie ein zweiter Ort für dieselbe Sache.
 
+  // ── Textindex ──
+  const idxBox = el("div", {});
+  const renderIndex = (): void => {
+    idxBox.innerHTML = "";
+    const liste = ladeIndex();
+    if (!liste.length) {
+      idxBox.append(el("p", { class: "muted mini" },
+        "Noch nichts aufgeschrieben. Der Index fuellt sich beim Erzeugen im Studio."));
+      return;
+    }
+    const grund = grundquote(liste);
+    const behalten = liste.filter((e) => e.behalten).length;
+    idxBox.append(el("p", { class: "muted mini" },
+      `${liste.length} Texte, davon ${behalten} behalten — Grundquote ${grund} %.`
+      + (liste.length < 30 ? " Zu wenige fuer ein Urteil; ab etwa dreissig lohnt der Vergleich." : "")));
+    const tabelle = (titel: string, b: ReturnType<typeof werteAus>): void => {
+      if (!b.length) return;
+      idxBox.append(el("p", { class: "mini", style: "margin:10px 0 2px" }, el("b", {}, titel)));
+      for (const x of b.slice(0, 8)) {
+        // Die Abweichung von der Grundquote steht dabei — die Quote allein
+        // verleitet dazu, 40 Prozent fuer gut zu halten, auch wenn der
+        // Durchschnitt bei 55 liegt.
+        const d = x.quote - grund;
+        idxBox.append(el("p", { class: "muted mini", style: "margin:1px 0" },
+          `${x.wert}: ${x.quote} % von ${x.gesamt} (${d >= 0 ? "+" : ""}${d} gegenueber dem Mittel)`));
+      }
+    };
+    tabelle("Presets", werteAus(liste, (e) => e.presets || []));
+    tabelle("Form", werteAus(liste, (e) => [e.form || "—"]));
+    tabelle("Ton", werteAus(liste, (e) => [e.regler?.ton || "—"]));
+    tabelle("Struktur", werteAus(liste, (e) => [e.regler?.struktur || "—"]));
+    tabelle("Spreizung", werteAus(liste, (e) => [
+      e.spreizung >= 0.5 ? "weit (ab 0,5)" : e.spreizung > 0 ? "gemischt, aber nah" : "ein Register"]));
+  };
+  const idxBtn = button("Auswertung zeigen");
+  idxBtn.addEventListener("click", renderIndex);
+  const idxCsv = button("Als CSV sichern");
+  idxCsv.addEventListener("click", () => {
+    const csv = alsCsv(ladeIndex());
+    if (!csv) return;
+    // Mit BOM, sonst zerlegt ein deutsches Tabellenprogramm die Umlaute.
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
+    a.download = `divergenz_textindex_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  });
+  const idxWeg = button("Index leeren", "danger");
+  idxWeg.addEventListener("click", () => {
+    if (!ladeIndex().length || !confirm("Den Textindex loeschen? Die Schatzkammer bleibt unberuehrt.")) return;
+    sichereIndex([]);
+    renderIndex();
+  });
+
   // ── Schaltplan: was ist gerade verdrahtet? ──
   // Er misst nicht, er liest ab. Erzeugt wird nichts — ein Plan, der beim
   // Ansehen einen Text erzeugt, hätte den Zustand verändert, den er zeigen soll.
@@ -163,6 +218,17 @@ export function mountDiagnose(root: HTMLElement): void {
     planBox,
     el("hr", {}),
     el("p", { class: "muted" }, "Der Selbsttest erzeugt pro Feature mehrere Texte und prüft, ob das Feature im Ergebnis nachweisbar wirkt. Kein Qualitätsurteil — nur die Frage, ob der Schalter etwas bewirkt. Viele Features sind absichtlich sporadisch (z. B. der Disruptor feuert nur gelegentlich); die Pulsreihe zeigt das als gepunkteten Streifen statt als Fehler."),
+    el("h3", {}, "Textindex — welche Einstellung fuehrt zu behaltenen Texten?"),
+    el("p", { class: "muted" },
+      "Jeder erzeugte Text wird mit seinen Einstellungen aufgeschrieben — nicht nur der "
+      + "behaltene. Ein Index nur ueber Behaltenes zeigt, was gute Texte gemeinsam haben, "
+      + "aber nicht, ob die schlechten es auch hatten; erst der Vergleich beider Klassen sagt "
+      + "etwas. „Behalten\u201c wird nachgetragen, wenn ein Text in die Schatzkammer wandert. "
+      + "Die Grundquote ist der Massstab: Eine Einstellung mit 30 Prozent ist gut, wenn im "
+      + "Mittel 20 behalten werden, und schlecht, wenn es 50 sind."),
+    el("div", { class: "btnrow" }, idxBtn, idxCsv, idxWeg),
+    idxBox,
+    el("hr", {}),
     el("h3", {}, "Nutzung — was wird tatsaechlich benutzt?"),
     el("p", { class: "muted" },
       "Zaehlt, wie oft jeder Reiter geoeffnet wurde. Kein Qualitaetsurteil und keine "
