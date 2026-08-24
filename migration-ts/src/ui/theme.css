@@ -899,6 +899,26 @@ select.abweichend{border-color:var(--acc)}
    vor sich hat oder einen Rest. */
 .zk-protokoll{margin:6px 0 0}
 .zk-protokoll:empty{display:none}
+/* Nutzungstabelle. Ein Balken je Zeile, weil eine Zahlenspalte allein nicht
+   zeigt, wie weit die Spitze vom Rest entfernt liegt. */
+.nutz-tab{width:100%;border-collapse:collapse;font:13px/1.5 var(--sans)}
+.nutz-tab th{text-align:left;font-weight:600;color:var(--muted);font-size:12px;
+  padding:4px 8px 4px 0;border-bottom:1px solid var(--border)}
+.nutz-tab td{padding:5px 8px 5px 0;border-bottom:1px solid var(--border);vertical-align:middle}
+.nutz-tab td:nth-child(2){width:45%}
+.nutz-tab td:last-child{color:var(--muted);white-space:nowrap;text-align:right}
+.nutz-balken{display:inline-block;width:70%;height:8px;border-radius:4px;
+  background:var(--panel);overflow:hidden;vertical-align:middle;margin-right:8px}
+.nutz-balken span{display:block;height:100%;background:var(--acc);border-radius:4px}
+.nutz-zahl{font-variant-numeric:tabular-nums}
+/* Nie benutzt: gedaempft, aber oben stehend. Die Zeile soll auffallen, ohne
+   wie ein Fehler auszusehen — sie ist eine Auskunft, kein Alarm. */
+.nutz-tab tr.nutz-nie td{color:var(--muted)}
+.nutz-tab tr.nutz-nie td:first-child{font-style:italic}
+@media (max-width:520px){
+  .nutz-tab td:nth-child(2){width:auto}
+  .nutz-balken{width:52px}
+}
 /* Aufschluesselung der Speicherbelegung. Ein Balken je Posten, weil eine
    Zahlenspalte allein nicht zeigt, WO das Gewicht liegt — und genau danach
    entscheidet sich, ob aufgeraeumt oder umgezogen werden muss. */

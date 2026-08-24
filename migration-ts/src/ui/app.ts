@@ -34,6 +34,7 @@ import { oeffneDruckvorschau } from "./printView";
 import { oeffneZeitungssetzer } from "./zeitungView";
 import { loadActiveBankLabel } from "../wordbank";
 import { ladeStand, sichtbar, setzeKanon } from "../features/reiter";
+import { zaehle } from "../features/nutzung";
 import { mountDiagnose } from "./diagnoseView";
 import { mountHelp } from "./helpView";
 import { mountLehrer } from "./lehrerView";
@@ -135,6 +136,11 @@ export function mountApp(root: HTMLElement): void {
       const aktion = AKTIONEN[name];
       const b = el("button", aktion ? { class: "tabaktion", title: "Öffnet ein Fenster — der Reiter wechselt nicht" } : {}, name) as HTMLButtonElement;
       b.addEventListener("click", () => {
+        // Gezaehlt wird am Klick, nicht am Zeichnen: Der erste Reiter wird beim
+        // Start gemountet, ohne dass ihn jemand gewaehlt haette — mitzuzaehlen
+        // hiesse, „Studio" jeden Start hochzuzaehlen und die Liste unbrauchbar
+        // zu machen.
+        zaehle(name);
         if (aktion) { aktion(); return; }
         knoepfe.forEach((x) => x.classList.remove("active"));
         b.classList.add("active");

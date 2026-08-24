@@ -24808,6 +24808,47 @@ function befundListe(anlage) {
 // test/schaltplan.ts
 var import_jsdom = require("jsdom");
 
+// src/features/nutzung.ts
+var NUTZUNG_KEY = "divergenz_nutzung_v1";
+function alsListe(stand, alle, jetzt = Date.now()) {
+  const tag = 864e5;
+  const zeilen = alle.map((id) => {
+    const e2 = stand[id];
+    return e2 && e2.n > 0 ? { id, n: e2.n, tage: Math.floor((jetzt - e2.zuletzt) / tag), nie: false } : { id, n: 0, tage: -1, nie: true };
+  });
+  return zeilen.sort((a, b) => {
+    if (a.nie !== b.nie) return a.nie ? -1 : 1;
+    if (a.n !== b.n) return a.n - b.n;
+    return a.id.localeCompare(b.id, "de");
+  });
+}
+function seitWann(stand) {
+  const z = Object.values(stand).map((e2) => e2.zuerst).filter((x) => x > 0);
+  return z.length ? Math.min(...z) : 0;
+}
+function ladeNutzung() {
+  try {
+    const r = JSON.parse(localStorage.getItem(NUTZUNG_KEY) || "{}");
+    if (!r || typeof r !== "object" || Array.isArray(r)) return {};
+    const raus = {};
+    for (const [k, v] of Object.entries(r)) {
+      const e2 = v;
+      const n = Number(e2?.n);
+      if (!Number.isFinite(n) || n <= 0) continue;
+      raus[k] = { n, zuletzt: Number(e2?.zuletzt) || 0, zuerst: Number(e2?.zuerst) || 0 };
+    }
+    return raus;
+  } catch {
+    return {};
+  }
+}
+function sichereNutzung(s) {
+  try {
+    localStorage.setItem(NUTZUNG_KEY, JSON.stringify(s));
+  } catch {
+  }
+}
+
 // src/features/selftest.ts
 var RUNS = 16;
 var baseInput = () => ({
@@ -25494,18 +25535,61 @@ function mountDiagnose(root) {
     summary.append(renderSummary(res));
     body.append(renderSelfTest(res));
   };
-  const struktBox = el("div", {});
-  const renderStruktur = () => {
-    struktBox.innerHTML = "";
-    let text = "";
-    try {
-      text = localStorage.getItem("dm_last_text") || "";
-    } catch {
+  const nutzBox = el("div", {});
+  const renderNutzung = () => {
+    nutzBox.innerHTML = "";
+    const stand = ladeNutzung();
+    const zeilen = alsListe(stand, derKanon());
+    const seit = seitWann(stand);
+    const tage = seit ? Math.floor((Date.now() - seit) / 864e5) : 0;
+    const summe = zeilen.reduce((a, z) => a + z.n, 0);
+    nutzBox.append(el(
+      "p",
+      { class: "muted mini" },
+      summe ? `${summe} Aufrufe seit ${tage} ${tage === 1 ? "Tag" : "Tagen"}. Gezaehlt wird der Klick auf einen Reiter, nicht das Oeffnen der App \u2014 sonst stuende Studio bei jedem Start hoeher.` : "Noch nichts gezaehlt. Die Liste wird erst nach einigen Tagen aussagekraeftig."
+    ));
+    const tab = el("table", { class: "nutz-tab" });
+    tab.append(el(
+      "tr",
+      {},
+      el("th", {}, "Reiter"),
+      el("th", {}, "Aufrufe"),
+      el("th", {}, "zuletzt")
+    ));
+    const hoechst = Math.max(1, ...zeilen.map((z) => z.n));
+    for (const z of zeilen) {
+      tab.append(el(
+        "tr",
+        { class: z.nie ? "nutz-nie" : "" },
+        el("td", {}, z.id),
+        el(
+          "td",
+          {},
+          el(
+            "span",
+            { class: "nutz-balken" },
+            el("span", { style: `width:${Math.round(z.n / hoechst * 100)}%` })
+          ),
+          el("span", { class: "nutz-zahl" }, String(z.n))
+        ),
+        el("td", {}, z.nie ? "nie" : z.tage === 0 ? "heute" : `vor ${z.tage} ${z.tage === 1 ? "Tag" : "Tagen"}`)
+      ));
     }
-    struktBox.append(renderTextstruktur(text, loadSchnappschuss()));
+    nutzBox.append(tab);
+    nutzBox.append(el(
+      "p",
+      { class: "muted mini", style: "margin-top:8px" },
+      "Ungenutztes steht oben \u2014 wer diese Liste oeffnet, sucht nicht den Spitzenreiter, sondern den Ballast. Die Zahlen bleiben im Browser und gehen nirgendwohin."
+    ));
   };
-  const struktBtn = button("Textstruktur aktualisieren");
-  struktBtn.addEventListener("click", renderStruktur);
+  const nutzBtn = button("Nutzung aktualisieren");
+  nutzBtn.addEventListener("click", renderNutzung);
+  const nutzWeg = button("Zaehlung zuruecksetzen", "danger");
+  nutzWeg.addEventListener("click", () => {
+    if (!confirm("Die Zaehlung auf null setzen? Danach dauert es wieder Wochen, bis die Liste etwas sagt.")) return;
+    sichereNutzung({});
+    renderNutzung();
+  });
   const planBox = el("div", {});
   const planHint = el("p", { class: "muted mini" });
   const renderPlan = () => {
@@ -25545,6 +25629,7 @@ function mountDiagnose(root) {
     uebernimmWurf(wurf.nachId);
     wuerfelHint.textContent = `gew\xFCrfelt \xB7 Vier W aus ${wurf.quelle}` + (gesperrt.size ? ` \u2014 ${gesperrt.size} ${gesperrt.size === 1 ? "Schloss h\xE4lt" : "Schl\xF6sser halten"}` : "");
     renderPlan();
+    renderNutzung();
   });
   const legende = el(
     "div",
@@ -25584,10 +25669,14 @@ function mountDiagnose(root) {
     planBox,
     el("hr", {}),
     el("p", { class: "muted" }, "Der Selbsttest erzeugt pro Feature mehrere Texte und pr\xFCft, ob das Feature im Ergebnis nachweisbar wirkt. Kein Qualit\xE4tsurteil \u2014 nur die Frage, ob der Schalter etwas bewirkt. Viele Features sind absichtlich sporadisch (z. B. der Disruptor feuert nur gelegentlich); die Pulsreihe zeigt das als gepunkteten Streifen statt als Fehler."),
-    el("h3", {}, "Textstruktur \u2014 woraus besteht der Text im Studio?"),
-    el("p", { class: "muted" }, "Zerlegt den zuletzt erzeugten Text nach Herkunft: Wortbank, Ton, 4W-Kontext, lebendige Pools, Markov. Dar\xFCber die Einstellungen, die zu diesem Text gef\xFChrt haben."),
-    el("div", { class: "btnrow" }, struktBtn),
-    struktBox,
+    el("h3", {}, "Nutzung \u2014 was wird tatsaechlich benutzt?"),
+    el(
+      "p",
+      { class: "muted" },
+      "Zaehlt, wie oft jeder Reiter geoeffnet wurde. Kein Qualitaetsurteil und keine Empfehlung \u2014 nur die Auskunft, welche Bausteine im Alltag vorkommen und welche nicht. Ein Baustein, der nach Wochen bei null steht, ist ein Streichkandidat; die Liste beantwortet das, was sich weder erinnern noch schaetzen laesst."
+    ),
+    el("div", { class: "btnrow" }, nutzBtn, nutzWeg),
+    nutzBox,
     el("hr", {}),
     mountWirkung(),
     el("hr", {}),
@@ -25598,8 +25687,8 @@ function mountDiagnose(root) {
     el("p", { class: "muted mini" }, "Legende: \u25CF gr\xFCn = greift zuverl\xE4ssig \xB7 \u25CF gelb = greift sporadisch (oft gewollt) \xB7 \u25CF rot = keine Wirkung nachweisbar \xB7 \u25CF grau = nicht pr\xFCfbar (fehlende Voraussetzung, z. B. leerer Korpus). Jeder Punkt der Reihe ist ein Testlauf.")
   );
   root.append(wrap);
-  renderStruktur();
   renderPlan();
+  renderNutzung();
 }
 
 // test/schaltplan.ts
