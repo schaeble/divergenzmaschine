@@ -8,7 +8,10 @@ import { loadPersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
 import { openPresetWizard } from "./presetWizard";
 import { openArchive } from "./archiveView";
-import { setzeEigenes, type Welt, type Sprache } from "../features/register";
+import {
+  setzeEigenes, ladeEigene, registerVon, WELT_LABEL, SPRACHE_LABEL,
+  type Welt, type Sprache,
+} from "../features/register";
 import { preset2ToBank, preset2Name, preset2Active, builtinSettings, generateAiPreset2, setActive2, getActive2, saveUserPreset2, saveUserPresets2All, getUserPreset2, deleteUserPreset2, loadUserPresets2, type Active2 } from "../features/preset2";
 import { setDramaData, loadDramaData } from "../generation/dramaturgie";
 import { builtinDrama } from "../presets.drama.data";
@@ -174,27 +177,6 @@ export function mountWordbank(root: HTMLElement): void {
     const name = prompt("Name für dein Preset:", def);
     if (name) {
       saveCurrentBankAsUserPreset(name);
-      // Register mit abfragen. Ohne Zuordnung bleibt ein eigenes Preset aus der
-      // Spreizung des Autopiloten heraus — es schadet nicht mehr (bis 4.313.0
-      // zaehlte es als Abstand null und wurde dadurch gemieden), aber es
-      // spreizt eben auch nicht. Wer das Preset geschrieben hat, weiss am
-      // besten, in welche Ecke es gehoert.
-      const w = (prompt(
-        `Welche Welt baut „${name}“?\n\n`
-        + "real  — Kausalität gilt (Alltag, Behörde, Hafen)\n"
-        + "gehoben — erhöht, aber nicht gebrochen (Romantik, Bergwelt)\n"
-        + "irreal — Kausalität gebrochen (Mythos, Traum)\n\n"
-        + "Leer lassen, wenn unsicher — dann bleibt es ohne Zuordnung.", "") || "").trim().toLowerCase();
-      const sp = w ? (prompt(
-        `Wie wird in „${name}“ gesprochen?\n\n`
-        + "nuechtern · amtlich · erzaehlend · feierlich · koerperlich · bildhaft\n\n"
-        + "erzählend = ein Vorgang mit Vorher und Nachher\n"
-        + "feierlich = ein Zustand, der beschworen wird", "") || "").trim().toLowerCase() : "";
-      try {
-        setzeEigenes(name,
-          (["real", "gehoben", "irreal"].includes(w) ? w : "") as Welt | "",
-          (["nuechtern", "amtlich", "erzaehlend", "feierlich", "koerperlich", "bildhaft"].includes(sp) ? sp : "") as Sprache | "");
-      } catch { /* Zuordnung ist Zugabe, sie darf das Speichern nicht aufhalten */ }
       // Auch eingebaute Presets haben einen Bogen — ohne diese Zeile verlor jede
       // gespeicherte Kopie ihre Dramaturgie.
       const d = loadDramaData();
@@ -598,6 +580,58 @@ export function mountWordbank(root: HTMLElement): void {
     batchInfo);
 
 
+  // ── Register eigener Presets ──────────────────────────────────────────────
+  // Eigene Presets tragen kein Register und bleiben deshalb aus der Spreizung
+  // des Autopiloten heraus. Wer sie geschrieben hat, weiss am besten, in welche
+  // Ecke sie gehoeren.
+  //
+  // Als EIGENE Liste, nicht beim Speichern: Ein erster Versuch haengte die
+  // Abfrage an „Als Preset sichern" — und der Knopf speichert die AKTIVE Bank,
+  // nicht das ausgewaehlte Preset. „Alle durchgehen und neu abspeichern" waere
+  // damit ein Weg gewesen, sich Presets mit Mischungen zu ueberschreiben. Hier
+  // wird nur die Zuordnung angefasst, nie eine Bank.
+  const registerListe = el("div", {});
+  const zeichneRegister = (): void => {
+    registerListe.innerHTML = "";
+    const eigene = Object.keys(loadUserPresets()).sort((a, b) => a.localeCompare(b, "de"));
+    if (!eigene.length) {
+      registerListe.append(el("p", { class: "muted mini" }, "Noch keine eigenen Presets."));
+      return;
+    }
+    const ohne = eigene.filter((n) => !registerVon("user:" + n)).length;
+    registerListe.append(el("p", { class: "muted mini" },
+      `${eigene.length} eigene Presets, ${ohne} noch ohne Zuordnung. `
+      + "Ohne Zuordnung bleibt ein Preset aus der Spreizung heraus — es schadet nicht, spreizt aber auch nicht."));
+    for (const name of eigene) {
+      const r = ladeEigene()[name];
+      const wSel = select("rg-w-" + name,
+        [["", "— Welt —"], ...Object.entries(WELT_LABEL)] as [string, string][], r?.welt || "");
+      const sSel = select("rg-s-" + name,
+        [["", "— Sprache —"], ...Object.entries(SPRACHE_LABEL)] as [string, string][], r?.sprache || "");
+      const merke = (): void => {
+        // Beide oder keins: Ein halbes Register waere kein Register, und die
+        // Rechnung braucht beide Achsen.
+        setzeEigenes(name, wSel.value as Welt | "", sSel.value as Sprache | "");
+        zeichneRegister();
+      };
+      wSel.addEventListener("change", merke);
+      sSel.addEventListener("change", merke);
+      registerListe.append(el("div", { class: "reiterzeile" },
+        el("span", { class: "mem-name" }, name),
+        el("span", { class: "btnrow" }, wSel, sSel)));
+    }
+  };
+  const registerBox = el("details", {},
+    el("summary", { class: "mini" }, "Register eigener Presets"),
+    el("p", { class: "muted mini" },
+      "Zwei Angaben je Preset: welche WELT es baut (real — Kausalität gilt; gehoben — erhöht, "
+      + "aber nicht gebrochen; irreal — Kausalität gebrochen) und wie darin GESPROCHEN wird. "
+      + "Erzählend heißt: ein Vorgang mit Vorher und Nachher. Feierlich: ein Zustand, der "
+      + "beschworen wird. Beide Angaben oder keine — ein halbes Register ist keins. "
+      + "Der Autopilot mischt danach gespreizt; die Banken selbst werden hier nicht angefasst."),
+    registerListe);
+  registerBox.addEventListener("toggle", () => { if (registerBox.hasAttribute("open")) zeichneRegister(); });
+
   wrap.append(
     el("div", { class: "btnrow" }, wizardBtn, archiveBtn),
     field("Preset", preset),
@@ -609,6 +643,7 @@ export function mountWordbank(root: HTMLElement): void {
     applyParamsRow,
     fullBox,
     p2Box,
+    registerBox,
     batchBox,
   );
   root.append(wrap);

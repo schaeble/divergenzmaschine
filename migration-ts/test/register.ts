@@ -8,6 +8,7 @@
 // — es wird gezogen, zählt aber als Abstand null und zieht damit jede Mischung
 // herunter, in der es steckt. Kein Fehler, keine Meldung. Dieselbe Lücke wie
 // beim Selbsttest mit den drei fehlenden Formen.
+import { readFileSync } from "fs";
 import { JSDOM } from "jsdom";
 const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/" });
 (globalThis as unknown as Record<string, unknown>).localStorage = dom.window.localStorage;
@@ -156,6 +157,26 @@ setzeEigenes("Eigenes", "", "");
 ist("leere Angaben loeschen sie wieder", registerVon("user:Eigenes"), null);
 ist("und die Ablage bleibt sauber", Object.keys(ladeEigene()).length, 0);
 wahr("die Ablage wandert in die Projektdatei", EIGEN_KEY.startsWith("divergenz_"));
+
+// ── 6 · Die Zuordnung sitzt an der richtigen Stelle ─────────────────────────
+// Ein erster Versuch haengte die Abfrage an „Als Preset sichern". Der Knopf
+// speichert aber die AKTIVE Bank, nicht das ausgewaehlte Preset — „alle
+// eigenen durchgehen und neu abspeichern" waere damit ein Weg gewesen, sich
+// Presets mit Mischungen zu ueberschreiben. Jetzt eine eigene Liste, die nur
+// die Zuordnung anfasst und nie eine Bank.
+const wbQuelle = readFileSync("src/ui/wordbankView.ts", "utf8");
+wahr("es gibt eine eigene Zuordnungsliste", /Register eigener Presets/.test(wbQuelle));
+ist("und keine Abfrage beim Sichern mehr",
+  /Welche Welt baut/.test(wbQuelle), false);
+wahr("die Liste ruehrt keine Bank an",
+  !/saveUserPresets\(\)/.test(wbQuelle.slice(wbQuelle.indexOf("Register eigener Presets"))));
+// Beide Achsen oder keine: Ein halbes Register waere keins, und die Rechnung
+// braucht beide.
+localStorage.removeItem(EIGEN_KEY);
+setzeEigenes("Halb", "irreal", "");
+ist("eine halbe Angabe wird nicht gespeichert", registerVon("user:Halb"), null);
+setzeEigenes("Ganz", "irreal", "amtlich");
+wahr("eine ganze schon", registerVon("user:Ganz") !== null);
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Register — ${geprueft} Prüfungen:`);
