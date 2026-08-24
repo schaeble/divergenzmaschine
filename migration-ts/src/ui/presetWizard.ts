@@ -1,5 +1,5 @@
 // Preset-Assistent: leitet offline Schritt für Schritt durch die Kategorien
-// (7 Kern-Kategorien der Wortbank + optionale Preset-2.0-Dramaturgie) und
+// (die acht Listen der Wortbank + optionale Preset-2.0-Dramaturgie) und
 // speichert am Ende ein eigenes Preset. Keine KI, keine Netzverbindung nötig.
 import { el, select, button } from "./dom";
 import { icon } from "./icons";
@@ -8,6 +8,8 @@ import { getAllPresets, saveActiveBankLabel, saveCurrentBankAsUserPreset } from 
 import { DEFAULT_BANK, BANK_KEYS } from "../constants";
 import type { Bank, BankKey } from "../types";
 import { setActive2, saveUserPreset2, type Active2 } from "../features/preset2";
+import { KATEGORIE_VORGABE } from "../features/ki";
+import { TONE_OPTS as TON_LISTE } from "../generation/optionen";
 import { setDramaData } from "../generation/dramaturgie";
 import { ARCHIVE_CATS, catLabel } from "../features/wordarchive";
 import { entriesForCat, entriesForCatTheme, themesForCat, archiveGroupNames, groupEntries, allEntries } from "../features/archive2";
@@ -15,14 +17,46 @@ import { entriesForCat, entriesForCatTheme, themesForCat, archiveGroupNames, gro
 const shuffle = <T>(a: T[]): T[] => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j]!, a[i]!]; } return a; };
 const lines = (v: string): string[] => v.split("\n").map((s) => s.trim()).filter(Boolean);
 
+/** Die acht Listen mit ihren Anweisungen.
+ *
+ *  Die MENGEN und WORTLÄNGEN kommen aus `KATEGORIE_VORGABE` in `ki.ts` — dort
+ *  sind sie am Bestand aller eingebauten Presets nachgezählt und werden von
+ *  einem eigenen Prüfstand gegen ihn gehalten. Sie hier ein zweites Mal
+ *  hinzuschreiben hiesse, zwei Listen zu führen, die dasselbe meinen; genau
+ *  daran ist der Autopilot in 4.245.0 gescheitert.
+ *
+ *  Der Assistent nannte bis 4.305.0 GAR KEINE Mengen. Wer über ihn ein Preset
+ *  baute, wusste nie, wann genug ist — und die KI-Wortbank verlangt seit
+ *  4.290.0 im Schnitt 126 Einträge und rund 850 Wörter. Ein von Hand gebautes
+ *  Preset landete damit regelmäßig bei einem Drittel davon und trug lange
+ *  Texte nicht.
+ *
+ *  Und die MOTIVVERWANDLUNGEN fehlten hier ganz. Der Editor hat sie seit
+ *  4.292.0, der KI-Auftrag seit 4.290.0 — nur der Assistent führte weiter durch
+ *  sieben Listen statt acht. */
+const V = new Map(KATEGORIE_VORGABE.map((x) => [x.key, x]));
+const menge = (k: string): string => {
+  const v = V.get(k);
+  if (!v) return "";
+  return ` Richtwert: ${v.anzahl} Einträge (${v.min}–${v.max})`
+    + (v.woerter ? `, im Schnitt ${v.woerter} Wörter je Eintrag.` : ".");
+};
+
 const CORE: [BankKey, string, string][] = [
-  ["motifs", "Motive", "Kurze, bildhafte Phrasen (3–8 Wörter), ohne Punkt am Ende, z. B. „ein leerer Bahnhof am Nachmittag“."],
-  ["hooks", "Hooks", "Auslösende Details/Reize, die neugierig machen, z. B. „eine rote Feder im falschen Winkel“."],
-  ["props", "Requisiten", "Gegenstände, z. B. „ein Kompass“, „eine Muschel“. Bei uneindeutigen Nomen den Artikel angeben."],
-  ["turns", "Wendungen", "Wendepunkte als kurzer Satz/Phrase, z. B. „eine Katze führt den Weg“."],
-  ["obstacles", "Hindernisse", "Was sich der Figur widersetzt, z. B. „die Tür bleibt verschlossen“."],
-  ["stakes", "Einsätze", "Was auf dem Spiel steht, z. B. „ihr letzter Name“."],
-  ["endings", "Enden", "Schluss-Bilder oder -Sätze, z. B. „das Licht bleibt an, niemand kommt“."],
+  ["motifs", "Motive", "Wiederkehrende Bilder. Jedes MUSS eine Nominalphrase mit Artikel und eigenem Kopf sein, "
+    + "am besten mit Relativsatz: „eine Nachtigall, die im dunklen Laub sitzt“. Bruchstücke ohne Kopf "
+    + "(„Brot und Ketten“) lassen den Zusammenbau mitten im Text abbrechen — gemessen in 33 von 60 Läufen." + menge("motifs")],
+  ["hooks", "Hooks", "Kleine, irritierende Details oder Sätze, die neugierig machen, z. B. „eine rote Feder im falschen Winkel“." + menge("hooks")],
+  ["props", "Requisiten", "Gegenstände MIT unbestimmtem Artikel im Akkusativ: „einen Schlüssel zum Kerker“. "
+    + "Sie stehen als Objekt in einem fremden Satz und sind deshalb absichtlich kurz." + menge("props")],
+  ["turns", "Wendungen", "Wendepunkte, je ein knapper Satz, z. B. „eine Katze führt den Weg“." + menge("turns")],
+  ["obstacles", "Hindernisse", "Was sich der Figur widersetzt, je ein knapper Satz, z. B. „die Tür bleibt verschlossen“." + menge("obstacles")],
+  ["stakes", "Einsätze", "Was auf dem Spiel steht. Jeder Eintrag beginnt mit „Der Einsatz ist“." + menge("stakes")],
+  ["endings", "Enden", "Schlusssätze oder Schlussbilder, z. B. „das Licht bleibt an, niemand kommt“." + menge("endings")],
+  ["verwandlungen" as BankKey, "Motivverwandlungen", "Die achte Liste — keine Textkategorie: Diese Einträge "
+    + "stehen NIE im Text, sie sagen, was aus einem Motiv wird, wenn es wiederkehrt. Ein Paar je Zeile mit "
+    + "Pfeil: „Telefon→Stille“. Beide Seiten müssen in den Motiven vorkommen, sonst verwirft der Generator "
+    + "das Paar stillschweigend. 41 der 51 eingebauten Presets tragen welche." + menge("verwandlungen")],
 ];
 
 type DKey = "einstieg" | "mitte" | "hoehepunkt" | "schluss" | "ausloeser" | "veraenderungen" | "konflikte" | "zeitanomalien" | "regeln";
@@ -49,7 +83,9 @@ const DRAMA_EX: Record<DKey, string[]> = {
   regeln: ["wer schläft, altert doppelt", "Spiegel zeigen nur Vergangenes", "Namen verblassen, wenn man sie ausspricht", "niemand darf zweimal denselben Weg gehen", "Licht wirft keine Schatten", "Versprechen binden über den Tod hinaus", "was man verliert, kehrt verwandelt zurück", "Türen führen nie zweimal zum selben Ort", "Schweigen hat ein Gewicht", "Wasser erinnert sich an jede Berührung", "wer lügt, wird durchsichtig", "die Toten hören mit", "Uhren gehen nur bei Sonnenlicht", "jeder Schatten gehört jemandem", "Wünsche kosten ein Jahr"],
 };
 const POOL_EX = ["ein verlassener Leuchtturm", "die Kartografin", "eine Spieluhr ohne Melodie", "ein Bahnwärterhaus im Nebel", "der Uhrmacher ohne Hände", "ein Gewächshaus im Winter", "die Frau mit den zwei Schatten", "ein Fahrstuhl ohne Knöpfe", "das Archiv der verlorenen Dinge", "ein Junge, der Karten sammelt", "die Brücke, die nirgends hinführt", "eine Bibliothek bei Nacht", "der Fährmann ohne Boot", "ein Zimmer voller Uhren", "die Stadt unter dem Wasser"];
-const TONE_OPTS: [string, string][] = [["", "(kein)"], ["neutral", "Neutral"], ["mystery", "Mystery"], ["poetic", "Poetisch"], ["melancholisch", "Melancholisch"], ["dark", "Düster"], ["unheimlich", "Unheimlich"], ["uplifting", "Hoffnungsvoll"], ["zaertlich", "Zärtlich"], ["traeumerisch", "Träumerisch"], ["nuechtern", "Nüchtern"], ["ironisch", "Ironisch"], ["humorous", "Humorvoll"]];
+// Aus der EINEN Quelle statt abgeschrieben. Die Kopie war zufaellig noch
+// identisch — genau so war es beim Autopiloten auch, bis sie es nicht mehr war.
+const TONE_OPTS: [string, string][] = [["", "(kein)"], ...TON_LISTE];
 
 const bankExamples = (key: BankKey): string[] => {
   const set = new Set<string>();
@@ -76,7 +112,7 @@ export function openPresetWizard(onDone: (userId: string | null) => void): void 
   overlay.append(card);
   document.body.append(overlay);
 
-  // Schrittfolge: Intro → 7 Kern → Gate → 9 Dramaturgie → Pools → Ton → Speichern
+  // Schrittfolge: Intro → 8 Listen → Gate → 9 Dramaturgie → Pools → Ton → Speichern
   type Step = { kind: "intro" } | { kind: "bank"; k: BankKey; label: string; help: string }
     | { kind: "gate" } | { kind: "drama"; k: DKey; label: string; help: string }
     | { kind: "pools" } | { kind: "tone" } | { kind: "save" };
@@ -190,7 +226,7 @@ export function openPresetWizard(onDone: (userId: string | null) => void): void 
     const total = saveIndex; // Zählschritte ohne Intro
     if (step.kind === "intro") {
       body.append(el("h3", { class: "wiz-h" }, "Ein eigenes Preset bauen — offline"));
-      body.append(el("p", { class: "muted" }, "Der Assistent führt dich durch die 7 Kern-Kategorien der Wortbank und anschließend optional durch die Dramaturgie (Preset 2.0). Pro Schritt gibt es einen Erklärtext und Beispiele zum Einfügen. Am Ende speicherst du alles als eigenes Preset."));
+      body.append(el("p", { class: "muted" }, "Der Assistent führt dich durch die acht Listen der Wortbank — sieben Textkategorien und die Motivverwandlungen — und anschließend optional durch die Dramaturgie (Preset 2.0). Pro Schritt stehen der Richtwert für die Menge, ein Erklärtext und Beispiele zum Einfügen. Am Ende speicherst du alles als eigenes Preset."));
     } else if (step.kind === "bank") {
       areaStep(step.label, step.help, data.bank[step.k] || [], bankExamples(step.k), (v) => (data.bank[step.k] = v), total, i, step.k, KURIOSE_FOR[step.k]);
     } else if (step.kind === "gate") {
@@ -211,8 +247,24 @@ export function openPresetWizard(onDone: (userId: string | null) => void): void 
     } else if (step.kind === "save") {
       body.append(el("h3", { class: "wiz-h" }, "Speichern"));
       const coreCount = BANK_KEYS.reduce((n, k) => n + (data.bank[k]?.length || 0), 0);
+      const verwCount = (data.bank["verwandlungen" as BankKey] || []).length;
+      // Der Richtwert steht daneben, nicht als Sperre: Ein kleines Preset darf
+      // entstehen, aber wer es baut, soll wissen, dass es lange Texte nicht
+      // traegt. Gemessen liegt volle Treue bei rund 850 Woertern.
+      const woerter = BANK_KEYS.reduce((n, k) => n + (data.bank[k] || []).reduce((m, x) => m + (x.match(/\S+/g) || []).length, 0), 0);
+      const soll = KATEGORIE_VORGABE.filter((x) => x.key !== "verwandlungen").reduce((n, x) => n + x.anzahl, 0);
       const dramaCount = DRAMA.reduce((n, [k]) => n + (data.drama[k]?.length || 0), 0);
-      body.append(el("p", { class: "muted" }, `${coreCount} Wortbank-Einträge · ${dramaCount} Dramaturgie-Einträge · ${data.pools.length} Pool-Einträge. Leere Kern-Kategorien werden mit Standard-Einträgen aufgefüllt, damit das Preset generieren kann.`));
+      body.append(el("p", { class: "muted" },
+        `${coreCount} Wortbank-Einträge (${woerter} Wörter) · ${verwCount} Motivverwandlungen · `
+        + `${dramaCount} Dramaturgie-Einträge · ${data.pools.length} Pool-Einträge. `
+        + "Leere Textkategorien werden mit Standard-Einträgen aufgefüllt, damit das Preset generieren kann; "
+        + "die Motivverwandlungen nicht — geerbte Paare zeigen auf fremde Motive und wären wirkungslos."));
+      body.append(el("p", { class: coreCount >= soll * 0.7 && woerter >= 600 ? "muted mini" : "sam-warn mini" },
+        coreCount >= soll * 0.7 && woerter >= 600
+          ? `Das trägt: Richtwert sind ${soll} Einträge und rund 850 Wörter.`
+          : `Richtwert sind ${soll} Einträge und rund 850 Wörter — gemessen trägt ein Preset darunter `
+            + "lange Texte nicht (bei der Hälfte reicht es für etwa 56 Prozent der Ziellänge). "
+            + "Speichern geht trotzdem; nachlegen lässt sich jederzeit im Editor."));
       const nameIn = el("input", { class: "wiz-name", placeholder: "Name des Presets" }) as HTMLInputElement;
       nameIn.value = data.name;
       body.append(el("div", { class: "field" }, el("span", { class: "field-label" }, "Preset-Name"), nameIn));
@@ -252,6 +304,17 @@ export function openPresetWizard(onDone: (userId: string | null) => void): void 
       const v = data.bank[k];
       bank[k] = v && v.length ? v.slice() : (DEFAULT_BANK[k] || []).slice();
     }
+    // Die Verwandlungen NICHT über BANK_KEYS: Sie sind keine Textkategorie und
+    // stehen deshalb nicht darin. Bis 4.305.0 fielen sie hier still heraus —
+    // der Assistent hätte sie gar nicht erst abgefragt, und selbst wenn, wäre
+    // die Eingabe beim Speichern verschwunden. Kein Fehler, keine Meldung:
+    // genau die Fehlerart, die dieses Projekt sonst überall hat.
+    //
+    // Und NICHT mit Standard auffüllen: Ein Motivpaar zeigt auf Motive; die
+    // Vorgabepaare zeigen auf die Vorgabemotive und wären in einem eigenen
+    // Preset wirkungslos. Leer ist hier ehrlicher als geerbt.
+    const verw = data.bank["verwandlungen" as BankKey];
+    if (verw && verw.length) bank.verwandlungen = verw.slice();
     saveBank(normalizeBankShape(bank));
     saveActiveBankLabel(name);
     saveCurrentBankAsUserPreset(name);
