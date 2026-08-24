@@ -75,6 +75,39 @@ for (const [was, marke] of MUSS) wahr(`die Hilfe erklärt ${was}`, hilfe.include
 const kaputt = Array.from(hilfe.matchAll(/„[^"„“\n]{0,160}"/g)).map((m) => m[0].slice(0, 40));
 ist("kein gerades Anführungszeichen schließt ein deutsches", kaputt.join(" | "), "");
 
+// ── Die Hilfe ist keine Versionsgeschichte ──────────────────────────────────
+// Gemeldet nach einem Blick in den Reiter: ellenlange Einträge. Der längste
+// hatte 7.974 Zeichen und 57 Sätze — ein Absatz über den Schaltplan, in dem
+// stand, wie viele Zustände es „bis 4.296.0" gab und welche Messreihe zu
+// welcher Grenze geführt hat.
+//
+// Das ist Material für die Commit-Nachricht, nicht für die Hilfe. Wer sie
+// öffnet, will wissen, was ein Knopf TUT — nicht, seit wann er es tut und was
+// vorher galt. Eine Versionsnummer im Hilfetext veraltet in dem Augenblick, in
+// dem sie geschrieben wird.
+const versionen = hilfe.match(/\b4\.\d{3}(?:\.\d+)?/g) || [];
+ist("keine Versionsnummer im Hilfetext", versionen.join(", "), "");
+
+// Die Länge, gemessen je Eintrag. Kein fester Grenzwert aus dem Gefühl: 1.600
+// Zeichen sind rund 250 Wörter — eine Bildschirmseite. Was länger ist, liest
+// niemand zu Ende, und was niemand zu Ende liest, kann auch falsch sein, ohne
+// dass es auffällt.
+const teile = hilfe.split(/\n {4}\["/).slice(1);
+const lang = teile
+  .map((t) => [t.slice(0, t.indexOf('"')), t.length] as [string, number])
+  .filter(([, n]) => n > 1600);
+ist("kein Eintrag ist länger als eine Bildschirmseite",
+  lang.map(([n, l]) => `${n} (${l})`).join(", "), "");
+// Gegenprobe: Die Messung muss überhaupt Einträge sehen — sonst bestünde sie
+// auch bei einer leeren Datei.
+wahr(`es wurden ${teile.length} Einträge gemessen`, teile.length >= 60);
+
+// Deckung der jüngsten Bausteine. Sie fehlten: Der Nutzungszähler war gebaut,
+// ausgeliefert und in der Hilfe nicht erwähnt.
+for (const w of ["Nutzung", "Selbsttest", "Schaltplan", "Füller", "Abschrift", "Motivverwandlungen", "Bildwelt", "Autopilot"]) {
+  wahr(`die Hilfe kennt „${w}"`, hilfe.includes(w));
+}
+
 console.log(`Prüfstand Hilfe — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {
