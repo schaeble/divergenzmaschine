@@ -309,6 +309,9 @@ export function applyPerspective(paras: string[], perspective: string, who: stri
     const einstieg = pick(OBJEKT_EINSTIEG).replace("%O", O);
     return paras.map((p, i) => (i === 0 ? `${einstieg} ${p}` : p));
   }
+  // WAECHTER-OK: bewusste Teilmenge. Ein fester Reigen über die Absätze, kein
+  // Abbild der Reglerliste. „we" fehlt absichtlich — ein Wir-Absatz mitten in
+  // einem Er-Text liest sich wie ein Fehler, nicht wie ein Wechsel.
   const cycle = ["first", "second", "third", "object"];
   return paras.map((p, i) => {
     const k = cycle[i % cycle.length];

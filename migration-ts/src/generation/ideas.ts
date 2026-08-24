@@ -1,6 +1,7 @@
 // Ideenmaschine: kurze Prämissen aus Kontext-Pools + Archetyp + Preset.
 // Optional gesteuert durch ein Ideen-Profil (IdeaConfig), das Pools, Archetyp,
 // Template-Auswahl und Divergenz (Twist/Mashup) bestimmt.
+import { ARCH_OPTS, werte } from "./optionen";
 import { pick, clean, ensurePunct } from "../text-utils";
 import { cap } from "./beats";
 import { arch } from "./archetype";
@@ -104,7 +105,7 @@ function pickMotif(a: ReturnType<typeof arch>, pb: Record<string, string[]>, cfg
 }
 
 export function buildIdeaPremise(cfg?: IdeaConfig): Idea {
-  const archId = cfg ? cfg.archetypeId : pick(["neutral", "skorpion", "psychopath", "entdecker"]);
+  const archId = cfg ? cfg.archetypeId : pick(werte(ARCH_OPTS));
   const a = arch(archId);
   const { bank: pb, label: presetLabel } = mergedBank(cfg ? cfg.mashupCount : 1);
 

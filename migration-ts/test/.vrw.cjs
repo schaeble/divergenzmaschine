@@ -16856,11 +16856,50 @@ function asDrama(text, whoA, whoB) {
   return applyDramaModule(text, buildDramaConflict(whoA, whoB, (whoA || "") + "|" + (whoB || "")));
 }
 
+// src/generation/optionen.ts
+var STRUCTURE_OPTS = [
+  ["auto", "Auto"],
+  ["linear", "Linear"],
+  ["reverse", "Reverse"],
+  ["circle", "Kreis"],
+  ["fragment", "Fragment"],
+  ["object", "Objekt"],
+  ["dramaturgie", "Dramaturgie (Preset 2.0)"],
+  ["rekombination", "Rekombination"]
+];
+var MODE_OPTS = [
+  ["auto", "Auto"],
+  ["bureau", "B\xFCrokratie"],
+  ["tech", "Tech-Mystik"],
+  ["body", "Body"],
+  ["myth", "Myth"],
+  ["absurd", "Absurd"],
+  ["post", "Posthuman"]
+];
+var PERSP_OPTS = [
+  ["auto", "Auto"],
+  ["third", "Er/Sie"],
+  ["first", "Ich"],
+  ["second", "Du"],
+  ["we", "Wir"],
+  ["object", "Objekt"]
+];
+var RHYTHM_OPTS = [
+  ["auto", "Auto"],
+  ["breath", "Atem"],
+  ["staccato", "Staccato"],
+  ["long", "Lange B\xF6gen"],
+  ["fracture", "Fraktur"],
+  ["clean", "Klar"]
+];
+var werte = (l) => l.map(([v]) => v);
+
 // src/generation/buildStory.ts
-var MODES = ["bureau", "tech", "body", "myth", "absurd", "post"];
-var STRUCTURES = ["linear", "reverse", "circle", "fragment", "object"];
-var PERSPECTIVES = ["third", "first", "second", "we", "object", "split"];
-var RHYTHMS = ["breath", "staccato", "long", "fracture", "clean"];
+var ohneAuto = (l) => l.filter((x) => x !== "auto");
+var MODES = ohneAuto(werte(MODE_OPTS));
+var STRUCTURES = ohneAuto(werte(STRUCTURE_OPTS)).filter((x) => x !== "dramaturgie" && x !== "rekombination");
+var PERSPECTIVES = ohneAuto(werte(PERSP_OPTS));
+var RHYTHMS = ohneAuto(werte(RHYTHM_OPTS));
 var resBiased = (ui, kind, opts, aA, aB) => ui !== "auto" && opts.includes(ui) ? ui : biasedAutoChoice(kind, aA, aB) || pick(opts);
 function buildKit(bank, input, model) {
   const archA = (input.archetypeA || "neutral").toLowerCase();
@@ -16868,7 +16907,7 @@ function buildKit(bank, input, model) {
   const modeKey = resBiased(input.mode, "mode", MODES, archA, archB);
   const M = MODE_DATA[modeKey] || MODE_DATA.bureau;
   let structure = resBiased(input.structure, "structure", STRUCTURES, archA, archB);
-  if (input.structure === "auto" && structure === "fragment") structure = pick(["linear", "reverse", "circle", "object"]);
+  if (input.structure === "auto" && structure === "fragment") structure = pick(STRUCTURES.filter((x) => x !== "fragment"));
   const perspective = input.perspective === "auto" ? biasedAutoChoice("perspective", archA, archB) || pick(PERSPECTIVES) : input.perspective;
   let rhythm = resBiased(input.rhythm, "rhythm", RHYTHMS, archA, archB);
   if (input.rhythm === "auto") {

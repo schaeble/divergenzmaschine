@@ -18,6 +18,11 @@ import { loadDramaData } from "./dramaturgie";
 
 type Input = Partial<GenInput>;
 
+// WAECHTER-OK: bewusste Teilmenge. Das sind die Formen, die ZEILENWEISE
+// gesetzt werden — Vers, Dialog, Shotliste. Sie lässt sich aus FORM_OPTS nicht
+// ableiten, weil dort nur steht, WELCHE Formen es gibt, nicht welche in Zeilen
+// stehen. Kommt eine neue Zeilenform dazu, gehört sie hier ausdrücklich
+// eingetragen; genau deshalb steht sie hier und nicht als Filter.
 const LINE_FORMS = new Set(["script", "video", "strang", "reim", "haiku", "poem"]);
 const isLineForm = (input?: Input): boolean =>
   !!input && !!input.form && LINE_FORMS.has(input.form);

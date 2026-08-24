@@ -27,11 +27,39 @@ import { linkMarkovTrace } from "./markovTrace";
 import { applyEmphasis } from "./emphasis";
 import { asProsePoem, asStrang, asReim, asHaiku, asDrama } from "./forms";
 import { buildDramaturgie, hasDramaData } from "./dramaturgie";
+import { MODE_OPTS, STRUCTURE_OPTS, PERSP_OPTS, RHYTHM_OPTS, werte } from "./optionen";
 
-const MODES = ["bureau", "tech", "body", "myth", "absurd", "post"];
-const STRUCTURES = ["linear", "reverse", "circle", "fragment", "object"];
-const PERSPECTIVES = ["third", "first", "second", "we", "object", "split"];
-const RHYTHMS = ["breath", "staccato", "long", "fracture", "clean"];
+// Die Auflösungslisten für „auto" — ABGELEITET aus den Reglerlisten, nicht
+// abgeschrieben. Vorher standen hier eigene Kopien, und sie waren in BEIDE
+// Richtungen auseinandergelaufen:
+//
+//   fehlte hier: „rekombination" und „dramaturgie" — „Struktur: Auto" konnte
+//   also ausgerechnet das Verfahren nie wählen, das im Studio die Vorgabe ist.
+//   stand nur hier: „split" als Perspektive — ein Wert, den keine andere Stelle
+//   auswertet. Wer auf Auto stand, bekam in einem von sechs Fällen eine
+//   Perspektive, die nichts bewirkt.
+//
+// „auto" selbst fliegt immer raus: Es aufzulösen heißt, etwas anderes zu
+// wählen als sich selbst.
+const ohneAuto = (l: string[]): string[] => l.filter((x) => x !== "auto");
+const MODES = ohneAuto(werte(MODE_OPTS));
+// Zwei Stellungen bleiben aus dem Auto-Vorrat draußen, und beide Male aus
+// einem Grund, den erst der Prüfstand gezeigt hat:
+//
+//   „dramaturgie" braucht Preset-2.0-Daten. Ohne sie fiele der Bau auf den
+//   Normalweg zurück, und „Auto" hätte eine Stellung gewählt, die nichts tut.
+//
+//   „rekombination" kehrt im Zusammenbau FRÜH zurück und überspringt dabei die
+//   dramaturgischen Phasen. Auf Auto gewählt, hätte sie Einstieg, Mitte und
+//   Höhepunkt stillschweigend abgeschaltet — gemessen in rund der Hälfte der
+//   Läufe, aufgefallen erst am Prüfstand „Struktur". Wer sie will, wählt sie;
+//   sie ist im Studio ohnehin die Vorgabe.
+//
+// WAECHTER-OK: bewusste Ausnahmen, siehe Begründung.
+const STRUCTURES = ohneAuto(werte(STRUCTURE_OPTS))
+  .filter((x) => x !== "dramaturgie" && x !== "rekombination");
+const PERSPECTIVES = ohneAuto(werte(PERSP_OPTS));
+const RHYTHMS = ohneAuto(werte(RHYTHM_OPTS));
 const resBiased = (ui: string, kind: string, opts: string[], aA: string, aB: string): string =>
   ui !== "auto" && opts.includes(ui) ? ui : (biasedAutoChoice(kind, aA, aB) || pick(opts));
 
@@ -45,7 +73,7 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
   let structure = resBiased(input.structure, "structure", STRUCTURES, archA, archB);
   // "fragment" liest sich telegrammartig - bei Struktur "Auto" ausschließen,
   // damit Prosa fließend bleibt. Explizit gewählt bleibt Fragment erhalten.
-  if (input.structure === "auto" && structure === "fragment") structure = pick(["linear", "reverse", "circle", "object"]);
+  if (input.structure === "auto" && structure === "fragment") structure = pick(STRUCTURES.filter((x) => x !== "fragment"));
   const perspective = input.perspective === "auto" ? (biasedAutoChoice("perspective", archA, archB) || pick(PERSPECTIVES)) : input.perspective;
   let rhythm = resBiased(input.rhythm, "rhythm", RHYTHMS, archA, archB);
   // Ton gewichtet das Satzlängen-Profil mit: bei Rhythmus "Auto" bevorzugt den
@@ -153,6 +181,15 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   // Die alten Schablonenbauer bleiben als AUFFANG stehen: Liefert der Assembler
   // nichts (leerer Vorrat, zu enge Filter), wird gebaut wie bisher. Ein Umbau,
   // der im Zweifel gar keinen Text erzeugt, wäre kein Fortschritt.
+  // Geprüft wird die EINGESTELLTE Struktur, nicht die aufgelöste — und das ist
+  // Absicht. Ein Versuch, hier die aufgelöste zu nehmen, machte den
+  // Rekombinationsweg auf „Auto" erreichbar und schaltete damit Einstieg,
+  // Mitte und Höhepunkt in rund der Hälfte der Läufe ab: Der Weg kehrt früh
+  // zurück, bevor die Phasen eingesetzt werden. Der Prüfstand „Struktur" hat
+  // es gemeldet, 227 Ausfälle in 459 Läufen.
+  //
+  // WAECHTER-OK: bewusste Teilmenge — „dramaturgie" fehlt, weil dieser Weg sie
+  // gerade nicht bedienen kann.
   const ASSEMBLER = new Set(["rekombination", "linear", "reverse", "circle", "fragment", "object"]);
   if (input.form === "prose" && ASSEMBLER.has(input.structure || "")) {
     const rk = buildRekombination(bank, input, model);

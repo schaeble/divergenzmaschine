@@ -20108,10 +20108,11 @@ function asDrama(text, whoA, whoB) {
 }
 
 // src/generation/buildStory.ts
-var MODES = ["bureau", "tech", "body", "myth", "absurd", "post"];
-var STRUCTURES = ["linear", "reverse", "circle", "fragment", "object"];
-var PERSPECTIVES = ["third", "first", "second", "we", "object", "split"];
-var RHYTHMS = ["breath", "staccato", "long", "fracture", "clean"];
+var ohneAuto = (l) => l.filter((x) => x !== "auto");
+var MODES = ohneAuto(werte(MODE_OPTS));
+var STRUCTURES = ohneAuto(werte(STRUCTURE_OPTS)).filter((x) => x !== "dramaturgie" && x !== "rekombination");
+var PERSPECTIVES = ohneAuto(werte(PERSP_OPTS));
+var RHYTHMS = ohneAuto(werte(RHYTHM_OPTS));
 var resBiased = (ui, kind, opts, aA, aB) => ui !== "auto" && opts.includes(ui) ? ui : biasedAutoChoice(kind, aA, aB) || pick(opts);
 function buildKit(bank, input, model) {
   const archA = (input.archetypeA || "neutral").toLowerCase();
@@ -20119,7 +20120,7 @@ function buildKit(bank, input, model) {
   const modeKey = resBiased(input.mode, "mode", MODES, archA, archB);
   const M = MODE_DATA[modeKey] || MODE_DATA.bureau;
   let structure = resBiased(input.structure, "structure", STRUCTURES, archA, archB);
-  if (input.structure === "auto" && structure === "fragment") structure = pick(["linear", "reverse", "circle", "object"]);
+  if (input.structure === "auto" && structure === "fragment") structure = pick(STRUCTURES.filter((x) => x !== "fragment"));
   const perspective = input.perspective === "auto" ? biasedAutoChoice("perspective", archA, archB) || pick(PERSPECTIVES) : input.perspective;
   let rhythm = resBiased(input.rhythm, "rhythm", RHYTHMS, archA, archB);
   if (input.rhythm === "auto") {
@@ -20948,7 +20949,7 @@ function pickMotif(a, pb, cfg) {
   return pickFresh2(ideaPoolFor(a, pb, "motifs"), "motifs");
 }
 function buildIdeaPremise(cfg) {
-  const archId = cfg ? cfg.archetypeId : pick(["neutral", "skorpion", "psychopath", "entdecker"]);
+  const archId = cfg ? cfg.archetypeId : pick(werte(ARCH_OPTS));
   const a = arch(archId);
   const { bank: pb, label: presetLabel2 } = mergedBank(cfg ? cfg.mashupCount : 1);
   const prob = cfg ? cfg.twistProb : 0.5;
@@ -25306,18 +25307,18 @@ var BAND_LABEL = {
 };
 function reglerListe() {
   const s = (id, label, werte2, feld) => ({ id, label, werte: werte2, setzen: (e2, w) => ({ ...e2, [feld]: w }) });
-  const ohneAuto = (l) => werte(l).filter((w) => w !== "auto");
-  const strukturen = ohneAuto(STRUCTURE_OPTS).filter((w) => w !== "rekombination" && w !== "dramaturgie");
+  const ohneAuto2 = (l) => werte(l).filter((w) => w !== "auto");
+  const strukturen = ohneAuto2(STRUCTURE_OPTS).filter((w) => w !== "rekombination" && w !== "dramaturgie");
   return [
-    s("tone", "Ton", ohneAuto(TONE_OPTS), "tone"),
+    s("tone", "Ton", ohneAuto2(TONE_OPTS), "tone"),
     s("structure", "Struktur", strukturen, "structure"),
-    s("mode", "Modus", ohneAuto(MODE_OPTS), "mode"),
-    s("perspective", "Perspektive", ohneAuto(PERSP_OPTS), "perspective"),
-    s("rhythm", "Rhythmus", ohneAuto(RHYTHM_OPTS), "rhythm"),
-    s("varLevel", "Varianz", ohneAuto(VARIANZ_OPTS), "varLevel"),
-    s("markovMode", "Markov", ohneAuto(MARKOV_OPTS), "markovMode"),
-    s("disruptor", "Disruptor", ohneAuto(DISRUPTOR_OPTS), "disruptor"),
-    s("archetypeA", "Archetyp A", ohneAuto(ARCH_OPTS), "archetypeA"),
+    s("mode", "Modus", ohneAuto2(MODE_OPTS), "mode"),
+    s("perspective", "Perspektive", ohneAuto2(PERSP_OPTS), "perspective"),
+    s("rhythm", "Rhythmus", ohneAuto2(RHYTHM_OPTS), "rhythm"),
+    s("varLevel", "Varianz", ohneAuto2(VARIANZ_OPTS), "varLevel"),
+    s("markovMode", "Markov", ohneAuto2(MARKOV_OPTS), "markovMode"),
+    s("disruptor", "Disruptor", ohneAuto2(DISRUPTOR_OPTS), "disruptor"),
+    s("archetypeA", "Archetyp A", ohneAuto2(ARCH_OPTS), "archetypeA"),
     {
       id: "instability",
       label: "Instabilit\xE4t",
