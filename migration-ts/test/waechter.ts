@@ -114,7 +114,28 @@ for (const [f, s] of inhalt) {
 ist("kein Wert ohne Entsprechung in den Reglerlisten", erfunden.length, 0);
 if (erfunden.length) erfunden.forEach((k) => zeilen.push(`      ${k}`));
 
-// ── 3 · Verwaiste Module ────────────────────────────────────────────────────
+// ── 3 · Der Selbsttest deckt alle Formen ab ─────────────────────────────────
+// Der Selbsttest ist die Anzeige „greifen alle Features?". Er prüfte sechs der
+// neun Formen — es fehlten Prosa, Bericht und Meldung, also ausgerechnet die
+// Grundform und die beiden, die der Autopilot am häufigsten setzt. Beide haben
+// eigene Prüfstände mit tausenden Läufen; in der Anzeige kamen sie nicht vor.
+//
+// Der Fall ist lehrreich, weil er anders liegt als die anderen: Hier stand
+// keine falsche zweite Liste, sondern eine UNVOLLSTÄNDIGE. Sie fiel nicht auf,
+// weil sechs Häkchen genauso grün aussehen wie neun.
+const selbst = inhalt.get("src/features/selftest.ts") || "";
+const geprueft_formen = [...selbst.matchAll(/\{ id: "form_([a-z]+)"/g)].map((m) => m[1]!);
+const alleFormen = kanon["FORM_OPTS"] || [];
+wahr("der Selbsttest ist auffindbar", selbst.length > 0);
+const fehlend = alleFormen.filter((f) => !geprueft_formen.includes(f));
+ist("der Selbsttest prüft jede Form", fehlend.join(", "), "");
+wahr(`er prüft ${geprueft_formen.length} Formen`, geprueft_formen.length >= alleFormen.length);
+// Gegenrichtung: eine Form prüfen, die es nicht gibt, wäre ebenso still —
+// das Häkchen bezöge sich auf nichts.
+const zuviel = geprueft_formen.filter((f) => !alleFormen.includes(f));
+ist("und keine, die es nicht gibt", zuviel.join(", "), "");
+
+// ── 4 · Verwaiste Module ────────────────────────────────────────────────────
 // Ein Modul, das niemand einbindet, läuft nie — und veraltet deshalb
 // unbemerkt. Es ist kein Fehler, aber eine Entscheidung, die jemand treffen
 // sollte: ausbauen oder wegwerfen.
@@ -134,7 +155,7 @@ zeilen.push(verwaist.length
   ? `  · Befund: ${verwaist.length} Modul(e) werden nirgends eingebunden — ${verwaist.join(", ")}`
   : "  · Befund: kein verwaistes Modul");
 
-// ── 4 · Der Wächter prüft sich selbst ───────────────────────────────────────
+// ── 5 · Der Wächter prüft sich selbst ───────────────────────────────────────
 // Ein Wächter, der nichts finden KANN, sieht aus wie einer, der nichts findet.
 const probe = 'const X = ["bureau", "tech", "body", "myth", "absurd", "post"];';
 const treffer = Object.entries(kanon).some(([, werte]) => {

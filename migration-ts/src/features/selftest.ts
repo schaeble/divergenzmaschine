@@ -8,6 +8,7 @@ import { getMarkovTrace } from "../generation/markovTrace";
 import { TONE_DATA } from "../generation/tone.data";
 import { liveTexts } from "./livepools";
 import { hasDramaData } from "../generation/dramaturgie";
+import { RESSORT_IDS } from "./ressorts";
 import { loadBank } from "../storage";
 import { splitSentences } from "../text-utils";
 import { tenseBreakRatio, phraseRepeatRatio, castSpread, perspectiveBreakRatio } from "../generation/coherence";
@@ -85,12 +86,42 @@ export function runSelfTest(onStep?: (done: number, total: number, label: string
     { id: "form_video", label: "Form: Multi-Shot", group: "Formen", note: "Shot-Gliederung",
       probe: () => { const t = gen({ form: "video" as FormKind, shots: 4, totalSec: 12 }, bank); return t.split("\n").filter(Boolean).length >= 3; } },
 
+    // Prosa fehlte, obwohl sie die Grundform ist. Sie hat keinen eigenen
+    // Bauweg wie Vers oder Dialog — genau deshalb wurde sie übersehen: Es gab
+    // nichts Auffälliges zu prüfen. Ihr Kennzeichen ist, dass sie NICHT
+    // zeilenweise gesetzt wird.
+    { id: "form_prose", label: "Form: Prosa", group: "Formen", note: "Fließtext in Absätzen, keine Verszeilen",
+      probe: () => { const t = gen({ form: "prose" as FormKind }, bank); return words(t) > 20 && !/\n[^\n]/.test(t.trim()); } },
+    // Bericht und Meldung fehlten ganz — die beiden Formen, die der Autopilot
+    // am häufigsten setzt und die eigene Prüfstände mit tausenden Läufen
+    // haben. In der Anzeige „greifen alle Features?" kamen sie nicht vor.
+    { id: "form_bericht", label: "Form: Bericht", group: "Formen", note: "Dachzeile, Schlagzeile, Vorspann, Faktenkasten",
+      probe: () => { const t = gen({ form: "bericht" as FormKind, lenTarget: 220 }, bank);
+        const abs = t.split(/\n{2,}/).filter(Boolean);
+        return abs.length >= 3 && /Faktenkasten/.test(t); } },
+    { id: "form_meldung", label: "Form: Meldung", group: "Formen", note: "Kurznachricht mit Datum und Ort",
+      probe: () => { const t = gen({ form: "meldung" as FormKind }, bank); return words(t) > 8 && words(t) < 140; } },
+
     // ── Strukturen: unterscheidbarer Aufbau ──
     { id: "struct", label: "Struktur (Linear/Reverse/Kreis/…)", group: "Struktur", note: "Bauwege liefern verschiedene Texte",
       probe: () => { const a = gen({ structure: "linear" }, bank), b = gen({ structure: "reverse" }, bank), c = gen({ structure: "circle" }, bank); return new Set([a, b, c]).size >= 2; } },
     { id: "dramaturgie", label: "Dramaturgie (Preset 2.0)", group: "Struktur", note: "Erzählbogen des 2.0-Presets",
       skip: hasDramaData() ? undefined : "Kein 2.0-Preset mit Dramaturgie aktiv",
       probe: () => gen({ structure: "dramaturgie" }, bank) !== gen({ structure: "linear" }, bank) },
+
+    // Der Rekombinationsweg ist ein eigener Zusammenbau und im Studio die
+    // VORGABE — er fehlte hier trotzdem. Geprüft wird, dass er einen anderen
+    // Text liefert als der lineare Weg.
+    { id: "rekombination", label: "Rekombination", group: "Struktur", note: "Eigener Zusammenbau aus Atomen",
+      probe: () => { const a = gen({ structure: "rekombination" }, bank), b = gen({ structure: "linear" }, bank);
+        return words(a) > 20 && a !== b; } },
+    // Motivverwandlungen: die achte Liste der Wortbank. Ihre Einträge stehen
+    // nie im Text — sie sagen, was aus einem Motiv wird, wenn es wiederkehrt.
+    // Deshalb wird die WIRKUNG geprüft, nicht das Vorkommen.
+    { id: "verwandlungen", label: "Motivverwandlungen", group: "Struktur", note: "Motive wandeln sich bei Wiederkehr",
+      skip: (bank.verwandlungen || []).length ? undefined : "Aktives Preset trägt keine Motivverwandlungen",
+      probe: () => { const paare = (bank.verwandlungen || []).map((x) => x.split(/\s*[→>-]+\s*/)[1] || "").filter(Boolean);
+        return paare.length > 0 && has(gen({ structure: "rekombination" }, bank), paare); } },
 
     // ── Shaper: verändern den fertigen Text ──
     { id: "perspektive", label: "Perspektive", group: "Shaper", note: "Ich/Du/Wir tauchen auf",
@@ -123,6 +154,15 @@ export function runSelfTest(onStep?: (done: number, total: number, label: string
       probe: () => castSpread("Baucis wartet am Fenster. Zar Peter unterschreibt den Erlass. Ludwig zögert im Saal. Philemon schweigt.", ["Baucis"]) > castSpread("Baucis wartet am Fenster. Baucis zählt die Stunden. Baucis schweigt.", ["Baucis"]) },
     { id: "emphasis", label: "4W-Stärke", group: "Steuerung", note: "Gewichtete Zusatzsätze erscheinen im Text (Gesamtlänge bleibt stabil)",
       probe: () => EMPH_MARK.test(gen({ emphasis: { wo: 3, wann: 3, wer: 3, was: 3 } }, bank)) },
+    // Das Ressort steuert den Bericht: Es bestimmt Betroffene, Einheiten,
+    // Rollen und Größen. Es fehlte, obwohl es der wirksamste Regler dieser
+    // Form ist — geprüft wird, dass zwei Ressorts verschiedene Berichte geben.
+    { id: "ressort", label: "Ressort (Bericht)", group: "Steuerung", note: "Ressort bestimmt Größen, Rollen und Betroffene",
+      probe: () => {
+        const a = gen({ form: "bericht" as FormKind, ressort: RESSORT_IDS[0], lenTarget: 200 }, bank);
+        const b = gen({ form: "bericht" as FormKind, ressort: RESSORT_IDS[RESSORT_IDS.length - 1], lenTarget: 200 }, bank);
+        return words(a) > 20 && a !== b;
+      } },
   ];
 
   const out: FeatureResult[] = [];
