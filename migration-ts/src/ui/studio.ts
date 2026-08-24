@@ -1119,12 +1119,27 @@ export function mountStudio(root: HTMLElement): void {
    *  Übergabe `dm_pending_studio` beim nächsten Aufbau wieder einsetzen kann.
    *  Sie wandert mit jedem gemerkten Text in die Schatzkammer: Ohne sie ist
    *  nicht nachvollziehbar, welche Einstellung einen Treffer erzeugt hat. */
+  /** Die tatsaechlich aktiven Presets als IDs.
+   *
+   *  `preset.value` ist NICHT die Antwort: Bei Mehrfachauswahl steht dort
+   *  „__multi__", beim Auto-Mix „__automix__". Der Schaltplan bekam genau
+   *  diesen Rohwert und zeigte ihn an — waehrend im Studio daneben „Aktiv:
+   *  Bergwelt + Formalismus + Griechische Tragoedie" stand. Zwei Anzeigen fuer
+   *  dieselbe Sache, und eine davon falsch.
+   *
+   *  EINE Rechnung fuer alle: Schaltplan und Textindex holen sie hier, statt
+   *  sie sich je selbst zusammenzureimen. */
+  const aktivePresetIds = (): string[] =>
+    preset.value === MULTI_ID ? multiIds.slice()
+      : preset.value === AUTOMIX_ID ? Object.keys(lastAutoMixSources())
+        : preset.value ? [preset.value] : [];
+
   const einstellungen = (): Record<string, string> => ({
     tone: tone.value, form: form.value, structure: structure.value, mode: mode.value,
     perspective: persp.value, rhythm: rhythm.value, varLevel: varianz.value,
     markovMode: markov.value, disruptor: disruptor.value, tension: tension.value,
     archetypeA: archA.value, archetypeB: archB.value, instability: instab.value,
-    ressort: ressort.value, preset: preset.value, lenTarget: lenSlider.value,
+    ressort: ressort.value, preset: aktivePresetIds().join("+") || preset.value, lenTarget: lenSlider.value,
   });
 
   const genBtn = el("button", { class: "primary" }, icon("play"), " Generieren");
@@ -1673,9 +1688,7 @@ export function mountStudio(root: HTMLElement): void {
         // „griechischetragoedie" heisst. Ausgerechnet fuer die gemeldete
         // Mischung stand damit eine Spreizung von 0 im Index, obwohl sie hoch
         // ist. Namen sind fuer Menschen, IDs fuer die Rechnung.
-        const aktivIds = preset.value === MULTI_ID ? multiIds.slice()
-          : preset.value === AUTOMIX_ID ? Object.keys(lastAutoMixSources())
-            : preset.value ? [preset.value] : [];
+        const aktivIds = aktivePresetIds();
         const aktiv = aktivIds.map((id) => stripIcon(getAllPresets()[id]?.label || id));
         sichereIndex(mischeIndex(ladeIndex(), {
           schluessel: indexSchluessel(txt),

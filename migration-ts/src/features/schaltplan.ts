@@ -402,6 +402,14 @@ export function sammleUmgebung(preset: string): Umgebung {
     ideenProfil: zahl(() => { const p = loadIdeaProfile(); return p ? (p.profil.name || p.profil.genre) : ""; }, ""),
     omniProfile: zahl(() => alleOmniProfile().length, 0),
     omniProfil: zahl(() => { const st = loadOmniStand(); return st ? (st.profil.name || "") : ""; }, ""),
-    presetLabel: ids.map((id) => PRESET_LABELS[id.replace(/^builtin:/, "")] || id).join(" + ") || "—",
+    // Auch EIGENE Presets beim Namen nennen. PRESET_LABELS kennt nur die 51
+    // eingebauten; ein eigenes stand als „user:MeinPreset" im Plan, waehrend
+    // das Studio daneben den blossen Namen zeigte.
+    presetLabel: ids.map((id) => {
+      const k = id.replace(/^builtin:/, "");
+      if (PRESET_LABELS[k]) return PRESET_LABELS[k]!;
+      if (id.startsWith("user:")) return id.slice(5);
+      return id;
+    }).join(" + ") || "—",
   };
 }

@@ -11,6 +11,7 @@
 // Die Anordnung wird mitgeprüft: Ein Plan mit übereinanderliegenden Feldern
 // wäre schlimmer als keiner. jsdom rechnet kein Layout, deshalb rechnet der
 // Plan seine Koordinaten selbst — und deshalb sind sie hier nachprüfbar.
+import { readFileSync } from "fs";
 import { baueAnlage, sammleUmgebung, loadAnlage, SCHLOSS_ZU_KNOTEN, QUELLE_ZU_KNOTEN, type AnlageStand, type Umgebung } from "../src/features/schaltplan";
 import { mountStudio } from "../src/ui/studio";
 import { KNOB_VORGABE, KNOB_SPANNE } from "../src/features/knobs";
@@ -800,6 +801,47 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   const K0 = baueAnlage(STAND(), UMGEBUNG()).knoten.map((k) => k.id);
   const falsch = Object.entries(QUELLE_ZU_KNOTEN).filter(([, id]) => !K0.includes(id)).map(([l]) => l);
   ist("und jeder benannte Knoten gibt es auch", falsch.join(","), "");
+}
+
+// ── Die Wortbank stimmt mit dem Studio ueberein ─────────────────────────────
+// Gemeldet: Der Schaltplan zeigte eine andere Wortbank als das Studio.
+//
+// `einstellungen()` schrieb `preset.value` — den ROHEN Auswahlwert. Bei
+// Mehrfachauswahl steht dort „__multi__", beim Auto-Mix „__automix__". Der Plan
+// bekam genau das und zeigte es an, waehrend im Studio daneben „Aktiv:
+// Bergwelt + Formalismus + Griechische Tragoedie" stand. Zwei Anzeigen fuer
+// dieselbe Sache, und eine davon falsch.
+//
+// Dazu kannte PRESET_LABELS nur die 51 eingebauten: Ein eigenes Preset stand
+// als „user:MeinPreset" im Plan.
+{
+  const label = (p: string): string => sammleUmgebung(p).presetLabel;
+  wahr("ein eingebautes Preset wird beim Namen genannt", /Kafka/.test(label("builtin:kafka")));
+  wahr("ohne Vorsatz ebenso", /Kafka/.test(label("kafka")));
+  wahr("eine Mischung nennt alle Beteiligten",
+    /Bergwelt/.test(label("bergwelt+formalismus+griechischetragoedie"))
+    && /Formalismus/.test(label("bergwelt+formalismus+griechischetragoedie"))
+    && /Trag/.test(label("bergwelt+formalismus+griechischetragoedie")));
+  // Ein eigenes Preset heisst so, wie es gespeichert wurde.
+  ist("ein eigenes Preset ohne Vorsatz", label("user:MeinPreset"), "MeinPreset");
+  ist("ohne Preset ein Strich", label(""), "—");
+  // Gegenprobe: Ein unbekannter Wert darf NICHT stillschweigend zu etwas
+  // anderem werden — dann sähe der Plan richtig aus und wäre es nicht.
+  ist("ein unbekannter Wert bleibt sichtbar", label("gibtsnicht"), "gibtsnicht");
+
+  // Und die Quelle: Das Studio darf die Sonderwerte gar nicht erst schreiben.
+  const studioQ = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("das Studio loest die aktiven Presets auf",
+    /const aktivePresetIds = \(\): string\[\] =>/.test(studioQ));
+  wahr("und schreibt sie in den Anlagenstand",
+    /preset: aktivePresetIds\(\)\.join\("\+"\)/.test(studioQ));
+  ist("nicht mehr den rohen Auswahlwert",
+    /preset: preset\.value, lenTarget/.test(studioQ), false);
+  // EINE Rechnung: Die vollstaendige Aufloesung — mit Auto-Mix — darf nur
+  // EINMAL im Quelltext stehen. (Die Zeile fuer die Auswahlhaekchen prueft nur
+  // MULTI_ID und ist etwas anderes; deshalb wird auf AUTOMIX_ID mitgeprueft.)
+  ist("die Aufloesung steht nur an einer Stelle",
+    (studioQ.match(/preset\.value === AUTOMIX_ID \? Object\.keys\(lastAutoMixSources\(\)\)/g) || []).length, 1);
 }
 
 console.log(`Prüfstand Schaltplan — ${geprueft} Prüfungen, ${bestanden} bestanden`);
