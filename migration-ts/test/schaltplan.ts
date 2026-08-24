@@ -412,6 +412,35 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
     }
   }
   ist("die Spannen der Schieber stimmen mit den Eingabefeldern überein", falsch.join(" · "), "");
+
+  const haken = (): HTMLInputElement[] =>
+    Array.from(w.querySelectorAll(".presetfield .mpitem input[type=checkbox]")) as HTMLInputElement[];
+  const anKreuz = (n: number): void => {
+    const b = haken()[n];
+    if (!b) return;
+    b.checked = true;
+    b.dispatchEvent(new dom4.window.Event("change", { bubbles: true }));
+  };
+  const planPreset = (): string => (loadAnlage()?.regler["preset"] || "");
+
+  wahr(`es gibt Preset-Haekchen (${haken().length})`, haken().length >= 10);
+  // Zwei ankreuzen — das ist der gemeldete Fall.
+  anKreuz(0);
+  const nachEinem = planPreset();
+  anKreuz(1);
+  const nachZweien = planPreset();
+  wahr("nach dem zweiten Haken steht ein anderer Stand im Plan", nachZweien !== nachEinem);
+  wahr("und es sind zwei Presets", nachZweien.split("+").filter(Boolean).length >= 2);
+  // Der Rohwert darf NIE im Plan landen.
+  ist("der Rohwert der Mehrfachauswahl steht nicht im Plan", /__multi__/.test(nachZweien), false);
+  ist("der des Auto-Mix ebenso wenig", /__automix__/.test(nachZweien), false);
+  // Und beide angekreuzten muessen wirklich drinstehen.
+  const gewaehlt = haken().filter((b) => b.checked).map((b) => b.value);
+  wahr(`beide angekreuzten stehen im Plan (${gewaehlt.length})`,
+    gewaehlt.length >= 2 && gewaehlt.every((v) => nachZweien.includes(v)));
+  // Und der Plan nennt sie beim Namen.
+  wahr("das Etikett nennt beide",
+    sammleUmgebung(nachZweien).presetLabel.split(" + ").length >= 2);
 }
 
 

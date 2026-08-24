@@ -511,7 +511,15 @@ export function mountStudio(root: HTMLElement): void {
     const ids = rawIds.filter((v) => v !== MULTI_ID && v !== AUTOMIX_ID && v !== "__omni__");
     if (ids.length === 0) { renderPresetChecks(); return; }
     if (ids.length === 1) { multiIds = []; saveMulti(); preset.value = ids[0]!; preset.dispatchEvent(new Event("change")); renderPresetChecks(); return; }
-    multiIds = ids; saveMulti(); applyMulti(); ensureMultiOption(); preset.value = MULTI_ID; renderPresetChecks(); liveRegen();
+    // `preset.value = ...` loest KEIN change-Ereignis aus — und daran haengt
+    // das Sichern des Anlagenstands. Der Einzelfall-Zweig darueber wirft es
+    // ausdruecklich (`dispatchEvent`), dieser hier tat es nicht: Bei einer
+    // Mehrfachauswahl blieb im Schaltplan stehen, was zuletzt bei irgendeiner
+    // ANDEREN Reglerbewegung gesichert worden war. Studio und Plan zeigten
+    // deshalb verschiedene Presets, und zwar nicht bloss verschieden
+    // geschrieben, sondern voellig andere.
+    multiIds = ids; saveMulti(); applyMulti(); ensureMultiOption(); preset.value = MULTI_ID;
+    renderPresetChecks(); anlageSichern(); liveRegen();
   }
 
   const tone = select("f-tone", TONE_OPTS, "mystery");
