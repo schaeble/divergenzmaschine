@@ -24457,6 +24457,15 @@ function mountStudio(root) {
   const kopfLos = el("button", { class: "primary" }, icon("play"), " Text erzeugen");
   kopfLos.addEventListener("click", () => {
     const st = stellung(kopfWahl);
+    for (const s of ROLL_SELECTS) {
+      if (s === form || s === preset || s === ressort || locked.has(s.id) || !s.options.length) continue;
+      s.selectedIndex = Math.floor(Math.random() * s.options.length);
+      s.dispatchEvent(new Event("change"));
+    }
+    if (!locked.has(ressort.id)) {
+      ressort.value = "auto";
+      ressort.dispatchEvent(new Event("change"));
+    }
     if (!locked.has(form.id)) {
       form.value = st.form;
       form.dispatchEvent(new Event("change"));

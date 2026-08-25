@@ -566,6 +566,25 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
   const zweiterStand = aktiv();
   probeKnopf.click();
   wahr("nochmal blättern → wieder ein anderes", aktiv() !== zweiterStand);
+  // Erzeugen im Vorspann würfelt die übrigen Regler (4.325.0) — der Ton hat
+  // keine Auto-Stellung und stand vorher für den Rest der Sitzung fest.
+  {
+    const tonSel = wurzelR.querySelector('[id="f-tone"]') as HTMLSelectElement;
+    const ressortSel = wurzelR.querySelector('[id="f-ressort"]') as HTMLSelectElement;
+    const losKnopf = Array.from(wurzelR.querySelectorAll("button")).find((b) => /Text erzeugen/.test(b.textContent || "")) as HTMLButtonElement;
+    wahr("es gibt den Erzeugen-Knopf", !!losKnopf);
+    ressortSel.value = "sport";
+    const presetStand = aktiv();
+    // Ein einzelner Wurf kann zufällig denselben Ton treffen (1 von 12) —
+    // sechs Würfe zusammen praktisch nie (≈ 1 zu 3 Millionen).
+    const tonVor = tonSel.value;
+    let tonGeaendert = false;
+    for (let i = 0; i < 6 && !tonGeaendert; i++) { losKnopf.click(); if (tonSel.value !== tonVor) tonGeaendert = true; }
+    wahr("Erzeugen würfelt den Ton neu", tonGeaendert);
+    ist("… und stellt das Ressort auf Auto", ressortSel.value, "auto");
+    ist("… die Preset-Auswahl bleibt stehen", aktiv(), presetStand);
+    ist("… der Reibungsregler auch", reibung2.value, "0");
+  }
   // Zusage im Quelltext, die eine Messung nicht sieht: Der Erzeugen-Knopf
   // würfelt die Presets nicht mehr um — das Würfeln war die andere Hälfte
   // der Unsynchronität.

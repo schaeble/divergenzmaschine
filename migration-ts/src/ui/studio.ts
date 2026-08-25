@@ -2007,6 +2007,24 @@ export function mountStudio(root: HTMLElement): void {
   const kopfLos = el("button", { class: "primary" }, icon("play"), " Text erzeugen");
   kopfLos.addEventListener("click", () => {
     const st = kopfStellung(kopfWahl);
+    // ALLES ÜBRIGE würfelt die Maschine — das Versprechen aus einfach.ts, das
+    // bisher nur der Zufallsstart der Sitzung einlöste. Gemeldet: Der Vorspann
+    // nahm die stehengebliebenen Studio-Werte; der Ton (der keine
+    // Auto-Stellung hat) änderte sich nie wieder. Gewürfelt wird in die
+    // ECHTEN Regler und mit change-Ereignis: Daran hängen Merkzettel und
+    // Anlagenstand, und der Schaltplan zeigt den Wurf.
+    //
+    // NICHT gewürfelt: die vier Vorspann-Entscheidungen (Form, Länge,
+    // Reibung, Saat), die Presets (die regelt die Reibung — ein Wurf hier
+    // wäre wieder die gemeldete Unsynchronität), Festgehaltenes — und das
+    // Ressort, das auf Auto geht, damit die Saat entscheidet („Wind und
+    // Sturm und Regen" soll Wetter treffen, keinen gewürfelten Sport).
+    for (const s of ROLL_SELECTS) {
+      if (s === form || s === preset || s === ressort || locked.has(s.id) || !s.options.length) continue;
+      s.selectedIndex = Math.floor(Math.random() * s.options.length);
+      s.dispatchEvent(new Event("change"));
+    }
+    if (!locked.has(ressort.id)) { ressort.value = "auto"; ressort.dispatchEvent(new Event("change")); }
     // In die ECHTEN Felder schreiben und ausloesen. `dispatchEvent` ist hier
     // kein Beiwerk: An den change-Ereignissen haengen die Wortbank, der
     // Anlagenstand fuer den Schaltplan und die Merkzettel fuer den

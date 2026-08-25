@@ -184,6 +184,11 @@ ist("dieselbe Stufe ergibt dieselbe Probe",
 // später wieder, und der Kopf wirkte an dieser Stelle folgenlos.
 const iForm = q.indexOf("form.value = st.form");
 wahr("die Form wird gesetzt", iForm > 0);
+// Erzeugen würfelt die übrigen Stilregler (4.325.0) — aber nie die vier
+// Entscheidungen des Vorspanns, die Presets oder das Ressort.
+wahr("Erzeugen würfelt die übrigen Regler", /for \(const s of ROLL_SELECTS\)/.test(block));
+wahr("… aber nicht Form, Preset oder Ressort", /s === form \|\| s === preset \|\| s === ressort/.test(block));
+wahr("… und das Ressort geht auf Auto", /ressort\.value = "auto"/.test(block));
 // Der Rueckweg: Aenderungen der Studio-Auswahl ziehen den Regler nach — die
 // Mehrfachauswahl wirft kein change-Ereignis, deshalb der Haken in
 // renderPresetChecks.
