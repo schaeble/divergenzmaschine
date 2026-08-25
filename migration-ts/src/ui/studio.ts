@@ -1784,8 +1784,13 @@ export function mountStudio(root: HTMLElement): void {
     b.addEventListener("click", () => {
       if (locked.has(form.id)) return;
       kopfWahl.form = i;
-      Array.from(formReihe.children).forEach((x, j) => x.setAttribute("aria-pressed", String(i === j)));
       sichereKopfWahl(kopfWahl);
+      // Den echten Regler SOFORT mitziehen, nicht erst beim Erzeugen. Dann
+      // stimmen Kopf und Reglerkasten in beide Richtungen ueberein, und der
+      // Chip ist nicht mehr eine Notiz ueber eine spaetere Absicht, sondern die
+      // Form selbst.
+      form.value = KOPF_FORMEN[i]![0];
+      form.dispatchEvent(new Event("change"));
     });
     formReihe.append(b);
   });
@@ -1804,18 +1809,36 @@ export function mountStudio(root: HTMLElement): void {
   const zeigeSchloesser = (): void => {
     const fest: string[] = [];
     const fSperr = locked.has(form.id);
-    Array.from(formReihe.children).forEach((x) => {
+    // Die Chips zeigen, was WIRKLICH eingestellt ist — nicht, was der Kopf sich
+    // gemerkt hat.
+    //
+    // Gemeldet: Wer im Reglerkasten die Form aendert und festhaelt, sah im Kopf
+    // weiter die alte Wahl. Der Chip war eine Notiz ueber eine frühere Absicht
+    // und behauptete einen Zustand, den es nicht gab.
+    //
+    // Ist die eingestellte Form keine der vier, ist KEIN Chip gedrueckt. Einen
+    // davon zu markieren waere gelogen: „Haiku" ist nicht „Prosa".
+    const iJetzt = KOPF_FORMEN.findIndex(([f]) => f === form.value);
+    if (iJetzt >= 0) { kopfWahl.form = iJetzt; sichereKopfWahl(kopfWahl); }
+    Array.from(formReihe.children).forEach((x, j) => {
       (x as HTMLButtonElement).disabled = fSperr;
+      x.setAttribute("aria-pressed", String(j === iJetzt));
       x.setAttribute("title", fSperr ? "Die Form ist festgehalten — Schloss im Reglerkasten öffnen" : "");
     });
     formReihe.classList.toggle("gesperrt", fSperr);
     if (fSperr) fest.push("Form");
     if (locked.has(lenSlider.id)) { laengeIn.disabled = true; fest.push("Länge"); } else laengeIn.disabled = false;
     if (locked.has(preset.id)) { reibungIn.disabled = true; fest.push("Reibung"); } else reibungIn.disabled = false;
-    gesperrtHinweis.textContent = fest.length
-      ? `🔒 ${fest.join(", ")} ${fest.length === 1 ? "ist" : "sind"} festgehalten und bleibt${fest.length === 1 ? "" : "en"} unverändert. `
-        + "Das Schloss steht unter „alle Regler zeigen“ neben dem Regler."
+    // Eine Form ausserhalb der vier braucht ihren eigenen Satz — sonst steht
+    // der Kopf ohne gedrueckten Chip da und sieht kaputt aus.
+    const fremd = iJetzt < 0
+      ? `Eingestellt ist „${form.options[form.selectedIndex]?.text || form.value}“ — diese Form bietet der Kopf nicht an. `
+        + "Unter „alle Regler zeigen“ lässt sie sich ändern."
       : "";
+    gesperrtHinweis.textContent = (fest.length
+      ? `🔒 ${fest.join(", ")} ${fest.length === 1 ? "ist" : "sind"} festgehalten und bleibt${fest.length === 1 ? "" : "en"} unverändert. `
+        + "Das Schloss steht unter „alle Regler zeigen“ neben dem Regler. "
+      : "") + fremd;
   };
 
   const saatIn = el("input", {
@@ -1930,6 +1953,8 @@ export function mountStudio(root: HTMLElement): void {
     // lange wie der Kopf.
     (lockPainters[c.id] ||= []).push({ b: kopfLos as HTMLButtonElement, paint: zeigeSchloesser });
   }
+  // Auch wenn die Form im Reglerkasten wechselt, ohne dass ein Schloss faellt.
+  form.addEventListener("change", zeigeSchloesser);
   zeigeSchloesser();
   setzeModus(kopfWahl.einfach !== false);
   zeichneProbe();

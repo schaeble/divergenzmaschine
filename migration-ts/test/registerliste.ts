@@ -134,6 +134,34 @@ wahr("die Ablage wandert in die Projektdatei", EIGEN_KEY.startsWith("divergenz_"
   const chips2 = Array.from(st2.querySelectorAll(".ek-wahl button")) as HTMLButtonElement[];
   wahr("ohne Schloss sind die Chips klickbar", chips2.every((c) => !c.disabled));
   ist("und der Hinweis bleibt leer", (st2.querySelector(".ek-gesperrt")?.textContent || ""), "");
+
+  // ── Die Chips zeigen, was WIRKLICH eingestellt ist ────────────────────────
+  // Gemeldet: Wer im Reglerkasten die Form aendert und festhaelt, sah im Kopf
+  // weiter die alte Wahl. Der Chip war eine Notiz ueber eine fruehere Absicht
+  // und behauptete einen Zustand, den es nicht gab.
+  const formSel = (w: HTMLElement): HTMLSelectElement =>
+    Array.from(w.querySelectorAll("select")).find((x) => (x as HTMLSelectElement).id === "f-form") as HTMLSelectElement;
+  const gedrueckt = (w: HTMLElement): string[] =>
+    (Array.from(w.querySelectorAll(".ek-wahl button")) as HTMLButtonElement[])
+      .filter((c) => c.getAttribute("aria-pressed") === "true").map((c) => c.textContent || "");
+
+  formSel(st2).value = "reim";
+  formSel(st2).dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  ist("aendert man die Form im Kasten, folgt der Chip", gedrueckt(st2).join(), "Reim");
+  // Und umgekehrt: Ein Chipklick zieht den echten Regler SOFORT mit, nicht erst
+  // beim Erzeugen. Dann ist der Chip die Form und nicht eine Notiz darueber.
+  const szene = (Array.from(st2.querySelectorAll(".ek-wahl button")) as HTMLButtonElement[])
+    .find((c) => c.textContent === "Szene")!;
+  szene.click();
+  ist("und ein Chipklick zieht den Regler mit", formSel(st2).value, "script");
+
+  // Eine Form ausserhalb der vier: KEIN Chip gedrueckt. Einen zu markieren waere
+  // gelogen — „Haiku" ist nicht „Prosa".
+  formSel(st2).value = "haiku";
+  formSel(st2).dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  ist("eine fremde Form drueckt keinen Chip", gedrueckt(st2).length, 0);
+  wahr("und der Hinweis sagt, welche eingestellt ist",
+    /Haiku|haiku/.test(st2.querySelector(".ek-gesperrt")?.textContent || ""));
 }
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────

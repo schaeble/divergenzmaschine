@@ -183,7 +183,16 @@ wahr("der Laengenschieber ebenso", /laengeIn\.disabled = true/.test(kq));
 wahr("der Reibungsschieber ebenso", /reibungIn\.disabled = true/.test(kq));
 // Und ein Satz, der es benennt — fuer die Schieber gibt es keine Chips, an
 // denen man es sehen koennte.
-wahr("es gibt einen Hinweis", /gesperrtHinweis\.textContent = fest\.length/.test(kq));
+wahr("es gibt einen Hinweis", /gesperrtHinweis\.textContent = \(fest\.length/.test(kq));
+// Und die Chips folgen dem ECHTEN Regler, nicht der gemerkten Wahl. Wer im
+// Reglerkasten die Form aendert, sah im Kopf sonst weiter die alte — ein Chip,
+// der einen Zustand behauptet, den es nicht gibt.
+wahr("die Chips folgen dem echten Regler",
+  /const iJetzt = KOPF_FORMEN\.findIndex\(\(\[f\]\) => f === form\.value\)/.test(kq));
+wahr("und ein Chipklick zieht ihn mit", /form\.value = KOPF_FORMEN\[i\]!\[0\]/.test(q));
+// Eine Form ausserhalb der vier drueckt KEINEN Chip — einen zu markieren waere
+// gelogen, „Haiku" ist nicht „Prosa".
+wahr("eine fremde Form bekommt einen eigenen Satz", /diese Form bietet der Kopf nicht an/.test(kq));
 wahr("er nennt die betroffenen Regler", /fest\.join\(", "\)/.test(kq));
 wahr("und sagt, wo das Schloss steht", /alle Regler zeigen/.test(kq));
 // Er muss sich MITAKTUALISIEREN: Wer im Reglerkasten ein Schloss oeffnet, soll
