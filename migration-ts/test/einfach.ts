@@ -17,7 +17,7 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https
 
 import {
   zerlegeSaat, stellung, KOPF_FORMEN, LAENGE_STUFEN, REIBUNG_STUFEN,
-  LAENGE_NAMEN, REIBUNG_NAMEN, PROBEN, SAAT_BEISPIELE, KOPF_KEY,
+  LAENGE_NAMEN, REIBUNG_NAMEN, PROBEN, SAAT_BEISPIELE, KOPF_KEY, probeAus, VORGABE,
 } from "../src/features/einfach";
 import { FORM_OPTS } from "../src/generation/optionen";
 
@@ -108,10 +108,54 @@ wahr("auch auf den vier W", /locked\.has\(feld\.id\)/.test(block));
 ist("der Kopf führt keine eigenen Reglerwerte",
   /divergenz_einfach_v1[\s\S]{0,400}tone|rhythm|structure/.test(readFileSync("src/features/einfach.ts", "utf8").slice(0, 200)), false);
 
+// ── 3b · Die Probe aus lebendigem Material ─────────────────────────────────
+// Die eingebauten Sätze zeigen die Bauart, aber sie sind nicht SEINE. Sobald
+// die lebendigen Pools etwas hergeben, wird die Probe daraus gebaut: Dann
+// führt sie nicht mehr vor, wie eine Kollision aussehen KÖNNTE, sondern wie
+// sie in diesem Korpus klingt.
+const PH = [
+  "Die Unterlagen liegen vollständig vor",
+  "der Einsatz ist ein Kind das nicht sterben durfte",
+  "die Frist beginnt mit einem Ereignis ohne Datum",
+];
+const p0 = probeAus(PH, 0)!;
+const p2 = probeAus(PH, 2)!;
+wahr("aus eigenem Material entsteht eine Probe", !!p0);
+ist("bei Stufe null ein Register", p0.register.length, 1);
+wahr("und eine Farbe", p0.teile.every(([, r]) => r === 1));
+wahr("bei Stufe zwei mehrere Register", p2.register.length > 1);
+wahr("und zwei Farben im selben Satz", p2.teile.some(([, r]) => r === 2));
+wahr("die Phrasen stehen wirklich drin", p2.teile.map(([t]) => t).join("").includes("Unterlagen"));
+// Reicht das Material nicht, bleibt die eingebaute Probe stehen — eine
+// Kollision aus einer einzigen Phrase wäre keine.
+ist("eine Phrase reicht nicht", probeAus(["Nur eine Phrase hier drin"], 2), null);
+ist("gar keine auch nicht", probeAus([], 1), null);
+ist("zu kurze Schnipsel zählen nicht", probeAus(["kurz", "auch"], 1), null);
+// Dieselbe Stufe muss dieselbe Probe zeigen: Ein Wackeln bei jedem Reglerzug
+// wäre Flackern und keine Auskunft.
+ist("dieselbe Stufe ergibt dieselbe Probe",
+  JSON.stringify(probeAus(PH, 1)), JSON.stringify(probeAus(PH, 1)));
+
 // ── 4 · Der Kopf ist ein Umschalter, kein Reiter ────────────────────────────
 // Vierzehn Reiter sind genug, und der Nutzungszähler sammelt gerade die Daten
 // dazu, welche davon Ballast sind.
 wahr("er sitzt im Studio", /wrap\.prepend\(kopf\)/.test(q));
+// Er ERSETZT den Reglerkasten beim Aufruf, er steht nicht darüber. Das Studio
+// hat siebenunddreißig Regler, und wer es zum ersten Mal öffnet, sah sie alle.
+ist("der einfache Modus ist die Vorgabe", VORGABE.einfach, true);
+wahr("und er blendet den Reglerkasten aus", /studio-einfach/.test(q));
+wahr("die Umschaltung ist ein Knopf, kein Aufklapper", /umschalter\.addEventListener\("click"/.test(q));
+ist("kein details/summary mehr", /class: "ek-kopf", open/.test(q), false);
+wahr("das Stilblatt blendet alles außer dem Kopf aus",
+  /\.studio-einfach > \*:not\(\.ek-kopf\)\{display:none\}/.test(readFileSync("src/ui/theme.css", "utf8")));
+// „Text erzeugen" führt ins LESEN. Wer den Kopf benutzt, will einen Text —
+// nicht eine Textbox unter einem Formular.
+wahr("der Knopf öffnet den Leser", /openReader\(out\.textContent/.test(q));
+wahr("aber nur im einfachen Modus", /if \(kopfWahl\.einfach\) \{[\s\S]{0,120}openReader/.test(q));
+wahr("und gibt die vier W mit", /who: who\.value, where: where\.value/.test(q));
+// Die Probe kommt aus dem lebendigen Material, wenn es welches gibt.
+wahr("die Probe zieht lebendiges Material heran", /probeAus\(liveTexts\(\)/.test(q));
+wahr("und fällt sonst auf das Muster zurück", /\?\? PROBEN\[/.test(q));
 ist("und ist kein eigener Reiter",
   /\["Einfach", mount/.test(readFileSync("src/ui/app.ts", "utf8")), false);
 

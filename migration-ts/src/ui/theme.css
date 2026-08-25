@@ -1110,3 +1110,13 @@ select.abweichend{border-color:var(--acc)}
   .ek-reihe{grid-template-columns:1fr;gap:6px}
   #ek-probe{font-size:17px}
 }
+
+/* Der einfache Modus ERSETZT den Reglerkasten. Alles ausser dem Kopf faellt
+   weg — nicht ausgeblendet im Sinne von „zusammengeklappt", sondern nicht da:
+   Wer den einfachen Kopf benutzt, soll nicht daneben ahnen, was er alles
+   nicht sieht. */
+.studio-einfach > *:not(.ek-kopf){display:none}
+.ek-leiste .ek-neben{background:none;border:0;color:var(--muted);font:12px var(--sans);
+  cursor:pointer;padding:4px 8px;border-radius:6px}
+.ek-leiste .ek-neben:hover{color:var(--text);background:var(--panel2)}
+.ek-leiste .ek-neben:focus-visible{outline:2px solid var(--acc2);outline-offset:1px}

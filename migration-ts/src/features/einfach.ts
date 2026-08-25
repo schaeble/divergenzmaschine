@@ -119,7 +119,16 @@ export function zerlegeSaat(satz: string): VierW {
 
 // ── Was der Kopf in die echten Regler schreibt ──────────────────────────────
 
-export interface KopfWahl { form: number; laenge: number; reibung: number; saat: string }
+export interface KopfWahl {
+  form: number; laenge: number; reibung: number; saat: string;
+  /** Ist der einfache Kopf der ganze Reiter? Vorgabe JA.
+   *
+   *  Das Studio hat siebenunddreissig Regler, und wer es zum ersten Mal
+   *  oeffnet, sieht sie alle. Der einfache Kopf ersetzt sie beim Aufruf; wer
+   *  mehr will, klappt auf. Die Wahl bleibt gespeichert — wer einmal alles
+   *  sehen wollte, will es beim naechsten Mal wieder. */
+  einfach?: boolean;
+}
 
 export interface KopfStellung {
   form: FormKind;
@@ -145,7 +154,7 @@ export function stellung(w: KopfWahl): KopfStellung {
 }
 
 export const KOPF_KEY = "divergenz_einfach_v1";
-export const VORGABE: KopfWahl = { form: 1, laenge: 1, reibung: 1, saat: SAAT_BEISPIELE[0]! };
+export const VORGABE: KopfWahl = { form: 1, laenge: 1, reibung: 1, saat: SAAT_BEISPIELE[0]!, einfach: true };
 
 export function ladeWahl(): KopfWahl {
   try {
@@ -155,4 +164,51 @@ export function ladeWahl(): KopfWahl {
 }
 export function sichereWahl(w: KopfWahl): void {
   try { localStorage.setItem(KOPF_KEY, JSON.stringify(w)); } catch { /* voll */ }
+}
+
+// ── Die Probe aus lebendigem Material ───────────────────────────────────────
+// Die Sätze oben sind Muster — sie zeigen die Bauart, aber sie sind nicht
+// SEINE. Sobald die lebendigen Pools etwas hergeben, wird die Probe daraus
+// gebaut: Dann führt sie nicht mehr vor, wie eine Kollision aussehen KÖNNTE,
+// sondern wie sie in diesem Korpus klingt.
+//
+// Das ist der Unterschied zwischen einem Werbebild und einem Spiegel.
+
+/** Baut eine Probe aus vorhandenen Phrasen.
+ *
+ *  `stufe` ist die Reibung: eine Phrase, zwei nebeneinander, zwei im selben
+ *  Satz verschmolzen. Reicht das Material nicht, gibt die Funktion `null`
+ *  zurück und die eingebaute Probe bleibt stehen — eine Kollision aus einer
+ *  einzigen Phrase wäre keine. */
+export function probeAus(phrasen: string[], stufe: number): Probe | null {
+  const gut = phrasen
+    .map((p) => p.replace(/\s+/g, " ").trim().replace(/[.!?…]+$/, ""))
+    .filter((p) => p.length >= 18 && p.length <= 90 && /\s/.test(p));
+  if (gut.length < 2) return null;
+  const s = Math.max(0, Math.min(2, Math.round(stufe)));
+  // Aus dem Vorrat greifen, nicht ziehen: Dieselbe Stufe soll dieselbe Probe
+  // zeigen, solange sich das Material nicht ändert. Ein Wackeln bei jedem
+  // Reglerzug wäre Flackern und keine Auskunft.
+  const a = gut[0]!;
+  const b = gut[Math.min(gut.length - 1, 1 + s)]!;
+  const punkt = (t: string): string => t + ".";
+  if (s === 0) {
+    return {
+      teile: [[punkt(a), 1]],
+      register: [["dein Material", 1]],
+      fuss: "ein Register · geschlossen, sicher, vorhersehbar",
+    };
+  }
+  if (s === 1) {
+    return {
+      teile: [[punkt(a), 1], [" " + punkt(b), 2]],
+      register: [["dein Material", 1], ["zweite Bank", 2]],
+      fuss: "zwei Register · sie stehen nebeneinander",
+    };
+  }
+  return {
+    teile: [[a, 1], [" — " + b + ".", 2]],
+    register: [["dein Material", 1], ["zweite Bank", 2], ["dritte Bank", 2]],
+    fuss: "drei Register · sie treffen im selben Satz aufeinander",
+  };
 }

@@ -43,7 +43,7 @@ import { icon } from "./icons";
 import { saveAnlage } from "../features/schaltplan";
 import {
   KOPF_FORMEN, LAENGE_NAMEN, REIBUNG_NAMEN, PROBEN, SAAT_BEISPIELE,
-  stellung as kopfStellung, ladeWahl as ladeKopfWahl, sichereWahl as sichereKopfWahl,
+  stellung as kopfStellung, ladeWahl as ladeKopfWahl, sichereWahl as sichereKopfWahl, probeAus,
 } from "../features/einfach";
 import { waehleGespreizt } from "../features/register";
 import { wuerfleVierW } from "../features/wuerfeln";
@@ -1753,7 +1753,11 @@ export function mountStudio(root: HTMLElement): void {
   const probeKante = el("span", { class: "ek-kante" });
 
   const zeichneProbe = (): void => {
-    const p = PROBEN[Math.max(0, Math.min(PROBEN.length - 1, kopfWahl.reibung))]!;
+    // Erst das eigene Material, dann das Muster. Solange die lebendigen Pools
+    // nichts hergeben, zeigt die Probe die Bauart; sobald sie etwas hergeben,
+    // zeigt sie, wie eine Kollision in DIESEM Korpus klingt.
+    const p = probeAus(liveTexts(), kopfWahl.reibung)
+      ?? PROBEN[Math.max(0, Math.min(PROBEN.length - 1, kopfWahl.reibung))]!;
     probeText.innerHTML = "";
     for (const [t, r] of p.teile) probeText.append(el("span", { class: "ek-r" + r }, t));
     probeFuss.innerHTML = "";
@@ -1836,17 +1840,36 @@ export function mountStudio(root: HTMLElement): void {
       else if (ids[0]) { preset.value = ids[0]; preset.dispatchEvent(new Event("change")); }
     }
     generate();
+    // Im einfachen Modus fuehrt der Knopf ins LESEN. Wer den Kopf benutzt, will
+    // einen Text — nicht eine Textbox unter einem Formular. Der Reglerkasten
+    // bleibt dahinter stehen und wartet.
+    // Die vier W mitgeben: Der Leser zeigt sie als Kopfzeile, und ohne sie
+    // stuende der Text ohne jede Angabe da, wo er herkommt.
+    if (kopfWahl.einfach) {
+      openReader(out.textContent || "",
+        { who: who.value, where: where.value, when: when.value, what: what.value });
+    }
   });
 
   const reihe = (marke: string, ...inhalt: (HTMLElement | string)[]): HTMLElement =>
     el("div", { class: "ek-reihe" }, el("span", { class: "ek-marke" }, marke), el("div", {}, ...inhalt));
 
-  const kopf = el("details", { class: "ek-kopf", open: "" },
-    el("summary", { class: "ek-leiste" },
-      el("span", { class: "ek-pfeil" }, "▶"),
-      el("span", { class: "ek-frage" }, "Was soll entstehen?"),
-      el("span", { class: "ek-neben" }, "alle Regler zeigen")),
-    el("div", { class: "ek-koerper" },
+  // Ein UMSCHALTER, kein Aufklapper. Der Unterschied ist nicht kosmetisch: Der
+  // einfache Kopf ERSETZT den Reglerkasten, er steht nicht darueber. Ein
+  // details/summary haette „hier ist noch mehr" gesagt; gemeint ist „das hier
+  // ist die Seite, und dort drueben ist die andere".
+  const umschalter = el("button", { class: "ek-neben", type: "button" }, "");
+  const setzeModus = (einfach: boolean): void => {
+    kopfWahl.einfach = einfach;
+    sichereKopfWahl(kopfWahl);
+    wrap.classList.toggle("studio-einfach", einfach);
+    koerper.style.display = einfach ? "" : "none";
+    umschalter.textContent = einfach ? "alle Regler zeigen" : "einfach";
+    frage.textContent = einfach ? "Was soll entstehen?" : "Einfacher Kopf";
+  };
+  umschalter.addEventListener("click", () => setzeModus(!kopfWahl.einfach));
+  const frage = el("span", { class: "ek-frage" }, "");
+  const koerper = el("div", { class: "ek-koerper" },
       reihe("Form", formReihe),
       reihe("Wovon", el("div", { class: "ek-satz" }, saatIn, saatWuerfel)),
       reihe("Länge", laengeIn, stufenZeile(LAENGE_NAMEN, "ek-laenge-stufen")),
@@ -1854,8 +1877,11 @@ export function mountStudio(root: HTMLElement): void {
       el("div", { class: "ek-probe" }, probeKante, probeText, probeFuss),
       el("div", { class: "ek-fussreihe" }, kopfLos,
         el("span", { class: "ek-hinweis" },
-          "Alles Übrige würfelt die Maschine. Was sie gewürfelt hat, steht im Schaltplan unter Diagnose."))));
+          "Alles Übrige würfelt die Maschine. Was sie gewürfelt hat, steht im Schaltplan unter Diagnose.")));
+  const kopf = el("div", { class: "ek-kopf" },
+    el("div", { class: "ek-leiste" }, frage, umschalter), koerper);
   wrap.prepend(kopf);
+  setzeModus(kopfWahl.einfach !== false);
   zeichneProbe();
   markiere("ek-laenge-stufen", kopfWahl.laenge);
   markiere("ek-reibung-stufen", kopfWahl.reibung);
