@@ -21,7 +21,7 @@ import type { FormKind } from "../types";
  *  „haiku", „video" und „meldung" sind Sonderfälle, die man gezielt sucht —
  *  wer sie will, klappt den Kopf zu und stellt sie ein. */
 export const KOPF_FORMEN: [FormKind, string][] = [
-  ["bericht", "Zeitungsbericht"], ["prose", "Prosa"], ["poem", "Gedicht"], ["script", "Szene"],
+  ["bericht", "Zeitungsbericht"], ["prose", "Prosa"], ["reim", "Reim"], ["script", "Szene"],
 ];
 
 /** Zielwortzahl je Stufe. Die mittlere entspricht der bisherigen Vorgabe. */

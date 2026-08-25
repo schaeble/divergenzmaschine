@@ -10,6 +10,7 @@
       key: () => null, length: 0 } as unknown as Storage;
   }
 }
+import { readFileSync } from "fs";
 import { istAbgeschnitten, postProcessText } from "../src/generation/postprocess";
 import { OBJEKT_EINSTIEG } from "../src/generation/shape";
 import { applyEmphasis } from "../src/generation/emphasis";
@@ -202,6 +203,18 @@ wahr("ein gewöhnlicher Satz gilt nicht als Gerüst", !GERUESTZEILE.test("Die T�
   // Zwischenraum, nicht im Zeichen davor.
   wahr("am Zeilenanfang bleibt es groß",
     /\nEin Vers/.test(nachSchliff("Zeile eins\nEin Vers beginnt")));
+  // Und die Regel gilt auch dort, wo der SCHLIFF nicht laeuft: Bericht und
+  // Meldung kehren vor ihm zurueck, weil er Saetze zusammenzieht und Ton
+  // einstreut — beides wuerde Fakten hinzufuegen oder wegnehmen. Diese eine
+  // Regel aendert keine Fakten, nur einen Buchstaben, und darf deshalb
+  // ueberall gelten. Seit der einfache Kopf den Zeitungsbericht an erster
+  // Stelle anbietet, ist das der haeufigste Weg.
+  wahr("die Regel steht als eigene Funktion bereit",
+    /export function kleinerArtikel/.test(readFileSync("src/generation/postprocess.ts", "utf8")));
+  const bs = readFileSync("src/generation/buildStory.ts", "utf8");
+  wahr("der Bericht laeuft durch sie", /kleinerArtikel\(buildBericht/.test(bs));
+  wahr("die Meldung auch", /kleinerArtikel\(buildMeldung/.test(bs));
+
   // Alle Formen des Artikels, nicht nur „Ein".
   for (const [w, k] of [["Eine", "eine"], ["Einen", "einen"], ["Einem", "einem"], ["Einer", "einer"]]) {
     wahr(`„${w}" wird mitten im Satz zu „${k}"`,

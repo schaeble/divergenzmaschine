@@ -4,7 +4,7 @@ import { MODE_DATA } from "../modes.data";
 import { pick, pickSane, clean, chance } from "../text-utils";
 import { normWhere, normWhen, normWho } from "./ctxnorm";
 import { makeDialogueScene, pickSpeakerForArchetype } from "./dialogue";
-import { postProcessText } from "./postprocess";
+import { kleinerArtikel, postProcessText } from "./postprocess";
 import { pickStructureBuilder } from "./structures";
 import { looksLikeClausePhrase, safeCaseForm, weaveCast } from "./beats";
 import { resetMarkovTrace, traceMarkov } from "./markovTrace";
@@ -150,10 +150,14 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   // Er laeuft NICHT durch postProcessText: Die Nachbearbeitung ergaenzt Artikel,
   // zieht Saetze zusammen und streut Ton ein - alles Eingriffe, die einem Bericht
   // Fakten hinzufuegen oder wegnehmen wuerden.
-  if (input.form === "bericht") return buildBericht(bank, input, (input.ressort as Parameters<typeof buildBericht>[2]) ?? "auto").text;
+  // Die eine Schliff-Regel, die auch hier gilt: Sie aendert keine Fakten, nur
+  // einen Buchstaben. „… bemerkt Ein Bergsteiger" stand sonst auch im Bericht,
+  // und seit der einfache Kopf den Zeitungsbericht an erster Stelle anbietet,
+  // ist das der haeufigste Weg.
+  if (input.form === "bericht") return kleinerArtikel(buildBericht(bank, input, (input.ressort as Parameters<typeof buildBericht>[2]) ?? "auto").text);
   // Die Meldung geht NICHT durch die Bank: Sie referiert nur aus dem
   // Faktenblatt. Deshalb steht sie vor allem, was Atome zieht.
-  if (input.form === "meldung") return buildMeldung(input, (input.ressort as Parameters<typeof buildMeldung>[1]) ?? "auto").text;
+  if (input.form === "meldung") return kleinerArtikel(buildMeldung(input, (input.ressort as Parameters<typeof buildMeldung>[1]) ?? "auto").text);
   if (input.form === "script") return postProcessText(makeDialogueScene(kit, lenTarget), input);
   if (input.form === "video") {
     return postProcessText(buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? 15, lenTarget), input);

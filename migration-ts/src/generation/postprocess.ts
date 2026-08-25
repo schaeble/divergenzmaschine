@@ -235,6 +235,22 @@ export function coherenceRepairV2(t: string, input?: Input): string {
 }
 
 /** Volle Nachbearbeitung: Namens-Ersetzung, Großschreibung, Kohärenz-Schliff. */
+/** Unbestimmter Artikel MITTEN im Satz klein.
+ *
+ *  Als eigene Funktion, weil BERICHT und MELDUNG den Schliff bewusst NICHT
+ *  durchlaufen — er zieht Sätze zusammen und streut Ton ein, und beides würde
+ *  einem Bericht Fakten hinzufügen oder wegnehmen. Diese eine Regel darf aber
+ *  überall gelten: Sie ändert keine Fakten, nur einen Buchstaben.
+ *
+ *  Im Deutschen ist „Ein" mitten im Satz immer klein. Ausgenommen bleibt, was
+ *  wirklich ein Anfang ist: nach Punkt, Doppelpunkt, öffnendem
+ *  Anführungszeichen, Klammer — und am ZEILENanfang, denn Verse fangen groß an.
+ *  Der Umbruch steckt im Zwischenraum, nicht im Zeichen davor. */
+export function kleinerArtikel(t: string): string {
+  return (t || "").replace(/([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines)\b/g,
+    (_m: string, vor: string, sp: string, w: string) => vor + sp + w.charAt(0).toLowerCase() + w.slice(1));
+}
+
 export function postProcessText(txt: string, input?: Input): string {
   let t = (txt ?? "").toString();
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1: string, p2: string) => p1 + p2.toUpperCase());
@@ -259,8 +275,7 @@ export function postProcessText(txt: string, input?: Input): string {
   // Vers" ist ein Zeilenanfang und bleibt gross. Den Umbruch nur aus der
   // Zeichenklasse davor auszuschliessen genuegte nicht — er steckte im
   // Zwischenraum.
-  t = t.replace(/([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines)\b/g,
-    (_m: string, vor: string, sp: string, w: string) => vor + sp + w.charAt(0).toLowerCase() + w.slice(1));
+  t = kleinerArtikel(t);
 
   const name = (input?.who ?? "").toString().trim();
   if (name) {

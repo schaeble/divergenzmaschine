@@ -1793,6 +1793,12 @@ export function mountStudio(root: HTMLElement): void {
     type: "text", value: kopfWahl.saat, "aria-label": "Wovon soll der Text handeln",
   }) as HTMLInputElement;
   saatIn.addEventListener("input", () => { kopfWahl.saat = saatIn.value; sichereKopfWahl(kopfWahl); });
+  // Ein Loeschknopf im Feld. Ohne ihn markiert man den Satz und tippt
+  // darueber — auf dem Handy drei Griffe fuer etwas, das einer sein sollte.
+  const saatWeg = el("button", { type: "button", title: "Feld leeren", class: "ek-weg" }, "×");
+  saatWeg.addEventListener("click", () => {
+    saatIn.value = ""; kopfWahl.saat = ""; sichereKopfWahl(kopfWahl); saatIn.focus();
+  });
   const saatWuerfel = el("button", { type: "button", title: "Anderen Satz vorschlagen" }, "⚄");
   saatWuerfel.addEventListener("click", () => {
     let n = saatIn.value;
@@ -1824,20 +1830,23 @@ export function mountStudio(root: HTMLElement): void {
     // kein Beiwerk: An den change-Ereignissen haengen die Wortbank, der
     // Anlagenstand fuer den Schaltplan und die Merkzettel fuer den
     // Reiterwechsel. Eine blosse Zuweisung ginge nur den halben Weg.
-    if (!locked.has(form.id)) { form.value = st.form; form.dispatchEvent(new Event("change")); }
-    if (!locked.has(lenSlider.id)) { lenSlider.value = String(st.lenTarget); lenSlider.dispatchEvent(new Event("input")); }
-    for (const [feld, wert] of [[where, st.ctx.where], [when, st.ctx.when], [who, st.ctx.who], [what, st.ctx.what]] as [HTMLInputElement, string][]) {
-      if (locked.has(feld.id) || !wert) continue;
-      feld.value = wert; feld.dispatchEvent(new Event("input"));
-    }
-    // Die Reibung: so viele Presets mischen, wie die Stufe sagt — gespreizt
-    // gewaehlt, wie beim Autopiloten. Bei einem einzigen bleibt die
-    // Einzelauswahl.
+    // REIHENFOLGE: erst das Preset, dann die Form.
+    //
+    // Gemeldet: „Bis jetzt kommt immer Prosa als Ergebnis." Ein Preset bringt
+    // eigene Einstellungen mit und setzt sie beim Wechsel — darunter die Form.
+    // Wurde die Form vorher gesetzt, ueberschrieb das Preset sie eine Zeile
+    // spaeter wieder, und der Kopf wirkte an dieser Stelle folgenlos.
     if (!locked.has(preset.id)) {
       const vorrat = Object.keys(getAllPresets());
       const ids = waehleGespreizt(vorrat, st.presets);
       if (st.presets > 1 && ids.length > 1) applySelection(ids);
       else if (ids[0]) { preset.value = ids[0]; preset.dispatchEvent(new Event("change")); }
+    }
+    if (!locked.has(form.id)) { form.value = st.form; form.dispatchEvent(new Event("change")); }
+    if (!locked.has(lenSlider.id)) { lenSlider.value = String(st.lenTarget); lenSlider.dispatchEvent(new Event("input")); }
+    for (const [feld, wert] of [[where, st.ctx.where], [when, st.ctx.when], [who, st.ctx.who], [what, st.ctx.what]] as [HTMLInputElement, string][]) {
+      if (locked.has(feld.id) || !wert) continue;
+      feld.value = wert; feld.dispatchEvent(new Event("input"));
     }
     generate();
     // Im einfachen Modus fuehrt der Knopf ins LESEN. Wer den Kopf benutzt, will
@@ -1871,7 +1880,7 @@ export function mountStudio(root: HTMLElement): void {
   const frage = el("span", { class: "ek-frage" }, "");
   const koerper = el("div", { class: "ek-koerper" },
       reihe("Form", formReihe),
-      reihe("Wovon", el("div", { class: "ek-satz" }, saatIn, saatWuerfel)),
+      reihe("Wovon", el("div", { class: "ek-satz" }, saatIn, saatWeg, saatWuerfel)),
       reihe("Länge", laengeIn, stufenZeile(LAENGE_NAMEN, "ek-laenge-stufen")),
       reihe("Reibung", reibungIn, stufenZeile(REIBUNG_NAMEN, "ek-reibung-stufen")),
       el("div", { class: "ek-probe" }, probeKante, probeText, probeFuss),

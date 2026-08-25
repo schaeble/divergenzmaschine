@@ -1120,3 +1120,4 @@ select.abweichend{border-color:var(--acc)}
   cursor:pointer;padding:4px 8px;border-radius:6px}
 .ek-leiste .ek-neben:hover{color:var(--text);background:var(--panel2)}
 .ek-leiste .ek-neben:focus-visible{outline:2px solid var(--acc2);outline-offset:1px}
+.ek-satz .ek-weg{font-size:18px;line-height:1;padding:0 10px}

@@ -136,6 +136,25 @@ ist("zu kurze Schnipsel zählen nicht", probeAus(["kurz", "auch"], 1), null);
 ist("dieselbe Stufe ergibt dieselbe Probe",
   JSON.stringify(probeAus(PH, 1)), JSON.stringify(probeAus(PH, 1)));
 
+// ── 3c · Die Formen kommen wirklich an ─────────────────────────────────────
+// Gemeldet: „Bis jetzt kommt immer Prosa als Ergebnis." Ein Preset bringt
+// eigene Einstellungen mit und setzt sie beim Wechsel — darunter die Form.
+// Wurde die Form VOR dem Preset gesetzt, überschrieb das Preset sie eine Zeile
+// später wieder, und der Kopf wirkte an dieser Stelle folgenlos.
+const iPreset = q.indexOf("waehleGespreizt(vorrat, st.presets)");
+const iForm = q.indexOf("form.value = st.form");
+wahr("das Preset wird gesetzt", iPreset > 0);
+wahr("die Form auch", iForm > 0);
+wahr("und zwar NACH dem Preset", iPreset < iForm);
+// „Gedicht" hiess im Kopf „poem"; gemeldet wurde, dass Reim gewünscht ist.
+wahr("die Formen heissen jetzt anders",
+  KOPF_FORMEN.some(([f]) => f === "reim"));
+ist("und Gedicht ist nicht mehr dabei", KOPF_FORMEN.some(([f]) => f === "poem"), false);
+// Ein Loeschknopf im Eingabefeld: Ohne ihn markiert man den Satz und tippt
+// darueber — auf dem Handy drei Griffe fuer etwas, das einer sein sollte.
+wahr("das Saatfeld hat einen Loeschknopf", /class: "ek-weg"/.test(q));
+wahr("und er leert wirklich", /saatIn\.value = ""; kopfWahl\.saat = ""/.test(q));
+
 // ── 4 · Der Kopf ist ein Umschalter, kein Reiter ────────────────────────────
 // Vierzehn Reiter sind genug, und der Nutzungszähler sammelt gerade die Daten
 // dazu, welche davon Ballast sind.
