@@ -243,6 +243,25 @@ export function postProcessText(txt: string, input?: Input): string {
   // stehen nicht in der Liste und bleiben gross.
   t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m: string, c: string, sp: string, w: string) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
 
+  // Unbestimmter Artikel MITTEN im Satz klein.
+  //
+  // Gemeldet aus einem erzeugten Text: „… bemerkt Ein Bergsteiger eine Waage",
+  // „Was Ein Bergsteiger will", „Ein Bergsteiger hält …". Die Figur kommt aus
+  // dem Wer-Feld und wird unveraendert eingesetzt — auch dort, wo sie nicht am
+  // Satzanfang steht. Die Regel darueber fasst nur Konjunktionen; hier steht
+  // ein Verb oder ein Fragewort davor.
+  //
+  // Im Deutschen ist „Ein" mitten im Satz immer klein. Ausgenommen bleibt, was
+  // WIRKLICH ein Anfang ist: nach Punkt, Doppelpunkt, oeffnendem
+  // Anfuehrungszeichen, Klammer und am Zeilenanfang — dort kann ein neuer Satz
+  // beginnen, und Verse fangen ohnehin gross an.
+  // Der Zwischenraum darf KEINEN Zeilenumbruch enthalten: „Zeile eins\nEin
+  // Vers" ist ein Zeilenanfang und bleibt gross. Den Umbruch nur aus der
+  // Zeichenklasse davor auszuschliessen genuegte nicht — er steckte im
+  // Zwischenraum.
+  t = t.replace(/([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines)\b/g,
+    (_m: string, vor: string, sp: string, w: string) => vor + sp + w.charAt(0).toLowerCase() + w.slice(1));
+
   const name = (input?.who ?? "").toString().trim();
   if (name) {
     const esc = escapeRegExp(name);

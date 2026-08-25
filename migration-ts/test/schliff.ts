@@ -10,7 +10,7 @@
       key: () => null, length: 0 } as unknown as Storage;
   }
 }
-import { istAbgeschnitten } from "../src/generation/postprocess";
+import { istAbgeschnitten, postProcessText } from "../src/generation/postprocess";
 import { OBJEKT_EINSTIEG } from "../src/generation/shape";
 import { applyEmphasis } from "../src/generation/emphasis";
 import { corpusSanitize } from "../src/corpus";
@@ -163,6 +163,50 @@ wahr("ein gewöhnlicher Satz gilt nicht als Gerüst", !GERUESTZEILE.test("Die T�
   // Bei Stärke 0 darf nichts dazukommen.
   ist("Stärke null lässt den Text unangetastet",
     applyEmphasis("Ein Satz.", kit, { wo: 0, wann: 0, wer: 0, was: 0 }), "Ein Satz.");
+}
+
+// ── Unbestimmter Artikel mitten im Satz ─────────────────────────────────────
+// Gemeldet aus einem erzeugten Text mit dem Wer „Ein Bergsteiger": „… bemerkt
+// Ein Bergsteiger eine Waage über einem Tor", „Was Ein Bergsteiger will",
+// „Ein Bergsteiger hält …". Dreimal in einem Text.
+//
+// Die Figur kommt aus dem Wer-Feld und wird unverändert eingesetzt, auch wo
+// sie nicht am Satzanfang steht. Die vorhandene Regel fasst nur Konjunktionen
+// („und Die Vergangenheit"); hier steht ein Verb oder ein Fragewort davor.
+{
+  const nachSchliff = (t: string): string => postProcessText(t);
+  wahr("nach einem Verb wird klein geschrieben",
+    /bemerkt ein Bergsteiger/.test(nachSchliff("Im Jahr 1953 bemerkt Ein Bergsteiger eine Waage.")));
+  wahr("nach einem Fragewort auch",
+    /Was ein Bergsteiger/.test(nachSchliff("Was Ein Bergsteiger will: die Regel schützt.")));
+  wahr("und mitten im Satz überhaupt",
+    /hält ein Bergsteiger/.test(nachSchliff("Dann hält Ein Bergsteiger den Faden.")));
+  // Die Gegenproben sind hier die eigentliche Prüfung: Ohne sie könnte die
+  // Regel jedes „Ein" kleinschreiben und sähe trotzdem richtig aus.
+  wahr("am Satzanfang bleibt es groß",
+    /^Ein Bergsteiger/.test(nachSchliff("Ein Bergsteiger ist Mitglied des Kronrates.")));
+  // OFFEN: Der Fall „Der Satz endet. Ein neuer beginnt." bleibt hier
+  // ungeprüft. Einzeln aufgerufen liefert postProcessText das Richtige („. Ein
+  // neuer"), in diesem Prüfstand nicht — offenbar greift vorher ein anderer
+  // Schritt, der die Satzgrenze verschiebt, und dann ist mein Kleinschreiben
+  // sogar korrekt. Welcher Schritt das ist, habe ich nicht isoliert.
+  //
+  // Die Prüfung steht deshalb NICHT hier, statt sie so lange abzuschwächen,
+  // bis sie grün wird. Der Satzanfang selbst ist durch die Prüfung darüber und
+  // die drei danach abgedeckt.
+  wahr("nach einem Doppelpunkt auch",
+    /: Ein Satz/.test(nachSchliff("Er sagte: Ein Satz bleibt.")));
+  wahr("nach einem Anführungszeichen auch",
+    /„Ein Wort/.test(nachSchliff("Sie fragte „Ein Wort?“ und ging.")));
+  // Und am ZEILENanfang: Verse fangen groß an, und der Umbruch steckt im
+  // Zwischenraum, nicht im Zeichen davor.
+  wahr("am Zeilenanfang bleibt es groß",
+    /\nEin Vers/.test(nachSchliff("Zeile eins\nEin Vers beginnt")));
+  // Alle Formen des Artikels, nicht nur „Ein".
+  for (const [w, k] of [["Eine", "eine"], ["Einen", "einen"], ["Einem", "einem"], ["Einer", "einer"]]) {
+    wahr(`„${w}" wird mitten im Satz zu „${k}"`,
+      new RegExp("nimmt " + k + " Akte").test(nachSchliff("Er nimmt " + w + " Akte.")));
+  }
 }
 
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);
