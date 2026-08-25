@@ -50,6 +50,19 @@ var MUSS = [
 for (const [was, marke] of MUSS) wahr(`die Hilfe erkl\xE4rt ${was}`, hilfe.includes(marke));
 var kaputt = Array.from(hilfe.matchAll(/„[^"„“\n]{0,160}"/g)).map((m) => m[0].slice(0, 40));
 ist("kein gerades Anf\xFChrungszeichen schlie\xDFt ein deutsches", kaputt.join(" | "), "");
+var versionen = hilfe.match(/\b4\.\d{3}(?:\.\d+)?/g) || [];
+ist("keine Versionsnummer im Hilfetext", versionen.join(", "), "");
+var teile = hilfe.split(/\n {4}\["/).slice(1);
+var lang = teile.map((t) => [t.slice(0, t.indexOf('"')), t.length]).filter(([, n]) => n > 1600);
+ist(
+  "kein Eintrag ist l\xE4nger als eine Bildschirmseite",
+  lang.map(([n, l]) => `${n} (${l})`).join(", "),
+  ""
+);
+wahr(`es wurden ${teile.length} Eintr\xE4ge gemessen`, teile.length >= 60);
+for (const w of ["Nutzung", "Selbsttest", "Schaltplan", "F\xFCller", "Abschrift", "Motivverwandlungen", "Bildwelt", "Autopilot"]) {
+  wahr(`die Hilfe kennt \u201E${w}"`, hilfe.includes(w));
+}
 console.log(`Pr\xFCfstand Hilfe \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {

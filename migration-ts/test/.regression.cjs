@@ -51,8 +51,24 @@ var REGRESSIONSFAELLE = [
 function clean(s) {
   return (s ?? "").toString().trim().replace(/\s+/g, " ");
 }
+var MONATE = /^(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember|Jahrhunderts?|Jh\.|Hälfte|Auflage|Band|Kapitel|Absatz|Teil)\b/u;
+var ORDNUNGSZAHL = /\d\.$/;
+var ABKUERZUNG = /(?:^|\s)(?:[A-Za-zÄÖÜäöü]|ca|bzw|bspw|evtl|ggf|inkl|Nr|St|Dr|Prof|Abs|Art|Bd|Hrsg|usw|etc)\.$/u;
+function keineGrenze(vor, nach) {
+  if (ABKUERZUNG.test(vor)) return true;
+  if (!ORDNUNGSZAHL.test(vor)) return false;
+  return MONATE.test(nach) || /^\d/.test(nach);
+}
 function splitSentences(txt) {
-  return txt.replace(/\s+/g, " ").trim().split(/(?<=[.!?…])\s+/).filter(Boolean);
+  const flach = txt.replace(/\s+/g, " ").trim();
+  const roh = flach.split(/(?<=[.!?…])\s+/).filter(Boolean);
+  const raus = [];
+  for (const teil of roh) {
+    const vor = raus[raus.length - 1];
+    if (vor && keineGrenze(vor, teil)) raus[raus.length - 1] = vor + " " + teil;
+    else raus.push(teil);
+  }
+  return raus;
 }
 
 // src/generation/nouns.data.ts

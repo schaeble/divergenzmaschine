@@ -25,8 +25,24 @@ function ensurePunct(s) {
 function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+var MONATE = /^(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember|Jahrhunderts?|Jh\.|Hälfte|Auflage|Band|Kapitel|Absatz|Teil)\b/u;
+var ORDNUNGSZAHL = /\d\.$/;
+var ABKUERZUNG = /(?:^|\s)(?:[A-Za-zÄÖÜäöü]|ca|bzw|bspw|evtl|ggf|inkl|Nr|St|Dr|Prof|Abs|Art|Bd|Hrsg|usw|etc)\.$/u;
+function keineGrenze(vor, nach) {
+  if (ABKUERZUNG.test(vor)) return true;
+  if (!ORDNUNGSZAHL.test(vor)) return false;
+  return MONATE.test(nach) || /^\d/.test(nach);
+}
 function splitSentences(txt) {
-  return txt.replace(/\s+/g, " ").trim().split(/(?<=[.!?…])\s+/).filter(Boolean);
+  const flach = txt.replace(/\s+/g, " ").trim();
+  const roh = flach.split(/(?<=[.!?…])\s+/).filter(Boolean);
+  const raus = [];
+  for (const teil of roh) {
+    const vor = raus[raus.length - 1];
+    if (vor && keineGrenze(vor, teil)) raus[raus.length - 1] = vor + " " + teil;
+    else raus.push(teil);
+  }
+  return raus;
 }
 var HAENGT_IN_DER_LUFT = /(^|\s)(ein|eine|einem|einen|einer|eines|der|die|das|dem|den|des|und|oder|aber|wie|als|im|am|beim|zum|zur|vom|von|für|ohne|durch|gegen|bei|seit|während|wegen|trotz|dass|weil|denn|sondern|sowie|bzw|etwa|sehr|dessen|deren|welche[rsmn]?)$/i;
 function kuerzeAmBruch(text) {
@@ -4616,7 +4632,7 @@ function applyPerspective(paras, perspective, who, objName) {
         const posP = voll.toLowerCase().indexOf(P3.toLowerCase(), idx);
         if (posP > 0 && /[-–\wÄÖÜäöüß]/.test(voll.charAt(posP - 1))) return _m;
         const davor = voll.slice(0, posP).replace(/\s+$/, "");
-        const gross = davor === "" || /[.!?…:;—–„"»(]$/.test(davor);
+        const gross = davor === "" || /[.!?…:„"»(]$/.test(davor);
         const pron = gross ? pronoun.charAt(0).toUpperCase() + pronoun.slice(1) : pronoun;
         const bw = before ? before.trim() : "";
         const aw = after ? after.trim() : "";
@@ -4963,10 +4979,17 @@ function coherenceRepairV2(t, input) {
   t = glaetten(t).replace(/„[ \t]+/g, "\u201E");
   return t;
 }
+function kleinerArtikel(t) {
+  return (t || "").replace(
+    /([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines)\b/g,
+    (_m, vor, sp, w) => vor + sp + w.charAt(0).toLowerCase() + w.slice(1)
+  );
+}
 function postProcessText(txt, input) {
   let t = (txt ?? "").toString();
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
   t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
+  t = kleinerArtikel(t);
   const name = (input?.who ?? "").toString().trim();
   if (name) {
     const esc = escapeRegExp(name);
@@ -15736,12 +15759,33 @@ function applyEmphasis(text, kit, w) {
     [w.wer, () => charLine(kit)],
     [w.was, () => plotLine(kit)]
   ];
+  const werte2 = [kit.W, kit.T, kit.P, strip(kit.Apure)].map((x) => clean(x || "").toLowerCase()).filter((x) => x.length > 3);
+  const geruest = (z) => {
+    let g = z.toLowerCase();
+    for (const w2 of werte2) if (w2) g = g.split(w2).join("\xA7");
+    return g.replace(/[^a-zäöüß§]+/g, " ").trim();
+  };
   const lines = [];
+  const gesehen = /* @__PURE__ */ new Set();
+  const genannt = /* @__PURE__ */ new Set();
   for (const [n, gen] of gens) {
     const count2 = Math.max(0, Math.min(3, n | 0));
-    for (let i = 0; i < count2; i++) lines.push(ensurePunct(clean(gen())));
+    for (let i = 0; i < count2; i++) {
+      for (let versuch = 0; versuch < 12; versuch++) {
+        const z = ensurePunct(clean(gen()));
+        if (!z) continue;
+        const g = geruest(z);
+        if (gesehen.has(g)) continue;
+        const dazu = werte2.filter((w2) => z.toLowerCase().includes(w2));
+        if (dazu.some((w2) => genannt.has(w2))) continue;
+        gesehen.add(g);
+        dazu.forEach((w2) => genannt.add(w2));
+        lines.push(z);
+        break;
+      }
+    }
   }
-  const uniq = [...new Set(lines)].filter(Boolean);
+  const uniq = lines.filter(Boolean);
   if (!uniq.length) return text;
   const sents = splitSentences(text);
   for (const line of uniq) {
@@ -16986,8 +17030,8 @@ function buildStory(bank, input, model) {
   resetMarkovTrace();
   const kit = buildKit(bank, input, model);
   const lenTarget = Number.isFinite(input.lenTarget) ? input.lenTarget : 110;
-  if (input.form === "bericht") return buildBericht(bank, input, input.ressort ?? "auto").text;
-  if (input.form === "meldung") return buildMeldung(input, input.ressort ?? "auto").text;
+  if (input.form === "bericht") return kleinerArtikel(buildBericht(bank, input, input.ressort ?? "auto").text);
+  if (input.form === "meldung") return kleinerArtikel(buildMeldung(input, input.ressort ?? "auto").text);
   if (input.form === "script") return postProcessText(makeDialogueScene(kit, lenTarget), input);
   if (input.form === "video") {
     return postProcessText(buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? 15, lenTarget), input);

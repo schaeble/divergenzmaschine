@@ -42,7 +42,7 @@ import {
 import { icon } from "./icons";
 import { saveAnlage } from "../features/schaltplan";
 import {
-  KOPF_FORMEN, LAENGE_NAMEN, REIBUNG_NAMEN, PROBEN, SAAT_BEISPIELE,
+  KOPF_FORMEN, LAENGE_NAMEN, REIBUNG_NAMEN, REIBUNG_STUFEN, PROBEN, SAAT_BEISPIELE,
   stellung as kopfStellung, ladeWahl as ladeKopfWahl, sichereWahl as sichereKopfWahl, probeAus,
 } from "../features/einfach";
 import { waehleGespreizt } from "../features/register";
@@ -410,6 +410,10 @@ export function mountStudio(root: HTMLElement): void {
   const saveMulti = (): void => { try { if (multiIds.length >= 2) localStorage.setItem(MULTI_KEY, JSON.stringify(multiIds)); else localStorage.removeItem(MULTI_KEY); } catch { /* voll */ } };
   const loadMulti = (): string[] => { try { const r = localStorage.getItem(MULTI_KEY); const a = r ? JSON.parse(r) : []; return Array.isArray(a) ? a.filter((x) => typeof x === "string") : []; } catch { return []; } };
   let multiIds: string[] = loadMulti();
+  // Der einfache Kopf haengt sich hier ein: Jede Aenderung der Preset-Auswahl
+  // zieht den Reibungsregler nach. Deklariert VOR den Auswahl-Funktionen,
+  // gefuellt erst beim Aufbau des Kopfes weiter unten.
+  let kopfPresetSync: (() => void) | null = null;
   preset.addEventListener("change", () => {
     if (preset.value === MULTI_ID) { if (multiIds.length >= 2) applyMulti(); return; }
     if (multiIds.length) { multiIds = []; saveMulti(); }
@@ -430,6 +434,9 @@ export function mountStudio(root: HTMLElement): void {
     }
     updRekHint();
   });
+  // Nach dem Bank-Laden den einfachen Kopf nachziehen — als EIGENER Listener,
+  // damit die fruehen returns im Handler darueber ihn nicht ueberspringen.
+  preset.addEventListener("change", () => kopfPresetSync?.());
 
   // ── Preset-Auswahl: eins ODER mehrere ankreuzen (steuert das versteckte Select) ──
   const stripIcon = (l: string): string => l.replace(/^[^\p{L}\p{N}]+/u, "").replace(/\s*✦2\.0$/, "").trim();
@@ -511,6 +518,9 @@ export function mountStudio(root: HTMLElement): void {
     } else {
       presetStatus.textContent = "Aktiv: " + (curOpt ? (curOpt.textContent || "—") : "—"); presetStatus.title = "";
     }
+    // Die Mehrfachauswahl wirft kein change-Ereignis auf dem Feld — der Kopf
+    // erfaehrt sie nur hier.
+    kopfPresetSync?.();
   };
   function applySelection(rawIds: string[]): void {
     const ids = rawIds.filter((v) => v !== MULTI_ID && v !== AUTOMIX_ID && v !== "__omni__");
@@ -1748,6 +1758,20 @@ export function mountStudio(root: HTMLElement): void {
   // als das Studio — genau der Fehler, der uns zuletzt drei Anlaeufe gekostet
   // hat.
   const kopfWahl = ladeKopfWahl();
+  // ── Reibung <-> Preset-Auswahl: EINE Wahrheit ─────────────────────────────
+  // Gemeldet: Der Kopf war "in Bezug auf die Presets nicht synchron mit den
+  // Einstellungen im Studio". Drei Luecken steckten dahinter: Der Regler stand
+  // still, wenn man im Studio ankreuzte; er griff selbst erst beim Erzeugen —
+  // und warf dann eine von Hand getroffene Auswahl kommentarlos weg; und die
+  // Probe nannte Register aus der Gesamtliste statt der aktiven. Jetzt gilt
+  // dasselbe wie beim Form-Chip seit 4.322: Der Regler ZEIGT die echte
+  // Auswahl und SCHREIBT sofort in sie hinein.
+  /** Die tatsaechlich aktiven Presets — DIESELBE Rechnung wie Schaltplan und
+   *  Textindex (aktivePresetIds), nur dass Auto-Mix hier leer zurueckkommt:
+   *  Dessen Quellen sind keine Auswahl, die der Regler ehrlich abbilden
+   *  koennte. */
+  const aktiveIds = (): string[] =>
+    preset.value === AUTOMIX_ID ? [] : aktivePresetIds().filter((id) => !!getAllPresets()[id]);
   const probeText = el("p", { id: "ek-probe" });
   const probeFuss = el("div", { class: "ek-fuss" });
   const probeKante = el("span", { class: "ek-kante" });
@@ -1768,10 +1792,13 @@ export function mountStudio(root: HTMLElement): void {
     // darueber, woraus die Maschine gerade schoepft. Beim Blaettern rueckt auch
     // die Auswahl weiter — man sieht dann Paare, die wirklich gemischt werden
     // koennen.
-    const alle = Object.values(getAllPresets());
-    const namen = alle.length
-      ? p.register.map(([, r], i) => [
-        stripIcon(alle[(probeVersatz + i) % alle.length]!.label), r] as [string, 1 | 2])
+    // Die Namen der WIRKLICH aktiven Presets — nicht irgendwelche aus der
+    // Gesamtliste nach Blaetter-Index. Bei Auto-Mix stehen die Quellen des
+    // letzten Wurfs da; das Blaettern rueckt nur noch innerhalb der Auswahl.
+    const aktivName = aktivePresetIds()
+      .map((id) => stripIcon(getAllPresets()[id]?.label || id));
+    const namen = aktivName.length
+      ? p.register.map(([, r], i) => [aktivName[(probeVersatz + i) % aktivName.length]!, r] as [string, 1 | 2])
       : p.register;
     namen.forEach(([n, r], i) => {
       if (i) probeFuss.append(el("span", { class: "ek-plus" }, "+"));
@@ -1883,9 +1910,59 @@ export function mountStudio(root: HTMLElement): void {
     "aria-label": "Reibung zwischen den Registern", "aria-describedby": "ek-probe",
   }) as HTMLInputElement;
   reibungIn.addEventListener("input", () => {
+    // Das Schloss haelt auch hier. Der Regler ist bei festgehaltenem Preset
+    // zwar abgeschaltet, aber eine Wache, die nur an der Oberflaeche haengt,
+    // ist keine.
+    if (locked.has(preset.id)) return;
     kopfWahl.reibung = parseInt(reibungIn.value, 10) || 0;
-    markiere("ek-reibung-stufen", kopfWahl.reibung); zeichneProbe(); sichereKopfWahl(kopfWahl);
+    markiere("ek-reibung-stufen", kopfWahl.reibung); sichereKopfWahl(kopfWahl);
+    // SOFORT in die echte Auswahl schreiben, wie beim Form-Chip. Dabei bleibt
+    // stehen, was von Hand angekreuzt war: Beim Hochdrehen wird ergaenzt (das
+    // am weitesten entfernte Register zuerst), beim Runterdrehen gekuerzt.
+    // Ein Regler, der die Auswahl ERSETZTE, wuerfe die Handarbeit im Studio
+    // weg — genau die Unsynchronitaet, die gemeldet wurde.
+    const ziel = REIBUNG_STUFEN[kopfWahl.reibung] ?? 1;
+    let ids = aktiveIds();
+    const vorrat = Object.keys(getAllPresets());
+    if (!ids.length) ids = waehleGespreizt(vorrat, ziel);
+    else if (ids.length > ziel) ids = ids.slice(0, ziel);
+    else while (ids.length < ziel) {
+      // Ergaenzen statt neu ziehen: der Kandidat mit dem groessten
+      // Mischabstand zum Vorhandenen — dieselbe Groesse, mit der
+      // waehleGespreizt spreizt, nur deterministisch ueber den ganzen Vorrat.
+      let bester = "", bestAbstand = -1;
+      for (const k of vorrat) {
+        if (ids.includes(k)) continue;
+        const a = mischAbstand([...ids, k]);
+        if (a > bestAbstand) { bestAbstand = a; bester = k; }
+      }
+      if (!bester) break;
+      ids.push(bester);
+    }
+    if (ids.length) applySelection(ids);
+    zeichneProbe();
   });
+
+  // Studio -> Kopf: Der Regler folgt der echten Auswahl. Ohne diesen Rueckweg
+  // stand er still, wenn man im Studio ankreuzte — die gemeldete Haelfte der
+  // Unsynchronitaet.
+  kopfPresetSync = (): void => {
+    const n = aktiveIds().length;
+    if (!n) {
+      // Auto-Mix: keine der drei Stufen waere ehrlich — keine markieren.
+      const box = wrap.querySelector("#ek-reibung-stufen");
+      if (box) Array.from(box.children).forEach((k) => k.classList.remove("an"));
+      reibungIn.title = "Aktiv ist Auto-Mix — die erste Bewegung des Reglers ersetzt ihn durch eine feste Auswahl.";
+      zeichneProbe();
+      return;
+    }
+    reibungIn.title = "";
+    const stufe = n >= 3 ? 2 : n === 2 ? 1 : 0;
+    if (kopfWahl.reibung !== stufe) { kopfWahl.reibung = stufe; sichereKopfWahl(kopfWahl); }
+    reibungIn.value = String(stufe);
+    markiere("ek-reibung-stufen", stufe);
+    zeichneProbe();
+  };
 
   // Die Probe ist ein Knopf. Ein graues Feld, das etwas zeigt und auf nichts
   // reagiert, laedt nicht zum Ausprobieren ein — und genau das soll es.
@@ -1902,18 +1979,11 @@ export function mountStudio(root: HTMLElement): void {
     // kein Beiwerk: An den change-Ereignissen haengen die Wortbank, der
     // Anlagenstand fuer den Schaltplan und die Merkzettel fuer den
     // Reiterwechsel. Eine blosse Zuweisung ginge nur den halben Weg.
-    // REIHENFOLGE: erst das Preset, dann die Form.
-    //
-    // Gemeldet: „Bis jetzt kommt immer Prosa als Ergebnis." Ein Preset bringt
-    // eigene Einstellungen mit und setzt sie beim Wechsel — darunter die Form.
-    // Wurde die Form vorher gesetzt, ueberschrieb das Preset sie eine Zeile
-    // spaeter wieder, und der Kopf wirkte an dieser Stelle folgenlos.
-    if (!locked.has(preset.id)) {
-      const vorrat = Object.keys(getAllPresets());
-      const ids = waehleGespreizt(vorrat, st.presets);
-      if (st.presets > 1 && ids.length > 1) applySelection(ids);
-      else if (ids[0]) { preset.value = ids[0]; preset.dispatchEvent(new Event("change")); }
-    }
+    // Presets NICHT mehr wuerfeln: Der Reibungsregler schreibt seit 4.323.1
+    // sofort in die echte Auswahl — was Kopf und Studio zeigen, laeuft auch.
+    // Das alte Wuerfeln an dieser Stelle ersetzte beim Erzeugen kommentarlos,
+    // was im Studio angekreuzt war. (Die Form wird weiterhin NACH einem etwa
+    // laufenden Preset-Wechsel gesetzt — Presets bringen eigene Formen mit.)
     if (!locked.has(form.id)) { form.value = st.form; form.dispatchEvent(new Event("change")); }
     if (!locked.has(lenSlider.id)) { lenSlider.value = String(st.lenTarget); lenSlider.dispatchEvent(new Event("input")); }
     for (const [feld, wert] of [[where, st.ctx.where], [when, st.ctx.when], [who, st.ctx.who], [what, st.ctx.what]] as [HTMLInputElement, string][]) {
@@ -1979,7 +2049,7 @@ export function mountStudio(root: HTMLElement): void {
   setzeModus(kopfWahl.einfach !== false);
   zeichneProbe();
   markiere("ek-laenge-stufen", kopfWahl.laenge);
-  markiere("ek-reibung-stufen", kopfWahl.reibung);
+  kopfPresetSync();
   varBtn.addEventListener("click", generate);
   // Echtzeit: Preset/Ton/Form sofort anwenden (außer während "Würfeln")
   const liveRegen = (): void => { if (!rolling) generate(); };

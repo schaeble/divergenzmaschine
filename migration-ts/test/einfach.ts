@@ -95,13 +95,23 @@ wahr("und löst aus", /form\.dispatchEvent\(new Event\("change"\)\)/.test(block)
 wahr("er setzt den echten Längenschieber", /lenSlider\.value = String\(st\.lenTarget\)/.test(block));
 wahr("und löst auch dort aus", /lenSlider\.dispatchEvent/.test(block));
 wahr("er schreibt in die vier W", /feld\.dispatchEvent\(new Event\("input"\)\)/.test(block));
-wahr("und mischt die Presets gespreizt", /waehleGespreizt\(vorrat, st\.presets\)/.test(block));
-wahr("bei mehreren über die vorhandene Auswahl", /applySelection\(ids\)/.test(block));
+// Seit 4.323.1 wuerfelt der Erzeugen-Knopf die Presets NICHT mehr: Der
+// Reibungsregler schreibt sofort in die echte Auswahl — Kopf und Studio waren
+// sonst „nicht synchron", und das Wuerfeln ersetzte eine Handauswahl
+// kommentarlos.
+const reibBlock = q.slice(q.indexOf('reibungIn.addEventListener("input"'), q.indexOf("// Studio -> Kopf"));
+wahr("der Regler schreibt sofort in die echte Auswahl", /applySelection\(ids\)/.test(reibBlock));
+wahr("ohne Auswahl zieht er gespreizt", /waehleGespreizt\(vorrat, ziel\)/.test(reibBlock));
+wahr("beim Runterdrehen bleibt Angekreuztes stehen", /ids\.slice\(0, ziel\)/.test(reibBlock));
+wahr("beim Hochdrehen wird nach Mischabstand ergänzt", /mischAbstand\(\[\.\.\.ids, k\]\)/.test(reibBlock));
+wahr("und der Erzeugen-Knopf würfelt nicht mehr um", !/waehleGespreizt\(vorrat, st\.presets\)/.test(block));
 // SCHLÖSSER halten auch hier: Wer einen Regler festgehalten hat, will ihn nicht
 // von einem Kopf überschrieben bekommen.
-for (const feld of ["form", "lenSlider", "preset"]) {
+for (const feld of ["form", "lenSlider"]) {
   wahr(`ein Schloss auf „${feld}“ hält`, new RegExp(`locked\\.has\\(${feld}\\.id\\)`).test(block));
 }
+// Das Preset-Schloss haelt dort, wo seit 4.323.1 geschrieben wird: am Regler.
+wahr("ein Schloss auf „preset“ hält (am Reibungsregler)", /locked\.has\(preset\.id\)/.test(reibBlock));
 wahr("auch auf den vier W", /locked\.has\(feld\.id\)/.test(block));
 // Und keine zweite Ablage für Reglerwerte: Der Kopf merkt sich nur die vier
 // Entscheidungen, nicht deren Auswirkung.
@@ -154,7 +164,7 @@ ist("ein negativer Versatz stuerzt nicht ab", typeof probeAus(P4, 1, -3), "objec
 // Und die Probe ist wirklich ein Knopf.
 wahr("die Probe ist anklickbar", /button\.ek-probe\{/.test(readFileSync("src/ui/theme.css", "utf8")));
 wahr("und der Klick blaettert weiter", /probeVersatz\+\+; zeichneProbe\(\)/.test(q));
-wahr("sie nennt echte Preset-Namen statt „dein Material“", /stripIcon\(alle\[\(probeVersatz \+ i\)/.test(q));
+wahr("sie nennt die WIRKLICH aktiven Presets", /const aktivName = aktivePresetIds\(\)/.test(q));
 
 // Dieselbe Stufe muss dieselbe Probe zeigen: Ein Wackeln bei jedem Reglerzug
 // wäre Flackern und keine Auskunft.
@@ -166,11 +176,13 @@ ist("dieselbe Stufe ergibt dieselbe Probe",
 // eigene Einstellungen mit und setzt sie beim Wechsel — darunter die Form.
 // Wurde die Form VOR dem Preset gesetzt, überschrieb das Preset sie eine Zeile
 // später wieder, und der Kopf wirkte an dieser Stelle folgenlos.
-const iPreset = q.indexOf("waehleGespreizt(vorrat, st.presets)");
 const iForm = q.indexOf("form.value = st.form");
-wahr("das Preset wird gesetzt", iPreset > 0);
-wahr("die Form auch", iForm > 0);
-wahr("und zwar NACH dem Preset", iPreset < iForm);
+wahr("die Form wird gesetzt", iForm > 0);
+// Der Rueckweg: Aenderungen der Studio-Auswahl ziehen den Regler nach — die
+// Mehrfachauswahl wirft kein change-Ereignis, deshalb der Haken in
+// renderPresetChecks.
+wahr("die Studio-Auswahl zieht den Regler nach", /kopfPresetSync\?\.\(\);/.test(q));
+wahr("auch ohne change-Ereignis (Mehrfachauswahl)", /kopfPresetSync = \(\): void =>/.test(q));
 // „Gedicht" hiess im Kopf „poem"; gemeldet wurde, dass Reim gewünscht ist.
 wahr("die Formen heissen jetzt anders", KOPF_FORMEN.some(([f]) => f === "reim"));
 ist("und Gedicht ist nicht mehr dabei", KOPF_FORMEN.some(([f]) => f === "poem"), false);

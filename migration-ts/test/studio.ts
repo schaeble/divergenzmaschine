@@ -508,6 +508,46 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
   wahr("und sie sind wirklich gesetzt", /horror\/ironisch\/kosmisch/.test(gesetzt));
 }
 
+// ── Reibung ↔ Preset-Auswahl: eine Wahrheit ────────────────────────────────
+// Gemeldet (4.323.1): Der einfache Kopf war in Bezug auf die Presets nicht
+// synchron mit den Einstellungen im Studio. Der Regler stand still, wenn man
+// im Studio ankreuzte, und griff selbst erst beim Erzeugen — mit neu
+// gewürfelten Presets, die eine Handauswahl kommentarlos ersetzten.
+{
+  const Dok5 = dom.window.document;
+  localStorage.removeItem("dm_multi_presets_v1");
+  const wurzelR = Dok5.createElement("div");
+  Dok5.body.append(wurzelR);
+  mountStudio(wurzelR);
+  const reibung = wurzelR.querySelector('input[aria-label="Reibung zwischen den Registern"]') as HTMLInputElement;
+  const kaesten = (): HTMLInputElement[] => Array.from(wurzelR.querySelectorAll(".mplist input[type=checkbox]")) as HTMLInputElement[];
+  const klick = (i: number): void => { const k = kaesten()[i]!; k.checked = !k.checked; k.dispatchEvent(new dom.window.Event("change")); };
+  wahr("es gibt den Reibungsregler", !!reibung);
+  // Studio → Kopf: Ankreuzen zieht den Regler nach (Reibung folgt der Auswahl).
+  ist("Ausgangslage: ein Preset ist angekreuzt", kaesten().filter((k) => k.checked).length, 1);
+  ist("… und der Regler steht auf einstimmig", reibung.value, "0");
+  const freie = kaesten().map((k, i) => [k.checked, i] as const).filter(([c]) => !c).map(([, i]) => i);
+  klick(freie[0]!);
+  ist("zweites Preset angekreuzt → gemischt", reibung.value, "1");
+  klick(freie[1]!);
+  ist("drittes Preset angekreuzt → weit auseinander", reibung.value, "2");
+  // Kopf → Studio: Der Regler schreibt sofort in die echte Auswahl — und
+  // behält Angekreuztes, statt neu zu würfeln.
+  const drei = kaesten().filter((k) => k.checked).map((k) => k.value);
+  reibung.value = "1"; reibung.dispatchEvent(new dom.window.Event("input"));
+  const zwei = kaesten().filter((k) => k.checked).map((k) => k.value);
+  ist("Regler auf gemischt → zwei Presets aktiv", zwei.length, 2);
+  wahr("… und beide waren vorher schon angekreuzt", zwei.every((id) => drei.includes(id)));
+  reibung.value = "2"; reibung.dispatchEvent(new dom.window.Event("input"));
+  const wieder = kaesten().filter((k) => k.checked).map((k) => k.value);
+  ist("hochgedreht → drei Presets aktiv", wieder.length, 3);
+  wahr("… die zwei vorhandenen blieben stehen", zwei.every((id) => wieder.includes(id)));
+  // Zusage im Quelltext, die eine Messung nicht sieht: Der Erzeugen-Knopf
+  // würfelt die Presets nicht mehr um — das Würfeln war die andere Hälfte
+  // der Unsynchronität.
+  wahr("Erzeugen würfelt die Presets nicht mehr um", !/waehleGespreizt\(vorrat, st\.presets\)/.test(studio));
+}
+
 console.log(`Prüfstand Studio — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {
