@@ -1036,3 +1036,77 @@ select.abweichend{border-color:var(--acc)}
 .sp-legende span { display:inline-flex; align-items:center; gap:.35rem; }
 .sp-punkt { width:.7rem; height:.7rem; border-radius:50%; display:inline-block; border:1.5px solid; }
 .sp-warn { color:var(--danger); }
+
+/* ── Der einfache Kopf ─────────────────────────────────────────────────────
+   Geschlossen eine einzige Zeile, die eine FRAGE stellt statt etwas zu
+   benennen: Eine Frage laedt zum Oeffnen ein, ein Substantiv nicht.
+
+   Die Steuerung bleibt klein und grau, die PROBE ist der einzige laute Teil.
+   Das ist umgedreht zu dem, was einfache Masken sonst tun — und zwar aus einem
+   inhaltlichen Grund: Man stellt hier nichts ein, man hoert sich eine Stimme
+   an. Was neugierig macht, ist nicht ein huebscher Knopf, sondern zu sehen,
+   was der Regler anrichtet, BEVOR man ihn drueckt. */
+.ek-kopf{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;margin:0 0 16px}
+.ek-leiste{display:flex;align-items:center;gap:10px;padding:13px 15px;cursor:pointer;
+  list-style:none}
+.ek-leiste::-webkit-details-marker{display:none}
+.ek-leiste:hover{background:var(--panel2)}
+.ek-leiste:focus-visible{outline:2px solid var(--acc2);outline-offset:-2px}
+.ek-pfeil{color:var(--muted);transition:transform .18s ease;flex:none;font-size:11px}
+.ek-kopf[open] .ek-pfeil{transform:rotate(90deg)}
+.ek-frage{flex:1;font-weight:600;letter-spacing:.1px}
+.ek-neben{color:var(--muted);font-size:12px}
+.ek-koerper{padding:4px 15px 16px;border-top:1px solid var(--border)}
+
+.ek-reihe{display:grid;grid-template-columns:74px 1fr;gap:12px;align-items:center;
+  padding:11px 0;border-bottom:1px solid var(--border)}
+.ek-reihe:last-of-type{border-bottom:0}
+.ek-marke{color:var(--muted);font-size:12px;letter-spacing:.3px}
+
+.ek-wahl{display:flex;flex-wrap:wrap;gap:6px}
+.ek-wahl button{background:var(--input-bg);border:1px solid var(--border2);color:var(--muted);
+  border-radius:99px;padding:6px 13px;font:13px/1 var(--sans);cursor:pointer}
+.ek-wahl button:hover{color:var(--text);border-color:var(--muted)}
+.ek-wahl button[aria-pressed="true"]{background:var(--acc);border-color:var(--acc);color:var(--on-acc)}
+
+.ek-satz{display:flex;gap:6px}
+.ek-satz input{flex:1;min-width:0;background:var(--input-bg);border:1px solid var(--border2);
+  color:var(--text);border-radius:8px;padding:9px 11px;font:14px var(--sans)}
+.ek-satz input:focus{outline:none;border-color:var(--acc2)}
+.ek-satz button{background:var(--input-bg);border:1px solid var(--border2);color:var(--muted);
+  border-radius:8px;padding:0 12px;cursor:pointer;font-size:15px}
+.ek-satz button:hover{color:var(--text)}
+
+.ek-koerper input[type=range]{width:100%;accent-color:var(--acc)}
+.ek-stufen{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;
+  margin-top:2px;letter-spacing:.2px}
+.ek-stufen .an{color:var(--text)}
+
+/* Die Probe erklaert die Reibung nicht, sie fuehrt sie vor: Die Farben stehen
+   fuer zwei Register, und je weiter der Regler steht, desto mehr Farbe zweiter
+   Art steht im selben Satz. */
+.ek-probe{margin:14px 0 0;padding:18px 18px 15px;background:var(--panel2);
+  border:1px solid var(--border);border-radius:var(--radius);position:relative}
+.ek-kante{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;
+  background:var(--acc)}
+.ek-k1{background:linear-gradient(var(--acc),var(--acc2))}
+.ek-k2{background:linear-gradient(var(--acc2),var(--acc))}
+#ek-probe{margin:0;font:19px/1.55 var(--serif);letter-spacing:.1px}
+.ek-r1{color:#c9b6ff}
+.ek-r2{color:#8fe6f5}
+.ek-fuss{margin-top:11px;font:12px/1.4 var(--sans);color:var(--muted);
+  display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.ek-perle{width:7px;height:7px;border-radius:50%;flex:none}
+.ek-p1{background:#c9b6ff}
+.ek-p2{background:#8fe6f5}
+.ek-plus{opacity:.4}
+.ek-fussnote{opacity:.45;margin-left:4px}
+
+.ek-fussreihe{display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap}
+.ek-hinweis{color:var(--muted);font-size:12px;flex:1;min-width:200px}
+
+@media (max-width:520px){
+  .ek-reihe{grid-template-columns:1fr;gap:6px}
+  #ek-probe{font-size:17px}
+}

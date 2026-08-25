@@ -41,6 +41,11 @@ import {
 } from "../features/reiter";
 import { icon } from "./icons";
 import { saveAnlage } from "../features/schaltplan";
+import {
+  KOPF_FORMEN, LAENGE_NAMEN, REIBUNG_NAMEN, PROBEN, SAAT_BEISPIELE,
+  stellung as kopfStellung, ladeWahl as ladeKopfWahl, sichereWahl as sichereKopfWahl,
+} from "../features/einfach";
+import { waehleGespreizt } from "../features/register";
 import { wuerfleVierW } from "../features/wuerfeln";
 import { openReader } from "./reader";
 import { worldLogGeneration, worldFillContext } from "../features/world";
@@ -1731,6 +1736,129 @@ export function mountStudio(root: HTMLElement): void {
     } catch (e) { out.textContent = "Fehler: " + (e instanceof Error ? e.message : String(e)); }
   };
   genBtn.addEventListener("click", generate);
+
+  // ── Der einfache Kopf ─────────────────────────────────────────────────────
+  // Vier Entscheidungen statt siebenunddreissig Reglern. Welche vier, steht in
+  // features/einfach.ts begruendet — kurz: die einzigen beiden Regler, die
+  // messbar ausschlagen (Form, und ueber die Wortbank die Reibung), dazu Laenge
+  // und ein Satz, aus dem die vier W kommen.
+  //
+  // ER SCHREIBT IN DIE ECHTEN REGLER und loest aus wie eine Bedienung von Hand.
+  // Kein zweiter Satz Einstellungen: Sonst zeigte der Schaltplan etwas anderes
+  // als das Studio — genau der Fehler, der uns zuletzt drei Anlaeufe gekostet
+  // hat.
+  const kopfWahl = ladeKopfWahl();
+  const probeText = el("p", { id: "ek-probe" });
+  const probeFuss = el("div", { class: "ek-fuss" });
+  const probeKante = el("span", { class: "ek-kante" });
+
+  const zeichneProbe = (): void => {
+    const p = PROBEN[Math.max(0, Math.min(PROBEN.length - 1, kopfWahl.reibung))]!;
+    probeText.innerHTML = "";
+    for (const [t, r] of p.teile) probeText.append(el("span", { class: "ek-r" + r }, t));
+    probeFuss.innerHTML = "";
+    p.register.forEach(([n, r], i) => {
+      if (i) probeFuss.append(el("span", { class: "ek-plus" }, "+"));
+      probeFuss.append(el("span", { class: "ek-perle ek-p" + r }), el("span", {}, n));
+    });
+    probeFuss.append(el("span", { class: "ek-fussnote" }, "· " + p.fuss));
+    probeKante.className = "ek-kante ek-k" + kopfWahl.reibung;
+  };
+
+  const stufenZeile = (namen: string[], id: string): HTMLElement =>
+    el("div", { class: "ek-stufen", id }, ...namen.map((n) => el("span", {}, n)));
+  const markiere = (id: string, i: number): void => {
+    const box = wrap.querySelector("#" + id);
+    if (!box) return;
+    Array.from(box.children).forEach((k, j) => k.classList.toggle("an", j === i));
+  };
+
+  const formReihe = el("div", { class: "ek-wahl" });
+  KOPF_FORMEN.forEach(([, label], i) => {
+    const b = el("button", { type: "button" }, label);
+    b.setAttribute("aria-pressed", String(i === kopfWahl.form));
+    b.addEventListener("click", () => {
+      kopfWahl.form = i;
+      Array.from(formReihe.children).forEach((x, j) => x.setAttribute("aria-pressed", String(i === j)));
+      sichereKopfWahl(kopfWahl);
+    });
+    formReihe.append(b);
+  });
+
+  const saatIn = el("input", {
+    type: "text", value: kopfWahl.saat, "aria-label": "Wovon soll der Text handeln",
+  }) as HTMLInputElement;
+  saatIn.addEventListener("input", () => { kopfWahl.saat = saatIn.value; sichereKopfWahl(kopfWahl); });
+  const saatWuerfel = el("button", { type: "button", title: "Anderen Satz vorschlagen" }, "⚄");
+  saatWuerfel.addEventListener("click", () => {
+    let n = saatIn.value;
+    while (n === saatIn.value && SAAT_BEISPIELE.length > 1) n = SAAT_BEISPIELE[Math.floor(Math.random() * SAAT_BEISPIELE.length)]!;
+    saatIn.value = n; kopfWahl.saat = n; sichereKopfWahl(kopfWahl);
+  });
+
+  const laengeIn = el("input", {
+    type: "range", min: "0", max: "2", step: "1", value: String(kopfWahl.laenge), "aria-label": "Länge",
+  }) as HTMLInputElement;
+  laengeIn.addEventListener("input", () => {
+    kopfWahl.laenge = parseInt(laengeIn.value, 10) || 0;
+    markiere("ek-laenge-stufen", kopfWahl.laenge); sichereKopfWahl(kopfWahl);
+  });
+
+  const reibungIn = el("input", {
+    type: "range", min: "0", max: "2", step: "1", value: String(kopfWahl.reibung),
+    "aria-label": "Reibung zwischen den Registern", "aria-describedby": "ek-probe",
+  }) as HTMLInputElement;
+  reibungIn.addEventListener("input", () => {
+    kopfWahl.reibung = parseInt(reibungIn.value, 10) || 0;
+    markiere("ek-reibung-stufen", kopfWahl.reibung); zeichneProbe(); sichereKopfWahl(kopfWahl);
+  });
+
+  const kopfLos = el("button", { class: "primary" }, icon("play"), " Text erzeugen");
+  kopfLos.addEventListener("click", () => {
+    const st = kopfStellung(kopfWahl);
+    // In die ECHTEN Felder schreiben und ausloesen. `dispatchEvent` ist hier
+    // kein Beiwerk: An den change-Ereignissen haengen die Wortbank, der
+    // Anlagenstand fuer den Schaltplan und die Merkzettel fuer den
+    // Reiterwechsel. Eine blosse Zuweisung ginge nur den halben Weg.
+    if (!locked.has(form.id)) { form.value = st.form; form.dispatchEvent(new Event("change")); }
+    if (!locked.has(lenSlider.id)) { lenSlider.value = String(st.lenTarget); lenSlider.dispatchEvent(new Event("input")); }
+    for (const [feld, wert] of [[where, st.ctx.where], [when, st.ctx.when], [who, st.ctx.who], [what, st.ctx.what]] as [HTMLInputElement, string][]) {
+      if (locked.has(feld.id) || !wert) continue;
+      feld.value = wert; feld.dispatchEvent(new Event("input"));
+    }
+    // Die Reibung: so viele Presets mischen, wie die Stufe sagt — gespreizt
+    // gewaehlt, wie beim Autopiloten. Bei einem einzigen bleibt die
+    // Einzelauswahl.
+    if (!locked.has(preset.id)) {
+      const vorrat = Object.keys(getAllPresets());
+      const ids = waehleGespreizt(vorrat, st.presets);
+      if (st.presets > 1 && ids.length > 1) applySelection(ids);
+      else if (ids[0]) { preset.value = ids[0]; preset.dispatchEvent(new Event("change")); }
+    }
+    generate();
+  });
+
+  const reihe = (marke: string, ...inhalt: (HTMLElement | string)[]): HTMLElement =>
+    el("div", { class: "ek-reihe" }, el("span", { class: "ek-marke" }, marke), el("div", {}, ...inhalt));
+
+  const kopf = el("details", { class: "ek-kopf", open: "" },
+    el("summary", { class: "ek-leiste" },
+      el("span", { class: "ek-pfeil" }, "▶"),
+      el("span", { class: "ek-frage" }, "Was soll entstehen?"),
+      el("span", { class: "ek-neben" }, "alle Regler zeigen")),
+    el("div", { class: "ek-koerper" },
+      reihe("Form", formReihe),
+      reihe("Wovon", el("div", { class: "ek-satz" }, saatIn, saatWuerfel)),
+      reihe("Länge", laengeIn, stufenZeile(LAENGE_NAMEN, "ek-laenge-stufen")),
+      reihe("Reibung", reibungIn, stufenZeile(REIBUNG_NAMEN, "ek-reibung-stufen")),
+      el("div", { class: "ek-probe" }, probeKante, probeText, probeFuss),
+      el("div", { class: "ek-fussreihe" }, kopfLos,
+        el("span", { class: "ek-hinweis" },
+          "Alles Übrige würfelt die Maschine. Was sie gewürfelt hat, steht im Schaltplan unter Diagnose."))));
+  wrap.prepend(kopf);
+  zeichneProbe();
+  markiere("ek-laenge-stufen", kopfWahl.laenge);
+  markiere("ek-reibung-stufen", kopfWahl.reibung);
   varBtn.addEventListener("click", generate);
   // Echtzeit: Preset/Ton/Form sofort anwenden (außer während "Würfeln")
   const liveRegen = (): void => { if (!rolling) generate(); };
