@@ -191,23 +191,26 @@ export function probeAus(phrasen: string[], stufe: number): Probe | null {
   // Reglerzug wäre Flackern und keine Auskunft.
   const a = gut[0]!;
   const b = gut[Math.min(gut.length - 1, 1 + s)]!;
-  const punkt = (t: string): string => t + ".";
+  // Gross am Satzanfang. Die Phrasen kommen klein aus den Pools — im Bild stand
+  // „ein Ritterhandschuh. eine Erschütterung." Ein Beispiel, das selbst falsch
+  // gesetzt ist, macht nicht neugierig, sondern misstrauisch.
+  const satz = (t: string): string => t.charAt(0).toUpperCase() + t.slice(1) + ".";
   if (s === 0) {
     return {
-      teile: [[punkt(a), 1]],
+      teile: [[satz(a), 1]],
       register: [["dein Material", 1]],
       fuss: "ein Register · geschlossen, sicher, vorhersehbar",
     };
   }
   if (s === 1) {
     return {
-      teile: [[punkt(a), 1], [" " + punkt(b), 2]],
+      teile: [[satz(a), 1], [" " + satz(b), 2]],
       register: [["dein Material", 1], ["zweite Bank", 2]],
       fuss: "zwei Register · sie stehen nebeneinander",
     };
   }
   return {
-    teile: [[a, 1], [" — " + b + ".", 2]],
+    teile: [[a.charAt(0).toUpperCase() + a.slice(1), 1], [" — " + b + ".", 2]],
     register: [["dein Material", 1], ["zweite Bank", 2], ["dritte Bank", 2]],
     fuss: "drei Register · sie treffen im selben Satz aufeinander",
   };

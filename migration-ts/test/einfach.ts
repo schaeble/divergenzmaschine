@@ -126,6 +126,15 @@ wahr("und eine Farbe", p0.teile.every(([, r]) => r === 1));
 wahr("bei Stufe zwei mehrere Register", p2.register.length > 1);
 wahr("und zwei Farben im selben Satz", p2.teile.some(([, r]) => r === 2));
 wahr("die Phrasen stehen wirklich drin", p2.teile.map(([t]) => t).join("").includes("Unterlagen"));
+// Gross am Satzanfang. Die Phrasen kommen klein aus den Pools — im Bild stand
+// „ein Ritterhandschuh. eine Erschütterung." Ein Beispiel, das selbst falsch
+// gesetzt ist, macht nicht neugierig, sondern misstrauisch.
+for (const s2 of [0, 1, 2]) {
+  const t = probeAus(["ein Ritterhandschuh im Regen", "eine Erschütterung ohne Namen",
+    "die Frist beginnt ohne Datum"], s2)!.teile.map(([x]) => x).join("");
+  wahr(`Stufe ${s2} beginnt gross`, /^[A-ZÄÖÜ]/.test(t));
+  ist(`Stufe ${s2} hat keinen kleinen Satzanfang`, /[.!?] [a-zäöü]/.test(t), false);
+}
 // Reicht das Material nicht, bleibt die eingebaute Probe stehen — eine
 // Kollision aus einer einzigen Phrase wäre keine.
 ist("eine Phrase reicht nicht", probeAus(["Nur eine Phrase hier drin"], 2), null);
