@@ -26,6 +26,8 @@ Object.defineProperty(G, "matchMedia", { value: keinMedia, writable: true, confi
 import { saveUserPresets } from "../src/wordbank";
 import { DEFAULT_BANK } from "../src/constants";
 import { registerVon, EIGEN_KEY } from "../src/features/register";
+import { KOPF_FORMEN } from "../src/features/einfach";
+import { FORM_OPTS } from "../src/generation/optionen";
 import { mountWordbank } from "../src/ui/wordbankView";
 
 const fails: string[] = [];
@@ -150,18 +152,31 @@ wahr("die Ablage wandert in die Projektdatei", EIGEN_KEY.startsWith("divergenz_"
   ist("aendert man die Form im Kasten, folgt der Chip", gedrueckt(st2).join(), "Reim");
   // Und umgekehrt: Ein Chipklick zieht den echten Regler SOFORT mit, nicht erst
   // beim Erzeugen. Dann ist der Chip die Form und nicht eine Notiz darueber.
-  const szene = (Array.from(st2.querySelectorAll(".ek-wahl button")) as HTMLButtonElement[])
-    .find((c) => c.textContent === "Szene")!;
-  szene.click();
-  ist("und ein Chipklick zieht den Regler mit", formSel(st2).value, "script");
+  // „Szene" hiess der vierte Chip bis 4.323.0 — jetzt „Haiku". Der Chip wird
+  // ueber die FORMLISTE gesucht statt ueber einen abgeschriebenen Namen: Sonst
+  // faellt diese Pruefung bei jeder Umbenennung um, und man aendert sie
+  // gedankenlos mit, statt zu pruefen, ob die Umbenennung gewollt war.
+  const letzterName = KOPF_FORMEN[KOPF_FORMEN.length - 1]![1];
+  const letzteId = KOPF_FORMEN[KOPF_FORMEN.length - 1]![0];
+  const letzter = (Array.from(st2.querySelectorAll(".ek-wahl button")) as HTMLButtonElement[])
+    .find((c) => c.textContent === letzterName)!;
+  wahr(`der letzte Chip heisst „${letzterName}"`, !!letzter);
+  letzter.click();
+  ist("und ein Chipklick zieht den Regler mit", formSel(st2).value, letzteId);
 
   // Eine Form ausserhalb der vier: KEIN Chip gedrueckt. Einen zu markieren waere
   // gelogen — „Haiku" ist nicht „Prosa".
-  formSel(st2).value = "haiku";
+  // Eine Form, die der Kopf NICHT anbietet — aus der echten Formliste gesucht,
+  // nicht abgeschrieben. „haiku" stand hier bis 4.323.0 und wurde dann selbst
+  // eine der vier; die Pruefung pruefte danach das Gegenteil von dem, was sie
+  // sollte, und blieb trotzdem gruen.
+  const fremdeForm = FORM_OPTS.map(([v]) => v).find((v) => !KOPF_FORMEN.some(([f]) => f === v))!;
+  wahr(`es gibt eine Form ausserhalb des Kopfes („${fremdeForm}")`, !!fremdeForm);
+  formSel(st2).value = fremdeForm;
   formSel(st2).dispatchEvent(new dom.window.Event("change", { bubbles: true }));
   ist("eine fremde Form drueckt keinen Chip", gedrueckt(st2).length, 0);
   wahr("und der Hinweis sagt, welche eingestellt ist",
-    /Haiku|haiku/.test(st2.querySelector(".ek-gesperrt")?.textContent || ""));
+    /bietet der Kopf nicht an/.test(st2.querySelector(".ek-gesperrt")?.textContent || ""));
 }
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────

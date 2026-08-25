@@ -1129,3 +1129,12 @@ select.abweichend{border-color:var(--acc)}
 .ek-koerper input[type=range]:disabled{opacity:.4;cursor:not-allowed}
 .ek-gesperrt{margin:12px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
 .ek-gesperrt:empty{display:none}
+/* Die Probe ist ein Knopf: Ein graues Feld, das etwas zeigt und auf nichts
+   reagiert, laedt nicht zum Ausprobieren ein — und genau das soll es. */
+button.ek-probe{display:block;width:100%;text-align:left;cursor:pointer;
+  font:inherit;color:inherit}
+button.ek-probe:hover{border-color:var(--border2)}
+button.ek-probe:focus-visible{outline:2px solid var(--acc2);outline-offset:2px}
+.ek-blaettern{position:absolute;right:12px;bottom:10px;color:var(--muted);
+  font:11px var(--sans);opacity:.6}
+button.ek-probe:hover .ek-blaettern{opacity:1;color:var(--acc2)}

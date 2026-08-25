@@ -21,7 +21,7 @@ import type { FormKind } from "../types";
  *  „haiku", „video" und „meldung" sind Sonderfälle, die man gezielt sucht —
  *  wer sie will, klappt den Kopf zu und stellt sie ein. */
 export const KOPF_FORMEN: [FormKind, string][] = [
-  ["bericht", "Zeitungsbericht"], ["prose", "Prosa"], ["reim", "Reim"], ["script", "Szene"],
+  ["bericht", "Zeitungsbericht"], ["prose", "Prosa"], ["reim", "Reim"], ["haiku", "Haiku"],
 ];
 
 /** Zielwortzahl je Stufe. Die mittlere entspricht der bisherigen Vorgabe. */
@@ -180,7 +180,11 @@ export function sichereWahl(w: KopfWahl): void {
  *  Satz verschmolzen. Reicht das Material nicht, gibt die Funktion `null`
  *  zurück und die eingebaute Probe bleibt stehen — eine Kollision aus einer
  *  einzigen Phrase wäre keine. */
-export function probeAus(phrasen: string[], stufe: number): Probe | null {
+/** `versatz` blättert durch das Material: Bei jedem Druck auf die Probe rückt
+ *  das Fenster um eins weiter. Die Probe ist dadurch kein Schaufenster mehr,
+ *  sondern ein Blättern — man sieht, WORAUS die Maschine gerade schöpft, statt
+ *  einen Beleg dafür, dass sie irgendwoher schöpft. */
+export function probeAus(phrasen: string[], stufe: number, versatz = 0): Probe | null {
   const gut = phrasen
     .map((p) => p.replace(/\s+/g, " ").trim().replace(/[.!?…]+$/, ""))
     .filter((p) => p.length >= 18 && p.length <= 90 && /\s/.test(p));
@@ -189,8 +193,12 @@ export function probeAus(phrasen: string[], stufe: number): Probe | null {
   // Aus dem Vorrat greifen, nicht ziehen: Dieselbe Stufe soll dieselbe Probe
   // zeigen, solange sich das Material nicht ändert. Ein Wackeln bei jedem
   // Reglerzug wäre Flackern und keine Auskunft.
-  const a = gut[0]!;
-  const b = gut[Math.min(gut.length - 1, 1 + s)]!;
+  // Modulo, damit das Blättern umläuft: Am Ende der Liste fängt es wieder vorn
+  // an, statt stehenzubleiben — sonst wüsste niemand, ob die Probe erschöpft
+  // ist oder der Druck nicht ankam.
+  const v = ((Math.round(versatz) % gut.length) + gut.length) % gut.length;
+  const a = gut[v]!;
+  const b = gut[(v + 1 + s) % gut.length]!;
   // Gross am Satzanfang. Die Phrasen kommen klein aus den Pools — im Bild stand
   // „ein Ritterhandschuh. eine Erschütterung." Ein Beispiel, das selbst falsch
   // gesetzt ist, macht nicht neugierig, sondern misstrauisch.

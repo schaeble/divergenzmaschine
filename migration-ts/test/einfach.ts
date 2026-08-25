@@ -140,6 +140,22 @@ for (const s2 of [0, 1, 2]) {
 ist("eine Phrase reicht nicht", probeAus(["Nur eine Phrase hier drin"], 2), null);
 ist("gar keine auch nicht", probeAus([], 1), null);
 ist("zu kurze Schnipsel zählen nicht", probeAus(["kurz", "auch"], 1), null);
+// BLAETTERN: Bei jedem Druck auf die Probe rueckt das Fenster um eins weiter.
+// Die Probe ist dadurch kein Schaufenster mehr, sondern ein Blaettern — man
+// sieht, WORAUS die Maschine gerade schoepft.
+const P4 = [...PH, "ein Zimmer das im Plan nicht vorkommt"];
+const s0 = probeAus(P4, 1, 0)!.teile.map(([t]) => t).join("");
+const s1 = probeAus(P4, 1, 1)!.teile.map(([t]) => t).join("");
+wahr("ein Druck zeigt anderes Material", s0 !== s1);
+// Modulo: Am Ende faengt es wieder vorn an. Bliebe es stehen, wuesste niemand,
+// ob die Probe erschoepft ist oder der Druck nicht ankam.
+ist("und am Ende laeuft es um", probeAus(P4, 1, P4.length)!.teile.map(([t]) => t).join(""), s0);
+ist("ein negativer Versatz stuerzt nicht ab", typeof probeAus(P4, 1, -3), "object");
+// Und die Probe ist wirklich ein Knopf.
+wahr("die Probe ist anklickbar", /button\.ek-probe\{/.test(readFileSync("src/ui/theme.css", "utf8")));
+wahr("und der Klick blaettert weiter", /probeVersatz\+\+; zeichneProbe\(\)/.test(q));
+wahr("sie nennt echte Preset-Namen statt „dein Material“", /stripIcon\(alle\[\(probeVersatz \+ i\)/.test(q));
+
 // Dieselbe Stufe muss dieselbe Probe zeigen: Ein Wackeln bei jedem Reglerzug
 // wäre Flackern und keine Auskunft.
 ist("dieselbe Stufe ergibt dieselbe Probe",
@@ -156,9 +172,10 @@ wahr("das Preset wird gesetzt", iPreset > 0);
 wahr("die Form auch", iForm > 0);
 wahr("und zwar NACH dem Preset", iPreset < iForm);
 // „Gedicht" hiess im Kopf „poem"; gemeldet wurde, dass Reim gewünscht ist.
-wahr("die Formen heissen jetzt anders",
-  KOPF_FORMEN.some(([f]) => f === "reim"));
+wahr("die Formen heissen jetzt anders", KOPF_FORMEN.some(([f]) => f === "reim"));
 ist("und Gedicht ist nicht mehr dabei", KOPF_FORMEN.some(([f]) => f === "poem"), false);
+wahr("das Haiku ist dabei", KOPF_FORMEN.some(([f]) => f === "haiku"));
+ist("und die Szene nicht mehr", KOPF_FORMEN.some(([f]) => f === "script"), false);
 // Ein Loeschknopf im Eingabefeld: Ohne ihn markiert man den Satz und tippt
 // darueber — auf dem Handy drei Griffe fuer etwas, das einer sein sollte.
 wahr("das Saatfeld hat einen Loeschknopf", /class: "ek-weg"/.test(q));

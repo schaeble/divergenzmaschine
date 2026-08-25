@@ -1752,16 +1752,28 @@ export function mountStudio(root: HTMLElement): void {
   const probeFuss = el("div", { class: "ek-fuss" });
   const probeKante = el("span", { class: "ek-kante" });
 
+  // Wie oft schon geblaettert wurde. Nicht gespeichert: Das Blaettern ist ein
+  // Blick, keine Einstellung — beim naechsten Oeffnen faengt es wieder vorn an.
+  let probeVersatz = 0;
   const zeichneProbe = (): void => {
     // Erst das eigene Material, dann das Muster. Solange die lebendigen Pools
     // nichts hergeben, zeigt die Probe die Bauart; sobald sie etwas hergeben,
     // zeigt sie, wie eine Kollision in DIESEM Korpus klingt.
-    const p = probeAus(liveTexts(), kopfWahl.reibung)
+    const p = probeAus(liveTexts(), kopfWahl.reibung, probeVersatz)
       ?? PROBEN[Math.max(0, Math.min(PROBEN.length - 1, kopfWahl.reibung))]!;
     probeText.innerHTML = "";
     for (const [t, r] of p.teile) probeText.append(el("span", { class: "ek-r" + r }, t));
     probeFuss.innerHTML = "";
-    p.register.forEach(([n, r], i) => {
+    // Die ECHTEN Namen, wenn es welche gibt: „dein Material" sagt nichts
+    // darueber, woraus die Maschine gerade schoepft. Beim Blaettern rueckt auch
+    // die Auswahl weiter — man sieht dann Paare, die wirklich gemischt werden
+    // koennen.
+    const alle = Object.values(getAllPresets());
+    const namen = alle.length
+      ? p.register.map(([, r], i) => [
+        stripIcon(alle[(probeVersatz + i) % alle.length]!.label), r] as [string, 1 | 2])
+      : p.register;
+    namen.forEach(([n, r], i) => {
       if (i) probeFuss.append(el("span", { class: "ek-plus" }, "+"));
       probeFuss.append(el("span", { class: "ek-perle ek-p" + r }), el("span", {}, n));
     });
@@ -1875,6 +1887,14 @@ export function mountStudio(root: HTMLElement): void {
     markiere("ek-reibung-stufen", kopfWahl.reibung); zeichneProbe(); sichereKopfWahl(kopfWahl);
   });
 
+  // Die Probe ist ein Knopf. Ein graues Feld, das etwas zeigt und auf nichts
+  // reagiert, laedt nicht zum Ausprobieren ein — und genau das soll es.
+  const probeBox = el("button", { class: "ek-probe", type: "button",
+    title: "Weiterblättern — anderes Material, andere Bänke" },
+    probeKante, probeText, probeFuss,
+    el("span", { class: "ek-blaettern" }, "weiterblättern ›"));
+  probeBox.addEventListener("click", () => { probeVersatz++; zeichneProbe(); });
+
   const kopfLos = el("button", { class: "primary" }, icon("play"), " Text erzeugen");
   kopfLos.addEventListener("click", () => {
     const st = kopfStellung(kopfWahl);
@@ -1935,7 +1955,7 @@ export function mountStudio(root: HTMLElement): void {
       reihe("Wovon", el("div", { class: "ek-satz" }, saatIn, saatWeg, saatWuerfel)),
       reihe("Länge", laengeIn, stufenZeile(LAENGE_NAMEN, "ek-laenge-stufen")),
       reihe("Reibung", reibungIn, stufenZeile(REIBUNG_NAMEN, "ek-reibung-stufen")),
-      el("div", { class: "ek-probe" }, probeKante, probeText, probeFuss),
+      probeBox,
       gesperrtHinweis,
       el("div", { class: "ek-fussreihe" }, kopfLos,
         el("span", { class: "ek-hinweis" },
