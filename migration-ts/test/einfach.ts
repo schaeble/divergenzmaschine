@@ -16,7 +16,7 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https
 (globalThis as unknown as Record<string, unknown>).localStorage = dom.window.localStorage;
 
 import {
-  zerlegeSaat, stellung, KOPF_FORMEN, LAENGE_STUFEN, REIBUNG_STUFEN,
+  zerlegeSaat, stellung, saatVorrat, KOPF_FORMEN, LAENGE_STUFEN, REIBUNG_STUFEN,
   LAENGE_NAMEN, REIBUNG_NAMEN, PROBEN, SAAT_BEISPIELE, KOPF_KEY, probeAus, VORGABE,
 } from "../src/features/einfach";
 import { FORM_OPTS } from "../src/generation/optionen";
@@ -123,6 +123,42 @@ wahr("auch auf den vier W", /locked\.has\(feld\.id\)/.test(block));
 // Entscheidungen, nicht deren Auswirkung.
 ist("der Kopf führt keine eigenen Reglerwerte",
   /divergenz_einfach_v1[\s\S]{0,400}tone|rhythm|structure/.test(readFileSync("src/features/einfach.ts", "utf8").slice(0, 200)), false);
+
+// ── 2b · Zerlegung: Adjektiv im Ort, erweiterte Verben, Würfelvorrat ───────
+// Gemeldet (4.326.0): Der Saat-Würfel kannte nur fünf feste Beispiele.
+// Jetzt schöpft er aus Live-Pool und Welt — und die Zerlegung muss die
+// Welt-Sätze wieder auseinanderbekommen.
+{
+  const z1 = zerlegeSaat("Eine Uhrmacherin in einer schlaflosen Stadt");
+  ist("ein Ort mit kleingeschriebenem Adjektiv wird erkannt", z1.where, "in einer schlaflosen Stadt");
+  ist("… und die Figur bleibt sauber", z1.who, "Eine Uhrmacherin");
+  // Das Wetter-Beispiel aus dem Blatt: „… in einer kleinen Stadt hält den
+  // Verband" stand komplett im WER.
+  const z2 = zerlegeSaat("Ein Wachmann in einer kleinen Stadt hält den Verband");
+  ist("das gemeldete Blatt-Beispiel zerfällt jetzt richtig", z2.where, "in einer kleinen Stadt");
+  ist("… mit dem Vorgang im Was", z2.what, "hält den Verband");
+  const z3 = zerlegeSaat("Eine Archivarin entdeckt ein zweites Testament");
+  ist("die Welt-Verben trennen Figur und Vorgang", z3.what, "entdeckt ein zweites Testament");
+
+  const vorrat = saatVorrat(
+    ["ein Rad, das sich ohne Achse dreht", "zu kurz", "x".repeat(90)],
+    { who: "eine Kartographin ohne Karten", where: "in einem verlassenen Bahnhof", when: "kurz vor Mitternacht", what: "entdeckt ein zweites Testament" },
+  );
+  wahr("die festen Beispiele bleiben der Boden", SAAT_BEISPIELE.every((b) => vorrat.includes(b)));
+  wahr("Pool-Phrasen kommen großgeschrieben und mit Punkt", vorrat.includes("Ein Rad, das sich ohne Achse dreht."));
+  wahr("zu kurze Schnipsel bleiben draußen", !vorrat.some((v) => v.includes("zu kurz")));
+  // Nur die POOL-Phrasen sind gedeckelt — der Welt-Satz darf länger sein.
+  wahr("überlange auch", !vorrat.some((v) => /xxxxx/.test(v)));
+  const weltSatz = vorrat.find((v) => v.includes("Kartographin"));
+  wahr("die Welt liefert einen Satz", !!weltSatz);
+  const rueck = zerlegeSaat(weltSatz || "");
+  ist("… den die eigene Zerlegung wieder auseinanderbekommt: der Ort", rueck.where, "in einem verlassenen Bahnhof");
+  ist("… und der Vorgang", rueck.what, "entdeckt ein zweites Testament");
+  // Gegentest: Ein Welt-Vorgang, den die Zerlegung NICHT kennt, wird nicht
+  // in den Satz gebaut — er zerfiele beim Erzeugen zu Brei.
+  const ohne = saatVorrat([], { who: "ein Bote", where: "am Hafen", when: "", what: "zerbröselt jede Gewissheit" });
+  wahr("unzerlegbare Vorgänge bleiben draußen", !ohne.some((v) => v.includes("zerbröselt")));
+}
 
 // ── 3b · Die Probe aus lebendigem Material ─────────────────────────────────
 // Die eingebauten Sätze zeigen die Bauart, aber sie sind nicht SEINE. Sobald

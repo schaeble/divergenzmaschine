@@ -21249,8 +21249,11 @@ var SAAT_BEISPIELE = [
   "Ein Zimmer, das im Plan nicht vorkommt.",
   "Der Bote bringt, was niemand h\xF6ren will."
 ];
-var ORTS_WORT = /\b(?:am|an|auf|bei|im|in|vor|hinter|unter|über|neben|zwischen)\s+(?:der|dem|den|die|das|einem|einer|einen|eine|ein)?\s*[A-ZÄÖÜ][\wÄÖÜäöüß-]*(?:\s+[A-ZÄÖÜ][\wÄÖÜäöüß-]*)?/u;
+var ORTS_WORT = /\b(?:am|an|auf|bei|im|in|vor|hinter|unter|über|neben|zwischen)\s+(?:der|dem|den|die|das|einem|einer|einen|eine|ein)?\s*(?:[a-zäöüß]+(?:e|en|er|em|es)\s+){0,2}[A-ZÄÖÜ][\wÄÖÜäöüß-]*(?:\s+[A-ZÄÖÜ][\wÄÖÜäöüß-]*)?/u;
 var JAHR = /\b(?:im Jahr\s+)?(1[0-9]{3}|20[0-9]{2})\b/u;
+var VERBEN = "ist|sind|war|waren|wird|werden|hat|haben|kommt|kommen|geht|gehen|bringt|wechselt|verschwindet|beginnt|endet|steht|liegt|tr\xE4gt|nimmt|sucht|findet|verliert|\xF6ffnet|schlie\xDFt|entdeckt|verfolgt|st\xF6\xDFt|rekonstruiert|erbt|entziffert|verh\xF6rt|beantragt|erfindet|sammelt|z\xE4hlt|bewacht|notiert|verweigert|behauptet|vergisst|wartet|baut|schreibt|liest|ruft|fragt|schweigt|flieht|versteckt|vertauscht|\xFCbersetzt|repariert|kartiert|archiviert|h\xE4lt|zieht|bleibt|f\xE4llt|l\xE4uft|treibt|legt|setzt|stellt|zeigt|h\xF6rt|sieht|kennt|glaubt|meldet|warnt";
+var VERB_SPLIT = new RegExp("\\s(?:" + VERBEN + ")\\b", "u");
+var VERB_ANFANG = new RegExp("^(?:" + VERBEN + ")\\b", "u");
 function zerlegeSaat(satz) {
   const roh = (satz || "").replace(/\s+/g, " ").trim().replace(/[.]$/, "");
   if (!roh) return { who: "", where: "", when: "", what: "" };
@@ -21262,7 +21265,7 @@ function zerlegeSaat(satz) {
   const where = o ? o[0].replace(/\s+/g, " ").trim() : "";
   if (o) rest = (rest.slice(0, o.index) + rest.slice(o.index + o[0].length)).replace(/\s{2,}/g, " ").trim();
   rest = rest.replace(/\s{2,}/g, " ").replace(/[,;]\s*$/, "").replace(/,\s*(?=[a-zäöüß])/, ", ").trim();
-  const v = /\s(?:ist|sind|war|waren|wird|werden|hat|haben|kommt|kommen|geht|gehen|bringt|wechselt|verschwindet|beginnt|endet|steht|liegt|trägt|nimmt|sucht|findet|verliert|öffnet|schließt)\b/u.exec(rest);
+  const v = VERB_SPLIT.exec(rest);
   const who = (v ? rest.slice(0, v.index) : rest).replace(/,\s*$/, "").trim();
   const what = v ? rest.slice(v.index).trim() : "";
   return { who, where, when, what };
@@ -21275,6 +21278,21 @@ function stellung(w) {
     presets: REIBUNG_STUFEN[i(w.reibung, REIBUNG_STUFEN.length - 1)],
     ctx: zerlegeSaat(w.saat)
   };
+}
+function saatVorrat(phrasen, welt) {
+  const raus = [...SAAT_BEISPIELE];
+  for (const p of phrasen) {
+    const t = (p || "").replace(/\s+/g, " ").trim().replace(/[.!?…]+$/, "");
+    if (t.length < 18 || t.length > 70 || !/\s/.test(t)) continue;
+    raus.push(t.charAt(0).toUpperCase() + t.slice(1) + ".");
+  }
+  if (welt && welt.who) {
+    const ort = welt.where && ORTS_WORT.test(welt.where) ? ` ${welt.where.trim()}` : "";
+    const tat = welt.what && VERB_ANFANG.test(welt.what.trim()) ? ` ${welt.what.trim()}` : "";
+    const satz = `${welt.who.trim().charAt(0).toUpperCase() + welt.who.trim().slice(1)}${ort}${tat}.`;
+    if (!raus.includes(satz)) raus.push(satz);
+  }
+  return [...new Set(raus)];
 }
 var KOPF_KEY = "divergenz_einfach_v1";
 var VORGABE = { form: 1, laenge: 1, reibung: 1, saat: SAAT_BEISPIELE[0], einfach: true };
@@ -24364,8 +24382,14 @@ function mountStudio(root) {
   });
   const saatWuerfel = el("button", { type: "button", title: "Anderen Satz vorschlagen" }, "\u2684");
   saatWuerfel.addEventListener("click", () => {
-    let n = saatIn.value;
-    while (n === saatIn.value && SAAT_BEISPIELE.length > 1) n = SAAT_BEISPIELE[Math.floor(Math.random() * SAAT_BEISPIELE.length)];
+    let welt = null;
+    try {
+      welt = worldFillContext();
+    } catch {
+    }
+    const vorrat = saatVorrat(liveTexts(), welt);
+    let n = saatIn.value, schutz = 0;
+    while (n === saatIn.value && vorrat.length > 1 && schutz++ < 20) n = vorrat[Math.floor(Math.random() * vorrat.length)];
     saatIn.value = n;
     kopfWahl.saat = n;
     sichereWahl(kopfWahl);

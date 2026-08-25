@@ -86,10 +86,24 @@ export const SAAT_BEISPIELE = [
 // des Studios und lässt sich dort berichtigen — deshalb SCHREIBT der Kopf in
 // die echten Felder und hält nichts für sich.
 
-const ORTS_WORT = /\b(?:am|an|auf|bei|im|in|vor|hinter|unter|über|neben|zwischen)\s+(?:der|dem|den|die|das|einem|einer|einen|eine|ein)?\s*[A-ZÄÖÜ][\wÄÖÜäöüß-]*(?:\s+[A-ZÄÖÜ][\wÄÖÜäöüß-]*)?/u;
+// Bis zu zwei kleingeschriebene Adjektive zwischen Artikel und Nomen:
+// „in einer kleinen Stadt", „in der schlaflosen alten Stadt". Ohne sie blieb
+// der Ort im WER kleben — so stand im Wetter-Beispiel „… in einer kleinen
+// Stadt hält den Verband" als Figur im Blatt. Die Adjektiv-Endungen sind
+// ausdruecklich (-e/-en/-er/-em/-es), damit kein beliebiges Kleinwort
+// verschluckt wird.
+const ORTS_WORT = /\b(?:am|an|auf|bei|im|in|vor|hinter|unter|über|neben|zwischen)\s+(?:der|dem|den|die|das|einem|einer|einen|eine|ein)?\s*(?:[a-zäöüß]+(?:e|en|er|em|es)\s+){0,2}[A-ZÄÖÜ][\wÄÖÜäöüß-]*(?:\s+[A-ZÄÖÜ][\wÄÖÜäöüß-]*)?/u;
 const JAHR = /\b(?:im Jahr\s+)?(1[0-9]{3}|20[0-9]{2})\b/u;
 
 export interface VierW { who: string; where: string; when: string; what: string }
+
+/** Die finiten Verben, an denen die Zerlegung Figur und Vorgang trennt.
+ *  Erweitert um die Verben, mit denen die Welt-Vorgänge beginnen (entdeckt,
+ *  erbt, verhört, beantragt …) — sonst könnte der Würfelvorrat Sätze
+ *  anbieten, die die eigene Zerlegung nicht wieder auseinanderbekommt. */
+const VERBEN = "ist|sind|war|waren|wird|werden|hat|haben|kommt|kommen|geht|gehen|bringt|wechselt|verschwindet|beginnt|endet|steht|liegt|trägt|nimmt|sucht|findet|verliert|öffnet|schließt|entdeckt|verfolgt|stößt|rekonstruiert|erbt|entziffert|verhört|beantragt|erfindet|sammelt|zählt|bewacht|notiert|verweigert|behauptet|vergisst|wartet|baut|schreibt|liest|ruft|fragt|schweigt|flieht|versteckt|vertauscht|übersetzt|repariert|kartiert|archiviert|hält|zieht|bleibt|fällt|läuft|treibt|legt|setzt|stellt|zeigt|hört|sieht|kennt|glaubt|meldet|warnt";
+const VERB_SPLIT = new RegExp("\\s(?:" + VERBEN + ")\\b", "u");
+const VERB_ANFANG = new RegExp("^(?:" + VERBEN + ")\\b", "u");
 
 export function zerlegeSaat(satz: string): VierW {
   const roh = (satz || "").replace(/\s+/g, " ").trim().replace(/[.]$/, "");
@@ -111,7 +125,7 @@ export function zerlegeSaat(satz: string): VierW {
   // Was übrig ist, teilt sich am ersten finiten Verb: davor die Figur, danach
   // der Vorgang. Ohne erkennbares Verb ist alles die Figur — ein Was zu
   // erfinden wäre schlechter als keines.
-  const v = /\s(?:ist|sind|war|waren|wird|werden|hat|haben|kommt|kommen|geht|gehen|bringt|wechselt|verschwindet|beginnt|endet|steht|liegt|trägt|nimmt|sucht|findet|verliert|öffnet|schließt)\b/u.exec(rest);
+  const v = VERB_SPLIT.exec(rest);
   const who = (v ? rest.slice(0, v.index) : rest).replace(/,\s*$/, "").trim();
   const what = v ? rest.slice(v.index).trim() : "";
   return { who, where, when, what };
@@ -151,6 +165,33 @@ export function stellung(w: KopfWahl): KopfStellung {
     presets: REIBUNG_STUFEN[i(w.reibung, REIBUNG_STUFEN.length - 1)]!,
     ctx: zerlegeSaat(w.saat),
   };
+}
+
+/** Der Vorrat für den Saat-Würfel. Gemeldet: „Hier sind zu wenig Fälle
+ *  möglich" — der Würfel kannte nur die fünf festen Beispiele, während
+ *  Live-Pool und Welt brachlagen.
+ *
+ *  Drei Quellen: die festen Beispiele als Boden, kurze satzfähige Phrasen aus
+ *  dem Live-Pool (dasselbe Material, aus dem die Probe schöpft), und ein Satz
+ *  aus der Welt (Figur + Ort + Vorgang) — der aber nur, wenn die EIGENE
+ *  Zerlegung ihn wieder auseinanderbekommt: Ein Vorschlag, der beim Erzeugen
+ *  zu Brei zerfällt, wäre schlechter als keiner. */
+export function saatVorrat(phrasen: string[], welt: VierW | null): string[] {
+  const raus = [...SAAT_BEISPIELE];
+  for (const p of phrasen) {
+    const t = (p || "").replace(/\s+/g, " ").trim().replace(/[.!?…]+$/, "");
+    if (t.length < 18 || t.length > 70 || !/\s/.test(t)) continue;
+    raus.push(t.charAt(0).toUpperCase() + t.slice(1) + ".");
+  }
+  if (welt && welt.who) {
+    const ort = welt.where && ORTS_WORT.test(welt.where) ? ` ${welt.where.trim()}` : "";
+    const tat = welt.what && VERB_ANFANG.test(welt.what.trim()) ? ` ${welt.what.trim()}` : "";
+    const satz = `${welt.who.trim().charAt(0).toUpperCase() + welt.who.trim().slice(1)}${ort}${tat}.`;
+    if (!raus.includes(satz)) raus.push(satz);
+  }
+  // Dubletten raus — der Würfel zieht gleichverteilt, und ein doppelter
+  // Eintrag wäre ein heimliches Gewicht.
+  return [...new Set(raus)];
 }
 
 export const KOPF_KEY = "divergenz_einfach_v1";
