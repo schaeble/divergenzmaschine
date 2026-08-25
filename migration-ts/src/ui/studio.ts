@@ -43,7 +43,7 @@ import { icon } from "./icons";
 import { saveAnlage } from "../features/schaltplan";
 import {
   KOPF_FORMEN, LAENGE_NAMEN, REIBUNG_NAMEN, REIBUNG_STUFEN, PROBEN,
-  stellung as kopfStellung, ladeWahl as ladeKopfWahl, sichereWahl as sichereKopfWahl, probeAus, saatVorrat,
+  stellung as kopfStellung, ladeWahl as ladeKopfWahl, sichereWahl as sichereKopfWahl, probeAus, ziehSaat,
 } from "../features/einfach";
 import { waehleGespreizt } from "../features/register";
 import { wuerfleVierW } from "../features/wuerfeln";
@@ -1914,15 +1914,19 @@ export function mountStudio(root: HTMLElement): void {
     saatIn.value = ""; kopfWahl.saat = ""; sichereKopfWahl(kopfWahl); saatIn.focus();
   });
   const saatWuerfel = el("button", { type: "button", title: "Anderen Satz vorschlagen" }, "⚄");
+  // Die letzten Züge — damit der Würfel nicht auf der Stelle tritt. Nicht
+  // gespeichert: Ein neuer Sitzungsbeginn darf wieder von vorn anfangen.
+  const saatGezogen: string[] = [];
   saatWuerfel.addEventListener("click", () => {
-    // Aus Pool und Welt statt aus fünf festen Beispielen (gemeldet: „zu wenig
-    // Fälle"). Die Welt kann in einem frischen Browser noch leer sein —
-    // dann bleibt der Boden aus Beispielen und Live-Pool.
-    let welt = null as ReturnType<typeof worldFillContext> | null;
-    try { welt = worldFillContext(); } catch { /* Welt nicht bereit */ }
-    const vorrat = saatVorrat(liveTexts(), welt);
-    let n = saatIn.value, schutz = 0;
-    while (n === saatIn.value && vorrat.length > 1 && schutz++ < 20) n = vorrat[Math.floor(Math.random() * vorrat.length)]!;
+    // Nach QUELLE gewichtet (Welt 50 %, Pool 40 %, Beispiele 10 %) statt
+    // gleichverteilt über den Topf — gemeldet: die fünf Beispiele und
+    // dieselben Pool-Fragmente häuften sich (gemessen 49 % + 39 %).
+    const zieher = (): ReturnType<typeof worldFillContext> | null => {
+      try { return worldFillContext(); } catch { return null; }
+    };
+    const n = ziehSaat(liveTexts(), zieher, [saatIn.value, ...saatGezogen]);
+    saatGezogen.push(n);
+    if (saatGezogen.length > 8) saatGezogen.shift();
     saatIn.value = n; kopfWahl.saat = n; sichereKopfWahl(kopfWahl);
   });
 

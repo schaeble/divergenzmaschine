@@ -21293,28 +21293,47 @@ function stellung(w) {
     ctx: zerlegeSaat(w.saat)
   };
 }
-function saatVorrat(phrasen, welt) {
-  const raus = [...SAAT_BEISPIELE];
+function poolSaetze(phrasen) {
+  const raus = [];
   for (const p of phrasen) {
     const t = (p || "").replace(/\s+/g, " ").trim().replace(/[.!?…]+$/, "");
     if (t.length < 18 || t.length > 70 || !/\s/.test(t)) continue;
     raus.push(t.charAt(0).toUpperCase() + t.slice(1) + ".");
   }
-  if (welt && welt.who) {
-    const wer = welt.who.trim().charAt(0).toUpperCase() + welt.who.trim().slice(1);
-    const ort = welt.where && ORTS_WORT.test(welt.where) ? ` ${welt.where.trim()}` : "";
-    const tat = welt.what && VERB_ANFANG.test(welt.what.trim()) ? ` ${welt.what.trim()}` : "";
-    const passt2 = (s) => {
-      const z = zerlegeSaat(s);
-      if (ort && s.includes(ort) && z.where !== welt.where.trim()) return false;
-      if (tat && s.includes(tat) && z.what !== welt.what.trim().replace(/[.]$/, "")) return false;
-      return true;
-    };
-    const kandidaten = [`${wer}${ort}${tat}.`, `${wer}${tat}.`, `${wer}${ort}.`, `${wer}.`];
-    const satz = kandidaten.find(passt2) || `${wer}.`;
-    if (!raus.includes(satz)) raus.push(satz);
-  }
   return [...new Set(raus)];
+}
+function weltSatz(welt) {
+  if (!welt || !welt.who) return null;
+  const wer = welt.who.trim().charAt(0).toUpperCase() + welt.who.trim().slice(1);
+  const ort = welt.where && ORTS_WORT.test(welt.where) ? ` ${welt.where.trim()}` : "";
+  const tat = welt.what && VERB_ANFANG.test(welt.what.trim()) ? ` ${welt.what.trim()}` : "";
+  const passt2 = (s) => {
+    const z = zerlegeSaat(s);
+    if (ort && s.includes(ort) && z.where !== welt.where.trim()) return false;
+    if (tat && s.includes(tat) && z.what !== welt.what.trim().replace(/[.]$/, "")) return false;
+    return true;
+  };
+  const kandidaten = [`${wer}${ort}${tat}.`, `${wer}${tat}.`, `${wer}${ort}.`, `${wer}.`];
+  return kandidaten.find(passt2) || `${wer}.`;
+}
+function ziehSaat(phrasen, weltZieher, meiden = [], rnd = Math.random) {
+  const frisch = (a) => a.filter((x) => !meiden.includes(x));
+  const pool = frisch(poolSaetze(phrasen));
+  const welt = [];
+  for (let i = 0; i < 5 && welt.length < 3; i++) {
+    const s = weltSatz(weltZieher());
+    if (s && !meiden.includes(s) && !welt.includes(s)) welt.push(s);
+  }
+  const beispiele = frisch([...SAAT_BEISPIELE]);
+  const wahl = rnd();
+  const aus = (a) => a[Math.min(a.length - 1, Math.floor(rnd() * a.length))];
+  if (welt.length && wahl < 0.5) return aus(welt);
+  if (pool.length && wahl < 0.9) return aus(pool);
+  if (beispiele.length && wahl >= 0.9) return aus(beispiele);
+  if (welt.length) return aus(welt);
+  if (pool.length) return aus(pool);
+  if (beispiele.length) return aus(beispiele);
+  return SAAT_BEISPIELE[0];
 }
 var KOPF_KEY = "divergenz_einfach_v1";
 var VORGABE = { form: 1, laenge: 1, reibung: 1, saat: SAAT_BEISPIELE[0], einfach: true };
@@ -24403,15 +24422,18 @@ function mountStudio(root) {
     saatIn.focus();
   });
   const saatWuerfel = el("button", { type: "button", title: "Anderen Satz vorschlagen" }, "\u2684");
+  const saatGezogen = [];
   saatWuerfel.addEventListener("click", () => {
-    let welt = null;
-    try {
-      welt = worldFillContext();
-    } catch {
-    }
-    const vorrat = saatVorrat(liveTexts(), welt);
-    let n = saatIn.value, schutz = 0;
-    while (n === saatIn.value && vorrat.length > 1 && schutz++ < 20) n = vorrat[Math.floor(Math.random() * vorrat.length)];
+    const zieher = () => {
+      try {
+        return worldFillContext();
+      } catch {
+        return null;
+      }
+    };
+    const n = ziehSaat(liveTexts(), zieher, [saatIn.value, ...saatGezogen]);
+    saatGezogen.push(n);
+    if (saatGezogen.length > 8) saatGezogen.shift();
     saatIn.value = n;
     kopfWahl.saat = n;
     sichereWahl(kopfWahl);

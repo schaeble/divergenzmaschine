@@ -203,34 +203,75 @@ export function stellung(w: KopfWahl): KopfStellung {
  *  aus der Welt (Figur + Ort + Vorgang) — der aber nur, wenn die EIGENE
  *  Zerlegung ihn wieder auseinanderbekommt: Ein Vorschlag, der beim Erzeugen
  *  zu Brei zerfällt, wäre schlechter als keiner. */
-export function saatVorrat(phrasen: string[], welt: VierW | null): string[] {
-  const raus = [...SAAT_BEISPIELE];
+/** Die satzfähigen Phrasen des Live-Pools: kurz, mit Punkt, großgeschrieben. */
+export function poolSaetze(phrasen: string[]): string[] {
+  const raus: string[] = [];
   for (const p of phrasen) {
     const t = (p || "").replace(/\s+/g, " ").trim().replace(/[.!?…]+$/, "");
     if (t.length < 18 || t.length > 70 || !/\s/.test(t)) continue;
     raus.push(t.charAt(0).toUpperCase() + t.slice(1) + ".");
   }
-  if (welt && welt.who) {
-    const wer = welt.who.trim().charAt(0).toUpperCase() + welt.who.trim().slice(1);
-    const ort = welt.where && ORTS_WORT.test(welt.where) ? ` ${welt.where.trim()}` : "";
-    const tat = welt.what && VERB_ANFANG.test(welt.what.trim()) ? ` ${welt.what.trim()}` : "";
-    // Die Probe aufs Exempel statt eines Anfangs-Verb-Tests: Der Satz kommt
-    // nur in den Topf, wenn die eigene Zerlegung Ort und Vorgang WIRKLICH
-    // zurückgewinnt. Reicht es nicht, wird stufenweise gekürzt — erst der
-    // Vorgang, dann der Ort. Die Figur allein besteht immer.
-    const passt = (s: string): boolean => {
-      const z = zerlegeSaat(s);
-      if (ort && s.includes(ort) && z.where !== welt.where.trim()) return false;
-      if (tat && s.includes(tat) && z.what !== welt.what.trim().replace(/[.]$/, "")) return false;
-      return true;
-    };
-    const kandidaten = [`${wer}${ort}${tat}.`, `${wer}${tat}.`, `${wer}${ort}.`, `${wer}.`];
-    const satz = kandidaten.find(passt) || `${wer}.`;
-    if (!raus.includes(satz)) raus.push(satz);
-  }
-  // Dubletten raus — der Würfel zieht gleichverteilt, und ein doppelter
-  // Eintrag wäre ein heimliches Gewicht.
   return [...new Set(raus)];
+}
+
+/** Ein Satz aus einer Welt-Ziehung — mit der Probe aufs Exempel: Der Satz
+ *  zählt nur, wenn die eigene Zerlegung Ort und Vorgang WIRKLICH
+ *  zurückgewinnt. Reicht es nicht, wird stufenweise gekürzt — erst der
+ *  Vorgang, dann der Ort. Die Figur allein besteht immer. */
+export function weltSatz(welt: VierW | null): string | null {
+  if (!welt || !welt.who) return null;
+  const wer = welt.who.trim().charAt(0).toUpperCase() + welt.who.trim().slice(1);
+  const ort = welt.where && ORTS_WORT.test(welt.where) ? ` ${welt.where.trim()}` : "";
+  const tat = welt.what && VERB_ANFANG.test(welt.what.trim()) ? ` ${welt.what.trim()}` : "";
+  const passt = (s: string): boolean => {
+    const z = zerlegeSaat(s);
+    if (ort && s.includes(ort) && z.where !== welt.where.trim()) return false;
+    if (tat && s.includes(tat) && z.what !== welt.what.trim().replace(/[.]$/, "")) return false;
+    return true;
+  };
+  const kandidaten = [`${wer}${ort}${tat}.`, `${wer}${tat}.`, `${wer}${ort}.`, `${wer}.`];
+  return kandidaten.find(passt) || `${wer}.`;
+}
+
+export function saatVorrat(phrasen: string[], welt: VierW | null): string[] {
+  const raus = [...SAAT_BEISPIELE, ...poolSaetze(phrasen)];
+  const s = weltSatz(welt);
+  if (s && !raus.includes(s)) raus.push(s);
+  return [...new Set(raus)];
+}
+
+/** EIN Zug für den Würfel — nach QUELLE gewichtet statt gleichverteilt.
+ *
+ *  Gemeldet: Die fünf festen Beispiele und dieselben Pool-Fragmente häuften
+ *  sich. Gemessen: Bei gleichverteiltem Zug über den Topf lagen die Beispiele
+ *  bei 49 %, der immergleiche Pool bei 39 %, die Welt bei 12 % — die
+ *  Beispiele liegen IMMER im Topf, die Welt hatte nur einen Platz je Wurf.
+ *
+ *  Jetzt: Welt 50 %, Pool 40 %, Beispiele 10 % (leere Quellen fallen an die
+ *  nächste), je Zug bis zu drei frische Welt-Ziehungen, und `meiden` hält
+ *  das zuletzt Gezogene fern. */
+export function ziehSaat(
+  phrasen: string[], weltZieher: () => VierW | null,
+  meiden: string[] = [], rnd: () => number = Math.random,
+): string {
+  const frisch = (a: string[]): string[] => a.filter((x) => !meiden.includes(x));
+  const pool = frisch(poolSaetze(phrasen));
+  const welt: string[] = [];
+  for (let i = 0; i < 5 && welt.length < 3; i++) {
+    const s = weltSatz(weltZieher());
+    if (s && !meiden.includes(s) && !welt.includes(s)) welt.push(s);
+  }
+  const beispiele = frisch([...SAAT_BEISPIELE]);
+  const wahl = rnd();
+  const aus = (a: string[]): string => a[Math.min(a.length - 1, Math.floor(rnd() * a.length))]!;
+  if (welt.length && wahl < 0.5) return aus(welt);
+  if (pool.length && wahl < 0.9) return aus(pool);
+  if (beispiele.length && wahl >= 0.9) return aus(beispiele);
+  // Leere Quellen fallen der Reihe nach an die nächste.
+  if (welt.length) return aus(welt);
+  if (pool.length) return aus(pool);
+  if (beispiele.length) return aus(beispiele);
+  return SAAT_BEISPIELE[0]!;
 }
 
 export const KOPF_KEY = "divergenz_einfach_v1";

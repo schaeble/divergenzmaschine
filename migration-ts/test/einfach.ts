@@ -16,7 +16,7 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https
 (globalThis as unknown as Record<string, unknown>).localStorage = dom.window.localStorage;
 
 import {
-  zerlegeSaat, stellung, saatVorrat, KOPF_FORMEN, LAENGE_STUFEN, REIBUNG_STUFEN,
+  zerlegeSaat, stellung, saatVorrat, ziehSaat, KOPF_FORMEN, LAENGE_STUFEN, REIBUNG_STUFEN,
   LAENGE_NAMEN, REIBUNG_NAMEN, PROBEN, SAAT_BEISPIELE, KOPF_KEY, probeAus, VORGABE,
 } from "../src/features/einfach";
 import { FORM_OPTS } from "../src/generation/optionen";
@@ -176,6 +176,33 @@ ist("der Kopf führt keine eigenen Reglerwerte",
   // in den Satz gebaut — er zerfiele beim Erzeugen zu Brei.
   const ohne = saatVorrat([], { who: "ein Bote", where: "am Hafen", when: "", what: "zerbröselt jede Gewissheit" });
   wahr("unzerlegbare Vorgänge bleiben draußen", !ohne.some((v) => v.includes("zerbröselt")));
+}
+
+// ── 2c · Der Würfel zieht nach Quelle gewichtet ────────────────────────────
+// Gemeldet (4.327.0): Die fünf Beispiele und dieselben Pool-Fragmente
+// häuften sich — gleichverteilt über den Topf lagen sie bei 49 % + 39 %,
+// die Welt bei 12 %.
+{
+  const POOL = ["ein Rad, das sich ohne Achse dreht", "eine Karte ohne Norden liegt aus"];
+  const WELT = { who: "eine Uhrmacherin", where: "am Hafen", when: "", what: "entdeckt ein zweites Testament" };
+  // Deterministischer Zufall: erst die Quellwahl, dann der Index.
+  const rndFolge = (...w: number[]): (() => number) => { let i = 0; return () => w[i++ % w.length]!; };
+  const zug1 = ziehSaat(POOL, () => WELT, [], rndFolge(0.1, 0));
+  wahr("unter 0,5 kommt die Welt", zug1.includes("Uhrmacherin"));
+  const zug2 = ziehSaat(POOL, () => WELT, [], rndFolge(0.7, 0));
+  wahr("zwischen 0,5 und 0,9 der Pool", zug2.includes("Rad") || zug2.includes("Karte"));
+  const zug3 = ziehSaat(POOL, () => WELT, [], rndFolge(0.95, 0));
+  wahr("darüber die Beispiele", SAAT_BEISPIELE.includes(zug3));
+  // Leere Quellen fallen an die nächste — ohne Pool landet 0,7 nicht im Leeren.
+  const zug4 = ziehSaat([], () => WELT, [], rndFolge(0.7, 0));
+  wahr("ohne Pool fällt der Zug an die Welt", zug4.includes("Uhrmacherin"));
+  // Und die Merkliste hält das zuletzt Gezogene fern.
+  const gemieden = ziehSaat(POOL, () => WELT, [zug2], rndFolge(0.7, 0, 0.7, 0));
+  wahr("das Gemiedene kommt nicht wieder", gemieden !== zug2);
+  // Häufigkeit über 400 Züge mit echtem Zufall: Die Beispiele sind selten.
+  let beispiele = 0;
+  for (let i = 0; i < 400; i++) if (SAAT_BEISPIELE.includes(ziehSaat(POOL, () => WELT))) beispiele++;
+  wahr(`die Beispiele bleiben unter 20 % (${Math.round(beispiele / 4)} %)`, beispiele / 400 < 0.2);
 }
 
 // ── 3b · Die Probe aus lebendigem Material ─────────────────────────────────
