@@ -1986,8 +1986,18 @@ export function mountStudio(root: HTMLElement): void {
     ROLL_SELECTS.forEach((s) => { if (!locked.has(s.id) && s.options.length) s.selectedIndex = Math.floor(Math.random() * s.options.length); });
     studioSchonGewuerfelt = true;
   } else {
-    // Rückkehr in den Tab: zuletzt gewählte Reglerstellung wiederherstellen
-    for (const s of ROLL_SELECTS) { const v = studioReglerStand[s.id]; if (v !== undefined && Array.from(s.options).some((o) => o.value === v)) s.value = v; }
+    // Rückkehr in den Tab: zuletzt gewählte Reglerstellung wiederherstellen.
+    //
+    // ERST DAS PRESET, DANN DIE REGLER — dieselbe Reihenfolge wie im einfachen
+    // Kopf, und aus demselben Grund. Ein Preset bringt eigene Einstellungen mit
+    // und setzt sie beim Wechsel, darunter die FORM.
+    //
+    // Gemeldet: „Wenn ich in einfach Reim wähle, soll auch im Studio Reim
+    // eingestellt sein." Es war umgekehrt richtig gesetzt und wurde hier wieder
+    // überschrieben: Der Block darunter kam NACH der Schleife und warf ein
+    // change-Ereignis, worauf das Preset seine eigene Form durchsetzte. Der
+    // Fehler steckte in der Reparatur von 4.316.0 — sie hat den Rückkanal
+    // geschlossen und dabei die Reihenfolge verdreht.
     // Das PRESET braucht mehr als eine Zuweisung.
     //
     // Gemeldet: Würfelt man im Schaltplan „Alles würfeln", passiert im Studio
@@ -2005,6 +2015,8 @@ export function mountStudio(root: HTMLElement): void {
       preset.value = pv;
       preset.dispatchEvent(new Event("change"));
     }
+    // Und JETZT die Regler — sie haben das letzte Wort.
+    for (const s of ROLL_SELECTS) { const v = studioReglerStand[s.id]; if (v !== undefined && Array.from(s.options).some((o) => o.value === v)) s.value = v; }
   }
   restoreLocked();
   // Reglerstand festhalten, damit die Rückkehr in den Tab ihn wiederherstellen kann

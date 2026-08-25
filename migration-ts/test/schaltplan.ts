@@ -474,6 +474,42 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   // Und der Anlagenstand ebenso — sonst faengt die Ungleichheit von vorn an.
   wahr("und der Plan zeigt dasselbe",
     /Kafka/.test(sammleUmgebung(loadAnlage()?.regler["preset"] || "").presetLabel));
+
+  // ── Die FORM ueberlebt den Reiterwechsel ──────────────────────────────────
+  // Gemeldet: „Wenn ich in einfach Reim waehle, soll auch im Studio Reim
+  // eingestellt sein." Ein Preset bringt eigene Einstellungen mit und setzt sie
+  // beim Wechsel, darunter die Form. Beim Rueckwechsel wurden erst die Regler
+  // wiederhergestellt und DANACH das Preset ausgeloest — das Preset gewann.
+  //
+  // ACHTUNG, ehrlich vermerkt: Die Gegenprobe zu dieser Reihenfolge schlaegt
+  // NICHT an. Dreht man sie zurueck, bleiben diese Pruefungen gruen — in dieser
+  // Umgebung setzt das eingebaute Preset keine eigene Form, und der gemeldete
+  // Fall laesst sich hier nicht nachstellen. Die Reihenfolge ist trotzdem
+  // richtig (erst das Preset, dann die Regler, wie im einfachen Kopf), aber
+  // dass sie die Ursache WAR, beweisen diese Pruefungen nicht.
+  //
+  // Was sie sehr wohl sichern: dass die Form den Reiterwechsel ueberlebt.
+  const formFeld = (w: HTMLElement): HTMLSelectElement =>
+    Array.from(w.querySelectorAll("select")).find((x) => (x as HTMLSelectElement).id === "f-form") as HTMLSelectElement;
+  // Im Studio eine Form waehlen, die kein Preset von sich aus setzt.
+  const f5 = formFeld(w5);
+  f5.value = "reim";
+  f5.dispatchEvent(new dom4.window.Event("change", { bubbles: true }));
+  ist("die Form ist gesetzt", f5.value, "reim");
+  // Reiter verlassen und zurueckkommen.
+  const w6 = D4.createElement("div");
+  D4.body.append(w6);
+  mountStudio(w6);
+  ist("und sie ueberlebt den Reiterwechsel", formFeld(w6).value, "reim");
+  // Gegenprobe: Der Merkzettel muss ueberhaupt greifen — sonst pruefte die
+  // Zeile oben nur, dass die Vorgabe zufaellig „reim" ist.
+  const f6 = formFeld(w6);
+  f6.value = "script";
+  f6.dispatchEvent(new dom4.window.Event("change", { bubbles: true }));
+  const w7 = D4.createElement("div");
+  D4.body.append(w7);
+  mountStudio(w7);
+  ist("eine andere Form ueberlebt ebenso", formFeld(w7).value, "script");
 }
 
 
