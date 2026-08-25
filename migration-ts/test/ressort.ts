@@ -24,7 +24,7 @@
 }
 import { buildBericht } from "../src/generation/bericht";
 import { ziehFaktenblatt } from "../src/features/faktenblatt";
-import { RESSORTS, RESSORT_IDS } from "../src/features/ressorts";
+import { RESSORTS, RESSORT_IDS, rateRessort } from "../src/features/ressorts";
 import { BUILTIN_PRESETS } from "../src/presets.data";
 import type { Bank, GenInput } from "../src/types";
 
@@ -127,6 +127,36 @@ for (const r of RESSORT_IDS) {
     if (/(^|\n)Chronik: /.test(t)) kleinChronik++;
   }
   ist("bei kleinem Ziel bleibt sie weg", kleinChronik, 0);
+}
+
+// ── Die Wetter-Spur trifft, was sie treffen soll — und nur das ────────────
+// Gemeldet (4.324.1): „Wind und Sturm und Regen sind keine Auslöser für
+// Bericht rund ums Wetter." Vorher fielen 9 von 15 Wetterfällen durch, und
+// 4 von 7 Gegenproben (Hochschule, Tiefgarage, Hochhaus, hochwertig) landeten
+// fälschlich im Wetter, weil „hoch|tief" mit \w* jeden Wortanfang fraß.
+{
+  const wetterFaelle = [
+    "Wind und Sturm und Regen", "Der Wind frischt auf", "starker Wind über der Stadt",
+    "Böen und Blitze", "Es stürmt und regnet", "Der Herbstwind treibt Wolken",
+    "Blitz und Donner", "Ein Wolkenbruch über der Stadt", "Trockenheit auf den Feldern",
+    "das Tief Ottilie zieht auf", "Schneefall in den Alpen", "die Pegel steigen",
+    "Graupel und Glatteis", "eine Lawine sperrt das Tal", "die Flut kommt früher",
+  ];
+  for (const f of wetterFaelle) ist(`Wetter-Spur: „${f}“`, rateRessort(f), "wetter");
+  const gegen: [string, string][] = [
+    ["Gegenwind aus der Fraktion", "politik"],
+    ["eine Blitzumfrage der Fraktion", "politik"],
+    // „im Werk" ginge an die Kultur — „Werk" steht dort zuerst in der Spur.
+    // Hier zählt nur: „hoch…" ist kein Wetter mehr.
+    ["hochwertige Produktion in der Fabrik", "wirtschaft"],
+    ["die Firma regeneriert den Betrieb", "wirtschaft"],
+    ["die Abstimmung am Donnerstag", "politik"],
+  ];
+  for (const [f, soll] of gegen) ist(`Gegenprobe: „${f}“`, rateRessort(f), soll);
+  // Kein Soll-Ressort, aber sicher KEIN Wetter:
+  for (const f of ["die Hochschule feiert", "eine Tiefgarage wird gebaut", "ein Wolkenkratzer entsteht", "das Hochhaus wankt", "der Ansturm auf die Kasse"]) {
+    wahr(`kein Wetter: „${f}“`, rateRessort(f) !== "wetter");
+  }
 }
 
 console.log(`Prüfstand Ressort — ${geprueft} Prüfungen, ${bestanden} bestanden`);

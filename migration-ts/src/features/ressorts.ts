@@ -329,7 +329,34 @@ export const RESSORT_IDS = Object.keys(RESSORTS) as RessortId[];
 // Plural, und mit \b am Schluss fiel es durch - der Bericht landete im Ressort
 // Gesellschaft.
 const SPUR: [RessortId, RegExp][] = [
-  ["wetter", /\b(wetter|sturm|orkan|regen|schnee|hitze|frost|gewitter|hochwasser|dürre|dürre|unwetter|hagel|nebel|windböen|tief|hoch|warnstufe|deich|überschwemmung|glatteis|temperatur)\w*/i],
+  // Die Wetter-Spur war in beide Richtungen undicht (gemeldet: „Wind und
+  // Sturm und Regen sind keine Auslöser"). Gemessen vorher: „Wind", „Böen",
+  // „es stürmt und regnet", „Blitz und Donner", „Wolkenbruch", „Trockenheit"
+  // fielen alle durch (9 von 15 Wetterfällen) — „wind" stand gar nicht in der
+  // Liste, und die Stämme treffen keine Verbformen (stürmt hat einen Umlaut,
+  // regnet kein „e"). Umgekehrt fraß „hoch|tief" mit \w* jeden Wortanfang:
+  // „Hochschule", „Tiefgarage", „Hochhaus", „hochwertig" wurden Wetter
+  // (4 von 7 Gegenproben). Jetzt: Verbformen ausdrücklich, Komposita nur wo
+  // sie eindeutig sind, Druckgebiete nur mit Artikel oder als „…druck", und
+  // Fallen wie Donnerstag, Blitzumfrage, Wolkenkratzer, Regeneration und
+  // Ansturm ausgenommen.
+  ["wetter", new RegExp("\\b(" + [
+    "\\w*wetter\\w*", "sturm\\w*", "stürm\\w*", "orkan\\w*",
+    "regen(?!erier|erat)\\w*", "regn\\w*", "(dauer|stark|platz|eis|niesel|land)regen\\w*",
+    "schnee\\w*", "schneit\\w*", "hitze\\w*", "frost\\w*", "gewitter\\w*",
+    "hochwasser\\w*", "dürre\\w*", "trockenheit\\w*", "unwetter\\w*",
+    "hagel\\w*", "nebel\\w*", "glatteis\\w*", "glätte\\b",
+    "böe\\w*", "wind(e|es)?\\b", "windig\\w*", "windböen\\w*", "windstärke\\w*",
+    "(nord|süd|ost|west|herbst|winter|frühlings?|sommer|land|see|höhen|fall|schnee|eis)wind\\w*",
+    "blitz(e|es|en)?\\b", "blitzt\\w*", "blitzeis\\w*", "blitzschlag\\w*",
+    "donner(?!stag)\\w*", "wolke(?!nkratzer)\\w*", "bewölkt\\w*",
+    "niederschlag\\w*", "graupel\\w*", "lawine\\w*",
+    "flut\\b", "flutwelle\\w*", "springflut\\w*", "pegel\\w*",
+    "kälte\\w*", "friert\\b", "gefriert\\b", "taut\\b",
+    "(hoch|tief)druck\\w*", "(das|ein|dem|vom) (hoch|tief)\\b",
+    "warnstufe\\w*", "deich\\w*", "überschwemmung\\w*", "temperatur\\w*",
+    "sonnenschein\\w*", "hitzewelle\\w*",
+  ].join("|") + ")", "i")],
   ["sport", /\b(spielt|spielen|spiel|tor|tore|mannschaft|trainer|trainiert|liga|stadion|wettkampf|sieg|niederlage|halbzeit|verein|klub|club|fc|sv|tsv|bvb|meisterschaft|turnier|pokal|elf|kader|transfer|saison)\w*/i],
   ["kultur", /\b(bühne|theater|roman|gedicht|ausstellung|museum|konzert|oper|film|publikum|werk)\w*/i],
   ["politik", /\b(regierung|partei|fraktion|gesetz|wahl|parlament|abstimmung|minister|verfahren)\w*/i],
