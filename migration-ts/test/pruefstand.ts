@@ -46,6 +46,9 @@ const WO = ["in Dürrhausen", "in London", "Ostmoor", ""];
  *  Fehler, der einmal im Blatt stand. */
 const VERBOTEN: [string, RegExp][] = [
   ["Artikel vor Rechtsform", /\b(der|die|das) (Ltd|GmbH|AG|SE|KG|Inc)\b/],
+  // Die Vorher-Messung fuers Wetter-Geruest fand „gab es der erste Hinweis" —
+  // die Fassung setzte die Nominalphrase unvergebeugt in den Akkusativ-Slot.
+  ["Nominativ hinter »gab es«", /gab es der erste\b/],
   ["Artikel vor Nachname", /\bDer (Doll|Kraus|Reimers|Rehm|Klasen|Vogt|Siewert|Brandes|Lohmann|Petersen|Kruse|Harmsen|Overbeck|Thiessen|Rademacher|Wendt|Möller|Sander)\b/],
   ["Person besteht seit", /\b(Doll|Kraus|Lessing|Travolta) besteht seit\b/],
   ["Kongruenz Einsatz", /Auf dem Spiel steht (die|der|das) \S*(plätze|stätten|zeiten|Stellen|bücher)\b/],
@@ -167,6 +170,19 @@ for (const wer of WER) for (const was of WAS) for (const wann of WANN) for (cons
     n++;
     const funde: string[] = [];
     for (const [name, re] of VERBOTEN) if (re.test(b.text)) funde.push(name);
+    // Wetter-Geruest (4.324.0): kein Verwaltungsdeutsch im Wetterbericht.
+    // Die Vorher-Messung: „erste Beschwerde" u. ä. in 108 von 108, „folgte der
+    // Schritt" in 108 von 108, Doppel-Doppelpunkt „Aussichten: … gilt:" in
+    // 108 von 108 Wetter-Laeufen.
+    if (ressort === "wetter") {
+      const wf: [string, RegExp][] = [
+        ["Verwaltungs-Vorgeschichte im Wetter", /erste (Beschwerde|Anfrage)|erster Zweifel|erstes Gerücht|: der Anfang/],
+        ["Verwaltungs-Schritt im Wetter", /folgte der Schritt, über den|folgte die Entscheidung, über die/],
+        ["zurückgenommener Schritt im Wetter", /Ob der Schritt zurückgenommen wird/],
+        ["Aussichten mit Doppel-Doppelpunkt", /Aussichten: [^\n]*:/],
+      ];
+      for (const [name, re] of wf) if (re.test(b.text)) funde.push(name);
+    }
     if (satzDublette(b.text)) funde.push("derselbe Satz zweimal hintereinander");
     if (vorspannWiederholtSchlagzeile(b.text)) funde.push("Vorspann wiederholt die Schlagzeile");
     // Der Chronologiesatz stand wörtlich in jedem Bericht. Gezählt wird er

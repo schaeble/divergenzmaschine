@@ -14,6 +14,9 @@ export type RessortId =
 
 export interface RessortEinheit {
   einheit: string; rolle: ZahlRolle; min: number; max: number; rund: number; gen?: string;
+  /** Beschriftung im Faktenkasten, wenn das Rollen-Etikett nicht passt:
+   *  „Ausdehnung: 190 Stundenkilometer" war eine Geschwindigkeit. */
+  label?: string;
 }
 
 /** Ein Einsatz mit seinem Numerus. Der muss IM Eintrag stehen, nicht geraten
@@ -57,6 +60,26 @@ export interface Ressort {
   /** Satz, der den Hintergrund eroeffnet. Vorgabe ist „besteht seit ⟨Jahr⟩" —
    *  bei einem Sturmtief ergibt das „Das Ottilie besteht seit 1952". */
   hintergrundKopf?: (wer: string, jahr: string) => string;
+  /** Eigene Vorgeschichte-Ereignisse der Chronologie. Ohne sie erbt das
+   *  Ressort das Verwaltungsdeutsch der Vorgabe („die erste Beschwerde") —
+   *  beim Wetter stand es in 108 von 108 gemessenen Läufen. Nur SINGULAR:
+   *  Die Rahmen im Hergang („zeichnete sich … ab") beugen keinen Plural. */
+  vorgeschichte?: { sachlich: string[]; gut: string[]; anfang?: string };
+  /** Fassungen des Schritt-Satzes (Chronologie c3). Vorgabe: „folgte der
+   *  Schritt, über den X nun informiert" — passt nicht zu einem Tief.
+   *  `zeit` kommt großgeschrieben und mit Präposition am Satzanfang; die
+   *  Fassungen sind GANZE Sätze mit Schlusspunkt und ohne Subjekt aus dem
+   *  Faktenblatt, damit kein Tief „eine Warnstufe ausruft". */
+  schrittFassungen?: (zeit: string, gut: boolean) => string[];
+  /** Fassungen des zweiten Vorspannsatzes. Vorgabe: „Bekannt wurde, dass N
+   *  betroffen sind." — eine einzige Fassung für alle Berichte. `menge` ist
+   *  die erste Faktenblatt-Zahl samt Einheit („rund 390 Höfe"), immer die
+   *  Betroffenen-Rolle. */
+  vorspannFassungen?: (menge: string, gut: boolean) => string[];
+  /** Nur die eigenen Ausblick-Sätze verwenden (plus die Ortsfrage, die
+   *  überall trägt): „Ob der Schritt zurückgenommen wird" passt nicht zu
+   *  einem Unwetter. */
+  nurEigenerAusblick?: true;
   /** Sonderregel, die die Prüfung kennt. */
   regel: "zweiZahlen" | "lagerAusgewogen" | "wertungGetrennt" | "ergebnisZuerst" | "einschraenkungPflicht" | "keine";
 }
@@ -243,19 +266,55 @@ export const RESSORTS: Record<RessortId, Ressort> = {
     einheiten: [
       { einheit: "Gemeinden", rolle: "betroffene", min: 12, max: 400, rund: 2 },
       { einheit: "Höfe", rolle: "betroffene", min: 12, max: 800, rund: 2 },
-      { einheit: "Liter je Quadratmeter", rolle: "groesse", min: 14, max: 180, rund: 2 },
-      { einheit: "Stundenkilometer", rolle: "groesse", min: 60, max: 200, rund: 5 },
-      { einheit: "Zentimeter Neuschnee", rolle: "groesse", min: 12, max: 90, rund: 2 },
-      { einheit: "Einsätze", rolle: "vorgaenge", min: 20, max: 900, rund: 2 },
-      { einheit: "Stunden Dauerregen", rolle: "dauer", min: 4, max: 60, rund: 2 },
+      { einheit: "Liter je Quadratmeter", rolle: "groesse", min: 14, max: 180, rund: 2, label: "Niederschlag" },
+      { einheit: "Stundenkilometer", rolle: "groesse", min: 60, max: 200, rund: 5, label: "Spitzenböe" },
+      { einheit: "Zentimeter Neuschnee", rolle: "groesse", min: 12, max: 90, rund: 2, label: "Neuschnee" },
+      { einheit: "Einsätze", rolle: "vorgaenge", min: 20, max: 900, rund: 2, label: "Einsätze" },
+      { einheit: "Stunden Dauerregen", rolle: "dauer", min: 4, max: 60, rund: 2, label: "Dauerregen" },
     ],
     betroffen: ["die Küste", "der Deich", "die Ernte", "der Bahnverkehr", "die Schulen", "die Feuerwehr", "die Fähren", "die Deichverbände", "der Fährbetrieb", "die Obstbauern", "die Feuerwehren", "der Schienenverkehr", "die Campingplätze"],
     einsatz: [S("die Ernte"), S("der Deich"), S("der Bahnverkehr"), S("die Trinkwasserversorgung"), S("die Fährverbindung"), P("die Fährverbindungen"), S("die Stromversorgung"), S("der Küstenschutz"), S("die Obsternte")],
     gewinn: [S("eine trockene Erntewoche"), S("die Rückkehr des Grundwassers"), S("ein mildes Wochenende"), S("die Entwarnung für die Küste"), S("eine Entspannung der Lage"), P("wieder befahrbare Straßen"), S("die Rückkehr des Fährbetriebs")],
-    zusatz: { titel: "Aussichten", rahmen: ["Für morgen gilt:", "Zum Wochenende:", "In der Nacht:", "Am Deich:", "Im Hafen:", "Auf den Feldern:"] },
+    // Titel leer: Der Rahmen („Für morgen gilt:") trägt die Ansage selbst.
+    // Mit Titel stand „Aussichten: Für morgen gilt: …" im Blatt — zwei
+    // Doppelpunkte, eine Ansage.
+    zusatz: { titel: "", rahmen: ["Für morgen gilt:", "Zum Wochenende:", "In der Nacht:", "Am Deich:", "Im Hafen:", "Auf den Feldern:"] },
     hintergrundKopf: (_wer, jahr) => `Vergleichbare Lagen gab es zuletzt ${jahr}.`,
-    ausblickGut: ["Die Warnung wird zum Abend aufgehoben.", "Das Hoch soll sich bis zur Wochenmitte halten.", "Die Warnung wurde aufgehoben.", "Der Betrieb läuft wieder an."],
-    ausblick: ["Die Warnstufe bleibt vorerst bestehen.", "Wie lange die Lage anhält, ist offen.", "Der Warndienst bleibt bestehen.", "Die Lage wird stündlich neu bewertet.", "Eine Entwarnung steht aus."],
+    ausblickGut: ["Die Warnung wird zum Abend aufgehoben.", "Das Hoch soll sich bis zur Wochenmitte halten.", "Die Warnung wurde aufgehoben.", "Der Betrieb läuft wieder an.", "Zum Wochenende soll es trocken bleiben.", "Die Pegel fallen wieder."],
+    ausblick: ["Die Warnstufe bleibt vorerst bestehen.", "Wie lange die Lage anhält, ist offen.", "Der Warndienst bleibt bestehen.", "Die Lage wird stündlich neu bewertet.", "Eine Entwarnung steht aus.", "Die Einsatzkräfte bleiben in Bereitschaft.", "Die Pegel werden weiter beobachtet.", "Für die Nacht gilt die Warnung weiter."],
+    // Das Wetter-Gerüst (4.324.0): eigene Ereignisse und eigene Sätze statt
+    // des Verwaltungsdeutschs der Vorgabe. Gemessen vorher: „die erste
+    // Beschwerde" u. ä. und „folgte der Schritt, über den … informiert" in
+    // 108 von 108 Läufen, je EINE Fassung für Vorspann-Zweitsatz und
+    // Schritt-Satz.
+    vorgeschichte: {
+      sachlich: ["die erste Warnung", "die erste Unwetterwarnung", "der erste Starkregen", "die erste Böenfront", "der erste Pegelanstieg", "das erste Donnergrollen"],
+      gut: ["die erste Aufheiterung", "die erste Entwarnung", "das erste Zwischenhoch", "die erste trockene Stunde", "der erste Sonnenstreifen"],
+      anfang: "die vergleichbare Lage",
+    },
+    schrittFassungen: (zeit, gut) => gut ? [
+      `${zeit} kam die erste Entwarnung.`,
+      `${zeit} wurden die ersten Sperrungen aufgehoben.`,
+      `${zeit} entspannte sich die Lage.`,
+      `${zeit} liefen die ersten Fähren wieder aus.`,
+    ] : [
+      `${zeit} wurde die Warnung ausgeweitet.`,
+      `${zeit} kam die nächste Warnstufe.`,
+      `${zeit} liefen die ersten Einsätze an.`,
+      `${zeit} meldeten die Pegel den nächsten Anstieg.`,
+      `${zeit} rückten die ersten Wehren aus.`,
+    ],
+    vorspannFassungen: (menge, gut) => gut ? [
+      `Bekannt wurde, dass ${menge} hinzukommen.`,
+      `Nach ersten Meldungen kommen ${menge} hinzu.`,
+      `Erste Meldungen sprechen von ${menge}.`,
+    ] : [
+      `Bekannt wurde, dass ${menge} betroffen sind.`,
+      `Nach ersten Meldungen sind ${menge} betroffen.`,
+      `Erste Meldungen sprechen von ${menge}.`,
+      `Der Wetterdienst meldet ${menge} als betroffen.`,
+    ],
+    nurEigenerAusblick: true,
     // Keine Sonderregel: Ein Wetterbericht, der Zahlen erzwingt, erfindet
     // Messwerte - und ein erfundener Messwert ist schlimmer als keiner.
     regel: "keine",

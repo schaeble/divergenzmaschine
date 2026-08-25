@@ -424,10 +424,14 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   const planPreset = (): string => (loadAnlage()?.regler["preset"] || "");
 
   wahr(`es gibt Preset-Haekchen (${haken().length})`, haken().length >= 10);
-  // Zwei ankreuzen — das ist der gemeldete Fall.
-  anKreuz(0);
+  // Zwei ankreuzen — das ist der gemeldete Fall. Aber nur FREIE Kaesten:
+  // Ein frueherer Wurf im selben Lauf kann Kasten 0 oder 1 schon angekreuzt
+  // haben, und ein zweites Ankreuzen aendert dann nichts — die Pruefung fiel
+  // deshalb gelegentlich um, ohne dass etwas kaputt war.
+  const frei = haken().map((b, i) => [b.checked, i] as const).filter(([c]) => !c).map(([, i]) => i);
+  anKreuz(frei[0]!);
   const nachEinem = planPreset();
-  anKreuz(1);
+  anKreuz(frei[1]!);
   const nachZweien = planPreset();
   wahr("nach dem zweiten Haken steht ein anderer Stand im Plan", nachZweien !== nachEinem);
   wahr("und es sind zwei Presets", nachZweien.split("+").filter(Boolean).length >= 2);

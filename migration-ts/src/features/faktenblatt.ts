@@ -21,6 +21,9 @@ export interface FbPerson {
 }
 export interface FbZahl {
   id: string; wert: number; einheit: string; wortform: string; verbal?: string; rolle: ZahlRolle;
+  /** Beschriftung im Faktenkasten, wenn das Rollen-Etikett nicht passt —
+   *  kommt aus der Ressort-Einheit („Spitzenböe" statt „Ausdehnung"). */
+  kastenLabel?: string;
 }
 export interface FbAbgeleitet {
   id: string; formel: string; wortform: string; label: string;
@@ -74,7 +77,7 @@ export type ZahlRolle = "betroffene" | "sache" | "dauer" | "groesse" | "vorgaeng
 // `gen` ist der Genitiv Plural — "die Hälfte der Beschäftigten", nicht "der
 // Beschäftigte". Betroffen ist nur das substantivierte Adjektiv; bei allen
 // anderen sind Nominativ und Genitiv Plural gleich.
-interface EinheitDef { einheit: string; rolle: ZahlRolle; min: number; max: number; rund: number; gen?: string; }
+interface EinheitDef { einheit: string; rolle: ZahlRolle; min: number; max: number; rund: number; gen?: string; label?: string; }
 
 const EINHEIT: EinheitDef[] = [
   { einheit: "Beschäftigte", rolle: "betroffene", min: 40, max: 900, rund: 10, gen: "Beschäftigten" },
@@ -472,6 +475,7 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
     const wert = zahlIn(e.min, e.max, e.rund);
     zahlen.push({
       id: `z${i + 1}`, wert, einheit: e.einheit, wortform: zahlwort(wert), rolle: e.rolle,
+      kastenLabel: e.label,
       // "rund" nur, wenn das Runden auch etwas aendert - "rund 1.150" fuer 1150
       // ist keine Rundung, sondern eine Behauptung.
       verbal: rundWort(wert),
@@ -502,8 +506,12 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
   // ueber hundert. Deshalb eine kurze Spanne.
   const spanne = person ? 4 + Math.floor(Math.random() * 34) : 12 + Math.floor(Math.random() * 110);
   const jahr = Math.max(1200, bezug - spanne);
+  // Die Vorgeschichte kommt aus dem Ressort, wenn es eine hat — sonst stand
+  // im Wetterbericht „die erste Beschwerde" (108 von 108 gemessenen Läufen).
+  const vg = R.vorgeschichte;
+  const vorgeschichteWas = gutesLicht ? (vg?.gut || VORGESCHICHTE_GUT) : (vg?.sachlich || VORGESCHICHTE_SACHLICH);
   const chronologie: FbChrono[] = [
-    { id: "c1", zeit: String(jahr), was: "der Anfang" },
+    { id: "c1", zeit: String(jahr), was: vg?.anfang || "der Anfang" },
     // Auch die Chronologie kennt die Blickrichtung: Im Faktenkasten stand sonst
     // "die erste Meldung", waehrend im Text "die erste Zusage" lief.
     // FRÜHER FEST: „im Frühjahr" und „die erste Meldung". Damit stand in jedem
@@ -511,7 +519,7 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
     // Beiträgen viermal wörtlich. Das war der auffälligste Wiederholungsbefund
     // des ganzen Blattes und kein Fehler des Generators, sondern eine
     // Konstante an der falschen Stelle.
-    { id: "c2", zeit: pick(VORGESCHICHTE_ZEIT), was: pick(gutesLicht ? VORGESCHICHTE_GUT : VORGESCHICHTE_SACHLICH) },
+    { id: "c2", zeit: pick(VORGESCHICHTE_ZEIT), was: pick(vorgeschichteWas) },
     // Dieselbe Form wie im Vorspann, sonst steht dort "Im Frühjahr 2001" und
     // im Hergang "Frühjahr 2001 folgte der Schritt".
     { id: "c3", zeit: mitPraeposition(wann) || pick(ZEITPUNKT), was: (input.what || "das Ereignis").trim() },
@@ -523,7 +531,7 @@ export function ziehFaktenblatt(input: GenInput, ressortWahl: RessortId | "auto"
   {
     const gemischt = (a: string[]): string[] => a.slice().sort(() => Math.random() - 0.5);
     const zeiten = gemischt(VORGESCHICHTE_ZEIT).filter((z: string) => z !== chronologie[1]!.zeit);
-    const sachen = gemischt(gutesLicht ? VORGESCHICHTE_GUT : VORGESCHICHTE_SACHLICH)
+    const sachen = gemischt(vorgeschichteWas)
       .filter((x: string) => x !== chronologie[1]!.was);
     for (let i = 0; i < mehr && i < zeiten.length && i < sachen.length; i++) {
       chronologie.splice(2 + i, 0, { id: `c${4 + i}`, zeit: zeiten[i]!, was: sachen[i]! });

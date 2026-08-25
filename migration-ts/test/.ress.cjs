@@ -2827,19 +2827,55 @@ var RESSORTS = {
     einheiten: [
       { einheit: "Gemeinden", rolle: "betroffene", min: 12, max: 400, rund: 2 },
       { einheit: "H\xF6fe", rolle: "betroffene", min: 12, max: 800, rund: 2 },
-      { einheit: "Liter je Quadratmeter", rolle: "groesse", min: 14, max: 180, rund: 2 },
-      { einheit: "Stundenkilometer", rolle: "groesse", min: 60, max: 200, rund: 5 },
-      { einheit: "Zentimeter Neuschnee", rolle: "groesse", min: 12, max: 90, rund: 2 },
-      { einheit: "Eins\xE4tze", rolle: "vorgaenge", min: 20, max: 900, rund: 2 },
-      { einheit: "Stunden Dauerregen", rolle: "dauer", min: 4, max: 60, rund: 2 }
+      { einheit: "Liter je Quadratmeter", rolle: "groesse", min: 14, max: 180, rund: 2, label: "Niederschlag" },
+      { einheit: "Stundenkilometer", rolle: "groesse", min: 60, max: 200, rund: 5, label: "Spitzenb\xF6e" },
+      { einheit: "Zentimeter Neuschnee", rolle: "groesse", min: 12, max: 90, rund: 2, label: "Neuschnee" },
+      { einheit: "Eins\xE4tze", rolle: "vorgaenge", min: 20, max: 900, rund: 2, label: "Eins\xE4tze" },
+      { einheit: "Stunden Dauerregen", rolle: "dauer", min: 4, max: 60, rund: 2, label: "Dauerregen" }
     ],
     betroffen: ["die K\xFCste", "der Deich", "die Ernte", "der Bahnverkehr", "die Schulen", "die Feuerwehr", "die F\xE4hren", "die Deichverb\xE4nde", "der F\xE4hrbetrieb", "die Obstbauern", "die Feuerwehren", "der Schienenverkehr", "die Campingpl\xE4tze"],
     einsatz: [S("die Ernte"), S("der Deich"), S("der Bahnverkehr"), S("die Trinkwasserversorgung"), S("die F\xE4hrverbindung"), P("die F\xE4hrverbindungen"), S("die Stromversorgung"), S("der K\xFCstenschutz"), S("die Obsternte")],
     gewinn: [S("eine trockene Erntewoche"), S("die R\xFCckkehr des Grundwassers"), S("ein mildes Wochenende"), S("die Entwarnung f\xFCr die K\xFCste"), S("eine Entspannung der Lage"), P("wieder befahrbare Stra\xDFen"), S("die R\xFCckkehr des F\xE4hrbetriebs")],
-    zusatz: { titel: "Aussichten", rahmen: ["F\xFCr morgen gilt:", "Zum Wochenende:", "In der Nacht:", "Am Deich:", "Im Hafen:", "Auf den Feldern:"] },
+    // Titel leer: Der Rahmen („Für morgen gilt:") trägt die Ansage selbst.
+    // Mit Titel stand „Aussichten: Für morgen gilt: …" im Blatt — zwei
+    // Doppelpunkte, eine Ansage.
+    zusatz: { titel: "", rahmen: ["F\xFCr morgen gilt:", "Zum Wochenende:", "In der Nacht:", "Am Deich:", "Im Hafen:", "Auf den Feldern:"] },
     hintergrundKopf: (_wer, jahr) => `Vergleichbare Lagen gab es zuletzt ${jahr}.`,
-    ausblickGut: ["Die Warnung wird zum Abend aufgehoben.", "Das Hoch soll sich bis zur Wochenmitte halten.", "Die Warnung wurde aufgehoben.", "Der Betrieb l\xE4uft wieder an."],
-    ausblick: ["Die Warnstufe bleibt vorerst bestehen.", "Wie lange die Lage anh\xE4lt, ist offen.", "Der Warndienst bleibt bestehen.", "Die Lage wird st\xFCndlich neu bewertet.", "Eine Entwarnung steht aus."],
+    ausblickGut: ["Die Warnung wird zum Abend aufgehoben.", "Das Hoch soll sich bis zur Wochenmitte halten.", "Die Warnung wurde aufgehoben.", "Der Betrieb l\xE4uft wieder an.", "Zum Wochenende soll es trocken bleiben.", "Die Pegel fallen wieder."],
+    ausblick: ["Die Warnstufe bleibt vorerst bestehen.", "Wie lange die Lage anh\xE4lt, ist offen.", "Der Warndienst bleibt bestehen.", "Die Lage wird st\xFCndlich neu bewertet.", "Eine Entwarnung steht aus.", "Die Einsatzkr\xE4fte bleiben in Bereitschaft.", "Die Pegel werden weiter beobachtet.", "F\xFCr die Nacht gilt die Warnung weiter."],
+    // Das Wetter-Gerüst (4.324.0): eigene Ereignisse und eigene Sätze statt
+    // des Verwaltungsdeutschs der Vorgabe. Gemessen vorher: „die erste
+    // Beschwerde" u. ä. und „folgte der Schritt, über den … informiert" in
+    // 108 von 108 Läufen, je EINE Fassung für Vorspann-Zweitsatz und
+    // Schritt-Satz.
+    vorgeschichte: {
+      sachlich: ["die erste Warnung", "die erste Unwetterwarnung", "der erste Starkregen", "die erste B\xF6enfront", "der erste Pegelanstieg", "das erste Donnergrollen"],
+      gut: ["die erste Aufheiterung", "die erste Entwarnung", "das erste Zwischenhoch", "die erste trockene Stunde", "der erste Sonnenstreifen"],
+      anfang: "die vergleichbare Lage"
+    },
+    schrittFassungen: (zeit, gut) => gut ? [
+      `${zeit} kam die erste Entwarnung.`,
+      `${zeit} wurden die ersten Sperrungen aufgehoben.`,
+      `${zeit} entspannte sich die Lage.`,
+      `${zeit} liefen die ersten F\xE4hren wieder aus.`
+    ] : [
+      `${zeit} wurde die Warnung ausgeweitet.`,
+      `${zeit} kam die n\xE4chste Warnstufe.`,
+      `${zeit} liefen die ersten Eins\xE4tze an.`,
+      `${zeit} meldeten die Pegel den n\xE4chsten Anstieg.`,
+      `${zeit} r\xFCckten die ersten Wehren aus.`
+    ],
+    vorspannFassungen: (menge, gut) => gut ? [
+      `Bekannt wurde, dass ${menge} hinzukommen.`,
+      `Nach ersten Meldungen kommen ${menge} hinzu.`,
+      `Erste Meldungen sprechen von ${menge}.`
+    ] : [
+      `Bekannt wurde, dass ${menge} betroffen sind.`,
+      `Nach ersten Meldungen sind ${menge} betroffen.`,
+      `Erste Meldungen sprechen von ${menge}.`,
+      `Der Wetterdienst meldet ${menge} als betroffen.`
+    ],
+    nurEigenerAusblick: true,
     // Keine Sonderregel: Ein Wetterbericht, der Zahlen erzwingt, erfindet
     // Messwerte - und ein erfundener Messwert ist schlimmer als keiner.
     regel: "keine"
@@ -3117,6 +3153,7 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
       einheit: e.einheit,
       wortform: zahlwort(wert),
       rolle: e.rolle,
+      kastenLabel: e.label,
       // "rund" nur, wenn das Runden auch etwas aendert - "rund 1.150" fuer 1150
       // ist keine Rundung, sondern eine Behauptung.
       verbal: rundWort(wert)
@@ -3127,8 +3164,10 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
   const bezug = Number.isFinite(ereignisJahr) ? ereignisJahr : 2e3;
   const spanne = person ? 4 + Math.floor(Math.random() * 34) : 12 + Math.floor(Math.random() * 110);
   const jahr = Math.max(1200, bezug - spanne);
+  const vg = R.vorgeschichte;
+  const vorgeschichteWas = gutesLicht ? vg?.gut || VORGESCHICHTE_GUT : vg?.sachlich || VORGESCHICHTE_SACHLICH;
   const chronologie = [
-    { id: "c1", zeit: String(jahr), was: "der Anfang" },
+    { id: "c1", zeit: String(jahr), was: vg?.anfang || "der Anfang" },
     // Auch die Chronologie kennt die Blickrichtung: Im Faktenkasten stand sonst
     // "die erste Meldung", waehrend im Text "die erste Zusage" lief.
     // FRÜHER FEST: „im Frühjahr" und „die erste Meldung". Damit stand in jedem
@@ -3136,7 +3175,7 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
     // Beiträgen viermal wörtlich. Das war der auffälligste Wiederholungsbefund
     // des ganzen Blattes und kein Fehler des Generators, sondern eine
     // Konstante an der falschen Stelle.
-    { id: "c2", zeit: pick(VORGESCHICHTE_ZEIT), was: pick(gutesLicht ? VORGESCHICHTE_GUT : VORGESCHICHTE_SACHLICH) },
+    { id: "c2", zeit: pick(VORGESCHICHTE_ZEIT), was: pick(vorgeschichteWas) },
     // Dieselbe Form wie im Vorspann, sonst steht dort "Im Frühjahr 2001" und
     // im Hergang "Frühjahr 2001 folgte der Schritt".
     { id: "c3", zeit: mitPraeposition(wann) || pick(ZEITPUNKT), was: (input.what || "das Ereignis").trim() }
@@ -3144,7 +3183,7 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
   {
     const gemischt = (a) => a.slice().sort(() => Math.random() - 0.5);
     const zeiten = gemischt(VORGESCHICHTE_ZEIT).filter((z) => z !== chronologie[1].zeit);
-    const sachen = gemischt(gutesLicht ? VORGESCHICHTE_GUT : VORGESCHICHTE_SACHLICH).filter((x) => x !== chronologie[1].was);
+    const sachen = gemischt(vorgeschichteWas).filter((x) => x !== chronologie[1].was);
     for (let i = 0; i < mehr && i < zeiten.length && i < sachen.length; i++) {
       chronologie.splice(2 + i, 0, { id: `c${4 + i}`, zeit: zeiten[i], was: sachen[i] });
     }
@@ -4308,7 +4347,6 @@ var blickVonTon = (ton) => GUTE_TOENE.has((ton || "").toLowerCase()) ? "gut" : "
 var WORTE = {
   sachlich: {
     vorspann: (n) => `wurde, dass ${n} betroffen sind`,
-    ersteMeldung: "die erste Meldung",
     // Das Bezugswort steckt im Satz: "der Schritt, ueber DEN". Als ich nur das
     // Nomen austauschte, stand "folgte der Schritt, ueber die ...".
     schritt: (wer) => `folgte der Schritt, \xFCber den ${wer} nun informiert`,
@@ -4318,7 +4356,6 @@ var WORTE = {
   },
   gut: {
     vorspann: (n) => `wurde, dass ${n} hinzukommen`,
-    ersteMeldung: "die erste Zusage",
     schritt: (wer) => `folgte die Entscheidung, \xFCber die ${wer} nun informiert`,
     haelfte: (l, w) => `${cap(l)} \u2014 ${w} \u2014 entsteht im ersten Jahr.`,
     einsatz: (mehr, x) => `In Aussicht ${mehr ? "stehen" : "steht"} ${x}.`,
@@ -4389,7 +4426,9 @@ function vorspann(fb, b, blick) {
   const z = fb.zahlen[0];
   const w = WORTE[blick];
   const s1 = `${cap(fb.wann.datum)}: ${cap(b.organisation(fb))} ${fb.was}.`;
-  const s2 = z ? `Bekannt ${w.vorspann(`${z.verbal || z.wortform} ${z.einheit}`)}.` : `Bekannt wurde es erst sp\xE4ter.`;
+  const RV = RESSORTS[fb.ressort];
+  const menge = z ? `${z.verbal || z.wortform} ${z.einheit}` : "";
+  const s2 = z ? RV.vorspannFassungen ? pick(RV.vorspannFassungen(menge, blick === "gut")) : `Bekannt ${w.vorspann(menge)}.` : `Bekannt wurde es erst sp\xE4ter.`;
   return `${s1} ${s2}`;
 }
 function mische(fakten, frei) {
@@ -4406,16 +4445,21 @@ function hergang(fb, bank, b, benutzt, extra, vorrat, blick) {
   const teile = [];
   const frei = [];
   const w = WORTE[blick];
+  const R0 = RESSORTS[fb.ressort];
   const c2 = fb.chronologie[1], c3 = fb.chronologie[2];
   if (c2) {
-    const was2 = blick === "gut" ? w.ersteMeldung : c2.was;
+    const was2 = c2.was;
     const fassungen = [
       `${cap(c2.zeit)} zeichnete sich ${was2} ab.`,
-      `${cap(c2.zeit)} gab es ${was2}.`,
+      // Akkusativ: „gab es der erste Hinweis" stand so im Blatt — die
+      // Wetter-Messung hat es gefunden, der Prüfstand zählte 169 Läufe. Nur
+      // „der erste …" unterscheidet sich hier vom Nominativ.
+      `${cap(c2.zeit)} gab es ${was2.replace(/^der erste\b/, "den ersten")}.`,
       // Ohne Präposition: „mit der erste Anfrage" war der erste Versuch — der
       // Artikel wurde gebeugt, das Adjektiv nicht. Ein Doppelpunkt braucht
       // keinen Kasus.
-      `Angefangen hatte es ${c2.zeit}: ${was2}.`
+      `Angefangen hatte es ${c2.zeit}: ${was2}.`,
+      `${cap(was2)} kam ${c2.zeit}.`
     ];
     teile.push(pick(fassungen));
   }
@@ -4425,10 +4469,9 @@ function hergang(fb, bank, b, benutzt, extra, vorrat, blick) {
   }
   const z2 = fb.zahlen[1];
   if (z2) teile.push(zahlSatz(z2));
-  if (c3) teile.push(`${cap(c3.zeit)} ${w.schritt(b.organisation(fb))}.`);
+  if (c3) teile.push(R0.schrittFassungen ? pick(R0.schrittFassungen(cap(c3.zeit), blick === "gut")) : `${cap(c3.zeit)} ${w.schritt(b.organisation(fb))}.`);
   const a1 = fb.abgeleitet[0];
   if (a1) teile.push(w.haelfte(a1.label, a1.wortform));
-  const R0 = RESSORTS[fb.ressort];
   const eins = blick === "gut" ? R0.gewinn : R0.einsatz;
   if (eins.length) {
     const zwei = reihenfolge(eins).slice(0, 1 + Math.min(1, Math.floor(extra / 4)));
@@ -4473,7 +4516,7 @@ function ausblick(fb, blick) {
   return blick === "gut" ? pick([...R.ausblickGut, `Wie es ${fb.wo.mitPraep} weitergeht, wird sich zeigen.`]) : pick([
     ...R.ausblick,
     `Wie es ${fb.wo.mitPraep} weitergeht, ist offen.`,
-    `Ob der Schritt zur\xFCckgenommen wird, blieb ${fb.wann.relativ} unbeantwortet.`
+    ...R.nurEigenerAusblick ? [] : [`Ob der Schritt zur\xFCckgenommen wird, blieb ${fb.wann.relativ} unbeantwortet.`]
   ]);
 }
 function zahlSatz(z) {
@@ -4555,14 +4598,14 @@ function buildBericht(bank, input, ressort = "auto") {
       const roh = satzOhneZahl(bank, ["hooks", "turns", "stakes"], benutzt, vorrat);
       if (roh) teile.push(`${R.zusatz.rahmen[i]} ${roh}.`);
     }
-    if (teile.length) abschnitte.push(`${R.zusatz.titel}: ${teile.join(" ")}`);
+    if (teile.length) abschnitte.push(R.zusatz.titel ? `${R.zusatz.titel}: ${teile.join(" ")}` : teile.join(" "));
   }
   abschnitte.push(ausblick(fb, blick));
   const kasten = [
     `Faktenkasten`,
     // Auch die Beschriftung dreht sich: "Betroffen: 480 Beschaeftigte" unter
     // einer guten Nachricht liest sich wie ein Widerspruch.
-    ...fb.zahlen.map((z) => `\xB7 ${z.rolle === "betroffene" && blick === "gut" ? "Neu" : ROLLE_LABEL[z.rolle]}: ${z.wortform} ${z.einheit}`),
+    ...fb.zahlen.map((z) => `\xB7 ${z.rolle === "betroffene" && blick === "gut" ? "Neu" : z.kastenLabel || ROLLE_LABEL[z.rolle]}: ${z.wortform} ${z.einheit}`),
     ...fb.chronologie.map((c) => `\xB7 ${c.zeit}: ${c.was}`)
   ].join("\n");
   return { text: abschnitte.filter(Boolean).join("\n\n") + "\n\n" + kasten, fb, hergang: hergangText };

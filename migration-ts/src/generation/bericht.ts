@@ -68,7 +68,6 @@ export const blickVonTon = (ton: string): Blick =>
 const WORTE = {
   sachlich: {
     vorspann: (n: string) => `wurde, dass ${n} betroffen sind`,
-    ersteMeldung: "die erste Meldung",
     // Das Bezugswort steckt im Satz: "der Schritt, ueber DEN". Als ich nur das
     // Nomen austauschte, stand "folgte der Schritt, ueber die ...".
     schritt: (wer: string) => `folgte der Schritt, über den ${wer} nun informiert`,
@@ -78,7 +77,6 @@ const WORTE = {
   },
   gut: {
     vorspann: (n: string) => `wurde, dass ${n} hinzukommen`,
-    ersteMeldung: "die erste Zusage",
     schritt: (wer: string) => `folgte die Entscheidung, über die ${wer} nun informiert`,
     haelfte: (l: string, w: string) => `${cap(l)} — ${w} — entsteht im ersten Jahr.`,
     einsatz: (mehr: boolean, x: string) => `In Aussicht ${mehr ? "stehen" : "steht"} ${x}.`,
@@ -225,8 +223,14 @@ function vorspann(fb: Faktenblatt, b: Buchfuehrung, blick: Blick): string {
   // Zeit voran, Doppelpunkt, dann die Tatsache. Der Ort steht schon in der
   // Dachzeile („HÜRTGENWALD · GESELLSCHAFT") und käme hier ein zweites Mal.
   const s1 = `${cap(fb.wann.datum)}: ${cap(b.organisation(fb))} ${fb.was}.`;
+  // Ressort-Fassungen, wenn es welche gibt: Beim Wetter stand sonst in jedem
+  // Bericht derselbe Zweitsatz — EINE Fassung, 108 von 108 Läufen.
+  const RV = RESSORTS[fb.ressort];
+  const menge = z ? `${z.verbal || z.wortform} ${z.einheit}` : "";
   const s2 = z
-    ? `Bekannt ${w.vorspann(`${z.verbal || z.wortform} ${z.einheit}`)}.`
+    ? (RV.vorspannFassungen
+      ? pick(RV.vorspannFassungen(menge, blick === "gut"))
+      : `Bekannt ${w.vorspann(menge)}.`)
     : `Bekannt wurde es erst später.`;
   return `${s1} ${s2}`;
 }
@@ -257,19 +261,28 @@ function hergang(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<stri
   const teile: string[] = [];
   const frei: string[] = [];
   const w = WORTE[blick];
+  const R0 = RESSORTS[fb.ressort];
   const c2 = fb.chronologie[1], c3 = fb.chronologie[2];
   if (c2) {
-    // Drei Fassungen statt einer. „Im Frühjahr zeichnete sich die erste Meldung
+    // Vier Fassungen statt einer. „Im Frühjahr zeichnete sich die erste Meldung
     // ab" stand wörtlich in jedem Bericht — bei acht Beiträgen viermal auf
     // derselben Seite.
-    const was2 = blick === "gut" ? w.ersteMeldung : c2.was;
+    //
+    // `c2.was` statt einer festen Wendung auch bei gutem Blick: Das Faktenblatt
+    // kennt die Blickrichtung längst, und der Kasten zeigte sonst ein anderes
+    // Ereignis als der Text.
+    const was2 = c2.was;
     const fassungen = [
       `${cap(c2.zeit)} zeichnete sich ${was2} ab.`,
-      `${cap(c2.zeit)} gab es ${was2}.`,
+      // Akkusativ: „gab es der erste Hinweis" stand so im Blatt — die
+      // Wetter-Messung hat es gefunden, der Prüfstand zählte 169 Läufe. Nur
+      // „der erste …" unterscheidet sich hier vom Nominativ.
+      `${cap(c2.zeit)} gab es ${was2.replace(/^der erste\b/, "den ersten")}.`,
       // Ohne Präposition: „mit der erste Anfrage" war der erste Versuch — der
       // Artikel wurde gebeugt, das Adjektiv nicht. Ein Doppelpunkt braucht
       // keinen Kasus.
       `Angefangen hatte es ${c2.zeit}: ${was2}.`,
+      `${cap(was2)} kam ${c2.zeit}.`,
     ];
     teile.push(pick(fassungen));
   }
@@ -283,7 +296,9 @@ function hergang(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<stri
   }
   const z2 = fb.zahlen[1];
   if (z2) teile.push(zahlSatz(z2));
-  if (c3) teile.push(`${cap(c3.zeit)} ${w.schritt(b.organisation(fb))}.`);
+  if (c3) teile.push(R0.schrittFassungen
+    ? pick(R0.schrittFassungen(cap(c3.zeit), blick === "gut"))
+    : `${cap(c3.zeit)} ${w.schritt(b.organisation(fb))}.`);
   const a1 = fb.abgeleitet[0];
   if (a1) teile.push(w.haelfte(a1.label, a1.wortform));
   // Was außerdem betroffen ist, sagt das Ressort. Ohne das stand in einem
@@ -292,7 +307,6 @@ function hergang(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<stri
   // Was auf dem Spiel steht - der Abschnitt, den ein Bericht braucht und der
   // bisher fehlte. Frueher lieferte das Preset seine literarischen Einsaetze,
   // und in einem Wirtschaftsbericht stand "Der Einsatz ist Freiheit".
-  const R0 = RESSORTS[fb.ressort];
   const eins = blick === "gut" ? R0.gewinn : R0.einsatz;
   if (eins.length) {
     const zwei = reihenfolge(eins).slice(0, 1 + Math.min(1, Math.floor(extra / 4)));
@@ -365,11 +379,14 @@ function ausblick(fb: Faktenblatt, blick: Blick): string {
   // Kein neuer Fakt — nur eine offene Frage oder ein Termin. Deshalb greift der
   // Abschnitt ausschliesslich auf bereits Genanntes zurueck.
   const R = RESSORTS[fb.ressort];
+  // „Ob der Schritt zurückgenommen wird" passt nicht zu einem Tief:
+  // Ressorts mit `nurEigenerAusblick` bekommen den Verwaltungssatz nicht —
+  // die Ortsfrage bleibt, sie trägt überall.
   return blick === "gut"
     ? pick([...R.ausblickGut, `Wie es ${fb.wo.mitPraep} weitergeht, wird sich zeigen.`])
     : pick([...R.ausblick,
       `Wie es ${fb.wo.mitPraep} weitergeht, ist offen.`,
-      `Ob der Schritt zurückgenommen wird, blieb ${fb.wann.relativ} unbeantwortet.`]);
+      ...(R.nurEigenerAusblick ? [] : [`Ob der Schritt zurückgenommen wird, blieb ${fb.wann.relativ} unbeantwortet.`])]);
 }
 
 /** Satz zu einer Zahl, passend zu ihrer Rolle. Eine Zahl ohne Rolle bekam vorher
@@ -474,7 +491,9 @@ export function buildBericht(bank: Bank, input: GenInput, ressort: RessortId | "
       const roh = satzOhneZahl(bank, ["hooks", "turns", "stakes"], benutzt, vorrat);
       if (roh) teile.push(`${R.zusatz.rahmen[i]} ${roh}.`);
     }
-    if (teile.length) abschnitte.push(`${R.zusatz.titel}: ${teile.join(" ")}`);
+    // Ohne Titel keinen Doppelpunkt: Beim Wetter trug „Aussichten: Für
+    // morgen gilt: …" zwei Doppelpunkte für eine Ansage.
+    if (teile.length) abschnitte.push(R.zusatz.titel ? `${R.zusatz.titel}: ${teile.join(" ")}` : teile.join(" "));
   }
   abschnitte.push(ausblick(fb, blick));
 
@@ -482,7 +501,7 @@ export function buildBericht(bank: Bank, input: GenInput, ressort: RessortId | "
     `Faktenkasten`,
     // Auch die Beschriftung dreht sich: "Betroffen: 480 Beschaeftigte" unter
     // einer guten Nachricht liest sich wie ein Widerspruch.
-    ...fb.zahlen.map((z) => `· ${z.rolle === "betroffene" && blick === "gut" ? "Neu" : ROLLE_LABEL[z.rolle]}: ${z.wortform} ${z.einheit}`),
+    ...fb.zahlen.map((z) => `· ${z.rolle === "betroffene" && blick === "gut" ? "Neu" : (z.kastenLabel || ROLLE_LABEL[z.rolle])}: ${z.wortform} ${z.einheit}`),
     ...fb.chronologie.map((c) => `· ${c.zeit}: ${c.was}`),
   ].join("\n");
 
