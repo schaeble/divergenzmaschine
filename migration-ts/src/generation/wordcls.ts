@@ -4,6 +4,13 @@ import { VERB_CONJ, INFINITIVE_VERBS } from "./verbconj.data";
 import { NOUN_GENDER } from "./nouns.data";
 import { VERB_TOKEN_RE } from "./verbconj";
 
+/** Woerter, die eine GATTUNGSperson bezeichnen (Erwachsene, Bote, Kind …).
+ *  Eine kuratierte Liste statt einer Endungs-Heuristik: Wortendungen sind im
+ *  Deutschen als Wortart-Merkmal unzuverlaessig, und ein Name wie „Ottilie"
+ *  darf nie hineinfallen. Frueher lag sie in faktenblatt.ts; normWho braucht
+ *  sie jetzt auch. */
+export const PERSON_NOMEN = /(jugendliche|jugendlicher|erwachsene|erwachsener|alte|alter|kranke|kranker|gefangene|gefangener|angestellte|angestellter|beamte|beamter|verwandte|verwandter|bekannte|bekannter|vorsitzende|vorsitzender|abgeordnete|abgeordneter|obdachlose|obdachloser|pensionär|pensionärin|rentner|rentnerin|zeuge|zeugin|täter|täterin|opfer|passant|passantin|kellner|kellnerin|pfarrer|pfarrerin|richter|richterin|händler|händlerin|bauer|bäuerin|förster|försterin|schneider|schneiderin|weber|weberin|uhrmacher|uhrmacherin|archivar|archivarin|übersetzer|übersetzerin|magd|knecht|ritter|ritterin|nonne|mönch|clown|boxer|boxerin|grabräuber|grabräuberin|mädchen|junge|kind|frau|mann|männer|dame|herr|schüler|schülerin|lehrer|lehrerin|wächter|wächterin|arzt|ärztin|bäcker|bäckerin|gärtner|gärtnerin|fischer|fischerin|bote|botin|wanderer|wanderin|reisende|reisender|nachbar|nachbarin|greis|greisin|witwe|witwer|zwilling|bruder|schwester|sohn|tochter|vater|mutter|onkel|tante|neffe|nichte|freund|freundin|gast|fremde|fremder|meister|meisterin|gesell|lehrling|soldat|soldatin|matrose|matrosin|pilot|pilotin|köchin|koch|wirt|wirtin|müller|müllerin|schmied|schmiedin|hirte|hirtin|jäger|jägerin|sammler|sammlerin)$/i;
+
 export interface LeadVerb { verb: string | null; rest: string; isInfinitiveLed?: boolean; }
 
 // Funktionswörter auf -en/-ern/-eln, die KEINE Infinitive sind (Artikel, Pronomen,

@@ -3111,6 +3111,7 @@ function conjugateVerbToken(verb, person) {
 }
 
 // src/generation/wordcls.ts
+var PERSON_NOMEN = /(jugendliche|jugendlicher|erwachsene|erwachsener|alte|alter|kranke|kranker|gefangene|gefangener|angestellte|angestellter|beamte|beamter|verwandte|verwandter|bekannte|bekannter|vorsitzende|vorsitzender|abgeordnete|abgeordneter|obdachlose|obdachloser|pensionär|pensionärin|rentner|rentnerin|zeuge|zeugin|täter|täterin|opfer|passant|passantin|kellner|kellnerin|pfarrer|pfarrerin|richter|richterin|händler|händlerin|bauer|bäuerin|förster|försterin|schneider|schneiderin|weber|weberin|uhrmacher|uhrmacherin|archivar|archivarin|übersetzer|übersetzerin|magd|knecht|ritter|ritterin|nonne|mönch|clown|boxer|boxerin|grabräuber|grabräuberin|mädchen|junge|kind|frau|mann|männer|dame|herr|schüler|schülerin|lehrer|lehrerin|wächter|wächterin|arzt|ärztin|bäcker|bäckerin|gärtner|gärtnerin|fischer|fischerin|bote|botin|wanderer|wanderin|reisende|reisender|nachbar|nachbarin|greis|greisin|witwe|witwer|zwilling|bruder|schwester|sohn|tochter|vater|mutter|onkel|tante|neffe|nichte|freund|freundin|gast|fremde|fremder|meister|meisterin|gesell|lehrling|soldat|soldatin|matrose|matrosin|pilot|pilotin|köchin|koch|wirt|wirtin|müller|müllerin|schmied|schmiedin|hirte|hirtin|jäger|jägerin|sammler|sammlerin)$/i;
 var NOT_INFINITIVE = /* @__PURE__ */ new Set([
   "einen",
   "keinen",
@@ -3476,6 +3477,15 @@ function normWho(s) {
       const g = guessGender(m[2]) || (/in$/.test(m[2].toLowerCase()) ? "f" : void 0);
       if (g === "f") return `eine ${m[1]} ${m[2]}`;
       if (g === "m" || g === "n") return `ein ${m[1]} ${m[2]}`;
+    }
+    if (i === 0 && /^[A-ZÄÖÜa-zäöüß][a-zäöüß-]+$/.test(p) && PERSON_NOMEN.test(p) && !/^(männer|leute)$/i.test(p)) {
+      const wort = cap2(p);
+      const klein = p.toLowerCase();
+      if (/er$/.test(klein) && PERSON_NOMEN.test(klein.slice(0, -1))) return `ein ${wort}`;
+      if (/e$/.test(klein) && PERSON_NOMEN.test(klein + "r")) return `eine ${wort}`;
+      const g = guessGender(wort);
+      if (g === "f") return `eine ${wort}`;
+      if (g === "m" || g === "n") return `ein ${wort}`;
     }
     return i === 0 || istEigenePerson(p) ? cap2(p) : low(p);
   });
@@ -15270,7 +15280,6 @@ function kurzform(haupt, genus) {
   return `${art} ${teil}`;
 }
 var TITEL = /^(Dr|Prof|Ing|Dipl|Mag|Med|Rer|Nat|Phil|h\.c|Jun|Sen|MdB|MdL)\.?$/i;
-var PERSON_NOMEN = /(jugendliche|jugendlicher|erwachsene|erwachsener|alte|alter|kranke|kranker|gefangene|gefangener|angestellte|angestellter|beamte|beamter|verwandte|verwandter|bekannte|bekannter|vorsitzende|vorsitzender|abgeordnete|abgeordneter|obdachlose|obdachloser|pensionär|pensionärin|rentner|rentnerin|zeuge|zeugin|täter|täterin|opfer|passant|passantin|kellner|kellnerin|pfarrer|pfarrerin|richter|richterin|händler|händlerin|bauer|bäuerin|förster|försterin|schneider|schneiderin|weber|weberin|uhrmacher|uhrmacherin|archivar|archivarin|übersetzer|übersetzerin|magd|knecht|ritter|ritterin|nonne|mönch|clown|boxer|boxerin|grabräuber|grabräuberin|mädchen|junge|kind|frau|mann|männer|dame|herr|schüler|schülerin|lehrer|lehrerin|wächter|wächterin|arzt|ärztin|bäcker|bäckerin|gärtner|gärtnerin|fischer|fischerin|bote|botin|wanderer|wanderin|reisende|reisender|nachbar|nachbarin|greis|greisin|witwe|witwer|zwilling|bruder|schwester|sohn|tochter|vater|mutter|onkel|tante|neffe|nichte|freund|freundin|gast|fremde|fremder|meister|meisterin|gesell|lehrling|soldat|soldatin|matrose|matrosin|pilot|pilotin|köchin|koch|wirt|wirtin|müller|müllerin|schmied|schmiedin|hirte|hirtin|jäger|jägerin|sammler|sammlerin)$/i;
 function formeWas(roh) {
   let w = (roh || "").replace(/\u00ad/g, "").replace(/\u200b/g, "").replace(/\([^()]*\)/g, " ").replace(/\[[^\]]*\]/g, " ").replace(/\s+/g, " ").trim();
   const ende = w.match(/^([\s\S]{10,}?[.!?…])\s+[A-ZÄÖÜ]/);
@@ -18001,6 +18010,14 @@ for (const kurz of ["sucht eine Akte", "gewinnt", "eine Wandmalerei"]) {
   }
   ist("in 90 Texten kein offener Relativsatz", offen, 0);
   ist("und keiner wird zum eigenen Satz zerschnitten", zerschnitten, 0);
+}
+{
+  ist("ein nacktes Gattungswort bekommt den Artikel", normWho("Erwachsene"), "eine Erwachsene");
+  ist("die m\xE4nnliche starke Form auch", normWho("Erwachsener"), "ein Erwachsener");
+  ist("Genus aus der Sch\xE4tzung", normWho("Kind"), "ein Kind");
+  ist("mit Artikel bleibt alles wie es war", normWho("die Erwachsene"), "Die Erwachsene");
+  ist("ein Name bekommt KEINEN Artikel", normWho("Ottilie"), "Ottilie");
+  ist("ein ausdr\xFCcklicher Plural auch nicht", normWho("M\xE4nner"), "M\xE4nner");
 }
 console.log(`Pr\xFCfstand Nr. 44 \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

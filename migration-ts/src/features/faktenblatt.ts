@@ -11,6 +11,7 @@
 import type { GenInput } from "../types";
 import { pick, kuerzeAmBruch } from "../text-utils";
 import { normWhere, normWhen, normWho } from "../generation/ctxnorm";
+import { PERSON_NOMEN } from "../generation/wordcls";
 import { guessGender } from "../generation/declension";
 import { RESSORTS, rateRessort, type RessortId } from "./ressorts";
 
@@ -244,7 +245,8 @@ const TITEL = /^(Dr|Prof|Ing|Dipl|Mag|Med|Rer|Nat|Phil|h\.c|Jun|Sen|MdB|MdL)\.?$
  *  Eng gehalten: „das Stadttheater" darf keine Person werden. Geprüft wird das
  *  LETZTE Wort, denn im Deutschen bestimmt das Grundwort das Kompositum —
  *  „Schulmädchen" ist ein Mädchen, „Mädchenschule" eine Schule. */
-const PERSON_NOMEN = /(jugendliche|jugendlicher|erwachsene|erwachsener|alte|alter|kranke|kranker|gefangene|gefangener|angestellte|angestellter|beamte|beamter|verwandte|verwandter|bekannte|bekannter|vorsitzende|vorsitzender|abgeordnete|abgeordneter|obdachlose|obdachloser|pensionär|pensionärin|rentner|rentnerin|zeuge|zeugin|täter|täterin|opfer|passant|passantin|kellner|kellnerin|pfarrer|pfarrerin|richter|richterin|händler|händlerin|bauer|bäuerin|förster|försterin|schneider|schneiderin|weber|weberin|uhrmacher|uhrmacherin|archivar|archivarin|übersetzer|übersetzerin|magd|knecht|ritter|ritterin|nonne|mönch|clown|boxer|boxerin|grabräuber|grabräuberin|mädchen|junge|kind|frau|mann|männer|dame|herr|schüler|schülerin|lehrer|lehrerin|wächter|wächterin|arzt|ärztin|bäcker|bäckerin|gärtner|gärtnerin|fischer|fischerin|bote|botin|wanderer|wanderin|reisende|reisender|nachbar|nachbarin|greis|greisin|witwe|witwer|zwilling|bruder|schwester|sohn|tochter|vater|mutter|onkel|tante|neffe|nichte|freund|freundin|gast|fremde|fremder|meister|meisterin|gesell|lehrling|soldat|soldatin|matrose|matrosin|pilot|pilotin|köchin|koch|wirt|wirtin|müller|müllerin|schmied|schmiedin|hirte|hirtin|jäger|jägerin|sammler|sammlerin)$/i;
+// PERSON_NOMEN wohnt jetzt in generation/wordcls.ts — auch normWho braucht
+// die Liste, und ctxnorm darf faktenblatt nicht importieren (Kreis).
 /** Bringt das „Was" in eine Form, die in einen Meldungssatz passt.
  *
  *  Anlass: Ausgabe Nr. 44. Der Sammler liefert ganze Wikipedia-Sätze mit

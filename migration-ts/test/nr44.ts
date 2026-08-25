@@ -279,6 +279,18 @@ for (const kurz of ["sucht eine Akte", "gewinnt", "eine Wandmalerei"]) {
   ist("und keiner wird zum eigenen Satz zerschnitten", zerschnitten, 0);
 }
 
+
+// ── Gemeldet (4.327.1): „Erwachsene verschiebt eine Beerdigung" ─────────────
+// Ein nacktes Gattungswort als WER traf ohne Artikel auf Singular-Rahmen.
+{
+  ist("ein nacktes Gattungswort bekommt den Artikel", normWho("Erwachsene"), "eine Erwachsene");
+  ist("die männliche starke Form auch", normWho("Erwachsener"), "ein Erwachsener");
+  ist("Genus aus der Schätzung", normWho("Kind"), "ein Kind");
+  ist("mit Artikel bleibt alles wie es war", normWho("die Erwachsene"), "Die Erwachsene");
+  ist("ein Name bekommt KEINEN Artikel", normWho("Ottilie"), "Ottilie");
+  ist("ein ausdrücklicher Plural auch nicht", normWho("Männer"), "Männer");
+}
+
 console.log(`Prüfstand Nr. 44 — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {
