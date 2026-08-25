@@ -140,3 +140,108 @@ export function buildAllChains(seed: string, text: string, n: number): Chain[] {
     return { form, label, links: chainFor(form, seed, text, n) };
   });
 }
+
+// ── Eine Kette statt sieben ─────────────────────────────────────────────────
+// Bis 4.316 baute der Reiter SIEBEN Ketten gleichzeitig, eine je Form,
+// nebeneinander. Das ist eine Auslage und kein Werkzeug: Man waehlt nicht, man
+// betrachtet. Sechs davon waren Beiwerk, und alle sieben zusammen weniger
+// brauchbar als eine.
+//
+// Was fehlte, war nicht Auswahl, sondern BEWEGUNG. Eine Kette ist ein Weg; wer
+// sie benutzen will, muss weitergehen koennen — von einem Glied aus, ein Glied
+// verwerfen, eines neu ziehen. Genau das war nicht vorgesehen.
+
+/** Setzt eine Kette an einem ihrer Glieder fort.
+ *
+ *  `ab` ist der Index, ab dem neu gegangen wird: Alles davor bleibt stehen, der
+ *  Rest wird von dort aus neu gezogen. Ein Glied anzutippen heisst also nicht
+ *  „lies mir das vor", sondern „von hier aus weiter" — und der Weg dorthin
+ *  bleibt erhalten.
+ *
+ *  Bereits benutzte Glieder werden gemieden, auch die verworfenen: Eine Kette,
+ *  die im Kreis geht, ist keine. */
+export function setzeFort(bisher: string[], ab: number, text: string, bis: number): string[] {
+  if (!bisher.length) return [];
+  const i = Math.max(0, Math.min(bisher.length - 1, Math.round(ab)));
+  const kopf = bisher.slice(0, i + 1);
+  const ziel = Math.max(kopf.length, Math.min(24, Math.round(bis) || kopf.length + 1));
+  if (ziel <= kopf.length) return kopf;
+  // Von hier aus weiter, mit dem ganzen bisherigen Weg als Sperre.
+  const weiter = proseChainOhne(kopf[kopf.length - 1]!, text, ziel - kopf.length + 1,
+    new Set(bisher.map((x) => x.toLowerCase())));
+  return [...kopf, ...weiter.slice(1)];
+}
+
+/** Wie proseChain, aber mit einer mitgegebenen Sperrliste. */
+function proseChainOhne(seed: string, text: string, n: number, gesperrt: Set<string>): string[] {
+  const sents = sentences(text);
+  const links = [seed];
+  let cur = seed;
+  const seen = new Set(gesperrt);
+  seen.add(seed.toLowerCase());
+  for (let i = 1; i < n; i++) {
+    const hosts = sents.filter((s) => s.some((w) => w.toLowerCase() === cur.toLowerCase()));
+    const ok = (w: string): boolean =>
+      w.length >= 4 && !COHERENCE_STOPWORDS.has(w.toLowerCase())
+      && !FILLER.has(w.toLowerCase()) && !seen.has(w.toLowerCase());
+    let pool = (hosts.length ? hosts.flat() : []).filter(ok);
+    if (!pool.length) pool = sents.flat().filter(ok);
+    if (!pool.length) break;
+    const nouns = pool.filter((w) => /^[A-ZÄÖÜ]/.test(w));
+    cur = pick(nouns.length ? nouns : pool); seen.add(cur.toLowerCase()); links.push(cur);
+  }
+  return links;
+}
+
+/** Ein Glied verwerfen und den Rest neu ziehen. */
+export function verwirf(bisher: string[], index: number, text: string): string[] {
+  if (bisher.length < 2) return bisher;
+  const i = Math.max(0, Math.min(bisher.length - 1, Math.round(index)));
+  // Das Saatwort bleibt: Ohne es hat die Kette keinen Ausgangspunkt, und ein
+  // „verwirf das Saatwort" waere in Wahrheit „fang neu an".
+  if (i === 0) return bisher;
+  const kopf = bisher.slice(0, i);
+  const weiter = proseChainOhne(kopf[kopf.length - 1]!, text, bisher.length - i + 1,
+    new Set(bisher.map((x) => x.toLowerCase())));
+  return [...kopf, ...weiter.slice(1)];
+}
+
+// ── Ausgang in die Wortbank ─────────────────────────────────────────────────
+// Der einzige Ausgang war „→ Studio", und er verteilte die Glieder auf die vier
+// W: erstes als Wer, zweites als Wo, drittes als Wann, der Rest als Was. Eine
+// Kette ist aber eine Reihe von Assoziationen und kein Vierertupel — „Nebel"
+// als Wer ergibt Unsinn, und dann drueckt man den Knopf kein zweites Mal.
+//
+// Der Ort, an dem eine Kette wirklich etwas bewirkt, ist die WORTBANK:
+// Kettenglieder sind genau das, woraus Motive und Bilder bestehen. Dort wirken
+// sie auf jeden kuenftigen Text statt auf einen einzigen.
+
+/** Baut aus Kettengliedern Motive.
+ *
+ *  Ein Motiv muss eine Nominalphrase mit Artikel und eigenem Kopf sein — blosse
+ *  Woerter lassen den Zusammenbau mitten im Text abbrechen. Zwei benachbarte
+ *  Glieder ergeben eine Fuegung, und die traegt: „ein Nebel über dem Blech".
+ *
+ *  Nur GROSSGESCHRIEBENE Glieder werden zum Kopf: Im Deutschen sind das die
+ *  Substantive, und nur die koennen eine Nominalphrase anfuehren. */
+export function alsMotive(links: string[]): string[] {
+  const nomen = links.filter((w) => /^[A-ZÄÖÜ]/.test(w));
+  const raus: string[] = [];
+  for (let i = 0; i + 1 < nomen.length; i++) {
+    raus.push(`ein ${nomen[i]} über dem ${nomen[i + 1]}`);
+  }
+  return raus;
+}
+
+/** Baut aus Kettengliedern Bilder (Vergleiche).
+ *
+ *  Die Bildliste der Wortbank enthaelt Vergleiche der Form „wie X hinter Y" —
+ *  sie werden als Ganzes eingesetzt und brauchen deshalb keinen eigenen Kopf. */
+export function alsBilder(links: string[]): string[] {
+  const nomen = links.filter((w) => /^[A-ZÄÖÜ]/.test(w));
+  const raus: string[] = [];
+  for (let i = 0; i + 1 < nomen.length; i += 2) {
+    raus.push(`wie ${nomen[i]} hinter ${nomen[i + 1]}`);
+  }
+  return raus;
+}
