@@ -605,6 +605,32 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   ist("und der Plan sagt, dass keines eingestellt ist", knoten(b, "ideen")?.wert, "kein Profil eingestellt");
   wahr("dass gewürfelt wird, steht im Hinweis", /mitgewürfelt/.test(knoten(b, "ideen")?.hinweis || ""));
 
+  // ── Ideen und Wahrnehmung: das Gezogene ist nicht das Eingestellte ────────
+  // Nachgesehen auf die Frage, ob beide mit dem Studio synchron laufen. Ergebnis:
+  // Sie laufen ABSICHTLICH nicht mit, und beide Male aus demselben Grund — „Alles
+  // würfeln" zieht sich ein eigenes Profil bzw. ein eigenes Wesen fuer den einen
+  // Wurf, das eingestellte bleibt unangetastet und gilt im jeweiligen Reiter.
+  //
+  // Das ist verteidigt (gemessen: gewuerfeltes Profil streut deutlich breiter),
+  // sieht aber im Plan aus wie ein Aussetzer — dort steht das EINGESTELLTE.
+  // Deshalb muss der Hinweis es sagen; sonst haelt man den Wurf fuer wirkungslos.
+  const c = baueAnlage(STAND(), UMGEBUNG({ omniProfil: "Der Hai", omniProfile: 8 }));
+  ist("die Wahrnehmung zeigt das eingestellte Wesen", knoten(c, "omni")?.wert, "Der Hai");
+  wahr("und sagt, dass der Wuerfel ein eigenes zieht",
+    /eigenes Wesen für den einen Wurf/.test(knoten(c, "omni")?.hinweis || ""));
+  wahr("und wo man nachsieht, welches",
+    /Quellenzeile/.test(knoten(c, "omni")?.hinweis || ""));
+  // Ohne Wesen: „leer" nur, wenn ueberhaupt welche vorhanden sind — sonst „aus".
+  ist("ohne eingestelltes Wesen, aber mit vorhandenen: leer",
+    knoten(baueAnlage(STAND(), UMGEBUNG({ omniProfil: "", omniProfile: 8 })), "omni")?.zustand, "leer");
+  ist("ganz ohne Wesen: aus",
+    knoten(baueAnlage(STAND(), UMGEBUNG({ omniProfil: "", omniProfile: 0 })), "omni")?.zustand, "aus");
+  // Gegenprobe zum Ideen-Knoten: Er bleibt „an", auch ohne Profil — der
+  // Generator arbeitet ohne eines. Ein „leer" hiesse „hier kommt nichts", und
+  // das stimmt nicht. (Ich hielt das fuer einen Fehler; die Pruefung oben hat
+  // den Irrtum gefangen.)
+  ist("die Ideen bleiben bereit", knoten(b, "ideen")?.zustand, "an");
+
   // Der eigentliche Einwand: Der Würfel soll würfeln, nicht das Profil nehmen.
   // Gemessen an 300 Zügen: festes Profil 141/126/142/124 verschiedene Werte,
   // gewürfeltes 193/187/213/224.

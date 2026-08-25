@@ -176,6 +176,15 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   // wurde: Der Knopf „Würfeln" im Reiter schrieb das Ergebnis nicht in die
   // Ablage, aus der dieser Plan liest. Wer würfelte und dann in die Diagnose
   // sah, bekam ein Profil gezeigt, das längst nicht mehr eingestellt war.
+  // Der Zustand bleibt „an", auch ohne eingestelltes Profil — und das ist
+  // richtig, obwohl es nach dem Muster „Schalter an, Quelle leer" aussieht.
+  //
+  // Ich hielt das fuer einen Fehler und lag daneben: Beim Markov-Korpus ist die
+  // Quelle wirklich leer, hier nicht. Der Ideengenerator arbeitet auch ohne
+  // eingestelltes Profil, weil „Alles würfeln“ sich eines würfelt. Ein „leer“
+  // hier hiesse: hier kommt nichts — und das stimmt nicht.
+  //
+  // Die bestehende Pruefung hat den Irrtum gefangen.
   knoten("ideen", 0, "Ideen", u.ideenProfil || "kein Profil eingestellt", "an",
     "Reiter Ideen · beim Würfeln im Studio wird das Profil mitgewürfelt, das eingestellte gilt im Reiter selbst");
   // Die Wahrnehmung (Reiter Welt) ist seit 4.299.0 eine eigene Quelle. Sie
@@ -188,7 +197,13 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   knoten("omni", 0, "Wahrnehmung",
     u.omniProfil || "kein Wesen eingestellt",
     u.omniProfil ? "an" : (u.omniProfile ? "leer" : "aus"),
-    `Reiter Welt: Zieht ein Wesen und setzt Wo/Wann/Wer/Was samt Perspektive, Rhythmus, Modus und Ton · ${u.omniProfile} Wesen vorhanden`);
+    // Wie bei den Ideen: „Alles würfeln“ ZIEHT ein Wesen, ohne das eingestellte
+    // zu ändern. Der Plan zeigt hier also das EINGESTELLTE — welches gewürfelt
+    // wurde, steht in der Quellenzeile („Wahrnehmung · Name“). Ohne diesen
+    // Hinweis sieht es aus, als hätte der Wurf nicht gewirkt.
+    `Reiter Welt: Zieht ein Wesen und setzt Wo/Wann/Wer/Was samt Perspektive, Rhythmus, Modus und Ton · `
+    + `${u.omniProfile} Wesen vorhanden · „Alles würfeln“ zieht ein eigenes Wesen für den einen Wurf; `
+    + `welches, steht in der Quellenzeile`);
 
   // ── Spalte 1: Eingang ────────────────────────────────────────────────────
   const w4 = stand.w4 || { where: "", when: "", who: "", what: "" };
