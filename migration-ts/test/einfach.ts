@@ -164,6 +164,37 @@ ist("und Gedicht ist nicht mehr dabei", KOPF_FORMEN.some(([f]) => f === "poem"),
 wahr("das Saatfeld hat einen Loeschknopf", /class: "ek-weg"/.test(q));
 wahr("und er leert wirklich", /saatIn\.value = ""; kopfWahl\.saat = ""/.test(q));
 
+// ── 3d · Festgehaltene Regler werden ANGEZEIGT ─────────────────────────────
+// Der teuerste Fehler dieser Reihe. Der Kopf laesst festgehaltene Regler in
+// Ruhe — das war Absicht und ist richtig. Aber er sagte es NICHT: Man klickte
+// Reim, der Chip sprang an, der Knopf erzeugte, und nichts geschah.
+//
+// Drei Meldungen und drei falsche Diagnosen von mir spaeter stand die Ursache
+// im Schaltplan: ein Schloss an der Form, eines an der Laenge, eines an der
+// Struktur. Sichtbar war sie nur dort — nicht an der Stelle, an der man
+// gearbeitet hat.
+//
+// Ein Knopf, den man druecken kann und der nichts tut, ist schlechter als
+// einer, den man nicht druecken kann.
+const kq = q.slice(q.indexOf("const zeigeSchloesser"), q.indexOf("const kopfLos"));
+wahr("gesperrte Formchips sind wirklich gesperrt", /\.disabled = fSperr/.test(kq));
+wahr("und der Klick greift gar nicht erst", /if \(locked\.has\(form\.id\)\) return;/.test(q));
+wahr("der Laengenschieber ebenso", /laengeIn\.disabled = true/.test(kq));
+wahr("der Reibungsschieber ebenso", /reibungIn\.disabled = true/.test(kq));
+// Und ein Satz, der es benennt — fuer die Schieber gibt es keine Chips, an
+// denen man es sehen koennte.
+wahr("es gibt einen Hinweis", /gesperrtHinweis\.textContent = fest\.length/.test(kq));
+wahr("er nennt die betroffenen Regler", /fest\.join\(", "\)/.test(kq));
+wahr("und sagt, wo das Schloss steht", /alle Regler zeigen/.test(kq));
+// Er muss sich MITAKTUALISIEREN: Wer im Reglerkasten ein Schloss oeffnet, soll
+// den Kopf sofort frei sehen und nicht erst nach einem Reiterwechsel.
+wahr("der Kopf haengt an der Schloss-Anzeige", /lockPainters\[c\.id\] \|\|= \[\]/.test(q));
+wahr("und wird beim Aufbau einmal gezeichnet", /\n  zeigeSchloesser\(\);/.test(q));
+// Gegenprobe: Ohne Schloss darf NICHTS gesperrt sein — sonst waere die Anzeige
+// immer an und sagte nichts aus.
+wahr("ohne Schloss bleibt alles frei", /laengeIn\.disabled = false/.test(kq));
+wahr("auch die Reibung", /reibungIn\.disabled = false/.test(kq));
+
 // ── 4 · Der Kopf ist ein Umschalter, kein Reiter ────────────────────────────
 // Vierzehn Reiter sind genug, und der Nutzungszähler sammelt gerade die Daten
 // dazu, welche davon Ballast sind.

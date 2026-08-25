@@ -1779,15 +1779,44 @@ export function mountStudio(root: HTMLElement): void {
 
   const formReihe = el("div", { class: "ek-wahl" });
   KOPF_FORMEN.forEach(([, label], i) => {
-    const b = el("button", { type: "button" }, label);
+    const b = el("button", { type: "button" }, label) as HTMLButtonElement;
     b.setAttribute("aria-pressed", String(i === kopfWahl.form));
     b.addEventListener("click", () => {
+      if (locked.has(form.id)) return;
       kopfWahl.form = i;
       Array.from(formReihe.children).forEach((x, j) => x.setAttribute("aria-pressed", String(i === j)));
       sichereKopfWahl(kopfWahl);
     });
     formReihe.append(b);
   });
+
+  // ── Was der Kopf NICHT anfassen darf ──────────────────────────────────────
+  // Er laesst festgehaltene Regler in Ruhe — das war Absicht. Aber er sagte es
+  // NICHT: Man klickte Reim, der Chip sprang an, der Knopf erzeugte, und nichts
+  // geschah. Drei Meldungen und drei falsche Diagnosen von mir spaeter stand im
+  // Schaltplan ein Schloss an der Form.
+  //
+  // Ein Knopf, den man druecken kann und der nichts tut, ist schlechter als
+  // einer, den man nicht druecken kann. Die Chips werden deshalb wirklich
+  // gesperrt, nicht nur ignoriert — und fuer Laenge und Reibung, wo es keine
+  // Chips gibt, steht es als Satz darunter.
+  const gesperrtHinweis = el("p", { class: "ek-gesperrt" }, "");
+  const zeigeSchloesser = (): void => {
+    const fest: string[] = [];
+    const fSperr = locked.has(form.id);
+    Array.from(formReihe.children).forEach((x) => {
+      (x as HTMLButtonElement).disabled = fSperr;
+      x.setAttribute("title", fSperr ? "Die Form ist festgehalten — Schloss im Reglerkasten öffnen" : "");
+    });
+    formReihe.classList.toggle("gesperrt", fSperr);
+    if (fSperr) fest.push("Form");
+    if (locked.has(lenSlider.id)) { laengeIn.disabled = true; fest.push("Länge"); } else laengeIn.disabled = false;
+    if (locked.has(preset.id)) { reibungIn.disabled = true; fest.push("Reibung"); } else reibungIn.disabled = false;
+    gesperrtHinweis.textContent = fest.length
+      ? `🔒 ${fest.join(", ")} ${fest.length === 1 ? "ist" : "sind"} festgehalten und bleibt${fest.length === 1 ? "" : "en"} unverändert. `
+        + "Das Schloss steht unter „alle Regler zeigen“ neben dem Regler."
+      : "";
+  };
 
   const saatIn = el("input", {
     type: "text", value: kopfWahl.saat, "aria-label": "Wovon soll der Text handeln",
@@ -1884,12 +1913,24 @@ export function mountStudio(root: HTMLElement): void {
       reihe("Länge", laengeIn, stufenZeile(LAENGE_NAMEN, "ek-laenge-stufen")),
       reihe("Reibung", reibungIn, stufenZeile(REIBUNG_NAMEN, "ek-reibung-stufen")),
       el("div", { class: "ek-probe" }, probeKante, probeText, probeFuss),
+      gesperrtHinweis,
       el("div", { class: "ek-fussreihe" }, kopfLos,
         el("span", { class: "ek-hinweis" },
           "Alles Übrige würfelt die Maschine. Was sie gewürfelt hat, steht im Schaltplan unter Diagnose.")));
   const kopf = el("div", { class: "ek-kopf" },
     el("div", { class: "ek-leiste" }, frage, umschalter), koerper);
   wrap.prepend(kopf);
+  // An die vorhandene Schloss-Anzeige haengen: Wer im Reglerkasten ein Schloss
+  // oeffnet, soll den Kopf sofort frei sehen und nicht erst nach einem
+  // Reiterwechsel.
+  for (const c of [form, lenSlider, preset]) {
+    // `b` dient der Lebendpruefung — die Liste wirft Maler weg, deren Element
+    // nicht mehr im Baum haengt. Deshalb der Erzeugen-Knopf und nicht der
+    // Hinweis: Er ist ein Knopf, wie der Typ es verlangt, und er lebt genauso
+    // lange wie der Kopf.
+    (lockPainters[c.id] ||= []).push({ b: kopfLos as HTMLButtonElement, paint: zeigeSchloesser });
+  }
+  zeigeSchloesser();
   setzeModus(kopfWahl.einfach !== false);
   zeichneProbe();
   markiere("ek-laenge-stufen", kopfWahl.laenge);

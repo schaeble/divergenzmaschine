@@ -1121,3 +1121,11 @@ select.abweichend{border-color:var(--acc)}
 .ek-leiste .ek-neben:hover{color:var(--text);background:var(--panel2)}
 .ek-leiste .ek-neben:focus-visible{outline:2px solid var(--acc2);outline-offset:1px}
 .ek-satz .ek-weg{font-size:18px;line-height:1;padding:0 10px}
+/* Gesperrt heisst nicht klickbar, nicht nur wirkungslos. Ein Knopf, den man
+   druecken kann und der nichts tut, ist schlechter als einer, den man nicht
+   druecken kann. */
+.ek-wahl button:disabled{opacity:.4;cursor:not-allowed}
+.ek-wahl button:disabled:hover{color:var(--muted);border-color:var(--border2)}
+.ek-koerper input[type=range]:disabled{opacity:.4;cursor:not-allowed}
+.ek-gesperrt{margin:12px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
+.ek-gesperrt:empty{display:none}

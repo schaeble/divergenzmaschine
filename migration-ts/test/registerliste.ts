@@ -108,6 +108,34 @@ wahr("und der Hinweis verschwindet wieder", !/beide Angaben nötig/.test(zeile()
 
 wahr("die Ablage wandert in die Projektdatei", EIGEN_KEY.startsWith("divergenz_"));
 
+// ── Ein Schloss an der Form: der Kopf zeigt es ─────────────────────────────
+// Der gemeldete Fall, im echten Baum nachgestellt. Im Schaltplan stand ein
+// Schloss an der Form — der Kopf liess sie deshalb in Ruhe und sagte es nicht.
+{
+  const { mountStudio } = require("../src/ui/studio") as { mountStudio: (r: HTMLElement) => void };
+  localStorage.setItem("divergenz_studio_locks_v1", JSON.stringify(["f-form"]));
+  localStorage.setItem("divergenz_einfach_v1",
+    JSON.stringify({ form: 0, laenge: 1, reibung: 1, saat: "Zwei Becher.", einfach: true }));
+  const st = dom.window.document.createElement("div");
+  dom.window.document.body.append(st);
+  mountStudio(st);
+  const chips = Array.from(st.querySelectorAll(".ek-wahl button")) as HTMLButtonElement[];
+  wahr(`die Formchips sind da (${chips.length})`, chips.length === 4);
+  wahr("und bei gesperrter Form alle abgeschaltet", chips.every((c) => c.disabled));
+  const hinweis = st.querySelector(".ek-gesperrt")?.textContent || "";
+  wahr(`der Hinweis nennt die Form (${hinweis.slice(0, 40)})`, /Form/.test(hinweis));
+  wahr("und sagt, wo das Schloss steht", /alle Regler zeigen/.test(hinweis));
+  // Gegenprobe: OHNE Schloss muessen die Chips klickbar sein und der Hinweis
+  // leer — sonst pruefte die Zeile oben nur, dass immer alles gesperrt ist.
+  localStorage.setItem("divergenz_studio_locks_v1", "[]");
+  const st2 = dom.window.document.createElement("div");
+  dom.window.document.body.append(st2);
+  mountStudio(st2);
+  const chips2 = Array.from(st2.querySelectorAll(".ek-wahl button")) as HTMLButtonElement[];
+  wahr("ohne Schloss sind die Chips klickbar", chips2.every((c) => !c.disabled));
+  ist("und der Hinweis bleibt leer", (st2.querySelector(".ek-gesperrt")?.textContent || ""), "");
+}
+
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand Register-Liste — ${geprueft} Prüfungen:`);
 zeilen.forEach((z) => console.log(z));
