@@ -13,7 +13,7 @@
 // Plan seine Koordinaten selbst — und deshalb sind sie hier nachprüfbar.
 import { readFileSync } from "fs";
 import { baueAnlage, sammleUmgebung, loadAnlage, SCHLOSS_ZU_KNOTEN, QUELLE_ZU_KNOTEN, type AnlageStand, type Umgebung } from "../src/features/schaltplan";
-import { mountStudio } from "../src/ui/studio";
+import { mountStudio, uebernimmWurf } from "../src/ui/studio";
 import { KNOB_VORGABE, KNOB_SPANNE } from "../src/features/knobs";
 import { saveIdeaProfile, loadIdeaProfile, saveIdeaUserPreset, loadIdeaUserPresets, IDEA_PRESETS } from "../src/features/ideaprofile";
 import { loadOmniStand } from "../src/features/omnikognition";
@@ -441,6 +441,39 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   // Und der Plan nennt sie beim Namen.
   wahr("das Etikett nennt beide",
     sammleUmgebung(nachZweien).presetLabel.split(" + ").length >= 2);
+
+  // ── Der Weg ANDERSHERUM: Diagnose → Studio ────────────────────────────────
+  // Gemeldet: „Wenn ich mit der Diagnose alles würfle, passiert im Studio
+  // parallel nichts."
+  //
+  // Der Wurf kam durchaus an — `uebernimmWurf` legt ihn auf dem Merkzettel ab,
+  // und die Rueckkehr in den Reiter stellt ihn her. Aber `preset.value = x`
+  // laedt KEINE Wortbank; das geschieht erst im change-Handler. Das
+  // Auswahlfeld zeigte den Wurf, die Bank blieb die alte, und eine vorher
+  // getroffene Mehrfachauswahl stand weiter in `multiIds`.
+  //
+  // Nachgestellt: Wurf hinterlegen, Studio neu aufbauen, nachsehen.
+  uebernimmWurf({ "f-preset": "builtin:kafka", "f-tone": "dark" });
+  const w5 = D4.createElement("div");
+  D4.body.append(w5);
+  mountStudio(w5);
+  // Ueber die LISTE suchen, nicht ueber „#id": Im Dokument haengen inzwischen
+  // mehrere Studios, und damit gibt es jede Kennung mehrfach. Ein
+  // ID-Selektor ist dann nicht mehr verlaesslich.
+  const feldVon = (id: string): HTMLSelectElement =>
+    Array.from(w5.querySelectorAll("select")).find((x) => (x as HTMLSelectElement).id === id) as HTMLSelectElement;
+  const pFeld = feldVon("f-preset");
+  const tFeld = feldVon("f-tone");
+  ist("der gewuerfelte Ton kommt an", tFeld.value, "dark");
+  ist("das gewuerfelte Preset auch", pFeld.value, "builtin:kafka");
+  // Und zwar RICHTIG: keine alte Mehrfachauswahl mehr, die daneben stehen bleibt.
+  ist("die Mehrfachauswahl ist aufgeloest", /__multi__/.test(pFeld.value), false);
+  // Die Kopfzeile im Studio muss dasselbe sagen wie das Feld.
+  const status = w5.querySelector(".presetfield .field-label")?.textContent || "";
+  wahr(`die Kopfzeile nennt Kafka (${status.slice(0, 60)})`, /Kafka/.test(status));
+  // Und der Anlagenstand ebenso — sonst faengt die Ungleichheit von vorn an.
+  wahr("und der Plan zeigt dasselbe",
+    /Kafka/.test(sammleUmgebung(loadAnlage()?.regler["preset"] || "").presetLabel));
 }
 
 

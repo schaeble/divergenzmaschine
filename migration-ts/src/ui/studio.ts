@@ -1825,6 +1825,23 @@ export function mountStudio(root: HTMLElement): void {
   } else {
     // Rückkehr in den Tab: zuletzt gewählte Reglerstellung wiederherstellen
     for (const s of ROLL_SELECTS) { const v = studioReglerStand[s.id]; if (v !== undefined && Array.from(s.options).some((o) => o.value === v)) s.value = v; }
+    // Das PRESET braucht mehr als eine Zuweisung.
+    //
+    // Gemeldet: Würfelt man im Schaltplan „Alles würfeln", passiert im Studio
+    // nichts. Der Wurf kam durchaus an — aber `preset.value = x` laedt keine
+    // Wortbank; das geschieht erst im change-Handler. Das Auswahlfeld zeigte
+    // also den Wurf, die Bank blieb die alte, und eine vorher getroffene
+    // Mehrfachauswahl stand weiter in `multiIds`. Studio und Plan sagten
+    // Verschiedenes, weil nur die Haelfte des Weges gegangen wurde.
+    const pv = studioReglerStand[preset.id];
+    if (pv !== undefined && pv !== MULTI_ID && pv !== AUTOMIX_ID
+      && Array.from(preset.options).some((o) => o.value === pv)) {
+      // Eine alte Mehrfachauswahl muss weichen: Sonst zeigte die Kopfzeile
+      // weiter die Mischung, waehrend das Feld ein einzelnes Preset fuehrt.
+      if (multiIds.length) { multiIds = []; saveMulti(); }
+      preset.value = pv;
+      preset.dispatchEvent(new Event("change"));
+    }
   }
   restoreLocked();
   // Reglerstand festhalten, damit die Rückkehr in den Tab ihn wiederherstellen kann
