@@ -139,6 +139,24 @@ ist("der Kopf führt keine eigenen Reglerwerte",
   ist("… mit dem Vorgang im Was", z2.what, "hält den Verband");
   const z3 = zerlegeSaat("Eine Archivarin entdeckt ein zweites Testament");
   ist("die Welt-Verben trennen Figur und Vorgang", z3.what, "entdeckt ein zweites Testament");
+  // Nebensätze tragen ihr Verb am Ende — dort darf die Trennung nicht
+  // zuspringen. Gemessen (4.326.1): Mit der wachsenden Verbliste zerfiel
+  // „Ein Kind, das nur nachts spricht" sonst mitten in der Figur.
+  const z4 = zerlegeSaat("Ein Kind, das nur nachts spricht entdeckt ein Signal aus dem Nichts");
+  ist("ein Relativsatz-Verb trennt nicht", z4.who, "Ein Kind, das nur nachts spricht");
+  ist("… erst das Hauptverb danach", z4.what, "entdeckt ein Signal aus dem Nichts");
+  const z5 = zerlegeSaat("Eine Klinik, die den Namen wechselt");
+  ist("ein reiner Relativsatz bleibt ganz in der Figur", z5.who, "Eine Klinik, die den Namen wechselt");
+  ist("… und erfindet kein Was", z5.what, "");
+  // Und der Welt-Satz wird mit der Probe aufs Exempel gebaut: Eine Figur mit
+  // Relativsatz-Verb bekommt den Vorgang nur, wenn die Zerlegung ihn danach
+  // wiederfindet.
+  const mitRelativ = saatVorrat([], { who: "ein Kind, das nur nachts spricht", where: "in einem Museum nach Schließung", when: "", what: "entdeckt ein zweites Testament" });
+  const rs = mitRelativ.find((v) => v.includes("Kind"));
+  wahr("die Relativsatz-Figur bekommt ihren Satz", !!rs);
+  const rz = zerlegeSaat(rs || "");
+  ist("… und er zerfällt richtig: der Ort", rz.where, "in einem Museum nach Schließung");
+  ist("… der Vorgang", rz.what, "entdeckt ein zweites Testament");
 
   const vorrat = saatVorrat(
     ["ein Rad, das sich ohne Achse dreht", "zu kurz", "x".repeat(90)],

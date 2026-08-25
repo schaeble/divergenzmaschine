@@ -21249,11 +21249,25 @@ var SAAT_BEISPIELE = [
   "Ein Zimmer, das im Plan nicht vorkommt.",
   "Der Bote bringt, was niemand h\xF6ren will."
 ];
-var ORTS_WORT = /\b(?:am|an|auf|bei|im|in|vor|hinter|unter|über|neben|zwischen)\s+(?:der|dem|den|die|das|einem|einer|einen|eine|ein)?\s*(?:[a-zäöüß]+(?:e|en|er|em|es)\s+){0,2}[A-ZÄÖÜ][\wÄÖÜäöüß-]*(?:\s+[A-ZÄÖÜ][\wÄÖÜäöüß-]*)?/u;
+var ORTS_WORT = /\b(?:am|an|auf|bei|im|in|vor|hinter|unter|über|neben|zwischen)\s+(?:der|dem|den|die|das|einem|einer|einen|eine|ein)?\s*(?:[a-zäöüß]+(?:e|en|er|em|es)\s+){0,2}[A-ZÄÖÜ][\wÄÖÜäöüß-]*(?:\s+[A-ZÄÖÜ][\wÄÖÜäöüß-]*)?(?:\s+(?:am|an|auf|bei|im|in|vor|hinter|unter|über|neben|zwischen|nach|ohne|mit)\s+(?:der|dem|den|die|das|einem|einer|einen|eine|ein)?\s*(?:[a-zäöüß]+(?:e|en|er|em|es)\s+){0,2}[A-ZÄÖÜ][\wÄÖÜäöüß-]*)*/u;
 var JAHR = /\b(?:im Jahr\s+)?(1[0-9]{3}|20[0-9]{2})\b/u;
-var VERBEN = "ist|sind|war|waren|wird|werden|hat|haben|kommt|kommen|geht|gehen|bringt|wechselt|verschwindet|beginnt|endet|steht|liegt|tr\xE4gt|nimmt|sucht|findet|verliert|\xF6ffnet|schlie\xDFt|entdeckt|verfolgt|st\xF6\xDFt|rekonstruiert|erbt|entziffert|verh\xF6rt|beantragt|erfindet|sammelt|z\xE4hlt|bewacht|notiert|verweigert|behauptet|vergisst|wartet|baut|schreibt|liest|ruft|fragt|schweigt|flieht|versteckt|vertauscht|\xFCbersetzt|repariert|kartiert|archiviert|h\xE4lt|zieht|bleibt|f\xE4llt|l\xE4uft|treibt|legt|setzt|stellt|zeigt|h\xF6rt|sieht|kennt|glaubt|meldet|warnt";
-var VERB_SPLIT = new RegExp("\\s(?:" + VERBEN + ")\\b", "u");
+var VERBEN = "ist|sind|war|waren|wird|werden|hat|haben|kommt|kommen|geht|gehen|bringt|wechselt|verschwindet|beginnt|endet|steht|liegt|tr\xE4gt|nimmt|sucht|findet|verliert|\xF6ffnet|schlie\xDFt|entdeckt|verfolgt|st\xF6\xDFt|rekonstruiert|erbt|entziffert|verh\xF6rt|beantragt|erfindet|sammelt|z\xE4hlt|bewacht|notiert|verweigert|behauptet|vergisst|wartet|baut|schreibt|liest|ruft|fragt|schweigt|flieht|versteckt|vertauscht|\xFCbersetzt|repariert|kartiert|archiviert|h\xE4lt|zieht|bleibt|f\xE4llt|l\xE4uft|treibt|legt|setzt|stellt|zeigt|h\xF6rt|sieht|kennt|glaubt|meldet|warnt|bekommt|erh\xE4lt|muss|will|soll|l\xE4sst|macht|gibt|sagt|trifft|bemerkt|erkennt|erwacht|verspricht|weckt|verhandelt|l\xF6st|f\xFCllt|verklagt|bricht|kehrt|r\xE4umt|verpasst|beantwortet|k\xFCndigt|verschiebt|wacht|gr\xE4bt|gewinnt|verwaltet|beruft|optimiert|reformiert|privatisiert|digitalisiert|gr\xFCndet|tauscht|verkauft|folgt|spricht";
 var VERB_ANFANG = new RegExp("^(?:" + VERBEN + ")\\b", "u");
+var VERB_IRGENDWO = new RegExp("\\b(?:" + VERBEN + ")\\b", "u");
+function findeHauptverb(rest) {
+  const re = new RegExp("\\s(?:" + VERBEN + ")\\b", "gu");
+  let m;
+  while (m = re.exec(rest)) {
+    const davor = rest.slice(0, m.index);
+    const komma = davor.lastIndexOf(",");
+    if (komma >= 0) {
+      const abschnitt = davor.slice(komma + 1);
+      if (/^\s*(der|die|das|den|dem|dessen|deren|was|wer|wo)\b/i.test(abschnitt) && !VERB_IRGENDWO.test(abschnitt)) continue;
+    }
+    return { index: m.index };
+  }
+  return null;
+}
 function zerlegeSaat(satz) {
   const roh = (satz || "").replace(/\s+/g, " ").trim().replace(/[.]$/, "");
   if (!roh) return { who: "", where: "", when: "", what: "" };
@@ -21265,7 +21279,7 @@ function zerlegeSaat(satz) {
   const where = o ? o[0].replace(/\s+/g, " ").trim() : "";
   if (o) rest = (rest.slice(0, o.index) + rest.slice(o.index + o[0].length)).replace(/\s{2,}/g, " ").trim();
   rest = rest.replace(/\s{2,}/g, " ").replace(/[,;]\s*$/, "").replace(/,\s*(?=[a-zäöüß])/, ", ").trim();
-  const v = VERB_SPLIT.exec(rest);
+  const v = findeHauptverb(rest);
   const who = (v ? rest.slice(0, v.index) : rest).replace(/,\s*$/, "").trim();
   const what = v ? rest.slice(v.index).trim() : "";
   return { who, where, when, what };
@@ -21287,9 +21301,17 @@ function saatVorrat(phrasen, welt) {
     raus.push(t.charAt(0).toUpperCase() + t.slice(1) + ".");
   }
   if (welt && welt.who) {
+    const wer = welt.who.trim().charAt(0).toUpperCase() + welt.who.trim().slice(1);
     const ort = welt.where && ORTS_WORT.test(welt.where) ? ` ${welt.where.trim()}` : "";
     const tat = welt.what && VERB_ANFANG.test(welt.what.trim()) ? ` ${welt.what.trim()}` : "";
-    const satz = `${welt.who.trim().charAt(0).toUpperCase() + welt.who.trim().slice(1)}${ort}${tat}.`;
+    const passt2 = (s) => {
+      const z = zerlegeSaat(s);
+      if (ort && s.includes(ort) && z.where !== welt.where.trim()) return false;
+      if (tat && s.includes(tat) && z.what !== welt.what.trim().replace(/[.]$/, "")) return false;
+      return true;
+    };
+    const kandidaten = [`${wer}${ort}${tat}.`, `${wer}${tat}.`, `${wer}${ort}.`, `${wer}.`];
+    const satz = kandidaten.find(passt2) || `${wer}.`;
     if (!raus.includes(satz)) raus.push(satz);
   }
   return [...new Set(raus)];

@@ -92,7 +92,10 @@ export const SAAT_BEISPIELE = [
 // Stadt hält den Verband" als Figur im Blatt. Die Adjektiv-Endungen sind
 // ausdruecklich (-e/-en/-er/-em/-es), damit kein beliebiges Kleinwort
 // verschluckt wird.
-const ORTS_WORT = /\b(?:am|an|auf|bei|im|in|vor|hinter|unter|über|neben|zwischen)\s+(?:der|dem|den|die|das|einem|einer|einen|eine|ein)?\s*(?:[a-zäöüß]+(?:e|en|er|em|es)\s+){0,2}[A-ZÄÖÜ][\wÄÖÜäöüß-]*(?:\s+[A-ZÄÖÜ][\wÄÖÜäöüß-]*)?/u;
+// Nach dem Nomen dürfen weitere Präpositionsglieder folgen („in einer
+// Markthalle vor Sonnenaufgang", „an einer Steilküste im Nebel") — genau so
+// sehen die Orte der Welt aus. Die Kette bricht an Komma oder Verb ab.
+const ORTS_WORT = /\b(?:am|an|auf|bei|im|in|vor|hinter|unter|über|neben|zwischen)\s+(?:der|dem|den|die|das|einem|einer|einen|eine|ein)?\s*(?:[a-zäöüß]+(?:e|en|er|em|es)\s+){0,2}[A-ZÄÖÜ][\wÄÖÜäöüß-]*(?:\s+[A-ZÄÖÜ][\wÄÖÜäöüß-]*)?(?:\s+(?:am|an|auf|bei|im|in|vor|hinter|unter|über|neben|zwischen|nach|ohne|mit)\s+(?:der|dem|den|die|das|einem|einer|einen|eine|ein)?\s*(?:[a-zäöüß]+(?:e|en|er|em|es)\s+){0,2}[A-ZÄÖÜ][\wÄÖÜäöüß-]*)*/u;
 const JAHR = /\b(?:im Jahr\s+)?(1[0-9]{3}|20[0-9]{2})\b/u;
 
 export interface VierW { who: string; where: string; when: string; what: string }
@@ -101,9 +104,33 @@ export interface VierW { who: string; where: string; when: string; what: string 
  *  Erweitert um die Verben, mit denen die Welt-Vorgänge beginnen (entdeckt,
  *  erbt, verhört, beantragt …) — sonst könnte der Würfelvorrat Sätze
  *  anbieten, die die eigene Zerlegung nicht wieder auseinanderbekommt. */
-const VERBEN = "ist|sind|war|waren|wird|werden|hat|haben|kommt|kommen|geht|gehen|bringt|wechselt|verschwindet|beginnt|endet|steht|liegt|trägt|nimmt|sucht|findet|verliert|öffnet|schließt|entdeckt|verfolgt|stößt|rekonstruiert|erbt|entziffert|verhört|beantragt|erfindet|sammelt|zählt|bewacht|notiert|verweigert|behauptet|vergisst|wartet|baut|schreibt|liest|ruft|fragt|schweigt|flieht|versteckt|vertauscht|übersetzt|repariert|kartiert|archiviert|hält|zieht|bleibt|fällt|läuft|treibt|legt|setzt|stellt|zeigt|hört|sieht|kennt|glaubt|meldet|warnt";
-const VERB_SPLIT = new RegExp("\\s(?:" + VERBEN + ")\\b", "u");
+const VERBEN = "ist|sind|war|waren|wird|werden|hat|haben|kommt|kommen|geht|gehen|bringt|wechselt|verschwindet|beginnt|endet|steht|liegt|trägt|nimmt|sucht|findet|verliert|öffnet|schließt|entdeckt|verfolgt|stößt|rekonstruiert|erbt|entziffert|verhört|beantragt|erfindet|sammelt|zählt|bewacht|notiert|verweigert|behauptet|vergisst|wartet|baut|schreibt|liest|ruft|fragt|schweigt|flieht|versteckt|vertauscht|übersetzt|repariert|kartiert|archiviert|hält|zieht|bleibt|fällt|läuft|treibt|legt|setzt|stellt|zeigt|hört|sieht|kennt|glaubt|meldet|warnt|bekommt|erhält|muss|will|soll|lässt|macht|gibt|sagt|trifft|bemerkt|erkennt|erwacht|verspricht|weckt|verhandelt|löst|füllt|verklagt|bricht|kehrt|räumt|verpasst|beantwortet|kündigt|verschiebt|wacht|gräbt|gewinnt|verwaltet|beruft|optimiert|reformiert|privatisiert|digitalisiert|gründet|tauscht|verkauft|folgt|spricht";
 const VERB_ANFANG = new RegExp("^(?:" + VERBEN + ")\\b", "u");
+const VERB_IRGENDWO = new RegExp("\\b(?:" + VERBEN + ")\\b", "u");
+
+/** Das HAUPTverb finden — nicht das erste Verb. Deutsche Nebensätze tragen
+ *  ihr Verb am Ende: In „Ein Kind, das nur nachts spricht, entdeckt ein
+ *  Signal" ist „spricht" das Ende des Relativsatzes, nicht der Vorgang. Mit
+ *  der wachsenden Verbliste sprang die Trennung sonst mitten in die Figur.
+ *
+ *  Die Regel: Ein Verb, dessen Komma-Abschnitt mit einem Relativ- oder
+ *  Fragepronomen beginnt und noch KEIN Verb enthält, ist das Nebensatz-Ende
+ *  und wird übersprungen; das nächste Verb danach ist wieder Hauptsatz. */
+function findeHauptverb(rest: string): { index: number } | null {
+  const re = new RegExp("\\s(?:" + VERBEN + ")\\b", "gu");
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(rest))) {
+    const davor = rest.slice(0, m.index);
+    const komma = davor.lastIndexOf(",");
+    if (komma >= 0) {
+      const abschnitt = davor.slice(komma + 1);
+      if (/^\s*(der|die|das|den|dem|dessen|deren|was|wer|wo)\b/i.test(abschnitt)
+        && !VERB_IRGENDWO.test(abschnitt)) continue;
+    }
+    return { index: m.index };
+  }
+  return null;
+}
 
 export function zerlegeSaat(satz: string): VierW {
   const roh = (satz || "").replace(/\s+/g, " ").trim().replace(/[.]$/, "");
@@ -125,7 +152,7 @@ export function zerlegeSaat(satz: string): VierW {
   // Was übrig ist, teilt sich am ersten finiten Verb: davor die Figur, danach
   // der Vorgang. Ohne erkennbares Verb ist alles die Figur — ein Was zu
   // erfinden wäre schlechter als keines.
-  const v = VERB_SPLIT.exec(rest);
+  const v = findeHauptverb(rest);
   const who = (v ? rest.slice(0, v.index) : rest).replace(/,\s*$/, "").trim();
   const what = v ? rest.slice(v.index).trim() : "";
   return { who, where, when, what };
@@ -184,9 +211,21 @@ export function saatVorrat(phrasen: string[], welt: VierW | null): string[] {
     raus.push(t.charAt(0).toUpperCase() + t.slice(1) + ".");
   }
   if (welt && welt.who) {
+    const wer = welt.who.trim().charAt(0).toUpperCase() + welt.who.trim().slice(1);
     const ort = welt.where && ORTS_WORT.test(welt.where) ? ` ${welt.where.trim()}` : "";
     const tat = welt.what && VERB_ANFANG.test(welt.what.trim()) ? ` ${welt.what.trim()}` : "";
-    const satz = `${welt.who.trim().charAt(0).toUpperCase() + welt.who.trim().slice(1)}${ort}${tat}.`;
+    // Die Probe aufs Exempel statt eines Anfangs-Verb-Tests: Der Satz kommt
+    // nur in den Topf, wenn die eigene Zerlegung Ort und Vorgang WIRKLICH
+    // zurückgewinnt. Reicht es nicht, wird stufenweise gekürzt — erst der
+    // Vorgang, dann der Ort. Die Figur allein besteht immer.
+    const passt = (s: string): boolean => {
+      const z = zerlegeSaat(s);
+      if (ort && s.includes(ort) && z.where !== welt.where.trim()) return false;
+      if (tat && s.includes(tat) && z.what !== welt.what.trim().replace(/[.]$/, "")) return false;
+      return true;
+    };
+    const kandidaten = [`${wer}${ort}${tat}.`, `${wer}${tat}.`, `${wer}${ort}.`, `${wer}.`];
+    const satz = kandidaten.find(passt) || `${wer}.`;
     if (!raus.includes(satz)) raus.push(satz);
   }
   // Dubletten raus — der Würfel zieht gleichverteilt, und ein doppelter
