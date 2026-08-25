@@ -103,7 +103,13 @@ const reibBlock = q.slice(q.indexOf('reibungIn.addEventListener("input"'), q.ind
 wahr("der Regler schreibt sofort in die echte Auswahl", /applySelection\(ids\)/.test(reibBlock));
 wahr("ohne Auswahl zieht er gespreizt", /waehleGespreizt\(vorrat, ziel\)/.test(reibBlock));
 wahr("beim Runterdrehen bleibt Angekreuztes stehen", /ids\.slice\(0, ziel\)/.test(reibBlock));
-wahr("beim Hochdrehen wird nach Mischabstand ergänzt", /mischAbstand\(\[\.\.\.ids, k\]\)/.test(reibBlock));
+wahr("beim Hochdrehen wird nach Mischabstand ergänzt", /ergaenzeGespreizt\(ids, ziel, vorrat\)/.test(reibBlock));
+// Und das Blaettern in der Probe stellt das naechste Register wirklich ein —
+// seit die Probe die echte Auswahl zeigt, waere ein blosser Anzeige-Index
+// ein toter Knopf (gemeldet).
+const blaetterBlock = q.slice(q.indexOf('probeBox.addEventListener("click"'), q.indexOf("const kopfLos"));
+wahr("weiterblättern stellt das nächste Register ein", /applySelection\(ergaenzeGespreizt\(/.test(blaetterBlock));
+wahr("und hält am Preset-Schloss an", /locked\.has\(preset\.id\)/.test(blaetterBlock));
 wahr("und der Erzeugen-Knopf würfelt nicht mehr um", !/waehleGespreizt\(vorrat, st\.presets\)/.test(block));
 // SCHLÖSSER halten auch hier: Wer einen Regler festgehalten hat, will ihn nicht
 // von einem Kopf überschrieben bekommen.
@@ -163,7 +169,7 @@ ist("und am Ende laeuft es um", probeAus(P4, 1, P4.length)!.teile.map(([t]) => t
 ist("ein negativer Versatz stuerzt nicht ab", typeof probeAus(P4, 1, -3), "object");
 // Und die Probe ist wirklich ein Knopf.
 wahr("die Probe ist anklickbar", /button\.ek-probe\{/.test(readFileSync("src/ui/theme.css", "utf8")));
-wahr("und der Klick blaettert weiter", /probeVersatz\+\+; zeichneProbe\(\)/.test(q));
+wahr("und der Klick blaettert weiter", /probeVersatz\+\+;/.test(q));
 wahr("sie nennt die WIRKLICH aktiven Presets", /const aktivName = aktivePresetIds\(\)/.test(q));
 
 // Dieselbe Stufe muss dieselbe Probe zeigen: Ein Wackeln bei jedem Reglerzug

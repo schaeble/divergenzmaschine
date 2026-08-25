@@ -542,6 +542,30 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
   const wieder = kaesten().filter((k) => k.checked).map((k) => k.value);
   ist("hochgedreht → drei Presets aktiv", wieder.length, 3);
   wahr("… die zwei vorhandenen blieben stehen", zwei.every((id) => wieder.includes(id)));
+  // Gemeldet (4.323.2): Nach einem Reiterwechsel (z. B. Diagnose und zurück)
+  // landete „weit auseinander" bei „einstimmig". Der Merkzettel kannte nur
+  // change-Ereignisse; die Mehrfachauswahl wirft keines, und die Rückkehr
+  // stellte das zuletzt einzeln gewählte Preset wieder her.
+  mountStudio(wurzelR);
+  const reibung2 = wurzelR.querySelector('input[aria-label="Reibung zwischen den Registern"]') as HTMLInputElement;
+  ist("die Reibung überlebt den Reiterwechsel", reibung2.value, "2");
+  ist("… und die drei Presets auch", kaesten().filter((k) => k.checked).length, 3);
+  // Gemeldet (4.323.2): „Im grauen Feld mit weiterblättern kann ich durch
+  // keine Presets blättern." Seit die Probe die echte Auswahl zeigt, muss
+  // Blättern die Auswahl wirklich weiterstellen — sonst ist es ein toter Knopf.
+  reibung2.value = "0"; reibung2.dispatchEvent(new dom.window.Event("input"));
+  ist("für die Blätter-Probe: ein Preset aktiv", kaesten().filter((k) => k.checked).length, 1);
+  const aktiv = (): string => kaesten().filter((k) => k.checked).map((k) => k.value).join("+");
+  const davor = aktiv();
+  const probeKnopf = wurzelR.querySelector("button.ek-probe") as HTMLButtonElement;
+  wahr("es gibt den Blätter-Knopf", !!probeKnopf);
+  probeKnopf.click();
+  wahr("weiterblättern wechselt das Preset wirklich", aktiv() !== davor);
+  ist("… und die Anzahl bleibt bei der Stufe", kaesten().filter((k) => k.checked).length, 1);
+  ist("… der Regler bleibt auf einstimmig", reibung2.value, "0");
+  const zweiterStand = aktiv();
+  probeKnopf.click();
+  wahr("nochmal blättern → wieder ein anderes", aktiv() !== zweiterStand);
   // Zusage im Quelltext, die eine Messung nicht sieht: Der Erzeugen-Knopf
   // würfelt die Presets nicht mehr um — das Würfeln war die andere Hälfte
   // der Unsynchronität.

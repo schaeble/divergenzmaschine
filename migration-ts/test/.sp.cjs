@@ -22692,6 +22692,7 @@ function mountStudio(root) {
     applyMulti();
     ensureMultiOption();
     preset.value = MULTI_ID;
+    studioReglerStand[preset.id] = MULTI_ID;
     renderPresetChecks();
     anlageSichern();
     liveRegen();
@@ -24157,6 +24158,23 @@ function mountStudio(root) {
   genBtn.addEventListener("click", generate);
   const kopfWahl = ladeWahl();
   const aktiveIds = () => preset.value === AUTOMIX_ID ? [] : aktivePresetIds().filter((id) => !!getAllPresets()[id]);
+  const ergaenzeGespreizt = (start, n, vorrat) => {
+    const ids = start.slice();
+    while (ids.length < n) {
+      let bester = "", bestAbstand = -1;
+      for (const k of vorrat) {
+        if (ids.includes(k)) continue;
+        const a = mischAbstand([...ids, k]);
+        if (a > bestAbstand) {
+          bestAbstand = a;
+          bester = k;
+        }
+      }
+      if (!bester) break;
+      ids.push(bester);
+    }
+    return ids;
+  };
   const probeText = el("p", { id: "ek-probe" });
   const probeFuss = el("div", { class: "ek-fuss" });
   const probeKante = el("span", { class: "ek-kante" });
@@ -24277,19 +24295,7 @@ function mountStudio(root) {
     const vorrat = Object.keys(getAllPresets());
     if (!ids.length) ids = waehleGespreizt(vorrat, ziel);
     else if (ids.length > ziel) ids = ids.slice(0, ziel);
-    else while (ids.length < ziel) {
-      let bester = "", bestAbstand = -1;
-      for (const k of vorrat) {
-        if (ids.includes(k)) continue;
-        const a = mischAbstand([...ids, k]);
-        if (a > bestAbstand) {
-          bestAbstand = a;
-          bester = k;
-        }
-      }
-      if (!bester) break;
-      ids.push(bester);
-    }
+    else ids = ergaenzeGespreizt(ids, ziel, vorrat);
     if (ids.length) applySelection(ids);
     zeichneProbe();
   });
@@ -24317,7 +24323,7 @@ function mountStudio(root) {
     {
       class: "ek-probe",
       type: "button",
-      title: "Weiterbl\xE4ttern \u2014 anderes Material, andere B\xE4nke"
+      title: "Weiterbl\xE4ttern \u2014 stellt das n\xE4chste Register wirklich ein"
     },
     probeKante,
     probeText,
@@ -24326,6 +24332,19 @@ function mountStudio(root) {
   );
   probeBox.addEventListener("click", () => {
     probeVersatz++;
+    if (locked.has(preset.id)) {
+      zeichneProbe();
+      return;
+    }
+    const vorrat = Object.keys(getAllPresets());
+    const ids = aktiveIds();
+    if (vorrat.length < 2) {
+      zeichneProbe();
+      return;
+    }
+    const n = ids.length || (REIBUNG_STUFEN[kopfWahl.reibung] ?? 1);
+    const basis = (vorrat.indexOf(ids[0] ?? "") + 1 + vorrat.length) % vorrat.length;
+    applySelection(ergaenzeGespreizt([vorrat[basis]], n, vorrat));
     zeichneProbe();
   });
   const kopfLos = el("button", { class: "primary" }, icon("play"), " Text erzeugen");

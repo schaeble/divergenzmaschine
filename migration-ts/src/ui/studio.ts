@@ -534,6 +534,12 @@ export function mountStudio(root: HTMLElement): void {
     // deshalb verschiedene Presets, und zwar nicht bloss verschieden
     // geschrieben, sondern voellig andere.
     multiIds = ids; saveMulti(); applyMulti(); ensureMultiOption(); preset.value = MULTI_ID;
+    // Auch der MERKZETTEL haengt am change-Ereignis, das dieser Zweig nicht
+    // wirft. Ohne diese Zeile stand dort das zuletzt EINZELN gewaehlte Preset;
+    // die Rueckkehr aus einem anderen Reiter stellte es wieder her, raeumte
+    // die Mehrfachauswahl weg — und die Reibung landete bei einstimmig
+    // (gemeldet, 4.323.2).
+    studioReglerStand[preset.id] = MULTI_ID;
     renderPresetChecks(); anlageSichern(); liveRegen();
   }
 
@@ -1772,6 +1778,23 @@ export function mountStudio(root: HTMLElement): void {
    *  koennte. */
   const aktiveIds = (): string[] =>
     preset.value === AUTOMIX_ID ? [] : aktivePresetIds().filter((id) => !!getAllPresets()[id]);
+  /** Ergaenzt eine Auswahl um die Kandidaten mit dem groessten Mischabstand —
+   *  dieselbe Groesse, mit der waehleGespreizt spreizt, nur ohne Wuerfel:
+   *  Regler und Blaettern sollen vorhersagbar sein. */
+  const ergaenzeGespreizt = (start: string[], n: number, vorrat: string[]): string[] => {
+    const ids = start.slice();
+    while (ids.length < n) {
+      let bester = "", bestAbstand = -1;
+      for (const k of vorrat) {
+        if (ids.includes(k)) continue;
+        const a = mischAbstand([...ids, k]);
+        if (a > bestAbstand) { bestAbstand = a; bester = k; }
+      }
+      if (!bester) break;
+      ids.push(bester);
+    }
+    return ids;
+  };
   const probeText = el("p", { id: "ek-probe" });
   const probeFuss = el("div", { class: "ek-fuss" });
   const probeKante = el("span", { class: "ek-kante" });
@@ -1926,19 +1949,7 @@ export function mountStudio(root: HTMLElement): void {
     const vorrat = Object.keys(getAllPresets());
     if (!ids.length) ids = waehleGespreizt(vorrat, ziel);
     else if (ids.length > ziel) ids = ids.slice(0, ziel);
-    else while (ids.length < ziel) {
-      // Ergaenzen statt neu ziehen: der Kandidat mit dem groessten
-      // Mischabstand zum Vorhandenen — dieselbe Groesse, mit der
-      // waehleGespreizt spreizt, nur deterministisch ueber den ganzen Vorrat.
-      let bester = "", bestAbstand = -1;
-      for (const k of vorrat) {
-        if (ids.includes(k)) continue;
-        const a = mischAbstand([...ids, k]);
-        if (a > bestAbstand) { bestAbstand = a; bester = k; }
-      }
-      if (!bester) break;
-      ids.push(bester);
-    }
+    else ids = ergaenzeGespreizt(ids, ziel, vorrat);
     if (ids.length) applySelection(ids);
     zeichneProbe();
   });
@@ -1967,10 +1978,31 @@ export function mountStudio(root: HTMLElement): void {
   // Die Probe ist ein Knopf. Ein graues Feld, das etwas zeigt und auf nichts
   // reagiert, laedt nicht zum Ausprobieren ein — und genau das soll es.
   const probeBox = el("button", { class: "ek-probe", type: "button",
-    title: "Weiterblättern — anderes Material, andere Bänke" },
+    title: "Weiterblättern — stellt das nächste Register wirklich ein" },
     probeKante, probeText, probeFuss,
     el("span", { class: "ek-blaettern" }, "weiterblättern ›"));
-  probeBox.addEventListener("click", () => { probeVersatz++; zeichneProbe(); });
+  probeBox.addEventListener("click", () => {
+    // Blaettern heisst seit 4.323.2: das NAECHSTE Register wirklich
+    // einstellen. Vorher rueckte nur ein Anzeige-Index weiter — seit die
+    // Probe die ECHTE Auswahl zeigt (4.323.1), gab es fuer diesen Index bei
+    // den Namen nichts mehr zu drehen, und der Knopf wirkte tot (gemeldet:
+    // „kann ich durch keine Presets blaettern"). Ein Blick, der nichts
+    // einstellt, und eine Anzeige, die nur Eingestelltes zeigt, vertragen
+    // sich nicht; das Einstellen gewinnt. Der Versatz blaettert weiterhin
+    // zusaetzlich durchs Material.
+    probeVersatz++;
+    if (locked.has(preset.id)) { zeichneProbe(); return; }
+    const vorrat = Object.keys(getAllPresets());
+    const ids = aktiveIds();
+    if (vorrat.length < 2) { zeichneProbe(); return; }
+    // Das ERSTE Register rueckt eine Stelle im Vorrat weiter, der Rest wird
+    // gespreizt dazugestellt — so laeuft das Blaettern einmal durch alle
+    // Baenke, und bei Reibung sieht man Paare, die wirklich gemischt werden.
+    const n = ids.length || (REIBUNG_STUFEN[kopfWahl.reibung] ?? 1);
+    const basis = (vorrat.indexOf(ids[0] ?? "") + 1 + vorrat.length) % vorrat.length;
+    applySelection(ergaenzeGespreizt([vorrat[basis]!], n, vorrat));
+    zeichneProbe();
+  });
 
   const kopfLos = el("button", { class: "primary" }, icon("play"), " Text erzeugen");
   kopfLos.addEventListener("click", () => {
