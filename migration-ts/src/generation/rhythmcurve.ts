@@ -18,7 +18,7 @@ const wlen = (s: string): number => (s.toLowerCase().match(/[a-zäöüßA-ZÄÖ�
 // Dreifach-Verschmelzung. Nach dem Semikolon bleibt die Großschreibung
 // erhalten (Nomen, Namen); der Rhythmus misst Wörter, nicht Zeichen.
 let mergeZaehler = 0;
-const mergeSents = (a: string, b: string): string => {
+export const mergeSents = (a: string, b: string): string => {
   const kopf = a.replace(/[.!?…]+$/, "").trim();
   const strich = !kopf.includes("—") && !b.includes("—") && (mergeZaehler++ % 2 === 0);
   return kopf + (strich ? " — " : "; ") + b.trim();

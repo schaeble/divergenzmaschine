@@ -11,7 +11,7 @@
   }
 }
 import { readFileSync } from "fs";
-import { istAbgeschnitten, postProcessText, kleinerArtikel } from "../src/generation/postprocess";
+import { istAbgeschnitten, postProcessText, kleinerArtikel, kleinesPronomen } from "../src/generation/postprocess";
 import { dekliniere } from "../src/atoms/assemble";
 import { extractLeadVerb, looksLikeFullClause } from "../src/generation/wordcls";
 import { OBJEKT_EINSTIEG } from "../src/generation/shape";
@@ -251,6 +251,17 @@ wahr("die Objekt-Perspektive nutzt ihn", /Ich kenne \$\{dekliniere\(P, "akk"\)\}
   // Gegenprobe: ohne Komma alles wie vorher.
   ist("ohne Komma unverändert", extractLeadVerb("bringt einen Brief").rest, "einen Brief");
   ist("der Schliff zieht das Leerzeichen vor dem Komma ein", kleinerArtikel("Der Bote bringt , was niemand hören will."), "Der Bote bringt, was niemand hören will.");
+}
+
+// ── Pronomen nach Semikolon oder Gedankenstrich ─────────────────────────────
+// Gemeldet: „Eine ohne Rückfahrkarte will bleiben; Ich kenne den Satz …".
+{
+  const pp = kleinesPronomen;
+  ist("Ich nach Semikolon wird klein", pp("Eine will bleiben; Ich kenne den Satz."), "Eine will bleiben; ich kenne den Satz.");
+  ist("Wir nach Gedankenstrich wird klein", pp("Es regnet — Wir warten."), "Es regnet — wir warten.");
+  // Gegenproben: Satzanfang bleibt groß, „Sie" (Anrede) bleibt stehen.
+  ist("Ich am Satzanfang bleibt groß", pp("Es regnet. Ich warte."), "Es regnet. Ich warte.");
+  ist("Sie nach Semikolon bleibt stehen", pp("Es regnet; Sie warten."), "Es regnet; Sie warten.");
 }
 
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);

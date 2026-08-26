@@ -259,6 +259,10 @@ export function kleinerArtikel(t: string): string {
     (_m: string, vor: string, sp: string, w: string) => vor + sp + w.charAt(0).toLowerCase() + w.slice(1));
 }
 
+export function kleinesPronomen(t: string): string {
+  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr)\b/g, (_m: string, sp: string, w: string) => sp + w.toLowerCase());
+}
+
 export function postProcessText(txt: string, input?: Input): string {
   let t = (txt ?? "").toString();
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1: string, p2: string) => p1 + p2.toUpperCase());
@@ -266,6 +270,13 @@ export function postProcessText(txt: string, input?: Input): string {
   // ("…, und Die Vergangenheit" -> "…, und die Vergangenheit"). Nomen (Realitaet)
   // stehen nicht in der Liste und bleiben gross.
   t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m: string, c: string, sp: string, w: string) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
+
+  // Pronomen nach Semikolon oder Gedankenstrich klein: „Eine ohne Rückfahrkarte
+  // will bleiben; Ich kenne den Satz …" stand im Blatt. Die Zusammenziehung
+  // im Rhythmus lässt nach „; " die Großschreibung absichtlich stehen (Nomen,
+  // Namen) — ein Pronomen ist aber kein Nomen. „Sie" bleibt außen vor: Es
+  // könnte die Anrede sein.
+  t = kleinesPronomen(t);
 
   // Unbestimmter Artikel MITTEN im Satz klein.
   //

@@ -3285,10 +3285,14 @@ function kleinerArtikel(t) {
     (_m, vor, sp, w) => vor + sp + w.charAt(0).toLowerCase() + w.slice(1)
   );
 }
+function kleinesPronomen(t) {
+  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr)\b/g, (_m, sp, w) => sp + w.toLowerCase());
+}
 function postProcessText(txt, input) {
   let t = (txt ?? "").toString();
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
   t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
+  t = kleinesPronomen(t);
   t = kleinerArtikel(t);
   const name = (input?.who ?? "").toString().trim();
   if (name) {
@@ -11323,6 +11327,13 @@ wahr("die Objekt-Perspektive nutzt ihn", /Ich kenne \$\{dekliniere\(P, "akk"\)\}
   ist("und der Kern gilt nicht als Satz", looksLikeFullClause(lv.verb, lv.rest), false);
   ist("ohne Komma unver\xE4ndert", extractLeadVerb("bringt einen Brief").rest, "einen Brief");
   ist("der Schliff zieht das Leerzeichen vor dem Komma ein", kleinerArtikel("Der Bote bringt , was niemand h\xF6ren will."), "Der Bote bringt, was niemand h\xF6ren will.");
+}
+{
+  const pp = kleinesPronomen;
+  ist("Ich nach Semikolon wird klein", pp("Eine will bleiben; Ich kenne den Satz."), "Eine will bleiben; ich kenne den Satz.");
+  ist("Wir nach Gedankenstrich wird klein", pp("Es regnet \u2014 Wir warten."), "Es regnet \u2014 wir warten.");
+  ist("Ich am Satzanfang bleibt gro\xDF", pp("Es regnet. Ich warte."), "Es regnet. Ich warte.");
+  ist("Sie nach Semikolon bleibt stehen", pp("Es regnet; Sie warten."), "Es regnet; Sie warten.");
 }
 console.log(`Pr\xFCfstand Schliff \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

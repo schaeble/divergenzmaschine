@@ -27,7 +27,7 @@ import { BUILTIN_DRAMA } from "../src/presets.drama.data";
 import { setDramaData } from "../src/generation/dramaturgie";
 import { coherencePass } from "../src/generation/postprocess";
 import { joinBeats } from "../src/generation/beats";
-import { generateToCurve } from "../src/generation/rhythmcurve";
+import { generateToCurve, mergeSents } from "../src/generation/rhythmcurve";
 import { DEFAULT_BANK } from "../src/constants";
 import type { Bank, GenInput } from "../src/types";
 
@@ -358,8 +358,13 @@ for (const s of FUENF) {
   const mitStrich = saetze.filter((t) => t.includes("—")).length;
   const mitSemikolon = saetze.filter((t) => t.includes(";")).length;
   wahr("höchstens die Hälfte der Sätze trägt einen Strich", mitStrich <= Math.ceil(saetze.length / 2));
-  wahr("ab zwei Verschmelzungen kommt das Semikolon vor", mitSemikolon >= 1 || mitStrich <= 1);
-  ist("kein Satz mit zwei Strichen aus der Verschmelzung", saetze.filter((t) => /—[^.!?]*—/.test(t)).length, 0);
+  void mitSemikolon;
+  // Die Regel selbst, deterministisch: Strich und Semikolon wechseln, und an
+  // einen Strich hängt sich kein zweiter.
+  const paare = [mergeSents("Ein Satz.", "Noch einer."), mergeSents("Ein Satz.", "Noch einer."), mergeSents("Ein Satz.", "Noch einer."), mergeSents("Ein Satz.", "Noch einer.")];
+  wahr("die Verschmelzung wechselt zwischen Strich und Semikolon", paare.some((x) => x.includes(" — ")) && paare.some((x) => x.includes("; ")));
+  ist("an einen Strich hängt sich kein zweiter", mergeSents("A — B.", "C."), "A — B; C.");
+  ist("auch wenn der zweite Teil einen trägt", mergeSents("A.", "B — C."), "A; B — C.");
 }
 
 console.log(`Prüfstand Struktur — ${geprueft} Prüfungen, ${bestanden} bestanden`);
