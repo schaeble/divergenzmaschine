@@ -183,7 +183,11 @@ export function guessPronoun(P: string): string {
 const KEIN_VERB_AUF_T = new Set(["alt", "kalt", "laut", "bunt", "hart", "zart", "satt", "glatt",
   "weit", "breit", "rot", "tot", "gut", "spät", "echt", "leicht", "dicht", "recht", "schlecht",
   "nackt", "fest", "letzt", "jetzt", "sanft", "ernst", "wert", "leer", "seit", "statt", "samt",
-  "nicht", "mit", "seid", "zuletzt", "zuerst", "oft", "fast", "erst", "sonst", "meist", "direkt"]);
+  "nicht", "mit", "seid", "zuletzt", "zuerst", "oft", "fast", "erst", "sonst", "meist", "direkt",
+  // Nachgetragen mit der Reihungs-Beugung (4.328.2): Nach „und" stehen oft
+  // Adverbien — „und dort wartet er" darf nicht zu „und dorten" werden.
+  "dort", "fort", "sofort", "selbst", "vielleicht", "überhaupt", "bereit", "gerecht", "perfekt",
+  "exakt", "absolut", "gesamt", "komplett", "verrückt", "bekannt", "geschickt", "besetzt"]);
 
 /** Wörter, nach denen ein Subjekt folgen darf. */
 const SUBJ_FUGE = /^(und|oder|aber|denn|doch|sondern|dann|da|weil|dass|als|wenn|während|obwohl|bevor|nachdem|sobald|solange|ob|wie|so|auch|nur|jetzt|dort|hier|heute|gestern|morgen|plötzlich|dabei|dadurch|deshalb|trotzdem|später|zuerst|zuletzt|außerdem|schließlich)$/i;
@@ -219,6 +223,27 @@ export const OBJEKT_KOPF_RE = /^(Ich bin (?:der|die|das) [^.!?]{1,40}\.\s+[^.!?]
 const OBJEKT_ZWISCHENRUF = ["Ich sehe zu.", "Ich liege dabei.", "Ich zähle mit.",
   "Ich rühre mich nicht.", "Ich habe Zeit.", "Ich merke es mir."];
 
+/** Ein Verb der dritten Person auf ich/du/wir bringen. Rueckfall fuer schwache
+ *  Verben ohne Tabelleneintrag: Das Endungs-t wird ERSETZT, nicht ergaenzt
+ *  („erinnert" → „erinnerst", nicht „erinnertst"); bei Stamm auf -e („wartet" →
+ *  „warte") faellt das zusaetzliche e weg. */
+function beugeToken(v: string, person: string): string {
+  if (VERB_CONJ[v.toLowerCase()]) return conjugateVerbToken(v, person);
+  if (!/[a-zäöüß]{3,}t$/.test(v)) return v;
+  const stamm = v.slice(0, -1);                       // ohne das End-t
+  const hatE = /e$/.test(stamm);
+  if (person === "du") return stamm + "st";
+  if (person === "ich") return hatE ? stamm : stamm + "e";
+  if (person === "wir") return hatE ? stamm + "n" : stamm + "en";
+  return v;
+}
+/** Vier Buchstaben reichen: „erbt" fiel durch das alte {4,} und ergab „Du erbt
+ *  ein Amt" — gemessen in 28 % der Du-Texte. Adjektive auf -t („alt", „kalt")
+ *  stehen in der Sperrliste, sonst wuerde daraus „kalst". */
+const kenntVerb = (v: string): boolean =>
+  !!VERB_CONJ[v.toLowerCase()]
+  || (/^[a-zäöüß]{3,}t$/.test(v) && !KEIN_VERB_AUF_T.has(v.toLowerCase()));
+
 export function applyPerspective(paras: string[], perspective: string, who: string, objName: string): string[] {
   const P = clean(who) || "Jemand";
   const O = objektName(clean(objName) || pick(DING_VORRAT));
@@ -228,7 +253,7 @@ export function applyPerspective(paras: string[], perspective: string, who: stri
       // Ohne "i" wurde die Figur am Satzanfang nicht gefunden: gesucht wurde "ich",
       // dort steht aber "Ich". Der Baustein blieb dann unveraendert stehen.
       const re = new RegExp("([A-Za-zÄÖÜäöüß]+\\s+)?\\b" + escapeRegExp(P) + "\\b(\\s+[A-Za-zÄÖÜäöüß]+)?", "gi");
-      return s.replace(re, (_m: string, before?: string, after?: string, ...rest: unknown[]) => {
+      const ersetzt = s.replace(re, (_m: string, before?: string, after?: string, ...rest: unknown[]) => {
         // Nicht in Zusammensetzungen ersetzen: Sonst wird aus "Über-Ich" ein
         // "Über-du". Der Bindestrich davor macht den Unterschied.
         const idx = rest[rest.length - 2] as number;
@@ -259,22 +284,8 @@ export function applyPerspective(paras: string[], perspective: string, who: stri
         // dritten Person wird ERSETZT, nicht ergaenzt: "erinnert" -> "erinnerst",
         // nicht "erinnertst". Bei Stamm auf -e ("wartet" -> "warte") faellt das
         // zusaetzliche e weg.
-        const beuge = (v: string): string => {
-          if (VERB_CONJ[v.toLowerCase()]) return conjugateVerbToken(v, person);
-          if (!/[a-zäöüß]{3,}t$/.test(v)) return v;
-          const stamm = v.slice(0, -1);                       // ohne das End-t
-          const hatE = /e$/.test(stamm);
-          if (person === "du") return stamm + "st";
-          if (person === "ich") return hatE ? stamm : stamm + "e";
-          if (person === "wir") return hatE ? stamm + "n" : stamm + "en";
-          return v;
-        };
-        // Vier Buchstaben reichen: „erbt" fiel durch das alte {4,} und ergab
-        // „Du erbt ein Amt" — gemessen in 28 % der Du-Texte. Adjektive auf -t
-        // („alt", „kalt") stehen in der Sperrliste, sonst würde daraus „kalst".
-        const kennt = (v: string): boolean =>
-          !!VERB_CONJ[v.toLowerCase()]
-          || (/^[a-zäöüß]{3,}t$/.test(v) && !KEIN_VERB_AUF_T.has(v.toLowerCase()));
+        const beuge = (v: string): string => beugeToken(v, person);
+        const kennt = kenntVerb;
 
         // ── Nur in SUBJEKTSTELLUNG ersetzen ──────────────────────────────
         // Gemeldet an einem gesammelten Wikipedia-Satz: „In der Toskana wird
@@ -298,6 +309,22 @@ export function applyPerspective(paras: string[], perspective: string, who: stri
         if (bw && kennt(bw3)) return beuge(bw3) + " " + pron + (after || "");
         if (aw && kennt(aw3)) return (before || "") + pron + " " + beuge(aw3);
         return (before || "") + pron + (after || "");
+      });
+      // ── Auch das ZWEITE Verb einer Reihung beugen ──────────────────────
+      // Gemeldet: „wir räumen ein Zimmer und findet ein Leben". Der Tausch
+      // oben beugt nur das Verb direkt neben dem Pronomen; ein mit „und"/
+      // „oder" angehängtes Verb im selben Teilsatz behielt die dritte Person.
+      // Konservativ: nur wenn zwischen erstem Verb und „und" kein Satzzeichen
+      // steht (kein Nebensatz dazwischen) und das Wort nach „und" klein und
+      // ein erkennbares Verb ist — „und der Hund bellt" bleibt unberührt.
+      const reihung = new RegExp(
+        "\\b(" + pronoun + ")\\s+([a-zäöüß]+)((?:\\s+[^\\s,.;:—!?]+){0,6}?)\\s+(und|oder)\\s+([a-zäöüß]{3,}t)\\b", "gi");
+      return ersetzt.replace(reihung, (m: string, pr: string, v1: string, mitte: string, konj: string, v2: string) => {
+        const v23 = ICH_DU_ZU_ER[v2.toLowerCase()] || v2;
+        if (!kenntVerb(v23)) return m;
+        const gebeugt = beugeToken(v23, person);
+        if (gebeugt === v2) return m;
+        return `${pr} ${v1}${mitte} ${konj} ${gebeugt}`;
       });
     } catch {
       return s.replace(new RegExp("\\b" + escapeRegExp(P) + "\\b", "gi"), pronoun);

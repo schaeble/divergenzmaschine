@@ -4558,7 +4558,26 @@ var KEIN_VERB_AUF_T = /* @__PURE__ */ new Set([
   "erst",
   "sonst",
   "meist",
-  "direkt"
+  "direkt",
+  // Nachgetragen mit der Reihungs-Beugung (4.328.2): Nach „und" stehen oft
+  // Adverbien — „und dort wartet er" darf nicht zu „und dorten" werden.
+  "dort",
+  "fort",
+  "sofort",
+  "selbst",
+  "vielleicht",
+  "\xFCberhaupt",
+  "bereit",
+  "gerecht",
+  "perfekt",
+  "exakt",
+  "absolut",
+  "gesamt",
+  "komplett",
+  "verr\xFCckt",
+  "bekannt",
+  "geschickt",
+  "besetzt"
 ]);
 var SUBJ_FUGE = /^(und|oder|aber|denn|doch|sondern|dann|da|weil|dass|als|wenn|während|obwohl|bevor|nachdem|sobald|solange|ob|wie|so|auch|nur|jetzt|dort|hier|heute|gestern|morgen|plötzlich|dabei|dadurch|deshalb|trotzdem|später|zuerst|zuletzt|außerdem|schließlich)$/i;
 var DEF_ART = { m: "der", f: "die", n: "das" };
@@ -4606,6 +4625,17 @@ var OBJEKT_ZWISCHENRUF = [
   "Ich habe Zeit.",
   "Ich merke es mir."
 ];
+function beugeToken(v, person) {
+  if (VERB_CONJ[v.toLowerCase()]) return conjugateVerbToken(v, person);
+  if (!/[a-zäöüß]{3,}t$/.test(v)) return v;
+  const stamm = v.slice(0, -1);
+  const hatE = /e$/.test(stamm);
+  if (person === "du") return stamm + "st";
+  if (person === "ich") return hatE ? stamm : stamm + "e";
+  if (person === "wir") return hatE ? stamm + "n" : stamm + "en";
+  return v;
+}
+var kenntVerb = (v) => !!VERB_CONJ[v.toLowerCase()] || /^[a-zäöüß]{3,}t$/.test(v) && !KEIN_VERB_AUF_T.has(v.toLowerCase());
 function applyPerspective(paras, perspective, who, objName) {
   const P2 = clean(who) || "Jemand";
   const O = objektName(clean(objName) || pick(DING_VORRAT));
@@ -4613,7 +4643,7 @@ function applyPerspective(paras, perspective, who, objName) {
     if (!P2) return s;
     try {
       const re = new RegExp("([A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF]+\\s+)?\\b" + escapeRegExp(P2) + "\\b(\\s+[A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF]+)?", "gi");
-      return s.replace(re, (_m, before, after, ...rest) => {
+      const ersetzt = s.replace(re, (_m, before, after, ...rest) => {
         const idx = rest[rest.length - 2];
         const voll = rest[rest.length - 1];
         const posP = voll.toLowerCase().indexOf(P2.toLowerCase(), idx);
@@ -4625,23 +4655,25 @@ function applyPerspective(paras, perspective, who, objName) {
         const aw = after ? after.trim() : "";
         const bw3 = ICH_DU_ZU_ER[bw.toLowerCase()] || bw;
         const aw3 = ICH_DU_ZU_ER[aw.toLowerCase()] || aw;
-        const beuge = (v) => {
-          if (VERB_CONJ[v.toLowerCase()]) return conjugateVerbToken(v, person);
-          if (!/[a-zäöüß]{3,}t$/.test(v)) return v;
-          const stamm = v.slice(0, -1);
-          const hatE = /e$/.test(stamm);
-          if (person === "du") return stamm + "st";
-          if (person === "ich") return hatE ? stamm : stamm + "e";
-          if (person === "wir") return hatE ? stamm + "n" : stamm + "en";
-          return v;
-        };
-        const kennt = (v) => !!VERB_CONJ[v.toLowerCase()] || /^[a-zäöüß]{3,}t$/.test(v) && !KEIN_VERB_AUF_T.has(v.toLowerCase());
+        const beuge = (v) => beugeToken(v, person);
+        const kennt = kenntVerb;
         const letztesWort = (davor.match(/[A-Za-zÄÖÜäöüß-]+$/) || [""])[0];
         const subjektstelle = gross || /[,;]$/.test(davor) || SUBJ_FUGE.test(letztesWort) || !!bw && kennt(bw3);
         if (!subjektstelle) return _m;
         if (bw && kennt(bw3)) return beuge(bw3) + " " + pron + (after || "");
         if (aw && kennt(aw3)) return (before || "") + pron + " " + beuge(aw3);
         return (before || "") + pron + (after || "");
+      });
+      const reihung = new RegExp(
+        "\\b(" + pronoun + ")\\s+([a-z\xE4\xF6\xFC\xDF]+)((?:\\s+[^\\s,.;:\u2014!?]+){0,6}?)\\s+(und|oder)\\s+([a-z\xE4\xF6\xFC\xDF]{3,}t)\\b",
+        "gi"
+      );
+      return ersetzt.replace(reihung, (m, pr, v1, mitte, konj, v2) => {
+        const v23 = ICH_DU_ZU_ER[v2.toLowerCase()] || v2;
+        if (!kenntVerb(v23)) return m;
+        const gebeugt = beugeToken(v23, person);
+        if (gebeugt === v2) return m;
+        return `${pr} ${v1}${mitte} ${konj} ${gebeugt}`;
       });
     } catch {
       return s.replace(new RegExp("\\b" + escapeRegExp(P2) + "\\b", "gi"), pronoun);
@@ -5488,6 +5520,68 @@ function verwandleMotive(text, paare) {
 
 // src/constants.ts
 var STORAGE_CORPUS = "divergenz_persistent_corpus_v1";
+var DEFAULT_BANK = {
+  motifs: [
+    "eine Uhr, die r\xFCckw\xE4rts tickt",
+    "eine T\xFCr, die von innen atmet",
+    "ein Spiegelbild, das zu sp\xE4t reagiert",
+    "ein Formular mit einem Feld zu viel",
+    "ein Kabel, das warm wird, ohne Strom",
+    "eine Narbe, die sich erinnert",
+    "ein Name, der nicht ausgesprochen werden kann",
+    "ein Licht, das die falschen Dinge zeigt",
+    "ein Ger\xE4usch, das nur in Gedanken existiert",
+    "eine Karte, die Orte erfindet"
+  ],
+  hooks: [
+    "eine rote Feder im falschen Winkel",
+    "ein Lichtstreifen, der aus dem Nichts kommt",
+    "ein leises Klopfen hinter der Wand",
+    "ein Foto, das ein Detail mehr zeigt als gestern",
+    "ein Schatten, der nicht zur Figur passt",
+    "eine Nachricht ohne Absender",
+    "eine T\xFCr, die pl\xF6tzlich nicht mehr T\xFCr sein will"
+  ],
+  props: [
+    "einen Schl\xFCssel",
+    "eine Karte",
+    "eine M\xFCnze",
+    "ein Foto",
+    "ein Notizbuch",
+    "eine Lampe",
+    "ein St\xFCck Kreide",
+    "einen Kompass",
+    "einen Ausweis",
+    "ein Siegel"
+  ],
+  turns: [
+    "pl\xF6tzlich passt die Zeit nicht mehr zu den Uhren",
+    "die Spur f\xFChrt nicht nach au\xDFen, sondern nach innen",
+    "das Offensichtliche wird unbenennbar",
+    "etwas antwortet \u2013 ohne Stimme",
+    "die Logik bleibt bestehen, aber in falscher Reihenfolge"
+  ],
+  obstacles: [
+    "die T\xFCr ist verschlossen",
+    "jemand h\xF6rt mit",
+    "die eigene Wahrnehmung wackelt",
+    "eine Regel gilt, die niemand erkl\xE4rt",
+    "die Akte tr\xE4gt das falsche Datum"
+  ],
+  stakes: [
+    "Der Einsatz ist Mut.",
+    "Der Einsatz ist Zeit: Ein Teil des Abends kommt nicht zur\xFCck.",
+    "Der Einsatz ist Wahrheit: Etwas am Selbstbild verschiebt sich.",
+    "Der Einsatz ist Vertrauen: in sich selbst."
+  ],
+  endings: [
+    "Damit ist es entschieden.",
+    "So schlie\xDFt sich der Kreis.",
+    "Und vielleicht beginnt es erst hier.",
+    "Und die T\xFCr fiel ins Schloss.",
+    "Und es war, als h\xE4tte der Ort kurz geblinzelt."
+  ]
+};
 
 // src/corpus.ts
 function loadPersistentCorpus() {
@@ -17782,6 +17876,570 @@ var BUILTIN_DRAMA = {
   )
 };
 
+// src/generation/ideas.data.ts
+var WHO_TAGGED = [
+  { t: "eine Uhrmacherin", tags: ["einzel"] },
+  { t: "ein pensionierter Richter", tags: ["einzel"] },
+  { t: "eine Archivarin ohne Namen", tags: ["einzel"] },
+  { t: "ein \xDCbersetzer f\xFCr tote Sprachen", tags: ["einzel"] },
+  { t: "eine Kartographin ohne Karten", tags: ["einzel"] },
+  { t: "ein Fremder, der jeden Namen kennt", tags: ["einzel"] },
+  { t: "eine Chirurgin mit zitternden H\xE4nden", tags: ["einzel"] },
+  { t: "ein M\xF6nch, der das Schweigen gebrochen hat", tags: ["einzel"] },
+  { t: "eine Diplomatin ohne Land", tags: ["einzel"] },
+  { t: "ein Leuchtturmw\xE4rter im letzten Dienstjahr", tags: ["einzel"] },
+  { t: "eine Restauratorin alter Fresken", tags: ["einzel"] },
+  { t: "ein Nachtportier mit fotografischem Ged\xE4chtnis", tags: ["einzel"] },
+  { t: "eine Seismologin, die niemand ernst nimmt", tags: ["einzel"] },
+  { t: "ein Totengr\xE4ber, der Briefe schreibt", tags: ["einzel"] },
+  { t: "eine Glasbl\xE4serin mit vernarbten H\xE4nden", tags: ["einzel"] },
+  { t: "ein Kanalarbeiter, der Stimmen h\xF6rt", tags: ["einzel"] },
+  { t: "eine Bibliothekarin ohne Namen", tags: ["einzel"] },
+  { t: "ein Boxer im Ruhestand", tags: ["einzel"] },
+  { t: "ein Buchhalter mit doppeltem Ged\xE4chtnis", tags: ["einzel"] },
+  { t: "eine Witwe, die nichts geerbt hat", tags: ["einzel"] },
+  { t: "eine Handvoll \xDCberlebender", tags: ["kollektiv"] },
+  { t: "ein Chor ohne Dirigent", tags: ["kollektiv"] },
+  { t: "eine Belegschaft, die nicht mehr nach Hause geht", tags: ["kollektiv"] },
+  { t: "ein Ensemble im Dauerstreik", tags: ["kollektiv"] },
+  { t: "das Dorf hinter dem Deich", tags: ["kollektiv"] },
+  { t: "eine Kommune ohne Anf\xFChrer", tags: ["kollektiv"] },
+  { t: "ein Schwarm ohne Zentrum", tags: ["kollektiv", "nichtmensch"] },
+  { t: "die Nachtschicht einer stillen Fabrik", tags: ["kollektiv"] },
+  { t: "eine Expedition, die sich verlaufen hat", tags: ["kollektiv"] },
+  { t: "ein Geschworenengericht ohne Angeklagten", tags: ["kollektiv", "institution"] },
+  { t: "die Besatzung eines Frachtschiffs", tags: ["kollektiv"] },
+  { t: "eine Familie mit zu vielen Geheimnissen", tags: ["kollektiv"] },
+  { t: "ein Orchester, das nicht aufh\xF6ren kann", tags: ["kollektiv"] },
+  { t: "eine Sekte ohne Gott", tags: ["kollektiv", "institution"] },
+  { t: "ein Rettungstrupp ohne Auftrag", tags: ["kollektiv"] },
+  { t: "eine Reisegruppe, die niemand abgeholt hat", tags: ["kollektiv"] },
+  { t: "ein Kind, das zu viel wei\xDF", tags: ["kind", "einzel"] },
+  { t: "ein Junge mit zwei Schatten", tags: ["kind"] },
+  { t: "ein M\xE4dchen, das die Zukunft tr\xE4umt", tags: ["kind"] },
+  { t: "ein stummes Kind mit fremder Handschrift", tags: ["kind"] },
+  { t: "der j\xFCngste Zeuge einer langen Nacht", tags: ["kind"] },
+  { t: "ein Waisenkind mit geerbtem Ged\xE4chtnis", tags: ["kind"] },
+  { t: "ein Schulm\xE4dchen, das Karten f\xE4lscht", tags: ["kind", "antiheld"] },
+  { t: "ein Junge, der jede L\xFCge h\xF6rt", tags: ["kind"] },
+  { t: "ein Kind, das man vergessen hat abzuholen", tags: ["kind"] },
+  { t: "eine Zw\xF6lfj\xE4hrige mit einem Vertrag", tags: ["kind"] },
+  { t: "ein Findelkind ohne Spiegelbild", tags: ["kind"] },
+  { t: "ein Junge, der einen Fluss gro\xDFzieht", tags: ["kind"] },
+  { t: "ein M\xE4dchen mit dem Ged\xE4chtnis eines Hauses", tags: ["kind"] },
+  { t: "ein Kind, das nur nachts spricht", tags: ["kind"] },
+  { t: "der Sohn eines F\xE4lschers", tags: ["kind", "antiheld"] },
+  { t: "ein Ministerium ohne Minister", tags: ["institution"] },
+  { t: "eine Beh\xF6rde f\xFCr Verlorenes", tags: ["institution"] },
+  { t: "ein Gericht im Exil", tags: ["institution"] },
+  { t: "ein Archiv mit eigenem Willen", tags: ["institution", "nichtmensch"] },
+  { t: "eine Bibliothek, die Entscheidungen trifft", tags: ["institution", "nichtmensch"] },
+  { t: "ein Orden ohne Glauben", tags: ["institution"] },
+  { t: "eine Klinik, die niemanden entl\xE4sst", tags: ["institution"] },
+  { t: "das Amt f\xFCr unerledigte Dinge", tags: ["institution"] },
+  { t: "eine Schule ohne Sch\xFCler", tags: ["institution"] },
+  { t: "ein Museum, das seine Exponate verliert", tags: ["institution"] },
+  { t: "eine Redaktion, die nur Dementis druckt", tags: ["institution"] },
+  { t: "ein Konzern mit vergessener Zentrale", tags: ["institution"] },
+  { t: "das Register aller falschen Namen", tags: ["institution", "nichtmensch"] },
+  { t: "eine Kommission ohne Auftrag", tags: ["institution"] },
+  { t: "ein Kloster mit fremdem Kalender", tags: ["institution"] },
+  { t: "die Zensurbeh\xF6rde einer freien Stadt", tags: ["institution"] },
+  { t: "ein Algorithmus mit Namen", tags: ["nichtmensch"] },
+  { t: "eine Maschine, die zu tr\xE4umen beginnt", tags: ["nichtmensch"] },
+  { t: "ein Fluss, der sich erinnert", tags: ["nichtmensch"] },
+  { t: "eine Stimme ohne K\xF6rper", tags: ["nichtmensch"] },
+  { t: "ein Tier, das ein Versprechen h\xE4lt", tags: ["nichtmensch"] },
+  { t: "ein Haus mit eigenem Willen", tags: ["nichtmensch"] },
+  { t: "eine Uhr, die zur\xFCckz\xE4hlt", tags: ["nichtmensch"] },
+  { t: "ein Wald, der Namen vergibt", tags: ["nichtmensch"] },
+  { t: "eine Kolonie unter dem Eis", tags: ["nichtmensch", "kollektiv"] },
+  { t: "ein Signal, das antwortet", tags: ["nichtmensch"] },
+  { t: "eine Karte, die sich selbst zeichnet", tags: ["nichtmensch"] },
+  { t: "ein Spiegel mit Ged\xE4chtnis", tags: ["nichtmensch"] },
+  { t: "eine Wolke, die einem Menschen folgt", tags: ["nichtmensch"] },
+  { t: "ein Schiff ohne Besatzung, das Kurs h\xE4lt", tags: ["nichtmensch"] },
+  { t: "eine Sprache, die aussterben will", tags: ["nichtmensch"] },
+  { t: "ein Schatten, der fr\xFCher ankommt", tags: ["nichtmensch"] },
+  { t: "ein Bahnhof, der Reisende beh\xE4lt", tags: ["nichtmensch"] },
+  { t: "eine Falschm\xFCnzerin mit Prinzipien", tags: ["antiheld"] },
+  { t: "ein Spion im Ruhestand", tags: ["antiheld", "einzel"] },
+  { t: "eine Diebin, die nur Erinnerungen stiehlt", tags: ["antiheld"] },
+  { t: "ein Verr\xE4ter aus Loyalit\xE4t", tags: ["antiheld"] },
+  { t: "ein Hochstapler mit echtem Titel", tags: ["antiheld"] },
+  { t: "eine Anw\xE4ltin f\xFCr aussichtslose F\xE4lle", tags: ["antiheld", "einzel"] },
+  { t: "ein Erpresser mit gutem Ged\xE4chtnis", tags: ["antiheld"] },
+  { t: "eine Schmugglerin von B\xFCchern", tags: ["antiheld"] },
+  { t: "ein S\xF6ldner, der nicht mehr schie\xDFt", tags: ["antiheld"] },
+  { t: "eine Betr\xFCgerin mit sauberem Gewissen", tags: ["antiheld"] },
+  { t: "ein Kronzeuge, der l\xFCgt", tags: ["antiheld"] },
+  { t: "eine Grabr\xE4uberin mit Doktortitel", tags: ["antiheld"] },
+  { t: "ein Henker, der Gnade sammelt", tags: ["antiheld"] },
+  { t: "eine F\xE4lscherin echter Dokumente", tags: ["antiheld"] },
+  { t: "ein Deserteur mit Orden", tags: ["antiheld"] },
+  { t: "eine Wilderin im Naturschutzgebiet", tags: ["antiheld"] },
+  { t: "eine Pilotin ohne Lizenz", tags: ["antiheld", "einzel"] }
+];
+var WHERE_TAGGED = [
+  { t: "in einer schlaflosen Stadt", tags: ["urban"] },
+  { t: "in einem verlassenen Bahnhof", tags: ["urban"] },
+  { t: "in einem Hinterhof ohne Ausgang", tags: ["urban", "raum"] },
+  { t: "auf einem n\xE4chtlichen Boulevard", tags: ["urban"] },
+  { t: "in einem Hochhaus ohne Erdgeschoss", tags: ["urban"] },
+  { t: "in der U-Bahn nach Mitternacht", tags: ["urban"] },
+  { t: "in einem Viertel, das abgerissen wird", tags: ["urban"] },
+  { t: "auf einem Parkdeck \xFCber der Stadt", tags: ["urban"] },
+  { t: "in einer Markthalle vor Sonnenaufgang", tags: ["urban"] },
+  { t: "in einem Hotel mit zu vielen Zimmern", tags: ["urban"] },
+  { t: "unter einer Autobahnbr\xFCcke", tags: ["urban"] },
+  { t: "in einer Stra\xDFe, die zweimal existiert", tags: ["urban", "nirgendwo"] },
+  { t: "in Paris", tags: ["urban"] },
+  { t: "in einem Nachtbus ohne Fahrg\xE4ste", tags: ["urban", "raum"] },
+  { t: "in einem Kino, das nie schlie\xDFt", tags: ["urban"] },
+  { t: "auf einem Dach \xFCber dem Verkehr", tags: ["urban"] },
+  { t: "in einer Telefonzelle, die noch klingelt", tags: ["urban"] },
+  { t: "in einem Kellerclub ohne Namen", tags: ["urban"] },
+  { t: "am Rand eines Moors", tags: ["natur"] },
+  { t: "in einem Wald ohne V\xF6gel", tags: ["natur"] },
+  { t: "an einer versinkenden K\xFCste", tags: ["natur"] },
+  { t: "auf einem Gletscher, der schmilzt", tags: ["natur"] },
+  { t: "in einer W\xFCste mit T\xFCren", tags: ["natur", "nirgendwo"] },
+  { t: "am Ufer eines toten Flusses", tags: ["natur"] },
+  { t: "am Fluss", tags: ["natur"] },
+  { t: "in einem Tal, das verstummt ist", tags: ["natur"] },
+  { t: "auf einer Insel ohne Hafen", tags: ["natur"] },
+  { t: "in einer H\xF6hle mit warmem Wind", tags: ["natur", "raum"] },
+  { t: "auf einem Feld nach der Ernte", tags: ["natur"] },
+  { t: "an einem See, der nie zufriert", tags: ["natur"] },
+  { t: "im Schilf hinter dem Deich", tags: ["natur"] },
+  { t: "auf einem Pass im ersten Schnee", tags: ["natur", "grenze"] },
+  { t: "in einem Obstgarten, der nicht mehr tr\xE4gt", tags: ["natur"] },
+  { t: "an einer Steilk\xFCste im Nebel", tags: ["natur"] },
+  { t: "unter einem Baum, der \xE4lter ist als das Dorf", tags: ["natur"] },
+  { t: "in einem Sumpf voller Wracks", tags: ["natur"] },
+  { t: "in einem versiegelten Zimmer", tags: ["raum"] },
+  { t: "in einem Aufzug zwischen zwei Stockwerken", tags: ["raum", "grenze"] },
+  { t: "in einer Kabine auf hoher See", tags: ["raum"] },
+  { t: "in einem Bunker ohne Uhr", tags: ["raum"] },
+  { t: "in einem Wartesaal ohne Z\xFCge", tags: ["raum"] },
+  { t: "hinter einer T\xFCr, die nicht schlie\xDFt", tags: ["raum"] },
+  { t: "in einem Zugabteil ohne Fenster", tags: ["raum"] },
+  { t: "in einer Dunkelkammer", tags: ["raum"] },
+  { t: "in einem Treppenhaus ohne Ausgang", tags: ["raum"] },
+  { t: "in einem Beichtstuhl", tags: ["raum", "institution"] },
+  { t: "in einer K\xFChlkammer", tags: ["raum"] },
+  { t: "in einem Auto am Stra\xDFenrand", tags: ["raum"] },
+  { t: "in einem Zelt im Dauerregen", tags: ["raum", "natur"] },
+  { t: "in einem Fahrstuhlschacht", tags: ["raum"] },
+  { t: "in einer Zelle mit Aussicht", tags: ["raum", "institution"] },
+  { t: "auf einem Dachboden voller Uhren", tags: ["raum"] },
+  { t: "an der Grenze zweier L\xE4nder", tags: ["grenze"] },
+  { t: "auf einer Br\xFCcke im Niemandsland", tags: ["grenze"] },
+  { t: "an der Schwelle zweier Zeiten", tags: ["grenze", "nirgendwo"] },
+  { t: "in einer Zollstation im Nebel", tags: ["grenze"] },
+  { t: "auf der Linie zwischen Traum und Wachen", tags: ["grenze", "nirgendwo"] },
+  { t: "am \xDCbergang, den keiner bewacht", tags: ["grenze"] },
+  { t: "auf einer F\xE4hre zwischen zwei Ufern", tags: ["grenze"] },
+  { t: "an einem Grenzfluss ohne Br\xFCcke", tags: ["grenze", "natur"] },
+  { t: "im Transitbereich eines Flughafens", tags: ["grenze"] },
+  { t: "an der K\xFCstenlinie bei Flut", tags: ["grenze", "natur"] },
+  { t: "auf dem letzten Meter vor der Sperre", tags: ["grenze"] },
+  { t: "in einem Korridor zwischen zwei Staaten", tags: ["grenze"] },
+  { t: "am Waldrand vor der Lichtung", tags: ["grenze", "natur"] },
+  { t: "auf der T\xFCrschwelle, die niemand \xFCberschreitet", tags: ["grenze"] },
+  { t: "an einem Ort ohne Namen", tags: ["nirgendwo"] },
+  { t: "in einer Stadt, die es nicht gibt", tags: ["nirgendwo", "urban"] },
+  { t: "im wei\xDFen Raum dazwischen", tags: ["nirgendwo"] },
+  { t: "auf einer Karte ohne Legende", tags: ["nirgendwo"] },
+  { t: "im Nichts nach dem letzten Halt", tags: ["nirgendwo"] },
+  { t: "an einem vergessenen Koordinatenpunkt", tags: ["nirgendwo"] },
+  { t: "zwischen zwei S\xE4tzen", tags: ["nirgendwo"] },
+  { t: "in einem Traum, der jemand anderem geh\xF6rt", tags: ["nirgendwo"] },
+  { t: "an einem Ort, den alle anders erinnern", tags: ["nirgendwo"] },
+  { t: "im Zwischenraum einer Erinnerung", tags: ["nirgendwo"] },
+  { t: "hinter der letzten bekannten Adresse", tags: ["nirgendwo"] },
+  { t: "in einer Gegend, die keine Karte erfasst", tags: ["nirgendwo"] },
+  { t: "auf einem Bahnsteig ohne Gleise", tags: ["nirgendwo"] },
+  { t: "dort, wo die Stra\xDFe einfach aufh\xF6rt", tags: ["nirgendwo"] },
+  { t: "in einem Archiv der Universit\xE4t", tags: ["institution"] },
+  { t: "in einer geschlossenen Klinik", tags: ["institution"] },
+  { t: "in einer stillgelegten Fabrik", tags: ["institution", "urban"] },
+  { t: "in einem Ministerium bei Nacht", tags: ["institution"] },
+  { t: "in einer Bibliothek ohne B\xFCcher", tags: ["institution"] },
+  { t: "in einem Gericht ohne Richter", tags: ["institution"] },
+  { t: "im Archiv", tags: ["institution"] },
+  { t: "in einem Amtszimmer im vierten Stock", tags: ["institution"] },
+  { t: "in einer Kaserne ohne Rekruten", tags: ["institution"] },
+  { t: "in einem Museum nach Schlie\xDFung", tags: ["institution"] },
+  { t: "in einem Internat im Winter", tags: ["institution"] },
+  { t: "in einer Wahlkabine", tags: ["institution"] },
+  { t: "in einem Rechenzentrum", tags: ["institution"] },
+  { t: "in einer Anstalt mit offenen T\xFCren", tags: ["institution"] },
+  { t: "im Keller eines Standesamts", tags: ["institution"] },
+  { t: "in einer Kirche ohne Gemeinde", tags: ["institution"] }
+];
+var WHEN_TAGGED = [
+  { t: "heute, kurz vor Feierabend", tags: ["gegenwart"] },
+  { t: "an einem Sonntagnachmittag", tags: ["gegenwart"] },
+  { t: "w\xE4hrend eines Stromausfalls", tags: ["gegenwart", "umbruch"] },
+  { t: "in der Woche des gro\xDFen Sturms", tags: ["gegenwart"] },
+  { t: "an einem ganz gew\xF6hnlichen Dienstag", tags: ["gegenwart"] },
+  { t: "im Winter", tags: ["gegenwart", "zeitlos"] },
+  { t: "kurz vor Mitternacht", tags: ["gegenwart", "zeitlos"] },
+  { t: "im Morgengrauen", tags: ["gegenwart", "zeitlos"] },
+  { t: "an einem Montag im November", tags: ["gegenwart"] },
+  { t: "w\xE4hrend der Mittagspause", tags: ["gegenwart"] },
+  { t: "in der Nacht nach dem Umzug", tags: ["gegenwart"] },
+  { t: "am Tag der Beerdigung", tags: ["gegenwart"] },
+  { t: "zwischen zwei Terminen", tags: ["gegenwart"] },
+  { t: "an einem Abend ohne Strom", tags: ["gegenwart"] },
+  { t: "im Sommer der langen D\xFCrre", tags: ["gegenwart"] },
+  { t: "an einem Freitag im Regen", tags: ["gegenwart"] },
+  { t: "1789", tags: ["historisch"] },
+  { t: "1917", tags: ["historisch"] },
+  { t: "1348", tags: ["historisch"] },
+  { t: "im Jahr der gro\xDFen Flut", tags: ["historisch", "zeitlos"] },
+  { t: "w\xE4hrend einer Belagerung", tags: ["historisch", "umbruch"] },
+  { t: "1848", tags: ["historisch"] },
+  { t: "im Herbst 1923", tags: ["historisch"] },
+  { t: "1889", tags: ["historisch"] },
+  { t: "w\xE4hrend der Choleraepidemie", tags: ["historisch"] },
+  { t: "im Jahr nach dem Krieg", tags: ["historisch"] },
+  { t: "1666", tags: ["historisch"] },
+  { t: "in der Woche der Kr\xF6nung", tags: ["historisch", "umbruch"] },
+  { t: "1961", tags: ["historisch"] },
+  { t: "w\xE4hrend der gro\xDFen Auswanderung", tags: ["historisch"] },
+  { t: "im letzten Sommer der Monarchie", tags: ["historisch", "umbruch"] },
+  { t: "1492", tags: ["historisch"] },
+  { t: "im Winter der Hungersnot", tags: ["historisch"] },
+  { t: "am Vorabend der Revolution", tags: ["historisch", "umbruch"] },
+  { t: "2041", tags: ["zukunft"] },
+  { t: "im dritten Jahr der Stille", tags: ["zukunft"] },
+  { t: "nach dem letzten Winter", tags: ["zukunft"] },
+  { t: "als die Meere zur\xFCckwichen", tags: ["zukunft"] },
+  { t: "im Jahrhundert der Karten ohne L\xE4nder", tags: ["zukunft"] },
+  { t: "2103", tags: ["zukunft"] },
+  { t: "im zweiten Jahr der neuen Zeitrechnung", tags: ["zukunft", "umbruch"] },
+  { t: "nach der gro\xDFen Abschaltung", tags: ["zukunft", "umbruch"] },
+  { t: "als die St\xE4dte zu wandern begannen", tags: ["zukunft"] },
+  { t: "2077", tags: ["zukunft"] },
+  { t: "im Sommer ohne Nacht", tags: ["zukunft", "zeitlos"] },
+  { t: "nachdem die letzte Grenze fiel", tags: ["zukunft", "umbruch"] },
+  { t: "im Jahr der ersten R\xFCckkehr", tags: ["zukunft"] },
+  { t: "als niemand mehr schrieb", tags: ["zukunft"] },
+  { t: "2199", tags: ["zukunft"] },
+  { t: "nach dem Ende der Vorhersagen", tags: ["zukunft"] },
+  { t: "zu einer Zeit, die niemand z\xE4hlt", tags: ["zeitlos"] },
+  { t: "im Jahr Null", tags: ["zeitlos"] },
+  { t: "als die Uhren noch schwiegen", tags: ["zeitlos"] },
+  { t: "irgendwann, immer", tags: ["zeitlos"] },
+  { t: "in einem Sommer ohne Ende", tags: ["zeitlos"] },
+  { t: "lange vor den Namen", tags: ["zeitlos"] },
+  { t: "in einer Woche, die sich wiederholt", tags: ["zeitlos"] },
+  { t: "zwischen zwei Herzschl\xE4gen", tags: ["zeitlos"] },
+  { t: "als die Zeit noch niemandem geh\xF6rte", tags: ["zeitlos"] },
+  { t: "an einem Tag, der zweimal stattfindet", tags: ["zeitlos"] },
+  { t: "im ewigen Nachmittag", tags: ["zeitlos"] },
+  { t: "bevor die Kalender erfunden wurden", tags: ["zeitlos"] },
+  { t: "in der Stunde, die nicht gez\xE4hlt wird", tags: ["zeitlos"] },
+  { t: "zu einer Zeit ohne Zeugen", tags: ["zeitlos"] },
+  { t: "in einem Jahr ohne Zahl", tags: ["zeitlos"] },
+  { t: "am Tag der Sonnenfinsternis", tags: ["umbruch"] },
+  { t: "in der Nacht des Umsturzes", tags: ["umbruch"] },
+  { t: "w\xE4hrend eines Generalstreiks", tags: ["umbruch"] },
+  { t: "am letzten Tag des Jahres", tags: ["umbruch"] },
+  { t: "in der Stunde der Entscheidung", tags: ["umbruch"] },
+  { t: "am Morgen nach der Wahl", tags: ["umbruch"] },
+  { t: "w\xE4hrend der Evakuierung", tags: ["umbruch"] },
+  { t: "in der Nacht, als die Grenze fiel", tags: ["umbruch"] },
+  { t: "am Tag der gro\xDFen Abstimmung", tags: ["umbruch"] },
+  { t: "w\xE4hrend des letzten Prozesses", tags: ["umbruch"] },
+  { t: "als die Fabrik schloss", tags: ["umbruch"] },
+  { t: "in der Woche der R\xE4umung", tags: ["umbruch"] },
+  { t: "am Vorabend des Aufbruchs", tags: ["umbruch"] },
+  { t: "w\xE4hrend des Erdbebens", tags: ["umbruch"] },
+  { t: "in den Stunden vor der Verk\xFCndung", tags: ["umbruch"] }
+];
+var WHAT_TAGGED = [
+  { t: "sucht eine Spur, die keiner hinterlie\xDF", tags: ["mystery"] },
+  { t: "findet einen Brief, der nicht an sie gerichtet war", tags: ["mystery"] },
+  { t: "entdeckt ein zweites Testament", tags: ["mystery"] },
+  { t: "verfolgt eine L\xFCge bis zur Wurzel", tags: ["mystery"] },
+  { t: "st\xF6\xDFt auf einen Namen, den es nicht geben d\xFCrfte", tags: ["mystery"] },
+  { t: "rekonstruiert eine Nacht, die niemand erlebt hat", tags: ["mystery"] },
+  { t: "sucht eine Spur", tags: ["mystery"] },
+  { t: "findet ein Foto mit einer Person zu viel", tags: ["mystery", "horror"] },
+  { t: "erbt einen Schl\xFCssel ohne Schloss", tags: ["mystery"] },
+  { t: "entziffert ein Tagebuch in fremder Hand", tags: ["mystery"] },
+  { t: "verh\xF6rt einen Zeugen, der l\xE4ngst tot ist", tags: ["mystery", "horror"] },
+  { t: "\xF6ffnet einen Fall, den alle geschlossen haben", tags: ["mystery"] },
+  { t: "bemerkt, dass zwei Uhren nicht \xFCbereinstimmen", tags: ["mystery"] },
+  { t: "verfolgt jemanden, der die eigene Route kennt", tags: ["mystery"] },
+  { t: "findet die eigene Unterschrift auf fremdem Papier", tags: ["mystery"] },
+  { t: "erh\xE4lt eine Nachricht aus der Zukunft", tags: ["scifi"] },
+  { t: "findet eine T\xFCr, die es nicht geben d\xFCrfte", tags: ["scifi", "maerchen"] },
+  { t: "verliert die Kontrolle \xFCber die eigene Stimme", tags: ["scifi", "horror"] },
+  { t: "erwacht in einem K\xF6rper mit fremdem Ged\xE4chtnis", tags: ["scifi"] },
+  { t: "entziffert ein Signal aus dem Nichts", tags: ["scifi"] },
+  { t: "tauscht Zeit gegen eine Erinnerung", tags: ["scifi"] },
+  { t: "wird von der eigenen Kopie verklagt", tags: ["scifi", "satire"] },
+  { t: "verkauft eine Erinnerung zu teuer", tags: ["scifi"] },
+  { t: "entdeckt eine L\xFCcke in der Simulation", tags: ["scifi"] },
+  { t: "verliert eine Woche und findet sie woanders", tags: ["scifi"] },
+  { t: "spricht mit einer Maschine, die l\xFCgt", tags: ["scifi"] },
+  { t: "bekommt ein Angebot von der eigenen Zukunft", tags: ["scifi"] },
+  { t: "muss beweisen, real zu sein", tags: ["scifi", "absurd"] },
+  { t: "findet den letzten Menschen ohne Anschluss", tags: ["scifi"] },
+  { t: "erbt ein fremdes Bewusstsein", tags: ["scifi"] },
+  { t: "schlie\xDFt einen Pakt, den keiner versteht", tags: ["maerchen"] },
+  { t: "folgt einem Licht in den Wald", tags: ["maerchen"] },
+  { t: "erbt einen Fluch mit gutem Kern", tags: ["maerchen"] },
+  { t: "verspricht drei Dinge, die sich widersprechen", tags: ["maerchen"] },
+  { t: "sucht einen Namen, um frei zu werden", tags: ["maerchen"] },
+  { t: "\xF6ffnet die verbotene T\xFCr", tags: ["maerchen", "horror"] },
+  { t: "tauscht den Schatten gegen einen Wunsch", tags: ["maerchen"] },
+  { t: "bekommt eine Gabe, die keiner will", tags: ["maerchen"] },
+  { t: "muss sieben N\xE4chte schweigen", tags: ["maerchen"] },
+  { t: "weckt etwas, das schlafen sollte", tags: ["maerchen", "horror"] },
+  { t: "verhandelt mit dem Fluss um einen \xDCbergang", tags: ["maerchen"] },
+  { t: "verliert das Gesicht an einen Spiegel", tags: ["maerchen", "horror"] },
+  { t: "gibt das eigene Herz als Pfand", tags: ["maerchen"] },
+  { t: "l\xF6st ein R\xE4tsel und verliert dabei alles", tags: ["maerchen"] },
+  { t: "wird von einem Tier um Hilfe gebeten", tags: ["maerchen"] },
+  { t: "f\xFCllt ein Formular f\xFCr die eigene Abwesenheit", tags: ["absurd", "satire"] },
+  { t: "verklagt den eigenen Schatten", tags: ["absurd"] },
+  { t: "wartet auf einen Termin, der nie kommt", tags: ["absurd"] },
+  { t: "erbt ein Amt ohne Aufgabe", tags: ["absurd", "satire"] },
+  { t: "verliert die Erinnerung an einen Namen", tags: ["absurd"] },
+  { t: "wird f\xFCr tot erkl\xE4rt und muss es widerlegen", tags: ["absurd"] },
+  { t: "beantragt eine Genehmigung zu existieren", tags: ["absurd", "satire"] },
+  { t: "wird in eine Abteilung ohne T\xFCr bef\xF6rdert", tags: ["absurd", "satire"] },
+  { t: "muss einen Fehler verwalten, den es nicht gibt", tags: ["absurd"] },
+  { t: "steht in einer Schlange, die sich selbst anstellt", tags: ["absurd"] },
+  { t: "bekommt einen Ausweis f\xFCr ein anderes Leben", tags: ["absurd"] },
+  { t: "soll das eigene Verschwinden protokollieren", tags: ["absurd"] },
+  { t: "sucht ein Zimmer, dessen Nummer wandert", tags: ["absurd"] },
+  { t: "erh\xE4lt Post von einer Beh\xF6rde ohne Existenz", tags: ["absurd"] },
+  { t: "muss die eigene Vergangenheit erst beantragen", tags: ["absurd"] },
+  { t: "will einfach nur verschwinden", tags: ["alltag"] },
+  { t: "trifft eine Entscheidung binnen einer Stunde", tags: ["alltag"] },
+  { t: "bricht ein Versprechen aus Kindheitstagen", tags: ["alltag"] },
+  { t: "kehrt an einen alten Ort zur\xFCck", tags: ["alltag"] },
+  { t: "sagt endlich einen Satz zu sp\xE4t", tags: ["alltag"] },
+  { t: "r\xE4umt ein Zimmer und findet ein Leben", tags: ["alltag"] },
+  { t: "will verschwinden", tags: ["alltag"] },
+  { t: "wartet auf einen Anruf, der nicht kommt", tags: ["alltag"] },
+  { t: "verpasst einen Zug mit Absicht", tags: ["alltag"] },
+  { t: "trifft jemanden, den es nicht mehr geben sollte", tags: ["alltag", "horror"] },
+  { t: "beantwortet einen zwanzig Jahre alten Brief", tags: ["alltag"] },
+  { t: "k\xFCndigt ohne Plan", tags: ["alltag"] },
+  { t: "erkennt sich auf einem fremden Foto", tags: ["alltag", "mystery"] },
+  { t: "verschiebt eine Beerdigung", tags: ["alltag"] },
+  { t: "beginnt ein Gespr\xE4ch, das alles \xE4ndert", tags: ["alltag"] },
+  { t: "h\xF6rt Schritte im leeren Haus", tags: ["horror"] },
+  { t: "bemerkt, dass die Spiegel nicht mehr stimmen", tags: ["horror"] },
+  { t: "z\xE4hlt eine Person zu viel", tags: ["horror"] },
+  { t: "findet die eigene Handschrift an fremder Wand", tags: ["horror"] },
+  { t: "verliert jede Nacht eine Erinnerung mehr", tags: ["horror"] },
+  { t: "wird von etwas erkannt, das keiner sieht", tags: ["horror"] },
+  { t: "h\xF6rt den eigenen Namen aus dem Nebenzimmer", tags: ["horror"] },
+  { t: "entdeckt, dass das Haus gr\xF6\xDFer wird", tags: ["horror"] },
+  { t: "findet Fu\xDFspuren, die zur\xFCckf\xFChren", tags: ["horror"] },
+  { t: "wacht jede Nacht eine Stunde fr\xFCher auf", tags: ["horror"] },
+  { t: "bemerkt, dass niemand mehr blinzelt", tags: ["horror"] },
+  { t: "gr\xE4bt etwas aus, das noch warm ist", tags: ["horror"] },
+  { t: "bekommt Anrufe von der eigenen Nummer", tags: ["horror"] },
+  { t: "sieht dasselbe Gesicht in jeder Menge", tags: ["horror"] },
+  { t: "schlie\xDFt eine T\xFCr, die offen bleibt", tags: ["horror"] },
+  { t: "gr\xFCndet ein Amt gegen die Wirklichkeit", tags: ["satire"] },
+  { t: "gewinnt einen Preis f\xFCr nichts", tags: ["satire"] },
+  { t: "verwaltet das Ende der Welt in Ordnern", tags: ["satire"] },
+  { t: "beruft eine Sitzung \xFCber Sitzungen ein", tags: ["satire"] },
+  { t: "optimiert sich selbst weg", tags: ["satire"] },
+  { t: "verkauft Zeit an die, die keine haben", tags: ["satire"] },
+  { t: "erfindet ein Problem und die passende L\xF6sung", tags: ["satire"] },
+  { t: "wird zum Gesicht einer Kampagne gegen sich selbst", tags: ["satire"] },
+  { t: "reformiert eine Beh\xF6rde in eine gr\xF6\xDFere", tags: ["satire"] },
+  { t: "l\xE4sst die Wahrheit auslagern", tags: ["satire"] },
+  { t: "schreibt ein Gutachten \xFCber das eigene Gutachten", tags: ["satire"] },
+  { t: "privatisiert das Wetter", tags: ["satire"] },
+  { t: "gr\xFCndet eine Kommission zur Abschaffung von Kommissionen", tags: ["satire"] },
+  { t: "macht Karriere durch konsequentes Nichtstun", tags: ["satire"] },
+  { t: "digitalisiert ein Formular, das niemand braucht", tags: ["satire"] }
+];
+var CTX_WHO = WHO_TAGGED.map((e) => e.t);
+var CTX_WHERE = WHERE_TAGGED.map((e) => e.t);
+var CTX_WHEN = WHEN_TAGGED.map((e) => e.t);
+var CTX_WHAT = WHAT_TAGGED.map((e) => e.t);
+var WHO_TWISTS = [
+  "mit einem geliehenen Namen",
+  "ohne Erinnerung an den gestrigen Tag",
+  "auf der Flucht vor einem Versprechen",
+  "mit zitternden H\xE4nden",
+  "kurz vor dem Aufbruch",
+  "voller ungestellter Fragen",
+  "mit einem fremden Koffer",
+  "zwischen zwei Loyalit\xE4ten",
+  "mit einer alten Schuld im Gep\xE4ck",
+  "ohne Papiere",
+  "mit einem zweiten Gesicht",
+  "mit einem halb vergessenen Auftrag",
+  "im falschen Jahrzehnt geboren",
+  "mit geliehener Stimme",
+  "mit einer Narbe, die niemand erkl\xE4rt",
+  "ohne R\xFCckfahrkarte",
+  "mit einem Brief, der nie abgeschickt wurde",
+  "unter fremder Aufsicht",
+  "mit einem Namen, den zwei Menschen tragen",
+  "im letzten Anzug des Vaters"
+];
+var WHERE_TWISTS = [
+  "wo die Uhren falsch gehen",
+  "wo niemand nach Namen fragt",
+  "wo nachts Licht brennt, obwohl niemand wohnt",
+  "wo alle T\xFCren offen stehen",
+  "wo der Fluss r\xFCckw\xE4rts zu flie\xDFen scheint",
+  "wo man Fremde sofort erkennt",
+  "wo ein Zimmer seit Jahren verschlossen ist",
+  "wo die Karten nicht stimmen",
+  "wo jeder zweite Brief verloren geht",
+  "wo das Echo eine Sekunde zu sp\xE4t kommt",
+  "wo der Winter nie ganz endet",
+  "wo die W\xE4nde d\xFCnner sind, als man denkt",
+  "wo die Stra\xDFen keine Namen tragen",
+  "wo man den Hafen h\xF6rt, aber nicht sieht",
+  "wo jedes Fenster nach Osten zeigt",
+  "wo die V\xF6gel nicht landen",
+  "wo eine Uhr seit Jahren dieselbe Zeit zeigt",
+  "wo der Boden bei Regen nachgibt"
+];
+var WHEN_TWISTS = [
+  "kurz nach der Sperrstunde",
+  "in der Nacht der Inventur",
+  "am Tag der letzten F\xE4hre",
+  "w\xE4hrend eines Stromausfalls",
+  "zwischen zwei Glockenschl\xE4gen",
+  "am Vorabend einer Abreise",
+  "in der Woche der Nebel",
+  "als die Zeitungen schwiegen",
+  "w\xE4hrend des Jahrmarkts",
+  "in der Stunde zwischen Hund und Wolf",
+  "kurz bevor die Br\xFCcke gesperrt wird",
+  "am Morgen nach dem Fest",
+  "in der Nacht der langen Regen",
+  "w\xE4hrend die Glocken repariert werden",
+  "kurz vor der Zeitumstellung",
+  "als die Stra\xDFen leer blieben",
+  "in der Woche vor dem Umzug",
+  "am Tag, an dem die Post ausblieb"
+];
+var WHAT_TWISTS = [
+  "ohne zu wissen, warum",
+  "obwohl alle abraten",
+  "zum dritten und letzten Mal",
+  "gegen ein altes Versprechen",
+  "f\xFCr jemanden, der nie danach gefragt hat",
+  "mit den falschen Werkzeugen",
+  "unter falschem Namen",
+  "bevor es ein anderer tut",
+  "aus einem Grund, der erst am Ende z\xE4hlt",
+  "heimlich, zwischen zwei Pflichten",
+  "und zahlt daf\xFCr einen stillen Preis",
+  "als w\xE4re nichts geschehen",
+  "mit geliehenem Mut",
+  "einen Tag zu sp\xE4t",
+  "und nimmt daf\xFCr die Schuld auf sich",
+  "ohne Zeugen",
+  "w\xE4hrend alle anderen feiern",
+  "und kann es hinterher nicht erkl\xE4ren"
+];
+
+// src/generation/context.ts
+var roll = (base, tw) => {
+  const b = pick(base);
+  return Math.random() < 0.5 ? b : b + ", " + pick(tw);
+};
+function randomContext() {
+  return {
+    who: roll(CTX_WHO, WHO_TWISTS),
+    where: roll(CTX_WHERE, WHERE_TWISTS),
+    when: roll(CTX_WHEN, WHEN_TWISTS),
+    what: roll(CTX_WHAT, WHAT_TWISTS)
+  };
+}
+
+// src/generation/rhythmcurve.ts
+var splitSents = (t) => (t || "").replace(/\s+/g, " ").trim().split(/(?<=[.!?…])\s+/).filter((s) => s.trim().length > 0);
+var wlen = (s) => (s.toLowerCase().match(/[a-zäöüßA-ZÄÖÜ]+/g) || []).length;
+var mergeZaehler = 0;
+var mergeSents = (a, b) => {
+  const kopf = a.replace(/[.!?…]+$/, "").trim();
+  const strich = !kopf.includes("\u2014") && !b.includes("\u2014") && mergeZaehler++ % 2 === 0;
+  return kopf + (strich ? " \u2014 " : "; ") + b.trim();
+};
+function generateToCurve(bank, base, model, targets, poolFactor = 5) {
+  const clean2 = targets.map((n2) => Math.max(1, Math.round(n2))).filter((n2) => n2 > 0);
+  const n = clean2.length;
+  if (!n) return { text: "", targets: [], actual: [], poolSize: 0 };
+  const pool = [];
+  const seen = /* @__PURE__ */ new Set();
+  const need = Math.max(n * poolFactor, 48);
+  let guard = 0;
+  while (pool.length < need && guard < need * 4) {
+    guard++;
+    const ctx = randomContext();
+    const story = buildStory(bank, { ...base, ...ctx, form: "prose" }, model);
+    for (const s of splitSents(story)) {
+      const key = s.toLowerCase();
+      if (seen.has(key)) continue;
+      const L = wlen(s);
+      if (L < 1) continue;
+      seen.add(key);
+      pool.push({ s, len: L });
+    }
+  }
+  const used = new Array(pool.length).fill(false);
+  const chosen = new Array(n);
+  const actual = new Array(n);
+  const pickFit = (target) => {
+    const maxParts = target >= 40 ? 3 : target >= 12 ? 2 : 1;
+    const parts = [];
+    let sum = 0;
+    for (let p = 0; p < maxParts; p++) {
+      let bi = -1, bd = Infinity;
+      for (let i = 0; i < pool.length; i++) {
+        if (used[i] || parts.includes(i)) continue;
+        const d = Math.abs(sum + pool[i].len - target);
+        if (d < bd) {
+          bd = d;
+          bi = i;
+        }
+      }
+      if (bi < 0) break;
+      if (parts.length > 0 && Math.abs(sum - target) <= bd) break;
+      parts.push(bi);
+      sum += pool[bi].len;
+      if (sum >= target) break;
+    }
+    return parts;
+  };
+  const order = clean2.map((_, i) => i).sort((a, b) => clean2[b] - clean2[a]);
+  for (const ti of order) {
+    const parts = pickFit(clean2[ti]);
+    if (!parts.length) {
+      const extra = splitSents(buildStory(bank, { ...base, ...randomContext(), form: "prose" }, model))[0] || "\u2026";
+      chosen[ti] = extra;
+      actual[ti] = wlen(extra);
+      continue;
+    }
+    for (const i of parts) used[i] = true;
+    const merged = parts.map((i) => pool[i].s).reduce((acc, sen) => acc ? mergeSents(acc, sen) : sen, "");
+    chosen[ti] = merged;
+    actual[ti] = wlen(merged);
+  }
+  return { text: chosen.join(" "), targets: clean2, actual, poolSize: pool.length };
+}
+
 // test/struktur.ts
 {
   const g = globalThis;
@@ -18005,6 +18663,15 @@ for (const s of FUENF) {
   ist("Dramaturgie: kein dreifaches Dann in 120 L\xE4ufen", dreifach, 0);
   wahr("Dramaturgie: doppeltes Dann unter 5 %", doppel < 6);
   setDramaData(null);
+}
+{
+  const r = generateToCurve(DEFAULT_BANK, eingabe("linear"), void 0, [12, 12, 12, 12, 12, 12, 12, 12], 3);
+  const saetze = r.text.split(/(?<=[.!?…])\s+/);
+  const mitStrich = saetze.filter((t) => t.includes("\u2014")).length;
+  const mitSemikolon = saetze.filter((t) => t.includes(";")).length;
+  wahr("h\xF6chstens die H\xE4lfte der S\xE4tze tr\xE4gt einen Strich", mitStrich <= Math.ceil(saetze.length / 2));
+  wahr("ab zwei Verschmelzungen kommt das Semikolon vor", mitSemikolon >= 1 || mitStrich <= 1);
+  ist("kein Satz mit zwei Strichen aus der Verschmelzung", saetze.filter((t) => /—[^.!?]*—/.test(t)).length, 0);
 }
 console.log(`Pr\xFCfstand Struktur \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

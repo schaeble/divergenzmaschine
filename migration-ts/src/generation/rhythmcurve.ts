@@ -11,7 +11,18 @@ import { randomContext } from "./context";
 const splitSents = (t: string): string[] =>
   (t || "").replace(/\s+/g, " ").trim().split(/(?<=[.!?…])\s+/).filter((s) => s.trim().length > 0);
 const wlen = (s: string): number => (s.toLowerCase().match(/[a-zäöüßA-ZÄÖÜ]+/g) || []).length;
-const mergeSents = (a: string, b: string): string => a.replace(/[.!?…]+$/, "").trim() + " — " + b.trim();
+// Verschmelzen zweier Sätze zu einem Slot. Gemeldet, aus einer Kadenz-Kurve:
+// fünf von sechs Sätzen in Folge nach dem Muster „A — B", weil hier immer der
+// Gedankenstrich stand. Jetzt wechseln Strich und Semikolon ab, und ein Satz,
+// der schon einen Strich trägt, bekommt keinen zweiten — „A — B — C" war die
+// Dreifach-Verschmelzung. Nach dem Semikolon bleibt die Großschreibung
+// erhalten (Nomen, Namen); der Rhythmus misst Wörter, nicht Zeichen.
+let mergeZaehler = 0;
+const mergeSents = (a: string, b: string): string => {
+  const kopf = a.replace(/[.!?…]+$/, "").trim();
+  const strich = !kopf.includes("—") && !b.includes("—") && (mergeZaehler++ % 2 === 0);
+  return kopf + (strich ? " — " : "; ") + b.trim();
+};
 
 /** Liest die Satzlängen-Kurve (Wörter pro Satz) aus einem Vorbild-Text. */
 export function curveFromText(text: string): number[] {

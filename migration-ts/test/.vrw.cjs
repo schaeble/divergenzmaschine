@@ -4588,7 +4588,26 @@ var KEIN_VERB_AUF_T = /* @__PURE__ */ new Set([
   "erst",
   "sonst",
   "meist",
-  "direkt"
+  "direkt",
+  // Nachgetragen mit der Reihungs-Beugung (4.328.2): Nach „und" stehen oft
+  // Adverbien — „und dort wartet er" darf nicht zu „und dorten" werden.
+  "dort",
+  "fort",
+  "sofort",
+  "selbst",
+  "vielleicht",
+  "\xFCberhaupt",
+  "bereit",
+  "gerecht",
+  "perfekt",
+  "exakt",
+  "absolut",
+  "gesamt",
+  "komplett",
+  "verr\xFCckt",
+  "bekannt",
+  "geschickt",
+  "besetzt"
 ]);
 var SUBJ_FUGE = /^(und|oder|aber|denn|doch|sondern|dann|da|weil|dass|als|wenn|während|obwohl|bevor|nachdem|sobald|solange|ob|wie|so|auch|nur|jetzt|dort|hier|heute|gestern|morgen|plötzlich|dabei|dadurch|deshalb|trotzdem|später|zuerst|zuletzt|außerdem|schließlich)$/i;
 var DEF_ART = { m: "der", f: "die", n: "das" };
@@ -4636,6 +4655,17 @@ var OBJEKT_ZWISCHENRUF = [
   "Ich habe Zeit.",
   "Ich merke es mir."
 ];
+function beugeToken(v, person) {
+  if (VERB_CONJ[v.toLowerCase()]) return conjugateVerbToken(v, person);
+  if (!/[a-zäöüß]{3,}t$/.test(v)) return v;
+  const stamm = v.slice(0, -1);
+  const hatE = /e$/.test(stamm);
+  if (person === "du") return stamm + "st";
+  if (person === "ich") return hatE ? stamm : stamm + "e";
+  if (person === "wir") return hatE ? stamm + "n" : stamm + "en";
+  return v;
+}
+var kenntVerb = (v) => !!VERB_CONJ[v.toLowerCase()] || /^[a-zäöüß]{3,}t$/.test(v) && !KEIN_VERB_AUF_T.has(v.toLowerCase());
 function applyPerspective(paras, perspective, who, objName) {
   const P3 = clean(who) || "Jemand";
   const O = objektName(clean(objName) || pick(DING_VORRAT));
@@ -4643,7 +4673,7 @@ function applyPerspective(paras, perspective, who, objName) {
     if (!P3) return s;
     try {
       const re = new RegExp("([A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF]+\\s+)?\\b" + escapeRegExp(P3) + "\\b(\\s+[A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF]+)?", "gi");
-      return s.replace(re, (_m, before, after, ...rest) => {
+      const ersetzt = s.replace(re, (_m, before, after, ...rest) => {
         const idx = rest[rest.length - 2];
         const voll = rest[rest.length - 1];
         const posP = voll.toLowerCase().indexOf(P3.toLowerCase(), idx);
@@ -4655,23 +4685,25 @@ function applyPerspective(paras, perspective, who, objName) {
         const aw = after ? after.trim() : "";
         const bw3 = ICH_DU_ZU_ER[bw.toLowerCase()] || bw;
         const aw3 = ICH_DU_ZU_ER[aw.toLowerCase()] || aw;
-        const beuge = (v) => {
-          if (VERB_CONJ[v.toLowerCase()]) return conjugateVerbToken(v, person);
-          if (!/[a-zäöüß]{3,}t$/.test(v)) return v;
-          const stamm = v.slice(0, -1);
-          const hatE = /e$/.test(stamm);
-          if (person === "du") return stamm + "st";
-          if (person === "ich") return hatE ? stamm : stamm + "e";
-          if (person === "wir") return hatE ? stamm + "n" : stamm + "en";
-          return v;
-        };
-        const kennt = (v) => !!VERB_CONJ[v.toLowerCase()] || /^[a-zäöüß]{3,}t$/.test(v) && !KEIN_VERB_AUF_T.has(v.toLowerCase());
+        const beuge = (v) => beugeToken(v, person);
+        const kennt = kenntVerb;
         const letztesWort = (davor.match(/[A-Za-zÄÖÜäöüß-]+$/) || [""])[0];
         const subjektstelle = gross || /[,;]$/.test(davor) || SUBJ_FUGE.test(letztesWort) || !!bw && kennt(bw3);
         if (!subjektstelle) return _m;
         if (bw && kennt(bw3)) return beuge(bw3) + " " + pron + (after || "");
         if (aw && kennt(aw3)) return (before || "") + pron + " " + beuge(aw3);
         return (before || "") + pron + (after || "");
+      });
+      const reihung = new RegExp(
+        "\\b(" + pronoun + ")\\s+([a-z\xE4\xF6\xFC\xDF]+)((?:\\s+[^\\s,.;:\u2014!?]+){0,6}?)\\s+(und|oder)\\s+([a-z\xE4\xF6\xFC\xDF]{3,}t)\\b",
+        "gi"
+      );
+      return ersetzt.replace(reihung, (m, pr, v1, mitte, konj, v2) => {
+        const v23 = ICH_DU_ZU_ER[v2.toLowerCase()] || v2;
+        if (!kenntVerb(v23)) return m;
+        const gebeugt = beugeToken(v23, person);
+        if (gebeugt === v2) return m;
+        return `${pr} ${v1}${mitte} ${konj} ${gebeugt}`;
       });
     } catch {
       return s.replace(new RegExp("\\b" + escapeRegExp(P3) + "\\b", "gi"), pronoun);

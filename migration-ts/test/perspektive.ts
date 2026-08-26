@@ -223,6 +223,22 @@ for (const p of ["third", "first", "second", "we", "split"]) {
     /: Wir /.test(f("Es geht weiter: Der Wanderer nimmt einen Stab.")));
 }
 
+// ── Das zweite Verb einer Reihung wird mitgebeugt ───────────────────────────
+// Gemeldet: „wir räumen ein Zimmer und findet ein Leben". Der Tausch beugte
+// nur das Verb neben dem Pronomen; ein mit „und" angehängtes Verb im selben
+// Teilsatz blieb in der dritten Person.
+{
+  const p = (persp: string, satz: string): string => applyPerspective([satz], persp, "Der Gast", "")[0]!;
+  ist("wir: beide Verben", p("we", "Der Gast räumt ein Zimmer und findet ein Leben."), "Wir räumen ein Zimmer und finden ein Leben.");
+  ist("ich: beide Verben", p("first", "Der Gast räumt ein Zimmer und findet ein Leben."), "Ich räume ein Zimmer und finde ein Leben.");
+  ist("du: beide Verben", p("second", "Der Gast wartet und zählt die Tage."), "Du wartest und zählst die Tage.");
+  ist("auch bei Inversion", p("we", "Am Morgen bemerkt der Gast einen Stempel und erbt ein Amt."), "Am Morgen bemerken wir einen Stempel und erben ein Amt.");
+  // Gegenproben: ein neues Subjekt, ein Nebensatz, ein Adverb nach „und".
+  ist("neues Subjekt nach und bleibt", p("we", "Der Gast sieht das Kind und der Hund bellt."), "Wir sehen das Kind und der Hund bellt.");
+  ist("Nebensatz nach Komma bleibt", p("we", "Der Gast sieht den Mann, der kommt und geht."), "Wir sehen den Mann, der kommt und geht.");
+  ist("Adverb nach und wird nicht gebeugt", p("we", "Der Gast öffnet die Tür und dort wartet der Hund."), "Wir öffnen die Tür und dort wartet der Hund.");
+}
+
 console.log(`Prüfstand Perspektive — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

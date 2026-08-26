@@ -27,6 +27,8 @@ import { BUILTIN_DRAMA } from "../src/presets.drama.data";
 import { setDramaData } from "../src/generation/dramaturgie";
 import { coherencePass } from "../src/generation/postprocess";
 import { joinBeats } from "../src/generation/beats";
+import { generateToCurve } from "../src/generation/rhythmcurve";
+import { DEFAULT_BANK } from "../src/constants";
 import type { Bank, GenInput } from "../src/types";
 
 const fails: string[] = [];
@@ -331,6 +333,20 @@ for (const s of FUENF) {
   ist("Dramaturgie: kein dreifaches Dann in 120 Läufen", dreifach, 0);
   wahr("Dramaturgie: doppeltes Dann unter 5 %", doppel < 6);
   setDramaData(null);
+}
+
+// ── Rhythmus-Kurve: nicht jeder Slot ein Gedankenstrich ─────────────────────
+// Gemeldet, aus einer Kadenz-Kurve: fünf von sechs Sätzen „A — B", weil die
+// Verschmelzung zweier Sätze immer den Strich setzte. Jetzt wechseln Strich
+// und Semikolon; ein dritter Satz hängt nie per Strich an einen Strich.
+{
+  const r = generateToCurve(DEFAULT_BANK, eingabe("linear"), undefined, [12, 12, 12, 12, 12, 12, 12, 12], 3);
+  const saetze = r.text.split(/(?<=[.!?…])\s+/);
+  const mitStrich = saetze.filter((t) => t.includes("—")).length;
+  const mitSemikolon = saetze.filter((t) => t.includes(";")).length;
+  wahr("höchstens die Hälfte der Sätze trägt einen Strich", mitStrich <= Math.ceil(saetze.length / 2));
+  wahr("ab zwei Verschmelzungen kommt das Semikolon vor", mitSemikolon >= 1 || mitStrich <= 1);
+  ist("kein Satz mit zwei Strichen aus der Verschmelzung", saetze.filter((t) => /—[^.!?]*—/.test(t)).length, 0);
 }
 
 console.log(`Prüfstand Struktur — ${geprueft} Prüfungen, ${bestanden} bestanden`);
