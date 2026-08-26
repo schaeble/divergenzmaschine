@@ -2352,17 +2352,39 @@ function nuechternerTitel(ctx) {
   const fuge = Math.max(stumpf.lastIndexOf(", "), stumpf.lastIndexOf(" \u2014 "), stumpf.lastIndexOf(" und "), stumpf.lastIndexOf(": "));
   return fuge > 20 ? stumpf.slice(0, fuge).replace(/[,;:—–\s]+$/, "") : t;
 }
-function titelFuer(text2, ctx, form = "prose") {
-  if (form === "meldung") return "";
-  if (form === "haiku") return einWort(text2, ctx);
-  if (form === "bericht") return nuechternerTitel(ctx) || "Bericht";
+function haikuKandidaten(text2, ctx) {
+  const erstes = einWort(text2, ctx);
+  const alle = ((text2 || "").match(/[A-ZÄÖÜ][a-zäöüß-]{2,}/g) || []).map((w) => w.replace(/-$/, "")).filter((w) => !KEIN_NOMEN.has(w.toLowerCase()));
+  return [.../* @__PURE__ */ new Set([erstes, ...alle.reverse()])].filter(Boolean);
+}
+function berichtKandidaten(ctx) {
+  const kern = nuechternerTitel(ctx);
+  if (!kern) return ["Bericht"];
+  const ort = clean(ctx.where || "").split(",")[0].replace(/^(in|im|am|an|auf|bei|vor|hinter|unter|über)\s+(der|dem|den|einer|einem)?\s*/i, "").trim();
+  const zeit = clean(ctx.when || "");
+  const out = [kern];
+  if (ort && kern.length + ort.length < MAX + 10) out.push(`${cap3(ort)}: ${kern}`);
+  if (zeit && kern.length + zeit.length < MAX + 10) out.push(`${cap3(zeit)}: ${kern}`);
+  return out;
+}
+function titelKandidaten(text2, ctx, form = "prose") {
+  if (form === "meldung") return [];
+  if (form === "haiku") return haikuKandidaten(text2, ctx);
+  if (form === "bericht") return berichtKandidaten(ctx);
   const zeilen = bildzeilen(text2);
-  if (zeilen.length) {
-    const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""}`);
-    const passend = zeilen.find((z2) => [...inhaltswoerter(z2)].some((w) => bezug.has(w)));
-    return passend || zeilen[0];
-  }
-  return titelAusKontext(ctx) || "Ohne Titel";
+  const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""}`);
+  const passend = zeilen.filter((z2) => [...inhaltswoerter(z2)].some((w) => bezug.has(w)));
+  const uebrige = zeilen.filter((z2) => !passend.includes(z2));
+  const kontext = titelAusKontext(ctx);
+  const ortzeit = ctx.when && ctx.where ? titelAusKontext({ when: ctx.when, where: ctx.where }) : "";
+  return [...new Set([...passend, ...uebrige, kontext, ortzeit].filter(Boolean))];
+}
+function titelFuer(text2, ctx, form = "prose", gesehen = []) {
+  const k2 = titelKandidaten(text2, ctx, form);
+  if (!k2.length) return form === "meldung" ? "" : "Ohne Titel";
+  const frisch = k2.find((t) => !gesehen.includes(t));
+  if (frisch) return frisch;
+  return k2.slice().sort((a, b) => gesehen.lastIndexOf(a) - gesehen.lastIndexOf(b))[0];
 }
 
 // test/titel.ts
@@ -2420,11 +2442,29 @@ ist("ein kurzer Titel bleibt ganz, ohne Punkt", kuerzeTitel("Eine Narbe im Morge
   ist("Bericht: ohne Kontext der Formname", titelFuer(text, {}, "bericht"), "Bericht");
   ist("Reim: frei wie Prosa \u2014 die Bildzeile", titelFuer(text, { who: "Der Bote" }, "reim"), "Ein Licht, das die falschen Dinge zeigt");
 }
+{
+  const ctx = { who: "Der Bote", what: "bringt, was niemand h\xF6ren will", where: "am Kanalufer", when: "im Jahr 2041" };
+  const k2 = titelKandidaten(text, ctx);
+  wahr("es gibt mehrere Kandidaten", k2.length >= 3);
+  const erster = titelFuer(text, ctx, "prose", []);
+  const zweiter = titelFuer(text, ctx, "prose", [erster]);
+  const dritter = titelFuer(text, ctx, "prose", [erster, zweiter]);
+  wahr("drei Erzeugungen, drei Titel", (/* @__PURE__ */ new Set([erster, zweiter, dritter])).size === 3);
+  ist("alle vergeben \u2192 der \xE4lteste kommt wieder", titelFuer(text, ctx, "prose", k2.slice()), k2[0]);
+  const haiku = "Kalter Bach im Hafen \u2014\nein Wachmann z\xE4hlt die M\xF6wen,\nder Schl\xFCssel schweigt.";
+  const h1 = titelFuer(haiku, { who: "Der Wachmann" }, "haiku", []);
+  const h2 = titelFuer(haiku, { who: "Der Wachmann" }, "haiku", [h1]);
+  wahr("Haiku: das zweite Wort ist ein anderes, und eines", h1 !== h2 && !/\s/.test(h2));
+  const b1 = titelFuer("", ctx, "bericht", []);
+  const b2 = titelFuer("", ctx, "bericht", [b1]);
+  wahr("Bericht: die zweite Fassung tr\xE4gt Ort oder Zeit als Marke", b1 !== b2 && /^(Kanalufer|Im Jahr 2041): /.test(b2));
+  wahr("das Studio reicht die vergebenen Titel weiter", /titelFuer\(txt, \{[^}]*\}, form\.value, ladeGesehen\(\)\)/.test((0, import_fs.readFileSync)("src/ui/studio.ts", "utf8")));
+}
 var q = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
 wahr("es gibt den Schalter", /id: "f-titel-an"/.test(q));
 wahr("der Schalter wird gespeichert", /localStorage\.setItem\(TITEL_KEY/.test(q));
 wahr("der Titel steht \xFCber dem Text", /titelLbl\), titelEl, outWrap/.test(q));
-wahr("aus hei\xDFt kein Titel", /titelChk\.checked\s*\?\s*titelFuer/.test(q));
+wahr("aus hei\xDFt kein Titel", /if \(!titelChk\.checked\) return "";/.test(q));
 wahr("und er wandert in den Leser", /titel: aktuellerTitel\(\)/.test(q));
 wahr("der Leser zeigt ihn", /ctx\.titel\) body\.prepend/.test((0, import_fs.readFileSync)("src/ui/reader.ts", "utf8")));
 console.log(`Pr\xFCfstand Titel \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);

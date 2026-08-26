@@ -7,7 +7,7 @@
 // Bildzeile aus dem Text (Nominalphrase, höchstens ein Relativsatz) oder
 // baut aus Wer und Was — nach der Art des Was.
 import { readFileSync } from "fs";
-import { titelFuer, titelAusKontext, bildzeilen, kuerzeTitel, einWort, nuechternerTitel } from "../src/generation/titel";
+import { titelFuer, titelAusKontext, bildzeilen, kuerzeTitel, einWort, nuechternerTitel, titelKandidaten } from "../src/generation/titel";
 
 const fails: string[] = [];
 let geprueft = 0, bestanden = 0;
@@ -67,12 +67,35 @@ ist("ein kurzer Titel bleibt ganz, ohne Punkt", kuerzeTitel("Eine Narbe im Morge
   ist("Reim: frei wie Prosa — die Bildzeile", titelFuer(text, { who: "Der Bote" }, "reim"), "Ein Licht, das die falschen Dinge zeigt");
 }
 
-// ── 6 · Der Schalter im Studio ──────────────────────────────────────────────
+// ── 6 · Keine Wiederholung bei gleicher Einstellung ─────────────────────────
+// Gemeldet: Bei gleichem Preset wiederholte sich der Titel — Wer + Was sind
+// fest, die erste Bildzeile war immer dieselbe. Jetzt zählt, was vergeben ist.
+{
+  const ctx = { who: "Der Bote", what: "bringt, was niemand hören will", where: "am Kanalufer", when: "im Jahr 2041" };
+  const k = titelKandidaten(text, ctx);
+  wahr("es gibt mehrere Kandidaten", k.length >= 3);
+  const erster = titelFuer(text, ctx, "prose", []);
+  const zweiter = titelFuer(text, ctx, "prose", [erster]);
+  const dritter = titelFuer(text, ctx, "prose", [erster, zweiter]);
+  wahr("drei Erzeugungen, drei Titel", new Set([erster, zweiter, dritter]).size === 3);
+  ist("alle vergeben → der älteste kommt wieder", titelFuer(text, ctx, "prose", k.slice()), k[0]);
+  // Haiku und Bericht wechseln ebenfalls.
+  const haiku = "Kalter Bach im Hafen —\nein Wachmann zählt die Möwen,\nder Schlüssel schweigt.";
+  const h1 = titelFuer(haiku, { who: "Der Wachmann" }, "haiku", []);
+  const h2 = titelFuer(haiku, { who: "Der Wachmann" }, "haiku", [h1]);
+  wahr("Haiku: das zweite Wort ist ein anderes, und eines", h1 !== h2 && !/\s/.test(h2));
+  const b1 = titelFuer("", ctx, "bericht", []);
+  const b2 = titelFuer("", ctx, "bericht", [b1]);
+  wahr("Bericht: die zweite Fassung trägt Ort oder Zeit als Marke", b1 !== b2 && /^(Kanalufer|Im Jahr 2041): /.test(b2));
+  wahr("das Studio reicht die vergebenen Titel weiter", /titelFuer\(txt, \{[^}]*\}, form\.value, ladeGesehen\(\)\)/.test(readFileSync("src/ui/studio.ts", "utf8")));
+}
+
+// ── 7 · Der Schalter im Studio ──────────────────────────────────────────────
 const q = readFileSync("src/ui/studio.ts", "utf8");
 wahr("es gibt den Schalter", /id: "f-titel-an"/.test(q));
 wahr("der Schalter wird gespeichert", /localStorage\.setItem\(TITEL_KEY/.test(q));
 wahr("der Titel steht über dem Text", /titelLbl\), titelEl, outWrap/.test(q));
-wahr("aus heißt kein Titel", /titelChk\.checked\s*\?\s*titelFuer/.test(q));
+wahr("aus heißt kein Titel", /if \(!titelChk\.checked\) return "";/.test(q));
 wahr("und er wandert in den Leser", /titel: aktuellerTitel\(\)/.test(q));
 wahr("der Leser zeigt ihn", /ctx\.titel\) body\.prepend/.test(readFileSync("src/ui/reader.ts", "utf8")));
 

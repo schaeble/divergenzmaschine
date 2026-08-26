@@ -147,18 +147,54 @@ export function nuechternerTitel(ctx: TitelKontext): string {
   return fuge > 20 ? stumpf.slice(0, fuge).replace(/[,;:—–\s]+$/, "") : t;
 }
 
+/** Alle Nomen eines Haikus in der Reihenfolge, in der einWort sie vorzieht. */
+function haikuKandidaten(text: string, ctx: TitelKontext): string[] {
+  const erstes = einWort(text, ctx);
+  const alle = ((text || "").match(/[A-ZÄÖÜ][a-zäöüß-]{2,}/g) || [])
+    .map((w) => w.replace(/-$/, "")).filter((w) => !KEIN_NOMEN.has(w.toLowerCase()));
+  return [...new Set([erstes, ...alle.reverse()])].filter(Boolean);
+}
+
+/** Nüchterne Varianten für den Bericht: Wer + Was, davor Ort oder Zeit als
+ *  Marke — so wechselt der Titel, ohne ein Bild zu erfinden. */
+function berichtKandidaten(ctx: TitelKontext): string[] {
+  const kern = nuechternerTitel(ctx);
+  if (!kern) return ["Bericht"];
+  const ort = clean(ctx.where || "").split(",")[0]!.replace(/^(in|im|am|an|auf|bei|vor|hinter|unter|über)\s+(der|dem|den|einer|einem)?\s*/i, "").trim();
+  const zeit = clean(ctx.when || "");
+  const out = [kern];
+  if (ort && (kern.length + ort.length) < MAX + 10) out.push(`${cap(ort)}: ${kern}`);
+  if (zeit && (kern.length + zeit.length) < MAX + 10) out.push(`${cap(zeit)}: ${kern}`);
+  return out;
+}
+
+/** Alle Kandidaten für einen Titel, beste zuerst. Leer für die Meldung. */
+export function titelKandidaten(text: string, ctx: TitelKontext, form = "prose"): string[] {
+  if (form === "meldung") return [];
+  if (form === "haiku") return haikuKandidaten(text, ctx);
+  if (form === "bericht") return berichtKandidaten(ctx);
+  const zeilen = bildzeilen(text);
+  const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""}`);
+  const passend = zeilen.filter((z) => [...inhaltswoerter(z)].some((w) => bezug.has(w)));
+  const uebrige = zeilen.filter((z) => !passend.includes(z));
+  const kontext = titelAusKontext(ctx);
+  const ortzeit = (ctx.when && ctx.where) ? titelAusKontext({ when: ctx.when, where: ctx.where }) : "";
+  return [...new Set([...passend, ...uebrige, kontext, ortzeit].filter(Boolean))];
+}
+
 /** Der Titel für einen erzeugten Text. Drei Formen haben eigene Regeln:
  *  Haiku ein Wort, Bericht nüchtern, Reim frei (wie Prosa). Die Meldung
- *  bekommt keinen — sie ist zu kurz für eine zweite Zeile. */
-export function titelFuer(text: string, ctx: TitelKontext, form = "prose"): string {
-  if (form === "meldung") return "";
-  if (form === "haiku") return einWort(text, ctx);
-  if (form === "bericht") return nuechternerTitel(ctx) || "Bericht";
-  const zeilen = bildzeilen(text);
-  if (zeilen.length) {
-    const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""}`);
-    const passend = zeilen.find((z) => [...inhaltswoerter(z)].some((w) => bezug.has(w)));
-    return passend || zeilen[0]!;
-  }
-  return titelAusKontext(ctx) || "Ohne Titel";
+ *  bekommt keinen — sie ist zu kurz für eine zweite Zeile.
+ *
+ *  `gesehen`: zuletzt vergebene Titel. Gemeldet: Bei gleicher Einstellung
+ *  wiederholte sich der Titel, weil Wer + Was fest sind und die erste
+ *  Bildzeile immer dieselbe war. Jetzt gewinnt der beste Kandidat, der noch
+ *  nicht vergeben ist; sind alle vergeben, der am längsten zurückliegende. */
+export function titelFuer(text: string, ctx: TitelKontext, form = "prose", gesehen: readonly string[] = []): string {
+  const k = titelKandidaten(text, ctx, form);
+  if (!k.length) return form === "meldung" ? "" : "Ohne Titel";
+  const frisch = k.find((t) => !gesehen.includes(t));
+  if (frisch) return frisch;
+  // Alle vergeben: der, dessen letzte Verwendung am weitesten zurückliegt.
+  return k.slice().sort((a, b) => gesehen.lastIndexOf(a) - gesehen.lastIndexOf(b))[0]!;
 }

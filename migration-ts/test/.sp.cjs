@@ -20653,17 +20653,39 @@ function nuechternerTitel(ctx) {
   const fuge = Math.max(stumpf.lastIndexOf(", "), stumpf.lastIndexOf(" \u2014 "), stumpf.lastIndexOf(" und "), stumpf.lastIndexOf(": "));
   return fuge > 20 ? stumpf.slice(0, fuge).replace(/[,;:—–\s]+$/, "") : t;
 }
-function titelFuer(text, ctx, form = "prose") {
-  if (form === "meldung") return "";
-  if (form === "haiku") return einWort(text, ctx);
-  if (form === "bericht") return nuechternerTitel(ctx) || "Bericht";
+function haikuKandidaten(text, ctx) {
+  const erstes = einWort(text, ctx);
+  const alle = ((text || "").match(/[A-ZÄÖÜ][a-zäöüß-]{2,}/g) || []).map((w) => w.replace(/-$/, "")).filter((w) => !KEIN_NOMEN2.has(w.toLowerCase()));
+  return [.../* @__PURE__ */ new Set([erstes, ...alle.reverse()])].filter(Boolean);
+}
+function berichtKandidaten(ctx) {
+  const kern = nuechternerTitel(ctx);
+  if (!kern) return ["Bericht"];
+  const ort = clean(ctx.where || "").split(",")[0].replace(/^(in|im|am|an|auf|bei|vor|hinter|unter|über)\s+(der|dem|den|einer|einem)?\s*/i, "").trim();
+  const zeit = clean(ctx.when || "");
+  const out = [kern];
+  if (ort && kern.length + ort.length < MAX + 10) out.push(`${cap3(ort)}: ${kern}`);
+  if (zeit && kern.length + zeit.length < MAX + 10) out.push(`${cap3(zeit)}: ${kern}`);
+  return out;
+}
+function titelKandidaten(text, ctx, form = "prose") {
+  if (form === "meldung") return [];
+  if (form === "haiku") return haikuKandidaten(text, ctx);
+  if (form === "bericht") return berichtKandidaten(ctx);
   const zeilen = bildzeilen(text);
-  if (zeilen.length) {
-    const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""}`);
-    const passend = zeilen.find((z) => [...inhaltswoerter(z)].some((w) => bezug.has(w)));
-    return passend || zeilen[0];
-  }
-  return titelAusKontext(ctx) || "Ohne Titel";
+  const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""}`);
+  const passend = zeilen.filter((z) => [...inhaltswoerter(z)].some((w) => bezug.has(w)));
+  const uebrige = zeilen.filter((z) => !passend.includes(z));
+  const kontext = titelAusKontext(ctx);
+  const ortzeit = ctx.when && ctx.where ? titelAusKontext({ when: ctx.when, where: ctx.where }) : "";
+  return [...new Set([...passend, ...uebrige, kontext, ortzeit].filter(Boolean))];
+}
+function titelFuer(text, ctx, form = "prose", gesehen = []) {
+  const k = titelKandidaten(text, ctx, form);
+  if (!k.length) return form === "meldung" ? "" : "Ohne Titel";
+  const frisch = k.find((t) => !gesehen.includes(t));
+  if (frisch) return frisch;
+  return k.slice().sort((a, b) => gesehen.lastIndexOf(a) - gesehen.lastIndexOf(b))[0];
 }
 
 // src/features/sources.ts
@@ -23190,7 +23212,35 @@ function mountStudio(root) {
     titelChk.checked = true;
   }
   const titelLbl = el("label", { class: "chk", title: "Ein Titel \xFCber dem Text \u2014 aus einer Bildzeile des Textes oder aus Wer und Was." }, titelChk, " Titel");
-  const aktuellerTitel = () => titelChk.checked ? titelFuer(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value }, form.value) : "";
+  const GESEHEN_KEY = "dm_titel_gesehen";
+  const ladeGesehen = () => {
+    try {
+      const r = JSON.parse(localStorage.getItem(GESEHEN_KEY) || "[]");
+      return Array.isArray(r) ? r.filter((x) => typeof x === "string") : [];
+    } catch {
+      return [];
+    }
+  };
+  const merkeGesehen = (t) => {
+    if (!t) return;
+    const g = ladeGesehen().filter((x) => x !== t);
+    g.push(t);
+    try {
+      localStorage.setItem(GESEHEN_KEY, JSON.stringify(g.slice(-40)));
+    } catch {
+    }
+  };
+  let titelAktuell = "", titelText = "";
+  const aktuellerTitel = () => {
+    if (!titelChk.checked) return "";
+    const txt2 = out.textContent || "";
+    if (txt2 !== titelText) {
+      titelAktuell = titelFuer(txt2, { who: who.value, where: where.value, when: when.value, what: what.value }, form.value, ladeGesehen());
+      titelText = txt2;
+      merkeGesehen(titelAktuell);
+    }
+    return titelAktuell;
+  };
   const renderTitel = () => {
     const t = aktuellerTitel();
     titelEl.textContent = t;

@@ -628,9 +628,28 @@ export function mountStudio(root: HTMLElement): void {
   const titelChk = el("input", { type: "checkbox", id: "f-titel-an" }) as HTMLInputElement;
   try { titelChk.checked = localStorage.getItem(TITEL_KEY) !== "aus"; } catch { titelChk.checked = true; }
   const titelLbl = el("label", { class: "chk", title: "Ein Titel über dem Text — aus einer Bildzeile des Textes oder aus Wer und Was." }, titelChk, " Titel");
-  const aktuellerTitel = (): string => titelChk.checked
-    ? titelFuer(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value }, form.value)
-    : "";
+  // Vergebene Titel merken, damit sie sich bei gleicher Einstellung nicht
+  // wiederholen — die letzten vierzig, über Sitzungen hinweg.
+  const GESEHEN_KEY = "dm_titel_gesehen";
+  const ladeGesehen = (): string[] => { try { const r = JSON.parse(localStorage.getItem(GESEHEN_KEY) || "[]"); return Array.isArray(r) ? r.filter((x) => typeof x === "string") : []; } catch { return []; } };
+  const merkeGesehen = (t: string): void => {
+    if (!t) return;
+    const g = ladeGesehen().filter((x) => x !== t); g.push(t);
+    try { localStorage.setItem(GESEHEN_KEY, JSON.stringify(g.slice(-40))); } catch { /* voll */ }
+  };
+  // Der Titel gehört zum Text: einmal je Erzeugung gewählt, dann fest — ein
+  // Umbau oder Rückgängig im Textfeld wechselt ihn nicht.
+  let titelAktuell = "", titelText = "";
+  const aktuellerTitel = (): string => {
+    if (!titelChk.checked) return "";
+    const txt = out.textContent || "";
+    if (txt !== titelText) {
+      titelAktuell = titelFuer(txt, { who: who.value, where: where.value, when: when.value, what: what.value }, form.value, ladeGesehen());
+      titelText = txt;
+      merkeGesehen(titelAktuell);
+    }
+    return titelAktuell;
+  };
   const renderTitel = (): void => {
     const t = aktuellerTitel();
     titelEl.textContent = t;
