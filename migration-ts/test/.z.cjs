@@ -1,424 +1,2480 @@
 "use strict";
 
-// test/bildsammler.ts
+// test/titel.ts
 var import_fs = require("fs");
 
-// src/features/lehrer.ts
-function schaetzeTokens(text) {
-  const s = text || "";
-  if (!s) return 0;
-  return Math.ceil(s.length / 3);
-}
-var MODELLE = [
-  { id: "claude-haiku-4-5", name: "Haiku 4.5 \u2014 am g\xFCnstigsten", ein: 1, aus: 5 },
-  { id: "claude-sonnet-5", name: "Sonnet 5 \u2014 Mittelweg", ein: 2, aus: 10 },
-  { id: "claude-opus-5", name: "Opus 5 \u2014 am teuersten", ein: 5, aus: 25 }
-];
-
-// src/features/bildsammler.ts
-function bildTokens(b, h) {
-  if (!(b > 0) || !(h > 0)) return 0;
-  return Math.round(b * h / 750);
-}
-var VERRAETER = [
-  /\b(?:das|dieses|auf dem|im)\s+(?:bild|foto|photo|motiv)\b/i,
-  /\b(?:bild|foto|photo|aufnahme|abbildung|szene)(?:es|s|er|n)?\s+zeigt\b/i,
-  /\bzu sehen ist\b/i,
-  /\bman (?:sieht|erkennt|blickt)\b/i,
-  /\b(?:im|in den|aus dem)\s+(?:vorder|hinter|mittel)grund\b/i,
-  /\bder betrachter\b/i,
-  /\b(?:abgebildet|fotografiert|aufgenommen|dargestellt)\b/i,
-  /\b(?:links|rechts|oben|unten|mittig)\s+(?:im|am)\s+(?:bild|rand)\b/i,
-  /\bbild(?:aus|auf)schnitt\b/i,
-  /\bim bildzentrum\b/i,
-  /\bkamera\b/i,
-  /\bperspektive\s+(?:des|der)\b/i
-];
-function verraetBild(satz) {
-  return VERRAETER.some((r) => r.test(satz || ""));
-}
-function taugtSatz(s, min = 20, max = 260) {
-  const t = (s || "").trim();
-  if (t.length < min || t.length > max) return false;
-  if (verraetBild(t)) return false;
-  if (!/\s[a-zäöüß]{2,}/.test(t)) return false;
-  return (t.match(/\S+/g) || []).length >= 4;
-}
-var ARTIKEL = new RegExp(
-  "\\b(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|am|im|zum|zur|vom|beim|ins|ans|aufs|f\xFCrs|durchs|ums|dies|diese[rmns]?|jene[rmns]?|jede[rmns]?|manche[rmns]?|solche[rmns]?|alle[rmns]?|beide[rn]?|welche[rmns]?|keine?[rmns]?|mein|dein|sein|ihr|unser|euer|meine[rmns]?|deine[rmns]?|seine[rmns]?|ihre[rmns]?|unsere[rmns]?|eure[rmns]?)\\b",
-  "i"
-);
-function wirktVerkuerzt(satz) {
-  const t = (satz || "").trim();
-  const woerter = t.match(/\S+/g) || [];
-  if (woerter.length < 5) return false;
-  if (ARTIKEL.test(t)) return false;
-  const grosse = woerter.slice(1).filter((w) => /^[A-ZÄÖÜ]/.test(w)).length;
-  return grosse >= 2;
-}
-function beute(saetze) {
-  const behalten = [], verworfen = [];
-  const gesehen = /* @__PURE__ */ new Set();
-  for (const roh of saetze || []) {
-    const s = String(roh || "").trim().replace(/\s+/g, " ");
-    if (!s) continue;
-    const schluessel = s.toLowerCase();
-    if (gesehen.has(schluessel)) {
-      verworfen.push(s);
-      continue;
-    }
-    gesehen.add(schluessel);
-    if (!taugtSatz(s)) {
-      verworfen.push(s);
-      continue;
-    }
-    behalten.push({
-      satz: s,
-      zweifel: wirktVerkuerzt(s) ? "wirkt verk\xFCrzt \u2014 ohne Artikel zerf\xE4llt der Satz beim Neuzusammensetzen" : ""
-    });
-  }
-  return { behalten, verworfen };
-}
-var SAETZE_VORGABE = 12;
-function bauePrompt(anzahl = SAETZE_VORGABE, hinweis = "") {
-  const n = Math.max(3, Math.min(40, Math.round(anzahl) || SAETZE_VORGABE));
-  const h = (hinweis || "").trim();
-  return `Du lieferst Rohmaterial f\xFCr einen deutschsprachigen Textgenerator. Du bekommst ein Bild. Schreibe daraus S\xE4tze, die als Sprachmaterial taugen.
-
-H\xC4RTESTE REGEL: Jeder Satz muss ohne das Bild stehen k\xF6nnen. Es darf kein Wort darauf hinweisen, dass es ein Bild gibt. Verboten sind daher: \u201Edas Bild zeigt\u201C, \u201Ezu sehen ist\u201C, \u201Eman sieht\u201C, \u201Eim Vordergrund\u201C, \u201Eim Hintergrund\u201C, \u201Eder Betrachter\u201C, \u201Eabgebildet\u201C, \u201Eaufgenommen\u201C, \u201EKamera\u201C, \u201Elinks im Bild\u201C und alles Vergleichbare. Ein Satz, der solche Wendungen enth\xE4lt, wird verworfen und war umsonst.
-
-Schreibe n\xFCchtern und benennend, NICHT literarisch. Keine Deutung, keine Stimmung, keine Metaphern, keine Adjektivketten. Dinge, Stoffe, Licht, Abnutzung, Gesten, Wetter, Tageszeit, Kleidung, Ger\xE4usche, die dazugeh\xF6ren \u2014 benannt, nicht ausgeschm\xFCckt. Die Fremdheit stellt die Maschine selbst her; Material, das schon sch\xF6n ist, nimmt ihr die Arbeit ab.
-
-N\xDCCHTERN HEISST NICHT VERK\xDCRZT. Schreibe vollst\xE4ndige S\xE4tze mit Artikeln, Pr\xE4positionen und gebeugten Verben. Kein Telegrammstil, keine Stichworte, keine Bildunterschriften.
-  FALSCH: \u201EMann sitzt auf Bank und h\xE4lt Hut.\u201C
-  RICHTIG: \u201EDer Mann sitzt auf der Bank und h\xE4lt den Hut in der Hand.\u201C
-Der Grund: Die S\xE4tze werden von einer Maschine zerlegt und neu zusammengesetzt. Artikel, Pr\xE4positionen und Endungen sind die Scharniere, an denen sie umsteigt. Ein Satz ohne sie zerf\xE4llt beim ersten Schnitt in Bruchst\xFCcke, die sich nicht mehr f\xFCgen lassen \u2014 er ist als Material wertlos, so richtig er auch gemeint war.
-
-Liefere ${n} kurze S\xE4tze, jeder 5 bis 25 W\xF6rter, jeder f\xFCr sich stehend, keine Aufz\xE4hlungen.
-
-Dazu vier Angaben f\xFCr den Kontext, jede h\xF6chstens sechs W\xF6rter, jede ohne Bildbezug:
-- who: wer vorkommt (Person, Rolle, Tier \u2014 ohne Namen zu erfinden)
-- where: der Ort
-- when: die Zeit (Tageszeit, Jahreszeit, Epoche \u2014 nur wenn erkennbar)
-- what: was geschieht
-Ist etwas nicht erkennbar, gib eine leere Zeichenkette. Rate nicht.
-` + (h ? `
-Zus\xE4tzliche Vorgabe des Nutzers (vorrangig): ${h}
-` : "") + '\nAntworte mit reinem JSON, beginnend mit { und endend mit }: {"saetze": ["\u2026"], "ctx": {"who": "\u2026", "where": "\u2026", "when": "\u2026", "what": "\u2026"}}. Keine Erkl\xE4rung, kein Markdown.';
-}
-function leseErnte(roh) {
-  const leer = { saetze: [], ctx: { who: "", where: "", when: "", what: "" } };
-  if (!roh || typeof roh !== "object") return leer;
-  const o = roh;
-  const saetze = Array.isArray(o.saetze) ? o.saetze.filter((s) => typeof s === "string") : [];
-  const c = o.ctx && typeof o.ctx === "object" ? o.ctx : {};
-  const feld = (k) => {
-    const v = typeof c[k] === "string" ? c[k].trim().replace(/\s+/g, " ") : "";
-    if (!v || verraetBild(v)) return "";
-    return v.slice(0, 80);
-  };
-  return { saetze, ctx: { who: feld("who"), where: feld("where"), when: feld("when"), what: feld("what") } };
-}
-function maxToken(anzahl = SAETZE_VORGABE) {
-  const n = Math.max(3, Math.min(40, Math.round(anzahl) || SAETZE_VORGABE));
-  return Math.min(4096, n * 45 + 300);
-}
-function schaetzeLauf(b, h, anzahl, m) {
-  const ein = bildTokens(b, h) + schaetzeTokens(bauePrompt(anzahl));
-  const aus = maxToken(anzahl);
-  return { ein, aus, usd: (ein * m.ein + aus * m.aus) / 1e6 };
-}
-function zerlegeDatenUrl(url) {
-  const m = /^data:([^;,]+);base64,(.+)$/s.exec(url || "");
-  if (!m) return null;
-  const media = m[1].toLowerCase();
-  if (!/^image\/(jpeg|png|gif|webp)$/.test(media)) return null;
-  return { media, daten: m[2] };
-}
-var BILDVORRAT_KEY = "divergenz_bildvorrat_v1";
-var BILDVORRAT_DECKEL = 400;
-function bildSchluessel(f) {
-  const c = f.ctx;
-  const n = (v) => (v || "").toLowerCase().replace(/\s+/g, " ").trim();
-  return [n(c.who), n(c.where), n(c.when), n(c.what)].join("|");
-}
-function taugtFund(f) {
-  const c = f?.ctx;
-  return !!c && !!(c.who || c.where || c.when || c.what);
-}
-function mischeBildvorrat(alt, neu, deckel = BILDVORRAT_DECKEL) {
-  const bekannt = new Set(alt.filter(taugtFund).map(bildSchluessel));
-  const raus = alt.slice();
-  for (const f of neu) {
-    if (!taugtFund(f)) continue;
-    const k = bildSchluessel(f);
-    if (bekannt.has(k)) continue;
-    bekannt.add(k);
-    raus.push(f);
-  }
-  return deckel > 0 && raus.length > deckel ? raus.slice(raus.length - deckel) : raus;
-}
-function ladeBildvorrat() {
-  try {
-    const r = JSON.parse(localStorage.getItem(BILDVORRAT_KEY) || "[]");
-    if (!Array.isArray(r)) return [];
-    return r.filter((f) => f && f.ctx && typeof f.ctx.what === "string");
-  } catch {
-    return [];
-  }
-}
-function ziehBildvorrat(vorrat = ladeBildvorrat(), rnd = Math.random) {
-  const gut2 = vorrat.filter(taugtFund);
-  if (!gut2.length) return null;
-  const i = Math.min(gut2.length - 1, Math.max(0, Math.floor(rnd() * gut2.length)));
-  return gut2[i];
-}
-function baueAbschriftPrompt(hinweis = "") {
-  const h = (hinweis || "").trim();
-  return "Du fertigst eine ABSCHRIFT an. Gib den Text wieder, der auf dem Bild steht \u2014 genau so, wie er dasteht.\n\nVerboten:\n- Etwas erg\xE4nzen, weiterschreiben oder erkl\xE4ren.\n- Rechtschreibung modernisieren. Alte Formen (\u201Ethun\u201C, \u201Egiebt\u201C, \u201Eda\xDF\u201C) bleiben stehen.\n- Grammatik oder Zeichensetzung verbessern. Fehler in der Vorlage sind Teil der Vorlage.\n- Zeilen zusammenziehen, die im Original getrennt stehen, wenn es Verse oder eine Liste sind.\n- Kopfzeilen, Seitenzahlen, Marginalien oder Bildunterschriften stillschweigend weglassen.\n\nErlaubt und erw\xFCnscht:\n- Silbentrennung am Zeilenende aufl\xF6sen: \u201EWerk-\\nzeug\u201C wird zu \u201EWerkzeug\u201C, in einer Zeile.\n- Abs\xE4tze als Abs\xE4tze wiedergeben, Flie\xDFtext als Flie\xDFtext.\n- Ist eine Stelle nicht lesbar, setze [unleserlich] statt zu raten.\n- Steht mehreres nebeneinander (Spalten), schreibe Spalte f\xFCr Spalte, getrennt durch eine Leerzeile.\n\n" + (h ? `Zus\xE4tzliche Vorgabe des Nutzers (vorrangig): ${h}
-
-` : "") + "Gib NUR die Abschrift zur\xFCck. Keine Einleitung, kein Kommentar, keine Anf\xFChrungszeichen um das Ganze, kein Markdown. Steht auf dem Bild kein lesbarer Text, antworte mit genau: KEIN TEXT";
-}
-function leseAbschrift(roh) {
-  let t = (roh || "").trim();
-  if (!t || /^KEIN TEXT$/i.test(t)) return { text: "", leer: true };
-  t = t.replace(/^```[a-z]*\s*\n?/i, "").replace(/\n?```\s*$/, "").trim();
-  t = t.replace(/^(?:hier ist |dies ist )?die abschrift(?: des textes)?:?\s*\n+/i, "").trim();
-  return { text: t, leer: !t };
-}
-function maxTokenAbschrift() {
-  return 4096;
+// src/text-utils.ts
+function clean(s) {
+  return (s ?? "").toString().trim().replace(/\s+/g, " ");
 }
 
-// test/bildsammler.ts
-var fails = [];
-var zeilen = [];
-var geprueft = 0;
-var ist = (name, wert, soll) => {
-  geprueft++;
-  if (wert === soll) zeilen.push(`  \u2713 ${name}`);
-  else {
-    zeilen.push(`  \u2717 ${name}`);
-    fails.push(`${name}: \u201E${String(wert)}\u201C \u2014 erwartet \u201E${String(soll)}\u201C`);
+// src/generation/verbconj.data.ts
+var VERB_CONJ = {
+  "bemerkt": {
+    "ich": "bemerke",
+    "du": "bemerkst",
+    "wir": "bemerken",
+    "ihr": "bemerkt"
+  },
+  "nimmt": {
+    "ich": "nehme",
+    "du": "nimmst",
+    "wir": "nehmen",
+    "ihr": "nehmt"
+  },
+  "steht": {
+    "ich": "stehe",
+    "du": "stehst",
+    "wir": "stehen",
+    "ihr": "steht"
+  },
+  "h\xE4lt": {
+    "ich": "halte",
+    "du": "h\xE4ltst",
+    "wir": "halten",
+    "ihr": "haltet"
+  },
+  "sucht": {
+    "ich": "suche",
+    "du": "suchst",
+    "wir": "suchen",
+    "ihr": "sucht"
+  },
+  "versucht": {
+    "ich": "versuche",
+    "du": "versuchst",
+    "wir": "versuchen",
+    "ihr": "versucht"
+  },
+  "will": {
+    "ich": "will",
+    "du": "willst",
+    "wir": "wollen",
+    "ihr": "wollt"
+  },
+  "kann": {
+    "ich": "kann",
+    "du": "kannst",
+    "wir": "k\xF6nnen",
+    "ihr": "k\xF6nnt"
+  },
+  "muss": {
+    "ich": "muss",
+    "du": "musst",
+    "wir": "m\xFCssen",
+    "ihr": "m\xFCsst"
+  },
+  "darf": {
+    "ich": "darf",
+    "du": "darfst",
+    "wir": "d\xFCrfen",
+    "ihr": "d\xFCrft"
+  },
+  "mag": {
+    "ich": "mag",
+    "du": "magst",
+    "wir": "m\xF6gen",
+    "ihr": "m\xF6gt"
+  },
+  "soll": {
+    "ich": "soll",
+    "du": "sollst",
+    "wir": "sollen",
+    "ihr": "sollt"
+  },
+  "m\xF6chte": {
+    "ich": "m\xF6chte",
+    "du": "m\xF6chtest",
+    "wir": "m\xF6chten",
+    "ihr": "m\xF6chtet"
+  },
+  "ist": {
+    "ich": "bin",
+    "du": "bist",
+    "wir": "sind",
+    "ihr": "seid"
+  },
+  "wird": {
+    "ich": "werde",
+    "du": "wirst",
+    "wir": "werden",
+    "ihr": "werdet"
+  },
+  "geht": {
+    "ich": "gehe",
+    "du": "gehst",
+    "wir": "gehen",
+    "ihr": "geht"
+  },
+  "kommt": {
+    "ich": "komme",
+    "du": "kommst",
+    "wir": "kommen",
+    "ihr": "kommt"
+  },
+  "bleibt": {
+    "ich": "bleibe",
+    "du": "bleibst",
+    "wir": "bleiben",
+    "ihr": "bleibt"
+  },
+  "\xF6ffnet": {
+    "ich": "\xF6ffne",
+    "du": "\xF6ffnest",
+    "wir": "\xF6ffnen",
+    "ihr": "\xF6ffnet"
+  },
+  "schlie\xDFt": {
+    "ich": "schlie\xDFe",
+    "du": "schlie\xDFt",
+    "wir": "schlie\xDFen",
+    "ihr": "schlie\xDFt"
+  },
+  "fragt": {
+    "ich": "frage",
+    "du": "fragst",
+    "wir": "fragen",
+    "ihr": "fragt"
+  },
+  "f\xFChrt": {
+    "ich": "f\xFChre",
+    "du": "f\xFChrst",
+    "wir": "f\xFChren",
+    "ihr": "f\xFChrt"
+  },
+  "begreift": {
+    "ich": "begreife",
+    "du": "begreifst",
+    "wir": "begreifen",
+    "ihr": "begreift"
+  },
+  "bricht": {
+    "ich": "breche",
+    "du": "brichst",
+    "wir": "brechen",
+    "ihr": "brecht"
+  },
+  "kippt": {
+    "ich": "kippe",
+    "du": "kippst",
+    "wir": "kippen",
+    "ihr": "kippt"
+  },
+  "l\xF6scht": {
+    "ich": "l\xF6sche",
+    "du": "l\xF6schst",
+    "wir": "l\xF6schen",
+    "ihr": "l\xF6scht"
+  },
+  "tut": {
+    "ich": "tue",
+    "du": "tust",
+    "wir": "tun",
+    "ihr": "tut"
+  },
+  "macht": {
+    "ich": "mache",
+    "du": "machst",
+    "wir": "machen",
+    "ihr": "macht"
+  },
+  "sieht": {
+    "ich": "sehe",
+    "du": "siehst",
+    "wir": "sehen",
+    "ihr": "seht"
+  },
+  "gibt": {
+    "ich": "gebe",
+    "du": "gibst",
+    "wir": "geben",
+    "ihr": "gebt"
+  },
+  "tr\xE4gt": {
+    "ich": "trage",
+    "du": "tr\xE4gst",
+    "wir": "tragen",
+    "ihr": "tragt"
+  },
+  "h\xF6rt": {
+    "ich": "h\xF6re",
+    "du": "h\xF6rst",
+    "wir": "h\xF6ren",
+    "ihr": "h\xF6rt"
+  },
+  "findet": {
+    "ich": "finde",
+    "du": "findest",
+    "wir": "finden",
+    "ihr": "findet"
+  },
+  "ber\xFChrt": {
+    "ich": "ber\xFChre",
+    "du": "ber\xFChrst",
+    "wir": "ber\xFChren",
+    "ihr": "ber\xFChrt"
+  },
+  "beobachtet": {
+    "ich": "beobachte",
+    "du": "beobachtest",
+    "wir": "beobachten",
+    "ihr": "beobachtet"
+  },
+  "kennt": {
+    "ich": "kenne",
+    "du": "kennst",
+    "wir": "kennen",
+    "ihr": "kennt"
+  },
+  "nennt": {
+    "ich": "nenne",
+    "du": "nennst",
+    "wir": "nennen",
+    "ihr": "nennt"
+  },
+  "sp\xFCrt": {
+    "ich": "sp\xFCre",
+    "du": "sp\xFCrst",
+    "wir": "sp\xFCren",
+    "ihr": "sp\xFCrt"
+  },
+  "wei\xDF": {
+    "ich": "wei\xDF",
+    "du": "wei\xDFt",
+    "wir": "wissen",
+    "ihr": "wisst"
+  },
+  "braucht": {
+    "ich": "brauche",
+    "du": "brauchst",
+    "wir": "brauchen",
+    "ihr": "braucht"
+  },
+  "w\xFCnscht": {
+    "ich": "w\xFCnsche",
+    "du": "w\xFCnschst",
+    "wir": "w\xFCnschen",
+    "ihr": "w\xFCnscht"
+  },
+  "hofft": {
+    "ich": "hoffe",
+    "du": "hoffst",
+    "wir": "hoffen",
+    "ihr": "hofft"
+  },
+  "tr\xE4umt": {
+    "ich": "tr\xE4ume",
+    "du": "tr\xE4umst",
+    "wir": "tr\xE4umen",
+    "ihr": "tr\xE4umt"
+  },
+  "plant": {
+    "ich": "plane",
+    "du": "planst",
+    "wir": "planen",
+    "ihr": "plant"
+  },
+  "f\xFCrchtet": {
+    "ich": "f\xFCrchte",
+    "du": "f\xFCrchtest",
+    "wir": "f\xFCrchten",
+    "ihr": "f\xFCrchtet"
+  },
+  "wartet": {
+    "ich": "warte",
+    "du": "wartest",
+    "wir": "warten",
+    "ihr": "wartet"
+  },
+  "glaubt": {
+    "ich": "glaube",
+    "du": "glaubst",
+    "wir": "glauben",
+    "ihr": "glaubt"
+  },
+  "denkt": {
+    "ich": "denke",
+    "du": "denkst",
+    "wir": "denken",
+    "ihr": "denkt"
+  },
+  "f\xFChlt": {
+    "ich": "f\xFChle",
+    "du": "f\xFChlst",
+    "wir": "f\xFChlen",
+    "ihr": "f\xFChlt"
+  },
+  "verlangt": {
+    "ich": "verlange",
+    "du": "verlangst",
+    "wir": "verlangen",
+    "ihr": "verlangt"
+  },
+  "erwartet": {
+    "ich": "erwarte",
+    "du": "erwartest",
+    "wir": "erwarten",
+    "ihr": "erwartet"
+  },
+  "riskiert": {
+    "ich": "riskiere",
+    "du": "riskierst",
+    "wir": "riskieren",
+    "ihr": "riskiert"
+  },
+  "wagt": {
+    "ich": "wage",
+    "du": "wagst",
+    "wir": "wagen",
+    "ihr": "wagt"
+  },
+  "flieht": {
+    "ich": "fliehe",
+    "du": "fliehst",
+    "wir": "fliehen",
+    "ihr": "flieht"
+  },
+  "jagt": {
+    "ich": "jage",
+    "du": "jagst",
+    "wir": "jagen",
+    "ihr": "jagt"
+  },
+  "folgt": {
+    "ich": "folge",
+    "du": "folgst",
+    "wir": "folgen",
+    "ihr": "folgt"
+  },
+  "verfolgt": {
+    "ich": "verfolge",
+    "du": "verfolgst",
+    "wir": "verfolgen",
+    "ihr": "verfolgt"
+  },
+  "rettet": {
+    "ich": "rette",
+    "du": "rettest",
+    "wir": "retten",
+    "ihr": "rettet"
+  },
+  "verr\xE4t": {
+    "ich": "verrate",
+    "du": "verr\xE4tst",
+    "wir": "verraten",
+    "ihr": "verratet"
+  },
+  "vergisst": {
+    "ich": "vergesse",
+    "du": "vergisst",
+    "wir": "vergessen",
+    "ihr": "vergesst"
+  },
+  "hatte": {
+    "ich": "hatte",
+    "du": "hattest",
+    "wir": "hatten",
+    "ihr": "hattet"
+  },
+  "war": {
+    "ich": "war",
+    "du": "warst",
+    "wir": "waren",
+    "ihr": "wart"
+  },
+  "wollte": {
+    "ich": "wollte",
+    "du": "wolltest",
+    "wir": "wollten",
+    "ihr": "wolltet"
+  },
+  "tat": {
+    "ich": "tat",
+    "du": "tatest",
+    "wir": "taten",
+    "ihr": "tatet"
+  },
+  "machte": {
+    "ich": "machte",
+    "du": "machtest",
+    "wir": "machten",
+    "ihr": "machtet"
+  },
+  "kam": {
+    "ich": "kam",
+    "du": "kamst",
+    "wir": "kamen",
+    "ihr": "kamt"
+  },
+  "ging": {
+    "ich": "ging",
+    "du": "gingst",
+    "wir": "gingen",
+    "ihr": "gingt"
+  },
+  "f\xFChrte": {
+    "ich": "f\xFChrte",
+    "du": "f\xFChrtest",
+    "wir": "f\xFChrten",
+    "ihr": "f\xFChrtet"
+  },
+  "schloss": {
+    "ich": "schloss",
+    "du": "schlossest",
+    "wir": "schlossen",
+    "ihr": "schlosst"
+  },
+  "fragte": {
+    "ich": "fragte",
+    "du": "fragtest",
+    "wir": "fragten",
+    "ihr": "fragtet"
+  },
+  "begriff": {
+    "ich": "begriff",
+    "du": "begriffst",
+    "wir": "begriffen",
+    "ihr": "begrifft"
+  },
+  "stellt": {
+    "ich": "stelle",
+    "du": "stellst",
+    "wir": "stellen"
+  },
+  "erkennt": {
+    "ich": "erkenne",
+    "du": "erkennst",
+    "wir": "erkennen"
+  },
+  "zeigt": {
+    "ich": "zeige",
+    "du": "zeigst",
+    "wir": "zeigen"
+  },
+  "greift": {
+    "ich": "greife",
+    "du": "greifst",
+    "wir": "greifen"
+  },
+  "legt": {
+    "ich": "lege",
+    "du": "legst",
+    "wir": "legen"
+  },
+  "betrachtet": {
+    "ich": "betrachte",
+    "du": "betrachtest",
+    "wir": "betrachten"
+  },
+  "setzt": {
+    "ich": "setze",
+    "du": "setzt",
+    "wir": "setzen"
+  },
+  "merkt": {
+    "ich": "merke",
+    "du": "merkst",
+    "wir": "merken"
+  },
+  "pr\xFCft": {
+    "ich": "pr\xFCfe",
+    "du": "pr\xFCfst",
+    "wir": "pr\xFCfen"
   }
 };
-var wahr = (name, b) => ist(name, b, true);
-ist("ein Megapixel kostet rund 1334 Token", bildTokens(1e3, 1e3), 1333);
-ist("ein verkleinertes Querformat rund 1440", bildTokens(1200, 900), 1440);
-wahr(
-  "das Doppelte an Fl\xE4che kostet doppelt",
-  Math.abs(bildTokens(1200, 1800) - 2 * bildTokens(1200, 900)) <= 1
-);
-ist("ein Bild ohne Ma\xDFe kostet nichts", bildTokens(0, 900), 0);
-ist("und negative Ma\xDFe auch nicht", bildTokens(-100, -100), 0);
-var gift = [
-  "Das Bild zeigt einen \xE4lteren Mann auf einer Parkbank.",
-  "Auf dem Foto sitzt eine Frau am Fenster und liest.",
-  "Zu sehen ist eine Landstra\xDFe zwischen zwei Feldern.",
-  "Man sieht den Regen auf dem Blechdach stehen.",
-  "Im Vordergrund liegt ein umgest\xFCrzter Stuhl aus Holz.",
-  "Der Betrachter blickt \xFCber die Schulter des Mannes hinweg.",
-  "Die Aufnahme zeigt eine Halle mit hohen Fenstern und Staub.",
-  "Links im Bild steht ein Fahrrad ohne Vorderrad an der Wand.",
-  "Im Hintergrund verschwimmen die Umrisse einer Stadt im Dunst.",
-  "Die Szene wurde bei schwachem Licht aufgenommen.",
-  "Der Mann wird von der Seite fotografiert.",
-  "Die Kamera steht tief \xFCber dem nassen Pflaster."
-];
-for (const s of gift) wahr(`Bildbezug erkannt: \u201E${s.slice(0, 42)}\u2026\u201C`, verraetBild(s));
-var gut = [
-  "Ein \xE4lterer Mann sitzt auf einer Parkbank und l\xFCftet den Hut.",
-  "Der Regen steht auf dem Blechdach und l\xE4uft nicht ab.",
-  "Ein Fahrrad ohne Vorderrad lehnt an der Wand neben der T\xFCr.",
-  "Die Landstra\xDFe l\xE4uft zwischen zwei Feldern nach Norden.",
-  "Der Staub in der Halle h\xE4ngt zwischen den hohen Fenstern.",
-  "Das Pflaster ist nass und gibt das Licht der Laternen zur\xFCck.",
-  "Die Frau am Fenster h\xE4lt das Buch weit von sich weg.",
-  "Ein umgest\xFCrzter Stuhl aus Holz liegt auf der Seite."
-];
-for (const s of gut) ist(`kein Bildbezug: \u201E${s.slice(0, 42)}\u2026\u201C`, verraetBild(s), false);
-for (const s of [
-  "Der Bildhauer hat die Werkstatt am Kanal aufgegeben.",
-  "Die Ausbildung dauerte vier Jahre und endete im Winter.",
-  "Seine Einbildung hielt l\xE4nger als das Fieber.",
-  "Der Fotograf wohnte \xFCber der W\xE4scherei und ging selten aus."
-]) ist(`kein Fehlalarm: \u201E${s.slice(0, 40)}\u2026\u201C`, verraetBild(s), false);
-ist("ein zu kurzer Satz taugt nicht", taugtSatz("Regen f\xE4llt."), false);
-ist("eine Aufz\xE4hlung ohne Verb auch nicht", taugtSatz("Stuhl, Tisch, Lampe, Fenster, T\xFCr"), false);
-ist("ein sehr langer Satz nicht", taugtSatz("wort ".repeat(80)), false);
-wahr("ein normaler Satz schon", taugtSatz("Ein Fahrrad ohne Vorderrad lehnt an der Wand neben der T\xFCr."));
-ist("und ein Satz mit Bildbezug nie", taugtSatz("Das Bild zeigt ein Fahrrad an einer Wand ohne Rad."), false);
-var e1 = beute([...gut.slice(0, 4), ...gift.slice(0, 3)]);
-ist("die brauchbaren S\xE4tze bleiben", e1.behalten.length, 4);
-ist("die Bildbeschreibungen fliegen raus", e1.verworfen.length, 3);
-wahr("und die guten S\xE4tze tragen keinen Zweifel", e1.behalten.every((f) => !f.zweifel));
-var e2 = beute([gut[0], gut[0], gut[0].toUpperCase()]);
-ist("Doppelte werden nur einmal behalten", e2.behalten.length, 1);
-ist("auch bei anderer Schreibung", e2.verworfen.length, 2);
-ist("Leerzeilen z\xE4hlen gar nicht", beute(["", "   ", "\n"]).behalten.length, 0);
-ist("und erzeugen auch keinen Ausschuss", beute(["", "   "]).verworfen.length, 0);
-ist("eine leere Ernte st\xFCrzt nicht ab", beute([]).behalten.length, 0);
-var p = bauePrompt(SAETZE_VORGABE);
-wahr("die harte Regel steht drin", /ohne das Bild stehen können/.test(p));
-wahr("die verbotenen Wendungen werden aufgez\xE4hlt", /das Bild zeigt/.test(p) && /im Vordergrund/.test(p));
-wahr("n\xFCchtern statt literarisch wird verlangt", /NICHT literarisch/.test(p));
-wahr("die vier W werden angefordert", /who/.test(p) && /where/.test(p) && /when/.test(p) && /what/.test(p));
-wahr("Raten wird ausdr\xFCcklich verboten", /Rate nicht/.test(p));
-wahr("die Satzzahl steht drin", /12 kurze Sätze/.test(p));
-wahr("eine andere Satzzahl kommt an", /5 kurze Sätze/.test(bauePrompt(5)));
-wahr("eine unsinnige Satzzahl wird gefangen", /\b3 kurze Sätze/.test(bauePrompt(-9)));
-wahr("und eine zu gro\xDFe auch", /\b40 kurze Sätze/.test(bauePrompt(9999)));
-wahr("ein Nutzerhinweis kommt hinein", bauePrompt(12, "nur Gegenst\xE4nde").includes("nur Gegenst\xE4nde"));
-wahr("ohne Hinweis steht keine leere Vorgabe da", !/Vorgabe des Nutzers \(vorrangig\): *\n/.test(p));
-var r1 = leseErnte({ saetze: ["a", "b"], ctx: { who: "ein Mann", where: "Parkbank", when: "", what: "wartet" } });
-ist("die S\xE4tze kommen an", r1.saetze.length, 2);
-ist("Wer kommt an", r1.ctx.who, "ein Mann");
-ist("ein leeres Feld bleibt leer", r1.ctx.when, "");
-ist(
-  "ein 4W-Feld mit Bildbezug wird verworfen",
-  leseErnte({ ctx: { what: "das Bild zeigt eine Ankunft" } }).ctx.what,
-  ""
-);
-wahr(
-  "ein zu langes Feld wird gek\xFCrzt",
-  leseErnte({ ctx: { where: "x".repeat(300) } }).ctx.where.length <= 80
-);
-for (const m\u00FCll of [null, void 0, 42, "text", [], { saetze: "kein array" }, { ctx: 7 }]) {
-  ist(`Unsinn ergibt leere Ernte: ${JSON.stringify(m\u00FCll) ?? "undefined"}`, leseErnte(m\u00FCll).saetze.length, 0);
+var INFINITIVE_VERBS = /* @__PURE__ */ new Set(["entdecken", "finden", "verstehen", "erreichen", "verlassen", "retten", "zerst\xF6ren", "beweisen", "\xFCberleben", "fliehen", "gewinnen", "verlieren", "\xF6ffnen", "schlie\xDFen", "verschwinden", "sterben", "bleiben", "ankommen", "entkommen", "aufwachen", "vergessen", "lernen", "ver\xE4ndern", "kontrollieren", "sch\xFCtzen", "befreien", "heilen", "erschaffen", "reparieren", "beenden", "anfangen", "beginnen", "erinnern", "wissen", "glauben", "tr\xE4umen", "hoffen", "k\xE4mpfen", "siegen", "sprechen", "schweigen", "warten", "folgen", "fragen", "antworten", "erkl\xE4ren", "gehen", "kommen"]);
+
+// src/generation/nouns.data.ts
+var NOUN_GENDER = {
+  "abdruck": "m",
+  "abend": "m",
+  "abgrund": "m",
+  "absatz": "m",
+  "abschalten": "n",
+  "abstand": "m",
+  "acker": "m",
+  "ader": "f",
+  "adressbuch": "n",
+  "adresse": "f",
+  "ahnung": "f",
+  "airpod": "m",
+  "akku": "m",
+  "akte": "f",
+  "aktendeckel": "m",
+  "aktennotiz": "f",
+  "allee": "f",
+  "alptraum": "m",
+  "altar": "m",
+  "alte": "f",
+  "alter": "n",
+  "amt": "n",
+  "amulett": "n",
+  "angebot": "n",
+  "angst": "f",
+  "anker": "m",
+  "antenne": "f",
+  "antrag": "m",
+  "antwort": "f",
+  "apfel": "m",
+  "applaus": "m",
+  "archiv": "n",
+  "arm": "m",
+  "armband": "n",
+  "armbrust": "f",
+  "art": "f",
+  "arzt": "m",
+  "asche": "f",
+  "ast": "m",
+  "atelier": "n",
+  "atem": "m",
+  "atmosph\xE4re": "f",
+  "aufkleber": "m",
+  "aufnahme": "f",
+  "auftrag": "m",
+  "auge": "n",
+  "augenblick": "m",
+  "augenlid": "n",
+  "ausdehnung": "f",
+  "ausgang": "m",
+  "ausnahme": "f",
+  "ausrede": "f",
+  "ausweis": "m",
+  "axiom": "n",
+  "baby": "n",
+  "bach": "m",
+  "backup": "n",
+  "badeanstalt": "f",
+  "bahn": "f",
+  "bahnkarte": "f",
+  "balkon": "m",
+  "ball": "m",
+  "ballade": "f",
+  "band": "n",
+  "bank": "f",
+  "banner": "n",
+  "basecap": "n",
+  "bau": "m",
+  "bauch": "m",
+  "bauer": "m",
+  "baum": "m",
+  "becher": "m",
+  "befehl": "m",
+  "begriff": "m",
+  "beil": "n",
+  "bein": "n",
+  "benachrichtigung": "f",
+  "berg": "m",
+  "bergfried": "m",
+  "bericht": "m",
+  "bescheid": "m",
+  "beschluss": "m",
+  "besen": "m",
+  "besitz": "m",
+  "bestand": "m",
+  "besuch": "m",
+  "betonprobe": "f",
+  "bett": "n",
+  "beutel": "m",
+  "beweis": "m",
+  "bibel": "f",
+  "bibliothek": "f",
+  "biene": "f",
+  "bild": "n",
+  "bildschirm": "m",
+  "binde": "f",
+  "birne": "f",
+  "blatt": "n",
+  "blechb\xFCchse": "f",
+  "blechdose": "f",
+  "blechkanne": "f",
+  "blechtrompete": "f",
+  "blei": "n",
+  "bleistift": "m",
+  "blende": "f",
+  "blick": "m",
+  "blitz": "m",
+  "blume": "f",
+  "blumenstrau\xDF": "m",
+  "bluse": "f",
+  "bl\xFCte": "f",
+  "boden": "m",
+  "bohne": "f",
+  "bohrkern": "m",
+  "bohrprobe": "f",
+  "boje": "f",
+  "bonbon": "n",
+  "boot": "n",
+  "bote": "m",
+  "botschaft": "f",
+  "braten": "m",
+  "braue": "f",
+  "brett": "n",
+  "brief": "m",
+  "briefumschlag": "m",
+  "brille": "f",
+  "brot": "n",
+  "brotdose": "f",
+  "brotlaib": "m",
+  "bruch": "m",
+  "bruder": "m",
+  "brunnen": "m",
+  "brust": "f",
+  "br\xFCcke": "f",
+  "br\xFChe": "f",
+  "buch": "n",
+  "buchstabe": "m",
+  "bucht": "f",
+  "bug": "m",
+  "burg": "f",
+  "bus": "m",
+  "busch": "m",
+  "butter": "f",
+  "b\xE4r": "m",
+  "b\xFChne": "f",
+  "b\xFCndel": "n",
+  "b\xFCrde": "f",
+  "cache": "m",
+  "cadtablet": "n",
+  "caf": "n",
+  "caf\xE9": "n",
+  "chat": "m",
+  "clown": "m",
+  "computer": "m",
+  "container": "m",
+  "couch": "f",
+  "dach": "n",
+  "dachboden": "m",
+  "dame": "f",
+  "damm": "m",
+  "dashboard": "n",
+  "datei": "f",
+  "dattel": "f",
+  "datum": "n",
+  "daumen": "m",
+  "deck": "n",
+  "decke": "f",
+  "deckel": "m",
+  "denkmalschutz": "m",
+  "deo": "n",
+  "detail": "n",
+  "detektor": "m",
+  "detektorkopf": "m",
+  "dewar": "m",
+  "diagramm": "n",
+  "dichter": "m",
+  "dieb": "m",
+  "dienst": "m",
+  "direktor": "m",
+  "dnaspirale": "f",
+  "dokument": "n",
+  "dolch": "m",
+  "donner": "m",
+  "dorf": "n",
+  "dorn": "m",
+  "dose": "f",
+  "draht": "m",
+  "droschke": "f",
+  "druck": "m",
+  "duell": "n",
+  "duft": "m",
+  "durchsage": "f",
+  "durchschlag": "m",
+  "d\xE4mmerung": "f",
+  "ebbe": "f",
+  "ebene": "f",
+  "echo": "n",
+  "ecke": "f",
+  "ehre": "f",
+  "ei": "n",
+  "eid": "m",
+  "einspruch": "m",
+  "eis": "n",
+  "eisen": "n",
+  "elch": "m",
+  "elend": "n",
+  "ellbogen": "m",
+  "emoji": "n",
+  "engel": "m",
+  "enkel": "m",
+  "ente": "f",
+  "entwurf": "m",
+  "ephemeride": "f",
+  "erbe": "n",
+  "erbse": "f",
+  "erdbeben": "n",
+  "erde": "f",
+  "erinnerung": "f",
+  "etikett": "n",
+  "eule": "f",
+  "ewigkeit": "f",
+  "fabel": "f",
+  "fabrik": "f",
+  "fackel": "f",
+  "faden": "m",
+  "fahne": "f",
+  "fahrschein": "m",
+  "fahrt": "f",
+  "falle": "f",
+  "falte": "f",
+  "farbe": "f",
+  "farbenscheibe": "f",
+  "fass": "n",
+  "faust": "f",
+  "feder": "f",
+  "federkiel": "m",
+  "fee": "f",
+  "fehlercode": "m",
+  "feile": "f",
+  "feind": "m",
+  "feld": "n",
+  "feldbesteck": "n",
+  "felder": "n",
+  "fell": "n",
+  "fellhandschuh": "m",
+  "fels": "m",
+  "felsen": "m",
+  "fenster": "n",
+  "fensterplatz": "m",
+  "ferkel": "n",
+  "ferne": "f",
+  "fernglas": "n",
+  "fernrohr": "n",
+  "ferse": "f",
+  "fessel": "f",
+  "festung": "f",
+  "feuer": "n",
+  "feuerzeug": "n",
+  "fibel": "f",
+  "fieber": "n",
+  "filter": "m",
+  "finger": "m",
+  "fingerhut": "m",
+  "fisch": "m",
+  "fischer": "m",
+  "flakon": "m",
+  "flasche": "f",
+  "flaute": "f",
+  "fleisch": "n",
+  "fliege": "f",
+  "flo\xDF": "n",
+  "fluch": "m",
+  "flucht": "f",
+  "flur": "m",
+  "fluss": "m",
+  "flut": "f",
+  "fl\xE4che": "f",
+  "fl\xF6te": "f",
+  "fl\xFCstern": "n",
+  "formel": "f",
+  "formular": "n",
+  "fossil": "n",
+  "fossilie": "f",
+  "foto": "n",
+  "fotografie": "f",
+  "frachtbrief": "m",
+  "frage": "f",
+  "frau": "f",
+  "freude": "f",
+  "freund": "m",
+  "frist": "f",
+  "frost": "m",
+  "frucht": "f",
+  "fr\xFChling": "m",
+  "fuchs": "m",
+  "fuge": "f",
+  "fund": "m",
+  "fundament": "n",
+  "funke": "m",
+  "funkger\xE4t": "n",
+  "furcht": "f",
+  "furt": "f",
+  "fu\xDF": "m",
+  "f\xE4hrmann": "m",
+  "f\xE4hrplan": "m",
+  "f\xE4sser": "n",
+  "f\xFCrst": "m",
+  "gabe": "f",
+  "gabel": "f",
+  "gabelung": "f",
+  "galaxie": "f",
+  "gang": "m",
+  "gans": "f",
+  "garn": "n",
+  "garten": "m",
+  "gasse": "f",
+  "gast": "m",
+  "gebet": "n",
+  "gebetbuch": "n",
+  "gebete": "n",
+  "gebetsschale": "f",
+  "gebirge": "n",
+  "geb\xE4lk": "n",
+  "geb\xE4ude": "n",
+  "gedanke": "m",
+  "gedanken": "m",
+  "gedicht": "n",
+  "gedichte": "n",
+  "geduld": "f",
+  "gefahr": "f",
+  "gef\xFChl": "n",
+  "gef\xFChlen": "n",
+  "gegend": "f",
+  "gegensatz": "m",
+  "gegenstand": "m",
+  "gegens\xE4tze": "m",
+  "gegenteil": "n",
+  "gegenwart": "f",
+  "gegners": "m",
+  "geheimnis": "n",
+  "gehirn": "n",
+  "geh\xE4use": "n",
+  "geige": "f",
+  "geist": "m",
+  "geleitbrief": "m",
+  "gel\xE4nde": "n",
+  "gel\xFCbde": "n",
+  "gemach": "n",
+  "gem\xE4lde": "n",
+  "gem\xFCse": "n",
+  "gep\xE4ck": "n",
+  "gericht": "n",
+  "geruch": "m",
+  "ger\xE4t": "n",
+  "ger\xE4usch": "n",
+  "ger\xE4usche": "n",
+  "ger\xF6ll": "n",
+  "ger\xFCcht": "n",
+  "ger\xFCchte": "n",
+  "ger\xFCst": "n",
+  "gesangbuch": "n",
+  "geschenk": "n",
+  "geschichte": "f",
+  "geschichten": "f",
+  "geschmack": "m",
+  "gesetz": "n",
+  "gesetze": "n",
+  "gesetzen": "n",
+  "gesetzes": "n",
+  "gesetzestext": "m",
+  "gesicht": "n",
+  "gesichter": "n",
+  "gespr\xE4ch": "n",
+  "gestalt": "f",
+  "gestalten": "f",
+  "geste": "f",
+  "gestein": "n",
+  "gesteinsschichten": "f",
+  "getreide": "n",
+  "getreidek\xF6rner": "n",
+  "gewand": "n",
+  "gewebe": "n",
+  "gewehr": "n",
+  "gewehre": "n",
+  "geweih": "n",
+  "gewicht": "n",
+  "gewichte": "n",
+  "gewissen": "n",
+  "gew\xF6lbe": "n",
+  "gezeiten": "f",
+  "gier": "f",
+  "gie\xDFkanne": "f",
+  "gift": "n",
+  "gipfel": "m",
+  "gitter": "n",
+  "glas": "n",
+  "glasplatte": "f",
+  "glaube": "m",
+  "gleichung": "f",
+  "gletscher": "m",
+  "glocke": "f",
+  "gl\xFCck": "n",
+  "gold": "n",
+  "gott": "m",
+  "grab": "n",
+  "graben": "m",
+  "granitblock": "m",
+  "grenze": "f",
+  "grotte": "f",
+  "grund": "m",
+  "grundrissplan": "m",
+  "gruppe": "f",
+  "gruppenchat": "m",
+  "gurke": "f",
+  "g\xF6tter": "m",
+  "g\xF6ttin": "f",
+  "g\xFCrtel": "m",
+  "haar": "n",
+  "haarnadel": "f",
+  "hafen": "m",
+  "hagel": "m",
+  "hahn": "m",
+  "hain": "m",
+  "haken": "m",
+  "halde": "f",
+  "hall": "m",
+  "halle": "f",
+  "hals": "m",
+  "halter": "m",
+  "hammer": "m",
+  "hand": "f",
+  "handbuch": "n",
+  "handkarren": "m",
+  "handschuh": "m",
+  "handschuhspitze": "f",
+  "handvoll": "f",
+  "handy": "n",
+  "hang": "m",
+  "harfe": "f",
+  "harpune": "f",
+  "hase": "m",
+  "hass": "m",
+  "haus": "n",
+  "haut": "f",
+  "hecke": "f",
+  "heft": "n",
+  "held": "m",
+  "helm": "m",
+  "hemd": "n",
+  "henne": "f",
+  "herbst": "m",
+  "herd": "m",
+  "herr": "m",
+  "herrscherstab": "m",
+  "herz": "n",
+  "herzschlag": "m",
+  "heuer": "f",
+  "hexe": "f",
+  "hierarchie": "f",
+  "himmel": "m",
+  "hintergrund": "m",
+  "hintert\xFCr": "f",
+  "hirn": "n",
+  "hirsch": "m",
+  "hirtenstab": "m",
+  "hof": "m",
+  "hoffnung": "f",
+  "holz": "n",
+  "honig": "m",
+  "hoodie": "m",
+  "horn": "n",
+  "hose": "f",
+  "huhn": "n",
+  "hund": "m",
+  "hut": "m",
+  "h\xE4user": "n",
+  "h\xF6henmesser": "m",
+  "h\xF6hle": "f",
+  "h\xFCfte": "f",
+  "h\xFCgel": "m",
+  "h\xFCtte": "f",
+  "igel": "m",
+  "index": "m",
+  "insekt": "n",
+  "insel": "f",
+  "instanz": "f",
+  "instastory": "f",
+  "instrument": "n",
+  "interferometer": "n",
+  "jacke": "f",
+  "jazz": "m",
+  "junge": "m",
+  "justiergewicht": "n",
+  "j\xE4ger": "m",
+  "kabel": "n",
+  "kaffee": "m",
+  "kai": "m",
+  "kaiser": "m",
+  "kalb": "n",
+  "kalender": "m",
+  "kamin": "m",
+  "kaminfeuer": "n",
+  "kammer": "f",
+  "kampf": "m",
+  "kanal": "m",
+  "kaninchen": "n",
+  "kanister": "m",
+  "kanne": "f",
+  "kanten": "m",
+  "kapelle": "f",
+  "kapit\xE4n": "m",
+  "karawane": "f",
+  "karotte": "f",
+  "karte": "f",
+  "karteikarte": "f",
+  "kartoffel": "f",
+  "kassenbuch": "n",
+  "kathedrale": "f",
+  "katze": "f",
+  "kaugummi": "m",
+  "kehle": "f",
+  "kelch": "m",
+  "kelle": "f",
+  "keller": "m",
+  "kerze": "f",
+  "kessel": "m",
+  "kette": "f",
+  "kettenhemd": "n",
+  "kiefer": "m",
+  "kiel": "m",
+  "kies": "m",
+  "kilometer": "m",
+  "kind": "n",
+  "kinder": "n",
+  "kinderspielzeug": "n",
+  "kinn": "n",
+  "kirche": "f",
+  "kirsche": "f",
+  "kissen": "n",
+  "kiste": "f",
+  "klammer": "f",
+  "klang": "m",
+  "klaue": "f",
+  "klavier": "n",
+  "kleid": "n",
+  "kleidersack": "m",
+  "kleingeldfach": "n",
+  "kleinod": "n",
+  "klinge": "f",
+  "klingel": "f",
+  "klippe": "f",
+  "klopfen": "n",
+  "knabe": "m",
+  "knie": "n",
+  "knochen": "m",
+  "knopf": "m",
+  "knospe": "f",
+  "knoten": "m",
+  "kn\xE4uel": "n",
+  "kn\xF6chel": "m",
+  "koffer": "m",
+  "kohleneimer": "m",
+  "kohleschale": "f",
+  "kollege": "m",
+  "kollegheft": "n",
+  "kollektiv": "n",
+  "kolonie": "f",
+  "komet": "m",
+  "kommentar": "m",
+  "kommissar": "m",
+  "kompass": "m",
+  "kompressor": "m",
+  "konstante": "f",
+  "konto": "n",
+  "kontobuch": "n",
+  "kontor": "n",
+  "kontorbuch": "n",
+  "kontostand": "m",
+  "kopf": "m",
+  "kopfh\xF6rer": "m",
+  "kopie": "f",
+  "korb": "m",
+  "korken": "m",
+  "korn": "n",
+  "kraft": "f",
+  "kran": "m",
+  "krater": "m",
+  "kreide": "f",
+  "kreis": "m",
+  "kreuz": "n",
+  "kreuzung": "f",
+  "kribbeln": "n",
+  "krieg": "m",
+  "krieger": "m",
+  "kristall": "m",
+  "krone": "f",
+  "krug": "m",
+  "kr\xE4he": "f",
+  "kuchen": "m",
+  "kuh": "f",
+  "kupfer": "n",
+  "kuppel": "f",
+  "kurbel": "f",
+  "kurve": "f",
+  "kuss": "m",
+  "kutsche": "f",
+  "kuvert": "n",
+  "k\xE4fer": "m",
+  "k\xE4lte": "f",
+  "k\xE4se": "m",
+  "k\xF6nig": "m",
+  "k\xF6nigin": "f",
+  "k\xF6rper": "m",
+  "k\xFCche": "f",
+  "k\xFChlbox": "f",
+  "k\xFChlfalle": "f",
+  "k\xFCken": "n",
+  "k\xFCste": "f",
+  "labyrinth": "n",
+  "ladebalken": "m",
+  "ladekabel": "n",
+  "ladeliste": "f",
+  "lager": "n",
+  "lagune": "f",
+  "laib": "m",
+  "lamm": "n",
+  "lampe": "f",
+  "land": "n",
+  "lanze": "f",
+  "laterne": "f",
+  "laub": "n",
+  "laufzettel": "m",
+  "laute": "f",
+  "lawine": "f",
+  "leder": "n",
+  "lederbeutel": "m",
+  "legende": "f",
+  "lehen": "n",
+  "lehrer": "m",
+  "leid": "n",
+  "leine": "f",
+  "leitdetail": "n",
+  "leitung": "f",
+  "leuchten": "n",
+  "leuchtturm": "m",
+  "licht": "n",
+  "lichtstreifen": "m",
+  "lider": "n",
+  "liebe": "f",
+  "lied": "n",
+  "lilie": "f",
+  "lineal": "n",
+  "linie": "f",
+  "lippe": "f",
+  "liste": "f",
+  "loch": "n",
+  "locke": "f",
+  "log": "n",
+  "logbuch": "n",
+  "logfile": "n",
+  "los": "n",
+  "lot": "n",
+  "luft": "f",
+  "lupe": "f",
+  "lust": "f",
+  "l\xE4cheln": "n",
+  "l\xE4nder": "n",
+  "l\xE4rm": "m",
+  "l\xF6cher": "n",
+  "l\xF6ffel": "m",
+  "l\xF6we": "m",
+  "l\xFCcke": "f",
+  "l\xFCge": "f",
+  "macht": "f",
+  "magen": "m",
+  "mala": "f",
+  "maler": "m",
+  "manege": "f",
+  "manifest": "n",
+  "mann": "m",
+  "mantel": "m",
+  "manuskript": "n",
+  "mappe": "f",
+  "marmelade": "f",
+  "masche": "f",
+  "maschine": "f",
+  "maske": "f",
+  "mast": "m",
+  "matte": "f",
+  "mauer": "f",
+  "maus": "f",
+  "ma\xDF": "n",
+  "ma\xDFband": "n",
+  "ma\xDFstab": "m",
+  "medaillon": "n",
+  "meer": "n",
+  "mehl": "n",
+  "mei\xDFel": "m",
+  "melodie": "f",
+  "meme": "n",
+  "menge": "f",
+  "merkblatt": "n",
+  "messer": "n",
+  "messprotokoll": "n",
+  "messreihe": "f",
+  "messung": "f",
+  "metall": "n",
+  "meter": "m",
+  "metronom": "n",
+  "miene": "f",
+  "mikrofon": "n",
+  "mikroskop": "n",
+  "milch": "f",
+  "millimeter": "m",
+  "minute": "f",
+  "mitleid": "n",
+  "mittag": "m",
+  "mittel": "n",
+  "mitternacht": "f",
+  "modell": "n",
+  "modellplaneten": "m",
+  "moment": "m",
+  "monat": "m",
+  "mond": "m",
+  "moor": "n",
+  "morgen": "m",
+  "moschee": "f",
+  "motor": "m",
+  "mus": "n",
+  "muschel": "f",
+  "muskel": "m",
+  "muster": "n",
+  "mut": "m",
+  "mutter": "f",
+  "m\xE4dchen": "n",
+  "m\xE4hne": "f",
+  "m\xF6hre": "f",
+  "m\xF6nch": "m",
+  "m\xF6rder": "m",
+  "m\xF6we": "f",
+  "m\xFCcke": "f",
+  "m\xFChle": "f",
+  "m\xFCller": "m",
+  "m\xFCnze": "f",
+  "m\xFCtze": "f",
+  "nachbar": "m",
+  "nachbarort": "m",
+  "nachlass": "m",
+  "nachmittag": "m",
+  "nachricht": "f",
+  "nacht": "f",
+  "nachtigall": "f",
+  "nacken": "m",
+  "nadel": "f",
+  "nadelkissen": "n",
+  "nagel": "m",
+  "naht": "f",
+  "name": "m",
+  "napf": "m",
+  "narbe": "f",
+  "nase": "f",
+  "nebel": "m",
+  "neffe": "m",
+  "neid": "m",
+  "neigung": "f",
+  "neigungsmesser": "m",
+  "nelke": "f",
+  "nest": "n",
+  "nester": "n",
+  "netz": "n",
+  "nische": "f",
+  "nonne": "f",
+  "note": "f",
+  "notenblatt": "n",
+  "notiz": "f",
+  "notizblock": "m",
+  "notizbuch": "n",
+  "nummer": "f",
+  "nuss": "f",
+  "nymphe": "f",
+  "n\xE4he": "f",
+  "obst": "n",
+  "ofen": "m",
+  "ohr": "n",
+  "oma": "f",
+  "omen": "n",
+  "onkel": "m",
+  "opfer": "n",
+  "opferschale": "f",
+  "opiumdose": "f",
+  "orakel": "n",
+  "orange": "f",
+  "organ": "n",
+  "orgel": "f",
+  "ort": "m",
+  "ozean": "m",
+  "paar": "n",
+  "paket": "n",
+  "pakt": "m",
+  "papier": "n",
+  "paradoxon": "n",
+  "paragraph": "m",
+  "parameter": "m",
+  "park": "m",
+  "passagier": "m",
+  "passierschein": "m",
+  "pegelstab": "m",
+  "peilstock": "m",
+  "peitsche": "f",
+  "pendel": "n",
+  "pergamentrolle": "f",
+  "perle": "f",
+  "perlmuttknopf": "m",
+  "person": "f",
+  "petrischale": "f",
+  "petroleumlampe": "f",
+  "pfad": "m",
+  "pfand": "n",
+  "pfandschein": "m",
+  "pfeffer": "m",
+  "pfeife": "f",
+  "pferd": "n",
+  "pfirsich": "m",
+  "pflaster": "n",
+  "pflaume": "f",
+  "pflug": "m",
+  "pf\xFCtze": "f",
+  "phiole": "f",
+  "photoplatte": "f",
+  "pickel": "m",
+  "pilz": "m",
+  "ping": "m",
+  "pinzette": "f",
+  "pipette": "f",
+  "plakat": "n",
+  "plan": "m",
+  "plane": "f",
+  "planet": "m",
+  "planke": "f",
+  "platte": "f",
+  "platz": "m",
+  "platzhalter": "m",
+  "poller": "m",
+  "port": "m",
+  "portal": "n",
+  "postkarte": "f",
+  "powerbank": "f",
+  "priester": "m",
+  "prisma": "n",
+  "probe": "f",
+  "programm": "n",
+  "protokoll": "n",
+  "prozess": "m",
+  "puls": "m",
+  "pulver": "n",
+  "punkt": "m",
+  "puppe": "f",
+  "qualle": "f",
+  "quelle": "f",
+  "quittung": "f",
+  "rad": "n",
+  "rampe": "f",
+  "rand": "m",
+  "randnotiz": "f",
+  "ranke": "f",
+  "ranzen": "m",
+  "ratte": "f",
+  "rauch": "m",
+  "raumkapsel": "f",
+  "rausch": "m",
+  "rauschen": "n",
+  "rechentafel": "f",
+  "recht": "n",
+  "regal": "n",
+  "regel": "f",
+  "regen": "m",
+  "regenmesser": "m",
+  "register": "n",
+  "reh": "n",
+  "reich": "n",
+  "reif": "m",
+  "reigen": "m",
+  "reihe": "f",
+  "reinraumhaube": "f",
+  "reise": "f",
+  "reisemantel": "m",
+  "rei\xDFverschluss": "m",
+  "reklame": "f",
+  "rest": "m",
+  "rettung": "f",
+  "rezept": "n",
+  "richter": "m",
+  "riegel": "m",
+  "riff": "n",
+  "rinde": "f",
+  "ring": "m",
+  "rippe": "f",
+  "riss": "m",
+  "ritter": "m",
+  "ritterhelm": "m",
+  "rohr": "n",
+  "roman": "m",
+  "rose": "f",
+  "ruder": "n",
+  "ruf": "m",
+  "ruine": "f",
+  "rumpf": "m",
+  "r\xE4tsel": "n",
+  "r\xFCcken": "m",
+  "saal": "m",
+  "sachbearbeiter": "m",
+  "sack": "m",
+  "saft": "m",
+  "sage": "f",
+  "sahne": "f",
+  "saite": "f",
+  "salat": "m",
+  "salz": "n",
+  "samen": "m",
+  "sammlung": "f",
+  "sand": "m",
+  "sandsack": "m",
+  "sanduhr": "f",
+  "sarg": "m",
+  "satellit": "m",
+  "sattel": "m",
+  "sattelgurt": "m",
+  "satz": "m",
+  "saum": "m",
+  "savanne": "f",
+  "schacht": "m",
+  "schaf": "n",
+  "schale": "f",
+  "schalter": "m",
+  "scham": "f",
+  "schatten": "m",
+  "schatulle": "f",
+  "schaufel": "f",
+  "schere": "f",
+  "schicht": "f",
+  "schicksal": "n",
+  "schiff": "n",
+  "schiffssextanten": "m",
+  "schiffszwieback": "m",
+  "schild": "n",
+  "schirm": "m",
+  "schlaf": "m",
+  "schlag": "m",
+  "schlamm": "m",
+  "schlange": "f",
+  "schleife": "f",
+  "schloss": "n",
+  "schlucht": "f",
+  "schl\xFCssel": "m",
+  "schl\xFCsselbund": "m",
+  "schmerz": "m",
+  "schmied": "m",
+  "schmiede": "f",
+  "schminkkasten": "m",
+  "schnecke": "f",
+  "schnee": "m",
+  "schneiderpuppe": "f",
+  "schnitt": "m",
+  "schnittbogen": "m",
+  "schnittstelle": "f",
+  "schnur": "f",
+  "schokolade": "f",
+  "schrank": "m",
+  "schrei": "m",
+  "schreiber": "m",
+  "schrein": "m",
+  "schrift": "f",
+  "schritt": "m",
+  "schuh": "m",
+  "schuld": "f",
+  "schuldschein": "m",
+  "schule": "f",
+  "schulter": "f",
+  "schuppen": "m",
+  "schuss": "m",
+  "schwamm": "m",
+  "schwein": "n",
+  "schwelle": "f",
+  "schwert": "n",
+  "schwertgriff": "m",
+  "schwertgurt": "m",
+  "schwester": "f",
+  "schw\xE4che": "f",
+  "sch\xE4del": "m",
+  "sch\xE4rpe": "f",
+  "sch\xFCrze": "f",
+  "sch\xFCssel": "f",
+  "screenshot": "m",
+  "see": "m",
+  "seekarte": "f",
+  "seele": "f",
+  "seesack": "m",
+  "segel": "n",
+  "segeltuch": "n",
+  "segen": "m",
+  "sehne": "f",
+  "sehnsucht": "f",
+  "seidenfaden": "m",
+  "seil": "n",
+  "seismograph": "m",
+  "seismographen": "m",
+  "seite": "f",
+  "sekunde": "f",
+  "senf": "m",
+  "sensor": "m",
+  "sessel": "m",
+  "sieb": "n",
+  "siegel": "n",
+  "siegelring": "m",
+  "signal": "n",
+  "signalflagge": "f",
+  "silbe": "f",
+  "silber": "n",
+  "sinn": "m",
+  "sirene": "f",
+  "skala": "f",
+  "skalpell": "n",
+  "skelett": "n",
+  "skizze": "f",
+  "smartphone": "n",
+  "socke": "f",
+  "sofa": "n",
+  "sohn": "m",
+  "soldat": "m",
+  "sommer": "m",
+  "sonne": "f",
+  "sonnenbrille": "f",
+  "so\xDFe": "f",
+  "spalt": "m",
+  "speicher": "m",
+  "spektrogramm": "n",
+  "spektrometer": "n",
+  "sperre": "f",
+  "spiegel": "m",
+  "spiegelscherben": "m",
+  "spiel": "n",
+  "spinne": "f",
+  "sporn": "m",
+  "sprache": "f",
+  "sprung": "m",
+  "spule": "f",
+  "spur": "f",
+  "stab": "m",
+  "stadt": "f",
+  "stahlstrebe": "f",
+  "stamm": "m",
+  "standarte": "f",
+  "stapel": "m",
+  "statue": "f",
+  "staub": "m",
+  "stecknadel": "f",
+  "steg": "m",
+  "steig": "m",
+  "steigb\xFCgel": "m",
+  "steigeisen": "n",
+  "stein": "m",
+  "stelle": "f",
+  "stempel": "m",
+  "stempelger\xE4usch": "n",
+  "stempelhalter": "m",
+  "steppe": "f",
+  "stern": "m",
+  "sternbilder": "n",
+  "sternwarte": "f",
+  "stethoskop": "n",
+  "stiefel": "m",
+  "stier": "m",
+  "stille": "f",
+  "stimme": "f",
+  "stirn": "f",
+  "stock": "m",
+  "stoff": "m",
+  "stollen": "m",
+  "stolz": "m",
+  "story": "f",
+  "strand": "m",
+  "strauch": "m",
+  "stra\xDFe": "f",
+  "streichholzschachtel": "f",
+  "streit": "m",
+  "strich": "m",
+  "strom": "m",
+  "strophe": "f",
+  "str\xF6mung": "f",
+  "stube": "f",
+  "stufe": "f",
+  "stuhl": "m",
+  "stunde": "f",
+  "stundenplan": "m",
+  "sturm": "m",
+  "sturmlaterne": "f",
+  "st\xE4rke": "f",
+  "st\xFCck": "n",
+  "sumpf": "m",
+  "suppe": "f",
+  "suppenkelle": "f",
+  "symbol": "n",
+  "symptom": "n",
+  "system": "n",
+  "s\xE4ge": "f",
+  "s\xE4ule": "f",
+  "tabelle": "f",
+  "tafel": "f",
+  "tafelrunde": "f",
+  "tag": "m",
+  "takt": "m",
+  "tal": "n",
+  "talar": "m",
+  "tante": "f",
+  "tanz": "m",
+  "tasche": "f",
+  "taschenradio": "n",
+  "tasse": "f",
+  "tau": "n",
+  "taube": "f",
+  "tee": "m",
+  "teer": "m",
+  "teeschale": "f",
+  "teich": "m",
+  "teil": "m",
+  "telefon": "n",
+  "teleskop": "n",
+  "teller": "m",
+  "teppich": "m",
+  "termin": "m",
+  "terminal": "n",
+  "terminzettel": "m",
+  "teufel": "m",
+  "thermometer": "n",
+  "thermoskanne": "f",
+  "thron": "m",
+  "ticket": "n",
+  "tier": "n",
+  "tiger": "m",
+  "tiktoksound": "m",
+  "tintenfass": "n",
+  "tisch": "m",
+  "tochter": "f",
+  "tod": "m",
+  "tomate": "f",
+  "ton": "m",
+  "tonband": "n",
+  "tonschale": "f",
+  "tontafel": "f",
+  "topf": "m",
+  "tor": "n",
+  "torte": "f",
+  "trapezhaken": "m",
+  "traube": "f",
+  "trauer": "f",
+  "traum": "m",
+  "trend": "m",
+  "treppe": "f",
+  "treue": "f",
+  "trillerpfeife": "f",
+  "trinkhorn": "n",
+  "trommel": "f",
+  "truhe": "f",
+  "tr\xE4ne": "f",
+  "tuch": "n",
+  "tulpe": "f",
+  "tunnel": "m",
+  "turm": "m",
+  "turnbeutel": "m",
+  "turnier": "n",
+  "turnierplatz": "m",
+  "turnierstab": "m",
+  "t\xFCr": "f",
+  "t\xFCte": "f",
+  "ufer": "n",
+  "uhr": "f",
+  "umriss": "m",
+  "umschlag": "m",
+  "ungl\xFCck": "n",
+  "untergrund": "m",
+  "unterschrift": "f",
+  "untersuchungsliege": "f",
+  "update": "n",
+  "urne": "f",
+  "urteil": "n",
+  "vater": "m",
+  "verdacht": "m",
+  "verfahren": "n",
+  "vergangenheit": "f",
+  "vermerk": "m",
+  "vers": "m",
+  "verstand": "m",
+  "vertrag": "m",
+  "vertrauen": "n",
+  "video": "n",
+  "virus": "n",
+  "visier": "n",
+  "vogel": "m",
+  "vollmacht": "f",
+  "vordruck": "m",
+  "vorhang": "m",
+  "vormund": "m",
+  "vorrat": "m",
+  "vorratsgl\xE4ser": "n",
+  "vulkan": "m",
+  "wachs": "n",
+  "wachstuch": "n",
+  "wagen": "m",
+  "wahrheit": "f",
+  "waisenjunge": "m",
+  "wal": "m",
+  "wald": "m",
+  "waldhorn": "n",
+  "wand": "f",
+  "wanderstab": "m",
+  "wanderstock": "m",
+  "wanderung": "f",
+  "wange": "f",
+  "wappen": "n",
+  "wappenschild": "n",
+  "warnung": "f",
+  "warnweste": "f",
+  "wartemarke": "f",
+  "warze": "f",
+  "wasser": "n",
+  "wasserflasche": "f",
+  "wasserhahn": "m",
+  "weg": "m",
+  "wegmarke": "f",
+  "weide": "f",
+  "wein": "m",
+  "weite": "f",
+  "wei\xDF": "n",
+  "welle": "f",
+  "werk": "n",
+  "werkstatt": "f",
+  "werkzeug": "n",
+  "wert": "m",
+  "wespe": "f",
+  "wetter": "n",
+  "wetterfahne": "f",
+  "widerstand": "m",
+  "wiese": "f",
+  "wille": "m",
+  "wimper": "f",
+  "wind": "m",
+  "windhauch": "m",
+  "windsto\xDF": "m",
+  "winter": "m",
+  "witz": "m",
+  "woche": "f",
+  "wolf": "m",
+  "wolke": "f",
+  "wollschal": "m",
+  "wort": "n",
+  "wrack": "n",
+  "wunde": "f",
+  "wunder": "n",
+  "wunsch": "m",
+  "wurm": "m",
+  "wurzel": "f",
+  "wut": "f",
+  "w\xE4chter": "m",
+  "w\xE4lder": "m",
+  "w\xE4rme": "f",
+  "w\xE4rmestein": "m",
+  "w\xE4schekorb": "m",
+  "w\xF6rter": "n",
+  "w\xFCrfel": "m",
+  "w\xFCste": "f",
+  "zahl": "f",
+  "zahn": "m",
+  "zange": "f",
+  "zauberbesen": "m",
+  "zaun": "m",
+  "zeh": "m",
+  "zeichen": "n",
+  "zeile": "f",
+  "zeit": "f",
+  "zeitgeber": "m",
+  "zeitmarke": "f",
+  "zelle": "f",
+  "zelt": "n",
+  "zentimeter": "m",
+  "zepter": "n",
+  "zettel": "m",
+  "zeuge": "m",
+  "ziffer": "f",
+  "zigarettenstummel": "m",
+  "zigarre": "f",
+  "zimmer": "n",
+  "zirkel": "m",
+  "zitrone": "f",
+  "zittern": "n",
+  "zorn": "m",
+  "zucker": "m",
+  "zug": "m",
+  "zukunft": "f",
+  "zunderbeutel": "m",
+  "zunge": "f",
+  "zweifel": "m",
+  "zweig": "m",
+  "zweitschl\xFCssel": "m",
+  "zwieback": "m",
+  "zwiebel": "f",
+  "z\xE4hlrahmen": "m",
+  "z\xF6gern": "n",
+  "\xE4rmel": "m",
+  "\xE4rztin": "f",
+  "\xF6l": "n",
+  "\xF6llampe": "f",
+  "\xF6llaterne": "f",
+  "\xF6lschl\xFCssel": "m"
+};
+
+// src/generation/declension.ts
+function guessGender(noun) {
+  const w = (noun || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
+  const known = NOUN_GENDER[w];
+  if (known === "m" || known === "f" || known === "n") return known;
+  let best = "";
+  for (const k2 in NOUN_GENDER) {
+    if (k2.length >= 3 && w.length >= k2.length + 2 && w.endsWith(k2) && k2.length > best.length) best = k2;
+  }
+  if (best) return NOUN_GENDER[best];
+  if (/(ung|heit|keit|schaft|tät|ion|ik|enz|anz|ei|ade|age|üre|itis|ur)$/.test(w)) return "f";
+  if (/(chen|lein|ment|tum|um|nis|ma)$/.test(w)) return "n";
+  if (/(ling|ismus|ant|ent|ist|eur|or|ich|ig|ast)$/.test(w)) return "m";
+  if (/er$/.test(w)) return "m";
+  return void 0;
 }
-ist("und die 4W sind dann leer", leseErnte(null).ctx.who, "");
-ist("Zahlen in den S\xE4tzen fallen weg", leseErnte({ saetze: ["gut", 5, null] }).saetze.length, 1);
-wahr("der Deckel w\xE4chst mit der Satzzahl", maxToken(24) > maxToken(6));
-wahr("und bleibt unter dem Modell-Limit", maxToken(9999) <= 4096);
-var haiku = MODELLE[0];
-var s1 = schaetzeLauf(1200, 900, 12, haiku);
-wahr("das Bild steckt in der Eingabesch\xE4tzung", s1.ein > bildTokens(1200, 900));
-wahr("ein Lauf kostet weniger als einen Cent bei Haiku", s1.usd < 0.01);
-wahr("ein gr\xF6\xDFeres Bild kostet mehr", schaetzeLauf(2400, 1800, 12, haiku).usd > s1.usd);
-var einUsd = s1.ein * haiku.ein / 1e6;
-var ausUsd = s1.aus * haiku.aus / 1e6;
-wahr("die Antwort ist teurer als das Bild", ausUsd > einUsd);
-var d1 = zerlegeDatenUrl("data:image/jpeg;base64,AAAA");
-ist("der Medientyp wird abgetrennt", d1?.media, "image/jpeg");
-ist("und die Nutzdaten bleiben \xFCbrig", d1?.daten, "AAAA");
-ist("Gro\xDFschreibung im Typ st\xF6rt nicht", zerlegeDatenUrl("data:IMAGE/PNG;base64,AA")?.media, "image/png");
-ist("ein fremdes Format wird abgelehnt", zerlegeDatenUrl("data:image/bmp;base64,AA"), null);
-ist("etwas, das kein Bild ist, ebenso", zerlegeDatenUrl("data:text/plain;base64,AA"), null);
-ist("und eine gew\xF6hnliche Adresse auch", zerlegeDatenUrl("https://x.test/a.jpg"), null);
-ist("leere Eingabe st\xFCrzt nicht ab", zerlegeDatenUrl(""), null);
-wahr("es gibt mehr als eine Verr\xE4ter-Regel", VERRAETER.length > 5);
-var view = (0, import_fs.readFileSync)("src/ui/bildsammlerView.ts", "utf8");
-var css = (0, import_fs.readFileSync)("src/ui/theme.css", "utf8");
-ist("der Fund benutzt nicht mehr den Zeilen-Flexkasten", /class: "idea"/.test(view), false);
-wahr("sondern einen eigenen Kasten", /class: "bsam-fund"/.test(view));
-wahr(".idea ist tats\xE4chlich ein Zeilen-Flexkasten", /\.idea\{display:flex/.test(css));
-wahr("der neue Kasten ist es nicht", /\.bsam-fund\{(?![^}]*display:flex)[^}]*\}/.test(css));
-wahr("der Ausschuss hat einen sichtbaren Aufklapper", /\.bsam-weg>summary\{/.test(css));
-wahr("und die S\xE4tze stehen einzeln untereinander", /\.bsam-satz\{display:flex;align-items:flex-start/.test(css));
-var fund = (w, n = "a.jpg", t = 1) => ({ name: n, ctx: { who: "", where: "", when: "", what: w }, gespeichert: t });
-wahr("die Schl\xFCssel sind verschieden", BILDVORRAT_KEY !== "divergenz_sammler_vorrat_v1");
-wahr("der Bildvorrat wandert in die Projektdatei", BILDVORRAT_KEY.startsWith("divergenz_"));
-ist("ein Fund ohne jedes Feld taugt nicht", taugtFund(fund("")), false);
-wahr("mit einem Feld schon", taugtFund(fund("eine Ankunft")));
-wahr(
-  "auch wenn nur Wo gef\xFCllt ist",
-  taugtFund({ name: "x", ctx: { who: "", where: "Hafen", when: "", what: "" }, gespeichert: 1 })
-);
-var v1 = mischeBildvorrat([], [fund("Ankunft"), fund("Abfahrt")]);
-ist("zwei Funde kommen an", v1.length, 2);
-var v2 = mischeBildvorrat(v1, [fund("Ankunft", "ganz-anderer-name.jpg")]);
-ist("dasselbe Was gilt als bekannt, trotz anderem Dateinamen", v2.length, 2);
-var v3 = mischeBildvorrat(v1, [fund("  ANKUNFT  ")]);
-ist("Schreibung und Leerraum machen keinen Unterschied", v3.length, 2);
-ist("ein wirklich neuer Fund kommt dazu", mischeBildvorrat(v1, [fund("R\xFCckkehr")]).length, 3);
-ist("leere Funde werden gar nicht aufgenommen", mischeBildvorrat([], [fund("")]).length, 0);
-var viele = Array.from({ length: 12 }, (_, i) => fund("was" + i));
-var v4 = mischeBildvorrat([], viele, 5);
-ist("der Deckel greift", v4.length, 5);
-ist("und das \xC4lteste f\xE4llt heraus", v4[0].ctx.what, "was7");
-ist("ohne Deckel bleibt alles", mischeBildvorrat([], viele, 0).length, 12);
-ist("aus dem leeren Vorrat kommt nichts", ziehBildvorrat([], () => 0), null);
-ist("der erste Fund l\xE4sst sich ziehen", ziehBildvorrat(v1, () => 0)?.ctx.what, "Ankunft");
-ist("und der letzte auch", ziehBildvorrat(v1, () => 0.999)?.ctx.what, "Abfahrt");
+
+// src/generation/verbconj.ts
+var VERB_TOKEN_RE = new RegExp("\\b(" + Object.keys(VERB_CONJ).join("|") + ")\\b", "i");
+
+// src/generation/wordcls.ts
+var PERSON_NOMEN = /(jugendliche|jugendlicher|erwachsene|erwachsener|alte|alter|kranke|kranker|gefangene|gefangener|angestellte|angestellter|beamte|beamter|verwandte|verwandter|bekannte|bekannter|vorsitzende|vorsitzender|abgeordnete|abgeordneter|obdachlose|obdachloser|pensionär|pensionärin|rentner|rentnerin|zeuge|zeugin|täter|täterin|opfer|passant|passantin|kellner|kellnerin|pfarrer|pfarrerin|richter|richterin|händler|händlerin|bauer|bäuerin|förster|försterin|schneider|schneiderin|weber|weberin|uhrmacher|uhrmacherin|archivar|archivarin|übersetzer|übersetzerin|magd|knecht|ritter|ritterin|nonne|mönch|clown|boxer|boxerin|grabräuber|grabräuberin|mädchen|junge|kind|frau|mann|männer|dame|herr|schüler|schülerin|lehrer|lehrerin|wächter|wächterin|arzt|ärztin|bäcker|bäckerin|gärtner|gärtnerin|fischer|fischerin|bote|botin|wanderer|wanderin|reisende|reisender|nachbar|nachbarin|greis|greisin|witwe|witwer|zwilling|bruder|schwester|sohn|tochter|vater|mutter|onkel|tante|neffe|nichte|freund|freundin|gast|fremde|fremder|meister|meisterin|gesell|lehrling|soldat|soldatin|matrose|matrosin|pilot|pilotin|köchin|koch|wirt|wirtin|müller|müllerin|schmied|schmiedin|hirte|hirtin|jäger|jägerin|sammler|sammlerin)$/i;
+var NOT_INFINITIVE = /* @__PURE__ */ new Set([
+  "einen",
+  "keinen",
+  "seinen",
+  "ihren",
+  "deinen",
+  "unseren",
+  "euren",
+  "diesen",
+  "jenen",
+  "denen",
+  "welchen",
+  "allen",
+  "vielen",
+  "beiden",
+  "manchen",
+  "jeden",
+  "solchen",
+  "anderen",
+  "eigenen",
+  "letzten",
+  "ersten",
+  "oben",
+  "unten",
+  "innen",
+  "au\xDFen",
+  "hinten",
+  "vorn",
+  "vorne",
+  "neben",
+  "eben",
+  "gegen",
+  "wegen",
+  "gegen\xFCber",
+  "morgen",
+  "\xFCbermorgen",
+  "wochen",
+  "stunden",
+  "sieben",
+  "zehn",
+  "trotzen",
+  "w\xE4hrend",
+  "dessen",
+  "deren",
+  "hinein"
+]);
+var NICHT_VERB_T = /* @__PURE__ */ new Set([
+  "nicht",
+  "jetzt",
+  "erst",
+  "fast",
+  "sonst",
+  "meist",
+  "zuerst",
+  "zuletzt",
+  "selbst",
+  "sogar",
+  "seit",
+  "samt",
+  "statt",
+  "mit",
+  "zeit",
+  "trotz",
+  "laut",
+  "gerecht",
+  "sanft",
+  "dicht",
+  "leicht",
+  "schlecht",
+  "recht",
+  "direkt",
+  "echt",
+  "exakt",
+  "strikt",
+  "perfekt",
+  "konkret",
+  "komplett",
+  "kaputt",
+  "sacht",
+  "glatt",
+  "platt",
+  "nackt",
+  "satt",
+  "breit",
+  "bereit",
+  "weit",
+  "sp\xE4t",
+  "hart",
+  "zart",
+  "kalt",
+  "alt",
+  "bunt",
+  "rot",
+  "gut",
+  "oft",
+  "still",
+  "halt",
+  "gesamt",
+  "insgesamt",
+  "bekannt",
+  "verwandt",
+  "ber\xFChmt",
+  "sofort",
+  "vielleicht",
+  "\xFCberhaupt",
+  "zumindest",
+  "h\xF6chst",
+  "\xE4u\xDFerst",
+  "mindest",
+  "bestimmt",
+  "unbedingt",
+  "ernst",
+  "einst",
+  "l\xE4ngst",
+  "j\xFCngst",
+  "umsonst",
+  "weltweit",
+  "korrekt",
+  "intakt",
+  "kompakt",
+  "prompt",
+  "getrennt",
+  // vierbuchstabige Adjektive und Adverbien auf -t
+  "bunt",
+  "echt",
+  "fest",
+  "hart",
+  "kalt",
+  "laut",
+  "matt",
+  "nett",
+  "satt",
+  "weit",
+  "zart",
+  "fett",
+  "halt",
+  "wert",
+  "dort",
+  "fort",
+  "stet",
+  "sart"
+]);
+function wirktFinit(w) {
+  if (w.length < 4 || NICHT_VERB_T.has(w)) return false;
+  if (/^ge[a-zäöüß]+t$/.test(w)) return false;
+  return /^[a-zäöüß]+[^aeiouäöü]t$/.test(w) || /^[a-zäöüß]+et$/.test(w);
+}
+function looksLikeInfinitive(w) {
+  if (INFINITIVE_VERBS.has(w)) return true;
+  if (w.length < 5 || NOT_INFINITIVE.has(w) || NOUN_GENDER[w]) return false;
+  return /(?:[a-zäöüß]{3,})(?:en|ern|eln)$/.test(w);
+}
+function extractLeadVerb(text2) {
+  const s = clean(text2);
+  if (!s) return { verb: null, rest: s };
+  const m0 = s.match(/^([A-Za-zÄÖÜäöüß]+)(,?)\s+(.+)$/);
+  if (!m0) return { verb: null, rest: s };
+  const m = [m0[0], m0[1], (m0[2] ? ", " : "") + m0[3]];
+  const raw = m[1];
+  const w = raw.toLowerCase();
+  if (VERB_CONJ[w]) return { verb: raw, rest: m[2] };
+  if (/^[a-zäöüß]/.test(raw) && looksLikeInfinitive(w)) {
+    return { verb: null, rest: `${m[2]} ${w}`, isInfinitiveLed: true };
+  }
+  if (/^[a-zäöüß]+iert$/.test(w)) return { verb: raw, rest: m[2] };
+  const dritte = ICH_DU_ZU_ER[w];
+  if (dritte && /^[a-zäöüß]/.test(raw)) return { verb: dritte, rest: m[2] };
+  if (/^[a-zäöüß]/.test(raw) && (EXTRA_FINITE_RE.test(w) || wirktFinit(w))) {
+    return { verb: raw, rest: m[2] };
+  }
+  return { verb: null, rest: s };
+}
+var ICH_DU_HAND = {
+  sehe: "sieht",
+  siehst: "sieht",
+  gehe: "geht",
+  gehst: "geht",
+  komme: "kommt",
+  kommst: "kommt",
+  finde: "findet",
+  findest: "findet",
+  glaube: "glaubt",
+  glaubst: "glaubt",
+  lebe: "lebt",
+  lebst: "lebt",
+  liege: "liegt",
+  liegst: "liegt",
+  sitze: "sitzt",
+  lese: "liest",
+  liest: "liest",
+  schlafe: "schl\xE4ft",
+  schl\u00E4fst: "schl\xE4ft",
+  laufe: "l\xE4uft",
+  l\u00E4ufst: "l\xE4uft",
+  falle: "f\xE4llt",
+  f\u00E4llst: "f\xE4llt",
+  breche: "bricht",
+  brichst: "bricht",
+  rufe: "ruft",
+  rufst: "ruft",
+  weine: "weint",
+  weinst: "weint",
+  lache: "lacht",
+  lachst: "lacht",
+  sp\u00FCre: "sp\xFCrt",
+  sp\u00FCrst: "sp\xFCrt",
+  atme: "atmet",
+  atmest: "atmet",
+  singe: "singt",
+  singst: "singt",
+  \u00F6ffne: "\xF6ffnet",
+  \u00F6ffnest: "\xF6ffnet",
+  erinnere: "erinnert",
+  erinnerst: "erinnert",
+  erkenne: "erkennt",
+  erkennst: "erkennt",
+  zerbreche: "zerbricht",
+  zerbrichst: "zerbricht",
+  stolpere: "stolpert",
+  stolperst: "stolpert",
+  verharre: "verharrt",
+  verharrst: "verharrt",
+  wandere: "wandert",
+  wanderst: "wandert",
+  zittere: "zittert",
+  zitterst: "zittert",
+  fl\u00FCstere: "fl\xFCstert",
+  fl\u00FCsterst: "fl\xFCstert",
+  wundere: "wundert",
+  wunderst: "wundert",
+  z\u00F6gere: "z\xF6gert",
+  z\u00F6gerst: "z\xF6gert",
+  erwache: "erwacht",
+  erwachst: "erwacht",
+  verschwinde: "verschwindet",
+  verschwindest: "verschwindet",
+  begreife: "begreift",
+  begreifst: "begreift",
+  verstehe: "versteht",
+  verstehst: "versteht",
+  bleibe: "bleibt",
+  bleibst: "bleibt",
+  ziehe: "zieht",
+  ziehst: "zieht"
+};
+var ICH_DU_ZU_ER = (() => {
+  const m = {};
+  for (const [dritte, formen] of Object.entries(VERB_CONJ)) {
+    for (const p of ["ich", "du", "wir", "ihr"]) {
+      const f = formen[p];
+      if (f && !m[f]) m[f] = dritte;
+    }
+  }
+  return { ...m, ...ICH_DU_HAND };
+})();
+var EXTRA_FINITE_RE = /\b(geschieht|geschehen|geschah|passiert|passieren|passierte|tickt|ticken|atmet|atmen|wächst|wachsen|wuchs|brennt|brennen|brannte|fällt|fallen|fiel|zerfällt|zerfallen|verschwindet|verschwinden|verschwand|erscheint|erscheinen|erschien|endet|enden|endete|beginnt|beginnen|begann|stirbt|sterben|starb|blüht|blühen|klopft|klopfen|flackert|flackern|zerbricht|zerbrechen|zerbrach|dreht|drehen|schweigt|schweigen|schwieg|singt|singen|sang|wandert|wandern|glüht|glühen|tanzt|tanzen|brüllt|brüllen|reagiert|reagieren|zeigt|zeigen|spricht|sprechen|sprach|antwortet|antworten|erinnert|erinnern|verändert|verändern|zittert|zittern|leuchtet|leuchten|schmilzt|schmelzen|regnet|schneit|blitzt|donnert|bebt|läuft|laufen|lief|rinnt|tropft|fließt|fließen|floss|steigt|steigen|stieg|sinkt|sinken|sank|kreist|kreisen|pulsiert|vibriert|summt|brummt|knistert|raschelt|flüstert|flüstern|schreit|schreien|schrie|weint|weinen|lacht|lachen|verglüht|verblasst|zerrinnt|wartet|warten)\b/i;
+function looksLikeFullClause(leadVerb, rest) {
+  if (leadVerb) return false;
+  return VERB_TOKEN_RE.test(rest || "") || EXTRA_FINITE_RE.test(rest || "");
+}
+var SP_REL = /^(der|die|das|den|dem|des|deren|dessen|welche[rsmn]?|wo|worin|woran|womit|wovon)\b/i;
+var SP_CONJ = /^(als|während|weil|wenn|da|obwohl|nachdem|bevor|sodass|damit|dass|ob|indem|sobald|solange)\b/i;
+var SP_PREP = /^(mit|ohne|aus|von|vom|in|im|auf|an|am|für|bei|zu|zum|zur|über|unter|vor|nach|durch|gegen|seit|um|entlang|trotz|wegen|innerhalb|außerhalb|samt|nebst|zwischen|entgegen|gemäß|laut|binnen|jenseits|diesseits)\b/i;
+var SP_ENDS_VERB = /(?:\b(hat|hatte|ist|war|sind|waren|wird|wurde|wurden|kann|konnte|will|wollte|muss|musste|bleibt|blieb|kommt|kam|geht|ging)|(?:^|[^A-Za-zÄÖÜäöüß])[a-zäöüß]{2,}(?:t|te|en|st|et))\.?$/;
+var SP_DET = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses|jener|jene|jenes|beide|alle|zwei|drei|vier)\b/i;
+function istEigenePerson(teil) {
+  const p = clean(teil);
+  if (!p) return false;
+  if (SP_REL.test(p) && SP_ENDS_VERB.test(p)) return false;
+  if (SP_CONJ.test(p) || SP_PREP.test(p)) return false;
+  if (SP_DET.test(p)) return true;
+  if (/^[A-ZÄÖÜ]/.test(p)) return true;
+  return !/\s/.test(p);
+}
+
+// src/generation/ctxnorm.ts
+var PREPS = /^(in|im|an|am|auf|bei|beim|unter|über|vor|hinter|neben|zwischen|durch|entlang|inmitten|nahe|außerhalb|innerhalb|jenseits|diesseits|um|ums|zu|zur|zum|während|seit|nach|gegen|ab|aus|von|vom|unterwegs|irgendwo|nirgendwo|überall|dort|draußen|drinnen|hier|daheim|zuhause|unten|oben)\b/i;
+var cap2 = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+var low = (s) => s ? s.charAt(0).toLowerCase() + s.slice(1) : s;
+function parseNP(s) {
+  const m = s.trim().match(/^(?:(der|die|das|ein|eine|einen|einem|einer)\s+)?(?:([a-zäöüß][a-zäöüß-]*)\s+)?([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
+  if (!m) return null;
+  return { art: (m[1] || "").toLowerCase(), adj: m[2] || "", noun: m[3] };
+}
+function genderOf(art, noun) {
+  if (art === "die" || art === "eine" || art === "einer") return "f";
+  if (art === "das") return "n";
+  if (art === "der" || art === "ein" || art === "einen" || art === "einem") {
+    const g = guessGender(noun);
+    return g || (art === "der" ? "m" : void 0);
+  }
+  return guessGender(noun);
+}
+var adjDat = (adj) => adj ? adj.replace(/(er|es|em|en|e)$/i, "") + "en" : "";
+var AN_NOUNS = /^(meer|see|ozean|küste|strand|ufer|fluss|bach|rand|abgrund|fenster|tor|hafenbecken)$/i;
+var AUF_NOUNS = /^(insel|wiese|weide|feld|berg|hügel|gipfel|dach|turm|platz|markt|straße|brücke|lichtung|bühne|terrasse|balkon)$/i;
+var AN_ENDUNG = /(ufer|meer|see|strand|küste|fluss|bach)$/i;
+function normWhere(s) {
+  const t = (s || "").trim();
+  if (!t || PREPS.test(t)) return t;
+  const komma = t.indexOf(",");
+  if (komma > 0) {
+    const kopf = normWhere(t.slice(0, komma));
+    return kopf + t.slice(komma);
+  }
+  const np = parseNP(t);
+  if (!np) return t;
+  const g = genderOf(np.art, np.noun);
+  if (!g) return t;
+  const adj = np.adj ? adjDat(np.adj) + " " : "";
+  const kind = AUF_NOUNS.test(np.noun) ? "auf" : AN_NOUNS.test(np.noun) || AN_ENDUNG.test(np.noun) ? "an" : "in";
+  const indef = np.art.startsWith("ein");
+  if (indef) {
+    const artD = g === "f" ? "einer" : "einem";
+    return `${kind} ${artD} ${adj}${np.noun}`;
+  }
+  if (kind === "in") return g === "f" ? `in der ${adj}${np.noun}` : `im ${adj}${np.noun}`;
+  if (kind === "an") return g === "f" ? `an der ${adj}${np.noun}` : `am ${adj}${np.noun}`;
+  return g === "f" ? `auf der ${adj}${np.noun}` : `auf dem ${adj}${np.noun}`;
+}
+var WEEKDAYS = /^(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag)$/i;
+var MONTHS = /^(januar|februar|märz|april|mai|juni|juli|august|september|oktober|november|dezember)$/i;
+var SEASONS = /^(frühling|frühjahr|sommer|herbst|winter)$/i;
+var TIME_ADV = /^(heute|morgen|gestern|übermorgen|vorgestern|damals|jetzt|nun|bald|einst|früher|später|nachts|morgens|abends|mittags|vormittags|nachmittags|irgendwann|immer|nie|niemals|neulich|kürzlich|demnächst|gerade|soeben|zugleich|währenddessen|einmal)\b/i;
+var AM_TIMES = /^(morgen|vormittag|mittag|nachmittag|abend|tag|anfang|ende|wochenende|feierabend)$/i;
+function normWhen(s) {
+  const t = (s || "").trim();
+  if (!t || PREPS.test(t) || TIME_ADV.test(t) || t.includes(",") || /\d+\s*uhr/i.test(t)) return t;
+  if (/^\d{3,4}$/.test(t)) return `im Jahr ${t}`;
+  const one = t.match(/^([A-ZÄÖÜa-zäöü][A-Za-zÄÖÜäöüß-]*)$/) ? t : null;
+  if (!one) return t;
+  const w = one;
+  if (WEEKDAYS.test(w)) return `an einem ${cap2(w)}`;
+  if (MONTHS.test(w) || SEASONS.test(w)) return `im ${cap2(w)}`;
+  if (/^mitternacht$/i.test(w)) return "um Mitternacht";
+  if (/^nacht$/i.test(w)) return "in der Nacht";
+  if (/^dämmerung$/i.test(w)) return "in der D\xE4mmerung";
+  if (AM_TIMES.test(w)) return `am ${cap2(w)}`;
+  const g = guessGender(w);
+  if (g === "f") return `in der ${cap2(w)}`;
+  if (g === "m" || g === "n") return `im ${cap2(w)}`;
+  return t;
+}
+function normWho(s) {
+  const t = (s || "").trim();
+  if (!t) return t;
+  const parts = t.split(",").map((p) => p.trim()).filter(Boolean);
+  const fixed = parts.map((p, i) => {
+    const m = p.match(/^([a-zäöüß][a-zäöüß-]*)\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
+    if (m && !/^(der|die|das|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses)$/i.test(m[1])) {
+      const g = guessGender(m[2]) || (/in$/.test(m[2].toLowerCase()) ? "f" : void 0);
+      if (g === "f") return `eine ${m[1]} ${m[2]}`;
+      if (g === "m" || g === "n") return `ein ${m[1]} ${m[2]}`;
+    }
+    if (i === 0 && /^[A-ZÄÖÜa-zäöüß][a-zäöüß-]+$/.test(p) && PERSON_NOMEN.test(p) && !/^(männer|leute)$/i.test(p)) {
+      const wort = cap2(p);
+      const klein = p.toLowerCase();
+      if (/er$/.test(klein) && PERSON_NOMEN.test(klein.slice(0, -1))) return `ein ${wort}`;
+      if (/e$/.test(klein) && PERSON_NOMEN.test(klein + "r")) return `eine ${wort}`;
+      const g = guessGender(wort);
+      if (g === "f") return `eine ${wort}`;
+      if (g === "m" || g === "n") return `ein ${wort}`;
+    }
+    return i === 0 || istEigenePerson(p) ? cap2(p) : low(p);
+  });
+  return fixed.join(", ");
+}
+
+// src/generation/titel.ts
+var MAX = 60;
+var cap3 = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+var ohnePunkt = (s) => s.replace(/[.!?…]+$/, "").trim();
+var BILDZEILE = /^(Ein|Eine|Der|Die|Das|Zwei|Drei|Kein|Keine|Jede|Jeder|Jedes|Mein|Meine)\s+[A-ZÄÖÜ][a-zäöüß-]+(?:\s+[A-Za-zÄÖÜäöüß-]+){0,5}(?:,\s+(?:der|die|das|den|dem|deren|dessen|wo|worin)\s+[^,.;:!?]{3,60})?$/;
+var STOP = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "und",
+  "oder",
+  "aber",
+  "in",
+  "im",
+  "an",
+  "am",
+  "auf",
+  "mit",
+  "von",
+  "vom",
+  "zu",
+  "zur",
+  "zum",
+  "nicht",
+  "nur",
+  "noch",
+  "wie",
+  "als",
+  "was",
+  "wer",
+  "wo",
+  "wann",
+  "sich",
+  "ist",
+  "sind",
+  "war",
+  "hat",
+  "wird",
+  "kein",
+  "keine",
+  "jemand",
+  "niemand",
+  "es"
+]);
+var inhaltswoerter = (s) => new Set((s.toLowerCase().match(/[a-zäöüß-]{3,}/g) || []).filter((w) => !STOP.has(w)));
+function kuerzeTitel(s, max = MAX) {
+  const t = ohnePunkt(clean(s));
+  if (t.length <= max) return t;
+  const stumpf = t.slice(0, max - 3);
+  const fuge = Math.max(stumpf.lastIndexOf(", "), stumpf.lastIndexOf(" \u2014 "), stumpf.lastIndexOf(": "), stumpf.lastIndexOf("; "));
+  const rumpf = fuge > 20 ? stumpf.slice(0, fuge) : stumpf.replace(/\s+\S*$/, "");
+  return rumpf.replace(/[,;:—–\s]+$/, "") + " \u2026";
+}
+var FINIT = /^(ist|sind|war|waren|hat|hatte|wird|wurde|kann|muss|will|soll|darf|mag|bleibt|kommt|geht|steht|liegt|fehlt|zählt|trägt|gibt|weiß)$/;
+var hatPraedikat = (kopf) => kopf.split(/\s+/).slice(1).some((w) => FINIT.test(w) || !!VERB_CONJ[w] || wirktFinit(w));
+function bildzeilen(text2) {
+  return (text2 || "").replace(/\s+/g, " ").split(/(?<=[.!?…])\s+/).map((s) => ohnePunkt(s.trim())).filter((s) => BILDZEILE.test(s) && s.length <= MAX && (s.match(/\S+/g) || []).length >= 3 && !hatPraedikat(s.split(",")[0]));
+}
+function titelAusKontext(ctx, max = MAX) {
+  const who = normWho(clean(ctx.who || "")).split(",")[0].trim();
+  const what = clean(ctx.what || "");
+  if (who && what) {
+    const lv = extractLeadVerb(what);
+    if (lv.verb) return kuerzeTitel(`${cap3(who)} ${lv.verb}${lv.rest.startsWith(",") ? "" : " "}${lv.rest}`, max);
+    if (lv.isInfinitiveLed) return kuerzeTitel(`${cap3(who)} will ${lv.rest}`, max);
+    const letztes = (what.match(/[a-zäöüß-]+$/) || [""])[0];
+    if (/^[a-zäöüß]/.test(letztes) && looksLikeInfinitive(letztes) && !/,/.test(what)) return kuerzeTitel(`${cap3(who)} will ${what}`, max);
+    if (looksLikeFullClause(null, what.split(",")[0])) return kuerzeTitel(cap3(what), max);
+    return kuerzeTitel(`${cap3(who)} und ${what}`, max);
+  }
+  if (who) return kuerzeTitel(cap3(who), max);
+  if (what) {
+    const lv = extractLeadVerb(what);
+    if (!lv.verb && !lv.isInfinitiveLed) return kuerzeTitel(cap3(what), max);
+  }
+  const when = normWhen(clean(ctx.when || ""));
+  const where = normWhere(clean(ctx.where || ""));
+  if (when && where) return kuerzeTitel(`${cap3(when)}, ${where}`, max);
+  return kuerzeTitel(cap3(where || when || ""), max);
+}
+var KEIN_NOMEN = /* @__PURE__ */ new Set([
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "und",
+  "im",
+  "am",
+  "in",
+  "an",
+  "auf",
+  "wo",
+  "was",
+  "wer",
+  "wie",
+  "es",
+  "ich",
+  "du",
+  "er",
+  "sie",
+  "wir",
+  "man",
+  "kein",
+  "keine",
+  "noch",
+  "nur",
+  "dann",
+  "dort",
+  "hier",
+  "jetzt",
+  "nichts",
+  "alles",
+  "etwas",
+  "jemand",
+  "niemand"
+]);
+function einWort(text2, ctx) {
+  const t = (text2 || "").replace(/\s+/g, " ").trim();
+  const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""} ${ctx.where || ""}`);
+  const nomen = [];
+  const anfaenge = [];
+  const re = /(^|[.!?…\n]\s*|\s)([A-ZÄÖÜ][a-zäöüß-]{2,})/g;
+  let m;
+  const roh = (text2 || "").trim();
+  while (m = re.exec(roh)) {
+    const w = m[2].replace(/-$/, "");
+    if (KEIN_NOMEN.has(w.toLowerCase())) continue;
+    (m[1] === " " ? nomen : anfaenge).push(w);
+  }
+  const alle = [...nomen, ...anfaenge];
+  const passend = alle.find((w) => bezug.has(w.toLowerCase()) || [...bezug].some((b) => b.length >= 5 && w.toLowerCase().includes(b)));
+  if (passend) return passend;
+  if (nomen.length) return nomen[nomen.length - 1];
+  if (anfaenge.length) return anfaenge[anfaenge.length - 1];
+  const ausCtx = (`${ctx.who || ""} ${ctx.what || ""} ${ctx.where || ""}`.match(/\b[A-ZÄÖÜ][a-zäöüß-]{2,}/g) || []).find((w) => !KEIN_NOMEN.has(w.toLowerCase()));
+  return ausCtx || (t ? "Haiku" : "");
+}
+function nuechternerTitel(ctx) {
+  const roh = titelAusKontext(ctx, 200);
+  if (!roh) return "";
+  const t = roh.replace(/^(Der|Die|Das|Ein|Eine)\s+(?=[A-ZÄÖÜ])/, "");
+  if (t.length <= MAX) return t;
+  const stumpf = t.slice(0, MAX);
+  const fuge = Math.max(stumpf.lastIndexOf(", "), stumpf.lastIndexOf(" \u2014 "), stumpf.lastIndexOf(" und "), stumpf.lastIndexOf(": "));
+  return fuge > 20 ? stumpf.slice(0, fuge).replace(/[,;:—–\s]+$/, "") : t;
+}
+function haikuKandidaten(text2, ctx) {
+  const erstes = einWort(text2, ctx);
+  const alle = ((text2 || "").match(/[A-ZÄÖÜ][a-zäöüß-]{2,}/g) || []).map((w) => w.replace(/-$/, "")).filter((w) => !KEIN_NOMEN.has(w.toLowerCase()));
+  return [.../* @__PURE__ */ new Set([erstes, ...alle.reverse()])].filter(Boolean);
+}
+function berichtKandidaten(ctx) {
+  const kern = nuechternerTitel(ctx);
+  if (!kern) return ["Bericht"];
+  const ort = clean(ctx.where || "").split(",")[0].replace(/^(in|im|am|an|auf|bei|vor|hinter|unter|über)\s+(der|dem|den|einer|einem)?\s*/i, "").trim();
+  const zeit = clean(ctx.when || "");
+  const out = [kern];
+  if (ort && kern.length + ort.length < MAX + 10) out.push(`${cap3(ort)}: ${kern}`);
+  if (zeit && kern.length + zeit.length < MAX + 10) out.push(`${cap3(zeit)}: ${kern}`);
+  return out;
+}
+function titelKandidaten(text2, ctx, form = "prose") {
+  if (form === "meldung") return [];
+  if (form === "haiku") return haikuKandidaten(text2, ctx);
+  if (form === "bericht") return berichtKandidaten(ctx);
+  const zeilen = bildzeilen(text2);
+  const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""}`);
+  const passend = zeilen.filter((z2) => [...inhaltswoerter(z2)].some((w) => bezug.has(w)));
+  const uebrige = zeilen.filter((z2) => !passend.includes(z2));
+  const kontext = titelAusKontext(ctx);
+  const ortzeit = ctx.when && ctx.where ? titelAusKontext({ when: ctx.when, where: ctx.where }) : "";
+  return [...new Set([...passend, ...uebrige, kontext, ortzeit].filter(Boolean))];
+}
+function titelFuer(text2, ctx, form = "prose", gesehen = []) {
+  const k2 = titelKandidaten(text2, ctx, form);
+  if (!k2.length) return form === "meldung" ? "" : "Ohne Titel";
+  const frisch = k2.find((t) => !gesehen.includes(t));
+  if (frisch) return frisch;
+  return k2.slice().sort((a, b) => gesehen.lastIndexOf(a) - gesehen.lastIndexOf(b))[0];
+}
+
+// test/titel.ts
+var fails = [];
+var geprueft = 0;
+var bestanden = 0;
+var ist = (name, wert, soll) => {
+  geprueft++;
+  if (wert === soll) bestanden++;
+  else fails.push(`${name}: \u201E${String(wert)}\u201C \u2014 erwartet \u201E${String(soll)}\u201C`);
+};
+var wahr = (name, b) => ist(name, b, true);
+var text = "Die T\xFCr ist verschlossen. Ein Siegel. Ein Licht, das die falschen Dinge zeigt. Der Bote bringt, was niemand h\xF6ren will. Eine Narbe im Morgenlicht.";
+var z = bildzeilen(text);
+ist("ein Satz mit Pr\xE4dikat ist keine Bildzeile", z.includes("Die T\xFCr ist verschlossen"), false);
+ist("zwei W\xF6rter sagen nichts", z.includes("Ein Siegel"), false);
+ist("Nominalphrase mit Relativsatz ist eine", z.includes("Ein Licht, das die falschen Dinge zeigt"), true);
+ist("Nominalphrase mit Ortsangabe ist eine", z.includes("Eine Narbe im Morgenlicht"), true);
+ist("ein Hauptsatz mit Verb ist keine", z.includes("Der Bote bringt, was niemand h\xF6ren will"), false);
 ist(
-  "ein Vorrat nur aus leeren Funden gibt nichts her",
-  ziehBildvorrat([fund("")], () => 0),
-  null
-);
-var ap = baueAbschriftPrompt();
-wahr("Erg\xE4nzen ist verboten", /Etwas ergänzen, weiterschreiben/.test(ap));
-wahr("Modernisieren ist verboten", /Rechtschreibung modernisieren/.test(ap));
-wahr("Verbessern ist verboten", /Grammatik oder Zeichensetzung verbessern/.test(ap));
-wahr("Unleserliches wird gekennzeichnet statt geraten", /\[unleserlich\] statt zu raten/.test(ap));
-wahr("Silbentrennung wird aufgel\xF6st", /Silbentrennung am Zeilenende/.test(ap));
-wahr("es gibt eine Antwort f\xFCr \u201Ekein Text\u201C", /KEIN TEXT/.test(ap));
-wahr("ein Nutzerhinweis kommt hinein", baueAbschriftPrompt("nur die linke Spalte").includes("nur die linke Spalte"));
-wahr("die Abschrift kennt keinen Beutefilter", !/Glätte|verworfen und war umsonst/.test(ap));
-ist("eine leere Antwort ist leer", leseAbschrift("").leer, true);
-ist("die Kein-Text-Antwort ebenso", leseAbschrift("KEIN TEXT").leer, true);
-ist("auch klein geschrieben", leseAbschrift("kein text").leer, true);
-ist("ein Codeblock wird abgestreift", leseAbschrift("```\nEs war ein Tag.\n```").text, "Es war ein Tag.");
-ist("auch einer mit Sprachangabe", leseAbschrift("```text\nEs war ein Tag.\n```").text, "Es war ein Tag.");
-ist("ein Vorspann f\xE4llt weg", leseAbschrift("Hier ist die Abschrift:\n\nEs war ein Tag.").text, "Es war ein Tag.");
-ist(
-  "ein echter Satz \xFCber eine Abschrift bleibt stehen",
-  leseAbschrift("Die Abschrift des Protokolls lag auf dem Tisch.").text,
-  "Die Abschrift des Protokolls lag auf dem Tisch."
+  "die Zeile mit Bezug zum Was gewinnt",
+  titelFuer(text, { who: "Der Bote", what: "eine Narbe z\xE4hlt" }),
+  "Eine Narbe im Morgenlicht"
 );
 ist(
-  "und ein gew\xF6hnlicher Text sowieso",
-  leseAbschrift("Es war ein Tag im Herbst.").text,
-  "Es war ein Tag im Herbst."
+  "ohne Bezug die erste",
+  titelFuer(text, { who: "Der Bote", what: "schweigt" }),
+  "Ein Licht, das die falschen Dinge zeigt"
 );
-wahr("der Deckel l\xE4sst eine volle Buchseite zu", maxTokenAbschrift() >= 2048);
-ist("der gemeldete Satz wird erkannt", wirktVerkuerzt("Mann sitzt auf Bank und h\xE4lt Hut"), true);
-ist("auch mit Punkt", wirktVerkuerzt("Mann sitzt auf Bank und h\xE4lt Hut."), true);
-for (const s of [
-  "Frau steht vor Fenster und h\xE4lt Buch",
-  "Fahrrad lehnt an Wand neben T\xFCr",
-  "Staub liegt auf Boden und Fensterbrettern"
-]) wahr(`Telegrammstil erkannt: \u201E${s}\u201C`, wirktVerkuerzt(s));
-for (const s of gut) ist(`vollst\xE4ndiger Satz bleibt frei: \u201E${s.slice(0, 40)}\u2026\u201C`, wirktVerkuerzt(s), false);
-ist(
-  "ein Satz mit verschmolzenem Artikel gilt als vollst\xE4ndig",
-  wirktVerkuerzt("Nebel steht im Hof und zieht langsam ab"),
-  false
-);
-ist("ein kurzer Satz wird nicht beurteilt", wirktVerkuerzt("Regen f\xE4llt seit gestern"), false);
-ist(
-  "ein einzelnes Substantiv ohne Artikel reicht nicht",
-  wirktVerkuerzt("Regen f\xE4llt seit gestern ohne jede Pause"),
-  false
-);
-ist("auch ohne jedes Begleitwort", wirktVerkuerzt("Regen f\xE4llt seit gestern ohne Pause"), false);
-wahr(
-  "und die Regel zeichnet einen solchen Satz eben mit an \u2014 bekannt und tragbar",
-  wirktVerkuerzt("Drau\xDFen f\xE4llt seit gestern Abend leise und ohne Pause Schnee")
-);
-var e9 = beute(["Mann sitzt auf Bank und h\xE4lt Hut.", gut[0]]);
-ist("der verk\xFCrzte Satz wird nicht verworfen", e9.verworfen.length, 0);
-ist("er bleibt in der Liste", e9.behalten.length, 2);
-var zw = e9.behalten.find((f) => f.satz.startsWith("Mann sitzt"));
-wahr("aber mit einem Grund versehen", !!zw && zw.zweifel.length > 0);
-wahr("und der Grund nennt den Artikel", !!zw && /Artikel/.test(zw.zweifel));
-wahr(
-  "der vollst\xE4ndige Satz bleibt ohne Zweifel",
-  !e9.behalten.find((f) => f.satz === gut[0]).zweifel
-);
-wahr("der Prompt schlie\xDFt Telegrammstil aus", /Kein Telegrammstil/.test(p));
-wahr("er nennt das Gegenbeispiel", /Mann sitzt auf Bank/.test(p));
-wahr("und die richtige Fassung dazu", /Der Mann sitzt auf der Bank/.test(p));
-wahr("er begr\xFCndet es mit dem Zerlegen", /Scharniere/.test(p));
-wahr("und stellt klar, dass n\xFCchtern nicht verk\xFCrzt hei\xDFt", /NÜCHTERN HEISST NICHT VERKÜRZT/.test(p));
-console.log(`Pr\xFCfstand Bildsammler \u2014 ${geprueft} Pr\xFCfungen (ohne API-Aufruf):`);
-zeilen.forEach((z) => console.log(z));
+ist("die Meldung bekommt keinen Titel", titelFuer(text, {}, "meldung"), "");
+ist("verb-gef\xFChrtes Was: Satz", titelAusKontext({ who: "Der Bote", what: "bringt, was niemand h\xF6ren will" }), "Der Bote bringt, was niemand h\xF6ren will");
+ist("Was als Nominalphrase: \u201Eund\u201C", titelAusKontext({ who: "Ein Wachmann", what: "eine Logik, die nur im Tanz erlaubt ist" }), "Ein Wachmann und eine Logik, die nur im Tanz erlaubt ist");
+ist("Was als ganzer Satz: das Was allein", titelAusKontext({ who: "Die Uhrmacherin", what: "ein Wunder geschieht" }), "Ein Wunder geschieht");
+ist("Vorhaben mit Infinitiv: \u201Ewill\u201C", titelAusKontext({ who: "Wachmann", what: "einen Schl\xFCssel verlieren" }), "Ein Wachmann will einen Schl\xFCssel verlieren");
+ist("nur Wer", titelAusKontext({ who: "die Uhrmacherin" }), "Die Uhrmacherin");
+ist("nur Wann und Wo", titelAusKontext({ when: "1953", where: "Hafen" }), "Im Jahr 1953, im Hafen");
+ist("nichts \u2192 leer, der R\xFCckfall kommt von titelFuer", titelAusKontext({}), "");
+ist("R\xFCckfall ohne alles", titelFuer("", {}), "Ohne Titel");
+var lang = "Ein Museum, das seine Exponate verliert, z\xE4hlt eine Person zu viel und sagt es niemandem.";
+var k = kuerzeTitel(lang);
+wahr("h\xF6chstens sechzig Zeichen", k.length <= 60);
+wahr("endet auf Auslassung", /…$/.test(k));
+ist("gek\xFCrzt an der Fuge, nicht im Satzglied", k, "Ein Museum, das seine Exponate verliert \u2026");
+ist("ein kurzer Titel bleibt ganz, ohne Punkt", kuerzeTitel("Eine Narbe im Morgenlicht."), "Eine Narbe im Morgenlicht");
+{
+  const haiku = "Kalter Bach im Hafen \u2014\nein Wachmann z\xE4hlt die M\xF6wen,\nder Schl\xFCssel schweigt.";
+  ist("Haiku: ein Wort, mit Bezug zum Wer", einWort(haiku, { who: "Der Wachmann", what: "verliert einen Schl\xFCssel" }), "Wachmann");
+  ist("Haiku: ohne Bezug das letzte Nomen (die Aufl\xF6sung)", einWort("Kalter Bach im Hafen \u2014\nein Wachmann z\xE4hlt die M\xF6wen,\ndas Licht schweigt.", {}), "Licht");
+  wahr("Haiku: wirklich EIN Wort", !/\s/.test(titelFuer(haiku, { who: "Der Wachmann" }, "haiku")));
+  ist("Haiku: ohne Text ein Nomen aus dem Kontext, kein Artikel", einWort("", { who: "Die Uhrmacherin" }), "Uhrmacherin");
+  ist("Bericht: n\xFCchtern, ohne Artikel, Wer + Was", nuechternerTitel({ who: "Der Bote", what: "bringt, was niemand h\xF6ren will" }), "Bote bringt, was niemand h\xF6ren will");
+  ist("Bericht: keine Bildzeile aus dem Text", titelFuer(text, { who: "Der Bote", what: "bringt, was niemand h\xF6ren will" }, "bericht"), "Bote bringt, was niemand h\xF6ren will");
+  const langB = nuechternerTitel({ who: "Ein Museum, das seine Exponate verliert", what: "z\xE4hlt eine Person zu viel und sagt es niemandem und dem Rat" });
+  wahr("Bericht: zu lang \u2192 an der Fuge, ohne Auslassungszeichen", !/…/.test(langB) && langB.length <= 60);
+  ist("Bericht: ohne Kontext der Formname", titelFuer(text, {}, "bericht"), "Bericht");
+  ist("Reim: frei wie Prosa \u2014 die Bildzeile", titelFuer(text, { who: "Der Bote" }, "reim"), "Ein Licht, das die falschen Dinge zeigt");
+}
+{
+  const ctx = { who: "Der Bote", what: "bringt, was niemand h\xF6ren will", where: "am Kanalufer", when: "im Jahr 2041" };
+  const k2 = titelKandidaten(text, ctx);
+  wahr("es gibt mehrere Kandidaten", k2.length >= 3);
+  const erster = titelFuer(text, ctx, "prose", []);
+  const zweiter = titelFuer(text, ctx, "prose", [erster]);
+  const dritter = titelFuer(text, ctx, "prose", [erster, zweiter]);
+  wahr("drei Erzeugungen, drei Titel", (/* @__PURE__ */ new Set([erster, zweiter, dritter])).size === 3);
+  ist("alle vergeben \u2192 der \xE4lteste kommt wieder", titelFuer(text, ctx, "prose", k2.slice()), k2[0]);
+  const haiku = "Kalter Bach im Hafen \u2014\nein Wachmann z\xE4hlt die M\xF6wen,\nder Schl\xFCssel schweigt.";
+  const h1 = titelFuer(haiku, { who: "Der Wachmann" }, "haiku", []);
+  const h2 = titelFuer(haiku, { who: "Der Wachmann" }, "haiku", [h1]);
+  wahr("Haiku: das zweite Wort ist ein anderes, und eines", h1 !== h2 && !/\s/.test(h2));
+  const b1 = titelFuer("", ctx, "bericht", []);
+  const b2 = titelFuer("", ctx, "bericht", [b1]);
+  wahr("Bericht: die zweite Fassung tr\xE4gt Ort oder Zeit als Marke", b1 !== b2 && /^(Kanalufer|Im Jahr 2041): /.test(b2));
+  wahr("das Studio reicht die vergebenen Titel weiter", /titelFuer\(txt, \{[^}]*\}, form\.value, ladeGesehen\(\)\)/.test((0, import_fs.readFileSync)("src/ui/studio.ts", "utf8")));
+}
+var q = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
+wahr("es gibt den Schalter", /id: "f-titel-an"/.test(q));
+wahr("der Schalter wird gespeichert", /localStorage\.setItem\(TITEL_KEY/.test(q));
+wahr("der Titel steht \xFCber dem Text", /titelLbl\), titelEl, outWrap/.test(q));
+wahr("aus hei\xDFt kein Titel", /if \(!titelChk\.checked\) return "";/.test(q));
+wahr("und er wandert in den Leser", /titel: aktuellerTitel\(\)/.test(q));
+wahr("der Leser zeigt ihn", /ctx\.titel\) body\.prepend/.test((0, import_fs.readFileSync)("src/ui/reader.ts", "utf8")));
+console.log(`Pr\xFCfstand Titel \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {
   console.error(`
-\u274C ${fails.length} Fehler im Bildsammler:`);
+\u274C Titel: ${fails.length} Fehler:`);
   fails.forEach((f) => console.error("  - " + f));
   proc.process?.exit(1);
 } else {
   console.log(`
-\u2705 Bildsammler: alle ${geprueft} Pr\xFCfungen bestanden.`);
+\u2705 Titel: alle ${geprueft} Pr\xFCfungen bestanden.`);
 }

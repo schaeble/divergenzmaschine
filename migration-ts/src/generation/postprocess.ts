@@ -184,13 +184,6 @@ export function coherenceRepairV2(t: string, input?: Input): string {
     return glaetten(t);
   }
 
-  const DU: [RegExp, string][] = [
-    [/\btritt\b/g, "trittst"], [/\bhält\b/g, "hältst"], [/\bnimmt\b/g, "nimmst"],
-    [/\bsieht\b/g, "siehst"], [/\bgeht\b/g, "gehst"], [/\bsteht\b/g, "stehst"],
-    [/\bträgt\b/g, "trägst"], [/\bführt\b/g, "führst"], [/\bfindet\b/g, "findest"],
-    [/\bsucht\b/g, "suchst"], [/\bkommt\b/g, "kommst"], [/\bbricht\b/g, "brichst"],
-  ];
-
   // Absatzmarken schuetzen: Die Schleife setzt den Text am Ende mit join(" ")
   // wieder zusammen und loeschte damit jede Leerzeile - die Absaetze der Prosa
   // und die Zeilen des Prosagedichts ueberlebten die Nachbearbeitung nie.
@@ -204,18 +197,7 @@ export function coherenceRepairV2(t: string, input?: Input): string {
     if (/\bSatz\s+„/.test(s) && opens > closes) continue;
     if (/,\s+(die|der|das|dem|den|des)\s+(die|der|das|dem|den|des)\s+\p{L}+$/iu.test(bare)) continue;
     if (opens > closes) s = s.replace(/„\s*/g, "");
-    const di = s.search(/\bdu\b/i);
-    if (di >= 0) {
-      const head = s.slice(0, di);
-      let tail = s.slice(di);
-      // Nur bis zum nächsten Subjektwechsel konjugieren — sonst wird aus
-      // „du findest den Bug, aber er findet dich“ ein „aber er findest dich“.
-      const wechsel = tail.search(/\b(?:aber|und|doch|denn|sondern|oder|während|als)\s+(?:er|sie|es|man|wir|ihr|der|die|das)\b/i);
-      let rest = "";
-      if (wechsel > 0) { rest = tail.slice(wechsel); tail = tail.slice(0, wechsel); }
-      DU.forEach(([re, rep]) => { tail = tail.replace(re, rep); });
-      s = head + tail + rest;
-    }
+    s = beugeNachDu(s);
     const _st = s.trim();
     if (kept.length && kept[kept.length - 1] === _st) continue; // aufeinanderfolgende Dublette
     kept.push(_st);
@@ -257,6 +239,35 @@ export function kleinerArtikel(t: string): string {
   // Bericht („Der Bote bringt , was niemand hören will", sagte …).
   return (t || "").replace(/[ \t]+([,;.!?])/g, "$1").replace(/([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/g,
     (_m: string, vor: string, sp: string, w: string) => vor + sp + w.charAt(0).toLowerCase() + w.slice(1));
+}
+
+// ── Fix 5: Verben nach „du" in die zweite Person ─────────────────────────────
+const DU: [RegExp, string][] = [
+  [/\btritt\b/g, "trittst"], [/\bhält\b/g, "hältst"], [/\bnimmt\b/g, "nimmst"],
+  [/\bsieht\b/g, "siehst"], [/\bgeht\b/g, "gehst"], [/\bsteht\b/g, "stehst"],
+  [/\bträgt\b/g, "trägst"], [/\bführt\b/g, "führst"], [/\bfindet\b/g, "findest"],
+  [/\bsucht\b/g, "suchst"], [/\bkommt\b/g, "kommst"], [/\bbricht\b/g, "brichst"],
+];
+export function beugeNachDu(s: string): string {
+  const di = s.search(/\bdu\b/i);
+  if (di < 0) return s;
+  const head = s.slice(0, di);
+  let tail = s.slice(di);
+  // Nur bis zum nächsten Subjektwechsel konjugieren — sonst wird aus
+  // „du findest den Bug, aber er findet dich“ ein „aber er findest dich“.
+  // Gemeldet: „bemerkst du eine Kapsel unter kaltem Licht — etwas
+  // Bekanntes trägst einen fremden Namen", „Du bist kein Hundeklo — das
+  // Fieber gehst unter Deck", „ein Schulheft, in dem etwas anderes stehst
+  // als Latein". Der Wechsel wurde nur nach einer Konjunktion erkannt;
+  // nach Gedankenstrich, Semikolon, Doppelpunkt oder Komma (Nebensatz,
+  // Relativsatz) lief die Beugung weiter, obwohl dort ein neues Subjekt
+  // steht. Jetzt endet sie an jedem dieser Zeichen — was nach dem Komma
+  // noch zum Du gehört, hat sein Verb schon davor.
+  const wechsel = tail.search(/[,;:—–(]|\b(?:aber|und|doch|denn|sondern|oder|während|als)\s+(?:er|sie|es|man|wir|ihr|der|die|das|ein|eine|etwas|nichts|jemand|niemand)\b/i);
+  let rest = "";
+  if (wechsel > 0) { rest = tail.slice(wechsel); tail = tail.slice(0, wechsel); }
+  DU.forEach(([re, rep]) => { tail = tail.replace(re, rep); });
+  return head + tail + rest;
 }
 
 export function kleinesPronomen(t: string): string {

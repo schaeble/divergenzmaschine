@@ -11,7 +11,7 @@
   }
 }
 import { readFileSync } from "fs";
-import { istAbgeschnitten, postProcessText, kleinerArtikel, kleinesPronomen } from "../src/generation/postprocess";
+import { istAbgeschnitten, postProcessText, kleinerArtikel, kleinesPronomen, beugeNachDu } from "../src/generation/postprocess";
 import { dekliniere } from "../src/atoms/assemble";
 import { extractLeadVerb, looksLikeFullClause } from "../src/generation/wordcls";
 import { OBJEKT_EINSTIEG } from "../src/generation/shape";
@@ -262,6 +262,20 @@ wahr("die Objekt-Perspektive nutzt ihn", /Ich kenne \$\{dekliniere\(P, "akk"\)\}
   // Gegenproben: Satzanfang bleibt groß, „Sie" (Anrede) bleibt stehen.
   ist("Ich am Satzanfang bleibt groß", pp("Es regnet. Ich warte."), "Es regnet. Ich warte.");
   ist("Sie nach Semikolon bleibt stehen", pp("Es regnet; Sie warten."), "Es regnet; Sie warten.");
+}
+
+// ── Die Du-Beugung endet am Satzzeichen ─────────────────────────────────────
+// Gemeldet: „etwas Bekanntes trägst einen fremden Namen", „das Fieber gehst
+// unter Deck", „in dem etwas anderes stehst als Latein". Fix 5 beugte nach
+// einem „du" jedes Verb bis zum Satzende, ein Subjektwechsel galt nur nach
+// einer Konjunktion.
+{
+  ist("nach dem Gedankenstrich ein neues Subjekt", beugeNachDu("Du bist kein Hundeklo — das Fieber geht unter Deck."), "Du bist kein Hundeklo — das Fieber geht unter Deck.");
+  ist("nach dem Komma ein Relativsatz", beugeNachDu("Du hältst ein Schulheft, in dem etwas anderes steht als Latein."), "Du hältst ein Schulheft, in dem etwas anderes steht als Latein.");
+  ist("nach der Inversion mit Strich", beugeNachDu("Am Morgen bemerkst du eine Kapsel — etwas Bekanntes trägt einen fremden Namen."), "Am Morgen bemerkst du eine Kapsel — etwas Bekanntes trägt einen fremden Namen.");
+  // Die Regel selbst bleibt: ein „du" mit falschem Verb davor oder danach.
+  ist("du geht → du gehst", beugeNachDu("Du geht unter Deck."), "Du gehst unter Deck.");
+  ist("bis zur Konjunktion mit neuem Subjekt", beugeNachDu("du findet den Bug, aber er findet dich"), "du findest den Bug, aber er findet dich");
 }
 
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);

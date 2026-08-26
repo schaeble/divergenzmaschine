@@ -4937,20 +4937,6 @@ function coherenceRepairV2(t, input) {
   if (isLineForm(input)) {
     return glaetten(t);
   }
-  const DU = [
-    [/\btritt\b/g, "trittst"],
-    [/\bhält\b/g, "h\xE4ltst"],
-    [/\bnimmt\b/g, "nimmst"],
-    [/\bsieht\b/g, "siehst"],
-    [/\bgeht\b/g, "gehst"],
-    [/\bsteht\b/g, "stehst"],
-    [/\bträgt\b/g, "tr\xE4gst"],
-    [/\bführt\b/g, "f\xFChrst"],
-    [/\bfindet\b/g, "findest"],
-    [/\bsucht\b/g, "suchst"],
-    [/\bkommt\b/g, "kommst"],
-    [/\bbricht\b/g, "brichst"]
-  ];
   const ABS = "\u241E";
   t = t.replace(/[ \t]*\n{2,}[ \t]*/g, " " + ABS + " ");
   const sents = t.split(/(?<=[.!?…])\s+/).filter(Boolean);
@@ -4961,21 +4947,7 @@ function coherenceRepairV2(t, input) {
     if (/\bSatz\s+„/.test(s) && opens > closes) continue;
     if (/,\s+(die|der|das|dem|den|des)\s+(die|der|das|dem|den|des)\s+\p{L}+$/iu.test(bare)) continue;
     if (opens > closes) s = s.replace(/„\s*/g, "");
-    const di = s.search(/\bdu\b/i);
-    if (di >= 0) {
-      const head = s.slice(0, di);
-      let tail = s.slice(di);
-      const wechsel = tail.search(/\b(?:aber|und|doch|denn|sondern|oder|während|als)\s+(?:er|sie|es|man|wir|ihr|der|die|das)\b/i);
-      let rest = "";
-      if (wechsel > 0) {
-        rest = tail.slice(wechsel);
-        tail = tail.slice(0, wechsel);
-      }
-      DU.forEach(([re, rep]) => {
-        tail = tail.replace(re, rep);
-      });
-      s = head + tail + rest;
-    }
+    s = beugeNachDu(s);
     const _st = s.trim();
     if (kept.length && kept[kept.length - 1] === _st) continue;
     kept.push(_st);
@@ -4996,6 +4968,36 @@ function kleinerArtikel(t) {
     /([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/g,
     (_m, vor, sp, w) => vor + sp + w.charAt(0).toLowerCase() + w.slice(1)
   );
+}
+var DU = [
+  [/\btritt\b/g, "trittst"],
+  [/\bhält\b/g, "h\xE4ltst"],
+  [/\bnimmt\b/g, "nimmst"],
+  [/\bsieht\b/g, "siehst"],
+  [/\bgeht\b/g, "gehst"],
+  [/\bsteht\b/g, "stehst"],
+  [/\bträgt\b/g, "tr\xE4gst"],
+  [/\bführt\b/g, "f\xFChrst"],
+  [/\bfindet\b/g, "findest"],
+  [/\bsucht\b/g, "suchst"],
+  [/\bkommt\b/g, "kommst"],
+  [/\bbricht\b/g, "brichst"]
+];
+function beugeNachDu(s) {
+  const di = s.search(/\bdu\b/i);
+  if (di < 0) return s;
+  const head = s.slice(0, di);
+  let tail = s.slice(di);
+  const wechsel = tail.search(/[,;:—–(]|\b(?:aber|und|doch|denn|sondern|oder|während|als)\s+(?:er|sie|es|man|wir|ihr|der|die|das|ein|eine|etwas|nichts|jemand|niemand)\b/i);
+  let rest = "";
+  if (wechsel > 0) {
+    rest = tail.slice(wechsel);
+    tail = tail.slice(0, wechsel);
+  }
+  DU.forEach(([re, rep]) => {
+    tail = tail.replace(re, rep);
+  });
+  return head + tail + rest;
 }
 function kleinesPronomen(t) {
   return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr)\b/g, (_m, sp, w) => sp + w.toLowerCase());
