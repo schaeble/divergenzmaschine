@@ -42,10 +42,10 @@ const inhaltswoerter = (s: string): Set<string> =>
   new Set((s.toLowerCase().match(/[a-zäöüß-]{3,}/g) || []).filter((w) => !STOP.has(w)));
 
 /** Auf Titellänge bringen: ganz, oder an einer Fuge gekürzt. */
-export function kuerzeTitel(s: string): string {
+export function kuerzeTitel(s: string, max = MAX): string {
   const t = ohnePunkt(clean(s));
-  if (t.length <= MAX) return t;
-  const stumpf = t.slice(0, MAX - 3);
+  if (t.length <= max) return t;
+  const stumpf = t.slice(0, max - 3);
   const fuge = Math.max(stumpf.lastIndexOf(", "), stumpf.lastIndexOf(" — "), stumpf.lastIndexOf(": "), stumpf.lastIndexOf("; "));
   const rumpf = fuge > 20 ? stumpf.slice(0, fuge) : stumpf.replace(/\s+\S*$/, "");
   return rumpf.replace(/[,;:—–\s]+$/, "") + " …";
@@ -68,37 +68,92 @@ export function bildzeilen(text: string): string[] {
 }
 
 /** Wer + Was als Titel, grammatisch nach der Art des Was. Leer, wenn beides fehlt. */
-export function titelAusKontext(ctx: TitelKontext): string {
+export function titelAusKontext(ctx: TitelKontext, max = MAX): string {
   const who = normWho(clean(ctx.who || "")).split(",")[0]!.trim();
   const what = clean(ctx.what || "");
   if (who && what) {
     const lv = extractLeadVerb(what);
-    if (lv.verb) return kuerzeTitel(`${cap(who)} ${lv.verb}${lv.rest.startsWith(",") ? "" : " "}${lv.rest}`);
-    if (lv.isInfinitiveLed) return kuerzeTitel(`${cap(who)} will ${lv.rest}`);
+    if (lv.verb) return kuerzeTitel(`${cap(who)} ${lv.verb}${lv.rest.startsWith(",") ? "" : " "}${lv.rest}`, max);
+    if (lv.isInfinitiveLed) return kuerzeTitel(`${cap(who)} will ${lv.rest}`, max);
     // Ein Vorhaben mit dem Infinitiv am Ende („einen Schlüssel verlieren"):
     // „Ein Wachmann will einen Schlüssel verlieren" — nicht „und".
     const letztes = (what.match(/[a-zäöüß-]+$/) || [""])[0]!;
-    if (/^[a-zäöüß]/.test(letztes) && looksLikeInfinitive(letztes) && !/,/.test(what)) return kuerzeTitel(`${cap(who)} will ${what}`);
+    if (/^[a-zäöüß]/.test(letztes) && looksLikeInfinitive(letztes) && !/,/.test(what)) return kuerzeTitel(`${cap(who)} will ${what}`, max);
     // Ein Satz ist nur, was VOR dem ersten Komma ein Prädikat hat: „eine
     // Logik, die nur im Tanz erlaubt ist" trägt ihr „ist" im Relativsatz und
     // ist eine Nominalphrase.
-    if (looksLikeFullClause(null, what.split(",")[0]!)) return kuerzeTitel(cap(what));
-    return kuerzeTitel(`${cap(who)} und ${what}`);
+    if (looksLikeFullClause(null, what.split(",")[0]!)) return kuerzeTitel(cap(what), max);
+    return kuerzeTitel(`${cap(who)} und ${what}`, max);
   }
-  if (who) return kuerzeTitel(cap(who));
+  if (who) return kuerzeTitel(cap(who), max);
   if (what) {
     const lv = extractLeadVerb(what);
-    if (!lv.verb && !lv.isInfinitiveLed) return kuerzeTitel(cap(what));
+    if (!lv.verb && !lv.isInfinitiveLed) return kuerzeTitel(cap(what), max);
   }
   const when = normWhen(clean(ctx.when || ""));
   const where = normWhere(clean(ctx.where || ""));
-  if (when && where) return kuerzeTitel(`${cap(when)}, ${where}`);
-  return kuerzeTitel(cap(where || when || ""));
+  if (when && where) return kuerzeTitel(`${cap(when)}, ${where}`, max);
+  return kuerzeTitel(cap(where || when || ""), max);
 }
 
-/** Der Titel für einen erzeugten Text. Leer für Formen, die keinen brauchen. */
+// ── Ein Wort für das Haiku ──────────────────────────────────────────────────
+// Vorgabe: Das Haiku bekommt EIN Wort. Genommen wird ein Nomen aus dem Text —
+// bevorzugt eines, das Wer, Was oder Wo nennt (der Bezug), sonst das letzte
+// Nomen: Die dritte Zeile trägt im Haiku die Auflösung. Ein Nomen ist hier,
+// was groß beginnt und nicht am Zeilen- oder Satzanfang steht; die Anfänge
+// sind als Rückfall erlaubt, wenn sonst nichts bleibt.
+const KEIN_NOMEN = new Set(["ein", "eine", "einen", "einem", "einer", "der", "die", "das", "den", "dem", "des", "und",
+  "im", "am", "in", "an", "auf", "wo", "was", "wer", "wie", "es", "ich", "du", "er", "sie", "wir", "man", "kein", "keine",
+  "noch", "nur", "dann", "dort", "hier", "jetzt", "nichts", "alles", "etwas", "jemand", "niemand"]);
+export function einWort(text: string, ctx: TitelKontext): string {
+  const t = (text || "").replace(/\s+/g, " ").trim();
+  const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""} ${ctx.where || ""}`);
+  const nomen: string[] = [];
+  const anfaenge: string[] = [];
+  const re = /(^|[.!?…\n]\s*|\s)([A-ZÄÖÜ][a-zäöüß-]{2,})/g;
+  let m: RegExpExecArray | null;
+  const roh = (text || "").trim();
+  while ((m = re.exec(roh))) {
+    const w = m[2]!.replace(/-$/, "");
+    if (KEIN_NOMEN.has(w.toLowerCase())) continue;
+    (m[1] === " " ? nomen : anfaenge).push(w);
+  }
+  const alle = [...nomen, ...anfaenge];
+  const passend = alle.find((w) => bezug.has(w.toLowerCase()) || [...bezug].some((b) => b.length >= 5 && w.toLowerCase().includes(b)));
+  if (passend) return passend;
+  if (nomen.length) return nomen[nomen.length - 1]!;
+  if (anfaenge.length) return anfaenge[anfaenge.length - 1]!;
+  // Nichts im Text — dann das erste Nomen aus Wer, Was oder Wo.
+  const ausCtx = (`${ctx.who || ""} ${ctx.what || ""} ${ctx.where || ""}`.match(/\b[A-ZÄÖÜ][a-zäöüß-]{2,}/g) || [])
+    .find((w) => !KEIN_NOMEN.has(w.toLowerCase()));
+  return ausCtx || (t ? "Haiku" : "");
+}
+
+// ── Nüchtern für den Bericht ────────────────────────────────────────────────
+// Vorgabe: Der Bericht bekommt einen nüchternen Titel. Keine Bildzeile, kein
+// Bild aus dem Text — Wer und Was in Zeitungskonvention: ohne Artikel am
+// Anfang, ohne Auslassung. Dieselbe Regel wie die Schlagzeile des Berichts;
+// eine Quelle der Wahrheit, nicht zwei Fassungen derselben Zeile.
+export function nuechternerTitel(ctx: TitelKontext): string {
+  const roh = titelAusKontext(ctx, 200);
+  if (!roh) return "";
+  const t = roh.replace(/^(Der|Die|Das|Ein|Eine)\s+(?=[A-ZÄÖÜ])/, "");
+  if (t.length <= MAX) return t;
+  // Zu lang: an einer Fuge enden, ohne Auslassungszeichen — eine Schlagzeile
+  // hat keine drei Punkte. Ohne Fuge bleibt die Zeile ganz; lieber lang als
+  // abgehackt.
+  const stumpf = t.slice(0, MAX);
+  const fuge = Math.max(stumpf.lastIndexOf(", "), stumpf.lastIndexOf(" — "), stumpf.lastIndexOf(" und "), stumpf.lastIndexOf(": "));
+  return fuge > 20 ? stumpf.slice(0, fuge).replace(/[,;:—–\s]+$/, "") : t;
+}
+
+/** Der Titel für einen erzeugten Text. Drei Formen haben eigene Regeln:
+ *  Haiku ein Wort, Bericht nüchtern, Reim frei (wie Prosa). Die Meldung
+ *  bekommt keinen — sie ist zu kurz für eine zweite Zeile. */
 export function titelFuer(text: string, ctx: TitelKontext, form = "prose"): string {
-  if (form === "bericht" || form === "meldung") return "";
+  if (form === "meldung") return "";
+  if (form === "haiku") return einWort(text, ctx);
+  if (form === "bericht") return nuechternerTitel(ctx) || "Bericht";
   const zeilen = bildzeilen(text);
   if (zeilen.length) {
     const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""}`);

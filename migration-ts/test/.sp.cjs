@@ -20545,10 +20545,10 @@ var STOP = /* @__PURE__ */ new Set([
   "es"
 ]);
 var inhaltswoerter = (s) => new Set((s.toLowerCase().match(/[a-zäöüß-]{3,}/g) || []).filter((w) => !STOP.has(w)));
-function kuerzeTitel(s) {
+function kuerzeTitel(s, max = MAX) {
   const t = ohnePunkt(clean(s));
-  if (t.length <= MAX) return t;
-  const stumpf = t.slice(0, MAX - 3);
+  if (t.length <= max) return t;
+  const stumpf = t.slice(0, max - 3);
   const fuge = Math.max(stumpf.lastIndexOf(", "), stumpf.lastIndexOf(" \u2014 "), stumpf.lastIndexOf(": "), stumpf.lastIndexOf("; "));
   const rumpf = fuge > 20 ? stumpf.slice(0, fuge) : stumpf.replace(/\s+\S*$/, "");
   return rumpf.replace(/[,;:—–\s]+$/, "") + " \u2026";
@@ -20558,30 +20558,105 @@ var hatPraedikat = (kopf) => kopf.split(/\s+/).slice(1).some((w) => FINIT2.test(
 function bildzeilen(text) {
   return (text || "").replace(/\s+/g, " ").split(/(?<=[.!?…])\s+/).map((s) => ohnePunkt(s.trim())).filter((s) => BILDZEILE.test(s) && s.length <= MAX && (s.match(/\S+/g) || []).length >= 3 && !hatPraedikat(s.split(",")[0]));
 }
-function titelAusKontext(ctx) {
+function titelAusKontext(ctx, max = MAX) {
   const who = normWho(clean(ctx.who || "")).split(",")[0].trim();
   const what = clean(ctx.what || "");
   if (who && what) {
     const lv = extractLeadVerb(what);
-    if (lv.verb) return kuerzeTitel(`${cap3(who)} ${lv.verb}${lv.rest.startsWith(",") ? "" : " "}${lv.rest}`);
-    if (lv.isInfinitiveLed) return kuerzeTitel(`${cap3(who)} will ${lv.rest}`);
+    if (lv.verb) return kuerzeTitel(`${cap3(who)} ${lv.verb}${lv.rest.startsWith(",") ? "" : " "}${lv.rest}`, max);
+    if (lv.isInfinitiveLed) return kuerzeTitel(`${cap3(who)} will ${lv.rest}`, max);
     const letztes = (what.match(/[a-zäöüß-]+$/) || [""])[0];
-    if (/^[a-zäöüß]/.test(letztes) && looksLikeInfinitive(letztes) && !/,/.test(what)) return kuerzeTitel(`${cap3(who)} will ${what}`);
-    if (looksLikeFullClause(null, what.split(",")[0])) return kuerzeTitel(cap3(what));
-    return kuerzeTitel(`${cap3(who)} und ${what}`);
+    if (/^[a-zäöüß]/.test(letztes) && looksLikeInfinitive(letztes) && !/,/.test(what)) return kuerzeTitel(`${cap3(who)} will ${what}`, max);
+    if (looksLikeFullClause(null, what.split(",")[0])) return kuerzeTitel(cap3(what), max);
+    return kuerzeTitel(`${cap3(who)} und ${what}`, max);
   }
-  if (who) return kuerzeTitel(cap3(who));
+  if (who) return kuerzeTitel(cap3(who), max);
   if (what) {
     const lv = extractLeadVerb(what);
-    if (!lv.verb && !lv.isInfinitiveLed) return kuerzeTitel(cap3(what));
+    if (!lv.verb && !lv.isInfinitiveLed) return kuerzeTitel(cap3(what), max);
   }
   const when = normWhen(clean(ctx.when || ""));
   const where = normWhere(clean(ctx.where || ""));
-  if (when && where) return kuerzeTitel(`${cap3(when)}, ${where}`);
-  return kuerzeTitel(cap3(where || when || ""));
+  if (when && where) return kuerzeTitel(`${cap3(when)}, ${where}`, max);
+  return kuerzeTitel(cap3(where || when || ""), max);
+}
+var KEIN_NOMEN2 = /* @__PURE__ */ new Set([
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "und",
+  "im",
+  "am",
+  "in",
+  "an",
+  "auf",
+  "wo",
+  "was",
+  "wer",
+  "wie",
+  "es",
+  "ich",
+  "du",
+  "er",
+  "sie",
+  "wir",
+  "man",
+  "kein",
+  "keine",
+  "noch",
+  "nur",
+  "dann",
+  "dort",
+  "hier",
+  "jetzt",
+  "nichts",
+  "alles",
+  "etwas",
+  "jemand",
+  "niemand"
+]);
+function einWort(text, ctx) {
+  const t = (text || "").replace(/\s+/g, " ").trim();
+  const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""} ${ctx.where || ""}`);
+  const nomen = [];
+  const anfaenge = [];
+  const re = /(^|[.!?…\n]\s*|\s)([A-ZÄÖÜ][a-zäöüß-]{2,})/g;
+  let m;
+  const roh = (text || "").trim();
+  while (m = re.exec(roh)) {
+    const w = m[2].replace(/-$/, "");
+    if (KEIN_NOMEN2.has(w.toLowerCase())) continue;
+    (m[1] === " " ? nomen : anfaenge).push(w);
+  }
+  const alle = [...nomen, ...anfaenge];
+  const passend = alle.find((w) => bezug.has(w.toLowerCase()) || [...bezug].some((b) => b.length >= 5 && w.toLowerCase().includes(b)));
+  if (passend) return passend;
+  if (nomen.length) return nomen[nomen.length - 1];
+  if (anfaenge.length) return anfaenge[anfaenge.length - 1];
+  const ausCtx = (`${ctx.who || ""} ${ctx.what || ""} ${ctx.where || ""}`.match(/\b[A-ZÄÖÜ][a-zäöüß-]{2,}/g) || []).find((w) => !KEIN_NOMEN2.has(w.toLowerCase()));
+  return ausCtx || (t ? "Haiku" : "");
+}
+function nuechternerTitel(ctx) {
+  const roh = titelAusKontext(ctx, 200);
+  if (!roh) return "";
+  const t = roh.replace(/^(Der|Die|Das|Ein|Eine)\s+(?=[A-ZÄÖÜ])/, "");
+  if (t.length <= MAX) return t;
+  const stumpf = t.slice(0, MAX);
+  const fuge = Math.max(stumpf.lastIndexOf(", "), stumpf.lastIndexOf(" \u2014 "), stumpf.lastIndexOf(" und "), stumpf.lastIndexOf(": "));
+  return fuge > 20 ? stumpf.slice(0, fuge).replace(/[,;:—–\s]+$/, "") : t;
 }
 function titelFuer(text, ctx, form = "prose") {
-  if (form === "bericht" || form === "meldung") return "";
+  if (form === "meldung") return "";
+  if (form === "haiku") return einWort(text, ctx);
+  if (form === "bericht") return nuechternerTitel(ctx) || "Bericht";
   const zeilen = bildzeilen(text);
   if (zeilen.length) {
     const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""}`);

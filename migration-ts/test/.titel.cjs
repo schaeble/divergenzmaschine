@@ -2244,10 +2244,10 @@ var STOP = /* @__PURE__ */ new Set([
   "es"
 ]);
 var inhaltswoerter = (s) => new Set((s.toLowerCase().match(/[a-zäöüß-]{3,}/g) || []).filter((w) => !STOP.has(w)));
-function kuerzeTitel(s) {
+function kuerzeTitel(s, max = MAX) {
   const t = ohnePunkt(clean(s));
-  if (t.length <= MAX) return t;
-  const stumpf = t.slice(0, MAX - 3);
+  if (t.length <= max) return t;
+  const stumpf = t.slice(0, max - 3);
   const fuge = Math.max(stumpf.lastIndexOf(", "), stumpf.lastIndexOf(" \u2014 "), stumpf.lastIndexOf(": "), stumpf.lastIndexOf("; "));
   const rumpf = fuge > 20 ? stumpf.slice(0, fuge) : stumpf.replace(/\s+\S*$/, "");
   return rumpf.replace(/[,;:—–\s]+$/, "") + " \u2026";
@@ -2257,30 +2257,105 @@ var hatPraedikat = (kopf) => kopf.split(/\s+/).slice(1).some((w) => FINIT.test(w
 function bildzeilen(text2) {
   return (text2 || "").replace(/\s+/g, " ").split(/(?<=[.!?…])\s+/).map((s) => ohnePunkt(s.trim())).filter((s) => BILDZEILE.test(s) && s.length <= MAX && (s.match(/\S+/g) || []).length >= 3 && !hatPraedikat(s.split(",")[0]));
 }
-function titelAusKontext(ctx) {
+function titelAusKontext(ctx, max = MAX) {
   const who = normWho(clean(ctx.who || "")).split(",")[0].trim();
   const what = clean(ctx.what || "");
   if (who && what) {
     const lv = extractLeadVerb(what);
-    if (lv.verb) return kuerzeTitel(`${cap3(who)} ${lv.verb}${lv.rest.startsWith(",") ? "" : " "}${lv.rest}`);
-    if (lv.isInfinitiveLed) return kuerzeTitel(`${cap3(who)} will ${lv.rest}`);
+    if (lv.verb) return kuerzeTitel(`${cap3(who)} ${lv.verb}${lv.rest.startsWith(",") ? "" : " "}${lv.rest}`, max);
+    if (lv.isInfinitiveLed) return kuerzeTitel(`${cap3(who)} will ${lv.rest}`, max);
     const letztes = (what.match(/[a-zäöüß-]+$/) || [""])[0];
-    if (/^[a-zäöüß]/.test(letztes) && looksLikeInfinitive(letztes) && !/,/.test(what)) return kuerzeTitel(`${cap3(who)} will ${what}`);
-    if (looksLikeFullClause(null, what.split(",")[0])) return kuerzeTitel(cap3(what));
-    return kuerzeTitel(`${cap3(who)} und ${what}`);
+    if (/^[a-zäöüß]/.test(letztes) && looksLikeInfinitive(letztes) && !/,/.test(what)) return kuerzeTitel(`${cap3(who)} will ${what}`, max);
+    if (looksLikeFullClause(null, what.split(",")[0])) return kuerzeTitel(cap3(what), max);
+    return kuerzeTitel(`${cap3(who)} und ${what}`, max);
   }
-  if (who) return kuerzeTitel(cap3(who));
+  if (who) return kuerzeTitel(cap3(who), max);
   if (what) {
     const lv = extractLeadVerb(what);
-    if (!lv.verb && !lv.isInfinitiveLed) return kuerzeTitel(cap3(what));
+    if (!lv.verb && !lv.isInfinitiveLed) return kuerzeTitel(cap3(what), max);
   }
   const when = normWhen(clean(ctx.when || ""));
   const where = normWhere(clean(ctx.where || ""));
-  if (when && where) return kuerzeTitel(`${cap3(when)}, ${where}`);
-  return kuerzeTitel(cap3(where || when || ""));
+  if (when && where) return kuerzeTitel(`${cap3(when)}, ${where}`, max);
+  return kuerzeTitel(cap3(where || when || ""), max);
+}
+var KEIN_NOMEN = /* @__PURE__ */ new Set([
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "und",
+  "im",
+  "am",
+  "in",
+  "an",
+  "auf",
+  "wo",
+  "was",
+  "wer",
+  "wie",
+  "es",
+  "ich",
+  "du",
+  "er",
+  "sie",
+  "wir",
+  "man",
+  "kein",
+  "keine",
+  "noch",
+  "nur",
+  "dann",
+  "dort",
+  "hier",
+  "jetzt",
+  "nichts",
+  "alles",
+  "etwas",
+  "jemand",
+  "niemand"
+]);
+function einWort(text2, ctx) {
+  const t = (text2 || "").replace(/\s+/g, " ").trim();
+  const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""} ${ctx.where || ""}`);
+  const nomen = [];
+  const anfaenge = [];
+  const re = /(^|[.!?…\n]\s*|\s)([A-ZÄÖÜ][a-zäöüß-]{2,})/g;
+  let m;
+  const roh = (text2 || "").trim();
+  while (m = re.exec(roh)) {
+    const w = m[2].replace(/-$/, "");
+    if (KEIN_NOMEN.has(w.toLowerCase())) continue;
+    (m[1] === " " ? nomen : anfaenge).push(w);
+  }
+  const alle = [...nomen, ...anfaenge];
+  const passend = alle.find((w) => bezug.has(w.toLowerCase()) || [...bezug].some((b) => b.length >= 5 && w.toLowerCase().includes(b)));
+  if (passend) return passend;
+  if (nomen.length) return nomen[nomen.length - 1];
+  if (anfaenge.length) return anfaenge[anfaenge.length - 1];
+  const ausCtx = (`${ctx.who || ""} ${ctx.what || ""} ${ctx.where || ""}`.match(/\b[A-ZÄÖÜ][a-zäöüß-]{2,}/g) || []).find((w) => !KEIN_NOMEN.has(w.toLowerCase()));
+  return ausCtx || (t ? "Haiku" : "");
+}
+function nuechternerTitel(ctx) {
+  const roh = titelAusKontext(ctx, 200);
+  if (!roh) return "";
+  const t = roh.replace(/^(Der|Die|Das|Ein|Eine)\s+(?=[A-ZÄÖÜ])/, "");
+  if (t.length <= MAX) return t;
+  const stumpf = t.slice(0, MAX);
+  const fuge = Math.max(stumpf.lastIndexOf(", "), stumpf.lastIndexOf(" \u2014 "), stumpf.lastIndexOf(" und "), stumpf.lastIndexOf(": "));
+  return fuge > 20 ? stumpf.slice(0, fuge).replace(/[,;:—–\s]+$/, "") : t;
 }
 function titelFuer(text2, ctx, form = "prose") {
-  if (form === "bericht" || form === "meldung") return "";
+  if (form === "meldung") return "";
+  if (form === "haiku") return einWort(text2, ctx);
+  if (form === "bericht") return nuechternerTitel(ctx) || "Bericht";
   const zeilen = bildzeilen(text2);
   if (zeilen.length) {
     const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""}`);
@@ -2317,8 +2392,7 @@ ist(
   titelFuer(text, { who: "Der Bote", what: "schweigt" }),
   "Ein Licht, das die falschen Dinge zeigt"
 );
-ist("der Bericht bringt seine Schlagzeile mit \u2014 kein Titel", titelFuer(text, {}, "bericht"), "");
-ist("die Meldung ebenso", titelFuer(text, {}, "meldung"), "");
+ist("die Meldung bekommt keinen Titel", titelFuer(text, {}, "meldung"), "");
 ist("verb-gef\xFChrtes Was: Satz", titelAusKontext({ who: "Der Bote", what: "bringt, was niemand h\xF6ren will" }), "Der Bote bringt, was niemand h\xF6ren will");
 ist("Was als Nominalphrase: \u201Eund\u201C", titelAusKontext({ who: "Ein Wachmann", what: "eine Logik, die nur im Tanz erlaubt ist" }), "Ein Wachmann und eine Logik, die nur im Tanz erlaubt ist");
 ist("Was als ganzer Satz: das Was allein", titelAusKontext({ who: "Die Uhrmacherin", what: "ein Wunder geschieht" }), "Ein Wunder geschieht");
@@ -2333,6 +2407,19 @@ wahr("h\xF6chstens sechzig Zeichen", k.length <= 60);
 wahr("endet auf Auslassung", /…$/.test(k));
 ist("gek\xFCrzt an der Fuge, nicht im Satzglied", k, "Ein Museum, das seine Exponate verliert \u2026");
 ist("ein kurzer Titel bleibt ganz, ohne Punkt", kuerzeTitel("Eine Narbe im Morgenlicht."), "Eine Narbe im Morgenlicht");
+{
+  const haiku = "Kalter Bach im Hafen \u2014\nein Wachmann z\xE4hlt die M\xF6wen,\nder Schl\xFCssel schweigt.";
+  ist("Haiku: ein Wort, mit Bezug zum Wer", einWort(haiku, { who: "Der Wachmann", what: "verliert einen Schl\xFCssel" }), "Wachmann");
+  ist("Haiku: ohne Bezug das letzte Nomen (die Aufl\xF6sung)", einWort("Kalter Bach im Hafen \u2014\nein Wachmann z\xE4hlt die M\xF6wen,\ndas Licht schweigt.", {}), "Licht");
+  wahr("Haiku: wirklich EIN Wort", !/\s/.test(titelFuer(haiku, { who: "Der Wachmann" }, "haiku")));
+  ist("Haiku: ohne Text ein Nomen aus dem Kontext, kein Artikel", einWort("", { who: "Die Uhrmacherin" }), "Uhrmacherin");
+  ist("Bericht: n\xFCchtern, ohne Artikel, Wer + Was", nuechternerTitel({ who: "Der Bote", what: "bringt, was niemand h\xF6ren will" }), "Bote bringt, was niemand h\xF6ren will");
+  ist("Bericht: keine Bildzeile aus dem Text", titelFuer(text, { who: "Der Bote", what: "bringt, was niemand h\xF6ren will" }, "bericht"), "Bote bringt, was niemand h\xF6ren will");
+  const langB = nuechternerTitel({ who: "Ein Museum, das seine Exponate verliert", what: "z\xE4hlt eine Person zu viel und sagt es niemandem und dem Rat" });
+  wahr("Bericht: zu lang \u2192 an der Fuge, ohne Auslassungszeichen", !/…/.test(langB) && langB.length <= 60);
+  ist("Bericht: ohne Kontext der Formname", titelFuer(text, {}, "bericht"), "Bericht");
+  ist("Reim: frei wie Prosa \u2014 die Bildzeile", titelFuer(text, { who: "Der Bote" }, "reim"), "Ein Licht, das die falschen Dinge zeigt");
+}
 var q = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
 wahr("es gibt den Schalter", /id: "f-titel-an"/.test(q));
 wahr("der Schalter wird gespeichert", /localStorage\.setItem\(TITEL_KEY/.test(q));

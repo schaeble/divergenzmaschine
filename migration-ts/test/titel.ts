@@ -7,7 +7,7 @@
 // Bildzeile aus dem Text (Nominalphrase, höchstens ein Relativsatz) oder
 // baut aus Wer und Was — nach der Art des Was.
 import { readFileSync } from "fs";
-import { titelFuer, titelAusKontext, bildzeilen, kuerzeTitel } from "../src/generation/titel";
+import { titelFuer, titelAusKontext, bildzeilen, kuerzeTitel, einWort, nuechternerTitel } from "../src/generation/titel";
 
 const fails: string[] = [];
 let geprueft = 0, bestanden = 0;
@@ -32,8 +32,7 @@ ist("die Zeile mit Bezug zum Was gewinnt",
   titelFuer(text, { who: "Der Bote", what: "eine Narbe zählt" }), "Eine Narbe im Morgenlicht");
 ist("ohne Bezug die erste",
   titelFuer(text, { who: "Der Bote", what: "schweigt" }), "Ein Licht, das die falschen Dinge zeigt");
-ist("der Bericht bringt seine Schlagzeile mit — kein Titel", titelFuer(text, {}, "bericht"), "");
-ist("die Meldung ebenso", titelFuer(text, {}, "meldung"), "");
+ist("die Meldung bekommt keinen Titel", titelFuer(text, {}, "meldung"), "");
 
 // ── 3 · Wer + Was, nach der Art des Was ─────────────────────────────────────
 ist("verb-geführtes Was: Satz", titelAusKontext({ who: "Der Bote", what: "bringt, was niemand hören will" }), "Der Bote bringt, was niemand hören will");
@@ -53,7 +52,22 @@ wahr("endet auf Auslassung", /…$/.test(k));
 ist("gekürzt an der Fuge, nicht im Satzglied", k, "Ein Museum, das seine Exponate verliert …");
 ist("ein kurzer Titel bleibt ganz, ohne Punkt", kuerzeTitel("Eine Narbe im Morgenlicht."), "Eine Narbe im Morgenlicht");
 
-// ── 5 · Der Schalter im Studio ──────────────────────────────────────────────
+// ── 5 · Drei Formen, drei Regeln: Haiku ein Wort, Bericht nüchtern, Reim frei ─
+{
+  const haiku = "Kalter Bach im Hafen —\nein Wachmann zählt die Möwen,\nder Schlüssel schweigt.";
+  ist("Haiku: ein Wort, mit Bezug zum Wer", einWort(haiku, { who: "Der Wachmann", what: "verliert einen Schlüssel" }), "Wachmann");
+  ist("Haiku: ohne Bezug das letzte Nomen (die Auflösung)", einWort("Kalter Bach im Hafen —\nein Wachmann zählt die Möwen,\ndas Licht schweigt.", {}), "Licht");
+  wahr("Haiku: wirklich EIN Wort", !/\s/.test(titelFuer(haiku, { who: "Der Wachmann" }, "haiku")));
+  ist("Haiku: ohne Text ein Nomen aus dem Kontext, kein Artikel", einWort("", { who: "Die Uhrmacherin" }), "Uhrmacherin");
+  ist("Bericht: nüchtern, ohne Artikel, Wer + Was", nuechternerTitel({ who: "Der Bote", what: "bringt, was niemand hören will" }), "Bote bringt, was niemand hören will");
+  ist("Bericht: keine Bildzeile aus dem Text", titelFuer(text, { who: "Der Bote", what: "bringt, was niemand hören will" }, "bericht"), "Bote bringt, was niemand hören will");
+  const langB = nuechternerTitel({ who: "Ein Museum, das seine Exponate verliert", what: "zählt eine Person zu viel und sagt es niemandem und dem Rat" });
+  wahr("Bericht: zu lang → an der Fuge, ohne Auslassungszeichen", !/…/.test(langB) && langB.length <= 60);
+  ist("Bericht: ohne Kontext der Formname", titelFuer(text, {}, "bericht"), "Bericht");
+  ist("Reim: frei wie Prosa — die Bildzeile", titelFuer(text, { who: "Der Bote" }, "reim"), "Ein Licht, das die falschen Dinge zeigt");
+}
+
+// ── 6 · Der Schalter im Studio ──────────────────────────────────────────────
 const q = readFileSync("src/ui/studio.ts", "utf8");
 wahr("es gibt den Schalter", /id: "f-titel-an"/.test(q));
 wahr("der Schalter wird gespeichert", /localStorage\.setItem\(TITEL_KEY/.test(q));
