@@ -42,7 +42,7 @@ const NICHT_VERB_T = new Set([
 
 /** Hat das erste Wort die Form einer finiten Verbform der 3. Person Singular?
  *  Reine Formfrage - ob es semantisch passt, entscheidet der Aufrufer nicht. */
-function wirktFinit(w: string): boolean {
+export function wirktFinit(w: string): boolean {
   if (w.length < 4 || NICHT_VERB_T.has(w)) return false;
   if (/^ge[a-zäöüß]+t$/.test(w)) return false;      // Partizip: "gesehen", "gemacht"
   return /^[a-zäöüß]+[^aeiouäöü]t$/.test(w) || /^[a-zäöüß]+et$/.test(w);
@@ -51,7 +51,7 @@ function wirktFinit(w: string): boolean {
 /** Erkennt einen Infinitiv am Satzanfang — auch außerhalb der kuratierten Liste.
  *  Deutsche Infinitive enden auf -en/-eln/-ern; ausgeschlossen werden Funktionswörter
  *  und bekannte Nomen (die Groß-/Kleinschreibung prüft der Aufrufer). */
-function looksLikeInfinitive(w: string): boolean {
+export function looksLikeInfinitive(w: string): boolean {
   if (INFINITIVE_VERBS.has(w)) return true;
   if (w.length < 5 || NOT_INFINITIVE.has(w) || NOUN_GENDER[w]) return false;
   return /(?:[a-zäöüß]{3,})(?:en|ern|eln)$/.test(w);

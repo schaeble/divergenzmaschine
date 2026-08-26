@@ -3,12 +3,14 @@ import { el } from "./dom";
 import { icon } from "./icons";
 import { addToTreasury } from "../features/treasury";
 
-export interface ReaderCtx { who?: string; where?: string; when?: string; what?: string; }
+export interface ReaderCtx { who?: string; where?: string; when?: string; what?: string; titel?: string; }
 
 export function openReader(text: string, ctx: ReaderCtx = {}): void {
   const t = text || "Noch kein Text.";
   const overlay = el("div", { class: "reader" });
   const body = el("div", { class: "reader-text" }, t);
+  // Der Titel steht im Leser über dem Text, wenn das Studio einen mitgibt.
+  if (ctx.titel) body.prepend(el("h2", { class: "text-titel" }, ctx.titel));
   let fs = 19;
   const setFs = (v: number): void => { fs = Math.max(13, Math.min(40, v)); body.style.fontSize = fs + "px"; };
 

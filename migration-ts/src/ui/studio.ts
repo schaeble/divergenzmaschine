@@ -15,6 +15,7 @@ import { buildModelFromCorpus, savePersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
 import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
+import { titelFuer } from "../generation/titel";
 import { ziehVorrat, vorratStand, type VorratFund } from "../features/wikisammler";
 import { ziehBildvorrat, ladeBildvorrat, type BildFund } from "../features/bildsammler";
 import { ziehThema, themenStand } from "../features/themenpool";
@@ -615,6 +616,30 @@ export function mountStudio(root: HTMLElement): void {
   const fontRow = el("label", { class: "field lenrow fontrow" }, el("span", { class: "mlabel" }, "Schrift"), " ", fontSel, " ", el("span", { class: "mlabel" }, "Größe"), " ", sizeSlider, " ", sizeVal);
 
   const out = el("pre", { id: "f-out", class: "out" });
+  // ── Titel über dem Text ────────────────────────────────────────────────
+  // Gewünscht: ein grammatisch richtiger Titel gemäß Inhalt, per Schalter
+  // ein- und ausschaltbar. Die Regeln stehen in generation/titel.ts; hier
+  // nur Anzeige und Schalter. Der Titel ist KEIN Teil des Textes — er wird
+  // nicht in die Schatzkammer geschrieben (die Zeitung baut ihre Überschrift
+  // selbst) und nicht mitkopiert; er steht über dem Text, wie eine Zeile im
+  // Buchsatz, und wandert mit in den Leser.
+  const TITEL_KEY = "dm_titel_an";
+  const titelEl = el("h2", { class: "text-titel", id: "f-titel" });
+  const titelChk = el("input", { type: "checkbox", id: "f-titel-an" }) as HTMLInputElement;
+  try { titelChk.checked = localStorage.getItem(TITEL_KEY) !== "aus"; } catch { titelChk.checked = true; }
+  const titelLbl = el("label", { class: "chk", title: "Ein Titel über dem Text — aus einer Bildzeile des Textes oder aus Wer und Was." }, titelChk, " Titel");
+  const aktuellerTitel = (): string => titelChk.checked
+    ? titelFuer(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value }, form.value)
+    : "";
+  const renderTitel = (): void => {
+    const t = aktuellerTitel();
+    titelEl.textContent = t;
+    titelEl.style.display = t ? "" : "none";
+  };
+  titelChk.addEventListener("change", () => {
+    try { localStorage.setItem(TITEL_KEY, titelChk.checked ? "an" : "aus"); } catch { /* voll */ }
+    renderTitel();
+  });
   // Neue Variante per Pfeil (PC) oder Wischen links/rechts (Handy)
   const genArrows: HTMLButtonElement[] = [];
   const mkGenArrow = (dir: "left" | "right"): HTMLButtonElement => {
@@ -803,7 +828,7 @@ export function mountStudio(root: HTMLElement): void {
    *  Vorrats-Hinweis nachziehen. Beide hingen bisher allein an generate(), sodass
    *  nach Passagen-Austausch, Rueckgaengig, Variante oder einer Uebernahme aus dem
    *  Ranking die Balken noch den vorigen Text beschrieben. */
-  const nachTextwechsel = (): void => { renderStruktur(); updVorrat(); };
+  const nachTextwechsel = (): void => { renderStruktur(); updVorrat(); renderTitel(); };
 
   // ── Klick auf einen Balken der Textstruktur (A.2) ──────────────────────
   // Jeder Balken fuehrt zu dem Bedienelement, das ihn steuert - oder sagt, warum
@@ -1257,7 +1282,7 @@ export function mountStudio(root: HTMLElement): void {
   const bestChk = el("input", { type: "checkbox", id: "f-best" }) as HTMLInputElement;
   bestChk.checked = true;
   const bestLbl = el("label", { class: "chk", title: "Erzeugt bei jedem Klick 12 Kandidaten und zeigt den bestbewerteten (Längentreue, Wortvielfalt, Rhythmus, wenig Wiederholung, Grammatik, Abstand zur Schatzkammer)." }, bestChk, " Bestenauslese");
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl), outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl, titelLbl), titelEl, outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
 
   // ── Test & Ranking ──
   let lastRanking: Ranking | null = null;
@@ -1681,6 +1706,7 @@ export function mountStudio(root: HTMLElement): void {
         zeigeUmweltEffekt(undefined);
       }
       baseText = out.textContent || "";
+      renderTitel();
       ctxSichern();
       updVorrat();
       try { localStorage.setItem("dm_last_text", out.textContent || ""); } catch { /* voll */ }
@@ -2067,7 +2093,7 @@ export function mountStudio(root: HTMLElement): void {
     // stuende der Text ohne jede Angabe da, wo er herkommt.
     if (kopfWahl.einfach) {
       openReader(out.textContent || "",
-        { who: who.value, where: where.value, when: when.value, what: what.value });
+        { who: who.value, where: where.value, when: when.value, what: what.value, titel: aktuellerTitel() });
     }
   });
 
@@ -2139,7 +2165,7 @@ export function mountStudio(root: HTMLElement): void {
   copyBtn.addEventListener("click", () => { void navigator.clipboard?.writeText(out.textContent || ""); });
 
   // Lesemodus (Vollbild-Overlay)
-  readBtn.addEventListener("click", () => openReader(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value }));
+  readBtn.addEventListener("click", () => openReader(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, titel: aktuellerTitel() }));
 
   // Vorlesen
   let speaking = false;

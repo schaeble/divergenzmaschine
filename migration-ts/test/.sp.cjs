@@ -5113,7 +5113,7 @@ function buildSenseBank(channels) {
 var MEDIUM_WHERE = { wasser: "im offenen Wasser", luft: "hoch in der Luft", boden: "tief im Boden" };
 var ZIEL_WHAT = { nahrung: "sucht Nahrung", fortpflanzung: "sucht einen Partner", kooperation: "h\xE4lt den Verband", revier: "verteidigt das Revier", schwarm: "folgt dem Schwarm", ueberleben: "will \xFCberleben" };
 function profileToStudio(p) {
-  const cap3 = (n) => Math.max(0, Math.min(3, n));
+  const cap4 = (n) => Math.max(0, Math.min(3, n));
   const isVerbal = p.kommunikation === "sprache" || p.kommunikation === "laut";
   return {
     where: MEDIUM_WHERE[p.medium] || "an einem Ort",
@@ -5134,7 +5134,7 @@ function profileToStudio(p) {
       wo: p.reach === "fern" ? 2 : 1,
       wann: p.gedaechtnis === "lang" ? 2 : p.gedaechtnis === "kurz" ? 1 : 0,
       wer: p.fokus.includes("sozial") ? 2 : 0,
-      was: cap3((p.fokus.some((f) => ["nahrung", "feind", "bewegung"].includes(f)) ? 2 : 0) + (p.ziel.length ? 1 : 0))
+      was: cap4((p.fokus.some((f) => ["nahrung", "feind", "bewegung"].includes(f)) ? 2 : 0) + (p.ziel.length ? 1 : 0))
     },
     bank: buildSenseBank(p.channels)
   };
@@ -20492,6 +20492,105 @@ function randomContext() {
   };
 }
 
+// src/generation/titel.ts
+var MAX = 60;
+var cap3 = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+var ohnePunkt = (s) => s.replace(/[.!?…]+$/, "").trim();
+var BILDZEILE = /^(Ein|Eine|Der|Die|Das|Zwei|Drei|Kein|Keine|Jede|Jeder|Jedes|Mein|Meine)\s+[A-ZÄÖÜ][a-zäöüß-]+(?:\s+[A-Za-zÄÖÜäöüß-]+){0,5}(?:,\s+(?:der|die|das|den|dem|deren|dessen|wo|worin)\s+[^,.;:!?]{3,60})?$/;
+var STOP = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "und",
+  "oder",
+  "aber",
+  "in",
+  "im",
+  "an",
+  "am",
+  "auf",
+  "mit",
+  "von",
+  "vom",
+  "zu",
+  "zur",
+  "zum",
+  "nicht",
+  "nur",
+  "noch",
+  "wie",
+  "als",
+  "was",
+  "wer",
+  "wo",
+  "wann",
+  "sich",
+  "ist",
+  "sind",
+  "war",
+  "hat",
+  "wird",
+  "kein",
+  "keine",
+  "jemand",
+  "niemand",
+  "es"
+]);
+var inhaltswoerter = (s) => new Set((s.toLowerCase().match(/[a-zäöüß-]{3,}/g) || []).filter((w) => !STOP.has(w)));
+function kuerzeTitel(s) {
+  const t = ohnePunkt(clean(s));
+  if (t.length <= MAX) return t;
+  const stumpf = t.slice(0, MAX - 3);
+  const fuge = Math.max(stumpf.lastIndexOf(", "), stumpf.lastIndexOf(" \u2014 "), stumpf.lastIndexOf(": "), stumpf.lastIndexOf("; "));
+  const rumpf = fuge > 20 ? stumpf.slice(0, fuge) : stumpf.replace(/\s+\S*$/, "");
+  return rumpf.replace(/[,;:—–\s]+$/, "") + " \u2026";
+}
+var FINIT2 = /^(ist|sind|war|waren|hat|hatte|wird|wurde|kann|muss|will|soll|darf|mag|bleibt|kommt|geht|steht|liegt|fehlt|zählt|trägt|gibt|weiß)$/;
+var hatPraedikat = (kopf) => kopf.split(/\s+/).slice(1).some((w) => FINIT2.test(w) || !!VERB_CONJ[w] || wirktFinit(w));
+function bildzeilen(text) {
+  return (text || "").replace(/\s+/g, " ").split(/(?<=[.!?…])\s+/).map((s) => ohnePunkt(s.trim())).filter((s) => BILDZEILE.test(s) && s.length <= MAX && (s.match(/\S+/g) || []).length >= 3 && !hatPraedikat(s.split(",")[0]));
+}
+function titelAusKontext(ctx) {
+  const who = normWho(clean(ctx.who || "")).split(",")[0].trim();
+  const what = clean(ctx.what || "");
+  if (who && what) {
+    const lv = extractLeadVerb(what);
+    if (lv.verb) return kuerzeTitel(`${cap3(who)} ${lv.verb}${lv.rest.startsWith(",") ? "" : " "}${lv.rest}`);
+    if (lv.isInfinitiveLed) return kuerzeTitel(`${cap3(who)} will ${lv.rest}`);
+    const letztes = (what.match(/[a-zäöüß-]+$/) || [""])[0];
+    if (/^[a-zäöüß]/.test(letztes) && looksLikeInfinitive(letztes) && !/,/.test(what)) return kuerzeTitel(`${cap3(who)} will ${what}`);
+    if (looksLikeFullClause(null, what.split(",")[0])) return kuerzeTitel(cap3(what));
+    return kuerzeTitel(`${cap3(who)} und ${what}`);
+  }
+  if (who) return kuerzeTitel(cap3(who));
+  if (what) {
+    const lv = extractLeadVerb(what);
+    if (!lv.verb && !lv.isInfinitiveLed) return kuerzeTitel(cap3(what));
+  }
+  const when = normWhen(clean(ctx.when || ""));
+  const where = normWhere(clean(ctx.where || ""));
+  if (when && where) return kuerzeTitel(`${cap3(when)}, ${where}`);
+  return kuerzeTitel(cap3(where || when || ""));
+}
+function titelFuer(text, ctx, form = "prose") {
+  if (form === "bericht" || form === "meldung") return "";
+  const zeilen = bildzeilen(text);
+  if (zeilen.length) {
+    const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""}`);
+    const passend = zeilen.find((z) => [...inhaltswoerter(z)].some((w) => bezug.has(w)));
+    return passend || zeilen[0];
+  }
+  return titelAusKontext(ctx) || "Ohne Titel";
+}
+
 // src/features/sources.ts
 var QUELLEN_LABEL = {
   wortbank: "Wortbank",
@@ -21483,7 +21582,7 @@ var recent2 = {};
 function pickFresh2(pool, tag) {
   if (!pool || !pool.length) return "etwas Unbenanntes";
   const memo = recent2[tag] || (recent2[tag] = []);
-  const cap3 = Math.max(0, Math.min(pool.length - 1, 40));
+  const cap4 = Math.max(0, Math.min(pool.length - 1, 40));
   let cand = pool.filter((x) => memo.indexOf(x) === -1);
   if (!cand.length) {
     recent2[tag] = [];
@@ -21491,7 +21590,7 @@ function pickFresh2(pool, tag) {
   }
   const chosen = cand[Math.floor(Math.random() * cand.length)];
   memo.push(chosen);
-  while (memo.length > cap3) memo.shift();
+  while (memo.length > cap4) memo.shift();
   return chosen;
 }
 var fresh = (base, tw, tag, prob, dbl) => {
@@ -21777,6 +21876,7 @@ function openReader(text, ctx = {}) {
   const t = text || "Noch kein Text.";
   const overlay = el("div", { class: "reader" });
   const body = el("div", { class: "reader-text" }, t);
+  if (ctx.titel) body.prepend(el("h2", { class: "text-titel" }, ctx.titel));
   let fs = 19;
   const setFs = (v) => {
     fs = Math.max(13, Math.min(40, v));
@@ -23006,6 +23106,28 @@ function mountStudio(root) {
   sizeSlider.addEventListener("input", applyFont);
   const fontRow = el("label", { class: "field lenrow fontrow" }, el("span", { class: "mlabel" }, "Schrift"), " ", fontSel, " ", el("span", { class: "mlabel" }, "Gr\xF6\xDFe"), " ", sizeSlider, " ", sizeVal);
   const out = el("pre", { id: "f-out", class: "out" });
+  const TITEL_KEY = "dm_titel_an";
+  const titelEl = el("h2", { class: "text-titel", id: "f-titel" });
+  const titelChk = el("input", { type: "checkbox", id: "f-titel-an" });
+  try {
+    titelChk.checked = localStorage.getItem(TITEL_KEY) !== "aus";
+  } catch {
+    titelChk.checked = true;
+  }
+  const titelLbl = el("label", { class: "chk", title: "Ein Titel \xFCber dem Text \u2014 aus einer Bildzeile des Textes oder aus Wer und Was." }, titelChk, " Titel");
+  const aktuellerTitel = () => titelChk.checked ? titelFuer(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value }, form.value) : "";
+  const renderTitel = () => {
+    const t = aktuellerTitel();
+    titelEl.textContent = t;
+    titelEl.style.display = t ? "" : "none";
+  };
+  titelChk.addEventListener("change", () => {
+    try {
+      localStorage.setItem(TITEL_KEY, titelChk.checked ? "an" : "aus");
+    } catch {
+    }
+    renderTitel();
+  });
   const genArrows = [];
   const mkGenArrow = (dir) => {
     const b = el("button", { class: "genarrow " + dir, type: "button", title: "Neue Variante generieren", "aria-label": "Neue Variante generieren" }, dir === "left" ? "\u2039" : "\u203A");
@@ -23227,6 +23349,7 @@ function mountStudio(root) {
   const nachTextwechsel = () => {
     renderStruktur();
     updVorrat();
+    renderTitel();
   };
   const quelleHint = el("p", { class: "muted mini", style: "display:none" });
   const zeigeHinweis = (txt2) => {
@@ -23787,7 +23910,7 @@ function mountStudio(root) {
   const bestChk = el("input", { type: "checkbox", id: "f-best" });
   bestChk.checked = true;
   const bestLbl = el("label", { class: "chk", title: "Erzeugt bei jedem Klick 12 Kandidaten und zeigt den bestbewerteten (L\xE4ngentreue, Wortvielfalt, Rhythmus, wenig Wiederholung, Grammatik, Abstand zur Schatzkammer)." }, bestChk, " Bestenauslese");
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl), outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl, titelLbl), titelEl, outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
   let lastRanking = null;
   const rankStatus = el("span", { class: "muted", id: "f-rankstatus" }, "");
   const applyPlace = (place) => {
@@ -24307,6 +24430,7 @@ function mountStudio(root) {
         zeigeUmweltEffekt(void 0);
       }
       baseText = out.textContent || "";
+      renderTitel();
       ctxSichern();
       updVorrat();
       try {
@@ -24627,7 +24751,7 @@ function mountStudio(root) {
     if (kopfWahl.einfach) {
       openReader(
         out.textContent || "",
-        { who: who.value, where: where.value, when: when.value, what: what.value }
+        { who: who.value, where: where.value, when: when.value, what: what.value, titel: aktuellerTitel() }
       );
     }
   });
@@ -24704,7 +24828,7 @@ function mountStudio(root) {
   copyBtn.addEventListener("click", () => {
     void navigator.clipboard?.writeText(out.textContent || "");
   });
-  readBtn.addEventListener("click", () => openReader(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value }));
+  readBtn.addEventListener("click", () => openReader(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, titel: aktuellerTitel() }));
   let speaking = false;
   speakBtn.addEventListener("click", () => {
     const synth = window.speechSynthesis;
