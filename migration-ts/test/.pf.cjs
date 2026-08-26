@@ -2970,15 +2970,20 @@ function chooseInsertPos(sentences) {
   return candidates[candidates.length - 1].pos;
 }
 var BEAT_CONNECTORS = ["Kurz darauf", "Gleichzeitig", "Wenig sp\xE4ter", "Im selben Atemzug", "Noch am selben Ort"];
+var beatKopf = (p) => {
+  const w = p.toLowerCase().replace(/^und\s+/, "").split(/[\s,:;—]+/).filter(Boolean);
+  return w[0] || "";
+};
 function joinBeats(beats, P2) {
   const parts = beats.map((b) => ensurePunct(clean(b))).filter(Boolean);
   for (let i2 = 1; i2 < parts.length; i2++) {
-    const prev = (parts[i2 - 1].split(/\s+/)[0] || "").toLowerCase();
-    const cur = (parts[i2].split(/\s+/)[0] || "").toLowerCase();
-    if (prev === cur && cur === "und") {
+    const prevRoh = (parts[i2 - 1].split(/\s+/)[0] || "").toLowerCase();
+    const curRoh = (parts[i2].split(/\s+/)[0] || "").toLowerCase();
+    if (prevRoh === curRoh && curRoh === "und") {
       parts[i2] = cap(parts[i2].replace(/^Und\s+/i, ""));
-    } else if (prev === cur && cur === "dann") {
-      parts[i2] = parts[i2].replace(/^Dann\b/i, pick(["Danach", "Kurz darauf", "Sp\xE4ter"]));
+    }
+    if (beatKopf(parts[i2]) === "dann" && (beatKopf(parts[i2 - 1]) === "dann" || i2 >= 2 && beatKopf(parts[i2 - 2]) === "dann")) {
+      parts[i2] = /^und\s+dann\b/i.test(parts[i2]) ? parts[i2].replace(/^Und\s+dann\b/i, pick(["Schlie\xDFlich", "Zuletzt", "Am Ende"])) : parts[i2].replace(/^Dann\b/i, pick(["Danach", "Kurz darauf", "Sp\xE4ter"]));
     }
   }
   if (P2 && parts.length >= 4 && chance(0.6)) {
@@ -4460,9 +4465,11 @@ function applyTension(text, peak, material) {
     const idx = Math.round(center * (s.length - 1));
     if (idx > 0 && idx < s.length - 1 && chance(0.5)) {
       const t = s[idx].replace(/[.!?…]+$/, "");
-      if (t.length > 12 && !isFragmentSentence(t)) {
+      const nachbarn = [s[idx - 1] || "", s[idx + 1] || ""].join(" ").toLowerCase();
+      const bruch = pick(["und genau hier kippt es.", "kein Zur\xFCck.", "jetzt.", "und nichts h\xE4lt mehr."].filter((b) => !(b === "jetzt." && /\bjetzt\b/.test(nachbarn + " " + t.toLowerCase()))));
+      if (t.length > 12 && !isFragmentSentence(t) && !t.includes("\u2014")) {
         s[idx] = t + " \u2014";
-        s.splice(idx + 1, 0, pick(["und genau hier kippt es.", "kein Zur\xFCck.", "jetzt.", "und nichts h\xE4lt mehr."]));
+        s.splice(idx + 1, 0, bruch);
       }
     }
   }

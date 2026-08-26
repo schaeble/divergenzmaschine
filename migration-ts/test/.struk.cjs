@@ -2991,15 +2991,20 @@ function chooseInsertPos(sentences) {
   return candidates[candidates.length - 1].pos;
 }
 var BEAT_CONNECTORS = ["Kurz darauf", "Gleichzeitig", "Wenig sp\xE4ter", "Im selben Atemzug", "Noch am selben Ort"];
+var beatKopf = (p) => {
+  const w = p.toLowerCase().replace(/^und\s+/, "").split(/[\s,:;—]+/).filter(Boolean);
+  return w[0] || "";
+};
 function joinBeats(beats, P2) {
   const parts = beats.map((b) => ensurePunct(clean(b))).filter(Boolean);
   for (let i = 1; i < parts.length; i++) {
-    const prev = (parts[i - 1].split(/\s+/)[0] || "").toLowerCase();
-    const cur = (parts[i].split(/\s+/)[0] || "").toLowerCase();
-    if (prev === cur && cur === "und") {
+    const prevRoh = (parts[i - 1].split(/\s+/)[0] || "").toLowerCase();
+    const curRoh = (parts[i].split(/\s+/)[0] || "").toLowerCase();
+    if (prevRoh === curRoh && curRoh === "und") {
       parts[i] = cap(parts[i].replace(/^Und\s+/i, ""));
-    } else if (prev === cur && cur === "dann") {
-      parts[i] = parts[i].replace(/^Dann\b/i, pick(["Danach", "Kurz darauf", "Sp\xE4ter"]));
+    }
+    if (beatKopf(parts[i]) === "dann" && (beatKopf(parts[i - 1]) === "dann" || i >= 2 && beatKopf(parts[i - 2]) === "dann")) {
+      parts[i] = /^und\s+dann\b/i.test(parts[i]) ? parts[i].replace(/^Und\s+dann\b/i, pick(["Schlie\xDFlich", "Zuletzt", "Am Ende"])) : parts[i].replace(/^Dann\b/i, pick(["Danach", "Kurz darauf", "Sp\xE4ter"]));
     }
   }
   if (P2 && parts.length >= 4 && chance(0.6)) {
@@ -4481,9 +4486,11 @@ function applyTension(text, peak, material) {
     const idx = Math.round(center * (s.length - 1));
     if (idx > 0 && idx < s.length - 1 && chance(0.5)) {
       const t = s[idx].replace(/[.!?…]+$/, "");
-      if (t.length > 12 && !isFragmentSentence(t)) {
+      const nachbarn = [s[idx - 1] || "", s[idx + 1] || ""].join(" ").toLowerCase();
+      const bruch = pick(["und genau hier kippt es.", "kein Zur\xFCck.", "jetzt.", "und nichts h\xE4lt mehr."].filter((b) => !(b === "jetzt." && /\bjetzt\b/.test(nachbarn + " " + t.toLowerCase()))));
+      if (t.length > 12 && !isFragmentSentence(t) && !t.includes("\u2014")) {
         s[idx] = t + " \u2014";
-        s.splice(idx + 1, 0, pick(["und genau hier kippt es.", "kein Zur\xFCck.", "jetzt.", "und nichts h\xE4lt mehr."]));
+        s.splice(idx + 1, 0, bruch);
       }
     }
   }
@@ -17970,6 +17977,34 @@ for (const s of FUENF) {
     if (kurz >= 3) schwach.push(`${id} (${kurz} von 12)`);
   }
   ist("kein Preset w\xFCrgt den Zusammenbau ab", schwach.join(", "), "");
+}
+{
+  const dannKopf = (t) => /^(und\s+)?dann\b/i.test(t);
+  const laengsteKette = (text) => {
+    let run = 0, best = 0;
+    for (const t of text.replace(/\n+/g, " ").split(/(?<=[.!?…])\s+/)) {
+      run = dannKopf(t) ? run + 1 : 0;
+      best = Math.max(best, run);
+    }
+    return best;
+  };
+  const j = joinBeats(["Es beginnt.", "Dann, unvermittelt: ein Essen.", "Dann kippt es \u2014 die Rollen tauschen.", "Und dann: ein Augenblick."], "");
+  ist("joinBeats l\xE4sst h\xF6chstens ein Dann in drei Beats stehen", laengsteKette(j), 1);
+  const j2 = joinBeats(["Es beginnt.", "Dann kippt es \u2014 die Rollen tauschen.", "Die T\xFCr bleibt zu."], "");
+  wahr("ein einzelnes Dann bleibt", /^Es beginnt\. Dann kippt es/.test(j2));
+  const ids2 = Object.keys(BUILTIN_DRAMA).filter((k) => BUILTIN_PRESETS[k]);
+  let dreifach = 0, doppel = 0;
+  for (let i = 0; i < 120; i++) {
+    const id = ids2[i % ids2.length];
+    setDramaData(BUILTIN_DRAMA[id]);
+    const t = buildStory(BUILTIN_PRESETS[id], eingabe("dramaturgie"));
+    const k = laengsteKette(t);
+    if (k >= 3) dreifach++;
+    if (k >= 2) doppel++;
+  }
+  ist("Dramaturgie: kein dreifaches Dann in 120 L\xE4ufen", dreifach, 0);
+  wahr("Dramaturgie: doppeltes Dann unter 5 %", doppel < 6);
+  setDramaData(null);
 }
 console.log(`Pr\xFCfstand Struktur \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

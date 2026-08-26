@@ -73,15 +73,33 @@ export function chooseInsertPos(sentences: string[]): number {
 
 const BEAT_CONNECTORS = ["Kurz darauf", "Gleichzeitig", "Wenig später", "Im selben Atemzug", "Noch am selben Ort"];
 
+/** Das erste Wort eines Beats — ohne Satzzeichen, und „Und dann" zählt als
+ *  „dann". Gemeldet, aus einem Blatt: „Dann, unvermittelt: … Dann kippt es —
+ *  … Und dann: …" — drei Dann-Anfänge in Folge. Die Sperre darunter gab es
+ *  seit jeher, aber sie verglich rohe Wörter: „Dann," (mit Komma) war für
+ *  sie nicht „dann", und „Und dann:" begann für sie mit „und". Sie schlug
+ *  auf dem Dramaturgie-Weg in 35 % der Läufe nicht an. */
+const beatKopf = (p: string): string => {
+  const w = p.toLowerCase().replace(/^und\s+/, "").split(/[\s,:;—]+/).filter(Boolean);
+  return w[0] || "";
+};
+
 export function joinBeats(beats: string[], P: string): string {
   const parts = beats.map((b) => ensurePunct(clean(b))).filter(Boolean);
   for (let i = 1; i < parts.length; i++) {
-    const prev = (parts[i - 1]!.split(/\s+/)[0] || "").toLowerCase();
-    const cur = (parts[i]!.split(/\s+/)[0] || "").toLowerCase();
-    if (prev === cur && cur === "und") {
+    const prevRoh = (parts[i - 1]!.split(/\s+/)[0] || "").toLowerCase();
+    const curRoh = (parts[i]!.split(/\s+/)[0] || "").toLowerCase();
+    if (prevRoh === curRoh && curRoh === "und") {
       parts[i] = cap(parts[i]!.replace(/^Und\s+/i, ""));
-    } else if (prev === cur && cur === "dann") {
-      parts[i] = parts[i]!.replace(/^Dann\b/i, pick(["Danach", "Kurz darauf", "Später"]));
+    }
+    // „Dann" darf in einem Fenster von drei Beats nur einmal vorn stehen.
+    // Fenster, nicht Nachbar: Die Beats Auslöser, Wende und Höhepunkt liegen
+    // in der Dramaturgie hintereinander und beginnen alle drei damit.
+    if (beatKopf(parts[i]!) === "dann"
+      && (beatKopf(parts[i - 1]!) === "dann" || (i >= 2 && beatKopf(parts[i - 2]!) === "dann"))) {
+      parts[i] = /^und\s+dann\b/i.test(parts[i]!)
+        ? parts[i]!.replace(/^Und\s+dann\b/i, pick(["Schließlich", "Zuletzt", "Am Ende"]))
+        : parts[i]!.replace(/^Dann\b/i, pick(["Danach", "Kurz darauf", "Später"]));
     }
   }
   if (P && parts.length >= 4 && chance(0.6)) {

@@ -134,7 +134,13 @@ export function applyTension(text: string, peak?: string, material?: TensionMate
     const idx = Math.round(center * (s.length - 1));
     if (idx > 0 && idx < s.length - 1 && chance(0.5)) {
       const t = s[idx]!.replace(/[.!?…]+$/, "");
-      if (t.length > 12 && !isFragmentSentence(t)) { s[idx] = t + " —"; s.splice(idx + 1, 0, pick(["und genau hier kippt es.", "kein Zurück.", "jetzt.", "und nichts hält mehr."])); }
+      // Kein zweiter Gedankenstrich in einen Satz, der schon einen trägt, und
+      // kein „jetzt." neben ein „Genau jetzt." — im Blatt stand „— Genau jetzt
+      // — ein Fenster, das nach innen öffnet — jetzt.": drei Striche und
+      // zweimal jetzt in einem Satz.
+      const nachbarn = [s[idx - 1] || "", s[idx + 1] || ""].join(" ").toLowerCase();
+      const bruch = pick(["und genau hier kippt es.", "kein Zurück.", "jetzt.", "und nichts hält mehr."].filter((b) => !(b === "jetzt." && /\bjetzt\b/.test(nachbarn + " " + t.toLowerCase()))));
+      if (t.length > 12 && !isFragmentSentence(t) && !t.includes("—")) { s[idx] = t + " —"; s.splice(idx + 1, 0, bruch); }
     }
   }
   return s.join(" ");

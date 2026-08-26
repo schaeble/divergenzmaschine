@@ -26,6 +26,7 @@ import { BUILTIN_PRESETS } from "../src/presets.data";
 import { BUILTIN_DRAMA } from "../src/presets.drama.data";
 import { setDramaData } from "../src/generation/dramaturgie";
 import { coherencePass } from "../src/generation/postprocess";
+import { joinBeats } from "../src/generation/beats";
 import type { Bank, GenInput } from "../src/types";
 
 const fails: string[] = [];
@@ -295,6 +296,41 @@ for (const s of FUENF) {
     if (kurz >= 3) schwach.push(`${id} (${kurz} von 12)`);
   }
   ist("kein Preset würgt den Zusammenbau ab", schwach.join(", "), "");
+}
+
+// ── Dann-Ketten in der Dramaturgie ──────────────────────────────────────────
+// Gemeldet, aus einem Blatt: „Dann, unvermittelt: … Dann kippt es — … Und
+// dann: …" — drei Dann-Anfänge in Folge. Die Sperre in joinBeats gab es
+// seit jeher, aber sie verglich rohe Wörter: „Dann," war nicht „dann",
+// „Und dann:" begann mit „und". Gemessen vorher: 35 % Dreifach, 51 % Doppel
+// in 600 Dramaturgie-Läufen; nachher 0 / 0.
+{
+  const dannKopf = (t: string): boolean => /^(und\s+)?dann\b/i.test(t);
+  const laengsteKette = (text: string): number => {
+    let run = 0, best = 0;
+    for (const t of text.replace(/\n+/g, " ").split(/(?<=[.!?…])\s+/)) { run = dannKopf(t) ? run + 1 : 0; best = Math.max(best, run); }
+    return best;
+  };
+  // Reine Regel, mit Komma und „Und dann" — genau die Formen, die durchrutschten.
+  const j = joinBeats(["Es beginnt.", "Dann, unvermittelt: ein Essen.", "Dann kippt es — die Rollen tauschen.", "Und dann: ein Augenblick."], "");
+  ist("joinBeats lässt höchstens ein Dann in drei Beats stehen", laengsteKette(j), 1);
+  // Gegenprobe: Ein einzelnes „Dann" wird NICHT angefasst.
+  const j2 = joinBeats(["Es beginnt.", "Dann kippt es — die Rollen tauschen.", "Die Tür bleibt zu."], "");
+  wahr("ein einzelnes Dann bleibt", /^Es beginnt\. Dann kippt es/.test(j2));
+  // Und im Dramaturgie-Bau, über die Matrix eines Preset 2.0.
+  const ids = Object.keys(BUILTIN_DRAMA).filter((k) => BUILTIN_PRESETS[k]);
+  let dreifach = 0, doppel = 0;
+  for (let i = 0; i < 120; i++) {
+    const id = ids[i % ids.length]!;
+    setDramaData(BUILTIN_DRAMA[id]!);
+    const t = buildStory(BUILTIN_PRESETS[id] as Bank, eingabe("dramaturgie"));
+    const k = laengsteKette(t);
+    if (k >= 3) dreifach++;
+    if (k >= 2) doppel++;
+  }
+  ist("Dramaturgie: kein dreifaches Dann in 120 Läufen", dreifach, 0);
+  wahr("Dramaturgie: doppeltes Dann unter 5 %", doppel < 6);
+  setDramaData(null);
 }
 
 console.log(`Prüfstand Struktur — ${geprueft} Prüfungen, ${bestanden} bestanden`);
