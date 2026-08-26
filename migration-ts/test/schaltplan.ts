@@ -972,6 +972,24 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
     (studioQ.match(/preset\.value === AUTOMIX_ID \? Object\.keys\(lastAutoMixSources\(\)\)/g) || []).length, 1);
 }
 
+// ── Markov im Würfel: die geforderte Varianz ────────────────────────────────
+// Gemeldet vom Schaltplan: „Markov ist immer aus." Gemessen über 300 Würfe
+// des Diagnose-Würfels: aus 42 %, Mix 35 %, Stark 23 % — die Schieflage
+// kommt aus der Wahrnehmung, die bei sechs von acht Wesen Markov auf Aus
+// setzt (Gedächtnis kurz/angeboren). Diese Prüfung hält fest, dass alle drei
+// Stellungen vorkommen und keine über zwei Drittel der Würfe nimmt.
+{
+  const c: Record<string, number> = {};
+  for (let i = 0; i < 150; i++) { const w = wuerfleAlles({ markovMode: "off" }, new Set<string>()); const v = w.regler["markovMode"] || ""; c[v] = (c[v] || 0) + 1; }
+  ist("alle drei Markov-Stellungen kommen vor", ["off", "mix", "on"].every((v) => (c[v] || 0) > 0), true);
+  wahr("keine Stellung nimmt über zwei Drittel der Würfe", Math.max(...Object.values(c)) < 100);
+  // Gegenprobe: Ein Schloss auf Markov hält.
+  const zu = new Set<string>(["f-markov"]);
+  let bewegt = 0;
+  for (let i = 0; i < 40; i++) { const w = wuerfleAlles({ markovMode: "mix" }, zu); if (w.regler["markovMode"] !== "mix") bewegt++; }
+  ist("mit Schloss bleibt Markov stehen", bewegt, 0);
+}
+
 console.log(`Prüfstand Schaltplan — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

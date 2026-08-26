@@ -591,6 +591,27 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
   wahr("Erzeugen würfelt die Presets nicht mehr um", !/waehleGespreizt\(vorrat, st\.presets\)/.test(studio));
 }
 
+// ── Markov bewegt sich beim Würfeln — an der laufenden Oberfläche ───────────
+// Gemeldet: „Markov ist immer aus." Gemessen: „Würfeln" 30× → aus/Mix/Stark
+// je etwa ein Drittel; „Alles würfeln" 30× → aus 57 % (die Wahrnehmung setzt
+// es bei sechs von acht Wesen auf Aus). Hier: In 30 Würfen mindestens zwei
+// Stellungen, sonst wäre der Regler vom Würfel abgehängt.
+{
+  const D = dom.window.document;
+  const wurzel = D.createElement("div"); D.body.append(wurzel);
+  mountStudio(wurzel);
+  const mk = D.getElementById("f-markov") as HTMLSelectElement;
+  const knopf = (t: RegExp): HTMLButtonElement =>
+    Array.from(D.querySelectorAll("button")).find((b) => t.test(b.textContent || "")) as HTMLButtonElement;
+  const gesehen = new Set<string>();
+  for (let i = 0; i < 30; i++) { knopf(/^\s*\S*\s*Würfeln/).click(); gesehen.add(mk.value); }
+  wahr("„Würfeln“ bewegt Markov (mindestens zwei Stellungen in 30 Würfen)", gesehen.size >= 2, [...gesehen].join("/"));
+  const kopf = new Set<string>();
+  for (let i = 0; i < 30; i++) { knopf(/Text erzeugen/).click(); kopf.add(mk.value); }
+  wahr("„Text erzeugen“ im einfachen Kopf ebenfalls", kopf.size >= 2, [...kopf].join("/"));
+  wurzel.remove();
+}
+
 console.log(`Prüfstand Studio — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {
