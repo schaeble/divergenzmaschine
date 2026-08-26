@@ -612,6 +612,39 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
   wurzel.remove();
 }
 
+// ── Ein Knopf öffnet alle Schlösser ─────────────────────────────────────────
+// Gewünscht: ein Schalter im Studio, der alle Schlösser auf einmal öffnet.
+{
+  const D = dom.window.document;
+  localStorage.setItem("divergenz_studio_locks_v1", "[]");
+  const wurzel = D.createElement("div"); D.body.append(wurzel);
+  mountStudio(wurzel);
+  // Nur in DIESER Wurzel suchen: Frühere Blöcke haben eigene Studios gebaut.
+  const knopf = (t: RegExp): HTMLButtonElement =>
+    Array.from(wurzel.querySelectorAll("button")).find((b) => t.test(b.textContent || "")) as HTMLButtonElement;
+  const oeffnen = knopf(/Keine Schlösser|Schl(oss|össer) öffnen/);
+  wahr("es gibt den Knopf", !!oeffnen);
+  ist("ohne Schlösser ist er ausgegraut", oeffnen.disabled, true);
+  // Drei Schlösser schließen — im Werkzeugkasten, per Klick wie der Benutzer.
+  const schloesser = Array.from(wurzel.querySelectorAll(".lockbtn")) as HTMLButtonElement[];
+  schloesser.slice(0, 3).forEach((b) => b.click());
+  ist("drei zu → der Knopf zählt mit", oeffnen.textContent?.trim(), "3 Schlösser öffnen");
+  ist("und ist bedienbar", oeffnen.disabled, false);
+  const struktur = D.getElementById("f-structure") as HTMLSelectElement;
+  const vorher = struktur.value;
+  oeffnen.click();
+  ist("ein Klick öffnet alle", JSON.parse(localStorage.getItem("divergenz_studio_locks_v1") || "[]").length, 0);
+  ist("die Schlossknöpfe zeigen offen", schloesser.slice(0, 3).filter((b) => b.classList.contains("on")).length, 0);
+  ist("die Werte bleiben stehen", struktur.value, vorher);
+  ist("danach wieder ausgegraut", oeffnen.disabled, true);
+  // Gegenprobe: Der Würfel fasst die Felder jetzt wieder an.
+  let bewegt = 0;
+  const erstes = schloesser[0]!.closest(".field")?.querySelector("select") as HTMLSelectElement | null;
+  if (erstes) { const alt = erstes.value; for (let i = 0; i < 20; i++) { knopf(/^\s*\S*\s*Würfeln/).click(); if (erstes.value !== alt) { bewegt++; break; } } }
+  wahr("und der Würfel bewegt das erste Feld wieder", !erstes || bewegt > 0);
+  wurzel.remove();
+}
+
 console.log(`Prüfstand Studio — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

@@ -132,10 +132,32 @@ export function mountStudio(root: HTMLElement): void {
     b.addEventListener("click", () => {
       if (locked.has(ctrl.id)) { locked.delete(ctrl.id); delete lockVals[ctrl.id]; }
       else { locked.add(ctrl.id); lockVals[ctrl.id] = wertVon(ctrl); }
-      saveLocks(); saveLockVals(); repaint();
+      saveLocks(); saveLockVals(); repaint(); updOeffnen();
     });
     paint(); return b;
   };
+  // ── Alle Schlösser öffnen ──────────────────────────────────────────────
+  // Gewünscht: ein Schalter im Studio, der alle Schlösser auf einmal öffnet.
+  // Schlösser sitzen verstreut — Werkzeugkasten, Chips, Stellschrauben —, und
+  // wer zwölf davon gesetzt hat, sucht sie sonst einzeln. Der Knopf zählt
+  // mit, damit man sieht, ob überhaupt eines zu ist, und ist ohne Schlösser
+  // ausgegraut. Die Werte bleiben stehen; nur der Schutz vor dem Würfel fällt.
+  const alleSchloesserOeffnen = (): void => {
+    const ids = [...locked];
+    locked.clear();
+    for (const id of ids) { delete lockVals[id]; (lockPainters[id] || []).forEach((m) => m.paint()); }
+    saveLocks(); saveLockVals(); updOeffnen();
+  };
+  const oeffnenLbl = el("span", {});
+  const oeffnenBtn = el("button", { type: "button", title: "Alle Schlösser auf einmal öffnen — die Werte bleiben stehen, nur der Schutz vor dem Würfel fällt." }, icon("lockOpen"), " ", oeffnenLbl) as HTMLButtonElement;
+  const updOeffnen = (): void => {
+    const n = locked.size;
+    oeffnenLbl.textContent = n === 0 ? "Keine Schlösser" : n === 1 ? "1 Schloss öffnen" : `${n} Schlösser öffnen`;
+    oeffnenBtn.disabled = n === 0;
+  };
+  oeffnenBtn.addEventListener("click", alleSchloesserOeffnen);
+  updOeffnen();
+
   const lockField = (label: string, sel: HTMLSelectElement): HTMLElement =>
     el("div", { class: "field" }, el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sel)), sel);
 
@@ -402,7 +424,7 @@ export function mountStudio(root: HTMLElement): void {
         el("span", { class: "hilfe", title: "Begriffe, Wörter, Zahlenkombinationen oder Zeichen. Sie erzeugen keinen Text — sie richten die Auswahl: Nahrung bevorzugt Fassungen, die sie aufnehmen, Gift bevorzugt Fassungen, die sie meiden. Wirkt nur bei eingeschalteter Bestenauslese." }, "Umwelt"),
         umweltSel),
       umweltIn, umweltHint),
-    el("div", { class: "btnrow" }, ctxDice, alleBtn, wikiBtn, abschriftBtn, themaBtn, ctxKeep, wikiHint));
+    el("div", { class: "btnrow" }, ctxDice, alleBtn, oeffnenBtn, wikiBtn, abschriftBtn, themaBtn, ctxKeep, wikiHint));
 
   const lockBar = el("div", { class: "lockbar" });
   const preset = select("f-preset", markedPresetOptions());
@@ -2339,7 +2361,7 @@ export function mountStudio(root: HTMLElement): void {
     applyBtn.addEventListener("click", () => {
       for (const b of blocked) { locked.delete(b.el.id); delete lockVals[b.el.id]; b.el.value = b.want; }
       saveLocks(); saveLockVals();
-      Object.keys(lockPainters).forEach((id) => (lockPainters[id] || []).forEach((m) => m.paint()));
+      Object.keys(lockPainters).forEach((id) => (lockPainters[id] || []).forEach((m) => m.paint())); updOeffnen();
       lockBar.remove(); updHints(); renderPresetChecks(); generate();
     });
     const closeBtn = el("button", { class: "x", type: "button", "aria-label": "Hinweis schließen" }, "✕");

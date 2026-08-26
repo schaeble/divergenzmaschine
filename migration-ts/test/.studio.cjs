@@ -22462,10 +22462,31 @@ function mountStudio(root) {
       saveLocks();
       saveLockVals();
       repaint();
+      updOeffnen();
     });
     paint();
     return b;
   };
+  const alleSchloesserOeffnen = () => {
+    const ids = [...locked];
+    locked.clear();
+    for (const id of ids) {
+      delete lockVals[id];
+      (lockPainters[id] || []).forEach((m) => m.paint());
+    }
+    saveLocks();
+    saveLockVals();
+    updOeffnen();
+  };
+  const oeffnenLbl = el("span", {});
+  const oeffnenBtn = el("button", { type: "button", title: "Alle Schl\xF6sser auf einmal \xF6ffnen \u2014 die Werte bleiben stehen, nur der Schutz vor dem W\xFCrfel f\xE4llt." }, icon("lockOpen"), " ", oeffnenLbl);
+  const updOeffnen = () => {
+    const n = locked.size;
+    oeffnenLbl.textContent = n === 0 ? "Keine Schl\xF6sser" : n === 1 ? "1 Schloss \xF6ffnen" : `${n} Schl\xF6sser \xF6ffnen`;
+    oeffnenBtn.disabled = n === 0;
+  };
+  oeffnenBtn.addEventListener("click", alleSchloesserOeffnen);
+  updOeffnen();
   const lockField = (label, sel) => el("div", { class: "field" }, el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sel)), sel);
   const ctxDice = el("button", {}, icon("dice"), " Kontext w\xFCrfeln");
   ctxDice.addEventListener("click", () => {
@@ -22784,7 +22805,7 @@ function mountStudio(root) {
       umweltIn,
       umweltHint
     ),
-    el("div", { class: "btnrow" }, ctxDice, alleBtn, wikiBtn, abschriftBtn, themaBtn, ctxKeep, wikiHint)
+    el("div", { class: "btnrow" }, ctxDice, alleBtn, oeffnenBtn, wikiBtn, abschriftBtn, themaBtn, ctxKeep, wikiHint)
   );
   const lockBar = el("div", { class: "lockbar" });
   const preset = select("f-preset", markedPresetOptions());
@@ -24971,6 +24992,7 @@ function mountStudio(root) {
       saveLocks();
       saveLockVals();
       Object.keys(lockPainters).forEach((id) => (lockPainters[id] || []).forEach((m) => m.paint()));
+      updOeffnen();
       lockBar.remove();
       updHints();
       renderPresetChecks();
@@ -27797,6 +27819,42 @@ ist("kein Einschub steht in zwei T\xF6nen", ueberschneidung, 0);
     kopf.add(mk.value);
   }
   wahr("\u201EText erzeugen\u201C im einfachen Kopf ebenfalls", kopf.size >= 2, [...kopf].join("/"));
+  wurzel.remove();
+}
+{
+  const D2 = dom.window.document;
+  localStorage.setItem("divergenz_studio_locks_v1", "[]");
+  const wurzel = D2.createElement("div");
+  D2.body.append(wurzel);
+  mountStudio(wurzel);
+  const knopf = (t) => Array.from(wurzel.querySelectorAll("button")).find((b) => t.test(b.textContent || ""));
+  const oeffnen = knopf(/Keine Schlösser|Schl(oss|össer) öffnen/);
+  wahr("es gibt den Knopf", !!oeffnen);
+  ist("ohne Schl\xF6sser ist er ausgegraut", oeffnen.disabled, true);
+  const schloesser = Array.from(wurzel.querySelectorAll(".lockbtn"));
+  schloesser.slice(0, 3).forEach((b) => b.click());
+  ist("drei zu \u2192 der Knopf z\xE4hlt mit", oeffnen.textContent?.trim(), "3 Schl\xF6sser \xF6ffnen");
+  ist("und ist bedienbar", oeffnen.disabled, false);
+  const struktur = D2.getElementById("f-structure");
+  const vorher = struktur.value;
+  oeffnen.click();
+  ist("ein Klick \xF6ffnet alle", JSON.parse(localStorage.getItem("divergenz_studio_locks_v1") || "[]").length, 0);
+  ist("die Schlosskn\xF6pfe zeigen offen", schloesser.slice(0, 3).filter((b) => b.classList.contains("on")).length, 0);
+  ist("die Werte bleiben stehen", struktur.value, vorher);
+  ist("danach wieder ausgegraut", oeffnen.disabled, true);
+  let bewegt = 0;
+  const erstes = schloesser[0].closest(".field")?.querySelector("select");
+  if (erstes) {
+    const alt = erstes.value;
+    for (let i = 0; i < 20; i++) {
+      knopf(/^\s*\S*\s*Würfeln/).click();
+      if (erstes.value !== alt) {
+        bewegt++;
+        break;
+      }
+    }
+  }
+  wahr("und der W\xFCrfel bewegt das erste Feld wieder", !erstes || bewegt > 0);
   wurzel.remove();
 }
 console.log(`Pr\xFCfstand Studio \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
