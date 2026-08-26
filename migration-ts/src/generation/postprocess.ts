@@ -246,8 +246,12 @@ export function coherenceRepairV2(t: string, input?: Input): string {
  *  wirklich ein Anfang ist: nach Punkt, Doppelpunkt, öffnendem
  *  Anführungszeichen, Klammer — und am ZEILENanfang, denn Verse fangen groß an.
  *  Der Umbruch steckt im Zwischenraum, nicht im Zeichen davor. */
+// Seit 4.328.3 auch der bestimmte Artikel: „ich kenne Der Bote", „Da hält Der
+// Bote inne" standen im Blatt — das Wer-Feld trägt seinen Kopf groß, und die
+// Rahmen setzen es unverändert in die Satzmitte. Nach „—" ist es ebenfalls
+// Satzmitte („drei nicht — Der Bote spürt").
 export function kleinerArtikel(t: string): string {
-  return (t || "").replace(/([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines)\b/g,
+  return (t || "").replace(/([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/g,
     (_m: string, vor: string, sp: string, w: string) => vor + sp + w.charAt(0).toLowerCase() + w.slice(1));
 }
 

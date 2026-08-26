@@ -68,7 +68,9 @@ export function applyToneRegister(text: string, tone?: string): string {
   if (reg === "wry") {
     // Ironisches Register: an einige mittlere Aussagesätze einen trockenen
     // Nachsatz hängen, der die Aussage relativiert.
-    const tags = ["– angeblich.", "– so hieß es.", "– was auch immer das heißen sollte.", "– natürlich.", "– wie praktisch.", "– oder so ähnlich."];
+    // Geviertstrich wie überall im Text: Ein Halbgeviert („–") neben dem Geviert
+    // („—") der Verschmelzung stand im Blatt in einem Satz nebeneinander.
+    const tags = ["— angeblich.", "— so hieß es.", "— was auch immer das heißen sollte.", "— natürlich.", "— wie praktisch.", "— oder so ähnlich."];
     let ti = Math.floor(Math.random() * tags.length);
     return text.split(/\n\n+/).map((para) => {
       const sents = para.split(/(?<=[.!?…])\s+/);

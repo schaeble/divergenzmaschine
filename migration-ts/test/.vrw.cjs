@@ -3482,15 +3482,21 @@ function genderOf(art, noun) {
 var adjDat = (adj) => adj ? adj.replace(/(er|es|em|en|e)$/i, "") + "en" : "";
 var AN_NOUNS = /^(meer|see|ozean|küste|strand|ufer|fluss|bach|rand|abgrund|fenster|tor|hafenbecken)$/i;
 var AUF_NOUNS = /^(insel|wiese|weide|feld|berg|hügel|gipfel|dach|turm|platz|markt|straße|brücke|lichtung|bühne|terrasse|balkon)$/i;
+var AN_ENDUNG = /(ufer|meer|see|strand|küste|fluss|bach)$/i;
 function normWhere(s) {
   const t = (s || "").trim();
-  if (!t || PREPS.test(t) || t.includes(",")) return t;
+  if (!t || PREPS.test(t)) return t;
+  const komma = t.indexOf(",");
+  if (komma > 0) {
+    const kopf = normWhere(t.slice(0, komma));
+    return kopf + t.slice(komma);
+  }
   const np = parseNP(t);
   if (!np) return t;
   const g = genderOf(np.art, np.noun);
   if (!g) return t;
   const adj = np.adj ? adjDat(np.adj) + " " : "";
-  const kind = AUF_NOUNS.test(np.noun) ? "auf" : AN_NOUNS.test(np.noun) ? "an" : "in";
+  const kind = AUF_NOUNS.test(np.noun) ? "auf" : AN_NOUNS.test(np.noun) || AN_ENDUNG.test(np.noun) ? "an" : "in";
   const indef = np.art.startsWith("ein");
   if (indef) {
     const artD = g === "f" ? "einer" : "einem";
@@ -4197,7 +4203,7 @@ function applyToneRegister(text, tone) {
     return t.replace(/\s+([,.;:!?…])/g, "$1").replace(/\s{2,}/g, " ").trim();
   }
   if (reg === "wry") {
-    const tags = ["\u2013 angeblich.", "\u2013 so hie\xDF es.", "\u2013 was auch immer das hei\xDFen sollte.", "\u2013 nat\xFCrlich.", "\u2013 wie praktisch.", "\u2013 oder so \xE4hnlich."];
+    const tags = ["\u2014 angeblich.", "\u2014 so hie\xDF es.", "\u2014 was auch immer das hei\xDFen sollte.", "\u2014 nat\xFCrlich.", "\u2014 wie praktisch.", "\u2014 oder so \xE4hnlich."];
     let ti = Math.floor(Math.random() * tags.length);
     return text.split(/\n\n+/).map((para) => {
       const sents = para.split(/(?<=[.!?…])\s+/);
@@ -5030,7 +5036,7 @@ function coherenceRepairV2(t, input) {
 }
 function kleinerArtikel(t) {
   return (t || "").replace(
-    /([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines)\b/g,
+    /([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/g,
     (_m, vor, sp, w) => vor + sp + w.charAt(0).toLowerCase() + w.slice(1)
   );
 }
@@ -5175,7 +5181,7 @@ function buildObjectCentric(kit) {
   const obj = pick(M.nouns);
   const P3 = kit.P;
   const a = `Ich bin ${objektName(obj)}. Ich liege ${kit.W}.`;
-  const b = `Ich kenne ${P3}. Ich kenne ${kit.hookAcc}.`;
+  const b = `Ich kenne ${dekliniere(P3, "akk")}. Ich kenne ${kit.hookAcc}.`;
   const c = `Sie nennen es ${pick(["Fehler", "Vorgang", "Omen", "Signal", "Symptom", "Protokoll", "Zufall", "Nichts"])}. Ich nenne es ${pick(["Erinnerung", "Beweis", "Anfang", "Schuld"])}.`;
   const d = ensurePunct(rot("mode.rule", M.rules));
   const e = kit.AisClause ? `${P3} sp\xFCrt: ${kit.Apure}. ${kit.obstacle}.` : `${P3} ${kit.AleadVerb || "will"} ${kit.Apure}. ${kit.obstacle}.`;

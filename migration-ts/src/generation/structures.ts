@@ -4,6 +4,7 @@ import { pick, ensurePunct } from "../text-utils";
 import { joinBeats, frameTurn, reframeStake, weaveMotif, randomFragmentTime, cap } from "./beats";
 import { pickFreshIndex } from "./cooldown";
 import { objektName } from "./shape";
+import { dekliniere } from "../atoms/assemble";
 
 type Builder = (kit: StoryKit) => string;
 
@@ -121,7 +122,8 @@ export function buildObjectCentric(kit: StoryKit): string {
   const P = kit.P;
   // „Ich bin Prozess" stand ohne Artikel im Text — siehe Ausgabe Nr. 40.
   const a = `Ich bin ${objektName(obj)}. Ich liege ${kit.W}.`;
-  const b = `Ich kenne ${P}. Ich kenne ${kit.hookAcc}.`;
+  // „Ich kenne Der Bote" stand im Blatt: Nach „kennen" steht der Akkusativ.
+  const b = `Ich kenne ${dekliniere(P, "akk")}. Ich kenne ${kit.hookAcc}.`;
   const c = `Sie nennen es ${pick(["Fehler", "Vorgang", "Omen", "Signal", "Symptom", "Protokoll", "Zufall", "Nichts"])}. Ich nenne es ${pick(["Erinnerung", "Beweis", "Anfang", "Schuld"])}.`;
   const d = ensurePunct(rot("mode.rule", M.rules));
   const e = kit.AisClause

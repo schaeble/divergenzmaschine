@@ -2815,7 +2815,7 @@ function applyToneRegister(text, tone) {
     return t.replace(/\s+([,.;:!?…])/g, "$1").replace(/\s{2,}/g, " ").trim();
   }
   if (reg === "wry") {
-    const tags = ["\u2013 angeblich.", "\u2013 so hie\xDF es.", "\u2013 was auch immer das hei\xDFen sollte.", "\u2013 nat\xFCrlich.", "\u2013 wie praktisch.", "\u2013 oder so \xE4hnlich."];
+    const tags = ["\u2014 angeblich.", "\u2014 so hie\xDF es.", "\u2014 was auch immer das hei\xDFen sollte.", "\u2014 nat\xFCrlich.", "\u2014 wie praktisch.", "\u2014 oder so \xE4hnlich."];
     let ti = Math.floor(Math.random() * tags.length);
     return text.split(/\n\n+/).map((para) => {
       const sents = para.split(/(?<=[.!?…])\s+/);
@@ -3280,7 +3280,7 @@ function coherenceRepairV2(t, input) {
 }
 function kleinerArtikel(t) {
   return (t || "").replace(
-    /([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines)\b/g,
+    /([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/g,
     (_m, vor, sp, w) => vor + sp + w.charAt(0).toLowerCase() + w.slice(1)
   );
 }
@@ -11308,6 +11308,13 @@ wahr("ein gew\xF6hnlicher Satz gilt nicht als Ger\xFCst", !GERUESTZEILE.test("Di
     );
   }
 }
+ist("Der in der Satzmitte wird klein", kleinerArtikel("Da h\xE4lt Der Bote inne."), "Da h\xE4lt der Bote inne.");
+ist("auch nach dem Gedankenstrich", kleinerArtikel("Zwei nicht \u2014 Der Bote sp\xFCrt."), "Zwei nicht \u2014 der Bote sp\xFCrt.");
+ist("nach Doppelpunkt bleibt gro\xDF", kleinerArtikel("Er sagt: Der Bote kommt."), "Er sagt: Der Bote kommt.");
+ist("im Zitat bleibt gro\xDF", kleinerArtikel("Sie sagt \u201EDie Uhr steht\u201C."), "Sie sagt \u201EDie Uhr steht\u201C.");
+ist("am Zeilenanfang bleibt gro\xDF", kleinerArtikel("Zeile eins\nDie zweite Zeile."), "Zeile eins\nDie zweite Zeile.");
+ist("kennen verlangt den Akkusativ", dekliniere("Der Bote", "akk"), "den Boten");
+wahr("die Objekt-Perspektive nutzt ihn", /Ich kenne \$\{dekliniere\(P, "akk"\)\}/.test((0, import_fs.readFileSync)("src/generation/structures.ts", "utf8")));
 console.log(`Pr\xFCfstand Schliff \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {

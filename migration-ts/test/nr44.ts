@@ -15,7 +15,7 @@
 import { buildStory } from "../src/generation/buildStory";
 import { entferneDubletten } from "../src/generation/shape";
 import { splitSpeakers, istEigenePerson } from "../src/generation/wordcls";
-import { normWho } from "../src/generation/ctxnorm";
+import { normWho, normWhere } from "../src/generation/ctxnorm";
 import { WHO_TWISTS } from "../src/generation/ideas.data";
 import { corpusSanitize, GERUEST_ZEILE } from "../src/corpus";
 import { dachOrt, kurzPerson, formeWas } from "../src/features/faktenblatt";
@@ -290,6 +290,17 @@ for (const kurz of ["sucht eine Akte", "gewinnt", "eine Wandmalerei"]) {
   ist("ein Name bekommt KEINEN Artikel", normWho("Ottilie"), "Ottilie");
   ist("ein ausdrücklicher Plural auch nicht", normWho("Männer"), "Männer");
 }
+
+// ── Wo mit Zusatz und Gewässer-Grundwort ────────────────────────────────────
+// Gemeldet: „ich liege Kanalufer, unter einer Fußgängerbrücke". Der Zusatz
+// nach dem Komma schaltete die ganze Normalisierung ab, und „Kanalufer" war
+// als Zusammensetzung auf -ufer nicht erkannt.
+ist("Kopf vor dem Komma wird normalisiert, der Zusatz bleibt", normWhere("Kanalufer, unter einer Fußgängerbrücke"), "am Kanalufer, unter einer Fußgängerbrücke");
+ist("Zusammensetzung auf -ufer verlangt an", normWhere("Flussufer"), "am Flussufer");
+ist("-see ebenso", normWhere("Bodensee"), "am Bodensee");
+// Gegenproben: Präposition vorhanden → unverändert; Innenraum → in.
+ist("mit Präposition bleibt alles stehen", normWhere("am Kanalufer, unter der Brücke"), "am Kanalufer, unter der Brücke");
+ist("ein Innenraum bekommt im", normWhere("Keller"), "im Keller");
 
 console.log(`Prüfstand Nr. 44 — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };

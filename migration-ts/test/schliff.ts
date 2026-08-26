@@ -11,7 +11,8 @@
   }
 }
 import { readFileSync } from "fs";
-import { istAbgeschnitten, postProcessText } from "../src/generation/postprocess";
+import { istAbgeschnitten, postProcessText, kleinerArtikel } from "../src/generation/postprocess";
+import { dekliniere } from "../src/atoms/assemble";
 import { OBJEKT_EINSTIEG } from "../src/generation/shape";
 import { applyEmphasis } from "../src/generation/emphasis";
 import { corpusSanitize } from "../src/corpus";
@@ -221,6 +222,20 @@ wahr("ein gewöhnlicher Satz gilt nicht als Gerüst", !GERUESTZEILE.test("Die T�
       new RegExp("nimmt " + k + " Akte").test(nachSchliff("Er nimmt " + w + " Akte.")));
   }
 }
+
+// ── Bestimmter Artikel in der Satzmitte ─────────────────────────────────────
+// Gemeldet: „ich kenne Der Bote", „Da hält Der Bote inne", „drei nicht — Der
+// Bote spürt". Das Wer-Feld trägt seinen Kopf groß, die Rahmen setzen es
+// unverändert ein. Vorher fasste kleinerArtikel nur „Ein".
+ist("Der in der Satzmitte wird klein", kleinerArtikel("Da hält Der Bote inne."), "Da hält der Bote inne.");
+ist("auch nach dem Gedankenstrich", kleinerArtikel("Zwei nicht — Der Bote spürt."), "Zwei nicht — der Bote spürt.");
+// Gegenproben: nach Doppelpunkt, in Anführungszeichen, am Zeilenanfang bleibt groß.
+ist("nach Doppelpunkt bleibt groß", kleinerArtikel("Er sagt: Der Bote kommt."), "Er sagt: Der Bote kommt.");
+ist("im Zitat bleibt groß", kleinerArtikel("Sie sagt „Die Uhr steht“."), "Sie sagt „Die Uhr steht“.");
+ist("am Zeilenanfang bleibt groß", kleinerArtikel("Zeile eins\nDie zweite Zeile."), "Zeile eins\nDie zweite Zeile.");
+// Nach „kennen" der Akkusativ: „Ich kenne den Boten", nicht „Ich kenne Der Bote".
+ist("kennen verlangt den Akkusativ", dekliniere("Der Bote", "akk"), "den Boten");
+wahr("die Objekt-Perspektive nutzt ihn", /Ich kenne \$\{dekliniere\(P, "akk"\)\}/.test(readFileSync("src/generation/structures.ts", "utf8")));
 
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };

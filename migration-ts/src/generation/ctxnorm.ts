@@ -29,15 +29,25 @@ const AN_NOUNS = /^(meer|see|ozean|küste|strand|ufer|fluss|bach|rand|abgrund|fe
 const AUF_NOUNS = /^(insel|wiese|weide|feld|berg|hügel|gipfel|dach|turm|platz|markt|straße|brücke|lichtung|bühne|terrasse|balkon)$/i;
 
 /** Wo: „Hafen" → „im Hafen", „eine Insel" → „auf einer Insel". */
+// Zusammensetzungen, die auf ein Gewässer-/Uferwort enden, verlangen „an":
+// „Kanalufer" → „am Kanalufer". Gemeldet: „ich liege Kanalufer, unter einer
+// Fußgängerbrücke" — das Wo ohne Präposition, weil der Zusatz nach dem Komma
+// die ganze Normalisierung abschaltete und das Grundwort nicht erkannt war.
+const AN_ENDUNG = /(ufer|meer|see|strand|küste|fluss|bach)$/i;
+
 export function normWhere(s: string): string {
   const t = (s || "").trim();
-  if (!t || PREPS.test(t) || t.includes(",")) return t;
+  if (!t || PREPS.test(t)) return t;
+  // Ein Zusatz nach dem Komma („Kanalufer, unter einer Fußgängerbrücke") wird
+  // nicht angefasst — aber der Kopf davor wird normalisiert wie ohne Zusatz.
+  const komma = t.indexOf(",");
+  if (komma > 0) { const kopf = normWhere(t.slice(0, komma)); return kopf + t.slice(komma); }
   const np = parseNP(t);
   if (!np) return t;
   const g = genderOf(np.art, np.noun);
   if (!g) return t;
   const adj = np.adj ? adjDat(np.adj) + " " : "";
-  const kind = AUF_NOUNS.test(np.noun) ? "auf" : AN_NOUNS.test(np.noun) ? "an" : "in";
+  const kind = AUF_NOUNS.test(np.noun) ? "auf" : (AN_NOUNS.test(np.noun) || AN_ENDUNG.test(np.noun)) ? "an" : "in";
   const indef = np.art.startsWith("ein");
   if (indef) {
     const artD = g === "f" ? "einer" : "einem";
