@@ -43,7 +43,7 @@ import { icon } from "./icons";
 import { saveAnlage } from "../features/schaltplan";
 import {
   KOPF_FORMEN, LAENGE_NAMEN, REIBUNG_NAMEN, REIBUNG_STUFEN, PROBEN,
-  stellung as kopfStellung, ladeWahl as ladeKopfWahl, sichereWahl as sichereKopfWahl, probeAus, ziehSaat,
+  stellung as kopfStellung, ladeWahl as ladeKopfWahl, sichereWahl as sichereKopfWahl, probeAus, ziehSaat, kopfKontext, type VierW,
 } from "../features/einfach";
 import { waehleGespreizt } from "../features/register";
 import { wuerfleVierW } from "../features/wuerfeln";
@@ -2046,8 +2046,17 @@ export function mountStudio(root: HTMLElement): void {
     // laufenden Preset-Wechsel gesetzt — Presets bringen eigene Formen mit.)
     if (!locked.has(form.id)) { form.value = st.form; form.dispatchEvent(new Event("change")); }
     if (!locked.has(lenSlider.id)) { lenSlider.value = String(st.lenTarget); lenSlider.dispatchEvent(new Event("input")); }
-    for (const [feld, wert] of [[where, st.ctx.where], [when, st.ctx.when], [who, st.ctx.who], [what, st.ctx.what]] as [HTMLInputElement, string][]) {
-      if (locked.has(feld.id) || !wert) continue;
+    // Wer, Wo und Wann werden MITGEWÜRFELT — aus der Welt, wie bei „Alles
+    // würfeln"; nur das Was ist fix und kommt aus dem Wovon. Die Regel dazu
+    // steht in kopfKontext(): Was die Saat selbst nennt, gewinnt vor dem
+    // Wurf, und ein Schloss hält wie überall.
+    const wurf = ((): Partial<VierW> => {
+      try { return worldFillContext(); } catch { return randomContext(); }
+    })();
+    const ctx = kopfKontext(st.ctx, wurf,
+      { who: who.value, where: where.value, when: when.value, what: what.value });
+    for (const [feld, wert] of [[where, ctx.where], [when, ctx.when], [who, ctx.who], [what, ctx.what]] as [HTMLInputElement, string][]) {
+      if (locked.has(feld.id) || !wert || feld.value === wert) continue;
       feld.value = wert; feld.dispatchEvent(new Event("input"));
     }
     generate();

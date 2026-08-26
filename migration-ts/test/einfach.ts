@@ -16,7 +16,7 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https
 (globalThis as unknown as Record<string, unknown>).localStorage = dom.window.localStorage;
 
 import {
-  zerlegeSaat, stellung, saatVorrat, ziehSaat, KOPF_FORMEN, LAENGE_STUFEN, REIBUNG_STUFEN,
+  zerlegeSaat, stellung, saatVorrat, ziehSaat, kopfKontext, KOPF_FORMEN, LAENGE_STUFEN, REIBUNG_STUFEN,
   LAENGE_NAMEN, REIBUNG_NAMEN, PROBEN, SAAT_BEISPIELE, KOPF_KEY, probeAus, VORGABE,
 } from "../src/features/einfach";
 import { FORM_OPTS } from "../src/generation/optionen";
@@ -347,6 +347,35 @@ wahr("die Probe zieht lebendiges Material heran", /probeAus\(liveTexts\(\)/.test
 wahr("und fällt sonst auf das Muster zurück", /\?\? PROBEN\[/.test(q));
 ist("und ist kein eigener Reiter",
   /\["Einfach", mount/.test(readFileSync("src/ui/app.ts", "utf8")), false);
+
+// ── 6 · Beim Erzeugen: Was fix, Wer/Wo/Wann gewürfelt ───────────────────────
+// Gemeldet: „Beim Würfeln sollen die 3W mitgewürfelt werden. 1W ist fix und
+// kommt aus dem Wovon." Vorher blieb alles stehen, was die Saat nicht nannte.
+{
+  const alt = { who: "Alte Figur", where: "im alten Ort", when: "gestern", what: "schläft" };
+  const wurf = { who: "Eine Uhrmacherin", where: "in einer Werkstatt", when: "im Jahr 1911", what: "erbt eine Uhr" };
+  // Saat mit Vorgang, ohne Figur/Ort/Zeit: die drei kommen aus dem Wurf.
+  const k1 = kopfKontext(zerlegeSaat("Der Bote bringt, was niemand hören will."), wurf, alt);
+  ist("das Was kommt aus der Saat", k1.what, "bringt, was niemand hören will");
+  ist("die Figur aus der Saat bleibt", k1.who, "Der Bote");
+  ist("der Ort wird gewürfelt", k1.where, "in einer Werkstatt");
+  ist("die Zeit wird gewürfelt", k1.when, "im Jahr 1911");
+  // Gegenprobe: Das Was des Wurfs darf NIE das der Saat verdrängen.
+  ist("der Wurf überschreibt das Was nicht", k1.what === wurf.what, false);
+  // Saat nennt Ort und Zeit selbst: nichts davon wird überwürfelt.
+  const k2 = kopfKontext(zerlegeSaat("Ein Wachmann am Hafen, 1953."), wurf, alt);
+  ist("ein genannter Ort bleibt", k2.where, "am Hafen");
+  ist("eine genannte Zeit bleibt", k2.when, "im Jahr 1953");
+  ist("eine genannte Figur bleibt", k2.who, "Ein Wachmann");
+  // Ohne Verb kein Vorgang: dann bleibt das alte Was, geraten wird nicht.
+  ist("ohne Verb bleibt das alte Was", k2.what, "schläft");
+  // Leerer Wurf: erst dann der alte Studio-Wert.
+  const k3 = kopfKontext(zerlegeSaat("Der Bote bringt, was niemand hören will."), {}, alt);
+  ist("leerer Wurf → alter Ort", k3.where, "im alten Ort");
+  ist("leerer Wurf → alte Zeit", k3.when, "gestern");
+}
+// Und das Studio nutzt die Regel wirklich — mit einem Wurf aus der Welt.
+wahr("„Text erzeugen\" würfelt die drei W aus der Welt", /const wurf = [\s\S]{0,120}worldFillContext\(\)[\s\S]{0,200}kopfKontext\(st\.ctx, wurf/.test(q));
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`Prüfstand einfacher Kopf — ${geprueft} Prüfungen:`);

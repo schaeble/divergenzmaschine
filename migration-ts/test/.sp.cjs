@@ -21293,6 +21293,10 @@ function zerlegeSaat(satz) {
   const what = v ? rest.slice(v.index).trim() : "";
   return { who, where, when, what };
 }
+function kopfKontext(saat, wurf, alt) {
+  const w = (k) => (saat[k] || wurf[k] || alt[k] || "").trim();
+  return { who: w("who"), where: w("where"), when: w("when"), what: (saat.what || alt.what || "").trim() };
+}
 function stellung(w) {
   const i = (n, max) => Math.max(0, Math.min(max, Math.round(n) || 0));
   return {
@@ -24551,8 +24555,20 @@ function mountStudio(root) {
       lenSlider.value = String(st.lenTarget);
       lenSlider.dispatchEvent(new Event("input"));
     }
-    for (const [feld, wert] of [[where, st.ctx.where], [when, st.ctx.when], [who, st.ctx.who], [what, st.ctx.what]]) {
-      if (locked.has(feld.id) || !wert) continue;
+    const wurf = (() => {
+      try {
+        return worldFillContext();
+      } catch {
+        return randomContext();
+      }
+    })();
+    const ctx = kopfKontext(
+      st.ctx,
+      wurf,
+      { who: who.value, where: where.value, when: when.value, what: what.value }
+    );
+    for (const [feld, wert] of [[where, ctx.where], [when, ctx.when], [who, ctx.who], [what, ctx.what]]) {
+      if (locked.has(feld.id) || !wert || feld.value === wert) continue;
       feld.value = wert;
       feld.dispatchEvent(new Event("input"));
     }

@@ -158,6 +158,25 @@ export function zerlegeSaat(satz: string): VierW {
   return { who, where, when, what };
 }
 
+// ── Die vier W beim Erzeugen: Was fix, der Rest gewürfelt ───────────────────
+// Gemeldet: „Beim Würfeln sollen die 3W mitgewürfelt werden. 1W ist fix und
+// kommt aus dem Wovon." Vorher schrieb der Kopf nur, was die Zerlegung
+// hergab, und alles Übrige blieb stehen, wie es im Studio zuletzt stand —
+// dieselbe Figur am selben Ort, Text um Text, obwohl der Kopf „Alles Übrige
+// würfelt die Maschine" verspricht.
+//
+// Die Regel: Der VORGANG (Was) ist der Kern der Saat und bleibt fix. Figur,
+// Ort und Zeit kommen aus dem Wurf — es sei denn, die Saat nennt sie selbst
+// („Ein Wachmann am Hafen, 1953" behält Wachmann, Hafen und 1953: Was jemand
+// hinschreibt, wird nicht überwürfelt). Nur wo die Saat schweigt, entscheidet
+// der Wurf; erst wenn auch der Wurf leer ist, bleibt der alte Studio-Wert.
+// Hat die Saat kein Verb, gibt es keinen Vorgang zum Festhalten: Dann bleibt
+// das Was des Studios stehen — geraten wird nichts.
+export function kopfKontext(saat: VierW, wurf: Partial<VierW>, alt: VierW): VierW {
+  const w = (k: keyof VierW): string => (saat[k] || wurf[k] || alt[k] || "").trim();
+  return { who: w("who"), where: w("where"), when: w("when"), what: (saat.what || alt.what || "").trim() };
+}
+
 // ── Was der Kopf in die echten Regler schreibt ──────────────────────────────
 
 export interface KopfWahl {
