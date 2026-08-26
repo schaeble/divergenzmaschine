@@ -2207,8 +2207,9 @@ function looksLikeInfinitive(w) {
 function extractLeadVerb(text) {
   const s = clean(text);
   if (!s) return { verb: null, rest: s };
-  const m = s.match(/^([A-Za-zÄÖÜäöüß]+)\s+(.+)$/);
-  if (!m) return { verb: null, rest: s };
+  const m0 = s.match(/^([A-Za-zÄÖÜäöüß]+)(,?)\s+(.+)$/);
+  if (!m0) return { verb: null, rest: s };
+  const m = [m0[0], m0[1], (m0[2] ? ", " : "") + m0[3]];
   const raw = m[1];
   const w = raw.toLowerCase();
   if (VERB_CONJ[w]) return { verb: raw, rest: m[2] };
@@ -3279,7 +3280,7 @@ function coherenceRepairV2(t, input) {
   return t;
 }
 function kleinerArtikel(t) {
-  return (t || "").replace(
+  return (t || "").replace(/[ \t]+([,;.!?])/g, "$1").replace(
     /([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/g,
     (_m, vor, sp, w) => vor + sp + w.charAt(0).toLowerCase() + w.slice(1)
   );
@@ -11315,6 +11316,14 @@ ist("im Zitat bleibt gro\xDF", kleinerArtikel("Sie sagt \u201EDie Uhr steht\u201
 ist("am Zeilenanfang bleibt gro\xDF", kleinerArtikel("Zeile eins\nDie zweite Zeile."), "Zeile eins\nDie zweite Zeile.");
 ist("kennen verlangt den Akkusativ", dekliniere("Der Bote", "akk"), "den Boten");
 wahr("die Objekt-Perspektive nutzt ihn", /Ich kenne \$\{dekliniere\(P, "akk"\)\}/.test((0, import_fs.readFileSync)("src/generation/structures.ts", "utf8")));
+{
+  const lv = extractLeadVerb("bringt, was niemand h\xF6ren will");
+  ist("das Leitverb wird erkannt", lv.verb, "bringt");
+  ist("das Komma bleibt am Rest", lv.rest, ", was niemand h\xF6ren will");
+  ist("und der Kern gilt nicht als Satz", looksLikeFullClause(lv.verb, lv.rest), false);
+  ist("ohne Komma unver\xE4ndert", extractLeadVerb("bringt einen Brief").rest, "einen Brief");
+  ist("der Schliff zieht das Leerzeichen vor dem Komma ein", kleinerArtikel("Der Bote bringt , was niemand h\xF6ren will."), "Der Bote bringt, was niemand h\xF6ren will.");
+}
 console.log(`Pr\xFCfstand Schliff \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {

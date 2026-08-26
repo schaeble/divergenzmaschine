@@ -60,8 +60,16 @@ function looksLikeInfinitive(w: string): boolean {
 export function extractLeadVerb(text: string): LeadVerb {
   const s = clean(text);
   if (!s) return { verb: null, rest: s };
-  const m = s.match(/^([A-Za-zÄÖÜäöüß]+)\s+(.+)$/);
-  if (!m) return { verb: null, rest: s };
+  // Ein Komma direkt hinter dem Verb („bringt, was niemand hören will") ist
+  // erlaubt; es bleibt am Rest, ohne Leerzeichen davor: Die Vorlagen bauen
+  // „⟨Figur⟩ ⟨Verb⟩ ⟨Rest⟩" mit einem Zwischenraum, und der Schliff zieht
+  // das Leerzeichen vor dem Komma wieder ein. Vorher fiel „bringt," durch das
+  // Muster, das Leitverb blieb null, und der Kern galt als ganzer Satz — im
+  // Blatt stand „Bringt, was niemand hören will." als eigener Satz, in 70 %
+  // der Läufe.
+  const m0 = s.match(/^([A-Za-zÄÖÜäöüß]+)(,?)\s+(.+)$/);
+  if (!m0) return { verb: null, rest: s };
+  const m: [string, string, string] = [m0[0]!, m0[1]!, (m0[2] ? ", " : "") + m0[3]!];
   const raw = m[1]!;
   const w = raw.toLowerCase();
   if (VERB_CONJ[w]) return { verb: raw, rest: m[2]! };

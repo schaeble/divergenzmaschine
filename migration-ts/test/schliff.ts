@@ -13,6 +13,7 @@
 import { readFileSync } from "fs";
 import { istAbgeschnitten, postProcessText, kleinerArtikel } from "../src/generation/postprocess";
 import { dekliniere } from "../src/atoms/assemble";
+import { extractLeadVerb, looksLikeFullClause } from "../src/generation/wordcls";
 import { OBJEKT_EINSTIEG } from "../src/generation/shape";
 import { applyEmphasis } from "../src/generation/emphasis";
 import { corpusSanitize } from "../src/corpus";
@@ -236,6 +237,21 @@ ist("am Zeilenanfang bleibt groß", kleinerArtikel("Zeile eins\nDie zweite Zeile
 // Nach „kennen" der Akkusativ: „Ich kenne den Boten", nicht „Ich kenne Der Bote".
 ist("kennen verlangt den Akkusativ", dekliniere("Der Bote", "akk"), "den Boten");
 wahr("die Objekt-Perspektive nutzt ihn", /Ich kenne \$\{dekliniere\(P, "akk"\)\}/.test(readFileSync("src/generation/structures.ts", "utf8")));
+
+// ── Ein Was mit Komma hinter dem Leitverb ───────────────────────────────────
+// Gemeldet: „Eine Maske — Bringt, was niemand hören will — alles unter
+// Kontrolle". „bringt," fiel durch das Verb-Muster, das Leitverb blieb null,
+// der Kern galt als ganzer Satz — und stand in 70 % der Läufe als eigener
+// Satz da. Jetzt ist das Komma erlaubt und bleibt am Rest.
+{
+  const lv = extractLeadVerb("bringt, was niemand hören will");
+  ist("das Leitverb wird erkannt", lv.verb, "bringt");
+  ist("das Komma bleibt am Rest", lv.rest, ", was niemand hören will");
+  ist("und der Kern gilt nicht als Satz", looksLikeFullClause(lv.verb, lv.rest), false);
+  // Gegenprobe: ohne Komma alles wie vorher.
+  ist("ohne Komma unverändert", extractLeadVerb("bringt einen Brief").rest, "einen Brief");
+  ist("der Schliff zieht das Leerzeichen vor dem Komma ein", kleinerArtikel("Der Bote bringt , was niemand hören will."), "Der Bote bringt, was niemand hören will.");
+}
 
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };

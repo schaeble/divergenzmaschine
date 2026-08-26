@@ -2030,8 +2030,9 @@ function looksLikeInfinitive(w) {
 function extractLeadVerb(text2) {
   const s = clean(text2);
   if (!s) return { verb: null, rest: s };
-  const m = s.match(/^([A-Za-zÄÖÜäöüß]+)\s+(.+)$/);
-  if (!m) return { verb: null, rest: s };
+  const m0 = s.match(/^([A-Za-zÄÖÜäöüß]+)(,?)\s+(.+)$/);
+  if (!m0) return { verb: null, rest: s };
+  const m = [m0[0], m0[1], (m0[2] ? ", " : "") + m0[3]];
   const raw = m[1];
   const w = raw.toLowerCase();
   if (VERB_CONJ[w]) return { verb: raw, rest: m[2] };

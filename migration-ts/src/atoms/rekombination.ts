@@ -427,7 +427,13 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
       if (doppelt) { kurzGesperrt.add(a.id); continue; }
     }
     const anf = anfangVon(text);
-    if (anf.split(" ").length >= 2 && (anfangZahl.get(anf) || 0) >= 2) { k.benutzt.add(a.id); continue; }
+    // Ein FORMELHAFTER Anfang („Der Einsatz ist", „Es geht um") nur einmal
+    // je Text: Gemeldet „Der Einsatz ist die Krone eines Sieges …" und sechs
+    // Sätze später „Der Einsatz ist eine Gruppe, die …" — die Sperre ließ
+    // zwei zu, und in 63 % der Läufe standen beide da. Andere Anfänge dürfen
+    // weiter zweimal vorkommen; die Formeln sind es, die als Schleife lesen.
+    const formel = /^(der einsatz ist|es geht um|alles dreht sich|was zählt ist|auf dem spiel)/.test(anf);
+    if (anf.split(" ").length >= 2 && (anfangZahl.get(anf) || 0) >= (formel ? 1 : 2)) { k.benutzt.add(a.id); continue; }
     gesetzteTexte.add(sig); anfangZahl.set(anf, (anfangZahl.get(anf) || 0) + 1);
     kurzGesperrt.clear();
     out.push(text);

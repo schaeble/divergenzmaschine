@@ -335,6 +335,19 @@ for (const s of FUENF) {
   setDramaData(null);
 }
 
+// ── Formelhafte Satzanfänge nur einmal je Text ──────────────────────────────
+// Gemeldet: „Der Einsatz ist die Krone eines Sieges …" und sechs Sätze später
+// „Der Einsatz ist eine Gruppe, die …". Die Anfangssperre ließ zwei zu;
+// gemessen standen beide in 63 % von 400 Läufen. Nachher 0.
+{
+  let doppelt = 0;
+  for (let i = 0; i < 100; i++) {
+    const t = buildStory(DEFAULT_BANK, eingabe(FUENF[i % 5]!));
+    if ((t.match(/Der Einsatz ist/g) || []).length >= 2) doppelt++;
+  }
+  wahr("„Der Einsatz ist“ höchstens einmal je Text (unter 3 % von 100)", doppelt < 3);
+}
+
 // ── Rhythmus-Kurve: nicht jeder Slot ein Gedankenstrich ─────────────────────
 // Gemeldet, aus einer Kadenz-Kurve: fünf von sechs Sätzen „A — B", weil die
 // Verschmelzung zweier Sätze immer den Strich setzte. Jetzt wechseln Strich

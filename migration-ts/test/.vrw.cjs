@@ -3323,8 +3323,9 @@ function looksLikeInfinitive(w) {
 function extractLeadVerb(text) {
   const s = clean(text);
   if (!s) return { verb: null, rest: s };
-  const m = s.match(/^([A-Za-zÄÖÜäöüß]+)\s+(.+)$/);
-  if (!m) return { verb: null, rest: s };
+  const m0 = s.match(/^([A-Za-zÄÖÜäöüß]+)(,?)\s+(.+)$/);
+  if (!m0) return { verb: null, rest: s };
+  const m = [m0[0], m0[1], (m0[2] ? ", " : "") + m0[3]];
   const raw = m[1];
   const w = raw.toLowerCase();
   if (VERB_CONJ[w]) return { verb: raw, rest: m[2] };
@@ -5035,7 +5036,7 @@ function coherenceRepairV2(t, input) {
   return t;
 }
 function kleinerArtikel(t) {
-  return (t || "").replace(
+  return (t || "").replace(/[ \t]+([,;.!?])/g, "$1").replace(
     /([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/g,
     (_m, vor, sp, w) => vor + sp + w.charAt(0).toLowerCase() + w.slice(1)
   );
@@ -14836,7 +14837,8 @@ function buildRekombination(bank, input, model) {
       }
     }
     const anf = anfangVon(text);
-    if (anf.split(" ").length >= 2 && (anfangZahl.get(anf) || 0) >= 2) {
+    const formel = /^(der einsatz ist|es geht um|alles dreht sich|was zählt ist|auf dem spiel)/.test(anf);
+    if (anf.split(" ").length >= 2 && (anfangZahl.get(anf) || 0) >= (formel ? 1 : 2)) {
       k.benutzt.add(a.id);
       continue;
     }
