@@ -5385,13 +5385,20 @@ var MarkovModel = class {
     if (!this.starts.length) return "";
     let key = this.starts[Math.floor(Math.random() * this.starts.length)];
     const out = key.split(" ");
-    while (out.length < maxWords) {
+    const hart = Math.ceil(maxWords * 1.5);
+    while (out.length < hart) {
       const choices = this.map.get(key);
       if (!choices || !choices.length) break;
       const next = choices[Math.floor(Math.random() * choices.length)];
       out.push(next);
       key = out.slice(out.length - this.order).join(" ");
       if (/[.!?…]$/.test(next) && out.length >= this.order + 2) break;
+    }
+    if (!/[.!?…]$/.test(out[out.length - 1] || "")) {
+      let i = out.length - 1;
+      while (i >= 0 && !/[.!?…]$/.test(out[i])) i--;
+      if (i < this.order + 1) return "";
+      out.length = i + 1;
     }
     return out.join(" ");
   }

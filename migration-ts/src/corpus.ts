@@ -272,13 +272,28 @@ export class MarkovModel {
     if (!this.starts.length) return "";
     let key = this.starts[Math.floor(Math.random() * this.starts.length)]!;
     const out = key.split(" ");
-    while (out.length < maxWords) {
+    // Weiche Grenze: bis zur Hälfte über maxWords darf die Kette laufen, um
+    // ihr Satzende noch zu erreichen — sonst würde fast jede Kette mit 14
+    // Wörtern Vorgabe mitten im Satz enden und verworfen.
+    const hart = Math.ceil(maxWords * 1.5);
+    while (out.length < hart) {
       const choices = this.map.get(key);
       if (!choices || !choices.length) break;
       const next = choices[Math.floor(Math.random() * choices.length)]!;
       out.push(next);
       key = out.slice(out.length - this.order).join(" ");
       if (/[.!?…]$/.test(next) && out.length >= this.order + 2) break;
+    }
+    // Nur ganze Sätze. Endet die Kette an einer Sackgasse des Korpus oder an
+    // der Wortgrenze, steht sie mitten im Satz — „Eine Feder, die auf stillem
+    // Wasser", „eine Schlagzeile, die es nicht" —, und der Glätter hängte
+    // einen Punkt an. Jetzt wird bis zum letzten Satzende zurückgeschnitten;
+    // gibt es keines, ist die Kette nichts wert und kommt leer zurück.
+    if (!/[.!?…]$/.test(out[out.length - 1] || "")) {
+      let i = out.length - 1;
+      while (i >= 0 && !/[.!?…]$/.test(out[i]!)) i--;
+      if (i < this.order + 1) return "";
+      out.length = i + 1;
     }
     return out.join(" ");
   }

@@ -16,7 +16,7 @@ import { dekliniere } from "../src/atoms/assemble";
 import { extractLeadVerb, looksLikeFullClause } from "../src/generation/wordcls";
 import { OBJEKT_EINSTIEG } from "../src/generation/shape";
 import { applyEmphasis } from "../src/generation/emphasis";
-import { corpusSanitize } from "../src/corpus";
+import { corpusSanitize, MarkovModel } from "../src/corpus";
 import { GERUESTZEILE } from "../src/atoms/rekombination";
 import { BUILTIN_PRESETS } from "../src/presets.data";
 
@@ -307,6 +307,22 @@ wahr("die Objekt-Perspektive nutzt ihn", /Ich kenne \$\{dekliniere\(P, "akk"\)\}
   wahr("und nach „Was“", /Was ein Wald ohne Bäume will/.test(t));
   const n = postProcessText("Dann kommt maria brandt zurück.", { who: "Maria Brandt", form: "prose" } as never);
   wahr("Gegenprobe: ein Name wird wiederhergestellt", /Maria Brandt/.test(n));
+}
+
+// ── Markov liefert nur ganze Sätze ──────────────────────────────────────────
+// Gemeldet: „Eine Feder, die auf stillem Wasser." und „eine Schlagzeile, die
+// es nicht." — Ketten, die an einer Sackgasse des Korpus oder an der
+// Wortgrenze mitten im Satz endeten; der Glätter hängte den Punkt an.
+{
+  const m = new MarkovModel(2);
+  m.addText("Eine Feder liegt auf stillem Wasser und dreht sich langsam im Kreis. Der Kiosk verkauft eine Schlagzeile, die es nicht gibt und niemals gab. Die Lava versiegelt den Ausgang für alle, die zu spät kommen. Der Hang beginnt zu wandern. Das Gestein wird durchsichtig.");
+  let unvoll = 0, leer = 0;
+  for (let i = 0; i < 300; i++) { const t = m.generate(10); if (!t) { leer++; continue; } if (!/[.!?…]$/.test(t)) unvoll++; }
+  ist("keine Kette endet mitten im Satz (300 Ketten, Grenze 10)", unvoll, 0);
+  wahr("und die Ausbeute bleibt (weiche Grenze)", leer < 30);
+  // Gegenprobe: Ohne erreichbares Satzende kommt die Kette leer zurück, nicht als Stumpf.
+  const k = new MarkovModel(2); k.addText("ein langer Satz ohne Ende der immer weiter läuft und nie aufhört zu laufen");
+  ist("kein Satzende → leer statt Stumpf", k.generate(6), "");
 }
 
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);

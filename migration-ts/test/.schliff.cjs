@@ -4835,6 +4835,77 @@ function corpusSanitize(text) {
   s = s.replace(/\s+/g, " ").trim();
   return s;
 }
+var MarkovModel = class {
+  constructor(order = 2) {
+    this.map = /* @__PURE__ */ new Map();
+    this.starts = [];
+    this.order = Math.max(1, order);
+  }
+  get size() {
+    return this.map.size;
+  }
+  /** Fügt einen Text inkrementell hinzu. */
+  addText(text) {
+    const clean1 = corpusSanitize(text);
+    for (const sentence of clean1.split(/(?<=[.!?…])\s+/)) {
+      const tokens = sentence.split(/\s+/).filter(Boolean);
+      if (tokens.length <= this.order) continue;
+      this.starts.push(tokens.slice(0, this.order).join(" "));
+      for (let i = 0; i + this.order < tokens.length; i++) {
+        const key = tokens.slice(i, i + this.order).join(" ");
+        const next = tokens[i + this.order];
+        const arr = this.map.get(key);
+        if (arr) arr.push(next);
+        else this.map.set(key, [next]);
+      }
+    }
+  }
+  /** Mittlere Überraschung (bits) eines Textes unter dem eigenen Modell, 0..1 normiert.
+   *  Hoch = der Text folgt unwahrscheinlichen Übergängen (informationsreich),
+   *  niedrig = er reproduziert den Korpus (klischeehaft). Nur bekannte Keys zählen. */
+  surprise(text) {
+    const clean1 = corpusSanitize(text);
+    let bits = 0, n = 0;
+    for (const sentence of clean1.split(/(?<=[.!?…])\s+/)) {
+      const toks = sentence.split(/\s+/).filter(Boolean);
+      for (let i = 0; i + this.order < toks.length; i++) {
+        const key = toks.slice(i, i + this.order).join(" ");
+        const choices = this.map.get(key);
+        if (!choices || !choices.length) continue;
+        const next = toks[i + this.order];
+        let c = 0;
+        for (const x of choices) if (x === next) c++;
+        const p = c > 0 ? c / choices.length : 1 / (choices.length + 1);
+        bits += -Math.log2(p);
+        n++;
+      }
+    }
+    if (n < 2) return -1;
+    return Math.max(0, Math.min(1, bits / n / 8));
+  }
+  /** Erzeugt einen Text (bis maxWords Wörter). */
+  generate(maxWords = 40) {
+    if (!this.starts.length) return "";
+    let key = this.starts[Math.floor(Math.random() * this.starts.length)];
+    const out = key.split(" ");
+    const hart = Math.ceil(maxWords * 1.5);
+    while (out.length < hart) {
+      const choices = this.map.get(key);
+      if (!choices || !choices.length) break;
+      const next = choices[Math.floor(Math.random() * choices.length)];
+      out.push(next);
+      key = out.slice(out.length - this.order).join(" ");
+      if (/[.!?…]$/.test(next) && out.length >= this.order + 2) break;
+    }
+    if (!/[.!?…]$/.test(out[out.length - 1] || "")) {
+      let i = out.length - 1;
+      while (i >= 0 && !/[.!?…]$/.test(out[i])) i--;
+      if (i < this.order + 1) return "";
+      out.length = i + 1;
+    }
+    return out.join(" ");
+  }
+};
 
 // src/atoms/rekombination.ts
 var GERUESTZEILE = /(^|\s)(SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE|DE|EN)\s*:|Shot\s*\d+\s*\()/;
@@ -12750,6 +12821,24 @@ wahr("die Objekt-Perspektive nutzt ihn", /Ich kenne \$\{dekliniere\(P, "akk"\)\}
   wahr("und nach \u201EWas\u201C", /Was ein Wald ohne Bäume will/.test(t));
   const n = postProcessText("Dann kommt maria brandt zur\xFCck.", { who: "Maria Brandt", form: "prose" });
   wahr("Gegenprobe: ein Name wird wiederhergestellt", /Maria Brandt/.test(n));
+}
+{
+  const m = new MarkovModel(2);
+  m.addText("Eine Feder liegt auf stillem Wasser und dreht sich langsam im Kreis. Der Kiosk verkauft eine Schlagzeile, die es nicht gibt und niemals gab. Die Lava versiegelt den Ausgang f\xFCr alle, die zu sp\xE4t kommen. Der Hang beginnt zu wandern. Das Gestein wird durchsichtig.");
+  let unvoll = 0, leer = 0;
+  for (let i = 0; i < 300; i++) {
+    const t = m.generate(10);
+    if (!t) {
+      leer++;
+      continue;
+    }
+    if (!/[.!?…]$/.test(t)) unvoll++;
+  }
+  ist("keine Kette endet mitten im Satz (300 Ketten, Grenze 10)", unvoll, 0);
+  wahr("und die Ausbeute bleibt (weiche Grenze)", leer < 30);
+  const k = new MarkovModel(2);
+  k.addText("ein langer Satz ohne Ende der immer weiter l\xE4uft und nie aufh\xF6rt zu laufen");
+  ist("kein Satzende \u2192 leer statt Stumpf", k.generate(6), "");
 }
 console.log(`Pr\xFCfstand Schliff \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
