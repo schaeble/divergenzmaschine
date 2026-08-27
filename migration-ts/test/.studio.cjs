@@ -23023,8 +23023,13 @@ function zerlegeSaat(satz) {
   if (o) rest = (rest.slice(0, o.index) + rest.slice(o.index + o[0].length)).replace(/\s{2,}/g, " ").trim();
   rest = rest.replace(/\s{2,}/g, " ").replace(/[,;]\s*$/, "").replace(/,\s*(?=[a-zäöüß])/, ", ").trim();
   const v = findeHauptverb(rest);
-  const who = (v ? rest.slice(0, v.index) : rest).replace(/,\s*$/, "").trim();
-  const what = v ? rest.slice(v.index).trim() : "";
+  let who = (v ? rest.slice(0, v.index) : rest).replace(/,\s*$/, "").trim();
+  let what = v ? rest.slice(v.index).trim() : "";
+  const inversion = /^(wo|was|wer|wie|warum|wann|wohin|woher|weshalb|wieso|wem|wen|dann|heute|gestern|morgen|vielleicht|manchmal|plötzlich|nachts|abends|morgens|dort|hier|jetzt|später|nie|immer|bald|endlich|irgendwo|irgendwann|so)$/i;
+  if (v && (inversion.test(who) || /\?$/.test(roh))) {
+    what = rest.trim();
+    who = "";
+  }
   return { who, where, when, what };
 }
 function kopfKontext(saat, wurf, alt) {

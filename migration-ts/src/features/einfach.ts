@@ -153,8 +153,16 @@ export function zerlegeSaat(satz: string): VierW {
   // der Vorgang. Ohne erkennbares Verb ist alles die Figur — ein Was zu
   // erfinden wäre schlechter als keines.
   const v = findeHauptverb(rest);
-  const who = (v ? rest.slice(0, v.index) : rest).replace(/,\s*$/, "").trim();
-  const what = v ? rest.slice(v.index).trim() : "";
+  let who = (v ? rest.slice(0, v.index) : rest).replace(/,\s*$/, "").trim();
+  let what = v ? rest.slice(v.index).trim() : "";
+  // Gemeldet: „Wo ist Gott?" wurde zu Wer „Wo", Was „ist Gott?". Was vor dem
+  // Verb steht, ist nur dann die Figur, wenn es eine sein kann. Ein Fragewort
+  // oder ein Adverb davor („Wo ist …", „Dann kommt …", „Vielleicht schläft …")
+  // ist eine Inversion: Der ganze Satz ist der Vorgang, die Figur bleibt
+  // leer — und wird beim Erzeugen gewürfelt. Eine Frage (Fragezeichen am
+  // Ende) ist immer ganz der Vorgang.
+  const inversion = /^(wo|was|wer|wie|warum|wann|wohin|woher|weshalb|wieso|wem|wen|dann|heute|gestern|morgen|vielleicht|manchmal|plötzlich|nachts|abends|morgens|dort|hier|jetzt|später|nie|immer|bald|endlich|irgendwo|irgendwann|so)$/i;
+  if (v && (inversion.test(who) || /\?$/.test(roh))) { what = rest.trim(); who = ""; }
   return { who, where, when, what };
 }
 

@@ -348,6 +348,24 @@ wahr("und fällt sonst auf das Muster zurück", /\?\? PROBEN\[/.test(q));
 ist("und ist kein eigener Reiter",
   /\["Einfach", mount/.test(readFileSync("src/ui/app.ts", "utf8")), false);
 
+// ── 5b · Frage und Inversion: nichts vor dem Verb ist die Figur ──────────────
+// Gemeldet: „Wo ist Gott?" wurde zu Wer „Wo", Was „ist Gott?".
+{
+  const f = zerlegeSaat("Wo ist Gott?");
+  ist("eine Frage ist ganz der Vorgang", f.what, "Wo ist Gott?");
+  ist("und die Figur bleibt leer", f.who, "");
+  const d = zerlegeSaat("Dann kommt der Bote.");
+  ist("ein Adverb vor dem Verb ist keine Figur", d.who, "");
+  ist("der ganze Satz ist der Vorgang", d.what, "Dann kommt der Bote");
+  // Gegenprobe: Eine echte Figur vor dem Verb bleibt Figur.
+  const b = zerlegeSaat("Der Bote bringt, was niemand hören will.");
+  ist("Figur bleibt Figur", b.who, "Der Bote");
+  // Und beim Erzeugen wird die leere Figur gewürfelt, der Vorgang bleibt.
+  const k = kopfKontext(f, { who: "Eine Uhrmacherin", where: "im Hafen", when: "im Jahr 1911" }, { who: "Alt", where: "", when: "", what: "" });
+  ist("die Figur kommt aus dem Wurf", k.who, "Eine Uhrmacherin");
+  ist("der Vorgang bleibt die Frage", k.what, "Wo ist Gott?");
+}
+
 // ── 6 · Beim Erzeugen: Was fix, Wer/Wo/Wann gewürfelt ───────────────────────
 // Gemeldet: „Beim Würfeln sollen die 3W mitgewürfelt werden. 1W ist fix und
 // kommt aus dem Wovon." Vorher blieb alles stehen, was die Saat nicht nannte.
