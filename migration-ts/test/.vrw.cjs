@@ -4206,15 +4206,19 @@ function applyToneRegister(text, tone) {
   if (reg === "wry") {
     const tags = ["\u2014 angeblich.", "\u2014 so hie\xDF es.", "\u2014 was auch immer das hei\xDFen sollte.", "\u2014 nat\xFCrlich.", "\u2014 wie praktisch.", "\u2014 oder so \xE4hnlich."];
     let ti = Math.floor(Math.random() * tags.length);
+    let gesetzt = 0, vorherGesetzt = false;
     return text.split(/\n\n+/).map((para) => {
       const sents = para.split(/(?<=[.!?…])\s+/);
       return sents.map((sen) => {
         const wc = sen.split(/\s+/).filter(Boolean).length;
-        if (wc >= 5 && wc <= 18 && /[.]$/.test(sen) && !/[()"„:—–]/.test(sen) && Math.random() < 0.3) {
+        if (gesetzt < 3 && !vorherGesetzt && wc >= 5 && wc <= 18 && /[.]$/.test(sen) && !/[()"„:—–]/.test(sen) && Math.random() < 0.3) {
           const tag = tags[ti % tags.length];
           ti++;
+          gesetzt++;
+          vorherGesetzt = true;
           return sen.replace(/\.$/, " " + tag);
         }
+        vorherGesetzt = false;
         return sen;
       }).join(" ");
     }).join("\n\n");

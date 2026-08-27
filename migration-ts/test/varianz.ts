@@ -7,6 +7,7 @@
 import {
   aehnlichkeit, varianzBericht, varianzBand, inhaltsWoerter, dreiergruppen,
 } from "../src/features/varianz";
+import { applyToneRegister } from "../src/generation/tone.shape";
 
 const fails: string[] = [];
 let geprueft = 0, bestanden = 0;
@@ -92,6 +93,25 @@ ist("Unsinn gilt als gering", varianzBand(NaN), "gering");
     varianzBericht([{ titel: "1", text: kurz }, { titel: "2", text: lang }]).vielfalt.laengen > 0.5);
   wahr("gleiche Längen nicht",
     varianzBericht([{ titel: "1", text: C }, { titel: "2", text: D }]).vielfalt.laengen < 0.5);
+}
+
+// ── Ironische Nachsätze: selten, und keiner zweimal ─────────────────────────
+// Gemeldet: acht Nachsätze („— natürlich", „— wie praktisch" …) in zwanzig
+// Sätzen, „— natürlich" zweimal. Ironie lebt von der Seltenheit.
+{
+  const satz = "Der Wecker geht und der Traum geht weiter.";
+  const text = Array.from({ length: 24 }, () => satz).join(" ");
+  let maxAnzahl = 0, doppelt = 0, nachbarn = 0;
+  for (let i = 0; i < 60; i++) {
+    const t = applyToneRegister(text, "ironisch");
+    const tags = t.match(/— (angeblich|so hieß es|was auch immer das heißen sollte|natürlich|wie praktisch|oder so ähnlich)\./g) || [];
+    maxAnzahl = Math.max(maxAnzahl, tags.length);
+    if (new Set(tags).size < tags.length) doppelt++;
+    if (/— [^.]+\. Der Wecker geht und der Traum geht weiter — /.test(t)) nachbarn++;
+  }
+  wahr("höchstens drei Nachsätze je Text (60 Läufe, 24 Sätze)", maxAnzahl <= 3 && maxAnzahl >= 1);
+  ist("kein Nachsatz zweimal", doppelt, 0);
+  ist("nie zwei Sätze hintereinander", nachbarn, 0);
 }
 
 console.log(`Prüfstand Varianz — ${geprueft} Prüfungen, ${bestanden} bestanden`);

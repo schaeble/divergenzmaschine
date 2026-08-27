@@ -72,15 +72,21 @@ export function applyToneRegister(text: string, tone?: string): string {
     // („—") der Verschmelzung stand im Blatt in einem Satz nebeneinander.
     const tags = ["— angeblich.", "— so hieß es.", "— was auch immer das heißen sollte.", "— natürlich.", "— wie praktisch.", "— oder so ähnlich."];
     let ti = Math.floor(Math.random() * tags.length);
+    // Gemeldet: acht Nachsätze in zwanzig Sätzen, „— natürlich" zweimal.
+    // Ironie lebt von der Seltenheit; je 30 % Wahrscheinlichkeit ohne
+    // Obergrenze war zu viel. Jetzt: höchstens drei je Text, jeder Nachsatz
+    // nur einmal (die sechs reichen), und nie zwei Sätze hintereinander.
+    let gesetzt = 0, vorherGesetzt = false;
     return text.split(/\n\n+/).map((para) => {
       const sents = para.split(/(?<=[.!?…])\s+/);
       return sents.map((sen) => {
         const wc = sen.split(/\s+/).filter(Boolean).length;
         // nur schlichte Aussagesätze, kein Dialog/Klammern/Gedankenstrich, ~30%
-        if (wc >= 5 && wc <= 18 && /[.]$/.test(sen) && !/[()"„:—–]/.test(sen) && Math.random() < 0.3) {
-          const tag = tags[ti % tags.length]!; ti++;
+        if (gesetzt < 3 && !vorherGesetzt && wc >= 5 && wc <= 18 && /[.]$/.test(sen) && !/[()"„:—–]/.test(sen) && Math.random() < 0.3) {
+          const tag = tags[ti % tags.length]!; ti++; gesetzt++; vorherGesetzt = true;
           return sen.replace(/\.$/, " " + tag);
         }
+        vorherGesetzt = false;
         return sen;
       }).join(" ");
     }).join("\n\n");
