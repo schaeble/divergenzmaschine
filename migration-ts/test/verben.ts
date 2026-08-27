@@ -100,6 +100,14 @@ ist("ein Mädchen mit Fahrrad", deriveAtom("ein Mädchen mit einem roten Fahrrad
 ist("eine Frist, die rückwärts läuft", deriveAtom("eine Frist, die rückwärts läuft").typ, "nominalphrase");
 ist("ein offenes Fenster (Adjektiv auf -en)", deriveAtom("ein offenes Fenster im Treppenhaus").typ, "nominalphrase");
 
+// Partizipien, die zugleich dritte Person sind, gelten als Verb — der Satzbau
+// entscheidet, nicht die Liste. „bewegt" stand fälschlich in der Sperrliste.
+ist("der Hang bewegt sich", deriveAtom("der Hang bewegt sich zwischen zwei Aufnahmen").typ, "hauptsatz");
+ist("ich träume (erste Person)", deriveAtom("Vielleicht träume ich von einem kleinen Hafen.").typ, "hauptsatz");
+ist("ich erinnere mich nicht", deriveAtom("Ich erinnere mich nicht, aber mein Körper schon.").typ, "hauptsatz");
+ist("nicht ist kein Verb", hatFinitesVerb("die es nicht"), false);
+ist("ein Buch mit leeren Seiten", deriveAtom("ein Buch mit leeren Seiten").typ, "nominalphrase");
+
 console.log(`Prüfstand Verben — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

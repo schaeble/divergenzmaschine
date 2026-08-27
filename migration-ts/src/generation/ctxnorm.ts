@@ -2,6 +2,8 @@
 // die Satzschablonen erwarten (Ortsangabe mit Präposition, Zeitangabe, Nominativ-
 // Phrase). Konservativ: greift nur ein, wenn die Form sicher bestimmbar ist.
 import { guessGender } from "./declension";
+import { NOUN_GENDER } from "./nouns.data";
+import { NOUN_GENDER_2 } from "./nouns2.data";
 import { istEigenePerson, PERSON_NOMEN } from "./wordcls";
 
 const PREPS = /^(in|im|an|am|auf|bei|beim|unter|über|vor|hinter|neben|zwischen|durch|entlang|inmitten|nahe|außerhalb|innerhalb|jenseits|diesseits|um|ums|zu|zur|zum|während|seit|nach|gegen|ab|aus|von|vom|unterwegs|irgendwo|nirgendwo|überall|dort|draußen|drinnen|hier|daheim|zuhause|unten|oben)\b/i;
@@ -33,6 +35,11 @@ const AUF_NOUNS = /^(insel|wiese|weide|feld|berg|hügel|gipfel|dach|turm|platz|m
 // „Kanalufer" → „am Kanalufer". Gemeldet: „ich liege Kanalufer, unter einer
 // Fußgängerbrücke" — das Wo ohne Präposition, weil der Zusatz nach dem Komma
 // die ganze Normalisierung abschaltete und das Grundwort nicht erkannt war.
+// Gattungswörter auf -land, die keine Ortsnamen sind: „im Ausland", nicht „in Ausland".
+const LAND_GATTUNG = new Set(["ausland", "inland", "umland", "hinterland", "festland", "neuland", "brachland", "flachland",
+  "hochland", "weideland", "ackerland", "vaterland", "heimatland", "niemandsland", "grenzland", "marschland", "ödland",
+  "bauland", "bergland", "tiefland", "binnenland", "vorland", "kernland", "mutterland", "traumland", "schlaraffenland"]);
+const ORTSNAME_ENDUNG = /(grad|burg|furt|ingen|hausen|heim|kirchen|brück|wick|ford|ton|ville|polis|stan|land|ien)$/;
 const AN_ENDUNG = /(ufer|meer|see|strand|küste|fluss|bach)$/i;
 
 export function normWhere(s: string): string {
@@ -52,8 +59,21 @@ export function normWhere(s: string): string {
   }
   const np = parseNP(t);
   if (!np) return t;
+  // Ein Ortsname auf -grad, -burg, -furt, -ingen … ohne Artikel, der nicht
+  // selbst in der Tabelle steht, ist ein Ortsname und kein Gattungswort:
+  // „Leningrad" → „in Leningrad", nicht „im Leningrad" (das Genus käme aus
+  // dem Grundwort „Grad"). „Hamburg", „Frankfurt", „Tübingen" ebenso.
+  const nurWort = !np.art && !np.adj && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(t);
+  const inTabelle = !!(NOUN_GENDER[t.toLowerCase()] || NOUN_GENDER_2[t.toLowerCase()]);
+  if (nurWort && !inTabelle && ORTSNAME_ENDUNG.test(t) && !LAND_GATTUNG.has(t.toLowerCase())) return `in ${t}`;
   const g = genderOf(np.art, np.noun);
-  if (!g) return t;
+  // Ein einzelnes großgeschriebenes Wort ohne Artikel und ohne bekanntes
+  // Genus ist mit großer Wahrscheinlichkeit ein Ortsname: „Malvern" →
+  // „in Malvern". Gemeldet: „Im Jahr 1960 Malvern finden wir ein Beben".
+  // Ein Gattungswort, das die Tabelle nicht kennt, bekommt damit ebenfalls
+  // „in" — ohne Artikel ist das die häufigste Präposition und immer noch
+  // besser als gar keine.
+  if (!g) return (!np.art && !np.adj && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(t)) ? `in ${t}` : t;
   const adj = np.adj ? adjDat(np.adj) + " " : "";
   const kind = AUF_NOUNS.test(np.noun) ? "auf" : (AN_NOUNS.test(np.noun) || AN_ENDUNG.test(np.noun)) ? "an" : "in";
   const indef = np.art.startsWith("ein");

@@ -325,6 +325,17 @@ wahr("die Objekt-Perspektive nutzt ihn", /Ich kenne \$\{dekliniere\(P, "akk"\)\}
   ist("kein Satzende → leer statt Stumpf", k.generate(6), "");
 }
 
+// ── Nebensatz am Ende ohne Verb ist ein Schnitt ─────────────────────────────
+// Gemeldet: „Eine Feder, die auf stillem Wasser.", „eine Schlagzeile, die es
+// nicht." Das Verb steht im deutschen Nebensatz am Ende; fehlt es, fehlt der
+// Rest. Vorher galt „nicht" (auf -t) als Verb, und der Satz blieb stehen.
+ist("die auf stillem Wasser", istAbgeschnitten("Eine Feder, die auf stillem Wasser"), true);
+ist("die es nicht", istAbgeschnitten("der Kioskbesitzer erinnert sich an eine Schlagzeile, die es nicht"), true);
+// Gegenproben: ein vollständiger Nebensatz bleibt, auch mit trennbarem Verb.
+ist("die ein Jahr auslässt", istAbgeschnitten("Eine Schicht, die ein Jahr auslässt"), false);
+ist("die zu warm ist", istAbgeschnitten("Eine Quelle, die zu warm ist"), false);
+ist("das ein Fluss vergessen hat", istAbgeschnitten("Ein Tal, das ein Fluss vergessen hat"), false);
+
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

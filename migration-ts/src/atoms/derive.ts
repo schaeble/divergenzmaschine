@@ -5,7 +5,7 @@
 import { extractLeadVerb, looksLikeFullClause } from "../generation/wordcls";
 import { isPastTense, properNames } from "../generation/coherence";
 import { guessGender } from "../generation/declension";
-import { istVerbform } from "../generation/verben";
+import { istVerbform, KEIN_VERB } from "../generation/verben";
 import { VERB_CONJ } from "../generation/verbconj.data";
 
 export type AtomTyp = "hauptsatz" | "nebensatz" | "nominalphrase" | "praepositionalphrase"
@@ -105,6 +105,9 @@ export function hatFinitesVerb(seg: string): boolean {
     // Beides sperrt die Morphologie-Regeln unten; die Tabelle darf weiter.
     const prev = (ws[i - 1] || "").toLowerCase(), next = ws[i + 1] || "";
     const attributiv = DET_ODER_PREP.has(prev) || /^[A-ZÄÖÜ]/.test(next);
+    // Erste Person: „ich träume", „ich erinnere mich" — ein Wort auf -e direkt
+    // nach „ich" ist das Verb.
+    if ((prev === "ich" || next.toLowerCase() === "ich") && /^[a-zäöüß]{3,}e$/.test(l) && !DET_ODER_PREP.has(l)) return true;
     if (VERB_CONJ[l]) return true;                                    // 3. Ps. Sg. Präsens
     if (SEIN_HABEN_WERDEN.test(l)) return true;                       // Hilfs-/Modalverben
     if (PRAET_FORM.test(l)) return true;                              // starke Präteritumformen (auch trennbar: aufging)
@@ -117,7 +120,10 @@ export function hatFinitesVerb(seg: string): boolean {
     if (/t$/.test(l) && !attributiv && istVerbform(l)) return true;
     if (/en$/.test(l) && l.length >= 5 && !EN_KEIN_VERB.has(l) && !attributiv
       && (VERB_CONJ[l.slice(0, -2) + "t"] || VERB_CONJ[l.slice(0, -2) + "et"] || istVerbform(l.slice(0, -2) + "t"))) return true;
-    if (/^(?!ge)[a-zäöüß]{4,}(?:t|te|en|ten)$/.test(l) && !NOMEN_ENDUNG.test(l)) return true;
+    // Die alte Endungsregel — jetzt mit der Sperrliste der Morphologie:
+    // „nicht", „jetzt", „selbst" enden auf -t und sind keine Verben. Ohne die
+    // Sperre galt „die es nicht" als Satz mit Verb und blieb als Rest stehen.
+    if (/^(?!ge)[a-zäöüß]{4,}(?:t|te|en|ten)$/.test(l) && !NOMEN_ENDUNG.test(l) && !KEIN_VERB.has(l) && !EN_KEIN_VERB.has(l)) return true;
   }
   // Satzanfang gesondert: „Klebt ein Zuckerkringel …“, „Stand im Sand“
   const first = (seg.match(/^([A-ZÄÖÜ][a-zäöüß]+)/) || [])[1];

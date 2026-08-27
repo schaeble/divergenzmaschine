@@ -309,6 +309,17 @@ ist("Gericht ohne Richter, wo …", normWhere("Gericht ohne Richter, wo die Kart
 ist("Bahnhof unter der Stadt", normWhere("Bahnhof unter der Stadt"), "im Bahnhof unter der Stadt");
 ist("mit Präposition davor unverändert", normWhere("im Platz in Hanoi"), "im Platz in Hanoi");
 
+// ── Ortsnamen ohne Artikel bekommen „in" ────────────────────────────────────
+// Gemeldet: „Im Jahr 1960 Malvern finden wir ein Beben unter der Schwelle".
+ist("Malvern (unbekannt, ein Wort, groß)", normWhere("Malvern"), "in Malvern");
+ist("Leningrad (Grundwort Grad, aber Ortsname)", normWhere("Leningrad"), "in Leningrad");
+ist("Hamburg", normWhere("Hamburg"), "in Hamburg");
+ist("Spanien", normWhere("Spanien"), "in Spanien");
+// Gegenproben: Gattungswörter behalten Artikel und Genus.
+wahr("Ausland bekommt nicht das nackte in", normWhere("Ausland") !== "in Ausland");
+ist("Vorstadt", normWhere("Vorstadt"), "in der Vorstadt");
+ist("Kanalufer bleibt am Ufer", normWhere("Kanalufer"), "am Kanalufer");
+
 console.log(`Prüfstand Nr. 44 — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

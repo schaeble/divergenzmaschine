@@ -253,7 +253,6 @@ var KEIN_VERB = /* @__PURE__ */ new Set([
   "verr\xFCckt",
   "bekannt",
   "geschickt",
-  "besetzt",
   "welt",
   "zeit",
   "nacht",
@@ -266,8 +265,6 @@ var KEIN_VERB = /* @__PURE__ */ new Set([
   "brot",
   "mut",
   "hut",
-  "rat",
-  "tat",
   "gebet",
   "geist",
   "gott",
@@ -280,7 +277,6 @@ var KEIN_VERB = /* @__PURE__ */ new Set([
   "frucht",
   "flucht",
   "sicht",
-  "macht",
   "pflicht",
   "angst",
   "kunst",
@@ -296,15 +292,9 @@ var KEIN_VERB = /* @__PURE__ */ new Set([
   "getrennt",
   "gemischt",
   "gebrannt",
-  "verletzt",
-  "entfernt",
-  "versteckt",
   "verschwunden",
-  "bestimmt",
   "gewohnt",
   "gelaunt",
-  "verzweifelt",
-  "beliebt",
   "ber\xFChmt",
   "geliebt",
   "gelebt",
@@ -312,23 +302,15 @@ var KEIN_VERB = /* @__PURE__ */ new Set([
   "gemacht",
   "gebracht",
   "gesagt",
-  "verlangt",
   "gesucht",
   "gehabt",
   "gewusst",
   "gekannt",
   "genannt",
   "benannt",
-  "bewegt",
   "gewollt",
-  "erlaubt",
   "verboten",
   "ge\xF6ffnet",
-  "beruhigt",
-  "erleichtert",
-  "verwirrt",
-  "irritiert",
-  "interessiert",
   "ungeahnt",
   "gestern",
   "heut",
@@ -3967,13 +3949,14 @@ function hatFinitesVerb(seg) {
     const l = w.toLowerCase();
     const prev = (ws[i - 1] || "").toLowerCase(), next = ws[i + 1] || "";
     const attributiv = DET_ODER_PREP.has(prev) || /^[A-ZÄÖÜ]/.test(next);
+    if ((prev === "ich" || next.toLowerCase() === "ich") && /^[a-zäöüß]{3,}e$/.test(l) && !DET_ODER_PREP.has(l)) return true;
     if (VERB_CONJ[l]) return true;
     if (SEIN_HABEN_WERDEN.test(l)) return true;
     if (PRAET_FORM.test(l)) return true;
     if (KURZVERB.test(l)) return true;
     if (/t$/.test(l) && !attributiv && istVerbform(l)) return true;
     if (/en$/.test(l) && l.length >= 5 && !EN_KEIN_VERB.has(l) && !attributiv && (VERB_CONJ[l.slice(0, -2) + "t"] || VERB_CONJ[l.slice(0, -2) + "et"] || istVerbform(l.slice(0, -2) + "t"))) return true;
-    if (/^(?!ge)[a-zäöüß]{4,}(?:t|te|en|ten)$/.test(l) && !NOMEN_ENDUNG.test(l)) return true;
+    if (/^(?!ge)[a-zäöüß]{4,}(?:t|te|en|ten)$/.test(l) && !NOMEN_ENDUNG.test(l) && !KEIN_VERB.has(l) && !EN_KEIN_VERB.has(l)) return true;
   }
   const first = (seg.match(/^([A-ZÄÖÜ][a-zäöüß]+)/) || [])[1];
   if (first) {
@@ -4881,6 +4864,35 @@ function genderOf(art, noun) {
 var adjDat = (adj) => adj ? adj.replace(/(er|es|em|en|e)$/i, "") + "en" : "";
 var AN_NOUNS = /^(meer|see|ozean|küste|strand|ufer|fluss|bach|rand|abgrund|fenster|tor|hafenbecken)$/i;
 var AUF_NOUNS = /^(insel|wiese|weide|feld|berg|hügel|gipfel|dach|turm|platz|markt|straße|brücke|lichtung|bühne|terrasse|balkon)$/i;
+var LAND_GATTUNG = /* @__PURE__ */ new Set([
+  "ausland",
+  "inland",
+  "umland",
+  "hinterland",
+  "festland",
+  "neuland",
+  "brachland",
+  "flachland",
+  "hochland",
+  "weideland",
+  "ackerland",
+  "vaterland",
+  "heimatland",
+  "niemandsland",
+  "grenzland",
+  "marschland",
+  "\xF6dland",
+  "bauland",
+  "bergland",
+  "tiefland",
+  "binnenland",
+  "vorland",
+  "kernland",
+  "mutterland",
+  "traumland",
+  "schlaraffenland"
+]);
+var ORTSNAME_ENDUNG = /(grad|burg|furt|ingen|hausen|heim|kirchen|brück|wick|ford|ton|ville|polis|stan|land|ien)$/;
 var AN_ENDUNG = /(ufer|meer|see|strand|küste|fluss|bach)$/i;
 function normWhere(s) {
   const t = (s || "").trim();
@@ -4897,8 +4909,11 @@ function normWhere(s) {
   }
   const np = parseNP(t);
   if (!np) return t;
+  const nurWort = !np.art && !np.adj && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(t);
+  const inTabelle = !!(NOUN_GENDER[t.toLowerCase()] || NOUN_GENDER_2[t.toLowerCase()]);
+  if (nurWort && !inTabelle && ORTSNAME_ENDUNG.test(t) && !LAND_GATTUNG.has(t.toLowerCase())) return `in ${t}`;
   const g = genderOf(np.art, np.noun);
-  if (!g) return t;
+  if (!g) return !np.art && !np.adj && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(t) ? `in ${t}` : t;
   const adj = np.adj ? adjDat(np.adj) + " " : "";
   const kind = AUF_NOUNS.test(np.noun) ? "auf" : AN_NOUNS.test(np.noun) || AN_ENDUNG.test(np.noun) ? "an" : "in";
   const indef = np.art.startsWith("ein");
@@ -6222,9 +6237,171 @@ function glaetten(t) {
 }
 var ABGESCHNITTEN = /(^|\s)(eine|einem|einen|einer|eines|der|die|dem|den|des|und|oder|aber|wie|als|im|am|bei|für|ohne)$/i;
 var NUR_OHNE_VERB = /(^|\s)(mit|an|auf|zu|vor|nach|aus|ist|sind|wird|ein|das)$/i;
+var NEBENSATZ_ENDE = /,\s+(der|die|das|dem|den|deren|dessen)\s+([a-zäöüß][^,;:]*)$/;
+var FUNKTION = /* @__PURE__ */ new Set([
+  "es",
+  "er",
+  "sie",
+  "ich",
+  "du",
+  "wir",
+  "ihr",
+  "man",
+  "sich",
+  "mich",
+  "dich",
+  "uns",
+  "euch",
+  "ihn",
+  "ihm",
+  "mir",
+  "dir",
+  "der",
+  "die",
+  "das",
+  "dem",
+  "den",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "kein",
+  "keine",
+  "keinen",
+  "keinem",
+  "mein",
+  "meine",
+  "meinen",
+  "meinem",
+  "sein",
+  "seine",
+  "seinen",
+  "seinem",
+  "ihre",
+  "ihren",
+  "ihrem",
+  "dein",
+  "deine",
+  "deinen",
+  "deinem",
+  "unser",
+  "unsere",
+  "in",
+  "im",
+  "an",
+  "am",
+  "auf",
+  "aus",
+  "bei",
+  "mit",
+  "nach",
+  "von",
+  "vom",
+  "zu",
+  "zum",
+  "zur",
+  "vor",
+  "\xFCber",
+  "unter",
+  "hinter",
+  "neben",
+  "zwischen",
+  "durch",
+  "f\xFCr",
+  "ohne",
+  "um",
+  "gegen",
+  "seit",
+  "bis",
+  "und",
+  "oder",
+  "aber",
+  "noch",
+  "schon",
+  "mehr",
+  "auch",
+  "nur",
+  "so",
+  "da",
+  "hier",
+  "dort",
+  "wo",
+  "wie",
+  "als",
+  "wenn",
+  "dann",
+  "immer",
+  "nie",
+  "wieder",
+  "heute",
+  "gestern",
+  "morgen",
+  "zu",
+  "sehr",
+  "ganz",
+  "etwas",
+  "nichts",
+  "alles",
+  "viel",
+  "wenig",
+  "zwei",
+  "drei",
+  "vier",
+  "f\xFCnf",
+  "einmal",
+  "zweimal",
+  "l\xE4ngst",
+  "gerade",
+  "eben",
+  "erst",
+  "kaum",
+  "fast",
+  "genau",
+  "pl\xF6tzlich",
+  "jemand",
+  "niemand",
+  "jeder",
+  "jede",
+  "jedes",
+  "alle",
+  "beide",
+  "zusammen",
+  "allein",
+  "anders",
+  "weiter",
+  "zur\xFCck",
+  "hinauf",
+  "hinab",
+  "hinaus",
+  "hinein",
+  "heraus",
+  "herein",
+  "oben",
+  "unten",
+  "innen",
+  "au\xDFen",
+  "links",
+  "rechts",
+  "vorn",
+  "hinten",
+  "drinnen",
+  "drau\xDFen",
+  "fort",
+  "weg",
+  "los"
+]);
+var verbMoeglich = (w) => /^[a-zäöüß]{2,}$/.test(w) && !FUNKTION.has(w) && !KEIN_VERB.has(w) && !/(em|er|es)$/.test(w);
 function istAbgeschnitten(bare) {
   if (!bare || bare.split(/\s+/).length > 12) return false;
   if (ABGESCHNITTEN.test(bare)) return true;
+  const ns = bare.match(NEBENSATZ_ENDE);
+  if (ns) {
+    const woerter2 = ns[2].split(/\s+/);
+    if (woerter2.length <= 6 && !woerter2.some(verbMoeglich)) return true;
+  }
   return NUR_OHNE_VERB.test(bare) && !hatFinitesVerb(bare);
 }
 function schliesseFigurenkomma(text, who) {

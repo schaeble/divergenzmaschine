@@ -77,20 +77,22 @@ const PRAEFIXE = ["zusammen", "zurück", "wieder", "gegen", "hinter", "durch", "
   "vor", "zu", "um", "bei", "da", "wider"];
 
 /** Wörter auf -t, die keine Verbform sind: Adjektive, Adverbien, Partikeln.
+ *  NICHT hier: Partizipien, die zugleich dritte Person sind („bewegt",
+ *  „verlangt", „bestimmt", „besetzt") — im Zweifel Verb, der Satzbau entscheidet.
  *  Nicht vollständig — aber die häufigen, die im Text neben einem Subjekt
  *  stehen und sonst „dorten" oder „kalst" würden. */
 export const KEIN_VERB = new Set(["alt", "kalt", "laut", "bunt", "hart", "zart", "satt", "glatt", "weit", "breit",
   "rot", "tot", "gut", "spät", "echt", "leicht", "dicht", "recht", "schlecht", "nackt", "fest", "letzt", "jetzt",
   "sanft", "ernst", "wert", "seit", "statt", "samt", "nicht", "mit", "seid", "zuletzt", "zuerst", "oft", "fast",
   "erst", "sonst", "meist", "direkt", "dort", "fort", "sofort", "selbst", "vielleicht", "überhaupt", "bereit",
-  "gerecht", "perfekt", "exakt", "absolut", "gesamt", "komplett", "verrückt", "bekannt", "geschickt", "besetzt",
-  "welt", "zeit", "nacht", "stadt", "acht", "licht", "wort", "ort", "blut", "brot", "mut", "hut", "rat", "tat",
+  "gerecht", "perfekt", "exakt", "absolut", "gesamt", "komplett", "verrückt", "bekannt", "geschickt",
+  "welt", "zeit", "nacht", "stadt", "acht", "licht", "wort", "ort", "blut", "brot", "mut", "hut",
   "gebet", "geist", "gott", "kraft", "luft", "haut", "haft", "gift", "schrift", "frucht", "flucht", "sicht",
-  "macht", "pflicht", "angst", "kunst", "dienst", "frost", "post", "ost", "west", "rest", "test", "text", "wüst",
-  "getrennt", "gemischt", "gebrannt", "verletzt", "entfernt", "versteckt", "verschwunden", "bestimmt", "gewohnt",
-  "gelaunt", "verzweifelt", "beliebt", "berühmt", "geliebt", "gelebt", "gedacht", "gemacht", "gebracht", "gesagt",
-  "verlangt", "gesucht", "gehabt", "gewusst", "gekannt", "genannt", "benannt", "bewegt", "gewollt", "erlaubt",
-  "verboten", "geöffnet", "beruhigt", "erleichtert", "verwirrt", "irritiert", "interessiert", "ungeahnt",
+  "pflicht", "angst", "kunst", "dienst", "frost", "post", "ost", "west", "rest", "test", "text", "wüst",
+  "getrennt", "gemischt", "gebrannt", "verschwunden", "gewohnt",
+  "gelaunt", "berühmt", "geliebt", "gelebt", "gedacht", "gemacht", "gebracht", "gesagt",
+  "gesucht", "gehabt", "gewusst", "gekannt", "genannt", "benannt", "gewollt",
+  "verboten", "geöffnet", "ungeahnt",
   "gestern", "heut", "abrupt", "adäquat", "privat", "intakt", "korrekt", "konkret", "moderat", "elegant",
   "brillant", "tolerant", "relevant", "markant", "rasant", "galant", "latent", "dezent", "prominent", "kompetent",
   "konsequent", "permanent", "evident", "eloquent", "intelligent", "gespannt", "entspannt", "gewandt", "verwandt",

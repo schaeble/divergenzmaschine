@@ -171,7 +171,6 @@ var KEIN_VERB = /* @__PURE__ */ new Set([
   "verr\xFCckt",
   "bekannt",
   "geschickt",
-  "besetzt",
   "welt",
   "zeit",
   "nacht",
@@ -184,8 +183,6 @@ var KEIN_VERB = /* @__PURE__ */ new Set([
   "brot",
   "mut",
   "hut",
-  "rat",
-  "tat",
   "gebet",
   "geist",
   "gott",
@@ -198,7 +195,6 @@ var KEIN_VERB = /* @__PURE__ */ new Set([
   "frucht",
   "flucht",
   "sicht",
-  "macht",
   "pflicht",
   "angst",
   "kunst",
@@ -214,15 +210,9 @@ var KEIN_VERB = /* @__PURE__ */ new Set([
   "getrennt",
   "gemischt",
   "gebrannt",
-  "verletzt",
-  "entfernt",
-  "versteckt",
   "verschwunden",
-  "bestimmt",
   "gewohnt",
   "gelaunt",
-  "verzweifelt",
-  "beliebt",
   "ber\xFChmt",
   "geliebt",
   "gelebt",
@@ -230,23 +220,15 @@ var KEIN_VERB = /* @__PURE__ */ new Set([
   "gemacht",
   "gebracht",
   "gesagt",
-  "verlangt",
   "gesucht",
   "gehabt",
   "gewusst",
   "gekannt",
   "genannt",
   "benannt",
-  "bewegt",
   "gewollt",
-  "erlaubt",
   "verboten",
   "ge\xF6ffnet",
-  "beruhigt",
-  "erleichtert",
-  "verwirrt",
-  "irritiert",
-  "interessiert",
   "ungeahnt",
   "gestern",
   "heut",
@@ -3777,13 +3759,14 @@ function hatFinitesVerb(seg) {
     const l = w.toLowerCase();
     const prev = (ws[i - 1] || "").toLowerCase(), next = ws[i + 1] || "";
     const attributiv = DET_ODER_PREP.has(prev) || /^[A-ZÄÖÜ]/.test(next);
+    if ((prev === "ich" || next.toLowerCase() === "ich") && /^[a-zäöüß]{3,}e$/.test(l) && !DET_ODER_PREP.has(l)) return true;
     if (VERB_CONJ[l]) return true;
     if (SEIN_HABEN_WERDEN.test(l)) return true;
     if (PRAET_FORM.test(l)) return true;
     if (KURZVERB.test(l)) return true;
     if (/t$/.test(l) && !attributiv && istVerbform(l)) return true;
     if (/en$/.test(l) && l.length >= 5 && !EN_KEIN_VERB.has(l) && !attributiv && (VERB_CONJ[l.slice(0, -2) + "t"] || VERB_CONJ[l.slice(0, -2) + "et"] || istVerbform(l.slice(0, -2) + "t"))) return true;
-    if (/^(?!ge)[a-zäöüß]{4,}(?:t|te|en|ten)$/.test(l) && !NOMEN_ENDUNG.test(l)) return true;
+    if (/^(?!ge)[a-zäöüß]{4,}(?:t|te|en|ten)$/.test(l) && !NOMEN_ENDUNG.test(l) && !KEIN_VERB.has(l) && !EN_KEIN_VERB.has(l)) return true;
   }
   const first = (seg.match(/^([A-ZÄÖÜ][a-zäöüß]+)/) || [])[1];
   if (first) {
@@ -3922,6 +3905,11 @@ ist("h\xF6ren (Plural)", deriveAtom("die Nachbarn h\xF6ren jedes Wort durch die 
 ist("ein M\xE4dchen mit Fahrrad", deriveAtom("ein M\xE4dchen mit einem roten Fahrrad").typ, "nominalphrase");
 ist("eine Frist, die r\xFCckw\xE4rts l\xE4uft", deriveAtom("eine Frist, die r\xFCckw\xE4rts l\xE4uft").typ, "nominalphrase");
 ist("ein offenes Fenster (Adjektiv auf -en)", deriveAtom("ein offenes Fenster im Treppenhaus").typ, "nominalphrase");
+ist("der Hang bewegt sich", deriveAtom("der Hang bewegt sich zwischen zwei Aufnahmen").typ, "hauptsatz");
+ist("ich tr\xE4ume (erste Person)", deriveAtom("Vielleicht tr\xE4ume ich von einem kleinen Hafen.").typ, "hauptsatz");
+ist("ich erinnere mich nicht", deriveAtom("Ich erinnere mich nicht, aber mein K\xF6rper schon.").typ, "hauptsatz");
+ist("nicht ist kein Verb", hatFinitesVerb("die es nicht"), false);
+ist("ein Buch mit leeren Seiten", deriveAtom("ein Buch mit leeren Seiten").typ, "nominalphrase");
 console.log(`Pr\xFCfstand Verben \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {

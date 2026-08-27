@@ -176,7 +176,6 @@ var KEIN_VERB = /* @__PURE__ */ new Set([
   "verr\xFCckt",
   "bekannt",
   "geschickt",
-  "besetzt",
   "welt",
   "zeit",
   "nacht",
@@ -189,8 +188,6 @@ var KEIN_VERB = /* @__PURE__ */ new Set([
   "brot",
   "mut",
   "hut",
-  "rat",
-  "tat",
   "gebet",
   "geist",
   "gott",
@@ -203,7 +200,6 @@ var KEIN_VERB = /* @__PURE__ */ new Set([
   "frucht",
   "flucht",
   "sicht",
-  "macht",
   "pflicht",
   "angst",
   "kunst",
@@ -219,15 +215,9 @@ var KEIN_VERB = /* @__PURE__ */ new Set([
   "getrennt",
   "gemischt",
   "gebrannt",
-  "verletzt",
-  "entfernt",
-  "versteckt",
   "verschwunden",
-  "bestimmt",
   "gewohnt",
   "gelaunt",
-  "verzweifelt",
-  "beliebt",
   "ber\xFChmt",
   "geliebt",
   "gelebt",
@@ -235,23 +225,15 @@ var KEIN_VERB = /* @__PURE__ */ new Set([
   "gemacht",
   "gebracht",
   "gesagt",
-  "verlangt",
   "gesucht",
   "gehabt",
   "gewusst",
   "gekannt",
   "genannt",
   "benannt",
-  "bewegt",
   "gewollt",
-  "erlaubt",
   "verboten",
   "ge\xF6ffnet",
-  "beruhigt",
-  "erleichtert",
-  "verwirrt",
-  "irritiert",
-  "interessiert",
   "ungeahnt",
   "gestern",
   "heut",
@@ -3135,6 +3117,35 @@ function genderOf(art, noun) {
 var adjDat = (adj) => adj ? adj.replace(/(er|es|em|en|e)$/i, "") + "en" : "";
 var AN_NOUNS = /^(meer|see|ozean|küste|strand|ufer|fluss|bach|rand|abgrund|fenster|tor|hafenbecken)$/i;
 var AUF_NOUNS = /^(insel|wiese|weide|feld|berg|hügel|gipfel|dach|turm|platz|markt|straße|brücke|lichtung|bühne|terrasse|balkon)$/i;
+var LAND_GATTUNG = /* @__PURE__ */ new Set([
+  "ausland",
+  "inland",
+  "umland",
+  "hinterland",
+  "festland",
+  "neuland",
+  "brachland",
+  "flachland",
+  "hochland",
+  "weideland",
+  "ackerland",
+  "vaterland",
+  "heimatland",
+  "niemandsland",
+  "grenzland",
+  "marschland",
+  "\xF6dland",
+  "bauland",
+  "bergland",
+  "tiefland",
+  "binnenland",
+  "vorland",
+  "kernland",
+  "mutterland",
+  "traumland",
+  "schlaraffenland"
+]);
+var ORTSNAME_ENDUNG = /(grad|burg|furt|ingen|hausen|heim|kirchen|brück|wick|ford|ton|ville|polis|stan|land|ien)$/;
 var AN_ENDUNG = /(ufer|meer|see|strand|küste|fluss|bach)$/i;
 function normWhere(s) {
   const t = (s || "").trim();
@@ -3144,10 +3155,18 @@ function normWhere(s) {
     const kopf = normWhere(t.slice(0, komma));
     return kopf + t.slice(komma);
   }
+  const zusatz = t.match(/^(.+?)\s+((?:in|im|an|am|auf|bei|vor|hinter|neben|unter|über|zwischen|nahe|gegenüber|ohne|mit|voller|aus)\s+.+)$/);
+  if (zusatz && !/\s/.test(zusatz[1].replace(/^(der|die|das|ein|eine)\s+/i, ""))) {
+    const kopf = normWhere(zusatz[1]);
+    if (kopf !== zusatz[1]) return `${kopf} ${zusatz[2]}`;
+  }
   const np = parseNP(t);
   if (!np) return t;
+  const nurWort = !np.art && !np.adj && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(t);
+  const inTabelle = !!(NOUN_GENDER[t.toLowerCase()] || NOUN_GENDER_2[t.toLowerCase()]);
+  if (nurWort && !inTabelle && ORTSNAME_ENDUNG.test(t) && !LAND_GATTUNG.has(t.toLowerCase())) return `in ${t}`;
   const g = genderOf(np.art, np.noun);
-  if (!g) return t;
+  if (!g) return !np.art && !np.adj && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(t) ? `in ${t}` : t;
   const adj = np.adj ? adjDat(np.adj) + " " : "";
   const kind = AUF_NOUNS.test(np.noun) ? "auf" : AN_NOUNS.test(np.noun) || AN_ENDUNG.test(np.noun) ? "an" : "in";
   const indef = np.art.startsWith("ein");

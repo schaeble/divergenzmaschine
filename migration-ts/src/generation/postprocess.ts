@@ -1,4 +1,5 @@
 import { namensErsetzer } from "../text-utils";
+import { KEIN_VERB } from "./verben";
 // Nachbearbeitung des generierten Textes: Kohärenz-Schliff + Reparatur.
 // Hinweis: Ton-Einfärbung und Sprachschliff (polishGerman) sind bewusst
 // noch nicht portiert (Phase 4) — hier steckt der Kern der Bereinigung.
@@ -62,9 +63,44 @@ const ABGESCHNITTEN = /(^|\s)(eine|einem|einen|einer|eines|der|die|dem|den|des|u
 // Demonstrativpronomen. Als Artikel koennen sie nicht am Satzende stehen — der
 // Unterschied ist das finite Verb.
 const NUR_OHNE_VERB = /(^|\s)(mit|an|auf|zu|vor|nach|aus|ist|sind|wird|ein|das)$/i;
+// Ein Relativ- oder Nebensatz am Ende, in dem das Verb fehlt: „Eine Feder,
+// die auf stillem Wasser.", „eine Schlagzeile, die es nicht." — gemeldet aus
+// einem Blatt. Der Nebensatz ist kurz (bis sechs Wörter) und hat kein finites
+// Verb; im Deutschen steht es dort am Ende, sein Fehlen ist der Schnitt.
+// Nur Relativpronomen, und nur wenn danach kein großgeschriebenes Wort steht
+// („das Schiff nicht mehr" ist Ellipse mit Artikel, kein Relativsatz). Der
+// Satz gilt als geschnitten, wenn im Relativsatz kein Wort steht, das ein
+// Verb sein KÖNNTE (kleingeschrieben, auf -t/-st/-en/-n/-e, nicht in der
+// Sperrliste): „die es nicht" — nichts; „die auf stillem Wasser" — nichts;
+// „den viele lesen" — „lesen" könnte, also bleibt der Satz.
+const NEBENSATZ_ENDE = /,\s+(der|die|das|dem|den|deren|dessen)\s+([a-zäöüß][^,;:]*)$/;
+// Wörter, die in einem Relativsatz stehen können, ohne Verb zu sein:
+// Pronomen, Präpositionen, Adverbien, Artikel, Partikeln. Was kleingeschrieben
+// ist, nicht hier steht, nicht in KEIN_VERB und nicht auf eine
+// Adjektivendung -em/-er/-es ausgeht, KÖNNTE ein Verb sein — dann bleibt der
+// Satz. Konservativ: Lieber einen geschnittenen Satz stehen lassen als einen
+// ganzen streichen.
+const FUNKTION = new Set(["es", "er", "sie", "ich", "du", "wir", "ihr", "man", "sich", "mich", "dich", "uns", "euch", "ihn",
+  "ihm", "mir", "dir", "der", "die", "das", "dem", "den", "des", "ein", "eine", "einen", "einem", "einer", "eines", "kein",
+  "keine", "keinen", "keinem", "mein", "meine", "meinen", "meinem", "sein", "seine", "seinen", "seinem", "ihre", "ihren",
+  "ihrem", "dein", "deine", "deinen", "deinem", "unser", "unsere", "in", "im", "an", "am", "auf", "aus", "bei", "mit", "nach",
+  "von", "vom", "zu", "zum", "zur", "vor", "über", "unter", "hinter", "neben", "zwischen", "durch", "für", "ohne", "um",
+  "gegen", "seit", "bis", "und", "oder", "aber", "noch", "schon", "mehr", "auch", "nur", "so", "da", "hier", "dort",
+  "wo", "wie", "als", "wenn", "dann", "immer", "nie", "wieder", "heute", "gestern", "morgen", "zu", "sehr", "ganz",
+  "etwas", "nichts", "alles", "viel", "wenig", "zwei", "drei", "vier", "fünf", "einmal", "zweimal", "längst", "gerade",
+  "eben", "erst", "kaum", "fast", "genau", "plötzlich", "jemand", "niemand", "jeder", "jede", "jedes", "alle", "beide",
+  "zusammen", "allein", "anders", "weiter", "zurück", "hinauf", "hinab", "hinaus", "hinein", "heraus", "herein",
+  "oben", "unten", "innen", "außen", "links", "rechts", "vorn", "hinten", "drinnen", "draußen", "fort", "weg", "los"]);
+const verbMoeglich = (w: string): boolean =>
+  /^[a-zäöüß]{2,}$/.test(w) && !FUNKTION.has(w) && !KEIN_VERB.has(w) && !/(em|er|es)$/.test(w);
 export function istAbgeschnitten(bare: string): boolean {
   if (!bare || bare.split(/\s+/).length > 12) return false;
   if (ABGESCHNITTEN.test(bare)) return true;
+  const ns = bare.match(NEBENSATZ_ENDE);
+  if (ns) {
+    const woerter = ns[2]!.split(/\s+/);
+    if (woerter.length <= 6 && !woerter.some(verbMoeglich)) return true;
+  }
   return NUR_OHNE_VERB.test(bare) && !hatFinitesVerb(bare);
 }
 
