@@ -270,6 +270,21 @@ export function beugeNachDu(s: string): string {
   return head + tail + rest;
 }
 
+// ── Komma nach einem Nebensatz im Wo, vor dem Hauptsatzverb ────────────────
+// Gemeldet: „Im ewigen Nachmittag in einem Gericht ohne Richter, wo die
+// Karten nicht stimmen bemerke ich eine Tonschale." Das Wo-Feld traegt einen
+// Nebensatz („…, wo die Karten nicht stimmen"); der Oeffner haengt das Verb
+// direkt an. Der Nebensatz muss geschlossen werden, bevor der Hauptsatz mit
+// Inversion weitergeht. Erkannt wird: Komma, Nebensatz-Einleiter, bis zu
+// sechzig Zeichen ohne Satzzeichen, dann ein Verb, dann das Subjekt in
+// Inversion (Pronomen oder grossgeschriebener Name). In einem Relativsatz
+// steht das finite Verb am Ende — auf „stimmen" folgt dort nie ein Subjekt,
+// die Regel greift also nur bei der Inversion.
+const NEBENSATZ = /(,\s+(?:wo|wohin|woher|wenn|als|weil|dass|obwohl|während|nachdem|bevor|sobald|solange|der|die|das|dem|den|deren|dessen)\s[^,.;:!?—–]{3,60}?[a-zäöüß])\s+(bemerk(?:t|e|st|en)|sieht|sehe|siehst|sehen|find(?:et|e|est|en)|entdeck(?:t|e|st|en)|erkenn(?:t|e|st|en)|trifft|treffe|triffst|treffen|hört|höre|hörst|hören|wartet|warte|wartest|warten|steht|stehe|stehst|stehen|beginnt|beginne|beginnst|beginnen|verliert|verliere|verlierst|verlieren)\s+(ich|du|wir|er|sie|es|man|[A-ZÄÖÜ][a-zäöüß]+)\b/g;
+export function kommaVorInversion(t: string): string {
+  return (t || "").replace(NEBENSATZ, "$1, $2 $3");
+}
+
 export function kleinesPronomen(t: string): string {
   return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr)\b/g, (_m: string, sp: string, w: string) => sp + w.toLowerCase());
 }
@@ -288,6 +303,7 @@ export function postProcessText(txt: string, input?: Input): string {
   // Namen) — ein Pronomen ist aber kein Nomen. „Sie" bleibt außen vor: Es
   // könnte die Anrede sein.
   t = kleinesPronomen(t);
+  t = kommaVorInversion(t);
 
   // Unbestimmter Artikel MITTEN im Satz klein.
   //

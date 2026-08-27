@@ -3287,6 +3287,10 @@ function beugeNachDu(s) {
   });
   return head + tail + rest;
 }
+var NEBENSATZ = /(,\s+(?:wo|wohin|woher|wenn|als|weil|dass|obwohl|während|nachdem|bevor|sobald|solange|der|die|das|dem|den|deren|dessen)\s[^,.;:!?—–]{3,60}?[a-zäöüß])\s+(bemerk(?:t|e|st|en)|sieht|sehe|siehst|sehen|find(?:et|e|est|en)|entdeck(?:t|e|st|en)|erkenn(?:t|e|st|en)|trifft|treffe|triffst|treffen|hört|höre|hörst|hören|wartet|warte|wartest|warten|steht|stehe|stehst|stehen|beginnt|beginne|beginnst|beginnen|verliert|verliere|verlierst|verlieren)\s+(ich|du|wir|er|sie|es|man|[A-ZÄÖÜ][a-zäöüß]+)\b/g;
+function kommaVorInversion(t) {
+  return (t || "").replace(NEBENSATZ, "$1, $2 $3");
+}
 function kleinesPronomen(t) {
   return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr)\b/g, (_m, sp, w) => sp + w.toLowerCase());
 }
@@ -3295,6 +3299,7 @@ function postProcessText(txt, input) {
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
   t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
   t = kleinesPronomen(t);
+  t = kommaVorInversion(t);
   t = kleinerArtikel(t);
   const name = (input?.who ?? "").toString().trim();
   if (name) {
@@ -11343,6 +11348,21 @@ wahr("die Objekt-Perspektive nutzt ihn", /Ich kenne \$\{dekliniere\(P, "akk"\)\}
   ist("nach der Inversion mit Strich", beugeNachDu("Am Morgen bemerkst du eine Kapsel \u2014 etwas Bekanntes tr\xE4gt einen fremden Namen."), "Am Morgen bemerkst du eine Kapsel \u2014 etwas Bekanntes tr\xE4gt einen fremden Namen.");
   ist("du geht \u2192 du gehst", beugeNachDu("Du geht unter Deck."), "Du gehst unter Deck.");
   ist("bis zur Konjunktion mit neuem Subjekt", beugeNachDu("du findet den Bug, aber er findet dich"), "du findest den Bug, aber er findet dich");
+}
+{
+  ist(
+    "der Nebensatz wird vor der Inversion geschlossen",
+    kommaVorInversion("Im Nachmittag in einem Gericht ohne Richter, wo die Karten nicht stimmen bemerke ich eine Tonschale."),
+    "Im Nachmittag in einem Gericht ohne Richter, wo die Karten nicht stimmen, bemerke ich eine Tonschale."
+  );
+  ist(
+    "auch mit Relativpronomen und Name",
+    kommaVorInversion("Am Hafen, der keine Schiffe kennt bemerkt Der Bote eine Kapsel."),
+    "Am Hafen, der keine Schiffe kennt, bemerkt Der Bote eine Kapsel."
+  );
+  ist("ein Relativsatz, der auf das Verb endet, bleibt", kommaVorInversion("Ein Mann, der die Karten nicht sieht."), "Ein Mann, der die Karten nicht sieht.");
+  ist("ein Komma, das schon da ist, wird nicht verdoppelt", kommaVorInversion("Am Hafen, wo es regnet, bemerke ich nichts."), "Am Hafen, wo es regnet, bemerke ich nichts.");
+  ist("ohne Nebensatz-Einleiter keine \xC4nderung", kommaVorInversion("Am Hafen, im Regen bemerke ich nichts."), "Am Hafen, im Regen bemerke ich nichts.");
 }
 console.log(`Pr\xFCfstand Schliff \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

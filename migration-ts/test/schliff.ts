@@ -11,7 +11,7 @@
   }
 }
 import { readFileSync } from "fs";
-import { istAbgeschnitten, postProcessText, kleinerArtikel, kleinesPronomen, beugeNachDu } from "../src/generation/postprocess";
+import { istAbgeschnitten, postProcessText, kleinerArtikel, kleinesPronomen, beugeNachDu, kommaVorInversion } from "../src/generation/postprocess";
 import { dekliniere } from "../src/atoms/assemble";
 import { extractLeadVerb, looksLikeFullClause } from "../src/generation/wordcls";
 import { OBJEKT_EINSTIEG } from "../src/generation/shape";
@@ -276,6 +276,22 @@ wahr("die Objekt-Perspektive nutzt ihn", /Ich kenne \$\{dekliniere\(P, "akk"\)\}
   // Die Regel selbst bleibt: ein „du" mit falschem Verb davor oder danach.
   ist("du geht → du gehst", beugeNachDu("Du geht unter Deck."), "Du gehst unter Deck.");
   ist("bis zur Konjunktion mit neuem Subjekt", beugeNachDu("du findet den Bug, aber er findet dich"), "du findest den Bug, aber er findet dich");
+}
+
+// ── Komma nach einem Nebensatz im Wo ────────────────────────────────────────
+// Gemeldet: „in einem Gericht ohne Richter, wo die Karten nicht stimmen
+// bemerke ich eine Tonschale".
+{
+  ist("der Nebensatz wird vor der Inversion geschlossen",
+    kommaVorInversion("Im Nachmittag in einem Gericht ohne Richter, wo die Karten nicht stimmen bemerke ich eine Tonschale."),
+    "Im Nachmittag in einem Gericht ohne Richter, wo die Karten nicht stimmen, bemerke ich eine Tonschale.");
+  ist("auch mit Relativpronomen und Name",
+    kommaVorInversion("Am Hafen, der keine Schiffe kennt bemerkt Der Bote eine Kapsel."),
+    "Am Hafen, der keine Schiffe kennt, bemerkt Der Bote eine Kapsel.");
+  // Gegenproben: Im Relativsatz steht das Verb am Ende — kein Subjekt danach, kein Komma.
+  ist("ein Relativsatz, der auf das Verb endet, bleibt", kommaVorInversion("Ein Mann, der die Karten nicht sieht."), "Ein Mann, der die Karten nicht sieht.");
+  ist("ein Komma, das schon da ist, wird nicht verdoppelt", kommaVorInversion("Am Hafen, wo es regnet, bemerke ich nichts."), "Am Hafen, wo es regnet, bemerke ich nichts.");
+  ist("ohne Nebensatz-Einleiter keine Änderung", kommaVorInversion("Am Hafen, im Regen bemerke ich nichts."), "Am Hafen, im Regen bemerke ich nichts.");
 }
 
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);

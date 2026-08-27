@@ -16477,6 +16477,10 @@ function beugeNachDu(s) {
   });
   return head + tail + rest;
 }
+var NEBENSATZ = /(,\s+(?:wo|wohin|woher|wenn|als|weil|dass|obwohl|während|nachdem|bevor|sobald|solange|der|die|das|dem|den|deren|dessen)\s[^,.;:!?—–]{3,60}?[a-zäöüß])\s+(bemerk(?:t|e|st|en)|sieht|sehe|siehst|sehen|find(?:et|e|est|en)|entdeck(?:t|e|st|en)|erkenn(?:t|e|st|en)|trifft|treffe|triffst|treffen|hört|höre|hörst|hören|wartet|warte|wartest|warten|steht|stehe|stehst|stehen|beginnt|beginne|beginnst|beginnen|verliert|verliere|verlierst|verlieren)\s+(ich|du|wir|er|sie|es|man|[A-ZÄÖÜ][a-zäöüß]+)\b/g;
+function kommaVorInversion(t) {
+  return (t || "").replace(NEBENSATZ, "$1, $2 $3");
+}
 function kleinesPronomen(t) {
   return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr)\b/g, (_m, sp, w) => sp + w.toLowerCase());
 }
@@ -16485,6 +16489,7 @@ function postProcessText(txt2, input) {
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
   t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
   t = kleinesPronomen(t);
+  t = kommaVorInversion(t);
   t = kleinerArtikel(t);
   const name = (input?.who ?? "").toString().trim();
   if (name) {
@@ -22624,10 +22629,31 @@ function mountStudio(root) {
       saveLocks();
       saveLockVals();
       repaint();
+      updOeffnen();
     });
     paint();
     return b;
   };
+  const alleSchloesserOeffnen = () => {
+    const ids = [...locked];
+    locked.clear();
+    for (const id of ids) {
+      delete lockVals[id];
+      (lockPainters[id] || []).forEach((m) => m.paint());
+    }
+    saveLocks();
+    saveLockVals();
+    updOeffnen();
+  };
+  const oeffnenLbl = el("span", {});
+  const oeffnenBtn = el("button", { type: "button", title: "Alle Schl\xF6sser auf einmal \xF6ffnen \u2014 die Werte bleiben stehen, nur der Schutz vor dem W\xFCrfel f\xE4llt." }, icon("lockOpen"), " ", oeffnenLbl);
+  const updOeffnen = () => {
+    const n = locked.size;
+    oeffnenLbl.textContent = n === 0 ? "Keine Schl\xF6sser" : n === 1 ? "1 Schloss \xF6ffnen" : `${n} Schl\xF6sser \xF6ffnen`;
+    oeffnenBtn.disabled = n === 0;
+  };
+  oeffnenBtn.addEventListener("click", alleSchloesserOeffnen);
+  updOeffnen();
   const lockField = (label, sel) => el("div", { class: "field" }, el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sel)), sel);
   const ctxDice = el("button", {}, icon("dice"), " Kontext w\xFCrfeln");
   ctxDice.addEventListener("click", () => {
@@ -22946,7 +22972,7 @@ function mountStudio(root) {
       umweltIn,
       umweltHint
     ),
-    el("div", { class: "btnrow" }, ctxDice, alleBtn, wikiBtn, abschriftBtn, themaBtn, ctxKeep, wikiHint)
+    el("div", { class: "btnrow" }, ctxDice, alleBtn, oeffnenBtn, wikiBtn, abschriftBtn, themaBtn, ctxKeep, wikiHint)
   );
   const lockBar = el("div", { class: "lockbar" });
   const preset = select("f-preset", markedPresetOptions());
@@ -25133,6 +25159,7 @@ function mountStudio(root) {
       saveLocks();
       saveLockVals();
       Object.keys(lockPainters).forEach((id) => (lockPainters[id] || []).forEach((m) => m.paint()));
+      updOeffnen();
       lockBar.remove();
       updHints();
       renderPresetChecks();
@@ -28026,6 +28053,23 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
     (studioQ.match(/preset\.value === AUTOMIX_ID \? Object\.keys\(lastAutoMixSources\(\)\)/g) || []).length,
     1
   );
+}
+{
+  const c = {};
+  for (let i = 0; i < 150; i++) {
+    const w = wuerfleAlles({ markovMode: "off" }, /* @__PURE__ */ new Set());
+    const v = w.regler["markovMode"] || "";
+    c[v] = (c[v] || 0) + 1;
+  }
+  ist("alle drei Markov-Stellungen kommen vor", ["off", "mix", "on"].every((v) => (c[v] || 0) > 0), true);
+  wahr("keine Stellung nimmt \xFCber zwei Drittel der W\xFCrfe", Math.max(...Object.values(c)) < 100);
+  const zu = /* @__PURE__ */ new Set(["f-markov"]);
+  let bewegt = 0;
+  for (let i = 0; i < 40; i++) {
+    const w = wuerfleAlles({ markovMode: "mix" }, zu);
+    if (w.regler["markovMode"] !== "mix") bewegt++;
+  }
+  ist("mit Schloss bleibt Markov stehen", bewegt, 0);
 }
 console.log(`Pr\xFCfstand Schaltplan \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
