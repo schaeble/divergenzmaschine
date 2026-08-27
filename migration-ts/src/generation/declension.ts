@@ -1,6 +1,26 @@
 // Deklination von Hook-/Requisit-Phrasen (Akkusativ/Dativ) + Adjektivendungen.
 import { clean } from "../text-utils";
-import { NOUN_GENDER } from "./nouns.data";
+import { istVerbform } from "./verben";
+import { NOUN_GENDER as NOUN_GENDER_1 } from "./nouns.data";
+import { NOUN_GENDER_2 } from "./nouns2.data";
+
+/** Beide Tabellen in einer — die erste hat Vorrang. Seit 4.331.1 kommt der
+ *  zweite Teil aus der Abdeckungsmessung (Nomen aus Presets und Vorräten,
+ *  die vorher kein Genus hatten). */
+const NOUN_GENDER: Record<string, "m" | "f" | "n"> = { ...NOUN_GENDER_2, ...NOUN_GENDER_1 };
+export { NOUN_GENDER };
+
+/** Substantivierte Infinitive („das Leben", „das Schweigen", „das Warten"):
+ *  Neutrum. Erkannt am Verbstamm — die Morphologie sagt, ob „…t" davon eine
+ *  Verbform wäre („leb-t", „schweig-t", „wart-et"). */
+function istSubstantivierterInfinitiv(w: string): boolean {
+  if (!/^[a-zäöüß]{4,}en$/.test(w)) return false;
+  const stamm = w.slice(0, -2);
+  return istVerbform(stamm + "t") || istVerbform(stamm + "et");
+}
+/** Nomen auf -e sind zu gut neun Zehnteln feminin; die Ausnahmen (Auge, Ende,
+ *  Name, Junge, Ge…e) stehen in den Tabellen und greifen davor. */
+const E_AUSNAHME = /^(ge[a-zäöüß]+e|.*(auge|ende|käse|junge|erbe|interesse))$/;
 
 /** Endung abtrennen. Auch -en und -em, seit die Requisiten im Akkusativ in den
  *  Presets stehen ("einen geschnitzten Anhänger") und von dort in andere Fälle
@@ -32,6 +52,9 @@ export function guessGender(noun: string): "m" | "f" | "n" | undefined {
   if (/(ung|heit|keit|schaft|tät|ion|ik|enz|anz|ei|ade|age|üre|itis|ur)$/.test(w)) return "f";
   if (/(chen|lein|ment|tum|um|nis|ma)$/.test(w)) return "n";
   if (/(ling|ismus|ant|ent|ist|eur|or|ich|ig|ast)$/.test(w)) return "m";
+  if (istSubstantivierterInfinitiv(w)) return "n";
+  if (/^ge[a-zäöüß]{3,}e$/.test(w)) return "n";                 // Gebäude, Gemälde, Gefolge
+  if (/e$/.test(w) && w.length >= 4 && !E_AUSNAHME.test(w)) return "f";
   if (/er$/.test(w)) return "m";
   return undefined;
 }
