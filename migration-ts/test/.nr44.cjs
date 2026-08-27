@@ -6515,15 +6515,40 @@ var NEBENSATZ = /(,\s+(?:wo|wohin|woher|wenn|als|weil|dass|obwohl|während|nachd
 function kommaVorInversion(t) {
   return (t || "").replace(NEBENSATZ, "$1, $2 $3");
 }
+function istPluralFigur(who) {
+  const w = (who || "").trim();
+  if (!w) return false;
+  if (/^(zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|beide|alle|viele|einige|mehrere|manche|zwölf|hundert)\b/i.test(w)) return true;
+  if (/\b(und|&)\b/.test(w) && !/,/.test(w)) return true;
+  const m = w.match(/^die\s+([A-ZÄÖÜ][a-zäöüß-]+)$/i);
+  if (m) {
+    const n = m[1].toLowerCase();
+    if (/(innen|leute|kinder|eltern|geschwister|männer|frauen)$/.test(n)) return true;
+    return /en$/.test(n) && !/(chen|lein)$/.test(n);
+  }
+  return false;
+}
+function pluralKongruenz(t, who) {
+  const name = (who || "").trim();
+  if (!name || !istPluralFigur(name)) return t;
+  const esc = escapeRegExp(name);
+  const beuge = (v) => {
+    const p = beugeVerb(v, "wir");
+    return p && p !== v ? p : v;
+  };
+  let out = t.replace(new RegExp(`(\\b${esc})\\s+([a-z\xE4\xF6\xFC\xDF]+t)\\b`, "giu"), (m, n, v) => istVerbform(v) ? `${n} ${beuge(v)}` : m);
+  out = out.replace(new RegExp(`\\b([a-z\xE4\xF6\xFC\xDF]+t)\\s+(${esc})\\b`, "giu"), (m, v, n) => istVerbform(v) ? `${beuge(v)} ${n}` : m);
+  return out;
+}
 function kleinesPronomen(t) {
-  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
+  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
     /(,[ \t]+)(Wo|Wenn|Als|Weil|Dass|Obwohl|Während|Nachdem|Bevor|Sobald|Solange|Damit|Ob|Der|Die|Das|Dem|Den|Deren|Dessen)\b(?=\s)/g,
     (_m, sp, w) => sp + w.charAt(0).toLowerCase() + w.slice(1)
   );
 }
 function fragezeichen(t) {
   return (t || "").replace(
-    /(^|[.!?…]\s+|\n)(Wo|Was|Wer|Wie|Warum|Wann|Wohin|Woher|Weshalb|Wieso|Wem|Wen)\s+(ist|sind|war|waren|hat|haben|wird|werden|kommt|bleibt|will|kann|soll|darf|muss|geht|steht|bist|bin|seid|weiß|wissen)\b([^.!?…\n]{0,50})\./g,
+    /(^|[.!?…:]\s+|\n)(Wo|Was|Wer|Wie|Warum|Wann|Wohin|Woher|Weshalb|Wieso|Wem|Wen)\s+(ist|sind|war|waren|hat|haben|wird|werden|kommt|bleibt|will|kann|soll|darf|muss|geht|steht|bist|bin|seid|weiß|wissen)\b([^.!?…\n]{0,50})\./g,
     (m, vor, fw, v, rest) => rest.split(/\s+/).filter(Boolean).length <= 6 && !rest.includes(",") ? `${vor}${fw} ${v}${rest}?` : m
   );
 }
@@ -6545,6 +6570,7 @@ function postProcessText(txt, input) {
       t = t.replace(new RegExp(`\\b${esc}\\b`, "gi"), wieder);
     }
   }
+  t = pluralKongruenz(t, name);
   if (!isLineForm(input) && input?.tone && TONE_DATA[input.tone]) {
     const td = TONE_DATA[input.tone];
     if (td.opener.length) {

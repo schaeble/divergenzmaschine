@@ -1,5 +1,5 @@
 import { namensErsetzer } from "../text-utils";
-import { KEIN_VERB } from "./verben";
+import { KEIN_VERB, beugeVerb, istVerbform } from "./verben";
 // Nachbearbeitung des generierten Textes: Kohärenz-Schliff + Reparatur.
 // Hinweis: Ton-Einfärbung und Sprachschliff (polishGerman) sind bewusst
 // noch nicht portiert (Phase 4) — hier steckt der Kern der Bereinigung.
@@ -323,9 +323,44 @@ export function kommaVorInversion(t: string): string {
   return (t || "").replace(NEBENSATZ, "$1, $2 $3");
 }
 
+/** Ist das Wer eine Mehrzahl? Zahlwort, Mengenwort, „X und Y" oder ein
+ *  Plural mit Artikel „die" und Pluralendung. Konservativ: „Die Uhrmacherin"
+ *  (auf -in) und „Die Nacht" sind Singular. */
+export function istPluralFigur(who: string): boolean {
+  const w = (who || "").trim();
+  if (!w) return false;
+  if (/^(zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|beide|alle|viele|einige|mehrere|manche|zwölf|hundert)\b/i.test(w)) return true;
+  if (/\b(und|&)\b/.test(w) && !/,/.test(w)) return true;
+  const m = w.match(/^die\s+([A-ZÄÖÜ][a-zäöüß-]+)$/i);
+  if (m) {
+    const n = m[1]!.toLowerCase();
+    if (/(innen|leute|kinder|eltern|geschwister|männer|frauen)$/.test(n)) return true;
+    return /en$/.test(n) && !/(chen|lein)$/.test(n);      // die Kollegen, die Boten — nicht die Mädchen
+  }
+  return false;
+}
+
+/** Kongruenz für eine Mehrzahl-Figur: Das Verb neben ihr in den Plural.
+ *  Gemeldet: „Zwei Frauen begreift: Wer ist Ben." Die Rahmen setzen die dritte
+ *  Person Singular; steht eine Mehrzahl im Wer, beugt dieser Durchgang das
+ *  Verb direkt vor oder hinter ihr auf die Pluralform (= wir-Form). Nur
+ *  Verben, die die Morphologie kennt; „ist" wird zu „sind". */
+export function pluralKongruenz(t: string, who?: string): string {
+  const name = (who || "").trim();
+  if (!name || !istPluralFigur(name)) return t;
+  const esc = escapeRegExp(name);
+  const beuge = (v: string): string => {
+    const p = beugeVerb(v, "wir");
+    return p && p !== v ? p : v;
+  };
+  let out = t.replace(new RegExp(`(\\b${esc})\\s+([a-zäöüß]+t)\\b`, "giu"), (m: string, n: string, v: string) => istVerbform(v) ? `${n} ${beuge(v)}` : m);
+  out = out.replace(new RegExp(`\\b([a-zäöüß]+t)\\s+(${esc})\\b`, "giu"), (m: string, v: string, n: string) => istVerbform(v) ? `${beuge(v)} ${n}` : m);
+  return out;
+}
+
 export function kleinesPronomen(t: string): string {
   return (t || "")
-    .replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr)\b/g, (_m: string, sp: string, w: string) => sp + w.toLowerCase())
+    .replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon)\b/g, (_m: string, sp: string, w: string) => sp + w.toLowerCase())
     // Nach dem Komma beginnt kein Satz: Ein Nebensatz-Einleiter oder ein
     // Relativpronomen wird klein — gemeldet „in einem Beichtstuhl, Wo die
     // Straßen keine Namen tragen". „Die"/„Der" nach Komma sind nie Nomen.
@@ -338,7 +373,7 @@ export function kleinesPronomen(t: string): string {
  *  (Wer kommt, bleibt.), Punkt am Ende → Fragezeichen. „Was zusammenfällt, gehört zusammen." hat das Verb
  *  nicht direkt hinter dem Fragewort und bleibt Aussage. */
 export function fragezeichen(t: string): string {
-  return (t || "").replace(/(^|[.!?…]\s+|\n)(Wo|Was|Wer|Wie|Warum|Wann|Wohin|Woher|Weshalb|Wieso|Wem|Wen)\s+(ist|sind|war|waren|hat|haben|wird|werden|kommt|bleibt|will|kann|soll|darf|muss|geht|steht|bist|bin|seid|weiß|wissen)\b([^.!?…\n]{0,50})\./g,
+  return (t || "").replace(/(^|[.!?…:]\s+|\n)(Wo|Was|Wer|Wie|Warum|Wann|Wohin|Woher|Weshalb|Wieso|Wem|Wen)\s+(ist|sind|war|waren|hat|haben|wird|werden|kommt|bleibt|will|kann|soll|darf|muss|geht|steht|bist|bin|seid|weiß|wissen)\b([^.!?…\n]{0,50})\./g,
     (m: string, vor: string, fw: string, v: string, rest: string) => (rest.split(/\s+/).filter(Boolean).length <= 6 && !rest.includes(",") ? `${vor}${fw} ${v}${rest}?` : m));
 }
 
@@ -393,6 +428,8 @@ export function postProcessText(txt: string, input?: Input): string {
       t = t.replace(new RegExp(`\\b${esc}\\b`, "gi"), wieder);
     }
   }
+
+  t = pluralKongruenz(t, name);
 
   // Ton-Einfärbung: Einleitung + verteilte Flavor-Einschübe (nicht bei
   // Zeilenformen). Frueher hing das zusaetzlich am Sprachschliff-Haken: Wer ihn

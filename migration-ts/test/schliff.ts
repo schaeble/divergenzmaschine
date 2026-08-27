@@ -11,7 +11,7 @@
   }
 }
 import { readFileSync } from "fs";
-import { istAbgeschnitten, postProcessText, kleinerArtikel, kleinesPronomen, beugeNachDu, kommaVorInversion, fragezeichen } from "../src/generation/postprocess";
+import { istAbgeschnitten, postProcessText, kleinerArtikel, kleinesPronomen, beugeNachDu, kommaVorInversion, fragezeichen, pluralKongruenz, istPluralFigur } from "../src/generation/postprocess";
 import { dekliniere } from "../src/atoms/assemble";
 import { extractLeadVerb, looksLikeFullClause } from "../src/generation/wordcls";
 import { OBJEKT_EINSTIEG } from "../src/generation/shape";
@@ -346,6 +346,20 @@ ist("lang keine Frage", fragezeichen("Wo ist das Buch mit den vielen leeren Seit
 ist("Wo nach Komma klein", kleinesPronomen("in einem Beichtstuhl, Wo die Straßen keine Namen tragen."), "in einem Beichtstuhl, wo die Straßen keine Namen tragen.");
 ist("Der nach Komma klein", kleinesPronomen("Ein Mann, Der nichts sagt."), "Ein Mann, der nichts sagt.");
 ist("Gegenprobe: Nomen nach Komma bleibt", kleinesPronomen("Brot, Wein und Salz."), "Brot, Wein und Salz.");
+
+// ── Mehrzahl im Wer: das Verb daneben in den Plural ─────────────────────────
+// Gemeldet: „Zwei Frauen begreift: Wer ist Ben." — die Rahmen setzen die
+// dritte Person Singular, das Wer war eine Mehrzahl.
+{
+  ist("Zwei Frauen begreifen", pluralKongruenz("Zwei Frauen begreift: Wer ist Ben.", "Zwei Frauen"), "Zwei Frauen begreifen: Wer ist Ben.");
+  ist("auch in der Inversion", pluralKongruenz("Im Hof wartet Zwei Frauen.", "Zwei Frauen"), "Im Hof warten Zwei Frauen.");
+  ist("ist → sind", pluralKongruenz("Zwei Frauen ist müde.", "Zwei Frauen"), "Zwei Frauen sind müde.");
+  ist("Singular bleibt unberührt", pluralKongruenz("Der Bote begreift.", "Der Bote"), "Der Bote begreift.");
+  wahr("Mehrzahl erkannt: Zahlwort, und-Paar, Plural mit die", istPluralFigur("Zwei Frauen") && istPluralFigur("Anna und Ben") && istPluralFigur("Die Kollegen") && istPluralFigur("Die Kinder"));
+  wahr("Einzahl erkannt: Uhrmacherin, Bote, Nacht, Mädchen", !istPluralFigur("Die Uhrmacherin") && !istPluralFigur("Der Bote") && !istPluralFigur("Die Nacht") && !istPluralFigur("Die Mädchen"));
+  ist("Fragezeichen auch nach Doppelpunkt", fragezeichen("Sie begreifen: Wer ist Ben."), "Sie begreifen: Wer ist Ben?");
+  ist("Adverb nach Semikolon klein", kleinesPronomen("Niemand hat etwas geahnt; Angeblich."), "Niemand hat etwas geahnt; angeblich.");
+}
 
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };

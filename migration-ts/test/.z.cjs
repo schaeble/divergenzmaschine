@@ -1,488 +1,299 @@
 "use strict";
 
-// test/titel.ts
-var import_fs = require("fs");
-
 // src/text-utils.ts
 function clean(s) {
   return (s ?? "").toString().trim().replace(/\s+/g, " ");
 }
 
-// src/generation/verbconj.data.ts
-var VERB_CONJ = {
-  "bemerkt": {
-    "ich": "bemerke",
-    "du": "bemerkst",
-    "wir": "bemerken",
-    "ihr": "bemerkt"
-  },
-  "nimmt": {
-    "ich": "nehme",
-    "du": "nimmst",
-    "wir": "nehmen",
-    "ihr": "nehmt"
-  },
-  "steht": {
-    "ich": "stehe",
-    "du": "stehst",
-    "wir": "stehen",
-    "ihr": "steht"
-  },
-  "h\xE4lt": {
-    "ich": "halte",
-    "du": "h\xE4ltst",
-    "wir": "halten",
-    "ihr": "haltet"
-  },
-  "sucht": {
-    "ich": "suche",
-    "du": "suchst",
-    "wir": "suchen",
-    "ihr": "sucht"
-  },
-  "versucht": {
-    "ich": "versuche",
-    "du": "versuchst",
-    "wir": "versuchen",
-    "ihr": "versucht"
-  },
-  "will": {
-    "ich": "will",
-    "du": "willst",
-    "wir": "wollen",
-    "ihr": "wollt"
-  },
-  "kann": {
-    "ich": "kann",
-    "du": "kannst",
-    "wir": "k\xF6nnen",
-    "ihr": "k\xF6nnt"
-  },
-  "muss": {
-    "ich": "muss",
-    "du": "musst",
-    "wir": "m\xFCssen",
-    "ihr": "m\xFCsst"
-  },
-  "darf": {
-    "ich": "darf",
-    "du": "darfst",
-    "wir": "d\xFCrfen",
-    "ihr": "d\xFCrft"
-  },
-  "mag": {
-    "ich": "mag",
-    "du": "magst",
-    "wir": "m\xF6gen",
-    "ihr": "m\xF6gt"
-  },
-  "soll": {
-    "ich": "soll",
-    "du": "sollst",
-    "wir": "sollen",
-    "ihr": "sollt"
-  },
-  "m\xF6chte": {
-    "ich": "m\xF6chte",
-    "du": "m\xF6chtest",
-    "wir": "m\xF6chten",
-    "ihr": "m\xF6chtet"
-  },
-  "ist": {
-    "ich": "bin",
-    "du": "bist",
-    "wir": "sind",
-    "ihr": "seid"
-  },
-  "wird": {
-    "ich": "werde",
-    "du": "wirst",
-    "wir": "werden",
-    "ihr": "werdet"
-  },
-  "geht": {
-    "ich": "gehe",
-    "du": "gehst",
-    "wir": "gehen",
-    "ihr": "geht"
-  },
-  "kommt": {
-    "ich": "komme",
-    "du": "kommst",
-    "wir": "kommen",
-    "ihr": "kommt"
-  },
-  "bleibt": {
-    "ich": "bleibe",
-    "du": "bleibst",
-    "wir": "bleiben",
-    "ihr": "bleibt"
-  },
-  "\xF6ffnet": {
-    "ich": "\xF6ffne",
-    "du": "\xF6ffnest",
-    "wir": "\xF6ffnen",
-    "ihr": "\xF6ffnet"
-  },
-  "schlie\xDFt": {
-    "ich": "schlie\xDFe",
-    "du": "schlie\xDFt",
-    "wir": "schlie\xDFen",
-    "ihr": "schlie\xDFt"
-  },
-  "fragt": {
-    "ich": "frage",
-    "du": "fragst",
-    "wir": "fragen",
-    "ihr": "fragt"
-  },
-  "f\xFChrt": {
-    "ich": "f\xFChre",
-    "du": "f\xFChrst",
-    "wir": "f\xFChren",
-    "ihr": "f\xFChrt"
-  },
-  "begreift": {
-    "ich": "begreife",
-    "du": "begreifst",
-    "wir": "begreifen",
-    "ihr": "begreift"
-  },
-  "bricht": {
-    "ich": "breche",
-    "du": "brichst",
-    "wir": "brechen",
-    "ihr": "brecht"
-  },
-  "kippt": {
-    "ich": "kippe",
-    "du": "kippst",
-    "wir": "kippen",
-    "ihr": "kippt"
-  },
-  "l\xF6scht": {
-    "ich": "l\xF6sche",
-    "du": "l\xF6schst",
-    "wir": "l\xF6schen",
-    "ihr": "l\xF6scht"
-  },
-  "tut": {
-    "ich": "tue",
-    "du": "tust",
-    "wir": "tun",
-    "ihr": "tut"
-  },
-  "macht": {
-    "ich": "mache",
-    "du": "machst",
-    "wir": "machen",
-    "ihr": "macht"
-  },
-  "sieht": {
-    "ich": "sehe",
-    "du": "siehst",
-    "wir": "sehen",
-    "ihr": "seht"
-  },
-  "gibt": {
-    "ich": "gebe",
-    "du": "gibst",
-    "wir": "geben",
-    "ihr": "gebt"
-  },
-  "tr\xE4gt": {
-    "ich": "trage",
-    "du": "tr\xE4gst",
-    "wir": "tragen",
-    "ihr": "tragt"
-  },
-  "h\xF6rt": {
-    "ich": "h\xF6re",
-    "du": "h\xF6rst",
-    "wir": "h\xF6ren",
-    "ihr": "h\xF6rt"
-  },
-  "findet": {
-    "ich": "finde",
-    "du": "findest",
-    "wir": "finden",
-    "ihr": "findet"
-  },
-  "ber\xFChrt": {
-    "ich": "ber\xFChre",
-    "du": "ber\xFChrst",
-    "wir": "ber\xFChren",
-    "ihr": "ber\xFChrt"
-  },
-  "beobachtet": {
-    "ich": "beobachte",
-    "du": "beobachtest",
-    "wir": "beobachten",
-    "ihr": "beobachtet"
-  },
-  "kennt": {
-    "ich": "kenne",
-    "du": "kennst",
-    "wir": "kennen",
-    "ihr": "kennt"
-  },
-  "nennt": {
-    "ich": "nenne",
-    "du": "nennst",
-    "wir": "nennen",
-    "ihr": "nennt"
-  },
-  "sp\xFCrt": {
-    "ich": "sp\xFCre",
-    "du": "sp\xFCrst",
-    "wir": "sp\xFCren",
-    "ihr": "sp\xFCrt"
-  },
-  "wei\xDF": {
-    "ich": "wei\xDF",
-    "du": "wei\xDFt",
-    "wir": "wissen",
-    "ihr": "wisst"
-  },
-  "braucht": {
-    "ich": "brauche",
-    "du": "brauchst",
-    "wir": "brauchen",
-    "ihr": "braucht"
-  },
-  "w\xFCnscht": {
-    "ich": "w\xFCnsche",
-    "du": "w\xFCnschst",
-    "wir": "w\xFCnschen",
-    "ihr": "w\xFCnscht"
-  },
-  "hofft": {
-    "ich": "hoffe",
-    "du": "hoffst",
-    "wir": "hoffen",
-    "ihr": "hofft"
-  },
-  "tr\xE4umt": {
-    "ich": "tr\xE4ume",
-    "du": "tr\xE4umst",
-    "wir": "tr\xE4umen",
-    "ihr": "tr\xE4umt"
-  },
-  "plant": {
-    "ich": "plane",
-    "du": "planst",
-    "wir": "planen",
-    "ihr": "plant"
-  },
-  "f\xFCrchtet": {
-    "ich": "f\xFCrchte",
-    "du": "f\xFCrchtest",
-    "wir": "f\xFCrchten",
-    "ihr": "f\xFCrchtet"
-  },
-  "wartet": {
-    "ich": "warte",
-    "du": "wartest",
-    "wir": "warten",
-    "ihr": "wartet"
-  },
-  "glaubt": {
-    "ich": "glaube",
-    "du": "glaubst",
-    "wir": "glauben",
-    "ihr": "glaubt"
-  },
-  "denkt": {
-    "ich": "denke",
-    "du": "denkst",
-    "wir": "denken",
-    "ihr": "denkt"
-  },
-  "f\xFChlt": {
-    "ich": "f\xFChle",
-    "du": "f\xFChlst",
-    "wir": "f\xFChlen",
-    "ihr": "f\xFChlt"
-  },
-  "verlangt": {
-    "ich": "verlange",
-    "du": "verlangst",
-    "wir": "verlangen",
-    "ihr": "verlangt"
-  },
-  "erwartet": {
-    "ich": "erwarte",
-    "du": "erwartest",
-    "wir": "erwarten",
-    "ihr": "erwartet"
-  },
-  "riskiert": {
-    "ich": "riskiere",
-    "du": "riskierst",
-    "wir": "riskieren",
-    "ihr": "riskiert"
-  },
-  "wagt": {
-    "ich": "wage",
-    "du": "wagst",
-    "wir": "wagen",
-    "ihr": "wagt"
-  },
-  "flieht": {
-    "ich": "fliehe",
-    "du": "fliehst",
-    "wir": "fliehen",
-    "ihr": "flieht"
-  },
-  "jagt": {
-    "ich": "jage",
-    "du": "jagst",
-    "wir": "jagen",
-    "ihr": "jagt"
-  },
-  "folgt": {
-    "ich": "folge",
-    "du": "folgst",
-    "wir": "folgen",
-    "ihr": "folgt"
-  },
-  "verfolgt": {
-    "ich": "verfolge",
-    "du": "verfolgst",
-    "wir": "verfolgen",
-    "ihr": "verfolgt"
-  },
-  "rettet": {
-    "ich": "rette",
-    "du": "rettest",
-    "wir": "retten",
-    "ihr": "rettet"
-  },
-  "verr\xE4t": {
-    "ich": "verrate",
-    "du": "verr\xE4tst",
-    "wir": "verraten",
-    "ihr": "verratet"
-  },
-  "vergisst": {
-    "ich": "vergesse",
-    "du": "vergisst",
-    "wir": "vergessen",
-    "ihr": "vergesst"
-  },
-  "hatte": {
-    "ich": "hatte",
-    "du": "hattest",
-    "wir": "hatten",
-    "ihr": "hattet"
-  },
-  "war": {
-    "ich": "war",
-    "du": "warst",
-    "wir": "waren",
-    "ihr": "wart"
-  },
-  "wollte": {
-    "ich": "wollte",
-    "du": "wolltest",
-    "wir": "wollten",
-    "ihr": "wolltet"
-  },
-  "tat": {
-    "ich": "tat",
-    "du": "tatest",
-    "wir": "taten",
-    "ihr": "tatet"
-  },
-  "machte": {
-    "ich": "machte",
-    "du": "machtest",
-    "wir": "machten",
-    "ihr": "machtet"
-  },
-  "kam": {
-    "ich": "kam",
-    "du": "kamst",
-    "wir": "kamen",
-    "ihr": "kamt"
-  },
-  "ging": {
-    "ich": "ging",
-    "du": "gingst",
-    "wir": "gingen",
-    "ihr": "gingt"
-  },
-  "f\xFChrte": {
-    "ich": "f\xFChrte",
-    "du": "f\xFChrtest",
-    "wir": "f\xFChrten",
-    "ihr": "f\xFChrtet"
-  },
-  "schloss": {
-    "ich": "schloss",
-    "du": "schlossest",
-    "wir": "schlossen",
-    "ihr": "schlosst"
-  },
-  "fragte": {
-    "ich": "fragte",
-    "du": "fragtest",
-    "wir": "fragten",
-    "ihr": "fragtet"
-  },
-  "begriff": {
-    "ich": "begriff",
-    "du": "begriffst",
-    "wir": "begriffen",
-    "ihr": "begrifft"
-  },
-  "stellt": {
-    "ich": "stelle",
-    "du": "stellst",
-    "wir": "stellen"
-  },
-  "erkennt": {
-    "ich": "erkenne",
-    "du": "erkennst",
-    "wir": "erkennen"
-  },
-  "zeigt": {
-    "ich": "zeige",
-    "du": "zeigst",
-    "wir": "zeigen"
-  },
-  "greift": {
-    "ich": "greife",
-    "du": "greifst",
-    "wir": "greifen"
-  },
-  "legt": {
-    "ich": "lege",
-    "du": "legst",
-    "wir": "legen"
-  },
-  "betrachtet": {
-    "ich": "betrachte",
-    "du": "betrachtest",
-    "wir": "betrachten"
-  },
-  "setzt": {
-    "ich": "setze",
-    "du": "setzt",
-    "wir": "setzen"
-  },
-  "merkt": {
-    "ich": "merke",
-    "du": "merkst",
-    "wir": "merken"
-  },
-  "pr\xFCft": {
-    "ich": "pr\xFCfe",
-    "du": "pr\xFCfst",
-    "wir": "pr\xFCfen"
-  }
+// src/generation/verben.ts
+var STARK = {
+  // sein · haben · werden · wissen · tun · Modalverben
+  ist: ["bin", "bist", "sind", "seid"],
+  hat: ["habe", "hast", "haben", "habt"],
+  wird: ["werde", "wirst", "werden", "werdet"],
+  wei\u00DF: ["wei\xDF", "wei\xDFt", "wissen", "wisst"],
+  tut: ["tue", "tust", "tun", "tut"],
+  kann: ["kann", "kannst", "k\xF6nnen", "k\xF6nnt"],
+  muss: ["muss", "musst", "m\xFCssen", "m\xFCsst"],
+  will: ["will", "willst", "wollen", "wollt"],
+  soll: ["soll", "sollst", "sollen", "sollt"],
+  darf: ["darf", "darfst", "d\xFCrfen", "d\xFCrft"],
+  mag: ["mag", "magst", "m\xF6gen", "m\xF6gt"],
+  // a → ä
+  h\u00E4lt: ["halte", "h\xE4ltst", "halten", "haltet"],
+  f\u00E4llt: ["falle", "f\xE4llst", "fallen", "fallt"],
+  tr\u00E4gt: ["trage", "tr\xE4gst", "tragen", "tragt"],
+  l\u00E4uft: ["laufe", "l\xE4ufst", "laufen", "lauft"],
+  schl\u00E4ft: ["schlafe", "schl\xE4fst", "schlafen", "schlaft"],
+  f\u00E4ngt: ["fange", "f\xE4ngst", "fangen", "fangt"],
+  l\u00E4sst: ["lasse", "l\xE4sst", "lassen", "lasst"],
+  w\u00E4chst: ["wachse", "w\xE4chst", "wachsen", "wachst"],
+  gr\u00E4bt: ["grabe", "gr\xE4bst", "graben", "grabt"],
+  schl\u00E4gt: ["schlage", "schl\xE4gst", "schlagen", "schlagt"],
+  r\u00E4t: ["rate", "r\xE4tst", "raten", "ratet"],
+  bl\u00E4st: ["blase", "bl\xE4st", "blasen", "blast"],
+  st\u00F6\u00DFt: ["sto\xDFe", "st\xF6\xDFt", "sto\xDFen", "sto\xDFt"],
+  f\u00E4hrt: ["fahre", "f\xE4hrst", "fahren", "fahrt"],
+  w\u00E4scht: ["wasche", "w\xE4schst", "waschen", "wascht"],
+  l\u00E4dt: ["lade", "l\xE4dst", "laden", "ladet"],
+  s\u00E4uft: ["saufe", "s\xE4ufst", "saufen", "sauft"],
+  // e → i / ie
+  gibt: ["gebe", "gibst", "geben", "gebt"],
+  nimmt: ["nehme", "nimmst", "nehmen", "nehmt"],
+  spricht: ["spreche", "sprichst", "sprechen", "sprecht"],
+  bricht: ["breche", "brichst", "brechen", "brecht"],
+  sieht: ["sehe", "siehst", "sehen", "seht"],
+  liest: ["lese", "liest", "lesen", "lest"],
+  isst: ["esse", "isst", "essen", "esst"],
+  frisst: ["fresse", "frisst", "fressen", "fresst"],
+  misst: ["messe", "misst", "messen", "messt"],
+  vergisst: ["vergesse", "vergisst", "vergessen", "vergesst"],
+  hilft: ["helfe", "hilfst", "helfen", "helft"],
+  stirbt: ["sterbe", "stirbst", "sterben", "sterbt"],
+  wirft: ["werfe", "wirfst", "werfen", "werft"],
+  trifft: ["treffe", "triffst", "treffen", "trefft"],
+  gilt: ["gelte", "giltst", "gelten", "geltet"],
+  tritt: ["trete", "trittst", "treten", "tretet"],
+  birgt: ["berge", "birgst", "bergen", "bergt"],
+  quillt: ["quelle", "quillst", "quellen", "quellt"],
+  schilt: ["schelte", "schiltst", "schelten", "scheltet"],
+  ficht: ["fechte", "fichtst", "fechten", "fechtet"],
+  flicht: ["flechte", "flichtst", "flechten", "flechtet"],
+  verdirbt: ["verderbe", "verdirbst", "verderben", "verderbt"],
+  wirbt: ["werbe", "wirbst", "werben", "werbt"],
+  erschrickt: ["erschrecke", "erschrickst", "erschrecken", "erschreckt"],
+  sticht: ["steche", "stichst", "stechen", "stecht"],
+  schmilzt: ["schmelze", "schmilzt", "schmelzen", "schmelzt"],
+  befiehlt: ["befehle", "befiehlst", "befehlen", "befehlt"],
+  stiehlt: ["stehle", "stiehlst", "stehlen", "stehlt"],
+  empfiehlt: ["empfehle", "empfiehlst", "empfehlen", "empfehlt"],
+  geschieht: ["geschehe", "geschiehst", "geschehen", "gescheht"],
+  gebiert: ["geb\xE4re", "gebierst", "geb\xE4ren", "geb\xE4rt"],
+  schwillt: ["schwelle", "schwillst", "schwellen", "schwellt"]
 };
-var INFINITIVE_VERBS = /* @__PURE__ */ new Set(["entdecken", "finden", "verstehen", "erreichen", "verlassen", "retten", "zerst\xF6ren", "beweisen", "\xFCberleben", "fliehen", "gewinnen", "verlieren", "\xF6ffnen", "schlie\xDFen", "verschwinden", "sterben", "bleiben", "ankommen", "entkommen", "aufwachen", "vergessen", "lernen", "ver\xE4ndern", "kontrollieren", "sch\xFCtzen", "befreien", "heilen", "erschaffen", "reparieren", "beenden", "anfangen", "beginnen", "erinnern", "wissen", "glauben", "tr\xE4umen", "hoffen", "k\xE4mpfen", "siegen", "sprechen", "schweigen", "warten", "folgen", "fragen", "antworten", "erkl\xE4ren", "gehen", "kommen"]);
+var PRAEFIXE = [
+  "zusammen",
+  "zur\xFCck",
+  "wieder",
+  "gegen",
+  "hinter",
+  "durch",
+  "unter",
+  "\xFCber",
+  "voran",
+  "vorbei",
+  "heraus",
+  "herein",
+  "hinaus",
+  "hinein",
+  "herum",
+  "hinauf",
+  "hinab",
+  "herab",
+  "empor",
+  "fort",
+  "los",
+  "weg",
+  "fest",
+  "her",
+  "hin",
+  "ver",
+  "ent",
+  "emp",
+  "miss",
+  "zer",
+  "be",
+  "er",
+  "ge",
+  "an",
+  "ab",
+  "auf",
+  "aus",
+  "ein",
+  "mit",
+  "nach",
+  "vor",
+  "zu",
+  "um",
+  "bei",
+  "da",
+  "wider"
+];
+var KEIN_VERB = /* @__PURE__ */ new Set([
+  "alt",
+  "kalt",
+  "laut",
+  "bunt",
+  "hart",
+  "zart",
+  "satt",
+  "glatt",
+  "weit",
+  "breit",
+  "rot",
+  "tot",
+  "gut",
+  "sp\xE4t",
+  "echt",
+  "leicht",
+  "dicht",
+  "recht",
+  "schlecht",
+  "nackt",
+  "fest",
+  "letzt",
+  "jetzt",
+  "sanft",
+  "ernst",
+  "wert",
+  "seit",
+  "statt",
+  "samt",
+  "nicht",
+  "mit",
+  "seid",
+  "zuletzt",
+  "zuerst",
+  "oft",
+  "fast",
+  "erst",
+  "sonst",
+  "meist",
+  "direkt",
+  "dort",
+  "fort",
+  "sofort",
+  "selbst",
+  "vielleicht",
+  "\xFCberhaupt",
+  "bereit",
+  "gerecht",
+  "perfekt",
+  "exakt",
+  "absolut",
+  "gesamt",
+  "komplett",
+  "verr\xFCckt",
+  "bekannt",
+  "geschickt",
+  "welt",
+  "zeit",
+  "nacht",
+  "stadt",
+  "acht",
+  "licht",
+  "wort",
+  "ort",
+  "blut",
+  "brot",
+  "mut",
+  "hut",
+  "gebet",
+  "geist",
+  "gott",
+  "kraft",
+  "luft",
+  "haut",
+  "haft",
+  "gift",
+  "schrift",
+  "frucht",
+  "flucht",
+  "sicht",
+  "pflicht",
+  "angst",
+  "kunst",
+  "dienst",
+  "frost",
+  "post",
+  "ost",
+  "west",
+  "rest",
+  "test",
+  "text",
+  "w\xFCst",
+  "getrennt",
+  "gemischt",
+  "gebrannt",
+  "verschwunden",
+  "gewohnt",
+  "gelaunt",
+  "ber\xFChmt",
+  "geliebt",
+  "gelebt",
+  "gedacht",
+  "gemacht",
+  "gebracht",
+  "gesagt",
+  "gesucht",
+  "gehabt",
+  "gewusst",
+  "gekannt",
+  "genannt",
+  "benannt",
+  "gewollt",
+  "verboten",
+  "ge\xF6ffnet",
+  "ungeahnt",
+  "gestern",
+  "heut",
+  "abrupt",
+  "ad\xE4quat",
+  "privat",
+  "intakt",
+  "korrekt",
+  "konkret",
+  "moderat",
+  "elegant",
+  "brillant",
+  "tolerant",
+  "relevant",
+  "markant",
+  "rasant",
+  "galant",
+  "latent",
+  "dezent",
+  "prominent",
+  "kompetent",
+  "konsequent",
+  "permanent",
+  "evident",
+  "eloquent",
+  "intelligent",
+  "gespannt",
+  "entspannt",
+  "gewandt",
+  "verwandt",
+  "bewusst",
+  "unbewusst",
+  "robust",
+  "abstrakt",
+  "kompakt",
+  "exakt",
+  "defekt",
+  "perfekt",
+  "insgesamt",
+  "total"
+]);
+var GE_VERBEN = /^ge(ht|nügt|hört|horcht|lingt|winnt|langt|schieht|steht|rät|nießt|wöhnt|fährdet|währt|stattet|staltet|denkt|bietet|braucht|hörcht|nest|reicht|dulde?t|fällt|deiht|lobt|leitet|langt|winnt|behrt|bärt|fried[e]?t|fällt|lüstet|mahnt|rinnt|hört)$/;
+function starkMitPraefix(form) {
+  if (STARK[form]) return ["", STARK[form]];
+  for (const p of PRAEFIXE) {
+    if (form.startsWith(p) && form.length > p.length + 2) {
+      const rest = form.slice(p.length);
+      if (STARK[rest]) return [p, STARK[rest]];
+    }
+  }
+  return null;
+}
+function istVerbform(wort) {
+  const w = wort.toLowerCase();
+  if (starkMitPraefix(w)) return true;
+  if (KEIN_VERB.has(w)) return false;
+  if (!/^[a-zäöüß]{3,}t$/.test(w)) return false;
+  if (/^ge[a-zäöüß]{2,}t$/.test(w)) return GE_VERBEN.test(w);
+  return true;
+}
 
 // src/generation/nouns.data.ts
 var NOUN_GENDER = {
@@ -1801,296 +1612,6 @@ var NOUN_GENDER = {
   "\xF6lschl\xFCssel": "m"
 };
 
-// src/generation/verben.ts
-var STARK = {
-  // sein · haben · werden · wissen · tun · Modalverben
-  ist: ["bin", "bist", "sind", "seid"],
-  hat: ["habe", "hast", "haben", "habt"],
-  wird: ["werde", "wirst", "werden", "werdet"],
-  wei\u00DF: ["wei\xDF", "wei\xDFt", "wissen", "wisst"],
-  tut: ["tue", "tust", "tun", "tut"],
-  kann: ["kann", "kannst", "k\xF6nnen", "k\xF6nnt"],
-  muss: ["muss", "musst", "m\xFCssen", "m\xFCsst"],
-  will: ["will", "willst", "wollen", "wollt"],
-  soll: ["soll", "sollst", "sollen", "sollt"],
-  darf: ["darf", "darfst", "d\xFCrfen", "d\xFCrft"],
-  mag: ["mag", "magst", "m\xF6gen", "m\xF6gt"],
-  // a → ä
-  h\u00E4lt: ["halte", "h\xE4ltst", "halten", "haltet"],
-  f\u00E4llt: ["falle", "f\xE4llst", "fallen", "fallt"],
-  tr\u00E4gt: ["trage", "tr\xE4gst", "tragen", "tragt"],
-  l\u00E4uft: ["laufe", "l\xE4ufst", "laufen", "lauft"],
-  schl\u00E4ft: ["schlafe", "schl\xE4fst", "schlafen", "schlaft"],
-  f\u00E4ngt: ["fange", "f\xE4ngst", "fangen", "fangt"],
-  l\u00E4sst: ["lasse", "l\xE4sst", "lassen", "lasst"],
-  w\u00E4chst: ["wachse", "w\xE4chst", "wachsen", "wachst"],
-  gr\u00E4bt: ["grabe", "gr\xE4bst", "graben", "grabt"],
-  schl\u00E4gt: ["schlage", "schl\xE4gst", "schlagen", "schlagt"],
-  r\u00E4t: ["rate", "r\xE4tst", "raten", "ratet"],
-  bl\u00E4st: ["blase", "bl\xE4st", "blasen", "blast"],
-  st\u00F6\u00DFt: ["sto\xDFe", "st\xF6\xDFt", "sto\xDFen", "sto\xDFt"],
-  f\u00E4hrt: ["fahre", "f\xE4hrst", "fahren", "fahrt"],
-  w\u00E4scht: ["wasche", "w\xE4schst", "waschen", "wascht"],
-  l\u00E4dt: ["lade", "l\xE4dst", "laden", "ladet"],
-  s\u00E4uft: ["saufe", "s\xE4ufst", "saufen", "sauft"],
-  // e → i / ie
-  gibt: ["gebe", "gibst", "geben", "gebt"],
-  nimmt: ["nehme", "nimmst", "nehmen", "nehmt"],
-  spricht: ["spreche", "sprichst", "sprechen", "sprecht"],
-  bricht: ["breche", "brichst", "brechen", "brecht"],
-  sieht: ["sehe", "siehst", "sehen", "seht"],
-  liest: ["lese", "liest", "lesen", "lest"],
-  isst: ["esse", "isst", "essen", "esst"],
-  frisst: ["fresse", "frisst", "fressen", "fresst"],
-  misst: ["messe", "misst", "messen", "messt"],
-  vergisst: ["vergesse", "vergisst", "vergessen", "vergesst"],
-  hilft: ["helfe", "hilfst", "helfen", "helft"],
-  stirbt: ["sterbe", "stirbst", "sterben", "sterbt"],
-  wirft: ["werfe", "wirfst", "werfen", "werft"],
-  trifft: ["treffe", "triffst", "treffen", "trefft"],
-  gilt: ["gelte", "giltst", "gelten", "geltet"],
-  tritt: ["trete", "trittst", "treten", "tretet"],
-  birgt: ["berge", "birgst", "bergen", "bergt"],
-  quillt: ["quelle", "quillst", "quellen", "quellt"],
-  schilt: ["schelte", "schiltst", "schelten", "scheltet"],
-  ficht: ["fechte", "fichtst", "fechten", "fechtet"],
-  flicht: ["flechte", "flichtst", "flechten", "flechtet"],
-  verdirbt: ["verderbe", "verdirbst", "verderben", "verderbt"],
-  wirbt: ["werbe", "wirbst", "werben", "werbt"],
-  erschrickt: ["erschrecke", "erschrickst", "erschrecken", "erschreckt"],
-  sticht: ["steche", "stichst", "stechen", "stecht"],
-  schmilzt: ["schmelze", "schmilzt", "schmelzen", "schmelzt"],
-  befiehlt: ["befehle", "befiehlst", "befehlen", "befehlt"],
-  stiehlt: ["stehle", "stiehlst", "stehlen", "stehlt"],
-  empfiehlt: ["empfehle", "empfiehlst", "empfehlen", "empfehlt"],
-  geschieht: ["geschehe", "geschiehst", "geschehen", "gescheht"],
-  gebiert: ["geb\xE4re", "gebierst", "geb\xE4ren", "geb\xE4rt"],
-  schwillt: ["schwelle", "schwillst", "schwellen", "schwellt"]
-};
-var PRAEFIXE = [
-  "zusammen",
-  "zur\xFCck",
-  "wieder",
-  "gegen",
-  "hinter",
-  "durch",
-  "unter",
-  "\xFCber",
-  "voran",
-  "vorbei",
-  "heraus",
-  "herein",
-  "hinaus",
-  "hinein",
-  "herum",
-  "hinauf",
-  "hinab",
-  "herab",
-  "empor",
-  "fort",
-  "los",
-  "weg",
-  "fest",
-  "her",
-  "hin",
-  "ver",
-  "ent",
-  "emp",
-  "miss",
-  "zer",
-  "be",
-  "er",
-  "ge",
-  "an",
-  "ab",
-  "auf",
-  "aus",
-  "ein",
-  "mit",
-  "nach",
-  "vor",
-  "zu",
-  "um",
-  "bei",
-  "da",
-  "wider"
-];
-var KEIN_VERB = /* @__PURE__ */ new Set([
-  "alt",
-  "kalt",
-  "laut",
-  "bunt",
-  "hart",
-  "zart",
-  "satt",
-  "glatt",
-  "weit",
-  "breit",
-  "rot",
-  "tot",
-  "gut",
-  "sp\xE4t",
-  "echt",
-  "leicht",
-  "dicht",
-  "recht",
-  "schlecht",
-  "nackt",
-  "fest",
-  "letzt",
-  "jetzt",
-  "sanft",
-  "ernst",
-  "wert",
-  "seit",
-  "statt",
-  "samt",
-  "nicht",
-  "mit",
-  "seid",
-  "zuletzt",
-  "zuerst",
-  "oft",
-  "fast",
-  "erst",
-  "sonst",
-  "meist",
-  "direkt",
-  "dort",
-  "fort",
-  "sofort",
-  "selbst",
-  "vielleicht",
-  "\xFCberhaupt",
-  "bereit",
-  "gerecht",
-  "perfekt",
-  "exakt",
-  "absolut",
-  "gesamt",
-  "komplett",
-  "verr\xFCckt",
-  "bekannt",
-  "geschickt",
-  "welt",
-  "zeit",
-  "nacht",
-  "stadt",
-  "acht",
-  "licht",
-  "wort",
-  "ort",
-  "blut",
-  "brot",
-  "mut",
-  "hut",
-  "gebet",
-  "geist",
-  "gott",
-  "kraft",
-  "luft",
-  "haut",
-  "haft",
-  "gift",
-  "schrift",
-  "frucht",
-  "flucht",
-  "sicht",
-  "pflicht",
-  "angst",
-  "kunst",
-  "dienst",
-  "frost",
-  "post",
-  "ost",
-  "west",
-  "rest",
-  "test",
-  "text",
-  "w\xFCst",
-  "getrennt",
-  "gemischt",
-  "gebrannt",
-  "verschwunden",
-  "gewohnt",
-  "gelaunt",
-  "ber\xFChmt",
-  "geliebt",
-  "gelebt",
-  "gedacht",
-  "gemacht",
-  "gebracht",
-  "gesagt",
-  "gesucht",
-  "gehabt",
-  "gewusst",
-  "gekannt",
-  "genannt",
-  "benannt",
-  "gewollt",
-  "verboten",
-  "ge\xF6ffnet",
-  "ungeahnt",
-  "gestern",
-  "heut",
-  "abrupt",
-  "ad\xE4quat",
-  "privat",
-  "intakt",
-  "korrekt",
-  "konkret",
-  "moderat",
-  "elegant",
-  "brillant",
-  "tolerant",
-  "relevant",
-  "markant",
-  "rasant",
-  "galant",
-  "latent",
-  "dezent",
-  "prominent",
-  "kompetent",
-  "konsequent",
-  "permanent",
-  "evident",
-  "eloquent",
-  "intelligent",
-  "gespannt",
-  "entspannt",
-  "gewandt",
-  "verwandt",
-  "bewusst",
-  "unbewusst",
-  "robust",
-  "abstrakt",
-  "kompakt",
-  "exakt",
-  "defekt",
-  "perfekt",
-  "insgesamt",
-  "total"
-]);
-var GE_VERBEN = /^ge(ht|nügt|hört|horcht|lingt|winnt|langt|schieht|steht|rät|nießt|wöhnt|fährdet|währt|stattet|staltet|denkt|bietet|braucht|hörcht|nest|reicht|dulde?t|fällt|deiht|lobt|leitet|langt|winnt|behrt|bärt|fried[e]?t|fällt|lüstet|mahnt|rinnt|hört)$/;
-function starkMitPraefix(form) {
-  if (STARK[form]) return ["", STARK[form]];
-  for (const p of PRAEFIXE) {
-    if (form.startsWith(p) && form.length > p.length + 2) {
-      const rest = form.slice(p.length);
-      if (STARK[rest]) return [p, STARK[rest]];
-    }
-  }
-  return null;
-}
-function istVerbform(wort) {
-  const w = wort.toLowerCase();
-  if (starkMitPraefix(w)) return true;
-  if (KEIN_VERB.has(w)) return false;
-  if (!/^[a-zäöüß]{3,}t$/.test(w)) return false;
-  if (/^ge[a-zäöüß]{2,}t$/.test(w)) return GE_VERBEN.test(w);
-  return true;
-}
-
 // src/generation/nouns2.data.ts
 var NOUN_GENDER_2 = {
   // ── Häufigste ──
@@ -2937,8 +2458,8 @@ function guessGender(noun) {
   const known = NOUN_GENDER2[w];
   if (known === "m" || known === "f" || known === "n") return known;
   let best = "";
-  for (const k2 in NOUN_GENDER2) {
-    if (k2.length >= 3 && w.length >= k2.length + 2 && w.endsWith(k2) && k2.length > best.length) best = k2;
+  for (const k in NOUN_GENDER2) {
+    if (k.length >= 3 && w.length >= k.length + 2 && w.endsWith(k) && k.length > best.length) best = k;
   }
   if (best) return NOUN_GENDER2[best];
   if (/(ung|heit|keit|schaft|tät|ion|ik|enz|anz|ei|ade|age|üre|itis|ur)$/.test(w)) return "f";
@@ -2951,183 +2472,532 @@ function guessGender(noun) {
   return void 0;
 }
 
+// src/generation/verbconj.data.ts
+var VERB_CONJ = {
+  "bemerkt": {
+    "ich": "bemerke",
+    "du": "bemerkst",
+    "wir": "bemerken",
+    "ihr": "bemerkt"
+  },
+  "nimmt": {
+    "ich": "nehme",
+    "du": "nimmst",
+    "wir": "nehmen",
+    "ihr": "nehmt"
+  },
+  "steht": {
+    "ich": "stehe",
+    "du": "stehst",
+    "wir": "stehen",
+    "ihr": "steht"
+  },
+  "h\xE4lt": {
+    "ich": "halte",
+    "du": "h\xE4ltst",
+    "wir": "halten",
+    "ihr": "haltet"
+  },
+  "sucht": {
+    "ich": "suche",
+    "du": "suchst",
+    "wir": "suchen",
+    "ihr": "sucht"
+  },
+  "versucht": {
+    "ich": "versuche",
+    "du": "versuchst",
+    "wir": "versuchen",
+    "ihr": "versucht"
+  },
+  "will": {
+    "ich": "will",
+    "du": "willst",
+    "wir": "wollen",
+    "ihr": "wollt"
+  },
+  "kann": {
+    "ich": "kann",
+    "du": "kannst",
+    "wir": "k\xF6nnen",
+    "ihr": "k\xF6nnt"
+  },
+  "muss": {
+    "ich": "muss",
+    "du": "musst",
+    "wir": "m\xFCssen",
+    "ihr": "m\xFCsst"
+  },
+  "darf": {
+    "ich": "darf",
+    "du": "darfst",
+    "wir": "d\xFCrfen",
+    "ihr": "d\xFCrft"
+  },
+  "mag": {
+    "ich": "mag",
+    "du": "magst",
+    "wir": "m\xF6gen",
+    "ihr": "m\xF6gt"
+  },
+  "soll": {
+    "ich": "soll",
+    "du": "sollst",
+    "wir": "sollen",
+    "ihr": "sollt"
+  },
+  "m\xF6chte": {
+    "ich": "m\xF6chte",
+    "du": "m\xF6chtest",
+    "wir": "m\xF6chten",
+    "ihr": "m\xF6chtet"
+  },
+  "ist": {
+    "ich": "bin",
+    "du": "bist",
+    "wir": "sind",
+    "ihr": "seid"
+  },
+  "wird": {
+    "ich": "werde",
+    "du": "wirst",
+    "wir": "werden",
+    "ihr": "werdet"
+  },
+  "geht": {
+    "ich": "gehe",
+    "du": "gehst",
+    "wir": "gehen",
+    "ihr": "geht"
+  },
+  "kommt": {
+    "ich": "komme",
+    "du": "kommst",
+    "wir": "kommen",
+    "ihr": "kommt"
+  },
+  "bleibt": {
+    "ich": "bleibe",
+    "du": "bleibst",
+    "wir": "bleiben",
+    "ihr": "bleibt"
+  },
+  "\xF6ffnet": {
+    "ich": "\xF6ffne",
+    "du": "\xF6ffnest",
+    "wir": "\xF6ffnen",
+    "ihr": "\xF6ffnet"
+  },
+  "schlie\xDFt": {
+    "ich": "schlie\xDFe",
+    "du": "schlie\xDFt",
+    "wir": "schlie\xDFen",
+    "ihr": "schlie\xDFt"
+  },
+  "fragt": {
+    "ich": "frage",
+    "du": "fragst",
+    "wir": "fragen",
+    "ihr": "fragt"
+  },
+  "f\xFChrt": {
+    "ich": "f\xFChre",
+    "du": "f\xFChrst",
+    "wir": "f\xFChren",
+    "ihr": "f\xFChrt"
+  },
+  "begreift": {
+    "ich": "begreife",
+    "du": "begreifst",
+    "wir": "begreifen",
+    "ihr": "begreift"
+  },
+  "bricht": {
+    "ich": "breche",
+    "du": "brichst",
+    "wir": "brechen",
+    "ihr": "brecht"
+  },
+  "kippt": {
+    "ich": "kippe",
+    "du": "kippst",
+    "wir": "kippen",
+    "ihr": "kippt"
+  },
+  "l\xF6scht": {
+    "ich": "l\xF6sche",
+    "du": "l\xF6schst",
+    "wir": "l\xF6schen",
+    "ihr": "l\xF6scht"
+  },
+  "tut": {
+    "ich": "tue",
+    "du": "tust",
+    "wir": "tun",
+    "ihr": "tut"
+  },
+  "macht": {
+    "ich": "mache",
+    "du": "machst",
+    "wir": "machen",
+    "ihr": "macht"
+  },
+  "sieht": {
+    "ich": "sehe",
+    "du": "siehst",
+    "wir": "sehen",
+    "ihr": "seht"
+  },
+  "gibt": {
+    "ich": "gebe",
+    "du": "gibst",
+    "wir": "geben",
+    "ihr": "gebt"
+  },
+  "tr\xE4gt": {
+    "ich": "trage",
+    "du": "tr\xE4gst",
+    "wir": "tragen",
+    "ihr": "tragt"
+  },
+  "h\xF6rt": {
+    "ich": "h\xF6re",
+    "du": "h\xF6rst",
+    "wir": "h\xF6ren",
+    "ihr": "h\xF6rt"
+  },
+  "findet": {
+    "ich": "finde",
+    "du": "findest",
+    "wir": "finden",
+    "ihr": "findet"
+  },
+  "ber\xFChrt": {
+    "ich": "ber\xFChre",
+    "du": "ber\xFChrst",
+    "wir": "ber\xFChren",
+    "ihr": "ber\xFChrt"
+  },
+  "beobachtet": {
+    "ich": "beobachte",
+    "du": "beobachtest",
+    "wir": "beobachten",
+    "ihr": "beobachtet"
+  },
+  "kennt": {
+    "ich": "kenne",
+    "du": "kennst",
+    "wir": "kennen",
+    "ihr": "kennt"
+  },
+  "nennt": {
+    "ich": "nenne",
+    "du": "nennst",
+    "wir": "nennen",
+    "ihr": "nennt"
+  },
+  "sp\xFCrt": {
+    "ich": "sp\xFCre",
+    "du": "sp\xFCrst",
+    "wir": "sp\xFCren",
+    "ihr": "sp\xFCrt"
+  },
+  "wei\xDF": {
+    "ich": "wei\xDF",
+    "du": "wei\xDFt",
+    "wir": "wissen",
+    "ihr": "wisst"
+  },
+  "braucht": {
+    "ich": "brauche",
+    "du": "brauchst",
+    "wir": "brauchen",
+    "ihr": "braucht"
+  },
+  "w\xFCnscht": {
+    "ich": "w\xFCnsche",
+    "du": "w\xFCnschst",
+    "wir": "w\xFCnschen",
+    "ihr": "w\xFCnscht"
+  },
+  "hofft": {
+    "ich": "hoffe",
+    "du": "hoffst",
+    "wir": "hoffen",
+    "ihr": "hofft"
+  },
+  "tr\xE4umt": {
+    "ich": "tr\xE4ume",
+    "du": "tr\xE4umst",
+    "wir": "tr\xE4umen",
+    "ihr": "tr\xE4umt"
+  },
+  "plant": {
+    "ich": "plane",
+    "du": "planst",
+    "wir": "planen",
+    "ihr": "plant"
+  },
+  "f\xFCrchtet": {
+    "ich": "f\xFCrchte",
+    "du": "f\xFCrchtest",
+    "wir": "f\xFCrchten",
+    "ihr": "f\xFCrchtet"
+  },
+  "wartet": {
+    "ich": "warte",
+    "du": "wartest",
+    "wir": "warten",
+    "ihr": "wartet"
+  },
+  "glaubt": {
+    "ich": "glaube",
+    "du": "glaubst",
+    "wir": "glauben",
+    "ihr": "glaubt"
+  },
+  "denkt": {
+    "ich": "denke",
+    "du": "denkst",
+    "wir": "denken",
+    "ihr": "denkt"
+  },
+  "f\xFChlt": {
+    "ich": "f\xFChle",
+    "du": "f\xFChlst",
+    "wir": "f\xFChlen",
+    "ihr": "f\xFChlt"
+  },
+  "verlangt": {
+    "ich": "verlange",
+    "du": "verlangst",
+    "wir": "verlangen",
+    "ihr": "verlangt"
+  },
+  "erwartet": {
+    "ich": "erwarte",
+    "du": "erwartest",
+    "wir": "erwarten",
+    "ihr": "erwartet"
+  },
+  "riskiert": {
+    "ich": "riskiere",
+    "du": "riskierst",
+    "wir": "riskieren",
+    "ihr": "riskiert"
+  },
+  "wagt": {
+    "ich": "wage",
+    "du": "wagst",
+    "wir": "wagen",
+    "ihr": "wagt"
+  },
+  "flieht": {
+    "ich": "fliehe",
+    "du": "fliehst",
+    "wir": "fliehen",
+    "ihr": "flieht"
+  },
+  "jagt": {
+    "ich": "jage",
+    "du": "jagst",
+    "wir": "jagen",
+    "ihr": "jagt"
+  },
+  "folgt": {
+    "ich": "folge",
+    "du": "folgst",
+    "wir": "folgen",
+    "ihr": "folgt"
+  },
+  "verfolgt": {
+    "ich": "verfolge",
+    "du": "verfolgst",
+    "wir": "verfolgen",
+    "ihr": "verfolgt"
+  },
+  "rettet": {
+    "ich": "rette",
+    "du": "rettest",
+    "wir": "retten",
+    "ihr": "rettet"
+  },
+  "verr\xE4t": {
+    "ich": "verrate",
+    "du": "verr\xE4tst",
+    "wir": "verraten",
+    "ihr": "verratet"
+  },
+  "vergisst": {
+    "ich": "vergesse",
+    "du": "vergisst",
+    "wir": "vergessen",
+    "ihr": "vergesst"
+  },
+  "hatte": {
+    "ich": "hatte",
+    "du": "hattest",
+    "wir": "hatten",
+    "ihr": "hattet"
+  },
+  "war": {
+    "ich": "war",
+    "du": "warst",
+    "wir": "waren",
+    "ihr": "wart"
+  },
+  "wollte": {
+    "ich": "wollte",
+    "du": "wolltest",
+    "wir": "wollten",
+    "ihr": "wolltet"
+  },
+  "tat": {
+    "ich": "tat",
+    "du": "tatest",
+    "wir": "taten",
+    "ihr": "tatet"
+  },
+  "machte": {
+    "ich": "machte",
+    "du": "machtest",
+    "wir": "machten",
+    "ihr": "machtet"
+  },
+  "kam": {
+    "ich": "kam",
+    "du": "kamst",
+    "wir": "kamen",
+    "ihr": "kamt"
+  },
+  "ging": {
+    "ich": "ging",
+    "du": "gingst",
+    "wir": "gingen",
+    "ihr": "gingt"
+  },
+  "f\xFChrte": {
+    "ich": "f\xFChrte",
+    "du": "f\xFChrtest",
+    "wir": "f\xFChrten",
+    "ihr": "f\xFChrtet"
+  },
+  "schloss": {
+    "ich": "schloss",
+    "du": "schlossest",
+    "wir": "schlossen",
+    "ihr": "schlosst"
+  },
+  "fragte": {
+    "ich": "fragte",
+    "du": "fragtest",
+    "wir": "fragten",
+    "ihr": "fragtet"
+  },
+  "begriff": {
+    "ich": "begriff",
+    "du": "begriffst",
+    "wir": "begriffen",
+    "ihr": "begrifft"
+  },
+  "stellt": {
+    "ich": "stelle",
+    "du": "stellst",
+    "wir": "stellen"
+  },
+  "erkennt": {
+    "ich": "erkenne",
+    "du": "erkennst",
+    "wir": "erkennen"
+  },
+  "zeigt": {
+    "ich": "zeige",
+    "du": "zeigst",
+    "wir": "zeigen"
+  },
+  "greift": {
+    "ich": "greife",
+    "du": "greifst",
+    "wir": "greifen"
+  },
+  "legt": {
+    "ich": "lege",
+    "du": "legst",
+    "wir": "legen"
+  },
+  "betrachtet": {
+    "ich": "betrachte",
+    "du": "betrachtest",
+    "wir": "betrachten"
+  },
+  "setzt": {
+    "ich": "setze",
+    "du": "setzt",
+    "wir": "setzen"
+  },
+  "merkt": {
+    "ich": "merke",
+    "du": "merkst",
+    "wir": "merken"
+  },
+  "pr\xFCft": {
+    "ich": "pr\xFCfe",
+    "du": "pr\xFCfst",
+    "wir": "pr\xFCfen"
+  }
+};
+
+// src/atoms/assemble.ts
+var SCHWACH_KONSONANT = /^(Herr|Mensch|Held|Fürst|Prinz|Graf|Bär|Elefant|Nachbar|Bauer|Herz|Narr|Tor|Christ|Zar|Architekt|Soldat|Advokat|Kamerad|Katholik|Ochs|Spatz|Fink|Pfau|Ahn)$/;
+var SCHWACH_E = /^(Hase|Junge|Kollege|Zeuge|Bote|Erbe|Riese|Löwe|Affe|Rabe|Neffe|Kunde|Gefährte|Experte|Komplize|Insasse|Gatte|Bube|Falke|Franzose|Schwede|Türke|Russe|Pole|Däne|Ire|Brite|Jude|Sklave|Ahne|Zeuge)$/;
+function istSchwachesMaskulinum(kern) {
+  return SCHWACH_E.test(kern) || SCHWACH_KONSONANT.test(kern) || /(ent|ant|ist|oge|graf|soph|nom|arch|krat)$/.test(kern) || /^(Name|Gedanke|Glaube|Wille|Friede|Buchstabe)$/.test(kern);
+}
+function schwachesMaskulinum(kern) {
+  if (/(chen|lein|er|el|en|ling|ismus|or)$/.test(kern)) return kern;
+  if (SCHWACH_E.test(kern)) return kern + "n";
+  if (/(ent|ant|ist|oge|graf|soph|nom|arch|krat|at)$/.test(kern)) return kern + "en";
+  if (kern === "Herr") return "Herrn";
+  if (kern === "Nachbar" || kern === "Bauer") return kern + "n";
+  if (kern === "Herz") return "Herzen";
+  if (SCHWACH_KONSONANT.test(kern)) return kern + "en";
+  if (kern === "Name" || kern === "Gedanke" || kern === "Glaube" || kern === "Wille" || kern === "Friede" || kern === "Buchstabe") return kern + "n";
+  return kern;
+}
+function dekliniere(phrase, kasus) {
+  const m = phrase.match(/^(ein|eine|der|die|das)\s+(.*)$/i);
+  if (!m) return phrase;
+  const [, art, rest] = m;
+  const kern = (rest.match(/\b([A-ZÄÖÜ][a-zäöüß-]{2,})/) || [])[1];
+  const artG = art.toLowerCase() === "der" ? "m" : art.toLowerCase() === "das" ? "n" : void 0;
+  const g = artG || (kern ? istSchwachesMaskulinum(kern) ? "m" : guessGender(kern) : void 0);
+  if (!g) return phrase;
+  const map = {
+    akk: { m: art.toLowerCase() === "ein" ? "einen" : "den", f: art, n: art },
+    dat: { m: art.toLowerCase() === "ein" ? "einem" : "dem", f: art.toLowerCase() === "eine" ? "einer" : "der", n: art.toLowerCase() === "ein" ? "einem" : "dem" }
+  };
+  const neu = map[kasus]?.[g];
+  if (!neu) return phrase;
+  const rest2 = (kasus === "akk" || kasus === "dat") && g === "m" && kern ? rest.replace(new RegExp("\\b" + kern + "\\b"), schwachesMaskulinum(kern)) : rest;
+  let r = rest2;
+  if (neu.toLowerCase() !== art.toLowerCase()) {
+    const w = rest2.split(/\s+/);
+    let kernIdx = w.findIndex((x) => /^[A-ZÄÖÜ]/.test(x));
+    if (kernIdx < 0) kernIdx = w.length;
+    for (let i = 0; i < kernIdx; i++) {
+      const x = w[i];
+      if (/^[a-zäöüß]{3,}$/.test(x)) w[i] = x.replace(/(?:e|er|es|em|en)$/, "") + "en";
+    }
+    r = w.join(" ");
+  }
+  return neu + " " + r;
+}
+
 // src/generation/verbconj.ts
 var VERB_TOKEN_RE = new RegExp("\\b(" + Object.keys(VERB_CONJ).join("|") + ")\\b", "i");
 
 // src/generation/wordcls.ts
 var PERSON_NOMEN = /(jugendliche|jugendlicher|erwachsene|erwachsener|alte|alter|kranke|kranker|gefangene|gefangener|angestellte|angestellter|beamte|beamter|verwandte|verwandter|bekannte|bekannter|vorsitzende|vorsitzender|abgeordnete|abgeordneter|obdachlose|obdachloser|pensionär|pensionärin|rentner|rentnerin|zeuge|zeugin|täter|täterin|opfer|passant|passantin|kellner|kellnerin|pfarrer|pfarrerin|richter|richterin|händler|händlerin|bauer|bäuerin|förster|försterin|schneider|schneiderin|weber|weberin|uhrmacher|uhrmacherin|archivar|archivarin|übersetzer|übersetzerin|magd|knecht|ritter|ritterin|nonne|mönch|clown|boxer|boxerin|grabräuber|grabräuberin|mädchen|junge|kind|frau|mann|männer|dame|herr|schüler|schülerin|lehrer|lehrerin|wächter|wächterin|arzt|ärztin|bäcker|bäckerin|gärtner|gärtnerin|fischer|fischerin|bote|botin|wanderer|wanderin|reisende|reisender|nachbar|nachbarin|greis|greisin|witwe|witwer|zwilling|bruder|schwester|sohn|tochter|vater|mutter|onkel|tante|neffe|nichte|freund|freundin|gast|fremde|fremder|meister|meisterin|gesell|lehrling|soldat|soldatin|matrose|matrosin|pilot|pilotin|köchin|koch|wirt|wirtin|müller|müllerin|schmied|schmiedin|hirte|hirtin|jäger|jägerin|sammler|sammlerin)$/i;
-var NOT_INFINITIVE = /* @__PURE__ */ new Set([
-  "einen",
-  "keinen",
-  "seinen",
-  "ihren",
-  "deinen",
-  "unseren",
-  "euren",
-  "diesen",
-  "jenen",
-  "denen",
-  "welchen",
-  "allen",
-  "vielen",
-  "beiden",
-  "manchen",
-  "jeden",
-  "solchen",
-  "anderen",
-  "eigenen",
-  "letzten",
-  "ersten",
-  "oben",
-  "unten",
-  "innen",
-  "au\xDFen",
-  "hinten",
-  "vorn",
-  "vorne",
-  "neben",
-  "eben",
-  "gegen",
-  "wegen",
-  "gegen\xFCber",
-  "morgen",
-  "\xFCbermorgen",
-  "wochen",
-  "stunden",
-  "sieben",
-  "zehn",
-  "trotzen",
-  "w\xE4hrend",
-  "dessen",
-  "deren",
-  "hinein"
-]);
-var NICHT_VERB_T = /* @__PURE__ */ new Set([
-  "nicht",
-  "jetzt",
-  "erst",
-  "fast",
-  "sonst",
-  "meist",
-  "zuerst",
-  "zuletzt",
-  "selbst",
-  "sogar",
-  "seit",
-  "samt",
-  "statt",
-  "mit",
-  "zeit",
-  "trotz",
-  "laut",
-  "gerecht",
-  "sanft",
-  "dicht",
-  "leicht",
-  "schlecht",
-  "recht",
-  "direkt",
-  "echt",
-  "exakt",
-  "strikt",
-  "perfekt",
-  "konkret",
-  "komplett",
-  "kaputt",
-  "sacht",
-  "glatt",
-  "platt",
-  "nackt",
-  "satt",
-  "breit",
-  "bereit",
-  "weit",
-  "sp\xE4t",
-  "hart",
-  "zart",
-  "kalt",
-  "alt",
-  "bunt",
-  "rot",
-  "gut",
-  "oft",
-  "still",
-  "halt",
-  "gesamt",
-  "insgesamt",
-  "bekannt",
-  "verwandt",
-  "ber\xFChmt",
-  "sofort",
-  "vielleicht",
-  "\xFCberhaupt",
-  "zumindest",
-  "h\xF6chst",
-  "\xE4u\xDFerst",
-  "mindest",
-  "bestimmt",
-  "unbedingt",
-  "ernst",
-  "einst",
-  "l\xE4ngst",
-  "j\xFCngst",
-  "umsonst",
-  "weltweit",
-  "korrekt",
-  "intakt",
-  "kompakt",
-  "prompt",
-  "getrennt",
-  // vierbuchstabige Adjektive und Adverbien auf -t
-  "bunt",
-  "echt",
-  "fest",
-  "hart",
-  "kalt",
-  "laut",
-  "matt",
-  "nett",
-  "satt",
-  "weit",
-  "zart",
-  "fett",
-  "halt",
-  "wert",
-  "dort",
-  "fort",
-  "stet",
-  "sart"
-]);
-function wirktFinit(w) {
-  if (w.length < 4 || NICHT_VERB_T.has(w)) return false;
-  if (/^ge[a-zäöüß]+t$/.test(w)) return false;
-  return /^[a-zäöüß]+[^aeiouäöü]t$/.test(w) || /^[a-zäöüß]+et$/.test(w);
-}
-function looksLikeInfinitive(w) {
-  if (INFINITIVE_VERBS.has(w)) return true;
-  if (w.length < 5 || NOT_INFINITIVE.has(w) || NOUN_GENDER[w]) return false;
-  return /(?:[a-zäöüß]{3,})(?:en|ern|eln)$/.test(w);
-}
-function extractLeadVerb(text2) {
-  const s = clean(text2);
-  if (!s) return { verb: null, rest: s };
-  const m0 = s.match(/^([A-Za-zÄÖÜäöüß]+)(,?)\s+(.+)$/);
-  if (!m0) return { verb: null, rest: s };
-  const m = [m0[0], m0[1], (m0[2] ? ", " : "") + m0[3]];
-  const raw = m[1];
-  const w = raw.toLowerCase();
-  if (VERB_CONJ[w]) return { verb: raw, rest: m[2] };
-  if (/^[a-zäöüß]/.test(raw) && looksLikeInfinitive(w)) {
-    return { verb: null, rest: `${m[2]} ${w}`, isInfinitiveLed: true };
-  }
-  if (/^[a-zäöüß]+iert$/.test(w)) return { verb: raw, rest: m[2] };
-  const dritte = ICH_DU_ZU_ER[w];
-  if (dritte && /^[a-zäöüß]/.test(raw)) return { verb: dritte, rest: m[2] };
-  if (/^[a-zäöüß]/.test(raw) && (EXTRA_FINITE_RE.test(w) || wirktFinit(w))) {
-    return { verb: raw, rest: m[2] };
-  }
-  return { verb: null, rest: s };
-}
 var ICH_DU_HAND = {
   sehe: "sieht",
   siehst: "sieht",
@@ -3211,11 +3081,6 @@ var ICH_DU_ZU_ER = (() => {
   }
   return { ...m, ...ICH_DU_HAND };
 })();
-var EXTRA_FINITE_RE = /\b(geschieht|geschehen|geschah|passiert|passieren|passierte|tickt|ticken|atmet|atmen|wächst|wachsen|wuchs|brennt|brennen|brannte|fällt|fallen|fiel|zerfällt|zerfallen|verschwindet|verschwinden|verschwand|erscheint|erscheinen|erschien|endet|enden|endete|beginnt|beginnen|begann|stirbt|sterben|starb|blüht|blühen|klopft|klopfen|flackert|flackern|zerbricht|zerbrechen|zerbrach|dreht|drehen|schweigt|schweigen|schwieg|singt|singen|sang|wandert|wandern|glüht|glühen|tanzt|tanzen|brüllt|brüllen|reagiert|reagieren|zeigt|zeigen|spricht|sprechen|sprach|antwortet|antworten|erinnert|erinnern|verändert|verändern|zittert|zittern|leuchtet|leuchten|schmilzt|schmelzen|regnet|schneit|blitzt|donnert|bebt|läuft|laufen|lief|rinnt|tropft|fließt|fließen|floss|steigt|steigen|stieg|sinkt|sinken|sank|kreist|kreisen|pulsiert|vibriert|summt|brummt|knistert|raschelt|flüstert|flüstern|schreit|schreien|schrie|weint|weinen|lacht|lachen|verglüht|verblasst|zerrinnt|wartet|warten)\b/i;
-function looksLikeFullClause(leadVerb, rest) {
-  if (leadVerb) return false;
-  return VERB_TOKEN_RE.test(rest || "") || EXTRA_FINITE_RE.test(rest || "");
-}
 var SP_REL = /^(der|die|das|den|dem|des|deren|dessen|welche[rsmn]?|wo|worin|woran|womit|wovon)\b/i;
 var SP_CONJ = /^(als|während|weil|wenn|da|obwohl|nachdem|bevor|sodass|damit|dass|ob|indem|sobald|solange)\b/i;
 var SP_PREP = /^(mit|ohne|aus|von|vom|in|im|auf|an|am|für|bei|zu|zum|zur|über|unter|vor|nach|durch|gegen|seit|um|entlang|trotz|wegen|innerhalb|außerhalb|samt|nebst|zwischen|entgegen|gemäß|laut|binnen|jenseits|diesseits)\b/i;
@@ -3313,29 +3178,6 @@ function normWhere(s) {
   if (kind === "an") return g === "f" ? `an der ${adj}${np.noun}` : `am ${adj}${np.noun}`;
   return g === "f" ? `auf der ${adj}${np.noun}` : `auf dem ${adj}${np.noun}`;
 }
-var WEEKDAYS = /^(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag)$/i;
-var MONTHS = /^(januar|februar|märz|april|mai|juni|juli|august|september|oktober|november|dezember)$/i;
-var SEASONS = /^(frühling|frühjahr|sommer|herbst|winter)$/i;
-var TIME_ADV = /^(heute|morgen|gestern|übermorgen|vorgestern|damals|jetzt|nun|bald|einst|früher|später|nachts|morgens|abends|mittags|vormittags|nachmittags|irgendwann|immer|nie|niemals|neulich|kürzlich|demnächst|gerade|soeben|zugleich|währenddessen|einmal)\b/i;
-var AM_TIMES = /^(morgen|vormittag|mittag|nachmittag|abend|tag|anfang|ende|wochenende|feierabend)$/i;
-function normWhen(s) {
-  const t = (s || "").trim();
-  if (!t || PREPS.test(t) || TIME_ADV.test(t) || t.includes(",") || /\d+\s*uhr/i.test(t)) return t;
-  if (/^\d{3,4}$/.test(t)) return `im Jahr ${t}`;
-  const one = t.match(/^([A-ZÄÖÜa-zäöü][A-Za-zÄÖÜäöüß-]*)$/) ? t : null;
-  if (!one) return t;
-  const w = one;
-  if (WEEKDAYS.test(w)) return `an einem ${cap2(w)}`;
-  if (MONTHS.test(w) || SEASONS.test(w)) return `im ${cap2(w)}`;
-  if (/^mitternacht$/i.test(w)) return "um Mitternacht";
-  if (/^nacht$/i.test(w)) return "in der Nacht";
-  if (/^dämmerung$/i.test(w)) return "in der D\xE4mmerung";
-  if (AM_TIMES.test(w)) return `am ${cap2(w)}`;
-  const g = guessGender(w);
-  if (g === "f") return `in der ${cap2(w)}`;
-  if (g === "m" || g === "n") return `im ${cap2(w)}`;
-  return t;
-}
 function normWho(s) {
   const t = (s || "").trim();
   if (!t) return t;
@@ -3361,203 +3203,7 @@ function normWho(s) {
   return fixed.join(", ");
 }
 
-// src/generation/titel.ts
-var MAX = 60;
-var cap3 = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-var ohnePunkt = (s) => s.replace(/[.!?…]+$/, "").trim();
-var BILDZEILE = /^(Ein|Eine|Der|Die|Das|Zwei|Drei|Kein|Keine|Jede|Jeder|Jedes|Mein|Meine)\s+[A-ZÄÖÜ][a-zäöüß-]+(?:\s+[A-Za-zÄÖÜäöüß-]+){0,5}(?:,\s+(?:der|die|das|den|dem|deren|dessen|wo|worin)\s+[^,.;:!?]{3,60})?$/;
-var STOP = /* @__PURE__ */ new Set([
-  "der",
-  "die",
-  "das",
-  "den",
-  "dem",
-  "des",
-  "ein",
-  "eine",
-  "einen",
-  "einem",
-  "einer",
-  "und",
-  "oder",
-  "aber",
-  "in",
-  "im",
-  "an",
-  "am",
-  "auf",
-  "mit",
-  "von",
-  "vom",
-  "zu",
-  "zur",
-  "zum",
-  "nicht",
-  "nur",
-  "noch",
-  "wie",
-  "als",
-  "was",
-  "wer",
-  "wo",
-  "wann",
-  "sich",
-  "ist",
-  "sind",
-  "war",
-  "hat",
-  "wird",
-  "kein",
-  "keine",
-  "jemand",
-  "niemand",
-  "es"
-]);
-var inhaltswoerter = (s) => new Set((s.toLowerCase().match(/[a-zäöüß-]{3,}/g) || []).filter((w) => !STOP.has(w)));
-function kuerzeTitel(s, max = MAX) {
-  const t = ohnePunkt(clean(s));
-  if (t.length <= max) return t;
-  const stumpf = t.slice(0, max - 3);
-  const fuge = Math.max(stumpf.lastIndexOf(", "), stumpf.lastIndexOf(" \u2014 "), stumpf.lastIndexOf(": "), stumpf.lastIndexOf("; "));
-  const rumpf = fuge > 20 ? stumpf.slice(0, fuge) : stumpf.replace(/\s+\S*$/, "");
-  return rumpf.replace(/[,;:—–\s]+$/, "") + " \u2026";
-}
-var FINIT = /^(ist|sind|war|waren|hat|hatte|wird|wurde|kann|muss|will|soll|darf|mag|bleibt|kommt|geht|steht|liegt|fehlt|zählt|trägt|gibt|weiß)$/;
-var hatPraedikat = (kopf) => kopf.split(/\s+/).slice(1).some((w) => FINIT.test(w) || !!VERB_CONJ[w] || wirktFinit(w) || /^[a-zäöüß]/.test(w) && istVerbform(w));
-function bildzeilen(text2) {
-  return (text2 || "").replace(/\s+/g, " ").split(/(?<=[.!?…])\s+/).map((s) => ohnePunkt(s.trim())).filter((s) => BILDZEILE.test(s) && s.length <= MAX && (s.match(/\S+/g) || []).length >= 3 && !hatPraedikat(s.split(",")[0]));
-}
-function titelAusKontext(ctx, max = MAX) {
-  const who = normWho(clean(ctx.who || "")).split(",")[0].trim();
-  const what = clean(ctx.what || "");
-  if (who && what) {
-    const lv = extractLeadVerb(what);
-    if (lv.verb) return kuerzeTitel(`${cap3(who)} ${lv.verb}${lv.rest.startsWith(",") ? "" : " "}${lv.rest}`, max);
-    if (lv.isInfinitiveLed) return kuerzeTitel(`${cap3(who)} will ${lv.rest}`, max);
-    const letztes = (what.match(/[a-zäöüß-]+$/) || [""])[0];
-    if (/^[a-zäöüß]/.test(letztes) && looksLikeInfinitive(letztes) && !/,/.test(what)) return kuerzeTitel(`${cap3(who)} will ${what}`, max);
-    if (looksLikeFullClause(null, what.split(",")[0])) return kuerzeTitel(cap3(what), max);
-    return kuerzeTitel(`${cap3(who)} und ${what}`, max);
-  }
-  if (who) return kuerzeTitel(cap3(who), max);
-  if (what) {
-    const lv = extractLeadVerb(what);
-    if (!lv.verb && !lv.isInfinitiveLed) return kuerzeTitel(cap3(what), max);
-  }
-  const when = normWhen(clean(ctx.when || ""));
-  const where = normWhere(clean(ctx.where || ""));
-  if (when && where) return kuerzeTitel(`${cap3(when)}, ${where}`, max);
-  return kuerzeTitel(cap3(where || when || ""), max);
-}
-var KEIN_NOMEN = /* @__PURE__ */ new Set([
-  "ein",
-  "eine",
-  "einen",
-  "einem",
-  "einer",
-  "der",
-  "die",
-  "das",
-  "den",
-  "dem",
-  "des",
-  "und",
-  "im",
-  "am",
-  "in",
-  "an",
-  "auf",
-  "wo",
-  "was",
-  "wer",
-  "wie",
-  "es",
-  "ich",
-  "du",
-  "er",
-  "sie",
-  "wir",
-  "man",
-  "kein",
-  "keine",
-  "noch",
-  "nur",
-  "dann",
-  "dort",
-  "hier",
-  "jetzt",
-  "nichts",
-  "alles",
-  "etwas",
-  "jemand",
-  "niemand"
-]);
-function einWort(text2, ctx) {
-  const t = (text2 || "").replace(/\s+/g, " ").trim();
-  const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""} ${ctx.where || ""}`);
-  const nomen = [];
-  const anfaenge = [];
-  const re = /(^|[.!?…\n]\s*|\s)([A-ZÄÖÜ][a-zäöüß-]{2,})/g;
-  let m;
-  const roh = (text2 || "").trim();
-  while (m = re.exec(roh)) {
-    const w = m[2].replace(/-$/, "");
-    if (KEIN_NOMEN.has(w.toLowerCase())) continue;
-    (m[1] === " " ? nomen : anfaenge).push(w);
-  }
-  const alle = [...nomen, ...anfaenge];
-  const passend = alle.find((w) => bezug.has(w.toLowerCase()) || [...bezug].some((b) => b.length >= 5 && w.toLowerCase().includes(b)));
-  if (passend) return passend;
-  if (nomen.length) return nomen[nomen.length - 1];
-  if (anfaenge.length) return anfaenge[anfaenge.length - 1];
-  const ausCtx = (`${ctx.who || ""} ${ctx.what || ""} ${ctx.where || ""}`.match(/\b[A-ZÄÖÜ][a-zäöüß-]{2,}/g) || []).find((w) => !KEIN_NOMEN.has(w.toLowerCase()));
-  return ausCtx || (t ? "Haiku" : "");
-}
-function nuechternerTitel(ctx) {
-  const roh = titelAusKontext(ctx, 200);
-  if (!roh) return "";
-  const t = roh.replace(/^(Der|Die|Das|Ein|Eine)\s+(?=[A-ZÄÖÜ])/, "");
-  if (t.length <= MAX) return t;
-  const stumpf = t.slice(0, MAX);
-  const fuge = Math.max(stumpf.lastIndexOf(", "), stumpf.lastIndexOf(" \u2014 "), stumpf.lastIndexOf(" und "), stumpf.lastIndexOf(": "));
-  return fuge > 20 ? stumpf.slice(0, fuge).replace(/[,;:—–\s]+$/, "") : t;
-}
-function haikuKandidaten(text2, ctx) {
-  const erstes = einWort(text2, ctx);
-  const alle = ((text2 || "").match(/[A-ZÄÖÜ][a-zäöüß-]{2,}/g) || []).map((w) => w.replace(/-$/, "")).filter((w) => !KEIN_NOMEN.has(w.toLowerCase()));
-  return [.../* @__PURE__ */ new Set([erstes, ...alle.reverse()])].filter(Boolean);
-}
-function berichtKandidaten(ctx) {
-  const kern = nuechternerTitel(ctx);
-  if (!kern) return ["Bericht"];
-  const ort = clean(ctx.where || "").split(",")[0].replace(/^(in|im|am|an|auf|bei|vor|hinter|unter|über)\s+(der|dem|den|einer|einem)?\s*/i, "").trim();
-  const zeit = clean(ctx.when || "");
-  const out = [kern];
-  if (ort && kern.length + ort.length < MAX + 10) out.push(`${cap3(ort)}: ${kern}`);
-  if (zeit && kern.length + zeit.length < MAX + 10) out.push(`${cap3(zeit)}: ${kern}`);
-  return out;
-}
-function titelKandidaten(text2, ctx, form = "prose") {
-  if (form === "meldung") return [];
-  if (form === "haiku") return haikuKandidaten(text2, ctx);
-  if (form === "bericht") return berichtKandidaten(ctx);
-  const zeilen = bildzeilen(text2);
-  const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""}`);
-  const passend = zeilen.filter((z2) => [...inhaltswoerter(z2)].some((w) => bezug.has(w)));
-  const uebrige = zeilen.filter((z2) => !passend.includes(z2));
-  const kontext = titelAusKontext(ctx);
-  const ortzeit = ctx.when && ctx.where ? titelAusKontext({ when: ctx.when, where: ctx.where }) : "";
-  return [...new Set([...passend, ...uebrige, kontext, ortzeit].filter(Boolean))];
-}
-function titelFuer(text2, ctx, form = "prose", gesehen = []) {
-  const k2 = titelKandidaten(text2, ctx, form);
-  if (!k2.length) return form === "meldung" ? "" : "Ohne Titel";
-  const frisch = k2.find((t) => !gesehen.includes(t));
-  if (frisch) return frisch;
-  return k2.slice().sort((a, b) => gesehen.lastIndexOf(a) - gesehen.lastIndexOf(b))[0];
-}
-
-// test/titel.ts
+// test/nomen.ts
 var fails = [];
 var geprueft = 0;
 var bestanden = 0;
@@ -3566,85 +3212,57 @@ var ist = (name, wert, soll) => {
   if (wert === soll) bestanden++;
   else fails.push(`${name}: \u201E${String(wert)}\u201C \u2014 erwartet \u201E${String(soll)}\u201C`);
 };
-var wahr = (name, b) => ist(name, b, true);
-var text = "Die T\xFCr ist verschlossen. Ein Siegel. Ein Licht, das die falschen Dinge zeigt. Der Bote bringt, was niemand h\xF6ren will. Eine Narbe im Morgenlicht.";
-var z = bildzeilen(text);
-ist("ein Satz mit Pr\xE4dikat ist keine Bildzeile", z.includes("Die T\xFCr ist verschlossen"), false);
-ist("zwei W\xF6rter sagen nichts", z.includes("Ein Siegel"), false);
-ist("Nominalphrase mit Relativsatz ist eine", z.includes("Ein Licht, das die falschen Dinge zeigt"), true);
-ist("Nominalphrase mit Ortsangabe ist eine", z.includes("Eine Narbe im Morgenlicht"), true);
-ist("ein Hauptsatz mit Verb ist keine", z.includes("Der Bote bringt, was niemand h\xF6ren will"), false);
-ist(
-  "die Zeile mit Bezug zum Was gewinnt",
-  titelFuer(text, { who: "Der Bote", what: "eine Narbe z\xE4hlt" }),
-  "Eine Narbe im Morgenlicht"
-);
-ist(
-  "ohne Bezug die erste",
-  titelFuer(text, { who: "Der Bote", what: "schweigt" }),
-  "Ein Licht, das die falschen Dinge zeigt"
-);
-ist("die Meldung bekommt keinen Titel", titelFuer(text, {}, "meldung"), "");
-ist("verb-gef\xFChrtes Was: Satz", titelAusKontext({ who: "Der Bote", what: "bringt, was niemand h\xF6ren will" }), "Der Bote bringt, was niemand h\xF6ren will");
-ist("Was als Nominalphrase: \u201Eund\u201C", titelAusKontext({ who: "Ein Wachmann", what: "eine Logik, die nur im Tanz erlaubt ist" }), "Ein Wachmann und eine Logik, die nur im Tanz erlaubt ist");
-ist("Was als ganzer Satz: das Was allein", titelAusKontext({ who: "Die Uhrmacherin", what: "ein Wunder geschieht" }), "Ein Wunder geschieht");
-ist("Vorhaben mit Infinitiv: \u201Ewill\u201C", titelAusKontext({ who: "Wachmann", what: "einen Schl\xFCssel verlieren" }), "Ein Wachmann will einen Schl\xFCssel verlieren");
-ist("nur Wer", titelAusKontext({ who: "die Uhrmacherin" }), "Die Uhrmacherin");
-ist("nur Wann und Wo", titelAusKontext({ when: "1953", where: "Hafen" }), "Im Jahr 1953, im Hafen");
-ist("nichts \u2192 leer, der R\xFCckfall kommt von titelFuer", titelAusKontext({}), "");
-ist("R\xFCckfall ohne alles", titelFuer("", {}), "Ohne Titel");
-var lang = "Ein Museum, das seine Exponate verliert, z\xE4hlt eine Person zu viel und sagt es niemandem.";
-var k = kuerzeTitel(lang);
-wahr("h\xF6chstens sechzig Zeichen", k.length <= 60);
-wahr("endet auf Auslassung", /…$/.test(k));
-ist("gek\xFCrzt an der Fuge, nicht im Satzglied", k, "Ein Museum, das seine Exponate verliert \u2026");
-ist("ein kurzer Titel bleibt ganz, ohne Punkt", kuerzeTitel("Eine Narbe im Morgenlicht."), "Eine Narbe im Morgenlicht");
-{
-  const haiku = "Kalter Bach im Hafen \u2014\nein Wachmann z\xE4hlt die M\xF6wen,\nder Schl\xFCssel schweigt.";
-  ist("Haiku: ein Wort, mit Bezug zum Wer", einWort(haiku, { who: "Der Wachmann", what: "verliert einen Schl\xFCssel" }), "Wachmann");
-  ist("Haiku: ohne Bezug das letzte Nomen (die Aufl\xF6sung)", einWort("Kalter Bach im Hafen \u2014\nein Wachmann z\xE4hlt die M\xF6wen,\ndas Licht schweigt.", {}), "Licht");
-  wahr("Haiku: wirklich EIN Wort", !/\s/.test(titelFuer(haiku, { who: "Der Wachmann" }, "haiku")));
-  ist("Haiku: ohne Text ein Nomen aus dem Kontext, kein Artikel", einWort("", { who: "Die Uhrmacherin" }), "Uhrmacherin");
-  ist("Bericht: n\xFCchtern, ohne Artikel, Wer + Was", nuechternerTitel({ who: "Der Bote", what: "bringt, was niemand h\xF6ren will" }), "Bote bringt, was niemand h\xF6ren will");
-  ist("Bericht: keine Bildzeile aus dem Text", titelFuer(text, { who: "Der Bote", what: "bringt, was niemand h\xF6ren will" }, "bericht"), "Bote bringt, was niemand h\xF6ren will");
-  const langB = nuechternerTitel({ who: "Ein Museum, das seine Exponate verliert", what: "z\xE4hlt eine Person zu viel und sagt es niemandem und dem Rat" });
-  wahr("Bericht: zu lang \u2192 an der Fuge, ohne Auslassungszeichen", !/…/.test(langB) && langB.length <= 60);
-  ist("Bericht: ohne Kontext der Formname", titelFuer(text, {}, "bericht"), "Bericht");
-  ist("Reim: frei wie Prosa \u2014 die Bildzeile", titelFuer(text, { who: "Der Bote" }, "reim"), "Ein Licht, das die falschen Dinge zeigt");
+for (const [w, g] of [
+  ["Ende", "n"],
+  ["Jahr", "n"],
+  ["Anfang", "m"],
+  ["Welt", "f"],
+  ["Fall", "m"],
+  ["Arbeit", "f"],
+  ["Ziel", "n"],
+  ["Post", "f"],
+  ["Geld", "n"],
+  ["Mund", "m"],
+  ["Text", "m"],
+  ["Gras", "n"],
+  ["Blut", "n"],
+  ["Markt", "m"],
+  ["Kaserne", "f"],
+  ["B\xFCro", "n"],
+  ["Volk", "n"],
+  ["Staat", "m"],
+  ["Nacht", "f"],
+  ["Fluss", "m"]
+]) {
+  ist(`Genus ${w}`, guessGender(w), g);
 }
-{
-  const ctx = { who: "Der Bote", what: "bringt, was niemand h\xF6ren will", where: "am Kanalufer", when: "im Jahr 2041" };
-  const k2 = titelKandidaten(text, ctx);
-  wahr("es gibt mehrere Kandidaten", k2.length >= 3);
-  const erster = titelFuer(text, ctx, "prose", []);
-  const zweiter = titelFuer(text, ctx, "prose", [erster]);
-  const dritter = titelFuer(text, ctx, "prose", [erster, zweiter]);
-  wahr("drei Erzeugungen, drei Titel", (/* @__PURE__ */ new Set([erster, zweiter, dritter])).size === 3);
-  ist("alle vergeben \u2192 der \xE4lteste kommt wieder", titelFuer(text, ctx, "prose", k2.slice()), k2[0]);
-  const haiku = "Kalter Bach im Hafen \u2014\nein Wachmann z\xE4hlt die M\xF6wen,\nder Schl\xFCssel schweigt.";
-  const h1 = titelFuer(haiku, { who: "Der Wachmann" }, "haiku", []);
-  const h2 = titelFuer(haiku, { who: "Der Wachmann" }, "haiku", [h1]);
-  wahr("Haiku: das zweite Wort ist ein anderes, und eines", h1 !== h2 && !/\s/.test(h2));
-  const b1 = titelFuer("", ctx, "bericht", []);
-  const b2 = titelFuer("", ctx, "bericht", [b1]);
-  wahr("Bericht: die zweite Fassung tr\xE4gt Ort oder Zeit als Marke", b1 !== b2 && /^(Kanalufer|Im Jahr 2041): /.test(b2));
-  wahr("das Studio reicht die vergebenen Titel weiter", /titelFuer\(txt, \{[^}]*\}, form\.value, ladeGesehen\(\)\)/.test((0, import_fs.readFileSync)("src/ui/studio.ts", "utf8")));
-}
-var q = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
-wahr("es gibt den Schalter", /id: "f-titel-an"/.test(q));
-wahr("der Schalter wird gespeichert", /localStorage\.setItem\(TITEL_KEY/.test(q));
-wahr("der Titel steht \xFCber dem Text", /titelLbl\), titelEl, outWrap/.test(q));
-wahr("aus hei\xDFt kein Titel", /if \(!titelChk\.checked\) return "";/.test(q));
-wahr("und er wandert in den Leser", /titel: aktuellerTitel\(\)/.test(q));
-wahr("der Leser zeigt ihn", /ctx\.titel\) body\.prepend/.test((0, import_fs.readFileSync)("src/ui/reader.ts", "utf8")));
-console.log(`Pr\xFCfstand Titel \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
+ist("substantivierter Infinitiv: Leben", guessGender("Leben"), "n");
+ist("substantivierter Infinitiv: Schweigen", guessGender("Schweigen"), "n");
+ist("substantivierter Infinitiv: Warten", guessGender("Warten"), "n");
+ist("Ge\u2026e ist Neutrum: Geb\xE4ude", guessGender("Geb\xE4ude"), "n");
+ist("-e ist feminin: Ursache", guessGender("Ursache"), "f");
+ist("-e ist feminin: Tapete", guessGender("Tapete"), "f");
+ist("-e ist feminin: Schleuse", guessGender("Schleuse"), "f");
+ist("Auge bleibt Neutrum", guessGender("Auge"), "n");
+ist("Name bleibt Maskulinum", guessGender("Name"), "m");
+ist("Kollege bleibt Maskulinum", guessGender("Kollege"), "m");
+ist("Bote bleibt Maskulinum", guessGender("Bote"), "m");
+ist("Kompositum nimmt das Grundwort: Kanalufer", guessGender("Kanalufer"), "n");
+ist("Kompositum: Stra\xDFenanfang", guessGender("Stra\xDFenanfang"), "m");
+ist("Wo ohne Artikel: Kaserne \u2192 in der Kaserne", normWhere("Kaserne"), "in der Kaserne");
+ist("Wo ohne Artikel: B\xFCro \u2192 im B\xFCro", normWhere("B\xFCro"), "im B\xFCro");
+ist("Wo ohne Artikel: Markt \u2192 auf dem Markt", normWhere("Markt"), "auf dem Markt");
+ist("Wer ohne Artikel: Nachbar \u2192 Ein Nachbar", normWho("Nachbar"), "ein Nachbar");
+ist("Akkusativ eines schwachen Maskulinums", dekliniere("Der Kollege", "akk"), "den Kollegen");
+ist("Dativ feminin", dekliniere("Die Schleuse", "dat"), "der Schleuse");
+console.log(`Pr\xFCfstand Nomen \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {
   console.error(`
-\u274C Titel: ${fails.length} Fehler:`);
+\u274C Nomen: ${fails.length} Fehler:`);
   fails.forEach((f) => console.error("  - " + f));
   proc.process?.exit(1);
 } else {
   console.log(`
-\u2705 Titel: alle ${geprueft} Pr\xFCfungen bestanden.`);
+\u2705 Nomen: alle ${geprueft} Pr\xFCfungen bestanden.`);
 }

@@ -315,6 +315,7 @@ var KEIN_VERB = /* @__PURE__ */ new Set([
   "insgesamt",
   "total"
 ]);
+var SIBILANT = /(s|ß|z|x|tz|ss)$/;
 var GE_VERBEN = /^ge(ht|nügt|hört|horcht|lingt|winnt|langt|schieht|steht|rät|nießt|wöhnt|fährdet|währt|stattet|staltet|denkt|bietet|braucht|hörcht|nest|reicht|dulde?t|fällt|deiht|lobt|leitet|langt|winnt|behrt|bärt|fried[e]?t|fällt|lüstet|mahnt|rinnt|hört)$/;
 function starkMitPraefix(form) {
   if (STARK[form]) return ["", STARK[form]];
@@ -333,6 +334,34 @@ function istVerbform(wort) {
   if (!/^[a-zäöüß]{3,}t$/.test(w)) return false;
   if (/^ge[a-zäöüß]{2,}t$/.test(w)) return GE_VERBEN.test(w);
   return true;
+}
+function beugeVerb(form3, person) {
+  const gross = /^[A-ZÄÖÜ]/.test(form3);
+  const w = form3.toLowerCase();
+  const fertig = (s) => gross ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  if (person === "er" || person === "sie") return istVerbform(w) ? form3 : null;
+  const st = starkMitPraefix(w);
+  if (st) {
+    const [p, [ich, du, wir, ihr]] = st;
+    const f = person === "ich" ? ich : person === "du" ? du : person === "wir" ? wir : ihr || wir.replace(/e?n$/, "t");
+    return fertig(p + f);
+  }
+  if (!istVerbform(w)) return null;
+  let stamm = w.slice(0, -1);
+  const bindevokal = /[td]et$/.test(w) || /(chn|ffn|gn|tm|dm|ckn|kn)et$/.test(w);
+  if (bindevokal) stamm = w.slice(0, -2);
+  if (person === "ihr") return fertig(w);
+  if (person === "wir") {
+    if (/e[lr]$/.test(stamm)) return fertig(stamm + "n");
+    return fertig(stamm + "en");
+  }
+  if (person === "du") {
+    if (bindevokal) return fertig(stamm + "est");
+    if (SIBILANT.test(stamm)) return fertig(w);
+    return fertig(stamm + "st");
+  }
+  if (/el$/.test(stamm)) return fertig(stamm.slice(0, -2) + "le");
+  return fertig(stamm + "e");
 }
 
 // src/generation/verbconj.data.ts
@@ -4814,15 +4843,40 @@ var NEBENSATZ = /(,\s+(?:wo|wohin|woher|wenn|als|weil|dass|obwohl|während|nachd
 function kommaVorInversion(t) {
   return (t || "").replace(NEBENSATZ, "$1, $2 $3");
 }
+function istPluralFigur(who) {
+  const w = (who || "").trim();
+  if (!w) return false;
+  if (/^(zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|beide|alle|viele|einige|mehrere|manche|zwölf|hundert)\b/i.test(w)) return true;
+  if (/\b(und|&)\b/.test(w) && !/,/.test(w)) return true;
+  const m = w.match(/^die\s+([A-ZÄÖÜ][a-zäöüß-]+)$/i);
+  if (m) {
+    const n = m[1].toLowerCase();
+    if (/(innen|leute|kinder|eltern|geschwister|männer|frauen)$/.test(n)) return true;
+    return /en$/.test(n) && !/(chen|lein)$/.test(n);
+  }
+  return false;
+}
+function pluralKongruenz(t, who) {
+  const name = (who || "").trim();
+  if (!name || !istPluralFigur(name)) return t;
+  const esc = escapeRegExp(name);
+  const beuge = (v) => {
+    const p = beugeVerb(v, "wir");
+    return p && p !== v ? p : v;
+  };
+  let out = t.replace(new RegExp(`(\\b${esc})\\s+([a-z\xE4\xF6\xFC\xDF]+t)\\b`, "giu"), (m, n, v) => istVerbform(v) ? `${n} ${beuge(v)}` : m);
+  out = out.replace(new RegExp(`\\b([a-z\xE4\xF6\xFC\xDF]+t)\\s+(${esc})\\b`, "giu"), (m, v, n) => istVerbform(v) ? `${beuge(v)} ${n}` : m);
+  return out;
+}
 function kleinesPronomen(t) {
-  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
+  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
     /(,[ \t]+)(Wo|Wenn|Als|Weil|Dass|Obwohl|Während|Nachdem|Bevor|Sobald|Solange|Damit|Ob|Der|Die|Das|Dem|Den|Deren|Dessen)\b(?=\s)/g,
     (_m, sp, w) => sp + w.charAt(0).toLowerCase() + w.slice(1)
   );
 }
 function fragezeichen(t) {
   return (t || "").replace(
-    /(^|[.!?…]\s+|\n)(Wo|Was|Wer|Wie|Warum|Wann|Wohin|Woher|Weshalb|Wieso|Wem|Wen)\s+(ist|sind|war|waren|hat|haben|wird|werden|kommt|bleibt|will|kann|soll|darf|muss|geht|steht|bist|bin|seid|weiß|wissen)\b([^.!?…\n]{0,50})\./g,
+    /(^|[.!?…:]\s+|\n)(Wo|Was|Wer|Wie|Warum|Wann|Wohin|Woher|Weshalb|Wieso|Wem|Wen)\s+(ist|sind|war|waren|hat|haben|wird|werden|kommt|bleibt|will|kann|soll|darf|muss|geht|steht|bist|bin|seid|weiß|wissen)\b([^.!?…\n]{0,50})\./g,
     (m, vor, fw, v, rest) => rest.split(/\s+/).filter(Boolean).length <= 6 && !rest.includes(",") ? `${vor}${fw} ${v}${rest}?` : m
   );
 }
@@ -4844,6 +4898,7 @@ function postProcessText(txt, input) {
       t = t.replace(new RegExp(`\\b${esc}\\b`, "gi"), wieder);
     }
   }
+  t = pluralKongruenz(t, name);
   if (!isLineForm(input) && input?.tone && TONE_DATA[input.tone]) {
     const td = TONE_DATA[input.tone];
     if (td.opener.length) {
@@ -13007,6 +13062,16 @@ ist("lang keine Frage", fragezeichen("Wo ist das Buch mit den vielen leeren Seit
 ist("Wo nach Komma klein", kleinesPronomen("in einem Beichtstuhl, Wo die Stra\xDFen keine Namen tragen."), "in einem Beichtstuhl, wo die Stra\xDFen keine Namen tragen.");
 ist("Der nach Komma klein", kleinesPronomen("Ein Mann, Der nichts sagt."), "Ein Mann, der nichts sagt.");
 ist("Gegenprobe: Nomen nach Komma bleibt", kleinesPronomen("Brot, Wein und Salz."), "Brot, Wein und Salz.");
+{
+  ist("Zwei Frauen begreifen", pluralKongruenz("Zwei Frauen begreift: Wer ist Ben.", "Zwei Frauen"), "Zwei Frauen begreifen: Wer ist Ben.");
+  ist("auch in der Inversion", pluralKongruenz("Im Hof wartet Zwei Frauen.", "Zwei Frauen"), "Im Hof warten Zwei Frauen.");
+  ist("ist \u2192 sind", pluralKongruenz("Zwei Frauen ist m\xFCde.", "Zwei Frauen"), "Zwei Frauen sind m\xFCde.");
+  ist("Singular bleibt unber\xFChrt", pluralKongruenz("Der Bote begreift.", "Der Bote"), "Der Bote begreift.");
+  wahr("Mehrzahl erkannt: Zahlwort, und-Paar, Plural mit die", istPluralFigur("Zwei Frauen") && istPluralFigur("Anna und Ben") && istPluralFigur("Die Kollegen") && istPluralFigur("Die Kinder"));
+  wahr("Einzahl erkannt: Uhrmacherin, Bote, Nacht, M\xE4dchen", !istPluralFigur("Die Uhrmacherin") && !istPluralFigur("Der Bote") && !istPluralFigur("Die Nacht") && !istPluralFigur("Die M\xE4dchen"));
+  ist("Fragezeichen auch nach Doppelpunkt", fragezeichen("Sie begreifen: Wer ist Ben."), "Sie begreifen: Wer ist Ben?");
+  ist("Adverb nach Semikolon klein", kleinesPronomen("Niemand hat etwas geahnt; Angeblich."), "Niemand hat etwas geahnt; angeblich.");
+}
 console.log(`Pr\xFCfstand Schliff \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {
