@@ -3116,6 +3116,343 @@ function weaveCast(text, _P, cast) {
   return sent.join(" ");
 }
 
+// src/generation/verben.ts
+var STARK = {
+  // sein · haben · werden · wissen · tun · Modalverben
+  ist: ["bin", "bist", "sind", "seid"],
+  hat: ["habe", "hast", "haben", "habt"],
+  wird: ["werde", "wirst", "werden", "werdet"],
+  wei\u00DF: ["wei\xDF", "wei\xDFt", "wissen", "wisst"],
+  tut: ["tue", "tust", "tun", "tut"],
+  kann: ["kann", "kannst", "k\xF6nnen", "k\xF6nnt"],
+  muss: ["muss", "musst", "m\xFCssen", "m\xFCsst"],
+  will: ["will", "willst", "wollen", "wollt"],
+  soll: ["soll", "sollst", "sollen", "sollt"],
+  darf: ["darf", "darfst", "d\xFCrfen", "d\xFCrft"],
+  mag: ["mag", "magst", "m\xF6gen", "m\xF6gt"],
+  // a → ä
+  h\u00E4lt: ["halte", "h\xE4ltst", "halten", "haltet"],
+  f\u00E4llt: ["falle", "f\xE4llst", "fallen", "fallt"],
+  tr\u00E4gt: ["trage", "tr\xE4gst", "tragen", "tragt"],
+  l\u00E4uft: ["laufe", "l\xE4ufst", "laufen", "lauft"],
+  schl\u00E4ft: ["schlafe", "schl\xE4fst", "schlafen", "schlaft"],
+  f\u00E4ngt: ["fange", "f\xE4ngst", "fangen", "fangt"],
+  l\u00E4sst: ["lasse", "l\xE4sst", "lassen", "lasst"],
+  w\u00E4chst: ["wachse", "w\xE4chst", "wachsen", "wachst"],
+  gr\u00E4bt: ["grabe", "gr\xE4bst", "graben", "grabt"],
+  schl\u00E4gt: ["schlage", "schl\xE4gst", "schlagen", "schlagt"],
+  r\u00E4t: ["rate", "r\xE4tst", "raten", "ratet"],
+  bl\u00E4st: ["blase", "bl\xE4st", "blasen", "blast"],
+  st\u00F6\u00DFt: ["sto\xDFe", "st\xF6\xDFt", "sto\xDFen", "sto\xDFt"],
+  f\u00E4hrt: ["fahre", "f\xE4hrst", "fahren", "fahrt"],
+  w\u00E4scht: ["wasche", "w\xE4schst", "waschen", "wascht"],
+  l\u00E4dt: ["lade", "l\xE4dst", "laden", "ladet"],
+  s\u00E4uft: ["saufe", "s\xE4ufst", "saufen", "sauft"],
+  // e → i / ie
+  gibt: ["gebe", "gibst", "geben", "gebt"],
+  nimmt: ["nehme", "nimmst", "nehmen", "nehmt"],
+  spricht: ["spreche", "sprichst", "sprechen", "sprecht"],
+  bricht: ["breche", "brichst", "brechen", "brecht"],
+  sieht: ["sehe", "siehst", "sehen", "seht"],
+  liest: ["lese", "liest", "lesen", "lest"],
+  isst: ["esse", "isst", "essen", "esst"],
+  frisst: ["fresse", "frisst", "fressen", "fresst"],
+  misst: ["messe", "misst", "messen", "messt"],
+  vergisst: ["vergesse", "vergisst", "vergessen", "vergesst"],
+  hilft: ["helfe", "hilfst", "helfen", "helft"],
+  stirbt: ["sterbe", "stirbst", "sterben", "sterbt"],
+  wirft: ["werfe", "wirfst", "werfen", "werft"],
+  trifft: ["treffe", "triffst", "treffen", "trefft"],
+  gilt: ["gelte", "giltst", "gelten", "geltet"],
+  tritt: ["trete", "trittst", "treten", "tretet"],
+  birgt: ["berge", "birgst", "bergen", "bergt"],
+  quillt: ["quelle", "quillst", "quellen", "quellt"],
+  schilt: ["schelte", "schiltst", "schelten", "scheltet"],
+  ficht: ["fechte", "fichtst", "fechten", "fechtet"],
+  flicht: ["flechte", "flichtst", "flechten", "flechtet"],
+  verdirbt: ["verderbe", "verdirbst", "verderben", "verderbt"],
+  wirbt: ["werbe", "wirbst", "werben", "werbt"],
+  erschrickt: ["erschrecke", "erschrickst", "erschrecken", "erschreckt"],
+  sticht: ["steche", "stichst", "stechen", "stecht"],
+  schmilzt: ["schmelze", "schmilzt", "schmelzen", "schmelzt"],
+  befiehlt: ["befehle", "befiehlst", "befehlen", "befehlt"],
+  stiehlt: ["stehle", "stiehlst", "stehlen", "stehlt"],
+  empfiehlt: ["empfehle", "empfiehlst", "empfehlen", "empfehlt"],
+  geschieht: ["geschehe", "geschiehst", "geschehen", "gescheht"],
+  gebiert: ["geb\xE4re", "gebierst", "geb\xE4ren", "geb\xE4rt"],
+  schwillt: ["schwelle", "schwillst", "schwellen", "schwellt"]
+};
+var PRAEFIXE = [
+  "zusammen",
+  "zur\xFCck",
+  "wieder",
+  "gegen",
+  "hinter",
+  "durch",
+  "unter",
+  "\xFCber",
+  "voran",
+  "vorbei",
+  "heraus",
+  "herein",
+  "hinaus",
+  "hinein",
+  "herum",
+  "hinauf",
+  "hinab",
+  "herab",
+  "empor",
+  "fort",
+  "los",
+  "weg",
+  "fest",
+  "her",
+  "hin",
+  "ver",
+  "ent",
+  "emp",
+  "miss",
+  "zer",
+  "be",
+  "er",
+  "ge",
+  "an",
+  "ab",
+  "auf",
+  "aus",
+  "ein",
+  "mit",
+  "nach",
+  "vor",
+  "zu",
+  "um",
+  "bei",
+  "da",
+  "wider"
+];
+var KEIN_VERB = /* @__PURE__ */ new Set([
+  "alt",
+  "kalt",
+  "laut",
+  "bunt",
+  "hart",
+  "zart",
+  "satt",
+  "glatt",
+  "weit",
+  "breit",
+  "rot",
+  "tot",
+  "gut",
+  "sp\xE4t",
+  "echt",
+  "leicht",
+  "dicht",
+  "recht",
+  "schlecht",
+  "nackt",
+  "fest",
+  "letzt",
+  "jetzt",
+  "sanft",
+  "ernst",
+  "wert",
+  "seit",
+  "statt",
+  "samt",
+  "nicht",
+  "mit",
+  "seid",
+  "zuletzt",
+  "zuerst",
+  "oft",
+  "fast",
+  "erst",
+  "sonst",
+  "meist",
+  "direkt",
+  "dort",
+  "fort",
+  "sofort",
+  "selbst",
+  "vielleicht",
+  "\xFCberhaupt",
+  "bereit",
+  "gerecht",
+  "perfekt",
+  "exakt",
+  "absolut",
+  "gesamt",
+  "komplett",
+  "verr\xFCckt",
+  "bekannt",
+  "geschickt",
+  "besetzt",
+  "welt",
+  "zeit",
+  "nacht",
+  "stadt",
+  "acht",
+  "licht",
+  "wort",
+  "ort",
+  "blut",
+  "brot",
+  "mut",
+  "hut",
+  "rat",
+  "tat",
+  "gebet",
+  "geist",
+  "gott",
+  "kraft",
+  "luft",
+  "haut",
+  "haft",
+  "gift",
+  "schrift",
+  "frucht",
+  "flucht",
+  "sicht",
+  "macht",
+  "pflicht",
+  "angst",
+  "kunst",
+  "dienst",
+  "frost",
+  "post",
+  "ost",
+  "west",
+  "rest",
+  "test",
+  "text",
+  "w\xFCst",
+  "getrennt",
+  "gemischt",
+  "gebrannt",
+  "verletzt",
+  "entfernt",
+  "versteckt",
+  "verschwunden",
+  "bestimmt",
+  "gewohnt",
+  "gelaunt",
+  "verzweifelt",
+  "beliebt",
+  "ber\xFChmt",
+  "geliebt",
+  "gelebt",
+  "gedacht",
+  "gemacht",
+  "gebracht",
+  "gesagt",
+  "verlangt",
+  "gesucht",
+  "gehabt",
+  "gewusst",
+  "gekannt",
+  "genannt",
+  "benannt",
+  "bewegt",
+  "gewollt",
+  "erlaubt",
+  "verboten",
+  "ge\xF6ffnet",
+  "beruhigt",
+  "erleichtert",
+  "verwirrt",
+  "irritiert",
+  "interessiert",
+  "ungeahnt",
+  "gestern",
+  "heut",
+  "abrupt",
+  "ad\xE4quat",
+  "privat",
+  "intakt",
+  "korrekt",
+  "konkret",
+  "moderat",
+  "elegant",
+  "brillant",
+  "tolerant",
+  "relevant",
+  "markant",
+  "rasant",
+  "galant",
+  "latent",
+  "dezent",
+  "prominent",
+  "kompetent",
+  "konsequent",
+  "permanent",
+  "evident",
+  "eloquent",
+  "intelligent",
+  "gespannt",
+  "entspannt",
+  "gewandt",
+  "verwandt",
+  "bewusst",
+  "unbewusst",
+  "robust",
+  "abstrakt",
+  "kompakt",
+  "exakt",
+  "defekt",
+  "perfekt",
+  "insgesamt",
+  "total"
+]);
+var SIBILANT = /(s|ß|z|x|tz|ss)$/;
+var GE_VERBEN = /^ge(ht|nügt|hört|horcht|lingt|winnt|langt|schieht|steht|rät|nießt|wöhnt|fährdet|währt|stattet|staltet|denkt|bietet|braucht|hörcht|nest|reicht|dulde?t|fällt|deiht|lobt|leitet|langt|winnt|behrt|bärt|fried[e]?t|fällt|lüstet|mahnt|rinnt|hört)$/;
+function starkMitPraefix(form) {
+  if (STARK[form]) return ["", STARK[form]];
+  for (const p of PRAEFIXE) {
+    if (form.startsWith(p) && form.length > p.length + 2) {
+      const rest = form.slice(p.length);
+      if (STARK[rest]) return [p, STARK[rest]];
+    }
+  }
+  return null;
+}
+function istVerbform(wort) {
+  const w = wort.toLowerCase();
+  if (starkMitPraefix(w)) return true;
+  if (KEIN_VERB.has(w)) return false;
+  if (!/^[a-zäöüß]{3,}t$/.test(w)) return false;
+  if (/^ge[a-zäöüß]{2,}t$/.test(w)) return GE_VERBEN.test(w);
+  return true;
+}
+function beugeVerb(form3, person) {
+  const gross = /^[A-ZÄÖÜ]/.test(form3);
+  const w = form3.toLowerCase();
+  const fertig = (s) => gross ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  if (person === "er" || person === "sie") return istVerbform(w) ? form3 : null;
+  const st = starkMitPraefix(w);
+  if (st) {
+    const [p, [ich, du, wir, ihr]] = st;
+    const f = person === "ich" ? ich : person === "du" ? du : person === "wir" ? wir : ihr || wir.replace(/e?n$/, "t");
+    return fertig(p + f);
+  }
+  if (!istVerbform(w)) return null;
+  let stamm = w.slice(0, -1);
+  const bindevokal = /[td]et$/.test(w) || /(chn|ffn|gn|tm|dm|ckn|kn)et$/.test(w);
+  if (bindevokal) stamm = w.slice(0, -2);
+  if (person === "ihr") return fertig(w);
+  if (person === "wir") {
+    if (/e[lr]$/.test(stamm)) return fertig(stamm + "n");
+    return fertig(stamm + "en");
+  }
+  if (person === "du") {
+    if (bindevokal) return fertig(stamm + "est");
+    if (SIBILANT.test(stamm)) return fertig(w);
+    return fertig(stamm + "st");
+  }
+  if (/el$/.test(stamm)) return fertig(stamm.slice(0, -2) + "le");
+  return fertig(stamm + "e");
+}
+
 // src/generation/verbconj.ts
 var VERB_TOKEN_RE = new RegExp("\\b(" + Object.keys(VERB_CONJ).join("|") + ")\\b", "i");
 function conjugateVerbToken(verb, person) {
@@ -3126,12 +3463,9 @@ function conjugateVerbToken(verb, person) {
   let out;
   if (table && table[person]) {
     out = table[person];
-  } else if (person === "ich") {
-    out = /et$/.test(low2) ? low2.slice(0, -1) : /t$/.test(low2) ? low2.slice(0, -1) + "e" : low2;
-  } else if (person === "du") {
-    out = /et$/.test(low2) ? low2.slice(0, -1) + "st" : low2;
   } else {
-    out = low2;
+    const p = person === "ich" || person === "du" || person === "wir" || person === "ihr" ? person : "er";
+    out = beugeVerb(low2, p) ?? low2;
   }
   return isCap ? cap(out) : out;
 }
@@ -4528,68 +4862,6 @@ function guessPronoun(P2) {
   if (/(a|e|in)$/i.test(p)) return "sie";
   return "er";
 }
-var KEIN_VERB_AUF_T = /* @__PURE__ */ new Set([
-  "alt",
-  "kalt",
-  "laut",
-  "bunt",
-  "hart",
-  "zart",
-  "satt",
-  "glatt",
-  "weit",
-  "breit",
-  "rot",
-  "tot",
-  "gut",
-  "sp\xE4t",
-  "echt",
-  "leicht",
-  "dicht",
-  "recht",
-  "schlecht",
-  "nackt",
-  "fest",
-  "letzt",
-  "jetzt",
-  "sanft",
-  "ernst",
-  "wert",
-  "leer",
-  "seit",
-  "statt",
-  "samt",
-  "nicht",
-  "mit",
-  "seid",
-  "zuletzt",
-  "zuerst",
-  "oft",
-  "fast",
-  "erst",
-  "sonst",
-  "meist",
-  "direkt",
-  // Nachgetragen mit der Reihungs-Beugung (4.328.2): Nach „und" stehen oft
-  // Adverbien — „und dort wartet er" darf nicht zu „und dorten" werden.
-  "dort",
-  "fort",
-  "sofort",
-  "selbst",
-  "vielleicht",
-  "\xFCberhaupt",
-  "bereit",
-  "gerecht",
-  "perfekt",
-  "exakt",
-  "absolut",
-  "gesamt",
-  "komplett",
-  "verr\xFCckt",
-  "bekannt",
-  "geschickt",
-  "besetzt"
-]);
 var SUBJ_FUGE = /^(und|oder|aber|denn|doch|sondern|dann|da|weil|dass|als|wenn|während|obwohl|bevor|nachdem|sobald|solange|ob|wie|so|auch|nur|jetzt|dort|hier|heute|gestern|morgen|plötzlich|dabei|dadurch|deshalb|trotzdem|später|zuerst|zuletzt|außerdem|schließlich)$/i;
 var DEF_ART = { m: "der", f: "die", n: "das" };
 function objektName(o) {
@@ -4638,15 +4910,10 @@ var OBJEKT_ZWISCHENRUF = [
 ];
 function beugeToken(v, person) {
   if (VERB_CONJ[v.toLowerCase()]) return conjugateVerbToken(v, person);
-  if (!/[a-zäöüß]{3,}t$/.test(v)) return v;
-  const stamm = v.slice(0, -1);
-  const hatE = /e$/.test(stamm);
-  if (person === "du") return stamm + "st";
-  if (person === "ich") return hatE ? stamm : stamm + "e";
-  if (person === "wir") return hatE ? stamm + "n" : stamm + "en";
-  return v;
+  const p = person === "ich" || person === "du" || person === "wir" || person === "ihr" ? person : "er";
+  return beugeVerb(v, p) ?? v;
 }
-var kenntVerb = (v) => !!VERB_CONJ[v.toLowerCase()] || /^[a-zäöüß]{3,}t$/.test(v) && !KEIN_VERB_AUF_T.has(v.toLowerCase());
+var kenntVerb = (v) => !!VERB_CONJ[v.toLowerCase()] || istVerbform(v);
 function applyPerspective(paras, perspective, who, objName) {
   const P2 = clean(who) || "Jemand";
   const O = objektName(clean(objName) || pick(DING_VORRAT));

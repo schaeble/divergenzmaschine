@@ -1,6 +1,7 @@
 // Verb-Konjugation für Perspektivwechsel (VERB_CONJ + Näherung).
 import { VERB_CONJ } from "./verbconj.data";
 import { cap } from "./beats";
+import { beugeVerb } from "./verben";
 
 export const VERB_TOKEN_RE = new RegExp("\\b(" + Object.keys(VERB_CONJ).join("|") + ")\\b", "i");
 
@@ -12,12 +13,12 @@ export function conjugateVerbToken(verb: string, person: string): string {
   let out: string;
   if (table && table[person]) {
     out = table[person]!;
-  } else if (person === "ich") {
-    out = /et$/.test(low) ? low.slice(0, -1) : /t$/.test(low) ? low.slice(0, -1) + "e" : low;
-  } else if (person === "du") {
-    out = /et$/.test(low) ? low.slice(0, -1) + "st" : low;
   } else {
-    out = low;
+    // Ohne Tabelleneintrag: die Morphologie (verben.ts) statt der alten
+    // Näherung, die aus „wartet" ein „wartst" und aus „trägt" kein „tragen"
+    // machte.
+    const p = person === "ich" || person === "du" || person === "wir" || person === "ihr" ? person : "er";
+    out = beugeVerb(low, p) ?? low;
   }
   return isCap ? cap(out) : out;
 }

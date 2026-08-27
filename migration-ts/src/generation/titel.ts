@@ -23,6 +23,7 @@
 // Schlagzeile mit, die Meldung ist zu kurz für eine zweite Zeile.
 import { extractLeadVerb, looksLikeFullClause, wirktFinit, looksLikeInfinitive } from "./wordcls";
 import { VERB_CONJ } from "./verbconj.data";
+import { istVerbform } from "./verben";
 import { normWho, normWhere, normWhen } from "./ctxnorm";
 import { clean } from "../text-utils";
 
@@ -55,7 +56,7 @@ const FINIT = /^(ist|sind|war|waren|hat|hatte|wird|wurde|kann|muss|will|soll|dar
 /** Steht im Kopf der Zeile (vor dem Relativsatz) ein Prädikat? Dann ist es
  *  ein Satz („Die Tür ist verschlossen"), kein Titel. */
 const hatPraedikat = (kopf: string): boolean =>
-  kopf.split(/\s+/).slice(1).some((w) => FINIT.test(w) || !!VERB_CONJ[w] || wirktFinit(w));
+  kopf.split(/\s+/).slice(1).some((w) => FINIT.test(w) || !!VERB_CONJ[w] || wirktFinit(w) || (/^[a-zäöüß]/.test(w) && istVerbform(w)));
 
 /** Bildzeilen aus dem Text — Kandidaten für einen Titel, in Textreihenfolge.
  *  Mindestens drei Wörter: „Ein Siegel" sagt nichts. */

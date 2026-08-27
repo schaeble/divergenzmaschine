@@ -7,6 +7,7 @@ import { VERB_CONJ } from "./verbconj.data";
 import { KEIN_NOMEN } from "./polish";
 import { conjugateVerbToken } from "./verbconj";
 import { ICH_DU_ZU_ER } from "./wordcls";
+import { beugeVerb, istVerbform } from "./verben";
 import { guessGender } from "./declension";
 
 export interface DisruptorResult { text: string; fired: boolean; kind: string; }
@@ -178,16 +179,6 @@ export function guessPronoun(P: string): string {
 // umbeugen — genau daran ist die Umstellung „Ich/Du/Wir" schon einmal
 // gescheitert. Die Rahmensätze sind deshalb in sich abgeschlossen und hängen an
 // keinem Wort des Textes.
-/** Wörter auf -t, die keine Verben sind. Ohne sie machte die Beugung aus
- *  „alt" ein „alst". */
-const KEIN_VERB_AUF_T = new Set(["alt", "kalt", "laut", "bunt", "hart", "zart", "satt", "glatt",
-  "weit", "breit", "rot", "tot", "gut", "spät", "echt", "leicht", "dicht", "recht", "schlecht",
-  "nackt", "fest", "letzt", "jetzt", "sanft", "ernst", "wert", "leer", "seit", "statt", "samt",
-  "nicht", "mit", "seid", "zuletzt", "zuerst", "oft", "fast", "erst", "sonst", "meist", "direkt",
-  // Nachgetragen mit der Reihungs-Beugung (4.328.2): Nach „und" stehen oft
-  // Adverbien — „und dort wartet er" darf nicht zu „und dorten" werden.
-  "dort", "fort", "sofort", "selbst", "vielleicht", "überhaupt", "bereit", "gerecht", "perfekt",
-  "exakt", "absolut", "gesamt", "komplett", "verrückt", "bekannt", "geschickt", "besetzt"]);
 
 /** Wörter, nach denen ein Subjekt folgen darf. */
 const SUBJ_FUGE = /^(und|oder|aber|denn|doch|sondern|dann|da|weil|dass|als|wenn|während|obwohl|bevor|nachdem|sobald|solange|ob|wie|so|auch|nur|jetzt|dort|hier|heute|gestern|morgen|plötzlich|dabei|dadurch|deshalb|trotzdem|später|zuerst|zuletzt|außerdem|schließlich)$/i;
@@ -223,26 +214,19 @@ export const OBJEKT_KOPF_RE = /^(Ich bin (?:der|die|das) [^.!?]{1,40}\.\s+[^.!?]
 const OBJEKT_ZWISCHENRUF = ["Ich sehe zu.", "Ich liege dabei.", "Ich zähle mit.",
   "Ich rühre mich nicht.", "Ich habe Zeit.", "Ich merke es mir."];
 
-/** Ein Verb der dritten Person auf ich/du/wir bringen. Rueckfall fuer schwache
- *  Verben ohne Tabelleneintrag: Das Endungs-t wird ERSETZT, nicht ergaenzt
- *  („erinnert" → „erinnerst", nicht „erinnertst"); bei Stamm auf -e („wartet" →
- *  „warte") faellt das zusaetzliche e weg. */
+/** Ein Verb der dritten Person auf ich/du/wir bringen. Seit 4.331.0 über die
+ *  Morphologie (generation/verben.ts): Paradigmen für starke Verben, Regeln
+ *  für Bindevokal, Zischlaut und -eln/-ern. Die alte Tabelle VERB_CONJ bleibt
+ *  als Vorrang für ihre 311 Einträge; alles andere kommt aus beugeVerb(). Was
+ *  keine Verbform ist, bleibt unverändert. */
 function beugeToken(v: string, person: string): string {
   if (VERB_CONJ[v.toLowerCase()]) return conjugateVerbToken(v, person);
-  if (!/[a-zäöüß]{3,}t$/.test(v)) return v;
-  const stamm = v.slice(0, -1);                       // ohne das End-t
-  const hatE = /e$/.test(stamm);
-  if (person === "du") return stamm + "st";
-  if (person === "ich") return hatE ? stamm : stamm + "e";
-  if (person === "wir") return hatE ? stamm + "n" : stamm + "en";
-  return v;
+  const p = person === "ich" || person === "du" || person === "wir" || person === "ihr" ? person : "er";
+  return beugeVerb(v, p) ?? v;
 }
-/** Vier Buchstaben reichen: „erbt" fiel durch das alte {4,} und ergab „Du erbt
- *  ein Amt" — gemessen in 28 % der Du-Texte. Adjektive auf -t („alt", „kalt")
- *  stehen in der Sperrliste, sonst wuerde daraus „kalst". */
-const kenntVerb = (v: string): boolean =>
-  !!VERB_CONJ[v.toLowerCase()]
-  || (/^[a-zäöüß]{3,}t$/.test(v) && !KEIN_VERB_AUF_T.has(v.toLowerCase()));
+/** Kennt die Maschine dieses Wort als Verbform? Tabelle oder Morphologie —
+ *  Adjektive und Adverbien auf -t („alt", „dort") sagen dort nein. */
+const kenntVerb = (v: string): boolean => !!VERB_CONJ[v.toLowerCase()] || istVerbform(v);
 
 export function applyPerspective(paras: string[], perspective: string, who: string, objName: string): string[] {
   const P = clean(who) || "Jemand";
