@@ -5,6 +5,7 @@
 import { extractLeadVerb, looksLikeFullClause } from "../generation/wordcls";
 import { isPastTense, properNames } from "../generation/coherence";
 import { guessGender } from "../generation/declension";
+import { istVerbform } from "../generation/verben";
 import { VERB_CONJ } from "../generation/verbconj.data";
 
 export type AtomTyp = "hauptsatz" | "nebensatz" | "nominalphrase" | "praepositionalphrase"
@@ -33,6 +34,27 @@ const SEIN_HABEN_WERDEN = /^(ist|sind|bin|bist|seid|war|waren|warst|hat|habe|has
 const KURZVERB = /^(löst|geht|ruft|tut|gibt|lebt|hebt|legt|sagt|sieht|hält|fällt|zieht|trägt|liegt|kommt|nimmt|läuft|steht|dreht|führt|hört|fühlt|zählt|setzt|passt|weint|lacht|denkt|kennt|nennt|misst|sinkt|steigt|klingt|singt|fehlt|blickt|wirkt|reißt|bricht|spricht|wächst)$/;
 const PRAET_FORM = /(?:^|^[a-zäöüß]{2,6})(lag|lagen|stand|standen|ging|gingen|kam|kamen|sah|sahen|nahm|nahmen|hielt|hielten|ließ|ließen|fand|fanden|zog|zogen|trug|trugen|fiel|fielen|rief|riefen|sprach|schrieb|floss|stieg|sank|klang|hing|schien|trieb|brach|schloss|verlor|begann|geschah|roch|rochen|sass|saßen|riss|rissen|sprang|sprangen|schlug|schlugen|traf|trafen|griff|griffen|lief|liefen|wusste|wussten|verschwand|verschwanden|blieb|blieben|hieß|hießen|wuchs|wuchsen|schob|schoben|bog|bogen|schwieg|schwiegen)$/;
 // Endungen, die eher auf ein Nomen als auf ein Verb deuten (Falsch-Positive vermeiden)
+// Kleingeschriebene Wörter auf -en, die keine Verben sind: Präpositionen,
+// Adverbien, Adjektive, Pronomen, Zahlwörter. Nomen sind groß und fallen
+// vorher heraus; diese Liste fängt den Rest, damit „offen" nicht „offt".
+const EN_KEIN_VERB = new Set(["gegen", "neben", "wegen", "zwischen", "entgegen", "oben", "unten", "eben", "drüben",
+  "draußen", "drinnen", "morgen", "selten", "ansonsten", "meisten", "wenigsten", "offen", "eigen", "golden", "seiden",
+  "wollen", "einen", "keinen", "meinen", "seinen", "ihren", "deinen", "unseren", "euren", "deren", "dessen", "allen",
+  "vielen", "manchen", "welchen", "jeden", "diesen", "jenen", "denen", "ihnen", "sieben", "tausenden", "hunderten",
+  "anderen", "einigen", "wenigen", "beiden", "solchen", "eigenen", "ersten", "zweiten", "dritten", "letzten",
+  "nächsten", "besten", "ganzen", "halben", "fernen", "nahen", "hohen", "tiefen", "langen", "kurzen", "alten",
+  "neuen", "jungen", "kleinen", "großen", "roten", "grünen", "blauen", "schwarzen", "weißen", "kalten", "warmen",
+  "leeren", "vollen", "toten", "fremden", "stillen", "dunklen", "hellen", "innen", "außen", "hinten", "vorn",
+  "mitten", "unterdessen", "indessen", "übrigen", "wegen", "trotzdem", "zusammen", "gegenüber", "drüben"]);
+const DET_ODER_PREP = new Set(["der", "die", "das", "des", "dem", "den", "ein", "eine", "einen", "einem", "einer", "eines",
+  "kein", "keine", "keinen", "keinem", "keiner", "mein", "meine", "meinen", "meinem", "meiner", "dein", "deine", "deinen",
+  "sein", "seine", "seinen", "seinem", "seiner", "ihr", "ihre", "ihren", "ihrem", "ihrer", "unser", "unsere", "unseren",
+  "im", "am", "vom", "zum", "zur", "beim", "ins", "ans", "mit", "von", "zu", "aus", "bei", "nach", "seit", "auf", "an", "in",
+  "über", "unter", "vor", "hinter", "neben", "zwischen", "durch", "für", "ohne", "um", "gegen", "wegen", "trotz",
+  "während", "dieser", "diese", "diesen", "diesem", "dieses", "jeder", "jede", "jeden", "jedem", "jedes", "welcher",
+  "welche", "welchen", "welchem", "manche", "manchen", "solche", "solchen", "viele", "vielen", "wenige", "wenigen",
+  "einige", "einigen", "beide", "beiden", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun", "zehn",
+  "ganz", "sehr", "zu", "so", "wie", "als", "etwas", "nichts"]);
 const NOMEN_ENDUNG = /(ung|heit|keit|schaft|tät|ion|nis|tum|chen|lein|ment)$/;
 const PREP = /^(in|im|an|am|auf|bei|beim|mit|von|vom|zu|zum|zur|nach|über|unter|vor|hinter|neben|zwischen|durch|für|ohne|um|gegen|seit|trotz|wegen|während|aus|entlang|inmitten|jenseits|abseits)\b/i;
 const SUBJUNKTION = /^(dass|weil|obwohl|wenn|nachdem|bevor|ob|indem|sobald|solange|falls|sodass)\b/i;
@@ -73,13 +95,28 @@ export function hatFinitesVerb(seg: string): boolean {
   // WICHTIG: Groß-/Kleinschreibung erhalten — deutsche Nomen sind groß, Verben klein.
   // Ohne diese Prüfung gelten „Frist“, „Licht“, „Nacht“ als Verbformen auf -t.
   const ws = (seg.match(/[A-Za-zÄÖÜäöüß]+/g) || []);
-  for (const w of ws) {
+  for (let i = 0; i < ws.length; i++) {
+    const w = ws[i]!;
     if (/^[A-ZÄÖÜ]/.test(w)) continue;                                // Nomen oder Satzanfang → kein Verbkandidat
     const l = w.toLowerCase();
+    // Stellung im Satz: Ein Wort direkt nach Artikel oder Präposition ist ein
+    // Adjektiv („im gleichen Takt", „mit weichen Seiten"), eines direkt vor
+    // einem großgeschriebenen Nomen ebenso („einen einfachen Holzlöffel").
+    // Beides sperrt die Morphologie-Regeln unten; die Tabelle darf weiter.
+    const prev = (ws[i - 1] || "").toLowerCase(), next = ws[i + 1] || "";
+    const attributiv = DET_ODER_PREP.has(prev) || /^[A-ZÄÖÜ]/.test(next);
     if (VERB_CONJ[l]) return true;                                    // 3. Ps. Sg. Präsens
     if (SEIN_HABEN_WERDEN.test(l)) return true;                       // Hilfs-/Modalverben
     if (PRAET_FORM.test(l)) return true;                              // starke Präteritumformen (auch trennbar: aufging)
     if (KURZVERB.test(l)) return true;                                // kurze Formen: löst, geht, ruft
+    // Seit 4.331.2 über die Morphologie: „reicht" ist eine Verbform (auch
+    // ohne Tabelleneintrag), und „reichen" ist eine, wenn „reicht" eine ist.
+    // Vorher fiel „die Perlen reichen für ein Vorderteil" durch die
+    // Nomen-Endung „-chen" und galt als Nominalphrase — und stand dann als
+    // Ding hinter „bemerkt der Bote".
+    if (/t$/.test(l) && !attributiv && istVerbform(l)) return true;
+    if (/en$/.test(l) && l.length >= 5 && !EN_KEIN_VERB.has(l) && !attributiv
+      && (VERB_CONJ[l.slice(0, -2) + "t"] || VERB_CONJ[l.slice(0, -2) + "et"] || istVerbform(l.slice(0, -2) + "t"))) return true;
     if (/^(?!ge)[a-zäöüß]{4,}(?:t|te|en|ten)$/.test(l) && !NOMEN_ENDUNG.test(l)) return true;
   }
   // Satzanfang gesondert: „Klebt ein Zuckerkringel …“, „Stand im Sand“

@@ -5,6 +5,7 @@
 // folgt Regeln (Bindevokal, Zischlaut, -eln/-ern). Jede Zeile hier ist ein
 // Fall, an dem die alte Näherung scheiterte oder scheitern konnte.
 import { paradigma, beugeVerb, istVerbform } from "../src/generation/verben";
+import { deriveAtom, hatFinitesVerb } from "../src/atoms/derive";
 
 const fails: string[] = [];
 let geprueft = 0, bestanden = 0;
@@ -80,6 +81,24 @@ wahr("istVerbform: nicht ‚Nacht‘", !istVerbform("Nacht"));
 // ── 5 · Großschreibung bleibt ───────────────────────────────────────────────
 ist("Bringt → Bringst", beugeVerb("Bringt", "du"), "Bringst");
 ist("Trägt → Tragen", beugeVerb("Trägt", "wir"), "Tragen");
+
+// ── 6 · Wirkung in der Atom-Klassifikation (typisierte Slots) ───────────────
+// Der Assembler füllt Slots nach Typ: Ein Ding-Slot nimmt Nominalphrasen, kein
+// Hauptsatz. Die Klassifikation übersah Verben, die die Tabelle nicht kannte
+// oder die auf eine Nomen-Endung ausgehen: „die Perlen reichen für ein
+// Vorderteil" galt als Nominalphrase (-chen) und stand als Ding hinter
+// „bemerkt der Bote". Gemessen über 6472 Preset-Atome: 61 Umstufungen, alle
+// von Nominalphrase/Fragment zu Hauptsatz, alle korrekt (gilt, gehört,
+// gelingt, gerät, ruht, tagt, rät, reichen, hören, gehen).
+ist("reichen ist ein Verb, kein Diminutiv", hatFinitesVerb("die Perlen reichen für ein Vorderteil"), true);
+ist("gilt (nicht in der Tabelle)", deriveAtom("die Auskunft gilt rückwirkend").typ, "hauptsatz");
+ist("gehört", deriveAtom("die Nacht gehört den Wachen").typ, "hauptsatz");
+ist("gerät", deriveAtom("das Experiment gerät außer Kontrolle").typ, "hauptsatz");
+ist("hören (Plural)", deriveAtom("die Nachbarn hören jedes Wort durch die Wand").typ, "hauptsatz");
+// Gegenproben: Nominalphrasen bleiben Nominalphrasen.
+ist("ein Mädchen mit Fahrrad", deriveAtom("ein Mädchen mit einem roten Fahrrad").typ, "nominalphrase");
+ist("eine Frist, die rückwärts läuft", deriveAtom("eine Frist, die rückwärts läuft").typ, "nominalphrase");
+ist("ein offenes Fenster (Adjektiv auf -en)", deriveAtom("ein offenes Fenster im Treppenhaus").typ, "nominalphrase");
 
 console.log(`Prüfstand Verben — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
