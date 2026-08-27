@@ -19,6 +19,7 @@
 // Geblieben ist, was in JEDEM Text richtig ist. Deshalb braucht es keinen
 // Schalter mehr.
 import { NOUN_GENDER } from "./nouns.data";
+import { namensErsetzer } from "../text-utils";
 import { extractLeadVerb } from "./wordcls";
 
 interface PolishOpts { who?: string; }
@@ -98,8 +99,12 @@ export function polishGerman(text: string, opts: PolishOpts = {}): string {
   // 2. Schreibweise des Namens vereinheitlichen
   if (who.trim()) {
     const w = who.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    try { t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${w}(?![\\p{L}\\p{N}_])`, "giu"), who.trim()); }
-    catch { t = t.replace(new RegExp(`\\b${w}\\b`, "gi"), who.trim()); }
+    // Den Artikel nicht mit wiederherstellen: „findet ein Wald ohne Bäume" hat
+    // kleinerArtikel eben kleingesetzt; ein Name folgt der Schreibweise, ein
+    // Artikel der Satzstellung. (Dieselbe Regel wie in postProcessText.)
+    const wieder = namensErsetzer(who.trim());
+    try { t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${w}(?![\\p{L}\\p{N}_])`, "giu"), wieder); }
+    catch { t = t.replace(new RegExp(`\\b${w}\\b`, "gi"), wieder); }
   }
 
   // 3. Wortdopplung, mit Ausnahmeliste

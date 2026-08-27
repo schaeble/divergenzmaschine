@@ -40,6 +40,10 @@ function splitSentences(txt) {
   }
   return raus;
 }
+function namensErsetzer(name) {
+  const mitArtikel = /^(ein|eine|einen|einem|einer|der|die|das|den|dem|des)\s/i.test(name);
+  return (m) => mitArtikel && /^[a-zäöü]/.test(m) ? name.charAt(0).toLowerCase() + name.slice(1) : name;
+}
 
 // src/generation/verbconj.data.ts
 var VERB_CONJ = {
@@ -4349,10 +4353,11 @@ function polishGerman(text, opts = {}) {
   t = t.replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/ /g, " ").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").replace(/[ \t]+([,.;:!?])/g, "$1").replace(/([,.;:!?])([A-Za-zÄÖÜäöü])/g, "$1 $2").replace(/\(\s+/g, "(").replace(/\s+\)/g, ")").replace(/,+/g, ",").replace(/,\s*,/g, ", ").replace(/:\s*:/g, ":").replace(/([A-Za-zÄÖÜäöü0-9])\.\.(?=\s|$)/g, "$1\u2026").replace(/\.\.(?!\.)/g, ".").trim();
   if (who.trim()) {
     const w = who.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const wieder = namensErsetzer(who.trim());
     try {
-      t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${w}(?![\\p{L}\\p{N}_])`, "giu"), who.trim());
+      t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${w}(?![\\p{L}\\p{N}_])`, "giu"), wieder);
     } catch {
-      t = t.replace(new RegExp(`\\b${w}\\b`, "gi"), who.trim());
+      t = t.replace(new RegExp(`\\b${w}\\b`, "gi"), wieder);
     }
   }
   for (let k = 0; k < 6; k++) {
@@ -4589,8 +4594,9 @@ function coherenceRepairV2(t, input) {
   t = t.replace(/(:\s+)([a-zäöüß][^.!?…]*)/g, (m, p1, rest) => looksLikeFullClause(null, rest) || /^(warum|weshalb|wieso|wie|was|wer|wen|wem|wann|wo|wohin|woher|ob)\b/i.test(rest) ? p1 + rest.charAt(0).toUpperCase() + rest.slice(1) : m);
   String(input?.who || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean).forEach((n) => {
     const esc = escapeRegExp(n);
+    const wieder = namensErsetzer(n);
     try {
-      t = t.replace(new RegExp("\\b" + esc + "(s|')?\\b", "giu"), (_m, suf) => n + (suf || ""));
+      t = t.replace(new RegExp("\\b(" + esc + ")(s|')?\\b", "giu"), (_m, kern, suf) => wieder(kern) + (suf || ""));
     } catch {
     }
   });
@@ -4676,10 +4682,11 @@ function postProcessText(txt, input) {
   const name = (input?.who ?? "").toString().trim();
   if (name) {
     const esc = escapeRegExp(name);
+    const wieder = namensErsetzer(name);
     try {
-      t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${esc}(?![\\p{L}\\p{N}_])`, "giu"), name);
+      t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${esc}(?![\\p{L}\\p{N}_])`, "giu"), wieder);
     } catch {
-      t = t.replace(new RegExp(`\\b${esc}\\b`, "gi"), name);
+      t = t.replace(new RegExp(`\\b${esc}\\b`, "gi"), wieder);
     }
   }
   if (!isLineForm(input) && input?.tone && TONE_DATA[input.tone]) {
@@ -12735,6 +12742,14 @@ wahr("die Objekt-Perspektive nutzt ihn", /Ich kenne \$\{dekliniere\(P, "akk"\)\}
   ist("ein Relativsatz, der auf das Verb endet, bleibt", kommaVorInversion("Ein Mann, der die Karten nicht sieht."), "Ein Mann, der die Karten nicht sieht.");
   ist("ein Komma, das schon da ist, wird nicht verdoppelt", kommaVorInversion("Am Hafen, wo es regnet, bemerke ich nichts."), "Am Hafen, wo es regnet, bemerke ich nichts.");
   ist("ohne Nebensatz-Einleiter keine \xC4nderung", kommaVorInversion("Am Hafen, im Regen bemerke ich nichts."), "Am Hafen, im Regen bemerke ich nichts.");
+}
+{
+  const inp = { who: "Ein Wald ohne B\xE4ume", form: "prose" };
+  const t = postProcessText("W\xE4hrend des Prozesses bemerkt Ein Wald ohne B\xE4ume eine Karte. Was Ein Wald ohne B\xE4ume will: schweigen.", inp);
+  wahr("der Artikel bleibt klein nach dem Verb", /bemerkt ein Wald ohne Bäume/.test(t));
+  wahr("und nach \u201EWas\u201C", /Was ein Wald ohne Bäume will/.test(t));
+  const n = postProcessText("Dann kommt maria brandt zur\xFCck.", { who: "Maria Brandt", form: "prose" });
+  wahr("Gegenprobe: ein Name wird wiederhergestellt", /Maria Brandt/.test(n));
 }
 console.log(`Pr\xFCfstand Schliff \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

@@ -302,6 +302,13 @@ ist("-see ebenso", normWhere("Bodensee"), "am Bodensee");
 ist("mit Präposition bleibt alles stehen", normWhere("am Kanalufer, unter der Brücke"), "am Kanalufer, unter der Brücke");
 ist("ein Innenraum bekommt im", normWhere("Keller"), "im Keller");
 
+// ── Wo mit nachgestellter Angabe: der Kopf bekommt seine Präposition ────────
+// Gemeldet: „Während des letzten Prozesses, Platz in Hanoi, Vietnam".
+ist("Platz in Hanoi, Vietnam", normWhere("Platz in Hanoi, Vietnam"), "auf dem Platz in Hanoi, Vietnam");
+ist("Gericht ohne Richter, wo …", normWhere("Gericht ohne Richter, wo die Karten nicht stimmen"), "im Gericht ohne Richter, wo die Karten nicht stimmen");
+ist("Bahnhof unter der Stadt", normWhere("Bahnhof unter der Stadt"), "im Bahnhof unter der Stadt");
+ist("mit Präposition davor unverändert", normWhere("im Platz in Hanoi"), "im Platz in Hanoi");
+
 console.log(`Prüfstand Nr. 44 — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

@@ -166,3 +166,15 @@ export function kuerzeAmBruch(text: string): string {
   // geleert. Wer eine braucht, prüft sie beim Aufrufer.
   return HAENGT_IN_DER_LUFT.test(t) ? "" : t;
 }
+
+/** Wiederherstellung der Schreibweise eines Namens aus dem Wer — ohne den
+ *  Artikel: Beginnt das Wer mit „Ein"/„Der", hat kleinerArtikel ihn in der
+ *  Satzmitte kleingesetzt („findet ein Wald ohne Bäume"), und die drei
+ *  Wiederherstellungen (postProcessText, polishGerman, Fix 4b) machten ihn
+ *  wieder groß — gemessen in 36 % der Objekt-Texte. Ein Artikel folgt der
+ *  Satzstellung, ein Name seiner Schreibweise. Diese Funktion gibt den
+ *  Ersetzer, den alle drei benutzen. */
+export function namensErsetzer(name: string): (m: string) => string {
+  const mitArtikel = /^(ein|eine|einen|einem|einer|der|die|das|den|dem|des)\s/i.test(name);
+  return (m: string): string => (mitArtikel && /^[a-zäöü]/.test(m)) ? name.charAt(0).toLowerCase() + name.slice(1) : name;
+}

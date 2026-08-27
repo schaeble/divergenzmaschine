@@ -4,7 +4,7 @@ import { MODE_DATA } from "../modes.data";
 import { pick, pickSane, clean, chance } from "../text-utils";
 import { normWhere, normWhen, normWho } from "./ctxnorm";
 import { makeDialogueScene, pickSpeakerForArchetype } from "./dialogue";
-import { kleinerArtikel, postProcessText } from "./postprocess";
+import { kleinerArtikel, kleinesPronomen, kommaVorInversion, postProcessText } from "./postprocess";
 import { pickStructureBuilder } from "./structures";
 import { looksLikeClausePhrase, safeCaseForm, weaveCast } from "./beats";
 import { resetMarkovTrace, traceMarkov } from "./markovTrace";
@@ -239,7 +239,12 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   // Motivverwandlung ganz zum Schluss: Sie zählt Vorkommen im FERTIGEN Text.
   // Vorher gezählt, würde die Längenauffüllung ihr Material nachliefern und die
   // Zählung wäre falsch.
-  return verwandleMotive(
+  // Und danach noch einmal der kleine Schliff: Das Auffüllen setzt Rahmen mit
+  // der Figur („findet Ein Wald ohne Bäume ein Kabel") NACH postProcessText —
+  // gemessen in 36 % der Objekt-Texte stand der Artikel groß in der Satzmitte.
+  // kleinerArtikel, kleinesPronomen und kommaVorInversion ändern keine Fakten,
+  // nur ein Zeichen; sie dürfen als Letzte laufen.
+  return kommaVorInversion(kleinesPronomen(kleinerArtikel(verwandleMotive(
     entferneDubletten(enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix")),
-    leseVerwandlungen(bank.verwandlungen));
+    leseVerwandlungen(bank.verwandlungen)))));
 }

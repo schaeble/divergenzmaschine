@@ -1,3 +1,4 @@
+import { namensErsetzer } from "../text-utils";
 // Nachbearbeitung des generierten Textes: Kohärenz-Schliff + Reparatur.
 // Hinweis: Ton-Einfärbung und Sprachschliff (polishGerman) sind bewusst
 // noch nicht portiert (Phase 4) — hier steckt der Kern der Bereinigung.
@@ -177,7 +178,8 @@ export function coherenceRepairV2(t: string, input?: Input): string {
   // Fix 4b: Eigennamen aus "Wer" korrekt kapitalisieren
   String(input?.who || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean).forEach((n) => {
     const esc = escapeRegExp(n);
-    try { t = t.replace(new RegExp("\\b" + esc + "(s|')?\\b", "giu"), (_m, suf: string) => n + (suf || "")); } catch { /* ungültiger Name */ }
+    const wieder = namensErsetzer(n);
+    try { t = t.replace(new RegExp("\\b(" + esc + ")(s|')?\\b", "giu"), (_m, kern: string, suf: string) => wieder(kern) + (suf || "")); } catch { /* ungültiger Name */ }
   });
 
   if (isLineForm(input)) {
@@ -326,10 +328,17 @@ export function postProcessText(txt: string, input?: Input): string {
   const name = (input?.who ?? "").toString().trim();
   if (name) {
     const esc = escapeRegExp(name);
+    // Die Schreibweise des Namens wiederherstellen — aber nicht den Artikel:
+    // Beginnt das Wer mit „Ein"/„Der", hat kleinerArtikel ihn eben in der
+    // Satzmitte kleingesetzt („findet ein Wald ohne Bäume"), und diese
+    // Wiederherstellung machte ihn wieder groß. Gemessen: 36 % der Objekt-
+    // Texte mit „findet Ein Wald". Ein Artikel folgt der Satzstellung, ein
+    // Name nicht.
+    const wieder = namensErsetzer(name);
     try {
-      t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${esc}(?![\\p{L}\\p{N}_])`, "giu"), name);
+      t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${esc}(?![\\p{L}\\p{N}_])`, "giu"), wieder);
     } catch {
-      t = t.replace(new RegExp(`\\b${esc}\\b`, "gi"), name);
+      t = t.replace(new RegExp(`\\b${esc}\\b`, "gi"), wieder);
     }
   }
 

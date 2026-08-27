@@ -42,6 +42,14 @@ export function normWhere(s: string): string {
   // nicht angefasst — aber der Kopf davor wird normalisiert wie ohne Zusatz.
   const komma = t.indexOf(",");
   if (komma > 0) { const kopf = normWhere(t.slice(0, komma)); return kopf + t.slice(komma); }
+  // „Platz in Hanoi" — ein Kopf mit eigener Ortsangabe dahinter: der Kopf
+  // bekommt seine Präposition, der Zusatz bleibt („auf dem Platz in Hanoi").
+  // Gemeldet: „Während des letzten Prozesses, Platz in Hanoi, Vietnam".
+  const zusatz = t.match(/^(.+?)\s+((?:in|im|an|am|auf|bei|vor|hinter|neben|unter|über|zwischen|nahe|gegenüber|ohne|mit|voller|aus)\s+.+)$/);
+  if (zusatz && !/\s/.test(zusatz[1]!.replace(/^(der|die|das|ein|eine)\s+/i, ""))) {
+    const kopf = normWhere(zusatz[1]!);
+    if (kopf !== zusatz[1]) return `${kopf} ${zusatz[2]}`;
+  }
   const np = parseNP(t);
   if (!np) return t;
   const g = genderOf(np.art, np.noun);

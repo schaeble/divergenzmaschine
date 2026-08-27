@@ -371,6 +371,10 @@ function kuerzeAmBruch(text) {
   }
   return HAENGT_IN_DER_LUFT.test(t) ? "" : t;
 }
+function namensErsetzer(name) {
+  const mitArtikel = /^(ein|eine|einen|einem|einer|der|die|das|den|dem|des)\s/i.test(name);
+  return (m) => mitArtikel && /^[a-zäöü]/.test(m) ? name.charAt(0).toLowerCase() + name.slice(1) : name;
+}
 
 // src/features/storage-status.ts
 function isQuotaError(e2) {
@@ -16331,6 +16335,11 @@ function normWhere(s) {
     const kopf = normWhere(t.slice(0, komma));
     return kopf + t.slice(komma);
   }
+  const zusatz = t.match(/^(.+?)\s+((?:in|im|an|am|auf|bei|vor|hinter|neben|unter|über|zwischen|nahe|gegenüber|ohne|mit|voller|aus)\s+.+)$/);
+  if (zusatz && !/\s/.test(zusatz[1].replace(/^(der|die|das|ein|eine)\s+/i, ""))) {
+    const kopf = normWhere(zusatz[1]);
+    if (kopf !== zusatz[1]) return `${kopf} ${zusatz[2]}`;
+  }
   const np = parseNP(t);
   if (!np) return t;
   const g = genderOf(np.art, np.noun);
@@ -17234,10 +17243,11 @@ function polishGerman(text, opts = {}) {
   t = t.replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/ /g, " ").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").replace(/[ \t]+([,.;:!?])/g, "$1").replace(/([,.;:!?])([A-Za-zÄÖÜäöü])/g, "$1 $2").replace(/\(\s+/g, "(").replace(/\s+\)/g, ")").replace(/,+/g, ",").replace(/,\s*,/g, ", ").replace(/:\s*:/g, ":").replace(/([A-Za-zÄÖÜäöü0-9])\.\.(?=\s|$)/g, "$1\u2026").replace(/\.\.(?!\.)/g, ".").trim();
   if (who.trim()) {
     const w = who.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const wieder = namensErsetzer(who.trim());
     try {
-      t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${w}(?![\\p{L}\\p{N}_])`, "giu"), who.trim());
+      t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${w}(?![\\p{L}\\p{N}_])`, "giu"), wieder);
     } catch {
-      t = t.replace(new RegExp(`\\b${w}\\b`, "gi"), who.trim());
+      t = t.replace(new RegExp(`\\b${w}\\b`, "gi"), wieder);
     }
   }
   for (let k = 0; k < 6; k++) {
@@ -17738,8 +17748,9 @@ function coherenceRepairV2(t, input) {
   t = t.replace(/(:\s+)([a-zäöüß][^.!?…]*)/g, (m, p1, rest) => looksLikeFullClause(null, rest) || /^(warum|weshalb|wieso|wie|was|wer|wen|wem|wann|wo|wohin|woher|ob)\b/i.test(rest) ? p1 + rest.charAt(0).toUpperCase() + rest.slice(1) : m);
   String(input?.who || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean).forEach((n) => {
     const esc = escapeRegExp(n);
+    const wieder = namensErsetzer(n);
     try {
-      t = t.replace(new RegExp("\\b" + esc + "(s|')?\\b", "giu"), (_m, suf) => n + (suf || ""));
+      t = t.replace(new RegExp("\\b(" + esc + ")(s|')?\\b", "giu"), (_m, kern, suf) => wieder(kern) + (suf || ""));
     } catch {
     }
   });
@@ -17825,10 +17836,11 @@ function postProcessText(txt2, input) {
   const name = (input?.who ?? "").toString().trim();
   if (name) {
     const esc = escapeRegExp(name);
+    const wieder = namensErsetzer(name);
     try {
-      t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${esc}(?![\\p{L}\\p{N}_])`, "giu"), name);
+      t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${esc}(?![\\p{L}\\p{N}_])`, "giu"), wieder);
     } catch {
-      t = t.replace(new RegExp(`\\b${esc}\\b`, "gi"), name);
+      t = t.replace(new RegExp(`\\b${esc}\\b`, "gi"), wieder);
     }
   }
   if (!isLineForm(input) && input?.tone && TONE_DATA[input.tone]) {
@@ -21810,10 +21822,10 @@ function buildStory(bank, input, model) {
   }
   if (input.form === "strang") return asStrang(finalText, anchor, lenTarget);
   if (input.form === "drama") return asDrama(finalText, kit.speakerA, kit.speakerB || kit.P);
-  return verwandleMotive(
+  return kommaVorInversion(kleinesPronomen(kleinerArtikel(verwandleMotive(
     entferneDubletten(enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix")),
     leseVerwandlungen(bank.verwandlungen)
-  );
+  ))));
 }
 
 // src/generation/context.ts

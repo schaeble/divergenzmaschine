@@ -294,6 +294,21 @@ wahr("die Objekt-Perspektive nutzt ihn", /Ich kenne \$\{dekliniere\(P, "akk"\)\}
   ist("ohne Nebensatz-Einleiter keine Änderung", kommaVorInversion("Am Hafen, im Regen bemerke ich nichts."), "Am Hafen, im Regen bemerke ich nichts.");
 }
 
+// ── Der Artikel des Wer bleibt klein in der Satzmitte — auch nach den drei
+// Wiederherstellungen der Namensschreibweise ────────────────────────────────
+// Gemeldet: „steht Ein Wald ohne Bäume vor dem Satz", „wartet Ein Wald ohne
+// Bäume", „Vietnam; Ein Wald ohne Bäume". kleinerArtikel setzte klein, danach
+// stellten postProcessText, polishGerman und Fix 4b die Schreibweise des Wer
+// wieder her — samt Artikel. Gemessen: 36 % der Objekt-Texte.
+{
+  const inp = { who: "Ein Wald ohne Bäume", form: "prose" } as never;
+  const t = postProcessText("Während des Prozesses bemerkt Ein Wald ohne Bäume eine Karte. Was Ein Wald ohne Bäume will: schweigen.", inp);
+  wahr("der Artikel bleibt klein nach dem Verb", /bemerkt ein Wald ohne Bäume/.test(t));
+  wahr("und nach „Was“", /Was ein Wald ohne Bäume will/.test(t));
+  const n = postProcessText("Dann kommt maria brandt zurück.", { who: "Maria Brandt", form: "prose" } as never);
+  wahr("Gegenprobe: ein Name wird wiederhergestellt", /Maria Brandt/.test(n));
+}
+
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {
