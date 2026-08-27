@@ -23969,8 +23969,16 @@ function mountStudio(root) {
       if (c && lockVals[id] !== void 0) setzeWert(c, lockVals[id]);
     }
   };
-  const lockBtn = (ctrl) => {
+  const lockNamen = {};
+  const lockName = (id) => {
+    if (lockNamen[id]) return lockNamen[id];
+    const c = lockCtrls[id];
+    const lbl = c?.closest(".field, .lenrow, .ansichtchk")?.querySelector(".field-label > span, .mlabel > span, label");
+    return (lbl?.textContent || id.replace(/^f-/, "")).trim().replace(/\s+—.*$/, "");
+  };
+  const lockBtn = (ctrl, name) => {
     lockCtrls[ctrl.id] = ctrl;
+    if (name) lockNamen[ctrl.id] = name;
     const upd = () => {
       if (locked.has(ctrl.id)) {
         lockVals[ctrl.id] = wertVon(ctrl);
@@ -24025,12 +24033,15 @@ function mountStudio(root) {
   const oeffnenBtn = el("button", { type: "button", title: "Alle Schl\xF6sser auf einmal \xF6ffnen \u2014 die Werte bleiben stehen, nur der Schutz vor dem W\xFCrfel f\xE4llt." }, icon("lockOpen"), " ", oeffnenLbl);
   const updOeffnen = () => {
     const n = locked.size;
-    oeffnenLbl.textContent = n === 0 ? "Keine Schl\xF6sser" : n === 1 ? "1 Schloss \xF6ffnen" : `${n} Schl\xF6sser \xF6ffnen`;
+    const namen = [...locked].map(lockName);
+    const kurz = namen.length > 4 ? namen.slice(0, 4).join(" \xB7 ") + ` \xB7 +${namen.length - 4}` : namen.join(" \xB7 ");
+    oeffnenLbl.textContent = n === 0 ? "Keine Schl\xF6sser" : (n === 1 ? "1 Schloss \xF6ffnen: " : `${n} Schl\xF6sser \xF6ffnen: `) + kurz;
+    oeffnenBtn.title = n === 0 ? "Kein Regler ist gesperrt." : "Gesperrt: " + namen.join(", ") + " \u2014 ein Klick \xF6ffnet alle. Die Werte bleiben stehen, nur der Schutz vor dem W\xFCrfel f\xE4llt.";
     oeffnenBtn.disabled = n === 0;
   };
   oeffnenBtn.addEventListener("click", alleSchloesserOeffnen);
   updOeffnen();
-  const lockField = (label, sel) => el("div", { class: "field" }, el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sel)), sel);
+  const lockField = (label, sel) => el("div", { class: "field" }, el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sel, label)), sel);
   const ctxDice = el("button", {}, icon("dice"), " Kontext w\xFCrfeln");
   ctxDice.addEventListener("click", () => {
     const c = randomContext();
@@ -24297,7 +24308,7 @@ function mountStudio(root) {
   const field4w = (label, inp, weight, hint) => el(
     "label",
     { class: "field" },
-    el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(inp)),
+    el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(inp, label)),
     el("div", { class: "field4w" }, clearable(inp), weight),
     ...hint ? [hint] : []
   );
@@ -24552,7 +24563,7 @@ function mountStudio(root) {
   const presetField = el(
     "div",
     { class: "field presetfield" },
-    el("span", { class: "field-label lockrow" }, el("span", {}, "Preset \u2014 eins oder mehrere ankreuzen"), presetStatus, lockBtn(preset)),
+    el("span", { class: "field-label lockrow" }, el("span", {}, "Preset \u2014 eins oder mehrere ankreuzen"), presetStatus, lockBtn(preset, "Preset")),
     preset,
     el("div", { class: "btnrow" }, autoMixStudioBtn),
     presetList
@@ -24589,7 +24600,7 @@ function mountStudio(root) {
     clearTimeout(lenTimer);
     lenTimer = setTimeout(applyLengthLive, 180);
   });
-  const lenRow = el("div", { class: "field lenrow" }, el("span", { class: "mlabel lockrow" }, el("span", {}, "Textl\xE4nge"), lockBtn(lenSlider)), lenSlider, " ", lenVal);
+  const lenRow = el("div", { class: "field lenrow" }, el("span", { class: "mlabel lockrow" }, el("span", {}, "Textl\xE4nge"), lockBtn(lenSlider, "Textl\xE4nge")), lenSlider, " ", lenVal);
   const fontSel = el(
     "select",
     { id: "f-font" },
@@ -24963,7 +24974,7 @@ function mountStudio(root) {
   });
   const undoBtn = el("button", { class: "undochip", type: "button", title: "Letzte \xC4nderung r\xFCckg\xE4ngig (Strg+Z)" }, "\u21A9 R\xFCckg\xE4ngig");
   undoBtn.disabled = true;
-  const ansicht = (chk, text) => el("span", { class: "ansichtchk" }, el("label", { class: "chk" }, chk, " " + text), lockBtn(chk));
+  const ansicht = (chk, text) => el("span", { class: "ansichtchk" }, el("label", { class: "chk" }, chk, " " + text), lockBtn(chk, text));
   const umweltLeg = el("span", { class: "feeditem", style: "display:none" });
   const umweltStatus = el("span", { class: "umweltchip", style: "display:none" });
   const zeigeUmweltEffekt = (e) => {
@@ -25529,7 +25540,7 @@ function mountStudio(root) {
   const sliderField = (label, sl, val, hint) => el(
     "div",
     { class: "field rankrow" },
-    el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sl)),
+    el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sl, label)),
     el("div", { class: "rankslide" }, sl, val),
     el("span", { class: "muted mini" }, hint)
   );
@@ -25616,7 +25627,7 @@ function mountStudio(root) {
     return el(
       "div",
       { class: "field", id: "knob-" + feld, title: hinweis },
-      el("span", { class: "field-label hilfe lockrow" }, el("span", {}, label), lockBtn(sel)),
+      el("span", { class: "field-label hilfe lockrow" }, el("span", {}, label), lockBtn(sel, label)),
       sel
     );
   };
@@ -29376,7 +29387,15 @@ ist("kein Einschub steht in zwei T\xF6nen", ueberschneidung, 0);
   ist("ohne Schl\xF6sser ist er ausgegraut", oeffnen.disabled, true);
   const schloesser = Array.from(wurzel.querySelectorAll(".lockbtn"));
   schloesser.slice(0, 3).forEach((b) => b.click());
-  ist("drei zu \u2192 der Knopf z\xE4hlt mit", oeffnen.textContent?.trim(), "3 Schl\xF6sser \xF6ffnen");
+  wahr("drei zu \u2192 der Knopf z\xE4hlt mit", /^3 Schlösser öffnen: /.test(oeffnen.textContent?.trim() || ""), oeffnen.textContent || "");
+  {
+    const namen = (oeffnen.textContent || "").split(": ")[1] || "";
+    ist("drei Namen, mit Punkt getrennt", namen.split(" \xB7 ").length, 3);
+    wahr("kein roher Feld-Bezeichner darin", !/f-/.test(namen), namen);
+    wahr("der Tooltip nennt sie ebenfalls", /^Gesperrt: /.test(oeffnen.title));
+    const erstesFeldLabel = schloesser[0].closest(".field")?.querySelector(".field-label > span")?.textContent?.trim() || "";
+    wahr("der Name stimmt mit dem Feld \xFCberein", !erstesFeldLabel || namen.includes(erstesFeldLabel), `${erstesFeldLabel} in ${namen}`);
+  }
   ist("und ist bedienbar", oeffnen.disabled, false);
   const struktur = D2.getElementById("f-structure");
   const vorher = struktur.value;

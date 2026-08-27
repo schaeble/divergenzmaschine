@@ -115,8 +115,17 @@ export function mountStudio(root: HTMLElement): void {
     } else c.value = v;
   };
   const restoreLocked = (): void => { for (const id of locked) { const c = lockCtrls[id]; if (c && lockVals[id] !== undefined) setzeWert(c, lockVals[id]!); } };
-  const lockBtn = (ctrl: HTMLSelectElement | HTMLInputElement): HTMLButtonElement => {
+  // Name je Schloss — für die Anzeige, welche Schlösser zu sind.
+  const lockNamen: Record<string, string> = {};
+  const lockName = (id: string): string => {
+    if (lockNamen[id]) return lockNamen[id]!;
+    const c = lockCtrls[id];
+    const lbl = c?.closest(".field, .lenrow, .ansichtchk")?.querySelector(".field-label > span, .mlabel > span, label");
+    return (lbl?.textContent || id.replace(/^f-/, "")).trim().replace(/\s+—.*$/, "");
+  };
+  const lockBtn = (ctrl: HTMLSelectElement | HTMLInputElement, name?: string): HTMLButtonElement => {
     lockCtrls[ctrl.id] = ctrl;
+    if (name) lockNamen[ctrl.id] = name;
     const upd = (): void => { if (locked.has(ctrl.id)) { lockVals[ctrl.id] = wertVon(ctrl); saveLockVals(); } };
     ctrl.addEventListener("input", upd); ctrl.addEventListener("change", upd);
     const b = el("button", { class: "lockbtn", type: "button", title: "Beim Würfeln festhalten (Wert bleibt auch nach Neustart)" }) as HTMLButtonElement;
@@ -150,16 +159,24 @@ export function mountStudio(root: HTMLElement): void {
   };
   const oeffnenLbl = el("span", {});
   const oeffnenBtn = el("button", { type: "button", title: "Alle Schlösser auf einmal öffnen — die Werte bleiben stehen, nur der Schutz vor dem Würfel fällt." }, icon("lockOpen"), " ", oeffnenLbl) as HTMLButtonElement;
+  // Gewünscht: Der Knopf zeigt, WELCHE Schlösser zu sind — als Liste im
+  // Knopf selbst („2 Schlösser öffnen: Markov · Ton"), damit man nicht
+  // suchen muss; bei vielen gekürzt, die volle Liste im Tooltip.
   const updOeffnen = (): void => {
     const n = locked.size;
-    oeffnenLbl.textContent = n === 0 ? "Keine Schlösser" : n === 1 ? "1 Schloss öffnen" : `${n} Schlösser öffnen`;
+    const namen = [...locked].map(lockName);
+    const kurz = namen.length > 4 ? namen.slice(0, 4).join(" · ") + ` · +${namen.length - 4}` : namen.join(" · ");
+    oeffnenLbl.textContent = n === 0 ? "Keine Schlösser" : (n === 1 ? "1 Schloss öffnen: " : `${n} Schlösser öffnen: `) + kurz;
+    oeffnenBtn.title = n === 0
+      ? "Kein Regler ist gesperrt."
+      : "Gesperrt: " + namen.join(", ") + " — ein Klick öffnet alle. Die Werte bleiben stehen, nur der Schutz vor dem Würfel fällt.";
     oeffnenBtn.disabled = n === 0;
   };
   oeffnenBtn.addEventListener("click", alleSchloesserOeffnen);
   updOeffnen();
 
   const lockField = (label: string, sel: HTMLSelectElement): HTMLElement =>
-    el("div", { class: "field" }, el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sel)), sel);
+    el("div", { class: "field" }, el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sel, label)), sel);
 
   const ctxDice = el("button", {}, icon("dice"), " Kontext würfeln");
   ctxDice.addEventListener("click", () => { const c = randomContext(); if (!locked.has(where.id)) where.value = c.where; if (!locked.has(when.id)) when.value = c.when; if (!locked.has(who.id)) who.value = c.who; if (!locked.has(what.id)) what.value = c.what; updHints(); ctxSichern(); });
@@ -388,7 +405,7 @@ export function mountStudio(root: HTMLElement): void {
   [where, when, who, what].forEach((i) => i.addEventListener("input", updHints));
   const field4w = (label: string, inp: HTMLInputElement, weight: HTMLInputElement, hint?: HTMLElement): HTMLElement =>
     el("label", { class: "field" },
-      el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(inp)),
+      el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(inp, label)),
       el("div", { class: "field4w" }, clearable(inp), weight),
       ...(hint ? [hint] : []));
   // Bauplan F: Die Umwelt als fuenfte Angabe. Sie beschreibt nicht den Text,
@@ -588,7 +605,7 @@ export function mountStudio(root: HTMLElement): void {
   // Alle würfelbaren Stil-Regler (Würfeln-Knopf UND Zufallsstart nutzen dieselbe Liste)
   const ROLL_SELECTS = [tone, form, structure, mode, persp, rhythm, tension, cast, instab, markov, disruptor, varianz, ressort, archA, archB, preset];
   const presetField = el("div", { class: "field presetfield" },
-    el("span", { class: "field-label lockrow" }, el("span", {}, "Preset — eins oder mehrere ankreuzen"), presetStatus, lockBtn(preset)),
+    el("span", { class: "field-label lockrow" }, el("span", {}, "Preset — eins oder mehrere ankreuzen"), presetStatus, lockBtn(preset, "Preset")),
     preset,
     el("div", { class: "btnrow" }, autoMixStudioBtn),
     presetList);
@@ -623,7 +640,7 @@ export function mountStudio(root: HTMLElement): void {
     clearTimeout(lenTimer);
     lenTimer = setTimeout(applyLengthLive, 180);
   });
-  const lenRow = el("div", { class: "field lenrow" }, el("span", { class: "mlabel lockrow" }, el("span", {}, "Textlänge"), lockBtn(lenSlider)), lenSlider, " ", lenVal);
+  const lenRow = el("div", { class: "field lenrow" }, el("span", { class: "mlabel lockrow" }, el("span", {}, "Textlänge"), lockBtn(lenSlider, "Textlänge")), lenSlider, " ", lenVal);
 
   // Schriftart + Schriftgröße der Ausgabe (neben der Textlänge)
   const fontSel = el("select", { id: "f-font" },
@@ -967,7 +984,7 @@ export function mountStudio(root: HTMLElement): void {
   // Reihenfolge, in der man sie benutzt, jede mit Schloss - so bleiben sie beim
   // naechsten Start an, statt jedes Mal neu eingeschaltet werden zu muessen.
   const ansicht = (chk: HTMLInputElement, text: string): HTMLElement =>
-    el("span", { class: "ansichtchk" }, el("label", { class: "chk" }, chk, " " + text), lockBtn(chk));
+    el("span", { class: "ansichtchk" }, el("label", { class: "chk" }, chk, " " + text), lockBtn(chk, text));
   // Legendeneintrag der Umwelt zeigt die eingestellte Wirkung an - eine Farbe
   // ohne Bedeutung waere nur ein weiterer Punkt in der Zeile.
   const umweltLeg = el("span", { class: "feeditem", style: "display:none" });
@@ -1393,7 +1410,7 @@ export function mountStudio(root: HTMLElement): void {
   // Regler mit Schloss (hält den Wert beim Würfeln und über den Neustart)
   const sliderField = (label: string, sl: HTMLInputElement, val: HTMLElement, hint: string): HTMLElement =>
     el("div", { class: "field rankrow" },
-      el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sl)),
+      el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sl, label)),
       el("div", { class: "rankslide" }, sl, val),
       el("span", { class: "muted mini" }, hint));
 
@@ -1472,7 +1489,7 @@ export function mountStudio(root: HTMLElement): void {
     // Auch die Stellschrauben bekommen ein Schloss. Ohne es verstellte die
     // Zielregelung sie nach jeder Erzeugung, und nichts konnte das aufhalten.
     return el("div", { class: "field", id: "knob-" + feld, title: hinweis },
-      el("span", { class: "field-label hilfe lockrow" }, el("span", {}, label), lockBtn(sel)), sel);
+      el("span", { class: "field-label hilfe lockrow" }, el("span", {}, label), lockBtn(sel, label)), sel);
   };
   const knobBox = el("div", { class: "grid3", id: "knobs" },
     knobRow("fuegeteil", "Fügeteil-Deckel", "Höchstanteil der Verbindungsstücke — steuert den Balken „Vorlagen“", " %"),

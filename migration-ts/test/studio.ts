@@ -628,7 +628,16 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
   // Drei Schlösser schließen — im Werkzeugkasten, per Klick wie der Benutzer.
   const schloesser = Array.from(wurzel.querySelectorAll(".lockbtn")) as HTMLButtonElement[];
   schloesser.slice(0, 3).forEach((b) => b.click());
-  ist("drei zu → der Knopf zählt mit", oeffnen.textContent?.trim(), "3 Schlösser öffnen");
+  wahr("drei zu → der Knopf zählt mit", /^3 Schlösser öffnen: /.test(oeffnen.textContent?.trim() || ""), oeffnen.textContent || "");
+  // Gewünscht: WELCHE Schlösser zu sind — die Namen stehen im Knopf und im Tooltip.
+  {
+    const namen = (oeffnen.textContent || "").split(": ")[1] || "";
+    ist("drei Namen, mit Punkt getrennt", namen.split(" · ").length, 3);
+    wahr("kein roher Feld-Bezeichner darin", !/f-/.test(namen), namen);
+    wahr("der Tooltip nennt sie ebenfalls", /^Gesperrt: /.test(oeffnen.title));
+    const erstesFeldLabel = schloesser[0]!.closest(".field")?.querySelector(".field-label > span")?.textContent?.trim() || "";
+    wahr("der Name stimmt mit dem Feld überein", !erstesFeldLabel || namen.includes(erstesFeldLabel), `${erstesFeldLabel} in ${namen}`);
+  }
   ist("und ist bedienbar", oeffnen.disabled, false);
   const struktur = D.getElementById("f-structure") as HTMLSelectElement;
   const vorher = struktur.value;
