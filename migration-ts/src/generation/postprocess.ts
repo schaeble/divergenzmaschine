@@ -324,7 +324,22 @@ export function kommaVorInversion(t: string): string {
 }
 
 export function kleinesPronomen(t: string): string {
-  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr)\b/g, (_m: string, sp: string, w: string) => sp + w.toLowerCase());
+  return (t || "")
+    .replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr)\b/g, (_m: string, sp: string, w: string) => sp + w.toLowerCase())
+    // Nach dem Komma beginnt kein Satz: Ein Nebensatz-Einleiter oder ein
+    // Relativpronomen wird klein — gemeldet „in einem Beichtstuhl, Wo die
+    // Straßen keine Namen tragen". „Die"/„Der" nach Komma sind nie Nomen.
+    .replace(/(,[ \t]+)(Wo|Wenn|Als|Weil|Dass|Obwohl|Während|Nachdem|Bevor|Sobald|Solange|Damit|Ob|Der|Die|Das|Dem|Den|Deren|Dessen)\b(?=\s)/g,
+      (_m: string, sp: string, w: string) => sp + w.charAt(0).toLowerCase() + w.slice(1));
+}
+
+/** Eine kurze Frage, der das Fragezeichen fehlt: „Wo ist Gott." — gemeldet.
+ *  Fragewort, direkt danach das finite Verb, höchstens acht Wörter, kein Komma
+ *  (Wer kommt, bleibt.), Punkt am Ende → Fragezeichen. „Was zusammenfällt, gehört zusammen." hat das Verb
+ *  nicht direkt hinter dem Fragewort und bleibt Aussage. */
+export function fragezeichen(t: string): string {
+  return (t || "").replace(/(^|[.!?…]\s+|\n)(Wo|Was|Wer|Wie|Warum|Wann|Wohin|Woher|Weshalb|Wieso|Wem|Wen)\s+(ist|sind|war|waren|hat|haben|wird|werden|kommt|bleibt|will|kann|soll|darf|muss|geht|steht|bist|bin|seid|weiß|wissen)\b([^.!?…\n]{0,50})\./g,
+    (m: string, vor: string, fw: string, v: string, rest: string) => (rest.split(/\s+/).filter(Boolean).length <= 6 && !rest.includes(",") ? `${vor}${fw} ${v}${rest}?` : m));
 }
 
 export function postProcessText(txt: string, input?: Input): string {
@@ -342,6 +357,7 @@ export function postProcessText(txt: string, input?: Input): string {
   // könnte die Anrede sein.
   t = kleinesPronomen(t);
   t = kommaVorInversion(t);
+  t = fragezeichen(t);
 
   // Unbestimmter Artikel MITTEN im Satz klein.
   //

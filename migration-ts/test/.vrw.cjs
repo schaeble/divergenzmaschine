@@ -6567,7 +6567,16 @@ function kommaVorInversion(t) {
   return (t || "").replace(NEBENSATZ, "$1, $2 $3");
 }
 function kleinesPronomen(t) {
-  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr)\b/g, (_m, sp, w) => sp + w.toLowerCase());
+  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
+    /(,[ \t]+)(Wo|Wenn|Als|Weil|Dass|Obwohl|Während|Nachdem|Bevor|Sobald|Solange|Damit|Ob|Der|Die|Das|Dem|Den|Deren|Dessen)\b(?=\s)/g,
+    (_m, sp, w) => sp + w.charAt(0).toLowerCase() + w.slice(1)
+  );
+}
+function fragezeichen(t) {
+  return (t || "").replace(
+    /(^|[.!?…]\s+|\n)(Wo|Was|Wer|Wie|Warum|Wann|Wohin|Woher|Weshalb|Wieso|Wem|Wen)\s+(ist|sind|war|waren|hat|haben|wird|werden|kommt|bleibt|will|kann|soll|darf|muss|geht|steht|bist|bin|seid|weiß|wissen)\b([^.!?…\n]{0,50})\./g,
+    (m, vor, fw, v, rest) => rest.split(/\s+/).filter(Boolean).length <= 6 && !rest.includes(",") ? `${vor}${fw} ${v}${rest}?` : m
+  );
 }
 function postProcessText(txt, input) {
   let t = (txt ?? "").toString();
@@ -6575,6 +6584,7 @@ function postProcessText(txt, input) {
   t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
   t = kleinesPronomen(t);
   t = kommaVorInversion(t);
+  t = fragezeichen(t);
   t = kleinerArtikel(t);
   const name = (input?.who ?? "").toString().trim();
   if (name) {
@@ -16317,7 +16327,8 @@ function buildRekombination(bank, input, model) {
       const w1 = (fill.match(/^[A-ZÄÖÜ][a-zäöüß-]*/) || [""])[0];
       const istNomen = !!w1 && (!!NOUN_GENDER[w1.toLowerCase()] || /(ung|heit|keit|schaft|nis|tum|chen|lein|er|el|en|ucht|acht|icht|ion|tät|ei|ie|ur|us|um)$/.test(w1.toLowerCase()));
       const istFigur = !!w1 && (w1.toLowerCase() === ctx.figur.toLowerCase() || splitSpeakers(normWho(input.who || "")).some((x) => x.trim().toLowerCase() === w1.toLowerCase()));
-      if (!f.fuehrt_ein.length && !istNomen && !istFigur && /^[A-ZÄÖÜ][a-zäöüß]/.test(fill)) fill = fill.charAt(0).toLowerCase() + fill.slice(1);
+      const beginntMitEingefuehrter = f.fuehrt_ein.some((n) => !!w1 && n.toLowerCase().startsWith(w1.toLowerCase()));
+      if (!beginntMitEingefuehrter && !istNomen && !istFigur && /^[A-ZÄÖÜ][a-zäöüß]/.test(fill)) fill = fill.charAt(0).toLowerCase() + fill.slice(1);
       text = fuelleSlot(text, fill);
       fueller.push({ text: fill, kategorie: f.kategorie || "\u2014", quelle: f.quelle });
       k.benutzt.add(f.id);

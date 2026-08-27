@@ -369,7 +369,11 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
       // Figurennamen bleiben gross - "denn tom wartet auf einen Bescheid" sonst.
       const istFigur = !!w1 && (w1.toLowerCase() === ctx.figur.toLowerCase()
         || splitSpeakers(normWho(input.who || "")).some((x) => x.trim().toLowerCase() === w1.toLowerCase()));
-      if (!f.fuehrt_ein.length && !istNomen && !istFigur && /^[A-ZÄÖÜ][a-zäöüß]/.test(fill)) fill = fill.charAt(0).toLowerCase() + fill.slice(1);
+      // Ein Füller, der eine Figur einführt, bleibt nur groß, wenn er auch mit
+      // ihrem Namen beginnt — gemeldet: „in einem Beichtstuhl, Wo die Straßen
+      // keine Namen tragen": Der Füller führte jemanden ein, begann aber mit „Wo".
+      const beginntMitEingefuehrter = f.fuehrt_ein.some((n) => !!w1 && n.toLowerCase().startsWith(w1.toLowerCase()));
+      if (!beginntMitEingefuehrter && !istNomen && !istFigur && /^[A-ZÄÖÜ][a-zäöüß]/.test(fill)) fill = fill.charAt(0).toLowerCase() + fill.slice(1);
       text = fuelleSlot(text, fill);
       fueller.push({ text: fill, kategorie: f.kategorie || "—", quelle: f.quelle });
       k.benutzt.add(f.id); benutztBei.set(f.id, out.length);

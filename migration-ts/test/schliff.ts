@@ -11,7 +11,7 @@
   }
 }
 import { readFileSync } from "fs";
-import { istAbgeschnitten, postProcessText, kleinerArtikel, kleinesPronomen, beugeNachDu, kommaVorInversion } from "../src/generation/postprocess";
+import { istAbgeschnitten, postProcessText, kleinerArtikel, kleinesPronomen, beugeNachDu, kommaVorInversion, fragezeichen } from "../src/generation/postprocess";
 import { dekliniere } from "../src/atoms/assemble";
 import { extractLeadVerb, looksLikeFullClause } from "../src/generation/wordcls";
 import { OBJEKT_EINSTIEG } from "../src/generation/shape";
@@ -335,6 +335,17 @@ ist("die es nicht", istAbgeschnitten("der Kioskbesitzer erinnert sich an eine Sc
 ist("die ein Jahr auslässt", istAbgeschnitten("Eine Schicht, die ein Jahr auslässt"), false);
 ist("die zu warm ist", istAbgeschnitten("Eine Quelle, die zu warm ist"), false);
 ist("das ein Fluss vergessen hat", istAbgeschnitten("Ein Tal, das ein Fluss vergessen hat"), false);
+
+// ── Fragezeichen und Kleinschreibung nach dem Komma ─────────────────────────
+// Gemeldet: „Wo ist Gott." und „in einem Beichtstuhl, Wo die Straßen keine
+// Namen tragen".
+ist("Wo ist Gott → ?", fragezeichen("Wo ist Gott."), "Wo ist Gott?");
+ist("Aussage mit Fragewort bleibt", fragezeichen("Was zusammenfällt, gehört zusammen."), "Was zusammenfällt, gehört zusammen.");
+ist("mit Komma keine Frage", fragezeichen("Wer kommt, bleibt."), "Wer kommt, bleibt.");
+ist("lang keine Frage", fragezeichen("Wo ist das Buch mit den vielen leeren Seiten und dem roten Band."), "Wo ist das Buch mit den vielen leeren Seiten und dem roten Band.");
+ist("Wo nach Komma klein", kleinesPronomen("in einem Beichtstuhl, Wo die Straßen keine Namen tragen."), "in einem Beichtstuhl, wo die Straßen keine Namen tragen.");
+ist("Der nach Komma klein", kleinesPronomen("Ein Mann, Der nichts sagt."), "Ein Mann, der nichts sagt.");
+ist("Gegenprobe: Nomen nach Komma bleibt", kleinesPronomen("Brot, Wein und Salz."), "Brot, Wein und Salz.");
 
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
