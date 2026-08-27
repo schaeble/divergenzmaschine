@@ -1997,6 +1997,23 @@ export function mountStudio(root: HTMLElement): void {
   saatWeg.addEventListener("click", () => {
     saatIn.value = ""; kopfWahl.saat = ""; sichereKopfWahl(kopfWahl); saatIn.focus();
   });
+  // Ein Einfügeknopf neben dem Leeren — gewünscht als Weg neben Strg+V, weil
+  // das Handy kein Strg hat und das Kontextmenü zwei Griffe kostet. Er liest
+  // die Zwischenablage (nach Erlaubnis des Browsers) und ersetzt den Inhalt.
+  // Versagt das Lesen (Berechtigung, kein HTTPS), setzt er nur den Fokus, damit
+  // das Systemmenü einfügen kann — es gibt keinen stummen Fehlschlag.
+  const saatEin = el("button", { type: "button", title: "Aus der Zwischenablage einfügen", class: "ek-einfuegen", "aria-label": "Einfügen" }, icon("paste"));
+  saatEin.addEventListener("click", () => {
+    const lesen = navigator.clipboard?.readText?.();
+    if (!lesen) { saatIn.focus(); return; }
+    lesen.then((txt) => {
+      const t = (txt || "").replace(/\s+/g, " ").trim();
+      if (!t) { saatIn.focus(); return; }
+      saatIn.value = t; kopfWahl.saat = t; sichereKopfWahl(kopfWahl);
+      saatIn.dispatchEvent(new Event("input"));
+      saatIn.focus();
+    }).catch(() => { saatIn.focus(); });
+  });
   const saatWuerfel = el("button", { type: "button", title: "Anderen Satz vorschlagen" }, "⚄");
   // Die letzten Züge — damit der Würfel nicht auf der Stelle tritt. Nicht
   // gespeichert: Ein neuer Sitzungsbeginn darf wieder von vorn anfangen.
@@ -2175,7 +2192,7 @@ export function mountStudio(root: HTMLElement): void {
   const frage = el("span", { class: "ek-frage" }, "");
   const koerper = el("div", { class: "ek-koerper" },
       reihe("Form", formReihe),
-      reihe("Wovon", el("div", { class: "ek-satz" }, saatIn, saatWeg, saatWuerfel)),
+      reihe("Wovon", el("div", { class: "ek-satz" }, saatIn, saatWeg, saatEin, saatWuerfel)),
       reihe("Länge", laengeIn, stufenZeile(LAENGE_NAMEN, "ek-laenge-stufen")),
       reihe("Reibung", reibungIn, stufenZeile(REIBUNG_NAMEN, "ek-reibung-stufen")),
       probeBox,

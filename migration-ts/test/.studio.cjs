@@ -22621,6 +22621,7 @@ var P2 = {
   star: '<path d="M12 4l2.5 5l5.5 .8l-4 3.9l1 5.5l-5 -2.6l-5 2.6l1 -5.5l-4 -3.9l5.5 -.8z"/>',
   book: '<path d="M3 5a3 3 0 0 1 6 0v14a2 2 0 0 0 -4 0"/><path d="M9 5a3 3 0 0 1 6 0v14"/><path d="M15 5a3 3 0 0 1 6 0v11a2 2 0 0 1 -2 2h-8"/>',
   volume: '<path d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5z"/><path d="M15 8a5 5 0 0 1 0 8"/>',
+  paste: '<rect x="7" y="5" width="10" height="15" rx="2"/><path d="M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2"/><path d="M10 12h4"/><path d="M10 15h4"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2"/>',
   tool: '<path d="M7 10h3v-3l-3.2 -3.2a5.5 5.5 0 0 1 7.4 7.4l6 6a2 2 0 0 1 -2.8 2.8l-6 -6a5.5 5.5 0 0 1 -7.4 -7.4z"/>',
   settings: '<path d="M10.3 4.3c.4 -1.7 2.9 -1.7 3.3 0a1.7 1.7 0 0 0 2.6 1.1c1.5 -.9 3.3 .8 2.4 2.4a1.7 1.7 0 0 0 1 2.5c1.8 .4 1.8 2.9 0 3.3a1.7 1.7 0 0 0 -1 2.6c.9 1.5 -.8 3.3 -2.4 2.4a1.7 1.7 0 0 0 -2.6 1c-.4 1.8 -2.9 1.8 -3.3 0a1.7 1.7 0 0 0 -2.6 -1c-1.5 .9 -3.3 -.8 -2.4 -2.4a1.7 1.7 0 0 0 -1 -2.6c-1.8 -.4 -1.8 -2.9 0 -3.3a1.7 1.7 0 0 0 1 -2.5c-.9 -1.6 .9 -3.3 2.4 -2.4c1 .6 2.3 .1 2.6 -1z"/><circle cx="12" cy="12" r="3"/>',
@@ -26180,6 +26181,28 @@ function mountStudio(root) {
     sichereWahl(kopfWahl);
     saatIn.focus();
   });
+  const saatEin = el("button", { type: "button", title: "Aus der Zwischenablage einf\xFCgen", class: "ek-einfuegen", "aria-label": "Einf\xFCgen" }, icon("paste"));
+  saatEin.addEventListener("click", () => {
+    const lesen = navigator.clipboard?.readText?.();
+    if (!lesen) {
+      saatIn.focus();
+      return;
+    }
+    lesen.then((txt) => {
+      const t = (txt || "").replace(/\s+/g, " ").trim();
+      if (!t) {
+        saatIn.focus();
+        return;
+      }
+      saatIn.value = t;
+      kopfWahl.saat = t;
+      sichereWahl(kopfWahl);
+      saatIn.dispatchEvent(new Event("input"));
+      saatIn.focus();
+    }).catch(() => {
+      saatIn.focus();
+    });
+  });
   const saatWuerfel = el("button", { type: "button", title: "Anderen Satz vorschlagen" }, "\u2684");
   const saatGezogen = [];
   saatWuerfel.addEventListener("click", () => {
@@ -26342,7 +26365,7 @@ function mountStudio(root) {
     "div",
     { class: "ek-koerper" },
     reihe("Form", formReihe),
-    reihe("Wovon", el("div", { class: "ek-satz" }, saatIn, saatWeg, saatWuerfel)),
+    reihe("Wovon", el("div", { class: "ek-satz" }, saatIn, saatWeg, saatEin, saatWuerfel)),
     reihe("L\xE4nge", laengeIn, stufenZeile(LAENGE_NAMEN, "ek-laenge-stufen")),
     reihe("Reibung", reibungIn, stufenZeile(REIBUNG_NAMEN, "ek-reibung-stufen")),
     probeBox,

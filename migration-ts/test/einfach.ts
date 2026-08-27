@@ -366,6 +366,15 @@ ist("und ist kein eigener Reiter",
   ist("der Vorgang bleibt die Frage", k.what, "Wo ist Gott?");
 }
 
+// ── 5c · Der Einfügeknopf neben dem Leeren ──────────────────────────────────
+// Gewünscht: ein Schalter zum Einfügen aus der Zwischenablage, als Weg neben
+// Strg+V — das Handy hat kein Strg.
+wahr("es gibt den Einfügeknopf", /class: "ek-einfuegen"/.test(q));
+wahr("er steht neben dem Leeren in der Wovon-Reihe", /saatIn, saatWeg, saatEin, saatWuerfel/.test(q));
+wahr("er liest die Zwischenablage", /navigator\.clipboard\?\.readText\?\.\(\)/.test(q));
+wahr("und setzt den Fokus, wenn das Lesen versagt", /\.catch\(\(\) => \{ saatIn\.focus\(\); \}\)/.test(q));
+wahr("der Inhalt landet in der Wahl und im Feld", /saatIn\.value = t; kopfWahl\.saat = t; sichereKopfWahl\(kopfWahl\)/.test(q));
+
 // ── 6 · Beim Erzeugen: Was fix, Wer/Wo/Wann gewürfelt ───────────────────────
 // Gemeldet: „Beim Würfeln sollen die 3W mitgewürfelt werden. 1W ist fix und
 // kommt aus dem Wovon." Vorher blieb alles stehen, was die Saat nicht nannte.
