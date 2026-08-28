@@ -7,6 +7,7 @@ import { DEFAULT_BANK } from "../constants";
 import { loadPersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
 import { openPresetWizard } from "./presetWizard";
+import { presetAusText } from "../features/textpreset";
 import { openArchive } from "./archiveView";
 import {
   setzeEigenes, ladeEigene, registerVon, WELT_LABEL, SPRACHE_LABEL,
@@ -196,6 +197,54 @@ export function mountWordbank(root: HTMLElement): void {
   });
   const archiveBtn = button("Wortarchiv");
   archiveBtn.addEventListener("click", () => openArchive());
+
+  // ── Preset aus Text ────────────────────────────────────────────────────
+  // Gewünscht: Aus einem Text von 300–400 Wörtern soll ein Preset entstehen.
+  // Ein Fenster: Text einfügen, Name vergeben, die Vorschau zeigt, wie viele
+  // Einträge in welche Kategorie fallen, dann speichern. Die Regeln stehen in
+  // features/textpreset.ts und sind dieselben, mit denen der Assembler Atome
+  // typisiert.
+  const textBtn = button("Preset aus Text");
+  textBtn.addEventListener("click", () => {
+    const overlay = el("div", { class: "modal" });
+    const close = el("button", { class: "x", "aria-label": "Schließen" }, icon("x"));
+    close.addEventListener("click", () => overlay.remove());
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+    const eingabe = el("textarea", { rows: "10", placeholder: "Text hier einfügen — am besten 300 bis 400 Wörter. Sätze werden in die sieben Kategorien der Wortbank sortiert.", style: "width:100%" }) as HTMLTextAreaElement;
+    const nameIn = el("input", { type: "text", placeholder: "Name des Presets", maxlength: "40", style: "width:100%" }) as HTMLInputElement;
+    const schau = el("div", { class: "muted", style: "font-size:13px;line-height:1.5" });
+    const NAMEN: Record<string, string> = { motifs: "Bilder", hooks: "Sätze mit Haken", props: "Requisiten", turns: "Wenden", obstacles: "Hindernisse", stakes: "Einsätze", endings: "Schlüsse" };
+    const speichern = el("button", { class: "primary" }, "Als Preset speichern") as HTMLButtonElement;
+    const vorschau = (): ReturnType<typeof presetAusText> => {
+      const p = presetAusText(eingabe.value);
+      const teile = Object.entries(p.bank).map(([k, v]) => `${NAMEN[k] || k}: ${(v as string[]).length}`).join(" · ");
+      schau.textContent = p.stuecke === 0 ? "Noch kein verwertbarer Satz." : `${p.woerter} Wörter, ${p.stuecke} Teilstücke — ${teile}`
+        + (p.woerter < 200 ? " · Hinweis: unter 200 Wörtern wird das Preset dünn." : "");
+      speichern.disabled = p.stuecke < 7 || !nameIn.value.trim();
+      return p;
+    };
+    eingabe.addEventListener("input", vorschau); nameIn.addEventListener("input", vorschau);
+    speichern.addEventListener("click", () => {
+      const p = vorschau();
+      if (speichern.disabled) return;
+      const name = nameIn.value.trim().slice(0, 40);
+      const user = loadUserPresets();
+      user[name] = p.bank;
+      saveUserPresets(user);
+      overlay.remove();
+      rebuildPresets("user:" + name);
+      load(); renderFull();
+    });
+    vorschau();
+    overlay.append(el("div", { class: "modal-card" },
+      el("div", { class: "modal-head" }, el("h2", {}, "Preset aus Text"), close),
+      el("div", { class: "modal-body" },
+        el("p", { class: "muted" }, "Der Text wird in Sätze zerlegt und in die sieben Kategorien sortiert: Bilder, Sätze mit Haken, Requisiten, Wenden, Hindernisse, Einsätze, Schlüsse. Was keine Kategorie trifft, wird ein Bild; leere Kategorien borgen aus der vollsten."),
+        eingabe, el("div", { style: "height:8px" }), nameIn, el("div", { style: "height:8px" }), schau,
+        el("div", { style: "height:12px" }), speichern)));
+    document.body.append(overlay);
+    eingabe.focus();
+  });
 
   // ---- Ganze Wortbank: alle 7 Kategorien als Textfelder + Datei sichern/laden ----
   const saveTextAs = async (text: string, filename: string): Promise<boolean> => {
@@ -645,7 +694,7 @@ export function mountWordbank(root: HTMLElement): void {
   registerBox.addEventListener("toggle", () => { if (registerBox.hasAttribute("open")) zeichneRegister(); });
 
   wrap.append(
-    el("div", { class: "btnrow" }, wizardBtn, archiveBtn),
+    el("div", { class: "btnrow" }, wizardBtn, textBtn, archiveBtn),
     field("Preset", preset),
     el("div", { class: "btnrow" }, delPresetBtn, renamePresetBtn),
     rulesBox,
