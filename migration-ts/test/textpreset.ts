@@ -58,6 +58,10 @@ wahr("es gibt den Knopf", /button\("Preset aus Text"\)/.test(q));
 wahr("er steht neben dem Assistenten", /wizardBtn, textBtn, archiveBtn/.test(q));
 wahr("gespeichert wird als Nutzer-Preset", /user\[name\] = p\.bank;\s*\n\s*saveUserPresets\(user\)/.test(q));
 wahr("und danach ausgewählt", /rebuildPresets\("user:" \+ name\)/.test(q));
+// Und der Einfügeknopf für das Textfenster — das Handy hat kein Strg+V.
+wahr("es gibt den Einfügeknopf im Textfenster", /icon\("paste"\), " Einfügen"/.test(q));
+wahr("er liest die Zwischenablage und ersetzt den Inhalt", /eingabe\.value = t;\s*\n\s*eingabe\.dispatchEvent\(new Event\("input"\)\)/.test(q));
+wahr("versagt das Lesen, bekommt das Feld den Fokus", /\.catch\(\(\) => \{ eingabe\.focus\(\); \}\)/.test(q));
 
 console.log(`Prüfstand Preset aus Text — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };

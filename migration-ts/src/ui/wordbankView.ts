@@ -224,6 +224,22 @@ export function mountWordbank(root: HTMLElement): void {
       return p;
     };
     eingabe.addEventListener("input", vorschau); nameIn.addEventListener("input", vorschau);
+    // Ein Einfügeknopf für das Textfenster — wie im einfachen Kopf: das Handy
+    // hat kein Strg+V. Er liest die Zwischenablage und ERSETZT den Inhalt
+    // (wer einen Text einfügt, will genau diesen Text); versagt das Lesen,
+    // landet der Fokus im Feld, damit das Systemmenü einfügen kann.
+    const einfuegen = el("button", { type: "button", title: "Aus der Zwischenablage einfügen" }, icon("paste"), " Einfügen") as HTMLButtonElement;
+    einfuegen.addEventListener("click", () => {
+      const lesen = navigator.clipboard?.readText?.();
+      if (!lesen) { eingabe.focus(); return; }
+      lesen.then((txt) => {
+        const t = (txt || "").trim();
+        if (!t) { eingabe.focus(); return; }
+        eingabe.value = t;
+        eingabe.dispatchEvent(new Event("input"));
+        eingabe.focus();
+      }).catch(() => { eingabe.focus(); });
+    });
     speichern.addEventListener("click", () => {
       const p = vorschau();
       if (speichern.disabled) return;
@@ -240,7 +256,8 @@ export function mountWordbank(root: HTMLElement): void {
       el("div", { class: "modal-head" }, el("h2", {}, "Preset aus Text"), close),
       el("div", { class: "modal-body" },
         el("p", { class: "muted" }, "Der Text wird in Sätze zerlegt und in die sieben Kategorien sortiert: Bilder, Sätze mit Haken, Requisiten, Wenden, Hindernisse, Einsätze, Schlüsse. Was keine Kategorie trifft, wird ein Bild; leere Kategorien borgen aus der vollsten."),
-        eingabe, el("div", { style: "height:8px" }), nameIn, el("div", { style: "height:8px" }), schau,
+        eingabe, el("div", { style: "height:8px" }),
+        el("div", { class: "btnrow" }, einfuegen), el("div", { style: "height:8px" }), nameIn, el("div", { style: "height:8px" }), schau,
         el("div", { style: "height:12px" }), speichern)));
     document.body.append(overlay);
     eingabe.focus();
