@@ -11271,7 +11271,8 @@ wahr("er liest die Zwischenablage und ersetzt den Inhalt", /eingabe\.value = t;\
 wahr("versagt das Lesen, bekommt das Feld den Fokus", /\.catch\(\(\) => \{ eingabe\.focus\(\); \}\)/.test(q));
 wahr("die Anfangswahl w\xFCrfelt", /const zufallsPreset = \(\): void => \{\s*\n\s*if \(preset\.options\.length > 1\) preset\.selectedIndex = 1 \+ Math\.floor\(Math\.random/.test(q));
 wahr("Auto-Mix bleibt au\xDFen vor (Index ab 1)", /selectedIndex = 1 \+ Math\.floor/.test(q));
-wahr("auch der R\xFCckfall nach einem Umbau w\xFCrfelt", /else zufallsPreset\(\);/.test(q));
+wahr("die Zufallswahl wird als echte Wahl ausgel\xF6st", /zufallsPreset\(\);\s*\n\s*preset\.dispatchEvent\(new Event\("change"\)\)/.test(q));
+wahr("auch der R\xFCckfall nach einem Umbau", /else \{ zufallsPreset\(\); preset\.dispatchEvent\(new Event\("change"\)\); \}/.test(q));
 wahr("die alte feste Wahl ist weg", !/preset\.selectedIndex = 1;\s*\/\/ nicht Auto-Mix/.test(q));
 console.log(`Pr\xFCfstand Preset aus Text \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

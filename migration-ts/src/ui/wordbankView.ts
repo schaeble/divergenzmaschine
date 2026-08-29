@@ -59,14 +59,15 @@ export function mountWordbank(root: HTMLElement): void {
     return sortedPresetOptions().map(([v, l]) => [v, v.startsWith("user:") && u2[v.slice(5)] ? l + " ✦2.0" : l] as [string, string]);
   };
   const preset = select("wb-preset", markedOptions());
-  // Beim Aufruf ein ZUFÄLLIG gewähltes Preset zeigen — gewünscht, weil sonst
-  // immer das alphabetisch erste stand (Absurdität) und die übrigen nie ins
-  // Auge fielen. Nur die Anzeige: Die aktive Bank wechselt erst, wenn jemand
-  // wirklich wählt. Auto-Mix (Index 0) bleibt außen vor.
+  // Beim Aufruf ein ZUFÄLLIG gewähltes Preset — gewünscht, weil sonst immer
+  // das alphabetisch erste stand (Absurdität). Nachgemeldet: Anzeige und
+  // Bearbeitungslisten müssen SYNCHRON sein. Deshalb wird die Zufallswahl
+  // unten, nachdem der change-Handler steht, als echte Wahl ausgelöst — sie
+  // lädt die Bank, die Listen, Bogen und Pools, wie ein Klick des Benutzers.
+  // Auto-Mix (Index 0) bleibt außen vor.
   const zufallsPreset = (): void => {
     if (preset.options.length > 1) preset.selectedIndex = 1 + Math.floor(Math.random() * (preset.options.length - 1));
   };
-  zufallsPreset();
   const delPresetBtn = button("Preset löschen", "danger");
   const renamePresetBtn = button("Preset umbenennen");
 
@@ -75,7 +76,7 @@ export function mountWordbank(root: HTMLElement): void {
     preset.innerHTML = "";
     for (const [v, l] of markedOptions()) preset.append(el("option", { value: v }, l));
     if (keep && Array.from(preset.options).some((o) => o.value === keep)) preset.value = keep;
-    else zufallsPreset();
+    else { zufallsPreset(); preset.dispatchEvent(new Event("change")); }
     updDelPreset();
   };
   preset.addEventListener("change", () => {
@@ -99,6 +100,10 @@ export function mountWordbank(root: HTMLElement): void {
       }
     }
   });
+  // Die Zufallswahl vom Aufruf jetzt wirklich ausführen — mit stehendem
+  // Handler, damit Auswahl und Listen von Anfang an dasselbe Preset zeigen.
+  zufallsPreset();
+  preset.dispatchEvent(new Event("change"));
   delPresetBtn.addEventListener("click", () => {
     if (!preset.value.startsWith("user:")) return;
     const name = preset.value.slice(5);

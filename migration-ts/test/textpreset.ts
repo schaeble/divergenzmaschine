@@ -89,7 +89,10 @@ wahr("versagt das Lesen, bekommt das Feld den Fokus", /\.catch\(\(\) => \{ einga
 // bisher stand immer das alphabetisch erste (Absurdität).
 wahr("die Anfangswahl würfelt", /const zufallsPreset = \(\): void => \{\s*\n\s*if \(preset\.options\.length > 1\) preset\.selectedIndex = 1 \+ Math\.floor\(Math\.random/.test(q));
 wahr("Auto-Mix bleibt außen vor (Index ab 1)", /selectedIndex = 1 \+ Math\.floor/.test(q));
-wahr("auch der Rückfall nach einem Umbau würfelt", /else zufallsPreset\(\);/.test(q));
+// Nachgemeldet: Auswahl und Bearbeitungslisten müssen synchron sein — die
+// Zufallswahl läuft als ECHTE Wahl über den change-Handler.
+wahr("die Zufallswahl wird als echte Wahl ausgelöst", /zufallsPreset\(\);\s*\n\s*preset\.dispatchEvent\(new Event\("change"\)\)/.test(q));
+wahr("auch der Rückfall nach einem Umbau", /else \{ zufallsPreset\(\); preset\.dispatchEvent\(new Event\("change"\)\); \}/.test(q));
 wahr("die alte feste Wahl ist weg", !/preset\.selectedIndex = 1;\s*\/\/ nicht Auto-Mix/.test(q));
 
 console.log(`Prüfstand Preset aus Text — ${geprueft} Prüfungen, ${bestanden} bestanden`);
