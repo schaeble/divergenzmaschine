@@ -4605,6 +4605,68 @@ function presetAusText(text2) {
   const woerter2 = (text2 || "").split(/\s+/).filter(Boolean).length;
   return { bank, woerter: woerter2, stuecke: gesehen.size };
 }
+function preset2AusText(text2) {
+  const p2 = presetAusText(text2);
+  const b = p2.bank;
+  const konflikte = [...b.stakes, ...b.hooks].map((s) => (s.match(/\bes geht um\s+(.{3,60})$/i) || [])[1]).filter((x) => !!x);
+  const drama = {
+    einstieg: b.hooks.slice(0, 3),
+    mitte: b.motifs.slice(0, 4),
+    hoehepunkt: b.turns.slice(0, 2),
+    schluss: b.endings.slice(0, 3),
+    ausloeser: b.props.slice(0, 5),
+    veraenderungen: b.turns.slice(0, 4),
+    konflikte: konflikte.slice(0, 5),
+    zeitanomalien: [],
+    regeln: []
+  };
+  const pools = [.../* @__PURE__ */ new Set([...b.props, ...b.motifs])];
+  return { ...p2, drama, pools };
+}
+
+// src/generation/dramaturgie.ts
+var DKEY = "dm_dramaturgie_v1";
+function setDramaData(d) {
+  try {
+    if (d) localStorage.setItem(DKEY, JSON.stringify(d));
+    else localStorage.removeItem(DKEY);
+  } catch {
+  }
+}
+function loadDramaData() {
+  try {
+    const r = localStorage.getItem(DKEY);
+    return r ? JSON.parse(r) : null;
+  } catch {
+    return null;
+  }
+}
+function hasDramaData() {
+  const d = loadDramaData();
+  return !!(d && (d.einstieg.length || d.mitte.length || d.hoehepunkt.length || d.veraenderungen.length));
+}
+var some = (a) => Array.isArray(a) && a.length > 0;
+function buildDramaturgie(kit) {
+  const d = loadDramaData();
+  const M = kit.mode;
+  const beats = [];
+  beats.push(d && some(d.einstieg) ? `${cap(kit.T)} ${kit.W}. ${cap(pick(d.einstieg))}.` : `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.`);
+  beats.push(cap(ensurePunct(kit.hook)));
+  beats.push(d && some(d.regeln) && chance(0.7) ? cap(ensurePunct(pick(d.regeln))) : ensurePunct(pick(M.rules)));
+  if (d && some(d.mitte)) {
+    beats.push(`${cap(pick(d.mitte))}.`);
+    if (d.mitte.length > 1 && chance(0.6)) beats.push(`${cap(pick(d.mitte))}.`);
+  }
+  const konf = d && some(d.konflikte) ? pick(d.konflikte) : "";
+  beats.push(konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`);
+  if (d && some(d.ausloeser)) beats.push(`Dann, unvermittelt: ${cap(pick(d.ausloeser))}.`);
+  beats.push(frameTurn(d && some(d.veraenderungen) ? pick(d.veraenderungen) : kit.turn));
+  if (d && some(d.zeitanomalien) && chance(0.4)) beats.push(cap(ensurePunct(pick(d.zeitanomalien))));
+  if (d && some(d.hoehepunkt)) beats.push(`Und dann: ${cap(pick(d.hoehepunkt))}.`);
+  beats.push(reframeStake(kit.stake));
+  beats.push(ensurePunct(kit.ending));
+  return joinBeats(beats, kit.P);
+}
 
 // src/modes.data.ts
 var MODE_DATA = {
@@ -6185,43 +6247,6 @@ function applySatzlaenge(text2, ziel) {
 }
 function hatFinitesVerbLeicht(satz) {
   return (satz.match(/[a-zäöüß]{3,}/g) || []).some((w) => !!VERB_CONJ[w] || /^(ist|sind|war|waren|hat|haben|wird|werden|kann|muss|will|bleibt|steht|geht|kommt)$/.test(w));
-}
-
-// src/generation/dramaturgie.ts
-var DKEY = "dm_dramaturgie_v1";
-function loadDramaData() {
-  try {
-    const r = localStorage.getItem(DKEY);
-    return r ? JSON.parse(r) : null;
-  } catch {
-    return null;
-  }
-}
-function hasDramaData() {
-  const d = loadDramaData();
-  return !!(d && (d.einstieg.length || d.mitte.length || d.hoehepunkt.length || d.veraenderungen.length));
-}
-var some = (a) => Array.isArray(a) && a.length > 0;
-function buildDramaturgie(kit) {
-  const d = loadDramaData();
-  const M = kit.mode;
-  const beats = [];
-  beats.push(d && some(d.einstieg) ? `${cap(kit.T)} ${kit.W}. ${cap(pick(d.einstieg))}.` : `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.`);
-  beats.push(cap(ensurePunct(kit.hook)));
-  beats.push(d && some(d.regeln) && chance(0.7) ? cap(ensurePunct(pick(d.regeln))) : ensurePunct(pick(M.rules)));
-  if (d && some(d.mitte)) {
-    beats.push(`${cap(pick(d.mitte))}.`);
-    if (d.mitte.length > 1 && chance(0.6)) beats.push(`${cap(pick(d.mitte))}.`);
-  }
-  const konf = d && some(d.konflikte) ? pick(d.konflikte) : "";
-  beats.push(konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`);
-  if (d && some(d.ausloeser)) beats.push(`Dann, unvermittelt: ${cap(pick(d.ausloeser))}.`);
-  beats.push(frameTurn(d && some(d.veraenderungen) ? pick(d.veraenderungen) : kit.turn));
-  if (d && some(d.zeitanomalien) && chance(0.4)) beats.push(cap(ensurePunct(pick(d.zeitanomalien))));
-  if (d && some(d.hoehepunkt)) beats.push(`Und dann: ${cap(pick(d.hoehepunkt))}.`);
-  beats.push(reframeStake(kit.stake));
-  beats.push(ensurePunct(kit.ending));
-  return joinBeats(beats, kit.P);
 }
 
 // src/generation/postprocess.ts
@@ -11219,10 +11244,27 @@ for (let i = 0; i < 5; i++) {
   if (txt.split(/\s+/).length > 40) ok++;
 }
 ist("f\xFCnf Texte aus dem Text-Preset, alle tragen", ok, 5);
+{
+  const p2 = preset2AusText(text);
+  wahr(
+    "der Bogen ist gef\xFCllt: Einstieg, Mitte, H\xF6hepunkt, Schluss",
+    p2.drama.einstieg.length >= 1 && p2.drama.mitte.length >= 1 && p2.drama.hoehepunkt.length >= 1 && p2.drama.schluss.length >= 1
+  );
+  wahr("Ausl\xF6ser kommen aus den Requisiten", p2.drama.ausloeser.length >= 1 && p2.drama.ausloeser.every((a) => p2.bank.props.includes(a)));
+  ist("Konflikte nur als sichere Nominalphrase (aus \u201Ees geht um X\u201C)", p2.drama.konflikte.join("|"), "den Glauben selbst");
+  ist("Zeitanomalien und Regeln bleiben leer \u2014 daf\xFCr gibt der Text nichts Sicheres her", p2.drama.zeitanomalien.length + p2.drama.regeln.length, 0);
+  wahr("die Pools tragen die Nominalphrasen", p2.pools.includes("Ein Weihrauchfass an einer Kette"));
+  setDramaData(p2.drama);
+  wahr("die Dramaturgie nimmt den Bogen an", hasDramaData());
+  const dTxt = buildStory(p2.bank, { ...inp, structure: "dramaturgie" });
+  wahr("und baut daraus einen tragenden Text", dTxt.split(/\s+/).length > 40);
+  setDramaData(null);
+}
 var q = (0, import_fs.readFileSync)("src/ui/wordbankView.ts", "utf8");
 wahr("es gibt den Knopf", /button\("Preset aus Text"\)/.test(q));
 wahr("er steht neben dem Assistenten", /wizardBtn, textBtn, archiveBtn/.test(q));
 wahr("gespeichert wird als Nutzer-Preset", /user\[name\] = p\.bank;\s*\n\s*saveUserPresets\(user\)/.test(q));
+wahr("und als Preset 2.0 mit Bogen und Pools", /saveUserPreset2\(name, a2\);\s*\n\s*setActive2\(a2\); setDramaData\(p\.drama\)/.test(q));
 wahr("und danach ausgew\xE4hlt", /rebuildPresets\("user:" \+ name\)/.test(q));
 wahr("es gibt den Einf\xFCgeknopf im Textfenster", /icon\("paste"\), " Einfügen"/.test(q));
 wahr("er liest die Zwischenablage und ersetzt den Inhalt", /eingabe\.value = t;\s*\n\s*eingabe\.dispatchEvent\(new Event\("input"\)\)/.test(q));

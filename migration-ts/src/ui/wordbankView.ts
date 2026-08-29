@@ -7,7 +7,7 @@ import { DEFAULT_BANK } from "../constants";
 import { loadPersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
 import { openPresetWizard } from "./presetWizard";
-import { presetAusText } from "../features/textpreset";
+import { preset2AusText } from "../features/textpreset";
 import { openArchive } from "./archiveView";
 import {
   setzeEigenes, ladeEigene, registerVon, WELT_LABEL, SPRACHE_LABEL,
@@ -215,8 +215,8 @@ export function mountWordbank(root: HTMLElement): void {
     const schau = el("div", { class: "muted", style: "font-size:13px;line-height:1.5" });
     const NAMEN: Record<string, string> = { motifs: "Bilder", hooks: "Sätze mit Haken", props: "Requisiten", turns: "Wenden", obstacles: "Hindernisse", stakes: "Einsätze", endings: "Schlüsse" };
     const speichern = el("button", { class: "primary" }, "Als Preset speichern") as HTMLButtonElement;
-    const vorschau = (): ReturnType<typeof presetAusText> => {
-      const p = presetAusText(eingabe.value);
+    const vorschau = (): ReturnType<typeof preset2AusText> => {
+      const p = preset2AusText(eingabe.value);
       const teile = Object.entries(p.bank).map(([k, v]) => `${NAMEN[k] || k}: ${(v as string[]).length}`).join(" · ");
       schau.textContent = p.stuecke === 0 ? "Noch kein verwertbarer Satz." : `${p.woerter} Wörter, ${p.stuecke} Teilstücke — ${teile}`
         + (p.woerter < 200 ? " · Hinweis: unter 200 Wörtern wird das Preset dünn." : "");
@@ -247,6 +247,12 @@ export function mountWordbank(root: HTMLElement): void {
       const user = loadUserPresets();
       user[name] = p.bank;
       saveUserPresets(user);
+      // Preset 2.0: Bogen und Kontext-Material aus demselben Text — damit das
+      // Preset in der Liste als ✦2.0 steht, die Dramaturgie greift und die
+      // lebendigen Pools gespeist werden. So wie der Assistent es tut.
+      const a2: Active2 = { settings: { structure: "dramaturgie" }, drama: p.drama, pools: p.pools };
+      saveUserPreset2(name, a2);
+      setActive2(a2); setDramaData(p.drama);
       overlay.remove();
       rebuildPresets("user:" + name);
       load(); renderFull();
@@ -255,7 +261,7 @@ export function mountWordbank(root: HTMLElement): void {
     overlay.append(el("div", { class: "modal-card" },
       el("div", { class: "modal-head" }, el("h2", {}, "Preset aus Text"), close),
       el("div", { class: "modal-body" },
-        el("p", { class: "muted" }, "Der Text wird in Sätze zerlegt und in die sieben Kategorien sortiert: Bilder, Sätze mit Haken, Requisiten, Wenden, Hindernisse, Einsätze, Schlüsse. Was keine Kategorie trifft, wird ein Bild; leere Kategorien borgen aus der vollsten."),
+        el("p", { class: "muted" }, "Der Text wird in Sätze zerlegt und in die sieben Kategorien sortiert: Bilder, Sätze mit Haken, Requisiten, Wenden, Hindernisse, Einsätze, Schlüsse. Was keine Kategorie trifft, wird ein Bild; leere Kategorien borgen aus der vollsten. Gespeichert wird ein Preset 2.0: mit dramaturgischem Bogen (Einstieg, Mitte, Höhepunkt, Schluss aus denselben Sätzen) und Kontext-Material für die lebendigen Pools."),
         eingabe, el("div", { style: "height:8px" }),
         el("div", { class: "btnrow" }, einfuegen), el("div", { style: "height:8px" }), nameIn, el("div", { style: "height:8px" }), schau,
         el("div", { style: "height:12px" }), speichern)));

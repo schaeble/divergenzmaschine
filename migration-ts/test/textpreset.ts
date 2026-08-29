@@ -8,7 +8,8 @@ import { JSDOM } from "jsdom";
 const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/" });
 (globalThis as unknown as Record<string, unknown>).localStorage = dom.window.localStorage;
 import { readFileSync } from "fs";
-import { presetAusText, kategorieFuer, teilstuecke } from "../src/features/textpreset";
+import { presetAusText, preset2AusText, kategorieFuer, teilstuecke } from "../src/features/textpreset";
+import { setDramaData, hasDramaData } from "../src/generation/dramaturgie";
 import { buildStory } from "../src/generation/buildStory";
 import type { GenInput } from "../src/types";
 
@@ -52,11 +53,31 @@ let ok = 0;
 for (let i = 0; i < 5; i++) { const txt = buildStory(p.bank, inp); if (txt.split(/\s+/).length > 40) ok++; }
 ist("fünf Texte aus dem Text-Preset, alle tragen", ok, 5);
 
+// ── 4b · Preset 2.0: Bogen und Kontext-Material aus demselben Text ──────────
+// Gewünscht: Der eingegebene Text soll den Preset-2.0-Anforderungen
+// entsprechen.
+{
+  const p2 = preset2AusText(text);
+  wahr("der Bogen ist gefüllt: Einstieg, Mitte, Höhepunkt, Schluss",
+    p2.drama.einstieg.length >= 1 && p2.drama.mitte.length >= 1 && p2.drama.hoehepunkt.length >= 1 && p2.drama.schluss.length >= 1);
+  wahr("Auslöser kommen aus den Requisiten", p2.drama.ausloeser.length >= 1 && p2.drama.ausloeser.every((a) => p2.bank.props.includes(a)));
+  ist("Konflikte nur als sichere Nominalphrase (aus „es geht um X“)", p2.drama.konflikte.join("|"), "den Glauben selbst");
+  ist("Zeitanomalien und Regeln bleiben leer — dafür gibt der Text nichts Sicheres her", p2.drama.zeitanomalien.length + p2.drama.regeln.length, 0);
+  wahr("die Pools tragen die Nominalphrasen", p2.pools.includes("Ein Weihrauchfass an einer Kette"));
+  // Und der Bogen trägt: Die Dramaturgie-Struktur baut daraus einen Text.
+  setDramaData(p2.drama);
+  wahr("die Dramaturgie nimmt den Bogen an", hasDramaData());
+  const dTxt = buildStory(p2.bank, { ...inp, structure: "dramaturgie" as never });
+  wahr("und baut daraus einen tragenden Text", dTxt.split(/\s+/).length > 40);
+  setDramaData(null);
+}
+
 // ── 5 · Der Knopf in der Wortbank ───────────────────────────────────────────
 const q = readFileSync("src/ui/wordbankView.ts", "utf8");
 wahr("es gibt den Knopf", /button\("Preset aus Text"\)/.test(q));
 wahr("er steht neben dem Assistenten", /wizardBtn, textBtn, archiveBtn/.test(q));
 wahr("gespeichert wird als Nutzer-Preset", /user\[name\] = p\.bank;\s*\n\s*saveUserPresets\(user\)/.test(q));
+wahr("und als Preset 2.0 mit Bogen und Pools", /saveUserPreset2\(name, a2\);\s*\n\s*setActive2\(a2\); setDramaData\(p\.drama\)/.test(q));
 wahr("und danach ausgewählt", /rebuildPresets\("user:" \+ name\)/.test(q));
 // Und der Einfügeknopf für das Textfenster — das Handy hat kein Strg+V.
 wahr("es gibt den Einfügeknopf im Textfenster", /icon\("paste"\), " Einfügen"/.test(q));
