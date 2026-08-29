@@ -84,6 +84,14 @@ wahr("es gibt den Einfügeknopf im Textfenster", /icon\("paste"\), " Einfügen"/
 wahr("er liest die Zwischenablage und ersetzt den Inhalt", /eingabe\.value = t;\s*\n\s*eingabe\.dispatchEvent\(new Event\("input"\)\)/.test(q));
 wahr("versagt das Lesen, bekommt das Feld den Fokus", /\.catch\(\(\) => \{ eingabe\.focus\(\); \}\)/.test(q));
 
+// ── 6 · Zufälliges Preset beim Aufruf der Wortbank ──────────────────────────
+// Gewünscht: Beim Aufruf soll ein zufällig gewähltes Preset erscheinen —
+// bisher stand immer das alphabetisch erste (Absurdität).
+wahr("die Anfangswahl würfelt", /const zufallsPreset = \(\): void => \{\s*\n\s*if \(preset\.options\.length > 1\) preset\.selectedIndex = 1 \+ Math\.floor\(Math\.random/.test(q));
+wahr("Auto-Mix bleibt außen vor (Index ab 1)", /selectedIndex = 1 \+ Math\.floor/.test(q));
+wahr("auch der Rückfall nach einem Umbau würfelt", /else zufallsPreset\(\);/.test(q));
+wahr("die alte feste Wahl ist weg", !/preset\.selectedIndex = 1;\s*\/\/ nicht Auto-Mix/.test(q));
+
 console.log(`Prüfstand Preset aus Text — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

@@ -11269,6 +11269,10 @@ wahr("und danach ausgew\xE4hlt", /rebuildPresets\("user:" \+ name\)/.test(q));
 wahr("es gibt den Einf\xFCgeknopf im Textfenster", /icon\("paste"\), " Einfügen"/.test(q));
 wahr("er liest die Zwischenablage und ersetzt den Inhalt", /eingabe\.value = t;\s*\n\s*eingabe\.dispatchEvent\(new Event\("input"\)\)/.test(q));
 wahr("versagt das Lesen, bekommt das Feld den Fokus", /\.catch\(\(\) => \{ eingabe\.focus\(\); \}\)/.test(q));
+wahr("die Anfangswahl w\xFCrfelt", /const zufallsPreset = \(\): void => \{\s*\n\s*if \(preset\.options\.length > 1\) preset\.selectedIndex = 1 \+ Math\.floor\(Math\.random/.test(q));
+wahr("Auto-Mix bleibt au\xDFen vor (Index ab 1)", /selectedIndex = 1 \+ Math\.floor/.test(q));
+wahr("auch der R\xFCckfall nach einem Umbau w\xFCrfelt", /else zufallsPreset\(\);/.test(q));
+wahr("die alte feste Wahl ist weg", !/preset\.selectedIndex = 1;\s*\/\/ nicht Auto-Mix/.test(q));
 console.log(`Pr\xFCfstand Preset aus Text \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {
