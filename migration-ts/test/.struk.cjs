@@ -6171,7 +6171,9 @@ function setDramaData(d) {
   } catch {
   }
 }
+var bogenOverride = null;
 function loadDramaData() {
+  if (bogenOverride) return bogenOverride;
   try {
     const r = localStorage.getItem(DKEY);
     return r ? JSON.parse(r) : null;

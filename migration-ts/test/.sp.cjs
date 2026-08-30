@@ -6242,7 +6242,12 @@ function setDramaData(d) {
   } catch {
   }
 }
+var bogenOverride = null;
+function setBogenOverride(d) {
+  bogenOverride = d;
+}
 function loadDramaData() {
+  if (bogenOverride) return bogenOverride;
   try {
     const r = localStorage.getItem(DKEY);
     return r ? JSON.parse(r) : null;
@@ -22259,6 +22264,110 @@ function titelFuer(text, ctx, form = "prose", gesehen = []) {
   return k.slice().sort((a, b) => gesehen.lastIndexOf(a) - gesehen.lastIndexOf(b))[0];
 }
 
+// src/features/textpreset.ts
+var KATEGORIEN = ["motifs", "hooks", "props", "turns", "obstacles", "stakes", "endings"];
+var WIDERSTAND = /\b(aber|doch|kein|keine|keinen|nicht|niemand|nichts|nie|niemals|fehlt|fehlen|scheitert|verweigert|bleibt aus|reicht nicht|zu spät|vergebens|umsonst)\b/i;
+var WENDE = /^(dann|plötzlich|auf einmal|mit einem mal|seitdem|von da an)\b|\b(kippt|kippen|beginnt|beginnen|bricht|brechen|verwandelt|wendet|ändert|dreht sich|wird zu|wechselt)\b/i;
+var SPIEL = /\b(es geht um|auf dem spiel|einsatz|entscheidet|entscheiden|zählt|zählen|gehört|gilt|bedeutet|kostet|verliert|gewinnt)\b/i;
+function teilstuecke(text) {
+  return (text || "").replace(/\s+/g, " ").split(/(?<=[.!?…])\s+/).flatMap((s) => s.split(/\s*[;—–]\s*/)).map((s) => clean(s).replace(/^[„"«»]+|[.!?…„"«»]+$/g, "").trim()).filter((s) => {
+    const w = s.split(/\s+/).filter(Boolean).length;
+    return w >= 3 && w <= 22;
+  });
+}
+function kategorieFuer(stueck, istSchluss) {
+  const typ = deriveAtom(stueck).typ;
+  const wc = stueck.split(/\s+/).filter(Boolean).length;
+  if (typ === "nominalphrase") return wc <= 5 ? "props" : "motifs";
+  if (typ !== "hauptsatz") return "motifs";
+  if (istSchluss) return "endings";
+  if (WIDERSTAND.test(stueck)) return "obstacles";
+  if (WENDE.test(stueck)) return "turns";
+  if (SPIEL.test(stueck)) return "stakes";
+  return wc <= 14 ? "hooks" : "motifs";
+}
+function presetAusText(text) {
+  const stuecke = teilstuecke(text);
+  const bank = { motifs: [], hooks: [], props: [], turns: [], obstacles: [], stakes: [], endings: [] };
+  const schlussGrenze = Math.max(0, stuecke.length - 2);
+  const gesehen = /* @__PURE__ */ new Set();
+  stuecke.forEach((s, i) => {
+    const key = s.toLowerCase();
+    if (gesehen.has(key)) return;
+    gesehen.add(key);
+    bank[kategorieFuer(s, i >= schlussGrenze && deriveAtom(s).typ === "hauptsatz")].push(s);
+  });
+  for (const k of KATEGORIEN) {
+    if (bank[k].length) continue;
+    const vollste = KATEGORIEN.filter((x) => bank[x].length > 1).sort((a, b) => bank[b].length - bank[a].length)[0];
+    if (vollste) bank[k].push(bank[vollste].pop());
+  }
+  const woerter2 = (text || "").split(/\s+/).filter(Boolean).length;
+  return { bank, woerter: woerter2, stuecke: gesehen.size };
+}
+function preset2AusText(text) {
+  const p = presetAusText(text);
+  const b = p.bank;
+  const konflikte = [...b.stakes, ...b.hooks].map((s) => (s.match(/\bes geht um\s+(.{3,60})$/i) || [])[1]).filter((x) => !!x);
+  const drama = {
+    einstieg: b.hooks.slice(0, 3),
+    mitte: b.motifs.slice(0, 4),
+    hoehepunkt: b.turns.slice(0, 2),
+    schluss: b.endings.slice(0, 3),
+    ausloeser: b.props.slice(0, 5),
+    veraenderungen: b.turns.slice(0, 4),
+    konflikte: konflikte.slice(0, 5),
+    zeitanomalien: [],
+    regeln: []
+  };
+  const pools = [.../* @__PURE__ */ new Set([...b.props, ...b.motifs])];
+  return { ...p, drama, pools };
+}
+
+// src/features/erzaehlerbank.ts
+var ERZAEHLER_PLAETZE = 10;
+var BANK_KEY = "dm_erzaehlerbank_v1";
+var QUELLE_KEY = "dm_erzaehler_quelle_v1";
+function ladeErzaehlerbank() {
+  let roh = [];
+  try {
+    roh = JSON.parse(localStorage.getItem(BANK_KEY) || "[]");
+  } catch {
+    roh = [];
+  }
+  const list = Array.isArray(roh) ? roh : [];
+  return Array.from({ length: ERZAEHLER_PLAETZE }, (_, i) => {
+    const e2 = list[i];
+    return { titel: String(e2?.titel || "").slice(0, 60), text: String(e2?.text || "") };
+  });
+}
+function ladeQuelle() {
+  const q = localStorage.getItem(QUELLE_KEY) || "preset";
+  return q === "preset" || q === "wuerfeln" || /^[0-9]$/.test(q) ? q : "preset";
+}
+function setzeQuelle(q) {
+  try {
+    localStorage.setItem(QUELLE_KEY, q);
+  } catch {
+  }
+}
+function platzBrauchbar(e2) {
+  return (e2.text || "").split(/\s+/).filter(Boolean).length >= 40;
+}
+function erzaehlerBogen(index) {
+  const e2 = ladeErzaehlerbank()[index];
+  if (!e2 || !platzBrauchbar(e2)) return null;
+  return preset2AusText(e2.text).drama;
+}
+function bogenFuerErzeugung() {
+  const q = ladeQuelle();
+  if (q === "preset") return null;
+  if (/^[0-9]$/.test(q)) return erzaehlerBogen(parseInt(q, 10));
+  const brauchbar = ladeErzaehlerbank().map((e2, i) => ({ e: e2, i })).filter((x) => platzBrauchbar(x.e));
+  if (!brauchbar.length) return null;
+  return erzaehlerBogen(brauchbar[Math.floor(Math.random() * brauchbar.length)].i);
+}
+
 // src/features/sources.ts
 var QUELLEN_LABEL = {
   wortbank: "Wortbank",
@@ -23014,6 +23123,7 @@ var P2 = {
   star: '<path d="M12 4l2.5 5l5.5 .8l-4 3.9l1 5.5l-5 -2.6l-5 2.6l1 -5.5l-4 -3.9l5.5 -.8z"/>',
   book: '<path d="M3 5a3 3 0 0 1 6 0v14a2 2 0 0 0 -4 0"/><path d="M9 5a3 3 0 0 1 6 0v14"/><path d="M15 5a3 3 0 0 1 6 0v11a2 2 0 0 1 -2 2h-8"/>',
   volume: '<path d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5z"/><path d="M15 8a5 5 0 0 1 0 8"/>',
+  paste: '<rect x="7" y="5" width="10" height="15" rx="2"/><path d="M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2"/><path d="M10 12h4"/><path d="M10 15h4"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2"/>',
   tool: '<path d="M7 10h3v-3l-3.2 -3.2a5.5 5.5 0 0 1 7.4 7.4l6 6a2 2 0 0 1 -2.8 2.8l-6 -6a5.5 5.5 0 0 1 -7.4 -7.4z"/>',
   settings: '<path d="M10.3 4.3c.4 -1.7 2.9 -1.7 3.3 0a1.7 1.7 0 0 0 2.6 1.1c1.5 -.9 3.3 .8 2.4 2.4a1.7 1.7 0 0 0 1 2.5c1.8 .4 1.8 2.9 0 3.3a1.7 1.7 0 0 0 -1 2.6c.9 1.5 -.8 3.3 -2.4 2.4a1.7 1.7 0 0 0 -2.6 1c-.4 1.8 -2.9 1.8 -3.3 0a1.7 1.7 0 0 0 -2.6 -1c-1.5 .9 -3.3 -.8 -2.4 -2.4a1.7 1.7 0 0 0 -1 -2.6c-1.8 -.4 -1.8 -2.9 0 -3.3a1.7 1.7 0 0 0 1 -2.5c-.9 -1.6 .9 -3.3 2.4 -2.4c1 .6 2.3 .1 2.6 -1z"/><circle cx="12" cy="12" r="3"/>',
@@ -24737,6 +24847,21 @@ function mountStudio(root) {
   const shots = el("input", { id: "f-shots", type: "number", value: "5", min: "3", max: "10" });
   const secs = el("input", { id: "f-secs", type: "number", value: "15", min: "3", max: "600" });
   const structure = select("f-structure", STRUCTURE_OPTS, "rekombination");
+  const bogenSel = select("f-bogen", [["preset", "aus Preset"]], "preset");
+  const bogenFuellen = () => {
+    const wahl = ladeQuelle();
+    bogenSel.innerHTML = "";
+    bogenSel.append(el("option", { value: "preset" }, "aus Preset"));
+    ladeErzaehlerbank().forEach((e2, i) => {
+      if (!platzBrauchbar(e2)) return;
+      bogenSel.append(el("option", { value: String(i) }, `${i + 1} \xB7 ${e2.titel || "ohne Titel"}`));
+    });
+    bogenSel.append(el("option", { value: "wuerfeln" }, "w\xFCrfeln je Erzeugung"));
+    bogenSel.value = Array.from(bogenSel.options).some((o) => o.value === wahl) ? wahl : "preset";
+  };
+  bogenFuellen();
+  bogenSel.addEventListener("change", () => setzeQuelle(bogenSel.value));
+  document.addEventListener("visibilitychange", bogenFuellen);
   const mode = select("f-mode", MODE_OPTS, "auto");
   const persp = select("f-persp", PERSP_OPTS, "auto");
   const rhythm = select("f-rhythm", RHYTHM_OPTS, "auto");
@@ -25881,6 +26006,10 @@ function mountStudio(root) {
     "div",
     { class: "grid3" },
     lockField("Struktur", structure),
+    // Der Bogen hat kein Schloss: Der Würfel fasst ihn nicht an, die Wahl ist
+    // ohnehin fest — ein Schloss schützte nichts und der Schaltplan verlangte
+    // einen Knoten dafür.
+    el("div", { class: "field" }, el("span", { class: "field-label" }, el("span", {}, "Bogen")), bogenSel),
     lockField("Modus", mode),
     lockField("Perspektive", persp),
     lockField("Rhythmus", rhythm),
@@ -26151,6 +26280,7 @@ function mountStudio(root) {
     });
   };
   const generate = () => {
+    setBogenOverride(bogenFuerErzeugung());
     const model = markov.value !== "off" ? buildModelFromCorpus(2) : void 0;
     const input = readInput();
     try {
@@ -26342,6 +26472,28 @@ function mountStudio(root) {
     sichereWahl(kopfWahl);
     saatIn.focus();
   });
+  const saatEin = el("button", { type: "button", title: "Aus der Zwischenablage einf\xFCgen", class: "ek-einfuegen", "aria-label": "Einf\xFCgen" }, icon("paste"));
+  saatEin.addEventListener("click", () => {
+    const lesen = navigator.clipboard?.readText?.();
+    if (!lesen) {
+      saatIn.focus();
+      return;
+    }
+    lesen.then((txt2) => {
+      const t = (txt2 || "").replace(/\s+/g, " ").trim();
+      if (!t) {
+        saatIn.focus();
+        return;
+      }
+      saatIn.value = t;
+      kopfWahl.saat = t;
+      sichereWahl(kopfWahl);
+      saatIn.dispatchEvent(new Event("input"));
+      saatIn.focus();
+    }).catch(() => {
+      saatIn.focus();
+    });
+  });
   const saatWuerfel = el("button", { type: "button", title: "Anderen Satz vorschlagen" }, "\u2684");
   const saatGezogen = [];
   saatWuerfel.addEventListener("click", () => {
@@ -26504,7 +26656,7 @@ function mountStudio(root) {
     "div",
     { class: "ek-koerper" },
     reihe("Form", formReihe),
-    reihe("Wovon", el("div", { class: "ek-satz" }, saatIn, saatWeg, saatWuerfel)),
+    reihe("Wovon", el("div", { class: "ek-satz" }, saatIn, saatWeg, saatEin, saatWuerfel)),
     reihe("L\xE4nge", laengeIn, stufenZeile(LAENGE_NAMEN, "ek-laenge-stufen")),
     reihe("Reibung", reibungIn, stufenZeile(REIBUNG_NAMEN, "ek-reibung-stufen")),
     probeBox,

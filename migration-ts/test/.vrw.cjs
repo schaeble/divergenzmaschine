@@ -6194,7 +6194,9 @@ function hatFinitesVerbLeicht(satz) {
 
 // src/generation/dramaturgie.ts
 var DKEY = "dm_dramaturgie_v1";
+var bogenOverride = null;
 function loadDramaData() {
+  if (bogenOverride) return bogenOverride;
   try {
     const r = localStorage.getItem(DKEY);
     return r ? JSON.parse(r) : null;

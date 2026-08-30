@@ -14723,7 +14723,12 @@ function setDramaData(d) {
   } catch {
   }
 }
+var bogenOverride = null;
+function setBogenOverride(d) {
+  bogenOverride = d;
+}
 function loadDramaData() {
+  if (bogenOverride) return bogenOverride;
   try {
     const r = localStorage.getItem(DKEY);
     return r ? JSON.parse(r) : null;
@@ -21721,6 +21726,124 @@ function titelFuer(text, ctx, form = "prose", gesehen = []) {
   return k.slice().sort((a, b) => gesehen.lastIndexOf(a) - gesehen.lastIndexOf(b))[0];
 }
 
+// src/features/textpreset.ts
+var KATEGORIEN = ["motifs", "hooks", "props", "turns", "obstacles", "stakes", "endings"];
+var WIDERSTAND = /\b(aber|doch|kein|keine|keinen|nicht|niemand|nichts|nie|niemals|fehlt|fehlen|scheitert|verweigert|bleibt aus|reicht nicht|zu spät|vergebens|umsonst)\b/i;
+var WENDE = /^(dann|plötzlich|auf einmal|mit einem mal|seitdem|von da an)\b|\b(kippt|kippen|beginnt|beginnen|bricht|brechen|verwandelt|wendet|ändert|dreht sich|wird zu|wechselt)\b/i;
+var SPIEL = /\b(es geht um|auf dem spiel|einsatz|entscheidet|entscheiden|zählt|zählen|gehört|gilt|bedeutet|kostet|verliert|gewinnt)\b/i;
+function teilstuecke(text) {
+  return (text || "").replace(/\s+/g, " ").split(/(?<=[.!?…])\s+/).flatMap((s) => s.split(/\s*[;—–]\s*/)).map((s) => clean(s).replace(/^[„"«»]+|[.!?…„"«»]+$/g, "").trim()).filter((s) => {
+    const w = s.split(/\s+/).filter(Boolean).length;
+    return w >= 3 && w <= 22;
+  });
+}
+function kategorieFuer(stueck, istSchluss) {
+  const typ = deriveAtom(stueck).typ;
+  const wc2 = stueck.split(/\s+/).filter(Boolean).length;
+  if (typ === "nominalphrase") return wc2 <= 5 ? "props" : "motifs";
+  if (typ !== "hauptsatz") return "motifs";
+  if (istSchluss) return "endings";
+  if (WIDERSTAND.test(stueck)) return "obstacles";
+  if (WENDE.test(stueck)) return "turns";
+  if (SPIEL.test(stueck)) return "stakes";
+  return wc2 <= 14 ? "hooks" : "motifs";
+}
+function presetAusText(text) {
+  const stuecke = teilstuecke(text);
+  const bank = { motifs: [], hooks: [], props: [], turns: [], obstacles: [], stakes: [], endings: [] };
+  const schlussGrenze = Math.max(0, stuecke.length - 2);
+  const gesehen = /* @__PURE__ */ new Set();
+  stuecke.forEach((s, i) => {
+    const key = s.toLowerCase();
+    if (gesehen.has(key)) return;
+    gesehen.add(key);
+    bank[kategorieFuer(s, i >= schlussGrenze && deriveAtom(s).typ === "hauptsatz")].push(s);
+  });
+  for (const k of KATEGORIEN) {
+    if (bank[k].length) continue;
+    const vollste = KATEGORIEN.filter((x) => bank[x].length > 1).sort((a, b) => bank[b].length - bank[a].length)[0];
+    if (vollste) bank[k].push(bank[vollste].pop());
+  }
+  const woerter2 = (text || "").split(/\s+/).filter(Boolean).length;
+  return { bank, woerter: woerter2, stuecke: gesehen.size };
+}
+function preset2AusText(text) {
+  const p = presetAusText(text);
+  const b = p.bank;
+  const konflikte = [...b.stakes, ...b.hooks].map((s) => (s.match(/\bes geht um\s+(.{3,60})$/i) || [])[1]).filter((x) => !!x);
+  const drama = {
+    einstieg: b.hooks.slice(0, 3),
+    mitte: b.motifs.slice(0, 4),
+    hoehepunkt: b.turns.slice(0, 2),
+    schluss: b.endings.slice(0, 3),
+    ausloeser: b.props.slice(0, 5),
+    veraenderungen: b.turns.slice(0, 4),
+    konflikte: konflikte.slice(0, 5),
+    zeitanomalien: [],
+    regeln: []
+  };
+  const pools = [.../* @__PURE__ */ new Set([...b.props, ...b.motifs])];
+  return { ...p, drama, pools };
+}
+var VORLAGE_EVOLUTION = `Das Leben probiert alles einmal aus. Ein Kiefer aus fr\xFCheren Zeiten. Die Flosse erinnert sich an den Weg zum Ufer. Ein Auge, das in vier Linien zugleich erfunden wird. Der lange Hals entscheidet \xFCber den Hunger. Eine Feder, die zuerst w\xE4rmt und dann tr\xE4gt. Das Wasser entl\xE4sst seine Kinder an Land. Ein Panzer mit Jahresringen. Die Zuf\xE4lle sammeln sich, bis sie wie ein Plan aussehen. Aber kein Bauplan liegt dem Ganzen bei. Die Kiemen schlie\xDFen sich, und die Lunge \xFCbernimmt. Ein Fossil im Kalk. Kein Merkmal wei\xDF, wof\xFCr es sp\xE4ter gut sein wird. Die Insel formt ihre eigenen Schn\xE4bel. Es geht um den n\xE4chsten Morgen, nicht um den fernen Plan. Pl\xF6tzlich kippt das Klima, und die Gr\xF6\xDFten verschwinden zuerst. Dann beginnt das Kleine, die leeren R\xE4ume zu besetzen. Ein angespitzter Zahn als Werkzeug. Die Landschaft schreibt an den K\xF6rpern mit. Der Wald weicht der Savanne, und der Gang richtet sich auf. Eine Hand mit einem Daumen, der den Fingern begegnet. Das Erbgut vergisst nichts und verr\xE4t nichts. Aber die L\xFCcke zwischen den Funden bleibt. Die H\xE4utung dauert eine Nacht und ein Erdzeitalter. Ein Bernstein mit M\xFCcke. Es geht um das Weiterreichen selbst. Die Arten wandern, wenn der Boden es verlangt. Ein Geweih, das zu schwer f\xFCr seinen Tr\xE4ger wird. Die Anpassung kennt keine Richtung, nur den n\xE4chsten Schritt. Pl\xF6tzlich steht ein Tier am Feuer und gibt ihm einen Namen. Dann wendet sich die Auslese nach innen. Die Schrift \xFCbernimmt, was die Knochen begonnen haben. Am Ende sitzt das Ergebnis am Mikroskop und sucht seinen Anfang. Zur\xFCck bleibt ein Abdruck im Schlamm, \xE4lter als jede Frage.`;
+function zuordnung(text) {
+  const stuecke = teilstuecke(text);
+  const grenze = Math.max(0, stuecke.length - 2);
+  const gesehen = /* @__PURE__ */ new Set();
+  const out = [];
+  stuecke.forEach((s, i) => {
+    const key = s.toLowerCase();
+    if (gesehen.has(key)) return;
+    gesehen.add(key);
+    out.push({ stueck: s, kategorie: kategorieFuer(s, i >= grenze && deriveAtom(s).typ === "hauptsatz") });
+  });
+  return out;
+}
+
+// src/features/erzaehlerbank.ts
+var ERZAEHLER_PLAETZE = 10;
+var BANK_KEY = "dm_erzaehlerbank_v1";
+var QUELLE_KEY = "dm_erzaehler_quelle_v1";
+function ladeErzaehlerbank() {
+  let roh = [];
+  try {
+    roh = JSON.parse(localStorage.getItem(BANK_KEY) || "[]");
+  } catch {
+    roh = [];
+  }
+  const list = Array.isArray(roh) ? roh : [];
+  return Array.from({ length: ERZAEHLER_PLAETZE }, (_, i) => {
+    const e = list[i];
+    return { titel: String(e?.titel || "").slice(0, 60), text: String(e?.text || "") };
+  });
+}
+function ladeQuelle() {
+  const q = localStorage.getItem(QUELLE_KEY) || "preset";
+  return q === "preset" || q === "wuerfeln" || /^[0-9]$/.test(q) ? q : "preset";
+}
+function setzeQuelle(q) {
+  try {
+    localStorage.setItem(QUELLE_KEY, q);
+  } catch {
+  }
+}
+function platzBrauchbar(e) {
+  return (e.text || "").split(/\s+/).filter(Boolean).length >= 40;
+}
+function erzaehlerBogen(index) {
+  const e = ladeErzaehlerbank()[index];
+  if (!e || !platzBrauchbar(e)) return null;
+  return preset2AusText(e.text).drama;
+}
+function bogenFuerErzeugung() {
+  const q = ladeQuelle();
+  if (q === "preset") return null;
+  if (/^[0-9]$/.test(q)) return erzaehlerBogen(parseInt(q, 10));
+  const brauchbar = ladeErzaehlerbank().map((e, i) => ({ e, i })).filter((x) => platzBrauchbar(x.e));
+  if (!brauchbar.length) return null;
+  return erzaehlerBogen(brauchbar[Math.floor(Math.random() * brauchbar.length)].i);
+}
+
 // src/features/wikisammler.ts
 var VORRAT_KEY = "divergenz_sammler_vorrat_v1";
 function ladeVorrat() {
@@ -24576,6 +24699,21 @@ function mountStudio(root) {
   const shots = el("input", { id: "f-shots", type: "number", value: "5", min: "3", max: "10" });
   const secs = el("input", { id: "f-secs", type: "number", value: "15", min: "3", max: "600" });
   const structure = select("f-structure", STRUCTURE_OPTS, "rekombination");
+  const bogenSel = select("f-bogen", [["preset", "aus Preset"]], "preset");
+  const bogenFuellen = () => {
+    const wahl = ladeQuelle();
+    bogenSel.innerHTML = "";
+    bogenSel.append(el("option", { value: "preset" }, "aus Preset"));
+    ladeErzaehlerbank().forEach((e, i) => {
+      if (!platzBrauchbar(e)) return;
+      bogenSel.append(el("option", { value: String(i) }, `${i + 1} \xB7 ${e.titel || "ohne Titel"}`));
+    });
+    bogenSel.append(el("option", { value: "wuerfeln" }, "w\xFCrfeln je Erzeugung"));
+    bogenSel.value = Array.from(bogenSel.options).some((o) => o.value === wahl) ? wahl : "preset";
+  };
+  bogenFuellen();
+  bogenSel.addEventListener("change", () => setzeQuelle(bogenSel.value));
+  document.addEventListener("visibilitychange", bogenFuellen);
   const mode = select("f-mode", MODE_OPTS, "auto");
   const persp = select("f-persp", PERSP_OPTS, "auto");
   const rhythm = select("f-rhythm", RHYTHM_OPTS, "auto");
@@ -25720,6 +25858,10 @@ function mountStudio(root) {
     "div",
     { class: "grid3" },
     lockField("Struktur", structure),
+    // Der Bogen hat kein Schloss: Der Würfel fasst ihn nicht an, die Wahl ist
+    // ohnehin fest — ein Schloss schützte nichts und der Schaltplan verlangte
+    // einen Knoten dafür.
+    el("div", { class: "field" }, el("span", { class: "field-label" }, el("span", {}, "Bogen")), bogenSel),
     lockField("Modus", mode),
     lockField("Perspektive", persp),
     lockField("Rhythmus", rhythm),
@@ -25990,6 +26132,7 @@ function mountStudio(root) {
     });
   };
   const generate = () => {
+    setBogenOverride(bogenFuerErzeugung());
     const model = markov.value !== "off" ? buildModelFromCorpus(2) : void 0;
     const input = readInput();
     try {
@@ -27573,7 +27716,9 @@ function mountWordbank(root) {
     return sortedPresetOptions().map(([v, l]) => [v, v.startsWith("user:") && u2[v.slice(5)] ? l + " \u27262.0" : l]);
   };
   const preset = select("wb-preset", markedOptions());
-  if (preset.options.length > 1) preset.selectedIndex = 1;
+  const zufallsPreset = () => {
+    if (preset.options.length > 1) preset.selectedIndex = 1 + Math.floor(Math.random() * (preset.options.length - 1));
+  };
   const delPresetBtn = button("Preset l\xF6schen", "danger");
   const renamePresetBtn = button("Preset umbenennen");
   const updDelPreset = () => {
@@ -27587,7 +27732,10 @@ function mountWordbank(root) {
     preset.innerHTML = "";
     for (const [v, l] of markedOptions()) preset.append(el("option", { value: v }, l));
     if (keep && Array.from(preset.options).some((o) => o.value === keep)) preset.value = keep;
-    else if (preset.options.length > 1) preset.selectedIndex = 1;
+    else {
+      zufallsPreset();
+      preset.dispatchEvent(new Event("change"));
+    }
     updDelPreset();
   };
   preset.addEventListener("change", () => {
@@ -27627,6 +27775,8 @@ function mountWordbank(root) {
       }
     }
   });
+  zufallsPreset();
+  preset.dispatchEvent(new Event("change"));
   delPresetBtn.addEventListener("click", () => {
     if (!preset.value.startsWith("user:")) return;
     const name = preset.value.slice(5);
@@ -27751,6 +27901,115 @@ Fortfahren?`)) return;
   });
   const archiveBtn = button("Wortarchiv");
   archiveBtn.addEventListener("click", () => openArchive());
+  const textBtn = button("Preset aus Text");
+  textBtn.addEventListener("click", () => {
+    const overlay = el("div", { class: "modal" });
+    const close = el("button", { class: "x", "aria-label": "Schlie\xDFen" }, icon("x"));
+    close.addEventListener("click", () => overlay.remove());
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+    const eingabe = el("textarea", { rows: "10", placeholder: "Text hier einf\xFCgen \u2014 am besten 300 bis 400 W\xF6rter. S\xE4tze werden in die sieben Kategorien der Wortbank sortiert.", style: "width:100%" });
+    const nameIn = el("input", { type: "text", placeholder: "Name des Presets", maxlength: "40", style: "width:100%" });
+    const schau = el("div", { class: "muted", style: "font-size:13px;line-height:1.5" });
+    const NAMEN2 = { motifs: "Bilder", hooks: "S\xE4tze mit Haken", props: "Requisiten", turns: "Wenden", obstacles: "Hindernisse", stakes: "Eins\xE4tze", endings: "Schl\xFCsse" };
+    const zuordnungBox = el("div", { style: "display:none;max-height:220px;overflow:auto;font-size:13px;line-height:1.55;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-top:8px" });
+    const zuordnungBtn = el("button", { type: "button" }, "Zuordnung zeigen");
+    let zuAuf = false;
+    const malZuordnung = () => {
+      if (!zuAuf) return;
+      zuordnungBox.innerHTML = "";
+      for (const { stueck, kategorie } of zuordnung(eingabe.value))
+        zuordnungBox.append(el("div", {}, el("strong", { style: "color:var(--acc2)" }, (NAMEN2[kategorie] || kategorie) + ": "), stueck));
+      if (!zuordnungBox.childElementCount) zuordnungBox.append(el("div", { class: "muted" }, "Noch kein verwertbarer Satz."));
+    };
+    zuordnungBtn.addEventListener("click", () => {
+      zuAuf = !zuAuf;
+      zuordnungBox.style.display = zuAuf ? "" : "none";
+      zuordnungBtn.textContent = zuAuf ? "Zuordnung verbergen" : "Zuordnung zeigen";
+      malZuordnung();
+    });
+    const vorlageBtn = el("button", { type: "button", title: "Beispieltext (Thema Evolution) einsetzen \u2014 an ihm sieht man, welche Satzform in welche Kategorie f\xFChrt." }, "Vorlage: Evolution");
+    vorlageBtn.addEventListener("click", () => {
+      eingabe.value = VORLAGE_EVOLUTION;
+      if (!nameIn.value.trim()) nameIn.value = "Evolution";
+      eingabe.dispatchEvent(new Event("input"));
+      if (!zuAuf) zuordnungBtn.click();
+      else malZuordnung();
+    });
+    const speichern = el("button", { class: "primary" }, "Als Preset speichern");
+    const vorschau = () => {
+      const p = preset2AusText(eingabe.value);
+      const teile = Object.entries(p.bank).map(([k, v]) => `${NAMEN2[k] || k}: ${v.length}`).join(" \xB7 ");
+      schau.textContent = p.stuecke === 0 ? "Noch kein verwertbarer Satz." : `${p.woerter} W\xF6rter, ${p.stuecke} Teilst\xFCcke \u2014 ${teile}` + (p.woerter < 200 ? " \xB7 Hinweis: unter 200 W\xF6rtern wird das Preset d\xFCnn." : "");
+      speichern.disabled = p.stuecke < 7 || !nameIn.value.trim();
+      return p;
+    };
+    eingabe.addEventListener("input", () => {
+      vorschau();
+      malZuordnung();
+    });
+    nameIn.addEventListener("input", vorschau);
+    const einfuegen = el("button", { type: "button", title: "Aus der Zwischenablage einf\xFCgen" }, icon("paste"), " Einf\xFCgen");
+    einfuegen.addEventListener("click", () => {
+      const lesen = navigator.clipboard?.readText?.();
+      if (!lesen) {
+        eingabe.focus();
+        return;
+      }
+      lesen.then((txt) => {
+        const t = (txt || "").trim();
+        if (!t) {
+          eingabe.focus();
+          return;
+        }
+        eingabe.value = t;
+        eingabe.dispatchEvent(new Event("input"));
+        eingabe.focus();
+      }).catch(() => {
+        eingabe.focus();
+      });
+    });
+    speichern.addEventListener("click", () => {
+      const p = vorschau();
+      if (speichern.disabled) return;
+      const name = nameIn.value.trim().slice(0, 40);
+      const user = loadUserPresets();
+      user[name] = p.bank;
+      saveUserPresets(user);
+      const a2 = { settings: { structure: "dramaturgie" }, drama: p.drama, pools: p.pools };
+      saveUserPreset2(name, a2);
+      setActive2(a2);
+      setDramaData(p.drama);
+      overlay.remove();
+      rebuildPresets("user:" + name);
+      load();
+      renderFull();
+    });
+    vorschau();
+    overlay.append(el(
+      "div",
+      { class: "modal-card" },
+      el("div", { class: "modal-head" }, el("h2", {}, "Preset aus Text"), close),
+      el(
+        "div",
+        { class: "modal-body" },
+        el("p", { class: "muted" }, "Der Text wird in S\xE4tze zerlegt und in die sieben Kategorien sortiert: Bilder, S\xE4tze mit Haken, Requisiten, Wenden, Hindernisse, Eins\xE4tze, Schl\xFCsse. Was keine Kategorie trifft, wird ein Bild; leere Kategorien borgen aus der vollsten. Gespeichert wird ein Preset 2.0: mit dramaturgischem Bogen (Einstieg, Mitte, H\xF6hepunkt, Schluss aus denselben S\xE4tzen) und Kontext-Material f\xFCr die lebendigen Pools."),
+        eingabe,
+        el("div", { style: "height:8px" }),
+        el("div", { class: "btnrow" }, einfuegen, vorlageBtn, zuordnungBtn),
+        zuordnungBox,
+        el("div", { style: "height:8px" }),
+        nameIn,
+        el("div", { style: "height:8px" }),
+        schau,
+        el("div", { style: "height:12px" }),
+        speichern
+      )
+    ));
+    document.body.append(overlay);
+    eingabe.focus();
+  });
   const saveTextAs = async (text, filename) => {
     const w = window;
     if (typeof w.showSaveFilePicker === "function") {
@@ -28312,7 +28571,7 @@ Fortfahren?`)) return;
     if (registerBox.hasAttribute("open")) zeichneRegister();
   });
   wrap.append(
-    el("div", { class: "btnrow" }, wizardBtn, archiveBtn),
+    el("div", { class: "btnrow" }, wizardBtn, textBtn, archiveBtn),
     field("Preset", preset),
     el("div", { class: "btnrow" }, delPresetBtn, renamePresetBtn),
     rulesBox,

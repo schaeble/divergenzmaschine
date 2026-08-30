@@ -14,7 +14,15 @@ const DKEY = "dm_dramaturgie_v1";
 export function setDramaData(d: DramaData | null): void {
   try { if (d) localStorage.setItem(DKEY, JSON.stringify(d)); else localStorage.removeItem(DKEY); } catch { /* voll */ }
 }
+// Weiche für die Erzählerbank: Ein gesetzter Override gilt VOR dem
+// gespeicherten Preset-Bogen — für alle Verbraucher (Struktur Dramaturgie,
+// Rekombination, Video, Schliff) gleichermaßen. Das Studio setzt ihn vor
+// jeder Erzeugung aus der Erzählerbank-Wahl und räumt ihn bei „aus Preset"
+// ab; der gespeicherte Bogen bleibt unangetastet.
+let bogenOverride: DramaData | null = null;
+export function setBogenOverride(d: DramaData | null): void { bogenOverride = d; }
 export function loadDramaData(): DramaData | null {
+  if (bogenOverride) return bogenOverride;
   try { const r = localStorage.getItem(DKEY); return r ? (JSON.parse(r) as DramaData) : null; } catch { return null; }
 }
 export function hasDramaData(): boolean {

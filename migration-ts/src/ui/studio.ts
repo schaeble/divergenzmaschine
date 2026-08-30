@@ -16,6 +16,8 @@ import { feedLivePools, LIVE_W } from "../features/livepools";
 import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
 import { titelFuer } from "../generation/titel";
+import { ladeErzaehlerbank, ladeQuelle, setzeQuelle, platzBrauchbar, bogenFuerErzeugung } from "../features/erzaehlerbank";
+import { setBogenOverride } from "../generation/dramaturgie";
 import { ziehVorrat, vorratStand, type VorratFund } from "../features/wikisammler";
 import { ziehBildvorrat, ladeBildvorrat, type BildFund } from "../features/bildsammler";
 import { ziehThema, themenStand } from "../features/themenpool";
@@ -588,6 +590,26 @@ export function mountStudio(root: HTMLElement): void {
   const shots = el("input", { id: "f-shots", type: "number", value: "5", min: "3", max: "10" }) as HTMLInputElement;
   const secs = el("input", { id: "f-secs", type: "number", value: "15", min: "3", max: "600" }) as HTMLInputElement;
   const structure = select("f-structure", STRUCTURE_OPTS, "rekombination");
+  // ── Bogen aus der Erzählerbank ─────────────────────────────────────────
+  // Gewünscht: Die Erzählerbank (zehn Geschichten, Reiter neben der Wortbank)
+  // dient als Dramaturgie-Set; der Bogen ist FEST gewählt und wird nur auf
+  // Wunsch gewürfelt. „aus Preset" lässt alles wie bisher.
+  const bogenSel = select("f-bogen", [["preset", "aus Preset"]], "preset");
+  const bogenFuellen = (): void => {
+    const wahl = ladeQuelle();
+    bogenSel.innerHTML = "";
+    bogenSel.append(el("option", { value: "preset" }, "aus Preset"));
+    ladeErzaehlerbank().forEach((e, i) => {
+      if (!platzBrauchbar(e)) return;
+      bogenSel.append(el("option", { value: String(i) }, `${i + 1} · ${e.titel || "ohne Titel"}`));
+    });
+    bogenSel.append(el("option", { value: "wuerfeln" }, "würfeln je Erzeugung"));
+    bogenSel.value = Array.from(bogenSel.options).some((o) => o.value === wahl) ? wahl : "preset";
+  };
+  bogenFuellen();
+  bogenSel.addEventListener("change", () => setzeQuelle(bogenSel.value));
+  // Beim Rückwechsel in den Reiter können sich die Plätze geändert haben.
+  document.addEventListener("visibilitychange", bogenFuellen);
   const mode = select("f-mode", MODE_OPTS, "auto");
   const persp = select("f-persp", PERSP_OPTS, "auto");
   const rhythm = select("f-rhythm", RHYTHM_OPTS, "auto");
@@ -1531,7 +1553,10 @@ export function mountStudio(root: HTMLElement): void {
     // Preset-Auswahl legt ihn beim Umschalten ab. Die Prüfung bleibt trotzdem
     // richtig: Eigene Presets ohne 2.0-Block haben weiterhin keinen, und bei
     // jeder Form außer Prosa fällt der Bauweg ebenfalls zurück.
-    if (structure.value === "dramaturgie" && !(form.value === "prose" && hasDramaData())) {
+    // Seit der Erzählerbank zählt auch deren Wahl: Ein fester Platz oder
+    // „würfeln" bringt einen Bogen mit, selbst wenn das Preset keinen hat.
+    const erzaehlerBogenDa = ladeQuelle() !== "preset" && ladeErzaehlerbank().some(platzBrauchbar);
+    if (structure.value === "dramaturgie" && !(form.value === "prose" && (hasDramaData() || erzaehlerBogenDa))) {
       rekHint.style.display = "";
       rekHint.textContent = form.value !== "prose"
         ? `Hinweis: „Dramaturgie“ wirkt nur bei Prosa — bei „${form.options[form.selectedIndex]?.text || form.value}“ bleibt die Struktur ohne Wirkung.`
@@ -1546,7 +1571,12 @@ export function mountStudio(root: HTMLElement): void {
   preset.addEventListener("change", updRekHint);
   updRekHint();
   fine.append(el("div", { class: "grid3" },
-    lockField("Struktur", structure), lockField("Modus", mode), lockField("Perspektive", persp),
+    lockField("Struktur", structure),
+    // Der Bogen hat kein Schloss: Der Würfel fasst ihn nicht an, die Wahl ist
+    // ohnehin fest — ein Schloss schützte nichts und der Schaltplan verlangte
+    // einen Knoten dafür.
+    el("div", { class: "field" }, el("span", { class: "field-label" }, el("span", {}, "Bogen")), bogenSel),
+    lockField("Modus", mode), lockField("Perspektive", persp),
     lockField("Rhythmus", rhythm), lockField("Instabilität", instab), lockField("Markov", markov),
     lockField("Disruptor", disruptor), lockField("Varianz", varianz), lockField("Zeitungsseite", ressort),
     lockField("Spannung", tension), lockField("Figurendisziplin", cast),
@@ -1752,6 +1782,11 @@ export function mountStudio(root: HTMLElement): void {
   };
 
   const generate = (): void => {
+    // Erzählerbank: Der Bogen für DIESE Erzeugung — fest gewählt oder (nur
+    // auf Wunsch) gewürfelt; bei „aus Preset" wird die Weiche abgeräumt und
+    // der gespeicherte Preset-Bogen gilt. Vor der Erzeugung gesetzt, ist er
+    // für den ganzen Text stabil, auch beim Würfeln.
+    setBogenOverride(bogenFuerErzeugung());
     const model = markov.value !== "off" ? buildModelFromCorpus(2) : undefined;
     const input = readInput();
     try {

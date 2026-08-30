@@ -21,6 +21,7 @@ function showAbout(): void {
 }
 import { mountStudio } from "./studio";
 import { mountWordbank } from "./wordbankView";
+import { mountErzaehlerbank } from "./erzaehlerbankView";
 import { mountKorpus } from "./korpusView";
 import { mountIdeas } from "./ideasView";
 import { mountSammler } from "./sammlerView";
@@ -74,6 +75,7 @@ const TABS: [string, (root: HTMLElement) => void][] = [
   ["Sammler", mountSammler],
   ["Welt", mountWorld],
   ["Wortbank", mountWordbank],
+  ["Erzählerbank", mountErzaehlerbank],
   ["Korpus", mountKorpus],
   ["Oszilloskop", mountOscilloscope],
   ["Schatzkammer", mountTreasury],
