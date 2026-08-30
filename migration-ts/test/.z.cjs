@@ -1,221 +1,314 @@
 "use strict";
 
-// test/reiter.ts
-var import_jsdom = require("jsdom");
-
-// src/features/reiter.ts
-var REITER_KEY = "divergenz_reiter_v1";
-var kanonListe = [];
-function setzeKanon(namen) {
-  kanonListe = namen.slice();
-}
-function derKanon() {
-  return kanonListe.slice();
-}
-var STAND_LEER = { ordnung: [], versteckt: [] };
-var PFLICHT = ["Studio"];
-function ordne(kanon, gespeichert) {
-  const bekannt = new Set(kanon);
-  const raus = [];
-  const drin = /* @__PURE__ */ new Set();
-  for (const n of gespeichert) {
-    if (!bekannt.has(n) || drin.has(n)) continue;
-    drin.add(n);
-    raus.push(n);
+// src/features/varianz.ts
+var STOPP = /* @__PURE__ */ new Set([
+  "aber",
+  "auch",
+  "dann",
+  "dass",
+  "denn",
+  "doch",
+  "durch",
+  "eine",
+  "einem",
+  "einen",
+  "einer",
+  "eines",
+  "gegen",
+  "haben",
+  "hatte",
+  "immer",
+  "jeder",
+  "kann",
+  "mehr",
+  "nach",
+  "nicht",
+  "noch",
+  "oder",
+  "schon",
+  "sein",
+  "seine",
+  "sich",
+  "sind",
+  "\xFCber",
+  "unter",
+  "wenn",
+  "werden",
+  "wieder",
+  "wird",
+  "wurde",
+  "zwischen",
+  "diese",
+  "dieser",
+  "dieses",
+  "damit",
+  "dabei",
+  "davon",
+  "etwas",
+  "ohne",
+  "sondern",
+  "zwar"
+]);
+function inhaltsWoerter(text) {
+  const raus = /* @__PURE__ */ new Set();
+  for (const w of (text || "").toLowerCase().match(/[a-zäöüß]{4,}/g) || []) {
+    if (!STOPP.has(w)) raus.add(w);
   }
-  for (let i = 0; i < kanon.length; i++) {
-    const n = kanon[i];
-    if (drin.has(n)) continue;
-    let stelle = 0;
-    for (let j = i - 1; j >= 0; j--) {
-      const v = kanon[j];
-      const k = raus.indexOf(v);
-      if (k >= 0) {
-        stelle = k + 1;
-        break;
-      }
+  return raus;
+}
+function dreiergruppen(text) {
+  const w = (text || "").toLowerCase().match(/[a-zäöüß]+/g) || [];
+  const raus = /* @__PURE__ */ new Set();
+  for (let i = 0; i + 2 < w.length; i++) raus.add(`${w[i]} ${w[i + 1]} ${w[i + 2]}`);
+  return raus;
+}
+function jaccard(a, b) {
+  if (!a.size || !b.size) return 0;
+  let schnitt = 0;
+  const klein = a.size <= b.size ? a : b, gross = a.size <= b.size ? b : a;
+  for (const x of klein) if (gross.has(x)) schnitt++;
+  return schnitt / (a.size + b.size - schnitt);
+}
+function aehnlichkeit(a, b) {
+  const w = jaccard(inhaltsWoerter(a), inhaltsWoerter(b));
+  const g = jaccard(dreiergruppen(a), dreiergruppen(b));
+  return Math.max(0, Math.min(1, (w + 2 * g) / 3));
+}
+function varianzBand(wert) {
+  if (!Number.isFinite(wert) || wert < 0.55) return "gering";
+  if (wert < 0.75) return "mittel";
+  return "hoch";
+}
+var anteilVerschieden = (werte) => {
+  const gefuellt = werte.filter((x) => !!x);
+  if (gefuellt.length < 2) return 1;
+  return new Set(gefuellt).size / gefuellt.length;
+};
+function laengenVielfalt(texte) {
+  const n = texte.map((t) => (t.match(/\S+/g) || []).length).filter((x) => x > 0);
+  if (n.length < 2) return 1;
+  const m = n.reduce((a, b) => a + b, 0) / n.length;
+  if (m <= 0) return 0;
+  const sd = Math.sqrt(n.reduce((a, b) => a + (b - m) * (b - m), 0) / n.length);
+  return Math.max(0, Math.min(1, sd / m / 0.5));
+}
+function varianzBericht(stuecke) {
+  const n = stuecke.length;
+  const leer = {
+    wert: 1,
+    band: "hoch",
+    naechste: [],
+    paare: [],
+    vielfalt: { formen: 1, baenke: 1, quellen: 1, laengen: 1 }
+  };
+  if (n < 2) return leer;
+  const naechste = new Array(n).fill(0);
+  const paare = [];
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const w = aehnlichkeit(stuecke[i].text, stuecke[j].text);
+      paare.push({ a: i, b: j, wert: w });
+      if (w > naechste[i]) naechste[i] = w;
+      if (w > naechste[j]) naechste[j] = w;
     }
-    raus.splice(stelle, 0, n);
-    drin.add(n);
   }
-  return raus;
-}
-function sichtbar(kanon, stand, pflicht = PFLICHT) {
-  const ordnung = ordne(kanon, stand.ordnung || []);
-  const weg = new Set((stand.versteckt || []).filter((n) => !pflicht.includes(n)));
-  const raus = ordnung.filter((n) => !weg.has(n));
-  if (raus.length) return raus;
-  const rettung = ordnung.filter((n) => pflicht.includes(n));
-  return rettung.length ? rettung : ordnung.slice(0, 1);
-}
-function verschiebe(ordnung, name, delta) {
-  const i = ordnung.indexOf(name);
-  if (i < 0) return ordnung.slice();
-  const j = i + (delta < 0 ? -1 : 1);
-  if (j < 0 || j >= ordnung.length) return ordnung.slice();
-  const raus = ordnung.slice();
-  raus[i] = raus[j];
-  raus[j] = name;
-  return raus;
-}
-function schalte(stand, name, an, pflicht = PFLICHT) {
-  const versteckt = new Set(stand.versteckt || []);
-  if (an || pflicht.includes(name)) versteckt.delete(name);
-  else versteckt.add(name);
-  return { ordnung: (stand.ordnung || []).slice(), versteckt: [...versteckt] };
-}
-function ladeStand() {
-  try {
-    const r = JSON.parse(localStorage.getItem(REITER_KEY) || "null");
-    if (!r) return { ...STAND_LEER };
-    return {
-      ordnung: Array.isArray(r.ordnung) ? r.ordnung.filter((x) => typeof x === "string") : [],
-      versteckt: Array.isArray(r.versteckt) ? r.versteckt.filter((x) => typeof x === "string") : []
-    };
-  } catch {
-    return { ...STAND_LEER };
-  }
-}
-function sichereStand(s) {
-  try {
-    localStorage.setItem(REITER_KEY, JSON.stringify(s));
-    return true;
-  } catch {
-    return false;
-  }
+  const mittelNaechste = naechste.reduce((a, b) => a + b, 0) / n;
+  const wert = Math.max(0, Math.min(1, 1 - mittelNaechste));
+  paare.sort((a, b) => b.wert - a.wert);
+  return {
+    wert,
+    band: varianzBand(wert),
+    naechste,
+    paare: paare.slice(0, 3),
+    vielfalt: {
+      formen: anteilVerschieden(stuecke.map((s) => s.form)),
+      baenke: anteilVerschieden(stuecke.map((s) => s.bank)),
+      quellen: anteilVerschieden(stuecke.map((s) => s.quelle)),
+      laengen: laengenVielfalt(stuecke.map((s) => s.text))
+    }
+  };
 }
 
-// test/reiter.ts
-var dom = new import_jsdom.JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/" });
-globalThis.localStorage = dom.window.localStorage;
+// src/generation/tone.shape.ts
+var TONE_SHAPE = {
+  neutral: {},
+  mystery: { rhythm: "long" },
+  poetic: { rhythm: "breath", register: "lyrical" },
+  melancholisch: { rhythm: "long", register: "lyrical" },
+  dark: { rhythm: "fracture", register: "dark" },
+  unheimlich: { rhythm: "fracture", register: "dark" },
+  uplifting: { rhythm: "clean" },
+  zaertlich: { rhythm: "breath", register: "lyrical" },
+  traeumerisch: { rhythm: "breath", register: "lyrical" },
+  nuechtern: { rhythm: "clean", register: "plain" },
+  ironisch: { rhythm: "clean", register: "wry" },
+  humorous: { rhythm: "staccato", register: "wry" }
+};
+function toneRegister(tone) {
+  return tone && TONE_SHAPE[tone]?.register || null;
+}
+var cap1 = (s) => s ? s[0].toUpperCase() + s.slice(1) : s;
+function applyToneRegister(text, tone) {
+  const reg = toneRegister(tone);
+  if (!reg || !text) return text;
+  if (reg === "plain") {
+    let t = text.replace(/\b(gleichsam|wie Honig im Winter|wie ein halb vergessenes Gedicht[^.,;]*)\b/gi, "").replace(/\s{2,}/g, " ");
+    t = t.split(/\n\n+/).map((para) => {
+      const sents = para.split(/(?<=[.!?…])\s+/);
+      const out = [];
+      for (const sen of sents) {
+        const wc = sen.split(/\s+/).filter(Boolean).length;
+        if (wc > 16) {
+          const parts = sen.split(/,\s+(?=und |aber |denn |während |sodass |wobei )/);
+          if (parts.length > 1) {
+            parts.forEach((p, i) => {
+              let seg = p.replace(/^,?\s*(und|aber|denn|während|sodass|wobei)\s+/i, "").trim();
+              if (!seg) return;
+              seg = cap1(seg);
+              if (!/[.!?…]$/.test(seg)) seg += ".";
+              out.push(i === 0 && /[.!?…]$/.test(p) ? cap1(p.trim()) : seg);
+            });
+            continue;
+          }
+        }
+        out.push(sen);
+      }
+      return out.join(" ");
+    }).join("\n\n");
+    return t.replace(/\s+([,.;:!?…])/g, "$1").replace(/\s{2,}/g, " ").trim();
+  }
+  if (reg === "wry") {
+    const tags = ["\u2014 angeblich.", "\u2014 so hie\xDF es.", "\u2014 was auch immer das hei\xDFen sollte.", "\u2014 nat\xFCrlich.", "\u2014 wie praktisch.", "\u2014 oder so \xE4hnlich."];
+    let ti = Math.floor(Math.random() * tags.length);
+    let gesetzt = 0, vorherGesetzt = false;
+    return text.split(/\n\n+/).map((para) => {
+      const sents = para.split(/(?<=[.!?…])\s+/);
+      return sents.map((sen) => {
+        const wc = sen.split(/\s+/).filter(Boolean).length;
+        if (gesetzt < 3 && !vorherGesetzt && wc >= 5 && wc <= 18 && /[.]$/.test(sen) && !/[()"„:—–]/.test(sen) && Math.random() < 0.3) {
+          const tag = tags[ti % tags.length];
+          ti++;
+          gesetzt++;
+          vorherGesetzt = true;
+          return sen.replace(/\.$/, " " + tag);
+        }
+        vorherGesetzt = false;
+        return sen;
+      }).join(" ");
+    }).join("\n\n");
+  }
+  return text;
+}
+
+// test/varianz.ts
 var fails = [];
-var zeilen = [];
 var geprueft = 0;
+var bestanden = 0;
 var ist = (name, wert, soll) => {
   geprueft++;
-  if (wert === soll) zeilen.push(`  \u2713 ${name}`);
-  else {
-    zeilen.push(`  \u2717 ${name}`);
-    fails.push(`${name}: \u201E${String(wert)}\u201C \u2014 erwartet \u201E${String(soll)}\u201C`);
-  }
+  if (wert === soll) bestanden++;
+  else fails.push(`${name}: \u201E${String(wert)}\u201C \u2014 erwartet \u201E${String(soll)}\u201C`);
 };
-var wahr = (name, b) => ist(name, b, true);
-var KANON = ["Studio", "Ideen", "Korpus", "Bildwelt", "Drucken", "Hilfe"];
-ist("ohne gespeicherte Ordnung gilt die eingebaute", ordne(KANON, []).join(","), KANON.join(","));
-ist(
-  "eine eigene Ordnung wird \xFCbernommen",
-  ordne(KANON, ["Hilfe", "Studio", "Ideen", "Korpus", "Bildwelt", "Drucken"]).join(","),
-  "Hilfe,Studio,Ideen,Korpus,Bildwelt,Drucken"
-);
-ist(
-  "ein verschwundener Reiter f\xE4llt weg",
-  ordne(KANON, ["Montage", "Studio"]).indexOf("Montage"),
-  -1
-);
-ist(
-  "Doppelte in der gespeicherten Ordnung z\xE4hlen einmal",
-  ordne(KANON, ["Studio", "Studio", "Ideen"]).filter((n) => n === "Studio").length,
-  1
-);
-ist("und es geht nichts verloren", ordne(KANON, ["Studio", "Studio"]).length, KANON.length);
-var altOrdnung = ["Studio", "Ideen", "Korpus", "Hilfe"];
-var mitNeu = ordne(["Studio", "Ideen", "Korpus", "Bildwelt", "Hilfe"], altOrdnung);
-wahr("ein neuer Reiter erscheint \xFCberhaupt", mitNeu.includes("Bildwelt"));
-ist("und zwar hinter seinem Vorg\xE4nger", mitNeu.indexOf("Bildwelt"), mitNeu.indexOf("Korpus") + 1);
-ist("nicht am Ende", mitNeu[mitNeu.length - 1], "Hilfe");
-ist(
-  "ein neuer erster Reiter kommt nach vorn",
-  ordne(["Neu", "Studio", "Ideen"], ["Studio", "Ideen"])[0],
-  "Neu"
-);
-var eigen = ordne(["Studio", "Ideen", "Korpus", "Bildwelt"], ["Korpus", "Studio", "Ideen"]);
-ist(
-  "ein neuer Reiter setzt sich neben seinen Nachbarn",
-  eigen.indexOf("Bildwelt"),
-  eigen.indexOf("Korpus") + 1
-);
-ist("auch wenn er dabei in die eigene Anordnung ger\xE4t", eigen.join(","), "Korpus,Bildwelt,Studio,Ideen");
-ist("verloren geht dabei nichts", eigen.length, 4);
-ist("ohne Ausblendung erscheint alles", sichtbar(KANON, { ordnung: [], versteckt: [] }).length, KANON.length);
-ist(
-  "Ausgeblendetes verschwindet",
-  sichtbar(KANON, { ordnung: [], versteckt: ["Ideen", "Hilfe"] }).length,
-  KANON.length - 2
-);
-wahr(
-  "und zwar das richtige",
-  !sichtbar(KANON, { ordnung: [], versteckt: ["Ideen"] }).includes("Ideen")
-);
-wahr(
-  "das Studio l\xE4sst sich nicht ausblenden",
-  sichtbar(KANON, { ordnung: [], versteckt: ["Studio"] }).includes("Studio")
-);
-var alles = sichtbar(KANON, { ordnung: [], versteckt: [...KANON] });
-wahr("und alles auszublenden ergibt keine leere Leiste", alles.length > 0);
-wahr("\xFCbrig bleibt der Pflichtreiter", alles.includes("Studio"));
-var ohnePflicht = sichtbar(["Ideen", "Korpus"], { ordnung: [], versteckt: ["Ideen", "Korpus"] });
-ist("ohne Pflichtreiter bleibt trotzdem einer stehen", ohnePflicht.length, 1);
-wahr(
-  "ein gew\xF6hnlicher Reiter verschwindet wirklich",
-  !sichtbar(KANON, { ordnung: [], versteckt: ["Korpus"] }).includes("Korpus")
-);
-ist(
-  "Sichtbarkeit h\xE4lt die eigene Reihenfolge ein",
-  sichtbar(KANON, { ordnung: ["Hilfe", "Studio"], versteckt: ["Ideen"] })[0],
-  "Hilfe"
-);
-ist("nach vorn", verschiebe(["a", "b", "c"], "b", -1).join(","), "b,a,c");
-ist("nach hinten", verschiebe(["a", "b", "c"], "b", 1).join(","), "a,c,b");
-ist("ganz vorn passiert nichts mehr", verschiebe(["a", "b"], "a", -1).join(","), "a,b");
-ist("ganz hinten auch nicht", verschiebe(["a", "b"], "b", 1).join(","), "a,b");
-ist("ein unbekannter Name \xE4ndert nichts", verschiebe(["a", "b"], "x", 1).join(","), "a,b");
-ist("die Liste bleibt gleich lang", verschiebe(["a", "b", "c"], "a", 1).length, 3);
-ist("ausblenden merkt sich das", schalte({ ordnung: [], versteckt: [] }, "Korpus", false).versteckt.join(","), "Korpus");
-ist("einblenden nimmt es zur\xFCck", schalte({ ordnung: [], versteckt: ["Korpus"] }, "Korpus", true).versteckt.length, 0);
-ist(
-  "zweimal ausblenden bleibt einmal",
-  schalte(schalte({ ordnung: [], versteckt: [] }, "Korpus", false), "Korpus", false).versteckt.length,
-  1
-);
-ist(
-  "das Studio l\xE4sst sich auch hier nicht ausblenden",
-  schalte({ ordnung: [], versteckt: [] }, "Studio", false).versteckt.length,
-  0
-);
-ist(
-  "die Ordnung bleibt beim Schalten unber\xFChrt",
-  schalte({ ordnung: ["b", "a"], versteckt: [] }, "a", false).ordnung.join(","),
-  "b,a"
-);
-wahr("die Einstellung wandert in die Projektdatei", REITER_KEY.startsWith("divergenz_"));
-localStorage.removeItem(REITER_KEY);
-ist("ohne Eintrag ist der Stand leer", ladeStand().ordnung.length, 0);
-sichereStand({ ordnung: ["Hilfe", "Studio"], versteckt: ["Ideen"] });
-ist("Gesichertes kommt zur\xFCck", ladeStand().ordnung.join(","), "Hilfe,Studio");
-ist("mitsamt Ausblendung", ladeStand().versteckt.join(","), "Ideen");
-localStorage.setItem(REITER_KEY, "{kein json");
-ist("kaputter Inhalt ergibt einen leeren Stand", ladeStand().ordnung.length, 0);
-localStorage.setItem(REITER_KEY, JSON.stringify({ ordnung: "kein array", versteckt: [7, "Ideen"] }));
-ist("Unsinn in der Ordnung ergibt eine Liste", ladeStand().ordnung.length, 0);
-ist("und Zahlen fallen aus der Ausblendung", ladeStand().versteckt.join(","), "Ideen");
-ist("vor dem Eintragen ist der Kanon leer", derKanon().length, 0);
-setzeKanon(KANON);
-ist("nach dem Eintragen steht er", derKanon().join(","), KANON.join(","));
-setzeKanon(["a"]);
-ist("und l\xE4sst sich ersetzen", derKanon().join(","), "a");
-var kopie = derKanon();
-kopie.push("b");
-ist("die Liste wird als Kopie herausgegeben, nicht als Griff", derKanon().length, 1);
-wahr("das Studio ist Pflichtreiter", PFLICHT.includes("Studio"));
-console.log(`Pr\xFCfstand Reiter \u2014 ${geprueft} Pr\xFCfungen:`);
-zeilen.forEach((z) => console.log(z));
+var wahr = (name, b, zusatz = "") => ist(name + (zusatz ? ` (${zusatz})` : ""), b, true);
+var A = "Der W\xE4chter z\xE4hlt die Fenster im Hafen. Ein Kompass zeigt, was niemand fragt. Die Reise f\xFChrt zur\xFCck an den Anfang.";
+var B = "Der W\xE4chter z\xE4hlt die Fenster im Hafen. Ein Kompass zeigt, was niemand fragt. Die Reise f\xFChrt zur\xFCck an den Anfang.";
+var C = "Im Winter schmilzt der Schnee auf dem Dach der Scheune. Ein Pferd wartet am Zaun und die Uhr im Stall bleibt stehen.";
+var D = "Die Rechnung liegt auf dem Tisch der Verwaltung. Ein Formular verlangt eine Unterschrift, die niemand leisten will.";
+var E = "Der W\xE4chter z\xE4hlt die Fenster am Hafen und ein Kompass schweigt. Sp\xE4ter f\xFChrt die Reise zur\xFCck zum Anfang der Wette.";
+wahr("Inhaltsw\xF6rter lassen F\xFCllw\xF6rter weg", !inhaltsWoerter("und aber nicht wenn").has("aber"));
+wahr("und behalten die Nomen", inhaltsWoerter("Der W\xE4chter z\xE4hlt Fenster").has("w\xE4chter"));
+ist("Dreiergruppen z\xE4hlen richtig", dreiergruppen("eins zwei drei vier").size, 2);
+ist("zu kurzer Text gibt keine Gruppe", dreiergruppen("eins zwei").size, 0);
+ist("gleicher Text ist ganz \xE4hnlich", Math.round(aehnlichkeit(A, B) * 100), 100);
+wahr("verschiedene Texte sind kaum \xE4hnlich", aehnlichkeit(A, C) < 0.1, aehnlichkeit(A, C).toFixed(3));
+wahr("umformuliert bleibt erkennbar \xE4hnlich", aehnlichkeit(A, E) > 0.15, aehnlichkeit(A, E).toFixed(3));
+wahr("und weniger als w\xF6rtlich gleich", aehnlichkeit(A, E) < aehnlichkeit(A, B));
+ist("leerer Text ist mit nichts \xE4hnlich", aehnlichkeit("", A), 0);
+{
+  const b = varianzBericht([
+    { titel: "1", text: A },
+    { titel: "2", text: C },
+    { titel: "3", text: D }
+  ]);
+  wahr("drei verschiedene Beitr\xE4ge ergeben hohe Varianz", b.band === "hoch", b.wert.toFixed(3));
+  wahr("und die \xE4hnlichsten Paare sind trotzdem benannt", b.paare.length > 0);
+}
+{
+  const b = varianzBericht([
+    { titel: "1", text: A },
+    { titel: "2", text: B },
+    { titel: "3", text: C },
+    { titel: "4", text: D }
+  ]);
+  wahr("eine Dublette dr\xFCckt die Varianz", b.wert < 0.75, b.wert.toFixed(3));
+  ist("und wird als \xE4hnlichstes Paar benannt", `${b.paare[0].a},${b.paare[0].b}`, "0,1");
+  wahr("die beiden anderen bleiben unbelastet", b.naechste[2] < 0.1 && b.naechste[3] < 0.1);
+}
+{
+  const b = varianzBericht([{ titel: "1", text: A }, { titel: "2", text: B }]);
+  ist("zwei gleiche Beitr\xE4ge sind rot", b.band, "gering");
+}
+ist("ein einzelner Beitrag hat nichts zu vergleichen", varianzBericht([{ titel: "1", text: A }]).band, "hoch");
+ist("keine Beitr\xE4ge auch nicht", varianzBericht([]).band, "hoch");
+ist("0,9 ist hoch", varianzBand(0.9), "hoch");
+ist("0,75 ist hoch", varianzBand(0.75), "hoch");
+ist("0,6 ist mittel", varianzBand(0.6), "mittel");
+ist("0,5 ist gering", varianzBand(0.5), "gering");
+ist("Unsinn gilt als gering", varianzBand(NaN), "gering");
+{
+  const b = varianzBericht([
+    { titel: "1", text: A, form: "prose", bank: "x", quelle: "welt" },
+    { titel: "2", text: C, form: "prose", bank: "x", quelle: "welt" },
+    { titel: "3", text: D, form: "prose", bank: "x", quelle: "welt" }
+  ]);
+  wahr(
+    "gleiche Form, gleiche Bank, gleiche Quelle: Vielfalt niedrig",
+    b.vielfalt.formen < 0.4 && b.vielfalt.baenke < 0.4 && b.vielfalt.quellen < 0.4
+  );
+}
+{
+  const b = varianzBericht([
+    { titel: "1", text: A, form: "prose", bank: "x", quelle: "welt" },
+    { titel: "2", text: C, form: "meldung", bank: "y", quelle: "idee" },
+    { titel: "3", text: D, form: "haiku", bank: "z", quelle: "wahrnehmung" }
+  ]);
+  ist("lauter verschiedene ergeben volle Vielfalt", b.vielfalt.formen, 1);
+}
+{
+  const kurz = "Ein Satz.";
+  const lang = A + " " + C + " " + D;
+  wahr(
+    "verschiedene L\xE4ngen z\xE4hlen als Vielfalt",
+    varianzBericht([{ titel: "1", text: kurz }, { titel: "2", text: lang }]).vielfalt.laengen > 0.5
+  );
+  wahr(
+    "gleiche L\xE4ngen nicht",
+    varianzBericht([{ titel: "1", text: C }, { titel: "2", text: D }]).vielfalt.laengen < 0.5
+  );
+}
+{
+  const satz = "Der Wecker geht und der Traum geht weiter.";
+  const text = Array.from({ length: 24 }, () => satz).join(" ");
+  let maxAnzahl = 0, doppelt = 0, nachbarn = 0;
+  for (let i = 0; i < 60; i++) {
+    const t = applyToneRegister(text, "ironisch");
+    const tags = t.match(/— (angeblich|so hieß es|was auch immer das heißen sollte|natürlich|wie praktisch|oder so ähnlich)\./g) || [];
+    maxAnzahl = Math.max(maxAnzahl, tags.length);
+    if (new Set(tags).size < tags.length) doppelt++;
+    if (/— [^.]+\. Der Wecker geht und der Traum geht weiter — /.test(t)) nachbarn++;
+  }
+  wahr("h\xF6chstens drei Nachs\xE4tze je Text (60 L\xE4ufe, 24 S\xE4tze)", maxAnzahl <= 3 && maxAnzahl >= 1);
+  ist("kein Nachsatz zweimal", doppelt, 0);
+  ist("nie zwei S\xE4tze hintereinander", nachbarn, 0);
+}
+console.log(`Pr\xFCfstand Varianz \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {
   console.error(`
-\u274C ${fails.length} Fehler bei den Reitern:`);
+\u274C Varianz: ${fails.length} Fehler:`);
   fails.forEach((f) => console.error("  - " + f));
   proc.process?.exit(1);
 } else {
   console.log(`
-\u2705 Reiter: alle ${geprueft} Pr\xFCfungen bestanden.`);
+\u2705 Varianz: alle ${geprueft} Pr\xFCfungen bestanden.`);
 }

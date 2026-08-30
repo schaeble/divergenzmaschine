@@ -138,6 +138,27 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   setDramaData(null);
 }
 
+// ── Gemeldet aus einem Blatt: Wiederholung, Zeitkopf, Nebensatz-Schnitt ─────
+{
+  // 1) Kein Bogen-Satz zweimal im selben Text.
+  const d1: import("../src/generation/dramaturgie").DramaData = { einstieg: ["Ein Absender ohne Namen, eine Schrift wie seine eigene"], mitte: ["Ein Absender ohne Namen, eine Schrift wie seine eigene", "Die zweite Zeile"],
+    hoehepunkt: ["Der Gipfel"], schluss: [], ausloeser: [], veraenderungen: ["Alles dreht"], konflikte: [], zeitanomalien: [], regeln: [], folge: ["einstieg", "mitte", "mitte", "wende", "hoehepunkt"] };
+  setDramaData(d1);
+  let doppelt = 0;
+  for (let i = 0; i < 20; i++) { const t = buildStory(DEFAULT_BANK, inp);
+    if ((t.match(/eine Schrift wie seine eigene/g) || []).length > 1) doppelt++; }
+  ist("kein Bogen-Satz zweimal im selben Text (20 Läufe)", doppelt, 0);
+  // 2) „Dann, unvermittelt:" nie vor einem Satz, der selbst mit einem Zeitwort beginnt.
+  const d2: import("../src/generation/dramaturgie").DramaData = { einstieg: ["Der Anfang steht"], mitte: [], hoehepunkt: ["Plötzlich weiß er alles"], schluss: [],
+    ausloeser: ["Davor wartet er drei Tage neben dem Briefkasten"], veraenderungen: [], konflikte: [], zeitanomalien: [], regeln: [], folge: ["einstieg", "ausloeser", "hoehepunkt"] };
+  setDramaData(d2);
+  let zeitkopf = 0;
+  for (let i = 0; i < 20; i++) { const t = buildStory(DEFAULT_BANK, inp);
+    if (/(Dann, unvermittelt: Davor|Und dann: Plötzlich)/.test(t)) zeitkopf++; }
+  ist("keine Zeit-Formel vor einem Zeitwort (20 Läufe)", zeitkopf, 0);
+  setDramaData(null);
+}
+
 console.log(`Prüfstand Erzählerbank — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

@@ -52,28 +52,60 @@ export function buildDramaturgie(kit: StoryKit): string {
   // So schlagen die Bauformen der Erzählerbank wirklich durch: „Katastrophe
   // zuerst" beginnt mit dem Höhepunkt, „Kreisschluss" kehrt am Ende zum
   // Einstieg zurück, der „Stille Bogen" verzichtet auf Wende und Höhepunkt.
+  // Kein Bogen-Satz zweimal im selben Text — gemeldet: „ein Absender ohne
+  // Namen, eine Schrift wie seine eigene" stand in zwei Nachbarsätzen. Jede
+  // Ziehung merkt sich, was schon steht; ist eine Liste aufgebraucht, fällt
+  // der Schlag aus — ein fehlender Schlag liest sich besser als ein
+  // wiederholter Satz. (Der Kreisschluss braucht darum mindestens zwei
+  // Einstiege, sonst bleibt die Wiederkehr weg.)
+  const benutzt = new Set<string>();
+  const zieh = (liste: string[]): string => {
+    const frisch = liste.filter((x) => !benutzt.has(x));
+    if (!frisch.length) return "";
+    const wahl = pick(frisch);
+    benutzt.add(wahl);
+    return wahl;
+  };
+  // Für Schläge mit Zeit-Formel („Dann, unvermittelt:", „Und dann:") keinen
+  // Satz, der selbst mit einem Zeitwort beginnt — gemeldet: „Dann,
+  // unvermittelt: Davor wartet er drei Tage neben dem Briefkasten." Gibt es
+  // nur solche, fällt die Formel weg und der Satz steht bloß.
+  const ZEITKOPF = /^(davor|danach|dann|plötzlich|auf einmal|am ende|am anfang|zurück bleibt|und dann|zuerst|zuletzt|schließlich)\b/i;
+  const ziehOhneZeitkopf = (liste: string[]): { satz: string; nackt: boolean } => {
+    const ohne = liste.filter((x) => !ZEITKOPF.test(x) && !benutzt.has(x));
+    if (ohne.length) { const wahl = pick(ohne); benutzt.add(wahl); return { satz: wahl, nackt: false }; }
+    return { satz: zieh(liste), nackt: true };                   // "" wenn aufgebraucht
+  };
   const schlag = (name: string, erster: boolean): string => {
     switch (name) {
       case "einstieg":
         return d && some(d.einstieg)
-          ? (erster ? `${cap(kit.T)} ${kit.W}. ${cap(pick(d.einstieg))}.` : `${cap(pick(d.einstieg))}.`)
+          ? (erster ? `${cap(kit.T)} ${kit.W}. ${cap(zieh(d.einstieg) || pick(d.einstieg))}.` : ((): string => { const z = zieh(d.einstieg); return z ? `${cap(z)}.` : ""; })())
           : (erster ? `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.` : "");
       case "hook": return cap(ensurePunct(kit.hook));
-      case "regel": return d && some(d.regeln) && chance(0.7) ? cap(ensurePunct(pick(d.regeln))) : ensurePunct(pick(M.rules));
-      case "mitte": return d && some(d.mitte) ? `${cap(pick(d.mitte))}.` : "";
-      case "mitte2": return d && some(d.mitte) && d.mitte.length > 1 && chance(0.6) ? `${cap(pick(d.mitte))}.` : "";
+      case "regel": { const z = d && some(d.regeln) && chance(0.7) ? zieh(d.regeln) : ""; return z ? cap(ensurePunct(z)) : ensurePunct(pick(M.rules)); }
+      case "mitte": { const z = d && some(d.mitte) ? zieh(d.mitte) : ""; return z ? `${cap(z)}.` : ""; }
+      case "mitte2": { const z = d && some(d.mitte) && d.mitte.length > 1 && chance(0.6) ? zieh(d.mitte) : ""; return z ? `${cap(z)}.` : ""; }
       case "konflikt": {
-        const konf = d && some(d.konflikte) ? pick(d.konflikte) : "";
+        const konf = d && some(d.konflikte) ? zieh(d.konflikte) : "";  // "" → Rahmen unten
         return konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`;
       }
-      case "ausloeser": return d && some(d.ausloeser) ? `Dann, unvermittelt: ${cap(pick(d.ausloeser))}.` : "";
-      case "wende": return frameTurn(d && some(d.veraenderungen) ? pick(d.veraenderungen) : kit.turn);
-      case "zeit": return d && some(d.zeitanomalien) && chance(0.4) ? cap(ensurePunct(pick(d.zeitanomalien))) : "";
+      case "ausloeser": {
+        if (!(d && some(d.ausloeser))) return "";
+        const { satz, nackt } = ziehOhneZeitkopf(d.ausloeser);
+        if (!satz) return "";
+        return nackt ? cap(ensurePunct(satz)) : `Dann, unvermittelt: ${cap(satz)}.`;
+      }
+      case "wende": return frameTurn((d && some(d.veraenderungen) ? zieh(d.veraenderungen) : "") || kit.turn);
+      case "zeit": { const z = d && some(d.zeitanomalien) && chance(0.4) ? zieh(d.zeitanomalien) : ""; return z ? cap(ensurePunct(z)) : ""; }
       case "hoehepunkt":
         if (!(d && some(d.hoehepunkt))) return "";
         // Am Anfang trägt der Höhepunkt keine „Und dann"-Formel — dort IST er
         // der Anfang („Katastrophe zuerst").
-        return erster ? `${cap(pick(d.hoehepunkt))}.` : `Und dann: ${cap(pick(d.hoehepunkt))}.`;
+        if (erster) { const z = zieh(d.hoehepunkt); return z ? `${cap(z)}.` : ""; }
+        const { satz, nackt } = ziehOhneZeitkopf(d.hoehepunkt);
+        if (!satz) return "";
+        return nackt ? cap(ensurePunct(satz)) : `Und dann: ${cap(satz)}.`;
       case "einsatz": return reframeStake(kit.stake);
       case "schluss": return ensurePunct(kit.ending);
       default: return "";

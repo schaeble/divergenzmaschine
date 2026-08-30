@@ -5779,7 +5779,7 @@ function applyDisruptor(text, level) {
   return { text: k.fn(text), fired: true, kind: k.kind };
 }
 var FRAGMENTS = ["Stille.", "Zu nah.", "Zu klar.", "Ein Fehler.", "Noch nicht.", "Dann.", "Nein.", "Vielleicht.", "Fast.", "Genau jetzt."];
-var NEBENSATZ_ANFANG = /^(der|die|das|dem|den|des|deren|dessen|welche[rsmn]?|wo|worin|woran|worauf|als|wenn|weil|obwohl|während|nachdem|bevor|damit|dass|ob|sodass|indem|sobald|solange|bis|seit|falls|wobei|wodurch|womit)\b/i;
+var NEBENSATZ_ANFANG = /^(der|die|das|dem|den|des|deren|dessen|welche[rsmn]?|wo|worin|woran|worauf|als|wenn|weil|obwohl|während|nachdem|bevor|damit|dass|ob|sodass|indem|sobald|solange|bis|seit|falls|wobei|wodurch|womit|was|wer|wen|wem|wie|ohne|um|statt|anstatt)\b/i;
 function applyRhythm(text, rhythm) {
   const s = splitSentences(text);
   const insertFrag = (prob) => {
@@ -6170,31 +6170,70 @@ var SCHLAG_NAMEN = /* @__PURE__ */ new Set([...SCHLAG_STANDARD]);
 function buildDramaturgie(kit) {
   const d = loadDramaData();
   const M = kit.mode;
+  const benutzt = /* @__PURE__ */ new Set();
+  const zieh = (liste) => {
+    const frisch = liste.filter((x) => !benutzt.has(x));
+    if (!frisch.length) return "";
+    const wahl = pick(frisch);
+    benutzt.add(wahl);
+    return wahl;
+  };
+  const ZEITKOPF = /^(davor|danach|dann|plötzlich|auf einmal|am ende|am anfang|zurück bleibt|und dann|zuerst|zuletzt|schließlich)\b/i;
+  const ziehOhneZeitkopf = (liste) => {
+    const ohne = liste.filter((x) => !ZEITKOPF.test(x) && !benutzt.has(x));
+    if (ohne.length) {
+      const wahl = pick(ohne);
+      benutzt.add(wahl);
+      return { satz: wahl, nackt: false };
+    }
+    return { satz: zieh(liste), nackt: true };
+  };
   const schlag = (name, erster) => {
     switch (name) {
       case "einstieg":
-        return d && some(d.einstieg) ? erster ? `${cap(kit.T)} ${kit.W}. ${cap(pick(d.einstieg))}.` : `${cap(pick(d.einstieg))}.` : erster ? `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.` : "";
+        return d && some(d.einstieg) ? erster ? `${cap(kit.T)} ${kit.W}. ${cap(zieh(d.einstieg) || pick(d.einstieg))}.` : (() => {
+          const z = zieh(d.einstieg);
+          return z ? `${cap(z)}.` : "";
+        })() : erster ? `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.` : "";
       case "hook":
         return cap(ensurePunct(kit.hook));
-      case "regel":
-        return d && some(d.regeln) && chance(0.7) ? cap(ensurePunct(pick(d.regeln))) : ensurePunct(pick(M.rules));
-      case "mitte":
-        return d && some(d.mitte) ? `${cap(pick(d.mitte))}.` : "";
-      case "mitte2":
-        return d && some(d.mitte) && d.mitte.length > 1 && chance(0.6) ? `${cap(pick(d.mitte))}.` : "";
+      case "regel": {
+        const z = d && some(d.regeln) && chance(0.7) ? zieh(d.regeln) : "";
+        return z ? cap(ensurePunct(z)) : ensurePunct(pick(M.rules));
+      }
+      case "mitte": {
+        const z = d && some(d.mitte) ? zieh(d.mitte) : "";
+        return z ? `${cap(z)}.` : "";
+      }
+      case "mitte2": {
+        const z = d && some(d.mitte) && d.mitte.length > 1 && chance(0.6) ? zieh(d.mitte) : "";
+        return z ? `${cap(z)}.` : "";
+      }
       case "konflikt": {
-        const konf = d && some(d.konflikte) ? pick(d.konflikte) : "";
+        const konf = d && some(d.konflikte) ? zieh(d.konflikte) : "";
         return konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`;
       }
-      case "ausloeser":
-        return d && some(d.ausloeser) ? `Dann, unvermittelt: ${cap(pick(d.ausloeser))}.` : "";
+      case "ausloeser": {
+        if (!(d && some(d.ausloeser))) return "";
+        const { satz: satz2, nackt: nackt2 } = ziehOhneZeitkopf(d.ausloeser);
+        if (!satz2) return "";
+        return nackt2 ? cap(ensurePunct(satz2)) : `Dann, unvermittelt: ${cap(satz2)}.`;
+      }
       case "wende":
-        return frameTurn(d && some(d.veraenderungen) ? pick(d.veraenderungen) : kit.turn);
-      case "zeit":
-        return d && some(d.zeitanomalien) && chance(0.4) ? cap(ensurePunct(pick(d.zeitanomalien))) : "";
+        return frameTurn((d && some(d.veraenderungen) ? zieh(d.veraenderungen) : "") || kit.turn);
+      case "zeit": {
+        const z = d && some(d.zeitanomalien) && chance(0.4) ? zieh(d.zeitanomalien) : "";
+        return z ? cap(ensurePunct(z)) : "";
+      }
       case "hoehepunkt":
         if (!(d && some(d.hoehepunkt))) return "";
-        return erster ? `${cap(pick(d.hoehepunkt))}.` : `Und dann: ${cap(pick(d.hoehepunkt))}.`;
+        if (erster) {
+          const z = zieh(d.hoehepunkt);
+          return z ? `${cap(z)}.` : "";
+        }
+        const { satz, nackt } = ziehOhneZeitkopf(d.hoehepunkt);
+        if (!satz) return "";
+        return nackt ? cap(ensurePunct(satz)) : `Und dann: ${cap(satz)}.`;
       case "einsatz":
         return reframeStake(kit.stake);
       case "schluss":

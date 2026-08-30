@@ -29,7 +29,9 @@ export function applyDisruptor(text: string, level: string): DisruptorResult {
 const FRAGMENTS = ["Stille.", "Zu nah.", "Zu klar.", "Ein Fehler.", "Noch nicht.", "Dann.", "Nein.", "Vielleicht.", "Fast.", "Genau jetzt."];
 
 /** Womit ein Teilsatz anfängt, der NIE allein stehen kann. */
-const NEBENSATZ_ANFANG = /^(der|die|das|dem|den|des|deren|dessen|welche[rsmn]?|wo|worin|woran|worauf|als|wenn|weil|obwohl|während|nachdem|bevor|damit|dass|ob|sodass|indem|sobald|solange|bis|seit|falls|wobei|wodurch|womit)\b/i;
+// „was", „wer", „wie", „ohne", „um" ergänzt — gemeldet: „Plötzlich weiß er.
+// Was darin steht, ohne zu öffnen." Der Schnitt stand vor dem Objektsatz.
+const NEBENSATZ_ANFANG = /^(der|die|das|dem|den|des|deren|dessen|welche[rsmn]?|wo|worin|woran|worauf|als|wenn|weil|obwohl|während|nachdem|bevor|damit|dass|ob|sodass|indem|sobald|solange|bis|seit|falls|wobei|wodurch|womit|was|wer|wen|wem|wie|ohne|um|statt|anstatt)\b/i;
 
 export function applyRhythm(text: string, rhythm: string): string {
   const s = splitSentences(text);
