@@ -8,6 +8,8 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https
 (globalThis as unknown as Record<string, unknown>).localStorage = dom.window.localStorage;
 import { readFileSync } from "fs";
 import { ladeErzaehlerbank, speichereErzaehlerbank, erzaehlerBogen, bogenFuerErzeugung, setzeQuelle, ladeQuelle, platzBrauchbar, ERZAEHLER_PLAETZE } from "../src/features/erzaehlerbank";
+import { ERZAEHLUNGEN_VORLAGEN } from "../src/features/erzaehlungen.data";
+import { preset2AusText } from "../src/features/textpreset";
 import { setBogenOverride, loadDramaData, setDramaData, hasDramaData } from "../src/generation/dramaturgie";
 import { VORLAGE_EVOLUTION } from "../src/features/textpreset";
 
@@ -71,6 +73,24 @@ wahr("der Reiter steht neben der Wortbank", /\["Wortbank", mountWordbank\],\s*\n
 const ev = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
 wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren",
   /Bogen zeigen/.test(ev) && /Einfügen/.test(ev) && /Platz leeren/.test(ev) && /preset2AusText\(textIn\.value\)\.drama/.test(ev));
+
+// ── Die zehn eingebauten Vorlagen ───────────────────────────────────────────
+// Gewünscht: zehn Geschichten mit unterschiedlichen Bögen, einsetzbar in die
+// leeren Plätze.
+{
+  ist("es sind zehn", ERZAEHLUNGEN_VORLAGEN.length, 10);
+  wahr("alle brauchbar (über der 40-Wörter-Schwelle)", ERZAEHLUNGEN_VORLAGEN.every((e) => platzBrauchbar(e)));
+  ist("die Titel sind verschieden", new Set(ERZAEHLUNGEN_VORLAGEN.map((e) => e.titel)).size, 10);
+  wahr("jede trägt Einstieg, Höhepunkt und Schluss", ERZAEHLUNGEN_VORLAGEN.every((e) => {
+    const d = preset2AusText(e.text).drama;
+    return d.einstieg.length >= 1 && d.hoehepunkt.length >= 1 && d.schluss.length >= 1;
+  }));
+  wahr("und die Texte sind verschieden lang gebaut (kein Klon)", new Set(ERZAEHLUNGEN_VORLAGEN.map((e) => e.text.length)).size === 10);
+  const q2 = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
+  wahr("der Reiter hat den Vorlagen-Knopf", /"Vorlagen einsetzen \(leere Plätze\)"/.test(q2));
+  wahr("er füllt nur leere Plätze", /if \(alle\[i\]!\.text\.trim\(\)\) continue;/.test(q2));
+  wahr("belegte Plätze melden sich statt zu überschreiben", /"Kein Platz frei"/.test(q2));
+}
 
 console.log(`Prüfstand Erzählerbank — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };

@@ -12,6 +12,7 @@
 import { el } from "./dom";
 import { icon } from "./icons";
 import { ladeErzaehlerbank, speichereErzaehlerbank, platzBrauchbar, ERZAEHLER_PLAETZE } from "../features/erzaehlerbank";
+import { ERZAEHLUNGEN_VORLAGEN } from "../features/erzaehlungen.data";
 import { preset2AusText } from "../features/textpreset";
 
 const PHASEN: [keyof ReturnType<typeof preset2AusText>["drama"], string][] = [
@@ -30,6 +31,23 @@ export function mountErzaehlerbank(root: HTMLElement): void {
       "(Einstieg, Mitte, Höhepunkt, Schluss, Auslöser, Veränderungen, Konflikte) — im Studio wählbar unter " +
       "„Bogen“ im Werkzeugkasten: fest je Geschichte, oder würfeln je Erzeugung. Die Wortbank liefert das Was, " +
       "die Erzählerbank das Wie. Richtwert je Geschichte: 300–400 Wörter; unter 40 Wörtern gilt ein Platz als leer."));
+
+  // Zehn eingebaute Geschichten mit unterschiedlichen Bögen — auf Wunsch in
+  // die LEEREN Plätze gesetzt; belegte bleiben unangetastet. Danach wird der
+  // Reiter neu gezeichnet, damit Zähler und Bögen stimmen.
+  const vorlagenBtn = el("button", { type: "button", title: "Zehn eingebaute Geschichten mit unterschiedlichen Bögen in die leeren Plätze setzen. Belegte Plätze bleiben unangetastet." }, "Vorlagen einsetzen (leere Plätze)") as HTMLButtonElement;
+  vorlagenBtn.addEventListener("click", () => {
+    const alle = ladeErzaehlerbank();
+    let frei = 0, v = 0;
+    for (let i = 0; i < ERZAEHLER_PLAETZE && v < ERZAEHLUNGEN_VORLAGEN.length; i++) {
+      if (alle[i]!.text.trim()) continue;
+      alle[i] = { ...ERZAEHLUNGEN_VORLAGEN[v++]! };
+      frei++;
+    }
+    if (frei) { speichereErzaehlerbank(alle); mountErzaehlerbank(root); }
+    else { vorlagenBtn.textContent = "Kein Platz frei"; window.setTimeout(() => { vorlagenBtn.textContent = "Vorlagen einsetzen (leere Plätze)"; }, 1600); }
+  });
+  kopf.append(el("div", { class: "btnrow", style: "margin-top:8px" }, vorlagenBtn));
 
   const liste = el("div", {});
   for (let i = 0; i < ERZAEHLER_PLAETZE; i++) {

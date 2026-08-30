@@ -3912,6 +3912,50 @@ function bogenFuerErzeugung() {
   return erzaehlerBogen(brauchbar[Math.floor(Math.random() * brauchbar.length)].i);
 }
 
+// src/features/erzaehlungen.data.ts
+var ERZAEHLUNGEN_VORLAGEN = [
+  {
+    titel: "Steigender Bogen",
+    text: "Der F\xE4hrmann z\xE4hlt am Morgen die Ruder. Ein Riemen fehlt. Das Wasser steht still wie ein Gedanke. Die erste Fuhre geht gut, die zweite auch. Ein Passagier l\xE4sst eine M\xFCnze fallen, die niemand aufhebt. Der Wind dreht gegen Mittag. Die Str\xF6mung zieht st\xE4rker als sonst. Es geht um die letzte \xDCberfahrt des Tages. Der F\xE4hrmann sp\xFCrt das Seil in den H\xE4nden arbeiten. Aber das andere Ufer r\xFCckt nicht n\xE4her. Die Glocke am Steg schl\xE4gt von allein. Dann rei\xDFt die Halterung, und die F\xE4hre dreht sich aus der Linie. Pl\xF6tzlich kippt der Nachmittag ins Dunkle. Die Passagiere schweigen in einer Reihe. Der F\xE4hrmann bindet das Seil um den eigenen Arm. Die F\xE4hre erreicht das Ufer schr\xE4g und zu sp\xE4t. Am Ende fehlt eine M\xFCnze, und niemand fehlt. Zur\xFCck bleibt ein Riemen, der am n\xE4chsten Morgen wieder da ist."
+  },
+  {
+    titel: "Kreisschluss",
+    text: "Eine Frau kehrt in das Haus ihrer Kindheit zur\xFCck und findet die T\xFCr offen. Ein Flur voller M\xE4ntel, die niemandem geh\xF6ren. Der Geruch von Bohnerwachs und Winter. Sie stellt den Koffer an die Stelle, an der er immer stand. Die Uhr in der K\xFCche geht sieben Minuten vor, wie damals. Ein Fenster, das sich nur von innen \xF6ffnen l\xE4sst. Es geht um das, was bleibt, wenn man geht. Die Nachbarin gr\xFC\xDFt mit dem Namen der Mutter. Aber die Treppe knarrt an einer neuen Stelle. Dann findet sie im Schrank ihren eigenen Kindermantel, frisch geb\xFCrstet. Die Zimmer werden kleiner, je l\xE4nger sie bleibt. Pl\xF6tzlich versteht sie, dass das Haus sie erwartet hat. Sie \xF6ffnet alle Fenster von innen. Am Ende stellt sie den Koffer wieder in den Flur und l\xE4sst die T\xFCr offen. Zur\xFCck bleibt ein Haus, das auf die N\xE4chste wartet."
+  },
+  {
+    titel: "R\xFCckw\xE4rts erz\xE4hlt",
+    text: "Am Ende liegt der Brief unge\xF6ffnet im Fluss. Davor steht ein Mann eine Stunde auf der Br\xFCcke. Ein Umschlag mit einem fremden Poststempel. Die H\xE4nde sind ruhiger, als sie sein d\xFCrften. Davor kauft er am Kiosk eine Zeitung, die er nicht liest. Der Kiosk verkauft an diesem Tag nur an ihn. Es geht um eine Nachricht, die alles ordnen w\xFCrde. Davor wartet er drei Tage neben dem Briefkasten. Aber der Briefkasten bleibt drei Tage leer. Dann kommt der Brief am vierten Tag, zu fr\xFCh am Morgen. Ein Absender ohne Namen, eine Schrift wie seine eigene. Pl\xF6tzlich wei\xDF er, was darin steht, ohne zu \xF6ffnen. Davor, ganz am Anfang, schreibt jemand in einer anderen Stadt eine einzige Zeile. Die Zeile lautet: Komm nicht. Zur\xFCck bleibt ein Fluss, der Briefe kennt."
+  },
+  {
+    titel: "Retardation \u2014 die falsche Entwarnung",
+    text: "Im Bergwerk riecht es seit Tagen nach kaltem Rauch. Eine Lampe, die zweimal flackert. Der Steiger klopft die W\xE4nde ab und nickt. Die Messung zeigt nichts, die zweite auch nichts. Ein Kanarienvogel singt lauter als sonst. Die Schicht arbeitet weiter, beruhigt und schneller. Es geht um den tiefsten Stollen der Grube. Aber der Geruch kehrt hinter der Entwarnung zur\xFCck. Ein Hut voller Staub vom Firstholz. Die dritte Messung f\xE4llt aus, weil das Ger\xE4t schweigt. Dann knackt das Holz in einer Sprache, die alle kennen. Der Steiger hebt die Hand, und die Lampen gehen aus. Pl\xF6tzlich l\xE4uft die Schicht in vollkommener Ordnung r\xFCckw\xE4rts. Der Berg l\xE4sst sie gehen, einen nach dem anderen. Am Ende z\xE4hlt der Steiger am Tageslicht die Helme. Die Zahl stimmt, und niemand spricht sie aus. Zur\xFCck bleibt ein Vogel, der im Dunkeln weitersingt."
+  },
+  {
+    titel: "Doppelte Wende",
+    text: "Die Schachspielerin erkennt die Falle im siebten Zug. Ein Springer am Rand, scheinbar vergessen. Sie lehnt das Opfer ab und steht besser. Der Saal atmet mit den Uhren. Es geht um die Partie ihres Lebens. Der Gegner l\xE4chelt, als h\xE4tte er das erwartet. Dann opfert er die Dame, und das Brett kippt. Pl\xF6tzlich ist ihr Vorteil eine Grube. Aber in der Grube liegt ein zweiter Weg, den keiner sah. Ein Bauer, der seit dem ersten Zug wartet. Sie gibt den Turm und dann den zweiten Turm. Der Saal versteht nichts und wird still. Dann wendet sich die Partie zum zweiten Mal. Der Bauer geht seinen letzten Schritt und wird alles. Am Ende reicht der Gegner die Hand \xFCber ein leeres Brett. Zur\xFCck bleibt ein Springer am Rand, unber\xFChrt bis zuletzt."
+  },
+  {
+    titel: "Stiller Bogen \u2014 nichts passiert, alles \xE4ndert sich",
+    text: "Der Leuchtturmw\xE4rter hat seit Wochen kein Schiff gesehen. Eine Kanne Tee f\xFCr einen Menschen. Das Licht dreht sich, ob jemand f\xE4hrt oder nicht. Er streicht das Gel\xE4nder, das niemand anfasst. Eine Liste der St\xFCrme, sauber gef\xFChrt. Das Meer bleibt h\xF6flich und fern. Es geht um das Warten selbst. Aber die Vorr\xE4te rechnen mit einem zweiten Menschen. Der Funk sagt jeden Abend dasselbe Rauschen. Dann bleibt eines Nachts das Rauschen aus. Nichts geschieht, und nichts geschieht sehr laut. Der W\xE4rter deckt den Tisch f\xFCr zwei und lacht nicht. Pl\xF6tzlich versteht er das Licht als Frage. Er beantwortet sie, indem er bleibt. Am Ende f\xE4hrt kein Schiff vorbei, und es gen\xFCgt. Zur\xFCck bleibt eine zweite Tasse, gew\xE4rmt und leer."
+  },
+  {
+    titel: "Eskalation in drei Stufen",
+    text: "Am ersten Tag fehlt dem Dorf ein Brunnen. Die Leute holen Wasser vom Bach und lachen dar\xFCber. Ein Eimer mit neuem Seil. Am zweiten Tag fehlt dem Dorf der Bach. Das Bett liegt trocken wie ein Sonntag. Die Leute graben und finden feuchten Sand. Es geht um das Wasser und um mehr als das Wasser. Ein Maulwurf flieht in die falsche Richtung. Aber der Regen zieht am Dorf vorbei, dreimal hintereinander. Am dritten Tag fehlt dem Dorf der Himmel. Ein Grau ohne Wolken, ein Licht ohne Quelle. Dann \xF6ffnet die \xE4lteste Frau den versiegelten Keller. Pl\xF6tzlich steht dort Wasser bis zur dritten Stufe. Das Dorf trinkt und fragt erst danach. Am Ende kehrt der Bach zur\xFCck, als w\xE4re er beleidigt gewesen. Zur\xFCck bleibt ein Keller, den keiner mehr versiegelt."
+  },
+  {
+    titel: "Katastrophe zuerst",
+    text: "Das Feuer ist am Morgen schon vorbei. Ein Dachstuhl wie ein schwarzes Geweih. Die Bewohner stehen im Garten und halten Tassen. Niemand fehlt, das ist das Erste. Es geht um das, was nach dem Ende beginnt. Der Kater kehrt ru\xDFig zur\xFCck und wird gefeiert. Aber die Papiere sind Asche, alle Namen darin. Ein Nachbar bringt Brot, ein anderer eine Leiter. Die Versicherung schickt einen Mann mit sauberen Schuhen. Dann findet das Kind im Schutt die eiserne Kassette. Pl\xF6tzlich ist der Schl\xFCssel wichtiger als das Haus. Die Kassette \xF6ffnet sich mit dem zweit\xE4ltesten Schl\xFCssel. Darin liegt kein Geld, sondern eine Liste der Nachbarn von 1911. Die Familie liest die Namen laut in den Garten. Am Ende bauen dieselben Namen das Dach neu. Zur\xFCck bleibt ein Geruch, der nach zwei Wintern geht."
+  },
+  {
+    titel: "Zwei Str\xE4nge, ein Treffpunkt",
+    text: "Die Botin nimmt den Weg \xFCber den Pass, weil die Br\xFCcke gesperrt ist. Ein Paket, das nicht klappern darf. Im Tal packt der Uhrmacher seine Werkstatt in vier Kisten. Eine Wand voller stehender Uhren. Die Botin teilt ihr Brot mit einem Hund, der den Weg kennt. Der Uhrmacher verschenkt die Uhren, die niemand abholte. Es geht um eine Lieferung und einen Abschied. Aber der Pass schlie\xDFt hinter der Botin im Schnee. Der Hund geht voraus, als h\xE4tte er den Auftrag. Dann stehen beide zur selben Stunde am selben Tor. Das Paket enth\xE4lt eine einzige Unruh, klein wie ein Same. Pl\xF6tzlich schl\xE4gt die Wand der stehenden Uhren an. Der Uhrmacher packt die Kisten wieder aus. Am Ende bleibt die Werkstatt, und die Botin bleibt den Winter. Zur\xFCck bleibt ein Hund, der zwei Herren dient."
+  },
+  {
+    titel: "Offenes Ende \u2014 die Schwebe",
+    text: "Auf dem Bahnsteig steht ein Koffer ohne Besitzer. Die Ansage nennt einen Zug, den der Plan nicht kennt. Eine Frau setzt sich neben den Koffer, als geh\xF6re sie dazu. Der Abend riecht nach Eisen und Regen. Es geht um eine Entscheidung, die noch niemand getroffen hat. Ein Schaffner geht vorbei und gr\xFC\xDFt den Koffer. Aber der angek\xFCndigte Zug f\xE4hrt auf keinem Gleis ein. Die Uhr \xFCber dem Bahnsteig verliert eine Minute. Dann \xF6ffnet die Frau den Koffer einen Fingerbreit. Ein Licht f\xE4llt heraus, das zu keiner Lampe geh\xF6rt. Pl\xF6tzlich stehen mehr Menschen auf dem Bahnsteig, als gekommen sind. Alle sehen auf das Gleis, keiner auf den Koffer. Die Ansage wiederholt sich, freundlicher als zuvor. Am Ende f\xE4hrt etwas ein, das man nicht beschreiben kann. Ob die Frau einsteigt, wei\xDF der Bahnsteig allein."
+  }
+];
+
 // src/generation/dramaturgie.ts
 var DKEY = "dm_dramaturgie_v1";
 function setDramaData(d) {
@@ -3993,6 +4037,20 @@ wahr(
   "jeder Platz hat Titel, Text, Bogen-Vorschau, Einf\xFCgen, Speichern, Leeren",
   /Bogen zeigen/.test(ev) && /Einfügen/.test(ev) && /Platz leeren/.test(ev) && /preset2AusText\(textIn\.value\)\.drama/.test(ev)
 );
+{
+  ist("es sind zehn", ERZAEHLUNGEN_VORLAGEN.length, 10);
+  wahr("alle brauchbar (\xFCber der 40-W\xF6rter-Schwelle)", ERZAEHLUNGEN_VORLAGEN.every((e) => platzBrauchbar(e)));
+  ist("die Titel sind verschieden", new Set(ERZAEHLUNGEN_VORLAGEN.map((e) => e.titel)).size, 10);
+  wahr("jede tr\xE4gt Einstieg, H\xF6hepunkt und Schluss", ERZAEHLUNGEN_VORLAGEN.every((e) => {
+    const d = preset2AusText(e.text).drama;
+    return d.einstieg.length >= 1 && d.hoehepunkt.length >= 1 && d.schluss.length >= 1;
+  }));
+  wahr("und die Texte sind verschieden lang gebaut (kein Klon)", new Set(ERZAEHLUNGEN_VORLAGEN.map((e) => e.text.length)).size === 10);
+  const q2 = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
+  wahr("der Reiter hat den Vorlagen-Knopf", /"Vorlagen einsetzen \(leere Plätze\)"/.test(q2));
+  wahr("er f\xFCllt nur leere Pl\xE4tze", /if \(alle\[i\]!\.text\.trim\(\)\) continue;/.test(q2));
+  wahr("belegte Pl\xE4tze melden sich statt zu \xFCberschreiben", /"Kein Platz frei"/.test(q2));
+}
 console.log(`Pr\xFCfstand Erz\xE4hlerbank \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {
