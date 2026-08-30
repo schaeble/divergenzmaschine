@@ -5561,6 +5561,8 @@ function loadDramaData() {
     return null;
   }
 }
+var SCHLAG_STANDARD = ["einstieg", "hook", "regel", "mitte", "mitte2", "konflikt", "ausloeser", "wende", "zeit", "hoehepunkt", "einsatz", "schluss"];
+var SCHLAG_NAMEN = /* @__PURE__ */ new Set([...SCHLAG_STANDARD]);
 
 // src/constants.ts
 var STORAGE_CORPUS = "divergenz_persistent_corpus_v1";

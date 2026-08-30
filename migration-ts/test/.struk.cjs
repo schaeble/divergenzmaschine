@@ -6186,25 +6186,50 @@ function hasDramaData() {
   return !!(d && (d.einstieg.length || d.mitte.length || d.hoehepunkt.length || d.veraenderungen.length));
 }
 var some = (a) => Array.isArray(a) && a.length > 0;
+var SCHLAG_STANDARD = ["einstieg", "hook", "regel", "mitte", "mitte2", "konflikt", "ausloeser", "wende", "zeit", "hoehepunkt", "einsatz", "schluss"];
+var SCHLAG_NAMEN = /* @__PURE__ */ new Set([...SCHLAG_STANDARD]);
 function buildDramaturgie(kit) {
   const d = loadDramaData();
   const M = kit.mode;
+  const schlag = (name, erster) => {
+    switch (name) {
+      case "einstieg":
+        return d && some(d.einstieg) ? erster ? `${cap(kit.T)} ${kit.W}. ${cap(pick(d.einstieg))}.` : `${cap(pick(d.einstieg))}.` : erster ? `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.` : "";
+      case "hook":
+        return cap(ensurePunct(kit.hook));
+      case "regel":
+        return d && some(d.regeln) && chance(0.7) ? cap(ensurePunct(pick(d.regeln))) : ensurePunct(pick(M.rules));
+      case "mitte":
+        return d && some(d.mitte) ? `${cap(pick(d.mitte))}.` : "";
+      case "mitte2":
+        return d && some(d.mitte) && d.mitte.length > 1 && chance(0.6) ? `${cap(pick(d.mitte))}.` : "";
+      case "konflikt": {
+        const konf = d && some(d.konflikte) ? pick(d.konflikte) : "";
+        return konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`;
+      }
+      case "ausloeser":
+        return d && some(d.ausloeser) ? `Dann, unvermittelt: ${cap(pick(d.ausloeser))}.` : "";
+      case "wende":
+        return frameTurn(d && some(d.veraenderungen) ? pick(d.veraenderungen) : kit.turn);
+      case "zeit":
+        return d && some(d.zeitanomalien) && chance(0.4) ? cap(ensurePunct(pick(d.zeitanomalien))) : "";
+      case "hoehepunkt":
+        if (!(d && some(d.hoehepunkt))) return "";
+        return erster ? `${cap(pick(d.hoehepunkt))}.` : `Und dann: ${cap(pick(d.hoehepunkt))}.`;
+      case "einsatz":
+        return reframeStake(kit.stake);
+      case "schluss":
+        return ensurePunct(kit.ending);
+      default:
+        return "";
+    }
+  };
+  const folge = d?.folge && d.folge.length && d.folge.every((n) => SCHLAG_NAMEN.has(n)) ? d.folge : SCHLAG_STANDARD;
   const beats = [];
-  beats.push(d && some(d.einstieg) ? `${cap(kit.T)} ${kit.W}. ${cap(pick(d.einstieg))}.` : `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.`);
-  beats.push(cap(ensurePunct(kit.hook)));
-  beats.push(d && some(d.regeln) && chance(0.7) ? cap(ensurePunct(pick(d.regeln))) : ensurePunct(pick(M.rules)));
-  if (d && some(d.mitte)) {
-    beats.push(`${cap(pick(d.mitte))}.`);
-    if (d.mitte.length > 1 && chance(0.6)) beats.push(`${cap(pick(d.mitte))}.`);
+  for (const name of folge) {
+    const b = schlag(name, beats.length === 0);
+    if (b) beats.push(b);
   }
-  const konf = d && some(d.konflikte) ? pick(d.konflikte) : "";
-  beats.push(konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`);
-  if (d && some(d.ausloeser)) beats.push(`Dann, unvermittelt: ${cap(pick(d.ausloeser))}.`);
-  beats.push(frameTurn(d && some(d.veraenderungen) ? pick(d.veraenderungen) : kit.turn));
-  if (d && some(d.zeitanomalien) && chance(0.4)) beats.push(cap(ensurePunct(pick(d.zeitanomalien))));
-  if (d && some(d.hoehepunkt)) beats.push(`Und dann: ${cap(pick(d.hoehepunkt))}.`);
-  beats.push(reframeStake(kit.stake));
-  beats.push(ensurePunct(kit.ending));
   return joinBeats(beats, kit.P);
 }
 

@@ -8,6 +8,15 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https
 (globalThis as unknown as Record<string, unknown>).localStorage = dom.window.localStorage;
 import { readFileSync } from "fs";
 import { ladeErzaehlerbank, speichereErzaehlerbank, erzaehlerBogen, bogenFuerErzeugung, setzeQuelle, ladeQuelle, platzBrauchbar, ERZAEHLER_PLAETZE } from "../src/features/erzaehlerbank";
+import { SCHLAGFOLGEN } from "../src/features/erzaehlerbank";
+import { SCHLAG_NAMEN, SCHLAG_STANDARD } from "../src/generation/dramaturgie";
+import { DEFAULT_BANK } from "../src/constants";
+import { buildStory } from "../src/generation/buildStory";
+import type { GenInput } from "../src/types";
+const inp: GenInput = { where: "im Hafen", when: "am Abend", who: "Der Bote", what: "hört die Glocke",
+  tone: "mystery", varLevel: "wild", form: "prose", structure: "dramaturgie", mode: "myth", perspective: "third",
+  rhythm: "auto", markovMode: "off", disruptor: "auto", archetypeA: "neutral", archetypeB: "psychopath",
+  instability: 2, polish: false, polishStyle: "surreal_precise" };
 import { ERZAEHLUNGEN_VORLAGEN } from "../src/features/erzaehlungen.data";
 import { preset2AusText } from "../src/features/textpreset";
 import { setBogenOverride, loadDramaData, setDramaData, hasDramaData } from "../src/generation/dramaturgie";
@@ -90,6 +99,43 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   wahr("der Reiter hat den Vorlagen-Knopf", /"Vorlagen einsetzen \(leere Plätze\)"/.test(q2));
   wahr("er füllt nur leere Plätze", /if \(alle\[i\]!\.text\.trim\(\)\) continue;/.test(q2));
   wahr("belegte Plätze melden sich statt zu überschreiben", /"Kein Platz frei"/.test(q2));
+}
+
+// ── Schlagfolge: Die Bauform ordnet die Schläge wirklich um ─────────────────
+// Gewünscht: Der Bogen soll auch die SCHLAGFOLGE variieren — „Katastrophe
+// zuerst" beginnt mit dem Höhepunkt, „Kreisschluss" kehrt zum Einstieg
+// zurück, „Rückwärts" beginnt mit dem Schluss.
+{
+  wahr("jede Bauform nennt nur gültige Schläge",
+    Object.values(SCHLAGFOLGEN).every((f) => f.folge.every((n) => SCHLAG_NAMEN.has(n))));
+  ist("die Standardfolge ist der steigende Bogen", SCHLAGFOLGEN["standard"]!.folge.join(","), SCHLAG_STANDARD.join(","));
+  ist("Katastrophe zuerst beginnt mit dem Höhepunkt", SCHLAGFOLGEN["katastrophe"]!.folge[0], "hoehepunkt");
+  ist("Rückwärts beginnt mit dem Schluss", SCHLAGFOLGEN["rueckwaerts"]!.folge[0], "schluss");
+  ist("der Kreis endet am Einstieg", SCHLAGFOLGEN["kreis"]!.folge.at(-1), "einstieg");
+  wahr("der stille Bogen verzichtet auf Wende und Höhepunkt",
+    !SCHLAGFOLGEN["still"]!.folge.includes("wende") && !SCHLAGFOLGEN["still"]!.folge.includes("hoehepunkt"));
+  wahr("das offene Ende lässt den Schluss aus", !SCHLAGFOLGEN["offen"]!.folge.includes("schluss"));
+  wahr("jede Vorlage trägt ihre Bauform", ERZAEHLUNGEN_VORLAGEN.every((e) => !!e.folge && !!SCHLAGFOLGEN[e.folge!]));
+  ist("und alle zehn Bauformen kommen vor", new Set(ERZAEHLUNGEN_VORLAGEN.map((e) => e.folge)).size, 10);
+  // Wirkung am gebauten Text: „Katastrophe zuerst" stellt den Höhepunkt an
+  // den Anfang — ohne „Und dann"-Formel; im Standard steht er hinten mit ihr.
+  const alle = ladeErzaehlerbank();
+  alle[0] = { ...ERZAEHLUNGEN_VORLAGEN[7]! };   // Katastrophe zuerst
+  speichereErzaehlerbank(alle);
+  const bogen = erzaehlerBogen(0)!;
+  wahr("der Bogen trägt die Folge der Bauform", (bogen.folge || []).join(",") === SCHLAGFOLGEN["katastrophe"]!.folge.join(","));
+  setDramaData(bogen);
+  // Der Ton darf einen Einleitungssatz davorschieben — deshalb zählen die
+  // ersten drei Sätze als „Anfang", und die „Und dann"-Formel darf dort
+  // nicht stehen.
+  let vorn = 0;
+  for (let i = 0; i < 12; i++) {
+    const t = buildStory(DEFAULT_BANK, inp);
+    const kopf = t.split(/(?<=[.!?…])\s+/).slice(0, 3).join(" ");
+    if (!/Und dann:/.test(kopf) && bogen.hoehepunkt.some((h) => kopf.includes(h.slice(0, 18)))) vorn++;
+  }
+  wahr("der Höhepunkt steht am Anfang (12 Läufe, mehrmals getroffen)", vorn >= 6, String(vorn));
+  setDramaData(null);
 }
 
 console.log(`Prüfstand Erzählerbank — ${geprueft} Prüfungen, ${bestanden} bestanden`);

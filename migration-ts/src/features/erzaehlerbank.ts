@@ -26,9 +26,26 @@
 // vollen Plätzen) und dm_erzaehler_quelle_v1 (die Wahl). Beide Schlüssel
 // beginnen mit „dm_" und wandern damit automatisch in die Projektdatei.
 import type { DramaData } from "../generation/dramaturgie";
+import { SCHLAG_STANDARD } from "../generation/dramaturgie";
 import { preset2AusText } from "./textpreset";
 
-export interface Erzaehlung { titel: string; text: string; }
+export interface Erzaehlung { titel: string; text: string; /** Schlüssel einer Bauform aus SCHLAGFOLGEN. */ folge?: string; }
+
+/** Die Bauformen: Name → Schlagfolge. Ein Schlagname darf mehrfach stehen
+ *  (frisches Material je Vorkommen); fehlende Schläge fallen aus. „standard"
+ *  ist der steigende Bogen von immer. */
+export const SCHLAGFOLGEN: Record<string, { name: string; folge: string[] }> = {
+  standard:      { name: "Steigender Bogen", folge: SCHLAG_STANDARD },
+  kreis:         { name: "Kreisschluss", folge: ["einstieg", "hook", "regel", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz", "schluss", "einstieg"] },
+  rueckwaerts:   { name: "Rückwärts", folge: ["schluss", "hoehepunkt", "wende", "ausloeser", "konflikt", "mitte", "regel", "hook", "einstieg"] },
+  retardation:   { name: "Späte Wende", folge: ["einstieg", "hook", "regel", "mitte", "konflikt", "mitte2", "regel", "ausloeser", "wende", "hoehepunkt", "einsatz", "schluss"] },
+  doppelt:       { name: "Doppelte Wende", folge: ["einstieg", "hook", "mitte", "ausloeser", "wende", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz", "schluss"] },
+  still:         { name: "Stiller Bogen", folge: ["einstieg", "hook", "regel", "mitte", "konflikt", "mitte2", "zeit", "einsatz", "schluss"] },
+  eskalation:    { name: "Eskalation", folge: ["einstieg", "hook", "mitte", "mitte", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz", "schluss"] },
+  katastrophe:   { name: "Katastrophe zuerst", folge: ["hoehepunkt", "einstieg", "hook", "mitte", "konflikt", "ausloeser", "wende", "einsatz", "schluss"] },
+  straenge:      { name: "Zwei Stränge", folge: ["einstieg", "mitte", "einstieg", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz", "schluss"] },
+  offen:         { name: "Offenes Ende", folge: ["einstieg", "hook", "regel", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz"] },
+};
 export const ERZAEHLER_PLAETZE = 10;
 const BANK_KEY = "dm_erzaehlerbank_v1";
 const QUELLE_KEY = "dm_erzaehler_quelle_v1";
@@ -40,7 +57,8 @@ export function ladeErzaehlerbank(): Erzaehlung[] {
   const list = Array.isArray(roh) ? roh : [];
   return Array.from({ length: ERZAEHLER_PLAETZE }, (_, i) => {
     const e = list[i] as Partial<Erzaehlung> | undefined;
-    return { titel: String(e?.titel || "").slice(0, 60), text: String(e?.text || "") };
+    const f = String(e?.folge || "");
+    return { titel: String(e?.titel || "").slice(0, 60), text: String(e?.text || ""), folge: SCHLAGFOLGEN[f] ? f : undefined };
   });
 }
 
@@ -67,7 +85,11 @@ export function platzBrauchbar(e: Erzaehlung): boolean {
 export function erzaehlerBogen(index: number): DramaData | null {
   const e = ladeErzaehlerbank()[index];
   if (!e || !platzBrauchbar(e)) return null;
-  return preset2AusText(e.text).drama;
+  const drama = preset2AusText(e.text).drama;
+  // Die Bauform des Platzes wird zur Schlagfolge des Bogens — so schlägt sie
+  // in der Struktur „Dramaturgie" wirklich durch.
+  if (e.folge && SCHLAGFOLGEN[e.folge]) drama.folge = SCHLAGFOLGEN[e.folge]!.folge;
+  return drama;
 }
 
 /** Der Bogen für DIESE Erzeugung, nach der gespeicherten Wahl.

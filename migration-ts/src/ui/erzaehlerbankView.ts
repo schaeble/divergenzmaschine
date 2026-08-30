@@ -11,7 +11,7 @@
 // Schlüssel dm_erzaehlerbank_v1 automatisch in die Projektdatei.
 import { el } from "./dom";
 import { icon } from "./icons";
-import { ladeErzaehlerbank, speichereErzaehlerbank, platzBrauchbar, ERZAEHLER_PLAETZE } from "../features/erzaehlerbank";
+import { ladeErzaehlerbank, speichereErzaehlerbank, platzBrauchbar, ERZAEHLER_PLAETZE, SCHLAGFOLGEN } from "../features/erzaehlerbank";
 import { ERZAEHLUNGEN_VORLAGEN } from "../features/erzaehlungen.data";
 import { preset2AusText } from "../features/textpreset";
 
@@ -56,6 +56,12 @@ export function mountErzaehlerbank(root: HTMLElement): void {
     const textIn = el("textarea", { rows: "6", placeholder: "Text der Geschichte (300–400 Wörter)", style: "width:100%" }) as HTMLTextAreaElement;
     textIn.value = e.text;
     const stand = el("span", { class: "muted", style: "font-size:13px" });
+    // Die Bauform des Platzes: Sie wird zur Schlagfolge des Bogens — in
+    // welcher Reihenfolge die Schläge stehen („Katastrophe zuerst" beginnt
+    // mit dem Höhepunkt, „Kreisschluss" kehrt am Ende zum Einstieg zurück).
+    const folgeSel = el("select", { title: "Schlagfolge: die Reihenfolge der Schläge, wenn dieser Bogen im Studio gewählt ist." }) as HTMLSelectElement;
+    for (const [k, v] of Object.entries(SCHLAGFOLGEN)) folgeSel.append(el("option", { value: k }, v.name));
+    folgeSel.value = e.folge && SCHLAGFOLGEN[e.folge] ? e.folge : "standard";
     const bogenBox = el("div", { style: "display:none;font-size:13px;line-height:1.55;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-top:6px" });
     let bogenAuf = false;
 
@@ -72,7 +78,7 @@ export function mountErzaehlerbank(root: HTMLElement): void {
       }
       const d = preset2AusText(textIn.value).drama;
       for (const [k, name] of PHASEN) {
-        const zeilen = d[k];
+        const zeilen = d[k] || [];
         if (!zeilen.length) continue;
         bogenBox.append(el("div", {}, el("strong", { style: "color:var(--acc2)" }, name + ": "), zeilen.join(" · ")));
       }
@@ -102,7 +108,7 @@ export function mountErzaehlerbank(root: HTMLElement): void {
     const speichern = el("button", { class: "primary", type: "button" }, "Speichern") as HTMLButtonElement;
     speichern.addEventListener("click", () => {
       const alle = ladeErzaehlerbank();
-      alle[i] = { titel: titelIn.value.trim().slice(0, 60), text: textIn.value.trim() };
+      alle[i] = { titel: titelIn.value.trim().slice(0, 60), text: textIn.value.trim(), folge: folgeSel.value };
       speichereErzaehlerbank(alle);
       speichern.textContent = "Gespeichert ✓";
       window.setTimeout(() => { speichern.textContent = "Speichern"; }, 1200);
@@ -110,7 +116,7 @@ export function mountErzaehlerbank(root: HTMLElement): void {
     const leeren = el("button", { class: "danger", type: "button" }, "Platz leeren") as HTMLButtonElement;
     leeren.addEventListener("click", () => {
       if (!confirm(`Platz ${i + 1} wirklich leeren?`)) return;
-      titelIn.value = ""; textIn.value = "";
+      titelIn.value = ""; textIn.value = ""; folgeSel.value = "standard";
       const alle = ladeErzaehlerbank();
       alle[i] = { titel: "", text: "" };
       speichereErzaehlerbank(alle);
@@ -124,7 +130,7 @@ export function mountErzaehlerbank(root: HTMLElement): void {
       el("div", { style: "display:flex;gap:8px;align-items:center;margin-bottom:6px" },
         el("strong", {}, String(i + 1)), titelIn, stand),
       textIn,
-      el("div", { class: "btnrow", style: "margin-top:6px" }, einfuegen, bogenBtn, speichern, leeren),
+      el("div", { class: "btnrow", style: "margin-top:6px" }, folgeSel, einfuegen, bogenBtn, speichern, leeren),
       bogenBox));
   }
 

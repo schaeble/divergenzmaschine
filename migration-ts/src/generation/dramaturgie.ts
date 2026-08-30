@@ -8,6 +8,10 @@ import { cap, joinBeats, frameTurn, reframeStake } from "./beats";
 export interface DramaData {
   einstieg: string[]; mitte: string[]; hoehepunkt: string[]; schluss: string[];
   ausloeser: string[]; veraenderungen: string[]; konflikte: string[]; zeitanomalien: string[]; regeln: string[];
+  /** Schlagfolge: die Reihenfolge der Schläge, als Namen. Fehlt sie, gilt die
+   *  Standardfolge (steigender Bogen). Namen dürfen mehrfach vorkommen — der
+   *  Schlag zieht dann jeweils frisches Material. Siehe SCHLAG_STANDARD. */
+  folge?: string[];
 }
 const DKEY = "dm_dramaturgie_v1";
 
@@ -32,45 +36,55 @@ export function hasDramaData(): boolean {
 
 const some = (a: string[] | undefined): boolean => Array.isArray(a) && a.length > 0;
 
+/** Die Standardfolge — der steigende Bogen, wie er immer gebaut wurde. */
+export const SCHLAG_STANDARD = ["einstieg", "hook", "regel", "mitte", "mitte2", "konflikt", "ausloeser", "wende", "zeit", "hoehepunkt", "einsatz", "schluss"];
+
+/** Zulässige Schlagnamen — für die Prüfung einer gespeicherten Folge. */
+export const SCHLAG_NAMEN = new Set([...SCHLAG_STANDARD]);
+
 export function buildDramaturgie(kit: StoryKit): string {
   const d = loadDramaData();
   const M = kit.mode;
+
+  // Jeder Schlag ist ein Bauplan; die FOLGE bestimmt, in welcher Reihenfolge
+  // gebaut wird. Ein Name darf mehrfach vorkommen — pick() zieht dann
+  // frisches Material aus derselben Liste. Ein leerer Schlag fällt aus.
+  // So schlagen die Bauformen der Erzählerbank wirklich durch: „Katastrophe
+  // zuerst" beginnt mit dem Höhepunkt, „Kreisschluss" kehrt am Ende zum
+  // Einstieg zurück, der „Stille Bogen" verzichtet auf Wende und Höhepunkt.
+  const schlag = (name: string, erster: boolean): string => {
+    switch (name) {
+      case "einstieg":
+        return d && some(d.einstieg)
+          ? (erster ? `${cap(kit.T)} ${kit.W}. ${cap(pick(d.einstieg))}.` : `${cap(pick(d.einstieg))}.`)
+          : (erster ? `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.` : "");
+      case "hook": return cap(ensurePunct(kit.hook));
+      case "regel": return d && some(d.regeln) && chance(0.7) ? cap(ensurePunct(pick(d.regeln))) : ensurePunct(pick(M.rules));
+      case "mitte": return d && some(d.mitte) ? `${cap(pick(d.mitte))}.` : "";
+      case "mitte2": return d && some(d.mitte) && d.mitte.length > 1 && chance(0.6) ? `${cap(pick(d.mitte))}.` : "";
+      case "konflikt": {
+        const konf = d && some(d.konflikte) ? pick(d.konflikte) : "";
+        return konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`;
+      }
+      case "ausloeser": return d && some(d.ausloeser) ? `Dann, unvermittelt: ${cap(pick(d.ausloeser))}.` : "";
+      case "wende": return frameTurn(d && some(d.veraenderungen) ? pick(d.veraenderungen) : kit.turn);
+      case "zeit": return d && some(d.zeitanomalien) && chance(0.4) ? cap(ensurePunct(pick(d.zeitanomalien))) : "";
+      case "hoehepunkt":
+        if (!(d && some(d.hoehepunkt))) return "";
+        // Am Anfang trägt der Höhepunkt keine „Und dann"-Formel — dort IST er
+        // der Anfang („Katastrophe zuerst").
+        return erster ? `${cap(pick(d.hoehepunkt))}.` : `Und dann: ${cap(pick(d.hoehepunkt))}.`;
+      case "einsatz": return reframeStake(kit.stake);
+      case "schluss": return ensurePunct(kit.ending);
+      default: return "";
+    }
+  };
+
+  const folge = (d?.folge && d.folge.length && d.folge.every((n) => SCHLAG_NAMEN.has(n))) ? d.folge : SCHLAG_STANDARD;
   const beats: string[] = [];
-
-  // 1) Einstieg — Ort/Zeit + gewöhnlicher Ausgangszustand
-  beats.push(d && some(d.einstieg)
-    ? `${cap(kit.T)} ${kit.W}. ${cap(pick(d.einstieg))}.`
-    : `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.`);
-
-  // 2) Irritation — der Hook
-  beats.push(cap(ensurePunct(kit.hook)));
-
-  // 3) Regel/Naturgesetz als Atmosphäre
-  beats.push(d && some(d.regeln) && chance(0.7) ? cap(ensurePunct(pick(d.regeln))) : ensurePunct(pick(M.rules)));
-
-  // 4) Mitte — Suche/Hinweise
-  if (d && some(d.mitte)) {
-    beats.push(`${cap(pick(d.mitte))}.`);
-    if (d.mitte.length > 1 && chance(0.6)) beats.push(`${cap(pick(d.mitte))}.`);
+  for (const name of folge) {
+    const b = schlag(name, beats.length === 0);
+    if (b) beats.push(b);
   }
-
-  // 5) Konflikt
-  const konf = d && some(d.konflikte) ? pick(d.konflikte) : "";
-  beats.push(konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`);
-
-  // 6) Auslöser → Veränderung (die Wende)
-  if (d && some(d.ausloeser)) beats.push(`Dann, unvermittelt: ${cap(pick(d.ausloeser))}.`);
-  beats.push(frameTurn(d && some(d.veraenderungen) ? pick(d.veraenderungen) : kit.turn));
-
-  // 7) Zeitanomalie (optional)
-  if (d && some(d.zeitanomalien) && chance(0.4)) beats.push(cap(ensurePunct(pick(d.zeitanomalien))));
-
-  // 8) Höhepunkt
-  if (d && some(d.hoehepunkt)) beats.push(`Und dann: ${cap(pick(d.hoehepunkt))}.`);
-  beats.push(reframeStake(kit.stake));
-
-  // 9) Schluss
-  beats.push(ensurePunct(kit.ending));
-
   return joinBeats(beats, kit.P);
 }
