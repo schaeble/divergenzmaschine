@@ -7,7 +7,7 @@ import { JSDOM } from "jsdom";
 const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/" });
 (globalThis as unknown as Record<string, unknown>).localStorage = dom.window.localStorage;
 import { readFileSync } from "fs";
-import { ladeErzaehlerbank, speichereErzaehlerbank, erzaehlerBogen, bogenFuerErzeugung, setzeQuelle, ladeQuelle, platzBrauchbar, ERZAEHLER_PLAETZE } from "../src/features/erzaehlerbank";
+import { ladeErzaehlerbank, speichereErzaehlerbank, erzaehlerBogen, bogenFuerErzeugung, setzeQuelle, ladeQuelle, platzBrauchbar, ERZAEHLER_PLAETZE, bauePromptErzaehlung, BAUFORM_ANWEISUNG } from "../src/features/erzaehlerbank";
 import { SCHLAGFOLGEN } from "../src/features/erzaehlerbank";
 import { SCHLAG_NAMEN, SCHLAG_STANDARD } from "../src/generation/dramaturgie";
 import { DEFAULT_BANK } from "../src/constants";
@@ -176,6 +176,24 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   wahr("kein nacktes „… schwiegen hoch in der Luft.“", !/schwiegen hoch in der Luft\./i.test(t2));
   wahr("der Einstiegssatz schließt das Fragment mit Strich", /schwiegen hoch in der Luft — der Anfang steht/i.test(t2));
   setDramaData(null);
+}
+
+// ── KI: jeden Bogen für sich neu erzählen ───────────────────────────────────
+// Gewünscht: die zehn Bögen sollen per KI erneuert werden können, jeder für
+// sich. Offline prüfbar: der Prompt-Bau und die Verdrahtung des Knopfes.
+{
+  wahr("jede Bauform hat ihre Anweisung", Object.keys(SCHLAGFOLGEN).every((k) => !!BAUFORM_ANWEISUNG[k]));
+  const pr = bauePromptErzaehlung("rueckwaerts", "Ein Brief im Fluss");
+  wahr("der Prompt nennt die Bauform", /rückwärts erzählt: beginne mit dem Ende/.test(pr));
+  wahr("und das Thema", /Ein Brief im Fluss/.test(pr));
+  wahr("und verlangt JSON mit Titel und Text", /NUR mit JSON/.test(pr) && /"titel"/.test(pr) && /"text"/.test(pr));
+  wahr("und die Wortspanne", /120 bis 170 Wörter/.test(pr));
+  ist("unbekannte Bauform fällt auf die Standard-Anweisung", bauePromptErzaehlung("gibtsnicht").includes(BAUFORM_ANWEISUNG["standard"]!), true);
+  const qv = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
+  wahr("jeder Platz hat den KI-Knopf", /"KI: neu erzählen"/.test(qv));
+  wahr("er erzählt in der Bauform des Platzes, Thema aus dem Titel", /kiErzaehlung\(folgeSel\.value, titelIn\.value\.trim\(\) \|\| undefined\)/.test(qv));
+  wahr("Erfolg ersetzt den Platz und speichert", /alle\[i\] = \{ \.\.\.neu, folge: folgeSel\.value \};\s*\n\s*speichereErzaehlerbank\(alle\)/.test(qv));
+  wahr("Fehler stehen im Knopf, nichts scheitert stumm", /"KI-Fehler — noch einmal\?"/.test(qv));
 }
 
 console.log(`Prüfstand Erzählerbank — ${geprueft} Prüfungen, ${bestanden} bestanden`);

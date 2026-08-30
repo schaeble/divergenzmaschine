@@ -104,3 +104,44 @@ export function bogenFuerErzeugung(): DramaData | null {
   if (!brauchbar.length) return null;
   return erzaehlerBogen(brauchbar[Math.floor(Math.random() * brauchbar.length)]!.i);
 }
+
+// ── KI: Einen Platz neu erzählen lassen ─────────────────────────────────────
+// Gewünscht: Die zehn Bögen sollen auch per KI erneuert/gewürfelt werden
+// können — jeder für sich. Die KI schreibt eine neue Kurzgeschichte in der
+// BAUFORM des Platzes; Titel und Text ersetzen den Platz, die Bauform bleibt.
+// Der Schlüssel und der Aufruf laufen über die vorhandene KI-Anbindung
+// (features/ki.ts, Schlüssel nur lokal).
+export const BAUFORM_ANWEISUNG: Record<string, string> = {
+  standard: "ein klassisch steigender Bogen: ruhiger Anfang, wachsende Störung, Krise kurz vor Schluss, knappe Auflösung",
+  kreis: "ein Kreisschluss: das Ende kehrt erkennbar zum Bild des Anfangs zurück, leicht verschoben",
+  rueckwaerts: "rückwärts erzählt: beginne mit dem Ende, arbeite dich in Etappen (mehrmals „Davor“) zum Anfang vor, der Anfang erklärt alles",
+  retardation: "mit später Wende: lange scheinbare Entwarnung, die Störung kehrt leise zurück, die Wende kommt spät und schnell",
+  doppelt: "mit doppelter Wende: eine erste Wende kippt die Lage, eine zweite kippt sie erneut in eine unerwartete Richtung",
+  still: "ein stiller Bogen: äußerlich geschieht fast nichts, die Veränderung ist innerlich; keine Ausrufe, keine Katastrophe",
+  eskalation: "eine Eskalation in drei Stufen: dreimal dasselbe Muster, jedes Mal größer, dann die Folge",
+  katastrophe: "Katastrophe zuerst: das schlimme Ereignis steht im ersten Satz, danach die Aufarbeitung und ein leiser Fund",
+  straenge: "zwei Stränge: zwei Figuren getrennt erzählt, abwechselnd, die sich am Ende an einem Ort treffen",
+  offen: "offenes Ende: die Spannung baut sich auf, die Auflösung wird verweigert; der letzte Satz lässt es in der Schwebe",
+};
+
+export function bauePromptErzaehlung(folgeId: string, thema?: string): string {
+  const bau = BAUFORM_ANWEISUNG[folgeId] || BAUFORM_ANWEISUNG["standard"]!;
+  const t = (thema || "").trim();
+  return [
+    "Schreibe eine sehr kurze deutsche Erzählung, 120 bis 170 Wörter, Präsens, konkrete Bilder, keine Anführungszeichen, keine Aufzählungen.",
+    `Bauform: ${bau}.`,
+    t ? `Thema oder Ausgangspunkt: ${t}.` : "Thema frei wählen — alltagsnah, mit einem leisen Riss.",
+    "Kurze Hauptsätze bevorzugen; ein bis zwei reine Bildsätze ohne Verb sind erwünscht (sie werden als Bilder und Requisiten gelesen); mindestens ein Satz mit „Es geht um ...“.",
+    'Antworte NUR mit JSON, ohne Erklärung: {"titel": "...", "text": "..."} — der Titel höchstens vier Wörter.',
+  ].join("\n");
+}
+
+export async function kiErzaehlung(folgeId: string, thema?: string): Promise<Erzaehlung> {
+  const { callClaude, extractJson } = await import("./ki");
+  const raw = await callClaude(bauePromptErzaehlung(folgeId, thema), 800);
+  const j = extractJson(raw) as { titel?: unknown; text?: unknown } | null;
+  const titel = String(j && j.titel || "").trim().slice(0, 60);
+  const text = String(j && j.text || "").trim();
+  if (!platzBrauchbar({ titel, text })) throw new Error("Die KI-Antwort trägt keine brauchbare Erzählung (zu kurz oder leer).");
+  return { titel: titel || "Ohne Titel", text, folge: folgeId };
+}

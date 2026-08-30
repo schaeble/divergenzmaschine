@@ -11,7 +11,7 @@
 // Schlüssel dm_erzaehlerbank_v1 automatisch in die Projektdatei.
 import { el } from "./dom";
 import { icon } from "./icons";
-import { ladeErzaehlerbank, speichereErzaehlerbank, platzBrauchbar, ERZAEHLER_PLAETZE, SCHLAGFOLGEN } from "../features/erzaehlerbank";
+import { ladeErzaehlerbank, speichereErzaehlerbank, platzBrauchbar, ERZAEHLER_PLAETZE, SCHLAGFOLGEN, kiErzaehlung } from "../features/erzaehlerbank";
 import { ERZAEHLUNGEN_VORLAGEN } from "../features/erzaehlungen.data";
 import { preset2AusText } from "../features/textpreset";
 
@@ -105,6 +105,24 @@ export function mountErzaehlerbank(root: HTMLElement): void {
       }).catch(() => { textIn.focus(); });
     });
 
+    // KI: diesen Platz neu erzählen lassen — in seiner Bauform, das Thema aus
+    // dem Titel (wenn einer dasteht). Ersetzt Titel und Text und speichert,
+    // die Bauform bleibt. Fehler stehen im Knopf, nichts scheitert stumm.
+    const kiBtn = el("button", { type: "button", title: "Diesen Bogen von der KI neu erzählen lassen — in der gewählten Bauform. Der Titel dient als Thema; Titel und Text werden ersetzt. Braucht den KI-Schlüssel (Reiter KI)." }, "KI: neu erzählen") as HTMLButtonElement;
+    kiBtn.addEventListener("click", () => {
+      kiBtn.disabled = true; kiBtn.textContent = "KI erzählt …";
+      kiErzaehlung(folgeSel.value, titelIn.value.trim() || undefined).then((neu) => {
+        const alle = ladeErzaehlerbank();
+        alle[i] = { ...neu, folge: folgeSel.value };
+        speichereErzaehlerbank(alle);
+        mountErzaehlerbank(root);
+      }).catch((err: unknown) => {
+        kiBtn.disabled = false;
+        kiBtn.textContent = "KI-Fehler — noch einmal?";
+        kiBtn.title = err instanceof Error ? err.message : String(err);
+        window.setTimeout(() => { kiBtn.textContent = "KI: neu erzählen"; }, 4000);
+      });
+    });
     const speichern = el("button", { class: "primary", type: "button" }, "Speichern") as HTMLButtonElement;
     speichern.addEventListener("click", () => {
       const alle = ladeErzaehlerbank();
@@ -130,7 +148,7 @@ export function mountErzaehlerbank(root: HTMLElement): void {
       el("div", { style: "display:flex;gap:8px;align-items:center;margin-bottom:6px" },
         el("strong", {}, String(i + 1)), titelIn, stand),
       textIn,
-      el("div", { class: "btnrow", style: "margin-top:6px" }, folgeSel, einfuegen, bogenBtn, speichern, leeren),
+      el("div", { class: "btnrow", style: "margin-top:6px" }, folgeSel, einfuegen, kiBtn, bogenBtn, speichern, leeren),
       bogenBox));
   }
 
