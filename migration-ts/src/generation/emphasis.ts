@@ -101,7 +101,11 @@ export function applyEmphasis(text: string, kit: StoryKit, w: Emphasis): string 
   // Klein verglichen: Die Schablonen setzen den Wert am Satzanfang groß
   // („Im Jahr 1953"), im Kit steht er klein („im Jahr 1953"). Ein Vergleich,
   // der die Schreibung mitnimmt, findet genau die Fälle nicht, um die es geht.
-  const werte = [kit.W, kit.T, kit.P, strip(kit.Apure)]
+  // Seit 4.334.2 zählen auch Wende, Einsatz, Hindernis, Hook und Schluss zu
+  // den wörtlich genannten Werten — gemeldet: „Die Karten der Wahrsagerin
+  // zeigen zweimal denselben Tod" stand dreimal im Text, einmal aus der
+  // Dramaturgie, zweimal aus der Betonung, jedes Mal in anderem Rahmen.
+  const werte = [kit.W, kit.T, kit.P, strip(kit.Apure), strip(kit.turn), strip(kit.stake), strip(kit.obstacle), strip(kit.hook), strip(clean(kit.ending).replace(/[.!?…]+$/, ""))]
     .map((x) => clean(x || "").toLowerCase()).filter((x) => x.length > 3);
   const geruest = (z: string): string => {
     let g = z.toLowerCase();
@@ -111,6 +115,9 @@ export function applyEmphasis(text: string, kit: StoryKit, w: Emphasis): string 
   const lines: string[] = [];
   const gesehen = new Set<string>();
   const genannt = new Set<string>();
+  // Was der Text SCHON wörtlich trägt, gilt als genannt — die Betonung darf
+  // es umschreiben, aber nicht noch einmal hinsetzen.
+  { const tl = text.toLowerCase(); for (const w of werte) if (tl.includes(w)) genannt.add(w); }
   for (const [n, gen] of gens) {
     const count = Math.max(0, Math.min(3, n | 0));
     for (let i = 0; i < count; i++) {

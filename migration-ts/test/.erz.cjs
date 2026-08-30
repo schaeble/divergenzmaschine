@@ -4596,31 +4596,38 @@ var SCHLAG_NAMEN = /* @__PURE__ */ new Set([...SCHLAG_STANDARD]);
 function buildDramaturgie(kit) {
   const d = loadDramaData();
   const M = kit.mode;
+  const norm = (x) => clean(x).toLowerCase().replace(/[.!?…]+$/, "");
   const benutzt = /* @__PURE__ */ new Set();
   const zieh = (liste) => {
-    const frisch = liste.filter((x) => !benutzt.has(x));
+    const frisch = liste.filter((x) => !benutzt.has(norm(x)));
     if (!frisch.length) return "";
     const wahl = pick(frisch);
-    benutzt.add(wahl);
+    benutzt.add(norm(wahl));
     return wahl;
   };
   const ZEITKOPF = /^(davor|danach|dann|plötzlich|auf einmal|am ende|am anfang|zurück bleibt|und dann|zuerst|zuletzt|schließlich)\b/i;
   const ziehOhneZeitkopf = (liste) => {
-    const ohne = liste.filter((x) => !ZEITKOPF.test(x) && !benutzt.has(x));
+    const ohne = liste.filter((x) => !ZEITKOPF.test(x) && !benutzt.has(norm(x)));
     if (ohne.length) {
       const wahl = pick(ohne);
-      benutzt.add(wahl);
+      benutzt.add(norm(wahl));
       return { satz: wahl, nackt: false };
     }
     return { satz: zieh(liste), nackt: true };
   };
   const schlag = (name, erster) => {
     switch (name) {
-      case "einstieg":
-        return d && some(d.einstieg) ? erster ? `${cap(kit.T)} ${kit.W}. ${cap(zieh(d.einstieg) || pick(d.einstieg))}.` : (() => {
-          const z = zieh(d.einstieg);
-          return z ? `${cap(z)}.` : "";
-        })() : erster ? `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.` : "";
+      case "einstieg": {
+        if (!(d && some(d.einstieg))) return erster ? `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.` : "";
+        if (!erster) {
+          const z2 = zieh(d.einstieg);
+          return z2 ? `${cap(z2)}.` : "";
+        }
+        const z = zieh(d.einstieg) || pick(d.einstieg);
+        if (/^(nachdem|als|während|bevor|sobald|seit|seitdem|kaum|wenn|ehe)\b/i.test(clean(kit.T)))
+          return `${cap(kit.T)} ${kit.W} \u2014 ${z.charAt(0).toLowerCase()}${z.slice(1).replace(/[.!?…]+$/, "")}.`;
+        return `${cap(kit.T)} ${kit.W}. ${cap(z)}.`;
+      }
       case "hook":
         return cap(ensurePunct(kit.hook));
       case "regel": {
@@ -4645,8 +4652,12 @@ function buildDramaturgie(kit) {
         if (!satz2) return "";
         return nackt2 ? cap(ensurePunct(satz2)) : `Dann, unvermittelt: ${cap(satz2)}.`;
       }
-      case "wende":
-        return frameTurn((d && some(d.veraenderungen) ? zieh(d.veraenderungen) : "") || kit.turn);
+      case "wende": {
+        const kern = (d && some(d.veraenderungen) ? zieh(d.veraenderungen) : "") || (benutzt.has(norm(kit.turn)) ? "" : kit.turn);
+        if (!kern) return "";
+        benutzt.add(norm(kern));
+        return frameTurn(kern);
+      }
       case "zeit": {
         const z = d && some(d.zeitanomalien) && chance(0.4) ? zieh(d.zeitanomalien) : "";
         return z ? cap(ensurePunct(z)) : "";
@@ -10064,7 +10075,7 @@ function applyEmphasis(text, kit, w) {
     [w.wer, () => charLine(kit)],
     [w.was, () => plotLine(kit)]
   ];
-  const werte2 = [kit.W, kit.T, kit.P, strip(kit.Apure)].map((x) => clean(x || "").toLowerCase()).filter((x) => x.length > 3);
+  const werte2 = [kit.W, kit.T, kit.P, strip(kit.Apure), strip(kit.turn), strip(kit.stake), strip(kit.obstacle), strip(kit.hook), strip(clean(kit.ending).replace(/[.!?…]+$/, ""))].map((x) => clean(x || "").toLowerCase()).filter((x) => x.length > 3);
   const geruest = (z) => {
     let g = z.toLowerCase();
     for (const w2 of werte2) if (w2) g = g.split(w2).join("\xA7");
@@ -10073,6 +10084,10 @@ function applyEmphasis(text, kit, w) {
   const lines = [];
   const gesehen = /* @__PURE__ */ new Set();
   const genannt = /* @__PURE__ */ new Set();
+  {
+    const tl = text.toLowerCase();
+    for (const w2 of werte2) if (tl.includes(w2)) genannt.add(w2);
+  }
   for (const [n, gen] of gens) {
     const count2 = Math.max(0, Math.min(3, n | 0));
     for (let i = 0; i < count2; i++) {
@@ -11600,6 +11615,34 @@ wahr(
     if (/(Dann, unvermittelt: Davor|Und dann: Plötzlich)/.test(t)) zeitkopf++;
   }
   ist("keine Zeit-Formel vor einem Zeitwort (20 L\xE4ufe)", zeitkopf, 0);
+  setDramaData(null);
+}
+{
+  const d3 = {
+    einstieg: ["Der Anfang steht"],
+    mitte: [],
+    hoehepunkt: [],
+    schluss: [],
+    ausloeser: ["die Karten der Wahrsagerin zeigen zweimal denselben Tod"],
+    veraenderungen: [],
+    konflikte: [],
+    zeitanomalien: [],
+    regeln: [],
+    folge: ["einstieg", "ausloeser", "wende"]
+  };
+  setDramaData(d3);
+  const bankMitTurn = { ...DEFAULT_BANK, turns: ["die Karten der Wahrsagerin zeigen zweimal denselben Tod"] };
+  let mehrfach = 0;
+  for (let i = 0; i < 25; i++) {
+    const t = buildStory(bankMitTurn, { ...inp, tension: "high" });
+    if ((t.match(/Karten der Wahrsagerin/g) || []).length > 1) mehrfach++;
+  }
+  ist("Bogen-Ausl\xF6ser und Bank-Wende mit gleichem Wortlaut: h\xF6chstens einmal (25 L\xE4ufe)", mehrfach, 0);
+  const d4 = { ...d3, ausloeser: [], folge: ["einstieg"] };
+  setDramaData(d4);
+  const t2 = buildStory(DEFAULT_BANK, { ...inp, when: "Nachdem die letzte Grenze fiel, als die Zeitungen schwiegen", where: "hoch in der Luft", polish: false });
+  wahr("kein nacktes \u201E\u2026 schwiegen hoch in der Luft.\u201C", !/schwiegen hoch in der Luft\./i.test(t2));
+  wahr("der Einstiegssatz schlie\xDFt das Fragment mit Strich", /schwiegen hoch in der Luft — der Anfang steht/i.test(t2));
   setDramaData(null);
 }
 console.log(`Pr\xFCfstand Erz\xE4hlerbank \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);

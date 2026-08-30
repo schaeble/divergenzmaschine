@@ -4995,7 +4995,7 @@ function applyEmphasis(text, kit, w) {
     [w.wer, () => charLine(kit)],
     [w.was, () => plotLine(kit)]
   ];
-  const werte = [kit.W, kit.T, kit.P, strip(kit.Apure)].map((x) => clean(x || "").toLowerCase()).filter((x) => x.length > 3);
+  const werte = [kit.W, kit.T, kit.P, strip(kit.Apure), strip(kit.turn), strip(kit.stake), strip(kit.obstacle), strip(kit.hook), strip(clean(kit.ending).replace(/[.!?…]+$/, ""))].map((x) => clean(x || "").toLowerCase()).filter((x) => x.length > 3);
   const geruest = (z) => {
     let g = z.toLowerCase();
     for (const w2 of werte) if (w2) g = g.split(w2).join("\xA7");
@@ -5004,6 +5004,10 @@ function applyEmphasis(text, kit, w) {
   const lines = [];
   const gesehen = /* @__PURE__ */ new Set();
   const genannt = /* @__PURE__ */ new Set();
+  {
+    const tl = text.toLowerCase();
+    for (const w2 of werte) if (tl.includes(w2)) genannt.add(w2);
+  }
   for (const [n, gen] of gens) {
     const count = Math.max(0, Math.min(3, n | 0));
     for (let i = 0; i < count; i++) {

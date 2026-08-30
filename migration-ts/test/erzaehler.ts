@@ -159,6 +159,25 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   setDramaData(null);
 }
 
+// ── Gemeldet, zweites Blatt: Wiederholung über Systemgrenzen, Nebensatz-Wann ─
+{
+  const d3: import("../src/generation/dramaturgie").DramaData = { einstieg: ["Der Anfang steht"], mitte: [], hoehepunkt: [], schluss: [],
+    ausloeser: ["die Karten der Wahrsagerin zeigen zweimal denselben Tod"], veraenderungen: [], konflikte: [], zeitanomalien: [], regeln: [],
+    folge: ["einstieg", "ausloeser", "wende"] };
+  setDramaData(d3);
+  const bankMitTurn = { ...DEFAULT_BANK, turns: ["die Karten der Wahrsagerin zeigen zweimal denselben Tod"] };
+  let mehrfach = 0;
+  for (let i = 0; i < 25; i++) { const t = buildStory(bankMitTurn, { ...inp, tension: "high" as never });
+    if ((t.match(/Karten der Wahrsagerin/g) || []).length > 1) mehrfach++; }
+  ist("Bogen-Auslöser und Bank-Wende mit gleichem Wortlaut: höchstens einmal (25 Läufe)", mehrfach, 0);
+  const d4: import("../src/generation/dramaturgie").DramaData = { ...d3, ausloeser: [], folge: ["einstieg"] };
+  setDramaData(d4);
+  const t2 = buildStory(DEFAULT_BANK, { ...inp, when: "Nachdem die letzte Grenze fiel, als die Zeitungen schwiegen", where: "hoch in der Luft", polish: false });
+  wahr("kein nacktes „… schwiegen hoch in der Luft.“", !/schwiegen hoch in der Luft\./i.test(t2));
+  wahr("der Einstiegssatz schließt das Fragment mit Strich", /schwiegen hoch in der Luft — der Anfang steht/i.test(t2));
+  setDramaData(null);
+}
+
 console.log(`Prüfstand Erzählerbank — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

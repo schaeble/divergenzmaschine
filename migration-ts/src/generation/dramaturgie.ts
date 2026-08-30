@@ -2,7 +2,7 @@
 // aktiven Preset 2.0 (einstieg → mitte → höhepunkt → schluss, plus transformation/
 // konflikte/zeitanomalien/regeln) und baut den Text entlang dieses Bogens — offline.
 import type { StoryKit } from "../types";
-import { pick, chance, ensurePunct } from "../text-utils";
+import { pick, chance, ensurePunct, clean } from "../text-utils";
 import { cap, joinBeats, frameTurn, reframeStake } from "./beats";
 
 export interface DramaData {
@@ -58,12 +58,16 @@ export function buildDramaturgie(kit: StoryKit): string {
   // der Schlag aus — ein fehlender Schlag liest sich besser als ein
   // wiederholter Satz. (Der Kreisschluss braucht darum mindestens zwei
   // Einstiege, sonst bleibt die Wiederkehr weg.)
+  // Verglichen wird NORMALISIERT (klein, ohne Schlusszeichen): Derselbe
+  // Wortlaut kann aus zwei Quellen kommen — Bogen-Auslöser und Bank-Wende —
+  // und unterscheidet sich dann nur in Großschreibung oder Punkt.
+  const norm = (x: string): string => clean(x).toLowerCase().replace(/[.!?…]+$/, "");
   const benutzt = new Set<string>();
   const zieh = (liste: string[]): string => {
-    const frisch = liste.filter((x) => !benutzt.has(x));
+    const frisch = liste.filter((x) => !benutzt.has(norm(x)));
     if (!frisch.length) return "";
     const wahl = pick(frisch);
-    benutzt.add(wahl);
+    benutzt.add(norm(wahl));
     return wahl;
   };
   // Für Schläge mit Zeit-Formel („Dann, unvermittelt:", „Und dann:") keinen
@@ -72,16 +76,24 @@ export function buildDramaturgie(kit: StoryKit): string {
   // nur solche, fällt die Formel weg und der Satz steht bloß.
   const ZEITKOPF = /^(davor|danach|dann|plötzlich|auf einmal|am ende|am anfang|zurück bleibt|und dann|zuerst|zuletzt|schließlich)\b/i;
   const ziehOhneZeitkopf = (liste: string[]): { satz: string; nackt: boolean } => {
-    const ohne = liste.filter((x) => !ZEITKOPF.test(x) && !benutzt.has(x));
-    if (ohne.length) { const wahl = pick(ohne); benutzt.add(wahl); return { satz: wahl, nackt: false }; }
+    const ohne = liste.filter((x) => !ZEITKOPF.test(x) && !benutzt.has(norm(x)));
+    if (ohne.length) { const wahl = pick(ohne); benutzt.add(norm(wahl)); return { satz: wahl, nackt: false }; }
     return { satz: zieh(liste), nackt: true };                   // "" wenn aufgebraucht
   };
   const schlag = (name: string, erster: boolean): string => {
     switch (name) {
-      case "einstieg":
-        return d && some(d.einstieg)
-          ? (erster ? `${cap(kit.T)} ${kit.W}. ${cap(zieh(d.einstieg) || pick(d.einstieg))}.` : ((): string => { const z = zieh(d.einstieg); return z ? `${cap(z)}.` : ""; })())
-          : (erster ? `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.` : "");
+      case "einstieg": {
+        if (!(d && some(d.einstieg))) return erster ? `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.` : "";
+        if (!erster) { const z = zieh(d.einstieg); return z ? `${cap(z)}.` : ""; }
+        const z = zieh(d.einstieg) || pick(d.einstieg);
+        // Beginnt das Wann selbst mit einem Nebensatz („Nachdem die letzte
+        // Grenze fiel, als die Zeitungen schwiegen"), trägt das Fragment
+        // „Wann Wo." keinen Satz — gemeldet: „… schwiegen hoch in der Luft."
+        // Dann hängt der Einstiegssatz mit Gedankenstrich an und schließt ihn.
+        if (/^(nachdem|als|während|bevor|sobald|seit|seitdem|kaum|wenn|ehe)\b/i.test(clean(kit.T)))
+          return `${cap(kit.T)} ${kit.W} — ${z.charAt(0).toLowerCase()}${z.slice(1).replace(/[.!?…]+$/, "")}.`;
+        return `${cap(kit.T)} ${kit.W}. ${cap(z)}.`;
+      }
       case "hook": return cap(ensurePunct(kit.hook));
       case "regel": { const z = d && some(d.regeln) && chance(0.7) ? zieh(d.regeln) : ""; return z ? cap(ensurePunct(z)) : ensurePunct(pick(M.rules)); }
       case "mitte": { const z = d && some(d.mitte) ? zieh(d.mitte) : ""; return z ? `${cap(z)}.` : ""; }
@@ -96,7 +108,15 @@ export function buildDramaturgie(kit: StoryKit): string {
         if (!satz) return "";
         return nackt ? cap(ensurePunct(satz)) : `Dann, unvermittelt: ${cap(satz)}.`;
       }
-      case "wende": return frameTurn((d && some(d.veraenderungen) ? zieh(d.veraenderungen) : "") || kit.turn);
+      case "wende": {
+        // Auch der Rückfall auf die Bank-Wende zählt als benutzt — steht ihr
+        // Wortlaut schon (etwa weil der Bogen denselben Satz als Auslöser
+        // trug), fällt der Schlag aus statt zu wiederholen.
+        const kern = (d && some(d.veraenderungen) ? zieh(d.veraenderungen) : "") || (benutzt.has(norm(kit.turn)) ? "" : kit.turn);
+        if (!kern) return "";
+        benutzt.add(norm(kern));
+        return frameTurn(kern);
+      }
       case "zeit": { const z = d && some(d.zeitanomalien) && chance(0.4) ? zieh(d.zeitanomalien) : ""; return z ? cap(ensurePunct(z)) : ""; }
       case "hoehepunkt":
         if (!(d && some(d.hoehepunkt))) return "";
