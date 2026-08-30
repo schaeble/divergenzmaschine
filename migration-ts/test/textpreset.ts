@@ -8,7 +8,7 @@ import { JSDOM } from "jsdom";
 const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/" });
 (globalThis as unknown as Record<string, unknown>).localStorage = dom.window.localStorage;
 import { readFileSync } from "fs";
-import { presetAusText, preset2AusText, kategorieFuer, teilstuecke } from "../src/features/textpreset";
+import { presetAusText, preset2AusText, kategorieFuer, teilstuecke, zuordnung, VORLAGE_EVOLUTION } from "../src/features/textpreset";
 import { setDramaData, hasDramaData } from "../src/generation/dramaturgie";
 import { buildStory } from "../src/generation/buildStory";
 import type { GenInput } from "../src/types";
@@ -94,6 +94,21 @@ wahr("Auto-Mix bleibt außen vor (Index ab 1)", /selectedIndex = 1 \+ Math\.floo
 wahr("die Zufallswahl wird als echte Wahl ausgelöst", /zufallsPreset\(\);\s*\n\s*preset\.dispatchEvent\(new Event\("change"\)\)/.test(q));
 wahr("auch der Rückfall nach einem Umbau", /else \{ zufallsPreset\(\); preset\.dispatchEvent\(new Event\("change"\)\); \}/.test(q));
 wahr("die alte feste Wahl ist weg", !/preset\.selectedIndex = 1;\s*\/\/ nicht Auto-Mix/.test(q));
+
+// ── 7 · Basis-Vorlage Evolution mit Markierung ──────────────────────────────
+// Gewünscht: ein Beispieltext (Thema Evolution) als Basis-Vorlage im Fenster,
+// mit Markierung der Elemente, die für das Preset zählen.
+{
+  const pv = presetAusText(VORLAGE_EVOLUTION);
+  wahr("die Vorlage trifft jede Kategorie mit mindestens zwei Einträgen ohne Borgen",
+    Object.values(pv.bank).every((v) => (v as string[]).length >= 2));
+  const z = zuordnung(VORLAGE_EVOLUTION);
+  ist("die Markierung deckt jedes Teilstück", z.length, pv.stuecke);
+  wahr("und nennt die Kategorie je Stück", z.every((x) => typeof x.kategorie === "string" && x.stueck.length > 0));
+  wahr("das Fenster hat den Vorlage-Knopf", /"Vorlage: Evolution"/.test(q) && /eingabe\.value = VORLAGE_EVOLUTION/.test(q));
+  wahr("und die Zuordnungsanzeige", /"Zuordnung zeigen"/.test(q) && /zuordnung\(eingabe\.value\)/.test(q));
+  wahr("die Vorlage schlägt einen Namen vor", /nameIn\.value = "Evolution"/.test(q));
+}
 
 console.log(`Prüfstand Preset aus Text — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };

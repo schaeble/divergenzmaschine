@@ -7,7 +7,7 @@ import { DEFAULT_BANK } from "../constants";
 import { loadPersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
 import { openPresetWizard } from "./presetWizard";
-import { preset2AusText } from "../features/textpreset";
+import { preset2AusText, zuordnung, VORLAGE_EVOLUTION } from "../features/textpreset";
 import { openArchive } from "./archiveView";
 import {
   setzeEigenes, ladeEigene, registerVon, WELT_LABEL, SPRACHE_LABEL,
@@ -226,6 +226,33 @@ export function mountWordbank(root: HTMLElement): void {
     const nameIn = el("input", { type: "text", placeholder: "Name des Presets", maxlength: "40", style: "width:100%" }) as HTMLInputElement;
     const schau = el("div", { class: "muted", style: "font-size:13px;line-height:1.5" });
     const NAMEN: Record<string, string> = { motifs: "Bilder", hooks: "Sätze mit Haken", props: "Requisiten", turns: "Wenden", obstacles: "Hindernisse", stakes: "Einsätze", endings: "Schlüsse" };
+    // Die Markierung: Stück für Stück, mit der Kategorie davor — daran sieht
+    // man, welche Satzform wohin führt, und kann die Vorlage gezielt umbauen.
+    const zuordnungBox = el("div", { style: "display:none;max-height:220px;overflow:auto;font-size:13px;line-height:1.55;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-top:8px" });
+    const zuordnungBtn = el("button", { type: "button" }, "Zuordnung zeigen") as HTMLButtonElement;
+    let zuAuf = false;
+    const malZuordnung = (): void => {
+      if (!zuAuf) return;
+      zuordnungBox.innerHTML = "";
+      for (const { stueck, kategorie } of zuordnung(eingabe.value))
+        zuordnungBox.append(el("div", {}, el("strong", { style: "color:var(--acc2)" }, (NAMEN[kategorie] || kategorie) + ": "), stueck));
+      if (!zuordnungBox.childElementCount) zuordnungBox.append(el("div", { class: "muted" }, "Noch kein verwertbarer Satz."));
+    };
+    zuordnungBtn.addEventListener("click", () => {
+      zuAuf = !zuAuf;
+      zuordnungBox.style.display = zuAuf ? "" : "none";
+      zuordnungBtn.textContent = zuAuf ? "Zuordnung verbergen" : "Zuordnung zeigen";
+      malZuordnung();
+    });
+    // Basis-Vorlage: ein Text zum Thema Evolution, gebaut, damit jede
+    // Kategorie sicher getroffen wird — zum Ansehen, Umbauen, Speichern.
+    const vorlageBtn = el("button", { type: "button", title: "Beispieltext (Thema Evolution) einsetzen — an ihm sieht man, welche Satzform in welche Kategorie führt." }, "Vorlage: Evolution") as HTMLButtonElement;
+    vorlageBtn.addEventListener("click", () => {
+      eingabe.value = VORLAGE_EVOLUTION;
+      if (!nameIn.value.trim()) nameIn.value = "Evolution";
+      eingabe.dispatchEvent(new Event("input"));
+      if (!zuAuf) zuordnungBtn.click(); else malZuordnung();
+    });
     const speichern = el("button", { class: "primary" }, "Als Preset speichern") as HTMLButtonElement;
     const vorschau = (): ReturnType<typeof preset2AusText> => {
       const p = preset2AusText(eingabe.value);
@@ -235,7 +262,7 @@ export function mountWordbank(root: HTMLElement): void {
       speichern.disabled = p.stuecke < 7 || !nameIn.value.trim();
       return p;
     };
-    eingabe.addEventListener("input", vorschau); nameIn.addEventListener("input", vorschau);
+    eingabe.addEventListener("input", () => { vorschau(); malZuordnung(); }); nameIn.addEventListener("input", vorschau);
     // Ein Einfügeknopf für das Textfenster — wie im einfachen Kopf: das Handy
     // hat kein Strg+V. Er liest die Zwischenablage und ERSETZT den Inhalt
     // (wer einen Text einfügt, will genau diesen Text); versagt das Lesen,
@@ -275,7 +302,7 @@ export function mountWordbank(root: HTMLElement): void {
       el("div", { class: "modal-body" },
         el("p", { class: "muted" }, "Der Text wird in Sätze zerlegt und in die sieben Kategorien sortiert: Bilder, Sätze mit Haken, Requisiten, Wenden, Hindernisse, Einsätze, Schlüsse. Was keine Kategorie trifft, wird ein Bild; leere Kategorien borgen aus der vollsten. Gespeichert wird ein Preset 2.0: mit dramaturgischem Bogen (Einstieg, Mitte, Höhepunkt, Schluss aus denselben Sätzen) und Kontext-Material für die lebendigen Pools."),
         eingabe, el("div", { style: "height:8px" }),
-        el("div", { class: "btnrow" }, einfuegen), el("div", { style: "height:8px" }), nameIn, el("div", { style: "height:8px" }), schau,
+        el("div", { class: "btnrow" }, einfuegen, vorlageBtn, zuordnungBtn), zuordnungBox, el("div", { style: "height:8px" }), nameIn, el("div", { style: "height:8px" }), schau,
         el("div", { style: "height:12px" }), speichern)));
     document.body.append(overlay);
     eingabe.focus();

@@ -125,3 +125,29 @@ export function preset2AusText(text: string): Preset2AusText {
   const pools = [...new Set([...b.props, ...b.motifs])];
   return { ...p, drama, pools };
 }
+
+// ── Basis-Vorlage: Evolution ────────────────────────────────────────────────
+// Gewünscht: ein Beispieltext als Basis-Vorlage im Fenster „Preset aus Text",
+// mit Markierung der Elemente, die für die Ausgestaltung des Presets zählen.
+// Der Text ist so gebaut, dass jede Kategorie sicher getroffen wird; das
+// Fenster zeigt die Zuordnung Stück für Stück (zuordnung() unten). Wer eine
+// eigene Vorlage schreibt, sieht an diesem Text, welche Satzform wohin führt:
+// kurze Dingphrase → Requisit, Bildphrase → Bild, „aber/kein/nicht" →
+// Hindernis, „plötzlich/dann/kippt/beginnt" → Wende, „es geht um" → Einsatz,
+// die letzten Sätze → Schluss, kurze Aussagesätze → Haken.
+export const VORLAGE_EVOLUTION = `Das Leben probiert alles einmal aus. Ein Kiefer aus früheren Zeiten. Die Flosse erinnert sich an den Weg zum Ufer. Ein Auge, das in vier Linien zugleich erfunden wird. Der lange Hals entscheidet über den Hunger. Eine Feder, die zuerst wärmt und dann trägt. Das Wasser entlässt seine Kinder an Land. Ein Panzer mit Jahresringen. Die Zufälle sammeln sich, bis sie wie ein Plan aussehen. Aber kein Bauplan liegt dem Ganzen bei. Die Kiemen schließen sich, und die Lunge übernimmt. Ein Fossil im Kalk. Kein Merkmal weiß, wofür es später gut sein wird. Die Insel formt ihre eigenen Schnäbel. Es geht um den nächsten Morgen, nicht um den fernen Plan. Plötzlich kippt das Klima, und die Größten verschwinden zuerst. Dann beginnt das Kleine, die leeren Räume zu besetzen. Ein angespitzter Zahn als Werkzeug. Die Landschaft schreibt an den Körpern mit. Der Wald weicht der Savanne, und der Gang richtet sich auf. Eine Hand mit einem Daumen, der den Fingern begegnet. Das Erbgut vergisst nichts und verrät nichts. Aber die Lücke zwischen den Funden bleibt. Die Häutung dauert eine Nacht und ein Erdzeitalter. Ein Bernstein mit Mücke. Es geht um das Weiterreichen selbst. Die Arten wandern, wenn der Boden es verlangt. Ein Geweih, das zu schwer für seinen Träger wird. Die Anpassung kennt keine Richtung, nur den nächsten Schritt. Plötzlich steht ein Tier am Feuer und gibt ihm einen Namen. Dann wendet sich die Auslese nach innen. Die Schrift übernimmt, was die Knochen begonnen haben. Am Ende sitzt das Ergebnis am Mikroskop und sucht seinen Anfang. Zurück bleibt ein Abdruck im Schlamm, älter als jede Frage.`;
+
+/** Die Zuordnung Stück für Stück — für die Markierung im Fenster. */
+export function zuordnung(text: string): { stueck: string; kategorie: BankKey }[] {
+  const stuecke = teilstuecke(text);
+  const grenze = Math.max(0, stuecke.length - 2);
+  const gesehen = new Set<string>();
+  const out: { stueck: string; kategorie: BankKey }[] = [];
+  stuecke.forEach((s, i) => {
+    const key = s.toLowerCase();
+    if (gesehen.has(key)) return;
+    gesehen.add(key);
+    out.push({ stueck: s, kategorie: kategorieFuer(s, i >= grenze && deriveAtom(s).typ === "hauptsatz") });
+  });
+  return out;
+}

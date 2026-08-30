@@ -4623,6 +4623,20 @@ function preset2AusText(text2) {
   const pools = [.../* @__PURE__ */ new Set([...b.props, ...b.motifs])];
   return { ...p2, drama, pools };
 }
+var VORLAGE_EVOLUTION = `Das Leben probiert alles einmal aus. Ein Kiefer aus fr\xFCheren Zeiten. Die Flosse erinnert sich an den Weg zum Ufer. Ein Auge, das in vier Linien zugleich erfunden wird. Der lange Hals entscheidet \xFCber den Hunger. Eine Feder, die zuerst w\xE4rmt und dann tr\xE4gt. Das Wasser entl\xE4sst seine Kinder an Land. Ein Panzer mit Jahresringen. Die Zuf\xE4lle sammeln sich, bis sie wie ein Plan aussehen. Aber kein Bauplan liegt dem Ganzen bei. Die Kiemen schlie\xDFen sich, und die Lunge \xFCbernimmt. Ein Fossil im Kalk. Kein Merkmal wei\xDF, wof\xFCr es sp\xE4ter gut sein wird. Die Insel formt ihre eigenen Schn\xE4bel. Es geht um den n\xE4chsten Morgen, nicht um den fernen Plan. Pl\xF6tzlich kippt das Klima, und die Gr\xF6\xDFten verschwinden zuerst. Dann beginnt das Kleine, die leeren R\xE4ume zu besetzen. Ein angespitzter Zahn als Werkzeug. Die Landschaft schreibt an den K\xF6rpern mit. Der Wald weicht der Savanne, und der Gang richtet sich auf. Eine Hand mit einem Daumen, der den Fingern begegnet. Das Erbgut vergisst nichts und verr\xE4t nichts. Aber die L\xFCcke zwischen den Funden bleibt. Die H\xE4utung dauert eine Nacht und ein Erdzeitalter. Ein Bernstein mit M\xFCcke. Es geht um das Weiterreichen selbst. Die Arten wandern, wenn der Boden es verlangt. Ein Geweih, das zu schwer f\xFCr seinen Tr\xE4ger wird. Die Anpassung kennt keine Richtung, nur den n\xE4chsten Schritt. Pl\xF6tzlich steht ein Tier am Feuer und gibt ihm einen Namen. Dann wendet sich die Auslese nach innen. Die Schrift \xFCbernimmt, was die Knochen begonnen haben. Am Ende sitzt das Ergebnis am Mikroskop und sucht seinen Anfang. Zur\xFCck bleibt ein Abdruck im Schlamm, \xE4lter als jede Frage.`;
+function zuordnung(text2) {
+  const stuecke = teilstuecke(text2);
+  const grenze = Math.max(0, stuecke.length - 2);
+  const gesehen = /* @__PURE__ */ new Set();
+  const out = [];
+  stuecke.forEach((s, i) => {
+    const key = s.toLowerCase();
+    if (gesehen.has(key)) return;
+    gesehen.add(key);
+    out.push({ stueck: s, kategorie: kategorieFuer(s, i >= grenze && deriveAtom(s).typ === "hauptsatz") });
+  });
+  return out;
+}
 
 // src/generation/dramaturgie.ts
 var DKEY = "dm_dramaturgie_v1";
@@ -11274,6 +11288,19 @@ wahr("Auto-Mix bleibt au\xDFen vor (Index ab 1)", /selectedIndex = 1 \+ Math\.fl
 wahr("die Zufallswahl wird als echte Wahl ausgel\xF6st", /zufallsPreset\(\);\s*\n\s*preset\.dispatchEvent\(new Event\("change"\)\)/.test(q));
 wahr("auch der R\xFCckfall nach einem Umbau", /else \{ zufallsPreset\(\); preset\.dispatchEvent\(new Event\("change"\)\); \}/.test(q));
 wahr("die alte feste Wahl ist weg", !/preset\.selectedIndex = 1;\s*\/\/ nicht Auto-Mix/.test(q));
+{
+  const pv = presetAusText(VORLAGE_EVOLUTION);
+  wahr(
+    "die Vorlage trifft jede Kategorie mit mindestens zwei Eintr\xE4gen ohne Borgen",
+    Object.values(pv.bank).every((v) => v.length >= 2)
+  );
+  const z = zuordnung(VORLAGE_EVOLUTION);
+  ist("die Markierung deckt jedes Teilst\xFCck", z.length, pv.stuecke);
+  wahr("und nennt die Kategorie je St\xFCck", z.every((x) => typeof x.kategorie === "string" && x.stueck.length > 0));
+  wahr("das Fenster hat den Vorlage-Knopf", /"Vorlage: Evolution"/.test(q) && /eingabe\.value = VORLAGE_EVOLUTION/.test(q));
+  wahr("und die Zuordnungsanzeige", /"Zuordnung zeigen"/.test(q) && /zuordnung\(eingabe\.value\)/.test(q));
+  wahr("die Vorlage schl\xE4gt einen Namen vor", /nameIn\.value = "Evolution"/.test(q));
+}
 console.log(`Pr\xFCfstand Preset aus Text \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {
