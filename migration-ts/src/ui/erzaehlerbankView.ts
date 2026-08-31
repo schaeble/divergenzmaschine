@@ -117,7 +117,12 @@ export function mountErzaehlerbank(root: HTMLElement): void {
       const liste = archivFuer(folgeSel.value);
       archivSel.innerHTML = "";
       archivSel.append(el("option", { value: "" }, liste.length ? `— ${liste.length} gespeichert: wählen —` : "— nichts gespeichert —"));
-      liste.forEach((e, idx) => archivSel.append(el("option", { value: String(idx) }, e.titel || "Ohne Titel")));
+      liste.forEach((e, idx) => {
+        const geliehen = e.geburt && e.geburt !== folgeSel.value;
+        const name = geliehen ? (SCHLAGFOLGEN[e.geburt!]?.name || e.geburt!) : "";
+        archivSel.append(el("option", { value: String(idx), title: geliehen ? `Unter „${name}“ entstanden — hier geliehen.` : "" },
+          (e.titel || "Ohne Titel") + (geliehen ? ` · ⇄ ${name}` : "")));
+      });
       archivSel.disabled = archivWeg.disabled = !liste.length;
     };
     archivSel.addEventListener("change", () => {
@@ -127,7 +132,7 @@ export function mountErzaehlerbank(root: HTMLElement): void {
       titelIn.value = e.titel; textIn.value = e.text;
       textIn.dispatchEvent(new Event("input"));
       const alle = ladeErzaehlerbank();
-      alle[i] = { titel: e.titel, text: e.text, folge: folgeSel.value };
+      alle[i] = { titel: e.titel, text: e.text, folge: folgeSel.value, geburt: e.geburt || e.folge };
       speichereErzaehlerbank(alle);
     });
     archivWeg.addEventListener("click", () => {
@@ -147,7 +152,7 @@ export function mountErzaehlerbank(root: HTMLElement): void {
       kiBtn.disabled = true; kiBtn.textContent = "KI erzählt …";
       kiErzaehlung(folgeSel.value, titelIn.value.trim() || undefined).then((neu) => {
         const alle = ladeErzaehlerbank();
-        alle[i] = { ...neu, folge: folgeSel.value };
+        alle[i] = { ...neu, folge: folgeSel.value, geburt: folgeSel.value };
         speichereErzaehlerbank(alle);
         archiviere(alle[i]!);      // auch KI-Erzählungen sind über den Titel wieder wählbar
         mountErzaehlerbank(root);
@@ -161,6 +166,9 @@ export function mountErzaehlerbank(root: HTMLElement): void {
     const speichern = el("button", { class: "primary", type: "button" }, "Speichern") as HTMLButtonElement;
     speichern.addEventListener("click", () => {
       const alle = ladeErzaehlerbank();
+      // Die Geburt des Platzes bleibt erhalten — nur wenn TEXT oder TITEL
+      // geändert wurden, ist es eine neue Geschichte und die jetzige Bauform
+      // wird ihre Geburt (archiviere ermittelt das über den Wortlaut selbst).
       alle[i] = { titel: titelIn.value.trim().slice(0, 60), text: textIn.value.trim(), folge: folgeSel.value };
       speichereErzaehlerbank(alle);
       archiviere(alle[i]!);      // ins Archiv der Bauform — über den Titel wieder wählbar

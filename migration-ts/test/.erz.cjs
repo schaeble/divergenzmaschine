@@ -5039,7 +5039,7 @@ function ladeArchiv() {
     if (!r || typeof r !== "object" || Array.isArray(r)) return {};
     const out = {};
     for (const [k, v] of Object.entries(r))
-      if (Array.isArray(v)) out[k] = v.filter((e) => !!e && typeof e === "object" && typeof e.text === "string").map((e) => ({ titel: String(e.titel || "").slice(0, 60), text: String(e.text), folge: k }));
+      if (Array.isArray(v)) out[k] = v.filter((e) => !!e && typeof e === "object" && typeof e.text === "string").map((e) => ({ titel: String(e.titel || "").slice(0, 60), text: String(e.text), folge: k, geburt: typeof e.geburt === "string" ? e.geburt : void 0 }));
     return out;
   } catch {
     return {};
@@ -5058,7 +5058,16 @@ function archiviere(e) {
   const a = ladeArchiv();
   const liste = a[folge] || [];
   const key = archivNorm(e);
-  a[folge] = [{ titel: e.titel || "Ohne Titel", text: e.text, folge }, ...liste.filter((x) => archivNorm(x) !== key)].slice(0, ARCHIV_JE_BAUFORM);
+  let geburt = e.geburt;
+  if (!geburt) for (const [, l] of Object.entries(a)) {
+    const alt = l.find((x) => archivNorm(x) === key);
+    if (alt) {
+      geburt = alt.geburt || alt.folge;
+      break;
+    }
+  }
+  geburt = geburt || folge;
+  a[folge] = [{ titel: e.titel || "Ohne Titel", text: e.text, folge, geburt }, ...liste.filter((x) => archivNorm(x) !== key)].slice(0, ARCHIV_JE_BAUFORM);
   speichereArchiv(a);
 }
 function archivFuer(folge) {
@@ -11877,7 +11886,7 @@ wahr(
   const qv = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
   wahr("jeder Platz hat den KI-Knopf", /"KI: neu erzählen"/.test(qv));
   wahr("er erz\xE4hlt in der Bauform des Platzes, Thema aus dem Titel", /kiErzaehlung\(folgeSel\.value, titelIn\.value\.trim\(\) \|\| undefined\)/.test(qv));
-  wahr("Erfolg ersetzt den Platz und speichert", /alle\[i\] = \{ \.\.\.neu, folge: folgeSel\.value \};\s*\n\s*speichereErzaehlerbank\(alle\)/.test(qv));
+  wahr("Erfolg ersetzt den Platz und speichert", /alle\[i\] = \{ \.\.\.neu, folge: folgeSel\.value, geburt: folgeSel\.value \};\s*\n\s*speichereErzaehlerbank\(alle\)/.test(qv));
   wahr("Fehler stehen im Knopf, nichts scheitert stumm", /"KI-Fehler — noch einmal\?"/.test(qv));
 }
 {
@@ -11902,6 +11911,21 @@ wahr(
   wahr("die Auswahl geh\xF6rt zur Bauform des Platzes", /archivFuer\(folgeSel\.value\)/.test(qa) && /folgeSel\.addEventListener\("change", fuelleArchiv\)/.test(qa));
   wahr("w\xE4hlen l\xE4dt und speichert den Platz", /titelIn\.value = e\.titel; textIn\.value = e\.text;/.test(qa));
   wahr("Speichern und KI archivieren", (qa.match(/archiviere\(alle\[i\]!\);/g) || []).length === 2);
+}
+{
+  localStorage.removeItem("dm_erzaehler_archiv_v1");
+  const txt = "Eine Geschichte, die lang genug ist, um brauchbar zu sein. ".repeat(5);
+  archiviere({ titel: "Die Herde", text: txt, folge: "standard" });
+  ist("beim ersten Archivieren wird die Geburt festgeschrieben", archivFuer("standard")[0].geburt, "standard");
+  archiviere({ titel: "Die Herde", text: txt, folge: "kreis" });
+  ist("unter fremder Bauform bleibt die Geburt erhalten", archivFuer("kreis")[0].geburt, "standard");
+  archiviere({ titel: "Die Herde", text: txt + "Ganz neu erz\xE4hlt. ", folge: "kreis" });
+  ist("neuer Wortlaut = neue Geschichte, geboren hier", archivFuer("kreis")[0].geburt, "kreis");
+  localStorage.removeItem("dm_erzaehler_archiv_v1");
+  const qg = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
+  wahr("die Auswahl kennzeichnet Geliehenes mit \u21C4 und Namen", /e\.geburt && e\.geburt !== folgeSel\.value/.test(qg) && /` · ⇄ \$\{name\}`/.test(qg));
+  wahr("W\xE4hlen tr\xE4gt die Geburt in den Platz", /geburt: e\.geburt \|\| e\.folge/.test(qg));
+  wahr("die KI setzt die Geburt auf ihre Bauform", /geburt: folgeSel\.value \}/.test(qg));
 }
 console.log(`Pr\xFCfstand Erz\xE4hlerbank \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

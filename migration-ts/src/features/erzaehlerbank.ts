@@ -29,7 +29,15 @@ import type { DramaData } from "../generation/dramaturgie";
 import { SCHLAG_STANDARD } from "../generation/dramaturgie";
 import { preset2AusText } from "./textpreset";
 
-export interface Erzaehlung { titel: string; text: string; /** Schlüssel einer Bauform aus SCHLAGFOLGEN. */ folge?: string; }
+export interface Erzaehlung {
+  titel: string; text: string;
+  /** Schlüssel einer Bauform aus SCHLAGFOLGEN. */ folge?: string;
+  /** Geburts-Bauform: unter welcher Bauform die Geschichte entstand oder
+   *  zuerst archiviert wurde. Sie darf in jedem Bogen liegen — aber die
+   *  Auswahl zeigt Geliehenes mit Kennzeichen, damit die Archive nicht
+   *  leise zusammenlaufen (gewünscht: Herkunft festhalten, Option 1). */
+  geburt?: string;
+}
 
 /** Die Bauformen: Name → Schlagfolge. Ein Schlagname darf mehrfach stehen
  *  (frisches Material je Vorkommen); fehlende Schläge fallen aus. „standard"
@@ -163,7 +171,7 @@ export function ladeArchiv(): ErzaehlArchiv {
     const out: ErzaehlArchiv = {};
     for (const [k, v] of Object.entries(r as Record<string, unknown>))
       if (Array.isArray(v)) out[k] = v.filter((e): e is Erzaehlung => !!e && typeof e === "object" && typeof (e as Erzaehlung).text === "string")
-        .map((e) => ({ titel: String(e.titel || "").slice(0, 60), text: String(e.text), folge: k }));
+        .map((e) => ({ titel: String(e.titel || "").slice(0, 60), text: String(e.text), folge: k, geburt: typeof (e as Erzaehlung).geburt === "string" ? (e as Erzaehlung).geburt : undefined }));
     return out;
   } catch { return {}; }
 }
@@ -181,7 +189,14 @@ export function archiviere(e: Erzaehlung): void {
   const a = ladeArchiv();
   const liste = a[folge] || [];
   const key = archivNorm(e);
-  a[folge] = [{ titel: e.titel || "Ohne Titel", text: e.text, folge }, ...liste.filter((x) => archivNorm(x) !== key)].slice(0, ARCHIV_JE_BAUFORM);
+  // Die Geburts-Bauform wird beim ERSTEN Archivieren festgeschrieben und
+  // wandert mit: Liegt dieselbe Geschichte schon in irgendeinem Archiv,
+  // erbt der neue Eintrag deren Geburt — sonst ist die jetzige Bauform die
+  // Geburt. So bleibt „geliehen" erkennbar, egal über welchen Weg gespeichert.
+  let geburt = e.geburt;
+  if (!geburt) for (const [, l] of Object.entries(a)) { const alt = l.find((x) => archivNorm(x) === key); if (alt) { geburt = alt.geburt || alt.folge; break; } }
+  geburt = geburt || folge;
+  a[folge] = [{ titel: e.titel || "Ohne Titel", text: e.text, folge, geburt }, ...liste.filter((x) => archivNorm(x) !== key)].slice(0, ARCHIV_JE_BAUFORM);
   speichereArchiv(a);
 }
 export function archivFuer(folge: string): Erzaehlung[] { return ladeArchiv()[folge] || []; }

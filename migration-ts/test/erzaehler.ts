@@ -192,7 +192,7 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   const qv = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
   wahr("jeder Platz hat den KI-Knopf", /"KI: neu erzählen"/.test(qv));
   wahr("er erzählt in der Bauform des Platzes, Thema aus dem Titel", /kiErzaehlung\(folgeSel\.value, titelIn\.value\.trim\(\) \|\| undefined\)/.test(qv));
-  wahr("Erfolg ersetzt den Platz und speichert", /alle\[i\] = \{ \.\.\.neu, folge: folgeSel\.value \};\s*\n\s*speichereErzaehlerbank\(alle\)/.test(qv));
+  wahr("Erfolg ersetzt den Platz und speichert", /alle\[i\] = \{ \.\.\.neu, folge: folgeSel\.value, geburt: folgeSel\.value \};\s*\n\s*speichereErzaehlerbank\(alle\)/.test(qv));
   wahr("Fehler stehen im Knopf, nichts scheitert stumm", /"KI-Fehler — noch einmal\?"/.test(qv));
 }
 
@@ -222,6 +222,25 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   wahr("die Auswahl gehört zur Bauform des Platzes", /archivFuer\(folgeSel\.value\)/.test(qa) && /folgeSel\.addEventListener\("change", fuelleArchiv\)/.test(qa));
   wahr("wählen lädt und speichert den Platz", /titelIn\.value = e\.titel; textIn\.value = e\.text;/.test(qa));
   wahr("Speichern und KI archivieren", (qa.match(/archiviere\(alle\[i\]!\);/g) || []).length === 2);
+}
+
+// ── Herkunft festhalten: die Geburts-Bauform wandert mit ────────────────────
+// Gewünscht (Option 1): Dieselbe Geschichte darf in jedem Bogen liegen, aber
+// Geliehenes trägt ein Kennzeichen — die Archive laufen nicht leise zusammen.
+{
+  localStorage.removeItem("dm_erzaehler_archiv_v1");
+  const txt = "Eine Geschichte, die lang genug ist, um brauchbar zu sein. ".repeat(5);
+  archiviere({ titel: "Die Herde", text: txt, folge: "standard" });
+  ist("beim ersten Archivieren wird die Geburt festgeschrieben", archivFuer("standard")[0]!.geburt, "standard");
+  archiviere({ titel: "Die Herde", text: txt, folge: "kreis" });
+  ist("unter fremder Bauform bleibt die Geburt erhalten", archivFuer("kreis")[0]!.geburt, "standard");
+  archiviere({ titel: "Die Herde", text: txt + "Ganz neu erzählt. ", folge: "kreis" });
+  ist("neuer Wortlaut = neue Geschichte, geboren hier", archivFuer("kreis")[0]!.geburt, "kreis");
+  localStorage.removeItem("dm_erzaehler_archiv_v1");
+  const qg = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
+  wahr("die Auswahl kennzeichnet Geliehenes mit ⇄ und Namen", /e\.geburt && e\.geburt !== folgeSel\.value/.test(qg) && /` · ⇄ \$\{name\}`/.test(qg));
+  wahr("Wählen trägt die Geburt in den Platz", /geburt: e\.geburt \|\| e\.folge/.test(qg));
+  wahr("die KI setzt die Geburt auf ihre Bauform", /geburt: folgeSel\.value \}/.test(qg));
 }
 
 console.log(`Prüfstand Erzählerbank — ${geprueft} Prüfungen, ${bestanden} bestanden`);
