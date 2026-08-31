@@ -11935,6 +11935,18 @@ wahr(
   wahr("die Vorlagen tragen zehn verschiedene Bauformen", new Set(ERZAEHLUNGEN_VORLAGEN.map((e) => e.folge)).size === 10);
   wahr("das Archiv bleibt unangetastet (kein Archiv-Zugriff im Handler)", !/leerenBtn[\s\S]{0,600}speichereArchiv|leerenBtn[\s\S]{0,600}dm_erzaehler_archiv/.test(qz));
 }
+{
+  const ql = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
+  wahr("der L\xF6schknopf ist beschriftet", /"Text löschen"/.test(ql));
+  wahr("er l\xF6scht unmittelbar ohne Nachfrage", !/archivWeg\.addEventListener\("click", \(\) => \{[\s\S]{0,400}?confirm/.test(ql));
+}
+{
+  const qt = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
+  wahr("der Knopf hei\xDFt \u201EText l\xF6schen\u201C, kein \xD7 mehr", /"Text löschen"/.test(qt) && !qt.includes('}, "\xD7")'));
+  wahr("er steht neben \u201EPlatz leeren\u201C", /speichern, leeren, archivWeg\)/.test(qt));
+  wahr("er l\xF6scht unmittelbar, ohne Nachfrage", /archivWeg\.addEventListener\("click"/.test(qt) && !/archivWeg\.addEventListener\("click", \(\) => \{\s*\n\s*if \(!confirm/.test(qt));
+  wahr("ohne Auswahl ist er ausgegraut", /archivWeg\.disabled = !liste\.length \|\| archivSel\.value === ""/.test(qt));
+}
 console.log(`Pr\xFCfstand Erz\xE4hlerbank \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {

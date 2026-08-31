@@ -125,7 +125,7 @@ export function mountErzaehlerbank(root: HTMLElement): void {
     // Platz und speichert ihn; das kleine × löscht den gewählten Eintrag aus
     // dem Archiv (der Platz bleibt).
     const archivSel = el("select", { title: "Gespeicherte Geschichten dieser Bauform — wählen lädt sie in den Platz." }) as HTMLSelectElement;
-    const archivWeg = el("button", { type: "button", class: "danger", title: "Den gewählten Archiv-Eintrag löschen (der Platz bleibt unberührt)." }, "×") as HTMLButtonElement;
+    const archivWeg = el("button", { type: "button", class: "danger", title: "Die gewählte Geschichte aus dem Archiv dieser Bauform löschen (der Platz bleibt unberührt).", "aria-label": "Gewählte Geschichte aus dem Archiv löschen" }, "Text löschen") as HTMLButtonElement;
     const fuelleArchiv = (): void => {
       const liste = archivFuer(folgeSel.value);
       archivSel.innerHTML = "";
@@ -136,9 +136,11 @@ export function mountErzaehlerbank(root: HTMLElement): void {
         archivSel.append(el("option", { value: String(idx), title: geliehen ? `Unter „${name}“ entstanden — hier geliehen.` : "" },
           (e.titel || "Ohne Titel") + (geliehen ? ` · ⇄ ${name}` : "")));
       });
-      archivSel.disabled = archivWeg.disabled = !liste.length;
+      archivSel.disabled = !liste.length;
+      archivWeg.disabled = !liste.length || archivSel.value === "";
     };
     archivSel.addEventListener("change", () => {
+      archivWeg.disabled = archivSel.value === "";
       const idx = archivSel.value === "" ? -1 : Number(archivSel.value);
       const e = archivFuer(folgeSel.value)[idx];
       if (!e) return;
@@ -151,6 +153,11 @@ export function mountErzaehlerbank(root: HTMLElement): void {
     archivWeg.addEventListener("click", () => {
       const idx = archivSel.value === "" ? -1 : Number(archivSel.value);
       if (idx < 0) return;
+      const e = archivFuer(folgeSel.value)[idx];
+      if (!e) return;
+      // Gewünscht: Das Löschen löscht den Text UNMITTELBAR — ohne Nachfrage.
+      // Der Knopf ist ohne Auswahl ausgegraut, das gewählte steht sichtbar in
+      // der Liste; der Platz bleibt unberührt, nur das Archiv wird kleiner.
       loescheAusArchiv(folgeSel.value, idx);
       fuelleArchiv();
     });
@@ -206,8 +213,8 @@ export function mountErzaehlerbank(root: HTMLElement): void {
       el("div", { style: "display:flex;gap:8px;align-items:center;margin-bottom:6px" },
         el("strong", {}, String(i + 1)), titelIn, stand),
       textIn,
-      el("div", { class: "btnrow", style: "margin-top:6px" }, folgeSel, einfuegen, kiBtn, bogenBtn, speichern, leeren),
-      el("div", { class: "btnrow", style: "margin-top:6px" }, archivSel, archivWeg),
+      el("div", { class: "btnrow", style: "margin-top:6px" }, folgeSel, einfuegen, kiBtn, bogenBtn, speichern, leeren, archivWeg),
+      el("div", { class: "btnrow", style: "margin-top:6px" }, archivSel),
       bogenBox));
   }
 

@@ -254,6 +254,24 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   wahr("das Archiv bleibt unangetastet (kein Archiv-Zugriff im Handler)", !/leerenBtn[\s\S]{0,600}speichereArchiv|leerenBtn[\s\S]{0,600}dm_erzaehler_archiv/.test(qz));
 }
 
+// ── Löschen aus dem Archiv: sichtbar beschriftet, mit Nachfrage und Namen ───
+{
+  const ql = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
+  wahr("der Löschknopf ist beschriftet", /"Text löschen"/.test(ql));
+  // Nachgemeldet: Das Löschen soll UNMITTELBAR wirken — die Nachfrage ist weg,
+  // dafür ist der Knopf ohne Auswahl ausgegraut.
+  wahr("er löscht unmittelbar ohne Nachfrage", !/archivWeg\.addEventListener\("click", \(\) => \{[\s\S]{0,400}?confirm/.test(ql));
+}
+
+// ── „Text löschen“ neben „Platz leeren“ — löscht die gewählte Geschichte sofort
+{
+  const qt = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
+  wahr("der Knopf heißt „Text löschen“, kein × mehr", /"Text löschen"/.test(qt) && !qt.includes('}, "\u00d7")'));
+  wahr("er steht neben „Platz leeren“", /speichern, leeren, archivWeg\)/.test(qt));
+  wahr("er löscht unmittelbar, ohne Nachfrage", /archivWeg\.addEventListener\("click"/.test(qt) && !/archivWeg\.addEventListener\("click", \(\) => \{\s*\n\s*if \(!confirm/.test(qt));
+  wahr("ohne Auswahl ist er ausgegraut", /archivWeg\.disabled = !liste\.length \|\| archivSel\.value === ""/.test(qt));
+}
+
 console.log(`Prüfstand Erzählerbank — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {
