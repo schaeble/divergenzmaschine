@@ -11927,6 +11927,13 @@ wahr(
   wahr("W\xE4hlen tr\xE4gt die Geburt in den Platz", /geburt: e\.geburt \|\| e\.folge/.test(qg));
   wahr("die KI setzt die Geburt auf ihre Bauform", /geburt: folgeSel\.value \}/.test(qg));
 }
+{
+  const qz = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
+  wahr("es gibt den Knopf neben den Vorlagen", /"Alles zurücksetzen"/.test(qz) && /vorlagenBtn, leerenBtn/.test(qz));
+  wahr("er fragt nach, bevor er leert", /if \(!confirm\("Alle zehn Plätze leeren\?/.test(qz));
+  wahr("er leert alle Pl\xE4tze und setzt die Bauform zur\xFCck", /Array\.from\(\{ length: ERZAEHLER_PLAETZE \}, \(\) => \(\{ titel: "", text: "", folge: "standard" \}\)\)/.test(qz));
+  wahr("das Archiv bleibt unangetastet (kein Archiv-Zugriff im Handler)", !/leerenBtn[\s\S]{0,600}speichereArchiv|leerenBtn[\s\S]{0,600}dm_erzaehler_archiv/.test(qz));
+}
 console.log(`Pr\xFCfstand Erz\xE4hlerbank \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {

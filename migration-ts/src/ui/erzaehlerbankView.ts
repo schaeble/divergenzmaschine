@@ -47,7 +47,17 @@ export function mountErzaehlerbank(root: HTMLElement): void {
     if (frei) { speichereErzaehlerbank(alle); mountErzaehlerbank(root); }
     else { vorlagenBtn.textContent = "Kein Platz frei"; window.setTimeout(() => { vorlagenBtn.textContent = "Vorlagen einsetzen (leere Plätze)"; }, 1600); }
   });
-  kopf.append(el("div", { class: "btnrow", style: "margin-top:8px" }, vorlagenBtn));
+  // Alles zurücksetzen: leert alle zehn Plätze und stellt die Bauformen auf
+  // den Steigenden Bogen zurück — mit Nachfrage, denn das ist ein großer
+  // Schritt. Das ARCHIV bleibt: Die gespeicherten Geschichten sind danach
+  // über den Titel wieder wählbar, nichts geht verloren.
+  const leerenBtn = el("button", { type: "button", class: "danger", title: "Alle zehn Plätze leeren und die Bauformen zurücksetzen. Das Archiv der gespeicherten Geschichten bleibt erhalten." }, "Alles zurücksetzen") as HTMLButtonElement;
+  leerenBtn.addEventListener("click", () => {
+    if (!confirm("Alle zehn Plätze leeren? Das Archiv der gespeicherten Geschichten bleibt erhalten.")) return;
+    speichereErzaehlerbank(Array.from({ length: ERZAEHLER_PLAETZE }, () => ({ titel: "", text: "", folge: "standard" })));
+    mountErzaehlerbank(root);
+  });
+  kopf.append(el("div", { class: "btnrow", style: "margin-top:8px" }, vorlagenBtn, leerenBtn));
 
   const liste = el("div", {});
   for (let i = 0; i < ERZAEHLER_PLAETZE; i++) {
