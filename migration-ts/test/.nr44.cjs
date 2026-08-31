@@ -5766,7 +5766,13 @@ function applyDisruptor(text, level) {
     { kind: "Wiederholung", fn: (t) => {
       const s = splitSentences(t);
       if (s.length < 3) return t;
-      return t + "\n\n" + s[Math.floor(s.length * 0.65)];
+      const FORMEL = /^(dann\b|und dann\b|danach\b|später\b|plötzlich\b|auf einmal\b|es braucht nur\b|erst ein riss\b|kaum ausgesprochen\b|etwas gibt nach\b|ohne vorwarnung\b|dann, unvermittelt)/i;
+      const start = Math.floor(s.length * 0.65);
+      for (let k2 = 0; k2 < s.length; k2++) {
+        const kand = s[(start + k2) % s.length];
+        if (!FORMEL.test(kand.trim())) return t + "\n\n" + kand;
+      }
+      return t;
     } },
     { kind: "Fragmentierung", fn: (t) => {
       const s = splitSentences(t);

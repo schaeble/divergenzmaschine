@@ -19,7 +19,20 @@ export function applyDisruptor(text: string, level: string): DisruptorResult {
     { kind: "Zeitbruch", fn: (t) => t + " Drei Jahre später ist die gleiche Stelle noch da, aber das Geräusch ist älter." },
     { kind: "Erzählerwechsel", fn: (t) => t.replace(/\n\n/g, "\n\n—\n\n") + "\n\nIch übernehme hier. Nur kurz. Nur, um das Offensichtliche zu sagen." },
     { kind: "Metakommentar", fn: (t) => t + "\n\n(Diese Geschichte weiß, dass sie erzählt wird.)" },
-    { kind: "Wiederholung", fn: (t) => { const s = splitSentences(t); if (s.length < 3) return t; return t + "\n\n" + s[Math.floor(s.length * 0.65)]; } },
+    { kind: "Wiederholung", fn: (t) => {
+      const s = splitSentences(t); if (s.length < 3) return t;
+      // Das Echo ist ein Stilmittel — aber nur für schlichte Sätze. Eine
+      // Formel-Zeile („Dann, unvermittelt: …") als Echo liest sich als
+      // Versehen, nicht als Wiederkehr. Gemeldet: „Dann, unvermittelt: Die
+      // Karten der Wahrsagerin …" stand zweimal, das zweite Mal als Echo.
+      const FORMEL = /^(dann\b|und dann\b|danach\b|später\b|plötzlich\b|auf einmal\b|es braucht nur\b|erst ein riss\b|kaum ausgesprochen\b|etwas gibt nach\b|ohne vorwarnung\b|dann, unvermittelt)/i;
+      const start = Math.floor(s.length * 0.65);
+      for (let k = 0; k < s.length; k++) {
+        const kand = s[(start + k) % s.length]!;
+        if (!FORMEL.test(kand.trim())) return t + "\n\n" + kand;
+      }
+      return t;
+    } },
     { kind: "Fragmentierung", fn: (t) => { const s = splitSentences(t); if (s.length < 4) return t; s.splice(Math.floor(s.length / 2), 0, "—"); return s.join(" "); } },
   ];
   const k = pick(kinds);

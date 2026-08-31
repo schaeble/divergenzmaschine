@@ -7,7 +7,7 @@ import { JSDOM } from "jsdom";
 const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/" });
 (globalThis as unknown as Record<string, unknown>).localStorage = dom.window.localStorage;
 import { readFileSync } from "fs";
-import { ladeErzaehlerbank, speichereErzaehlerbank, erzaehlerBogen, bogenFuerErzeugung, setzeQuelle, ladeQuelle, platzBrauchbar, ERZAEHLER_PLAETZE, bauePromptErzaehlung, BAUFORM_ANWEISUNG } from "../src/features/erzaehlerbank";
+import { ladeErzaehlerbank, speichereErzaehlerbank, erzaehlerBogen, bogenFuerErzeugung, setzeQuelle, ladeQuelle, platzBrauchbar, ERZAEHLER_PLAETZE, bauePromptErzaehlung, BAUFORM_ANWEISUNG, archiviere, archivFuer, loescheAusArchiv, ARCHIV_JE_BAUFORM } from "../src/features/erzaehlerbank";
 import { SCHLAGFOLGEN } from "../src/features/erzaehlerbank";
 import { SCHLAG_NAMEN, SCHLAG_STANDARD } from "../src/generation/dramaturgie";
 import { DEFAULT_BANK } from "../src/constants";
@@ -194,6 +194,34 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   wahr("er erzählt in der Bauform des Platzes, Thema aus dem Titel", /kiErzaehlung\(folgeSel\.value, titelIn\.value\.trim\(\) \|\| undefined\)/.test(qv));
   wahr("Erfolg ersetzt den Platz und speichert", /alle\[i\] = \{ \.\.\.neu, folge: folgeSel\.value \};\s*\n\s*speichereErzaehlerbank\(alle\)/.test(qv));
   wahr("Fehler stehen im Knopf, nichts scheitert stumm", /"KI-Fehler — noch einmal\?"/.test(qv));
+}
+
+// ── Archiv: mehrere Geschichten je Bauform, über den Titel wählbar ──────────
+{
+  localStorage.removeItem("dm_erzaehler_archiv_v1");
+  archiviere({ titel: "Die Herde am Abhang", text: "Ein Text, der lang genug ist, um brauchbar zu sein. ".repeat(5), folge: "standard" });
+  archiviere({ titel: "Der Fährmann", text: "Noch ein Text, der lang genug ist, um brauchbar zu sein. ".repeat(5), folge: "standard" });
+  archiviere({ titel: "Das Haus", text: "Ein Kreis-Text, der lang genug ist, um brauchbar zu sein. ".repeat(5), folge: "kreis" });
+  ist("zwei Geschichten unterm Steigenden Bogen", archivFuer("standard").length, 2);
+  ist("neueste zuerst", archivFuer("standard")[0]!.titel, "Der Fährmann");
+  ist("die Bauformen sind getrennt", archivFuer("kreis").length, 1);
+  // Dedupe: gleicher Titel und Text rückt nur nach vorn.
+  archiviere({ titel: "Die Herde am Abhang", text: "Ein Text, der lang genug ist, um brauchbar zu sein. ".repeat(5), folge: "standard" });
+  ist("gleicher Titel und Text: kein Doppel", archivFuer("standard").length, 2);
+  ist("aber wieder vorn", archivFuer("standard")[0]!.titel, "Die Herde am Abhang");
+  // Gleicher Titel, neuer Text: eigener Eintrag.
+  archiviere({ titel: "Die Herde am Abhang", text: "Ein ganz anderer Text, der lang genug ist, um brauchbar zu sein. ".repeat(5), folge: "standard" });
+  ist("gleicher Titel mit neuem Text: eigener Eintrag", archivFuer("standard").length, 3);
+  loescheAusArchiv("standard", 0);
+  ist("löschen trifft den gewählten Eintrag", archivFuer("standard").length, 2);
+  // Deckel.
+  for (let k = 0; k < ARCHIV_JE_BAUFORM + 5; k++) archiviere({ titel: "T" + k, text: "Deckel-Text, der lang genug ist, um brauchbar zu sein. ".repeat(5), folge: "still" });
+  ist("höchstens zwanzig je Bauform", archivFuer("still").length, ARCHIV_JE_BAUFORM);
+  localStorage.removeItem("dm_erzaehler_archiv_v1");
+  const qa = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
+  wahr("die Auswahl gehört zur Bauform des Platzes", /archivFuer\(folgeSel\.value\)/.test(qa) && /folgeSel\.addEventListener\("change", fuelleArchiv\)/.test(qa));
+  wahr("wählen lädt und speichert den Platz", /titelIn\.value = e\.titel; textIn\.value = e\.text;/.test(qa));
+  wahr("Speichern und KI archivieren", (qa.match(/archiviere\(alle\[i\]!\);/g) || []).length === 2);
 }
 
 console.log(`Prüfstand Erzählerbank — ${geprueft} Prüfungen, ${bestanden} bestanden`);

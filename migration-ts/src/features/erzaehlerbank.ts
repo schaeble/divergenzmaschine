@@ -145,3 +145,50 @@ export async function kiErzaehlung(folgeId: string, thema?: string): Promise<Erz
   if (!platzBrauchbar({ titel, text })) throw new Error("Die KI-Antwort trägt keine brauchbare Erzählung (zu kurz oder leer).");
   return { titel: titel || "Ohne Titel", text, folge: folgeId };
 }
+
+// ── Archiv: mehrere Geschichten je Bauform ──────────────────────────────────
+// Gewünscht: Pro Bogen (Bauform) sollen mehrere Geschichten gespeichert und
+// über den Titel wieder ausgesucht werden können. Jedes Speichern und jede
+// gelungene KI-Erzählung legt die Geschichte im Archiv ihrer Bauform ab —
+// dedupliziert über Titel und Text, neueste zuerst, höchstens zwanzig je
+// Bauform (localStorage; das Archiv wandert mit der Projektdatei).
+const ARCHIV_KEY = "dm_erzaehler_archiv_v1";
+export const ARCHIV_JE_BAUFORM = 20;
+export type ErzaehlArchiv = Record<string, Erzaehlung[]>;
+
+export function ladeArchiv(): ErzaehlArchiv {
+  try {
+    const r = JSON.parse(localStorage.getItem(ARCHIV_KEY) || "{}") as unknown;
+    if (!r || typeof r !== "object" || Array.isArray(r)) return {};
+    const out: ErzaehlArchiv = {};
+    for (const [k, v] of Object.entries(r as Record<string, unknown>))
+      if (Array.isArray(v)) out[k] = v.filter((e): e is Erzaehlung => !!e && typeof e === "object" && typeof (e as Erzaehlung).text === "string")
+        .map((e) => ({ titel: String(e.titel || "").slice(0, 60), text: String(e.text), folge: k }));
+    return out;
+  } catch { return {}; }
+}
+export function speichereArchiv(a: ErzaehlArchiv): void {
+  try { localStorage.setItem(ARCHIV_KEY, JSON.stringify(a)); } catch { /* voll */ }
+}
+const archivNorm = (e: Erzaehlung): string => `${e.titel}\u241E${e.text}`.toLowerCase().replace(/\s+/g, " ").trim();
+
+/** Legt eine Geschichte im Archiv ihrer Bauform ab. Gleicher Titel MIT
+ *  gleichem Text rückt nur nach vorn; gleicher Titel mit neuem Text wird ein
+ *  eigener Eintrag (der Titel zeigt dann beide, neueste zuerst). */
+export function archiviere(e: Erzaehlung): void {
+  if (!platzBrauchbar(e)) return;
+  const folge = e.folge || "standard";
+  const a = ladeArchiv();
+  const liste = a[folge] || [];
+  const key = archivNorm(e);
+  a[folge] = [{ titel: e.titel || "Ohne Titel", text: e.text, folge }, ...liste.filter((x) => archivNorm(x) !== key)].slice(0, ARCHIV_JE_BAUFORM);
+  speichereArchiv(a);
+}
+export function archivFuer(folge: string): Erzaehlung[] { return ladeArchiv()[folge] || []; }
+export function loescheAusArchiv(folge: string, index: number): void {
+  const a = ladeArchiv();
+  const liste = a[folge] || [];
+  if (index < 0 || index >= liste.length) return;
+  a[folge] = liste.filter((_, i) => i !== index);
+  speichereArchiv(a);
+}

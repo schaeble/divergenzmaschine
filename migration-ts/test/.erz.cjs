@@ -5031,6 +5031,46 @@ function bauePromptErzaehlung(folgeId, thema) {
     'Antworte NUR mit JSON, ohne Erkl\xE4rung: {"titel": "...", "text": "..."} \u2014 der Titel h\xF6chstens vier W\xF6rter.'
   ].join("\n");
 }
+var ARCHIV_KEY = "dm_erzaehler_archiv_v1";
+var ARCHIV_JE_BAUFORM = 20;
+function ladeArchiv() {
+  try {
+    const r = JSON.parse(localStorage.getItem(ARCHIV_KEY) || "{}");
+    if (!r || typeof r !== "object" || Array.isArray(r)) return {};
+    const out = {};
+    for (const [k, v] of Object.entries(r))
+      if (Array.isArray(v)) out[k] = v.filter((e) => !!e && typeof e === "object" && typeof e.text === "string").map((e) => ({ titel: String(e.titel || "").slice(0, 60), text: String(e.text), folge: k }));
+    return out;
+  } catch {
+    return {};
+  }
+}
+function speichereArchiv(a) {
+  try {
+    localStorage.setItem(ARCHIV_KEY, JSON.stringify(a));
+  } catch {
+  }
+}
+var archivNorm = (e) => `${e.titel}\u241E${e.text}`.toLowerCase().replace(/\s+/g, " ").trim();
+function archiviere(e) {
+  if (!platzBrauchbar(e)) return;
+  const folge = e.folge || "standard";
+  const a = ladeArchiv();
+  const liste = a[folge] || [];
+  const key = archivNorm(e);
+  a[folge] = [{ titel: e.titel || "Ohne Titel", text: e.text, folge }, ...liste.filter((x) => archivNorm(x) !== key)].slice(0, ARCHIV_JE_BAUFORM);
+  speichereArchiv(a);
+}
+function archivFuer(folge) {
+  return ladeArchiv()[folge] || [];
+}
+function loescheAusArchiv(folge, index) {
+  const a = ladeArchiv();
+  const liste = a[folge] || [];
+  if (index < 0 || index >= liste.length) return;
+  a[folge] = liste.filter((_, i) => i !== index);
+  speichereArchiv(a);
+}
 
 // test/erzaehler.ts
 init_constants();
@@ -6258,7 +6298,13 @@ function applyDisruptor(text, level) {
     { kind: "Wiederholung", fn: (t) => {
       const s = splitSentences(t);
       if (s.length < 3) return t;
-      return t + "\n\n" + s[Math.floor(s.length * 0.65)];
+      const FORMEL = /^(dann\b|und dann\b|danach\b|später\b|plötzlich\b|auf einmal\b|es braucht nur\b|erst ein riss\b|kaum ausgesprochen\b|etwas gibt nach\b|ohne vorwarnung\b|dann, unvermittelt)/i;
+      const start = Math.floor(s.length * 0.65);
+      for (let k2 = 0; k2 < s.length; k2++) {
+        const kand = s[(start + k2) % s.length];
+        if (!FORMEL.test(kand.trim())) return t + "\n\n" + kand;
+      }
+      return t;
     } },
     { kind: "Fragmentierung", fn: (t) => {
       const s = splitSentences(t);
@@ -11833,6 +11879,29 @@ wahr(
   wahr("er erz\xE4hlt in der Bauform des Platzes, Thema aus dem Titel", /kiErzaehlung\(folgeSel\.value, titelIn\.value\.trim\(\) \|\| undefined\)/.test(qv));
   wahr("Erfolg ersetzt den Platz und speichert", /alle\[i\] = \{ \.\.\.neu, folge: folgeSel\.value \};\s*\n\s*speichereErzaehlerbank\(alle\)/.test(qv));
   wahr("Fehler stehen im Knopf, nichts scheitert stumm", /"KI-Fehler — noch einmal\?"/.test(qv));
+}
+{
+  localStorage.removeItem("dm_erzaehler_archiv_v1");
+  archiviere({ titel: "Die Herde am Abhang", text: "Ein Text, der lang genug ist, um brauchbar zu sein. ".repeat(5), folge: "standard" });
+  archiviere({ titel: "Der F\xE4hrmann", text: "Noch ein Text, der lang genug ist, um brauchbar zu sein. ".repeat(5), folge: "standard" });
+  archiviere({ titel: "Das Haus", text: "Ein Kreis-Text, der lang genug ist, um brauchbar zu sein. ".repeat(5), folge: "kreis" });
+  ist("zwei Geschichten unterm Steigenden Bogen", archivFuer("standard").length, 2);
+  ist("neueste zuerst", archivFuer("standard")[0].titel, "Der F\xE4hrmann");
+  ist("die Bauformen sind getrennt", archivFuer("kreis").length, 1);
+  archiviere({ titel: "Die Herde am Abhang", text: "Ein Text, der lang genug ist, um brauchbar zu sein. ".repeat(5), folge: "standard" });
+  ist("gleicher Titel und Text: kein Doppel", archivFuer("standard").length, 2);
+  ist("aber wieder vorn", archivFuer("standard")[0].titel, "Die Herde am Abhang");
+  archiviere({ titel: "Die Herde am Abhang", text: "Ein ganz anderer Text, der lang genug ist, um brauchbar zu sein. ".repeat(5), folge: "standard" });
+  ist("gleicher Titel mit neuem Text: eigener Eintrag", archivFuer("standard").length, 3);
+  loescheAusArchiv("standard", 0);
+  ist("l\xF6schen trifft den gew\xE4hlten Eintrag", archivFuer("standard").length, 2);
+  for (let k = 0; k < ARCHIV_JE_BAUFORM + 5; k++) archiviere({ titel: "T" + k, text: "Deckel-Text, der lang genug ist, um brauchbar zu sein. ".repeat(5), folge: "still" });
+  ist("h\xF6chstens zwanzig je Bauform", archivFuer("still").length, ARCHIV_JE_BAUFORM);
+  localStorage.removeItem("dm_erzaehler_archiv_v1");
+  const qa = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
+  wahr("die Auswahl geh\xF6rt zur Bauform des Platzes", /archivFuer\(folgeSel\.value\)/.test(qa) && /folgeSel\.addEventListener\("change", fuelleArchiv\)/.test(qa));
+  wahr("w\xE4hlen l\xE4dt und speichert den Platz", /titelIn\.value = e\.titel; textIn\.value = e\.text;/.test(qa));
+  wahr("Speichern und KI archivieren", (qa.match(/archiviere\(alle\[i\]!\);/g) || []).length === 2);
 }
 console.log(`Pr\xFCfstand Erz\xE4hlerbank \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

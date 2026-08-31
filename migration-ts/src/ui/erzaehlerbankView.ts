@@ -11,7 +11,7 @@
 // Schlüssel dm_erzaehlerbank_v1 automatisch in die Projektdatei.
 import { el } from "./dom";
 import { icon } from "./icons";
-import { ladeErzaehlerbank, speichereErzaehlerbank, platzBrauchbar, ERZAEHLER_PLAETZE, SCHLAGFOLGEN, kiErzaehlung } from "../features/erzaehlerbank";
+import { ladeErzaehlerbank, speichereErzaehlerbank, platzBrauchbar, ERZAEHLER_PLAETZE, SCHLAGFOLGEN, kiErzaehlung, archiviere, archivFuer, loescheAusArchiv } from "../features/erzaehlerbank";
 import { ERZAEHLUNGEN_VORLAGEN } from "../features/erzaehlungen.data";
 import { preset2AusText } from "../features/textpreset";
 
@@ -105,6 +105,40 @@ export function mountErzaehlerbank(root: HTMLElement): void {
       }).catch(() => { textIn.focus(); });
     });
 
+    // ── Archiv je Bauform: mehrere Geschichten, über den Titel wählbar ────
+    // Gewünscht: Pro Bogen mehrere Geschichten speichern und über den Titel
+    // aussuchen. Die Liste gehört zur BAUFORM des Platzes; ein Wechsel der
+    // Bauform zeigt deren Geschichten. Wählen lädt Titel und Text in den
+    // Platz und speichert ihn; das kleine × löscht den gewählten Eintrag aus
+    // dem Archiv (der Platz bleibt).
+    const archivSel = el("select", { title: "Gespeicherte Geschichten dieser Bauform — wählen lädt sie in den Platz." }) as HTMLSelectElement;
+    const archivWeg = el("button", { type: "button", class: "danger", title: "Den gewählten Archiv-Eintrag löschen (der Platz bleibt unberührt)." }, "×") as HTMLButtonElement;
+    const fuelleArchiv = (): void => {
+      const liste = archivFuer(folgeSel.value);
+      archivSel.innerHTML = "";
+      archivSel.append(el("option", { value: "" }, liste.length ? `— ${liste.length} gespeichert: wählen —` : "— nichts gespeichert —"));
+      liste.forEach((e, idx) => archivSel.append(el("option", { value: String(idx) }, e.titel || "Ohne Titel")));
+      archivSel.disabled = archivWeg.disabled = !liste.length;
+    };
+    archivSel.addEventListener("change", () => {
+      const idx = archivSel.value === "" ? -1 : Number(archivSel.value);
+      const e = archivFuer(folgeSel.value)[idx];
+      if (!e) return;
+      titelIn.value = e.titel; textIn.value = e.text;
+      textIn.dispatchEvent(new Event("input"));
+      const alle = ladeErzaehlerbank();
+      alle[i] = { titel: e.titel, text: e.text, folge: folgeSel.value };
+      speichereErzaehlerbank(alle);
+    });
+    archivWeg.addEventListener("click", () => {
+      const idx = archivSel.value === "" ? -1 : Number(archivSel.value);
+      if (idx < 0) return;
+      loescheAusArchiv(folgeSel.value, idx);
+      fuelleArchiv();
+    });
+    folgeSel.addEventListener("change", fuelleArchiv);
+    fuelleArchiv();
+
     // KI: diesen Platz neu erzählen lassen — in seiner Bauform, das Thema aus
     // dem Titel (wenn einer dasteht). Ersetzt Titel und Text und speichert,
     // die Bauform bleibt. Fehler stehen im Knopf, nichts scheitert stumm.
@@ -115,6 +149,7 @@ export function mountErzaehlerbank(root: HTMLElement): void {
         const alle = ladeErzaehlerbank();
         alle[i] = { ...neu, folge: folgeSel.value };
         speichereErzaehlerbank(alle);
+        archiviere(alle[i]!);      // auch KI-Erzählungen sind über den Titel wieder wählbar
         mountErzaehlerbank(root);
       }).catch((err: unknown) => {
         kiBtn.disabled = false;
@@ -128,6 +163,8 @@ export function mountErzaehlerbank(root: HTMLElement): void {
       const alle = ladeErzaehlerbank();
       alle[i] = { titel: titelIn.value.trim().slice(0, 60), text: textIn.value.trim(), folge: folgeSel.value };
       speichereErzaehlerbank(alle);
+      archiviere(alle[i]!);      // ins Archiv der Bauform — über den Titel wieder wählbar
+      fuelleArchiv();
       speichern.textContent = "Gespeichert ✓";
       window.setTimeout(() => { speichern.textContent = "Speichern"; }, 1200);
     });
@@ -149,6 +186,7 @@ export function mountErzaehlerbank(root: HTMLElement): void {
         el("strong", {}, String(i + 1)), titelIn, stand),
       textIn,
       el("div", { class: "btnrow", style: "margin-top:6px" }, folgeSel, einfuegen, kiBtn, bogenBtn, speichern, leeren),
+      el("div", { class: "btnrow", style: "margin-top:6px" }, archivSel, archivWeg),
       bogenBox));
   }
 
