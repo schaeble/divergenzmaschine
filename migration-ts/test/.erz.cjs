@@ -11931,7 +11931,8 @@ wahr(
   const qz = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
   wahr("es gibt den Knopf neben den Vorlagen", /"Alles zurücksetzen"/.test(qz) && /vorlagenBtn, leerenBtn/.test(qz));
   wahr("er fragt nach, bevor er leert", /if \(!confirm\("Alle zehn Plätze leeren\?/.test(qz));
-  wahr("er leert alle Pl\xE4tze und setzt die Bauform zur\xFCck", /Array\.from\(\{ length: ERZAEHLER_PLAETZE \}, \(\) => \(\{ titel: "", text: "", folge: "standard" \}\)\)/.test(qz));
+  wahr("er leert alle Pl\xE4tze und stellt die zehn Bauformen wieder her", /folge: ERZAEHLUNGEN_VORLAGEN\[i\]\?\.folge \|\| "standard"/.test(qz));
+  wahr("die Vorlagen tragen zehn verschiedene Bauformen", new Set(ERZAEHLUNGEN_VORLAGEN.map((e) => e.folge)).size === 10);
   wahr("das Archiv bleibt unangetastet (kein Archiv-Zugriff im Handler)", !/leerenBtn[\s\S]{0,600}speichereArchiv|leerenBtn[\s\S]{0,600}dm_erzaehler_archiv/.test(qz));
 }
 console.log(`Pr\xFCfstand Erz\xE4hlerbank \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);

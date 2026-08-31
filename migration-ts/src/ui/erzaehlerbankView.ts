@@ -51,10 +51,13 @@ export function mountErzaehlerbank(root: HTMLElement): void {
   // den Steigenden Bogen zurück — mit Nachfrage, denn das ist ein großer
   // Schritt. Das ARCHIV bleibt: Die gespeicherten Geschichten sind danach
   // über den Titel wieder wählbar, nichts geht verloren.
-  const leerenBtn = el("button", { type: "button", class: "danger", title: "Alle zehn Plätze leeren und die Bauformen zurücksetzen. Das Archiv der gespeicherten Geschichten bleibt erhalten." }, "Alles zurücksetzen") as HTMLButtonElement;
+  const leerenBtn = el("button", { type: "button", class: "danger", title: "Alle zehn Plätze leeren und je Platz eine der zehn Bauformen einstellen (Steigender Bogen bis Offenes Ende). Das Archiv der gespeicherten Geschichten bleibt erhalten." }, "Alles zurücksetzen") as HTMLButtonElement;
   leerenBtn.addEventListener("click", () => {
-    if (!confirm("Alle zehn Plätze leeren? Das Archiv der gespeicherten Geschichten bleibt erhalten.")) return;
-    speichereErzaehlerbank(Array.from({ length: ERZAEHLER_PLAETZE }, () => ({ titel: "", text: "", folge: "standard" })));
+    if (!confirm("Alle zehn Plätze leeren? Die zehn Bauformen werden wiederhergestellt (je Platz eine); das Archiv der gespeicherten Geschichten bleibt erhalten.")) return;
+    // Nachgemeldet: Nicht alles auf den Steigenden Bogen — die ZEHN Bauformen
+    // sollen wiederhergestellt werden, je Platz eine, in der Ordnung der
+    // Vorlagen. So steht nach dem Zurücksetzen wieder das volle Dramaturgie-Set.
+    speichereErzaehlerbank(Array.from({ length: ERZAEHLER_PLAETZE }, (_, i) => ({ titel: "", text: "", folge: ERZAEHLUNGEN_VORLAGEN[i]?.folge || "standard" })));
     mountErzaehlerbank(root);
   });
   kopf.append(el("div", { class: "btnrow", style: "margin-top:8px" }, vorlagenBtn, leerenBtn));

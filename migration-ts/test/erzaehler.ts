@@ -248,7 +248,9 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   const qz = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
   wahr("es gibt den Knopf neben den Vorlagen", /"Alles zurücksetzen"/.test(qz) && /vorlagenBtn, leerenBtn/.test(qz));
   wahr("er fragt nach, bevor er leert", /if \(!confirm\("Alle zehn Plätze leeren\?/.test(qz));
-  wahr("er leert alle Plätze und setzt die Bauform zurück", /Array\.from\(\{ length: ERZAEHLER_PLAETZE \}, \(\) => \(\{ titel: "", text: "", folge: "standard" \}\)\)/.test(qz));
+  // Nachgemeldet: Die zehn Bauformen werden wiederhergestellt, je Platz eine.
+  wahr("er leert alle Plätze und stellt die zehn Bauformen wieder her", /folge: ERZAEHLUNGEN_VORLAGEN\[i\]\?\.folge \|\| "standard"/.test(qz));
+  wahr("die Vorlagen tragen zehn verschiedene Bauformen", new Set(ERZAEHLUNGEN_VORLAGEN.map((e) => e.folge)).size === 10);
   wahr("das Archiv bleibt unangetastet (kein Archiv-Zugriff im Handler)", !/leerenBtn[\s\S]{0,600}speichereArchiv|leerenBtn[\s\S]{0,600}dm_erzaehler_archiv/.test(qz));
 }
 
