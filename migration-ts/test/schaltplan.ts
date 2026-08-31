@@ -46,7 +46,8 @@ const STAND = (regler: Record<string, string> = {}): AnlageStand => ({
 const UMGEBUNG = (u: Partial<Umgebung> = {}): Umgebung => ({
   korpusZeichen: 0, sammlerFunde: 0, bildFunde: 0, themenFunde: 0, weltFiguren: 0, weltOrte: 0,
   livePools: 0, schatzkammer: 0, knobs: { ...KNOB_VORGABE }, gesperrt: new Set<string>(),
-  dramaVorhanden: false, presetLabel: "Kafka", ideenProfil: "", omniProfile: 8, omniProfil: "", ...u,
+  dramaVorhanden: false, presetLabel: "Kafka", ideenProfil: "", omniProfile: 8, omniProfil: "",
+  bogenQuelle: "preset", erzaehlerPlatz: "", erzaehlerBrauchbar: 0, erzaehlerArchiv: 0, ...u,
 });
 const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((k) => k.id === id);
 
@@ -988,6 +989,36 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   let bewegt = 0;
   for (let i = 0; i < 40; i++) { const w = wuerfleAlles({ markovMode: "mix" }, zu); if (w.regler["markovMode"] !== "mix") bewegt++; }
   ist("mit Schloss bleibt Markov stehen", bewegt, 0);
+}
+
+// ── Erzählerbank im Plan (seit 4.333.0) ─────────────────────────────────────
+// Gewünscht: Diagnose/Schaltplan mit den neuen Bausteinen aktualisieren.
+{
+  const kn = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((k) => k.id === id)!;
+  // 1) Vorrats-Knoten: abgeklemmt bei Quelle „aus Preset", auch wenn gefüllt.
+  const a1 = baueAnlage(STAND({}), UMGEBUNG({ erzaehlerBrauchbar: 7, erzaehlerArchiv: 12 }));
+  ist("abgeklemmt bei „aus Preset“", kn(a1, "erzaehler").zustand, "aus");
+  wahr("der Wert zählt Plätze und Archiv", /7 von 10 Plätzen brauchbar · Archiv: 12/.test(kn(a1, "erzaehler").wert));
+  // 2) Fester Platz: Vorrat an, Dramaturgie nennt den Platz.
+  const a2 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "2", erzaehlerPlatz: "Platz 3 · Der Fährmann · Rückwärts", erzaehlerBrauchbar: 7 }));
+  ist("fester Platz: Vorrat an", kn(a2, "erzaehler").zustand, "an");
+  ist("Dramaturgie an, obwohl das Preset keinen Bogen trägt", kn(a2, "drama").zustand, "an");
+  wahr("und sie nennt den Platz", /Erzählerbank, Platz 3 · Der Fährmann · Rückwärts/.test(kn(a2, "drama").wert));
+  // 3) Fester Platz, aber leer: Dramaturgie leer mit Wegweiser.
+  const a3 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "4", erzaehlerPlatz: "", erzaehlerBrauchbar: 3 }));
+  ist("leerer Platz: Dramaturgie leer", kn(a3, "drama").zustand, "leer");
+  wahr("der Hinweis zeigt den Weg", /leeren Platz der Erzählerbank/.test(kn(a3, "drama").hinweis));
+  // 4) Würfeln: an mit Anzahl, leer ohne brauchbare Plätze.
+  const a4 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "wuerfeln", erzaehlerBrauchbar: 5 }));
+  wahr("Würfeln nennt die Anzahl", /würfelt je Erzeugung aus 5 brauchbaren Plätzen/.test(kn(a4, "drama").wert));
+  const a5 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "wuerfeln", erzaehlerBrauchbar: 0 }));
+  ist("Würfeln ohne Plätze: leer", kn(a5, "drama").zustand, "leer");
+  // 5) Leitung Erzählerbank → Dramaturgie ist gezeichnet.
+  wahr("die Leitung ist gezeichnet", a4.kanten.some((k) => k.von === "erzaehler" && k.nach === "drama"));
+  // 6) Preset-Weg unverändert: ohne Bankwahl entscheidet der Preset-Bogen.
+  const a6 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ dramaVorhanden: true }));
+  ist("Preset-Weg wie bisher", kn(a6, "drama").zustand, "an");
+  wahr("und sagt es", /Bogen aus dem Preset/.test(kn(a6, "drama").wert));
 }
 
 console.log(`Prüfstand Schaltplan — ${geprueft} Prüfungen, ${bestanden} bestanden`);

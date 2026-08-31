@@ -17,6 +17,7 @@
 // Reine Funktionen mit einer Umgebung als Eingabe: So lässt sich der Plan im
 // Prüfstand mit erfundenen Beständen durchspielen, ohne einen Browser.
 import { KNOB_VORGABE, type Knobs } from "./knobs";
+import { ladeQuelle, ladeErzaehlerbank, platzBrauchbar, ladeArchiv, SCHLAGFOLGEN } from "./erzaehlerbank";
 import { TONE_OPTS, FORM_OPTS, STRUCTURE_OPTS, MODE_OPTS, PERSP_OPTS, RHYTHM_OPTS,
   VARIANZ_OPTS, DISRUPTOR_OPTS, ARCH_OPTS, MARKOV_OPTS, type Wahlliste } from "../generation/optionen";
 
@@ -126,6 +127,18 @@ export interface Umgebung {
    *  Text längst einem folgte. */
   dramaVorhanden: boolean;
   presetLabel: string;
+  /** Bogenquelle im Studio: "preset" (wie immer), eine Platznummer ("0".."9",
+   *  fest gewählt) oder "wuerfeln" (je Erzeugung). Kam mit der Erzählerbank
+   *  (4.333.0) — der Plan kannte sie nicht, und „kein Bogen" war eine
+   *  Falschaussage, sobald die Erzählerbank lieferte. */
+  bogenQuelle: string;
+  /** Beschriftung des gewählten Platzes („Platz 3 · Der Fährmann · Rückwärts"),
+   *  leer bei "preset"/"wuerfeln" oder leerem Platz. */
+  erzaehlerPlatz: string;
+  /** Wie viele der zehn Plätze brauchbar sind (≥ 40 Wörter). */
+  erzaehlerBrauchbar: number;
+  /** Geschichten im Archiv, über alle Bauformen. */
+  erzaehlerArchiv: number;
 }
 
 const bez = (liste: Wahlliste, wert: string): string =>
@@ -162,6 +175,15 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
     u.sammlerFunde ? "" : "im Reiter Sammler einen Tag holen");
   knoten("bilder", 0, "Bildvorrat", `${u.bildFunde} Funde`, u.bildFunde ? "an" : "aus");
   knoten("themen", 0, "Themenpool", `${u.themenFunde} Funde`, u.themenFunde ? "an" : "aus");
+  // Erzählerbank (seit 4.333.0): der Vorrat an Bögen. „an" nur, wenn sie auch
+  // GEZOGEN wird (Regler „Bogen" auf Platz oder Würfeln) — brauchbare Plätze
+  // bei Quelle „aus Preset" sind ein gefüllter, aber abgeklemmter Vorrat.
+  const bankGewaehlt = /^[0-9]$/.test(u.bogenQuelle) || u.bogenQuelle === "wuerfeln";
+  knoten("erzaehler", 0, "Erzählerbank",
+    `${u.erzaehlerBrauchbar} von 10 Plätzen brauchbar · Archiv: ${u.erzaehlerArchiv}`,
+    !bankGewaehlt ? "aus" : u.erzaehlerBrauchbar ? "an" : "leer",
+    !bankGewaehlt ? "abgeklemmt — der Regler „Bogen“ im Werkzeugkasten steht auf „aus Preset“"
+      : u.erzaehlerBrauchbar ? "" : "gewählt, aber kein Platz trägt 40 Wörter — Vorlagen einsetzen, Archiv wählen oder die KI erzählen lassen");
   knoten("welt", 0, "Welt", `${u.weltFiguren} Figuren · ${u.weltOrte} Orte`,
     u.weltFiguren || u.weltOrte ? "an" : "aus");
   knoten("live", 0, "Live-Pools", `${u.livePools} Phrasen`, u.livePools ? "an" : "aus");
@@ -241,13 +263,26 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   // Prosa. Der Bauweg fällt dann wortlos auf den gewöhnlichen zurück.
   const dramaAn = struktur === "dramaturgie";
   const nurProsa = (r["form"] || "prose") === "prose";
-  const dramaZustand: Zustand = !dramaAn ? "aus" : !nurProsa ? "leer" : u.dramaVorhanden ? "an" : "leer";
+  // Seit 4.333.0 gibt es DREI Bogenquellen: das Preset (wie immer), ein fester
+  // Platz der Erzählerbank, oder Würfeln je Erzeugung. Der Plan rechnet sie
+  // ein — sonst stünde „kein Bogen", während der Text längst einem folgt.
+  const platzFest = /^[0-9]$/.test(u.bogenQuelle);
+  const wuerfelt = u.bogenQuelle === "wuerfeln";
+  const bankLiefert = platzFest ? !!u.erzaehlerPlatz : wuerfelt ? u.erzaehlerBrauchbar > 0 : false;
+  const bogenDa = (platzFest || wuerfelt) ? bankLiefert : u.dramaVorhanden;
+  const quelleWort = platzFest ? (bankLiefert ? `Erzählerbank, ${u.erzaehlerPlatz}` : "Erzählerbank — der gewählte Platz ist leer")
+    : wuerfelt ? (bankLiefert ? `würfelt je Erzeugung aus ${u.erzaehlerBrauchbar} brauchbaren Plätzen` : "würfeln — kein Platz brauchbar")
+    : u.dramaVorhanden ? "Bogen aus dem Preset" : "kein Bogen";
+  const dramaZustand: Zustand = !dramaAn ? "aus" : !nurProsa ? "leer" : bogenDa ? "an" : "leer";
   knoten("drama", 2, "Dramaturgie",
-    !dramaAn ? "aus — über Struktur" : !nurProsa ? "nur bei Prosa" : u.dramaVorhanden ? "Bogen vorhanden" : "kein Bogen",
+    !dramaAn ? "aus — über Struktur" : !nurProsa ? "nur bei Prosa" : quelleWort,
     dramaZustand,
     !dramaAn ? "Kein eigener Schalter: Struktur auf „Dramaturgie (Preset 2.0)“ stellen — im Werkzeugkasten oder als Chip unter dem Text. Wirkt nur bei Form „Prosa“."
       : !nurProsa ? "Struktur steht auf Dramaturgie, die Form ist aber nicht Prosa — der Bauweg fällt still auf den gewöhnlichen zurück"
-      : u.dramaVorhanden ? "" : "Struktur steht auf Dramaturgie, das aktive Preset trägt aber keinen Erzählbogen");
+      : bogenDa ? ""
+      : platzFest ? "Der Regler „Bogen“ zeigt auf einen leeren Platz der Erzählerbank — Text einfüllen, per Archiv wählen oder die KI erzählen lassen"
+      : wuerfelt ? "Der Regler „Bogen“ steht auf Würfeln, aber kein Platz der Erzählerbank ist brauchbar (mindestens 40 Wörter)"
+      : "Struktur steht auf Dramaturgie, das aktive Preset trägt aber keinen Erzählbogen — oder unter „Bogen“ im Werkzeugkasten einen Platz der Erzählerbank wählen");
   knoten("modus", 2, "Modus", bez(MODE_OPTS, r["mode"] || "auto"), "an", "", "f-mode");
   const markov = r["markovMode"] || "off";
   knoten("markov", 1, "Markov", bez(MARKOV_OPTS, markov),
@@ -343,7 +378,7 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   for (const [a, b] of [
     ["korpus", "markov"], ["korpus", "k-korpus"],
     ["sammler", "w4"], ["bilder", "w4"], ["themen", "w4"], ["welt", "w4"], ["ideen", "w4"], ["omni", "w4"],
-    ["preset", "drama"],
+    ["preset", "drama"], ["erzaehler", "drama"],
   ] as [string, string][]) kante(a, b);
 
   // Der Wurf wird am speisenden Knoten vermerkt — sonst steht im Plan das
@@ -414,6 +449,18 @@ export function sammleUmgebung(preset: string): Umgebung {
     knobs: zahl(() => loadKnobs(), { ...KNOB_VORGABE }),
     gesperrt: new Set<string>(zahl(() => JSON.parse(localStorage.getItem(LOCK_KEY) || "[]") as string[], [])),
     dramaVorhanden: zahl(() => hasDramaData(), false),
+    bogenQuelle: zahl(() => ladeQuelle(), "preset"),
+    erzaehlerPlatz: zahl(() => {
+      const q = ladeQuelle();
+      if (!/^[0-9]$/.test(q)) return "";
+      const i = parseInt(q, 10);
+      const e = ladeErzaehlerbank()[i];
+      if (!e || !platzBrauchbar(e)) return "";
+      const bau = SCHLAGFOLGEN[e.folge || "standard"]?.name || e.folge || "";
+      return `Platz ${i + 1} · ${e.titel || "Ohne Titel"} · ${bau}`;
+    }, ""),
+    erzaehlerBrauchbar: zahl(() => ladeErzaehlerbank().filter((e) => platzBrauchbar(e)).length, 0),
+    erzaehlerArchiv: zahl(() => Object.values(ladeArchiv()).reduce((n, l) => n + l.length, 0), 0),
     ideenProfil: zahl(() => { const p = loadIdeaProfile(); return p ? (p.profil.name || p.profil.genre) : ""; }, ""),
     omniProfile: zahl(() => alleOmniProfile().length, 0),
     omniProfil: zahl(() => { const st = loadOmniStand(); return st ? (st.profil.name || "") : ""; }, ""),
