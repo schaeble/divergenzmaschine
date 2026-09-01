@@ -5052,22 +5052,25 @@ function speichereArchiv(a) {
   }
 }
 var archivNorm = (e) => `${e.titel}\u241E${e.text}`.toLowerCase().replace(/\s+/g, " ").trim();
+var titelNorm = (t) => (t || "").toLowerCase().replace(/\s+/g, " ").trim();
 function archiviere(e) {
   if (!platzBrauchbar(e)) return;
   const folge = e.folge || "standard";
   const a = ladeArchiv();
   const liste = a[folge] || [];
-  const key = archivNorm(e);
-  let geburt = e.geburt;
+  const tKey = titelNorm(e.titel);
+  const gleich = (x) => tKey ? titelNorm(x.titel) === tKey : archivNorm(x) === archivNorm(e);
+  const vorhanden = liste.find(gleich);
+  let geburt = e.geburt || vorhanden?.geburt;
   if (!geburt) for (const [, l] of Object.entries(a)) {
-    const alt = l.find((x) => archivNorm(x) === key);
+    const alt = l.find(gleich);
     if (alt) {
       geburt = alt.geburt || alt.folge;
       break;
     }
   }
   geburt = geburt || folge;
-  a[folge] = [{ titel: e.titel || "Ohne Titel", text: e.text, folge, geburt }, ...liste.filter((x) => archivNorm(x) !== key)].slice(0, ARCHIV_JE_BAUFORM);
+  a[folge] = [{ titel: e.titel || "Ohne Titel", text: e.text, folge, geburt }, ...liste.filter((x) => !gleich(x))].slice(0, ARCHIV_JE_BAUFORM);
   speichereArchiv(a);
 }
 function archivFuer(folge) {
@@ -11901,9 +11904,15 @@ wahr(
   ist("gleicher Titel und Text: kein Doppel", archivFuer("standard").length, 2);
   ist("aber wieder vorn", archivFuer("standard")[0].titel, "Die Herde am Abhang");
   archiviere({ titel: "Die Herde am Abhang", text: "Ein ganz anderer Text, der lang genug ist, um brauchbar zu sein. ".repeat(5), folge: "standard" });
-  ist("gleicher Titel mit neuem Text: eigener Eintrag", archivFuer("standard").length, 3);
+  ist("gleicher Titel mit neuem Text: keine neue Version", archivFuer("standard").length, 2);
+  wahr("aber der Text ist der neue", archivFuer("standard")[0].text.startsWith("Ein ganz anderer Text"));
+  archiviere({ titel: "Die Herde am Abhang, zweiter Versuch", text: "Ein ganz anderer Text, der lang genug ist, um brauchbar zu sein. ".repeat(5), folge: "standard" });
+  ist("neuer Titel: neue Version", archivFuer("standard").length, 3);
+  archiviere({ titel: "", text: "Namenlos eins, lang genug, um brauchbar zu sein, wirklich. ".repeat(5), folge: "standard" });
+  archiviere({ titel: "", text: "Namenlos zwei, lang genug, um brauchbar zu sein, wirklich. ".repeat(5), folge: "standard" });
+  ist("zwei namenlose Texte bleiben zwei Eintr\xE4ge", archivFuer("standard").length, 5);
   loescheAusArchiv("standard", 0);
-  ist("l\xF6schen trifft den gew\xE4hlten Eintrag", archivFuer("standard").length, 2);
+  ist("l\xF6schen trifft den gew\xE4hlten Eintrag", archivFuer("standard").length, 4);
   for (let k = 0; k < ARCHIV_JE_BAUFORM + 5; k++) archiviere({ titel: "T" + k, text: "Deckel-Text, der lang genug ist, um brauchbar zu sein. ".repeat(5), folge: "still" });
   ist("h\xF6chstens zwanzig je Bauform", archivFuer("still").length, ARCHIV_JE_BAUFORM);
   localStorage.removeItem("dm_erzaehler_archiv_v1");
@@ -11920,7 +11929,10 @@ wahr(
   archiviere({ titel: "Die Herde", text: txt, folge: "kreis" });
   ist("unter fremder Bauform bleibt die Geburt erhalten", archivFuer("kreis")[0].geburt, "standard");
   archiviere({ titel: "Die Herde", text: txt + "Ganz neu erz\xE4hlt. ", folge: "kreis" });
-  ist("neuer Wortlaut = neue Geschichte, geboren hier", archivFuer("kreis")[0].geburt, "kreis");
+  ist("gleicher Titel, neuer Text: Fortschritt, die Geburt bleibt", archivFuer("kreis")[0].geburt, "standard");
+  ist("und es bleibt EIN Eintrag unter Kreis", archivFuer("kreis").length, 1);
+  archiviere({ titel: "Die Herde, neu", text: txt + "Ganz neu erz\xE4hlt. ", folge: "kreis" });
+  ist("neuer Titel = neue Geschichte, geboren hier", archivFuer("kreis")[0].geburt, "kreis");
   localStorage.removeItem("dm_erzaehler_archiv_v1");
   const qg = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
   wahr("die Auswahl kennzeichnet Geliehenes mit \u21C4 und Namen", /e\.geburt && e\.geburt !== folgeSel\.value/.test(qg) && /` · ⇄ \$\{name\}`/.test(qg));

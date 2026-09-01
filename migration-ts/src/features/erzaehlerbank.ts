@@ -180,23 +180,29 @@ export function speichereArchiv(a: ErzaehlArchiv): void {
 }
 const archivNorm = (e: Erzaehlung): string => `${e.titel}\u241E${e.text}`.toLowerCase().replace(/\s+/g, " ").trim();
 
-/** Legt eine Geschichte im Archiv ihrer Bauform ab. Gleicher Titel MIT
- *  gleichem Text rückt nur nach vorn; gleicher Titel mit neuem Text wird ein
- *  eigener Eintrag (der Titel zeigt dann beide, neueste zuerst). */
+/** Legt eine Geschichte im Archiv ihrer Bauform ab — gewünscht (4.335.7):
+ *  Der TITEL ist die Identität. Gibt es unter dieser Bauform schon einen
+ *  Eintrag mit demselben Titel, wird nur der Fortschritt des Textes
+ *  gespeichert (der Eintrag rückt nach vorn, seine Geburt bleibt) — keine
+ *  neue Version. Erst ein NEUER Titel legt einen neuen Eintrag an.
+ *  Ohne Titel gilt der Wortlaut als Identität, damit namenlose Texte sich
+ *  nicht gegenseitig überschreiben. */
+const titelNorm = (t: string): string => (t || "").toLowerCase().replace(/\s+/g, " ").trim();
 export function archiviere(e: Erzaehlung): void {
   if (!platzBrauchbar(e)) return;
   const folge = e.folge || "standard";
   const a = ladeArchiv();
   const liste = a[folge] || [];
-  const key = archivNorm(e);
-  // Die Geburts-Bauform wird beim ERSTEN Archivieren festgeschrieben und
-  // wandert mit: Liegt dieselbe Geschichte schon in irgendeinem Archiv,
-  // erbt der neue Eintrag deren Geburt — sonst ist die jetzige Bauform die
-  // Geburt. So bleibt „geliehen" erkennbar, egal über welchen Weg gespeichert.
-  let geburt = e.geburt;
-  if (!geburt) for (const [, l] of Object.entries(a)) { const alt = l.find((x) => archivNorm(x) === key); if (alt) { geburt = alt.geburt || alt.folge; break; } }
+  const tKey = titelNorm(e.titel);
+  const gleich = (x: Erzaehlung): boolean => tKey ? titelNorm(x.titel) === tKey : archivNorm(x) === archivNorm(e);
+  const vorhanden = liste.find(gleich);
+  // Geburts-Bauform: vom bestehenden Eintrag; sonst von einem gleichnamigen
+  // (bzw. wortgleichen) Eintrag in irgendeinem Archiv — Geliehenes bleibt
+  // erkennbar; sonst ist die jetzige Bauform die Geburt.
+  let geburt = e.geburt || vorhanden?.geburt;
+  if (!geburt) for (const [, l] of Object.entries(a)) { const alt = l.find(gleich); if (alt) { geburt = alt.geburt || alt.folge; break; } }
   geburt = geburt || folge;
-  a[folge] = [{ titel: e.titel || "Ohne Titel", text: e.text, folge, geburt }, ...liste.filter((x) => archivNorm(x) !== key)].slice(0, ARCHIV_JE_BAUFORM);
+  a[folge] = [{ titel: e.titel || "Ohne Titel", text: e.text, folge, geburt }, ...liste.filter((x) => !gleich(x))].slice(0, ARCHIV_JE_BAUFORM);
   speichereArchiv(a);
 }
 export function archivFuer(folge: string): Erzaehlung[] { return ladeArchiv()[folge] || []; }
