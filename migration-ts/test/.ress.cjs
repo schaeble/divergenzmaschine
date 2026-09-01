@@ -5816,13 +5816,26 @@ function satzPlausibel(satz) {
     const kopf = kern.split(/\s+/)[0] || "";
     const ADVERB_KOPF = /^(irgendwo|irgendwann|irgendwie|dort|hier|heute|morgen|gestern|vielleicht|manchmal|so|bald|überall|nirgends|nirgendwo|draußen|drinnen|oben|unten|jetzt|damals|dennoch|trotzdem|deshalb|darum|davor|danach|zuerst|zuletzt|womöglich|angeblich|vermutlich|wahrscheinlich)$/i;
     const nomenKopf = /^[A-ZÄÖÜ]/.test(kopf) && !ADVERB_KOPF.test(kopf) && !FUNKTION.has(kopf.toLowerCase());
-    if (ws.length > 5 && !NP_KOPF.test(kern) && !nomenKopf) return false;
+    const prepKopf = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zu|zum|zur|mit|durch|gegen|um|seit|während|trotz|wegen)$/i.test(kopf);
+    if (ws.length > 5 && !NP_KOPF.test(kern) && !nomenKopf && !prepKopf) return false;
   }
   for (const teil of bare.split(/,\s*/).slice(1)) {
     const tw = woerter2(teil);
     if (!tw.length || !/^(was|wer|der|die|das|dem|den|wo|wie)$/i.test(tw[0])) continue;
     const undIdx = tw.findIndex((w, i) => i > 0 && /^(und|oder)$/i.test(w));
     if (undIdx > 1 && verbKandidat(tw[undIdx + 1] || "", false) && !tw.slice(1, undIdx).some((w) => verbKandidat(w, false))) return false;
+  }
+  const PREP_KOPF = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zum|zur|mit|durch|gegen|seit|trotz|wegen)$/i;
+  for (const teil of bare.split(/,\s*/)) {
+    const tw = woerter2(teil);
+    if (tw.length < 4 || !PREP_KOPF.test(tw[0])) continue;
+    if (/^(dem|denen|deren|dessen|welche[rmn]?)$/i.test(tw[1] || "")) continue;
+    if (tw.slice(1).some((w) => /^zu$/i.test(w))) continue;
+    const vi = tw.findIndex((w, i) => i > 1 && verbKandidat(w, false));
+    if (vi < 2) continue;
+    if (tw.slice(1, vi).some((w) => /^(es|er|sie|wir|ich|du|man|jemand|niemand|etwas|nichts|alles)$/i.test(w))) continue;
+    const rest = tw.slice(vi + 1);
+    if (/^(wie|als)$/i.test(rest[0] || "") && rest.length <= 2) return false;
   }
   return true;
 }

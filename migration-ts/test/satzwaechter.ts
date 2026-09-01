@@ -44,6 +44,17 @@ for (const [name, satz] of [
   ["Formel-Satz", "Dann, unvermittelt: Die Glocke schlägt."],
 ] as [string, string][]) wahr(`bleibt: ${name}`, satzPlausibel(satz), satz);
 
+// ── 2b · Regel 4: subjektlose Inversion mit Vergleich (zweites Blatt) ───────
+wahr("subjektlose Inversion fällt", !satzPlausibel("Im Sommer ohne Nacht folgte der Schritt, über den Wipfeln liegt wie Wasser."));
+for (const [name, satz] of [
+  ["Subjekt nach dem Vergleich", "Im Hof liegt wie immer Schnee."],
+  ["kein Vergleich, was-Subjekt", "Im Teich schwimmt, was nicht schwimmen kann."],
+  ["Partizip-Apposition", "ein Pakt, mit Blut besiegelt"],
+  ["Relativsatz mit als", "ein Haus, in dem ein Zimmer mehr ist als gestern"],
+  ["zu-Infinitiv", "Jemand rannte, ohne zu wissen, wohin."],
+  ["PP-Fragment", "Am Vorabend einer Abreise in einer Wüste mit Türen."],
+] as [string, string][]) wahr(`bleibt: ${name}`, satzPlausibel(satz), satz);
+
 // ── 3 · Gegenprobe über ALLES eingebaute Material ───────────────────────────
 {
   let n = 0; const durch: string[] = [];
