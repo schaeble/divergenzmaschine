@@ -9,6 +9,7 @@ import { STORAGE_CORPUS, CORPUS_MAX } from "./constants";
 import { clean } from "./text-utils";
 import { safeSet } from "./features/storage-status";
 import { CLAUSE_VERBS } from "./generation/beats";
+import { stueckPlausibel } from "./generation/satzwaechter";
 import { feedLivePools, LIVE_W } from "./features/livepools";
 
 export function loadPersistentCorpus(): string {
@@ -179,6 +180,12 @@ export function isSaneMarkov(s: string): boolean {
       if (lw[j] === lw[i]) return false;
     }
   }
+  // Satz-Wächter (Empfehlung Punkt 1): Die statistischen Prüfungen oben lassen
+  // verschmolzene Ketten-Reste durch, weil sie aus echten Wörtern in echter
+  // Häufigkeit bestehen. Die Grammatik-Gestalt prüft satzwaechter.ts — mit der
+  // Morphologie, konservativ, jede Regel mit ihrem gemeldeten Fall.
+  if (!stueckPlausibel(s)) return false;
+
   return true;
 }
 

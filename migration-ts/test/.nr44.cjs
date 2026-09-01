@@ -6431,8 +6431,8 @@ function istAbgeschnitten(bare) {
   if (ABGESCHNITTEN.test(bare)) return true;
   const ns = bare.match(NEBENSATZ_ENDE);
   if (ns) {
-    const woerter2 = ns[2].split(/\s+/);
-    if (woerter2.length <= 6 && !woerter2.some(verbMoeglich)) return true;
+    const woerter3 = ns[2].split(/\s+/);
+    if (woerter3.length <= 6 && !woerter3.some(verbMoeglich)) return true;
   }
   return NUR_OHNE_VERB.test(bare) && !hatFinitesVerb(bare);
 }
@@ -7150,6 +7150,271 @@ function verwandleMotive(text, paare) {
 // src/constants.ts
 var STORAGE_CORPUS = "divergenz_persistent_corpus_v1";
 
+// src/generation/satzwaechter.ts
+var FUNKTION2 = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "und",
+  "oder",
+  "aber",
+  "doch",
+  "denn",
+  "sondern",
+  "als",
+  "wie",
+  "dass",
+  "ob",
+  "weil",
+  "wenn",
+  "ohne",
+  "mit",
+  "von",
+  "aus",
+  "an",
+  "auf",
+  "in",
+  "im",
+  "am",
+  "f\xFCr",
+  "zu",
+  "zum",
+  "zur",
+  "bei",
+  "beim",
+  "nach",
+  "vor",
+  "\xFCber",
+  "unter",
+  "neben",
+  "zwischen",
+  "hinter",
+  "durch",
+  "gegen",
+  "um",
+  "seit",
+  "es",
+  "sich",
+  "man",
+  "sie",
+  "er",
+  "wir",
+  "ich",
+  "du",
+  "ihr",
+  "was",
+  "wer",
+  "wo",
+  "so",
+  "nur",
+  "auch",
+  "noch",
+  "schon",
+  "sehr",
+  "nicht",
+  "kein",
+  "keine",
+  "jeder",
+  "jede",
+  "jedes",
+  "alle"
+]);
+var HAENGENDES_ENDE = /* @__PURE__ */ new Set([
+  "der",
+  "den",
+  "dem",
+  "des",
+  "und",
+  "oder",
+  "aber",
+  "sondern",
+  "als",
+  "dass",
+  "weil",
+  "wenn",
+  "f\xFCr",
+  "zwischen",
+  "seit"
+  // NICHT in der Liste: alles, was im Deutschen legitim am Satzende steht —
+  // trennbare Verbpartikel („geht auf", „holt ihn ein", „gibt nach"),
+  // Infinitiv-zu („um wahr zu sein"), Vergleiche („schwer wie Blei"),
+  // Pronomen und Zahlwörter („der Grat trägt nur einen", „statt einem",
+  // „will es sehr"). Die Gegenprobe über 6930 eingebaute Sätze hat die
+  // Liste auf diesen Kern gestutzt.
+]);
+var ADJEKTIV = /* @__PURE__ */ new Set([
+  "fest",
+  "echt",
+  "leicht",
+  "schlecht",
+  "recht",
+  "dicht",
+  "glatt",
+  "satt",
+  "bunt",
+  "kalt",
+  "alt",
+  "laut",
+  "tot",
+  "rot",
+  "gut",
+  "weit",
+  "hart",
+  "zart",
+  "nett",
+  "matt",
+  "sp\xE4t",
+  "bereit",
+  "breit",
+  "nackt",
+  "exakt",
+  "direkt",
+  "perfekt",
+  "korrekt",
+  "konkret",
+  "komplett",
+  "ernst",
+  "feist",
+  "meist",
+  "erst",
+  "zun\xE4chst",
+  "h\xF6chst",
+  "\xE4u\xDFerst",
+  "einst",
+  "sonst",
+  "fast",
+  "blo\xDF"
+]);
+var HILFSVERB = /* @__PURE__ */ new Set([
+  "bin",
+  "bist",
+  "sind",
+  "seid",
+  "war",
+  "warst",
+  "waren",
+  "wart",
+  "sei",
+  "w\xE4re",
+  "w\xE4ren",
+  "hab",
+  "habe",
+  "hast",
+  "haben",
+  "habt",
+  "hatte",
+  "hatten",
+  "h\xE4tte",
+  "h\xE4tten",
+  "werde",
+  "wirst",
+  "wird",
+  "werden",
+  "werdet",
+  "wurde",
+  "wurden",
+  "w\xFCrde",
+  "w\xFCrden",
+  "kann",
+  "kannst",
+  "k\xF6nnen",
+  "k\xF6nnt",
+  "konnte",
+  "konnten",
+  "k\xF6nnte",
+  "k\xF6nnten",
+  "muss",
+  "musst",
+  "m\xFCssen",
+  "m\xFCsst",
+  "musste",
+  "mussten",
+  "m\xFCsste",
+  "darf",
+  "darfst",
+  "d\xFCrfen",
+  "d\xFCrft",
+  "durfte",
+  "durften",
+  "d\xFCrfte",
+  "soll",
+  "sollst",
+  "sollen",
+  "sollt",
+  "sollte",
+  "sollten",
+  "mag",
+  "magst",
+  "m\xF6gen",
+  "m\xF6gt",
+  "mochte",
+  "m\xF6chte",
+  "m\xF6chten",
+  "will",
+  "willst",
+  "wollen",
+  "wollt",
+  "wollte",
+  "wollten",
+  "l\xE4sst",
+  "lie\xDF",
+  "lie\xDFen",
+  "gibt",
+  "gab",
+  "gaben",
+  "tut",
+  "tat",
+  "schw\xF6r",
+  "schw\xF6re"
+]);
+var verbKandidat = (roh, istErstes = false) => {
+  if (!istErstes && /^[A-ZÄÖÜ]/.test(roh)) return false;
+  const w = roh.toLowerCase().replace(/[^a-zäöüß]/g, "");
+  if (!w || FUNKTION2.has(w) || KEIN_VERB.has(w) || ADJEKTIV.has(w)) return false;
+  if (HILFSVERB.has(w) || istVerbform(w)) return true;
+  return /(t|st|e|en|eln|ern|elt|ert)$/.test(w) && !/(heit|keit|ung|schaft|tät|ment|iert)$/.test(w) && !/(em|er|es)$/.test(w) && w.length >= 3;
+};
+var woerter2 = (s) => s.split(/\s+/).map((w) => w.replace(/[„“"»«().!?…;:]+/g, "")).filter(Boolean);
+var NP_KOPF = /^(der|die|das|ein|eine|einen|kein|keine|zwei|drei|viele|manche|jede[rs]?|irgendein|lauter)\b/i;
+function satzPlausibel(satz) {
+  const bare = satz.trim().replace(/[.!?…]+$/, "").trim();
+  if (!bare) return false;
+  const ws = woerter2(bare);
+  if (!ws.length) return false;
+  const letztes = ws[ws.length - 1].toLowerCase();
+  if (HAENGENDES_ENDE.has(letztes)) return false;
+  const hatVerb = ws.some((w, i) => verbKandidat(w, i === 0));
+  if (!hatVerb) {
+    if (ws.length > 12) return false;
+    const kern = bare.replace(/^(und|aber|doch|dann|denn|oder|nur|auch)\s+/i, "");
+    const kopf = kern.split(/\s+/)[0] || "";
+    const ADVERB_KOPF = /^(irgendwo|irgendwann|irgendwie|dort|hier|heute|morgen|gestern|vielleicht|manchmal|so|bald|überall|nirgends|nirgendwo|draußen|drinnen|oben|unten|jetzt|damals|dennoch|trotzdem|deshalb|darum|davor|danach|zuerst|zuletzt|womöglich|angeblich|vermutlich|wahrscheinlich)$/i;
+    const nomenKopf = /^[A-ZÄÖÜ]/.test(kopf) && !ADVERB_KOPF.test(kopf) && !FUNKTION2.has(kopf.toLowerCase());
+    if (ws.length > 5 && !NP_KOPF.test(kern) && !nomenKopf) return false;
+  }
+  for (const teil of bare.split(/,\s*/).slice(1)) {
+    const tw = woerter2(teil);
+    if (!tw.length || !/^(was|wer|der|die|das|dem|den|wo|wie)$/i.test(tw[0])) continue;
+    const undIdx = tw.findIndex((w, i) => i > 0 && /^(und|oder)$/i.test(w));
+    if (undIdx > 1 && verbKandidat(tw[undIdx + 1] || "", false) && !tw.slice(1, undIdx).some((w) => verbKandidat(w, false))) return false;
+  }
+  return true;
+}
+function stueckPlausibel(text) {
+  const saetze = (text || "").split(/(?<=[.!?…])\s+/).map((s) => s.trim()).filter(Boolean);
+  if (!saetze.length) return false;
+  return saetze.every(satzPlausibel);
+}
+
 // src/corpus.ts
 function loadPersistentCorpus() {
   try {
@@ -7244,6 +7509,7 @@ function isSaneMarkov(s) {
       if (lw[j] === lw[i]) return false;
     }
   }
+  if (!stueckPlausibel(s)) return false;
   return true;
 }
 var MK_TAIL_STOP = /* @__PURE__ */ new Set([
@@ -16932,15 +17198,15 @@ var PLURAL_ENDUNG = /(ern|en)$/;
 var EN_SINGULAR = /(regen|wagen|boden|garten|kuchen|schatten|rücken|bogen|laden|ofen|hafen|haken|balken|besen|faden|knochen|kragen|magen|nacken|namen|rasen|riemen|samen|schaden|segen|braten|graben|husten|karren|kolben|zeichen|wesen|leben|essen|wappen|becken|kissen|eisen|zeugen|glauben|willen|frieden|gedanken|kummer)$/i;
 var KEIN_SACHNOMEN = /^(Jahr|Jahre|Monat|Monate|Tag|Tage|Woche|Wochen|Stunde|Stunden|Mal|Uhr|Zeit|Welt|Leben|Anfang|Nacht|Morgen|Abend|Ende|Reihe|Farbe|Sprache|Straße|Grenze|Klasse|Frage|Stelle|Weise|Seite|Liebe|Sorge|Ruhe|Stille|Ferne|Nähe|Fenster|Wasser|Feuer|Zimmer|Wetter|Messer|Muster|Ufer|Alter|Fieber|Wunder|Zeichen|Wesen)$/;
 function sachNomen(was) {
-  const woerter2 = (was || "").split(/\s+/);
-  for (let i = 0; i < woerter2.length; i++) {
-    const w = (woerter2[i] || "").replace(/[^A-Za-zÄÖÜäöüß-]/g, "");
+  const woerter3 = (was || "").split(/\s+/);
+  for (let i = 0; i < woerter3.length; i++) {
+    const w = (woerter3[i] || "").replace(/[^A-Za-zÄÖÜäöüß-]/g, "");
     if (!/^[A-ZÄÖÜ][a-zäöüß]{3,}$/.test(w)) continue;
     if (KEIN_SACHNOMEN.test(w)) continue;
     if (!PLURAL_ENDUNG.test(w)) continue;
     if (EN_SINGULAR.test(w)) continue;
-    const zwei = (woerter2[i - 2] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
-    const davor = (woerter2[i - 1] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
+    const zwei = (woerter3[i - 2] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
+    const davor = (woerter3[i - 1] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
     if (/^(der|des|dem|den|das|ein|eine|einen|einem|einer|eines|jeder|jede|jedes|dieser|diese|dieses|diesem|diesen)$/.test(davor)) continue;
     const PRAEP = /^(mit|bei|seit|von|zu|aus|nach|vor|in|an|auf|über|unter|neben|zwischen|hinter|durch|gegen|ohne|um|für)$/;
     if (PRAEP.test(davor) || PRAEP.test(zwei)) continue;
@@ -16971,9 +17237,9 @@ function genusVon(phrase) {
 var RECHTSFORM = /^(Ltd|GmbH|AG|KG|SE|Inc|LLC|mbH|OHG|gGmbH|e\.?V\.?|Co|KGaA)$/i;
 function kurzform(haupt, genus) {
   const art = genus === "fem" ? "die" : genus === "neut" ? "das" : "der";
-  let woerter2 = haupt.replace(/^(der|die|das|ein|eine|einen)\s+/i, "").split(/\s+/);
-  while (woerter2.length > 1 && RECHTSFORM.test(woerter2[woerter2.length - 1].replace(/[^A-Za-z.]/g, ""))) woerter2.pop();
-  const letzt = woerter2[woerter2.length - 1] || haupt;
+  let woerter3 = haupt.replace(/^(der|die|das|ein|eine|einen)\s+/i, "").split(/\s+/);
+  while (woerter3.length > 1 && RECHTSFORM.test(woerter3[woerter3.length - 1].replace(/[^A-Za-z.]/g, ""))) woerter3.pop();
+  const letzt = woerter3[woerter3.length - 1] || haupt;
   const teil = letzt.includes("-") ? letzt.split("-").pop() : letzt;
   return `${art} ${teil}`;
 }
