@@ -16,7 +16,8 @@ import { feedLivePools, LIVE_W } from "../features/livepools";
 import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
 import { titelFuer } from "../generation/titel";
-import { ladeErzaehlerbank, ladeQuelle, setzeQuelle, platzBrauchbar, bogenFuerErzeugung } from "../features/erzaehlerbank";
+import { ladeErzaehlerbank, ladeQuelle, setzeQuelle, platzBrauchbar, bogenFuerErzeugung, SCHLAGFOLGEN } from "../features/erzaehlerbank";
+import { phasenAusSchlagfolge } from "../atoms/assemble";
 import { setBogenOverride } from "../generation/dramaturgie";
 import { ziehVorrat, vorratStand, type VorratFund } from "../features/wikisammler";
 import { ziehBildvorrat, ladeBildvorrat, type BildFund } from "../features/bildsammler";
@@ -824,14 +825,36 @@ export function mountStudio(root: HTMLElement): void {
   const planChk = el("input", { type: "checkbox", id: "f-plan" }) as HTMLInputElement;
   const planBox = el("div", { class: "bauplan", style: "display:none" });
   const PHASE_LABEL: Record<string, string> = { exposition: "Eröffnung", verdichtung: "Verdichtung", umschlag: "Umschlag", schluss: "Schluss" };
-  const KAT_LABEL: Record<string, string> = { motifs: "Motiv", hooks: "Haken", props: "Requisite", turns: "Wendung", obstacles: "Hindernis", stakes: "Einsatz", endings: "Ende" };
+  const KAT_LABEL: Record<string, string> = { motifs: "Motiv", hooks: "Haken", props: "Requisite", turns: "Wendung", obstacles: "Hindernis", stakes: "Einsatz", endings: "Ende",
+    // Bogen-Material (Erzählerbank / Preset 2.0) — gewünscht: ein Bauplan auch
+    // für „Rekombination mit Bogen"; dort muss man sehen, WAS aus dem Bogen kam.
+    einstieg: "Bogen · Einstieg", mitte: "Bogen · Mitte", hoehepunkt: "Bogen · Höhepunkt", schluss: "Bogen · Schluss",
+    ausloeser: "Bogen · Auslöser", veraenderungen: "Bogen · Veränderung", konflikte: "Bogen · Konflikt", zeitanomalien: "Bogen · Zeit", regeln: "Bogen · Regel" };
   const renderPlan = (): void => {
-    const on = planChk.checked && structure.value === "rekombination";
+    const mitBogen = structure.value === "bogen";
+    const on = planChk.checked && (structure.value === "rekombination" || mitBogen);
     planBox.style.display = on ? "" : "none";
     if (!on) return;
     const tr = getTraceFor(out.textContent || "");
     planBox.innerHTML = "";
-    if (!tr.length) { planBox.append(el("span", { class: "muted mini" }, "Noch kein Rekombinations-Text erzeugt.")); return; }
+    if (!tr.length) { planBox.append(el("span", { class: "muted mini" }, mitBogen ? "Noch kein Text mit Bogen erzeugt." : "Noch kein Rekombinations-Text erzeugt.")); return; }
+    // Bei „Rekombination mit Bogen": Kopfzeile mit Bauform, Phasenfolge (aus
+    // der Schlagfolge gespreizt), Stellung der Stellschraube und dem Anteil
+    // der Bausteine, die aus dem Bogen kamen — daran sieht man, ob der Regler
+    // getan hat, was er soll.
+    if (mitBogen) {
+      const d = loadDramaData();
+      const folge = phasenAusSchlagfolge(d?.folge);
+      const q = ladeQuelle();
+      const platz = /^[0-9]$/.test(q) ? ladeErzaehlerbank()[parseInt(q, 10)] : null;
+      const bauform = platz ? (SCHLAGFOLGEN[platz.folge || "standard"]?.name || platz.folge || "") : (q === "wuerfeln" ? "gewürfelt" : d?.folge ? "aus Preset" : "ohne Bogen — lineare Folge");
+      const ausBogen = tr.filter((x) => x.quelle === "dramaturgie").length;
+      planBox.append(el("div", { class: "muted mini bp-kopf" },
+        `Bogen: ${platz ? `${platz.titel || "Ohne Titel"} · ` : ""}${bauform} · Erzählbogen ${loadKnobs().bogen} % · ${ausBogen} von ${tr.length} Bausteinen aus dem Bogen`));
+      const kurz: Record<string, string> = { exposition: "E", verdichtung: "V", umschlag: "U", schluss: "S" };
+      planBox.append(el("div", { class: "muted mini bp-kopf", title: "Phasenfolge, aus der Schlagfolge auf zehn Schritte gespreizt: E Eröffnung · V Verdichtung · U Umschlag · S Schluss" },
+        "Phasenfolge: " + folge.map((ph) => kurz[ph] || ph[0]!.toUpperCase()).join(" ")));
+    }
     // Kennzahlen: Fügeteil-Anteil (Deckel 25 %) und verschlucktes Material
     const anteil = Math.round(fuegeteilAnteil() * 100);
     // Sätze im Text, die zu keinem Baustein gehören (Ton-Einschübe, Nachbearbeitung)

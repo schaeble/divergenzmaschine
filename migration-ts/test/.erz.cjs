@@ -12320,6 +12320,15 @@ wahr(
   const qb = (0, import_fs.readFileSync)("src/generation/buildStory.ts", "utf8");
   wahr("Auto w\xFCrfelt sie nicht (sie braucht einen Bogen)", /x !== "bogen"\)/.test(qb));
 }
+{
+  const qp = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
+  wahr("der Bauplan schaltet sich auch bei \u201Ebogen\u201C ein", /const on = planChk\.checked && \(structure\.value === "rekombination" \|\| mitBogen\)/.test(qp));
+  wahr("Kopfzeile nennt Bogen, Stellschraube und Bogen-Anteil", /Bausteinen aus dem Bogen/.test(qp) && /Erzählbogen \$\{loadKnobs\(\)\.bogen\} %/.test(qp));
+  wahr("und die Phasenfolge aus der Schlagfolge", /"Phasenfolge: " \+ folge\.map/.test(qp));
+  wahr("Bogen-Bausteine sind gekennzeichnet", /einstieg: "Bogen · Einstieg"/.test(qp) && /hoehepunkt: "Bogen · Höhepunkt"/.test(qp));
+  const qh = (0, import_fs.readFileSync)("src/ui/helpView.ts", "utf8");
+  wahr("die Hilfe sagt es", /Bauplan \(Rekombination und Rekombination mit Bogen\)/.test(qh));
+}
 console.log(`Pr\xFCfstand Erz\xE4hlerbank \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {
