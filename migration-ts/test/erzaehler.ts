@@ -79,7 +79,7 @@ const st = readFileSync("src/ui/studio.ts", "utf8");
 // ROLL_SELECTS), die Wahl ist ohnehin fest — ein Schloss schützte nichts.
 wahr("das Studio hat den Bogen-Regler neben der Struktur", /lockField\("Struktur", structure\),[\s\S]{0,400}?el\("span", \{\}, "Bogen"\)\), bogenSel\)/.test(st));
 wahr("der Bogen ist nicht würfelbar", !/ROLL_SELECTS = \[[^\]]*bogenSel/.test(st));
-wahr("die Wahl wird beim Wechsel gesichert", /bogenSel\.addEventListener\("change", \(\) => setzeQuelle\(bogenSel\.value\)\)/.test(st));
+wahr("die Wahl wird beim Wechsel gesichert", /bogenSel\.addEventListener\("change", \(\) => \{ setzeQuelle\(bogenSel\.value\); bauformSync\(\); \}\)/.test(st));
 wahr("vor jeder Erzeugung wird die Weiche gestellt", /setBogenOverride\(bogenFuerErzeugung\(\)\);\s*\n\s*const model = /.test(st));
 const ap = readFileSync("src/ui/app.ts", "utf8");
 wahr("der Reiter steht neben der Wortbank", /\["Wortbank", mountWordbank\],\s*\n\s*\["Erzählerbank", mountErzaehlerbank\],/.test(ap));
@@ -343,6 +343,17 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   const qs2 = readFileSync("src/ui/studio.ts", "utf8");
   wahr("der Schnappschuss trägt sie beim Erzeugen ein", /const b = bogenBeschriftung\(\);/.test(qs2) && /out\.phasenfolge = phasenAusSchlagfolge/.test(qs2));
   speichereErzaehlerbank(Array.from({ length: 10 }, () => ({ titel: "", text: "", folge: "standard" })));
+}
+
+// ── Die Blasen sind schaltbar ───────────────────────────────────────────────
+{
+  const qs3 = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("Bogen und Bauform gehen als Auswahlfelder in die Schnellwahl", /\.\.\.\(snap\?\.bogen \? \{ Bogen: bogenSel, Bauform: bauformSel \} : \{\}\)/.test(qs3));
+  wahr("die Bauform-Auswahl schreibt in den Platz", /alle\[i\] = \{ \.\.\.alle\[i\]!, folge: bauformSel\.value \};\s*\n\s*speichereErzaehlerbank\(alle\)/.test(qs3));
+  wahr("bei „aus Preset“/„würfeln“ ist die Bauform nicht schaltbar", /bauformSel\.disabled = !e;/.test(qs3));
+  wahr("kein Schloss an den Bogen-Blasen", /sel === bogenSel \|\| sel === bauformSel \? null : lockBtn\(sel\)/.test(qs3));
+  const qv2 = readFileSync("src/ui/structureView.ts", "utf8");
+  wahr("der gezogene Platz bleibt als eigene Info-Blase", /\["Gezogen", snap\.bogen\.replace/.test(qv2));
 }
 
 console.log(`Prüfstand Erzählerbank — ${geprueft} Prüfungen, ${bestanden} bestanden`);

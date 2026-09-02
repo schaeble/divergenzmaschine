@@ -34,8 +34,13 @@ export function renderTextstruktur(text: string, snap: Schnappschuss | null, sch
       ["Markov", snap.markov], ["Varianz", snap.varianz], ["Spannung", snap.spannung],
       ["Länge", String(snap.laenge)], ["Bestenauslese", snap.bestenauslese ? "an" : "aus"],
       // Infoblasen der Erzählerbank — nur wenn ein Bogen im Spiel war.
+      // Gewünscht: schaltbar. „Bogen" und „Bauform" kommen als Auswahlfelder aus
+      // dem Studio (Schnellwahl) und zeigen den JETZIGEN Stand; was der Text
+      // bekommen hat, steht als Info daneben: „Gezogen" beim Würfeln, sonst die
+      // Phasenfolge.
       ...(snap.bogen ? [["Bogen", snap.bogen] as [string, string]] : []),
       ...(snap.bauform ? [["Bauform", snap.bauform] as [string, string]] : []),
+      ...(snap.bogen && /^gewürfelt: /.test(snap.bogen) ? [["Gezogen", snap.bogen.replace(/^gewürfelt: /, "")] as [string, string]] : []),
       ...(snap.phasenfolge ? [["Phasenfolge", snap.phasenfolge] as [string, string]] : [])];
     // Stellschrauben, die kein Feld im Schnappschuss haben, aber ein Auswahlfeld:
     // Wert direkt daraus lesen, damit der Chip nicht doppelt gepflegt werden muss.
@@ -74,8 +79,9 @@ export function renderTextstruktur(text: string, snap: Schnappschuss | null, sch
       const sel = schnell?.[k];
       if (!sel) {
         const TITEL: Record<string, string> = {
-          Bogen: "Welcher Bogen bei dieser Erzeugung geladen war — beim Würfeln der konkret gezogene Platz.",
+          Bogen: "Welcher Bogen bei dieser Erzeugung geladen war.",
           Bauform: "Die Schlagfolge des geladenen Bogens.",
+          Gezogen: "Der beim Würfeln konkret gezogene Platz dieser Erzeugung.",
           Phasenfolge: "Aus der Schlagfolge auf zehn Schritte gespreizt: E Eröffnung · V Verdichtung · U Umschlag · S Schluss.",
         };
         host.append(el("span", { class: "src-chip", title: TITEL[k] || "" }, el("b", {}, k), " " + (v || "—")));

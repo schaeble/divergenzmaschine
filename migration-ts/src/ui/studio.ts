@@ -16,7 +16,7 @@ import { feedLivePools, LIVE_W } from "../features/livepools";
 import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
 import { titelFuer } from "../generation/titel";
-import { ladeErzaehlerbank, ladeQuelle, setzeQuelle, platzBrauchbar, bogenFuerErzeugung, SCHLAGFOLGEN, bogenBeschriftung } from "../features/erzaehlerbank";
+import { ladeErzaehlerbank, speichereErzaehlerbank, ladeQuelle, setzeQuelle, platzBrauchbar, bogenFuerErzeugung, SCHLAGFOLGEN, bogenBeschriftung } from "../features/erzaehlerbank";
 import { phasenAusSchlagfolge } from "../atoms/assemble";
 import { setBogenOverride } from "../generation/dramaturgie";
 import { ziehVorrat, vorratStand, type VorratFund } from "../features/wikisammler";
@@ -608,7 +608,30 @@ export function mountStudio(root: HTMLElement): void {
     bogenSel.value = Array.from(bogenSel.options).some((o) => o.value === wahl) ? wahl : "preset";
   };
   bogenFuellen();
-  bogenSel.addEventListener("change", () => setzeQuelle(bogenSel.value));
+  bogenSel.addEventListener("change", () => { setzeQuelle(bogenSel.value); bauformSync(); });
+  // Bauform des geladenen Platzes — als Auswahlfeld, damit die Struktur-Ansicht
+  // sie SCHALTEN kann (gewünscht: Blasen schaltbar). Nicht im Werkzeugkasten
+  // sichtbar; dort wird die Bauform am Platz gepflegt. Eine Änderung hier
+  // schreibt die Bauform in den Platz der Erzählerbank.
+  const bauformSel = select("f-bauform", Object.entries(SCHLAGFOLGEN).map(([k, v]) => [k, v.name] as [string, string]), "standard");
+  const bauformSync = (): void => {
+    const q = ladeQuelle();
+    const i = /^[0-9]$/.test(q) ? parseInt(q, 10) : -1;
+    const e = i >= 0 ? ladeErzaehlerbank()[i] : null;
+    bauformSel.disabled = !e;
+    bauformSel.title = e ? `Bauform von Platz ${i + 1} ändern — schreibt in die Erzählerbank` : "Bauform gehört zum gewählten Platz — bei „aus Preset“ oder „würfeln“ nicht schaltbar";
+    if (e) bauformSel.value = e.folge || "standard";
+  };
+  bauformSel.addEventListener("change", () => {
+    const q = ladeQuelle();
+    if (!/^[0-9]$/.test(q)) return;
+    const i = parseInt(q, 10);
+    const alle = ladeErzaehlerbank();
+    if (!alle[i]) return;
+    alle[i] = { ...alle[i]!, folge: bauformSel.value };
+    speichereErzaehlerbank(alle);
+  });
+  bauformSync();
   // Beim Rückwechsel in den Reiter können sich die Plätze geändert haben.
   document.addEventListener("visibilitychange", bogenFuellen);
   const mode = select("f-mode", MODE_OPTS, "auto");
@@ -904,10 +927,15 @@ export function mountStudio(root: HTMLElement): void {
     struktBox.style.display = "";
     struktBox.innerHTML = "";
     quelleHint.style.display = "none";
+    bauformSync();                     // die Bauform des Platzes kann im Reiter geändert worden sein
     const snap = loadSchnappschuss();
     struktBox.append(renderTextstruktur(out.textContent || "", snap, {
       Preset: preset, Ton: tone, Form: form, Struktur: structure, Perspektive: persp,
       Rhythmus: rhythm, Markov: markov, Varianz: varianz, Spannung: tension,
+      // Gewünscht: die Bogen-Blasen schaltbar — Bogen (Regler aus dem
+      // Werkzeugkasten) und Bauform (schreibt in den Platz). Nur, wenn ein
+      // Bogen im Spiel war; sonst blieben leere Felder in der Reihe.
+      ...(snap?.bogen ? { Bogen: bogenSel, Bauform: bauformSel } : {}),
       // Stellschrauben in der Schnellwahl: die vier, deren Wirkung man beim Lesen
       // sofort merkt, plus die Korpus-Menge. Fuegeteil-Deckel, 4W-Deckel und
       // Nachlege-Abstand bleiben im Werkzeugkasten - sie wirken auf den Bau,
@@ -917,7 +945,7 @@ export function mountStudio(root: HTMLElement): void {
       ...(knobSel.ton ? { "Ton-Einschübe": knobSel.ton } : {}),
       ...(knobSel.korpus ? { "Korpus-Bausteine": knobSel.korpus } : {}),
       ...(knobSel.phrase ? { "Phrasensperre": knobSel.phrase } : {}),
-    }, (host) => renderPresetChecks(host), (sel) => lockBtn(sel)));
+    }, (host) => renderPresetChecks(host), (sel) => (sel === bogenSel || sel === bauformSel ? null : lockBtn(sel))));
     struktBox.append(quelleHint, zielHint);
     try {
       const hh = analysiereHerkunft(out.textContent || "", (snap?.tonId || snap?.ton || "neutral").toLowerCase(),
