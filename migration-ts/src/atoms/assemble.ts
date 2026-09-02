@@ -67,6 +67,40 @@ export const STRUKTUR_PHASEN: Record<string, Phase[]> = {
   object:        ["exposition", "verdichtung", "verdichtung", "umschlag", "verdichtung", "umschlag", "verdichtung", "umschlag", "schluss", "schluss"],
 };
 
+// ── Rekombination mit Bogen: die Schlagfolge wird zur Phasenfolge ───────────
+// Geregelter Mittelweg (4.337.0): Die Struktur „bogen" hat keine feste
+// Phasenfolge — sie wird vor jeder Erzeugung aus der Schlagfolge des gewählten
+// Erzählerbank-Bogens abgeleitet (setBogenPhasen). Jeder Schlag fällt in eine
+// der vier Phasen; die Folge wird auf zehn Schritte gespreizt. Ohne Bogen
+// gilt die lineare Folge.
+const SCHLAG_PHASE: Record<string, Phase> = {
+  einstieg: "exposition", hook: "exposition", regel: "exposition",
+  mitte: "verdichtung", mitte2: "verdichtung", konflikt: "verdichtung", zeit: "verdichtung", einsatz: "verdichtung",
+  ausloeser: "umschlag", wende: "umschlag", hoehepunkt: "umschlag",
+  schluss: "schluss",
+};
+export function phasenAusSchlagfolge(folge: string[] | undefined | null): Phase[] {
+  const roh = (folge || []).map((n) => SCHLAG_PHASE[n]).filter((p): p is Phase => !!p);
+  if (!roh.length) return STRUKTUR_PHASEN["linear"]!;
+  // Erster Schritt = erster Schlag, letzter Schritt = letzter Schlag — sonst
+  // fiele bei zwölf Schlägen der Schluss unter den Tisch.
+  return Array.from({ length: 10 }, (_, i) => roh[Math.round((i * (roh.length - 1)) / 9)]!);
+}
+export function setBogenPhasen(folge: string[] | undefined | null): void {
+  STRUKTUR_PHASEN["bogen"] = phasenAusSchlagfolge(folge);
+}
+// Gelenkphasen: Dort entscheidet sich die Bauform — Bogen-Material wird
+// bevorzugt, umso stärker, je höher die Stellschraube steht. Mitten ziehen
+// freier. Bei 0 % liegt der Bogen ohnehin nicht im Pool (reines „B"), bei
+// 250 % ist es praktisch „A".
+let bogenModus = false;
+export function setBogenModus(an: boolean): void { bogenModus = an; }
+export function gelenkBonus(a: PoolAtom, phase: Phase | undefined, bogenGewicht: number): number {
+  if (!bogenModus || a.quelle !== "dramaturgie" || !phase) return 0;
+  const faktor = phase === "umschlag" || phase === "schluss" ? 2.5 : phase === "exposition" ? 1.2 : 0.4;
+  return faktor * bogenGewicht;
+}
+
 /** Welche Phase gilt bei diesem Fortschritt (0…1) in dieser Struktur? */
 export function phasenFolge(struktur: string, fortschritt: number): Phase {
   const f = STRUKTUR_PHASEN[struktur] || STRUKTUR_PHASEN["linear"]!;
@@ -318,6 +352,7 @@ export function ziehe(kandidaten: PoolAtom[], sollGewicht: string, bisher: strin
   const score = (a: PoolAtom): number => {
     let s = 1;
     if (phase) s += phasenBonus(a, phase);         // Funktion der Position zuerst
+    s += gelenkBonus(a, phase, bogenGewicht);      // Rekombination mit Bogen: Gelenke bevorzugen den Bogen
     if (a.rhythmus.gewicht === sollGewicht) s += 1.5;
     const ov = [...stems(a.text)].filter((x) => kontext.has(x)).length;
     s += Math.min(ov, 2) * 0.8;                    // etwas Bindung, aber keine Wiederholung

@@ -1556,12 +1556,18 @@ export function mountStudio(root: HTMLElement): void {
     // Seit der Erzählerbank zählt auch deren Wahl: Ein fester Platz oder
     // „würfeln" bringt einen Bogen mit, selbst wenn das Preset keinen hat.
     const erzaehlerBogenDa = ladeQuelle() !== "preset" && ladeErzaehlerbank().some(platzBrauchbar);
-    if (structure.value === "dramaturgie" && !(form.value === "prose" && (hasDramaData() || erzaehlerBogenDa))) {
+    // „Rekombination mit Bogen" (4.337.0) braucht dieselbe Quelle wie die
+    // Dramaturgie; ohne Bogen fällt sie still auf die lineare Phasenfolge.
+    const brauchtBogen = structure.value === "dramaturgie" || structure.value === "bogen";
+    const name = structure.value === "bogen" ? "Rekombination mit Bogen" : "Dramaturgie";
+    if (brauchtBogen && !(form.value === "prose" && (hasDramaData() || erzaehlerBogenDa))) {
       rekHint.style.display = "";
       rekHint.textContent = form.value !== "prose"
-        ? `Hinweis: „Dramaturgie“ wirkt nur bei Prosa — bei „${form.options[form.selectedIndex]?.text || form.value}“ bleibt die Struktur ohne Wirkung.`
-        : "Hinweis: „Dramaturgie“ braucht einen Erzählbogen. Das aktive Preset hat keinen — "
-          + "die Maschine baut über die Schablonen, die Struktur bleibt ohne Wirkung. In der Wortbank lässt sich ein Preset auf 2.0 heben.";
+        ? `Hinweis: „${name}“ wirkt nur bei Prosa — bei „${form.options[form.selectedIndex]?.text || form.value}“ bleibt die Struktur ohne Wirkung.`
+        : `Hinweis: „${name}“ braucht einen Erzählbogen. Das aktive Preset hat keinen — `
+          + (structure.value === "bogen"
+            ? "die Rekombination baut dann in der linearen Phasenfolge. Unter „Bogen“ im Werkzeugkasten einen Platz der Erzählerbank wählen."
+            : "die Maschine baut über die Schablonen, die Struktur bleibt ohne Wirkung. In der Wortbank lässt sich ein Preset auf 2.0 heben.");
       return;
     }
     rekHint.style.display = "none";

@@ -30,6 +30,10 @@ export const STRUCTURE_OPTS: Wahlliste = [
   ["auto", "Auto"], ["linear", "Linear"], ["reverse", "Reverse"], ["circle", "Kreis"],
   ["fragment", "Fragment"], ["object", "Objekt"], ["dramaturgie", "Dramaturgie (Preset 2.0)"],
   ["rekombination", "Rekombination"],
+  // Geregelter Mittelweg (4.337.0): die Schlagfolge des gewählten Bogens als
+  // Phasenfolge, rekombinatorisch gefüllt; Bogen-Material an den Gelenken
+  // bevorzugt, dosiert über die Stellschraube „Erzählbogen".
+  ["bogen", "Rekombination mit Bogen"],
 ];
 
 export const MODE_OPTS: Wahlliste = [

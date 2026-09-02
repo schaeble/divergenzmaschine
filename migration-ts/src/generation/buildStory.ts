@@ -57,7 +57,7 @@ const MODES = ohneAuto(werte(MODE_OPTS));
 //
 // WAECHTER-OK: bewusste Ausnahmen, siehe Begründung.
 const STRUCTURES = ohneAuto(werte(STRUCTURE_OPTS))
-  .filter((x) => x !== "dramaturgie" && x !== "rekombination");
+  .filter((x) => x !== "dramaturgie" && x !== "rekombination" && x !== "bogen");
 const PERSPECTIVES = ohneAuto(werte(PERSP_OPTS));
 const RHYTHMS = ohneAuto(werte(RHYTHM_OPTS));
 const resBiased = (ui: string, kind: string, opts: string[], aA: string, aB: string): string =>
@@ -194,7 +194,7 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   //
   // WAECHTER-OK: bewusste Teilmenge — „dramaturgie" fehlt, weil dieser Weg sie
   // gerade nicht bedienen kann.
-  const ASSEMBLER = new Set(["rekombination", "linear", "reverse", "circle", "fragment", "object"]);
+  const ASSEMBLER = new Set(["rekombination", "linear", "reverse", "circle", "fragment", "object", "bogen"]);
   if (input.form === "prose" && ASSEMBLER.has(input.structure || "")) {
     const rk = buildRekombination(bank, input, model);
     // Absaetze auch auf diesem Weg: Der Zweig kehrt vor paragraphize() zurueck,

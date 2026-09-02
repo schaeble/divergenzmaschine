@@ -18,6 +18,9 @@ const inp: GenInput = { where: "im Hafen", when: "am Abend", who: "Der Bote", wh
   rhythm: "auto", markovMode: "off", disruptor: "auto", archetypeA: "neutral", archetypeB: "psychopath",
   instability: 2, polish: false, polishStyle: "surreal_precise" };
 import { ERZAEHLUNGEN_VORLAGEN } from "../src/features/erzaehlungen.data";
+import { phasenAusSchlagfolge } from "../src/atoms/assemble";
+import { STRUCTURE_OPTS } from "../src/generation/optionen";
+import { saveKnobs, loadKnobs } from "../src/features/knobs";
 import { preset2AusText } from "../src/features/textpreset";
 import { setBogenOverride, loadDramaData, setDramaData, hasDramaData } from "../src/generation/dramaturgie";
 import { VORLAGE_EVOLUTION } from "../src/features/textpreset";
@@ -281,6 +284,31 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   wahr("er steht neben „Platz leeren“", /speichern, leeren, archivWeg\)/.test(qt));
   wahr("er löscht unmittelbar, ohne Nachfrage", /archivWeg\.addEventListener\("click"/.test(qt) && !/archivWeg\.addEventListener\("click", \(\) => \{\s*\n\s*if \(!confirm/.test(qt));
   wahr("ohne Auswahl ist er ausgegraut", /archivWeg\.disabled = !liste\.length \|\| archivSel\.value === ""/.test(qt));
+}
+
+// ── Rekombination mit Bogen — der geregelte Mittelweg (4.337.0) ─────────────
+{
+  const V = ERZAEHLUNGEN_VORLAGEN;
+  wahr("die Struktur steht zur Wahl", STRUCTURE_OPTS.some(([v]) => v === "bogen"));
+  ist("Katastrophe zuerst beginnt im Umschlag", phasenAusSchlagfolge(SCHLAGFOLGEN["katastrophe"]!.folge)[0], "umschlag");
+  ist("Rückwärts beginnt im Schluss", phasenAusSchlagfolge(SCHLAGFOLGEN["rueckwaerts"]!.folge)[0], "schluss");
+  ist("Standard beginnt in der Exposition und endet im Schluss", phasenAusSchlagfolge(SCHLAGFOLGEN["standard"]!.folge).join(",").replace(/^exposition.*schluss$/, "ok"), "ok");
+  ist("ohne Folge: die lineare Folge, zehn Schritte", phasenAusSchlagfolge(null).length, 10);
+  // Die Stellschraube regelt von B nach A: Bogen-Wortanteil steigt mit ihr.
+  const e = V[0]!; const d = preset2AusText(e.text).drama; d.folge = SCHLAGFOLGEN["standard"]!.folge; setDramaData(d);
+  const bogenWoerter = new Set(e.text.toLowerCase().match(/[a-zäöüß]{6,}/g) || []);
+  const anteil = (t: string): number => { const w = t.toLowerCase().match(/[a-zäöüß]{6,}/g) || []; return w.filter((x) => bogenWoerter.has(x)).length / Math.max(1, w.length); };
+  const mess = (bogen: number): number => { saveKnobs({ ...loadKnobs(), bogen }); let sum = 0; for (let i = 0; i < 12; i++) sum += anteil(buildStory(DEFAULT_BANK, { ...inp, structure: "bogen" as never, lenTarget: 160, polish: false } as never)); return sum / 12; };
+  const a0 = mess(0), a100 = mess(100), a250 = mess(250);
+  wahr("0 % → 100 % → 250 %: der Bogen-Anteil steigt", a0 < a100 && a100 < a250, `${(a0*100).toFixed(0)} < ${(a100*100).toFixed(0)} < ${(a250*100).toFixed(0)}`);
+  wahr("bei 0 % ist der Bogen praktisch stumm (unter 25 %)", a0 < 0.25, (a0*100).toFixed(0) + "%");
+  wahr("bei 250 % trägt er (über 35 %)", a250 > 0.35, (a250*100).toFixed(0) + "%");
+  saveKnobs({ ...loadKnobs(), bogen: 100 });
+  setDramaData(null);
+  const qs = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("der Studio-Hinweis kennt die neue Struktur", /structure\.value === "bogen" \? "Rekombination mit Bogen"/.test(qs));
+  const qb = readFileSync("src/generation/buildStory.ts", "utf8");
+  wahr("Auto würfelt sie nicht (sie braucht einen Bogen)", /x !== "bogen"\)/.test(qb));
 }
 
 console.log(`Prüfstand Erzählerbank — ${geprueft} Prüfungen, ${bestanden} bestanden`);

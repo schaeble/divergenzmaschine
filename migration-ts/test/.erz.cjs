@@ -4282,6 +4282,12 @@ function loadKnobs() {
     return { ...KNOB_VORGABE };
   }
 }
+function saveKnobs(k) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(k));
+  } catch {
+  }
+}
 
 // src/atoms/assemble.ts
 var PHASEN_KATEGORIEN = {
@@ -4307,6 +4313,37 @@ var STRUKTUR_PHASEN = {
   // Das Ding sieht zu: langer Mittelteil, kurzer Anfang, kurzer Schluss.
   object: ["exposition", "verdichtung", "verdichtung", "umschlag", "verdichtung", "umschlag", "verdichtung", "umschlag", "schluss", "schluss"]
 };
+var SCHLAG_PHASE = {
+  einstieg: "exposition",
+  hook: "exposition",
+  regel: "exposition",
+  mitte: "verdichtung",
+  mitte2: "verdichtung",
+  konflikt: "verdichtung",
+  zeit: "verdichtung",
+  einsatz: "verdichtung",
+  ausloeser: "umschlag",
+  wende: "umschlag",
+  hoehepunkt: "umschlag",
+  schluss: "schluss"
+};
+function phasenAusSchlagfolge(folge) {
+  const roh = (folge || []).map((n) => SCHLAG_PHASE[n]).filter((p) => !!p);
+  if (!roh.length) return STRUKTUR_PHASEN["linear"];
+  return Array.from({ length: 10 }, (_, i) => roh[Math.round(i * (roh.length - 1) / 9)]);
+}
+function setBogenPhasen(folge) {
+  STRUKTUR_PHASEN["bogen"] = phasenAusSchlagfolge(folge);
+}
+var bogenModus = false;
+function setBogenModus(an) {
+  bogenModus = an;
+}
+function gelenkBonus(a, phase, bogenGewicht) {
+  if (!bogenModus || a.quelle !== "dramaturgie" || !phase) return 0;
+  const faktor = phase === "umschlag" || phase === "schluss" ? 2.5 : phase === "exposition" ? 1.2 : 0.4;
+  return faktor * bogenGewicht;
+}
 function phasenFolge(struktur, fortschritt) {
   const f = STRUKTUR_PHASEN[struktur] || STRUKTUR_PHASEN["linear"];
   const i = Math.min(f.length - 1, Math.max(0, Math.floor(fortschritt * f.length)));
@@ -4457,6 +4494,7 @@ function ziehe(kandidaten, sollGewicht, bisher, phase) {
   const score = (a) => {
     let s = 1;
     if (phase) s += phasenBonus(a, phase);
+    s += gelenkBonus(a, phase, bogenGewicht);
     if (a.rhythmus.gewicht === sollGewicht) s += 1.5;
     const ov = [...stems(a.text)].filter((x) => kontext.has(x)).length;
     s += Math.min(ov, 2) * 0.8;
@@ -4921,8 +4959,8 @@ function presetAusText(text) {
     const vollste = KATEGORIEN.filter((x) => bank2[x].length > 1).sort((a, b) => bank2[b].length - bank2[a].length)[0];
     if (vollste) bank2[k].push(bank2[vollste].pop());
   }
-  const woerter2 = (text || "").split(/\s+/).filter(Boolean).length;
-  return { bank: bank2, woerter: woerter2, stuecke: gesehen.size };
+  const woerter3 = (text || "").split(/\s+/).filter(Boolean).length;
+  return { bank: bank2, woerter: woerter3, stuecke: gesehen.size };
 }
 function preset2AusText(text) {
   const p = presetAusText(text);
@@ -6861,8 +6899,8 @@ function istAbgeschnitten(bare) {
   if (ABGESCHNITTEN.test(bare)) return true;
   const ns = bare.match(NEBENSATZ_ENDE);
   if (ns) {
-    const woerter2 = ns[2].split(/\s+/);
-    if (woerter2.length <= 6 && !woerter2.some(verbMoeglich)) return true;
+    const woerter3 = ns[2].split(/\s+/);
+    if (woerter3.length <= 6 && !woerter3.some(verbMoeglich)) return true;
   }
   return NUR_OHNE_VERB.test(bare) && !hatFinitesVerb(bare);
 }
@@ -7548,6 +7586,285 @@ init_constants();
 init_text_utils();
 init_storage_status();
 
+// src/generation/satzwaechter.ts
+init_verben();
+var FUNKTION2 = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "und",
+  "oder",
+  "aber",
+  "doch",
+  "denn",
+  "sondern",
+  "als",
+  "wie",
+  "dass",
+  "ob",
+  "weil",
+  "wenn",
+  "ohne",
+  "mit",
+  "von",
+  "aus",
+  "an",
+  "auf",
+  "in",
+  "im",
+  "am",
+  "f\xFCr",
+  "zu",
+  "zum",
+  "zur",
+  "bei",
+  "beim",
+  "nach",
+  "vor",
+  "\xFCber",
+  "unter",
+  "neben",
+  "zwischen",
+  "hinter",
+  "durch",
+  "gegen",
+  "um",
+  "seit",
+  "es",
+  "sich",
+  "man",
+  "sie",
+  "er",
+  "wir",
+  "ich",
+  "du",
+  "ihr",
+  "was",
+  "wer",
+  "wo",
+  "so",
+  "nur",
+  "auch",
+  "noch",
+  "schon",
+  "sehr",
+  "nicht",
+  "kein",
+  "keine",
+  "jeder",
+  "jede",
+  "jedes",
+  "alle"
+]);
+var HAENGENDES_ENDE = /* @__PURE__ */ new Set([
+  "der",
+  "den",
+  "dem",
+  "des",
+  "und",
+  "oder",
+  "aber",
+  "sondern",
+  "als",
+  "dass",
+  "weil",
+  "wenn",
+  "f\xFCr",
+  "zwischen",
+  "seit"
+  // NICHT in der Liste: alles, was im Deutschen legitim am Satzende steht —
+  // trennbare Verbpartikel („geht auf", „holt ihn ein", „gibt nach"),
+  // Infinitiv-zu („um wahr zu sein"), Vergleiche („schwer wie Blei"),
+  // Pronomen und Zahlwörter („der Grat trägt nur einen", „statt einem",
+  // „will es sehr"). Die Gegenprobe über 6930 eingebaute Sätze hat die
+  // Liste auf diesen Kern gestutzt.
+]);
+var ADJEKTIV = /* @__PURE__ */ new Set([
+  "fest",
+  "echt",
+  "leicht",
+  "schlecht",
+  "recht",
+  "dicht",
+  "glatt",
+  "satt",
+  "bunt",
+  "kalt",
+  "alt",
+  "laut",
+  "tot",
+  "rot",
+  "gut",
+  "weit",
+  "hart",
+  "zart",
+  "nett",
+  "matt",
+  "sp\xE4t",
+  "bereit",
+  "breit",
+  "nackt",
+  "exakt",
+  "direkt",
+  "perfekt",
+  "korrekt",
+  "konkret",
+  "komplett",
+  "ernst",
+  "feist",
+  "meist",
+  "erst",
+  "zun\xE4chst",
+  "h\xF6chst",
+  "\xE4u\xDFerst",
+  "einst",
+  "sonst",
+  "fast",
+  "blo\xDF"
+]);
+var HILFSVERB = /* @__PURE__ */ new Set([
+  "bin",
+  "bist",
+  "sind",
+  "seid",
+  "war",
+  "warst",
+  "waren",
+  "wart",
+  "sei",
+  "w\xE4re",
+  "w\xE4ren",
+  "hab",
+  "habe",
+  "hast",
+  "haben",
+  "habt",
+  "hatte",
+  "hatten",
+  "h\xE4tte",
+  "h\xE4tten",
+  "werde",
+  "wirst",
+  "wird",
+  "werden",
+  "werdet",
+  "wurde",
+  "wurden",
+  "w\xFCrde",
+  "w\xFCrden",
+  "kann",
+  "kannst",
+  "k\xF6nnen",
+  "k\xF6nnt",
+  "konnte",
+  "konnten",
+  "k\xF6nnte",
+  "k\xF6nnten",
+  "muss",
+  "musst",
+  "m\xFCssen",
+  "m\xFCsst",
+  "musste",
+  "mussten",
+  "m\xFCsste",
+  "darf",
+  "darfst",
+  "d\xFCrfen",
+  "d\xFCrft",
+  "durfte",
+  "durften",
+  "d\xFCrfte",
+  "soll",
+  "sollst",
+  "sollen",
+  "sollt",
+  "sollte",
+  "sollten",
+  "mag",
+  "magst",
+  "m\xF6gen",
+  "m\xF6gt",
+  "mochte",
+  "m\xF6chte",
+  "m\xF6chten",
+  "will",
+  "willst",
+  "wollen",
+  "wollt",
+  "wollte",
+  "wollten",
+  "l\xE4sst",
+  "lie\xDF",
+  "lie\xDFen",
+  "gibt",
+  "gab",
+  "gaben",
+  "tut",
+  "tat",
+  "schw\xF6r",
+  "schw\xF6re"
+]);
+var verbKandidat = (roh, istErstes = false) => {
+  if (!istErstes && /^[A-ZÄÖÜ]/.test(roh)) return false;
+  const w = roh.toLowerCase().replace(/[^a-zäöüß]/g, "");
+  if (!w || FUNKTION2.has(w) || KEIN_VERB.has(w) || ADJEKTIV.has(w)) return false;
+  if (HILFSVERB.has(w) || istVerbform(w)) return true;
+  return /(t|st|e|en|eln|ern|elt|ert)$/.test(w) && !/(heit|keit|ung|schaft|tät|ment|iert)$/.test(w) && !/(em|er|es)$/.test(w) && w.length >= 3;
+};
+var woerter2 = (s) => s.split(/\s+/).map((w) => w.replace(/[„“"»«().!?…;:]+/g, "")).filter(Boolean);
+var NP_KOPF = /^(der|die|das|ein|eine|einen|kein|keine|zwei|drei|viele|manche|jede[rs]?|irgendein|lauter)\b/i;
+function satzPlausibel(satz) {
+  const bare = satz.trim().replace(/[.!?…]+$/, "").trim();
+  if (!bare) return false;
+  const ws = woerter2(bare);
+  if (!ws.length) return false;
+  const letztes = ws[ws.length - 1].toLowerCase();
+  if (HAENGENDES_ENDE.has(letztes)) return false;
+  const hatVerb = ws.some((w, i) => verbKandidat(w, i === 0));
+  if (!hatVerb) {
+    if (ws.length > 12) return false;
+    const kern = bare.replace(/^(und|aber|doch|dann|denn|oder|nur|auch)\s+/i, "");
+    const kopf = kern.split(/\s+/)[0] || "";
+    const ADVERB_KOPF = /^(irgendwo|irgendwann|irgendwie|dort|hier|heute|morgen|gestern|vielleicht|manchmal|so|bald|überall|nirgends|nirgendwo|draußen|drinnen|oben|unten|jetzt|damals|dennoch|trotzdem|deshalb|darum|davor|danach|zuerst|zuletzt|womöglich|angeblich|vermutlich|wahrscheinlich)$/i;
+    const nomenKopf = /^[A-ZÄÖÜ]/.test(kopf) && !ADVERB_KOPF.test(kopf) && !FUNKTION2.has(kopf.toLowerCase());
+    const prepKopf = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zu|zum|zur|mit|durch|gegen|um|seit|während|trotz|wegen)$/i.test(kopf);
+    if (ws.length > 5 && !NP_KOPF.test(kern) && !nomenKopf && !prepKopf) return false;
+  }
+  for (const teil of bare.split(/,\s*/).slice(1)) {
+    const tw = woerter2(teil);
+    if (!tw.length || !/^(was|wer|der|die|das|dem|den|wo|wie)$/i.test(tw[0])) continue;
+    const undIdx = tw.findIndex((w, i) => i > 0 && /^(und|oder)$/i.test(w));
+    if (undIdx > 1 && verbKandidat(tw[undIdx + 1] || "", false) && !tw.slice(1, undIdx).some((w) => verbKandidat(w, false))) return false;
+  }
+  const PREP_KOPF = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zum|zur|mit|durch|gegen|seit|trotz|wegen)$/i;
+  for (const teil of bare.split(/,\s*/)) {
+    const tw = woerter2(teil);
+    if (tw.length < 4 || !PREP_KOPF.test(tw[0])) continue;
+    if (/^(dem|denen|deren|dessen|welche[rmn]?)$/i.test(tw[1] || "")) continue;
+    if (tw.slice(1).some((w) => /^zu$/i.test(w))) continue;
+    const vi = tw.findIndex((w, i) => i > 1 && verbKandidat(w, false));
+    if (vi < 2) continue;
+    if (tw.slice(1, vi).some((w) => /^(es|er|sie|wir|ich|du|man|jemand|niemand|etwas|nichts|alles)$/i.test(w))) continue;
+    const rest = tw.slice(vi + 1);
+    if (/^(wie|als)$/i.test(rest[0] || "") && rest.length <= 2) return false;
+  }
+  return true;
+}
+function stueckPlausibel(text) {
+  const saetze = (text || "").split(/(?<=[.!?…])\s+/).map((s) => s.trim()).filter(Boolean);
+  if (!saetze.length) return false;
+  return saetze.every(satzPlausibel);
+}
+
 // src/features/livepools.ts
 init_storage_status();
 
@@ -7645,6 +7962,7 @@ function isSaneMarkov(s) {
       if (lw[j] === lw[i]) return false;
     }
   }
+  if (!stueckPlausibel(s)) return false;
   return true;
 }
 var MK_TAIL_STOP = /* @__PURE__ */ new Set([
@@ -8945,8 +9263,11 @@ function buildPool(bank2, perspektive, what, figur, model, markovMode) {
       ["ausloeser", drama.ausloeser],
       ["veraenderungen", drama.veraenderungen],
       ["zeitanomalien", drama.zeitanomalien],
-      ["regeln", drama.regeln]
-      // "schluss" bleibt aussen vor: Stilworte wie "offen" sind kein Textmaterial.
+      ["regeln", drama.regeln],
+      // "schluss": Bei Preset-2.0-Boegen stehen dort Stilworte ("offen"), bei
+      // Erzaehlerbank-Boegen ganze Schlusssaetze. Nur was ein Satz sein kann
+      // (ab fuenf Woertern) kommt in den Pool — Stilworte bleiben draussen.
+      ["schluss", (drama.schluss || []).filter((t) => (t || "").trim().split(/\s+/).length >= 5)]
     ];
     for (const [kat, arr] of felder) {
       if (!Array.isArray(arr)) continue;
@@ -9099,6 +9420,9 @@ function buildRekombination(bank2, input, model) {
   };
   const anfangVon = (t) => t.toLowerCase().replace(/[^a-zäöüß ]/g, "").trim().split(/\s+/).slice(0, 3).join(" ");
   resetTrace();
+  const mitBogen = input.structure === "bogen";
+  setBogenModus(mitBogen);
+  if (mitBogen) setBogenPhasen(loadDramaData()?.folge);
   let fuegeteile = 0;
   const schlussAmEnde = (STRUKTUR_PHASEN[input.structure || "rekombination"] || STRUKTUR_PHASEN["linear"]).slice(-1)[0] === "schluss";
   const woerterJetzt = () => out.join(" ").split(/\s+/).filter(Boolean).length;
@@ -9678,15 +10002,15 @@ var PLURAL_ENDUNG = /(ern|en)$/;
 var EN_SINGULAR = /(regen|wagen|boden|garten|kuchen|schatten|rücken|bogen|laden|ofen|hafen|haken|balken|besen|faden|knochen|kragen|magen|nacken|namen|rasen|riemen|samen|schaden|segen|braten|graben|husten|karren|kolben|zeichen|wesen|leben|essen|wappen|becken|kissen|eisen|zeugen|glauben|willen|frieden|gedanken|kummer)$/i;
 var KEIN_SACHNOMEN = /^(Jahr|Jahre|Monat|Monate|Tag|Tage|Woche|Wochen|Stunde|Stunden|Mal|Uhr|Zeit|Welt|Leben|Anfang|Nacht|Morgen|Abend|Ende|Reihe|Farbe|Sprache|Straße|Grenze|Klasse|Frage|Stelle|Weise|Seite|Liebe|Sorge|Ruhe|Stille|Ferne|Nähe|Fenster|Wasser|Feuer|Zimmer|Wetter|Messer|Muster|Ufer|Alter|Fieber|Wunder|Zeichen|Wesen)$/;
 function sachNomen(was) {
-  const woerter2 = (was || "").split(/\s+/);
-  for (let i = 0; i < woerter2.length; i++) {
-    const w = (woerter2[i] || "").replace(/[^A-Za-zÄÖÜäöüß-]/g, "");
+  const woerter3 = (was || "").split(/\s+/);
+  for (let i = 0; i < woerter3.length; i++) {
+    const w = (woerter3[i] || "").replace(/[^A-Za-zÄÖÜäöüß-]/g, "");
     if (!/^[A-ZÄÖÜ][a-zäöüß]{3,}$/.test(w)) continue;
     if (KEIN_SACHNOMEN.test(w)) continue;
     if (!PLURAL_ENDUNG.test(w)) continue;
     if (EN_SINGULAR.test(w)) continue;
-    const zwei = (woerter2[i - 2] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
-    const davor = (woerter2[i - 1] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
+    const zwei = (woerter3[i - 2] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
+    const davor = (woerter3[i - 1] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
     if (/^(der|des|dem|den|das|ein|eine|einen|einem|einer|eines|jeder|jede|jedes|dieser|diese|dieses|diesem|diesen)$/.test(davor)) continue;
     const PRAEP = /^(mit|bei|seit|von|zu|aus|nach|vor|in|an|auf|über|unter|neben|zwischen|hinter|durch|gegen|ohne|um|für)$/;
     if (PRAEP.test(davor) || PRAEP.test(zwei)) continue;
@@ -9717,9 +10041,9 @@ function genusVon(phrase) {
 var RECHTSFORM = /^(Ltd|GmbH|AG|KG|SE|Inc|LLC|mbH|OHG|gGmbH|e\.?V\.?|Co|KGaA)$/i;
 function kurzform(haupt, genus) {
   const art = genus === "fem" ? "die" : genus === "neut" ? "das" : "der";
-  let woerter2 = haupt.replace(/^(der|die|das|ein|eine|einen)\s+/i, "").split(/\s+/);
-  while (woerter2.length > 1 && RECHTSFORM.test(woerter2[woerter2.length - 1].replace(/[^A-Za-z.]/g, ""))) woerter2.pop();
-  const letzt = woerter2[woerter2.length - 1] || haupt;
+  let woerter3 = haupt.replace(/^(der|die|das|ein|eine|einen)\s+/i, "").split(/\s+/);
+  while (woerter3.length > 1 && RECHTSFORM.test(woerter3[woerter3.length - 1].replace(/[^A-Za-z.]/g, ""))) woerter3.pop();
+  const letzt = woerter3[woerter3.length - 1] || haupt;
   const teil = letzt.includes("-") ? letzt.split("-").pop() : letzt;
   return `${art} ${teil}`;
 }
@@ -11462,7 +11786,11 @@ var STRUCTURE_OPTS = [
   ["fragment", "Fragment"],
   ["object", "Objekt"],
   ["dramaturgie", "Dramaturgie (Preset 2.0)"],
-  ["rekombination", "Rekombination"]
+  ["rekombination", "Rekombination"],
+  // Geregelter Mittelweg (4.337.0): die Schlagfolge des gewählten Bogens als
+  // Phasenfolge, rekombinatorisch gefüllt; Bogen-Material an den Gelenken
+  // bevorzugt, dosiert über die Stellschraube „Erzählbogen".
+  ["bogen", "Rekombination mit Bogen"]
 ];
 var MODE_OPTS = [
   ["auto", "Auto"],
@@ -11494,7 +11822,7 @@ var werte = (l) => l.map(([v]) => v);
 // src/generation/buildStory.ts
 var ohneAuto = (l) => l.filter((x) => x !== "auto");
 var MODES = ohneAuto(werte(MODE_OPTS));
-var STRUCTURES = ohneAuto(werte(STRUCTURE_OPTS)).filter((x) => x !== "dramaturgie" && x !== "rekombination");
+var STRUCTURES = ohneAuto(werte(STRUCTURE_OPTS)).filter((x) => x !== "dramaturgie" && x !== "rekombination" && x !== "bogen");
 var PERSPECTIVES = ohneAuto(werte(PERSP_OPTS));
 var RHYTHMS = ohneAuto(werte(RHYTHM_OPTS));
 var resBiased = (ui, kind, opts, aA, aB) => ui !== "auto" && opts.includes(ui) ? ui : biasedAutoChoice(kind, aA, aB) || pick(opts);
@@ -11602,7 +11930,7 @@ function buildStory(bank2, input, model) {
   }
   const verseForm = input.form === "reim" || input.form === "haiku" || input.form === "strang" || input.form === "drama";
   const effStructure = verseForm && kit.structure === "fragment" ? "linear" : kit.structure;
-  const ASSEMBLER = /* @__PURE__ */ new Set(["rekombination", "linear", "reverse", "circle", "fragment", "object"]);
+  const ASSEMBLER = /* @__PURE__ */ new Set(["rekombination", "linear", "reverse", "circle", "fragment", "object", "bogen"]);
   if (input.form === "prose" && ASSEMBLER.has(input.structure || "")) {
     const rk = buildRekombination(bank2, input, model);
     if (rk.trim()) {
@@ -11958,6 +12286,39 @@ wahr(
   wahr("er steht neben \u201EPlatz leeren\u201C", /speichern, leeren, archivWeg\)/.test(qt));
   wahr("er l\xF6scht unmittelbar, ohne Nachfrage", /archivWeg\.addEventListener\("click"/.test(qt) && !/archivWeg\.addEventListener\("click", \(\) => \{\s*\n\s*if \(!confirm/.test(qt));
   wahr("ohne Auswahl ist er ausgegraut", /archivWeg\.disabled = !liste\.length \|\| archivSel\.value === ""/.test(qt));
+}
+{
+  const V = ERZAEHLUNGEN_VORLAGEN;
+  wahr("die Struktur steht zur Wahl", STRUCTURE_OPTS.some(([v]) => v === "bogen"));
+  ist("Katastrophe zuerst beginnt im Umschlag", phasenAusSchlagfolge(SCHLAGFOLGEN["katastrophe"].folge)[0], "umschlag");
+  ist("R\xFCckw\xE4rts beginnt im Schluss", phasenAusSchlagfolge(SCHLAGFOLGEN["rueckwaerts"].folge)[0], "schluss");
+  ist("Standard beginnt in der Exposition und endet im Schluss", phasenAusSchlagfolge(SCHLAGFOLGEN["standard"].folge).join(",").replace(/^exposition.*schluss$/, "ok"), "ok");
+  ist("ohne Folge: die lineare Folge, zehn Schritte", phasenAusSchlagfolge(null).length, 10);
+  const e = V[0];
+  const d = preset2AusText(e.text).drama;
+  d.folge = SCHLAGFOLGEN["standard"].folge;
+  setDramaData(d);
+  const bogenWoerter = new Set(e.text.toLowerCase().match(/[a-zäöüß]{6,}/g) || []);
+  const anteil = (t) => {
+    const w = t.toLowerCase().match(/[a-zäöüß]{6,}/g) || [];
+    return w.filter((x) => bogenWoerter.has(x)).length / Math.max(1, w.length);
+  };
+  const mess = (bogen) => {
+    saveKnobs({ ...loadKnobs(), bogen });
+    let sum = 0;
+    for (let i = 0; i < 12; i++) sum += anteil(buildStory(DEFAULT_BANK, { ...inp, structure: "bogen", lenTarget: 160, polish: false }));
+    return sum / 12;
+  };
+  const a0 = mess(0), a100 = mess(100), a250 = mess(250);
+  wahr("0 % \u2192 100 % \u2192 250 %: der Bogen-Anteil steigt", a0 < a100 && a100 < a250, `${(a0 * 100).toFixed(0)} < ${(a100 * 100).toFixed(0)} < ${(a250 * 100).toFixed(0)}`);
+  wahr("bei 0 % ist der Bogen praktisch stumm (unter 25 %)", a0 < 0.25, (a0 * 100).toFixed(0) + "%");
+  wahr("bei 250 % tr\xE4gt er (\xFCber 35 %)", a250 > 0.35, (a250 * 100).toFixed(0) + "%");
+  saveKnobs({ ...loadKnobs(), bogen: 100 });
+  setDramaData(null);
+  const qs = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
+  wahr("der Studio-Hinweis kennt die neue Struktur", /structure\.value === "bogen" \? "Rekombination mit Bogen"/.test(qs));
+  const qb = (0, import_fs.readFileSync)("src/generation/buildStory.ts", "utf8");
+  wahr("Auto w\xFCrfelt sie nicht (sie braucht einen Bogen)", /x !== "bogen"\)/.test(qb));
 }
 console.log(`Pr\xFCfstand Erz\xE4hlerbank \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

@@ -261,7 +261,7 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   // Zwei Wege, auf denen sie stumm ausfällt, und beide sieht man dem Regler
   // nicht an: ohne Erzählbogen im aktiven Preset, und bei jeder Form außer
   // Prosa. Der Bauweg fällt dann wortlos auf den gewöhnlichen zurück.
-  const dramaAn = struktur === "dramaturgie";
+  const dramaAn = struktur === "dramaturgie" || struktur === "bogen";   // „Rekombination mit Bogen" zieht dieselbe Quelle
   const nurProsa = (r["form"] || "prose") === "prose";
   // Seit 4.333.0 gibt es DREI Bogenquellen: das Preset (wie immer), ein fester
   // Platz der Erzählerbank, oder Würfeln je Erzeugung. Der Plan rechnet sie

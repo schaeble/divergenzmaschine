@@ -2,7 +2,7 @@
 // Pool = aktive Wortbank (offline annotiert) + geerntete Satzvorlagen.
 import { KEINE_KATEGORIE, type Bank, type GenInput } from "../types";
 import { deriveAtom } from "./derive";
-import { passt, fortschreiben, fuelleKontext, fuelleSlot, offeneSlots, verfugen, ziehe, phasenFolge, STRUKTUR_PHASEN, type PoolAtom, type Kontext, naechsterSlot }  from "./assemble";
+import { passt, fortschreiben, fuelleKontext, fuelleSlot, offeneSlots, verfugen, ziehe, phasenFolge, STRUKTUR_PHASEN, setBogenPhasen, setBogenModus, type PoolAtom, type Kontext, naechsterSlot }  from "./assemble";
 import TEMPLATES from "./templates.data.json";
 import { normWhere, normWhen, normWho } from "../generation/ctxnorm";
 import { isFirstPerson, isSecondPerson } from "../generation/coherence";
@@ -81,7 +81,10 @@ export function buildPool(bank: Bank, perspektive: string, what?: string, figur?
       ["konflikte", drama.konflikte], ["ausloeser", drama.ausloeser],
       ["veraenderungen", drama.veraenderungen], ["zeitanomalien", drama.zeitanomalien],
       ["regeln", drama.regeln],
-      // "schluss" bleibt aussen vor: Stilworte wie "offen" sind kein Textmaterial.
+      // "schluss": Bei Preset-2.0-Boegen stehen dort Stilworte ("offen"), bei
+      // Erzaehlerbank-Boegen ganze Schlusssaetze. Nur was ein Satz sein kann
+      // (ab fuenf Woertern) kommt in den Pool — Stilworte bleiben draussen.
+      ["schluss", (drama.schluss || []).filter((t) => (t || "").trim().split(/\s+/).length >= 5)],
     ];
     for (const [kat, arr] of felder) {
       if (!Array.isArray(arr)) continue;
@@ -253,6 +256,12 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
   };
   const anfangVon = (t: string): string => t.toLowerCase().replace(/[^a-zäöüß ]/g, "").trim().split(/\s+/).slice(0, 3).join(" ");
   resetTrace();
+  // Rekombination mit Bogen: Phasenfolge aus der Schlagfolge des gewählten
+  // Bogens, Gelenk-Bevorzugung an. Für alle anderen Strukturen aus, damit
+  // sich deren Verhalten nicht ändert.
+  const mitBogen = input.structure === "bogen";
+  setBogenModus(mitBogen);
+  if (mitBogen) setBogenPhasen(loadDramaData()?.folge);
   // 0.6 Harte Dublettensperre: jedes Atom höchstens EINMAL je Text. Lieber ein
   // kürzerer Text als eine Phrasenschleife — für lange Texte mehrere Presets wählen.
   let fuegeteile = 0;

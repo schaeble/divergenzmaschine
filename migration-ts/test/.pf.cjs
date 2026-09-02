@@ -4028,6 +4028,37 @@ var STRUKTUR_PHASEN = {
   // Das Ding sieht zu: langer Mittelteil, kurzer Anfang, kurzer Schluss.
   object: ["exposition", "verdichtung", "verdichtung", "umschlag", "verdichtung", "umschlag", "verdichtung", "umschlag", "schluss", "schluss"]
 };
+var SCHLAG_PHASE = {
+  einstieg: "exposition",
+  hook: "exposition",
+  regel: "exposition",
+  mitte: "verdichtung",
+  mitte2: "verdichtung",
+  konflikt: "verdichtung",
+  zeit: "verdichtung",
+  einsatz: "verdichtung",
+  ausloeser: "umschlag",
+  wende: "umschlag",
+  hoehepunkt: "umschlag",
+  schluss: "schluss"
+};
+function phasenAusSchlagfolge(folge) {
+  const roh = (folge || []).map((n2) => SCHLAG_PHASE[n2]).filter((p) => !!p);
+  if (!roh.length) return STRUKTUR_PHASEN["linear"];
+  return Array.from({ length: 10 }, (_, i2) => roh[Math.round(i2 * (roh.length - 1) / 9)]);
+}
+function setBogenPhasen(folge) {
+  STRUKTUR_PHASEN["bogen"] = phasenAusSchlagfolge(folge);
+}
+var bogenModus = false;
+function setBogenModus(an) {
+  bogenModus = an;
+}
+function gelenkBonus(a, phase, bogenGewicht) {
+  if (!bogenModus || a.quelle !== "dramaturgie" || !phase) return 0;
+  const faktor = phase === "umschlag" || phase === "schluss" ? 2.5 : phase === "exposition" ? 1.2 : 0.4;
+  return faktor * bogenGewicht;
+}
 function phasenFolge(struktur, fortschritt) {
   const f = STRUKTUR_PHASEN[struktur] || STRUKTUR_PHASEN["linear"];
   const i2 = Math.min(f.length - 1, Math.max(0, Math.floor(fortschritt * f.length)));
@@ -4178,6 +4209,7 @@ function ziehe(kandidaten, sollGewicht, bisher, phase) {
   const score = (a) => {
     let s = 1;
     if (phase) s += phasenBonus(a, phase);
+    s += gelenkBonus(a, phase, bogenGewicht);
     if (a.rhythmus.gewicht === sollGewicht) s += 1.5;
     const ov = [...stems(a.text)].filter((x) => kontext.has(x)).length;
     s += Math.min(ov, 2) * 0.8;
@@ -16492,8 +16524,11 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
       ["ausloeser", drama.ausloeser],
       ["veraenderungen", drama.veraenderungen],
       ["zeitanomalien", drama.zeitanomalien],
-      ["regeln", drama.regeln]
-      // "schluss" bleibt aussen vor: Stilworte wie "offen" sind kein Textmaterial.
+      ["regeln", drama.regeln],
+      // "schluss": Bei Preset-2.0-Boegen stehen dort Stilworte ("offen"), bei
+      // Erzaehlerbank-Boegen ganze Schlusssaetze. Nur was ein Satz sein kann
+      // (ab fuenf Woertern) kommt in den Pool — Stilworte bleiben draussen.
+      ["schluss", (drama.schluss || []).filter((t) => (t || "").trim().split(/\s+/).length >= 5)]
     ];
     for (const [kat, arr] of felder) {
       if (!Array.isArray(arr)) continue;
@@ -16646,6 +16681,9 @@ function buildRekombination(bank, input, model) {
   };
   const anfangVon = (t) => t.toLowerCase().replace(/[^a-zäöüß ]/g, "").trim().split(/\s+/).slice(0, 3).join(" ");
   resetTrace();
+  const mitBogen = input.structure === "bogen";
+  setBogenModus(mitBogen);
+  if (mitBogen) setBogenPhasen(loadDramaData()?.folge);
   let fuegeteile = 0;
   const schlussAmEnde = (STRUKTUR_PHASEN[input.structure || "rekombination"] || STRUKTUR_PHASEN["linear"]).slice(-1)[0] === "schluss";
   const woerterJetzt = () => out.join(" ").split(/\s+/).filter(Boolean).length;
@@ -18992,7 +19030,11 @@ var STRUCTURE_OPTS = [
   ["fragment", "Fragment"],
   ["object", "Objekt"],
   ["dramaturgie", "Dramaturgie (Preset 2.0)"],
-  ["rekombination", "Rekombination"]
+  ["rekombination", "Rekombination"],
+  // Geregelter Mittelweg (4.337.0): die Schlagfolge des gewählten Bogens als
+  // Phasenfolge, rekombinatorisch gefüllt; Bogen-Material an den Gelenken
+  // bevorzugt, dosiert über die Stellschraube „Erzählbogen".
+  ["bogen", "Rekombination mit Bogen"]
 ];
 var MODE_OPTS = [
   ["auto", "Auto"],
@@ -19024,7 +19066,7 @@ var werte = (l) => l.map(([v]) => v);
 // src/generation/buildStory.ts
 var ohneAuto = (l) => l.filter((x) => x !== "auto");
 var MODES = ohneAuto(werte(MODE_OPTS));
-var STRUCTURES = ohneAuto(werte(STRUCTURE_OPTS)).filter((x) => x !== "dramaturgie" && x !== "rekombination");
+var STRUCTURES = ohneAuto(werte(STRUCTURE_OPTS)).filter((x) => x !== "dramaturgie" && x !== "rekombination" && x !== "bogen");
 var PERSPECTIVES = ohneAuto(werte(PERSP_OPTS));
 var RHYTHMS = ohneAuto(werte(RHYTHM_OPTS));
 var resBiased = (ui, kind, opts, aA, aB) => ui !== "auto" && opts.includes(ui) ? ui : biasedAutoChoice(kind, aA, aB) || pick(opts);
@@ -19132,7 +19174,7 @@ function buildStory(bank, input, model) {
   }
   const verseForm = input.form === "reim" || input.form === "haiku" || input.form === "strang" || input.form === "drama";
   const effStructure = verseForm && kit.structure === "fragment" ? "linear" : kit.structure;
-  const ASSEMBLER = /* @__PURE__ */ new Set(["rekombination", "linear", "reverse", "circle", "fragment", "object"]);
+  const ASSEMBLER = /* @__PURE__ */ new Set(["rekombination", "linear", "reverse", "circle", "fragment", "object", "bogen"]);
   if (input.form === "prose" && ASSEMBLER.has(input.structure || "")) {
     const rk = buildRekombination(bank, input, model);
     if (rk.trim()) {

@@ -5971,8 +5971,11 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
       ["ausloeser", drama.ausloeser],
       ["veraenderungen", drama.veraenderungen],
       ["zeitanomalien", drama.zeitanomalien],
-      ["regeln", drama.regeln]
-      // "schluss" bleibt aussen vor: Stilworte wie "offen" sind kein Textmaterial.
+      ["regeln", drama.regeln],
+      // "schluss": Bei Preset-2.0-Boegen stehen dort Stilworte ("offen"), bei
+      // Erzaehlerbank-Boegen ganze Schlusssaetze. Nur was ein Satz sein kann
+      // (ab fuenf Woertern) kommt in den Pool — Stilworte bleiben draussen.
+      ["schluss", (drama.schluss || []).filter((t) => (t || "").trim().split(/\s+/).length >= 5)]
     ];
     for (const [kat, arr] of felder) {
       if (!Array.isArray(arr)) continue;
