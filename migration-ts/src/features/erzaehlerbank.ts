@@ -104,13 +104,30 @@ export function erzaehlerBogen(index: number): DramaData | null {
  *  "preset" → null (der Preset-Bogen gilt); fester Platz → sein Bogen;
  *  "wuerfeln" → ein zufälliger brauchbarer Platz. Fällt alles aus (leere
  *  Plätze), ebenfalls null — die Maschine erzählt dann wie bisher. */
+let letzterPlatz = -1;
+/** Welcher Platz zuletzt gezogen wurde (auch beim Würfeln), -1 = keiner. Für
+ *  die Infoblase „Bogen" in der Struktur-Ansicht. */
+export function letzterGezogenerPlatz(): number { return letzterPlatz; }
 export function bogenFuerErzeugung(): DramaData | null {
   const q = ladeQuelle();
+  letzterPlatz = -1;
   if (q === "preset") return null;
-  if (/^[0-9]$/.test(q)) return erzaehlerBogen(parseInt(q, 10));
+  if (/^[0-9]$/.test(q)) { const i = parseInt(q, 10); const d = erzaehlerBogen(i); if (d) letzterPlatz = i; return d; }
   const brauchbar = ladeErzaehlerbank().map((e, i) => ({ e, i })).filter((x) => platzBrauchbar(x.e));
   if (!brauchbar.length) return null;
-  return erzaehlerBogen(brauchbar[Math.floor(Math.random() * brauchbar.length)]!.i);
+  const i = brauchbar[Math.floor(Math.random() * brauchbar.length)]!.i;
+  letzterPlatz = i;
+  return erzaehlerBogen(i);
+}
+/** Beschriftung des geladenen Bogens — für Infoblasen. */
+export function bogenBeschriftung(): { bogen: string; bauform: string } {
+  const q = ladeQuelle();
+  if (letzterPlatz >= 0) {
+    const e = ladeErzaehlerbank()[letzterPlatz];
+    if (e) return { bogen: `${q === "wuerfeln" ? "gewürfelt: " : ""}Platz ${letzterPlatz + 1} · ${e.titel || "Ohne Titel"}`, bauform: SCHLAGFOLGEN[e.folge || "standard"]?.name || e.folge || "" };
+  }
+  if (q === "preset") return { bogen: "aus Preset", bauform: "Steigender Bogen" };
+  return { bogen: q === "wuerfeln" ? "würfeln — kein brauchbarer Platz" : "gewählter Platz ist leer", bauform: "" };
 }
 
 // ── KI: Einen Platz neu erzählen lassen ─────────────────────────────────────

@@ -32,7 +32,11 @@ export function renderTextstruktur(text: string, snap: Schnappschuss | null, sch
     const paare: [string, string][] = [["Preset", snap.preset], ["Ton", snap.ton], ["Form", snap.form],
       ["Struktur", snap.struktur], ["Perspektive", snap.perspektive], ["Rhythmus", snap.rhythmus],
       ["Markov", snap.markov], ["Varianz", snap.varianz], ["Spannung", snap.spannung],
-      ["Länge", String(snap.laenge)], ["Bestenauslese", snap.bestenauslese ? "an" : "aus"]];
+      ["Länge", String(snap.laenge)], ["Bestenauslese", snap.bestenauslese ? "an" : "aus"],
+      // Infoblasen der Erzählerbank — nur wenn ein Bogen im Spiel war.
+      ...(snap.bogen ? [["Bogen", snap.bogen] as [string, string]] : []),
+      ...(snap.bauform ? [["Bauform", snap.bauform] as [string, string]] : []),
+      ...(snap.phasenfolge ? [["Phasenfolge", snap.phasenfolge] as [string, string]] : [])];
     // Stellschrauben, die kein Feld im Schnappschuss haben, aber ein Auswahlfeld:
     // Wert direkt daraus lesen, damit der Chip nicht doppelt gepflegt werden muss.
     // Sie kommen in eine ZWEITE Zeile: Oben steht, was der Text ist, unten, wie
@@ -68,7 +72,15 @@ export function renderTextstruktur(text: string, snap: Schnappschuss | null, sch
         continue;
       }
       const sel = schnell?.[k];
-      if (!sel) { host.append(el("span", { class: "src-chip" }, el("b", {}, k), " " + (v || "—"))); continue; }
+      if (!sel) {
+        const TITEL: Record<string, string> = {
+          Bogen: "Welcher Bogen bei dieser Erzeugung geladen war — beim Würfeln der konkret gezogene Platz.",
+          Bauform: "Die Schlagfolge des geladenen Bogens.",
+          Phasenfolge: "Aus der Schlagfolge auf zehn Schritte gespreizt: E Eröffnung · V Verdichtung · U Umschlag · S Schluss.",
+        };
+        host.append(el("span", { class: "src-chip", title: TITEL[k] || "" }, el("b", {}, k), " " + (v || "—")));
+        continue;
+      }
       // Der Chip zeigt nicht nur die Einstellung, er IST sie. Ein natives Auswahlfeld
       // statt eines eigenen Menüs: funktioniert auf dem Handy mit der Systemauswahl,
       // ist mit Tastatur bedienbar und braucht keinen Code, der zugeklappt werden will.

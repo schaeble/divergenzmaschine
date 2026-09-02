@@ -8,6 +8,7 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https
 (globalThis as unknown as Record<string, unknown>).localStorage = dom.window.localStorage;
 import { readFileSync } from "fs";
 import { ladeErzaehlerbank, speichereErzaehlerbank, erzaehlerBogen, bogenFuerErzeugung, setzeQuelle, ladeQuelle, platzBrauchbar, ERZAEHLER_PLAETZE, bauePromptErzaehlung, BAUFORM_ANWEISUNG, archiviere, archivFuer, loescheAusArchiv, ARCHIV_JE_BAUFORM } from "../src/features/erzaehlerbank";
+import { bogenBeschriftung, letzterGezogenerPlatz } from "../src/features/erzaehlerbank";
 import { SCHLAGFOLGEN } from "../src/features/erzaehlerbank";
 import { SCHLAG_NAMEN, SCHLAG_STANDARD } from "../src/generation/dramaturgie";
 import { DEFAULT_BANK } from "../src/constants";
@@ -321,6 +322,27 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   wahr("Bogen-Bausteine sind gekennzeichnet", /einstieg: "Bogen · Einstieg"/.test(qp) && /hoehepunkt: "Bogen · Höhepunkt"/.test(qp));
   const qh = readFileSync("src/ui/helpView.ts", "utf8");
   wahr("die Hilfe sagt es", /Bauplan \(Rekombination und Rekombination mit Bogen\)/.test(qh));
+}
+
+// ── Infoblasen in der Struktur-Ansicht: welcher Bogen geladen ist ───────────
+{
+  const fuenf = Array.from({ length: 10 }, (_, i) => i === 4
+    ? { titel: "Der Leuchtturm", text: "Ein Text, der lang genug ist, um brauchbar zu sein. ".repeat(6), folge: "still" }
+    : { titel: "", text: "", folge: "standard" });
+  speichereErzaehlerbank(fuenf);
+  setzeQuelle("4"); bogenFuerErzeugung();
+  ist("fester Platz: die Blase nennt Platz und Titel", bogenBeschriftung().bogen, "Platz 5 · Der Leuchtturm");
+  ist("und die Bauform", bogenBeschriftung().bauform, "Stiller Bogen");
+  setzeQuelle("wuerfeln"); bogenFuerErzeugung();
+  ist("beim Würfeln: der konkret gezogene Platz", letzterGezogenerPlatz(), 4);
+  wahr("und die Blase sagt „gewürfelt“", /^gewürfelt: Platz 5 · Der Leuchtturm$/.test(bogenBeschriftung().bogen), bogenBeschriftung().bogen);
+  setzeQuelle("preset"); bogenFuerErzeugung();
+  ist("aus Preset: die Blase sagt es", bogenBeschriftung().bogen, "aus Preset");
+  const qv = readFileSync("src/ui/structureView.ts", "utf8");
+  wahr("die Struktur-Ansicht zeichnet Bogen, Bauform, Phasenfolge", /\["Bogen", snap\.bogen\]/.test(qv) && /\["Bauform", snap\.bauform\]/.test(qv) && /\["Phasenfolge", snap\.phasenfolge\]/.test(qv));
+  const qs2 = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("der Schnappschuss trägt sie beim Erzeugen ein", /const b = bogenBeschriftung\(\);/.test(qs2) && /out\.phasenfolge = phasenAusSchlagfolge/.test(qs2));
+  speichereErzaehlerbank(Array.from({ length: 10 }, () => ({ titel: "", text: "", folge: "standard" })));
 }
 
 console.log(`Prüfstand Erzählerbank — ${geprueft} Prüfungen, ${bestanden} bestanden`);

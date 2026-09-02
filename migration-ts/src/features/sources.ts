@@ -211,6 +211,9 @@ export interface Schnappschuss {
   rhythmus: string; markov: string; varianz: string; spannung: string;
   where: string; when: string; who: string; what: string;
   laenge: number; bestenauslese: boolean; zeit: string;
+  /** Infoblasen der Erzählerbank (seit 4.337.2): welcher Bogen geladen war,
+   *  seine Bauform, und bei „Rekombination mit Bogen" die Phasenfolge. */
+  bogen?: string; bauform?: string; phasenfolge?: string;
 }
 export function saveSchnappschuss(s: Schnappschuss): void { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* voll */ } }
 export function loadSchnappschuss(): Schnappschuss | null {

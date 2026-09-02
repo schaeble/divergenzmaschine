@@ -5038,13 +5038,34 @@ function erzaehlerBogen(index) {
   if (e.folge && SCHLAGFOLGEN[e.folge]) drama.folge = SCHLAGFOLGEN[e.folge].folge;
   return drama;
 }
+var letzterPlatz = -1;
+function letzterGezogenerPlatz() {
+  return letzterPlatz;
+}
 function bogenFuerErzeugung() {
   const q = ladeQuelle();
+  letzterPlatz = -1;
   if (q === "preset") return null;
-  if (/^[0-9]$/.test(q)) return erzaehlerBogen(parseInt(q, 10));
-  const brauchbar = ladeErzaehlerbank().map((e, i) => ({ e, i })).filter((x) => platzBrauchbar(x.e));
+  if (/^[0-9]$/.test(q)) {
+    const i2 = parseInt(q, 10);
+    const d = erzaehlerBogen(i2);
+    if (d) letzterPlatz = i2;
+    return d;
+  }
+  const brauchbar = ladeErzaehlerbank().map((e, i2) => ({ e, i: i2 })).filter((x) => platzBrauchbar(x.e));
   if (!brauchbar.length) return null;
-  return erzaehlerBogen(brauchbar[Math.floor(Math.random() * brauchbar.length)].i);
+  const i = brauchbar[Math.floor(Math.random() * brauchbar.length)].i;
+  letzterPlatz = i;
+  return erzaehlerBogen(i);
+}
+function bogenBeschriftung() {
+  const q = ladeQuelle();
+  if (letzterPlatz >= 0) {
+    const e = ladeErzaehlerbank()[letzterPlatz];
+    if (e) return { bogen: `${q === "wuerfeln" ? "gew\xFCrfelt: " : ""}Platz ${letzterPlatz + 1} \xB7 ${e.titel || "Ohne Titel"}`, bauform: SCHLAGFOLGEN[e.folge || "standard"]?.name || e.folge || "" };
+  }
+  if (q === "preset") return { bogen: "aus Preset", bauform: "Steigender Bogen" };
+  return { bogen: q === "wuerfeln" ? "w\xFCrfeln \u2014 kein brauchbarer Platz" : "gew\xE4hlter Platz ist leer", bauform: "" };
 }
 var BAUFORM_ANWEISUNG = {
   standard: "ein klassisch steigender Bogen: ruhiger Anfang, wachsende St\xF6rung, Krise kurz vor Schluss, knappe Aufl\xF6sung",
@@ -12328,6 +12349,26 @@ wahr(
   wahr("Bogen-Bausteine sind gekennzeichnet", /einstieg: "Bogen · Einstieg"/.test(qp) && /hoehepunkt: "Bogen · Höhepunkt"/.test(qp));
   const qh = (0, import_fs.readFileSync)("src/ui/helpView.ts", "utf8");
   wahr("die Hilfe sagt es", /Bauplan \(Rekombination und Rekombination mit Bogen\)/.test(qh));
+}
+{
+  const fuenf = Array.from({ length: 10 }, (_, i) => i === 4 ? { titel: "Der Leuchtturm", text: "Ein Text, der lang genug ist, um brauchbar zu sein. ".repeat(6), folge: "still" } : { titel: "", text: "", folge: "standard" });
+  speichereErzaehlerbank(fuenf);
+  setzeQuelle("4");
+  bogenFuerErzeugung();
+  ist("fester Platz: die Blase nennt Platz und Titel", bogenBeschriftung().bogen, "Platz 5 \xB7 Der Leuchtturm");
+  ist("und die Bauform", bogenBeschriftung().bauform, "Stiller Bogen");
+  setzeQuelle("wuerfeln");
+  bogenFuerErzeugung();
+  ist("beim W\xFCrfeln: der konkret gezogene Platz", letzterGezogenerPlatz(), 4);
+  wahr("und die Blase sagt \u201Egew\xFCrfelt\u201C", /^gewürfelt: Platz 5 · Der Leuchtturm$/.test(bogenBeschriftung().bogen), bogenBeschriftung().bogen);
+  setzeQuelle("preset");
+  bogenFuerErzeugung();
+  ist("aus Preset: die Blase sagt es", bogenBeschriftung().bogen, "aus Preset");
+  const qv = (0, import_fs.readFileSync)("src/ui/structureView.ts", "utf8");
+  wahr("die Struktur-Ansicht zeichnet Bogen, Bauform, Phasenfolge", /\["Bogen", snap\.bogen\]/.test(qv) && /\["Bauform", snap\.bauform\]/.test(qv) && /\["Phasenfolge", snap\.phasenfolge\]/.test(qv));
+  const qs2 = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
+  wahr("der Schnappschuss tr\xE4gt sie beim Erzeugen ein", /const b = bogenBeschriftung\(\);/.test(qs2) && /out\.phasenfolge = phasenAusSchlagfolge/.test(qs2));
+  speichereErzaehlerbank(Array.from({ length: 10 }, () => ({ titel: "", text: "", folge: "standard" })));
 }
 console.log(`Pr\xFCfstand Erz\xE4hlerbank \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

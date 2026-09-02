@@ -16,7 +16,7 @@ import { feedLivePools, LIVE_W } from "../features/livepools";
 import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
 import { titelFuer } from "../generation/titel";
-import { ladeErzaehlerbank, ladeQuelle, setzeQuelle, platzBrauchbar, bogenFuerErzeugung, SCHLAGFOLGEN } from "../features/erzaehlerbank";
+import { ladeErzaehlerbank, ladeQuelle, setzeQuelle, platzBrauchbar, bogenFuerErzeugung, SCHLAGFOLGEN, bogenBeschriftung } from "../features/erzaehlerbank";
 import { phasenAusSchlagfolge } from "../atoms/assemble";
 import { setBogenOverride } from "../generation/dramaturgie";
 import { ziehVorrat, vorratStand, type VorratFund } from "../features/wikisammler";
@@ -1850,6 +1850,22 @@ export function mountStudio(root: HTMLElement): void {
         where: where.value, when: when.value, who: who.value, what: what.value,
         laenge: parseInt(lenSlider.value, 10) || 0, bestenauslese: bestChk.checked,
         zeit: new Date().toLocaleTimeString("de-DE"),
+        // Infoblasen der Erzählerbank: welcher Bogen geladen war (auch beim
+        // Würfeln der konkret gezogene Platz), seine Bauform, und bei
+        // „Rekombination mit Bogen" die Phasenfolge — gewünscht für die
+        // Struktur-Ansicht.
+        ...((): Record<string, string> => {
+          const relevant = structure.value === "dramaturgie" || structure.value === "bogen";
+          if (!relevant || form.value !== "prose") return {};
+          const b = bogenBeschriftung();
+          const out: Record<string, string> = { bogen: b.bogen };
+          if (b.bauform) out.bauform = b.bauform;
+          if (structure.value === "bogen") {
+            const kurz: Record<string, string> = { exposition: "E", verdichtung: "V", umschlag: "U", schluss: "S" };
+            out.phasenfolge = phasenAusSchlagfolge(loadDramaData()?.folge).map((ph) => kurz[ph] || "?").join(" ");
+          }
+          return out;
+        })(),
       });
       // JEDEN Text in den Index, nicht nur den behaltenen. Ein Index nur ueber
       // Behaltenes zeigt, was gute Texte gemeinsam haben — aber nicht, ob die
