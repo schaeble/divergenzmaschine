@@ -14,6 +14,7 @@ import { insertToneFlavor } from "./beats";
 import { polishGerman } from "./polish";
 import { applySatzlaenge, entferneDubletten, OBJEKT_KOPF_RE } from "./shape";
 import { hatFinitesVerb } from "../atoms/derive";
+import { guessGender as genderOf } from "./declension";
 import { personKopf, splitSpeakers } from "./wordcls";
 import { normWho } from "./ctxnorm";
 import { loadDramaData } from "./dramaturgie";
@@ -331,6 +332,10 @@ export function istPluralFigur(who: string): boolean {
   if (!w) return false;
   if (/^(zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|beide|alle|viele|einige|mehrere|manche|zwölf|hundert)\b/i.test(w)) return true;
   if (/\b(und|&)\b/.test(w) && !/,/.test(w)) return true;
+  // Ohne Artikel — gemeldet „Passanten sieht einen Gletscher": ein einzelnes
+  // Wort auf -en/-innen/-leute ist eine Mehrzahl (Passanten, Kinder nicht:
+  // -er ist zu oft Singular — Wächter, Bäcker).
+  if (/^[A-ZÄÖÜ][a-zäöüß]+(en|innen|leute|kinder|eltern)$/.test(w) && !/(chen|lein)$/.test(w)) return true;
   const m = w.match(/^die\s+([A-ZÄÖÜ][a-zäöüß-]+)$/i);
   if (m) {
     const n = m[1]!.toLowerCase();
@@ -358,9 +363,36 @@ export function pluralKongruenz(t: string, who?: string): string {
   return out;
 }
 
+/** Ein kleingeschriebenes Nomen direkt nach einem Satzadverb, vor dem Komma —
+ *  gemeldet: „Dann stille, plötzlich, ganz". Dort kann kein Verb stehen (es
+ *  fehlte das Subjekt), also ist ein Wort aus der Genus-Tabelle ein Nomen. */
+export function nomenNachAdverb(t: string): string {
+  return (t || "").replace(/(^|[.!?…]\s+|\n)(Dann|Und dann|Nur|Doch|Jetzt|Plötzlich|Danach|Zuletzt)\s+([a-zäöüß]{3,}),/g,
+    (m: string, vor: string, adv: string, w: string) => genderOf(w) ? `${vor}${adv} ${w.charAt(0).toUpperCase()}${w.slice(1)},` : m);
+}
+
+/** Ein Satz, der nur eine Nominalphrase ist, beginnt nicht im Akkusativ —
+ *  gemeldet: „Einen Stein mit Riss." Der Rest eines Rahmens („Wir sehen einen
+ *  Stein …"). Der Artikel wird zum Nominativ; bei „Einem/Dem" entscheidet das
+ *  Genus des Nomens, unbekannt bleibt stehen. Nur ohne finites Verb. */
+export function nominativFragment(t: string): string {
+  return (t || "").replace(/(^|[.!?…]\s+|\n)(Einen|Den|Einem|Dem)\s+([A-ZÄÖÜ][a-zäöüß]+)([^.!?…\n]*[.!?…])/g,
+    (m: string, vor: string, art: string, nomen: string, rest: string) => {
+      if (hatFinitesVerb(`${art} ${nomen}${rest}`)) return m;
+      // Ein zweiter Artikel im Rest heißt: Da steht eine Beziehung, kein
+      // Fragment — „Dem Kind ein Buch" bleibt.
+      if (/\b(ein|eine|einen|einem|einer|der|die|das|den|dem)\b/i.test(rest)) return m;
+      if (art === "Einen") return `${vor}Ein ${nomen}${rest}`;
+      if (art === "Den") return `${vor}Der ${nomen}${rest}`;
+      const g = genderOf(nomen);
+      if (art === "Einem") return g === "m" || g === "n" ? `${vor}Ein ${nomen}${rest}` : m;
+      return g === "m" ? `${vor}Der ${nomen}${rest}` : g === "n" ? `${vor}Das ${nomen}${rest}` : m;
+    });
+}
+
 export function kleinesPronomen(t: string): string {
   return (t || "")
-    .replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon)\b/g, (_m: string, sp: string, w: string) => sp + w.toLowerCase())
+    .replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon|Mittags|Morgens|Abends|Nachts|Heute|Gestern|Morgen|Später|Manchmal|Damals|Irgendwann|Vormittags|Nachmittags)\b/g, (_m: string, sp: string, w: string) => sp + w.toLowerCase())
     // Nach dem Komma beginnt kein Satz: Ein Nebensatz-Einleiter oder ein
     // Relativpronomen wird klein — gemeldet „in einem Beichtstuhl, Wo die
     // Straßen keine Namen tragen". „Die"/„Der" nach Komma sind nie Nomen.
@@ -393,6 +425,8 @@ export function postProcessText(txt: string, input?: Input): string {
   t = kleinesPronomen(t);
   t = kommaVorInversion(t);
   t = fragezeichen(t);
+  t = nomenNachAdverb(t);
+  t = nominativFragment(t);
 
   // Unbestimmter Artikel MITTEN im Satz klein.
   //

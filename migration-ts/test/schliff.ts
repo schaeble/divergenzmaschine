@@ -11,7 +11,7 @@
   }
 }
 import { readFileSync } from "fs";
-import { istAbgeschnitten, postProcessText, kleinerArtikel, kleinesPronomen, beugeNachDu, kommaVorInversion, fragezeichen, pluralKongruenz, istPluralFigur } from "../src/generation/postprocess";
+import { istAbgeschnitten, postProcessText, kleinerArtikel, kleinesPronomen, beugeNachDu, kommaVorInversion, fragezeichen, pluralKongruenz, istPluralFigur, nomenNachAdverb, nominativFragment } from "../src/generation/postprocess";
 import { dekliniere } from "../src/atoms/assemble";
 import { extractLeadVerb, looksLikeFullClause } from "../src/generation/wordcls";
 import { OBJEKT_EINSTIEG } from "../src/generation/shape";
@@ -359,6 +359,19 @@ ist("Gegenprobe: Nomen nach Komma bleibt", kleinesPronomen("Brot, Wein und Salz.
   wahr("Einzahl erkannt: Uhrmacherin, Bote, Nacht, Mädchen", !istPluralFigur("Die Uhrmacherin") && !istPluralFigur("Der Bote") && !istPluralFigur("Die Nacht") && !istPluralFigur("Die Mädchen"));
   ist("Fragezeichen auch nach Doppelpunkt", fragezeichen("Sie begreifen: Wer ist Ben."), "Sie begreifen: Wer ist Ben?");
   ist("Adverb nach Semikolon klein", kleinesPronomen("Niemand hat etwas geahnt; Angeblich."), "Niemand hat etwas geahnt; angeblich.");
+}
+
+// ── Blatt „Kipppunkt": Nomen nach Adverb, Akkusativ-Fragment, Zeitadverb nach Strich, Plural ohne Artikel
+{
+  ist("Nomen nach Satzadverb groß", nomenNachAdverb("Dann stille, plötzlich, ganz — doch die Kurve knickt."), "Dann Stille, plötzlich, ganz — doch die Kurve knickt.");
+  ist("Gegenprobe: Verb nach Adverb bleibt klein", nomenNachAdverb("Dann geht er, ohne Gruß."), "Dann geht er, ohne Gruß.");
+  ist("Akkusativ-Fragment → Nominativ", nominativFragment("Einen Stein mit Riss."), "Ein Stein mit Riss.");
+  ist("Den → Der", nominativFragment("Den Mantel ohne Knöpfe."), "Der Mantel ohne Knöpfe.");
+  ist("Gegenprobe: mit Verb bleibt", nominativFragment("Den Hund kennt jeder."), "Den Hund kennt jeder.");
+  ist("Gegenprobe: zweiter Artikel = Beziehung, bleibt", nominativFragment("Dem Kind ein Buch."), "Dem Kind ein Buch.");
+  ist("Zeitadverb nach Strich klein", kleinesPronomen("zurückweicht — Mittags, bewölkter Tag."), "zurückweicht — mittags, bewölkter Tag.");
+  wahr("Plural ohne Artikel erkannt: Passanten, nicht Wächter", istPluralFigur("Passanten") && !istPluralFigur("Wächter") && !istPluralFigur("Marek"));
+  ist("Passanten sehen", pluralKongruenz("Passanten sieht einen Gletscher.", "Passanten"), "Passanten sehen einen Gletscher.");
 }
 
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);

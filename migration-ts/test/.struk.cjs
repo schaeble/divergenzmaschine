@@ -6663,6 +6663,7 @@ function istPluralFigur(who) {
   if (!w) return false;
   if (/^(zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|beide|alle|viele|einige|mehrere|manche|zwölf|hundert)\b/i.test(w)) return true;
   if (/\b(und|&)\b/.test(w) && !/,/.test(w)) return true;
+  if (/^[A-ZÄÖÜ][a-zäöüß]+(en|innen|leute|kinder|eltern)$/.test(w) && !/(chen|lein)$/.test(w)) return true;
   const m = w.match(/^die\s+([A-ZÄÖÜ][a-zäöüß-]+)$/i);
   if (m) {
     const n = m[1].toLowerCase();
@@ -6683,8 +6684,28 @@ function pluralKongruenz(t, who) {
   out = out.replace(new RegExp(`\\b([a-z\xE4\xF6\xFC\xDF]+t)\\s+(${esc})\\b`, "giu"), (m, v, n) => istVerbform(v) ? `${beuge(v)} ${n}` : m);
   return out;
 }
+function nomenNachAdverb(t) {
+  return (t || "").replace(
+    /(^|[.!?…]\s+|\n)(Dann|Und dann|Nur|Doch|Jetzt|Plötzlich|Danach|Zuletzt)\s+([a-zäöüß]{3,}),/g,
+    (m, vor, adv, w) => guessGender(w) ? `${vor}${adv} ${w.charAt(0).toUpperCase()}${w.slice(1)},` : m
+  );
+}
+function nominativFragment(t) {
+  return (t || "").replace(
+    /(^|[.!?…]\s+|\n)(Einen|Den|Einem|Dem)\s+([A-ZÄÖÜ][a-zäöüß]+)([^.!?…\n]*[.!?…])/g,
+    (m, vor, art, nomen, rest) => {
+      if (hatFinitesVerb(`${art} ${nomen}${rest}`)) return m;
+      if (/\b(ein|eine|einen|einem|einer|der|die|das|den|dem)\b/i.test(rest)) return m;
+      if (art === "Einen") return `${vor}Ein ${nomen}${rest}`;
+      if (art === "Den") return `${vor}Der ${nomen}${rest}`;
+      const g = guessGender(nomen);
+      if (art === "Einem") return g === "m" || g === "n" ? `${vor}Ein ${nomen}${rest}` : m;
+      return g === "m" ? `${vor}Der ${nomen}${rest}` : g === "n" ? `${vor}Das ${nomen}${rest}` : m;
+    }
+  );
+}
 function kleinesPronomen(t) {
-  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
+  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon|Mittags|Morgens|Abends|Nachts|Heute|Gestern|Morgen|Später|Manchmal|Damals|Irgendwann|Vormittags|Nachmittags)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
     /(,[ \t]+)(Wo|Wenn|Als|Weil|Dass|Obwohl|Während|Nachdem|Bevor|Sobald|Solange|Damit|Ob|Der|Die|Das|Dem|Den|Deren|Dessen)\b(?=\s)/g,
     (_m, sp, w) => sp + w.charAt(0).toLowerCase() + w.slice(1)
   );
@@ -6702,6 +6723,8 @@ function postProcessText(txt, input) {
   t = kleinesPronomen(t);
   t = kommaVorInversion(t);
   t = fragezeichen(t);
+  t = nomenNachAdverb(t);
+  t = nominativFragment(t);
   t = kleinerArtikel(t);
   const name = (input?.who ?? "").toString().trim();
   if (name) {
@@ -7541,6 +7564,14 @@ function satzPlausibel(satz) {
     if (tw.slice(1, vi).some((w) => /^(es|er|sie|wir|ich|du|man|jemand|niemand|etwas|nichts|alles)$/i.test(w))) continue;
     const rest = tw.slice(vi + 1);
     if (/^(wie|als)$/i.test(rest[0] || "") && rest.length <= 2) return false;
+  }
+  for (const teil of bare.split(/[,;]\s*|\s+(?:und|aber|oder|doch|sondern)\s+/i)) {
+    if (!/\bl(ä|ie)(ss|ß)t?\s+(es\s+)?sich\b/i.test(teil)) continue;
+    const tw = woerter2(teil);
+    const letztes2 = (tw[tw.length - 1] || "").toLowerCase();
+    if (!letztes2 || /^[A-ZÄÖÜ]/.test(tw[tw.length - 1] || "")) continue;
+    if (FUNKTION2.has(letztes2) || ADJEKTIV.has(letztes2) || HILFSVERB.has(letztes2)) continue;
+    if (/t$/.test(letztes2) && !/(en|eln|ern)$/.test(letztes2)) return false;
   }
   return true;
 }

@@ -4852,6 +4852,7 @@ function istPluralFigur(who) {
   if (!w) return false;
   if (/^(zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|beide|alle|viele|einige|mehrere|manche|zwölf|hundert)\b/i.test(w)) return true;
   if (/\b(und|&)\b/.test(w) && !/,/.test(w)) return true;
+  if (/^[A-ZÄÖÜ][a-zäöüß]+(en|innen|leute|kinder|eltern)$/.test(w) && !/(chen|lein)$/.test(w)) return true;
   const m = w.match(/^die\s+([A-ZÄÖÜ][a-zäöüß-]+)$/i);
   if (m) {
     const n = m[1].toLowerCase();
@@ -4872,8 +4873,28 @@ function pluralKongruenz(t, who) {
   out = out.replace(new RegExp(`\\b([a-z\xE4\xF6\xFC\xDF]+t)\\s+(${esc})\\b`, "giu"), (m, v, n) => istVerbform(v) ? `${beuge(v)} ${n}` : m);
   return out;
 }
+function nomenNachAdverb(t) {
+  return (t || "").replace(
+    /(^|[.!?…]\s+|\n)(Dann|Und dann|Nur|Doch|Jetzt|Plötzlich|Danach|Zuletzt)\s+([a-zäöüß]{3,}),/g,
+    (m, vor, adv, w) => guessGender(w) ? `${vor}${adv} ${w.charAt(0).toUpperCase()}${w.slice(1)},` : m
+  );
+}
+function nominativFragment(t) {
+  return (t || "").replace(
+    /(^|[.!?…]\s+|\n)(Einen|Den|Einem|Dem)\s+([A-ZÄÖÜ][a-zäöüß]+)([^.!?…\n]*[.!?…])/g,
+    (m, vor, art, nomen, rest) => {
+      if (hatFinitesVerb(`${art} ${nomen}${rest}`)) return m;
+      if (/\b(ein|eine|einen|einem|einer|der|die|das|den|dem)\b/i.test(rest)) return m;
+      if (art === "Einen") return `${vor}Ein ${nomen}${rest}`;
+      if (art === "Den") return `${vor}Der ${nomen}${rest}`;
+      const g = guessGender(nomen);
+      if (art === "Einem") return g === "m" || g === "n" ? `${vor}Ein ${nomen}${rest}` : m;
+      return g === "m" ? `${vor}Der ${nomen}${rest}` : g === "n" ? `${vor}Das ${nomen}${rest}` : m;
+    }
+  );
+}
 function kleinesPronomen(t) {
-  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
+  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon|Mittags|Morgens|Abends|Nachts|Heute|Gestern|Morgen|Später|Manchmal|Damals|Irgendwann|Vormittags|Nachmittags)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
     /(,[ \t]+)(Wo|Wenn|Als|Weil|Dass|Obwohl|Während|Nachdem|Bevor|Sobald|Solange|Damit|Ob|Der|Die|Das|Dem|Den|Deren|Dessen)\b(?=\s)/g,
     (_m, sp, w) => sp + w.charAt(0).toLowerCase() + w.slice(1)
   );
@@ -4891,6 +4912,8 @@ function postProcessText(txt, input) {
   t = kleinesPronomen(t);
   t = kommaVorInversion(t);
   t = fragezeichen(t);
+  t = nomenNachAdverb(t);
+  t = nominativFragment(t);
   t = kleinerArtikel(t);
   const name = (input?.who ?? "").toString().trim();
   if (name) {
@@ -13079,6 +13102,17 @@ ist("Gegenprobe: Nomen nach Komma bleibt", kleinesPronomen("Brot, Wein und Salz.
   wahr("Einzahl erkannt: Uhrmacherin, Bote, Nacht, M\xE4dchen", !istPluralFigur("Die Uhrmacherin") && !istPluralFigur("Der Bote") && !istPluralFigur("Die Nacht") && !istPluralFigur("Die M\xE4dchen"));
   ist("Fragezeichen auch nach Doppelpunkt", fragezeichen("Sie begreifen: Wer ist Ben."), "Sie begreifen: Wer ist Ben?");
   ist("Adverb nach Semikolon klein", kleinesPronomen("Niemand hat etwas geahnt; Angeblich."), "Niemand hat etwas geahnt; angeblich.");
+}
+{
+  ist("Nomen nach Satzadverb gro\xDF", nomenNachAdverb("Dann stille, pl\xF6tzlich, ganz \u2014 doch die Kurve knickt."), "Dann Stille, pl\xF6tzlich, ganz \u2014 doch die Kurve knickt.");
+  ist("Gegenprobe: Verb nach Adverb bleibt klein", nomenNachAdverb("Dann geht er, ohne Gru\xDF."), "Dann geht er, ohne Gru\xDF.");
+  ist("Akkusativ-Fragment \u2192 Nominativ", nominativFragment("Einen Stein mit Riss."), "Ein Stein mit Riss.");
+  ist("Den \u2192 Der", nominativFragment("Den Mantel ohne Kn\xF6pfe."), "Der Mantel ohne Kn\xF6pfe.");
+  ist("Gegenprobe: mit Verb bleibt", nominativFragment("Den Hund kennt jeder."), "Den Hund kennt jeder.");
+  ist("Gegenprobe: zweiter Artikel = Beziehung, bleibt", nominativFragment("Dem Kind ein Buch."), "Dem Kind ein Buch.");
+  ist("Zeitadverb nach Strich klein", kleinesPronomen("zur\xFCckweicht \u2014 Mittags, bew\xF6lkter Tag."), "zur\xFCckweicht \u2014 mittags, bew\xF6lkter Tag.");
+  wahr("Plural ohne Artikel erkannt: Passanten, nicht W\xE4chter", istPluralFigur("Passanten") && !istPluralFigur("W\xE4chter") && !istPluralFigur("Marek"));
+  ist("Passanten sehen", pluralKongruenz("Passanten sieht einen Gletscher.", "Passanten"), "Passanten sehen einen Gletscher.");
 }
 console.log(`Pr\xFCfstand Schliff \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

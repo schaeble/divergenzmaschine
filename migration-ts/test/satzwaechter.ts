@@ -55,6 +55,15 @@ for (const [name, satz] of [
   ["PP-Fragment", "Am Vorabend einer Abreise in einer Wüste mit Türen."],
 ] as [string, string][]) wahr(`bleibt: ${name}`, satzPlausibel(satz), satz);
 
+// ── 2c · Regel 5: „lässt sich" ohne Infinitiv (drittes Blatt) ───────────────
+wahr("„lässt sich … aufgehört“ fällt", !satzPlausibel("Der Zufall lässt sich nicht ganz aufgehört, unterm kahlen Baum."));
+for (const [name, satz] of [
+  ["Infinitiv", "Der Fehler lässt sich nicht ganz erklären."],
+  ["Nomen am Ende", "Sie lässt sich Zeit."],
+  ["koordinierte Passiv-Klausel", "Fortschritt lässt sich nicht messen und wird trotzdem gezählt."],
+  ["ließ", "Er ließ sich nicht helfen."],
+] as [string, string][]) wahr(`bleibt: ${name}`, satzPlausibel(satz), satz);
+
 // ── 3 · Gegenprobe über ALLES eingebaute Material ───────────────────────────
 {
   let n = 0; const durch: string[] = [];

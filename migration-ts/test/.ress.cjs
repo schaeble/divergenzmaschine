@@ -5837,6 +5837,14 @@ function satzPlausibel(satz) {
     const rest = tw.slice(vi + 1);
     if (/^(wie|als)$/i.test(rest[0] || "") && rest.length <= 2) return false;
   }
+  for (const teil of bare.split(/[,;]\s*|\s+(?:und|aber|oder|doch|sondern)\s+/i)) {
+    if (!/\bl(ä|ie)(ss|ß)t?\s+(es\s+)?sich\b/i.test(teil)) continue;
+    const tw = woerter2(teil);
+    const letztes2 = (tw[tw.length - 1] || "").toLowerCase();
+    if (!letztes2 || /^[A-ZÄÖÜ]/.test(tw[tw.length - 1] || "")) continue;
+    if (FUNKTION.has(letztes2) || ADJEKTIV.has(letztes2) || HILFSVERB.has(letztes2)) continue;
+    if (/t$/.test(letztes2) && !/(en|eln|ern)$/.test(letztes2)) return false;
+  }
   return true;
 }
 function stueckPlausibel(text2) {

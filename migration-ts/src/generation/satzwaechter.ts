@@ -140,6 +140,22 @@ export function satzPlausibel(satz: string): boolean {
     if (/^(wie|als)$/i.test(rest[0] || "") && rest.length <= 2) return false;
   }
 
+  // 5. „lässt sich …" verlangt am Klausel-Ende einen Infinitiv (lässt sich
+  //    erklären, lässt sich nicht beirren). Endet die Klausel auf ein Wort mit
+  //    -t, das weder Funktionswort noch Adjektiv ist, steht dort ein
+  //    Partizip oder eine Personalform — gemeldet: „Der Zufall lässt sich
+  //    nicht ganz aufgehört". Der Rest zweier Ketten.
+  // Geteilt auch an „und/aber/oder": „lässt sich nicht messen und wird
+  // trotzdem gezählt" — das Partizip gehört zur zweiten Klausel.
+  for (const teil of bare.split(/[,;]\s*|\s+(?:und|aber|oder|doch|sondern)\s+/i)) {
+    if (!/\bl(ä|ie)(ss|ß)t?\s+(es\s+)?sich\b/i.test(teil)) continue;
+    const tw = woerter(teil);
+    const letztes = (tw[tw.length - 1] || "").toLowerCase();
+    if (!letztes || /^[A-ZÄÖÜ]/.test(tw[tw.length - 1] || "")) continue;   // Nomen am Ende: „lässt sich Zeit"
+    if (FUNKTION.has(letztes) || ADJEKTIV.has(letztes) || HILFSVERB.has(letztes)) continue;
+    if (/t$/.test(letztes) && !/(en|eln|ern)$/.test(letztes)) return false;
+  }
+
   return true;
 }
 
