@@ -11,6 +11,7 @@ import { NOUN_GENDER } from "../generation/nouns.data";
 import { applyPerspective, pronominalize, guessPronoun } from "../generation/shape";
 import { resetTrace, pushTrace, pruefeAbgleich } from "./trace";
 import { loadDramaData } from "../generation/dramaturgie";
+import { atomisiere } from "./atomisieren";
 import { loadKnobs } from "../features/knobs";
 import { isSaneMarkov, loadPersistentCorpus, corpusSanitize, type MarkovModel } from "../corpus";
 import { properNames } from "../generation/coherence";
@@ -74,6 +75,7 @@ export function buildPool(bank: Bank, perspektive: string, what?: string, figur?
   // Ihn nur herunterzugewichten reicht nicht: In manchen Phasen sind seine Atome
   // die einzigen Kandidaten, und ziehe() normiert ueber die vorhandene Auswahl -
   // bei 0 % kamen so immer noch 26 % heraus.
+  const atomMax = loadKnobs().atomgroesse;
   const drama = loadKnobs().bogen === 0 ? null : loadDramaData();
   if (drama) {
     const felder: [string, string[]][] = [
@@ -89,10 +91,12 @@ export function buildPool(bank: Bank, perspektive: string, what?: string, figur?
     for (const [kat, arr] of felder) {
       if (!Array.isArray(arr)) continue;
       for (const t of arr) {
-        const roh = (t || "").trim(); if (roh.length < 4) continue;
-        const d = deriveAtom(roh);
-        pool.push({ ...d, id: `dr-${kat}-${++i}`, quelle: "dramaturgie", kategorie: kat, verlangt: null,
-          bruchgrad: d.unsicher.length ? 1 : 0 });
+        const roh0 = (t || "").trim(); if (roh0.length < 4) continue;
+        for (const roh of atomisiere(roh0, atomMax)) {
+          const d = deriveAtom(roh);
+          pool.push({ ...d, id: `dr-${kat}-${++i}`, quelle: "dramaturgie", kategorie: kat, verlangt: null,
+            bruchgrad: d.unsicher.length ? 1 : 0 });
+        }
       }
     }
   }
@@ -157,7 +161,10 @@ export function buildPool(bank: Bank, perspektive: string, what?: string, figur?
     // Einträge („Telefon→Stille") gehören nicht in den Text, sondern sagen, was
     // aus einem Motiv wird, wenn es wiederkehrt.
     if (KEINE_KATEGORIE.has(kat)) continue;
-    for (const t of arr) {
+    // Atomisierung (Stellschraube „Atomgröße"): Lange Bausteine werden vor dem
+    // Pool zerlegt — Presets aus Text, Sammler und KI bringen Sätze bis 22
+    // Wörter, und der Zusammenbau setzt Bausteine ganz.
+    for (const roh of arr) for (const t of atomisiere(roh, atomMax)) {
       const d = deriveAtom(t);
       pool.push({ ...d, id: `wb-${++i}`, quelle: "wortbank", kategorie: kat, verlangt: null,
         bruchgrad: d.unsicher.length ? 1 : (kat === "motifs" || kat === "hooks" ? 1 : 0) });

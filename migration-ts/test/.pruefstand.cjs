@@ -3876,7 +3876,7 @@ function deriveAtom(raw) {
 }
 
 // src/features/knobs.ts
-var KNOB_VORGABE = { fuegeteil: 25, w4max: 2, abstand: 12, bogen: 100, ton: 100, korpus: 0, phrase: 5, satzlaenge: 9 };
+var KNOB_VORGABE = { fuegeteil: 25, w4max: 2, abstand: 12, bogen: 100, ton: 100, korpus: 0, phrase: 5, satzlaenge: 9, atomgroesse: 14 };
 var KNOB_SPANNE = {
   fuegeteil: { min: 10, max: 35, step: 5 },
   w4max: { min: 1, max: 4, step: 1 },
@@ -3885,7 +3885,8 @@ var KNOB_SPANNE = {
   ton: { min: 0, max: 250, step: 25 },
   korpus: { min: 0, max: 60, step: 10 },
   phrase: { min: 0, max: 8, step: 1 },
-  satzlaenge: { min: 0, max: 21, step: 3 }
+  satzlaenge: { min: 0, max: 21, step: 3 },
+  atomgroesse: { min: 0, max: 24, step: 2 }
 };
 var KEY = "dm_knobs_v1";
 var klemm = (v, s) => Math.max(s.min, Math.min(s.max, v));
@@ -3902,11 +3903,35 @@ function loadKnobs() {
       ton: klemm(p.ton === void 0 ? KNOB_VORGABE.ton : Number(p.ton), KNOB_SPANNE.ton),
       korpus: klemm(p.korpus === void 0 ? KNOB_VORGABE.korpus : Number(p.korpus), KNOB_SPANNE.korpus),
       phrase: klemm(p.phrase === void 0 ? KNOB_VORGABE.phrase : Number(p.phrase), KNOB_SPANNE.phrase),
-      satzlaenge: klemm(p.satzlaenge === void 0 ? KNOB_VORGABE.satzlaenge : Number(p.satzlaenge), KNOB_SPANNE.satzlaenge)
+      satzlaenge: klemm(p.satzlaenge === void 0 ? KNOB_VORGABE.satzlaenge : Number(p.satzlaenge), KNOB_SPANNE.satzlaenge),
+      atomgroesse: klemm(p.atomgroesse === void 0 ? KNOB_VORGABE.atomgroesse : Number(p.atomgroesse), KNOB_SPANNE.atomgroesse)
     };
   } catch {
     return { ...KNOB_VORGABE };
   }
+}
+
+// src/atoms/atomisieren.ts
+var wc = (s) => (s.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+var trimSatz = (s) => s.trim().replace(/^[,;:—–\s]+|[,;:—–\s]+$/g, "").trim();
+var NP_KOPF = /^(der|die|das|ein|eine|einen|einem|einer|kein|keine|zwei|drei|manche|viele|jede[rs]?|alle)\b/i;
+var NEBENSATZ = /,\s+(der|die|das|dem|den|dessen|deren|welche[rsmn]?|dass|weil|wenn|als|während|obwohl|nachdem|bevor|sobald|solange|seit|seitdem|damit|sodass|ohne|um|statt|anstatt|wo|worin|was|wer|wie|ob|falls|indem)\b[^,]*$/i;
+var tragfaehig = (s) => wc(s) >= 3 && (hatFinitesVerb(s) || NP_KOPF.test(s));
+function atomisiere(text, max) {
+  const t = trimSatz(text || "");
+  if (!t) return [];
+  if (!max || max < 6 || wc(t) <= max) return [t];
+  const harte = t.split(/\s*(?:—|–|;|:)\s+/).map(trimSatz).filter((x) => wc(x) >= 3);
+  if (harte.length > 1) return harte.flatMap((x) => atomisiere(x, max));
+  const koord = t.match(/^(.+?),\s+(und|aber|doch|denn|sondern)\s+(.+)$/i);
+  if (koord && hatFinitesVerb(koord[1]) && hatFinitesVerb(koord[3]) && wc(koord[1]) >= 3 && wc(koord[3]) >= 3)
+    return [...atomisiere(koord[1], max), ...atomisiere(koord[3], max)];
+  const ns = t.match(NEBENSATZ);
+  if (ns && ns.index !== void 0) {
+    const haupt = trimSatz(t.slice(0, ns.index));
+    if (tragfaehig(haupt) && wc(haupt) >= 4) return atomisiere(haupt, max);
+  }
+  return [t];
 }
 
 // src/atoms/assemble.ts
@@ -5809,7 +5834,7 @@ var verbKandidat = (roh, istErstes = false) => {
   return /(t|st|e|en|eln|ern|elt|ert)$/.test(w) && !/(heit|keit|ung|schaft|tät|ment|iert)$/.test(w) && !/(em|er|es)$/.test(w) && w.length >= 3;
 };
 var woerter2 = (s) => s.split(/\s+/).map((w) => w.replace(/[„“"»«().!?…;:]+/g, "")).filter(Boolean);
-var NP_KOPF = /^(der|die|das|ein|eine|einen|kein|keine|zwei|drei|viele|manche|jede[rs]?|irgendein|lauter)\b/i;
+var NP_KOPF2 = /^(der|die|das|ein|eine|einen|kein|keine|zwei|drei|viele|manche|jede[rs]?|irgendein|lauter)\b/i;
 function satzPlausibel(satz) {
   const bare = satz.trim().replace(/[.!?…]+$/, "").trim();
   if (!bare) return false;
@@ -5825,7 +5850,7 @@ function satzPlausibel(satz) {
     const ADVERB_KOPF = /^(irgendwo|irgendwann|irgendwie|dort|hier|heute|morgen|gestern|vielleicht|manchmal|so|bald|überall|nirgends|nirgendwo|draußen|drinnen|oben|unten|jetzt|damals|dennoch|trotzdem|deshalb|darum|davor|danach|zuerst|zuletzt|womöglich|angeblich|vermutlich|wahrscheinlich)$/i;
     const nomenKopf = /^[A-ZÄÖÜ]/.test(kopf) && !ADVERB_KOPF.test(kopf) && !FUNKTION.has(kopf.toLowerCase());
     const prepKopf = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zu|zum|zur|mit|durch|gegen|um|seit|während|trotz|wegen)$/i.test(kopf);
-    if (ws.length > 5 && !NP_KOPF.test(kern) && !nomenKopf && !prepKopf) return false;
+    if (ws.length > 5 && !NP_KOPF2.test(kern) && !nomenKopf && !prepKopf) return false;
   }
   for (const teil of bare.split(/,\s*/).slice(1)) {
     const tw = woerter2(teil);
@@ -5977,6 +6002,7 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
       pool.push({ ...d, id: `was-${pool.length}`, quelle: "kontext", kategorie: "was", verlangt: null, bruchgrad: 0 });
     }
   }
+  const atomMax = loadKnobs().atomgroesse;
   const drama = loadKnobs().bogen === 0 ? null : loadDramaData();
   if (drama) {
     const felder = [
@@ -5996,17 +6022,19 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
     for (const [kat, arr] of felder) {
       if (!Array.isArray(arr)) continue;
       for (const t of arr) {
-        const roh = (t || "").trim();
-        if (roh.length < 4) continue;
-        const d = deriveAtom(roh);
-        pool.push({
-          ...d,
-          id: `dr-${kat}-${++i2}`,
-          quelle: "dramaturgie",
-          kategorie: kat,
-          verlangt: null,
-          bruchgrad: d.unsicher.length ? 1 : 0
-        });
+        const roh0 = (t || "").trim();
+        if (roh0.length < 4) continue;
+        for (const roh of atomisiere(roh0, atomMax)) {
+          const d = deriveAtom(roh);
+          pool.push({
+            ...d,
+            id: `dr-${kat}-${++i2}`,
+            quelle: "dramaturgie",
+            kategorie: kat,
+            verlangt: null,
+            bruchgrad: d.unsicher.length ? 1 : 0
+          });
+        }
       }
     }
   }
@@ -6051,7 +6079,7 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
   for (const [kat, arr] of Object.entries(bank)) {
     if (!Array.isArray(arr)) continue;
     if (KEINE_KATEGORIE.has(kat)) continue;
-    for (const t of arr) {
+    for (const roh of arr) for (const t of atomisiere(roh, atomMax)) {
       const d = deriveAtom(t);
       pool.push({
         ...d,

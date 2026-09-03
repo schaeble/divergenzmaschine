@@ -3278,7 +3278,7 @@ function hatFinitesVerb(seg) {
 }
 
 // src/features/knobs.ts
-var KNOB_VORGABE = { fuegeteil: 25, w4max: 2, abstand: 12, bogen: 100, ton: 100, korpus: 0, phrase: 5, satzlaenge: 9 };
+var KNOB_VORGABE = { fuegeteil: 25, w4max: 2, abstand: 12, bogen: 100, ton: 100, korpus: 0, phrase: 5, satzlaenge: 9, atomgroesse: 14 };
 var KNOB_SPANNE = {
   fuegeteil: { min: 10, max: 35, step: 5 },
   w4max: { min: 1, max: 4, step: 1 },
@@ -3287,7 +3287,8 @@ var KNOB_SPANNE = {
   ton: { min: 0, max: 250, step: 25 },
   korpus: { min: 0, max: 60, step: 10 },
   phrase: { min: 0, max: 8, step: 1 },
-  satzlaenge: { min: 0, max: 21, step: 3 }
+  satzlaenge: { min: 0, max: 21, step: 3 },
+  atomgroesse: { min: 0, max: 24, step: 2 }
 };
 var KEY = "dm_knobs_v1";
 var klemm = (v, s) => Math.max(s.min, Math.min(s.max, v));
@@ -3304,7 +3305,8 @@ function loadKnobs() {
       ton: klemm(p.ton === void 0 ? KNOB_VORGABE.ton : Number(p.ton), KNOB_SPANNE.ton),
       korpus: klemm(p.korpus === void 0 ? KNOB_VORGABE.korpus : Number(p.korpus), KNOB_SPANNE.korpus),
       phrase: klemm(p.phrase === void 0 ? KNOB_VORGABE.phrase : Number(p.phrase), KNOB_SPANNE.phrase),
-      satzlaenge: klemm(p.satzlaenge === void 0 ? KNOB_VORGABE.satzlaenge : Number(p.satzlaenge), KNOB_SPANNE.satzlaenge)
+      satzlaenge: klemm(p.satzlaenge === void 0 ? KNOB_VORGABE.satzlaenge : Number(p.satzlaenge), KNOB_SPANNE.satzlaenge),
+      atomgroesse: klemm(p.atomgroesse === void 0 ? KNOB_VORGABE.atomgroesse : Number(p.atomgroesse), KNOB_SPANNE.atomgroesse)
     };
   } catch {
     return { ...KNOB_VORGABE };

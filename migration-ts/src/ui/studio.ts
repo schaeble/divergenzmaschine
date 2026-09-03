@@ -941,6 +941,7 @@ export function mountStudio(root: HTMLElement): void {
       // Nachlege-Abstand bleiben im Werkzeugkasten - sie wirken auf den Bau,
       // nicht auf den Klang.
       ...(knobSel.satzlaenge ? { "Satzlänge": knobSel.satzlaenge } : {}),
+      ...(knobSel.atomgroesse ? { "Atomgröße": knobSel.atomgroesse } : {}),
       ...(knobSel.bogen ? { "Erzählbogen": knobSel.bogen } : {}),
       ...(knobSel.ton ? { "Ton-Einschübe": knobSel.ton } : {}),
       ...(knobSel.korpus ? { "Korpus-Bausteine": knobSel.korpus } : {}),
@@ -1572,7 +1573,8 @@ export function mountStudio(root: HTMLElement): void {
     knobRow("ton", "Ton-Einschübe", "wie viele Ton-Sätze die Nachbearbeitung einstreut", " %"),
     knobRow("korpus", "Korpus-Bausteine", "aus dem eigenen Korpus, gefiltert auf Präsens und eigene Figuren; 0 = aus", ""),
     knobRow("phrase", "Phrasensperre", "ab wie vielen gleichen Wörtern in Folge ein Baustein abgelehnt wird; 0 = aus. Streng heißt weniger Wiederholung, aber auch kürzere Texte", " Wörter"),
-    knobRow("satzlaenge", "Satzlänge", "Obergrenze, kein Mittelwert: Nachbarsätze werden zusammengezogen, solange das Ergebnis darunter bleibt. 0 = aus. Bei 9 verschwinden vor allem die Stummelsätze, lange entstehen erst ab 12; bei 15 liegt der Schnitt bei rund 9 Wörtern", " Wörter"));
+    knobRow("satzlaenge", "Satzlänge", "Obergrenze, kein Mittelwert: Nachbarsätze werden zusammengezogen, solange das Ergebnis darunter bleibt. 0 = aus. Bei 9 verschwinden vor allem die Stummelsätze, lange entstehen erst ab 12; bei 15 liegt der Schnitt bei rund 9 Wörtern", " Wörter"),
+    knobRow("atomgroesse", "Atomgröße", "Längere Bausteine werden vor dem Zusammenbau zerlegt — an Gedankenstrich, Semikolon, zwischen zwei Hauptsätzen, oder der nachgestellte Nebensatz fällt. Was sich nicht zerlegen lässt, bleibt ganz und wird seltener gezogen. Die eingebauten Presets liegen bei 7 Wörtern im Schnitt; Presets aus Text, Sammler und Erzählerbank bringen bis 22. 0 = aus", " Wörter"));
   const knobReset = button("Vorgaben wiederherstellen");
   knobReset.addEventListener("click", () => {
     Object.assign(knobs, KNOB_VORGABE); saveKnobs(knobs);

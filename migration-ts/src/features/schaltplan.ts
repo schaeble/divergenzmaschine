@@ -90,7 +90,7 @@ export const SCHLOSS_ZU_KNOTEN: Record<string, string> = {
   "f-w-wo": "gewicht", "f-w-wann": "gewicht", "f-w-wer": "gewicht", "f-w-was": "gewicht",
   "k-fuegeteil": "k-fuegeteil", "k-w4max": "k-w4max", "k-abstand": "k-abstand",
   "k-bogen": "k-bogen", "k-ton": "k-ton", "k-korpus": "k-korpus",
-  "k-phrase": "k-phrase", "k-satzlaenge": "k-satzlaenge",
+  "k-phrase": "k-phrase", "k-satzlaenge": "k-satzlaenge", "k-atomgroesse": "k-atomgroesse",
 };
 
 export const ANLAGE_KEY = "dm_anlage_v1";
@@ -298,7 +298,7 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   knoten("archb", 2, "Archetyp B", bez(ARCH_OPTS, r["archetypeB"] || "neutral"),
     (r["archetypeB"] || "neutral") === "neutral" ? "aus" : "an", "", "f-archb");
 
-  // Die acht Stellschrauben. `korpus` ist die einzige mit einer eigenen Quelle —
+  // Die neun Stellschrauben. `korpus` ist die einzige mit einer eigenen Quelle —
   // und damit die einzige, die `leer` werden kann.
   const schraube = (feld: keyof Knobs, label: string, einheit: string): void => {
     const v = u.knobs[feld];
@@ -317,6 +317,7 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   schraube("korpus", "Korpus-Bausteine", " %");
   schraube("phrase", "Phrasensperre", "");
   schraube("satzlaenge", "Satzlänge", "");
+  schraube("atomgroesse", "Atomgröße", " Wörter");     // seit 4.338.0: Zerlegung langer Bausteine vor dem Pool
 
   // Figurendisziplin stand bis 4.288 nicht im Plan, obwohl sie ein Schloss
   // trägt und in jeden Text geht.

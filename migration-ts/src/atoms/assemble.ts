@@ -6,6 +6,7 @@ import type { DerivedAtom } from "./derive";
 import { guessGender } from "../generation/declension";
 import { hatFinitesVerb } from "./derive";
 import { loadKnobs } from "../features/knobs";
+import { ueberlaenge } from "./atomisieren";
 
 export interface PoolAtom extends DerivedAtom {
   id: string;
@@ -349,8 +350,13 @@ export function ziehe(kandidaten: PoolAtom[], sollGewicht: string, bisher: strin
   const stems = (t: string): Set<string> => new Set((t.toLowerCase().match(/[a-zäöüß]{5,}/g) || []).map((w) => w.slice(0, 5)));
   const kontext = stems(bisher);
   const bogenGewicht = (loadKnobs().bogen || 100) / 100;   // A.3: Zielvorgabe Erzählbogen
+  const atomMax = loadKnobs().atomgroesse;                  // Atomgröße: Überlänge kostet
   const score = (a: PoolAtom): number => {
     let s = 1;
+    // Was die Atomisierung nicht zerlegen konnte, bleibt ganz — wird aber
+    // seltener gezogen: Abzug je überzähligem Wort (bei 20 statt 14 Wörtern
+    // sind das 2,4 — mehr als jeder Phasenbonus).
+    s -= 0.4 * ueberlaenge(a.text, atomMax);
     if (phase) s += phasenBonus(a, phase);         // Funktion der Position zuerst
     s += gelenkBonus(a, phase, bogenGewicht);      // Rekombination mit Bogen: Gelenke bevorzugen den Bogen
     if (a.rhythmus.gewicht === sollGewicht) s += 1.5;
