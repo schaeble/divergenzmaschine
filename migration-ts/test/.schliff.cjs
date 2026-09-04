@@ -4895,6 +4895,9 @@ function nominativFragment(t) {
     }
   );
 }
+function formelnGlaetten(t) {
+  return (t || "").replace(/\b(Dann|Und dann|Plötzlich|Danach)\s+—\s+(dann|plötzlich|danach),/gi, (_m, a) => `${a},`).replace(/([.!?…])\s+—\s+([a-zäöüß])/g, (_m, p, c) => `${p} ${c.toUpperCase()}`);
+}
 function kleinesPronomen(t) {
   return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon|Mittags|Morgens|Abends|Nachts|Heute|Gestern|Morgen|Später|Manchmal|Damals|Irgendwann|Vormittags|Nachmittags)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
     /(,[ \t]+)(Wo|Wenn|Als|Weil|Dass|Obwohl|Während|Nachdem|Bevor|Sobald|Solange|Damit|Ob|Der|Die|Das|Dem|Den|Deren|Dessen)\b(?=\s)/g,
@@ -4916,6 +4919,7 @@ function postProcessText(txt, input) {
   t = fragezeichen(t);
   t = nomenNachAdverb(t);
   t = nominativFragment(t);
+  t = formelnGlaetten(t);
   t = kleinerArtikel(t);
   const name = (input?.who ?? "").toString().trim();
   if (name) {
@@ -13116,6 +13120,9 @@ ist("Gegenprobe: Nomen nach Komma bleibt", kleinesPronomen("Brot, Wein und Salz.
   wahr("Plural ohne Artikel erkannt: Passanten, nicht W\xE4chter", istPluralFigur("Passanten") && !istPluralFigur("W\xE4chter") && !istPluralFigur("Marek"));
   ist("Passanten sehen", pluralKongruenz("Passanten sieht einen Gletscher.", "Passanten"), "Passanten sehen einen Gletscher.");
 }
+ist("Dann \u2014 dann, unvermittelt: \u2192 Dann, unvermittelt:", formelnGlaetten("Vier Kinder: Dann \u2014 dann, unvermittelt: Stille."), "Vier Kinder: Dann, unvermittelt: Stille.");
+ist("Strich nach dem Punkt wird zum Satzanfang", formelnGlaetten("Gut. \u2014 das war der Anfang."), "Gut. Das war der Anfang.");
+ist("Gegenprobe: Strich mitten im Satz bleibt", formelnGlaetten("Sie geht \u2014 das Licht bleibt."), "Sie geht \u2014 das Licht bleibt.");
 console.log(`Pr\xFCfstand Schliff \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {

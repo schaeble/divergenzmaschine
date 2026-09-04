@@ -390,6 +390,17 @@ export function nominativFragment(t: string): string {
     });
 }
 
+/** Zwei Formeln übereinander und ein Strich nach dem Punkt — gemeldet:
+ *  „Dann — dann, unvermittelt:" und „Gut. — das war der Anfang." */
+export function formelnGlaetten(t: string): string {
+  return (t || "")
+    // „Dann — dann, unvermittelt:" → „Dann, unvermittelt:"; „Dann — Dann," ebenso.
+    .replace(/\b(Dann|Und dann|Plötzlich|Danach)\s+—\s+(dann|plötzlich|danach),/gi, (_m: string, a: string) => `${a},`)
+    // Nach einem Satzende ist ein Gedankenstrich kein Anschluss: „Gut. — das
+    // war der Anfang." → „Gut. Das war der Anfang."
+    .replace(/([.!?…])\s+—\s+([a-zäöüß])/g, (_m: string, p: string, c: string) => `${p} ${c.toUpperCase()}`);
+}
+
 export function kleinesPronomen(t: string): string {
   return (t || "")
     .replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon|Mittags|Morgens|Abends|Nachts|Heute|Gestern|Morgen|Später|Manchmal|Damals|Irgendwann|Vormittags|Nachmittags)\b/g, (_m: string, sp: string, w: string) => sp + w.toLowerCase())
@@ -427,6 +438,7 @@ export function postProcessText(txt: string, input?: Input): string {
   t = fragezeichen(t);
   t = nomenNachAdverb(t);
   t = nominativFragment(t);
+  t = formelnGlaetten(t);
 
   // Unbestimmter Artikel MITTEN im Satz klein.
   //

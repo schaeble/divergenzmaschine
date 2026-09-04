@@ -16,6 +16,7 @@ import { declineHookPhrase, ensureArticle } from "./declension";
 import { applyDisruptor, applyRhythm, applyTension, paragraphize, applyPerspective, pronominalize, guessPronoun, entferneDubletten } from "./shape";
 import { verwandleMotive, leseVerwandlungen } from "./verwandlung";
 import { MarkovModel, isSaneMarkov, smoothMarkov } from "../corpus";
+import { isPastTense } from "./coherence";
 import { biasedAutoChoice } from "./autochoice";
 import { buildVideoSequenceText } from "./video";
 import { enforceWordTarget } from "./length";
@@ -102,7 +103,9 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
     if (markovMode === "off" || !model) return fallback;
     if (markovMode === "on" || chance(prob)) {
       const m = smoothMarkov(model.generate(14));
-      if (m && isSaneMarkov(m) && !markovSeenRecently(m)) { noteMarkov(m); traceMarkov(m); return m; }
+      // Zeitebene: Die Prosa steht im Präsens; eine Korpus-Kette im Präteritum
+      // („Dann kippten sie meistens geräuschvoll um") bricht sie — gemeldet.
+      if (m && isSaneMarkov(m) && !isPastTense(m) && !markovSeenRecently(m)) { noteMarkov(m); traceMarkov(m); return m; }
     }
     return fallback;
   };

@@ -5878,6 +5878,25 @@ function satzPlausibel(satz) {
     if (FUNKTION.has(letztes2) || ADJEKTIV.has(letztes2) || HILFSVERB.has(letztes2)) continue;
     if (/t$/.test(letztes2) && !/(en|eln|ern)$/.test(letztes2)) return false;
   }
+  const finit = (w) => {
+    const l = w.toLowerCase();
+    if (HILFSVERB.has(l)) return true;
+    return /^[a-zäöüß]{3,}t$/.test(l) && !FUNKTION.has(l) && !ADJEKTIV.has(l) && !KEIN_VERB.has(l) && istVerbform(l);
+  };
+  for (const teil of bare.split(/[,;:—–]\s*/)) {
+    const tw = woerter2(teil);
+    for (let i2 = 0; i2 + 3 < tw.length; i2++) {
+      if (!finit(tw[i2]) || !/^(der|die|das|den|dem|ein|eine|einen|einem)$/i.test(tw[i2 + 1])) continue;
+      if (!/^[A-ZÄÖÜ]/.test(tw[i2 + 2])) continue;
+      if (HILFSVERB.has(tw[i2 + 3].toLowerCase())) return false;
+    }
+  }
+  {
+    const auf = (bare.match(/[„»]/g) || []).length, zu = (bare.match(/[“«]/g) || []).length;
+    if (auf !== zu) return false;
+  }
+  for (const teil of bare.split(/[,;:—–]\s*/))
+    if (/^es gibt(\s+(jetzt|hier|dort|noch|nur|auch|bald|immer|nie))?$/i.test(teil.trim())) return false;
   return true;
 }
 function stueckPlausibel(text) {

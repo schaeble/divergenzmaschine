@@ -156,6 +156,39 @@ export function satzPlausibel(satz: string): boolean {
     if (/t$/.test(letztes) && !/(en|eln|ern)$/.test(letztes)) return false;
   }
 
+  // 6. Zwei finite Verben in einer Klausel, nur eine Nominalphrase dazwischen,
+  //    keine Konjunktion, kein Komma: „kommt das Licht wird heller" — die Naht
+  //    zweier Ketten, die sich ein Wort teilen. Nur sichere Personalformen
+  //    (dritte Person auf -t, Hilfs-/Modalverben).
+  const finit = (w: string): boolean => {
+    const l = w.toLowerCase();
+    if (HILFSVERB.has(l)) return true;
+    return /^[a-zäöüß]{3,}t$/.test(l) && !FUNKTION.has(l) && !ADJEKTIV.has(l) && !KEIN_VERB.has(l) && istVerbform(l);
+  };
+  for (const teil of bare.split(/[,;:—–]\s*/)) {
+    const tw = woerter(teil);
+    for (let i = 0; i + 3 < tw.length; i++) {
+      if (!finit(tw[i]!) || !/^(der|die|das|den|dem|ein|eine|einen|einem)$/i.test(tw[i + 1]!)) continue;
+      if (!/^[A-ZÄÖÜ]/.test(tw[i + 2]!)) continue;
+      // Das zweite Verb muss ein sicheres Hilfs-/Modalverb sein — „hängt das
+      // Bild verkehrt", „wird das Protokoll abgeheftet" (Adjektiv, Partizip)
+      // bleiben; „kommt das Licht wird" fällt.
+      if (HILFSVERB.has(tw[i + 3]!.toLowerCase())) return false;
+    }
+  }
+
+  // 7. Schräg ins Zitat gefallen: ein einzelnes »/«/„/“ — ein Zitat, dessen
+  //    andere Hälfte in einer anderen Kette blieb („… keine Bücher!« grölte er").
+  {
+    const auf = (bare.match(/[„»]/g) || []).length, zu = (bare.match(/[“«]/g) || []).length;
+    if (auf !== zu) return false;
+  }
+
+  // 8. „Es gibt jetzt." — „es gibt" ohne Gegenstand, nur mit Adverb oder am
+  //    Ende: der Rest einer Kette.
+  for (const teil of bare.split(/[,;:—–]\s*/))
+    if (/^es gibt(\s+(jetzt|hier|dort|noch|nur|auch|bald|immer|nie))?$/i.test(teil.trim())) return false;
+
   return true;
 }
 

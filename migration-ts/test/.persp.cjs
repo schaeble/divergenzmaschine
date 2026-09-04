@@ -6707,6 +6707,9 @@ function nominativFragment(t) {
     }
   );
 }
+function formelnGlaetten(t) {
+  return (t || "").replace(/\b(Dann|Und dann|Plötzlich|Danach)\s+—\s+(dann|plötzlich|danach),/gi, (_m, a) => `${a},`).replace(/([.!?…])\s+—\s+([a-zäöüß])/g, (_m, p, c) => `${p} ${c.toUpperCase()}`);
+}
 function kleinesPronomen(t) {
   return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon|Mittags|Morgens|Abends|Nachts|Heute|Gestern|Morgen|Später|Manchmal|Damals|Irgendwann|Vormittags|Nachmittags)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
     /(,[ \t]+)(Wo|Wenn|Als|Weil|Dass|Obwohl|Während|Nachdem|Bevor|Sobald|Solange|Damit|Ob|Der|Die|Das|Dem|Den|Deren|Dessen)\b(?=\s)/g,
@@ -6728,6 +6731,7 @@ function postProcessText(txt, input) {
   t = fragezeichen(t);
   t = nomenNachAdverb(t);
   t = nominativFragment(t);
+  t = formelnGlaetten(t);
   t = kleinerArtikel(t);
   const name = (input?.who ?? "").toString().trim();
   if (name) {
@@ -7514,6 +7518,25 @@ function satzPlausibel(satz) {
     if (FUNKTION2.has(letztes2) || ADJEKTIV.has(letztes2) || HILFSVERB.has(letztes2)) continue;
     if (/t$/.test(letztes2) && !/(en|eln|ern)$/.test(letztes2)) return false;
   }
+  const finit = (w) => {
+    const l = w.toLowerCase();
+    if (HILFSVERB.has(l)) return true;
+    return /^[a-zäöüß]{3,}t$/.test(l) && !FUNKTION2.has(l) && !ADJEKTIV.has(l) && !KEIN_VERB.has(l) && istVerbform(l);
+  };
+  for (const teil of bare.split(/[,;:—–]\s*/)) {
+    const tw = woerter2(teil);
+    for (let i = 0; i + 3 < tw.length; i++) {
+      if (!finit(tw[i]) || !/^(der|die|das|den|dem|ein|eine|einen|einem)$/i.test(tw[i + 1])) continue;
+      if (!/^[A-ZÄÖÜ]/.test(tw[i + 2])) continue;
+      if (HILFSVERB.has(tw[i + 3].toLowerCase())) return false;
+    }
+  }
+  {
+    const auf = (bare.match(/[„»]/g) || []).length, zu = (bare.match(/[“«]/g) || []).length;
+    if (auf !== zu) return false;
+  }
+  for (const teil of bare.split(/[,;:—–]\s*/))
+    if (/^es gibt(\s+(jetzt|hier|dort|noch|nur|auch|bald|immer|nie))?$/i.test(teil.trim())) return false;
   return true;
 }
 function stueckPlausibel(text) {
@@ -15608,7 +15631,7 @@ function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
       const tries = strong ? 3 : 1;
       for (let k = 0; k < tries; k++) {
         const m = smoothMarkov(model.generate(Math.min(60, Math.max(20, Math.floor(missing * 0.8)))));
-        if (m && isSaneMarkov(m) && m.length > 15 && !markovSeenRecently(m)) {
+        if (m && isSaneMarkov(m) && m.length > 15 && !isPastTense(m) && !markovSeenRecently(m)) {
           const key = m.toLowerCase();
           if (!used.has(key) && !out.toLowerCase().includes(key.slice(0, 40))) {
             used.add(key);
@@ -19157,7 +19180,7 @@ function buildKit(bank, input, model) {
     if (markovMode === "off" || !model) return fallback;
     if (markovMode === "on" || chance(prob)) {
       const m = smoothMarkov(model.generate(14));
-      if (m && isSaneMarkov(m) && !markovSeenRecently(m)) {
+      if (m && isSaneMarkov(m) && !isPastTense(m) && !markovSeenRecently(m)) {
         noteMarkov(m);
         traceMarkov(m);
         return m;

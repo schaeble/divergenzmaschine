@@ -64,6 +64,18 @@ for (const [name, satz] of [
   ["ließ", "Er ließ sich nicht helfen."],
 ] as [string, string][]) wahr(`bleibt: ${name}`, satzPlausibel(satz), satz);
 
+// ── 2d · Regeln 6–8 (viertes Blatt) ─────────────────────────────────────────
+wahr("zwei finite Verben um eine Nominalphrase fallen", !satzPlausibel("Gerade wenn alles verloren scheint, kommt das Licht wird heller, ohne Eile."));
+wahr("halbes Zitat fällt", !satzPlausibel("Denn ich hab auch gar keine Bücher!« grölte er mir hinterher."));
+wahr("„Es gibt jetzt“ ohne Gegenstand fällt", !satzPlausibel("Es gibt jetzt, im letzten Gang."));
+for (const [name, satz] of [
+  ["Adjektiv nach Nominalphrase", "Am Ende hängt das Bild verkehrt, und es stimmt."],
+  ["Passiv-Partizip", "So wird das Protokoll abgeheftet und nie gelesen."],
+  ["ganzes Zitat", "„Komm“, sagt sie."],
+  ["es gibt mit Gegenstand", "Es gibt jetzt keinen Weg zurück."],
+  ["Nebensatz mit Komma", "Wenn das Licht kommt, wächst der Schatten."],
+] as [string, string][]) wahr(`bleibt: ${name}`, satzPlausibel(satz), satz);
+
 // ── 3 · Gegenprobe über ALLES eingebaute Material ───────────────────────────
 {
   let n = 0; const durch: string[] = [];

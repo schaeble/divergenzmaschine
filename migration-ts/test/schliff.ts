@@ -11,7 +11,7 @@
   }
 }
 import { readFileSync } from "fs";
-import { istAbgeschnitten, postProcessText, kleinerArtikel, kleinesPronomen, beugeNachDu, kommaVorInversion, fragezeichen, pluralKongruenz, istPluralFigur, nomenNachAdverb, nominativFragment } from "../src/generation/postprocess";
+import { istAbgeschnitten, postProcessText, kleinerArtikel, kleinesPronomen, beugeNachDu, kommaVorInversion, fragezeichen, pluralKongruenz, istPluralFigur, nomenNachAdverb, nominativFragment, formelnGlaetten } from "../src/generation/postprocess";
 import { dekliniere } from "../src/atoms/assemble";
 import { extractLeadVerb, looksLikeFullClause } from "../src/generation/wordcls";
 import { OBJEKT_EINSTIEG } from "../src/generation/shape";
@@ -373,6 +373,11 @@ ist("Gegenprobe: Nomen nach Komma bleibt", kleinesPronomen("Brot, Wein und Salz.
   wahr("Plural ohne Artikel erkannt: Passanten, nicht Wächter", istPluralFigur("Passanten") && !istPluralFigur("Wächter") && !istPluralFigur("Marek"));
   ist("Passanten sehen", pluralKongruenz("Passanten sieht einen Gletscher.", "Passanten"), "Passanten sehen einen Gletscher.");
 }
+
+// ── Blatt „Vier Kinder": Formeln übereinander, Strich nach dem Punkt ────────
+ist("Dann — dann, unvermittelt: → Dann, unvermittelt:", formelnGlaetten("Vier Kinder: Dann — dann, unvermittelt: Stille."), "Vier Kinder: Dann, unvermittelt: Stille.");
+ist("Strich nach dem Punkt wird zum Satzanfang", formelnGlaetten("Gut. — das war der Anfang."), "Gut. Das war der Anfang.");
+ist("Gegenprobe: Strich mitten im Satz bleibt", formelnGlaetten("Sie geht — das Licht bleibt."), "Sie geht — das Licht bleibt.");
 
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
