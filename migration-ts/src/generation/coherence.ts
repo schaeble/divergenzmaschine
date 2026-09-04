@@ -3,6 +3,7 @@
 // heuristisch — sie ersetzen kein Sprachverständnis, fangen aber die
 // typischen Symptome zusammengesetzter Texte.
 import { splitSentences } from "../text-utils";
+import { KEIN_VERB, istVerbform, beugeVerb } from "./verben";
 import { NOUN_GENDER } from "./nouns.data";
 
 // ── 1) Tempus ────────────────────────────────────────────────────────
@@ -129,6 +130,15 @@ export function castSpread(text: string, expected: string[] = []): number {
 // Starke/unregelmäßige Verben als Tabelle (3. Person Singular Präsens).
 // Was hier nicht sicher abbildbar ist, bleibt unangetastet und wird markiert.
 const PAST2PRES: Record<string, string> = {
+  // Ergänzt 4.338.2 (Blatt „Vier Kinder": „Das Herz schlug mir bis zum Hals" blieb stehen):
+  schlug: "schlägt", schlugen: "schlagen", roch: "riecht", rochen: "riechen", traf: "trifft", trafen: "treffen",
+  schob: "schiebt", schoben: "schieben", tat: "tut", taten: "tun", wusch: "wäscht", stritt: "streitet", glitt: "gleitet",
+  stieß: "stößt", stießen: "stoßen", goss: "gießt", band: "bindet", banden: "binden", zwang: "zwingt", fing: "fängt", fingen: "fangen",
+  sandte: "sendet", mochte: "mag", mochten: "mögen", stahl: "stiehlt", galt: "gilt", galten: "gelten", gelang: "gelingt",
+  verband: "verbindet", erhielt: "erhält", erhielten: "erhalten", behielt: "behält", enthielt: "enthält", verließ: "verlässt", verließen: "verlassen",
+  genoss: "genießt", schlich: "schleicht", strich: "streicht", blies: "bläst", lud: "lädt", luden: "laden", schuf: "schafft", schufen: "schaffen",
+  log: "lügt", betrog: "betrügt", flocht: "flicht", kroch: "kriecht", krochen: "kriechen", schmolz: "schmilzt", quoll: "quillt", quollen: "quellen",
+  verging: "vergeht", vergingen: "vergehen", entging: "entgeht", erging: "ergeht", erschrak: "erschrickt",
   war: "ist", waren: "sind", warst: "bist", hatte: "hat", hatten: "haben", hattest: "hast",
   wurde: "wird", wurden: "werden", ging: "geht", gingen: "gehen", kam: "kommt", kamen: "kommen",
   sah: "sieht", sahen: "sehen", gab: "gibt", gaben: "geben", stand: "steht", standen: "stehen",
@@ -198,10 +208,18 @@ export function toPresent(entry: string): TenseFix {
     if (base) {
       // Person aus dem vorangehenden Wort ableiten (z. B. „Ich war“ → „Ich bin“)
       const prev = (words.slice(0, i).reverse().find((x) => /^[A-Za-zÄÖÜäöüß]+$/.test(x)) || "").toLowerCase();
+      // Inversion: „So blieb ich stehen" — die Person steht HINTER dem Verb.
+      const next = (words.slice(i + 1).find((x) => /^[A-Za-zÄÖÜäöüß]+$/.test(x)) || "").toLowerCase();
       const pf = PERSON_FORMS[low];
+      const subj = /^(ich|du|wir|ihr)$/.test(prev) ? prev : /^(ich|du|wir|ihr)$/.test(next) ? next : "";
       let form = base;                       // Tabellenform = 3. Person Singular
-      if (pf && pf[prev]) form = pf[prev]!;
-      else if (/^(ich|du|wir|ihr)$/.test(prev)) { unsure.push(w); continue; } // Person unklar → nicht raten
+      if (pf && subj && pf[subj]) form = pf[subj]!;
+      else if (subj) {
+        // Ohne Tabelleneintrag beugt die Morphologie: „blieb ich" → „bleibe ich".
+        const b = beugeVerb(base, subj as "ich" | "du" | "wir" | "ihr");
+        if (!b) { unsure.push(w); continue; }
+        form = b;
+      }
       words[i] = /^[A-ZÄÖÜ]/.test(w) ? form.charAt(0).toUpperCase() + form.slice(1) : form;
       changed = true;
       continue;
@@ -210,6 +228,106 @@ export function toPresent(entry: string): TenseFix {
     if (/^[a-zäöüß]{4,}(te|ete)$/.test(low)) unsure.push(w);
   }
   return { text: words.join(""), changed, unsure };
+}
+
+// ── Präteritum → Präsens, zweite Stufe: auch schwache Formen ─────────
+// Gewünscht (4.338.2): Korpus-Ketten im Präteritum nicht verwerfen, sondern
+// umschreiben. toPresent() kannte nur die unregelmäßigen Formen; schwache
+// Formen auf -te/-ten waren ohne Wortartenerkennung nicht von Adjektiven
+// („violette“) zu trennen. Mit der Morphologie (verben.ts) und drei Wächtern
+// geht es jetzt:
+//   - großgeschrieben in der Satzmitte = Nomen („Karten“): bleibt.
+//   - Artikel/Possessiv davor UND Nomen dahinter = attributives Adjektiv
+//     („die violette Blume“): bleibt.
+//   - Stamm + t in der Sperrliste KEIN_VERB („kalte“ → „kalt“): bleibt.
+// Person aus dem Subjekt: ich → -e, du → -st, -ten → -en (Plural), -te → -t
+// (dritte Person, Bindevokal beachtet). Bleibt danach noch Präteritum
+// stehen (Perfekt, unbekannte starke Form), meldet ok = false — dann verwirft
+// der Aufrufer wie bisher.
+export function praesensUmschreiben(entry: string): { text: string; ok: boolean; changed: boolean } {
+  const first = toPresentSicher(entry);
+  const words = first.text.split(/(\s+)/);
+  let changed = first.changed;
+  const ARTIKEL = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|kein|keine|keinen|mein|meine|meinen|dein|deine|sein|seine|seinen|ihr|ihre|ihren|unser|unsere|jede|jeder|jedes|diese|dieser|dieses|manche|viele|alle|zwei|drei|im|am|zum|zur|beim|ins|vom)$/i;
+  const KONJUNKTIV = /^(müsste|müssten|könnte|könnten|dürfte|dürften|möchte|möchten|hätte|hätten|wäre|wären|würde|würden|sollte|sollten|wollte|wollten)$/i;
+  const MODAL_DAVOR = /^(zu|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|mag|mögen|lässt|lassen|möchte|könnte|müsste|sollte|wollte|dürfte)$/i;
+  const rein = (x: string): string => x.replace(/[^A-Za-zÄÖÜäöüß]/g, "");
+  // Schwache Formen auf -te/-ten sind ohne Lexikon nicht von Infinitiven
+  // („aushalten"), Präsens-Plural („warten") oder Adjektiven („violette")
+  // zu trennen — die Gegenprobe über 6930 Präsens-Bausteine zeigt jede
+  // Regel, die es versucht, als Zerstörerin. Darum werden sie NUR
+  // angefasst, wenn der Satz unabhängig als Präteritum erwiesen ist: eine
+  // starke Form wurde schon umgeschrieben, oder eine Form auf -ete/-eten
+  // steht darin (Präsens hieße -et/-en). Formen auf -ete/-eten selbst sind
+  // eindeutig und werden immer umgeschrieben; Partizip-Adjektive
+  // („aufgestellte", „geduldete") bleiben.
+  // „eindeutig" = Bindevokal-Präteritum: t/d-Stamm + ete (wartete, redeten)
+  // oder Konsonantenhäufung + ete (öffnete, atmete). „bieten", „treten",
+  // „arbeiten" enden auf -eten, sind aber Präsens — darum der Stamm-Test.
+  const EINDEUTIG = /(?:[td]|chn|ffn|gn|tm|dm|ckn|kn)ete(?:n|st|t)?$/;
+  const belegtPraeteritum = first.changed || (first.text.match(/\b[a-zäöüß]{3,}ete(?:n|st)?\b/g) || []).some((x) => EINDEUTIG.test(x));
+  let unklar = 0;
+  for (let i = 0; i < words.length; i++) {
+    const roh = words[i]!;
+    const satzzeichen = (roh.match(/[.,;:!?…»“"]+$/) || [""])[0];
+    const w = satzzeichen ? roh.slice(0, -satzzeichen.length) : roh;
+    const m = w.match(/^([a-zäöüß]{3,}?)(e?te|e?ten|e?test)$/);
+    if (!m || KONJUNKTIV.test(w)) continue;
+    const stamm = m[1]!, endung = m[2]!;
+    const eindeutig = /^e/.test(endung) && EINDEUTIG.test(w);           // -ete / -eten mit t/d-Stamm
+    if (/^e/.test(endung) && !eindeutig) continue;                       // bieten, treten, arbeiten: Präsens
+    if (/(^|[a-zäöü])ge[a-zäöüß]{3,}$/.test(stamm) && !/^(geh|gel|gen|ger|geb|ges)/.test(stamm)) continue;  // Partizip-Adjektiv
+    if (/t$/.test(stamm) && !eindeutig) continue;                       // t-Stamm: rette, bitte, warte, beste
+    const davor = words.slice(0, i).map(rein).filter(Boolean);
+    const prev = (davor[davor.length - 1] || "").toLowerCase();
+    const naechst = words.slice(i + 1).map(rein).find(Boolean) || "";
+    if (ARTIKEL.test(prev) && /^[A-ZÄÖÜ]/.test(naechst)) continue;      // attributives Adjektiv
+    if (/ten$/.test(endung) && MODAL_DAVOR.test(prev)) continue;         // Infinitiv nach Modal/zu
+    if (KEIN_VERB.has(stamm + "t") || KEIN_VERB.has(stamm)) continue;
+    if (!istVerbform(stamm + "t") && !istVerbform(stamm + "et")) continue;
+    // Alle Wächter passiert, aber kein Beleg im Satz: Das Wort KANN Präteritum
+    // sein („kippten") oder Präsens („halten"). Nicht raten — der Satz gilt
+    // als unklar und wird vom Aufrufer verworfen, wie vor dem Umschreiber.
+    if (!eindeutig && !belegtPraeteritum) { unklar++; continue; }
+    const bindevokal = /^e/.test(endung);
+    const dritte = bindevokal ? stamm + "et" : stamm + "t";
+    let neu: string;
+    if (/^ich$/i.test(prev)) neu = beugeVerb(dritte, "ich") || dritte;
+    else if (/^du$/i.test(prev)) neu = beugeVerb(dritte, "du") || dritte;
+    else if (/ten$/.test(endung)) neu = beugeVerb(dritte, "wir") || dritte;   // -ten = Plural
+    else neu = dritte;                                                     // -te = dritte Person Singular
+    if (neu !== w) { words[i] = neu + satzzeichen; changed = true; }
+  }
+  const text = words.join("");
+  return { text, ok: !isPastTense(text) && unklar === 0, changed };
+}
+
+/** toPresent mit zwei Wächtern: (1) Großgeschrieben in der Satzmitte ist ein
+ *  Nomen — „ohne Schloss", „ohne Griff", „das Band" bleiben. (2) Neben einem
+ *  Hilfsverb ist ein Wort auf -en aus der Tabelle ein Partizip („hat
+ *  verloren"), keine Präteritum-Mehrzahl. */
+function toPresentSicher(entry: string): TenseFix {
+  const AUX = /\b(hat|haben|habe|hast|habt|hatte|hatten|ist|sind|bin|bist|seid|war|waren|wird|werden|wurde|wurden|worden)\b/i;
+  const perfekt = AUX.test(entry);
+  const words = entry.split(/(\s+)/);
+  const marker: string[] = [];
+  let erstesWort = true;
+  let vorher = "";
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i]!;
+    if (!/^[A-Za-zÄÖÜäöüß]/.test(w)) continue;
+    // (3) „als wollten sie", „als könnte er" — Konjunktiv nach „als", kein
+    // Präteritum: bleibt.
+    const konjNachAls = vorher === "als" && /^(wollte|wollten|sollte|sollten|könnte|könnten|müsste|hätte|hätten|wäre|wären|würde|würden)/i.test(w);
+    const schuetzen = (!erstesWort && /^[A-ZÄÖÜ]/.test(w)) || (perfekt && /en[.,;:!?]*$/.test(w)) || konjNachAls;
+    vorher = w.toLowerCase().replace(/[^a-zäöüß]/g, "");
+    erstesWort = false;
+    if (schuetzen) { marker.push(w); words[i] = `§${marker.length - 1}§`; }
+  }
+  const r = toPresent(words.join(""));
+  let text = r.text;
+  marker.forEach((w, k) => { text = text.replace(`§${k}§`, w); });
+  return { text, changed: r.changed, unsure: r.unsure };
 }
 
 // ── 4) Perspektive ───────────────────────────────────────────────────

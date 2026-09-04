@@ -12,6 +12,7 @@ import { applyPerspective, pronominalize, guessPronoun } from "../generation/sha
 import { resetTrace, pushTrace, pruefeAbgleich } from "./trace";
 import { loadDramaData } from "../generation/dramaturgie";
 import { atomisiere } from "./atomisieren";
+import { praesensUmschreiben } from "../generation/coherence";
 import { loadKnobs } from "../features/knobs";
 import { isSaneMarkov, loadPersistentCorpus, corpusSanitize, type MarkovModel } from "../corpus";
 import { properNames } from "../generation/coherence";
@@ -109,8 +110,14 @@ export function buildPool(bank: Bank, perspektive: string, what?: string, figur?
     const eigene = new Set((figur || "").toLowerCase().split(/[,;]/).map((x) => x.trim()).filter(Boolean));
     const gesehen = new Set<string>();
     for (let n = 0; n < wieViele * 3 && gesehen.size < wieViele; n++) {
-      const roh = (model.generate(14) || "").trim();
-      if (!roh || !isSaneMarkov(roh)) continue;
+      const roh0 = (model.generate(14) || "").trim();
+      if (!roh0) continue;
+      // Präteritum → Präsens (4.338.2): umschreiben statt verwerfen; was sich
+      // nicht umschreiben lässt, fällt wie bisher.
+      const u = praesensUmschreiben(roh0);
+      if (!u.ok) continue;
+      const roh = u.text;
+      if (!isSaneMarkov(roh)) continue;
       const sig = roh.toLowerCase();
       if (gesehen.has(sig)) continue;
       const d = deriveAtom(roh);

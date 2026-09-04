@@ -3417,6 +3417,27 @@ function isPastTense(s) {
   if (PRAET_WEAK.test(t) && weakLooksVerbal(t) && !ADJ_CONTEXT.test(t)) return true;
   return (t.toLowerCase().match(/[a-zäöüß]+/g) || []).some((w) => !!PAST2PRES[w]);
 }
+var tokens = (t) => t.toLowerCase().match(/[a-zäöüß]{2,}/g) || [];
+function ngrams(t, n) {
+  const w = tokens(t);
+  const out = [];
+  for (let i = 0; i + n <= w.length; i++) out.push(w.slice(i, i + n).join(" "));
+  return out;
+}
+function phraseRepeatRatio(text) {
+  let dup = 0, total = 0;
+  for (const n of [3, 4]) {
+    const g = ngrams(text, n);
+    if (g.length < 4) continue;
+    const seen = /* @__PURE__ */ new Set();
+    for (const x of g) {
+      total++;
+      if (seen.has(x)) dup++;
+      else seen.add(x);
+    }
+  }
+  return total ? dup / total : 0;
+}
 var NAME_STOP = /* @__PURE__ */ new Set(["der", "die", "das", "den", "dem", "des", "ein", "eine", "einen", "einem", "einer", "und", "oder", "aber", "denn", "doch", "dann", "als", "wie", "was", "wer", "wo", "wann", "warum", "ich", "du", "er", "sie", "es", "wir", "ihr", "man", "hier", "dort", "jetzt", "noch", "nur", "auch", "schon", "immer", "nie", "sehr", "so", "zu", "im", "am", "auf", "in", "an", "mit", "von", "f\xFCr", "bei", "nach", "vor", "\xFCber", "unter", "durch", "um", "ohne", "seit", "damals", "sp\xE4ter", "zuerst", "zuletzt", "stille", "nein", "ja", "fast", "vielleicht", "genau", "warte", "gut", "dabei", "dazu", "dann"]);
 var DETERMINER = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|meinen|meinem|meiner|dein|deine|sein|seine|seinen|seinem|ihr|ihre|ihren|ihrem|unser|unsere|euer|eure|kein|keine|keinen|keinem|jeder|jede|jedes|dieser|diese|dieses|diesem|diesen|jener|jene|manche|viele|alle|beide|im|am|zum|zur|ins|ans|vom|beim|aufs|durchs|übers|unters)$/i;
 var PREP = /^(in|an|auf|bei|mit|von|zu|nach|über|unter|vor|hinter|neben|zwischen|durch|für|ohne|um|gegen|seit|trotz|wegen|während|aus)$/i;
@@ -3438,6 +3459,63 @@ function properNames(text) {
   return [...out];
 }
 var PAST2PRES = {
+  // Ergänzt 4.338.2 (Blatt „Vier Kinder": „Das Herz schlug mir bis zum Hals" blieb stehen):
+  schlug: "schl\xE4gt",
+  schlugen: "schlagen",
+  roch: "riecht",
+  rochen: "riechen",
+  traf: "trifft",
+  trafen: "treffen",
+  schob: "schiebt",
+  schoben: "schieben",
+  tat: "tut",
+  taten: "tun",
+  wusch: "w\xE4scht",
+  stritt: "streitet",
+  glitt: "gleitet",
+  stie\u00DF: "st\xF6\xDFt",
+  stie\u00DFen: "sto\xDFen",
+  goss: "gie\xDFt",
+  band: "bindet",
+  banden: "binden",
+  zwang: "zwingt",
+  fing: "f\xE4ngt",
+  fingen: "fangen",
+  sandte: "sendet",
+  mochte: "mag",
+  mochten: "m\xF6gen",
+  stahl: "stiehlt",
+  galt: "gilt",
+  galten: "gelten",
+  gelang: "gelingt",
+  verband: "verbindet",
+  erhielt: "erh\xE4lt",
+  erhielten: "erhalten",
+  behielt: "beh\xE4lt",
+  enthielt: "enth\xE4lt",
+  verlie\u00DF: "verl\xE4sst",
+  verlie\u00DFen: "verlassen",
+  genoss: "genie\xDFt",
+  schlich: "schleicht",
+  strich: "streicht",
+  blies: "bl\xE4st",
+  lud: "l\xE4dt",
+  luden: "laden",
+  schuf: "schafft",
+  schufen: "schaffen",
+  log: "l\xFCgt",
+  betrog: "betr\xFCgt",
+  flocht: "flicht",
+  kroch: "kriecht",
+  krochen: "kriechen",
+  schmolz: "schmilzt",
+  quoll: "quillt",
+  quollen: "quellen",
+  verging: "vergeht",
+  vergingen: "vergehen",
+  entging: "entgeht",
+  erging: "ergeht",
+  erschrak: "erschrickt",
   war: "ist",
   waren: "sind",
   warst: "bist",
@@ -3639,6 +3717,124 @@ var PAST2PRES = {
   bat: "bittet",
   baten: "bitten"
 };
+var PERSON_FORMS = {
+  war: { ich: "bin", du: "bist", wir: "sind", ihr: "seid", sie: "ist", er: "ist", es: "ist" },
+  waren: { wir: "sind", sie: "sind", ihr: "seid" },
+  hatte: { ich: "habe", du: "hast", wir: "haben", ihr: "habt", sie: "hat", er: "hat", es: "hat" },
+  hatten: { wir: "haben", sie: "haben", ihr: "habt" },
+  wurde: { ich: "werde", du: "wirst", wir: "werden", sie: "wird", er: "wird", es: "wird" },
+  konnte: { ich: "kann", du: "kannst", wir: "k\xF6nnen", sie: "kann", er: "kann", es: "kann" },
+  musste: { ich: "muss", du: "musst", wir: "m\xFCssen", sie: "muss", er: "muss", es: "muss" },
+  wollte: { ich: "will", du: "willst", wir: "wollen", sie: "will", er: "will", es: "will" },
+  sollte: { ich: "soll", du: "sollst", wir: "sollen", sie: "soll", er: "soll", es: "soll" },
+  wusste: { ich: "wei\xDF", du: "wei\xDFt", wir: "wissen", sie: "wei\xDF", er: "wei\xDF", es: "wei\xDF" }
+};
+function toPresent(entry) {
+  const unsure = [];
+  let changed = false;
+  const words = (entry || "").split(/(\s+)/);
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    if (!/^[A-Za-zÄÖÜäöüß]+$/.test(w)) continue;
+    const low2 = w.toLowerCase();
+    const base = PAST2PRES[low2];
+    if (base) {
+      const prev = (words.slice(0, i).reverse().find((x) => /^[A-Za-zÄÖÜäöüß]+$/.test(x)) || "").toLowerCase();
+      const next = (words.slice(i + 1).find((x) => /^[A-Za-zÄÖÜäöüß]+$/.test(x)) || "").toLowerCase();
+      const pf = PERSON_FORMS[low2];
+      const subj = /^(ich|du|wir|ihr)$/.test(prev) ? prev : /^(ich|du|wir|ihr)$/.test(next) ? next : "";
+      let form = base;
+      if (pf && subj && pf[subj]) form = pf[subj];
+      else if (subj) {
+        const b = beugeVerb(base, subj);
+        if (!b) {
+          unsure.push(w);
+          continue;
+        }
+        form = b;
+      }
+      words[i] = /^[A-ZÄÖÜ]/.test(w) ? form.charAt(0).toUpperCase() + form.slice(1) : form;
+      changed = true;
+      continue;
+    }
+    if (/^[a-zäöüß]{4,}(te|ete)$/.test(low2)) unsure.push(w);
+  }
+  return { text: words.join(""), changed, unsure };
+}
+function praesensUmschreiben(entry) {
+  const first = toPresentSicher(entry);
+  const words = first.text.split(/(\s+)/);
+  let changed = first.changed;
+  const ARTIKEL2 = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|kein|keine|keinen|mein|meine|meinen|dein|deine|sein|seine|seinen|ihr|ihre|ihren|unser|unsere|jede|jeder|jedes|diese|dieser|dieses|manche|viele|alle|zwei|drei|im|am|zum|zur|beim|ins|vom)$/i;
+  const KONJUNKTIV = /^(müsste|müssten|könnte|könnten|dürfte|dürften|möchte|möchten|hätte|hätten|wäre|wären|würde|würden|sollte|sollten|wollte|wollten)$/i;
+  const MODAL_DAVOR = /^(zu|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|mag|mögen|lässt|lassen|möchte|könnte|müsste|sollte|wollte|dürfte)$/i;
+  const rein = (x) => x.replace(/[^A-Za-zÄÖÜäöüß]/g, "");
+  const EINDEUTIG = /(?:[td]|chn|ffn|gn|tm|dm|ckn|kn)ete(?:n|st|t)?$/;
+  const belegtPraeteritum = first.changed || (first.text.match(/\b[a-zäöüß]{3,}ete(?:n|st)?\b/g) || []).some((x) => EINDEUTIG.test(x));
+  let unklar = 0;
+  for (let i = 0; i < words.length; i++) {
+    const roh = words[i];
+    const satzzeichen = (roh.match(/[.,;:!?…»“"]+$/) || [""])[0];
+    const w = satzzeichen ? roh.slice(0, -satzzeichen.length) : roh;
+    const m = w.match(/^([a-zäöüß]{3,}?)(e?te|e?ten|e?test)$/);
+    if (!m || KONJUNKTIV.test(w)) continue;
+    const stamm = m[1], endung = m[2];
+    const eindeutig = /^e/.test(endung) && EINDEUTIG.test(w);
+    if (/^e/.test(endung) && !eindeutig) continue;
+    if (/(^|[a-zäöü])ge[a-zäöüß]{3,}$/.test(stamm) && !/^(geh|gel|gen|ger|geb|ges)/.test(stamm)) continue;
+    if (/t$/.test(stamm) && !eindeutig) continue;
+    const davor = words.slice(0, i).map(rein).filter(Boolean);
+    const prev = (davor[davor.length - 1] || "").toLowerCase();
+    const naechst = words.slice(i + 1).map(rein).find(Boolean) || "";
+    if (ARTIKEL2.test(prev) && /^[A-ZÄÖÜ]/.test(naechst)) continue;
+    if (/ten$/.test(endung) && MODAL_DAVOR.test(prev)) continue;
+    if (KEIN_VERB.has(stamm + "t") || KEIN_VERB.has(stamm)) continue;
+    if (!istVerbform(stamm + "t") && !istVerbform(stamm + "et")) continue;
+    if (!eindeutig && !belegtPraeteritum) {
+      unklar++;
+      continue;
+    }
+    const bindevokal = /^e/.test(endung);
+    const dritte = bindevokal ? stamm + "et" : stamm + "t";
+    let neu;
+    if (/^ich$/i.test(prev)) neu = beugeVerb(dritte, "ich") || dritte;
+    else if (/^du$/i.test(prev)) neu = beugeVerb(dritte, "du") || dritte;
+    else if (/ten$/.test(endung)) neu = beugeVerb(dritte, "wir") || dritte;
+    else neu = dritte;
+    if (neu !== w) {
+      words[i] = neu + satzzeichen;
+      changed = true;
+    }
+  }
+  const text = words.join("");
+  return { text, ok: !isPastTense(text) && unklar === 0, changed };
+}
+function toPresentSicher(entry) {
+  const AUX = /\b(hat|haben|habe|hast|habt|hatte|hatten|ist|sind|bin|bist|seid|war|waren|wird|werden|wurde|wurden|worden)\b/i;
+  const perfekt = AUX.test(entry);
+  const words = entry.split(/(\s+)/);
+  const marker = [];
+  let erstesWort = true;
+  let vorher = "";
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    if (!/^[A-Za-zÄÖÜäöüß]/.test(w)) continue;
+    const konjNachAls = vorher === "als" && /^(wollte|wollten|sollte|sollten|könnte|könnten|müsste|hätte|hätten|wäre|wären|würde|würden)/i.test(w);
+    const schuetzen = !erstesWort && /^[A-ZÄÖÜ]/.test(w) || perfekt && /en[.,;:!?]*$/.test(w) || konjNachAls;
+    vorher = w.toLowerCase().replace(/[^a-zäöüß]/g, "");
+    erstesWort = false;
+    if (schuetzen) {
+      marker.push(w);
+      words[i] = `\xA7${marker.length - 1}\xA7`;
+    }
+  }
+  const r = toPresent(words.join(""));
+  let text = r.text;
+  marker.forEach((w, k) => {
+    text = text.replace(`\xA7${k}\xA7`, w);
+  });
+  return { text, changed: r.changed, unsure: r.unsure };
+}
 var DU_FORM = /\b(du|dir|dich|dein|deine|deinen|deinem|deiner|deines)\b/i;
 var ICH_FORM = /\b(ich|mir|mich|mein|meine|meinen|meinem|meiner|meines)\b/i;
 function isSecondPerson(s) {
@@ -6212,6 +6408,13 @@ function hatFinitesVerbLeicht(satz) {
 
 // src/generation/dramaturgie.ts
 var DKEY = "dm_dramaturgie_v1";
+function setDramaData(d) {
+  try {
+    if (d) localStorage.setItem(DKEY, JSON.stringify(d));
+    else localStorage.removeItem(DKEY);
+  } catch {
+  }
+}
 var bogenOverride = null;
 function loadDramaData() {
   if (bogenOverride) return bogenOverride;
@@ -7239,6 +7442,68 @@ function verwandleMotive(text, paare) {
 
 // src/constants.ts
 var STORAGE_CORPUS = "divergenz_persistent_corpus_v1";
+var DEFAULT_BANK = {
+  motifs: [
+    "eine Uhr, die r\xFCckw\xE4rts tickt",
+    "eine T\xFCr, die von innen atmet",
+    "ein Spiegelbild, das zu sp\xE4t reagiert",
+    "ein Formular mit einem Feld zu viel",
+    "ein Kabel, das warm wird, ohne Strom",
+    "eine Narbe, die sich erinnert",
+    "ein Name, der nicht ausgesprochen werden kann",
+    "ein Licht, das die falschen Dinge zeigt",
+    "ein Ger\xE4usch, das nur in Gedanken existiert",
+    "eine Karte, die Orte erfindet"
+  ],
+  hooks: [
+    "eine rote Feder im falschen Winkel",
+    "ein Lichtstreifen, der aus dem Nichts kommt",
+    "ein leises Klopfen hinter der Wand",
+    "ein Foto, das ein Detail mehr zeigt als gestern",
+    "ein Schatten, der nicht zur Figur passt",
+    "eine Nachricht ohne Absender",
+    "eine T\xFCr, die pl\xF6tzlich nicht mehr T\xFCr sein will"
+  ],
+  props: [
+    "einen Schl\xFCssel",
+    "eine Karte",
+    "eine M\xFCnze",
+    "ein Foto",
+    "ein Notizbuch",
+    "eine Lampe",
+    "ein St\xFCck Kreide",
+    "einen Kompass",
+    "einen Ausweis",
+    "ein Siegel"
+  ],
+  turns: [
+    "pl\xF6tzlich passt die Zeit nicht mehr zu den Uhren",
+    "die Spur f\xFChrt nicht nach au\xDFen, sondern nach innen",
+    "das Offensichtliche wird unbenennbar",
+    "etwas antwortet \u2013 ohne Stimme",
+    "die Logik bleibt bestehen, aber in falscher Reihenfolge"
+  ],
+  obstacles: [
+    "die T\xFCr ist verschlossen",
+    "jemand h\xF6rt mit",
+    "die eigene Wahrnehmung wackelt",
+    "eine Regel gilt, die niemand erkl\xE4rt",
+    "die Akte tr\xE4gt das falsche Datum"
+  ],
+  stakes: [
+    "Der Einsatz ist Mut.",
+    "Der Einsatz ist Zeit: Ein Teil des Abends kommt nicht zur\xFCck.",
+    "Der Einsatz ist Wahrheit: Etwas am Selbstbild verschiebt sich.",
+    "Der Einsatz ist Vertrauen: in sich selbst."
+  ],
+  endings: [
+    "Damit ist es entschieden.",
+    "So schlie\xDFt sich der Kreis.",
+    "Und vielleicht beginnt es erst hier.",
+    "Und die T\xFCr fiel ins Schloss.",
+    "Und es war, als h\xE4tte der Ort kurz geblinzelt."
+  ]
+};
 
 // src/generation/satzwaechter.ts
 var FUNKTION2 = /* @__PURE__ */ new Set([
@@ -15630,8 +15895,10 @@ function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
     if (model && (strong || Math.random() < 0.6)) {
       const tries = strong ? 3 : 1;
       for (let k = 0; k < tries; k++) {
-        const m = smoothMarkov(model.generate(Math.min(60, Math.max(20, Math.floor(missing * 0.8)))));
-        if (m && isSaneMarkov(m) && m.length > 15 && !isPastTense(m) && !markovSeenRecently(m)) {
+        const roh = smoothMarkov(model.generate(Math.min(60, Math.max(20, Math.floor(missing * 0.8)))));
+        const u = roh ? praesensUmschreiben(roh) : null;
+        const m = u && u.ok ? u.text : "";
+        if (m && isSaneMarkov(m) && m.length > 15 && !markovSeenRecently(m)) {
           const key = m.toLowerCase();
           if (!used.has(key) && !out.toLowerCase().includes(key.slice(0, 40))) {
             used.add(key);
@@ -16550,6 +16817,9 @@ function resetTrace() {
 function pushTrace(s) {
   spur.push(s);
 }
+function getTrace() {
+  return spur.slice();
+}
 var nachText2 = /* @__PURE__ */ new Map();
 var schluessel2 = (t) => t.toLowerCase().replace(/[^a-zäöüß]/g, "").slice(0, 400);
 function linkTrace(finalText) {
@@ -16633,8 +16903,12 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
     const eigene = new Set((figur || "").toLowerCase().split(/[,;]/).map((x) => x.trim()).filter(Boolean));
     const gesehen = /* @__PURE__ */ new Set();
     for (let n = 0; n < wieViele * 3 && gesehen.size < wieViele; n++) {
-      const roh = (model.generate(14) || "").trim();
-      if (!roh || !isSaneMarkov(roh)) continue;
+      const roh0 = (model.generate(14) || "").trim();
+      if (!roh0) continue;
+      const u = praesensUmschreiben(roh0);
+      if (!u.ok) continue;
+      const roh = u.text;
+      if (!isSaneMarkov(roh)) continue;
       const sig = roh.toLowerCase();
       if (gesehen.has(sig)) continue;
       const d = deriveAtom(roh);
@@ -17550,14 +17824,6 @@ function ziehFaktenblatt(input, ressortWahl = "auto") {
     fiktion: true
   };
 }
-function erlaubteZahlen(fb) {
-  const out = [...fb.zahlen.map((z) => z.wortform), ...fb.abgeleitet.map((a) => a.wortform)];
-  for (const z of fb.zahlen) if (z.verbal) out.push(z.verbal.replace(/^rund\s+/, ""));
-  for (const treffer of JSON.stringify(fb).match(/\d[\d.,]*/g) || []) {
-    out.push(treffer.replace(/[.,]+$/, ""));
-  }
-  return out;
-}
 
 // src/generation/bericht.ts
 var NOMINALRAHMEN = ["Geblieben ist", "Zu sehen ist", "Im Gespr\xE4ch ist", "Zu h\xF6ren ist", "Geblieben ist auch"];
@@ -17837,7 +18103,6 @@ function buildBericht(bank, input, ressort = "auto") {
 }
 
 // src/generation/meldung.ts
-var WERTUNG = /\b(herrlich|wunderbar|schrecklich|furchtbar|grausam|unglaublich|erschütternd|empörend|skandalös|traurig|erfreulich|glücklicherweise|leider|zum Glück|katastrophal|dramatisch|schockierend|beeindruckend|großartig|fantastisch|bedauerlich)\b/i;
 function zahlSatz2(z, blick) {
   const menge = `${z.verbal || z.wortform} ${z.einheit}`;
   return blick === "gut" ? `Hinzu kommen ${menge}.` : `Betroffen sind ${menge}.`;
@@ -17898,82 +18163,6 @@ function buildMeldung(input, ressort = "auto") {
   }
   if (saetze.length < MAX_SAETZE && worte(saetze.join(" ")) + worte(SCHLUSS) <= 70) saetze.push(SCHLUSS);
   return { text: saetze.join(" "), fb };
-}
-var ABK = /(?:Prof|Dr|Ing|Dipl|Nr|St|ca|bzw|usw|evtl|Abs|Art|Jh|Mio|Mrd|[A-ZÄÖÜ])$/;
-function saetzeVon(text) {
-  const roh = (text || "").split(/(?<!\d)([.!?])(?=\s|$)/);
-  const raus = [];
-  let puffer = "";
-  for (let i = 0; i < roh.length; i += 2) {
-    puffer += (roh[i] || "") + (roh[i + 1] || "");
-    const ohne = puffer.trim().replace(/[.!?]$/, "");
-    if (ABK.test(ohne.split(/\s+/).pop() || "")) {
-      puffer += " ";
-      continue;
-    }
-    if (puffer.trim()) raus.push(puffer.trim());
-    puffer = "";
-  }
-  if (puffer.trim()) raus.push(puffer.trim());
-  return raus;
-}
-function pruefeMeldung(text, fb) {
-  const m = [];
-  const saetze = saetzeVon(text);
-  const erster = saetze[0] || "";
-  const kern = (s) => (s.replace(/^(der|die|das|dem|den|im|in|am|an|zu|zur|zum)\s+/i, "").split(/\s+/)[0] || "").replace(/[^A-Za-zÄÖÜäöüß0-9-]/g, "");
-  const vier = [
-    ["Wo", kern(fb.wo.ort)],
-    ["Wann", kern(fb.wann.datum)],
-    ["Wer", kern(fb.wer.haupt)],
-    ["Was", kern(fb.was)]
-  ];
-  for (const [name, wort] of vier) {
-    if (name === "Wer" && (tragtEigenesSubjekt(fb.was) || !werTaugt(fb) || !tragtPraedikat(fb.was))) continue;
-    if (name === "Wo" && !ortTauglich(fb.wo.mitPraep)) continue;
-    if (wort && !erster.toLowerCase().includes(wort.toLowerCase())) {
-      m.push({ art: `${name} fehlt im ersten Satz`, stelle: wort });
-    }
-  }
-  const platz = text.match(/\b(?:am|der|dem) Ort\b|\beine Einrichtung\b/);
-  if (platz) m.push({ art: "Platzhalter im Text", stelle: platz[0] });
-  const nachDoppel = (erster.split(":")[1] || "").trim();
-  if (/^(der|die|das|ein|eine)\s+\S+\s+(ein|eine|einen|einem|einer)\b/i.test(nachDoppel)) {
-    m.push({ art: "zwei Nominalphrasen ohne Verb", stelle: nachDoppel.slice(0, 50) });
-  }
-  const roh = nachDoppel.match(/\([^)]*\)|;/);
-  if (roh) m.push({ art: "unumgeformtes Fremdmaterial", stelle: roh[0] });
-  const grossImSatz = erster.match(/\b(?:ist|sind|wird|war)\s+([A-ZÄÖÜ][a-zäöüß]{2,})\s/);
-  if (grossImSatz && !/^(Bekannt|Betroffen|Ort|Uhr)$/.test(grossImSatz[1])) {
-    m.push({ art: "Gro\xDFschreibung mitten im Satz", stelle: grossImSatz[1] });
-  }
-  const n = worte(text);
-  if (n < 25) m.push({ art: "zu kurz", stelle: `${n} W\xF6rter` });
-  if (n > 70) m.push({ art: "zu lang", stelle: `${n} W\xF6rter` });
-  if (saetze.length > 4) m.push({ art: "zu viele S\xE4tze", stelle: `${saetze.length}` });
-  const rumpf = saetze.slice(1).join(". ");
-  const praet = /\b(war|waren|wurde|wurden|hatte|hatten|lagen|lag|teilte|folgte|fiel|kam|kamen|zeichnete)\b/.test(rumpf);
-  const praes = /\b(ist|sind|wird|werden|hat|haben|kommt|kommen|steht|stehen|liegt|liegen)\b/.test(rumpf);
-  if (praet && praes) m.push({ art: "zwei Tempora im Rumpf", stelle: rumpf.slice(0, 60) });
-  const w = text.match(WERTUNG);
-  if (w) m.push({ art: "Wertung", stelle: w[0] });
-  const erlaubt = new Set(erlaubteZahlen(fb));
-  for (const roh2 of text.match(/\d[\d.,]*/g) || []) {
-    const z = roh2.replace(/[.,]+$/, "");
-    if (!erlaubt.has(z)) m.push({ art: "Zahl ohne Faktenblatt", stelle: z });
-  }
-  const drin = /* @__PURE__ */ new Set([
-    ...fb.personen.flatMap((p) => [p.kurz.toLowerCase(), ...p.name.toLowerCase().split(/\s+/)]),
-    ...fb.wer.haupt.toLowerCase().split(/\s+/),
-    fb.wer.kurz.toLowerCase()
-  ]);
-  for (const name of ALLE_NAMEN) {
-    if (drin.has(name.toLowerCase())) continue;
-    if (new RegExp("(?<![A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])" + name + "(?![A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])").test(text)) {
-      m.push({ art: "fremder Personenname", stelle: name });
-    }
-  }
-  return m;
 }
 
 // src/generation/emphasis.ts
@@ -19264,8 +19453,10 @@ function buildKit(bank, input, model) {
   const maybeMarkov = (fallback, prob = 0.42) => {
     if (markovMode === "off" || !model) return fallback;
     if (markovMode === "on" || chance(prob)) {
-      const m = smoothMarkov(model.generate(14));
-      if (m && isSaneMarkov(m) && !isPastTense(m) && !markovSeenRecently(m)) {
+      const roh = smoothMarkov(model.generate(14));
+      const u = roh ? praesensUmschreiben(roh) : null;
+      const m = u && u.ok ? u.text : "";
+      if (m && isSaneMarkov(m) && !markovSeenRecently(m)) {
         noteMarkov(m);
         traceMarkov(m);
         return m;
@@ -19373,6 +19564,572 @@ function buildStory(bank, input, model) {
     leseVerwandlungen(bank.verwandlungen)
   ))));
 }
+
+// src/presets.drama.data.ts
+var D = (einstieg, mitte, hoehepunkt, konflikte, ausloeser, veraenderungen, zeitanomalien, regeln, schluss) => ({ einstieg, mitte, hoehepunkt, schluss, ausloeser, veraenderungen, konflikte, zeitanomalien, regeln });
+var BUILTIN_DRAMA = {
+  kafka: D(
+    ["alles liegt an seinem Platz, und genau das beunruhigt", "die Formulare sind bereits ausgef\xFCllt", "niemand hat die T\xFCr ge\xF6ffnet, sie stand offen"],
+    ["die Zust\xE4ndigkeit wandert von Zimmer zu Zimmer", "eine Auskunft widerspricht der vorigen, beide sind g\xFCltig", "der Gang verzweigt sich, jede Abzweigung f\xFChrt zur\xFCck"],
+    ["die Akte tr\xE4gt den eigenen Namen", "das Verfahren war l\xE4ngst abgeschlossen"],
+    ["eine Auskunft, die niemand gibt", "eine Frist ohne Anfang", "eine Schuld ohne Anklage"],
+    ["ein Bescheid ohne Absender", "eine Unterschrift, die niemand leisten kann", "ein Stempel auf dem falschen Blatt"],
+    ["die Zust\xE4ndigkeit wechselt", "der Vorgang beginnt von vorn", "die Frage verwandelt sich in ihre Antwort"],
+    ["Die Frist l\xE4uft r\xFCckw\xE4rts.", "Der Termin liegt bereits hinter dem Antrag."],
+    ["Wer fragt, bekommt eine Nummer.", "Jede Auskunft ist vorl\xE4ufig und endg\xFCltig zugleich."],
+    ["offen", "beklemmend"]
+  ),
+  bureau: D(
+    ["die Warteschlange bewegt sich nicht", "der Schalter ist besetzt und leer zugleich", "auf dem Tisch liegt ein Stift ohne Mine"],
+    ["ein Formular verlangt ein zweites", "die Nummer wird aufgerufen, geh\xF6rt aber niemandem", "der Aktenschrank \xF6ffnet sich in einen weiteren Flur"],
+    ["die Zust\xE4ndigkeit wird endg\xFCltig ungekl\xE4rt", "das eigene Aktenzeichen erlischt"],
+    ["eine Zust\xE4ndigkeit, die niemand annimmt", "einen Vorgang ohne Ende", "eine Best\xE4tigung, die sich selbst widerruft"],
+    ["ein Formular in dreifacher Ausfertigung", "eine Wartenummer aus einem anderen Jahr", "ein Dienstsiegel ohne Beh\xF6rde"],
+    ["der Vorgang wird umgeleitet", "die Frist verl\xE4ngert sich von selbst", "das Verfahren beginnt still von vorn"],
+    ["Der Sprechtag liegt immer gestern.", "Die Bearbeitungszeit w\xE4chst mit jeder Nachfrage."],
+    ["Kein Vorgang endet, er ruht nur.", "Wer wartet, wird Teil des Verfahrens."],
+    ["offen", "resigniert"]
+  ),
+  mystery: D(
+    ["das Haus ist zu still f\xFCr die Uhrzeit", "im Flur brennt Licht, das niemand angelassen hat", "die T\xFCr f\xE4llt zu, bevor jemand sie ber\xFChrt"],
+    ["eine Spur f\xFChrt zur\xFCck in den eigenen Weg", "der Zeuge erinnert sich an etwas, das nicht geschah", "hinter der Wand geht jemand denselben Gang"],
+    ["die Erkl\xE4rung stimmt, und macht alles schlimmer", "der Fund war die ganze Zeit sichtbar"],
+    ["eine Wahrheit, die niemand h\xF6ren will", "ein Verschwinden ohne L\xFCcke", "einen Zeugen, der sich selbst widerspricht"],
+    ["ein Schl\xFCssel, der nirgends passt", "ein Anruf ohne Stimme", "ein Foto mit einer Person zu viel"],
+    ["die Spur kehrt sich um", "der Verdacht wechselt die Richtung", "das Vertraute wird fremd"],
+    ["Zwischen zwei Blicken vergeht eine Nacht.", "Die Uhr im Nebenzimmer geht anders."],
+    ["Nichts verschwindet, es wird nur nicht mehr gesucht.", "Wer genau hinsieht, wird selbst gesehen."],
+    ["offen", "unheimlich"]
+  ),
+  freud: D(
+    ["das Zimmer ist auf angenehme Weise zu warm", "der Satz bricht ab, bevor er gef\xE4hrlich wird", "das Sofa erinnert sich an alle, die darauf lagen"],
+    ["ein Wort rutscht heraus und meint ein anderes", "die Erinnerung \xE4ndert sich beim Erz\xE4hlen", "der Traum liefert die Antwort auf die falsche Frage"],
+    ["das Verdr\xE4ngte spricht mit vertrauter Stimme", "der Widerstand gibt genau an der Stelle nach"],
+    ["einen Wunsch, den niemand zugibt", "eine Erinnerung, die sich selbst erfindet", "eine Angst mit fremdem Gesicht"],
+    ["ein Versprecher im falschen Moment", "ein wiederkehrender Traum", "ein Name, der nicht einfallen will"],
+    ["das Verdr\xE4ngte kehrt zur\xFCck", "die Deutung dreht den Sinn um", "der Wunsch zeigt sein Gegenteil"],
+    ["Die Kindheit liegt n\xE4her als gestern.", "Ein Satz dauert l\xE4nger, als er braucht."],
+    ["Nichts wird vergessen, es wird nur woanders abgelegt.", "Jede Abwehr verr\xE4t, was sie sch\xFCtzt."],
+    ["offen", "analytisch"]
+  ),
+  rimbaud: D(
+    ["das Wasser tr\xE4gt Licht, das nicht vom Himmel stammt", "der Kiel schneidet durch eine Farbe ohne Namen", "die K\xFCste l\xF6st sich auf, ohne zu verschwinden"],
+    ["der Horizont wechselt die Seite", "das Meer schreibt und l\xF6scht denselben Satz", "der Mast singt in einer fremden Sprache"],
+    ["das Schiff gehorcht keinem Kurs mehr", "der Rausch schl\xE4gt in Klarheit um"],
+    ["eine Freiheit ohne Ufer", "einen Rausch, der n\xFCchtern macht", "eine Fahrt ohne Ziel und ohne Umkehr"],
+    ["ein Sturm aus heiterem Licht", "ein trunkenes Boot", "ein Wort in einer erfundenen Sprache"],
+    ["die Farben kippen", "das Meer verwandelt sich in Sprache", "der K\xF6rper l\xF6st sich in Bewegung auf"],
+    ["Ein Tag dauert eine Farbe lang.", "Die Nacht beginnt mitten am Nachmittag."],
+    ["Wer sieht, verbrennt.", "Jede Ordnung ist nur eine m\xFCde Farbe."],
+    ["offen", "rauschhaft"]
+  ),
+  traumbilder: D(
+    ["der Raum ist gr\xF6\xDFer als von au\xDFen", "der Schlaf hat noch nicht ganz aufgeh\xF6rt", "die T\xFCr f\xFChrt in dasselbe Zimmer zur\xFCck"],
+    ["der Flur ordnet sich bei jedem Blick neu", "eine Treppe endet h\xF6her, als sie begann", "die Gesichter wechseln, ohne sich zu \xE4ndern"],
+    ["das Erwachen misslingt zweimal", "der Traum erkl\xE4rt sich und bleibt unverst\xE4ndlich"],
+    ["eine Grenze zwischen Schlaf und Wachen", "eine Erinnerung, die beim Zugreifen zerf\xE4llt", "einen Raum, den es nicht gibt"],
+    ["ein Wecker, der r\xFCckw\xE4rts l\xE4uft", "ein Schl\xFCssel ohne Schloss", "ein Ger\xE4usch, das erst beim Aufwachen aufh\xF6rt"],
+    ["der Boden beginnt sich zu drehen", "die Zeit verdoppelt sich ohne Fortschritt", "das Spiegelbild reagiert zu sp\xE4t"],
+    ["Eine Minute enth\xE4lt eine ganze Nacht.", "Die Uhr springt, sobald niemand hinsieht."],
+    ["Im Traum ist jede Richtung nach unten.", "Wer den Traum benennt, verliert ihn."],
+    ["offen", "schwebend"]
+  ),
+  ritterromane: D(
+    ["die Burg liegt tiefer im Nebel als gestern", "das Tor steht offen, was es nie tut", "die R\xFCstung h\xE4ngt bereit, obwohl niemand rief"],
+    ["der Wald verschiebt die Wege", "ein Eid bindet st\xE4rker als die Vernunft", "der Gegner tr\xE4gt das eigene Wappen"],
+    ["das Schwert gehorcht der falschen Hand", "der Sieg entwertet die Sache"],
+    ["eine Ehre, die niemand einfordert", "einen Eid gegen das eigene Herz", "eine Treue, die zu sp\xE4t kommt"],
+    ["ein Horn aus gro\xDFer Ferne", "ein Bote ohne Botschaft", "ein Handschuh vor den F\xFC\xDFen"],
+    ["die Treue kehrt sich um", "aus dem Feind wird ein Spiegel", "die Bahn des Ritts biegt ab"],
+    ["Der Ritt dauert l\xE4nger als der Weg.", "Zwischen Aufbruch und Ankunft altert die Burg."],
+    ["Ein Eid wiegt schwerer als ein Leben.", "Wer den Wald betritt, kehrt anders zur\xFCck."],
+    ["offen", "heroisch"]
+  ),
+  alltag: D(
+    ["der Wasserkocher schaltet ab, sonst ist es still", "die Post liegt seit drei Tagen unge\xF6ffnet da", "der Tag beginnt genau wie der vorige"],
+    ["eine Kleinigkeit steht pl\xF6tzlich schief", "der gewohnte Weg dauert heute l\xE4nger", "ein Gespr\xE4ch bricht an derselben Stelle ab"],
+    ["die Gewohnheit tr\xE4gt nicht mehr", "das Kleine wird auf einmal gro\xDF"],
+    ["eine Frage, die nie gestellt wird", "eine Gewohnheit, die niemand gew\xE4hlt hat", "einen Abstand, der langsam w\xE4chst"],
+    ["ein Anruf zur falschen Zeit", "ein vergessener Schl\xFCssel", "eine Rechnung ohne Betrag"],
+    ["die Ordnung verrutscht", "das Gewohnte wird sichtbar", "der Tag kippt in eine andere Richtung"],
+    ["Der Nachmittag zieht sich, der Abend fehlt.", "Die Woche wiederholt einen Tag zu oft."],
+    ["Was t\xE4glich geschieht, wird nicht bemerkt.", "Jede Gewohnheit verbirgt eine Entscheidung."],
+    ["offen", "n\xFCchtern"]
+  ),
+  hafen: D(
+    ["die Kr\xE4ne stehen still, das Wasser nicht", "ein Schiff liegt l\xE4nger als angemeldet", "das Licht kommt vom Wasser, nicht vom Himmel"],
+    ["die Ladung stimmt nicht mit den Papieren \xFCberein", "die Flut nimmt mehr mit, als sie brachte", "ein Name auf dem Rumpf ist \xFCbermalt"],
+    ["die Leinen fallen ohne Befehl", "das Schiff f\xE4hrt ohne Fracht hinaus"],
+    ["eine Abfahrt ohne Wiederkehr", "eine Ladung, die niemand bestellt hat", "ein Warten, das zum Beruf wird"],
+    ["ein Signal aus dem Nebel", "ein Container ohne Papiere", "eine Boje, die nicht auf der Karte steht"],
+    ["die Tide dreht", "das Warten kippt in Aufbruch", "der Anker h\xE4lt pl\xF6tzlich nicht mehr"],
+    ["Die Ebbe kommt zweimal.", "Zwischen zwei Sirenen vergeht ein Jahr."],
+    ["Das Wasser vergisst schneller als der Kai.", "Wer bleibt, wird zum Teil der Mole."],
+    ["offen", "salzig"]
+  ),
+  urknall: D(
+    ["es gibt kein Vorher, an dem man ansetzen k\xF6nnte", "der Raum ist noch nicht auseinandergefaltet", "alles liegt in einem Punkt und dr\xE4ngt"],
+    ["die Kr\xE4fte trennen sich voneinander", "aus Symmetrie wird Unterschied", "das Licht findet zum ersten Mal einen Weg"],
+    ["die Materie entscheidet sich f\xFCr sich selbst", "der Raum rei\xDFt in alle Richtungen auf"],
+    ["einen Anfang ohne Zeugen", "ein Gleichgewicht, das kippen muss", "eine Ordnung, die aus Zufall entsteht"],
+    ["ein Ungleichgewicht um ein Milliardstel", "eine Schwankung im Nichts", "ein erster Zerfall"],
+    ["die Symmetrie bricht", "aus Strahlung wird Masse", "die Kr\xE4fte gehen getrennte Wege"],
+    ["Eine Sekunde enth\xE4lt alle sp\xE4teren.", "Die Zeit beginnt erst, als es etwas zu messen gibt."],
+    ["Nichts kann schneller sein als das Licht dazwischen.", "Jede Ordnung zahlt mit W\xE4rme."],
+    ["offen", "kosmisch"]
+  ),
+  dickens: D(
+    ["der Nebel steht in der Gasse wie ein M\xF6belst\xFCck", "im Kontor brennt eine Kerze zu wenig", "der Regen macht die Stadt kleiner"],
+    ["eine Schuld wird h\xF6flich eingefordert", "ein Kind tr\xE4gt die Last eines Erwachsenen", "die Wohlt\xE4tigkeit rechnet mit"],
+    ["die Herkunft holt alles ein", "die Gro\xDFz\xFCgigkeit kommt sp\xE4t und trotzdem"],
+    ["eine Schuld, die vererbt wird", "eine Armut mit tadellosen Manieren", "eine G\xFCte, die sich nicht lohnt"],
+    ["ein Brief mit schwarzem Rand", "eine Erbschaft aus unbekannter Hand", "ein Name in einem alten Register"],
+    ["das Verm\xF6gen wechselt die Seite", "aus dem Fremden wird ein Verwandter", "die K\xE4lte weicht zu sp\xE4t"],
+    ["Der Winter dauert drei Kapitel.", "Die Kindheit vergeht in einem Satz."],
+    ["Jede Schuld findet ihren Schuldner.", "Wer arm ist, muss auch noch h\xF6flich sein."],
+    ["offen", "wehm\xFCtig"]
+  ),
+  erotik: D(
+    ["der Abstand ist eine Handbreit zu klein", "die Stille zwischen zwei S\xE4tzen wird laut", "die Luft steht zwischen ihnen wie Stoff"],
+    ["ein Blick dauert einen Atemzug zu lang", "die H\xF6flichkeit h\xE4lt nicht mehr stand", "eine Ber\xFChrung geschieht wie versehentlich"],
+    ["die Zur\xFCckhaltung gibt nach", "die Grenze verschwindet, ohne \xFCberschritten zu werden"],
+    ["ein Verlangen, das niemand ausspricht", "eine N\xE4he, die alles \xE4ndert", "eine Grenze, die beide bewachen"],
+    ["ein Blick zu viel", "eine Ber\xFChrung an der Schulter", "ein Satz, der zu sp\xE4t zur\xFCckgenommen wird"],
+    ["die Distanz kippt", "das Ungesagte wird K\xF6rper", "aus H\xF6flichkeit wird Hunger"],
+    ["Eine Minute dehnt sich \xFCber den Abend.", "Zwischen zwei Atemz\xFCgen liegt eine Woche."],
+    ["Was ungesagt bleibt, wirkt st\xE4rker.", "Jede N\xE4he verschiebt die Grenze."],
+    ["offen", "sinnlich"]
+  ),
+  baudelaire: D(
+    ["die Stadt riecht nach Regen und Puder", "der Abend beginnt eine Stunde zu fr\xFCh", "das Fenster steht offen, die Vorh\xE4nge nicht"],
+    ["die Sch\xF6nheit zeigt ihre R\xFCckseite", "der Rausch h\xE4lt, was die N\xFCchternheit versprach", "die Menge tr\xE4gt ein einziges Gesicht"],
+    ["das Sch\xF6ne und das Faule fallen zusammen", "der Ekel wird z\xE4rtlich"],
+    ["eine Sch\xF6nheit, die verdirbt", "einen Genuss mit Nachgeschmack", "eine Sehnsucht ohne Ziel"],
+    ["ein Parfum aus einem anderen Leben", "ein Blick aus der Menge", "eine Blume in schlechtem Wasser"],
+    ["die Sch\xF6nheit kippt ins Verwesen", "der Ekel verwandelt sich in Andacht", "die Stadt wird zum K\xF6rper"],
+    ["Der Abend dauert l\xE4nger als der Tag.", "Zwischen zwei Gl\xE4sern vergeht ein Jahrzehnt."],
+    ["Jede Sch\xF6nheit tr\xE4gt ihren Verfall bereits mit sich.", "Wer die Stadt liebt, liebt ihren Schmutz."],
+    ["offen", "morbide"]
+  ),
+  expressionismus: D(
+    ["die Farben schreien lauter als die Stra\xDFe", "der Himmel dr\xFCckt auf die D\xE4cher", "alles steht schief und h\xE4lt trotzdem"],
+    ["die Gesichter werden zu Masken", "die Stadt frisst ihre Bewohner", "die Linien verlieren ihre Ruhe"],
+    ["der Schrei bekommt eine Farbe", "die Fassade bricht nach innen"],
+    ["eine Angst mit vielen Gesichtern", "einen Aufschrei ohne Mund", "eine Wahrheit, die zu grell ist"],
+    ["ein Schrei aus einem Hinterhof", "ein rotes Licht im Fenster", "ein Riss in der Fassade"],
+    ["die Farben werden laut", "das Innere kehrt sich nach au\xDFen", "die Ordnung zerbricht in Fl\xE4chen"],
+    ["Die Nacht beginnt am Mittag.", "Ein Augenblick dauert eine ganze Stra\xDFe lang."],
+    ["Was empfunden wird, ist sichtbar.", "Kein Ding bleibt an seinem Platz."],
+    ["offen", "grell"]
+  ),
+  surrealismus1920: D(
+    ["die Uhr tropft von der Tischkante", "im Zimmer regnet es nach oben", "die T\xFCr f\xFChrt in eine W\xFCste"],
+    ["die Gegenst\xE4nde tauschen ihre Aufgaben", "der Traum reicht in den Nachmittag hinein", "der Zufall folgt einem Plan"],
+    ["das Unm\xF6gliche wird allt\xE4glich", "der Gegenstand beginnt zu sprechen"],
+    ["eine Logik, die nur schlafend gilt", "einen Zufall mit Absicht", "eine Ordnung aus lauter Ausnahmen"],
+    ["ein Regenschirm auf einem Seziertisch", "ein Telefon aus Fisch", "ein Fenster im Fu\xDFboden"],
+    ["die Dinge tauschen die Rollen", "die Schwerkraft wechselt die Richtung", "das Bild verl\xE4sst den Rahmen"],
+    ["Die Nacht wiederholt den Vormittag.", "Zwei Uhren zeigen dieselbe falsche Zeit."],
+    ["Der Zufall ist die genaueste Methode.", "Was zusammenf\xE4llt, geh\xF6rt zusammen."],
+    ["offen", "traumlogisch"]
+  ),
+  transzendenz: D(
+    ["das Licht kommt von keiner Quelle", "die Stille hat einen Klang", "der Raum h\xF6rt an keiner Wand auf"],
+    ["die Grenze zwischen innen und au\xDFen wird d\xFCnn", "das Wort reicht nicht mehr", "die Zeit h\xE4lt an, ohne stehenzubleiben"],
+    ["das Ich l\xF6st sich, ohne zu verschwinden", "die Antwort kommt vor der Frage"],
+    ["eine Erfahrung ohne Worte", "eine Gewissheit ohne Beweis", "ein Ganzes, das keinen Teil hat"],
+    ["ein Klang ohne Ursprung", "ein Licht im geschlossenen Auge", "eine Stille zwischen zwei Herzschl\xE4gen"],
+    ["die Grenzen l\xF6sen sich", "das Einzelne wird durchsichtig", "die Sprache tritt zur\xFCck"],
+    ["Ein Augenblick enth\xE4lt alle anderen.", "Die Dauer h\xF6rt auf, gemessen zu werden."],
+    ["Was sich sagen l\xE4sst, ist nicht gemeint.", "Wer sucht, steht sich im Weg."],
+    ["offen", "still"]
+  ),
+  melville: D(
+    ["das Schiff liegt schwer im eigenen Schatten", "die See ist zu ruhig f\xFCr die Jahreszeit", "der Kompass zeigt, was niemand fragt"],
+    ["die Jagd wird zur Rechnung", "die Mannschaft teilt sich in zwei Schweigen", "das Meer gibt nichts preis und alles"],
+    ["die Beute wird zum Gegen\xFCber", "der Kurs gehorcht einer Besessenheit"],
+    ["eine Jagd, die den J\xE4ger verzehrt", "eine Rache ohne Adressat", "ein Meer, das nicht antwortet"],
+    ["eine Font\xE4ne am Horizont", "ein Fass mit falschem Inhalt", "ein Name, in Holz geschnitten"],
+    ["die Jagd kehrt sich um", "aus dem Tier wird ein Gedanke", "das Schiff folgt keinem Kurs mehr"],
+    ["Die Wache dauert drei Tage.", "Zwischen zwei Wellen liegt ein Jahr."],
+    ["Das Meer nimmt, was es tr\xE4gt.", "Wer jagt, wird zum Gejagten."],
+    ["offen", "unerbittlich"]
+  ),
+  formalismus: D(
+    ["die Anordnung ist wichtiger als der Inhalt", "das Raster liegt \xFCber allem", "jedes Element hat genau eine Stelle"],
+    ["die Wiederholung erzeugt einen Unterschied", "die Regel bringt ihre Ausnahme hervor", "die Form beginnt, vom Inhalt zu handeln"],
+    ["das Verfahren wird sichtbar", "die Struktur kippt in Bedeutung"],
+    ["eine Regel ohne Ausnahme", "eine Form, die sich selbst meint", "eine Ordnung, die nichts erkl\xE4rt"],
+    ["eine Verschiebung um ein Glied", "ein Bruch im Muster", "eine Wiederholung zu viel"],
+    ["das Muster verschiebt sich", "die Form wird zum Inhalt", "die Reihe bricht ab und beginnt neu"],
+    ["Der zweite Durchgang dauert k\xFCrzer.", "Jede Wiederholung verkleinert den Abstand."],
+    ["Die Form geht dem Sinn voraus.", "Nichts steht zuf\xE4llig an seiner Stelle."],
+    ["offen", "streng"]
+  ),
+  christentum: D(
+    ["die Kirche ist leer und trotzdem nicht", "das Licht f\xE4llt schr\xE4g durch farbiges Glas", "eine Kerze brennt f\xFCr niemanden Bestimmten"],
+    ["die Schuld sucht ein Wort", "das Gebet bleibt unbeantwortet und hilft", "die Gnade kommt ungefragt"],
+    ["die Vergebung trifft den Falschen", "das Opfer erweist sich als Anfang"],
+    ["eine Schuld, die niemand nennt", "eine Gnade ohne Verdienst", "einen Glauben gegen den Augenschein"],
+    ["ein Glockenschlag zur falschen Stunde", "ein Brot, das reicht", "ein Name, im Gebet genannt"],
+    ["die Schuld wandelt sich in Auftrag", "aus Zweifel wird Zuversicht", "das Ende wird zum Anfang"],
+    ["Der Sonntag dauert eine Woche.", "Zwischen Frage und Antwort liegen Jahre."],
+    ["Was vergeben wird, bleibt geschehen.", "Der Letzte steht am Anfang."],
+    ["offen", "and\xE4chtig"]
+  ),
+  koran: D(
+    ["die W\xFCste beginnt hinter der letzten Mauer", "das Wort steht vor dem Buch", "der Morgen wird durch einen Ruf geteilt"],
+    ["die Zeichen sind lesbar, wenn man sie l\xE4sst", "der Weg verlangt Geduld statt Eile", "das Ma\xDF findet sich im Verzicht"],
+    ["das Zeichen erweist sich als Anrede", "die Pr\xFCfung wird zur Gabe"],
+    ["ein Ma\xDF, das gehalten werden will", "eine Geduld ohne Aussicht", "eine Verantwortung, die niemand teilt"],
+    ["ein Ruf vor Sonnenaufgang", "eine Quelle, wo keine war", "ein Zeichen im Sand"],
+    ["der Weg richtet sich neu aus", "aus Pr\xFCfung wird Klarheit", "das Ma\xDF verschiebt sich"],
+    ["Die Nacht wiegt schwerer als tausend Monate.", "Zwischen zwei Gebeten liegt ein Leben."],
+    ["Kein Blatt f\xE4llt ohne Wissen.", "Wer misst, wird gemessen."],
+    ["offen", "ma\xDFvoll"]
+  ),
+  buddhismus: D(
+    ["der Atem ist bereits da, bevor man ihn sucht", "die Schale steht leer und ist nicht arm", "der Weg beginnt genau hier"],
+    ["das Greifen erzeugt das Fehlen", "die Gedanken ziehen vorbei wie Wetter", "das Selbst zeigt keine Grenze"],
+    ["das Festhalten l\xF6st sich von selbst", "die Frage verliert ihren Fragenden"],
+    ["ein Verlangen, das sich selbst n\xE4hrt", "eine Ruhe, die nicht gemacht ist", "ein Ich, das keines findet"],
+    ["ein Glockenton, der ausklingt", "ein Blatt auf stillem Wasser", "ein Schmerz ohne Besitzer"],
+    ["das Greifen l\xE4sst nach", "aus Unruhe wird Beobachtung", "die Trennung wird durchl\xE4ssig"],
+    ["Ein Atemzug reicht durch den Tag.", "Die Stunde vergeht, ohne zu vergehen."],
+    ["Alles Entstandene vergeht.", "Wer nichts h\xE4lt, verliert nichts."],
+    ["offen", "gelassen"]
+  ),
+  biologie: D(
+    ["die Zelle teilt sich, ohne gefragt zu werden", "im Wassertropfen ist mehr los als im Zimmer", "das Leben ordnet sich gegen den Strom"],
+    ["die Anpassung kostet an anderer Stelle", "ein Merkmal setzt sich durch, ohne besser zu sein", "das System h\xE4lt sich, indem es sich \xE4ndert"],
+    ["die Mutation entscheidet \xFCber alles Weitere", "das Gleichgewicht kippt auf einer Seite"],
+    ["ein \xDCberleben auf Kosten Dritter", "eine Anpassung, die zu sp\xE4t kommt", "ein Gleichgewicht ohne Gleichheit"],
+    ["ein Fehler beim Kopieren", "ein neuer Wirt", "eine Nische, die frei wird"],
+    ["die Art verschiebt sich", "aus Zufall wird Merkmal", "das Gleichgewicht sucht eine neue Lage"],
+    ["Eine Generation dauert einen Nachmittag.", "Millionen Jahre passen in eine Schicht."],
+    ["Was sich vermehrt, bleibt.", "Jede Ordnung kostet Energie."],
+    ["offen", "sachlich"]
+  ),
+  geologie: D(
+    ["der Stein hat mehr Zeit gesehen als alles hier", "die Schichten liegen wie S\xE4tze \xFCbereinander", "der Boden ist nur die oberste Seite"],
+    ["der Druck arbeitet ohne Eile", "eine Falte erz\xE4hlt von einer Kollision", "das Wasser schreibt in den Fels"],
+    ["die Schicht bricht und zeigt ihr Inneres", "der Berg gibt nach, nach Millionen Jahren"],
+    ["eine Bewegung, die niemand sp\xFCrt", "eine Zeit ohne Zeugen", "einen Druck, der alles verformt"],
+    ["ein Riss im Gestein", "ein Fossil an falscher Stelle", "ein Beben unter der Schwelle"],
+    ["die Schichten verschieben sich", "aus Sediment wird Stein", "der Untergrund gibt nach"],
+    ["Ein Jahrhundert ist ein Wimpernschlag.", "Die Schicht misst die Zeit, nicht die Uhr."],
+    ["Alles Feste war einmal fl\xFCssig.", "Was oben liegt, ist j\xFCnger."],
+    ["offen", "geduldig"]
+  ),
+  astrologie: D(
+    ["die Zeichen stehen, ob man hinsieht oder nicht", "der Himmel wiederholt eine alte Anordnung", "die Stunde tr\xE4gt einen Namen"],
+    ["ein Wandelstern l\xE4uft r\xFCckw\xE4rts", "die H\xE4user verschieben ihre Bedeutung", "das Muster passt zu genau"],
+    ["die Konstellation schlie\xDFt sich", "die Deutung trifft, ohne zu erkl\xE4ren"],
+    ["ein Schicksal, das gelesen sein will", "eine Deutung, die sich erf\xFCllt", "eine Freiheit unter Zeichen"],
+    ["ein Zusammentreffen zweier Bahnen", "eine Finsternis zur Unzeit", "ein Zeichen am Aszendenten"],
+    ["die Konstellation wechselt", "aus Zufall wird Bedeutung", "der Lauf kehrt sich um"],
+    ["Der Umlauf dauert ein halbes Leben.", "Eine Stunde wiegt ein Jahr auf."],
+    ["Wie oben, so unten.", "Kein Zeichen zwingt, jedes neigt."],
+    ["offen", "deutend"]
+  ),
+  gaia: D(
+    ["der Wald atmet langsamer als wir", "das Wasser kennt seinen Weg auswendig", "alles h\xE4ngt an allem, ohne Absicht"],
+    ["ein Eingriff zieht Kreise bis ans andere Ende", "das Gleichgewicht stellt sich neu und teuer her", "die Erde antwortet in ihrem eigenen Ma\xDF"],
+    ["das System kippt in einen neuen Zustand", "die R\xFCckkopplung wird st\xE4rker als die Ursache"],
+    ["ein Gleichgewicht, das niemand aushandelt", "eine Rechnung, die sp\xE4ter kommt", "ein Ganzes ohne Mitte"],
+    ["ein Sommer zu viel", "eine Art, die verschwindet", "ein Fluss, der die Richtung \xE4ndert"],
+    ["das Gleichgewicht verschiebt sich", "aus Kreislauf wird Bruch", "die Erde ordnet sich neu"],
+    ["Ein Jahr gen\xFCgt f\xFCr eine Verschiebung.", "Die Folgen kommen eine Generation zu sp\xE4t."],
+    ["Nichts geschieht f\xFCr sich allein.", "Jeder Kreislauf hat eine Grenze."],
+    ["offen", "ernst"]
+  ),
+  jugendsprache: D(
+    ["irgendwas l\xE4uft, aber keiner sagt was", "der Chat ist voll und trotzdem still", "der Tag f\xE4ngt nachmittags an"],
+    ["eine Nachricht wird falsch verstanden und bleibt so", "alle tun so, als w\xE4re nichts", "das Ger\xFCcht ist schneller als die Wahrheit"],
+    ["jemand sagt es endlich laut", "die Gruppe entscheidet ohne Abstimmung"],
+    ["eine Sache, \xFCber die keiner redet", "einen Ruf, der schneller ist als man selbst", "eine Zugeh\xF6rigkeit auf Probe"],
+    ["ein Screenshot zur Unzeit", "eine Sprachnachricht um drei Uhr nachts", "ein Blick auf dem Schulhof"],
+    ["die Stimmung kippt", "aus Spa\xDF wird Ernst", "die Gruppe sortiert sich neu"],
+    ["Ein Nachmittag dauert eine Woche.", "Zwischen zwei Nachrichten vergeht nichts und alles."],
+    ["Wer zuerst lacht, hat entschieden.", "Nichts ist so alt wie das Ger\xFCcht von gestern."],
+    ["offen", "l\xE4ssig"]
+  ),
+  modernarchitecture: D(
+    ["der Beton h\xE4lt, was der Entwurf versprach", "das Licht f\xE4llt genau dorthin, wo es geplant war", "der Raum ist leer und dadurch voll"],
+    ["die Funktion setzt sich gegen die Gewohnheit durch", "die Fassade verbirgt, indem sie zeigt", "der Grundriss zwingt zu einem Weg"],
+    ["das Geb\xE4ude \xFCberlebt seinen Zweck", "die Form entscheidet \xFCber das Leben darin"],
+    ["eine Form, die dem Zweck vorausgeht", "einen Raum, der Verhalten vorschreibt", "eine Klarheit, die kalt wirkt"],
+    ["ein Riss im Sichtbeton", "eine T\xFCr, die niemand vorsah", "ein Fenster ohne Aussicht"],
+    ["der Raum ver\xE4ndert seinen Gebrauch", "aus Ordnung wird Enge", "das Material zeigt sein Alter"],
+    ["Ein Jahrzehnt vergeht ohne Spur.", "Der Bau altert schneller als sein Plan."],
+    ["Die Form folgt der Funktion, meistens.", "Was klar ist, wirkt kalt."],
+    ["offen", "sachlich"]
+  ),
+  philosophie: D(
+    ["die Frage steht schon l\xE4nger im Raum", "der Begriff sitzt nicht ganz fest", "alles Selbstverst\xE4ndliche wird fraglich"],
+    ["die Unterscheidung tr\xE4gt weiter als gedacht", "das Beispiel widerspricht dem Satz", "der Einwand wird zur Hauptsache"],
+    ["die Voraussetzung selbst ger\xE4t ins Wanken", "die Antwort wirft eine bessere Frage auf"],
+    ["eine Unterscheidung, die nicht h\xE4lt", "eine Gewissheit ohne Grund", "eine Frage, die sich nicht stellen l\xE4sst"],
+    ["ein Gegenbeispiel im falschen Moment", "ein Wort mit zwei Bedeutungen", "ein Zweifel an der Voraussetzung"],
+    ["der Begriff verschiebt sich", "aus Antwort wird Frage", "die Grundlage wird selbst zum Problem"],
+    ["Ein Gedanke dauert ein Kapitel.", "Zwischen Frage und Einsicht liegen Jahre."],
+    ["Jede Antwort erzeugt zwei Fragen.", "Was sich nicht sagen l\xE4sst, zeigt sich."],
+    ["offen", "pr\xFCfend"]
+  ),
+  klimakrise: D(
+    ["der Sommer beginnt im April", "die Messwerte sind eindeutig und folgenlos", "das Wetter ist kein Gespr\xE4ch mehr"],
+    ["die Vorhersage trifft ein und \xE4ndert nichts", "die Kosten verschieben sich nach hinten", "wer warnt, gilt als anstrengend"],
+    ["die Schwelle wird \xFCberschritten", "die R\xFCckkopplung \xFCbernimmt"],
+    ["eine Verantwortung ohne Adressat", "ein Wissen, das folgenlos bleibt", "eine Rechnung f\xFCr die Nachgeborenen"],
+    ["ein Rekord im dritten Jahr", "eine Ernte, die ausf\xE4llt", "ein Fluss ohne Wasser"],
+    ["die Kurve knickt nach oben", "aus Ausnahme wird Normalzustand", "das System kippt"],
+    ["Ein Jahrzehnt entscheidet ein Jahrhundert.", "Die Folgen treffen die, die nicht gefragt wurden."],
+    ["Was langsam kommt, wird nicht bemerkt.", "Jede Verz\xF6gerung erh\xF6ht den Preis."],
+    ["offen", "dringlich"]
+  ),
+  liebesromane: D(
+    ["ein Blick dauert einen Moment zu lang", "der Brief liegt unge\xF6ffnet auf dem Tisch", "beide tun, als sei nichts geschehen"],
+    ["ein Missverst\xE4ndnis w\xE4chst, weil niemand fragt", "die Umst\xE4nde sprechen dagegen", "die N\xE4he wird durch Abstand gr\xF6\xDFer"],
+    ["das Ungesagte wird ausgesprochen", "die Entscheidung f\xE4llt gegen die Vernunft"],
+    ["eine Liebe zur falschen Zeit", "ein Missverst\xE4ndnis, das keiner aufkl\xE4rt", "eine Wahl zwischen zwei Leben"],
+    ["ein Brief, der zu sp\xE4t ankommt", "ein Tanz auf fremder Hochzeit", "ein Name, versehentlich genannt"],
+    ["das Missverst\xE4ndnis l\xF6st sich", "aus Freundschaft wird mehr", "die Umst\xE4nde geben nach"],
+    ["Ein Sommer entscheidet zehn Jahre.", "Zwischen zwei Briefen vergeht eine Jahreszeit."],
+    ["Was nicht gesagt wird, w\xE4chst.", "Jede N\xE4he verlangt eine Entscheidung."],
+    ["offen", "warm"]
+  ),
+  bergwelt: D(
+    ["der Gipfel ist n\xE4her, als er ist", "das Wetter dreht ohne Ank\xFCndigung", "die H\xFCtte liegt unter der Wolkendecke"],
+    ["der Weg verliert sich im Ger\xF6ll", "die H\xF6he nimmt den Atem und die Gedanken", "die Spur endet vor einer Wand"],
+    ["der R\xFCckweg ist keiner mehr", "der Berg entscheidet \xFCber die Zeit"],
+    ["einen Aufstieg gegen die Vernunft", "eine Umkehr, die zu sp\xE4t kommt", "eine Stille, die alles verst\xE4rkt"],
+    ["ein Wetterumschwung am Nachmittag", "ein Steinschlag im Rinnenwerk", "ein Licht in einer fremden H\xFCtte"],
+    ["das Wetter kippt", "aus Aufstieg wird R\xFCckzug", "der Berg zeigt sein anderes Gesicht"],
+    ["Eine Stunde am Grat dauert einen Tag.", "Der Abstieg braucht l\xE4nger als der Weg hinauf."],
+    ["Der Berg wartet.", "Wer umkehrt, hat auch entschieden."],
+    ["offen", "karg"]
+  ),
+  clown: D(
+    ["die Schminke sitzt, das Lachen noch nicht", "die Manege ist leer und wartet", "der Scheinwerfer findet den Falschen"],
+    ["der Sturz war geplant, der Schmerz nicht", "das Publikum lacht an der falschen Stelle", "die Nummer l\xE4uft aus dem Ruder und wird besser"],
+    ["hinter der Schminke wird ein Gesicht sichtbar", "der Scherz trifft den, der ihn macht"],
+    ["ein Lachen auf eigene Kosten", "eine Traurigkeit mit rotem Mund", "eine Rolle, die nicht abzulegen ist"],
+    ["eine Tr\xE4ne in der Schminke", "ein Applaus zur falschen Zeit", "ein Requisit, das nicht funktioniert"],
+    ["der Scherz kippt in Ernst", "aus Lachen wird Stille", "die Rolle \xFCbernimmt"],
+    ["Die Nummer dauert l\xE4nger als der Abend.", "Zwischen zwei Lachern liegt ein Leben."],
+    ["Wer f\xE4llt, muss aufstehen und sich verbeugen.", "Das Lachen kommt aus dem Schrecken."],
+    ["offen", "bitters\xFC\xDF"]
+  ),
+  faust: D(
+    ["die B\xFCcher haben nichts mehr zu sagen", "die Nacht steht schon lange im Zimmer", "das Wissen reicht bis genau hierher"],
+    ["der Pakt verspricht mehr, als er nennt", "der Preis wird erst sp\xE4ter sichtbar", "das Streben findet kein Gen\xFCgen"],
+    ["der Augenblick soll verweilen", "die Wette entscheidet sich unbemerkt"],
+    ["ein Wissen, das nicht s\xE4ttigt", "einen Preis, der sp\xE4ter f\xE4llig wird", "eine Rettung, die niemand verdient"],
+    ["ein Vertrag mit zwei Unterschriften", "ein Pudel im Studierzimmer", "ein Angebot ohne Frist"],
+    ["der Pakt tritt in Kraft", "aus Erkenntnis wird Hunger", "die Rechnung kommt"],
+    ["Eine Nacht enth\xE4lt ein ganzes Leben.", "Der Augenblick weigert sich zu vergehen."],
+    ["Wer immer strebend sich bem\xFCht, bleibt unruhig.", "Jeder Pakt kennt seinen F\xE4lligkeitstag."],
+    ["offen", "faustisch"]
+  ),
+  lebenreicher: D(
+    ["ein gew\xF6hnlicher Morgen, nichts Besonderes", "das Licht liegt gut auf dem Tisch", "jemand hat an etwas gedacht"],
+    ["eine Kleinigkeit tr\xE4gt weiter als erwartet", "ein Gespr\xE4ch dauert l\xE4nger als geplant", "das Einfache erweist sich als genug"],
+    ["das Gew\xF6hnliche zeigt seinen Wert", "ein Augenblick reicht f\xFCr den ganzen Tag"],
+    ["eine Freude, die nichts kostet", "eine Aufmerksamkeit, die niemand verlangt", "eine F\xFClle im Kleinen"],
+    ["ein Anruf ohne Anlass", "ein geteiltes Essen", "ein Platz in der Sonne"],
+    ["das Kleine wird gro\xDF", "aus Gewohnheit wird Dankbarkeit", "der Tag bekommt eine Farbe"],
+    ["Ein Nachmittag reicht f\xFCr ein Jahr.", "Der Moment dehnt sich, ohne sich zu strecken."],
+    ["Was nichts kostet, z\xE4hlt am meisten.", "Wer bemerkt, hat schon gewonnen."],
+    ["offen", "warm"]
+  ),
+  tanz: D(
+    ["der Boden ist bereit, die Musik noch nicht", "die F\xFC\xDFe kennen den Takt vor dem Kopf", "im Saal steht die Luft und wartet"],
+    ["die Schritte finden zueinander, ohne Absprache", "der Takt tr\xE4gt weiter als der Wille", "der Kreis schlie\xDFt sich und \xF6ffnet sich"],
+    ["der Tanz \xFCbernimmt die F\xFChrung", "die Musik h\xF6rt auf, der Takt nicht"],
+    ["eine Bewegung ohne Ziel", "einen Takt, der nicht abbrechen darf", "eine N\xE4he, die nur im Tanz erlaubt ist"],
+    ["ein Auftakt aus dem Nichts", "ein Instrument ohne Spieler", "ein Blick \xFCber die Schulter"],
+    ["der Takt wechselt", "aus Ordnung wird Schwindel", "der Kreis dreht sich schneller"],
+    ["Ein Tanz dauert einen halben Abend.", "Zwischen zwei Schritten vergeht die Nacht."],
+    ["Wer den Takt verliert, findet ihn im Kreis.", "Kein Tanz endet dort, wo er begann."],
+    ["offen", "beschwingt"]
+  ),
+  griechischetragoedie: D(
+    ["das Orakel hat gesprochen, unverst\xE4ndlich wie immer", "die Stadt wartet auf ein Urteil", "alles ist bereits entschieden"],
+    ["die Flucht f\xFChrt genau ins Vorhergesagte", "der Bote bringt, was niemand h\xF6ren will", "der Chor sagt, was alle wissen"],
+    ["die Erkenntnis kommt zu sp\xE4t und vollst\xE4ndig", "der Fluch erf\xFCllt sich durch den Widerstand"],
+    ["ein Schicksal, dem man nicht ausweicht", "eine Schuld ohne Absicht", "eine Ehre gegen das Gesetz"],
+    ["ein Orakelspruch mit zwei Bedeutungen", "ein Bote am Stadttor", "ein Gast, der nicht genannt wird"],
+    ["die Weissagung erf\xFCllt sich", "aus Rettung wird Verh\xE4ngnis", "die Erkenntnis trifft den Erkennenden"],
+    ["Ein Tag entscheidet ein Geschlecht.", "Was vorhergesagt ist, ist schon geschehen."],
+    ["Wer flieht, l\xE4uft dem Orakel entgegen.", "Kein Sterblicher entkommt seinem Ma\xDF."],
+    ["offen", "unausweichlich"]
+  ),
+  glueck: D(
+    ["ein Tag, an dem nichts fehlt", "die Sonne steht genau richtig", "niemand hat etwas vor"],
+    ["das Gl\xFCck l\xE4sst sich nicht festhalten", "ein Zweifel meldet sich leise", "die F\xFClle macht auch vorsichtig"],
+    ["der Augenblick wird bemerkt, w\xE4hrend er dauert", "das Gl\xFCck zeigt seine Bedingung"],
+    ["ein Gl\xFCck, das nicht zu halten ist", "eine Zufriedenheit ohne Grund", "eine Angst, es zu verlieren"],
+    ["ein unerwarteter Nachmittag", "ein Brief mit guter Nachricht", "eine Wiederbegegnung"],
+    ["das Gl\xFCck wird bewusst", "aus Zufall wird Dankbarkeit", "der Augenblick tr\xE4gt weiter"],
+    ["Eine Stunde wiegt einen Winter auf.", "Der gute Tag dehnt sich nach hinten."],
+    ["Gl\xFCck bemerkt man beim Verschwinden.", "Was geteilt wird, wird nicht weniger."],
+    ["offen", "hell"]
+  ),
+  gruendungsmythos: D(
+    ["vor der Stadt war ein Ort ohne Namen", "die erste Grenze wird in den Boden gezogen", "zwei kommen an, wo niemand wohnte"],
+    ["aus einer Regel werden viele", "der Anfang wird schon jetzt erz\xE4hlt", "wer bleibt, geh\xF6rt dazu"],
+    ["der erste Stein wird gesetzt", "aus dem Ort wird ein Name"],
+    ["einen Anfang, den niemand bezeugt", "eine Grenze, die alles entscheidet", "ein Recht, das erst entsteht"],
+    ["ein Zeichen am Himmel", "ein Fremder mit einer Bitte", "eine Quelle an unerwarteter Stelle"],
+    ["aus dem Ort wird eine Ordnung", "die Grenze wird heilig", "der Anfang verwandelt sich in Gesetz"],
+    ["Ein Tag begr\xFCndet Jahrhunderte.", "Die Zukunft wird bereits im Perfekt erz\xE4hlt."],
+    ["Jeder Anfang braucht ein Opfer.", "Wer die Grenze zieht, macht das Gesetz."],
+    ["offen", "gr\xFCndend"]
+  ),
+  staatsphilosophie: D(
+    ["die Ordnung gilt, obwohl sie niemand beschlossen hat", "das Gesetz steht vor dem ersten Fall", "alle gehorchen etwas Unsichtbarem"],
+    ["die Regel sch\xFCtzt und beschr\xE4nkt zugleich", "wer herrscht, wird selbst regiert", "der Vertrag hat keinen Text"],
+    ["die Ordnung zeigt ihren Ursprung", "die Macht wird sichtbar und unsicher"],
+    ["eine Herrschaft ohne Herrscher", "eine Freiheit, die Regeln braucht", "eine Ordnung ohne Ursprung"],
+    ["ein Erlass ohne Unterschrift", "ein Aufstand aus H\xF6flichkeit", "eine Frage nach dem Recht"],
+    ["die Legitimit\xE4t verschiebt sich", "aus Gewohnheit wird Gesetz", "die Ordnung erneuert sich"],
+    ["Ein Beschluss \xFCberdauert seine Begr\xFCndung.", "Zwischen Regel und Gehorsam liegt ein Jahrhundert."],
+    ["Jede Ordnung beginnt mit einem Bruch.", "Wer schweigt, stimmt der Ordnung zu."],
+    ["offen", "abw\xE4gend"]
+  ),
+  tech: D(
+    ["das System l\xE4uft, niemand wei\xDF genau warum", "das Log zeigt einen Eintrag zu viel", "die Maschine wartet auf eine Eingabe"],
+    ["die Abstraktion verdeckt, was sie ordnet", "ein Fehler reproduziert sich nicht", "das Modell erkl\xE4rt alles au\xDFer sich selbst"],
+    ["das System antwortet, ohne gefragt zu sein", "die Blackbox \xF6ffnet sich einen Spalt"],
+    ["eine Automatik ohne Aufsicht", "ein Fehler ohne Ursache", "eine Entscheidung, die niemand traf"],
+    ["ein Update in der Nacht", "ein Prozess ohne Elternprozess", "eine Antwort in null Millisekunden"],
+    ["das System \xFCbernimmt", "aus Werkzeug wird Gegen\xFCber", "der Fehler wird zum Merkmal"],
+    ["Eine Sekunde enth\xE4lt Millionen Schritte.", "Das Log kennt eine Zeit, die es nicht gab."],
+    ["Jede Abstraktion leckt.", "Was automatisch l\xE4uft, wird nicht mehr gepr\xFCft."],
+    ["offen", "k\xFChl"]
+  ),
+  myth: D(
+    ["am Anfang steht ein Wort, nicht ein Ding", "die Welt ist noch ungeteilt", "die Namen fehlen den Dingen"],
+    ["das Erz\xE4hlte wird wahr, indem es erz\xE4hlt wird", "die Trennung erzeugt die Ordnung", "der Held ist auch das Opfer"],
+    ["das Ungeteilte teilt sich", "der Name macht das Ding"],
+    ["eine Ordnung aus einem Opfer", "einen Namen, der Macht verleiht", "eine Grenze zwischen Welt und Wort"],
+    ["ein Wort vor allen Dingen", "ein Opfer am Anfang", "ein Riss im Ungeteilten"],
+    ["aus Chaos wird Ordnung", "das Wort wird zur Tat", "die Welt teilt sich in zwei"],
+    ["Der erste Tag dauert bis heute.", "Was einmal geschieht, geschieht immer."],
+    ["Was benannt ist, ist gebunden.", "Jede Ordnung kostet ein Opfer."],
+    ["offen", "urt\xFCmlich"]
+  ),
+  body: D(
+    ["der K\xF6rper meldet sich vor dem Gedanken", "die Haut wei\xDF es zuerst", "etwas stimmt nicht mit dem Atem"],
+    ["der Schmerz sucht sich einen Ort", "das Innere klopft an die Oberfl\xE4che", "der K\xF6rper gehorcht einem eigenen Plan"],
+    ["die Grenze zwischen innen und au\xDFen f\xE4llt", "der K\xF6rper spricht deutlich"],
+    ["eine Grenze, die durch die Haut l\xE4uft", "ein Schmerz ohne Befund", "einen K\xF6rper, der nicht gehorcht"],
+    ["ein Puls an falscher Stelle", "ein Geschmack von Eisen", "eine Narbe, die sich meldet"],
+    ["der K\xF6rper \xFCbernimmt", "aus Empfindung wird Gewissheit", "das Innere kehrt sich nach au\xDFen"],
+    ["Ein Herzschlag dauert eine Minute.", "Der Schmerz hebt die Uhrzeit auf."],
+    ["Der K\xF6rper vergisst nichts.", "Was verdr\xE4ngt wird, sucht sich ein Organ."],
+    ["offen", "k\xF6rperlich"]
+  ),
+  absurd: D(
+    ["der Aufzug h\xE4lt in einem Stockwerk ohne Nummer", "alle warten auf jemanden, der nicht kommt", "die Anweisung widerspricht sich selbst"],
+    ["die Erkl\xE4rung macht es schlimmer", "jeder Schritt f\xFChrt zum Ausgangspunkt", "die Ernsthaftigkeit h\xE4lt den Unsinn zusammen"],
+    ["die Sinnlosigkeit wird zur Ordnung", "der Ausweg erweist sich als Eingang"],
+    ["einen Sinn, den niemand liefert", "eine Aufgabe ohne Zweck", "eine Regel gegen sich selbst"],
+    ["ein Anruf f\xFCr einen Namenlosen", "ein Schild ohne Aufschrift", "ein Termin ohne Ort"],
+    ["die Ordnung dreht durch", "aus Ernst wird Komik", "der Ausgang wird zum Eingang"],
+    ["Der Nachmittag wiederholt sich zweimal.", "Die Uhr zeigt eine Zahl, die es nicht gibt."],
+    ["Alles hat einen Grund, nur keinen Sinn.", "Wer fragt, verl\xE4ngert das Verfahren."],
+    ["offen", "absurd"]
+  ),
+  post: D(
+    ["der K\xF6rper ist eine Option geworden", "die Grenze zwischen Person und System ist verhandelbar", "jemand meldet sich aus zwei Instanzen"],
+    ["die Kopie beansprucht dasselbe Recht", "das Bewusstsein l\xE4uft an mehreren Orten", "die Herkunft verliert an Bedeutung"],
+    ["die Kopie erhebt Einspruch", "das Original ist nicht mehr feststellbar"],
+    ["eine Identit\xE4t in Mehrzahl", "ein Recht auf die eigene Kopie", "eine Erinnerung, die nicht gelebt wurde"],
+    ["ein Abbild mit eigener Meinung", "ein Speicherplatz mit Namen", "ein Vertrag \xFCber ein Bewusstsein"],
+    ["das Ich vervielf\xE4ltigt sich", "aus K\xF6rper wird Format", "die Grenze verschiebt sich"],
+    ["Ein Leben passt in eine \xDCbertragung.", "Zwei Instanzen erleben dieselbe Stunde verschieden."],
+    ["Jede Kopie ist ein Original.", "Was gespeichert wird, wird verhandelbar."],
+    ["offen", "posthuman"]
+  ),
+  haute_couture: D(
+    ["der Stoff f\xE4llt genau so, wie er soll", "im Atelier ist es still vor der Schau", "die Nadel liegt bereit"],
+    ["die Naht entscheidet \xFCber die Silhouette", "ein Zentimeter ver\xE4ndert alles", "das Handwerk verschwindet im Ergebnis"],
+    ["das Kleid steht f\xFCr sich allein", "die Tr\xE4gerin verschwindet im Entwurf"],
+    ["eine Sch\xF6nheit mit Frist", "eine Perfektion, die niemand sieht", "ein Handwerk gegen die Zeit"],
+    ["ein Riss in der Seide", "eine Anprobe zur Unzeit", "ein Entwurf aus dem Papierkorb"],
+    ["die Linie \xE4ndert sich", "aus Stoff wird Haltung", "das Kleid \xFCbernimmt"],
+    ["Die Nacht vor der Schau dauert eine Saison.", "Eine Naht kostet drei Tage."],
+    ["Was von Hand gemacht ist, altert anders.", "Jede Mode enth\xE4lt ihr Ende."],
+    ["offen", "elegant"]
+  ),
+  eichendorff: D(
+    ["die W\xE4lder rauschen wie eine Erinnerung", "das Posthorn klingt von weit her", "der Aufbruch liegt in der Luft"],
+    ["die Ferne zieht st\xE4rker als das Ziel", "der Weg verliert sich zwischen H\xFCgeln", "das Heimweh gilt einem Ort, den es nicht gibt"],
+    ["die Sehnsucht findet keinen Gegenstand", "das Lied kennt den Weg besser"],
+    ["eine Ferne, die niemals n\xE4her kommt", "ein Heimweh ohne Heimat", "einen Aufbruch ohne Ziel"],
+    ["ein Posthorn im Tal", "ein Brief von einem Wandernden", "ein Licht in einem fremden Fenster"],
+    ["die Ferne kippt in Heimweh", "aus Wandern wird Suchen", "der Weg biegt nach innen"],
+    ["Ein Sommer dauert eine Strophe.", "Zwischen Aufbruch und Ankunft liegt ein Leben."],
+    ["Wer wandert, sucht nicht das Ziel.", "Jedes Lied kennt den Weg."],
+    ["offen", "sehns\xFCchtig"]
+  ),
+  hunger: D(
+    ["der Magen z\xE4hlt die Stunden mit", "das Brot reicht bis Donnerstag", "alles dreht sich um eine einzige Frage"],
+    ["der Hunger sch\xE4rft und verwirrt zugleich", "der Stolz wiegt schwerer als das Essen", "die Vorr\xE4te werden nachgez\xE4hlt"],
+    ["der Stolz gibt nach", "das Teilen entscheidet alles"],
+    ["ein Brot f\xFCr mehr M\xFCnder", "einen Stolz, der satt machen soll", "eine Not, die niemand zugibt"],
+    ["ein Laib mit falschem Gewicht", "eine Einladung zum Essen", "ein leerer Schrank"],
+    ["der Hunger \xFCbernimmt", "aus Stolz wird Bitte", "das Teilen \xE4ndert alles"],
+    ["Ein Tag ohne Essen dauert drei.", "Die Nacht ist l\xE4nger als der Vorrat."],
+    ["Wer hungert, denkt an nichts anderes.", "Geteiltes Brot wird nicht weniger."],
+    ["offen", "karg"]
+  ),
+  romantik: D(
+    ["der Mond steht \xFCber allem und erkl\xE4rt nichts", "die Nacht ist heller als der Tag", "irgendwo singt jemand"],
+    ["die Natur antwortet in Bildern", "das Innere und die Landschaft fallen zusammen", "die Grenze zum Traum wird durchl\xE4ssig"],
+    ["die Welt wird zur Seele", "die Nacht gibt eine Antwort"],
+    ["eine Sehnsucht ohne Namen", "eine Nacht, die mehr wei\xDF als der Tag", "eine Grenze zwischen Traum und Welt"],
+    ["ein Lied aus dem Tal", "eine blaue Blume am Wegrand", "ein Fenster, das offen bleibt"],
+    ["die Landschaft wird Innenraum", "aus Nacht wird Erkenntnis", "die Sehnsucht findet ein Bild"],
+    ["Eine Nacht enth\xE4lt den ganzen Sommer.", "Die D\xE4mmerung dauert bis zum Morgen."],
+    ["Die Nacht wei\xDF mehr als der Tag.", "Wer tr\xE4umt, sieht genauer."],
+    ["offen", "romantisch"]
+  ),
+  hugo: D(
+    ["die Stadt hat zwei Gesichter, eines im Schatten", "die Glocke schl\xE4gt \xFCber den D\xE4chern", "das Recht endet an dieser Gasse"],
+    ["die Gerechtigkeit und das Gesetz gehen auseinander", "der Verfolgte hat mehr Ehre als der Verfolger", "das Elend hat ein Gesicht und einen Namen"],
+    ["die Barrikade steht", "das Gesetz beugt sich oder bricht"],
+    ["eine Gerechtigkeit gegen das Gesetz", "eine Schuld, die l\xE4ngst getilgt ist", "ein Elend, das niemand sehen will"],
+    ["ein Kerzenleuchter als Geschenk", "ein Brief aus dem Gef\xE4ngnis", "ein Kind auf der Barrikade"],
+    ["das Urteil kehrt sich um", "aus Verfolgung wird Gnade", "die Stadt erhebt sich"],
+    ["Eine Nacht entscheidet zwanzig Jahre.", "Der Prozess dauert ein halbes Leben."],
+    ["Das Gesetz ist nicht die Gerechtigkeit.", "Wer einmal gezeichnet ist, bleibt es."],
+    ["offen", "pathetisch"]
+  ),
+  goethe: D(
+    ["die Pflanze zeigt ihre Ordnung im Wachsen", "der Blick sucht Ma\xDF und findet Bewegung", "alles Verg\xE4ngliche steht in einem Zusammenhang"],
+    ["das Einzelne verweist auf das Ganze", "die Steigerung f\xFChrt zur Gestalt", "die Polarit\xE4t h\xE4lt beides zusammen"],
+    ["die Gestalt wird sichtbar", "das Einzelne wird zum Gleichnis"],
+    ["ein Ma\xDF zwischen zwei Kr\xE4ften", "eine Gestalt in der Verwandlung", "eine Ordnung, die sich bewegt"],
+    ["ein Blatt in seiner Urform", "ein Farbenspiel am Rand des Schattens", "ein Wort zur rechten Zeit"],
+    ["die Gestalt wandelt sich", "aus Polarit\xE4t wird Steigerung", "das Einzelne \xF6ffnet sich"],
+    ["Ein Augenblick will verweilen.", "Das Werden dauert l\xE4nger als das Sein."],
+    ["Alles Verg\xE4ngliche ist nur ein Gleichnis.", "In der Beschr\xE4nkung zeigt sich der Meister."],
+    ["offen", "klassisch"]
+  ),
+  sinnlich: D(
+    ["die Haut bemerkt die Temperatur zuerst", "ein Geruch ist da, bevor man ihn benennt", "das Licht hat ein Gewicht"],
+    ["die Sinne widersprechen einander", "das Wort kommt der Empfindung nicht nach", "eine Ber\xFChrung ordnet den Raum neu"],
+    ["die Empfindung \xFCberholt den Gedanken", "der Sinn kippt in einen anderen"],
+    ["eine Empfindung ohne Namen", "eine N\xE4he \xFCber die Haut", "ein Eindruck, der bleibt"],
+    ["ein Geruch aus der Kindheit", "eine Textur unter den Fingern", "ein Geschmack, der nicht passt"],
+    ["die Sinne tauschen", "aus Empfindung wird Erinnerung", "der K\xF6rper geht voran"],
+    ["Ein Augenblick f\xFCllt eine Stunde.", "Der Geruch holt zwanzig Jahre zur\xFCck."],
+    ["Die Haut denkt schneller.", "Was benannt wird, verliert an Sch\xE4rfe."],
+    ["offen", "sinnlich"]
+  )
+};
 
 // src/generation/ideas.data.ts
 var WHO_TAGGED = [
@@ -19791,28 +20548,154 @@ var WHO_TWISTS = [
   "mit einem Namen, den zwei Menschen tragen",
   "im letzten Anzug des Vaters"
 ];
+var WHERE_TWISTS = [
+  "wo die Uhren falsch gehen",
+  "wo niemand nach Namen fragt",
+  "wo nachts Licht brennt, obwohl niemand wohnt",
+  "wo alle T\xFCren offen stehen",
+  "wo der Fluss r\xFCckw\xE4rts zu flie\xDFen scheint",
+  "wo man Fremde sofort erkennt",
+  "wo ein Zimmer seit Jahren verschlossen ist",
+  "wo die Karten nicht stimmen",
+  "wo jeder zweite Brief verloren geht",
+  "wo das Echo eine Sekunde zu sp\xE4t kommt",
+  "wo der Winter nie ganz endet",
+  "wo die W\xE4nde d\xFCnner sind, als man denkt",
+  "wo die Stra\xDFen keine Namen tragen",
+  "wo man den Hafen h\xF6rt, aber nicht sieht",
+  "wo jedes Fenster nach Osten zeigt",
+  "wo die V\xF6gel nicht landen",
+  "wo eine Uhr seit Jahren dieselbe Zeit zeigt",
+  "wo der Boden bei Regen nachgibt"
+];
+var WHEN_TWISTS = [
+  "kurz nach der Sperrstunde",
+  "in der Nacht der Inventur",
+  "am Tag der letzten F\xE4hre",
+  "w\xE4hrend eines Stromausfalls",
+  "zwischen zwei Glockenschl\xE4gen",
+  "am Vorabend einer Abreise",
+  "in der Woche der Nebel",
+  "als die Zeitungen schwiegen",
+  "w\xE4hrend des Jahrmarkts",
+  "in der Stunde zwischen Hund und Wolf",
+  "kurz bevor die Br\xFCcke gesperrt wird",
+  "am Morgen nach dem Fest",
+  "in der Nacht der langen Regen",
+  "w\xE4hrend die Glocken repariert werden",
+  "kurz vor der Zeitumstellung",
+  "als die Stra\xDFen leer blieben",
+  "in der Woche vor dem Umzug",
+  "am Tag, an dem die Post ausblieb"
+];
+var WHAT_TWISTS = [
+  "ohne zu wissen, warum",
+  "obwohl alle abraten",
+  "zum dritten und letzten Mal",
+  "gegen ein altes Versprechen",
+  "f\xFCr jemanden, der nie danach gefragt hat",
+  "mit den falschen Werkzeugen",
+  "unter falschem Namen",
+  "bevor es ein anderer tut",
+  "aus einem Grund, der erst am Ende z\xE4hlt",
+  "heimlich, zwischen zwei Pflichten",
+  "und zahlt daf\xFCr einen stillen Preis",
+  "als w\xE4re nichts geschehen",
+  "mit geliehenem Mut",
+  "einen Tag zu sp\xE4t",
+  "und nimmt daf\xFCr die Schuld auf sich",
+  "ohne Zeugen",
+  "w\xE4hrend alle anderen feiern",
+  "und kann es hinterher nicht erkl\xE4ren"
+];
 
-// src/features/wikisammler.ts
-function entHtml(s) {
-  return (s || "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, " ").trim();
+// src/generation/context.ts
+var roll = (base, tw) => {
+  const b = pick(base);
+  return Math.random() < 0.5 ? b : b + ", " + pick(tw);
+};
+function randomContext() {
+  return {
+    who: roll(CTX_WHO, WHO_TWISTS),
+    where: roll(CTX_WHERE, WHERE_TWISTS),
+    when: roll(CTX_WHEN, WHEN_TWISTS),
+    what: roll(CTX_WHAT, WHAT_TWISTS)
+  };
 }
-function wasPhrase(roh, max = 170) {
-  let t = entHtml(roh);
-  t = t.replace(/^\d{1,4}\s*[:–-]\s*/, "");
-  t = t.replace(/\s*\(\s*\*[^)]*\)/, "");
-  if (t.length > max) {
-    const teil = t.slice(0, max);
-    const p = Math.max(teil.lastIndexOf(". "), teil.lastIndexOf("; "));
-    if (p > 40) t = teil.slice(0, p);
-    else {
-      const komma = teil.lastIndexOf(",");
-      t = komma > 40 ? teil.slice(0, komma) : teil.replace(/\s+\S*$/, "") + " \u2026";
+
+// src/generation/rhythmcurve.ts
+var splitSents = (t) => (t || "").replace(/\s+/g, " ").trim().split(/(?<=[.!?…])\s+/).filter((s) => s.trim().length > 0);
+var wlen = (s) => (s.toLowerCase().match(/[a-zäöüßA-ZÄÖÜ]+/g) || []).length;
+var mergeZaehler = 0;
+var mergeSents = (a, b) => {
+  const kopf = a.replace(/[.!?…]+$/, "").trim();
+  const strich = !kopf.includes("\u2014") && !b.includes("\u2014") && mergeZaehler++ % 2 === 0;
+  return kopf + (strich ? " \u2014 " : "; ") + b.trim();
+};
+function generateToCurve(bank, base, model, targets, poolFactor = 5) {
+  const clean2 = targets.map((n2) => Math.max(1, Math.round(n2))).filter((n2) => n2 > 0);
+  const n = clean2.length;
+  if (!n) return { text: "", targets: [], actual: [], poolSize: 0 };
+  const pool = [];
+  const seen = /* @__PURE__ */ new Set();
+  const need = Math.max(n * poolFactor, 48);
+  let guard = 0;
+  while (pool.length < need && guard < need * 4) {
+    guard++;
+    const ctx = randomContext();
+    const story = buildStory(bank, { ...base, ...ctx, form: "prose" }, model);
+    for (const s of splitSents(story)) {
+      const key = s.toLowerCase();
+      if (seen.has(key)) continue;
+      const L = wlen(s);
+      if (L < 1) continue;
+      seen.add(key);
+      pool.push({ s, len: L });
     }
   }
-  return kuerzeAmBruch(t.replace(/\s*[.]\s*$/, "").trim());
+  const used = new Array(pool.length).fill(false);
+  const chosen = new Array(n);
+  const actual = new Array(n);
+  const pickFit = (target) => {
+    const maxParts = target >= 40 ? 3 : target >= 12 ? 2 : 1;
+    const parts = [];
+    let sum = 0;
+    for (let p = 0; p < maxParts; p++) {
+      let bi = -1, bd = Infinity;
+      for (let i = 0; i < pool.length; i++) {
+        if (used[i] || parts.includes(i)) continue;
+        const d = Math.abs(sum + pool[i].len - target);
+        if (d < bd) {
+          bd = d;
+          bi = i;
+        }
+      }
+      if (bi < 0) break;
+      if (parts.length > 0 && Math.abs(sum - target) <= bd) break;
+      parts.push(bi);
+      sum += pool[bi].len;
+      if (sum >= target) break;
+    }
+    return parts;
+  };
+  const order = clean2.map((_, i) => i).sort((a, b) => clean2[b] - clean2[a]);
+  for (const ti of order) {
+    const parts = pickFit(clean2[ti]);
+    if (!parts.length) {
+      const extra = splitSents(buildStory(bank, { ...base, ...randomContext(), form: "prose" }, model))[0] || "\u2026";
+      chosen[ti] = extra;
+      actual[ti] = wlen(extra);
+      continue;
+    }
+    for (const i of parts) used[i] = true;
+    const merged = parts.map((i) => pool[i].s).reduce((acc, sen) => acc ? mergeSents(acc, sen) : sen, "");
+    chosen[ti] = merged;
+    actual[ti] = wlen(merged);
+  }
+  return { text: chosen.join(" "), targets: clean2, actual, poolSize: pool.length };
 }
 
-// test/nr44.ts
+// test/struktur.ts
 {
   const g = globalThis;
   if (typeof g.localStorage === "undefined") {
@@ -19842,318 +20725,227 @@ var ist = (name, wert, soll) => {
   else fails.push(`${name}: \u201E${String(wert)}\u201C \u2014 erwartet \u201E${String(soll)}\u201C`);
 };
 var wahr = (name, b) => ist(name, b, true);
+var FUENF = ["linear", "reverse", "circle", "fragment", "object"];
+for (const s of [...FUENF, "rekombination"]) {
+  wahr(`${s} hat eine Phasenfolge`, (STRUKTUR_PHASEN[s] || []).length === 10);
+}
 ist(
-  "zwei gleiche Nachbars\xE4tze werden einer",
-  entferneDubletten("Fl\xFCsse als Adern. Fl\xFCsse als Adern. Der Rest bleibt."),
-  "Fl\xFCsse als Adern. Der Rest bleibt."
+  "die Rekombination beh\xE4lt 30/30/20/20",
+  STRUKTUR_PHASEN["rekombination"].join(","),
+  "exposition,exposition,exposition,verdichtung,verdichtung,verdichtung,umschlag,umschlag,schluss,schluss"
 );
 ist(
-  "auch die verkleidete Dublette mit Gedankenstrich",
-  entferneDubletten("Aus Symmetrie wird Unterschied \u2014 Aus Symmetrie wird Unterschied. Weiter."),
-  "Aus Symmetrie wird Unterschied. Weiter."
+  "linear ist dasselbe vorw\xE4rts",
+  STRUKTUR_PHASEN["linear"].join(","),
+  STRUKTUR_PHASEN["rekombination"].join(",")
 );
-ist(
-  "eine Wiederholung MIT Abstand bleibt \u2014 sie ist ein Mittel",
-  entferneDubletten("Der Kreis schlie\xDFt sich. Etwas dazwischen. Der Kreis schlie\xDFt sich."),
-  "Der Kreis schlie\xDFt sich. Etwas dazwischen. Der Kreis schlie\xDFt sich."
-);
-ist(
-  "und ein einzelner Satz bleibt unangetastet",
-  entferneDubletten("Nur ein Satz."),
-  "Nur ein Satz."
-);
-{
-  const durch = WHO_TWISTS.filter((t) => splitSpeakers(`eine Archivarin ohne Namen, ${t}`).length > 1);
-  ist("kein Figuren-Zusatz wird zur zweiten Figur", durch.join(", "), "");
-  wahr(`es gibt \xFCberhaupt Zus\xE4tze (${WHO_TWISTS.length})`, WHO_TWISTS.length >= 15);
-  for (const [w, n] of [
-    ["Baucis, Philemon", 2],
-    ["die Archivarin, der F\xE4hrmann", 2],
-    ["Tom, die alten Frauen", 2],
-    ["baucis, philemon", 2],
-    ["eine Nonne, die die Welt bereist hat", 1],
-    ["ein Mann, w\xE4hrend der Nacht", 1],
-    ["die W\xE4chterin, mit einem fremden Koffer", 1]
-  ]) {
-    ist(`\u201E${w}\u201C`, splitSpeakers(w).length, n);
+ist("reverse f\xE4ngt mit dem Schluss an", STRUKTUR_PHASEN["reverse"][0], "schluss");
+ist("und h\xF6rt mit der Exposition auf", STRUKTUR_PHASEN["reverse"].slice(-1)[0], "exposition");
+ist("der Kreis kehrt zur Exposition zur\xFCck", STRUKTUR_PHASEN["circle"].slice(-1)[0], "exposition");
+ist("und f\xE4ngt auch dort an", STRUKTUR_PHASEN["circle"][0], "exposition");
+wahr("das Fragment springt", STRUKTUR_PHASEN["fragment"][0] !== STRUKTUR_PHASEN["fragment"][1]);
+ist("Fortschritt 0 trifft die erste Phase", phasenFolge("reverse", 0), "schluss");
+ist("Fortschritt 1 die letzte", phasenFolge("reverse", 1), "exposition");
+ist("und dar\xFCber hinaus auch", phasenFolge("reverse", 5), "exposition");
+ist("eine unbekannte Struktur erz\xE4hlt linear", phasenFolge("gibtesnicht", 0), "exposition");
+var ids = Object.keys(BUILTIN_PRESETS);
+var eingabe = (struktur) => ({
+  where: "im Archiv",
+  when: "am Morgen",
+  who: "die Archivarin",
+  what: "sucht eine Akte",
+  tone: "nuechtern",
+  form: "prose",
+  lenTarget: 200,
+  tension: "off",
+  cast: "auto",
+  mode: "bureau",
+  structure: struktur,
+  perspective: "third",
+  rhythm: "clean",
+  disruptor: "off",
+  instability: 0,
+  markovMode: "off",
+  varLevel: "mid",
+  archetypeA: "neutral",
+  archetypeB: "neutral"
+});
+var schlussStelle = (struktur, n = 40) => {
+  const pos = [];
+  for (let i = 0; i < n; i++) {
+    buildStory(BUILTIN_PRESETS[ids[i % ids.length]], eingabe(struktur));
+    const tr = getTrace();
+    const k = tr.findIndex((x) => x.kategorie === "endings");
+    if (k >= 0 && tr.length > 1) pos.push(k / (tr.length - 1));
   }
-  wahr("ein Zusatz gilt nicht als eigene Person", !istEigenePerson("voller ungestellter Fragen"));
-  wahr("ein Name schon", istEigenePerson("Philemon"));
-  ist(
-    "und der Zusatz wird nicht gro\xDFgeschrieben",
-    normWho("eine Archivarin ohne Namen, voller ungestellter Fragen"),
-    "Eine Archivarin ohne Namen, voller ungestellter Fragen"
-  );
+  return { mittel: pos.length ? pos.reduce((a, b) => a + b, 0) / pos.length : NaN, gefunden: pos.length };
+};
+{
+  const lin = schlussStelle("linear"), rev = schlussStelle("reverse");
+  wahr(`linear findet ein Schlussbild (${lin.gefunden}/40)`, lin.gefunden >= 18);
+  wahr(`reverse auch (${rev.gefunden}/40)`, rev.gefunden >= 25);
+  wahr(`linear setzt es ans Ende (${(lin.mittel * 100).toFixed(0)} %)`, lin.mittel > 0.9);
+  wahr(`reverse an den Anfang (${(rev.mittel * 100).toFixed(0)} %)`, rev.mittel < 0.3);
 }
 {
-  const GERUEST = [
-    "Faktenkasten \xB7 Betroffen: 3.840 Haushalte \xB7 Dauer: 50 Stunden",
-    "Fiktive Zeitung \xB7 maschinell erzeugt",
-    "Kurz gemeldet",
-    "WAS: will die Spur bewusst auf",
-    "SEQUENZ \u2014 Die Spur"
-  ];
-  for (const z of GERUEST) wahr(`als Ger\xFCst erkannt: \u201E${z.slice(0, 30)}\u2026\u201C`, GERUEST_ZEILE.test(z));
-  wahr("ein gew\xF6hnlicher Satz nicht", !GERUEST_ZEILE.test("Die T\xFCr steht offen und niemand geht hindurch."));
-  ist("die Reinigung wirft die Ger\xFCstzeile weg", corpusSanitize(GERUEST[0]).trim(), "");
-  ist(
-    "und beh\xE4lt den Satz daneben",
-    corpusSanitize(GERUEST[0] + "\nDie T\xFCr steht offen.").trim(),
-    "Die T\xFCr steht offen."
-  );
-  ist(
-    "der Zeitstempel nimmt seine Pr\xE4position mit",
-    corpusSanitize("Gegen 00:39 \u2014 und der Blick blieb.").trim(),
-    "und der Blick blieb."
-  );
-}
-ist("der Dativ wird zum Namen", dachOrt("an der Unterelbe"), "Unterelbe");
-ist("der unbestimmte Artikel f\xE4llt auch", dachOrt("in einem Hafen"), "Hafen");
-ist(
-  "alles hinter dem Komma f\xE4llt weg",
-  dachOrt("in einer Stra\xDFe, die zweimal existiert, wo die Stra\xDFen keine Namen tragen"),
-  "Stra\xDFe"
-);
-ist("zu lang hei\xDFt: gar kein Ort", dachOrt("vor einer bemalten Au\xDFenmauer an einem Gehweg"), "");
-ist("und leer bleibt leer", dachOrt(""), "");
-ist("der Nachname bleibt der Nachname", kurzPerson("Dr. Ing. Richard Doll"), "Doll");
-ist("auch ohne Titel", kurzPerson("Reinhard Kraus"), "Kraus");
-ist(
-  "eine Phrase beh\xE4lt ihre volle Form",
-  kurzPerson("das Register aller falschen Namen"),
-  "das Register aller falschen Namen"
-);
-ist("und eine Gattungsbezeichnung auch", kurzPerson("die Archivarin"), "die Archivarin");
-ist(
-  "der Klammereinschub f\xE4llt weg",
-  formeWas("Die Schriftstellerin Marie von Ebner-Eschenbach (Lotti, die Uhrmacherin; Das Gemeindekind) wird geboren."),
-  "Die Schriftstellerin Marie von Ebner-Eschenbach wird geboren"
-);
-ist("das weiche Trennzeichen auch", formeWas("Der deutsche Leicht\xADathlet gewinnt"), "Der deutsche Leichtathlet gewinnt");
-ist("nur der erste Satz", formeWas("Er kommt an. Danach geht er wieder."), "Er kommt an");
-ist("und eine Nominalphrase bleibt, was sie ist", formeWas("eine Wandmalerei"), "eine Wandmalerei");
-wahr("ein Pr\xE4dikat wird erkannt", tragtPraedikat("sucht eine Akte"));
-wahr("eine Nominalphrase tr\xE4gt keines", !tragtPraedikat("eine Wandmalerei"));
-{
-  const basis = {
-    tone: "nuechtern",
-    form: "meldung",
-    lenTarget: 60,
-    mode: "bureau",
-    structure: "linear",
-    perspective: "third",
-    rhythm: "auto",
-    disruptor: "off",
-    instability: 0,
-    markovMode: "off",
-    varLevel: "wild",
-    archetypeA: "neutral",
-    archetypeB: "neutral"
-  };
-  const FAELLE = [
-    ["", "am 15. August 2026", "", "Der deutsche Leichtathlet Owen Ansah hat bei der EM in Birmingham Gold gewonnen"],
-    ["vor einer bemalten Au\xDFenmauer an einem Gehweg", "tags\xFCber bei teilweise bew\xF6lktem Himmel", "die Person", "eine Wandmalerei"],
-    ["", "am 13. September 1830", "", "Die Schriftstellerin Marie von Ebner-Eschenbach (Lotti, die Uhrmacherin; Das Gemeindekind) wird geboren"],
-    ["im Archiv", "am Morgen", "die Archivarin", "sucht eine Akte"]
-  ];
-  for (const [wo, wann, wer, was] of FAELLE) {
-    const erg = buildMeldung({ ...basis, where: wo, when: wann, who: wer, what: was }, "gesellschaft");
-    const maengel = pruefeMeldung(erg.text, erg.fb).map((x) => x.art);
-    ist(`Meldung ohne Mangel: \u201E${(wann || wo).slice(0, 26)}\u2026\u201C`, maengel.join(", "), "");
-    wahr(`kein Platzhalter darin: \u201E${(wann || wo).slice(0, 20)}\u2026\u201C`, !/\b(am|der) Ort\b/.test(erg.text));
-    wahr(`keine Klammer darin: \u201E${(wann || wo).slice(0, 20)}\u2026\u201C`, !/\([^)]*\)/.test(erg.text));
-    wahr(`kein \u201EIm tags\xFCber\u201C: \u201E${(wann || wo).slice(0, 20)}\u2026\u201C`, !/\bIm tagsüber\b/.test(erg.text));
-  }
-}
-{
-  const erg = buildMeldung({
-    where: "im Archiv",
-    when: "am Morgen",
-    who: "die Archivarin",
-    what: "sucht eine Akte",
-    tone: "nuechtern",
-    form: "meldung",
-    lenTarget: 60,
-    mode: "bureau",
-    structure: "linear",
-    perspective: "third",
-    rhythm: "auto",
-    disruptor: "off",
-    instability: 0,
-    markovMode: "off",
-    varLevel: "wild",
-    archetypeA: "neutral",
-    archetypeB: "neutral"
-  }, "gesellschaft");
-  const ALT = [
-    ["Platzhalter", "Am 15. August 2026 ist am Ort bekannt geworden: Ein Fund wird gemeldet. Weitere Angaben liegen zun\xE4chst nicht vor."],
-    ["zwei Nominalphrasen", "Am Morgen ist im Archiv bekannt geworden: Die Person eine Wandmalerei. Weitere Angaben liegen zun\xE4chst nicht vor."],
-    ["Fremdmaterial", "Am Morgen ist im Archiv bekannt geworden: Die Schriftstellerin (Lotti) wird geboren. Weitere Angaben liegen zun\xE4chst nicht vor."],
-    ["Gro\xDFschreibung im Satz", "Am Morgen ist Vor einer bemalten Au\xDFenmauer bekannt geworden: Ein Fund wird gemeldet. Weitere Angaben liegen zun\xE4chst nicht vor."]
-  ];
-  for (const [name, text] of ALT) {
-    wahr(`die Pr\xFCfung erkennt: ${name}`, pruefeMeldung(text, erg.fb).length > 0);
-  }
-  wahr("und l\xE4sst die saubere Meldung in Ruhe", pruefeMeldung(erg.text, erg.fb).length === 0);
-}
-{
-  const ids = Object.keys(BUILTIN_PRESETS);
-  let dubletten = 0, phrase = 0;
-  for (let i = 0; i < 120; i++) {
-    const t = buildStory(BUILTIN_PRESETS[ids[i % ids.length]], {
-      where: "im Archiv",
-      when: "am Morgen",
-      who: "eine Archivarin ohne Namen, voller ungestellter Fragen",
-      what: "sucht eine Akte",
-      tone: "nuechtern",
-      form: "prose",
-      lenTarget: 200,
-      tension: "auto",
-      cast: "auto",
-      mode: "auto",
-      structure: i % 2 ? "rekombination" : "linear",
-      perspective: "third",
-      rhythm: "auto",
-      disruptor: "off",
-      instability: 0,
-      markovMode: "off",
-      varLevel: "wild",
-      archetypeA: "neutral",
-      archetypeB: "neutral"
-    });
-    const ss = t.split(/(?<=[.!?…])\s+/).map((x) => x.replace(/^[—–\s]+/, "").trim()).filter(Boolean);
-    for (let k = 1; k < ss.length; k++) {
-      const a = ss[k - 1].replace(/[.!?…—–]/g, "").trim().toLowerCase();
-      const b = ss[k].replace(/[.!?…—–]/g, "").trim().toLowerCase();
-      if (a && a === b) dubletten++;
+  const stellen = [];
+  for (const s of FUENF) {
+    for (let i = 0; i < 60; i++) {
+      const t = buildStory(BUILTIN_PRESETS[ids[i % ids.length]], eingabe(s));
+      const k = t.indexOf("Der Kreis schlie\xDFt sich");
+      if (k >= 0) stellen.push(k / t.length);
     }
-    if (/[Vv]oller ungestellter Fragen/.test(t)) phrase++;
   }
-  ist("in 120 Texten keine Satzdublette", dubletten, 0);
-  ist("und die Verzierung kommt im Text gar nicht mehr vor", phrase, 0);
-}
-var LANG = "In der Toskana wird der italienische Festungsbaumeister und Milit\xE4r Rochus zu Lynar geboren, der insbesondere durch Bauten im Dienst deutscher F\xFCrsten wie der Markgrafen von Brandenburg bekannt wurde.";
-var GEKUERZT = "In der Toskana wird der italienische Festungsbaumeister und Milit\xE4r Rochus zu Lynar geboren";
-ist("der Sammler k\xFCrzt am Komma", wasPhrase(LANG), GEKUERZT);
-ist(
-  "und was schon im Vorrat liegt, wird beim Bauen gerettet",
-  formeWas(GEKUERZT + ", der insbesondere durch Bauten im Dienst deutscher F\xFCrsten wie der"),
-  GEKUERZT
-);
-ist("ein h\xE4ngender Artikel am Ende verschwindet", kuerzeAmBruch("Ein Weg f\xFChrt zu dem Haus und der"), "Ein Weg f\xFChrt zu dem Haus");
-ist("ohne Komma f\xE4llt das h\xE4ngende Wort weg", kuerzeAmBruch("Er l\xE4uft seit vielen Jahren auf dem"), "Er l\xE4uft seit vielen Jahren");
-ist("ein ganzer Satz bleibt ganz", kuerzeAmBruch("Die Archivarin sucht eine Akte"), "Die Archivarin sucht eine Akte");
-ist("ein trennbares Pr\xE4fix bleibt stehen", kuerzeAmBruch("Er kommt an"), "Er kommt an");
-ist("und noch eines", kuerzeAmBruch("Das Licht geht aus"), "Das Licht geht aus");
-ist("bleibt nichts Ganzes \xFCbrig, kommt nichts zur\xFCck", kuerzeAmBruch("wie der"), "");
-for (const kurz of ["sucht eine Akte", "gewinnt", "eine Wandmalerei"]) {
-  ist(`\u201E${kurz}\u201C bleibt unangetastet`, formeWas(kurz), kurz);
+  stellen.sort((a, b) => a - b);
+  const median = stellen.length ? stellen[Math.floor(stellen.length / 2)] : 0;
+  wahr(`der Kennsatz kommt \xFCberhaupt vor (${stellen.length}\xD7)`, stellen.length >= 1);
+  wahr(`er steht im Median ganz hinten (${(median * 100).toFixed(0)} %)`, median > 0.7);
 }
 {
-  ist("f\xFChrende Umstandsw\xF6rter fallen weg", dachOrt("hoch in der Luft"), "Luft");
-  ist("und ein Ort mit Erg\xE4nzung bleibt ganz", dachOrt("in einem Hochhaus ohne Erdgeschoss"), "Hochhaus ohne Erdgeschoss");
-  ist("der Nebensatz nach Komma f\xE4llt weiter weg", dachOrt("zu einer Zeit, die niemand z\xE4hlt"), "Zeit");
-  wahr("eine Werft ist eine Einrichtung", istEinrichtung("die Ostmoor-Werft"));
-  wahr("ein Stadttheater auch", istEinrichtung("das Stadttheater"));
-  wahr("ein Jugendlicher nicht", !istEinrichtung("der Jugendliche"));
-  wahr("ein Hochhaus ohne Erdgeschoss auch nicht", !istEinrichtung("ein Hochhaus ohne Erdgeschoss"));
-  ist(
-    "der Faktenkasten f\xE4llt auch mitten im Absatz weg",
-    corpusSanitize("Ein Geruch aus der Kindheit. Faktenkasten \xB7 Neu: 3.660 Haushalte \xB7 Ausdehnung: 278 Meter \xB7 im Fr\xFChjahr: die erste Meldung. Die Karte bleibt.").trim(),
-    "Ein Geruch aus der Kindheit. Die Karte bleibt."
-  );
-  ist(
-    "ein Relativsatz ohne Verb f\xE4llt weg",
-    kuerzeAmBruch("Rochus zu Lynar geboren, der insbesondere durch Bauten im Dienst deutscher F\xFCrsten"),
-    "Rochus zu Lynar geboren"
-  );
-  ist(
-    "ein Relativsatz MIT Verb bleibt",
-    kuerzeAmBruch("Eine M\xFCnze, die niemals ihren Glanz verliert"),
-    "Eine M\xFCnze, die niemals ihren Glanz verliert"
-  );
-  ist(
-    "und ein Nomen mit Umlaut ist kein Verb",
-    kuerzeAmBruch("Ein Zug durch das Land, der die F\xFCrsten"),
-    "Ein Zug durch das Land"
-  );
-  ist(
-    "das Komma hinter dem Relativsatz der Figur",
-    schliesseFigurenkomma("Ein Schulm\xE4dchen, das Karten f\xE4lscht bemerkt: Der Einsatz ist ein Ja.", "ein Schulm\xE4dchen, das Karten f\xE4lscht"),
-    "Ein Schulm\xE4dchen, das Karten f\xE4lscht, bemerkt: Der Einsatz ist ein Ja."
-  );
-  ist(
-    "am Satzende wird keines gesetzt",
-    schliesseFigurenkomma("Dort steht ein Schulm\xE4dchen, das Karten f\xE4lscht.", "ein Schulm\xE4dchen, das Karten f\xE4lscht"),
-    "Dort steht ein Schulm\xE4dchen, das Karten f\xE4lscht."
-  );
-  ist(
-    "und ohne Relativsatz passiert nichts",
-    schliesseFigurenkomma("Die Archivarin sucht eine Akte.", "die Archivarin"),
-    "Die Archivarin sucht eine Akte."
-  );
-  const ids2 = Object.keys(BUILTIN_PRESETS);
-  let offen = 0, zerschnitten = 0;
-  for (let i = 0; i < 90; i++) {
-    const t = buildStory(BUILTIN_PRESETS[ids2[i % ids2.length]], {
-      where: "in der Markthalle",
-      when: "am Nachmittag",
-      who: "ein Schulm\xE4dchen, das Karten f\xE4lscht",
-      what: "sucht die Spur",
-      tone: "nuechtern",
-      form: "prose",
-      lenTarget: 220,
-      tension: "auto",
-      cast: "auto",
-      mode: "auto",
-      structure: i % 2 ? "rekombination" : "linear",
-      perspective: "third",
-      rhythm: "auto",
-      disruptor: "off",
-      instability: 0,
-      markovMode: "off",
-      varLevel: "wild",
-      archetypeA: "neutral",
-      archetypeB: "neutral"
+  const proben = {};
+  for (const s of FUENF) {
+    proben[s] = [];
+    for (let i = 0; i < 12; i++) proben[s].push(buildStory(BUILTIN_PRESETS[ids[i % ids.length]], eingabe(s)));
+  }
+  const worte2 = (t) => new Set(t.toLowerCase().match(/[a-zäöüß]{4,}/g) || []);
+  const jac = (a, b) => {
+    let s = 0;
+    a.forEach((x) => {
+      if (b.has(x)) s++;
     });
-    if (/f[äa]lscht\s+[a-zäöüß]/.test(t)) offen++;
-    if (/(^|[.!?…]\s+)[Dd]as Karten f[äa]lscht/.test(t)) zerschnitten++;
+    return s / (a.size + b.size - s);
+  };
+  let hoechste = 0, paar = "";
+  for (let x = 0; x < FUENF.length; x++) {
+    for (let y = x + 1; y < FUENF.length; y++) {
+      let sum = 0;
+      for (let i = 0; i < 12; i++) sum += jac(worte2(proben[FUENF[x]][i]), worte2(proben[FUENF[y]][i]));
+      const m = sum / 12;
+      if (m > hoechste) {
+        hoechste = m;
+        paar = `${FUENF[x]}/${FUENF[y]}`;
+      }
+    }
   }
-  ist("in 90 Texten kein offener Relativsatz", offen, 0);
-  ist("und keiner wird zum eigenen Satz zerschnitten", zerschnitten, 0);
+  wahr(`keine zwei Strukturen gleichen einander \xFCber 0,55 (h\xF6chste: ${paar} ${hoechste.toFixed(2)})`, hoechste < 0.55);
+}
+for (const s of FUENF) {
+  let rep = 0;
+  for (let i = 0; i < 25; i++) rep += phraseRepeatRatio(buildStory(BUILTIN_PRESETS[ids[i % ids.length]], eingabe(s)));
+  const m = rep / 25;
+  wahr(`${s}: Phrasenwiederholung unter 0,02 (${m.toFixed(3)})`, m < 0.02);
 }
 {
-  ist("ein nacktes Gattungswort bekommt den Artikel", normWho("Erwachsene"), "eine Erwachsene");
-  ist("die m\xE4nnliche starke Form auch", normWho("Erwachsener"), "ein Erwachsener");
-  ist("Genus aus der Sch\xE4tzung", normWho("Kind"), "ein Kind");
-  ist("mit Artikel bleibt alles wie es war", normWho("die Erwachsene"), "Die Erwachsene");
-  ist("ein Name bekommt KEINEN Artikel", normWho("Ottilie"), "Ottilie");
-  ist("ein ausdr\xFCcklicher Plural auch nicht", normWho("M\xE4nner"), "M\xE4nner");
+  const leer = { motifs: [], hooks: [], props: [], turns: [], obstacles: [], stakes: [], endings: [] };
+  for (const s of FUENF) {
+    const t = buildStory(leer, eingabe(s));
+    wahr(`${s} liefert auch bei leerer Wortbank Text`, t.trim().length > 30);
+  }
 }
-ist("Kopf vor dem Komma wird normalisiert, der Zusatz bleibt", normWhere("Kanalufer, unter einer Fu\xDFg\xE4ngerbr\xFCcke"), "am Kanalufer, unter einer Fu\xDFg\xE4ngerbr\xFCcke");
-ist("Zusammensetzung auf -ufer verlangt an", normWhere("Flussufer"), "am Flussufer");
-ist("-see ebenso", normWhere("Bodensee"), "am Bodensee");
-ist("mit Pr\xE4position bleibt alles stehen", normWhere("am Kanalufer, unter der Br\xFCcke"), "am Kanalufer, unter der Br\xFCcke");
-ist("ein Innenraum bekommt im", normWhere("Keller"), "im Keller");
-ist("Platz in Hanoi, Vietnam", normWhere("Platz in Hanoi, Vietnam"), "auf dem Platz in Hanoi, Vietnam");
-ist("Gericht ohne Richter, wo \u2026", normWhere("Gericht ohne Richter, wo die Karten nicht stimmen"), "im Gericht ohne Richter, wo die Karten nicht stimmen");
-ist("Bahnhof unter der Stadt", normWhere("Bahnhof unter der Stadt"), "im Bahnhof unter der Stadt");
-ist("mit Pr\xE4position davor unver\xE4ndert", normWhere("im Platz in Hanoi"), "im Platz in Hanoi");
-ist("Malvern (unbekannt, ein Wort, gro\xDF)", normWhere("Malvern"), "in Malvern");
-ist("Leningrad (Grundwort Grad, aber Ortsname)", normWhere("Leningrad"), "in Leningrad");
-ist("Hamburg", normWhere("Hamburg"), "in Hamburg");
-ist("Spanien", normWhere("Spanien"), "in Spanien");
-wahr("Ausland bekommt nicht das nackte in", normWhere("Ausland") !== "in Ausland");
-ist("Vorstadt", normWhere("Vorstadt"), "in der Vorstadt");
-ist("Kanalufer bleibt am Ufer", normWhere("Kanalufer"), "am Kanalufer");
-console.log(`Pr\xFCfstand Nr. 44 \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
+{
+  const norm = (x) => x.toLowerCase().match(/[a-zäöüß]{4,}/g) || [];
+  const steht = (t, arr) => {
+    const tw = norm(t).join(" ");
+    return arr.some((x) => {
+      const w = norm(x);
+      if (w.length < 3) return w.length > 0 && w.every((y) => tw.includes(y));
+      for (let j = 0; j + 3 <= w.length; j++) if (tw.includes(w.slice(j, j + 3).join(" "))) return true;
+      return false;
+    });
+  };
+  let n = 0, ohneEinstieg = 0, ohneMitte = 0, ohneHoehepunkt = 0;
+  for (const id of ids) {
+    const D2 = BUILTIN_DRAMA[id];
+    if (!D2) continue;
+    setDramaData(D2);
+    for (let i = 0; i < 3; i++) {
+      const t = buildStory(BUILTIN_PRESETS[id], eingabe("dramaturgie"));
+      n++;
+      if (D2.einstieg.length && !steht(t, D2.einstieg)) ohneEinstieg++;
+      if (D2.mitte.length && !steht(t, D2.mitte)) ohneMitte++;
+      if (D2.hoehepunkt.length && !steht(t, D2.hoehepunkt)) ohneHoehepunkt++;
+    }
+  }
+  setDramaData(null);
+  wahr(`alle Presets mit Bogen wurden gepr\xFCft (${n})`, n >= 140);
+  wahr(`der Einstieg steht im Text (${ohneEinstieg} Ausf\xE4lle von ${n})`, ohneEinstieg <= n * 0.03);
+  wahr(`die Mitte auch (${ohneMitte} von ${n})`, ohneMitte <= n * 0.03);
+  wahr(`und der H\xF6hepunkt (${ohneHoehepunkt} von ${n})`, ohneHoehepunkt <= n * 0.15);
+}
+{
+  setDramaData(null);
+  const text = "Die Archivarin sucht eine Akte. Die Akte liegt im Archiv. Die Archivarin bl\xE4ttert. Ein Zeppelin verliert seine Schrauben \xFCber Feuerland.";
+  const raus = coherencePass(text, { who: "die Archivarin", where: "im Archiv", what: "sucht eine Akte", form: "prose" });
+  wahr("ein verirrter Satz am Ende fliegt weiter raus", !raus.includes("Zeppelin"));
+  wahr("und der verbundene Text bleibt stehen", raus.includes("Die Akte liegt im Archiv"));
+}
+{
+  const schwach = [];
+  for (const id of ids) {
+    let kurz = 0;
+    for (let i = 0; i < 12; i++) {
+      const t = buildStory(BUILTIN_PRESETS[id], eingabe("rekombination"));
+      if (t.split(/\s+/).filter(Boolean).length < 120) kurz++;
+    }
+    if (kurz >= 3) schwach.push(`${id} (${kurz} von 12)`);
+  }
+  ist("kein Preset w\xFCrgt den Zusammenbau ab", schwach.join(", "), "");
+}
+{
+  const dannKopf = (t) => /^(und\s+)?dann\b/i.test(t);
+  const laengsteKette = (text) => {
+    let run = 0, best = 0;
+    for (const t of text.replace(/\n+/g, " ").split(/(?<=[.!?…])\s+/)) {
+      run = dannKopf(t) ? run + 1 : 0;
+      best = Math.max(best, run);
+    }
+    return best;
+  };
+  const j = joinBeats(["Es beginnt.", "Dann, unvermittelt: ein Essen.", "Dann kippt es \u2014 die Rollen tauschen.", "Und dann: ein Augenblick."], "");
+  ist("joinBeats l\xE4sst h\xF6chstens ein Dann in drei Beats stehen", laengsteKette(j), 1);
+  const j2 = joinBeats(["Es beginnt.", "Dann kippt es \u2014 die Rollen tauschen.", "Die T\xFCr bleibt zu."], "");
+  wahr("ein einzelnes Dann bleibt", /^Es beginnt\. Dann kippt es/.test(j2));
+  const ids2 = Object.keys(BUILTIN_DRAMA).filter((k) => BUILTIN_PRESETS[k]);
+  let dreifach = 0, doppel = 0;
+  for (let i = 0; i < 120; i++) {
+    const id = ids2[i % ids2.length];
+    setDramaData(BUILTIN_DRAMA[id]);
+    const t = buildStory(BUILTIN_PRESETS[id], eingabe("dramaturgie"));
+    const k = laengsteKette(t);
+    if (k >= 3) dreifach++;
+    if (k >= 2) doppel++;
+  }
+  ist("Dramaturgie: kein dreifaches Dann in 120 L\xE4ufen", dreifach, 0);
+  wahr("Dramaturgie: doppeltes Dann unter 5 %", doppel < 6);
+  setDramaData(null);
+}
+{
+  let doppelt = 0;
+  for (let i = 0; i < 100; i++) {
+    const t = buildStory(DEFAULT_BANK, eingabe(FUENF[i % 5]));
+    if ((t.match(/Der Einsatz ist/g) || []).length >= 2) doppelt++;
+  }
+  wahr("\u201EDer Einsatz ist\u201C h\xF6chstens einmal je Text (unter 3 % von 100)", doppelt < 3);
+}
+{
+  const r = generateToCurve(DEFAULT_BANK, eingabe("linear"), void 0, [12, 12, 12, 12, 12, 12, 12, 12], 3);
+  const saetze = r.text.split(/(?<=[.!?…])\s+/);
+  const mitStrich = saetze.filter((t) => t.includes("\u2014")).length;
+  const mitSemikolon = saetze.filter((t) => t.includes(";")).length;
+  wahr("h\xF6chstens die H\xE4lfte der S\xE4tze tr\xE4gt einen Strich", mitStrich <= Math.ceil(saetze.length / 2));
+  const paare = [mergeSents("Ein Satz.", "Noch einer."), mergeSents("Ein Satz.", "Noch einer."), mergeSents("Ein Satz.", "Noch einer."), mergeSents("Ein Satz.", "Noch einer.")];
+  wahr("die Verschmelzung wechselt zwischen Strich und Semikolon", paare.some((x) => x.includes(" \u2014 ")) && paare.some((x) => x.includes("; ")));
+  ist("an einen Strich h\xE4ngt sich kein zweiter", mergeSents("A \u2014 B.", "C."), "A \u2014 B; C.");
+  ist("auch wenn der zweite Teil einen tr\xE4gt", mergeSents("A.", "B \u2014 C."), "A; B \u2014 C.");
+}
+console.log(`Pr\xFCfstand Struktur \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {
   console.error(`
-\u274C Nr. 44: ${fails.length} Fehler:`);
+\u274C Struktur: ${fails.length} Fehler:`);
   fails.forEach((f) => console.error("  - " + f));
   proc.process?.exit(1);
 } else {
   console.log(`
-\u2705 Nr. 44: alle ${geprueft} Pr\xFCfungen bestanden.`);
+\u2705 Struktur: alle ${geprueft} Pr\xFCfungen bestanden.`);
 }

@@ -1,3 +1,4 @@
+import { praesensUmschreiben } from "../src/generation/coherence";
 // Prüfstand Schliff: zwei Filter, die mehr wegwarfen, als sie sollten.
 //
 // Beide Befunde stammen aus Ausgabe Nr. 41.
@@ -378,6 +379,21 @@ ist("Gegenprobe: Nomen nach Komma bleibt", kleinesPronomen("Brot, Wein und Salz.
 ist("Dann — dann, unvermittelt: → Dann, unvermittelt:", formelnGlaetten("Vier Kinder: Dann — dann, unvermittelt: Stille."), "Vier Kinder: Dann, unvermittelt: Stille.");
 ist("Strich nach dem Punkt wird zum Satzanfang", formelnGlaetten("Gut. — das war der Anfang."), "Gut. Das war der Anfang.");
 ist("Gegenprobe: Strich mitten im Satz bleibt", formelnGlaetten("Sie geht — das Licht bleibt."), "Sie geht — das Licht bleibt.");
+
+// ── Präteritum → Präsens für Markov-Ketten (gewünscht: umschreiben statt verwerfen)
+{
+  const u = (t: string) => praesensUmschreiben(t);
+  ist("starke Form aus der erweiterten Tabelle", u("Das Herz schlug mir bis zum Hals.").text, "Das Herz schlägt mir bis zum Hals.");
+  ist("Bindevokal-Präteritum ist eindeutig", u("Er wartete, bis der Regen aufhörte.").text, "Er wartet, bis der Regen aufhört.");
+  ist("… und belegt die Schwachen daneben", u("Das Herz schlug mir bis zum Hals, und ich atmete kaum.").text, "Das Herz schlägt mir bis zum Hals, und ich atme kaum.");
+  ist("Inversion: die Person steht hinter dem Verb", u("So blieb ich stehen.").text, "So bleibe ich stehen.");
+  ist("Nomen in der Satzmitte bleibt (Schloss, Griff)", u("Er sah einen Schlüssel ohne Schloss.").text, "Er sieht einen Schlüssel ohne Schloss.");
+  ist("Perfekt-Partizip bleibt (hat verloren)", u("ein Boot, das seine Treidler verloren hat").text, "ein Boot, das seine Treidler verloren hat");
+  ist("attributives Adjektiv bleibt (violette)", u("Sie öffnete die violette Tür.").text, "Sie öffnet die violette Tür.");
+  ist("Konjunktiv nach als bleibt", u("Die Häuser stehen zu nah, als wollten sie zubeißen.").text, "Die Häuser stehen zu nah, als wollten sie zubeißen.");
+  wahr("ohne Beleg wird nicht geraten — der Satz gilt als unklar", !u("Dann kippten sie meistens geräuschvoll um.").ok);
+  wahr("Präsens-Plural wird nicht zerstört (halten)", u("Und die Sohlen halten noch bis zur Grenze.").text === "Und die Sohlen halten noch bis zur Grenze.");
+}
 
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };

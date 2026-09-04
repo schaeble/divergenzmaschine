@@ -16,7 +16,7 @@ import { declineHookPhrase, ensureArticle } from "./declension";
 import { applyDisruptor, applyRhythm, applyTension, paragraphize, applyPerspective, pronominalize, guessPronoun, entferneDubletten } from "./shape";
 import { verwandleMotive, leseVerwandlungen } from "./verwandlung";
 import { MarkovModel, isSaneMarkov, smoothMarkov } from "../corpus";
-import { isPastTense } from "./coherence";
+import { praesensUmschreiben } from "./coherence";
 import { biasedAutoChoice } from "./autochoice";
 import { buildVideoSequenceText } from "./video";
 import { enforceWordTarget } from "./length";
@@ -102,10 +102,14 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
   const maybeMarkov = (fallback: string, prob = 0.42): string => {
     if (markovMode === "off" || !model) return fallback;
     if (markovMode === "on" || chance(prob)) {
-      const m = smoothMarkov(model.generate(14));
-      // Zeitebene: Die Prosa steht im Präsens; eine Korpus-Kette im Präteritum
-      // („Dann kippten sie meistens geräuschvoll um") bricht sie — gemeldet.
-      if (m && isSaneMarkov(m) && !isPastTense(m) && !markovSeenRecently(m)) { noteMarkov(m); traceMarkov(m); return m; }
+      const roh = smoothMarkov(model.generate(14));
+      // Zeitebene: Die Prosa steht im Präsens. Eine Korpus-Kette im Präteritum
+      // („Dann kippten sie meistens geräuschvoll um") wird UMGESCHRIEBEN
+      // (gewünscht 4.338.2) — „Dann kippen sie …"; gelingt das nicht (Perfekt,
+      // unbekannte starke Form), fällt sie wie bisher.
+      const u = roh ? praesensUmschreiben(roh) : null;
+      const m = u && u.ok ? u.text : "";
+      if (m && isSaneMarkov(m) && !markovSeenRecently(m)) { noteMarkov(m); traceMarkov(m); return m; }
     }
     return fallback;
   };
