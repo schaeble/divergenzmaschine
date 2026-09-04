@@ -8,7 +8,7 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https
 (globalThis as unknown as Record<string, unknown>).localStorage = dom.window.localStorage;
 import { readFileSync } from "fs";
 import { ladeErzaehlerbank, speichereErzaehlerbank, erzaehlerBogen, bogenFuerErzeugung, setzeQuelle, ladeQuelle, platzBrauchbar, ERZAEHLER_PLAETZE, bauePromptErzaehlung, BAUFORM_ANWEISUNG, archiviere, archivFuer, loescheAusArchiv, ARCHIV_JE_BAUFORM } from "../src/features/erzaehlerbank";
-import { bogenBeschriftung, letzterGezogenerPlatz } from "../src/features/erzaehlerbank";
+import { bogenBeschriftung, letzterGezogenerPlatz, ableiteSchlagfolge } from "../src/features/erzaehlerbank";
 import { SCHLAGFOLGEN } from "../src/features/erzaehlerbank";
 import { SCHLAG_NAMEN, SCHLAG_STANDARD } from "../src/generation/dramaturgie";
 import { DEFAULT_BANK } from "../src/constants";
@@ -365,6 +365,32 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   wahr("die Statuszeile hängt am Regler", /el\("span", \{\}, "Bogen"\)\), bogenSel, bogenStatus\)/.test(q1));
   wahr("Struktur- und Formwechsel zeichnen sie neu", /form\.addEventListener\("change", bogenStatusMalen\)/.test(q1));
   wahr("„aus Preset“ löscht die Rücknahme", /if \(bogenSel\.value === "preset"\) strukturVorher = null;/.test(q1));
+}
+
+// ── Punkt 4 des Zielbilds: die Erzählerbank lernt ───────────────────────────
+{
+  // (a) Eigene Schlagfolge aus dem Text.
+  wahr("die Bauform „eigen“ steht zur Wahl", !!SCHLAGFOLGEN["eigen"]);
+  const f = ableiteSchlagfolge(ERZAEHLUNGEN_VORLAGEN[1]!.text);   // Kreisschluss
+  ist("beginnt mit dem Einstieg", f[0], "einstieg");
+  ist("endet mit dem Schluss", f[f.length - 1], "schluss");
+  wahr("trägt genau einen Höhepunkt", f.filter((x) => x === "hoehepunkt").length === 1);
+  wahr("höchstens zwölf Schläge", f.length <= 12, String(f.length));
+  wahr("keine zwei gleichen in Folge", f.every((x, i) => i === 0 || x !== f[i - 1]));
+  wahr("die Folge stammt aus dem Text (Wende vor Höhepunkt)", f.indexOf("wende") < f.indexOf("hoehepunkt"));
+  ist("ohne Text: die Standardfolge", ableiteSchlagfolge("").join(","), SCHLAGFOLGEN["standard"]!.folge.join(","));
+  // erzaehlerBogen setzt sie in den Override.
+  const zehn = Array.from({ length: 10 }, (_, i) => i === 0 ? { titel: "Haus", text: ERZAEHLUNGEN_VORLAGEN[1]!.text, folge: "eigen" } : { titel: "", text: "", folge: "standard" });
+  speichereErzaehlerbank(zehn);
+  ist("erzaehlerBogen trägt die abgeleitete Folge", (erzaehlerBogen(0)!.folge || []).join(","), f.join(","));
+  speichereErzaehlerbank(Array.from({ length: 10 }, () => ({ titel: "", text: "", folge: "standard" })));
+  // (c) Aus der Schatzkammer zurück.
+  const qt = readFileSync("src/ui/treasuryView.ts", "utf8");
+  wahr("die Schatzkammer hat den Knopf → Erzählerbank", /button\("→ Erzählerbank"\)/.test(qt));
+  wahr("er legt in den ersten leeren Platz, sonst nach Nachfrage", /alle\.findIndex\(\(e\) => !e\.text\.trim\(\)\)/.test(qt) && /prompt\("Alle zehn Plätze sind belegt/.test(qt));
+  wahr("mit eigener Schlagfolge und Archiv", /folge: "eigen", geburt: "eigen"/.test(qt) && /archiviere\(alle\[i\]!\);/.test(qt));
+  const qv = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
+  wahr("„Bogen zeigen“ nennt die abgeleitete Schlagfolge", /Schlagfolge \(abgeleitet\): /.test(qv));
 }
 
 console.log(`Prüfstand Erzählerbank — ${geprueft} Prüfungen, ${bestanden} bestanden`);

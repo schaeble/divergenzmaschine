@@ -4,6 +4,7 @@
 // Feld im Filter schaltet den Tresor mit „#g“ frei (× oder Tab-Wechsel verbirgt ihn wieder).
 import { el, button } from "./dom";
 import { icon } from "./icons";
+import { ladeErzaehlerbank, speichereErzaehlerbank, archiviere } from "../features/erzaehlerbank";
 import {
   loadTreasury, deleteTreasureAt, clearTreasury, exportTreasuryTxt,
   treasureType, wordCount, treasureStats, setTreasureSecretAt,
@@ -114,6 +115,30 @@ export function mountTreasury(root: HTMLElement): void {
         const stab = [...document.querySelectorAll(".tabbar button")].find((b) => b.textContent === "Studio") as HTMLButtonElement | undefined;
         if (stab) stab.click();
       });
+      // Punkt 4 des Zielbilds: aus der Schatzkammer zurück in die Erzählerbank —
+      // ein gelungener Text wird zum Bogen für den nächsten. Landet im ersten
+      // leeren Platz (sonst nach Nachfrage in einem gewählten), mit eigener,
+      // aus dem Text abgeleiteter Schlagfolge; ein Titel ist die erste Zeile,
+      // wenn sie kurz ist, sonst das Wer/Was.
+      const zurBank = button("→ Erzählerbank");
+      zurBank.title = "Diesen Text als Geschichte in die Erzählerbank legen — seine eigene Schlagfolge wird aus dem Text abgeleitet.";
+      zurBank.addEventListener("click", () => {
+        const alle = ladeErzaehlerbank();
+        let i = alle.findIndex((e) => !e.text.trim());
+        if (i < 0) {
+          const antwort = prompt("Alle zehn Plätze sind belegt. Welchen Platz (1–10) ersetzen?", "10");
+          const n = parseInt(antwort || "", 10);
+          if (!(n >= 1 && n <= 10)) return;
+          i = n - 1;
+        }
+        const ersteZeile = it.t.split(/\n/)[0]!.trim();
+        const titel = (ersteZeile.split(/\s+/).length <= 6 && ersteZeile.length <= 60) ? ersteZeile.replace(/[.!?…:]+$/, "") : [it.who, it.what].filter(Boolean).join(" ").slice(0, 60) || "Aus der Schatzkammer";
+        alle[i] = { titel, text: it.t.replace(/\s+/g, " ").trim(), folge: "eigen", geburt: "eigen" };
+        speichereErzaehlerbank(alle);
+        archiviere(alle[i]!);
+        zurBank.textContent = `→ Platz ${i + 1} ✓`;
+        window.setTimeout(() => { zurBank.textContent = "→ Erzählerbank"; }, 2500);
+      });
       const copy = button("Kopieren");
       copy.addEventListener("click", () => { void navigator.clipboard?.writeText(it.t); });
       const speakLbl = el("span", {}, "Vorlesen");
@@ -146,7 +171,7 @@ export function mountTreasury(root: HTMLElement): void {
       list.append(el("div", { class: "treasure" + (it.secret ? " secret" : "") },
         metaRow,
         el("pre", { class: "out treasure-text" }, it.t),
-        el("div", { class: "btnrow" }, take, copy, speak, secretBtn, del)));
+        el("div", { class: "btnrow" }, take, zurBank, copy, speak, secretBtn, del)));
     });
   };
 

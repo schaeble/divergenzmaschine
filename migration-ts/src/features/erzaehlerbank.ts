@@ -27,7 +27,8 @@
 // beginnen mit „dm_" und wandern damit automatisch in die Projektdatei.
 import type { DramaData } from "../generation/dramaturgie";
 import { SCHLAG_STANDARD } from "../generation/dramaturgie";
-import { preset2AusText } from "./textpreset";
+import { preset2AusText, teilstuecke, kategorieFuer } from "./textpreset";
+import { deriveAtom } from "../atoms/derive";
 
 export interface Erzaehlung {
   titel: string; text: string;
@@ -53,6 +54,10 @@ export const SCHLAGFOLGEN: Record<string, { name: string; folge: string[] }> = {
   katastrophe:   { name: "Katastrophe zuerst", folge: ["hoehepunkt", "einstieg", "hook", "mitte", "konflikt", "ausloeser", "wende", "einsatz", "schluss"] },
   straenge:      { name: "Zwei Stränge", folge: ["einstieg", "mitte", "einstieg", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz", "schluss"] },
   offen:         { name: "Offenes Ende", folge: ["einstieg", "hook", "regel", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz"] },
+  // Punkt 4 des Zielbilds: die Schlagfolge aus der Geschichte ABLEITEN statt
+  // sie zuzuweisen. Die Folge steht hier leer — sie wird je Platz aus dem
+  // Text berechnet (ableiteSchlagfolge), sobald diese Bauform gewählt ist.
+  eigen:         { name: "Eigene — aus dem Text abgeleitet", folge: [] },
 };
 export const ERZAEHLER_PLAETZE = 10;
 const BANK_KEY = "dm_erzaehlerbank_v1";
@@ -96,8 +101,59 @@ export function erzaehlerBogen(index: number): DramaData | null {
   const drama = preset2AusText(e.text).drama;
   // Die Bauform des Platzes wird zur Schlagfolge des Bogens — so schlägt sie
   // in der Struktur „Dramaturgie" wirklich durch.
-  if (e.folge && SCHLAGFOLGEN[e.folge]) drama.folge = SCHLAGFOLGEN[e.folge]!.folge;
+  if (e.folge === "eigen") drama.folge = ableiteSchlagfolge(e.text);
+  else if (e.folge && SCHLAGFOLGEN[e.folge]) drama.folge = SCHLAGFOLGEN[e.folge]!.folge;
   return drama;
+}
+
+/** Leitet die Schlagfolge aus der Geschichte selbst ab: Jedes Teilstück wird
+ *  nach denselben Merkmalen sortiert wie beim Preset aus Text, und die
+ *  REIHENFOLGE im Text wird zur Folge der Schläge — der erste Haken ist der
+ *  Einstieg, Bilder sind Mitten, Widerstand ist Konflikt, Wenden sind Wenden,
+ *  die letzte Wende der Höhepunkt, „es geht um" der Einsatz, die letzten
+ *  Sätze der Schluss. Gleiche Schläge in Folge fallen zusammen; über zwölf
+ *  wird ausgedünnt. So trägt „Katastrophe zuerst" nicht die Vorlage, sondern
+ *  die Geschichte: Steht die Wende im ersten Satz, steht sie in der Folge
+ *  vorn. */
+export function ableiteSchlagfolge(text: string): string[] {
+  const stuecke = teilstuecke(text);
+  const grenze = Math.max(0, stuecke.length - 2);
+  const roh: string[] = [];
+  let ersterHaken = true;
+  stuecke.forEach((st, i) => {
+    const kat = kategorieFuer(st, i >= grenze && deriveAtom(st).typ === "hauptsatz");
+    let schlag: string;
+    switch (kat) {
+      case "hooks": schlag = ersterHaken ? "einstieg" : "hook"; ersterHaken = false; break;
+      case "props": schlag = "ausloeser"; break;
+      case "motifs": schlag = "mitte"; break;
+      case "obstacles": schlag = "konflikt"; break;
+      case "turns": schlag = "wende"; break;
+      case "stakes": schlag = "einsatz"; break;
+      case "endings": schlag = "schluss"; break;
+      default: schlag = "mitte";
+    }
+    if (roh[roh.length - 1] !== schlag) roh.push(schlag);
+  });
+  if (!roh.length) return SCHLAGFOLGEN["standard"]!.folge;
+  // Die letzte Wende ist der Höhepunkt.
+  const letzteWende = roh.lastIndexOf("wende");
+  if (letzteWende >= 0) roh[letzteWende] = "hoehepunkt";
+  // Der Einstieg steht vorn, der Schluss hinten — genau einmal. (Ein Satz mit
+  // „zählt" wird sonst als Einsatz gelesen und stünde vor dem Einstieg.)
+  let folge = roh.filter((x) => x !== "einstieg" && x !== "schluss");
+  folge.unshift("einstieg");
+  folge.push("schluss");
+  // Ausdünnen auf höchstens zwölf: Gelenke (einstieg, hoehepunkt, schluss, einsatz) bleiben;
+  // danach Gleiches in Folge zusammenziehen, das durch das Ausdünnen entstand.
+  const gelenk = new Set(["einstieg", "hoehepunkt", "schluss", "einsatz"]);
+  while (folge.length > 12) {
+    const weg = folge.findIndex((x, i) => !gelenk.has(x) && i % 2 === 1);
+    if (weg < 0) break;
+    folge.splice(weg, 1);
+    folge = folge.filter((x, i) => i === 0 || x !== folge[i - 1]);
+  }
+  return folge;
 }
 
 /** Der Bogen für DIESE Erzeugung, nach der gespeicherten Wahl.
@@ -147,6 +203,7 @@ export const BAUFORM_ANWEISUNG: Record<string, string> = {
   katastrophe: "Katastrophe zuerst: das schlimme Ereignis steht im ersten Satz, danach die Aufarbeitung und ein leiser Fund",
   straenge: "zwei Stränge: zwei Figuren getrennt erzählt, abwechselnd, die sich am Ende an einem Ort treffen",
   offen: "offenes Ende: die Spannung baut sich auf, die Auflösung wird verweigert; der letzte Satz lässt es in der Schwebe",
+  eigen: "eine freie Bauform: die Geschichte bestimmt ihre eigene Reihenfolge — wo die Wende steht, steht sie; die Maschine leitet die Schlagfolge hinterher aus dem Text ab",
 };
 
 export function bauePromptErzaehlung(folgeId: string, thema?: string): string {

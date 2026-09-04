@@ -11,7 +11,7 @@
 // Schlüssel dm_erzaehlerbank_v1 automatisch in die Projektdatei.
 import { el } from "./dom";
 import { icon } from "./icons";
-import { ladeErzaehlerbank, speichereErzaehlerbank, platzBrauchbar, ERZAEHLER_PLAETZE, SCHLAGFOLGEN, kiErzaehlung, archiviere, archivFuer, loescheAusArchiv } from "../features/erzaehlerbank";
+import { ladeErzaehlerbank, speichereErzaehlerbank, platzBrauchbar, ERZAEHLER_PLAETZE, SCHLAGFOLGEN, kiErzaehlung, archiviere, archivFuer, loescheAusArchiv, ableiteSchlagfolge } from "../features/erzaehlerbank";
 import { ERZAEHLUNGEN_VORLAGEN } from "../features/erzaehlungen.data";
 import { preset2AusText } from "../features/textpreset";
 
@@ -90,6 +90,11 @@ export function mountErzaehlerbank(root: HTMLElement): void {
         return;
       }
       const d = preset2AusText(textIn.value).drama;
+      // Eigene Bauform: Die Schlagfolge kommt aus dem Text — hier steht sie.
+      if (folgeSel.value === "eigen") {
+        const NAMEN: Record<string, string> = { einstieg: "Einstieg", hook: "Haken", regel: "Regel", mitte: "Mitte", mitte2: "Mitte", konflikt: "Konflikt", ausloeser: "Auslöser", wende: "Wende", zeit: "Zeit", hoehepunkt: "Höhepunkt", einsatz: "Einsatz", schluss: "Schluss" };
+        bogenBox.append(el("div", { style: "margin-bottom:6px" }, el("strong", { style: "color:var(--acc2)" }, "Schlagfolge (abgeleitet): "), ableiteSchlagfolge(textIn.value).map((x) => NAMEN[x] || x).join(" → ")));
+      }
       for (const [k, name] of PHASEN) {
         const zeilen = d[k] || [];
         if (!zeilen.length) continue;
@@ -162,6 +167,7 @@ export function mountErzaehlerbank(root: HTMLElement): void {
       fuelleArchiv();
     });
     folgeSel.addEventListener("change", fuelleArchiv);
+    folgeSel.addEventListener("change", malBogen);
     fuelleArchiv();
 
     // KI: diesen Platz neu erzählen lassen — in seiner Bauform, das Thema aus

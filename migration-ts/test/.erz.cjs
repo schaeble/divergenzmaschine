@@ -5403,7 +5403,11 @@ var SCHLAGFOLGEN = {
   eskalation: { name: "Eskalation", folge: ["einstieg", "hook", "mitte", "mitte", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz", "schluss"] },
   katastrophe: { name: "Katastrophe zuerst", folge: ["hoehepunkt", "einstieg", "hook", "mitte", "konflikt", "ausloeser", "wende", "einsatz", "schluss"] },
   straenge: { name: "Zwei Str\xE4nge", folge: ["einstieg", "mitte", "einstieg", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz", "schluss"] },
-  offen: { name: "Offenes Ende", folge: ["einstieg", "hook", "regel", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz"] }
+  offen: { name: "Offenes Ende", folge: ["einstieg", "hook", "regel", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz"] },
+  // Punkt 4 des Zielbilds: die Schlagfolge aus der Geschichte ABLEITEN statt
+  // sie zuzuweisen. Die Folge steht hier leer — sie wird je Platz aus dem
+  // Text berechnet (ableiteSchlagfolge), sobald diese Bauform gewählt ist.
+  eigen: { name: "Eigene \u2014 aus dem Text abgeleitet", folge: [] }
 };
 var ERZAEHLER_PLAETZE = 10;
 var BANK_KEY = "dm_erzaehlerbank_v1";
@@ -5445,8 +5449,60 @@ function erzaehlerBogen(index) {
   const e = ladeErzaehlerbank()[index];
   if (!e || !platzBrauchbar(e)) return null;
   const drama = preset2AusText(e.text).drama;
-  if (e.folge && SCHLAGFOLGEN[e.folge]) drama.folge = SCHLAGFOLGEN[e.folge].folge;
+  if (e.folge === "eigen") drama.folge = ableiteSchlagfolge(e.text);
+  else if (e.folge && SCHLAGFOLGEN[e.folge]) drama.folge = SCHLAGFOLGEN[e.folge].folge;
   return drama;
+}
+function ableiteSchlagfolge(text) {
+  const stuecke = teilstuecke(text);
+  const grenze = Math.max(0, stuecke.length - 2);
+  const roh = [];
+  let ersterHaken = true;
+  stuecke.forEach((st2, i) => {
+    const kat = kategorieFuer(st2, i >= grenze && deriveAtom(st2).typ === "hauptsatz");
+    let schlag;
+    switch (kat) {
+      case "hooks":
+        schlag = ersterHaken ? "einstieg" : "hook";
+        ersterHaken = false;
+        break;
+      case "props":
+        schlag = "ausloeser";
+        break;
+      case "motifs":
+        schlag = "mitte";
+        break;
+      case "obstacles":
+        schlag = "konflikt";
+        break;
+      case "turns":
+        schlag = "wende";
+        break;
+      case "stakes":
+        schlag = "einsatz";
+        break;
+      case "endings":
+        schlag = "schluss";
+        break;
+      default:
+        schlag = "mitte";
+    }
+    if (roh[roh.length - 1] !== schlag) roh.push(schlag);
+  });
+  if (!roh.length) return SCHLAGFOLGEN["standard"].folge;
+  const letzteWende = roh.lastIndexOf("wende");
+  if (letzteWende >= 0) roh[letzteWende] = "hoehepunkt";
+  let folge = roh.filter((x) => x !== "einstieg" && x !== "schluss");
+  folge.unshift("einstieg");
+  folge.push("schluss");
+  const gelenk = /* @__PURE__ */ new Set(["einstieg", "hoehepunkt", "schluss", "einsatz"]);
+  while (folge.length > 12) {
+    const weg = folge.findIndex((x, i) => !gelenk.has(x) && i % 2 === 1);
+    if (weg < 0) break;
+    folge.splice(weg, 1);
+    folge = folge.filter((x, i) => i === 0 || x !== folge[i - 1]);
+  }
+  return folge;
 }
 var letzterPlatz = -1;
 function letzterGezogenerPlatz() {
@@ -5487,7 +5543,8 @@ var BAUFORM_ANWEISUNG = {
   eskalation: "eine Eskalation in drei Stufen: dreimal dasselbe Muster, jedes Mal gr\xF6\xDFer, dann die Folge",
   katastrophe: "Katastrophe zuerst: das schlimme Ereignis steht im ersten Satz, danach die Aufarbeitung und ein leiser Fund",
   straenge: "zwei Str\xE4nge: zwei Figuren getrennt erz\xE4hlt, abwechselnd, die sich am Ende an einem Ort treffen",
-  offen: "offenes Ende: die Spannung baut sich auf, die Aufl\xF6sung wird verweigert; der letzte Satz l\xE4sst es in der Schwebe"
+  offen: "offenes Ende: die Spannung baut sich auf, die Aufl\xF6sung wird verweigert; der letzte Satz l\xE4sst es in der Schwebe",
+  eigen: "eine freie Bauform: die Geschichte bestimmt ihre eigene Reihenfolge \u2014 wo die Wende steht, steht sie; die Maschine leitet die Schlagfolge hinterher aus dem Text ab"
 };
 function bauePromptErzaehlung(folgeId, thema) {
   const bau = BAUFORM_ANWEISUNG[folgeId] || BAUFORM_ANWEISUNG["standard"];
@@ -12863,6 +12920,27 @@ wahr(
   wahr("die Statuszeile h\xE4ngt am Regler", /el\("span", \{\}, "Bogen"\)\), bogenSel, bogenStatus\)/.test(q1));
   wahr("Struktur- und Formwechsel zeichnen sie neu", /form\.addEventListener\("change", bogenStatusMalen\)/.test(q1));
   wahr("\u201Eaus Preset\u201C l\xF6scht die R\xFCcknahme", /if \(bogenSel\.value === "preset"\) strukturVorher = null;/.test(q1));
+}
+{
+  wahr("die Bauform \u201Eeigen\u201C steht zur Wahl", !!SCHLAGFOLGEN["eigen"]);
+  const f = ableiteSchlagfolge(ERZAEHLUNGEN_VORLAGEN[1].text);
+  ist("beginnt mit dem Einstieg", f[0], "einstieg");
+  ist("endet mit dem Schluss", f[f.length - 1], "schluss");
+  wahr("tr\xE4gt genau einen H\xF6hepunkt", f.filter((x) => x === "hoehepunkt").length === 1);
+  wahr("h\xF6chstens zw\xF6lf Schl\xE4ge", f.length <= 12, String(f.length));
+  wahr("keine zwei gleichen in Folge", f.every((x, i) => i === 0 || x !== f[i - 1]));
+  wahr("die Folge stammt aus dem Text (Wende vor H\xF6hepunkt)", f.indexOf("wende") < f.indexOf("hoehepunkt"));
+  ist("ohne Text: die Standardfolge", ableiteSchlagfolge("").join(","), SCHLAGFOLGEN["standard"].folge.join(","));
+  const zehn = Array.from({ length: 10 }, (_, i) => i === 0 ? { titel: "Haus", text: ERZAEHLUNGEN_VORLAGEN[1].text, folge: "eigen" } : { titel: "", text: "", folge: "standard" });
+  speichereErzaehlerbank(zehn);
+  ist("erzaehlerBogen tr\xE4gt die abgeleitete Folge", (erzaehlerBogen(0).folge || []).join(","), f.join(","));
+  speichereErzaehlerbank(Array.from({ length: 10 }, () => ({ titel: "", text: "", folge: "standard" })));
+  const qt = (0, import_fs.readFileSync)("src/ui/treasuryView.ts", "utf8");
+  wahr("die Schatzkammer hat den Knopf \u2192 Erz\xE4hlerbank", /button\("→ Erzählerbank"\)/.test(qt));
+  wahr("er legt in den ersten leeren Platz, sonst nach Nachfrage", /alle\.findIndex\(\(e\) => !e\.text\.trim\(\)\)/.test(qt) && /prompt\("Alle zehn Plätze sind belegt/.test(qt));
+  wahr("mit eigener Schlagfolge und Archiv", /folge: "eigen", geburt: "eigen"/.test(qt) && /archiviere\(alle\[i\]!\);/.test(qt));
+  const qv = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
+  wahr("\u201EBogen zeigen\u201C nennt die abgeleitete Schlagfolge", /Schlagfolge \(abgeleitet\): /.test(qv));
 }
 console.log(`Pr\xFCfstand Erz\xE4hlerbank \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
