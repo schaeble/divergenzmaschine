@@ -77,9 +77,9 @@ setDramaData(null);
 const st = readFileSync("src/ui/studio.ts", "utf8");
 // Der Bogen hat bewusst KEIN Schloss: Der Würfel fasst ihn nicht an (nicht in
 // ROLL_SELECTS), die Wahl ist ohnehin fest — ein Schloss schützte nichts.
-wahr("das Studio hat den Bogen-Regler neben der Struktur", /lockField\("Struktur", structure\),[\s\S]{0,400}?el\("span", \{\}, "Bogen"\)\), bogenSel\)/.test(st));
+wahr("das Studio hat den Bogen-Regler neben der Struktur", /lockField\("Struktur", structure\),[\s\S]{0,400}?el\("span", \{\}, "Bogen"\)\), bogenSel, bogenStatus\)/.test(st));
 wahr("der Bogen ist nicht würfelbar", !/ROLL_SELECTS = \[[^\]]*bogenSel/.test(st));
-wahr("die Wahl wird beim Wechsel gesichert", /bogenSel\.addEventListener\("change", \(\) => \{ setzeQuelle\(bogenSel\.value\); bauformSync\(\); \}\)/.test(st));
+wahr("die Wahl wird beim Wechsel gesichert", /bogenSel\.addEventListener\("change", \(\) => \{\s*\n\s*setzeQuelle\(bogenSel\.value\); bauformSync\(\);/.test(st));
 wahr("vor jeder Erzeugung wird die Weiche gestellt", /setBogenOverride\(bogenFuerErzeugung\(\)\);\s*\n\s*const model = /.test(st));
 const ap = readFileSync("src/ui/app.ts", "utf8");
 wahr("der Reiter steht neben der Wortbank", /\["Wortbank", mountWordbank\],\s*\n\s*\["Erzählerbank", mountErzaehlerbank\],/.test(ap));
@@ -354,6 +354,17 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   wahr("kein Schloss an den Bogen-Blasen", /sel === bogenSel \|\| sel === bauformSel \? null : lockBtn\(sel\)/.test(qs3));
   const qv2 = readFileSync("src/ui/structureView.ts", "utf8");
   wahr("der gezogene Platz bleibt als eigene Info-Blase", /\["Gezogen", snap\.bogen\.replace/.test(qv2));
+}
+
+// ── Punkt 1 des Zielbilds: Kopplung Bogen ↔ Struktur ────────────────────────
+{
+  const q1 = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("die Wahl eines Bogens stellt die Struktur auf Dramaturgie", /if \(bogenSel\.value !== "preset" && form\.value === "prose" && structure\.value !== "dramaturgie" && structure\.value !== "bogen"\) \{\s*\n\s*strukturVorher = structure\.value;\s*\n\s*structure\.value = "dramaturgie";/.test(q1));
+  wahr("… sichtbar und rücknehmbar", /zurück auf „\$\{/.test(q1) && /structure\.value = strukturVorher!; strukturVorher = null;/.test(q1));
+  wahr("unter dem Regler steht, ob der Bogen wirkt", /bogenStatus\.append\("wirkt nicht: Struktur ist „/.test(q1) && /wirkt nicht: nur bei Form „Prosa“/.test(q1) && /wirkt nicht: der gewählte Platz ist leer/.test(q1));
+  wahr("die Statuszeile hängt am Regler", /el\("span", \{\}, "Bogen"\)\), bogenSel, bogenStatus\)/.test(q1));
+  wahr("Struktur- und Formwechsel zeichnen sie neu", /form\.addEventListener\("change", bogenStatusMalen\)/.test(q1));
+  wahr("„aus Preset“ löscht die Rücknahme", /if \(bogenSel\.value === "preset"\) strukturVorher = null;/.test(q1));
 }
 
 console.log(`Prüfstand Erzählerbank — ${geprueft} Prüfungen, ${bestanden} bestanden`);

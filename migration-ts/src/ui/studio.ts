@@ -608,7 +608,47 @@ export function mountStudio(root: HTMLElement): void {
     bogenSel.value = Array.from(bogenSel.options).some((o) => o.value === wahl) ? wahl : "preset";
   };
   bogenFuellen();
-  bogenSel.addEventListener("change", () => { setzeQuelle(bogenSel.value); bauformSync(); });
+  // ── Kopplung Bogen ↔ Struktur (Punkt 1 des Zielbilds) ───────────────────
+  // Ein gewählter Bogen wirkt nur bei Prosa in „Dramaturgie" oder
+  // „Rekombination mit Bogen". Bisher blieb die Wahl sonst still — die letzte
+  // stille Falle der Bedienung. Jetzt: (1) Die Wahl eines Bogens stellt die
+  // Struktur auf „Dramaturgie", sichtbar und mit einem Klick zurücknehmbar.
+  // (2) Unter dem Regler steht immer, ob der Bogen WIRKT — und wenn nicht,
+  // warum, dort, wo man ihn einstellt, nicht erst im Schaltplan.
+  const bogenStatus = el("div", { class: "muted mini bogen-status" });
+  let strukturVorher: string | null = null;
+  const bogenStatusMalen = (): void => {
+    bogenStatus.innerHTML = "";
+    const q = bogenSel.value;
+    if (q === "preset") { bogenStatus.style.display = "none"; return; }
+    bogenStatus.style.display = "";
+    const bogenStruktur = structure.value === "dramaturgie" || structure.value === "bogen";
+    const brauchbar = ladeErzaehlerbank().filter((e) => platzBrauchbar(e)).length;
+    const platzLeer = /^[0-9]$/.test(q) && !platzBrauchbar(ladeErzaehlerbank()[parseInt(q, 10)] || { titel: "", text: "" });
+    if (form.value !== "prose") bogenStatus.append("wirkt nicht: nur bei Form „Prosa“");
+    else if (!bogenStruktur) {
+      const knopf = el("button", { type: "button", class: "mini-link" }, "auf „Dramaturgie“ stellen");
+      knopf.addEventListener("click", () => { strukturVorher = structure.value; structure.value = "dramaturgie"; structure.dispatchEvent(new Event("change")); });
+      bogenStatus.append("wirkt nicht: Struktur ist „", structure.options[structure.selectedIndex]?.text || structure.value, "“ — ", knopf);
+    } else if (platzLeer) bogenStatus.append("wirkt nicht: der gewählte Platz ist leer — in der Erzählerbank füllen");
+    else if (q === "wuerfeln" && !brauchbar) bogenStatus.append("wirkt nicht: kein Platz der Erzählerbank ist brauchbar");
+    else if (strukturVorher) {
+      const zurueck = el("button", { type: "button", class: "mini-link" }, `zurück auf „${STRUCTURE_OPTS.find(([v]) => v === strukturVorher)?.[1] || strukturVorher}“`);
+      zurueck.addEventListener("click", () => { structure.value = strukturVorher!; strukturVorher = null; structure.dispatchEvent(new Event("change")); });
+      bogenStatus.append("wirkt · Struktur wurde auf „Dramaturgie“ gestellt — ", zurueck);
+    } else bogenStatus.append(`wirkt · Struktur „${structure.options[structure.selectedIndex]?.text || structure.value}“`);
+  };
+  bogenSel.addEventListener("change", () => {
+    setzeQuelle(bogenSel.value); bauformSync();
+    // Automatik: Bogen gewählt, Struktur kennt ihn nicht → umstellen, merken, anzeigen.
+    if (bogenSel.value !== "preset" && form.value === "prose" && structure.value !== "dramaturgie" && structure.value !== "bogen") {
+      strukturVorher = structure.value;
+      structure.value = "dramaturgie";
+      structure.dispatchEvent(new Event("change"));
+    }
+    if (bogenSel.value === "preset") strukturVorher = null;
+    bogenStatusMalen();
+  });
   // Bauform des geladenen Platzes — als Auswahlfeld, damit die Struktur-Ansicht
   // sie SCHALTEN kann (gewünscht: Blasen schaltbar). Nicht im Werkzeugkasten
   // sichtbar; dort wird die Bauform am Platz gepflegt. Eine Änderung hier
@@ -1627,6 +1667,10 @@ export function mountStudio(root: HTMLElement): void {
   };
   form.addEventListener("change", updRekHint);
   structure.addEventListener("change", updRekHint);
+  structure.addEventListener("change", () => { if (structure.value !== "dramaturgie") strukturVorher = null; bogenStatusMalen(); });
+  form.addEventListener("change", bogenStatusMalen);
+  document.addEventListener("visibilitychange", bogenStatusMalen);
+  bogenStatusMalen();
   preset.addEventListener("change", updRekHint);
   updRekHint();
   fine.append(el("div", { class: "grid3" },
@@ -1634,7 +1678,7 @@ export function mountStudio(root: HTMLElement): void {
     // Der Bogen hat kein Schloss: Der Würfel fasst ihn nicht an, die Wahl ist
     // ohnehin fest — ein Schloss schützte nichts und der Schaltplan verlangte
     // einen Knoten dafür.
-    el("div", { class: "field" }, el("span", { class: "field-label" }, el("span", {}, "Bogen")), bogenSel),
+    el("div", { class: "field" }, el("span", { class: "field-label" }, el("span", {}, "Bogen")), bogenSel, bogenStatus),
     lockField("Modus", mode), lockField("Perspektive", persp),
     lockField("Rhythmus", rhythm), lockField("Instabilität", instab), lockField("Markov", markov),
     lockField("Disruptor", disruptor), lockField("Varianz", varianz), lockField("Zeitungsseite", ressort),
