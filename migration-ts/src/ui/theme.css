@@ -1149,3 +1149,9 @@ button.ek-probe:hover .ek-blaettern{opacity:1;color:var(--acc2)}
 .bogen-status{margin-top:4px;line-height:1.4}
 .mini-link{background:none;border:none;padding:0;margin:0;color:var(--acc2);text-decoration:underline;cursor:pointer;font:inherit;font-size:inherit}
 .mini-link:hover{color:var(--text)}
+/* Preset-Hygiene: Paare und Kernwort-Gruppen. */
+.hyg-paar{border-left:2px solid var(--border2);padding:4px 8px;margin:6px 0}
+.hyg-zeile{margin:2px 0;line-height:1.5}
+.hyg-zeile button{padding:0 7px;font-size:12px;line-height:1.4}
+.hyg-gruppe{margin:4px 0}
+.hyg-gruppe summary{cursor:pointer;color:var(--muted)}

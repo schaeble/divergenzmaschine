@@ -8,6 +8,7 @@ import { loadPersistentCorpus } from "../corpus";
 import { feedLivePools, LIVE_W } from "../features/livepools";
 import { openPresetWizard } from "./presetWizard";
 import { preset2AusText, zuordnung, VORLAGE_EVOLUTION } from "../features/textpreset";
+import { findeDoppel, kernwortGruppen } from "../features/hygiene";
 import { openArchive } from "./archiveView";
 import {
   setzeEigenes, ladeEigene, registerVon, WELT_LABEL, SPRACHE_LABEL,
@@ -257,8 +258,11 @@ export function mountWordbank(root: HTMLElement): void {
     const vorschau = (): ReturnType<typeof preset2AusText> => {
       const p = preset2AusText(eingabe.value);
       const teile = Object.entries(p.bank).map(([k, v]) => `${NAMEN[k] || k}: ${(v as string[]).length}`).join(" · ");
+      // Hygiene-Warnung (Punkt 3): Beinahe-Doppel schon vor dem Speichern nennen.
+      const dop = p.stuecke ? findeDoppel(p.bank) : [];
+      const warn = dop.length ? ` · ${dop.length} Beinahe-Doppel, z. B. „${dop[0]!.a.slice(0, 40)}“ / „${dop[0]!.b.slice(0, 40)}“` : "";
       schau.textContent = p.stuecke === 0 ? "Noch kein verwertbarer Satz." : `${p.woerter} Wörter, ${p.stuecke} Teilstücke — ${teile}`
-        + (p.woerter < 200 ? " · Hinweis: unter 200 Wörtern wird das Preset dünn." : "");
+        + (p.woerter < 200 ? " · Hinweis: unter 200 Wörtern wird das Preset dünn." : "") + warn;
       speichern.disabled = p.stuecke < 7 || !nameIn.value.trim();
       return p;
     };
@@ -516,6 +520,57 @@ export function mountWordbank(root: HTMLElement): void {
     el("div", { class: "btnrow" }, apply2Btn, reset2Btn, p2fInfo));
   refresh2 = render2;
 
+  // ── Preset-Hygiene (Punkt 3 des Zielbilds) ───────────────────────────────
+  // Beinahe-Doppel im Material erzeugen gefühlte Wiederholung, die kein
+  // Wächter des Baus beheben kann — nur das Preset. Bisher sah das nur der
+  // Leser. Hier: „Ähnliche Einträge" — identische und ähnliche Paare mit
+  // Löschknopf je Seite, und Kernwörter, die in mehreren Bausteinen stehen
+  // (Samowar, Ikone, Brief), als Gruppen. Gearbeitet wird an der AKTIVEN Bank.
+  const KATN: Record<string, string> = { motifs: "Bild", hooks: "Haken", props: "Requisite", turns: "Wende", obstacles: "Hindernis", stakes: "Einsatz", endings: "Schluss" };
+  const hygBox = el("details", { class: "fine" });
+  const hygBody = el("div", {});
+  const hygZeichnen = (): void => {
+    hygBody.innerHTML = "";
+    const bank = loadBank();
+    const doppel = findeDoppel(bank);
+    const gruppen = kernwortGruppen(bank);
+    const entferne = (text: string, kat: string): void => {
+      const b = loadBank();
+      const liste = (b as unknown as Record<string, string[]>)[kat];
+      if (Array.isArray(liste)) { const i = liste.indexOf(text); if (i >= 0) liste.splice(i, 1); }
+      saveBank(b); load(); renderFull(); hygZeichnen();
+    };
+    const zeile = (text: string, kat: string): HTMLElement => {
+      const x = el("button", { type: "button", class: "danger", title: "Diesen Baustein aus der aktiven Bank entfernen" }, "×");
+      x.addEventListener("click", () => entferne(text, kat));
+      return el("div", { class: "hyg-zeile" }, x, " ", el("span", { class: "muted mini" }, KATN[kat] || kat), " ", text);
+    };
+    hygBody.append(el("p", { class: "muted mini" }, `${doppel.length} Paare (${doppel.filter((d) => d.art === "identisch").length} identisch, ${doppel.filter((d) => d.art === "ähnlich").length} ähnlich) · ${gruppen.length} Kernwörter mehrfach`));
+    if (doppel.length) {
+      hygBody.append(el("h4", {}, "Identische und ähnliche Paare"));
+      for (const d of doppel.slice(0, 40)) {
+        hygBody.append(el("div", { class: "hyg-paar" },
+          el("div", { class: "muted mini" }, d.art === "identisch" ? "identisch" : `ähnlich · ${Math.round(d.grad * 100)} %`),
+          zeile(d.a, d.katA), zeile(d.b, d.katB)));
+      }
+      if (doppel.length > 40) hygBody.append(el("p", { class: "muted mini" }, `… und ${doppel.length - 40} weitere — erst die oberen bereinigen, dann neu prüfen.`));
+    }
+    if (gruppen.length) {
+      hygBody.append(el("h4", {}, "Kernwörter in mehreren Bausteinen"));
+      for (const g of gruppen.slice(0, 25)) {
+        const box = el("details", { class: "hyg-gruppe" }, el("summary", {}, `${g.kern}… · ${g.eintraege.length} Bausteine`));
+        for (const e of g.eintraege) box.append(zeile(e.text, e.kat));
+        hygBody.append(box);
+      }
+    }
+    if (!doppel.length && !gruppen.length) hygBody.append(el("p", { class: "muted" }, "Nichts gefunden — das Material ist sauber."));
+  };
+  hygBox.addEventListener("toggle", () => { if (hygBox.open) hygZeichnen(); });
+  hygBox.append(
+    el("summary", {}, icon("flask"), " Ähnliche Einträge"),
+    el("p", { class: "muted" }, "Preset-Hygiene: Bausteine, die einander zu ähnlich sind, erzeugen im Text gefühlte Wiederholung, die kein Wächter beheben kann — nur das Material. Oben identische und ähnliche Paare, unten Kernwörter, die in mehreren Bausteinen stehen (Requisiten ausgenommen, sie sind die Kerne der Bilder). Das × entfernt den Baustein aus der aktiven Bank; „Als Preset speichern“ sichert den Stand."),
+    hygBody);
+
   const fullBox = el("details", { class: "fine", open: "" });
   fullBox.addEventListener("toggle", () => { if (fullBox.open) { renderFull(); render2(); } });
   fullBox.append(
@@ -765,6 +820,7 @@ export function mountWordbank(root: HTMLElement): void {
     info,
     applyParamsRow,
     fullBox,
+    hygBox,
     p2Box,
     registerBox,
     batchBox,
