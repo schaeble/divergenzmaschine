@@ -117,10 +117,67 @@ function starkMitPraefix(form: string): [string, [string, string, string, string
  *  Singular Präsens? Stark: sicher. Sonst: endet auf -t, mindestens drei
  *  Buchstaben, nicht in der Sperrliste, kein Partizip („ge…t", „…iert" als
  *  Partizip lässt sich nicht von „er studiert" trennen — bleibt Verb). */
+// ── Infinitiv-Lexikon: IST das ein Verb? ─────────────────────────────────────
+// Die vierte Tabelle (verblex.data.ts). Die drei anderen beugen ein Verb, das
+// man ihnen gibt; diese sagt, ob ein Wort eines ist. Präfixe werden beim
+// Nachschlagen abgestreift (aufhören → hören, verstehen → stehen).
+import { VERB_INFINITIVE, VERB_PRAEFIXE, PAST2PRES } from "./verblex.data";
+
+/** Kennt das Lexikon diesen Infinitiv (auch mit Präfix)? */
+export function kenntInfinitiv(wort: string): boolean {
+  const w = wort.toLowerCase();
+  if (VERB_INFINITIVE.has(w)) return true;
+  for (const p of VERB_PRAEFIXE) {
+    if (w.startsWith(p) && w.length > p.length + 3 && VERB_INFINITIVE.has(w.slice(p.length))) return true;
+  }
+  return false;
+}
+
+/** Zu welchem Infinitiv gehört dieser Stamm? „kipp" → „kippen", „hand(e)l" →
+ *  „handeln", „änder" → „ändern", „wart" → „warten". null = keiner bekannt. */
+export function infinitivZuStamm(stamm: string): string | null {
+  const s = stamm.toLowerCase();
+  if (!s) return null;
+  const kandidaten = [s + "en", s + "n", s + "eln", s + "ern"];
+  if (/e[lr]$/.test(s)) kandidaten.unshift(s + "n");
+  // Umlaut-Stämme der starken Verben (fällt → fallen, trägt → tragen, liest → lesen)
+  const st = starkMitPraefix(s + "t");
+  if (st) return st[0] + st[1][2];
+  for (const k of kandidaten) if (kenntInfinitiv(k)) return k;
+  return null;
+}
+
+/** Ist dieses Wort eine Form (Präsens, Präteritum, Infinitiv, Partizip) eines
+ *  Verbs aus dem Lexikon? Strenger als istVerbform, das über Endungen rät. */
+export function istLexikonVerb(wort: string): boolean {
+  const w = wort.toLowerCase().replace(/[^a-zäöüß]/g, "");
+  if (!w || w.length < 3) return false;
+  if (starkMitPraefix(w)) return true;
+  if (kenntInfinitiv(w)) return true;
+  if (PAST2PRES[w]) return true;                                  // starke Präteritumformen (schwieg, hielten)
+  if (/^(bin|bist|sind|seid|habe|hast|habt|werde|wirst|werdet|wäre|wären|hätte|hätten|würde|würden|sei|seien)$/.test(w)) return true;
+  // Jede Endung einzeln abtrennen — „bestreitet" ist „bestreit"+„et", nicht
+  // „bestrei"+„tet"; die kürzeste Zerlegung wäre die falsche.
+  for (const suffix of ["etest", "test", "eten", "ten", "ete", "te", "est", "st", "et", "en", "t", "e", "tet"]) {
+    if (!w.endsWith(suffix) || w.length - suffix.length < 2) continue;
+    const st = w.slice(0, -suffix.length);
+    if (/ier$/.test(st)) return true;                              // alle -ieren-Verben
+    if (infinitivZuStamm(st)) return true;
+  }
+  // Partizip II: ge-…-t / ge-…-en, auch mit Präfix (aufgehört); ohne ge bei
+  // untrennbaren Präfixen (verstanden, begonnen) über die Präteritum-Tabelle
+  const pz = w.match(/^(?:[a-zäöü]{2,8})?ge(.+?)(?:t|en)$/);
+  if (pz && infinitivZuStamm(pz[1]!)) return true;
+  return false;
+}
+
 export function istVerbform(wort: string): boolean {
   const w = wort.toLowerCase();
   if (starkMitPraefix(w)) return true;
   if (KEIN_VERB.has(w)) return false;
+  // Das Lexikon zählt als Zeugnis: Eine Form eines bekannten Verbs ist eine
+  // Verbform, auch wenn die Endung nicht auf -t ausgeht („kippten").
+  if (/^[a-zäöüß]{3,}(t|st|e|en)$/.test(w) && istLexikonVerb(w)) return true;
   if (!/^[a-zäöüß]{3,}t$/.test(w)) return false;
   // „gebracht", „gesagt", „gedacht" sind Partizipien, keine Verbformen;
   // „gehört", „gelingt", „genügt" sind Verben mit ge-Stamm. Die Liste der

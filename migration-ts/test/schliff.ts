@@ -391,7 +391,8 @@ ist("Gegenprobe: Strich mitten im Satz bleibt", formelnGlaetten("Sie geht — da
   ist("Perfekt-Partizip bleibt (hat verloren)", u("ein Boot, das seine Treidler verloren hat").text, "ein Boot, das seine Treidler verloren hat");
   ist("attributives Adjektiv bleibt (violette)", u("Sie öffnete die violette Tür.").text, "Sie öffnet die violette Tür.");
   ist("Konjunktiv nach als bleibt", u("Die Häuser stehen zu nah, als wollten sie zubeißen.").text, "Die Häuser stehen zu nah, als wollten sie zubeißen.");
-  wahr("ohne Beleg wird nicht geraten — der Satz gilt als unklar", !u("Dann kippten sie meistens geräuschvoll um.").ok);
+  // Seit dem Infinitiv-Lexikon (4.339.0) ist das kein Raten mehr: „kipp" ist ein Verbstamm, „kippten" kein Infinitiv.
+  ist("mit Lexikon: kippten → kippen", u("Dann kippten sie meistens geräuschvoll um.").text, "Dann kippen sie meistens geräuschvoll um.");
   wahr("Präsens-Plural wird nicht zerstört (halten)", u("Und die Sohlen halten noch bis zur Grenze.").text === "Und die Sohlen halten noch bis zur Grenze.");
 }
 

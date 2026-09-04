@@ -60,6 +60,412 @@ function kuerzeAmBruch(text2) {
   return HAENGT_IN_DER_LUFT.test(t) ? "" : t;
 }
 
+// src/generation/verblex.data.ts
+var GRUND = `
+achten \xE4chzen ahnen \xE4ndern \xE4rgern arbeiten atmen backen baden bangen bauen beben bedeuten beeilen befehlen beginnen begreifen
+behalten bei\xDFen bellen bergen bersten beten betteln beugen bewegen biegen bieten bilden binden bitten blasen bleiben blenden blicken
+blinken blinzeln blitzen bl\xFChen bluten bohren borgen brauchen brausen brechen bremsen brennen bringen br\xFCllen brummen buchen b\xFCcken
+b\xFCgeln b\xFCrsten danken decken dehnen denken deuten dichten dienen d\xF6sen dr\xE4ngen drehen dreschen dringen drohen dr\xF6hnen drucken dr\xFCcken
+dulden dunkeln d\xFCrfen duften d\xFCngen d\xFCnken durchqueren ebben ehren eignen eilen einen eitern ekeln enden entbehren entgleiten erben
+erl\xF6schen ernten essen f\xE4cheln fahren fallen falten fangen fassen fasten fauchen fechten fegen fehlen feiern feilen feixen fesseln
+feuern finden fischen flackern flattern flechten flehen flicken fliegen fliehen flie\xDFen flimmern flirren fl\xF6ten fluchen fluten
+fl\xFCstern folgen fordern forschen fragen fressen freuen frieren f\xFCgen f\xFChlen f\xFChren f\xFCllen funkeln f\xFCrchten fu\xDFen g\xE4hnen g\xE4ren gaffen
+geben gedeihen gehen gehorchen geh\xF6ren gelingen gelten genesen genie\xDFen geraten geschehen gewinnen gie\xDFen gl\xE4nzen glauben gleichen
+gleiten glimmen glitzern gl\xFChen g\xF6nnen graben grasen greifen grinsen grollen gr\xFCbeln gr\xFCnen gr\xFC\xDFen gucken haben hacken haften hageln
+haken hallen halten h\xE4mmern handeln h\xE4ngen harren hassen hasten hauchen hauen h\xE4ufen heben heften hegen heilen hei\xDFen heizen helfen
+hemmen herrschen hetzen heulen hinken hocken hoffen holen horchen h\xF6ren huldigen h\xFCllen humpeln hungern hupen h\xFCpfen husten h\xFCten
+irren jagen jammern jauchzen jubeln k\xE4mmen k\xE4mpfen kauen kaufen kehren keimen kennen kichern kippen kitzeln klagen klappen klappern
+kl\xE4ren klatschen kleben kleiden klettern klingeln klingen klirren klopfen knabbern knacken knallen knarren kneifen kneten knicken
+knien knirschen knistern kn\xFCpfen kochen kommen k\xF6nnen kosten krachen kr\xE4hen kr\xE4nken kratzen kreisen kreuzen kriechen kriegen
+kritzeln kr\xFCmmen k\xFChlen k\xFCmmern k\xFCrzen k\xFCssen lachen laden lagern l\xE4hmen landen langen lassen lasten lauern laufen lauschen lauten
+l\xE4uten leben lecken legen lehnen lehren leiden leihen leisten leiten lenken lernen lesen leuchten lieben liefern liegen lindern
+loben locken lodern lohnen l\xF6schen l\xF6sen l\xFCgen lutschen machen mahlen mahnen malen mangeln meiden meinen melden melken merken messen
+mischen missen m\xF6gen morden m\xFCssen munkeln murmeln nagen n\xE4hen nahen n\xE4hern n\xE4hren naschen necken nehmen neigen nennen nesteln
+nicken nieseln nippen nisten n\xF6rgeln nutzen n\xFCtzen \xF6ffnen opfern ordnen packen passen pausieren peitschen pfeifen pflanzen pflegen
+pfl\xFCcken picken plagen platzen plaudern pochen poltern pr\xE4gen prallen prangen prasseln predigen preisen pressen probieren pr\xFCfen
+pr\xFCgeln pulsieren pumpen putzen qu\xE4len quellen quietschen raffen ragen rasen rasten raten rauben rauchen r\xE4umen rauschen rechnen
+reden regen regnen reiben reichen reifen reihen reimen reisen rei\xDFen reiten rennen retten reuen richten riechen ringen rinnen
+ritzen rollen rosten r\xFCcken rudern rufen ruhen r\xFChmen r\xFChren r\xFCtteln s\xE4en sagen sammeln s\xE4umen saugen s\xE4useln schaben schaffen
+schallen schalten sch\xE4men scharren sch\xE4tzen schauen schaufeln schaukeln scheiden scheinen scheitern schellen schelten schenken
+scheren scheuchen scheuen schicken schieben schielen schie\xDFen schildern schimmern schimpfen schinden schlafen schlagen schleichen
+schleifen schleppen schleudern schlie\xDFen schlingen schlucken schl\xFCpfen schmecken schmeicheln schmelzen schmerzen schmieden
+schmieren schm\xFCcken schmunzeln schnappen schnarchen schneiden schneien schn\xFCren schnuppern schonen sch\xF6pfen schrauben schreiben
+schreien schreiten schrumpfen sch\xFCren sch\xFCrfen sch\xFCtteln sch\xFCtten sch\xFCtzen schwanken schw\xE4rmen schwatzen schweben schweifen
+schweigen schwellen schwenken schwimmen schwinden schwingen schwitzen schw\xF6ren segeln segnen sehen sehnen seufzen sichern sichten
+sickern sieden siegen singen sinken sinnen sitzen sollen sorgen sp\xE4hen spalten spannen sparen spazieren speien speisen spenden
+sperren spielen spinnen spotten sprechen sprengen sprie\xDFen springen spritzen spr\xFChen spucken sp\xFClen sp\xFCren stammeln stammen
+stampfen stapeln starren stauben staunen stechen stecken stehen stehlen steigen steinigen stellen sterben steuern sticken
+stinken st\xF6hnen stolpern stopfen st\xF6ren sto\xDFen strahlen stranden streben strecken streichen streicheln streiten streuen
+stricken str\xF6men st\xFCrmen st\xFCrzen stutzen st\xFCtzen suchen summen s\xFCndigen tadeln tagen tanken tanzen tappen tasten tauchen tauen
+taugen taumeln tauschen t\xE4uschen teilen tilgen toben t\xF6nen tosen traben trachten tragen trampeln trauen trauern tr\xE4umen treffen
+treiben trennen treten triefen trinken trocknen trommeln tropfen tr\xF6sten trotzen tr\xFCben tun t\xFCrmen \xFCben umarmen urteilen
+vergessen verlieren verzeihen wachen wachsen wagen w\xE4hlen w\xE4hnen wahren w\xE4hren wandeln wandern wanken w\xE4rmen warnen warten waschen
+weben wechseln wecken wehen wehren weichen weiden weigern weihen weilen weinen weisen weiten welken wenden werben werden werfen
+werken wetten wickeln widmen wiegen wimmeln wimmern winden winken wirbeln wirken wischen wissen wittern wohnen w\xF6lben wollen
+wuchern w\xFChlen wundern w\xFCnschen w\xFCrdigen w\xFCrgen w\xFCrzen zagen zahlen z\xE4hlen z\xE4hmen zaubern zaudern zausen zehren zeichnen zeigen
+zerren zeugen ziehen zielen ziemen zieren zischen zittern z\xF6gern zucken zupfen zw\xE4ngen zweifeln zwingen zwinkern zwitschern
+adeln \xE4hneln akzeptieren analysieren antworten applaudieren beantworten begegnen begleiten behaupten beobachten berichten
+ber\xFChren beschreiben besitzen bestimmen besuchen betrachten betreten beweisen bezahlen br\xFCten datieren definieren diskutieren
+d\xE4mmern d\xE4mpfen dampfen detonieren donnern duschen entdecken entscheiden entschuldigen entwickeln erinnern erkennen erkl\xE4ren
+erlauben erleben erreichen erschrecken erwarten erz\xE4hlen existieren fabrizieren fasziniert funktionieren garantieren geb\xE4ren
+gefallen gen\xFCgen geschehen gestalten gew\xF6hnen glitschen h\xE4mmern handeln heiraten hindern ignorieren informieren interessieren
+kapitulieren kentern klettern kombinieren kontrollieren korrigieren kosten kreisen k\xFCrzen leiden lodern markieren marschieren
+meistern montieren murren musizieren notieren n\xF6tigen operieren organisieren passieren pilgern planen pl\xFCndern posieren
+probieren produzieren protestieren protokollieren rasieren reagieren regieren reparieren respektieren riskieren rotieren
+schmei\xDFen schmettern schnattern sortieren spekulieren studieren telefonieren transportieren trainieren trauen tr\xF6deln
+\xFCberlegen verabschieden ver\xE4ndern verbergen verbinden verbrennen verdienen verfolgen verhalten verhandeln verkaufen verlangen
+verlassen vermeiden vermuten verraten versagen verschieben verschwinden versichern versprechen verstecken verstehen versuchen
+verteidigen vertrauen verwalten verwandeln verweigern verwenden verzichten vollenden wackeln wandeln weinen wirbeln zerbrechen
+zerst\xF6ren z\xF6gern zurechtkommen zweifeln
+stimmen passen setzen dauern l\xF6sen l\xE4cheln k\xFCndigen retten ticken z\xFCnden siegeln entfernen verl\xE4ngern verstummen beschriften
+gabeln erledigen bewilligen best\xE4tigen sichern lohnen stauen stocken t\xF6nen tr\xFCben w\xE4hnen zerren fehlen kosten sparen sperren
+st\xFCrzen stapeln stehlen schweigen taumeln t\xF6ten trocknen tr\xF6pfeln \xFCbergehen verschlie\xDFen vertreten verwahren verwirren vollziehen
+wachsen wandern weichen wirken wurzeln zerfallen zerflie\xDFen zergehen zerrei\xDFen zerschlagen zersplittern zischen
+regeln spiegeln speichern beschleunigen senken f\xE4rben formen altern riegeln fiebern schlitzen rutschen beanstanden erg\xE4nzen
+bl\xE4ttern sanden schulden bessern bremsen dunkeln d\xFCstern erkennen ernennen f\xE4rben festigen filtern fl\xFCchten fr\xF6nen g\xE4hnen
+h\xE4uten heilen hetzen k\xE4mmen klammern klemmen kneten kramen kr\xE4nkeln kr\xE4useln lasten leimen l\xFCften mildern mustern nachten
+n\xE4ssen nieten \xF6len pinseln pl\xE4tschern polstern prallen prunken quirlen r\xE4dern reifen richten r\xF6cheln r\xFCtteln s\xE4ubern salzen
+s\xE4umen sch\xE4tzen schaudern schl\xE4ngeln schleimen schlummern schmoren schn\xFCffeln schrubben schw\xE4chen schwelen sengen sondern
+spalten spiegeln spitzen sprudeln stauben steuern stochern strampeln streifen striegeln stumpfen sudeln tauen tigern tippen
+trampeln t\xFCnchen wabern watscheln wetzen wiehern winseln wispern wittern wuchten zerknittern zetern zieren zittern zotteln zuckeln
+abh\xE4ngen ankommen anfangen aufstehen ausgehen bedienen befreien behandeln bemerken benennen beschlie\xDFen bestehen betonen bewahren
+bezeichnen bilden bluten br\xFCten b\xFC\xDFen d\xE4mmern deuten drehen ehren einigen empfangen empfehlen entfalten enthalten entlassen entstehen
+erfahren erfinden ergeben erhalten erheben erholen erl\xF6sen ermahnen ern\xE4hren er\xF6ffnen erregen ersch\xF6pfen ersticken erstarren erw\xE4hnen
+erweitern erzeugen fesseln fl\xFCchten fr\xF6steln funken gebieten gedenken gelangen gemahnen geraten gestehen gew\xE4hren graben grenzen
+gr\xFCbeln hadern harken hausen heben herrschen hindern huschen j\xE4ten jucken keuchen klaffen kleckern klimpern knallen kraulen kreischen
+kringeln kritzeln kr\xF6nen kuscheln l\xE4rmen leuchten lichten lispeln lugen lungern m\xE4\xDFigen mei\xDFeln mieten mindern m\xFChen murksen nachahmen
+nagen n\xE4seln n\xF6rgeln nuscheln pachten pflastern pieksen plappern prahlen prangen prellen prosten quaken qualmen r\xE4uspern rauen r\xE4umen
+reizen rieseln rodeln r\xF6hren rumpeln s\xE4beln s\xE4ckeln s\xE4gen sausen sch\xE4umen sch\xE4len schaufeln schnalzen schnaufen schnellen schnippen
+schwappen schwirren seihen sichten siezen sinnieren spannen spenden spicken spie\xDFen sprenkeln spuken st\xE4nkern stelzen stemmen sticheln
+st\xF6bern stopfen strapazieren strotzen st\xFClpen stutzen t\xE4ndeln taxieren tollen torkeln tr\xE4llern trudeln tuscheln umgarnen verharren
+wabbeln walzen wedeln weilen wetteifern wimmeln wringen wuseln zappeln zaubern zechen zergehen zerkn\xFCllen zerlegen zerm\xFCrben zerpfl\xFCcken
+zerschellen zertr\xFCmmern zeugen zirpen zocken zurren
+`;
+var VERB_PRAEFIXE = [
+  "zusammen",
+  "zur\xFCck",
+  "wieder",
+  "gegen",
+  "hinter",
+  "durch",
+  "unter",
+  "\xFCber",
+  "voran",
+  "vorbei",
+  "heraus",
+  "herein",
+  "hinaus",
+  "hinein",
+  "herum",
+  "hinauf",
+  "hinab",
+  "herab",
+  "empor",
+  "fort",
+  "los",
+  "weg",
+  "fest",
+  "auseinander",
+  "entgegen",
+  "entlang",
+  "nieder",
+  "umher",
+  "davon",
+  "dazu",
+  "hoch",
+  "her",
+  "hin",
+  "ver",
+  "ent",
+  "emp",
+  "miss",
+  "zer",
+  "be",
+  "er",
+  "ge",
+  "an",
+  "ab",
+  "auf",
+  "aus",
+  "ein",
+  "mit",
+  "nach",
+  "vor",
+  "zu",
+  "um",
+  "bei",
+  "da",
+  "wider",
+  "still",
+  "frei",
+  "leer",
+  "tot",
+  "voll",
+  "wahr",
+  "gut",
+  "kaputt"
+];
+var PAST2PRES = {
+  // Ergänzt 4.338.2 (Blatt „Vier Kinder": „Das Herz schlug mir bis zum Hals" blieb stehen):
+  schlug: "schl\xE4gt",
+  schlugen: "schlagen",
+  roch: "riecht",
+  rochen: "riechen",
+  traf: "trifft",
+  trafen: "treffen",
+  schob: "schiebt",
+  schoben: "schieben",
+  tat: "tut",
+  taten: "tun",
+  wusch: "w\xE4scht",
+  stritt: "streitet",
+  glitt: "gleitet",
+  stie\u00DF: "st\xF6\xDFt",
+  stie\u00DFen: "sto\xDFen",
+  goss: "gie\xDFt",
+  band: "bindet",
+  banden: "binden",
+  zwang: "zwingt",
+  fing: "f\xE4ngt",
+  fingen: "fangen",
+  sandte: "sendet",
+  mochte: "mag",
+  mochten: "m\xF6gen",
+  stahl: "stiehlt",
+  galt: "gilt",
+  galten: "gelten",
+  gelang: "gelingt",
+  verband: "verbindet",
+  erhielt: "erh\xE4lt",
+  erhielten: "erhalten",
+  behielt: "beh\xE4lt",
+  enthielt: "enth\xE4lt",
+  verlie\u00DF: "verl\xE4sst",
+  verlie\u00DFen: "verlassen",
+  genoss: "genie\xDFt",
+  schlich: "schleicht",
+  strich: "streicht",
+  blies: "bl\xE4st",
+  lud: "l\xE4dt",
+  luden: "laden",
+  schuf: "schafft",
+  schufen: "schaffen",
+  log: "l\xFCgt",
+  betrog: "betr\xFCgt",
+  flocht: "flicht",
+  kroch: "kriecht",
+  krochen: "kriechen",
+  schmolz: "schmilzt",
+  quoll: "quillt",
+  quollen: "quellen",
+  verging: "vergeht",
+  vergingen: "vergehen",
+  entging: "entgeht",
+  erging: "ergeht",
+  erschrak: "erschrickt",
+  war: "ist",
+  waren: "sind",
+  warst: "bist",
+  hatte: "hat",
+  hatten: "haben",
+  hattest: "hast",
+  wurde: "wird",
+  wurden: "werden",
+  ging: "geht",
+  gingen: "gehen",
+  kam: "kommt",
+  kamen: "kommen",
+  sah: "sieht",
+  sahen: "sehen",
+  gab: "gibt",
+  gaben: "geben",
+  stand: "steht",
+  standen: "stehen",
+  blieb: "bleibt",
+  blieben: "bleiben",
+  hielt: "h\xE4lt",
+  hielten: "halten",
+  lie\u00DF: "l\xE4sst",
+  lie\u00DFen: "lassen",
+  fand: "findet",
+  fanden: "finden",
+  nahm: "nimmt",
+  nahmen: "nehmen",
+  sprach: "spricht",
+  sprachen: "sprechen",
+  schrieb: "schreibt",
+  schrieben: "schreiben",
+  trug: "tr\xE4gt",
+  trugen: "tragen",
+  fuhr: "f\xE4hrt",
+  fuhren: "fahren",
+  lief: "l\xE4uft",
+  liefen: "laufen",
+  sa\u00DF: "sitzt",
+  sa\u00DFen: "sitzen",
+  lag: "liegt",
+  lagen: "liegen",
+  hie\u00DF: "hei\xDFt",
+  hie\u00DFen: "hei\xDFen",
+  zog: "zieht",
+  zogen: "ziehen",
+  schlief: "schl\xE4ft",
+  schliefen: "schlafen",
+  rief: "ruft",
+  riefen: "rufen",
+  fiel: "f\xE4llt",
+  fielen: "fallen",
+  sang: "singt",
+  sangen: "singen",
+  trank: "trinkt",
+  tranken: "trinken",
+  schwieg: "schweigt",
+  schwiegen: "schweigen",
+  floss: "flie\xDFt",
+  flossen: "flie\xDFen",
+  stieg: "steigt",
+  stiegen: "steigen",
+  sank: "sinkt",
+  sanken: "sinken",
+  bot: "bietet",
+  boten: "bieten",
+  schloss: "schlie\xDFt",
+  schlossen: "schlie\xDFen",
+  verlor: "verliert",
+  verloren: "verlieren",
+  begann: "beginnt",
+  begannen: "beginnen",
+  geschah: "geschieht",
+  geschahen: "geschehen",
+  konnte: "kann",
+  konnten: "k\xF6nnen",
+  musste: "muss",
+  mussten: "m\xFCssen",
+  wollte: "will",
+  wollten: "wollen",
+  sollte: "soll",
+  sollten: "sollen",
+  durfte: "darf",
+  durften: "d\xFCrfen",
+  wusste: "wei\xDF",
+  wussten: "wissen",
+  dachte: "denkt",
+  dachten: "denken",
+  brachte: "bringt",
+  brachten: "bringen",
+  kannte: "kennt",
+  kannten: "kennen",
+  erkannte: "erkennt",
+  erkannten: "erkennen",
+  brannte: "brennt",
+  brannten: "brennen",
+  nannte: "nennt",
+  nannten: "nennen",
+  rannte: "rennt",
+  rannten: "rennen",
+  wandte: "wendet",
+  wandten: "wenden",
+  sprang: "springt",
+  sprangen: "springen",
+  schrie: "schreit",
+  schrien: "schreien",
+  flog: "fliegt",
+  flogen: "fliegen",
+  floh: "flieht",
+  flohen: "fliehen",
+  schoss: "schie\xDFt",
+  schossen: "schie\xDFen",
+  riss: "rei\xDFt",
+  rissen: "rei\xDFen",
+  biss: "bei\xDFt",
+  bissen: "bei\xDFen",
+  griff: "greift",
+  griffen: "greifen",
+  pfiff: "pfeift",
+  pfiffen: "pfeifen",
+  schnitt: "schneidet",
+  schnitten: "schneiden",
+  litt: "leidet",
+  litten: "leiden",
+  trat: "tritt",
+  traten: "treten",
+  verga\u00DF: "vergisst",
+  verga\u00DFen: "vergessen",
+  wuchs: "w\xE4chst",
+  wuchsen: "wachsen",
+  wich: "weicht",
+  wichen: "weichen",
+  schien: "scheint",
+  schienen: "scheinen",
+  zerbrach: "zerbricht",
+  zerbrachen: "zerbrechen",
+  verschwand: "verschwindet",
+  verschwanden: "verschwinden",
+  erschien: "erscheint",
+  erschienen: "erscheinen",
+  starb: "stirbt",
+  starben: "sterben",
+  brach: "bricht",
+  brachen: "brechen",
+  sprach2: "spricht",
+  schwoll: "schwillt",
+  schwollen: "schwellen",
+  bog: "biegt",
+  bogen: "biegen",
+  hob: "hebt",
+  hoben: "heben",
+  wob: "webt",
+  woben: "weben",
+  klang: "klingt",
+  klangen: "klingen",
+  sann: "sinnt",
+  sannen: "sinnen",
+  rann: "rinnt",
+  rannen: "rinnen",
+  schwamm: "schwimmt",
+  schwammen: "schwimmen",
+  verschwieg: "verschweigt",
+  zerfiel: "zerf\xE4llt",
+  zerfielen: "zerfallen",
+  entstand: "entsteht",
+  entstanden: "entstehen",
+  verstand: "versteht",
+  verstanden: "verstehen",
+  bestand: "besteht",
+  bestanden: "bestehen",
+  geriet: "ger\xE4t",
+  gerieten: "geraten",
+  trieb: "treibt",
+  trieben: "treiben",
+  schrak: "schrickt",
+  wies: "weist",
+  wiesen: "weisen",
+  hing: "h\xE4ngt",
+  hingen: "h\xE4ngen",
+  schwand: "schwindet",
+  schwanden: "schwinden",
+  gewann: "gewinnt",
+  gewannen: "gewinnen",
+  zerriss: "zerrei\xDFt",
+  zerrissen2: "zerrei\xDFen",
+  empfand: "empfindet",
+  empfanden: "empfinden",
+  befahl: "befiehlt",
+  befahlen: "befehlen",
+  half: "hilft",
+  halfen: "helfen",
+  warf: "wirft",
+  warfen: "werfen",
+  starrte2: "starrt",
+  las: "liest",
+  lasen: "lesen",
+  a\u00DF: "isst",
+  a\u00DFen: "essen",
+  bat: "bittet",
+  baten: "bitten"
+};
+var VERB_INFINITIVE = new Set(GRUND.split(/\s+/).map((w) => w.trim()).filter((w) => w.length > 2));
+
 // src/generation/verben.ts
 var STARK = {
   // sein · haben · werden · wissen · tun · Modalverben
@@ -342,10 +748,46 @@ function starkMitPraefix(form) {
   }
   return null;
 }
+function kenntInfinitiv(wort) {
+  const w = wort.toLowerCase();
+  if (VERB_INFINITIVE.has(w)) return true;
+  for (const p of VERB_PRAEFIXE) {
+    if (w.startsWith(p) && w.length > p.length + 3 && VERB_INFINITIVE.has(w.slice(p.length))) return true;
+  }
+  return false;
+}
+function infinitivZuStamm(stamm) {
+  const s = stamm.toLowerCase();
+  if (!s) return null;
+  const kandidaten = [s + "en", s + "n", s + "eln", s + "ern"];
+  if (/e[lr]$/.test(s)) kandidaten.unshift(s + "n");
+  const st = starkMitPraefix(s + "t");
+  if (st) return st[0] + st[1][2];
+  for (const k of kandidaten) if (kenntInfinitiv(k)) return k;
+  return null;
+}
+function istLexikonVerb(wort) {
+  const w = wort.toLowerCase().replace(/[^a-zäöüß]/g, "");
+  if (!w || w.length < 3) return false;
+  if (starkMitPraefix(w)) return true;
+  if (kenntInfinitiv(w)) return true;
+  if (PAST2PRES[w]) return true;
+  if (/^(bin|bist|sind|seid|habe|hast|habt|werde|wirst|werdet|wäre|wären|hätte|hätten|würde|würden|sei|seien)$/.test(w)) return true;
+  for (const suffix of ["etest", "test", "eten", "ten", "ete", "te", "est", "st", "et", "en", "t", "e", "tet"]) {
+    if (!w.endsWith(suffix) || w.length - suffix.length < 2) continue;
+    const st = w.slice(0, -suffix.length);
+    if (/ier$/.test(st)) return true;
+    if (infinitivZuStamm(st)) return true;
+  }
+  const pz = w.match(/^(?:[a-zäöü]{2,8})?ge(.+?)(?:t|en)$/);
+  if (pz && infinitivZuStamm(pz[1])) return true;
+  return false;
+}
 function istVerbform(wort) {
   const w = wort.toLowerCase();
   if (starkMitPraefix(w)) return true;
   if (KEIN_VERB.has(w)) return false;
+  if (/^[a-zäöüß]{3,}(t|st|e|en)$/.test(w) && istLexikonVerb(w)) return true;
   if (!/^[a-zäöüß]{3,}t$/.test(w)) return false;
   if (/^ge[a-zäöüß]{2,}t$/.test(w)) return GE_VERBEN.test(w);
   return true;
@@ -3336,13 +3778,20 @@ var PRAET_STRONG = /\b(war|waren|warst|hatte|hatten|wurde|wurden|ging|gingen|kam
 var PRAET_WEAK = /\b[a-zäöüß]{3,}(te|ten|test)\b/;
 var PRAES_MARK = /\b(ist|sind|bin|bist|seid|hat|habe|hast|haben|habt|wird|werden|wirst|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|weiß|wissen|geht|gehen|kommt|kommen|sieht|sehen|steht|stehen|bleibt|bleiben|liegt|liegen|gibt|geben|nimmt|nehmen|spricht|sprechen|trägt|tragen|läuft|laufen|fällt|fallen|geschieht|passiert|beginnt|endet|wartet|antwortet|arbeitet|bedeutet|beobachtet|berichtet|schlägt|zeigt|dauert|öffnet|schließt|klingt|riecht|scheint|hört|fühlt|wirkt|führt|dreht|zieht|hält|läuft|fließt|wächst|sinkt|steigt|schweigt|spricht|denkt|kennt|nennt|trägt|findet|verliert|verschwindet)\b/i;
 var ADJ_CONTEXT = /(?:\b(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|kein|keine|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|jede|jeder|jedes|diese|dieser|dieses|manche|viele|alle)\s+[a-zäöüß]*)?\b[a-zäöüß]{3,}(?:te|ten)\b(?=\s+[A-ZÄÖÜ])/;
+function schwachesPraeteritum(w, satz) {
+  const l = w.toLowerCase();
+  if (kenntInfinitiv(l) || kenntInfinitiv(l.replace(/e$/, "en")) || kenntInfinitiv(l.replace(/en$/, "n"))) return false;
+  const m = l.match(/^([a-zäöüß]{2,}?)(e?te|e?ten|e?test)$/);
+  if (!m) return false;
+  const inf = infinitivZuStamm(m[1]);
+  if (inf) return true;
+  const re = new RegExp("\\b" + w + "\\b(?=\\s+[A-Z\xC4\xD6\xDC])");
+  return !re.test(satz) && !KEIN_VERB.has(m[1] + "t") && !KEIN_VERB.has(m[1]);
+}
 var weakLooksVerbal = (t) => {
   const m = t.match(/\b[a-zäöüß]{3,}(te|ten|test|tet)\b/g);
   if (!m) return false;
-  return m.some((w) => {
-    const re = new RegExp("\\b" + w + "\\b(?=\\s+[A-Z\xC4\xD6\xDC])");
-    return !re.test(t);
-  });
+  return m.some((w) => schwachesPraeteritum(w, t));
 };
 function isPastTense(s) {
   const t = s || "";
@@ -3371,265 +3820,6 @@ function properNames(text2) {
   }
   return [...out];
 }
-var PAST2PRES = {
-  // Ergänzt 4.338.2 (Blatt „Vier Kinder": „Das Herz schlug mir bis zum Hals" blieb stehen):
-  schlug: "schl\xE4gt",
-  schlugen: "schlagen",
-  roch: "riecht",
-  rochen: "riechen",
-  traf: "trifft",
-  trafen: "treffen",
-  schob: "schiebt",
-  schoben: "schieben",
-  tat: "tut",
-  taten: "tun",
-  wusch: "w\xE4scht",
-  stritt: "streitet",
-  glitt: "gleitet",
-  stie\u00DF: "st\xF6\xDFt",
-  stie\u00DFen: "sto\xDFen",
-  goss: "gie\xDFt",
-  band: "bindet",
-  banden: "binden",
-  zwang: "zwingt",
-  fing: "f\xE4ngt",
-  fingen: "fangen",
-  sandte: "sendet",
-  mochte: "mag",
-  mochten: "m\xF6gen",
-  stahl: "stiehlt",
-  galt: "gilt",
-  galten: "gelten",
-  gelang: "gelingt",
-  verband: "verbindet",
-  erhielt: "erh\xE4lt",
-  erhielten: "erhalten",
-  behielt: "beh\xE4lt",
-  enthielt: "enth\xE4lt",
-  verlie\u00DF: "verl\xE4sst",
-  verlie\u00DFen: "verlassen",
-  genoss: "genie\xDFt",
-  schlich: "schleicht",
-  strich: "streicht",
-  blies: "bl\xE4st",
-  lud: "l\xE4dt",
-  luden: "laden",
-  schuf: "schafft",
-  schufen: "schaffen",
-  log: "l\xFCgt",
-  betrog: "betr\xFCgt",
-  flocht: "flicht",
-  kroch: "kriecht",
-  krochen: "kriechen",
-  schmolz: "schmilzt",
-  quoll: "quillt",
-  quollen: "quellen",
-  verging: "vergeht",
-  vergingen: "vergehen",
-  entging: "entgeht",
-  erging: "ergeht",
-  erschrak: "erschrickt",
-  war: "ist",
-  waren: "sind",
-  warst: "bist",
-  hatte: "hat",
-  hatten: "haben",
-  hattest: "hast",
-  wurde: "wird",
-  wurden: "werden",
-  ging: "geht",
-  gingen: "gehen",
-  kam: "kommt",
-  kamen: "kommen",
-  sah: "sieht",
-  sahen: "sehen",
-  gab: "gibt",
-  gaben: "geben",
-  stand: "steht",
-  standen: "stehen",
-  blieb: "bleibt",
-  blieben: "bleiben",
-  hielt: "h\xE4lt",
-  hielten: "halten",
-  lie\u00DF: "l\xE4sst",
-  lie\u00DFen: "lassen",
-  fand: "findet",
-  fanden: "finden",
-  nahm: "nimmt",
-  nahmen: "nehmen",
-  sprach: "spricht",
-  sprachen: "sprechen",
-  schrieb: "schreibt",
-  schrieben: "schreiben",
-  trug: "tr\xE4gt",
-  trugen: "tragen",
-  fuhr: "f\xE4hrt",
-  fuhren: "fahren",
-  lief: "l\xE4uft",
-  liefen: "laufen",
-  sa\u00DF: "sitzt",
-  sa\u00DFen: "sitzen",
-  lag: "liegt",
-  lagen: "liegen",
-  hie\u00DF: "hei\xDFt",
-  hie\u00DFen: "hei\xDFen",
-  zog: "zieht",
-  zogen: "ziehen",
-  schlief: "schl\xE4ft",
-  schliefen: "schlafen",
-  rief: "ruft",
-  riefen: "rufen",
-  fiel: "f\xE4llt",
-  fielen: "fallen",
-  sang: "singt",
-  sangen: "singen",
-  trank: "trinkt",
-  tranken: "trinken",
-  schwieg: "schweigt",
-  schwiegen: "schweigen",
-  floss: "flie\xDFt",
-  flossen: "flie\xDFen",
-  stieg: "steigt",
-  stiegen: "steigen",
-  sank: "sinkt",
-  sanken: "sinken",
-  bot: "bietet",
-  boten: "bieten",
-  schloss: "schlie\xDFt",
-  schlossen: "schlie\xDFen",
-  verlor: "verliert",
-  verloren: "verlieren",
-  begann: "beginnt",
-  begannen: "beginnen",
-  geschah: "geschieht",
-  geschahen: "geschehen",
-  konnte: "kann",
-  konnten: "k\xF6nnen",
-  musste: "muss",
-  mussten: "m\xFCssen",
-  wollte: "will",
-  wollten: "wollen",
-  sollte: "soll",
-  sollten: "sollen",
-  durfte: "darf",
-  durften: "d\xFCrfen",
-  wusste: "wei\xDF",
-  wussten: "wissen",
-  dachte: "denkt",
-  dachten: "denken",
-  brachte: "bringt",
-  brachten: "bringen",
-  kannte: "kennt",
-  kannten: "kennen",
-  erkannte: "erkennt",
-  erkannten: "erkennen",
-  brannte: "brennt",
-  brannten: "brennen",
-  nannte: "nennt",
-  nannten: "nennen",
-  rannte: "rennt",
-  rannten: "rennen",
-  wandte: "wendet",
-  wandten: "wenden",
-  sprang: "springt",
-  sprangen: "springen",
-  schrie: "schreit",
-  schrien: "schreien",
-  flog: "fliegt",
-  flogen: "fliegen",
-  floh: "flieht",
-  flohen: "fliehen",
-  schoss: "schie\xDFt",
-  schossen: "schie\xDFen",
-  riss: "rei\xDFt",
-  rissen: "rei\xDFen",
-  biss: "bei\xDFt",
-  bissen: "bei\xDFen",
-  griff: "greift",
-  griffen: "greifen",
-  pfiff: "pfeift",
-  pfiffen: "pfeifen",
-  schnitt: "schneidet",
-  schnitten: "schneiden",
-  litt: "leidet",
-  litten: "leiden",
-  trat: "tritt",
-  traten: "treten",
-  verga\u00DF: "vergisst",
-  verga\u00DFen: "vergessen",
-  wuchs: "w\xE4chst",
-  wuchsen: "wachsen",
-  wich: "weicht",
-  wichen: "weichen",
-  schien: "scheint",
-  schienen: "scheinen",
-  zerbrach: "zerbricht",
-  zerbrachen: "zerbrechen",
-  verschwand: "verschwindet",
-  verschwanden: "verschwinden",
-  erschien: "erscheint",
-  erschienen: "erscheinen",
-  starb: "stirbt",
-  starben: "sterben",
-  brach: "bricht",
-  brachen: "brechen",
-  sprach2: "spricht",
-  schwoll: "schwillt",
-  schwollen: "schwellen",
-  bog: "biegt",
-  bogen: "biegen",
-  hob: "hebt",
-  hoben: "heben",
-  wob: "webt",
-  woben: "weben",
-  klang: "klingt",
-  klangen: "klingen",
-  sann: "sinnt",
-  sannen: "sinnen",
-  rann: "rinnt",
-  rannen: "rinnen",
-  schwamm: "schwimmt",
-  schwammen: "schwimmen",
-  verschwieg: "verschweigt",
-  zerfiel: "zerf\xE4llt",
-  zerfielen: "zerfallen",
-  entstand: "entsteht",
-  entstanden: "entstehen",
-  verstand: "versteht",
-  verstanden: "verstehen",
-  bestand: "besteht",
-  bestanden: "bestehen",
-  geriet: "ger\xE4t",
-  gerieten: "geraten",
-  trieb: "treibt",
-  trieben: "treiben",
-  schrak: "schrickt",
-  wies: "weist",
-  wiesen: "weisen",
-  hing: "h\xE4ngt",
-  hingen: "h\xE4ngen",
-  schwand: "schwindet",
-  schwanden: "schwinden",
-  gewann: "gewinnt",
-  gewannen: "gewinnen",
-  zerriss: "zerrei\xDFt",
-  zerrissen2: "zerrei\xDFen",
-  empfand: "empfindet",
-  empfanden: "empfinden",
-  befahl: "befiehlt",
-  befahlen: "befehlen",
-  half: "hilft",
-  halfen: "helfen",
-  warf: "wirft",
-  warfen: "werfen",
-  starrte2: "starrt",
-  las: "liest",
-  lasen: "lesen",
-  a\u00DF: "isst",
-  a\u00DFen: "essen",
-  bat: "bittet",
-  baten: "bitten"
-};
 var PERSON_FORMS = {
   war: { ich: "bin", du: "bist", wir: "sind", ihr: "seid", sie: "ist", er: "ist", es: "ist" },
   waren: { wir: "sind", sie: "sind", ihr: "seid" },
@@ -3647,7 +3837,9 @@ function toPresent(entry) {
   let changed = false;
   const words = (entry || "").split(/(\s+)/);
   for (let i = 0; i < words.length; i++) {
-    const w = words[i];
+    const roh = words[i];
+    const zeichen = (roh.match(/[.,;:!?…»“"]+$/) || [""])[0];
+    const w = zeichen ? roh.slice(0, -zeichen.length) : roh;
     if (!/^[A-Za-zÄÖÜäöüß]+$/.test(w)) continue;
     const low2 = w.toLowerCase();
     const base = PAST2PRES[low2];
@@ -3666,7 +3858,7 @@ function toPresent(entry) {
         }
         form = b;
       }
-      words[i] = /^[A-ZÄÖÜ]/.test(w) ? form.charAt(0).toUpperCase() + form.slice(1) : form;
+      words[i] = (/^[A-ZÄÖÜ]/.test(w) ? form.charAt(0).toUpperCase() + form.slice(1) : form) + zeichen;
       changed = true;
       continue;
     }
@@ -3702,9 +3894,11 @@ function praesensUmschreiben(entry) {
     if (ARTIKEL2.test(prev) && /^[A-ZÄÖÜ]/.test(naechst)) continue;
     if (/ten$/.test(endung) && MODAL_DAVOR.test(prev)) continue;
     if (KEIN_VERB.has(stamm + "t") || KEIN_VERB.has(stamm)) continue;
-    if (!istVerbform(stamm + "t") && !istVerbform(stamm + "et")) continue;
-    if (!eindeutig && !belegtPraeteritum) {
-      unklar++;
+    if (kenntInfinitiv(w) || kenntInfinitiv(w.replace(/e$/, "en")) || kenntInfinitiv(w.replace(/en$/, "n"))) continue;
+    const inf = infinitivZuStamm(stamm);
+    if (!inf) {
+      if (/^[A-ZÄÖÜ]/.test(naechst) || /ten$/.test(endung) || ARTIKEL2.test(prev)) continue;
+      if (!eindeutig && !belegtPraeteritum && istVerbform(stamm + "t")) unklar++;
       continue;
     }
     const bindevokal = /^e/.test(endung);
@@ -3733,7 +3927,8 @@ function toPresentSicher(entry) {
     const w = words[i];
     if (!/^[A-Za-zÄÖÜäöüß]/.test(w)) continue;
     const konjNachAls = vorher === "als" && /^(wollte|wollten|sollte|sollten|könnte|könnten|müsste|hätte|hätten|wäre|wären|würde|würden)/i.test(w);
-    const schuetzen = !erstesWort && /^[A-ZÄÖÜ]/.test(w) || perfekt && /en[.,;:!?]*$/.test(w) || konjNachAls;
+    const ambig = /^(verloren|verstanden|entstanden|bestanden|erschienen)[.,;:!?]*$/i.test(w) && !/^(wir|sie|die|alle|beide|viele|manche|einige|leute|kinder|männer|frauen)$/.test(vorher);
+    const schuetzen = !erstesWort && /^[A-ZÄÖÜ]/.test(w) || perfekt && /en[.,;:!?]*$/.test(w) || konjNachAls || ambig;
     vorher = w.toLowerCase().replace(/[^a-zäöüß]/g, "");
     erstesWort = false;
     if (schuetzen) {

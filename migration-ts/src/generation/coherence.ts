@@ -3,7 +3,8 @@
 // heuristisch — sie ersetzen kein Sprachverständnis, fangen aber die
 // typischen Symptome zusammengesetzter Texte.
 import { splitSentences } from "../text-utils";
-import { KEIN_VERB, istVerbform, beugeVerb } from "./verben";
+import { KEIN_VERB, istVerbform, beugeVerb, infinitivZuStamm, kenntInfinitiv } from "./verben";
+import { PAST2PRES } from "./verblex.data";
 import { NOUN_GENDER } from "./nouns.data";
 
 // ── 1) Tempus ────────────────────────────────────────────────────────
@@ -22,14 +23,25 @@ const PRAES_MARK = /\b(ist|sind|bin|bist|seid|hat|habe|hast|haben|habt|wird|werd
 // Attributives Adjektiv statt Verb: „eine mondbeglänzte Wipfel“, „die letzte Scheibe“.
 // Solche -te-Formen stehen nach Artikel/Adjektiv oder direkt vor einem Nomen.
 const ADJ_CONTEXT = /(?:\b(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|kein|keine|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|jede|jeder|jedes|diese|dieser|dieses|manche|viele|alle)\s+[a-zäöüß]*)?\b[a-zäöüß]{3,}(?:te|ten)\b(?=\s+[A-ZÄÖÜ])/;
+/** Ist dieses Wort auf -te/-ten eine schwache Präteritumform? Das Infinitiv-
+ *  Lexikon (4.339.0) antwortet, wo es kann: Der Stamm muss ein Verb sein, und
+ *  das Wort selbst darf weder Infinitiv („halten") noch Präsensform eines
+ *  t-Stamms („rette", „warten") sein. Kennt das Lexikon den Stamm nicht,
+ *  bleibt die alte Heuristik (nicht vor einem Nomen). */
+export function schwachesPraeteritum(w: string, satz: string): boolean {
+  const l = w.toLowerCase();
+  if (kenntInfinitiv(l) || kenntInfinitiv(l.replace(/e$/, "en")) || kenntInfinitiv(l.replace(/en$/, "n"))) return false;
+  const m = l.match(/^([a-zäöüß]{2,}?)(e?te|e?ten|e?test)$/);
+  if (!m) return false;
+  const inf = infinitivZuStamm(m[1]!);
+  if (inf) return true;
+  const re = new RegExp("\\b" + w + "\\b(?=\\s+[A-ZÄÖÜ])");
+  return !re.test(satz) && !KEIN_VERB.has(m[1]! + "t") && !KEIN_VERB.has(m[1]!);
+}
 const weakLooksVerbal = (t: string): boolean => {
   const m = t.match(/\b[a-zäöüß]{3,}(te|ten|test|tet)\b/g);
   if (!m) return false;
-  // Mindestens eine -te-Form, die NICHT vor einem Nomen steht (also kein Attribut).
-  return m.some((w) => {
-    const re = new RegExp("\\b" + w + "\\b(?=\\s+[A-ZÄÖÜ])");
-    return !re.test(t);
-  });
+  return m.some((w) => schwachesPraeteritum(w, t));
 };
 
 export function isPastTense(s: string): boolean {
@@ -129,54 +141,6 @@ export function castSpread(text: string, expected: string[] = []): number {
 // ── Präteritum → Präsens (nur eindeutige Fälle) ──────────────────────
 // Starke/unregelmäßige Verben als Tabelle (3. Person Singular Präsens).
 // Was hier nicht sicher abbildbar ist, bleibt unangetastet und wird markiert.
-const PAST2PRES: Record<string, string> = {
-  // Ergänzt 4.338.2 (Blatt „Vier Kinder": „Das Herz schlug mir bis zum Hals" blieb stehen):
-  schlug: "schlägt", schlugen: "schlagen", roch: "riecht", rochen: "riechen", traf: "trifft", trafen: "treffen",
-  schob: "schiebt", schoben: "schieben", tat: "tut", taten: "tun", wusch: "wäscht", stritt: "streitet", glitt: "gleitet",
-  stieß: "stößt", stießen: "stoßen", goss: "gießt", band: "bindet", banden: "binden", zwang: "zwingt", fing: "fängt", fingen: "fangen",
-  sandte: "sendet", mochte: "mag", mochten: "mögen", stahl: "stiehlt", galt: "gilt", galten: "gelten", gelang: "gelingt",
-  verband: "verbindet", erhielt: "erhält", erhielten: "erhalten", behielt: "behält", enthielt: "enthält", verließ: "verlässt", verließen: "verlassen",
-  genoss: "genießt", schlich: "schleicht", strich: "streicht", blies: "bläst", lud: "lädt", luden: "laden", schuf: "schafft", schufen: "schaffen",
-  log: "lügt", betrog: "betrügt", flocht: "flicht", kroch: "kriecht", krochen: "kriechen", schmolz: "schmilzt", quoll: "quillt", quollen: "quellen",
-  verging: "vergeht", vergingen: "vergehen", entging: "entgeht", erging: "ergeht", erschrak: "erschrickt",
-  war: "ist", waren: "sind", warst: "bist", hatte: "hat", hatten: "haben", hattest: "hast",
-  wurde: "wird", wurden: "werden", ging: "geht", gingen: "gehen", kam: "kommt", kamen: "kommen",
-  sah: "sieht", sahen: "sehen", gab: "gibt", gaben: "geben", stand: "steht", standen: "stehen",
-  blieb: "bleibt", blieben: "bleiben", hielt: "hält", hielten: "halten", ließ: "lässt", ließen: "lassen",
-  fand: "findet", fanden: "finden", nahm: "nimmt", nahmen: "nehmen", sprach: "spricht", sprachen: "sprechen",
-  schrieb: "schreibt", schrieben: "schreiben", trug: "trägt", trugen: "tragen", fuhr: "fährt", fuhren: "fahren",
-  lief: "läuft", liefen: "laufen", saß: "sitzt", saßen: "sitzen", lag: "liegt", lagen: "liegen",
-  hieß: "heißt", hießen: "heißen", zog: "zieht", zogen: "ziehen", schlief: "schläft", schliefen: "schlafen",
-  rief: "ruft", riefen: "rufen", fiel: "fällt", fielen: "fallen", sang: "singt", sangen: "singen",
-  trank: "trinkt", tranken: "trinken", schwieg: "schweigt", schwiegen: "schweigen", floss: "fließt", flossen: "fließen",
-  stieg: "steigt", stiegen: "steigen", sank: "sinkt", sanken: "sinken", bot: "bietet", boten: "bieten",
-  schloss: "schließt", schlossen: "schließen", verlor: "verliert", verloren: "verlieren",
-  begann: "beginnt", begannen: "beginnen", geschah: "geschieht", geschahen: "geschehen",
-  konnte: "kann", konnten: "können", musste: "muss", mussten: "müssen", wollte: "will", wollten: "wollen",
-  sollte: "soll", sollten: "sollen", durfte: "darf", durften: "dürfen", wusste: "weiß", wussten: "wissen",
-  dachte: "denkt", dachten: "denken", brachte: "bringt", brachten: "bringen", kannte: "kennt", kannten: "kennen",
-  erkannte: "erkennt", erkannten: "erkennen", brannte: "brennt", brannten: "brennen", nannte: "nennt", nannten: "nennen",
-  rannte: "rennt", rannten: "rennen", wandte: "wendet", wandten: "wenden", sprang: "springt", sprangen: "springen",
-  schrie: "schreit", schrien: "schreien", flog: "fliegt", flogen: "fliegen", floh: "flieht", flohen: "fliehen",
-  schoss: "schießt", schossen: "schießen", riss: "reißt", rissen: "reißen", biss: "beißt", bissen: "beißen",
-  griff: "greift", griffen: "greifen", pfiff: "pfeift", pfiffen: "pfeifen", schnitt: "schneidet", schnitten: "schneiden",
-  litt: "leidet", litten: "leiden", trat: "tritt", traten: "treten", vergaß: "vergisst", vergaßen: "vergessen",
-  wuchs: "wächst", wuchsen: "wachsen", wich: "weicht", wichen: "weichen", schien: "scheint", schienen: "scheinen",
-  zerbrach: "zerbricht", zerbrachen: "zerbrechen", verschwand: "verschwindet", verschwanden: "verschwinden",
-  erschien: "erscheint", erschienen: "erscheinen", starb: "stirbt", starben: "sterben",
-  brach: "bricht", brachen: "brechen", sprach2: "spricht", schwoll: "schwillt", schwollen: "schwellen",
-  bog: "biegt", bogen: "biegen", hob: "hebt", hoben: "heben", wob: "webt", woben: "weben",
-  klang: "klingt", klangen: "klingen", sann: "sinnt", sannen: "sinnen", rann: "rinnt", rannen: "rinnen",
-  schwamm: "schwimmt", schwammen: "schwimmen", verschwieg: "verschweigt", zerfiel: "zerfällt", zerfielen: "zerfallen",
-  entstand: "entsteht", entstanden: "entstehen", verstand: "versteht", verstanden: "verstehen",
-  bestand: "besteht", bestanden: "bestehen", geriet: "gerät", gerieten: "geraten",
-  trieb: "treibt", trieben: "treiben", schrak: "schrickt", wies: "weist", wiesen: "weisen",
-  hing: "hängt", hingen: "hängen", schwand: "schwindet", schwanden: "schwinden",
-  gewann: "gewinnt", gewannen: "gewinnen", zerriss: "zerreißt", zerrissen2: "zerreißen",
-  empfand: "empfindet", empfanden: "empfinden", befahl: "befiehlt", befahlen: "befehlen",
-  half: "hilft", halfen: "helfen", warf: "wirft", warfen: "werfen", starrte2: "starrt",
-  las: "liest", lasen: "lesen", aß: "isst", aßen: "essen", bat: "bittet", baten: "bitten",
-};
 // Personenabhängige Formen: nach Pronomen muss die Person stimmen.
 const PERSON_FORMS: Record<string, Record<string, string>> = {
   war:   { ich: "bin", du: "bist", wir: "sind", ihr: "seid", sie: "ist", er: "ist", es: "ist" },
@@ -201,7 +165,9 @@ export function toPresent(entry: string): TenseFix {
   let changed = false;
   const words = (entry || "").split(/(\s+)/);
   for (let i = 0; i < words.length; i++) {
-    const w = words[i]!;
+    const roh = words[i]!;
+    const zeichen = (roh.match(/[.,;:!?…»“"]+$/) || [""])[0];
+    const w = zeichen ? roh.slice(0, -zeichen.length) : roh;
     if (!/^[A-Za-zÄÖÜäöüß]+$/.test(w)) continue;
     const low = w.toLowerCase();
     const base = PAST2PRES[low];
@@ -220,7 +186,7 @@ export function toPresent(entry: string): TenseFix {
         if (!b) { unsure.push(w); continue; }
         form = b;
       }
-      words[i] = /^[A-ZÄÖÜ]/.test(w) ? form.charAt(0).toUpperCase() + form.slice(1) : form;
+      words[i] = (/^[A-ZÄÖÜ]/.test(w) ? form.charAt(0).toUpperCase() + form.slice(1) : form) + zeichen;
       changed = true;
       continue;
     }
@@ -281,14 +247,28 @@ export function praesensUmschreiben(entry: string): { text: string; ok: boolean;
     const davor = words.slice(0, i).map(rein).filter(Boolean);
     const prev = (davor[davor.length - 1] || "").toLowerCase();
     const naechst = words.slice(i + 1).map(rein).find(Boolean) || "";
-    if (ARTIKEL.test(prev) && /^[A-ZÄÖÜ]/.test(naechst)) continue;      // attributives Adjektiv
+    if (ARTIKEL.test(prev) && /^[A-ZÄÖÜ]/.test(naechst)) continue;      // attributives Adjektiv: „eine zerknitterte Visitenkarte"
     if (/ten$/.test(endung) && MODAL_DAVOR.test(prev)) continue;         // Infinitiv nach Modal/zu
     if (KEIN_VERB.has(stamm + "t") || KEIN_VERB.has(stamm)) continue;
-    if (!istVerbform(stamm + "t") && !istVerbform(stamm + "et")) continue;
-    // Alle Wächter passiert, aber kein Beleg im Satz: Das Wort KANN Präteritum
-    // sein („kippten") oder Präsens („halten"). Nicht raten — der Satz gilt
-    // als unklar und wird vom Aufrufer verworfen, wie vor dem Umschreiber.
-    if (!eindeutig && !belegtPraeteritum) { unklar++; continue; }
+    // Das Infinitiv-Lexikon (4.339.0) entscheidet. Erst: Ist das Wort selbst
+    // ein Infinitiv oder die Präsensform eines t-Stamms? „halten" ist der
+    // Infinitiv von halten, „warten" von warten, „rette" die Ich-Form von
+    // retten — Präsens, bleibt. Dann: Ist der Stamm ein Verb? „kipp" →
+    // kippen: „kippten" ist Präteritum. Kennt das Lexikon den Stamm nicht
+    // und stützt kein Beleg den Satz, gilt der Satz als unklar — aber nur,
+    // wenn das Wort überhaupt wie ein Verb aussieht.
+    if (kenntInfinitiv(w) || kenntInfinitiv(w.replace(/e$/, "en")) || kenntInfinitiv(w.replace(/en$/, "n"))) continue;
+    const inf = infinitivZuStamm(stamm);
+    if (!inf) {
+      // Unbekannter Stamm. Vor einem Nomen ist es ein Adjektiv („unbestimmte
+      // Zeit", „nummerierten Türen"); auf -en ist es eher Partizip, Plural-
+      // Adjektiv oder Infinitiv als Präteritum („verboten", „vernarbte"?).
+      // Nur eine Singularform auf -te ohne Nomen dahinter, die wie ein Verb
+      // aussieht, macht den Satz unklar.
+      if (/^[A-ZÄÖÜ]/.test(naechst) || /ten$/.test(endung) || ARTIKEL.test(prev)) continue;
+      if (!eindeutig && !belegtPraeteritum && istVerbform(stamm + "t")) unklar++;
+      continue;
+    }
     const bindevokal = /^e/.test(endung);
     const dritte = bindevokal ? stamm + "et" : stamm + "t";
     let neu: string;
@@ -300,6 +280,7 @@ export function praesensUmschreiben(entry: string): { text: string; ok: boolean;
   }
   const text = words.join("");
   return { text, ok: !isPastTense(text) && unklar === 0, changed };
+  // (unklar zählt nur noch Stämme, die das Lexikon nicht kennt und die kein Beleg stützt)
 }
 
 /** toPresent mit zwei Wächtern: (1) Großgeschrieben in der Satzmitte ist ein
@@ -319,7 +300,11 @@ function toPresentSicher(entry: string): TenseFix {
     // (3) „als wollten sie", „als könnte er" — Konjunktiv nach „als", kein
     // Präteritum: bleibt.
     const konjNachAls = vorher === "als" && /^(wollte|wollten|sollte|sollten|könnte|könnten|müsste|hätte|hätten|wäre|wären|würde|würden)/i.test(w);
-    const schuetzen = (!erstesWort && /^[A-ZÄÖÜ]/.test(w)) || (perfekt && /en[.,;:!?]*$/.test(w)) || konjNachAls;
+    // (4) Formen, die Präteritum-Plural UND Partizip sind (verloren, verstanden,
+    // entstanden, bestanden, erschienen): nur mit Mehrzahl-Subjekt davor
+    // Präteritum („sie verloren"), sonst Partizip („verloren im Gras").
+    const ambig = /^(verloren|verstanden|entstanden|bestanden|erschienen)[.,;:!?]*$/i.test(w) && !/^(wir|sie|die|alle|beide|viele|manche|einige|leute|kinder|männer|frauen)$/.test(vorher);
+    const schuetzen = (!erstesWort && /^[A-ZÄÖÜ]/.test(w)) || (perfekt && /en[.,;:!?]*$/.test(w)) || konjNachAls || ambig;
     vorher = w.toLowerCase().replace(/[^a-zäöüß]/g, "");
     erstesWort = false;
     if (schuetzen) { marker.push(w); words[i] = `§${marker.length - 1}§`; }
