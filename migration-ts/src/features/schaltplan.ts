@@ -306,8 +306,10 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   // Zwei Wege, auf denen sie stumm ausfällt, und beide sieht man dem Regler
   // nicht an: ohne Erzählbogen im aktiven Preset, und bei jeder Form außer
   // Prosa. Der Bauweg fällt dann wortlos auf den gewöhnlichen zurück.
-  const dramaAn = struktur === "dramaturgie" || struktur === "bogen";   // „Rekombination mit Bogen" zieht dieselbe Quelle
-  const nurProsa = (r["form"] || "prose") === "prose";
+  const formWert = r["form"] || "prose";
+  // Multi-Shot (4.343.1): Der Bogen wirkt dort unabhängig von der Struktur.
+  const dramaAn = struktur === "dramaturgie" || struktur === "bogen" || formWert === "video";   // „Rekombination mit Bogen" zieht dieselbe Quelle
+  const nurProsa = formWert === "prose" || formWert === "video";
   // Seit 4.333.0 gibt es DREI Bogenquellen: das Preset (wie immer), ein fester
   // Platz der Erzählerbank, oder Würfeln je Erzeugung. Der Plan rechnet sie
   // ein — sonst stünde „kein Bogen", während der Text längst einem folgt.
@@ -320,10 +322,10 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
     : u.dramaVorhanden ? "Bogen aus dem Preset" : "kein Bogen";
   const dramaZustand: Zustand = !dramaAn ? "aus" : !nurProsa ? "leer" : bogenDa ? "an" : "leer";
   knoten("drama", 2, "Dramaturgie",
-    !dramaAn ? "aus — über Struktur" : !nurProsa ? "nur bei Prosa" : quelleWort,
+    !dramaAn ? "aus — über Struktur" : !nurProsa ? "nur bei Prosa oder Multi-Shot" : quelleWort,
     dramaZustand,
-    !dramaAn ? "Kein eigener Schalter: Struktur auf „Dramaturgie (Preset 2.0)“ stellen — im Werkzeugkasten oder als Chip unter dem Text. Wirkt nur bei Form „Prosa“."
-      : !nurProsa ? "Struktur steht auf Dramaturgie, die Form ist aber nicht Prosa — der Bauweg fällt still auf den gewöhnlichen zurück"
+    !dramaAn ? "Kein eigener Schalter: Struktur auf „Dramaturgie (Preset 2.0)“ stellen — im Werkzeugkasten oder als Chip unter dem Text. Wirkt bei Form „Prosa“; bei „Multi-Shot“ wirkt der Bogen ohne diese Struktur."
+      : !nurProsa ? "Struktur steht auf Dramaturgie, die Form ist aber weder Prosa noch Multi-Shot — der Bauweg fällt still auf den gewöhnlichen zurück"
       : bogenDa ? ""
       : platzFest ? "Der Regler „Bogen“ zeigt auf einen Eintrag, der nicht mehr im Archiv liegt — in der Erzählerbank neu wählen"
       : wuerfelt ? "Der Regler „Bogen“ steht auf Würfeln, aber das Archiv der Erzählerbank ist leer"

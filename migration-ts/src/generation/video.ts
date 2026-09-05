@@ -88,6 +88,33 @@ function buildVideoShots(kit: StoryKit, shotCount: number, lenTarget = 0, bank?:
   // Akkusativ („einen Schlüssel"), weil die Rahmen sie so brauchen.
   const nominativ = (x: string): string => x.replace(/^einen\s/i, (m) => m[0] === "E" ? "Ein " : "ein ").replace(/^den\s/i, (m) => m[0] === "D" ? "Der " : "der ");
 
+  // Dramaturgie-Bogen mit Schlagfolge (4.343.1): Trägt der Bogen eine Folge
+  // (Erzählerbank-Bauform oder „eigen"), wird sie auf die Shots verteilt —
+  // jeder Shot bekommt seine Schläge in der Reihenfolge der Bauform.
+  // „Katastrophe zuerst" beginnt mit dem Höhepunkt im ersten Shot,
+  // „Rückwärts" mit dem Schluss; der Kreisschluss kehrt im letzten Shot zum
+  // Einstieg zurück. Ohne Folge gilt die feste Gelenk-Verteilung wie bisher.
+  const folge = bogen?.folge && bogen.folge.length ? bogen.folge : null;
+  const schlaegeJeShot: string[][] = Array.from({ length: shotCount }, () => []);
+  if (folge) folge.forEach((sch, idx) => { schlaegeJeShot[Math.min(shotCount - 1, Math.floor((idx * shotCount) / folge.length))]!.push(sch); });
+  const schlagSatz = (sch: string): string | null => {
+    const B = bogen!;
+    switch (sch) {
+      case "einstieg": return s(B.einstieg).length ? `${cap(zieh(s(B.einstieg), kit.hook))}.` : null;
+      case "hook": return `${cap(zieh(bewegungen, kit.hook))}.`;
+      case "regel": return s(B.regeln).length ? `Regel: ${zieh(s(B.regeln), "")}.` : null;
+      case "mitte": case "mitte2": return s(B.mitte).length ? `${cap(zieh(s(B.mitte), kit.motif))}.` : null;
+      case "konflikt": return s(B.konflikte).length ? `Es geht um ${zieh(s(B.konflikte), kit.stake)}.` : `${cap(zieh(hindernisse, kit.obstacle))}.`;
+      case "ausloeser": return s(B.ausloeser).length ? `Nah: ${nominativ(zieh(s(B.ausloeser), kit.prop))}.` : null;
+      case "wende": return s(B.veraenderungen).length ? `Etwas kippt: ${zieh(s(B.veraenderungen), kit.turn)}.` : `${cap(zieh(bewegungen, kit.turn))}.`;
+      case "zeit": return s(B.zeitanomalien).length ? `${cap(zieh(s(B.zeitanomalien), ""))}.` : null;
+      case "hoehepunkt": return s(B.hoehepunkt).length ? `${cap(zieh(s(B.hoehepunkt), kit.turn))}.` : null;
+      case "einsatz": return `${cap(stripTailPunct(kit.stake))}.`;
+      case "schluss": return s(B.schluss).length && s(B.schluss)[0]!.split(/\s+/).length >= 4 ? `${cap(zieh(s(B.schluss), kit.ending))}.` : `${cap(stripTailPunct(kit.ending))}.`;
+      default: return null;
+    }
+  };
+
   const shots: string[] = [];
   const kameras: string[] = [];
   for (let i = 0; i < shotCount; i++) {
@@ -97,13 +124,18 @@ function buildVideoShots(kit: StoryKit, shotCount: number, lenTarget = 0, bank?:
     if (erster) teile.push(`${cap(place)}: ${who} nahe ${stripTailPunct(kit.propDat || kit.prop)}.`);
     const bild = zieh(bilder, stripTailPunct(kit.motif));
     if (!erster || stufe >= 2) teile.push(`${cap(bild)}.`);
-    // BEWEGUNG — an den Gelenken der Bogen
-    if (erster && bogen && s(bogen.einstieg).length) teile.push(`${cap(zieh(s(bogen.einstieg), kit.hook))}.`);
+    // BEWEGUNG — mit Schlagfolge: die Schläge dieses Shots; sonst an den Gelenken der Bogen
+    if (folge && schlaegeJeShot[i]!.length) {
+      const saetze = schlaegeJeShot[i]!.map(schlagSatz).filter((x): x is string => !!x && x.replace(/[^A-Za-zÄÖÜäöüß]/g, "").length > 3);
+      if (saetze.length) teile.push(...saetze.slice(0, stufe >= 3 ? 3 : 2));
+      else teile.push(`${cap(zieh(bewegungen, kit.hook))}.`);
+    }
+    else if (erster && bogen && s(bogen.einstieg).length) teile.push(`${cap(zieh(s(bogen.einstieg), kit.hook))}.`);
     else if (mitte && bogen && s(bogen.hoehepunkt).length) teile.push(`${cap(zieh(s(bogen.hoehepunkt), kit.turn))}.`);
     else if (letzter) teile.push(`${cap(stripTailPunct(kit.ending))}.`);
     else teile.push(`${cap(zieh(bewegungen, kit.hook))}.`);
     // NAH
-    if (stufe >= 1 && !letzter) teile.push(`Nah: ${nominativ(zieh(requisiten, stripTailPunct(kit.prop)))}.`);
+    if (stufe >= 1 && !letzter && !teile.some((t) => t.startsWith("Nah: "))) teile.push(`Nah: ${nominativ(zieh(requisiten, stripTailPunct(kit.prop)))}.`);
     // HINDERNIS im vorletzten Drittel
     if (stufe >= 2 && !erster && !letzter && hindernisse.length && i >= Math.floor(shotCount / 3)) teile.push(`${cap(zieh(hindernisse, kit.obstacle))}.`);
     // LICHT

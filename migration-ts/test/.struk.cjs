@@ -16031,6 +16031,41 @@ function buildVideoShots(kit, shotCount, lenTarget = 0, bank, tone = "neutral") 
   const proShot = lenTarget > 0 ? lenTarget / shotCount : 30;
   const stufe = proShot < 26 ? 1 : proShot < 40 ? 2 : proShot < 55 ? 3 : 4;
   const nominativ = (x) => x.replace(/^einen\s/i, (m) => m[0] === "E" ? "Ein " : "ein ").replace(/^den\s/i, (m) => m[0] === "D" ? "Der " : "der ");
+  const folge = bogen?.folge && bogen.folge.length ? bogen.folge : null;
+  const schlaegeJeShot = Array.from({ length: shotCount }, () => []);
+  if (folge) folge.forEach((sch, idx) => {
+    schlaegeJeShot[Math.min(shotCount - 1, Math.floor(idx * shotCount / folge.length))].push(sch);
+  });
+  const schlagSatz = (sch) => {
+    const B = bogen;
+    switch (sch) {
+      case "einstieg":
+        return s(B.einstieg).length ? `${cap(zieh(s(B.einstieg), kit.hook))}.` : null;
+      case "hook":
+        return `${cap(zieh(bewegungen, kit.hook))}.`;
+      case "regel":
+        return s(B.regeln).length ? `Regel: ${zieh(s(B.regeln), "")}.` : null;
+      case "mitte":
+      case "mitte2":
+        return s(B.mitte).length ? `${cap(zieh(s(B.mitte), kit.motif))}.` : null;
+      case "konflikt":
+        return s(B.konflikte).length ? `Es geht um ${zieh(s(B.konflikte), kit.stake)}.` : `${cap(zieh(hindernisse, kit.obstacle))}.`;
+      case "ausloeser":
+        return s(B.ausloeser).length ? `Nah: ${nominativ(zieh(s(B.ausloeser), kit.prop))}.` : null;
+      case "wende":
+        return s(B.veraenderungen).length ? `Etwas kippt: ${zieh(s(B.veraenderungen), kit.turn)}.` : `${cap(zieh(bewegungen, kit.turn))}.`;
+      case "zeit":
+        return s(B.zeitanomalien).length ? `${cap(zieh(s(B.zeitanomalien), ""))}.` : null;
+      case "hoehepunkt":
+        return s(B.hoehepunkt).length ? `${cap(zieh(s(B.hoehepunkt), kit.turn))}.` : null;
+      case "einsatz":
+        return `${cap(stripTailPunct(kit.stake))}.`;
+      case "schluss":
+        return s(B.schluss).length && s(B.schluss)[0].split(/\s+/).length >= 4 ? `${cap(zieh(s(B.schluss), kit.ending))}.` : `${cap(stripTailPunct(kit.ending))}.`;
+      default:
+        return null;
+    }
+  };
   const shots = [];
   const kameras = [];
   for (let i = 0; i < shotCount; i++) {
@@ -16039,11 +16074,15 @@ function buildVideoShots(kit, shotCount, lenTarget = 0, bank, tone = "neutral") 
     if (erster) teile.push(`${cap(place)}: ${who} nahe ${stripTailPunct(kit.propDat || kit.prop)}.`);
     const bild = zieh(bilder, stripTailPunct(kit.motif));
     if (!erster || stufe >= 2) teile.push(`${cap(bild)}.`);
-    if (erster && bogen && s(bogen.einstieg).length) teile.push(`${cap(zieh(s(bogen.einstieg), kit.hook))}.`);
+    if (folge && schlaegeJeShot[i].length) {
+      const saetze = schlaegeJeShot[i].map(schlagSatz).filter((x) => !!x && x.replace(/[^A-Za-zÄÖÜäöüß]/g, "").length > 3);
+      if (saetze.length) teile.push(...saetze.slice(0, stufe >= 3 ? 3 : 2));
+      else teile.push(`${cap(zieh(bewegungen, kit.hook))}.`);
+    } else if (erster && bogen && s(bogen.einstieg).length) teile.push(`${cap(zieh(s(bogen.einstieg), kit.hook))}.`);
     else if (mitte && bogen && s(bogen.hoehepunkt).length) teile.push(`${cap(zieh(s(bogen.hoehepunkt), kit.turn))}.`);
     else if (letzter) teile.push(`${cap(stripTailPunct(kit.ending))}.`);
     else teile.push(`${cap(zieh(bewegungen, kit.hook))}.`);
-    if (stufe >= 1 && !letzter) teile.push(`Nah: ${nominativ(zieh(requisiten, stripTailPunct(kit.prop)))}.`);
+    if (stufe >= 1 && !letzter && !teile.some((t) => t.startsWith("Nah: "))) teile.push(`Nah: ${nominativ(zieh(requisiten, stripTailPunct(kit.prop)))}.`);
     if (stufe >= 2 && !erster && !letzter && hindernisse.length && i >= Math.floor(shotCount / 3)) teile.push(`${cap(zieh(hindernisse, kit.obstacle))}.`);
     if (stufe >= 2) teile.push(`${zieh(licht, "Ein bew\xF6lkter Tag ohne Schatten")}.`);
     if (stufe >= 3 && ton.length) teile.push(ensurePunct(zieh(ton, "")).trim());

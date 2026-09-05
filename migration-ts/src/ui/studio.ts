@@ -630,7 +630,10 @@ export function mountStudio(root: HTMLElement): void {
     const bogenStruktur = structure.value === "dramaturgie" || structure.value === "bogen";
     const brauchbar = archivEintraege().filter((e) => platzBrauchbar(e)).length;
     const platzLeer = /^a:/.test(q) && !eintragNachId(q);
-    if (form.value !== "prose") bogenStatus.append("wirkt nicht: nur bei Form „Prosa“");
+    // Multi-Shot (4.343.1): Der Bogen wirkt dort unabhängig von der Struktur —
+    // die Schlagfolge wird auf die Shots verteilt.
+    if (form.value === "video") { bogenStatus.append(platzLeer ? "wirkt nicht: der gewählte Eintrag fehlt im Archiv" : q === "wuerfeln" && !brauchbar ? "wirkt nicht: das Archiv der Erzählerbank ist leer" : "wirkt · Multi-Shot verteilt die Schlagfolge auf die Shots"); return; }
+    if (form.value !== "prose") bogenStatus.append("wirkt nicht: nur bei Form „Prosa“ oder „Multi-Shot“");
     else if (!bogenStruktur) {
       const knopf = el("button", { type: "button", class: "mini-link" }, "auf „Dramaturgie“ stellen");
       knopf.addEventListener("click", () => { strukturVorher = structure.value; structure.value = "dramaturgie"; structure.dispatchEvent(new Event("change")); });

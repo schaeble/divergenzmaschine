@@ -7,6 +7,7 @@
 import { JSDOM } from "jsdom";
 const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/" });
 (globalThis as unknown as Record<string, unknown>).localStorage = dom.window.localStorage;
+import { readFileSync } from "fs";
 import { DEFAULT_BANK } from "../src/constants";
 import { buildStory } from "../src/generation/buildStory";
 import { setDramaData } from "../src/generation/dramaturgie";
@@ -72,6 +73,28 @@ const shots = (t: string): string[] => t.split("\n").filter((l) => l.startsWith(
   wahr("Einstieg des Bogens im ersten Shot", /Der Bahnhof atmet zum ersten Mal/.test(sh[0]!));
   wahr("Höhepunkt des Bogens in der Mitte", /Die Uhr schlägt ohne Zeiger/.test(sh[2]!));
   setDramaData(null);
+}
+
+// ── 5 · Dramaturgie-Bogen mit Schlagfolge (Erzählerbank) ─────────────────────
+{
+  const B = { einstieg: ["Der Bahnhof atmet zum ersten Mal"], mitte: ["Ein Zug, der nie kommt", "Eine Bank ohne Sitzfläche"], hoehepunkt: ["Die Uhr schlägt ohne Zeiger"], schluss: ["Zurück bleibt ein Fahrplan aus Wachs"],
+    ausloeser: ["ein Fahrplan aus Wachs"], veraenderungen: ["die Gleise beginnen zu singen"], konflikte: ["den letzten Zug"], zeitanomalien: [], regeln: [] };
+  // Katastrophe zuerst: der Höhepunkt steht im ersten Shot.
+  setDramaData({ ...B, folge: ["hoehepunkt", "einstieg", "hook", "mitte", "konflikt", "ausloeser", "wende", "einsatz", "schluss"] });
+  let sh = shots(bau({ lenTarget: 200 } as never));
+  wahr("Katastrophe zuerst: Höhepunkt im ersten Shot", /Die Uhr schlägt ohne Zeiger/.test(sh[0]!));
+  wahr("… der Einstieg folgt danach", /Der Bahnhof atmet zum ersten Mal/.test(sh[0]! + sh[1]!) && sh[0]!.indexOf("Die Uhr") < (sh[0]! + " " + sh[1]!).indexOf("Der Bahnhof"));
+  wahr("… der Schluss steht im letzten Shot", /Fahrplan aus Wachs/.test(sh[4]!));
+  wahr("Konflikt als „Es geht um …“", /Es geht um den letzten Zug/.test(sh.join(" ")));
+  wahr("Wende als „Etwas kippt: …“", /Etwas kippt: [Dd]ie Gleise beginnen zu singen/.test(sh.join(" ")));
+  // Rückwärts: der Schluss zuerst, der Einstieg zuletzt.
+  setDramaData({ ...B, folge: ["schluss", "hoehepunkt", "wende", "ausloeser", "konflikt", "mitte", "regel", "hook", "einstieg"] });
+  sh = shots(bau({ lenTarget: 200 } as never));
+  wahr("Rückwärts: Schluss im ersten Shot", /Fahrplan aus Wachs/.test(sh[0]!));
+  wahr("Rückwärts: Einstieg im letzten Shot", /Der Bahnhof atmet zum ersten Mal/.test(sh[4]!));
+  setDramaData(null);
+  const qs = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("das Studio sagt bei Multi-Shot: wirkt", /wirkt · Multi-Shot verteilt die Schlagfolge auf die Shots/.test(qs));
 }
 
 console.log(`Prüfstand Multi-Shot — ${geprueft} Prüfungen, ${bestanden} bestanden`);
