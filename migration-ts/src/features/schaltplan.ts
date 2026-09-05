@@ -18,6 +18,7 @@
 // Prüfstand mit erfundenen Beständen durchspielen, ohne einen Browser.
 import { KNOB_VORGABE, type Knobs } from "./knobs";
 import { ladeQuelle, ladeErzaehlerbank, platzBrauchbar, ladeArchiv, SCHLAGFOLGEN } from "./erzaehlerbank";
+import { statistikKurz, ZAEHLER_NAMEN } from "./waechterStatistik";
 import { TONE_OPTS, FORM_OPTS, STRUCTURE_OPTS, MODE_OPTS, PERSP_OPTS, RHYTHM_OPTS,
   VARIANZ_OPTS, DISRUPTOR_OPTS, ARCH_OPTS, MARKOV_OPTS, type Wahlliste } from "../generation/optionen";
 
@@ -139,6 +140,8 @@ export interface Umgebung {
   erzaehlerBrauchbar: number;
   /** Geschichten im Archiv, über alle Bauformen. */
   erzaehlerArchiv: number;
+  /** Wächter-Statistik (Punkt 5): verworfen/angenommen, häufigste Regel, Umschreibungen, Zerlegungen. */
+  waechter: { verworfen: number; angenommen: number; quote: number; haeufigste: string; umgeschrieben: number; zerlegt: number };
 }
 
 const bez = (liste: Wahlliste, wert: string): string =>
@@ -171,6 +174,18 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   // ── Spalte 0: Vorräte ────────────────────────────────────────────────────
   knoten("korpus", 0, "Korpus", u.korpusZeichen ? `${u.korpusZeichen.toLocaleString("de-DE")} Zeichen` : "leer",
     u.korpusZeichen ? "an" : "aus", u.korpusZeichen ? "" : "kein eigener Text hinterlegt");
+  // Wächter-Statistik (Punkt 5): Der Satz-Wächter, der Umschreiber und die
+  // Atomisierung zählen mit. Der Knoten zeigt, was seit dem Zurücksetzen
+  // geschah — und welche Regel am häufigsten greift; die Beispiele stehen in
+  // der Diagnose.
+  {
+    const w = u.waechter;
+    const gesamt = w.verworfen + w.angenommen;
+    knoten("waechter", 1, "Satz-Wächter",
+      gesamt ? `${w.verworfen} von ${gesamt} verworfen (${Math.round(w.quote * 100)} %) · ${w.umgeschrieben} umgeschrieben · ${w.zerlegt} zerlegt` : "noch nichts gezählt",
+      gesamt ? "an" : "leer",
+      w.haeufigste ? `häufigste Regel: ${w.haeufigste} — Beispiele in der Diagnose unter „Wächter-Statistik“` : "zählt ab der ersten Markov-Kette; ohne Korpus bleibt er still");
+  }
   knoten("sammler", 0, "Sammler-Vorrat", `${u.sammlerFunde} Funde`, u.sammlerFunde ? "an" : "aus",
     u.sammlerFunde ? "" : "im Reiter Sammler einen Tag holen");
   knoten("bilder", 0, "Bildvorrat", `${u.bildFunde} Funde`, u.bildFunde ? "an" : "aus");
@@ -462,6 +477,8 @@ export function sammleUmgebung(preset: string): Umgebung {
     }, ""),
     erzaehlerBrauchbar: zahl(() => ladeErzaehlerbank().filter((e) => platzBrauchbar(e)).length, 0),
     erzaehlerArchiv: zahl(() => Object.values(ladeArchiv()).reduce((n, l) => n + l.length, 0), 0),
+    waechter: zahl(() => { const k = statistikKurz(); return { ...k, haeufigste: k.haeufigste ? ZAEHLER_NAMEN[k.haeufigste] : "" }; },
+      { verworfen: 0, angenommen: 0, quote: 0, haeufigste: "", umgeschrieben: 0, zerlegt: 0 }),
     ideenProfil: zahl(() => { const p = loadIdeaProfile(); return p ? (p.profil.name || p.profil.genre) : ""; }, ""),
     omniProfile: zahl(() => alleOmniProfile().length, 0),
     omniProfil: zahl(() => { const st = loadOmniStand(); return st ? (st.profil.name || "") : ""; }, ""),

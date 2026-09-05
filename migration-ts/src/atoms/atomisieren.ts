@@ -20,6 +20,7 @@
 //   4. Was danach noch zu lang ist, bleibt ganz — aber der Zusammenbau zieht
 //      es seltener (Abzug je überzähligem Wort, siehe assemble.ts).
 import { hatFinitesVerb } from "./derive";
+import { zaehle } from "../features/waechterStatistik";
 
 const wc = (s: string): number => (s.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
 const trimSatz = (s: string): string => s.trim().replace(/^[,;:—–\s]+|[,;:—–\s]+$/g, "").trim();
@@ -33,24 +34,35 @@ const tragfaehig = (s: string): boolean => wc(s) >= 3 && (hatFinitesVerb(s) || N
 /** Zerlegt einen Baustein in Atome von höchstens `max` Wörtern, soweit es
  *  tragfähig geht. `max` 0 = aus (der Baustein bleibt, wie er ist). */
 export function atomisiere(text: string, max: number): string[] {
+  const teile = atomisiereRoh(text, max);
+  // Statistik (Punkt 5): zerlegt, gekürzt, oder zu lang ganz gelassen.
+  const t = trimSatz(text || "");
+  if (t && max >= 6 && wc(t) > max) {
+    if (teile.length > 1) zaehle("atomZerlegt", `${t} → ${teile.join(" | ")}`);
+    else if (teile.length === 1 && teile[0] !== t) zaehle("atomGekuerzt", `${t} → ${teile[0]}`);
+    else zaehle("atomGanzZuLang", t);
+  }
+  return teile;
+}
+function atomisiereRoh(text: string, max: number): string[] {
   const t = trimSatz(text || "");
   if (!t) return [];
   if (!max || max < 6 || wc(t) <= max) return [t];
 
   // 1. Harte Fugen — jede Seite eigenständig weiter zerlegen.
   const harte = t.split(/\s*(?:—|–|;|:)\s+/).map(trimSatz).filter((x) => wc(x) >= 3);
-  if (harte.length > 1) return harte.flatMap((x) => atomisiere(x, max));
+  if (harte.length > 1) return harte.flatMap((x) => atomisiereRoh(x, max));
 
   // 2. Zwei Hauptsätze, verbunden mit Konjunktion nach Komma.
   const koord = t.match(/^(.+?),\s+(und|aber|doch|denn|sondern)\s+(.+)$/i);
   if (koord && hatFinitesVerb(koord[1]!) && hatFinitesVerb(koord[3]!) && wc(koord[1]!) >= 3 && wc(koord[3]!) >= 3)
-    return [...atomisiere(koord[1]!, max), ...atomisiere(koord[3]!, max)];
+    return [...atomisiereRoh(koord[1]!, max), ...atomisiereRoh(koord[3]!, max)];
 
   // 3. Nachgestellter Nebensatz: Hauptsatz behalten, Nebensatz fällt.
   const ns = t.match(NEBENSATZ);
   if (ns && ns.index !== undefined) {
     const haupt = trimSatz(t.slice(0, ns.index));
-    if (tragfaehig(haupt) && wc(haupt) >= 4) return atomisiere(haupt, max);
+    if (tragfaehig(haupt) && wc(haupt) >= 4) return atomisiereRoh(haupt, max);
   }
 
   // 4. Bleibt lang — ganz lassen, der Abzug beim Ziehen übernimmt.

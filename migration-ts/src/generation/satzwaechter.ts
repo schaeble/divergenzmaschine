@@ -12,6 +12,7 @@
 // und ein zu strenger Wächter würde ihren Ton töten. Jede Regel steht mit
 // ihrem gemeldeten Fall daneben.
 import { istVerbform, KEIN_VERB } from "./verben";
+import { zaehle } from "../features/waechterStatistik";
 
 const FUNKTION = new Set([
   "der", "die", "das", "den", "dem", "des", "ein", "eine", "einen", "einem", "einer", "eines",
@@ -77,15 +78,16 @@ const woerter = (s: string): string[] => s.split(/\s+/).map((w) => w.replace(/[�
 const NP_KOPF = /^(der|die|das|ein|eine|einen|kein|keine|zwei|drei|viele|manche|jede[rs]?|irgendein|lauter)\b/i;
 
 /** Ein einzelner Satz (ohne Schlusszeichen) — plausibel oder gebrochen? */
-export function satzPlausibel(satz: string): boolean {
+/** Welche Regel verwirft diesen Satz? 0 = keine (plausibel). */
+export function pruefeSatz(satz: string): number {
   const bare = satz.trim().replace(/[.!?…]+$/, "").trim();
-  if (!bare) return false;
+  if (!bare) return 2;
   const ws = woerter(bare);
-  if (!ws.length) return false;
+  if (!ws.length) return 2;
 
   // 1. Hängendes Ende: „… was nach dem" / „… eine Uhr und". Immer gebrochen.
   const letztes = ws[ws.length - 1]!.toLowerCase();
-  if (HAENGENDES_ENDE.has(letztes)) return false;
+  if (HAENGENDES_ENDE.has(letztes)) return 1;
 
   const hatVerb = ws.some((w, i) => verbKandidat(w, i === 0));
 
@@ -93,7 +95,7 @@ export function satzPlausibel(satz: string): boolean {
   //    fest" — kein Verbkandidat, kein Nominalphrasen-Kopf. Kurze Bildzeilen
   //    („Eine Uhr ohne Zeiger", „Nebelfetzen im Gras") bleiben erlaubt.
   if (!hatVerb) {
-    if (ws.length > 12) return false;
+    if (ws.length > 12) return 2;
     // Koordinator am Kopf abstreifen („Und der Traum …"), dann gilt: Ein
     // Artikel-Kopf ODER ein Nomen-Kopf (großgeschrieben, kein Adverb) trägt
     // eine gewollte Bildzeile — „Salz auf den Lippen wie eine Predigt",
@@ -106,7 +108,7 @@ export function satzPlausibel(satz: string): boolean {
     // Präpositional-Fragmente sind Hausstil („Am Vorabend einer Abreise in
     // einer Wüste mit Türen.") — sie bleiben.
     const prepKopf = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zu|zum|zur|mit|durch|gegen|um|seit|während|trotz|wegen)$/i.test(kopf);
-    if (ws.length > 5 && !NP_KOPF.test(kern) && !nomenKopf && !prepKopf) return false;
+    if (ws.length > 5 && !NP_KOPF.test(kern) && !nomenKopf && !prepKopf) return 2;
   }
 
   // 3. Gebrochene Klausel: Nach dem Komma ein Relativ-/Fragewort, und zwischen
@@ -116,7 +118,7 @@ export function satzPlausibel(satz: string): boolean {
     const tw = woerter(teil);
     if (!tw.length || !/^(was|wer|der|die|das|dem|den|wo|wie)$/i.test(tw[0]!)) continue;
     const undIdx = tw.findIndex((w, i) => i > 0 && /^(und|oder)$/i.test(w));
-    if (undIdx > 1 && verbKandidat(tw[undIdx + 1] || "", false) && !tw.slice(1, undIdx).some((w) => verbKandidat(w, false))) return false;
+    if (undIdx > 1 && verbKandidat(tw[undIdx + 1] || "", false) && !tw.slice(1, undIdx).some((w) => verbKandidat(w, false))) return 3;
   }
 
   // 4. Subjektlose Inversion mit Vergleich: Eine Klausel, die mit einer
@@ -137,7 +139,7 @@ export function satzPlausibel(satz: string): boolean {
     if (vi < 2) continue;
     if (tw.slice(1, vi).some((w) => /^(es|er|sie|wir|ich|du|man|jemand|niemand|etwas|nichts|alles)$/i.test(w))) continue;
     const rest = tw.slice(vi + 1);
-    if (/^(wie|als)$/i.test(rest[0] || "") && rest.length <= 2) return false;
+    if (/^(wie|als)$/i.test(rest[0] || "") && rest.length <= 2) return 4;
   }
 
   // 5. „lässt sich …" verlangt am Klausel-Ende einen Infinitiv (lässt sich
@@ -153,7 +155,7 @@ export function satzPlausibel(satz: string): boolean {
     const letztes = (tw[tw.length - 1] || "").toLowerCase();
     if (!letztes || /^[A-ZÄÖÜ]/.test(tw[tw.length - 1] || "")) continue;   // Nomen am Ende: „lässt sich Zeit"
     if (FUNKTION.has(letztes) || ADJEKTIV.has(letztes) || HILFSVERB.has(letztes)) continue;
-    if (/t$/.test(letztes) && !/(en|eln|ern)$/.test(letztes)) return false;
+    if (/t$/.test(letztes) && !/(en|eln|ern)$/.test(letztes)) return 5;
   }
 
   // 6. Zwei finite Verben in einer Klausel, nur eine Nominalphrase dazwischen,
@@ -173,7 +175,7 @@ export function satzPlausibel(satz: string): boolean {
       // Das zweite Verb muss ein sicheres Hilfs-/Modalverb sein — „hängt das
       // Bild verkehrt", „wird das Protokoll abgeheftet" (Adjektiv, Partizip)
       // bleiben; „kommt das Licht wird" fällt.
-      if (HILFSVERB.has(tw[i + 3]!.toLowerCase())) return false;
+      if (HILFSVERB.has(tw[i + 3]!.toLowerCase())) return 6;
     }
   }
 
@@ -181,20 +183,29 @@ export function satzPlausibel(satz: string): boolean {
   //    andere Hälfte in einer anderen Kette blieb („… keine Bücher!« grölte er").
   {
     const auf = (bare.match(/[„»]/g) || []).length, zu = (bare.match(/[“«]/g) || []).length;
-    if (auf !== zu) return false;
+    if (auf !== zu) return 7;
   }
 
   // 8. „Es gibt jetzt." — „es gibt" ohne Gegenstand, nur mit Adverb oder am
   //    Ende: der Rest einer Kette.
   for (const teil of bare.split(/[,;:—–]\s*/))
-    if (/^es gibt(\s+(jetzt|hier|dort|noch|nur|auch|bald|immer|nie))?$/i.test(teil.trim())) return false;
+    if (/^es gibt(\s+(jetzt|hier|dort|noch|nur|auch|bald|immer|nie))?$/i.test(teil.trim())) return 8;
 
-  return true;
+  return 0;
 }
+
+export function satzPlausibel(satz: string): boolean { return pruefeSatz(satz) === 0; }
 
 /** Alle Sätze eines Markov-Stücks müssen plausibel sein. */
 export function stueckPlausibel(text: string): boolean {
   const saetze = (text || "").split(/(?<=[.!?…])\s+/).map((s) => s.trim()).filter(Boolean);
   if (!saetze.length) return false;
-  return saetze.every(satzPlausibel);
+  for (const satz of saetze) {
+    const regel = pruefeSatz(satz);
+    if (regel) { zaehle(`regel${regel}` as "regel1", satz); return false; }
+  }
+  // Durchgelassen: jedes zehnte Stück als Stichprobe merken — dort steht das
+  // nächste Muster, bevor ein Blatt es zeigt.
+  zaehle("angenommen", Math.random() < 0.1 ? text : undefined);
+  return true;
 }

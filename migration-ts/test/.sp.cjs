@@ -92,6 +92,418 @@ var init_text_utils = __esm({
   }
 });
 
+// src/generation/verblex.data.ts
+var GRUND, VERB_PRAEFIXE, PAST2PRES, VERB_INFINITIVE;
+var init_verblex_data = __esm({
+  "src/generation/verblex.data.ts"() {
+    "use strict";
+    GRUND = `
+achten \xE4chzen ahnen \xE4ndern \xE4rgern arbeiten atmen backen baden bangen bauen beben bedeuten beeilen befehlen beginnen begreifen
+behalten bei\xDFen bellen bergen bersten beten betteln beugen bewegen biegen bieten bilden binden bitten blasen bleiben blenden blicken
+blinken blinzeln blitzen bl\xFChen bluten bohren borgen brauchen brausen brechen bremsen brennen bringen br\xFCllen brummen buchen b\xFCcken
+b\xFCgeln b\xFCrsten danken decken dehnen denken deuten dichten dienen d\xF6sen dr\xE4ngen drehen dreschen dringen drohen dr\xF6hnen drucken dr\xFCcken
+dulden dunkeln d\xFCrfen duften d\xFCngen d\xFCnken durchqueren ebben ehren eignen eilen einen eitern ekeln enden entbehren entgleiten erben
+erl\xF6schen ernten essen f\xE4cheln fahren fallen falten fangen fassen fasten fauchen fechten fegen fehlen feiern feilen feixen fesseln
+feuern finden fischen flackern flattern flechten flehen flicken fliegen fliehen flie\xDFen flimmern flirren fl\xF6ten fluchen fluten
+fl\xFCstern folgen fordern forschen fragen fressen freuen frieren f\xFCgen f\xFChlen f\xFChren f\xFCllen funkeln f\xFCrchten fu\xDFen g\xE4hnen g\xE4ren gaffen
+geben gedeihen gehen gehorchen geh\xF6ren gelingen gelten genesen genie\xDFen geraten geschehen gewinnen gie\xDFen gl\xE4nzen glauben gleichen
+gleiten glimmen glitzern gl\xFChen g\xF6nnen graben grasen greifen grinsen grollen gr\xFCbeln gr\xFCnen gr\xFC\xDFen gucken haben hacken haften hageln
+haken hallen halten h\xE4mmern handeln h\xE4ngen harren hassen hasten hauchen hauen h\xE4ufen heben heften hegen heilen hei\xDFen heizen helfen
+hemmen herrschen hetzen heulen hinken hocken hoffen holen horchen h\xF6ren huldigen h\xFCllen humpeln hungern hupen h\xFCpfen husten h\xFCten
+irren jagen jammern jauchzen jubeln k\xE4mmen k\xE4mpfen kauen kaufen kehren keimen kennen kichern kippen kitzeln klagen klappen klappern
+kl\xE4ren klatschen kleben kleiden klettern klingeln klingen klirren klopfen knabbern knacken knallen knarren kneifen kneten knicken
+knien knirschen knistern kn\xFCpfen kochen kommen k\xF6nnen kosten krachen kr\xE4hen kr\xE4nken kratzen kreisen kreuzen kriechen kriegen
+kritzeln kr\xFCmmen k\xFChlen k\xFCmmern k\xFCrzen k\xFCssen lachen laden lagern l\xE4hmen landen langen lassen lasten lauern laufen lauschen lauten
+l\xE4uten leben lecken legen lehnen lehren leiden leihen leisten leiten lenken lernen lesen leuchten lieben liefern liegen lindern
+loben locken lodern lohnen l\xF6schen l\xF6sen l\xFCgen lutschen machen mahlen mahnen malen mangeln meiden meinen melden melken merken messen
+mischen missen m\xF6gen morden m\xFCssen munkeln murmeln nagen n\xE4hen nahen n\xE4hern n\xE4hren naschen necken nehmen neigen nennen nesteln
+nicken nieseln nippen nisten n\xF6rgeln nutzen n\xFCtzen \xF6ffnen opfern ordnen packen passen pausieren peitschen pfeifen pflanzen pflegen
+pfl\xFCcken picken plagen platzen plaudern pochen poltern pr\xE4gen prallen prangen prasseln predigen preisen pressen probieren pr\xFCfen
+pr\xFCgeln pulsieren pumpen putzen qu\xE4len quellen quietschen raffen ragen rasen rasten raten rauben rauchen r\xE4umen rauschen rechnen
+reden regen regnen reiben reichen reifen reihen reimen reisen rei\xDFen reiten rennen retten reuen richten riechen ringen rinnen
+ritzen rollen rosten r\xFCcken rudern rufen ruhen r\xFChmen r\xFChren r\xFCtteln s\xE4en sagen sammeln s\xE4umen saugen s\xE4useln schaben schaffen
+schallen schalten sch\xE4men scharren sch\xE4tzen schauen schaufeln schaukeln scheiden scheinen scheitern schellen schelten schenken
+scheren scheuchen scheuen schicken schieben schielen schie\xDFen schildern schimmern schimpfen schinden schlafen schlagen schleichen
+schleifen schleppen schleudern schlie\xDFen schlingen schlucken schl\xFCpfen schmecken schmeicheln schmelzen schmerzen schmieden
+schmieren schm\xFCcken schmunzeln schnappen schnarchen schneiden schneien schn\xFCren schnuppern schonen sch\xF6pfen schrauben schreiben
+schreien schreiten schrumpfen sch\xFCren sch\xFCrfen sch\xFCtteln sch\xFCtten sch\xFCtzen schwanken schw\xE4rmen schwatzen schweben schweifen
+schweigen schwellen schwenken schwimmen schwinden schwingen schwitzen schw\xF6ren segeln segnen sehen sehnen seufzen sichern sichten
+sickern sieden siegen singen sinken sinnen sitzen sollen sorgen sp\xE4hen spalten spannen sparen spazieren speien speisen spenden
+sperren spielen spinnen spotten sprechen sprengen sprie\xDFen springen spritzen spr\xFChen spucken sp\xFClen sp\xFCren stammeln stammen
+stampfen stapeln starren stauben staunen stechen stecken stehen stehlen steigen steinigen stellen sterben steuern sticken
+stinken st\xF6hnen stolpern stopfen st\xF6ren sto\xDFen strahlen stranden streben strecken streichen streicheln streiten streuen
+stricken str\xF6men st\xFCrmen st\xFCrzen stutzen st\xFCtzen suchen summen s\xFCndigen tadeln tagen tanken tanzen tappen tasten tauchen tauen
+taugen taumeln tauschen t\xE4uschen teilen tilgen toben t\xF6nen tosen traben trachten tragen trampeln trauen trauern tr\xE4umen treffen
+treiben trennen treten triefen trinken trocknen trommeln tropfen tr\xF6sten trotzen tr\xFCben tun t\xFCrmen \xFCben umarmen urteilen
+vergessen verlieren verzeihen wachen wachsen wagen w\xE4hlen w\xE4hnen wahren w\xE4hren wandeln wandern wanken w\xE4rmen warnen warten waschen
+weben wechseln wecken wehen wehren weichen weiden weigern weihen weilen weinen weisen weiten welken wenden werben werden werfen
+werken wetten wickeln widmen wiegen wimmeln wimmern winden winken wirbeln wirken wischen wissen wittern wohnen w\xF6lben wollen
+wuchern w\xFChlen wundern w\xFCnschen w\xFCrdigen w\xFCrgen w\xFCrzen zagen zahlen z\xE4hlen z\xE4hmen zaubern zaudern zausen zehren zeichnen zeigen
+zerren zeugen ziehen zielen ziemen zieren zischen zittern z\xF6gern zucken zupfen zw\xE4ngen zweifeln zwingen zwinkern zwitschern
+adeln \xE4hneln akzeptieren analysieren antworten applaudieren beantworten begegnen begleiten behaupten beobachten berichten
+ber\xFChren beschreiben besitzen bestimmen besuchen betrachten betreten beweisen bezahlen br\xFCten datieren definieren diskutieren
+d\xE4mmern d\xE4mpfen dampfen detonieren donnern duschen entdecken entscheiden entschuldigen entwickeln erinnern erkennen erkl\xE4ren
+erlauben erleben erreichen erschrecken erwarten erz\xE4hlen existieren fabrizieren fasziniert funktionieren garantieren geb\xE4ren
+gefallen gen\xFCgen geschehen gestalten gew\xF6hnen glitschen h\xE4mmern handeln heiraten hindern ignorieren informieren interessieren
+kapitulieren kentern klettern kombinieren kontrollieren korrigieren kosten kreisen k\xFCrzen leiden lodern markieren marschieren
+meistern montieren murren musizieren notieren n\xF6tigen operieren organisieren passieren pilgern planen pl\xFCndern posieren
+probieren produzieren protestieren protokollieren rasieren reagieren regieren reparieren respektieren riskieren rotieren
+schmei\xDFen schmettern schnattern sortieren spekulieren studieren telefonieren transportieren trainieren trauen tr\xF6deln
+\xFCberlegen verabschieden ver\xE4ndern verbergen verbinden verbrennen verdienen verfolgen verhalten verhandeln verkaufen verlangen
+verlassen vermeiden vermuten verraten versagen verschieben verschwinden versichern versprechen verstecken verstehen versuchen
+verteidigen vertrauen verwalten verwandeln verweigern verwenden verzichten vollenden wackeln wandeln weinen wirbeln zerbrechen
+zerst\xF6ren z\xF6gern zurechtkommen zweifeln
+stimmen passen setzen dauern l\xF6sen l\xE4cheln k\xFCndigen retten ticken z\xFCnden siegeln entfernen verl\xE4ngern verstummen beschriften
+gabeln erledigen bewilligen best\xE4tigen sichern lohnen stauen stocken t\xF6nen tr\xFCben w\xE4hnen zerren fehlen kosten sparen sperren
+st\xFCrzen stapeln stehlen schweigen taumeln t\xF6ten trocknen tr\xF6pfeln \xFCbergehen verschlie\xDFen vertreten verwahren verwirren vollziehen
+wachsen wandern weichen wirken wurzeln zerfallen zerflie\xDFen zergehen zerrei\xDFen zerschlagen zersplittern zischen
+regeln spiegeln speichern beschleunigen senken f\xE4rben formen altern riegeln fiebern schlitzen rutschen beanstanden erg\xE4nzen
+bl\xE4ttern sanden schulden bessern bremsen dunkeln d\xFCstern erkennen ernennen f\xE4rben festigen filtern fl\xFCchten fr\xF6nen g\xE4hnen
+h\xE4uten heilen hetzen k\xE4mmen klammern klemmen kneten kramen kr\xE4nkeln kr\xE4useln lasten leimen l\xFCften mildern mustern nachten
+n\xE4ssen nieten \xF6len pinseln pl\xE4tschern polstern prallen prunken quirlen r\xE4dern reifen richten r\xF6cheln r\xFCtteln s\xE4ubern salzen
+s\xE4umen sch\xE4tzen schaudern schl\xE4ngeln schleimen schlummern schmoren schn\xFCffeln schrubben schw\xE4chen schwelen sengen sondern
+spalten spiegeln spitzen sprudeln stauben steuern stochern strampeln streifen striegeln stumpfen sudeln tauen tigern tippen
+trampeln t\xFCnchen wabern watscheln wetzen wiehern winseln wispern wittern wuchten zerknittern zetern zieren zittern zotteln zuckeln
+abh\xE4ngen ankommen anfangen aufstehen ausgehen bedienen befreien behandeln bemerken benennen beschlie\xDFen bestehen betonen bewahren
+bezeichnen bilden bluten br\xFCten b\xFC\xDFen d\xE4mmern deuten drehen ehren einigen empfangen empfehlen entfalten enthalten entlassen entstehen
+erfahren erfinden ergeben erhalten erheben erholen erl\xF6sen ermahnen ern\xE4hren er\xF6ffnen erregen ersch\xF6pfen ersticken erstarren erw\xE4hnen
+erweitern erzeugen fesseln fl\xFCchten fr\xF6steln funken gebieten gedenken gelangen gemahnen geraten gestehen gew\xE4hren graben grenzen
+gr\xFCbeln hadern harken hausen heben herrschen hindern huschen j\xE4ten jucken keuchen klaffen kleckern klimpern knallen kraulen kreischen
+kringeln kritzeln kr\xF6nen kuscheln l\xE4rmen leuchten lichten lispeln lugen lungern m\xE4\xDFigen mei\xDFeln mieten mindern m\xFChen murksen nachahmen
+nagen n\xE4seln n\xF6rgeln nuscheln pachten pflastern pieksen plappern prahlen prangen prellen prosten quaken qualmen r\xE4uspern rauen r\xE4umen
+reizen rieseln rodeln r\xF6hren rumpeln s\xE4beln s\xE4ckeln s\xE4gen sausen sch\xE4umen sch\xE4len schaufeln schnalzen schnaufen schnellen schnippen
+schwappen schwirren seihen sichten siezen sinnieren spannen spenden spicken spie\xDFen sprenkeln spuken st\xE4nkern stelzen stemmen sticheln
+st\xF6bern stopfen strapazieren strotzen st\xFClpen stutzen t\xE4ndeln taxieren tollen torkeln tr\xE4llern trudeln tuscheln umgarnen verharren
+wabbeln walzen wedeln weilen wetteifern wimmeln wringen wuseln zappeln zaubern zechen zergehen zerkn\xFCllen zerlegen zerm\xFCrben zerpfl\xFCcken
+zerschellen zertr\xFCmmern zeugen zirpen zocken zurren
+`;
+    VERB_PRAEFIXE = [
+      "zusammen",
+      "zur\xFCck",
+      "wieder",
+      "gegen",
+      "hinter",
+      "durch",
+      "unter",
+      "\xFCber",
+      "voran",
+      "vorbei",
+      "heraus",
+      "herein",
+      "hinaus",
+      "hinein",
+      "herum",
+      "hinauf",
+      "hinab",
+      "herab",
+      "empor",
+      "fort",
+      "los",
+      "weg",
+      "fest",
+      "auseinander",
+      "entgegen",
+      "entlang",
+      "nieder",
+      "umher",
+      "davon",
+      "dazu",
+      "hoch",
+      "her",
+      "hin",
+      "ver",
+      "ent",
+      "emp",
+      "miss",
+      "zer",
+      "be",
+      "er",
+      "ge",
+      "an",
+      "ab",
+      "auf",
+      "aus",
+      "ein",
+      "mit",
+      "nach",
+      "vor",
+      "zu",
+      "um",
+      "bei",
+      "da",
+      "wider",
+      "still",
+      "frei",
+      "leer",
+      "tot",
+      "voll",
+      "wahr",
+      "gut",
+      "kaputt"
+    ];
+    PAST2PRES = {
+      // Ergänzt 4.338.2 (Blatt „Vier Kinder": „Das Herz schlug mir bis zum Hals" blieb stehen):
+      schlug: "schl\xE4gt",
+      schlugen: "schlagen",
+      roch: "riecht",
+      rochen: "riechen",
+      traf: "trifft",
+      trafen: "treffen",
+      schob: "schiebt",
+      schoben: "schieben",
+      tat: "tut",
+      taten: "tun",
+      wusch: "w\xE4scht",
+      stritt: "streitet",
+      glitt: "gleitet",
+      stie\u00DF: "st\xF6\xDFt",
+      stie\u00DFen: "sto\xDFen",
+      goss: "gie\xDFt",
+      band: "bindet",
+      banden: "binden",
+      zwang: "zwingt",
+      fing: "f\xE4ngt",
+      fingen: "fangen",
+      sandte: "sendet",
+      mochte: "mag",
+      mochten: "m\xF6gen",
+      stahl: "stiehlt",
+      galt: "gilt",
+      galten: "gelten",
+      gelang: "gelingt",
+      verband: "verbindet",
+      erhielt: "erh\xE4lt",
+      erhielten: "erhalten",
+      behielt: "beh\xE4lt",
+      enthielt: "enth\xE4lt",
+      verlie\u00DF: "verl\xE4sst",
+      verlie\u00DFen: "verlassen",
+      genoss: "genie\xDFt",
+      schlich: "schleicht",
+      strich: "streicht",
+      blies: "bl\xE4st",
+      lud: "l\xE4dt",
+      luden: "laden",
+      schuf: "schafft",
+      schufen: "schaffen",
+      log: "l\xFCgt",
+      betrog: "betr\xFCgt",
+      flocht: "flicht",
+      kroch: "kriecht",
+      krochen: "kriechen",
+      schmolz: "schmilzt",
+      quoll: "quillt",
+      quollen: "quellen",
+      verging: "vergeht",
+      vergingen: "vergehen",
+      entging: "entgeht",
+      erging: "ergeht",
+      erschrak: "erschrickt",
+      war: "ist",
+      waren: "sind",
+      warst: "bist",
+      hatte: "hat",
+      hatten: "haben",
+      hattest: "hast",
+      wurde: "wird",
+      wurden: "werden",
+      ging: "geht",
+      gingen: "gehen",
+      kam: "kommt",
+      kamen: "kommen",
+      sah: "sieht",
+      sahen: "sehen",
+      gab: "gibt",
+      gaben: "geben",
+      stand: "steht",
+      standen: "stehen",
+      blieb: "bleibt",
+      blieben: "bleiben",
+      hielt: "h\xE4lt",
+      hielten: "halten",
+      lie\u00DF: "l\xE4sst",
+      lie\u00DFen: "lassen",
+      fand: "findet",
+      fanden: "finden",
+      nahm: "nimmt",
+      nahmen: "nehmen",
+      sprach: "spricht",
+      sprachen: "sprechen",
+      schrieb: "schreibt",
+      schrieben: "schreiben",
+      trug: "tr\xE4gt",
+      trugen: "tragen",
+      fuhr: "f\xE4hrt",
+      fuhren: "fahren",
+      lief: "l\xE4uft",
+      liefen: "laufen",
+      sa\u00DF: "sitzt",
+      sa\u00DFen: "sitzen",
+      lag: "liegt",
+      lagen: "liegen",
+      hie\u00DF: "hei\xDFt",
+      hie\u00DFen: "hei\xDFen",
+      zog: "zieht",
+      zogen: "ziehen",
+      schlief: "schl\xE4ft",
+      schliefen: "schlafen",
+      rief: "ruft",
+      riefen: "rufen",
+      fiel: "f\xE4llt",
+      fielen: "fallen",
+      sang: "singt",
+      sangen: "singen",
+      trank: "trinkt",
+      tranken: "trinken",
+      schwieg: "schweigt",
+      schwiegen: "schweigen",
+      floss: "flie\xDFt",
+      flossen: "flie\xDFen",
+      stieg: "steigt",
+      stiegen: "steigen",
+      sank: "sinkt",
+      sanken: "sinken",
+      bot: "bietet",
+      boten: "bieten",
+      schloss: "schlie\xDFt",
+      schlossen: "schlie\xDFen",
+      verlor: "verliert",
+      verloren: "verlieren",
+      begann: "beginnt",
+      begannen: "beginnen",
+      geschah: "geschieht",
+      geschahen: "geschehen",
+      konnte: "kann",
+      konnten: "k\xF6nnen",
+      musste: "muss",
+      mussten: "m\xFCssen",
+      wollte: "will",
+      wollten: "wollen",
+      sollte: "soll",
+      sollten: "sollen",
+      durfte: "darf",
+      durften: "d\xFCrfen",
+      wusste: "wei\xDF",
+      wussten: "wissen",
+      dachte: "denkt",
+      dachten: "denken",
+      brachte: "bringt",
+      brachten: "bringen",
+      kannte: "kennt",
+      kannten: "kennen",
+      erkannte: "erkennt",
+      erkannten: "erkennen",
+      brannte: "brennt",
+      brannten: "brennen",
+      nannte: "nennt",
+      nannten: "nennen",
+      rannte: "rennt",
+      rannten: "rennen",
+      wandte: "wendet",
+      wandten: "wenden",
+      sprang: "springt",
+      sprangen: "springen",
+      schrie: "schreit",
+      schrien: "schreien",
+      flog: "fliegt",
+      flogen: "fliegen",
+      floh: "flieht",
+      flohen: "fliehen",
+      schoss: "schie\xDFt",
+      schossen: "schie\xDFen",
+      riss: "rei\xDFt",
+      rissen: "rei\xDFen",
+      biss: "bei\xDFt",
+      bissen: "bei\xDFen",
+      griff: "greift",
+      griffen: "greifen",
+      pfiff: "pfeift",
+      pfiffen: "pfeifen",
+      schnitt: "schneidet",
+      schnitten: "schneiden",
+      litt: "leidet",
+      litten: "leiden",
+      trat: "tritt",
+      traten: "treten",
+      verga\u00DF: "vergisst",
+      verga\u00DFen: "vergessen",
+      wuchs: "w\xE4chst",
+      wuchsen: "wachsen",
+      wich: "weicht",
+      wichen: "weichen",
+      schien: "scheint",
+      schienen: "scheinen",
+      zerbrach: "zerbricht",
+      zerbrachen: "zerbrechen",
+      verschwand: "verschwindet",
+      verschwanden: "verschwinden",
+      erschien: "erscheint",
+      erschienen: "erscheinen",
+      starb: "stirbt",
+      starben: "sterben",
+      brach: "bricht",
+      brachen: "brechen",
+      sprach2: "spricht",
+      schwoll: "schwillt",
+      schwollen: "schwellen",
+      bog: "biegt",
+      bogen: "biegen",
+      hob: "hebt",
+      hoben: "heben",
+      wob: "webt",
+      woben: "weben",
+      klang: "klingt",
+      klangen: "klingen",
+      sann: "sinnt",
+      sannen: "sinnen",
+      rann: "rinnt",
+      rannen: "rinnen",
+      schwamm: "schwimmt",
+      schwammen: "schwimmen",
+      verschwieg: "verschweigt",
+      zerfiel: "zerf\xE4llt",
+      zerfielen: "zerfallen",
+      entstand: "entsteht",
+      entstanden: "entstehen",
+      verstand: "versteht",
+      verstanden: "verstehen",
+      bestand: "besteht",
+      bestanden: "bestehen",
+      geriet: "ger\xE4t",
+      gerieten: "geraten",
+      trieb: "treibt",
+      trieben: "treiben",
+      schrak: "schrickt",
+      wies: "weist",
+      wiesen: "weisen",
+      hing: "h\xE4ngt",
+      hingen: "h\xE4ngen",
+      schwand: "schwindet",
+      schwanden: "schwinden",
+      gewann: "gewinnt",
+      gewannen: "gewinnen",
+      zerriss: "zerrei\xDFt",
+      zerrissen2: "zerrei\xDFen",
+      empfand: "empfindet",
+      empfanden: "empfinden",
+      befahl: "befiehlt",
+      befahlen: "befehlen",
+      half: "hilft",
+      halfen: "helfen",
+      warf: "wirft",
+      warfen: "werfen",
+      starrte2: "starrt",
+      las: "liest",
+      lasen: "lesen",
+      a\u00DF: "isst",
+      a\u00DFen: "essen",
+      bat: "bittet",
+      baten: "bitten"
+    };
+    VERB_INFINITIVE = new Set(GRUND.split(/\s+/).map((w) => w.trim()).filter((w) => w.length > 2));
+  }
+});
+
 // src/generation/verben.ts
 function starkMitPraefix(form) {
   if (STARK[form]) return ["", STARK[form]];
@@ -103,10 +515,46 @@ function starkMitPraefix(form) {
   }
   return null;
 }
+function kenntInfinitiv(wort) {
+  const w = wort.toLowerCase();
+  if (VERB_INFINITIVE.has(w)) return true;
+  for (const p of VERB_PRAEFIXE) {
+    if (w.startsWith(p) && w.length > p.length + 3 && VERB_INFINITIVE.has(w.slice(p.length))) return true;
+  }
+  return false;
+}
+function infinitivZuStamm(stamm) {
+  const s = stamm.toLowerCase();
+  if (!s) return null;
+  const kandidaten = [s + "en", s + "n", s + "eln", s + "ern"];
+  if (/e[lr]$/.test(s)) kandidaten.unshift(s + "n");
+  const st = starkMitPraefix(s + "t");
+  if (st) return st[0] + st[1][2];
+  for (const k of kandidaten) if (kenntInfinitiv(k)) return k;
+  return null;
+}
+function istLexikonVerb(wort) {
+  const w = wort.toLowerCase().replace(/[^a-zäöüß]/g, "");
+  if (!w || w.length < 3) return false;
+  if (starkMitPraefix(w)) return true;
+  if (kenntInfinitiv(w)) return true;
+  if (PAST2PRES[w]) return true;
+  if (/^(bin|bist|sind|seid|habe|hast|habt|werde|wirst|werdet|wäre|wären|hätte|hätten|würde|würden|sei|seien)$/.test(w)) return true;
+  for (const suffix of ["etest", "test", "eten", "ten", "ete", "te", "est", "st", "et", "en", "t", "e", "tet"]) {
+    if (!w.endsWith(suffix) || w.length - suffix.length < 2) continue;
+    const st = w.slice(0, -suffix.length);
+    if (/ier$/.test(st)) return true;
+    if (infinitivZuStamm(st)) return true;
+  }
+  const pz = w.match(/^(?:[a-zäöü]{2,8})?ge(.+?)(?:t|en)$/);
+  if (pz && infinitivZuStamm(pz[1])) return true;
+  return false;
+}
 function istVerbform(wort) {
   const w = wort.toLowerCase();
   if (starkMitPraefix(w)) return true;
   if (KEIN_VERB.has(w)) return false;
+  if (/^[a-zäöüß]{3,}(t|st|e|en)$/.test(w) && istLexikonVerb(w)) return true;
   if (!/^[a-zäöüß]{3,}t$/.test(w)) return false;
   if (/^ge[a-zäöüß]{2,}t$/.test(w)) return GE_VERBEN.test(w);
   return true;
@@ -143,6 +591,7 @@ var STARK, PRAEFIXE, KEIN_VERB, SIBILANT, GE_VERBEN;
 var init_verben = __esm({
   "src/generation/verben.ts"() {
     "use strict";
+    init_verblex_data();
     STARK = {
       // sein · haben · werden · wissen · tun · Modalverben
       ist: ["bin", "bist", "sind", "seid"],
@@ -3156,7 +3605,7 @@ var init_ki = __esm({
 var import_fs = require("fs");
 
 // src/features/knobs.ts
-var KNOB_VORGABE = { fuegeteil: 25, w4max: 2, abstand: 12, bogen: 100, ton: 100, korpus: 0, phrase: 5, satzlaenge: 9 };
+var KNOB_VORGABE = { fuegeteil: 25, w4max: 2, abstand: 12, bogen: 100, ton: 100, korpus: 0, phrase: 5, satzlaenge: 9, atomgroesse: 14 };
 var KNOB_SPANNE = {
   fuegeteil: { min: 10, max: 35, step: 5 },
   w4max: { min: 1, max: 4, step: 1 },
@@ -3165,7 +3614,8 @@ var KNOB_SPANNE = {
   ton: { min: 0, max: 250, step: 25 },
   korpus: { min: 0, max: 60, step: 10 },
   phrase: { min: 0, max: 8, step: 1 },
-  satzlaenge: { min: 0, max: 21, step: 3 }
+  satzlaenge: { min: 0, max: 21, step: 3 },
+  atomgroesse: { min: 0, max: 24, step: 2 }
 };
 var KEY = "dm_knobs_v1";
 var klemm = (v, s) => Math.max(s.min, Math.min(s.max, v));
@@ -3182,7 +3632,8 @@ function loadKnobs() {
       ton: klemm(p.ton === void 0 ? KNOB_VORGABE.ton : Number(p.ton), KNOB_SPANNE.ton),
       korpus: klemm(p.korpus === void 0 ? KNOB_VORGABE.korpus : Number(p.korpus), KNOB_SPANNE.korpus),
       phrase: klemm(p.phrase === void 0 ? KNOB_VORGABE.phrase : Number(p.phrase), KNOB_SPANNE.phrase),
-      satzlaenge: klemm(p.satzlaenge === void 0 ? KNOB_VORGABE.satzlaenge : Number(p.satzlaenge), KNOB_SPANNE.satzlaenge)
+      satzlaenge: klemm(p.satzlaenge === void 0 ? KNOB_VORGABE.satzlaenge : Number(p.satzlaenge), KNOB_SPANNE.satzlaenge),
+      atomgroesse: klemm(p.atomgroesse === void 0 ? KNOB_VORGABE.atomgroesse : Number(p.atomgroesse), KNOB_SPANNE.atomgroesse)
     };
   } catch {
     return { ...KNOB_VORGABE };
@@ -4145,18 +4596,120 @@ function splitSpeakers(who) {
 
 // src/generation/coherence.ts
 init_text_utils();
+init_verben();
+init_verblex_data();
+
+// src/features/waechterStatistik.ts
+var ZAEHLER_NAMEN = {
+  regel1: "W\xE4chter 1 \xB7 h\xE4ngendes Ende",
+  regel2: "W\xE4chter 2 \xB7 ohne Verb, ohne Kopf",
+  regel3: "W\xE4chter 3 \xB7 gebrochene Klausel",
+  regel4: "W\xE4chter 4 \xB7 Inversion ohne Subjekt",
+  regel5: "W\xE4chter 5 \xB7 \u201El\xE4sst sich\u201C ohne Infinitiv",
+  regel6: "W\xE4chter 6 \xB7 zwei finite Verben",
+  regel7: "W\xE4chter 7 \xB7 halbes Zitat",
+  regel8: "W\xE4chter 8 \xB7 \u201Ees gibt\u201C ohne Gegenstand",
+  angenommen: "W\xE4chter \xB7 durchgelassen",
+  umgeschrieben: "Umschreiber \xB7 Pr\xE4teritum \u2192 Pr\xE4sens",
+  unklar: "Umschreiber \xB7 unklar, verworfen",
+  praeteritumVerworfen: "Umschreiber \xB7 Pr\xE4teritum blieb, verworfen",
+  atomZerlegt: "Atomisierung \xB7 zerlegt",
+  atomGekuerzt: "Atomisierung \xB7 Nebensatz abgeschnitten",
+  atomGanzZuLang: "Atomisierung \xB7 zu lang, ganz gelassen"
+};
+var KEY2 = "dm_waechter_statistik_v1";
+var BEISPIELE_JE = 5;
+var cache = null;
+var schreibTimer = null;
+function leer() {
+  return { zaehler: {}, beispiele: {}, seit: (/* @__PURE__ */ new Date()).toISOString() };
+}
+function ladeStatistik() {
+  if (cache) return cache;
+  try {
+    const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(KEY2);
+    const v = raw ? JSON.parse(raw) : null;
+    cache = v && v.zaehler && v.beispiele ? v : leer();
+  } catch {
+    cache = leer();
+  }
+  return cache;
+}
+function speichern() {
+  if (schreibTimer !== null) return;
+  schreibTimer = (typeof window !== "undefined" ? window.setTimeout : setTimeout)(() => {
+    schreibTimer = null;
+    try {
+      if (typeof localStorage !== "undefined" && cache) localStorage.setItem(KEY2, JSON.stringify(cache));
+    } catch {
+    }
+  }, 1e3);
+}
+function zaehle(was, beispiel) {
+  const st = ladeStatistik();
+  st.zaehler[was] = (st.zaehler[was] || 0) + 1;
+  if (beispiel) {
+    const b = st.beispiele[was] || [];
+    const kurz2 = beispiel.trim().slice(0, 140);
+    if (!b.includes(kurz2)) {
+      b.unshift(kurz2);
+      st.beispiele[was] = b.slice(0, BEISPIELE_JE);
+    }
+  }
+  speichern();
+}
+function statistikZuruecksetzen() {
+  cache = leer();
+  try {
+    if (typeof localStorage !== "undefined") localStorage.setItem(KEY2, JSON.stringify(cache));
+  } catch {
+  }
+}
+function statistikKurz() {
+  const st = ladeStatistik();
+  const regeln = ["regel1", "regel2", "regel3", "regel4", "regel5", "regel6", "regel7", "regel8"];
+  let verworfen = 0;
+  let haeufigste = null;
+  let max = 0;
+  for (const r of regeln) {
+    const n = st.zaehler[r] || 0;
+    verworfen += n;
+    if (n > max) {
+      max = n;
+      haeufigste = r;
+    }
+  }
+  const angenommen = st.zaehler.angenommen || 0;
+  return {
+    verworfen,
+    angenommen,
+    quote: verworfen + angenommen ? verworfen / (verworfen + angenommen) : 0,
+    haeufigste,
+    umgeschrieben: st.zaehler.umgeschrieben || 0,
+    zerlegt: (st.zaehler.atomZerlegt || 0) + (st.zaehler.atomGekuerzt || 0)
+  };
+}
+
+// src/generation/coherence.ts
 init_nouns_data();
 var PRAET_STRONG = /\b(war|waren|warst|hatte|hatten|wurde|wurden|ging|gingen|kam|kamen|sah|sahen|gab|gaben|stand|standen|blieb|blieben|hielt|hielten|ließ|ließen|fand|fanden|nahm|nahmen|sprach|sprachen|schrieb|schrieben|trug|trugen|fuhr|fuhren|lief|liefen|saß|saßen|lag|lagen|hieß|hießen|zog|zogen|schlief|schliefen|rief|riefen|fiel|fielen|sang|sangen|trank|tranken|schwieg|schwiegen|floss|flossen|stieg|stiegen|sank|sanken|bot|boten|schloss|schlossen|verlor|verloren|begann|begannen|geschah|geschahen|konnte|konnten|musste|mussten|wollte|wollten|sollte|sollten|durfte|durften|wusste|wussten|dachte|dachten|brachte|brachten)\b/i;
 var PRAET_WEAK = /\b[a-zäöüß]{3,}(te|ten|test)\b/;
 var PRAES_MARK = /\b(ist|sind|bin|bist|seid|hat|habe|hast|haben|habt|wird|werden|wirst|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|weiß|wissen|geht|gehen|kommt|kommen|sieht|sehen|steht|stehen|bleibt|bleiben|liegt|liegen|gibt|geben|nimmt|nehmen|spricht|sprechen|trägt|tragen|läuft|laufen|fällt|fallen|geschieht|passiert|beginnt|endet|wartet|antwortet|arbeitet|bedeutet|beobachtet|berichtet|schlägt|zeigt|dauert|öffnet|schließt|klingt|riecht|scheint|hört|fühlt|wirkt|führt|dreht|zieht|hält|läuft|fließt|wächst|sinkt|steigt|schweigt|spricht|denkt|kennt|nennt|trägt|findet|verliert|verschwindet)\b/i;
 var ADJ_CONTEXT = /(?:\b(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|kein|keine|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|jede|jeder|jedes|diese|dieser|dieses|manche|viele|alle)\s+[a-zäöüß]*)?\b[a-zäöüß]{3,}(?:te|ten)\b(?=\s+[A-ZÄÖÜ])/;
+function schwachesPraeteritum(w, satz) {
+  const l = w.toLowerCase();
+  if (kenntInfinitiv(l) || kenntInfinitiv(l.replace(/e$/, "en")) || kenntInfinitiv(l.replace(/en$/, "n"))) return false;
+  const m = l.match(/^([a-zäöüß]{2,}?)(e?te|e?ten|e?test)$/);
+  if (!m) return false;
+  const inf = infinitivZuStamm(m[1]);
+  if (inf) return true;
+  const re = new RegExp("\\b" + w + "\\b(?=\\s+[A-Z\xC4\xD6\xDC])");
+  return !re.test(satz) && !KEIN_VERB.has(m[1] + "t") && !KEIN_VERB.has(m[1]);
+}
 var weakLooksVerbal = (t) => {
   const m = t.match(/\b[a-zäöüß]{3,}(te|ten|test|tet)\b/g);
   if (!m) return false;
-  return m.some((w) => {
-    const re = new RegExp("\\b" + w + "\\b(?=\\s+[A-Z\xC4\xD6\xDC])");
-    return !re.test(t);
-  });
+  return m.some((w) => schwachesPraeteritum(w, t));
 };
 function isPastTense(s) {
   const t = s || "";
@@ -4235,208 +4788,133 @@ function castSpread(text, expected = []) {
   const sents = Math.max(1, splitSentences(text).length);
   return Math.min(1, names.length / Math.max(4, sents * 0.5));
 }
-var PAST2PRES = {
-  war: "ist",
-  waren: "sind",
-  warst: "bist",
-  hatte: "hat",
-  hatten: "haben",
-  hattest: "hast",
-  wurde: "wird",
-  wurden: "werden",
-  ging: "geht",
-  gingen: "gehen",
-  kam: "kommt",
-  kamen: "kommen",
-  sah: "sieht",
-  sahen: "sehen",
-  gab: "gibt",
-  gaben: "geben",
-  stand: "steht",
-  standen: "stehen",
-  blieb: "bleibt",
-  blieben: "bleiben",
-  hielt: "h\xE4lt",
-  hielten: "halten",
-  lie\u00DF: "l\xE4sst",
-  lie\u00DFen: "lassen",
-  fand: "findet",
-  fanden: "finden",
-  nahm: "nimmt",
-  nahmen: "nehmen",
-  sprach: "spricht",
-  sprachen: "sprechen",
-  schrieb: "schreibt",
-  schrieben: "schreiben",
-  trug: "tr\xE4gt",
-  trugen: "tragen",
-  fuhr: "f\xE4hrt",
-  fuhren: "fahren",
-  lief: "l\xE4uft",
-  liefen: "laufen",
-  sa\u00DF: "sitzt",
-  sa\u00DFen: "sitzen",
-  lag: "liegt",
-  lagen: "liegen",
-  hie\u00DF: "hei\xDFt",
-  hie\u00DFen: "hei\xDFen",
-  zog: "zieht",
-  zogen: "ziehen",
-  schlief: "schl\xE4ft",
-  schliefen: "schlafen",
-  rief: "ruft",
-  riefen: "rufen",
-  fiel: "f\xE4llt",
-  fielen: "fallen",
-  sang: "singt",
-  sangen: "singen",
-  trank: "trinkt",
-  tranken: "trinken",
-  schwieg: "schweigt",
-  schwiegen: "schweigen",
-  floss: "flie\xDFt",
-  flossen: "flie\xDFen",
-  stieg: "steigt",
-  stiegen: "steigen",
-  sank: "sinkt",
-  sanken: "sinken",
-  bot: "bietet",
-  boten: "bieten",
-  schloss: "schlie\xDFt",
-  schlossen: "schlie\xDFen",
-  verlor: "verliert",
-  verloren: "verlieren",
-  begann: "beginnt",
-  begannen: "beginnen",
-  geschah: "geschieht",
-  geschahen: "geschehen",
-  konnte: "kann",
-  konnten: "k\xF6nnen",
-  musste: "muss",
-  mussten: "m\xFCssen",
-  wollte: "will",
-  wollten: "wollen",
-  sollte: "soll",
-  sollten: "sollen",
-  durfte: "darf",
-  durften: "d\xFCrfen",
-  wusste: "wei\xDF",
-  wussten: "wissen",
-  dachte: "denkt",
-  dachten: "denken",
-  brachte: "bringt",
-  brachten: "bringen",
-  kannte: "kennt",
-  kannten: "kennen",
-  erkannte: "erkennt",
-  erkannten: "erkennen",
-  brannte: "brennt",
-  brannten: "brennen",
-  nannte: "nennt",
-  nannten: "nennen",
-  rannte: "rennt",
-  rannten: "rennen",
-  wandte: "wendet",
-  wandten: "wenden",
-  sprang: "springt",
-  sprangen: "springen",
-  schrie: "schreit",
-  schrien: "schreien",
-  flog: "fliegt",
-  flogen: "fliegen",
-  floh: "flieht",
-  flohen: "fliehen",
-  schoss: "schie\xDFt",
-  schossen: "schie\xDFen",
-  riss: "rei\xDFt",
-  rissen: "rei\xDFen",
-  biss: "bei\xDFt",
-  bissen: "bei\xDFen",
-  griff: "greift",
-  griffen: "greifen",
-  pfiff: "pfeift",
-  pfiffen: "pfeifen",
-  schnitt: "schneidet",
-  schnitten: "schneiden",
-  litt: "leidet",
-  litten: "leiden",
-  trat: "tritt",
-  traten: "treten",
-  verga\u00DF: "vergisst",
-  verga\u00DFen: "vergessen",
-  wuchs: "w\xE4chst",
-  wuchsen: "wachsen",
-  wich: "weicht",
-  wichen: "weichen",
-  schien: "scheint",
-  schienen: "scheinen",
-  zerbrach: "zerbricht",
-  zerbrachen: "zerbrechen",
-  verschwand: "verschwindet",
-  verschwanden: "verschwinden",
-  erschien: "erscheint",
-  erschienen: "erscheinen",
-  starb: "stirbt",
-  starben: "sterben",
-  brach: "bricht",
-  brachen: "brechen",
-  sprach2: "spricht",
-  schwoll: "schwillt",
-  schwollen: "schwellen",
-  bog: "biegt",
-  bogen: "biegen",
-  hob: "hebt",
-  hoben: "heben",
-  wob: "webt",
-  woben: "weben",
-  klang: "klingt",
-  klangen: "klingen",
-  sann: "sinnt",
-  sannen: "sinnen",
-  rann: "rinnt",
-  rannen: "rinnen",
-  schwamm: "schwimmt",
-  schwammen: "schwimmen",
-  verschwieg: "verschweigt",
-  zerfiel: "zerf\xE4llt",
-  zerfielen: "zerfallen",
-  entstand: "entsteht",
-  entstanden: "entstehen",
-  verstand: "versteht",
-  verstanden: "verstehen",
-  bestand: "besteht",
-  bestanden: "bestehen",
-  geriet: "ger\xE4t",
-  gerieten: "geraten",
-  trieb: "treibt",
-  trieben: "treiben",
-  schrak: "schrickt",
-  wies: "weist",
-  wiesen: "weisen",
-  hing: "h\xE4ngt",
-  hingen: "h\xE4ngen",
-  schwand: "schwindet",
-  schwanden: "schwinden",
-  gewann: "gewinnt",
-  gewannen: "gewinnen",
-  zerriss: "zerrei\xDFt",
-  zerrissen2: "zerrei\xDFen",
-  empfand: "empfindet",
-  empfanden: "empfinden",
-  befahl: "befiehlt",
-  befahlen: "befehlen",
-  half: "hilft",
-  halfen: "helfen",
-  warf: "wirft",
-  warfen: "werfen",
-  starrte2: "starrt",
-  las: "liest",
-  lasen: "lesen",
-  a\u00DF: "isst",
-  a\u00DFen: "essen",
-  bat: "bittet",
-  baten: "bitten"
+var PERSON_FORMS = {
+  war: { ich: "bin", du: "bist", wir: "sind", ihr: "seid", sie: "ist", er: "ist", es: "ist" },
+  waren: { wir: "sind", sie: "sind", ihr: "seid" },
+  hatte: { ich: "habe", du: "hast", wir: "haben", ihr: "habt", sie: "hat", er: "hat", es: "hat" },
+  hatten: { wir: "haben", sie: "haben", ihr: "habt" },
+  wurde: { ich: "werde", du: "wirst", wir: "werden", sie: "wird", er: "wird", es: "wird" },
+  konnte: { ich: "kann", du: "kannst", wir: "k\xF6nnen", sie: "kann", er: "kann", es: "kann" },
+  musste: { ich: "muss", du: "musst", wir: "m\xFCssen", sie: "muss", er: "muss", es: "muss" },
+  wollte: { ich: "will", du: "willst", wir: "wollen", sie: "will", er: "will", es: "will" },
+  sollte: { ich: "soll", du: "sollst", wir: "sollen", sie: "soll", er: "soll", es: "soll" },
+  wusste: { ich: "wei\xDF", du: "wei\xDFt", wir: "wissen", sie: "wei\xDF", er: "wei\xDF", es: "wei\xDF" }
 };
+function toPresent(entry) {
+  const unsure = [];
+  let changed = false;
+  const words3 = (entry || "").split(/(\s+)/);
+  for (let i = 0; i < words3.length; i++) {
+    const roh = words3[i];
+    const zeichen = (roh.match(/[.,;:!?…»“"]+$/) || [""])[0];
+    const w = zeichen ? roh.slice(0, -zeichen.length) : roh;
+    if (!/^[A-Za-zÄÖÜäöüß]+$/.test(w)) continue;
+    const low2 = w.toLowerCase();
+    const base = PAST2PRES[low2];
+    if (base) {
+      const prev = (words3.slice(0, i).reverse().find((x) => /^[A-Za-zÄÖÜäöüß]+$/.test(x)) || "").toLowerCase();
+      const next = (words3.slice(i + 1).find((x) => /^[A-Za-zÄÖÜäöüß]+$/.test(x)) || "").toLowerCase();
+      const pf = PERSON_FORMS[low2];
+      const subj = /^(ich|du|wir|ihr)$/.test(prev) ? prev : /^(ich|du|wir|ihr)$/.test(next) ? next : "";
+      let form = base;
+      if (pf && subj && pf[subj]) form = pf[subj];
+      else if (subj) {
+        const b = beugeVerb(base, subj);
+        if (!b) {
+          unsure.push(w);
+          continue;
+        }
+        form = b;
+      }
+      words3[i] = (/^[A-ZÄÖÜ]/.test(w) ? form.charAt(0).toUpperCase() + form.slice(1) : form) + zeichen;
+      changed = true;
+      continue;
+    }
+    if (/^[a-zäöüß]{4,}(te|ete)$/.test(low2)) unsure.push(w);
+  }
+  return { text: words3.join(""), changed, unsure };
+}
+function praesensUmschreiben(entry) {
+  const first = toPresentSicher(entry);
+  const words3 = first.text.split(/(\s+)/);
+  let changed = first.changed;
+  const ARTIKEL3 = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|kein|keine|keinen|mein|meine|meinen|dein|deine|sein|seine|seinen|ihr|ihre|ihren|unser|unsere|jede|jeder|jedes|diese|dieser|dieses|manche|viele|alle|zwei|drei|im|am|zum|zur|beim|ins|vom)$/i;
+  const KONJUNKTIV = /^(müsste|müssten|könnte|könnten|dürfte|dürften|möchte|möchten|hätte|hätten|wäre|wären|würde|würden|sollte|sollten|wollte|wollten)$/i;
+  const MODAL_DAVOR = /^(zu|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|mag|mögen|lässt|lassen|möchte|könnte|müsste|sollte|wollte|dürfte)$/i;
+  const rein = (x) => x.replace(/[^A-Za-zÄÖÜäöüß]/g, "");
+  const EINDEUTIG = /(?:[td]|chn|ffn|gn|tm|dm|ckn|kn)ete(?:n|st|t)?$/;
+  const belegtPraeteritum = first.changed || (first.text.match(/\b[a-zäöüß]{3,}ete(?:n|st)?\b/g) || []).some((x) => EINDEUTIG.test(x));
+  let unklar = 0;
+  for (let i = 0; i < words3.length; i++) {
+    const roh = words3[i];
+    const satzzeichen = (roh.match(/[.,;:!?…»“"]+$/) || [""])[0];
+    const w = satzzeichen ? roh.slice(0, -satzzeichen.length) : roh;
+    const m = w.match(/^([a-zäöüß]{3,}?)(e?te|e?ten|e?test)$/);
+    if (!m || KONJUNKTIV.test(w)) continue;
+    const stamm = m[1], endung = m[2];
+    const eindeutig = /^e/.test(endung) && EINDEUTIG.test(w);
+    if (/^e/.test(endung) && !eindeutig) continue;
+    if (/(^|[a-zäöü])ge[a-zäöüß]{3,}$/.test(stamm) && !/^(geh|gel|gen|ger|geb|ges)/.test(stamm)) continue;
+    if (/t$/.test(stamm) && !eindeutig) continue;
+    const davor = words3.slice(0, i).map(rein).filter(Boolean);
+    const prev = (davor[davor.length - 1] || "").toLowerCase();
+    const naechst = words3.slice(i + 1).map(rein).find(Boolean) || "";
+    if (ARTIKEL3.test(prev) && /^[A-ZÄÖÜ]/.test(naechst)) continue;
+    if (/ten$/.test(endung) && MODAL_DAVOR.test(prev)) continue;
+    if (KEIN_VERB.has(stamm + "t") || KEIN_VERB.has(stamm)) continue;
+    if (kenntInfinitiv(w) || kenntInfinitiv(w.replace(/e$/, "en")) || kenntInfinitiv(w.replace(/en$/, "n"))) continue;
+    const inf = infinitivZuStamm(stamm);
+    if (!inf) {
+      if (/^[A-ZÄÖÜ]/.test(naechst) || /ten$/.test(endung) || ARTIKEL3.test(prev)) continue;
+      if (!eindeutig && !belegtPraeteritum && istVerbform(stamm + "t")) unklar++;
+      continue;
+    }
+    const bindevokal = /^e/.test(endung);
+    const dritte = bindevokal ? stamm + "et" : stamm + "t";
+    let neu;
+    if (/^ich$/i.test(prev)) neu = beugeVerb(dritte, "ich") || dritte;
+    else if (/^du$/i.test(prev)) neu = beugeVerb(dritte, "du") || dritte;
+    else if (/ten$/.test(endung)) neu = beugeVerb(dritte, "wir") || dritte;
+    else neu = dritte;
+    if (neu !== w) {
+      words3[i] = neu + satzzeichen;
+      changed = true;
+    }
+  }
+  const text = words3.join("");
+  const ok = !isPastTense(text) && unklar === 0;
+  if (ok && changed) zaehle("umgeschrieben", `${entry} \u2192 ${text}`);
+  else if (!ok && unklar) zaehle("unklar", entry);
+  else if (!ok) zaehle("praeteritumVerworfen", entry);
+  return { text, ok, changed };
+}
+function toPresentSicher(entry) {
+  const AUX2 = /\b(hat|haben|habe|hast|habt|hatte|hatten|ist|sind|bin|bist|seid|war|waren|wird|werden|wurde|wurden|worden)\b/i;
+  const perfekt = AUX2.test(entry);
+  const words3 = entry.split(/(\s+)/);
+  const marker = [];
+  let erstesWort = true;
+  let vorher = "";
+  for (let i = 0; i < words3.length; i++) {
+    const w = words3[i];
+    if (!/^[A-Za-zÄÖÜäöüß]/.test(w)) continue;
+    const konjNachAls = vorher === "als" && /^(wollte|wollten|sollte|sollten|könnte|könnten|müsste|hätte|hätten|wäre|wären|würde|würden)/i.test(w);
+    const ambig = /^(verloren|verstanden|entstanden|bestanden|erschienen)[.,;:!?]*$/i.test(w) && !/^(wir|sie|die|alle|beide|viele|manche|einige|leute|kinder|männer|frauen)$/.test(vorher);
+    const schuetzen = !erstesWort && /^[A-ZÄÖÜ]/.test(w) || perfekt && /en[.,;:!?]*$/.test(w) || konjNachAls || ambig;
+    vorher = w.toLowerCase().replace(/[^a-zäöüß]/g, "");
+    erstesWort = false;
+    if (schuetzen) {
+      marker.push(w);
+      words3[i] = `\xA7${marker.length - 1}\xA7`;
+    }
+  }
+  const r = toPresent(words3.join(""));
+  let text = r.text;
+  marker.forEach((w, k) => {
+    text = text.replace(`\xA7${k}\xA7`, w);
+  });
+  return { text, changed: r.changed, unsure: r.unsure };
+}
 var DU_FORM = /\b(du|dir|dich|dein|deine|deinen|deinem|deiner|deines)\b/i;
 var ICH_FORM = /\b(ich|mir|mich|mein|meine|meinen|meinem|meiner|meines)\b/i;
 function isSecondPerson(s) {
@@ -4784,6 +5262,43 @@ function deriveAtom(raw) {
   };
 }
 
+// src/atoms/atomisieren.ts
+var wc = (s) => (s.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+var trimSatz = (s) => s.trim().replace(/^[,;:—–\s]+|[,;:—–\s]+$/g, "").trim();
+var NP_KOPF = /^(der|die|das|ein|eine|einen|einem|einer|kein|keine|zwei|drei|manche|viele|jede[rs]?|alle)\b/i;
+var NEBENSATZ = /,\s+(der|die|das|dem|den|dessen|deren|welche[rsmn]?|dass|weil|wenn|als|während|obwohl|nachdem|bevor|sobald|solange|seit|seitdem|damit|sodass|ohne|um|statt|anstatt|wo|worin|was|wer|wie|ob|falls|indem)\b[^,]*$/i;
+var tragfaehig = (s) => wc(s) >= 3 && (hatFinitesVerb(s) || NP_KOPF.test(s));
+function atomisiere(text, max) {
+  const teile = atomisiereRoh(text, max);
+  const t = trimSatz(text || "");
+  if (t && max >= 6 && wc(t) > max) {
+    if (teile.length > 1) zaehle("atomZerlegt", `${t} \u2192 ${teile.join(" | ")}`);
+    else if (teile.length === 1 && teile[0] !== t) zaehle("atomGekuerzt", `${t} \u2192 ${teile[0]}`);
+    else zaehle("atomGanzZuLang", t);
+  }
+  return teile;
+}
+function atomisiereRoh(text, max) {
+  const t = trimSatz(text || "");
+  if (!t) return [];
+  if (!max || max < 6 || wc(t) <= max) return [t];
+  const harte = t.split(/\s*(?:—|–|;|:)\s+/).map(trimSatz).filter((x) => wc(x) >= 3);
+  if (harte.length > 1) return harte.flatMap((x) => atomisiereRoh(x, max));
+  const koord = t.match(/^(.+?),\s+(und|aber|doch|denn|sondern)\s+(.+)$/i);
+  if (koord && hatFinitesVerb(koord[1]) && hatFinitesVerb(koord[3]) && wc(koord[1]) >= 3 && wc(koord[3]) >= 3)
+    return [...atomisiereRoh(koord[1], max), ...atomisiereRoh(koord[3], max)];
+  const ns = t.match(NEBENSATZ);
+  if (ns && ns.index !== void 0) {
+    const haupt = trimSatz(t.slice(0, ns.index));
+    if (tragfaehig(haupt) && wc(haupt) >= 4) return atomisiereRoh(haupt, max);
+  }
+  return [t];
+}
+function ueberlaenge(text, max) {
+  if (!max || max < 6) return 0;
+  return Math.max(0, wc(text) - max);
+}
+
 // src/atoms/assemble.ts
 var PHASEN_KATEGORIEN = {
   // Die Dramaturgie-Kategorien tragen ihre Phase bereits im Namen — der Erzaehlbogen
@@ -4808,6 +5323,37 @@ var STRUKTUR_PHASEN = {
   // Das Ding sieht zu: langer Mittelteil, kurzer Anfang, kurzer Schluss.
   object: ["exposition", "verdichtung", "verdichtung", "umschlag", "verdichtung", "umschlag", "verdichtung", "umschlag", "schluss", "schluss"]
 };
+var SCHLAG_PHASE = {
+  einstieg: "exposition",
+  hook: "exposition",
+  regel: "exposition",
+  mitte: "verdichtung",
+  mitte2: "verdichtung",
+  konflikt: "verdichtung",
+  zeit: "verdichtung",
+  einsatz: "verdichtung",
+  ausloeser: "umschlag",
+  wende: "umschlag",
+  hoehepunkt: "umschlag",
+  schluss: "schluss"
+};
+function phasenAusSchlagfolge(folge) {
+  const roh = (folge || []).map((n) => SCHLAG_PHASE[n]).filter((p) => !!p);
+  if (!roh.length) return STRUKTUR_PHASEN["linear"];
+  return Array.from({ length: 10 }, (_, i) => roh[Math.round(i * (roh.length - 1) / 9)]);
+}
+function setBogenPhasen(folge) {
+  STRUKTUR_PHASEN["bogen"] = phasenAusSchlagfolge(folge);
+}
+var bogenModus = false;
+function setBogenModus(an) {
+  bogenModus = an;
+}
+function gelenkBonus(a, phase, bogenGewicht) {
+  if (!bogenModus || a.quelle !== "dramaturgie" || !phase) return 0;
+  const faktor = phase === "umschlag" || phase === "schluss" ? 2.5 : phase === "exposition" ? 1.2 : 0.4;
+  return faktor * bogenGewicht;
+}
 function phasenFolge(struktur, fortschritt) {
   const f = STRUKTUR_PHASEN[struktur] || STRUKTUR_PHASEN["linear"];
   const i = Math.min(f.length - 1, Math.max(0, Math.floor(fortschritt * f.length)));
@@ -4955,9 +5501,12 @@ function ziehe(kandidaten, sollGewicht, bisher, phase) {
   const stems = (t) => new Set((t.toLowerCase().match(/[a-zäöüß]{5,}/g) || []).map((w) => w.slice(0, 5)));
   const kontext = stems(bisher);
   const bogenGewicht = (loadKnobs().bogen || 100) / 100;
+  const atomMax = loadKnobs().atomgroesse;
   const score = (a) => {
     let s = 1;
+    s -= 0.4 * ueberlaenge(a.text, atomMax);
     if (phase) s += phasenBonus(a, phase);
+    s += gelenkBonus(a, phase, bogenGewicht);
     if (a.rhythmus.gewicht === sollGewicht) s += 1.5;
     const ov = [...stems(a.text)].filter((x) => kontext.has(x)).length;
     s += Math.min(ov, 2) * 0.8;
@@ -5397,14 +5946,14 @@ function teilstuecke(text) {
 }
 function kategorieFuer(stueck, istSchluss) {
   const typ = deriveAtom(stueck).typ;
-  const wc = stueck.split(/\s+/).filter(Boolean).length;
-  if (typ === "nominalphrase") return wc <= 5 ? "props" : "motifs";
+  const wc2 = stueck.split(/\s+/).filter(Boolean).length;
+  if (typ === "nominalphrase") return wc2 <= 5 ? "props" : "motifs";
   if (typ !== "hauptsatz") return "motifs";
   if (istSchluss) return "endings";
   if (WIDERSTAND.test(stueck)) return "obstacles";
   if (WENDE.test(stueck)) return "turns";
   if (SPIEL.test(stueck)) return "stakes";
-  return wc <= 14 ? "hooks" : "motifs";
+  return wc2 <= 14 ? "hooks" : "motifs";
 }
 function presetAusText(text) {
   const stuecke = teilstuecke(text);
@@ -5422,8 +5971,8 @@ function presetAusText(text) {
     const vollste = KATEGORIEN.filter((x) => bank[x].length > 1).sort((a, b) => bank[b].length - bank[a].length)[0];
     if (vollste) bank[k].push(bank[vollste].pop());
   }
-  const woerter2 = (text || "").split(/\s+/).filter(Boolean).length;
-  return { bank, woerter: woerter2, stuecke: gesehen.size };
+  const woerter3 = (text || "").split(/\s+/).filter(Boolean).length;
+  return { bank, woerter: woerter3, stuecke: gesehen.size };
 }
 function preset2AusText(text) {
   const p = presetAusText(text);
@@ -5455,7 +6004,11 @@ var SCHLAGFOLGEN = {
   eskalation: { name: "Eskalation", folge: ["einstieg", "hook", "mitte", "mitte", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz", "schluss"] },
   katastrophe: { name: "Katastrophe zuerst", folge: ["hoehepunkt", "einstieg", "hook", "mitte", "konflikt", "ausloeser", "wende", "einsatz", "schluss"] },
   straenge: { name: "Zwei Str\xE4nge", folge: ["einstieg", "mitte", "einstieg", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz", "schluss"] },
-  offen: { name: "Offenes Ende", folge: ["einstieg", "hook", "regel", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz"] }
+  offen: { name: "Offenes Ende", folge: ["einstieg", "hook", "regel", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz"] },
+  // Punkt 4 des Zielbilds: die Schlagfolge aus der Geschichte ABLEITEN statt
+  // sie zuzuweisen. Die Folge steht hier leer — sie wird je Platz aus dem
+  // Text berechnet (ableiteSchlagfolge), sobald diese Bauform gewählt ist.
+  eigen: { name: "Eigene \u2014 aus dem Text abgeleitet", folge: [] }
 };
 var ERZAEHLER_PLAETZE = 10;
 var BANK_KEY = "dm_erzaehlerbank_v1";
@@ -5474,6 +6027,12 @@ function ladeErzaehlerbank() {
     return { titel: String(e2?.titel || "").slice(0, 60), text: String(e2?.text || ""), folge: SCHLAGFOLGEN[f] ? f : void 0 };
   });
 }
+function speichereErzaehlerbank(list) {
+  try {
+    localStorage.setItem(BANK_KEY, JSON.stringify(list.slice(0, ERZAEHLER_PLAETZE)));
+  } catch {
+  }
+}
 function ladeQuelle() {
   const q = localStorage.getItem(QUELLE_KEY) || "preset";
   return q === "preset" || q === "wuerfeln" || /^[0-9]$/.test(q) ? q : "preset";
@@ -5491,16 +6050,86 @@ function erzaehlerBogen(index) {
   const e2 = ladeErzaehlerbank()[index];
   if (!e2 || !platzBrauchbar(e2)) return null;
   const drama = preset2AusText(e2.text).drama;
-  if (e2.folge && SCHLAGFOLGEN[e2.folge]) drama.folge = SCHLAGFOLGEN[e2.folge].folge;
+  if (e2.folge === "eigen") drama.folge = ableiteSchlagfolge(e2.text);
+  else if (e2.folge && SCHLAGFOLGEN[e2.folge]) drama.folge = SCHLAGFOLGEN[e2.folge].folge;
   return drama;
 }
+function ableiteSchlagfolge(text) {
+  const stuecke = teilstuecke(text);
+  const grenze = Math.max(0, stuecke.length - 2);
+  const roh = [];
+  let ersterHaken = true;
+  stuecke.forEach((st, i) => {
+    const kat = kategorieFuer(st, i >= grenze && deriveAtom(st).typ === "hauptsatz");
+    let schlag;
+    switch (kat) {
+      case "hooks":
+        schlag = ersterHaken ? "einstieg" : "hook";
+        ersterHaken = false;
+        break;
+      case "props":
+        schlag = "ausloeser";
+        break;
+      case "motifs":
+        schlag = "mitte";
+        break;
+      case "obstacles":
+        schlag = "konflikt";
+        break;
+      case "turns":
+        schlag = "wende";
+        break;
+      case "stakes":
+        schlag = "einsatz";
+        break;
+      case "endings":
+        schlag = "schluss";
+        break;
+      default:
+        schlag = "mitte";
+    }
+    if (roh[roh.length - 1] !== schlag) roh.push(schlag);
+  });
+  if (!roh.length) return SCHLAGFOLGEN["standard"].folge;
+  const letzteWende = roh.lastIndexOf("wende");
+  if (letzteWende >= 0) roh[letzteWende] = "hoehepunkt";
+  let folge = roh.filter((x) => x !== "einstieg" && x !== "schluss");
+  folge.unshift("einstieg");
+  folge.push("schluss");
+  const gelenk = /* @__PURE__ */ new Set(["einstieg", "hoehepunkt", "schluss", "einsatz"]);
+  while (folge.length > 12) {
+    const weg = folge.findIndex((x, i) => !gelenk.has(x) && i % 2 === 1);
+    if (weg < 0) break;
+    folge.splice(weg, 1);
+    folge = folge.filter((x, i) => i === 0 || x !== folge[i - 1]);
+  }
+  return folge;
+}
+var letzterPlatz = -1;
 function bogenFuerErzeugung() {
   const q = ladeQuelle();
+  letzterPlatz = -1;
   if (q === "preset") return null;
-  if (/^[0-9]$/.test(q)) return erzaehlerBogen(parseInt(q, 10));
-  const brauchbar = ladeErzaehlerbank().map((e2, i) => ({ e: e2, i })).filter((x) => platzBrauchbar(x.e));
+  if (/^[0-9]$/.test(q)) {
+    const i2 = parseInt(q, 10);
+    const d = erzaehlerBogen(i2);
+    if (d) letzterPlatz = i2;
+    return d;
+  }
+  const brauchbar = ladeErzaehlerbank().map((e2, i2) => ({ e: e2, i: i2 })).filter((x) => platzBrauchbar(x.e));
   if (!brauchbar.length) return null;
-  return erzaehlerBogen(brauchbar[Math.floor(Math.random() * brauchbar.length)].i);
+  const i = brauchbar[Math.floor(Math.random() * brauchbar.length)].i;
+  letzterPlatz = i;
+  return erzaehlerBogen(i);
+}
+function bogenBeschriftung() {
+  const q = ladeQuelle();
+  if (letzterPlatz >= 0) {
+    const e2 = ladeErzaehlerbank()[letzterPlatz];
+    if (e2) return { bogen: `${q === "wuerfeln" ? "gew\xFCrfelt: " : ""}Platz ${letzterPlatz + 1} \xB7 ${e2.titel || "Ohne Titel"}`, bauform: SCHLAGFOLGEN[e2.folge || "standard"]?.name || e2.folge || "" };
+  }
+  if (q === "preset") return { bogen: "aus Preset", bauform: "Steigender Bogen" };
+  return { bogen: q === "wuerfeln" ? "w\xFCrfeln \u2014 kein brauchbarer Platz" : "gew\xE4hlter Platz ist leer", bauform: "" };
 }
 var ARCHIV_KEY = "dm_erzaehler_archiv_v1";
 function ladeArchiv() {
@@ -5550,7 +6179,11 @@ var STRUCTURE_OPTS = [
   ["fragment", "Fragment"],
   ["object", "Objekt"],
   ["dramaturgie", "Dramaturgie (Preset 2.0)"],
-  ["rekombination", "Rekombination"]
+  ["rekombination", "Rekombination"],
+  // Geregelter Mittelweg (4.337.0): die Schlagfolge des gewählten Bogens als
+  // Phasenfolge, rekombinatorisch gefüllt; Bogen-Material an den Gelenken
+  // bevorzugt, dosiert über die Stellschraube „Erzählbogen".
+  ["bogen", "Rekombination mit Bogen"]
 ];
 var MODE_OPTS = [
   ["auto", "Auto"],
@@ -5600,6 +6233,320 @@ var INSTAB_OPTS = [["0", "Aus"], ["1", "Subtil"], ["2", "Aggressiv"]];
 init_constants();
 init_text_utils();
 init_storage_status();
+
+// src/generation/satzwaechter.ts
+init_verben();
+var FUNKTION = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "und",
+  "oder",
+  "aber",
+  "doch",
+  "denn",
+  "sondern",
+  "als",
+  "wie",
+  "dass",
+  "ob",
+  "weil",
+  "wenn",
+  "ohne",
+  "mit",
+  "von",
+  "aus",
+  "an",
+  "auf",
+  "in",
+  "im",
+  "am",
+  "f\xFCr",
+  "zu",
+  "zum",
+  "zur",
+  "bei",
+  "beim",
+  "nach",
+  "vor",
+  "\xFCber",
+  "unter",
+  "neben",
+  "zwischen",
+  "hinter",
+  "durch",
+  "gegen",
+  "um",
+  "seit",
+  "es",
+  "sich",
+  "man",
+  "sie",
+  "er",
+  "wir",
+  "ich",
+  "du",
+  "ihr",
+  "was",
+  "wer",
+  "wo",
+  "so",
+  "nur",
+  "auch",
+  "noch",
+  "schon",
+  "sehr",
+  "nicht",
+  "kein",
+  "keine",
+  "jeder",
+  "jede",
+  "jedes",
+  "alle"
+]);
+var HAENGENDES_ENDE = /* @__PURE__ */ new Set([
+  "der",
+  "den",
+  "dem",
+  "des",
+  "und",
+  "oder",
+  "aber",
+  "sondern",
+  "als",
+  "dass",
+  "weil",
+  "wenn",
+  "f\xFCr",
+  "zwischen",
+  "seit"
+  // NICHT in der Liste: alles, was im Deutschen legitim am Satzende steht —
+  // trennbare Verbpartikel („geht auf", „holt ihn ein", „gibt nach"),
+  // Infinitiv-zu („um wahr zu sein"), Vergleiche („schwer wie Blei"),
+  // Pronomen und Zahlwörter („der Grat trägt nur einen", „statt einem",
+  // „will es sehr"). Die Gegenprobe über 6930 eingebaute Sätze hat die
+  // Liste auf diesen Kern gestutzt.
+]);
+var ADJEKTIV = /* @__PURE__ */ new Set([
+  "fest",
+  "echt",
+  "leicht",
+  "schlecht",
+  "recht",
+  "dicht",
+  "glatt",
+  "satt",
+  "bunt",
+  "kalt",
+  "alt",
+  "laut",
+  "tot",
+  "rot",
+  "gut",
+  "weit",
+  "hart",
+  "zart",
+  "nett",
+  "matt",
+  "sp\xE4t",
+  "bereit",
+  "breit",
+  "nackt",
+  "exakt",
+  "direkt",
+  "perfekt",
+  "korrekt",
+  "konkret",
+  "komplett",
+  "ernst",
+  "feist",
+  "meist",
+  "erst",
+  "zun\xE4chst",
+  "h\xF6chst",
+  "\xE4u\xDFerst",
+  "einst",
+  "sonst",
+  "fast",
+  "blo\xDF"
+]);
+var HILFSVERB = /* @__PURE__ */ new Set([
+  "bin",
+  "bist",
+  "sind",
+  "seid",
+  "war",
+  "warst",
+  "waren",
+  "wart",
+  "sei",
+  "w\xE4re",
+  "w\xE4ren",
+  "hab",
+  "habe",
+  "hast",
+  "haben",
+  "habt",
+  "hatte",
+  "hatten",
+  "h\xE4tte",
+  "h\xE4tten",
+  "werde",
+  "wirst",
+  "wird",
+  "werden",
+  "werdet",
+  "wurde",
+  "wurden",
+  "w\xFCrde",
+  "w\xFCrden",
+  "kann",
+  "kannst",
+  "k\xF6nnen",
+  "k\xF6nnt",
+  "konnte",
+  "konnten",
+  "k\xF6nnte",
+  "k\xF6nnten",
+  "muss",
+  "musst",
+  "m\xFCssen",
+  "m\xFCsst",
+  "musste",
+  "mussten",
+  "m\xFCsste",
+  "darf",
+  "darfst",
+  "d\xFCrfen",
+  "d\xFCrft",
+  "durfte",
+  "durften",
+  "d\xFCrfte",
+  "soll",
+  "sollst",
+  "sollen",
+  "sollt",
+  "sollte",
+  "sollten",
+  "mag",
+  "magst",
+  "m\xF6gen",
+  "m\xF6gt",
+  "mochte",
+  "m\xF6chte",
+  "m\xF6chten",
+  "will",
+  "willst",
+  "wollen",
+  "wollt",
+  "wollte",
+  "wollten",
+  "l\xE4sst",
+  "lie\xDF",
+  "lie\xDFen",
+  "gibt",
+  "gab",
+  "gaben",
+  "tut",
+  "tat",
+  "schw\xF6r",
+  "schw\xF6re"
+]);
+var verbKandidat = (roh, istErstes = false) => {
+  if (!istErstes && /^[A-ZÄÖÜ]/.test(roh)) return false;
+  const w = roh.toLowerCase().replace(/[^a-zäöüß]/g, "");
+  if (!w || FUNKTION.has(w) || KEIN_VERB.has(w) || ADJEKTIV.has(w)) return false;
+  if (HILFSVERB.has(w) || istVerbform(w)) return true;
+  return /(t|st|e|en|eln|ern|elt|ert)$/.test(w) && !/(heit|keit|ung|schaft|tät|ment|iert)$/.test(w) && !/(em|er|es)$/.test(w) && w.length >= 3;
+};
+var woerter2 = (s) => s.split(/\s+/).map((w) => w.replace(/[„“"»«().!?…;:]+/g, "")).filter(Boolean);
+var NP_KOPF2 = /^(der|die|das|ein|eine|einen|kein|keine|zwei|drei|viele|manche|jede[rs]?|irgendein|lauter)\b/i;
+function pruefeSatz(satz) {
+  const bare = satz.trim().replace(/[.!?…]+$/, "").trim();
+  if (!bare) return 2;
+  const ws = woerter2(bare);
+  if (!ws.length) return 2;
+  const letztes = ws[ws.length - 1].toLowerCase();
+  if (HAENGENDES_ENDE.has(letztes)) return 1;
+  const hatVerb = ws.some((w, i) => verbKandidat(w, i === 0));
+  if (!hatVerb) {
+    if (ws.length > 12) return 2;
+    const kern = bare.replace(/^(und|aber|doch|dann|denn|oder|nur|auch)\s+/i, "");
+    const kopf = kern.split(/\s+/)[0] || "";
+    const ADVERB_KOPF = /^(irgendwo|irgendwann|irgendwie|dort|hier|heute|morgen|gestern|vielleicht|manchmal|so|bald|überall|nirgends|nirgendwo|draußen|drinnen|oben|unten|jetzt|damals|dennoch|trotzdem|deshalb|darum|davor|danach|zuerst|zuletzt|womöglich|angeblich|vermutlich|wahrscheinlich)$/i;
+    const nomenKopf = /^[A-ZÄÖÜ]/.test(kopf) && !ADVERB_KOPF.test(kopf) && !FUNKTION.has(kopf.toLowerCase());
+    const prepKopf = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zu|zum|zur|mit|durch|gegen|um|seit|während|trotz|wegen)$/i.test(kopf);
+    if (ws.length > 5 && !NP_KOPF2.test(kern) && !nomenKopf && !prepKopf) return 2;
+  }
+  for (const teil of bare.split(/,\s*/).slice(1)) {
+    const tw = woerter2(teil);
+    if (!tw.length || !/^(was|wer|der|die|das|dem|den|wo|wie)$/i.test(tw[0])) continue;
+    const undIdx = tw.findIndex((w, i) => i > 0 && /^(und|oder)$/i.test(w));
+    if (undIdx > 1 && verbKandidat(tw[undIdx + 1] || "", false) && !tw.slice(1, undIdx).some((w) => verbKandidat(w, false))) return 3;
+  }
+  const PREP_KOPF = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zum|zur|mit|durch|gegen|seit|trotz|wegen)$/i;
+  for (const teil of bare.split(/,\s*/)) {
+    const tw = woerter2(teil);
+    if (tw.length < 4 || !PREP_KOPF.test(tw[0])) continue;
+    if (/^(dem|denen|deren|dessen|welche[rmn]?)$/i.test(tw[1] || "")) continue;
+    if (tw.slice(1).some((w) => /^zu$/i.test(w))) continue;
+    const vi = tw.findIndex((w, i) => i > 1 && verbKandidat(w, false));
+    if (vi < 2) continue;
+    if (tw.slice(1, vi).some((w) => /^(es|er|sie|wir|ich|du|man|jemand|niemand|etwas|nichts|alles)$/i.test(w))) continue;
+    const rest = tw.slice(vi + 1);
+    if (/^(wie|als)$/i.test(rest[0] || "") && rest.length <= 2) return 4;
+  }
+  for (const teil of bare.split(/[,;]\s*|\s+(?:und|aber|oder|doch|sondern)\s+/i)) {
+    if (!/\bl(ä|ie)(ss|ß)t?\s+(es\s+)?sich\b/i.test(teil)) continue;
+    const tw = woerter2(teil);
+    const letztes2 = (tw[tw.length - 1] || "").toLowerCase();
+    if (!letztes2 || /^[A-ZÄÖÜ]/.test(tw[tw.length - 1] || "")) continue;
+    if (FUNKTION.has(letztes2) || ADJEKTIV.has(letztes2) || HILFSVERB.has(letztes2)) continue;
+    if (/t$/.test(letztes2) && !/(en|eln|ern)$/.test(letztes2)) return 5;
+  }
+  const finit = (w) => {
+    const l = w.toLowerCase();
+    if (HILFSVERB.has(l)) return true;
+    return /^[a-zäöüß]{3,}t$/.test(l) && !FUNKTION.has(l) && !ADJEKTIV.has(l) && !KEIN_VERB.has(l) && istVerbform(l);
+  };
+  for (const teil of bare.split(/[,;:—–]\s*/)) {
+    const tw = woerter2(teil);
+    for (let i = 0; i + 3 < tw.length; i++) {
+      if (!finit(tw[i]) || !/^(der|die|das|den|dem|ein|eine|einen|einem)$/i.test(tw[i + 1])) continue;
+      if (!/^[A-ZÄÖÜ]/.test(tw[i + 2])) continue;
+      if (HILFSVERB.has(tw[i + 3].toLowerCase())) return 6;
+    }
+  }
+  {
+    const auf = (bare.match(/[„»]/g) || []).length, zu = (bare.match(/[“«]/g) || []).length;
+    if (auf !== zu) return 7;
+  }
+  for (const teil of bare.split(/[,;:—–]\s*/))
+    if (/^es gibt(\s+(jetzt|hier|dort|noch|nur|auch|bald|immer|nie))?$/i.test(teil.trim())) return 8;
+  return 0;
+}
+function stueckPlausibel(text) {
+  const saetze = (text || "").split(/(?<=[.!?…])\s+/).map((s) => s.trim()).filter(Boolean);
+  if (!saetze.length) return false;
+  for (const satz of saetze) {
+    const regel = pruefeSatz(satz);
+    if (regel) {
+      zaehle(`regel${regel}`, satz);
+      return false;
+    }
+  }
+  zaehle("angenommen", Math.random() < 0.1 ? text : void 0);
+  return true;
+}
 
 // src/features/livepools.ts
 init_storage_status();
@@ -5841,6 +6788,7 @@ function isSaneMarkov(s) {
       if (lw[j] === lw[i]) return false;
     }
   }
+  if (!stueckPlausibel(s)) return false;
   return true;
 }
 var MK_TAIL_STOP = /* @__PURE__ */ new Set([
@@ -14994,7 +15942,8 @@ var SCHLOSS_ZU_KNOTEN = {
   "k-ton": "k-ton",
   "k-korpus": "k-korpus",
   "k-phrase": "k-phrase",
-  "k-satzlaenge": "k-satzlaenge"
+  "k-satzlaenge": "k-satzlaenge",
+  "k-atomgroesse": "k-atomgroesse"
 };
 var ANLAGE_KEY = "dm_anlage_v1";
 function saveAnlage(s) {
@@ -15037,6 +15986,18 @@ function baueAnlage(stand, u) {
     u.korpusZeichen ? "an" : "aus",
     u.korpusZeichen ? "" : "kein eigener Text hinterlegt"
   );
+  {
+    const w = u.waechter;
+    const gesamt = w.verworfen + w.angenommen;
+    knoten2(
+      "waechter",
+      1,
+      "Satz-W\xE4chter",
+      gesamt ? `${w.verworfen} von ${gesamt} verworfen (${Math.round(w.quote * 100)} %) \xB7 ${w.umgeschrieben} umgeschrieben \xB7 ${w.zerlegt} zerlegt` : "noch nichts gez\xE4hlt",
+      gesamt ? "an" : "leer",
+      w.haeufigste ? `h\xE4ufigste Regel: ${w.haeufigste} \u2014 Beispiele in der Diagnose unter \u201EW\xE4chter-Statistik\u201C` : "z\xE4hlt ab der ersten Markov-Kette; ohne Korpus bleibt er still"
+    );
+  }
   knoten2(
     "sammler",
     0,
@@ -15112,7 +16073,7 @@ function baueAnlage(stand, u) {
   knoten2("ton", 1, "Ton", bez(TONE_OPTS, r["tone"] || "neutral"), "an", "", "f-tone");
   const struktur = r["structure"] || "auto";
   knoten2("struktur", 2, "Struktur", bez(STRUCTURE_OPTS, struktur), "an", "", "f-structure");
-  const dramaAn = struktur === "dramaturgie";
+  const dramaAn = struktur === "dramaturgie" || struktur === "bogen";
   const nurProsa = (r["form"] || "prose") === "prose";
   const platzFest = /^[0-9]$/.test(u.bogenQuelle);
   const wuerfelt = u.bogenQuelle === "wuerfeln";
@@ -15185,6 +16146,7 @@ function baueAnlage(stand, u) {
   schraube("korpus", "Korpus-Bausteine", " %");
   schraube("phrase", "Phrasensperre", "");
   schraube("satzlaenge", "Satzl\xE4nge", "");
+  schraube("atomgroesse", "Atomgr\xF6\xDFe", " W\xF6rter");
   const cast = r["cast"] ?? "0.5";
   knoten2(
     "cast",
@@ -15322,6 +16284,13 @@ function sammleUmgebung(preset) {
     }, ""),
     erzaehlerBrauchbar: zahl(() => ladeErzaehlerbank().filter((e2) => platzBrauchbar(e2)).length, 0),
     erzaehlerArchiv: zahl(() => Object.values(ladeArchiv()).reduce((n, l) => n + l.length, 0), 0),
+    waechter: zahl(
+      () => {
+        const k = statistikKurz();
+        return { ...k, haeufigste: k.haeufigste ? ZAEHLER_NAMEN[k.haeufigste] : "" };
+      },
+      { verworfen: 0, angenommen: 0, quote: 0, haeufigste: "", umgeschrieben: 0, zerlegt: 0 }
+    ),
     ideenProfil: zahl(() => {
       const p = loadIdeaProfile();
       return p ? p.profil.name || p.profil.genre : "";
@@ -15719,11 +16688,11 @@ function markedPresetOptions() {
 }
 
 // src/features/umwelt.ts
-var KEY2 = "dm_umwelt_v1";
+var KEY3 = "dm_umwelt_v1";
 var UMWELT_LEER = { zeichen: "", wirkung: "aus" };
 function loadUmwelt() {
   try {
-    const r = localStorage.getItem(KEY2);
+    const r = localStorage.getItem(KEY3);
     if (!r) return { ...UMWELT_LEER };
     const p = JSON.parse(r);
     const w = p.wirkung;
@@ -15737,7 +16706,7 @@ function loadUmwelt() {
 }
 function saveUmwelt(u) {
   try {
-    localStorage.setItem(KEY2, JSON.stringify(u));
+    localStorage.setItem(KEY3, JSON.stringify(u));
   } catch {
   }
 }
@@ -17452,8 +18421,8 @@ function applyToneRegister(text, tone) {
       const sents = para.split(/(?<=[.!?…])\s+/);
       const out = [];
       for (const sen of sents) {
-        const wc = sen.split(/\s+/).filter(Boolean).length;
-        if (wc > 16) {
+        const wc2 = sen.split(/\s+/).filter(Boolean).length;
+        if (wc2 > 16) {
           const parts = sen.split(/,\s+(?=und |aber |denn |während |sodass |wobei )/);
           if (parts.length > 1) {
             parts.forEach((p, i) => {
@@ -17479,8 +18448,8 @@ function applyToneRegister(text, tone) {
     return text.split(/\n\n+/).map((para) => {
       const sents = para.split(/(?<=[.!?…])\s+/);
       return sents.map((sen) => {
-        const wc = sen.split(/\s+/).filter(Boolean).length;
-        if (gesetzt < 3 && !vorherGesetzt && wc >= 5 && wc <= 18 && /[.]$/.test(sen) && !/[()"„:—–]/.test(sen) && Math.random() < 0.3) {
+        const wc2 = sen.split(/\s+/).filter(Boolean).length;
+        if (gesetzt < 3 && !vorherGesetzt && wc2 >= 5 && wc2 <= 18 && /[.]$/.test(sen) && !/[()"„:—–]/.test(sen) && Math.random() < 0.3) {
           const tag = tags[ti % tags.length];
           ti++;
           gesetzt++;
@@ -18055,6 +19024,7 @@ function hatFinitesVerbLeicht(satz) {
 }
 
 // src/generation/postprocess.ts
+init_declension();
 var LINE_FORMS = /* @__PURE__ */ new Set(["script", "video", "strang", "reim", "haiku", "poem"]);
 var isLineForm = (input) => !!input && !!input.form && LINE_FORMS.has(input.form);
 function glaetten(t) {
@@ -18063,7 +19033,7 @@ function glaetten(t) {
 var ABGESCHNITTEN = /(^|\s)(eine|einem|einen|einer|eines|der|die|dem|den|des|und|oder|aber|wie|als|im|am|bei|für|ohne)$/i;
 var NUR_OHNE_VERB = /(^|\s)(mit|an|auf|zu|vor|nach|aus|ist|sind|wird|ein|das)$/i;
 var NEBENSATZ_ENDE = /,\s+(der|die|das|dem|den|deren|dessen)\s+([a-zäöüß][^,;:]*)$/;
-var FUNKTION = /* @__PURE__ */ new Set([
+var FUNKTION2 = /* @__PURE__ */ new Set([
   "es",
   "er",
   "sie",
@@ -18218,14 +19188,14 @@ var FUNKTION = /* @__PURE__ */ new Set([
   "weg",
   "los"
 ]);
-var verbMoeglich = (w) => /^[a-zäöüß]{2,}$/.test(w) && !FUNKTION.has(w) && !KEIN_VERB.has(w) && !/(em|er|es)$/.test(w);
+var verbMoeglich = (w) => /^[a-zäöüß]{2,}$/.test(w) && !FUNKTION2.has(w) && !KEIN_VERB.has(w) && !/(em|er|es)$/.test(w);
 function istAbgeschnitten(bare) {
   if (!bare || bare.split(/\s+/).length > 12) return false;
   if (ABGESCHNITTEN.test(bare)) return true;
   const ns = bare.match(NEBENSATZ_ENDE);
   if (ns) {
-    const woerter2 = ns[2].split(/\s+/);
-    if (woerter2.length <= 6 && !woerter2.some(verbMoeglich)) return true;
+    const woerter3 = ns[2].split(/\s+/);
+    if (woerter3.length <= 6 && !woerter3.some(verbMoeglich)) return true;
   }
   return NUR_OHNE_VERB.test(bare) && !hatFinitesVerb(bare);
 }
@@ -18387,15 +19357,16 @@ function beugeNachDu(s) {
   });
   return head + tail + rest;
 }
-var NEBENSATZ = /(,\s+(?:wo|wohin|woher|wenn|als|weil|dass|obwohl|während|nachdem|bevor|sobald|solange|der|die|das|dem|den|deren|dessen)\s[^,.;:!?—–]{3,60}?[a-zäöüß])\s+(bemerk(?:t|e|st|en)|sieht|sehe|siehst|sehen|find(?:et|e|est|en)|entdeck(?:t|e|st|en)|erkenn(?:t|e|st|en)|trifft|treffe|triffst|treffen|hört|höre|hörst|hören|wartet|warte|wartest|warten|steht|stehe|stehst|stehen|beginnt|beginne|beginnst|beginnen|verliert|verliere|verlierst|verlieren)\s+(ich|du|wir|er|sie|es|man|[A-ZÄÖÜ][a-zäöüß]+)\b/g;
+var NEBENSATZ2 = /(,\s+(?:wo|wohin|woher|wenn|als|weil|dass|obwohl|während|nachdem|bevor|sobald|solange|der|die|das|dem|den|deren|dessen)\s[^,.;:!?—–]{3,60}?[a-zäöüß])\s+(bemerk(?:t|e|st|en)|sieht|sehe|siehst|sehen|find(?:et|e|est|en)|entdeck(?:t|e|st|en)|erkenn(?:t|e|st|en)|trifft|treffe|triffst|treffen|hört|höre|hörst|hören|wartet|warte|wartest|warten|steht|stehe|stehst|stehen|beginnt|beginne|beginnst|beginnen|verliert|verliere|verlierst|verlieren)\s+(ich|du|wir|er|sie|es|man|[A-ZÄÖÜ][a-zäöüß]+)\b/g;
 function kommaVorInversion(t) {
-  return (t || "").replace(NEBENSATZ, "$1, $2 $3");
+  return (t || "").replace(NEBENSATZ2, "$1, $2 $3");
 }
 function istPluralFigur(who) {
   const w = (who || "").trim();
   if (!w) return false;
   if (/^(zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|beide|alle|viele|einige|mehrere|manche|zwölf|hundert)\b/i.test(w)) return true;
   if (/\b(und|&)\b/.test(w) && !/,/.test(w)) return true;
+  if (/^[A-ZÄÖÜ][a-zäöüß]+(en|innen|leute|kinder|eltern)$/.test(w) && !/(chen|lein)$/.test(w)) return true;
   const m = w.match(/^die\s+([A-ZÄÖÜ][a-zäöüß-]+)$/i);
   if (m) {
     const n = m[1].toLowerCase();
@@ -18416,8 +19387,31 @@ function pluralKongruenz(t, who) {
   out = out.replace(new RegExp(`\\b([a-z\xE4\xF6\xFC\xDF]+t)\\s+(${esc})\\b`, "giu"), (m, v, n) => istVerbform(v) ? `${beuge(v)} ${n}` : m);
   return out;
 }
+function nomenNachAdverb(t) {
+  return (t || "").replace(
+    /(^|[.!?…]\s+|\n)(Dann|Und dann|Nur|Doch|Jetzt|Plötzlich|Danach|Zuletzt)\s+([a-zäöüß]{3,}),/g,
+    (m, vor, adv, w) => guessGender(w) ? `${vor}${adv} ${w.charAt(0).toUpperCase()}${w.slice(1)},` : m
+  );
+}
+function nominativFragment(t) {
+  return (t || "").replace(
+    /(^|[.!?…]\s+|\n)(Einen|Den|Einem|Dem)\s+([A-ZÄÖÜ][a-zäöüß]+)([^.!?…\n]*[.!?…])/g,
+    (m, vor, art, nomen, rest) => {
+      if (hatFinitesVerb(`${art} ${nomen}${rest}`)) return m;
+      if (/\b(ein|eine|einen|einem|einer|der|die|das|den|dem)\b/i.test(rest)) return m;
+      if (art === "Einen") return `${vor}Ein ${nomen}${rest}`;
+      if (art === "Den") return `${vor}Der ${nomen}${rest}`;
+      const g = guessGender(nomen);
+      if (art === "Einem") return g === "m" || g === "n" ? `${vor}Ein ${nomen}${rest}` : m;
+      return g === "m" ? `${vor}Der ${nomen}${rest}` : g === "n" ? `${vor}Das ${nomen}${rest}` : m;
+    }
+  );
+}
+function formelnGlaetten(t) {
+  return (t || "").replace(/\b(Dann|Und dann|Plötzlich|Danach)\s+—\s+(dann|plötzlich|danach),/gi, (_m, a) => `${a},`).replace(/([.!?…])\s+—\s+([a-zäöüß])/g, (_m, p, c) => `${p} ${c.toUpperCase()}`);
+}
 function kleinesPronomen(t) {
-  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
+  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon|Mittags|Morgens|Abends|Nachts|Heute|Gestern|Morgen|Später|Manchmal|Damals|Irgendwann|Vormittags|Nachmittags)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
     /(,[ \t]+)(Wo|Wenn|Als|Weil|Dass|Obwohl|Während|Nachdem|Bevor|Sobald|Solange|Damit|Ob|Der|Die|Das|Dem|Den|Deren|Dessen)\b(?=\s)/g,
     (_m, sp, w) => sp + w.charAt(0).toLowerCase() + w.slice(1)
   );
@@ -18435,6 +19429,9 @@ function postProcessText(txt2, input) {
   t = kleinesPronomen(t);
   t = kommaVorInversion(t);
   t = fragezeichen(t);
+  t = nomenNachAdverb(t);
+  t = nominativFragment(t);
+  t = formelnGlaetten(t);
   t = kleinerArtikel(t);
   const name = (input?.who ?? "").toString().trim();
   if (name) {
@@ -18454,9 +19451,9 @@ function postProcessText(txt2, input) {
       t = kopf ? `${kopf[1]} ${pick(td.opener)} ${t.slice(kopf[0].length)}` : `${pick(td.opener)} ${t}`;
     }
     if (td.flavor.length) {
-      const wc = t.trim().split(/\s+/).filter(Boolean).length;
+      const wc2 = t.trim().split(/\s+/).filter(Boolean).length;
       const f = (loadKnobs().ton || 0) / 100;
-      const inserts = Math.max(0, Math.min(7, Math.round(Math.max(1, Math.round(wc / 90)) * f)));
+      const inserts = Math.max(0, Math.min(7, Math.round(Math.max(1, Math.round(wc2 / 90)) * f)));
       for (let i = 0; i < inserts; i++) t = insertToneFlavor(t, pick(td.flavor));
     }
     t = applyToneRegister(t, input.tone);
@@ -19121,9 +20118,9 @@ function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
   if (!t0) return t0;
   const tol = 10;
   let out = t0;
-  let wc = count(out);
-  if (Number.isFinite(target) && Math.abs(wc - target) <= tol) return out;
-  if (wc > target + tol) {
+  let wc2 = count(out);
+  if (Number.isFinite(target) && Math.abs(wc2 - target) <= tol) return out;
+  if (wc2 > target + tol) {
     const sentences2 = splitSentences(out);
     const acc = [];
     let c = 0;
@@ -19137,7 +20134,7 @@ function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
     const cut = acc.join(" ").trim();
     return cut.length > 0 ? ensurePunct(cut) : out;
   }
-  const missing = Math.max(0, target - wc);
+  const missing = Math.max(0, target - wc2);
   const maxAttempts = Math.min(120, Math.ceil(missing / 6) + 6);
   const used = /* @__PURE__ */ new Set();
   const strong = markovMode === "on";
@@ -19145,7 +20142,9 @@ function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
     if (model && (strong || Math.random() < 0.6)) {
       const tries = strong ? 3 : 1;
       for (let k = 0; k < tries; k++) {
-        const m = smoothMarkov(model.generate(Math.min(60, Math.max(20, Math.floor(missing * 0.8)))));
+        const roh = smoothMarkov(model.generate(Math.min(60, Math.max(20, Math.floor(missing * 0.8)))));
+        const u = roh ? praesensUmschreiben(roh) : null;
+        const m = u && u.ok ? u.text : "";
         if (m && isSaneMarkov(m) && m.length > 15 && !markovSeenRecently(m)) {
           const key = m.toLowerCase();
           if (!used.has(key) && !out.toLowerCase().includes(key.slice(0, 40))) {
@@ -20117,6 +21116,7 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
       pool.push({ ...d, id: `was-${pool.length}`, quelle: "kontext", kategorie: "was", verlangt: null, bruchgrad: 0 });
     }
   }
+  const atomMax = loadKnobs().atomgroesse;
   const drama = loadKnobs().bogen === 0 ? null : loadDramaData();
   if (drama) {
     const felder = [
@@ -20127,23 +21127,28 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
       ["ausloeser", drama.ausloeser],
       ["veraenderungen", drama.veraenderungen],
       ["zeitanomalien", drama.zeitanomalien],
-      ["regeln", drama.regeln]
-      // "schluss" bleibt aussen vor: Stilworte wie "offen" sind kein Textmaterial.
+      ["regeln", drama.regeln],
+      // "schluss": Bei Preset-2.0-Boegen stehen dort Stilworte ("offen"), bei
+      // Erzaehlerbank-Boegen ganze Schlusssaetze. Nur was ein Satz sein kann
+      // (ab fuenf Woertern) kommt in den Pool — Stilworte bleiben draussen.
+      ["schluss", (drama.schluss || []).filter((t) => (t || "").trim().split(/\s+/).length >= 5)]
     ];
     for (const [kat, arr] of felder) {
       if (!Array.isArray(arr)) continue;
       for (const t of arr) {
-        const roh = (t || "").trim();
-        if (roh.length < 4) continue;
-        const d = deriveAtom(roh);
-        pool.push({
-          ...d,
-          id: `dr-${kat}-${++i}`,
-          quelle: "dramaturgie",
-          kategorie: kat,
-          verlangt: null,
-          bruchgrad: d.unsicher.length ? 1 : 0
-        });
+        const roh0 = (t || "").trim();
+        if (roh0.length < 4) continue;
+        for (const roh of atomisiere(roh0, atomMax)) {
+          const d = deriveAtom(roh);
+          pool.push({
+            ...d,
+            id: `dr-${kat}-${++i}`,
+            quelle: "dramaturgie",
+            kategorie: kat,
+            verlangt: null,
+            bruchgrad: d.unsicher.length ? 1 : 0
+          });
+        }
       }
     }
   }
@@ -20152,8 +21157,12 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
     const eigene = new Set((figur || "").toLowerCase().split(/[,;]/).map((x) => x.trim()).filter(Boolean));
     const gesehen = /* @__PURE__ */ new Set();
     for (let n = 0; n < wieViele * 3 && gesehen.size < wieViele; n++) {
-      const roh = (model.generate(14) || "").trim();
-      if (!roh || !isSaneMarkov(roh)) continue;
+      const roh0 = (model.generate(14) || "").trim();
+      if (!roh0) continue;
+      const u = praesensUmschreiben(roh0);
+      if (!u.ok) continue;
+      const roh = u.text;
+      if (!isSaneMarkov(roh)) continue;
       const sig = roh.toLowerCase();
       if (gesehen.has(sig)) continue;
       const d = deriveAtom(roh);
@@ -20188,7 +21197,7 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
   for (const [kat, arr] of Object.entries(bank)) {
     if (!Array.isArray(arr)) continue;
     if (KEINE_KATEGORIE.has(kat)) continue;
-    for (const t of arr) {
+    for (const roh of arr) for (const t of atomisiere(roh, atomMax)) {
       const d = deriveAtom(t);
       pool.push({
         ...d,
@@ -20281,6 +21290,9 @@ function buildRekombination(bank, input, model) {
   };
   const anfangVon = (t) => t.toLowerCase().replace(/[^a-zäöüß ]/g, "").trim().split(/\s+/).slice(0, 3).join(" ");
   resetTrace();
+  const mitBogen = input.structure === "bogen";
+  setBogenModus(mitBogen);
+  if (mitBogen) setBogenPhasen(loadDramaData()?.folge);
   let fuegeteile = 0;
   const schlussAmEnde = (STRUKTUR_PHASEN[input.structure || "rekombination"] || STRUKTUR_PHASEN["linear"]).slice(-1)[0] === "schluss";
   const woerterJetzt = () => out.join(" ").split(/\s+/).filter(Boolean).length;
@@ -20544,15 +21556,15 @@ var PLURAL_ENDUNG = /(ern|en)$/;
 var EN_SINGULAR = /(regen|wagen|boden|garten|kuchen|schatten|rücken|bogen|laden|ofen|hafen|haken|balken|besen|faden|knochen|kragen|magen|nacken|namen|rasen|riemen|samen|schaden|segen|braten|graben|husten|karren|kolben|zeichen|wesen|leben|essen|wappen|becken|kissen|eisen|zeugen|glauben|willen|frieden|gedanken|kummer)$/i;
 var KEIN_SACHNOMEN = /^(Jahr|Jahre|Monat|Monate|Tag|Tage|Woche|Wochen|Stunde|Stunden|Mal|Uhr|Zeit|Welt|Leben|Anfang|Nacht|Morgen|Abend|Ende|Reihe|Farbe|Sprache|Straße|Grenze|Klasse|Frage|Stelle|Weise|Seite|Liebe|Sorge|Ruhe|Stille|Ferne|Nähe|Fenster|Wasser|Feuer|Zimmer|Wetter|Messer|Muster|Ufer|Alter|Fieber|Wunder|Zeichen|Wesen)$/;
 function sachNomen(was) {
-  const woerter2 = (was || "").split(/\s+/);
-  for (let i = 0; i < woerter2.length; i++) {
-    const w = (woerter2[i] || "").replace(/[^A-Za-zÄÖÜäöüß-]/g, "");
+  const woerter3 = (was || "").split(/\s+/);
+  for (let i = 0; i < woerter3.length; i++) {
+    const w = (woerter3[i] || "").replace(/[^A-Za-zÄÖÜäöüß-]/g, "");
     if (!/^[A-ZÄÖÜ][a-zäöüß]{3,}$/.test(w)) continue;
     if (KEIN_SACHNOMEN.test(w)) continue;
     if (!PLURAL_ENDUNG.test(w)) continue;
     if (EN_SINGULAR.test(w)) continue;
-    const zwei = (woerter2[i - 2] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
-    const davor = (woerter2[i - 1] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
+    const zwei = (woerter3[i - 2] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
+    const davor = (woerter3[i - 1] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
     if (/^(der|des|dem|den|das|ein|eine|einen|einem|einer|eines|jeder|jede|jedes|dieser|diese|dieses|diesem|diesen)$/.test(davor)) continue;
     const PRAEP = /^(mit|bei|seit|von|zu|aus|nach|vor|in|an|auf|über|unter|neben|zwischen|hinter|durch|gegen|ohne|um|für)$/;
     if (PRAEP.test(davor) || PRAEP.test(zwei)) continue;
@@ -20583,9 +21595,9 @@ function genusVon(phrase) {
 var RECHTSFORM = /^(Ltd|GmbH|AG|KG|SE|Inc|LLC|mbH|OHG|gGmbH|e\.?V\.?|Co|KGaA)$/i;
 function kurzform(haupt, genus) {
   const art = genus === "fem" ? "die" : genus === "neut" ? "das" : "der";
-  let woerter2 = haupt.replace(/^(der|die|das|ein|eine|einen)\s+/i, "").split(/\s+/);
-  while (woerter2.length > 1 && RECHTSFORM.test(woerter2[woerter2.length - 1].replace(/[^A-Za-z.]/g, ""))) woerter2.pop();
-  const letzt = woerter2[woerter2.length - 1] || haupt;
+  let woerter3 = haupt.replace(/^(der|die|das|ein|eine|einen)\s+/i, "").split(/\s+/);
+  while (woerter3.length > 1 && RECHTSFORM.test(woerter3[woerter3.length - 1].replace(/[^A-Za-z.]/g, ""))) woerter3.pop();
+  const letzt = woerter3[woerter3.length - 1] || haupt;
   const teil = letzt.includes("-") ? letzt.split("-").pop() : letzt;
   return `${art} ${teil}`;
 }
@@ -22322,7 +23334,7 @@ function asDrama(text, whoA, whoB) {
 // src/generation/buildStory.ts
 var ohneAuto = (l) => l.filter((x) => x !== "auto");
 var MODES = ohneAuto(werte(MODE_OPTS));
-var STRUCTURES = ohneAuto(werte(STRUCTURE_OPTS)).filter((x) => x !== "dramaturgie" && x !== "rekombination");
+var STRUCTURES = ohneAuto(werte(STRUCTURE_OPTS)).filter((x) => x !== "dramaturgie" && x !== "rekombination" && x !== "bogen");
 var PERSPECTIVES = ohneAuto(werte(PERSP_OPTS));
 var RHYTHMS = ohneAuto(werte(RHYTHM_OPTS));
 var resBiased = (ui, kind, opts, aA, aB) => ui !== "auto" && opts.includes(ui) ? ui : biasedAutoChoice(kind, aA, aB) || pick(opts);
@@ -22354,7 +23366,9 @@ function buildKit(bank, input, model) {
   const maybeMarkov = (fallback, prob = 0.42) => {
     if (markovMode === "off" || !model) return fallback;
     if (markovMode === "on" || chance(prob)) {
-      const m = smoothMarkov(model.generate(14));
+      const roh = smoothMarkov(model.generate(14));
+      const u = roh ? praesensUmschreiben(roh) : null;
+      const m = u && u.ok ? u.text : "";
       if (m && isSaneMarkov(m) && !markovSeenRecently(m)) {
         noteMarkov(m);
         traceMarkov(m);
@@ -22430,7 +23444,7 @@ function buildStory(bank, input, model) {
   }
   const verseForm = input.form === "reim" || input.form === "haiku" || input.form === "strang" || input.form === "drama";
   const effStructure = verseForm && kit.structure === "fragment" ? "linear" : kit.structure;
-  const ASSEMBLER = /* @__PURE__ */ new Set(["rekombination", "linear", "reverse", "circle", "fragment", "object"]);
+  const ASSEMBLER = /* @__PURE__ */ new Set(["rekombination", "linear", "reverse", "circle", "fragment", "object", "bogen"]);
   if (input.form === "prose" && ASSEMBLER.has(input.structure || "")) {
     const rk = buildRekombination(bank, input, model);
     if (rk.trim()) {
@@ -22863,16 +23877,16 @@ function analysiereHerkunft(text, tone, ctx) {
   }
   return { segmente, anteile, zeichen, exakt: false, poolUeberschneidung };
 }
-var KEY3 = "dm_last_input_v1";
+var KEY4 = "dm_last_input_v1";
 function saveSchnappschuss(s) {
   try {
-    localStorage.setItem(KEY3, JSON.stringify(s));
+    localStorage.setItem(KEY4, JSON.stringify(s));
   } catch {
   }
 }
 function loadSchnappschuss() {
   try {
-    const r = localStorage.getItem(KEY3);
+    const r = localStorage.getItem(KEY4);
     return r ? JSON.parse(r) : null;
   } catch {
     return null;
@@ -22934,7 +23948,16 @@ function renderTextstruktur(text, snap, schnell, presetPanel, schloss) {
       ["Varianz", snap.varianz],
       ["Spannung", snap.spannung],
       ["L\xE4nge", String(snap.laenge)],
-      ["Bestenauslese", snap.bestenauslese ? "an" : "aus"]
+      ["Bestenauslese", snap.bestenauslese ? "an" : "aus"],
+      // Infoblasen der Erzählerbank — nur wenn ein Bogen im Spiel war.
+      // Gewünscht: schaltbar. „Bogen" und „Bauform" kommen als Auswahlfelder aus
+      // dem Studio (Schnellwahl) und zeigen den JETZIGEN Stand; was der Text
+      // bekommen hat, steht als Info daneben: „Gezogen" beim Würfeln, sonst die
+      // Phasenfolge.
+      ...snap.bogen ? [["Bogen", snap.bogen]] : [],
+      ...snap.bauform ? [["Bauform", snap.bauform]] : [],
+      ...snap.bogen && /^gewürfelt: /.test(snap.bogen) ? [["Gezogen", snap.bogen.replace(/^gewürfelt: /, "")]] : [],
+      ...snap.phasenfolge ? [["Phasenfolge", snap.phasenfolge]] : []
     ];
     const stellschrauben = [];
     for (const k of Object.keys(schnell || {})) {
@@ -22978,7 +24001,13 @@ function renderTextstruktur(text, snap, schnell, presetPanel, schloss) {
         }
         const sel = schnell?.[k];
         if (!sel) {
-          host.append(el("span", { class: "src-chip" }, el("b", {}, k), " " + (v || "\u2014")));
+          const TITEL2 = {
+            Bogen: "Welcher Bogen bei dieser Erzeugung geladen war.",
+            Bauform: "Die Schlagfolge des geladenen Bogens.",
+            Gezogen: "Der beim W\xFCrfeln konkret gezogene Platz dieser Erzeugung.",
+            Phasenfolge: "Aus der Schlagfolge auf zehn Schritte gespreizt: E Er\xF6ffnung \xB7 V Verdichtung \xB7 U Umschlag \xB7 S Schluss."
+          };
+          host.append(el("span", { class: "src-chip", title: TITEL2[k] || "" }, el("b", {}, k), " " + (v || "\u2014")));
           continue;
         }
         const mini = el("select", { class: "src-chip src-chip-sel", title: k + " \xE4ndern" });
@@ -24035,10 +25064,10 @@ var THEMES = [
   { id: "traumlogik", label: "Traumlogik" },
   { id: "papier", label: "Papier (hell)" }
 ];
-var KEY4 = "divergenz_theme_v1";
+var KEY5 = "divergenz_theme_v1";
 function loadTheme() {
   try {
-    const v = localStorage.getItem(KEY4);
+    const v = localStorage.getItem(KEY5);
     if (v && THEMES.some((t) => t.id === v)) return v;
   } catch {
   }
@@ -24047,7 +25076,7 @@ function loadTheme() {
 function applyTheme(id) {
   document.documentElement.setAttribute("data-theme", id);
   try {
-    localStorage.setItem(KEY4, id);
+    localStorage.setItem(KEY5, id);
   } catch {
   }
 }
@@ -24397,8 +25426,8 @@ function bestOf(bank, input, model, N2 = 12, opts = {}) {
   let bestOhne = null;
   for (const txt2 of genN(bank, input, model, N2)) {
     let sc = scoreText(txt2, lt).score;
-    const woerter2 = txt2.split(/\s+/).filter(Boolean).length;
-    const fehl = Math.max(0, (lt - woerter2) / Math.max(1, lt));
+    const woerter3 = txt2.split(/\s+/).filter(Boolean).length;
+    const fehl = Math.max(0, (lt - woerter3) / Math.max(1, lt));
     sc -= fehl * fehl * 120;
     if (ctx) sc += nw * (noveltyOf(txt2, ctx) * 40) - nw * (cooldownHit(txt2, ctx) * 30);
     if (opts.grammarFilter) sc -= Math.min(grammarFlags(txt2).count, 6) * 12;
@@ -25179,7 +26208,70 @@ function mountStudio(root) {
     bogenSel.value = Array.from(bogenSel.options).some((o) => o.value === wahl) ? wahl : "preset";
   };
   bogenFuellen();
-  bogenSel.addEventListener("change", () => setzeQuelle(bogenSel.value));
+  const bogenStatus = el("div", { class: "muted mini bogen-status" });
+  let strukturVorher = null;
+  const bogenStatusMalen = () => {
+    bogenStatus.innerHTML = "";
+    const q = bogenSel.value;
+    if (q === "preset") {
+      bogenStatus.style.display = "none";
+      return;
+    }
+    bogenStatus.style.display = "";
+    const bogenStruktur = structure.value === "dramaturgie" || structure.value === "bogen";
+    const brauchbar = ladeErzaehlerbank().filter((e2) => platzBrauchbar(e2)).length;
+    const platzLeer = /^[0-9]$/.test(q) && !platzBrauchbar(ladeErzaehlerbank()[parseInt(q, 10)] || { titel: "", text: "" });
+    if (form.value !== "prose") bogenStatus.append("wirkt nicht: nur bei Form \u201EProsa\u201C");
+    else if (!bogenStruktur) {
+      const knopf = el("button", { type: "button", class: "mini-link" }, "auf \u201EDramaturgie\u201C stellen");
+      knopf.addEventListener("click", () => {
+        strukturVorher = structure.value;
+        structure.value = "dramaturgie";
+        structure.dispatchEvent(new Event("change"));
+      });
+      bogenStatus.append("wirkt nicht: Struktur ist \u201E", structure.options[structure.selectedIndex]?.text || structure.value, "\u201C \u2014 ", knopf);
+    } else if (platzLeer) bogenStatus.append("wirkt nicht: der gew\xE4hlte Platz ist leer \u2014 in der Erz\xE4hlerbank f\xFCllen");
+    else if (q === "wuerfeln" && !brauchbar) bogenStatus.append("wirkt nicht: kein Platz der Erz\xE4hlerbank ist brauchbar");
+    else if (strukturVorher) {
+      const zurueck = el("button", { type: "button", class: "mini-link" }, `zur\xFCck auf \u201E${STRUCTURE_OPTS.find(([v]) => v === strukturVorher)?.[1] || strukturVorher}\u201C`);
+      zurueck.addEventListener("click", () => {
+        structure.value = strukturVorher;
+        strukturVorher = null;
+        structure.dispatchEvent(new Event("change"));
+      });
+      bogenStatus.append("wirkt \xB7 Struktur wurde auf \u201EDramaturgie\u201C gestellt \u2014 ", zurueck);
+    } else bogenStatus.append(`wirkt \xB7 Struktur \u201E${structure.options[structure.selectedIndex]?.text || structure.value}\u201C`);
+  };
+  bogenSel.addEventListener("change", () => {
+    setzeQuelle(bogenSel.value);
+    bauformSync();
+    if (bogenSel.value !== "preset" && form.value === "prose" && structure.value !== "dramaturgie" && structure.value !== "bogen") {
+      strukturVorher = structure.value;
+      structure.value = "dramaturgie";
+      structure.dispatchEvent(new Event("change"));
+    }
+    if (bogenSel.value === "preset") strukturVorher = null;
+    bogenStatusMalen();
+  });
+  const bauformSel = select("f-bauform", Object.entries(SCHLAGFOLGEN).map(([k, v]) => [k, v.name]), "standard");
+  const bauformSync = () => {
+    const q = ladeQuelle();
+    const i = /^[0-9]$/.test(q) ? parseInt(q, 10) : -1;
+    const e2 = i >= 0 ? ladeErzaehlerbank()[i] : null;
+    bauformSel.disabled = !e2;
+    bauformSel.title = e2 ? `Bauform von Platz ${i + 1} \xE4ndern \u2014 schreibt in die Erz\xE4hlerbank` : "Bauform geh\xF6rt zum gew\xE4hlten Platz \u2014 bei \u201Eaus Preset\u201C oder \u201Ew\xFCrfeln\u201C nicht schaltbar";
+    if (e2) bauformSel.value = e2.folge || "standard";
+  };
+  bauformSel.addEventListener("change", () => {
+    const q = ladeQuelle();
+    if (!/^[0-9]$/.test(q)) return;
+    const i = parseInt(q, 10);
+    const alle = ladeErzaehlerbank();
+    if (!alle[i]) return;
+    alle[i] = { ...alle[i], folge: bauformSel.value };
+    speichereErzaehlerbank(alle);
+  });
+  bauformSync();
   document.addEventListener("visibilitychange", bogenFuellen);
   const mode = select("f-mode", MODE_OPTS, "auto");
   const persp = select("f-persp", PERSP_OPTS, "auto");
@@ -25428,16 +26520,55 @@ function mountStudio(root) {
   const planChk = el("input", { type: "checkbox", id: "f-plan" });
   const planBox = el("div", { class: "bauplan", style: "display:none" });
   const PHASE_LABEL = { exposition: "Er\xF6ffnung", verdichtung: "Verdichtung", umschlag: "Umschlag", schluss: "Schluss" };
-  const KAT_LABEL = { motifs: "Motiv", hooks: "Haken", props: "Requisite", turns: "Wendung", obstacles: "Hindernis", stakes: "Einsatz", endings: "Ende" };
+  const KAT_LABEL = {
+    motifs: "Motiv",
+    hooks: "Haken",
+    props: "Requisite",
+    turns: "Wendung",
+    obstacles: "Hindernis",
+    stakes: "Einsatz",
+    endings: "Ende",
+    // Bogen-Material (Erzählerbank / Preset 2.0) — gewünscht: ein Bauplan auch
+    // für „Rekombination mit Bogen"; dort muss man sehen, WAS aus dem Bogen kam.
+    einstieg: "Bogen \xB7 Einstieg",
+    mitte: "Bogen \xB7 Mitte",
+    hoehepunkt: "Bogen \xB7 H\xF6hepunkt",
+    schluss: "Bogen \xB7 Schluss",
+    ausloeser: "Bogen \xB7 Ausl\xF6ser",
+    veraenderungen: "Bogen \xB7 Ver\xE4nderung",
+    konflikte: "Bogen \xB7 Konflikt",
+    zeitanomalien: "Bogen \xB7 Zeit",
+    regeln: "Bogen \xB7 Regel"
+  };
   const renderPlan = () => {
-    const on = planChk.checked && structure.value === "rekombination";
+    const mitBogen = structure.value === "bogen";
+    const on = planChk.checked && (structure.value === "rekombination" || mitBogen);
     planBox.style.display = on ? "" : "none";
     if (!on) return;
     const tr = getTraceFor(out.textContent || "");
     planBox.innerHTML = "";
     if (!tr.length) {
-      planBox.append(el("span", { class: "muted mini" }, "Noch kein Rekombinations-Text erzeugt."));
+      planBox.append(el("span", { class: "muted mini" }, mitBogen ? "Noch kein Text mit Bogen erzeugt." : "Noch kein Rekombinations-Text erzeugt."));
       return;
+    }
+    if (mitBogen) {
+      const d = loadDramaData();
+      const folge = phasenAusSchlagfolge(d?.folge);
+      const q = ladeQuelle();
+      const platz = /^[0-9]$/.test(q) ? ladeErzaehlerbank()[parseInt(q, 10)] : null;
+      const bauform = platz ? SCHLAGFOLGEN[platz.folge || "standard"]?.name || platz.folge || "" : q === "wuerfeln" ? "gew\xFCrfelt" : d?.folge ? "aus Preset" : "ohne Bogen \u2014 lineare Folge";
+      const ausBogen = tr.filter((x) => x.quelle === "dramaturgie").length;
+      planBox.append(el(
+        "div",
+        { class: "muted mini bp-kopf" },
+        `Bogen: ${platz ? `${platz.titel || "Ohne Titel"} \xB7 ` : ""}${bauform} \xB7 Erz\xE4hlbogen ${loadKnobs().bogen} % \xB7 ${ausBogen} von ${tr.length} Bausteinen aus dem Bogen`
+      ));
+      const kurz2 = { exposition: "E", verdichtung: "V", umschlag: "U", schluss: "S" };
+      planBox.append(el(
+        "div",
+        { class: "muted mini bp-kopf", title: "Phasenfolge, aus der Schlagfolge auf zehn Schritte gespreizt: E Er\xF6ffnung \xB7 V Verdichtung \xB7 U Umschlag \xB7 S Schluss" },
+        "Phasenfolge: " + folge.map((ph) => kurz2[ph] || ph[0].toUpperCase()).join(" ")
+      ));
     }
     const anteil = Math.round(fuegeteilAnteil() * 100);
     const norm = (t) => t.toLowerCase().replace(/[^a-zäöüß ]/g, " ").replace(/\s+/g, " ").trim();
@@ -25485,6 +26616,7 @@ function mountStudio(root) {
     struktBox.style.display = "";
     struktBox.innerHTML = "";
     quelleHint.style.display = "none";
+    bauformSync();
     const snap = loadSchnappschuss();
     struktBox.append(renderTextstruktur(out.textContent || "", snap, {
       Preset: preset,
@@ -25496,16 +26628,21 @@ function mountStudio(root) {
       Markov: markov,
       Varianz: varianz,
       Spannung: tension,
+      // Gewünscht: die Bogen-Blasen schaltbar — Bogen (Regler aus dem
+      // Werkzeugkasten) und Bauform (schreibt in den Platz). Nur, wenn ein
+      // Bogen im Spiel war; sonst blieben leere Felder in der Reihe.
+      ...snap?.bogen ? { Bogen: bogenSel, Bauform: bauformSel } : {},
       // Stellschrauben in der Schnellwahl: die vier, deren Wirkung man beim Lesen
       // sofort merkt, plus die Korpus-Menge. Fuegeteil-Deckel, 4W-Deckel und
       // Nachlege-Abstand bleiben im Werkzeugkasten - sie wirken auf den Bau,
       // nicht auf den Klang.
       ...knobSel.satzlaenge ? { "Satzl\xE4nge": knobSel.satzlaenge } : {},
+      ...knobSel.atomgroesse ? { "Atomgr\xF6\xDFe": knobSel.atomgroesse } : {},
       ...knobSel.bogen ? { "Erz\xE4hlbogen": knobSel.bogen } : {},
       ...knobSel.ton ? { "Ton-Einsch\xFCbe": knobSel.ton } : {},
       ...knobSel.korpus ? { "Korpus-Bausteine": knobSel.korpus } : {},
       ...knobSel.phrase ? { "Phrasensperre": knobSel.phrase } : {}
-    }, (host) => renderPresetChecks(host), (sel) => lockBtn(sel)));
+    }, (host) => renderPresetChecks(host), (sel) => sel === bogenSel || sel === bauformSel ? null : lockBtn(sel)));
     struktBox.append(quelleHint, zielHint);
     try {
       const hh = analysiereHerkunft(
@@ -26278,7 +27415,8 @@ function mountStudio(root) {
     knobRow("ton", "Ton-Einsch\xFCbe", "wie viele Ton-S\xE4tze die Nachbearbeitung einstreut", " %"),
     knobRow("korpus", "Korpus-Bausteine", "aus dem eigenen Korpus, gefiltert auf Pr\xE4sens und eigene Figuren; 0 = aus", ""),
     knobRow("phrase", "Phrasensperre", "ab wie vielen gleichen W\xF6rtern in Folge ein Baustein abgelehnt wird; 0 = aus. Streng hei\xDFt weniger Wiederholung, aber auch k\xFCrzere Texte", " W\xF6rter"),
-    knobRow("satzlaenge", "Satzl\xE4nge", "Obergrenze, kein Mittelwert: Nachbars\xE4tze werden zusammengezogen, solange das Ergebnis darunter bleibt. 0 = aus. Bei 9 verschwinden vor allem die Stummels\xE4tze, lange entstehen erst ab 12; bei 15 liegt der Schnitt bei rund 9 W\xF6rtern", " W\xF6rter")
+    knobRow("satzlaenge", "Satzl\xE4nge", "Obergrenze, kein Mittelwert: Nachbars\xE4tze werden zusammengezogen, solange das Ergebnis darunter bleibt. 0 = aus. Bei 9 verschwinden vor allem die Stummels\xE4tze, lange entstehen erst ab 12; bei 15 liegt der Schnitt bei rund 9 W\xF6rtern", " W\xF6rter"),
+    knobRow("atomgroesse", "Atomgr\xF6\xDFe", "L\xE4ngere Bausteine werden vor dem Zusammenbau zerlegt \u2014 an Gedankenstrich, Semikolon, zwischen zwei Haupts\xE4tzen, oder der nachgestellte Nebensatz f\xE4llt. Was sich nicht zerlegen l\xE4sst, bleibt ganz und wird seltener gezogen. Die eingebauten Presets liegen bei 7 W\xF6rtern im Schnitt; Presets aus Text, Sammler und Erz\xE4hlerbank bringen bis 22. 0 = aus", " W\xF6rter")
   );
   const knobReset = button("Vorgaben wiederherstellen");
   knobReset.addEventListener("click", () => {
@@ -26311,15 +27449,24 @@ function mountStudio(root) {
       return;
     }
     const erzaehlerBogenDa = ladeQuelle() !== "preset" && ladeErzaehlerbank().some(platzBrauchbar);
-    if (structure.value === "dramaturgie" && !(form.value === "prose" && (hasDramaData() || erzaehlerBogenDa))) {
+    const brauchtBogen = structure.value === "dramaturgie" || structure.value === "bogen";
+    const name = structure.value === "bogen" ? "Rekombination mit Bogen" : "Dramaturgie";
+    if (brauchtBogen && !(form.value === "prose" && (hasDramaData() || erzaehlerBogenDa))) {
       rekHint.style.display = "";
-      rekHint.textContent = form.value !== "prose" ? `Hinweis: \u201EDramaturgie\u201C wirkt nur bei Prosa \u2014 bei \u201E${form.options[form.selectedIndex]?.text || form.value}\u201C bleibt die Struktur ohne Wirkung.` : "Hinweis: \u201EDramaturgie\u201C braucht einen Erz\xE4hlbogen. Das aktive Preset hat keinen \u2014 die Maschine baut \xFCber die Schablonen, die Struktur bleibt ohne Wirkung. In der Wortbank l\xE4sst sich ein Preset auf 2.0 heben.";
+      rekHint.textContent = form.value !== "prose" ? `Hinweis: \u201E${name}\u201C wirkt nur bei Prosa \u2014 bei \u201E${form.options[form.selectedIndex]?.text || form.value}\u201C bleibt die Struktur ohne Wirkung.` : `Hinweis: \u201E${name}\u201C braucht einen Erz\xE4hlbogen. Das aktive Preset hat keinen \u2014 ` + (structure.value === "bogen" ? "die Rekombination baut dann in der linearen Phasenfolge. Unter \u201EBogen\u201C im Werkzeugkasten einen Platz der Erz\xE4hlerbank w\xE4hlen." : "die Maschine baut \xFCber die Schablonen, die Struktur bleibt ohne Wirkung. In der Wortbank l\xE4sst sich ein Preset auf 2.0 heben.");
       return;
     }
     rekHint.style.display = "none";
   };
   form.addEventListener("change", updRekHint);
   structure.addEventListener("change", updRekHint);
+  structure.addEventListener("change", () => {
+    if (structure.value !== "dramaturgie") strukturVorher = null;
+    bogenStatusMalen();
+  });
+  form.addEventListener("change", bogenStatusMalen);
+  document.addEventListener("visibilitychange", bogenStatusMalen);
+  bogenStatusMalen();
   preset.addEventListener("change", updRekHint);
   updRekHint();
   fine.append(el(
@@ -26329,7 +27476,7 @@ function mountStudio(root) {
     // Der Bogen hat kein Schloss: Der Würfel fasst ihn nicht an, die Wahl ist
     // ohnehin fest — ein Schloss schützte nichts und der Schaltplan verlangte
     // einen Knoten dafür.
-    el("div", { class: "field" }, el("span", { class: "field-label" }, el("span", {}, "Bogen")), bogenSel),
+    el("div", { class: "field" }, el("span", { class: "field-label" }, el("span", {}, "Bogen")), bogenSel, bogenStatus),
     lockField("Modus", mode),
     lockField("Perspektive", persp),
     lockField("Rhythmus", rhythm),
@@ -26643,7 +27790,23 @@ function mountStudio(root) {
         what: what.value,
         laenge: parseInt(lenSlider.value, 10) || 0,
         bestenauslese: bestChk.checked,
-        zeit: (/* @__PURE__ */ new Date()).toLocaleTimeString("de-DE")
+        zeit: (/* @__PURE__ */ new Date()).toLocaleTimeString("de-DE"),
+        // Infoblasen der Erzählerbank: welcher Bogen geladen war (auch beim
+        // Würfeln der konkret gezogene Platz), seine Bauform, und bei
+        // „Rekombination mit Bogen" die Phasenfolge — gewünscht für die
+        // Struktur-Ansicht.
+        ...(() => {
+          const relevant = structure.value === "dramaturgie" || structure.value === "bogen";
+          if (!relevant || form.value !== "prose") return {};
+          const b = bogenBeschriftung();
+          const out2 = { bogen: b.bogen };
+          if (b.bauform) out2.bauform = b.bauform;
+          if (structure.value === "bogen") {
+            const kurz2 = { exposition: "E", verdichtung: "V", umschlag: "U", schluss: "S" };
+            out2.phasenfolge = phasenAusSchlagfolge(loadDramaData()?.folge).map((ph) => kurz2[ph] || "?").join(" ");
+          }
+          return out2;
+        })()
       });
       try {
         const txt2 = out.textContent || "";
@@ -28178,10 +29341,10 @@ function renderSchaltplan(anlage) {
   return svg;
 }
 function befundListe(anlage) {
-  const leer = anlage.knoten.filter((k) => k.zustand === "leer");
+  const leer2 = anlage.knoten.filter((k) => k.zustand === "leer");
   return {
-    leer: leer.length,
-    text: leer.length ? leer.map((k) => `${k.label}: ${k.hinweis || "Quelle leer"}`).join(" \xB7 ") : "Kein Schalter l\xE4uft ins Leere."
+    leer: leer2.length,
+    text: leer2.length ? leer2.map((k) => `${k.label}: ${k.hinweis || "Quelle leer"}`).join(" \xB7 ") : "Kein Schalter l\xE4uft ins Leere."
   };
 }
 
@@ -29208,6 +30371,8 @@ function mountDiagnose(root) {
     el("div", { class: "btnrow" }, nutzBtn, nutzWeg),
     nutzBox,
     el("hr", {}),
+    mountWaechterStatistik(),
+    el("hr", {}),
     mountWirkung(),
     el("hr", {}),
     el("h3", {}, "Selbsttest \u2014 greifen alle Features?"),
@@ -29219,6 +30384,41 @@ function mountDiagnose(root) {
   root.append(wrap);
   renderPlan();
   renderNutzung();
+}
+function mountWaechterStatistik() {
+  const box = el("div", {});
+  const zeichnen = () => {
+    box.innerHTML = "";
+    const st = ladeStatistik();
+    const kurz2 = statistikKurz();
+    const gesamt = kurz2.verworfen + kurz2.angenommen;
+    box.append(el("h3", {}, "W\xE4chter-Statistik \u2014 was die Regeln tun"));
+    box.append(el("p", { class: "muted" }, "Der Satz-W\xE4chter, der Pr\xE4sens-Umschreiber und die Atomisierung z\xE4hlen seit " + new Date(st.seit).toLocaleDateString("de-DE") + " mit. Zu jeder Regel die letzten Beispiele; unter \u201Edurchgelassen\u201C Stichproben dessen, was der W\xE4chter passieren lie\xDF \u2014 dort zeigt sich das n\xE4chste Muster, bevor ein Blatt es meldet."));
+    if (!gesamt && !kurz2.umgeschrieben && !kurz2.zerlegt) {
+      box.append(el("p", { class: "muted" }, "Noch nichts gez\xE4hlt \u2014 der W\xE4chter z\xE4hlt ab der ersten Markov-Kette, die Atomisierung ab dem ersten langen Baustein."));
+    }
+    const reihen = ["regel1", "regel2", "regel3", "regel4", "regel5", "regel6", "regel7", "regel8", "angenommen", "umgeschrieben", "unklar", "praeteritumVerworfen", "atomZerlegt", "atomGekuerzt", "atomGanzZuLang"];
+    for (const z of reihen) {
+      const n = st.zaehler[z] || 0;
+      if (!n) continue;
+      const bsp = st.beispiele[z] || [];
+      const d = el("details", { class: "hyg-gruppe" }, el("summary", {}, `${ZAEHLER_NAMEN[z]} \xB7 ${n}`));
+      if (bsp.length) for (const b of bsp) d.append(el("div", { class: "muted mini", style: "margin:2px 0 2px 12px" }, b));
+      else d.append(el("div", { class: "muted mini", style: "margin-left:12px" }, "keine Beispiele gemerkt"));
+      box.append(d);
+    }
+    const reset = button("Z\xE4hler zur\xFCcksetzen", "danger");
+    reset.addEventListener("click", () => {
+      if (confirm("W\xE4chter-Statistik zur\xFCcksetzen?")) {
+        statistikZuruecksetzen();
+        zeichnen();
+      }
+    });
+    box.append(el("div", { class: "btnrow", style: "margin-top:8px" }, reset));
+  };
+  zeichnen();
+  document.addEventListener("visibilitychange", zeichnen);
+  return box;
 }
 
 // test/schaltplan.ts
@@ -29274,6 +30474,7 @@ var UMGEBUNG = (u = {}) => ({
   erzaehlerPlatz: "",
   erzaehlerBrauchbar: 0,
   erzaehlerArchiv: 0,
+  waechter: { verworfen: 0, angenommen: 0, quote: 0, haeufigste: "", umgeschrieben: 0, zerlegt: 0 },
   ...u
 });
 var knoten = (a, id) => a.knoten.find((k) => k.id === id);
@@ -29754,12 +30955,12 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
 {
   const vorher = { where: "im Archiv", when: "am Morgen", who: "die Archivarin", what: "sucht eine Akte" };
   const felder = /* @__PURE__ */ new Set();
-  let leer = 0;
+  let leer2 = 0;
   for (let i = 0; i < 20; i++) {
     const w = wuerfleVierW(vorher, /* @__PURE__ */ new Set(), "ideen");
     wahr("die Quelle hei\xDFt Ideen", /^Ideen/.test(w.quelle));
     for (const f of ["where", "when", "who", "what"]) {
-      if (!(w.w4[f] || "").trim()) leer++;
+      if (!(w.w4[f] || "").trim()) leer2++;
       felder.add(w.w4[f]);
     }
     break;
@@ -29767,11 +30968,11 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
   for (let i = 0; i < 20; i++) {
     const w = wuerfleVierW(vorher, /* @__PURE__ */ new Set(), "ideen");
     for (const f of ["where", "when", "who", "what"]) {
-      if (!(w.w4[f] || "").trim()) leer++;
+      if (!(w.w4[f] || "").trim()) leer2++;
       felder.add(w.w4[f]);
     }
   }
-  ist("eine Pr\xE4misse f\xFCllt alle vier Felder", leer, 0);
+  ist("eine Pr\xE4misse f\xFCllt alle vier Felder", leer2, 0);
   wahr(`und liefert verschiedene Werte (${felder.size})`, felder.size >= 8);
   const zu = /* @__PURE__ */ new Set(["f-where"]);
   let verschoben = 0;
@@ -29829,16 +31030,16 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
 {
   const vorher = { where: "im Archiv", when: "am Morgen", who: "die Archivarin", what: "sucht eine Akte" };
   const wesen = /* @__PURE__ */ new Set();
-  let ohneStil = 0, leer = 0;
+  let ohneStil = 0, leer2 = 0;
   for (let i = 0; i < 30; i++) {
     const w = wuerfleVierW(vorher, /* @__PURE__ */ new Set(), "omni");
     wesen.add(w.quelle);
     if (!w.regler) ohneStil++;
-    for (const f of ["where", "who", "what"]) if (!(w.w4[f] || "").trim()) leer++;
+    for (const f of ["where", "who", "what"]) if (!(w.w4[f] || "").trim()) leer2++;
   }
   wahr(`die Quelle zieht verschiedene Wesen (${wesen.size} in 30 Z\xFCgen)`, wesen.size >= 4);
   ist("und liefert immer die Stilregler mit", ohneStil, 0);
-  ist("Wo, Wer und Was sind gef\xFCllt", leer, 0);
+  ist("Wo, Wer und Was sind gef\xFCllt", leer2, 0);
   const eins = wuerfleVierW(vorher, /* @__PURE__ */ new Set(), "omni");
   wahr("die Quelle nennt das Wesen beim Namen", /^Wahrnehmung · \S/.test(eins.quelle));
   wahr("der Modus passt zur Wahrnehmung", eins.regler?.["mode"] === "body");
@@ -30157,6 +31358,15 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
   const a6 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ dramaVorhanden: true }));
   ist("Preset-Weg wie bisher", kn(a6, "drama").zustand, "an");
   wahr("und sagt es", /Bogen aus dem Preset/.test(kn(a6, "drama").wert));
+}
+{
+  const kn = (a, id) => a.knoten.find((k) => k.id === id);
+  const leer2 = baueAnlage(STAND({}), UMGEBUNG({}));
+  ist("ohne Z\xE4hlung: leer", kn(leer2, "waechter").zustand, "leer");
+  const voll = baueAnlage(STAND({}), UMGEBUNG({ waechter: { verworfen: 12, angenommen: 88, quote: 0.12, haeufigste: "W\xE4chter 4 \xB7 Inversion ohne Subjekt", umgeschrieben: 30, zerlegt: 7 } }));
+  ist("mit Z\xE4hlung: an", kn(voll, "waechter").zustand, "an");
+  wahr("der Wert nennt Anteil, Umschreibungen, Zerlegungen", /12 von 100 verworfen \(12 %\) · 30 umgeschrieben · 7 zerlegt/.test(kn(voll, "waechter").wert));
+  wahr("der Hinweis nennt die h\xE4ufigste Regel", /häufigste Regel: Wächter 4/.test(kn(voll, "waechter").hinweis));
 }
 console.log(`Pr\xFCfstand Schaltplan \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

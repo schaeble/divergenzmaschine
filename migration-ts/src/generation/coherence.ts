@@ -5,6 +5,7 @@
 import { splitSentences } from "../text-utils";
 import { KEIN_VERB, istVerbform, beugeVerb, infinitivZuStamm, kenntInfinitiv } from "./verben";
 import { PAST2PRES } from "./verblex.data";
+import { zaehle } from "../features/waechterStatistik";
 import { NOUN_GENDER } from "./nouns.data";
 
 // ── 1) Tempus ────────────────────────────────────────────────────────
@@ -279,7 +280,12 @@ export function praesensUmschreiben(entry: string): { text: string; ok: boolean;
     if (neu !== w) { words[i] = neu + satzzeichen; changed = true; }
   }
   const text = words.join("");
-  return { text, ok: !isPastTense(text) && unklar === 0, changed };
+  const ok = !isPastTense(text) && unklar === 0;
+  // Statistik (Punkt 5): umgeschrieben, unklar, oder Präteritum blieb.
+  if (ok && changed) zaehle("umgeschrieben", `${entry} → ${text}`);
+  else if (!ok && unklar) zaehle("unklar", entry);
+  else if (!ok) zaehle("praeteritumVerworfen", entry);
+  return { text, ok, changed };
   // (unklar zählt nur noch Stämme, die das Lexikon nicht kennt und die kein Beleg stützt)
 }
 

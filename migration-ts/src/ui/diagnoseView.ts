@@ -11,6 +11,7 @@ import { renderSelfTest, renderSummary } from "./selftestView";
 import { mountWirkung } from "./wirkungView";
 import { baueAnlage, sammleUmgebung, loadAnlage } from "../features/schaltplan";
 import { renderSchaltplan, befundListe } from "./schaltplanView";
+import { ladeStatistik, statistikKurz, statistikZuruecksetzen, ZAEHLER_NAMEN, type Zaehler } from "../features/waechterStatistik";
 import { wuerfleAlles } from "../features/wuerfeln";
 import { saveAnlage } from "../features/schaltplan";
 import { loadKnobs, saveKnobs } from "../features/knobs";
@@ -238,6 +239,8 @@ export function mountDiagnose(root: HTMLElement): void {
     el("div", { class: "btnrow" }, nutzBtn, nutzWeg),
     nutzBox,
     el("hr", {}),
+    mountWaechterStatistik(),
+    el("hr", {}),
     mountWirkung(),
     el("hr", {}),
     el("h3", {}, "Selbsttest — greifen alle Features?"),
@@ -248,4 +251,39 @@ export function mountDiagnose(root: HTMLElement): void {
   root.append(wrap);
   renderPlan();
   renderNutzung();
+}
+
+// ── Wächter-Statistik (Punkt 5 des Zielbilds) ───────────────────────────────
+// Jede Regel entstand aus einem Blatt. Hier zählt die Maschine selbst: wie oft
+// welche Regel verworfen hat (mit den letzten Beispielen), was der Umschreiber
+// tat, was die Atomisierung zerlegte — und Stichproben dessen, was der Wächter
+// DURCHLÄSST. Dort steht das nächste Muster, bevor ein Blatt es zeigt.
+function mountWaechterStatistik(): HTMLElement {
+  const box = el("div", {});
+  const zeichnen = (): void => {
+    box.innerHTML = "";
+    const st = ladeStatistik();
+    const kurz = statistikKurz();
+    const gesamt = kurz.verworfen + kurz.angenommen;
+    box.append(el("h3", {}, "Wächter-Statistik — was die Regeln tun"));
+    box.append(el("p", { class: "muted" }, "Der Satz-Wächter, der Präsens-Umschreiber und die Atomisierung zählen seit "
+      + new Date(st.seit).toLocaleDateString("de-DE") + " mit. Zu jeder Regel die letzten Beispiele; unter „durchgelassen“ Stichproben dessen, was der Wächter passieren ließ — dort zeigt sich das nächste Muster, bevor ein Blatt es meldet."));
+    if (!gesamt && !kurz.umgeschrieben && !kurz.zerlegt) { box.append(el("p", { class: "muted" }, "Noch nichts gezählt — der Wächter zählt ab der ersten Markov-Kette, die Atomisierung ab dem ersten langen Baustein.")); }
+    const reihen: Zaehler[] = ["regel1", "regel2", "regel3", "regel4", "regel5", "regel6", "regel7", "regel8", "angenommen", "umgeschrieben", "unklar", "praeteritumVerworfen", "atomZerlegt", "atomGekuerzt", "atomGanzZuLang"];
+    for (const z of reihen) {
+      const n = st.zaehler[z] || 0;
+      if (!n) continue;
+      const bsp = st.beispiele[z] || [];
+      const d = el("details", { class: "hyg-gruppe" }, el("summary", {}, `${ZAEHLER_NAMEN[z]} · ${n}`));
+      if (bsp.length) for (const b of bsp) d.append(el("div", { class: "muted mini", style: "margin:2px 0 2px 12px" }, b));
+      else d.append(el("div", { class: "muted mini", style: "margin-left:12px" }, "keine Beispiele gemerkt"));
+      box.append(d);
+    }
+    const reset = button("Zähler zurücksetzen", "danger");
+    reset.addEventListener("click", () => { if (confirm("Wächter-Statistik zurücksetzen?")) { statistikZuruecksetzen(); zeichnen(); } });
+    box.append(el("div", { class: "btnrow", style: "margin-top:8px" }, reset));
+  };
+  zeichnen();
+  document.addEventListener("visibilitychange", zeichnen);
+  return box;
 }

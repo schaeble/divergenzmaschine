@@ -803,6 +803,49 @@ function beugeVerb(form3, person) {
   return fertig(stamm + "e");
 }
 
+// src/features/waechterStatistik.ts
+var KEY = "dm_waechter_statistik_v1";
+var BEISPIELE_JE = 5;
+var cache = null;
+var schreibTimer = null;
+function leer() {
+  return { zaehler: {}, beispiele: {}, seit: (/* @__PURE__ */ new Date()).toISOString() };
+}
+function ladeStatistik() {
+  if (cache) return cache;
+  try {
+    const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(KEY);
+    const v = raw ? JSON.parse(raw) : null;
+    cache = v && v.zaehler && v.beispiele ? v : leer();
+  } catch {
+    cache = leer();
+  }
+  return cache;
+}
+function speichern() {
+  if (schreibTimer !== null) return;
+  schreibTimer = (typeof window !== "undefined" ? window.setTimeout : setTimeout)(() => {
+    schreibTimer = null;
+    try {
+      if (typeof localStorage !== "undefined" && cache) localStorage.setItem(KEY, JSON.stringify(cache));
+    } catch {
+    }
+  }, 1e3);
+}
+function zaehle(was, beispiel) {
+  const st = ladeStatistik();
+  st.zaehler[was] = (st.zaehler[was] || 0) + 1;
+  if (beispiel) {
+    const b = st.beispiele[was] || [];
+    const kurz = beispiel.trim().slice(0, 140);
+    if (!b.includes(kurz)) {
+      b.unshift(kurz);
+      st.beispiele[was] = b.slice(0, BEISPIELE_JE);
+    }
+  }
+  speichern();
+}
+
 // src/generation/nouns.data.ts
 var NOUN_GENDER = {
   "abdruck": "m",
@@ -2241,7 +2284,11 @@ function praesensUmschreiben(entry) {
     }
   }
   const text = words.join("");
-  return { text, ok: !isPastTense(text) && unklar === 0, changed };
+  const ok = !isPastTense(text) && unklar === 0;
+  if (ok && changed) zaehle("umgeschrieben", `${entry} \u2192 ${text}`);
+  else if (!ok && unklar) zaehle("unklar", entry);
+  else if (!ok) zaehle("praeteritumVerworfen", entry);
+  return { text, ok, changed };
 }
 function toPresentSicher(entry) {
   const AUX = /\b(hat|haben|habe|hast|habt|hatte|hatten|ist|sind|bin|bist|seid|war|waren|wird|werden|wurde|wurden|worden)\b/i;
@@ -3883,11 +3930,11 @@ var KNOB_SPANNE = {
   satzlaenge: { min: 0, max: 21, step: 3 },
   atomgroesse: { min: 0, max: 24, step: 2 }
 };
-var KEY = "dm_knobs_v1";
+var KEY2 = "dm_knobs_v1";
 var klemm = (v, s) => Math.max(s.min, Math.min(s.max, v));
 function loadKnobs() {
   try {
-    const r = localStorage.getItem(KEY);
+    const r = localStorage.getItem(KEY2);
     if (!r) return { ...KNOB_VORGABE };
     const p = JSON.parse(r);
     return {
@@ -13538,15 +13585,15 @@ wahr("ein gew\xF6hnlicher Satz gilt nicht als Ger\xFCst", !GERUESTZEILE.test("Di
     O: "Stab"
   };
   const WERTE = ["in edinburgh", "im jahr 1953", "der wanderer", "mitglied des kronrates"];
-  let doppelt = 0, leer = 0;
+  let doppelt = 0, leer2 = 0;
   for (let i = 0; i < 300; i++) {
     const t = applyEmphasis("Ein Satz. Noch einer. Und ein dritter.", kit, { wo: 3, wann: 2, wer: 2, was: 2 });
-    if (t.length < 40) leer++;
+    if (t.length < 40) leer2++;
     const k = t.toLowerCase();
     if (WERTE.some((w) => k.split(w).length - 1 > 1)) doppelt++;
   }
   ist("kein 4W-Wert steht zweimal im Text (300 L\xE4ufe)", doppelt, 0);
-  ist("und es wird trotzdem eingef\xFCgt", leer, 0);
+  ist("und es wird trotzdem eingef\xFCgt", leer2, 0);
   const voll = applyEmphasis("Ein Satz. Noch einer.", kit, { wo: 3, wann: 3, wer: 3, was: 3 });
   wahr("bei voller St\xE4rke stehen viele Zusatzs\xE4tze da", voll.split(/[.!?] /).length >= 8);
   wahr("der Ort wird genannt", /in Edinburgh/i.test(voll));
@@ -13665,17 +13712,17 @@ wahr("die Objekt-Perspektive nutzt ihn", /Ich kenne \$\{dekliniere\(P, "akk"\)\}
 {
   const m = new MarkovModel(2);
   m.addText("Eine Feder liegt auf stillem Wasser und dreht sich langsam im Kreis. Der Kiosk verkauft eine Schlagzeile, die es nicht gibt und niemals gab. Die Lava versiegelt den Ausgang f\xFCr alle, die zu sp\xE4t kommen. Der Hang beginnt zu wandern. Das Gestein wird durchsichtig.");
-  let unvoll = 0, leer = 0;
+  let unvoll = 0, leer2 = 0;
   for (let i = 0; i < 300; i++) {
     const t = m.generate(10);
     if (!t) {
-      leer++;
+      leer2++;
       continue;
     }
     if (!/[.!?…]$/.test(t)) unvoll++;
   }
   ist("keine Kette endet mitten im Satz (300 Ketten, Grenze 10)", unvoll, 0);
-  wahr("und die Ausbeute bleibt (weiche Grenze)", leer < 30);
+  wahr("und die Ausbeute bleibt (weiche Grenze)", leer2 < 30);
   const k = new MarkovModel(2);
   k.addText("ein langer Satz ohne Ende der immer weiter l\xE4uft und nie aufh\xF6rt zu laufen");
   ist("kein Satzende \u2192 leer statt Stumpf", k.generate(6), "");

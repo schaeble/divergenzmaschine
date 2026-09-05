@@ -47,7 +47,8 @@ const UMGEBUNG = (u: Partial<Umgebung> = {}): Umgebung => ({
   korpusZeichen: 0, sammlerFunde: 0, bildFunde: 0, themenFunde: 0, weltFiguren: 0, weltOrte: 0,
   livePools: 0, schatzkammer: 0, knobs: { ...KNOB_VORGABE }, gesperrt: new Set<string>(),
   dramaVorhanden: false, presetLabel: "Kafka", ideenProfil: "", omniProfile: 8, omniProfil: "",
-  bogenQuelle: "preset", erzaehlerPlatz: "", erzaehlerBrauchbar: 0, erzaehlerArchiv: 0, ...u,
+  bogenQuelle: "preset", erzaehlerPlatz: "", erzaehlerBrauchbar: 0, erzaehlerArchiv: 0,
+  waechter: { verworfen: 0, angenommen: 0, quote: 0, haeufigste: "", umgeschrieben: 0, zerlegt: 0 }, ...u,
 });
 const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((k) => k.id === id);
 
@@ -1019,6 +1020,17 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   const a6 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ dramaVorhanden: true }));
   ist("Preset-Weg wie bisher", kn(a6, "drama").zustand, "an");
   wahr("und sagt es", /Bogen aus dem Preset/.test(kn(a6, "drama").wert));
+}
+
+// ── Satz-Wächter im Plan (Punkt 5) ──────────────────────────────────────────
+{
+  const kn = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((k) => k.id === id)!;
+  const leer = baueAnlage(STAND({}), UMGEBUNG({}));
+  ist("ohne Zählung: leer", kn(leer, "waechter").zustand, "leer");
+  const voll = baueAnlage(STAND({}), UMGEBUNG({ waechter: { verworfen: 12, angenommen: 88, quote: 0.12, haeufigste: "Wächter 4 · Inversion ohne Subjekt", umgeschrieben: 30, zerlegt: 7 } }));
+  ist("mit Zählung: an", kn(voll, "waechter").zustand, "an");
+  wahr("der Wert nennt Anteil, Umschreibungen, Zerlegungen", /12 von 100 verworfen \(12 %\) · 30 umgeschrieben · 7 zerlegt/.test(kn(voll, "waechter").wert));
+  wahr("der Hinweis nennt die häufigste Regel", /häufigste Regel: Wächter 4/.test(kn(voll, "waechter").hinweis));
 }
 
 console.log(`Prüfstand Schaltplan — ${geprueft} Prüfungen, ${bestanden} bestanden`);

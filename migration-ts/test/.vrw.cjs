@@ -3890,6 +3890,49 @@ var darfFolgen = (a, b) => (FOLGT_AUF[a] || []).includes(b);
 var schliesstKopf = (t) => ["hauptsatz", "nominalphrase", "fragment", "einwort"].includes(t);
 var schwelle = (divergenz) => divergenz < 25 ? 0 : divergenz < 55 ? 1 : divergenz < 80 ? 2 : 3;
 
+// src/features/waechterStatistik.ts
+var KEY = "dm_waechter_statistik_v1";
+var BEISPIELE_JE = 5;
+var cache = null;
+var schreibTimer = null;
+function leer() {
+  return { zaehler: {}, beispiele: {}, seit: (/* @__PURE__ */ new Date()).toISOString() };
+}
+function ladeStatistik() {
+  if (cache) return cache;
+  try {
+    const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(KEY);
+    const v = raw ? JSON.parse(raw) : null;
+    cache = v && v.zaehler && v.beispiele ? v : leer();
+  } catch {
+    cache = leer();
+  }
+  return cache;
+}
+function speichern() {
+  if (schreibTimer !== null) return;
+  schreibTimer = (typeof window !== "undefined" ? window.setTimeout : setTimeout)(() => {
+    schreibTimer = null;
+    try {
+      if (typeof localStorage !== "undefined" && cache) localStorage.setItem(KEY, JSON.stringify(cache));
+    } catch {
+    }
+  }, 1e3);
+}
+function zaehle(was, beispiel) {
+  const st = ladeStatistik();
+  st.zaehler[was] = (st.zaehler[was] || 0) + 1;
+  if (beispiel) {
+    const b = st.beispiele[was] || [];
+    const kurz = beispiel.trim().slice(0, 140);
+    if (!b.includes(kurz)) {
+      b.unshift(kurz);
+      st.beispiele[was] = b.slice(0, BEISPIELE_JE);
+    }
+  }
+  speichern();
+}
+
 // src/generation/coherence.ts
 var PRAET_STRONG = /\b(war|waren|warst|hatte|hatten|wurde|wurden|ging|gingen|kam|kamen|sah|sahen|gab|gaben|stand|standen|blieb|blieben|hielt|hielten|ließ|ließen|fand|fanden|nahm|nahmen|sprach|sprachen|schrieb|schrieben|trug|trugen|fuhr|fuhren|lief|liefen|saß|saßen|lag|lagen|hieß|hießen|zog|zogen|schlief|schliefen|rief|riefen|fiel|fielen|sang|sangen|trank|tranken|schwieg|schwiegen|floss|flossen|stieg|stiegen|sank|sanken|bot|boten|schloss|schlossen|verlor|verloren|begann|begannen|geschah|geschahen|konnte|konnten|musste|mussten|wollte|wollten|sollte|sollten|durfte|durften|wusste|wussten|dachte|dachten|brachte|brachten)\b/i;
 var PRAET_WEAK = /\b[a-zäöüß]{3,}(te|ten|test)\b/;
@@ -4031,7 +4074,11 @@ function praesensUmschreiben(entry) {
     }
   }
   const text = words.join("");
-  return { text, ok: !isPastTense(text) && unklar === 0, changed };
+  const ok = !isPastTense(text) && unklar === 0;
+  if (ok && changed) zaehle("umgeschrieben", `${entry} \u2192 ${text}`);
+  else if (!ok && unklar) zaehle("unklar", entry);
+  else if (!ok) zaehle("praeteritumVerworfen", entry);
+  return { text, ok, changed };
 }
 function toPresentSicher(entry) {
   const AUX = /\b(hat|haben|habe|hast|habt|hatte|hatten|ist|sind|bin|bist|seid|war|waren|wird|werden|wurde|wurden|worden)\b/i;
@@ -4404,11 +4451,11 @@ var KNOB_SPANNE = {
   satzlaenge: { min: 0, max: 21, step: 3 },
   atomgroesse: { min: 0, max: 24, step: 2 }
 };
-var KEY = "dm_knobs_v1";
+var KEY2 = "dm_knobs_v1";
 var klemm = (v, s) => Math.max(s.min, Math.min(s.max, v));
 function loadKnobs() {
   try {
-    const r = localStorage.getItem(KEY);
+    const r = localStorage.getItem(KEY2);
     if (!r) return { ...KNOB_VORGABE };
     const p = JSON.parse(r);
     return {
@@ -4434,18 +4481,28 @@ var NP_KOPF = /^(der|die|das|ein|eine|einen|einem|einer|kein|keine|zwei|drei|man
 var NEBENSATZ = /,\s+(der|die|das|dem|den|dessen|deren|welche[rsmn]?|dass|weil|wenn|als|während|obwohl|nachdem|bevor|sobald|solange|seit|seitdem|damit|sodass|ohne|um|statt|anstatt|wo|worin|was|wer|wie|ob|falls|indem)\b[^,]*$/i;
 var tragfaehig = (s) => wc(s) >= 3 && (hatFinitesVerb(s) || NP_KOPF.test(s));
 function atomisiere(text, max) {
+  const teile = atomisiereRoh(text, max);
+  const t = trimSatz(text || "");
+  if (t && max >= 6 && wc(t) > max) {
+    if (teile.length > 1) zaehle("atomZerlegt", `${t} \u2192 ${teile.join(" | ")}`);
+    else if (teile.length === 1 && teile[0] !== t) zaehle("atomGekuerzt", `${t} \u2192 ${teile[0]}`);
+    else zaehle("atomGanzZuLang", t);
+  }
+  return teile;
+}
+function atomisiereRoh(text, max) {
   const t = trimSatz(text || "");
   if (!t) return [];
   if (!max || max < 6 || wc(t) <= max) return [t];
   const harte = t.split(/\s*(?:—|–|;|:)\s+/).map(trimSatz).filter((x) => wc(x) >= 3);
-  if (harte.length > 1) return harte.flatMap((x) => atomisiere(x, max));
+  if (harte.length > 1) return harte.flatMap((x) => atomisiereRoh(x, max));
   const koord = t.match(/^(.+?),\s+(und|aber|doch|denn|sondern)\s+(.+)$/i);
   if (koord && hatFinitesVerb(koord[1]) && hatFinitesVerb(koord[3]) && wc(koord[1]) >= 3 && wc(koord[3]) >= 3)
-    return [...atomisiere(koord[1], max), ...atomisiere(koord[3], max)];
+    return [...atomisiereRoh(koord[1], max), ...atomisiereRoh(koord[3], max)];
   const ns = t.match(NEBENSATZ);
   if (ns && ns.index !== void 0) {
     const haupt = trimSatz(t.slice(0, ns.index));
-    if (tragfaehig(haupt) && wc(haupt) >= 4) return atomisiere(haupt, max);
+    if (tragfaehig(haupt) && wc(haupt) >= 4) return atomisiereRoh(haupt, max);
   }
   return [t];
 }
@@ -7866,28 +7923,28 @@ var verbKandidat = (roh, istErstes = false) => {
 };
 var woerter2 = (s) => s.split(/\s+/).map((w) => w.replace(/[„“"»«().!?…;:]+/g, "")).filter(Boolean);
 var NP_KOPF2 = /^(der|die|das|ein|eine|einen|kein|keine|zwei|drei|viele|manche|jede[rs]?|irgendein|lauter)\b/i;
-function satzPlausibel(satz) {
+function pruefeSatz(satz) {
   const bare = satz.trim().replace(/[.!?…]+$/, "").trim();
-  if (!bare) return false;
+  if (!bare) return 2;
   const ws = woerter2(bare);
-  if (!ws.length) return false;
+  if (!ws.length) return 2;
   const letztes = ws[ws.length - 1].toLowerCase();
-  if (HAENGENDES_ENDE.has(letztes)) return false;
+  if (HAENGENDES_ENDE.has(letztes)) return 1;
   const hatVerb = ws.some((w, i) => verbKandidat(w, i === 0));
   if (!hatVerb) {
-    if (ws.length > 12) return false;
+    if (ws.length > 12) return 2;
     const kern = bare.replace(/^(und|aber|doch|dann|denn|oder|nur|auch)\s+/i, "");
     const kopf = kern.split(/\s+/)[0] || "";
     const ADVERB_KOPF = /^(irgendwo|irgendwann|irgendwie|dort|hier|heute|morgen|gestern|vielleicht|manchmal|so|bald|überall|nirgends|nirgendwo|draußen|drinnen|oben|unten|jetzt|damals|dennoch|trotzdem|deshalb|darum|davor|danach|zuerst|zuletzt|womöglich|angeblich|vermutlich|wahrscheinlich)$/i;
     const nomenKopf = /^[A-ZÄÖÜ]/.test(kopf) && !ADVERB_KOPF.test(kopf) && !FUNKTION2.has(kopf.toLowerCase());
     const prepKopf = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zu|zum|zur|mit|durch|gegen|um|seit|während|trotz|wegen)$/i.test(kopf);
-    if (ws.length > 5 && !NP_KOPF2.test(kern) && !nomenKopf && !prepKopf) return false;
+    if (ws.length > 5 && !NP_KOPF2.test(kern) && !nomenKopf && !prepKopf) return 2;
   }
   for (const teil of bare.split(/,\s*/).slice(1)) {
     const tw = woerter2(teil);
     if (!tw.length || !/^(was|wer|der|die|das|dem|den|wo|wie)$/i.test(tw[0])) continue;
     const undIdx = tw.findIndex((w, i) => i > 0 && /^(und|oder)$/i.test(w));
-    if (undIdx > 1 && verbKandidat(tw[undIdx + 1] || "", false) && !tw.slice(1, undIdx).some((w) => verbKandidat(w, false))) return false;
+    if (undIdx > 1 && verbKandidat(tw[undIdx + 1] || "", false) && !tw.slice(1, undIdx).some((w) => verbKandidat(w, false))) return 3;
   }
   const PREP_KOPF = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zum|zur|mit|durch|gegen|seit|trotz|wegen)$/i;
   for (const teil of bare.split(/,\s*/)) {
@@ -7899,7 +7956,7 @@ function satzPlausibel(satz) {
     if (vi < 2) continue;
     if (tw.slice(1, vi).some((w) => /^(es|er|sie|wir|ich|du|man|jemand|niemand|etwas|nichts|alles)$/i.test(w))) continue;
     const rest = tw.slice(vi + 1);
-    if (/^(wie|als)$/i.test(rest[0] || "") && rest.length <= 2) return false;
+    if (/^(wie|als)$/i.test(rest[0] || "") && rest.length <= 2) return 4;
   }
   for (const teil of bare.split(/[,;]\s*|\s+(?:und|aber|oder|doch|sondern)\s+/i)) {
     if (!/\bl(ä|ie)(ss|ß)t?\s+(es\s+)?sich\b/i.test(teil)) continue;
@@ -7907,7 +7964,7 @@ function satzPlausibel(satz) {
     const letztes2 = (tw[tw.length - 1] || "").toLowerCase();
     if (!letztes2 || /^[A-ZÄÖÜ]/.test(tw[tw.length - 1] || "")) continue;
     if (FUNKTION2.has(letztes2) || ADJEKTIV.has(letztes2) || HILFSVERB.has(letztes2)) continue;
-    if (/t$/.test(letztes2) && !/(en|eln|ern)$/.test(letztes2)) return false;
+    if (/t$/.test(letztes2) && !/(en|eln|ern)$/.test(letztes2)) return 5;
   }
   const finit = (w) => {
     const l = w.toLowerCase();
@@ -7919,21 +7976,29 @@ function satzPlausibel(satz) {
     for (let i = 0; i + 3 < tw.length; i++) {
       if (!finit(tw[i]) || !/^(der|die|das|den|dem|ein|eine|einen|einem)$/i.test(tw[i + 1])) continue;
       if (!/^[A-ZÄÖÜ]/.test(tw[i + 2])) continue;
-      if (HILFSVERB.has(tw[i + 3].toLowerCase())) return false;
+      if (HILFSVERB.has(tw[i + 3].toLowerCase())) return 6;
     }
   }
   {
     const auf = (bare.match(/[„»]/g) || []).length, zu = (bare.match(/[“«]/g) || []).length;
-    if (auf !== zu) return false;
+    if (auf !== zu) return 7;
   }
   for (const teil of bare.split(/[,;:—–]\s*/))
-    if (/^es gibt(\s+(jetzt|hier|dort|noch|nur|auch|bald|immer|nie))?$/i.test(teil.trim())) return false;
-  return true;
+    if (/^es gibt(\s+(jetzt|hier|dort|noch|nur|auch|bald|immer|nie))?$/i.test(teil.trim())) return 8;
+  return 0;
 }
 function stueckPlausibel(text) {
   const saetze = (text || "").split(/(?<=[.!?…])\s+/).map((s) => s.trim()).filter(Boolean);
   if (!saetze.length) return false;
-  return saetze.every(satzPlausibel);
+  for (const satz of saetze) {
+    const regel = pruefeSatz(satz);
+    if (regel) {
+      zaehle(`regel${regel}`, satz);
+      return false;
+    }
+  }
+  zaehle("angenommen", Math.random() < 0.1 ? text : void 0);
+  return true;
 }
 
 // src/corpus.ts
