@@ -67,8 +67,14 @@ ist("Klemmung", kurveWert([0, 1], 3), 1);
   wahr("die Spur sitzt im Textfenster", /el\("div", \{ class: "outwrap" \}, mkGenArrow\("left"\), spur, out,/.test(qs));
   wahr("nur im Editiermodus", /const an = feedsChk\.checked && kurve\.an;/.test(qs) && /skLeiste\.style\.display = feedsChk\.checked \? "" : "none"/.test(qs));
   wahr("die Tönung folgt der Kurve", /out\.style\.backgroundImage = `linear-gradient\(to bottom, /.test(qs) && /0\.03 \+ v \* 0\.16/.test(qs));
-  wahr("Punkte sind ziehbar — waagerecht, rechts = mehr", /c\.addEventListener\("pointerdown"/.test(qs) && /setPointerCapture/.test(qs) && /\(x - 4\) \/ \(SPUR_B - 10\)/.test(qs));
-  wahr("loslassen speichert und erzeugt neu", /c\.addEventListener\("pointerup", \(\) => \{ ziehe = false; skSichern\(\); generate\(\); \}\)/.test(qs));
+  // 4.345.2: kein Diagramm — ein Farbsaum, in den man greift; Zug und Kerbe
+  // erscheinen nur, wenn die Hand am Rand ist.
+  wahr("keine Kreise, keine Polygon-Linie mehr", !/sk-punkt/.test(qs) && !/sk-linie/.test(qs));
+  wahr("der Saum ist eine Fläche aus dem weichen Zug (Catmull-Rom)", /const weich = \(pts: \[number, number\]\[\]\): string/.test(qs) && /saum\.setAttribute\("d"/.test(qs));
+  wahr("greifen wählt die nächste Stützstelle, ziehen ändert sie waagerecht", /gewaehlt = stelleBei\(ev\.clientY\)/.test(qs) && /kurve\.werte\[gewaehlt\] = wertBei\(ev\.clientX\)/.test(qs));
+  wahr("Zug und Kerbe nur bei der Hand am Rand", /spur\.addEventListener\("pointerenter", \(\) => \{ spur\.classList\.add\("sk-hand"\); \}\)/.test(qs) && /kerbe\.style\.display = "none"/.test(qs));
+  wahr("loslassen verblasst, speichert und erzeugt neu", /const loslassen = \(\): void => \{ if \(!ziehe\) return; ziehe = false; spur\.classList\.remove\("sk-hand"\); gewaehlt = -1; skSichern\(\); generate\(\); \}/.test(qs));
+  wahr("Tastatur: auf/ab wählt, links/rechts ändert", /k === "ArrowUp" \|\| k === "ArrowDown"/.test(qs) && /k === "ArrowRight" \|\| k === "ArrowLeft"/.test(qs));
   wahr("nach jeder Erzeugung wird die Spur neu gemalt", /renderTitel\(\); spurMalen\(\); \}/.test(qs));
   wahr("vor der Erzeugung: Schlagfolge aus der Kurve, Regler gesetzt", /setBogenOverride\(\{ \.\.\.basis, folge: schlagfolgeAusKurve\(kurve\.werte\) \}\)/.test(qs) && /tension\.value = soll/.test(qs));
   wahr("Vorlagen zur Wahl", /select\("f-sk-vorlage"/.test(qs));

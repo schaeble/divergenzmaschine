@@ -12261,9 +12261,17 @@ ist("Klemmung", kurveWert([0, 1], 3), 1);
 }
 {
   const qs = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
-  wahr("der Graph h\xE4ngt unter dem Einfachen Kopf", /koerper, skWrap\)/.test(qs));
-  wahr("Punkte sind ziehbar (pointerdown/move/up)", /c\.addEventListener\("pointerdown"/.test(qs) && /setPointerCapture/.test(qs));
-  wahr("loslassen speichert und erzeugt neu, wenn an", /c\.addEventListener\("pointerup", \(\) => \{ ziehe = false; skSichern\(\); if \(kurve\.an\) generate\(\); \}\)/.test(qs));
+  wahr("kein Graph mehr unter dem Einfachen Kopf", !/koerper, skWrap\)/.test(qs));
+  wahr("die Spur sitzt im Textfenster", /el\("div", \{ class: "outwrap" \}, mkGenArrow\("left"\), spur, out,/.test(qs));
+  wahr("nur im Editiermodus", /const an = feedsChk\.checked && kurve\.an;/.test(qs) && /skLeiste\.style\.display = feedsChk\.checked \? "" : "none"/.test(qs));
+  wahr("die T\xF6nung folgt der Kurve", /out\.style\.backgroundImage = `linear-gradient\(to bottom, /.test(qs) && /0\.03 \+ v \* 0\.16/.test(qs));
+  wahr("keine Kreise, keine Polygon-Linie mehr", !/sk-punkt/.test(qs) && !/sk-linie/.test(qs));
+  wahr("der Saum ist eine Fl\xE4che aus dem weichen Zug (Catmull-Rom)", /const weich = \(pts: \[number, number\]\[\]\): string/.test(qs) && /saum\.setAttribute\("d"/.test(qs));
+  wahr("greifen w\xE4hlt die n\xE4chste St\xFCtzstelle, ziehen \xE4ndert sie waagerecht", /gewaehlt = stelleBei\(ev\.clientY\)/.test(qs) && /kurve\.werte\[gewaehlt\] = wertBei\(ev\.clientX\)/.test(qs));
+  wahr("Zug und Kerbe nur bei der Hand am Rand", /spur\.addEventListener\("pointerenter", \(\) => \{ spur\.classList\.add\("sk-hand"\); \}\)/.test(qs) && /kerbe\.style\.display = "none"/.test(qs));
+  wahr("loslassen verblasst, speichert und erzeugt neu", /const loslassen = \(\): void => \{ if \(!ziehe\) return; ziehe = false; spur\.classList\.remove\("sk-hand"\); gewaehlt = -1; skSichern\(\); generate\(\); \}/.test(qs));
+  wahr("Tastatur: auf/ab w\xE4hlt, links/rechts \xE4ndert", /k === "ArrowUp" \|\| k === "ArrowDown"/.test(qs) && /k === "ArrowRight" \|\| k === "ArrowLeft"/.test(qs));
+  wahr("nach jeder Erzeugung wird die Spur neu gemalt", /renderTitel\(\); spurMalen\(\); \}/.test(qs));
   wahr("vor der Erzeugung: Schlagfolge aus der Kurve, Regler gesetzt", /setBogenOverride\(\{ \.\.\.basis, folge: schlagfolgeAusKurve\(kurve\.werte\) \}\)/.test(qs) && /tension\.value = soll/.test(qs));
   wahr("Vorlagen zur Wahl", /select\("f-sk-vorlage"/.test(qs));
   const qb = (0, import_fs.readFileSync)("src/generation/buildStory.ts", "utf8");

@@ -863,39 +863,63 @@ export function mountStudio(root: HTMLElement): void {
     const v = Math.max(min, Math.min(max, (parseInt(lenSlider.value, 10) || 110) + (ev.key === "ArrowDown" ? schritt : -schritt)));
     lenSlider.value = String(v); lenVal.textContent = String(v); ev.preventDefault(); generate();
   });
-  // ── Spannungskurve als Spur am linken Rand des Textfensters (4.345.1) ───
-  // Gewünscht: Statt des Graphen über dem Text die Kurve NEBEN dem Text — auf
-  // gleicher Höhe mit den Sätzen (0 % oben beim ersten, 100 % unten beim
-  // letzten), nur im Editiermodus. Jeder Punkt liegt neben der Stelle, die er
-  // steuert; ziehen nach rechts = mehr Spannung, loslassen erzeugt neu. Dazu
-  // die Tönung im Text: warmer Hintergrund, kräftiger, wo die Kurve hoch
-  // steht — man sieht die Kurve UND ihre Wirkung an derselben Stelle.
+  // ── Spannungskurve als Farbsaum am linken Rand des Textfensters (4.345.2) ─
+  // Gewünscht (1 + 2): kein Diagramm mehr. Der Regler ist aus demselben Stoff
+  // wie die Tönung: Am linken Rand läuft die Tönung in einen weichen Saum aus —
+  // breiter und wärmer, wo die Kurve hoch steht. Man greift in den Saum und
+  // zieht nach rechts (mehr) oder links (weniger); die Höhe des Griffs wählt
+  // die Stützstelle. Erst wenn die Hand am Rand ist, erscheint ein weicher
+  // Pinselzug (Catmull-Rom, halbtransparent) und an der gegriffenen Höhe eine
+  // Kerbe; beim Loslassen verblasst beides wieder in den Saum. Nur im
+  // Editiermodus, nur wenn die Kurve an ist.
   const NS = "http://www.w3.org/2000/svg";
-  const SPUR_B = 36;
+  const SPUR_B = 40;
   const spur = document.createElementNS(NS, "svg");
-  spur.setAttribute("class", "sk-spur"); spur.setAttribute("aria-label", "Spannungskurve am Textrand, Punkte ziehbar (rechts = mehr Spannung)");
-  const spurFlaeche = document.createElementNS(NS, "path"); spurFlaeche.setAttribute("class", "sk-flaeche");
-  const spurLinie = document.createElementNS(NS, "path"); spurLinie.setAttribute("class", "sk-linie");
-  spur.append(spurFlaeche, spurLinie);
-  const spurPunkte: SVGCircleElement[] = [];
+  spur.setAttribute("class", "sk-spur"); spur.setAttribute("tabindex", "0");
+  spur.setAttribute("aria-label", "Spannungskurve am Textrand: in den Saum greifen und ziehen, rechts = mehr Spannung; Tastatur: auf/ab wählt die Stelle, links/rechts ändert sie");
+  const saum = document.createElementNS(NS, "path"); saum.setAttribute("class", "sk-saum");
+  const zug = document.createElementNS(NS, "path"); zug.setAttribute("class", "sk-zug");
+  const kerbe = document.createElementNS(NS, "line"); kerbe.setAttribute("class", "sk-kerbe");
+  spur.append(saum, zug, kerbe);
   let kurve = ladeKurve();
-  const skChk = el("input", { type: "checkbox", id: "f-spannungskurve", title: "An: Die Kurve setzt Rhythmus je Position, Schlagfolge des Bogens und den Regler Spannung. Aus: Spur und Tönung verschwinden." }) as HTMLInputElement;
+  let gewaehlt = -1;                       // Stützstelle unter der Hand / im Fokus
+  let ziehe = false;
+  const skChk = el("input", { type: "checkbox", id: "f-spannungskurve", title: "An: Die Kurve setzt Rhythmus je Position, Schlagfolge des Bogens und den Regler Spannung. Aus: Saum und Tönung verschwinden." }) as HTMLInputElement;
   const skVorlage = select("f-sk-vorlage", Object.entries(KURVEN_VORLAGEN).map(([k, v]) => [k, v.name] as [string, string]), "steigend");
   const skStand = el("span", { class: "muted mini" });
+  const hoehe = (): number => Math.max(120, out.offsetHeight || 300);
+  const yVon = (i: number, H: number): number => 8 + (i / (STUETZEN - 1)) * (H - 16);
+  const xVon = (v: number): number => 3 + v * (SPUR_B - 8);
+  // Catmull-Rom → kubische Bézier: der weiche Zug durch die Stützstellen.
+  const weich = (pts: [number, number][]): string => {
+    if (pts.length < 2) return "";
+    let d = `M${pts[0]![0].toFixed(1)},${pts[0]![1].toFixed(1)}`;
+    for (let k = 0; k < pts.length - 1; k++) {
+      const p0 = pts[Math.max(0, k - 1)]!, p1 = pts[k]!, p2 = pts[k + 1]!, p3 = pts[Math.min(pts.length - 1, k + 2)]!;
+      const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+    }
+    return d;
+  };
   const spurMalen = (): void => {
     const an = feedsChk.checked && kurve.an;
     spur.style.display = an ? "" : "none";
     out.classList.toggle("sk-getoent", an);
     outWrap.classList.toggle("sk-an", an);
-    if (!an) { out.style.backgroundImage = ""; skStand.textContent = kurve.an ? "" : ""; return; }
-    const H = Math.max(120, out.offsetHeight || 300);
+    if (!an) { out.style.backgroundImage = ""; skStand.textContent = ""; return; }
+    const H = hoehe();
     spur.setAttribute("viewBox", `0 0 ${SPUR_B} ${H}`); spur.setAttribute("height", String(H)); spur.setAttribute("width", String(SPUR_B));
-    const yVon = (i: number): number => 8 + (i / (STUETZEN - 1)) * (H - 16);
-    const xVon = (v: number): number => 4 + v * (SPUR_B - 10);
-    const pts = kurve.werte.map((v, i) => `${xVon(v).toFixed(1)},${yVon(i).toFixed(1)}`);
-    spurLinie.setAttribute("d", "M" + pts.join(" L"));
-    spurFlaeche.setAttribute("d", `M${xVon(0)},${yVon(0).toFixed(1)} L` + pts.join(" L") + ` L${xVon(0)},${yVon(STUETZEN - 1).toFixed(1)} Z`);
-    spurPunkte.forEach((c, i) => { c.setAttribute("cx", xVon(kurve.werte[i]!).toFixed(1)); c.setAttribute("cy", yVon(i).toFixed(1)); });
+    const pts: [number, number][] = kurve.werte.map((v, i) => [xVon(v), yVon(i, H)]);
+    const zugD = weich(pts);
+    zug.setAttribute("d", zugD);
+    // Der Saum: die Fläche zwischen Rand und weichem Zug, ohne Kontur.
+    saum.setAttribute("d", `M0,${yVon(0, H).toFixed(1)} L${pts[0]![0].toFixed(1)},${pts[0]![1].toFixed(1)} ` + zugD.slice(zugD.indexOf(" ") + 1).replace(/^C/, "C") + ` L0,${yVon(STUETZEN - 1, H).toFixed(1)} Z`);
+    if (gewaehlt >= 0) {
+      const y = yVon(gewaehlt, H), x = xVon(kurve.werte[gewaehlt]!);
+      kerbe.setAttribute("x1", String(Math.max(0, x - 7))); kerbe.setAttribute("x2", String(x + 7)); kerbe.setAttribute("y1", String(y)); kerbe.setAttribute("y2", String(y));
+      kerbe.style.display = "";
+    } else kerbe.style.display = "none";
     // Tönung: ein Verlauf von oben nach unten aus den sieben Werten.
     const stops = kurve.werte.map((v, i) => `rgba(214,72,40,${(0.03 + v * 0.16).toFixed(3)}) ${Math.round((i / (STUETZEN - 1)) * 100)}%`);
     out.style.backgroundImage = `linear-gradient(to bottom, ${stops.join(", ")})`;
@@ -906,26 +930,41 @@ export function mountStudio(root: HTMLElement): void {
       + ` · Ende ${endeHoch ? "offen" : "geschlossen"} · Spannung ${regler === "off" ? "aus" : regler === "top" ? "oben" : regler === "mid" ? "Mitte" : "unten"}`;
   };
   const skSichern = (): void => { speichereKurve(kurve); spurMalen(); };
-  for (let i = 0; i < STUETZEN; i++) {
-    const c = document.createElementNS(NS, "circle") as SVGCircleElement;
-    c.setAttribute("r", "6"); c.setAttribute("class", "sk-punkt"); c.setAttribute("tabindex", "0");
-    c.setAttribute("aria-label", `Stützstelle ${i + 1} von ${STUETZEN} — rechts = mehr Spannung`);
-    let ziehe = false;
-    const setzeAusEvent = (ev: PointerEvent): void => {
-      const r = spur.getBoundingClientRect();
-      const x = (ev.clientX - r.left) / r.width * SPUR_B;
-      kurve.werte[i] = Math.max(0, Math.min(1, (x - 4) / (SPUR_B - 10)));
-      spurMalen();
-    };
-    c.addEventListener("pointerdown", (ev) => { ziehe = true; c.setPointerCapture(ev.pointerId); setzeAusEvent(ev); });
-    c.addEventListener("pointermove", (ev) => { if (ziehe) setzeAusEvent(ev); });
-    c.addEventListener("pointerup", () => { ziehe = false; skSichern(); generate(); });
-    c.addEventListener("keydown", (ev) => {
-      const k = (ev as KeyboardEvent).key;
-      if (k === "ArrowRight" || k === "ArrowLeft") { ev.preventDefault(); kurve.werte[i] = Math.max(0, Math.min(1, kurve.werte[i]! + (k === "ArrowRight" ? 0.05 : -0.05))); skSichern(); }
-    });
-    spurPunkte.push(c); spur.append(c);
-  }
+  const stelleBei = (clientY: number): number => {
+    const r = spur.getBoundingClientRect();
+    const H = hoehe();
+    const y = (clientY - r.top) / r.height * H;
+    let best = 0;
+    for (let i = 1; i < STUETZEN; i++) if (Math.abs(yVon(i, H) - y) < Math.abs(yVon(best, H) - y)) best = i;
+    return best;
+  };
+  const wertBei = (clientX: number): number => {
+    const r = spur.getBoundingClientRect();
+    const x = (clientX - r.left) / r.width * SPUR_B;
+    return Math.max(0, Math.min(1, (x - 3) / (SPUR_B - 8)));
+  };
+  // Die Hand am Rand: Zug und Kerbe erscheinen, die nächste Stützstelle wird gewählt.
+  spur.addEventListener("pointerenter", () => { spur.classList.add("sk-hand"); });
+  spur.addEventListener("pointerleave", () => { if (!ziehe) { spur.classList.remove("sk-hand"); gewaehlt = -1; spurMalen(); } });
+  spur.addEventListener("pointermove", (ev) => {
+    if (ziehe) { kurve.werte[gewaehlt] = wertBei(ev.clientX); spurMalen(); return; }
+    const n = stelleBei(ev.clientY);
+    if (n !== gewaehlt) { gewaehlt = n; spurMalen(); }
+  });
+  spur.addEventListener("pointerdown", (ev) => {
+    ziehe = true; gewaehlt = stelleBei(ev.clientY); spur.setPointerCapture(ev.pointerId);
+    kurve.werte[gewaehlt] = wertBei(ev.clientX); spur.classList.add("sk-hand"); spurMalen();
+  });
+  const loslassen = (): void => { if (!ziehe) return; ziehe = false; spur.classList.remove("sk-hand"); gewaehlt = -1; skSichern(); generate(); };
+  spur.addEventListener("pointerup", loslassen);
+  spur.addEventListener("pointercancel", loslassen);
+  spur.addEventListener("keydown", (ev) => {
+    const k = (ev as KeyboardEvent).key;
+    if (k === "ArrowUp" || k === "ArrowDown") { ev.preventDefault(); gewaehlt = Math.max(0, Math.min(STUETZEN - 1, (gewaehlt < 0 ? 0 : gewaehlt) + (k === "ArrowDown" ? 1 : -1))); spur.classList.add("sk-hand"); spurMalen(); }
+    else if ((k === "ArrowRight" || k === "ArrowLeft") && gewaehlt >= 0) { ev.preventDefault(); kurve.werte[gewaehlt] = Math.max(0, Math.min(1, kurve.werte[gewaehlt]! + (k === "ArrowRight" ? 0.05 : -0.05))); skSichern(); }
+    else if (k === "Enter" && gewaehlt >= 0) { ev.preventDefault(); generate(); }
+  });
+  spur.addEventListener("blur", () => { spur.classList.remove("sk-hand"); gewaehlt = -1; spurMalen(); });
   skChk.checked = kurve.an;
   skChk.addEventListener("change", () => { kurve.an = skChk.checked; skSichern(); generate(); });
   skVorlage.addEventListener("change", () => { const v = KURVEN_VORLAGEN[skVorlage.value]; if (v) { kurve.werte = [...v.werte]; skSichern(); if (kurve.an) generate(); } });

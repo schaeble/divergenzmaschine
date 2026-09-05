@@ -1162,13 +1162,16 @@ button.ek-probe:hover .ek-blaettern{opacity:1;color:var(--acc2)}
 .sp-springt:focus rect{stroke-width:2.5}
 .sprung-ziel{outline:2px solid var(--acc2);outline-offset:3px;border-radius:8px;transition:outline-color .4s;animation:sprungPuls 2.2s ease-out}
 @keyframes sprungPuls{0%{box-shadow:0 0 0 0 rgba(0,120,200,.45)}100%{box-shadow:0 0 0 14px rgba(0,120,200,0)}}
-/* Spannungskurve als Spur am linken Rand des Textfensters, nur im Editiermodus (4.345.1). */
-.sk-spur{position:absolute;left:6px;top:0;height:100%;width:36px;touch-action:none;user-select:none;z-index:2}
-.out.sk-getoent{padding-left:48px}
+/* Spannungskurve als Farbsaum am linken Rand des Textfensters (4.345.2).
+   Im Ruhezustand nur der Saum — eine Verdichtung der Toenung am Rand. Kommt
+   die Hand an den Rand, erscheinen der weiche Zug und die Kerbe. */
+.sk-spur{position:absolute;left:0;top:0;height:100%;width:40px;touch-action:none;user-select:none;z-index:2;cursor:ew-resize;outline:none}
+.sk-saum{fill:rgb(214,72,40);opacity:.22;transition:opacity .25s}
+.sk-spur.sk-hand .sk-saum{opacity:.3}
+.sk-zug{fill:none;stroke:rgb(214,72,40);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round;opacity:0;transition:opacity .25s}
+.sk-spur.sk-hand .sk-zug{opacity:.55}
+.sk-kerbe{stroke:rgb(214,72,40);stroke-width:2;stroke-linecap:round;opacity:.85}
+.out.sk-getoent{padding-left:52px}
 .outwrap.sk-an .genarrow.left{left:46px}
-.sk-flaeche{fill:var(--acc2);opacity:.14}
-.sk-linie{fill:none;stroke:var(--acc2);stroke-width:2.2;stroke-linejoin:round}
-.sk-punkt{fill:var(--panel, #fff);stroke:var(--acc2);stroke-width:2.2;cursor:ew-resize}
-.sk-punkt:hover,.sk-punkt:focus{stroke-width:3.2;outline:none}
 .sk-leiste{display:inline-flex;gap:8px;align-items:center;margin-left:8px}
 .out.sk-getoent{transition:background-image .3s}
