@@ -999,16 +999,16 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   // 1) Vorrats-Knoten: abgeklemmt bei Quelle „aus Preset", auch wenn gefüllt.
   const a1 = baueAnlage(STAND({}), UMGEBUNG({ erzaehlerBrauchbar: 7, erzaehlerArchiv: 12 }));
   ist("abgeklemmt bei „aus Preset“", kn(a1, "erzaehler").zustand, "aus");
-  wahr("der Wert zählt Plätze und Archiv", /7 von 10 Plätzen brauchbar · Archiv: 12/.test(kn(a1, "erzaehler").wert));
+  wahr("der Wert zählt das Archiv", /12 Geschichten im Archiv, 7 brauchbar/.test(kn(a1, "erzaehler").wert));
   // 2) Fester Platz: Vorrat an, Dramaturgie nennt den Platz.
-  const a2 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "2", erzaehlerPlatz: "Platz 3 · Der Fährmann · Rückwärts", erzaehlerBrauchbar: 7 }));
+  const a2 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "a:rueckwaerts:x1", erzaehlerPlatz: "Der Fährmann · Rückwärts", erzaehlerBrauchbar: 7 }));
   ist("fester Platz: Vorrat an", kn(a2, "erzaehler").zustand, "an");
   ist("Dramaturgie an, obwohl das Preset keinen Bogen trägt", kn(a2, "drama").zustand, "an");
-  wahr("und sie nennt den Platz", /Erzählerbank, Platz 3 · Der Fährmann · Rückwärts/.test(kn(a2, "drama").wert));
+  wahr("und sie nennt den Eintrag", /Erzählerbank, Der Fährmann · Rückwärts/.test(kn(a2, "drama").wert));
   // 3) Fester Platz, aber leer: Dramaturgie leer mit Wegweiser.
-  const a3 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "4", erzaehlerPlatz: "", erzaehlerBrauchbar: 3 }));
-  ist("leerer Platz: Dramaturgie leer", kn(a3, "drama").zustand, "leer");
-  wahr("der Hinweis zeigt den Weg", /leeren Platz der Erzählerbank/.test(kn(a3, "drama").hinweis));
+  const a3 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "a:still:weg", erzaehlerPlatz: "", erzaehlerBrauchbar: 3 }));
+  ist("fehlender Eintrag: Dramaturgie leer", kn(a3, "drama").zustand, "leer");
+  wahr("der Hinweis zeigt den Weg", /nicht mehr im Archiv liegt/.test(kn(a3, "drama").hinweis));
   // 4) Würfeln: an mit Anzahl, leer ohne brauchbare Plätze.
   const a4 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "wuerfeln", erzaehlerBrauchbar: 5 }));
   wahr("Würfeln nennt die Anzahl", /würfelt je Erzeugung aus 5 brauchbaren Plätzen/.test(kn(a4, "drama").wert));

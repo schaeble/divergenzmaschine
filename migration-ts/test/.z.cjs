@@ -1,7 +1,103 @@
 "use strict";
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
+
+// src/text-utils.ts
+function clean(s) {
+  return (s ?? "").toString().trim().replace(/\s+/g, " ");
+}
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+function pickSane(arr, minWords = 2) {
+  const list = Array.isArray(arr) ? arr : [];
+  const ok = list.filter(
+    (x) => String(x ?? "").trim().split(/\s+/).filter(Boolean).length >= minWords
+  );
+  return (ok.length ? pick(ok) : pick(list)) ?? "";
+}
+function chance(p) {
+  return Math.random() < p;
+}
+function ensurePunct(s) {
+  s = clean(s);
+  if (!s) return "";
+  return /[.!?…]$/.test(s) ? s : s + ".";
+}
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function keineGrenze(vor, nach) {
+  if (ABKUERZUNG.test(vor)) return true;
+  if (!ORDNUNGSZAHL.test(vor)) return false;
+  return MONATE.test(nach) || /^\d/.test(nach);
+}
+function splitSentences(txt2) {
+  const flach = txt2.replace(/\s+/g, " ").trim();
+  const roh = flach.split(/(?<=[.!?…])\s+/).filter(Boolean);
+  const raus = [];
+  for (const teil of roh) {
+    const vor = raus[raus.length - 1];
+    if (vor && keineGrenze(vor, teil)) raus[raus.length - 1] = vor + " " + teil;
+    else raus.push(teil);
+  }
+  return raus;
+}
+function kuerzeAmBruch(text) {
+  let t = (text || "").replace(/\s*…\s*$/, "").replace(/\s*[.,;:–—-]+\s*$/, "").trim();
+  for (let i = 0; i < 8 && t && HAENGT_IN_DER_LUFT.test(t); i++) {
+    const komma = t.lastIndexOf(",");
+    if (komma >= 12) {
+      t = t.slice(0, komma).replace(/\s*[.,;:–—-]+\s*$/, "").trim();
+      continue;
+    }
+    const ohneWort = t.replace(/\s+\S+$/, "").replace(/\s*[.,;:–—-]+\s*$/, "").trim();
+    if (!ohneWort || ohneWort === t) {
+      t = "";
+      break;
+    }
+    t = ohneWort;
+  }
+  {
+    const komma = t.lastIndexOf(",");
+    if (komma >= 12) {
+      const schwanz = t.slice(komma + 1).trim();
+      const relativ = /^(der|die|das|dem|den|dessen|deren|welche[rsmn]?|wo|worin|woran)\s/i.test(schwanz);
+      const hatVerb = /(?:^|[^A-Za-zÄÖÜäöüß])[a-zäöüß]{2,}(?:t|te|en|st|et)(?![A-Za-zÄÖÜäöüß])/.test(schwanz);
+      const endetAufNomen = /[A-ZÄÖÜ][a-zäöüß]+$/.test(schwanz);
+      if (relativ && endetAufNomen && !hatVerb) t = t.slice(0, komma).trim();
+    }
+  }
+  for (let i = 0; i < 4; i++) {
+    const m = t.match(/(\S+)\s+(an|auf|aus|ein|mit|nach|vor|zu|über|unter|um|ab|bei|los|weg|hin|her)$/i);
+    if (!m || !/^[A-ZÄÖÜ]/.test(m[1])) break;
+    t = t.replace(/\s+\S+$/, "").trim();
+  }
+  return HAENGT_IN_DER_LUFT.test(t) ? "" : t;
+}
+function namensErsetzer(name) {
+  const mitArtikel = /^(ein|eine|einen|einem|einer|der|die|das|den|dem|des)\s/i.test(name);
+  return (m) => mitArtikel && /^[a-zäöü]/.test(m) ? name.charAt(0).toLowerCase() + name.slice(1) : name;
+}
+var MONATE, ORDNUNGSZAHL, ABKUERZUNG, HAENGT_IN_DER_LUFT;
+var init_text_utils = __esm({
+  "src/text-utils.ts"() {
+    "use strict";
+    MONATE = /^(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember|Jahrhunderts?|Jh\.|Hälfte|Auflage|Band|Kapitel|Absatz|Teil)\b/u;
+    ORDNUNGSZAHL = /\d\.$/;
+    ABKUERZUNG = /(?:^|\s)(?:[A-Za-zÄÖÜäöü]|ca|bzw|bspw|evtl|ggf|inkl|Nr|St|Dr|Prof|Abs|Art|Bd|Hrsg|usw|etc)\.$/u;
+    HAENGT_IN_DER_LUFT = /(^|\s)(ein|eine|einem|einen|einer|eines|der|die|das|dem|den|des|und|oder|aber|wie|als|im|am|beim|zum|zur|vom|von|für|ohne|durch|gegen|bei|seit|während|wegen|trotz|dass|weil|denn|sondern|sowie|bzw|etwa|sehr|dessen|deren|welche[rsmn]?)$/i;
+  }
+});
 
 // src/generation/verblex.data.ts
-var GRUND = `
+var GRUND, VERB_PRAEFIXE, PAST2PRES, VERB_INFINITIVE;
+var init_verblex_data = __esm({
+  "src/generation/verblex.data.ts"() {
+    "use strict";
+    GRUND = `
 achten \xE4chzen ahnen \xE4ndern \xE4rgern arbeiten atmen backen baden bangen bauen beben bedeuten beeilen befehlen beginnen begreifen
 behalten bei\xDFen bellen bergen bersten beten betteln beugen bewegen biegen bieten bilden binden bitten blasen bleiben blenden blicken
 blinken blinzeln blitzen bl\xFChen bluten bohren borgen brauchen brausen brechen bremsen brennen bringen br\xFCllen brummen buchen b\xFCcken
@@ -81,603 +177,334 @@ st\xF6bern stopfen strapazieren strotzen st\xFClpen stutzen t\xE4ndeln taxieren 
 wabbeln walzen wedeln weilen wetteifern wimmeln wringen wuseln zappeln zaubern zechen zergehen zerkn\xFCllen zerlegen zerm\xFCrben zerpfl\xFCcken
 zerschellen zertr\xFCmmern zeugen zirpen zocken zurren
 `;
-var VERB_PRAEFIXE = [
-  "zusammen",
-  "zur\xFCck",
-  "wieder",
-  "gegen",
-  "hinter",
-  "durch",
-  "unter",
-  "\xFCber",
-  "voran",
-  "vorbei",
-  "heraus",
-  "herein",
-  "hinaus",
-  "hinein",
-  "herum",
-  "hinauf",
-  "hinab",
-  "herab",
-  "empor",
-  "fort",
-  "los",
-  "weg",
-  "fest",
-  "auseinander",
-  "entgegen",
-  "entlang",
-  "nieder",
-  "umher",
-  "davon",
-  "dazu",
-  "hoch",
-  "her",
-  "hin",
-  "ver",
-  "ent",
-  "emp",
-  "miss",
-  "zer",
-  "be",
-  "er",
-  "ge",
-  "an",
-  "ab",
-  "auf",
-  "aus",
-  "ein",
-  "mit",
-  "nach",
-  "vor",
-  "zu",
-  "um",
-  "bei",
-  "da",
-  "wider",
-  "still",
-  "frei",
-  "leer",
-  "tot",
-  "voll",
-  "wahr",
-  "gut",
-  "kaputt"
-];
-var PAST2PRES = {
-  // Ergänzt 4.338.2 (Blatt „Vier Kinder": „Das Herz schlug mir bis zum Hals" blieb stehen):
-  schlug: "schl\xE4gt",
-  schlugen: "schlagen",
-  roch: "riecht",
-  rochen: "riechen",
-  traf: "trifft",
-  trafen: "treffen",
-  schob: "schiebt",
-  schoben: "schieben",
-  tat: "tut",
-  taten: "tun",
-  wusch: "w\xE4scht",
-  stritt: "streitet",
-  glitt: "gleitet",
-  stie\u00DF: "st\xF6\xDFt",
-  stie\u00DFen: "sto\xDFen",
-  goss: "gie\xDFt",
-  band: "bindet",
-  banden: "binden",
-  zwang: "zwingt",
-  fing: "f\xE4ngt",
-  fingen: "fangen",
-  sandte: "sendet",
-  mochte: "mag",
-  mochten: "m\xF6gen",
-  stahl: "stiehlt",
-  galt: "gilt",
-  galten: "gelten",
-  gelang: "gelingt",
-  verband: "verbindet",
-  erhielt: "erh\xE4lt",
-  erhielten: "erhalten",
-  behielt: "beh\xE4lt",
-  enthielt: "enth\xE4lt",
-  verlie\u00DF: "verl\xE4sst",
-  verlie\u00DFen: "verlassen",
-  genoss: "genie\xDFt",
-  schlich: "schleicht",
-  strich: "streicht",
-  blies: "bl\xE4st",
-  lud: "l\xE4dt",
-  luden: "laden",
-  schuf: "schafft",
-  schufen: "schaffen",
-  log: "l\xFCgt",
-  betrog: "betr\xFCgt",
-  flocht: "flicht",
-  kroch: "kriecht",
-  krochen: "kriechen",
-  schmolz: "schmilzt",
-  quoll: "quillt",
-  quollen: "quellen",
-  verging: "vergeht",
-  vergingen: "vergehen",
-  entging: "entgeht",
-  erging: "ergeht",
-  erschrak: "erschrickt",
-  war: "ist",
-  waren: "sind",
-  warst: "bist",
-  hatte: "hat",
-  hatten: "haben",
-  hattest: "hast",
-  wurde: "wird",
-  wurden: "werden",
-  ging: "geht",
-  gingen: "gehen",
-  kam: "kommt",
-  kamen: "kommen",
-  sah: "sieht",
-  sahen: "sehen",
-  gab: "gibt",
-  gaben: "geben",
-  stand: "steht",
-  standen: "stehen",
-  blieb: "bleibt",
-  blieben: "bleiben",
-  hielt: "h\xE4lt",
-  hielten: "halten",
-  lie\u00DF: "l\xE4sst",
-  lie\u00DFen: "lassen",
-  fand: "findet",
-  fanden: "finden",
-  nahm: "nimmt",
-  nahmen: "nehmen",
-  sprach: "spricht",
-  sprachen: "sprechen",
-  schrieb: "schreibt",
-  schrieben: "schreiben",
-  trug: "tr\xE4gt",
-  trugen: "tragen",
-  fuhr: "f\xE4hrt",
-  fuhren: "fahren",
-  lief: "l\xE4uft",
-  liefen: "laufen",
-  sa\u00DF: "sitzt",
-  sa\u00DFen: "sitzen",
-  lag: "liegt",
-  lagen: "liegen",
-  hie\u00DF: "hei\xDFt",
-  hie\u00DFen: "hei\xDFen",
-  zog: "zieht",
-  zogen: "ziehen",
-  schlief: "schl\xE4ft",
-  schliefen: "schlafen",
-  rief: "ruft",
-  riefen: "rufen",
-  fiel: "f\xE4llt",
-  fielen: "fallen",
-  sang: "singt",
-  sangen: "singen",
-  trank: "trinkt",
-  tranken: "trinken",
-  schwieg: "schweigt",
-  schwiegen: "schweigen",
-  floss: "flie\xDFt",
-  flossen: "flie\xDFen",
-  stieg: "steigt",
-  stiegen: "steigen",
-  sank: "sinkt",
-  sanken: "sinken",
-  bot: "bietet",
-  boten: "bieten",
-  schloss: "schlie\xDFt",
-  schlossen: "schlie\xDFen",
-  verlor: "verliert",
-  verloren: "verlieren",
-  begann: "beginnt",
-  begannen: "beginnen",
-  geschah: "geschieht",
-  geschahen: "geschehen",
-  konnte: "kann",
-  konnten: "k\xF6nnen",
-  musste: "muss",
-  mussten: "m\xFCssen",
-  wollte: "will",
-  wollten: "wollen",
-  sollte: "soll",
-  sollten: "sollen",
-  durfte: "darf",
-  durften: "d\xFCrfen",
-  wusste: "wei\xDF",
-  wussten: "wissen",
-  dachte: "denkt",
-  dachten: "denken",
-  brachte: "bringt",
-  brachten: "bringen",
-  kannte: "kennt",
-  kannten: "kennen",
-  erkannte: "erkennt",
-  erkannten: "erkennen",
-  brannte: "brennt",
-  brannten: "brennen",
-  nannte: "nennt",
-  nannten: "nennen",
-  rannte: "rennt",
-  rannten: "rennen",
-  wandte: "wendet",
-  wandten: "wenden",
-  sprang: "springt",
-  sprangen: "springen",
-  schrie: "schreit",
-  schrien: "schreien",
-  flog: "fliegt",
-  flogen: "fliegen",
-  floh: "flieht",
-  flohen: "fliehen",
-  schoss: "schie\xDFt",
-  schossen: "schie\xDFen",
-  riss: "rei\xDFt",
-  rissen: "rei\xDFen",
-  biss: "bei\xDFt",
-  bissen: "bei\xDFen",
-  griff: "greift",
-  griffen: "greifen",
-  pfiff: "pfeift",
-  pfiffen: "pfeifen",
-  schnitt: "schneidet",
-  schnitten: "schneiden",
-  litt: "leidet",
-  litten: "leiden",
-  trat: "tritt",
-  traten: "treten",
-  verga\u00DF: "vergisst",
-  verga\u00DFen: "vergessen",
-  wuchs: "w\xE4chst",
-  wuchsen: "wachsen",
-  wich: "weicht",
-  wichen: "weichen",
-  schien: "scheint",
-  schienen: "scheinen",
-  zerbrach: "zerbricht",
-  zerbrachen: "zerbrechen",
-  verschwand: "verschwindet",
-  verschwanden: "verschwinden",
-  erschien: "erscheint",
-  erschienen: "erscheinen",
-  starb: "stirbt",
-  starben: "sterben",
-  brach: "bricht",
-  brachen: "brechen",
-  sprach2: "spricht",
-  schwoll: "schwillt",
-  schwollen: "schwellen",
-  bog: "biegt",
-  bogen: "biegen",
-  hob: "hebt",
-  hoben: "heben",
-  wob: "webt",
-  woben: "weben",
-  klang: "klingt",
-  klangen: "klingen",
-  sann: "sinnt",
-  sannen: "sinnen",
-  rann: "rinnt",
-  rannen: "rinnen",
-  schwamm: "schwimmt",
-  schwammen: "schwimmen",
-  verschwieg: "verschweigt",
-  zerfiel: "zerf\xE4llt",
-  zerfielen: "zerfallen",
-  entstand: "entsteht",
-  entstanden: "entstehen",
-  verstand: "versteht",
-  verstanden: "verstehen",
-  bestand: "besteht",
-  bestanden: "bestehen",
-  geriet: "ger\xE4t",
-  gerieten: "geraten",
-  trieb: "treibt",
-  trieben: "treiben",
-  schrak: "schrickt",
-  wies: "weist",
-  wiesen: "weisen",
-  hing: "h\xE4ngt",
-  hingen: "h\xE4ngen",
-  schwand: "schwindet",
-  schwanden: "schwinden",
-  gewann: "gewinnt",
-  gewannen: "gewinnen",
-  zerriss: "zerrei\xDFt",
-  zerrissen2: "zerrei\xDFen",
-  empfand: "empfindet",
-  empfanden: "empfinden",
-  befahl: "befiehlt",
-  befahlen: "befehlen",
-  half: "hilft",
-  halfen: "helfen",
-  warf: "wirft",
-  warfen: "werfen",
-  starrte2: "starrt",
-  las: "liest",
-  lasen: "lesen",
-  a\u00DF: "isst",
-  a\u00DFen: "essen",
-  bat: "bittet",
-  baten: "bitten"
-};
-var VERB_INFINITIVE = new Set(GRUND.split(/\s+/).map((w) => w.trim()).filter((w) => w.length > 2));
+    VERB_PRAEFIXE = [
+      "zusammen",
+      "zur\xFCck",
+      "wieder",
+      "gegen",
+      "hinter",
+      "durch",
+      "unter",
+      "\xFCber",
+      "voran",
+      "vorbei",
+      "heraus",
+      "herein",
+      "hinaus",
+      "hinein",
+      "herum",
+      "hinauf",
+      "hinab",
+      "herab",
+      "empor",
+      "fort",
+      "los",
+      "weg",
+      "fest",
+      "auseinander",
+      "entgegen",
+      "entlang",
+      "nieder",
+      "umher",
+      "davon",
+      "dazu",
+      "hoch",
+      "her",
+      "hin",
+      "ver",
+      "ent",
+      "emp",
+      "miss",
+      "zer",
+      "be",
+      "er",
+      "ge",
+      "an",
+      "ab",
+      "auf",
+      "aus",
+      "ein",
+      "mit",
+      "nach",
+      "vor",
+      "zu",
+      "um",
+      "bei",
+      "da",
+      "wider",
+      "still",
+      "frei",
+      "leer",
+      "tot",
+      "voll",
+      "wahr",
+      "gut",
+      "kaputt"
+    ];
+    PAST2PRES = {
+      // Ergänzt 4.338.2 (Blatt „Vier Kinder": „Das Herz schlug mir bis zum Hals" blieb stehen):
+      schlug: "schl\xE4gt",
+      schlugen: "schlagen",
+      roch: "riecht",
+      rochen: "riechen",
+      traf: "trifft",
+      trafen: "treffen",
+      schob: "schiebt",
+      schoben: "schieben",
+      tat: "tut",
+      taten: "tun",
+      wusch: "w\xE4scht",
+      stritt: "streitet",
+      glitt: "gleitet",
+      stie\u00DF: "st\xF6\xDFt",
+      stie\u00DFen: "sto\xDFen",
+      goss: "gie\xDFt",
+      band: "bindet",
+      banden: "binden",
+      zwang: "zwingt",
+      fing: "f\xE4ngt",
+      fingen: "fangen",
+      sandte: "sendet",
+      mochte: "mag",
+      mochten: "m\xF6gen",
+      stahl: "stiehlt",
+      galt: "gilt",
+      galten: "gelten",
+      gelang: "gelingt",
+      verband: "verbindet",
+      erhielt: "erh\xE4lt",
+      erhielten: "erhalten",
+      behielt: "beh\xE4lt",
+      enthielt: "enth\xE4lt",
+      verlie\u00DF: "verl\xE4sst",
+      verlie\u00DFen: "verlassen",
+      genoss: "genie\xDFt",
+      schlich: "schleicht",
+      strich: "streicht",
+      blies: "bl\xE4st",
+      lud: "l\xE4dt",
+      luden: "laden",
+      schuf: "schafft",
+      schufen: "schaffen",
+      log: "l\xFCgt",
+      betrog: "betr\xFCgt",
+      flocht: "flicht",
+      kroch: "kriecht",
+      krochen: "kriechen",
+      schmolz: "schmilzt",
+      quoll: "quillt",
+      quollen: "quellen",
+      verging: "vergeht",
+      vergingen: "vergehen",
+      entging: "entgeht",
+      erging: "ergeht",
+      erschrak: "erschrickt",
+      war: "ist",
+      waren: "sind",
+      warst: "bist",
+      hatte: "hat",
+      hatten: "haben",
+      hattest: "hast",
+      wurde: "wird",
+      wurden: "werden",
+      ging: "geht",
+      gingen: "gehen",
+      kam: "kommt",
+      kamen: "kommen",
+      sah: "sieht",
+      sahen: "sehen",
+      gab: "gibt",
+      gaben: "geben",
+      stand: "steht",
+      standen: "stehen",
+      blieb: "bleibt",
+      blieben: "bleiben",
+      hielt: "h\xE4lt",
+      hielten: "halten",
+      lie\u00DF: "l\xE4sst",
+      lie\u00DFen: "lassen",
+      fand: "findet",
+      fanden: "finden",
+      nahm: "nimmt",
+      nahmen: "nehmen",
+      sprach: "spricht",
+      sprachen: "sprechen",
+      schrieb: "schreibt",
+      schrieben: "schreiben",
+      trug: "tr\xE4gt",
+      trugen: "tragen",
+      fuhr: "f\xE4hrt",
+      fuhren: "fahren",
+      lief: "l\xE4uft",
+      liefen: "laufen",
+      sa\u00DF: "sitzt",
+      sa\u00DFen: "sitzen",
+      lag: "liegt",
+      lagen: "liegen",
+      hie\u00DF: "hei\xDFt",
+      hie\u00DFen: "hei\xDFen",
+      zog: "zieht",
+      zogen: "ziehen",
+      schlief: "schl\xE4ft",
+      schliefen: "schlafen",
+      rief: "ruft",
+      riefen: "rufen",
+      fiel: "f\xE4llt",
+      fielen: "fallen",
+      sang: "singt",
+      sangen: "singen",
+      trank: "trinkt",
+      tranken: "trinken",
+      schwieg: "schweigt",
+      schwiegen: "schweigen",
+      floss: "flie\xDFt",
+      flossen: "flie\xDFen",
+      stieg: "steigt",
+      stiegen: "steigen",
+      sank: "sinkt",
+      sanken: "sinken",
+      bot: "bietet",
+      boten: "bieten",
+      schloss: "schlie\xDFt",
+      schlossen: "schlie\xDFen",
+      verlor: "verliert",
+      verloren: "verlieren",
+      begann: "beginnt",
+      begannen: "beginnen",
+      geschah: "geschieht",
+      geschahen: "geschehen",
+      konnte: "kann",
+      konnten: "k\xF6nnen",
+      musste: "muss",
+      mussten: "m\xFCssen",
+      wollte: "will",
+      wollten: "wollen",
+      sollte: "soll",
+      sollten: "sollen",
+      durfte: "darf",
+      durften: "d\xFCrfen",
+      wusste: "wei\xDF",
+      wussten: "wissen",
+      dachte: "denkt",
+      dachten: "denken",
+      brachte: "bringt",
+      brachten: "bringen",
+      kannte: "kennt",
+      kannten: "kennen",
+      erkannte: "erkennt",
+      erkannten: "erkennen",
+      brannte: "brennt",
+      brannten: "brennen",
+      nannte: "nennt",
+      nannten: "nennen",
+      rannte: "rennt",
+      rannten: "rennen",
+      wandte: "wendet",
+      wandten: "wenden",
+      sprang: "springt",
+      sprangen: "springen",
+      schrie: "schreit",
+      schrien: "schreien",
+      flog: "fliegt",
+      flogen: "fliegen",
+      floh: "flieht",
+      flohen: "fliehen",
+      schoss: "schie\xDFt",
+      schossen: "schie\xDFen",
+      riss: "rei\xDFt",
+      rissen: "rei\xDFen",
+      biss: "bei\xDFt",
+      bissen: "bei\xDFen",
+      griff: "greift",
+      griffen: "greifen",
+      pfiff: "pfeift",
+      pfiffen: "pfeifen",
+      schnitt: "schneidet",
+      schnitten: "schneiden",
+      litt: "leidet",
+      litten: "leiden",
+      trat: "tritt",
+      traten: "treten",
+      verga\u00DF: "vergisst",
+      verga\u00DFen: "vergessen",
+      wuchs: "w\xE4chst",
+      wuchsen: "wachsen",
+      wich: "weicht",
+      wichen: "weichen",
+      schien: "scheint",
+      schienen: "scheinen",
+      zerbrach: "zerbricht",
+      zerbrachen: "zerbrechen",
+      verschwand: "verschwindet",
+      verschwanden: "verschwinden",
+      erschien: "erscheint",
+      erschienen: "erscheinen",
+      starb: "stirbt",
+      starben: "sterben",
+      brach: "bricht",
+      brachen: "brechen",
+      sprach2: "spricht",
+      schwoll: "schwillt",
+      schwollen: "schwellen",
+      bog: "biegt",
+      bogen: "biegen",
+      hob: "hebt",
+      hoben: "heben",
+      wob: "webt",
+      woben: "weben",
+      klang: "klingt",
+      klangen: "klingen",
+      sann: "sinnt",
+      sannen: "sinnen",
+      rann: "rinnt",
+      rannen: "rinnen",
+      schwamm: "schwimmt",
+      schwammen: "schwimmen",
+      verschwieg: "verschweigt",
+      zerfiel: "zerf\xE4llt",
+      zerfielen: "zerfallen",
+      entstand: "entsteht",
+      entstanden: "entstehen",
+      verstand: "versteht",
+      verstanden: "verstehen",
+      bestand: "besteht",
+      bestanden: "bestehen",
+      geriet: "ger\xE4t",
+      gerieten: "geraten",
+      trieb: "treibt",
+      trieben: "treiben",
+      schrak: "schrickt",
+      wies: "weist",
+      wiesen: "weisen",
+      hing: "h\xE4ngt",
+      hingen: "h\xE4ngen",
+      schwand: "schwindet",
+      schwanden: "schwinden",
+      gewann: "gewinnt",
+      gewannen: "gewinnen",
+      zerriss: "zerrei\xDFt",
+      zerrissen2: "zerrei\xDFen",
+      empfand: "empfindet",
+      empfanden: "empfinden",
+      befahl: "befiehlt",
+      befahlen: "befehlen",
+      half: "hilft",
+      halfen: "helfen",
+      warf: "wirft",
+      warfen: "werfen",
+      starrte2: "starrt",
+      las: "liest",
+      lasen: "lesen",
+      a\u00DF: "isst",
+      a\u00DFen: "essen",
+      bat: "bittet",
+      baten: "bitten"
+    };
+    VERB_INFINITIVE = new Set(GRUND.split(/\s+/).map((w) => w.trim()).filter((w) => w.length > 2));
+  }
+});
 
 // src/generation/verben.ts
-var STARK = {
-  // sein · haben · werden · wissen · tun · Modalverben
-  ist: ["bin", "bist", "sind", "seid"],
-  hat: ["habe", "hast", "haben", "habt"],
-  wird: ["werde", "wirst", "werden", "werdet"],
-  wei\u00DF: ["wei\xDF", "wei\xDFt", "wissen", "wisst"],
-  tut: ["tue", "tust", "tun", "tut"],
-  kann: ["kann", "kannst", "k\xF6nnen", "k\xF6nnt"],
-  muss: ["muss", "musst", "m\xFCssen", "m\xFCsst"],
-  will: ["will", "willst", "wollen", "wollt"],
-  soll: ["soll", "sollst", "sollen", "sollt"],
-  darf: ["darf", "darfst", "d\xFCrfen", "d\xFCrft"],
-  mag: ["mag", "magst", "m\xF6gen", "m\xF6gt"],
-  // a → ä
-  h\u00E4lt: ["halte", "h\xE4ltst", "halten", "haltet"],
-  f\u00E4llt: ["falle", "f\xE4llst", "fallen", "fallt"],
-  tr\u00E4gt: ["trage", "tr\xE4gst", "tragen", "tragt"],
-  l\u00E4uft: ["laufe", "l\xE4ufst", "laufen", "lauft"],
-  schl\u00E4ft: ["schlafe", "schl\xE4fst", "schlafen", "schlaft"],
-  f\u00E4ngt: ["fange", "f\xE4ngst", "fangen", "fangt"],
-  l\u00E4sst: ["lasse", "l\xE4sst", "lassen", "lasst"],
-  w\u00E4chst: ["wachse", "w\xE4chst", "wachsen", "wachst"],
-  gr\u00E4bt: ["grabe", "gr\xE4bst", "graben", "grabt"],
-  schl\u00E4gt: ["schlage", "schl\xE4gst", "schlagen", "schlagt"],
-  r\u00E4t: ["rate", "r\xE4tst", "raten", "ratet"],
-  bl\u00E4st: ["blase", "bl\xE4st", "blasen", "blast"],
-  st\u00F6\u00DFt: ["sto\xDFe", "st\xF6\xDFt", "sto\xDFen", "sto\xDFt"],
-  f\u00E4hrt: ["fahre", "f\xE4hrst", "fahren", "fahrt"],
-  w\u00E4scht: ["wasche", "w\xE4schst", "waschen", "wascht"],
-  l\u00E4dt: ["lade", "l\xE4dst", "laden", "ladet"],
-  s\u00E4uft: ["saufe", "s\xE4ufst", "saufen", "sauft"],
-  // e → i / ie
-  gibt: ["gebe", "gibst", "geben", "gebt"],
-  nimmt: ["nehme", "nimmst", "nehmen", "nehmt"],
-  spricht: ["spreche", "sprichst", "sprechen", "sprecht"],
-  bricht: ["breche", "brichst", "brechen", "brecht"],
-  sieht: ["sehe", "siehst", "sehen", "seht"],
-  liest: ["lese", "liest", "lesen", "lest"],
-  isst: ["esse", "isst", "essen", "esst"],
-  frisst: ["fresse", "frisst", "fressen", "fresst"],
-  misst: ["messe", "misst", "messen", "messt"],
-  vergisst: ["vergesse", "vergisst", "vergessen", "vergesst"],
-  hilft: ["helfe", "hilfst", "helfen", "helft"],
-  stirbt: ["sterbe", "stirbst", "sterben", "sterbt"],
-  wirft: ["werfe", "wirfst", "werfen", "werft"],
-  trifft: ["treffe", "triffst", "treffen", "trefft"],
-  gilt: ["gelte", "giltst", "gelten", "geltet"],
-  tritt: ["trete", "trittst", "treten", "tretet"],
-  birgt: ["berge", "birgst", "bergen", "bergt"],
-  quillt: ["quelle", "quillst", "quellen", "quellt"],
-  schilt: ["schelte", "schiltst", "schelten", "scheltet"],
-  ficht: ["fechte", "fichtst", "fechten", "fechtet"],
-  flicht: ["flechte", "flichtst", "flechten", "flechtet"],
-  verdirbt: ["verderbe", "verdirbst", "verderben", "verderbt"],
-  wirbt: ["werbe", "wirbst", "werben", "werbt"],
-  erschrickt: ["erschrecke", "erschrickst", "erschrecken", "erschreckt"],
-  sticht: ["steche", "stichst", "stechen", "stecht"],
-  schmilzt: ["schmelze", "schmilzt", "schmelzen", "schmelzt"],
-  befiehlt: ["befehle", "befiehlst", "befehlen", "befehlt"],
-  stiehlt: ["stehle", "stiehlst", "stehlen", "stehlt"],
-  empfiehlt: ["empfehle", "empfiehlst", "empfehlen", "empfehlt"],
-  geschieht: ["geschehe", "geschiehst", "geschehen", "gescheht"],
-  gebiert: ["geb\xE4re", "gebierst", "geb\xE4ren", "geb\xE4rt"],
-  schwillt: ["schwelle", "schwillst", "schwellen", "schwellt"]
-};
-var PRAEFIXE = [
-  "zusammen",
-  "zur\xFCck",
-  "wieder",
-  "gegen",
-  "hinter",
-  "durch",
-  "unter",
-  "\xFCber",
-  "voran",
-  "vorbei",
-  "heraus",
-  "herein",
-  "hinaus",
-  "hinein",
-  "herum",
-  "hinauf",
-  "hinab",
-  "herab",
-  "empor",
-  "fort",
-  "los",
-  "weg",
-  "fest",
-  "her",
-  "hin",
-  "ver",
-  "ent",
-  "emp",
-  "miss",
-  "zer",
-  "be",
-  "er",
-  "ge",
-  "an",
-  "ab",
-  "auf",
-  "aus",
-  "ein",
-  "mit",
-  "nach",
-  "vor",
-  "zu",
-  "um",
-  "bei",
-  "da",
-  "wider"
-];
-var KEIN_VERB = /* @__PURE__ */ new Set([
-  "alt",
-  "kalt",
-  "laut",
-  "bunt",
-  "hart",
-  "zart",
-  "satt",
-  "glatt",
-  "weit",
-  "breit",
-  "rot",
-  "tot",
-  "gut",
-  "sp\xE4t",
-  "echt",
-  "leicht",
-  "dicht",
-  "recht",
-  "schlecht",
-  "nackt",
-  "fest",
-  "letzt",
-  "jetzt",
-  "sanft",
-  "ernst",
-  "wert",
-  "seit",
-  "statt",
-  "samt",
-  "nicht",
-  "mit",
-  "seid",
-  "zuletzt",
-  "zuerst",
-  "oft",
-  "fast",
-  "erst",
-  "sonst",
-  "meist",
-  "direkt",
-  "dort",
-  "fort",
-  "sofort",
-  "selbst",
-  "vielleicht",
-  "\xFCberhaupt",
-  "bereit",
-  "gerecht",
-  "perfekt",
-  "exakt",
-  "absolut",
-  "gesamt",
-  "komplett",
-  "verr\xFCckt",
-  "bekannt",
-  "geschickt",
-  "welt",
-  "zeit",
-  "nacht",
-  "stadt",
-  "acht",
-  "licht",
-  "wort",
-  "ort",
-  "blut",
-  "brot",
-  "mut",
-  "hut",
-  "gebet",
-  "geist",
-  "gott",
-  "kraft",
-  "luft",
-  "haut",
-  "haft",
-  "gift",
-  "schrift",
-  "frucht",
-  "flucht",
-  "sicht",
-  "pflicht",
-  "angst",
-  "kunst",
-  "dienst",
-  "frost",
-  "post",
-  "ost",
-  "west",
-  "rest",
-  "test",
-  "text",
-  "w\xFCst",
-  "getrennt",
-  "gemischt",
-  "gebrannt",
-  "verschwunden",
-  "gewohnt",
-  "gelaunt",
-  "ber\xFChmt",
-  "geliebt",
-  "gelebt",
-  "gedacht",
-  "gemacht",
-  "gebracht",
-  "gesagt",
-  "gesucht",
-  "gehabt",
-  "gewusst",
-  "gekannt",
-  "genannt",
-  "benannt",
-  "gewollt",
-  "verboten",
-  "ge\xF6ffnet",
-  "ungeahnt",
-  "gestern",
-  "heut",
-  "abrupt",
-  "ad\xE4quat",
-  "privat",
-  "intakt",
-  "korrekt",
-  "konkret",
-  "moderat",
-  "elegant",
-  "brillant",
-  "tolerant",
-  "relevant",
-  "markant",
-  "rasant",
-  "galant",
-  "latent",
-  "dezent",
-  "prominent",
-  "kompetent",
-  "konsequent",
-  "permanent",
-  "evident",
-  "eloquent",
-  "intelligent",
-  "gespannt",
-  "entspannt",
-  "gewandt",
-  "verwandt",
-  "bewusst",
-  "unbewusst",
-  "robust",
-  "abstrakt",
-  "kompakt",
-  "exakt",
-  "defekt",
-  "perfekt",
-  "insgesamt",
-  "total"
-]);
-var SIBILANT = /(s|ß|z|x|tz|ss)$/;
-var GE_VERBEN = /^ge(ht|nügt|hört|horcht|lingt|winnt|langt|schieht|steht|rät|nießt|wöhnt|fährdet|währt|stattet|staltet|denkt|bietet|braucht|hörcht|nest|reicht|dulde?t|fällt|deiht|lobt|leitet|langt|winnt|behrt|bärt|fried[e]?t|fällt|lüstet|mahnt|rinnt|hört)$/;
 function starkMitPraefix(form) {
   if (STARK[form]) return ["", STARK[form]];
   for (const p of PRAEFIXE) {
@@ -760,9 +587,4037 @@ function beugeVerb(form3, person) {
   if (/el$/.test(stamm)) return fertig(stamm.slice(0, -2) + "le");
   return fertig(stamm + "e");
 }
+var STARK, PRAEFIXE, KEIN_VERB, SIBILANT, GE_VERBEN;
+var init_verben = __esm({
+  "src/generation/verben.ts"() {
+    "use strict";
+    init_verblex_data();
+    STARK = {
+      // sein · haben · werden · wissen · tun · Modalverben
+      ist: ["bin", "bist", "sind", "seid"],
+      hat: ["habe", "hast", "haben", "habt"],
+      wird: ["werde", "wirst", "werden", "werdet"],
+      wei\u00DF: ["wei\xDF", "wei\xDFt", "wissen", "wisst"],
+      tut: ["tue", "tust", "tun", "tut"],
+      kann: ["kann", "kannst", "k\xF6nnen", "k\xF6nnt"],
+      muss: ["muss", "musst", "m\xFCssen", "m\xFCsst"],
+      will: ["will", "willst", "wollen", "wollt"],
+      soll: ["soll", "sollst", "sollen", "sollt"],
+      darf: ["darf", "darfst", "d\xFCrfen", "d\xFCrft"],
+      mag: ["mag", "magst", "m\xF6gen", "m\xF6gt"],
+      // a → ä
+      h\u00E4lt: ["halte", "h\xE4ltst", "halten", "haltet"],
+      f\u00E4llt: ["falle", "f\xE4llst", "fallen", "fallt"],
+      tr\u00E4gt: ["trage", "tr\xE4gst", "tragen", "tragt"],
+      l\u00E4uft: ["laufe", "l\xE4ufst", "laufen", "lauft"],
+      schl\u00E4ft: ["schlafe", "schl\xE4fst", "schlafen", "schlaft"],
+      f\u00E4ngt: ["fange", "f\xE4ngst", "fangen", "fangt"],
+      l\u00E4sst: ["lasse", "l\xE4sst", "lassen", "lasst"],
+      w\u00E4chst: ["wachse", "w\xE4chst", "wachsen", "wachst"],
+      gr\u00E4bt: ["grabe", "gr\xE4bst", "graben", "grabt"],
+      schl\u00E4gt: ["schlage", "schl\xE4gst", "schlagen", "schlagt"],
+      r\u00E4t: ["rate", "r\xE4tst", "raten", "ratet"],
+      bl\u00E4st: ["blase", "bl\xE4st", "blasen", "blast"],
+      st\u00F6\u00DFt: ["sto\xDFe", "st\xF6\xDFt", "sto\xDFen", "sto\xDFt"],
+      f\u00E4hrt: ["fahre", "f\xE4hrst", "fahren", "fahrt"],
+      w\u00E4scht: ["wasche", "w\xE4schst", "waschen", "wascht"],
+      l\u00E4dt: ["lade", "l\xE4dst", "laden", "ladet"],
+      s\u00E4uft: ["saufe", "s\xE4ufst", "saufen", "sauft"],
+      // e → i / ie
+      gibt: ["gebe", "gibst", "geben", "gebt"],
+      nimmt: ["nehme", "nimmst", "nehmen", "nehmt"],
+      spricht: ["spreche", "sprichst", "sprechen", "sprecht"],
+      bricht: ["breche", "brichst", "brechen", "brecht"],
+      sieht: ["sehe", "siehst", "sehen", "seht"],
+      liest: ["lese", "liest", "lesen", "lest"],
+      isst: ["esse", "isst", "essen", "esst"],
+      frisst: ["fresse", "frisst", "fressen", "fresst"],
+      misst: ["messe", "misst", "messen", "messt"],
+      vergisst: ["vergesse", "vergisst", "vergessen", "vergesst"],
+      hilft: ["helfe", "hilfst", "helfen", "helft"],
+      stirbt: ["sterbe", "stirbst", "sterben", "sterbt"],
+      wirft: ["werfe", "wirfst", "werfen", "werft"],
+      trifft: ["treffe", "triffst", "treffen", "trefft"],
+      gilt: ["gelte", "giltst", "gelten", "geltet"],
+      tritt: ["trete", "trittst", "treten", "tretet"],
+      birgt: ["berge", "birgst", "bergen", "bergt"],
+      quillt: ["quelle", "quillst", "quellen", "quellt"],
+      schilt: ["schelte", "schiltst", "schelten", "scheltet"],
+      ficht: ["fechte", "fichtst", "fechten", "fechtet"],
+      flicht: ["flechte", "flichtst", "flechten", "flechtet"],
+      verdirbt: ["verderbe", "verdirbst", "verderben", "verderbt"],
+      wirbt: ["werbe", "wirbst", "werben", "werbt"],
+      erschrickt: ["erschrecke", "erschrickst", "erschrecken", "erschreckt"],
+      sticht: ["steche", "stichst", "stechen", "stecht"],
+      schmilzt: ["schmelze", "schmilzt", "schmelzen", "schmelzt"],
+      befiehlt: ["befehle", "befiehlst", "befehlen", "befehlt"],
+      stiehlt: ["stehle", "stiehlst", "stehlen", "stehlt"],
+      empfiehlt: ["empfehle", "empfiehlst", "empfehlen", "empfehlt"],
+      geschieht: ["geschehe", "geschiehst", "geschehen", "gescheht"],
+      gebiert: ["geb\xE4re", "gebierst", "geb\xE4ren", "geb\xE4rt"],
+      schwillt: ["schwelle", "schwillst", "schwellen", "schwellt"]
+    };
+    PRAEFIXE = [
+      "zusammen",
+      "zur\xFCck",
+      "wieder",
+      "gegen",
+      "hinter",
+      "durch",
+      "unter",
+      "\xFCber",
+      "voran",
+      "vorbei",
+      "heraus",
+      "herein",
+      "hinaus",
+      "hinein",
+      "herum",
+      "hinauf",
+      "hinab",
+      "herab",
+      "empor",
+      "fort",
+      "los",
+      "weg",
+      "fest",
+      "her",
+      "hin",
+      "ver",
+      "ent",
+      "emp",
+      "miss",
+      "zer",
+      "be",
+      "er",
+      "ge",
+      "an",
+      "ab",
+      "auf",
+      "aus",
+      "ein",
+      "mit",
+      "nach",
+      "vor",
+      "zu",
+      "um",
+      "bei",
+      "da",
+      "wider"
+    ];
+    KEIN_VERB = /* @__PURE__ */ new Set([
+      "alt",
+      "kalt",
+      "laut",
+      "bunt",
+      "hart",
+      "zart",
+      "satt",
+      "glatt",
+      "weit",
+      "breit",
+      "rot",
+      "tot",
+      "gut",
+      "sp\xE4t",
+      "echt",
+      "leicht",
+      "dicht",
+      "recht",
+      "schlecht",
+      "nackt",
+      "fest",
+      "letzt",
+      "jetzt",
+      "sanft",
+      "ernst",
+      "wert",
+      "seit",
+      "statt",
+      "samt",
+      "nicht",
+      "mit",
+      "seid",
+      "zuletzt",
+      "zuerst",
+      "oft",
+      "fast",
+      "erst",
+      "sonst",
+      "meist",
+      "direkt",
+      "dort",
+      "fort",
+      "sofort",
+      "selbst",
+      "vielleicht",
+      "\xFCberhaupt",
+      "bereit",
+      "gerecht",
+      "perfekt",
+      "exakt",
+      "absolut",
+      "gesamt",
+      "komplett",
+      "verr\xFCckt",
+      "bekannt",
+      "geschickt",
+      "welt",
+      "zeit",
+      "nacht",
+      "stadt",
+      "acht",
+      "licht",
+      "wort",
+      "ort",
+      "blut",
+      "brot",
+      "mut",
+      "hut",
+      "gebet",
+      "geist",
+      "gott",
+      "kraft",
+      "luft",
+      "haut",
+      "haft",
+      "gift",
+      "schrift",
+      "frucht",
+      "flucht",
+      "sicht",
+      "pflicht",
+      "angst",
+      "kunst",
+      "dienst",
+      "frost",
+      "post",
+      "ost",
+      "west",
+      "rest",
+      "test",
+      "text",
+      "w\xFCst",
+      "getrennt",
+      "gemischt",
+      "gebrannt",
+      "verschwunden",
+      "gewohnt",
+      "gelaunt",
+      "ber\xFChmt",
+      "geliebt",
+      "gelebt",
+      "gedacht",
+      "gemacht",
+      "gebracht",
+      "gesagt",
+      "gesucht",
+      "gehabt",
+      "gewusst",
+      "gekannt",
+      "genannt",
+      "benannt",
+      "gewollt",
+      "verboten",
+      "ge\xF6ffnet",
+      "ungeahnt",
+      "gestern",
+      "heut",
+      "abrupt",
+      "ad\xE4quat",
+      "privat",
+      "intakt",
+      "korrekt",
+      "konkret",
+      "moderat",
+      "elegant",
+      "brillant",
+      "tolerant",
+      "relevant",
+      "markant",
+      "rasant",
+      "galant",
+      "latent",
+      "dezent",
+      "prominent",
+      "kompetent",
+      "konsequent",
+      "permanent",
+      "evident",
+      "eloquent",
+      "intelligent",
+      "gespannt",
+      "entspannt",
+      "gewandt",
+      "verwandt",
+      "bewusst",
+      "unbewusst",
+      "robust",
+      "abstrakt",
+      "kompakt",
+      "exakt",
+      "defekt",
+      "perfekt",
+      "insgesamt",
+      "total"
+    ]);
+    SIBILANT = /(s|ß|z|x|tz|ss)$/;
+    GE_VERBEN = /^ge(ht|nügt|hört|horcht|lingt|winnt|langt|schieht|steht|rät|nießt|wöhnt|fährdet|währt|stattet|staltet|denkt|bietet|braucht|hörcht|nest|reicht|dulde?t|fällt|deiht|lobt|leitet|langt|winnt|behrt|bärt|fried[e]?t|fällt|lüstet|mahnt|rinnt|hört)$/;
+  }
+});
+
+// src/generation/nouns.data.ts
+var NOUN_GENDER;
+var init_nouns_data = __esm({
+  "src/generation/nouns.data.ts"() {
+    "use strict";
+    NOUN_GENDER = {
+      "abdruck": "m",
+      "abend": "m",
+      "abgrund": "m",
+      "absatz": "m",
+      "abschalten": "n",
+      "abstand": "m",
+      "acker": "m",
+      "ader": "f",
+      "adressbuch": "n",
+      "adresse": "f",
+      "ahnung": "f",
+      "airpod": "m",
+      "akku": "m",
+      "akte": "f",
+      "aktendeckel": "m",
+      "aktennotiz": "f",
+      "allee": "f",
+      "alptraum": "m",
+      "altar": "m",
+      "alte": "f",
+      "alter": "n",
+      "amt": "n",
+      "amulett": "n",
+      "angebot": "n",
+      "angst": "f",
+      "anker": "m",
+      "antenne": "f",
+      "antrag": "m",
+      "antwort": "f",
+      "apfel": "m",
+      "applaus": "m",
+      "archiv": "n",
+      "arm": "m",
+      "armband": "n",
+      "armbrust": "f",
+      "art": "f",
+      "arzt": "m",
+      "asche": "f",
+      "ast": "m",
+      "atelier": "n",
+      "atem": "m",
+      "atmosph\xE4re": "f",
+      "aufkleber": "m",
+      "aufnahme": "f",
+      "auftrag": "m",
+      "auge": "n",
+      "augenblick": "m",
+      "augenlid": "n",
+      "ausdehnung": "f",
+      "ausgang": "m",
+      "ausnahme": "f",
+      "ausrede": "f",
+      "ausweis": "m",
+      "axiom": "n",
+      "baby": "n",
+      "bach": "m",
+      "backup": "n",
+      "badeanstalt": "f",
+      "bahn": "f",
+      "bahnkarte": "f",
+      "balkon": "m",
+      "ball": "m",
+      "ballade": "f",
+      "band": "n",
+      "bank": "f",
+      "banner": "n",
+      "basecap": "n",
+      "bau": "m",
+      "bauch": "m",
+      "bauer": "m",
+      "baum": "m",
+      "becher": "m",
+      "befehl": "m",
+      "begriff": "m",
+      "beil": "n",
+      "bein": "n",
+      "benachrichtigung": "f",
+      "berg": "m",
+      "bergfried": "m",
+      "bericht": "m",
+      "bescheid": "m",
+      "beschluss": "m",
+      "besen": "m",
+      "besitz": "m",
+      "bestand": "m",
+      "besuch": "m",
+      "betonprobe": "f",
+      "bett": "n",
+      "beutel": "m",
+      "beweis": "m",
+      "bibel": "f",
+      "bibliothek": "f",
+      "biene": "f",
+      "bild": "n",
+      "bildschirm": "m",
+      "binde": "f",
+      "birne": "f",
+      "blatt": "n",
+      "blechb\xFCchse": "f",
+      "blechdose": "f",
+      "blechkanne": "f",
+      "blechtrompete": "f",
+      "blei": "n",
+      "bleistift": "m",
+      "blende": "f",
+      "blick": "m",
+      "blitz": "m",
+      "blume": "f",
+      "blumenstrau\xDF": "m",
+      "bluse": "f",
+      "bl\xFCte": "f",
+      "boden": "m",
+      "bohne": "f",
+      "bohrkern": "m",
+      "bohrprobe": "f",
+      "boje": "f",
+      "bonbon": "n",
+      "boot": "n",
+      "bote": "m",
+      "botschaft": "f",
+      "braten": "m",
+      "braue": "f",
+      "brett": "n",
+      "brief": "m",
+      "briefumschlag": "m",
+      "brille": "f",
+      "brot": "n",
+      "brotdose": "f",
+      "brotlaib": "m",
+      "bruch": "m",
+      "bruder": "m",
+      "brunnen": "m",
+      "brust": "f",
+      "br\xFCcke": "f",
+      "br\xFChe": "f",
+      "buch": "n",
+      "buchstabe": "m",
+      "bucht": "f",
+      "bug": "m",
+      "burg": "f",
+      "bus": "m",
+      "busch": "m",
+      "butter": "f",
+      "b\xE4r": "m",
+      "b\xFChne": "f",
+      "b\xFCndel": "n",
+      "b\xFCrde": "f",
+      "cache": "m",
+      "cadtablet": "n",
+      "caf": "n",
+      "caf\xE9": "n",
+      "chat": "m",
+      "clown": "m",
+      "computer": "m",
+      "container": "m",
+      "couch": "f",
+      "dach": "n",
+      "dachboden": "m",
+      "dame": "f",
+      "damm": "m",
+      "dashboard": "n",
+      "datei": "f",
+      "dattel": "f",
+      "datum": "n",
+      "daumen": "m",
+      "deck": "n",
+      "decke": "f",
+      "deckel": "m",
+      "denkmalschutz": "m",
+      "deo": "n",
+      "detail": "n",
+      "detektor": "m",
+      "detektorkopf": "m",
+      "dewar": "m",
+      "diagramm": "n",
+      "dichter": "m",
+      "dieb": "m",
+      "dienst": "m",
+      "direktor": "m",
+      "dnaspirale": "f",
+      "dokument": "n",
+      "dolch": "m",
+      "donner": "m",
+      "dorf": "n",
+      "dorn": "m",
+      "dose": "f",
+      "draht": "m",
+      "droschke": "f",
+      "druck": "m",
+      "duell": "n",
+      "duft": "m",
+      "durchsage": "f",
+      "durchschlag": "m",
+      "d\xE4mmerung": "f",
+      "ebbe": "f",
+      "ebene": "f",
+      "echo": "n",
+      "ecke": "f",
+      "ehre": "f",
+      "ei": "n",
+      "eid": "m",
+      "einspruch": "m",
+      "eis": "n",
+      "eisen": "n",
+      "elch": "m",
+      "elend": "n",
+      "ellbogen": "m",
+      "emoji": "n",
+      "engel": "m",
+      "enkel": "m",
+      "ente": "f",
+      "entwurf": "m",
+      "ephemeride": "f",
+      "erbe": "n",
+      "erbse": "f",
+      "erdbeben": "n",
+      "erde": "f",
+      "erinnerung": "f",
+      "etikett": "n",
+      "eule": "f",
+      "ewigkeit": "f",
+      "fabel": "f",
+      "fabrik": "f",
+      "fackel": "f",
+      "faden": "m",
+      "fahne": "f",
+      "fahrschein": "m",
+      "fahrt": "f",
+      "falle": "f",
+      "falte": "f",
+      "farbe": "f",
+      "farbenscheibe": "f",
+      "fass": "n",
+      "faust": "f",
+      "feder": "f",
+      "federkiel": "m",
+      "fee": "f",
+      "fehlercode": "m",
+      "feile": "f",
+      "feind": "m",
+      "feld": "n",
+      "feldbesteck": "n",
+      "felder": "n",
+      "fell": "n",
+      "fellhandschuh": "m",
+      "fels": "m",
+      "felsen": "m",
+      "fenster": "n",
+      "fensterplatz": "m",
+      "ferkel": "n",
+      "ferne": "f",
+      "fernglas": "n",
+      "fernrohr": "n",
+      "ferse": "f",
+      "fessel": "f",
+      "festung": "f",
+      "feuer": "n",
+      "feuerzeug": "n",
+      "fibel": "f",
+      "fieber": "n",
+      "filter": "m",
+      "finger": "m",
+      "fingerhut": "m",
+      "fisch": "m",
+      "fischer": "m",
+      "flakon": "m",
+      "flasche": "f",
+      "flaute": "f",
+      "fleisch": "n",
+      "fliege": "f",
+      "flo\xDF": "n",
+      "fluch": "m",
+      "flucht": "f",
+      "flur": "m",
+      "fluss": "m",
+      "flut": "f",
+      "fl\xE4che": "f",
+      "fl\xF6te": "f",
+      "fl\xFCstern": "n",
+      "formel": "f",
+      "formular": "n",
+      "fossil": "n",
+      "fossilie": "f",
+      "foto": "n",
+      "fotografie": "f",
+      "frachtbrief": "m",
+      "frage": "f",
+      "frau": "f",
+      "freude": "f",
+      "freund": "m",
+      "frist": "f",
+      "frost": "m",
+      "frucht": "f",
+      "fr\xFChling": "m",
+      "fuchs": "m",
+      "fuge": "f",
+      "fund": "m",
+      "fundament": "n",
+      "funke": "m",
+      "funkger\xE4t": "n",
+      "furcht": "f",
+      "furt": "f",
+      "fu\xDF": "m",
+      "f\xE4hrmann": "m",
+      "f\xE4hrplan": "m",
+      "f\xE4sser": "n",
+      "f\xFCrst": "m",
+      "gabe": "f",
+      "gabel": "f",
+      "gabelung": "f",
+      "galaxie": "f",
+      "gang": "m",
+      "gans": "f",
+      "garn": "n",
+      "garten": "m",
+      "gasse": "f",
+      "gast": "m",
+      "gebet": "n",
+      "gebetbuch": "n",
+      "gebete": "n",
+      "gebetsschale": "f",
+      "gebirge": "n",
+      "geb\xE4lk": "n",
+      "geb\xE4ude": "n",
+      "gedanke": "m",
+      "gedanken": "m",
+      "gedicht": "n",
+      "gedichte": "n",
+      "geduld": "f",
+      "gefahr": "f",
+      "gef\xFChl": "n",
+      "gef\xFChlen": "n",
+      "gegend": "f",
+      "gegensatz": "m",
+      "gegenstand": "m",
+      "gegens\xE4tze": "m",
+      "gegenteil": "n",
+      "gegenwart": "f",
+      "gegners": "m",
+      "geheimnis": "n",
+      "gehirn": "n",
+      "geh\xE4use": "n",
+      "geige": "f",
+      "geist": "m",
+      "geleitbrief": "m",
+      "gel\xE4nde": "n",
+      "gel\xFCbde": "n",
+      "gemach": "n",
+      "gem\xE4lde": "n",
+      "gem\xFCse": "n",
+      "gep\xE4ck": "n",
+      "gericht": "n",
+      "geruch": "m",
+      "ger\xE4t": "n",
+      "ger\xE4usch": "n",
+      "ger\xE4usche": "n",
+      "ger\xF6ll": "n",
+      "ger\xFCcht": "n",
+      "ger\xFCchte": "n",
+      "ger\xFCst": "n",
+      "gesangbuch": "n",
+      "geschenk": "n",
+      "geschichte": "f",
+      "geschichten": "f",
+      "geschmack": "m",
+      "gesetz": "n",
+      "gesetze": "n",
+      "gesetzen": "n",
+      "gesetzes": "n",
+      "gesetzestext": "m",
+      "gesicht": "n",
+      "gesichter": "n",
+      "gespr\xE4ch": "n",
+      "gestalt": "f",
+      "gestalten": "f",
+      "geste": "f",
+      "gestein": "n",
+      "gesteinsschichten": "f",
+      "getreide": "n",
+      "getreidek\xF6rner": "n",
+      "gewand": "n",
+      "gewebe": "n",
+      "gewehr": "n",
+      "gewehre": "n",
+      "geweih": "n",
+      "gewicht": "n",
+      "gewichte": "n",
+      "gewissen": "n",
+      "gew\xF6lbe": "n",
+      "gezeiten": "f",
+      "gier": "f",
+      "gie\xDFkanne": "f",
+      "gift": "n",
+      "gipfel": "m",
+      "gitter": "n",
+      "glas": "n",
+      "glasplatte": "f",
+      "glaube": "m",
+      "gleichung": "f",
+      "gletscher": "m",
+      "glocke": "f",
+      "gl\xFCck": "n",
+      "gold": "n",
+      "gott": "m",
+      "grab": "n",
+      "graben": "m",
+      "granitblock": "m",
+      "grenze": "f",
+      "grotte": "f",
+      "grund": "m",
+      "grundrissplan": "m",
+      "gruppe": "f",
+      "gruppenchat": "m",
+      "gurke": "f",
+      "g\xF6tter": "m",
+      "g\xF6ttin": "f",
+      "g\xFCrtel": "m",
+      "haar": "n",
+      "haarnadel": "f",
+      "hafen": "m",
+      "hagel": "m",
+      "hahn": "m",
+      "hain": "m",
+      "haken": "m",
+      "halde": "f",
+      "hall": "m",
+      "halle": "f",
+      "hals": "m",
+      "halter": "m",
+      "hammer": "m",
+      "hand": "f",
+      "handbuch": "n",
+      "handkarren": "m",
+      "handschuh": "m",
+      "handschuhspitze": "f",
+      "handvoll": "f",
+      "handy": "n",
+      "hang": "m",
+      "harfe": "f",
+      "harpune": "f",
+      "hase": "m",
+      "hass": "m",
+      "haus": "n",
+      "haut": "f",
+      "hecke": "f",
+      "heft": "n",
+      "held": "m",
+      "helm": "m",
+      "hemd": "n",
+      "henne": "f",
+      "herbst": "m",
+      "herd": "m",
+      "herr": "m",
+      "herrscherstab": "m",
+      "herz": "n",
+      "herzschlag": "m",
+      "heuer": "f",
+      "hexe": "f",
+      "hierarchie": "f",
+      "himmel": "m",
+      "hintergrund": "m",
+      "hintert\xFCr": "f",
+      "hirn": "n",
+      "hirsch": "m",
+      "hirtenstab": "m",
+      "hof": "m",
+      "hoffnung": "f",
+      "holz": "n",
+      "honig": "m",
+      "hoodie": "m",
+      "horn": "n",
+      "hose": "f",
+      "huhn": "n",
+      "hund": "m",
+      "hut": "m",
+      "h\xE4user": "n",
+      "h\xF6henmesser": "m",
+      "h\xF6hle": "f",
+      "h\xFCfte": "f",
+      "h\xFCgel": "m",
+      "h\xFCtte": "f",
+      "igel": "m",
+      "index": "m",
+      "insekt": "n",
+      "insel": "f",
+      "instanz": "f",
+      "instastory": "f",
+      "instrument": "n",
+      "interferometer": "n",
+      "jacke": "f",
+      "jazz": "m",
+      "junge": "m",
+      "justiergewicht": "n",
+      "j\xE4ger": "m",
+      "kabel": "n",
+      "kaffee": "m",
+      "kai": "m",
+      "kaiser": "m",
+      "kalb": "n",
+      "kalender": "m",
+      "kamin": "m",
+      "kaminfeuer": "n",
+      "kammer": "f",
+      "kampf": "m",
+      "kanal": "m",
+      "kaninchen": "n",
+      "kanister": "m",
+      "kanne": "f",
+      "kanten": "m",
+      "kapelle": "f",
+      "kapit\xE4n": "m",
+      "karawane": "f",
+      "karotte": "f",
+      "karte": "f",
+      "karteikarte": "f",
+      "kartoffel": "f",
+      "kassenbuch": "n",
+      "kathedrale": "f",
+      "katze": "f",
+      "kaugummi": "m",
+      "kehle": "f",
+      "kelch": "m",
+      "kelle": "f",
+      "keller": "m",
+      "kerze": "f",
+      "kessel": "m",
+      "kette": "f",
+      "kettenhemd": "n",
+      "kiefer": "m",
+      "kiel": "m",
+      "kies": "m",
+      "kilometer": "m",
+      "kind": "n",
+      "kinder": "n",
+      "kinderspielzeug": "n",
+      "kinn": "n",
+      "kirche": "f",
+      "kirsche": "f",
+      "kissen": "n",
+      "kiste": "f",
+      "klammer": "f",
+      "klang": "m",
+      "klaue": "f",
+      "klavier": "n",
+      "kleid": "n",
+      "kleidersack": "m",
+      "kleingeldfach": "n",
+      "kleinod": "n",
+      "klinge": "f",
+      "klingel": "f",
+      "klippe": "f",
+      "klopfen": "n",
+      "knabe": "m",
+      "knie": "n",
+      "knochen": "m",
+      "knopf": "m",
+      "knospe": "f",
+      "knoten": "m",
+      "kn\xE4uel": "n",
+      "kn\xF6chel": "m",
+      "koffer": "m",
+      "kohleneimer": "m",
+      "kohleschale": "f",
+      "kollege": "m",
+      "kollegheft": "n",
+      "kollektiv": "n",
+      "kolonie": "f",
+      "komet": "m",
+      "kommentar": "m",
+      "kommissar": "m",
+      "kompass": "m",
+      "kompressor": "m",
+      "konstante": "f",
+      "konto": "n",
+      "kontobuch": "n",
+      "kontor": "n",
+      "kontorbuch": "n",
+      "kontostand": "m",
+      "kopf": "m",
+      "kopfh\xF6rer": "m",
+      "kopie": "f",
+      "korb": "m",
+      "korken": "m",
+      "korn": "n",
+      "kraft": "f",
+      "kran": "m",
+      "krater": "m",
+      "kreide": "f",
+      "kreis": "m",
+      "kreuz": "n",
+      "kreuzung": "f",
+      "kribbeln": "n",
+      "krieg": "m",
+      "krieger": "m",
+      "kristall": "m",
+      "krone": "f",
+      "krug": "m",
+      "kr\xE4he": "f",
+      "kuchen": "m",
+      "kuh": "f",
+      "kupfer": "n",
+      "kuppel": "f",
+      "kurbel": "f",
+      "kurve": "f",
+      "kuss": "m",
+      "kutsche": "f",
+      "kuvert": "n",
+      "k\xE4fer": "m",
+      "k\xE4lte": "f",
+      "k\xE4se": "m",
+      "k\xF6nig": "m",
+      "k\xF6nigin": "f",
+      "k\xF6rper": "m",
+      "k\xFCche": "f",
+      "k\xFChlbox": "f",
+      "k\xFChlfalle": "f",
+      "k\xFCken": "n",
+      "k\xFCste": "f",
+      "labyrinth": "n",
+      "ladebalken": "m",
+      "ladekabel": "n",
+      "ladeliste": "f",
+      "lager": "n",
+      "lagune": "f",
+      "laib": "m",
+      "lamm": "n",
+      "lampe": "f",
+      "land": "n",
+      "lanze": "f",
+      "laterne": "f",
+      "laub": "n",
+      "laufzettel": "m",
+      "laute": "f",
+      "lawine": "f",
+      "leder": "n",
+      "lederbeutel": "m",
+      "legende": "f",
+      "lehen": "n",
+      "lehrer": "m",
+      "leid": "n",
+      "leine": "f",
+      "leitdetail": "n",
+      "leitung": "f",
+      "leuchten": "n",
+      "leuchtturm": "m",
+      "licht": "n",
+      "lichtstreifen": "m",
+      "lider": "n",
+      "liebe": "f",
+      "lied": "n",
+      "lilie": "f",
+      "lineal": "n",
+      "linie": "f",
+      "lippe": "f",
+      "liste": "f",
+      "loch": "n",
+      "locke": "f",
+      "log": "n",
+      "logbuch": "n",
+      "logfile": "n",
+      "los": "n",
+      "lot": "n",
+      "luft": "f",
+      "lupe": "f",
+      "lust": "f",
+      "l\xE4cheln": "n",
+      "l\xE4nder": "n",
+      "l\xE4rm": "m",
+      "l\xF6cher": "n",
+      "l\xF6ffel": "m",
+      "l\xF6we": "m",
+      "l\xFCcke": "f",
+      "l\xFCge": "f",
+      "macht": "f",
+      "magen": "m",
+      "mala": "f",
+      "maler": "m",
+      "manege": "f",
+      "manifest": "n",
+      "mann": "m",
+      "mantel": "m",
+      "manuskript": "n",
+      "mappe": "f",
+      "marmelade": "f",
+      "masche": "f",
+      "maschine": "f",
+      "maske": "f",
+      "mast": "m",
+      "matte": "f",
+      "mauer": "f",
+      "maus": "f",
+      "ma\xDF": "n",
+      "ma\xDFband": "n",
+      "ma\xDFstab": "m",
+      "medaillon": "n",
+      "meer": "n",
+      "mehl": "n",
+      "mei\xDFel": "m",
+      "melodie": "f",
+      "meme": "n",
+      "menge": "f",
+      "merkblatt": "n",
+      "messer": "n",
+      "messprotokoll": "n",
+      "messreihe": "f",
+      "messung": "f",
+      "metall": "n",
+      "meter": "m",
+      "metronom": "n",
+      "miene": "f",
+      "mikrofon": "n",
+      "mikroskop": "n",
+      "milch": "f",
+      "millimeter": "m",
+      "minute": "f",
+      "mitleid": "n",
+      "mittag": "m",
+      "mittel": "n",
+      "mitternacht": "f",
+      "modell": "n",
+      "modellplaneten": "m",
+      "moment": "m",
+      "monat": "m",
+      "mond": "m",
+      "moor": "n",
+      "morgen": "m",
+      "moschee": "f",
+      "motor": "m",
+      "mus": "n",
+      "muschel": "f",
+      "muskel": "m",
+      "muster": "n",
+      "mut": "m",
+      "mutter": "f",
+      "m\xE4dchen": "n",
+      "m\xE4hne": "f",
+      "m\xF6hre": "f",
+      "m\xF6nch": "m",
+      "m\xF6rder": "m",
+      "m\xF6we": "f",
+      "m\xFCcke": "f",
+      "m\xFChle": "f",
+      "m\xFCller": "m",
+      "m\xFCnze": "f",
+      "m\xFCtze": "f",
+      "nachbar": "m",
+      "nachbarort": "m",
+      "nachlass": "m",
+      "nachmittag": "m",
+      "nachricht": "f",
+      "nacht": "f",
+      "nachtigall": "f",
+      "nacken": "m",
+      "nadel": "f",
+      "nadelkissen": "n",
+      "nagel": "m",
+      "naht": "f",
+      "name": "m",
+      "napf": "m",
+      "narbe": "f",
+      "nase": "f",
+      "nebel": "m",
+      "neffe": "m",
+      "neid": "m",
+      "neigung": "f",
+      "neigungsmesser": "m",
+      "nelke": "f",
+      "nest": "n",
+      "nester": "n",
+      "netz": "n",
+      "nische": "f",
+      "nonne": "f",
+      "note": "f",
+      "notenblatt": "n",
+      "notiz": "f",
+      "notizblock": "m",
+      "notizbuch": "n",
+      "nummer": "f",
+      "nuss": "f",
+      "nymphe": "f",
+      "n\xE4he": "f",
+      "obst": "n",
+      "ofen": "m",
+      "ohr": "n",
+      "oma": "f",
+      "omen": "n",
+      "onkel": "m",
+      "opfer": "n",
+      "opferschale": "f",
+      "opiumdose": "f",
+      "orakel": "n",
+      "orange": "f",
+      "organ": "n",
+      "orgel": "f",
+      "ort": "m",
+      "ozean": "m",
+      "paar": "n",
+      "paket": "n",
+      "pakt": "m",
+      "papier": "n",
+      "paradoxon": "n",
+      "paragraph": "m",
+      "parameter": "m",
+      "park": "m",
+      "passagier": "m",
+      "passierschein": "m",
+      "pegelstab": "m",
+      "peilstock": "m",
+      "peitsche": "f",
+      "pendel": "n",
+      "pergamentrolle": "f",
+      "perle": "f",
+      "perlmuttknopf": "m",
+      "person": "f",
+      "petrischale": "f",
+      "petroleumlampe": "f",
+      "pfad": "m",
+      "pfand": "n",
+      "pfandschein": "m",
+      "pfeffer": "m",
+      "pfeife": "f",
+      "pferd": "n",
+      "pfirsich": "m",
+      "pflaster": "n",
+      "pflaume": "f",
+      "pflug": "m",
+      "pf\xFCtze": "f",
+      "phiole": "f",
+      "photoplatte": "f",
+      "pickel": "m",
+      "pilz": "m",
+      "ping": "m",
+      "pinzette": "f",
+      "pipette": "f",
+      "plakat": "n",
+      "plan": "m",
+      "plane": "f",
+      "planet": "m",
+      "planke": "f",
+      "platte": "f",
+      "platz": "m",
+      "platzhalter": "m",
+      "poller": "m",
+      "port": "m",
+      "portal": "n",
+      "postkarte": "f",
+      "powerbank": "f",
+      "priester": "m",
+      "prisma": "n",
+      "probe": "f",
+      "programm": "n",
+      "protokoll": "n",
+      "prozess": "m",
+      "puls": "m",
+      "pulver": "n",
+      "punkt": "m",
+      "puppe": "f",
+      "qualle": "f",
+      "quelle": "f",
+      "quittung": "f",
+      "rad": "n",
+      "rampe": "f",
+      "rand": "m",
+      "randnotiz": "f",
+      "ranke": "f",
+      "ranzen": "m",
+      "ratte": "f",
+      "rauch": "m",
+      "raumkapsel": "f",
+      "rausch": "m",
+      "rauschen": "n",
+      "rechentafel": "f",
+      "recht": "n",
+      "regal": "n",
+      "regel": "f",
+      "regen": "m",
+      "regenmesser": "m",
+      "register": "n",
+      "reh": "n",
+      "reich": "n",
+      "reif": "m",
+      "reigen": "m",
+      "reihe": "f",
+      "reinraumhaube": "f",
+      "reise": "f",
+      "reisemantel": "m",
+      "rei\xDFverschluss": "m",
+      "reklame": "f",
+      "rest": "m",
+      "rettung": "f",
+      "rezept": "n",
+      "richter": "m",
+      "riegel": "m",
+      "riff": "n",
+      "rinde": "f",
+      "ring": "m",
+      "rippe": "f",
+      "riss": "m",
+      "ritter": "m",
+      "ritterhelm": "m",
+      "rohr": "n",
+      "roman": "m",
+      "rose": "f",
+      "ruder": "n",
+      "ruf": "m",
+      "ruine": "f",
+      "rumpf": "m",
+      "r\xE4tsel": "n",
+      "r\xFCcken": "m",
+      "saal": "m",
+      "sachbearbeiter": "m",
+      "sack": "m",
+      "saft": "m",
+      "sage": "f",
+      "sahne": "f",
+      "saite": "f",
+      "salat": "m",
+      "salz": "n",
+      "samen": "m",
+      "sammlung": "f",
+      "sand": "m",
+      "sandsack": "m",
+      "sanduhr": "f",
+      "sarg": "m",
+      "satellit": "m",
+      "sattel": "m",
+      "sattelgurt": "m",
+      "satz": "m",
+      "saum": "m",
+      "savanne": "f",
+      "schacht": "m",
+      "schaf": "n",
+      "schale": "f",
+      "schalter": "m",
+      "scham": "f",
+      "schatten": "m",
+      "schatulle": "f",
+      "schaufel": "f",
+      "schere": "f",
+      "schicht": "f",
+      "schicksal": "n",
+      "schiff": "n",
+      "schiffssextanten": "m",
+      "schiffszwieback": "m",
+      "schild": "n",
+      "schirm": "m",
+      "schlaf": "m",
+      "schlag": "m",
+      "schlamm": "m",
+      "schlange": "f",
+      "schleife": "f",
+      "schloss": "n",
+      "schlucht": "f",
+      "schl\xFCssel": "m",
+      "schl\xFCsselbund": "m",
+      "schmerz": "m",
+      "schmied": "m",
+      "schmiede": "f",
+      "schminkkasten": "m",
+      "schnecke": "f",
+      "schnee": "m",
+      "schneiderpuppe": "f",
+      "schnitt": "m",
+      "schnittbogen": "m",
+      "schnittstelle": "f",
+      "schnur": "f",
+      "schokolade": "f",
+      "schrank": "m",
+      "schrei": "m",
+      "schreiber": "m",
+      "schrein": "m",
+      "schrift": "f",
+      "schritt": "m",
+      "schuh": "m",
+      "schuld": "f",
+      "schuldschein": "m",
+      "schule": "f",
+      "schulter": "f",
+      "schuppen": "m",
+      "schuss": "m",
+      "schwamm": "m",
+      "schwein": "n",
+      "schwelle": "f",
+      "schwert": "n",
+      "schwertgriff": "m",
+      "schwertgurt": "m",
+      "schwester": "f",
+      "schw\xE4che": "f",
+      "sch\xE4del": "m",
+      "sch\xE4rpe": "f",
+      "sch\xFCrze": "f",
+      "sch\xFCssel": "f",
+      "screenshot": "m",
+      "see": "m",
+      "seekarte": "f",
+      "seele": "f",
+      "seesack": "m",
+      "segel": "n",
+      "segeltuch": "n",
+      "segen": "m",
+      "sehne": "f",
+      "sehnsucht": "f",
+      "seidenfaden": "m",
+      "seil": "n",
+      "seismograph": "m",
+      "seismographen": "m",
+      "seite": "f",
+      "sekunde": "f",
+      "senf": "m",
+      "sensor": "m",
+      "sessel": "m",
+      "sieb": "n",
+      "siegel": "n",
+      "siegelring": "m",
+      "signal": "n",
+      "signalflagge": "f",
+      "silbe": "f",
+      "silber": "n",
+      "sinn": "m",
+      "sirene": "f",
+      "skala": "f",
+      "skalpell": "n",
+      "skelett": "n",
+      "skizze": "f",
+      "smartphone": "n",
+      "socke": "f",
+      "sofa": "n",
+      "sohn": "m",
+      "soldat": "m",
+      "sommer": "m",
+      "sonne": "f",
+      "sonnenbrille": "f",
+      "so\xDFe": "f",
+      "spalt": "m",
+      "speicher": "m",
+      "spektrogramm": "n",
+      "spektrometer": "n",
+      "sperre": "f",
+      "spiegel": "m",
+      "spiegelscherben": "m",
+      "spiel": "n",
+      "spinne": "f",
+      "sporn": "m",
+      "sprache": "f",
+      "sprung": "m",
+      "spule": "f",
+      "spur": "f",
+      "stab": "m",
+      "stadt": "f",
+      "stahlstrebe": "f",
+      "stamm": "m",
+      "standarte": "f",
+      "stapel": "m",
+      "statue": "f",
+      "staub": "m",
+      "stecknadel": "f",
+      "steg": "m",
+      "steig": "m",
+      "steigb\xFCgel": "m",
+      "steigeisen": "n",
+      "stein": "m",
+      "stelle": "f",
+      "stempel": "m",
+      "stempelger\xE4usch": "n",
+      "stempelhalter": "m",
+      "steppe": "f",
+      "stern": "m",
+      "sternbilder": "n",
+      "sternwarte": "f",
+      "stethoskop": "n",
+      "stiefel": "m",
+      "stier": "m",
+      "stille": "f",
+      "stimme": "f",
+      "stirn": "f",
+      "stock": "m",
+      "stoff": "m",
+      "stollen": "m",
+      "stolz": "m",
+      "story": "f",
+      "strand": "m",
+      "strauch": "m",
+      "stra\xDFe": "f",
+      "streichholzschachtel": "f",
+      "streit": "m",
+      "strich": "m",
+      "strom": "m",
+      "strophe": "f",
+      "str\xF6mung": "f",
+      "stube": "f",
+      "stufe": "f",
+      "stuhl": "m",
+      "stunde": "f",
+      "stundenplan": "m",
+      "sturm": "m",
+      "sturmlaterne": "f",
+      "st\xE4rke": "f",
+      "st\xFCck": "n",
+      "sumpf": "m",
+      "suppe": "f",
+      "suppenkelle": "f",
+      "symbol": "n",
+      "symptom": "n",
+      "system": "n",
+      "s\xE4ge": "f",
+      "s\xE4ule": "f",
+      "tabelle": "f",
+      "tafel": "f",
+      "tafelrunde": "f",
+      "tag": "m",
+      "takt": "m",
+      "tal": "n",
+      "talar": "m",
+      "tante": "f",
+      "tanz": "m",
+      "tasche": "f",
+      "taschenradio": "n",
+      "tasse": "f",
+      "tau": "n",
+      "taube": "f",
+      "tee": "m",
+      "teer": "m",
+      "teeschale": "f",
+      "teich": "m",
+      "teil": "m",
+      "telefon": "n",
+      "teleskop": "n",
+      "teller": "m",
+      "teppich": "m",
+      "termin": "m",
+      "terminal": "n",
+      "terminzettel": "m",
+      "teufel": "m",
+      "thermometer": "n",
+      "thermoskanne": "f",
+      "thron": "m",
+      "ticket": "n",
+      "tier": "n",
+      "tiger": "m",
+      "tiktoksound": "m",
+      "tintenfass": "n",
+      "tisch": "m",
+      "tochter": "f",
+      "tod": "m",
+      "tomate": "f",
+      "ton": "m",
+      "tonband": "n",
+      "tonschale": "f",
+      "tontafel": "f",
+      "topf": "m",
+      "tor": "n",
+      "torte": "f",
+      "trapezhaken": "m",
+      "traube": "f",
+      "trauer": "f",
+      "traum": "m",
+      "trend": "m",
+      "treppe": "f",
+      "treue": "f",
+      "trillerpfeife": "f",
+      "trinkhorn": "n",
+      "trommel": "f",
+      "truhe": "f",
+      "tr\xE4ne": "f",
+      "tuch": "n",
+      "tulpe": "f",
+      "tunnel": "m",
+      "turm": "m",
+      "turnbeutel": "m",
+      "turnier": "n",
+      "turnierplatz": "m",
+      "turnierstab": "m",
+      "t\xFCr": "f",
+      "t\xFCte": "f",
+      "ufer": "n",
+      "uhr": "f",
+      "umriss": "m",
+      "umschlag": "m",
+      "ungl\xFCck": "n",
+      "untergrund": "m",
+      "unterschrift": "f",
+      "untersuchungsliege": "f",
+      "update": "n",
+      "urne": "f",
+      "urteil": "n",
+      "vater": "m",
+      "verdacht": "m",
+      "verfahren": "n",
+      "vergangenheit": "f",
+      "vermerk": "m",
+      "vers": "m",
+      "verstand": "m",
+      "vertrag": "m",
+      "vertrauen": "n",
+      "video": "n",
+      "virus": "n",
+      "visier": "n",
+      "vogel": "m",
+      "vollmacht": "f",
+      "vordruck": "m",
+      "vorhang": "m",
+      "vormund": "m",
+      "vorrat": "m",
+      "vorratsgl\xE4ser": "n",
+      "vulkan": "m",
+      "wachs": "n",
+      "wachstuch": "n",
+      "wagen": "m",
+      "wahrheit": "f",
+      "waisenjunge": "m",
+      "wal": "m",
+      "wald": "m",
+      "waldhorn": "n",
+      "wand": "f",
+      "wanderstab": "m",
+      "wanderstock": "m",
+      "wanderung": "f",
+      "wange": "f",
+      "wappen": "n",
+      "wappenschild": "n",
+      "warnung": "f",
+      "warnweste": "f",
+      "wartemarke": "f",
+      "warze": "f",
+      "wasser": "n",
+      "wasserflasche": "f",
+      "wasserhahn": "m",
+      "weg": "m",
+      "wegmarke": "f",
+      "weide": "f",
+      "wein": "m",
+      "weite": "f",
+      "wei\xDF": "n",
+      "welle": "f",
+      "werk": "n",
+      "werkstatt": "f",
+      "werkzeug": "n",
+      "wert": "m",
+      "wespe": "f",
+      "wetter": "n",
+      "wetterfahne": "f",
+      "widerstand": "m",
+      "wiese": "f",
+      "wille": "m",
+      "wimper": "f",
+      "wind": "m",
+      "windhauch": "m",
+      "windsto\xDF": "m",
+      "winter": "m",
+      "witz": "m",
+      "woche": "f",
+      "wolf": "m",
+      "wolke": "f",
+      "wollschal": "m",
+      "wort": "n",
+      "wrack": "n",
+      "wunde": "f",
+      "wunder": "n",
+      "wunsch": "m",
+      "wurm": "m",
+      "wurzel": "f",
+      "wut": "f",
+      "w\xE4chter": "m",
+      "w\xE4lder": "m",
+      "w\xE4rme": "f",
+      "w\xE4rmestein": "m",
+      "w\xE4schekorb": "m",
+      "w\xF6rter": "n",
+      "w\xFCrfel": "m",
+      "w\xFCste": "f",
+      "zahl": "f",
+      "zahn": "m",
+      "zange": "f",
+      "zauberbesen": "m",
+      "zaun": "m",
+      "zeh": "m",
+      "zeichen": "n",
+      "zeile": "f",
+      "zeit": "f",
+      "zeitgeber": "m",
+      "zeitmarke": "f",
+      "zelle": "f",
+      "zelt": "n",
+      "zentimeter": "m",
+      "zepter": "n",
+      "zettel": "m",
+      "zeuge": "m",
+      "ziffer": "f",
+      "zigarettenstummel": "m",
+      "zigarre": "f",
+      "zimmer": "n",
+      "zirkel": "m",
+      "zitrone": "f",
+      "zittern": "n",
+      "zorn": "m",
+      "zucker": "m",
+      "zug": "m",
+      "zukunft": "f",
+      "zunderbeutel": "m",
+      "zunge": "f",
+      "zweifel": "m",
+      "zweig": "m",
+      "zweitschl\xFCssel": "m",
+      "zwieback": "m",
+      "zwiebel": "f",
+      "z\xE4hlrahmen": "m",
+      "z\xF6gern": "n",
+      "\xE4rmel": "m",
+      "\xE4rztin": "f",
+      "\xF6l": "n",
+      "\xF6llampe": "f",
+      "\xF6llaterne": "f",
+      "\xF6lschl\xFCssel": "m"
+    };
+  }
+});
+
+// src/generation/nouns2.data.ts
+var NOUN_GENDER_2;
+var init_nouns2_data = __esm({
+  "src/generation/nouns2.data.ts"() {
+    "use strict";
+    NOUN_GENDER_2 = {
+      // ── Häufigste ──
+      ende: "n",
+      jahr: "n",
+      mal: "n",
+      anfang: "m",
+      leben: "n",
+      auskunft: "f",
+      welt: "f",
+      fr\u00FChjahr: "n",
+      fall: "m",
+      arbeit: "f",
+      sache: "f",
+      zufall: "m",
+      form: "f",
+      ziel: "n",
+      kontrolle: "f",
+      reihenfolge: "f",
+      wissen: "n",
+      post: "f",
+      ernte: "f",
+      geld: "n",
+      mund: "m",
+      schweigen: "n",
+      wette: "f",
+      schminke: "f",
+      kurs: "m",
+      original: "n",
+      text: "m",
+      gras: "n",
+      warten: "n",
+      ruhe: "f",
+      mitte: "f",
+      seide: "f",
+      familie: "f",
+      tiefe: "f",
+      norden: "m",
+      s\u00FCden: "m",
+      osten: "m",
+      westen: "m",
+      blut: "n",
+      horizont: "m",
+      ursache: "f",
+      absicht: "f",
+      wirt: "m",
+      jagd: "f",
+      herkunft: "f",
+      essen: "n",
+      r\u00FCckkehr: "f",
+      rahmen: "m",
+      w\u00FCrde: "f",
+      w\u00E4sche: "f",
+      miete: "f",
+      verlangen: "n",
+      marke: "f",
+      griff: "m",
+      wache: "f",
+      vernunft: "f",
+      markt: "m",
+      pegel: "m",
+      halbdunkel: "n",
+      rolle: "f",
+      grad: "m",
+      streben: "n",
+      fach: "n",
+      weise: "f",
+      wipfel: "m",
+      kohle: "f",
+      lehne: "f",
+      tide: "f",
+      ru\u00DF: "m",
+      idee: "f",
+      gemeinde: "f",
+      jahrhundert: "n",
+      ernst: "m",
+      betrag: "m",
+      unterschied: "m",
+      material: "n",
+      annahme: "f",
+      merkmal: "n",
+      radio: "n",
+      hitze: "f",
+      herold: "m",
+      grat: "m",
+      kasse: "f",
+      zoll: "m",
+      heimweh: "n",
+      laden: "m",
+      f\u00E4hre: "f",
+      herzog: "m",
+      inhalt: "m",
+      titel: "m",
+      problem: "n",
+      sicht: "f",
+      beh\u00F6rde: "f",
+      winkel: "m",
+      hilfe: "f",
+      pass: "m",
+      viertel: "n",
+      jahrzehnt: "n",
+      anrede: "f",
+      rost: "m",
+      ekel: "m",
+      tat: "f",
+      methode: "f",
+      zwang: "m",
+      heimkehr: "f",
+      umkehr: "f",
+      norm: "f",
+      leere: "f",
+      umlauf: "m",
+      flamme: "f",
+      einsicht: "f",
+      messing: "n",
+      personal: "n",
+      widerspruch: "m",
+      schluss: "m",
+      stroh: "n",
+      rang: "m",
+      vieh: "n",
+      garderobe: "f",
+      g\u00FCte: "f",
+      anlass: "m",
+      anwalt: "m",
+      rat: "m",
+      code: "m",
+      bad: "n",
+      handgelenk: "n",
+      scheibe: "f",
+      zustand: "m",
+      eile: "f",
+      saatgut: "n",
+      fracht: "f",
+      automat: "m",
+      lehre: "f",
+      ding: "n",
+      verzicht: "m",
+      zweck: "m",
+      waffe: "f",
+      blech: "n",
+      trost: "m",
+      versuch: "m",
+      ironie: "f",
+      d\u00FCrre: "f",
+      fest: "n",
+      aufsicht: "f",
+      kapitel: "n",
+      aussicht: "f",
+      absinth: "m",
+      parf\u00FCm: "n",
+      schmutz: "m",
+      knick: "m",
+      andacht: "f",
+      spitze: "f",
+      szene: "f",
+      erfolg: "m",
+      ausguck: "m",
+      bord: "m",
+      sieg: "m",
+      klausel: "f",
+      haupttext: "m",
+      sachverhalt: "m",
+      tinte: "f",
+      stand: "m",
+      wortlaut: "m",
+      klinke: "f",
+      kanzel: "f",
+      verrat: "m",
+      mulde: "f",
+      februar: "m",
+      parasit: "m",
+      pr\u00E4parat: "n",
+      wesen: "n",
+      lava: "f",
+      schwefel: "m",
+      lauf: "m",
+      spa\u00DF: "m",
+      m\u00F6bel: "n",
+      b\u00FCro: "n",
+      hauptsache: "f",
+      saat: "f",
+      fehde: "f",
+      portr\u00E4t: "n",
+      reue: "f",
+      konfetti: "n",
+      trapez: "n",
+      narr: "m",
+      truppe: "f",
+      pudel: "m",
+      jugend: "f",
+      abschied: "m",
+      bronze: "f",
+      tempel: "m",
+      geschlecht: "n",
+      stra\u00DFenanfang: "m",
+      brauch: "m",
+      wiederkehr: "f",
+      h\u00E4lfte: "f",
+      pappe: "f",
+      kante: "f",
+      eintrag: "m",
+      format: "n",
+      giebel: "m",
+      heimat: "f",
+      armenkasse: "f",
+      materie: "f",
+      mensch: "m",
+      glied: "n",
+      betrieb: "m",
+      m\u00FCll: "m",
+      kleingeld: "n",
+      ruhm: "m",
+      ritt: "m",
+      sch\u00E4rfe: "f",
+      ankunft: "f",
+      symmetrie: "f",
+      adressat: "m",
+      kreislauf: "m",
+      aufstieg: "m",
+      f\u00FClle: "f",
+      bitte: "f",
+      brand: "m",
+      waise: "f",
+      gesang: "m",
+      subjekt: "n",
+      objekt: "n",
+      moral: "f",
+      schilf: "n",
+      diagnose: "f",
+      gr\u00F6\u00DFe: "f",
+      wahl: "f",
+      sturz: "m",
+      gischt: "f",
+      ekstase: "f",
+      becken: "n",
+      putz: "m",
+      minze: "f",
+      samt: "m",
+      pause: "f",
+      knauf: "m",
+      apotheke: "f",
+      kost\u00FCm: "n",
+      versto\u00DF: "m",
+      satzanfang: "m",
+      sprint: "m",
+      beule: "f",
+      banane: "f",
+      tapete: "f",
+      galerie: "f",
+      kl\u00F6ppel: "m",
+      predigt: "f",
+      zierrat: "m",
+      wachwechsel: "m",
+      wimpel: "m",
+      rah: "f",
+      streitfall: "m",
+      docht: "m",
+      wundmal: "n",
+      pforte: "f",
+      gebot: "n",
+      fl\u00FCgel: "m",
+      l\u00E4nge: "f",
+      kamel: "n",
+      achse: "f",
+      schlegel: "m",
+      affe: "m",
+      nirwana: "n",
+      alkohol: "m",
+      instinkt: "m",
+      balance: "f",
+      aushub: "m",
+      kalk: "m",
+      r\u00F6hre: "f",
+      basalt: "m",
+      salzs\u00E4ure: "f",
+      erdkruste: "f",
+      schichtfolge: "f",
+      sohle: "f",
+      profil: "n",
+      schneeschmelze: "f",
+      orbit: "m",
+      funkspruch: "m",
+      meteorit: "m",
+      stromausfall: "m",
+      theorie: "f",
+      nervengeflecht: "n",
+      bodenprofil: "n",
+      senke: "f",
+      gebiet: "n",
+      phase: "f",
+      honorar: "n",
+      kordel: "f",
+      spind: "m",
+      tonfall: "m",
+      tempo: "n",
+      schattenkante: "f",
+      stahl: "m",
+      graupappe: "f",
+      st\u00FCtze: "f",
+      perspektive: "f",
+      tank: "m",
+      stillstand: "m",
+      pumpe: "f",
+      debatte: "f",
+      bahre: "f",
+      fackelru\u00DF: "m",
+      kerbe: "f",
+      t\u00FCrsturz: "m",
+      groll: "m",
+      seuche: "f",
+      lunge: "f",
+      pferdegeschirr: "n",
+      zeltgest\u00E4nge: "n",
+      marsch: "m",
+      schaumgummi: "m",
+      knall: "m",
+      zeltmitte: "f",
+      trick: "m",
+      wurf: "m",
+      pult: "n",
+      pentagramm: "n",
+      handel: "m",
+      r\u00FCcktritt: "m",
+      zimt: "m",
+      akt: "m",
+      schatz: "m",
+      betrug: "m",
+      kopfende: "n",
+      parkett: "n",
+      lack: "m",
+      leib: "m",
+      efeu: "m",
+      anstand: "m",
+      schafwolle: "f",
+      milde: "f",
+      wiege: "f",
+      schar: "f",
+      gunst: "f",
+      volk: "n",
+      staat: "m",
+      antlitz: "n",
+      fleck: "m",
+      alibi: "n",
+      kamera: "f",
+      vorfall: "m",
+      quelltext: "m",
+      ritual: "n",
+      schl\u00E4fe: "f",
+      wetterwechsel: "m",
+      anzeige: "f",
+      jahresende: "n",
+      weile: "f",
+      t\u00FCll: "m",
+      schleppe: "f",
+      b\u00FCgel: "m",
+      dampf: "m",
+      kragen: "m",
+      kerzenstummel: "m",
+      klasse: "f",
+      monatsende: "n",
+      tausendstel: "n",
+      durchlauf: "m",
+      jahrtausend: "n",
+      scheu: "f",
+      taxi: "n",
+      mittwoch: "m",
+      erz: "n",
+      diebstahl: "m",
+      nachtwache: "f",
+      schleuse: "f",
+      \u00FCbernahme: "f",
+      luke: "f",
+      sp\u00FCle: "f",
+      ampel: "f",
+      sperrm\u00FCll: "m",
+      speiche: "f",
+      henkel: "m",
+      routine: "f",
+      mai: "m",
+      wolle: "f",
+      schluck: "m",
+      biologie: "f",
+      geologie: "f",
+      astrologie: "f",
+      philosophie: "f",
+      krise: "f",
+      trag\u00F6die: "f",
+      urknall: "m",
+      stift: "m",
+      mine: "f",
+      abwehr: "f",
+      mole: "f",
+      zerfall: "m",
+      masse: "f",
+      handbreit: "f",
+      verfall: "m",
+      tischkante: "f",
+      beute: "f",
+      rache: "f",
+      font\u00E4ne: "f",
+      zuversicht: "f",
+      unruhe: "f",
+      energie: "f",
+      enge: "f",
+      april: "m",
+      rekord: "m",
+      normalzustand: "m",
+      h\u00F6he: "f",
+      abstieg: "m",
+      requisit: "n",
+      schwindel: "m",
+      orakelspruch: "m",
+      erlass: "m",
+      aufstand: "m",
+      gehorsam: "m",
+      blackbox: "f",
+      silhouette: "f",
+      mode: "f",
+      not: "f",
+      urform: "f",
+      ruhestand: "m",
+      schaden: "m",
+      anlauf: "m",
+      dienstjahr: "n",
+      witwe: "f",
+      ensemble: "n",
+      kommune: "f",
+      sekte: "f",
+      rettungstrupp: "m",
+      exil: "n",
+      zentrale: "f",
+      zensurbeh\u00F6rde: "f",
+      doktortitel: "m",
+      naturschutzgebiet: "n",
+      boulevard: "m",
+      hotel: "n",
+      kino: "n",
+      verkehr: "m",
+      kellerclub: "m",
+      kabine: "f",
+      auto: "n",
+      kaserne: "f",
+      internat: "n",
+      wahlkabine: "f",
+      anstalt: "f",
+      mittagspause: "f",
+      choleraepidemie: "f",
+      monarchie: "f",
+      hungersnot: "f",
+      null: "f",
+      route: "f",
+      kampagne: "f",
+      karriere: "f",
+      neuanfang: "m",
+      sorte: "f",
+      verhandlungssache: "f",
+      folge: "f",
+      ablauf: "m",
+      strategie: "f",
+      apparat: "m",
+      psychopath: "m",
+      variable: "f",
+      empathie: "f",
+      amsel: "f",
+      schneefall: "m",
+      abendrot: "n",
+      wechsel: "m",
+      // ── Nachschlag: Alltag, Körper, Haus, Natur, Amt ──
+      auge: "n",
+      name: "m",
+      glaube: "m",
+      wille: "m",
+      gedanke: "m",
+      friede: "m",
+      funke: "m",
+      k\u00E4se: "m",
+      junge: "m",
+      kunde: "m",
+      l\u00F6we: "m",
+      hase: "m",
+      bote: "m",
+      zeuge: "m",
+      riese: "m",
+      rabe: "m",
+      falke: "m",
+      ochse: "m",
+      bursche: "m",
+      knabe: "m",
+      neffe: "m",
+      erbe: "m",
+      buchstabe: "m",
+      same: "m",
+      schatten: "m",
+      wagen: "m",
+      boden: "m",
+      garten: "m",
+      ofen: "m",
+      regen: "m",
+      faden: "m",
+      haken: "m",
+      hafen: "m",
+      morgen: "m",
+      tropfen: "m",
+      kissen: "n",
+      zeichen: "n",
+      kuchen: "m",
+      knochen: "m",
+      r\u00FCcken: "m",
+      segen: "m",
+      bogen: "m",
+      balken: "m",
+      riegel: "m",
+      ballen: "m",
+      fels: "m",
+      haus: "n",
+      glas: "n",
+      bus: "m",
+      fluss: "m",
+      kuss: "m",
+      guss: "m",
+      gru\u00DF: "m",
+      fu\u00DF: "m",
+      hass: "m",
+      kompass: "m",
+      atlas: "m",
+      kreis: "m",
+      preis: "m",
+      eis: "n",
+      reis: "m",
+      gleis: "n",
+      flei\u00DF: "m",
+      geheimnis: "n",
+      ergebnis: "n",
+      zeugnis: "n",
+      bed\u00FCrfnis: "n",
+      verh\u00E4ltnis: "n",
+      ereignis: "n",
+      erlebnis: "n",
+      b\u00FCndnis: "n",
+      hindernis: "n",
+      gef\u00E4ngnis: "n",
+      wildnis: "f",
+      finsternis: "f",
+      fenster: "n",
+      zimmer: "n",
+      wasser: "n",
+      messer: "n",
+      feuer: "n",
+      kupfer: "n",
+      silber: "n",
+      pulver: "n",
+      wetter: "n",
+      alter: "n",
+      ufer: "n",
+      lager: "n",
+      opfer: "n",
+      muster: "n",
+      kloster: "n",
+      register: "n",
+      theater: "n",
+      fieber: "n",
+      leder: "n",
+      futter: "n",
+      gitter: "n",
+      ruder: "n",
+      wunder: "n",
+      orchester: "n",
+      zepter: "n",
+      semester: "n",
+      polster: "n",
+      pflaster: "n",
+      laster: "n",
+      meter: "m",
+      liter: "m",
+      zentrum: "n",
+      datum: "n",
+      museum: "n",
+      t\u00FCr: "f",
+      hand: "f",
+      stern: "m",
+      schritt: "m",
+      brief: "m",
+      weg: "m",
+      stimme: "f",
+      spur: "f",
+      lippe: "f",
+      frage: "f",
+      perle: "f",
+      glocke: "f",
+      uhr: "f",
+      herz: "n",
+      dach: "n",
+      stra\u00DFe: "f",
+      regel: "f",
+      vorrat: "m",
+      schicht: "f",
+      schaf: "n",
+      nummer: "f",
+      schuh: "m",
+      grenze: "f",
+      gutachten: "n",
+      satz: "m",
+      wort: "n",
+      seele: "f",
+      teil: "m",
+      blume: "f",
+      richtung: "f",
+      monat: "m",
+      zahn: "m",
+      ort: "m",
+      wand: "f",
+      vorhang: "m",
+      umstand: "m",
+      sandsack: "m",
+      kraft: "f",
+      bein: "n",
+      kanal: "m",
+      sinn: "m",
+      netz: "n",
+      pflasterstein: "m",
+      handschuh: "m",
+      protokoll: "n",
+      system: "n",
+      kreidestrich: "m",
+      bruchteil: "m",
+      tor: "n",
+      kran: "m",
+      beweis: "m",
+      nacht: "f",
+      stadt: "f",
+      grund: "m",
+      zug: "m",
+      riff: "n",
+      plakat: "n",
+      baum: "m",
+      erbgang: "m",
+      exemplar: "n",
+      symptom: "n",
+      plan: "m",
+      umriss: "m",
+      riss: "m",
+      bahngleis: "n",
+      regal: "n",
+      blick: "m",
+      bergpass: "m",
+      faust: "f",
+      stuhl: "m",
+      freund: "m",
+      stamm: "m",
+      tanzschuh: "m",
+      dienst: "m",
+      ma\u00DF: "n",
+      arm: "m",
+      kinderhand: "f",
+      tisch: "m",
+      seil: "n",
+      frachtbrief: "m",
+      termin: "m",
+      formular: "n",
+      messwert: "m",
+      gegenstand: "m",
+      vogel: "m",
+      exponat: "n",
+      fahrgast: "m",
+      meer: "n",
+      anruf: "m",
+      vorschlag: "m",
+      punkt: "m",
+      boot: "n",
+      paar: "n",
+      gast: "m",
+      stein: "m",
+      stunde: "f",
+      minute: "f",
+      tag: "m",
+      woche: "f",
+      seite: "f",
+      farbe: "f",
+      papier: "n",
+      nachbar: "m",
+      wolke: "f",
+      zeug: "n",
+      kind: "n",
+      mann: "m",
+      frau: "f",
+      vater: "m",
+      mutter: "f",
+      bruder: "m",
+      schwester: "f",
+      sohn: "m",
+      tochter: "f",
+      herr: "m",
+      dame: "f",
+      lehrer: "m",
+      arzt: "m",
+      pfarrer: "m",
+      priester: "m",
+      k\u00F6nig: "m",
+      k\u00F6nigin: "f",
+      kaiser: "m",
+      soldat: "m",
+      bauer: "m",
+      fischer: "m",
+      b\u00E4cker: "m",
+      schneider: "m",
+      schmied: "m",
+      m\u00FCller: "m",
+      j\u00E4ger: "m",
+      hirte: "m",
+      knecht: "m",
+      magd: "f",
+      w\u00E4chter: "m",
+      richter: "m",
+      h\u00E4ndler: "m",
+      fremde: "m",
+      kurier: "m",
+      agent: "m",
+      spion: "m",
+      dieb: "m",
+      r\u00E4uber: "m",
+      m\u00F6rder: "m",
+      opferlamm: "n",
+      engel: "m",
+      teufel: "m",
+      geist: "m",
+      gott: "m",
+      g\u00F6ttin: "f",
+      heiliger: "m",
+      m\u00F6nch: "m",
+      nonne: "f",
+      abt: "m",
+      bischof: "m",
+      papst: "m",
+      ritter: "m",
+      knappe: "m",
+      graf: "m",
+      gr\u00E4fin: "f",
+      f\u00FCrst: "m",
+      prinz: "m",
+      prinzessin: "f",
+      zauberer: "m",
+      hexe: "f",
+      drache: "m",
+      zwerg: "m",
+      elf: "m",
+      troll: "m",
+      wolf: "m",
+      b\u00E4r: "m",
+      fuchs: "m",
+      hirsch: "m",
+      reh: "n",
+      pferd: "n",
+      hund: "m",
+      katze: "f",
+      maus: "f",
+      ratte: "f",
+      schlange: "f",
+      fisch: "m",
+      m\u00F6we: "f",
+      taube: "f",
+      kr\u00E4he: "f",
+      eule: "f",
+      biene: "f",
+      fliege: "f",
+      spinne: "f",
+      k\u00E4fer: "m",
+      schmetterling: "m",
+      wurm: "m",
+      ameise: "f",
+      frosch: "m",
+      kr\u00F6te: "f",
+      eidechse: "f",
+      schwan: "m",
+      ente: "f",
+      gans: "f",
+      huhn: "n",
+      hahn: "m",
+      kuh: "f",
+      stier: "m",
+      ziege: "f",
+      esel: "m",
+      schwein: "n",
+      lamm: "n",
+      // Schwache Maskulina auf -e, die die -e→f-Regel sonst fälschlich fängt
+      kollege: "m",
+      experte: "m",
+      matrose: "m",
+      pate: "m",
+      sklave: "m",
+      laie: "m",
+      insasse: "m",
+      gatte: "m",
+      bulle: "m",
+      schurke: "m",
+      geselle: "m",
+      gef\u00E4hrte: "m",
+      genosse: "m",
+      komplize: "m",
+      jude: "m",
+      zar: "m",
+      franzose: "m",
+      chinese: "m",
+      russe: "m",
+      grieche: "m",
+      t\u00FCrke: "m",
+      ire: "m",
+      schwede: "m",
+      d\u00E4ne: "m",
+      psychologe: "m",
+      biologe: "m",
+      geologe: "m",
+      soziologe: "m",
+      arch\u00E4ologe: "m",
+      philosoph: "m",
+      // Neutra auf -e
+      interesse: "n",
+      geb\u00E4ude: "n",
+      gem\u00E4lde: "n",
+      gebirge: "n",
+      getreide: "n",
+      gefolge: "n",
+      gel\u00E4nde: "n",
+      gewebe: "n",
+      gew\u00F6lbe: "n",
+      getriebe: "n",
+      gef\u00FCge: "n",
+      gelage: "n",
+      gerede: "n",
+      gehege: "n",
+      gewerbe: "n"
+    };
+  }
+});
+
+// src/generation/declension.ts
+function istSubstantivierterInfinitiv(w) {
+  if (!/^[a-zäöüß]{4,}en$/.test(w)) return false;
+  const stamm = w.slice(0, -2);
+  return istVerbform(stamm + "t") || istVerbform(stamm + "et");
+}
+function adjStamm(adj) {
+  const m = adj.match(/^(.*?)(es|er|em|en|e)$/);
+  return m && m[1].length >= 4 ? m[1] : adj;
+}
+function adjustAdjectiveEnding(adj, gender, targetCase) {
+  const stem = adjStamm(adj);
+  if (targetCase === "nom") return gender === "m" ? stem + "er" : gender === "f" ? stem + "e" : stem + "es";
+  if (targetCase === "dat") return stem + "en";
+  if (targetCase === "acc") return gender === "m" ? stem + "en" : gender === "f" ? stem + "e" : stem + "es";
+  return adj;
+}
+function guessGender(noun) {
+  const w = (noun || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
+  const known = NOUN_GENDER2[w];
+  if (known === "m" || known === "f" || known === "n") return known;
+  let best = "";
+  for (const k in NOUN_GENDER2) {
+    if (k.length >= 3 && w.length >= k.length + 2 && w.endsWith(k) && k.length > best.length) best = k;
+  }
+  if (best) return NOUN_GENDER2[best];
+  if (/(ung|heit|keit|schaft|tät|ion|ik|enz|anz|ei|ade|age|üre|itis|ur)$/.test(w)) return "f";
+  if (/(chen|lein|ment|tum|um|nis|ma)$/.test(w)) return "n";
+  if (/(ling|ismus|ant|ent|ist|eur|or|ich|ig|ast)$/.test(w)) return "m";
+  if (istSubstantivierterInfinitiv(w)) return "n";
+  if (/^ge[a-zäöüß]{3,}e$/.test(w)) return "n";
+  if (/e$/.test(w) && w.length >= 4 && !E_AUSNAHME.test(w)) return "f";
+  if (/er$/.test(w)) return "m";
+  return void 0;
+}
+function ensureArticle(phrase) {
+  const s = clean(phrase);
+  if (/^(ein|eine|einen|einem|einer|eines|der|die|das|den|dem|des|kein|keine|mein|dein|sein|ihr|unser)\b/i.test(s)) return s;
+  const words3 = s.split(" ");
+  if (words3.length > 5) return s;
+  let nounIdx = words3.findIndex((w) => /^[A-ZÄÖÜ]/.test(w));
+  if (nounIdx === -1) return s;
+  if (nounIdx + 1 < words3.length && /^[A-ZÄÖÜ]/.test(words3[nounIdx + 1]) && /(e|er|es|en|em|te|ne)$/.test(words3[nounIdx])) {
+    words3[nounIdx] = words3[nounIdx].charAt(0).toLowerCase() + words3[nounIdx].slice(1);
+    nounIdx++;
+  }
+  const g = guessGender(words3[nounIdx].replace(/[^A-Za-zÄÖÜäöüß]/g, ""));
+  if (!g) return words3.join(" ");
+  return `${g === "f" ? "eine" : "ein"} ${words3.join(" ")}`;
+}
+function declineHookPhrase(phrase, targetCase) {
+  const s = clean(phrase);
+  const m = s.match(/^(ein|eine|einen|einem|einer|eines)\s+(.*)$/i);
+  if (!m) return s;
+  const restWords = m[2].split(" ");
+  let nounIdx = -1;
+  for (let i = 0; i < restWords.length && i <= 2; i++) {
+    if (/^[A-ZÄÖÜ]/.test(restWords[i])) {
+      nounIdx = i;
+      break;
+    }
+  }
+  if (nounIdx === -1) return s;
+  const nounWord = restWords[nounIdx].replace(/[,.;:!?]+$/, "");
+  const art0 = m[1].toLowerCase();
+  const gender = ART_GENUS[art0] || NOUN_GENDER2[nounWord.toLowerCase()] || guessGender(nounWord);
+  if (!gender) return s;
+  const artForms = {
+    m: { nom: "ein", acc: "einen", dat: "einem" },
+    f: { nom: "eine", acc: "eine", dat: "einer" },
+    n: { nom: "ein", acc: "ein", dat: "einem" }
+  };
+  const newArt = artForms[gender][targetCase] || artForms[gender].nom;
+  const words3 = restWords.slice();
+  for (let i = 0; i < nounIdx; i++) words3[i] = adjustAdjectiveEnding(words3[i], gender, targetCase);
+  return `${newArt} ${words3.join(" ")}`;
+}
+var NOUN_GENDER2, E_AUSNAHME, ART_GENUS;
+var init_declension = __esm({
+  "src/generation/declension.ts"() {
+    "use strict";
+    init_text_utils();
+    init_verben();
+    init_nouns_data();
+    init_nouns2_data();
+    NOUN_GENDER2 = { ...NOUN_GENDER_2, ...NOUN_GENDER };
+    E_AUSNAHME = /^(ge[a-zäöüß]+e|.*(auge|ende|käse|junge|erbe|interesse))$/;
+    ART_GENUS = {
+      ein: void 0,
+      eine: "f",
+      einen: "m",
+      einem: void 0,
+      einer: "f",
+      eines: void 0
+    };
+  }
+});
+
+// src/constants.ts
+var STORAGE_BANK, STORAGE_CORPUS, STORAGE_SETTINGS, STORAGE_PRESETS, STORAGE_WORLD, CORPUS_MAX, BANK_KEYS, DEFAULT_BANK;
+var init_constants = __esm({
+  "src/constants.ts"() {
+    "use strict";
+    STORAGE_BANK = "divergenz_wordbank_v1";
+    STORAGE_CORPUS = "divergenz_persistent_corpus_v1";
+    STORAGE_SETTINGS = "divergenz_settings_v1";
+    STORAGE_PRESETS = "divergenz_bank_presets_v1";
+    STORAGE_WORLD = "divergenz_world_v1";
+    CORPUS_MAX = 16e4;
+    BANK_KEYS = [
+      "motifs",
+      "hooks",
+      "props",
+      "turns",
+      "obstacles",
+      "stakes",
+      "endings"
+    ];
+    DEFAULT_BANK = {
+      motifs: [
+        "eine Uhr, die r\xFCckw\xE4rts tickt",
+        "eine T\xFCr, die von innen atmet",
+        "ein Spiegelbild, das zu sp\xE4t reagiert",
+        "ein Formular mit einem Feld zu viel",
+        "ein Kabel, das warm wird, ohne Strom",
+        "eine Narbe, die sich erinnert",
+        "ein Name, der nicht ausgesprochen werden kann",
+        "ein Licht, das die falschen Dinge zeigt",
+        "ein Ger\xE4usch, das nur in Gedanken existiert",
+        "eine Karte, die Orte erfindet"
+      ],
+      hooks: [
+        "eine rote Feder im falschen Winkel",
+        "ein Lichtstreifen, der aus dem Nichts kommt",
+        "ein leises Klopfen hinter der Wand",
+        "ein Foto, das ein Detail mehr zeigt als gestern",
+        "ein Schatten, der nicht zur Figur passt",
+        "eine Nachricht ohne Absender",
+        "eine T\xFCr, die pl\xF6tzlich nicht mehr T\xFCr sein will"
+      ],
+      props: [
+        "einen Schl\xFCssel",
+        "eine Karte",
+        "eine M\xFCnze",
+        "ein Foto",
+        "ein Notizbuch",
+        "eine Lampe",
+        "ein St\xFCck Kreide",
+        "einen Kompass",
+        "einen Ausweis",
+        "ein Siegel"
+      ],
+      turns: [
+        "pl\xF6tzlich passt die Zeit nicht mehr zu den Uhren",
+        "die Spur f\xFChrt nicht nach au\xDFen, sondern nach innen",
+        "das Offensichtliche wird unbenennbar",
+        "etwas antwortet \u2013 ohne Stimme",
+        "die Logik bleibt bestehen, aber in falscher Reihenfolge"
+      ],
+      obstacles: [
+        "die T\xFCr ist verschlossen",
+        "jemand h\xF6rt mit",
+        "die eigene Wahrnehmung wackelt",
+        "eine Regel gilt, die niemand erkl\xE4rt",
+        "die Akte tr\xE4gt das falsche Datum"
+      ],
+      stakes: [
+        "Der Einsatz ist Mut.",
+        "Der Einsatz ist Zeit: Ein Teil des Abends kommt nicht zur\xFCck.",
+        "Der Einsatz ist Wahrheit: Etwas am Selbstbild verschiebt sich.",
+        "Der Einsatz ist Vertrauen: in sich selbst."
+      ],
+      endings: [
+        "Damit ist es entschieden.",
+        "So schlie\xDFt sich der Kreis.",
+        "Und vielleicht beginnt es erst hier.",
+        "Und die T\xFCr fiel ins Schloss.",
+        "Und es war, als h\xE4tte der Ort kurz geblinzelt."
+      ]
+    };
+  }
+});
+
+// src/features/storage-status.ts
+function isQuotaError(e2) {
+  if (!(e2 instanceof DOMException)) return false;
+  return e2.name === "QuotaExceededError" || e2.name === "NS_ERROR_DOM_QUOTA_REACHED" || e2.code === 22 || e2.code === 1014;
+}
+function notifyStorageFull(where) {
+  try {
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.setAttribute("role", "alert");
+      banner.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:9999;padding:10px 14px;background:#7f1d1d;color:#fff;font:14px/1.4 system-ui,sans-serif;display:flex;gap:12px;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4)";
+      const x = document.createElement("button");
+      x.textContent = "\u2715";
+      x.style.cssText = "background:transparent;border:0;color:#fff;font-size:16px;cursor:pointer";
+      x.addEventListener("click", () => {
+        banner?.remove();
+        banner = null;
+      });
+      const span = document.createElement("span");
+      span.id = "storage-msg";
+      banner.append(span, x);
+      document.body.appendChild(banner);
+    }
+    const msg = banner.querySelector("#storage-msg");
+    if (msg) msg.textContent = `Speicher voll \u2014 \u201E${where}" konnte nicht gesichert werden. Bitte Korpus k\xFCrzen, Schatzkammer aufr\xE4umen oder ein Projekt exportieren und Daten l\xF6schen.`;
+  } catch {
+  }
+}
+function safeSet(key, value, where) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (e2) {
+    if (isQuotaError(e2)) notifyStorageFull(where);
+    return false;
+  }
+}
+async function storageReport() {
+  let localBytes = 0;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k === null) continue;
+      const v = localStorage.getItem(k) || "";
+      localBytes += (k.length + v.length) * 2;
+    }
+  } catch {
+  }
+  let usage, quota;
+  try {
+    if (navigator.storage?.estimate) {
+      const e2 = await navigator.storage.estimate();
+      usage = e2.usage;
+      quota = e2.quota;
+    }
+  } catch {
+  }
+  let text = `localStorage: ${fmt(localBytes)}`;
+  if (usage !== void 0 && quota) {
+    const pct = Math.round(usage / quota * 100);
+    text += ` \xB7 Origin gesamt: ${fmt(usage)} / ${fmt(quota)} (${pct} %)`;
+  }
+  return { localBytes, usage, quota, text };
+}
+function postenGroesse(key, wert) {
+  return (key.length + (wert || "").length) * 2;
+}
+function schluesselePosten(roh) {
+  const gesamt = roh.reduce((a, [k, v]) => a + postenGroesse(k, v), 0);
+  return roh.map(([k, v]) => {
+    const bytes = postenGroesse(k, v);
+    return {
+      key: k,
+      name: NAMEN[k] || k,
+      bytes,
+      anteil: gesamt ? Math.round(bytes / gesamt * 1e3) / 10 : 0,
+      wandert: EXPORT_PRAEFIX.some((p) => k.startsWith(p))
+    };
+  }).sort((a, b) => b.bytes - a.bytes);
+}
+function lesePosten() {
+  const roh = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k === null) continue;
+      roh.push([k, localStorage.getItem(k) || ""]);
+    }
+  } catch {
+  }
+  return schluesselePosten(roh);
+}
+var banner, fmt, NAMEN, EXPORT_PRAEFIX, formatBytes;
+var init_storage_status = __esm({
+  "src/features/storage-status.ts"() {
+    "use strict";
+    banner = null;
+    fmt = (bytes) => bytes >= 1024 * 1024 ? (bytes / 1024 / 1024).toFixed(1) + " MB" : Math.round(bytes / 1024) + " KB";
+    NAMEN = {
+      "divergenz_persistent_corpus_v1": "Korpus",
+      "dm_treasury_v1": "Schatzkammer",
+      "divergenz_zeitung_bilder_v1": "Bilder im Zeitungssetzer",
+      "divergenz_zeitung_layouts_v1": "Zeitungslayouts",
+      "dm_zeitung_v1": "Zeitungskopf",
+      "divergenz_bildwelt_v1": "Bildwelt (Wortb\xE4nke)",
+      "divergenz_bildvorrat_v1": "Bildvorrat (4W)",
+      "divergenz_sammler_vorrat_v1": "Sammler-Vorrat",
+      "divergenz_autopilot_ktx_v1": "Autopilot: Kontext-Ged\xE4chtnis",
+      "divergenz_lehrer_konto_v1": "KI-Lehrer: Konto",
+      "divergenz_wordbanks_v1": "Wortb\xE4nke",
+      "divergenz_presets2_v1": "Presets 2.0",
+      "divergenz_settings_v1": "Einstellungen",
+      "divergenz_reiter_v1": "Reiterleiste",
+      "dm_last_text": "Letzter Studiotext",
+      "divergenz_live_pools_v1": "Live-Pools"
+    };
+    EXPORT_PRAEFIX = ["dm_", "divergenz_"];
+    formatBytes = fmt;
+  }
+});
+
+// src/generation/verwandlung.ts
+function geschlecht(w) {
+  const kern = (w || "").trim().split(/\s+/).pop() || "";
+  return guessGender(kern.replace(/[^A-Za-zÄÖÜäöüß]/g, ""));
+}
+function pruefePaar(roh) {
+  const m = String(roh).split(/\s*(?:→|->|>)\s*/);
+  if (m.length !== 2) return { ok: false, grund: "kein Pfeil zwischen zwei W\xF6rtern" };
+  const von = m[0].trim(), nach = m[1].trim();
+  if (!von || !nach) return { ok: false, grund: "eine Seite ist leer" };
+  if (von.toLowerCase() === nach.toLowerCase()) return { ok: false, grund: "beide Seiten gleich" };
+  const g1 = geschlecht(von), g2 = geschlecht(nach);
+  if (!g1) return { ok: false, grund: `Geschlecht von \u201E${von}\u201C unbekannt` };
+  if (!g2) return { ok: false, grund: `Geschlecht von \u201E${nach}\u201C unbekannt` };
+  if (g1 !== g2) return { ok: false, grund: `verschiedenes Geschlecht (${g1} gegen ${g2})` };
+  return { ok: true, grund: "" };
+}
+function leseVerwandlungen(roh) {
+  const raus = [];
+  for (const z of roh || []) {
+    const m = String(z).split(/\s*(?:→|->|>)\s*/);
+    if (m.length !== 2) continue;
+    const von = m[0].trim(), nach = m[1].trim();
+    if (!von || !nach || von.toLowerCase() === nach.toLowerCase()) continue;
+    const g1 = geschlecht(von), g2 = geschlecht(nach);
+    if (!g1 || !g2 || g1 !== g2) continue;
+    raus.push({ von, nach });
+  }
+  return raus;
+}
+function wieGefunden(gefunden, ziel) {
+  const grossAmAnfang = /^[A-ZÄÖÜ]/.test(gefunden);
+  return grossAmAnfang ? ziel.charAt(0).toUpperCase() + ziel.slice(1) : ziel.charAt(0).toLowerCase() + ziel.slice(1);
+}
+function verwandleMotive(text, paare) {
+  if (!text || !paare.length) return text;
+  let t = text;
+  for (const { von, nach } of paare) {
+    let gesehen = 0;
+    try {
+      const re = new RegExp(`(^|[^A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])(${escapeRegExp(von)})(?![A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])`, "gi");
+      t = t.replace(re, (ganz, davor, wort) => {
+        gesehen++;
+        return gesehen === 1 ? ganz : davor + wieGefunden(wort, nach);
+      });
+    } catch {
+    }
+  }
+  return t;
+}
+var init_verwandlung = __esm({
+  "src/generation/verwandlung.ts"() {
+    "use strict";
+    init_text_utils();
+    init_declension();
+  }
+});
+
+// src/storage.ts
+function normalizeBankShape(bank) {
+  const out = structuredClone(DEFAULT_BANK);
+  const src = bank ?? {};
+  for (const k of BANK_KEYS) {
+    const v2 = src[k];
+    if (Array.isArray(v2)) out[k] = v2.map(clean).filter(Boolean);
+  }
+  const v = src["verwandlungen"];
+  if (Array.isArray(v)) {
+    const gut = v.map(clean).filter(Boolean).filter((x) => pruefePaar(x).ok);
+    if (gut.length) out.verwandlungen = gut;
+  }
+  return out;
+}
+function loadBank() {
+  try {
+    const raw = localStorage.getItem(STORAGE_BANK);
+    if (!raw) return structuredClone(DEFAULT_BANK);
+    return normalizeBankShape(JSON.parse(raw));
+  } catch {
+    return structuredClone(DEFAULT_BANK);
+  }
+}
+function saveBank(bank) {
+  return safeSet(STORAGE_BANK, JSON.stringify(bank), "Wortbank");
+}
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(STORAGE_SETTINGS);
+    if (!raw) return { ...DEFAULT_SETTINGS };
+    const p = JSON.parse(raw);
+    return {
+      enabled: !!p.enabled,
+      learnStories: p.learnStories !== false,
+      useSaved: !!p.useSaved
+    };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+var DEFAULT_SETTINGS;
+var init_storage = __esm({
+  "src/storage.ts"() {
+    "use strict";
+    init_storage_status();
+    init_verwandlung();
+    init_constants();
+    init_text_utils();
+    DEFAULT_SETTINGS = { enabled: false, learnStories: true, useSaved: false };
+  }
+});
+
+// src/features/ki.ts
+function loadAiKey() {
+  try {
+    return localStorage.getItem(AI_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+function saveAiKey(k) {
+  try {
+    localStorage.setItem(AI_KEY, k || "");
+  } catch {
+  }
+}
+function loadAiModel() {
+  try {
+    return localStorage.getItem(AI_MODEL) || DEFAULT_MODEL;
+  } catch {
+    return DEFAULT_MODEL;
+  }
+}
+function saveAiModel(m) {
+  try {
+    localStorage.setItem(AI_MODEL, m || DEFAULT_MODEL);
+  } catch {
+  }
+}
+function isOnline() {
+  try {
+    return navigator.onLine !== false;
+  } catch {
+    return true;
+  }
+}
+async function postMessages(body, signal) {
+  if (!isOnline()) throw new Error("Keine Internetverbindung \u2014 KI-Funktionen sind offline nicht verf\xFCgbar.");
+  const key = loadAiKey();
+  const url = "https://api.anthropic.com/v1/messages";
+  const headers = {
+    "content-type": "application/json",
+    "x-api-key": key,
+    "anthropic-version": "2023-06-01",
+    "anthropic-dangerous-direct-browser-access": "true"
+  };
+  const delays = [1e3, 2e3, 4e3];
+  let lastErr;
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    try {
+      const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal });
+      if ((res.status === 429 || res.status === 529 || res.status >= 500) && attempt < delays.length) {
+        await sleep(delays[attempt]);
+        continue;
+      }
+      return res;
+    } catch (e2) {
+      if (signal?.aborted) throw e2;
+      lastErr = e2;
+      if (attempt < delays.length) {
+        await sleep(delays[attempt]);
+        continue;
+      }
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("Netzwerkfehler bei der KI-Anfrage.");
+}
+async function callClaudeRaw(promptText, maxTokens, prefill, noThinking = false) {
+  const model = loadAiModel();
+  const messages = [{ role: "user", content: promptText }];
+  if (prefill) messages.push({ role: "assistant", content: prefill });
+  const body = noThinking ? { model, max_tokens: maxTokens || 4096, messages, thinking: { type: "disabled" } } : { model, max_tokens: maxTokens || 4096, messages };
+  const res = await postMessages(body);
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const e2 = await res.json();
+      if (e2?.error?.message) msg = e2.error.message;
+    } catch {
+    }
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  let text = "";
+  const kinds = [];
+  if (Array.isArray(data.content)) {
+    for (const b of data.content) if (b && typeof b.type === "string") kinds.push(b.type);
+    text = data.content.filter((b) => b && b.type === "text" && typeof b.text === "string").map((b) => b.text).join("\n").trim();
+  }
+  if (text && prefill) text = prefill + text;
+  const truncated = data.stop_reason === "max_tokens";
+  if (!text) {
+    const diag = `Modell ${model} \xB7 angefordert ${maxTokens || 4096} \xB7 verbraucht ${data.usage?.output_tokens ?? "?"} \xB7 Blocktypen [${kinds.join(", ") || "keine"}] \xB7 stop_reason ${data.stop_reason || "unbekannt"}`;
+    throw new Error(truncated ? `Token-Limit ersch\xF6pft, bevor Text zur\xFCckkam.
+${diag}
+` + (kinds.includes("thinking") ? "Das Modell hat das Budget f\xFCr interne \xDCberlegungen verbraucht. Bitte ein Modell ohne erweitertes Nachdenken eintragen (Studio \u25B8 Einstellungen \u25B8 KI-Zugang)." : "Bitte eine k\xFCrzere Ziell\xE4nge w\xE4hlen oder erneut versuchen.") : `Antwort ohne Textblock.
+${diag}`);
+  }
+  return { text, truncated };
+}
+async function callClaudeEx(promptText, maxTokens, prefill) {
+  const isParamProblem = (m) => /thinking|unexpected|unsupported|not supported|invalid/i.test(m);
+  const isPrefillProblem = (m) => /prefill/i.test(m);
+  try {
+    return await callClaudeRaw(promptText, maxTokens, prefill, true);
+  } catch (e2) {
+    const m = String(e2.message || "");
+    if (isPrefillProblem(m) && prefill) return await callClaudeRaw(promptText, maxTokens, null, true);
+    if (!isParamProblem(m)) throw e2;
+    try {
+      return await callClaudeRaw(promptText, maxTokens, prefill, false);
+    } catch (e22) {
+      const m2 = String(e22.message || "");
+      if (isPrefillProblem(m2) && prefill) return await callClaudeRaw(promptText, maxTokens, null, false);
+      throw e22;
+    }
+  }
+}
+async function callClaude(promptText, maxTokens, prefill) {
+  return (await callClaudeEx(promptText, maxTokens, prefill)).text;
+}
+function extractJson(raw) {
+  const s = (raw || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+  const start = s.indexOf("{");
+  if (start === -1) throw new Error("Keine JSON-Antwort erhalten.");
+  let depth = 0, inStr = false, esc = false, end = -1;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === "{") depth++;
+    else if (c === "}") {
+      depth--;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
+  }
+  if (end === -1) throw new Error("Antwort abgeschnitten (kein schlie\xDFendes '}').");
+  const body = s.slice(start, end + 1).replace(/,\s*([}\]])/g, "$1");
+  return JSON.parse(body);
+}
+var AI_KEY, AI_MODEL, DEFAULT_MODEL, sleep;
+var init_ki = __esm({
+  "src/features/ki.ts"() {
+    "use strict";
+    init_storage();
+    AI_KEY = "divergenz_ai_key_v1";
+    AI_MODEL = "divergenz_ai_model_v1";
+    DEFAULT_MODEL = "claude-sonnet-5";
+    sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  }
+});
+
+// test/schaltplan.ts
+var import_fs = require("fs");
+
+// src/features/knobs.ts
+var KNOB_VORGABE = { fuegeteil: 25, w4max: 2, abstand: 12, bogen: 100, ton: 100, korpus: 0, phrase: 5, satzlaenge: 9, atomgroesse: 14 };
+var KNOB_SPANNE = {
+  fuegeteil: { min: 10, max: 35, step: 5 },
+  w4max: { min: 1, max: 4, step: 1 },
+  abstand: { min: 6, max: 24, step: 2 },
+  bogen: { min: 0, max: 250, step: 25 },
+  ton: { min: 0, max: 250, step: 25 },
+  korpus: { min: 0, max: 60, step: 10 },
+  phrase: { min: 0, max: 8, step: 1 },
+  satzlaenge: { min: 0, max: 21, step: 3 },
+  atomgroesse: { min: 0, max: 24, step: 2 }
+};
+var KEY = "dm_knobs_v1";
+var klemm = (v, s) => Math.max(s.min, Math.min(s.max, v));
+function loadKnobs() {
+  try {
+    const r = localStorage.getItem(KEY);
+    if (!r) return { ...KNOB_VORGABE };
+    const p = JSON.parse(r);
+    return {
+      fuegeteil: klemm(Number(p.fuegeteil) || KNOB_VORGABE.fuegeteil, KNOB_SPANNE.fuegeteil),
+      w4max: klemm(Number(p.w4max) || KNOB_VORGABE.w4max, KNOB_SPANNE.w4max),
+      abstand: klemm(Number(p.abstand) || KNOB_VORGABE.abstand, KNOB_SPANNE.abstand),
+      bogen: klemm(p.bogen === void 0 ? KNOB_VORGABE.bogen : Number(p.bogen), KNOB_SPANNE.bogen),
+      ton: klemm(p.ton === void 0 ? KNOB_VORGABE.ton : Number(p.ton), KNOB_SPANNE.ton),
+      korpus: klemm(p.korpus === void 0 ? KNOB_VORGABE.korpus : Number(p.korpus), KNOB_SPANNE.korpus),
+      phrase: klemm(p.phrase === void 0 ? KNOB_VORGABE.phrase : Number(p.phrase), KNOB_SPANNE.phrase),
+      satzlaenge: klemm(p.satzlaenge === void 0 ? KNOB_VORGABE.satzlaenge : Number(p.satzlaenge), KNOB_SPANNE.satzlaenge),
+      atomgroesse: klemm(p.atomgroesse === void 0 ? KNOB_VORGABE.atomgroesse : Number(p.atomgroesse), KNOB_SPANNE.atomgroesse)
+    };
+  } catch {
+    return { ...KNOB_VORGABE };
+  }
+}
+function saveKnobs(k) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(k));
+  } catch {
+  }
+}
+var ZKEY = "dm_ziele_v1";
+function loadZiele() {
+  try {
+    const r = localStorage.getItem(ZKEY);
+    return r ? JSON.parse(r) : {};
+  } catch {
+    return {};
+  }
+}
+function saveZiele(z) {
+  try {
+    localStorage.setItem(ZKEY, JSON.stringify(z));
+  } catch {
+  }
+}
+var ZIEL_KNOB = {
+  vorlage: "fuegeteil",
+  dramaturgie: "bogen",
+  ton: "ton",
+  kontext: "w4max"
+};
+var TOTBAND = 3;
+var HKEY = "dm_ziel_verlauf_v1";
+var ladeVerlauf = () => {
+  try {
+    return JSON.parse(localStorage.getItem(HKEY) || "{}");
+  } catch {
+    return {};
+  }
+};
+var saveVerlauf = (v) => {
+  try {
+    localStorage.setItem(HKEY, JSON.stringify(v));
+  } catch {
+  }
+};
+function vergissVerlauf(q) {
+  if (!q) {
+    saveVerlauf({});
+    return;
+  }
+  const v = ladeVerlauf();
+  delete v[q];
+  saveVerlauf(v);
+}
+function regle(ist2, gesperrt) {
+  const z = loadZiele();
+  const k = loadKnobs();
+  const v = ladeVerlauf();
+  let geaendert2 = false;
+  const fest = [];
+  for (const q of Object.keys(z)) {
+    const ziel = z[q];
+    if (ziel === void 0) continue;
+    const i = (ist2[q] ?? 0) * 100;
+    const feld = ZIEL_KNOB[q], sp = KNOB_SPANNE[feld];
+    if (gesperrt && gesperrt(feld)) {
+      fest.push(q);
+      continue;
+    }
+    if (Math.abs(i - ziel) <= TOTBAND) {
+      v[q] = { vor: k[feld], istVor: i, fest: v[q]?.fest };
+      continue;
+    }
+    if (v[q]?.fest) {
+      fest.push(q);
+      continue;
+    }
+    const neu = klemm(k[feld] + (i < ziel ? sp.step : -sp.step), sp);
+    if (v[q] !== void 0 && v[q].vor === neu) {
+      const jetztBesser = Math.abs(i - ziel) <= Math.abs(v[q].istVor - ziel);
+      if (!jetztBesser) {
+        k[feld] = neu;
+        geaendert2 = true;
+      }
+      v[q] = { vor: jetztBesser ? k[feld] : neu, istVor: i, fest: true };
+      fest.push(q);
+      continue;
+    }
+    if (neu !== k[feld]) {
+      v[q] = { vor: k[feld], istVor: i };
+      k[feld] = neu;
+      geaendert2 = true;
+    } else {
+      v[q] = { vor: k[feld], istVor: i, fest: true };
+      fest.push(q);
+    }
+  }
+  saveVerlauf(v);
+  if (geaendert2) saveKnobs(k);
+  return { bewegt: geaendert2, fest };
+}
+
+// src/generation/dramaturgie.ts
+init_text_utils();
+
+// src/generation/beats.ts
+init_text_utils();
+
+// src/generation/cooldown.ts
+init_text_utils();
+var recent = {};
+var KEEP = 5;
+function pickFresh(key, opts) {
+  if (!opts.length) return opts[0];
+  const seen = recent[key] || (recent[key] = []);
+  const fresh2 = opts.filter((o) => !seen.includes(o));
+  const choice = fresh2.length ? pick(fresh2) : pick(opts);
+  seen.push(choice);
+  while (seen.length > Math.min(KEEP, opts.length - 1)) seen.shift();
+  return choice;
+}
+function pickFreshIndex(key, n) {
+  if (n <= 1) return 0;
+  const idxs = Array.from({ length: n }, (_, i) => String(i));
+  return Number(pickFresh(key, idxs));
+}
+var recentMarkov = [];
+var MK_KEEP = 24;
+var mkNorm = (s) => s.toLowerCase().replace(/[^a-zäöüß ]/g, "").replace(/\s+/g, " ").trim();
+function markovSeenRecently(s) {
+  const n = mkNorm(s);
+  return n.length > 0 && recentMarkov.includes(n);
+}
+function noteMarkov(s) {
+  const n = mkNorm(s);
+  if (!n) return;
+  recentMarkov.push(n);
+  while (recentMarkov.length > MK_KEEP) recentMarkov.shift();
+}
+
+// src/atoms/schema.ts
+var N = ["hauptsatz", "nebensatz", "nominalphrase", "praepositionalphrase", "rahmen", "fragment", "einwort", "konnektor", "kopf"];
+var FOLGT_AUF = {
+  start: ["hauptsatz", "rahmen", "kopf", "nominalphrase", "praepositionalphrase", "einwort", "fragment"],
+  hauptsatz: N,
+  nebensatz: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor"],
+  nominalphrase: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor", "nebensatz"],
+  praepositionalphrase: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor"],
+  rahmen: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor"],
+  fragment: ["hauptsatz", "rahmen", "kopf", "nominalphrase", "einwort", "konnektor"],
+  einwort: ["hauptsatz", "rahmen", "kopf", "nominalphrase", "fragment", "konnektor"],
+  konnektor: ["hauptsatz", "nominalphrase", "praepositionalphrase", "fragment", "nebensatz"],
+  kopf: ["hauptsatz", "nominalphrase", "fragment", "einwort"]
+  // Kopf verlangt einen Nachsatz
+};
+var darfFolgen = (a, b) => (FOLGT_AUF[a] || []).includes(b);
+var schliesstKopf = (t) => ["hauptsatz", "nominalphrase", "fragment", "einwort"].includes(t);
+var schwelle = (divergenz) => divergenz < 25 ? 0 : divergenz < 55 ? 1 : divergenz < 80 ? 2 : 3;
+
+// src/atoms/assemble.ts
+init_declension();
+
+// src/generation/wordcls.ts
+init_text_utils();
+
+// src/generation/verbconj.data.ts
+var VERB_CONJ = {
+  "bemerkt": {
+    "ich": "bemerke",
+    "du": "bemerkst",
+    "wir": "bemerken",
+    "ihr": "bemerkt"
+  },
+  "nimmt": {
+    "ich": "nehme",
+    "du": "nimmst",
+    "wir": "nehmen",
+    "ihr": "nehmt"
+  },
+  "steht": {
+    "ich": "stehe",
+    "du": "stehst",
+    "wir": "stehen",
+    "ihr": "steht"
+  },
+  "h\xE4lt": {
+    "ich": "halte",
+    "du": "h\xE4ltst",
+    "wir": "halten",
+    "ihr": "haltet"
+  },
+  "sucht": {
+    "ich": "suche",
+    "du": "suchst",
+    "wir": "suchen",
+    "ihr": "sucht"
+  },
+  "versucht": {
+    "ich": "versuche",
+    "du": "versuchst",
+    "wir": "versuchen",
+    "ihr": "versucht"
+  },
+  "will": {
+    "ich": "will",
+    "du": "willst",
+    "wir": "wollen",
+    "ihr": "wollt"
+  },
+  "kann": {
+    "ich": "kann",
+    "du": "kannst",
+    "wir": "k\xF6nnen",
+    "ihr": "k\xF6nnt"
+  },
+  "muss": {
+    "ich": "muss",
+    "du": "musst",
+    "wir": "m\xFCssen",
+    "ihr": "m\xFCsst"
+  },
+  "darf": {
+    "ich": "darf",
+    "du": "darfst",
+    "wir": "d\xFCrfen",
+    "ihr": "d\xFCrft"
+  },
+  "mag": {
+    "ich": "mag",
+    "du": "magst",
+    "wir": "m\xF6gen",
+    "ihr": "m\xF6gt"
+  },
+  "soll": {
+    "ich": "soll",
+    "du": "sollst",
+    "wir": "sollen",
+    "ihr": "sollt"
+  },
+  "m\xF6chte": {
+    "ich": "m\xF6chte",
+    "du": "m\xF6chtest",
+    "wir": "m\xF6chten",
+    "ihr": "m\xF6chtet"
+  },
+  "ist": {
+    "ich": "bin",
+    "du": "bist",
+    "wir": "sind",
+    "ihr": "seid"
+  },
+  "wird": {
+    "ich": "werde",
+    "du": "wirst",
+    "wir": "werden",
+    "ihr": "werdet"
+  },
+  "geht": {
+    "ich": "gehe",
+    "du": "gehst",
+    "wir": "gehen",
+    "ihr": "geht"
+  },
+  "kommt": {
+    "ich": "komme",
+    "du": "kommst",
+    "wir": "kommen",
+    "ihr": "kommt"
+  },
+  "bleibt": {
+    "ich": "bleibe",
+    "du": "bleibst",
+    "wir": "bleiben",
+    "ihr": "bleibt"
+  },
+  "\xF6ffnet": {
+    "ich": "\xF6ffne",
+    "du": "\xF6ffnest",
+    "wir": "\xF6ffnen",
+    "ihr": "\xF6ffnet"
+  },
+  "schlie\xDFt": {
+    "ich": "schlie\xDFe",
+    "du": "schlie\xDFt",
+    "wir": "schlie\xDFen",
+    "ihr": "schlie\xDFt"
+  },
+  "fragt": {
+    "ich": "frage",
+    "du": "fragst",
+    "wir": "fragen",
+    "ihr": "fragt"
+  },
+  "f\xFChrt": {
+    "ich": "f\xFChre",
+    "du": "f\xFChrst",
+    "wir": "f\xFChren",
+    "ihr": "f\xFChrt"
+  },
+  "begreift": {
+    "ich": "begreife",
+    "du": "begreifst",
+    "wir": "begreifen",
+    "ihr": "begreift"
+  },
+  "bricht": {
+    "ich": "breche",
+    "du": "brichst",
+    "wir": "brechen",
+    "ihr": "brecht"
+  },
+  "kippt": {
+    "ich": "kippe",
+    "du": "kippst",
+    "wir": "kippen",
+    "ihr": "kippt"
+  },
+  "l\xF6scht": {
+    "ich": "l\xF6sche",
+    "du": "l\xF6schst",
+    "wir": "l\xF6schen",
+    "ihr": "l\xF6scht"
+  },
+  "tut": {
+    "ich": "tue",
+    "du": "tust",
+    "wir": "tun",
+    "ihr": "tut"
+  },
+  "macht": {
+    "ich": "mache",
+    "du": "machst",
+    "wir": "machen",
+    "ihr": "macht"
+  },
+  "sieht": {
+    "ich": "sehe",
+    "du": "siehst",
+    "wir": "sehen",
+    "ihr": "seht"
+  },
+  "gibt": {
+    "ich": "gebe",
+    "du": "gibst",
+    "wir": "geben",
+    "ihr": "gebt"
+  },
+  "tr\xE4gt": {
+    "ich": "trage",
+    "du": "tr\xE4gst",
+    "wir": "tragen",
+    "ihr": "tragt"
+  },
+  "h\xF6rt": {
+    "ich": "h\xF6re",
+    "du": "h\xF6rst",
+    "wir": "h\xF6ren",
+    "ihr": "h\xF6rt"
+  },
+  "findet": {
+    "ich": "finde",
+    "du": "findest",
+    "wir": "finden",
+    "ihr": "findet"
+  },
+  "ber\xFChrt": {
+    "ich": "ber\xFChre",
+    "du": "ber\xFChrst",
+    "wir": "ber\xFChren",
+    "ihr": "ber\xFChrt"
+  },
+  "beobachtet": {
+    "ich": "beobachte",
+    "du": "beobachtest",
+    "wir": "beobachten",
+    "ihr": "beobachtet"
+  },
+  "kennt": {
+    "ich": "kenne",
+    "du": "kennst",
+    "wir": "kennen",
+    "ihr": "kennt"
+  },
+  "nennt": {
+    "ich": "nenne",
+    "du": "nennst",
+    "wir": "nennen",
+    "ihr": "nennt"
+  },
+  "sp\xFCrt": {
+    "ich": "sp\xFCre",
+    "du": "sp\xFCrst",
+    "wir": "sp\xFCren",
+    "ihr": "sp\xFCrt"
+  },
+  "wei\xDF": {
+    "ich": "wei\xDF",
+    "du": "wei\xDFt",
+    "wir": "wissen",
+    "ihr": "wisst"
+  },
+  "braucht": {
+    "ich": "brauche",
+    "du": "brauchst",
+    "wir": "brauchen",
+    "ihr": "braucht"
+  },
+  "w\xFCnscht": {
+    "ich": "w\xFCnsche",
+    "du": "w\xFCnschst",
+    "wir": "w\xFCnschen",
+    "ihr": "w\xFCnscht"
+  },
+  "hofft": {
+    "ich": "hoffe",
+    "du": "hoffst",
+    "wir": "hoffen",
+    "ihr": "hofft"
+  },
+  "tr\xE4umt": {
+    "ich": "tr\xE4ume",
+    "du": "tr\xE4umst",
+    "wir": "tr\xE4umen",
+    "ihr": "tr\xE4umt"
+  },
+  "plant": {
+    "ich": "plane",
+    "du": "planst",
+    "wir": "planen",
+    "ihr": "plant"
+  },
+  "f\xFCrchtet": {
+    "ich": "f\xFCrchte",
+    "du": "f\xFCrchtest",
+    "wir": "f\xFCrchten",
+    "ihr": "f\xFCrchtet"
+  },
+  "wartet": {
+    "ich": "warte",
+    "du": "wartest",
+    "wir": "warten",
+    "ihr": "wartet"
+  },
+  "glaubt": {
+    "ich": "glaube",
+    "du": "glaubst",
+    "wir": "glauben",
+    "ihr": "glaubt"
+  },
+  "denkt": {
+    "ich": "denke",
+    "du": "denkst",
+    "wir": "denken",
+    "ihr": "denkt"
+  },
+  "f\xFChlt": {
+    "ich": "f\xFChle",
+    "du": "f\xFChlst",
+    "wir": "f\xFChlen",
+    "ihr": "f\xFChlt"
+  },
+  "verlangt": {
+    "ich": "verlange",
+    "du": "verlangst",
+    "wir": "verlangen",
+    "ihr": "verlangt"
+  },
+  "erwartet": {
+    "ich": "erwarte",
+    "du": "erwartest",
+    "wir": "erwarten",
+    "ihr": "erwartet"
+  },
+  "riskiert": {
+    "ich": "riskiere",
+    "du": "riskierst",
+    "wir": "riskieren",
+    "ihr": "riskiert"
+  },
+  "wagt": {
+    "ich": "wage",
+    "du": "wagst",
+    "wir": "wagen",
+    "ihr": "wagt"
+  },
+  "flieht": {
+    "ich": "fliehe",
+    "du": "fliehst",
+    "wir": "fliehen",
+    "ihr": "flieht"
+  },
+  "jagt": {
+    "ich": "jage",
+    "du": "jagst",
+    "wir": "jagen",
+    "ihr": "jagt"
+  },
+  "folgt": {
+    "ich": "folge",
+    "du": "folgst",
+    "wir": "folgen",
+    "ihr": "folgt"
+  },
+  "verfolgt": {
+    "ich": "verfolge",
+    "du": "verfolgst",
+    "wir": "verfolgen",
+    "ihr": "verfolgt"
+  },
+  "rettet": {
+    "ich": "rette",
+    "du": "rettest",
+    "wir": "retten",
+    "ihr": "rettet"
+  },
+  "verr\xE4t": {
+    "ich": "verrate",
+    "du": "verr\xE4tst",
+    "wir": "verraten",
+    "ihr": "verratet"
+  },
+  "vergisst": {
+    "ich": "vergesse",
+    "du": "vergisst",
+    "wir": "vergessen",
+    "ihr": "vergesst"
+  },
+  "hatte": {
+    "ich": "hatte",
+    "du": "hattest",
+    "wir": "hatten",
+    "ihr": "hattet"
+  },
+  "war": {
+    "ich": "war",
+    "du": "warst",
+    "wir": "waren",
+    "ihr": "wart"
+  },
+  "wollte": {
+    "ich": "wollte",
+    "du": "wolltest",
+    "wir": "wollten",
+    "ihr": "wolltet"
+  },
+  "tat": {
+    "ich": "tat",
+    "du": "tatest",
+    "wir": "taten",
+    "ihr": "tatet"
+  },
+  "machte": {
+    "ich": "machte",
+    "du": "machtest",
+    "wir": "machten",
+    "ihr": "machtet"
+  },
+  "kam": {
+    "ich": "kam",
+    "du": "kamst",
+    "wir": "kamen",
+    "ihr": "kamt"
+  },
+  "ging": {
+    "ich": "ging",
+    "du": "gingst",
+    "wir": "gingen",
+    "ihr": "gingt"
+  },
+  "f\xFChrte": {
+    "ich": "f\xFChrte",
+    "du": "f\xFChrtest",
+    "wir": "f\xFChrten",
+    "ihr": "f\xFChrtet"
+  },
+  "schloss": {
+    "ich": "schloss",
+    "du": "schlossest",
+    "wir": "schlossen",
+    "ihr": "schlosst"
+  },
+  "fragte": {
+    "ich": "fragte",
+    "du": "fragtest",
+    "wir": "fragten",
+    "ihr": "fragtet"
+  },
+  "begriff": {
+    "ich": "begriff",
+    "du": "begriffst",
+    "wir": "begriffen",
+    "ihr": "begrifft"
+  },
+  "stellt": {
+    "ich": "stelle",
+    "du": "stellst",
+    "wir": "stellen"
+  },
+  "erkennt": {
+    "ich": "erkenne",
+    "du": "erkennst",
+    "wir": "erkennen"
+  },
+  "zeigt": {
+    "ich": "zeige",
+    "du": "zeigst",
+    "wir": "zeigen"
+  },
+  "greift": {
+    "ich": "greife",
+    "du": "greifst",
+    "wir": "greifen"
+  },
+  "legt": {
+    "ich": "lege",
+    "du": "legst",
+    "wir": "legen"
+  },
+  "betrachtet": {
+    "ich": "betrachte",
+    "du": "betrachtest",
+    "wir": "betrachten"
+  },
+  "setzt": {
+    "ich": "setze",
+    "du": "setzt",
+    "wir": "setzen"
+  },
+  "merkt": {
+    "ich": "merke",
+    "du": "merkst",
+    "wir": "merken"
+  },
+  "pr\xFCft": {
+    "ich": "pr\xFCfe",
+    "du": "pr\xFCfst",
+    "wir": "pr\xFCfen"
+  }
+};
+var INFINITIVE_VERBS = /* @__PURE__ */ new Set(["entdecken", "finden", "verstehen", "erreichen", "verlassen", "retten", "zerst\xF6ren", "beweisen", "\xFCberleben", "fliehen", "gewinnen", "verlieren", "\xF6ffnen", "schlie\xDFen", "verschwinden", "sterben", "bleiben", "ankommen", "entkommen", "aufwachen", "vergessen", "lernen", "ver\xE4ndern", "kontrollieren", "sch\xFCtzen", "befreien", "heilen", "erschaffen", "reparieren", "beenden", "anfangen", "beginnen", "erinnern", "wissen", "glauben", "tr\xE4umen", "hoffen", "k\xE4mpfen", "siegen", "sprechen", "schweigen", "warten", "folgen", "fragen", "antworten", "erkl\xE4ren", "gehen", "kommen"]);
+
+// src/generation/wordcls.ts
+init_nouns_data();
+
+// src/generation/verbconj.ts
+init_verben();
+var VERB_TOKEN_RE = new RegExp("\\b(" + Object.keys(VERB_CONJ).join("|") + ")\\b", "i");
+function conjugateVerbToken(verb, person) {
+  if (!verb) return verb;
+  const isCap = /^[A-ZÄÖÜ]/.test(verb);
+  const low2 = verb.toLowerCase();
+  const table = VERB_CONJ[low2];
+  let out;
+  if (table && table[person]) {
+    out = table[person];
+  } else {
+    const p = person === "ich" || person === "du" || person === "wir" || person === "ihr" ? person : "er";
+    out = beugeVerb(low2, p) ?? low2;
+  }
+  return isCap ? cap(out) : out;
+}
+
+// src/generation/wordcls.ts
+var PERSON_NOMEN = /(jugendliche|jugendlicher|erwachsene|erwachsener|alte|alter|kranke|kranker|gefangene|gefangener|angestellte|angestellter|beamte|beamter|verwandte|verwandter|bekannte|bekannter|vorsitzende|vorsitzender|abgeordnete|abgeordneter|obdachlose|obdachloser|pensionär|pensionärin|rentner|rentnerin|zeuge|zeugin|täter|täterin|opfer|passant|passantin|kellner|kellnerin|pfarrer|pfarrerin|richter|richterin|händler|händlerin|bauer|bäuerin|förster|försterin|schneider|schneiderin|weber|weberin|uhrmacher|uhrmacherin|archivar|archivarin|übersetzer|übersetzerin|magd|knecht|ritter|ritterin|nonne|mönch|clown|boxer|boxerin|grabräuber|grabräuberin|mädchen|junge|kind|frau|mann|männer|dame|herr|schüler|schülerin|lehrer|lehrerin|wächter|wächterin|arzt|ärztin|bäcker|bäckerin|gärtner|gärtnerin|fischer|fischerin|bote|botin|wanderer|wanderin|reisende|reisender|nachbar|nachbarin|greis|greisin|witwe|witwer|zwilling|bruder|schwester|sohn|tochter|vater|mutter|onkel|tante|neffe|nichte|freund|freundin|gast|fremde|fremder|meister|meisterin|gesell|lehrling|soldat|soldatin|matrose|matrosin|pilot|pilotin|köchin|koch|wirt|wirtin|müller|müllerin|schmied|schmiedin|hirte|hirtin|jäger|jägerin|sammler|sammlerin)$/i;
+var NOT_INFINITIVE = /* @__PURE__ */ new Set([
+  "einen",
+  "keinen",
+  "seinen",
+  "ihren",
+  "deinen",
+  "unseren",
+  "euren",
+  "diesen",
+  "jenen",
+  "denen",
+  "welchen",
+  "allen",
+  "vielen",
+  "beiden",
+  "manchen",
+  "jeden",
+  "solchen",
+  "anderen",
+  "eigenen",
+  "letzten",
+  "ersten",
+  "oben",
+  "unten",
+  "innen",
+  "au\xDFen",
+  "hinten",
+  "vorn",
+  "vorne",
+  "neben",
+  "eben",
+  "gegen",
+  "wegen",
+  "gegen\xFCber",
+  "morgen",
+  "\xFCbermorgen",
+  "wochen",
+  "stunden",
+  "sieben",
+  "zehn",
+  "trotzen",
+  "w\xE4hrend",
+  "dessen",
+  "deren",
+  "hinein"
+]);
+var NICHT_VERB_T = /* @__PURE__ */ new Set([
+  "nicht",
+  "jetzt",
+  "erst",
+  "fast",
+  "sonst",
+  "meist",
+  "zuerst",
+  "zuletzt",
+  "selbst",
+  "sogar",
+  "seit",
+  "samt",
+  "statt",
+  "mit",
+  "zeit",
+  "trotz",
+  "laut",
+  "gerecht",
+  "sanft",
+  "dicht",
+  "leicht",
+  "schlecht",
+  "recht",
+  "direkt",
+  "echt",
+  "exakt",
+  "strikt",
+  "perfekt",
+  "konkret",
+  "komplett",
+  "kaputt",
+  "sacht",
+  "glatt",
+  "platt",
+  "nackt",
+  "satt",
+  "breit",
+  "bereit",
+  "weit",
+  "sp\xE4t",
+  "hart",
+  "zart",
+  "kalt",
+  "alt",
+  "bunt",
+  "rot",
+  "gut",
+  "oft",
+  "still",
+  "halt",
+  "gesamt",
+  "insgesamt",
+  "bekannt",
+  "verwandt",
+  "ber\xFChmt",
+  "sofort",
+  "vielleicht",
+  "\xFCberhaupt",
+  "zumindest",
+  "h\xF6chst",
+  "\xE4u\xDFerst",
+  "mindest",
+  "bestimmt",
+  "unbedingt",
+  "ernst",
+  "einst",
+  "l\xE4ngst",
+  "j\xFCngst",
+  "umsonst",
+  "weltweit",
+  "korrekt",
+  "intakt",
+  "kompakt",
+  "prompt",
+  "getrennt",
+  // vierbuchstabige Adjektive und Adverbien auf -t
+  "bunt",
+  "echt",
+  "fest",
+  "hart",
+  "kalt",
+  "laut",
+  "matt",
+  "nett",
+  "satt",
+  "weit",
+  "zart",
+  "fett",
+  "halt",
+  "wert",
+  "dort",
+  "fort",
+  "stet",
+  "sart"
+]);
+function wirktFinit(w) {
+  if (w.length < 4 || NICHT_VERB_T.has(w)) return false;
+  if (/^ge[a-zäöüß]+t$/.test(w)) return false;
+  return /^[a-zäöüß]+[^aeiouäöü]t$/.test(w) || /^[a-zäöüß]+et$/.test(w);
+}
+function looksLikeInfinitive(w) {
+  if (INFINITIVE_VERBS.has(w)) return true;
+  if (w.length < 5 || NOT_INFINITIVE.has(w) || NOUN_GENDER[w]) return false;
+  return /(?:[a-zäöüß]{3,})(?:en|ern|eln)$/.test(w);
+}
+function extractLeadVerb(text) {
+  const s = clean(text);
+  if (!s) return { verb: null, rest: s };
+  const m0 = s.match(/^([A-Za-zÄÖÜäöüß]+)(,?)\s+(.+)$/);
+  if (!m0) return { verb: null, rest: s };
+  const m = [m0[0], m0[1], (m0[2] ? ", " : "") + m0[3]];
+  const raw = m[1];
+  const w = raw.toLowerCase();
+  if (VERB_CONJ[w]) return { verb: raw, rest: m[2] };
+  if (/^[a-zäöüß]/.test(raw) && looksLikeInfinitive(w)) {
+    return { verb: null, rest: `${m[2]} ${w}`, isInfinitiveLed: true };
+  }
+  if (/^[a-zäöüß]+iert$/.test(w)) return { verb: raw, rest: m[2] };
+  const dritte = ICH_DU_ZU_ER[w];
+  if (dritte && /^[a-zäöüß]/.test(raw)) return { verb: dritte, rest: m[2] };
+  if (/^[a-zäöüß]/.test(raw) && (EXTRA_FINITE_RE.test(w) || wirktFinit(w))) {
+    return { verb: raw, rest: m[2] };
+  }
+  return { verb: null, rest: s };
+}
+var ICH_DU_HAND = {
+  sehe: "sieht",
+  siehst: "sieht",
+  gehe: "geht",
+  gehst: "geht",
+  komme: "kommt",
+  kommst: "kommt",
+  finde: "findet",
+  findest: "findet",
+  glaube: "glaubt",
+  glaubst: "glaubt",
+  lebe: "lebt",
+  lebst: "lebt",
+  liege: "liegt",
+  liegst: "liegt",
+  sitze: "sitzt",
+  lese: "liest",
+  liest: "liest",
+  schlafe: "schl\xE4ft",
+  schl\u00E4fst: "schl\xE4ft",
+  laufe: "l\xE4uft",
+  l\u00E4ufst: "l\xE4uft",
+  falle: "f\xE4llt",
+  f\u00E4llst: "f\xE4llt",
+  breche: "bricht",
+  brichst: "bricht",
+  rufe: "ruft",
+  rufst: "ruft",
+  weine: "weint",
+  weinst: "weint",
+  lache: "lacht",
+  lachst: "lacht",
+  sp\u00FCre: "sp\xFCrt",
+  sp\u00FCrst: "sp\xFCrt",
+  atme: "atmet",
+  atmest: "atmet",
+  singe: "singt",
+  singst: "singt",
+  \u00F6ffne: "\xF6ffnet",
+  \u00F6ffnest: "\xF6ffnet",
+  erinnere: "erinnert",
+  erinnerst: "erinnert",
+  erkenne: "erkennt",
+  erkennst: "erkennt",
+  zerbreche: "zerbricht",
+  zerbrichst: "zerbricht",
+  stolpere: "stolpert",
+  stolperst: "stolpert",
+  verharre: "verharrt",
+  verharrst: "verharrt",
+  wandere: "wandert",
+  wanderst: "wandert",
+  zittere: "zittert",
+  zitterst: "zittert",
+  fl\u00FCstere: "fl\xFCstert",
+  fl\u00FCsterst: "fl\xFCstert",
+  wundere: "wundert",
+  wunderst: "wundert",
+  z\u00F6gere: "z\xF6gert",
+  z\u00F6gerst: "z\xF6gert",
+  erwache: "erwacht",
+  erwachst: "erwacht",
+  verschwinde: "verschwindet",
+  verschwindest: "verschwindet",
+  begreife: "begreift",
+  begreifst: "begreift",
+  verstehe: "versteht",
+  verstehst: "versteht",
+  bleibe: "bleibt",
+  bleibst: "bleibt",
+  ziehe: "zieht",
+  ziehst: "zieht"
+};
+var ICH_DU_ZU_ER = (() => {
+  const m = {};
+  for (const [dritte, formen] of Object.entries(VERB_CONJ)) {
+    for (const p of ["ich", "du", "wir", "ihr"]) {
+      const f = formen[p];
+      if (f && !m[f]) m[f] = dritte;
+    }
+  }
+  return { ...m, ...ICH_DU_HAND };
+})();
+var EXTRA_FINITE_RE = /\b(geschieht|geschehen|geschah|passiert|passieren|passierte|tickt|ticken|atmet|atmen|wächst|wachsen|wuchs|brennt|brennen|brannte|fällt|fallen|fiel|zerfällt|zerfallen|verschwindet|verschwinden|verschwand|erscheint|erscheinen|erschien|endet|enden|endete|beginnt|beginnen|begann|stirbt|sterben|starb|blüht|blühen|klopft|klopfen|flackert|flackern|zerbricht|zerbrechen|zerbrach|dreht|drehen|schweigt|schweigen|schwieg|singt|singen|sang|wandert|wandern|glüht|glühen|tanzt|tanzen|brüllt|brüllen|reagiert|reagieren|zeigt|zeigen|spricht|sprechen|sprach|antwortet|antworten|erinnert|erinnern|verändert|verändern|zittert|zittern|leuchtet|leuchten|schmilzt|schmelzen|regnet|schneit|blitzt|donnert|bebt|läuft|laufen|lief|rinnt|tropft|fließt|fließen|floss|steigt|steigen|stieg|sinkt|sinken|sank|kreist|kreisen|pulsiert|vibriert|summt|brummt|knistert|raschelt|flüstert|flüstern|schreit|schreien|schrie|weint|weinen|lacht|lachen|verglüht|verblasst|zerrinnt|wartet|warten)\b/i;
+function looksLikeFullClause(leadVerb, rest) {
+  if (leadVerb) return false;
+  return VERB_TOKEN_RE.test(rest || "") || EXTRA_FINITE_RE.test(rest || "");
+}
+var SP_REL = /^(der|die|das|den|dem|des|deren|dessen|welche[rsmn]?|wo|worin|woran|womit|wovon)\b/i;
+var SP_CONJ = /^(als|während|weil|wenn|da|obwohl|nachdem|bevor|sodass|damit|dass|ob|indem|sobald|solange)\b/i;
+var SP_PREP = /^(mit|ohne|aus|von|vom|in|im|auf|an|am|für|bei|zu|zum|zur|über|unter|vor|nach|durch|gegen|seit|um|entlang|trotz|wegen|innerhalb|außerhalb|samt|nebst|zwischen|entgegen|gemäß|laut|binnen|jenseits|diesseits)\b/i;
+var SP_ENDS_VERB = /(?:\b(hat|hatte|ist|war|sind|waren|wird|wurde|wurden|kann|konnte|will|wollte|muss|musste|bleibt|blieb|kommt|kam|geht|ging)|(?:^|[^A-Za-zÄÖÜäöüß])[a-zäöüß]{2,}(?:t|te|en|st|et))\.?$/;
+var SP_DET = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses|jener|jene|jenes|beide|alle|zwei|drei|vier)\b/i;
+function istEigenePerson(teil) {
+  const p = clean(teil);
+  if (!p) return false;
+  if (SP_REL.test(p) && SP_ENDS_VERB.test(p)) return false;
+  if (SP_CONJ.test(p) || SP_PREP.test(p)) return false;
+  if (SP_DET.test(p)) return true;
+  if (/^[A-ZÄÖÜ]/.test(p)) return true;
+  return !/\s/.test(p);
+}
+function personKopf(person) {
+  const teile = (person || "").split(",").map((x) => clean(x)).filter(Boolean);
+  if (teile.length <= 1) return (person || "").trim();
+  const raus = [teile[0]];
+  for (let i = 1; i < teile.length; i++) {
+    if (SP_REL.test(teile[i]) && SP_ENDS_VERB.test(teile[i])) raus.push(teile[i]);
+  }
+  return raus.join(", ");
+}
+function splitSpeakers(who) {
+  const parts = (who || "").split(",").map((s) => clean(s)).filter(Boolean);
+  if (parts.length <= 1) return parts;
+  const out = [parts[0]];
+  for (let i = 1; i < parts.length; i++) {
+    if (istEigenePerson(parts[i])) out.push(parts[i]);
+    else out[out.length - 1] += ", " + parts[i];
+  }
+  return out;
+}
+
+// src/generation/coherence.ts
+init_text_utils();
+init_verben();
+init_verblex_data();
 
 // src/features/waechterStatistik.ts
-var KEY = "dm_waechter_statistik_v1";
+var ZAEHLER_NAMEN = {
+  regel1: "W\xE4chter 1 \xB7 h\xE4ngendes Ende",
+  regel2: "W\xE4chter 2 \xB7 ohne Verb, ohne Kopf",
+  regel3: "W\xE4chter 3 \xB7 gebrochene Klausel",
+  regel4: "W\xE4chter 4 \xB7 Inversion ohne Subjekt",
+  regel5: "W\xE4chter 5 \xB7 \u201El\xE4sst sich\u201C ohne Infinitiv",
+  regel6: "W\xE4chter 6 \xB7 zwei finite Verben",
+  regel7: "W\xE4chter 7 \xB7 halbes Zitat",
+  regel8: "W\xE4chter 8 \xB7 \u201Ees gibt\u201C ohne Gegenstand",
+  angenommen: "W\xE4chter \xB7 durchgelassen",
+  umgeschrieben: "Umschreiber \xB7 Pr\xE4teritum \u2192 Pr\xE4sens",
+  unklar: "Umschreiber \xB7 unklar, verworfen",
+  praeteritumVerworfen: "Umschreiber \xB7 Pr\xE4teritum blieb, verworfen",
+  atomZerlegt: "Atomisierung \xB7 zerlegt",
+  atomGekuerzt: "Atomisierung \xB7 Nebensatz abgeschnitten",
+  atomGanzZuLang: "Atomisierung \xB7 zu lang, ganz gelassen"
+};
+var KEY2 = "dm_waechter_statistik_v1";
 var BEISPIELE_JE = 5;
 var cache = null;
 var schreibTimer = null;
@@ -772,7 +4627,7 @@ function leer() {
 function ladeStatistik() {
   if (cache) return cache;
   try {
-    const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(KEY);
+    const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(KEY2);
     const v = raw ? JSON.parse(raw) : null;
     cache = v && v.zaehler && v.beispiele ? v : leer();
   } catch {
@@ -785,7 +4640,7 @@ function speichern() {
   schreibTimer = (typeof window !== "undefined" ? window.setTimeout : setTimeout)(() => {
     schreibTimer = null;
     try {
-      if (typeof localStorage !== "undefined" && cache) localStorage.setItem(KEY, JSON.stringify(cache));
+      if (typeof localStorage !== "undefined" && cache) localStorage.setItem(KEY2, JSON.stringify(cache));
     } catch {
     }
   }, 1e3);
@@ -795,16 +4650,48 @@ function zaehle(was, beispiel) {
   st.zaehler[was] = (st.zaehler[was] || 0) + 1;
   if (beispiel) {
     const b = st.beispiele[was] || [];
-    const kurz = beispiel.trim().slice(0, 140);
-    if (!b.includes(kurz)) {
-      b.unshift(kurz);
+    const kurz2 = beispiel.trim().slice(0, 140);
+    if (!b.includes(kurz2)) {
+      b.unshift(kurz2);
       st.beispiele[was] = b.slice(0, BEISPIELE_JE);
     }
   }
   speichern();
 }
+function statistikZuruecksetzen() {
+  cache = leer();
+  try {
+    if (typeof localStorage !== "undefined") localStorage.setItem(KEY2, JSON.stringify(cache));
+  } catch {
+  }
+}
+function statistikKurz() {
+  const st = ladeStatistik();
+  const regeln = ["regel1", "regel2", "regel3", "regel4", "regel5", "regel6", "regel7", "regel8"];
+  let verworfen = 0;
+  let haeufigste = null;
+  let max = 0;
+  for (const r of regeln) {
+    const n = st.zaehler[r] || 0;
+    verworfen += n;
+    if (n > max) {
+      max = n;
+      haeufigste = r;
+    }
+  }
+  const angenommen = st.zaehler.angenommen || 0;
+  return {
+    verworfen,
+    angenommen,
+    quote: verworfen + angenommen ? verworfen / (verworfen + angenommen) : 0,
+    haeufigste,
+    umgeschrieben: st.zaehler.umgeschrieben || 0,
+    zerlegt: (st.zaehler.atomZerlegt || 0) + (st.zaehler.atomGekuerzt || 0)
+  };
+}
 
 // src/generation/coherence.ts
+init_nouns_data();
 var PRAET_STRONG = /\b(war|waren|warst|hatte|hatten|wurde|wurden|ging|gingen|kam|kamen|sah|sahen|gab|gaben|stand|standen|blieb|blieben|hielt|hielten|ließ|ließen|fand|fanden|nahm|nahmen|sprach|sprachen|schrieb|schrieben|trug|trugen|fuhr|fuhren|lief|liefen|saß|saßen|lag|lagen|hieß|hießen|zog|zogen|schlief|schliefen|rief|riefen|fiel|fielen|sang|sangen|trank|tranken|schwieg|schwiegen|floss|flossen|stieg|stiegen|sank|sanken|bot|boten|schloss|schlossen|verlor|verloren|begann|begannen|geschah|geschahen|konnte|konnten|musste|mussten|wollte|wollten|sollte|sollten|durfte|durften|wusste|wussten|dachte|dachten|brachte|brachten)\b/i;
 var PRAET_WEAK = /\b[a-zäöüß]{3,}(te|ten|test)\b/;
 var PRAES_MARK = /\b(ist|sind|bin|bist|seid|hat|habe|hast|haben|habt|wird|werden|wirst|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|weiß|wissen|geht|gehen|kommt|kommen|sieht|sehen|steht|stehen|bleibt|bleiben|liegt|liegen|gibt|geben|nimmt|nehmen|spricht|sprechen|trägt|tragen|läuft|laufen|fällt|fallen|geschieht|passiert|beginnt|endet|wartet|antwortet|arbeitet|bedeutet|beobachtet|berichtet|schlägt|zeigt|dauert|öffnet|schließt|klingt|riecht|scheint|hört|fühlt|wirkt|führt|dreht|zieht|hält|läuft|fließt|wächst|sinkt|steigt|schweigt|spricht|denkt|kennt|nennt|trägt|findet|verliert|verschwindet)\b/i;
@@ -831,6 +4718,76 @@ function isPastTense(s) {
   if (PRAET_WEAK.test(t) && weakLooksVerbal(t) && !ADJ_CONTEXT.test(t)) return true;
   return (t.toLowerCase().match(/[a-zäöüß]+/g) || []).some((w) => !!PAST2PRES[w]);
 }
+function tenseBreakRatio(text) {
+  const sents = splitSentences(text).filter((s) => s.trim().length > 3);
+  if (sents.length < 3) return 0;
+  let past = 0, pres = 0;
+  const tags = sents.map((s) => {
+    const isPast = PRAET_STRONG.test(s) || PRAET_WEAK.test(s);
+    const isPres = PRAES_MARK.test(s);
+    if (isPast && !isPres) {
+      past++;
+      return "past";
+    }
+    if (isPres && !isPast) {
+      pres++;
+      return "pres";
+    }
+    return null;
+  });
+  const decided = past + pres;
+  if (decided < 3) return 0;
+  const major = past >= pres ? "past" : "pres";
+  const off = tags.filter((t) => t && t !== major).length;
+  return off / decided;
+}
+var tokens = (t) => t.toLowerCase().match(/[a-zäöüß]{2,}/g) || [];
+function ngrams(t, n) {
+  const w = tokens(t);
+  const out = [];
+  for (let i = 0; i + n <= w.length; i++) out.push(w.slice(i, i + n).join(" "));
+  return out;
+}
+function phraseRepeatRatio(text) {
+  let dup = 0, total = 0;
+  for (const n of [3, 4]) {
+    const g = ngrams(text, n);
+    if (g.length < 4) continue;
+    const seen = /* @__PURE__ */ new Set();
+    for (const x of g) {
+      total++;
+      if (seen.has(x)) dup++;
+      else seen.add(x);
+    }
+  }
+  return total ? dup / total : 0;
+}
+var NAME_STOP = /* @__PURE__ */ new Set(["der", "die", "das", "den", "dem", "des", "ein", "eine", "einen", "einem", "einer", "und", "oder", "aber", "denn", "doch", "dann", "als", "wie", "was", "wer", "wo", "wann", "warum", "ich", "du", "er", "sie", "es", "wir", "ihr", "man", "hier", "dort", "jetzt", "noch", "nur", "auch", "schon", "immer", "nie", "sehr", "so", "zu", "im", "am", "auf", "in", "an", "mit", "von", "f\xFCr", "bei", "nach", "vor", "\xFCber", "unter", "durch", "um", "ohne", "seit", "damals", "sp\xE4ter", "zuerst", "zuletzt", "stille", "nein", "ja", "fast", "vielleicht", "genau", "warte", "gut", "dabei", "dazu", "dann"]);
+var DETERMINER = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|meinen|meinem|meiner|dein|deine|sein|seine|seinen|seinem|ihr|ihre|ihren|ihrem|unser|unsere|euer|eure|kein|keine|keinen|keinem|jeder|jede|jedes|dieser|diese|dieses|diesem|diesen|jener|jene|manche|viele|alle|beide|im|am|zum|zur|ins|ans|vom|beim|aufs|durchs|übers|unters)$/i;
+var PREP = /^(in|an|auf|bei|mit|von|zu|nach|über|unter|vor|hinter|neben|zwischen|durch|für|ohne|um|gegen|seit|trotz|wegen|während|aus)$/i;
+function properNames(text) {
+  const out = /* @__PURE__ */ new Set();
+  for (const sent of splitSentences(text)) {
+    const w = sent.trim().split(/\s+/);
+    for (let i = 1; i < w.length; i++) {
+      const raw = w[i].replace(/[^A-Za-zÄÖÜäöüß-]/g, "");
+      if (raw.length < 3 || !/^[A-ZÄÖÜ]/.test(raw)) continue;
+      const lowRaw = raw.toLowerCase();
+      if (NAME_STOP.has(lowRaw)) continue;
+      if (NOUN_GENDER[lowRaw]) continue;
+      const prev = (w[i - 1] || "").replace(/[^A-Za-zÄÖÜäöüß]/g, "");
+      if (DETERMINER.test(prev) || PREP.test(prev)) continue;
+      out.add(raw);
+    }
+  }
+  return [...out];
+}
+function castSpread(text, expected = []) {
+  const known = new Set(expected.map((x) => x.toLowerCase()));
+  const names = properNames(text).filter((n) => !known.has(n.toLowerCase()));
+  const sents = Math.max(1, splitSentences(text).length);
+  return Math.min(1, names.length / Math.max(4, sents * 0.5));
+}
 var PERSON_FORMS = {
   war: { ich: "bin", du: "bist", wir: "sind", ihr: "seid", sie: "ist", er: "ist", es: "ist" },
   waren: { wir: "sind", sie: "sind", ihr: "seid" },
@@ -846,18 +4803,18 @@ var PERSON_FORMS = {
 function toPresent(entry) {
   const unsure = [];
   let changed = false;
-  const words = (entry || "").split(/(\s+)/);
-  for (let i = 0; i < words.length; i++) {
-    const roh = words[i];
+  const words3 = (entry || "").split(/(\s+)/);
+  for (let i = 0; i < words3.length; i++) {
+    const roh = words3[i];
     const zeichen = (roh.match(/[.,;:!?…»“"]+$/) || [""])[0];
     const w = zeichen ? roh.slice(0, -zeichen.length) : roh;
     if (!/^[A-Za-zÄÖÜäöüß]+$/.test(w)) continue;
-    const low = w.toLowerCase();
-    const base = PAST2PRES[low];
+    const low2 = w.toLowerCase();
+    const base = PAST2PRES[low2];
     if (base) {
-      const prev = (words.slice(0, i).reverse().find((x) => /^[A-Za-zÄÖÜäöüß]+$/.test(x)) || "").toLowerCase();
-      const next = (words.slice(i + 1).find((x) => /^[A-Za-zÄÖÜäöüß]+$/.test(x)) || "").toLowerCase();
-      const pf = PERSON_FORMS[low];
+      const prev = (words3.slice(0, i).reverse().find((x) => /^[A-Za-zÄÖÜäöüß]+$/.test(x)) || "").toLowerCase();
+      const next = (words3.slice(i + 1).find((x) => /^[A-Za-zÄÖÜäöüß]+$/.test(x)) || "").toLowerCase();
+      const pf = PERSON_FORMS[low2];
       const subj = /^(ich|du|wir|ihr)$/.test(prev) ? prev : /^(ich|du|wir|ihr)$/.test(next) ? next : "";
       let form = base;
       if (pf && subj && pf[subj]) form = pf[subj];
@@ -869,27 +4826,27 @@ function toPresent(entry) {
         }
         form = b;
       }
-      words[i] = (/^[A-ZÄÖÜ]/.test(w) ? form.charAt(0).toUpperCase() + form.slice(1) : form) + zeichen;
+      words3[i] = (/^[A-ZÄÖÜ]/.test(w) ? form.charAt(0).toUpperCase() + form.slice(1) : form) + zeichen;
       changed = true;
       continue;
     }
-    if (/^[a-zäöüß]{4,}(te|ete)$/.test(low)) unsure.push(w);
+    if (/^[a-zäöüß]{4,}(te|ete)$/.test(low2)) unsure.push(w);
   }
-  return { text: words.join(""), changed, unsure };
+  return { text: words3.join(""), changed, unsure };
 }
 function praesensUmschreiben(entry) {
   const first = toPresentSicher(entry);
-  const words = first.text.split(/(\s+)/);
+  const words3 = first.text.split(/(\s+)/);
   let changed = first.changed;
-  const ARTIKEL = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|kein|keine|keinen|mein|meine|meinen|dein|deine|sein|seine|seinen|ihr|ihre|ihren|unser|unsere|jede|jeder|jedes|diese|dieser|dieses|manche|viele|alle|zwei|drei|im|am|zum|zur|beim|ins|vom)$/i;
+  const ARTIKEL3 = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|kein|keine|keinen|mein|meine|meinen|dein|deine|sein|seine|seinen|ihr|ihre|ihren|unser|unsere|jede|jeder|jedes|diese|dieser|dieses|manche|viele|alle|zwei|drei|im|am|zum|zur|beim|ins|vom)$/i;
   const KONJUNKTIV = /^(müsste|müssten|könnte|könnten|dürfte|dürften|möchte|möchten|hätte|hätten|wäre|wären|würde|würden|sollte|sollten|wollte|wollten)$/i;
   const MODAL_DAVOR = /^(zu|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|mag|mögen|lässt|lassen|möchte|könnte|müsste|sollte|wollte|dürfte)$/i;
   const rein = (x) => x.replace(/[^A-Za-zÄÖÜäöüß]/g, "");
   const EINDEUTIG = /(?:[td]|chn|ffn|gn|tm|dm|ckn|kn)ete(?:n|st|t)?$/;
   const belegtPraeteritum = first.changed || (first.text.match(/\b[a-zäöüß]{3,}ete(?:n|st)?\b/g) || []).some((x) => EINDEUTIG.test(x));
   let unklar = 0;
-  for (let i = 0; i < words.length; i++) {
-    const roh = words[i];
+  for (let i = 0; i < words3.length; i++) {
+    const roh = words3[i];
     const satzzeichen = (roh.match(/[.,;:!?…»“"]+$/) || [""])[0];
     const w = satzzeichen ? roh.slice(0, -satzzeichen.length) : roh;
     const m = w.match(/^([a-zäöüß]{3,}?)(e?te|e?ten|e?test)$/);
@@ -899,16 +4856,16 @@ function praesensUmschreiben(entry) {
     if (/^e/.test(endung) && !eindeutig) continue;
     if (/(^|[a-zäöü])ge[a-zäöüß]{3,}$/.test(stamm) && !/^(geh|gel|gen|ger|geb|ges)/.test(stamm)) continue;
     if (/t$/.test(stamm) && !eindeutig) continue;
-    const davor = words.slice(0, i).map(rein).filter(Boolean);
+    const davor = words3.slice(0, i).map(rein).filter(Boolean);
     const prev = (davor[davor.length - 1] || "").toLowerCase();
-    const naechst = words.slice(i + 1).map(rein).find(Boolean) || "";
-    if (ARTIKEL.test(prev) && /^[A-ZÄÖÜ]/.test(naechst)) continue;
+    const naechst = words3.slice(i + 1).map(rein).find(Boolean) || "";
+    if (ARTIKEL3.test(prev) && /^[A-ZÄÖÜ]/.test(naechst)) continue;
     if (/ten$/.test(endung) && MODAL_DAVOR.test(prev)) continue;
     if (KEIN_VERB.has(stamm + "t") || KEIN_VERB.has(stamm)) continue;
     if (kenntInfinitiv(w) || kenntInfinitiv(w.replace(/e$/, "en")) || kenntInfinitiv(w.replace(/en$/, "n"))) continue;
     const inf = infinitivZuStamm(stamm);
     if (!inf) {
-      if (/^[A-ZÄÖÜ]/.test(naechst) || /ten$/.test(endung) || ARTIKEL.test(prev)) continue;
+      if (/^[A-ZÄÖÜ]/.test(naechst) || /ten$/.test(endung) || ARTIKEL3.test(prev)) continue;
       if (!eindeutig && !belegtPraeteritum && istVerbform(stamm + "t")) unklar++;
       continue;
     }
@@ -920,11 +4877,11 @@ function praesensUmschreiben(entry) {
     else if (/ten$/.test(endung)) neu = beugeVerb(dritte, "wir") || dritte;
     else neu = dritte;
     if (neu !== w) {
-      words[i] = neu + satzzeichen;
+      words3[i] = neu + satzzeichen;
       changed = true;
     }
   }
-  const text = words.join("");
+  const text = words3.join("");
   const ok = !isPastTense(text) && unklar === 0;
   if (ok && changed) zaehle("umgeschrieben", `${entry} \u2192 ${text}`);
   else if (!ok && unklar) zaehle("unklar", entry);
@@ -932,14 +4889,14 @@ function praesensUmschreiben(entry) {
   return { text, ok, changed };
 }
 function toPresentSicher(entry) {
-  const AUX = /\b(hat|haben|habe|hast|habt|hatte|hatten|ist|sind|bin|bist|seid|war|waren|wird|werden|wurde|wurden|worden)\b/i;
-  const perfekt = AUX.test(entry);
-  const words = entry.split(/(\s+)/);
+  const AUX2 = /\b(hat|haben|habe|hast|habt|hatte|hatten|ist|sind|bin|bist|seid|war|waren|wird|werden|wurde|wurden|worden)\b/i;
+  const perfekt = AUX2.test(entry);
+  const words3 = entry.split(/(\s+)/);
   const marker = [];
   let erstesWort = true;
   let vorher = "";
-  for (let i = 0; i < words.length; i++) {
-    const w = words[i];
+  for (let i = 0; i < words3.length; i++) {
+    const w = words3[i];
     if (!/^[A-Za-zÄÖÜäöüß]/.test(w)) continue;
     const konjNachAls = vorher === "als" && /^(wollte|wollten|sollte|sollten|könnte|könnten|müsste|hätte|hätten|wäre|wären|würde|würden)/i.test(w);
     const ambig = /^(verloren|verstanden|entstanden|bestanden|erschienen)[.,;:!?]*$/i.test(w) && !/^(wir|sie|die|alle|beide|viele|manche|einige|leute|kinder|männer|frauen)$/.test(vorher);
@@ -948,15 +4905,3332 @@ function toPresentSicher(entry) {
     erstesWort = false;
     if (schuetzen) {
       marker.push(w);
-      words[i] = `\xA7${marker.length - 1}\xA7`;
+      words3[i] = `\xA7${marker.length - 1}\xA7`;
     }
   }
-  const r = toPresent(words.join(""));
+  const r = toPresent(words3.join(""));
   let text = r.text;
   marker.forEach((w, k) => {
     text = text.replace(`\xA7${k}\xA7`, w);
   });
   return { text, changed: r.changed, unsure: r.unsure };
+}
+var DU_FORM = /\b(du|dir|dich|dein|deine|deinen|deinem|deiner|deines)\b/i;
+var ICH_FORM = /\b(ich|mir|mich|mein|meine|meinen|meinem|meiner|meines)\b/i;
+function isSecondPerson(s) {
+  return DU_FORM.test(s || "");
+}
+function isFirstPerson(s) {
+  return ICH_FORM.test(s || "");
+}
+function perspectiveBreakRatio(text, perspective) {
+  if (!perspective || perspective === "auto") return 0;
+  const sents = splitSentences(text).filter((x) => x.trim().length > 3);
+  if (sents.length < 3) return 0;
+  let off = 0;
+  for (const s of sents) {
+    if (perspective !== "second" && DU_FORM.test(s)) {
+      off++;
+      continue;
+    }
+    if (perspective !== "first" && perspective !== "we" && ICH_FORM.test(s)) off++;
+  }
+  return off / sents.length;
+}
+
+// src/atoms/derive.ts
+init_declension();
+init_verben();
+var SEIN_HABEN_WERDEN = /^(ist|sind|bin|bist|seid|war|waren|warst|hat|habe|hast|haben|habt|hatte|hatten|wird|werden|wirst|werdet|wurde|wurden|kann|kannst|können|könnt|konnte|muss|musst|müssen|müsst|will|willst|wollen|wollt|soll|sollen|darf|dürfen|mag|mögen|weiß|wissen|bleibt|bleiben|blieb|gibt|geben|gab)$/;
+var KURZVERB = /^(löst|geht|ruft|tut|gibt|lebt|hebt|legt|sagt|sieht|hält|fällt|zieht|trägt|liegt|kommt|nimmt|läuft|steht|dreht|führt|hört|fühlt|zählt|setzt|passt|weint|lacht|denkt|kennt|nennt|misst|sinkt|steigt|klingt|singt|fehlt|blickt|wirkt|reißt|bricht|spricht|wächst)$/;
+var PRAET_FORM = /(?:^|^[a-zäöüß]{2,6})(lag|lagen|stand|standen|ging|gingen|kam|kamen|sah|sahen|nahm|nahmen|hielt|hielten|ließ|ließen|fand|fanden|zog|zogen|trug|trugen|fiel|fielen|rief|riefen|sprach|schrieb|floss|stieg|sank|klang|hing|schien|trieb|brach|schloss|verlor|begann|geschah|roch|rochen|sass|saßen|riss|rissen|sprang|sprangen|schlug|schlugen|traf|trafen|griff|griffen|lief|liefen|wusste|wussten|verschwand|verschwanden|blieb|blieben|hieß|hießen|wuchs|wuchsen|schob|schoben|bog|bogen|schwieg|schwiegen)$/;
+var EN_KEIN_VERB = /* @__PURE__ */ new Set([
+  "gegen",
+  "neben",
+  "wegen",
+  "zwischen",
+  "entgegen",
+  "oben",
+  "unten",
+  "eben",
+  "dr\xFCben",
+  "drau\xDFen",
+  "drinnen",
+  "morgen",
+  "selten",
+  "ansonsten",
+  "meisten",
+  "wenigsten",
+  "offen",
+  "eigen",
+  "golden",
+  "seiden",
+  "wollen",
+  "einen",
+  "keinen",
+  "meinen",
+  "seinen",
+  "ihren",
+  "deinen",
+  "unseren",
+  "euren",
+  "deren",
+  "dessen",
+  "allen",
+  "vielen",
+  "manchen",
+  "welchen",
+  "jeden",
+  "diesen",
+  "jenen",
+  "denen",
+  "ihnen",
+  "sieben",
+  "tausenden",
+  "hunderten",
+  "anderen",
+  "einigen",
+  "wenigen",
+  "beiden",
+  "solchen",
+  "eigenen",
+  "ersten",
+  "zweiten",
+  "dritten",
+  "letzten",
+  "n\xE4chsten",
+  "besten",
+  "ganzen",
+  "halben",
+  "fernen",
+  "nahen",
+  "hohen",
+  "tiefen",
+  "langen",
+  "kurzen",
+  "alten",
+  "neuen",
+  "jungen",
+  "kleinen",
+  "gro\xDFen",
+  "roten",
+  "gr\xFCnen",
+  "blauen",
+  "schwarzen",
+  "wei\xDFen",
+  "kalten",
+  "warmen",
+  "leeren",
+  "vollen",
+  "toten",
+  "fremden",
+  "stillen",
+  "dunklen",
+  "hellen",
+  "innen",
+  "au\xDFen",
+  "hinten",
+  "vorn",
+  "mitten",
+  "unterdessen",
+  "indessen",
+  "\xFCbrigen",
+  "wegen",
+  "trotzdem",
+  "zusammen",
+  "gegen\xFCber",
+  "dr\xFCben"
+]);
+var DET_ODER_PREP = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "des",
+  "dem",
+  "den",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "kein",
+  "keine",
+  "keinen",
+  "keinem",
+  "keiner",
+  "mein",
+  "meine",
+  "meinen",
+  "meinem",
+  "meiner",
+  "dein",
+  "deine",
+  "deinen",
+  "sein",
+  "seine",
+  "seinen",
+  "seinem",
+  "seiner",
+  "ihr",
+  "ihre",
+  "ihren",
+  "ihrem",
+  "ihrer",
+  "unser",
+  "unsere",
+  "unseren",
+  "im",
+  "am",
+  "vom",
+  "zum",
+  "zur",
+  "beim",
+  "ins",
+  "ans",
+  "mit",
+  "von",
+  "zu",
+  "aus",
+  "bei",
+  "nach",
+  "seit",
+  "auf",
+  "an",
+  "in",
+  "\xFCber",
+  "unter",
+  "vor",
+  "hinter",
+  "neben",
+  "zwischen",
+  "durch",
+  "f\xFCr",
+  "ohne",
+  "um",
+  "gegen",
+  "wegen",
+  "trotz",
+  "w\xE4hrend",
+  "dieser",
+  "diese",
+  "diesen",
+  "diesem",
+  "dieses",
+  "jeder",
+  "jede",
+  "jeden",
+  "jedem",
+  "jedes",
+  "welcher",
+  "welche",
+  "welchen",
+  "welchem",
+  "manche",
+  "manchen",
+  "solche",
+  "solchen",
+  "viele",
+  "vielen",
+  "wenige",
+  "wenigen",
+  "einige",
+  "einigen",
+  "beide",
+  "beiden",
+  "zwei",
+  "drei",
+  "vier",
+  "f\xFCnf",
+  "sechs",
+  "sieben",
+  "acht",
+  "neun",
+  "zehn",
+  "ganz",
+  "sehr",
+  "zu",
+  "so",
+  "wie",
+  "als",
+  "etwas",
+  "nichts"
+]);
+var NOMEN_ENDUNG = /(ung|heit|keit|schaft|tät|ion|nis|tum|chen|lein|ment)$/;
+var PREP2 = /^(in|im|an|am|auf|bei|beim|mit|von|vom|zu|zum|zur|nach|über|unter|vor|hinter|neben|zwischen|durch|für|ohne|um|gegen|seit|trotz|wegen|während|aus|entlang|inmitten|jenseits|abseits)\b/i;
+var SUBJUNKTION = /^(dass|weil|obwohl|wenn|nachdem|bevor|ob|indem|sobald|solange|falls|sodass)\b/i;
+var REL = /^(der|die|das|den|dem|des|welche[rsmn]?)\s+\S+\s/i;
+var KONNEKTOR = /^(und|oder|aber|doch|denn|sondern|dann|dabei|also|somit|trotzdem|dennoch|außerdem|zudem)(\s+\w+)?$/i;
+var ARTIKEL = /^(ein|eine|einen|einem|einer|eines|der|die|das|den|dem|des|kein|keine|mein|meine|dein|deine|sein|seine|ihr|ihre|dieser|diese|dieses|jener|jene)\b/i;
+var PRON_START = /^(er|sie|es|ihm|ihr|ihn|ihnen|dessen|deren|diese[rs]?|jene[rs]?)\b/i;
+var silben = (t) => {
+  const w = t.toLowerCase().match(/[a-zäöüß]+/g) || [];
+  return w.reduce((n, x) => n + Math.max(1, (x.match(/[aeiouäöüy]+/g) || []).length), 0);
+};
+var woerter = (t) => (t.match(/\S+/g) || []).length;
+var tiefe = (t) => (t.match(/,\s*(dass|weil|obwohl|wenn|als|während|nachdem|bevor|damit|ob|indem|der|die|das|den|dem|welche)/gi) || []).length;
+function subjektOf(t, typ) {
+  if (!["hauptsatz", "nebensatz", "rahmen", "kopf"].includes(typ)) return null;
+  const s = " " + t.toLowerCase() + " ";
+  if (/\b(ich|mir|mich)\b/.test(s)) return { person: 1, numerus: "sg", genus: null };
+  if (/\b(wir|uns)\b/.test(s)) return { person: 1, numerus: "pl", genus: null };
+  if (/\b(du|dir|dich)\b/.test(s)) return { person: 2, numerus: "sg", genus: null };
+  if (/\b(ihr|euch)\b/.test(s)) return { person: 2, numerus: "pl", genus: null };
+  const m = t.match(/\b(?:der|die|das|ein|eine)\s+([A-ZÄÖÜ][a-zäöüß-]+)/);
+  const g = m ? guessGender(m[1]) : void 0;
+  const genus = g === "m" ? "mask" : g === "f" ? "fem" : g === "n" ? "neut" : null;
+  const plural = /\b(sie|die)\s+\w+en\b/.test(t.toLowerCase()) || /\b(sind|waren|haben|werden)\b/.test(t.toLowerCase());
+  return { person: 3, numerus: plural ? "pl" : "sg", genus };
+}
+function hatFinitesVerb(seg) {
+  const ws = seg.match(/[A-Za-zÄÖÜäöüß]+/g) || [];
+  for (let i = 0; i < ws.length; i++) {
+    const w = ws[i];
+    if (/^[A-ZÄÖÜ]/.test(w)) continue;
+    const l = w.toLowerCase();
+    const prev = (ws[i - 1] || "").toLowerCase(), next = ws[i + 1] || "";
+    const attributiv = DET_ODER_PREP.has(prev) || /^[A-ZÄÖÜ]/.test(next);
+    if ((prev === "ich" || next.toLowerCase() === "ich") && /^[a-zäöüß]{3,}e$/.test(l) && !DET_ODER_PREP.has(l)) return true;
+    if (VERB_CONJ[l]) return true;
+    if (SEIN_HABEN_WERDEN.test(l)) return true;
+    if (PRAET_FORM.test(l)) return true;
+    if (KURZVERB.test(l)) return true;
+    if (/t$/.test(l) && !attributiv && istVerbform(l)) return true;
+    if (/en$/.test(l) && l.length >= 5 && !EN_KEIN_VERB.has(l) && !attributiv && (VERB_CONJ[l.slice(0, -2) + "t"] || VERB_CONJ[l.slice(0, -2) + "et"] || istVerbform(l.slice(0, -2) + "t"))) return true;
+    if (/^(?!ge)[a-zäöüß]{4,}(?:t|te|en|ten)$/.test(l) && !NOMEN_ENDUNG.test(l) && !KEIN_VERB.has(l) && !EN_KEIN_VERB.has(l)) return true;
+  }
+  const first = (seg.match(/^([A-ZÄÖÜ][a-zäöüß]+)/) || [])[1];
+  if (first) {
+    const l = first.toLowerCase();
+    if (VERB_CONJ[l] || SEIN_HABEN_WERDEN.test(l) || PRAET_FORM.test(l)) return true;
+  }
+  return looksLikeFullClause(null, seg);
+}
+function deriveAtom(raw) {
+  const text = (raw || "").trim();
+  const unsicher = [];
+  const wcount = woerter(text);
+  const end = (text.match(/[.!?:;—]$/) || [""])[0];
+  const lead = extractLeadVerb(text);
+  const haupt = text.split(",")[0];
+  const hatFinit = !!lead.verb || hatFinitesVerb(haupt);
+  let typ;
+  if (/:$/.test(text)) typ = "kopf";
+  else if (text.includes("\u27E8")) typ = "rahmen";
+  else if (wcount === 1) typ = "einwort";
+  else if (KONNEKTOR.test(text)) typ = "konnektor";
+  else if (SUBJUNKTION.test(text) && hatFinit) typ = "nebensatz";
+  else if (REL.test(text) && hatFinit && /,/.test(text) === false && /\ben\b|\bt\b/.test("")) typ = "nebensatz";
+  else if (hatFinit) typ = "hauptsatz";
+  else if (PREP2.test(text)) typ = "praepositionalphrase";
+  else if (ARTIKEL.test(text) || /\b[A-ZÄÖÜ][a-zäöüß-]{2,}/.test(text)) typ = "nominalphrase";
+  else typ = "fragment";
+  if (PREP2.test(text) && hatFinit) unsicher.push("typ (Inversion?)");
+  if (typ === "fragment" && wcount >= 6) unsicher.push("typ (langes Fragment?)");
+  let kasus = null;
+  if (typ === "nominalphrase") {
+    const a = (text.match(/^(\S+)/) || [""])[0].toLowerCase();
+    const kern = (text.match(/\b([A-ZÄÖÜ][a-zäöüß-]{2,})/) || [])[1];
+    const g = kern ? guessGender(kern) : void 0;
+    if (/^(einen|den)$/.test(a)) kasus = "akk";
+    else if (/^(einem|dem|einer)$/.test(a)) kasus = "dat";
+    else if (a === "der") {
+      kasus = g === "f" ? "dat" : g === "m" ? "nom" : null;
+      if (!kasus) unsicher.push("kasus (der: Nom/Dat)");
+    } else if (/^(eines|des)$/.test(a)) kasus = "gen";
+    else if (/^(ein|eine|die|das)$/.test(a)) {
+      kasus = "nom_akk";
+      unsicher.push("kasus (nom/akk mehrdeutig)");
+    } else unsicher.push("kasus");
+  }
+  const kadenz = end === ":" ? "schwebend" : end ? "fallend" : "offen";
+  const tempus = typ === "nominalphrase" || typ === "fragment" || typ === "praepositionalphrase" || typ === "einwort" ? "kein" : isPastTense(text) ? "praeteritum" : "praesens";
+  const bezug = PRON_START.test(text) ? { pronomen: (text.match(/^\S+/) || [""])[0].toLowerCase(), genus: /^(sie|ihr|ihnen)/i.test(text) ? "fem" : "mask", numerus: "sg" } : null;
+  if (bezug) unsicher.push("verlangt_bezug (Genus gesch\xE4tzt)");
+  const s = silben(text);
+  return {
+    text,
+    typ,
+    bietet: { kasus, kadenz },
+    subjekt: subjektOf(text, typ),
+    tempus,
+    fuehrt_ein: properNames(text),
+    verlangt_bezug: bezug,
+    oeffnet: typ === "kopf",
+    rhythmus: { woerter: wcount, silben: s, tiefe: tiefe(text), endzeichen: end, gewicht: wcount <= 4 ? "kurz" : wcount <= 9 ? "mittel" : "lang" },
+    unsicher
+  };
+}
+
+// src/atoms/atomisieren.ts
+var wc = (s) => (s.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+var trimSatz = (s) => s.trim().replace(/^[,;:—–\s]+|[,;:—–\s]+$/g, "").trim();
+var NP_KOPF = /^(der|die|das|ein|eine|einen|einem|einer|kein|keine|zwei|drei|manche|viele|jede[rs]?|alle)\b/i;
+var NEBENSATZ = /,\s+(der|die|das|dem|den|dessen|deren|welche[rsmn]?|dass|weil|wenn|als|während|obwohl|nachdem|bevor|sobald|solange|seit|seitdem|damit|sodass|ohne|um|statt|anstatt|wo|worin|was|wer|wie|ob|falls|indem)\b[^,]*$/i;
+var tragfaehig = (s) => wc(s) >= 3 && (hatFinitesVerb(s) || NP_KOPF.test(s));
+function atomisiere(text, max) {
+  const teile = atomisiereRoh(text, max);
+  const t = trimSatz(text || "");
+  if (t && max >= 6 && wc(t) > max) {
+    if (teile.length > 1) zaehle("atomZerlegt", `${t} \u2192 ${teile.join(" | ")}`);
+    else if (teile.length === 1 && teile[0] !== t) zaehle("atomGekuerzt", `${t} \u2192 ${teile[0]}`);
+    else zaehle("atomGanzZuLang", t);
+  }
+  return teile;
+}
+function atomisiereRoh(text, max) {
+  const t = trimSatz(text || "");
+  if (!t) return [];
+  if (!max || max < 6 || wc(t) <= max) return [t];
+  const harte = t.split(/\s*(?:—|–|;|:)\s+/).map(trimSatz).filter((x) => wc(x) >= 3);
+  if (harte.length > 1) return harte.flatMap((x) => atomisiereRoh(x, max));
+  const koord = t.match(/^(.+?),\s+(und|aber|doch|denn|sondern)\s+(.+)$/i);
+  if (koord && hatFinitesVerb(koord[1]) && hatFinitesVerb(koord[3]) && wc(koord[1]) >= 3 && wc(koord[3]) >= 3)
+    return [...atomisiereRoh(koord[1], max), ...atomisiereRoh(koord[3], max)];
+  const ns = t.match(NEBENSATZ);
+  if (ns && ns.index !== void 0) {
+    const haupt = trimSatz(t.slice(0, ns.index));
+    if (tragfaehig(haupt) && wc(haupt) >= 4) return atomisiereRoh(haupt, max);
+  }
+  return [t];
+}
+function ueberlaenge(text, max) {
+  if (!max || max < 6) return 0;
+  return Math.max(0, wc(text) - max);
+}
+
+// src/atoms/assemble.ts
+var PHASEN_KATEGORIEN = {
+  // Die Dramaturgie-Kategorien tragen ihre Phase bereits im Namen — der Erzaehlbogen
+  // eines Presets beschreibt genau das, was der Assembler ohnehin in Phasen baut.
+  exposition: ["motifs", "hooks", "was", "einstieg", "regeln"],
+  verdichtung: ["props", "obstacles", "stakes", "was", "mitte", "konflikte", "zeitanomalien"],
+  umschlag: ["turns", "hoehepunkt", "ausloeser", "veraenderungen"],
+  schluss: ["endings"]
+};
+var STRUKTUR_PHASEN = {
+  // Unverändert die alte Verteilung 30/30/20/20 — die Rekombination soll sich
+  // durch diesen Umbau NICHT ändern.
+  rekombination: ["exposition", "exposition", "exposition", "verdichtung", "verdichtung", "verdichtung", "umschlag", "umschlag", "schluss", "schluss"],
+  linear: ["exposition", "exposition", "exposition", "verdichtung", "verdichtung", "verdichtung", "umschlag", "umschlag", "schluss", "schluss"],
+  // Vom Ende her: erst das Ergebnis, dann die Wende, zuletzt der Anlass.
+  reverse: ["schluss", "schluss", "umschlag", "umschlag", "verdichtung", "verdichtung", "verdichtung", "exposition", "exposition", "exposition"],
+  // Der Kreis kehrt zurück: Die letzte Position trägt wieder die Eröffnung.
+  circle: ["exposition", "exposition", "verdichtung", "verdichtung", "verdichtung", "umschlag", "umschlag", "schluss", "exposition", "exposition"],
+  // Das Fragment springt. Kein Zufall zur Laufzeit: Eine feste, unruhige Folge
+  // ist reproduzierbar und damit prüfbar.
+  fragment: ["verdichtung", "exposition", "umschlag", "verdichtung", "schluss", "exposition", "umschlag", "verdichtung", "exposition", "schluss"],
+  // Das Ding sieht zu: langer Mittelteil, kurzer Anfang, kurzer Schluss.
+  object: ["exposition", "verdichtung", "verdichtung", "umschlag", "verdichtung", "umschlag", "verdichtung", "umschlag", "schluss", "schluss"]
+};
+var SCHLAG_PHASE = {
+  einstieg: "exposition",
+  hook: "exposition",
+  regel: "exposition",
+  mitte: "verdichtung",
+  mitte2: "verdichtung",
+  konflikt: "verdichtung",
+  zeit: "verdichtung",
+  einsatz: "verdichtung",
+  ausloeser: "umschlag",
+  wende: "umschlag",
+  hoehepunkt: "umschlag",
+  schluss: "schluss"
+};
+function phasenAusSchlagfolge(folge) {
+  const roh = (folge || []).map((n) => SCHLAG_PHASE[n]).filter((p) => !!p);
+  if (!roh.length) return STRUKTUR_PHASEN["linear"];
+  return Array.from({ length: 10 }, (_, i) => roh[Math.round(i * (roh.length - 1) / 9)]);
+}
+function setBogenPhasen(folge) {
+  STRUKTUR_PHASEN["bogen"] = phasenAusSchlagfolge(folge);
+}
+var bogenModus = false;
+function setBogenModus(an) {
+  bogenModus = an;
+}
+function gelenkBonus(a, phase, bogenGewicht) {
+  if (!bogenModus || a.quelle !== "dramaturgie" || !phase) return 0;
+  const faktor = phase === "umschlag" || phase === "schluss" ? 2.5 : phase === "exposition" ? 1.2 : 0.4;
+  return faktor * bogenGewicht;
+}
+function phasenFolge(struktur, fortschritt) {
+  const f = STRUKTUR_PHASEN[struktur] || STRUKTUR_PHASEN["linear"];
+  const i = Math.min(f.length - 1, Math.max(0, Math.floor(fortschritt * f.length)));
+  return f[i];
+}
+function phasenBonus(a, phase) {
+  if (a.quelle === "vorlage") return phase === "exposition" ? 1.2 : 0.4;
+  if (a.kategorie === "was") return phase === "schluss" ? 0.5 : 3.5;
+  if (!a.kategorie) return 0;
+  if (PHASEN_KATEGORIEN[phase].includes(a.kategorie)) return 2.2;
+  if (a.kategorie === "endings" && phase !== "schluss") return -3;
+  if (a.kategorie === "motifs" && phase === "schluss") return -1.5;
+  return 0;
+}
+function naechsterSlot(text) {
+  const m = text.match(/⟨(AKK|DAT|NOM|SATZ)⟩/);
+  if (!m) return null;
+  const k = m[1];
+  if (k === "SATZ") return { rolle: "ergaenzung", kasus: "nom", art: "hauptsatz" };
+  return { rolle: "objekt", kasus: k.toLowerCase(), art: "nominalphrase" };
+}
+function wirktSatzwertig(text) {
+  const haupt = text.split(/[,;–—]/)[0] || text;
+  return hatFinitesVerb(haupt);
+}
+function passt(a, k, phase, slot) {
+  if (k.benutzt.has(a.id)) return false;
+  if (phase && a.kategorie === "endings" && phase !== "schluss") return false;
+  if (phase && phase === "schluss" && a.kategorie === "motifs") return false;
+  const v = slot !== void 0 ? slot : k.vorheriges?.verlangt ?? null;
+  const fuelltSlot = !!v;
+  if (!fuelltSlot && a.typ === "nominalphrase" && (a.bietet.kasus === "akk" || a.bietet.kasus === "dat")) return false;
+  const vorTyp = k.vorheriges ? k.vorheriges.typ : "start";
+  if (!fuelltSlot && !darfFolgen(vorTyp, a.typ)) return false;
+  if (k.offenerKopf && !schliesstKopf(a.typ)) return false;
+  if (v) {
+    if (a.typ !== v.art) return false;
+    if (v.art === "nominalphrase" && wirktSatzwertig(a.text)) return false;
+    if (v.art === "hauptsatz" && !wirktSatzwertig(a.text) && a.typ !== "hauptsatz") return false;
+    if (v.art === "nominalphrase") {
+      const bietet = a.bietet.kasus;
+      if (!bietet) return false;
+      if (bietet !== v.kasus && !(bietet === "nom_akk" && (v.kasus === "nom" || v.kasus === "akk"))) return false;
+    }
+  }
+  if (a.verlangt_bezug) {
+    let da = false;
+    for (const e2 of k.entitaeten.values()) if (e2.abstand <= 2) {
+      da = true;
+      break;
+    }
+    if (!da) return false;
+  }
+  if (k.tempus && a.tempus !== "kein" && a.tempus !== k.tempus) return false;
+  if (a.bruchgrad > schwelle(k.divergenz)) return false;
+  return true;
+}
+function fortschreiben(k, a) {
+  k.vorheriges = a;
+  k.benutzt.add(a.id);
+  k.offenerKopf = a.oeffnet || !!a.verlangt;
+  if (a.tempus !== "kein" && !k.tempus) k.tempus = a.tempus;
+  for (const e2 of k.entitaeten.values()) e2.abstand++;
+  for (const n of a.fuehrt_ein) k.entitaeten.set(n, { abstand: 0 });
+}
+function fuelleKontext(text, ctx) {
+  return text.replace(/⟨ORT⟩/g, ctx.ort).replace(/⟨ZEIT⟩/g, ctx.zeit).replace(/⟨FIGUR⟩/g, ctx.figur).replace(/⟨VERB⟩/g, ctx.verb);
+}
+var SCHWACH_KONSONANT = /^(Herr|Mensch|Held|Fürst|Prinz|Graf|Bär|Elefant|Nachbar|Bauer|Herz|Narr|Tor|Christ|Zar|Architekt|Soldat|Advokat|Kamerad|Katholik|Ochs|Spatz|Fink|Pfau|Ahn)$/;
+var SCHWACH_E = /^(Hase|Junge|Kollege|Zeuge|Bote|Erbe|Riese|Löwe|Affe|Rabe|Neffe|Kunde|Gefährte|Experte|Komplize|Insasse|Gatte|Bube|Falke|Franzose|Schwede|Türke|Russe|Pole|Däne|Ire|Brite|Jude|Sklave|Ahne|Zeuge)$/;
+function istSchwachesMaskulinum(kern) {
+  return SCHWACH_E.test(kern) || SCHWACH_KONSONANT.test(kern) || /(ent|ant|ist|oge|graf|soph|nom|arch|krat)$/.test(kern) || /^(Name|Gedanke|Glaube|Wille|Friede|Buchstabe)$/.test(kern);
+}
+function schwachesMaskulinum(kern) {
+  if (/(chen|lein|er|el|en|ling|ismus|or)$/.test(kern)) return kern;
+  if (SCHWACH_E.test(kern)) return kern + "n";
+  if (/(ent|ant|ist|oge|graf|soph|nom|arch|krat|at)$/.test(kern)) return kern + "en";
+  if (kern === "Herr") return "Herrn";
+  if (kern === "Nachbar" || kern === "Bauer") return kern + "n";
+  if (kern === "Herz") return "Herzen";
+  if (SCHWACH_KONSONANT.test(kern)) return kern + "en";
+  if (kern === "Name" || kern === "Gedanke" || kern === "Glaube" || kern === "Wille" || kern === "Friede" || kern === "Buchstabe") return kern + "n";
+  return kern;
+}
+function dekliniere(phrase, kasus) {
+  const m = phrase.match(/^(ein|eine|der|die|das)\s+(.*)$/i);
+  if (!m) return phrase;
+  const [, art, rest] = m;
+  const kern = (rest.match(/\b([A-ZÄÖÜ][a-zäöüß-]{2,})/) || [])[1];
+  const artG = art.toLowerCase() === "der" ? "m" : art.toLowerCase() === "das" ? "n" : void 0;
+  const g = artG || (kern ? istSchwachesMaskulinum(kern) ? "m" : guessGender(kern) : void 0);
+  if (!g) return phrase;
+  const map = {
+    akk: { m: art.toLowerCase() === "ein" ? "einen" : "den", f: art, n: art },
+    dat: { m: art.toLowerCase() === "ein" ? "einem" : "dem", f: art.toLowerCase() === "eine" ? "einer" : "der", n: art.toLowerCase() === "ein" ? "einem" : "dem" }
+  };
+  const neu = map[kasus]?.[g];
+  if (!neu) return phrase;
+  const rest2 = (kasus === "akk" || kasus === "dat") && g === "m" && kern ? rest.replace(new RegExp("\\b" + kern + "\\b"), schwachesMaskulinum(kern)) : rest;
+  let r = rest2;
+  if (neu.toLowerCase() !== art.toLowerCase()) {
+    const w = rest2.split(/\s+/);
+    let kernIdx = w.findIndex((x) => /^[A-ZÄÖÜ]/.test(x));
+    if (kernIdx < 0) kernIdx = w.length;
+    for (let i = 0; i < kernIdx; i++) {
+      const x = w[i];
+      if (/^[a-zäöüß]{3,}$/.test(x)) w[i] = x.replace(/(?:e|er|es|em|en)$/, "") + "en";
+    }
+    r = w.join(" ");
+  }
+  return neu + " " + r;
+}
+function fuelleSlot(rahmen, fueller) {
+  const m = rahmen.match(/⟨(AKK|DAT|NOM|SATZ)⟩/);
+  const kasus = m ? m[1].toLowerCase() : "";
+  let f = fueller.replace(/[.!?…]+$/, "");
+  if (kasus === "akk" || kasus === "dat") f = dekliniere(f, kasus);
+  return rahmen.replace(/⟨(AKK|DAT|NOM|SATZ)⟩/, f);
+}
+var offeneSlots = (t) => (t.match(/⟨(AKK|DAT|NOM|SATZ)⟩/g) || []).length;
+function verfugen(teile) {
+  const out = [];
+  for (let i = 0; i < teile.length; i++) {
+    let t = teile[i].trim().replace(/\s+([.,;:!?])/g, "$1");
+    if (!t) continue;
+    const vorOffen = i > 0 && /[:—]$/.test(out[out.length - 1] || "");
+    t = vorOffen ? t.charAt(0).toLowerCase() + t.slice(1) : t.charAt(0).toUpperCase() + t.slice(1);
+    t = t.replace(
+      /^(Und|Doch|Aber|Oder|Denn|Dann|Dabei|Also)\s+([A-ZÄÖÜ])(?=[a-zäöüß])/,
+      (_m, k, c) => k + " " + c.toLowerCase()
+    );
+    const endet = /[.!?…:;—]$/.test(t);
+    const naechsterFolgtDirekt = t.endsWith(":") || t.endsWith("\u2014");
+    if (!endet) t += ".";
+    if (naechsterFolgtDirekt && i + 1 < teile.length) {
+      const n = teile[i + 1].trim();
+      teile[i + 1] = n.charAt(0).toLowerCase() + n.slice(1);
+    }
+    out.push(t);
+  }
+  return out.join(" ").replace(/([.!?…])\s*\1+/g, "$1").replace(/:\s*\./g, ":").trim();
+}
+function ziehe(kandidaten, sollGewicht, bisher, phase) {
+  if (!kandidaten.length) return null;
+  const stems = (t) => new Set((t.toLowerCase().match(/[a-zäöüß]{5,}/g) || []).map((w) => w.slice(0, 5)));
+  const kontext = stems(bisher);
+  const bogenGewicht = (loadKnobs().bogen || 100) / 100;
+  const atomMax = loadKnobs().atomgroesse;
+  const score = (a) => {
+    let s = 1;
+    s -= 0.4 * ueberlaenge(a.text, atomMax);
+    if (phase) s += phasenBonus(a, phase);
+    s += gelenkBonus(a, phase, bogenGewicht);
+    if (a.rhythmus.gewicht === sollGewicht) s += 1.5;
+    const ov = [...stems(a.text)].filter((x) => kontext.has(x)).length;
+    s += Math.min(ov, 2) * 0.8;
+    if (ov > 3) s -= 2;
+    s = Math.max(0.05, s);
+    if (a.quelle === "dramaturgie") s = bogenGewicht === 0 ? 1e-4 : s * bogenGewicht;
+    return s;
+  };
+  const total = kandidaten.reduce((n, a) => n + score(a), 0);
+  let r = Math.random() * total;
+  for (const a of kandidaten) {
+    r -= score(a);
+    if (r <= 0) return a;
+  }
+  return kandidaten[kandidaten.length - 1];
+}
+
+// src/generation/beats.ts
+function cap(s) {
+  s = (s ?? "").toString();
+  return s ? s[0].toUpperCase() + s.slice(1) : s;
+}
+function isFragmentSentence(s) {
+  const n = clean(s).split(/\s+/).filter(Boolean).length;
+  return n > 0 && n <= 3;
+}
+var CLAUSE_VERBS = /* @__PURE__ */ new Set(["antworten", "antwortet", "atmen", "atmet", "bebt", "begann", "beginnen", "beginnt", "beobachten", "beobachtet", "ber\xFChren", "ber\xFChrt", "bin", "bist", "bleiben", "bleibt", "blieb", "blitzt", "brannte", "brennen", "brennt", "brummt", "br\xFCllen", "br\xFCllt", "dachte", "darf", "denken", "denkt", "donnert", "drehen", "dreht", "drehte", "durfte", "d\xFCrfen", "enden", "endet", "endete", "erinnern", "erinnert", "fahren", "fallen", "fand", "fiel", "fielen", "finden", "findet", "fliegen", "fliegt", "fliehen", "flieht", "flie\xDFen", "flie\xDFt", "flog", "floss", "fl\xFCstern", "fl\xFCstert", "folgen", "folgt", "folgte", "formen", "formt", "fragen", "fragt", "fragte", "fuhr", "f\xE4hrt", "f\xE4llt", "f\xFChlen", "f\xFChlt", "f\xFChren", "f\xFChrt", "f\xFChrte", "f\xFCrchten", "f\xFCrchtet", "gab", "gaben", "galt", "geben", "gehen", "geht", "gelten", "geschah", "geschehen", "geschieht", "gibt", "gilt", "ging", "gingen", "glauben", "glaubt", "haben", "habt", "halten", "hat", "hatte", "hatten", "hielt", "hielten", "hoffen", "hofft", "h\xE4lt", "h\xE4tte", "h\xF6ren", "h\xF6rt", "h\xF6rte", "ist", "jagen", "jagt", "kam", "kamen", "kann", "kannte", "kennen", "kennt", "kippen", "kippt", "knistert", "kommen", "kommt", "konnte", "konnten", "kreisen", "kreist", "k\xF6nnen", "lachen", "lacht", "lag", "lagen", "laufen", "leuchten", "leuchtet", "lief", "liefen", "liegen", "liegt", "l\xE4uft", "l\xF6schen", "l\xF6scht", "machen", "macht", "machte", "machten", "mag", "muss", "musste", "mussten", "m\xF6chte", "m\xF6chten", "m\xF6gen", "m\xFCssen", "nahm", "nahmen", "nehmen", "nimmt", "passieren", "passiert", "passierte", "planen", "plant", "pulsiert", "raschelt", "reagieren", "reagiert", "regnet", "retten", "rettet", "rief", "rinnt", "riskiert", "rufen", "ruft", "sah", "sahen", "sang", "sank", "sa\xDF", "schlafen", "schlief", "schlie\xDFen", "schlie\xDFt", "schloss", "schl\xE4ft", "schmelzen", "schmilzt", "schneit", "schreien", "schreit", "schrie", "schweigen", "schweigt", "schwieg", "sehen", "seid", "sieht", "sind", "singen", "singt", "sinken", "sinkt", "sitzen", "sitzt", "soll", "sollen", "sollte", "sprach", "sprachen", "sprang", "sprechen", "spricht", "springen", "springt", "stand", "standen", "stehen", "steht", "steigen", "steigt", "stieg", "suchen", "sucht", "suchte", "summt", "tanzen", "tanzt", "tat", "taten", "ticken", "tickt", "tragen", "tropft", "trug", "trugen", "tr\xE4gt", "tr\xE4umen", "tr\xE4umt", "tun", "tut", "unterschreiben", "unterschreibt", "verfolgen", "verfolgt", "vergessen", "vergisst", "verlangen", "verlangt", "verraten", "verr\xE4t", "ver\xE4ndern", "ver\xE4ndert", "vibriert", "wachsen", "wagen", "wagt", "wandern", "wandert", "war", "waren", "warten", "wartet", "wartete", "wechseln", "wechselt", "weigern", "weigert", "weinen", "weint", "wei\xDF", "werden", "werdet", "wiederholen", "wiederholt", "will", "wird", "wirst", "wissen", "wollen", "wollte", "wollten", "wurde", "wurden", "wusste", "w\xE4chst", "w\xE4re", "w\xE4ren", "w\xFCrde", "w\xFCrden", "zeigen", "zeigt", "zeigte", "zerbrechen", "zerbricht", "ziehen", "zieht", "zittern", "zittert", "zog", "zogen", "\xF6ffnen", "\xF6ffnet", "\xFCberschreiben", "\xFCberschreibt"]);
+var CLAUSE_STOP = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "kein",
+  "keine",
+  "keinen",
+  "keinem",
+  "keiner",
+  "mein",
+  "meine",
+  "meinen",
+  "dein",
+  "deine",
+  "sein",
+  "seine",
+  "seinen",
+  "ihr",
+  "ihre",
+  "ihren",
+  "unser",
+  "unsere",
+  "euer",
+  "eure",
+  "dieser",
+  "diese",
+  "dieses",
+  "diesen",
+  "diesem",
+  "jener",
+  "jene",
+  "jenes",
+  "jeder",
+  "jede",
+  "jedes",
+  "jeden",
+  "jedem",
+  "manch",
+  "manche",
+  "alle",
+  "allen",
+  "beide",
+  "beiden",
+  "viele",
+  "vielen",
+  "solche",
+  "solchen",
+  "mit",
+  "ohne",
+  "aus",
+  "von",
+  "vom",
+  "in",
+  "im",
+  "auf",
+  "an",
+  "am",
+  "f\xFCr",
+  "bei",
+  "zu",
+  "zum",
+  "zur",
+  "\xFCber",
+  "unter",
+  "vor",
+  "nach",
+  "durch",
+  "gegen",
+  "seit",
+  "um",
+  "neben",
+  "zwischen",
+  "hinter",
+  "wegen",
+  "trotz",
+  "w\xE4hrend",
+  "entlang",
+  "und",
+  "oder",
+  "aber",
+  "denn",
+  "sondern",
+  "nicht",
+  "jetzt",
+  "fast",
+  "erst",
+  "sonst",
+  "selbst",
+  "meist",
+  "dennoch",
+  "trotzdem"
+]);
+var CLAUSE_PRON = /* @__PURE__ */ new Set(["ich", "du", "er", "sie", "es", "wir", "man", "jemand", "niemand", "etwas", "nichts", "wer", "alles"]);
+function mainHasFiniteVerb(part) {
+  const toks = part.trim().split(/\s+/);
+  let sawSubject = false;
+  for (let i = 0; i < toks.length; i++) {
+    const raw = toks[i];
+    const lower = raw.toLowerCase().replace(/[^a-zäöüß]/g, "");
+    if (i > 0 && sawSubject && /^[a-zäöüß]/.test(raw) && lower.length >= 3 && !CLAUSE_STOP.has(lower)) {
+      if (CLAUSE_VERBS.has(lower)) return true;
+      if (/iert$/.test(lower)) return true;
+      if (/en$/.test(lower)) {
+        const next = toks[i + 1];
+        if (!next || /^[a-zäöüß]/.test(next)) return true;
+      }
+    }
+    if (i > 0 && /^[A-ZÄÖÜ]/.test(raw) || CLAUSE_PRON.has(lower)) sawSubject = true;
+  }
+  return false;
+}
+function looksLikeClausePhrase(phrase) {
+  const s = clean(phrase);
+  if (!s) return false;
+  if (/[.!?]$/.test(s)) return true;
+  const mainPart = (s.split(",")[0] || s).trim();
+  return mainHasFiniteVerb(mainPart);
+}
+function chooseInsertPos(sentences2) {
+  if (!sentences2 || sentences2.length < 2) return -1;
+  const candidates = [];
+  for (let pos = 1; pos <= sentences2.length; pos++) {
+    const prev = sentences2[pos - 1];
+    const next = sentences2[pos];
+    if (isFragmentSentence(prev)) continue;
+    if (next !== void 0 && isFragmentSentence(next)) continue;
+    const w = clean(prev).split(/\s+/).filter(Boolean).length;
+    candidates.push({ pos, weight: Math.max(1, w - 4) });
+  }
+  if (!candidates.length) return -1;
+  let sum = 0;
+  for (const c of candidates) sum += c.weight;
+  let r = Math.random() * sum;
+  for (const c of candidates) {
+    r -= c.weight;
+    if (r <= 0) return c.pos;
+  }
+  return candidates[candidates.length - 1].pos;
+}
+var BEAT_CONNECTORS = ["Kurz darauf", "Gleichzeitig", "Wenig sp\xE4ter", "Im selben Atemzug", "Noch am selben Ort"];
+var beatKopf = (p) => {
+  const w = p.toLowerCase().replace(/^und\s+/, "").split(/[\s,:;—]+/).filter(Boolean);
+  return w[0] || "";
+};
+function joinBeats(beats, P3) {
+  const parts = beats.map((b) => ensurePunct(clean(b))).filter(Boolean);
+  for (let i = 1; i < parts.length; i++) {
+    const prevRoh = (parts[i - 1].split(/\s+/)[0] || "").toLowerCase();
+    const curRoh = (parts[i].split(/\s+/)[0] || "").toLowerCase();
+    if (prevRoh === curRoh && curRoh === "und") {
+      parts[i] = cap(parts[i].replace(/^Und\s+/i, ""));
+    }
+    if (beatKopf(parts[i]) === "dann" && (beatKopf(parts[i - 1]) === "dann" || i >= 2 && beatKopf(parts[i - 2]) === "dann")) {
+      parts[i] = /^und\s+dann\b/i.test(parts[i]) ? parts[i].replace(/^Und\s+dann\b/i, pick(["Schlie\xDFlich", "Zuletzt", "Am Ende"])) : parts[i].replace(/^Dann\b/i, pick(["Danach", "Kurz darauf", "Sp\xE4ter"]));
+    }
+  }
+  if (P3 && parts.length >= 4 && chance(0.6)) {
+    const idx = 1 + Math.floor(Math.random() * (parts.length - 2));
+    const m = new RegExp(`^${escapeRegExp(P3)}\\s+([a-z\xE4\xF6\xFC\xDF]+)\\s+([\\s\\S]+)$`).exec(parts[idx]);
+    if (m) parts[idx] = `${pick(BEAT_CONNECTORS)} ${m[1]} ${P3} ${m[2]}`;
+  }
+  return parts.join(" ");
+}
+function frameTurn(turn) {
+  const t = clean(turn).replace(/[.!?…]+$/, "");
+  const frames = [
+    `Dann kippt es: ${t}.`,
+    `Dann kippt es \u2014 ${t}.`,
+    `Es braucht nur einen Atemzug, und ${t}.`,
+    `Erst ein Riss, kaum merklich, und ${t}.`,
+    `Und dann, ohne Vorwarnung: ${t}.`,
+    `Etwas gibt nach \u2014 ${t}.`,
+    `Kaum ausgesprochen, ${t}.`,
+    `Dann, unvermittelt: ${t}.`
+  ];
+  return frames[pickFreshIndex("frameTurn", frames.length)];
+}
+function reframeStake(stake) {
+  const m = /^Der Einsatz ist\s+(.+?)[.!?…]*$/i.exec(clean(stake));
+  if (!m) return stake;
+  const core = m[1];
+  const akk = dekliniere(core, "akk");
+  const frames = [`Der Einsatz ist ${core}.`, `Es geht um ${akk}.`, `Alles dreht sich um ${akk}.`, `Was z\xE4hlt, ist ${core}.`];
+  if (!/[:,]/.test(core)) {
+    frames.push(`Auf dem Spiel steht ${core}.`);
+    frames.push(`${cap(core)} steht auf dem Spiel.`);
+    frames.push(`Am Ende bleibt nur ${core}.`);
+    frames.push(`Verlieren hie\xDFe: ${core}.`);
+  }
+  return frames[pickFreshIndex("stake", frames.length)];
+}
+function safeCaseForm(rawPhrase, casedPhrase) {
+  if (looksLikeClausePhrase(rawPhrase)) return `\u201E${clean(rawPhrase)}\u201C`;
+  return casedPhrase;
+}
+function weaveMotif(text, motif) {
+  if (!motif) return text;
+  const motifLine = looksLikeClausePhrase(motif) ? ensurePunct(cap(clean(motif))) : ensurePunct(`Dabei: ${motif}`);
+  const s = splitSentences(text);
+  if (s.length < 2) return text + " " + motifLine;
+  let pos = chooseInsertPos(s);
+  if (pos < 0) pos = Math.min(s.length - 1, Math.max(1, Math.floor(s.length * 0.55)));
+  s.splice(pos, 0, motifLine);
+  return s.join(" ");
+}
+function randomFragmentTime() {
+  const h = pick([23, 0, 1, 2, 3, 4, 5]);
+  const m = Math.floor(Math.random() * 60);
+  return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+}
+function insertToneFlavor(text, line) {
+  const paras = text.split(/\n\n+/);
+  let target = 0;
+  for (let i = 1; i < paras.length; i++) if (paras[i].length > paras[target].length) target = i;
+  const sentences2 = splitSentences(paras[target]);
+  if (sentences2.length < 2) {
+    paras[target] = (paras[target] + " " + line).trim();
+    return paras.join("\n\n");
+  }
+  let idx = chooseInsertPos(sentences2);
+  if (idx < 0) idx = sentences2.length;
+  sentences2.splice(idx, 0, line);
+  paras[target] = sentences2.join(" ");
+  return paras.join("\n\n");
+}
+function weaveCast(text, _P, cast) {
+  const others = (cast || []).slice(1).map((c) => clean(c)).filter(Boolean);
+  if (!others.length) return text;
+  const nm = (n) => (n.split(",")[0] || n).trim();
+  const soloVerbs = ["steht daneben und schweigt", "wartet", "sieht zu", "z\xF6gert", "sagt nichts", "nickt kaum", "atmet flach", "tritt einen Schritt zur\xFCck", "h\xE4lt sich zur\xFCck"];
+  const soloWants = ["das Gegenteil", "mehr", "weg", "bleiben", "die Wahrheit", "nichts davon"];
+  const beats = [];
+  others.slice(0, 2).map(nm).forEach((who) => {
+    beats.push(chance(0.5) ? `${who} ${pick(soloVerbs)}.` : `${who} will ${pick(soloWants)}.`);
+  });
+  if (chance(0.7)) {
+    beats.push(pick([
+      `Keiner von ihnen ${pick(["spricht zuerst", "weicht aus", "sagt es laut"])}.`,
+      `Zwischen ihnen ${pick(["bleibt ein Satz offen", "spannt sich die Luft", "steht etwas Ungesagtes"])}.`
+    ]));
+  }
+  const rest = others.slice(2).map(nm);
+  if (rest.length) {
+    const grp = rest.length === 1 ? rest[0] : rest.slice(0, -1).join(", ") + " und " + rest[rest.length - 1];
+    const v = rest.length === 1 ? pick(["ist dabei", "kommt dazu", "h\xE4lt sich zur\xFCck"]) : pick(["sind dabei", "kommen dazu", "halten sich zur\xFCck"]);
+    beats.push(`Auch ${grp} ${v}.`);
+  }
+  for (let i = beats.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [beats[i], beats[j]] = [beats[j], beats[i]];
+  }
+  const sent = splitSentences(text);
+  for (const b of beats) {
+    const line = ensurePunct(cap(clean(b)));
+    if (sent.length < 2) {
+      sent.push(line);
+      continue;
+    }
+    let pos = chooseInsertPos(sent);
+    if (pos < 0) pos = Math.min(sent.length, Math.max(1, Math.floor(sent.length * 0.5)));
+    sent.splice(pos, 0, line);
+  }
+  return sent.join(" ");
+}
+
+// src/generation/dramaturgie.ts
+var DKEY = "dm_dramaturgie_v1";
+function setDramaData(d) {
+  try {
+    if (d) localStorage.setItem(DKEY, JSON.stringify(d));
+    else localStorage.removeItem(DKEY);
+  } catch {
+  }
+}
+var bogenOverride = null;
+function setBogenOverride(d) {
+  bogenOverride = d;
+}
+function loadDramaData() {
+  if (bogenOverride) return bogenOverride;
+  try {
+    const r = localStorage.getItem(DKEY);
+    return r ? JSON.parse(r) : null;
+  } catch {
+    return null;
+  }
+}
+function hasDramaData() {
+  const d = loadDramaData();
+  return !!(d && (d.einstieg.length || d.mitte.length || d.hoehepunkt.length || d.veraenderungen.length));
+}
+var some = (a) => Array.isArray(a) && a.length > 0;
+var SCHLAG_STANDARD = ["einstieg", "hook", "regel", "mitte", "mitte2", "konflikt", "ausloeser", "wende", "zeit", "hoehepunkt", "einsatz", "schluss"];
+var SCHLAG_NAMEN = /* @__PURE__ */ new Set([...SCHLAG_STANDARD]);
+function buildDramaturgie(kit) {
+  const d = loadDramaData();
+  const M = kit.mode;
+  const norm = (x) => clean(x).toLowerCase().replace(/[.!?…]+$/, "");
+  const benutzt = /* @__PURE__ */ new Set();
+  const zieh2 = (liste) => {
+    const frisch = liste.filter((x) => !benutzt.has(norm(x)));
+    if (!frisch.length) return "";
+    const wahl = pick(frisch);
+    benutzt.add(norm(wahl));
+    return wahl;
+  };
+  const ZEITKOPF = /^(davor|danach|dann|plötzlich|auf einmal|am ende|am anfang|zurück bleibt|und dann|zuerst|zuletzt|schließlich)\b/i;
+  const ziehOhneZeitkopf = (liste) => {
+    const ohne = liste.filter((x) => !ZEITKOPF.test(x) && !benutzt.has(norm(x)));
+    if (ohne.length) {
+      const wahl = pick(ohne);
+      benutzt.add(norm(wahl));
+      return { satz: wahl, nackt: false };
+    }
+    return { satz: zieh2(liste), nackt: true };
+  };
+  const schlag = (name, erster) => {
+    switch (name) {
+      case "einstieg": {
+        if (!(d && some(d.einstieg))) return erster ? `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.` : "";
+        if (!erster) {
+          const z2 = zieh2(d.einstieg);
+          return z2 ? `${cap(z2)}.` : "";
+        }
+        const z = zieh2(d.einstieg) || pick(d.einstieg);
+        if (/^(nachdem|als|während|bevor|sobald|seit|seitdem|kaum|wenn|ehe)\b/i.test(clean(kit.T)))
+          return `${cap(kit.T)} ${kit.W} \u2014 ${z.charAt(0).toLowerCase()}${z.slice(1).replace(/[.!?…]+$/, "")}.`;
+        return `${cap(kit.T)} ${kit.W}. ${cap(z)}.`;
+      }
+      case "hook":
+        return cap(ensurePunct(kit.hook));
+      case "regel": {
+        const z = d && some(d.regeln) && chance(0.7) ? zieh2(d.regeln) : "";
+        return z ? cap(ensurePunct(z)) : ensurePunct(pick(M.rules));
+      }
+      case "mitte": {
+        const z = d && some(d.mitte) ? zieh2(d.mitte) : "";
+        return z ? `${cap(z)}.` : "";
+      }
+      case "mitte2": {
+        const z = d && some(d.mitte) && d.mitte.length > 1 && chance(0.6) ? zieh2(d.mitte) : "";
+        return z ? `${cap(z)}.` : "";
+      }
+      case "konflikt": {
+        const konf = d && some(d.konflikte) ? zieh2(d.konflikte) : "";
+        return konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`;
+      }
+      case "ausloeser": {
+        if (!(d && some(d.ausloeser))) return "";
+        const { satz: satz2, nackt: nackt2 } = ziehOhneZeitkopf(d.ausloeser);
+        if (!satz2) return "";
+        return nackt2 ? cap(ensurePunct(satz2)) : `Dann, unvermittelt: ${cap(satz2)}.`;
+      }
+      case "wende": {
+        const kern = (d && some(d.veraenderungen) ? zieh2(d.veraenderungen) : "") || (benutzt.has(norm(kit.turn)) ? "" : kit.turn);
+        if (!kern) return "";
+        benutzt.add(norm(kern));
+        return frameTurn(kern);
+      }
+      case "zeit": {
+        const z = d && some(d.zeitanomalien) && chance(0.4) ? zieh2(d.zeitanomalien) : "";
+        return z ? cap(ensurePunct(z)) : "";
+      }
+      case "hoehepunkt":
+        if (!(d && some(d.hoehepunkt))) return "";
+        if (erster) {
+          const z = zieh2(d.hoehepunkt);
+          return z ? `${cap(z)}.` : "";
+        }
+        const { satz, nackt } = ziehOhneZeitkopf(d.hoehepunkt);
+        if (!satz) return "";
+        return nackt ? cap(ensurePunct(satz)) : `Und dann: ${cap(satz)}.`;
+      case "einsatz":
+        return reframeStake(kit.stake);
+      case "schluss":
+        return ensurePunct(kit.ending);
+      default:
+        return "";
+    }
+  };
+  const folge = d?.folge && d.folge.length && d.folge.every((n) => SCHLAG_NAMEN.has(n)) ? d.folge : SCHLAG_STANDARD;
+  const beats = [];
+  for (const name of folge) {
+    const b = schlag(name, beats.length === 0);
+    if (b) beats.push(b);
+  }
+  return joinBeats(beats, kit.P);
+}
+
+// src/features/textpreset.ts
+init_text_utils();
+var KATEGORIEN = ["motifs", "hooks", "props", "turns", "obstacles", "stakes", "endings"];
+var WIDERSTAND = /\b(aber|doch|kein|keine|keinen|nicht|niemand|nichts|nie|niemals|fehlt|fehlen|scheitert|verweigert|bleibt aus|reicht nicht|zu spät|vergebens|umsonst)\b/i;
+var WENDE = /^(dann|plötzlich|auf einmal|mit einem mal|seitdem|von da an)\b|\b(kippt|kippen|beginnt|beginnen|bricht|brechen|verwandelt|wendet|ändert|dreht sich|wird zu|wechselt)\b/i;
+var SPIEL = /\b(es geht um|auf dem spiel|einsatz|entscheidet|entscheiden|zählt|zählen|gehört|gilt|bedeutet|kostet|verliert|gewinnt)\b/i;
+function teilstuecke(text) {
+  return (text || "").replace(/\s+/g, " ").split(/(?<=[.!?…])\s+/).flatMap((s) => s.split(/\s*[;—–]\s*/)).map((s) => clean(s).replace(/^[„"«»]+|[.!?…„"«»]+$/g, "").trim()).filter((s) => {
+    const w = s.split(/\s+/).filter(Boolean).length;
+    return w >= 3 && w <= 22;
+  });
+}
+function kategorieFuer(stueck, istSchluss) {
+  const typ = deriveAtom(stueck).typ;
+  const wc2 = stueck.split(/\s+/).filter(Boolean).length;
+  if (typ === "nominalphrase") return wc2 <= 5 ? "props" : "motifs";
+  if (typ !== "hauptsatz") return "motifs";
+  if (istSchluss) return "endings";
+  if (WIDERSTAND.test(stueck)) return "obstacles";
+  if (WENDE.test(stueck)) return "turns";
+  if (SPIEL.test(stueck)) return "stakes";
+  return wc2 <= 14 ? "hooks" : "motifs";
+}
+function presetAusText(text) {
+  const stuecke = teilstuecke(text);
+  const bank = { motifs: [], hooks: [], props: [], turns: [], obstacles: [], stakes: [], endings: [] };
+  const schlussGrenze = Math.max(0, stuecke.length - 2);
+  const gesehen = /* @__PURE__ */ new Set();
+  stuecke.forEach((s, i) => {
+    const key = s.toLowerCase();
+    if (gesehen.has(key)) return;
+    gesehen.add(key);
+    bank[kategorieFuer(s, i >= schlussGrenze && deriveAtom(s).typ === "hauptsatz")].push(s);
+  });
+  for (const k of KATEGORIEN) {
+    if (bank[k].length) continue;
+    const vollste = KATEGORIEN.filter((x) => bank[x].length > 1).sort((a, b) => bank[b].length - bank[a].length)[0];
+    if (vollste) bank[k].push(bank[vollste].pop());
+  }
+  const woerter3 = (text || "").split(/\s+/).filter(Boolean).length;
+  return { bank, woerter: woerter3, stuecke: gesehen.size };
+}
+function preset2AusText(text) {
+  const p = presetAusText(text);
+  const b = p.bank;
+  const konflikte = [...b.stakes, ...b.hooks].map((s) => (s.match(/\bes geht um\s+(.{3,60})$/i) || [])[1]).filter((x) => !!x);
+  const drama = {
+    einstieg: b.hooks.slice(0, 3),
+    mitte: b.motifs.slice(0, 4),
+    hoehepunkt: b.turns.slice(0, 2),
+    schluss: b.endings.slice(0, 3),
+    ausloeser: b.props.slice(0, 5),
+    veraenderungen: b.turns.slice(0, 4),
+    konflikte: konflikte.slice(0, 5),
+    zeitanomalien: [],
+    regeln: []
+  };
+  const pools = [.../* @__PURE__ */ new Set([...b.props, ...b.motifs])];
+  return { ...p, drama, pools };
+}
+
+// src/features/erzaehlerbank.ts
+var archivNorm = (e2) => `${e2.titel}\u241E${e2.text}`.toLowerCase().replace(/\s+/g, " ").trim();
+var titelNorm = (t) => (t || "").toLowerCase().replace(/\s+/g, " ").trim();
+var SCHLAGFOLGEN = {
+  standard: { name: "Steigender Bogen", folge: SCHLAG_STANDARD },
+  kreis: { name: "Kreisschluss", folge: ["einstieg", "hook", "regel", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz", "schluss", "einstieg"] },
+  rueckwaerts: { name: "R\xFCckw\xE4rts", folge: ["schluss", "hoehepunkt", "wende", "ausloeser", "konflikt", "mitte", "regel", "hook", "einstieg"] },
+  retardation: { name: "Sp\xE4te Wende", folge: ["einstieg", "hook", "regel", "mitte", "konflikt", "mitte2", "regel", "ausloeser", "wende", "hoehepunkt", "einsatz", "schluss"] },
+  doppelt: { name: "Doppelte Wende", folge: ["einstieg", "hook", "mitte", "ausloeser", "wende", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz", "schluss"] },
+  still: { name: "Stiller Bogen", folge: ["einstieg", "hook", "regel", "mitte", "konflikt", "mitte2", "zeit", "einsatz", "schluss"] },
+  eskalation: { name: "Eskalation", folge: ["einstieg", "hook", "mitte", "mitte", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz", "schluss"] },
+  katastrophe: { name: "Katastrophe zuerst", folge: ["hoehepunkt", "einstieg", "hook", "mitte", "konflikt", "ausloeser", "wende", "einsatz", "schluss"] },
+  straenge: { name: "Zwei Str\xE4nge", folge: ["einstieg", "mitte", "einstieg", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz", "schluss"] },
+  offen: { name: "Offenes Ende", folge: ["einstieg", "hook", "regel", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz"] },
+  // Punkt 4 des Zielbilds: die Schlagfolge aus der Geschichte ABLEITEN statt
+  // sie zuzuweisen. Die Folge steht hier leer — sie wird je Platz aus dem
+  // Text berechnet (ableiteSchlagfolge), sobald diese Bauform gewählt ist.
+  eigen: { name: "Eigene \u2014 aus dem Text abgeleitet", folge: [] }
+};
+var ARBEITSPLATZ_KEY = "dm_erzaehler_arbeitsplatz_v1";
+var ALTE_BANK_KEY = "dm_erzaehlerbank_v1";
+var QUELLE_KEY = "dm_erzaehler_quelle_v1";
+function ladeQuelle() {
+  migriereAltePlaetze();
+  const q = localStorage.getItem(QUELLE_KEY) || "preset";
+  return q === "preset" || q === "wuerfeln" || /^a:/.test(q) ? q : "preset";
+}
+function setzeQuelle(q) {
+  try {
+    localStorage.setItem(QUELLE_KEY, q);
+  } catch {
+  }
+}
+function platzBrauchbar(e2) {
+  return (e2.text || "").split(/\s+/).filter(Boolean).length >= 40;
+}
+function bogenAus(e2) {
+  if (!e2 || !platzBrauchbar(e2)) return null;
+  const drama = preset2AusText(e2.text).drama;
+  if (e2.folge === "eigen") drama.folge = ableiteSchlagfolge(e2.text);
+  else if (e2.folge && SCHLAGFOLGEN[e2.folge]) drama.folge = SCHLAGFOLGEN[e2.folge].folge;
+  return drama;
+}
+function eintragId(e2) {
+  const basis = `${e2.folge || "standard"}|${titelNorm(e2.titel) || archivNorm(e2)}`;
+  let h = 0;
+  for (let i = 0; i < basis.length; i++) h = h * 31 + basis.charCodeAt(i) >>> 0;
+  return `a:${e2.folge || "standard"}:${h.toString(36)}`;
+}
+function archivEintraege() {
+  migriereAltePlaetze();
+  const a = ladeArchiv();
+  const out = [];
+  for (const k of Object.keys(SCHLAGFOLGEN)) for (const e2 of a[k] || []) out.push({ ...e2, id: eintragId(e2) });
+  for (const [k, l] of Object.entries(a)) if (!SCHLAGFOLGEN[k]) for (const e2 of l) out.push({ ...e2, id: eintragId(e2) });
+  return out;
+}
+function eintragNachId(id) {
+  return archivEintraege().find((e2) => e2.id === id) || null;
+}
+var letzter = null;
+function letzterGezogen() {
+  return letzter;
+}
+function bogenFuerErzeugung() {
+  const q = ladeQuelle();
+  letzter = null;
+  if (q === "preset") return null;
+  if (q === "wuerfeln") {
+    const brauchbar = archivEintraege().filter((e3) => platzBrauchbar(e3));
+    if (!brauchbar.length) return null;
+    letzter = brauchbar[Math.floor(Math.random() * brauchbar.length)];
+    return bogenAus(letzter);
+  }
+  const e2 = eintragNachId(q);
+  if (!e2 || !platzBrauchbar(e2)) return null;
+  letzter = e2;
+  return bogenAus(e2);
+}
+function bogenBeschriftung() {
+  const q = ladeQuelle();
+  if (letzter) return { bogen: `${q === "wuerfeln" ? "gew\xFCrfelt: " : ""}${letzter.titel || "Ohne Titel"}`, bauform: SCHLAGFOLGEN[letzter.folge || "standard"]?.name || letzter.folge || "" };
+  if (q === "preset") return { bogen: "aus Preset", bauform: "Steigender Bogen" };
+  return { bogen: q === "wuerfeln" ? "w\xFCrfeln \u2014 kein brauchbarer Eintrag im Archiv" : "gew\xE4hlter Eintrag fehlt im Archiv", bauform: "" };
+}
+var migriert = false;
+function migriereAltePlaetze() {
+  if (migriert) return;
+  migriert = true;
+  try {
+    const roh = localStorage.getItem(ALTE_BANK_KEY);
+    if (!roh) return;
+    const alte = JSON.parse(roh);
+    const q = localStorage.getItem(QUELLE_KEY) || "preset";
+    let gewaehlt = null;
+    if (Array.isArray(alte)) alte.forEach((p, i) => {
+      const e2 = { titel: String(p?.titel || "").slice(0, 60), text: String(p?.text || ""), folge: SCHLAGFOLGEN[String(p?.folge || "")] ? String(p?.folge) : "standard", geburt: typeof p?.geburt === "string" ? p.geburt : void 0 };
+      if (!platzBrauchbar(e2)) return;
+      archiviere(e2);
+      if (String(i) === q || !gewaehlt && q !== "preset" && q !== "wuerfeln" && !/^[0-9]$/.test(q)) gewaehlt = e2;
+      if (!gewaehlt && q === "preset" && i === 0) gewaehlt = e2;
+    });
+    if (gewaehlt) {
+      localStorage.setItem(ARBEITSPLATZ_KEY, JSON.stringify(gewaehlt));
+      if (/^[0-9]$/.test(q)) localStorage.setItem(QUELLE_KEY, eintragId(gewaehlt));
+    }
+    localStorage.removeItem(ALTE_BANK_KEY);
+  } catch {
+  }
+}
+function ableiteSchlagfolge(text) {
+  const stuecke = teilstuecke(text);
+  const grenze = Math.max(0, stuecke.length - 2);
+  const roh = [];
+  let ersterHaken = true;
+  stuecke.forEach((st, i) => {
+    const kat = kategorieFuer(st, i >= grenze && deriveAtom(st).typ === "hauptsatz");
+    let schlag;
+    switch (kat) {
+      case "hooks":
+        schlag = ersterHaken ? "einstieg" : "hook";
+        ersterHaken = false;
+        break;
+      case "props":
+        schlag = "ausloeser";
+        break;
+      case "motifs":
+        schlag = "mitte";
+        break;
+      case "obstacles":
+        schlag = "konflikt";
+        break;
+      case "turns":
+        schlag = "wende";
+        break;
+      case "stakes":
+        schlag = "einsatz";
+        break;
+      case "endings":
+        schlag = "schluss";
+        break;
+      default:
+        schlag = "mitte";
+    }
+    if (roh[roh.length - 1] !== schlag) roh.push(schlag);
+  });
+  if (!roh.length) return SCHLAGFOLGEN["standard"].folge;
+  const letzteWende = roh.lastIndexOf("wende");
+  if (letzteWende >= 0) roh[letzteWende] = "hoehepunkt";
+  let folge = roh.filter((x) => x !== "einstieg" && x !== "schluss");
+  folge.unshift("einstieg");
+  folge.push("schluss");
+  const gelenk = /* @__PURE__ */ new Set(["einstieg", "hoehepunkt", "schluss", "einsatz"]);
+  while (folge.length > 12) {
+    const weg = folge.findIndex((x, i) => !gelenk.has(x) && i % 2 === 1);
+    if (weg < 0) break;
+    folge.splice(weg, 1);
+    folge = folge.filter((x, i) => i === 0 || x !== folge[i - 1]);
+  }
+  return folge;
+}
+var ARCHIV_KEY = "dm_erzaehler_archiv_v1";
+var ARCHIV_JE_BAUFORM = 20;
+function ladeArchiv() {
+  try {
+    const r = JSON.parse(localStorage.getItem(ARCHIV_KEY) || "{}");
+    if (!r || typeof r !== "object" || Array.isArray(r)) return {};
+    const out = {};
+    for (const [k, v] of Object.entries(r))
+      if (Array.isArray(v)) out[k] = v.filter((e2) => !!e2 && typeof e2 === "object" && typeof e2.text === "string").map((e2) => ({ titel: String(e2.titel || "").slice(0, 60), text: String(e2.text), folge: k, geburt: typeof e2.geburt === "string" ? e2.geburt : void 0 }));
+    return out;
+  } catch {
+    return {};
+  }
+}
+function speichereArchiv(a) {
+  try {
+    localStorage.setItem(ARCHIV_KEY, JSON.stringify(a));
+  } catch {
+  }
+}
+function archiviere(e2) {
+  if (!platzBrauchbar(e2)) return;
+  const folge = e2.folge || "standard";
+  const a = ladeArchiv();
+  const liste = a[folge] || [];
+  const tKey = titelNorm(e2.titel);
+  const gleich = (x) => tKey ? titelNorm(x.titel) === tKey : archivNorm(x) === archivNorm(e2);
+  const vorhanden = liste.find(gleich);
+  let geburt = e2.geburt || vorhanden?.geburt;
+  if (!geburt) for (const [, l] of Object.entries(a)) {
+    const alt = l.find(gleich);
+    if (alt) {
+      geburt = alt.geburt || alt.folge;
+      break;
+    }
+  }
+  geburt = geburt || folge;
+  a[folge] = [{ titel: e2.titel || "Ohne Titel", text: e2.text, folge, geburt }, ...liste.filter((x) => !gleich(x))].slice(0, ARCHIV_JE_BAUFORM);
+  speichereArchiv(a);
+}
+function loescheEintrag(id) {
+  const a = ladeArchiv();
+  for (const [k, l] of Object.entries(a)) a[k] = l.filter((e2) => eintragId(e2) !== id);
+  speichereArchiv(a);
+}
+function bauformAendern(id, folge) {
+  const e2 = eintragNachId(id);
+  if (!e2 || !SCHLAGFOLGEN[folge]) return null;
+  loescheEintrag(id);
+  const neu = { titel: e2.titel, text: e2.text, folge, geburt: e2.geburt || e2.folge };
+  archiviere(neu);
+  return eintragId(neu);
+}
+
+// src/generation/optionen.ts
+var TONE_OPTS = [
+  ["neutral", "Neutral"],
+  ["mystery", "Mystery"],
+  ["poetic", "Poetisch"],
+  ["melancholisch", "Melancholisch"],
+  ["dark", "D\xFCster"],
+  ["unheimlich", "Unheimlich"],
+  ["uplifting", "Hoffnungsvoll"],
+  ["zaertlich", "Z\xE4rtlich"],
+  ["traeumerisch", "Tr\xE4umerisch"],
+  ["nuechtern", "N\xFCchtern"],
+  ["ironisch", "Ironisch"],
+  ["humorous", "Humorvoll"]
+];
+var FORM_OPTS = [
+  ["prose", "Prosa"],
+  ["poem", "Prosagedicht"],
+  ["strang", "Gedicht-Strang"],
+  ["reim", "Reim"],
+  ["haiku", "Haiku"],
+  ["script", "Szene/Dialog"],
+  ["video", "Multi-Shot (Video)"],
+  ["bericht", "Bericht (Zeitung)"],
+  ["meldung", "Meldung (kurz)"]
+];
+var STRUCTURE_OPTS = [
+  ["auto", "Auto"],
+  ["linear", "Linear"],
+  ["reverse", "Reverse"],
+  ["circle", "Kreis"],
+  ["fragment", "Fragment"],
+  ["object", "Objekt"],
+  ["dramaturgie", "Dramaturgie (Preset 2.0)"],
+  ["rekombination", "Rekombination"],
+  // Geregelter Mittelweg (4.337.0): die Schlagfolge des gewählten Bogens als
+  // Phasenfolge, rekombinatorisch gefüllt; Bogen-Material an den Gelenken
+  // bevorzugt, dosiert über die Stellschraube „Erzählbogen".
+  ["bogen", "Rekombination mit Bogen"]
+];
+var MODE_OPTS = [
+  ["auto", "Auto"],
+  ["bureau", "B\xFCrokratie"],
+  ["tech", "Tech-Mystik"],
+  ["body", "Body"],
+  ["myth", "Myth"],
+  ["absurd", "Absurd"],
+  ["post", "Posthuman"]
+];
+var PERSP_OPTS = [
+  ["auto", "Auto"],
+  ["third", "Er/Sie"],
+  ["first", "Ich"],
+  ["second", "Du"],
+  ["we", "Wir"],
+  ["object", "Objekt"]
+];
+var RHYTHM_OPTS = [
+  ["auto", "Auto"],
+  ["breath", "Atem"],
+  ["staccato", "Staccato"],
+  ["long", "Lange B\xF6gen"],
+  ["fracture", "Fraktur"],
+  ["clean", "Klar"]
+];
+var VARIANZ_OPTS = [["low", "Stabil"], ["mid", "Wild"], ["high", "Radikal"]];
+var DISRUPTOR_OPTS = [["auto", "Auto"], ["off", "Aus"], ["on", "An"]];
+var ARCH_OPTS = [
+  ["neutral", "Neutral"],
+  ["skorpion", "Skorpion"],
+  ["psychopath", "Psychopath"],
+  ["entdecker", "Entdecker"]
+];
+var MARKOV_OPTS = [["off", "Aus"], ["mix", "Mix"], ["on", "Stark"]];
+var werte = (l) => l.map(([v]) => v);
+var TENSION_OPTS = [
+  ["off", "Aus"],
+  ["top", "Oben (12 Uhr)"],
+  ["mid", "Mitte (3 Uhr)"],
+  ["low", "Unten (6 Uhr)"]
+];
+var CAST_OPTS = [["0", "Offen"], ["0.5", "Mittel"], ["1", "Streng"]];
+var INSTAB_OPTS = [["0", "Aus"], ["1", "Subtil"], ["2", "Aggressiv"]];
+
+// src/corpus.ts
+init_constants();
+init_text_utils();
+init_storage_status();
+
+// src/generation/satzwaechter.ts
+init_verben();
+var FUNKTION = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "und",
+  "oder",
+  "aber",
+  "doch",
+  "denn",
+  "sondern",
+  "als",
+  "wie",
+  "dass",
+  "ob",
+  "weil",
+  "wenn",
+  "ohne",
+  "mit",
+  "von",
+  "aus",
+  "an",
+  "auf",
+  "in",
+  "im",
+  "am",
+  "f\xFCr",
+  "zu",
+  "zum",
+  "zur",
+  "bei",
+  "beim",
+  "nach",
+  "vor",
+  "\xFCber",
+  "unter",
+  "neben",
+  "zwischen",
+  "hinter",
+  "durch",
+  "gegen",
+  "um",
+  "seit",
+  "es",
+  "sich",
+  "man",
+  "sie",
+  "er",
+  "wir",
+  "ich",
+  "du",
+  "ihr",
+  "was",
+  "wer",
+  "wo",
+  "so",
+  "nur",
+  "auch",
+  "noch",
+  "schon",
+  "sehr",
+  "nicht",
+  "kein",
+  "keine",
+  "jeder",
+  "jede",
+  "jedes",
+  "alle"
+]);
+var HAENGENDES_ENDE = /* @__PURE__ */ new Set([
+  "der",
+  "den",
+  "dem",
+  "des",
+  "und",
+  "oder",
+  "aber",
+  "sondern",
+  "als",
+  "dass",
+  "weil",
+  "wenn",
+  "f\xFCr",
+  "zwischen",
+  "seit"
+  // NICHT in der Liste: alles, was im Deutschen legitim am Satzende steht —
+  // trennbare Verbpartikel („geht auf", „holt ihn ein", „gibt nach"),
+  // Infinitiv-zu („um wahr zu sein"), Vergleiche („schwer wie Blei"),
+  // Pronomen und Zahlwörter („der Grat trägt nur einen", „statt einem",
+  // „will es sehr"). Die Gegenprobe über 6930 eingebaute Sätze hat die
+  // Liste auf diesen Kern gestutzt.
+]);
+var ADJEKTIV = /* @__PURE__ */ new Set([
+  "fest",
+  "echt",
+  "leicht",
+  "schlecht",
+  "recht",
+  "dicht",
+  "glatt",
+  "satt",
+  "bunt",
+  "kalt",
+  "alt",
+  "laut",
+  "tot",
+  "rot",
+  "gut",
+  "weit",
+  "hart",
+  "zart",
+  "nett",
+  "matt",
+  "sp\xE4t",
+  "bereit",
+  "breit",
+  "nackt",
+  "exakt",
+  "direkt",
+  "perfekt",
+  "korrekt",
+  "konkret",
+  "komplett",
+  "ernst",
+  "feist",
+  "meist",
+  "erst",
+  "zun\xE4chst",
+  "h\xF6chst",
+  "\xE4u\xDFerst",
+  "einst",
+  "sonst",
+  "fast",
+  "blo\xDF"
+]);
+var HILFSVERB = /* @__PURE__ */ new Set([
+  "bin",
+  "bist",
+  "sind",
+  "seid",
+  "war",
+  "warst",
+  "waren",
+  "wart",
+  "sei",
+  "w\xE4re",
+  "w\xE4ren",
+  "hab",
+  "habe",
+  "hast",
+  "haben",
+  "habt",
+  "hatte",
+  "hatten",
+  "h\xE4tte",
+  "h\xE4tten",
+  "werde",
+  "wirst",
+  "wird",
+  "werden",
+  "werdet",
+  "wurde",
+  "wurden",
+  "w\xFCrde",
+  "w\xFCrden",
+  "kann",
+  "kannst",
+  "k\xF6nnen",
+  "k\xF6nnt",
+  "konnte",
+  "konnten",
+  "k\xF6nnte",
+  "k\xF6nnten",
+  "muss",
+  "musst",
+  "m\xFCssen",
+  "m\xFCsst",
+  "musste",
+  "mussten",
+  "m\xFCsste",
+  "darf",
+  "darfst",
+  "d\xFCrfen",
+  "d\xFCrft",
+  "durfte",
+  "durften",
+  "d\xFCrfte",
+  "soll",
+  "sollst",
+  "sollen",
+  "sollt",
+  "sollte",
+  "sollten",
+  "mag",
+  "magst",
+  "m\xF6gen",
+  "m\xF6gt",
+  "mochte",
+  "m\xF6chte",
+  "m\xF6chten",
+  "will",
+  "willst",
+  "wollen",
+  "wollt",
+  "wollte",
+  "wollten",
+  "l\xE4sst",
+  "lie\xDF",
+  "lie\xDFen",
+  "gibt",
+  "gab",
+  "gaben",
+  "tut",
+  "tat",
+  "schw\xF6r",
+  "schw\xF6re"
+]);
+var verbKandidat = (roh, istErstes = false) => {
+  if (!istErstes && /^[A-ZÄÖÜ]/.test(roh)) return false;
+  const w = roh.toLowerCase().replace(/[^a-zäöüß]/g, "");
+  if (!w || FUNKTION.has(w) || KEIN_VERB.has(w) || ADJEKTIV.has(w)) return false;
+  if (HILFSVERB.has(w) || istVerbform(w)) return true;
+  return /(t|st|e|en|eln|ern|elt|ert)$/.test(w) && !/(heit|keit|ung|schaft|tät|ment|iert)$/.test(w) && !/(em|er|es)$/.test(w) && w.length >= 3;
+};
+var woerter2 = (s) => s.split(/\s+/).map((w) => w.replace(/[„“"»«().!?…;:]+/g, "")).filter(Boolean);
+var NP_KOPF2 = /^(der|die|das|ein|eine|einen|kein|keine|zwei|drei|viele|manche|jede[rs]?|irgendein|lauter)\b/i;
+function pruefeSatz(satz) {
+  const bare = satz.trim().replace(/[.!?…]+$/, "").trim();
+  if (!bare) return 2;
+  const ws = woerter2(bare);
+  if (!ws.length) return 2;
+  const letztes = ws[ws.length - 1].toLowerCase();
+  if (HAENGENDES_ENDE.has(letztes)) return 1;
+  const hatVerb = ws.some((w, i) => verbKandidat(w, i === 0));
+  if (!hatVerb) {
+    if (ws.length > 12) return 2;
+    const kern = bare.replace(/^(und|aber|doch|dann|denn|oder|nur|auch)\s+/i, "");
+    const kopf = kern.split(/\s+/)[0] || "";
+    const ADVERB_KOPF = /^(irgendwo|irgendwann|irgendwie|dort|hier|heute|morgen|gestern|vielleicht|manchmal|so|bald|überall|nirgends|nirgendwo|draußen|drinnen|oben|unten|jetzt|damals|dennoch|trotzdem|deshalb|darum|davor|danach|zuerst|zuletzt|womöglich|angeblich|vermutlich|wahrscheinlich)$/i;
+    const nomenKopf = /^[A-ZÄÖÜ]/.test(kopf) && !ADVERB_KOPF.test(kopf) && !FUNKTION.has(kopf.toLowerCase());
+    const prepKopf = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zu|zum|zur|mit|durch|gegen|um|seit|während|trotz|wegen)$/i.test(kopf);
+    if (ws.length > 5 && !NP_KOPF2.test(kern) && !nomenKopf && !prepKopf) return 2;
+  }
+  for (const teil of bare.split(/,\s*/).slice(1)) {
+    const tw = woerter2(teil);
+    if (!tw.length || !/^(was|wer|der|die|das|dem|den|wo|wie)$/i.test(tw[0])) continue;
+    const undIdx = tw.findIndex((w, i) => i > 0 && /^(und|oder)$/i.test(w));
+    if (undIdx > 1 && verbKandidat(tw[undIdx + 1] || "", false) && !tw.slice(1, undIdx).some((w) => verbKandidat(w, false))) return 3;
+  }
+  const PREP_KOPF = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zum|zur|mit|durch|gegen|seit|trotz|wegen)$/i;
+  for (const teil of bare.split(/,\s*/)) {
+    const tw = woerter2(teil);
+    if (tw.length < 4 || !PREP_KOPF.test(tw[0])) continue;
+    if (/^(dem|denen|deren|dessen|welche[rmn]?)$/i.test(tw[1] || "")) continue;
+    if (tw.slice(1).some((w) => /^zu$/i.test(w))) continue;
+    const vi = tw.findIndex((w, i) => i > 1 && verbKandidat(w, false));
+    if (vi < 2) continue;
+    if (tw.slice(1, vi).some((w) => /^(es|er|sie|wir|ich|du|man|jemand|niemand|etwas|nichts|alles)$/i.test(w))) continue;
+    const rest = tw.slice(vi + 1);
+    if (/^(wie|als)$/i.test(rest[0] || "") && rest.length <= 2) return 4;
+  }
+  for (const teil of bare.split(/[,;]\s*|\s+(?:und|aber|oder|doch|sondern)\s+/i)) {
+    if (!/\bl(ä|ie)(ss|ß)t?\s+(es\s+)?sich\b/i.test(teil)) continue;
+    const tw = woerter2(teil);
+    const letztes2 = (tw[tw.length - 1] || "").toLowerCase();
+    if (!letztes2 || /^[A-ZÄÖÜ]/.test(tw[tw.length - 1] || "")) continue;
+    if (FUNKTION.has(letztes2) || ADJEKTIV.has(letztes2) || HILFSVERB.has(letztes2)) continue;
+    if (/t$/.test(letztes2) && !/(en|eln|ern)$/.test(letztes2)) return 5;
+  }
+  const finit = (w) => {
+    const l = w.toLowerCase();
+    if (HILFSVERB.has(l)) return true;
+    return /^[a-zäöüß]{3,}t$/.test(l) && !FUNKTION.has(l) && !ADJEKTIV.has(l) && !KEIN_VERB.has(l) && istVerbform(l);
+  };
+  for (const teil of bare.split(/[,;:—–]\s*/)) {
+    const tw = woerter2(teil);
+    for (let i = 0; i + 3 < tw.length; i++) {
+      if (!finit(tw[i]) || !/^(der|die|das|den|dem|ein|eine|einen|einem)$/i.test(tw[i + 1])) continue;
+      if (!/^[A-ZÄÖÜ]/.test(tw[i + 2])) continue;
+      if (HILFSVERB.has(tw[i + 3].toLowerCase())) return 6;
+    }
+  }
+  {
+    const auf = (bare.match(/[„»]/g) || []).length, zu = (bare.match(/[“«]/g) || []).length;
+    if (auf !== zu) return 7;
+  }
+  for (const teil of bare.split(/[,;:—–]\s*/))
+    if (/^es gibt(\s+(jetzt|hier|dort|noch|nur|auch|bald|immer|nie))?$/i.test(teil.trim())) return 8;
+  return 0;
+}
+function stueckPlausibel(text) {
+  const saetze = (text || "").split(/(?<=[.!?…])\s+/).map((s) => s.trim()).filter(Boolean);
+  if (!saetze.length) return false;
+  for (const satz of saetze) {
+    const regel = pruefeSatz(satz);
+    if (regel) {
+      zaehle(`regel${regel}`, satz);
+      return false;
+    }
+  }
+  zaehle("angenommen", Math.random() < 0.1 ? text : void 0);
+  return true;
+}
+
+// src/features/livepools.ts
+init_storage_status();
+var LP_KEY = "divergenz_live_pools_v1";
+var LP_CAP = 300;
+var LIVE_W = { schatz: 3, korpus: 2, gen: 1 };
+var STOP_NOUN = /* @__PURE__ */ new Set([
+  "Ich",
+  "Er",
+  "Sie",
+  "Es",
+  "Wir",
+  "Ihr",
+  "Du",
+  "Man",
+  "Herr",
+  "Frau",
+  "Herrn",
+  "Jahr",
+  "Jahre",
+  "Jahren",
+  "Mal",
+  "Weise",
+  "Art",
+  "Teil",
+  "Ende",
+  "Anfang",
+  "Seite",
+  "Stelle"
+]);
+var ART_NOM = {
+  ein: "ein",
+  einen: "ein",
+  einem: "ein",
+  eines: "ein",
+  eine: "eine",
+  einer: "eine"
+};
+var PREP3 = /* @__PURE__ */ new Set([
+  "auf",
+  "aus",
+  "vor",
+  "in",
+  "mit",
+  "ohne",
+  "gegen",
+  "durch",
+  "von",
+  "zu",
+  "bei",
+  "nach",
+  "\xFCber",
+  "unter",
+  "um",
+  "wie",
+  "als",
+  "zwischen"
+]);
+var clip = (s) => s.replace(/^[^A-Za-zÄÖÜäöüß]+|[^A-Za-zÄÖÜäöüß]+$/g, "");
+var isNoun = (w) => /^[A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]{3,}$/.test(w) && !STOP_NOUN.has(w) && w.length <= 24;
+function extractPhrases(text) {
+  const src = (text || "").replace(/\s+/g, " ").trim();
+  if (!src) return [];
+  const out = /* @__PURE__ */ new Set();
+  for (const sentence of src.split(/[.!?…]+\s+/)) {
+    const toks = sentence.split(" ").map(clip).filter(Boolean);
+    for (let i = 0; i < toks.length; i++) {
+      const w = toks[i];
+      if (!isNoun(w)) continue;
+      const p1 = i >= 1 ? toks[i - 1].toLowerCase() : "";
+      const p2 = i >= 2 ? toks[i - 2].toLowerCase() : "";
+      const art = ART_NOM[p1] || (/^[a-zäöüß-]{4,}$/.test(p1) ? ART_NOM[p2] : void 0);
+      if (art) {
+        out.add(art + " " + w);
+        continue;
+      }
+      if (PREP3.has(p1)) out.add(w);
+    }
+  }
+  return [...out];
+}
+function loadLive() {
+  try {
+    const v = JSON.parse(localStorage.getItem(LP_KEY) || "[]");
+    return Array.isArray(v) ? v.filter((x) => x && typeof x.t === "string") : [];
+  } catch {
+    return [];
+  }
+}
+function saveLive(list) {
+  safeSet(LP_KEY, JSON.stringify(list), "Lebendige Pools");
+}
+function feedLivePools(text, weight) {
+  const phrases = extractPhrases(text);
+  if (!phrases.length) return;
+  const list = loadLive();
+  const idx = new Map(list.map((e2, i) => [e2.t, i]));
+  const now = Date.now();
+  for (const p of phrases) {
+    const at = idx.get(p);
+    if (at === void 0) {
+      list.push({ t: p, n: weight, d: now });
+      idx.set(p, list.length - 1);
+    } else {
+      list[at].n += weight;
+      list[at].d = now;
+    }
+  }
+  if (list.length > LP_CAP) {
+    list.sort((a, b) => b.n - a.n || b.d - a.d);
+    list.length = LP_CAP;
+  }
+  saveLive(list);
+}
+function liveTexts() {
+  return loadLive().sort((a, b) => b.n - a.n || b.d - a.d).map((e2) => e2.t);
+}
+function liveCount() {
+  return loadLive().length;
+}
+function clearLivePools() {
+  try {
+    localStorage.removeItem(LP_KEY);
+  } catch {
+  }
+}
+
+// src/corpus.ts
+function loadPersistentCorpus() {
+  try {
+    return localStorage.getItem(STORAGE_CORPUS) || "";
+  } catch {
+    return "";
+  }
+}
+function savePersistentCorpus(text) {
+  safeSet(STORAGE_CORPUS, text, "Korpus");
+}
+var GERUEST_ZEILE = /^\s*(Faktenkasten\b|Kurz gemeldet\s*$|Fiktive Zeitung\b|Zeitzeichen\s*[·|]|Nr\.\s*\d+\s*[·|]|UNABHÄNGIG\b|SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/;
+function corpusSanitize(text) {
+  let s = (text ?? "").toString();
+  s = s.split(/\r?\n/).filter((z) => !/^\s*(SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/.test(z)).map((z) => z.replace(/^\s*(?:Shot\s*\d+\s*\([^)]*\)|(?:DE|EN)\s*:)\s*/, "")).join("\n");
+  s = s.replace(/\([^()]*\)/g, " ");
+  s = s.replace(/\b(?:gegen|um|ab|seit|bis)\s+\d{1,2}:\d{2}\b\s*(?:—|–)?\s*/gi, "");
+  s = s.replace(/\b\d{1,2}:\d{2}\b\s*—\s*/g, "");
+  s = s.replace(/\b(Schluss|Notiz|Rand|Gestern|Jetzt|Später|Drei Tage später)\s*—\s*/g, "");
+  s = s.replace(/\bSZENE:\s*/g, "");
+  s = s.split(/\r?\n/).filter((z) => !GERUEST_ZEILE.test(z)).join("\n");
+  s = s.replace(/Faktenkasten\s*·[^\n]*?(?:\.(?=\s+[A-ZÄÖÜ])|$)/g, " ");
+  s = s.replace(/—\s*(?=[.—])/g, "");
+  s = s.replace(/\.{2,}/g, ".");
+  s = s.replace(/\s+/g, " ").trim();
+  return s;
+}
+function appendToPersistentCorpus(textToAdd) {
+  const add = corpusSanitize(clean(textToAdd));
+  if (!add) return;
+  try {
+    feedLivePools(add, LIVE_W.korpus);
+  } catch {
+  }
+  let corpus = loadPersistentCorpus();
+  const sep = corpus.trim().length ? "\n\n" : "";
+  corpus = corpus + sep + add;
+  if (corpus.length > CORPUS_MAX) {
+    corpus = corpus.slice(corpus.length - CORPUS_MAX);
+    const cut = corpus.indexOf("\n\n");
+    if (cut > 0 && cut < 5e3) corpus = corpus.slice(cut + 2);
+  }
+  savePersistentCorpus(corpus);
+}
+function isSaneMarkov(s) {
+  if (!s || s.length < 20) return false;
+  const words3 = s.split(/\s+/);
+  if (words3.length < 5) return false;
+  const freq = {};
+  for (const w of words3) freq[w] = (freq[w] || 0) + 1;
+  const maxFreq = Math.max(...Object.values(freq));
+  if (maxFreq / words3.length > 0.5) return false;
+  const functionWords = /* @__PURE__ */ new Set([
+    "der",
+    "die",
+    "das",
+    "den",
+    "dem",
+    "des",
+    "ein",
+    "eine",
+    "einen",
+    "einem",
+    "einer",
+    "eines",
+    "in",
+    "auf",
+    "an",
+    "bei",
+    "mit",
+    "nach",
+    "von",
+    "aus",
+    "vor",
+    "hinter",
+    "\xFCber",
+    "unter",
+    "neben",
+    "zwischen"
+  ]);
+  let fn = 0;
+  for (const w of words3) if (functionWords.has(w.toLowerCase())) fn++;
+  if (fn / words3.length > 0.6) return false;
+  const sentences2 = s.split(/[.!?]+/).filter(Boolean);
+  for (const sentence of sentences2) {
+    const n = sentence.trim().split(/\s+/).length;
+    if (n > 30 || n < 2) return false;
+  }
+  const phrases = [];
+  for (let i = 0; i < words3.length - 2; i++) phrases.push(words3.slice(i, i + 3).join(" "));
+  const pc = {};
+  for (const p of phrases) pc[p] = (pc[p] || 0) + 1;
+  for (const c of Object.values(pc)) if (c >= 3) return false;
+  if (/\b(Schluss|Notiz|Rand)\s*—|\bSZENE:|dass\s*—|,\s*dass\s*$/i.test(s)) return false;
+  if (/[—–]\s*$/.test(s.trim())) return false;
+  const AUX_MK = /* @__PURE__ */ new Set(["bin", "bist", "ist", "sind", "seid", "war", "warst", "waren", "wart", "hatte", "hattest", "hatten", "hat", "habe", "hast", "habt", "haben", "wurde", "wurdest", "wurden", "wird", "werde", "werden", "w\xE4re", "w\xE4rst", "w\xE4ren"]);
+  const CONN_MK = /* @__PURE__ */ new Set(["und", "oder", "aber", "denn", "sondern", "doch", "weil", "dass", "wenn", "als", "w\xE4hrend", "obwohl", "damit", "sodass", "bevor", "nachdem", "ob", "wie", "wo", "der", "die", "das", "dem", "den"]);
+  for (let i = 0; i < words3.length; i++) {
+    const wi = words3[i].toLowerCase().replace(/[^a-zäöüß]/g, "");
+    if (!AUX_MK.has(wi)) continue;
+    for (let j = i + 1; j <= Math.min(words3.length - 1, i + 3); j++) {
+      const wj = words3[j].toLowerCase().replace(/[^a-zäöüß]/g, "");
+      if (CONN_MK.has(wj) || /[,;:]/.test(words3[j])) break;
+      const finite = /(t|te|ten|st)$/.test(wj) && CLAUSE_VERBS.has(wj) && !/^ge/.test(wj) && !AUX_MK.has(wj);
+      if (finite) return false;
+    }
+  }
+  const lw = words3.map((w) => w.toLowerCase().replace(/[^a-zäöüß]/g, ""));
+  for (let i = 0; i < lw.length; i++) {
+    if (lw[i].length < 5) continue;
+    for (let j = i + 1; j <= Math.min(lw.length - 1, i + 3); j++) {
+      if (lw[j] === lw[i]) return false;
+    }
+  }
+  if (!stueckPlausibel(s)) return false;
+  return true;
+}
+var MK_TAIL_STOP = /* @__PURE__ */ new Set([
+  "und",
+  "oder",
+  "aber",
+  "denn",
+  "sondern",
+  "doch",
+  "wie",
+  "als",
+  "ob",
+  "dass",
+  "weil",
+  "w\xE4hrend",
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "zu",
+  "in",
+  "auf",
+  "an",
+  "mit",
+  "von",
+  "aus",
+  "vor",
+  "f\xFCr",
+  "bei",
+  "nach",
+  "\xFCber",
+  "unter",
+  "noch",
+  "nur",
+  "auch",
+  "so",
+  "dann",
+  "genau",
+  "im",
+  "am",
+  "beim",
+  "zum",
+  "zur",
+  "ins",
+  "vom",
+  "ans",
+  "aufs",
+  "f\xFCrs",
+  "durchs",
+  "\xFCbers",
+  "ums"
+]);
+function smoothMarkov(s) {
+  let words3 = (s || "").trim().split(/\s+/).filter(Boolean);
+  if (!words3.length) return "";
+  const norm = (w) => w.toLowerCase().replace(/[^a-zäöüß]/g, "");
+  const dedup = [];
+  for (const w of words3) {
+    const prev = dedup[dedup.length - 1];
+    if (prev && norm(prev) && norm(prev) === norm(w)) continue;
+    dedup.push(w);
+  }
+  words3 = dedup;
+  while (words3.length > 3 && MK_TAIL_STOP.has(norm(words3[words3.length - 1]))) words3.pop();
+  let t = words3.join(" ").replace(/\s+([,.;:!?…])/g, "$1").trim();
+  t = t.replace(/[\s,;:—–-]+$/, "");
+  if (t && !/[.!?…]$/.test(t)) t += ".";
+  t = t.replace(/^([a-zäöüß])/, (c) => c.toUpperCase());
+  return t;
+}
+var MarkovModel = class {
+  constructor(order = 2) {
+    this.map = /* @__PURE__ */ new Map();
+    this.starts = [];
+    this.order = Math.max(1, order);
+  }
+  get size() {
+    return this.map.size;
+  }
+  /** Fügt einen Text inkrementell hinzu. */
+  addText(text) {
+    const clean1 = corpusSanitize(text);
+    for (const sentence of clean1.split(/(?<=[.!?…])\s+/)) {
+      const tokens3 = sentence.split(/\s+/).filter(Boolean);
+      if (tokens3.length <= this.order) continue;
+      this.starts.push(tokens3.slice(0, this.order).join(" "));
+      for (let i = 0; i + this.order < tokens3.length; i++) {
+        const key = tokens3.slice(i, i + this.order).join(" ");
+        const next = tokens3[i + this.order];
+        const arr = this.map.get(key);
+        if (arr) arr.push(next);
+        else this.map.set(key, [next]);
+      }
+    }
+  }
+  /** Mittlere Überraschung (bits) eines Textes unter dem eigenen Modell, 0..1 normiert.
+   *  Hoch = der Text folgt unwahrscheinlichen Übergängen (informationsreich),
+   *  niedrig = er reproduziert den Korpus (klischeehaft). Nur bekannte Keys zählen. */
+  surprise(text) {
+    const clean1 = corpusSanitize(text);
+    let bits = 0, n = 0;
+    for (const sentence of clean1.split(/(?<=[.!?…])\s+/)) {
+      const toks = sentence.split(/\s+/).filter(Boolean);
+      for (let i = 0; i + this.order < toks.length; i++) {
+        const key = toks.slice(i, i + this.order).join(" ");
+        const choices = this.map.get(key);
+        if (!choices || !choices.length) continue;
+        const next = toks[i + this.order];
+        let c = 0;
+        for (const x of choices) if (x === next) c++;
+        const p = c > 0 ? c / choices.length : 1 / (choices.length + 1);
+        bits += -Math.log2(p);
+        n++;
+      }
+    }
+    if (n < 2) return -1;
+    return Math.max(0, Math.min(1, bits / n / 8));
+  }
+  /** Erzeugt einen Text (bis maxWords Wörter). */
+  generate(maxWords = 40) {
+    if (!this.starts.length) return "";
+    let key = this.starts[Math.floor(Math.random() * this.starts.length)];
+    const out = key.split(" ");
+    const hart = Math.ceil(maxWords * 1.5);
+    while (out.length < hart) {
+      const choices = this.map.get(key);
+      if (!choices || !choices.length) break;
+      const next = choices[Math.floor(Math.random() * choices.length)];
+      out.push(next);
+      key = out.slice(out.length - this.order).join(" ");
+      if (/[.!?…]$/.test(next) && out.length >= this.order + 2) break;
+    }
+    if (!/[.!?…]$/.test(out[out.length - 1] || "")) {
+      let i = out.length - 1;
+      while (i >= 0 && !/[.!?…]$/.test(out[i])) i--;
+      if (i < this.order + 1) return "";
+      out.length = i + 1;
+    }
+    return out.join(" ");
+  }
+};
+function buildModelFromCorpus(order = 2) {
+  const model = new MarkovModel(order);
+  const corpus = loadPersistentCorpus();
+  if (corpus) model.addText(corpus);
+  return model;
+}
+
+// src/features/wikisammler.ts
+init_declension();
+init_text_utils();
+init_storage_status();
+var VORRAT_KEY = "divergenz_sammler_vorrat_v1";
+function ladeVorrat() {
+  try {
+    const r = JSON.parse(localStorage.getItem(VORRAT_KEY) || "[]");
+    if (!Array.isArray(r)) return [];
+    return r.filter((f) => f && f.ctx && typeof f.ctx.what === "string");
+  } catch {
+    return [];
+  }
+}
+function ziehVorrat(vorrat = ladeVorrat(), rnd = Math.random) {
+  const brauchbar = vorrat.filter((f) => f.ctx && (f.ctx.what || f.ctx.who || f.ctx.where));
+  if (!brauchbar.length) return null;
+  const i = Math.min(brauchbar.length - 1, Math.max(0, Math.floor(rnd() * brauchbar.length)));
+  return brauchbar[i];
+}
+function vorratStand(vorrat = ladeVorrat()) {
+  return { funde: vorrat.length, tage: new Set(vorrat.map((f) => f.tag)).size };
+}
+
+// src/features/bildsammler.ts
+var ARTIKEL2 = new RegExp(
+  "\\b(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|am|im|zum|zur|vom|beim|ins|ans|aufs|f\xFCrs|durchs|ums|dies|diese[rmns]?|jene[rmns]?|jede[rmns]?|manche[rmns]?|solche[rmns]?|alle[rmns]?|beide[rn]?|welche[rmns]?|keine?[rmns]?|mein|dein|sein|ihr|unser|euer|meine[rmns]?|deine[rmns]?|seine[rmns]?|ihre[rmns]?|unsere[rmns]?|eure[rmns]?)\\b",
+  "i"
+);
+var BILDVORRAT_KEY = "divergenz_bildvorrat_v1";
+function taugtFund(f) {
+  const c = f?.ctx;
+  return !!c && !!(c.who || c.where || c.when || c.what);
+}
+function ladeBildvorrat() {
+  try {
+    const r = JSON.parse(localStorage.getItem(BILDVORRAT_KEY) || "[]");
+    if (!Array.isArray(r)) return [];
+    return r.filter((f) => f && f.ctx && typeof f.ctx.what === "string");
+  } catch {
+    return [];
+  }
+}
+function ziehBildvorrat(vorrat = ladeBildvorrat(), rnd = Math.random) {
+  const gut = vorrat.filter(taugtFund);
+  if (!gut.length) return null;
+  const i = Math.min(gut.length - 1, Math.max(0, Math.floor(rnd() * gut.length)));
+  return gut[i];
+}
+
+// src/features/themenpool.ts
+init_storage_status();
+var LABEL = 'SERVICE wikibase:label { bd:serviceParam wikibase:language "de,en". }';
+var THEMEN = [
+  {
+    id: "filmfiguren",
+    label: "Filmfiguren",
+    hinweis: "Figuren aus Spielfilmen mit dem Film, in dem sie vorkommen.",
+    sparql: `SELECT ?item ?werLabel ?wasLabel ?wannRoh ?woLabel WHERE {
+  ?item wdt:P31 wd:Q15773317 .
+  OPTIONAL { ?item wdt:P1441 ?was . }
+  OPTIONAL { ?item wdt:P106 ?beruf . }
+  OPTIONAL { ?was wdt:P577 ?wannRoh . }
+  OPTIONAL { ?was wdt:P495 ?wo . }
+  BIND(?item AS ?wer)
+  ${LABEL}
+} LIMIT 120`,
+    wasSatz: (was) => `taucht in \u201E${was}\u201C auf`
+  },
+  {
+    id: "regie",
+    label: "Regie und Film",
+    hinweis: "Regisseurinnen und Regisseure mit einem ihrer Filme.",
+    sparql: `SELECT ?item ?werLabel ?wasLabel ?wannRoh ?woLabel WHERE {
+  ?was wdt:P31 wd:Q11424 ; wdt:P57 ?item ; wdt:P577 ?wannRoh .
+  OPTIONAL { ?was wdt:P495 ?wo . }
+  BIND(?item AS ?wer)
+  ${LABEL}
+} LIMIT 120`,
+    wasSatz: (was) => `dreht \u201E${was}\u201C`
+  },
+  {
+    id: "politik",
+    label: "Politik",
+    hinweis: "Politikerinnen und Politiker mit Amt, Geburtsort und Jahr.",
+    sparql: `SELECT ?item ?werLabel ?wasLabel ?wannRoh ?woLabel WHERE {
+  ?item wdt:P106 wd:Q82955 ; wdt:P569 ?wannRoh ; wdt:P19 ?wo .
+  OPTIONAL { ?item wdt:P39 ?was . }
+  BIND(?item AS ?wer)
+  ${LABEL}
+} LIMIT 120`,
+    wasSatz: (was) => `ist ${was}`
+  },
+  {
+    id: "erfindung",
+    label: "Erfindungen",
+    hinweis: "Erfinderinnen und Erfinder mit dem, was sie ersonnen haben.",
+    sparql: `SELECT ?item ?werLabel ?wasLabel ?wannRoh ?woLabel WHERE {
+  ?was wdt:P61 ?item ; wdt:P571 ?wannRoh .
+  OPTIONAL { ?item wdt:P19 ?wo . }
+  BIND(?item AS ?wer)
+  ${LABEL}
+} LIMIT 120`,
+    wasSatz: (was) => `ersinnt ${was}`
+  },
+  {
+    id: "musik",
+    label: "Komponistinnen und Komponisten",
+    hinweis: "Werke der Musik mit ihren Urhebern und dem Jahr.",
+    sparql: `SELECT ?item ?werLabel ?wasLabel ?wannRoh ?woLabel WHERE {
+  ?was wdt:P86 ?item ; wdt:P571 ?wannRoh .
+  OPTIONAL { ?item wdt:P19 ?wo . }
+  BIND(?item AS ?wer)
+  ${LABEL}
+} LIMIT 120`,
+    wasSatz: (was) => `komponiert \u201E${was}\u201C`
+  },
+  {
+    id: "entdeckung",
+    label: "Entdeckungen",
+    hinweis: "Wer hat was entdeckt \u2014 und wann.",
+    sparql: `SELECT ?item ?werLabel ?wasLabel ?wannRoh ?woLabel WHERE {
+  ?was wdt:P61 ?item .
+  OPTIONAL { ?was wdt:P575 ?wannRoh . }
+  OPTIONAL { ?item wdt:P19 ?wo . }
+  BIND(?item AS ?wer)
+  ${LABEL}
+} LIMIT 120`,
+    wasSatz: (was) => `entdeckt ${was}`
+  },
+  {
+    id: "literatur",
+    label: "Literatur",
+    hinweis: "Romane und Erz\xE4hlungen mit Verfasserin oder Verfasser.",
+    sparql: `SELECT ?item ?werLabel ?wasLabel ?wannRoh ?woLabel WHERE {
+  ?was wdt:P31 wd:Q7725634 ; wdt:P50 ?item ; wdt:P577 ?wannRoh .
+  OPTIONAL { ?item wdt:P19 ?wo . }
+  BIND(?item AS ?wer)
+  ${LABEL}
+} LIMIT 120`,
+    wasSatz: (was) => `schreibt \u201E${was}\u201C`
+  },
+  {
+    id: "bauwerk",
+    label: "Bauwerke",
+    hinweis: "Bauwerke mit Architektin oder Architekt, Ort und Jahr.",
+    sparql: `SELECT ?item ?werLabel ?wasLabel ?wannRoh ?woLabel WHERE {
+  ?was wdt:P84 ?item ; wdt:P571 ?wannRoh ; wdt:P131 ?wo .
+  BIND(?item AS ?wer)
+  ${LABEL}
+} LIMIT 120`,
+    wasSatz: (was) => `entwirft ${was}`
+  }
+];
+var THEMA_IDS = THEMEN.map((t) => t.id);
+var THEMA_KEY = "divergenz_themenpool_v1";
+function ladeThemen() {
+  try {
+    const r = JSON.parse(localStorage.getItem(THEMA_KEY) || "[]");
+    if (!Array.isArray(r)) return [];
+    return r.filter((f) => f && f.ctx && typeof f.ctx.what === "string");
+  } catch {
+    return [];
+  }
+}
+function ziehThema(thema = "", vorrat = ladeThemen(), rnd = Math.random) {
+  const topf = thema ? vorrat.filter((f) => f.thema === thema) : vorrat;
+  if (!topf.length) return null;
+  return topf[Math.min(topf.length - 1, Math.floor(rnd() * topf.length))];
+}
+function themenStand(vorrat = ladeThemen()) {
+  return { funde: vorrat.length, themen: new Set(vorrat.map((f) => f.thema)).size };
+}
+
+// src/features/world.ts
+init_constants();
+init_text_utils();
+
+// src/generation/ideas.data.ts
+var WHO_TAGGED = [
+  { t: "eine Uhrmacherin", tags: ["einzel"] },
+  { t: "ein pensionierter Richter", tags: ["einzel"] },
+  { t: "eine Archivarin ohne Namen", tags: ["einzel"] },
+  { t: "ein \xDCbersetzer f\xFCr tote Sprachen", tags: ["einzel"] },
+  { t: "eine Kartographin ohne Karten", tags: ["einzel"] },
+  { t: "ein Fremder, der jeden Namen kennt", tags: ["einzel"] },
+  { t: "eine Chirurgin mit zitternden H\xE4nden", tags: ["einzel"] },
+  { t: "ein M\xF6nch, der das Schweigen gebrochen hat", tags: ["einzel"] },
+  { t: "eine Diplomatin ohne Land", tags: ["einzel"] },
+  { t: "ein Leuchtturmw\xE4rter im letzten Dienstjahr", tags: ["einzel"] },
+  { t: "eine Restauratorin alter Fresken", tags: ["einzel"] },
+  { t: "ein Nachtportier mit fotografischem Ged\xE4chtnis", tags: ["einzel"] },
+  { t: "eine Seismologin, die niemand ernst nimmt", tags: ["einzel"] },
+  { t: "ein Totengr\xE4ber, der Briefe schreibt", tags: ["einzel"] },
+  { t: "eine Glasbl\xE4serin mit vernarbten H\xE4nden", tags: ["einzel"] },
+  { t: "ein Kanalarbeiter, der Stimmen h\xF6rt", tags: ["einzel"] },
+  { t: "eine Bibliothekarin ohne Namen", tags: ["einzel"] },
+  { t: "ein Boxer im Ruhestand", tags: ["einzel"] },
+  { t: "ein Buchhalter mit doppeltem Ged\xE4chtnis", tags: ["einzel"] },
+  { t: "eine Witwe, die nichts geerbt hat", tags: ["einzel"] },
+  { t: "eine Handvoll \xDCberlebender", tags: ["kollektiv"] },
+  { t: "ein Chor ohne Dirigent", tags: ["kollektiv"] },
+  { t: "eine Belegschaft, die nicht mehr nach Hause geht", tags: ["kollektiv"] },
+  { t: "ein Ensemble im Dauerstreik", tags: ["kollektiv"] },
+  { t: "das Dorf hinter dem Deich", tags: ["kollektiv"] },
+  { t: "eine Kommune ohne Anf\xFChrer", tags: ["kollektiv"] },
+  { t: "ein Schwarm ohne Zentrum", tags: ["kollektiv", "nichtmensch"] },
+  { t: "die Nachtschicht einer stillen Fabrik", tags: ["kollektiv"] },
+  { t: "eine Expedition, die sich verlaufen hat", tags: ["kollektiv"] },
+  { t: "ein Geschworenengericht ohne Angeklagten", tags: ["kollektiv", "institution"] },
+  { t: "die Besatzung eines Frachtschiffs", tags: ["kollektiv"] },
+  { t: "eine Familie mit zu vielen Geheimnissen", tags: ["kollektiv"] },
+  { t: "ein Orchester, das nicht aufh\xF6ren kann", tags: ["kollektiv"] },
+  { t: "eine Sekte ohne Gott", tags: ["kollektiv", "institution"] },
+  { t: "ein Rettungstrupp ohne Auftrag", tags: ["kollektiv"] },
+  { t: "eine Reisegruppe, die niemand abgeholt hat", tags: ["kollektiv"] },
+  { t: "ein Kind, das zu viel wei\xDF", tags: ["kind", "einzel"] },
+  { t: "ein Junge mit zwei Schatten", tags: ["kind"] },
+  { t: "ein M\xE4dchen, das die Zukunft tr\xE4umt", tags: ["kind"] },
+  { t: "ein stummes Kind mit fremder Handschrift", tags: ["kind"] },
+  { t: "der j\xFCngste Zeuge einer langen Nacht", tags: ["kind"] },
+  { t: "ein Waisenkind mit geerbtem Ged\xE4chtnis", tags: ["kind"] },
+  { t: "ein Schulm\xE4dchen, das Karten f\xE4lscht", tags: ["kind", "antiheld"] },
+  { t: "ein Junge, der jede L\xFCge h\xF6rt", tags: ["kind"] },
+  { t: "ein Kind, das man vergessen hat abzuholen", tags: ["kind"] },
+  { t: "eine Zw\xF6lfj\xE4hrige mit einem Vertrag", tags: ["kind"] },
+  { t: "ein Findelkind ohne Spiegelbild", tags: ["kind"] },
+  { t: "ein Junge, der einen Fluss gro\xDFzieht", tags: ["kind"] },
+  { t: "ein M\xE4dchen mit dem Ged\xE4chtnis eines Hauses", tags: ["kind"] },
+  { t: "ein Kind, das nur nachts spricht", tags: ["kind"] },
+  { t: "der Sohn eines F\xE4lschers", tags: ["kind", "antiheld"] },
+  { t: "ein Ministerium ohne Minister", tags: ["institution"] },
+  { t: "eine Beh\xF6rde f\xFCr Verlorenes", tags: ["institution"] },
+  { t: "ein Gericht im Exil", tags: ["institution"] },
+  { t: "ein Archiv mit eigenem Willen", tags: ["institution", "nichtmensch"] },
+  { t: "eine Bibliothek, die Entscheidungen trifft", tags: ["institution", "nichtmensch"] },
+  { t: "ein Orden ohne Glauben", tags: ["institution"] },
+  { t: "eine Klinik, die niemanden entl\xE4sst", tags: ["institution"] },
+  { t: "das Amt f\xFCr unerledigte Dinge", tags: ["institution"] },
+  { t: "eine Schule ohne Sch\xFCler", tags: ["institution"] },
+  { t: "ein Museum, das seine Exponate verliert", tags: ["institution"] },
+  { t: "eine Redaktion, die nur Dementis druckt", tags: ["institution"] },
+  { t: "ein Konzern mit vergessener Zentrale", tags: ["institution"] },
+  { t: "das Register aller falschen Namen", tags: ["institution", "nichtmensch"] },
+  { t: "eine Kommission ohne Auftrag", tags: ["institution"] },
+  { t: "ein Kloster mit fremdem Kalender", tags: ["institution"] },
+  { t: "die Zensurbeh\xF6rde einer freien Stadt", tags: ["institution"] },
+  { t: "ein Algorithmus mit Namen", tags: ["nichtmensch"] },
+  { t: "eine Maschine, die zu tr\xE4umen beginnt", tags: ["nichtmensch"] },
+  { t: "ein Fluss, der sich erinnert", tags: ["nichtmensch"] },
+  { t: "eine Stimme ohne K\xF6rper", tags: ["nichtmensch"] },
+  { t: "ein Tier, das ein Versprechen h\xE4lt", tags: ["nichtmensch"] },
+  { t: "ein Haus mit eigenem Willen", tags: ["nichtmensch"] },
+  { t: "eine Uhr, die zur\xFCckz\xE4hlt", tags: ["nichtmensch"] },
+  { t: "ein Wald, der Namen vergibt", tags: ["nichtmensch"] },
+  { t: "eine Kolonie unter dem Eis", tags: ["nichtmensch", "kollektiv"] },
+  { t: "ein Signal, das antwortet", tags: ["nichtmensch"] },
+  { t: "eine Karte, die sich selbst zeichnet", tags: ["nichtmensch"] },
+  { t: "ein Spiegel mit Ged\xE4chtnis", tags: ["nichtmensch"] },
+  { t: "eine Wolke, die einem Menschen folgt", tags: ["nichtmensch"] },
+  { t: "ein Schiff ohne Besatzung, das Kurs h\xE4lt", tags: ["nichtmensch"] },
+  { t: "eine Sprache, die aussterben will", tags: ["nichtmensch"] },
+  { t: "ein Schatten, der fr\xFCher ankommt", tags: ["nichtmensch"] },
+  { t: "ein Bahnhof, der Reisende beh\xE4lt", tags: ["nichtmensch"] },
+  { t: "eine Falschm\xFCnzerin mit Prinzipien", tags: ["antiheld"] },
+  { t: "ein Spion im Ruhestand", tags: ["antiheld", "einzel"] },
+  { t: "eine Diebin, die nur Erinnerungen stiehlt", tags: ["antiheld"] },
+  { t: "ein Verr\xE4ter aus Loyalit\xE4t", tags: ["antiheld"] },
+  { t: "ein Hochstapler mit echtem Titel", tags: ["antiheld"] },
+  { t: "eine Anw\xE4ltin f\xFCr aussichtslose F\xE4lle", tags: ["antiheld", "einzel"] },
+  { t: "ein Erpresser mit gutem Ged\xE4chtnis", tags: ["antiheld"] },
+  { t: "eine Schmugglerin von B\xFCchern", tags: ["antiheld"] },
+  { t: "ein S\xF6ldner, der nicht mehr schie\xDFt", tags: ["antiheld"] },
+  { t: "eine Betr\xFCgerin mit sauberem Gewissen", tags: ["antiheld"] },
+  { t: "ein Kronzeuge, der l\xFCgt", tags: ["antiheld"] },
+  { t: "eine Grabr\xE4uberin mit Doktortitel", tags: ["antiheld"] },
+  { t: "ein Henker, der Gnade sammelt", tags: ["antiheld"] },
+  { t: "eine F\xE4lscherin echter Dokumente", tags: ["antiheld"] },
+  { t: "ein Deserteur mit Orden", tags: ["antiheld"] },
+  { t: "eine Wilderin im Naturschutzgebiet", tags: ["antiheld"] },
+  { t: "eine Pilotin ohne Lizenz", tags: ["antiheld", "einzel"] }
+];
+var WHERE_TAGGED = [
+  { t: "in einer schlaflosen Stadt", tags: ["urban"] },
+  { t: "in einem verlassenen Bahnhof", tags: ["urban"] },
+  { t: "in einem Hinterhof ohne Ausgang", tags: ["urban", "raum"] },
+  { t: "auf einem n\xE4chtlichen Boulevard", tags: ["urban"] },
+  { t: "in einem Hochhaus ohne Erdgeschoss", tags: ["urban"] },
+  { t: "in der U-Bahn nach Mitternacht", tags: ["urban"] },
+  { t: "in einem Viertel, das abgerissen wird", tags: ["urban"] },
+  { t: "auf einem Parkdeck \xFCber der Stadt", tags: ["urban"] },
+  { t: "in einer Markthalle vor Sonnenaufgang", tags: ["urban"] },
+  { t: "in einem Hotel mit zu vielen Zimmern", tags: ["urban"] },
+  { t: "unter einer Autobahnbr\xFCcke", tags: ["urban"] },
+  { t: "in einer Stra\xDFe, die zweimal existiert", tags: ["urban", "nirgendwo"] },
+  { t: "in Paris", tags: ["urban"] },
+  { t: "in einem Nachtbus ohne Fahrg\xE4ste", tags: ["urban", "raum"] },
+  { t: "in einem Kino, das nie schlie\xDFt", tags: ["urban"] },
+  { t: "auf einem Dach \xFCber dem Verkehr", tags: ["urban"] },
+  { t: "in einer Telefonzelle, die noch klingelt", tags: ["urban"] },
+  { t: "in einem Kellerclub ohne Namen", tags: ["urban"] },
+  { t: "am Rand eines Moors", tags: ["natur"] },
+  { t: "in einem Wald ohne V\xF6gel", tags: ["natur"] },
+  { t: "an einer versinkenden K\xFCste", tags: ["natur"] },
+  { t: "auf einem Gletscher, der schmilzt", tags: ["natur"] },
+  { t: "in einer W\xFCste mit T\xFCren", tags: ["natur", "nirgendwo"] },
+  { t: "am Ufer eines toten Flusses", tags: ["natur"] },
+  { t: "am Fluss", tags: ["natur"] },
+  { t: "in einem Tal, das verstummt ist", tags: ["natur"] },
+  { t: "auf einer Insel ohne Hafen", tags: ["natur"] },
+  { t: "in einer H\xF6hle mit warmem Wind", tags: ["natur", "raum"] },
+  { t: "auf einem Feld nach der Ernte", tags: ["natur"] },
+  { t: "an einem See, der nie zufriert", tags: ["natur"] },
+  { t: "im Schilf hinter dem Deich", tags: ["natur"] },
+  { t: "auf einem Pass im ersten Schnee", tags: ["natur", "grenze"] },
+  { t: "in einem Obstgarten, der nicht mehr tr\xE4gt", tags: ["natur"] },
+  { t: "an einer Steilk\xFCste im Nebel", tags: ["natur"] },
+  { t: "unter einem Baum, der \xE4lter ist als das Dorf", tags: ["natur"] },
+  { t: "in einem Sumpf voller Wracks", tags: ["natur"] },
+  { t: "in einem versiegelten Zimmer", tags: ["raum"] },
+  { t: "in einem Aufzug zwischen zwei Stockwerken", tags: ["raum", "grenze"] },
+  { t: "in einer Kabine auf hoher See", tags: ["raum"] },
+  { t: "in einem Bunker ohne Uhr", tags: ["raum"] },
+  { t: "in einem Wartesaal ohne Z\xFCge", tags: ["raum"] },
+  { t: "hinter einer T\xFCr, die nicht schlie\xDFt", tags: ["raum"] },
+  { t: "in einem Zugabteil ohne Fenster", tags: ["raum"] },
+  { t: "in einer Dunkelkammer", tags: ["raum"] },
+  { t: "in einem Treppenhaus ohne Ausgang", tags: ["raum"] },
+  { t: "in einem Beichtstuhl", tags: ["raum", "institution"] },
+  { t: "in einer K\xFChlkammer", tags: ["raum"] },
+  { t: "in einem Auto am Stra\xDFenrand", tags: ["raum"] },
+  { t: "in einem Zelt im Dauerregen", tags: ["raum", "natur"] },
+  { t: "in einem Fahrstuhlschacht", tags: ["raum"] },
+  { t: "in einer Zelle mit Aussicht", tags: ["raum", "institution"] },
+  { t: "auf einem Dachboden voller Uhren", tags: ["raum"] },
+  { t: "an der Grenze zweier L\xE4nder", tags: ["grenze"] },
+  { t: "auf einer Br\xFCcke im Niemandsland", tags: ["grenze"] },
+  { t: "an der Schwelle zweier Zeiten", tags: ["grenze", "nirgendwo"] },
+  { t: "in einer Zollstation im Nebel", tags: ["grenze"] },
+  { t: "auf der Linie zwischen Traum und Wachen", tags: ["grenze", "nirgendwo"] },
+  { t: "am \xDCbergang, den keiner bewacht", tags: ["grenze"] },
+  { t: "auf einer F\xE4hre zwischen zwei Ufern", tags: ["grenze"] },
+  { t: "an einem Grenzfluss ohne Br\xFCcke", tags: ["grenze", "natur"] },
+  { t: "im Transitbereich eines Flughafens", tags: ["grenze"] },
+  { t: "an der K\xFCstenlinie bei Flut", tags: ["grenze", "natur"] },
+  { t: "auf dem letzten Meter vor der Sperre", tags: ["grenze"] },
+  { t: "in einem Korridor zwischen zwei Staaten", tags: ["grenze"] },
+  { t: "am Waldrand vor der Lichtung", tags: ["grenze", "natur"] },
+  { t: "auf der T\xFCrschwelle, die niemand \xFCberschreitet", tags: ["grenze"] },
+  { t: "an einem Ort ohne Namen", tags: ["nirgendwo"] },
+  { t: "in einer Stadt, die es nicht gibt", tags: ["nirgendwo", "urban"] },
+  { t: "im wei\xDFen Raum dazwischen", tags: ["nirgendwo"] },
+  { t: "auf einer Karte ohne Legende", tags: ["nirgendwo"] },
+  { t: "im Nichts nach dem letzten Halt", tags: ["nirgendwo"] },
+  { t: "an einem vergessenen Koordinatenpunkt", tags: ["nirgendwo"] },
+  { t: "zwischen zwei S\xE4tzen", tags: ["nirgendwo"] },
+  { t: "in einem Traum, der jemand anderem geh\xF6rt", tags: ["nirgendwo"] },
+  { t: "an einem Ort, den alle anders erinnern", tags: ["nirgendwo"] },
+  { t: "im Zwischenraum einer Erinnerung", tags: ["nirgendwo"] },
+  { t: "hinter der letzten bekannten Adresse", tags: ["nirgendwo"] },
+  { t: "in einer Gegend, die keine Karte erfasst", tags: ["nirgendwo"] },
+  { t: "auf einem Bahnsteig ohne Gleise", tags: ["nirgendwo"] },
+  { t: "dort, wo die Stra\xDFe einfach aufh\xF6rt", tags: ["nirgendwo"] },
+  { t: "in einem Archiv der Universit\xE4t", tags: ["institution"] },
+  { t: "in einer geschlossenen Klinik", tags: ["institution"] },
+  { t: "in einer stillgelegten Fabrik", tags: ["institution", "urban"] },
+  { t: "in einem Ministerium bei Nacht", tags: ["institution"] },
+  { t: "in einer Bibliothek ohne B\xFCcher", tags: ["institution"] },
+  { t: "in einem Gericht ohne Richter", tags: ["institution"] },
+  { t: "im Archiv", tags: ["institution"] },
+  { t: "in einem Amtszimmer im vierten Stock", tags: ["institution"] },
+  { t: "in einer Kaserne ohne Rekruten", tags: ["institution"] },
+  { t: "in einem Museum nach Schlie\xDFung", tags: ["institution"] },
+  { t: "in einem Internat im Winter", tags: ["institution"] },
+  { t: "in einer Wahlkabine", tags: ["institution"] },
+  { t: "in einem Rechenzentrum", tags: ["institution"] },
+  { t: "in einer Anstalt mit offenen T\xFCren", tags: ["institution"] },
+  { t: "im Keller eines Standesamts", tags: ["institution"] },
+  { t: "in einer Kirche ohne Gemeinde", tags: ["institution"] }
+];
+var WHEN_TAGGED = [
+  { t: "heute, kurz vor Feierabend", tags: ["gegenwart"] },
+  { t: "an einem Sonntagnachmittag", tags: ["gegenwart"] },
+  { t: "w\xE4hrend eines Stromausfalls", tags: ["gegenwart", "umbruch"] },
+  { t: "in der Woche des gro\xDFen Sturms", tags: ["gegenwart"] },
+  { t: "an einem ganz gew\xF6hnlichen Dienstag", tags: ["gegenwart"] },
+  { t: "im Winter", tags: ["gegenwart", "zeitlos"] },
+  { t: "kurz vor Mitternacht", tags: ["gegenwart", "zeitlos"] },
+  { t: "im Morgengrauen", tags: ["gegenwart", "zeitlos"] },
+  { t: "an einem Montag im November", tags: ["gegenwart"] },
+  { t: "w\xE4hrend der Mittagspause", tags: ["gegenwart"] },
+  { t: "in der Nacht nach dem Umzug", tags: ["gegenwart"] },
+  { t: "am Tag der Beerdigung", tags: ["gegenwart"] },
+  { t: "zwischen zwei Terminen", tags: ["gegenwart"] },
+  { t: "an einem Abend ohne Strom", tags: ["gegenwart"] },
+  { t: "im Sommer der langen D\xFCrre", tags: ["gegenwart"] },
+  { t: "an einem Freitag im Regen", tags: ["gegenwart"] },
+  { t: "1789", tags: ["historisch"] },
+  { t: "1917", tags: ["historisch"] },
+  { t: "1348", tags: ["historisch"] },
+  { t: "im Jahr der gro\xDFen Flut", tags: ["historisch", "zeitlos"] },
+  { t: "w\xE4hrend einer Belagerung", tags: ["historisch", "umbruch"] },
+  { t: "1848", tags: ["historisch"] },
+  { t: "im Herbst 1923", tags: ["historisch"] },
+  { t: "1889", tags: ["historisch"] },
+  { t: "w\xE4hrend der Choleraepidemie", tags: ["historisch"] },
+  { t: "im Jahr nach dem Krieg", tags: ["historisch"] },
+  { t: "1666", tags: ["historisch"] },
+  { t: "in der Woche der Kr\xF6nung", tags: ["historisch", "umbruch"] },
+  { t: "1961", tags: ["historisch"] },
+  { t: "w\xE4hrend der gro\xDFen Auswanderung", tags: ["historisch"] },
+  { t: "im letzten Sommer der Monarchie", tags: ["historisch", "umbruch"] },
+  { t: "1492", tags: ["historisch"] },
+  { t: "im Winter der Hungersnot", tags: ["historisch"] },
+  { t: "am Vorabend der Revolution", tags: ["historisch", "umbruch"] },
+  { t: "2041", tags: ["zukunft"] },
+  { t: "im dritten Jahr der Stille", tags: ["zukunft"] },
+  { t: "nach dem letzten Winter", tags: ["zukunft"] },
+  { t: "als die Meere zur\xFCckwichen", tags: ["zukunft"] },
+  { t: "im Jahrhundert der Karten ohne L\xE4nder", tags: ["zukunft"] },
+  { t: "2103", tags: ["zukunft"] },
+  { t: "im zweiten Jahr der neuen Zeitrechnung", tags: ["zukunft", "umbruch"] },
+  { t: "nach der gro\xDFen Abschaltung", tags: ["zukunft", "umbruch"] },
+  { t: "als die St\xE4dte zu wandern begannen", tags: ["zukunft"] },
+  { t: "2077", tags: ["zukunft"] },
+  { t: "im Sommer ohne Nacht", tags: ["zukunft", "zeitlos"] },
+  { t: "nachdem die letzte Grenze fiel", tags: ["zukunft", "umbruch"] },
+  { t: "im Jahr der ersten R\xFCckkehr", tags: ["zukunft"] },
+  { t: "als niemand mehr schrieb", tags: ["zukunft"] },
+  { t: "2199", tags: ["zukunft"] },
+  { t: "nach dem Ende der Vorhersagen", tags: ["zukunft"] },
+  { t: "zu einer Zeit, die niemand z\xE4hlt", tags: ["zeitlos"] },
+  { t: "im Jahr Null", tags: ["zeitlos"] },
+  { t: "als die Uhren noch schwiegen", tags: ["zeitlos"] },
+  { t: "irgendwann, immer", tags: ["zeitlos"] },
+  { t: "in einem Sommer ohne Ende", tags: ["zeitlos"] },
+  { t: "lange vor den Namen", tags: ["zeitlos"] },
+  { t: "in einer Woche, die sich wiederholt", tags: ["zeitlos"] },
+  { t: "zwischen zwei Herzschl\xE4gen", tags: ["zeitlos"] },
+  { t: "als die Zeit noch niemandem geh\xF6rte", tags: ["zeitlos"] },
+  { t: "an einem Tag, der zweimal stattfindet", tags: ["zeitlos"] },
+  { t: "im ewigen Nachmittag", tags: ["zeitlos"] },
+  { t: "bevor die Kalender erfunden wurden", tags: ["zeitlos"] },
+  { t: "in der Stunde, die nicht gez\xE4hlt wird", tags: ["zeitlos"] },
+  { t: "zu einer Zeit ohne Zeugen", tags: ["zeitlos"] },
+  { t: "in einem Jahr ohne Zahl", tags: ["zeitlos"] },
+  { t: "am Tag der Sonnenfinsternis", tags: ["umbruch"] },
+  { t: "in der Nacht des Umsturzes", tags: ["umbruch"] },
+  { t: "w\xE4hrend eines Generalstreiks", tags: ["umbruch"] },
+  { t: "am letzten Tag des Jahres", tags: ["umbruch"] },
+  { t: "in der Stunde der Entscheidung", tags: ["umbruch"] },
+  { t: "am Morgen nach der Wahl", tags: ["umbruch"] },
+  { t: "w\xE4hrend der Evakuierung", tags: ["umbruch"] },
+  { t: "in der Nacht, als die Grenze fiel", tags: ["umbruch"] },
+  { t: "am Tag der gro\xDFen Abstimmung", tags: ["umbruch"] },
+  { t: "w\xE4hrend des letzten Prozesses", tags: ["umbruch"] },
+  { t: "als die Fabrik schloss", tags: ["umbruch"] },
+  { t: "in der Woche der R\xE4umung", tags: ["umbruch"] },
+  { t: "am Vorabend des Aufbruchs", tags: ["umbruch"] },
+  { t: "w\xE4hrend des Erdbebens", tags: ["umbruch"] },
+  { t: "in den Stunden vor der Verk\xFCndung", tags: ["umbruch"] }
+];
+var WHAT_TAGGED = [
+  { t: "sucht eine Spur, die keiner hinterlie\xDF", tags: ["mystery"] },
+  { t: "findet einen Brief, der nicht an sie gerichtet war", tags: ["mystery"] },
+  { t: "entdeckt ein zweites Testament", tags: ["mystery"] },
+  { t: "verfolgt eine L\xFCge bis zur Wurzel", tags: ["mystery"] },
+  { t: "st\xF6\xDFt auf einen Namen, den es nicht geben d\xFCrfte", tags: ["mystery"] },
+  { t: "rekonstruiert eine Nacht, die niemand erlebt hat", tags: ["mystery"] },
+  { t: "sucht eine Spur", tags: ["mystery"] },
+  { t: "findet ein Foto mit einer Person zu viel", tags: ["mystery", "horror"] },
+  { t: "erbt einen Schl\xFCssel ohne Schloss", tags: ["mystery"] },
+  { t: "entziffert ein Tagebuch in fremder Hand", tags: ["mystery"] },
+  { t: "verh\xF6rt einen Zeugen, der l\xE4ngst tot ist", tags: ["mystery", "horror"] },
+  { t: "\xF6ffnet einen Fall, den alle geschlossen haben", tags: ["mystery"] },
+  { t: "bemerkt, dass zwei Uhren nicht \xFCbereinstimmen", tags: ["mystery"] },
+  { t: "verfolgt jemanden, der die eigene Route kennt", tags: ["mystery"] },
+  { t: "findet die eigene Unterschrift auf fremdem Papier", tags: ["mystery"] },
+  { t: "erh\xE4lt eine Nachricht aus der Zukunft", tags: ["scifi"] },
+  { t: "findet eine T\xFCr, die es nicht geben d\xFCrfte", tags: ["scifi", "maerchen"] },
+  { t: "verliert die Kontrolle \xFCber die eigene Stimme", tags: ["scifi", "horror"] },
+  { t: "erwacht in einem K\xF6rper mit fremdem Ged\xE4chtnis", tags: ["scifi"] },
+  { t: "entziffert ein Signal aus dem Nichts", tags: ["scifi"] },
+  { t: "tauscht Zeit gegen eine Erinnerung", tags: ["scifi"] },
+  { t: "wird von der eigenen Kopie verklagt", tags: ["scifi", "satire"] },
+  { t: "verkauft eine Erinnerung zu teuer", tags: ["scifi"] },
+  { t: "entdeckt eine L\xFCcke in der Simulation", tags: ["scifi"] },
+  { t: "verliert eine Woche und findet sie woanders", tags: ["scifi"] },
+  { t: "spricht mit einer Maschine, die l\xFCgt", tags: ["scifi"] },
+  { t: "bekommt ein Angebot von der eigenen Zukunft", tags: ["scifi"] },
+  { t: "muss beweisen, real zu sein", tags: ["scifi", "absurd"] },
+  { t: "findet den letzten Menschen ohne Anschluss", tags: ["scifi"] },
+  { t: "erbt ein fremdes Bewusstsein", tags: ["scifi"] },
+  { t: "schlie\xDFt einen Pakt, den keiner versteht", tags: ["maerchen"] },
+  { t: "folgt einem Licht in den Wald", tags: ["maerchen"] },
+  { t: "erbt einen Fluch mit gutem Kern", tags: ["maerchen"] },
+  { t: "verspricht drei Dinge, die sich widersprechen", tags: ["maerchen"] },
+  { t: "sucht einen Namen, um frei zu werden", tags: ["maerchen"] },
+  { t: "\xF6ffnet die verbotene T\xFCr", tags: ["maerchen", "horror"] },
+  { t: "tauscht den Schatten gegen einen Wunsch", tags: ["maerchen"] },
+  { t: "bekommt eine Gabe, die keiner will", tags: ["maerchen"] },
+  { t: "muss sieben N\xE4chte schweigen", tags: ["maerchen"] },
+  { t: "weckt etwas, das schlafen sollte", tags: ["maerchen", "horror"] },
+  { t: "verhandelt mit dem Fluss um einen \xDCbergang", tags: ["maerchen"] },
+  { t: "verliert das Gesicht an einen Spiegel", tags: ["maerchen", "horror"] },
+  { t: "gibt das eigene Herz als Pfand", tags: ["maerchen"] },
+  { t: "l\xF6st ein R\xE4tsel und verliert dabei alles", tags: ["maerchen"] },
+  { t: "wird von einem Tier um Hilfe gebeten", tags: ["maerchen"] },
+  { t: "f\xFCllt ein Formular f\xFCr die eigene Abwesenheit", tags: ["absurd", "satire"] },
+  { t: "verklagt den eigenen Schatten", tags: ["absurd"] },
+  { t: "wartet auf einen Termin, der nie kommt", tags: ["absurd"] },
+  { t: "erbt ein Amt ohne Aufgabe", tags: ["absurd", "satire"] },
+  { t: "verliert die Erinnerung an einen Namen", tags: ["absurd"] },
+  { t: "wird f\xFCr tot erkl\xE4rt und muss es widerlegen", tags: ["absurd"] },
+  { t: "beantragt eine Genehmigung zu existieren", tags: ["absurd", "satire"] },
+  { t: "wird in eine Abteilung ohne T\xFCr bef\xF6rdert", tags: ["absurd", "satire"] },
+  { t: "muss einen Fehler verwalten, den es nicht gibt", tags: ["absurd"] },
+  { t: "steht in einer Schlange, die sich selbst anstellt", tags: ["absurd"] },
+  { t: "bekommt einen Ausweis f\xFCr ein anderes Leben", tags: ["absurd"] },
+  { t: "soll das eigene Verschwinden protokollieren", tags: ["absurd"] },
+  { t: "sucht ein Zimmer, dessen Nummer wandert", tags: ["absurd"] },
+  { t: "erh\xE4lt Post von einer Beh\xF6rde ohne Existenz", tags: ["absurd"] },
+  { t: "muss die eigene Vergangenheit erst beantragen", tags: ["absurd"] },
+  { t: "will einfach nur verschwinden", tags: ["alltag"] },
+  { t: "trifft eine Entscheidung binnen einer Stunde", tags: ["alltag"] },
+  { t: "bricht ein Versprechen aus Kindheitstagen", tags: ["alltag"] },
+  { t: "kehrt an einen alten Ort zur\xFCck", tags: ["alltag"] },
+  { t: "sagt endlich einen Satz zu sp\xE4t", tags: ["alltag"] },
+  { t: "r\xE4umt ein Zimmer und findet ein Leben", tags: ["alltag"] },
+  { t: "will verschwinden", tags: ["alltag"] },
+  { t: "wartet auf einen Anruf, der nicht kommt", tags: ["alltag"] },
+  { t: "verpasst einen Zug mit Absicht", tags: ["alltag"] },
+  { t: "trifft jemanden, den es nicht mehr geben sollte", tags: ["alltag", "horror"] },
+  { t: "beantwortet einen zwanzig Jahre alten Brief", tags: ["alltag"] },
+  { t: "k\xFCndigt ohne Plan", tags: ["alltag"] },
+  { t: "erkennt sich auf einem fremden Foto", tags: ["alltag", "mystery"] },
+  { t: "verschiebt eine Beerdigung", tags: ["alltag"] },
+  { t: "beginnt ein Gespr\xE4ch, das alles \xE4ndert", tags: ["alltag"] },
+  { t: "h\xF6rt Schritte im leeren Haus", tags: ["horror"] },
+  { t: "bemerkt, dass die Spiegel nicht mehr stimmen", tags: ["horror"] },
+  { t: "z\xE4hlt eine Person zu viel", tags: ["horror"] },
+  { t: "findet die eigene Handschrift an fremder Wand", tags: ["horror"] },
+  { t: "verliert jede Nacht eine Erinnerung mehr", tags: ["horror"] },
+  { t: "wird von etwas erkannt, das keiner sieht", tags: ["horror"] },
+  { t: "h\xF6rt den eigenen Namen aus dem Nebenzimmer", tags: ["horror"] },
+  { t: "entdeckt, dass das Haus gr\xF6\xDFer wird", tags: ["horror"] },
+  { t: "findet Fu\xDFspuren, die zur\xFCckf\xFChren", tags: ["horror"] },
+  { t: "wacht jede Nacht eine Stunde fr\xFCher auf", tags: ["horror"] },
+  { t: "bemerkt, dass niemand mehr blinzelt", tags: ["horror"] },
+  { t: "gr\xE4bt etwas aus, das noch warm ist", tags: ["horror"] },
+  { t: "bekommt Anrufe von der eigenen Nummer", tags: ["horror"] },
+  { t: "sieht dasselbe Gesicht in jeder Menge", tags: ["horror"] },
+  { t: "schlie\xDFt eine T\xFCr, die offen bleibt", tags: ["horror"] },
+  { t: "gr\xFCndet ein Amt gegen die Wirklichkeit", tags: ["satire"] },
+  { t: "gewinnt einen Preis f\xFCr nichts", tags: ["satire"] },
+  { t: "verwaltet das Ende der Welt in Ordnern", tags: ["satire"] },
+  { t: "beruft eine Sitzung \xFCber Sitzungen ein", tags: ["satire"] },
+  { t: "optimiert sich selbst weg", tags: ["satire"] },
+  { t: "verkauft Zeit an die, die keine haben", tags: ["satire"] },
+  { t: "erfindet ein Problem und die passende L\xF6sung", tags: ["satire"] },
+  { t: "wird zum Gesicht einer Kampagne gegen sich selbst", tags: ["satire"] },
+  { t: "reformiert eine Beh\xF6rde in eine gr\xF6\xDFere", tags: ["satire"] },
+  { t: "l\xE4sst die Wahrheit auslagern", tags: ["satire"] },
+  { t: "schreibt ein Gutachten \xFCber das eigene Gutachten", tags: ["satire"] },
+  { t: "privatisiert das Wetter", tags: ["satire"] },
+  { t: "gr\xFCndet eine Kommission zur Abschaffung von Kommissionen", tags: ["satire"] },
+  { t: "macht Karriere durch konsequentes Nichtstun", tags: ["satire"] },
+  { t: "digitalisiert ein Formular, das niemand braucht", tags: ["satire"] }
+];
+var CTX_WHO = WHO_TAGGED.map((e2) => e2.t);
+var CTX_WHERE = WHERE_TAGGED.map((e2) => e2.t);
+var CTX_WHEN = WHEN_TAGGED.map((e2) => e2.t);
+var CTX_WHAT = WHAT_TAGGED.map((e2) => e2.t);
+function byTag(pool, tag) {
+  const hit = pool.filter((e2) => e2.tags.includes(tag)).map((e2) => e2.t);
+  return hit.length ? hit : pool.map((e2) => e2.t);
+}
+var WHO_TWISTS = [
+  "mit einem geliehenen Namen",
+  "ohne Erinnerung an den gestrigen Tag",
+  "auf der Flucht vor einem Versprechen",
+  "mit zitternden H\xE4nden",
+  "kurz vor dem Aufbruch",
+  "voller ungestellter Fragen",
+  "mit einem fremden Koffer",
+  "zwischen zwei Loyalit\xE4ten",
+  "mit einer alten Schuld im Gep\xE4ck",
+  "ohne Papiere",
+  "mit einem zweiten Gesicht",
+  "mit einem halb vergessenen Auftrag",
+  "im falschen Jahrzehnt geboren",
+  "mit geliehener Stimme",
+  "mit einer Narbe, die niemand erkl\xE4rt",
+  "ohne R\xFCckfahrkarte",
+  "mit einem Brief, der nie abgeschickt wurde",
+  "unter fremder Aufsicht",
+  "mit einem Namen, den zwei Menschen tragen",
+  "im letzten Anzug des Vaters"
+];
+var WHERE_TWISTS = [
+  "wo die Uhren falsch gehen",
+  "wo niemand nach Namen fragt",
+  "wo nachts Licht brennt, obwohl niemand wohnt",
+  "wo alle T\xFCren offen stehen",
+  "wo der Fluss r\xFCckw\xE4rts zu flie\xDFen scheint",
+  "wo man Fremde sofort erkennt",
+  "wo ein Zimmer seit Jahren verschlossen ist",
+  "wo die Karten nicht stimmen",
+  "wo jeder zweite Brief verloren geht",
+  "wo das Echo eine Sekunde zu sp\xE4t kommt",
+  "wo der Winter nie ganz endet",
+  "wo die W\xE4nde d\xFCnner sind, als man denkt",
+  "wo die Stra\xDFen keine Namen tragen",
+  "wo man den Hafen h\xF6rt, aber nicht sieht",
+  "wo jedes Fenster nach Osten zeigt",
+  "wo die V\xF6gel nicht landen",
+  "wo eine Uhr seit Jahren dieselbe Zeit zeigt",
+  "wo der Boden bei Regen nachgibt"
+];
+var WHEN_TWISTS = [
+  "kurz nach der Sperrstunde",
+  "in der Nacht der Inventur",
+  "am Tag der letzten F\xE4hre",
+  "w\xE4hrend eines Stromausfalls",
+  "zwischen zwei Glockenschl\xE4gen",
+  "am Vorabend einer Abreise",
+  "in der Woche der Nebel",
+  "als die Zeitungen schwiegen",
+  "w\xE4hrend des Jahrmarkts",
+  "in der Stunde zwischen Hund und Wolf",
+  "kurz bevor die Br\xFCcke gesperrt wird",
+  "am Morgen nach dem Fest",
+  "in der Nacht der langen Regen",
+  "w\xE4hrend die Glocken repariert werden",
+  "kurz vor der Zeitumstellung",
+  "als die Stra\xDFen leer blieben",
+  "in der Woche vor dem Umzug",
+  "am Tag, an dem die Post ausblieb"
+];
+var WHAT_TWISTS = [
+  "ohne zu wissen, warum",
+  "obwohl alle abraten",
+  "zum dritten und letzten Mal",
+  "gegen ein altes Versprechen",
+  "f\xFCr jemanden, der nie danach gefragt hat",
+  "mit den falschen Werkzeugen",
+  "unter falschem Namen",
+  "bevor es ein anderer tut",
+  "aus einem Grund, der erst am Ende z\xE4hlt",
+  "heimlich, zwischen zwei Pflichten",
+  "und zahlt daf\xFCr einen stillen Preis",
+  "als w\xE4re nichts geschehen",
+  "mit geliehenem Mut",
+  "einen Tag zu sp\xE4t",
+  "und nimmt daf\xFCr die Schuld auf sich",
+  "ohne Zeugen",
+  "w\xE4hrend alle anderen feiern",
+  "und kann es hinterher nicht erkl\xE4ren"
+];
+
+// src/features/world.ts
+var EMPTY = () => ({ figuren: [], orte: [], timeline: [], beziehungen: [], tag: 1 });
+var stripTail = (s) => clean(s).replace(/[.!?…]+$/, "");
+var WORLD_TENSION = /vermisst|beobacht|taucht unter|untergetaucht|geheimnis|gejagt|falle|erpresst|verraten|erkannt|misstrauisch|spur|warnung|gerücht/i;
+function loadWorld() {
+  try {
+    const raw = localStorage.getItem(STORAGE_WORLD);
+    if (!raw) return EMPTY();
+    const w = JSON.parse(raw);
+    return {
+      figuren: Array.isArray(w.figuren) ? w.figuren : [],
+      orte: Array.isArray(w.orte) ? w.orte : [],
+      timeline: Array.isArray(w.timeline) ? w.timeline : [],
+      beziehungen: Array.isArray(w.beziehungen) ? w.beziehungen : [],
+      tag: Number.isFinite(w.tag) ? w.tag : 1
+    };
+  } catch {
+    return EMPTY();
+  }
+}
+function saveWorld(w) {
+  try {
+    localStorage.setItem(STORAGE_WORLD, JSON.stringify(w));
+  } catch {
+  }
+}
+var splitEntry = (line) => {
+  const p = String(line || "").split(/\s+—\s+/);
+  return { name: (p[0] || "").trim(), status: (p[1] || "").trim() };
+};
+var joinEntry = (name, status) => {
+  name = String(name || "").trim();
+  status = String(status || "").trim();
+  return status ? `${name} \u2014 ${status}` : name;
+};
+function upsertFigure(name, status) {
+  name = clean(name);
+  if (!name) return;
+  const w = loadWorld();
+  const idx = w.figuren.findIndex((l) => splitEntry(l).name.toLowerCase() === name.toLowerCase());
+  if (idx >= 0) w.figuren[idx] = joinEntry(name, clean(status) || splitEntry(w.figuren[idx]).status);
+  else w.figuren.push(joinEntry(name, clean(status) || "taucht zum ersten Mal auf"));
+  if (w.figuren.length > 100) w.figuren = w.figuren.slice(-100);
+  saveWorld(w);
+}
+function upsertOrt(name, zustand) {
+  name = clean(name);
+  if (!name) return;
+  const w = loadWorld();
+  const idx = w.orte.findIndex((l) => splitEntry(l).name.toLowerCase() === name.toLowerCase());
+  if (idx >= 0) w.orte[idx] = joinEntry(name, clean(zustand) || splitEntry(w.orte[idx]).status);
+  else w.orte.push(joinEntry(name, clean(zustand) || "wird zum ersten Mal erw\xE4hnt"));
+  if (w.orte.length > 100) w.orte = w.orte.slice(-100);
+  saveWorld(w);
+}
+function addTimeline(text) {
+  text = clean(text);
+  if (!text) return;
+  const w = loadWorld();
+  w.timeline.push(text);
+  if (w.timeline.length > 200) w.timeline = w.timeline.slice(-200);
+  saveWorld(w);
+}
+var WAS_ZU_STATUS = [
+  [/vermisst|taucht unter|gerücht/, [
+    "will unerkannt zur\xFCckkehren",
+    "will nicht gefunden werden",
+    "wartet, bis das Gerede aufh\xF6rt",
+    "kommt zur\xFCck, ohne angek\xFCndigt zu sein"
+  ]],
+  [/beobacht/, [
+    "will den Beobachter stellen",
+    "sucht das Fenster gegen\xFCber",
+    "merkt, dass jemand mitschreibt",
+    "dreht die Beobachtung um"
+  ]],
+  [/geheimnis|akte/, [
+    "will das Geheimnis beweisen",
+    "sucht die fehlende Seite",
+    "h\xE4lt die Akte zur\xFCck",
+    "verlangt Einsicht"
+  ]],
+  [/gejagt|erkannt|entkommt/, [
+    "will die Verfolger absch\xFCtteln",
+    "nimmt einen Umweg, der l\xE4nger dauert",
+    "wechselt den Namen und bleibt",
+    "geht dorthin zur\xFCck, wo man ihn kennt"
+  ]],
+  [/spur/, [
+    "will die Spur zu Ende verfolgen",
+    "findet den Anfang der Spur nicht",
+    "l\xE4uft der eigenen Spur nach",
+    "gibt die Spur bewusst auf"
+  ]]
+];
+function whatFromStatus(status) {
+  const s = (status || "").toLowerCase();
+  for (const [muster, saetze] of WAS_ZU_STATUS) if (muster.test(s)) return pick(saetze);
+  return "";
+}
+var WELT_SAAT = 6;
+function worldFillContext() {
+  const w = loadWorld();
+  let dirty = false;
+  while (w.figuren.length < WELT_SAAT) {
+    const name = pick(CTX_WHO);
+    if (w.figuren.some((l) => splitEntry(l).name === name)) {
+      if (w.figuren.length >= CTX_WHO.length) break;
+      continue;
+    }
+    w.figuren.push(joinEntry(name, "taucht zum ersten Mal auf"));
+    dirty = true;
+  }
+  while (w.orte.length < WELT_SAAT) {
+    const ort2 = pick(CTX_WHERE);
+    if (w.orte.some((l) => splitEntry(l).name === ort2)) {
+      if (w.orte.length >= CTX_WHERE.length) break;
+      continue;
+    }
+    w.orte.push(joinEntry(ort2, "wird zum ersten Mal erw\xE4hnt"));
+    dirty = true;
+  }
+  if (dirty) saveWorld(w);
+  const tense = w.figuren.filter((l) => WORLD_TENSION.test(l));
+  const fig = splitEntry(pick(tense.length && Math.random() < 0.67 ? tense : w.figuren));
+  const lived = w.orte.filter((l) => !/zum ersten Mal erwähnt/i.test(l));
+  const ort = splitEntry(pick(lived.length && Math.random() < 0.67 ? lived : w.orte));
+  return { who: fig.name, where: ort.name, when: pick(CTX_WHEN), what: whatFromStatus(fig.status) || pick(CTX_WHAT) };
+}
+function worldLogGeneration(input) {
+  try {
+    const who = clean(input.who || ""), where = clean(input.where || ""), what = clean(input.what || ""), when = clean(input.when || "");
+    if (who) upsertFigure(who, what || "aktiv");
+    if (where) upsertOrt(where, what ? `Schauplatz: ${stripTail(what)}` : "besucht");
+    if (who || where) {
+      const tag = loadWorld().tag || 1;
+      addTimeline(`Tag ${tag} \u2014 ${who ? cap(who) : "Jemand"} ${what || "handelt"}${where ? ", " + where : ""}${when ? " (" + when + ")" : ""}.`);
+    }
+  } catch {
+  }
+}
+
+// src/features/treasury.ts
+init_storage_status();
+var TKEY = "dm_treasury_v1";
+var TCAP = 100;
+function loadTreasury() {
+  try {
+    const v = JSON.parse(localStorage.getItem(TKEY) || "[]");
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+function saveTreasury(list) {
+  safeSet(TKEY, JSON.stringify(list), "Schatzkammer");
+}
+function addToTreasury(text, ctx) {
+  const t = (text || "").trim();
+  if (!t) return -1;
+  const list = loadTreasury();
+  if (list.length && list[list.length - 1].t === t) return -1;
+  list.push({ t, who: ctx.who || "", where: ctx.where || "", when: ctx.when || "", what: ctx.what || "", form: ctx.form || "", d: (/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace("T", " "), ...ctx.set ? { set: ctx.set } : {} });
+  while (list.length > TCAP) list.shift();
+  saveTreasury(list);
+  try {
+    appendToPersistentCorpus(t.replace(/\n+/g, " ").trim());
+  } catch {
+  }
+  try {
+    feedLivePools(t, LIVE_W.schatz);
+  } catch {
+  }
+  return list.length;
+}
+function addToTreasurySecret(text, ctx) {
+  const t = (text || "").trim();
+  if (!t) return -1;
+  const list = loadTreasury();
+  if (list.length && list[list.length - 1].t === t) return -1;
+  list.push({ t, who: ctx.who || "", where: ctx.where || "", when: ctx.when || "", what: ctx.what || "", form: ctx.form || "", d: (/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace("T", " "), secret: true, ...ctx.set ? { set: ctx.set } : {} });
+  while (list.length > TCAP) list.shift();
+  saveTreasury(list);
+  return list.length;
+}
+function clearTreasury() {
+  saveTreasury([]);
+}
+
+// src/features/ideaprofile.ts
+var TON_ARCH = {
+  duester: "psychopath",
+  unheimlich: "skorpion",
+  verspielt: "entdecker",
+  hoffnung: "entdecker",
+  ironisch: "neutral",
+  melancholisch: "neutral"
+};
+function ideaProfileToConfig(p, liveShare = 0) {
+  const d = Math.max(0, Math.min(100, p.divergenz));
+  let archetypeId = TON_ARCH[p.ton] || "neutral";
+  if (p.protagonist === "antiheld" && archetypeId === "neutral") archetypeId = "skorpion";
+  const tags = [p.konflikt, p.fokus, p.wendung];
+  if (p.massstab !== "mittel") tags.push(p.massstab);
+  return {
+    archetypeId,
+    whoPool: byTag(WHO_TAGGED, p.protagonist),
+    wherePool: byTag(WHERE_TAGGED, p.ort),
+    whenPool: byTag(WHEN_TAGGED, p.zeit),
+    whatPool: byTag(WHAT_TAGGED, p.genre),
+    tags,
+    twistProb: 0.2 + 6e-3 * d,
+    doubleTwist: d >= 75,
+    mashupCount: d >= 55 ? 2 : 1,
+    liveShare: Math.max(0, Math.min(1, liveShare))
+  };
+}
+var IDEA_PRESETS = {
+  noir: { name: "Noir", genre: "mystery", ton: "duester", protagonist: "antiheld", konflikt: "raetsel", ort: "urban", zeit: "historisch", massstab: "intim", wendung: "enthuellung", fokus: "figur", divergenz: 45 },
+  kosmos: { name: "Kosmischer Horror", genre: "horror", ton: "unheimlich", protagonist: "nichtmensch", konflikt: "natur", ort: "nirgendwo", zeit: "zeitlos", massstab: "kosmisch", wendung: "enthuellung", fokus: "atmo", divergenz: 70 },
+  kafka: { name: "Kafkaesk", genre: "absurd", ton: "unheimlich", protagonist: "einzel", konflikt: "system", ort: "institution", zeit: "gegenwart", massstab: "intim", wendung: "paradox", fokus: "konzept", divergenz: 55 },
+  alltag: { name: "Alltagspoesie", genre: "alltag", ton: "melancholisch", protagonist: "einzel", konflikt: "inner", ort: "urban", zeit: "gegenwart", massstab: "intim", wendung: "offen", fokus: "figur", divergenz: 25 },
+  maerchen: { name: "M\xE4rchen-Umkehr", genre: "maerchen", ton: "verspielt", protagonist: "kind", konflikt: "raetsel", ort: "natur", zeit: "zeitlos", massstab: "mittel", wendung: "umkehr", fokus: "handlung", divergenz: 45 },
+  techno: { name: "Techno-Thriller", genre: "scifi", ton: "duester", protagonist: "kollektiv", konflikt: "kampf", ort: "urban", zeit: "zukunft", massstab: "episch", wendung: "eskalation", fokus: "handlung", divergenz: 50 },
+  buero: { name: "Absurde B\xFCrokratie", genre: "satire", ton: "ironisch", protagonist: "institution", konflikt: "system", ort: "institution", zeit: "gegenwart", massstab: "mittel", wendung: "ironie", fokus: "konzept", divergenz: 40 }
+};
+var IDEA_PRESET_LABELS = [
+  ["noir", "Noir"],
+  ["kosmos", "Kosmischer Horror"],
+  ["kafka", "Kafkaesk"],
+  ["alltag", "Alltagspoesie"],
+  ["maerchen", "M\xE4rchen-Umkehr"],
+  ["techno", "Techno-Thriller"],
+  ["buero", "Absurde B\xFCrokratie"]
+];
+var GENRE_ALL = ["mystery", "scifi", "maerchen", "absurd", "alltag", "horror", "satire"];
+var TON_ALL = ["duester", "hoffnung", "ironisch", "melancholisch", "unheimlich", "verspielt"];
+var PROT_ALL = ["einzel", "kollektiv", "kind", "institution", "nichtmensch", "antiheld"];
+var KONF_ALL = ["raetsel", "kampf", "inner", "natur", "system", "zeit"];
+var ORT_ALL = ["urban", "natur", "raum", "grenze", "nirgendwo", "institution"];
+var ZEIT_ALL = ["gegenwart", "historisch", "zukunft", "zeitlos", "umbruch"];
+var MASS_ALL = ["intim", "mittel", "episch", "kosmisch"];
+var WEND_ALL = ["umkehr", "enthuellung", "eskalation", "offen", "paradox", "ironie"];
+var FOK_ALL = ["figur", "konzept", "atmo", "handlung", "form"];
+function pickOne(v, allowed, def) {
+  return typeof v === "string" && allowed.includes(v) ? v : def;
+}
+function buildIdeaProfilePrompt(name) {
+  return `Erzeuge ein Ideen-Profil f\xFCr das Thema/Motiv: "${name}".
+Antworte NUR mit einem einzigen JSON-Objekt in GENAU diesem Format (ersetze die Beispielwerte, keine Kommentare, kein weiterer Text):
+{"genre":"mystery","ton":"duester","protagonist":"antiheld","konflikt":"raetsel","ort":"urban","zeit":"historisch","massstab":"intim","wendung":"enthuellung","fokus":"figur","divergenz":50}
+
+Erlaubte Werte (jeweils genau einer):
+- genre: mystery, scifi, maerchen, absurd, alltag, horror, satire
+- ton: duester, hoffnung, ironisch, melancholisch, unheimlich, verspielt
+- protagonist: einzel, kollektiv, kind, institution, nichtmensch, antiheld
+- konflikt: raetsel, kampf, inner, natur, system, zeit
+- ort: urban, natur, raum, grenze, nirgendwo, institution
+- zeit: gegenwart, historisch, zukunft, zeitlos, umbruch
+- massstab: intim, mittel, episch, kosmisch
+- wendung: umkehr, enthuellung, eskalation, offen, paradox, ironie
+- fokus: figur, konzept, atmo, handlung, form
+- divergenz: ganze Zahl von 0 (zahm) bis 100 (radikal)
+
+Gib jetzt NUR das JSON f\xFCr "${name}" zur\xFCck.`;
+}
+function normalizeIdeaProfile(raw, name) {
+  const o = raw && typeof raw === "object" ? raw : {};
+  let div = typeof o["divergenz"] === "number" ? o["divergenz"] : parseInt(String(o["divergenz"]), 10);
+  if (!isFinite(div)) div = 50;
+  div = Math.max(0, Math.min(100, Math.round(div)));
+  return {
+    name: name.trim() || "Idee",
+    genre: pickOne(o["genre"], GENRE_ALL, "mystery"),
+    ton: pickOne(o["ton"], TON_ALL, "duester"),
+    protagonist: pickOne(o["protagonist"], PROT_ALL, "einzel"),
+    konflikt: pickOne(o["konflikt"], KONF_ALL, "raetsel"),
+    ort: pickOne(o["ort"], ORT_ALL, "urban"),
+    zeit: pickOne(o["zeit"], ZEIT_ALL, "gegenwart"),
+    massstab: pickOne(o["massstab"], MASS_ALL, "intim"),
+    wendung: pickOne(o["wendung"], WEND_ALL, "enthuellung"),
+    fokus: pickOne(o["fokus"], FOK_ALL, "figur"),
+    divergenz: div
+  };
+}
+var IDEA_USER_KEY = "divergenz_idea_presets_v1";
+function loadIdeaUserPresets() {
+  try {
+    const o = JSON.parse(localStorage.getItem(IDEA_USER_KEY) || "{}");
+    return o && typeof o === "object" ? o : {};
+  } catch {
+    return {};
+  }
+}
+function saveIdeaUserPreset(p) {
+  const users = loadIdeaUserPresets();
+  const slug = (p.name.trim() || "idee").toLowerCase().replace(/[^a-z0-9äöüß]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "idee";
+  const id = "user:" + slug;
+  users[id] = p;
+  try {
+    localStorage.setItem(IDEA_USER_KEY, JSON.stringify(users));
+  } catch {
+  }
+  return id;
+}
+function deleteIdeaUserPreset(id) {
+  const u = loadIdeaUserPresets();
+  delete u[id];
+  try {
+    localStorage.setItem(IDEA_USER_KEY, JSON.stringify(u));
+  } catch {
+  }
+}
+var PROFIL_KEY = "dm_idea_profile_v1";
+function saveIdeaProfile(p, liveAnteil) {
+  try {
+    localStorage.setItem(PROFIL_KEY, JSON.stringify({ ...p, liveAnteil }));
+  } catch {
+  }
+}
+function loadIdeaProfile() {
+  try {
+    const r = localStorage.getItem(PROFIL_KEY);
+    if (!r) return null;
+    const o = JSON.parse(r);
+    return { profil: normalizeIdeaProfile(o, String(o["name"] || "")), liveAnteil: Number(o["liveAnteil"]) || 0 };
+  } catch {
+    return null;
+  }
+}
+function wuerfleIdeenProfil(bestand, zufall = Math.random) {
+  if (bestand.length > 0 && zufall() < 0.5) {
+    const i = Math.min(bestand.length - 1, Math.floor(zufall() * bestand.length));
+    const paar = bestand[i];
+    return { id: paar[0], profil: { ...paar[1] } };
+  }
+  return { id: "", profil: wuerfleIdeaProfile(zufall) };
+}
+function wuerfleIdeaProfile(zufall = Math.random) {
+  const w = (l) => l[Math.min(l.length - 1, Math.floor(zufall() * l.length))];
+  return {
+    name: "",
+    genre: w(GENRE_ALL),
+    ton: w(TON_ALL),
+    protagonist: w(PROT_ALL),
+    konflikt: w(KONF_ALL),
+    ort: w(ORT_ALL),
+    zeit: w(ZEIT_ALL),
+    massstab: w(MASS_ALL),
+    wendung: w(WEND_ALL),
+    fokus: w(FOK_ALL),
+    divergenz: Math.floor(zufall() * 21) * 5
+  };
+}
+
+// src/features/omnikognition.ts
+var SENSE = {
+  licht: {
+    motifs: ["ein Flackern am Rand des Sehfelds", "ein Schatten, der sich zu fr\xFCh bewegt", "ein Glanz auf nasser Haut", "ein Muster aus Hell und Dunkel", "eine Farbe, die keinen Namen kennt"],
+    hooks: ["ein Aufblitzen", "ein Umriss gegen die Helligkeit", "ein Reflex auf der Oberfl\xE4che", "ein Wechsel im Licht"],
+    turns: ["das Licht kippt und alles wird flach", "ein Schatten l\xF6st sich vom Grund", "die Helligkeit frisst die Form"]
+  },
+  schall: {
+    motifs: ["ein Echo, das zu sp\xE4t zur\xFCckkommt", "ein Ton unter der H\xF6rschwelle", "ein Puls, der den Raum abtastet", "eine Stille mit Kanten", "ein Nachhall ohne Ursprung"],
+    hooks: ["ein fernes Klopfen", "ein Ping aus der Schw\xE4rze", "ein Rascheln, das n\xE4her kommt", "ein doppeltes Echo"],
+    turns: ["das Echo verr\xE4t die Wand", "der Klang biegt sich um ein Hindernis", "die Stille bricht in Fragmente"]
+  },
+  geruch: {
+    motifs: ["eine Duftspur, die noch warm ist", "ein Geruch von gestern", "eine F\xE4hrte, die sich verzweigt", "ein s\xFC\xDFlicher Faden in der Luft", "eine Marke, die jemand hinterlie\xDF"],
+    hooks: ["ein Hauch von N\xE4he", "eine fremde Note", "ein Umschlag im Geruch", "eine Spur, die abrei\xDFt"],
+    turns: ["die F\xE4hrte teilt sich", "der Duft kippt von s\xFC\xDF zu sauer", "der Wind l\xF6scht die Spur"]
+  },
+  efeld: {
+    motifs: ["ein Kribbeln im Wasser", "ein Feld, das sich zusammenzieht", "eine Ladung, die n\xE4herkommt", "ein Muster aus Spannung", "eine St\xF6rung im leeren Raum"],
+    hooks: ["ein Zucken im Feld", "eine Spannung, die anschwillt", "ein toter Fleck ohne Ladung", "ein Knistern der N\xE4he"],
+    turns: ["das Feld verr\xE4t den K\xF6rper dahinter", "die Ladung kippt und wird zur Falle", "der Raum l\xE4dt sich auf"]
+  },
+  magnet: {
+    motifs: ["eine Richtung, die im K\xF6rper sitzt", "eine Linie, die nach Norden zieht", "ein stiller Kompass im Kopf", "ein Gef\xE4lle ohne Hang", "eine Karte aus Kraftlinien"],
+    hooks: ["ein Zug nach einer Seite", "eine Abweichung der inneren Nadel", "ein Knick in der Richtung"],
+    turns: ["die Linie verschiebt sich", "der Norden l\xFCgt heute", "das Feld dreht die Absicht"]
+  },
+  vibration: {
+    motifs: ["ein Zittern im Boden", "eine Welle durch die Fl\xE4che", "ein Beben, kaum sp\xFCrbar", "ein Puls im Untergrund", "eine Ersch\xFCtterung ohne Ger\xE4usch"],
+    hooks: ["ein Schritt weit entfernt", "ein Beben unter den F\xFC\xDFen", "eine Welle, die anrollt"],
+    turns: ["die Ersch\xFCtterung wird zur Warnung", "das Zittern verdichtet sich", "der Boden antwortet"]
+  },
+  temperatur: {
+    motifs: ["ein W\xE4rmefleck in der K\xE4lte", "ein Gef\xE4lle aus W\xE4rme", "ein kalter Sog", "eine Spur aus K\xF6rperw\xE4rme", "eine Grenze zwischen warm und kalt"],
+    hooks: ["ein Hauch von W\xE4rme", "ein kalter Zug", "ein warmer Schatten", "ein Umschlag der Temperatur"],
+    turns: ["die W\xE4rme verr\xE4t den K\xF6rper", "die K\xE4lte kriecht n\xE4her", "das Gef\xE4lle kehrt sich um"]
+  }
+};
+var BASE = {
+  props: ["den eigenen K\xF6rper", "die Grenze der Wahrnehmung", "einen Rest der letzten Spur", "den n\xE4chsten Reiz", "das Muster der Umgebung", "ein Signal ohne Absender"],
+  obstacles: ["der Reiz bricht ab", "zwei Signale \xFCberlagern sich", "die Spur f\xFChrt ins Leere", "etwas st\xF6rt das Feld", "die Wahrnehmung tr\xFCgt", "der Reiz kommt zu sp\xE4t"],
+  stakes: ["Der Einsatz ist Nahrung.", "Der Einsatz ist \xDCberleben.", "Der Einsatz ist die richtige Richtung.", "Der Einsatz ist N\xE4he.", "Der Einsatz ist der n\xE4chste Atemzug."],
+  endings: ["Und der Reiz verlischt.", "So bleibt nur das Muster.", "Und die Spur war schon vergangen.", "Am Ende z\xE4hlt nur der n\xE4chste Reiz.", "Und die Welt schrumpft auf ein Signal."]
+};
+function buildSenseBank(channels) {
+  const chs = (channels.length ? channels : ["licht", "schall"]).filter((c) => SENSE[c]);
+  const motifs = [], hooks = [], turns = [];
+  for (const c of chs) {
+    const p = SENSE[c];
+    motifs.push(...p.motifs);
+    hooks.push(...p.hooks);
+    turns.push(...p.turns);
+  }
+  return { motifs, hooks, props: [...BASE.props], turns, obstacles: [...BASE.obstacles], stakes: [...BASE.stakes], endings: [...BASE.endings] };
+}
+var MEDIUM_WHERE = { wasser: "im offenen Wasser", luft: "hoch in der Luft", boden: "tief im Boden" };
+var ZIEL_WHAT = { nahrung: "sucht Nahrung", fortpflanzung: "sucht einen Partner", kooperation: "h\xE4lt den Verband", revier: "verteidigt das Revier", schwarm: "folgt dem Schwarm", ueberleben: "will \xFCberleben" };
+function profileToStudio(p) {
+  const cap4 = (n) => Math.max(0, Math.min(3, n));
+  const isVerbal = p.kommunikation === "sprache" || p.kommunikation === "laut";
+  return {
+    where: MEDIUM_WHERE[p.medium] || "an einem Ort",
+    when: p.gedaechtnis === "lang" ? "nach vielen Wanderungen" : "",
+    who: p.name || "ein Wesen",
+    what: ZIEL_WHAT[p.ziel[0] || "ueberleben"] || "will \xFCberleben",
+    form: isVerbal ? "script" : "prose",
+    structure: { reflex: "linear", instinkt: "circle", lern: "reverse", planend: "linear" }[p.strategie],
+    perspective: { kein: "object", schwach: "third", stark: "first", verteilt: "we" }[p.modell],
+    rhythm: { schnell: "staccato", mittel: "auto", langsam: "long" }[p.zeit],
+    varLevel: { grob: "low", mittel: "mid", fein: "high" }[p.aufloesung],
+    mode: "body",
+    tone: p.ziel.includes("ueberleben") || p.ziel.includes("revier") || p.fokus.includes("feind") ? "dark" : "poetic",
+    markovMode: p.gedaechtnis === "lang" ? "mix" : "off",
+    archetypeA: "neutral",
+    archetypeB: p.fokus.includes("feind") || p.ziel.includes("revier") ? "skorpion" : "neutral",
+    emphasis: {
+      wo: p.reach === "fern" ? 2 : 1,
+      wann: p.gedaechtnis === "lang" ? 2 : p.gedaechtnis === "kurz" ? 1 : 0,
+      wer: p.fokus.includes("sozial") ? 2 : 0,
+      was: cap4((p.fokus.some((f) => ["nahrung", "feind", "bewegung"].includes(f)) ? 2 : 0) + (p.ziel.length ? 1 : 0))
+    },
+    bank: buildSenseBank(p.channels)
+  };
+}
+var OMNI_PRESETS = {
+  fledermaus: { name: "eine Fledermaus", channels: ["schall", "vibration"], dim: "3d", reach: "nah", medium: "luft", zeit: "schnell", aufloesung: "fein", fokus: ["bewegung", "nahrung"], gedaechtnis: "kurz", kommunikation: "laut", strategie: "reflex", modell: "schwach", ziel: ["nahrung"] },
+  oktopus: { name: "ein Oktopus", channels: ["licht", "geruch"], dim: "3d", reach: "nah", medium: "wasser", zeit: "mittel", aufloesung: "fein", fokus: ["objekt", "muster"], gedaechtnis: "lang", kommunikation: "licht", strategie: "lern", modell: "verteilt", ziel: ["ueberleben"] },
+  ameise: { name: "ein Ameisenvolk", channels: ["geruch", "vibration"], dim: "2d", reach: "nah", medium: "boden", zeit: "mittel", aufloesung: "mittel", fokus: ["sozial", "muster"], gedaechtnis: "kurz", kommunikation: "duft", strategie: "instinkt", modell: "verteilt", ziel: ["schwarm", "kooperation"] },
+  zugvogel: { name: "ein Zugvogel", channels: ["licht", "magnet"], dim: "3d", reach: "fern", medium: "luft", zeit: "mittel", aufloesung: "mittel", fokus: ["muster", "bewegung"], gedaechtnis: "lang", kommunikation: "laut", strategie: "planend", modell: "schwach", ziel: ["ueberleben", "schwarm"] },
+  hai: { name: "ein Hai", channels: ["efeld", "geruch", "vibration"], dim: "3d", reach: "nah", medium: "wasser", zeit: "schnell", aufloesung: "fein", fokus: ["bewegung", "nahrung", "feind"], gedaechtnis: "angeboren", kommunikation: "efeld", strategie: "reflex", modell: "kein", ziel: ["nahrung"] },
+  tiefsee: { name: "ein Tiefseewesen", channels: ["licht", "vibration", "efeld"], dim: "3d", reach: "nah", medium: "wasser", zeit: "langsam", aufloesung: "grob", fokus: ["bewegung", "nahrung"], gedaechtnis: "angeboren", kommunikation: "licht", strategie: "reflex", modell: "kein", ziel: ["nahrung", "ueberleben"] },
+  saeugling: { name: "ein S\xE4ugling", channels: ["licht", "schall", "temperatur"], dim: "3d", reach: "nah", medium: "luft", zeit: "langsam", aufloesung: "grob", fokus: ["sozial", "bewegung"], gedaechtnis: "kurz", kommunikation: "laut", strategie: "reflex", modell: "schwach", ziel: ["kooperation"] },
+  alien: { name: "ein fremdes Wesen", channels: ["magnet", "efeld", "temperatur"], dim: "3d", reach: "fern", medium: "luft", zeit: "langsam", aufloesung: "fein", fokus: ["muster"], gedaechtnis: "lang", kommunikation: "efeld", strategie: "planend", modell: "stark", ziel: ["ueberleben"] }
+};
+var OMNI_PRESET_LABELS = [
+  ["fledermaus", "Fledermaus"],
+  ["oktopus", "Oktopus"],
+  ["ameise", "Ameisenvolk"],
+  ["zugvogel", "Zugvogel"],
+  ["hai", "Hai"],
+  ["tiefsee", "Tiefseewesen"],
+  ["saeugling", "S\xE4ugling"],
+  ["alien", "Fremdes Wesen"]
+];
+var CH_ALL = ["licht", "schall", "geruch", "efeld", "magnet", "vibration", "temperatur"];
+var FK_ALL = ["objekt", "bewegung", "nahrung", "feind", "sozial", "muster"];
+var ZL_ALL = ["nahrung", "fortpflanzung", "kooperation", "revier", "schwarm", "ueberleben"];
+var KOMM_ALL = ["sprache", "laut", "duft", "licht", "efeld", "chem", "beruehrung"];
+function pickOne2(v, allowed, def) {
+  return typeof v === "string" && allowed.includes(v) ? v : def;
+}
+function pickMany(v, allowed) {
+  return Array.isArray(v) ? v.filter((x) => typeof x === "string" && allowed.includes(x)) : [];
+}
+function buildProfilePrompt(name) {
+  return `Erzeuge ein Wahrnehmungsprofil (Umwelt) f\xFCr das Lebewesen: "${name}".
+Antworte NUR mit einem einzigen JSON-Objekt in GENAU diesem Format (ersetze die Beispielwerte, keine Kommentare, kein weiterer Text):
+{"channels":["schall","vibration"],"dim":"3d","reach":"nah","medium":"luft","zeit":"schnell","aufloesung":"fein","fokus":["bewegung","nahrung"],"gedaechtnis":"kurz","kommunikation":"laut","strategie":"reflex","modell":"schwach","ziel":["nahrung"]}
+
+Erlaubte Werte:
+- channels (ein oder mehrere): licht, schall, geruch, efeld, magnet, vibration, temperatur
+- dim: 2d oder 3d
+- reach: nah oder fern
+- medium: wasser, luft oder boden
+- zeit: schnell, mittel oder langsam
+- aufloesung: grob, mittel oder fein
+- fokus (ein oder mehrere): objekt, bewegung, nahrung, feind, sozial, muster
+- gedaechtnis: angeboren, kurz oder lang
+- kommunikation (genau einer): sprache, laut, duft, licht, efeld, chem, beruehrung
+- strategie: reflex, instinkt, lern oder planend
+- modell: kein, schwach, stark oder verteilt
+- ziel (ein oder mehrere): nahrung, fortpflanzung, kooperation, revier, schwarm, ueberleben
+
+Gib jetzt NUR das JSON f\xFCr "${name}" zur\xFCck.`;
+}
+function normalizeProfile(raw, name) {
+  const o = raw && typeof raw === "object" ? raw : {};
+  const channels = pickMany(o["channels"], CH_ALL);
+  const fokus = pickMany(o["fokus"], FK_ALL);
+  const ziel = pickMany(o["ziel"], ZL_ALL);
+  return {
+    name: name.trim() || (typeof o["name"] === "string" ? o["name"] : "ein Wesen"),
+    channels: channels.length ? channels : ["licht"],
+    dim: pickOne2(o["dim"], ["2d", "3d"], "3d"),
+    reach: pickOne2(o["reach"], ["nah", "fern"], "nah"),
+    medium: pickOne2(o["medium"], ["wasser", "luft", "boden"], "luft"),
+    zeit: pickOne2(o["zeit"], ["schnell", "mittel", "langsam"], "mittel"),
+    aufloesung: pickOne2(o["aufloesung"], ["grob", "mittel", "fein"], "mittel"),
+    fokus: fokus.length ? fokus : ["bewegung"],
+    gedaechtnis: pickOne2(o["gedaechtnis"], ["angeboren", "kurz", "lang"], "kurz"),
+    kommunikation: pickOne2(o["kommunikation"], KOMM_ALL, "laut"),
+    strategie: pickOne2(o["strategie"], ["reflex", "instinkt", "lern", "planend"], "instinkt"),
+    modell: pickOne2(o["modell"], ["kein", "schwach", "stark", "verteilt"], "schwach"),
+    ziel: ziel.length ? ziel : ["ueberleben"]
+  };
+}
+var OMNI_USER_KEY = "divergenz_omni_presets_v1";
+function loadOmniUserPresets() {
+  try {
+    const o = JSON.parse(localStorage.getItem(OMNI_USER_KEY) || "{}");
+    return o && typeof o === "object" ? o : {};
+  } catch {
+    return {};
+  }
+}
+function saveOmniUserPreset(p) {
+  const users = loadOmniUserPresets();
+  const slug = (p.name.trim() || "wesen").toLowerCase().replace(/[^a-z0-9äöüß]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "wesen";
+  const id = "user:" + slug;
+  users[id] = p;
+  try {
+    localStorage.setItem(OMNI_USER_KEY, JSON.stringify(users));
+  } catch {
+  }
+  return id;
+}
+function deleteOmniUserPreset(id) {
+  const u = loadOmniUserPresets();
+  delete u[id];
+  try {
+    localStorage.setItem(OMNI_USER_KEY, JSON.stringify(u));
+  } catch {
+  }
+}
+function alleOmniProfile() {
+  const eigene = (() => {
+    try {
+      return Object.values(loadOmniUserPresets());
+    } catch {
+      return [];
+    }
+  })();
+  return [...Object.values(OMNI_PRESETS), ...eigene];
+}
+var OMNI_STAND_KEY = "dm_omni_stand_v1";
+function saveOmniStand(profil, id) {
+  try {
+    localStorage.setItem(OMNI_STAND_KEY, JSON.stringify({ profil, id }));
+  } catch {
+  }
+}
+function loadOmniStand() {
+  try {
+    const o = JSON.parse(localStorage.getItem(OMNI_STAND_KEY) || "null");
+    if (!o || typeof o !== "object" || !o.profil) return null;
+    return { profil: o.profil, id: String(o.id || "") };
+  } catch {
+    return null;
+  }
 }
 
 // src/presets.data.ts
@@ -8631,62 +15905,14588 @@ var BUILTIN_PRESETS = {
     ]
   }
 };
+var PRESET_LABELS = {
+  "rimbaud": "\u{1F6A4} Rimbaud",
+  "baudelaire": "\u{1F940} Baudelaire",
+  "kafka": "\u{1FAB2} Kafka",
+  "expressionismus": "\u{1F58C}\uFE0F Expressionismus",
+  "surrealismus1920": "\u{1FAE0} Surrealismus 1920",
+  "transzendenz": "\u{1F54A}\uFE0F Transzendenz",
+  "melville": "\u{1F40B} Melville",
+  "formalismus": "\u{1F4D0} Formalismus",
+  "christentum": "\u271D\uFE0F Christentum",
+  "koran": "\u262A\uFE0F Koran",
+  "buddhismus": "\u2638\uFE0F Buddhismus",
+  "biologie": "\u{1F9EC} Biologie",
+  "geologie": "\u{1FAA8} Geologie",
+  "astrologie": "\u{1F52E} Astrologie",
+  "gaia": "\u{1F30D} Gaia",
+  "freud": "\u{1F6CB}\uFE0F Freud",
+  "jugendsprache": "\u{1F4AC} Jugendsprache",
+  "modernarchitecture": "\u{1F3E2} Modern Architecture",
+  "philosophie": "\u{1F9E0} Philosophie",
+  "klimakrise": "\u{1F321}\uFE0F Klima in der Krise",
+  "ritterromane": "\u{1F6E1}\uFE0F Ritterromane",
+  "liebesromane": "\u{1F497} Liebesromane",
+  "bergwelt": "\u26F0\uFE0F Bergwelt",
+  "clown": "\u{1F921} Clown",
+  "faust": "\u{1F4DC} Faust",
+  "lebenreicher": "\u{1F340} Was das Leben reicher macht",
+  "tanz": "\u{1F483} Tanz",
+  "griechischetragoedie": "\u{1F3AD} Griechische Trag\xF6die",
+  "glueck": "\u2728 Gl\xFCck",
+  "gruendungsmythos": "\u{1F3DB}\uFE0F Gr\xFCndungsmythos",
+  "staatsphilosophie": "\u2696\uFE0F Staatsphilosophie",
+  "traumbilder": "\u{1F319} Traumbilder",
+  "mystery": "\u{1F56F}\uFE0F Mystery",
+  "bureau": "\u{1F4CE} B\xFCrokratischer Horror",
+  "tech": "\u{1F9EA} Tech\u2011Mystik",
+  "myth": "\u{1F701} Myth",
+  "body": "\u{1FAC0} Body",
+  "absurd": "\u{1F300} Absurd",
+  "post": "\u{1F6F0}\uFE0F Posthuman",
+  "haute_couture": "\u{1F457} Haute Couture",
+  "eichendorff": "\u{1F332} Eichendorff",
+  "dickens": "\u{1F56F}\uFE0F Dickens",
+  "urknall": "\u{1F4A5} Urknall",
+  "erotik": "\u{1F339} Erotik",
+  "hunger": "\u{1F35E} Hunger",
+  "romantik": "\u{1F319} Romantik",
+  "hugo": "\u{1F514} Victor Hugo",
+  "hafen": "\u2693 Am Hafen",
+  "alltag": "\u{1F3E0} Alltag",
+  "goethe": "\u{1F33F} Goethe",
+  "sinnlich": "\u{1F590}\uFE0F Sinnliche Erfahrung"
+};
 
-// src/features/erzaehlungen.data.ts
-var ERZAEHLUNGEN_VORLAGEN = [
-  {
-    titel: "Steigender Bogen",
-    folge: "standard",
-    text: "Der F\xE4hrmann z\xE4hlt am Morgen die Ruder. Ein Riemen fehlt. Das Wasser steht still wie ein Gedanke. Die erste Fuhre geht gut, die zweite auch. Ein Passagier l\xE4sst eine M\xFCnze fallen, die niemand aufhebt. Der Wind dreht gegen Mittag. Die Str\xF6mung zieht st\xE4rker als sonst. Es geht um die letzte \xDCberfahrt des Tages. Der F\xE4hrmann sp\xFCrt das Seil in den H\xE4nden arbeiten. Aber das andere Ufer r\xFCckt nicht n\xE4her. Die Glocke am Steg schl\xE4gt von allein. Dann rei\xDFt die Halterung, und die F\xE4hre dreht sich aus der Linie. Pl\xF6tzlich kippt der Nachmittag ins Dunkle. Die Passagiere schweigen in einer Reihe. Der F\xE4hrmann bindet das Seil um den eigenen Arm. Die F\xE4hre erreicht das Ufer schr\xE4g und zu sp\xE4t. Am Ende fehlt eine M\xFCnze, und niemand fehlt. Zur\xFCck bleibt ein Riemen, der am n\xE4chsten Morgen wieder da ist."
-  },
-  {
-    titel: "Kreisschluss",
-    folge: "kreis",
-    text: "Eine Frau kehrt in das Haus ihrer Kindheit zur\xFCck und findet die T\xFCr offen. Ein Flur voller M\xE4ntel, die niemandem geh\xF6ren. Der Geruch von Bohnerwachs und Winter. Sie stellt den Koffer an die Stelle, an der er immer stand. Die Uhr in der K\xFCche geht sieben Minuten vor, wie damals. Ein Fenster, das sich nur von innen \xF6ffnen l\xE4sst. Es geht um das, was bleibt, wenn man geht. Die Nachbarin gr\xFC\xDFt mit dem Namen der Mutter. Aber die Treppe knarrt an einer neuen Stelle. Dann findet sie im Schrank ihren eigenen Kindermantel, frisch geb\xFCrstet. Die Zimmer werden kleiner, je l\xE4nger sie bleibt. Pl\xF6tzlich versteht sie, dass das Haus sie erwartet hat. Sie \xF6ffnet alle Fenster von innen. Am Ende stellt sie den Koffer wieder in den Flur und l\xE4sst die T\xFCr offen. Zur\xFCck bleibt ein Haus, das auf die N\xE4chste wartet."
-  },
-  {
-    titel: "R\xFCckw\xE4rts erz\xE4hlt",
-    folge: "rueckwaerts",
-    text: "Am Ende liegt der Brief unge\xF6ffnet im Fluss. Davor steht ein Mann eine Stunde auf der Br\xFCcke. Ein Umschlag mit einem fremden Poststempel. Die H\xE4nde sind ruhiger, als sie sein d\xFCrften. Davor kauft er am Kiosk eine Zeitung, die er nicht liest. Der Kiosk verkauft an diesem Tag nur an ihn. Es geht um eine Nachricht, die alles ordnen w\xFCrde. Davor wartet er drei Tage neben dem Briefkasten. Aber der Briefkasten bleibt drei Tage leer. Dann kommt der Brief am vierten Tag, zu fr\xFCh am Morgen. Ein Absender ohne Namen, eine Schrift wie seine eigene. Pl\xF6tzlich wei\xDF er, was darin steht, ohne zu \xF6ffnen. Davor, ganz am Anfang, schreibt jemand in einer anderen Stadt eine einzige Zeile. Die Zeile lautet: Komm nicht. Zur\xFCck bleibt ein Fluss, der Briefe kennt."
-  },
-  {
-    titel: "Retardation \u2014 die falsche Entwarnung",
-    folge: "retardation",
-    text: "Im Bergwerk riecht es seit Tagen nach kaltem Rauch. Eine Lampe, die zweimal flackert. Der Steiger klopft die W\xE4nde ab und nickt. Die Messung zeigt nichts, die zweite auch nichts. Ein Kanarienvogel singt lauter als sonst. Die Schicht arbeitet weiter, beruhigt und schneller. Es geht um den tiefsten Stollen der Grube. Aber der Geruch kehrt hinter der Entwarnung zur\xFCck. Ein Hut voller Staub vom Firstholz. Die dritte Messung f\xE4llt aus, weil das Ger\xE4t schweigt. Dann knackt das Holz in einer Sprache, die alle kennen. Der Steiger hebt die Hand, und die Lampen gehen aus. Pl\xF6tzlich l\xE4uft die Schicht in vollkommener Ordnung r\xFCckw\xE4rts. Der Berg l\xE4sst sie gehen, einen nach dem anderen. Am Ende z\xE4hlt der Steiger am Tageslicht die Helme. Die Zahl stimmt, und niemand spricht sie aus. Zur\xFCck bleibt ein Vogel, der im Dunkeln weitersingt."
-  },
-  {
-    titel: "Doppelte Wende",
-    folge: "doppelt",
-    text: "Die Schachspielerin erkennt die Falle im siebten Zug. Ein Springer am Rand, scheinbar vergessen. Sie lehnt das Opfer ab und steht besser. Der Saal atmet mit den Uhren. Es geht um die Partie ihres Lebens. Der Gegner l\xE4chelt, als h\xE4tte er das erwartet. Dann opfert er die Dame, und das Brett kippt. Pl\xF6tzlich ist ihr Vorteil eine Grube. Aber in der Grube liegt ein zweiter Weg, den keiner sah. Ein Bauer, der seit dem ersten Zug wartet. Sie gibt den Turm und dann den zweiten Turm. Der Saal versteht nichts und wird still. Dann wendet sich die Partie zum zweiten Mal. Der Bauer geht seinen letzten Schritt und wird alles. Am Ende reicht der Gegner die Hand \xFCber ein leeres Brett. Zur\xFCck bleibt ein Springer am Rand, unber\xFChrt bis zuletzt."
-  },
-  {
-    titel: "Stiller Bogen \u2014 nichts passiert, alles \xE4ndert sich",
-    folge: "still",
-    text: "Der Leuchtturmw\xE4rter hat seit Wochen kein Schiff gesehen. Eine Kanne Tee f\xFCr einen Menschen. Das Licht dreht sich, ob jemand f\xE4hrt oder nicht. Er streicht das Gel\xE4nder, das niemand anfasst. Eine Liste der St\xFCrme, sauber gef\xFChrt. Das Meer bleibt h\xF6flich und fern. Es geht um das Warten selbst. Aber die Vorr\xE4te rechnen mit einem zweiten Menschen. Der Funk sagt jeden Abend dasselbe Rauschen. Dann bleibt eines Nachts das Rauschen aus. Nichts geschieht, und nichts geschieht sehr laut. Der W\xE4rter deckt den Tisch f\xFCr zwei und lacht nicht. Pl\xF6tzlich versteht er das Licht als Frage. Er beantwortet sie, indem er bleibt. Am Ende f\xE4hrt kein Schiff vorbei, und es gen\xFCgt. Zur\xFCck bleibt eine zweite Tasse, gew\xE4rmt und leer."
-  },
-  {
-    titel: "Eskalation in drei Stufen",
-    folge: "eskalation",
-    text: "Am ersten Tag fehlt dem Dorf ein Brunnen. Die Leute holen Wasser vom Bach und lachen dar\xFCber. Ein Eimer mit neuem Seil. Am zweiten Tag fehlt dem Dorf der Bach. Das Bett liegt trocken wie ein Sonntag. Die Leute graben und finden feuchten Sand. Es geht um das Wasser und um mehr als das Wasser. Ein Maulwurf flieht in die falsche Richtung. Aber der Regen zieht am Dorf vorbei, dreimal hintereinander. Am dritten Tag fehlt dem Dorf der Himmel. Ein Grau ohne Wolken, ein Licht ohne Quelle. Dann \xF6ffnet die \xE4lteste Frau den versiegelten Keller. Pl\xF6tzlich steht dort Wasser bis zur dritten Stufe. Das Dorf trinkt und fragt erst danach. Am Ende kehrt der Bach zur\xFCck, als w\xE4re er beleidigt gewesen. Zur\xFCck bleibt ein Keller, den keiner mehr versiegelt."
-  },
-  {
-    titel: "Katastrophe zuerst",
-    folge: "katastrophe",
-    text: "Das Feuer ist am Morgen schon vorbei. Ein Dachstuhl wie ein schwarzes Geweih. Die Bewohner stehen im Garten und halten Tassen. Niemand fehlt, das ist das Erste. Es geht um das, was nach dem Ende beginnt. Der Kater kehrt ru\xDFig zur\xFCck und wird gefeiert. Aber die Papiere sind Asche, alle Namen darin. Ein Nachbar bringt Brot, ein anderer eine Leiter. Die Versicherung schickt einen Mann mit sauberen Schuhen. Dann findet das Kind im Schutt die eiserne Kassette. Pl\xF6tzlich ist der Schl\xFCssel wichtiger als das Haus. Die Kassette \xF6ffnet sich mit dem zweit\xE4ltesten Schl\xFCssel. Darin liegt kein Geld, sondern eine Liste der Nachbarn von 1911. Die Familie liest die Namen laut in den Garten. Am Ende bauen dieselben Namen das Dach neu. Zur\xFCck bleibt ein Geruch, der nach zwei Wintern geht."
-  },
-  {
-    titel: "Zwei Str\xE4nge, ein Treffpunkt",
-    folge: "straenge",
-    text: "Die Botin nimmt den Weg \xFCber den Pass, weil die Br\xFCcke gesperrt ist. Ein Paket, das nicht klappern darf. Im Tal packt der Uhrmacher seine Werkstatt in vier Kisten. Eine Wand voller stehender Uhren. Die Botin teilt ihr Brot mit einem Hund, der den Weg kennt. Der Uhrmacher verschenkt die Uhren, die niemand abholte. Es geht um eine Lieferung und einen Abschied. Aber der Pass schlie\xDFt hinter der Botin im Schnee. Der Hund geht voraus, als h\xE4tte er den Auftrag. Dann stehen beide zur selben Stunde am selben Tor. Das Paket enth\xE4lt eine einzige Unruh, klein wie ein Same. Pl\xF6tzlich schl\xE4gt die Wand der stehenden Uhren an. Der Uhrmacher packt die Kisten wieder aus. Am Ende bleibt die Werkstatt, und die Botin bleibt den Winter. Zur\xFCck bleibt ein Hund, der zwei Herren dient."
-  },
-  {
-    titel: "Offenes Ende \u2014 die Schwebe",
-    folge: "offen",
-    text: "Auf dem Bahnsteig steht ein Koffer ohne Besitzer. Die Ansage nennt einen Zug, den der Plan nicht kennt. Eine Frau setzt sich neben den Koffer, als geh\xF6re sie dazu. Der Abend riecht nach Eisen und Regen. Es geht um eine Entscheidung, die noch niemand getroffen hat. Ein Schaffner geht vorbei und gr\xFC\xDFt den Koffer. Aber der angek\xFCndigte Zug f\xE4hrt auf keinem Gleis ein. Die Uhr \xFCber dem Bahnsteig verliert eine Minute. Dann \xF6ffnet die Frau den Koffer einen Fingerbreit. Ein Licht f\xE4llt heraus, das zu keiner Lampe geh\xF6rt. Pl\xF6tzlich stehen mehr Menschen auf dem Bahnsteig, als gekommen sind. Alle sehen auf das Gleis, keiner auf den Koffer. Die Ansage wiederholt sich, freundlicher als zuvor. Am Ende f\xE4hrt etwas ein, das man nicht beschreiben kann. Ob die Frau einsteigt, wei\xDF der Bahnsteig allein."
+// src/features/schaltplan.ts
+var QUELLE_ZU_KNOTEN = {
+  "Welt": "welt",
+  "Wiki": "sammler",
+  "Abschrift": "bilder",
+  "Thema": "themen",
+  "Ideen": "ideen",
+  "Wahrnehmung": "omni"
+};
+var SCHLOSS_ZU_KNOTEN = {
+  "f-preset": "preset",
+  "f-tone": "ton",
+  "f-form": "form",
+  "f-structure": "struktur",
+  "f-mode": "modus",
+  "f-markov": "markov",
+  "f-disruptor": "disruptor",
+  "f-varianz": "varianz",
+  "f-instab": "instab",
+  "f-archa": "archa",
+  "f-archb": "archb",
+  "f-cast": "cast",
+  "f-persp": "persp",
+  "f-rhythm": "rhythm",
+  "f-tension": "spannung",
+  "f-ressort": "ressort",
+  "f-len": "laenge",
+  "f-novelty": "neuheit",
+  "f-surprise": "ueberraschung",
+  "f-umwelt": "umwelt",
+  "f-umwelt-wirkung": "umwelt",
+  "f-where": "w4",
+  "f-when": "w4",
+  "f-who": "w4",
+  "f-what": "w4",
+  "f-w-wo": "gewicht",
+  "f-w-wann": "gewicht",
+  "f-w-wer": "gewicht",
+  "f-w-was": "gewicht",
+  "k-fuegeteil": "k-fuegeteil",
+  "k-w4max": "k-w4max",
+  "k-abstand": "k-abstand",
+  "k-bogen": "k-bogen",
+  "k-ton": "k-ton",
+  "k-korpus": "k-korpus",
+  "k-phrase": "k-phrase",
+  "k-satzlaenge": "k-satzlaenge",
+  "k-atomgroesse": "k-atomgroesse"
+};
+var ANLAGE_KEY = "dm_anlage_v1";
+function saveAnlage(s) {
+  try {
+    localStorage.setItem(ANLAGE_KEY, JSON.stringify(s));
+  } catch {
   }
+}
+function loadAnlage() {
+  try {
+    const r = localStorage.getItem(ANLAGE_KEY);
+    return r ? JSON.parse(r) : null;
+  } catch {
+    return null;
+  }
+}
+var bez = (liste, wert) => (liste.find(([w]) => w === wert) || [wert, wert])[1];
+var AUS = /* @__PURE__ */ new Set(["off", "aus", "none", "0"]);
+var istAus = (v) => AUS.has(String(v || "").toLowerCase());
+function baueAnlage(stand, u) {
+  const K = [];
+  const E = [];
+  const befunde = [];
+  const r = stand.regler || {};
+  const g = (id) => u.gesperrt.has(id);
+  const knoten2 = (id, band2, label, wert, zustand, hinweis = "", schlossId = "") => {
+    K.push({ id, band: band2, label, wert, zustand, gesperrt: schlossId ? g(schlossId) : false, hinweis });
+    if (zustand === "leer") befunde.push(`${label}: ${hinweis}`);
+  };
+  const kante = (von, nach) => {
+    const a = K.find((k) => k.id === von), b = K.find((k) => k.id === nach);
+    const z = !a || !b ? "aus" : a.zustand === "leer" || b.zustand === "leer" ? "leer" : a.zustand === "aus" || b.zustand === "aus" ? "aus" : "an";
+    E.push({ von, nach, zustand: z });
+  };
+  knoten2(
+    "korpus",
+    0,
+    "Korpus",
+    u.korpusZeichen ? `${u.korpusZeichen.toLocaleString("de-DE")} Zeichen` : "leer",
+    u.korpusZeichen ? "an" : "aus",
+    u.korpusZeichen ? "" : "kein eigener Text hinterlegt"
+  );
+  {
+    const w = u.waechter;
+    const gesamt = w.verworfen + w.angenommen;
+    knoten2(
+      "waechter",
+      1,
+      "Satz-W\xE4chter",
+      gesamt ? `${w.verworfen} von ${gesamt} verworfen (${Math.round(w.quote * 100)} %) \xB7 ${w.umgeschrieben} umgeschrieben \xB7 ${w.zerlegt} zerlegt` : "noch nichts gez\xE4hlt",
+      gesamt ? "an" : "leer",
+      w.haeufigste ? `h\xE4ufigste Regel: ${w.haeufigste} \u2014 Beispiele in der Diagnose unter \u201EW\xE4chter-Statistik\u201C` : "z\xE4hlt ab der ersten Markov-Kette; ohne Korpus bleibt er still"
+    );
+  }
+  knoten2(
+    "sammler",
+    0,
+    "Sammler-Vorrat",
+    `${u.sammlerFunde} Funde`,
+    u.sammlerFunde ? "an" : "aus",
+    u.sammlerFunde ? "" : "im Reiter Sammler einen Tag holen"
+  );
+  knoten2("bilder", 0, "Bildvorrat", `${u.bildFunde} Funde`, u.bildFunde ? "an" : "aus");
+  knoten2("themen", 0, "Themenpool", `${u.themenFunde} Funde`, u.themenFunde ? "an" : "aus");
+  const bankGewaehlt = /^a:/.test(u.bogenQuelle) || u.bogenQuelle === "wuerfeln";
+  knoten2(
+    "erzaehler",
+    0,
+    "Erz\xE4hlerbank",
+    `${u.erzaehlerArchiv} Geschichten im Archiv, ${u.erzaehlerBrauchbar} brauchbar`,
+    !bankGewaehlt ? "aus" : u.erzaehlerBrauchbar ? "an" : "leer",
+    !bankGewaehlt ? "abgeklemmt \u2014 der Regler \u201EBogen\u201C im Werkzeugkasten steht auf \u201Eaus Preset\u201C" : u.erzaehlerBrauchbar ? "" : "gew\xE4hlt, aber das Archiv ist leer \u2014 Vorlagen ins Archiv, schreiben oder die KI erz\xE4hlen lassen"
+  );
+  knoten2(
+    "welt",
+    0,
+    "Welt",
+    `${u.weltFiguren} Figuren \xB7 ${u.weltOrte} Orte`,
+    u.weltFiguren || u.weltOrte ? "an" : "aus"
+  );
+  knoten2("live", 0, "Live-Pools", `${u.livePools} Phrasen`, u.livePools ? "an" : "aus");
+  knoten2(
+    "ideen",
+    0,
+    "Ideen",
+    u.ideenProfil || "kein Profil eingestellt",
+    "an",
+    "Reiter Ideen \xB7 beim W\xFCrfeln im Studio wird das Profil mitgew\xFCrfelt, das eingestellte gilt im Reiter selbst"
+  );
+  knoten2(
+    "omni",
+    0,
+    "Wahrnehmung",
+    u.omniProfil || "kein Wesen eingestellt",
+    u.omniProfil ? "an" : u.omniProfile ? "leer" : "aus",
+    // Wie bei den Ideen: „Alles würfeln“ ZIEHT ein Wesen, ohne das eingestellte
+    // zu ändern. Der Plan zeigt hier also das EINGESTELLTE — welches gewürfelt
+    // wurde, steht in der Quellenzeile („Wahrnehmung · Name“). Ohne diesen
+    // Hinweis sieht es aus, als hätte der Wurf nicht gewirkt.
+    `Reiter Welt: Zieht ein Wesen und setzt Wo/Wann/Wer/Was samt Perspektive, Rhythmus, Modus und Ton \xB7 ${u.omniProfile} Wesen vorhanden \xB7 \u201EAlles w\xFCrfeln\u201C zieht ein eigenes Wesen f\xFCr den einen Wurf; welches, steht in der Quellenzeile`
+  );
+  const w4 = stand.w4 || { where: "", when: "", who: "", what: "" };
+  const gefuellt = [w4.where, w4.when, w4.who, w4.what].filter((x) => (x || "").trim()).length;
+  const w4Ids = ["f-where", "f-when", "f-who", "f-what"];
+  const w4Zu = w4Ids.filter((id) => g(id)).length;
+  K.push({
+    id: "w4",
+    band: 1,
+    label: "Vier W",
+    wert: `${gefuellt} von 4 gef\xFCllt`,
+    zustand: gefuellt ? "an" : "leer",
+    gesperrt: false,
+    hinweis: (gefuellt ? "" : "alle vier Felder sind leer \u2014 der Kontext tr\xE4gt nichts bei. ") + (w4Zu ? `${w4Zu} von 4 Feldern gesperrt` : "")
+  });
+  if (!gefuellt) befunde.push("Vier W: alle vier Felder sind leer");
+  const gew = (r["gewicht"] || "0/0/0/0").split("/");
+  const gewAn = gew.some((x) => (parseInt(x, 10) || 0) !== 0);
+  knoten2(
+    "gewicht",
+    1,
+    "4W-Gewichtung",
+    gew.join(" \xB7 "),
+    gewAn ? "an" : "aus",
+    gewAn ? "" : "alle vier gleich gewichtet"
+  );
+  knoten2("preset", 1, "Wortbank", u.presetLabel || r["preset"] || "\u2014", "an", "", "f-preset");
+  knoten2("ton", 1, "Ton", bez(TONE_OPTS, r["tone"] || "neutral"), "an", "", "f-tone");
+  const struktur = r["structure"] || "auto";
+  knoten2("struktur", 2, "Struktur", bez(STRUCTURE_OPTS, struktur), "an", "", "f-structure");
+  const dramaAn = struktur === "dramaturgie" || struktur === "bogen";
+  const nurProsa = (r["form"] || "prose") === "prose";
+  const platzFest = /^a:/.test(u.bogenQuelle);
+  const wuerfelt = u.bogenQuelle === "wuerfeln";
+  const bankLiefert = platzFest ? !!u.erzaehlerPlatz : wuerfelt ? u.erzaehlerBrauchbar > 0 : false;
+  const bogenDa = platzFest || wuerfelt ? bankLiefert : u.dramaVorhanden;
+  const quelleWort = platzFest ? bankLiefert ? `Erz\xE4hlerbank, ${u.erzaehlerPlatz}` : "Erz\xE4hlerbank \u2014 der gew\xE4hlte Platz ist leer" : wuerfelt ? bankLiefert ? `w\xFCrfelt je Erzeugung aus ${u.erzaehlerBrauchbar} brauchbaren Pl\xE4tzen` : "w\xFCrfeln \u2014 kein Platz brauchbar" : u.dramaVorhanden ? "Bogen aus dem Preset" : "kein Bogen";
+  const dramaZustand = !dramaAn ? "aus" : !nurProsa ? "leer" : bogenDa ? "an" : "leer";
+  knoten2(
+    "drama",
+    2,
+    "Dramaturgie",
+    !dramaAn ? "aus \u2014 \xFCber Struktur" : !nurProsa ? "nur bei Prosa" : quelleWort,
+    dramaZustand,
+    !dramaAn ? "Kein eigener Schalter: Struktur auf \u201EDramaturgie (Preset 2.0)\u201C stellen \u2014 im Werkzeugkasten oder als Chip unter dem Text. Wirkt nur bei Form \u201EProsa\u201C." : !nurProsa ? "Struktur steht auf Dramaturgie, die Form ist aber nicht Prosa \u2014 der Bauweg f\xE4llt still auf den gew\xF6hnlichen zur\xFCck" : bogenDa ? "" : platzFest ? "Der Regler \u201EBogen\u201C zeigt auf einen Eintrag, der nicht mehr im Archiv liegt \u2014 in der Erz\xE4hlerbank neu w\xE4hlen" : wuerfelt ? "Der Regler \u201EBogen\u201C steht auf W\xFCrfeln, aber das Archiv der Erz\xE4hlerbank ist leer" : "Struktur steht auf Dramaturgie, das aktive Preset tr\xE4gt aber keinen Erz\xE4hlbogen \u2014 oder unter \u201EBogen\u201C im Werkzeugkasten einen Platz der Erz\xE4hlerbank w\xE4hlen"
+  );
+  knoten2("modus", 2, "Modus", bez(MODE_OPTS, r["mode"] || "auto"), "an", "", "f-mode");
+  const markov = r["markovMode"] || "off";
+  knoten2(
+    "markov",
+    1,
+    "Markov",
+    bez(MARKOV_OPTS, markov),
+    istAus(markov) ? "aus" : u.korpusZeichen ? "an" : "leer",
+    !istAus(markov) && !u.korpusZeichen ? "Markov ist an, aber der Korpus ist leer \u2014 er lernt aus nichts" : "",
+    "f-markov"
+  );
+  const disruptor = r["disruptor"] || "auto";
+  knoten2("disruptor", 2, "Disruptor", bez(DISRUPTOR_OPTS, disruptor), istAus(disruptor) ? "aus" : "an", "", "f-disruptor");
+  knoten2("varianz", 2, "Varianz", bez(VARIANZ_OPTS, r["varLevel"] || "mid"), "an", "", "f-varianz");
+  const instab = String(r["instability"] ?? "0");
+  knoten2("instab", 2, "Instabilit\xE4t", instab, instab === "0" ? "aus" : "an", "", "f-instab");
+  knoten2(
+    "archa",
+    2,
+    "Archetyp A",
+    bez(ARCH_OPTS, r["archetypeA"] || "neutral"),
+    (r["archetypeA"] || "neutral") === "neutral" ? "aus" : "an",
+    "",
+    "f-archa"
+  );
+  knoten2(
+    "archb",
+    2,
+    "Archetyp B",
+    bez(ARCH_OPTS, r["archetypeB"] || "neutral"),
+    (r["archetypeB"] || "neutral") === "neutral" ? "aus" : "an",
+    "",
+    "f-archb"
+  );
+  const schraube = (feld, label, einheit) => {
+    const v = u.knobs[feld];
+    const abw = v !== KNOB_VORGABE[feld];
+    const tot = feld === "korpus" && v > 0 && !u.korpusZeichen;
+    const band2 = feld === "korpus" ? 1 : feld === "satzlaenge" ? 3 : 2;
+    knoten2(
+      "k-" + feld,
+      band2,
+      label,
+      v + einheit + (abw ? "" : " (Vorgabe)"),
+      tot ? "leer" : v === 0 ? "aus" : "an",
+      tot ? "Korpus-Bausteine sind eingeschaltet, aber der Korpus ist leer" : "",
+      "k-" + feld
+    );
+  };
+  schraube("fuegeteil", "F\xFCgeteil-Deckel", " %");
+  schraube("w4max", "4W-Deckel", "\xD7");
+  schraube("abstand", "Nachlege-Abstand", "");
+  schraube("bogen", "Erz\xE4hlbogen", " %");
+  schraube("ton", "Ton-Einsch\xFCbe", " %");
+  schraube("korpus", "Korpus-Bausteine", " %");
+  schraube("phrase", "Phrasensperre", "");
+  schraube("satzlaenge", "Satzl\xE4nge", "");
+  schraube("atomgroesse", "Atomgr\xF6\xDFe", " W\xF6rter");
+  const cast = r["cast"] ?? "0.5";
+  knoten2(
+    "cast",
+    2,
+    "Figurendisziplin",
+    cast === "0" ? "Offen" : cast === "1" ? "Streng" : "Mittel",
+    "an",
+    "",
+    "f-cast"
+  );
+  const umwelt = (r["umwelt"] || "").trim();
+  knoten2(
+    "umwelt",
+    2,
+    "Umwelt",
+    umwelt ? r["umweltWirkung"] || "an" : "aus",
+    umwelt ? "an" : "aus",
+    umwelt ? "" : "kein Umweltzeichen eingetragen",
+    "f-umwelt"
+  );
+  knoten2("persp", 3, "Perspektive", bez(PERSP_OPTS, r["perspective"] || "third"), "an", "", "f-persp");
+  knoten2("rhythm", 3, "Rhythmus", bez(RHYTHM_OPTS, r["rhythm"] || "auto"), "an", "", "f-rhythm");
+  const spannung = r["tension"] || "auto";
+  knoten2("spannung", 3, "Spannung", spannung, istAus(spannung) ? "aus" : "an", "", "f-tension");
+  knoten2(
+    "schliff",
+    3,
+    "Schliff",
+    "Dubletten \xB7 Koh\xE4renz \xB7 Bruchst\xFCcke",
+    "an",
+    "l\xE4uft immer: gleiche Nachbars\xE4tze, Motivbezug, abgeschnittene Bausteine"
+  );
+  const nov = parseInt(r["novelty"] ?? "0", 10) || 0;
+  knoten2("neuheit", 3, "Neuheit", nov + " %", nov ? "an" : "aus", "", "f-novelty");
+  const surp = parseInt(r["surprise"] ?? "0", 10) || 0;
+  knoten2(
+    "ueberraschung",
+    3,
+    "\xDCberraschung",
+    surp ? "Ziel " + surp + " %" : "aus",
+    surp ? "an" : "aus",
+    "",
+    "f-surprise"
+  );
+  const form = r["form"] || "prose";
+  knoten2("form", 4, "Form", bez(FORM_OPTS, form), "an", "", "f-form");
+  const bericht = form === "bericht" || form === "meldung";
+  knoten2(
+    "ressort",
+    4,
+    "Ressort",
+    bericht ? r["ressort"] || "auto" : "nur bei Bericht/Meldung",
+    bericht ? "an" : "aus",
+    bericht ? "" : "",
+    "f-ressort"
+  );
+  const meldung = form === "meldung";
+  knoten2(
+    "laenge",
+    4,
+    "L\xE4nge",
+    (r["lenTarget"] || "?") + " W\xF6rter" + (meldung ? " (ohne Wirkung)" : ""),
+    meldung ? "leer" : "an",
+    meldung ? "Die Meldung hat eine feste L\xE4nge \u2014 gemessen 32 W\xF6rter, ob der Regler auf 40 oder auf 300 steht" : "",
+    "f-len"
+  );
+  for (const [a, b] of [
+    ["korpus", "markov"],
+    ["korpus", "k-korpus"],
+    ["sammler", "w4"],
+    ["bilder", "w4"],
+    ["themen", "w4"],
+    ["welt", "w4"],
+    ["ideen", "w4"],
+    ["omni", "w4"],
+    ["preset", "drama"],
+    ["erzaehler", "drama"]
+  ]) kante(a, b);
+  const rohQuelle = String(stand.quelle || "").trim();
+  if (rohQuelle) {
+    const teile = rohQuelle.split("\xB7").map((x) => x.trim());
+    const ziel = QUELLE_ZU_KNOTEN[teile[0] || ""];
+    const kn = ziel ? K.find((k) => k.id === ziel) : void 0;
+    if (kn) {
+      const rest = teile.slice(1).join(" \xB7 ");
+      kn.wert += rest ? ` \xB7 dieser Wurf: ${rest}` : " \xB7 dieser Wurf";
+      kn.hinweis = (kn.hinweis ? kn.hinweis + " \xB7 " : "") + "aus diesem Knoten kamen die vier W des letzten Wurfs";
+      for (const k of E) if (k.von === ziel && k.nach === "w4") k.zustand = "an";
+    }
+  }
+  const proKnoten = /* @__PURE__ */ new Map();
+  for (const [id, ziel] of Object.entries(SCHLOSS_ZU_KNOTEN)) {
+    const l = proKnoten.get(ziel) || [];
+    l.push(id);
+    proKnoten.set(ziel, l);
+  }
+  for (const k of K) {
+    const ids = proKnoten.get(k.id);
+    if (ids) k.gesperrt = ids.every((id) => g(id));
+  }
+  return { knoten: K, kanten: E, zeit: (/* @__PURE__ */ new Date()).toLocaleString("de-DE"), befunde };
+}
+var LOCK_KEY = "divergenz_studio_locks_v1";
+function sammleUmgebung(preset) {
+  const zahl = (f, ersatz) => {
+    try {
+      return f();
+    } catch {
+      return ersatz;
+    }
+  };
+  const welt = zahl(() => loadWorld(), { figuren: [], orte: [] });
+  const ids = String(preset || "").split("+").map((x) => x.trim()).filter(Boolean);
+  return {
+    korpusZeichen: zahl(() => loadPersistentCorpus().length, 0),
+    sammlerFunde: zahl(() => vorratStand().funde, 0),
+    bildFunde: zahl(() => ladeBildvorrat().length, 0),
+    themenFunde: zahl(() => themenStand().funde, 0),
+    weltFiguren: welt.figuren.length,
+    weltOrte: welt.orte.length,
+    livePools: zahl(() => liveCount(), 0),
+    schatzkammer: zahl(() => loadTreasury().length, 0),
+    knobs: zahl(() => loadKnobs(), { ...KNOB_VORGABE }),
+    gesperrt: new Set(zahl(() => JSON.parse(localStorage.getItem(LOCK_KEY) || "[]"), [])),
+    dramaVorhanden: zahl(() => hasDramaData(), false),
+    bogenQuelle: zahl(() => ladeQuelle(), "preset"),
+    erzaehlerPlatz: zahl(() => {
+      const q = ladeQuelle();
+      if (!/^a:/.test(q)) return "";
+      const e2 = eintragNachId(q);
+      if (!e2 || !platzBrauchbar(e2)) return "";
+      const bau = SCHLAGFOLGEN[e2.folge || "standard"]?.name || e2.folge || "";
+      return `${e2.titel || "Ohne Titel"} \xB7 ${bau}`;
+    }, ""),
+    erzaehlerBrauchbar: zahl(() => archivEintraege().filter((e2) => platzBrauchbar(e2)).length, 0),
+    erzaehlerArchiv: zahl(() => archivEintraege().length, 0),
+    waechter: zahl(
+      () => {
+        const k = statistikKurz();
+        return { ...k, haeufigste: k.haeufigste ? ZAEHLER_NAMEN[k.haeufigste] : "" };
+      },
+      { verworfen: 0, angenommen: 0, quote: 0, haeufigste: "", umgeschrieben: 0, zerlegt: 0 }
+    ),
+    ideenProfil: zahl(() => {
+      const p = loadIdeaProfile();
+      return p ? p.profil.name || p.profil.genre : "";
+    }, ""),
+    omniProfile: zahl(() => alleOmniProfile().length, 0),
+    omniProfil: zahl(() => {
+      const st = loadOmniStand();
+      return st ? st.profil.name || "" : "";
+    }, ""),
+    // Auch EIGENE Presets beim Namen nennen. PRESET_LABELS kennt nur die 51
+    // eingebauten; ein eigenes stand als „user:MeinPreset" im Plan, waehrend
+    // das Studio daneben den blossen Namen zeigte.
+    presetLabel: ids.map((id) => {
+      const k = id.replace(/^builtin:/, "");
+      if (PRESET_LABELS[k]) return PRESET_LABELS[k];
+      if (id.startsWith("user:")) return id.slice(5);
+      return id;
+    }).join(" + ") || "\u2014"
+  };
+}
+
+// src/ui/studio.ts
+init_storage();
+
+// src/wordbank.ts
+init_storage_status();
+init_constants();
+
+// src/modes.data.ts
+var MODE_DATA = {
+  "bureau": {
+    "label": "B\xFCrokratischer Horror",
+    "nouns": [
+      "Antrag",
+      "Sachbearbeiter",
+      "Stempel",
+      "Akte",
+      "Frist",
+      "Formular",
+      "Wartemarke",
+      "Kopie",
+      "Bescheid",
+      "Protokoll"
+    ],
+    "verbs": [
+      "beantragen",
+      "stempeln",
+      "ablegen",
+      "pr\xFCfen",
+      "verschieben",
+      "archivieren",
+      "verweigern",
+      "unterschreiben",
+      "eintragen",
+      "verlangen"
+    ],
+    "images": [
+      "wie ein Stempel auf der Seele",
+      "wie Papier, das atmet",
+      "wie ein Flur ohne Ende",
+      "wie ein Formular, das l\xFCgt"
+    ],
+    "rules": [
+      "Die Frist ist r\xFCckwirkend.",
+      "Das Feld muss leer bleiben.",
+      "Die Kopie ist das Original."
+    ]
+  },
+  "tech": {
+    "label": "Technologische Mystik",
+    "nouns": [
+      "Signal",
+      "Protokoll",
+      "Schnittstelle",
+      "Sensor",
+      "Cache",
+      "Port",
+      "Terminal",
+      "Rauschen",
+      "Update",
+      "Log"
+    ],
+    "verbs": [
+      "pingen",
+      "loggen",
+      "cachen",
+      "rendern",
+      "debuggen",
+      "synchronisieren",
+      "\xFCberschreiben",
+      "parsen",
+      "encrypten",
+      "deployen"
+    ],
+    "images": [
+      "wie ein Signal im Leeren",
+      "wie Rauschen, das Namen formt",
+      "wie ein Cache voller W\xE4rme",
+      "wie ein Port, der wartet"
+    ],
+    "rules": [
+      "Das System lernt zu schnell.",
+      "Die Uhrzeit ist ein Platzhalter.",
+      "Ein Backup \xFCberschreibt die Gegenwart."
+    ]
+  },
+  "body": {
+    "label": "Intime K\xF6rperwahrnehmung",
+    "nouns": [
+      "Puls",
+      "Atem",
+      "Narbe",
+      "Kehle",
+      "Haut",
+      "Schmerz",
+      "Zittern",
+      "W\xE4rme",
+      "K\xE4lte",
+      "Blick"
+    ],
+    "verbs": [
+      "atmen",
+      "zittern",
+      "sp\xFCren",
+      "erinnern",
+      "greifen",
+      "loslassen",
+      "wahrnehmen",
+      "schmerzen",
+      "klopfen",
+      "w\xE4rmen"
+    ],
+    "images": [
+      "wie ein Atem, der zu sp\xE4t kommt",
+      "wie W\xE4rme ohne Ursache",
+      "wie ein Puls, der antwortet",
+      "wie K\xE4lte im Knochen"
+    ],
+    "rules": [
+      "Der K\xF6rper wei\xDF es zuerst.",
+      "Die Wahrheit sitzt im Hals.",
+      "Der Schmerz ist ein Hinweis."
+    ]
+  },
+  "myth": {
+    "label": "Mythologischer Alltag",
+    "nouns": [
+      "F\xE4hrmann",
+      "Omen",
+      "Faden",
+      "Maske",
+      "Schrein",
+      "Fluch",
+      "Segen",
+      "Nymphe",
+      "Orakel",
+      "Bote"
+    ],
+    "verbs": [
+      "weben",
+      "opfern",
+      "deuten",
+      "rufen",
+      "wachen",
+      "taufen",
+      "verf\xFChren",
+      "segnen",
+      "fordern",
+      "erinnern"
+    ],
+    "images": [
+      "wie Ru\xDF auf Gold",
+      "wie Wasser, das zuh\xF6rt",
+      "wie ein altes Versprechen",
+      "wie ein Gott in Zivil"
+    ],
+    "rules": [
+      "Der Ort verlangt eine Gabe.",
+      "Der Name ist ein Schl\xFCssel.",
+      "Das Zeichen kommt dreimal."
+    ]
+  },
+  "absurd": {
+    "label": "Absurd-logische Welt",
+    "nouns": [
+      "Beweis",
+      "Paradoxon",
+      "Ausrede",
+      "Gabelung",
+      "Randnotiz",
+      "Handbuch",
+      "Einspruch",
+      "Punkt",
+      "Linie",
+      "Hintert\xFCr"
+    ],
+    "verbs": [
+      "widerlegen",
+      "umdrehen",
+      "vertauschen",
+      "behaupten",
+      "kollabieren",
+      "vereinbaren",
+      "winken",
+      "klammern",
+      "kippen",
+      "vereinfachen"
+    ],
+    "images": [
+      "wie ein Witz mit Z\xE4hnen",
+      "wie Logik auf Glatteis",
+      "wie ein Kreis, der eckig wird",
+      "wie eine T\xFCr ohne Wand"
+    ],
+    "rules": [
+      "Alles ist korrekt \u2013 nur in falscher Reihenfolge.",
+      "Der Ausgang ist innen.",
+      "Du darfst gehen, aber nicht ankommen."
+    ]
+  },
+  "post": {
+    "label": "Posthumaner Monolog",
+    "nouns": [
+      "Instanz",
+      "Kollektiv",
+      "Backup",
+      "Rauschen",
+      "Archiv",
+      "Knoten",
+      "Schnitt",
+      "Speicher",
+      "Echo",
+      "Prozess"
+    ],
+    "verbs": [
+      "persistieren",
+      "rekonstruieren",
+      "simulieren",
+      "abgleichen",
+      "verzweigen",
+      "entkoppeln",
+      "konvergieren",
+      "\xFCberschreiben",
+      "erscheinen",
+      "l\xF6schen"
+    ],
+    "images": [
+      "wie ein Ged\xE4chtnis ohne K\xF6rper",
+      "wie Stimmen im Datennebel",
+      "wie eine Erinnerung aus Metall",
+      "wie W\xE4rme in Zahlen"
+    ],
+    "rules": [
+      "Ich bin nicht ich, nur Version.",
+      "Die Datei ist \xE4lter als du.",
+      "Ein Satz wurde entfernt \u2013 und wirkt nach."
+    ]
+  }
+};
+
+// src/wordbank.ts
+init_text_utils();
+init_storage();
+function loadUserPresets() {
+  try {
+    const raw = localStorage.getItem(STORAGE_PRESETS);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+var ACTIVE_KEY = "divergenz_active_preset_v1";
+function saveActiveBankLabel(label) {
+  try {
+    localStorage.setItem(ACTIVE_KEY, label || "");
+  } catch {
+  }
+}
+function loadActiveBankLabel() {
+  try {
+    return localStorage.getItem(ACTIVE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+function presetLabel(id) {
+  return PRESET_LABELS[id] ?? id;
+}
+function getAllPresets() {
+  const all = {};
+  for (const [id, bank] of Object.entries(BUILTIN_PRESETS)) {
+    all[`builtin:${id}`] = {
+      id: `builtin:${id}`,
+      label: presetLabel(id),
+      kind: "builtin",
+      bank: normalizeBankShape(bank)
+    };
+  }
+  for (const [name, bank] of Object.entries(loadUserPresets())) {
+    all[`user:${name}`] = {
+      id: `user:${name}`,
+      label: `\u{1F464} ${name}`,
+      kind: "user",
+      bank: normalizeBankShape(bank)
+    };
+  }
+  return all;
+}
+var AUTOMIX_ID = "__automix__";
+function sortedPresetOptions() {
+  const all = Object.values(getAllPresets());
+  const key = (p) => p.label.replace(/^[^\p{L}\p{N}]+/u, "").trim();
+  const byName = (a, b) => key(a).localeCompare(key(b), "de", { sensitivity: "base" });
+  const builtins = all.filter((p) => p.kind === "builtin").sort(byName);
+  const users = all.filter((p) => p.kind === "user").sort(byName);
+  const opts = [...builtins, ...users].map((p) => [p.id, p.label]);
+  return [[AUTOMIX_ID, "\u{1F3B2} Auto-Mix"], ...opts];
+}
+var AUTOMIX_SRC_KEY = "dm_automix_sources_v1";
+function lastAutoMixSources() {
+  try {
+    const v = JSON.parse(localStorage.getItem(AUTOMIX_SRC_KEY) || "{}");
+    return v && typeof v === "object" ? v : {};
+  } catch {
+    return {};
+  }
+}
+function buildAutoMixBank() {
+  const pool = Object.values(getAllPresets());
+  const out = {};
+  const sources = {};
+  for (const k of BANK_KEYS) {
+    const src = pick(pool);
+    out[k] = Array.isArray(src.bank[k]) ? src.bank[k].slice() : [];
+    (sources[src.id] ||= []).push(k);
+  }
+  try {
+    localStorage.setItem(AUTOMIX_SRC_KEY, JSON.stringify(sources));
+  } catch {
+  }
+  const verw = /* @__PURE__ */ new Set();
+  for (const id of Object.keys(sources)) for (const x of getAllPresets()[id]?.bank.verwandlungen || []) {
+    const v = (x || "").trim();
+    if (v) verw.add(v);
+  }
+  const fertig = normalizeBankShape(out);
+  if (verw.size) fertig.verwandlungen = [...verw];
+  return fertig;
+}
+function buildMergedBank(ids) {
+  const all = getAllPresets();
+  const out = {};
+  for (const k of BANK_KEYS) {
+    const set = /* @__PURE__ */ new Set();
+    for (const id of ids) {
+      const p = all[id];
+      if (p && Array.isArray(p.bank[k])) for (const x of p.bank[k]) {
+        const v = (x || "").trim();
+        if (v) set.add(v);
+      }
+    }
+    out[k] = [...set];
+  }
+  const verw = /* @__PURE__ */ new Set();
+  for (const id of ids) for (const x of all[id]?.bank.verwandlungen || []) {
+    const v = (x || "").trim();
+    if (v) verw.add(v);
+  }
+  const fertig = normalizeBankShape(out);
+  if (verw.size) fertig.verwandlungen = [...verw];
+  return fertig;
+}
+
+// src/features/preset2.ts
+init_storage();
+init_ki();
+var USER2_KEY = "dm_user_presets2_v1";
+function loadUserPresets2() {
+  try {
+    const r = localStorage.getItem(USER2_KEY);
+    const p = r ? JSON.parse(r) : {};
+    return p && typeof p === "object" ? p : {};
+  } catch {
+    return {};
+  }
+}
+function getUserPreset2(name) {
+  return loadUserPresets2()[name] ?? null;
+}
+function markedPresetOptions() {
+  const u2 = loadUserPresets2();
+  return sortedPresetOptions().map(([v, l]) => [v, v.startsWith("user:") && u2[v.slice(5)] ? l + " \u27262.0" : l]);
+}
+
+// src/features/umwelt.ts
+var KEY3 = "dm_umwelt_v1";
+var UMWELT_LEER = { zeichen: "", wirkung: "aus" };
+function loadUmwelt() {
+  try {
+    const r = localStorage.getItem(KEY3);
+    if (!r) return { ...UMWELT_LEER };
+    const p = JSON.parse(r);
+    const w = p.wirkung;
+    return {
+      zeichen: typeof p.zeichen === "string" ? p.zeichen : "",
+      wirkung: w === "nahrung" || w === "gift" ? w : "aus"
+    };
+  } catch {
+    return { ...UMWELT_LEER };
+  }
+}
+function saveUmwelt(u) {
+  try {
+    localStorage.setItem(KEY3, JSON.stringify(u));
+  } catch {
+  }
+}
+function umweltTeile(zeichen) {
+  return (zeichen || "").split(/[,;]/).map((x) => x.trim()).filter((x) => x.length > 0);
+}
+function stehtDrin(text, teil) {
+  const t = (text || "").toLowerCase();
+  const p = teil.toLowerCase();
+  if (!p) return false;
+  const nurBuchstaben = /^[a-zäöüßA-ZÄÖÜ\s-]+$/.test(teil);
+  if (!nurBuchstaben) return t.includes(p);
+  try {
+    const esc = p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp("(?<![a-z\xE4\xF6\xFC\xDF])" + esc + "(?![a-z\xE4\xF6\xFC\xDF])", "i").test(t);
+  } catch {
+    return t.includes(p);
+  }
+}
+function aufnahmequote(text, zeichen) {
+  const teile = umweltTeile(zeichen);
+  if (!teile.length) return 0;
+  let n = 0;
+  for (const teil of teile) if (stehtDrin(text, teil)) n++;
+  return n / teile.length;
+}
+var UMWELT_GEWICHT = 60;
+function umweltBeitrag(text, u) {
+  if (!u || u.wirkung === "aus") return 0;
+  const teile = umweltTeile(u.zeichen);
+  if (!teile.length) return 0;
+  const q = aufnahmequote(text, u.zeichen);
+  return u.wirkung === "nahrung" ? q * UMWELT_GEWICHT : -q * UMWELT_GEWICHT;
+}
+
+// src/features/ressorts.ts
+var S = (t) => ({ t });
+var P = (t) => ({ t, pl: true });
+var RESSORTS = {
+  wirtschaft: {
+    id: "wirtschaft",
+    label: "Wirtschaft",
+    rollenF: ["Gesch\xE4ftsf\xFChrerin", "Betriebsr\xE4tin", "Sprecherin", "Analystin", "Standortleiterin", "Ausbilderin"],
+    rollenM: ["Gesch\xE4ftsf\xFChrer", "Betriebsratsvorsitzender", "Sprecher", "Analyst", "Betriebsrat", "Standortleiter", "Ausbilder"],
+    betroffen: ["der Betrieb", "die Belegschaft", "die Zulieferer", "die Auftragsb\xFCcher", "der Standort", "die Ausbildungspl\xE4tze", "die Auszubildenden", "die Werkshalle", "die Fuhrparks", "die Schichtpl\xE4ne"],
+    einheiten: [
+      { einheit: "Besch\xE4ftigte", rolle: "betroffene", min: 40, max: 900, rund: 10, gen: "Besch\xE4ftigten" },
+      { einheit: "Zulieferer", rolle: "betroffene", min: 12, max: 120, rund: 1 },
+      { einheit: "Millionen Euro Umsatz", rolle: "geld", min: 2, max: 900, rund: 1 },
+      { einheit: "Standorte", rolle: "vorgaenge", min: 2, max: 40, rund: 1 },
+      { einheit: "Meter Kaimauer", rolle: "groesse", min: 40, max: 900, rund: 10 },
+      { einheit: "Quadratmeter Hallenfl\xE4che", rolle: "groesse", min: 400, max: 24e3, rund: 100 }
+    ],
+    zusatz: { titel: "Marktreaktion", rahmen: ["Am Markt hei\xDFt es:", "In der Branche gilt:", "Beobachter verweisen auf:", "Aus der Belegschaft:", "Im Betriebsrat:", "Am Werkstor:"] },
+    einsatz: [S("der Standort"), S("die Altersversorgung der Belegschaft"), P("die Ausbildungspl\xE4tze"), S("der Name des Hauses"), S("die Lieferkette"), S("das Werksgel\xE4nde"), S("die Tarifbindung"), S("der Standort selbst")],
+    gewinn: [S("ein zweites Werk"), S("die Ausbildungsoffensive"), S("der Ausbau des Standorts"), S("die R\xFCckkehr der Auftr\xE4ge"), S("ein neuer Tarifvertrag"), S("eine zweite Schicht"), S("ein Ausbildungsverbund"), S("die \xDCbernahme der Auszubildenden")],
+    ausblickGut: ["Ob die Zahlen halten, entscheidet sich im n\xE4chsten Quartal.", "Die ersten Einstellungen sind fuer den Herbst angek\xFCndigt.", "Die Auftr\xE4ge reichen bis ins n\xE4chste Jahr.", "Weitere Einstellungen sind vorgesehen."],
+    ausblick: ["Ob die Zahlen halten, entscheidet sich im n\xE4chsten Quartal.", "Eine Entscheidung soll in den kommenden Tagen fallen.", "Die Verhandlungen sollen weitergehen.", "Ein Gutachten ist in Auftrag gegeben.", "Die Belegschaft wird kommende Woche informiert."],
+    regel: "zweiZahlen"
+  },
+  politik: {
+    id: "politik",
+    label: "Politik",
+    rollenF: ["Abgeordnete", "Fraktionssprecherin", "Staatssekret\xE4rin", "Fraktionsvorsitzende", "Amtsleiterin", "B\xFCrgermeisterin"],
+    rollenM: ["Abgeordneter", "Fraktionssprecher", "Staatssekret\xE4r", "Fraktionsvorsitzender", "Amtsleiter", "B\xFCrgermeister"],
+    betroffen: ["das Verfahren", "die Fraktionen", "die Kommunen", "der Zeitplan", "die Antragsteller", "die Aussch\xFCsse", "die Verwaltung", "die B\xFCrgersprechstunde", "die Haushaltsplanung", "das Ehrenamt"],
+    einheiten: [
+      { einheit: "Wahlberechtigte", rolle: "betroffene", min: 500, max: 9e4, rund: 100, gen: "Wahlberechtigten" },
+      { einheit: "Kommunen", rolle: "betroffene", min: 12, max: 200, rund: 1 },
+      { einheit: "Stimmen", rolle: "vorgaenge", min: 20, max: 700, rund: 1 },
+      { einheit: "Sitzungen", rolle: "vorgaenge", min: 2, max: 60, rund: 1 },
+      { einheit: "Sitze", rolle: "groesse", min: 5, max: 120, rund: 1 },
+      { einheit: "Stimmbezirke", rolle: "groesse", min: 4, max: 90, rund: 1 }
+    ],
+    zusatz: { titel: "Reaktionen", rahmen: ["Aus der Regierung hei\xDFt es:", "Die Opposition h\xE4lt dagegen:", "Aus den L\xE4ndern kommt:", "Im Rathaus:", "Aus der Fraktion:", "In der Sitzung:"] },
+    einsatz: [S("die Mehrheit"), S("der Zeitplan des Verfahrens"), S("das Vertrauen in die Zusage"), S("die Zust\xE4ndigkeit der Kommunen"), S("der Haushaltsansatz"), S("die Mehrheit im Rat"), S("der Haushalt"), P("die Fristen"), S("das Vertrauen in die Verwaltung")],
+    gewinn: [S("eine breite Mehrheit"), S("die Zustimmung der L\xE4nder"), S("ein fr\xFCherer Beginn"), S("die Aufstockung der Mittel"), S("eine breitere Mehrheit"), S("ein zus\xE4tzlicher Ausschuss"), S("mehr Mittel im Haushalt")],
+    ausblickGut: ["Der Beschluss soll in der n\xE4chsten Sitzung best\xE4tigt werden.", "Die Umsetzung beginnt im kommenden Jahr.", "Die Vorlage gilt als sicher.", "Weitere Mittel sind zugesagt."],
+    ausblick: ["Der Verfahrensstand bleibt bis zur n\xE4chsten Sitzung unver\xE4ndert.", "Ob es zur Abstimmung kommt, ist offen.", "Die Abstimmung ist vertagt.", "Der Ausschuss tagt erneut.", "Eine Stellungnahme steht aus."],
+    regel: "lagerAusgewogen"
+  },
+  kultur: {
+    id: "kultur",
+    label: "Kultur",
+    rollenF: ["Intendantin", "Kuratorin", "Dramaturgin", "Kritikerin", "Werkstattleiterin", "Regisseurin"],
+    rollenM: ["Intendant", "Kurator", "Dramaturg", "Kritiker", "Werkstattleiter", "Regisseur"],
+    betroffen: ["das Ensemble", "der Spielplan", "die Abonnenten", "die Werkst\xE4tten", "die Nachwuchsarbeit", "die Technik", "die Statisterie", "die Requisite", "das Foyer", "die Bibliothek des Hauses"],
+    einheiten: [
+      { einheit: "Ensemblemitglieder", rolle: "betroffene", min: 12, max: 200, rund: 1 },
+      { einheit: "Abonnenten", rolle: "betroffene", min: 50, max: 8e3, rund: 10 },
+      { einheit: "Vorstellungen", rolle: "vorgaenge", min: 3, max: 200, rund: 1 },
+      { einheit: "Minuten Spieldauer", rolle: "dauer", min: 45, max: 240, rund: 5 },
+      { einheit: "Sitzpl\xE4tze", rolle: "groesse", min: 90, max: 1400, rund: 10 },
+      { einheit: "Exponate", rolle: "groesse", min: 12, max: 600, rund: 2 }
+    ],
+    zusatz: { titel: "Zum Werk", rahmen: ["Zu sehen ist:", "Die Arbeit zeigt:", "Auf der B\xFChne steht:", "Aus dem Ensemble:", "An der Kasse:", "In der Probe:"] },
+    einsatz: [S("der Spielplan der kommenden Saison"), S("das Ensemble in seiner jetzigen Form"), P("die Werkst\xE4tten"), S("das Haus als Ort"), S("die Nachwuchsarbeit"), S("die Urauff\xFChrung"), S("der Spielplan"), P("die Gastspiele"), S("das Ensemble selbst")],
+    gewinn: [S("eine zweite Spielst\xE4tte"), S("die \xDCbernahme ins Repertoire"), S("ein eigenes Nachwuchsstudio"), S("die Verlaengerung der Reihe"), P("neue Abonnements"), S("ein Gastspiel im Ausland")],
+    ausblickGut: ["Die n\xE4chste Auff\xFChrung ist angek\xFCndigt.", "Weitere Termine sollen folgen.", "Die Vorstellung wird verl\xE4ngert.", "Weitere Termine kommen dazu."],
+    ausblick: ["Ob das Publikum folgt, wird sich zeigen.", "Die n\xE4chste Auff\xFChrung ist angek\xFCndigt.", "Die Premiere bleibt geplant.", "Die Proben werden fortgesetzt.", "\xDCber den Spielplan wird neu beraten."],
+    regel: "wertungGetrennt"
+  },
+  sport: {
+    id: "sport",
+    label: "Sport",
+    rollenF: ["Trainerin", "Kapit\xE4nin", "Sportdirektorin", "Torh\xFCterin", "Abteilungsleiterin"],
+    rollenM: ["Trainer", "Kapit\xE4n", "Sportdirektor", "Torh\xFCter", "Abteilungsleiter"],
+    betroffen: ["der Verein", "die Fans", "das Marketing", "das Logo", "die Mannschaft", "der Nachwuchs", "die Sponsoren", "die Dauerkarten", "die Jugendabteilung", "die Dauerkartenbesitzer", "der Trainingsbetrieb", "die Gesch\xE4ftsstelle", "der Fanclub"],
+    einheiten: [
+      { einheit: "Vereinsmitglieder", rolle: "betroffene", min: 50, max: 4e4, rund: 10 },
+      { einheit: "Dauerkarten", rolle: "betroffene", min: 100, max: 3e4, rund: 100 },
+      { einheit: "Zuschauer", rolle: "betroffene", min: 200, max: 6e4, rund: 100 },
+      { einheit: "Minuten", rolle: "dauer", min: 5, max: 120, rund: 1 },
+      { einheit: "Punkte", rolle: "groesse", min: 3, max: 60, rund: 1 },
+      { einheit: "Meter Laufbahn", rolle: "groesse", min: 100, max: 800, rund: 50 }
+    ],
+    zusatz: { titel: "Spielverlauf", rahmen: ["Nach der Pause:", "In der Schlussphase:", "Zur Halbzeit:", "In der Kabine:", "Auf der Trib\xFCne:", "In der Gesch\xE4ftsstelle:"] },
+    einsatz: [S("der Klassenerhalt"), S("die Lizenz"), S("die Nachwuchsabteilung"), S("der Name des Vereins"), S("die Heimspielst\xE4tte"), S("das Traineramt"), S("der Aufstieg"), P("die Heimspiele"), S("der Trainingsbetrieb")],
+    gewinn: [S("der Aufstieg"), S("ein neuer Hauptsponsor"), S("der Ausbau der Jugendabteilung"), S("die R\xFCckkehr in die Halle"), S("ein neuer Trainingsplatz"), P("zus\xE4tzliche Heimspiele"), S("die R\xFCckkehr der Zuschauer")],
+    ausblickGut: ["Das R\xFCckspiel steht noch aus.", "Die Vorbereitung beginnt im Sommer.", "Die Serie soll fortgesetzt werden.", "Weitere Zusagen liegen vor."],
+    ausblick: ["Das R\xFCckspiel steht noch aus.", "Ob die Serie h\xE4lt, entscheidet sich am Wochenende.", "Das n\xE4chste Spiel entscheidet.", "Der Verband pr\xFCft den Vorgang.", "Eine Entscheidung f\xE4llt nach der Saison."],
+    regel: "ergebnisZuerst"
+  },
+  wissenschaft: {
+    id: "wissenschaft",
+    label: "Wissenschaft",
+    rollenF: ["Studienleiterin", "Professorin", "Erstautorin", "Gutachterin", "Institutsleiterin", "Doktorandin", "Laborleiterin"],
+    rollenM: ["Studienleiter", "Professor", "Erstautor", "Gutachter", "Institutsleiter", "Doktorand", "Laborleiter"],
+    betroffen: ["die Studie", "die Arbeitsgruppe", "die F\xF6rderung", "die Ver\xF6ffentlichung", "die Datenbasis", "die Messreihen", "die Drittmittel", "die Doktoranden", "das Labor", "die Sammlung"],
+    einheiten: [
+      { einheit: "Teilnehmende", rolle: "betroffene", min: 12, max: 4e3, rund: 1, gen: "Teilnehmenden" },
+      { einheit: "Institute", rolle: "betroffene", min: 12, max: 40, rund: 1 },
+      { einheit: "Proben", rolle: "vorgaenge", min: 12, max: 4e3, rund: 1 },
+      { einheit: "Monate Laufzeit", rolle: "dauer", min: 3, max: 96, rund: 1 },
+      { einheit: "Messreihen", rolle: "groesse", min: 6, max: 220, rund: 2 },
+      { einheit: "Datens\xE4tze", rolle: "groesse", min: 40, max: 9e3, rund: 10 }
+    ],
+    zusatz: { titel: "Methode", rahmen: ["Untersucht wurde:", "Erhoben wurden:", "Verglichen wurde:", "Im Labor:", "Aus der Arbeitsgruppe:", "Am Rande der Tagung:"] },
+    einsatz: [S("die F\xF6rderung"), S("die Vergleichbarkeit der Daten"), S("die Ver\xF6ffentlichung"), S("der Standort des Instituts"), S("die Fortsetzung der Reihe"), S("die F\xF6rderzusage"), S("die Messreihe"), P("die Nachwuchsstellen"), S("der Zugang zur Sammlung")],
+    gewinn: [S("eine Anschlussfoerderung"), S("ein zweiter Standort"), S("die Aufnahme in das Programm"), S("ein gemeinsames Labor"), S("eine zweite F\xF6rderperiode"), P("neue Messpl\xE4tze")],
+    ausblickGut: ["Eine Wiederholung der Studie ist geplant.", "Die Ergebnisse sollen offen zug\xE4nglich werden.", "Die F\xF6rderung ist verl\xE4ngert.", "Weitere H\xE4user beteiligen sich."],
+    ausblick: ["Eine Wiederholung der Studie steht aus.", "Ob sich der Befund best\xE4tigt, ist offen.", "Die Auswertung dauert an.", "Die Ergebnisse sollen gepr\xFCft werden.", "Eine Wiederholung des Versuchs ist geplant."],
+    regel: "einschraenkungPflicht"
+  },
+  gesellschaft: {
+    id: "gesellschaft",
+    label: "Gesellschaft",
+    rollenF: ["Sozialarbeiterin", "Anwohnerin", "Vereinsvorsitzende", "Beraterin", "Quartiersmanagerin", "Ehrenamtskoordinatorin", "Gemeindereferentin"],
+    rollenM: ["Sozialarbeiter", "Anwohner", "Vereinsvorsitzender", "Berater", "Quartiersmanager", "Ehrenamtskoordinator", "Gemeindereferent"],
+    betroffen: ["die Nachbarschaft", "die Familien", "das Ehrenamt", "die Beratungsstelle", "der Treffpunkt", "der Sportverein", "die Kirchengemeinde", "die Kita", "die Tafel", "die Nachbarschaftshilfe", "der Schrebergarten", "die Freiwillige Feuerwehr"],
+    einheiten: [
+      { einheit: "Haushalte", rolle: "betroffene", min: 20, max: 4e3, rund: 10 },
+      { einheit: "Familien", rolle: "betroffene", min: 12, max: 2e3, rund: 10 },
+      { einheit: "Haushalte", rolle: "betroffene", min: 20, max: 4e3, rund: 10 },
+      { einheit: "Beratungen", rolle: "vorgaenge", min: 10, max: 900, rund: 1 },
+      { einheit: "Quadratmeter Nutzfl\xE4che", rolle: "groesse", min: 60, max: 3e3, rund: 10 },
+      { einheit: "Pl\xE4tze", rolle: "groesse", min: 8, max: 300, rund: 2 }
+    ],
+    zusatz: { titel: "Vor Ort", rahmen: ["Im Viertel hei\xDFt es:", "Nachbarn berichten:", "In der Beratungsstelle:", "Am Tresen:", "Im Gemeindehaus:", "Auf dem Wochenmarkt:"] },
+    einsatz: [S("der Treffpunkt im Viertel"), S("die Beratung vor Ort"), S("das Ehrenamt"), S("die Mietbindung"), S("der Zusammenhalt in der Nachbarschaft"), S("die Nachbarschaftshilfe"), P("die \xD6ffnungszeiten"), S("das Gemeindehaus"), S("die Tafel")],
+    gewinn: [S("ein neuer Treffpunkt"), S("die Verstetigung der Beratung"), S("mehr Pl\xE4tze im Ehrenamt"), S("ein Nachbarschaftsfonds"), S("ein zweiter Treffpunkt"), P("l\xE4ngere \xD6ffnungszeiten"), S("eine feste Stelle in der Beratung")],
+    ausblickGut: ["Das Angebot soll im Fr\xFChjahr starten.", "Weitere H\xE4user haben Interesse angemeldet.", "Die \xD6ffnungszeiten werden ausgeweitet.", "Weitere Freiwillige haben sich gemeldet."],
+    ausblick: ["Wie es im Viertel weitergeht, ist offen.", "Eine Entscheidung soll in den kommenden Wochen fallen.", "Der Verein sucht weiter Freiwillige.", "Ein Treffen ist f\xFCr den Herbst angesetzt.", "Die Stadt pr\xFCft eine F\xF6rderung."],
+    regel: "keine"
+  },
+  gesundheit: {
+    id: "gesundheit",
+    label: "Gesundheit",
+    rollenF: ["\xC4rztliche Direktorin", "Pflegedienstleiterin", "Amts\xE4rztin", "Epidemiologin", "Chef\xE4rztin", "Apothekerin"],
+    rollenM: ["\xC4rztlicher Direktor", "Pflegedienstleiter", "Amtsarzt", "Epidemiologe", "Chefarzt", "Apotheker"],
+    betroffen: ["die Versorgung", "die Pflegekr\xE4fte", "die Notaufnahme", "die Wartezeiten", "die Angeh\xF6rigen", "der Bereitschaftsdienst", "die Apotheken", "die Hausarztpraxen", "der Krankentransport", "die Physiotherapie"],
+    einheiten: [
+      { einheit: "Patientinnen und Patienten", rolle: "betroffene", min: 30, max: 9e3, rund: 10 },
+      { einheit: "Pflegekr\xE4fte", rolle: "betroffene", min: 12, max: 900, rund: 1 },
+      { einheit: "Betten", rolle: "groesse", min: 20, max: 1200, rund: 10 },
+      { einheit: "Behandlungen", rolle: "vorgaenge", min: 30, max: 9e3, rund: 10 }
+    ],
+    zusatz: { titel: "Einordnung der Lage", rahmen: ["Aus der Klinik hei\xDFt es:", "Die Beh\xF6rde teilt mit:", "In der Versorgung zeigt sich:", "Auf der Station:", "In der Pflege:", "Am Empfang:"] },
+    einsatz: [S("die Versorgung im Umkreis"), S("die Notaufnahme"), P("die Ausbildungspl\xE4tze in der Pflege"), P("die Wartezeiten"), S("der Standort der Klinik"), P("die Betten"), S("der Bereitschaftsdienst"), S("die Versorgung im Umland")],
+    gewinn: [S("eine zusaetzliche Station"), S("k\xFCrzere Wartezeiten"), S("mehr Ausbildungspl\xE4tze in der Pflege"), S("ein zweiter Rettungswagen"), S("eine zus\xE4tzliche Station"), P("mehr Betten")],
+    ausblickGut: ["Die Station soll im Herbst \xF6ffnen.", "Die Versorgung im Umkreis wird neu geordnet.", "Die Station soll erweitert werden.", "Weitere Kr\xE4fte sind eingestellt."],
+    ausblick: ["Wie sich die Lage entwickelt, bleibt abzuwarten.", "Eine Neubewertung ist f\xFCr die kommende Woche angek\xFCndigt.", "Die Aufsicht pr\xFCft den Vorgang.", "Eine \xDCbergangsl\xF6sung wird gesucht.", "Der Betrieb l\xE4uft eingeschr\xE4nkt weiter."],
+    // Bewusst keine Sonderregel mit Zahlenpflicht: Gesundheitsberichte, die
+    // Zahlen erzwingen, erfinden welche. Lieber weniger und richtig.
+    regel: "keine"
+  },
+  bildung: {
+    id: "bildung",
+    label: "Bildung",
+    rollenF: ["Schulleiterin", "Elternsprecherin", "Lehrerin", "Bildungsforscherin", "Fachlehrerin"],
+    rollenM: ["Schulleiter", "Elternsprecher", "Lehrer", "Bildungsforscher", "Fachlehrer"],
+    betroffen: ["der Unterricht", "die Elternh\xE4user", "das Kollegium", "der Stundenplan", "die Abschlussjahrg\xE4nge", "die Elternvertretung", "die Ganztagsbetreuung", "die Werkr\xE4ume", "die Schulbusse", "die Mensa"],
+    einheiten: [
+      { einheit: "Sch\xFClerinnen und Sch\xFCler", rolle: "betroffene", min: 30, max: 2e3, rund: 10 },
+      { einheit: "Lehrkr\xE4fte", rolle: "betroffene", min: 12, max: 200, rund: 1 },
+      { einheit: "Sch\xFClerinnen und Sch\xFCler", rolle: "betroffene", min: 30, max: 2e3, rund: 10 },
+      { einheit: "Unterrichtsstunden", rolle: "dauer", min: 4, max: 400, rund: 2 },
+      { einheit: "Klassenr\xE4ume", rolle: "groesse", min: 3, max: 60, rund: 1 },
+      { einheit: "Wochenstunden", rolle: "groesse", min: 4, max: 40, rund: 1 }
+    ],
+    zusatz: { titel: "An der Schule", rahmen: ["Im Kollegium hei\xDFt es:", "Aus der Elternschaft:", "Im Unterricht zeigt sich:", "Im Lehrerzimmer:", "Auf dem Schulhof:", "In der Elternversammlung:"] },
+    einsatz: [S("der Ganztag"), S("das Abschlussjahr"), P("die Stellen im Kollegium"), S("der Schulstandort"), S("die Betreuung am Nachmittag"), P("die Werkr\xE4ume"), S("die Schulbusverbindung"), S("das Kollegium")],
+    gewinn: [S("zus\xE4tzliche Klassen"), S("der Ausbau des Ganztags"), S("zusaetzliche Stellen im Kollegium"), S("eine eigene Werkstatt"), S("eine zus\xE4tzliche Klasse"), P("neue Werkr\xE4ume"), S("eine zweite Schulbuslinie")],
+    ausblickGut: ["Der Start ist fuer das kommende Schuljahr geplant.", "Die Stellen sollen zum Halbjahr besetzt werden.", "Die Klasse wird eingerichtet.", "Weitere Stellen sind besetzt."],
+    ausblick: ["Ob die Stunden ersetzt werden, ist offen.", "Das n\xE4chste Schuljahr soll Klarheit bringen.", "Das Schulamt pr\xFCft den Fall.", "Die Elternversammlung tagt kommende Woche.", "Eine L\xF6sung soll bis zum Halbjahr stehen."],
+    regel: "keine"
+  },
+  wetter: {
+    id: "wetter",
+    label: "Wetter",
+    rollenF: ["Meteorologin", "Wetterdienst-Sprecherin", "Einsatzleiterin", "Deichvorsteherin", "Deichgr\xE4fin"],
+    rollenM: ["Meteorologe", "Wetterdienst-Sprecher", "Einsatzleiter", "Deichvorsteher", "Deichgraf"],
+    einheiten: [
+      { einheit: "Gemeinden", rolle: "betroffene", min: 12, max: 400, rund: 2 },
+      { einheit: "H\xF6fe", rolle: "betroffene", min: 12, max: 800, rund: 2 },
+      { einheit: "Liter je Quadratmeter", rolle: "groesse", min: 14, max: 180, rund: 2, label: "Niederschlag" },
+      { einheit: "Stundenkilometer", rolle: "groesse", min: 60, max: 200, rund: 5, label: "Spitzenb\xF6e" },
+      { einheit: "Zentimeter Neuschnee", rolle: "groesse", min: 12, max: 90, rund: 2, label: "Neuschnee" },
+      { einheit: "Eins\xE4tze", rolle: "vorgaenge", min: 20, max: 900, rund: 2, label: "Eins\xE4tze" },
+      { einheit: "Stunden Dauerregen", rolle: "dauer", min: 4, max: 60, rund: 2, label: "Dauerregen" }
+    ],
+    betroffen: ["die K\xFCste", "der Deich", "die Ernte", "der Bahnverkehr", "die Schulen", "die Feuerwehr", "die F\xE4hren", "die Deichverb\xE4nde", "der F\xE4hrbetrieb", "die Obstbauern", "die Feuerwehren", "der Schienenverkehr", "die Campingpl\xE4tze"],
+    einsatz: [S("die Ernte"), S("der Deich"), S("der Bahnverkehr"), S("die Trinkwasserversorgung"), S("die F\xE4hrverbindung"), P("die F\xE4hrverbindungen"), S("die Stromversorgung"), S("der K\xFCstenschutz"), S("die Obsternte")],
+    gewinn: [S("eine trockene Erntewoche"), S("die R\xFCckkehr des Grundwassers"), S("ein mildes Wochenende"), S("die Entwarnung f\xFCr die K\xFCste"), S("eine Entspannung der Lage"), P("wieder befahrbare Stra\xDFen"), S("die R\xFCckkehr des F\xE4hrbetriebs")],
+    // Titel leer: Der Rahmen („Für morgen gilt:") trägt die Ansage selbst.
+    // Mit Titel stand „Aussichten: Für morgen gilt: …" im Blatt — zwei
+    // Doppelpunkte, eine Ansage.
+    zusatz: { titel: "", rahmen: ["F\xFCr morgen gilt:", "Zum Wochenende:", "In der Nacht:", "Am Deich:", "Im Hafen:", "Auf den Feldern:"] },
+    hintergrundKopf: (_wer, jahr) => `Vergleichbare Lagen gab es zuletzt ${jahr}.`,
+    ausblickGut: ["Die Warnung wird zum Abend aufgehoben.", "Das Hoch soll sich bis zur Wochenmitte halten.", "Die Warnung wurde aufgehoben.", "Der Betrieb l\xE4uft wieder an.", "Zum Wochenende soll es trocken bleiben.", "Die Pegel fallen wieder."],
+    ausblick: ["Die Warnstufe bleibt vorerst bestehen.", "Wie lange die Lage anh\xE4lt, ist offen.", "Der Warndienst bleibt bestehen.", "Die Lage wird st\xFCndlich neu bewertet.", "Eine Entwarnung steht aus.", "Die Einsatzkr\xE4fte bleiben in Bereitschaft.", "Die Pegel werden weiter beobachtet.", "F\xFCr die Nacht gilt die Warnung weiter."],
+    // Das Wetter-Gerüst (4.324.0): eigene Ereignisse und eigene Sätze statt
+    // des Verwaltungsdeutschs der Vorgabe. Gemessen vorher: „die erste
+    // Beschwerde" u. ä. und „folgte der Schritt, über den … informiert" in
+    // 108 von 108 Läufen, je EINE Fassung für Vorspann-Zweitsatz und
+    // Schritt-Satz.
+    vorgeschichte: {
+      sachlich: ["die erste Warnung", "die erste Unwetterwarnung", "der erste Starkregen", "die erste B\xF6enfront", "der erste Pegelanstieg", "das erste Donnergrollen"],
+      gut: ["die erste Aufheiterung", "die erste Entwarnung", "das erste Zwischenhoch", "die erste trockene Stunde", "der erste Sonnenstreifen"],
+      anfang: "die vergleichbare Lage"
+    },
+    schrittFassungen: (zeit, gut) => gut ? [
+      `${zeit} kam die erste Entwarnung.`,
+      `${zeit} wurden die ersten Sperrungen aufgehoben.`,
+      `${zeit} entspannte sich die Lage.`,
+      `${zeit} liefen die ersten F\xE4hren wieder aus.`
+    ] : [
+      `${zeit} wurde die Warnung ausgeweitet.`,
+      `${zeit} kam die n\xE4chste Warnstufe.`,
+      `${zeit} liefen die ersten Eins\xE4tze an.`,
+      `${zeit} meldeten die Pegel den n\xE4chsten Anstieg.`,
+      `${zeit} r\xFCckten die ersten Wehren aus.`
+    ],
+    vorspannFassungen: (menge, gut) => gut ? [
+      `Bekannt wurde, dass ${menge} hinzukommen.`,
+      `Nach ersten Meldungen kommen ${menge} hinzu.`,
+      `Erste Meldungen sprechen von ${menge}.`
+    ] : [
+      `Bekannt wurde, dass ${menge} betroffen sind.`,
+      `Nach ersten Meldungen sind ${menge} betroffen.`,
+      `Erste Meldungen sprechen von ${menge}.`,
+      `Der Wetterdienst meldet ${menge} als betroffen.`
+    ],
+    nurEigenerAusblick: true,
+    // Keine Sonderregel: Ein Wetterbericht, der Zahlen erzwingt, erfindet
+    // Messwerte - und ein erfundener Messwert ist schlimmer als keiner.
+    regel: "keine"
+  }
+};
+var RESSORT_IDS = Object.keys(RESSORTS);
+var SPUR = [
+  // Die Wetter-Spur war in beide Richtungen undicht (gemeldet: „Wind und
+  // Sturm und Regen sind keine Auslöser"). Gemessen vorher: „Wind", „Böen",
+  // „es stürmt und regnet", „Blitz und Donner", „Wolkenbruch", „Trockenheit"
+  // fielen alle durch (9 von 15 Wetterfällen) — „wind" stand gar nicht in der
+  // Liste, und die Stämme treffen keine Verbformen (stürmt hat einen Umlaut,
+  // regnet kein „e"). Umgekehrt fraß „hoch|tief" mit \w* jeden Wortanfang:
+  // „Hochschule", „Tiefgarage", „Hochhaus", „hochwertig" wurden Wetter
+  // (4 von 7 Gegenproben). Jetzt: Verbformen ausdrücklich, Komposita nur wo
+  // sie eindeutig sind, Druckgebiete nur mit Artikel oder als „…druck", und
+  // Fallen wie Donnerstag, Blitzumfrage, Wolkenkratzer, Regeneration und
+  // Ansturm ausgenommen.
+  ["wetter", new RegExp("\\b(" + [
+    "\\w*wetter\\w*",
+    "sturm\\w*",
+    "st\xFCrm\\w*",
+    "orkan\\w*",
+    "regen(?!erier|erat)\\w*",
+    "regn\\w*",
+    "(dauer|stark|platz|eis|niesel|land)regen\\w*",
+    "schnee\\w*",
+    "schneit\\w*",
+    "hitze\\w*",
+    "frost\\w*",
+    "gewitter\\w*",
+    "hochwasser\\w*",
+    "d\xFCrre\\w*",
+    "trockenheit\\w*",
+    "unwetter\\w*",
+    "hagel\\w*",
+    "nebel\\w*",
+    "glatteis\\w*",
+    "gl\xE4tte\\b",
+    "b\xF6e\\w*",
+    "wind(e|es)?\\b",
+    "windig\\w*",
+    "windb\xF6en\\w*",
+    "windst\xE4rke\\w*",
+    "(nord|s\xFCd|ost|west|herbst|winter|fr\xFChlings?|sommer|land|see|h\xF6hen|fall|schnee|eis)wind\\w*",
+    "blitz(e|es|en)?\\b",
+    "blitzt\\w*",
+    "blitzeis\\w*",
+    "blitzschlag\\w*",
+    "donner(?!stag)\\w*",
+    "wolke(?!nkratzer)\\w*",
+    "bew\xF6lkt\\w*",
+    "niederschlag\\w*",
+    "graupel\\w*",
+    "lawine\\w*",
+    "flut\\b",
+    "flutwelle\\w*",
+    "springflut\\w*",
+    "pegel\\w*",
+    "k\xE4lte\\w*",
+    "friert\\b",
+    "gefriert\\b",
+    "taut\\b",
+    "(hoch|tief)druck\\w*",
+    "(das|ein|dem|vom) (hoch|tief)\\b",
+    "warnstufe\\w*",
+    "deich\\w*",
+    "\xFCberschwemmung\\w*",
+    "temperatur\\w*",
+    "sonnenschein\\w*",
+    "hitzewelle\\w*"
+  ].join("|") + ")", "i")],
+  ["sport", /\b(spielt|spielen|spiel|tor|tore|mannschaft|trainer|trainiert|liga|stadion|wettkampf|sieg|niederlage|halbzeit|verein|klub|club|fc|sv|tsv|bvb|meisterschaft|turnier|pokal|elf|kader|transfer|saison)\w*/i],
+  ["kultur", /\b(bühne|theater|roman|gedicht|ausstellung|museum|konzert|oper|film|publikum|werk)\w*/i],
+  ["politik", /\b(regierung|partei|fraktion|gesetz|wahl|parlament|abstimmung|minister|verfahren)\w*/i],
+  ["wissenschaft", /\b(studie|forschung|labor|messung|befund|experiment|hypothese|probe|institut)\w*/i],
+  ["gesundheit", /\b(klinik|krankenhaus|arzt|ärztin|pflege|patient|diagnose|behandlung|seuche|impf)\w*/i],
+  ["bildung", /\b(schule|unterricht|klasse|lehrer|lehrerin|prüfung|schüler|universität|studium)\w*/i],
+  ["wirtschaft", /\b(werft|betrieb|firma|unternehmen|konzern|gmbh|ag|holding|umsatz|markt|produktion|belegschaft|insolvenz|werk|fabrik|filiale|standort|schliessen|schließt|schließen)\w*/i]
+];
+function rateRessort(text) {
+  for (const [id, re] of SPUR) if (re.test(text)) return id;
+  return "gesellschaft";
+}
+
+// src/presets.drama.data.ts
+var D = (einstieg, mitte, hoehepunkt, konflikte, ausloeser, veraenderungen, zeitanomalien, regeln, schluss) => ({ einstieg, mitte, hoehepunkt, schluss, ausloeser, veraenderungen, konflikte, zeitanomalien, regeln });
+var BUILTIN_DRAMA = {
+  kafka: D(
+    ["alles liegt an seinem Platz, und genau das beunruhigt", "die Formulare sind bereits ausgef\xFCllt", "niemand hat die T\xFCr ge\xF6ffnet, sie stand offen"],
+    ["die Zust\xE4ndigkeit wandert von Zimmer zu Zimmer", "eine Auskunft widerspricht der vorigen, beide sind g\xFCltig", "der Gang verzweigt sich, jede Abzweigung f\xFChrt zur\xFCck"],
+    ["die Akte tr\xE4gt den eigenen Namen", "das Verfahren war l\xE4ngst abgeschlossen"],
+    ["eine Auskunft, die niemand gibt", "eine Frist ohne Anfang", "eine Schuld ohne Anklage"],
+    ["ein Bescheid ohne Absender", "eine Unterschrift, die niemand leisten kann", "ein Stempel auf dem falschen Blatt"],
+    ["die Zust\xE4ndigkeit wechselt", "der Vorgang beginnt von vorn", "die Frage verwandelt sich in ihre Antwort"],
+    ["Die Frist l\xE4uft r\xFCckw\xE4rts.", "Der Termin liegt bereits hinter dem Antrag."],
+    ["Wer fragt, bekommt eine Nummer.", "Jede Auskunft ist vorl\xE4ufig und endg\xFCltig zugleich."],
+    ["offen", "beklemmend"]
+  ),
+  bureau: D(
+    ["die Warteschlange bewegt sich nicht", "der Schalter ist besetzt und leer zugleich", "auf dem Tisch liegt ein Stift ohne Mine"],
+    ["ein Formular verlangt ein zweites", "die Nummer wird aufgerufen, geh\xF6rt aber niemandem", "der Aktenschrank \xF6ffnet sich in einen weiteren Flur"],
+    ["die Zust\xE4ndigkeit wird endg\xFCltig ungekl\xE4rt", "das eigene Aktenzeichen erlischt"],
+    ["eine Zust\xE4ndigkeit, die niemand annimmt", "einen Vorgang ohne Ende", "eine Best\xE4tigung, die sich selbst widerruft"],
+    ["ein Formular in dreifacher Ausfertigung", "eine Wartenummer aus einem anderen Jahr", "ein Dienstsiegel ohne Beh\xF6rde"],
+    ["der Vorgang wird umgeleitet", "die Frist verl\xE4ngert sich von selbst", "das Verfahren beginnt still von vorn"],
+    ["Der Sprechtag liegt immer gestern.", "Die Bearbeitungszeit w\xE4chst mit jeder Nachfrage."],
+    ["Kein Vorgang endet, er ruht nur.", "Wer wartet, wird Teil des Verfahrens."],
+    ["offen", "resigniert"]
+  ),
+  mystery: D(
+    ["das Haus ist zu still f\xFCr die Uhrzeit", "im Flur brennt Licht, das niemand angelassen hat", "die T\xFCr f\xE4llt zu, bevor jemand sie ber\xFChrt"],
+    ["eine Spur f\xFChrt zur\xFCck in den eigenen Weg", "der Zeuge erinnert sich an etwas, das nicht geschah", "hinter der Wand geht jemand denselben Gang"],
+    ["die Erkl\xE4rung stimmt, und macht alles schlimmer", "der Fund war die ganze Zeit sichtbar"],
+    ["eine Wahrheit, die niemand h\xF6ren will", "ein Verschwinden ohne L\xFCcke", "einen Zeugen, der sich selbst widerspricht"],
+    ["ein Schl\xFCssel, der nirgends passt", "ein Anruf ohne Stimme", "ein Foto mit einer Person zu viel"],
+    ["die Spur kehrt sich um", "der Verdacht wechselt die Richtung", "das Vertraute wird fremd"],
+    ["Zwischen zwei Blicken vergeht eine Nacht.", "Die Uhr im Nebenzimmer geht anders."],
+    ["Nichts verschwindet, es wird nur nicht mehr gesucht.", "Wer genau hinsieht, wird selbst gesehen."],
+    ["offen", "unheimlich"]
+  ),
+  freud: D(
+    ["das Zimmer ist auf angenehme Weise zu warm", "der Satz bricht ab, bevor er gef\xE4hrlich wird", "das Sofa erinnert sich an alle, die darauf lagen"],
+    ["ein Wort rutscht heraus und meint ein anderes", "die Erinnerung \xE4ndert sich beim Erz\xE4hlen", "der Traum liefert die Antwort auf die falsche Frage"],
+    ["das Verdr\xE4ngte spricht mit vertrauter Stimme", "der Widerstand gibt genau an der Stelle nach"],
+    ["einen Wunsch, den niemand zugibt", "eine Erinnerung, die sich selbst erfindet", "eine Angst mit fremdem Gesicht"],
+    ["ein Versprecher im falschen Moment", "ein wiederkehrender Traum", "ein Name, der nicht einfallen will"],
+    ["das Verdr\xE4ngte kehrt zur\xFCck", "die Deutung dreht den Sinn um", "der Wunsch zeigt sein Gegenteil"],
+    ["Die Kindheit liegt n\xE4her als gestern.", "Ein Satz dauert l\xE4nger, als er braucht."],
+    ["Nichts wird vergessen, es wird nur woanders abgelegt.", "Jede Abwehr verr\xE4t, was sie sch\xFCtzt."],
+    ["offen", "analytisch"]
+  ),
+  rimbaud: D(
+    ["das Wasser tr\xE4gt Licht, das nicht vom Himmel stammt", "der Kiel schneidet durch eine Farbe ohne Namen", "die K\xFCste l\xF6st sich auf, ohne zu verschwinden"],
+    ["der Horizont wechselt die Seite", "das Meer schreibt und l\xF6scht denselben Satz", "der Mast singt in einer fremden Sprache"],
+    ["das Schiff gehorcht keinem Kurs mehr", "der Rausch schl\xE4gt in Klarheit um"],
+    ["eine Freiheit ohne Ufer", "einen Rausch, der n\xFCchtern macht", "eine Fahrt ohne Ziel und ohne Umkehr"],
+    ["ein Sturm aus heiterem Licht", "ein trunkenes Boot", "ein Wort in einer erfundenen Sprache"],
+    ["die Farben kippen", "das Meer verwandelt sich in Sprache", "der K\xF6rper l\xF6st sich in Bewegung auf"],
+    ["Ein Tag dauert eine Farbe lang.", "Die Nacht beginnt mitten am Nachmittag."],
+    ["Wer sieht, verbrennt.", "Jede Ordnung ist nur eine m\xFCde Farbe."],
+    ["offen", "rauschhaft"]
+  ),
+  traumbilder: D(
+    ["der Raum ist gr\xF6\xDFer als von au\xDFen", "der Schlaf hat noch nicht ganz aufgeh\xF6rt", "die T\xFCr f\xFChrt in dasselbe Zimmer zur\xFCck"],
+    ["der Flur ordnet sich bei jedem Blick neu", "eine Treppe endet h\xF6her, als sie begann", "die Gesichter wechseln, ohne sich zu \xE4ndern"],
+    ["das Erwachen misslingt zweimal", "der Traum erkl\xE4rt sich und bleibt unverst\xE4ndlich"],
+    ["eine Grenze zwischen Schlaf und Wachen", "eine Erinnerung, die beim Zugreifen zerf\xE4llt", "einen Raum, den es nicht gibt"],
+    ["ein Wecker, der r\xFCckw\xE4rts l\xE4uft", "ein Schl\xFCssel ohne Schloss", "ein Ger\xE4usch, das erst beim Aufwachen aufh\xF6rt"],
+    ["der Boden beginnt sich zu drehen", "die Zeit verdoppelt sich ohne Fortschritt", "das Spiegelbild reagiert zu sp\xE4t"],
+    ["Eine Minute enth\xE4lt eine ganze Nacht.", "Die Uhr springt, sobald niemand hinsieht."],
+    ["Im Traum ist jede Richtung nach unten.", "Wer den Traum benennt, verliert ihn."],
+    ["offen", "schwebend"]
+  ),
+  ritterromane: D(
+    ["die Burg liegt tiefer im Nebel als gestern", "das Tor steht offen, was es nie tut", "die R\xFCstung h\xE4ngt bereit, obwohl niemand rief"],
+    ["der Wald verschiebt die Wege", "ein Eid bindet st\xE4rker als die Vernunft", "der Gegner tr\xE4gt das eigene Wappen"],
+    ["das Schwert gehorcht der falschen Hand", "der Sieg entwertet die Sache"],
+    ["eine Ehre, die niemand einfordert", "einen Eid gegen das eigene Herz", "eine Treue, die zu sp\xE4t kommt"],
+    ["ein Horn aus gro\xDFer Ferne", "ein Bote ohne Botschaft", "ein Handschuh vor den F\xFC\xDFen"],
+    ["die Treue kehrt sich um", "aus dem Feind wird ein Spiegel", "die Bahn des Ritts biegt ab"],
+    ["Der Ritt dauert l\xE4nger als der Weg.", "Zwischen Aufbruch und Ankunft altert die Burg."],
+    ["Ein Eid wiegt schwerer als ein Leben.", "Wer den Wald betritt, kehrt anders zur\xFCck."],
+    ["offen", "heroisch"]
+  ),
+  alltag: D(
+    ["der Wasserkocher schaltet ab, sonst ist es still", "die Post liegt seit drei Tagen unge\xF6ffnet da", "der Tag beginnt genau wie der vorige"],
+    ["eine Kleinigkeit steht pl\xF6tzlich schief", "der gewohnte Weg dauert heute l\xE4nger", "ein Gespr\xE4ch bricht an derselben Stelle ab"],
+    ["die Gewohnheit tr\xE4gt nicht mehr", "das Kleine wird auf einmal gro\xDF"],
+    ["eine Frage, die nie gestellt wird", "eine Gewohnheit, die niemand gew\xE4hlt hat", "einen Abstand, der langsam w\xE4chst"],
+    ["ein Anruf zur falschen Zeit", "ein vergessener Schl\xFCssel", "eine Rechnung ohne Betrag"],
+    ["die Ordnung verrutscht", "das Gewohnte wird sichtbar", "der Tag kippt in eine andere Richtung"],
+    ["Der Nachmittag zieht sich, der Abend fehlt.", "Die Woche wiederholt einen Tag zu oft."],
+    ["Was t\xE4glich geschieht, wird nicht bemerkt.", "Jede Gewohnheit verbirgt eine Entscheidung."],
+    ["offen", "n\xFCchtern"]
+  ),
+  hafen: D(
+    ["die Kr\xE4ne stehen still, das Wasser nicht", "ein Schiff liegt l\xE4nger als angemeldet", "das Licht kommt vom Wasser, nicht vom Himmel"],
+    ["die Ladung stimmt nicht mit den Papieren \xFCberein", "die Flut nimmt mehr mit, als sie brachte", "ein Name auf dem Rumpf ist \xFCbermalt"],
+    ["die Leinen fallen ohne Befehl", "das Schiff f\xE4hrt ohne Fracht hinaus"],
+    ["eine Abfahrt ohne Wiederkehr", "eine Ladung, die niemand bestellt hat", "ein Warten, das zum Beruf wird"],
+    ["ein Signal aus dem Nebel", "ein Container ohne Papiere", "eine Boje, die nicht auf der Karte steht"],
+    ["die Tide dreht", "das Warten kippt in Aufbruch", "der Anker h\xE4lt pl\xF6tzlich nicht mehr"],
+    ["Die Ebbe kommt zweimal.", "Zwischen zwei Sirenen vergeht ein Jahr."],
+    ["Das Wasser vergisst schneller als der Kai.", "Wer bleibt, wird zum Teil der Mole."],
+    ["offen", "salzig"]
+  ),
+  urknall: D(
+    ["es gibt kein Vorher, an dem man ansetzen k\xF6nnte", "der Raum ist noch nicht auseinandergefaltet", "alles liegt in einem Punkt und dr\xE4ngt"],
+    ["die Kr\xE4fte trennen sich voneinander", "aus Symmetrie wird Unterschied", "das Licht findet zum ersten Mal einen Weg"],
+    ["die Materie entscheidet sich f\xFCr sich selbst", "der Raum rei\xDFt in alle Richtungen auf"],
+    ["einen Anfang ohne Zeugen", "ein Gleichgewicht, das kippen muss", "eine Ordnung, die aus Zufall entsteht"],
+    ["ein Ungleichgewicht um ein Milliardstel", "eine Schwankung im Nichts", "ein erster Zerfall"],
+    ["die Symmetrie bricht", "aus Strahlung wird Masse", "die Kr\xE4fte gehen getrennte Wege"],
+    ["Eine Sekunde enth\xE4lt alle sp\xE4teren.", "Die Zeit beginnt erst, als es etwas zu messen gibt."],
+    ["Nichts kann schneller sein als das Licht dazwischen.", "Jede Ordnung zahlt mit W\xE4rme."],
+    ["offen", "kosmisch"]
+  ),
+  dickens: D(
+    ["der Nebel steht in der Gasse wie ein M\xF6belst\xFCck", "im Kontor brennt eine Kerze zu wenig", "der Regen macht die Stadt kleiner"],
+    ["eine Schuld wird h\xF6flich eingefordert", "ein Kind tr\xE4gt die Last eines Erwachsenen", "die Wohlt\xE4tigkeit rechnet mit"],
+    ["die Herkunft holt alles ein", "die Gro\xDFz\xFCgigkeit kommt sp\xE4t und trotzdem"],
+    ["eine Schuld, die vererbt wird", "eine Armut mit tadellosen Manieren", "eine G\xFCte, die sich nicht lohnt"],
+    ["ein Brief mit schwarzem Rand", "eine Erbschaft aus unbekannter Hand", "ein Name in einem alten Register"],
+    ["das Verm\xF6gen wechselt die Seite", "aus dem Fremden wird ein Verwandter", "die K\xE4lte weicht zu sp\xE4t"],
+    ["Der Winter dauert drei Kapitel.", "Die Kindheit vergeht in einem Satz."],
+    ["Jede Schuld findet ihren Schuldner.", "Wer arm ist, muss auch noch h\xF6flich sein."],
+    ["offen", "wehm\xFCtig"]
+  ),
+  erotik: D(
+    ["der Abstand ist eine Handbreit zu klein", "die Stille zwischen zwei S\xE4tzen wird laut", "die Luft steht zwischen ihnen wie Stoff"],
+    ["ein Blick dauert einen Atemzug zu lang", "die H\xF6flichkeit h\xE4lt nicht mehr stand", "eine Ber\xFChrung geschieht wie versehentlich"],
+    ["die Zur\xFCckhaltung gibt nach", "die Grenze verschwindet, ohne \xFCberschritten zu werden"],
+    ["ein Verlangen, das niemand ausspricht", "eine N\xE4he, die alles \xE4ndert", "eine Grenze, die beide bewachen"],
+    ["ein Blick zu viel", "eine Ber\xFChrung an der Schulter", "ein Satz, der zu sp\xE4t zur\xFCckgenommen wird"],
+    ["die Distanz kippt", "das Ungesagte wird K\xF6rper", "aus H\xF6flichkeit wird Hunger"],
+    ["Eine Minute dehnt sich \xFCber den Abend.", "Zwischen zwei Atemz\xFCgen liegt eine Woche."],
+    ["Was ungesagt bleibt, wirkt st\xE4rker.", "Jede N\xE4he verschiebt die Grenze."],
+    ["offen", "sinnlich"]
+  ),
+  baudelaire: D(
+    ["die Stadt riecht nach Regen und Puder", "der Abend beginnt eine Stunde zu fr\xFCh", "das Fenster steht offen, die Vorh\xE4nge nicht"],
+    ["die Sch\xF6nheit zeigt ihre R\xFCckseite", "der Rausch h\xE4lt, was die N\xFCchternheit versprach", "die Menge tr\xE4gt ein einziges Gesicht"],
+    ["das Sch\xF6ne und das Faule fallen zusammen", "der Ekel wird z\xE4rtlich"],
+    ["eine Sch\xF6nheit, die verdirbt", "einen Genuss mit Nachgeschmack", "eine Sehnsucht ohne Ziel"],
+    ["ein Parfum aus einem anderen Leben", "ein Blick aus der Menge", "eine Blume in schlechtem Wasser"],
+    ["die Sch\xF6nheit kippt ins Verwesen", "der Ekel verwandelt sich in Andacht", "die Stadt wird zum K\xF6rper"],
+    ["Der Abend dauert l\xE4nger als der Tag.", "Zwischen zwei Gl\xE4sern vergeht ein Jahrzehnt."],
+    ["Jede Sch\xF6nheit tr\xE4gt ihren Verfall bereits mit sich.", "Wer die Stadt liebt, liebt ihren Schmutz."],
+    ["offen", "morbide"]
+  ),
+  expressionismus: D(
+    ["die Farben schreien lauter als die Stra\xDFe", "der Himmel dr\xFCckt auf die D\xE4cher", "alles steht schief und h\xE4lt trotzdem"],
+    ["die Gesichter werden zu Masken", "die Stadt frisst ihre Bewohner", "die Linien verlieren ihre Ruhe"],
+    ["der Schrei bekommt eine Farbe", "die Fassade bricht nach innen"],
+    ["eine Angst mit vielen Gesichtern", "einen Aufschrei ohne Mund", "eine Wahrheit, die zu grell ist"],
+    ["ein Schrei aus einem Hinterhof", "ein rotes Licht im Fenster", "ein Riss in der Fassade"],
+    ["die Farben werden laut", "das Innere kehrt sich nach au\xDFen", "die Ordnung zerbricht in Fl\xE4chen"],
+    ["Die Nacht beginnt am Mittag.", "Ein Augenblick dauert eine ganze Stra\xDFe lang."],
+    ["Was empfunden wird, ist sichtbar.", "Kein Ding bleibt an seinem Platz."],
+    ["offen", "grell"]
+  ),
+  surrealismus1920: D(
+    ["die Uhr tropft von der Tischkante", "im Zimmer regnet es nach oben", "die T\xFCr f\xFChrt in eine W\xFCste"],
+    ["die Gegenst\xE4nde tauschen ihre Aufgaben", "der Traum reicht in den Nachmittag hinein", "der Zufall folgt einem Plan"],
+    ["das Unm\xF6gliche wird allt\xE4glich", "der Gegenstand beginnt zu sprechen"],
+    ["eine Logik, die nur schlafend gilt", "einen Zufall mit Absicht", "eine Ordnung aus lauter Ausnahmen"],
+    ["ein Regenschirm auf einem Seziertisch", "ein Telefon aus Fisch", "ein Fenster im Fu\xDFboden"],
+    ["die Dinge tauschen die Rollen", "die Schwerkraft wechselt die Richtung", "das Bild verl\xE4sst den Rahmen"],
+    ["Die Nacht wiederholt den Vormittag.", "Zwei Uhren zeigen dieselbe falsche Zeit."],
+    ["Der Zufall ist die genaueste Methode.", "Was zusammenf\xE4llt, geh\xF6rt zusammen."],
+    ["offen", "traumlogisch"]
+  ),
+  transzendenz: D(
+    ["das Licht kommt von keiner Quelle", "die Stille hat einen Klang", "der Raum h\xF6rt an keiner Wand auf"],
+    ["die Grenze zwischen innen und au\xDFen wird d\xFCnn", "das Wort reicht nicht mehr", "die Zeit h\xE4lt an, ohne stehenzubleiben"],
+    ["das Ich l\xF6st sich, ohne zu verschwinden", "die Antwort kommt vor der Frage"],
+    ["eine Erfahrung ohne Worte", "eine Gewissheit ohne Beweis", "ein Ganzes, das keinen Teil hat"],
+    ["ein Klang ohne Ursprung", "ein Licht im geschlossenen Auge", "eine Stille zwischen zwei Herzschl\xE4gen"],
+    ["die Grenzen l\xF6sen sich", "das Einzelne wird durchsichtig", "die Sprache tritt zur\xFCck"],
+    ["Ein Augenblick enth\xE4lt alle anderen.", "Die Dauer h\xF6rt auf, gemessen zu werden."],
+    ["Was sich sagen l\xE4sst, ist nicht gemeint.", "Wer sucht, steht sich im Weg."],
+    ["offen", "still"]
+  ),
+  melville: D(
+    ["das Schiff liegt schwer im eigenen Schatten", "die See ist zu ruhig f\xFCr die Jahreszeit", "der Kompass zeigt, was niemand fragt"],
+    ["die Jagd wird zur Rechnung", "die Mannschaft teilt sich in zwei Schweigen", "das Meer gibt nichts preis und alles"],
+    ["die Beute wird zum Gegen\xFCber", "der Kurs gehorcht einer Besessenheit"],
+    ["eine Jagd, die den J\xE4ger verzehrt", "eine Rache ohne Adressat", "ein Meer, das nicht antwortet"],
+    ["eine Font\xE4ne am Horizont", "ein Fass mit falschem Inhalt", "ein Name, in Holz geschnitten"],
+    ["die Jagd kehrt sich um", "aus dem Tier wird ein Gedanke", "das Schiff folgt keinem Kurs mehr"],
+    ["Die Wache dauert drei Tage.", "Zwischen zwei Wellen liegt ein Jahr."],
+    ["Das Meer nimmt, was es tr\xE4gt.", "Wer jagt, wird zum Gejagten."],
+    ["offen", "unerbittlich"]
+  ),
+  formalismus: D(
+    ["die Anordnung ist wichtiger als der Inhalt", "das Raster liegt \xFCber allem", "jedes Element hat genau eine Stelle"],
+    ["die Wiederholung erzeugt einen Unterschied", "die Regel bringt ihre Ausnahme hervor", "die Form beginnt, vom Inhalt zu handeln"],
+    ["das Verfahren wird sichtbar", "die Struktur kippt in Bedeutung"],
+    ["eine Regel ohne Ausnahme", "eine Form, die sich selbst meint", "eine Ordnung, die nichts erkl\xE4rt"],
+    ["eine Verschiebung um ein Glied", "ein Bruch im Muster", "eine Wiederholung zu viel"],
+    ["das Muster verschiebt sich", "die Form wird zum Inhalt", "die Reihe bricht ab und beginnt neu"],
+    ["Der zweite Durchgang dauert k\xFCrzer.", "Jede Wiederholung verkleinert den Abstand."],
+    ["Die Form geht dem Sinn voraus.", "Nichts steht zuf\xE4llig an seiner Stelle."],
+    ["offen", "streng"]
+  ),
+  christentum: D(
+    ["die Kirche ist leer und trotzdem nicht", "das Licht f\xE4llt schr\xE4g durch farbiges Glas", "eine Kerze brennt f\xFCr niemanden Bestimmten"],
+    ["die Schuld sucht ein Wort", "das Gebet bleibt unbeantwortet und hilft", "die Gnade kommt ungefragt"],
+    ["die Vergebung trifft den Falschen", "das Opfer erweist sich als Anfang"],
+    ["eine Schuld, die niemand nennt", "eine Gnade ohne Verdienst", "einen Glauben gegen den Augenschein"],
+    ["ein Glockenschlag zur falschen Stunde", "ein Brot, das reicht", "ein Name, im Gebet genannt"],
+    ["die Schuld wandelt sich in Auftrag", "aus Zweifel wird Zuversicht", "das Ende wird zum Anfang"],
+    ["Der Sonntag dauert eine Woche.", "Zwischen Frage und Antwort liegen Jahre."],
+    ["Was vergeben wird, bleibt geschehen.", "Der Letzte steht am Anfang."],
+    ["offen", "and\xE4chtig"]
+  ),
+  koran: D(
+    ["die W\xFCste beginnt hinter der letzten Mauer", "das Wort steht vor dem Buch", "der Morgen wird durch einen Ruf geteilt"],
+    ["die Zeichen sind lesbar, wenn man sie l\xE4sst", "der Weg verlangt Geduld statt Eile", "das Ma\xDF findet sich im Verzicht"],
+    ["das Zeichen erweist sich als Anrede", "die Pr\xFCfung wird zur Gabe"],
+    ["ein Ma\xDF, das gehalten werden will", "eine Geduld ohne Aussicht", "eine Verantwortung, die niemand teilt"],
+    ["ein Ruf vor Sonnenaufgang", "eine Quelle, wo keine war", "ein Zeichen im Sand"],
+    ["der Weg richtet sich neu aus", "aus Pr\xFCfung wird Klarheit", "das Ma\xDF verschiebt sich"],
+    ["Die Nacht wiegt schwerer als tausend Monate.", "Zwischen zwei Gebeten liegt ein Leben."],
+    ["Kein Blatt f\xE4llt ohne Wissen.", "Wer misst, wird gemessen."],
+    ["offen", "ma\xDFvoll"]
+  ),
+  buddhismus: D(
+    ["der Atem ist bereits da, bevor man ihn sucht", "die Schale steht leer und ist nicht arm", "der Weg beginnt genau hier"],
+    ["das Greifen erzeugt das Fehlen", "die Gedanken ziehen vorbei wie Wetter", "das Selbst zeigt keine Grenze"],
+    ["das Festhalten l\xF6st sich von selbst", "die Frage verliert ihren Fragenden"],
+    ["ein Verlangen, das sich selbst n\xE4hrt", "eine Ruhe, die nicht gemacht ist", "ein Ich, das keines findet"],
+    ["ein Glockenton, der ausklingt", "ein Blatt auf stillem Wasser", "ein Schmerz ohne Besitzer"],
+    ["das Greifen l\xE4sst nach", "aus Unruhe wird Beobachtung", "die Trennung wird durchl\xE4ssig"],
+    ["Ein Atemzug reicht durch den Tag.", "Die Stunde vergeht, ohne zu vergehen."],
+    ["Alles Entstandene vergeht.", "Wer nichts h\xE4lt, verliert nichts."],
+    ["offen", "gelassen"]
+  ),
+  biologie: D(
+    ["die Zelle teilt sich, ohne gefragt zu werden", "im Wassertropfen ist mehr los als im Zimmer", "das Leben ordnet sich gegen den Strom"],
+    ["die Anpassung kostet an anderer Stelle", "ein Merkmal setzt sich durch, ohne besser zu sein", "das System h\xE4lt sich, indem es sich \xE4ndert"],
+    ["die Mutation entscheidet \xFCber alles Weitere", "das Gleichgewicht kippt auf einer Seite"],
+    ["ein \xDCberleben auf Kosten Dritter", "eine Anpassung, die zu sp\xE4t kommt", "ein Gleichgewicht ohne Gleichheit"],
+    ["ein Fehler beim Kopieren", "ein neuer Wirt", "eine Nische, die frei wird"],
+    ["die Art verschiebt sich", "aus Zufall wird Merkmal", "das Gleichgewicht sucht eine neue Lage"],
+    ["Eine Generation dauert einen Nachmittag.", "Millionen Jahre passen in eine Schicht."],
+    ["Was sich vermehrt, bleibt.", "Jede Ordnung kostet Energie."],
+    ["offen", "sachlich"]
+  ),
+  geologie: D(
+    ["der Stein hat mehr Zeit gesehen als alles hier", "die Schichten liegen wie S\xE4tze \xFCbereinander", "der Boden ist nur die oberste Seite"],
+    ["der Druck arbeitet ohne Eile", "eine Falte erz\xE4hlt von einer Kollision", "das Wasser schreibt in den Fels"],
+    ["die Schicht bricht und zeigt ihr Inneres", "der Berg gibt nach, nach Millionen Jahren"],
+    ["eine Bewegung, die niemand sp\xFCrt", "eine Zeit ohne Zeugen", "einen Druck, der alles verformt"],
+    ["ein Riss im Gestein", "ein Fossil an falscher Stelle", "ein Beben unter der Schwelle"],
+    ["die Schichten verschieben sich", "aus Sediment wird Stein", "der Untergrund gibt nach"],
+    ["Ein Jahrhundert ist ein Wimpernschlag.", "Die Schicht misst die Zeit, nicht die Uhr."],
+    ["Alles Feste war einmal fl\xFCssig.", "Was oben liegt, ist j\xFCnger."],
+    ["offen", "geduldig"]
+  ),
+  astrologie: D(
+    ["die Zeichen stehen, ob man hinsieht oder nicht", "der Himmel wiederholt eine alte Anordnung", "die Stunde tr\xE4gt einen Namen"],
+    ["ein Wandelstern l\xE4uft r\xFCckw\xE4rts", "die H\xE4user verschieben ihre Bedeutung", "das Muster passt zu genau"],
+    ["die Konstellation schlie\xDFt sich", "die Deutung trifft, ohne zu erkl\xE4ren"],
+    ["ein Schicksal, das gelesen sein will", "eine Deutung, die sich erf\xFCllt", "eine Freiheit unter Zeichen"],
+    ["ein Zusammentreffen zweier Bahnen", "eine Finsternis zur Unzeit", "ein Zeichen am Aszendenten"],
+    ["die Konstellation wechselt", "aus Zufall wird Bedeutung", "der Lauf kehrt sich um"],
+    ["Der Umlauf dauert ein halbes Leben.", "Eine Stunde wiegt ein Jahr auf."],
+    ["Wie oben, so unten.", "Kein Zeichen zwingt, jedes neigt."],
+    ["offen", "deutend"]
+  ),
+  gaia: D(
+    ["der Wald atmet langsamer als wir", "das Wasser kennt seinen Weg auswendig", "alles h\xE4ngt an allem, ohne Absicht"],
+    ["ein Eingriff zieht Kreise bis ans andere Ende", "das Gleichgewicht stellt sich neu und teuer her", "die Erde antwortet in ihrem eigenen Ma\xDF"],
+    ["das System kippt in einen neuen Zustand", "die R\xFCckkopplung wird st\xE4rker als die Ursache"],
+    ["ein Gleichgewicht, das niemand aushandelt", "eine Rechnung, die sp\xE4ter kommt", "ein Ganzes ohne Mitte"],
+    ["ein Sommer zu viel", "eine Art, die verschwindet", "ein Fluss, der die Richtung \xE4ndert"],
+    ["das Gleichgewicht verschiebt sich", "aus Kreislauf wird Bruch", "die Erde ordnet sich neu"],
+    ["Ein Jahr gen\xFCgt f\xFCr eine Verschiebung.", "Die Folgen kommen eine Generation zu sp\xE4t."],
+    ["Nichts geschieht f\xFCr sich allein.", "Jeder Kreislauf hat eine Grenze."],
+    ["offen", "ernst"]
+  ),
+  jugendsprache: D(
+    ["irgendwas l\xE4uft, aber keiner sagt was", "der Chat ist voll und trotzdem still", "der Tag f\xE4ngt nachmittags an"],
+    ["eine Nachricht wird falsch verstanden und bleibt so", "alle tun so, als w\xE4re nichts", "das Ger\xFCcht ist schneller als die Wahrheit"],
+    ["jemand sagt es endlich laut", "die Gruppe entscheidet ohne Abstimmung"],
+    ["eine Sache, \xFCber die keiner redet", "einen Ruf, der schneller ist als man selbst", "eine Zugeh\xF6rigkeit auf Probe"],
+    ["ein Screenshot zur Unzeit", "eine Sprachnachricht um drei Uhr nachts", "ein Blick auf dem Schulhof"],
+    ["die Stimmung kippt", "aus Spa\xDF wird Ernst", "die Gruppe sortiert sich neu"],
+    ["Ein Nachmittag dauert eine Woche.", "Zwischen zwei Nachrichten vergeht nichts und alles."],
+    ["Wer zuerst lacht, hat entschieden.", "Nichts ist so alt wie das Ger\xFCcht von gestern."],
+    ["offen", "l\xE4ssig"]
+  ),
+  modernarchitecture: D(
+    ["der Beton h\xE4lt, was der Entwurf versprach", "das Licht f\xE4llt genau dorthin, wo es geplant war", "der Raum ist leer und dadurch voll"],
+    ["die Funktion setzt sich gegen die Gewohnheit durch", "die Fassade verbirgt, indem sie zeigt", "der Grundriss zwingt zu einem Weg"],
+    ["das Geb\xE4ude \xFCberlebt seinen Zweck", "die Form entscheidet \xFCber das Leben darin"],
+    ["eine Form, die dem Zweck vorausgeht", "einen Raum, der Verhalten vorschreibt", "eine Klarheit, die kalt wirkt"],
+    ["ein Riss im Sichtbeton", "eine T\xFCr, die niemand vorsah", "ein Fenster ohne Aussicht"],
+    ["der Raum ver\xE4ndert seinen Gebrauch", "aus Ordnung wird Enge", "das Material zeigt sein Alter"],
+    ["Ein Jahrzehnt vergeht ohne Spur.", "Der Bau altert schneller als sein Plan."],
+    ["Die Form folgt der Funktion, meistens.", "Was klar ist, wirkt kalt."],
+    ["offen", "sachlich"]
+  ),
+  philosophie: D(
+    ["die Frage steht schon l\xE4nger im Raum", "der Begriff sitzt nicht ganz fest", "alles Selbstverst\xE4ndliche wird fraglich"],
+    ["die Unterscheidung tr\xE4gt weiter als gedacht", "das Beispiel widerspricht dem Satz", "der Einwand wird zur Hauptsache"],
+    ["die Voraussetzung selbst ger\xE4t ins Wanken", "die Antwort wirft eine bessere Frage auf"],
+    ["eine Unterscheidung, die nicht h\xE4lt", "eine Gewissheit ohne Grund", "eine Frage, die sich nicht stellen l\xE4sst"],
+    ["ein Gegenbeispiel im falschen Moment", "ein Wort mit zwei Bedeutungen", "ein Zweifel an der Voraussetzung"],
+    ["der Begriff verschiebt sich", "aus Antwort wird Frage", "die Grundlage wird selbst zum Problem"],
+    ["Ein Gedanke dauert ein Kapitel.", "Zwischen Frage und Einsicht liegen Jahre."],
+    ["Jede Antwort erzeugt zwei Fragen.", "Was sich nicht sagen l\xE4sst, zeigt sich."],
+    ["offen", "pr\xFCfend"]
+  ),
+  klimakrise: D(
+    ["der Sommer beginnt im April", "die Messwerte sind eindeutig und folgenlos", "das Wetter ist kein Gespr\xE4ch mehr"],
+    ["die Vorhersage trifft ein und \xE4ndert nichts", "die Kosten verschieben sich nach hinten", "wer warnt, gilt als anstrengend"],
+    ["die Schwelle wird \xFCberschritten", "die R\xFCckkopplung \xFCbernimmt"],
+    ["eine Verantwortung ohne Adressat", "ein Wissen, das folgenlos bleibt", "eine Rechnung f\xFCr die Nachgeborenen"],
+    ["ein Rekord im dritten Jahr", "eine Ernte, die ausf\xE4llt", "ein Fluss ohne Wasser"],
+    ["die Kurve knickt nach oben", "aus Ausnahme wird Normalzustand", "das System kippt"],
+    ["Ein Jahrzehnt entscheidet ein Jahrhundert.", "Die Folgen treffen die, die nicht gefragt wurden."],
+    ["Was langsam kommt, wird nicht bemerkt.", "Jede Verz\xF6gerung erh\xF6ht den Preis."],
+    ["offen", "dringlich"]
+  ),
+  liebesromane: D(
+    ["ein Blick dauert einen Moment zu lang", "der Brief liegt unge\xF6ffnet auf dem Tisch", "beide tun, als sei nichts geschehen"],
+    ["ein Missverst\xE4ndnis w\xE4chst, weil niemand fragt", "die Umst\xE4nde sprechen dagegen", "die N\xE4he wird durch Abstand gr\xF6\xDFer"],
+    ["das Ungesagte wird ausgesprochen", "die Entscheidung f\xE4llt gegen die Vernunft"],
+    ["eine Liebe zur falschen Zeit", "ein Missverst\xE4ndnis, das keiner aufkl\xE4rt", "eine Wahl zwischen zwei Leben"],
+    ["ein Brief, der zu sp\xE4t ankommt", "ein Tanz auf fremder Hochzeit", "ein Name, versehentlich genannt"],
+    ["das Missverst\xE4ndnis l\xF6st sich", "aus Freundschaft wird mehr", "die Umst\xE4nde geben nach"],
+    ["Ein Sommer entscheidet zehn Jahre.", "Zwischen zwei Briefen vergeht eine Jahreszeit."],
+    ["Was nicht gesagt wird, w\xE4chst.", "Jede N\xE4he verlangt eine Entscheidung."],
+    ["offen", "warm"]
+  ),
+  bergwelt: D(
+    ["der Gipfel ist n\xE4her, als er ist", "das Wetter dreht ohne Ank\xFCndigung", "die H\xFCtte liegt unter der Wolkendecke"],
+    ["der Weg verliert sich im Ger\xF6ll", "die H\xF6he nimmt den Atem und die Gedanken", "die Spur endet vor einer Wand"],
+    ["der R\xFCckweg ist keiner mehr", "der Berg entscheidet \xFCber die Zeit"],
+    ["einen Aufstieg gegen die Vernunft", "eine Umkehr, die zu sp\xE4t kommt", "eine Stille, die alles verst\xE4rkt"],
+    ["ein Wetterumschwung am Nachmittag", "ein Steinschlag im Rinnenwerk", "ein Licht in einer fremden H\xFCtte"],
+    ["das Wetter kippt", "aus Aufstieg wird R\xFCckzug", "der Berg zeigt sein anderes Gesicht"],
+    ["Eine Stunde am Grat dauert einen Tag.", "Der Abstieg braucht l\xE4nger als der Weg hinauf."],
+    ["Der Berg wartet.", "Wer umkehrt, hat auch entschieden."],
+    ["offen", "karg"]
+  ),
+  clown: D(
+    ["die Schminke sitzt, das Lachen noch nicht", "die Manege ist leer und wartet", "der Scheinwerfer findet den Falschen"],
+    ["der Sturz war geplant, der Schmerz nicht", "das Publikum lacht an der falschen Stelle", "die Nummer l\xE4uft aus dem Ruder und wird besser"],
+    ["hinter der Schminke wird ein Gesicht sichtbar", "der Scherz trifft den, der ihn macht"],
+    ["ein Lachen auf eigene Kosten", "eine Traurigkeit mit rotem Mund", "eine Rolle, die nicht abzulegen ist"],
+    ["eine Tr\xE4ne in der Schminke", "ein Applaus zur falschen Zeit", "ein Requisit, das nicht funktioniert"],
+    ["der Scherz kippt in Ernst", "aus Lachen wird Stille", "die Rolle \xFCbernimmt"],
+    ["Die Nummer dauert l\xE4nger als der Abend.", "Zwischen zwei Lachern liegt ein Leben."],
+    ["Wer f\xE4llt, muss aufstehen und sich verbeugen.", "Das Lachen kommt aus dem Schrecken."],
+    ["offen", "bitters\xFC\xDF"]
+  ),
+  faust: D(
+    ["die B\xFCcher haben nichts mehr zu sagen", "die Nacht steht schon lange im Zimmer", "das Wissen reicht bis genau hierher"],
+    ["der Pakt verspricht mehr, als er nennt", "der Preis wird erst sp\xE4ter sichtbar", "das Streben findet kein Gen\xFCgen"],
+    ["der Augenblick soll verweilen", "die Wette entscheidet sich unbemerkt"],
+    ["ein Wissen, das nicht s\xE4ttigt", "einen Preis, der sp\xE4ter f\xE4llig wird", "eine Rettung, die niemand verdient"],
+    ["ein Vertrag mit zwei Unterschriften", "ein Pudel im Studierzimmer", "ein Angebot ohne Frist"],
+    ["der Pakt tritt in Kraft", "aus Erkenntnis wird Hunger", "die Rechnung kommt"],
+    ["Eine Nacht enth\xE4lt ein ganzes Leben.", "Der Augenblick weigert sich zu vergehen."],
+    ["Wer immer strebend sich bem\xFCht, bleibt unruhig.", "Jeder Pakt kennt seinen F\xE4lligkeitstag."],
+    ["offen", "faustisch"]
+  ),
+  lebenreicher: D(
+    ["ein gew\xF6hnlicher Morgen, nichts Besonderes", "das Licht liegt gut auf dem Tisch", "jemand hat an etwas gedacht"],
+    ["eine Kleinigkeit tr\xE4gt weiter als erwartet", "ein Gespr\xE4ch dauert l\xE4nger als geplant", "das Einfache erweist sich als genug"],
+    ["das Gew\xF6hnliche zeigt seinen Wert", "ein Augenblick reicht f\xFCr den ganzen Tag"],
+    ["eine Freude, die nichts kostet", "eine Aufmerksamkeit, die niemand verlangt", "eine F\xFClle im Kleinen"],
+    ["ein Anruf ohne Anlass", "ein geteiltes Essen", "ein Platz in der Sonne"],
+    ["das Kleine wird gro\xDF", "aus Gewohnheit wird Dankbarkeit", "der Tag bekommt eine Farbe"],
+    ["Ein Nachmittag reicht f\xFCr ein Jahr.", "Der Moment dehnt sich, ohne sich zu strecken."],
+    ["Was nichts kostet, z\xE4hlt am meisten.", "Wer bemerkt, hat schon gewonnen."],
+    ["offen", "warm"]
+  ),
+  tanz: D(
+    ["der Boden ist bereit, die Musik noch nicht", "die F\xFC\xDFe kennen den Takt vor dem Kopf", "im Saal steht die Luft und wartet"],
+    ["die Schritte finden zueinander, ohne Absprache", "der Takt tr\xE4gt weiter als der Wille", "der Kreis schlie\xDFt sich und \xF6ffnet sich"],
+    ["der Tanz \xFCbernimmt die F\xFChrung", "die Musik h\xF6rt auf, der Takt nicht"],
+    ["eine Bewegung ohne Ziel", "einen Takt, der nicht abbrechen darf", "eine N\xE4he, die nur im Tanz erlaubt ist"],
+    ["ein Auftakt aus dem Nichts", "ein Instrument ohne Spieler", "ein Blick \xFCber die Schulter"],
+    ["der Takt wechselt", "aus Ordnung wird Schwindel", "der Kreis dreht sich schneller"],
+    ["Ein Tanz dauert einen halben Abend.", "Zwischen zwei Schritten vergeht die Nacht."],
+    ["Wer den Takt verliert, findet ihn im Kreis.", "Kein Tanz endet dort, wo er begann."],
+    ["offen", "beschwingt"]
+  ),
+  griechischetragoedie: D(
+    ["das Orakel hat gesprochen, unverst\xE4ndlich wie immer", "die Stadt wartet auf ein Urteil", "alles ist bereits entschieden"],
+    ["die Flucht f\xFChrt genau ins Vorhergesagte", "der Bote bringt, was niemand h\xF6ren will", "der Chor sagt, was alle wissen"],
+    ["die Erkenntnis kommt zu sp\xE4t und vollst\xE4ndig", "der Fluch erf\xFCllt sich durch den Widerstand"],
+    ["ein Schicksal, dem man nicht ausweicht", "eine Schuld ohne Absicht", "eine Ehre gegen das Gesetz"],
+    ["ein Orakelspruch mit zwei Bedeutungen", "ein Bote am Stadttor", "ein Gast, der nicht genannt wird"],
+    ["die Weissagung erf\xFCllt sich", "aus Rettung wird Verh\xE4ngnis", "die Erkenntnis trifft den Erkennenden"],
+    ["Ein Tag entscheidet ein Geschlecht.", "Was vorhergesagt ist, ist schon geschehen."],
+    ["Wer flieht, l\xE4uft dem Orakel entgegen.", "Kein Sterblicher entkommt seinem Ma\xDF."],
+    ["offen", "unausweichlich"]
+  ),
+  glueck: D(
+    ["ein Tag, an dem nichts fehlt", "die Sonne steht genau richtig", "niemand hat etwas vor"],
+    ["das Gl\xFCck l\xE4sst sich nicht festhalten", "ein Zweifel meldet sich leise", "die F\xFClle macht auch vorsichtig"],
+    ["der Augenblick wird bemerkt, w\xE4hrend er dauert", "das Gl\xFCck zeigt seine Bedingung"],
+    ["ein Gl\xFCck, das nicht zu halten ist", "eine Zufriedenheit ohne Grund", "eine Angst, es zu verlieren"],
+    ["ein unerwarteter Nachmittag", "ein Brief mit guter Nachricht", "eine Wiederbegegnung"],
+    ["das Gl\xFCck wird bewusst", "aus Zufall wird Dankbarkeit", "der Augenblick tr\xE4gt weiter"],
+    ["Eine Stunde wiegt einen Winter auf.", "Der gute Tag dehnt sich nach hinten."],
+    ["Gl\xFCck bemerkt man beim Verschwinden.", "Was geteilt wird, wird nicht weniger."],
+    ["offen", "hell"]
+  ),
+  gruendungsmythos: D(
+    ["vor der Stadt war ein Ort ohne Namen", "die erste Grenze wird in den Boden gezogen", "zwei kommen an, wo niemand wohnte"],
+    ["aus einer Regel werden viele", "der Anfang wird schon jetzt erz\xE4hlt", "wer bleibt, geh\xF6rt dazu"],
+    ["der erste Stein wird gesetzt", "aus dem Ort wird ein Name"],
+    ["einen Anfang, den niemand bezeugt", "eine Grenze, die alles entscheidet", "ein Recht, das erst entsteht"],
+    ["ein Zeichen am Himmel", "ein Fremder mit einer Bitte", "eine Quelle an unerwarteter Stelle"],
+    ["aus dem Ort wird eine Ordnung", "die Grenze wird heilig", "der Anfang verwandelt sich in Gesetz"],
+    ["Ein Tag begr\xFCndet Jahrhunderte.", "Die Zukunft wird bereits im Perfekt erz\xE4hlt."],
+    ["Jeder Anfang braucht ein Opfer.", "Wer die Grenze zieht, macht das Gesetz."],
+    ["offen", "gr\xFCndend"]
+  ),
+  staatsphilosophie: D(
+    ["die Ordnung gilt, obwohl sie niemand beschlossen hat", "das Gesetz steht vor dem ersten Fall", "alle gehorchen etwas Unsichtbarem"],
+    ["die Regel sch\xFCtzt und beschr\xE4nkt zugleich", "wer herrscht, wird selbst regiert", "der Vertrag hat keinen Text"],
+    ["die Ordnung zeigt ihren Ursprung", "die Macht wird sichtbar und unsicher"],
+    ["eine Herrschaft ohne Herrscher", "eine Freiheit, die Regeln braucht", "eine Ordnung ohne Ursprung"],
+    ["ein Erlass ohne Unterschrift", "ein Aufstand aus H\xF6flichkeit", "eine Frage nach dem Recht"],
+    ["die Legitimit\xE4t verschiebt sich", "aus Gewohnheit wird Gesetz", "die Ordnung erneuert sich"],
+    ["Ein Beschluss \xFCberdauert seine Begr\xFCndung.", "Zwischen Regel und Gehorsam liegt ein Jahrhundert."],
+    ["Jede Ordnung beginnt mit einem Bruch.", "Wer schweigt, stimmt der Ordnung zu."],
+    ["offen", "abw\xE4gend"]
+  ),
+  tech: D(
+    ["das System l\xE4uft, niemand wei\xDF genau warum", "das Log zeigt einen Eintrag zu viel", "die Maschine wartet auf eine Eingabe"],
+    ["die Abstraktion verdeckt, was sie ordnet", "ein Fehler reproduziert sich nicht", "das Modell erkl\xE4rt alles au\xDFer sich selbst"],
+    ["das System antwortet, ohne gefragt zu sein", "die Blackbox \xF6ffnet sich einen Spalt"],
+    ["eine Automatik ohne Aufsicht", "ein Fehler ohne Ursache", "eine Entscheidung, die niemand traf"],
+    ["ein Update in der Nacht", "ein Prozess ohne Elternprozess", "eine Antwort in null Millisekunden"],
+    ["das System \xFCbernimmt", "aus Werkzeug wird Gegen\xFCber", "der Fehler wird zum Merkmal"],
+    ["Eine Sekunde enth\xE4lt Millionen Schritte.", "Das Log kennt eine Zeit, die es nicht gab."],
+    ["Jede Abstraktion leckt.", "Was automatisch l\xE4uft, wird nicht mehr gepr\xFCft."],
+    ["offen", "k\xFChl"]
+  ),
+  myth: D(
+    ["am Anfang steht ein Wort, nicht ein Ding", "die Welt ist noch ungeteilt", "die Namen fehlen den Dingen"],
+    ["das Erz\xE4hlte wird wahr, indem es erz\xE4hlt wird", "die Trennung erzeugt die Ordnung", "der Held ist auch das Opfer"],
+    ["das Ungeteilte teilt sich", "der Name macht das Ding"],
+    ["eine Ordnung aus einem Opfer", "einen Namen, der Macht verleiht", "eine Grenze zwischen Welt und Wort"],
+    ["ein Wort vor allen Dingen", "ein Opfer am Anfang", "ein Riss im Ungeteilten"],
+    ["aus Chaos wird Ordnung", "das Wort wird zur Tat", "die Welt teilt sich in zwei"],
+    ["Der erste Tag dauert bis heute.", "Was einmal geschieht, geschieht immer."],
+    ["Was benannt ist, ist gebunden.", "Jede Ordnung kostet ein Opfer."],
+    ["offen", "urt\xFCmlich"]
+  ),
+  body: D(
+    ["der K\xF6rper meldet sich vor dem Gedanken", "die Haut wei\xDF es zuerst", "etwas stimmt nicht mit dem Atem"],
+    ["der Schmerz sucht sich einen Ort", "das Innere klopft an die Oberfl\xE4che", "der K\xF6rper gehorcht einem eigenen Plan"],
+    ["die Grenze zwischen innen und au\xDFen f\xE4llt", "der K\xF6rper spricht deutlich"],
+    ["eine Grenze, die durch die Haut l\xE4uft", "ein Schmerz ohne Befund", "einen K\xF6rper, der nicht gehorcht"],
+    ["ein Puls an falscher Stelle", "ein Geschmack von Eisen", "eine Narbe, die sich meldet"],
+    ["der K\xF6rper \xFCbernimmt", "aus Empfindung wird Gewissheit", "das Innere kehrt sich nach au\xDFen"],
+    ["Ein Herzschlag dauert eine Minute.", "Der Schmerz hebt die Uhrzeit auf."],
+    ["Der K\xF6rper vergisst nichts.", "Was verdr\xE4ngt wird, sucht sich ein Organ."],
+    ["offen", "k\xF6rperlich"]
+  ),
+  absurd: D(
+    ["der Aufzug h\xE4lt in einem Stockwerk ohne Nummer", "alle warten auf jemanden, der nicht kommt", "die Anweisung widerspricht sich selbst"],
+    ["die Erkl\xE4rung macht es schlimmer", "jeder Schritt f\xFChrt zum Ausgangspunkt", "die Ernsthaftigkeit h\xE4lt den Unsinn zusammen"],
+    ["die Sinnlosigkeit wird zur Ordnung", "der Ausweg erweist sich als Eingang"],
+    ["einen Sinn, den niemand liefert", "eine Aufgabe ohne Zweck", "eine Regel gegen sich selbst"],
+    ["ein Anruf f\xFCr einen Namenlosen", "ein Schild ohne Aufschrift", "ein Termin ohne Ort"],
+    ["die Ordnung dreht durch", "aus Ernst wird Komik", "der Ausgang wird zum Eingang"],
+    ["Der Nachmittag wiederholt sich zweimal.", "Die Uhr zeigt eine Zahl, die es nicht gibt."],
+    ["Alles hat einen Grund, nur keinen Sinn.", "Wer fragt, verl\xE4ngert das Verfahren."],
+    ["offen", "absurd"]
+  ),
+  post: D(
+    ["der K\xF6rper ist eine Option geworden", "die Grenze zwischen Person und System ist verhandelbar", "jemand meldet sich aus zwei Instanzen"],
+    ["die Kopie beansprucht dasselbe Recht", "das Bewusstsein l\xE4uft an mehreren Orten", "die Herkunft verliert an Bedeutung"],
+    ["die Kopie erhebt Einspruch", "das Original ist nicht mehr feststellbar"],
+    ["eine Identit\xE4t in Mehrzahl", "ein Recht auf die eigene Kopie", "eine Erinnerung, die nicht gelebt wurde"],
+    ["ein Abbild mit eigener Meinung", "ein Speicherplatz mit Namen", "ein Vertrag \xFCber ein Bewusstsein"],
+    ["das Ich vervielf\xE4ltigt sich", "aus K\xF6rper wird Format", "die Grenze verschiebt sich"],
+    ["Ein Leben passt in eine \xDCbertragung.", "Zwei Instanzen erleben dieselbe Stunde verschieden."],
+    ["Jede Kopie ist ein Original.", "Was gespeichert wird, wird verhandelbar."],
+    ["offen", "posthuman"]
+  ),
+  haute_couture: D(
+    ["der Stoff f\xE4llt genau so, wie er soll", "im Atelier ist es still vor der Schau", "die Nadel liegt bereit"],
+    ["die Naht entscheidet \xFCber die Silhouette", "ein Zentimeter ver\xE4ndert alles", "das Handwerk verschwindet im Ergebnis"],
+    ["das Kleid steht f\xFCr sich allein", "die Tr\xE4gerin verschwindet im Entwurf"],
+    ["eine Sch\xF6nheit mit Frist", "eine Perfektion, die niemand sieht", "ein Handwerk gegen die Zeit"],
+    ["ein Riss in der Seide", "eine Anprobe zur Unzeit", "ein Entwurf aus dem Papierkorb"],
+    ["die Linie \xE4ndert sich", "aus Stoff wird Haltung", "das Kleid \xFCbernimmt"],
+    ["Die Nacht vor der Schau dauert eine Saison.", "Eine Naht kostet drei Tage."],
+    ["Was von Hand gemacht ist, altert anders.", "Jede Mode enth\xE4lt ihr Ende."],
+    ["offen", "elegant"]
+  ),
+  eichendorff: D(
+    ["die W\xE4lder rauschen wie eine Erinnerung", "das Posthorn klingt von weit her", "der Aufbruch liegt in der Luft"],
+    ["die Ferne zieht st\xE4rker als das Ziel", "der Weg verliert sich zwischen H\xFCgeln", "das Heimweh gilt einem Ort, den es nicht gibt"],
+    ["die Sehnsucht findet keinen Gegenstand", "das Lied kennt den Weg besser"],
+    ["eine Ferne, die niemals n\xE4her kommt", "ein Heimweh ohne Heimat", "einen Aufbruch ohne Ziel"],
+    ["ein Posthorn im Tal", "ein Brief von einem Wandernden", "ein Licht in einem fremden Fenster"],
+    ["die Ferne kippt in Heimweh", "aus Wandern wird Suchen", "der Weg biegt nach innen"],
+    ["Ein Sommer dauert eine Strophe.", "Zwischen Aufbruch und Ankunft liegt ein Leben."],
+    ["Wer wandert, sucht nicht das Ziel.", "Jedes Lied kennt den Weg."],
+    ["offen", "sehns\xFCchtig"]
+  ),
+  hunger: D(
+    ["der Magen z\xE4hlt die Stunden mit", "das Brot reicht bis Donnerstag", "alles dreht sich um eine einzige Frage"],
+    ["der Hunger sch\xE4rft und verwirrt zugleich", "der Stolz wiegt schwerer als das Essen", "die Vorr\xE4te werden nachgez\xE4hlt"],
+    ["der Stolz gibt nach", "das Teilen entscheidet alles"],
+    ["ein Brot f\xFCr mehr M\xFCnder", "einen Stolz, der satt machen soll", "eine Not, die niemand zugibt"],
+    ["ein Laib mit falschem Gewicht", "eine Einladung zum Essen", "ein leerer Schrank"],
+    ["der Hunger \xFCbernimmt", "aus Stolz wird Bitte", "das Teilen \xE4ndert alles"],
+    ["Ein Tag ohne Essen dauert drei.", "Die Nacht ist l\xE4nger als der Vorrat."],
+    ["Wer hungert, denkt an nichts anderes.", "Geteiltes Brot wird nicht weniger."],
+    ["offen", "karg"]
+  ),
+  romantik: D(
+    ["der Mond steht \xFCber allem und erkl\xE4rt nichts", "die Nacht ist heller als der Tag", "irgendwo singt jemand"],
+    ["die Natur antwortet in Bildern", "das Innere und die Landschaft fallen zusammen", "die Grenze zum Traum wird durchl\xE4ssig"],
+    ["die Welt wird zur Seele", "die Nacht gibt eine Antwort"],
+    ["eine Sehnsucht ohne Namen", "eine Nacht, die mehr wei\xDF als der Tag", "eine Grenze zwischen Traum und Welt"],
+    ["ein Lied aus dem Tal", "eine blaue Blume am Wegrand", "ein Fenster, das offen bleibt"],
+    ["die Landschaft wird Innenraum", "aus Nacht wird Erkenntnis", "die Sehnsucht findet ein Bild"],
+    ["Eine Nacht enth\xE4lt den ganzen Sommer.", "Die D\xE4mmerung dauert bis zum Morgen."],
+    ["Die Nacht wei\xDF mehr als der Tag.", "Wer tr\xE4umt, sieht genauer."],
+    ["offen", "romantisch"]
+  ),
+  hugo: D(
+    ["die Stadt hat zwei Gesichter, eines im Schatten", "die Glocke schl\xE4gt \xFCber den D\xE4chern", "das Recht endet an dieser Gasse"],
+    ["die Gerechtigkeit und das Gesetz gehen auseinander", "der Verfolgte hat mehr Ehre als der Verfolger", "das Elend hat ein Gesicht und einen Namen"],
+    ["die Barrikade steht", "das Gesetz beugt sich oder bricht"],
+    ["eine Gerechtigkeit gegen das Gesetz", "eine Schuld, die l\xE4ngst getilgt ist", "ein Elend, das niemand sehen will"],
+    ["ein Kerzenleuchter als Geschenk", "ein Brief aus dem Gef\xE4ngnis", "ein Kind auf der Barrikade"],
+    ["das Urteil kehrt sich um", "aus Verfolgung wird Gnade", "die Stadt erhebt sich"],
+    ["Eine Nacht entscheidet zwanzig Jahre.", "Der Prozess dauert ein halbes Leben."],
+    ["Das Gesetz ist nicht die Gerechtigkeit.", "Wer einmal gezeichnet ist, bleibt es."],
+    ["offen", "pathetisch"]
+  ),
+  goethe: D(
+    ["die Pflanze zeigt ihre Ordnung im Wachsen", "der Blick sucht Ma\xDF und findet Bewegung", "alles Verg\xE4ngliche steht in einem Zusammenhang"],
+    ["das Einzelne verweist auf das Ganze", "die Steigerung f\xFChrt zur Gestalt", "die Polarit\xE4t h\xE4lt beides zusammen"],
+    ["die Gestalt wird sichtbar", "das Einzelne wird zum Gleichnis"],
+    ["ein Ma\xDF zwischen zwei Kr\xE4ften", "eine Gestalt in der Verwandlung", "eine Ordnung, die sich bewegt"],
+    ["ein Blatt in seiner Urform", "ein Farbenspiel am Rand des Schattens", "ein Wort zur rechten Zeit"],
+    ["die Gestalt wandelt sich", "aus Polarit\xE4t wird Steigerung", "das Einzelne \xF6ffnet sich"],
+    ["Ein Augenblick will verweilen.", "Das Werden dauert l\xE4nger als das Sein."],
+    ["Alles Verg\xE4ngliche ist nur ein Gleichnis.", "In der Beschr\xE4nkung zeigt sich der Meister."],
+    ["offen", "klassisch"]
+  ),
+  sinnlich: D(
+    ["die Haut bemerkt die Temperatur zuerst", "ein Geruch ist da, bevor man ihn benennt", "das Licht hat ein Gewicht"],
+    ["die Sinne widersprechen einander", "das Wort kommt der Empfindung nicht nach", "eine Ber\xFChrung ordnet den Raum neu"],
+    ["die Empfindung \xFCberholt den Gedanken", "der Sinn kippt in einen anderen"],
+    ["eine Empfindung ohne Namen", "eine N\xE4he \xFCber die Haut", "ein Eindruck, der bleibt"],
+    ["ein Geruch aus der Kindheit", "eine Textur unter den Fingern", "ein Geschmack, der nicht passt"],
+    ["die Sinne tauschen", "aus Empfindung wird Erinnerung", "der K\xF6rper geht voran"],
+    ["Ein Augenblick f\xFCllt eine Stunde.", "Der Geruch holt zwanzig Jahre zur\xFCck."],
+    ["Die Haut denkt schneller.", "Was benannt wird, verliert an Sch\xE4rfe."],
+    ["offen", "sinnlich"]
+  )
+};
+function builtinDrama(id) {
+  return BUILTIN_DRAMA[id.replace(/^builtin:/, "")] ?? null;
+}
+
+// src/generation/buildStory.ts
+init_text_utils();
+
+// src/generation/ctxnorm.ts
+init_declension();
+init_nouns_data();
+init_nouns2_data();
+var PREPS = /^(in|im|an|am|auf|bei|beim|unter|über|vor|hinter|neben|zwischen|durch|entlang|inmitten|nahe|außerhalb|innerhalb|jenseits|diesseits|um|ums|zu|zur|zum|während|seit|nach|gegen|ab|aus|von|vom|unterwegs|irgendwo|nirgendwo|überall|dort|draußen|drinnen|hier|daheim|zuhause|unten|oben)\b/i;
+var cap2 = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+var low = (s) => s ? s.charAt(0).toLowerCase() + s.slice(1) : s;
+function parseNP(s) {
+  const m = s.trim().match(/^(?:(der|die|das|ein|eine|einen|einem|einer)\s+)?(?:([a-zäöüß][a-zäöüß-]*)\s+)?([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
+  if (!m) return null;
+  return { art: (m[1] || "").toLowerCase(), adj: m[2] || "", noun: m[3] };
+}
+function genderOf(art, noun) {
+  if (art === "die" || art === "eine" || art === "einer") return "f";
+  if (art === "das") return "n";
+  if (art === "der" || art === "ein" || art === "einen" || art === "einem") {
+    const g = guessGender(noun);
+    return g || (art === "der" ? "m" : void 0);
+  }
+  return guessGender(noun);
+}
+var adjDat = (adj) => adj ? adj.replace(/(er|es|em|en|e)$/i, "") + "en" : "";
+var AN_NOUNS = /^(meer|see|ozean|küste|strand|ufer|fluss|bach|rand|abgrund|fenster|tor|hafenbecken)$/i;
+var AUF_NOUNS = /^(insel|wiese|weide|feld|berg|hügel|gipfel|dach|turm|platz|markt|straße|brücke|lichtung|bühne|terrasse|balkon)$/i;
+var LAND_GATTUNG = /* @__PURE__ */ new Set([
+  "ausland",
+  "inland",
+  "umland",
+  "hinterland",
+  "festland",
+  "neuland",
+  "brachland",
+  "flachland",
+  "hochland",
+  "weideland",
+  "ackerland",
+  "vaterland",
+  "heimatland",
+  "niemandsland",
+  "grenzland",
+  "marschland",
+  "\xF6dland",
+  "bauland",
+  "bergland",
+  "tiefland",
+  "binnenland",
+  "vorland",
+  "kernland",
+  "mutterland",
+  "traumland",
+  "schlaraffenland"
+]);
+var ORTSNAME_ENDUNG = /(grad|burg|furt|ingen|hausen|heim|kirchen|brück|wick|ford|ton|ville|polis|stan|land|ien)$/;
+var AN_ENDUNG = /(ufer|meer|see|strand|küste|fluss|bach)$/i;
+function normWhere(s) {
+  const t = (s || "").trim();
+  if (!t || PREPS.test(t)) return t;
+  const komma = t.indexOf(",");
+  if (komma > 0) {
+    const kopf = normWhere(t.slice(0, komma));
+    return kopf + t.slice(komma);
+  }
+  const zusatz = t.match(/^(.+?)\s+((?:in|im|an|am|auf|bei|vor|hinter|neben|unter|über|zwischen|nahe|gegenüber|ohne|mit|voller|aus)\s+.+)$/);
+  if (zusatz && !/\s/.test(zusatz[1].replace(/^(der|die|das|ein|eine)\s+/i, ""))) {
+    const kopf = normWhere(zusatz[1]);
+    if (kopf !== zusatz[1]) return `${kopf} ${zusatz[2]}`;
+  }
+  const np = parseNP(t);
+  if (!np) return t;
+  const nurWort = !np.art && !np.adj && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(t);
+  const inTabelle = !!(NOUN_GENDER[t.toLowerCase()] || NOUN_GENDER_2[t.toLowerCase()]);
+  if (nurWort && !inTabelle && ORTSNAME_ENDUNG.test(t) && !LAND_GATTUNG.has(t.toLowerCase())) return `in ${t}`;
+  const g = genderOf(np.art, np.noun);
+  if (!g) return !np.art && !np.adj && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(t) ? `in ${t}` : t;
+  const adj = np.adj ? adjDat(np.adj) + " " : "";
+  const kind = AUF_NOUNS.test(np.noun) ? "auf" : AN_NOUNS.test(np.noun) || AN_ENDUNG.test(np.noun) ? "an" : "in";
+  const indef = np.art.startsWith("ein");
+  if (indef) {
+    const artD = g === "f" ? "einer" : "einem";
+    return `${kind} ${artD} ${adj}${np.noun}`;
+  }
+  if (kind === "in") return g === "f" ? `in der ${adj}${np.noun}` : `im ${adj}${np.noun}`;
+  if (kind === "an") return g === "f" ? `an der ${adj}${np.noun}` : `am ${adj}${np.noun}`;
+  return g === "f" ? `auf der ${adj}${np.noun}` : `auf dem ${adj}${np.noun}`;
+}
+var WEEKDAYS = /^(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag)$/i;
+var MONTHS = /^(januar|februar|märz|april|mai|juni|juli|august|september|oktober|november|dezember)$/i;
+var SEASONS = /^(frühling|frühjahr|sommer|herbst|winter)$/i;
+var TIME_ADV = /^(heute|morgen|gestern|übermorgen|vorgestern|damals|jetzt|nun|bald|einst|früher|später|nachts|morgens|abends|mittags|vormittags|nachmittags|irgendwann|immer|nie|niemals|neulich|kürzlich|demnächst|gerade|soeben|zugleich|währenddessen|einmal)\b/i;
+var AM_TIMES = /^(morgen|vormittag|mittag|nachmittag|abend|tag|anfang|ende|wochenende|feierabend)$/i;
+function normWhen(s) {
+  const t = (s || "").trim();
+  if (!t || PREPS.test(t) || TIME_ADV.test(t) || t.includes(",") || /\d+\s*uhr/i.test(t)) return t;
+  if (/^\d{3,4}$/.test(t)) return `im Jahr ${t}`;
+  const one = t.match(/^([A-ZÄÖÜa-zäöü][A-Za-zÄÖÜäöüß-]*)$/) ? t : null;
+  if (!one) return t;
+  const w = one;
+  if (WEEKDAYS.test(w)) return `an einem ${cap2(w)}`;
+  if (MONTHS.test(w) || SEASONS.test(w)) return `im ${cap2(w)}`;
+  if (/^mitternacht$/i.test(w)) return "um Mitternacht";
+  if (/^nacht$/i.test(w)) return "in der Nacht";
+  if (/^dämmerung$/i.test(w)) return "in der D\xE4mmerung";
+  if (AM_TIMES.test(w)) return `am ${cap2(w)}`;
+  const g = guessGender(w);
+  if (g === "f") return `in der ${cap2(w)}`;
+  if (g === "m" || g === "n") return `im ${cap2(w)}`;
+  return t;
+}
+function normWho(s) {
+  const t = (s || "").trim();
+  if (!t) return t;
+  const parts = t.split(",").map((p) => p.trim()).filter(Boolean);
+  const fixed = parts.map((p, i) => {
+    const m = p.match(/^([a-zäöüß][a-zäöüß-]*)\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
+    if (m && !/^(der|die|das|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses)$/i.test(m[1])) {
+      const g = guessGender(m[2]) || (/in$/.test(m[2].toLowerCase()) ? "f" : void 0);
+      if (g === "f") return `eine ${m[1]} ${m[2]}`;
+      if (g === "m" || g === "n") return `ein ${m[1]} ${m[2]}`;
+    }
+    if (i === 0 && /^[A-ZÄÖÜa-zäöüß][a-zäöüß-]+$/.test(p) && PERSON_NOMEN.test(p) && !/^(männer|leute)$/i.test(p)) {
+      const wort = cap2(p);
+      const klein = p.toLowerCase();
+      if (/er$/.test(klein) && PERSON_NOMEN.test(klein.slice(0, -1))) return `ein ${wort}`;
+      if (/e$/.test(klein) && PERSON_NOMEN.test(klein + "r")) return `eine ${wort}`;
+      const g = guessGender(wort);
+      if (g === "f") return `eine ${wort}`;
+      if (g === "m" || g === "n") return `ein ${wort}`;
+    }
+    return i === 0 || istEigenePerson(p) ? cap2(p) : low(p);
+  });
+  return fixed.join(", ");
+}
+function rateWhere(s) {
+  const t = (s || "").trim();
+  if (!t) return -1;
+  if (PREPS.test(t)) return 1;
+  if (normWhere(t) !== t) return 0.8;
+  return 0.35;
+}
+function rateWhen(s) {
+  const t = (s || "").trim();
+  if (!t) return -1;
+  if (PREPS.test(t) || TIME_ADV.test(t) || /\d+\s*uhr/i.test(t)) return 1;
+  if (normWhen(t) !== t) return 0.8;
+  return 0.35;
+}
+function rateWho(s) {
+  const t = (s || "").trim();
+  if (!t) return -1;
+  const parts = t.split(",").map((p) => p.trim()).filter(Boolean);
+  let sum = 0;
+  for (const p of parts) {
+    if (/^(der|die|das|ein|eine|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere)\s/i.test(p) || /^[A-ZÄÖÜ]/.test(p)) sum += 1;
+    else if (normWho(p) !== p) sum += 0.8;
+    else sum += 0.4;
+  }
+  return parts.length ? sum / parts.length : -1;
+}
+
+// src/generation/dialogue.ts
+init_text_utils();
+var ARCHETYPE_SPEAKERS = {
+  neutral: ["Die Stimme", "Das System", "Ein Unbekannter", "Das Archiv", "Der Apparat"],
+  skorpion: ["Die Zeugin", "Der Blick", "Die Hand", "Die Stimme", "Der Vermerk"],
+  psychopath: ["Der Gutachter", "Das Protokoll", "Die Instanz", "Der Operator", "Die Akte"],
+  entdecker: ["Die Karte", "Der Weg", "Die T\xFCr", "Der Rand", "Das Zeichen"]
+};
+function pickSpeakerForArchetype(archId) {
+  return pick(ARCHETYPE_SPEAKERS[archId] || ARCHETYPE_SPEAKERS.neutral);
+}
+function makeDialogueScene(kit, lenTarget = 110) {
+  const aId = kit.archetypeA || "neutral";
+  const bId = kit.archetypeB || "neutral";
+  const speakerA = kit.speakerA || kit.P;
+  const speakerB = kit.speakerB || pickSpeakerForArchetype(bId);
+  const cast = kit.speakers && kit.speakers.length >= 2 ? kit.speakers : [speakerA, speakerB];
+  let rounds = Math.round(lenTarget / 7) + (kit.instability === 2 ? 2 : kit.instability === 1 ? 1 : 0);
+  rounds = Math.max(4, Math.min(30, rounds));
+  if (rounds % 2 !== 0) rounds = Math.min(30, rounds + 1);
+  const evenAt = (f) => {
+    let x = Math.round(rounds * f);
+    if (x % 2 !== 0) x++;
+    return Math.max(2, Math.min(rounds - 2, x));
+  };
+  const oddAt = (f) => {
+    let x = Math.round(rounds * f);
+    if (x % 2 === 0) x++;
+    return Math.max(3, Math.min(rounds - 1, x));
+  };
+  const BEAT = {
+    propB: oddAt(0.22),
+    obstA: evenAt(0.38),
+    surfB: oddAt(0.42),
+    turnA: evenAt(0.64),
+    stakeB: oddAt(0.68),
+    endA: rounds - 2,
+    stageB: rounds - 1
+  };
+  const phaseFor = (i) => {
+    const p = i / (rounds - 1);
+    if (p < 0.3) return 0;
+    if (p < 0.6) return 1;
+    if (p < 0.85) return 2;
+    return 3;
+  };
+  const POOLS = {
+    neutral: {
+      setup: ["Was genau ist hier los?", "Sag mir, was du gesehen hast.", "Ich versuche, es zu verstehen.", "Wir sind noch nicht sicher.", "Fang von vorne an.", "Was hast du wirklich gesehen?", "Ich h\xF6re zu."],
+      conflict: ["Du weichst aus.", "Das passt nicht zusammen.", "Du verdrehst die Reihenfolge.", "Du h\xF6rst nicht zu.", "Das ergibt keinen Sinn.", "Du l\xE4sst etwas weg.", "Bleib bei der Wahrheit."],
+      twist: ["Vielleicht war es nie so gemeint.", "Dann dreht sich die Ursache um.", "Es sagt etwas anderes, als wir h\xF6ren.", "Die Regel gilt, aber anders.", "Vielleicht liegt es an uns.", "Der Grund verschiebt sich.", "Nichts davon war geplant."],
+      fallout: ["Also bleibt nur das Ende.", "Dann ist das entschieden.", "Wir gehen von hier weg.", "Damit m\xFCssen wir leben.", "Dann ist es vorbei.", "Wir tragen es mit.", "Mehr bleibt nicht."]
+    },
+    skorpion: {
+      setup: ["Ich sehe, dass du etwas verschweigst.", "Du bist n\xE4her, als du sein solltest.", "Das ist kein Zufall.", "Sag es \u2013 ohne Ausflucht.", "Du z\xF6gerst.", "Ich rieche die L\xFCge."],
+      conflict: ["Du kontrollierst die Geschichte.", "Dein Schweigen ist ein Griff um meinen Hals.", "Ich kenne deine L\xFCcken.", "Du willst Besitz, nicht Wahrheit.", "Du h\xE4ltst etwas fest.", "Gib es zu."],
+      twist: ["Dann geh\xF6rt die Wahrheit niemandem.", "Die N\xE4he kippt: Jetzt h\xE4lt es dich fest.", "Du wirst von deinem Satz behalten.", "Was du willst, will dich auch.", "Jetzt kehrt es sich um.", "Deine N\xE4he wird zur Falle."],
+      fallout: ["Du gibst es zu, oder du verlierst alles.", "Ich lasse dich nicht ungeschoren.", "Wir sind jetzt Teil davon.", "Das Ende tr\xE4gt deinen Namen.", "Du tr\xE4gst die Schuld.", "Nichts entkommt mir."]
+    },
+    psychopath: {
+      setup: ["Beschreibe den Sachverhalt.", "Emotion ist hier irrelevant.", "Das ist eine Beobachtung.", "Wir messen, was bleibt.", "Nenne die Fakten.", "Gef\xFChle sind Rauschen."],
+      conflict: ["Deine Schl\xFCsse sind unzul\xE4ssig.", "Du verwechselst Gef\xFChl mit Fakt.", "Das ist Inkonsistenz.", "Du \xFCbersch\xE4tzt Bedeutung.", "Dein Schluss ist falsch.", "Das ist unpr\xE4zise."],
+      twist: ["Dann drehen wir den Vektor um.", "Die Ursache ist das Symptom.", "Du bist das Experiment.", "Die Regel ist nur ein Modell.", "Die Ursache ist Effekt.", "Du bist die Variable."],
+      fallout: ["Der Fall ist abgeschlossen.", "Das Ergebnis ist eindeutig.", "Wir protokollieren das.", "Damit ist es erledigt.", "Abgeschlossen.", "Das Ergebnis steht."]
+    },
+    entdecker: {
+      setup: ["Da vorne ist noch etwas.", "Wir gehen weiter.", "Die Richtung ist nicht zuf\xE4llig.", "Ich will sehen, was dahinter liegt.", "Da vorn ist mehr.", "Komm weiter."],
+      conflict: ["Du h\xE4ltst mich auf.", "Du willst stehen bleiben.", "Du sperrst den Weg.", "Du hast Angst vor der n\xE4chsten T\xFCr.", "Du bremst.", "Du f\xFCrchtest die T\xFCr."],
+      twist: ["Dann \xF6ffnet sich der Raum in die falsche Richtung.", "Die Karte beginnt zu laufen.", "Der Weg entdeckt uns.", "Hinter uns ist das Ziel.", "Der Weg dreht sich.", "Das Ziel liegt hinter uns."],
+      fallout: ["Wir nehmen mit, was wir k\xF6nnen.", "Wir lassen den Rest zur\xFCck.", "Es bleibt eine Spur.", "Und dann: weiter.", "Wir ziehen weiter.", "Eine Spur bleibt."]
+    }
+  };
+  const STANCE_LINES = {
+    glauben: {
+      setup: ["Ich wei\xDF, was ich gesehen habe.", "Es war genau so.", "H\xF6r mir zu, es stimmt.", "Ich habe keinen Zweifel.", "Das ist die Wahrheit, ob du willst oder nicht."],
+      conflict: ["Es ist trotzdem wahr.", "Ich bleibe dabei.", "Du musst mir das glauben.", "Ich habe es selbst erlebt.", "Daran \xE4ndert dein Zweifel nichts."],
+      twist: ["Also hatte ich recht.", "Dann best\xE4tigt es sich.", "Ich wusste es die ganze Zeit.", "Genau das habe ich gesagt.", "Siehst du \u2014 es stimmt."],
+      fallout: ["Ich stehe dazu.", "Es bleibt wahr.", "Ich bereue kein Wort.", "So war es, so bleibt es."]
+    },
+    zweifeln: {
+      setup: ["Woher willst du das wissen?", "Bist du sicher?", "Das klingt zu einfach.", "Kann das \xFCberhaupt stimmen?", "Ich glaube nichts ohne Beweis."],
+      conflict: ["Das kann nicht stimmen.", "Beweis es mir.", "Da fehlt etwas.", "Warum sollte ich dir glauben?", "Deine Geschichte hat L\xF6cher."],
+      twist: ["Vielleicht hatte ich unrecht.", "Oder es ist ganz anders.", "Und wenn es doch stimmt?", "Jetzt zweifle ich an meinem Zweifel."],
+      fallout: ["Ich bin noch nicht \xFCberzeugt.", "Sicher bin ich trotzdem nicht.", "Vielleicht. Vielleicht auch nicht.", "Ich behalte meine Fragen."]
+    },
+    abwehren: {
+      setup: ["Muss das jetzt sein?", "Lass uns nicht dar\xFCber reden.", "Das geht dich nichts an.", "Ich will das nicht.", "Es ist nicht so wichtig."],
+      conflict: ["Das f\xFChrt zu nichts.", "H\xF6r auf zu bohren.", "Ich habe nichts gesagt.", "Lenk nicht ab.", "Reden wir \xFCber etwas anderes."],
+      twist: ["Es ist zu sp\xE4t daf\xFCr.", "Jetzt ist es sowieso egal.", "Ich h\xE4tte schweigen sollen.", "Vergiss, was ich gesagt habe."],
+      fallout: ["Es ist erledigt.", "Reden wir nicht mehr davon.", "Vergessen wir das.", "Genug jetzt."]
+    }
+  };
+  const STANCES = ["glauben", "zweifeln", "abwehren"];
+  for (let k = STANCES.length - 1; k > 0; k--) {
+    const j = Math.floor(Math.random() * (k + 1));
+    [STANCES[k], STANCES[j]] = [STANCES[j], STANCES[k]];
+  }
+  const stanceOf = (castIdx) => STANCES[castIdx % STANCES.length];
+  const capFirst = (s) => {
+    s = String(s || "").trim();
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  };
+  const stripLead = (s) => String(s || "").replace(/^(und|dann|aber|denn|so|doch)\s+/i, "").trim();
+  const topic = clean(kit.motif || kit.W || "").replace(/[.!?…]+$/, "");
+  const STAGE = ["Stille.", "Ein langer Blick.", "Keiner spricht weiter.", "Der Wind tr\xE4gt den Rest fort.", "Die Weide liegt still.", "Nichts bewegt sich."];
+  const cleanDialogLine = (s) => {
+    s = clean(s);
+    s = s.replace(/,\s*([.!?…])/g, "$1").replace(/\s*,\s*,\s*/g, ", ").replace(/„\s+/g, "\u201E").replace(/\s+"/g, '"').replace(/\.{2,}/g, ".").replace(/\s+([,.;:!?])/g, "$1").replace(/\)\s*\.$/, ")");
+    return capFirst(s);
+  };
+  const usedRaw = /* @__PURE__ */ new Set();
+  let prevRaw = "";
+  const pickLine = (stance, archetype, phase) => {
+    const key = phase === 0 ? "setup" : phase === 1 ? "conflict" : phase === 2 ? "twist" : "fallout";
+    const useArch = archetype !== "neutral" && chance(0.4);
+    const P3 = useArch ? POOLS[archetype] || POOLS.neutral : STANCE_LINES[stance] || POOLS.neutral;
+    const arr = P3[key] || [];
+    if (!arr.length) return "\u2026";
+    const fresh2 = arr.filter((l) => l !== prevRaw && !usedRaw.has(l));
+    let cand;
+    if (fresh2.length) cand = pick(fresh2);
+    else {
+      const notPrev = arr.filter((l) => l !== prevRaw);
+      cand = notPrev.length ? pick(notPrev) : pick(arr);
+    }
+    usedRaw.add(cand);
+    prevRaw = cand;
+    return cand;
+  };
+  const injectBeat = (i) => {
+    if (i === 0) return topic ? `Das Thema: ${topic}.` : "Sag mir, was du gesehen hast.";
+    if (i === 1) return topic ? "Und was hat das mit uns zu tun?" : "Was genau meinst du?";
+    if (i === BEAT.propB && kit.propAcc) return `Du hast ${kit.propAcc} dabei.`;
+    if (i === BEAT.obstA) return ensurePunct(capFirst(stripLead(kit.obstacle)));
+    if (i === BEAT.surfB) return "Das ist nur die Oberfl\xE4che.";
+    if (i === BEAT.turnA) return `Dann \u2014 ${capFirst(stripLead(clean(kit.turn).replace(/[.!?…]+$/, "")))}.`;
+    if (i === BEAT.stakeB) return ensurePunct(capFirst(stripLead(kit.stake)));
+    if (i === BEAT.endA) return ensurePunct(capFirst(kit.ending));
+    if (i === BEAT.stageB) return chance(0.6) ? `(${pick(STAGE)})` : null;
+    return null;
+  };
+  const applyInstability = (line, archetype, phase) => {
+    if (kit.instability !== 2) return line;
+    if (/[()]/.test(line) || line.includes("\u2014") || line.includes(":")) return line;
+    if (chance(0.32 + phase * 0.06)) {
+      const activeVerbs = ["\xF6ffnet", "nimmt", "sieht", "h\xE4lt", "stellt", "schreibt", "tr\xE4gt", "f\xFChrt", "bricht", "nennt", "findet", "ber\xFChrt", "beobachtet", "sucht"];
+      const m = line.match(new RegExp(`^(.+?)\\s+(${activeVerbs.join("|")})\\s+(.+?)\\.$`, "i"));
+      if (m) {
+        const subj = m[1].trim(), verb = m[2], obj = m[3].trim();
+        if (obj.length < 40 && subj.toLowerCase() !== obj.toLowerCase() && obj.split(/\s+/).length <= 4 && !obj.includes(subj)) {
+          line = `${obj} ${verb} ${subj}.`;
+        }
+      }
+    }
+    if (chance(0.22)) {
+      if (archetype === "skorpion" && !line.includes("wei\xDFt")) line = line.replace(/\.$/, " \u2013 und du wei\xDFt es.");
+      else if (archetype === "psychopath" && !line.includes("Notiert")) line = line.replace(/\.$/, ". Notiert.");
+      else if (archetype === "entdecker" && !line.includes("Weiter")) line = line.replace(/\.$/, ". Weiter.");
+    }
+    return line.replace(/\bIch kenne ich\b/gi, "Ich kenne mich").replace(/\bIch nennen\b/gi, "Ich nenne").replace(/\bIch sucht\b/gi, "Ich suche").replace(/\.\s*\./g, ".").replace(/\s{2,}/g, " ").trim();
+  };
+  const out = [`SZENE: ${kit.W}, ${kit.T}.`];
+  for (let i = 0; i < rounds; i++) {
+    const isA = i % 2 === 0;
+    const ci = i % cast.length;
+    const speaker = cast[ci];
+    const arch2 = isA ? aId : bId;
+    const ph = phaseFor(i);
+    let line = injectBeat(i) ?? pickLine(stanceOf(ci), arch2, ph);
+    line = ensurePunct(line);
+    line = applyInstability(line, arch2, ph);
+    line = cleanDialogLine(line);
+    out.push(`${speaker}: ${line}`);
+  }
+  return out.join("\n");
+}
+
+// src/generation/postprocess.ts
+init_text_utils();
+init_verben();
+init_text_utils();
+
+// src/generation/nlp.ts
+function tokenize(text) {
+  return (text || "").replace(/\r/g, "").replace(/([.,!?;:()„""""—])/g, " $1 ").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+}
+var COHERENCE_STOPWORDS = new Set(
+  "aber alle allem allen aller alles als also am an andere anderen auch auf aus bei bin bis bist da dabei dann das dass dem den denn der des dessen die dies diese diesem diesen dieser dieses doch dort du durch ein eine einem einen einer eines er es etwas fuer f\xFCr gegen hab habe haben hat hatte hier hin hinter ich ihm ihn ihr ihre im in ist ja jede jedem jeden jeder jedes kann kein keine man mehr mein mich mir mit muss nach nicht nichts noch nun nur ob oder ohne schon sein seine sich sie sind so ueber \xFCber um und uns unser unter vom von vor war waren was wenn werden wie wieder will wir wird wo zu zum zur".split(" ")
+);
+function coherenceWords(s) {
+  return tokenize(String(s || "").toLowerCase()).filter((w) => w.length > 3 && !COHERENCE_STOPWORDS.has(w));
+}
+
+// src/generation/tone.data.ts
+var TONE_DATA = {
+  "neutral": { "opener": [], "flavor": [] },
+  "mystery": {
+    "opener": [
+      "Was jetzt folgt, l\xE4sst sich nicht ganz erkl\xE4ren.",
+      "Manches davon ergibt erst im Nachhinein einen Sinn.",
+      "Von Anfang an fehlt ein Teil des Bildes.",
+      "Sp\xE4ter w\xFCrde niemand sagen k\xF6nnen, wann es genau begann.",
+      "Es gibt eine Version der Geschichte, und dann die wahre.",
+      "Irgendetwas stimmt nicht, lange bevor es jemand bemerkt.",
+      "Die Wahrheit liegt n\xE4her, als alle glauben - und tiefer.",
+      "Der Anfang liegt weiter zur\xFCck, als es den Anschein hat.",
+      "Was hier steht, ist die zweitbeste Erkl\xE4rung.",
+      "Niemand hat es kommen sehen, und alle wussten es.",
+      "Es beginnt mit einer Zahl, die nicht stimmt.",
+      "Zwei Zeugen, zwei Geschichten, ein Abend.",
+      "Am Ende fehlt genau ein Satz."
+    ],
+    "flavor": [
+      "Etwas darin bleibt bewusst unausgesprochen.",
+      "Nicht alles l\xE4sst sich erkl\xE4ren, so sehr man es auch versucht.",
+      "Eine Frage schwingt mit, die niemand laut zu stellen wagt.",
+      "Es ist, als fehle ein ganzes Kapitel der Geschichte.",
+      "Irgendjemand wei\xDF offensichtlich mehr, als er zugibt.",
+      "Die Erkl\xE4rung daf\xFCr kommt nie - oder ist schlimmer als das R\xE4tsel selbst.",
+      "Ein Detail passt nicht, und genau daran h\xE4ngt alles.",
+      "Was fehlt, ist lauter als das, was gesagt wird.",
+      "Jede Antwort \xF6ffnet zwei neue T\xFCren.",
+      "Man ahnt, dass die Spur im Kreis f\xFChrt.",
+      "Zwischen den Zeilen wartete eine zweite Geschichte.",
+      "Niemand hat den Anfang gesehen, nur die Folgen.",
+      "Ein Name f\xE4llt zu oft, um zuf\xE4llig zu sein.",
+      "Die Reihenfolge stimmt, die Uhrzeit nicht.",
+      "Wer zuh\xF6rt, h\xF6rt zwei Dinge gleichzeitig.",
+      "Ein Zeuge widerspricht sich freundlich.",
+      "Etwas wurde wegger\xE4umt, bevor jemand fragte.",
+      "Der k\xFCrzeste Weg wird nie genommen.",
+      "Ein Zufall wiederholt sich und hei\xDFt dann anders.",
+      "Es bleibt eine T\xFCr, die niemand aufschlie\xDFt."
+    ]
+  },
+  "poetic": {
+    "opener": [
+      "Manche Dinge lassen sich nur in Bildern erz\xE4hlen.",
+      "Es beginnt, wie Erinnerungen beginnen: unscharf und zu hell.",
+      "Alles daran hat den Klang von etwas Vergangenem.",
+      "Es ist einer jener Momente, die l\xE4nger dauern als ihre Minute.",
+      "Das Licht f\xE4llt so, dass Worte fast \xFCberfl\xFCssig werden.",
+      "Vielleicht ist es weniger ein Ereignis als ein Nachhall.",
+      "Der Tag beginnt, als h\xE4tte er nichts vor.",
+      "Zuerst ist da nur ein Ger\xE4usch, das nicht aufh\xF6rt.",
+      "Es ist eine Stunde ohne Namen.",
+      "Das Licht steht schief und bleibt so.",
+      "Zwischen zwei Atemz\xFCgen liegt der ganze Anfang.",
+      "Alles hier ist zu leise f\xFCr seine Gr\xF6\xDFe."
+    ],
+    "flavor": [
+      "Die Worte daf\xFCr kommen, wenn \xFCberhaupt, erst viel sp\xE4ter.",
+      "Alles darin klingt wie die Erinnerung an etwas Gr\xF6\xDFeres.",
+      "Selbst die Stille schien an diesem Ort eine Farbe zu haben.",
+      "Es f\xFChlt sich an wie ein halb vergessenes Gedicht, das jemand zu Ende tr\xE4umt.",
+      "Zwischen den S\xE4tzen liegt mehr als in ihnen.",
+      "Wie ein Bild, das l\xE4nger nachwirkt als die Geschichte dazu.",
+      "Die Zeit flie\xDFt hier langsamer, fast wie Honig im Winter.",
+      "Jede Bewegung hinterlie\xDF eine Spur aus Licht.",
+      "Es ist sch\xF6n auf die Weise, die auch wehtut.",
+      "Man h\xF6rt die Dinge atmen, wenn man still genug ist.",
+      "Die R\xE4nder der Welt schienen kurz weicher zu werden.",
+      "Ein Duft von etwas, das es so nie gegeben hat.",
+      "Das Licht bleibt an den Kanten h\xE4ngen.",
+      "Die Luft tr\xE4gt weiter als der Ruf.",
+      "Etwas Kleines behauptet sich gegen den Raum.",
+      "Ein Schatten legt sich hin und bleibt.",
+      "Die Farben werden langsamer als die Formen.",
+      "Der Klang bleibt l\xE4nger als sein Grund.",
+      "Ein Rest W\xE4rme steht noch im T\xFCrrahmen.",
+      "Zwischen den Dingen w\xE4chst eine Stille an."
+    ]
+  },
+  "melancholisch": {
+    "opener": [
+      "Es liegt eine leise Traurigkeit \xFCber allem, ganz ohne Grund.",
+      "Was bleibt, ist selten das, was man behalten wollte.",
+      "Manches endet, lange bevor man es merkt.",
+      "Es ist die Art von Nachmittag, an dem alles ein wenig verblasst.",
+      "Irgendwo darin steckt ein Abschied, den keiner ausgesprochen hat.",
+      "Sp\xE4ter w\xFCrde man sich an diesen Tag erinnern, ohne zu wissen, warum.",
+      "Es h\xE4tte auch anders kommen k\xF6nnen, aber nicht sehr.",
+      "Vieles davon ist schon vorbei, w\xE4hrend es geschieht.",
+      "Der Abschied hat lange vorher angefangen.",
+      "Man merkt es erst, wenn es ruhiger wird.",
+      "Was bleibt, ist kleiner als erwartet.",
+      "Es ist ein Tag zum Aufr\xE4umen."
+    ],
+    "flavor": [
+      "Etwas darin f\xFChlt sich an wie das Ende eines langen Sommers.",
+      "Man vermisste etwas, ohne benennen zu k\xF6nnen, was.",
+      "Die Dinge haben den sanften Glanz des Verg\xE4nglichen.",
+      "Es ist weniger Schmerz als eine ruhige, alte Wehmut.",
+      "Alles bleibt - nur nicht so, wie es einmal gewesen ist.",
+      "Ein Teil davon ist schon Erinnerung, w\xE4hrend es noch geschieht.",
+      "Die Freude kommt mit einem feinen Riss darin.",
+      "Man wei\xDF, dass man diesen Moment sp\xE4ter vermissen wird.",
+      "Selbst das Licht scheint sich langsam zu verabschieden.",
+      "Es ist sch\xF6n, und genau das macht es schwer.",
+      "Was gewesen ist, nimmt mehr Platz ein als das \xDCbrige.",
+      "Ein Zimmer, das gr\xF6\xDFer wurde, ohne zu wachsen.",
+      "Die Gewohnheit bleibt, der Grund ist fort.",
+      "Man legt es zur\xFCck, wo es nie hingeh\xF6rte.",
+      "Der zweite Stuhl steht weiter am Tisch.",
+      "Es fehlt niemand, und doch ist es leer.",
+      "Ein Satz bleibt unbeantwortet und st\xF6rt nicht mehr.",
+      "Die Jahreszeit wechselt schneller als der Blick."
+    ]
+  },
+  "dark": {
+    "opener": [
+      "Von der ersten Sekunde an f\xFChlte sich hier nichts richtig an.",
+      "Es begann leise - so, wie das Schlimmste meistens beginnt.",
+      "Manche Orte warten nur darauf, dass jemand kommt.",
+      "Es gibt keinen Ausweg, nur die Illusion davon.",
+      "Was folgte, h\xE4tte niemand aufhalten k\xF6nnen.",
+      "Die Dunkelheit hier ist \xE4lter als das Haus, das sie birgt.",
+      "Nichts davon endet gut, und das ist bekannt.",
+      "Es beginnt mit einer Rechnung, die offen bleibt.",
+      "Die Sache war lange faul, bevor sie roch.",
+      "Von hier f\xFChrt kein Weg zur\xFCck, nur weiter.",
+      "Jemand hat entschieden, und niemand hat gefragt.",
+      "Der Preis stand von Anfang an fest."
+    ],
+    "flavor": [
+      "Nichts daran f\xFChlt sich je wirklich sicher an.",
+      "Etwas darin roch unverkennbar nach Verlust.",
+      "Die K\xE4lte bleibt, auch wenn l\xE4ngst niemand mehr hinsieht.",
+      "Es ist die Art von Stille, die etwas Schlimmeres ank\xFCndigt.",
+      "Irgendwo darunter wartete bereits das n\xE4chste Ungl\xFCck.",
+      "Kein Trost weit und breit - nur die Gewissheit, dass es schlimmer werden w\xFCrde.",
+      "Jeder Ausweg f\xFChrt nur tiefer hinein.",
+      "Etwas beobachtete, ohne je gesehen zu werden.",
+      "Die Hoffnung ist das Erste, was hier stirbt.",
+      "Man sp\xFCrt, dass die W\xE4nde zuh\xF6ren.",
+      "Es ist zu sp\xE4t, schon bevor es beginnt.",
+      "Selbst das Schweigen hat hier Z\xE4hne.",
+      "Was sch\xFCtzt, kostet mehr, als es h\xE4lt.",
+      "Der Ausweg ist verstellt, seit Wochen.",
+      "Es wird k\xE4lter, wo vorher gewartet wurde.",
+      "Der Schaden ist alt und tr\xE4gt einen neuen Namen.",
+      "Niemand meldet sich, und das ist die Antwort.",
+      "Die Frist l\xE4uft, auch wenn niemand z\xE4hlt.",
+      "Was fehlt, wird nicht ersetzt.",
+      "Am Ende bleibt jemand zur\xFCck, der nicht gemeint war."
+    ]
+  },
+  "unheimlich": {
+    "opener": [
+      "Alles wirkt vertraut, und genau das ist das Problem.",
+      "Irgendetwas ist anders, aber man kann nicht sagen, was.",
+      "Die Dinge stehen zu still, um nat\xFCrlich zu sein.",
+      "Es ist, als h\xE4tte jemand die Welt fast, aber nicht ganz richtig nachgebaut.",
+      "Man hat das Gef\xFChl, nicht allein zu sein - ohne Beweis daf\xFCr.",
+      "Etwas stimmt mit den Schatten nicht.",
+      "Etwas ist verstellt worden, und niemand wei\xDF von wem.",
+      "Es riecht nach einem Raum, der lange zu war.",
+      "Die Zahlen stimmen, die Stimmung nicht.",
+      "Von drau\xDFen sieht alles gew\xF6hnlich aus.",
+      "Man sollte hier nicht stehen bleiben.",
+      "Der Ort hat gewartet."
+    ],
+    "flavor": [
+      "Die Spiegel scheinen einen Sekundenbruchteil zu sp\xE4t zu reagieren.",
+      "Ein Ger\xE4usch, das nur existiert, wenn man nicht hinh\xF6rt.",
+      "Die Gesichter sind richtig, nur das L\xE4cheln sitzt falsch.",
+      "Etwas z\xE4hlt mit, jedes Mal, wenn man die T\xFCr schlie\xDFt.",
+      "Die Uhr geht, aber die Zeit steht.",
+      "Man erkennt den Raum wieder, ohne je dort gewesen zu sein.",
+      "Die Stille hat eine Form, und sie kommt n\xE4her.",
+      "Irgendwo atmet etwas im Takt der eigenen Schritte.",
+      "Ein Detail ist zu viel im Bild, und keiner sieht es an.",
+      "Es f\xFChlt sich an, als w\xFCrde man erwartet.",
+      "Das Ger\xE4usch kommt von innen, nicht von der Stra\xDFe.",
+      "Etwas atmet mit, kaum h\xF6rbar.",
+      "Der Boden gibt an einer Stelle nach.",
+      "Zwei T\xFCren f\xFChren in denselben Raum.",
+      "Es wird still, sobald man hinsieht.",
+      "Eine Uhr geht nach und niemand stellt sie.",
+      "Der Abdruck passt zu keiner Hand.",
+      "Was hier bleibt, war schon vorher da."
+    ]
+  },
+  "uplifting": {
+    "opener": [
+      "Und doch beginnt hier, allen Umst\xE4nden zum Trotz, etwas Gutes.",
+      "Selbst an diesem Ort l\xE4sst sich noch Hoffnung finden.",
+      "Manchmal reicht ein einziger Moment, um alles zu wenden.",
+      "Es sieht aussichtslos aus - und ist es dann doch nicht.",
+      "Irgendwo darin liegt der Anfang von etwas Besserem.",
+      "Gerade wenn alles verloren scheint, kommt das Licht zur\xFCck.",
+      "Es f\xE4ngt klein an und bleibt nicht klein.",
+      "Etwas geht auf, das lange gelegen hat.",
+      "Der Tag hat mehr vor als gedacht.",
+      "Einer f\xE4ngt an, und dann sind es viele.",
+      "Es gibt gute Gr\xFCnde, heute zu bleiben.",
+      "Der Anfang ist gemacht, mehr braucht es nicht."
+    ],
+    "flavor": [
+      "Und doch bleibt, gegen jede Erwartung, ein Rest Hoffnung.",
+      "Irgendetwas darin f\xFChlte sich nach einem echten Neuanfang an.",
+      "Es ist, als w\xFCrde sich gerade, ganz leise, etwas zum Guten wenden.",
+      "Ein kleiner Trost bleibt trotzdem - und manchmal reicht genau das.",
+      "Selbst im Schwierigsten findet sich noch ein Grund zum Weitermachen.",
+      "Am Ende z\xE4hlt nicht der Verlust, sondern das, was bleibt.",
+      "Eine unerwartete Freundlichkeit ver\xE4nderte alles.",
+      "Zum ersten Mal seit Langem scheint der Weg wieder offen.",
+      "Es ist schwer, aber es lohnt sich.",
+      "Manchmal ist der Sturz nur der Anlauf.",
+      "Etwas darin richtet sich wieder auf.",
+      "Und pl\xF6tzlich scheint alles m\xF6glich.",
+      "Etwas l\xF6st sich, ohne dass jemand zieht.",
+      "Zwei, die nichts verband, arbeiten zusammen.",
+      "Der Weg wird breiter, je weiter man geht.",
+      "Was fehlt, wird von selbst erg\xE4nzt.",
+      "Der Raum f\xFCllt sich, ohne eng zu werden.",
+      "Aus einer Zusage werden drei.",
+      "Es reicht diesmal f\xFCr alle.",
+      "Der zweite Versuch gelingt leichter."
+    ]
+  },
+  "zaertlich": {
+    "opener": [
+      "Es geschieht mit einer Behutsamkeit, die man kaum erwarten w\xFCrde.",
+      "Manche Dinge muss man leise erz\xE4hlen, sonst zerbrechen sie.",
+      "Es ist klein und warm und leicht zu \xFCbersehen.",
+      "Zwischen ihnen liegt eine Sanftheit, f\xFCr die es kein Wort gibt.",
+      "Es beginnt mit einer Geste, die niemand sonst bemerkt.",
+      "Alles daran ist sacht, fast wie Atem im Schlaf.",
+      "Es wird niemand laut in dieser Geschichte.",
+      "Jemand h\xE4lt etwas fest, ohne zu dr\xFCcken.",
+      "Der Anfang ist so behutsam, dass man ihn \xFCbersieht.",
+      "Es ist eine Stunde, in der nichts verlangt wird.",
+      "Man macht Platz, bevor gefragt wird.",
+      "Alles hier hat Zeit."
+    ],
+    "flavor": [
+      "Eine Hand, die blieb, obwohl sie gehen durfte.",
+      "Es ist die Sorte N\xE4he, die keine Worte braucht.",
+      "Etwas darin passt auf einen auf, ganz unaufdringlich.",
+      "Ein L\xE4cheln, so leise, dass man es fast \xFCberh\xF6rt.",
+      "Die Welt wird f\xFCr einen Moment weicher.",
+      "Es ist ein kleines Z\xE4rtlichsein, mitten im L\xE4rm.",
+      "Jemand h\xE4lt etwas Zerbrechliches, ohne es zu dr\xFCcken.",
+      "W\xE4rme, die keine Gegenleistung will.",
+      "Es f\xFChlt sich an wie Ankommen.",
+      "Ein Trost, der einfach nur dablieb.",
+      "Eine Hand bleibt liegen, wo sie ist.",
+      "Es wird leiser gesprochen als n\xF6tig.",
+      "Jemand deckt zu, ohne zu wecken.",
+      "Der Weg wird k\xFCrzer gemacht, ohne davon zu reden.",
+      "Etwas Warmes bleibt stehen und wartet.",
+      "Man reicht das Bessere weiter.",
+      "Ein Name wird ausgesprochen wie eine Zusage.",
+      "Es ist Platz genug f\xFCr zwei Meinungen."
+    ]
+  },
+  "traeumerisch": {
+    "opener": [
+      "Es ist schwer zu sagen, ob es geschieht oder nur getr\xE4umt wird.",
+      "Die R\xE4nder der Dinge sind an diesem Tag nicht ganz fest.",
+      "Alles treibt ein wenig, wie Boote ohne Anker.",
+      "Es f\xFChlt sich an, als w\xE4re man mitten in einem fremden Traum aufgewacht.",
+      "Die Logik hat hier Urlaub genommen.",
+      "Zeit und Ort sind nur Vorschl\xE4ge.",
+      "Die Reihenfolge ist hier nicht das Wichtigste.",
+      "Es beginnt mittendrin, wie immer.",
+      "Etwas geht auf, das keine T\xFCr hat.",
+      "Der Weg f\xFChrt weiter, obwohl er endet.",
+      "Zwei Orte fallen zusammen, ohne sich zu st\xF6ren.",
+      "Es ist sp\xE4ter, als es sein d\xFCrfte."
+    ],
+    "flavor": [
+      "Die Dinge verwandeln sich, kaum dass man wegsieht.",
+      "Ein Zimmer wird zum Meer, ohne dass es jemand st\xF6rt.",
+      "Die Schwerkraft scheint Verhandlungssache zu sein.",
+      "Man geht durch T\xFCren, die es vorher nicht gegeben hat.",
+      "Farben riechen, und Ger\xE4usche haben Gewicht.",
+      "Alles ergab Sinn, solange man nicht genauer hinsah.",
+      "Die Erinnerung l\xE4uft der Gegenwart voraus.",
+      "Ein Gedanke wird Landschaft.",
+      "Nichts steht fest, und nichts f\xE4llt.",
+      "Es ist sch\xF6n und ungereimt wie ein Traum kurz vor dem Erwachen.",
+      "Ein Raum \xF6ffnet sich, wo keiner war.",
+      "Die Treppe f\xFChrt zweimal nach oben.",
+      "Etwas wiederholt sich mit anderem Ausgang.",
+      "Der Weg kennt sein Ziel besser als der Gehende.",
+      "Ein Fenster zeigt eine andere Jahreszeit.",
+      "Die Entfernung \xE4ndert sich beim Hinsehen.",
+      "Man kommt an, ohne gegangen zu sein.",
+      "Etwas Bekanntes tr\xE4gt einen fremden Namen."
+    ]
+  },
+  "nuechtern": {
+    "opener": [
+      "Der Reihe nach: Es geschah genau so, wie es hier steht.",
+      "Ohne Umschweife - das ist, was passierte.",
+      "Es gibt daran nichts zu besch\xF6nigen.",
+      "Die Fakten sind \xFCbersichtlich, die Folgen weniger.",
+      "Man muss es nicht ausschm\xFCcken, es gen\xFCgt so.",
+      "Kurz und ohne Pathos: So liegt der Fall.",
+      "Der Vorgang ist \xFCberschaubar.",
+      "Es liegt eine Reihenfolge vor.",
+      "Die Zust\xE4ndigkeit ist gekl\xE4rt.",
+      "Der Rahmen steht, der Rest folgt.",
+      "Es gibt dazu eine Akte.",
+      "Die Sache ist erledigt, bis auf zwei Punkte."
+    ],
+    "flavor": [
+      "Mehr ist dazu nicht zu sagen.",
+      "Die Sache hat eine klare Ursache und eine klare Folge.",
+      "Es hilft nichts, es zu besch\xF6nigen.",
+      "Alles Weitere ergab sich daraus von selbst.",
+      "N\xFCchtern betrachtet, bleibt wenig Raum f\xFCr Zweifel.",
+      "Die Lage ist, was sie ist.",
+      "Man notiert es und geht weiter.",
+      "Kein Drama, nur der n\xE4chste Schritt.",
+      "So einfach, so unausweichlich.",
+      "Am Ende z\xE4hlen nur die Zahlen.",
+      "Der Vorgang ist abgelegt.",
+      "Eine Frist wurde notiert.",
+      "Zwei Angaben widersprechen sich geringf\xFCgig.",
+      "Der Ablauf wurde eingehalten.",
+      "Die Unterlagen liegen vollst\xE4ndig vor.",
+      "Es bleibt bei der bisherigen Regelung.",
+      "Der Fall wird weitergeleitet.",
+      "Eine R\xFCckmeldung steht noch aus."
+    ]
+  },
+  "ironisch": {
+    "opener": [
+      "Nat\xFCrlich l\xE4uft alles nach Plan - nur nicht nach diesem.",
+      "Man ahnt schon, wie gut das ausgehen wird.",
+      "Es ist, mit Verlaub, eine gl\xE4nzende Idee. Fast.",
+      "Was h\xE4tte dabei schon schiefgehen k\xF6nnen.",
+      "Wie sch\xF6n, dass wenigstens einer den \xDCberblick behielt. Behauptete er.",
+      "Der Plan ist wasserdicht. Das Wasser findet trotzdem einen Weg.",
+      "Es lief alles nach Plan, nur nicht nach diesem.",
+      "Eine hervorragende Gelegenheit, es nicht zu tun.",
+      "Man kann viel falsch machen, und man tut es.",
+      "Der Anfang war gut gemeint.",
+      "Zum Gl\xFCck gibt es eine Zust\xE4ndigkeit.",
+      "Alles bestens, sagt jedenfalls das Formular."
+    ],
+    "flavor": [
+      "Es l\xE4uft exakt so gut, wie zu erwarten ist.",
+      "Ein voller Erfolg, wenn man die Ziele nachtr\xE4glich anpasst.",
+      "Zum Gl\xFCck ist ja jemand zust\xE4ndig - nur nicht anwesend.",
+      "Die Ironie daran entging allen Beteiligten.",
+      "Man nannte es Strategie, um nicht Zufall sagen zu m\xFCssen.",
+      "Selbstverst\xE4ndlich hat niemand etwas geahnt. Angeblich.",
+      "Ein Meisterwerk der Planung, r\xFCckw\xE4rts betrachtet.",
+      "Alles unter Kontrolle, versichert die Kontrolle.",
+      "Bemerkenswert, wie zuverl\xE4ssig das Unwahrscheinliche eintraf.",
+      "Es h\xE4tte schlimmer kommen k\xF6nnen. Kam es dann auch.",
+      "Der Vorschlag wird gelobt und abgeheftet.",
+      "Zust\xE4ndig ist, wer gerade nicht da ist.",
+      "Man einigt sich darauf, sich zu einigen.",
+      "Die L\xF6sung wartet auf ein passendes Problem.",
+      "Ein Ausschuss besch\xE4ftigt sich damit, gr\xFCndlich.",
+      "Der k\xFCrzeste Weg wurde gepr\xFCft und verworfen.",
+      "Es gibt jetzt ein Merkblatt dazu.",
+      "Alle sind einverstanden, aber anders."
+    ]
+  },
+  "humorous": {
+    "opener": [
+      "Es h\xE4tte ernst werden k\xF6nnen - wurde es aber nicht ganz.",
+      "Manche Geschichten sind einfach zu absurd, um nicht zu grinsen.",
+      "Was folgt, ist mit Ansage albern.",
+      "Es beginnt harmlos und entgleitet dann auf komische Weise.",
+      "Man sollte das nicht so ernst nehmen. Die Beteiligten taten es auch nicht.",
+      "Vorweg: Niemand kommt ernsthaft zu Schaden, nur die W\xFCrde.",
+      "Es ging schief, aber mit Anlauf.",
+      "Zwei Dinge fehlten: der Plan und der Rest.",
+      "Man h\xE4tte es wissen k\xF6nnen, wollte aber nicht.",
+      "Der Anfang war schon das Beste daran.",
+      "Es gab Kaffee, sonst nichts.",
+      "Jemand hat das ernst gemeint."
+    ],
+    "flavor": [
+      "Absurd genug, um fast schon wieder normal zu wirken.",
+      "Selbst das Schicksal scheint dabei kurz zu grinsen.",
+      "Niemand w\xFCrde sich das so ausdenken - und genau deshalb ist es lustig.",
+      "Es hat, aller Dramatik zum Trotz, etwas unfreiwillig Komisches.",
+      "Man br\xE4uchte fast Popcorn, so albern l\xE4uft das gerade.",
+      "Selbst die Beteiligten m\xFCssen sich das Lachen verkneifen.",
+      "Es ist ein Chaos, aber ein gut gelauntes.",
+      "Die Peinlichkeit ist beeindruckend gleichm\xFCtig.",
+      "Am Ende lachen alle - manche sogar freiwillig.",
+      "Der Ernst der Lage hat sichtlich Feierabend.",
+      "Der Zettel dazu ist unauffindbar, nat\xFCrlich.",
+      "Es fehlt genau das eine Teil.",
+      "Zwei halten es f\xFCr erledigt, drei nicht.",
+      "Der Ersatz ist besser als das Original, leider.",
+      "Es funktioniert, solange niemand hinsieht.",
+      "Der Hund hat es gesehen und schweigt.",
+      "Man einigt sich auf sp\xE4ter.",
+      "Ein Erfolg, wenn man nicht so genau hinschaut."
+    ]
+  }
+};
+
+// src/generation/tone.shape.ts
+var TONE_SHAPE = {
+  neutral: {},
+  mystery: { rhythm: "long" },
+  poetic: { rhythm: "breath", register: "lyrical" },
+  melancholisch: { rhythm: "long", register: "lyrical" },
+  dark: { rhythm: "fracture", register: "dark" },
+  unheimlich: { rhythm: "fracture", register: "dark" },
+  uplifting: { rhythm: "clean" },
+  zaertlich: { rhythm: "breath", register: "lyrical" },
+  traeumerisch: { rhythm: "breath", register: "lyrical" },
+  nuechtern: { rhythm: "clean", register: "plain" },
+  ironisch: { rhythm: "clean", register: "wry" },
+  humorous: { rhythm: "staccato", register: "wry" }
+};
+function toneRhythm(tone) {
+  return tone ? TONE_SHAPE[tone]?.rhythm : void 0;
+}
+function toneRegister(tone) {
+  return tone && TONE_SHAPE[tone]?.register || null;
+}
+var cap1 = (s) => s ? s[0].toUpperCase() + s.slice(1) : s;
+function applyToneRegister(text, tone) {
+  const reg = toneRegister(tone);
+  if (!reg || !text) return text;
+  if (reg === "plain") {
+    let t = text.replace(/\b(gleichsam|wie Honig im Winter|wie ein halb vergessenes Gedicht[^.,;]*)\b/gi, "").replace(/\s{2,}/g, " ");
+    t = t.split(/\n\n+/).map((para) => {
+      const sents = para.split(/(?<=[.!?…])\s+/);
+      const out = [];
+      for (const sen of sents) {
+        const wc2 = sen.split(/\s+/).filter(Boolean).length;
+        if (wc2 > 16) {
+          const parts = sen.split(/,\s+(?=und |aber |denn |während |sodass |wobei )/);
+          if (parts.length > 1) {
+            parts.forEach((p, i) => {
+              let seg = p.replace(/^,?\s*(und|aber|denn|während|sodass|wobei)\s+/i, "").trim();
+              if (!seg) return;
+              seg = cap1(seg);
+              if (!/[.!?…]$/.test(seg)) seg += ".";
+              out.push(i === 0 && /[.!?…]$/.test(p) ? cap1(p.trim()) : seg);
+            });
+            continue;
+          }
+        }
+        out.push(sen);
+      }
+      return out.join(" ");
+    }).join("\n\n");
+    return t.replace(/\s+([,.;:!?…])/g, "$1").replace(/\s{2,}/g, " ").trim();
+  }
+  if (reg === "wry") {
+    const tags = ["\u2014 angeblich.", "\u2014 so hie\xDF es.", "\u2014 was auch immer das hei\xDFen sollte.", "\u2014 nat\xFCrlich.", "\u2014 wie praktisch.", "\u2014 oder so \xE4hnlich."];
+    let ti = Math.floor(Math.random() * tags.length);
+    let gesetzt = 0, vorherGesetzt = false;
+    return text.split(/\n\n+/).map((para) => {
+      const sents = para.split(/(?<=[.!?…])\s+/);
+      return sents.map((sen) => {
+        const wc2 = sen.split(/\s+/).filter(Boolean).length;
+        if (gesetzt < 3 && !vorherGesetzt && wc2 >= 5 && wc2 <= 18 && /[.]$/.test(sen) && !/[()"„:—–]/.test(sen) && Math.random() < 0.3) {
+          const tag = tags[ti % tags.length];
+          ti++;
+          gesetzt++;
+          vorherGesetzt = true;
+          return sen.replace(/\.$/, " " + tag);
+        }
+        vorherGesetzt = false;
+        return sen;
+      }).join(" ");
+    }).join("\n\n");
+  }
+  return text;
+}
+
+// src/generation/polish.ts
+init_nouns_data();
+init_text_utils();
+var DOPPELT_ERLAUBT = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "wie",
+  "so",
+  "als",
+  "was",
+  "wer",
+  "wen",
+  "wem",
+  "dass",
+  "da",
+  "und",
+  "nur",
+  "noch",
+  "sie",
+  "ihr"
+]);
+var KEIN_NOMEN = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "kein",
+  "keine",
+  "mein",
+  "dein",
+  "sein",
+  "ihr",
+  "unser",
+  "euer",
+  "dieser",
+  "diese",
+  "dieses",
+  "jeder",
+  "jede",
+  "jedes",
+  "alle",
+  "viele",
+  "manche",
+  "beide",
+  "und",
+  "aber",
+  "doch",
+  "denn",
+  "dann",
+  "dabei",
+  "damit",
+  "dort",
+  "hier",
+  "jetzt",
+  "nur",
+  "noch",
+  "auch",
+  "schon",
+  "wenn",
+  "weil",
+  "dass",
+  "als",
+  "wie",
+  "was",
+  "wer",
+  "wo",
+  "warum",
+  "ich",
+  "du",
+  "er",
+  "sie",
+  "es",
+  "wir",
+  "man",
+  "jemand",
+  "niemand",
+  "nichts",
+  "etwas",
+  "alles",
+  "im",
+  "am",
+  "auf",
+  "in",
+  "an",
+  "mit",
+  "ohne",
+  "von",
+  "vor",
+  "nach",
+  "bei",
+  "zu",
+  "\xFCber",
+  "unter",
+  "zwischen",
+  "seit",
+  "f\xFCr",
+  "zwei",
+  "drei",
+  "vier",
+  "f\xFCnf",
+  "sechs",
+  "sieben",
+  "acht",
+  "neun",
+  "zehn",
+  "hundert",
+  "tausend"
+]);
+function ergaenzeArtikel(satz) {
+  const m = satz.match(/^([A-ZÄÖÜ][a-zäöüß]{2,})(\s+)(.+)$/);
+  if (!m) return satz;
+  const [, nomen, luecke, rest] = m;
+  if (KEIN_NOMEN.has(nomen.toLowerCase())) return satz;
+  const kern = rest.split(",")[0];
+  if (!extractLeadVerb(kern).verb) return satz;
+  const g = NOUN_GENDER[nomen.toLowerCase()];
+  if (g !== "m" && g !== "f" && g !== "n") return satz;
+  if (/^(sind|waren|werden|haben|hatten|bleiben|stehen|liegen|kommen|gehen|zeigen|wirken)\b/i.test(rest)) return satz;
+  const art = g === "f" ? "Die" : g === "n" ? "Das" : "Der";
+  return `${art} ${nomen}${luecke}${rest}`;
+}
+function polishGerman(text, opts = {}) {
+  const { who = "" } = opts;
+  let t = String(text ?? "");
+  t = t.replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/ /g, " ").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").replace(/[ \t]+([,.;:!?])/g, "$1").replace(/([,.;:!?])([A-Za-zÄÖÜäöü])/g, "$1 $2").replace(/\(\s+/g, "(").replace(/\s+\)/g, ")").replace(/,+/g, ",").replace(/,\s*,/g, ", ").replace(/:\s*:/g, ":").replace(/([A-Za-zÄÖÜäöü0-9])\.\.(?=\s|$)/g, "$1\u2026").replace(/\.\.(?!\.)/g, ".").trim();
+  if (who.trim()) {
+    const w = who.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const wieder = namensErsetzer(who.trim());
+    try {
+      t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${w}(?![\\p{L}\\p{N}_])`, "giu"), wieder);
+    } catch {
+      t = t.replace(new RegExp(`\\b${w}\\b`, "gi"), wieder);
+    }
+  }
+  for (let k = 0; k < 6; k++) {
+    const next = t.replace(
+      /\b([A-Za-zÄÖÜäöüß]{2,})[ \t]+\1\b/gi,
+      (m, w) => DOPPELT_ERLAUBT.has(w.toLowerCase()) ? m : w
+    );
+    if (next === t) break;
+    t = next;
+  }
+  t = t.split(/(?<=[.!?…])(\s+)/).map((teil) => /^\s+$/.test(teil) ? teil : ergaenzeArtikel(teil)).join("");
+  return t.trim();
+}
+
+// src/generation/shape.ts
+init_text_utils();
+init_verben();
+init_declension();
+function applyDisruptor(text, level) {
+  const p = level === "off" ? 0 : level === "on" ? 0.33 : 0.17;
+  if (!chance(p)) return { text, fired: false, kind: "\u2013" };
+  const kinds = [
+    { kind: "Zeitbruch", fn: (t) => t + " Drei Jahre sp\xE4ter ist die gleiche Stelle noch da, aber das Ger\xE4usch ist \xE4lter." },
+    { kind: "Erz\xE4hlerwechsel", fn: (t) => t.replace(/\n\n/g, "\n\n\u2014\n\n") + "\n\nIch \xFCbernehme hier. Nur kurz. Nur, um das Offensichtliche zu sagen." },
+    { kind: "Metakommentar", fn: (t) => t + "\n\n(Diese Geschichte wei\xDF, dass sie erz\xE4hlt wird.)" },
+    { kind: "Wiederholung", fn: (t) => {
+      const s = splitSentences(t);
+      if (s.length < 3) return t;
+      const FORMEL = /^(dann\b|und dann\b|danach\b|später\b|plötzlich\b|auf einmal\b|es braucht nur\b|erst ein riss\b|kaum ausgesprochen\b|etwas gibt nach\b|ohne vorwarnung\b|dann, unvermittelt)/i;
+      const start = Math.floor(s.length * 0.65);
+      for (let k2 = 0; k2 < s.length; k2++) {
+        const kand = s[(start + k2) % s.length];
+        if (!FORMEL.test(kand.trim())) return t + "\n\n" + kand;
+      }
+      return t;
+    } },
+    { kind: "Fragmentierung", fn: (t) => {
+      const s = splitSentences(t);
+      if (s.length < 4) return t;
+      s.splice(Math.floor(s.length / 2), 0, "\u2014");
+      return s.join(" ");
+    } }
+  ];
+  const k = pick(kinds);
+  return { text: k.fn(text), fired: true, kind: k.kind };
+}
+var FRAGMENTS = ["Stille.", "Zu nah.", "Zu klar.", "Ein Fehler.", "Noch nicht.", "Dann.", "Nein.", "Vielleicht.", "Fast.", "Genau jetzt."];
+var NEBENSATZ_ANFANG = /^(der|die|das|dem|den|des|deren|dessen|welche[rsmn]?|wo|worin|woran|worauf|als|wenn|weil|obwohl|während|nachdem|bevor|damit|dass|ob|sodass|indem|sobald|solange|bis|seit|falls|wobei|wodurch|womit|was|wer|wen|wem|wie|ohne|um|statt|anstatt)\b/i;
+function applyRhythm(text, rhythm) {
+  const s = splitSentences(text);
+  const insertFrag = (prob) => {
+    if (chance(prob)) {
+      const pos = chooseInsertPos(s);
+      if (pos >= 0) s.splice(pos, 0, pick(FRAGMENTS));
+    }
+  };
+  if (rhythm === "clean") return s.join(" ");
+  if (rhythm === "breath") {
+    insertFrag(0.55);
+    if (s.length >= 5 && chance(0.45)) {
+      const i = Math.floor(1 + Math.random() * (s.length - 2));
+      s[i] = "Und " + s[i].charAt(0).toLowerCase() + s[i].slice(1);
+    }
+  }
+  if (rhythm === "staccato") {
+    insertFrag(0.75);
+    if (s.length >= 4 && chance(0.6)) {
+      const i = Math.floor(1 + Math.random() * (s.length - 2));
+      const t = s[i];
+      const cut = t.indexOf(", ");
+      if (cut > 10 && cut < 80 && !NEBENSATZ_ANFANG.test(t.slice(cut + 2))) {
+        s[i] = t.slice(0, cut) + ".";
+        s.splice(i + 1, 0, t.slice(cut + 2));
+      }
+    }
+    if (chance(0.35)) {
+      const at = Math.min(2, s.length);
+      if (!isFragmentSentence(s[at - 1] || "") && !isFragmentSentence(s[at] || "")) s.splice(at, 0, pick(["Stille.", "Warte.", "So.", "Gut."]));
+    }
+  }
+  if (rhythm === "long") {
+    if (s.length >= 6 && chance(0.6)) {
+      const i = Math.floor(1 + Math.random() * (s.length - 3));
+      const first = s[i].replace(/[.!?…]+$/, "");
+      const next = s[i + 1];
+      const joiner = /^(und|aber|doch|denn|sondern)\b/i.test(next) ? ", " : chance(0.5) ? ", und " : "; ";
+      s[i] = first + joiner + next.charAt(0).toLowerCase() + next.slice(1);
+      s.splice(i + 1, 1);
+    }
+    if (chance(0.4)) s.push("Und w\xE4hrend all das geschieht, bleibt etwas in der Luft h\xE4ngen, als w\xE4re es nie f\xFCr Menschen gedacht gewesen.");
+  }
+  if (rhythm === "fracture") {
+    insertFrag(0.7);
+    if (s.length >= 5 && chance(0.6)) {
+      const i = Math.floor(1 + Math.random() * (s.length - 2));
+      s[i] = s[i].replace(/[.!?…]+$/, "") + " \u2014";
+      s.splice(i + 1, 0, "und genau dort bricht die Erkl\xE4rung ab.");
+    }
+    if (chance(0.45)) s.splice(Math.floor(s.length * 0.65), 0, "(Dieser Satz war nicht geplant.)");
+  }
+  return s.join(" ");
+}
+var TENSION_CENTER = { top: 0.15, mid: 0.5, low: 0.85 };
+function applyTension(text, peak, material) {
+  if (!peak || peak === "off") return text;
+  const center = TENSION_CENTER[peak];
+  if (center === void 0) return text;
+  const s = splitSentences(text);
+  if (s.length < 5) return text;
+  const width = 0.26;
+  const intensity = (i, n) => {
+    const pos = n <= 1 ? 0 : i / (n - 1);
+    const d = (pos - center) / width;
+    return Math.exp(-0.5 * d * d);
+  };
+  for (let i = s.length - 1; i >= 0; i--) {
+    const it = intensity(i, s.length);
+    if (it > 0.6 && chance(it * 0.7)) {
+      const t = s[i];
+      const cut = t.indexOf(", ");
+      const rest = t.slice(cut + 2);
+      const unteilbar = NEBENSATZ_ANFANG.test(rest);
+      if (cut > 10 && cut < 90 && !unteilbar) {
+        s[i] = t.slice(0, cut) + ".";
+        s.splice(i + 1, 0, cap(rest));
+      }
+    }
+  }
+  for (let pass = 0; pass < 2; pass++) {
+    const idx = Math.round(center * (s.length - 1));
+    if (idx > 0 && idx < s.length && chance(0.55) && !isFragmentSentence(s[idx - 1] || "") && !isFragmentSentence(s[idx] || "")) {
+      s.splice(idx, 0, pick(FRAGMENTS));
+    }
+  }
+  for (let i = 0; i < s.length - 1; i++) {
+    if (s.length <= 4) break;
+    const it = intensity(i, s.length);
+    if (it < 0.3 && chance((0.3 - it) * 1.2)) {
+      const first = s[i].replace(/[.!?…]+$/, "");
+      const next = s[i + 1];
+      if (first.length + next.length < 160 && !isFragmentSentence(first) && !isFragmentSentence(next)) {
+        const joiner = /^(und|aber|doch|denn|sondern)\b/i.test(next) ? ", " : chance(0.5) ? ", und " : "; ";
+        const cont = joiner === "; " ? next : next.charAt(0).toLowerCase() + next.slice(1);
+        s[i] = first + joiner + cont;
+        s.splice(i + 1, 1);
+        i--;
+      }
+    }
+  }
+  const mat = [...material?.hooks || [], ...material?.motifs || []].map((x) => (x || "").trim()).filter((x) => x.length >= 4);
+  if (mat.length) {
+    for (let k = 0; k < 2; k++) {
+      const cand = pick(mat);
+      if (!cand || s.join(" ").toLowerCase().includes(cand.toLowerCase())) continue;
+      if (!chance(0.7)) continue;
+      const idx = Math.max(1, Math.min(s.length, Math.round(center * (s.length - 1)) + k));
+      s.splice(idx, 0, cap(cand.replace(/[.!?…]+$/, "")) + ".");
+    }
+  }
+  {
+    const idx = Math.round(center * (s.length - 1));
+    if (idx > 0 && idx < s.length - 1 && chance(0.5)) {
+      const t = s[idx].replace(/[.!?…]+$/, "");
+      const nachbarn = [s[idx - 1] || "", s[idx + 1] || ""].join(" ").toLowerCase();
+      const bruch = pick(["und genau hier kippt es.", "kein Zur\xFCck.", "jetzt.", "und nichts h\xE4lt mehr."].filter((b) => !(b === "jetzt." && /\bjetzt\b/.test(nachbarn + " " + t.toLowerCase()))));
+      if (t.length > 12 && !isFragmentSentence(t) && !t.includes("\u2014")) {
+        s[idx] = t + " \u2014";
+        s.splice(idx + 1, 0, bruch);
+      }
+    }
+  }
+  return s.join(" ");
+}
+function paragraphize(txt2) {
+  const s = splitSentences(txt2);
+  if (s.length <= 3) return txt2;
+  const breaks = /* @__PURE__ */ new Set();
+  const target = chance(0.6) ? 2 : 1;
+  while (breaks.size < target) breaks.add(Math.min(s.length - 2, Math.max(1, Math.floor(1 + Math.random() * (s.length - 2)))));
+  const out = [];
+  for (let i = 0; i < s.length; i++) {
+    out.push(s[i]);
+    if (breaks.has(i)) out.push("\n\n");
+  }
+  return out.join(" ").replace(/\s+\n\n\s+/g, "\n\n").trim();
+}
+function guessPronoun(P3) {
+  const p = clean(P3);
+  if (/^(der|ein)\s/i.test(p)) return "er";
+  if (/^(die|eine)\s/i.test(p)) return "sie";
+  if (/^das\s/i.test(p)) return "es";
+  if (/(a|e|in)$/i.test(p)) return "sie";
+  return "er";
+}
+var SUBJ_FUGE = /^(und|oder|aber|denn|doch|sondern|dann|da|weil|dass|als|wenn|während|obwohl|bevor|nachdem|sobald|solange|ob|wie|so|auch|nur|jetzt|dort|hier|heute|gestern|morgen|plötzlich|dabei|dadurch|deshalb|trotzdem|später|zuerst|zuletzt|außerdem|schließlich)$/i;
+var DEF_ART = { m: "der", f: "die", n: "das" };
+function objektName(o) {
+  const t = clean(o);
+  if (!t) return "das Ding";
+  if (/^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines)\s/i.test(t)) return t;
+  const kern = t.split(" ")[0].replace(/[^A-Za-zÄÖÜäöüß]/g, "");
+  return `${DEF_ART[guessGender(kern) || "n"]} ${t}`;
+}
+var DING_VORRAT = [
+  "T\xFCr",
+  "Uhr",
+  "Karteikarte",
+  "Lampe",
+  "Schl\xFCssel",
+  "Fenster",
+  "Bank",
+  "Treppe",
+  "Spiegel",
+  "Kiste",
+  "Zettel",
+  "Mauer",
+  "Stuhl",
+  "Leitung",
+  "Schwelle"
+];
+var OBJEKT_EINSTIEG = [
+  // NICHT „… und zaehle mit.": Der Bruchstueck-Filter braucht dort ein finites
+  // Verb, und hatFinitesVerb() erkennt die erste Person nicht. Ein Rahmensatz,
+  // der von einem unzuverlaessigen Erkenner abhaengt, ist ein Rahmensatz auf Zeit.
+  "Ich bin %O. Ich liege hier und z\xE4hle die Tage.",
+  "Ich bin %O. Man hat mich hier vergessen.",
+  "Ich bin %O. Niemand fragt mich, und ich sehe alles.",
+  "Ich bin %O. Ich habe keine Augen und trotzdem einen Blick.",
+  "Ich bin %O. Ich bleibe, wo man mich hingestellt hat.",
+  "Ich bin %O. Man geht an mir vorbei, seit Jahren."
+];
+var OBJEKT_KOPF_RE = /^(Ich bin (?:der|die|das) [^.!?]{1,40}\.\s+[^.!?]{1,70}\.)\s*/;
+var OBJEKT_ZWISCHENRUF = [
+  "Ich sehe zu.",
+  "Ich liege dabei.",
+  "Ich z\xE4hle mit.",
+  "Ich r\xFChre mich nicht.",
+  "Ich habe Zeit.",
+  "Ich merke es mir."
+];
+function beugeToken(v, person) {
+  if (VERB_CONJ[v.toLowerCase()]) return conjugateVerbToken(v, person);
+  const p = person === "ich" || person === "du" || person === "wir" || person === "ihr" ? person : "er";
+  return beugeVerb(v, p) ?? v;
+}
+var kenntVerb = (v) => !!VERB_CONJ[v.toLowerCase()] || istVerbform(v);
+function applyPerspective(paras, perspective, who, objName) {
+  const P3 = clean(who) || "Jemand";
+  const O = objektName(clean(objName) || pick(DING_VORRAT));
+  const swap = (s, person, pronoun) => {
+    if (!P3) return s;
+    try {
+      const re = new RegExp("([A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF]+\\s+)?\\b" + escapeRegExp(P3) + "\\b(\\s+[A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF]+)?", "gi");
+      const ersetzt = s.replace(re, (_m, before, after, ...rest) => {
+        const idx = rest[rest.length - 2];
+        const voll = rest[rest.length - 1];
+        const posP = voll.toLowerCase().indexOf(P3.toLowerCase(), idx);
+        if (posP > 0 && /[-–\wÄÖÜäöüß]/.test(voll.charAt(posP - 1))) return _m;
+        const davor = voll.slice(0, posP).replace(/\s+$/, "");
+        const gross = davor === "" || /[.!?…:„"»(]$/.test(davor);
+        const pron = gross ? pronoun.charAt(0).toUpperCase() + pronoun.slice(1) : pronoun;
+        const bw = before ? before.trim() : "";
+        const aw = after ? after.trim() : "";
+        const bw3 = ICH_DU_ZU_ER[bw.toLowerCase()] || bw;
+        const aw3 = ICH_DU_ZU_ER[aw.toLowerCase()] || aw;
+        const beuge = (v) => beugeToken(v, person);
+        const kennt = kenntVerb;
+        const letztesWort = (davor.match(/[A-Za-zÄÖÜäöüß-]+$/) || [""])[0];
+        const subjektstelle = gross || /[,;]$/.test(davor) || SUBJ_FUGE.test(letztesWort) || !!bw && kennt(bw3);
+        if (!subjektstelle) return _m;
+        if (bw && kennt(bw3)) return beuge(bw3) + " " + pron + (after || "");
+        if (aw && kennt(aw3)) return (before || "") + pron + " " + beuge(aw3);
+        return (before || "") + pron + (after || "");
+      });
+      const reihung = new RegExp(
+        "\\b(" + pronoun + ")\\s+([a-z\xE4\xF6\xFC\xDF]+)((?:\\s+[^\\s,.;:\u2014!?]+){0,6}?)\\s+(und|oder)\\s+([a-z\xE4\xF6\xFC\xDF]{3,}t)\\b",
+        "gi"
+      );
+      return ersetzt.replace(reihung, (m, pr, v1, mitte, konj, v2) => {
+        const v23 = ICH_DU_ZU_ER[v2.toLowerCase()] || v2;
+        if (!kenntVerb(v23)) return m;
+        const gebeugt = beugeToken(v23, person);
+        if (gebeugt === v2) return m;
+        return `${pr} ${v1}${mitte} ${konj} ${gebeugt}`;
+      });
+    } catch {
+      return s.replace(new RegExp("\\b" + escapeRegExp(P3) + "\\b", "gi"), pronoun);
+    }
+  };
+  const toFirst = (s) => swap(s, "ich", "ich");
+  const toSecond = (s) => swap(s, "du", "du");
+  const toWe = (s) => swap(s, "wir", "wir");
+  const toObject = (s) => `${pick(OBJEKT_ZWISCHENRUF)} ${s}`;
+  if (perspective === "third") return paras;
+  if (perspective === "first") return paras.map(toFirst);
+  if (perspective === "second") return paras.map(toSecond);
+  if (perspective === "we") return paras.map(toWe);
+  if (perspective === "object") {
+    const einstieg = pick(OBJEKT_EINSTIEG).replace("%O", O);
+    return paras.map((p, i) => i === 0 ? `${einstieg} ${p}` : p);
+  }
+  const cycle = ["first", "second", "third", "object"];
+  return paras.map((p, i) => {
+    const k = cycle[i % cycle.length];
+    if (k === "first") return toFirst(p);
+    if (k === "second") return toSecond(p);
+    if (k === "object") return toObject(p);
+    return p;
+  });
+}
+function pronominalize(text, P3, pronoun) {
+  const name = clean(P3);
+  if (!name || !pronoun) return text;
+  let re;
+  try {
+    re = new RegExp(`^${escapeRegExp(name)}\\s+[a-z\xE4\xF6\xFC\xDF]`);
+  } catch {
+    return text;
+  }
+  let seen = false, lastReplaced = false;
+  return text.split(/\n\n+/).map((par) => {
+    const s = splitSentences(par);
+    for (let i = 0; i < s.length; i++) {
+      if (!re.test(s[i])) continue;
+      if (!seen) {
+        seen = true;
+        lastReplaced = false;
+        continue;
+      }
+      if (lastReplaced) {
+        lastReplaced = false;
+        continue;
+      }
+      s[i] = cap(pronoun) + s[i].slice(name.length);
+      lastReplaced = true;
+    }
+    return s.join(" ");
+  }).join("\n\n");
+}
+var SCHON_GEBUNDEN = /^(und|doch|aber|oder|denn|dann|dabei|also|trotzdem|dennoch|sondern|nur|zuerst|zuletzt|währenddessen)/i;
+function darfVerbinden(a, b, obergrenze) {
+  if (!a || !b) return false;
+  if (/[:;—–]\s*$/.test(a.replace(/[.!?…]+$/, ""))) return false;
+  if (!/[.!?…]$/.test(a.trim())) return false;
+  if (/[?!]$/.test(a.trim())) return false;
+  if (SCHON_GEBUNDEN.test(b)) return false;
+  if (/^[„»"(]/.test(b) || /[“«")]$/.test(a)) return false;
+  const wa = (a.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+  const wb = (b.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+  if (!wa || !wb) return false;
+  return wa + wb <= obergrenze;
+}
+function verbinde(a, b, satzartig) {
+  const kopf = a.trim().replace(/[.!?…]+$/, "");
+  const rest = b.trim();
+  const wort = (rest.match(/^[A-Za-zÄÖÜäöüß]+/) || [""])[0].toLowerCase();
+  const darfKlein = KEIN_NOMEN.has(wort) || !!VERB_CONJ[wort];
+  const weiter = darfKlein ? rest.charAt(0).toLowerCase() + rest.slice(1) : rest;
+  if (!satzartig) return `${kopf} \u2014 ${weiter}`;
+  return `${kopf}${pick([", und ", "; ", " \u2014 "])}${weiter}`;
+}
+function entferneDubletten(text) {
+  const kern = (x) => x.replace(/^[—–\s]+/, "").replace(/[.!?…,;:—–\s]+$/, "").replace(/\s+/g, " ").toLowerCase().trim();
+  const ohne = text.split(/\n{2,}/).map((absatz) => {
+    const s = splitSentences(absatz);
+    if (s.length < 2) return absatz;
+    const raus = [];
+    for (const satz of s) {
+      const k = kern(satz);
+      if (k && raus.length && kern(raus[raus.length - 1]) === k) continue;
+      raus.push(satz);
+    }
+    return raus.join(" ");
+  }).join("\n\n");
+  return ohne.replace(
+    /([^.!?…\n]{6,})\s*(?:—|–|;|,\s+und)\s*([^.!?…\n]{6,})/g,
+    (ganz, links, rechts) => kern(links) && kern(links) === kern(rechts) ? links.replace(/\s+$/, "") : ganz
+  );
+}
+function applySatzlaenge(text, ziel) {
+  if (!ziel || ziel < 6) return text;
+  const w = (x) => (x.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+  return text.split(/\n{2,}/).map((absatz) => {
+    let s = splitSentences(absatz);
+    if (s.length < 2) return absatz;
+    const bleibtKurz = new Set(s.filter(() => chance(0.2)));
+    for (let runde = 0; runde < 200; runde++) {
+      let beste = -1, kuerzeste = Infinity;
+      for (let i = 0; i + 1 < s.length; i++) {
+        const n = w(s[i]) + w(s[i + 1]);
+        if (n > ziel) continue;
+        if (bleibtKurz.has(s[i]) || bleibtKurz.has(s[i + 1])) continue;
+        if (!darfVerbinden(s[i], s[i + 1], ziel)) continue;
+        if (n < kuerzeste) {
+          kuerzeste = n;
+          beste = i;
+        }
+      }
+      if (beste < 0) break;
+      const satzartig = hatFinitesVerbLeicht(s[beste]);
+      s = [...s.slice(0, beste), verbinde(s[beste], s[beste + 1], satzartig), ...s.slice(beste + 2)];
+    }
+    return s.join(" ");
+  }).join("\n\n");
+}
+function hatFinitesVerbLeicht(satz) {
+  return (satz.match(/[a-zäöüß]{3,}/g) || []).some((w) => !!VERB_CONJ[w] || /^(ist|sind|war|waren|hat|haben|wird|werden|kann|muss|will|bleibt|steht|geht|kommt)$/.test(w));
+}
+
+// src/generation/postprocess.ts
+init_declension();
+var LINE_FORMS = /* @__PURE__ */ new Set(["script", "video", "strang", "reim", "haiku", "poem"]);
+var isLineForm = (input) => !!input && !!input.form && LINE_FORMS.has(input.form);
+function glaetten(t) {
+  return t.replace(/[ \t]{2,}/g, " ").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]+([,.;:!?])/g, "$1").trim();
+}
+var ABGESCHNITTEN = /(^|\s)(eine|einem|einen|einer|eines|der|die|dem|den|des|und|oder|aber|wie|als|im|am|bei|für|ohne)$/i;
+var NUR_OHNE_VERB = /(^|\s)(mit|an|auf|zu|vor|nach|aus|ist|sind|wird|ein|das)$/i;
+var NEBENSATZ_ENDE = /,\s+(der|die|das|dem|den|deren|dessen)\s+([a-zäöüß][^,;:]*)$/;
+var FUNKTION2 = /* @__PURE__ */ new Set([
+  "es",
+  "er",
+  "sie",
+  "ich",
+  "du",
+  "wir",
+  "ihr",
+  "man",
+  "sich",
+  "mich",
+  "dich",
+  "uns",
+  "euch",
+  "ihn",
+  "ihm",
+  "mir",
+  "dir",
+  "der",
+  "die",
+  "das",
+  "dem",
+  "den",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "kein",
+  "keine",
+  "keinen",
+  "keinem",
+  "mein",
+  "meine",
+  "meinen",
+  "meinem",
+  "sein",
+  "seine",
+  "seinen",
+  "seinem",
+  "ihre",
+  "ihren",
+  "ihrem",
+  "dein",
+  "deine",
+  "deinen",
+  "deinem",
+  "unser",
+  "unsere",
+  "in",
+  "im",
+  "an",
+  "am",
+  "auf",
+  "aus",
+  "bei",
+  "mit",
+  "nach",
+  "von",
+  "vom",
+  "zu",
+  "zum",
+  "zur",
+  "vor",
+  "\xFCber",
+  "unter",
+  "hinter",
+  "neben",
+  "zwischen",
+  "durch",
+  "f\xFCr",
+  "ohne",
+  "um",
+  "gegen",
+  "seit",
+  "bis",
+  "und",
+  "oder",
+  "aber",
+  "noch",
+  "schon",
+  "mehr",
+  "auch",
+  "nur",
+  "so",
+  "da",
+  "hier",
+  "dort",
+  "wo",
+  "wie",
+  "als",
+  "wenn",
+  "dann",
+  "immer",
+  "nie",
+  "wieder",
+  "heute",
+  "gestern",
+  "morgen",
+  "zu",
+  "sehr",
+  "ganz",
+  "etwas",
+  "nichts",
+  "alles",
+  "viel",
+  "wenig",
+  "zwei",
+  "drei",
+  "vier",
+  "f\xFCnf",
+  "einmal",
+  "zweimal",
+  "l\xE4ngst",
+  "gerade",
+  "eben",
+  "erst",
+  "kaum",
+  "fast",
+  "genau",
+  "pl\xF6tzlich",
+  "jemand",
+  "niemand",
+  "jeder",
+  "jede",
+  "jedes",
+  "alle",
+  "beide",
+  "zusammen",
+  "allein",
+  "anders",
+  "weiter",
+  "zur\xFCck",
+  "hinauf",
+  "hinab",
+  "hinaus",
+  "hinein",
+  "heraus",
+  "herein",
+  "oben",
+  "unten",
+  "innen",
+  "au\xDFen",
+  "links",
+  "rechts",
+  "vorn",
+  "hinten",
+  "drinnen",
+  "drau\xDFen",
+  "fort",
+  "weg",
+  "los"
+]);
+var verbMoeglich = (w) => /^[a-zäöüß]{2,}$/.test(w) && !FUNKTION2.has(w) && !KEIN_VERB.has(w) && !/(em|er|es)$/.test(w);
+function istAbgeschnitten(bare) {
+  if (!bare || bare.split(/\s+/).length > 12) return false;
+  if (ABGESCHNITTEN.test(bare)) return true;
+  const ns = bare.match(NEBENSATZ_ENDE);
+  if (ns) {
+    const woerter3 = ns[2].split(/\s+/);
+    if (woerter3.length <= 6 && !woerter3.some(verbMoeglich)) return true;
+  }
+  return NUR_OHNE_VERB.test(bare) && !hatFinitesVerb(bare);
+}
+function schliesseFigurenkomma(text, who) {
+  const roh = (who || "").trim();
+  if (!roh || !roh.includes(",")) return text;
+  const figur = personKopf(splitSpeakers(normWho(roh))[0] || "");
+  if (!figur.includes(",")) return text;
+  try {
+    const re = new RegExp("(" + escapeRegExp(figur) + ")(\\s+)(?=[a-z\xE4\xF6\xFC\xDF])", "gi");
+    return text.replace(re, "$1,$2");
+  } catch {
+    return text;
+  }
+}
+function coherencePass(text, input) {
+  try {
+    if (isLineForm(input)) return text;
+    const t = String(text || "").replace(/\.\s*\.+/g, ".");
+    const paras = t.split(/\n{2,}/);
+    const freq = {};
+    coherenceWords(t).forEach((w) => {
+      freq[w] = (freq[w] || 0) + 1;
+    });
+    const motif = new Set(Object.keys(freq).filter((w) => freq[w] >= 2));
+    [input?.who, input?.where, input?.what].forEach((s) => coherenceWords(s || "").forEach((w) => motif.add(w)));
+    const bogen = loadDramaData();
+    if (bogen) {
+      for (const feld of [
+        bogen.einstieg,
+        bogen.mitte,
+        bogen.hoehepunkt,
+        bogen.ausloeser,
+        bogen.veraenderungen,
+        bogen.konflikte,
+        bogen.zeitanomalien,
+        bogen.regeln
+      ]) {
+        for (const satz of feld || []) coherenceWords(satz).forEach((w) => motif.add(w));
+      }
+    }
+    const allowBreaks = input?.disruptor === "on";
+    const maxRemove = Math.max(1, Math.floor(splitSentences(t).length * 0.25));
+    let removed = 0;
+    const outParas = [];
+    paras.forEach((p, pi) => {
+      const sents = splitSentences(p);
+      const kept = sents.filter((s, si) => {
+        const bare = s.trim().replace(/["»«)\]]+$/, "").replace(/[.!?…]+$/, "").trim();
+        if (istAbgeschnitten(bare)) {
+          removed++;
+          return false;
+        }
+        if (removed >= maxRemove) return true;
+        const late = pi === paras.length - 1 && sents.length >= 4 && si >= Math.floor(sents.length / 2);
+        if (late) {
+          const cw = coherenceWords(s);
+          if (cw.length >= 2 && !cw.some((w) => motif.has(w))) {
+            if (allowBreaks && Math.random() < 0.5) return true;
+            removed++;
+            return false;
+          }
+        }
+        return true;
+      });
+      if (kept.length) outParas.push(kept.join(" "));
+    });
+    const result = outParas.join("\n\n").trim();
+    return result.length >= 60 ? result : text;
+  } catch {
+    return text;
+  }
+}
+function coherenceRepairV2(t, input) {
+  t = String(t ?? "");
+  t = t.replace(/\(\s*[A-ZÄÖÜ][\wäöüß-]{2,}\s*\)/g, " ");
+  t = t.replace(/,\s*([.!?…])/g, "$1");
+  t = t.replace(/([.!?…])\s*,/g, ",");
+  t = t.replace(/\s*,\s*,\s*/g, ", ");
+  t = t.replace(/„\s+/g, "\u201E").replace(/\s+"/g, '"');
+  t = t.replace(/([.!?…])\s*\1+/g, "$1");
+  if ((t.match(/"/g) || []).length % 2 === 1) t = t.replace(/"/g, "");
+  {
+    const o = (t.match(/„/g) || []).length, c = (t.match(/[“”]/g) || []).length;
+    if (o !== c) t = t.replace(/[„“”]/g, "");
+  }
+  t = t.replace(/\bich'(?=\s)/gi, "meine").replace(/\bdu'(?=\s)/gi, "deine").replace(/\bwir'(?=\s)/gi, "unsere").replace(/\ber'(?=\s)/gi, "seine").replace(/\bsie'(?=\s)/gi, "ihre").replace(/\bes'(?=\s)/gi, "seine");
+  t = t.replace(/(:\s+)([a-zäöüß][^.!?…]*)/g, (m, p1, rest) => looksLikeFullClause(null, rest) || /^(warum|weshalb|wieso|wie|was|wer|wen|wem|wann|wo|wohin|woher|ob)\b/i.test(rest) ? p1 + rest.charAt(0).toUpperCase() + rest.slice(1) : m);
+  String(input?.who || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean).forEach((n) => {
+    const esc = escapeRegExp(n);
+    const wieder = namensErsetzer(n);
+    try {
+      t = t.replace(new RegExp("\\b(" + esc + ")(s|')?\\b", "giu"), (_m, kern, suf) => wieder(kern) + (suf || ""));
+    } catch {
+    }
+  });
+  if (isLineForm(input)) {
+    return glaetten(t);
+  }
+  const ABS = "\u241E";
+  t = t.replace(/[ \t]*\n{2,}[ \t]*/g, " " + ABS + " ");
+  const sents = t.split(/(?<=[.!?…])\s+/).filter(Boolean);
+  const kept = [];
+  for (let s of sents) {
+    const bare = s.trim().replace(/["“”»«]+$/, "").replace(/[.!?…]+$/, "").trim();
+    const opens = (s.match(/„/g) || []).length, closes = (s.match(/[“”»]/g) || []).length;
+    if (/\bSatz\s+„/.test(s) && opens > closes) continue;
+    if (/,\s+(die|der|das|dem|den|des)\s+(die|der|das|dem|den|des)\s+\p{L}+$/iu.test(bare)) continue;
+    if (opens > closes) s = s.replace(/„\s*/g, "");
+    s = beugeNachDu(s);
+    const _st = s.trim();
+    if (kept.length && kept[kept.length - 1] === _st) continue;
+    kept.push(_st);
+  }
+  t = kept.join(" ").replace(/\s*\u241E\s*/g, "\n\n");
+  t = t.replace(/(\bich und [A-ZÄÖÜ][\wäöüß]+[^.!?…]*?)\bsie sich\b/gu, "$1wir uns");
+  t = t.replace(/([A-ZÄÖÜ][\wäöüß]+ und ich[^.!?…]*?)\bsie sich\b/gu, "$1wir uns");
+  const CONN2 = [/\bDann kippt es\b/gi, /\bDabei:\s*plötzlich\b/gi, /\bUnd immer wieder\b/gi, /\bAm Ende bleibt klar\b/gi];
+  CONN2.forEach((re) => {
+    let n = 0;
+    t = t.replace(re, (m) => ++n > 1 ? "" : m);
+  });
+  t = glaetten(t).replace(/„[ \t]+/g, "\u201E");
+  return t;
+}
+function kleinerArtikel(t) {
+  return (t || "").replace(/[ \t]+([,;.!?])/g, "$1").replace(
+    /([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/g,
+    (_m, vor, sp, w) => vor + sp + w.charAt(0).toLowerCase() + w.slice(1)
+  );
+}
+var DU = [
+  [/\btritt\b/g, "trittst"],
+  [/\bhält\b/g, "h\xE4ltst"],
+  [/\bnimmt\b/g, "nimmst"],
+  [/\bsieht\b/g, "siehst"],
+  [/\bgeht\b/g, "gehst"],
+  [/\bsteht\b/g, "stehst"],
+  [/\bträgt\b/g, "tr\xE4gst"],
+  [/\bführt\b/g, "f\xFChrst"],
+  [/\bfindet\b/g, "findest"],
+  [/\bsucht\b/g, "suchst"],
+  [/\bkommt\b/g, "kommst"],
+  [/\bbricht\b/g, "brichst"]
+];
+function beugeNachDu(s) {
+  const di = s.search(/\bdu\b/i);
+  if (di < 0) return s;
+  const head = s.slice(0, di);
+  let tail = s.slice(di);
+  const wechsel = tail.search(/[,;:—–(]|\b(?:aber|und|doch|denn|sondern|oder|während|als)\s+(?:er|sie|es|man|wir|ihr|der|die|das|ein|eine|etwas|nichts|jemand|niemand)\b/i);
+  let rest = "";
+  if (wechsel > 0) {
+    rest = tail.slice(wechsel);
+    tail = tail.slice(0, wechsel);
+  }
+  DU.forEach(([re, rep]) => {
+    tail = tail.replace(re, rep);
+  });
+  return head + tail + rest;
+}
+var NEBENSATZ2 = /(,\s+(?:wo|wohin|woher|wenn|als|weil|dass|obwohl|während|nachdem|bevor|sobald|solange|der|die|das|dem|den|deren|dessen)\s[^,.;:!?—–]{3,60}?[a-zäöüß])\s+(bemerk(?:t|e|st|en)|sieht|sehe|siehst|sehen|find(?:et|e|est|en)|entdeck(?:t|e|st|en)|erkenn(?:t|e|st|en)|trifft|treffe|triffst|treffen|hört|höre|hörst|hören|wartet|warte|wartest|warten|steht|stehe|stehst|stehen|beginnt|beginne|beginnst|beginnen|verliert|verliere|verlierst|verlieren)\s+(ich|du|wir|er|sie|es|man|[A-ZÄÖÜ][a-zäöüß]+)\b/g;
+function kommaVorInversion(t) {
+  return (t || "").replace(NEBENSATZ2, "$1, $2 $3");
+}
+function istPluralFigur(who) {
+  const w = (who || "").trim();
+  if (!w) return false;
+  if (/^(zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|beide|alle|viele|einige|mehrere|manche|zwölf|hundert)\b/i.test(w)) return true;
+  if (/\b(und|&)\b/.test(w) && !/,/.test(w)) return true;
+  if (/^[A-ZÄÖÜ][a-zäöüß]+(en|innen|leute|kinder|eltern)$/.test(w) && !/(chen|lein)$/.test(w)) return true;
+  const m = w.match(/^die\s+([A-ZÄÖÜ][a-zäöüß-]+)$/i);
+  if (m) {
+    const n = m[1].toLowerCase();
+    if (/(innen|leute|kinder|eltern|geschwister|männer|frauen)$/.test(n)) return true;
+    return /en$/.test(n) && !/(chen|lein)$/.test(n);
+  }
+  return false;
+}
+function pluralKongruenz(t, who) {
+  const name = (who || "").trim();
+  if (!name || !istPluralFigur(name)) return t;
+  const esc = escapeRegExp(name);
+  const beuge = (v) => {
+    const p = beugeVerb(v, "wir");
+    return p && p !== v ? p : v;
+  };
+  let out = t.replace(new RegExp(`(\\b${esc})\\s+([a-z\xE4\xF6\xFC\xDF]+t)\\b`, "giu"), (m, n, v) => istVerbform(v) ? `${n} ${beuge(v)}` : m);
+  out = out.replace(new RegExp(`\\b([a-z\xE4\xF6\xFC\xDF]+t)\\s+(${esc})\\b`, "giu"), (m, v, n) => istVerbform(v) ? `${beuge(v)} ${n}` : m);
+  return out;
+}
+function nomenNachAdverb(t) {
+  return (t || "").replace(
+    /(^|[.!?…]\s+|\n)(Dann|Und dann|Nur|Doch|Jetzt|Plötzlich|Danach|Zuletzt)\s+([a-zäöüß]{3,}),/g,
+    (m, vor, adv, w) => guessGender(w) ? `${vor}${adv} ${w.charAt(0).toUpperCase()}${w.slice(1)},` : m
+  );
+}
+function nominativFragment(t) {
+  return (t || "").replace(
+    /(^|[.!?…]\s+|\n)(Einen|Den|Einem|Dem)\s+([A-ZÄÖÜ][a-zäöüß]+)([^.!?…\n]*[.!?…])/g,
+    (m, vor, art, nomen, rest) => {
+      if (hatFinitesVerb(`${art} ${nomen}${rest}`)) return m;
+      if (/\b(ein|eine|einen|einem|einer|der|die|das|den|dem)\b/i.test(rest)) return m;
+      if (art === "Einen") return `${vor}Ein ${nomen}${rest}`;
+      if (art === "Den") return `${vor}Der ${nomen}${rest}`;
+      const g = guessGender(nomen);
+      if (art === "Einem") return g === "m" || g === "n" ? `${vor}Ein ${nomen}${rest}` : m;
+      return g === "m" ? `${vor}Der ${nomen}${rest}` : g === "n" ? `${vor}Das ${nomen}${rest}` : m;
+    }
+  );
+}
+function formelnGlaetten(t) {
+  return (t || "").replace(/\b(Dann|Und dann|Plötzlich|Danach)\s+—\s+(dann|plötzlich|danach),/gi, (_m, a) => `${a},`).replace(/([.!?…])\s+—\s+([a-zäöüß])/g, (_m, p, c) => `${p} ${c.toUpperCase()}`);
+}
+function kleinesPronomen(t) {
+  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon|Mittags|Morgens|Abends|Nachts|Heute|Gestern|Morgen|Später|Manchmal|Damals|Irgendwann|Vormittags|Nachmittags)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
+    /(,[ \t]+)(Wo|Wenn|Als|Weil|Dass|Obwohl|Während|Nachdem|Bevor|Sobald|Solange|Damit|Ob|Der|Die|Das|Dem|Den|Deren|Dessen)\b(?=\s)/g,
+    (_m, sp, w) => sp + w.charAt(0).toLowerCase() + w.slice(1)
+  );
+}
+function fragezeichen(t) {
+  return (t || "").replace(
+    /(^|[.!?…:]\s+|\n)(Wo|Was|Wer|Wie|Warum|Wann|Wohin|Woher|Weshalb|Wieso|Wem|Wen)\s+(ist|sind|war|waren|hat|haben|wird|werden|kommt|bleibt|will|kann|soll|darf|muss|geht|steht|bist|bin|seid|weiß|wissen)\b([^.!?…\n]{0,50})\./g,
+    (m, vor, fw, v, rest) => rest.split(/\s+/).filter(Boolean).length <= 6 && !rest.includes(",") ? `${vor}${fw} ${v}${rest}?` : m
+  );
+}
+function postProcessText(txt2, input) {
+  let t = (txt2 ?? "").toString();
+  t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
+  t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
+  t = kleinesPronomen(t);
+  t = kommaVorInversion(t);
+  t = fragezeichen(t);
+  t = nomenNachAdverb(t);
+  t = nominativFragment(t);
+  t = formelnGlaetten(t);
+  t = kleinerArtikel(t);
+  const name = (input?.who ?? "").toString().trim();
+  if (name) {
+    const esc = escapeRegExp(name);
+    const wieder = namensErsetzer(name);
+    try {
+      t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${esc}(?![\\p{L}\\p{N}_])`, "giu"), wieder);
+    } catch {
+      t = t.replace(new RegExp(`\\b${esc}\\b`, "gi"), wieder);
+    }
+  }
+  t = pluralKongruenz(t, name);
+  if (!isLineForm(input) && input?.tone && TONE_DATA[input.tone]) {
+    const td = TONE_DATA[input.tone];
+    if (td.opener.length) {
+      const kopf = t.match(OBJEKT_KOPF_RE);
+      t = kopf ? `${kopf[1]} ${pick(td.opener)} ${t.slice(kopf[0].length)}` : `${pick(td.opener)} ${t}`;
+    }
+    if (td.flavor.length) {
+      const wc2 = t.trim().split(/\s+/).filter(Boolean).length;
+      const f = (loadKnobs().ton || 0) / 100;
+      const inserts = Math.max(0, Math.min(7, Math.round(Math.max(1, Math.round(wc2 / 90)) * f)));
+      for (let i = 0; i < inserts; i++) t = insertToneFlavor(t, pick(td.flavor));
+    }
+    t = applyToneRegister(t, input.tone);
+  }
+  if (!isLineForm(input)) t = entferneDubletten(t);
+  if (!isLineForm(input)) t = applySatzlaenge(t, loadKnobs().satzlaenge);
+  if (!isLineForm(input)) t = entferneDubletten(t);
+  t = polishGerman(t, { who: name });
+  t = schliesseFigurenkomma(t, input?.who);
+  t = coherencePass(t, input);
+  t = coherenceRepairV2(t, input);
+  t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
+  t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
+  return t.trim();
+}
+
+// src/generation/structures.ts
+init_text_utils();
+var rot = (key, arr) => arr[pickFreshIndex(key, arr.length)];
+function buildLinear(kit) {
+  const M = kit.mode;
+  const opener = rot("lin.opener", [
+    `${kit.T} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.`,
+    `${kit.T} ${kit.W} findet ${kit.P} ${kit.hookAcc}.`,
+    `${kit.P} sieht ${kit.hookAcc} \u2014 ${kit.T}, ${kit.W}.`,
+    `Zuerst ${kit.W}, ${kit.T}: ${kit.P} bemerkt ${kit.hookAcc}.`,
+    `${kit.T} ${kit.W}. ${kit.P} h\xE4lt ${kit.hookAcc} fest.`
+  ]);
+  const goal = kit.AisClause ? rot("lin.goalC", [
+    `${kit.P} stellt fest: ${kit.Apure} \u2014 aber ${kit.obstacle}.`,
+    `${kit.P} begreift: ${kit.Apure}. Doch ${kit.obstacle}.`,
+    `Klar wird: ${kit.Apure}. Nur ${kit.obstacle}.`
+  ]) : rot("lin.goal", [
+    `${kit.P} ${kit.AleadVerb || "will"} ${kit.Apure}, aber ${kit.obstacle}.`,
+    `${kit.P} ${kit.AleadVerb || "will"} ${kit.Apure} \u2014 ${kit.obstacle}.`,
+    `Was ${kit.P} ${kit.AleadVerb || "will"}: ${kit.Apure}. Was im Weg steht: ${kit.obstacle}.`
+  ]);
+  const action = rot("lin.action", [
+    `${kit.P} nimmt ${kit.propAcc} und ${pick(["tritt n\xE4her", "fragt nach", "h\xE4lt den Blick aus", "\xF6ffnet, was verschlossen war", "bleibt stehen"])}.`,
+    `${kit.P} h\xE4lt ${kit.propAcc} und ${pick(["z\xF6gert", "atmet durch", "macht den ersten Schritt", "h\xF6rt auf zu z\xE4hlen"])}.`,
+    `${kit.P} greift nach dem, was bleibt, und ${pick(["wartet", "horcht", "rechnet", "beginnt"])}.`,
+    `${kit.P} legt ${kit.propAcc} beiseite und ${pick(["sieht auf", "sagt es doch", "dreht sich um", "bleibt"])}.`
+  ]);
+  const modeSpice = pick([
+    `Es riecht ${rot("mode.img", M.images)}. ${rot("mode.rule", M.rules)}`,
+    `${rot("mode.rule", M.rules)} Es riecht ${rot("mode.img", M.images)}.`,
+    `Irgendwo ${rot("mode.img", M.images)}. ${rot("mode.rule", M.rules)}`
+  ]);
+  const beats = [opener, modeSpice, goal, action, frameTurn(kit.turn), reframeStake(kit.stake), kit.ending];
+  if (Math.random() < 0.4) beats.splice(4, 0, `${pick(["Ein Ger\xE4usch", "Ein Licht", "Ein Schatten", "Ein Zug Luft"])} ${pick(["ver\xE4ndert alles", "bleibt", "kippt den Moment", "zieht vorbei"])}.`);
+  return joinBeats(beats, kit.P);
+}
+function buildReverse(kit) {
+  const M = kit.mode;
+  const end = `${kit.ending}`;
+  const reveal = `Du erf\xE4hrst erst sp\xE4ter: ${kit.motif} \u2014 das war der Anfang.`;
+  const before = `${kit.P} hatte ${kit.propAcc} schon in der Hand, denn ${kit.obstacle}.`;
+  const inciting = `${kit.T} ${kit.W}: ${kit.hook}.`;
+  const rule = `${rot("mode.rule", M.rules)} Es riecht ${rot("mode.img", M.images)}.`;
+  const turn = `Und dann, r\xFCckw\xE4rts betrachtet: ${kit.turn}.`;
+  return joinBeats([end, reveal, reframeStake(kit.stake), turn, before, rule, inciting], kit.P);
+}
+function buildCircle(kit) {
+  const M = kit.mode;
+  const a = rot("circ.a", [
+    `${kit.T} ${kit.W} steht ${kit.P} vor ${kit.hookDat}.`,
+    `${kit.T} ${kit.W}: wieder ${kit.hookDat} gegen\xFCber steht ${kit.P}.`,
+    `Am Anfang steht ${kit.P} vor ${kit.hookDat}. ${kit.T}, ${kit.W}.`
+  ]);
+  const b = kit.AisClause ? `${kit.P} bemerkt: ${kit.Apure}. ${rot("mode.rule", M.rules)}` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}. ${rot("mode.rule", M.rules)}`;
+  const c = `Die Dinge werden ${pick(["fremd", "zu klar", "unruhig", "pr\xE4zise"])}, denn ${kit.obstacle}.`;
+  let t = joinBeats([a, b, c, frameTurn(kit.turn), reframeStake(kit.stake), kit.ending], kit.P);
+  t = weaveMotif(t, kit.motif);
+  t += " " + ensurePunct(pick([`Und wieder: ${kit.hook}`, `Und von vorn: ${kit.hook}`, `Der Kreis schlie\xDFt sich: ${kit.hook}`]));
+  return t;
+}
+function buildFragment(kit) {
+  const M = kit.mode;
+  const beats = [
+    cap(ensurePunct(kit.hook)),
+    cap(ensurePunct(kit.obstacle)),
+    cap(frameTurn(kit.turn)),
+    cap(ensurePunct(`${kit.P} h\xE4lt ${kit.propAcc}`)),
+    cap(ensurePunct(rot("mode.rule", M.rules))),
+    cap(ensurePunct(`Es riecht ${rot("mode.img", M.images)}`)),
+    cap(reframeStake(kit.stake)),
+    cap(ensurePunct(kit.ending))
+  ];
+  for (let i = beats.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [beats[i], beats[j]] = [beats[j], beats[i]];
+  }
+  const marks = [
+    "Sp\xE4ter.",
+    "Davor.",
+    "Viel fr\xFCher.",
+    "Und dann, ohne \xDCbergang.",
+    "Irgendwann dazwischen.",
+    "R\xFCckw\xE4rts betrachtet.",
+    `Gegen ${randomFragmentTime()}.`
+  ];
+  for (let i = marks.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [marks[i], marks[j]] = [marks[j], marks[i]];
+  }
+  const woven = [];
+  let mi = 0;
+  beats.forEach((b, i) => {
+    if (i > 0 && Math.random() < 0.5 && mi < marks.length) woven.push(marks[mi++]);
+    woven.push(b);
+  });
+  return joinBeats(woven, kit.P);
+}
+function buildObjectCentric(kit) {
+  const M = kit.mode;
+  const obj = pick(M.nouns);
+  const P3 = kit.P;
+  const a = `Ich bin ${objektName(obj)}. Ich liege ${kit.W}.`;
+  const b = `Ich kenne ${dekliniere(P3, "akk")}. Ich kenne ${kit.hookAcc}.`;
+  const c = `Sie nennen es ${pick(["Fehler", "Vorgang", "Omen", "Signal", "Symptom", "Protokoll", "Zufall", "Nichts"])}. Ich nenne es ${pick(["Erinnerung", "Beweis", "Anfang", "Schuld"])}.`;
+  const d = ensurePunct(rot("mode.rule", M.rules));
+  const e2 = kit.AisClause ? `${P3} sp\xFCrt: ${kit.Apure}. ${kit.obstacle}.` : `${P3} ${kit.AleadVerb || "will"} ${kit.Apure}. ${kit.obstacle}.`;
+  const f = pick([`Dann sp\xFCre ich: ${kit.turn}.`, `Und dann, durch mich hindurch: ${kit.turn}.`, `Ich registriere: ${kit.turn}.`]);
+  return joinBeats([a, b, c, d, e2, f, reframeStake(kit.stake), kit.ending], kit.P);
+}
+var BUILDERS = {
+  linear: buildLinear,
+  reverse: buildReverse,
+  circle: buildCircle,
+  fragment: buildFragment,
+  object: buildObjectCentric
+};
+function pickStructureBuilder(structure) {
+  return BUILDERS[structure] || buildLinear;
+}
+
+// src/generation/markovTrace.ts
+var frags = [];
+function resetMarkovTrace() {
+  frags = [];
+}
+function traceMarkov(s) {
+  const t = (s || "").trim();
+  if (t.length >= 5) frags.push(t);
+}
+function getMarkovTrace() {
+  return frags.slice();
+}
+var schluessel = (t) => t.toLowerCase().replace(/[^a-zäöüß]/g, "").slice(0, 400);
+var nachText = /* @__PURE__ */ new Map();
+function linkMarkovTrace(finalText) {
+  if (!frags.length || !finalText) return;
+  if (nachText.size > 64) {
+    const e2 = nachText.keys().next().value;
+    if (e2) nachText.delete(e2);
+  }
+  nachText.set(schluessel(finalText), frags.slice());
+}
+function getMarkovTraceFor(text) {
+  return nachText.get(schluessel(text || "")) ?? frags.slice();
+}
+
+// src/generation/archetypes.data.ts
+var ARCHETYPES = {
+  "neutral": {
+    "label": "Neutral",
+    "weights": {
+      "mode": {
+        "bureau": 1,
+        "tech": 1,
+        "body": 1,
+        "myth": 1,
+        "absurd": 1,
+        "post": 1
+      },
+      "structure": {
+        "linear": 1,
+        "reverse": 1,
+        "circle": 1,
+        "fragment": 1,
+        "object": 1
+      },
+      "perspective": {
+        "third": 1,
+        "first": 1,
+        "second": 1,
+        "we": 1,
+        "object": 1
+      },
+      "rhythm": {
+        "breath": 1,
+        "staccato": 1,
+        "long": 1,
+        "fracture": 1,
+        "clean": 1
+      }
+    },
+    "add": {
+      "motifs": [],
+      "hooks": [],
+      "props": [],
+      "turns": [],
+      "obstacles": [],
+      "stakes": [],
+      "endings": []
+    },
+    "speakers": [
+      "Die Stimme",
+      "Das System",
+      "Ein Unbekannter",
+      "Das Archiv",
+      "Der Apparat"
+    ]
+  },
+  "skorpion": {
+    "label": "Skorpion",
+    "weights": {
+      "mode": {
+        "body": 2.6,
+        "bureau": 1.6,
+        "myth": 1.2,
+        "absurd": 1.1,
+        "tech": 1,
+        "post": 1
+      },
+      "structure": {
+        "circle": 2,
+        "fragment": 1.6,
+        "reverse": 1.3,
+        "linear": 1.1,
+        "object": 1.2
+      },
+      "perspective": {
+        "second": 2.2,
+        "first": 1.7,
+        "third": 1.2,
+        "we": 1,
+        "object": 0.9
+      },
+      "rhythm": {
+        "breath": 2,
+        "staccato": 1.4,
+        "fracture": 1.2,
+        "long": 1,
+        "clean": 0.9
+      }
+    },
+    "add": {
+      "motifs": [
+        "ein Blick, der festh\xE4lt",
+        "eine N\xE4he, die Kontrolle wird",
+        "ein Geheimnis mit Puls",
+        "ein Satz, der Besitz markiert"
+      ],
+      "hooks": [
+        "eine Hand auf dem Nacken",
+        "ein Fl\xFCstern, das an dir klebt",
+        "eine Spur, die dich w\xE4hlt"
+      ],
+      "turns": [
+        "die N\xE4he kippt in Kontrolle",
+        "die Wahrheit wird Besitz",
+        "das Begehren wird zur Regel"
+      ],
+      "obstacles": [
+        "du darfst nicht frei sprechen",
+        "jemand legt fest, was du meinst",
+        "eine Grenze wird unsichtbar gezogen"
+      ],
+      "stakes": [
+        "Der Einsatz ist Bindung.",
+        "Der Einsatz ist Kontrolle.",
+        "Der Einsatz ist Wahrheit: in deiner Hand."
+      ],
+      "endings": [
+        "Und du wusstest, wem es geh\xF6rt.",
+        "Und der Blick blieb.",
+        "Und die N\xE4he war das Urteil."
+      ]
+    },
+    "speakers": [
+      "Die Zeugin",
+      "Der Blick",
+      "Die Hand",
+      "Die Stimme",
+      "Der Vermerk"
+    ]
+  },
+  "psychopath": {
+    "label": "Psychopath",
+    "weights": {
+      "mode": {
+        "bureau": 2.2,
+        "tech": 1.9,
+        "absurd": 1.4,
+        "post": 1.3,
+        "body": 1,
+        "myth": 0.9
+      },
+      "structure": {
+        "reverse": 1.9,
+        "object": 1.7,
+        "fragment": 1.4,
+        "linear": 1.1,
+        "circle": 1
+      },
+      "perspective": {
+        "third": 2,
+        "object": 1.8,
+        "first": 1.2,
+        "second": 1.1,
+        "we": 0.9
+      },
+      "rhythm": {
+        "clean": 2,
+        "staccato": 1.6,
+        "long": 1.1,
+        "fracture": 1.1,
+        "breath": 0.9
+      }
+    },
+    "add": {
+      "motifs": [
+        "ein Protokoll ohne Gef\xFChl",
+        "eine Diagnose im Rand",
+        "ein Experiment mit Namen",
+        "eine Moral als Variable"
+      ],
+      "hooks": [
+        "ein Befund ohne Ursache",
+        "ein Blick wie Messung",
+        "eine Akte, die kalt bleibt"
+      ],
+      "turns": [
+        "die Erkl\xE4rung wird zur Waffe",
+        "das Subjekt wird Objekt",
+        "die Empathie wird gestrichen"
+      ],
+      "obstacles": [
+        "die Zust\xE4ndigkeit ist unklar",
+        "ein Beweis fehlt",
+        "die Definition ist nicht abschlie\xDFend"
+      ],
+      "stakes": [
+        "Der Einsatz ist G\xFCltigkeit.",
+        "Der Einsatz ist Kontrolle: \xFCber Bedeutung.",
+        "Der Einsatz ist Eindeutigkeit."
+      ],
+      "endings": [
+        "Damit ist der Vorgang abgeschlossen.",
+        "Und der Befund blieb bestehen.",
+        "Und niemand musste f\xFChlen."
+      ]
+    },
+    "speakers": [
+      "Der Gutachter",
+      "Das Protokoll",
+      "Die Instanz",
+      "Der Operator",
+      "Die Akte"
+    ]
+  },
+  "entdecker": {
+    "label": "Entdecker",
+    "weights": {
+      "mode": {
+        "myth": 2.1,
+        "mystery": 0,
+        "tech": 1.4,
+        "absurd": 1.3,
+        "body": 1.1,
+        "bureau": 1,
+        "post": 1
+      },
+      "structure": {
+        "fragment": 1.8,
+        "linear": 1.6,
+        "circle": 1.3,
+        "object": 1.2,
+        "reverse": 1
+      },
+      "perspective": {
+        "first": 1.7,
+        "we": 1.6,
+        "second": 1.2,
+        "third": 1.1,
+        "object": 1
+      },
+      "rhythm": {
+        "long": 1.8,
+        "breath": 1.4,
+        "fracture": 1.2,
+        "clean": 1,
+        "staccato": 0.9
+      }
+    },
+    "add": {
+      "motifs": [
+        "eine Karte, die weiterf\xFChrt",
+        "ein Rand, der ruft",
+        "eine T\xFCr hinter der T\xFCr",
+        "ein Zeichen, das Richtung hat"
+      ],
+      "hooks": [
+        "eine Spur im Staub",
+        "ein Lichtstreifen im Wasser",
+        "eine Kante, die einl\xE4dt"
+      ],
+      "turns": [
+        "der Ausgang ist innen",
+        "die Spur f\xFChrt nach innen",
+        "die Richtung wird zum Gesetz"
+      ],
+      "obstacles": [
+        "der Weg verschiebt sich",
+        "die Karte widerspricht sich",
+        "die T\xFCr ist da, aber anders"
+      ],
+      "stakes": [
+        "Der Einsatz ist Mut.",
+        "Der Einsatz ist Richtung.",
+        "Der Einsatz ist Entdeckung."
+      ],
+      "endings": [
+        "Und du gingst weiter.",
+        "Und der Ort \xF6ffnete sich.",
+        "Und die Richtung blieb."
+      ]
+    },
+    "speakers": [
+      "Die Karte",
+      "Der Weg",
+      "Die T\xFCr",
+      "Der Rand",
+      "Das Zeichen"
+    ]
+  }
+};
+
+// src/generation/archetype.ts
+function arch(id) {
+  return ARCHETYPES[id] || ARCHETYPES.neutral;
+}
+function archetypeAugmentList(baseList, archA, archB, key) {
+  const A = arch(archA), B = arch(archB);
+  const extra = [].concat(A.add?.[key] || []).concat(B.add?.[key] || []);
+  const base = Array.isArray(baseList) ? baseList : [];
+  if (extra.length) return base.concat(extra, extra);
+  return base;
+}
+
+// src/generation/buildStory.ts
+init_declension();
+init_verwandlung();
+
+// src/generation/autochoice.ts
+function mergeWeights(a, b) {
+  const out = {};
+  for (const [k, w] of Object.entries(a || {})) out[k] = (out[k] || 0) + w;
+  for (const [k, w] of Object.entries(b || {})) out[k] = (out[k] || 0) + w;
+  return out;
+}
+function weightedPick(map) {
+  const entries = Object.entries(map || {}).filter(([, w]) => Number.isFinite(w) && w > 0);
+  if (!entries.length) return null;
+  let sum = 0;
+  for (const [, w] of entries) sum += w;
+  let r = Math.random() * sum;
+  for (const [k, w] of entries) {
+    r -= w;
+    if (r <= 0) return k;
+  }
+  return entries[entries.length - 1][0];
+}
+function biasedAutoChoice(kind, archA, archB) {
+  return weightedPick(mergeWeights(arch(archA).weights?.[kind], arch(archB).weights?.[kind]));
+}
+
+// src/generation/video.ts
+init_text_utils();
+
+// src/generation/video.data.ts
+var VIDEO_RULES = [
+  "das Symbol erscheint dreimal",
+  "die Schwerkraft setzt eine Sekunde zu sp\xE4t ein",
+  "der Ton kommt vor der Bewegung",
+  "Schatten l\xF6sen sich von K\xF6rpern",
+  "Spiegel zeigen einen anderen Raum"
+];
+var VIDEO_CAM_EXTENDED = [
+  "static camera (35mm)",
+  "slow push\u2011in (50mm)",
+  "slow pull\u2011back (24mm)",
+  "handheld micro\u2011shake",
+  "top\u2011down drift",
+  "macro close\u2011up (100mm)",
+  "wide angle, low perspective (18mm)",
+  "Steadicam follow",
+  "Dutch angle (15\xB0)",
+  "rack focus von Vordergrund zu Hintergrund",
+  "crane shot abw\xE4rts",
+  "POV aus Sicht des Objekts"
+];
+var VIDEO_LIGHT = [
+  "cold blue light",
+  "neon flicker",
+  "sodium vapor glow",
+  "hard backlight silhouette",
+  "moonlit haze",
+  "overcast diffuse light"
+];
+var VIDEO_TEX = [
+  "fine fog",
+  "floating dust",
+  "snow drifting indoors",
+  "digital glitch shimmer",
+  "condensation on glass",
+  "ice crystals"
 ];
 
-// test/verblex.ts
+// src/generation/video.ts
+var clampShotCount = (n) => Math.max(3, Math.min(10, Number.isFinite(n) ? n : 5));
+var clampTotalSec = (n) => Math.max(3, Math.min(600, Number.isFinite(n) ? n : 15));
+var fmtSec = (x) => {
+  if (!isFinite(x)) return "0s";
+  const v = Math.round(x * 10) / 10;
+  return (v % 1 === 0 ? v.toFixed(0) : String(v)) + "s";
+};
+var pickSymbol = () => pick(["\u2297", "\u27C2", "\u27E1", "\u2301", "\u27DF", "\u27D0", "\u2736", "\u27C1"]);
+var stripTailPunct = (s) => clean(s).replace(/[.!?…]+$/, "");
+var FINIT = /^(ist|sind|war|waren|hat|haben|hatte|wird|werden|wurde|kann|koennen|können|muss|müssen|will|wollen|bleibt|bleiben|steht|stehen|geht|gehen|kommt|kommen|liegt|liegen|zeigt|zeigen|faellt|fällt|reicht|gilt|klingt|wirkt|scheint|fehlt|passt|stimmt)$/i;
+function verbAnsEnde(satz) {
+  const w = stripTailPunct(satz).split(/\s+/).filter(Boolean);
+  if (w.length < 3 || w.length > 9) return null;
+  const vi = w.findIndex((x) => FINIT.test(x));
+  if (vi < 1 || vi === w.length - 1) return null;
+  if (w.slice(vi + 1).some((x) => FINIT.test(x))) return null;
+  const verb = w[vi];
+  return [...w.slice(0, vi), ...w.slice(vi + 1), verb].join(" ");
+}
+function normalizePlace(W) {
+  const w = clean(W);
+  if (!w) return "an einem Ort";
+  if (/^(im|am|in|auf|bei|unter|über|vor|hinter)\b/i.test(w)) return w;
+  return "an einem " + w;
+}
+function bogenSaetze(d, kit) {
+  const s = (a) => Array.isArray(a) ? a.filter(Boolean) : [];
+  const P3 = kit.P;
+  const fest = [];
+  const einstieg = s(d.einstieg), mitte = s(d.mitte), hoehe = s(d.hoehepunkt), aend = s(d.veraenderungen);
+  if (einstieg.length) fest.push(`${cap(stripTailPunct(pick(einstieg)))}.`);
+  if (mitte.length) fest.push(`${cap(stripTailPunct(pick(mitte)))}.`);
+  if (hoehe.length) fest.push(`Und dann: ${stripTailPunct(pick(hoehe))}.`);
+  if (aend.length) fest.push(`Etwas kippt: ${stripTailPunct(pick(aend))}.`);
+  const frei = [];
+  for (const r of s(d.regeln)) frei.push(`Regel: ${ensurePunct(r)}`);
+  for (const z of s(d.zeitanomalien)) frei.push(ensurePunct(z));
+  const K_RAHMEN = [`${P3} wei\xDF, worum es geht:`, "Im Bild bleibt:", "Der Einsatz sichtbar:", "Alles zielt auf:"];
+  const A_RAHMEN = ["Dann, unvermittelt:", "Ohne Vorwarnung:", "Ein Schnitt, und:", "Und pl\xF6tzlich:"];
+  s(d.konflikte).forEach((k, i) => frei.push(`${K_RAHMEN[i % K_RAHMEN.length]} ${stripTailPunct(k)}.`));
+  s(d.ausloeser).forEach((a, i) => frei.push(`${A_RAHMEN[i % A_RAHMEN.length]} ${stripTailPunct(a)}.`));
+  return { fest, frei };
+}
+function buildVideoShots(kit, shotCount, lenTarget = 0) {
+  const sym = pickSymbol();
+  const place = normalizePlace(kit.W);
+  const who = kit.P;
+  const objClean = stripTailPunct(pick([kit.hookDat, kit.propDat]));
+  const bogen = loadDramaData();
+  const shots = [];
+  let nachschub = [];
+  let nachschubVorrat = [];
+  const bild = () => `${cap(pick(VIDEO_LIGHT))}. ${cap(pick(VIDEO_CAM_EXTENDED))}.`;
+  if (bogen) {
+    const { fest, frei } = bogenSaetze(bogen, kit);
+    const rest = reihenfolge(frei);
+    shots.push(`${cap(place)}: ${who} nahe ${objClean}. ${cap(pick(VIDEO_TEX))}. ${bild()}`);
+    const folge = [];
+    for (let i = 0; i < fest.length; i++) {
+      folge.push(fest[i]);
+      if (rest.length && folge.length + 1 < shotCount) folge.push(rest.shift());
+    }
+    while (folge.length < shotCount - 1 && rest.length) folge.push(rest.shift());
+    for (const satz of folge.slice(0, shotCount - 2)) shots.push(`${satz} ${bild()}`);
+    nachschub = rest;
+    nachschubVorrat = frei;
+    shots.push(`${ensurePunct(kit.ending)} Nur: ${pick(["der Riss", "das Fenster", `das Symbol ${sym}`, "die Karte"])} bleibt sichtbar. ${cap(pick(VIDEO_TEX))}.`);
+  } else {
+    const hindernis = verbAnsEnde(kit.obstacle);
+    shots.push(`${cap(place)} steht ${who} nahe ${objClean}. ${cap(pick(VIDEO_LIGHT))}. ${cap(pick(VIDEO_CAM_EXTENDED))}. ${cap(pick(VIDEO_TEX))}.`);
+    shots.push(`Regel: ${cap(pick(VIDEO_RULES))}. ${sym}. ${hindernis ? `${who} bemerkt, dass ${hindernis}` : `${who} bemerkt: ${stripTailPunct(kit.obstacle)}`}. ${cap(pick(VIDEO_CAM_EXTENDED))}.`);
+    shots.push(`${ensurePunct(kit.turn)} Der Raum reagiert: ${sym} pulsiert, und ${pick(["die W\xE4nde atmen", "die Perspektive kippt", "der Boden verschiebt sich", "die Luft wird k\xF6rnig"])}. ${cap(pick(VIDEO_LIGHT))}.`);
+    shots.push(kit.AisClause || kit.AisInfinitiveLed ? `${who} erkennt: ${stripTailPunct(kit.Apure)} \u2014 aber ${pick(["die Zeit springt", "die Regeln drehen sich um", "die Schatten l\xF6sen sich"])}. ${cap(pick(VIDEO_CAM_EXTENDED))}.` : `${who} ${kit.AleadVerb || "versucht"} ${stripTailPunct(kit.Apure)}, aber ${pick(["die Zeit springt", "die Regeln drehen sich um", "die Schatten l\xF6sen sich"])}. ${cap(pick(VIDEO_CAM_EXTENDED))}.`);
+    shots.push(`${ensurePunct(kit.ending)} Nur: ${pick(["der Riss", "das Fenster", `das Symbol ${sym}`, "die Karte"])} bleibt sichtbar. ${cap(pick(VIDEO_TEX))}.`);
+  }
+  while (shots.length < shotCount) {
+    shots.splice(
+      Math.max(1, shots.length - 1),
+      0,
+      `${who} passiert an ${pick(["einer Kante", "einem Spiegel", "einer T\xFCr ohne Griff"])} vorbei. ${bild()}`
+    );
+  }
+  const fertig = shots.slice(0, shotCount);
+  if (lenTarget > 0) {
+    const zaehl = () => fertig.join(" ").split(/\s+/).filter(Boolean).length;
+    const gesamt = new Set(fertig.flatMap((x) => x.split(". ").map((y) => y.trim() + ".")));
+    for (let runde = 0; runde < 20 && nachschubVorrat.length && zaehl() < lenTarget * 0.92; runde++) {
+      if (!nachschub.length) nachschub = reihenfolge(nachschubVorrat);
+      let gesetztInRunde = 0;
+      for (let i = 0; i < fertig.length && nachschub.length && zaehl() < lenTarget * 0.92; i++) {
+        const satz = nachschub.shift();
+        if (gesamt.has(satz)) continue;
+        gesamt.add(satz);
+        fertig[i] += " " + satz;
+        gesetztInRunde++;
+      }
+      if (!gesetztInRunde && !nachschub.length) break;
+    }
+    for (let runde = 0; runde < 12 && zaehl() < lenTarget * 0.92; runde++) {
+      for (let i = 0; i < fertig.length && zaehl() < lenTarget * 0.92; i++) {
+        const frei2 = (liste) => {
+          const schon = fertig[i].toLowerCase();
+          const offen = liste.filter((x) => !schon.includes(x.toLowerCase()));
+          return offen.length ? pick(offen) : null;
+        };
+        const tex = frei2(VIDEO_TEX);
+        const licht = frei2(VIDEO_LIGHT);
+        if (!tex && !licht) break;
+        fertig[i] += (tex ? " " + cap(tex) + "." : "") + (licht ? " " + cap(licht) + "." : "");
+      }
+    }
+  }
+  return fertig;
+}
+function reihenfolge(a) {
+  const x = a.slice();
+  for (let i = x.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [x[i], x[j]] = [x[j], x[i]];
+  }
+  return x;
+}
+function buildVideoSequenceText(kit, shotCount = 5, totalSec = 15, lenTarget = 0) {
+  const n = clampShotCount(shotCount);
+  const total = clampTotalSec(totalSec);
+  const dur = total / n;
+  const shots = buildVideoShots(kit, n, lenTarget);
+  const titel = [loadActiveBankLabel(), kit.mode.label].filter(Boolean).join(" \xB7 ");
+  const out = [`SEQUENZ \u2014 ${titel}`.trim(), `WER: ${kit.PRaw || kit.P}`, `WO: ${kit.W}`, `WANN: ${kit.T}`, `WAS: ${kit.A}`, `GESAMTL\xC4NGE: ${fmtSec(total)} \u2022 ${fmtSec(dur)} pro Shot`, ""];
+  for (let i = 0; i < shots.length; i++) {
+    out.push(`Shot ${i + 1} (${fmtSec(dur)})`, `DE: ${shots[i]}`, "");
+  }
+  return out.join("\n");
+}
+
+// src/generation/length.ts
+init_text_utils();
+var count = (s) => (s || "").trim().split(/\s+/).filter(Boolean).length;
+function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
+  const t0 = (text || "").trim();
+  if (!t0) return t0;
+  const tol = 10;
+  let out = t0;
+  let wc2 = count(out);
+  if (Number.isFinite(target) && Math.abs(wc2 - target) <= tol) return out;
+  if (wc2 > target + tol) {
+    const sentences2 = splitSentences(out);
+    const acc = [];
+    let c = 0;
+    for (const s of sentences2) {
+      const sw = count(s);
+      if (c + sw > target + tol) break;
+      acc.push(s);
+      c += sw;
+      if (c >= target - tol) break;
+    }
+    const cut = acc.join(" ").trim();
+    return cut.length > 0 ? ensurePunct(cut) : out;
+  }
+  const missing = Math.max(0, target - wc2);
+  const maxAttempts = Math.min(120, Math.ceil(missing / 6) + 6);
+  const used = /* @__PURE__ */ new Set();
+  const strong = markovMode === "on";
+  const addition = () => {
+    if (model && (strong || Math.random() < 0.6)) {
+      const tries = strong ? 3 : 1;
+      for (let k = 0; k < tries; k++) {
+        const roh = smoothMarkov(model.generate(Math.min(60, Math.max(20, Math.floor(missing * 0.8)))));
+        const u = roh ? praesensUmschreiben(roh) : null;
+        const m = u && u.ok ? u.text : "";
+        if (m && isSaneMarkov(m) && m.length > 15 && !markovSeenRecently(m)) {
+          const key = m.toLowerCase();
+          if (!used.has(key) && !out.toLowerCase().includes(key.slice(0, 40))) {
+            used.add(key);
+            noteMarkov(m);
+            traceMarkov(m);
+            return { text: m, raw: false };
+          }
+        }
+      }
+    }
+    const cands = [...bank.motifs || [], ...bank.turns || [], ...bank.hooks || []];
+    if (!cands.length) return null;
+    const fresh2 = cands.filter((c) => {
+      const k = clean(c).toLowerCase();
+      return k && !used.has(k) && !out.toLowerCase().includes(k);
+    });
+    const chosen = pick(fresh2.length ? fresh2 : cands);
+    used.add(clean(chosen).toLowerCase());
+    return { text: chosen, raw: true };
+  };
+  for (let a = 0; a < maxAttempts; a++) {
+    if (count(out) >= target - tol) break;
+    const add = addition();
+    if (!add) continue;
+    let ca = add.text.trim().replace(/^[a-z]/, (c) => c.toUpperCase()).replace(/\s+([,.;:!?…])/g, "$1");
+    if (!/[.!?…]$/.test(ca)) ca += ".";
+    out = out.replace(/[.!?…]+\s*$/, "").trim();
+    out += ". " + ca;
+    out = out.replace(/\s+/g, " ").trim();
+  }
+  return ensurePunct(out);
+}
+
+// src/types.ts
+var KEINE_KATEGORIE = /* @__PURE__ */ new Set(["verwandlungen"]);
+
+// src/atoms/templates.data.json
+var templates_data_default = {
+  erzeugt_am: "2026-08-05",
+  quellen: [
+    "structures",
+    "dramaturgie",
+    "emphasis",
+    "dialogue",
+    "video"
+  ],
+  atome: [
+    {
+      id: "vl-0001",
+      text: "\u27E8ZEIT\u27E9 \u27E8ORT\u27E9 bemerkt \u27E8FIGUR\u27E9 \u27E8AKK\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "objekt",
+        kasus: "akk",
+        art: "nominalphrase"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "ZEIT",
+        "ORT",
+        "FIGUR",
+        "AKK"
+      ]
+    },
+    {
+      id: "vl-0002",
+      text: "\u27E8ZEIT\u27E9 \u27E8ORT\u27E9 findet \u27E8FIGUR\u27E9 \u27E8AKK\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "objekt",
+        kasus: "akk",
+        art: "nominalphrase"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "ZEIT",
+        "ORT",
+        "FIGUR",
+        "AKK"
+      ]
+    },
+    {
+      id: "vl-0003",
+      text: "\u27E8FIGUR\u27E9 sieht \u27E8AKK\u27E9 \u2014 \u27E8ZEIT\u27E9, \u27E8ORT\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "objekt",
+        kasus: "akk",
+        art: "nominalphrase"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "FIGUR",
+        "AKK",
+        "ZEIT",
+        "ORT"
+      ]
+    },
+    {
+      id: "vl-0004",
+      text: "Zuerst \u27E8ORT\u27E9, \u27E8ZEIT\u27E9:",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "kopf",
+      verlangt: null,
+      oeffnet: true,
+      platzhalter: [
+        "ORT",
+        "ZEIT"
+      ]
+    },
+    {
+      id: "vl-0005",
+      text: "\u27E8FIGUR\u27E9 bemerkt \u27E8AKK\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "objekt",
+        kasus: "akk",
+        art: "nominalphrase"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "FIGUR",
+        "AKK"
+      ]
+    },
+    {
+      id: "vl-0006",
+      text: "\u27E8ZEIT\u27E9 \u27E8ORT\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "fragment",
+      verlangt: null,
+      oeffnet: false,
+      platzhalter: [
+        "ZEIT",
+        "ORT"
+      ]
+    },
+    {
+      id: "vl-0007",
+      text: "\u27E8FIGUR\u27E9 h\xE4lt \u27E8AKK\u27E9 fest.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "objekt",
+        kasus: "akk",
+        art: "nominalphrase"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "FIGUR",
+        "AKK"
+      ]
+    },
+    {
+      id: "vl-0008",
+      text: "\u27E8FIGUR\u27E9 stellt fest:",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "kopf",
+      verlangt: null,
+      oeffnet: true,
+      platzhalter: [
+        "FIGUR"
+      ]
+    },
+    {
+      id: "vl-0009",
+      text: "\u27E8SATZ\u27E9 \u2014 aber \u27E8SATZ\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "ergaenzung",
+        kasus: "nom",
+        art: "hauptsatz"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "SATZ",
+        "SATZ"
+      ]
+    },
+    {
+      id: "vl-0010",
+      text: "\u27E8FIGUR\u27E9 begreift:",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "kopf",
+      verlangt: null,
+      oeffnet: true,
+      platzhalter: [
+        "FIGUR"
+      ]
+    },
+    {
+      id: "vl-0011",
+      text: "\u27E8SATZ\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "ergaenzung",
+        kasus: "nom",
+        art: "hauptsatz"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "SATZ"
+      ]
+    },
+    {
+      id: "vl-0012",
+      text: "Doch \u27E8SATZ\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "ergaenzung",
+        kasus: "nom",
+        art: "hauptsatz"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "SATZ"
+      ]
+    },
+    {
+      id: "vl-0013",
+      text: "Klar wird:",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "kopf",
+      verlangt: null,
+      oeffnet: true,
+      platzhalter: []
+    },
+    {
+      id: "vl-0014",
+      text: "Nur \u27E8SATZ\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "ergaenzung",
+        kasus: "nom",
+        art: "hauptsatz"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "SATZ"
+      ]
+    },
+    {
+      id: "vl-0015",
+      text: "Was \u27E8FIGUR\u27E9 \u27E8VERB\u27E9:",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "kopf",
+      verlangt: null,
+      oeffnet: true,
+      platzhalter: [
+        "FIGUR",
+        "VERB"
+      ]
+    },
+    {
+      id: "vl-0016",
+      text: "Was im Weg steht:",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "kopf",
+      verlangt: null,
+      oeffnet: true,
+      platzhalter: []
+    },
+    {
+      id: "vl-0017",
+      text: "\u27E8FIGUR\u27E9 nimmt \u27E8AKK\u27E9 und \u27E8WAHL\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "objekt",
+        kasus: "akk",
+        art: "nominalphrase"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "FIGUR",
+        "AKK",
+        "WAHL"
+      ]
+    },
+    {
+      id: "vl-0018",
+      text: "\u27E8FIGUR\u27E9 h\xE4lt \u27E8AKK\u27E9 und \u27E8WAHL\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "objekt",
+        kasus: "akk",
+        art: "nominalphrase"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "FIGUR",
+        "AKK",
+        "WAHL"
+      ]
+    },
+    {
+      id: "vl-0019",
+      text: "\u27E8FIGUR\u27E9 greift nach dem, was bleibt, und \u27E8WAHL\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "hauptsatz",
+      verlangt: null,
+      oeffnet: false,
+      platzhalter: [
+        "FIGUR",
+        "WAHL"
+      ]
+    },
+    {
+      id: "vl-0020",
+      text: "\u27E8FIGUR\u27E9 legt \u27E8AKK\u27E9 beiseite und \u27E8WAHL\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "objekt",
+        kasus: "akk",
+        art: "nominalphrase"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "FIGUR",
+        "AKK",
+        "WAHL"
+      ]
+    },
+    {
+      id: "vl-0021",
+      text: "\u27E8SATZ\u27E9",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "ergaenzung",
+        kasus: "nom",
+        art: "hauptsatz"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "SATZ"
+      ]
+    },
+    {
+      id: "vl-0022",
+      text: "Du erf\xE4hrst erst sp\xE4ter:",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "kopf",
+      verlangt: null,
+      oeffnet: true,
+      platzhalter: [],
+      stelle: "anfang"
+    },
+    {
+      id: "vl-0023",
+      text: "\u27E8NOM\u27E9 \u2014 das war der Anfang.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "objekt",
+        kasus: "nom",
+        art: "nominalphrase"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "NOM"
+      ]
+    },
+    {
+      id: "vl-0024",
+      text: "\u27E8FIGUR\u27E9 hatte \u27E8AKK\u27E9 schon in der Hand, denn \u27E8SATZ\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "objekt",
+        kasus: "akk",
+        art: "nominalphrase"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "FIGUR",
+        "AKK",
+        "SATZ"
+      ]
+    },
+    {
+      id: "vl-0025",
+      text: "\u27E8ZEIT\u27E9 \u27E8ORT\u27E9:",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "kopf",
+      verlangt: null,
+      oeffnet: true,
+      platzhalter: [
+        "ZEIT",
+        "ORT"
+      ]
+    },
+    {
+      id: "vl-0026",
+      text: "\u27E8NOM\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "objekt",
+        kasus: "nom",
+        art: "nominalphrase"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "NOM"
+      ]
+    },
+    {
+      id: "vl-0027",
+      text: "Und dann, r\xFCckw\xE4rts betrachtet:",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "kopf",
+      verlangt: null,
+      oeffnet: true,
+      platzhalter: []
+    },
+    {
+      id: "vl-0028",
+      text: "\u27E8ZEIT\u27E9 \u27E8ORT\u27E9 steht \u27E8FIGUR\u27E9 vor \u27E8DAT\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "objekt",
+        kasus: "dat",
+        art: "nominalphrase"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "ZEIT",
+        "ORT",
+        "FIGUR",
+        "DAT"
+      ]
+    },
+    {
+      id: "vl-0029",
+      text: "wieder \u27E8DAT\u27E9 gegen\xFCber steht \u27E8FIGUR\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "objekt",
+        kasus: "dat",
+        art: "nominalphrase"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "DAT",
+        "FIGUR"
+      ]
+    },
+    {
+      id: "vl-0030",
+      text: "Am Anfang steht \u27E8FIGUR\u27E9 vor \u27E8DAT\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "objekt",
+        kasus: "dat",
+        art: "nominalphrase"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "FIGUR",
+        "DAT"
+      ]
+    },
+    {
+      id: "vl-0031",
+      text: "\u27E8ZEIT\u27E9, \u27E8ORT\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "fragment",
+      verlangt: null,
+      oeffnet: false,
+      platzhalter: [
+        "ZEIT",
+        "ORT"
+      ]
+    },
+    {
+      id: "vl-0032",
+      text: "\u27E8FIGUR\u27E9 bemerkt:",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "kopf",
+      verlangt: null,
+      oeffnet: true,
+      platzhalter: [
+        "FIGUR"
+      ]
+    },
+    {
+      id: "vl-0033",
+      text: "\u27E8WAHL\u27E9",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "fragment",
+      verlangt: null,
+      oeffnet: false,
+      platzhalter: [
+        "WAHL"
+      ]
+    },
+    {
+      id: "vl-0034",
+      text: "\u27E8FIGUR\u27E9 \u27E8X\u27E9 \u27E8SATZ\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "ergaenzung",
+        kasus: "nom",
+        art: "hauptsatz"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "FIGUR",
+        "X",
+        "SATZ"
+      ]
+    },
+    {
+      id: "vl-0035",
+      text: "Die Dinge werden \u27E8WAHL\u27E9, denn \u27E8SATZ\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "ergaenzung",
+        kasus: "nom",
+        art: "hauptsatz"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "WAHL",
+        "SATZ"
+      ]
+    },
+    {
+      id: "vl-0036",
+      text: "Und wieder:",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "kopf",
+      verlangt: null,
+      oeffnet: true,
+      platzhalter: []
+    },
+    {
+      id: "vl-0037",
+      text: "Und von vorn:",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "kopf",
+      verlangt: null,
+      oeffnet: true,
+      platzhalter: []
+    },
+    {
+      id: "vl-0038",
+      text: "Der Kreis schlie\xDFt sich:",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "kopf",
+      verlangt: null,
+      oeffnet: true,
+      platzhalter: [],
+      stelle: "ende"
+    },
+    {
+      id: "vl-0039",
+      text: "\u27E8FIGUR\u27E9 h\xE4lt \u27E8AKK\u27E9",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "objekt",
+        kasus: "akk",
+        art: "nominalphrase"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "FIGUR",
+        "AKK"
+      ]
+    },
+    {
+      id: "vl-0040",
+      text: "Ich bin \u27E8X\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "hauptsatz",
+      verlangt: null,
+      oeffnet: false,
+      platzhalter: [
+        "X"
+      ]
+    },
+    {
+      id: "vl-0041",
+      text: "Ich liege \u27E8ORT\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "hauptsatz",
+      verlangt: null,
+      oeffnet: false,
+      platzhalter: [
+        "ORT"
+      ]
+    },
+    {
+      id: "vl-0042",
+      text: "Ich kenne \u27E8X\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "praepositionalphrase",
+      verlangt: null,
+      oeffnet: false,
+      platzhalter: [
+        "X"
+      ]
+    },
+    {
+      id: "vl-0043",
+      text: "Ich kenne \u27E8AKK\u27E9.",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "objekt",
+        kasus: "akk",
+        art: "nominalphrase"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "AKK"
+      ]
+    },
+    {
+      id: "vl-0044",
+      text: "\u27E8X\u27E9 sp\xFCrt:",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "kopf",
+      verlangt: null,
+      oeffnet: true,
+      platzhalter: [
+        "X"
+      ]
+    },
+    {
+      id: "vl-0045",
+      text: "Dann sp\xFCre ich:",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "kopf",
+      verlangt: null,
+      oeffnet: true,
+      platzhalter: []
+    },
+    {
+      id: "vl-0046",
+      text: "Und dann, durch mich hindurch:",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "kopf",
+      verlangt: null,
+      oeffnet: true,
+      platzhalter: []
+    },
+    {
+      id: "vl-0047",
+      text: "Ich registriere:",
+      quelle: "vorlage",
+      herkunft: "structures",
+      typ: "kopf",
+      verlangt: null,
+      oeffnet: true,
+      platzhalter: []
+    },
+    {
+      id: "vl-0048",
+      text: "\u27E8X\u27E9 \u27E8ORT\u27E9.",
+      quelle: "vorlage",
+      herkunft: "dramaturgie",
+      typ: "fragment",
+      verlangt: null,
+      oeffnet: false,
+      platzhalter: [
+        "X",
+        "ORT"
+      ]
+    },
+    {
+      id: "vl-0049",
+      text: "\u27E8X\u27E9 \u27E8ORT\u27E9 bemerkt \u27E8FIGUR\u27E9 \u27E8AKK\u27E9.",
+      quelle: "vorlage",
+      herkunft: "dramaturgie",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "objekt",
+        kasus: "akk",
+        art: "nominalphrase"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "X",
+        "ORT",
+        "FIGUR",
+        "AKK"
+      ]
+    },
+    {
+      id: "vl-0050",
+      text: "\u27E8FIGUR\u27E9 \u27E8X\u27E9 \u27E8SATZ\u27E9, aber \u27E8SATZ\u27E9.",
+      quelle: "vorlage",
+      herkunft: "dramaturgie",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "ergaenzung",
+        kasus: "nom",
+        art: "hauptsatz"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "FIGUR",
+        "X",
+        "SATZ",
+        "SATZ"
+      ]
+    },
+    {
+      id: "vl-0051",
+      text: "Hier, \u27E8ORT\u27E9, \u27E8WAHL\u27E9.",
+      quelle: "vorlage",
+      herkunft: "emphasis",
+      typ: "praepositionalphrase",
+      verlangt: null,
+      oeffnet: false,
+      platzhalter: [
+        "ORT",
+        "WAHL"
+      ]
+    },
+    {
+      id: "vl-0052",
+      text: "Der Ort \u2014 \u27E8ORT\u27E9 \u2014 \u27E8WAHL\u27E9.",
+      quelle: "vorlage",
+      herkunft: "emphasis",
+      typ: "praepositionalphrase",
+      verlangt: null,
+      oeffnet: false,
+      platzhalter: [
+        "ORT",
+        "WAHL"
+      ]
+    },
+    {
+      id: "vl-0053",
+      text: "Damals, \u27E8ZEIT\u27E9, \u27E8WAHL\u27E9.",
+      quelle: "vorlage",
+      herkunft: "emphasis",
+      typ: "praepositionalphrase",
+      verlangt: null,
+      oeffnet: false,
+      platzhalter: [
+        "ZEIT",
+        "WAHL"
+      ]
+    },
+    {
+      id: "vl-0054",
+      text: "Noch immer will \u27E8FIGUR\u27E9 \u27E8X\u27E9.",
+      quelle: "vorlage",
+      herkunft: "emphasis",
+      typ: "hauptsatz",
+      verlangt: null,
+      oeffnet: false,
+      platzhalter: [
+        "FIGUR",
+        "X"
+      ]
+    },
+    {
+      id: "vl-0055",
+      text: "\u27E8FIGUR\u27E9 \u27E8VERB\u27E9 \u27E8X\u27E9 \u2014 noch immer.",
+      quelle: "vorlage",
+      herkunft: "emphasis",
+      typ: "praepositionalphrase",
+      verlangt: null,
+      oeffnet: false,
+      platzhalter: [
+        "FIGUR",
+        "VERB",
+        "X"
+      ]
+    },
+    {
+      id: "vl-0056",
+      text: "Du hast \u27E8AKK\u27E9 dabei.",
+      quelle: "vorlage",
+      herkunft: "dialogue",
+      typ: "rahmen",
+      verlangt: {
+        rolle: "objekt",
+        kasus: "akk",
+        art: "nominalphrase"
+      },
+      oeffnet: false,
+      platzhalter: [
+        "AKK"
+      ]
+    },
+    {
+      id: "vl-0057",
+      text: "\u27E8ORT\u27E9, \u27E8ZEIT\u27E9.",
+      quelle: "vorlage",
+      herkunft: "dialogue",
+      typ: "fragment",
+      verlangt: null,
+      oeffnet: false,
+      platzhalter: [
+        "ORT",
+        "ZEIT"
+      ]
+    },
+    {
+      id: "vl-0058",
+      text: "\u27E8X\u27E9 \u27E8X\u27E9 \u27E8X\u27E9, aber \u27E8WAHL\u27E9.",
+      quelle: "vorlage",
+      herkunft: "video",
+      typ: "praepositionalphrase",
+      verlangt: null,
+      oeffnet: false,
+      platzhalter: [
+        "X",
+        "X",
+        "X",
+        "WAHL"
+      ]
+    },
+    {
+      id: "vl-0059",
+      text: "SEQUENZ \u2014 \u27E8X\u27E9",
+      quelle: "vorlage",
+      herkunft: "video",
+      typ: "fragment",
+      verlangt: null,
+      oeffnet: false,
+      platzhalter: [
+        "X"
+      ]
+    },
+    {
+      id: "vl-0060",
+      text: "\u27E8ZEIT\u27E9",
+      quelle: "vorlage",
+      herkunft: "video",
+      typ: "fragment",
+      verlangt: null,
+      oeffnet: false,
+      platzhalter: [
+        "ZEIT"
+      ]
+    }
+  ]
+};
+
+// src/atoms/rekombination.ts
+init_nouns_data();
+
+// src/atoms/trace.ts
+var spur = [];
+var abweichung = [];
+function resetTrace() {
+  spur = [];
+  abweichung = [];
+}
+function pushTrace(s) {
+  spur.push(s);
+}
+var nachText2 = /* @__PURE__ */ new Map();
+var schluessel2 = (t) => t.toLowerCase().replace(/[^a-zäöüß]/g, "").slice(0, 400);
+function linkTrace(finalText) {
+  if (!spur.length || !finalText) return;
+  if (nachText2.size > 64) {
+    const erste = nachText2.keys().next().value;
+    if (erste) nachText2.delete(erste);
+  }
+  nachText2.set(schluessel2(finalText), spur.slice());
+}
+function getTraceFor(text) {
+  return nachText2.get(schluessel2(text || "")) ?? [];
+}
+function pruefeAbgleich(endtext) {
+  const norm = (t) => t.toLowerCase().replace(/[^a-zäöüß ]/g, " ").replace(/\s+/g, " ").trim();
+  const ziel = norm(endtext);
+  abweichung = [];
+  for (const s of spur) {
+    const kern = norm(s.text);
+    if (!kern) continue;
+    const w = kern.split(" ");
+    const probe = w.length > 4 ? w.slice(1, -1).join(" ") : kern;
+    if (probe && !ziel.includes(probe)) abweichung.push(s.text);
+  }
+  return abweichung.slice();
+}
+function fuegeteilAnteil() {
+  if (!spur.length) return 0;
+  return spur.filter((s) => s.quelle === "vorlage").length / spur.length;
+}
+
+// src/atoms/rekombination.ts
+var GERUESTZEILE = /(^|\s)(SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE|DE|EN)\s*:|Shot\s*\d+\s*\()/;
+var GERUEST_MARKE = /^(?:SEQUENZ\s*—[^\n]*|(?:WER|WO|WANN|WAS|GESAMTLÄNGE|DE|EN)\s*:|Shot\s*\d+\s*\([^)]*\))\s*/;
+var traegtPerson = (t) => (t.toLowerCase().match(/[a-zäöüß]+/g) || []).some((w) => !!ICH_DU_ZU_ER[w]);
+function buildPool(bank, perspektive, what, figur, model, markovMode) {
+  const pool = [];
+  let i = 0;
+  const w = (what || "").trim();
+  if (w) {
+    const lead = extractLeadVerb(w);
+    const kern = lead.rest.replace(/[.!?…]+$/, "");
+    const P3 = figur || "Jemand";
+    const saetze = lead.isInfinitiveLed ? [`${P3} will ${kern}`, `Alles dr\xE4ngt darauf, ${kern.replace(/(\S+)$/, "zu $1")}`] : lead.verb ? [`${P3} ${lead.verb} ${kern}`] : looksLikeFullClause(lead.verb, kern) || hatFinitesVerb(kern) || !wirktNominal(kern) ? [kern] : [`Es geht um eines: ${kern}`, `${P3} sucht ${kern}`];
+    for (const t of saetze) {
+      const d = deriveAtom(t);
+      pool.push({ ...d, id: `was-${pool.length}`, quelle: "kontext", kategorie: "was", verlangt: null, bruchgrad: 0 });
+    }
+  }
+  const atomMax = loadKnobs().atomgroesse;
+  const drama = loadKnobs().bogen === 0 ? null : loadDramaData();
+  if (drama) {
+    const felder = [
+      ["einstieg", drama.einstieg],
+      ["mitte", drama.mitte],
+      ["hoehepunkt", drama.hoehepunkt],
+      ["konflikte", drama.konflikte],
+      ["ausloeser", drama.ausloeser],
+      ["veraenderungen", drama.veraenderungen],
+      ["zeitanomalien", drama.zeitanomalien],
+      ["regeln", drama.regeln],
+      // "schluss": Bei Preset-2.0-Boegen stehen dort Stilworte ("offen"), bei
+      // Erzaehlerbank-Boegen ganze Schlusssaetze. Nur was ein Satz sein kann
+      // (ab fuenf Woertern) kommt in den Pool — Stilworte bleiben draussen.
+      ["schluss", (drama.schluss || []).filter((t) => (t || "").trim().split(/\s+/).length >= 5)]
+    ];
+    for (const [kat, arr] of felder) {
+      if (!Array.isArray(arr)) continue;
+      for (const t of arr) {
+        const roh0 = (t || "").trim();
+        if (roh0.length < 4) continue;
+        for (const roh of atomisiere(roh0, atomMax)) {
+          const d = deriveAtom(roh);
+          pool.push({
+            ...d,
+            id: `dr-${kat}-${++i}`,
+            quelle: "dramaturgie",
+            kategorie: kat,
+            verlangt: null,
+            bruchgrad: d.unsicher.length ? 1 : 0
+          });
+        }
+      }
+    }
+  }
+  if (model && markovMode && markovMode !== "off") {
+    const wieViele = markovMode === "on" ? 34 : 16;
+    const eigene = new Set((figur || "").toLowerCase().split(/[,;]/).map((x) => x.trim()).filter(Boolean));
+    const gesehen = /* @__PURE__ */ new Set();
+    for (let n = 0; n < wieViele * 3 && gesehen.size < wieViele; n++) {
+      const roh0 = (model.generate(14) || "").trim();
+      if (!roh0) continue;
+      const u = praesensUmschreiben(roh0);
+      if (!u.ok) continue;
+      const roh = u.text;
+      if (!isSaneMarkov(roh)) continue;
+      const sig = roh.toLowerCase();
+      if (gesehen.has(sig)) continue;
+      const d = deriveAtom(roh);
+      if (d.tempus === "praeteritum") continue;
+      if (d.rhythmus.woerter > 20) continue;
+      if (properNames(roh).some((nm) => !eigene.has(nm.toLowerCase()))) continue;
+      if (traegtPerson(roh)) continue;
+      gesehen.add(sig);
+      pool.push({ ...d, id: `mk-${++i}`, quelle: "markov", kategorie: "", verlangt: null, bruchgrad: 1 });
+    }
+  }
+  const korpusDeckel = loadKnobs().korpus;
+  if (korpusDeckel > 0) {
+    const eigene2 = new Set((figur || "").toLowerCase().split(/[,;]/).map((x) => x.trim()).filter(Boolean));
+    const roh = corpusSanitize(loadPersistentCorpus());
+    const saetze = roh.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter((x) => x.length > 12);
+    let genommen = 0;
+    for (const satz of saetze) {
+      if (genommen >= korpusDeckel) break;
+      const rein = satz.replace(GERUEST_MARKE, "").trim();
+      if (rein !== satz && !/[.!?…]$/.test(rein)) continue;
+      if (GERUESTZEILE.test(rein)) continue;
+      const d = deriveAtom(rein);
+      if (d.tempus === "praeteritum") continue;
+      if (d.rhythmus.woerter > 22) continue;
+      if (properNames(rein).some((nm) => !eigene2.has(nm.toLowerCase()))) continue;
+      if (traegtPerson(rein)) continue;
+      pool.push({ ...d, id: `kp-${++i}`, quelle: "korpus", kategorie: "", verlangt: null, bruchgrad: 1 });
+      genommen++;
+    }
+  }
+  for (const [kat, arr] of Object.entries(bank)) {
+    if (!Array.isArray(arr)) continue;
+    if (KEINE_KATEGORIE.has(kat)) continue;
+    for (const roh of arr) for (const t of atomisiere(roh, atomMax)) {
+      const d = deriveAtom(t);
+      pool.push({
+        ...d,
+        id: `wb-${++i}`,
+        quelle: "wortbank",
+        kategorie: kat,
+        verlangt: null,
+        bruchgrad: d.unsicher.length ? 1 : kat === "motifs" || kat === "hooks" ? 1 : 0
+      });
+    }
+  }
+  for (const a of templates_data_default.atome) {
+    if (/⟨(WAHL|X)⟩/.test(a.text)) continue;
+    if (isFirstPerson(a.text) && perspektive !== "first" && perspektive !== "auto") continue;
+    if (isSecondPerson(a.text) && perspektive !== "second" && perspektive !== "auto") continue;
+    const d = deriveAtom(a.text.replace(/⟨[A-ZÄÖÜ]+⟩/g, "Ding"));
+    pool.push({
+      ...d,
+      id: a.id,
+      text: a.text,
+      typ: a.typ,
+      quelle: "vorlage",
+      verlangt: a.verlangt,
+      oeffnet: a.oeffnet,
+      bruchgrad: 0,
+      fuehrt_ein: [],
+      stelle: a.stelle
+    });
+  }
+  return pool;
+}
+var divergenzOf = (input) => (input.varLevel === "high" ? 85 : input.varLevel === "low" ? 30 : 60) + (input.instability >= 2 ? 10 : 0);
+var wirktNominal = (t) => /^\s*(ein|eine|einen|einem|eines|einer|der|die|das|den|dem|des|mein|meine|meinen|sein|seine|ihr|ihre|kein|keine|viele|manche|jede|jeden|etwas|nichts|[A-ZÄÖÜ])/.test(t);
+var FLACH = /* @__PURE__ */ new Set(["nominalphrase", "praepositionalphrase", "fragment", "einwort"]);
+function buildRekombination(bank, input, model) {
+  const pool = buildPool(
+    bank,
+    input.perspective,
+    input.what,
+    (personKopf(splitSpeakers(normWho(input.who || ""))[0] || "") || "Jemand").trim(),
+    model,
+    input.markovMode
+  );
+  const ctx = {
+    ort: normWhere(input.where || "") || "an einem Ort",
+    zeit: normWhen(input.when || "") || "zu einer Zeit",
+    figur: (personKopf(splitSpeakers(normWho(input.who || ""))[0] || "") || "Jemand").trim(),
+    verb: "will"
+  };
+  const zielWoerter = Math.max(30, input.lenTarget ?? 110);
+  const tempusZaehler = /* @__PURE__ */ new Map();
+  for (const a of pool) if (a.tempus && a.tempus !== "kein") tempusZaehler.set(a.tempus, (tempusZaehler.get(a.tempus) || 0) + 1);
+  const mehrheit = [...tempusZaehler].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "praesens";
+  const k = {
+    vorheriges: null,
+    offenerKopf: false,
+    entitaeten: /* @__PURE__ */ new Map([[ctx.figur, { abstand: 0 }]]),
+    tempus: mehrheit,
+    divergenz: divergenzOf(input),
+    benutzt: /* @__PURE__ */ new Set()
+  };
+  const knobs = loadKnobs();
+  const W4_MAX = knobs.w4max;
+  const ENDE_MARGE = 20;
+  const FUEGE_DECKEL = knobs.fuegeteil / 100;
+  const figuren = splitSpeakers(normWho(input.who || "")).map(personKopf);
+  const waehleFigur = () => {
+    if (figuren.length < 2) return ctx.figur;
+    return Math.random() < 0.65 ? figuren[0] : figuren[1 + Math.floor(Math.random() * (figuren.length - 1))];
+  };
+  const kurve = ["mittel", "kurz", "lang", "mittel", "kurz", "mittel", "lang"];
+  const out = [];
+  let letzterTyp = "", gleicheInFolge = 0, wasGesetzt = false, flachInFolge = 0;
+  const gesetzteTexte = /* @__PURE__ */ new Set();
+  const anfangZahl = /* @__PURE__ */ new Map();
+  const benutztBei = /* @__PURE__ */ new Map();
+  const kurzGesperrt = /* @__PURE__ */ new Set();
+  const ABSTAND = knobs.abstand;
+  const PHRASE = knobs.phrase;
+  const nachlegen = () => {
+    let frei = 0;
+    for (const [id, wann] of [...benutztBei]) {
+      if (out.length - wann >= ABSTAND) {
+        k.benutzt.delete(id);
+        benutztBei.delete(id);
+        frei++;
+      }
+    }
+    return frei;
+  };
+  const anfangVon = (t) => t.toLowerCase().replace(/[^a-zäöüß ]/g, "").trim().split(/\s+/).slice(0, 3).join(" ");
+  resetTrace();
+  const mitBogen = input.structure === "bogen";
+  setBogenModus(mitBogen);
+  if (mitBogen) setBogenPhasen(loadDramaData()?.folge);
+  let fuegeteile = 0;
+  const schlussAmEnde = (STRUKTUR_PHASEN[input.structure || "rekombination"] || STRUKTUR_PHASEN["linear"]).slice(-1)[0] === "schluss";
+  const woerterJetzt = () => out.join(" ").split(/\s+/).filter(Boolean).length;
+  for (let s = 0; s < 600; s++) {
+    const fortschritt = woerterJetzt() / zielWoerter;
+    if (fortschritt >= 1) break;
+    const phase = phasenFolge(input.structure || "rekombination", fortschritt);
+    const letzte = fortschritt >= 0.92;
+    let kand = pool.filter((a2) => passt(a2, k, phase) && !kurzGesperrt.has(a2.id) && !(wasGesetzt && a2.kategorie === "was"));
+    if (out.length >= 3 && fuegeteile / out.length >= FUEGE_DECKEL) {
+      const inhalt = kand.filter((a2) => a2.quelle !== "vorlage");
+      if (!inhalt.length) {
+        nachlegen();
+        const rahmen = pool.filter((a2) => a2.verlangt && passt(a2, k, phase));
+        if (!rahmen.length) break;
+        kand = rahmen;
+      } else kand = inhalt;
+    }
+    if (letzte) kand = kand.filter((a2) => !a2.oeffnet && !a2.verlangt);
+    if (gleicheInFolge >= 2) {
+      const anders = kand.filter((a2) => a2.typ !== letzterTyp);
+      if (anders.length) kand = anders;
+    }
+    if (flachInFolge >= 2) {
+      const tief = kand.filter((a2) => !FLACH.has(a2.typ));
+      if (tief.length) kand = tief;
+    }
+    if (schlussAmEnde && zielWoerter - woerterJetzt() > ENDE_MARGE) kand = kand.filter((a2) => a2.kategorie !== "endings");
+    kand = kand.filter((a2) => !a2.stelle || (a2.stelle === "anfang" ? fortschritt < 0.25 : fortschritt > 0.82));
+    if (!kand.length) {
+      if (!nachlegen()) break;
+      continue;
+    }
+    if (!kand.length) {
+      if (!nachlegen()) break;
+      continue;
+    }
+    if (!wasGesetzt && fortschritt >= 0.35) {
+      const wasKand = kand.filter((x) => x.kategorie === "was");
+      if (wasKand.length) kand = wasKand;
+    }
+    const a = ziehe(kand, kurve[s % kurve.length], out.join(" "), phase);
+    if (!a) break;
+    let text = fuelleKontext(a.text, { ...ctx, figur: waehleFigur() });
+    const fueller = [];
+    let guard = 0;
+    while (offeneSlots(text) && guard++ < 3) {
+      const kf = { ...k, vorheriges: a, offenerKopf: false };
+      const slot = naechsterSlot(text);
+      const f = ziehe(pool.filter((x) => x.id !== a.id && !k.benutzt.has(x.id) && !(x.kategorie === "endings" && phase !== "schluss") && !/^(Und|Doch|Aber|Oder|Denn|Dann|Dabei|Also|Trotzdem)\b/.test(x.text) && passt(x, kf, void 0, slot)), "mittel", out.join(" "));
+      if (!f) break;
+      let fill = fuelleKontext(f.text, ctx).replace(/[.!?…]+$/, "");
+      const w1 = (fill.match(/^[A-ZÄÖÜ][a-zäöüß-]*/) || [""])[0];
+      const istNomen = !!w1 && (!!NOUN_GENDER[w1.toLowerCase()] || /(ung|heit|keit|schaft|nis|tum|chen|lein|er|el|en|ucht|acht|icht|ion|tät|ei|ie|ur|us|um)$/.test(w1.toLowerCase()));
+      const istFigur = !!w1 && (w1.toLowerCase() === ctx.figur.toLowerCase() || splitSpeakers(normWho(input.who || "")).some((x) => x.trim().toLowerCase() === w1.toLowerCase()));
+      const beginntMitEingefuehrter = f.fuehrt_ein.some((n) => !!w1 && n.toLowerCase().startsWith(w1.toLowerCase()));
+      if (!beginntMitEingefuehrter && !istNomen && !istFigur && /^[A-ZÄÖÜ][a-zäöüß]/.test(fill)) fill = fill.charAt(0).toLowerCase() + fill.slice(1);
+      text = fuelleSlot(text, fill);
+      fueller.push({ text: fill, kategorie: f.kategorie || "\u2014", quelle: f.quelle });
+      k.benutzt.add(f.id);
+      benutztBei.set(f.id, out.length);
+    }
+    if (offeneSlots(text)) continue;
+    const sig = text.toLowerCase().replace(/[^a-zäöüß ]/g, "").replace(/\s+/g, " ").trim();
+    if (gesetzteTexte.has(sig)) {
+      k.benutzt.add(a.id);
+      continue;
+    }
+    const zaehleIn = (hay, nadel) => !nadel || nadel.length < 4 ? 0 : hay.toLowerCase().split(nadel.toLowerCase()).length - 1;
+    const bisher = out.join(" ");
+    let zuOft = false;
+    for (const wert of [ctx.ort, ctx.zeit]) {
+      if (zaehleIn(text, wert) && zaehleIn(bisher, wert) >= W4_MAX) {
+        zuOft = true;
+        break;
+      }
+    }
+    if (zuOft) {
+      k.benutzt.add(a.id);
+      continue;
+    }
+    if (PHRASE > 0) {
+      const ohne4W = (roh) => {
+        let x = roh.toLowerCase();
+        for (const wert of [ctx.ort, ctx.zeit]) {
+          if (wert && wert.length >= 4) x = x.split(wert.toLowerCase()).join(" ");
+        }
+        return x;
+      };
+      const fenster = a.quelle === "korpus" ? 4 : PHRASE;
+      const inhaltlich = (kette) => kette.filter((x) => x.length >= 5).length >= 2;
+      const wds = ohne4W(text).match(/[a-zäöüß]{2,}/g) || [];
+      const bisherLow = (ohne4W(out.join(" ")).match(/[a-zäöüß]{2,}/g) || []).join(" ");
+      let doppelt = false;
+      for (let x = 0; x + fenster <= wds.length; x++) {
+        const kette = wds.slice(x, x + fenster);
+        if (inhaltlich(kette) && bisherLow.includes(kette.join(" "))) {
+          doppelt = true;
+          break;
+        }
+      }
+      if (doppelt) {
+        kurzGesperrt.add(a.id);
+        continue;
+      }
+    }
+    const anf = anfangVon(text);
+    const formel = /^(der einsatz ist|es geht um|alles dreht sich|was zählt ist|auf dem spiel)/.test(anf);
+    if (anf.split(" ").length >= 2 && (anfangZahl.get(anf) || 0) >= (formel ? 1 : 2)) {
+      k.benutzt.add(a.id);
+      continue;
+    }
+    gesetzteTexte.add(sig);
+    anfangZahl.set(anf, (anfangZahl.get(anf) || 0) + 1);
+    kurzGesperrt.clear();
+    out.push(text);
+    if (a.quelle === "markov") traceMarkov(a.text);
+    pushTrace({ text, quelle: a.quelle, kategorie: a.kategorie || "\u2014", typ: a.typ, phase, fueller: fueller.length ? fueller : void 0 });
+    gleicheInFolge = a.typ === letzterTyp ? gleicheInFolge + 1 : 0;
+    flachInFolge = FLACH.has(a.typ) ? flachInFolge + 1 : 0;
+    letzterTyp = a.typ;
+    benutztBei.set(a.id, out.length);
+    fortschreiben(k, a);
+    if (a.verlangt) k.offenerKopf = false;
+    if (a.quelle === "vorlage") fuegeteile++;
+    if (a.kategorie === "was") wasGesetzt = true;
+    if (a.kategorie === "endings" && schlussAmEnde) break;
+  }
+  let fertig = verfugen(out);
+  if (input.perspective && input.perspective !== "third" && input.perspective !== "auto") {
+    const dinge = MODE_DATA[input.mode || ""]?.nouns || [];
+    const ding = dinge.length ? dinge[Math.floor(Math.random() * dinge.length)] : "";
+    fertig = applyPerspective([fertig], input.perspective, ctx.figur, ding).join(" ");
+  } else if (input.perspective === "third") {
+    fertig = pronominalize(fertig, ctx.figur, guessPronoun(ctx.figur));
+  }
+  pruefeAbgleich(fertig);
+  return fertig;
+}
+function buildVersAtome(bank, input, model) {
+  const figur = (personKopf(splitSpeakers(normWho(input.who || ""))[0] || "") || "Jemand").trim();
+  const pool = buildPool(bank, input.perspective, input.what, figur, model, input.markovMode);
+  const ctx = {
+    ort: normWhere(input.where || "") || "an einem Ort",
+    zeit: normWhen(input.when || "") || "zu einer Zeit",
+    figur,
+    verb: "will"
+  };
+  const raus = [];
+  for (const a of pool) {
+    const t = fuelleKontext(a.text, ctx);
+    if (offeneSlots(t)) continue;
+    if (a.typ === "kopf") continue;
+    const rein = t.replace(/[.!?…:;]+$/, "").trim();
+    if (rein.split(/\s+/).length >= 2) raus.push(rein);
+  }
+  return [...new Set(raus)];
+}
+
+// src/generation/bericht.ts
+init_text_utils();
+
+// src/features/faktenblatt.ts
+init_text_utils();
+init_declension();
+var WER_ERSATZ = "eine Einrichtung";
+var VORNAME_F = ["Henrike", "Marlene", "Judith", "Silke", "Annegret", "Ute", "Carla", "Ines", "Britta", "Almut"];
+var VORNAME_M = ["Tobias", "Reinhard", "Jonas", "Ulrich", "Malte", "Gerd", "Sven", "Konrad", "Bernd", "Ole"];
+var ALLE_NAMEN = [];
+var NACHNAME = [
+  "Reimers",
+  "Rehm",
+  "Klasen",
+  "Vogt",
+  "Siewert",
+  "Brandes",
+  "Lohmann",
+  "Petersen",
+  "Kruse",
+  "Harmsen",
+  "Overbeck",
+  "Thiessen",
+  "Rademacher",
+  "Wendt",
+  "M\xF6ller",
+  "Sander"
+];
+ALLE_NAMEN.push(...VORNAME_F, ...VORNAME_M, ...NACHNAME);
+var ROLLE_F = ["Gesch\xE4ftsf\xFChrerin", "Sprecherin", "Betriebsr\xE4tin", "Anwohnerin", "Gutachterin", "Vorsitzende"];
+var ROLLE_M = ["Gesch\xE4ftsf\xFChrer", "Sprecher", "Betriebsratsvorsitzender", "Anwohner", "Gutachter", "Vorsitzender"];
+var EINHEIT = [
+  { einheit: "Besch\xE4ftigte", rolle: "betroffene", min: 40, max: 900, rund: 10, gen: "Besch\xE4ftigten" },
+  { einheit: "Haushalte", rolle: "betroffene", min: 20, max: 1200, rund: 10 },
+  { einheit: "Anwohner", rolle: "betroffene", min: 30, max: 2e3, rund: 10 },
+  { einheit: "Arbeitspl\xE4tze", rolle: "betroffene", min: 15, max: 700, rund: 5 },
+  { einheit: "Stunden", rolle: "dauer", min: 2, max: 72, rund: 1 },
+  { einheit: "Tage", rolle: "dauer", min: 2, max: 40, rund: 1 },
+  // KEINE allgemeine Größe mehr. „Ausdehnung: 278 Meter" stand in etwa jedem
+  // zweiten Bericht von sieben der neun Ressorts und sagte nirgends etwas: Ein
+  // Bildungsbericht hat keine Meter. Jedes Ressort führt jetzt seine eigene
+  // Größe (Sitzplätze, Klassenräume, Stimmbezirke, Messreihen …), und die
+  // allgemeine Liste muss nicht mehr einspringen.
+  //
+  // Wo eine Länge wirklich passt, steht sie beim Ressort selbst: „Meter
+  // Kaimauer" bei der Wirtschaft, „Meter Laufbahn" beim Sport.
+  { einheit: "Unterschriften", rolle: "vorgaenge", min: 200, max: 9e3, rund: 50 },
+  { einheit: "Antr\xE4ge", rolle: "vorgaenge", min: 12, max: 600, rund: 1 },
+  { einheit: "Beschwerden", rolle: "vorgaenge", min: 5, max: 400, rund: 1 },
+  { einheit: "Millionen Euro", rolle: "geld", min: 2, max: 90, rund: 1 }
+];
+var ROLLE_LABEL = {
+  betroffene: "Betroffen",
+  sache: "Gegenstand",
+  dauer: "Dauer",
+  groesse: "Ausdehnung",
+  vorgaenge: "Vorg\xE4nge",
+  geld: "Volumen"
+};
+var VORGESCHICHTE_ZEIT = [
+  "im Fr\xFChjahr",
+  "im vergangenen Herbst",
+  "im Sommer davor",
+  "vor zwei Jahren",
+  "im Winter zuvor",
+  "vor einigen Monaten",
+  "im Jahr davor",
+  "kurz nach der Wende"
+];
+var VORGESCHICHTE_SACHLICH = [
+  "die erste Meldung",
+  "der erste Hinweis",
+  "die erste Beschwerde",
+  "die erste Anfrage",
+  "der erste Zweifel",
+  "das erste Ger\xFCcht"
+];
+var VORGESCHICHTE_GUT = [
+  "die erste Zusage",
+  "das erste Angebot",
+  "die erste Anfrage",
+  "der erste Zuspruch",
+  "die erste Unterst\xFCtzung",
+  "das erste Interesse"
+];
+var ZEITPUNKT = [
+  "am vergangenen Donnerstag",
+  "am Montagabend",
+  "in der Nacht zum Sonntag",
+  "am fr\xFChen Morgen",
+  "gegen Mittag",
+  "am Dienstag"
+];
+var RELATIV = ["vor vier Tagen", "vor einer Woche", "seit dem Wochenende", "am Vortag", "vor drei Tagen"];
+function rundWort(wert) {
+  const stufe = wert >= 1e3 ? 100 : wert >= 100 ? 10 : 0;
+  if (!stufe) return void 0;
+  const gerundet = Math.round(wert / stufe) * stufe;
+  return gerundet === wert ? void 0 : `rund ${zahlwort(gerundet)}`;
+}
+var PLURAL_ENDUNG = /(ern|en)$/;
+var EN_SINGULAR = /(regen|wagen|boden|garten|kuchen|schatten|rücken|bogen|laden|ofen|hafen|haken|balken|besen|faden|knochen|kragen|magen|nacken|namen|rasen|riemen|samen|schaden|segen|braten|graben|husten|karren|kolben|zeichen|wesen|leben|essen|wappen|becken|kissen|eisen|zeugen|glauben|willen|frieden|gedanken|kummer)$/i;
+var KEIN_SACHNOMEN = /^(Jahr|Jahre|Monat|Monate|Tag|Tage|Woche|Wochen|Stunde|Stunden|Mal|Uhr|Zeit|Welt|Leben|Anfang|Nacht|Morgen|Abend|Ende|Reihe|Farbe|Sprache|Straße|Grenze|Klasse|Frage|Stelle|Weise|Seite|Liebe|Sorge|Ruhe|Stille|Ferne|Nähe|Fenster|Wasser|Feuer|Zimmer|Wetter|Messer|Muster|Ufer|Alter|Fieber|Wunder|Zeichen|Wesen)$/;
+function sachNomen(was) {
+  const woerter3 = (was || "").split(/\s+/);
+  for (let i = 0; i < woerter3.length; i++) {
+    const w = (woerter3[i] || "").replace(/[^A-Za-zÄÖÜäöüß-]/g, "");
+    if (!/^[A-ZÄÖÜ][a-zäöüß]{3,}$/.test(w)) continue;
+    if (KEIN_SACHNOMEN.test(w)) continue;
+    if (!PLURAL_ENDUNG.test(w)) continue;
+    if (EN_SINGULAR.test(w)) continue;
+    const zwei = (woerter3[i - 2] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
+    const davor = (woerter3[i - 1] || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
+    if (/^(der|des|dem|den|das|ein|eine|einen|einem|einer|eines|jeder|jede|jedes|dieser|diese|dieses|diesem|diesen)$/.test(davor)) continue;
+    const PRAEP = /^(mit|bei|seit|von|zu|aus|nach|vor|in|an|auf|über|unter|neben|zwischen|hinter|durch|gegen|ohne|um|für)$/;
+    if (PRAEP.test(davor) || PRAEP.test(zwei)) continue;
+    return w;
+  }
+  return null;
+}
+function zahlIn(min, max, rund) {
+  const roh = min + Math.random() * (max - min);
+  const n = Math.max(min, Math.round(roh / rund) * rund);
+  return n % 2 === 0 ? n : n + 1;
+}
+function zahlwort(n) {
+  return Math.round(n).toLocaleString("de-DE");
+}
+function genusVon(phrase) {
+  const art = (phrase.match(/^(der|die|das)\s/i) || [])[1]?.toLowerCase();
+  if (art === "die") return "fem";
+  if (art === "das") return "neut";
+  if (art === "der") return "mask";
+  const ohneArt = phrase.replace(/^(der|die|das|ein|eine|einen)\s+/i, "");
+  const grosse = ohneArt.match(/[A-ZÄÖÜ][a-zäöüß-]{2,}/g) || [];
+  const letzt = grosse[grosse.length - 1] || "";
+  const kern = letzt.includes("-") ? letzt.split("-").pop() : letzt;
+  const g = kern ? guessGender(kern) : void 0;
+  return g === "f" ? "fem" : g === "n" ? "neut" : "mask";
+}
+var RECHTSFORM = /^(Ltd|GmbH|AG|KG|SE|Inc|LLC|mbH|OHG|gGmbH|e\.?V\.?|Co|KGaA)$/i;
+function kurzform(haupt, genus) {
+  const art = genus === "fem" ? "die" : genus === "neut" ? "das" : "der";
+  let woerter3 = haupt.replace(/^(der|die|das|ein|eine|einen)\s+/i, "").split(/\s+/);
+  while (woerter3.length > 1 && RECHTSFORM.test(woerter3[woerter3.length - 1].replace(/[^A-Za-z.]/g, ""))) woerter3.pop();
+  const letzt = woerter3[woerter3.length - 1] || haupt;
+  const teil = letzt.includes("-") ? letzt.split("-").pop() : letzt;
+  return `${art} ${teil}`;
+}
+var TITEL = /^(Dr|Prof|Ing|Dipl|Mag|Med|Rer|Nat|Phil|h\.c|Jun|Sen|MdB|MdL)\.?$/i;
+function formeWas(roh) {
+  let w = (roh || "").replace(/\u00ad/g, "").replace(/\u200b/g, "").replace(/\([^()]*\)/g, " ").replace(/\[[^\]]*\]/g, " ").replace(/\s+/g, " ").trim();
+  const ende = w.match(/^([\s\S]{10,}?[.!?…])\s+[A-ZÄÖÜ]/);
+  if (ende && !/(?:\d|\b(?:Dr|Prof|Ing|Dipl|Nr|St|ca|bzw|usw|evtl|Abs|Art|Jh|Mio|Mrd|Bd|Hrsg|geb|gest|verh|u|z|B))\.$/.test(ende[1])) {
+    w = ende[1];
+  }
+  const semi = w.indexOf(";");
+  if (semi > 12) w = w.slice(0, semi);
+  w = w.replace(/[\s,;:–—-]+$/, "").replace(/[.!?…]+$/, "").trim();
+  return kuerzeAmBruch(w);
+}
+function kurzPerson(werRoh) {
+  const w = (werRoh || "").trim().split(/\s+/).filter(Boolean).filter((x) => !/^(Dr\.|Prof\.|Ing\.|Dipl\.-?\w*\.?|med\.|jur\.|rer\.|nat\.|h\.c\.|Sir|Lady|Herr|Frau)$/i.test(x));
+  if (!w.length) return werRoh;
+  const hatBegleiter = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|sein|seine|ihr|ihre|unser|unsere|kein|keine|jeder|jede|jedes|dieser|diese|dieses)$/i.test(w[0]);
+  const letztes = w[w.length - 1];
+  if (hatBegleiter || w.length > 3 || !/^[A-ZÄÖÜ]/.test(letztes)) return werRoh.trim();
+  return letztes;
+}
+function dachOrt(roh) {
+  let o = (roh || "").trim();
+  o = o.replace(/^(hoch|tief|weit|mitten|ganz|dicht|nahe|irgendwo|weit draußen|draußen|drinnen|oben|unten|dort|hier)\s+/i, "");
+  o = o.replace(/^(in|an|auf|bei|im|am|vor|über|unter|zu|zur|zum)\s+/i, "").replace(/^(der|die|das|dem|den|des|ein|eine|einen|einem|einer|eines)\s+/i, "").trim();
+  o = (o.split(",")[0] || "").trim();
+  o = o.replace(/\s+(wo|worin|woran|worauf|welche[rs]?)\s+.*$/i, "").trim();
+  o = o.replace(/[.,;:!?…]+$/, "").trim();
+  if (!o || o.length > 28) return "";
+  return o.charAt(0).toUpperCase() + o.slice(1);
+}
+function istGattungsperson(haupt) {
+  const w = haupt.trim().replace(/[^A-Za-zÄÖÜäöüß\s-]/g, "").split(/\s+/).filter(Boolean);
+  const letztes = w[w.length - 1] || "";
+  if (!letztes || !/^[A-ZÄÖÜ]/.test(letztes)) return false;
+  return PERSON_NOMEN.test(letztes);
+}
+function istPerson(haupt) {
+  let w = haupt.trim().split(/\s+/);
+  if (istGattungsperson(haupt)) return true;
+  if (/^(der|die|das|ein|eine)$/i.test(w[0] || "")) return false;
+  const mitTitel = w.length;
+  w = w.filter((x) => !TITEL.test(x.replace(/[^A-Za-z.]/g, "")));
+  if (w.length === 1 && mitTitel > w.length) return /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(w[0]);
+  if (w.length !== 2) return false;
+  if (RECHTSFORM.test(w[1].replace(/[^A-Za-z.]/g, ""))) return false;
+  if (/^(FC|SV|TSV|SC|VfB|VfL|BSC|1\.)$/i.test(w[0])) return false;
+  return w.every((x) => /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(x));
+}
+var ZEIT_ADVERB = /^(lange|kurz|damals|einst|früher|später|gestern|heute|morgen|neulich|jüngst|mittags|morgens|abends|nachts|vormittags|nachmittags|tagsüber|nachtsüber|wochentags|werktags|sonntags|samstags|jahrelang|tagelang|monatelang|irgendwann|niemals|immer|jederzeit|zuletzt|zuerst|anfangs|schließlich|inzwischen|unterdessen|seither|seitdem|dereinst|derzeit|momentan|gerade|eben|bald|demnächst|künftig|abermals)\b/i;
+function mitPraeposition(wann) {
+  const w = (wann || "").trim();
+  if (!w) return "";
+  if (/^(am|im|um|an|in|zu|seit|vor|nach|gegen|während|zwischen|beim|bis|ab)\b/i.test(w)) return w;
+  if (/^\d{4}$/.test(w)) return w;
+  if (ZEIT_ADVERB.test(w)) return w;
+  if (w.includes(",")) return w;
+  return "im " + w;
+}
+function mitAbschlusskomma(angabe) {
+  const a = (angabe || "").trim();
+  if (!a || !a.includes(",")) return a;
+  return a.replace(/[,\s]+$/, "") + ",";
+}
+function ziehFaktenblatt(input, ressortWahl = "auto") {
+  const zielWorte = Number.isFinite(input.lenTarget) ? input.lenTarget : 220;
+  const mehr = Math.max(0, Math.min(3, Math.floor((zielWorte - 200) / 120)));
+  const ressort = ressortWahl === "auto" ? rateRessort([input.who, input.what, input.where].filter(Boolean).join(" ")) : ressortWahl;
+  const R = RESSORTS[ressort];
+  const gutesLicht = /^(uplifting|humorous|zaertlich)$/i.test(input.tone || "");
+  const werRoh = (normWho(input.who || "").split(",")[0] || "").trim() || WER_ERSATZ;
+  const person = istPerson(werRoh);
+  const genus = person ? "mask" : genusVon(werRoh);
+  const ortMitPraep = (normWhere(input.where || "") || "").trim();
+  const ort = dachOrt(normWhere(input.where || "") || "");
+  const wann = (normWhen(input.when || "") || "").trim();
+  const nachnamen = [...NACHNAME];
+  const zieheNach = () => nachnamen.splice(Math.floor(Math.random() * nachnamen.length), 1)[0];
+  const n1 = zieheNach(), n2 = zieheNach();
+  const personen = [
+    { id: "p1", name: `${pick(VORNAME_F)} ${n1}`, kurz: n1, rolle: pick(R.rollenF.length ? R.rollenF : ROLLE_F), genus: "fem", zitierfaehig: true },
+    { id: "p2", name: `${pick(VORNAME_M)} ${n2}`, kurz: n2, rolle: pick(R.rollenM.length ? R.rollenM : ROLLE_M), genus: "mask", zitierfaehig: true }
+  ];
+  if (zielWorte >= 380) {
+    const n3 = zieheNach();
+    personen.push({
+      id: "p3",
+      name: `${pick(VORNAME_F)} ${n3}`,
+      kurz: n3,
+      rolle: pick(R.rollenF.length ? R.rollenF : ROLLE_F),
+      genus: "fem",
+      zitierfaehig: true
+    });
+  }
+  const eigeneRollen = new Set(R.einheiten.map((e2) => e2.rolle));
+  const einheiten = [...R.einheiten, ...EINHEIT.filter((e2) => !eigeneRollen.has(e2.rolle))];
+  const zahlen = [];
+  const wieViele = 2 + Math.floor(Math.random() * 2) + mehr;
+  const rollenDrin = /* @__PURE__ */ new Set();
+  const genitivPlural = [];
+  const sache = sachNomen(input.what || "");
+  if (sache) einheiten.unshift({ einheit: sache, rolle: "sache", min: 50, max: 9e3, rund: 10 });
+  for (let i = 0; i < wieViele && einheiten.length; i++) {
+    const eigeneBetroffen = R.einheiten.filter((e3) => e3.rolle === "betroffene" && einheiten.includes(e3));
+    const quelle2 = i === 0 ? eigeneBetroffen.length ? eigeneBetroffen : einheiten.filter((e3) => e3.rolle === "betroffene") : i === 1 && sache ? einheiten.filter((e3) => e3.rolle === "sache") : einheiten.filter((e3) => !rollenDrin.has(e3.rolle));
+    if (!quelle2.length) break;
+    const gewaehlt = quelle2[Math.floor(Math.random() * quelle2.length)];
+    const e2 = einheiten.splice(einheiten.indexOf(gewaehlt), 1)[0];
+    rollenDrin.add(e2.rolle);
+    genitivPlural.push(e2.gen || e2.einheit);
+    const wert = zahlIn(e2.min, e2.max, e2.rund);
+    zahlen.push({
+      id: `z${i + 1}`,
+      wert,
+      einheit: e2.einheit,
+      wortform: zahlwort(wert),
+      rolle: e2.rolle,
+      kastenLabel: e2.label,
+      // "rund" nur, wenn das Runden auch etwas aendert - "rund 1.150" fuer 1150
+      // ist keine Rundung, sondern eine Behauptung.
+      verbal: rundWort(wert)
+    });
+  }
+  const abgeleitet = zahlen.length && zahlen[0].wert >= 40 && zahlen[0].wert % 2 === 0 ? [{ id: "a1", formel: "z1 * 0.5", wortform: zahlwort(zahlen[0].wert / 2), label: `die H\xE4lfte der ${genitivPlural[0] || zahlen[0].einheit}` }] : [];
+  const ereignisJahr = Number((wann.match(/\b(1[0-9]{3}|20[0-9]{2}|2[1-9][0-9]{2})\b/) || [])[1]);
+  const bezug = Number.isFinite(ereignisJahr) ? ereignisJahr : 2e3;
+  const spanne = person ? 4 + Math.floor(Math.random() * 34) : 12 + Math.floor(Math.random() * 110);
+  const jahr = Math.max(1200, bezug - spanne);
+  const vg = R.vorgeschichte;
+  const vorgeschichteWas = gutesLicht ? vg?.gut || VORGESCHICHTE_GUT : vg?.sachlich || VORGESCHICHTE_SACHLICH;
+  const chronologie = [
+    { id: "c1", zeit: String(jahr), was: vg?.anfang || "der Anfang" },
+    // Auch die Chronologie kennt die Blickrichtung: Im Faktenkasten stand sonst
+    // "die erste Meldung", waehrend im Text "die erste Zusage" lief.
+    // FRÜHER FEST: „im Frühjahr" und „die erste Meldung". Damit stand in jedem
+    // Bericht und in jeder Meldung derselbe Satz — in einer Ausgabe mit acht
+    // Beiträgen viermal wörtlich. Das war der auffälligste Wiederholungsbefund
+    // des ganzen Blattes und kein Fehler des Generators, sondern eine
+    // Konstante an der falschen Stelle.
+    { id: "c2", zeit: pick(VORGESCHICHTE_ZEIT), was: pick(vorgeschichteWas) },
+    // Dieselbe Form wie im Vorspann, sonst steht dort "Im Frühjahr 2001" und
+    // im Hergang "Frühjahr 2001 folgte der Schritt".
+    { id: "c3", zeit: mitPraeposition(wann) || pick(ZEITPUNKT), was: (input.what || "das Ereignis").trim() }
+  ];
+  {
+    const gemischt = (a) => a.slice().sort(() => Math.random() - 0.5);
+    const zeiten = gemischt(VORGESCHICHTE_ZEIT).filter((z) => z !== chronologie[1].zeit);
+    const sachen = gemischt(vorgeschichteWas).filter((x) => x !== chronologie[1].was);
+    for (let i = 0; i < mehr && i < zeiten.length && i < sachen.length; i++) {
+      chronologie.splice(2 + i, 0, { id: `c${4 + i}`, zeit: zeiten[i], was: sachen[i] });
+    }
+  }
+  return {
+    id: "fb-" + Date.now().toString(36),
+    ressort,
+    wer: person ? istGattungsperson(werRoh) ? { haupt: werRoh, kurz: werRoh.replace(/^(ein|eine|einer|einem)\s+/i, (m) => /^eine\s/i.test(m) ? "die " : "das "), genus, art: "person" } : { haupt: werRoh, kurz: kurzPerson(werRoh), genus, art: "person" } : { haupt: werRoh, kurz: kurzform(werRoh, genus), genus, art: "organisation" },
+    was: formeWas(input.what || "") || "meldet einen Vorfall",
+    // Zwei Formen: `ort` fuer die Dachzeile ("Unterelbe · Wetter"), `mitPraep`
+    // fuer den Satz. Ohne die zweite stand "Wie es in Unterelbe weitergeht" -
+    // es heisst "an der Unterelbe".
+    wo: { ort, mitPraep: ortMitPraep },
+    wann: { datum: mitPraeposition(wann) || pick(ZEITPUNKT), relativ: pick(RELATIV) },
+    personen,
+    zahlen,
+    abgeleitet,
+    chronologie,
+    fiktion: true
+  };
+}
+
+// src/generation/bericht.ts
+var NOMINALRAHMEN = ["Geblieben ist", "Zu sehen ist", "Im Gespr\xE4ch ist", "Zu h\xF6ren ist", "Geblieben ist auch"];
+function brauchtRahmen(satz) {
+  const w = (satz || "").trim().split(/\s+/).filter(Boolean);
+  if (w.length === 0 || w.length > 4) return false;
+  if (/\b(ist|sind|war|waren|wird|werden|hat|haben|hatte|bleibt|blieb|kommt|kam|geht|ging|steht|stand)\b/i.test(satz)) return false;
+  return !looksLikeFullClause(null, satz);
+}
+var GUTE_TOENE = /* @__PURE__ */ new Set(["uplifting", "humorous", "zaertlich"]);
+var blickVonTon = (ton) => GUTE_TOENE.has((ton || "").toLowerCase()) ? "gut" : "sachlich";
+var WORTE = {
+  sachlich: {
+    vorspann: (n) => `wurde, dass ${n} betroffen sind`,
+    // Das Bezugswort steckt im Satz: "der Schritt, ueber DEN". Als ich nur das
+    // Nomen austauschte, stand "folgte der Schritt, ueber die ...".
+    schritt: (wer) => `folgte der Schritt, \xFCber den ${wer} nun informiert`,
+    haelfte: (l, w) => `Betroffen ist damit ${l} \u2014 ${w}.`,
+    einsatz: (mehr, x) => `Auf dem Spiel ${mehr ? "stehen" : "steht"} ${x}.`,
+    weitere: (x) => `Betroffen sind au\xDFerdem ${x}.`
+  },
+  gut: {
+    vorspann: (n) => `wurde, dass ${n} hinzukommen`,
+    schritt: (wer) => `folgte die Entscheidung, \xFCber die ${wer} nun informiert`,
+    haelfte: (l, w) => `${cap(l)} \u2014 ${w} \u2014 entsteht im ersten Jahr.`,
+    einsatz: (mehr, x) => `In Aussicht ${mehr ? "stehen" : "steht"} ${x}.`,
+    weitere: (x) => `Profitieren werden au\xDFerdem ${x}.`
+  }
+};
+var Buchfuehrung = class {
+  constructor() {
+    this.drin = /* @__PURE__ */ new Set();
+  }
+  person(p) {
+    if (this.drin.has(p.id)) return p.kurz;
+    this.drin.add(p.id);
+    return `${p.rolle} ${p.name}`;
+  }
+  eingefuehrt(p) {
+    return this.drin.has(p.id);
+  }
+  organisation(fb) {
+    if (this.drin.has("wer")) return fb.wer.kurz;
+    this.drin.add("wer");
+    return fb.wer.haupt;
+  }
+};
+var EINSATZ_FORMEL = /^(Der Einsatz ist|Es geht um|Auf dem Spiel steht|Alles dreht sich um|Was zählt, ist|Am Ende bleibt nur|Verlieren hieße)\b/i;
+var ZAHLWORT = /(?<![a-zäöüß])(zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|dreizehn|vierzehn|fünfzehn|sechzehn|siebzehn|achtzehn|neunzehn|zwanzig|dreißig|vierzig|fünfzig|hundert|tausend|dutzend|hunderte|tausende|dutzende)(?![a-zäöüß])/i;
+function satzSchluessel(s) {
+  return (s || "").toLowerCase().replace(/[.!?…,;:]+/g, "").replace(/\s+/g, " ").trim();
+}
+var istIchOderDu = (s) => isFirstPerson(s) || isSecondPerson(s);
+function berichtTauglich(satz) {
+  const s2 = (satz || "").trim();
+  if (s2.length < 12) return false;
+  if (istIchOderDu(s2)) return false;
+  if (!hatFinitesVerb(s2)) return false;
+  if (/^(er|sie|es|ihn|ihm|ihr|dessen|deren|derselbe|jener|dieser)\b/i.test(s2)) return false;
+  if (/\b(ist|sind|war|waren|hat|haben|hatte|hatten)\b[^.]*\b(worden|gewesen)\b/i.test(s2)) return false;
+  return true;
+}
+function satzOhneZahl(bank, kats, benutzt, zusatz = []) {
+  const kandidaten = [];
+  for (const k of kats) for (const x of bank[k] || []) {
+    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || !berichtTauglich(x)) continue;
+    if (benutzt.has(satzSchluessel(x))) continue;
+    kandidaten.push(x);
+  }
+  for (const x of zusatz) {
+    if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || !berichtTauglich(x) || benutzt.has(satzSchluessel(x))) continue;
+    kandidaten.push(x);
+  }
+  if (!kandidaten.length) return null;
+  const s = pick(kandidaten);
+  benutzt.add(satzSchluessel(s));
+  return s.replace(/[.!?…]+$/, "");
+}
+var EINRICHTUNG = /(GmbH|AG|SE|KG|OHG|e\.?V\.?|Ltd|Inc|Stiftung|Verein|Verband|Genossenschaft|Werft|Werke?|Fabrik|Amt|Behörde|Ministerium|Institut|Akademie|Hochschule|Universität|Schule|Gymnasium|Theater|Museum|Bibliothek|Klinik|Krankenhaus|Kanzlei|Redaktion|Agentur|Bank|Sparkasse|Kammer|Innung|Gilde|Orden|Kloster|Abtei|Zunft|Gesellschaft|Anstalt|Betrieb|Firma|Konzern|Holding|Ausschuss|Kommission|Partei|Gewerkschaft|Bahn|Post|Wache|Feuerwehr|Zentrum|Mühle|Brauerei|Molkerei|Reederei|Druckerei|Bäckerei|Schmiede)\b/i;
+function istEinrichtung(wer) {
+  return EINRICHTUNG.test(wer || "");
+}
+function schlagzeile(fb) {
+  const wer = fb.wer.haupt.replace(/^(der|die|das)\s+/i, "");
+  return cap(`${wer} ${fb.was}`);
+}
+function dachzeile(fb) {
+  return fb.wo.ort ? `${fb.wo.ort} \xB7 ${RESSORTS[fb.ressort].label}` : RESSORTS[fb.ressort].label;
+}
+function vorspann(fb, b, blick) {
+  const z = fb.zahlen[0];
+  const w = WORTE[blick];
+  const s1 = `${cap(fb.wann.datum)}: ${cap(b.organisation(fb))} ${fb.was}.`;
+  const RV = RESSORTS[fb.ressort];
+  const menge = z ? `${z.verbal || z.wortform} ${z.einheit}` : "";
+  const s2 = z ? RV.vorspannFassungen ? pick(RV.vorspannFassungen(menge, blick === "gut")) : `Bekannt ${w.vorspann(menge)}.` : `Bekannt wurde es erst sp\xE4ter.`;
+  return `${s1} ${s2}`;
+}
+function mische(fakten, frei) {
+  const raus = [];
+  const gedeckelt = frei.slice(0, Math.max(1, fakten.length));
+  const n = Math.max(fakten.length, gedeckelt.length);
+  for (let i = 0; i < n; i++) {
+    if (fakten[i]) raus.push(fakten[i]);
+    if (gedeckelt[i]) raus.push(gedeckelt[i]);
+  }
+  return raus;
+}
+function hergang(fb, bank, b, benutzt, extra, vorrat, blick) {
+  const teile = [];
+  const frei = [];
+  const w = WORTE[blick];
+  const R0 = RESSORTS[fb.ressort];
+  const c2 = fb.chronologie[1], c3 = fb.chronologie[2];
+  if (c2) {
+    const was2 = c2.was;
+    const fassungen = [
+      `${cap(c2.zeit)} zeichnete sich ${was2} ab.`,
+      // Akkusativ: „gab es der erste Hinweis" stand so im Blatt — die
+      // Wetter-Messung hat es gefunden, der Prüfstand zählte 169 Läufe. Nur
+      // „der erste …" unterscheidet sich hier vom Nominativ.
+      `${cap(c2.zeit)} gab es ${was2.replace(/^der erste\b/, "den ersten")}.`,
+      // Ohne Präposition: „mit der erste Anfrage" war der erste Versuch — der
+      // Artikel wurde gebeugt, das Adjektiv nicht. Ein Doppelpunkt braucht
+      // keinen Kasus.
+      `Angefangen hatte es ${c2.zeit}: ${was2}.`,
+      `${cap(was2)} kam ${c2.zeit}.`
+    ];
+    teile.push(pick(fassungen));
+  }
+  for (let i = 0; i < 1 + extra; i++) {
+    const roh = satzOhneZahl(bank, ["obstacles", "turns"], benutzt, vorrat);
+    if (roh) frei.push(brauchtRahmen(roh) ? `${pick(NOMINALRAHMEN)} ${roh}.` : `${cap(roh)}.`);
+  }
+  const z2 = fb.zahlen[1];
+  if (z2) teile.push(zahlSatz(z2));
+  if (c3) teile.push(R0.schrittFassungen ? pick(R0.schrittFassungen(cap(c3.zeit), blick === "gut")) : `${cap(c3.zeit)} ${w.schritt(b.organisation(fb))}.`);
+  const a1 = fb.abgeleitet[0];
+  if (a1) teile.push(w.haelfte(a1.label, a1.wortform));
+  const eins = blick === "gut" ? R0.gewinn : R0.einsatz;
+  if (eins.length) {
+    const zwei = reihenfolge2(eins).slice(0, 1 + Math.min(1, Math.floor(extra / 4)));
+    const mehr = zwei.length > 1 || zwei.some((x) => x.pl);
+    teile.push(w.einsatz(mehr, aufzaehlung(zwei.map((x) => x.t))));
+  }
+  const bt = RESSORTS[fb.ressort].betroffen;
+  if (bt.length >= 3) {
+    const schon = fb.zahlen.map((z) => z.einheit.toLowerCase());
+    const frei2 = bt.filter((x) => !schon.some((e2) => x.toLowerCase().includes(e2)));
+    const aus = reihenfolge2(frei2.length >= 2 ? frei2 : bt).slice(0, 2 + Math.min(2, Math.floor(extra / 3)));
+    teile.push(w.weitere(aufzaehlung(aus)));
+  }
+  return mische(teile, frei).join(" ");
+}
+function zitat(fb, bank, b, benutzt, welche, vorrat) {
+  const p = fb.personen[welche];
+  if (!p || !p.zitierfaehig) return "";
+  const kern = satzOhneZahl(bank, ["hooks", "stakes"], benutzt, vorrat) || "Wir haben lange gewartet";
+  return `\u201E${cap(kern)}\u201C, sagte ${b.person(p)}.`;
+}
+function hintergrund(fb, bank, b, benutzt, extra, vorrat) {
+  const teile = [];
+  const c1 = fb.chronologie[0];
+  const RK = RESSORTS[fb.ressort].hintergrundKopf;
+  if (c1) teile.push(RK ? RK(b.organisation(fb), c1.zeit) : fb.wer.art === "person" ? `${cap(b.organisation(fb))} ist seit ${c1.zeit} dabei.` : istEinrichtung(fb.wer.haupt) ? `${cap(b.organisation(fb))} besteht seit ${c1.zeit}.` : `Der Vorgang reicht bis ${c1.zeit} zur\xFCck.`);
+  const rahmen = reihenfolge2(NOMINALRAHMEN);
+  let r = 0;
+  const frei = [];
+  for (let i = 0; i < 1 + extra; i++) {
+    const roh = satzOhneZahl(bank, ["motifs", "props"], benutzt, vorrat);
+    if (!roh) continue;
+    if (brauchtRahmen(roh) && r < rahmen.length) frei.push(`${rahmen[r++]} ${roh}.`);
+    else frei.push(`${cap(roh)}.`);
+  }
+  const z3 = fb.zahlen[2];
+  if (z3) teile.push(zahlSatz(z3));
+  return mische(teile, frei).join(" ");
+}
+function ausblick(fb, blick) {
+  const R = RESSORTS[fb.ressort];
+  return blick === "gut" ? pick([...R.ausblickGut, `Wie es ${fb.wo.mitPraep} weitergeht, wird sich zeigen.`]) : pick([
+    ...R.ausblick,
+    `Wie es ${fb.wo.mitPraep} weitergeht, ist offen.`,
+    ...R.nurEigenerAusblick ? [] : [`Ob der Schritt zur\xFCckgenommen wird, blieb ${fb.wann.relativ} unbeantwortet.`]
+  ]);
+}
+function zahlSatz(z) {
+  const n = `${z.wortform} ${z.einheit}`;
+  switch (z.rolle) {
+    case "betroffene":
+      return `Betroffen sind ${n}.`;
+    case "sache":
+      return pick([`Zuletzt waren es ${n} im Jahr.`, `Es geht um ${n}.`, `${cap(n)} standen zuletzt in den B\xFCchern.`]);
+    case "dauer":
+      return `${cap(n)} dauerte es.`;
+    case "groesse":
+      return `Gemessen wurden ${n}.`;
+    case "vorgaenge":
+      return `${cap(n)} liegen inzwischen vor.`;
+    case "geld":
+      return `Es geht um ${n}.`;
+    default:
+      return `${cap(n)}.`;
+  }
+}
+function aufzaehlung(xs) {
+  if (xs.length <= 1) return xs[0] || "";
+  return xs.slice(0, -1).join(", ") + " und " + xs[xs.length - 1];
+}
+function reihenfolge2(a) {
+  const x = a.slice();
+  for (let i = x.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [x[i], x[j]] = [x[j], x[i]];
+  }
+  return x;
+}
+function buildBericht(bank, input, ressort = "auto") {
+  const fb = ziehFaktenblatt(input, ressort);
+  const b = new Buchfuehrung();
+  const benutzt = /* @__PURE__ */ new Set();
+  const ziel = Number.isFinite(input.lenTarget) ? input.lenTarget : 240;
+  const extra = Math.max(0, Math.min(22, Math.round((ziel - 124) / 17)));
+  const vorrat = buildVersAtome(bank, input).filter((x) => x.split(/\s+/).length >= 5);
+  const blick = blickVonTon(input.tone || "");
+  const abschnitte = [];
+  abschnitte.push(dachzeile(fb));
+  const zeile = schlagzeile(fb);
+  benutzt.add(satzSchluessel(zeile));
+  benutzt.add(satzSchluessel(fb.was));
+  abschnitte.push(zeile);
+  abschnitte.push(vorspann(fb, b, blick));
+  const hergangText = hergang(fb, bank, b, benutzt, extra, vorrat, blick);
+  abschnitte.push(hergangText);
+  const z1 = zitat(fb, bank, b, benutzt, 0, vorrat);
+  if (z1) abschnitte.push(z1);
+  abschnitte.push(hintergrund(fb, bank, b, benutzt, extra, vorrat));
+  const z2 = zitat(fb, bank, b, benutzt, 1, vorrat);
+  if (z2) abschnitte.push(z2);
+  const z3s = zitat(fb, bank, b, benutzt, 2, vorrat);
+  if (z3s) abschnitte.push(z3s);
+  if (extra >= 3) {
+    const teile = [];
+    for (let i = 0; i < extra - 2; i++) {
+      const roh = satzOhneZahl(bank, ["turns", "obstacles", "motifs"], benutzt, vorrat);
+      if (roh) teile.push(`${cap(roh)}.`);
+    }
+    if (teile.length) abschnitte.push(`Zur Einordnung: ${teile.join(" ")}`);
+  }
+  if (fb.chronologie.length > 3) {
+    const mitte = fb.chronologie.slice(1, -1);
+    const zeilen = mitte.map((c) => `${cap(c.zeit)}: ${c.was}.`);
+    if (zeilen.length >= 2) abschnitte.push(`Chronik: ${zeilen.join(" ")}`);
+  }
+  {
+    const rest = fb.zahlen.slice(3);
+    if (rest.length) abschnitte.push(`In Zahlen: ${rest.map((z) => zahlSatz(z)).join(" ")}`);
+  }
+  {
+    const R = RESSORTS[fb.ressort];
+    const teile = [];
+    for (let i = 0; i < Math.min(R.zusatz.rahmen.length, 1 + Math.floor(extra / 3)); i++) {
+      const roh = satzOhneZahl(bank, ["hooks", "turns", "stakes"], benutzt, vorrat);
+      if (roh) teile.push(`${R.zusatz.rahmen[i]} ${roh}.`);
+    }
+    if (teile.length) abschnitte.push(R.zusatz.titel ? `${R.zusatz.titel}: ${teile.join(" ")}` : teile.join(" "));
+  }
+  abschnitte.push(ausblick(fb, blick));
+  const kasten = [
+    `Faktenkasten`,
+    // Auch die Beschriftung dreht sich: "Betroffen: 480 Beschaeftigte" unter
+    // einer guten Nachricht liest sich wie ein Widerspruch.
+    ...fb.zahlen.map((z) => `\xB7 ${z.rolle === "betroffene" && blick === "gut" ? "Neu" : z.kastenLabel || ROLLE_LABEL[z.rolle]}: ${z.wortform} ${z.einheit}`),
+    ...fb.chronologie.map((c) => `\xB7 ${c.zeit}: ${c.was}`)
+  ].join("\n");
+  return { text: abschnitte.filter(Boolean).join("\n\n") + "\n\n" + kasten, fb, hergang: hergangText };
+}
+
+// src/generation/meldung.ts
+function zahlSatz2(z, blick) {
+  const menge = `${z.verbal || z.wortform} ${z.einheit}`;
+  return blick === "gut" ? `Hinzu kommen ${menge}.` : `Betroffen sind ${menge}.`;
+}
+function tragtEigenesSubjekt(was) {
+  const w = (was || "").trim();
+  if (!w) return false;
+  const lead = extractLeadVerb(w);
+  return looksLikeFullClause(lead.verb, lead.rest) || /^(der|die|das|ein|eine)\s+\S+.*\b(ist|sind|war|waren|wird|werden|hat|haben|liegt|gilt|zählt|gehört|wandert|fährt|steht)\b/i.test(w);
+}
+var werTaugt = (fb) => fb.wer.haupt.trim().toLowerCase() !== WER_ERSATZ.toLowerCase();
+function tragtPraedikat(was) {
+  const w = (was || "").trim();
+  if (!w) return false;
+  const lead = extractLeadVerb(w);
+  if (lead.verb) return true;
+  return /\b(ist|sind|war|waren|wird|werden|wurde|wurden|hat|hatte|haben|hatten|kann|konnte|will|wollte|muss|musste|soll|sollte|darf|durfte|bleibt|blieb|steht|stand|geht|ging|kommt|kam|liegt|lag|geboren|gestorben)\b/i.test(w) || /\b[a-zäöüß]{3,}(?:t|te|en|ten)\b\s*$/.test(w);
+}
+function ortTauglich(mitPraep) {
+  const o = (mitPraep || "").trim();
+  if (!o) return false;
+  return /^(in|im|an|am|auf|bei|beim|vor|hinter|neben|unter|über|zwischen|nahe|innerhalb|außerhalb|entlang)\b/i.test(o);
+}
+function vorspann2(fb) {
+  const wann = mitAbschlusskomma(cap(fb.wann.datum));
+  const wo = fb.wo.mitPraep;
+  const kern = tragtEigenesSubjekt(fb.was) || !werTaugt(fb) || !tragtPraedikat(fb.was) ? cap(fb.was) : `${cap(fb.wer.haupt)} ${fb.was}`;
+  const ort = ortTauglich(wo) ? ` ${mitAbschlusskomma(wo)}` : "";
+  return `${wann} ist${ort} bekannt geworden: ${kern}.`;
+}
+function quelle(fb) {
+  const p = fb.personen[0];
+  if (!p) return "";
+  return `Das teilt ${p.rolle} ${p.name} mit.`;
+}
+function schritt(fb) {
+  const c = fb.chronologie[1] || fb.chronologie[0];
+  return c ? `${cap(c.zeit)} zeichnet sich ${c.was} ab.` : "";
+}
+var worte = (s) => (s.match(/[A-Za-zÄÖÜäöüß0-9][A-Za-zÄÖÜäöüß0-9.,-]*/g) || []).length;
+function buildMeldung(input, ressort = "auto") {
+  const fb = ziehFaktenblatt(input, ressort);
+  const blick = blickVonTon(input.tone || "");
+  const ziel = Number.isFinite(input.lenTarget) ? input.lenTarget : 60;
+  const wieviel = ziel <= 60 ? 1 : ziel <= 120 ? 2 : 3;
+  const saetze = [vorspann2(fb)];
+  const folge = [
+    fb.zahlen[0] ? zahlSatz2(fb.zahlen[0], blick) : "",
+    schritt(fb),
+    quelle(fb)
+  ].filter(Boolean);
+  const SCHLUSS = "Weitere Angaben liegen zun\xE4chst nicht vor.";
+  const MAX_SAETZE = 4;
+  for (const s of folge) {
+    if (saetze.length >= MAX_SAETZE) break;
+    if (saetze.length - 1 >= wieviel && worte(saetze.join(" ")) >= 30) break;
+    saetze.push(s);
+  }
+  if (saetze.length < MAX_SAETZE && worte(saetze.join(" ")) + worte(SCHLUSS) <= 70) saetze.push(SCHLUSS);
+  return { text: saetze.join(" "), fb };
+}
+
+// src/generation/emphasis.ts
+init_text_utils();
+var strip = (s) => clean(s).replace(/[.!?…]+$/, "");
+var PLACE_DETAIL = ["liegt die Luft schwer", "verschieben sich die Schatten", "hat jedes Ding zwei Gesichter", "klingt jeder Schritt doppelt", "scheint die Entfernung zu l\xFCgen", "h\xE4lt der Raum den Atem an"];
+var PLACE_VERB = ["scheint zuzuh\xF6ren", "gibt keine Auskunft", "merkt sich jede Bewegung", "ordnet die Dinge neu", "l\xE4sst niemanden unber\xFChrt"];
+function placeLine(kit) {
+  const M = kit.mode;
+  const withW = [
+    `Hier, ${kit.W}, ${pick(PLACE_DETAIL)}.`,
+    `${cap(kit.W)} ${pick(PLACE_DETAIL)}.`,
+    `Der Ort \u2014 ${kit.W} \u2014 ${pick(PLACE_VERB)}.`
+  ];
+  return pick([
+    ...withW,
+    ...withW,
+    `Es riecht ${pick(M.images)}.`,
+    ensurePunct(cap(pick(M.rules))),
+    `Der Ort ${pick(PLACE_VERB)}.`
+  ]);
+}
+var TIME_DETAIL = ["z\xE4hlte jede Stunde anders", "war die Zukunft schon vergangen", "ma\xDF man die Tage in Verlusten", "liefen die Uhren gegeneinander", "wog ein Augenblick mehr als ein Jahr"];
+var TIME_CLAUSE = ["die Uhren einander misstrauten", "niemand mehr auf das Morgen wartete", "die Vergangenheit noch nicht entschieden war", "jeder Tag sich selbst wiederholte"];
+var TIME_VERB = ["stand still", "lief r\xFCckw\xE4rts", "verlor ihren Takt", "wurde z\xE4h"];
+function timeLine(kit) {
+  const presentish = /^(heute|jetzt|nun|gerade|eben|soeben|morgen|übermorgen)\b/i.test(kit.T);
+  const withT = [
+    presentish ? `${cap(kit.T)}, ${pick(TIME_DETAIL)}.` : `Damals, ${kit.T}, ${pick(TIME_DETAIL)}.`,
+    `${cap(kit.T)} \u2014 und die Zeit ${pick(TIME_VERB)}.`
+  ];
+  return pick([
+    ...withT,
+    ...withT,
+    `Es war die Zeit, als ${pick(TIME_CLAUSE)}.`
+  ]);
+}
+function charLine(kit) {
+  const P3 = kit.P;
+  return pick([
+    `Da h\xE4lt ${P3} inne.`,
+    `Kurz sucht ${P3} nach Worten.`,
+    `Dann sp\xFCrt ${P3} die K\xE4lte.`,
+    `Reglos steht ${P3} da.`,
+    `Lange wartet ${P3}.`,
+    `Still bleibt ${P3} stehen.`,
+    `Aufmerksam beobachtet ${P3} den Raum.`
+  ]);
+}
+function plotLine(kit) {
+  const A = strip(kit.Apure);
+  const actionLines = A ? kit.AisClause ? [`Und wieder: ${A}.`, `Denn genau das geschieht: ${A}.`, `Im Kern bleibt es dabei \u2014 ${A}.`] : kit.AisInfinitiveLed ? [`Noch immer will ${kit.P} ${A}.`, `Alles dr\xE4ngt darauf, ${A}.`] : [`${kit.P} ${kit.AleadVerb || "will"} ${A} \u2014 noch immer.`, `Es geht weiter um eines: ${A}.`] : [];
+  return pick([
+    ...actionLines,
+    ...actionLines,
+    // Handlung doppelt gewichtet gegenüber Bank-Material
+    frameTurn(kit.turn),
+    reframeStake(kit.stake),
+    `Doch ${strip(kit.obstacle)}.`,
+    `Dann ${pick(["kippt es erneut", "versch\xE4rft sich alles", "bricht die Ordnung"])}: ${strip(kit.turn)}.`
+  ]);
+}
+function applyEmphasis(text, kit, w) {
+  const gens = [
+    [w.wo, () => placeLine(kit)],
+    [w.wann, () => timeLine(kit)],
+    [w.wer, () => charLine(kit)],
+    [w.was, () => plotLine(kit)]
+  ];
+  const werte2 = [kit.W, kit.T, kit.P, strip(kit.Apure), strip(kit.turn), strip(kit.stake), strip(kit.obstacle), strip(kit.hook), strip(clean(kit.ending).replace(/[.!?…]+$/, ""))].map((x) => clean(x || "").toLowerCase()).filter((x) => x.length > 3);
+  const geruest = (z) => {
+    let g = z.toLowerCase();
+    for (const w2 of werte2) if (w2) g = g.split(w2).join("\xA7");
+    return g.replace(/[^a-zäöüß§]+/g, " ").trim();
+  };
+  const lines = [];
+  const gesehen = /* @__PURE__ */ new Set();
+  const genannt = /* @__PURE__ */ new Set();
+  {
+    const tl = text.toLowerCase();
+    for (const w2 of werte2) if (tl.includes(w2)) genannt.add(w2);
+  }
+  for (const [n, gen2] of gens) {
+    const count2 = Math.max(0, Math.min(3, n | 0));
+    for (let i = 0; i < count2; i++) {
+      for (let versuch = 0; versuch < 12; versuch++) {
+        const z = ensurePunct(clean(gen2()));
+        if (!z) continue;
+        const g = geruest(z);
+        if (gesehen.has(g)) continue;
+        const dazu = werte2.filter((w2) => z.toLowerCase().includes(w2));
+        if (dazu.some((w2) => genannt.has(w2))) continue;
+        gesehen.add(g);
+        dazu.forEach((w2) => genannt.add(w2));
+        lines.push(z);
+        break;
+      }
+    }
+  }
+  const uniq = lines.filter(Boolean);
+  if (!uniq.length) return text;
+  const sents = splitSentences(text);
+  for (const line of uniq) {
+    let pos = chooseInsertPos(sents);
+    if (pos < 0) pos = sents.length;
+    sents.splice(pos, 0, line);
+  }
+  return sents.join(" ");
+}
+
+// src/generation/reim.ts
+init_text_utils();
+
+// src/generation/reim.data.ts
+var REIM_GROUPS = [
+  {
+    "key": "acht",
+    "words": [
+      "Nacht",
+      "Macht",
+      "erwacht",
+      "entfacht",
+      "bedacht",
+      "Verdacht",
+      "vollbracht",
+      "sacht",
+      "wacht"
+    ]
+  },
+  {
+    "key": "ein",
+    "words": [
+      "allein",
+      "hinein",
+      "Schein",
+      "Stein",
+      "klein",
+      "fein",
+      "rein",
+      "Gebein"
+    ]
+  },
+  {
+    "key": "icht",
+    "words": [
+      "Licht",
+      "Gesicht",
+      "Pflicht",
+      "Bericht",
+      "Gedicht",
+      "Verzicht",
+      "dicht",
+      "Sicht",
+      "Gewicht",
+      "bricht"
+    ]
+  },
+  {
+    "key": "and",
+    "words": [
+      "Rand",
+      "Hand",
+      "Wand",
+      "Sand",
+      "Verstand",
+      "Land",
+      "Band",
+      "Brand",
+      "Gegenstand",
+      "fand"
+    ]
+  },
+  {
+    "key": "eise",
+    "words": [
+      "leise",
+      "Kreise",
+      "Reise",
+      "Weise",
+      "beweise",
+      "Waise"
+    ]
+  },
+  {
+    "key": "aum",
+    "words": [
+      "Raum",
+      "Traum",
+      "Baum",
+      "Schaum",
+      "kaum",
+      "Saum",
+      "Zaum",
+      "Flaum"
+    ]
+  },
+  {
+    "key": "ang",
+    "words": [
+      "lang",
+      "Klang",
+      "Gesang",
+      "Gang",
+      "Zwang",
+      "bang",
+      "Rang"
+    ]
+  },
+  {
+    "key": "ur",
+    "words": [
+      "Spur",
+      "Uhr",
+      "Figur",
+      "Struktur",
+      "Natur",
+      "pur",
+      "Kontur"
+    ]
+  }
+];
+var REIM_TAILS = {
+  "Nacht": [
+    "tief in der Nacht",
+    "mitten in der Nacht",
+    "am Rand der Nacht"
+  ],
+  "Macht": [
+    "mit stiller Macht",
+    "ohne jede Macht"
+  ],
+  "erwacht": [
+    "bevor es erwacht",
+    "eh der Tag erwacht"
+  ],
+  "entfacht": [
+    "neu entfacht",
+    "still entfacht"
+  ],
+  "bedacht": [
+    "kaum bedacht",
+    "nie bedacht"
+  ],
+  "Verdacht": [
+    "gegen jeden Verdacht",
+    "voller Verdacht"
+  ],
+  "vollbracht": [
+    "halb vollbracht",
+    "l\xE4ngst vollbracht"
+  ],
+  "sacht": [
+    "leise und sacht",
+    "ganz sacht"
+  ],
+  "wacht": [
+    "w\xE4hrend niemand wacht",
+    "weil keiner wacht"
+  ],
+  "allein": [
+    "still und allein",
+    "ganz allein"
+  ],
+  "hinein": [
+    "tief hinein",
+    "bis tief hinein"
+  ],
+  "Schein": [
+    "im falschen Schein",
+    "im letzten Schein"
+  ],
+  "Stein": [
+    "hart wie Stein",
+    "aus kaltem Stein"
+  ],
+  "klein": [
+    "unendlich klein",
+    "stumm und klein"
+  ],
+  "fein": [
+    "d\xFCnn und fein",
+    "viel zu fein"
+  ],
+  "rein": [
+    "nicht mehr rein",
+    "kalt und rein"
+  ],
+  "Gebein": [
+    "bis ins Gebein",
+    "tief im Gebein"
+  ],
+  "Licht": [
+    "im letzten Licht",
+    "gegen das Licht"
+  ],
+  "Gesicht": [
+    "ohne Gesicht",
+    "mit fremdem Gesicht"
+  ],
+  "Pflicht": [
+    "aus alter Pflicht",
+    "wie eine Pflicht"
+  ],
+  "Bericht": [
+    "wie im Bericht",
+    "ohne Bericht"
+  ],
+  "Gedicht": [
+    "wie ein Gedicht",
+    "halb ein Gedicht"
+  ],
+  "Verzicht": [
+    "ein stiller Verzicht",
+    "aus Verzicht"
+  ],
+  "dicht": [
+    "nah und dicht",
+    "undurchdringlich dicht"
+  ],
+  "Sicht": [
+    "au\xDFer Sicht",
+    "ohne klare Sicht"
+  ],
+  "Gewicht": [
+    "ohne Gewicht",
+    "mit vollem Gewicht"
+  ],
+  "bricht": [
+    "bis es bricht",
+    "eh es bricht"
+  ],
+  "Rand": [
+    "hart am Rand",
+    "am \xE4u\xDFersten Rand"
+  ],
+  "Hand": [
+    "in deiner Hand",
+    "mit ruhiger Hand"
+  ],
+  "Wand": [
+    "an der wei\xDFen Wand",
+    "dicht an der Wand"
+  ],
+  "Sand": [
+    "zerronnen wie Sand",
+    "aus feinem Sand"
+  ],
+  "Verstand": [
+    "gegen den Verstand",
+    "ohne Verstand"
+  ],
+  "Land": [
+    "weit \xFCber Land",
+    "im fremden Land"
+  ],
+  "Band": [
+    "wie ein Band",
+    "ein unsichtbares Band"
+  ],
+  "Brand": [
+    "wie im stillen Brand",
+    "kurz vor dem Brand"
+  ],
+  "Gegenstand": [
+    "blo\xDF ein Gegenstand",
+    "wie ein Gegenstand"
+  ],
+  "fand": [
+    "was niemand fand",
+    "das keiner fand"
+  ],
+  "leise": [
+    "unendlich leise",
+    "beinahe leise"
+  ],
+  "Kreise": [
+    "und zieht seine Kreise",
+    "und zieht stille Kreise"
+  ],
+  "Reise": [
+    "wie auf halber Reise",
+    "auf sp\xE4ter Reise"
+  ],
+  "Weise": [
+    "auf stille Weise",
+    "auf alte Weise"
+  ],
+  "beweise": [
+    "das ich nicht beweise",
+    "was ich nie beweise"
+  ],
+  "Waise": [
+    "verloren wie eine Waise",
+    "allein wie eine Waise"
+  ],
+  "Raum": [
+    "quer durch den Raum",
+    "im leeren Raum"
+  ],
+  "Traum": [
+    "wie im Traum",
+    "halb im Traum"
+  ],
+  "Baum": [
+    "still wie ein Baum",
+    "unterm kahlen Baum"
+  ],
+  "Schaum": [
+    "zerf\xE4llt wie Schaum",
+    "wei\xDF wie Schaum"
+  ],
+  "kaum": [
+    "man h\xF6rt es kaum",
+    "man sieht es kaum"
+  ],
+  "Saum": [
+    "am dunklen Saum",
+    "am \xE4u\xDFersten Saum"
+  ],
+  "Zaum": [
+    "h\xE4lt sich im Zaum",
+    "wie im Zaum"
+  ],
+  "Flaum": [
+    "weich wie Flaum",
+    "leicht wie Flaum"
+  ],
+  "lang": [
+    "ein Leben lang",
+    "eine Nacht lang"
+  ],
+  "Klang": [
+    "mit dunklem Klang",
+    "wie ein ferner Klang"
+  ],
+  "Gesang": [
+    "wie ein Gesang",
+    "ohne Gesang"
+  ],
+  "Gang": [
+    "auf schmalem Gang",
+    "im letzten Gang"
+  ],
+  "Zwang": [
+    "ohne Zwang",
+    "wie unter Zwang"
+  ],
+  "bang": [
+    "still und bang",
+    "seltsam bang"
+  ],
+  "Rang": [
+    "ohne Namen und Rang",
+    "ohne Rang"
+  ],
+  "Spur": [
+    "ohne eine Spur",
+    "wie eine Spur"
+  ],
+  "Uhr": [
+    "gegen die Uhr",
+    "nach der inneren Uhr"
+  ],
+  "Figur": [
+    "stumm wie eine Figur",
+    "wie eine Figur"
+  ],
+  "Struktur": [
+    "ohne Struktur",
+    "reine Struktur"
+  ],
+  "Natur": [
+    "gegen die Natur",
+    "wie von Natur"
+  ],
+  "pur": [
+    "kalt und pur",
+    "hell und pur"
+  ],
+  "Kontur": [
+    "ohne Kontur",
+    "nur als Kontur"
+  ]
+};
+var REIM_RHYTHM_TARGETS = [3, 6, 4, 7, 3, 5];
+var REIM_CONNECTORS = [" \u2014 ", ", ", " \u2013 "];
+var REIM_DEFAULTS = { targetLines: 12, maxWordsPerLine: 7, stanzaEvery: 4 };
+var REIM_DANGLING_RX = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|meinen|meinem|meiner|dein|deine|deinen|sein|seine|seinen|ihr|ihre|ihren|unser|unsere|euer|eure|und|oder|aber|dass|ob|weil|wenn|als|wie|mit|in|im|auf|an|am|für|ohne|durch|über|unter|vor|nach|zu|zum|zur|bei|aus|um|gegen|während|wegen|will|willst|wollen|wollt|kann|kannst|können|könnt|muss|musst|müssen|müsst|soll|sollst|sollen|sollt|darf|darfst|dürfen|dürft|mag|magst|mögen|mögt|möchte|möchtest|möchten|möchtet|ist|sind|war|waren|bin|bist|seid|wird|wirst|werdet|werden|würde|würden|hat|hast|habt|haben|hatte|hatten|bekommt|bekommen|bekam|gibt|gab|nimmt|nahm|macht|sieht|sah|sucht|trägt|trug|hält|hielt|braucht|kennt|nennt|zeigt|bringt|lässt|ließ|setzt|legt|stellt|öffnet|findet|bemerkt|bemerkte|tritt|trat|zieht|zog|greift|griff|wirft|warf|hebt|hob)$/i;
+
+// src/generation/verselib.ts
+var normalizeNewlines = (s) => String(s || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+var capLine = (s) => String(s).replace(/\s+([,.;:!?])/g, "$1").replace(/^[-–—]\s*/g, "").trim();
+function insertStanzas(lines, everyN) {
+  if (!everyN || everyN < 2) return lines;
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    out.push(lines[i]);
+    if ((i + 1) % everyN === 0 && i !== lines.length - 1) out.push("");
+  }
+  return out;
+}
+function stripDanglingTail(words3) {
+  const w = words3.slice();
+  let guard = 0;
+  while (w.length > 1 && REIM_DANGLING_RX.test((w[w.length - 1] || "").replace(/[.,;:!?…]/g, "")) && guard++ < 10) w.pop();
+  return w;
+}
+function reimShuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function reimDedupePhrases(phrases) {
+  const seen = /* @__PURE__ */ new Set();
+  const out = [];
+  for (const p of phrases) {
+    const prefix = p.toLowerCase().replace(/[.,;:!?…]/g, "").split(/\s+/).filter(Boolean).slice(0, 3).join(" ");
+    if (prefix && seen.has(prefix)) continue;
+    if (prefix) seen.add(prefix);
+    out.push(p);
+  }
+  return out;
+}
+function estimateSyllables(word) {
+  const w = String(word || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
+  if (!w) return 0;
+  const clusters = w.match(/[aeiouyäöü]+/g) || [];
+  let n = clusters.length;
+  for (const c of clusters) n += (c.match(/e[oa]/g) || []).length;
+  return Math.max(1, n);
+}
+function buildSyllableLine(stream, targetSyll) {
+  const words3 = [];
+  let syll = 0;
+  while (stream.length) {
+    const w = stream[0];
+    const s = estimateSyllables(w);
+    if (syll > 0 && syll + s > targetSyll + 1) break;
+    words3.push(stream.shift());
+    syll += s;
+    if (syll >= targetSyll) break;
+  }
+  return { words: words3, syll };
+}
+function breakIntoLines(phrase, maxWords, maxChars) {
+  const words3 = String(phrase).replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  if (!words3.length) return [];
+  if (words3.length <= maxWords && phrase.length <= maxChars) return [capLine(phrase)];
+  const out = [];
+  let buf = [];
+  for (const w of words3) {
+    const next = [...buf, w].join(" ");
+    if (buf.length >= maxWords || next.length > maxChars) {
+      if (buf.length) {
+        const carry = [];
+        while (buf.length > 1 && REIM_DANGLING_RX.test((buf[buf.length - 1] || "").replace(/[.,;:!?…]/g, ""))) carry.unshift(buf.pop());
+        out.push(capLine(buf.join(" ")));
+        buf = carry.concat([w]);
+      } else buf = [w];
+    } else buf.push(w);
+  }
+  if (buf.length) out.push(capLine(buf.join(" ")));
+  return out;
+}
+var STANZA_STOP = /* @__PURE__ */ new Set(["und", "oder", "aber", "denn", "doch", "dann", "noch", "auch", "schon", "immer", "nie", "sehr", "wie", "als", "mit", "von", "f\xFCr", "auf", "aus", "ist", "sind", "war", "sich", "nicht", "ein", "eine", "einen", "einem", "einer", "der", "die", "das", "den", "dem", "des", "hier", "dort", "jetzt", "alles", "nichts", "etwas", "mehr", "wieder", "durch", "\xFCber", "unter", "ohne", "beim", "zum", "zur"]);
+function stanzaStems(line) {
+  const out = /* @__PURE__ */ new Set();
+  for (const w of line.toLowerCase().match(/[a-zäöüß]{4,}/g) || []) {
+    if (!STANZA_STOP.has(w)) out.add(w.slice(0, 5));
+  }
+  return out;
+}
+function stanzaOverlap(a, b) {
+  if (!a.size || !b.size) return 0;
+  let inter = 0;
+  for (const x of a) if (b.has(x)) inter++;
+  return inter / (a.size + b.size - inter);
+}
+function insertStanzasByTheme(lines, target, unit = 1) {
+  if (!target || target < 2 || lines.length <= target) return insertStanzas(lines, target);
+  const stems = lines.map(stanzaStems);
+  const minLen = Math.max(unit, target - unit), maxLen = target + unit;
+  const breaks = /* @__PURE__ */ new Set();
+  let start = 0;
+  while (lines.length - start > maxLen) {
+    let bestAt = -1, bestScore = Infinity;
+    for (let i = start + minLen; i <= start + maxLen && i < lines.length; i++) {
+      if (unit > 1 && (i - start) % unit !== 0) continue;
+      if (lines.length - i < minLen) continue;
+      const block = /* @__PURE__ */ new Set();
+      for (let k = start; k < i; k++) for (const x of stems[k]) block.add(x);
+      const ahead = new Set(stems[i]);
+      if (i + 1 < lines.length) for (const x of stems[i + 1]) ahead.add(x);
+      const sc = stanzaOverlap(block, ahead) + Math.abs(i - start - target) * 0.02;
+      if (sc < bestScore) {
+        bestScore = sc;
+        bestAt = i;
+      }
+    }
+    if (bestAt < 0) break;
+    breaks.add(bestAt);
+    start = bestAt;
+  }
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (breaks.has(i) && out.length) out.push("");
+    out.push(lines[i]);
+  }
+  return out;
+}
+
+// src/generation/reim.ts
+function verseLine(s) {
+  let t = capLine(s);
+  const q = (t.match(/["„“”]/g) || []).length;
+  if (q % 2 === 1) t = t.replace(/["„“”]/g, "");
+  t = t.replace(/^[\s"„“”'’]+/, "");
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+var REIM_KEIN_ENDE = /^(ich|du|er|sie|es|wir|man|ihn|ihm|mir|mich|dir|dich|uns|euch|sich|selbst|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|jede|jeder|jedes|alle|viele|manche|diese|dieser|dieses|keinen|keinem|keiner|genau|sehr|ganz|so|noch|nur|auch|schon|immer|wieder)$/i;
+function reimCoreOf(phrase, targetWords) {
+  const alle = String(phrase || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  let words3 = alle.length > targetWords ? alle.slice(0, targetWords) : alle.slice();
+  while (words3.length > 2) {
+    const letzt = words3[words3.length - 1];
+    const danach = alle[words3.length];
+    if (danach && /^[A-ZÄÖÜ]/.test(danach) && /^[a-zäöüß]+(en|er|es|em|e)$/.test(letzt)) words3.pop();
+    else break;
+  }
+  words3 = stripDanglingTail(words3);
+  let guard = 0;
+  while (words3.length > 2 && REIM_KEIN_ENDE.test((words3[words3.length - 1] || "").replace(/[.,;:!?…]/g, "")) && guard++ < 6) {
+    words3.pop();
+    words3 = stripDanglingTail(words3);
+  }
+  return words3.join(" ").replace(/[.,;:!?…]+$/, "").trim();
+}
+function reimGroupOfWord(word) {
+  const w = (word || "").toLowerCase().replace(/[.,;:!?…]/g, "");
+  if (w.length < 4) return null;
+  for (const g of REIM_GROUPS) {
+    if (w.length > g.key.length && w.endsWith(g.key)) return g;
+    if (g.words.some((x) => x.toLowerCase() === w)) return g;
+  }
+  return null;
+}
+function pickRhymeWord(group, exclude) {
+  const ex = (exclude || "").toLowerCase().replace(/[.,;:!?…]/g, "");
+  const options = group.words.filter((w) => {
+    const lw = w.toLowerCase();
+    return !ex || lw !== ex && !lw.endsWith(ex) && !ex.endsWith(lw);
+  });
+  return options.length ? pick(options) : pick(group.words);
+}
+function lineWithRhyme(phrase, rhymeWord, targetWords, connector) {
+  const ohneReim = String(phrase || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean).filter((w) => w.toLowerCase().replace(/[.,;:!?…]/g, "") !== rhymeWord.toLowerCase());
+  let core = reimCoreOf(ohneReim.join(" "), targetWords);
+  if (!core) core = "Es bleibt";
+  const tails = REIM_TAILS[rhymeWord];
+  if (tails && tails.length) return verseLine(`${core}, ${pick(tails)}.`);
+  return verseLine(`${core}${connector}${rhymeWord}.`);
+}
+function applyReimPoem(rawText, anchorLine = "", lenTarget = 0, atome = []) {
+  const opts = lenTarget > 0 ? { ...REIM_DEFAULTS, targetLines: Math.max(8, Math.min(64, Math.round(lenTarget / 6))) } : REIM_DEFAULTS;
+  let t = normalizeNewlines(rawText || "").trim().replace(/\([^()]*\)/g, " ").replace(/\bShot\s*\d+\b.*$/gim, "").replace(/\b\d{1,2}\s*:\s*\d{2}\b\s*—\s*/g, "").replace(/\s+/g, " ").trim();
+  let phrases = [];
+  if (atome.length >= 6) {
+    phrases = atome.map((a) => a.trim()).filter((a) => a.length >= 6);
+  } else {
+    for (const s of splitSentences(t)) phrases.push(...String(s).split(/[,;:—–]\s*/g).map((p) => p.trim()).filter(Boolean));
+  }
+  phrases = phrases.map((p) => p.replace(/^Und\s+/i, "").trim()).filter((p) => p.length >= 6);
+  phrases = reimDedupePhrases(phrases);
+  const anchor = anchorLine.trim();
+  if (!phrases.length) phrases = [anchor || "Ein Satz bleibt zur\xFCck"];
+  const originalCount = phrases.length;
+  let guard = 0;
+  while (phrases.length < opts.targetLines && guard++ < 50) phrases.push(phrases[phrases.length % originalCount] || anchor || phrases[0]);
+  let groupPool = reimShuffle(REIM_GROUPS);
+  const nextGroup = () => {
+    if (!groupPool.length) groupPool = reimShuffle(REIM_GROUPS);
+    return groupPool.shift();
+  };
+  const lines = [];
+  let pi = 0, coupletIdx = 0;
+  while (lines.length < opts.targetLines && pi < phrases.length) {
+    const targetWords = REIM_RHYTHM_TARGETS[coupletIdx % REIM_RHYTHM_TARGETS.length];
+    const connector = REIM_CONNECTORS[coupletIdx % REIM_CONNECTORS.length];
+    const coreA = reimCoreOf(phrases[pi] || anchor, targetWords);
+    const lastA = coreA.split(" ").pop() || "";
+    const natural = reimGroupOfWord(lastA);
+    let group, wA;
+    if (natural && coreA.split(" ").length >= 2) {
+      group = natural;
+      wA = lastA;
+      lines.push(verseLine(`${coreA}.`));
+    } else {
+      group = nextGroup();
+      wA = pickRhymeWord(group);
+      lines.push(lineWithRhyme(phrases[pi] || anchor, wA, targetWords, connector));
+    }
+    pi++;
+    const wB = pickRhymeWord(group, wA);
+    lines.push(lineWithRhyme(phrases[pi] || anchor, wB, targetWords, connector));
+    pi++;
+    coupletIdx++;
+  }
+  return normalizeNewlines(insertStanzasByTheme(lines.slice(0, opts.targetLines), opts.stanzaEvery, 2).join("\n")).replace(/\n{3,}/g, "\n\n").trim();
+}
+
+// src/generation/haiku.ts
+init_text_utils();
+
+// src/generation/haiku.data.ts
+var HAIKU_DEFAULTS = {
+  "pattern": [
+    5,
+    7,
+    5
+  ],
+  "maxHaikus": 3
+};
+var HAIKU_KIGO = [
+  "Herbstwind im Schilfgras",
+  "Erster Schnee am Zaun",
+  "Novemberlicht f\xE4llt",
+  "Der Teich liegt reglos",
+  "Raureif auf dem Blech",
+  "Mittagslicht im Staub",
+  "Ein Falter am Glas",
+  "Erste Amsel singt",
+  "Der Schneefall setzt aus",
+  "Abendrot im Hof",
+  "Wintersonne flach",
+  "Regen am Fenster",
+  "Nebel \xFCberm Feld",
+  "Junilicht auf Staub",
+  "Der Fluss tr\xE4gt das Eis"
+];
+var HAIKU_NATURE7 = [
+  "ein Reiher hebt langsam ab",
+  "der Regen klopft ans Fenster",
+  "ein Blatt dreht sich im Fallen",
+  "das Eis knackt unter dem Steg",
+  "ein Falter taumelt ins Licht",
+  "der Wind bl\xE4ttert die Akte",
+  "Schnee sammelt sich am Stempel",
+  "ein Vogel sitzt aufs Kabel",
+  "die Pf\xFCtze friert von innen"
+];
+var HAIKU_CLOSERS = [
+  "der Teich schweigt wieder",
+  "der Raum schweigt wieder",
+  "die Uhr geht weiter",
+  "der Staub setzt sich hin",
+  "die T\xFCr bleibt offen",
+  "das Licht bleibt h\xE4ngen",
+  "und niemand sieht hin",
+  "der Atem wird still",
+  "alles bleibt stehen",
+  // Ergaenzt: Neun Schlusszeilen waren zu wenig. Die Auswahl merkt sich, was in
+  // EINEM Text schon benutzt wurde, und bei zwanzig Haiku am Stueck war die Bank
+  // nach neun erschoepft — danach nahm die dritte Zeile wieder Anschnitte aus dem
+  // Material, und genau die wirken abgehackt. Alle mit fuenf Silben geprueft.
+  "der Rest bleibt liegen",
+  "der Boden h\xE4lt still",
+  "das Papier vergilbt",
+  "die Kante bleibt scharf",
+  "der Schnee bleibt liegen",
+  "der Schatten wandert",
+  "das Fenster beschl\xE4gt",
+  "der Nachhall verklingt",
+  "das Eisen rostet",
+  "die Kreide bleibt wei\xDF",
+  "der Faden rei\xDFt still",
+  "das Wasser steht still",
+  "der Zug f\xE4hrt vorbei"
+];
+
+// src/generation/haiku.ts
+var KEIN_ENDE = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|dein|sein|ihr|unser|euer|kein|keine|keinen|keinem|keiner|keines|meinen|meinem|meiner|deinen|seinen|seinem|ihren|ihrem|selbst|und|oder|aber|doch|denn|sondern|als|dass|ob|weil|wenn|wie|um|zu|zum|zur|beim|vom|im|am|ins|aufs|mit|in|auf|an|für|von|bei|aus|über|unter|vor|nach|durch|gegen|ohne|seit|bis|hätte|hatte|wäre|würde|könnte|müsste|sollte|dürfte|genau|sehr|ganz|so|noch|nur|auch|schon|immer|wieder|dann|dabei|ich|du|er|sie|es|wir|man|ihn|ihm|mir|mich|dir|dich|uns|euch|sich|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|jede|jeder|jedes|alle|viele|manche|diese|dieser|dieses)$/i;
+var darfEnden = (w) => !KEIN_ENDE.test(w.replace(/[^A-Za-zÄÖÜäöüß]/g, ""));
+var FUELL_VORN = ["Nun", "Still", "Kaum", "Hier", "Dann", "Schon", "Noch"];
+var STREICHBAR = /^(und|noch|schon|nur|auch|doch|dann|hier|so|sehr|ganz|mal|der|die|das|den|dem|des|ein|im|am|zu|in|an|auf|bei|mit|von|für)$/i;
+function passeSilben(line, ziel, syllOf) {
+  const ist2 = syllOf(line);
+  if (ist2 === ziel) return line;
+  if (ist2 === ziel - 1) {
+    for (const f of FUELL_VORN) {
+      const neu = f + " " + line.charAt(0).toLowerCase() + line.slice(1);
+      if (syllOf(neu) === ziel) return neu;
+    }
+  }
+  if (ist2 === ziel + 1) {
+    const w = line.split(/\s+/);
+    for (let i = 0; i < w.length; i++) {
+      if (!STREICHBAR.test(w[i])) continue;
+      const rest = [...w.slice(0, i), ...w.slice(i + 1)];
+      if (rest.length < 2) continue;
+      const neu = rest.join(" ");
+      if (syllOf(neu) === ziel && darfEnden(rest[rest.length - 1])) return neu;
+    }
+  }
+  return line;
+}
+var haikuSyllOf = (line) => String(line || "").split(/\s+/).filter(Boolean).reduce((a, w) => a + estimateSyllables(w), 0);
+function haikuCandidatesFromPhrases(phrases) {
+  const out = [];
+  const seen = /* @__PURE__ */ new Set();
+  phrases.forEach((p, src) => {
+    const words3 = p.replace(/[.,;:!?…()]/g, "").split(/\s+/).filter(Boolean);
+    for (let a = 0; a < 1; a++) {
+      for (let n = a + 2; n <= Math.min(a + 8, words3.length); n++) {
+        const sub = stripDanglingTail(words3.slice(a, n));
+        if (sub.length < 2) continue;
+        if (!darfEnden(sub[sub.length - 1])) continue;
+        const last = sub[sub.length - 1], next = words3[n];
+        if (next && /^[A-ZÄÖÜ]/.test(next) && /^[a-zäöü]/.test(last) && /(em|en|er|es|e)$/.test(last)) continue;
+        const text = sub.join(" "), key = text.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ text, syll: haikuSyllOf(text), src, ganz: a === 0 && n === words3.length });
+      }
+    }
+  });
+  return out;
+}
+var HAIKU_LC = /* @__PURE__ */ new Set(["die", "der", "das", "den", "dem", "des", "ein", "eine", "einen", "einem", "einer", "und", "oder", "aber", "im", "in", "auf", "an", "mit", "von", "zu", "zur", "zum", "als", "wie", "nur", "noch", "auch", "so", "dann", "doch", "ohne", "bei", "aus"]);
+function fixHaikuCaps(line) {
+  return String(line).split(/\s+/).map((w, i) => i > 0 && HAIKU_LC.has(w.toLowerCase()) ? w.toLowerCase() : w).join(" ");
+}
+function applyHaikuPoem(rawText, anchorLine = "", lenTarget = 0, atome = []) {
+  const opts = lenTarget > 0 ? { ...HAIKU_DEFAULTS, maxHaikus: Math.max(2, Math.min(40, Math.round(lenTarget / 12))) } : HAIKU_DEFAULTS;
+  let t = normalizeNewlines(rawText || "").trim().replace(/\([^()]*\)/g, " ").replace(/[„“”"»«]/g, " ").replace(/\b(den|dem|einen|einem|der|die|das)\s+Satz\b/gi, " ").replace(/\bShot\s*\d+\b.*$/gim, "").replace(/\b\d{1,2}\s*:\s*\d{2}\b\s*—\s*/g, "").replace(/\s+/g, " ").trim();
+  let phrases = [];
+  for (const s of splitSentences(t)) phrases.push(...String(s).split(/[,;:—–]\s*/g).map((p) => p.trim()).filter(Boolean));
+  phrases = phrases.map((p) => p.replace(/^Und\s+/i, "").trim()).filter((p) => p.length >= 4);
+  const concrete = phrases.filter((p) => !/^(aber|denn|weil|dass|ob|doch|also)\b/i.test(p)).filter((p) => !/\b(Wahrheit|Bedeutung|Einsatz|Gültigkeit|Prinzip|Kontrolle|bedeutet|vielleicht)\b/i.test(p));
+  if (concrete.length >= 2) phrases = concrete;
+  if (atome.length >= 6) phrases = atome.map((a) => a.trim()).filter((a) => a.length >= 4);
+  phrases = reimDedupePhrases(phrases);
+  const anchor = anchorLine.trim();
+  if (!phrases.length) phrases = [anchor || "ein Satz bleibt zur\xFCck"];
+  const cands = haikuCandidatesFromPhrases(phrases);
+  const used = /* @__PURE__ */ new Set(), usedSrc = /* @__PURE__ */ new Set();
+  const fromMaterial = (target, exakt = true, nurGanz = false) => {
+    const free = cands.filter((c2) => !used.has(c2.text.toLowerCase()) && (nurGanz ? c2.ganz : true) && (exakt ? c2.syll === target : Math.abs(c2.syll - target) === 1));
+    const stufen = [
+      free.filter((c2) => c2.ganz && !usedSrc.has(c2.src)),
+      free.filter((c2) => c2.ganz),
+      free.filter((c2) => !usedSrc.has(c2.src)),
+      free
+    ];
+    const treffer = stufen.find((x) => x.length);
+    const c = treffer ? pick(treffer) : null;
+    if (!c) return null;
+    used.add(c.text.toLowerCase());
+    usedSrc.add(c.src);
+    return c.text;
+  };
+  const fromBank = (bank, target) => {
+    const free = bank.filter((l2) => !used.has(l2.toLowerCase()) && haikuSyllOf(l2) === target);
+    if (!free.length) return null;
+    const l = pick(free);
+    used.add(l.toLowerCase());
+    return l;
+  };
+  const sourceWords = [];
+  for (const p of phrases) sourceWords.push(...p.replace(/[.,;:!?…]/g, "").split(/\s+/).filter(Boolean));
+  if (!sourceWords.length) sourceWords.push("Stille");
+  let stream = reimShuffle(sourceWords);
+  const greedyLine = (target) => {
+    let bester = "", besteAbw = 99;
+    for (let versuch = 0; versuch < 8; versuch++) {
+      if (stream.length < 8) stream = stream.concat(reimShuffle(sourceWords));
+      const lw = stripDanglingTail(buildSyllableLine(stream, target).words);
+      if (!lw.length) continue;
+      const text = lw.join(" ");
+      const abw = Math.abs(haikuSyllOf(text) - target);
+      if (abw < besteAbw) {
+        besteAbw = abw;
+        bester = text;
+      }
+      if (!abw) break;
+    }
+    return bester || pick(sourceWords);
+  };
+  const haikus = [];
+  for (let h = 0; h < opts.maxHaikus; h++) {
+    const [t1, t2, t3] = opts.pattern;
+    const l1 = (chance(0.75) ? fromBank(HAIKU_KIGO, t1) : null) || fromMaterial(t1) || fromBank(HAIKU_KIGO, t1) || fromMaterial(t1, false) || greedyLine(t1);
+    let l2 = fromMaterial(t2) || fromBank(HAIKU_NATURE7, t2) || fromMaterial(t2, false) || greedyLine(t2);
+    const ganzKnapp = (() => {
+      const k = fromMaterial(t3, false, true);
+      if (!k) return null;
+      return haikuSyllOf(passeSilben(k, t3, haikuSyllOf)) === t3 ? k : null;
+    })();
+    const l3 = fromMaterial(t3, true, true) || ganzKnapp || fromBank(HAIKU_CLOSERS, t3) || fromMaterial(t3) || fromMaterial(t3, false) || greedyLine(t3);
+    if (chance(0.7)) l2 += " \u2013";
+    const f1 = passeSilben(l1, t1, haikuSyllOf);
+    const f2 = passeSilben(l2.replace(/\s*–\s*$/, ""), t2, haikuSyllOf) + (/–\s*$/.test(l2) ? " \u2013" : "");
+    const f3 = passeSilben(l3, t3, haikuSyllOf);
+    haikus.push([fixHaikuCaps(cap(capLine(f1))), fixHaikuCaps(cap(capLine(f2))), fixHaikuCaps(cap(capLine(f3)))]);
+    if (cands.length < 4) break;
+  }
+  if (!haikus.length) haikus.push(["Stille bleibt hier", "ohne jede klare Antwort", "und ohne die Zeit"]);
+  return normalizeNewlines(haikus.map((h) => h.join("\n")).join("\n\n")).replace(/[„“”"»«]/g, "").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+// src/generation/strang.ts
+init_text_utils();
+
+// src/generation/strang.data.ts
+var STRANG_DEFAULTS = {
+  "targetLines": 12,
+  "maxWordsPerLine": 8,
+  "maxCharsPerLine": 60,
+  "stanzaEvery": 4,
+  "keepAnchorChance": 0.9,
+  "smoothLines": true
+};
+var STRANG_PULSE = [
+  7,
+  4,
+  8,
+  3,
+  6,
+  5
+];
+var STRANG_IMAGES = [
+  "still wie ein Formular",
+  "wie Staub im Gegenlicht",
+  "kalt wie eine zweite Uhr",
+  "wie ein Schatten ohne K\xF6rper",
+  "leise wie fallender Schnee",
+  "wie ein Echo aus Papier",
+  "schwer wie nasses Tuch",
+  "wie Licht unter einer T\xFCr",
+  "d\xFCnn wie ein Riss im Glas",
+  "wie Atem auf kaltem Fenster",
+  "glatt wie ein neues Aktenblatt",
+  "wie Regen hinter Glas"
+];
+
+// src/generation/sentclass.ts
+var isActionSentence = (s) => /\b(löscht|zerstört|brennt|bricht|entscheidet|verrät|verlässt|kippt|stürzt|reißt|schneidet|stoppt|öffnet|schließt|nimmt|gibt|dreht|setzt|zieht|drückt|schaltet|speichert|überschreibt|friert)\b/i.test(s);
+var isConcreteLossSentence = (s) => /\b(verlier|verliert|stirbt|sterben|löscht|gelöscht|brennt|zerstört)\b/i.test(s) && /\b(mich|dich|ihn|sie|es|uns|euch|ihre|seine|foto|speicher|name|körper|gegenwart|stimme)\b/i.test(s);
+var isDecisionSentence = (s) => /\b(also|darum|deshalb|ich entscheide|ich wähle|ich tue es|ich lasse|ich stoppe|ich öffne|ich schließe|wir entscheiden|wir lassen|ich weigere)\b/i.test(s);
+var isDisturbanceSentence = (s) => /\b(plötzlich|dann kippt|kippt|störung|fehler|alarm|rauschen|knackt|springt|unterbricht|glitch|friert ein|rückwärts)\b/i.test(s);
+var isToneLine = (s) => /\b(riecht|kälte|blaues licht|atem|stille)\b/i.test(s) && !isActionSentence(s);
+
+// src/generation/strang.ts
+function hasVerbKernel(line) {
+  return /\b(ist|sind|war|waren|wird|werden|kann|können|will|wollen|darf|dürfen|bricht|kippt|löscht|steht|sucht|nimmt|nehmen|hält|halten|tat|tut|macht|machte|bleibt|bleiben|kommt|kam|geht|ging|führt|führte|öffnet|schließt|schloss|fragt|fragte|begreift|begriff|trägt|trug|riecht|gilt|bemerkt|liegt|hängt|fällt|zieht|greift|spürt|hört|sieht|schreibt|trifft|verliert|verlieren|beginnt|endet|wartet|atmet|schweigt|singt|klopft|weiterführt)\b/i.test(String(line || ""));
+}
+function scoreStrangLine(l) {
+  let s = 0;
+  if (isActionSentence(l)) s += 3;
+  if (isConcreteLossSentence(l)) s += 3;
+  if (isDecisionSentence(l)) s += 2;
+  if (/\b(aber|wenn|dann)\b/i.test(l)) s += 1;
+  if (l.length > 70) s -= 1;
+  if (/(paradoxon|omen|inkonsistenz|oberfläche)/i.test(l) && !isActionSentence(l)) s -= 2;
+  return s;
+}
+function smoothStrangLine(line) {
+  let s = String(line || "").trim().replace(/\s+/g, " ").replace(/\s+([,.!?;:])/g, "$1").trim();
+  s = s.replace(/\bWir\s+will\b/gi, "Wir wollen").replace(/\bDu\s+will\b/gi, "Du willst").replace(/\bIch\s+wird\b/gi, "Ich werde").replace(/\bWir\s+nimmt\b/gi, "Wir nehmen").replace(/\bWir\s+hält\b/gi, "Wir halten").replace(/\bDer\s+Namen\b/gi, "Die Namen");
+  if (/^[a-zäöüß]/.test(s)) s = s.charAt(0).toUpperCase() + s.slice(1);
+  return s.trim();
+}
+function mergeDanglingLines(lines, opts) {
+  const out = [];
+  for (const raw of lines) {
+    const cur = String(raw || "").trim();
+    if (!cur) continue;
+    const prevLine = out.length ? out[out.length - 1] : "";
+    const relStart = /^(der|die|das|den|dem|was)\s+[a-zäöüß]/.test(cur);
+    const hangingSub = /^(wenn|weil|als|während|bevor|eh|ob|dass|falls)\b/i.test(prevLine) && !/[.!?…]$/.test(prevLine);
+    if ((!hasVerbKernel(cur) || relStart || hangingSub) && out.length) {
+      const prev = out[out.length - 1];
+      const open = prev !== "" && !/[.!?…]$/.test(prev);
+      if (open && prev.length + cur.length + 1 <= (opts.maxCharsPerLine || 60)) {
+        out[out.length - 1] = prev + " " + cur;
+        continue;
+      }
+    }
+    out.push(cur);
+  }
+  return out;
+}
+function applyStrangPoem(rawText, anchorLine = "", lenTarget = 0) {
+  const opts = lenTarget > 0 ? { ...STRANG_DEFAULTS, targetLines: Math.max(8, Math.min(64, Math.round(lenTarget / 6.5))) } : STRANG_DEFAULTS;
+  let t = normalizeNewlines(rawText || "").trim().replace(/\([^()]*\)/g, " ").replace(/\bShot\s*\d+\b.*$/gim, "").replace(/\bHandheld\b.*$/gim, "").replace(/\b\d{1,2}\s*:\s*\d{2}\b\s*—\s*/g, "").replace(/\s+/g, " ").trim();
+  t = t.replace(/\bDer\s+Einsatz\s+ist\s*[:,]?\s*([^.!?\n]+)[.!?]?/gi, (_m, x) => {
+    const k = (x || "").trim();
+    return k ? `Wenn es wahr wird, verlieren wir ${k}.` : "";
+  });
+  let phrases = [];
+  for (const s of splitSentences(t)) phrases.push(...String(s).split(/[,;:—–]\s*/g).map((p) => p.trim()).filter(Boolean));
+  phrases = phrases.map((p) => p.replace(/^(Und|Aber|Denn|Doch|Also)\s+/i, "").trim()).filter((p) => p.length >= 6).filter((p) => !/^Alles\s+ist\s+korrekt/i.test(p));
+  phrases = reimDedupePhrases(phrases);
+  const anchor = anchorLine.trim();
+  const anchorLn = anchor ? anchor.endsWith(".") ? anchor : anchor + "." : "";
+  let lines = [];
+  let li = 0;
+  for (const p of phrases) {
+    const target = Math.min(STRANG_PULSE[li % STRANG_PULSE.length], opts.maxWordsPerLine);
+    for (const b of breakIntoLines(p, target, opts.maxCharsPerLine)) lines.push(b);
+    li++;
+  }
+  lines = lines.filter((l, i) => lines.indexOf(l) === i).filter(Boolean);
+  if (opts.smoothLines) {
+    lines = mergeDanglingLines(lines, opts);
+    lines = lines.map(smoothStrangLine);
+  }
+  if (lines.length > opts.targetLines) {
+    lines = lines.map((l, i) => ({ l, i, s: scoreStrangLine(l) })).sort((a, b) => b.s - a.s).slice(0, opts.targetLines).sort((a, b) => a.i - b.i).map((x) => x.l);
+  }
+  if (lines.length < Math.max(6, Math.floor(opts.targetLines * 0.6)) && anchorLn) lines.push(anchorLn);
+  const imgCount = lines.length >= 10 ? chance(0.5) ? 2 : 1 : 1;
+  for (let k = 0; k < imgCount; k++) {
+    const img = capLine(pick(STRANG_IMAGES));
+    if (lines.includes(img)) continue;
+    const pos = chooseInsertPos(lines);
+    if (pos >= 0) lines.splice(pos, 0, img);
+  }
+  if (anchorLn && Math.random() < opts.keepAnchorChance) {
+    const already = lines.some((l) => l.toLowerCase().includes(anchorLn.toLowerCase().slice(0, Math.min(18, anchorLn.length))));
+    if (!already) lines.push(anchorLn);
+  }
+  if (lines.length) {
+    let last = lines[lines.length - 1].replace(/[,;:—–\s]+$/, "");
+    const lw = stripDanglingTail(last.split(/\s+/).filter(Boolean));
+    if (lw.length) last = lw.join(" ");
+    if (!/[.!?…]$/.test(last)) last += ".";
+    lines[lines.length - 1] = last;
+  }
+  return normalizeNewlines(insertStanzasByTheme(lines, opts.stanzaEvery, 1).join("\n")).replace(/\n{3,}/g, "\n\n").trim();
+}
+
+// src/generation/drama.ts
+var DRAMA_DEFAULTS = {
+  cutRatio: 0.35,
+  minActionRatio: 0.5,
+  maxRepeatToken: 2,
+  requireDecision: true,
+  requireConcreteLoss: true,
+  requireEscalation: true,
+  allowCinematicMarkers: true
+};
+function hashString(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = h * 31 + s.charCodeAt(i) | 0;
+  return h;
+}
+var DRAMA_WILLS = ["will das Geh\xE4use verlassen", "will die Reihenfolge korrigieren", "will den Namen behalten", "will den Transistor zum Schweigen bringen", "will beweisen, dass die Erinnerung falsch ist"];
+var DRAMA_BLOCK = ["der Transistor speichert jede Bewegung", "das Geh\xE4use l\xE4sst niemanden hinaus", "die Zeit springt r\xFCckw\xE4rts", "das System gl\xE4ttet jede Abweichung", "eine Regel verbietet die Wahrheit"];
+var DRAMA_LOSS = ["es l\xF6scht sich selbst", "es verliert die Gegenwart", "es verbrennt den Speicher", "es verliert den einzigen Zeugen", "es zerst\xF6rt das Foto"];
+function buildDramaConflict(whoA, whoB, seed) {
+  const p = (arr, i) => arr[Math.abs(i) % arr.length];
+  const h = hashString(seed || (whoA || "A") + "|" + (whoB || "B"));
+  return {
+    whoA: whoA || "A",
+    whoB: whoB || "B",
+    WILL: `${whoA || "A"} ${p(DRAMA_WILLS, h)}`,
+    BLOCKADE: `Aber ${p(DRAMA_BLOCK, h + 7)}.`,
+    VERLUST: `Wenn ${whoA || "A"} es versucht, ${p(DRAMA_LOSS, h + 13)}.`
+  };
+}
+var toSentences = (text) => normalizeNewlines(text).replace(/\s+/g, " ").split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+var toLines = (text) => normalizeNewlines(text).split("\n").map((l) => l.trim()).filter(Boolean);
+var looksLineBased = (text) => {
+  const lines = text.split("\n").filter(Boolean);
+  return lines.length >= 6 && lines.length > text.split(".").length;
+};
+var isPureMeta = (u) => /^(\d{1,2}:\d{2}|shot\s*\d+|\(.*s\s*pro\s*shot.*\)|handheld|micro-?shake)\b/i.test(u);
+var stripCinematicMarkers = (text) => text.split("\n").filter((l) => !isPureMeta(l.trim())).join("\n");
+function enforceCinematicConsequence(text) {
+  const lines = normalizeNewlines(text).split("\n");
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const cur = lines[i].trim();
+    if (!cur) continue;
+    if (isPureMeta(cur)) {
+      const next = (lines[i + 1] || "").trim();
+      if (next && isActionSentence(next)) out.push(cur);
+    } else out.push(cur);
+  }
+  return out.join("\n");
+}
+function ensureConflictPresence(units, c) {
+  const joined = units.join(" ").toLowerCase();
+  const needWill = !joined.includes("will") && !joined.includes("m\xF6chte");
+  const needBlock = !joined.includes("aber");
+  const needLoss = !joined.includes("wenn") || !joined.includes("verlier") && !joined.includes("l\xF6scht") && !joined.includes("stirbt") && !joined.includes("brennt");
+  const inject = [];
+  if (needWill) inject.push(c.WILL + ".");
+  if (needBlock) inject.push(c.BLOCKADE);
+  if (needLoss) inject.push(c.VERLUST);
+  if (inject.length) return [...units.slice(0, 2), ...inject, ...units.slice(2)];
+  return units;
+}
+var buildDisturbanceLine = (c) => `Pl\xF6tzlich kippt das System: ${c.whoA || "A"} sieht, dass jede Korrektur etwas l\xF6scht.`;
+var buildDecisionLine = (_c) => `Also entscheide ich: Ich lasse die Reihenfolge falsch \u2013 und bezahle daf\xFCr.`;
+function enforceEscalation(units, c) {
+  let out = [...units];
+  if (!units.some(isDisturbanceSentence)) out.splice(Math.min(4, out.length), 0, buildDisturbanceLine(c));
+  if (!units.some(isDecisionSentence)) out.push(buildDecisionLine(c));
+  return out;
+}
+function enforceConcreteLoss(units, c) {
+  if (units.some(isConcreteLossSentence)) return units;
+  const out = [...units];
+  out.splice(Math.max(2, Math.floor(out.length * 0.66)), 0, c.VERLUST);
+  return out;
+}
+function reduceAbstraction(units) {
+  const abstract = ["der einsatz ist", "alles ist korrekt", "paradoxon", "omen", "erinnerung", "wahrheit", "inkonsistenz", "oberfl\xE4che"];
+  return units.map((u) => u.trim()).filter((u) => {
+    const low2 = u.toLowerCase();
+    if (!abstract.some((p) => low2.includes(p))) return true;
+    return isActionSentence(u) || isConcreteLossSentence(u) || isDecisionSentence(u);
+  });
+}
+function enforceActionRatio(units, opts) {
+  const ratio = units.length ? units.filter(isActionSentence).length / units.length : 0;
+  if (ratio >= opts.minActionRatio) return units;
+  const out = [];
+  for (const u of units) {
+    if (isActionSentence(u) || isDisturbanceSentence(u) || isConcreteLossSentence(u)) {
+      out.push(u);
+      continue;
+    }
+    if (!out.some(isToneLine)) out.push(u);
+  }
+  return out.length ? out : units;
+}
+function scoreUnit(u, c) {
+  const low2 = u.toLowerCase();
+  let s = 0;
+  if (isActionSentence(u)) s += 3;
+  if (isConcreteLossSentence(u)) s += 3;
+  if (isDecisionSentence(u)) s += 4;
+  if (isDisturbanceSentence(u)) s += 2;
+  if (low2.includes("aber")) s += 1;
+  if (low2.includes("wenn")) s += 1;
+  if (c.whoA && low2.includes(c.whoA.toLowerCase())) s += 1;
+  if (c.whoB && low2.includes(c.whoB.toLowerCase())) s += 1;
+  if (/(paradoxon|omen|inkonsistenz|oberfläche|bedeutung)/i.test(u) && !isActionSentence(u)) s -= 2;
+  if (u.length > 180) s -= 1;
+  return s;
+}
+function cutWeakest(units, cutRatio, c) {
+  if (units.length <= 4) return units;
+  const scored = units.map((u, idx) => ({ u, idx, s: scoreUnit(u, c) })).sort((a, b) => b.s - a.s);
+  const keepN = Math.max(4, Math.round(units.length * (1 - cutRatio)));
+  return scored.slice(0, keepN).sort((a, b) => a.idx - b.idx).map((x) => x.u);
+}
+var hasDecision = (units) => units.some(isDecisionSentence);
+var forceDecision = (units, c) => [...units, buildDecisionLine(c)];
+function dedupeSoft(units, maxRepeat = 2) {
+  const seen = /* @__PURE__ */ new Set();
+  let out = units.filter((u) => {
+    const k = u.trim();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  const counts = /* @__PURE__ */ new Map();
+  out = out.filter((u) => {
+    const keyTokens = (u.toLowerCase().match(/[a-zäöüß]+/g) || []).filter((t) => t.length >= 6);
+    for (const t of keyTokens) counts.set(t, (counts.get(t) || 0) + 1);
+    const over = keyTokens.filter((t) => (counts.get(t) || 0) > maxRepeat).length;
+    return over <= Math.max(1, Math.floor(keyTokens.length * 0.5));
+  });
+  return out;
+}
+var joinSentences = (arr) => arr.join(" ").replace(/\s+([,.!?;:])/g, "$1");
+function applyDramaModule(rawText, conflict, userOpts = {}) {
+  const opts = { ...DRAMA_DEFAULTS, ...userOpts };
+  let text = normalizeNewlines(rawText).trim();
+  text = opts.allowCinematicMarkers ? enforceCinematicConsequence(text) : stripCinematicMarkers(text);
+  const lineBased = looksLineBased(text);
+  let units = (lineBased ? toLines(text) : toSentences(text)).map((u) => u.trim()).filter((u) => u.length > 0).filter((u) => !isPureMeta(u));
+  units = ensureConflictPresence(units, conflict);
+  if (opts.requireEscalation) units = enforceEscalation(units, conflict);
+  if (opts.requireConcreteLoss) units = enforceConcreteLoss(units, conflict);
+  units = reduceAbstraction(units);
+  units = enforceActionRatio(units, opts);
+  units = cutWeakest(units, opts.cutRatio, conflict);
+  if (opts.requireDecision && !hasDecision(units)) units = forceDecision(units, conflict);
+  units = dedupeSoft(units, opts.maxRepeatToken);
+  const out = lineBased ? units.join("\n") : joinSentences(units);
+  return normalizeNewlines(out).replace(/\n{3,}/g, "\n\n").trim();
+}
+
+// src/generation/forms.ts
+function asProsePoem(text) {
+  const s = text.replace(/\s+/g, " ").split(/(?<=[.!?…])\s+/).filter(Boolean);
+  const lines = [];
+  for (let i = 0; i < s.length; i++) {
+    lines.push(s[i]);
+    if ((i + 1) % 2 === 0 && i < s.length - 1) lines.push("");
+  }
+  return lines.join("\n");
+}
+function asStrang(text, anchor = "", lenTarget = 0) {
+  return applyStrangPoem(text, anchor, lenTarget);
+}
+function asReim(text, anchor = "", lenTarget = 0, atome = []) {
+  return applyReimPoem(text, anchor, lenTarget, atome);
+}
+function asHaiku(text, anchor = "", lenTarget = 0, atome = []) {
+  return applyHaikuPoem(text, anchor, lenTarget, atome);
+}
+function asDrama(text, whoA, whoB) {
+  return applyDramaModule(text, buildDramaConflict(whoA, whoB, (whoA || "") + "|" + (whoB || "")));
+}
+
+// src/generation/buildStory.ts
+var ohneAuto = (l) => l.filter((x) => x !== "auto");
+var MODES = ohneAuto(werte(MODE_OPTS));
+var STRUCTURES = ohneAuto(werte(STRUCTURE_OPTS)).filter((x) => x !== "dramaturgie" && x !== "rekombination" && x !== "bogen");
+var PERSPECTIVES = ohneAuto(werte(PERSP_OPTS));
+var RHYTHMS = ohneAuto(werte(RHYTHM_OPTS));
+var resBiased = (ui, kind, opts, aA, aB) => ui !== "auto" && opts.includes(ui) ? ui : biasedAutoChoice(kind, aA, aB) || pick(opts);
+function buildKit(bank, input, model) {
+  const archA = (input.archetypeA || "neutral").toLowerCase();
+  const archB = (input.archetypeB || "neutral").toLowerCase();
+  const modeKey = resBiased(input.mode, "mode", MODES, archA, archB);
+  const M = MODE_DATA[modeKey] || MODE_DATA.bureau;
+  let structure = resBiased(input.structure, "structure", STRUCTURES, archA, archB);
+  if (input.structure === "auto" && structure === "fragment") structure = pick(STRUCTURES.filter((x) => x !== "fragment"));
+  const perspective = input.perspective === "auto" ? biasedAutoChoice("perspective", archA, archB) || pick(PERSPECTIVES) : input.perspective;
+  let rhythm = resBiased(input.rhythm, "rhythm", RHYTHMS, archA, archB);
+  if (input.rhythm === "auto") {
+    const tr = toneRhythm(input.tone);
+    if (tr && RHYTHMS.includes(tr) && chance(0.7)) rhythm = tr;
+  }
+  const W = normWhere(clean(input.where)) || "an einem Ort";
+  const T = normWhen(clean(input.when)) || "zu einer Zeit";
+  const PRaw = normWho(clean(input.who)) || "Jemand";
+  const speakers = splitSpeakers(PRaw);
+  const P3 = personKopf(speakers[0] || PRaw);
+  const A = clean(input.what) || "etwas";
+  const aLead = extractLeadVerb(A);
+  const Apure = aLead.rest;
+  const AleadVerb = aLead.verb || "";
+  const AisInfinitiveLed = !!aLead.isInfinitiveLed;
+  const AisClause = !AisInfinitiveLed && looksLikeFullClause(aLead.verb, Apure);
+  const markovMode = input.markovMode || "mix";
+  const maybeMarkov = (fallback, prob = 0.42) => {
+    if (markovMode === "off" || !model) return fallback;
+    if (markovMode === "on" || chance(prob)) {
+      const roh = smoothMarkov(model.generate(14));
+      const u = roh ? praesensUmschreiben(roh) : null;
+      const m = u && u.ok ? u.text : "";
+      if (m && isSaneMarkov(m) && !markovSeenRecently(m)) {
+        noteMarkov(m);
+        traceMarkov(m);
+        return m;
+      }
+    }
+    return fallback;
+  };
+  const aug = (list, key) => archetypeAugmentList(list, archA, archB, key);
+  const motif = maybeMarkov(pickSane(aug(bank.motifs, "motifs")), 0.28);
+  const hook = maybeMarkov(pickSane(aug(bank.hooks, "hooks")), 0.28);
+  const prop = ensureArticle(pickSane(aug(bank.props, "props"), 1)).replace(/^(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/, (m) => m.toLowerCase());
+  const hookIsClause = looksLikeClausePhrase(hook);
+  const hookQuote = hookIsClause ? clean(hook).replace(/[.!?…]+$/, "") : "";
+  const hookAcc = hookIsClause ? `den Satz \u201E${hookQuote}\u201C` : safeCaseForm(hook, declineHookPhrase(hook, "acc"));
+  const hookDat = hookIsClause ? `dem Satz \u201E${hookQuote}\u201C` : safeCaseForm(hook, declineHookPhrase(hook, "dat"));
+  const propAcc = safeCaseForm(prop, declineHookPhrase(prop, "acc"));
+  const propDat = safeCaseForm(prop, declineHookPhrase(prop, "dat"));
+  return {
+    W,
+    T,
+    P: P3,
+    PRaw,
+    A,
+    motif,
+    hook,
+    hookAcc,
+    hookDat,
+    prop,
+    propAcc,
+    propDat,
+    turn: maybeMarkov(pickSane(aug(bank.turns, "turns")), 0.28),
+    obstacle: pickSane(aug(bank.obstacles, "obstacles")),
+    stake: pickSane(aug(bank.stakes, "stakes")),
+    ending: pickSane(aug(bank.endings, "endings")),
+    speakerA: P3,
+    speakerB: speakers[1] || pickSpeakerForArchetype(archB),
+    speakers: speakers.length >= 2 ? speakers : [P3, pickSpeakerForArchetype(archB)],
+    cast: speakers,
+    mode: M,
+    archetypeA: archA,
+    archetypeB: archB,
+    instability: input.instability,
+    Apure,
+    AleadVerb,
+    AisClause,
+    AisInfinitiveLed,
+    structure,
+    perspective,
+    rhythm
+  };
+}
+function buildStory(bank, input, model) {
+  resetMarkovTrace();
+  const kit = buildKit(bank, input, model);
+  const lenTarget = Number.isFinite(input.lenTarget) ? input.lenTarget : 110;
+  if (input.form === "bericht") return kleinerArtikel(buildBericht(bank, input, input.ressort ?? "auto").text);
+  if (input.form === "meldung") return kleinerArtikel(buildMeldung(input, input.ressort ?? "auto").text);
+  if (input.form === "script") return postProcessText(makeDialogueScene(kit, lenTarget), input);
+  if (input.form === "video") {
+    return postProcessText(buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? 15, lenTarget), input);
+  }
+  if (input.form === "poem") {
+    const rk = input.structure === "rekombination" ? buildRekombination(bank, input, model) : "";
+    if (rk.trim()) {
+      const fertig = postProcessText(asProsePoem(rk), { ...input, form: "poem" });
+      linkTrace(fertig);
+      linkMarkovTrace(fertig);
+      return fertig;
+    }
+    const body = pickStructureBuilder(kit.structure === "fragment" ? "linear" : kit.structure)({ ...kit });
+    return postProcessText(asProsePoem(body), { ...input, form: "poem" });
+  }
+  const verseForm = input.form === "reim" || input.form === "haiku" || input.form === "strang" || input.form === "drama";
+  const effStructure = verseForm && kit.structure === "fragment" ? "linear" : kit.structure;
+  const ASSEMBLER = /* @__PURE__ */ new Set(["rekombination", "linear", "reverse", "circle", "fragment", "object", "bogen"]);
+  if (input.form === "prose" && ASSEMBLER.has(input.structure || "")) {
+    const rk = buildRekombination(bank, input, model);
+    if (rk.trim()) {
+      const fertig = postProcessText(paragraphize(rk), input);
+      linkTrace(fertig);
+      linkMarkovTrace(fertig);
+      return fertig;
+    }
+  }
+  let text = input.form === "prose" && input.structure === "dramaturgie" && hasDramaData() ? buildDramaturgie({ ...kit }) : pickStructureBuilder(effStructure)({ ...kit });
+  if (input.form === "prose" && kit.cast.length >= 2) text = weaveCast(text, kit.P, kit.cast);
+  if (input.form === "prose" && input.emphasis) text = applyEmphasis(text, kit, input.emphasis);
+  text = applyDisruptor(text, input.disruptor).text;
+  text = applyRhythm(text, kit.rhythm);
+  if (input.form === "prose") text = applyTension(text, input.tension, { motifs: bank.motifs, hooks: bank.hooks });
+  text = paragraphize(text);
+  const paras = text.split(/\n\n+/).map(clean).filter(Boolean);
+  text = effStructure === "object" ? paras.join("\n\n") : applyPerspective(paras, kit.perspective, kit.P, pick(kit.mode.nouns)).join("\n\n");
+  if (kit.perspective === "third") text = pronominalize(text, kit.P, guessPronoun(kit.P));
+  const finalText = postProcessText(text, input);
+  const anchor = kit.ending || kit.Apure;
+  if (input.form === "reim") return asReim(finalText, anchor, lenTarget, buildVersAtome(bank, input, model));
+  if (input.form === "haiku") {
+    return asHaiku(finalText, anchor, lenTarget, buildVersAtome(bank, input, model));
+  }
+  if (input.form === "strang") return asStrang(finalText, anchor, lenTarget);
+  if (input.form === "drama") return asDrama(finalText, kit.speakerA, kit.speakerB || kit.P);
+  return kommaVorInversion(kleinesPronomen(kleinerArtikel(verwandleMotive(
+    entferneDubletten(enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix")),
+    leseVerwandlungen(bank.verwandlungen)
+  ))));
+}
+
+// src/generation/context.ts
+init_text_utils();
+var roll = (base, tw) => {
+  const b = pick(base);
+  return Math.random() < 0.5 ? b : b + ", " + pick(tw);
+};
+function randomContext() {
+  return {
+    who: roll(CTX_WHO, WHO_TWISTS),
+    where: roll(CTX_WHERE, WHERE_TWISTS),
+    when: roll(CTX_WHEN, WHEN_TWISTS),
+    what: roll(CTX_WHAT, WHAT_TWISTS)
+  };
+}
+
+// src/generation/titel.ts
+init_verben();
+init_text_utils();
+var MAX = 60;
+var cap3 = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+var ohnePunkt = (s) => s.replace(/[.!?…]+$/, "").trim();
+var BILDZEILE = /^(Ein|Eine|Der|Die|Das|Zwei|Drei|Kein|Keine|Jede|Jeder|Jedes|Mein|Meine)\s+[A-ZÄÖÜ][a-zäöüß-]+(?:\s+[A-Za-zÄÖÜäöüß-]+){0,5}(?:,\s+(?:der|die|das|den|dem|deren|dessen|wo|worin)\s+[^,.;:!?]{3,60})?$/;
+var STOP = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "und",
+  "oder",
+  "aber",
+  "in",
+  "im",
+  "an",
+  "am",
+  "auf",
+  "mit",
+  "von",
+  "vom",
+  "zu",
+  "zur",
+  "zum",
+  "nicht",
+  "nur",
+  "noch",
+  "wie",
+  "als",
+  "was",
+  "wer",
+  "wo",
+  "wann",
+  "sich",
+  "ist",
+  "sind",
+  "war",
+  "hat",
+  "wird",
+  "kein",
+  "keine",
+  "jemand",
+  "niemand",
+  "es"
+]);
+var inhaltswoerter = (s) => new Set((s.toLowerCase().match(/[a-zäöüß-]{3,}/g) || []).filter((w) => !STOP.has(w)));
+function kuerzeTitel(s, max = MAX) {
+  const t = ohnePunkt(clean(s));
+  if (t.length <= max) return t;
+  const stumpf = t.slice(0, max - 3);
+  const fuge = Math.max(stumpf.lastIndexOf(", "), stumpf.lastIndexOf(" \u2014 "), stumpf.lastIndexOf(": "), stumpf.lastIndexOf("; "));
+  const rumpf = fuge > 20 ? stumpf.slice(0, fuge) : stumpf.replace(/\s+\S*$/, "");
+  return rumpf.replace(/[,;:—–\s]+$/, "") + " \u2026";
+}
+var FINIT2 = /^(ist|sind|war|waren|hat|hatte|wird|wurde|kann|muss|will|soll|darf|mag|bleibt|kommt|geht|steht|liegt|fehlt|zählt|trägt|gibt|weiß)$/;
+var hatPraedikat = (kopf) => kopf.split(/\s+/).slice(1).some((w) => FINIT2.test(w) || !!VERB_CONJ[w] || wirktFinit(w) || /^[a-zäöüß]/.test(w) && istVerbform(w));
+function bildzeilen(text) {
+  return (text || "").replace(/\s+/g, " ").split(/(?<=[.!?…])\s+/).map((s) => ohnePunkt(s.trim())).filter((s) => BILDZEILE.test(s) && s.length <= MAX && (s.match(/\S+/g) || []).length >= 3 && !hatPraedikat(s.split(",")[0]));
+}
+function titelAusKontext(ctx, max = MAX) {
+  const who = normWho(clean(ctx.who || "")).split(",")[0].trim();
+  const what = clean(ctx.what || "");
+  if (who && what) {
+    const lv = extractLeadVerb(what);
+    if (lv.verb) return kuerzeTitel(`${cap3(who)} ${lv.verb}${lv.rest.startsWith(",") ? "" : " "}${lv.rest}`, max);
+    if (lv.isInfinitiveLed) return kuerzeTitel(`${cap3(who)} will ${lv.rest}`, max);
+    const letztes = (what.match(/[a-zäöüß-]+$/) || [""])[0];
+    if (/^[a-zäöüß]/.test(letztes) && looksLikeInfinitive(letztes) && !/,/.test(what)) return kuerzeTitel(`${cap3(who)} will ${what}`, max);
+    if (looksLikeFullClause(null, what.split(",")[0])) return kuerzeTitel(cap3(what), max);
+    return kuerzeTitel(`${cap3(who)} und ${what}`, max);
+  }
+  if (who) return kuerzeTitel(cap3(who), max);
+  if (what) {
+    const lv = extractLeadVerb(what);
+    if (!lv.verb && !lv.isInfinitiveLed) return kuerzeTitel(cap3(what), max);
+  }
+  const when = normWhen(clean(ctx.when || ""));
+  const where = normWhere(clean(ctx.where || ""));
+  if (when && where) return kuerzeTitel(`${cap3(when)}, ${where}`, max);
+  return kuerzeTitel(cap3(where || when || ""), max);
+}
+var KEIN_NOMEN2 = /* @__PURE__ */ new Set([
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "und",
+  "im",
+  "am",
+  "in",
+  "an",
+  "auf",
+  "wo",
+  "was",
+  "wer",
+  "wie",
+  "es",
+  "ich",
+  "du",
+  "er",
+  "sie",
+  "wir",
+  "man",
+  "kein",
+  "keine",
+  "noch",
+  "nur",
+  "dann",
+  "dort",
+  "hier",
+  "jetzt",
+  "nichts",
+  "alles",
+  "etwas",
+  "jemand",
+  "niemand"
+]);
+function einWort(text, ctx) {
+  const t = (text || "").replace(/\s+/g, " ").trim();
+  const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""} ${ctx.where || ""}`);
+  const nomen = [];
+  const anfaenge = [];
+  const re = /(^|[.!?…\n]\s*|\s)([A-ZÄÖÜ][a-zäöüß-]{2,})/g;
+  let m;
+  const roh = (text || "").trim();
+  while (m = re.exec(roh)) {
+    const w = m[2].replace(/-$/, "");
+    if (KEIN_NOMEN2.has(w.toLowerCase())) continue;
+    (m[1] === " " ? nomen : anfaenge).push(w);
+  }
+  const alle = [...nomen, ...anfaenge];
+  const passend = alle.find((w) => bezug.has(w.toLowerCase()) || [...bezug].some((b) => b.length >= 5 && w.toLowerCase().includes(b)));
+  if (passend) return passend;
+  if (nomen.length) return nomen[nomen.length - 1];
+  if (anfaenge.length) return anfaenge[anfaenge.length - 1];
+  const ausCtx = (`${ctx.who || ""} ${ctx.what || ""} ${ctx.where || ""}`.match(/\b[A-ZÄÖÜ][a-zäöüß-]{2,}/g) || []).find((w) => !KEIN_NOMEN2.has(w.toLowerCase()));
+  return ausCtx || (t ? "Haiku" : "");
+}
+function nuechternerTitel(ctx) {
+  const roh = titelAusKontext(ctx, 200);
+  if (!roh) return "";
+  const t = roh.replace(/^(Der|Die|Das|Ein|Eine)\s+(?=[A-ZÄÖÜ])/, "");
+  if (t.length <= MAX) return t;
+  const stumpf = t.slice(0, MAX);
+  const fuge = Math.max(stumpf.lastIndexOf(", "), stumpf.lastIndexOf(" \u2014 "), stumpf.lastIndexOf(" und "), stumpf.lastIndexOf(": "));
+  return fuge > 20 ? stumpf.slice(0, fuge).replace(/[,;:—–\s]+$/, "") : t;
+}
+function haikuKandidaten(text, ctx) {
+  const erstes = einWort(text, ctx);
+  const alle = ((text || "").match(/[A-ZÄÖÜ][a-zäöüß-]{2,}/g) || []).map((w) => w.replace(/-$/, "")).filter((w) => !KEIN_NOMEN2.has(w.toLowerCase()));
+  return [.../* @__PURE__ */ new Set([erstes, ...alle.reverse()])].filter(Boolean);
+}
+function berichtKandidaten(ctx) {
+  const kern = nuechternerTitel(ctx);
+  if (!kern) return ["Bericht"];
+  const ort = clean(ctx.where || "").split(",")[0].replace(/^(in|im|am|an|auf|bei|vor|hinter|unter|über)\s+(der|dem|den|einer|einem)?\s*/i, "").trim();
+  const zeit = clean(ctx.when || "");
+  const out = [kern];
+  if (ort && kern.length + ort.length < MAX + 10) out.push(`${cap3(ort)}: ${kern}`);
+  if (zeit && kern.length + zeit.length < MAX + 10) out.push(`${cap3(zeit)}: ${kern}`);
+  return out;
+}
+function titelKandidaten(text, ctx, form = "prose") {
+  if (form === "meldung") return [];
+  if (form === "haiku") return haikuKandidaten(text, ctx);
+  if (form === "bericht") return berichtKandidaten(ctx);
+  const zeilen = bildzeilen(text);
+  const bezug = inhaltswoerter(`${ctx.who || ""} ${ctx.what || ""}`);
+  const passend = zeilen.filter((z) => [...inhaltswoerter(z)].some((w) => bezug.has(w)));
+  const uebrige = zeilen.filter((z) => !passend.includes(z));
+  const kontext = titelAusKontext(ctx);
+  const ortzeit = ctx.when && ctx.where ? titelAusKontext({ when: ctx.when, where: ctx.where }) : "";
+  return [...new Set([...passend, ...uebrige, kontext, ortzeit].filter(Boolean))];
+}
+function titelFuer(text, ctx, form = "prose", gesehen = []) {
+  const k = titelKandidaten(text, ctx, form);
+  if (!k.length) return form === "meldung" ? "" : "Ohne Titel";
+  const frisch = k.find((t) => !gesehen.includes(t));
+  if (frisch) return frisch;
+  return k.slice().sort((a, b) => gesehen.lastIndexOf(a) - gesehen.lastIndexOf(b))[0];
+}
+
+// src/features/sources.ts
+init_storage();
+var QUELLEN_LABEL = {
+  wortbank: "Wortbank",
+  ton: "Ton",
+  kontext: "4W-Kontext",
+  pools: "Lebendige Pools",
+  markov: "Markov",
+  vorlage: "Vorlagen/Schablonen",
+  nachbearbeitung: "Nachbearbeitung",
+  dramaturgie: "Erz\xE4hlbogen",
+  korpus: "Korpus"
+};
+function w4Varianten(ctx) {
+  const raus = [];
+  const nimm = (x) => {
+    const t = (x || "").trim();
+    if (!t) return;
+    if (t.length >= 4 || t.length >= 2 && /^[A-ZÄÖÜ]/.test(t)) raus.push(t);
+  };
+  for (const v of [ctx.who, ctx.where, ctx.when, ctx.what]) (v || "").split(/[,;]/).forEach(nimm);
+  const was = (ctx.what || "").trim();
+  if (was) {
+    const lead = extractLeadVerb(was);
+    if (lead.verb) {
+      nimm(`${lead.verb} ${lead.rest}`);
+      nimm(lead.rest);
+    }
+  }
+  return raus;
+}
+function sammle(phrasen, quelle2, prio, low2, acc) {
+  for (const roh of phrasen) {
+    const p = (roh || "").trim();
+    if (p.length < 5) continue;
+    const pl = p.toLowerCase();
+    let von = 0, i = low2.indexOf(pl, von);
+    while (i !== -1) {
+      acc.push({ s: i, e: i + pl.length, quelle: quelle2, prio });
+      von = i + pl.length;
+      if (acc.length > 4e3) return;
+      i = low2.indexOf(pl, von);
+    }
+  }
+}
+function analysiereHerkunft(text, tone, ctx) {
+  const low2 = (text || "").toLowerCase();
+  const acc = [];
+  if (tone && tone !== "neutral") {
+    const td = TONE_DATA[tone];
+    if (td) sammle([...td.opener, ...td.flavor], "ton", 3, low2, acc);
+  }
+  sammle(w4Varianten(ctx), "kontext", 2, low2, acc);
+  try {
+    const b = loadBank();
+    const alle = [];
+    for (const k of Object.keys(b)) if (Array.isArray(b[k])) alle.push(...b[k]);
+    sammle(alle, "wortbank", 1, low2, acc);
+  } catch {
+  }
+  try {
+    sammle(liveTexts(), "pools", 1, low2, acc);
+  } catch {
+  }
+  try {
+    sammle(getMarkovTraceFor(text || ""), "markov", 2, low2, acc);
+  } catch {
+  }
+  acc.sort((a, b) => a.s - b.s || b.e - b.s - (a.e - a.s) || b.prio - a.prio);
+  const segmente = [];
+  let ende = -1;
+  for (const t of acc) {
+    if (t.s < ende) continue;
+    segmente.push({ s: t.s, e: t.e, quelle: t.quelle });
+    ende = t.e;
+  }
+  const zeichen = (text || "").length || 1;
+  const anteile = { wortbank: 0, ton: 0, kontext: 0, pools: 0, markov: 0, vorlage: 0, nachbearbeitung: 0, dramaturgie: 0, korpus: 0 };
+  let belegt = 0;
+  for (const s of segmente) {
+    anteile[s.quelle] += s.e - s.s;
+    belegt += s.e - s.s;
+  }
+  anteile.vorlage = Math.max(0, zeichen - belegt);
+  for (const k of Object.keys(anteile)) anteile[k] = anteile[k] / zeichen;
+  let poolUeberschneidung = 0;
+  try {
+    const b = loadBank();
+    const bankSet = /* @__PURE__ */ new Set();
+    for (const k of Object.keys(b)) if (Array.isArray(b[k])) for (const x of b[k]) bankSet.add(x.trim().toLowerCase());
+    const lt = liveTexts();
+    if (lt.length) {
+      let doppelt = 0;
+      for (const p of lt) if (bankSet.has(p.trim().toLowerCase())) doppelt++;
+      poolUeberschneidung = doppelt / lt.length;
+    }
+  } catch {
+  }
+  const spur2 = getTraceFor(text);
+  if (spur2.length) {
+    const roh = { wortbank: 0, ton: 0, kontext: 0, pools: 0, markov: 0, vorlage: 0, nachbearbeitung: 0, dramaturgie: 0, korpus: 0 };
+    const mapQ = (q) => q === "vorlage" ? "vorlage" : q === "kontext" ? "kontext" : q === "markov" ? "markov" : q === "pools" ? "pools" : q === "dramaturgie" ? "dramaturgie" : q === "korpus" ? "korpus" : "wortbank";
+    let summe = 0;
+    for (const sch of spur2) {
+      const fl = (sch.fueller || []).reduce((n, f) => n + f.text.length, 0);
+      const eigen = Math.max(0, sch.text.length - fl);
+      roh[mapQ(sch.quelle)] += eigen;
+      summe += eigen;
+      for (const f of sch.fueller || []) {
+        roh[mapQ(f.quelle)] += f.text.length;
+        summe += f.text.length;
+      }
+    }
+    if (summe > 0) {
+      const roheSeg = [];
+      let cursor = 0;
+      const finde = (was, ab) => {
+        const w = was.toLowerCase().replace(/[.!?…]+$/, "").trim();
+        if (w.length < 4) return null;
+        const i = low2.indexOf(w, ab);
+        return i === -1 ? null : [i, i + w.length];
+      };
+      for (const sch of spur2) {
+        const span = finde(sch.text, cursor);
+        if (!span) continue;
+        const q = mapQ(sch.quelle);
+        const innen = [];
+        for (const f of sch.fueller || []) {
+          const fs = finde(f.text, span[0]);
+          if (fs && fs[0] >= span[0] && fs[1] <= span[1]) innen.push({ s: fs[0], e: fs[1], quelle: mapQ(f.quelle) });
+        }
+        innen.sort((a, b) => a.s - b.s);
+        let at = span[0];
+        for (const iv of innen) {
+          if (iv.s > at) roheSeg.push({ s: at, e: iv.s, quelle: q });
+          roheSeg.push({ s: iv.s, e: iv.e, quelle: iv.quelle });
+          at = iv.e;
+        }
+        if (at < span[1]) roheSeg.push({ s: at, e: span[1], quelle: q });
+        cursor = span[1];
+      }
+      const belegtVon = (a, b) => roheSeg.some((x) => a < x.e && b > x.s);
+      const ausLuecke = acc.filter((t) => !belegtVon(t.s, t.e)).sort((a, b) => a.s - b.s || b.e - b.s - (a.e - a.s) || b.prio - a.prio);
+      let lEnde = -1;
+      for (const t of ausLuecke) {
+        if (t.s < lEnde || belegtVon(t.s, t.e)) continue;
+        roheSeg.push({ s: t.s, e: t.e, quelle: t.quelle });
+        lEnde = t.e;
+      }
+      const w4Treffer = acc.filter((t) => t.quelle === "kontext").sort((a, b) => a.s - b.s);
+      if (w4Treffer.length) {
+        const zerlegt = [];
+        for (const sg of roheSeg) {
+          let at = sg.s;
+          for (const t of w4Treffer) {
+            if (t.s < at || t.e > sg.e) continue;
+            if (t.s > at) zerlegt.push({ s: at, e: t.s, quelle: sg.quelle });
+            zerlegt.push({ s: t.s, e: t.e, quelle: "kontext" });
+            at = t.e;
+          }
+          if (at < sg.e) zerlegt.push({ s: at, e: sg.e, quelle: sg.quelle });
+        }
+        roheSeg.length = 0;
+        roheSeg.push(...zerlegt);
+      }
+      roheSeg.sort((a, b) => a.s - b.s);
+      if (roheSeg.length) {
+        segmente.length = 0;
+        segmente.push(...roheSeg);
+      }
+      const gezaehlt = { wortbank: 0, ton: 0, kontext: 0, pools: 0, markov: 0, vorlage: 0, nachbearbeitung: 0, dramaturgie: 0, korpus: 0 };
+      let markiert = 0;
+      for (const sg of segmente) {
+        gezaehlt[sg.quelle] += sg.e - sg.s;
+        markiert += sg.e - sg.s;
+      }
+      const rest = Math.max(0, zeichen - markiert);
+      const vorlageFehlt = Math.max(0, roh.vorlage - gezaehlt.vorlage);
+      gezaehlt.vorlage += Math.min(rest, vorlageFehlt);
+      gezaehlt.nachbearbeitung = Math.max(0, rest - Math.min(rest, vorlageFehlt));
+      for (const k of Object.keys(gezaehlt)) anteile[k] = gezaehlt[k] / zeichen;
+      return { segmente, anteile, zeichen, exakt: true, poolUeberschneidung };
+    }
+  }
+  return { segmente, anteile, zeichen, exakt: false, poolUeberschneidung };
+}
+var KEY4 = "dm_last_input_v1";
+function saveSchnappschuss(s) {
+  try {
+    localStorage.setItem(KEY4, JSON.stringify(s));
+  } catch {
+  }
+}
+function loadSchnappschuss() {
+  try {
+    const r = localStorage.getItem(KEY4);
+    return r ? JSON.parse(r) : null;
+  } catch {
+    return null;
+  }
+}
+
+// src/ui/dom.ts
+function el(tag, attrs = {}, ...kids) {
+  const e2 = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e2.className = v;
+    else e2.setAttribute(k, v);
+  }
+  for (const kid of kids) e2.append(kid);
+  return e2;
+}
+function select(id, options, value) {
+  const s = el("select", { id });
+  for (const [v, label] of options) {
+    const o = el("option", { value: v }, label);
+    if (v === value) o.setAttribute("selected", "");
+    s.append(o);
+  }
+  return s;
+}
+function field(label, node) {
+  return el("label", { class: "field" }, el("span", { class: "field-label" }, label), node);
+}
+function textInput(id, placeholder, val = "") {
+  return el("input", { id, placeholder, value: val, autocomplete: "off", "data-form-type": "other", "data-lpignore": "true" });
+}
+function button(label, variant = "") {
+  return el("button", variant ? { class: variant } : {}, label);
+}
+
+// src/ui/structureView.ts
+var presetPopOffen = false;
+function renderTextstruktur(text, snap, schnell, presetPanel, schloss) {
+  const box = el("div", {});
+  if (!text.trim()) {
+    box.append(el("p", { class: "muted" }, "Noch kein Text erzeugt."));
+    return box;
+  }
+  const h = analysiereHerkunft(
+    text,
+    (snap?.tonId || snap?.ton || "neutral").toLowerCase(),
+    { where: snap?.where, when: snap?.when, who: snap?.who, what: snap?.what }
+  );
+  if (snap) {
+    const chips = el("div", { class: "src-settings" });
+    const paare = [
+      ["Preset", snap.preset],
+      ["Ton", snap.ton],
+      ["Form", snap.form],
+      ["Struktur", snap.struktur],
+      ["Perspektive", snap.perspektive],
+      ["Rhythmus", snap.rhythmus],
+      ["Markov", snap.markov],
+      ["Varianz", snap.varianz],
+      ["Spannung", snap.spannung],
+      ["L\xE4nge", String(snap.laenge)],
+      ["Bestenauslese", snap.bestenauslese ? "an" : "aus"],
+      // Infoblasen der Erzählerbank — nur wenn ein Bogen im Spiel war.
+      // Gewünscht: schaltbar. „Bogen" und „Bauform" kommen als Auswahlfelder aus
+      // dem Studio (Schnellwahl) und zeigen den JETZIGEN Stand; was der Text
+      // bekommen hat, steht als Info daneben: „Gezogen" beim Würfeln, sonst die
+      // Phasenfolge.
+      ...snap.bogen ? [["Bogen", snap.bogen]] : [],
+      ...snap.bauform ? [["Bauform", snap.bauform]] : [],
+      ...snap.bogen && /^gewürfelt: /.test(snap.bogen) ? [["Gezogen", snap.bogen.replace(/^gewürfelt: /, "")]] : [],
+      ...snap.phasenfolge ? [["Phasenfolge", snap.phasenfolge]] : []
+    ];
+    const stellschrauben = [];
+    for (const k of Object.keys(schnell || {})) {
+      if (paare.some(([n]) => n === k)) continue;
+      const sel = schnell?.[k];
+      if (!sel) continue;
+      stellschrauben.push([k, sel.options[sel.selectedIndex]?.text || sel.value]);
+    }
+    const zeichneChips = (liste, host) => {
+      for (const [k, v] of liste) {
+        if (k === "Preset" && presetPanel) {
+          const knopf = el("button", {
+            class: "src-chip-sel src-chip-preset",
+            type: "button",
+            title: "Presets w\xE4hlen \u2014 mehrere m\xF6glich"
+          }, v || "\u2014");
+          const panel = el("div", { class: "presetpop" });
+          const inhalt = el("div", {});
+          const zu = el("button", { class: "presetpop-x", type: "button", "aria-label": "Auswahl schlie\xDFen" }, "\u2715");
+          zu.addEventListener("click", () => {
+            presetPopOffen = false;
+            panel.style.display = "none";
+          });
+          panel.append(el(
+            "div",
+            { class: "presetpop-kopf" },
+            el("span", { class: "muted mini" }, "Mehrere m\xF6glich"),
+            zu
+          ), inhalt);
+          const zeichne = () => {
+            panel.style.display = presetPopOffen ? "" : "none";
+            if (presetPopOffen) presetPanel(inhalt);
+          };
+          knopf.addEventListener("click", () => {
+            presetPopOffen = !presetPopOffen;
+            zeichne();
+          });
+          zeichne();
+          host.append(el("span", { class: "src-chipwrap src-chipwrap-preset" }, el("b", {}, k), " ", knopf, panel));
+          continue;
+        }
+        const sel = schnell?.[k];
+        if (!sel) {
+          const TITEL2 = {
+            Bogen: "Welcher Bogen bei dieser Erzeugung geladen war.",
+            Bauform: "Die Schlagfolge des geladenen Bogens.",
+            Gezogen: "Der beim W\xFCrfeln konkret gezogene Platz dieser Erzeugung.",
+            Phasenfolge: "Aus der Schlagfolge auf zehn Schritte gespreizt: E Er\xF6ffnung \xB7 V Verdichtung \xB7 U Umschlag \xB7 S Schluss."
+          };
+          host.append(el("span", { class: "src-chip", title: TITEL2[k] || "" }, el("b", {}, k), " " + (v || "\u2014")));
+          continue;
+        }
+        const mini = el("select", { class: "src-chip src-chip-sel", title: k + " \xE4ndern" });
+        for (const o of Array.from(sel.options)) mini.append(el("option", { value: o.value }, o.text));
+        mini.value = sel.value;
+        mini.addEventListener("change", () => {
+          sel.value = mini.value;
+          sel.dispatchEvent(new Event("change"));
+          document.dispatchEvent(new CustomEvent("dm-schnellwahl", { detail: k }));
+        });
+        const sch = schloss ? schloss(sel) : null;
+        host.append(el("span", { class: "src-chipwrap" }, el("b", {}, k), " ", mini, ...sch ? [sch] : []));
+      }
+    };
+    zeichneChips(paare, chips);
+    box.append(chips);
+    if (stellschrauben.length) {
+      const knopfzeile = el(
+        "div",
+        { class: "src-settings src-settings-knobs" },
+        el("span", { class: "src-knoblabel" }, "Stellschrauben")
+      );
+      zeichneChips(stellschrauben, knopfzeile);
+      box.append(knopfzeile);
+    }
+    const w4 = el("div", { class: "src-4w" });
+    [["Wo", snap.where], ["Wann", snap.when], ["Wer", snap.who], ["Was", snap.what]].forEach(([k, v]) => w4.append(el("span", { class: "src-w" }, el("b", {}, k + ": "), v || "\u2014")));
+    box.append(w4);
+  }
+  const band2 = el("div", { class: "src-band" });
+  let pos = 0;
+  for (const seg of h.segmente) {
+    if (seg.s > pos) band2.append(el("span", { class: "src-seg q-vorlage", style: `flex:${seg.s - pos}` }));
+    band2.append(el("span", {
+      class: "src-seg q-" + seg.quelle,
+      style: `flex:${seg.e - seg.s}`,
+      title: QUELLEN_LABEL[seg.quelle] + ": " + text.slice(seg.s, seg.e)
+    }));
+    pos = seg.e;
+  }
+  if (pos < text.length) band2.append(el("span", { class: "src-seg q-vorlage", style: `flex:${text.length - pos}` }));
+  box.append(el("div", { class: "muted mini" }, "Verlauf des Textes nach Herkunft:"), band2);
+  const bars = el("div", { class: "src-bars" });
+  Object.keys(QUELLEN_LABEL).map((q) => [q, h.anteile[q]]).sort((a, b) => b[1] - a[1]).forEach(([q, v]) => bars.append(el(
+    "div",
+    {
+      class: "src-row anklickbar",
+      role: "button",
+      tabindex: "0",
+      title: "Zeigt, was diesen Anteil steuert",
+      onclick: void 0
+    },
+    el("span", { class: "src-name" }, QUELLEN_LABEL[q]),
+    el("span", { class: "src-bar" }, el("span", { class: "src-fill q-" + q, style: `width:${Math.round(v * 100)}%` })),
+    el("span", { class: "src-val" }, Math.round(v * 100) + " %")
+  )));
+  const ZIEHBAR = /* @__PURE__ */ new Set(["vorlage", "dramaturgie", "ton", "kontext"]);
+  const ziele = loadZiele();
+  bars.querySelectorAll(".src-row").forEach((row, i) => {
+    const qq = Object.keys(QUELLEN_LABEL).map((x) => [x, h.anteile[x]]).sort((a, b) => b[1] - a[1])[i]?.[0];
+    if (!qq || !ZIEHBAR.has(qq)) return;
+    const q = qq;
+    const bar = row.querySelector(".src-bar");
+    if (!bar) return;
+    row.classList.add("ziehbar");
+    const marke = el("span", { class: "src-ziel" });
+    const setzeMarke = () => {
+      const z = ziele[q];
+      if (z === void 0) {
+        marke.style.display = "none";
+        return;
+      }
+      marke.style.display = "";
+      marke.style.left = Math.max(0, Math.min(100, z)) + "%";
+      marke.title = `Ziel ${z} % \u2014 erreicht ${(h.anteile[q] * 100).toFixed(0)} %`;
+    };
+    bar.append(marke);
+    setzeMarke();
+    let zieht = false;
+    const ausX = (x) => {
+      const r = bar.getBoundingClientRect();
+      return Math.round(Math.max(0, Math.min(100, (x - r.left) / Math.max(1, r.width) * 100)) / 5) * 5;
+    };
+    bar.addEventListener("pointerdown", (e2) => {
+      const ev = e2;
+      zieht = true;
+      bar.setPointerCapture(ev.pointerId);
+      ev.preventDefault();
+      ev.stopPropagation();
+      ziele[q] = ausX(ev.clientX);
+      setzeMarke();
+    });
+    bar.addEventListener("pointermove", (e2) => {
+      if (!zieht) return;
+      ziele[q] = ausX(e2.clientX);
+      setzeMarke();
+    });
+    const ende = (e2) => {
+      if (!zieht) return;
+      zieht = false;
+      try {
+        bar.releasePointerCapture(e2.pointerId);
+      } catch {
+      }
+      saveZiele(ziele);
+      document.dispatchEvent(new CustomEvent("dm-ziel", { detail: { quelle: q, ziel: ziele[q] } }));
+    };
+    bar.addEventListener("pointerup", ende);
+    bar.addEventListener("pointercancel", ende);
+    bar.addEventListener("dblclick", (e2) => {
+      e2.stopPropagation();
+      delete ziele[q];
+      saveZiele(ziele);
+      setzeMarke();
+      document.dispatchEvent(new CustomEvent("dm-ziel", { detail: { quelle: q, ziel: void 0 } }));
+    });
+  });
+  bars.querySelectorAll(".src-row").forEach((row, i) => {
+    const q = Object.keys(QUELLEN_LABEL).map((x) => [x, h.anteile[x]]).sort((a, b) => b[1] - a[1])[i]?.[0];
+    if (!q) return;
+    const los = () => {
+      document.dispatchEvent(new CustomEvent("dm-quelle", { detail: q }));
+    };
+    row.addEventListener("click", los);
+    row.addEventListener("keydown", (e2) => {
+      const k = e2.key;
+      if (k === "Enter" || k === " ") {
+        e2.preventDefault();
+        los();
+      }
+    });
+  });
+  box.append(bars);
+  if (h.exakt) {
+    box.append(el(
+      "p",
+      { class: "muted mini" },
+      el("b", {}, "Gemessen. "),
+      "Die Anteile stammen aus der Bauspur \u2014 f\xFCr jeden Baustein ist bekannt, woher er kommt. \u201EVorlagen\u201C ist hier eine echte Gr\xF6\xDFe, keine Restmenge. \u201ENachbearbeitung\u201C ist das, was nach dem Zusammenbau hinzukommt: Ton-S\xE4tze, Verfugung, Perspektive. Lebendige Pools und Markov stehen auf 0 %, weil der Rekombinations-Assembler sie noch nicht als Quelle f\xFChrt. Im Farbband bleibt unmarkiert, was sich im Endtext nicht w\xF6rtlich wiederfinden l\xE4sst \u2014 Vorlagentext, Nachbearbeitung und Bausteine, die durch Perspektive oder Gl\xE4ttung umgeschrieben wurden."
+    ));
+  } else {
+    box.append(el(
+      "p",
+      { class: "muted mini" },
+      el("b", {}, "Gesch\xE4tzt. "),
+      "Die Anteile entstehen durch Abgleich des fertigen Textes mit den Quelllisten. \u201EVorlagen/Schablonen\u201C ist dabei die Restgr\xF6\xDFe: alles, was keiner Liste zugeordnet werden konnte \u2014 feste Satzger\xFCste, Verbindungsw\xF6rter und die Nachbearbeitung. Diese Zahl ist also eine Obergrenze."
+    ));
+  }
+  if (h.poolUeberschneidung > 0.02) {
+    box.append(el(
+      "p",
+      { class: "muted mini" },
+      `Hinweis zu den Pools: ${Math.round(h.poolUeberschneidung * 100)} % ihrer Eintr\xE4ge stehen w\xF6rtlich auch in der Wortbank und werden dort gez\xE4hlt. Der ausgewiesene Pool-Anteil ist deshalb der ausschlie\xDFliche Beitrag, nicht der gesamte.`
+    ));
+  }
+  return box;
+}
+
+// src/features/register.ts
+var REGISTER = {
+  // ── real ──────────────────────────────────────────────────────────────────
+  alltag: { welt: "real", sprache: "nuechtern" },
+  hafen: { welt: "real", sprache: "nuechtern" },
+  biologie: { welt: "real", sprache: "nuechtern" },
+  geologie: { welt: "real", sprache: "nuechtern" },
+  urknall: { welt: "real", sprache: "nuechtern" },
+  tech: { welt: "real", sprache: "nuechtern" },
+  modernarchitecture: { welt: "real", sprache: "nuechtern" },
+  klimakrise: { welt: "real", sprache: "nuechtern" },
+  // Kafka ist REAL. Es gibt keine sprechende Erde und keine rückwärts laufende
+  // Zeit — „die Begründung fehlt, aber gilt" ist kein Bruch der Kausalität,
+  // sondern eine Behörde, die konsequent arbeitet.
+  kafka: { welt: "real", sprache: "amtlich" },
+  formalismus: { welt: "real", sprache: "amtlich" },
+  bureau: { welt: "real", sprache: "amtlich" },
+  philosophie: { welt: "real", sprache: "erzaehlend" },
+  staatsphilosophie: { welt: "real", sprache: "erzaehlend" },
+  lebenreicher: { welt: "real", sprache: "erzaehlend" },
+  dickens: { welt: "real", sprache: "erzaehlend" },
+  hugo: { welt: "real", sprache: "erzaehlend" },
+  melville: { welt: "real", sprache: "erzaehlend" },
+  ritterromane: { welt: "real", sprache: "erzaehlend" },
+  liebesromane: { welt: "real", sprache: "erzaehlend" },
+  baudelaire: { welt: "real", sprache: "bildhaft" },
+  expressionismus: { welt: "real", sprache: "bildhaft" },
+  body: { welt: "real", sprache: "koerperlich" },
+  erotik: { welt: "real", sprache: "koerperlich" },
+  hunger: { welt: "real", sprache: "koerperlich" },
+  sinnlich: { welt: "real", sprache: "koerperlich" },
+  haute_couture: { welt: "real", sprache: "koerperlich" },
+  jugendsprache: { welt: "real", sprache: "koerperlich" },
+  // ── gehoben ───────────────────────────────────────────────────────────────
+  bergwelt: { welt: "gehoben", sprache: "feierlich" },
+  romantik: { welt: "gehoben", sprache: "feierlich" },
+  eichendorff: { welt: "gehoben", sprache: "feierlich" },
+  goethe: { welt: "gehoben", sprache: "feierlich" },
+  glueck: { welt: "gehoben", sprache: "feierlich" },
+  tanz: { welt: "gehoben", sprache: "koerperlich" },
+  rimbaud: { welt: "gehoben", sprache: "bildhaft" },
+  freud: { welt: "gehoben", sprache: "bildhaft" },
+  mystery: { welt: "gehoben", sprache: "bildhaft" },
+  // ── irreal ────────────────────────────────────────────────────────────────
+  post: { welt: "irreal", sprache: "amtlich" },
+  griechischetragoedie: { welt: "irreal", sprache: "erzaehlend" },
+  gruendungsmythos: { welt: "irreal", sprache: "erzaehlend" },
+  faust: { welt: "irreal", sprache: "erzaehlend" },
+  christentum: { welt: "irreal", sprache: "erzaehlend" },
+  koran: { welt: "irreal", sprache: "erzaehlend" },
+  buddhismus: { welt: "irreal", sprache: "erzaehlend" },
+  transzendenz: { welt: "irreal", sprache: "feierlich" },
+  gaia: { welt: "irreal", sprache: "koerperlich" },
+  clown: { welt: "irreal", sprache: "koerperlich" },
+  surrealismus1920: { welt: "irreal", sprache: "bildhaft" },
+  traumbilder: { welt: "irreal", sprache: "bildhaft" },
+  myth: { welt: "irreal", sprache: "bildhaft" },
+  astrologie: { welt: "irreal", sprache: "bildhaft" },
+  absurd: { welt: "irreal", sprache: "bildhaft" }
+};
+var EIGEN_KEY = "divergenz_eigene_register_v1";
+function ladeEigene() {
+  try {
+    const r = JSON.parse(localStorage.getItem(EIGEN_KEY) || "{}");
+    return r && typeof r === "object" ? r : {};
+  } catch {
+    return {};
+  }
+}
+function registerVon(id) {
+  const k = id.replace(/^builtin:/, "").replace(/^user:/, "");
+  return REGISTER[k] || ladeEigene()[k] || null;
+}
+var WELT_RANG = { real: 0, gehoben: 1, irreal: 2 };
+var SPRACH_RANG = {
+  nuechtern: 0,
+  amtlich: 1,
+  erzaehlend: 2,
+  feierlich: 3,
+  koerperlich: 4,
+  bildhaft: 5
+};
+function abstand(a, b) {
+  if (!a || !b) return 0;
+  const w = Math.abs(WELT_RANG[a.welt] - WELT_RANG[b.welt]) / 2;
+  const s = Math.abs(SPRACH_RANG[a.sprache] - SPRACH_RANG[b.sprache]) / 5;
+  return Math.round((w + s) * 500) / 1e3;
+}
+function mischAbstand(ids) {
+  const regs = ids.map(registerVon).filter((r) => r !== null);
+  if (regs.length < 2) return 0;
+  let min = 1;
+  for (let i = 0; i < regs.length; i++) {
+    for (let j = i + 1; j < regs.length; j++) min = Math.min(min, abstand(regs[i], regs[j]));
+  }
+  return min;
+}
+function waehleGespreizt(vorrat, anzahl, rnd = Math.random, versuche = 6) {
+  const n = Math.max(1, Math.min(anzahl, vorrat.length));
+  if (!vorrat.length) return [];
+  const frei = vorrat.slice();
+  const zieh2 = () => frei.splice(Math.min(frei.length - 1, Math.floor(rnd() * frei.length)), 1)[0];
+  const raus = [zieh2()];
+  while (raus.length < n && frei.length) {
+    let bester = "", bestAbstand = -1;
+    for (let v = 0; v < versuche && frei.length; v++) {
+      const k = frei[Math.min(frei.length - 1, Math.floor(rnd() * frei.length))];
+      const a = mischAbstand([...raus, k]);
+      if (a > bestAbstand) {
+        bestAbstand = a;
+        bester = k;
+      }
+    }
+    if (!bester) break;
+    frei.splice(frei.indexOf(bester), 1);
+    raus.push(bester);
+  }
+  return raus;
+}
+
+// src/features/textindex.ts
+var INDEX_KEY = "divergenz_textindex_v1";
+var INDEX_DECKEL = 800;
+function textSchluessel(text) {
+  const t = (text || "").replace(/\s+/g, " ").trim().toLowerCase();
+  let h1 = 2166136261, h2 = 16777619;
+  for (let i = 0; i < t.length; i++) {
+    h1 = (h1 ^ t.charCodeAt(i)) * 16777619 >>> 0;
+    h2 = (h2 + t.charCodeAt(i)) * 2246822507 >>> 0;
+  }
+  return h1.toString(36) + h2.toString(36) + "-" + t.length.toString(36);
+}
+var woerterVon = (t) => (t.match(/\S+/g) || []).length;
+function ladeIndex() {
+  try {
+    const r = JSON.parse(localStorage.getItem(INDEX_KEY) || "[]");
+    if (!Array.isArray(r)) return [];
+    return r.filter((e2) => e2 && typeof e2.schluessel === "string");
+  } catch {
+    return [];
+  }
+}
+function sichereIndex(l) {
+  try {
+    localStorage.setItem(INDEX_KEY, JSON.stringify(l));
+    return true;
+  } catch {
+    return false;
+  }
+}
+function mischeIndex(alt, neu, deckel = INDEX_DECKEL) {
+  const raus = alt.filter((e2) => e2.schluessel !== neu.schluessel);
+  raus.push(neu);
+  return deckel > 0 && raus.length > deckel ? raus.slice(raus.length - deckel) : raus;
+}
+function markiereBehalten(liste, schluessel3) {
+  const e2 = liste.find((x) => x.schluessel === schluessel3);
+  if (!e2 || e2.behalten) return false;
+  e2.behalten = true;
+  return true;
+}
+function werteAus(liste, merkmal, mindestens = 3) {
+  const zahl = /* @__PURE__ */ new Map();
+  for (const e2 of liste) {
+    for (const w of new Set(merkmal(e2))) {
+      const v = zahl.get(w) || { gesamt: 0, behalten: 0 };
+      v.gesamt++;
+      if (e2.behalten) v.behalten++;
+      zahl.set(w, v);
+    }
+  }
+  return [...zahl.entries()].filter(([, v]) => v.gesamt >= mindestens).map(([wert, v]) => ({ wert, gesamt: v.gesamt, behalten: v.behalten, quote: Math.round(v.behalten / v.gesamt * 100) })).sort((a, b) => b.quote - a.quote || b.gesamt - a.gesamt);
+}
+function grundquote(liste) {
+  if (!liste.length) return 0;
+  return Math.round(liste.filter((e2) => e2.behalten).length / liste.length * 100);
+}
+function alsCsv(liste) {
+  const reglerNamen = [...new Set(liste.flatMap((e2) => Object.keys(e2.regler || {})))].sort();
+  const quellNamen = [...new Set(liste.flatMap((e2) => Object.keys(e2.herkunft || {})))].sort();
+  const kopf = [
+    "zeit",
+    "form",
+    "woerter",
+    "behalten",
+    "presets",
+    "spreizung",
+    "wer",
+    "wo",
+    "wann",
+    "was",
+    ...reglerNamen,
+    ...quellNamen.map((q) => "h_" + q)
+  ];
+  const feld = (v) => {
+    const s = String(v ?? "");
+    return /[";\n]/.test(s) ? '"' + s.split('"').join('""') + '"' : s;
+  };
+  const zeilen = liste.map((e2) => [
+    e2.zeit,
+    e2.form,
+    e2.woerter,
+    e2.behalten ? 1 : 0,
+    (e2.presets || []).join(" + "),
+    e2.spreizung,
+    e2.ctx?.who,
+    e2.ctx?.where,
+    e2.ctx?.when,
+    e2.ctx?.what,
+    ...reglerNamen.map((r) => e2.regler?.[r] ?? ""),
+    ...quellNamen.map((q) => e2.herkunft?.[q] ?? 0)
+  ].map(feld).join(";"));
+  return [kopf.join(";"), ...zeilen].join("\n");
+}
+
+// src/features/reiter.ts
+var REITER_KEY = "divergenz_reiter_v1";
+var kanonListe = [];
+function derKanon() {
+  return kanonListe.slice();
+}
+var STAND_LEER = { ordnung: [], versteckt: [] };
+var PFLICHT = ["Studio"];
+function ordne(kanon, gespeichert) {
+  const bekannt = new Set(kanon);
+  const raus = [];
+  const drin = /* @__PURE__ */ new Set();
+  for (const n of gespeichert) {
+    if (!bekannt.has(n) || drin.has(n)) continue;
+    drin.add(n);
+    raus.push(n);
+  }
+  for (let i = 0; i < kanon.length; i++) {
+    const n = kanon[i];
+    if (drin.has(n)) continue;
+    let stelle = 0;
+    for (let j = i - 1; j >= 0; j--) {
+      const v = kanon[j];
+      const k = raus.indexOf(v);
+      if (k >= 0) {
+        stelle = k + 1;
+        break;
+      }
+    }
+    raus.splice(stelle, 0, n);
+    drin.add(n);
+  }
+  return raus;
+}
+function verschiebe(ordnung, name, delta) {
+  const i = ordnung.indexOf(name);
+  if (i < 0) return ordnung.slice();
+  const j = i + (delta < 0 ? -1 : 1);
+  if (j < 0 || j >= ordnung.length) return ordnung.slice();
+  const raus = ordnung.slice();
+  raus[i] = raus[j];
+  raus[j] = name;
+  return raus;
+}
+function schalte(stand, name, an, pflicht = PFLICHT) {
+  const versteckt = new Set(stand.versteckt || []);
+  if (an || pflicht.includes(name)) versteckt.delete(name);
+  else versteckt.add(name);
+  return { ordnung: (stand.ordnung || []).slice(), versteckt: [...versteckt] };
+}
+function ladeStand() {
+  try {
+    const r = JSON.parse(localStorage.getItem(REITER_KEY) || "null");
+    if (!r) return { ...STAND_LEER };
+    return {
+      ordnung: Array.isArray(r.ordnung) ? r.ordnung.filter((x) => typeof x === "string") : [],
+      versteckt: Array.isArray(r.versteckt) ? r.versteckt.filter((x) => typeof x === "string") : []
+    };
+  } catch {
+    return { ...STAND_LEER };
+  }
+}
+function sichereStand(s) {
+  try {
+    localStorage.setItem(REITER_KEY, JSON.stringify(s));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// src/ui/icons.ts
+var P2 = {
+  floppy: '<path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2"/><circle cx="12" cy="14" r="2"/><path d="M14 4v4h-6v-4"/>',
+  folder: '<path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2"/>',
+  dice: '<rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="8.5" cy="8.5" r="1"/><circle cx="15.5" cy="8.5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="8.5" cy="15.5" r="1"/><circle cx="15.5" cy="15.5" r="1"/>',
+  pin: '<path d="M9 4h6"/><path d="M10 4v6l-2 4v2h8v-2l-2 -4v-6"/><path d="M12 16v5"/>',
+  play: '<path d="M7 4v16l13 -8z"/>',
+  star: '<path d="M12 4l2.5 5l5.5 .8l-4 3.9l1 5.5l-5 -2.6l-5 2.6l1 -5.5l-4 -3.9l5.5 -.8z"/>',
+  book: '<path d="M3 5a3 3 0 0 1 6 0v14a2 2 0 0 0 -4 0"/><path d="M9 5a3 3 0 0 1 6 0v14"/><path d="M15 5a3 3 0 0 1 6 0v11a2 2 0 0 1 -2 2h-8"/>',
+  volume: '<path d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5z"/><path d="M15 8a5 5 0 0 1 0 8"/>',
+  paste: '<rect x="7" y="5" width="10" height="15" rx="2"/><path d="M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2"/><path d="M10 12h4"/><path d="M10 15h4"/>',
+  copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2"/>',
+  tool: '<path d="M7 10h3v-3l-3.2 -3.2a5.5 5.5 0 0 1 7.4 7.4l6 6a2 2 0 0 1 -2.8 2.8l-6 -6a5.5 5.5 0 0 1 -7.4 -7.4z"/>',
+  settings: '<path d="M10.3 4.3c.4 -1.7 2.9 -1.7 3.3 0a1.7 1.7 0 0 0 2.6 1.1c1.5 -.9 3.3 .8 2.4 2.4a1.7 1.7 0 0 0 1 2.5c1.8 .4 1.8 2.9 0 3.3a1.7 1.7 0 0 0 -1 2.6c.9 1.5 -.8 3.3 -2.4 2.4a1.7 1.7 0 0 0 -2.6 1c-.4 1.8 -2.9 1.8 -3.3 0a1.7 1.7 0 0 0 -2.6 -1c-1.5 .9 -3.3 -.8 -2.4 -2.4a1.7 1.7 0 0 0 -1 -2.6c-1.8 -.4 -1.8 -2.9 0 -3.3a1.7 1.7 0 0 0 1 -2.5c-.9 -1.6 .9 -3.3 2.4 -2.4c1 .6 2.3 .1 2.6 -1z"/><circle cx="12" cy="12" r="3"/>',
+  flask: '<path d="M9 3h6"/><path d="M10 9h4"/><path d="M10 3v6l-4.5 9.5a.9 .9 0 0 0 .8 1.5h11.4a.9 .9 0 0 0 .8 -1.5l-4.5 -9.5v-6"/>',
+  refresh: '<path d="M20 11a8 8 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8 8 0 0 0 15.5 2m.5 4v-4h-4"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11v-4a4 4 0 0 1 8 0v4"/>',
+  lockOpen: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11v-5a4 4 0 0 1 8 0"/>',
+  arrowRight: '<path d="M5 12h14"/><path d="M13 6l6 6l-6 6"/>',
+  x: '<path d="M6 6l12 12"/><path d="M18 6l-12 12"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/>',
+  book2: '<path d="M3 5a3 3 0 0 1 6 0v14a2 2 0 0 0 -4 0"/><path d="M9 5a3 3 0 0 1 6 0v14"/><path d="M15 5a3 3 0 0 1 6 0v11a2 2 0 0 1 -2 2h-8"/>'
+};
+function icon(name, size = 16) {
+  const s = document.createElement("span");
+  s.className = "ic";
+  s.setAttribute("aria-hidden", "true");
+  s.innerHTML = `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${P2[name] || ""}</svg>`;
+  return s;
+}
+
+// src/features/einfach.ts
+var KOPF_FORMEN = [
+  ["bericht", "Zeitungsbericht"],
+  ["prose", "Prosa"],
+  ["reim", "Reim"],
+  ["haiku", "Haiku"]
+];
+var LAENGE_STUFEN = [70, 140, 260];
+var LAENGE_NAMEN = ["kurz", "mittel", "lang"];
+var REIBUNG_STUFEN = [1, 2, 3];
+var REIBUNG_NAMEN = ["einstimmig", "gemischt", "weit auseinander"];
+var PROBEN = [
+  {
+    teile: [["Der Wachmann notiert die Uhrzeit und schlie\xDFt das Tor.", 1]],
+    register: [["Formalismus", 1]],
+    fuss: "ein Register \xB7 geschlossen, sicher, vorhersehbar"
+  },
+  {
+    teile: [
+      ["Der Wachmann notiert die Uhrzeit.", 1],
+      [" Die Frist beginnt mit einem Ereignis ohne Datum.", 2]
+    ],
+    register: [["Formalismus", 1], ["Hafen", 2]],
+    fuss: "zwei Register \xB7 sie stehen nebeneinander"
+  },
+  {
+    teile: [
+      ["Die Unterlagen liegen vollst\xE4ndig vor", 1],
+      [" \u2014 nur der Einsatz ist ein Kind, das nicht sterben durfte.", 2]
+    ],
+    register: [["Formalismus", 1], ["Griechische Trag\xF6die", 2], ["Bergwelt", 2]],
+    fuss: "drei Register \xB7 sie treffen im selben Satz aufeinander"
+  }
+];
+var SAAT_BEISPIELE = [
+  "Ein Wachmann am Hafen, 1953.",
+  "Eine Klinik, die den Namen wechselt.",
+  "Zwei Becher auf einem Tisch in Edinburgh.",
+  "Ein Zimmer, das im Plan nicht vorkommt.",
+  "Der Bote bringt, was niemand h\xF6ren will."
+];
+var ORTS_WORT = /\b(?:am|an|auf|bei|im|in|vor|hinter|unter|über|neben|zwischen)\s+(?:der|dem|den|die|das|einem|einer|einen|eine|ein)?\s*(?:[a-zäöüß]+(?:e|en|er|em|es)\s+){0,2}[A-ZÄÖÜ][\wÄÖÜäöüß-]*(?:\s+[A-ZÄÖÜ][\wÄÖÜäöüß-]*)?(?:\s+(?:am|an|auf|bei|im|in|vor|hinter|unter|über|neben|zwischen|nach|ohne|mit)\s+(?:der|dem|den|die|das|einem|einer|einen|eine|ein)?\s*(?:[a-zäöüß]+(?:e|en|er|em|es)\s+){0,2}[A-ZÄÖÜ][\wÄÖÜäöüß-]*)*/u;
+var JAHR = /\b(?:im Jahr\s+)?(1[0-9]{3}|20[0-9]{2})\b/u;
+var VERBEN = "ist|sind|war|waren|wird|werden|hat|haben|kommt|kommen|geht|gehen|bringt|wechselt|verschwindet|beginnt|endet|steht|liegt|tr\xE4gt|nimmt|sucht|findet|verliert|\xF6ffnet|schlie\xDFt|entdeckt|verfolgt|st\xF6\xDFt|rekonstruiert|erbt|entziffert|verh\xF6rt|beantragt|erfindet|sammelt|z\xE4hlt|bewacht|notiert|verweigert|behauptet|vergisst|wartet|baut|schreibt|liest|ruft|fragt|schweigt|flieht|versteckt|vertauscht|\xFCbersetzt|repariert|kartiert|archiviert|h\xE4lt|zieht|bleibt|f\xE4llt|l\xE4uft|treibt|legt|setzt|stellt|zeigt|h\xF6rt|sieht|kennt|glaubt|meldet|warnt|bekommt|erh\xE4lt|muss|will|soll|l\xE4sst|macht|gibt|sagt|trifft|bemerkt|erkennt|erwacht|verspricht|weckt|verhandelt|l\xF6st|f\xFCllt|verklagt|bricht|kehrt|r\xE4umt|verpasst|beantwortet|k\xFCndigt|verschiebt|wacht|gr\xE4bt|gewinnt|verwaltet|beruft|optimiert|reformiert|privatisiert|digitalisiert|gr\xFCndet|tauscht|verkauft|folgt|spricht";
+var VERB_ANFANG = new RegExp("^(?:" + VERBEN + ")\\b", "u");
+var VERB_IRGENDWO = new RegExp("\\b(?:" + VERBEN + ")\\b", "u");
+function findeHauptverb(rest) {
+  const re = new RegExp("\\s(?:" + VERBEN + ")\\b", "gu");
+  let m;
+  while (m = re.exec(rest)) {
+    const davor = rest.slice(0, m.index);
+    const komma = davor.lastIndexOf(",");
+    if (komma >= 0) {
+      const abschnitt = davor.slice(komma + 1);
+      if (/^\s*(der|die|das|den|dem|dessen|deren|was|wer|wo)\b/i.test(abschnitt) && !VERB_IRGENDWO.test(abschnitt)) continue;
+    }
+    return { index: m.index };
+  }
+  return null;
+}
+function zerlegeSaat(satz) {
+  const roh = (satz || "").replace(/\s+/g, " ").trim().replace(/[.]$/, "");
+  if (!roh) return { who: "", where: "", when: "", what: "" };
+  let rest = roh;
+  const j = JAHR.exec(rest);
+  const when = j ? `im Jahr ${j[1]}` : "";
+  if (j) rest = (rest.slice(0, j.index) + rest.slice(j.index + j[0].length)).replace(/\s*,\s*$/, "").trim();
+  const o = ORTS_WORT.exec(rest);
+  const where = o ? o[0].replace(/\s+/g, " ").trim() : "";
+  if (o) rest = (rest.slice(0, o.index) + rest.slice(o.index + o[0].length)).replace(/\s{2,}/g, " ").trim();
+  rest = rest.replace(/\s{2,}/g, " ").replace(/[,;]\s*$/, "").replace(/,\s*(?=[a-zäöüß])/, ", ").trim();
+  const v = findeHauptverb(rest);
+  let who = (v ? rest.slice(0, v.index) : rest).replace(/,\s*$/, "").trim();
+  let what = v ? rest.slice(v.index).trim() : "";
+  const inversion = /^(wo|was|wer|wie|warum|wann|wohin|woher|weshalb|wieso|wem|wen|dann|heute|gestern|morgen|vielleicht|manchmal|plötzlich|nachts|abends|morgens|dort|hier|jetzt|später|nie|immer|bald|endlich|irgendwo|irgendwann|so)$/i;
+  if (v && (inversion.test(who) || /\?$/.test(roh))) {
+    what = rest.trim();
+    who = "";
+  }
+  return { who, where, when, what };
+}
+function kopfKontext(saat, wurf, alt) {
+  const w = (k) => (saat[k] || wurf[k] || alt[k] || "").trim();
+  return { who: w("who"), where: w("where"), when: w("when"), what: (saat.what || alt.what || "").trim() };
+}
+function stellung(w) {
+  const i = (n, max) => Math.max(0, Math.min(max, Math.round(n) || 0));
+  return {
+    form: KOPF_FORMEN[i(w.form, KOPF_FORMEN.length - 1)][0],
+    lenTarget: LAENGE_STUFEN[i(w.laenge, LAENGE_STUFEN.length - 1)],
+    presets: REIBUNG_STUFEN[i(w.reibung, REIBUNG_STUFEN.length - 1)],
+    ctx: zerlegeSaat(w.saat)
+  };
+}
+function poolSaetze(phrasen) {
+  const raus = [];
+  for (const p of phrasen) {
+    const t = (p || "").replace(/\s+/g, " ").trim().replace(/[.!?…]+$/, "");
+    if (t.length < 18 || t.length > 70 || !/\s/.test(t)) continue;
+    raus.push(t.charAt(0).toUpperCase() + t.slice(1) + ".");
+  }
+  return [...new Set(raus)];
+}
+function weltSatz(welt) {
+  if (!welt || !welt.who) return null;
+  const wer = welt.who.trim().charAt(0).toUpperCase() + welt.who.trim().slice(1);
+  const ort = welt.where && ORTS_WORT.test(welt.where) ? ` ${welt.where.trim()}` : "";
+  const tat = welt.what && VERB_ANFANG.test(welt.what.trim()) ? ` ${welt.what.trim()}` : "";
+  const passt2 = (s) => {
+    const z = zerlegeSaat(s);
+    if (ort && s.includes(ort) && z.where !== welt.where.trim()) return false;
+    if (tat && s.includes(tat) && z.what !== welt.what.trim().replace(/[.]$/, "")) return false;
+    return true;
+  };
+  const kandidaten = [`${wer}${ort}${tat}.`, `${wer}${tat}.`, `${wer}${ort}.`, `${wer}.`];
+  return kandidaten.find(passt2) || `${wer}.`;
+}
+function ziehSaat(phrasen, weltZieher, meiden = [], rnd = Math.random) {
+  const frisch = (a) => a.filter((x) => !meiden.includes(x));
+  const pool = frisch(poolSaetze(phrasen));
+  const welt = [];
+  for (let i = 0; i < 5 && welt.length < 3; i++) {
+    const s = weltSatz(weltZieher());
+    if (s && !meiden.includes(s) && !welt.includes(s)) welt.push(s);
+  }
+  const beispiele = frisch([...SAAT_BEISPIELE]);
+  const wahl = rnd();
+  const aus = (a) => a[Math.min(a.length - 1, Math.floor(rnd() * a.length))];
+  if (welt.length && wahl < 0.5) return aus(welt);
+  if (pool.length && wahl < 0.9) return aus(pool);
+  if (beispiele.length && wahl >= 0.9) return aus(beispiele);
+  if (welt.length) return aus(welt);
+  if (pool.length) return aus(pool);
+  if (beispiele.length) return aus(beispiele);
+  return SAAT_BEISPIELE[0];
+}
+var KOPF_KEY = "divergenz_einfach_v1";
+var VORGABE = { form: 1, laenge: 1, reibung: 1, saat: SAAT_BEISPIELE[0], einfach: true };
+function ladeWahl() {
+  try {
+    const r = JSON.parse(localStorage.getItem(KOPF_KEY) || "null");
+    return r ? { ...VORGABE, ...r } : { ...VORGABE };
+  } catch {
+    return { ...VORGABE };
+  }
+}
+function sichereWahl(w) {
+  try {
+    localStorage.setItem(KOPF_KEY, JSON.stringify(w));
+  } catch {
+  }
+}
+function probeAus(phrasen, stufe, versatz = 0) {
+  const gut = phrasen.map((p) => p.replace(/\s+/g, " ").trim().replace(/[.!?…]+$/, "")).filter((p) => p.length >= 18 && p.length <= 90 && /\s/.test(p));
+  if (gut.length < 2) return null;
+  const s = Math.max(0, Math.min(2, Math.round(stufe)));
+  const v = (Math.round(versatz) % gut.length + gut.length) % gut.length;
+  const a = gut[v];
+  const b = gut[(v + 1 + s) % gut.length];
+  const satz = (t) => t.charAt(0).toUpperCase() + t.slice(1) + ".";
+  if (s === 0) {
+    return {
+      teile: [[satz(a), 1]],
+      register: [["dein Material", 1]],
+      fuss: "ein Register \xB7 geschlossen, sicher, vorhersehbar"
+    };
+  }
+  if (s === 1) {
+    return {
+      teile: [[satz(a), 1], [" " + satz(b), 2]],
+      register: [["dein Material", 1], ["zweite Bank", 2]],
+      fuss: "zwei Register \xB7 sie stehen nebeneinander"
+    };
+  }
+  return {
+    teile: [[a.charAt(0).toUpperCase() + a.slice(1), 1], [" \u2014 " + b + ".", 2]],
+    register: [["dein Material", 1], ["zweite Bank", 2], ["dritte Bank", 2]],
+    fuss: "drei Register \xB7 sie treffen im selben Satz aufeinander"
+  };
+}
+
+// src/features/kontext.ts
+var W4_FELDER = ["where", "when", "who", "what"];
+function uebernehmeKontext(felder, vorschlag, gesperrt) {
+  const raus = {};
+  for (const f of W4_FELDER) {
+    const alt = felder[f].wert;
+    const neu = (vorschlag[f] || "").trim();
+    raus[f] = !neu || gesperrt(felder[f].id) ? alt : neu;
+  }
+  return raus;
+}
+function geaendert(felder, neu) {
+  return W4_FELDER.filter((f) => felder[f].wert !== neu[f]);
+}
+var QUELLE_LABEL = {
+  welt: "Welt",
+  wiki: "Wiki",
+  abschrift: "Abschrift",
+  thema: "Thema",
+  ideen: "Ideen",
+  omni: "Wahrnehmung"
+};
+function offeneQuellen(wikiFunde, bildFunde, themaFunde = 0) {
+  const raus = ["welt", "ideen", "omni"];
+  if (wikiFunde > 0) raus.push("wiki");
+  if (bildFunde > 0) raus.push("abschrift");
+  if (themaFunde > 0) raus.push("thema");
+  return raus;
+}
+function ziehQuelle(offen, zufall = Math.random) {
+  if (!offen.length) return "welt";
+  return offen[Math.min(offen.length - 1, Math.floor(zufall() * offen.length))];
+}
+
+// src/generation/ideas.ts
+init_text_utils();
+var recent2 = {};
+function pickFresh2(pool, tag) {
+  if (!pool || !pool.length) return "etwas Unbenanntes";
+  const memo = recent2[tag] || (recent2[tag] = []);
+  const cap4 = Math.max(0, Math.min(pool.length - 1, 40));
+  let cand = pool.filter((x) => memo.indexOf(x) === -1);
+  if (!cand.length) {
+    recent2[tag] = [];
+    cand = pool.slice();
+  }
+  const chosen = cand[Math.floor(Math.random() * cand.length)];
+  memo.push(chosen);
+  while (memo.length > cap4) memo.shift();
+  return chosen;
+}
+var fresh = (base, tw, tag, prob, dbl) => {
+  const b = pickFresh2(base, tag);
+  if (Math.random() >= prob) return b;
+  let out = b + ", " + pickFresh2(tw, tag + "T");
+  if (dbl && Math.random() < prob) out += ", " + pickFresh2(tw, tag + "T");
+  return out;
+};
+function ideaPoolFor(a, presetBank, cat) {
+  const fromArch = a && a.add && a.add[cat] || [];
+  const fromPreset = presetBank[cat] || [];
+  const combined = [...fromArch, ...fromPreset];
+  return combined.length ? combined : ["etwas Unbenanntes"];
+}
+var TEMPLATES = [
+  { tags: ["raetsel", "konzept", "offen"], f: (s) => `Was, wenn ${s.W} ${s.O} ${s.A} \u2014 und dabei auf ${s.M} st\xF6\xDFt?` },
+  { tags: ["atmo", "figur"], f: (s) => `${cap(s.W)} ${s.A}. Doch ${s.O} wartet ${s.H}.` },
+  { tags: ["handlung", "enthuellung"], f: (s) => `Die Pr\xE4misse: ${s.W} ${s.A}, ${s.N}. ${cap(s.T)}.` },
+  { tags: ["figur", "umkehr"], f: (s) => `${cap(s.W)} glaubt, alles im Griff zu haben \u2014 bis ${s.M} auftaucht.` },
+  { tags: ["atmo", "intim"], f: (s) => `${cap(s.O)}, ${s.N}: ${s.W} ${s.A}. ${cap(s.B)}.` },
+  { tags: ["figur", "eskalation"], f: (s) => `${cap(s.W)} ${s.A}. ${s.S}` },
+  { tags: ["konzept", "raetsel"], f: (s) => `Kern der Idee: ${s.W} st\xF6\xDFt ${s.O} auf ${s.H} \u2014 und ${s.T}.` },
+  { tags: ["handlung", "zeit"], f: (s) => `${cap(s.N)}: ${s.W} ${s.A} \u2014 und ${s.T}.` },
+  { tags: ["atmo", "enthuellung"], f: (s) => `Alles beginnt damit, dass ${s.W} ${s.O} etwas findet: ${s.M}.` },
+  { tags: ["eskalation", "episch"], f: (s) => `Niemand rechnet damit, doch ${s.W} ${s.A} \u2014 ${s.O}. ${s.S}` },
+  { tags: ["kampf", "system"], f: (s) => `${cap(s.W)} stellt sich ${s.B} entgegen \u2014 ${s.O}, ${s.N}.` },
+  { tags: ["inner", "figur", "intim"], f: (s) => `Niemand wei\xDF, dass ${s.W} ${s.A}. Am Ende bleibt nur ${s.M}.` },
+  { tags: ["natur", "atmo"], f: (s) => `${cap(s.O)} kippt: ${s.W} ${s.A}, w\xE4hrend ${s.H} n\xE4her r\xFCckt.` },
+  { tags: ["paradox", "konzept"], f: (s) => `Je mehr ${s.W} ${s.A}, desto n\xE4her r\xFCckt ${s.M}.` },
+  { tags: ["ironie", "figur"], f: (s) => `${cap(s.W)} sucht ${s.M} \u2014 und findet ausgerechnet ${s.H}.` },
+  { tags: ["kosmisch", "konzept"], f: (s) => `Eine einzige Frage bleibt: was, wenn ${s.M} nie existierte und ${s.W} es ${s.N} beweisen muss?` },
+  { tags: ["umkehr", "enthuellung"], f: (s) => `Was wie ${s.H} beginnt, entpuppt sich als ${s.M}: ${s.W} ${s.A}.` },
+  { tags: ["offen", "form"], f: (s) => `${cap(s.W)}, ${s.O}, ${s.N}. Und dann: ${s.T}.` },
+  { tags: ["zeit", "eskalation"], f: (s) => `${cap(s.N)} bleibt ${s.W}, um ${s.A} \u2014 bevor ${s.B}.` },
+  { tags: ["form", "atmo", "intim"], f: (s) => `Nur ein Bild: ${s.W} ${s.O}, ${s.M}, und ${s.S}` }
+];
+function chooseTemplate(cfg) {
+  if (!cfg || !cfg.tags.length) return pick(TEMPLATES).f;
+  const want = new Set(cfg.tags);
+  const scored = TEMPLATES.map((t) => ({ t, sc: t.tags.reduce((n, tg) => n + (want.has(tg) ? 1 : 0), 0) }));
+  const max = Math.max(...scored.map((x) => x.sc));
+  const cand = max > 0 ? scored.filter((x) => x.sc === max).map((x) => x.t) : TEMPLATES;
+  return pick(cand).f;
+}
+function mergedBank(count2) {
+  const presetPool = Object.values(getAllPresets());
+  if (!presetPool.length) return { bank: {}, label: "\u2013" };
+  const n = Math.max(1, Math.min(count2, presetPool.length));
+  const chosen = [];
+  const used = /* @__PURE__ */ new Set();
+  let guard = 0;
+  while (chosen.length < n && guard++ < n * 6) {
+    const i = Math.floor(Math.random() * presetPool.length);
+    if (used.has(i)) continue;
+    used.add(i);
+    chosen.push(presetPool[i]);
+  }
+  const bank = {};
+  for (const pr of chosen) {
+    const b = pr.bank || {};
+    for (const [k, v] of Object.entries(b)) bank[k] = [...bank[k] || [], ...v];
+  }
+  return { bank, label: chosen.map((c) => c.label).join(" \xD7 ") };
+}
+function pickMotif(a, pb, cfg) {
+  const share = cfg ? cfg.liveShare : 0;
+  if (share > 0 && Math.random() < share) {
+    const live = liveTexts();
+    if (live.length >= 5) return pickFresh2(live, "live");
+  }
+  return pickFresh2(ideaPoolFor(a, pb, "motifs"), "motifs");
+}
+function buildIdeaPremise(cfg) {
+  const archId = cfg ? cfg.archetypeId : pick(werte(ARCH_OPTS));
+  const a = arch(archId);
+  const { bank: pb, label: presetLabel2 } = mergedBank(cfg ? cfg.mashupCount : 1);
+  const prob = cfg ? cfg.twistProb : 0.5;
+  const dbl = cfg ? cfg.doubleTwist : false;
+  const whoP = cfg && cfg.whoPool.length ? cfg.whoPool : CTX_WHO;
+  const whereP = cfg && cfg.wherePool.length ? cfg.wherePool : CTX_WHERE;
+  const whenP = cfg && cfg.whenPool.length ? cfg.whenPool : CTX_WHEN;
+  const whatP = cfg && cfg.whatPool.length ? cfg.whatPool : CTX_WHAT;
+  const s = {
+    W: fresh(whoP, WHO_TWISTS, "who", prob, dbl),
+    O: fresh(whereP, WHERE_TWISTS, "where", prob, dbl),
+    N: fresh(whenP, WHEN_TWISTS, "when", prob, dbl),
+    A: fresh(whatP, WHAT_TWISTS, "what", prob, dbl),
+    M: pickMotif(a, pb, cfg),
+    H: pickFresh2(ideaPoolFor(a, pb, "hooks"), "hooks"),
+    T: pickFresh2(ideaPoolFor(a, pb, "turns"), "turns"),
+    B: pickFresh2(ideaPoolFor(a, pb, "obstacles"), "obstacles"),
+    S: pickFresh2(ideaPoolFor(a, pb, "stakes"), "stakes")
+  };
+  let text = chooseTemplate(cfg)(s);
+  text = clean(text).replace(/\s+([,.!?;:])/g, "$1");
+  text = ensurePunct(text);
+  return { text, archetype: a.label || archId, presetLabel: presetLabel2, seedWho: s.W, seedWhere: s.O, seedWhen: s.N, seedWhat: s.A };
+}
+function generateIdeaBatch(n, cfg) {
+  const out = [];
+  const seen = /* @__PURE__ */ new Set();
+  let guard = 0;
+  while (out.length < n && guard++ < n * 8) {
+    const idea = buildIdeaPremise(cfg);
+    if (seen.has(idea.text)) continue;
+    seen.add(idea.text);
+    out.push(idea);
+  }
+  return out;
+}
+
+// src/features/wuerfeln.ts
+var REGLER = [
+  { id: "f-tone", schluessel: "tone", liste: TONE_OPTS },
+  { id: "f-form", schluessel: "form", liste: FORM_OPTS },
+  { id: "f-structure", schluessel: "structure", liste: STRUCTURE_OPTS },
+  { id: "f-mode", schluessel: "mode", liste: MODE_OPTS },
+  { id: "f-persp", schluessel: "perspective", liste: PERSP_OPTS },
+  { id: "f-rhythm", schluessel: "rhythm", liste: RHYTHM_OPTS },
+  { id: "f-tension", schluessel: "tension", liste: TENSION_OPTS },
+  { id: "f-cast", schluessel: "cast", liste: CAST_OPTS },
+  { id: "f-instab", schluessel: "instability", liste: INSTAB_OPTS },
+  { id: "f-markov", schluessel: "markovMode", liste: MARKOV_OPTS },
+  { id: "f-disruptor", schluessel: "disruptor", liste: DISRUPTOR_OPTS },
+  { id: "f-varianz", schluessel: "varLevel", liste: VARIANZ_OPTS },
+  { id: "f-archa", schluessel: "archetypeA", liste: ARCH_OPTS },
+  { id: "f-archb", schluessel: "archetypeB", liste: ARCH_OPTS },
+  {
+    id: "f-ressort",
+    schluessel: "ressort",
+    liste: [["auto", "Auto (aus dem Stoff)"], ...RESSORT_IDS.map((id) => [id, RESSORTS[id].label])]
+  }
+];
+var SCHIEBER = [
+  { id: "f-len", schluessel: "lenTarget", min: 40, max: 300, step: 5 },
+  { id: "f-novelty", schluessel: "novelty", min: 0, max: 100, step: 5 },
+  { id: "f-surprise", schluessel: "surprise", min: 0, max: 100, step: 5 },
+  { id: "f-w-wo", schluessel: "gew-wo", min: 0, max: 3, step: 1 },
+  { id: "f-w-wann", schluessel: "gew-wann", min: 0, max: 3, step: 1 },
+  { id: "f-w-wer", schluessel: "gew-wer", min: 0, max: 3, step: 1 },
+  { id: "f-w-was", schluessel: "gew-was", min: 0, max: 3, step: 1 }
+];
+var zieh = (l) => l[Math.floor(Math.random() * l.length)];
+var W4_ID = { where: "f-where", when: "f-when", who: "f-who", what: "f-what" };
+function wuerfleVierW(vorher, gesperrt, feste) {
+  const quelle2 = feste || ziehQuelle(offeneQuellen(
+    sicher(() => vorratStand().funde, 0),
+    sicher(() => ladeBildvorrat().length, 0),
+    sicher(() => themenStand().funde, 0)
+  ));
+  let vorschlag = {};
+  let woher = QUELLE_LABEL[quelle2];
+  let omniRegler = null;
+  let omniGewicht = "";
+  if (quelle2 === "wiki") {
+    const f = sicher(() => ziehVorrat(), null);
+    if (f) {
+      vorschlag = f.ctx;
+      woher = `Wiki \xB7 ${f.titel}`;
+    } else vorschlag = sicher(() => worldFillContext(), {});
+  } else if (quelle2 === "abschrift") {
+    const f = sicher(() => ziehBildvorrat(), null);
+    if (f) {
+      vorschlag = f.ctx;
+      woher = `Abschrift \xB7 ${f.name}`;
+    } else vorschlag = sicher(() => worldFillContext(), {});
+  } else if (quelle2 === "thema") {
+    const f = sicher(() => ziehThema(), null);
+    if (f) {
+      vorschlag = f.ctx;
+      woher = `Thema \xB7 ${f.themaLabel}`;
+    } else vorschlag = sicher(() => worldFillContext(), {});
+  } else if (quelle2 === "ideen") {
+    const p = sicher(() => loadIdeaProfile(), null);
+    const profil = wuerfleIdeaProfile();
+    const ideen = sicher(() => generateIdeaBatch(1, ideaProfileToConfig(profil, p ? p.liveAnteil : 0)), []);
+    const i = ideen[0];
+    if (i) {
+      vorschlag = { where: i.seedWhere, when: i.seedWhen, who: i.seedWho, what: i.seedWhat };
+      woher = `Ideen \xB7 ${profil.genre}/${profil.ton}`;
+    } else vorschlag = sicher(() => worldFillContext(), {});
+  } else if (quelle2 === "omni") {
+    const profile = sicher(() => alleOmniProfile(), []);
+    const prof = profile.length ? zieh(profile) : null;
+    if (prof) {
+      const st = profileToStudio(prof);
+      vorschlag = { where: st.where, when: st.when, who: st.who, what: st.what };
+      omniRegler = {
+        form: st.form,
+        structure: st.structure,
+        perspective: st.perspective,
+        rhythm: st.rhythm,
+        varLevel: st.varLevel,
+        mode: st.mode,
+        tone: st.tone,
+        markovMode: st.markovMode,
+        archetypeA: st.archetypeA,
+        archetypeB: st.archetypeB
+      };
+      omniGewicht = [st.emphasis.wo, st.emphasis.wann, st.emphasis.wer, st.emphasis.was].join("/");
+      woher = `Wahrnehmung \xB7 ${prof.name}`;
+    } else vorschlag = sicher(() => worldFillContext(), {});
+  } else {
+    vorschlag = sicher(() => worldFillContext(), {});
+  }
+  const felder = {};
+  for (const f of W4_FELDER) felder[f] = { id: W4_ID[f], wert: vorher[f] || "" };
+  return {
+    w4: uebernehmeKontext(felder, vorschlag, (id) => gesperrt.has(id)),
+    quelle: woher,
+    ...omniRegler ? { regler: omniRegler, gewicht: omniGewicht } : {}
+  };
+}
+var sicher = (f, ersatz) => {
+  try {
+    return f();
+  } catch {
+    return ersatz;
+  }
+};
+function wuerfleAlles(vorher, gesperrt, knobsVorher = loadKnobs(), vorherW4) {
+  const regler = { ...vorher };
+  const nachId = {};
+  const presets = markedPresetOptions().map(([v]) => v).filter((v) => !v.startsWith("__"));
+  if (!gesperrt.has("f-preset") && presets.length) {
+    const p = zieh(presets);
+    regler["preset"] = p;
+    nachId["f-preset"] = p;
+  }
+  for (const r of REGLER) {
+    const alt = vorher[r.schluessel];
+    const neu = gesperrt.has(r.id) ? alt ?? werte(r.liste)[0] : zieh(werte(r.liste));
+    regler[r.schluessel] = neu;
+    nachId[r.id] = neu;
+  }
+  const gew = (vorher["gewicht"] || "0/0/0/0").split("/");
+  const gewIndex = { "gew-wo": 0, "gew-wann": 1, "gew-wer": 2, "gew-was": 3 };
+  for (const sch of SCHIEBER) {
+    const stufen = Math.floor((sch.max - sch.min) / sch.step) + 1;
+    const alt = sch.schluessel in gewIndex ? gew[gewIndex[sch.schluessel]] ?? "0" : vorher[sch.schluessel] ?? String(sch.min);
+    const neu = gesperrt.has(sch.id) ? alt : String(sch.min + Math.floor(Math.random() * stufen) * sch.step);
+    nachId[sch.id] = neu;
+    if (sch.schluessel in gewIndex) gew[gewIndex[sch.schluessel]] = neu;
+    else regler[sch.schluessel] = neu;
+  }
+  regler["gewicht"] = gew.join("/");
+  const knobs = { ...knobsVorher };
+  for (const feld of Object.keys(KNOB_SPANNE)) {
+    if (gesperrt.has("k-" + feld)) continue;
+    const sp = KNOB_SPANNE[feld];
+    const stufen = Math.floor((sp.max - sp.min) / sp.step) + 1;
+    knobs[feld] = sp.min + Math.floor(Math.random() * stufen) * sp.step;
+  }
+  const vw = wuerfleVierW(vorherW4 || { where: "", when: "", who: "", what: "" }, gesperrt);
+  for (const f of W4_FELDER) nachId[W4_ID[f]] = vw.w4[f];
+  if (vw.regler) {
+    for (const r of REGLER) {
+      const v = vw.regler[r.schluessel];
+      if (v === void 0 || gesperrt.has(r.id)) continue;
+      if (!werte(r.liste).includes(v)) continue;
+      regler[r.schluessel] = v;
+      nachId[r.id] = v;
+    }
+    if (vw.gewicht) {
+      const g = vw.gewicht.split("/");
+      const ids = ["f-w-wo", "f-w-wann", "f-w-wer", "f-w-was"];
+      const alt = (regler["gewicht"] || "0/0/0/0").split("/");
+      ids.forEach((id, i) => {
+        if (!gesperrt.has(id) && g[i] !== void 0) {
+          nachId[id] = g[i];
+          alt[i] = g[i];
+        }
+      });
+      regler["gewicht"] = alt.join("/");
+    }
+  }
+  return { regler, nachId, knobs, w4: vw.w4, quelle: vw.quelle };
+}
+
+// src/ui/reader.ts
+function openReader(text, ctx = {}) {
+  const t = text || "Noch kein Text.";
+  const overlay = el("div", { class: "reader" });
+  const body = el("div", { class: "reader-text" }, t);
+  if (ctx.titel) body.prepend(el("h2", { class: "text-titel" }, ctx.titel));
+  let fs = 19;
+  const setFs = (v) => {
+    fs = Math.max(13, Math.min(40, v));
+    body.style.fontSize = fs + "px";
+  };
+  const smaller = el("button", { title: "Kleiner" }, "A\u2212");
+  const bigger = el("button", { title: "Gr\xF6\xDFer" }, "A+");
+  const copyLbl = el("span", {}, "Kopieren");
+  const copy = el("button", {}, icon("copy"), " ", copyLbl);
+  const keepLbl = el("span", {}, "Merken");
+  const keep = el("button", {}, icon("star"), " ", keepLbl);
+  const speakLbl = el("span", {}, "Vorlesen");
+  const speak = el("button", {}, icon("volume"), " ", speakLbl);
+  const close = el("button", { class: "x", "aria-label": "Schlie\xDFen" }, icon("x"));
+  smaller.addEventListener("click", () => setFs(fs - 2));
+  bigger.addEventListener("click", () => setFs(fs + 2));
+  copy.addEventListener("click", () => {
+    void navigator.clipboard?.writeText(t);
+    copyLbl.textContent = "Kopiert \u2713";
+    setTimeout(() => copyLbl.textContent = "Kopieren", 1200);
+  });
+  keep.addEventListener("click", () => {
+    const n = addToTreasury(t, ctx);
+    keepLbl.textContent = n < 0 ? "\u2014 schon drin" : `Gemerkt (${n})`;
+    setTimeout(() => keepLbl.textContent = "Merken", 1400);
+  });
+  let rSpeaking = false;
+  speak.addEventListener("click", () => {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    if (rSpeaking) {
+      synth.cancel();
+      rSpeaking = false;
+      speakLbl.textContent = "Vorlesen";
+      return;
+    }
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(t);
+    u.lang = "de-DE";
+    u.onend = () => {
+      rSpeaking = false;
+      speakLbl.textContent = "Vorlesen";
+    };
+    rSpeaking = true;
+    speakLbl.textContent = "Stopp";
+    synth.speak(u);
+  });
+  const dismiss = () => {
+    window.speechSynthesis?.cancel();
+    overlay.remove();
+  };
+  close.addEventListener("click", dismiss);
+  overlay.append(el("div", { class: "reader-bar" }, smaller, bigger, copy, keep, speak, close), body);
+  document.body.append(overlay);
+}
+
+// src/features/theme.ts
+var THEMES = [
+  { id: "maschinenraum", label: "Maschinenraum" },
+  { id: "mitternacht", label: "Mitternacht" },
+  { id: "bernstein", label: "Bernstein" },
+  { id: "traumlogik", label: "Traumlogik" },
+  { id: "papier", label: "Papier (hell)" }
+];
+var KEY5 = "divergenz_theme_v1";
+function loadTheme() {
+  try {
+    const v = localStorage.getItem(KEY5);
+    if (v && THEMES.some((t) => t.id === v)) return v;
+  } catch {
+  }
+  return "maschinenraum";
+}
+function applyTheme(id) {
+  document.documentElement.setAttribute("data-theme", id);
+  try {
+    localStorage.setItem(KEY5, id);
+  } catch {
+  }
+}
+var ACCENT_KEY = "divergenz_accent_v1";
+function loadAccent() {
+  try {
+    return localStorage.getItem(ACCENT_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+function saveAccent(c) {
+  try {
+    if (c) localStorage.setItem(ACCENT_KEY, c);
+    else localStorage.removeItem(ACCENT_KEY);
+  } catch {
+  }
+}
+function parseHex(hex) {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [n >> 16 & 255, n >> 8 & 255, n & 255];
+}
+function darken(hex, f = 0.82) {
+  const rgb = parseHex(hex);
+  if (!rgb) return hex;
+  return "#" + rgb.map((x) => Math.round(x * f).toString(16).padStart(2, "0")).join("");
+}
+function applyAccent(c) {
+  const s = document.documentElement.style;
+  const rgb = parseHex(c);
+  if (c && rgb) {
+    s.setProperty("--acc", c);
+    s.setProperty("--acc-hover", darken(c));
+    s.setProperty("--focus-glow", `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.20)`);
+  } else {
+    s.removeProperty("--acc");
+    s.removeProperty("--acc-hover");
+    s.removeProperty("--focus-glow");
+  }
+}
+
+// src/ui/studio.ts
+init_ki();
+init_storage_status();
+
+// src/features/fonts.ts
+var STORY_FONT_STACKS = {
+  serif: "Georgia, 'Iowan Old Style', 'Times New Roman', serif",
+  classic: "'Times New Roman', Times, serif",
+  sans: "'Syne', 'Segoe UI', system-ui, sans-serif",
+  mono: "'DM Mono', ui-monospace, monospace"
+};
+var FONT_KEY = "divergenz_story_font_v1";
+var SIZE_KEY = "divergenz_story_fontsize_v1";
+var FONT_DEFAULT = "serif";
+var SIZE_DEFAULT = 19;
+function loadFont() {
+  try {
+    return localStorage.getItem(FONT_KEY) || FONT_DEFAULT;
+  } catch {
+    return FONT_DEFAULT;
+  }
+}
+function loadFontSize() {
+  try {
+    const v = parseFloat(localStorage.getItem(SIZE_KEY) || "");
+    return Number.isFinite(v) ? v : SIZE_DEFAULT;
+  } catch {
+    return SIZE_DEFAULT;
+  }
+}
+function saveFontPrefs(fam, size) {
+  try {
+    localStorage.setItem(FONT_KEY, fam);
+    localStorage.setItem(SIZE_KEY, String(size));
+  } catch {
+  }
+}
+function applyStoryFont(host, fam, size) {
+  host.style.fontFamily = STORY_FONT_STACKS[fam] || STORY_FONT_STACKS.serif;
+  host.style.fontSize = size + "px";
+}
+
+// src/generation/scoring.ts
+init_storage();
+
+// src/generation/novelty.ts
+var tokens2 = (s) => (s || "").toLowerCase().match(/[a-zäöüßA-ZÄÖÜ]+/g) || [];
+function trigrams(s) {
+  const w = tokens2(s);
+  const out = [];
+  for (let i = 0; i + 2 < w.length + 1 && i + 3 <= w.length; i++) out.push(w[i] + " " + w[i + 1] + " " + w[i + 2]);
+  return out;
+}
+function buildNoveltyContext(cooldownDays = 4, minN = 3, hotCap = 40) {
+  const archive = /* @__PURE__ */ new Set();
+  let archiveSize = 0;
+  try {
+    for (const t of loadTreasury()) {
+      archiveSize++;
+      for (const g of trigrams(t.t)) archive.add(g);
+    }
+  } catch {
+  }
+  let hot = [];
+  try {
+    const now = Date.now();
+    const win = cooldownDays * 24 * 3600 * 1e3;
+    hot = loadLive().filter((e2) => e2.n >= minN && now - e2.d <= win).sort((a, b) => b.n - a.n || b.d - a.d).slice(0, hotCap).map((e2) => e2.t.toLowerCase());
+  } catch {
+  }
+  return { archive, archiveSize, hot };
+}
+function noveltyOf(txt2, ctx) {
+  if (!ctx.archive.size) return 1;
+  const tg = trigrams(txt2);
+  if (!tg.length) return 1;
+  let seen = 0;
+  for (const g of tg) if (ctx.archive.has(g)) seen++;
+  return 1 - seen / tg.length;
+}
+function cooldownHit(txt2, ctx) {
+  if (!ctx.hot.length) return 0;
+  const low2 = (txt2 || "").toLowerCase();
+  let hits = 0;
+  for (const p of ctx.hot) if (p.length >= 4 && low2.includes(p)) hits++;
+  return Math.min(1, hits / 6);
+}
+function frequentContentWords(k = 40) {
+  let corpus = "";
+  try {
+    corpus = loadPersistentCorpus();
+  } catch {
+  }
+  if (!corpus) return [];
+  const freq = /* @__PURE__ */ new Map();
+  for (const w of corpus.toLowerCase().match(/[a-zäöüß]{4,}/g) || []) {
+    if (COHERENCE_STOPWORDS.has(w)) continue;
+    freq.set(w, (freq.get(w) || 0) + 1);
+  }
+  return [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, k).map((e2) => e2[0]);
+}
+
+// src/generation/grammar.ts
+var DANGLING = /* @__PURE__ */ new Set([
+  "und",
+  "oder",
+  "aber",
+  "denn",
+  "dass",
+  "weil",
+  "sondern",
+  "sowie",
+  "damit",
+  "obwohl",
+  "w\xE4hrend",
+  "sodass",
+  "bevor",
+  "nachdem",
+  "falls",
+  "wenngleich"
+]);
+var AUX = /* @__PURE__ */ new Set([
+  "bin",
+  "bist",
+  "ist",
+  "sind",
+  "seid",
+  "war",
+  "warst",
+  "waren",
+  "wart",
+  "hatte",
+  "hattest",
+  "hatten",
+  "hat",
+  "habe",
+  "hast",
+  "habt",
+  "haben",
+  "wurde",
+  "wurdest",
+  "wurden",
+  "wird",
+  "werde",
+  "werden",
+  "w\xE4re",
+  "w\xE4rst",
+  "w\xE4ren"
+]);
+var CONN = /* @__PURE__ */ new Set([
+  "und",
+  "oder",
+  "aber",
+  "denn",
+  "sondern",
+  "doch",
+  "weil",
+  "dass",
+  "wenn",
+  "als",
+  "w\xE4hrend",
+  "obwohl",
+  "damit",
+  "sodass",
+  "bevor",
+  "nachdem",
+  "ob",
+  "wie",
+  "wo",
+  "der",
+  "die",
+  "das",
+  "dem",
+  "den"
+]);
+function verbCollisions(text) {
+  const words3 = (text || "").split(/\s+/).filter(Boolean);
+  const norm = (w) => w.toLowerCase().replace(/[^a-zäöüß]/g, "");
+  let hits = 0;
+  for (let i = 0; i < words3.length; i++) {
+    if (!AUX.has(norm(words3[i]))) continue;
+    for (let j = i + 1; j <= Math.min(words3.length - 1, i + 3); j++) {
+      const wj = norm(words3[j]);
+      if (CONN.has(wj) || /[,;:]/.test(words3[j])) break;
+      const finite = /(t|te|ten|st)$/.test(wj) && wj.length >= 4 && !/^ge/.test(wj) && !AUX.has(wj);
+      if (finite) {
+        hits++;
+        break;
+      }
+    }
+  }
+  return hits;
+}
+function grammarFlags(text) {
+  const raw = text || "";
+  const issues = [];
+  let count2 = 0;
+  const add = (n, label) => {
+    if (n > 0) {
+      count2 += n;
+      issues.push(`${label}: ${n}`);
+    }
+  };
+  add((raw.match(/[.!?]{2,}/g) || []).length, "Mehrfach-Satzzeichen");
+  add((raw.match(/,{2,}|;{2,}|:{2,}/g) || []).length, "doppelte Trennzeichen");
+  add((raw.match(/\s+[,.;:!?]/g) || []).length, "Leerzeichen vor Satzzeichen");
+  add((raw.match(/\b([a-zäöüßA-ZÄÖÜ]{2,})\s+\1\b/gi) || []).length, "Wortverdopplung");
+  add((raw.match(/[a-zäöüß][.,;:!?][A-Za-zÄÖÜ]/g) || []).length, "fehlendes Leerzeichen");
+  let dangling = 0;
+  for (const sentence of raw.split(/(?<=[.!?…])\s+/)) {
+    const m = sentence.trim().match(/([a-zäöüßA-ZÄÖÜ]+)\s*[.!?…]+\s*$/);
+    if (m && DANGLING.has(m[1].toLowerCase())) dangling++;
+  }
+  add(dangling, "Satz endet auf Funktionswort");
+  add(verbCollisions(raw), "Verb-Kollision");
+  return { count: count2, issues };
+}
+
+// src/generation/scoring.ts
+init_ki();
+function splitSentences2(raw) {
+  return raw.replace(/\s+/g, " ").trim().split(/(?<=[.!?…])\s+/).filter((s) => s.trim().length > 0);
+}
+function ngrams2(words3, n) {
+  const out = [];
+  for (let i = 0; i <= words3.length - n; i++) out.push(words3.slice(i, i + n).join(" "));
+  return out;
+}
+function countRepeats(arr) {
+  const m = /* @__PURE__ */ new Map();
+  for (const x of arr) m.set(x, (m.get(x) || 0) + 1);
+  let r = 0;
+  for (const c of m.values()) if (c > 1) r += c - 1;
+  return r;
+}
+function repetitionRatio(txt2) {
+  const tokens3 = (txt2 || "").toLowerCase().match(/[a-zäöüßA-ZÄÖÜ]+/g) || [];
+  if (tokens3.length < 3) return 0;
+  const tri = ngrams2(tokens3, 3);
+  const counts = /* @__PURE__ */ new Map();
+  tri.forEach((t) => counts.set(t, (counts.get(t) || 0) + 1));
+  const repeated = [...counts.values()].filter((c) => c > 1).length;
+  return tri.length ? repeated / tri.length : 0;
+}
+function flowMetrics(txt2) {
+  const raw = (txt2 || "").toString();
+  const s = splitSentences2(raw);
+  if (!s.length) return { startMonotony: 0, colonExcess: 0, fragPairs: 0 };
+  let same = 0, fragPairs = 0;
+  for (let i = 1; i < s.length; i++) {
+    const a = (s[i - 1].split(/\s+/)[0] || "").toLowerCase();
+    const b = (s[i].split(/\s+/)[0] || "").toLowerCase();
+    if (a && a === b) same++;
+    if (isFragmentSentence(s[i - 1]) && isFragmentSentence(s[i])) fragPairs++;
+  }
+  const colons = (raw.match(/:/g) || []).length;
+  return { startMonotony: same / Math.max(1, s.length - 1), colonExcess: Math.min(1, Math.max(0, colons - 2) / 3), fragPairs: Math.min(1, fragPairs / 2) };
+}
+function analyzeText(txt2, lenTarget) {
+  const raw = txt2 || "";
+  const t = raw.toLowerCase().replace(/\s+/g, " ").trim();
+  const words3 = t.split(" ").filter(Boolean);
+  const repBi = countRepeats(ngrams2(words3, 2)), repTri = countRepeats(ngrams2(words3, 3));
+  const wordCount = words3.length;
+  const target = lenTarget > 0 ? lenTarget : 110;
+  const lenFit = Math.max(0, 1 - Math.abs(wordCount - target) / target);
+  const ttr = words3.length ? new Set(words3).size / words3.length : 0;
+  const sentLens = splitSentences2(raw).map((s) => (s.toLowerCase().match(/[a-zäöüßA-ZÄÖÜ]+/g) || []).length);
+  const meanLen = sentLens.length ? sentLens.reduce((x, y) => x + y, 0) / sentLens.length : 0;
+  const stdLen = sentLens.length > 1 ? Math.sqrt(sentLens.map((x) => (x - meanLen) ** 2).reduce((x, y) => x + y, 0) / sentLens.length) : 0;
+  const rhythmScore = Math.max(0, 1 - Math.abs(stdLen - 4) / 6);
+  return {
+    len: raw.length,
+    wordCount,
+    repetitionRatio: repetitionRatio(raw),
+    lenFit,
+    ttr,
+    stdLen,
+    rhythmScore,
+    tooShort: raw.trim().length < 120,
+    triBad: repTri > 10,
+    biBad: repBi > 25,
+    flow: flowMetrics(raw)
+  };
+}
+function coherencePenalty(txt2, opts = {}) {
+  let p = tenseBreakRatio(txt2) * 90 + phraseRepeatRatio(txt2) * 40;
+  p += perspectiveBreakRatio(txt2, opts.perspective) * 150;
+  const cd = Math.max(0, Math.min(1, opts.castDiscipline ?? 0));
+  if (cd > 0) p += cd * castSpread(txt2, opts.expectedCast || []) * 40;
+  return p;
+}
+function scoreText(txt2, lenTarget) {
+  const a = analyzeText(txt2, lenTarget);
+  const score = a.lenFit * 30 + a.ttr * 25 + a.rhythmScore * 20 - a.repetitionRatio * 50 - (a.tooShort ? 20 : 0) - a.flow.startMonotony * 15 - a.flow.colonExcess * 8 - a.flow.fragPairs * 7;
+  return { score, a };
+}
+function bestOf(bank, input, model, N2 = 12, opts = {}) {
+  const lt = input.lenTarget ?? 110;
+  const nw = Math.max(0, Math.min(1, opts.noveltyWeight ?? 0));
+  const ctx = nw > 0 ? buildNoveltyContext() : null;
+  const umw = opts.umwelt ?? loadUmwelt();
+  let best = null;
+  let bestOhne = null;
+  for (const txt2 of genN(bank, input, model, N2)) {
+    let sc = scoreText(txt2, lt).score;
+    const woerter3 = txt2.split(/\s+/).filter(Boolean).length;
+    const fehl = Math.max(0, (lt - woerter3) / Math.max(1, lt));
+    sc -= fehl * fehl * 120;
+    if (ctx) sc += nw * (noveltyOf(txt2, ctx) * 40) - nw * (cooldownHit(txt2, ctx) * 30);
+    if (opts.grammarFilter) sc -= Math.min(grammarFlags(txt2).count, 6) * 12;
+    sc -= coherencePenalty(txt2, { ...opts, perspective: opts.perspective ?? input.perspective });
+    const ohne = sc;
+    sc += umweltBeitrag(txt2, umw);
+    if (!bestOhne || ohne > bestOhne.score) bestOhne = { txt: txt2, score: ohne };
+    if (!best || sc > best.score) best = { txt: txt2, score: sc };
+  }
+  const win = best ?? { txt: buildStory(bank, input, model), score: 0 };
+  const effekt = umw.wirkung === "aus" || !umw.zeichen.trim() ? void 0 : {
+    wirkung: umw.wirkung,
+    quote: aufnahmequote(win.txt, umw.zeichen),
+    quoteOhne: bestOhne ? aufnahmequote(bestOhne.txt, umw.zeichen) : 0,
+    gewechselt: !!bestOhne && bestOhne.txt !== win.txt
+  };
+  feedGeneratedToCorpus(win.txt);
+  return effekt ? { ...win, umwelt: effekt } : win;
+}
+function genN(bank, input, model, N2) {
+  N2 = Math.max(1, Math.min(500, N2 | 0));
+  const out = [];
+  for (let i = 0; i < N2; i++) {
+    for (let b = 0; b < 2; b++) Math.random();
+    out.push(buildStory(bank, input, model));
+  }
+  return out;
+}
+function runProbe(bank, input, model, N2 = 50) {
+  const lt = input.lenTarget ?? 110;
+  const texts = genN(bank, input, model, N2);
+  const seen = /* @__PURE__ */ new Set();
+  let duplicates = 0, flaggedCount = 0, grammarCount = 0;
+  for (const txt2 of texts) {
+    if (seen.has(txt2)) duplicates++;
+    seen.add(txt2);
+    const a = analyzeText(txt2, lt);
+    if (a.tooShort || a.triBad || a.biBad) flaggedCount++;
+    if (grammarFlags(txt2).count > 0) grammarCount++;
+  }
+  return { total: texts.length, unique: seen.size, duplicates, flaggedCount, grammarCount };
+}
+function selfFeedActive() {
+  try {
+    const s = loadSettings();
+    return !!(s.enabled && s.learnStories);
+  } catch {
+    return false;
+  }
+}
+function feedGeneratedToCorpus(txt2) {
+  try {
+    if (!txt2 || !selfFeedActive()) return;
+    const flat = txt2.replace(/\s+/g, " ").trim();
+    if (flat.length < 40) return;
+    const probe = flat.slice(0, 120).toLowerCase();
+    if (loadPersistentCorpus().replace(/\s+/g, " ").toLowerCase().includes(probe)) return;
+    appendToPersistentCorpus(flat);
+  } catch {
+  }
+}
+function feedTopToCorpus(top) {
+  if (!selfFeedActive()) return;
+  top.slice(0, 3).forEach((r) => {
+    if (r?.txt) feedGeneratedToCorpus(r.txt);
+  });
+}
+function runRanking(bank, input, model, N2 = 50, topK = 10, opts = {}) {
+  const lt = input.lenTarget ?? 110;
+  const nw = Math.max(0, Math.min(1, opts.noveltyWeight ?? 0));
+  const sw = Math.max(0, Math.min(1, opts.surpriseWeight ?? 0));
+  const sTarget = Math.max(0, Math.min(1, opts.surpriseTarget ?? 0.5));
+  const must = (opts.mustWords || []).map((w) => w.toLowerCase()).filter((w) => w.length > 1);
+  const banned = opts.avoidFrequent ? frequentContentWords(40) : [];
+  const ctx = nw > 0 ? buildNoveltyContext() : null;
+  const umwR = opts.umwelt ?? loadUmwelt();
+  const results = genN(bank, input, model, N2).map((txt2) => {
+    const { score, a } = scoreText(txt2, lt);
+    return { txt: txt2, score, baseScore: score, ...a };
+  });
+  for (const r of results) {
+    let sc = r.baseScore ?? r.score;
+    if (ctx) {
+      r.novelty = noveltyOf(r.txt, ctx);
+      sc += nw * (r.novelty * 40) - nw * (cooldownHit(r.txt, ctx) * 30);
+    }
+    if (sw > 0 && model) {
+      const s = model.surprise(r.txt);
+      if (s >= 0) {
+        r.surprise = s;
+        sc += sw * ((1 - Math.abs(s - sTarget)) * 30);
+      }
+    }
+    if (must.length) {
+      const low2 = r.txt.toLowerCase();
+      const hit = must.filter((w) => low2.includes(w)).length;
+      r.constraintsOk = hit === must.length;
+      sc -= (must.length - hit) * 25;
+    }
+    if (banned.length) {
+      const low2 = r.txt.toLowerCase();
+      let b = 0;
+      for (const w of banned) if (low2.includes(w)) b++;
+      sc -= Math.min(b, 6) * 4;
+    }
+    if (opts.grammarFilter) {
+      const g = grammarFlags(r.txt).count;
+      r.grammar = g;
+      sc -= Math.min(g, 6) * 12;
+    }
+    {
+      sc -= coherencePenalty(r.txt, opts);
+    }
+    sc += umweltBeitrag(r.txt, umwR);
+    r.score = sc;
+  }
+  results.sort((a, b) => b.score - a.score);
+  const top = results.slice(0, Math.max(1, Math.min(N2, topK)));
+  feedTopToCorpus(top);
+  return { all: results, top, total: results.length, topK };
+}
+
+// src/ui/studio.ts
+var studioSchonGewuerfelt = false;
+var studioReglerStand = {};
+function uebernimmWurf(nachId) {
+  for (const [id, wert] of Object.entries(nachId)) studioReglerStand[id] = wert;
+}
+function mountStudio(root) {
+  let letzteQuelle = "";
+  root.innerHTML = "";
+  const wrap = el("div", {});
+  const where = textInput("f-where", "Wo?", "auf der Schafsweide");
+  const when = textInput("f-when", "Wann?", "vor langer Zeit");
+  const who = textInput("f-who", "Wer? (mehrere durch Komma = Dialog)", "Baucis, Philemon");
+  const what = textInput("f-what", "Was passiert?", "ein Wunder geschieht");
+  const clearable = (input) => {
+    const x = el("button", { class: "clr", type: "button", title: "Feld leeren" }, "\xD7");
+    x.addEventListener("click", () => {
+      input.value = "";
+      input.dispatchEvent(new Event("input"));
+      input.focus();
+    });
+    return el("div", { class: "inwrap" }, input, x);
+  };
+  const LOCK_KEY2 = "divergenz_studio_locks_v1";
+  const locked = new Set((() => {
+    try {
+      return JSON.parse(localStorage.getItem(LOCK_KEY2) || "[]");
+    } catch {
+      return [];
+    }
+  })());
+  const saveLocks = () => {
+    try {
+      localStorage.setItem(LOCK_KEY2, JSON.stringify([...locked]));
+    } catch {
+    }
+  };
+  const LOCKVAL_KEY = "divergenz_locked_vals_v1";
+  const lockVals = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(LOCKVAL_KEY) || "{}");
+    } catch {
+      return {};
+    }
+  })();
+  const saveLockVals = () => {
+    try {
+      localStorage.setItem(LOCKVAL_KEY, JSON.stringify(lockVals));
+    } catch {
+    }
+  };
+  const lockCtrls = {};
+  const lockPainters = {};
+  const istHaken = (c) => c instanceof HTMLInputElement && c.type === "checkbox";
+  const wertVon = (c) => istHaken(c) ? c.checked ? "1" : "0" : c.value;
+  const setzeWert = (c, v) => {
+    if (istHaken(c)) {
+      const h = c;
+      if (h.checked !== (v === "1")) {
+        h.checked = v === "1";
+        h.dispatchEvent(new Event("change"));
+      }
+    } else c.value = v;
+  };
+  const restoreLocked = () => {
+    for (const id of locked) {
+      const c = lockCtrls[id];
+      if (c && lockVals[id] !== void 0) setzeWert(c, lockVals[id]);
+    }
+  };
+  const lockNamen = {};
+  const lockName = (id) => {
+    if (lockNamen[id]) return lockNamen[id];
+    const c = lockCtrls[id];
+    const lbl = c?.closest(".field, .lenrow, .ansichtchk")?.querySelector(".field-label > span, .mlabel > span, label");
+    return (lbl?.textContent || id.replace(/^f-/, "")).trim().replace(/\s+—.*$/, "");
+  };
+  const lockBtn = (ctrl, name) => {
+    lockCtrls[ctrl.id] = ctrl;
+    if (name) lockNamen[ctrl.id] = name;
+    const upd = () => {
+      if (locked.has(ctrl.id)) {
+        lockVals[ctrl.id] = wertVon(ctrl);
+        saveLockVals();
+      }
+    };
+    ctrl.addEventListener("input", upd);
+    ctrl.addEventListener("change", upd);
+    const b = el("button", { class: "lockbtn", type: "button", title: "Beim W\xFCrfeln festhalten (Wert bleibt auch nach Neustart)" });
+    const paint = () => {
+      b.innerHTML = "";
+      b.append(icon(locked.has(ctrl.id) ? "lock" : "lockOpen"));
+      b.classList.toggle("on", locked.has(ctrl.id));
+    };
+    const liste = lockPainters[ctrl.id] ||= [];
+    liste.push({ b, paint });
+    const repaint = () => {
+      const l = lockPainters[ctrl.id] || [];
+      const lebend = l.filter((m) => m.b === b || m.b.isConnected);
+      l.length = 0;
+      l.push(...lebend);
+      lebend.forEach((m) => m.paint());
+    };
+    b.addEventListener("click", () => {
+      if (locked.has(ctrl.id)) {
+        locked.delete(ctrl.id);
+        delete lockVals[ctrl.id];
+      } else {
+        locked.add(ctrl.id);
+        lockVals[ctrl.id] = wertVon(ctrl);
+      }
+      saveLocks();
+      saveLockVals();
+      repaint();
+      updOeffnen();
+    });
+    paint();
+    return b;
+  };
+  const alleSchloesserOeffnen = () => {
+    const ids = [...locked];
+    locked.clear();
+    for (const id of ids) {
+      delete lockVals[id];
+      (lockPainters[id] || []).forEach((m) => m.paint());
+    }
+    saveLocks();
+    saveLockVals();
+    updOeffnen();
+  };
+  const oeffnenLbl = el("span", {});
+  const oeffnenBtn = el("button", { type: "button", title: "Alle Schl\xF6sser auf einmal \xF6ffnen \u2014 die Werte bleiben stehen, nur der Schutz vor dem W\xFCrfel f\xE4llt." }, icon("lockOpen"), " ", oeffnenLbl);
+  const updOeffnen = () => {
+    const n = locked.size;
+    const namen = [...locked].map(lockName);
+    const kurz2 = namen.length > 4 ? namen.slice(0, 4).join(" \xB7 ") + ` \xB7 +${namen.length - 4}` : namen.join(" \xB7 ");
+    oeffnenLbl.textContent = n === 0 ? "Keine Schl\xF6sser" : (n === 1 ? "1 Schloss \xF6ffnen: " : `${n} Schl\xF6sser \xF6ffnen: `) + kurz2;
+    oeffnenBtn.title = n === 0 ? "Kein Regler ist gesperrt." : "Gesperrt: " + namen.join(", ") + " \u2014 ein Klick \xF6ffnet alle. Die Werte bleiben stehen, nur der Schutz vor dem W\xFCrfel f\xE4llt.";
+    oeffnenBtn.disabled = n === 0;
+  };
+  oeffnenBtn.addEventListener("click", alleSchloesserOeffnen);
+  updOeffnen();
+  const lockField = (label, sel) => el("div", { class: "field" }, el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sel, label)), sel);
+  const ctxDice = el("button", {}, icon("dice"), " Kontext w\xFCrfeln");
+  ctxDice.addEventListener("click", () => {
+    const c = randomContext();
+    if (!locked.has(where.id)) where.value = c.where;
+    if (!locked.has(when.id)) when.value = c.when;
+    if (!locked.has(who.id)) who.value = c.who;
+    if (!locked.has(what.id)) what.value = c.what;
+    updHints();
+    ctxSichern();
+  });
+  const alleBtn = el("button", { class: "primary", title: "Vier W aus einer gew\xFCrfelten Quelle (Welt, Wiki-Vorrat oder Bildvorrat) + alle Stilregler (gesperrte bleiben)" }, icon("dice"), " Alles w\xFCrfeln");
+  alleBtn.addEventListener("click", () => {
+    const felder = {
+      where: { id: where.id, wert: where.value },
+      when: { id: when.id, wert: when.value },
+      who: { id: who.id, wert: who.value },
+      what: { id: what.id, wert: what.value }
+    };
+    const quelle2 = ziehQuelle(offeneQuellen(vorratStand().funde, ladeBildvorrat().length, themenStand().funde));
+    let vorschlag = {};
+    let woher = QUELLE_LABEL[quelle2];
+    let omniStil = null;
+    let omniGew = "";
+    if (quelle2 === "wiki") {
+      const f = ziehVorrat();
+      if (f) {
+        vorschlag = f.ctx;
+        woher = `Wiki \xB7 ${f.titel}`;
+      } else vorschlag = worldFillContext();
+    } else if (quelle2 === "abschrift") {
+      const f = ziehBildvorrat();
+      if (f) {
+        vorschlag = f.ctx;
+        woher = `Abschrift \xB7 ${f.name}`;
+      } else vorschlag = worldFillContext();
+    } else if (quelle2 === "thema") {
+      const f = ziehThema();
+      if (f) {
+        vorschlag = f.ctx;
+        woher = `Thema \xB7 ${f.themaLabel}`;
+      } else vorschlag = worldFillContext();
+    } else if (quelle2 === "omni") {
+      const ow = wuerfleVierW(
+        { where: where.value, when: when.value, who: who.value, what: what.value },
+        locked,
+        "omni"
+      );
+      vorschlag = ow.w4;
+      woher = ow.quelle;
+      omniStil = ow.regler || null;
+      omniGew = ow.gewicht || "";
+    } else if (quelle2 === "ideen") {
+      const iw = wuerfleVierW(
+        { where: where.value, when: when.value, who: who.value, what: what.value },
+        locked,
+        "ideen"
+      );
+      vorschlag = iw.w4;
+      woher = iw.quelle;
+    } else {
+      vorschlag = worldFillContext();
+    }
+    const neu = uebernehmeKontext(felder, vorschlag, (id) => locked.has(id));
+    const bewegt = geaendert(felder, neu);
+    where.value = neu.where;
+    when.value = neu.when;
+    who.value = neu.who;
+    what.value = neu.what;
+    const alleZu = W4_FELDER.every((f) => locked.has(felder[f].id));
+    wikiHint.textContent = bewegt.length ? `${woher}: ${bewegt.length} von 4 Feldern` : alleZu ? "alle vier Felder sind gesperrt" : `${woher}: nichts Neues dabei`;
+    wikiTitel();
+    abschriftTitel();
+    themaTitel();
+    letzteQuelle = woher;
+    updHints();
+    ctxSichern();
+    rollAlle();
+    if (omniStil) {
+      const setzeStil = (el2, v) => {
+        if (!v || locked.has(el2.id)) return;
+        if (!Array.from(el2.options).some((o) => o.value === v)) return;
+        el2.value = v;
+        studioReglerStand[el2.id] = v;
+      };
+      setzeStil(form, omniStil["form"]);
+      setzeStil(structure, omniStil["structure"]);
+      setzeStil(persp, omniStil["perspective"]);
+      setzeStil(rhythm, omniStil["rhythm"]);
+      setzeStil(varianz, omniStil["varLevel"]);
+      setzeStil(mode, omniStil["mode"]);
+      setzeStil(tone, omniStil["tone"]);
+      setzeStil(markov, omniStil["markovMode"]);
+      setzeStil(archA, omniStil["archetypeA"]);
+      setzeStil(archB, omniStil["archetypeB"]);
+      if (omniGew) {
+        const g = omniGew.split("/");
+        [wWo, wWann, wWer, wWas].forEach((sl, i) => {
+          if (locked.has(sl.id) || g[i] === void 0) return;
+          sl.value = g[i];
+          sl.dispatchEvent(new Event("input"));
+        });
+      }
+    }
+    renderPresetChecks();
+    generate();
+    anlageSichern();
+  });
+  const wikiBtn = el("button", {}, icon("book"), " Wiki");
+  const wikiHint = el("span", { class: "ctxhint" });
+  const wikiTitel = () => {
+    const st = vorratStand();
+    wikiBtn.title = st.funde ? `Zuf\xE4lliger Fund aus dem Sammler-Vorrat (${st.funde} Funde aus ${st.tage} ${st.tage === 1 ? "Tag" : "Tagen"}) \u2014 ohne Netz` : "Der Sammler-Vorrat ist leer \u2014 im Reiter \u201ESammler\u201C einen Tag holen";
+  };
+  wikiTitel();
+  wikiBtn.addEventListener("click", () => {
+    const f = ziehVorrat();
+    if (!f) {
+      wikiHint.textContent = "Vorrat leer \u2014 im Reiter \u201ESammler\u201C einen Tag holen";
+      return;
+    }
+    const setz = (inp, v) => {
+      if (v && !locked.has(inp.id)) inp.value = v;
+    };
+    setz(where, f.ctx.where);
+    setz(when, f.ctx.when);
+    setz(who, f.ctx.who);
+    setz(what, f.ctx.what);
+    wikiHint.textContent = `${f.quelleLabel}: ${f.titel}`;
+    updHints();
+    ctxSichern();
+    wikiTitel();
+  });
+  const themaBtn = el("button", {}, icon("book"), " Thema");
+  const themaTitel = () => {
+    const st = themenStand();
+    themaBtn.title = st.funde ? `Zuf\xE4lliger Fund aus dem Themenpool (${st.funde} Funde aus ${st.themen} ${st.themen === 1 ? "Thema" : "Themen"}) \u2014 ohne Netz` : "Der Themenpool ist leer \u2014 im Reiter \u201ESammler\u201C unter \u201EThemenpool\u201C ein Thema holen";
+  };
+  themaTitel();
+  themaBtn.addEventListener("click", () => {
+    const f = ziehThema();
+    if (!f) {
+      wikiHint.textContent = "Themenpool leer \u2014 im Reiter \u201ESammler\u201C unter \u201EThemenpool\u201C ein Thema holen";
+      return;
+    }
+    const setz = (inp, v) => {
+      if (v && !locked.has(inp.id)) inp.value = v;
+    };
+    setz(where, f.ctx.where);
+    setz(when, f.ctx.when);
+    setz(who, f.ctx.who);
+    setz(what, f.ctx.what);
+    wikiHint.textContent = `${f.themaLabel}: ${f.titel}`;
+    updHints();
+    ctxSichern();
+    themaTitel();
+  });
+  const abschriftBtn = el("button", {}, icon("book"), " Abschrift");
+  const abschriftTitel = () => {
+    const n = ladeBildvorrat().length;
+    abschriftBtn.title = n ? `Zuf\xE4lliger Fund aus dem Bildvorrat (${n} ${n === 1 ? "Fund" : "Funde"}) \u2014 ohne Netz` : "Der Bildvorrat ist leer \u2014 im Reiter \u201ESammler\u201C unter \u201EBilder als Material\u201C Funde in den Vorrat legen";
+  };
+  abschriftTitel();
+  abschriftBtn.addEventListener("click", () => {
+    const f = ziehBildvorrat();
+    if (!f) {
+      wikiHint.textContent = "Bildvorrat leer \u2014 im Reiter \u201ESammler\u201C Bilder lesen und in den Vorrat legen";
+      return;
+    }
+    const setz = (inp, v) => {
+      if (v && !locked.has(inp.id)) inp.value = v;
+    };
+    setz(where, f.ctx.where);
+    setz(when, f.ctx.when);
+    setz(who, f.ctx.who);
+    setz(what, f.ctx.what);
+    wikiHint.textContent = `Abschrift: ${f.name}`;
+    updHints();
+    ctxSichern();
+    abschriftTitel();
+  });
+  const ctxKeep = el("button", { class: "toggle" }, icon("pin"), " Kontext merken");
+  const CTX_KEY2 = "divergenz_ctx_v1";
+  ctxKeep.title = "Wo/Wann/Wer/Was sichern und bei jedem Start laden";
+  const setCtxKeep = (on) => {
+    ctxKeep.classList.toggle("on", on);
+    ctxKeep.setAttribute("aria-pressed", String(on));
+    try {
+      if (on) localStorage.setItem(CTX_KEY2, JSON.stringify({ where: where.value, when: when.value, who: who.value, what: what.value }));
+      else localStorage.removeItem(CTX_KEY2);
+    } catch {
+    }
+  };
+  ctxKeep.addEventListener("click", () => setCtxKeep(!ctxKeep.classList.contains("on")));
+  const ctxSichern = () => {
+    if (!ctxKeep.classList.contains("on")) return;
+    try {
+      localStorage.setItem(CTX_KEY2, JSON.stringify({ where: where.value, when: when.value, who: who.value, what: what.value }));
+    } catch {
+    }
+  };
+  [where, when, who, what].forEach((f) => {
+    f.addEventListener("input", ctxSichern);
+    f.addEventListener("change", ctxSichern);
+  });
+  const mkWeight = (id) => el("input", { id, class: "wgt", type: "range", min: "0", max: "3", step: "1", value: "0", title: "St\xE4rke \u2014 mehr \xFCber dieses Feld" });
+  const wWo = mkWeight("f-w-wo"), wWann = mkWeight("f-w-wann"), wWer = mkWeight("f-w-wer"), wWas = mkWeight("f-w-was");
+  const hintWo = el("span", { class: "ctxhint" });
+  const hintWann = el("span", { class: "ctxhint" });
+  const hintWer = el("span", { class: "ctxhint" });
+  const hintWas = el("span", { class: "ctxhint" });
+  const updHints = () => {
+    const h = (inp, fn, out2) => {
+      const v = inp.value.trim();
+      const n = v ? fn(v) : "";
+      out2.textContent = v && n && n !== v ? "\u2192 " + n : "";
+    };
+    h(where, normWhere, hintWo);
+    h(when, normWhen, hintWann);
+    {
+      const v = who.value.trim();
+      if (!v) hintWer.textContent = "";
+      else {
+        const n = normWho(v);
+        const sp = splitSpeakers(n);
+        const norm = n !== v ? "\u2192 " + n + " \xB7 " : "";
+        if (sp.length <= 1) hintWer.textContent = norm + "eine Figur \u2014 sie tr\xE4gt die Handlung";
+        else if (form.value === "script") hintWer.textContent = norm + `${sp.length} Sprecher: ${sp.join(", ")} \u2014 reihum im Dialog`;
+        else hintWer.textContent = norm + `Hauptfigur: ${sp[0]} \xB7 Nebenfigur${sp.length > 2 ? "n" : ""}: ${sp.slice(1).join(", ")} \u2014 die Handlung aus \u201EWas passiert?" geh\xF6rt der Hauptfigur, die \xFCbrigen werden eingewoben`;
+      }
+    }
+    const a = what.value.trim();
+    let wasScore = -1;
+    if (!a) hintWas.textContent = "";
+    else {
+      const lead = extractLeadVerb(a);
+      if (lead.isInfinitiveLed) {
+        hintWas.textContent = "\u2192 als Vorhaben eingewoben (\u201Ewill " + lead.rest + "\u201C)";
+        wasScore = 0.9;
+      } else if (lead.verb) {
+        hintWas.textContent = "\u2192 als Handlung eingewoben (Verb: " + lead.verb + ")";
+        wasScore = 1;
+      } else if (looksLikeFullClause(lead.verb, lead.rest)) {
+        hintWas.textContent = "\u2192 als eigener Satz eingewoben";
+        wasScore = 1;
+      } else {
+        hintWas.textContent = "\u2192 als Ereignis-Phrase eingewoben";
+        wasScore = a.length >= 4 ? 0.7 : 0.4;
+      }
+    }
+    const tint = (inp, score) => {
+      if (score < 0) {
+        inp.style.backgroundColor = "";
+        return;
+      }
+      const hue = Math.round(120 * Math.max(0, Math.min(1, score)));
+      inp.style.backgroundColor = `hsl(${hue} 65% 42% / 0.20)`;
+    };
+    tint(where, rateWhere(where.value));
+    tint(when, rateWhen(when.value));
+    tint(who, rateWho(who.value));
+    tint(what, wasScore);
+  };
+  [where, when, who, what].forEach((i) => i.addEventListener("input", updHints));
+  const field4w = (label, inp, weight, hint) => el(
+    "label",
+    { class: "field" },
+    el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(inp, label)),
+    el("div", { class: "field4w" }, clearable(inp), weight),
+    ...hint ? [hint] : []
+  );
+  const gespeicherteUmwelt = loadUmwelt();
+  const umweltIn = el("input", {
+    id: "f-umwelt",
+    type: "text",
+    placeholder: "Frost, 7Z-49, \u2205, Verwaltung \u2014 mit Komma getrennt",
+    value: gespeicherteUmwelt.zeichen
+  });
+  const umweltSel = el("select", { id: "f-umwelt-wirkung", title: "Wie die Zeichen auf die Auswahl wirken" });
+  [["aus", "aus"], ["nahrung", "Nahrung \u2014 aufnehmen"], ["gift", "Gift \u2014 meiden"]].forEach(([v, t]) => umweltSel.append(el("option", { value: v }, t)));
+  umweltSel.value = gespeicherteUmwelt.wirkung;
+  const umweltHint = el("span", { class: "ctxhint" });
+  const umweltZeigen = () => {
+    const n = umweltTeile(umweltIn.value).length;
+    umweltHint.textContent = umweltSel.value === "aus" || !n ? "" : `\u2192 ${n} ${n === 1 ? "Zeichen wirkt" : "Zeichen wirken"} auf die Bestenauslese`;
+  };
+  const umweltSichern = () => {
+    saveUmwelt({ zeichen: umweltIn.value, wirkung: umweltSel.value });
+    umweltZeigen();
+    umweltLegZeigen();
+  };
+  umweltIn.addEventListener("input", umweltSichern);
+  umweltSel.addEventListener("change", () => {
+    umweltSichern();
+    generate();
+  });
+  umweltZeigen();
+  wrap.append(
+    el(
+      "div",
+      { class: "grid2" },
+      field4w("Wo?", where, wWo, hintWo),
+      field4w("Wann?", when, wWann, hintWann),
+      field4w("Wer?", who, wWer, hintWer),
+      field4w("Was passiert?", what, wWas, hintWas)
+    ),
+    el(
+      "label",
+      { class: "field" },
+      el(
+        "span",
+        { class: "field-label lockrow" },
+        el("span", { class: "hilfe", title: "Begriffe, W\xF6rter, Zahlenkombinationen oder Zeichen. Sie erzeugen keinen Text \u2014 sie richten die Auswahl: Nahrung bevorzugt Fassungen, die sie aufnehmen, Gift bevorzugt Fassungen, die sie meiden. Wirkt nur bei eingeschalteter Bestenauslese." }, "Umwelt"),
+        umweltSel
+      ),
+      umweltIn,
+      umweltHint
+    ),
+    el("div", { class: "btnrow" }, ctxDice, alleBtn, oeffnenBtn, wikiBtn, abschriftBtn, themaBtn, ctxKeep, wikiHint)
+  );
+  const lockBar = el("div", { class: "lockbar" });
+  const preset = select("f-preset", markedPresetOptions());
+  const MULTI_ID = "__multi__";
+  const MULTI_KEY = "dm_multi_presets_v1";
+  const saveMulti = () => {
+    try {
+      if (multiIds.length >= 2) localStorage.setItem(MULTI_KEY, JSON.stringify(multiIds));
+      else localStorage.removeItem(MULTI_KEY);
+    } catch {
+    }
+  };
+  const loadMulti = () => {
+    try {
+      const r = localStorage.getItem(MULTI_KEY);
+      const a = r ? JSON.parse(r) : [];
+      return Array.isArray(a) ? a.filter((x) => typeof x === "string") : [];
+    } catch {
+      return [];
+    }
+  };
+  let multiIds = loadMulti();
+  let kopfPresetSync = null;
+  preset.addEventListener("change", () => {
+    if (preset.value === MULTI_ID) {
+      if (multiIds.length >= 2) applyMulti();
+      return;
+    }
+    if (multiIds.length) {
+      multiIds = [];
+      saveMulti();
+    }
+    if (preset.value === AUTOMIX_ID) {
+      saveBank(buildAutoMixBank());
+      saveActiveBankLabel("Auto-Mix");
+      setDramaData(null);
+      return;
+    }
+    const p = getAllPresets()[preset.value];
+    if (!p) return;
+    saveBank(p.bank);
+    saveActiveBankLabel(p.label || preset.value);
+    const a2 = preset.value.startsWith("user:") ? getUserPreset2(preset.value.slice(5)) : null;
+    if (!a2) {
+      setDramaData(builtinDrama(preset.value));
+      updRekHint();
+      return;
+    }
+    if (a2) {
+      setDramaData(a2.drama);
+      const setV = (sel, v) => {
+        if (v && Array.from(sel.options).some((o) => o.value === v)) sel.value = v;
+      };
+      const st = a2.settings;
+      setV(tone, st.tone);
+      setV(form, st.form);
+      setV(structure, st.structure);
+      setV(disruptor, st.disruptor);
+      setV(instab, st.instability);
+    }
+    updRekHint();
+  });
+  preset.addEventListener("change", () => kopfPresetSync?.());
+  const stripIcon = (l) => l.replace(/^[^\p{L}\p{N}]+/u, "").replace(/\s*✦2\.0$/, "").trim();
+  const applyMulti = () => {
+    if (multiIds.length < 2) return;
+    saveBank(buildMergedBank(multiIds));
+    const labels = multiIds.map((id) => stripIcon(getAllPresets()[id]?.label || id));
+    saveActiveBankLabel("Mix: " + labels.join(" + "));
+    const boegen = multiIds.map((id) => builtinDrama(id)).filter(Boolean);
+    if (!boegen.length) {
+      setDramaData(null);
+      return;
+    }
+    const misch = (feld) => {
+      const raus = [];
+      for (const b of boegen) for (const t of b[feld] || []) if (!raus.includes(t)) raus.push(t);
+      return raus;
+    };
+    setDramaData({
+      einstieg: misch("einstieg"),
+      mitte: misch("mitte"),
+      hoehepunkt: misch("hoehepunkt"),
+      schluss: misch("schluss"),
+      ausloeser: misch("ausloeser"),
+      veraenderungen: misch("veraenderungen"),
+      konflikte: misch("konflikte"),
+      zeitanomalien: misch("zeitanomalien"),
+      regeln: misch("regeln")
+    });
+  };
+  const ensureMultiOption = () => {
+    let o = preset.querySelector('option[value="' + MULTI_ID + '"]');
+    if (!o) {
+      o = document.createElement("option");
+      o.value = MULTI_ID;
+      preset.insertBefore(o, preset.firstChild);
+    }
+    const nm = multiIds.map((id) => stripIcon(getAllPresets()[id]?.label || id));
+    o.textContent = nm.length <= 3 ? nm.join(" + ") : nm.slice(0, 3).join(" + ") + ` +${nm.length - 3}`;
+  };
+  preset.style.display = "none";
+  const presetList = el("div", { class: "mplist", id: "presets" });
+  const presetStatus = el("span", { class: "muted mini" });
+  const autoMixStudioBtn = el("button", { class: "automixbtn", type: "button", title: "Pro Kategorie ein zuf\xE4lliges Preset zusammenw\xFCrfeln" }, icon("dice"), " Auto-Mix w\xFCrfeln");
+  autoMixStudioBtn.addEventListener("click", () => {
+    multiIds = [];
+    saveMulti();
+    preset.value = AUTOMIX_ID;
+    preset.dispatchEvent(new Event("change"));
+    if (!preset.value.startsWith("user:") && preset.value !== AUTOMIX_ID && preset.value !== MULTI_ID) {
+      setDramaData(builtinDrama(preset.value));
+    }
+    renderPresetChecks();
+    updHints();
+    requestAnimationFrame(positionArrows);
+  });
+  const renderPresetChecks = (ziel = presetList) => {
+    ziel.innerHTML = "";
+    const selected = new Set(preset.value === MULTI_ID ? multiIds : [preset.value]);
+    const boxes = [];
+    const CATL = { motifs: "Motive", hooks: "Hooks", props: "Requisiten", turns: "Wendungen", obstacles: "Hindernisse", stakes: "Eins\xE4tze", endings: "Enden" };
+    const mixSrc = preset.value === AUTOMIX_ID ? lastAutoMixSources() : {};
+    markedPresetOptions().filter(([v]) => v !== AUTOMIX_ID).forEach(([v, l]) => {
+      const cb = el("input", { type: "checkbox" });
+      cb.checked = selected.has(v);
+      cb.value = v;
+      cb.addEventListener("change", () => {
+        applySelection(boxes.filter((b) => b.checked).map((b) => b.value));
+        if (ziel !== presetList) renderPresetChecks(ziel);
+      });
+      boxes.push(cb);
+      const cats = mixSrc[v];
+      const item = el("label", { class: "chk mpitem" + (cats ? " mixsrc" : "") }, cb, " " + l);
+      if (cats) {
+        item.title = "Auto-Mix-Quelle: " + cats.map((k) => CATL[k] || k).join(", ");
+        item.append(el("span", { class: "mixsrc-badge" }, String(cats.length)));
+      }
+      ziel.append(item);
+    });
+    const curOpt = Array.from(preset.options).find((o) => o.value === preset.value);
+    if (preset.value === MULTI_ID) {
+      const namen = multiIds.map((id) => stripIcon(getAllPresets()[id]?.label || id));
+      const kurz2 = namen.length <= 3 ? namen.join(" + ") : namen.slice(0, 3).join(" + ") + ` + ${namen.length - 3} weitere`;
+      presetStatus.textContent = `Aktiv: ${kurz2}`;
+      presetStatus.title = namen.join(" + ");
+    } else if (preset.value === AUTOMIX_ID) {
+      presetStatus.textContent = "Aktiv: Auto-Mix \u2014 Quellen schattiert";
+      presetStatus.title = "";
+    } else {
+      presetStatus.textContent = "Aktiv: " + (curOpt ? curOpt.textContent || "\u2014" : "\u2014");
+      presetStatus.title = "";
+    }
+    kopfPresetSync?.();
+  };
+  function applySelection(rawIds) {
+    const ids = rawIds.filter((v) => v !== MULTI_ID && v !== AUTOMIX_ID && v !== "__omni__");
+    if (ids.length === 0) {
+      renderPresetChecks();
+      return;
+    }
+    if (ids.length === 1) {
+      multiIds = [];
+      saveMulti();
+      preset.value = ids[0];
+      preset.dispatchEvent(new Event("change"));
+      renderPresetChecks();
+      return;
+    }
+    multiIds = ids;
+    saveMulti();
+    applyMulti();
+    ensureMultiOption();
+    preset.value = MULTI_ID;
+    studioReglerStand[preset.id] = MULTI_ID;
+    renderPresetChecks();
+    anlageSichern();
+    liveRegen();
+  }
+  const tone = select("f-tone", TONE_OPTS, "mystery");
+  const form = select("f-form", FORM_OPTS, "prose");
+  const shots = el("input", { id: "f-shots", type: "number", value: "5", min: "3", max: "10" });
+  const secs = el("input", { id: "f-secs", type: "number", value: "15", min: "3", max: "600" });
+  const structure = select("f-structure", STRUCTURE_OPTS, "rekombination");
+  const bogenSel = select("f-bogen", [["preset", "aus Preset"]], "preset");
+  const bogenFuellen = () => {
+    const wahl = ladeQuelle();
+    bogenSel.innerHTML = "";
+    bogenSel.append(el("option", { value: "preset" }, "aus Preset"));
+    const alle = archivEintraege().filter((e2) => platzBrauchbar(e2));
+    for (const [k, v] of Object.entries(SCHLAGFOLGEN)) {
+      const gruppe = alle.filter((e2) => (e2.folge || "standard") === k);
+      if (!gruppe.length) continue;
+      const og = el("optgroup", { label: v.name });
+      for (const e2 of gruppe) og.append(el("option", { value: e2.id }, e2.titel || "Ohne Titel"));
+      bogenSel.append(og);
+    }
+    bogenSel.append(el("option", { value: "wuerfeln" }, alle.length ? `w\xFCrfeln je Erzeugung (${alle.length} im Archiv)` : "w\xFCrfeln je Erzeugung"));
+    bogenSel.value = Array.from(bogenSel.options).some((o) => o.value === wahl) ? wahl : "preset";
+  };
+  bogenFuellen();
+  const bogenStatus = el("div", { class: "muted mini bogen-status" });
+  let strukturVorher = null;
+  const bogenStatusMalen = () => {
+    bogenStatus.innerHTML = "";
+    const q = bogenSel.value;
+    if (q === "preset") {
+      bogenStatus.style.display = "none";
+      return;
+    }
+    bogenStatus.style.display = "";
+    const bogenStruktur = structure.value === "dramaturgie" || structure.value === "bogen";
+    const brauchbar = archivEintraege().filter((e2) => platzBrauchbar(e2)).length;
+    const platzLeer = /^a:/.test(q) && !eintragNachId(q);
+    if (form.value !== "prose") bogenStatus.append("wirkt nicht: nur bei Form \u201EProsa\u201C");
+    else if (!bogenStruktur) {
+      const knopf = el("button", { type: "button", class: "mini-link" }, "auf \u201EDramaturgie\u201C stellen");
+      knopf.addEventListener("click", () => {
+        strukturVorher = structure.value;
+        structure.value = "dramaturgie";
+        structure.dispatchEvent(new Event("change"));
+      });
+      bogenStatus.append("wirkt nicht: Struktur ist \u201E", structure.options[structure.selectedIndex]?.text || structure.value, "\u201C \u2014 ", knopf);
+    } else if (platzLeer) bogenStatus.append("wirkt nicht: der gew\xE4hlte Eintrag fehlt im Archiv \u2014 in der Erz\xE4hlerbank w\xE4hlen");
+    else if (q === "wuerfeln" && !brauchbar) bogenStatus.append("wirkt nicht: das Archiv der Erz\xE4hlerbank ist leer");
+    else if (strukturVorher) {
+      const zurueck = el("button", { type: "button", class: "mini-link" }, `zur\xFCck auf \u201E${STRUCTURE_OPTS.find(([v]) => v === strukturVorher)?.[1] || strukturVorher}\u201C`);
+      zurueck.addEventListener("click", () => {
+        structure.value = strukturVorher;
+        strukturVorher = null;
+        structure.dispatchEvent(new Event("change"));
+      });
+      bogenStatus.append("wirkt \xB7 Struktur wurde auf \u201EDramaturgie\u201C gestellt \u2014 ", zurueck);
+    } else bogenStatus.append(`wirkt \xB7 Struktur \u201E${structure.options[structure.selectedIndex]?.text || structure.value}\u201C`);
+  };
+  bogenSel.addEventListener("change", () => {
+    setzeQuelle(bogenSel.value);
+    bauformSync();
+    if (bogenSel.value !== "preset" && form.value === "prose" && structure.value !== "dramaturgie" && structure.value !== "bogen") {
+      strukturVorher = structure.value;
+      structure.value = "dramaturgie";
+      structure.dispatchEvent(new Event("change"));
+    }
+    if (bogenSel.value === "preset") strukturVorher = null;
+    bogenStatusMalen();
+  });
+  const bauformSel = select("f-bauform", Object.entries(SCHLAGFOLGEN).map(([k, v]) => [k, v.name]), "standard");
+  const bauformSync = () => {
+    const q = ladeQuelle();
+    const e2 = /^a:/.test(q) ? eintragNachId(q) : null;
+    bauformSel.disabled = !e2;
+    bauformSel.title = e2 ? `Bauform von \u201E${e2.titel || "Ohne Titel"}\u201C \xE4ndern \u2014 der Eintrag zieht ins Archiv der neuen Bauform` : "Bauform geh\xF6rt zum gew\xE4hlten Eintrag \u2014 bei \u201Eaus Preset\u201C oder \u201Ew\xFCrfeln\u201C nicht schaltbar";
+    if (e2) bauformSel.value = e2.folge || "standard";
+  };
+  bauformSel.addEventListener("change", () => {
+    const q = ladeQuelle();
+    if (!/^a:/.test(q)) return;
+    const neuId = bauformAendern(q, bauformSel.value);
+    if (neuId) {
+      setzeQuelle(neuId);
+      bogenFuellen();
+    }
+  });
+  bauformSync();
+  document.addEventListener("visibilitychange", bogenFuellen);
+  const mode = select("f-mode", MODE_OPTS, "auto");
+  const persp = select("f-persp", PERSP_OPTS, "auto");
+  const rhythm = select("f-rhythm", RHYTHM_OPTS, "auto");
+  const tension = select("f-tension", TENSION_OPTS, "off");
+  const cast = select("f-cast", CAST_OPTS, "0.5");
+  const instab = select("f-instab", INSTAB_OPTS, "2");
+  const markov = select("f-markov", MARKOV_OPTS, "off");
+  const disruptor = select("f-disruptor", DISRUPTOR_OPTS, "auto");
+  const ressort = select("f-ressort", [
+    ["auto", "Auto (aus dem Stoff)"],
+    ...RESSORT_IDS.map((id) => [id, RESSORTS[id].label])
+  ], "auto");
+  const varianz = select("f-varianz", VARIANZ_OPTS, "mid");
+  const archA = select("f-archa", ARCH_OPTS, "neutral");
+  const archB = select("f-archb", ARCH_OPTS, "neutral");
+  const ROLL_SELECTS = [tone, form, structure, mode, persp, rhythm, tension, cast, instab, markov, disruptor, varianz, ressort, archA, archB, preset];
+  const presetField = el(
+    "div",
+    { class: "field presetfield" },
+    el("span", { class: "field-label lockrow" }, el("span", {}, "Preset \u2014 eins oder mehrere ankreuzen"), presetStatus, lockBtn(preset, "Preset")),
+    preset,
+    el("div", { class: "btnrow" }, autoMixStudioBtn),
+    presetList
+  );
+  wrap.append(presetField);
+  wrap.append(el("div", { class: "grid3" }, lockField("Ton", tone), lockField("Form", form)));
+  const lenSlider = el("input", { id: "f-len", type: "range", min: "40", max: "300", step: "5", value: "110", style: "flex:1" });
+  const lenVal = el("span", { class: "muted" }, "110");
+  let lenTimer;
+  let baseText = "";
+  let rolling = false;
+  const applyLengthLive = () => {
+    const target = parseInt(lenSlider.value, 10);
+    const form2 = readInput().form;
+    if (form2 === "prose") {
+      const src = baseText.trim() ? baseText : out.textContent || "";
+      if (!src.trim()) {
+        generate();
+        return;
+      }
+      out.textContent = enforceWordTarget(src, target, loadBank(), markov.value !== "off" ? buildModelFromCorpus(2) : void 0);
+      nachTextwechsel();
+      try {
+        localStorage.setItem("dm_last_text", out.textContent || "");
+      } catch {
+      }
+      refreshFeeds();
+    } else if (form2 === "script" || form2 === "bericht" || form2 === "meldung") {
+      generate();
+    }
+  };
+  lenSlider.addEventListener("input", () => {
+    lenVal.textContent = lenSlider.value;
+    clearTimeout(lenTimer);
+    lenTimer = setTimeout(applyLengthLive, 180);
+  });
+  const lenRow = el("div", { class: "field lenrow" }, el("span", { class: "mlabel lockrow" }, el("span", {}, "Textl\xE4nge"), lockBtn(lenSlider, "Textl\xE4nge")), lenSlider, " ", lenVal);
+  const fontSel = el(
+    "select",
+    { id: "f-font" },
+    ...[["serif", "Serif"], ["classic", "Times"], ["sans", "Sans"], ["mono", "Mono"]].map(([v, l]) => el("option", { value: v }, l))
+  );
+  const sizeSlider = el("input", { id: "f-fontsize", type: "range", min: "14", max: "32", step: "0.5", value: String(loadFontSize()) });
+  const sizeVal = el("span", { class: "muted" }, String(loadFontSize()));
+  fontSel.value = loadFont();
+  const applyFont = () => {
+    applyStoryFont(out, fontSel.value, parseFloat(sizeSlider.value));
+    sizeVal.textContent = sizeSlider.value;
+    saveFontPrefs(fontSel.value, parseFloat(sizeSlider.value));
+  };
+  fontSel.addEventListener("change", applyFont);
+  sizeSlider.addEventListener("input", applyFont);
+  const fontRow = el("label", { class: "field lenrow fontrow" }, el("span", { class: "mlabel" }, "Schrift"), " ", fontSel, " ", el("span", { class: "mlabel" }, "Gr\xF6\xDFe"), " ", sizeSlider, " ", sizeVal);
+  const out = el("pre", { id: "f-out", class: "out" });
+  const TITEL_KEY = "dm_titel_an";
+  const titelEl = el("h2", { class: "text-titel", id: "f-titel" });
+  const titelChk = el("input", { type: "checkbox", id: "f-titel-an" });
+  try {
+    titelChk.checked = localStorage.getItem(TITEL_KEY) !== "aus";
+  } catch {
+    titelChk.checked = true;
+  }
+  const titelLbl = el("label", { class: "chk", title: "Ein Titel \xFCber dem Text \u2014 aus einer Bildzeile des Textes oder aus Wer und Was." }, titelChk, " Titel");
+  const GESEHEN_KEY = "dm_titel_gesehen";
+  const ladeGesehen = () => {
+    try {
+      const r = JSON.parse(localStorage.getItem(GESEHEN_KEY) || "[]");
+      return Array.isArray(r) ? r.filter((x) => typeof x === "string") : [];
+    } catch {
+      return [];
+    }
+  };
+  const merkeGesehen = (t) => {
+    if (!t) return;
+    const g = ladeGesehen().filter((x) => x !== t);
+    g.push(t);
+    try {
+      localStorage.setItem(GESEHEN_KEY, JSON.stringify(g.slice(-40)));
+    } catch {
+    }
+  };
+  let titelAktuell = "", titelText = "";
+  const aktuellerTitel = () => {
+    if (!titelChk.checked) return "";
+    const txt2 = out.textContent || "";
+    if (txt2 !== titelText) {
+      titelAktuell = titelFuer(txt2, { who: who.value, where: where.value, when: when.value, what: what.value }, form.value, ladeGesehen());
+      titelText = txt2;
+      merkeGesehen(titelAktuell);
+    }
+    return titelAktuell;
+  };
+  const renderTitel = () => {
+    const t = aktuellerTitel();
+    titelEl.textContent = t;
+    titelEl.style.display = t ? "" : "none";
+  };
+  titelChk.addEventListener("change", () => {
+    try {
+      localStorage.setItem(TITEL_KEY, titelChk.checked ? "an" : "aus");
+    } catch {
+    }
+    renderTitel();
+  });
+  const genArrows = [];
+  const mkGenArrow = (dir) => {
+    const b = el("button", { class: "genarrow " + dir, type: "button", title: "Neue Variante generieren", "aria-label": "Neue Variante generieren" }, dir === "left" ? "\u2039" : "\u203A");
+    b.addEventListener("pointerdown", (e2) => {
+      e2.preventDefault();
+      generate();
+    });
+    genArrows.push(b);
+    return b;
+  };
+  const grip = el("div", {
+    class: "lengrip",
+    role: "slider",
+    tabindex: "0",
+    title: "Ziehen: Textl\xE4nge \xE4ndern \xB7 Doppelklick: Fensterh\xF6he zur\xFCcksetzen"
+  });
+  const gripVal = el("span", { class: "lengrip-val" });
+  grip.append(gripVal);
+  const PX_JE_SCHRITT = 6;
+  let zieht = false, startY = 0, startWert = 0, startHoehe = 0, geaendert2 = false;
+  const zeigeWert = (v) => {
+    gripVal.textContent = v + " W\xF6rter";
+  };
+  grip.addEventListener("pointerdown", (e2) => {
+    const ev = e2;
+    if (locked.has(lenSlider.id)) {
+      gripVal.textContent = "Textl\xE4nge ist gesperrt";
+      grip.classList.add("warn");
+      setTimeout(() => {
+        grip.classList.remove("warn");
+        gripVal.textContent = "";
+      }, 1600);
+      return;
+    }
+    zieht = true;
+    geaendert2 = false;
+    startY = ev.clientY;
+    startWert = parseInt(lenSlider.value, 10) || 110;
+    startHoehe = out.getBoundingClientRect().height;
+    grip.classList.add("zieht");
+    zeigeWert(startWert);
+    grip.setPointerCapture(ev.pointerId);
+    ev.preventDefault();
+  });
+  grip.addEventListener("pointermove", (e2) => {
+    if (!zieht) return;
+    const dy = e2.clientY - startY;
+    const schritt2 = parseInt(lenSlider.step, 10) || 10;
+    const min = parseInt(lenSlider.min, 10), max = parseInt(lenSlider.max, 10);
+    const roh = startWert + Math.round(dy / PX_JE_SCHRITT) * schritt2;
+    const neuW = Math.max(min, Math.min(max, roh));
+    if (String(neuW) !== lenSlider.value) {
+      lenSlider.value = String(neuW);
+      lenVal.textContent = String(neuW);
+      geaendert2 = true;
+    }
+    zeigeWert(neuW);
+    out.style.minHeight = Math.max(120, startHoehe + dy) + "px";
+    positionArrows();
+  });
+  const gripEnde = (e2) => {
+    if (!zieht) return;
+    zieht = false;
+    grip.classList.remove("zieht");
+    gripVal.textContent = "";
+    try {
+      grip.releasePointerCapture(e2.pointerId);
+    } catch {
+    }
+    out.style.minHeight = "";
+    positionArrows();
+    if (geaendert2) generate();
+  };
+  grip.addEventListener("pointerup", gripEnde);
+  grip.addEventListener("pointercancel", gripEnde);
+  grip.addEventListener("dblclick", () => {
+    out.style.minHeight = "";
+    positionArrows();
+  });
+  grip.addEventListener("keydown", (e2) => {
+    const ev = e2;
+    if (ev.key !== "ArrowUp" && ev.key !== "ArrowDown") return;
+    if (locked.has(lenSlider.id)) return;
+    const schritt2 = parseInt(lenSlider.step, 10) || 10;
+    const min = parseInt(lenSlider.min, 10), max = parseInt(lenSlider.max, 10);
+    const v = Math.max(min, Math.min(max, (parseInt(lenSlider.value, 10) || 110) + (ev.key === "ArrowDown" ? schritt2 : -schritt2)));
+    lenSlider.value = String(v);
+    lenVal.textContent = String(v);
+    ev.preventDefault();
+    generate();
+  });
+  const outWrap = el("div", { class: "outwrap" }, mkGenArrow("left"), out, mkGenArrow("right"), grip);
+  const positionArrows = () => {
+    const r = outWrap.getBoundingClientRect();
+    if (r.height <= 0) return;
+    const visTop = Math.max(r.top, 0);
+    const visBot = Math.min(r.bottom, window.innerHeight);
+    let center = (visTop + visBot) / 2 - r.top;
+    center = Math.max(40, Math.min(r.height - 40, center));
+    for (const a of genArrows) a.style.top = center + "px";
+  };
+  window.addEventListener("scroll", positionArrows, { passive: true });
+  window.addEventListener("resize", positionArrows);
+  let swipeX = 0, swipeY = 0;
+  out.addEventListener("touchstart", (e2) => {
+    const t = e2.touches[0];
+    if (t) {
+      swipeX = t.clientX;
+      swipeY = t.clientY;
+    }
+  }, { passive: true });
+  out.addEventListener("touchend", (e2) => {
+    const t = e2.changedTouches[0];
+    if (!t) return;
+    const dx = t.clientX - swipeX, dy = t.clientY - swipeY;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) generate();
+  }, { passive: true });
+  const kling = el("div", { class: "kling" });
+  const feedsChk = el("input", { type: "checkbox", id: "f-feeds" });
+  const legDot = (c, l) => el("span", { class: "feeditem" }, el("span", { class: "feeddot " + c }), " " + l);
+  const planChk = el("input", { type: "checkbox", id: "f-plan" });
+  const planBox = el("div", { class: "bauplan", style: "display:none" });
+  const PHASE_LABEL = { exposition: "Er\xF6ffnung", verdichtung: "Verdichtung", umschlag: "Umschlag", schluss: "Schluss" };
+  const KAT_LABEL = {
+    motifs: "Motiv",
+    hooks: "Haken",
+    props: "Requisite",
+    turns: "Wendung",
+    obstacles: "Hindernis",
+    stakes: "Einsatz",
+    endings: "Ende",
+    // Bogen-Material (Erzählerbank / Preset 2.0) — gewünscht: ein Bauplan auch
+    // für „Rekombination mit Bogen"; dort muss man sehen, WAS aus dem Bogen kam.
+    einstieg: "Bogen \xB7 Einstieg",
+    mitte: "Bogen \xB7 Mitte",
+    hoehepunkt: "Bogen \xB7 H\xF6hepunkt",
+    schluss: "Bogen \xB7 Schluss",
+    ausloeser: "Bogen \xB7 Ausl\xF6ser",
+    veraenderungen: "Bogen \xB7 Ver\xE4nderung",
+    konflikte: "Bogen \xB7 Konflikt",
+    zeitanomalien: "Bogen \xB7 Zeit",
+    regeln: "Bogen \xB7 Regel"
+  };
+  const renderPlan = () => {
+    const mitBogen = structure.value === "bogen";
+    const on = planChk.checked && (structure.value === "rekombination" || mitBogen);
+    planBox.style.display = on ? "" : "none";
+    if (!on) return;
+    const tr = getTraceFor(out.textContent || "");
+    planBox.innerHTML = "";
+    if (!tr.length) {
+      planBox.append(el("span", { class: "muted mini" }, mitBogen ? "Noch kein Text mit Bogen erzeugt." : "Noch kein Rekombinations-Text erzeugt."));
+      return;
+    }
+    if (mitBogen) {
+      const d = loadDramaData();
+      const folge = phasenAusSchlagfolge(d?.folge);
+      const q = ladeQuelle();
+      const platz = letzterGezogen() || (/^a:/.test(q) ? eintragNachId(q) : null);
+      const bauform = platz ? SCHLAGFOLGEN[platz.folge || "standard"]?.name || platz.folge || "" : q === "wuerfeln" ? "gew\xFCrfelt" : d?.folge ? "aus Preset" : "ohne Bogen \u2014 lineare Folge";
+      const ausBogen = tr.filter((x) => x.quelle === "dramaturgie").length;
+      planBox.append(el(
+        "div",
+        { class: "muted mini bp-kopf" },
+        `Bogen: ${platz ? `${platz.titel || "Ohne Titel"} \xB7 ` : ""}${bauform} \xB7 Erz\xE4hlbogen ${loadKnobs().bogen} % \xB7 ${ausBogen} von ${tr.length} Bausteinen aus dem Bogen`
+      ));
+      const kurz2 = { exposition: "E", verdichtung: "V", umschlag: "U", schluss: "S" };
+      planBox.append(el(
+        "div",
+        { class: "muted mini bp-kopf", title: "Phasenfolge, aus der Schlagfolge auf zehn Schritte gespreizt: E Er\xF6ffnung \xB7 V Verdichtung \xB7 U Umschlag \xB7 S Schluss" },
+        "Phasenfolge: " + folge.map((ph) => kurz2[ph] || ph[0].toUpperCase()).join(" ")
+      ));
+    }
+    const anteil = Math.round(fuegeteilAnteil() * 100);
+    const norm = (t) => t.toLowerCase().replace(/[^a-zäöüß ]/g, " ").replace(/\s+/g, " ").trim();
+    const bausteine = tr.map((x) => norm(x.text)).filter(Boolean);
+    const fremd = (out.textContent || "").split(/(?<=[.!?…])\s+/).map((x) => norm(x)).filter((x) => x.split(" ").length >= 3).filter((satz) => !bausteine.some((b) => b.includes(satz.slice(0, 24)) || satz.includes(b.slice(0, 24))));
+    planBox.append(el(
+      "div",
+      { class: "muted mini bp-kopf" },
+      `${tr.length} Bausteine \xB7 ${anteil} % F\xFCgeteile${anteil > 25 ? " \u26A0" : ""}` + (fremd.length ? ` \xB7 ${fremd.length} Satz/S\xE4tze aus der Nachbearbeitung (Ton, Gl\xE4ttung)` : "")
+    ));
+    let letztePhase = "";
+    for (const s of tr) {
+      if (s.phase !== letztePhase) {
+        planBox.append(el("div", { class: "bp-phase ph-" + s.phase }, PHASE_LABEL[s.phase] || s.phase));
+        letztePhase = s.phase;
+      }
+      const herkunft = s.quelle === "vorlage" ? "F\xFCgeteil \xB7 " + s.typ : KAT_LABEL[s.kategorie] || s.kategorie;
+      const row = el(
+        "div",
+        { class: "bp-zeile q-" + s.quelle },
+        el("span", { class: "bp-tag" }, herkunft),
+        el("span", { class: "bp-text" }, s.text)
+      );
+      if (s.fueller) for (const f of s.fueller) row.append(el("span", { class: "bp-fill" }, "\u21B3 " + (KAT_LABEL[f.kategorie] || f.kategorie) + ": " + f.text));
+      planBox.append(row);
+    }
+  };
+  planChk.addEventListener("change", renderPlan);
+  const struktChk = el("input", { type: "checkbox", id: "f-struktur" });
+  const vorratHint = el("p", { class: "muted mini", style: "display:none" });
+  const updVorrat = () => {
+    const txt2 = out.textContent || "";
+    const ziel = parseInt(lenSlider.value, 10) || 0;
+    const ist2 = txt2.split(/\s+/).filter(Boolean).length;
+    const knapp = structure.value === "rekombination" && ziel > 0 && ist2 > 0 && ist2 / ziel < 0.85;
+    vorratHint.style.display = knapp ? "" : "none";
+    if (knapp) vorratHint.textContent = `${ist2} statt ${ziel} W\xF6rtern: Der Baustein-Vorrat des gew\xE4hlten Presets ist ersch\xF6pft. Die Rekombination l\xE4sst jeden Satz nur einmal zu \u2014 f\xFCr l\xE4ngere Texte mehrere Presets aktivieren oder Auto-Mix w\xE4hlen.`;
+  };
+  const struktBox = el("div", { class: "struktur-inline", style: "display:none" });
+  const renderStruktur = () => {
+    if (!struktChk.checked) {
+      struktBox.style.display = "none";
+      return;
+    }
+    struktBox.style.display = "";
+    struktBox.innerHTML = "";
+    quelleHint.style.display = "none";
+    bauformSync();
+    const snap = loadSchnappschuss();
+    struktBox.append(renderTextstruktur(out.textContent || "", snap, {
+      Preset: preset,
+      Ton: tone,
+      Form: form,
+      Struktur: structure,
+      Perspektive: persp,
+      Rhythmus: rhythm,
+      Markov: markov,
+      Varianz: varianz,
+      Spannung: tension,
+      // Gewünscht: die Bogen-Blasen schaltbar — Bogen (Regler aus dem
+      // Werkzeugkasten) und Bauform (schreibt in den Platz). Nur, wenn ein
+      // Bogen im Spiel war; sonst blieben leere Felder in der Reihe.
+      ...snap?.bogen ? { Bogen: bogenSel, Bauform: bauformSel } : {},
+      // Stellschrauben in der Schnellwahl: die vier, deren Wirkung man beim Lesen
+      // sofort merkt, plus die Korpus-Menge. Fuegeteil-Deckel, 4W-Deckel und
+      // Nachlege-Abstand bleiben im Werkzeugkasten - sie wirken auf den Bau,
+      // nicht auf den Klang.
+      ...knobSel.satzlaenge ? { "Satzl\xE4nge": knobSel.satzlaenge } : {},
+      ...knobSel.atomgroesse ? { "Atomgr\xF6\xDFe": knobSel.atomgroesse } : {},
+      ...knobSel.bogen ? { "Erz\xE4hlbogen": knobSel.bogen } : {},
+      ...knobSel.ton ? { "Ton-Einsch\xFCbe": knobSel.ton } : {},
+      ...knobSel.korpus ? { "Korpus-Bausteine": knobSel.korpus } : {},
+      ...knobSel.phrase ? { "Phrasensperre": knobSel.phrase } : {}
+    }, (host) => renderPresetChecks(host), (sel) => sel === bogenSel || sel === bauformSel ? null : lockBtn(sel)));
+    struktBox.append(quelleHint, zielHint);
+    try {
+      const hh = analysiereHerkunft(
+        out.textContent || "",
+        (snap?.tonId || snap?.ton || "neutral").toLowerCase(),
+        { where: snap?.where, when: snap?.when, who: snap?.who, what: snap?.what }
+      );
+      regelschritt({
+        vorlage: hh.anteile.vorlage,
+        dramaturgie: hh.anteile.dramaturgie,
+        ton: hh.anteile.ton,
+        kontext: hh.anteile.kontext
+      });
+    } catch {
+    }
+  };
+  struktChk.addEventListener("change", renderStruktur);
+  const nachTextwechsel = () => {
+    renderStruktur();
+    updVorrat();
+    renderTitel();
+  };
+  const quelleHint = el("p", { class: "muted mini", style: "display:none" });
+  const zeigeHinweis = (txt2) => {
+    quelleHint.textContent = txt2;
+    quelleHint.style.display = "";
+  };
+  const springZu = (id, txt2) => {
+    const n = document.getElementById(id);
+    if (!n) {
+      zeigeHinweis(txt2);
+      return;
+    }
+    fine.open = true;
+    n.scrollIntoView({ behavior: "smooth", block: "center" });
+    n.classList.add("hervor");
+    setTimeout(() => n.classList.remove("hervor"), 1800);
+    zeigeHinweis(txt2);
+  };
+  const zielHint = el("p", { class: "muted mini", style: "display:none" });
+  const regelschritt = (anteile) => {
+    const z = loadZiele();
+    const offen = Object.keys(z).filter((q) => z[q] !== void 0);
+    if (!offen.length) {
+      zielHint.style.display = "none";
+      return;
+    }
+    const r = regle(anteile, (feld) => locked.has("k-" + feld));
+    const teile = offen.map((q) => {
+      const ist2 = Math.round((anteile[q] ?? 0) * 100);
+      const marke = r.fest.includes(q) ? " \u2014 nicht erreichbar" : "";
+      return `${QUELLEN_LABEL[q]} ${ist2} % (Ziel ${z[q]} %${marke})`;
+    });
+    zielHint.style.display = "";
+    zielHint.textContent = (r.bewegt ? "Nachgeregelt, wirkt beim n\xE4chsten Erzeugen: " : r.fest.length ? "Diese Stellschraube trifft das Ziel nicht \u2014 n\xE4chstm\xF6glicher Wert: " : "Ziel erreicht: ") + teile.join(" \xB7 ");
+    const k = loadKnobs();
+    for (const f of ["fuegeteil", "w4max", "abstand", "bogen", "ton"]) {
+      const r2 = document.getElementById("k-" + f);
+      if (r2 && r2.value !== String(k[f])) {
+        r2.value = String(k[f]);
+        r2.dispatchEvent(new Event("input"));
+      }
+    }
+  };
+  document.addEventListener("dm-schnellwahl", () => {
+    renderPresetChecks();
+  });
+  document.addEventListener("dm-ziel", (e2) => {
+    vergissVerlauf(e2.detail?.quelle);
+    renderStruktur();
+  });
+  document.addEventListener("dm-quelle", (e2) => {
+    const q = e2.detail;
+    const rek = structure.value === "rekombination";
+    switch (q) {
+      case "vorlage":
+        springZu("knob-fuegeteil", "\u201EVorlagen\u201C sind die Verbindungsst\xFCcke. Der F\xFCgeteil-Deckel begrenzt ihren Anteil.");
+        break;
+      case "kontext":
+        springZu("knob-w4max", "Der 4W-Anteil kommt aus Wo/Wann/Wer/Was \u2014 St\xE4rke je Feld dar\xFCber, Wiederholung \xFCber den 4W-Deckel.");
+        break;
+      case "wortbank":
+        springZu("presets", "Die Wortbank ist die Restgr\xF6\xDFe: alles, was die anderen Quellen nicht liefern. Steuerbar nur \xFCber die Preset-Auswahl.");
+        break;
+      case "ton":
+        springZu("f-tone", "Der Ton-Anteil entsteht in der Nachbearbeitung. Die Auswahl bestimmt, welche S\xE4tze eingeschoben werden.");
+        break;
+      case "dramaturgie":
+        zeigeHinweis("Der Erz\xE4hlbogen wird im Tab Wortbank bearbeitet, unter \u201EPreset bearbeiten und sichern\u201C. Jedes eingebaute Preset bringt einen mit.");
+        break;
+      case "nachbearbeitung":
+        springZu("f-persp", "Nachbearbeitung ist eine Folge, kein Wunsch: Perspektive, Gl\xE4ttung und Verfugung. Man stellt sie nicht ein, man verursacht sie.");
+        break;
+      case "pools":
+        zeigeHinweis(rek ? "Lebendige Pools sind im Rekombinationsmodus nicht angeschlossen \u2014 der Assembler f\xFChrt sie nicht als Quelle. Der Regler im Ideen-Tab wirkt nur dort." : "Lebendige Pools f\xFCllen sich beim Merken und Generieren; im Schablonenweg mischen sie sich unter die Wortbank.");
+        break;
+      case "markov":
+        springZu("f-markov", rek ? "Markov speist eigene Bausteine in die Rekombination ein \u2014 gefiltert auf Pr\xE4sens, ohne fremde Figuren, nicht zu lang. Braucht einen gef\xFCllten Korpus." : "Markov mischt sich in die Bausteine des Schablonenwegs. Bei leerem Korpus liefert er nichts, gleich wie der Regler steht.");
+        break;
+      default:
+        zeigeHinweis("F\xFCr diesen Anteil gibt es keine eigene Stellschraube.");
+    }
+  });
+  const undoBtn = el("button", { class: "undochip", type: "button", title: "Letzte \xC4nderung r\xFCckg\xE4ngig (Strg+Z)" }, "\u21A9 R\xFCckg\xE4ngig");
+  undoBtn.disabled = true;
+  const ansicht = (chk, text) => el("span", { class: "ansichtchk" }, el("label", { class: "chk" }, chk, " " + text), lockBtn(chk, text));
+  const umweltLeg = el("span", { class: "feeditem", style: "display:none" });
+  const umweltStatus = el("span", { class: "umweltchip", style: "display:none" });
+  const zeigeUmweltEffekt = (e2) => {
+    umweltStatus.innerHTML = "";
+    if (!e2) {
+      umweltStatus.style.display = "none";
+      return;
+    }
+    umweltStatus.style.display = "";
+    umweltStatus.className = "umweltchip" + (e2.wirkung === "gift" ? " gift" : "") + (e2.gewechselt ? " gewechselt" : "");
+    const pct = Math.round(e2.quote * 100), pctOhne = Math.round(e2.quoteOhne * 100);
+    const bar = el("span", { class: "umweltbar" });
+    bar.append(el("i", { style: `width:${pct}%` }));
+    umweltStatus.title = e2.gewechselt ? `Unter den zw\xF6lf Fassungen hat eine andere gewonnen als ohne die Umwelt: Sie war nach den \xFCbrigen Ma\xDFst\xE4ben schlechter, ging mit den Zeichen aber besser um. Ohne die Umwelt h\xE4tte eine Fassung mit ${pctOhne} % gewonnen.` : `Die Umwelt war derselben Meinung wie der Rest der Bewertung \u2014 dieselbe Fassung h\xE4tte auch ohne sie gewonnen. Eine hohe Quote allein beweist nichts: Was das Preset ohnehin dauernd sagt, steht auch ohne Umwelt im Text.`;
+    umweltStatus.append(
+      el("span", {}, e2.wirkung === "nahrung" ? "aufgenommen" : "gemieden"),
+      bar,
+      el("span", {}, e2.wirkung === "nahrung" ? pct + " %" : 100 - pct + " %"),
+      el("span", { class: "muted" }, e2.gewechselt ? "\xB7 Umwelt gab den Ausschlag" : "\xB7 h\xE4tte auch so gewonnen")
+    );
+  };
+  const umweltLegZeigen = () => {
+    const u = loadUmwelt();
+    umweltLeg.innerHTML = "";
+    if (u.wirkung === "aus" || !umweltTeile(u.zeichen).length) {
+      umweltLeg.style.display = "none";
+      return;
+    }
+    umweltLeg.style.display = "";
+    umweltLeg.append(
+      el("span", { class: "feeddot " + (u.wirkung === "nahrung" ? "feed-nahrung" : "feed-gift") }),
+      u.wirkung === "nahrung" ? "Umwelt (Nahrung)" : "Umwelt (Gift)"
+    );
+  };
+  const feedsRow = el(
+    "div",
+    {},
+    el(
+      "div",
+      { class: "feedsrow" },
+      legDot("feed-wb", "Wortbank"),
+      legDot("feed-ton", "Ton"),
+      legDot("feed-4w", "4W-Kontext"),
+      legDot("feed-pool", "Lebendige Pools"),
+      legDot("feed-markov", "Markov"),
+      legDot("feed-drama", "Erz\xE4hlbogen"),
+      legDot("feed-korpus", "Korpus"),
+      umweltLeg,
+      el("span", { class: "muted" }, "\xB7 unmarkiert = Vorlagen \xB7 alles anklickbar")
+    ),
+    el(
+      "div",
+      { class: "feedsrow ansichtrow" },
+      ansicht(feedsChk, "Editieren"),
+      ansicht(struktChk, "Struktur"),
+      ansicht(planChk, "Bauplan"),
+      undoBtn,
+      umweltStatus
+    )
+  );
+  umweltLegZeigen();
+  const escFeeds = (t) => t.replace(/[&<>]/g, (c) => c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;");
+  const collectFeed = (phrases, cls, prio, low2, acc) => {
+    for (const raw of phrases) {
+      const ph = (raw || "").trim();
+      if (ph.length < 5) continue;
+      const pl = ph.toLowerCase();
+      let from = 0, idx = low2.indexOf(pl, from);
+      while (idx !== -1) {
+        acc.push({ s: idx, e: idx + pl.length, cls, prio });
+        from = idx + pl.length;
+        if (acc.length > 4e3) return;
+        idx = low2.indexOf(pl, from);
+      }
+    }
+  };
+  const renderFeeds = () => {
+    const plain = out.textContent || "";
+    if (!feedsChk.checked) {
+      out.textContent = plain;
+      return;
+    }
+    const low2 = plain.toLowerCase();
+    const m = [];
+    if (tone.value !== "neutral") {
+      const td = TONE_DATA[tone.value];
+      if (td) collectFeed([...td.opener, ...td.flavor], "feed-ton", 3, low2, m);
+    }
+    collectFeed(
+      w4Varianten({ who: who.value, where: where.value, when: when.value, what: what.value }),
+      "feed-4w",
+      2,
+      low2,
+      m
+    );
+    try {
+      const b = loadBank();
+      const all = [];
+      for (const k of Object.keys(b)) if (Array.isArray(b[k])) all.push(...b[k]);
+      collectFeed(all, "feed-wb", 1, low2, m);
+    } catch {
+    }
+    try {
+      collectFeed(liveTexts(), "feed-pool", 1, low2, m);
+    } catch {
+    }
+    try {
+      collectFeed(getMarkovTraceFor(plain), "feed-markov", 2, low2, m);
+    } catch {
+    }
+    try {
+      const kp = (getTraceFor(plain) || []).filter((x) => x.quelle === "korpus").map((x) => x.text);
+      if (kp.length) collectFeed(kp, "feed-korpus", 3, low2, m);
+    } catch {
+    }
+    try {
+      const u = loadUmwelt();
+      if (u.wirkung !== "aus") {
+        const cls = u.wirkung === "nahrung" ? "feed-nahrung" : "feed-gift";
+        for (const teil of umweltTeile(u.zeichen)) {
+          const pl = teil.toLowerCase();
+          if (!pl) continue;
+          let from = 0, idx = low2.indexOf(pl, from);
+          while (idx !== -1 && m.length < 4e3) {
+            m.push({ s: idx, e: idx + pl.length, cls, prio: 9 });
+            from = idx + pl.length;
+            idx = low2.indexOf(pl, from);
+          }
+        }
+      }
+    } catch {
+    }
+    try {
+      const dd = loadDramaData();
+      if (dd) collectFeed([
+        ...dd.einstieg,
+        ...dd.mitte,
+        ...dd.hoehepunkt,
+        ...dd.konflikte,
+        ...dd.ausloeser,
+        ...dd.veraenderungen,
+        ...dd.zeitanomalien,
+        ...dd.regeln
+      ], "feed-drama", 3, low2, m);
+    } catch {
+    }
+    m.sort((a, b) => a.s - b.s || b.e - b.s - (a.e - a.s) || b.prio - a.prio);
+    const emitPlain = (seg) => {
+      if (!seg) return "";
+      if (!seg.trim()) return escFeeds(seg);
+      const lead = (seg.match(/^\s*/) || [""])[0];
+      const trail = (seg.match(/\s*$/) || [""])[0];
+      const core = seg.slice(lead.length, seg.length - trail.length);
+      return escFeeds(lead) + `<span class="feed-plain">` + escFeeds(core) + "</span>" + escFeeds(trail);
+    };
+    let html = "", i = 0, last = -1;
+    for (const x of m) {
+      if (x.s < last) continue;
+      html += emitPlain(plain.slice(i, x.s)) + `<span class="${x.cls}">` + escFeeds(plain.slice(x.s, x.e)) + "</span>";
+      i = x.e;
+      last = x.e;
+    }
+    html += emitPlain(plain.slice(i));
+    out.innerHTML = html;
+  };
+  const refreshFeeds = () => {
+    if (feedsChk.checked) renderFeeds();
+  };
+  feedsChk.addEventListener("change", renderFeeds);
+  const feedPop = el("div", { class: "feedpop", style: "display:none" });
+  document.body.appendChild(feedPop);
+  let popSpan = null;
+  const hidePop = () => {
+    feedPop.style.display = "none";
+    popSpan = null;
+  };
+  document.addEventListener("click", (e2) => {
+    if (feedPop.style.display !== "none" && !feedPop.contains(e2.target) && e2.target !== popSpan) hidePop();
+  }, true);
+  const persistEdit = () => {
+    try {
+      localStorage.setItem("dm_last_text", out.textContent || "");
+    } catch {
+    }
+  };
+  const undoStack = [];
+  const updateUndoBtn = () => {
+    undoBtn.disabled = undoStack.length === 0;
+  };
+  const pushUndo = () => {
+    undoStack.push(out.textContent || "");
+    if (undoStack.length > 12) undoStack.shift();
+    updateUndoBtn();
+  };
+  const clearUndo = () => {
+    undoStack.length = 0;
+    updateUndoBtn();
+  };
+  const doUndo = () => {
+    const prev = undoStack.pop();
+    if (prev === void 0) return;
+    out.textContent = prev;
+    persistEdit();
+    renderFeeds();
+    nachTextwechsel();
+    updateUndoBtn();
+  };
+  undoBtn.addEventListener("click", doUndo);
+  document.addEventListener("keydown", (e2) => {
+    if (!(e2.ctrlKey || e2.metaKey) || e2.shiftKey || e2.key.toLowerCase() !== "z") return;
+    const t = e2.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    if (!undoStack.length) return;
+    e2.preventDefault();
+    doUndo();
+  });
+  const FEED_STOP = /* @__PURE__ */ new Set(["und", "oder", "aber", "denn", "sondern", "sowie", "eine", "einen", "einem", "einer", "eines", "der", "die", "das", "den", "dem", "des", "mit", "von", "f\xFCr", "auf", "aus", "ist", "sind", "war", "sich", "nicht", "auch", "wie", "als", "was", "wer", "wann", "\xFCber", "unter", "durch", "zwischen", "diese", "dieser", "dieses", "sein", "seine", "ihre", "ihrer", "immer", "schon", "noch", "dann", "aber", "wird", "wurde"]);
+  const feedStems = (t) => {
+    const set = /* @__PURE__ */ new Set();
+    for (const w of t.toLowerCase().match(/[a-zäöüß]{4,}/g) || []) {
+      if (FEED_STOP.has(w)) continue;
+      set.add(w.slice(0, 5));
+    }
+    return set;
+  };
+  const feedJac = (a, b) => {
+    if (!a.size || !b.size) return 0;
+    let inter = 0;
+    for (const x of a) if (b.has(x)) inter++;
+    return inter / (a.size + b.size - inter);
+  };
+  const altsFor = (cls, cur) => {
+    const inText = (out.textContent || "").toLowerCase();
+    const norm = (arr) => [...new Set(arr.map((x) => (x || "").trim()).filter((a) => a.length >= 2 && a.toLowerCase() !== cur.toLowerCase() && !inText.includes(a.toLowerCase())))];
+    let pool = [];
+    try {
+      if (cls === "feed-wb") {
+        const b = loadBank();
+        let cat = null;
+        for (const k of Object.keys(b)) if (Array.isArray(b[k]) && b[k].some((x) => x.toLowerCase() === cur.toLowerCase())) {
+          cat = b[k];
+          break;
+        }
+        pool = cat || Object.values(b).flat();
+      } else if (cls === "feed-pool") pool = liveTexts();
+      else if (cls === "feed-korpus") {
+        pool = (getTraceFor(out.textContent || "") || []).filter((x) => x.quelle === "korpus").map((x) => x.text);
+      } else if (cls === "feed-drama") {
+        const dd = loadDramaData();
+        pool = dd ? [...dd.einstieg, ...dd.mitte, ...dd.hoehepunkt, ...dd.konflikte, ...dd.ausloeser, ...dd.veraenderungen, ...dd.zeitanomalien, ...dd.regeln] : [];
+      } else if (cls === "feed-ton") {
+        const td = TONE_DATA[tone.value];
+        pool = td ? [...td.opener, ...td.flavor] : [];
+      } else if (cls === "feed-4w") pool = [who.value, where.value, when.value, what.value];
+      else if (cls === "feed-markov") {
+        const model = buildModelFromCorpus(2);
+        const n = Math.max(6, cur.split(/\s+/).filter(Boolean).length + 2);
+        for (let i = 0; i < 12; i++) {
+          const g = model.generate(n);
+          if (g) pool.push(g);
+        }
+      }
+    } catch {
+    }
+    const uniq = norm(pool);
+    const ctxStems = feedStems((out.textContent || "").split(new RegExp(cur.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")).join(" "));
+    const scored = uniq.map((t) => ({ t, sc: feedJac(feedStems(t), ctxStems) }));
+    for (let i = scored.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [scored[i], scored[j]] = [scored[j], scored[i]];
+    }
+    scored.sort((a, b) => b.sc - a.sc);
+    const top = scored.slice(0, Math.min(12, scored.length));
+    for (let i = top.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [top[i], top[j]] = [top[j], top[i]];
+    }
+    return top.slice(0, 6).map((x) => x.t);
+  };
+  const atSentenceStart = (span) => {
+    try {
+      const range = document.createRange();
+      range.setStart(out, 0);
+      range.setEndBefore(span);
+      const before = range.toString().replace(/\s+$/, "");
+      if (!before) return true;
+      return /[.!?…:][")»“”'\]]?$/.test(before);
+    } catch {
+      return false;
+    }
+  };
+  const capFirst = (t) => t.replace(/^(\s*["„«»'(\[]*\s*)?(\p{L})/u, (_m, pre, ch) => (pre || "") + ch.toLocaleUpperCase("de-DE"));
+  const replaceSpan = (span, txt2) => {
+    pushUndo();
+    const v = atSentenceStart(span) ? capFirst(txt2) : txt2;
+    span.textContent = v;
+    persistEdit();
+    renderFeeds();
+    nachTextwechsel();
+    hidePop();
+  };
+  const removeSpan = (span) => {
+    pushUndo();
+    span.textContent = "";
+    const cleaned = (out.textContent || "").replace(/\s{2,}/g, " ").replace(/\s+([,.;:!?…])/g, "$1").replace(/([.!?…])(?:\s*\1)+/g, "$1").trim();
+    out.textContent = cleaned;
+    persistEdit();
+    renderFeeds();
+    nachTextwechsel();
+    hidePop();
+  };
+  const openPop = (span) => {
+    popSpan = span;
+    const cls = (span.className.match(/feed-[a-z0-9]+/) || ["feed-wb"])[0];
+    const cur = span.textContent || "";
+    const titles = { "feed-wb": "Wortbank", "feed-ton": "Ton", "feed-4w": "4W-Kontext", "feed-pool": "Lebendige Pools", "feed-markov": "Markov", "feed-drama": "Erz\xE4hlbogen", "feed-korpus": "Korpus", "feed-plain": "Text" };
+    feedPop.innerHTML = "";
+    const closeX = el("button", { class: "feedpop-x", type: "button", title: "Schlie\xDFen", "aria-label": "Schlie\xDFen" }, "\u2715");
+    closeX.addEventListener("click", hidePop);
+    feedPop.append(closeX);
+    feedPop.append(el("div", { class: "muted pophead" }, `\u201E${cur.length > 44 ? cur.slice(0, 44) + "\u2026" : cur}\u201C \xB7 ${titles[cls] || "Passage"}`));
+    const del = el("button", { class: "danger" }, "\u2715 Entfernen");
+    del.addEventListener("click", () => removeSpan(span));
+    if (cls === "feed-plain") {
+      const ta = el("textarea", { class: "freeedit" });
+      ta.value = cur;
+      const freeBtn = button("\xDCbernehmen");
+      freeBtn.addEventListener("click", () => {
+        const v = ta.value.replace(/\s+/g, " ").trim();
+        if (v) replaceSpan(span, v);
+        else removeSpan(span);
+      });
+      feedPop.append(el("div", { class: "muted mini" }, "Text frei bearbeiten \u2014 fehlende W\xF6rter einf\xFCgen oder umformulieren."), ta, el("div", { class: "row" }, del, freeBtn));
+      setTimeout(() => {
+        ta.focus();
+        const n = ta.value.length;
+        ta.setSelectionRange(n, n);
+      }, 0);
+    } else {
+      const altwrap = el("div", {});
+      const fill = () => {
+        altwrap.innerHTML = "";
+        const alts = altsFor(cls, cur);
+        if (!alts.length) altwrap.append(el("div", { class: "muted" }, "Keine Alternativen im Pool."));
+        alts.forEach((a) => {
+          const b = el("button", { class: "alt" }, a);
+          b.addEventListener("click", () => replaceSpan(span, a));
+          altwrap.append(b);
+        });
+      };
+      fill();
+      const reroll = el("button", {}, icon("dice"), " Neu");
+      reroll.addEventListener("click", fill);
+      const edit = el("textarea", { class: "freeedit" });
+      edit.value = cur;
+      const editBtn = button("\xDCbernehmen");
+      editBtn.addEventListener("click", () => {
+        const v = edit.value.replace(/\s+/g, " ").trim();
+        if (!v) {
+          removeSpan(span);
+          return;
+        }
+        if (v !== cur) replaceSpan(span, v);
+        else hidePop();
+      });
+      feedPop.append(altwrap, el("div", { class: "row" }, reroll, del), el("div", { class: "muted mini" }, "Oder Grammatik anpassen \u2014 Text der Passage direkt bearbeiten:"), edit, el("div", { class: "row" }, editBtn));
+    }
+    const r = span.getBoundingClientRect();
+    feedPop.style.display = "";
+    const pw = feedPop.offsetWidth || 330;
+    const ph = feedPop.offsetHeight || 0;
+    const vh = window.innerHeight, vw = window.innerWidth;
+    feedPop.style.left = Math.min(vw - pw - 8, Math.max(8, r.left)) + "px";
+    let top = r.bottom + 6;
+    if (top + ph > vh - 8) {
+      const above = r.top - ph - 6;
+      top = above >= 8 ? above : Math.max(8, vh - ph - 8);
+    }
+    feedPop.style.top = top + "px";
+  };
+  out.addEventListener("click", (e2) => {
+    if (!feedsChk.checked) return;
+    const t = e2.target.closest('span[class^="feed-"]');
+    if (!t) return;
+    e2.preventDefault();
+    e2.stopPropagation();
+    openPop(t);
+  });
+  const aktivePresetIds = () => preset.value === MULTI_ID ? multiIds.slice() : preset.value === AUTOMIX_ID ? Object.keys(lastAutoMixSources()) : preset.value ? [preset.value] : [];
+  const einstellungen = () => ({
+    tone: tone.value,
+    form: form.value,
+    structure: structure.value,
+    mode: mode.value,
+    perspective: persp.value,
+    rhythm: rhythm.value,
+    varLevel: varianz.value,
+    markovMode: markov.value,
+    disruptor: disruptor.value,
+    tension: tension.value,
+    archetypeA: archA.value,
+    archetypeB: archB.value,
+    instability: instab.value,
+    ressort: ressort.value,
+    preset: aktivePresetIds().join("+") || preset.value,
+    lenTarget: lenSlider.value
+  });
+  const genBtn = el("button", { class: "primary" }, icon("play"), " Generieren");
+  const merkeForm = () => {
+    try {
+      localStorage.setItem("dm_last_form", form.value);
+    } catch {
+    }
+  };
+  form.addEventListener("change", merkeForm);
+  merkeForm();
+  const varBtn = button("Variante");
+  const copyBtn = el("button", {}, icon("copy"), " Kopieren");
+  const diceBtn = el("button", {}, icon("dice"), " W\xFCrfeln");
+  const rollSel = (s) => {
+    if (locked.has(s.id)) return;
+    s.selectedIndex = Math.floor(Math.random() * s.options.length);
+    s.dispatchEvent(new Event("change"));
+  };
+  const wuerfelbar = () => Array.from(wrap.querySelectorAll("select, input[type=range]")).filter((s) => {
+    const feld = s.closest(".field") || s.closest(".lenrow") || s.closest(".rankrow");
+    return !!feld && !!feld.querySelector(".lockbtn");
+  });
+  const rollRange = (r) => {
+    if (locked.has(r.id)) return;
+    const min = parseFloat(r.min || "0"), max = parseFloat(r.max || "100"), step = parseFloat(r.step || "1") || 1;
+    const stufen = Math.floor((max - min) / step) + 1;
+    r.value = String(min + Math.floor(Math.random() * stufen) * step);
+    r.dispatchEvent(new Event("input"));
+    r.dispatchEvent(new Event("change"));
+  };
+  const rollEins = (c) => {
+    if (c instanceof HTMLInputElement) rollRange(c);
+    else rollSel(c);
+  };
+  const rollAlle = () => {
+    rolling = true;
+    wuerfelbar().forEach(rollEins);
+    rolling = false;
+  };
+  diceBtn.addEventListener("click", () => {
+    rollAlle();
+    renderPresetChecks();
+    generate();
+  });
+  const keepLbl = el("span", {}, "Merken");
+  const keepBtn = el("button", {}, icon("star"), " ", keepLbl);
+  keepBtn.addEventListener("click", () => {
+    const n = addToTreasury(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value, set: einstellungen() });
+    try {
+      const idx = ladeIndex();
+      if (markiereBehalten(idx, textSchluessel(out.textContent || ""))) sichereIndex(idx);
+    } catch {
+    }
+    keepLbl.textContent = n < 0 ? "\u2014 schon drin" : `Gemerkt (${n})`;
+    setTimeout(() => keepLbl.textContent = "Merken", 1400);
+  });
+  const vaultLbl = el("span", {}, "Tresor");
+  const vaultBtn = el("button", {}, icon("lock"), " ", vaultLbl);
+  vaultBtn.addEventListener("click", () => {
+    const n = addToTreasurySecret(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value, set: einstellungen() });
+    vaultLbl.textContent = n < 0 ? "\u2014 schon drin" : `Im Tresor (${n})`;
+    setTimeout(() => vaultLbl.textContent = "Tresor", 1400);
+  });
+  const readBtn = el("button", {}, icon("book"), " Lesen");
+  const speakLbl = el("span", {}, "Vorlesen");
+  const speakBtn = el("button", {}, icon("volume"), " ", speakLbl);
+  const bestChk = el("input", { type: "checkbox", id: "f-best" });
+  bestChk.checked = true;
+  const bestLbl = el("label", { class: "chk", title: "Erzeugt bei jedem Klick 12 Kandidaten und zeigt den bestbewerteten (L\xE4ngentreue, Wortvielfalt, Rhythmus, wenig Wiederholung, Grammatik, Abstand zur Schatzkammer)." }, bestChk, " Bestenauslese");
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl, titelLbl), titelEl, outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
+  let lastRanking = null;
+  const rankStatus = el("span", { class: "muted", id: "f-rankstatus" }, "");
+  const applyPlace = (place) => {
+    if (!lastRanking || !lastRanking.all.length) {
+      rankStatus.textContent = "Erst Ranking ausf\xFChren.";
+      return;
+    }
+    const item = lastRanking.all[Math.max(0, Math.min(lastRanking.all.length - 1, place - 1))];
+    if (!item) return;
+    out.textContent = item.txt;
+    nachTextwechsel();
+    try {
+      localStorage.setItem("dm_last_text", item.txt);
+    } catch {
+    }
+    renderKling(readInput().form, item.txt);
+    refreshFeeds();
+    const nov = item.novelty !== void 0 ? ` \xB7 Neuheit ${Math.round(item.novelty * 100)}%` : "";
+    const surp = item.surprise !== void 0 ? ` \xB7 \xDCberraschung ${Math.round(item.surprise * 100)}%` : "";
+    const con = item.constraintsOk === false ? " \xB7 \u26A0 Einbauw\xF6rter unvollst\xE4ndig" : "";
+    const gr = item.grammar ? ` \xB7 \u26A0 ${item.grammar} Grammatik` : "";
+    const extra = item.aiScore !== void 0 ? `KI ${item.aiScore}/100${item.grund ? " \u2013 " + item.grund : ""}` : `Score ${item.score.toFixed(1)}${nov}${surp}${gr}${con}`;
+    rankStatus.textContent = `Platz ${place}: ${extra}`;
+  };
+  const novSlider = el("input", { id: "f-novelty", type: "range", min: "0", max: "100", step: "5", value: "30", class: "rankviz" });
+  const novVal = el("span", { class: "muted" }, "30 %");
+  const updNovVal = () => {
+    novVal.textContent = novSlider.value + " %";
+  };
+  novSlider.addEventListener("input", updNovVal);
+  const noveltyW = () => (parseInt(novSlider.value, 10) || 0) / 100;
+  const surpSlider = el("input", { id: "f-surprise", type: "range", min: "0", max: "100", step: "5", value: "0", class: "rankviz" });
+  const surpVal = el("span", { class: "muted" }, "aus");
+  const updSurpVal = () => {
+    const v = parseInt(surpSlider.value, 10) || 0;
+    surpVal.textContent = v === 0 ? "aus" : "Ziel " + v + " %";
+  };
+  surpSlider.addEventListener("input", updSurpVal);
+  const mustIn = el("input", { placeholder: "Einbauw\xF6rter, mit Komma getrennt" });
+  const avoidChk = el("input", { type: "checkbox" });
+  const gramChk = el("input", { type: "checkbox" });
+  const rankOpts = () => {
+    const sv = (parseInt(surpSlider.value, 10) || 0) / 100;
+    return {
+      noveltyWeight: noveltyW(),
+      surpriseWeight: sv > 0 ? 0.6 : 0,
+      surpriseTarget: sv > 0 ? sv : 0.5,
+      mustWords: mustIn.value.split(/[,;]/).map((w) => w.trim()).filter(Boolean),
+      avoidFrequent: avoidChk.checked,
+      grammarFilter: gramChk.checked,
+      castDiscipline: parseFloat(cast.value) || 0,
+      perspective: persp.value,
+      expectedCast: who.value.split(/[,;]/).map((x) => x.trim()).filter(Boolean)
+    };
+  };
+  const probeBtn = button("Probe (50)");
+  probeBtn.addEventListener("click", () => {
+    rankStatus.textContent = "Probe l\xE4uft\u2026";
+    setTimeout(() => {
+      const r = runProbe(loadBank(), readInput(), buildModelFromCorpus(), 50);
+      rankStatus.textContent = `Probe: ${r.total} Texte \xB7 ${r.flaggedCount} auff\xE4llig \xB7 ${r.grammarCount} Grammatik \xB7 ${r.duplicates} doppelt`;
+    }, 10);
+  });
+  const rankBtn = button("Ranking (50)");
+  const rangeSlider = el("input", { id: "f-rang", type: "range", min: "1", max: "50", value: "1", class: "rankviz" });
+  const rangeVal = el("span", { class: "muted" }, "1");
+  rangeSlider.addEventListener("input", () => {
+    rangeVal.textContent = "#" + rangeSlider.value;
+    applyPlace(parseInt(rangeSlider.value, 10));
+  });
+  rankBtn.addEventListener("click", () => {
+    rankStatus.textContent = "Ranking l\xE4uft\u2026";
+    setTimeout(() => {
+      lastRanking = runRanking(loadBank(), readInput(), buildModelFromCorpus(), 50, 10, rankOpts());
+      rangeSlider.max = String(lastRanking.all.length);
+      rangeSlider.value = "1";
+      rangeVal.textContent = "#1";
+      applyPlace(1);
+    }, 10);
+  });
+  const goldBtn = button("\u{1F947} #1");
+  goldBtn.addEventListener("click", () => applyPlace(1));
+  const silverBtn = button("\u{1F948} #2");
+  silverBtn.addEventListener("click", () => applyPlace(2));
+  const bronzeBtn = button("\u{1F949} #3");
+  bronzeBtn.addEventListener("click", () => applyPlace(3));
+  const sliderField = (label, sl, val, hint) => el(
+    "div",
+    { class: "field rankrow" },
+    el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sl, label)),
+    el("div", { class: "rankslide" }, sl, val),
+    el("span", { class: "muted mini" }, hint)
+  );
+  const schliesser = (d) => {
+    const x = el("button", { class: "fine-x", type: "button", title: "Zuklappen", "aria-label": "Zuklappen" }, "\u2715");
+    x.addEventListener("click", (e2) => {
+      e2.preventDefault();
+      e2.stopPropagation();
+      d.open = false;
+    });
+    return x;
+  };
+  const rankDetails = el("details", { class: "fine" });
+  rankDetails.append(
+    schliesser(rankDetails),
+    el("summary", {}, icon("flask"), " Test & Ranking"),
+    // 1 Erzeugen & bewerten
+    el(
+      "div",
+      { class: "ranksec" },
+      el("div", { class: "ranksec-h" }, "1 \xB7 Erzeugen und bewerten"),
+      el("div", { class: "btnrow" }, probeBtn, rankBtn),
+      rankStatus
+    ),
+    // 2 Bewertungsmaßstab
+    el(
+      "div",
+      { class: "ranksec" },
+      el("div", { class: "ranksec-h" }, "2 \xB7 Bewertungsma\xDFstab"),
+      el(
+        "div",
+        { class: "rankgrid" },
+        sliderField("Neuheit", novSlider, novVal, "Abstand zur Schatzkammer belohnen"),
+        sliderField("\xDCberraschung", surpSlider, surpVal, "Zielwert der Unwahrscheinlichkeit im eigenen Korpus \u2014 braucht einen Korpus; 0 % = aus")
+      ),
+      el("label", { class: "field" }, el("span", { class: "field-label" }, "Einbauw\xF6rter"), mustIn),
+      el(
+        "div",
+        { class: "chkrow" },
+        el("label", { class: "chk" }, avoidChk, " H\xE4ufigste Korpus-W\xF6rter meiden"),
+        el("label", { class: "chk" }, gramChk, " Grammatik-Filter (auff\xE4llige Varianten abwerten)")
+      )
+    ),
+    // 3 Ergebnis wählen
+    el(
+      "div",
+      { class: "ranksec" },
+      el("div", { class: "ranksec-h" }, "3 \xB7 Ergebnis w\xE4hlen"),
+      el("div", { class: "btnrow" }, goldBtn, silverBtn, bronzeBtn),
+      el(
+        "div",
+        { class: "field rankrow" },
+        el("span", { class: "field-label" }, "Rang durchbl\xE4ttern"),
+        el("div", { class: "rankslide" }, rangeSlider, rangeVal)
+      )
+    )
+  );
+  wrap.append(rankDetails);
+  const fine = el("details", { class: "fine" });
+  fine.append(schliesser(fine), el("summary", {}, icon("tool"), " Werkzeugkasten"));
+  const knobs = loadKnobs();
+  const knobSel = {};
+  const knobRow = (feld, label, hinweis, einheit) => {
+    const sp = KNOB_SPANNE[feld];
+    const sel = el("select", { id: "k-" + feld });
+    knobSel[feld] = sel;
+    for (let v = sp.min; v <= sp.max; v += sp.step) {
+      const txt2 = v + einheit + (v === KNOB_VORGABE[feld] ? "  (Vorgabe)" : "") + (v === 0 ? "  \u2014 aus" : "");
+      sel.append(el("option", { value: String(v) }, txt2));
+    }
+    sel.value = String(knobs[feld]);
+    const merke = () => {
+      knobs[feld] = parseInt(sel.value, 10);
+      sel.classList.toggle("abweichend", knobs[feld] !== KNOB_VORGABE[feld]);
+    };
+    sel.addEventListener("input", merke);
+    sel.addEventListener("change", () => {
+      merke();
+      saveKnobs(knobs);
+      if (!rolling) generate();
+    });
+    merke();
+    sel.title = hinweis;
+    return el(
+      "div",
+      { class: "field", id: "knob-" + feld, title: hinweis },
+      el("span", { class: "field-label hilfe lockrow" }, el("span", {}, label), lockBtn(sel, label)),
+      sel
+    );
+  };
+  const knobBox = el(
+    "div",
+    { class: "grid3", id: "knobs" },
+    knobRow("fuegeteil", "F\xFCgeteil-Deckel", "H\xF6chstanteil der Verbindungsst\xFCcke \u2014 steuert den Balken \u201EVorlagen\u201C", " %"),
+    knobRow("w4max", "4W-Deckel", "wie oft Ort und Zeit im Text vorkommen d\xFCrfen", "\xD7"),
+    knobRow("abstand", "Nachlege-Abstand", "wie weit ein Baustein zur\xFCckliegen muss, bevor er wiederkehrt", ""),
+    knobRow("bogen", "Erz\xE4hlbogen", "Gewicht der Bogen-Atome; 0 schaltet die Quelle ab", " %"),
+    knobRow("ton", "Ton-Einsch\xFCbe", "wie viele Ton-S\xE4tze die Nachbearbeitung einstreut", " %"),
+    knobRow("korpus", "Korpus-Bausteine", "aus dem eigenen Korpus, gefiltert auf Pr\xE4sens und eigene Figuren; 0 = aus", ""),
+    knobRow("phrase", "Phrasensperre", "ab wie vielen gleichen W\xF6rtern in Folge ein Baustein abgelehnt wird; 0 = aus. Streng hei\xDFt weniger Wiederholung, aber auch k\xFCrzere Texte", " W\xF6rter"),
+    knobRow("satzlaenge", "Satzl\xE4nge", "Obergrenze, kein Mittelwert: Nachbars\xE4tze werden zusammengezogen, solange das Ergebnis darunter bleibt. 0 = aus. Bei 9 verschwinden vor allem die Stummels\xE4tze, lange entstehen erst ab 12; bei 15 liegt der Schnitt bei rund 9 W\xF6rtern", " W\xF6rter"),
+    knobRow("atomgroesse", "Atomgr\xF6\xDFe", "L\xE4ngere Bausteine werden vor dem Zusammenbau zerlegt \u2014 an Gedankenstrich, Semikolon, zwischen zwei Haupts\xE4tzen, oder der nachgestellte Nebensatz f\xE4llt. Was sich nicht zerlegen l\xE4sst, bleibt ganz und wird seltener gezogen. Die eingebauten Presets liegen bei 7 W\xF6rtern im Schnitt; Presets aus Text, Sammler und Erz\xE4hlerbank bringen bis 22. 0 = aus", " W\xF6rter")
+  );
+  const knobReset = button("Vorgaben wiederherstellen");
+  knobReset.addEventListener("click", () => {
+    Object.assign(knobs, KNOB_VORGABE);
+    saveKnobs(knobs);
+    for (const f of ["fuegeteil", "w4max", "abstand"]) {
+      const r = document.getElementById("k-" + f);
+      if (r) {
+        r.value = String(KNOB_VORGABE[f]);
+        r.dispatchEvent(new Event("input"));
+      }
+    }
+    generate();
+  });
+  fine.append(
+    el(
+      "p",
+      { class: "muted mini" },
+      "Stellschrauben der Rekombination. Sie wirken auf die Balken der Textstruktur \u2014 ein Klick auf einen Balken f\xFChrt hierher."
+    ),
+    knobBox,
+    el("div", { class: "btnrow" }, knobReset)
+  );
+  const rekHint = el("p", { class: "muted mini", style: "display:none" });
+  const updRekHint = () => {
+    const passt2 = form.value === "prose" || form.value === "poem";
+    if (structure.value === "rekombination" && !passt2) {
+      rekHint.style.display = "";
+      rekHint.textContent = `Hinweis: \u201ERekombination\u201C wirkt nur bei Prosa und Prosagedicht. Bei \u201E${form.options[form.selectedIndex]?.text || form.value}\u201C baut die Maschine \xFCber die Schablonen \u2014 die Struktur bleibt hier ohne Wirkung.`;
+      return;
+    }
+    const erzaehlerBogenDa = ladeQuelle() !== "preset" && archivEintraege().some(platzBrauchbar);
+    const brauchtBogen = structure.value === "dramaturgie" || structure.value === "bogen";
+    const name = structure.value === "bogen" ? "Rekombination mit Bogen" : "Dramaturgie";
+    if (brauchtBogen && !(form.value === "prose" && (hasDramaData() || erzaehlerBogenDa))) {
+      rekHint.style.display = "";
+      rekHint.textContent = form.value !== "prose" ? `Hinweis: \u201E${name}\u201C wirkt nur bei Prosa \u2014 bei \u201E${form.options[form.selectedIndex]?.text || form.value}\u201C bleibt die Struktur ohne Wirkung.` : `Hinweis: \u201E${name}\u201C braucht einen Erz\xE4hlbogen. Das aktive Preset hat keinen \u2014 ` + (structure.value === "bogen" ? "die Rekombination baut dann in der linearen Phasenfolge. Unter \u201EBogen\u201C im Werkzeugkasten eine Geschichte aus dem Archiv der Erz\xE4hlerbank w\xE4hlen." : "die Maschine baut \xFCber die Schablonen, die Struktur bleibt ohne Wirkung. In der Wortbank l\xE4sst sich ein Preset auf 2.0 heben.");
+      return;
+    }
+    rekHint.style.display = "none";
+  };
+  form.addEventListener("change", updRekHint);
+  structure.addEventListener("change", updRekHint);
+  structure.addEventListener("change", () => {
+    if (structure.value !== "dramaturgie") strukturVorher = null;
+    bogenStatusMalen();
+  });
+  form.addEventListener("change", bogenStatusMalen);
+  document.addEventListener("visibilitychange", bogenStatusMalen);
+  bogenStatusMalen();
+  preset.addEventListener("change", updRekHint);
+  updRekHint();
+  fine.append(el(
+    "div",
+    { class: "grid3" },
+    lockField("Struktur", structure),
+    // Der Bogen hat kein Schloss: Der Würfel fasst ihn nicht an, die Wahl ist
+    // ohnehin fest — ein Schloss schützte nichts und der Schaltplan verlangte
+    // einen Knoten dafür.
+    el("div", { class: "field" }, el("span", { class: "field-label" }, el("span", {}, "Bogen")), bogenSel, bogenStatus),
+    lockField("Modus", mode),
+    lockField("Perspektive", persp),
+    lockField("Rhythmus", rhythm),
+    lockField("Instabilit\xE4t", instab),
+    lockField("Markov", markov),
+    lockField("Disruptor", disruptor),
+    lockField("Varianz", varianz),
+    lockField("Zeitungsseite", ressort),
+    lockField("Spannung", tension),
+    lockField("Figurendisziplin", cast),
+    lockField("Archetyp A", archA),
+    lockField("Archetyp B", archB),
+    field("Video: Shots", shots),
+    field("Video: Sekunden", secs)
+  ));
+  fine.append(rekHint);
+  wrap.append(fine);
+  const themeSel = select("f-theme", THEMES.map((t) => [t.id, t.label]), loadTheme());
+  themeSel.addEventListener("change", () => applyTheme(themeSel.value));
+  const schriftPanel = el("div", {}, fontRow);
+  const accentIn = el("input", { id: "f-accent", type: "color", value: loadAccent() || "#8b5cf6", style: "width:52px;height:34px;padding:2px" });
+  accentIn.addEventListener("input", () => {
+    applyAccent(accentIn.value);
+    saveAccent(accentIn.value);
+  });
+  const accentReset = button("Standard");
+  accentReset.addEventListener("click", () => {
+    saveAccent("");
+    applyAccent("");
+  });
+  const themePanel = el(
+    "div",
+    { style: "display:none" },
+    field("Farb-Theme", themeSel),
+    field("Eigene Akzentfarbe", el("div", { class: "btnrow" }, accentIn, accentReset))
+  );
+  const keyIn = el("input", { type: "password", placeholder: "sk-ant-\u2026", value: loadAiKey() });
+  const modelIn = el("input", { placeholder: "Modell", value: loadAiModel() });
+  const kiStatus = el("p", { class: "muted" }, "");
+  const setKiStatus = () => {
+    kiStatus.textContent = loadAiKey() ? `Schl\xFCssel hinterlegt \xB7 Modell: ${loadAiModel()}` : "Kein Schl\xFCssel hinterlegt \u2014 KI-Funktionen sind inaktiv.";
+  };
+  const keySave = button("Speichern");
+  keySave.addEventListener("click", () => {
+    saveAiKey(keyIn.value.trim());
+    saveAiModel(modelIn.value.trim());
+    setKiStatus();
+  });
+  const keyClear = button("Schl\xFCssel l\xF6schen", "danger");
+  keyClear.addEventListener("click", () => {
+    saveAiKey("");
+    keyIn.value = "";
+    setKiStatus();
+  });
+  setKiStatus();
+  const kiPanel = el(
+    "div",
+    { style: "display:none" },
+    field("API-Schl\xFCssel", keyIn),
+    field("Modell", modelIn),
+    el("div", { class: "btnrow" }, keySave, keyClear),
+    kiStatus,
+    el("p", { class: "muted" }, "Wird nur lokal gespeichert und ausschlie\xDFlich an api.anthropic.com gesendet. Jede Anfrage verbraucht Guthaben deines Kontos.")
+  );
+  const memLine = el("p", { class: "muted" }, "\u2026");
+  const memRefresh = button("Aktualisieren");
+  const memPosten = el("div", { class: "mem-posten" });
+  const zeichnePosten = () => {
+    memPosten.innerHTML = "";
+    const posten = lesePosten();
+    if (!posten.length) return;
+    const oben = posten.slice(0, 12);
+    const rest = posten.slice(12).reduce((a, p) => a + p.bytes, 0);
+    for (const p of oben) {
+      memPosten.append(el(
+        "div",
+        { class: "mem-zeile" },
+        el("span", { class: "mem-name" }, p.name),
+        el(
+          "span",
+          { class: "mem-balken" },
+          el("span", { style: `width:${Math.max(1, Math.min(100, p.anteil))}%` })
+        ),
+        el("span", { class: "mem-wert" }, `${formatBytes(p.bytes)} \xB7 ${p.anteil} %`),
+        ...p.wandert ? [] : [el("span", { class: "bsam-zweifel" }, " wandert nicht mit")]
+      ));
+    }
+    if (rest > 0) {
+      memPosten.append(el(
+        "p",
+        { class: "muted mini", style: "margin:6px 0 0" },
+        `${posten.length - oben.length} weitere Eintraege zusammen ${formatBytes(rest)}.`
+      ));
+    }
+    memPosten.append(el(
+      "p",
+      { class: "muted mini", style: "margin:6px 0 0" },
+      "\u201EWandert nicht mit\u201C heisst: steht beim Export NICHT in der Projektdatei. Alles mit den Praefixen dm_ und divergenz_ wandert."
+    ));
+  };
+  const refreshMem = () => {
+    void storageReport().then((r) => {
+      memLine.textContent = r.text;
+    });
+    zeichnePosten();
+  };
+  memRefresh.addEventListener("click", refreshMem);
+  const memReset = button("Korpus + Schatzkammer leeren", "danger");
+  const memResetInfo = el("span", { class: "muted" });
+  memReset.addEventListener("click", () => {
+    if (!confirm("Korpus UND Schatzkammer vollst\xE4ndig leeren? Das l\xE4sst sich nicht r\xFCckg\xE4ngig machen. Wortbank, Presets und Einstellungen bleiben erhalten.")) return;
+    savePersistentCorpus("");
+    clearTreasury();
+    refreshMem();
+    memResetInfo.textContent = "Korpus und Schatzkammer geleert.";
+    setTimeout(() => memResetInfo.textContent = "", 2500);
+  });
+  const memPanel = el(
+    "div",
+    { style: "display:none" },
+    field("Belegung", memLine),
+    el("div", { class: "btnrow" }, memRefresh),
+    memPosten,
+    el("hr", {}),
+    el("div", { class: "btnrow" }, memReset, memResetInfo),
+    el("p", { class: "muted" }, "Setzt den Markov-Korpus und die Schatzkammer zur\xFCck (leert beide). Wortbank, Presets, Einstellungen und lebendige Pools bleiben erhalten. F\xFCr ein vollst\xE4ndiges Backup vorher oben rechts \u201EExportieren\u201C."),
+    el("p", { class: "muted" }, "Der Browser speichert alles lokal. Wird es eng, erscheint bei jedem Sichern oben ein Warnband; dann Korpus k\xFCrzen, Schatzkammer aufr\xE4umen oder ein Projekt exportieren und Daten l\xF6schen.")
+  );
+  const tabReiter = el("button", { class: "subtab" }, "Reiter");
+  const reiterListe = el("div", {});
+  const reiterHinweis = el(
+    "p",
+    { class: "muted mini" },
+    "Das Studio l\xE4sst sich nicht ausblenden \u2014 diese Einstellung liegt darin. \u201EDrucken\u201C und \u201EZeitungsseite\u201C \xF6ffnen ein Fenster und wechseln den Reiter nicht."
+  );
+  const zeichneReiterListe = () => {
+    reiterListe.innerHTML = "";
+    const stand = ladeStand();
+    const namen = ordne(derKanon(), stand.ordnung);
+    const weg = new Set(stand.versteckt);
+    namen.forEach((name, i) => {
+      const an = el("input", { type: "checkbox", id: "rt-" + i });
+      an.checked = !weg.has(name);
+      an.disabled = PFLICHT.includes(name);
+      an.addEventListener("change", () => {
+        sichereStand(schalte(ladeStand(), name, an.checked));
+        reiterGeaendert();
+      });
+      const hoch = el("button", { title: "nach vorn" }, "\u2191");
+      const runter = el("button", { title: "nach hinten" }, "\u2193");
+      hoch.disabled = i === 0;
+      runter.disabled = i === namen.length - 1;
+      const schieb = (d) => {
+        const st = ladeStand();
+        sichereStand({ ...st, ordnung: verschiebe(ordne(derKanon(), st.ordnung), name, d) });
+        reiterGeaendert();
+      };
+      hoch.addEventListener("click", () => schieb(-1));
+      runter.addEventListener("click", () => schieb(1));
+      reiterListe.append(el(
+        "div",
+        { class: "reiterzeile" },
+        el("label", {}, an, " ", name),
+        el("span", { class: "btnrow" }, hoch, runter)
+      ));
+    });
+  };
+  const reiterGeaendert = () => {
+    zeichneReiterListe();
+    window.dispatchEvent(new CustomEvent("dm-reiter"));
+  };
+  const reiterZurueck = button("Reihenfolge zur\xFCcksetzen");
+  reiterZurueck.addEventListener("click", () => {
+    sichereStand({ ordnung: [], versteckt: [] });
+    reiterGeaendert();
+  });
+  const reiterPanel = el(
+    "div",
+    { style: "display:none" },
+    reiterHinweis,
+    reiterListe,
+    el("div", { class: "btnrow" }, reiterZurueck)
+  );
+  const tabSchrift = el("button", { class: "subtab active" }, "Schrift");
+  const tabFarbe = el("button", { class: "subtab" }, "Farbe");
+  const tabKi = el("button", { class: "subtab" }, "KI-Zugang");
+  const tabMem = el("button", { class: "subtab" }, "Speicher");
+  const showSettingsPanel = (which) => {
+    reiterPanel.style.display = which === "reiter" ? "" : "none";
+    tabReiter.classList.toggle("active", which === "reiter");
+    if (which === "reiter") zeichneReiterListe();
+    schriftPanel.style.display = which === "schrift" ? "" : "none";
+    themePanel.style.display = which === "farbe" ? "" : "none";
+    kiPanel.style.display = which === "ki" ? "" : "none";
+    memPanel.style.display = which === "mem" ? "" : "none";
+    tabSchrift.classList.toggle("active", which === "schrift");
+    tabFarbe.classList.toggle("active", which === "farbe");
+    tabKi.classList.toggle("active", which === "ki");
+    tabMem.classList.toggle("active", which === "mem");
+    if (which === "mem") refreshMem();
+  };
+  tabSchrift.addEventListener("click", () => showSettingsPanel("schrift"));
+  tabFarbe.addEventListener("click", () => showSettingsPanel("farbe"));
+  tabKi.addEventListener("click", () => showSettingsPanel("ki"));
+  tabMem.addEventListener("click", () => showSettingsPanel("mem"));
+  tabReiter.addEventListener("click", () => showSettingsPanel("reiter"));
+  const settings = el("details", { class: "fine" });
+  settings.append(
+    schliesser(settings),
+    el("summary", {}, icon("settings"), " Einstellungen"),
+    el("div", { class: "subtabs" }, tabSchrift, tabFarbe, tabReiter, tabKi, tabMem),
+    schriftPanel,
+    themePanel,
+    reiterPanel,
+    kiPanel,
+    memPanel
+  );
+  wrap.append(settings);
+  root.append(wrap);
+  const readInput = () => ({
+    where: where.value,
+    when: when.value,
+    who: who.value,
+    what: what.value,
+    tone: tone.value,
+    varLevel: varianz.value,
+    form: form.value,
+    structure: structure.value,
+    mode: mode.value,
+    perspective: persp.value,
+    rhythm: rhythm.value,
+    markovMode: markov.value,
+    disruptor: disruptor.value,
+    archetypeA: archA.value,
+    archetypeB: archB.value,
+    instability: parseInt(instab.value, 10),
+    ressort: ressort.value,
+    shots: parseInt(shots.value, 10),
+    totalSec: parseInt(secs.value, 10),
+    lenTarget: parseInt(lenSlider.value, 10),
+    tension: tension.value,
+    emphasis: { wo: parseInt(wWo.value, 10), wann: parseInt(wWann.value, 10), wer: parseInt(wWer.value, 10), was: parseInt(wWas.value, 10) }
+  });
+  const KLING_URL = "https://klingai.com";
+  const renderKling = (form2, text) => {
+    kling.innerHTML = "";
+    if (form2 !== "video") return;
+    const shots2 = (text || "").split("\n").filter((l) => l.startsWith("DE:")).map((l) => l.replace(/^DE:\s*/, "").trim());
+    if (!shots2.length) return;
+    const head = el(
+      "div",
+      { class: "kling-head" },
+      el("span", {}, `\u{1F3AC} ${shots2.length} Shots f\xFCr Kling`),
+      el("a", { class: "kling-link", href: KLING_URL, target: "_blank", rel: "noopener" }, "In Kling generieren \u2197")
+    );
+    const allBtn = button("Alle Shots kopieren");
+    allBtn.addEventListener("click", () => {
+      void navigator.clipboard?.writeText(shots2.join("\n\n"));
+    });
+    head.append(allBtn);
+    kling.append(head);
+    shots2.forEach((s, i) => {
+      const copy = button("Kopieren");
+      copy.addEventListener("click", () => {
+        void navigator.clipboard?.writeText(s);
+      });
+      kling.append(el("div", { class: "kling-shot" }, el("b", {}, `Shot ${i + 1}`), el("span", {}, s), copy));
+    });
+  };
+  const generate = () => {
+    setBogenOverride(bogenFuerErzeugung());
+    const model = markov.value !== "off" ? buildModelFromCorpus(2) : void 0;
+    const input = readInput();
+    try {
+      if (bestChk.checked) {
+        const w = bestOf(loadBank(), input, model, 12, { noveltyWeight: 0.5, grammarFilter: true, castDiscipline: parseFloat(cast.value) || 0, expectedCast: who.value.split(/[,;]/).map((x) => x.trim()).filter(Boolean), perspective: persp.value });
+        out.textContent = w.txt;
+        zeigeUmweltEffekt(w.umwelt);
+      } else {
+        out.textContent = buildStory(loadBank(), input, model);
+        zeigeUmweltEffekt(void 0);
+      }
+      baseText = out.textContent || "";
+      renderTitel();
+      ctxSichern();
+      updVorrat();
+      try {
+        localStorage.setItem("dm_last_text", out.textContent || "");
+      } catch {
+      }
+      renderKling(input.form, out.textContent || "");
+      try {
+        feedLivePools(out.textContent || "", LIVE_W.gen);
+      } catch {
+      }
+      worldLogGeneration(input);
+      saveSchnappschuss({
+        preset: presetStatus.textContent?.replace(/^Aktiv:\s*/, "") || "\u2014",
+        ton: tone.options[tone.selectedIndex]?.text || tone.value,
+        tonId: tone.value,
+        form: form.options[form.selectedIndex]?.text || form.value,
+        struktur: structure.options[structure.selectedIndex]?.text || structure.value,
+        perspektive: persp.options[persp.selectedIndex]?.text || persp.value,
+        rhythmus: rhythm.options[rhythm.selectedIndex]?.text || rhythm.value,
+        markov: markov.options[markov.selectedIndex]?.text || markov.value,
+        varianz: varianz.options[varianz.selectedIndex]?.text || varianz.value,
+        spannung: tension.options[tension.selectedIndex]?.text || tension.value,
+        where: where.value,
+        when: when.value,
+        who: who.value,
+        what: what.value,
+        laenge: parseInt(lenSlider.value, 10) || 0,
+        bestenauslese: bestChk.checked,
+        zeit: (/* @__PURE__ */ new Date()).toLocaleTimeString("de-DE"),
+        // Infoblasen der Erzählerbank: welcher Bogen geladen war (auch beim
+        // Würfeln der konkret gezogene Platz), seine Bauform, und bei
+        // „Rekombination mit Bogen" die Phasenfolge — gewünscht für die
+        // Struktur-Ansicht.
+        ...(() => {
+          const relevant = structure.value === "dramaturgie" || structure.value === "bogen";
+          if (!relevant || form.value !== "prose") return {};
+          const b = bogenBeschriftung();
+          const out2 = { bogen: b.bogen };
+          if (b.bauform) out2.bauform = b.bauform;
+          if (structure.value === "bogen") {
+            const kurz2 = { exposition: "E", verdichtung: "V", umschlag: "U", schluss: "S" };
+            out2.phasenfolge = phasenAusSchlagfolge(loadDramaData()?.folge).map((ph) => kurz2[ph] || "?").join(" ");
+          }
+          return out2;
+        })()
+      });
+      try {
+        const txt2 = out.textContent || "";
+        const h = analysiereHerkunft(
+          txt2,
+          (tone.value || "neutral").toLowerCase(),
+          { where: where.value, when: when.value, who: who.value, what: what.value }
+        );
+        const aktivIds = aktivePresetIds();
+        const aktiv = aktivIds.map((id) => stripIcon(getAllPresets()[id]?.label || id));
+        sichereIndex(mischeIndex(ladeIndex(), {
+          schluessel: textSchluessel(txt2),
+          zeit: (/* @__PURE__ */ new Date()).toISOString().slice(0, 16),
+          form: form.value,
+          woerter: woerterVon(txt2),
+          presets: aktiv,
+          spreizung: mischAbstand(aktivIds),
+          regler: {
+            ton: tone.value,
+            struktur: structure.value,
+            perspektive: persp.value,
+            rhythmus: rhythm.value,
+            markov: markov.value,
+            varianz: varianz.value,
+            spannung: tension.value,
+            modus: mode.value,
+            laenge: String(parseInt(lenSlider.value, 10) || 0),
+            bestenauslese: bestChk.checked ? "an" : "aus"
+          },
+          ctx: { who: who.value, where: where.value, when: when.value, what: what.value },
+          // Die Herkunft rechnet ihre Anteile schon aus — als Bruch von 0 bis 1
+          // und ueber ZEICHEN, nicht ueber Segmente. Sie hier neu zu zaehlen
+          // haette eine zweite Rechnung fuer dieselbe Sache ergeben, die
+          // irgendwann anders ausfaellt.
+          herkunft: Object.fromEntries(Object.entries(h.anteile || {}).map(([k, v]) => [k, Math.round(v * 100)]).filter(([, v]) => v > 0)),
+          behalten: false
+        }));
+      } catch {
+      }
+      refreshFeeds();
+      clearUndo();
+      requestAnimationFrame(positionArrows);
+      renderPlan();
+      renderStruktur();
+    } catch (e2) {
+      out.textContent = "Fehler: " + (e2 instanceof Error ? e2.message : String(e2));
+    }
+  };
+  genBtn.addEventListener("click", generate);
+  const kopfWahl = ladeWahl();
+  const aktiveIds = () => preset.value === AUTOMIX_ID ? [] : aktivePresetIds().filter((id) => !!getAllPresets()[id]);
+  const ergaenzeGespreizt = (start, n, vorrat) => {
+    const ids = start.slice();
+    while (ids.length < n) {
+      let bester = "", bestAbstand = -1;
+      for (const k of vorrat) {
+        if (ids.includes(k)) continue;
+        const a = mischAbstand([...ids, k]);
+        if (a > bestAbstand) {
+          bestAbstand = a;
+          bester = k;
+        }
+      }
+      if (!bester) break;
+      ids.push(bester);
+    }
+    return ids;
+  };
+  const probeText = el("p", { id: "ek-probe" });
+  const probeFuss = el("div", { class: "ek-fuss" });
+  const probeKante = el("span", { class: "ek-kante" });
+  let probeVersatz = 0;
+  const zeichneProbe = () => {
+    const p = probeAus(liveTexts(), kopfWahl.reibung, probeVersatz) ?? PROBEN[Math.max(0, Math.min(PROBEN.length - 1, kopfWahl.reibung))];
+    probeText.innerHTML = "";
+    for (const [t, r] of p.teile) probeText.append(el("span", { class: "ek-r" + r }, t));
+    probeFuss.innerHTML = "";
+    const aktivName = aktivePresetIds().map((id) => stripIcon(getAllPresets()[id]?.label || id));
+    const namen = aktivName.length ? p.register.map(([, r], i) => [aktivName[(probeVersatz + i) % aktivName.length], r]) : p.register;
+    namen.forEach(([n, r], i) => {
+      if (i) probeFuss.append(el("span", { class: "ek-plus" }, "+"));
+      probeFuss.append(el("span", { class: "ek-perle ek-p" + r }), el("span", {}, n));
+    });
+    probeFuss.append(el("span", { class: "ek-fussnote" }, "\xB7 " + p.fuss));
+    probeKante.className = "ek-kante ek-k" + kopfWahl.reibung;
+  };
+  const stufenZeile = (namen, id) => el("div", { class: "ek-stufen", id }, ...namen.map((n) => el("span", {}, n)));
+  const markiere = (id, i) => {
+    const box = wrap.querySelector("#" + id);
+    if (!box) return;
+    Array.from(box.children).forEach((k, j) => k.classList.toggle("an", j === i));
+  };
+  const formReihe = el("div", { class: "ek-wahl" });
+  KOPF_FORMEN.forEach(([, label], i) => {
+    const b = el("button", { type: "button" }, label);
+    b.setAttribute("aria-pressed", String(i === kopfWahl.form));
+    b.addEventListener("click", () => {
+      if (locked.has(form.id)) return;
+      kopfWahl.form = i;
+      sichereWahl(kopfWahl);
+      form.value = KOPF_FORMEN[i][0];
+      form.dispatchEvent(new Event("change"));
+    });
+    formReihe.append(b);
+  });
+  const gesperrtHinweis = el("p", { class: "ek-gesperrt" }, "");
+  const zeigeSchloesser = () => {
+    const fest = [];
+    const fSperr = locked.has(form.id);
+    const iJetzt = KOPF_FORMEN.findIndex(([f]) => f === form.value);
+    if (iJetzt >= 0) {
+      kopfWahl.form = iJetzt;
+      sichereWahl(kopfWahl);
+    }
+    Array.from(formReihe.children).forEach((x, j) => {
+      x.disabled = fSperr;
+      x.setAttribute("aria-pressed", String(j === iJetzt));
+      x.setAttribute("title", fSperr ? "Die Form ist festgehalten \u2014 Schloss im Reglerkasten \xF6ffnen" : "");
+    });
+    formReihe.classList.toggle("gesperrt", fSperr);
+    if (fSperr) fest.push("Form");
+    if (locked.has(lenSlider.id)) {
+      laengeIn.disabled = true;
+      fest.push("L\xE4nge");
+    } else laengeIn.disabled = false;
+    if (locked.has(preset.id)) {
+      reibungIn.disabled = true;
+      fest.push("Reibung");
+    } else reibungIn.disabled = false;
+    const fremd = iJetzt < 0 ? `Eingestellt ist \u201E${form.options[form.selectedIndex]?.text || form.value}\u201C \u2014 diese Form bietet der Kopf nicht an. Unter \u201Ealle Regler zeigen\u201C l\xE4sst sie sich \xE4ndern.` : "";
+    gesperrtHinweis.textContent = (fest.length ? `\u{1F512} ${fest.join(", ")} ${fest.length === 1 ? "ist" : "sind"} festgehalten und bleibt${fest.length === 1 ? "" : "en"} unver\xE4ndert. Das Schloss steht unter \u201Ealle Regler zeigen\u201C neben dem Regler. ` : "") + fremd;
+  };
+  const saatIn = el("input", {
+    type: "text",
+    value: kopfWahl.saat,
+    "aria-label": "Wovon soll der Text handeln"
+  });
+  saatIn.addEventListener("input", () => {
+    kopfWahl.saat = saatIn.value;
+    sichereWahl(kopfWahl);
+  });
+  const saatWeg = el("button", { type: "button", title: "Feld leeren", class: "ek-weg" }, "\xD7");
+  saatWeg.addEventListener("click", () => {
+    saatIn.value = "";
+    kopfWahl.saat = "";
+    sichereWahl(kopfWahl);
+    saatIn.focus();
+  });
+  const saatEin = el("button", { type: "button", title: "Aus der Zwischenablage einf\xFCgen", class: "ek-einfuegen", "aria-label": "Einf\xFCgen" }, icon("paste"));
+  saatEin.addEventListener("click", () => {
+    const lesen = navigator.clipboard?.readText?.();
+    if (!lesen) {
+      saatIn.focus();
+      return;
+    }
+    lesen.then((txt2) => {
+      const t = (txt2 || "").replace(/\s+/g, " ").trim();
+      if (!t) {
+        saatIn.focus();
+        return;
+      }
+      saatIn.value = t;
+      kopfWahl.saat = t;
+      sichereWahl(kopfWahl);
+      saatIn.dispatchEvent(new Event("input"));
+      saatIn.focus();
+    }).catch(() => {
+      saatIn.focus();
+    });
+  });
+  const saatWuerfel = el("button", { type: "button", title: "Anderen Satz vorschlagen" }, "\u2684");
+  const saatGezogen = [];
+  saatWuerfel.addEventListener("click", () => {
+    const zieher = () => {
+      try {
+        return worldFillContext();
+      } catch {
+        return null;
+      }
+    };
+    const n = ziehSaat(liveTexts(), zieher, [saatIn.value, ...saatGezogen]);
+    saatGezogen.push(n);
+    if (saatGezogen.length > 8) saatGezogen.shift();
+    saatIn.value = n;
+    kopfWahl.saat = n;
+    sichereWahl(kopfWahl);
+  });
+  const laengeIn = el("input", {
+    type: "range",
+    min: "0",
+    max: "2",
+    step: "1",
+    value: String(kopfWahl.laenge),
+    "aria-label": "L\xE4nge"
+  });
+  laengeIn.addEventListener("input", () => {
+    kopfWahl.laenge = parseInt(laengeIn.value, 10) || 0;
+    markiere("ek-laenge-stufen", kopfWahl.laenge);
+    sichereWahl(kopfWahl);
+  });
+  const reibungIn = el("input", {
+    type: "range",
+    min: "0",
+    max: "2",
+    step: "1",
+    value: String(kopfWahl.reibung),
+    "aria-label": "Reibung zwischen den Registern",
+    "aria-describedby": "ek-probe"
+  });
+  reibungIn.addEventListener("input", () => {
+    if (locked.has(preset.id)) return;
+    kopfWahl.reibung = parseInt(reibungIn.value, 10) || 0;
+    markiere("ek-reibung-stufen", kopfWahl.reibung);
+    sichereWahl(kopfWahl);
+    const ziel = REIBUNG_STUFEN[kopfWahl.reibung] ?? 1;
+    let ids = aktiveIds();
+    const vorrat = Object.keys(getAllPresets());
+    if (!ids.length) ids = waehleGespreizt(vorrat, ziel);
+    else if (ids.length > ziel) ids = ids.slice(0, ziel);
+    else ids = ergaenzeGespreizt(ids, ziel, vorrat);
+    if (ids.length) applySelection(ids);
+    zeichneProbe();
+  });
+  kopfPresetSync = () => {
+    const n = aktiveIds().length;
+    if (!n) {
+      const box = wrap.querySelector("#ek-reibung-stufen");
+      if (box) Array.from(box.children).forEach((k) => k.classList.remove("an"));
+      reibungIn.title = "Aktiv ist Auto-Mix \u2014 die erste Bewegung des Reglers ersetzt ihn durch eine feste Auswahl.";
+      zeichneProbe();
+      return;
+    }
+    reibungIn.title = "";
+    const stufe = n >= 3 ? 2 : n === 2 ? 1 : 0;
+    if (kopfWahl.reibung !== stufe) {
+      kopfWahl.reibung = stufe;
+      sichereWahl(kopfWahl);
+    }
+    reibungIn.value = String(stufe);
+    markiere("ek-reibung-stufen", stufe);
+    zeichneProbe();
+  };
+  const probeBox = el(
+    "button",
+    {
+      class: "ek-probe",
+      type: "button",
+      title: "Weiterbl\xE4ttern \u2014 stellt das n\xE4chste Register wirklich ein"
+    },
+    probeKante,
+    probeText,
+    probeFuss,
+    el("span", { class: "ek-blaettern" }, "weiterbl\xE4ttern \u203A")
+  );
+  probeBox.addEventListener("click", () => {
+    probeVersatz++;
+    if (locked.has(preset.id)) {
+      zeichneProbe();
+      return;
+    }
+    const vorrat = Object.keys(getAllPresets());
+    const ids = aktiveIds();
+    if (vorrat.length < 2) {
+      zeichneProbe();
+      return;
+    }
+    const n = ids.length || (REIBUNG_STUFEN[kopfWahl.reibung] ?? 1);
+    const basis = (vorrat.indexOf(ids[0] ?? "") + 1 + vorrat.length) % vorrat.length;
+    applySelection(ergaenzeGespreizt([vorrat[basis]], n, vorrat));
+    zeichneProbe();
+  });
+  const kopfLos = el("button", { class: "primary" }, icon("play"), " Text erzeugen");
+  kopfLos.addEventListener("click", () => {
+    const st = stellung(kopfWahl);
+    for (const s of ROLL_SELECTS) {
+      if (s === form || s === preset || s === ressort || locked.has(s.id) || !s.options.length) continue;
+      s.selectedIndex = Math.floor(Math.random() * s.options.length);
+      s.dispatchEvent(new Event("change"));
+    }
+    if (!locked.has(ressort.id)) {
+      ressort.value = "auto";
+      ressort.dispatchEvent(new Event("change"));
+    }
+    if (!locked.has(form.id)) {
+      form.value = st.form;
+      form.dispatchEvent(new Event("change"));
+    }
+    if (!locked.has(lenSlider.id)) {
+      lenSlider.value = String(st.lenTarget);
+      lenSlider.dispatchEvent(new Event("input"));
+    }
+    const wurf = (() => {
+      try {
+        return worldFillContext();
+      } catch {
+        return randomContext();
+      }
+    })();
+    const ctx = kopfKontext(
+      st.ctx,
+      wurf,
+      { who: who.value, where: where.value, when: when.value, what: what.value }
+    );
+    for (const [feld, wert] of [[where, ctx.where], [when, ctx.when], [who, ctx.who], [what, ctx.what]]) {
+      if (locked.has(feld.id) || !wert || feld.value === wert) continue;
+      feld.value = wert;
+      feld.dispatchEvent(new Event("input"));
+    }
+    generate();
+    if (kopfWahl.einfach) {
+      openReader(
+        out.textContent || "",
+        { who: who.value, where: where.value, when: when.value, what: what.value, titel: aktuellerTitel() }
+      );
+    }
+  });
+  const reihe = (marke, ...inhalt) => el("div", { class: "ek-reihe" }, el("span", { class: "ek-marke" }, marke), el("div", {}, ...inhalt));
+  const umschalter = el("button", { class: "ek-neben", type: "button" }, "");
+  const setzeModus = (einfach) => {
+    kopfWahl.einfach = einfach;
+    sichereWahl(kopfWahl);
+    wrap.classList.toggle("studio-einfach", einfach);
+    koerper.style.display = einfach ? "" : "none";
+    umschalter.textContent = einfach ? "alle Regler zeigen" : "einfach";
+    frage.textContent = einfach ? "Was soll entstehen?" : "Einfacher Kopf";
+  };
+  umschalter.addEventListener("click", () => setzeModus(!kopfWahl.einfach));
+  const frage = el("span", { class: "ek-frage" }, "");
+  const koerper = el(
+    "div",
+    { class: "ek-koerper" },
+    reihe("Form", formReihe),
+    reihe("Wovon", el("div", { class: "ek-satz" }, saatIn, saatWeg, saatEin, saatWuerfel)),
+    reihe("L\xE4nge", laengeIn, stufenZeile(LAENGE_NAMEN, "ek-laenge-stufen")),
+    reihe("Reibung", reibungIn, stufenZeile(REIBUNG_NAMEN, "ek-reibung-stufen")),
+    probeBox,
+    gesperrtHinweis,
+    el(
+      "div",
+      { class: "ek-fussreihe" },
+      kopfLos,
+      el(
+        "span",
+        { class: "ek-hinweis" },
+        "Alles \xDCbrige w\xFCrfelt die Maschine. Was sie gew\xFCrfelt hat, steht im Schaltplan unter Diagnose."
+      )
+    )
+  );
+  const kopf = el(
+    "div",
+    { class: "ek-kopf" },
+    el("div", { class: "ek-leiste" }, frage, umschalter),
+    koerper
+  );
+  wrap.prepend(kopf);
+  for (const c of [form, lenSlider, preset]) {
+    (lockPainters[c.id] ||= []).push({ b: kopfLos, paint: zeigeSchloesser });
+  }
+  form.addEventListener("change", zeigeSchloesser);
+  zeigeSchloesser();
+  setzeModus(kopfWahl.einfach !== false);
+  zeichneProbe();
+  markiere("ek-laenge-stufen", kopfWahl.laenge);
+  kopfPresetSync();
+  varBtn.addEventListener("click", generate);
+  const liveRegen = () => {
+    if (!rolling) generate();
+  };
+  ROLL_SELECTS.forEach((sl) => sl.addEventListener("change", liveRegen));
+  let emphTimer;
+  [wWo, wWann, wWer, wWas].forEach((s) => {
+    s.addEventListener("input", () => {
+      clearTimeout(emphTimer);
+      emphTimer = setTimeout(() => {
+        if (!rolling) generate();
+      }, 180);
+    });
+  });
+  const updEmphVis = () => {
+    const show = form.value === "prose";
+    [wWo, wWann, wWer, wWas].forEach((s) => {
+      s.style.display = show ? "" : "none";
+    });
+  };
+  form.addEventListener("change", updEmphVis);
+  form.addEventListener("change", updHints);
+  copyBtn.addEventListener("click", () => {
+    void navigator.clipboard?.writeText(out.textContent || "");
+  });
+  readBtn.addEventListener("click", () => openReader(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, titel: aktuellerTitel() }));
+  let speaking = false;
+  speakBtn.addEventListener("click", () => {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    if (speaking) {
+      synth.cancel();
+      speaking = false;
+      speakLbl.textContent = "Vorlesen";
+      return;
+    }
+    const u = new SpeechSynthesisUtterance(out.textContent || "");
+    u.lang = "de-DE";
+    u.onend = () => {
+      speaking = false;
+      speakLbl.textContent = "Vorlesen";
+    };
+    speaking = true;
+    speakLbl.textContent = "Stopp";
+    synth.speak(u);
+  });
+  try {
+    const saved = localStorage.getItem(CTX_KEY2);
+    if (saved) {
+      const c = JSON.parse(saved);
+      if (c.where !== void 0) where.value = c.where;
+      if (c.when !== void 0) when.value = c.when;
+      if (c.who !== void 0) who.value = c.who;
+      if (c.what !== void 0) what.value = c.what;
+      ctxKeep.classList.add("on");
+      ctxKeep.setAttribute("aria-pressed", "true");
+    }
+  } catch {
+  }
+  const handedOver = [];
+  const uebergeben = /* @__PURE__ */ new Set();
+  const hand = (el2, label, v) => {
+    if (typeof v !== "string" || !v) return;
+    if (el2 instanceof HTMLSelectElement && !Array.from(el2.options).some((o) => o.value === v)) return;
+    handedOver.push({ el: el2, label, want: v });
+    el2.value = v;
+    uebergeben.add(el2.id);
+  };
+  try {
+    const pend = localStorage.getItem("dm_pending_ctx");
+    if (pend) {
+      const c = JSON.parse(pend);
+      hand(who, "Wer", c.who);
+      hand(where, "Wo", c.where);
+      hand(when, "Wann", c.when);
+      hand(what, "Was passiert", c.what);
+      localStorage.removeItem("dm_pending_ctx");
+    }
+  } catch {
+  }
+  let pendingStudio = null;
+  try {
+    const s = localStorage.getItem("dm_pending_studio");
+    if (s) {
+      pendingStudio = JSON.parse(s);
+      localStorage.removeItem("dm_pending_studio");
+    }
+  } catch {
+  }
+  if (pendingStudio) {
+    const P3 = pendingStudio;
+    hand(where, "Wo", P3["where"]);
+    hand(when, "Wann", P3["when"]);
+    hand(who, "Wer", P3["who"]);
+    hand(what, "Was passiert", P3["what"]);
+    hand(form, "Form", P3["form"]);
+    hand(structure, "Struktur", P3["structure"]);
+    hand(persp, "Perspektive", P3["perspective"]);
+    hand(rhythm, "Rhythmus", P3["rhythm"]);
+    hand(varianz, "Varianz", P3["varLevel"]);
+    hand(mode, "Modus", P3["mode"]);
+    hand(tone, "Ton", P3["tone"]);
+    hand(markov, "Markov", P3["markovMode"]);
+    hand(archA, "Archetyp A", P3["archetypeA"]);
+    hand(archB, "Archetyp B", P3["archetypeB"]);
+    hand(disruptor, "Disruptor", P3["disruptor"]);
+    hand(instab, "Instabilit\xE4t", P3["instability"]);
+    const emp = P3["emphasis"];
+    if (emp) {
+      wWo.value = String(emp.wo ?? 0);
+      wWann.value = String(emp.wann ?? 0);
+      wWer.value = String(emp.wer ?? 0);
+      wWas.value = String(emp.was ?? 0);
+      for (const w of [wWo, wWann, wWer, wWas]) uebergeben.add(w.id);
+    }
+    if (P3["bank"]) {
+      saveBank(P3["bank"]);
+      saveActiveBankLabel("Wahrnehmung (Omnikognition)");
+      if (!preset.querySelector('option[value="__omni__"]')) {
+        const o = document.createElement("option");
+        o.value = "__omni__";
+        o.textContent = "Wahrnehmung (Omnikognition)";
+        preset.insertBefore(o, preset.firstChild);
+      }
+      preset.value = "__omni__";
+    }
+  } else if (!studioSchonGewuerfelt) {
+    ROLL_SELECTS.forEach((s) => {
+      if (!locked.has(s.id) && s.options.length) s.selectedIndex = Math.floor(Math.random() * s.options.length);
+    });
+    studioSchonGewuerfelt = true;
+  } else {
+    const pv = studioReglerStand[preset.id];
+    if (pv !== void 0 && pv !== MULTI_ID && pv !== AUTOMIX_ID && Array.from(preset.options).some((o) => o.value === pv)) {
+      if (multiIds.length) {
+        multiIds = [];
+        saveMulti();
+      }
+      preset.value = pv;
+      preset.dispatchEvent(new Event("change"));
+    }
+    for (const s of ROLL_SELECTS) {
+      const v = studioReglerStand[s.id];
+      if (v !== void 0 && Array.from(s.options).some((o) => o.value === v)) s.value = v;
+    }
+  }
+  restoreLocked();
+  const ROLL_RANGES = [lenSlider, novSlider, surpSlider, wWo, wWann, wWer, wWas];
+  const ROLL_TEXTE = [where, when, who, what];
+  const merkeRegler = () => {
+    for (const s of ROLL_SELECTS) studioReglerStand[s.id] = s.value;
+    for (const r of [...ROLL_RANGES, ...ROLL_TEXTE]) studioReglerStand[r.id] = r.value;
+  };
+  ROLL_SELECTS.forEach((s) => s.addEventListener("change", () => {
+    studioReglerStand[s.id] = s.value;
+  }));
+  [...ROLL_RANGES, ...ROLL_TEXTE].forEach((r) => r.addEventListener("input", () => {
+    studioReglerStand[r.id] = r.value;
+  }));
+  for (const r of ROLL_RANGES) {
+    const v = studioReglerStand[r.id];
+    if (v !== void 0 && !uebergeben.has(r.id)) {
+      r.value = v;
+      r.dispatchEvent(new Event("input"));
+    }
+  }
+  for (const r of ROLL_TEXTE) {
+    const v = studioReglerStand[r.id];
+    if (v !== void 0 && v !== "" && !uebergeben.has(r.id)) r.value = v;
+  }
+  updHints();
+  ctxSichern();
+  merkeRegler();
+  const anlageSichern = () => saveAnlage({
+    regler: {
+      ...einstellungen(),
+      umwelt: umweltIn.value,
+      umweltWirkung: umweltSel.value,
+      gewicht: [wWo.value, wWann.value, wWer.value, wWas.value].join("/"),
+      novelty: novSlider.value,
+      surprise: surpSlider.value
+    },
+    w4: { where: where.value, when: when.value, who: who.value, what: what.value },
+    zeit: (/* @__PURE__ */ new Date()).toISOString(),
+    quelle: letzteQuelle
+  });
+  ROLL_SELECTS.forEach((s) => s.addEventListener("change", anlageSichern));
+  [where, when, who, what, umweltIn, novSlider, surpSlider, lenSlider, wWo, wWann, wWer, wWas].forEach((i) => i.addEventListener("input", anlageSichern));
+  umweltSel.addEventListener("change", anlageSichern);
+  anlageSichern();
+  const blocked = handedOver.filter((h) => locked.has(h.el.id) && h.el.value !== h.want);
+  if (blocked.length) {
+    const names = blocked.map((b) => b.label).join(", ");
+    const applyBtn = button("Schl\xF6sser \xF6ffnen und \xFCbernehmen");
+    applyBtn.addEventListener("click", () => {
+      for (const b of blocked) {
+        locked.delete(b.el.id);
+        delete lockVals[b.el.id];
+        b.el.value = b.want;
+      }
+      saveLocks();
+      saveLockVals();
+      Object.keys(lockPainters).forEach((id) => (lockPainters[id] || []).forEach((m) => m.paint()));
+      updOeffnen();
+      lockBar.remove();
+      updHints();
+      renderPresetChecks();
+      generate();
+    });
+    const closeBtn = el("button", { class: "x", type: "button", "aria-label": "Hinweis schlie\xDFen" }, "\u2715");
+    closeBtn.addEventListener("click", () => lockBar.remove());
+    lockBar.append(
+      el("span", {}, `\u{1F512} \xDCbernahme unvollst\xE4ndig: ${blocked.length === 1 ? "Ein Feld wurde" : blocked.length + " Felder wurden"} nicht \xFCbernommen, weil das Schloss geschlossen ist \u2014 ${names}.`),
+      applyBtn,
+      closeBtn
+    );
+    wrap.insertBefore(lockBar, wrap.firstChild);
+  }
+  lenVal.textContent = lenSlider.value;
+  updNovVal();
+  updSurpVal();
+  rangeVal.textContent = "#" + rangeSlider.value;
+  updEmphVis();
+  applyStoryFont(out, fontSel.value, parseFloat(sizeSlider.value));
+  if (!pendingStudio) {
+    if (preset.value === AUTOMIX_ID) {
+      saveBank(buildAutoMixBank());
+      saveActiveBankLabel("Auto-Mix");
+    } else {
+      const first = getAllPresets()[preset.value];
+      if (first) {
+        saveBank(first.bank);
+        saveActiveBankLabel(first.label || preset.value);
+      }
+    }
+  }
+  if (multiIds.length >= 2) {
+    ensureMultiOption();
+    preset.value = MULTI_ID;
+    applyMulti();
+  }
+  renderPresetChecks();
+  updHints();
+  requestAnimationFrame(positionArrows);
+  let pendingText = "";
+  try {
+    pendingText = localStorage.getItem("dm_pending_text") || "";
+    localStorage.removeItem("dm_pending_text");
+  } catch {
+  }
+  if (pendingText.trim()) {
+    out.textContent = pendingText;
+    nachTextwechsel();
+    try {
+      localStorage.setItem("dm_last_text", pendingText);
+    } catch {
+    }
+    renderKling(readInput().form, pendingText);
+    refreshFeeds();
+  } else {
+    generate();
+  }
+}
+
+// src/ui/ideasView.ts
+init_ki();
+
+// src/generation/assoc.ts
+var FILLER = /* @__PURE__ */ new Set([
+  "kommt",
+  "kommen",
+  "kam",
+  "geht",
+  "gehen",
+  "ging",
+  "steht",
+  "stehen",
+  "stand",
+  "liegt",
+  "liegen",
+  "sieht",
+  "sehen",
+  "sah",
+  "immer",
+  "wieder",
+  "schon",
+  "noch",
+  "jetzt",
+  "dann",
+  "auch",
+  "sehr",
+  "mehr",
+  "nichts",
+  "etwas",
+  "alles",
+  "niemand",
+  "jemand",
+  "einmal",
+  "vielleicht",
+  "wieder",
+  "hatte",
+  "hatten",
+  "wurde",
+  "wurden",
+  "sagte",
+  "sagen",
+  "macht",
+  "machen",
+  "gibt",
+  "geben"
+]);
+var pick2 = (a) => a[Math.floor(Math.random() * a.length)];
+var words = (s) => s.match(/[A-Za-zÄÖÜäöüß-]{3,}/g) || [];
+function extractSeeds(text, max = 40) {
+  const out = [];
+  for (const w of words(text || "")) {
+    if (COHERENCE_STOPWORDS.has(w.toLowerCase())) continue;
+    if (w.length < 4) continue;
+    out.push(w);
+  }
+  const uniq = [...new Set(out)];
+  uniq.sort((a, b) => Number(/^[A-ZÄÖÜ]/.test(b)) - Number(/^[A-ZÄÖÜ]/.test(a)));
+  return uniq.slice(0, max);
+}
+function sentences(text) {
+  return (text || "").split(/[.!?;:\n]+/).map((s) => words(s)).filter((a) => a.length > 2);
+}
+function proseChain(seed, text, n) {
+  const sents = sentences(text);
+  const links = [seed];
+  let cur = seed;
+  const seen = /* @__PURE__ */ new Set([seed.toLowerCase()]);
+  for (let i = 1; i < n; i++) {
+    const hosts = sents.filter((s) => s.some((w) => w.toLowerCase() === cur.toLowerCase()));
+    const ok = (w) => w.length >= 4 && !COHERENCE_STOPWORDS.has(w.toLowerCase()) && !FILLER.has(w.toLowerCase()) && !seen.has(w.toLowerCase());
+    let pool = (hosts.length ? hosts.flat() : []).filter(ok);
+    if (!pool.length) pool = sents.flat().filter(ok);
+    if (!pool.length) break;
+    const nouns = pool.filter((w) => /^[A-ZÄÖÜ]/.test(w));
+    cur = pick2(nouns.length ? nouns : pool);
+    seen.add(cur.toLowerCase());
+    links.push(cur);
+  }
+  return links;
+}
+function reimChain(seed, n) {
+  const low2 = seed.toLowerCase();
+  let group = REIM_GROUPS.find((g) => low2.endsWith(g.key));
+  let jump = false;
+  if (!group) {
+    const v = (low2.match(/[aeiouäöü]/) || ["e"])[0];
+    const near = REIM_GROUPS.filter((g) => g.key.includes(v));
+    group = near.length ? pick2(near) : pick2(REIM_GROUPS);
+    jump = true;
+  }
+  const links = [seed];
+  const rest = group.words.filter((w) => w.toLowerCase() !== low2);
+  for (let i = 1; i < n && rest.length; i++) {
+    const idx = Math.floor(Math.random() * rest.length);
+    links.push(rest.splice(idx, 1)[0]);
+  }
+  return jump ? { links, jumpAt: 1 } : { links };
+}
+function poolChain(seed, pools, n) {
+  const links = [seed];
+  const flat = pools.flat();
+  const used = /* @__PURE__ */ new Set();
+  for (let i = 1; i < n && used.size < flat.length; i++) {
+    let c = pick2(flat), guard = 0;
+    while (used.has(c) && guard++ < 30) c = pick2(flat);
+    used.add(c);
+    links.push(c);
+  }
+  return links;
+}
+function scriptChain(seed, text, n) {
+  const parts = (text || "").split(/[.!?\n]+/).map((s) => s.trim()).filter((s) => s.length > 8);
+  const links = [seed];
+  const used = /* @__PURE__ */ new Set();
+  for (let i = 1; i < n && parts.length; i++) {
+    let c = pick2(parts), guard = 0;
+    while (used.has(c) && guard++ < 30) c = pick2(parts);
+    used.add(c);
+    const w = words(c).filter((x) => x.length > 3);
+    links.push(w.length ? w.slice(0, 4).join(" ") : c.slice(0, 40));
+  }
+  return links;
+}
+function chainFor(form, seed, text, n) {
+  switch (form) {
+    case "reim":
+      return reimChain(seed, n).links;
+    case "haiku":
+      return poolChain(seed, [HAIKU_KIGO, HAIKU_NATURE7, HAIKU_CLOSERS], n);
+    case "strang":
+      return poolChain(seed, [STRANG_IMAGES], n);
+    case "video":
+      return poolChain(seed, [VIDEO_CAM_EXTENDED, VIDEO_LIGHT, VIDEO_TEX], n);
+    case "script":
+      return scriptChain(seed, text, n);
+    case "poem": {
+      const a = proseChain(seed, text, n);
+      return a.map((w, i) => i > 0 && i % 2 === 0 ? pick2(STRANG_IMAGES) : w);
+    }
+    default:
+      return proseChain(seed, text, n);
+  }
+}
+function setzeFort(bisher, ab, text, bis) {
+  if (!bisher.length) return [];
+  const i = Math.max(0, Math.min(bisher.length - 1, Math.round(ab)));
+  const kopf = bisher.slice(0, i + 1);
+  const ziel = Math.max(kopf.length, Math.min(24, Math.round(bis) || kopf.length + 1));
+  if (ziel <= kopf.length) return kopf;
+  const weiter = proseChainOhne(
+    kopf[kopf.length - 1],
+    text,
+    ziel - kopf.length + 1,
+    new Set(bisher.map((x) => x.toLowerCase()))
+  );
+  return [...kopf, ...weiter.slice(1)];
+}
+function proseChainOhne(seed, text, n, gesperrt) {
+  const sents = sentences(text);
+  const links = [seed];
+  let cur = seed;
+  const seen = new Set(gesperrt);
+  seen.add(seed.toLowerCase());
+  for (let i = 1; i < n; i++) {
+    const hosts = sents.filter((s) => s.some((w) => w.toLowerCase() === cur.toLowerCase()));
+    const ok = (w) => w.length >= 4 && !COHERENCE_STOPWORDS.has(w.toLowerCase()) && !FILLER.has(w.toLowerCase()) && !seen.has(w.toLowerCase());
+    let pool = (hosts.length ? hosts.flat() : []).filter(ok);
+    if (!pool.length) pool = sents.flat().filter(ok);
+    if (!pool.length) break;
+    const nouns = pool.filter((w) => /^[A-ZÄÖÜ]/.test(w));
+    cur = pick2(nouns.length ? nouns : pool);
+    seen.add(cur.toLowerCase());
+    links.push(cur);
+  }
+  return links;
+}
+function verwirf(bisher, index, text) {
+  if (bisher.length < 2) return bisher;
+  const i = Math.max(0, Math.min(bisher.length - 1, Math.round(index)));
+  if (i === 0) return bisher;
+  const kopf = bisher.slice(0, i);
+  const weiter = proseChainOhne(
+    kopf[kopf.length - 1],
+    text,
+    bisher.length - i + 1,
+    new Set(bisher.map((x) => x.toLowerCase()))
+  );
+  return [...kopf, ...weiter.slice(1)];
+}
+function alsMotive(links) {
+  const nomen = links.filter((w) => /^[A-ZÄÖÜ]/.test(w));
+  const raus = [];
+  for (let i = 0; i + 1 < nomen.length; i++) {
+    raus.push(`ein ${nomen[i]} \xFCber dem ${nomen[i + 1]}`);
+  }
+  return raus;
+}
+function alsBilder(links) {
+  const nomen = links.filter((w) => /^[A-ZÄÖÜ]/.test(w));
+  const raus = [];
+  for (let i = 0; i + 1 < nomen.length; i += 2) {
+    raus.push(`wie ${nomen[i]} hinter ${nomen[i + 1]}`);
+  }
+  return raus;
+}
+
+// src/ui/assocView.ts
+init_storage();
+var lastText = () => {
+  try {
+    return localStorage.getItem("dm_last_text") || "";
+  } catch {
+    return "";
+  }
+};
+function mountAssoc(root) {
+  root.innerHTML = "";
+  const wrap = el("div", {});
+  const src = el("textarea", { class: "out", rows: "6", placeholder: "Studio-Text \u2014 Grundlage der R\xFCckprojektion.", style: "width:100%" });
+  src.value = lastText();
+  const seedSel = select("as-seed", [["", "\u2014 Saatwort \u2014"]]);
+  const rebuildSeeds = () => {
+    const seeds = extractSeeds(src.value);
+    seedSel.innerHTML = "";
+    const add = (v, l) => {
+      const o = document.createElement("option");
+      o.value = v;
+      o.textContent = l;
+      seedSel.appendChild(o);
+    };
+    if (!seeds.length) {
+      add("", "\u2014 kein Text \u2014");
+      return;
+    }
+    seeds.forEach((s) => add(s, s));
+    seedSel.value = seeds[0];
+  };
+  const fetchBtn = button("Letzten Studio-Text holen");
+  fetchBtn.addEventListener("click", () => {
+    src.value = lastText();
+    rebuildSeeds();
+  });
+  src.addEventListener("input", rebuildSeeds);
+  const diceBtn = el("button", {}, icon("dice"), " Saatwort w\xFCrfeln");
+  diceBtn.addEventListener("click", () => {
+    const n = seedSel.options.length;
+    if (n) seedSel.selectedIndex = Math.floor(Math.random() * n);
+    neuBauen();
+  });
+  const lenIn = el("input", { type: "range", min: "4", max: "10", step: "1", value: "6" });
+  const lenVal = el("span", { class: "muted" }, "6");
+  lenIn.addEventListener("input", () => {
+    lenVal.textContent = lenIn.value;
+  });
+  const list = el("div", {});
+  const info = el("p", { class: "muted mini" }, "");
+  let kette = [];
+  const render = () => {
+    list.innerHTML = "";
+    if (!kette.length) {
+      list.append(el("p", { class: "muted" }, "Kein Saatwort \u2014 erst einen Studio-Text holen."));
+      info.textContent = "";
+      return;
+    }
+    const zeile = el("p", { class: "idea-text" });
+    kette.forEach((w, i) => {
+      if (i) zeile.append(el("span", { class: "muted" }, "  \u2192  "));
+      const g = el("button", {
+        class: "chip",
+        title: "Von hier aus weitergehen (mit \u2325/Alt: dieses Glied verwerfen)"
+      }, w);
+      g.addEventListener("click", (ev) => {
+        const e2 = ev;
+        kette = e2.altKey ? verwirf(kette, i, src.value) : setzeFort(kette, i, src.value, parseInt(lenIn.value, 10) || 6);
+        render();
+      });
+      zeile.append(g);
+    });
+    list.append(zeile);
+    info.textContent = `${kette.length} Glieder \xB7 ein Glied antippen geht von dort aus weiter, mit Alt-Taste verwirft es das Glied. Das Saatwort bleibt immer stehen.`;
+    const motive = alsMotive(kette);
+    const bilder = alsBilder(kette);
+    const bankInfo = el("span", { class: "muted mini" }, "");
+    const inBank = el(
+      "button",
+      { class: "primary" },
+      icon("arrowRight"),
+      ` ${motive.length} Motive + ${bilder.length} Bilder in die Wortbank`
+    );
+    inBank.disabled = !motive.length;
+    inBank.addEventListener("click", () => {
+      const b = loadBank();
+      const neu = { ...b, motifs: [...b.motifs || [], ...motive] };
+      const bank = neu;
+      bank["images"] = [...bank["images"] || [], ...bilder];
+      saveBank(neu);
+      saveActiveBankLabel(loadActiveBankLabel() + " + Kette");
+      bankInfo.textContent = `${motive.length + bilder.length} Eintr\xE4ge \xFCbernommen \u2014 sie wirken ab dem n\xE4chsten Text.`;
+    });
+    const toStudio = button("\u2192 Studio (als Was)");
+    toStudio.addEventListener("click", () => {
+      try {
+        localStorage.setItem("dm_pending_ctx", JSON.stringify({ what: kette.join(", ") }));
+      } catch {
+      }
+      const st = [...document.querySelectorAll(".tabbar button")].find((b) => b.textContent === "Studio");
+      if (st) st.click();
+    });
+    const copy = button("Kopieren");
+    copy.addEventListener("click", () => {
+      void navigator.clipboard?.writeText(kette.join(" \u2192 "));
+      const o = copy.textContent;
+      copy.textContent = "Kopiert \u2713";
+      setTimeout(() => copy.textContent = o, 1200);
+    });
+    const keepInfo = el("span", { class: "muted" }, "");
+    const keep = el("button", {}, icon("star"), " Merken");
+    keep.addEventListener("click", () => {
+      const n = addToTreasury(kette.join(" \u2192 "), { form: "assoz" });
+      keepInfo.textContent = n < 0 ? "schon vorhanden" : `gemerkt (${n})`;
+      setTimeout(() => keepInfo.textContent = "", 2e3);
+    });
+    list.append(
+      el("div", { class: "btnrow", style: "margin-top:8px" }, inBank, bankInfo),
+      el("div", { class: "btnrow" }, toStudio, copy, keep, keepInfo),
+      el(
+        "p",
+        { class: "muted mini" },
+        motive.length ? `Beispiel: \u201E${motive[0]}\u201C \xB7 \u201E${bilder[0] || "\u2014"}\u201C` : "F\xFCr Motive braucht die Kette mindestens zwei gro\xDFgeschriebene Glieder \u2014 sie f\xFChren die Nominalphrase an."
+      )
+    );
+  };
+  const neuBauen = () => {
+    const seed = seedSel.value.trim();
+    kette = seed ? chainFor("prose", seed, src.value, parseInt(lenIn.value, 10) || 6) : [];
+    render();
+  };
+  const goBtn = el("button", { class: "primary" }, icon("refresh"), " Ketten erzeugen");
+  goBtn.addEventListener("click", neuBauen);
+  const readBtn = el("button", {}, icon("book"), " Lesemodus");
+  readBtn.addEventListener("click", () => {
+    if (kette.length) openReader(kette.join(" \u2192 "));
+  });
+  rebuildSeeds();
+  wrap.append(
+    el("h3", {}, "Assoziationskette"),
+    el("p", { class: "muted" }, "R\xFCckprojektion: Ein Wort aus dem Studio-Text wandert \xFCber gemeinsame S\xE4tze weiter. Jedes Glied ist anklickbar \u2014 antippen geht von dort aus weiter, mit Alt-Taste verwirft es das Glied. Der Weg dorthin bleibt stehen. Der wichtigste Ausgang ist die Wortbank: Kettenglieder sind genau das, woraus Motive und Bilder bestehen, und dort wirken sie auf jeden k\xFCnftigen Text statt auf einen einzigen."),
+    src,
+    el("div", { class: "btnrow" }, fetchBtn),
+    el("div", { class: "grid2" }, field("Saatwort", seedSel), field("Kettenl\xE4nge", el("div", { class: "chkrow" }, lenIn, " ", lenVal))),
+    el("div", { class: "btnrow" }, goBtn, diceBtn, readBtn),
+    info,
+    list
+  );
+  root.append(wrap);
+  render();
+}
+
+// src/ui/ideasView.ts
+var ideenSchonGewuerfelt = false;
+var ideenStand = null;
+var ideenLive = null;
+function mountIdeas(root) {
+  root.innerHTML = "";
+  const wrap = el("div", {});
+  const nameIn = textInput("idea-name", "Thema/Motiv (optional)", "");
+  const presetSel = select("idea-preset", [["", "\u2014 eigenes \u2014"], ...IDEA_PRESET_LABELS]);
+  const genre = select("idea-genre", [["mystery", "Mystery"], ["scifi", "SciFi"], ["maerchen", "M\xE4rchen"], ["absurd", "Absurd"], ["alltag", "Alltag"], ["horror", "Horror"], ["satire", "Satire"]], "mystery");
+  const ton = select("idea-ton", [["duester", "d\xFCster"], ["hoffnung", "hoffnungsvoll"], ["ironisch", "ironisch"], ["melancholisch", "melancholisch"], ["unheimlich", "unheimlich"], ["verspielt", "verspielt"]], "duester");
+  const prot = select("idea-prot", [["einzel", "Einzelg\xE4nger"], ["kollektiv", "Kollektiv"], ["kind", "Kind"], ["institution", "Institution"], ["nichtmensch", "Nicht-Mensch"], ["antiheld", "Antiheld"]], "einzel");
+  const konflikt = select("idea-konf", [["raetsel", "R\xE4tsel"], ["kampf", "gegen anderen"], ["inner", "innerer Konflikt"], ["natur", "gegen Natur"], ["system", "gegen System"], ["zeit", "gegen die Zeit"]], "raetsel");
+  const ort = select("idea-ort", [["urban", "urban"], ["natur", "Natur"], ["raum", "geschlossener Raum"], ["grenze", "Grenze/\xDCbergang"], ["nirgendwo", "Nirgendwo"], ["institution", "Institution"]], "urban");
+  const zeit = select("idea-zeit", [["gegenwart", "Gegenwart"], ["historisch", "historisch"], ["zukunft", "Zukunft"], ["zeitlos", "zeitlos"], ["umbruch", "Umbruch"]], "gegenwart");
+  const massstab = select("idea-mass", [["intim", "intim"], ["mittel", "mittel"], ["episch", "episch"], ["kosmisch", "kosmisch"]], "intim");
+  const wendung = select("idea-wend", [["umkehr", "Umkehr"], ["enthuellung", "Enth\xFCllung"], ["eskalation", "Eskalation"], ["offen", "offenes Ende"], ["paradox", "Paradox"], ["ironie", "Ironie"]], "enthuellung");
+  const fokus = select("idea-fok", [["figur", "Figur"], ["konzept", "Konzept"], ["atmo", "Atmosph\xE4re"], ["handlung", "Handlung"], ["form", "Form/Sprache"]], "figur");
+  const diverg = el("input", { type: "range", min: "0", max: "100", step: "5", value: "40", id: "idea-div" });
+  const divVal = el("span", { class: "muted" }, "40");
+  diverg.addEventListener("input", () => {
+    divVal.textContent = diverg.value;
+  });
+  const live = el("input", { type: "range", min: "0", max: "40", step: "5", value: "20", id: "idea-live" });
+  const liveVal = el("span", { class: "muted" }, "20 %");
+  const liveInfo = el("span", { class: "muted" }, "");
+  const clrBtn = button("Pool leeren", "danger");
+  const updLive = () => {
+    liveVal.textContent = live.value + " %";
+    const n = liveCount();
+    liveInfo.textContent = n ? `${n} Begriffe aus deinen Texten` : "noch leer \u2014 schreibt sich beim Generieren und Aufheben voll";
+    clrBtn.style.display = n ? "" : "none";
+  };
+  live.addEventListener("input", updLive);
+  clrBtn.addEventListener("click", () => {
+    clearLivePools();
+    updLive();
+  });
+  const fld = (l, n) => el("label", { class: "field" }, el("span", { class: "field-label" }, l), n);
+  const readProfile = () => ({
+    name: nameIn.value.trim(),
+    genre: genre.value,
+    ton: ton.value,
+    protagonist: prot.value,
+    konflikt: konflikt.value,
+    ort: ort.value,
+    zeit: zeit.value,
+    massstab: massstab.value,
+    wendung: wendung.value,
+    fokus: fokus.value,
+    divergenz: parseInt(diverg.value, 10) || 0
+  });
+  const applyProfile = (p) => {
+    nameIn.value = p.name;
+    genre.value = p.genre;
+    ton.value = p.ton;
+    prot.value = p.protagonist;
+    konflikt.value = p.konflikt;
+    ort.value = p.ort;
+    zeit.value = p.zeit;
+    massstab.value = p.massstab;
+    wendung.value = p.wendung;
+    fokus.value = p.fokus;
+    diverg.value = String(p.divergenz);
+    divVal.textContent = String(p.divergenz);
+  };
+  const delBtn = button("Preset l\xF6schen", "danger");
+  const updDel = () => {
+    delBtn.style.display = presetSel.value.startsWith("user:") ? "" : "none";
+  };
+  const rebuildPresetSel = () => {
+    const cur = presetSel.value;
+    presetSel.innerHTML = "";
+    const add = (v, l) => {
+      const o = document.createElement("option");
+      o.value = v;
+      o.textContent = l;
+      presetSel.appendChild(o);
+    };
+    add("", "\u2014 eigenes \u2014");
+    IDEA_PRESET_LABELS.forEach(([v, l]) => add(v, l));
+    Object.entries(loadIdeaUserPresets()).forEach(([id, pr]) => add(id, "\u2605 " + (pr.name || id.replace("user:", ""))));
+    presetSel.value = cur;
+  };
+  presetSel.addEventListener("change", () => {
+    const v = presetSel.value;
+    if (v.startsWith("user:")) {
+      const p = loadIdeaUserPresets()[v];
+      if (p) applyProfile({ ...p, name: p.name });
+    } else if (v) {
+      const p = IDEA_PRESETS[v];
+      if (p) applyProfile(p);
+    }
+    updDel();
+  });
+  rebuildPresetSel();
+  const bestand = () => [
+    ...Object.entries(IDEA_PRESETS),
+    ...Object.entries(loadIdeaUserPresets())
+  ];
+  const randomize = () => {
+    const { id, profil } = wuerfleIdeenProfil(bestand());
+    applyProfile(profil);
+    presetSel.value = id;
+    updDel();
+  };
+  if (!ideenSchonGewuerfelt) {
+    randomize();
+    ideenSchonGewuerfelt = true;
+    ideenStand = readProfile();
+    ideenLive = live.value;
+    saveIdeaProfile(ideenStand, (parseInt(live.value, 10) || 0) / 100);
+  } else {
+    if (ideenStand) applyProfile(ideenStand);
+    if (ideenLive !== null) {
+      live.value = ideenLive;
+    }
+    updLive();
+  }
+  const merkeIdeen = () => {
+    ideenStand = readProfile();
+    ideenLive = live.value;
+    saveIdeaProfile(ideenStand, (parseInt(live.value, 10) || 0) / 100);
+  };
+  [genre, ton, prot, konflikt, ort, zeit, massstab, wendung, fokus, presetSel].forEach((c) => c.addEventListener("change", merkeIdeen));
+  [diverg, live, nameIn].forEach((c) => c.addEventListener("input", merkeIdeen));
+  const list = el("div", {});
+  const count2 = el("input", { type: "number", value: "10", min: "1", max: "30", style: "width:70px" });
+  const render = () => {
+    list.innerHTML = "";
+    const cfg = ideaProfileToConfig(readProfile(), (parseInt(live.value, 10) || 0) / 100);
+    updLive();
+    for (const idea of generateIdeaBatch(parseInt(count2.value, 10) || 10, cfg)) {
+      const take = button("\u2192 Studio");
+      take.addEventListener("click", () => {
+        try {
+          localStorage.setItem("dm_pending_ctx", JSON.stringify({ who: idea.seedWho, where: idea.seedWhere, when: idea.seedWhen, what: idea.seedWhat }));
+        } catch {
+        }
+        const st = [...document.querySelectorAll(".tabbar button")].find((b) => b.textContent === "Studio");
+        if (st) st.click();
+      });
+      list.append(el(
+        "div",
+        { class: "idea" },
+        el("p", { class: "idea-text" }, idea.text, el("span", { class: "muted" }, `  \xB7 ${idea.archetype} \xB7 ${idea.presetLabel}`)),
+        take
+      ));
+    }
+  };
+  const genBtn = el("button", { class: "primary" }, icon("dice"), " Ideen generieren");
+  genBtn.addEventListener("click", render);
+  const rndBtn = el("button", {}, icon("refresh"), " W\xFCrfeln");
+  rndBtn.addEventListener("click", () => {
+    randomize();
+    merkeIdeen();
+    render();
+  });
+  const profLbl = el("span", {}, "KI-Profil erzeugen");
+  const profBtn = el("button", {}, icon("flask"), " ", profLbl);
+  profBtn.addEventListener("click", () => {
+    void (async () => {
+      if (!loadAiKey()) {
+        alert("Kein API-Schl\xFCssel \u2014 bitte im KI-Tab hinterlegen.");
+        return;
+      }
+      profBtn.disabled = true;
+      const old = profLbl.textContent;
+      profLbl.textContent = "Erzeuge\u2026";
+      try {
+        const nm = nameIn.value.trim() || "Idee";
+        const raw = await callClaude(buildIdeaProfilePrompt(nm), 800);
+        applyProfile(normalizeIdeaProfile(extractJson(raw), nm));
+        presetSel.value = "";
+        updDel();
+      } catch (e2) {
+        alert("Fehlgeschlagen: " + (e2 instanceof Error ? e2.message : String(e2)));
+      } finally {
+        profBtn.disabled = false;
+        profLbl.textContent = old || "KI-Profil erzeugen";
+      }
+    })();
+  });
+  const saveBtn = button("Als Preset speichern");
+  saveBtn.addEventListener("click", () => {
+    const p = readProfile();
+    if (!p.name.trim()) {
+      alert("Bitte ein Thema/Motiv als Namen eintragen.");
+      return;
+    }
+    const id = saveIdeaUserPreset(p);
+    rebuildPresetSel();
+    presetSel.value = id;
+    updDel();
+  });
+  delBtn.addEventListener("click", () => {
+    const v = presetSel.value;
+    if (v.startsWith("user:")) {
+      deleteIdeaUserPreset(v);
+      rebuildPresetSel();
+      presetSel.value = "";
+      updDel();
+    }
+  });
+  const panelPraem = el("div", {});
+  panelPraem.append(
+    el("p", { class: "muted" }, "Zehn Merkmale formen die Richtung der Pr\xE4missen. W\xE4hle ein Preset, stelle die Regler selbst ein oder lass die KI aus einem Thema ein Profil bauen. Der Divergenz-Regler steuert, wie wild die Streuung wird."),
+    el("div", { class: "grid2" }, fld("Preset", presetSel), fld("Thema/Motiv", nameIn)),
+    el("div", { class: "grid3" }, fld("Genre", genre), fld("Ton", ton), fld("Protagonist", prot)),
+    el("div", { class: "grid3" }, fld("Konfliktart", konflikt), fld("Ort-Typ", ort), fld("Zeit/Epoche", zeit)),
+    el("div", { class: "grid3" }, fld("Ma\xDFstab", massstab), fld("Wendungstyp", wendung), fld("Fokus", fokus)),
+    fld("Divergenz (zahm \u2192 radikal)", el("div", { class: "chkrow" }, diverg, " ", divVal)),
+    fld("Lebendige Pools (Anteil eigener Begriffe)", el("div", { class: "chkrow" }, live, " ", liveVal, " \xB7 ", liveInfo, " ", clrBtn)),
+    el("div", { class: "btnrow" }, "Anzahl ", count2, " ", genBtn, rndBtn, profBtn),
+    el("div", { class: "btnrow" }, saveBtn, delBtn),
+    list
+  );
+  const panelAssoc = el("div", { style: "display:none" });
+  let assocReady = false;
+  const tabP = el("button", { class: "subtab active" }, "Pr\xE4missen");
+  const tabA = el("button", { class: "subtab" }, "Assoziationskette");
+  const showPanel = (praem) => {
+    panelPraem.style.display = praem ? "" : "none";
+    panelAssoc.style.display = praem ? "none" : "";
+    tabP.classList.toggle("active", praem);
+    tabA.classList.toggle("active", !praem);
+    if (!praem && !assocReady) {
+      mountAssoc(panelAssoc);
+      assocReady = true;
+    }
+  };
+  tabP.addEventListener("click", () => showPanel(true));
+  tabA.addEventListener("click", () => showPanel(false));
+  wrap.append(
+    el("h2", {}, "Ideen"),
+    el("div", { class: "subtabs" }, tabP, tabA),
+    panelPraem,
+    panelAssoc
+  );
+  root.append(wrap);
+  updLive();
+  render();
+}
+
+// src/ui/worldView.ts
+init_ki();
+var weltSchonGewuerfelt = false;
+function chkGroup(opts) {
+  return opts.map(([v, l]) => {
+    const box = el("input", { type: "checkbox", value: v });
+    return { v, box, el: el("label", { class: "chk" }, box, " " + l) };
+  });
+}
+var readChk = (g) => g.filter((c) => c.box.checked).map((c) => c.v);
+var setChk = (g, vals) => g.forEach((c) => {
+  c.box.checked = vals.includes(c.v);
+});
+function mountWorld(root) {
+  root.innerHTML = "";
+  const wrap = el("div", {});
+  const nameIn = textInput("omni-name", "Name des Wesens", "");
+  const presetSel = select("omni-preset", [["", "\u2014 eigenes \u2014"], ...OMNI_PRESET_LABELS]);
+  const channels = chkGroup([["licht", "Licht"], ["schall", "Schall"], ["geruch", "Ger\xFCche"], ["efeld", "E-Feld"], ["magnet", "Magnet"], ["vibration", "Vibration"], ["temperatur", "Temperatur"]]);
+  const fokus = chkGroup([["objekt", "Objekt"], ["bewegung", "Bewegung"], ["nahrung", "Nahrung"], ["feind", "Feind"], ["sozial", "Sozial"], ["muster", "Muster"]]);
+  const ziel = chkGroup([["nahrung", "Nahrung"], ["fortpflanzung", "Fortpflanzung"], ["kooperation", "Kooperation"], ["revier", "Revier"], ["schwarm", "Schwarm"], ["ueberleben", "\xDCberleben"]]);
+  const dim = select("omni-dim", [["2d", "2D"], ["3d", "3D"]], "3d");
+  const reach = select("omni-reach", [["nah", "Nahbereich"], ["fern", "Fernbereich"]], "nah");
+  const medium = select("omni-medium", [["wasser", "Wasser"], ["luft", "Luft"], ["boden", "Boden"]], "luft");
+  const zeit = select("omni-zeit", [["schnell", "schnell"], ["mittel", "mittel"], ["langsam", "langsam"]], "mittel");
+  const aufl = select("omni-aufl", [["grob", "grob"], ["mittel", "mittel"], ["fein", "fein"]], "mittel");
+  const ged = select("omni-ged", [["angeboren", "angeboren"], ["kurz", "kurzfristig"], ["lang", "langfristig"]], "kurz");
+  const komm = select("omni-komm", [["sprache", "Sprache"], ["laut", "Laute"], ["duft", "Duft"], ["licht", "Licht"], ["efeld", "elektrisch"], ["chem", "chemisch"], ["beruehrung", "Ber\xFChrung"]], "laut");
+  const strat = select("omni-strat", [["reflex", "reflexartig"], ["instinkt", "instinktiv"], ["lern", "lernbasiert"], ["planend", "planend"]], "instinkt");
+  const modell = select("omni-modell", [["kein", "kein Selbst"], ["schwach", "schwaches"], ["stark", "starkes"], ["verteilt", "verteilt"]], "schwach");
+  const fld = (l, n) => el("label", { class: "field" }, el("span", { class: "field-label" }, l), n);
+  const grp = (l, g) => el("div", { class: "field" }, el("span", { class: "field-label" }, l), el("div", { class: "chkrow" }, ...g.map((c) => c.el)));
+  const readProfile = () => ({
+    name: nameIn.value.trim(),
+    channels: readChk(channels),
+    dim: dim.value,
+    reach: reach.value,
+    medium: medium.value,
+    zeit: zeit.value,
+    aufloesung: aufl.value,
+    fokus: readChk(fokus),
+    gedaechtnis: ged.value,
+    kommunikation: komm.value,
+    strategie: strat.value,
+    modell: modell.value,
+    ziel: readChk(ziel)
+  });
+  const applyProfile = (p) => {
+    nameIn.value = p.name;
+    setChk(channels, p.channels);
+    setChk(fokus, p.fokus);
+    setChk(ziel, p.ziel);
+    dim.value = p.dim;
+    reach.value = p.reach;
+    medium.value = p.medium;
+    zeit.value = p.zeit;
+    aufl.value = p.aufloesung;
+    ged.value = p.gedaechtnis;
+    komm.value = p.kommunikation;
+    strat.value = p.strategie;
+    modell.value = p.modell;
+  };
+  const delBtn = button("Preset l\xF6schen", "danger");
+  const updDel = () => {
+    delBtn.style.display = presetSel.value.startsWith("user:") ? "" : "none";
+  };
+  const rebuildPresetSel = () => {
+    const cur = presetSel.value;
+    presetSel.innerHTML = "";
+    const add = (v, l) => {
+      const o = document.createElement("option");
+      o.value = v;
+      o.textContent = l;
+      presetSel.appendChild(o);
+    };
+    add("", "\u2014 eigenes \u2014");
+    OMNI_PRESET_LABELS.forEach(([v, l]) => add(v, l));
+    Object.entries(loadOmniUserPresets()).forEach(([id, pr]) => add(id, "\u2605 " + (pr.name || id.replace("user:", ""))));
+    presetSel.value = cur;
+  };
+  presetSel.addEventListener("change", () => {
+    const v = presetSel.value;
+    if (v.startsWith("user:")) {
+      const p = loadOmniUserPresets()[v];
+      if (p) applyProfile(p);
+    } else if (v) {
+      const p = OMNI_PRESETS[v];
+      if (p) applyProfile(p);
+    }
+    updDel();
+  });
+  rebuildPresetSel();
+  const randomize = () => {
+    const alle = alleOmniProfile();
+    if (!alle.length) return;
+    const p = alle[Math.floor(Math.random() * alle.length)];
+    applyProfile(p);
+    const id = Object.entries(OMNI_PRESETS).find(([, v]) => v === p)?.[0] || Object.entries((() => {
+      try {
+        return loadOmniUserPresets();
+      } catch {
+        return {};
+      }
+    })()).find(([, v]) => v.name === p.name)?.[0] || "";
+    presetSel.value = id;
+    updDel();
+    merkeWelt();
+  };
+  const merkeWelt = () => {
+    saveOmniStand(readProfile(), presetSel.value);
+  };
+  [presetSel, dim, reach, medium, zeit, aufl, ged, komm, strat, modell].forEach((c) => c.addEventListener("change", merkeWelt));
+  [...channels, ...fokus, ...ziel].forEach((c) => c.box.addEventListener("change", merkeWelt));
+  nameIn.addEventListener("input", merkeWelt);
+  if (!weltSchonGewuerfelt) {
+    randomize();
+    weltSchonGewuerfelt = true;
+  } else {
+    const st = loadOmniStand();
+    if (st) {
+      applyProfile(st.profil);
+      presetSel.value = st.id;
+      updDel();
+    } else randomize();
+  }
+  const transferBtn = el("button", { class: "primary" }, icon("play"), " Ins Studio \xFCbertragen");
+  transferBtn.addEventListener("click", () => {
+    try {
+      localStorage.setItem("dm_pending_studio", JSON.stringify(profileToStudio(readProfile())));
+    } catch {
+    }
+    const st = [...document.querySelectorAll(".tabbar button")].find((b) => b.textContent === "Studio");
+    if (st) st.click();
+  });
+  const profLbl = el("span", {}, "KI-Profil erzeugen");
+  const profBtn = el("button", {}, icon("flask"), " ", profLbl);
+  profBtn.addEventListener("click", () => {
+    void (async () => {
+      if (!loadAiKey()) {
+        alert("Kein API-Schl\xFCssel \u2014 bitte im KI-Tab hinterlegen.");
+        return;
+      }
+      profBtn.disabled = true;
+      const old = profLbl.textContent;
+      profLbl.textContent = "Erzeuge\u2026";
+      try {
+        const raw = await callClaude(buildProfilePrompt(nameIn.value.trim() || "ein Wesen"), 800);
+        applyProfile(normalizeProfile(extractJson(raw), nameIn.value.trim() || "ein Wesen"));
+        presetSel.value = "";
+        updDel();
+        merkeWelt();
+      } catch (e2) {
+        alert("Fehlgeschlagen: " + (e2 instanceof Error ? e2.message : String(e2)));
+      } finally {
+        profBtn.disabled = false;
+        profLbl.textContent = old || "KI-Profil erzeugen";
+      }
+    })();
+  });
+  const rndBtn = el("button", {}, icon("refresh"), " W\xFCrfeln");
+  rndBtn.addEventListener("click", () => {
+    randomize();
+  });
+  const saveBtn = button("Als Preset speichern");
+  saveBtn.addEventListener("click", () => {
+    const p = readProfile();
+    if (!p.name.trim()) {
+      alert("Bitte einen Namen f\xFCr das Wesen eintragen.");
+      return;
+    }
+    const id = saveOmniUserPreset(p);
+    rebuildPresetSel();
+    presetSel.value = id;
+    updDel();
+    merkeWelt();
+  });
+  delBtn.addEventListener("click", () => {
+    const v = presetSel.value;
+    if (v.startsWith("user:")) {
+      deleteOmniUserPreset(v);
+      rebuildPresetSel();
+      presetSel.value = "";
+      updDel();
+    }
+  });
+  wrap.append(
+    el("h2", {}, "Omnikognition \u2014 Wahrnehmungs-Modus"),
+    el("p", { class: "muted" }, "Formt Perspektive, Rhythmus und Bildwelt eines Textes aus der Umwelt eines Lebewesens. W\xE4hle ein Preset oder stelle die zehn Kriterien selbst ein."),
+    el("div", { class: "grid2" }, fld("Preset", presetSel), fld("Name", nameIn)),
+    grp("Sinneskan\xE4le", channels),
+    el("div", { class: "grid3" }, fld("Dimension", dim), fld("Reichweite", reach), fld("Medium", medium)),
+    el("div", { class: "grid3" }, fld("Zeitwahrnehmung", zeit), fld("Aufl\xF6sung", aufl), fld("Ged\xE4chtnis", ged)),
+    grp("Aufmerksamkeitsfokus", fokus),
+    el("div", { class: "grid3" }, fld("Kommunikation", komm), fld("Entscheidung", strat), fld("Selbst-/Umweltmodell", modell)),
+    grp("Lebensziel", ziel),
+    el("div", { class: "btnrow" }, transferBtn, rndBtn, profBtn),
+    el("div", { class: "btnrow" }, saveBtn, delBtn)
+  );
+  root.append(wrap);
+}
+
+// src/ui/schaltplanView.ts
+var NS = "http://www.w3.org/2000/svg";
+var CHIP_W = 176;
+var CHIP_H = 46;
+var GAP_X = 12;
+var GAP_Y = 10;
+var PRO_REIHE = 5;
+var RAND = 18;
+var BAND_TITEL = 26;
+var BAND_ABSTAND = 34;
+var BREITE = RAND * 2 + PRO_REIHE * CHIP_W + (PRO_REIHE - 1) * GAP_X;
+var BAND_NAME = ["Vorr\xE4te", "Material", "Steuerung", "Schliff", "Ausgabe"];
+var ZEICHEN = { an: "\u25CF", leer: "\u25B2", aus: "\u25CB" };
+var FARBE = {
+  an: "var(--acc2)",
+  leer: "var(--danger)",
+  aus: "var(--muted)"
+};
+var e = (name, attrs, ...kinder) => {
+  const n = document.createElementNS(NS, name);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v));
+  for (const c of kinder) n.append(c);
+  return n;
+};
+var txt = (x, y, s, cls) => {
+  const t = e("text", { x, y, class: cls });
+  t.textContent = s;
+  return t;
+};
+var kurz = (s, n) => s.length <= n ? s : s.slice(0, n - 1) + "\u2026";
+function ordne2(anlage) {
+  const platz = {};
+  const baender = [];
+  let y = RAND;
+  for (let b = 0; b < BAND_NAME.length; b++) {
+    const drin = anlage.knoten.filter((k) => k.band === b);
+    if (!drin.length) continue;
+    const kopf = y;
+    y += BAND_TITEL;
+    drin.forEach((k, i) => {
+      const reihe = Math.floor(i / PRO_REIHE), spalte = i % PRO_REIHE;
+      platz[k.id] = { x: RAND + spalte * (CHIP_W + GAP_X), y: y + reihe * (CHIP_H + GAP_Y), w: CHIP_W, h: CHIP_H };
+    });
+    const reihen = Math.ceil(drin.length / PRO_REIHE);
+    y += reihen * CHIP_H + (reihen - 1) * GAP_Y;
+    baender.push({ band: b, y: kopf, h: y - kopf });
+    y += BAND_ABSTAND;
+  }
+  return { platz, hoehe: y - BAND_ABSTAND + RAND, baender };
+}
+function renderSchaltplan(anlage) {
+  const { platz, hoehe, baender } = ordne2(anlage);
+  const svg = e("svg", {
+    class: "schaltplan",
+    viewBox: `0 0 ${BREITE} ${hoehe}`,
+    width: "100%",
+    role: "img",
+    "aria-label": "Schaltplan der aktiven Einstellungen"
+  });
+  for (let i = 0; i + 1 < baender.length; i++) {
+    const a = baender[i], b = baender[i + 1];
+    const y1 = a.y + a.h, y2 = b.y;
+    svg.append(e("line", { x1: BREITE / 2, y1, x2: BREITE / 2, y2, class: "sp-bus" }));
+    svg.append(e("polygon", {
+      points: `${BREITE / 2 - 5},${y2 - 8} ${BREITE / 2 + 5},${y2 - 8} ${BREITE / 2},${y2}`,
+      class: "sp-bus-spitze"
+    }));
+  }
+  for (const b of baender) svg.append(txt(RAND, b.y + 14, BAND_NAME[b.band] || "", "sp-band"));
+  for (const k of anlage.kanten) {
+    const a = platz[k.von], z = platz[k.nach];
+    if (!a || !z) continue;
+    const x1 = a.x + a.w / 2, y1 = a.y + a.h, x2 = z.x + z.w / 2, y2 = z.y;
+    const m = (y1 + y2) / 2;
+    svg.append(e("path", {
+      d: `M ${x1} ${y1} C ${x1} ${m}, ${x2} ${m}, ${x2} ${y2}`,
+      class: "sp-kante",
+      stroke: FARBE[k.zustand],
+      "stroke-dasharray": k.zustand === "aus" ? "4 4" : k.zustand === "leer" ? "7 4" : "0"
+    }));
+  }
+  for (const k of anlage.knoten) {
+    const p = platz[k.id];
+    if (!p) continue;
+    const g = e("g", { class: "sp-chip sp-" + k.zustand });
+    if (k.hinweis) {
+      const t = e("title", {});
+      t.textContent = k.hinweis;
+      g.append(t);
+    }
+    g.append(e("rect", { x: p.x, y: p.y, width: p.w, height: p.h, rx: 8, stroke: FARBE[k.zustand] }));
+    const zeichen = e("text", { x: p.x + 10, y: p.y + 18, class: "sp-zeichen", fill: FARBE[k.zustand] });
+    zeichen.textContent = ZEICHEN[k.zustand];
+    g.append(zeichen);
+    g.append(txt(p.x + 24, p.y + 18, kurz(k.label, 21), "sp-label"));
+    g.append(txt(p.x + 24, p.y + 34, kurz(k.wert, 24), "sp-wert"));
+    if (k.gesperrt) g.append(txt(p.x + p.w - 14, p.y + 18, "\u{1F512}", "sp-schloss"));
+    svg.append(g);
+  }
+  return svg;
+}
+function befundListe(anlage) {
+  const leer2 = anlage.knoten.filter((k) => k.zustand === "leer");
+  return {
+    leer: leer2.length,
+    text: leer2.length ? leer2.map((k) => `${k.label}: ${k.hinweis || "Quelle leer"}`).join(" \xB7 ") : "Kein Schalter l\xE4uft ins Leere."
+  };
+}
+
+// test/schaltplan.ts
+var import_jsdom = require("jsdom");
+
+// src/features/nutzung.ts
+var NUTZUNG_KEY = "divergenz_nutzung_v1";
+function alsListe(stand, alle, jetzt = Date.now()) {
+  const tag = 864e5;
+  const zeilen = alle.map((id) => {
+    const e2 = stand[id];
+    return e2 && e2.n > 0 ? { id, n: e2.n, tage: Math.floor((jetzt - e2.zuletzt) / tag), nie: false } : { id, n: 0, tage: -1, nie: true };
+  });
+  return zeilen.sort((a, b) => {
+    if (a.nie !== b.nie) return a.nie ? -1 : 1;
+    if (a.n !== b.n) return a.n - b.n;
+    return a.id.localeCompare(b.id, "de");
+  });
+}
+function seitWann(stand) {
+  const z = Object.values(stand).map((e2) => e2.zuerst).filter((x) => x > 0);
+  return z.length ? Math.min(...z) : 0;
+}
+function ladeNutzung() {
+  try {
+    const r = JSON.parse(localStorage.getItem(NUTZUNG_KEY) || "{}");
+    if (!r || typeof r !== "object" || Array.isArray(r)) return {};
+    const raus = {};
+    for (const [k, v] of Object.entries(r)) {
+      const e2 = v;
+      const n = Number(e2?.n);
+      if (!Number.isFinite(n) || n <= 0) continue;
+      raus[k] = { n, zuletzt: Number(e2?.zuletzt) || 0, zuerst: Number(e2?.zuerst) || 0 };
+    }
+    return raus;
+  } catch {
+    return {};
+  }
+}
+function sichereNutzung(s) {
+  try {
+    localStorage.setItem(NUTZUNG_KEY, JSON.stringify(s));
+  } catch {
+  }
+}
+
+// src/features/selftest.ts
+init_storage();
+init_text_utils();
+var RUNS = 16;
+var baseInput = () => ({
+  where: "im Hafen",
+  when: "im Winter",
+  who: "die Kartografin",
+  what: "ein Wunder geschieht",
+  tone: "neutral",
+  varLevel: "mid",
+  form: "prose",
+  structure: "linear",
+  mode: "auto",
+  perspective: "third",
+  rhythm: "clean",
+  markovMode: "off",
+  disruptor: "off",
+  archetypeA: "neutral",
+  archetypeB: "neutral",
+  instability: 0,
+  polish: false,
+  polishStyle: "surreal_precise",
+  lenTarget: 120,
+  tension: "off",
+  emphasis: { wo: 0, wann: 0, wer: 0, was: 0 }
+});
+var gen = (over, bank, model) => buildStory(bank, { ...baseInput(), ...over }, model);
+var has = (text, phrases, minLen = 5) => {
+  const low2 = text.toLowerCase();
+  return phrases.some((p) => {
+    const t = (p || "").trim().toLowerCase();
+    return t.length >= minLen && low2.includes(t);
+  });
+};
+var avgSentLen = (t) => {
+  const s = splitSentences(t).filter(Boolean);
+  if (!s.length) return 0;
+  return s.reduce((n, x) => n + (x.match(/\S+/g) || []).length, 0) / s.length;
+};
+var words2 = (t) => (t.match(/\S+/g) || []).length;
+var EMPH_MARK = /(Der Ort |liegt die Luft schwer|verschieben sich die Schatten|hat jedes Ding zwei Gesichter|klingt jeder Schritt doppelt|scheint die Entfernung zu lügen|hält der Raum den Atem an|scheint zuzuhören|gibt keine Auskunft|merkt sich jede Bewegung|ordnet die Dinge neu|lässt niemanden unberührt|Es war die Zeit, als|und die Zeit |hält \S+ inne|sucht \S+ nach Worten|spürt \S+ die Kälte|Reglos steht|Lange wartet|Still bleibt|Aufmerksam beobachtet|Und wieder: |Denn genau das geschieht|Im Kern bleibt es dabei|Es geht weiter um eines)/;
+function runSelfTest(onStep) {
+  const bank = loadBank();
+  const bankAll = [];
+  for (const v of Object.values(bank)) if (Array.isArray(v)) bankAll.push(...v);
+  const pools = (() => {
+    try {
+      return liveTexts();
+    } catch {
+      return [];
+    }
+  })();
+  const corpusLen = (() => {
+    try {
+      return loadPersistentCorpus().length;
+    } catch {
+      return 0;
+    }
+  })();
+  const model = (() => {
+    try {
+      return corpusLen >= 200 ? buildModelFromCorpus(2) : void 0;
+    } catch {
+      return void 0;
+    }
+  })();
+  const specs = [
+    // ── Quellen: hinterlassen direkt Spuren im Text ──
+    {
+      id: "wortbank",
+      label: "Wortbank",
+      group: "Quellen",
+      note: "Bank-Eintr\xE4ge erscheinen im Text",
+      probe: () => has(gen({}, bank), bankAll)
+    },
+    {
+      id: "ton",
+      label: "Ton",
+      group: "Quellen",
+      note: "Ton-Einsch\xFCbe erscheinen im Text",
+      probe: () => {
+        const td = TONE_DATA["mystery"];
+        return td ? has(gen({ tone: "mystery" }, bank), [...td.opener, ...td.flavor]) : false;
+      }
+    },
+    {
+      id: "kontext4w",
+      label: "4W-Kontext",
+      group: "Quellen",
+      note: "Wo/Wann/Wer/Was erscheinen im Text",
+      probe: () => {
+        const t = gen({}, bank);
+        return has(t, ["im Hafen", "im Winter", "Kartografin", "Wunder"], 4);
+      }
+    },
+    {
+      id: "pools",
+      label: "Lebendige Pools",
+      group: "Quellen",
+      note: "Pool-Begriffe erscheinen im Text",
+      skip: pools.length ? void 0 : "Pools noch leer \u2014 erst Texte merken",
+      probe: () => has(gen({}, bank), pools)
+    },
+    {
+      id: "markov",
+      label: "Markov",
+      group: "Quellen",
+      note: "Markov-Fragmente werden eingewoben",
+      skip: model ? void 0 : "Korpus zu klein \u2014 erst im Korpus-Tab Text hinzuf\xFCgen",
+      probe: () => {
+        gen({ markovMode: "on" }, bank, model);
+        return getMarkovTrace().length > 0;
+      }
+    },
+    // ── Formen: eigener Bauweg ──
+    {
+      id: "form_poem",
+      label: "Form: Prosagedicht",
+      group: "Formen",
+      note: "Zeilenumbr\xFCche statt Flie\xDFtext",
+      probe: () => gen({ form: "poem" }, bank).includes("\n")
+    },
+    {
+      id: "form_haiku",
+      label: "Form: Haiku",
+      group: "Formen",
+      note: "Kurze Zeilenform",
+      probe: () => {
+        const t = gen({ form: "haiku" }, bank);
+        return t.split("\n").filter(Boolean).length >= 3;
+      }
+    },
+    {
+      id: "form_reim",
+      label: "Form: Reim",
+      group: "Formen",
+      note: "Verszeilen",
+      probe: () => gen({ form: "reim" }, bank).split("\n").filter(Boolean).length >= 2
+    },
+    {
+      id: "form_strang",
+      label: "Form: Gedicht-Strang",
+      group: "Formen",
+      note: "Verszeilen",
+      probe: () => gen({ form: "strang" }, bank).split("\n").filter(Boolean).length >= 2
+    },
+    {
+      id: "form_script",
+      label: "Form: Szene/Dialog",
+      group: "Formen",
+      note: "Sprecherzeilen",
+      probe: () => /(:|—)/.test(gen({ form: "script", who: "Anna, Bert" }, bank))
+    },
+    {
+      id: "form_video",
+      label: "Form: Multi-Shot",
+      group: "Formen",
+      note: "Shot-Gliederung",
+      probe: () => {
+        const t = gen({ form: "video", shots: 4, totalSec: 12 }, bank);
+        return t.split("\n").filter(Boolean).length >= 3;
+      }
+    },
+    // Prosa fehlte, obwohl sie die Grundform ist. Sie hat keinen eigenen
+    // Bauweg wie Vers oder Dialog — genau deshalb wurde sie übersehen: Es gab
+    // nichts Auffälliges zu prüfen. Ihr Kennzeichen ist, dass sie NICHT
+    // zeilenweise gesetzt wird.
+    {
+      id: "form_prose",
+      label: "Form: Prosa",
+      group: "Formen",
+      note: "Flie\xDFtext in Abs\xE4tzen, keine Verszeilen",
+      probe: () => {
+        const t = gen({ form: "prose" }, bank);
+        return words2(t) > 20 && !/\n[^\n]/.test(t.trim());
+      }
+    },
+    // Bericht und Meldung fehlten ganz — die beiden Formen, die der Autopilot
+    // am häufigsten setzt und die eigene Prüfstände mit tausenden Läufen
+    // haben. In der Anzeige „greifen alle Features?" kamen sie nicht vor.
+    {
+      id: "form_bericht",
+      label: "Form: Bericht",
+      group: "Formen",
+      note: "Dachzeile, Schlagzeile, Vorspann, Faktenkasten",
+      probe: () => {
+        const t = gen({ form: "bericht", lenTarget: 220 }, bank);
+        const abs = t.split(/\n{2,}/).filter(Boolean);
+        return abs.length >= 3 && /Faktenkasten/.test(t);
+      }
+    },
+    {
+      id: "form_meldung",
+      label: "Form: Meldung",
+      group: "Formen",
+      note: "Kurznachricht mit Datum und Ort",
+      probe: () => {
+        const t = gen({ form: "meldung" }, bank);
+        return words2(t) > 8 && words2(t) < 140;
+      }
+    },
+    // ── Strukturen: unterscheidbarer Aufbau ──
+    {
+      id: "struct",
+      label: "Struktur (Linear/Reverse/Kreis/\u2026)",
+      group: "Struktur",
+      note: "Bauwege liefern verschiedene Texte",
+      probe: () => {
+        const a = gen({ structure: "linear" }, bank), b = gen({ structure: "reverse" }, bank), c = gen({ structure: "circle" }, bank);
+        return (/* @__PURE__ */ new Set([a, b, c])).size >= 2;
+      }
+    },
+    {
+      id: "dramaturgie",
+      label: "Dramaturgie (Preset 2.0)",
+      group: "Struktur",
+      note: "Erz\xE4hlbogen des 2.0-Presets",
+      skip: hasDramaData() ? void 0 : "Kein 2.0-Preset mit Dramaturgie aktiv",
+      probe: () => gen({ structure: "dramaturgie" }, bank) !== gen({ structure: "linear" }, bank)
+    },
+    // Der Rekombinationsweg ist ein eigener Zusammenbau und im Studio die
+    // VORGABE — er fehlte hier trotzdem. Geprüft wird, dass er einen anderen
+    // Text liefert als der lineare Weg.
+    {
+      id: "rekombination",
+      label: "Rekombination",
+      group: "Struktur",
+      note: "Eigener Zusammenbau aus Atomen",
+      probe: () => {
+        const a = gen({ structure: "rekombination" }, bank), b = gen({ structure: "linear" }, bank);
+        return words2(a) > 20 && a !== b;
+      }
+    },
+    // Motivverwandlungen: die achte Liste der Wortbank. Ihre Einträge stehen
+    // nie im Text — sie sagen, was aus einem Motiv wird, wenn es wiederkehrt.
+    // Deshalb wird die WIRKUNG geprüft, nicht das Vorkommen.
+    {
+      id: "verwandlungen",
+      label: "Motivverwandlungen",
+      group: "Struktur",
+      note: "Motive wandeln sich bei Wiederkehr",
+      skip: (bank.verwandlungen || []).length ? void 0 : "Aktives Preset tr\xE4gt keine Motivverwandlungen",
+      probe: () => {
+        const paare = (bank.verwandlungen || []).map((x) => x.split(/\s*[→>-]+\s*/)[1] || "").filter(Boolean);
+        return paare.length > 0 && has(gen({ structure: "rekombination" }, bank), paare);
+      }
+    },
+    // ── Shaper: verändern den fertigen Text ──
+    {
+      id: "perspektive",
+      label: "Perspektive",
+      group: "Shaper",
+      note: "Ich/Du/Wir tauchen auf",
+      probe: () => {
+        const t = gen({ perspective: "first" }, bank).toLowerCase();
+        return /\b(ich|mir|mich|mein)\b/.test(t);
+      }
+    },
+    {
+      id: "rhythmus",
+      label: "Rhythmus",
+      group: "Shaper",
+      note: "Satzl\xE4ngen verschieben sich",
+      probe: () => Math.abs(avgSentLen(gen({ rhythm: "staccato" }, bank)) - avgSentLen(gen({ rhythm: "long" }, bank))) > 0.5
+    },
+    {
+      id: "spannung",
+      label: "Spannung (Peak)",
+      group: "Shaper",
+      note: "H\xFCllkurve ver\xE4ndert den Text",
+      probe: () => gen({ tension: "low", lenTarget: 200 }, bank) !== gen({ tension: "off", lenTarget: 200 }, bank)
+    },
+    {
+      id: "disruptor",
+      label: "Disruptor",
+      group: "Shaper",
+      note: "Bruch wird eingef\xFCgt (absichtlich sporadisch)",
+      probe: () => {
+        const t = gen({ disruptor: "on" }, bank);
+        return /(Drei Jahre später|Ich übernehme hier|weiß, dass sie erzählt wird|—\n|\(Dieser Satz)/.test(t);
+      }
+    },
+    {
+      id: "instabilitaet",
+      label: "Instabilit\xE4t",
+      group: "Shaper",
+      note: "Figuren-Instabilit\xE4t wirkt",
+      probe: () => gen({ instability: 2 }, bank) !== gen({ instability: 0 }, bank)
+    },
+    {
+      id: "modus",
+      label: "Modus (Realit\xE4tsmodus)",
+      group: "Shaper",
+      note: "Modus-Material unterscheidet sich",
+      probe: () => gen({ mode: "bureau" }, bank) !== gen({ mode: "myth" }, bank)
+    },
+    {
+      id: "archetyp",
+      label: "Archetyp A/B",
+      group: "Shaper",
+      note: "Archetyp-Wortpools wirken",
+      probe: () => gen({ archetypeA: "skorpion" }, bank) !== gen({ archetypeA: "neutral" }, bank)
+    },
+    {
+      id: "varianz",
+      label: "Varianz",
+      group: "Shaper",
+      note: "Variationsgrad wirkt",
+      probe: () => gen({ varLevel: "high" }, bank) !== gen({ varLevel: "low" }, bank)
+    },
+    // ── Steuerung ──
+    {
+      id: "textlaenge",
+      label: "Textl\xE4nge",
+      group: "Steuerung",
+      note: "Zielwortzahl wird angesteuert",
+      probe: () => {
+        const k = words2(gen({ lenTarget: 60 }, bank)), l = words2(gen({ lenTarget: 260 }, bank));
+        return l > k + 40;
+      }
+    },
+    {
+      id: "tempus",
+      label: "Tempus-W\xE4chter",
+      group: "Koh\xE4renz",
+      note: "erkennt Zeitebenen-Spr\xFCnge (wirkt in der Bestenauslese)",
+      probe: () => tenseBreakRatio("Der Hafen lag still. Ein Mann ging \xFCber den Steg. Die Kornkammern sind leer. Man erkannte nichts. Die Uhr tickt weiter.") > tenseBreakRatio("Der Hafen lag still. Ein Mann ging \xFCber den Steg. Die M\xF6wen kreisten hoch. Sp\xE4ter wurde es dunkel. Niemand kam zur\xFCck.")
+    },
+    {
+      id: "phrasen",
+      label: "Phrasen-Wiederholung",
+      group: "Koh\xE4renz",
+      note: "erkennt wiederkehrende Versatzst\xFCcke (3-/4-Gramme)",
+      probe: () => phraseRepeatRatio("Der Steg bricht unter ihrem Schritt. Es riecht wie Ru\xDF auf Gold. Der Steg bricht unter ihrem Schritt. Es riecht wie Ru\xDF auf Gold.") > 0.1
+    },
+    {
+      id: "perspektive_k",
+      label: "Perspektiv-W\xE4chter",
+      group: "Koh\xE4renz",
+      note: "erkennt Ich-/Du-Formen in einer Er-Erz\xE4hlung",
+      probe: () => perspectiveBreakRatio("Tom wartet am Kai. Aber du darfst nicht sprechen. Er nimmt die Glocke. Ich sehe nichts.", "third") > 0 && perspectiveBreakRatio("Tom wartet am Kai. Er nimmt die Glocke. Der Kran steht still.", "third") === 0
+    },
+    {
+      id: "figuren",
+      label: "Figurendisziplin",
+      group: "Koh\xE4renz",
+      note: "erkennt neu eingef\xFChrte Eigennamen",
+      probe: () => castSpread("Baucis wartet am Fenster. Zar Peter unterschreibt den Erlass. Ludwig z\xF6gert im Saal. Philemon schweigt.", ["Baucis"]) > castSpread("Baucis wartet am Fenster. Baucis z\xE4hlt die Stunden. Baucis schweigt.", ["Baucis"])
+    },
+    {
+      id: "emphasis",
+      label: "4W-St\xE4rke",
+      group: "Steuerung",
+      note: "Gewichtete Zusatzs\xE4tze erscheinen im Text (Gesamtl\xE4nge bleibt stabil)",
+      probe: () => EMPH_MARK.test(gen({ emphasis: { wo: 3, wann: 3, wer: 3, was: 3 } }, bank))
+    },
+    // Das Ressort steuert den Bericht: Es bestimmt Betroffene, Einheiten,
+    // Rollen und Größen. Es fehlte, obwohl es der wirksamste Regler dieser
+    // Form ist — geprüft wird, dass zwei Ressorts verschiedene Berichte geben.
+    {
+      id: "ressort",
+      label: "Ressort (Bericht)",
+      group: "Steuerung",
+      note: "Ressort bestimmt Gr\xF6\xDFen, Rollen und Betroffene",
+      probe: () => {
+        const a = gen({ form: "bericht", ressort: RESSORT_IDS[0], lenTarget: 200 }, bank);
+        const b = gen({ form: "bericht", ressort: RESSORT_IDS[RESSORT_IDS.length - 1], lenTarget: 200 }, bank);
+        return words2(a) > 20 && a !== b;
+      }
+    }
+  ];
+  const out = [];
+  specs.forEach((sp, i) => {
+    onStep?.(i, specs.length, sp.label);
+    if (sp.skip) {
+      out.push({ id: sp.id, label: sp.label, group: sp.group, runs: [], verdict: "skipped", note: sp.skip });
+      return;
+    }
+    const runs = [];
+    for (let r = 0; r < RUNS; r++) {
+      let ok = false;
+      try {
+        ok = sp.probe();
+      } catch {
+        ok = false;
+      }
+      runs.push(ok);
+    }
+    const hits = runs.filter(Boolean).length;
+    const verdict = hits === 0 ? "dead" : hits >= Math.ceil(RUNS * 0.75) ? "ok" : "sporadic";
+    out.push({ id: sp.id, label: sp.label, group: sp.group, runs, verdict, note: sp.note });
+  });
+  onStep?.(specs.length, specs.length, "");
+  return out;
+}
+
+// src/ui/selftestView.ts
+var VERDICT_LABEL = {
+  ok: "greift",
+  sporadic: "greift sporadisch",
+  dead: "greift nicht",
+  skipped: "nicht pr\xFCfbar"
+};
+function renderSummary(res) {
+  const zahl = (v) => res.filter((r) => r.verdict === v).length;
+  return el(
+    "div",
+    { class: "diag-summary" },
+    el("span", { class: "diag-sum ok" }, `${zahl("ok")} greifen`),
+    el("span", { class: "diag-sum sporadic" }, `${zahl("sporadic")} sporadisch`),
+    el("span", { class: "diag-sum dead" }, `${zahl("dead")} ohne Wirkung`),
+    el("span", { class: "diag-sum skipped" }, `${zahl("skipped")} nicht pr\xFCfbar`)
+  );
+}
+function renderSelfTest(res, kompakt = false) {
+  const box = el("div", {});
+  const gruppen = [...new Set(res.map((r) => r.group))];
+  for (const g of gruppen) {
+    box.append(el("h3", {}, g));
+    const grid = el("div", { class: "diag-grid" });
+    res.filter((r) => r.group === g).forEach((r) => {
+      const treffer = r.runs.filter(Boolean).length;
+      const karte = el("div", { class: "diag-card " + r.verdict });
+      karte.append(
+        el("div", { class: "diag-head" }, el("span", { class: "diag-lamp" }), el("b", {}, r.label)),
+        el(
+          "div",
+          { class: "diag-verdict" },
+          VERDICT_LABEL[r.verdict] || r.verdict,
+          ...r.runs.length ? [el("span", { class: "muted mini" }, ` \xB7 ${treffer} von ${r.runs.length} L\xE4ufen`)] : []
+        )
+      );
+      if (!kompakt && r.runs.length) {
+        const puls = el("div", { class: "diag-pulse" });
+        r.runs.forEach((hit) => puls.append(el("span", { class: "diag-dot" + (hit ? " on" : "") })));
+        karte.append(puls);
+      }
+      karte.append(el("div", { class: "muted mini diag-note" }, r.note));
+      grid.append(karte);
+    });
+    box.append(grid);
+  }
+  return box;
+}
+
+// src/ui/wirkungView.ts
+init_storage();
+
+// src/features/wirkung.ts
+var MASSE = [
+  { name: "Wiederholung", hochIstGut: false },
+  { name: "Phrasen", hochIstGut: false },
+  { name: "Tempusbruch", hochIstGut: false },
+  { name: "Perspektivbruch", hochIstGut: false },
+  { name: "Figurenstreuung", hochIstGut: false },
+  { name: "Wortvielfalt", hochIstGut: true },
+  { name: "L\xE4ngentreue", hochIstGut: true },
+  { name: "Rhythmus", hochIstGut: true },
+  { name: "Satzanf\xE4nge", hochIstGut: false }
+];
+function misseText(text, e2) {
+  const a = analyzeText(text, Number(e2.lenTarget) || 120);
+  return {
+    Wiederholung: repetitionRatio(text),
+    Phrasen: phraseRepeatRatio(text),
+    Tempusbruch: tenseBreakRatio(text),
+    Perspektivbruch: perspectiveBreakRatio(text, e2.perspective),
+    Figurenstreuung: castSpread(text, (e2.who || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean)),
+    Wortvielfalt: a.ttr,
+    "L\xE4ngentreue": a.lenFit,
+    Rhythmus: a.rhythmScore,
+    "Satzanf\xE4nge": a.flow.startMonotony
+  };
+}
+var mittel = (xs) => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
+var sigma = (xs) => {
+  if (xs.length < 2) return 0;
+  const m = mittel(xs);
+  return Math.sqrt(xs.reduce((a, b) => a + (b - m) * (b - m), 0) / (xs.length - 1));
+};
+function misseStellung(bank, basis, def, wert, n, model) {
+  const e2 = def.setzen({ ...basis }, wert);
+  const reihen = {};
+  for (let i = 0; i < n; i++) {
+    let text = "";
+    try {
+      text = buildStory(bank, e2, model);
+    } catch {
+      text = "";
+    }
+    if (!text) continue;
+    const m = misseText(text, e2);
+    for (const k of Object.keys(m)) (reihen[k] ||= []).push(m[k]);
+  }
+  const mi = {}, si = {};
+  for (const k of Object.keys(reihen)) {
+    mi[k] = mittel(reihen[k]);
+    si[k] = sigma(reihen[k]);
+  }
+  return { wert, mittel: mi, sigma: si, n };
+}
+var D2 = { 2: 1.128, 3: 1.693, 4: 2.059, 5: 2.326, 6: 2.534, 7: 2.704, 8: 2.847, 9: 2.97, 10: 3.078 };
+function spannErwartung(k) {
+  if (k <= 1) return 1;
+  if (D2[k]) return D2[k];
+  return 3.078 + 0.09 * (k - 10);
+}
+function fasseZusammen(id, label, stellungen) {
+  const wirkungJeMass = {};
+  const k = stellungen.length;
+  const n = Math.max(1, mittel(stellungen.map((s) => s.n)));
+  const zufall = spannErwartung(k) / Math.sqrt(n);
+  let best = 0, bestName = "";
+  for (const { name } of MASSE) {
+    const mittelwerte = stellungen.map((s) => s.mittel[name] ?? 0);
+    const rauschen = mittel(stellungen.map((s) => s.sigma[name] ?? 0));
+    const ausschlag = Math.max(...mittelwerte) - Math.min(...mittelwerte);
+    const w = ausschlag / Math.max(rauschen * zufall, 1e-4);
+    wirkungJeMass[name] = w;
+    if (w > best) {
+      best = w;
+      bestName = name;
+    }
+  }
+  return { id, label, stellungen, wirkungJeMass, wirkung: best, staerkstesMass: bestName };
+}
+function band(wirkung) {
+  if (!Number.isFinite(wirkung) || wirkung < 2.5) return "rauschen";
+  if (wirkung < 4) return "schwach";
+  if (wirkung < 10) return "deutlich";
+  return "stark";
+}
+var BAND_LABEL = {
+  rauschen: "vom Zufall nicht zu unterscheiden",
+  schwach: "knapp dar\xFCber",
+  deutlich: "bewegt deutlich",
+  stark: "bewegt stark"
+};
+function reglerListe() {
+  const s = (id, label, werte2, feld) => ({ id, label, werte: werte2, setzen: (e2, w) => ({ ...e2, [feld]: w }) });
+  const ohneAuto2 = (l) => werte(l).filter((w) => w !== "auto");
+  const strukturen = ohneAuto2(STRUCTURE_OPTS).filter((w) => w !== "rekombination" && w !== "dramaturgie");
+  return [
+    s("tone", "Ton", ohneAuto2(TONE_OPTS), "tone"),
+    s("structure", "Struktur", strukturen, "structure"),
+    s("mode", "Modus", ohneAuto2(MODE_OPTS), "mode"),
+    s("perspective", "Perspektive", ohneAuto2(PERSP_OPTS), "perspective"),
+    s("rhythm", "Rhythmus", ohneAuto2(RHYTHM_OPTS), "rhythm"),
+    s("varLevel", "Varianz", ohneAuto2(VARIANZ_OPTS), "varLevel"),
+    s("markovMode", "Markov", ohneAuto2(MARKOV_OPTS), "markovMode"),
+    s("disruptor", "Disruptor", ohneAuto2(DISRUPTOR_OPTS), "disruptor"),
+    s("archetypeA", "Archetyp A", ohneAuto2(ARCH_OPTS), "archetypeA"),
+    {
+      id: "instability",
+      label: "Instabilit\xE4t",
+      werte: werte(INSTAB_OPTS),
+      setzen: (e2, w) => ({ ...e2, instability: Number(w) })
+    },
+    {
+      // Der eingebaute Gegentest: Dieser „Regler" ändert NICHTS. Er muss unter
+      // 1 landen. Tut er es nicht, misst das Instrument Rauschen als Wirkung —
+      // und alle anderen Zahlen sind wertlos.
+      id: "blindprobe",
+      label: "Blindprobe (\xE4ndert nichts)",
+      werte: ["a", "b", "c"],
+      setzen: (e2) => ({ ...e2 })
+    }
+  ];
+}
+
+// src/ui/wirkungView.ts
+var CTX_KEY = "divergenz_ctx_v1";
+function grundEinstellung(form, lenTarget) {
+  let ctx = randomContext();
+  try {
+    const roh = localStorage.getItem(CTX_KEY);
+    if (roh) {
+      const c = JSON.parse(roh);
+      if (c.who || c.what) ctx = { ...ctx, ...c };
+    }
+  } catch {
+  }
+  return {
+    where: ctx.where,
+    when: ctx.when,
+    who: ctx.who,
+    what: ctx.what,
+    tone: "neutral",
+    varLevel: "mid",
+    form,
+    structure: "linear",
+    mode: "bureau",
+    perspective: "third",
+    rhythm: "clean",
+    markovMode: "off",
+    disruptor: "none",
+    archetypeA: "neutral",
+    archetypeB: "neutral",
+    instability: 0,
+    ressort: "auto",
+    shots: 4,
+    totalSec: 30,
+    lenTarget,
+    tension: "auto",
+    emphasis: { wo: 0, wann: 0, wer: 0, was: 0 }
+  };
+}
+function mountWirkung() {
+  const wrap = el("div", { class: "card" });
+  wrap.append(
+    el("h3", { class: "wm-h" }, "Wirkungsmesser"),
+    el(
+      "p",
+      { class: "muted" },
+      "F\xFCr jeden Regler einzeln: alle Stellungen durchfahren, alles andere festhalten, je N Texte messen. Der Wert ist der ",
+      el("b", {}, "Ausschlag im Verh\xE4ltnis zum Zufall"),
+      " \u2014 die Spanne zwischen den Stellungen, geteilt durch die Spanne, die das blo\xDFe Rauschen bei so vielen Stellungen und so vielen L\xE4ufen erzeugt h\xE4tte. Ohne diese Umrechnung bek\xE4men Regler mit mehr Stellungen allein durch den Zufall h\xF6here Zahlen."
+    ),
+    el(
+      "p",
+      { class: "muted" },
+      "Die ",
+      el("b", {}, "Blindprobe"),
+      " ist ein Regler, der nichts \xE4ndert \u2014 sie zeigt dir in jedem Lauf, wo das Zufallsniveau gerade liegt. Sie steht typisch zwischen 1,3 und 1,9 (die Wirkung ist das st\xE4rkste von neun Ma\xDFen, und ein Maximum liegt immer \xFCber dem Mittel). ",
+      el("b", {}, "Lies sie zuerst:"),
+      " Alles, was nicht deutlich \xFCber ihr liegt, ist Zufall. Steht sie selbst im gelben Band, waren es zu wenige L\xE4ufe \u2014 dann hilft nur eine h\xF6here Zahl."
+    )
+  );
+  const formSel = select("wm-form", [
+    ["prose", "Prosa"],
+    ["bericht", "Bericht"],
+    ["meldung", "Meldung"],
+    ["reim", "Reim"],
+    ["haiku", "Haiku"],
+    ["script", "Szene/Dialog"],
+    ["poem", "Prosagedicht"]
+  ], "prose");
+  const nSel = select("wm-n", [["14", "14"], ["24", "24"], ["40", "40"], ["60", "60"], ["90", "90"]], "40");
+  const startBtn = el("button", { class: "primary" }, icon("play"), " Messen");
+  const status = el("span", { class: "muted mini" }, "");
+  const balken = el("div", { class: "wm-fortschritt" }, el("div", { class: "wm-fuellung" }));
+  const liste = el("div", {});
+  const legende = el(
+    "div",
+    { class: "wm-legende muted mini" },
+    el("span", {}, el("i", { class: "wm-punkt wm-p-rauschen" }), " unter 2,5 \u2014 vom Zufall nicht zu unterscheiden"),
+    el("span", {}, el("i", { class: "wm-punkt wm-p-schwach" }), " 2,5\u20134 \u2014 knapp dar\xFCber"),
+    el("span", {}, el("i", { class: "wm-punkt wm-p-deutlich" }), " 4\u201310 \u2014 bewegt deutlich"),
+    el("span", {}, el("i", { class: "wm-punkt wm-p-stark" }), " \xFCber 10 \u2014 bewegt stark"),
+    el("span", {}, "\xB7 der senkrechte Strich im Balken steht bei 1 (reiner Zufall) \xB7 Zeile anklicken zeigt die Ma\xDFe")
+  );
+  wrap.append(el(
+    "div",
+    { class: "btnrow" },
+    el("label", { class: "druckfeld" }, el("span", { class: "field-label" }, "Form"), formSel),
+    el("label", { class: "druckfeld" }, el("span", { class: "field-label" }, "L\xE4ufe je Stellung"), nSel),
+    startBtn,
+    status
+  ), balken, legende, liste);
+  const zeichne = (mess) => {
+    liste.innerHTML = "";
+    const sortiert = [...mess].sort((a, b) => b.wirkung - a.wirkung);
+    const max = Math.max(1.5, ...sortiert.map((r) => r.wirkung));
+    const schwelle2 = Math.min(100, 1 / max * 100);
+    for (const r of sortiert) {
+      const anteil = Math.min(1, r.wirkung / max);
+      const b = band(r.wirkung);
+      const kopf = el(
+        "div",
+        { class: "wm-zeile wm-" + b, title: `${BAND_LABEL[b]} \u2014 Ausschlag ${r.wirkung.toFixed(2)}\xD7 so gro\xDF wie das Rauschen` },
+        el("span", { class: "wm-name" }, r.label),
+        el(
+          "span",
+          { class: "wm-bar" },
+          el("span", { class: "wm-schwelle", style: `left:${schwelle2.toFixed(2)}%` }),
+          el("span", { class: "wm-fill", style: `width:${(anteil * 100).toFixed(1)}%` })
+        ),
+        el("span", { class: "wm-wert" }, r.wirkung.toFixed(2)),
+        el("span", { class: "wm-mass muted mini" }, r.staerkstesMass)
+      );
+      const detail = el("div", { class: "wm-detail" });
+      let offen = false;
+      kopf.addEventListener("click", () => {
+        offen = !offen;
+        detail.innerHTML = "";
+        if (!offen) return;
+        const tabelle = el("table", { class: "wm-tab" });
+        const kopfz = el("tr", {}, el("th", {}, "Ma\xDF"), ...r.stellungen.map((s) => el("th", {}, s.wert)), el("th", {}, "Wirkung"));
+        tabelle.append(kopfz);
+        for (const { name } of MASSE) {
+          const werte2 = r.stellungen.map((s) => s.mittel[name] ?? 0);
+          const hi = Math.max(...werte2), lo = Math.min(...werte2);
+          tabelle.append(el(
+            "tr",
+            {},
+            el("td", {}, name),
+            ...werte2.map((v) => {
+              const z = el("td", {}, v.toFixed(3));
+              if (v === hi && hi !== lo) z.className = "wm-hoch";
+              if (v === lo && hi !== lo) z.className = "wm-tief";
+              return z;
+            }),
+            el("td", { class: "wm-wert" }, (r.wirkungJeMass[name] ?? 0).toFixed(2))
+          ));
+        }
+        detail.append(tabelle);
+      });
+      liste.append(kopf, detail);
+    }
+  };
+  startBtn.addEventListener("click", () => {
+    const N2 = parseInt(nSel.value, 10) || 14;
+    const bank = loadBank();
+    const korpus = (() => {
+      try {
+        return loadPersistentCorpus();
+      } catch {
+        return "";
+      }
+    })();
+    const model = korpus.trim().length > 200 ? buildModelFromCorpus(2) : void 0;
+    const basis = grundEinstellung(formSel.value, 120);
+    const regler = reglerListe();
+    const aufgaben = [];
+    regler.forEach((r, i) => r.werte.forEach((_, j) => aufgaben.push({ r: i, w: j })));
+    const roh = regler.map(() => []);
+    let k = 0;
+    startBtn.disabled = true;
+    liste.innerHTML = "";
+    const fuellung = balken.firstElementChild;
+    const schritt2 = () => {
+      const t0 = Date.now();
+      while (k < aufgaben.length && Date.now() - t0 < 60) {
+        const a = aufgaben[k];
+        const def = regler[a.r];
+        roh[a.r].push(misseStellung(bank, basis, def, def.werte[a.w], N2, model));
+        k++;
+      }
+      const p = k / aufgaben.length;
+      fuellung.style.width = (p * 100).toFixed(1) + "%";
+      status.textContent = `${k} von ${aufgaben.length} Stellungen \xB7 ${k * N2} Texte`;
+      if (k < aufgaben.length) {
+        setTimeout(schritt2, 0);
+        return;
+      }
+      const mess = regler.map((r, i) => fasseZusammen(r.id, r.label, roh[i]));
+      zeichne(mess);
+      const blind = mess.find((x) => x.id === "blindprobe");
+      status.textContent = `${aufgaben.length} Stellungen \xB7 ${aufgaben.length * N2} Texte` + (blind ? ` \xB7 Blindprobe ${blind.wirkung.toFixed(2)}${blind.wirkung >= 2.5 ? " \u2014 ACHTUNG: Zufallsniveau im Wirkungsband. Alles unter dieser Zahl ist nicht schwach, sondern noch nicht messbar \u2014 mehr L\xE4ufe w\xE4hlen." : blind.wirkung >= 2 ? " \u2014 hoch. Regler knapp dar\xFCber sind noch nicht belegt; mit mehr L\xE4ufen wird das Bild sch\xE4rfer." : ""}` : "") + (model ? "" : " \xB7 Korpus zu klein: Markov kann nicht wirken");
+      startBtn.disabled = false;
+    };
+    setTimeout(schritt2, 0);
+  });
+  return wrap;
+}
+
+// src/ui/diagnoseView.ts
+function mountDiagnose(root) {
+  root.innerHTML = "";
+  const wrap = el("div", {});
+  const status = el("span", { class: "muted mini" });
+  const summary = el("div", { class: "diag-summary" });
+  const body = el("div", {});
+  const render = (res) => {
+    body.innerHTML = "";
+    summary.innerHTML = "";
+    summary.append(renderSummary(res));
+    body.append(renderSelfTest(res));
+  };
+  const nutzBox = el("div", {});
+  const renderNutzung = () => {
+    nutzBox.innerHTML = "";
+    const stand = ladeNutzung();
+    const zeilen = alsListe(stand, derKanon());
+    const seit = seitWann(stand);
+    const tage = seit ? Math.floor((Date.now() - seit) / 864e5) : 0;
+    const summe = zeilen.reduce((a, z) => a + z.n, 0);
+    nutzBox.append(el(
+      "p",
+      { class: "muted mini" },
+      summe ? `${summe} Aufrufe seit ${tage} ${tage === 1 ? "Tag" : "Tagen"}. Gezaehlt wird der Klick auf einen Reiter, nicht das Oeffnen der App \u2014 sonst stuende Studio bei jedem Start hoeher.` : "Noch nichts gezaehlt. Die Liste wird erst nach einigen Tagen aussagekraeftig."
+    ));
+    const tab = el("table", { class: "nutz-tab" });
+    tab.append(el(
+      "tr",
+      {},
+      el("th", {}, "Reiter"),
+      el("th", {}, "Aufrufe"),
+      el("th", {}, "zuletzt")
+    ));
+    const hoechst = Math.max(1, ...zeilen.map((z) => z.n));
+    for (const z of zeilen) {
+      tab.append(el(
+        "tr",
+        { class: z.nie ? "nutz-nie" : "" },
+        el("td", {}, z.id),
+        el(
+          "td",
+          {},
+          el(
+            "span",
+            { class: "nutz-balken" },
+            el("span", { style: `width:${Math.round(z.n / hoechst * 100)}%` })
+          ),
+          el("span", { class: "nutz-zahl" }, String(z.n))
+        ),
+        el("td", {}, z.nie ? "nie" : z.tage === 0 ? "heute" : `vor ${z.tage} ${z.tage === 1 ? "Tag" : "Tagen"}`)
+      ));
+    }
+    nutzBox.append(tab);
+    nutzBox.append(el(
+      "p",
+      { class: "muted mini", style: "margin-top:8px" },
+      "Ungenutztes steht oben \u2014 wer diese Liste oeffnet, sucht nicht den Spitzenreiter, sondern den Ballast. Die Zahlen bleiben im Browser und gehen nirgendwohin."
+    ));
+  };
+  const nutzBtn = button("Nutzung aktualisieren");
+  nutzBtn.addEventListener("click", renderNutzung);
+  const nutzWeg = button("Zaehlung zuruecksetzen", "danger");
+  nutzWeg.addEventListener("click", () => {
+    if (!confirm("Die Zaehlung auf null setzen? Danach dauert es wieder Wochen, bis die Liste etwas sagt.")) return;
+    sichereNutzung({});
+    renderNutzung();
+  });
+  const idxBox = el("div", {});
+  const renderIndex = () => {
+    idxBox.innerHTML = "";
+    const liste = ladeIndex();
+    if (!liste.length) {
+      idxBox.append(el(
+        "p",
+        { class: "muted mini" },
+        "Noch nichts aufgeschrieben. Der Index fuellt sich beim Erzeugen im Studio."
+      ));
+      return;
+    }
+    const grund = grundquote(liste);
+    const behalten = liste.filter((e2) => e2.behalten).length;
+    idxBox.append(el(
+      "p",
+      { class: "muted mini" },
+      `${liste.length} Texte, davon ${behalten} behalten \u2014 Grundquote ${grund} %.` + (liste.length < 30 ? " Zu wenige fuer ein Urteil; ab etwa dreissig lohnt der Vergleich." : "")
+    ));
+    const tabelle = (titel, b) => {
+      if (!b.length) return;
+      idxBox.append(el("p", { class: "mini", style: "margin:10px 0 2px" }, el("b", {}, titel)));
+      for (const x of b.slice(0, 8)) {
+        const d = x.quote - grund;
+        idxBox.append(el(
+          "p",
+          { class: "muted mini", style: "margin:1px 0" },
+          `${x.wert}: ${x.quote} % von ${x.gesamt} (${d >= 0 ? "+" : ""}${d} gegenueber dem Mittel)`
+        ));
+      }
+    };
+    tabelle("Presets", werteAus(liste, (e2) => e2.presets || []));
+    tabelle("Form", werteAus(liste, (e2) => [e2.form || "\u2014"]));
+    tabelle("Ton", werteAus(liste, (e2) => [e2.regler?.ton || "\u2014"]));
+    tabelle("Struktur", werteAus(liste, (e2) => [e2.regler?.struktur || "\u2014"]));
+    tabelle("Spreizung", werteAus(liste, (e2) => [
+      e2.spreizung >= 0.5 ? "weit (ab 0,5)" : e2.spreizung > 0 ? "gemischt, aber nah" : "ein Register"
+    ]));
+  };
+  const idxBtn = button("Auswertung zeigen");
+  idxBtn.addEventListener("click", renderIndex);
+  const idxCsv = button("Als CSV sichern");
+  idxCsv.addEventListener("click", () => {
+    const csv = alsCsv(ladeIndex());
+    if (!csv) return;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }));
+    a.download = `divergenz_textindex_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2e3);
+  });
+  const idxWeg = button("Index leeren", "danger");
+  idxWeg.addEventListener("click", () => {
+    if (!ladeIndex().length || !confirm("Den Textindex loeschen? Die Schatzkammer bleibt unberuehrt.")) return;
+    sichereIndex([]);
+    renderIndex();
+  });
+  const planBox = el("div", {});
+  const planHint = el("p", { class: "muted mini" });
+  const renderPlan = () => {
+    planBox.innerHTML = "";
+    const stand = loadAnlage();
+    if (!stand) {
+      planBox.append(el("p", { class: "muted" }, "Noch kein Stand vorhanden \u2014 einmal in den Reiter Studio wechseln, dann steht der Plan."));
+      planHint.textContent = "";
+      return;
+    }
+    const anlage = baueAnlage(stand, sammleUmgebung(stand.regler["preset"] || ""));
+    const b = befundListe(anlage);
+    planHint.textContent = b.leer ? `${b.leer} ${b.leer === 1 ? "Leitung l\xE4uft" : "Leitungen laufen"} ins Leere \u2014 ${b.text}` : b.text;
+    planHint.className = b.leer ? "mini sp-warn" : "muted mini";
+    planBox.append(renderSchaltplan(anlage));
+  };
+  const planBtn = button("Schaltplan aktualisieren");
+  planBtn.addEventListener("click", renderPlan);
+  const wuerfelBtn = el("button", {
+    title: "Alle Regler und Stellschrauben neu w\xFCrfeln \u2014 gesperrte bleiben stehen. Der Plan zeichnet sich sofort neu."
+  }, icon("dice"), " Alles w\xFCrfeln");
+  const wuerfelHint = el("span", { class: "muted mini" });
+  wuerfelBtn.addEventListener("click", () => {
+    const stand = loadAnlage();
+    if (!stand) {
+      wuerfelHint.textContent = "Noch kein Stand \u2014 einmal in den Reiter Studio wechseln.";
+      return;
+    }
+    let gesperrt = /* @__PURE__ */ new Set();
+    try {
+      gesperrt = new Set(JSON.parse(localStorage.getItem("divergenz_studio_locks_v1") || "[]"));
+    } catch {
+    }
+    const wurf = wuerfleAlles(stand.regler, gesperrt, loadKnobs(), stand.w4);
+    saveKnobs(wurf.knobs);
+    saveAnlage({ ...stand, regler: wurf.regler, w4: wurf.w4, quelle: wurf.quelle, zeit: (/* @__PURE__ */ new Date()).toISOString() });
+    uebernimmWurf(wurf.nachId);
+    wuerfelHint.textContent = `gew\xFCrfelt \xB7 Vier W aus ${wurf.quelle}` + (gesperrt.size ? ` \u2014 ${gesperrt.size} ${gesperrt.size === 1 ? "Schloss h\xE4lt" : "Schl\xF6sser halten"}` : "");
+    renderPlan();
+    renderNutzung();
+  });
+  const legende = el(
+    "div",
+    { class: "sp-legende" },
+    el("span", {}, el("i", { class: "sp-punkt", style: "border-color:var(--acc2);background:color-mix(in srgb, var(--acc2) 40%, transparent)" }), "\u25CF verdrahtet (kr\xE4ftiger Rahmen)"),
+    el("span", {}, el("i", { class: "sp-punkt", style: "border-color:var(--danger)" }), "\u25B2 an, aber die Quelle ist leer (grob gestrichelt)"),
+    el("span", {}, el("i", { class: "sp-punkt", style: "border-color:var(--muted)" }), "\u25CB aus (fein gestrichelt)"),
+    el("span", {}, "\u{1F512} gesperrt (bleibt beim W\xFCrfeln stehen)")
+  );
+  const startBtn = el("button", { class: "primary" }, icon("play"), " Selbsttest starten");
+  startBtn.addEventListener("click", () => {
+    startBtn.disabled = true;
+    status.textContent = "L\xE4uft\u2026";
+    body.innerHTML = "";
+    summary.innerHTML = "";
+    setTimeout(() => {
+      try {
+        const res = runSelfTest((done, total, label) => {
+          status.textContent = `Pr\xFCfe ${done}/${total} \u2014 ${label}`;
+        });
+        status.textContent = "Fertig \xB7 " + (/* @__PURE__ */ new Date()).toLocaleTimeString("de-DE");
+        render(res);
+      } catch (e2) {
+        status.textContent = "Fehlgeschlagen: " + (e2 instanceof Error ? e2.message : String(e2));
+      } finally {
+        startBtn.disabled = false;
+      }
+    }, 30);
+  });
+  wrap.append(
+    el("h2", {}, "Diagnose \u2014 greifen alle Features?"),
+    el("h3", {}, "Schaltplan \u2014 was ist gerade verdrahtet?"),
+    el("p", { class: "muted" }, "Zeigt die Stellungen zum Zeitpunkt der Anfrage: jeden Regler, die acht Stellschrauben, die vier W samt Vorr\xE4ten, Korpus, Markov, Welt und die Ausgabe. Der Plan erzeugt daf\xFCr keinen Text \u2014 er liest ab. Was er zus\xE4tzlich kann, ist der Abgleich zwischen Schalter und Quelle: Ein Schalter kann an sein, w\xE4hrend seine Quelle leer ist (Markov ohne Korpus, Dramaturgie ohne Bogen, Korpus-Bausteine ohne Korpus). Solche Leitungen stehen rot und gestrichelt."),
+    el("div", { class: "btnrow" }, planBtn, wuerfelBtn, wuerfelHint),
+    legende,
+    planHint,
+    planBox,
+    el("hr", {}),
+    el("p", { class: "muted" }, "Der Selbsttest erzeugt pro Feature mehrere Texte und pr\xFCft, ob das Feature im Ergebnis nachweisbar wirkt. Kein Qualit\xE4tsurteil \u2014 nur die Frage, ob der Schalter etwas bewirkt. Viele Features sind absichtlich sporadisch (z. B. der Disruptor feuert nur gelegentlich); die Pulsreihe zeigt das als gepunkteten Streifen statt als Fehler."),
+    el("h3", {}, "Textindex \u2014 welche Einstellung fuehrt zu behaltenen Texten?"),
+    el(
+      "p",
+      { class: "muted" },
+      "Jeder erzeugte Text wird mit seinen Einstellungen aufgeschrieben \u2014 nicht nur der behaltene. Ein Index nur ueber Behaltenes zeigt, was gute Texte gemeinsam haben, aber nicht, ob die schlechten es auch hatten; erst der Vergleich beider Klassen sagt etwas. \u201EBehalten\u201C wird nachgetragen, wenn ein Text in die Schatzkammer wandert. Die Grundquote ist der Massstab: Eine Einstellung mit 30 Prozent ist gut, wenn im Mittel 20 behalten werden, und schlecht, wenn es 50 sind."
+    ),
+    el("div", { class: "btnrow" }, idxBtn, idxCsv, idxWeg),
+    idxBox,
+    el("hr", {}),
+    el("h3", {}, "Nutzung \u2014 was wird tatsaechlich benutzt?"),
+    el(
+      "p",
+      { class: "muted" },
+      "Zaehlt, wie oft jeder Reiter geoeffnet wurde. Kein Qualitaetsurteil und keine Empfehlung \u2014 nur die Auskunft, welche Bausteine im Alltag vorkommen und welche nicht. Ein Baustein, der nach Wochen bei null steht, ist ein Streichkandidat; die Liste beantwortet das, was sich weder erinnern noch schaetzen laesst."
+    ),
+    el("div", { class: "btnrow" }, nutzBtn, nutzWeg),
+    nutzBox,
+    el("hr", {}),
+    mountWaechterStatistik(),
+    el("hr", {}),
+    mountWirkung(),
+    el("hr", {}),
+    el("h3", {}, "Selbsttest \u2014 greifen alle Features?"),
+    el("div", { class: "btnrow" }, startBtn, status),
+    summary,
+    body,
+    el("p", { class: "muted mini" }, "Legende: \u25CF gr\xFCn = greift zuverl\xE4ssig \xB7 \u25CF gelb = greift sporadisch (oft gewollt) \xB7 \u25CF rot = keine Wirkung nachweisbar \xB7 \u25CF grau = nicht pr\xFCfbar (fehlende Voraussetzung, z. B. leerer Korpus). Jeder Punkt der Reihe ist ein Testlauf.")
+  );
+  root.append(wrap);
+  renderPlan();
+  renderNutzung();
+}
+function mountWaechterStatistik() {
+  const box = el("div", {});
+  const zeichnen = () => {
+    box.innerHTML = "";
+    const st = ladeStatistik();
+    const kurz2 = statistikKurz();
+    const gesamt = kurz2.verworfen + kurz2.angenommen;
+    box.append(el("h3", {}, "W\xE4chter-Statistik \u2014 was die Regeln tun"));
+    box.append(el("p", { class: "muted" }, "Der Satz-W\xE4chter, der Pr\xE4sens-Umschreiber und die Atomisierung z\xE4hlen seit " + new Date(st.seit).toLocaleDateString("de-DE") + " mit. Zu jeder Regel die letzten Beispiele; unter \u201Edurchgelassen\u201C Stichproben dessen, was der W\xE4chter passieren lie\xDF \u2014 dort zeigt sich das n\xE4chste Muster, bevor ein Blatt es meldet."));
+    if (!gesamt && !kurz2.umgeschrieben && !kurz2.zerlegt) {
+      box.append(el("p", { class: "muted" }, "Noch nichts gez\xE4hlt \u2014 der W\xE4chter z\xE4hlt ab der ersten Markov-Kette, die Atomisierung ab dem ersten langen Baustein."));
+    }
+    const reihen = ["regel1", "regel2", "regel3", "regel4", "regel5", "regel6", "regel7", "regel8", "angenommen", "umgeschrieben", "unklar", "praeteritumVerworfen", "atomZerlegt", "atomGekuerzt", "atomGanzZuLang"];
+    for (const z of reihen) {
+      const n = st.zaehler[z] || 0;
+      if (!n) continue;
+      const bsp = st.beispiele[z] || [];
+      const d = el("details", { class: "hyg-gruppe" }, el("summary", {}, `${ZAEHLER_NAMEN[z]} \xB7 ${n}`));
+      if (bsp.length) for (const b of bsp) d.append(el("div", { class: "muted mini", style: "margin:2px 0 2px 12px" }, b));
+      else d.append(el("div", { class: "muted mini", style: "margin-left:12px" }, "keine Beispiele gemerkt"));
+      box.append(d);
+    }
+    const reset = button("Z\xE4hler zur\xFCcksetzen", "danger");
+    reset.addEventListener("click", () => {
+      if (confirm("W\xE4chter-Statistik zur\xFCcksetzen?")) {
+        statistikZuruecksetzen();
+        zeichnen();
+      }
+    });
+    box.append(el("div", { class: "btnrow", style: "margin-top:8px" }, reset));
+  };
+  zeichnen();
+  document.addEventListener("visibilitychange", zeichnen);
+  return box;
+}
+
+// test/schaltplan.ts
 var fails = [];
 var geprueft = 0;
 var bestanden = 0;
@@ -8696,56 +30496,951 @@ var ist = (name, wert, soll) => {
   else fails.push(`${name}: \u201E${String(wert)}\u201C \u2014 erwartet \u201E${String(soll)}\u201C`);
 };
 var wahr = (name, b, zusatz = "") => ist(name + (zusatz ? ` (${zusatz})` : ""), b, true);
-wahr("es tr\xE4gt \xFCber tausend Grundverben", VERB_INFINITIVE.size > 1e3, String(VERB_INFINITIVE.size));
-wahr("Grundverb bekannt", kenntInfinitiv("kippen"));
-wahr("mit Pr\xE4fix bekannt", kenntInfinitiv("aufh\xF6ren") && kenntInfinitiv("verstehen") && kenntInfinitiv("zur\xFCckkommen"));
-wahr("Nomen und Adjektive unbekannt", !kenntInfinitiv("W\xE4rme") && !kenntInfinitiv("violette") && !kenntInfinitiv("fest"));
-ist("Stamm \u2192 Infinitiv (schwach)", infinitivZuStamm("kipp"), "kippen");
-ist("Stamm \u2192 Infinitiv (-eln)", infinitivZuStamm("handel"), "handeln");
-ist("Stamm \u2192 Infinitiv (stark, Umlaut)", infinitivZuStamm("trag"), "tragen");
-ist("kein Verb \u2192 null", infinitivZuStamm("hal"), null);
-for (const w of ["kippten", "kippen", "halten", "hielten", "warten", "wartete", "redeten", "aufgeh\xF6rt", "verstanden", "schwieg", "bestreitet", "zitiert", "bist"])
-  wahr(`Verbform: ${w}`, istLexikonVerb(w));
-for (const w of ["Sohlen", "violette", "fest", "besten", "Bilder", "l\xE4ngst", "damit"])
-  wahr(`keine Verbform: ${w}`, !istLexikonVerb(w));
-wahr("istVerbform nimmt das Lexikon als Zeugnis (kippten)", istVerbform("kippten"));
-ist("kippten \u2192 kippen", praesensUmschreiben("Dann kippten sie meistens ger\xE4uschvoll um.").text, "Dann kippen sie meistens ger\xE4uschvoll um.");
-ist("halten bleibt halten", praesensUmschreiben("Und die Sohlen halten noch bis zur Grenze.").text, "Und die Sohlen halten noch bis zur Grenze.");
-wahr("\u2026 und der Satz gilt nicht mehr als unklar", praesensUmschreiben("Und die Sohlen halten noch bis zur Grenze.").ok);
-ist("machte \u2192 macht, Konjunktiv bleibt", praesensUmschreiben("Die Lampe machte Ger\xE4usche, als w\xE4re sie nass.").text, "Die Lampe macht Ger\xE4usche, als w\xE4re sie nass.");
-ist("rette bleibt (Ich-Form eines t-Stamms)", praesensUmschreiben("Ich rette, was zu retten ist.").text, "Ich rette, was zu retten ist.");
-ist("Partizip-Adjektiv vor Nomen bleibt", praesensUmschreiben("eine zerknitterte Visitenkarte").text, "eine zerknitterte Visitenkarte");
-ist("verloren ohne Mehrzahl-Subjekt ist Partizip", praesensUmschreiben("ein Siegelring, verloren im Gras").text, "ein Siegelring, verloren im Gras");
-ist("rannte mit Satzzeichen", praesensUmschreiben("Jemand rannte, ohne zu wissen, wohin.").text, "Jemand rennt, ohne zu wissen, wohin.");
+var STAND = (regler = {}) => ({
+  regler: {
+    preset: "kafka",
+    tone: "neutral",
+    form: "prose",
+    structure: "rekombination",
+    mode: "auto",
+    perspective: "third",
+    rhythm: "auto",
+    varLevel: "mid",
+    markovMode: "off",
+    disruptor: "auto",
+    tension: "auto",
+    archetypeA: "neutral",
+    archetypeB: "neutral",
+    instability: "0",
+    ressort: "auto",
+    lenTarget: "110",
+    ...regler
+  },
+  w4: { where: "im Archiv", when: "am Morgen", who: "die Archivarin", what: "sucht eine Akte" },
+  zeit: ""
+});
+var UMGEBUNG = (u = {}) => ({
+  korpusZeichen: 0,
+  sammlerFunde: 0,
+  bildFunde: 0,
+  themenFunde: 0,
+  weltFiguren: 0,
+  weltOrte: 0,
+  livePools: 0,
+  schatzkammer: 0,
+  knobs: { ...KNOB_VORGABE },
+  gesperrt: /* @__PURE__ */ new Set(),
+  dramaVorhanden: false,
+  presetLabel: "Kafka",
+  ideenProfil: "",
+  omniProfile: 8,
+  omniProfil: "",
+  bogenQuelle: "preset",
+  erzaehlerPlatz: "",
+  erzaehlerBrauchbar: 0,
+  erzaehlerArchiv: 0,
+  waechter: { verworfen: 0, angenommen: 0, quote: 0, haeufigste: "", umgeschrieben: 0, zerlegt: 0 },
+  ...u
+});
+var knoten = (a, id) => a.knoten.find((k) => k.id === id);
 {
-  const alle = [];
-  for (const b of Object.values(BUILTIN_PRESETS)) for (const l of Object.values(b)) for (const s of l) alle.push(s);
-  for (const e of ERZAEHLUNGEN_VORLAGEN) for (const s of e.text.split(/(?<=[.!?…])\s+/)) alle.push(s);
-  const PRAET = /(te|ten|test)$|^(war|waren|hatte|hatten|wurde|wurden|ging|gingen|kam|kamen|sah|sahen|gab|gaben|stand|standen|blieb|blieben|hielt|hielten|ließ|ließen|fand|fanden|nahm|nahmen|sprach|schrieb|trug|fuhr|lief|liefen|saß|lag|lagen|hieß|zog|zogen|rief|fiel|fielen|schlug|schlugen|traf|trafen|roch|schwieg|floss|stieg|sank|schloss|schlossen|verlor|verloren|begann|geschah|konnte|konnten|musste|wollte|sollte|durfte|wusste|dachte|brachte|kannte|nannte|rannte|wandte|sprang|schrie|flog|floh|riss|griff|schnitt|litt|trat|wuchs|schien|starb|brach|bog|hob|unterschrieb|verschwand|erschien|bot|mochte|galt|tat|hing|befahl|bestand|entstand|verstand|gewann|empfand|schob|band|wies|ward|schwoll|glitt|stieß)$/i;
-  const schaden = [];
-  for (const s of alle) {
-    const r = praesensUmschreiben(s);
-    if (r.text === s) continue;
-    const a = s.split(/\s+/), b = r.text.split(/\s+/);
-    for (let i = 0; i < a.length; i++) {
-      if (a[i] === b[i]) continue;
-      const w = (a[i] || "").replace(/[^A-Za-zÄÖÜäöüß]/g, "");
-      if (!PRAET.test(w)) schaden.push(`${s} \u2192 ${r.text}`);
+  const a = baueAnlage(STAND(), UMGEBUNG());
+  wahr(`es gibt Knoten (${a.knoten.length})`, a.knoten.length >= 30);
+  wahr(
+    "jeder Knoten hat eine eindeutige Kennung",
+    new Set(a.knoten.map((k) => k.id)).size === a.knoten.length
+  );
+  wahr(
+    "jeder Knoten liegt in einem bekannten Band",
+    a.knoten.every((k) => k.band >= 0 && k.band < BAND_NAME.length)
+  );
+  wahr(
+    "jede Leitung verbindet zwei vorhandene Knoten",
+    a.kanten.every((k) => !!knoten(a, k.von) && !!knoten(a, k.nach))
+  );
+}
+{
+  const a = baueAnlage(STAND({ markovMode: "on" }), UMGEBUNG({ korpusZeichen: 0 }));
+  ist("Markov ohne Korpus ist leer, nicht an", knoten(a, "markov")?.zustand, "leer");
+  wahr("und der Befund nennt den Grund", /Korpus ist leer/.test(knoten(a, "markov")?.hinweis || ""));
+  wahr(
+    "die Leitung Korpus \u2192 Markov ist mit leer gezeichnet",
+    a.kanten.find((k) => k.von === "korpus" && k.nach === "markov")?.zustand === "leer"
+  );
+  const b = baueAnlage(STAND({ markovMode: "on" }), UMGEBUNG({ korpusZeichen: 5e3 }));
+  ist("Markov mit Korpus ist an", knoten(b, "markov")?.zustand, "an");
+  const c = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ dramaVorhanden: false }));
+  ist("Dramaturgie ohne Bogen ist leer", knoten(c, "drama")?.zustand, "leer");
+  const d = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ dramaVorhanden: true }));
+  ist("Dramaturgie mit Bogen ist an", knoten(d, "drama")?.zustand, "an");
+  const c2 = baueAnlage(STAND({ structure: "dramaturgie", form: "haiku" }), UMGEBUNG({ dramaVorhanden: true }));
+  ist("Dramaturgie bei anderer Form ist leer", knoten(c2, "drama")?.zustand, "leer");
+  wahr("und nennt die Form als Grund", /nicht Prosa/.test(knoten(c2, "drama")?.hinweis || ""));
+  const c3 = baueAnlage(STAND({ structure: "rekombination" }), UMGEBUNG());
+  ist("ohne Dramaturgie steht sie auf aus", knoten(c3, "drama")?.zustand, "aus");
+  wahr("und verweist auf die Struktur", /Struktur auf/.test(knoten(c3, "drama")?.hinweis || ""));
+  const e2 = baueAnlage(STAND(), UMGEBUNG({ knobs: { ...KNOB_VORGABE, korpus: 20 }, korpusZeichen: 0 }));
+  ist("Korpus-Bausteine ohne Korpus sind leer", knoten(e2, "k-korpus")?.zustand, "leer");
+  const f = baueAnlage(STAND(), UMGEBUNG({ knobs: { ...KNOB_VORGABE, korpus: 20 }, korpusZeichen: 900 }));
+  ist("mit Korpus sind sie an", knoten(f, "k-korpus")?.zustand, "an");
+  ist(
+    "bei 0 % sind sie aus",
+    knoten(baueAnlage(STAND(), UMGEBUNG({ korpusZeichen: 900 })), "k-korpus")?.zustand,
+    "aus"
+  );
+  const g = baueAnlage({ ...STAND(), w4: { where: "", when: "", who: "", what: "" } }, UMGEBUNG());
+  ist("vier leere W sind leer", knoten(g, "w4")?.zustand, "leer");
+  const h = baueAnlage(
+    STAND({ markovMode: "on", structure: "dramaturgie" }),
+    UMGEBUNG({ knobs: { ...KNOB_VORGABE, korpus: 20 } })
+  );
+  wahr(`der Plan meldet mehrere tote Leitungen (${h.befunde.length})`, h.befunde.length >= 3);
+}
+{
+  const a = baueAnlage(STAND(), UMGEBUNG({ gesperrt: /* @__PURE__ */ new Set(["f-tone", "k-korpus"]) }));
+  ist("gesperrter Ton ist als gesperrt gezeichnet", knoten(a, "ton")?.gesperrt, true);
+  ist("gesperrte Stellschraube auch", knoten(a, "k-korpus")?.gesperrt, true);
+  ist("ein offener Regler nicht", knoten(a, "form")?.gesperrt, false);
+}
+{
+  const a = baueAnlage(STAND(), UMGEBUNG());
+  const { platz, hoehe } = ordne2(a);
+  ist("jeder Knoten hat einen Platz", Object.keys(platz).length, a.knoten.length);
+  wahr("der Plan hat eine H\xF6he", hoehe > 100);
+  const felder = Object.entries(platz);
+  let ueber = 0;
+  for (let i = 0; i < felder.length; i++) for (let j = i + 1; j < felder.length; j++) {
+    const p = felder[i][1], q = felder[j][1];
+    if (p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h) ueber++;
+  }
+  ist("keine zwei Felder \xFCberlappen", ueber, 0);
+  wahr("jedes Feld liegt im Plan", felder.every(([, p]) => p.y >= 0 && p.y + p.h <= hoehe));
+  const oben = (id) => platz[id].y;
+  wahr("Vorr\xE4te stehen \xFCber dem Material", oben("korpus") < oben("w4"));
+  wahr("Material \xFCber der Steuerung", oben("w4") < oben("struktur"));
+  wahr("Steuerung \xFCber dem Schliff", oben("struktur") < oben("persp"));
+  wahr("Schliff \xFCber der Ausgabe", oben("persp") < oben("form"));
+}
+{
+  const dom = new import_jsdom.JSDOM("<!doctype html><html><body></body></html>");
+  const G = globalThis;
+  try {
+    Object.defineProperty(G, "document", { value: dom.window.document, writable: true, configurable: true });
+  } catch {
+  }
+  const a = baueAnlage(STAND({ markovMode: "on" }), UMGEBUNG({ gesperrt: /* @__PURE__ */ new Set(["f-tone"]) }));
+  const svg = renderSchaltplan(a);
+  ist("das Wurzelelement ist ein SVG", svg.tagName.toLowerCase(), "svg");
+  ist("jeder Knoten wird gezeichnet", svg.querySelectorAll("g.sp-chip").length, a.knoten.length);
+  wahr("die toten Leitungen sind als solche gezeichnet", svg.querySelectorAll("g.sp-leer").length >= 1);
+  wahr("das Schloss steht im Bild", (svg.textContent || "").includes("\u{1F512}"));
+  wahr("die Bandtitel stehen im Bild", BAND_NAME.every((n) => (svg.textContent || "").includes(n)));
+  const b = befundListe(a);
+  wahr(`die Befundzeile nennt die toten Leitungen (${b.leer})`, b.leer >= 1 && /Korpus/.test(b.text));
+  const zeichenVon = (zustand) => {
+    const raus = /* @__PURE__ */ new Set();
+    for (const g of Array.from(svg.querySelectorAll("g.sp-" + zustand))) {
+      const t = g.querySelector("text.sp-zeichen");
+      if (t) raus.add(t.textContent || "");
+    }
+    return raus;
+  };
+  const anZ = zeichenVon("an"), ausZ = zeichenVon("aus"), leerZ = zeichenVon("leer");
+  ist("jeder aktive Knoten tr\xE4gt genau ein Zeichen", anZ.size, 1);
+  ist("jeder abgeschaltete auch", ausZ.size, 1);
+  ist("und jeder tote auch", leerZ.size, 1);
+  const alleZ = /* @__PURE__ */ new Set([...anZ, ...ausZ, ...leerZ]);
+  ist("die drei Zust\xE4nde tragen drei verschiedene Zeichen", alleZ.size, 3);
+  wahr("kein Zeichen ist leer", ![...alleZ].some((z) => !z.trim()));
+}
+{
+  const listen = new Map(REGLER.map((r) => [r.schluessel, new Set(werte(r.liste))]));
+  const start = STAND().regler;
+  let falsch = 0;
+  for (let i = 0; i < 40; i++) {
+    const w2 = wuerfleAlles(start, /* @__PURE__ */ new Set());
+    for (const [k, menge] of listen) if (!menge.has(w2.regler[k] || "")) falsch++;
+  }
+  ist("jeder gew\xFCrfelte Wert steht in der Liste des Auswahlfelds", falsch, 0);
+  const zu = /* @__PURE__ */ new Set(["f-tone", "f-form", "k-korpus", "k-bogen"]);
+  let verschoben = 0;
+  const knobsVor = { ...KNOB_VORGABE, korpus: 30, bogen: 75 };
+  for (let i = 0; i < 40; i++) {
+    const w2 = wuerfleAlles(start, zu, knobsVor);
+    if (w2.regler["tone"] !== start["tone"]) verschoben++;
+    if (w2.regler["form"] !== start["form"]) verschoben++;
+    if (w2.knobs.korpus !== 30) verschoben++;
+    if (w2.knobs.bogen !== 75) verschoben++;
+  }
+  ist("gesperrte Regler und Stellschrauben bleiben stehen", verschoben, 0);
+  const bewegt = /* @__PURE__ */ new Set();
+  for (let i = 0; i < 60; i++) {
+    const w2 = wuerfleAlles(start, /* @__PURE__ */ new Set());
+    for (const r of REGLER) if (w2.regler[r.schluessel] !== start[r.schluessel]) bewegt.add(r.schluessel);
+    for (const f of Object.keys(KNOB_SPANNE)) if (w2.knobs[f] !== KNOB_VORGABE[f]) bewegt.add(f);
+  }
+  const tot = [...REGLER.map((r) => r.schluessel), ...Object.keys(KNOB_SPANNE)].filter((k) => !bewegt.has(k));
+  ist("jeder offene Regler bewegt sich in 60 W\xFCrfen", tot.join(", "), "");
+  const w = wuerfleAlles(start, /* @__PURE__ */ new Set());
+  const a = baueAnlage({ ...STAND(), regler: w.regler }, UMGEBUNG({ knobs: w.knobs, korpusZeichen: 4e3 }));
+  const markov = knoten(a, "markov");
+  ist(
+    "der Plan zeigt den gew\xFCrfelten Markov-Wert",
+    markov?.zustand,
+    w.regler["markovMode"] === "off" ? "aus" : "an"
+  );
+}
+{
+  const dom2 = new import_jsdom.JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/", pretendToBeVisual: true });
+  const G = globalThis;
+  for (const k of [
+    "window",
+    "document",
+    "localStorage",
+    "navigator",
+    "HTMLElement",
+    "HTMLInputElement",
+    "HTMLSelectElement",
+    "HTMLButtonElement",
+    "Event",
+    "CustomEvent",
+    "Node",
+    "getComputedStyle",
+    "requestAnimationFrame",
+    "cancelAnimationFrame",
+    "MutationObserver",
+    "Blob",
+    "URL",
+    "FileReader",
+    "Image",
+    "DOMParser"
+  ]) {
+    try {
+      Object.defineProperty(G, k, { value: dom2.window[k], writable: true, configurable: true });
+    } catch {
     }
   }
-  ist(`kein Pr\xE4sens-Wort in ${alle.length} Bausteinen besch\xE4digt`, schaden.length, 0);
-  if (schaden.length) schaden.slice(0, 5).forEach((x) => fails.push("   \xB7 " + x));
-  const unklar = alle.filter((s) => !isPastTense(s) && !praesensUmschreiben(s).ok).length;
-  wahr("h\xF6chstens f\xFCnf Pr\xE4sens-Bausteine gelten als unklar", unklar <= 5, String(unklar));
+  const keinMedia = () => ({ matches: false, addEventListener: () => {
+  }, removeEventListener: () => {
+  }, addListener: () => {
+  }, removeListener: () => {
+  } });
+  Object.defineProperty(G, "matchMedia", { value: keinMedia, writable: true, configurable: true });
+  dom2.window["matchMedia"] = keinMedia;
+  dom2.window.Element.prototype["scrollIntoView"] = function() {
+  };
+  saveAnlage(STAND());
+  const D22 = dom2.window.document;
+  const wurzel = D22.createElement("div");
+  D22.body.append(wurzel);
+  mountDiagnose(wurzel);
+  const plan = () => wurzel.querySelector("svg.schaltplan");
+  wahr("der Reiter Diagnose zeichnet den Plan beim Aufbau", !!plan());
+  const knopf = Array.from(wurzel.querySelectorAll("button")).find((b) => /Alles würfeln/.test(b.textContent || ""));
+  wahr("der Wuerfelknopf steht neben dem Plan", !!knopf);
+  if (knopf) {
+    const vorher = plan()?.textContent || "";
+    let anders = 0;
+    for (let i = 0; i < 8; i++) {
+      knopf.click();
+      if ((plan()?.textContent || "") !== vorher) anders++;
+    }
+    ist("jeder Druck zeichnet den Plan neu", anders, 8);
+  }
 }
-console.log(`Pr\xFCfstand Infinitiv-Lexikon \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
+{
+  const dom3 = new import_jsdom.JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/", pretendToBeVisual: true });
+  const G = globalThis;
+  for (const k of [
+    "window",
+    "document",
+    "localStorage",
+    "navigator",
+    "HTMLElement",
+    "HTMLInputElement",
+    "HTMLSelectElement",
+    "HTMLButtonElement",
+    "Event",
+    "CustomEvent",
+    "Node",
+    "getComputedStyle",
+    "requestAnimationFrame",
+    "cancelAnimationFrame",
+    "MutationObserver",
+    "Blob",
+    "URL",
+    "FileReader",
+    "Image",
+    "DOMParser"
+  ]) {
+    try {
+      Object.defineProperty(G, k, { value: dom3.window[k], writable: true, configurable: true });
+    } catch {
+    }
+  }
+  const km = () => ({ matches: false, addEventListener: () => {
+  }, removeEventListener: () => {
+  }, addListener: () => {
+  }, removeListener: () => {
+  } });
+  Object.defineProperty(G, "matchMedia", { value: km, writable: true, configurable: true });
+  dom3.window["matchMedia"] = km;
+  dom3.window.Element.prototype["scrollIntoView"] = function() {
+  };
+  const D3 = dom3.window.document;
+  const w = D3.createElement("div");
+  D3.body.append(w);
+  mountStudio(w);
+  const mitSchloss = /* @__PURE__ */ new Set();
+  for (const zeile of Array.from(w.querySelectorAll(".lockrow"))) {
+    const feld = zeile.closest(".field") || zeile.parentElement;
+    if (!feld) continue;
+    for (const c of Array.from(feld.querySelectorAll("select,input"))) {
+      const id = c.id;
+      if (id) mitSchloss.add(id);
+    }
+  }
+  wahr(`die Oberfl\xE4che hat Bedienelemente mit Schloss (${mitSchloss.size})`, mitSchloss.size >= 30);
+  const ohneKnoten = [...mitSchloss].filter((id) => !SCHLOSS_ZU_KNOTEN[id]).sort();
+  ist("jedes Schloss der Oberfl\xE4che zeigt auf einen Knoten", ohneKnoten.join(", "), "");
+  const alle = baueAnlage(STAND(), UMGEBUNG());
+  const kennungen = new Set(alle.knoten.map((k) => k.id));
+  const totesZiel = [...new Set(Object.values(SCHLOSS_ZU_KNOTEN))].filter((n) => !kennungen.has(n)).sort();
+  ist("jede Zuordnung zeigt auf einen Knoten, den es gibt", totesZiel.join(", "), "");
+  const mitLen = baueAnlage(STAND(), UMGEBUNG({ gesperrt: /* @__PURE__ */ new Set(["f-len"]) }));
+  ist("ein Schloss an der L\xE4nge steht im Plan", knoten(mitLen, "laenge")?.gesperrt, true);
+  let fehlt = 0;
+  for (const [id, ziel] of Object.entries(SCHLOSS_ZU_KNOTEN)) {
+    if (Object.values(SCHLOSS_ZU_KNOTEN).filter((z) => z === ziel).length > 1) continue;
+    const a = baueAnlage(STAND(), UMGEBUNG({ gesperrt: /* @__PURE__ */ new Set([id]) }));
+    if (!knoten(a, ziel)?.gesperrt) fehlt++;
+  }
+  ist("jedes einzelne Schloss schl\xE4gt auf seinen Knoten durch", fehlt, 0);
+  const drei = baueAnlage(STAND(), UMGEBUNG({ gesperrt: /* @__PURE__ */ new Set(["f-where", "f-when", "f-who"]) }));
+  ist("drei von vier W schlie\xDFen das Feld noch nicht", knoten(drei, "w4")?.gesperrt, false);
+  wahr("aber der Hinweis z\xE4hlt sie", /3 von 4/.test(knoten(drei, "w4")?.hinweis || ""));
+  const vier = baueAnlage(STAND(), UMGEBUNG({ gesperrt: /* @__PURE__ */ new Set(["f-where", "f-when", "f-who", "f-what"]) }));
+  ist("alle vier schon", knoten(vier, "w4")?.gesperrt, true);
+}
+{
+  const start = { ...STAND().regler, lenTarget: "110", novelty: "30", surprise: "0", gewicht: "0/0/0/0" };
+  const bewegt = /* @__PURE__ */ new Set();
+  for (let i = 0; i < 60; i++) {
+    const w = wuerfleAlles(start, /* @__PURE__ */ new Set());
+    for (const sch of SCHIEBER) if (w.nachId[sch.id] !== void 0 && w.nachId[sch.id] !== (start[sch.schluessel] ?? "")) bewegt.add(sch.id);
+  }
+  const tot = SCHIEBER.filter((sch) => !bewegt.has(sch.id)).map((sch) => sch.id);
+  ist("jeder Schieber bewegt sich in 60 W\xFCrfen", tot.join(", "), "");
+  let daneben = 0;
+  for (let i = 0; i < 40; i++) {
+    const w = wuerfleAlles(start, /* @__PURE__ */ new Set());
+    for (const sch of SCHIEBER) {
+      const v = parseFloat(w.nachId[sch.id] || "NaN");
+      if (!(v >= sch.min && v <= sch.max && Math.abs((v - sch.min) % sch.step) < 1e-9)) daneben++;
+    }
+  }
+  ist("jeder Schieberwert liegt auf einer echten Stufe", daneben, 0);
+  const zu = /* @__PURE__ */ new Set(["f-len", "f-surprise"]);
+  let verschoben = 0;
+  for (let i = 0; i < 40; i++) {
+    const w = wuerfleAlles(start, zu);
+    if (w.nachId["f-len"] !== "110") verschoben++;
+    if (w.nachId["f-surprise"] !== "0") verschoben++;
+  }
+  ist("gesperrte Schieber bleiben stehen", verschoben, 0);
+  const w2 = wuerfleAlles(start, /* @__PURE__ */ new Set());
+  const a = baueAnlage({ ...STAND(), regler: w2.regler }, UMGEBUNG());
+  wahr(
+    "die L\xE4nge im Plan ist die gew\xFCrfelte",
+    (knoten(a, "laenge")?.wert || "").startsWith(w2.regler["lenTarget"] + " W\xF6rter")
+  );
+}
+{
+  const dom4 = new import_jsdom.JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/", pretendToBeVisual: true });
+  const G = globalThis;
+  for (const k of [
+    "window",
+    "document",
+    "localStorage",
+    "navigator",
+    "HTMLElement",
+    "HTMLInputElement",
+    "HTMLSelectElement",
+    "HTMLButtonElement",
+    "Event",
+    "CustomEvent",
+    "Node",
+    "getComputedStyle",
+    "requestAnimationFrame",
+    "cancelAnimationFrame",
+    "MutationObserver",
+    "Blob",
+    "URL",
+    "FileReader",
+    "Image",
+    "DOMParser"
+  ]) {
+    try {
+      Object.defineProperty(G, k, { value: dom4.window[k], writable: true, configurable: true });
+    } catch {
+    }
+  }
+  const km2 = () => ({ matches: false, addEventListener: () => {
+  }, removeEventListener: () => {
+  }, addListener: () => {
+  }, removeListener: () => {
+  } });
+  Object.defineProperty(G, "matchMedia", { value: km2, writable: true, configurable: true });
+  dom4.window["matchMedia"] = km2;
+  dom4.window.Element.prototype["scrollIntoView"] = function() {
+  };
+  const D4 = dom4.window.document;
+  const w = D4.createElement("div");
+  D4.body.append(w);
+  mountStudio(w);
+  const falsch = [];
+  for (const sch of SCHIEBER) {
+    const el2 = w.querySelector("#" + sch.id);
+    if (!el2) {
+      falsch.push(`${sch.id} gibt es nicht`);
+      continue;
+    }
+    if (parseFloat(el2.min) !== sch.min || parseFloat(el2.max) !== sch.max || parseFloat(el2.step) !== sch.step) {
+      falsch.push(`${sch.id}: Feld ${el2.min}\u2013${el2.max}/${el2.step}, W\xFCrfel ${sch.min}\u2013${sch.max}/${sch.step}`);
+    }
+  }
+  ist("die Spannen der Schieber stimmen mit den Eingabefeldern \xFCberein", falsch.join(" \xB7 "), "");
+  const haken = () => Array.from(w.querySelectorAll(".presetfield .mpitem input[type=checkbox]"));
+  const anKreuz = (n) => {
+    const b = haken()[n];
+    if (!b) return;
+    b.checked = true;
+    b.dispatchEvent(new dom4.window.Event("change", { bubbles: true }));
+  };
+  const planPreset = () => loadAnlage()?.regler["preset"] || "";
+  wahr(`es gibt Preset-Haekchen (${haken().length})`, haken().length >= 10);
+  const frei = haken().map((b, i) => [b.checked, i]).filter(([c]) => !c).map(([, i]) => i);
+  anKreuz(frei[0]);
+  const nachEinem = planPreset();
+  anKreuz(frei[1]);
+  const nachZweien = planPreset();
+  wahr("nach dem zweiten Haken steht ein anderer Stand im Plan", nachZweien !== nachEinem);
+  wahr("und es sind zwei Presets", nachZweien.split("+").filter(Boolean).length >= 2);
+  ist("der Rohwert der Mehrfachauswahl steht nicht im Plan", /__multi__/.test(nachZweien), false);
+  ist("der des Auto-Mix ebenso wenig", /__automix__/.test(nachZweien), false);
+  const gewaehlt = haken().filter((b) => b.checked).map((b) => b.value);
+  wahr(
+    `beide angekreuzten stehen im Plan (${gewaehlt.length})`,
+    gewaehlt.length >= 2 && gewaehlt.every((v) => nachZweien.includes(v))
+  );
+  wahr(
+    "das Etikett nennt beide",
+    sammleUmgebung(nachZweien).presetLabel.split(" + ").length >= 2
+  );
+  uebernimmWurf({ "f-preset": "builtin:kafka", "f-tone": "dark" });
+  const w5 = D4.createElement("div");
+  D4.body.append(w5);
+  mountStudio(w5);
+  const feldVon = (id) => Array.from(w5.querySelectorAll("select")).find((x) => x.id === id);
+  const pFeld = feldVon("f-preset");
+  const tFeld = feldVon("f-tone");
+  ist("der gewuerfelte Ton kommt an", tFeld.value, "dark");
+  ist("das gewuerfelte Preset auch", pFeld.value, "builtin:kafka");
+  ist("die Mehrfachauswahl ist aufgeloest", /__multi__/.test(pFeld.value), false);
+  const status = w5.querySelector(".presetfield .field-label")?.textContent || "";
+  wahr(`die Kopfzeile nennt Kafka (${status.slice(0, 60)})`, /Kafka/.test(status));
+  wahr(
+    "und der Plan zeigt dasselbe",
+    /Kafka/.test(sammleUmgebung(loadAnlage()?.regler["preset"] || "").presetLabel)
+  );
+  const formFeld = (w2) => Array.from(w2.querySelectorAll("select")).find((x) => x.id === "f-form");
+  const f5 = formFeld(w5);
+  f5.value = "reim";
+  f5.dispatchEvent(new dom4.window.Event("change", { bubbles: true }));
+  ist("die Form ist gesetzt", f5.value, "reim");
+  const w6 = D4.createElement("div");
+  D4.body.append(w6);
+  mountStudio(w6);
+  ist("und sie ueberlebt den Reiterwechsel", formFeld(w6).value, "reim");
+  const f6 = formFeld(w6);
+  f6.value = "script";
+  f6.dispatchEvent(new dom4.window.Event("change", { bubbles: true }));
+  const w7 = D4.createElement("div");
+  D4.body.append(w7);
+  mountStudio(w7);
+  ist("eine andere Form ueberlebt ebenso", formFeld(w7).value, "script");
+}
+{
+  const vorher = { where: "im Archiv", when: "am Morgen", who: "die Archivarin", what: "sucht eine Akte" };
+  let bewegt = 0;
+  const gesehen = /* @__PURE__ */ new Set();
+  for (let i = 0; i < 20; i++) {
+    const w2 = wuerfleAlles(STAND().regler, /* @__PURE__ */ new Set(), void 0, vorher);
+    if (JSON.stringify(w2.w4) !== JSON.stringify(vorher)) bewegt++;
+    gesehen.add(w2.w4.where);
+    wahr(`der Wurf nennt eine Quelle (${w2.quelle})`, !!w2.quelle);
+    break;
+  }
+  for (let i = 0; i < 20; i++) {
+    const w2 = wuerfleAlles(STAND().regler, /* @__PURE__ */ new Set(), void 0, vorher);
+    if (JSON.stringify(w2.w4) !== JSON.stringify(vorher)) bewegt++;
+    gesehen.add(w2.w4.where);
+  }
+  wahr(`die vier W bewegen sich (${bewegt} von 21 W\xFCrfen)`, bewegt >= 18);
+  wahr(`und nicht immer gleich (${gesehen.size} verschiedene Orte)`, gesehen.size >= 2);
+  const zu = /* @__PURE__ */ new Set(["f-where", "f-what"]);
+  let verschoben = 0;
+  for (let i = 0; i < 20; i++) {
+    const w2 = wuerfleAlles(STAND().regler, zu, void 0, vorher);
+    if (w2.w4.where !== vorher.where) verschoben++;
+    if (w2.w4.what !== vorher.what) verschoben++;
+  }
+  ist("gesperrte W-Felder bleiben stehen", verschoben, 0);
+  const w = wuerfleAlles(STAND().regler, /* @__PURE__ */ new Set(), void 0, vorher);
+  const a = baueAnlage({ ...STAND(), w4: w.w4 }, UMGEBUNG());
+  const knoten4 = knoten(a, "w4");
+  wahr("der Plan zeigt die gew\xFCrfelten vier W als gef\xFCllt", (knoten4?.wert || "").startsWith("4 von 4"));
+}
+{
+  for (const form of ["prose", "haiku", "bericht", "reim", "video", "script", "poem", "strang"]) {
+    const a = baueAnlage(STAND({ form }), UMGEBUNG());
+    ist(`die L\xE4nge wirkt bei ${form}`, knoten(a, "laenge")?.zustand, "an");
+  }
+  const m = baueAnlage(STAND({ form: "meldung" }), UMGEBUNG());
+  ist("bei der Meldung wirkt sie nicht", knoten(m, "laenge")?.zustand, "leer");
+  wahr("und der Plan sagt warum", /feste Länge/.test(knoten(m, "laenge")?.hinweis || ""));
+  wahr("der Wert nennt es auch", /ohne Wirkung/.test(knoten(m, "laenge")?.wert || ""));
+  const alle = baueAnlage(STAND(), UMGEBUNG());
+  ist(
+    "es gibt nur noch drei Zust\xE4nde",
+    [...new Set(alle.knoten.map((k) => k.zustand))].filter((z) => !["an", "leer", "aus"].includes(z)).join(", "),
+    ""
+  );
+}
+{
+  const vorher = { where: "im Archiv", when: "am Morgen", who: "die Archivarin", what: "sucht eine Akte" };
+  const felder = /* @__PURE__ */ new Set();
+  let leer2 = 0;
+  for (let i = 0; i < 20; i++) {
+    const w = wuerfleVierW(vorher, /* @__PURE__ */ new Set(), "ideen");
+    wahr("die Quelle hei\xDFt Ideen", /^Ideen/.test(w.quelle));
+    for (const f of ["where", "when", "who", "what"]) {
+      if (!(w.w4[f] || "").trim()) leer2++;
+      felder.add(w.w4[f]);
+    }
+    break;
+  }
+  for (let i = 0; i < 20; i++) {
+    const w = wuerfleVierW(vorher, /* @__PURE__ */ new Set(), "ideen");
+    for (const f of ["where", "when", "who", "what"]) {
+      if (!(w.w4[f] || "").trim()) leer2++;
+      felder.add(w.w4[f]);
+    }
+  }
+  ist("eine Pr\xE4misse f\xFCllt alle vier Felder", leer2, 0);
+  wahr(`und liefert verschiedene Werte (${felder.size})`, felder.size >= 8);
+  const zu = /* @__PURE__ */ new Set(["f-where"]);
+  let verschoben = 0;
+  for (let i = 0; i < 20; i++) if (wuerfleVierW(vorher, zu, "ideen").w4.where !== vorher.where) verschoben++;
+  ist("ein gesperrtes Feld bleibt auch bei den Ideen stehen", verschoben, 0);
+  const a = baueAnlage(STAND(), UMGEBUNG({ ideenProfil: "Noir" }));
+  ist("die Ideen stehen im Plan", knoten(a, "ideen")?.zustand, "an");
+  wahr("mit dem eingestellten Profil", /Noir/.test(knoten(a, "ideen")?.wert || ""));
+  wahr(
+    "und einer Leitung zu den vier W",
+    a.kanten.some((k) => k.von === "ideen" && k.nach === "w4")
+  );
+  const b = baueAnlage(STAND(), UMGEBUNG({ ideenProfil: "" }));
+  ist("ohne eigenes Profil sind sie trotzdem bereit", knoten(b, "ideen")?.zustand, "an");
+  ist("und der Plan sagt, dass keines eingestellt ist", knoten(b, "ideen")?.wert, "kein Profil eingestellt");
+  wahr("dass gew\xFCrfelt wird, steht im Hinweis", /mitgewürfelt/.test(knoten(b, "ideen")?.hinweis || ""));
+  const c = baueAnlage(STAND(), UMGEBUNG({ omniProfil: "Der Hai", omniProfile: 8 }));
+  ist("die Wahrnehmung zeigt das eingestellte Wesen", knoten(c, "omni")?.wert, "Der Hai");
+  wahr(
+    "und sagt, dass der Wuerfel ein eigenes zieht",
+    /eigenes Wesen für den einen Wurf/.test(knoten(c, "omni")?.hinweis || "")
+  );
+  wahr(
+    "und wo man nachsieht, welches",
+    /Quellenzeile/.test(knoten(c, "omni")?.hinweis || "")
+  );
+  ist(
+    "ohne eingestelltes Wesen, aber mit vorhandenen: leer",
+    knoten(baueAnlage(STAND(), UMGEBUNG({ omniProfil: "", omniProfile: 8 })), "omni")?.zustand,
+    "leer"
+  );
+  ist(
+    "ganz ohne Wesen: aus",
+    knoten(baueAnlage(STAND(), UMGEBUNG({ omniProfil: "", omniProfile: 0 })), "omni")?.zustand,
+    "aus"
+  );
+  ist("die Ideen bleiben bereit", knoten(b, "ideen")?.zustand, "an");
+  saveIdeaProfile({
+    name: "Fest",
+    genre: "mystery",
+    ton: "duester",
+    protagonist: "einzel",
+    konflikt: "raetsel",
+    ort: "urban",
+    zeit: "gegenwart",
+    massstab: "intim",
+    wendung: "enthuellung",
+    fokus: "figur",
+    divergenz: 40
+  }, 0);
+  const richtungen = /* @__PURE__ */ new Set();
+  for (let i = 0; i < 30; i++) richtungen.add(wuerfleVierW(vorher, /* @__PURE__ */ new Set(), "ideen").quelle);
+  wahr(`das Profil wird mitgew\xFCrfelt (${richtungen.size} Richtungen in 30 Z\xFCgen)`, richtungen.size >= 8);
+}
+{
+  const vorher = { where: "im Archiv", when: "am Morgen", who: "die Archivarin", what: "sucht eine Akte" };
+  const wesen = /* @__PURE__ */ new Set();
+  let ohneStil = 0, leer2 = 0;
+  for (let i = 0; i < 30; i++) {
+    const w = wuerfleVierW(vorher, /* @__PURE__ */ new Set(), "omni");
+    wesen.add(w.quelle);
+    if (!w.regler) ohneStil++;
+    for (const f of ["where", "who", "what"]) if (!(w.w4[f] || "").trim()) leer2++;
+  }
+  wahr(`die Quelle zieht verschiedene Wesen (${wesen.size} in 30 Z\xFCgen)`, wesen.size >= 4);
+  ist("und liefert immer die Stilregler mit", ohneStil, 0);
+  ist("Wo, Wer und Was sind gef\xFCllt", leer2, 0);
+  const eins = wuerfleVierW(vorher, /* @__PURE__ */ new Set(), "omni");
+  wahr("die Quelle nennt das Wesen beim Namen", /^Wahrnehmung · \S/.test(eins.quelle));
+  wahr("der Modus passt zur Wahrnehmung", eins.regler?.["mode"] === "body");
+  wahr("und die Gewichtung kommt mit", /^\d\/\d\/\d\/\d$/.test(eins.gewicht || ""));
+  const zu = /* @__PURE__ */ new Set(["f-who"]);
+  let verschoben = 0;
+  for (let i = 0; i < 20; i++) {
+    const w = wuerfleVierW(vorher, zu, "omni");
+    if (w.w4.who !== vorher.who) verschoben++;
+  }
+  ist("ein gesperrtes W bleibt auch bei der Wahrnehmung stehen", verschoben, 0);
+  const a = baueAnlage(STAND(), UMGEBUNG({ omniProfile: 8, omniProfil: "Hai" }));
+  ist("die Wahrnehmung steht im Plan", knoten(a, "omni")?.zustand, "an");
+  ist("mit dem eingestellten Wesen", knoten(a, "omni")?.wert, "Hai");
+  wahr("und der Zahl der vorhandenen im Hinweis", /8 Wesen vorhanden/.test(knoten(a, "omni")?.hinweis || ""));
+  wahr("und einer Leitung zu den vier W", a.kanten.some((k) => k.von === "omni" && k.nach === "w4"));
+}
+{
+  const dom5 = new import_jsdom.JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/", pretendToBeVisual: true });
+  const G = globalThis;
+  for (const k of [
+    "window",
+    "document",
+    "localStorage",
+    "navigator",
+    "HTMLElement",
+    "HTMLInputElement",
+    "HTMLTextAreaElement",
+    "HTMLSelectElement",
+    "HTMLButtonElement",
+    "Event",
+    "CustomEvent",
+    "Node",
+    "getComputedStyle",
+    "requestAnimationFrame",
+    "cancelAnimationFrame",
+    "MutationObserver",
+    "Blob",
+    "URL",
+    "FileReader",
+    "Image",
+    "DOMParser"
+  ]) {
+    try {
+      Object.defineProperty(G, k, { value: dom5.window[k], writable: true, configurable: true });
+    } catch {
+    }
+  }
+  const km5 = () => ({ matches: false, addEventListener: () => {
+  }, removeEventListener: () => {
+  }, addListener: () => {
+  }, removeListener: () => {
+  } });
+  Object.defineProperty(G, "matchMedia", { value: km5, writable: true, configurable: true });
+  dom5.window["matchMedia"] = km5;
+  dom5.window.Element.prototype["scrollIntoView"] = function() {
+  };
+  saveIdeaUserPreset({ ...IDEA_PRESETS["noir"], name: "Mein Hafen" });
+  saveIdeaUserPreset({ ...IDEA_PRESETS["kafka"], name: "Mein Amt" });
+  const D5 = dom5.window.document;
+  const w5 = D5.createElement("div");
+  D5.body.append(w5);
+  mountIdeas(w5);
+  const sel = w5.querySelector('[id="idea-preset"]');
+  const felder = ["idea-genre", "idea-ton", "idea-prot", "idea-konf", "idea-ort", "idea-zeit", "idea-mass", "idea-wend", "idea-fok"];
+  const stand = () => felder.map((f) => w5.querySelector(`[id="${f}"]`).value).join("|");
+  const knopf = Array.from(w5.querySelectorAll("button")).find((b) => /Würfeln/.test(b.textContent || ""));
+  let ausBestand = 0, eigene = 0, frei = 0;
+  const komb = /* @__PURE__ */ new Set();
+  for (let i = 0; i < 200; i++) {
+    knopf.click();
+    const v = sel.value;
+    komb.add(stand());
+    if (v === "") frei++;
+    else {
+      ausBestand++;
+      if (v.startsWith("user:")) eigene++;
+    }
+  }
+  wahr(`der W\xFCrfel zieht Presets (${ausBestand} von 200)`, ausBestand >= 60);
+  wahr(`darunter eigene (${eigene} von 200)`, eigene >= 10);
+  wahr(`und w\xFCrfelt weiter frei (${frei} von 200)`, frei >= 60);
+  wahr(`die freie Kombination bleibt breit (${komb.size} verschiedene)`, komb.size >= 60);
+  let luegt = 0;
+  for (let i = 0; i < 200; i++) {
+    knopf.click();
+    const v = sel.value;
+    if (!v) continue;
+    const p = v.startsWith("user:") ? loadIdeaUserPresets()[v] : IDEA_PRESETS[v];
+    if (!p) {
+      luegt++;
+      continue;
+    }
+    const soll = [p.genre, p.ton, p.protagonist, p.konflikt, p.ort, p.zeit, p.massstab, p.wendung, p.fokus].join("|");
+    if (soll !== stand()) luegt++;
+  }
+  ist("der W\xE4hler zeigt an, woher die Einstellung stammt", luegt, 0);
+}
+{
+  const dom6 = new import_jsdom.JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/", pretendToBeVisual: true });
+  const G = globalThis;
+  for (const k of [
+    "window",
+    "document",
+    "localStorage",
+    "navigator",
+    "HTMLElement",
+    "HTMLInputElement",
+    "HTMLTextAreaElement",
+    "HTMLSelectElement",
+    "HTMLButtonElement",
+    "Event",
+    "CustomEvent",
+    "Node",
+    "getComputedStyle",
+    "requestAnimationFrame",
+    "cancelAnimationFrame",
+    "MutationObserver",
+    "Blob",
+    "URL",
+    "FileReader",
+    "Image",
+    "DOMParser"
+  ]) {
+    try {
+      Object.defineProperty(G, k, { value: dom6.window[k], writable: true, configurable: true });
+    } catch {
+    }
+  }
+  const km6 = () => ({ matches: false, addEventListener: () => {
+  }, removeEventListener: () => {
+  }, addListener: () => {
+  }, removeListener: () => {
+  } });
+  Object.defineProperty(G, "matchMedia", { value: km6, writable: true, configurable: true });
+  dom6.window["matchMedia"] = km6;
+  dom6.window.Element.prototype["scrollIntoView"] = function() {
+  };
+  const D6 = dom6.window.document;
+  const wertVon = (id) => {
+    const a = baueAnlage(STAND(), sammleUmgebung("kafka"));
+    return knoten(a, id)?.wert || "";
+  };
+  const wuerfelnIn = (root) => Array.from(root.querySelectorAll("button")).find((b) => /Würfeln/.test(b.textContent || ""));
+  const wI = D6.createElement("div");
+  D6.body.append(wI);
+  mountIdeas(wI);
+  const knopfI = wuerfelnIn(wI);
+  const werteI = /* @__PURE__ */ new Set();
+  for (let i = 0; i < 40; i++) {
+    knopfI.click();
+    werteI.add(wertVon("ideen"));
+  }
+  wahr(`der Knoten Ideen folgt dem W\xFCrfel (${werteI.size} verschiedene in 40 W\xFCrfen)`, werteI.size >= 5);
+  wahr("und nennt den W\xFCrfel im Hinweis", (baueAnlage(STAND(), sammleUmgebung("kafka")).knoten.find((k) => k.id === "ideen")?.hinweis || "").includes("mitgew\xFCrfelt"));
+  const wW = D6.createElement("div");
+  D6.body.append(wW);
+  mountWorld(wW);
+  const knopfW = wuerfelnIn(wW);
+  const werteW = /* @__PURE__ */ new Set();
+  for (let i = 0; i < 40; i++) {
+    knopfW.click();
+    werteW.add(wertVon("omni"));
+  }
+  wahr(`der Knoten Wahrnehmung folgt dem W\xFCrfel (${werteW.size} verschiedene in 40 W\xFCrfen)`, werteW.size >= 4);
+  wahr("und zeigt kein blankes Z\xE4hlwerk mehr", [...werteW].every((v) => !/^\d+ Wesen$/.test(v)));
+  const nameW = wW.querySelector('[id="omni-name"]').value;
+  ist(`der gezeigte Name ist der eingestellte (\u201E${nameW}")`, wertVon("omni"), nameW);
+  const vorher = wW.querySelector('[id="omni-name"]').value;
+  const wW2 = D6.createElement("div");
+  D6.body.append(wW2);
+  mountWorld(wW2);
+  ist("ein Reiterwechsel l\xE4sst das Wesen stehen", wW2.querySelector('[id="omni-name"]').value, vorher);
+}
+{
+  const dom7 = new import_jsdom.JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/", pretendToBeVisual: true });
+  const G = globalThis;
+  for (const k of [
+    "window",
+    "document",
+    "localStorage",
+    "navigator",
+    "HTMLElement",
+    "HTMLInputElement",
+    "HTMLTextAreaElement",
+    "HTMLSelectElement",
+    "HTMLButtonElement",
+    "Event",
+    "CustomEvent",
+    "Node",
+    "getComputedStyle",
+    "requestAnimationFrame",
+    "cancelAnimationFrame",
+    "MutationObserver",
+    "Blob",
+    "URL",
+    "FileReader",
+    "Image",
+    "DOMParser"
+  ]) {
+    try {
+      Object.defineProperty(G, k, { value: dom7.window[k], writable: true, configurable: true });
+    } catch {
+    }
+  }
+  const km7 = () => ({ matches: false, addEventListener: () => {
+  }, removeEventListener: () => {
+  }, addListener: () => {
+  }, removeListener: () => {
+  } });
+  Object.defineProperty(G, "matchMedia", { value: km7, writable: true, configurable: true });
+  dom7.window["matchMedia"] = km7;
+  dom7.window.Element.prototype["scrollIntoView"] = function() {
+  };
+  const D7 = dom7.window.document;
+  const wS = D7.createElement("div");
+  D7.body.append(wS);
+  mountStudio(wS);
+  const wD = D7.createElement("div");
+  D7.body.append(wD);
+  mountDiagnose(wD);
+  const knopf = Array.from(wD.querySelectorAll("button")).find((b) => /Alles würfeln/.test(b.textContent || ""));
+  const plan = () => baueAnlage(loadAnlage(), sammleUmgebung("kafka"));
+  const werteI = /* @__PURE__ */ new Set(), werteO = /* @__PURE__ */ new Set();
+  let genauEiner = 0, mitLeitung = 0;
+  for (let i = 0; i < 60; i++) {
+    knopf.click();
+    const a = plan();
+    werteI.add(a.knoten.find((k) => k.id === "ideen")?.wert || "");
+    werteO.add(a.knoten.find((k) => k.id === "omni")?.wert || "");
+    const gespeist = a.knoten.filter((k) => /dieser Wurf/.test(k.wert));
+    if (gespeist.length === 1) genauEiner++;
+    const q = gespeist[0];
+    if (q && a.kanten.some((k) => k.von === q.id && k.nach === "w4" && k.zustand === "an")) mitLeitung++;
+  }
+  ist("bei jedem Wurf ist genau ein Knoten die Quelle", genauEiner, 60);
+  ist("und seine Leitung zu den vier W liegt an", mitLeitung, 60);
+  wahr(`der Knoten Ideen bewegt sich mit (${werteI.size} verschiedene in 60 W\xFCrfen)`, werteI.size >= 5);
+  wahr(`der Knoten Wahrnehmung bewegt sich mit (${werteO.size} verschiedene in 60 W\xFCrfen)`, werteO.size >= 4);
+  const vorherI = JSON.stringify(loadIdeaProfile());
+  const vorherO = JSON.stringify(loadOmniStand());
+  for (let i = 0; i < 20; i++) knopf.click();
+  ist("der Wurf l\xE4sst das eingestellte Ideen-Profil stehen", JSON.stringify(loadIdeaProfile()), vorherI);
+  ist("und das eingestellte Wesen ebenso", JSON.stringify(loadOmniStand()), vorherO);
+  const ohneKnoten = Object.values(QUELLE_LABEL).filter((l) => !QUELLE_ZU_KNOTEN[l]);
+  ist("jede Quelle des W\xFCrfels hat einen Knoten", ohneKnoten.join(","), "");
+  const K0 = baueAnlage(STAND(), UMGEBUNG()).knoten.map((k) => k.id);
+  const falsch = Object.entries(QUELLE_ZU_KNOTEN).filter(([, id]) => !K0.includes(id)).map(([l]) => l);
+  ist("und jeder benannte Knoten gibt es auch", falsch.join(","), "");
+}
+{
+  const label = (p) => sammleUmgebung(p).presetLabel;
+  wahr("ein eingebautes Preset wird beim Namen genannt", /Kafka/.test(label("builtin:kafka")));
+  wahr("ohne Vorsatz ebenso", /Kafka/.test(label("kafka")));
+  wahr(
+    "eine Mischung nennt alle Beteiligten",
+    /Bergwelt/.test(label("bergwelt+formalismus+griechischetragoedie")) && /Formalismus/.test(label("bergwelt+formalismus+griechischetragoedie")) && /Trag/.test(label("bergwelt+formalismus+griechischetragoedie"))
+  );
+  ist("ein eigenes Preset ohne Vorsatz", label("user:MeinPreset"), "MeinPreset");
+  ist("ohne Preset ein Strich", label(""), "\u2014");
+  ist("ein unbekannter Wert bleibt sichtbar", label("gibtsnicht"), "gibtsnicht");
+  const studioQ = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
+  wahr(
+    "das Studio loest die aktiven Presets auf",
+    /const aktivePresetIds = \(\): string\[\] =>/.test(studioQ)
+  );
+  wahr(
+    "und schreibt sie in den Anlagenstand",
+    /preset: aktivePresetIds\(\)\.join\("\+"\)/.test(studioQ)
+  );
+  ist(
+    "nicht mehr den rohen Auswahlwert",
+    /preset: preset\.value, lenTarget/.test(studioQ),
+    false
+  );
+  ist(
+    "die Aufloesung steht nur an einer Stelle",
+    (studioQ.match(/preset\.value === AUTOMIX_ID \? Object\.keys\(lastAutoMixSources\(\)\)/g) || []).length,
+    1
+  );
+}
+{
+  const c = {};
+  for (let i = 0; i < 150; i++) {
+    const w = wuerfleAlles({ markovMode: "off" }, /* @__PURE__ */ new Set());
+    const v = w.regler["markovMode"] || "";
+    c[v] = (c[v] || 0) + 1;
+  }
+  ist("alle drei Markov-Stellungen kommen vor", ["off", "mix", "on"].every((v) => (c[v] || 0) > 0), true);
+  wahr("keine Stellung nimmt \xFCber zwei Drittel der W\xFCrfe", Math.max(...Object.values(c)) < 100);
+  const zu = /* @__PURE__ */ new Set(["f-markov"]);
+  let bewegt = 0;
+  for (let i = 0; i < 40; i++) {
+    const w = wuerfleAlles({ markovMode: "mix" }, zu);
+    if (w.regler["markovMode"] !== "mix") bewegt++;
+  }
+  ist("mit Schloss bleibt Markov stehen", bewegt, 0);
+}
+{
+  const kn = (a, id) => a.knoten.find((k) => k.id === id);
+  const a1 = baueAnlage(STAND({}), UMGEBUNG({ erzaehlerBrauchbar: 7, erzaehlerArchiv: 12 }));
+  ist("abgeklemmt bei \u201Eaus Preset\u201C", kn(a1, "erzaehler").zustand, "aus");
+  wahr("der Wert z\xE4hlt das Archiv", /12 Geschichten im Archiv, 7 brauchbar/.test(kn(a1, "erzaehler").wert));
+  const a2 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "a:rueckwaerts:x1", erzaehlerPlatz: "Der F\xE4hrmann \xB7 R\xFCckw\xE4rts", erzaehlerBrauchbar: 7 }));
+  ist("fester Platz: Vorrat an", kn(a2, "erzaehler").zustand, "an");
+  ist("Dramaturgie an, obwohl das Preset keinen Bogen tr\xE4gt", kn(a2, "drama").zustand, "an");
+  wahr("und sie nennt den Eintrag", /Erzählerbank, Der Fährmann · Rückwärts/.test(kn(a2, "drama").wert));
+  const a3 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "a:still:weg", erzaehlerPlatz: "", erzaehlerBrauchbar: 3 }));
+  ist("fehlender Eintrag: Dramaturgie leer", kn(a3, "drama").zustand, "leer");
+  wahr("der Hinweis zeigt den Weg", /nicht mehr im Archiv liegt/.test(kn(a3, "drama").hinweis));
+  const a4 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "wuerfeln", erzaehlerBrauchbar: 5 }));
+  wahr("W\xFCrfeln nennt die Anzahl", /würfelt je Erzeugung aus 5 brauchbaren Plätzen/.test(kn(a4, "drama").wert));
+  const a5 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "wuerfeln", erzaehlerBrauchbar: 0 }));
+  ist("W\xFCrfeln ohne Pl\xE4tze: leer", kn(a5, "drama").zustand, "leer");
+  wahr("die Leitung ist gezeichnet", a4.kanten.some((k) => k.von === "erzaehler" && k.nach === "drama"));
+  const a6 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ dramaVorhanden: true }));
+  ist("Preset-Weg wie bisher", kn(a6, "drama").zustand, "an");
+  wahr("und sagt es", /Bogen aus dem Preset/.test(kn(a6, "drama").wert));
+}
+{
+  const kn = (a, id) => a.knoten.find((k) => k.id === id);
+  const leer2 = baueAnlage(STAND({}), UMGEBUNG({}));
+  ist("ohne Z\xE4hlung: leer", kn(leer2, "waechter").zustand, "leer");
+  const voll = baueAnlage(STAND({}), UMGEBUNG({ waechter: { verworfen: 12, angenommen: 88, quote: 0.12, haeufigste: "W\xE4chter 4 \xB7 Inversion ohne Subjekt", umgeschrieben: 30, zerlegt: 7 } }));
+  ist("mit Z\xE4hlung: an", kn(voll, "waechter").zustand, "an");
+  wahr("der Wert nennt Anteil, Umschreibungen, Zerlegungen", /12 von 100 verworfen \(12 %\) · 30 umgeschrieben · 7 zerlegt/.test(kn(voll, "waechter").wert));
+  wahr("der Hinweis nennt die h\xE4ufigste Regel", /häufigste Regel: Wächter 4/.test(kn(voll, "waechter").hinweis));
+}
+console.log(`Pr\xFCfstand Schaltplan \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {
   console.error(`
-\u274C Infinitiv-Lexikon: ${fails.length} Fehler:`);
+\u274C Schaltplan: ${fails.length} Fehler:`);
   fails.forEach((f) => console.error("  - " + f));
   proc.process?.exit(1);
 } else {
   console.log(`
-\u2705 Infinitiv-Lexikon: alle ${geprueft} Pr\xFCfungen bestanden.`);
+\u2705 Schaltplan: alle ${geprueft} Pr\xFCfungen bestanden.`);
 }

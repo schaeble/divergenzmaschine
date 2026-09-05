@@ -1,17 +1,15 @@
-// Reiter „Erzählerbank" — zehn Kurzgeschichten als Dramaturgie-Set.
+// Reiter „Erzählerbank" — ein Arbeitsplatz, das Archiv als Bank (Umbau 4.341.0).
 //
-// Gewünscht: Zusätzlich zur Wortbank eine Bank für bis zu zehn frei
-// erstellte Kurzgeschichten mit unterschiedlichen Dramaturgien; im Studio
-// dienen sie als Bogen-Vorrat (Regler „Bogen" im Werkzeugkasten, fest
-// gewählt, würfeln nur auf Wunsch).
-//
-// Jeder Platz: Titel, Text, dazu die Bogen-Vorschau — dieselbe Zuordnung
-// wie im Fenster „Preset aus Text", nur nach den Bogen-Phasen gruppiert.
-// Gespeichert wird je Platz mit einem Klick; die Plätze wandern über die
-// Schlüssel dm_erzaehlerbank_v1 automatisch in die Projektdatei.
+// Gewünscht: Die zehn Plätze waren seit dem Archiv nur noch Sichtfenster auf
+// denselben Vorrat. Jetzt gibt es EINEN Arbeitsplatz zum Schreiben (Titel,
+// Text, Bauform) und darunter die Archivliste aller Geschichten, nach
+// Bauform gruppiert. Speichern legt ins Archiv, Wählen holt heraus; das
+// Archiv ist zugleich der Vorrat, aus dem das Studio unter „Bogen" zieht.
+// Alte Plätze wandern beim ersten Aufruf ins Archiv.
 import { el } from "./dom";
 import { icon } from "./icons";
-import { ladeErzaehlerbank, speichereErzaehlerbank, platzBrauchbar, ERZAEHLER_PLAETZE, SCHLAGFOLGEN, kiErzaehlung, archiviere, archivFuer, loescheAusArchiv, ableiteSchlagfolge } from "../features/erzaehlerbank";
+import { ladeArbeitsplatz, speichereArbeitsplatz, platzBrauchbar, SCHLAGFOLGEN, kiErzaehlung, archiviere, archivEintraege, loescheEintrag,
+  ableiteSchlagfolge, eintragId, ladeQuelle, setzeQuelle, speichereArchiv, type Erzaehlung } from "../features/erzaehlerbank";
 import { ERZAEHLUNGEN_VORLAGEN } from "../features/erzaehlungen.data";
 import { preset2AusText } from "../features/textpreset";
 
@@ -19,210 +17,171 @@ const PHASEN: [keyof ReturnType<typeof preset2AusText>["drama"], string][] = [
   ["einstieg", "Einstieg"], ["mitte", "Mitte"], ["hoehepunkt", "Höhepunkt"], ["schluss", "Schluss"],
   ["ausloeser", "Auslöser"], ["veraenderungen", "Veränderungen"], ["konflikte", "Konflikte"],
 ];
+const SCHLAG_NAMEN: Record<string, string> = { einstieg: "Einstieg", hook: "Haken", regel: "Regel", mitte: "Mitte", mitte2: "Mitte", konflikt: "Konflikt", ausloeser: "Auslöser", wende: "Wende", zeit: "Zeit", hoehepunkt: "Höhepunkt", einsatz: "Einsatz", schluss: "Schluss" };
 
 export function mountErzaehlerbank(root: HTMLElement): void {
   root.innerHTML = "";
-  const bank = ladeErzaehlerbank();
+  const e = ladeArbeitsplatz();
 
+  // ── Kopf ────────────────────────────────────────────────────────────────
   const kopf = el("div", {},
     el("h2", {}, "Erzählerbank"),
     el("p", { class: "muted" },
-      "Bis zu zehn Kurzgeschichten mit unterschiedlichen Dramaturgien. Aus jeder wird ein Bogen abgeleitet " +
-      "(Einstieg, Mitte, Höhepunkt, Schluss, Auslöser, Veränderungen, Konflikte) — im Studio wählbar unter " +
-      "„Bogen“ im Werkzeugkasten: fest je Geschichte, oder würfeln je Erzeugung. Die Wortbank liefert das Was, " +
-      "die Erzählerbank das Wie. Richtwert je Geschichte: 300–400 Wörter; unter 40 Wörtern gilt ein Platz als leer."));
+      "Ein Arbeitsplatz zum Schreiben, darunter das Archiv aller Geschichten — nach Bauform geordnet. „Speichern“ legt die Geschichte ins Archiv (der Titel ist ihre Identität: gleicher Titel = Fortschritt, neuer Titel = neue Geschichte), „wählen“ holt sie zurück. Das Archiv ist zugleich der Vorrat, aus dem das Studio unter „Bogen“ im Werkzeugkasten zieht: fest je Geschichte, oder würfeln je Erzeugung. Die Wortbank liefert das Was, die Erzählerbank das Wie. Richtwert: 300–400 Wörter; unter 40 gilt ein Text als zu dünn."));
 
-  // Zehn eingebaute Geschichten mit unterschiedlichen Bögen — auf Wunsch in
-  // die LEEREN Plätze gesetzt; belegte bleiben unangetastet. Danach wird der
-  // Reiter neu gezeichnet, damit Zähler und Bögen stimmen.
-  const vorlagenBtn = el("button", { type: "button", title: "Zehn eingebaute Geschichten mit unterschiedlichen Bögen in die leeren Plätze setzen. Belegte Plätze bleiben unangetastet." }, "Vorlagen einsetzen (leere Plätze)") as HTMLButtonElement;
+  // Vorlagen: zehn Geschichten, je eine Bauform, direkt ins Archiv.
+  const vorlagenBtn = el("button", { type: "button", title: "Zehn eingebaute Geschichten mit unterschiedlichen Bauformen ins Archiv legen. Vorhandene gleichen Titels werden nicht verdoppelt." }, "Vorlagen ins Archiv") as HTMLButtonElement;
   vorlagenBtn.addEventListener("click", () => {
-    const alle = ladeErzaehlerbank();
-    let frei = 0, v = 0;
-    for (let i = 0; i < ERZAEHLER_PLAETZE && v < ERZAEHLUNGEN_VORLAGEN.length; i++) {
-      if (alle[i]!.text.trim()) continue;
-      alle[i] = { ...ERZAEHLUNGEN_VORLAGEN[v++]! };
-      frei++;
-    }
-    if (frei) { speichereErzaehlerbank(alle); mountErzaehlerbank(root); }
-    else { vorlagenBtn.textContent = "Kein Platz frei"; window.setTimeout(() => { vorlagenBtn.textContent = "Vorlagen einsetzen (leere Plätze)"; }, 1600); }
-  });
-  // Alles zurücksetzen: leert alle zehn Plätze und stellt die Bauformen auf
-  // den Steigenden Bogen zurück — mit Nachfrage, denn das ist ein großer
-  // Schritt. Das ARCHIV bleibt: Die gespeicherten Geschichten sind danach
-  // über den Titel wieder wählbar, nichts geht verloren.
-  const leerenBtn = el("button", { type: "button", class: "danger", title: "Alle zehn Plätze leeren und je Platz eine der zehn Bauformen einstellen (Steigender Bogen bis Offenes Ende). Das Archiv der gespeicherten Geschichten bleibt erhalten." }, "Alles zurücksetzen") as HTMLButtonElement;
-  leerenBtn.addEventListener("click", () => {
-    if (!confirm("Alle zehn Plätze leeren? Die zehn Bauformen werden wiederhergestellt (je Platz eine); das Archiv der gespeicherten Geschichten bleibt erhalten.")) return;
-    // Nachgemeldet: Nicht alles auf den Steigenden Bogen — die ZEHN Bauformen
-    // sollen wiederhergestellt werden, je Platz eine, in der Ordnung der
-    // Vorlagen. So steht nach dem Zurücksetzen wieder das volle Dramaturgie-Set.
-    speichereErzaehlerbank(Array.from({ length: ERZAEHLER_PLAETZE }, (_, i) => ({ titel: "", text: "", folge: ERZAEHLUNGEN_VORLAGEN[i]?.folge || "standard" })));
+    for (const v of ERZAEHLUNGEN_VORLAGEN) archiviere({ ...v, geburt: v.folge });
     mountErzaehlerbank(root);
   });
-  kopf.append(el("div", { class: "btnrow", style: "margin-top:8px" }, vorlagenBtn, leerenBtn));
+  // Archiv leeren: der große Schritt, mit Nachfrage. Der Arbeitsplatz bleibt.
+  const archivLeerenBtn = el("button", { type: "button", class: "danger", title: "Alle Geschichten aus dem Archiv löschen. Der Arbeitsplatz bleibt." }, "Archiv leeren") as HTMLButtonElement;
+  archivLeerenBtn.addEventListener("click", () => {
+    if (!confirm("Alle Geschichten aus dem Archiv löschen? Der Arbeitsplatz bleibt.")) return;
+    speichereArchiv({});
+    if (ladeQuelle() !== "preset") setzeQuelle("preset");
+    mountErzaehlerbank(root);
+  });
+  kopf.append(el("div", { class: "btnrow", style: "margin-top:8px" }, vorlagenBtn, archivLeerenBtn));
 
-  const liste = el("div", {});
-  for (let i = 0; i < ERZAEHLER_PLAETZE; i++) {
-    const e = bank[i]!;
-    const titelIn = el("input", { type: "text", value: e.titel, maxlength: "60", placeholder: `Geschichte ${i + 1} — Titel`, style: "width:100%" }) as HTMLInputElement;
-    const textIn = el("textarea", { rows: "6", placeholder: "Text der Geschichte (300–400 Wörter)", style: "width:100%" }) as HTMLTextAreaElement;
-    textIn.value = e.text;
-    const stand = el("span", { class: "muted", style: "font-size:13px" });
-    // Die Bauform des Platzes: Sie wird zur Schlagfolge des Bogens — in
-    // welcher Reihenfolge die Schläge stehen („Katastrophe zuerst" beginnt
-    // mit dem Höhepunkt, „Kreisschluss" kehrt am Ende zum Einstieg zurück).
-    const folgeSel = el("select", { title: "Schlagfolge: die Reihenfolge der Schläge, wenn dieser Bogen im Studio gewählt ist." }) as HTMLSelectElement;
-    for (const [k, v] of Object.entries(SCHLAGFOLGEN)) folgeSel.append(el("option", { value: k }, v.name));
-    folgeSel.value = e.folge && SCHLAGFOLGEN[e.folge] ? e.folge : "standard";
-    const bogenBox = el("div", { style: "display:none;font-size:13px;line-height:1.55;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-top:6px" });
-    let bogenAuf = false;
+  // ── Arbeitsplatz ────────────────────────────────────────────────────────
+  const titelIn = el("input", { type: "text", value: e.titel, maxlength: "60", placeholder: "Titel der Geschichte", style: "width:100%" }) as HTMLInputElement;
+  const textIn = el("textarea", { rows: "8", placeholder: "Text der Geschichte (300–400 Wörter)", style: "width:100%" }) as HTMLTextAreaElement;
+  textIn.value = e.text;
+  const stand = el("span", { class: "muted", style: "font-size:13px;white-space:nowrap" });
+  const folgeSel = el("select", { title: "Bauform: die Reihenfolge der Schläge, wenn dieser Bogen im Studio gewählt ist." }) as HTMLSelectElement;
+  for (const [k, v] of Object.entries(SCHLAGFOLGEN)) folgeSel.append(el("option", { value: k }, v.name));
+  folgeSel.value = e.folge && SCHLAGFOLGEN[e.folge] ? e.folge : "standard";
+  let geburt = e.geburt;
 
-    const malStand = (): void => {
-      const w = textIn.value.split(/\s+/).filter(Boolean).length;
-      stand.textContent = w === 0 ? "leer" : w < 40 ? `${w} Wörter — zu wenig, gilt als leer` : `${w} Wörter`;
-    };
-    const malBogen = (): void => {
-      if (!bogenAuf) return;
-      bogenBox.innerHTML = "";
-      if (!platzBrauchbar({ titel: titelIn.value, text: textIn.value })) {
-        bogenBox.append(el("div", { class: "muted" }, "Noch zu wenig Text für einen Bogen."));
-        return;
+  const malStand = (): void => {
+    const w = textIn.value.split(/\s+/).filter(Boolean).length;
+    stand.textContent = `${w} Wörter`;
+    stand.style.color = w >= 40 ? "" : "var(--danger, #b00)";
+  };
+  const aktuell = (): Erzaehlung => ({ titel: titelIn.value.trim().slice(0, 60), text: textIn.value.trim(), folge: folgeSel.value, geburt });
+  const merken = (): void => speichereArbeitsplatz(aktuell());
+  titelIn.addEventListener("input", merken);
+  textIn.addEventListener("input", () => { malStand(); merken(); malBogen(); });
+  folgeSel.addEventListener("change", () => { merken(); malBogen(); });
+
+  // Bogen zeigen: Phasen und — bei „eigen" — die abgeleitete Schlagfolge.
+  const bogenBox = el("div", { style: "display:none;font-size:13px;line-height:1.55;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-top:6px" });
+  let bogenAuf = false;
+  const malBogen = (): void => {
+    if (!bogenAuf) return;
+    bogenBox.innerHTML = "";
+    if (!platzBrauchbar({ titel: titelIn.value, text: textIn.value })) { bogenBox.append(el("div", { class: "muted" }, "Noch zu wenig Text für einen Bogen.")); return; }
+    const d = preset2AusText(textIn.value).drama;
+    if (folgeSel.value === "eigen")
+      bogenBox.append(el("div", { style: "margin-bottom:6px" }, el("strong", { style: "color:var(--acc2)" }, "Schlagfolge (abgeleitet): "), ableiteSchlagfolge(textIn.value).map((x) => SCHLAG_NAMEN[x] || x).join(" → ")));
+    for (const [k, name] of PHASEN) {
+      const zeilen = d[k] || [];
+      if (zeilen.length) bogenBox.append(el("div", {}, el("strong", { style: "color:var(--acc2)" }, name + ": "), zeilen.join(" · ")));
+    }
+  };
+  const bogenBtn = el("button", { type: "button" }, "Bogen zeigen") as HTMLButtonElement;
+  bogenBtn.addEventListener("click", () => { bogenAuf = !bogenAuf; bogenBox.style.display = bogenAuf ? "" : "none"; bogenBtn.textContent = bogenAuf ? "Bogen verbergen" : "Bogen zeigen"; malBogen(); });
+
+  const einfuegen = el("button", { type: "button", title: "Aus der Zwischenablage einfügen" }, icon("paste"), " Einfügen") as HTMLButtonElement;
+  einfuegen.addEventListener("click", () => {
+    const lesen = navigator.clipboard?.readText?.();
+    if (!lesen) { textIn.focus(); return; }
+    lesen.then((txt) => { const t = (txt || "").trim(); if (!t) { textIn.focus(); return; } textIn.value = t; textIn.dispatchEvent(new Event("input")); textIn.focus(); }).catch(() => { textIn.focus(); });
+  });
+
+  // KI: neu erzählen — in der Bauform des Arbeitsplatzes, Titel als Thema;
+  // ersetzt Titel und Text, speichert ins Archiv.
+  const kiBtn = el("button", { type: "button", title: "Von der KI neu erzählen lassen — in der gewählten Bauform, der Titel dient als Thema. Titel und Text werden ersetzt und ins Archiv gelegt. Braucht den KI-Schlüssel (Reiter KI)." }, "KI: neu erzählen") as HTMLButtonElement;
+  kiBtn.addEventListener("click", () => {
+    kiBtn.disabled = true; kiBtn.textContent = "KI erzählt …";
+    kiErzaehlung(folgeSel.value, titelIn.value.trim() || undefined).then((neu) => {
+      geburt = folgeSel.value;
+      titelIn.value = neu.titel; textIn.value = neu.text;
+      const ez = aktuell(); speichereArbeitsplatz(ez); archiviere(ez);
+      mountErzaehlerbank(root);
+    }).catch((err: unknown) => {
+      kiBtn.disabled = false; kiBtn.textContent = "KI-Fehler — noch einmal?";
+      kiBtn.title = err instanceof Error ? err.message : String(err);
+      window.setTimeout(() => { kiBtn.textContent = "KI: neu erzählen"; }, 4000);
+    });
+  });
+
+  const speichern = el("button", { class: "primary", type: "button", title: "Ins Archiv der gewählten Bauform legen — gleicher Titel sichert den Fortschritt, neuer Titel ist eine neue Geschichte." }, "Speichern") as HTMLButtonElement;
+  speichern.addEventListener("click", () => {
+    const ez = aktuell();
+    if (!platzBrauchbar(ez)) { speichern.textContent = "Zu wenig Text (ab 40 Wörtern)"; window.setTimeout(() => { speichern.textContent = "Speichern"; }, 2000); return; }
+    speichereArbeitsplatz(ez); archiviere(ez);
+    if (!geburt) geburt = ez.folge;
+    speichern.textContent = "Gespeichert ✓";
+    window.setTimeout(() => { speichern.textContent = "Speichern"; }, 1500);
+    malArchiv();
+  });
+  const leeren = el("button", { class: "danger", type: "button", title: "Arbeitsplatz leeren — das Archiv bleibt." }, "Arbeitsplatz leeren") as HTMLButtonElement;
+  leeren.addEventListener("click", () => {
+    if (!confirm("Arbeitsplatz leeren? Das Archiv bleibt.")) return;
+    titelIn.value = ""; textIn.value = ""; geburt = undefined; folgeSel.value = "standard";
+    speichereArbeitsplatz(aktuell()); malStand(); malBogen();
+  });
+
+  // ── Archiv als Liste ────────────────────────────────────────────────────
+  // Alle Geschichten, nach Bauform gruppiert; wählen holt in den Arbeitsplatz,
+  // „Text löschen" entfernt den gewählten Eintrag unmittelbar aus dem Archiv.
+  const archivSel = el("select", { title: "Alle gespeicherten Geschichten, nach Bauform. Wählen holt sie in den Arbeitsplatz." }) as HTMLSelectElement;
+  const archivWeg = el("button", { type: "button", class: "danger", title: "Die gewählte Geschichte sofort aus dem Archiv löschen. Der Arbeitsplatz bleibt.", "aria-label": "Gewählte Geschichte aus dem Archiv löschen" }, "Text löschen") as HTMLButtonElement;
+  const archivStand = el("span", { class: "muted mini" });
+  const malArchiv = (): void => {
+    const alle = archivEintraege();
+    archivSel.innerHTML = "";
+    archivSel.append(el("option", { value: "" }, alle.length ? `— ${alle.length} gespeichert: wählen —` : "— nichts gespeichert —"));
+    for (const [k, v] of Object.entries(SCHLAGFOLGEN)) {
+      const gruppe = alle.filter((x) => (x.folge || "standard") === k);
+      if (!gruppe.length) continue;
+      const og = el("optgroup", { label: v.name });
+      for (const x of gruppe) {
+        const geliehen = x.geburt && x.geburt !== k;
+        og.append(el("option", { value: x.id, title: geliehen ? `Unter „${SCHLAGFOLGEN[x.geburt!]?.name || x.geburt}“ entstanden — hier geliehen.` : "" },
+          (x.titel || "Ohne Titel") + (geliehen ? ` · ⇄ ${SCHLAGFOLGEN[x.geburt!]?.name || x.geburt}` : "")));
       }
-      const d = preset2AusText(textIn.value).drama;
-      // Eigene Bauform: Die Schlagfolge kommt aus dem Text — hier steht sie.
-      if (folgeSel.value === "eigen") {
-        const NAMEN: Record<string, string> = { einstieg: "Einstieg", hook: "Haken", regel: "Regel", mitte: "Mitte", mitte2: "Mitte", konflikt: "Konflikt", ausloeser: "Auslöser", wende: "Wende", zeit: "Zeit", hoehepunkt: "Höhepunkt", einsatz: "Einsatz", schluss: "Schluss" };
-        bogenBox.append(el("div", { style: "margin-bottom:6px" }, el("strong", { style: "color:var(--acc2)" }, "Schlagfolge (abgeleitet): "), ableiteSchlagfolge(textIn.value).map((x) => NAMEN[x] || x).join(" → ")));
-      }
-      for (const [k, name] of PHASEN) {
-        const zeilen = d[k] || [];
-        if (!zeilen.length) continue;
-        bogenBox.append(el("div", {}, el("strong", { style: "color:var(--acc2)" }, name + ": "), zeilen.join(" · ")));
-      }
-    };
-    const bogenBtn = el("button", { type: "button" }, "Bogen zeigen") as HTMLButtonElement;
-    bogenBtn.addEventListener("click", () => {
-      bogenAuf = !bogenAuf;
-      bogenBox.style.display = bogenAuf ? "" : "none";
-      bogenBtn.textContent = bogenAuf ? "Bogen verbergen" : "Bogen zeigen";
-      malBogen();
-    });
+      archivSel.append(og);
+    }
+    archivSel.disabled = !alle.length;
+    archivWeg.disabled = true;
+    const q = ladeQuelle();
+    const gewaehlt = alle.find((x) => x.id === q);
+    archivStand.textContent = q === "wuerfeln" ? "Studio: würfelt je Erzeugung aus dem Archiv" : gewaehlt ? `Studio: Bogen „${gewaehlt.titel || "Ohne Titel"}“` : "Studio: Bogen aus Preset";
+  };
+  archivSel.addEventListener("change", () => {
+    archivWeg.disabled = archivSel.value === "";
+    const x = archivEintraege().find((y) => y.id === archivSel.value);
+    if (!x) return;
+    titelIn.value = x.titel; textIn.value = x.text; folgeSel.value = x.folge && SCHLAGFOLGEN[x.folge] ? x.folge : "standard"; geburt = x.geburt || x.folge;
+    speichereArbeitsplatz(aktuell()); malStand(); malBogen();
+  });
+  archivWeg.addEventListener("click", () => {
+    if (!archivSel.value) return;
+    if (ladeQuelle() === archivSel.value) setzeQuelle("preset");
+    loescheEintrag(archivSel.value);
+    malArchiv();
+  });
+  // Diesen Bogen im Studio wählen — der kurze Weg vom Arbeitsplatz zum Regler.
+  const imStudio = el("button", { type: "button", title: "Diese Geschichte im Studio als Bogen wählen (Regler „Bogen“)." }, "Im Studio wählen") as HTMLButtonElement;
+  imStudio.addEventListener("click", () => {
+    const ez = aktuell();
+    if (!platzBrauchbar(ez)) return;
+    archiviere(ez);
+    setzeQuelle(eintragId(ez));
+    malArchiv();
+    imStudio.textContent = "Gewählt ✓"; window.setTimeout(() => { imStudio.textContent = "Im Studio wählen"; }, 1500);
+  });
 
-    // Einfügen aus der Zwischenablage — wie überall: das Handy hat kein Strg+V.
-    const einfuegen = el("button", { type: "button", title: "Aus der Zwischenablage einfügen" }, icon("paste"), " Einfügen") as HTMLButtonElement;
-    einfuegen.addEventListener("click", () => {
-      const lesen = navigator.clipboard?.readText?.();
-      if (!lesen) { textIn.focus(); return; }
-      lesen.then((txt) => {
-        const t = (txt || "").trim();
-        if (!t) { textIn.focus(); return; }
-        textIn.value = t;
-        textIn.dispatchEvent(new Event("input"));
-        textIn.focus();
-      }).catch(() => { textIn.focus(); });
-    });
+  malStand(); malArchiv();
 
-    // ── Archiv je Bauform: mehrere Geschichten, über den Titel wählbar ────
-    // Gewünscht: Pro Bogen mehrere Geschichten speichern und über den Titel
-    // aussuchen. Die Liste gehört zur BAUFORM des Platzes; ein Wechsel der
-    // Bauform zeigt deren Geschichten. Wählen lädt Titel und Text in den
-    // Platz und speichert ihn; das kleine × löscht den gewählten Eintrag aus
-    // dem Archiv (der Platz bleibt).
-    const archivSel = el("select", { title: "Gespeicherte Geschichten dieser Bauform — wählen lädt sie in den Platz." }) as HTMLSelectElement;
-    const archivWeg = el("button", { type: "button", class: "danger", title: "Die gewählte Geschichte aus dem Archiv dieser Bauform löschen (der Platz bleibt unberührt).", "aria-label": "Gewählte Geschichte aus dem Archiv löschen" }, "Text löschen") as HTMLButtonElement;
-    const fuelleArchiv = (): void => {
-      const liste = archivFuer(folgeSel.value);
-      archivSel.innerHTML = "";
-      archivSel.append(el("option", { value: "" }, liste.length ? `— ${liste.length} gespeichert: wählen —` : "— nichts gespeichert —"));
-      liste.forEach((e, idx) => {
-        const geliehen = e.geburt && e.geburt !== folgeSel.value;
-        const name = geliehen ? (SCHLAGFOLGEN[e.geburt!]?.name || e.geburt!) : "";
-        archivSel.append(el("option", { value: String(idx), title: geliehen ? `Unter „${name}“ entstanden — hier geliehen.` : "" },
-          (e.titel || "Ohne Titel") + (geliehen ? ` · ⇄ ${name}` : "")));
-      });
-      archivSel.disabled = !liste.length;
-      archivWeg.disabled = !liste.length || archivSel.value === "";
-    };
-    archivSel.addEventListener("change", () => {
-      archivWeg.disabled = archivSel.value === "";
-      const idx = archivSel.value === "" ? -1 : Number(archivSel.value);
-      const e = archivFuer(folgeSel.value)[idx];
-      if (!e) return;
-      titelIn.value = e.titel; textIn.value = e.text;
-      textIn.dispatchEvent(new Event("input"));
-      const alle = ladeErzaehlerbank();
-      alle[i] = { titel: e.titel, text: e.text, folge: folgeSel.value, geburt: e.geburt || e.folge };
-      speichereErzaehlerbank(alle);
-    });
-    archivWeg.addEventListener("click", () => {
-      const idx = archivSel.value === "" ? -1 : Number(archivSel.value);
-      if (idx < 0) return;
-      const e = archivFuer(folgeSel.value)[idx];
-      if (!e) return;
-      // Gewünscht: Das Löschen löscht den Text UNMITTELBAR — ohne Nachfrage.
-      // Der Knopf ist ohne Auswahl ausgegraut, das gewählte steht sichtbar in
-      // der Liste; der Platz bleibt unberührt, nur das Archiv wird kleiner.
-      loescheAusArchiv(folgeSel.value, idx);
-      fuelleArchiv();
-    });
-    folgeSel.addEventListener("change", fuelleArchiv);
-    folgeSel.addEventListener("change", malBogen);
-    fuelleArchiv();
-
-    // KI: diesen Platz neu erzählen lassen — in seiner Bauform, das Thema aus
-    // dem Titel (wenn einer dasteht). Ersetzt Titel und Text und speichert,
-    // die Bauform bleibt. Fehler stehen im Knopf, nichts scheitert stumm.
-    const kiBtn = el("button", { type: "button", title: "Diesen Bogen von der KI neu erzählen lassen — in der gewählten Bauform. Der Titel dient als Thema; Titel und Text werden ersetzt. Braucht den KI-Schlüssel (Reiter KI)." }, "KI: neu erzählen") as HTMLButtonElement;
-    kiBtn.addEventListener("click", () => {
-      kiBtn.disabled = true; kiBtn.textContent = "KI erzählt …";
-      kiErzaehlung(folgeSel.value, titelIn.value.trim() || undefined).then((neu) => {
-        const alle = ladeErzaehlerbank();
-        alle[i] = { ...neu, folge: folgeSel.value, geburt: folgeSel.value };
-        speichereErzaehlerbank(alle);
-        archiviere(alle[i]!);      // auch KI-Erzählungen sind über den Titel wieder wählbar
-        mountErzaehlerbank(root);
-      }).catch((err: unknown) => {
-        kiBtn.disabled = false;
-        kiBtn.textContent = "KI-Fehler — noch einmal?";
-        kiBtn.title = err instanceof Error ? err.message : String(err);
-        window.setTimeout(() => { kiBtn.textContent = "KI: neu erzählen"; }, 4000);
-      });
-    });
-    const speichern = el("button", { class: "primary", type: "button" }, "Speichern") as HTMLButtonElement;
-    speichern.addEventListener("click", () => {
-      const alle = ladeErzaehlerbank();
-      // Die Geburt des Platzes bleibt erhalten — nur wenn TEXT oder TITEL
-      // geändert wurden, ist es eine neue Geschichte und die jetzige Bauform
-      // wird ihre Geburt (archiviere ermittelt das über den Wortlaut selbst).
-      alle[i] = { titel: titelIn.value.trim().slice(0, 60), text: textIn.value.trim(), folge: folgeSel.value };
-      speichereErzaehlerbank(alle);
-      archiviere(alle[i]!);      // ins Archiv der Bauform — über den Titel wieder wählbar
-      fuelleArchiv();
-      speichern.textContent = "Gespeichert ✓";
-      window.setTimeout(() => { speichern.textContent = "Speichern"; }, 1200);
-    });
-    const leeren = el("button", { class: "danger", type: "button" }, "Platz leeren") as HTMLButtonElement;
-    leeren.addEventListener("click", () => {
-      if (!confirm(`Platz ${i + 1} wirklich leeren?`)) return;
-      titelIn.value = ""; textIn.value = ""; folgeSel.value = "standard";
-      const alle = ladeErzaehlerbank();
-      alle[i] = { titel: "", text: "" };
-      speichereErzaehlerbank(alle);
-      malStand(); malBogen();
-    });
-
-    textIn.addEventListener("input", () => { malStand(); malBogen(); });
-    malStand();
-
-    liste.append(el("div", { class: "card", style: "margin-bottom:14px;padding:12px" },
-      el("div", { style: "display:flex;gap:8px;align-items:center;margin-bottom:6px" },
-        el("strong", {}, String(i + 1)), titelIn, stand),
-      textIn,
-      el("div", { class: "btnrow", style: "margin-top:6px" }, folgeSel, einfuegen, kiBtn, bogenBtn, speichern, leeren, archivWeg),
-      el("div", { class: "btnrow", style: "margin-top:6px" }, archivSel),
-      bogenBox));
-  }
-
-  root.append(kopf, liste);
+  root.append(kopf, el("div", { class: "card", style: "margin-top:12px;padding:12px" },
+    el("div", { style: "display:flex;gap:8px;align-items:center;margin-bottom:6px" }, titelIn, stand),
+    textIn,
+    el("div", { class: "btnrow", style: "margin-top:6px" }, folgeSel, einfuegen, kiBtn, bogenBtn, speichern, imStudio, leeren, archivWeg),
+    el("div", { class: "btnrow", style: "margin-top:6px;align-items:center" }, archivSel, archivStand),
+    bogenBox));
 }

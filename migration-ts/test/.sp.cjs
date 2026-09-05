@@ -5994,6 +5994,8 @@ function preset2AusText(text) {
 }
 
 // src/features/erzaehlerbank.ts
+var archivNorm = (e2) => `${e2.titel}\u241E${e2.text}`.toLowerCase().replace(/\s+/g, " ").trim();
+var titelNorm = (t) => (t || "").toLowerCase().replace(/\s+/g, " ").trim();
 var SCHLAGFOLGEN = {
   standard: { name: "Steigender Bogen", folge: SCHLAG_STANDARD },
   kreis: { name: "Kreisschluss", folge: ["einstieg", "hook", "regel", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz", "schluss", "einstieg"] },
@@ -6010,32 +6012,13 @@ var SCHLAGFOLGEN = {
   // Text berechnet (ableiteSchlagfolge), sobald diese Bauform gewählt ist.
   eigen: { name: "Eigene \u2014 aus dem Text abgeleitet", folge: [] }
 };
-var ERZAEHLER_PLAETZE = 10;
-var BANK_KEY = "dm_erzaehlerbank_v1";
+var ARBEITSPLATZ_KEY = "dm_erzaehler_arbeitsplatz_v1";
+var ALTE_BANK_KEY = "dm_erzaehlerbank_v1";
 var QUELLE_KEY = "dm_erzaehler_quelle_v1";
-function ladeErzaehlerbank() {
-  let roh = [];
-  try {
-    roh = JSON.parse(localStorage.getItem(BANK_KEY) || "[]");
-  } catch {
-    roh = [];
-  }
-  const list = Array.isArray(roh) ? roh : [];
-  return Array.from({ length: ERZAEHLER_PLAETZE }, (_, i) => {
-    const e2 = list[i];
-    const f = String(e2?.folge || "");
-    return { titel: String(e2?.titel || "").slice(0, 60), text: String(e2?.text || ""), folge: SCHLAGFOLGEN[f] ? f : void 0 };
-  });
-}
-function speichereErzaehlerbank(list) {
-  try {
-    localStorage.setItem(BANK_KEY, JSON.stringify(list.slice(0, ERZAEHLER_PLAETZE)));
-  } catch {
-  }
-}
 function ladeQuelle() {
+  migriereAltePlaetze();
   const q = localStorage.getItem(QUELLE_KEY) || "preset";
-  return q === "preset" || q === "wuerfeln" || /^[0-9]$/.test(q) ? q : "preset";
+  return q === "preset" || q === "wuerfeln" || /^a:/.test(q) ? q : "preset";
 }
 function setzeQuelle(q) {
   try {
@@ -6046,13 +6029,79 @@ function setzeQuelle(q) {
 function platzBrauchbar(e2) {
   return (e2.text || "").split(/\s+/).filter(Boolean).length >= 40;
 }
-function erzaehlerBogen(index) {
-  const e2 = ladeErzaehlerbank()[index];
+function bogenAus(e2) {
   if (!e2 || !platzBrauchbar(e2)) return null;
   const drama = preset2AusText(e2.text).drama;
   if (e2.folge === "eigen") drama.folge = ableiteSchlagfolge(e2.text);
   else if (e2.folge && SCHLAGFOLGEN[e2.folge]) drama.folge = SCHLAGFOLGEN[e2.folge].folge;
   return drama;
+}
+function eintragId(e2) {
+  const basis = `${e2.folge || "standard"}|${titelNorm(e2.titel) || archivNorm(e2)}`;
+  let h = 0;
+  for (let i = 0; i < basis.length; i++) h = h * 31 + basis.charCodeAt(i) >>> 0;
+  return `a:${e2.folge || "standard"}:${h.toString(36)}`;
+}
+function archivEintraege() {
+  migriereAltePlaetze();
+  const a = ladeArchiv();
+  const out = [];
+  for (const k of Object.keys(SCHLAGFOLGEN)) for (const e2 of a[k] || []) out.push({ ...e2, id: eintragId(e2) });
+  for (const [k, l] of Object.entries(a)) if (!SCHLAGFOLGEN[k]) for (const e2 of l) out.push({ ...e2, id: eintragId(e2) });
+  return out;
+}
+function eintragNachId(id) {
+  return archivEintraege().find((e2) => e2.id === id) || null;
+}
+var letzter = null;
+function letzterGezogen() {
+  return letzter;
+}
+function bogenFuerErzeugung() {
+  const q = ladeQuelle();
+  letzter = null;
+  if (q === "preset") return null;
+  if (q === "wuerfeln") {
+    const brauchbar = archivEintraege().filter((e3) => platzBrauchbar(e3));
+    if (!brauchbar.length) return null;
+    letzter = brauchbar[Math.floor(Math.random() * brauchbar.length)];
+    return bogenAus(letzter);
+  }
+  const e2 = eintragNachId(q);
+  if (!e2 || !platzBrauchbar(e2)) return null;
+  letzter = e2;
+  return bogenAus(e2);
+}
+function bogenBeschriftung() {
+  const q = ladeQuelle();
+  if (letzter) return { bogen: `${q === "wuerfeln" ? "gew\xFCrfelt: " : ""}${letzter.titel || "Ohne Titel"}`, bauform: SCHLAGFOLGEN[letzter.folge || "standard"]?.name || letzter.folge || "" };
+  if (q === "preset") return { bogen: "aus Preset", bauform: "Steigender Bogen" };
+  return { bogen: q === "wuerfeln" ? "w\xFCrfeln \u2014 kein brauchbarer Eintrag im Archiv" : "gew\xE4hlter Eintrag fehlt im Archiv", bauform: "" };
+}
+var migriert = false;
+function migriereAltePlaetze() {
+  if (migriert) return;
+  migriert = true;
+  try {
+    const roh = localStorage.getItem(ALTE_BANK_KEY);
+    if (!roh) return;
+    const alte = JSON.parse(roh);
+    const q = localStorage.getItem(QUELLE_KEY) || "preset";
+    let gewaehlt = null;
+    if (Array.isArray(alte)) alte.forEach((p, i) => {
+      const e2 = { titel: String(p?.titel || "").slice(0, 60), text: String(p?.text || ""), folge: SCHLAGFOLGEN[String(p?.folge || "")] ? String(p?.folge) : "standard", geburt: typeof p?.geburt === "string" ? p.geburt : void 0 };
+      if (!platzBrauchbar(e2)) return;
+      archiviere(e2);
+      if (String(i) === q || !gewaehlt && q !== "preset" && q !== "wuerfeln" && !/^[0-9]$/.test(q)) gewaehlt = e2;
+      if (!gewaehlt && q === "preset" && i === 0) gewaehlt = e2;
+    });
+    if (gewaehlt) {
+      localStorage.setItem(ARBEITSPLATZ_KEY, JSON.stringify(gewaehlt));
+      if (/^[0-9]$/.test(q)) localStorage.setItem(QUELLE_KEY, eintragId(gewaehlt));
+    }
+    localStorage.removeItem(ALTE_BANK_KEY);
+  } catch {
+  }
 }
 function ableiteSchlagfolge(text) {
   const stuecke = teilstuecke(text);
@@ -6105,33 +6154,8 @@ function ableiteSchlagfolge(text) {
   }
   return folge;
 }
-var letzterPlatz = -1;
-function bogenFuerErzeugung() {
-  const q = ladeQuelle();
-  letzterPlatz = -1;
-  if (q === "preset") return null;
-  if (/^[0-9]$/.test(q)) {
-    const i2 = parseInt(q, 10);
-    const d = erzaehlerBogen(i2);
-    if (d) letzterPlatz = i2;
-    return d;
-  }
-  const brauchbar = ladeErzaehlerbank().map((e2, i2) => ({ e: e2, i: i2 })).filter((x) => platzBrauchbar(x.e));
-  if (!brauchbar.length) return null;
-  const i = brauchbar[Math.floor(Math.random() * brauchbar.length)].i;
-  letzterPlatz = i;
-  return erzaehlerBogen(i);
-}
-function bogenBeschriftung() {
-  const q = ladeQuelle();
-  if (letzterPlatz >= 0) {
-    const e2 = ladeErzaehlerbank()[letzterPlatz];
-    if (e2) return { bogen: `${q === "wuerfeln" ? "gew\xFCrfelt: " : ""}Platz ${letzterPlatz + 1} \xB7 ${e2.titel || "Ohne Titel"}`, bauform: SCHLAGFOLGEN[e2.folge || "standard"]?.name || e2.folge || "" };
-  }
-  if (q === "preset") return { bogen: "aus Preset", bauform: "Steigender Bogen" };
-  return { bogen: q === "wuerfeln" ? "w\xFCrfeln \u2014 kein brauchbarer Platz" : "gew\xE4hlter Platz ist leer", bauform: "" };
-}
 var ARCHIV_KEY = "dm_erzaehler_archiv_v1";
+var ARCHIV_JE_BAUFORM = 20;
 function ladeArchiv() {
   try {
     const r = JSON.parse(localStorage.getItem(ARCHIV_KEY) || "{}");
@@ -6143,6 +6167,45 @@ function ladeArchiv() {
   } catch {
     return {};
   }
+}
+function speichereArchiv(a) {
+  try {
+    localStorage.setItem(ARCHIV_KEY, JSON.stringify(a));
+  } catch {
+  }
+}
+function archiviere(e2) {
+  if (!platzBrauchbar(e2)) return;
+  const folge = e2.folge || "standard";
+  const a = ladeArchiv();
+  const liste = a[folge] || [];
+  const tKey = titelNorm(e2.titel);
+  const gleich = (x) => tKey ? titelNorm(x.titel) === tKey : archivNorm(x) === archivNorm(e2);
+  const vorhanden = liste.find(gleich);
+  let geburt = e2.geburt || vorhanden?.geburt;
+  if (!geburt) for (const [, l] of Object.entries(a)) {
+    const alt = l.find(gleich);
+    if (alt) {
+      geburt = alt.geburt || alt.folge;
+      break;
+    }
+  }
+  geburt = geburt || folge;
+  a[folge] = [{ titel: e2.titel || "Ohne Titel", text: e2.text, folge, geburt }, ...liste.filter((x) => !gleich(x))].slice(0, ARCHIV_JE_BAUFORM);
+  speichereArchiv(a);
+}
+function loescheEintrag(id) {
+  const a = ladeArchiv();
+  for (const [k, l] of Object.entries(a)) a[k] = l.filter((e2) => eintragId(e2) !== id);
+  speichereArchiv(a);
+}
+function bauformAendern(id, folge) {
+  const e2 = eintragNachId(id);
+  if (!e2 || !SCHLAGFOLGEN[folge]) return null;
+  loescheEintrag(id);
+  const neu = { titel: e2.titel, text: e2.text, folge, geburt: e2.geburt || e2.folge };
+  archiviere(neu);
+  return eintragId(neu);
 }
 
 // src/generation/optionen.ts
@@ -16008,14 +16071,14 @@ function baueAnlage(stand, u) {
   );
   knoten2("bilder", 0, "Bildvorrat", `${u.bildFunde} Funde`, u.bildFunde ? "an" : "aus");
   knoten2("themen", 0, "Themenpool", `${u.themenFunde} Funde`, u.themenFunde ? "an" : "aus");
-  const bankGewaehlt = /^[0-9]$/.test(u.bogenQuelle) || u.bogenQuelle === "wuerfeln";
+  const bankGewaehlt = /^a:/.test(u.bogenQuelle) || u.bogenQuelle === "wuerfeln";
   knoten2(
     "erzaehler",
     0,
     "Erz\xE4hlerbank",
-    `${u.erzaehlerBrauchbar} von 10 Pl\xE4tzen brauchbar \xB7 Archiv: ${u.erzaehlerArchiv}`,
+    `${u.erzaehlerArchiv} Geschichten im Archiv, ${u.erzaehlerBrauchbar} brauchbar`,
     !bankGewaehlt ? "aus" : u.erzaehlerBrauchbar ? "an" : "leer",
-    !bankGewaehlt ? "abgeklemmt \u2014 der Regler \u201EBogen\u201C im Werkzeugkasten steht auf \u201Eaus Preset\u201C" : u.erzaehlerBrauchbar ? "" : "gew\xE4hlt, aber kein Platz tr\xE4gt 40 W\xF6rter \u2014 Vorlagen einsetzen, Archiv w\xE4hlen oder die KI erz\xE4hlen lassen"
+    !bankGewaehlt ? "abgeklemmt \u2014 der Regler \u201EBogen\u201C im Werkzeugkasten steht auf \u201Eaus Preset\u201C" : u.erzaehlerBrauchbar ? "" : "gew\xE4hlt, aber das Archiv ist leer \u2014 Vorlagen ins Archiv, schreiben oder die KI erz\xE4hlen lassen"
   );
   knoten2(
     "welt",
@@ -16075,7 +16138,7 @@ function baueAnlage(stand, u) {
   knoten2("struktur", 2, "Struktur", bez(STRUCTURE_OPTS, struktur), "an", "", "f-structure");
   const dramaAn = struktur === "dramaturgie" || struktur === "bogen";
   const nurProsa = (r["form"] || "prose") === "prose";
-  const platzFest = /^[0-9]$/.test(u.bogenQuelle);
+  const platzFest = /^a:/.test(u.bogenQuelle);
   const wuerfelt = u.bogenQuelle === "wuerfeln";
   const bankLiefert = platzFest ? !!u.erzaehlerPlatz : wuerfelt ? u.erzaehlerBrauchbar > 0 : false;
   const bogenDa = platzFest || wuerfelt ? bankLiefert : u.dramaVorhanden;
@@ -16087,7 +16150,7 @@ function baueAnlage(stand, u) {
     "Dramaturgie",
     !dramaAn ? "aus \u2014 \xFCber Struktur" : !nurProsa ? "nur bei Prosa" : quelleWort,
     dramaZustand,
-    !dramaAn ? "Kein eigener Schalter: Struktur auf \u201EDramaturgie (Preset 2.0)\u201C stellen \u2014 im Werkzeugkasten oder als Chip unter dem Text. Wirkt nur bei Form \u201EProsa\u201C." : !nurProsa ? "Struktur steht auf Dramaturgie, die Form ist aber nicht Prosa \u2014 der Bauweg f\xE4llt still auf den gew\xF6hnlichen zur\xFCck" : bogenDa ? "" : platzFest ? "Der Regler \u201EBogen\u201C zeigt auf einen leeren Platz der Erz\xE4hlerbank \u2014 Text einf\xFCllen, per Archiv w\xE4hlen oder die KI erz\xE4hlen lassen" : wuerfelt ? "Der Regler \u201EBogen\u201C steht auf W\xFCrfeln, aber kein Platz der Erz\xE4hlerbank ist brauchbar (mindestens 40 W\xF6rter)" : "Struktur steht auf Dramaturgie, das aktive Preset tr\xE4gt aber keinen Erz\xE4hlbogen \u2014 oder unter \u201EBogen\u201C im Werkzeugkasten einen Platz der Erz\xE4hlerbank w\xE4hlen"
+    !dramaAn ? "Kein eigener Schalter: Struktur auf \u201EDramaturgie (Preset 2.0)\u201C stellen \u2014 im Werkzeugkasten oder als Chip unter dem Text. Wirkt nur bei Form \u201EProsa\u201C." : !nurProsa ? "Struktur steht auf Dramaturgie, die Form ist aber nicht Prosa \u2014 der Bauweg f\xE4llt still auf den gew\xF6hnlichen zur\xFCck" : bogenDa ? "" : platzFest ? "Der Regler \u201EBogen\u201C zeigt auf einen Eintrag, der nicht mehr im Archiv liegt \u2014 in der Erz\xE4hlerbank neu w\xE4hlen" : wuerfelt ? "Der Regler \u201EBogen\u201C steht auf W\xFCrfeln, aber das Archiv der Erz\xE4hlerbank ist leer" : "Struktur steht auf Dramaturgie, das aktive Preset tr\xE4gt aber keinen Erz\xE4hlbogen \u2014 oder unter \u201EBogen\u201C im Werkzeugkasten einen Platz der Erz\xE4hlerbank w\xE4hlen"
   );
   knoten2("modus", 2, "Modus", bez(MODE_OPTS, r["mode"] || "auto"), "an", "", "f-mode");
   const markov = r["markovMode"] || "off";
@@ -16275,15 +16338,14 @@ function sammleUmgebung(preset) {
     bogenQuelle: zahl(() => ladeQuelle(), "preset"),
     erzaehlerPlatz: zahl(() => {
       const q = ladeQuelle();
-      if (!/^[0-9]$/.test(q)) return "";
-      const i = parseInt(q, 10);
-      const e2 = ladeErzaehlerbank()[i];
+      if (!/^a:/.test(q)) return "";
+      const e2 = eintragNachId(q);
       if (!e2 || !platzBrauchbar(e2)) return "";
       const bau = SCHLAGFOLGEN[e2.folge || "standard"]?.name || e2.folge || "";
-      return `Platz ${i + 1} \xB7 ${e2.titel || "Ohne Titel"} \xB7 ${bau}`;
+      return `${e2.titel || "Ohne Titel"} \xB7 ${bau}`;
     }, ""),
-    erzaehlerBrauchbar: zahl(() => ladeErzaehlerbank().filter((e2) => platzBrauchbar(e2)).length, 0),
-    erzaehlerArchiv: zahl(() => Object.values(ladeArchiv()).reduce((n, l) => n + l.length, 0), 0),
+    erzaehlerBrauchbar: zahl(() => archivEintraege().filter((e2) => platzBrauchbar(e2)).length, 0),
+    erzaehlerArchiv: zahl(() => archivEintraege().length, 0),
     waechter: zahl(
       () => {
         const k = statistikKurz();
@@ -26200,11 +26262,15 @@ function mountStudio(root) {
     const wahl = ladeQuelle();
     bogenSel.innerHTML = "";
     bogenSel.append(el("option", { value: "preset" }, "aus Preset"));
-    ladeErzaehlerbank().forEach((e2, i) => {
-      if (!platzBrauchbar(e2)) return;
-      bogenSel.append(el("option", { value: String(i) }, `${i + 1} \xB7 ${e2.titel || "ohne Titel"}`));
-    });
-    bogenSel.append(el("option", { value: "wuerfeln" }, "w\xFCrfeln je Erzeugung"));
+    const alle = archivEintraege().filter((e2) => platzBrauchbar(e2));
+    for (const [k, v] of Object.entries(SCHLAGFOLGEN)) {
+      const gruppe = alle.filter((e2) => (e2.folge || "standard") === k);
+      if (!gruppe.length) continue;
+      const og = el("optgroup", { label: v.name });
+      for (const e2 of gruppe) og.append(el("option", { value: e2.id }, e2.titel || "Ohne Titel"));
+      bogenSel.append(og);
+    }
+    bogenSel.append(el("option", { value: "wuerfeln" }, alle.length ? `w\xFCrfeln je Erzeugung (${alle.length} im Archiv)` : "w\xFCrfeln je Erzeugung"));
     bogenSel.value = Array.from(bogenSel.options).some((o) => o.value === wahl) ? wahl : "preset";
   };
   bogenFuellen();
@@ -26219,8 +26285,8 @@ function mountStudio(root) {
     }
     bogenStatus.style.display = "";
     const bogenStruktur = structure.value === "dramaturgie" || structure.value === "bogen";
-    const brauchbar = ladeErzaehlerbank().filter((e2) => platzBrauchbar(e2)).length;
-    const platzLeer = /^[0-9]$/.test(q) && !platzBrauchbar(ladeErzaehlerbank()[parseInt(q, 10)] || { titel: "", text: "" });
+    const brauchbar = archivEintraege().filter((e2) => platzBrauchbar(e2)).length;
+    const platzLeer = /^a:/.test(q) && !eintragNachId(q);
     if (form.value !== "prose") bogenStatus.append("wirkt nicht: nur bei Form \u201EProsa\u201C");
     else if (!bogenStruktur) {
       const knopf = el("button", { type: "button", class: "mini-link" }, "auf \u201EDramaturgie\u201C stellen");
@@ -26230,8 +26296,8 @@ function mountStudio(root) {
         structure.dispatchEvent(new Event("change"));
       });
       bogenStatus.append("wirkt nicht: Struktur ist \u201E", structure.options[structure.selectedIndex]?.text || structure.value, "\u201C \u2014 ", knopf);
-    } else if (platzLeer) bogenStatus.append("wirkt nicht: der gew\xE4hlte Platz ist leer \u2014 in der Erz\xE4hlerbank f\xFCllen");
-    else if (q === "wuerfeln" && !brauchbar) bogenStatus.append("wirkt nicht: kein Platz der Erz\xE4hlerbank ist brauchbar");
+    } else if (platzLeer) bogenStatus.append("wirkt nicht: der gew\xE4hlte Eintrag fehlt im Archiv \u2014 in der Erz\xE4hlerbank w\xE4hlen");
+    else if (q === "wuerfeln" && !brauchbar) bogenStatus.append("wirkt nicht: das Archiv der Erz\xE4hlerbank ist leer");
     else if (strukturVorher) {
       const zurueck = el("button", { type: "button", class: "mini-link" }, `zur\xFCck auf \u201E${STRUCTURE_OPTS.find(([v]) => v === strukturVorher)?.[1] || strukturVorher}\u201C`);
       zurueck.addEventListener("click", () => {
@@ -26256,20 +26322,19 @@ function mountStudio(root) {
   const bauformSel = select("f-bauform", Object.entries(SCHLAGFOLGEN).map(([k, v]) => [k, v.name]), "standard");
   const bauformSync = () => {
     const q = ladeQuelle();
-    const i = /^[0-9]$/.test(q) ? parseInt(q, 10) : -1;
-    const e2 = i >= 0 ? ladeErzaehlerbank()[i] : null;
+    const e2 = /^a:/.test(q) ? eintragNachId(q) : null;
     bauformSel.disabled = !e2;
-    bauformSel.title = e2 ? `Bauform von Platz ${i + 1} \xE4ndern \u2014 schreibt in die Erz\xE4hlerbank` : "Bauform geh\xF6rt zum gew\xE4hlten Platz \u2014 bei \u201Eaus Preset\u201C oder \u201Ew\xFCrfeln\u201C nicht schaltbar";
+    bauformSel.title = e2 ? `Bauform von \u201E${e2.titel || "Ohne Titel"}\u201C \xE4ndern \u2014 der Eintrag zieht ins Archiv der neuen Bauform` : "Bauform geh\xF6rt zum gew\xE4hlten Eintrag \u2014 bei \u201Eaus Preset\u201C oder \u201Ew\xFCrfeln\u201C nicht schaltbar";
     if (e2) bauformSel.value = e2.folge || "standard";
   };
   bauformSel.addEventListener("change", () => {
     const q = ladeQuelle();
-    if (!/^[0-9]$/.test(q)) return;
-    const i = parseInt(q, 10);
-    const alle = ladeErzaehlerbank();
-    if (!alle[i]) return;
-    alle[i] = { ...alle[i], folge: bauformSel.value };
-    speichereErzaehlerbank(alle);
+    if (!/^a:/.test(q)) return;
+    const neuId = bauformAendern(q, bauformSel.value);
+    if (neuId) {
+      setzeQuelle(neuId);
+      bogenFuellen();
+    }
   });
   bauformSync();
   document.addEventListener("visibilitychange", bogenFuellen);
@@ -26555,7 +26620,7 @@ function mountStudio(root) {
       const d = loadDramaData();
       const folge = phasenAusSchlagfolge(d?.folge);
       const q = ladeQuelle();
-      const platz = /^[0-9]$/.test(q) ? ladeErzaehlerbank()[parseInt(q, 10)] : null;
+      const platz = letzterGezogen() || (/^a:/.test(q) ? eintragNachId(q) : null);
       const bauform = platz ? SCHLAGFOLGEN[platz.folge || "standard"]?.name || platz.folge || "" : q === "wuerfeln" ? "gew\xFCrfelt" : d?.folge ? "aus Preset" : "ohne Bogen \u2014 lineare Folge";
       const ausBogen = tr.filter((x) => x.quelle === "dramaturgie").length;
       planBox.append(el(
@@ -27448,7 +27513,7 @@ function mountStudio(root) {
       rekHint.textContent = `Hinweis: \u201ERekombination\u201C wirkt nur bei Prosa und Prosagedicht. Bei \u201E${form.options[form.selectedIndex]?.text || form.value}\u201C baut die Maschine \xFCber die Schablonen \u2014 die Struktur bleibt hier ohne Wirkung.`;
       return;
     }
-    const erzaehlerBogenDa = ladeQuelle() !== "preset" && ladeErzaehlerbank().some(platzBrauchbar);
+    const erzaehlerBogenDa = ladeQuelle() !== "preset" && archivEintraege().some(platzBrauchbar);
     const brauchtBogen = structure.value === "dramaturgie" || structure.value === "bogen";
     const name = structure.value === "bogen" ? "Rekombination mit Bogen" : "Dramaturgie";
     if (brauchtBogen && !(form.value === "prose" && (hasDramaData() || erzaehlerBogenDa))) {
@@ -31342,14 +31407,14 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
   const kn = (a, id) => a.knoten.find((k) => k.id === id);
   const a1 = baueAnlage(STAND({}), UMGEBUNG({ erzaehlerBrauchbar: 7, erzaehlerArchiv: 12 }));
   ist("abgeklemmt bei \u201Eaus Preset\u201C", kn(a1, "erzaehler").zustand, "aus");
-  wahr("der Wert z\xE4hlt Pl\xE4tze und Archiv", /7 von 10 Plätzen brauchbar · Archiv: 12/.test(kn(a1, "erzaehler").wert));
-  const a2 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "2", erzaehlerPlatz: "Platz 3 \xB7 Der F\xE4hrmann \xB7 R\xFCckw\xE4rts", erzaehlerBrauchbar: 7 }));
+  wahr("der Wert z\xE4hlt das Archiv", /12 Geschichten im Archiv, 7 brauchbar/.test(kn(a1, "erzaehler").wert));
+  const a2 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "a:rueckwaerts:x1", erzaehlerPlatz: "Der F\xE4hrmann \xB7 R\xFCckw\xE4rts", erzaehlerBrauchbar: 7 }));
   ist("fester Platz: Vorrat an", kn(a2, "erzaehler").zustand, "an");
   ist("Dramaturgie an, obwohl das Preset keinen Bogen tr\xE4gt", kn(a2, "drama").zustand, "an");
-  wahr("und sie nennt den Platz", /Erzählerbank, Platz 3 · Der Fährmann · Rückwärts/.test(kn(a2, "drama").wert));
-  const a3 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "4", erzaehlerPlatz: "", erzaehlerBrauchbar: 3 }));
-  ist("leerer Platz: Dramaturgie leer", kn(a3, "drama").zustand, "leer");
-  wahr("der Hinweis zeigt den Weg", /leeren Platz der Erzählerbank/.test(kn(a3, "drama").hinweis));
+  wahr("und sie nennt den Eintrag", /Erzählerbank, Der Fährmann · Rückwärts/.test(kn(a2, "drama").wert));
+  const a3 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "a:still:weg", erzaehlerPlatz: "", erzaehlerBrauchbar: 3 }));
+  ist("fehlender Eintrag: Dramaturgie leer", kn(a3, "drama").zustand, "leer");
+  wahr("der Hinweis zeigt den Weg", /nicht mehr im Archiv liegt/.test(kn(a3, "drama").hinweis));
   const a4 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "wuerfeln", erzaehlerBrauchbar: 5 }));
   wahr("W\xFCrfeln nennt die Anzahl", /würfelt je Erzeugung aus 5 brauchbaren Plätzen/.test(kn(a4, "drama").wert));
   const a5 = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ bogenQuelle: "wuerfeln", erzaehlerBrauchbar: 0 }));

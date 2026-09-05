@@ -30,6 +30,9 @@ import { SCHLAG_STANDARD } from "../generation/dramaturgie";
 import { preset2AusText, teilstuecke, kategorieFuer } from "./textpreset";
 import { deriveAtom } from "../atoms/derive";
 
+const archivNorm = (e: Erzaehlung): string => `${e.titel}\u241E${e.text}`.toLowerCase().replace(/\s+/g, " ").trim();
+const titelNorm = (t: string): string => (t || "").toLowerCase().replace(/\s+/g, " ").trim();
+
 export interface Erzaehlung {
   titel: string; text: string;
   /** Schlüssel einer Bauform aus SCHLAGFOLGEN. */ folge?: string;
@@ -59,51 +62,131 @@ export const SCHLAGFOLGEN: Record<string, { name: string; folge: string[] }> = {
   // Text berechnet (ableiteSchlagfolge), sobald diese Bauform gewählt ist.
   eigen:         { name: "Eigene — aus dem Text abgeleitet", folge: [] },
 };
-export const ERZAEHLER_PLAETZE = 10;
-const BANK_KEY = "dm_erzaehlerbank_v1";
+// ── Ein Arbeitsplatz, das Archiv als Bank (Umbau 4.341.0) ──────────────────
+// Gewünscht: Die zehn Plätze waren nur Sichtfenster auf denselben Vorrat,
+// seit jede gespeicherte Geschichte im Archiv liegt und dort wählbar ist.
+// Jetzt: EIN Arbeitsplatz (Titel, Text, Bauform) zum Schreiben, das Archiv
+// als Bank — der Regler „Bogen" im Studio zeigt die Archiv-Einträge, Würfeln
+// zieht aus dem ganzen Archiv. Alte Plätze wandern beim ersten Aufruf ins
+// Archiv (migriereAltePlaetze), nichts geht verloren.
+const ARBEITSPLATZ_KEY = "dm_erzaehler_arbeitsplatz_v1";
+const ALTE_BANK_KEY = "dm_erzaehlerbank_v1";
 const QUELLE_KEY = "dm_erzaehler_quelle_v1";
 
-/** Immer genau zehn Plätze — leere als { titel: "", text: "" }. */
-export function ladeErzaehlerbank(): Erzaehlung[] {
-  let roh: unknown = [];
-  try { roh = JSON.parse(localStorage.getItem(BANK_KEY) || "[]"); } catch { roh = []; }
-  const list = Array.isArray(roh) ? roh : [];
-  return Array.from({ length: ERZAEHLER_PLAETZE }, (_, i) => {
-    const e = list[i] as Partial<Erzaehlung> | undefined;
+export function ladeArbeitsplatz(): Erzaehlung {
+  migriereAltePlaetze();
+  try {
+    const e = JSON.parse(localStorage.getItem(ARBEITSPLATZ_KEY) || "null") as Partial<Erzaehlung> | null;
     const f = String(e?.folge || "");
-    return { titel: String(e?.titel || "").slice(0, 60), text: String(e?.text || ""), folge: SCHLAGFOLGEN[f] ? f : undefined };
-  });
+    return { titel: String(e?.titel || "").slice(0, 60), text: String(e?.text || ""), folge: SCHLAGFOLGEN[f] ? f : "standard",
+      geburt: typeof e?.geburt === "string" ? e.geburt : undefined };
+  } catch { return { titel: "", text: "", folge: "standard" }; }
+}
+export function speichereArbeitsplatz(e: Erzaehlung): void {
+  try { localStorage.setItem(ARBEITSPLATZ_KEY, JSON.stringify(e)); } catch { /* voll */ }
 }
 
-export function speichereErzaehlerbank(list: Erzaehlung[]): void {
-  try { localStorage.setItem(BANK_KEY, JSON.stringify(list.slice(0, ERZAEHLER_PLAETZE))); } catch { /* voll */ }
-}
-
-/** Die Wahl: "preset" | "wuerfeln" | "0" … "9" (fester Platz). */
+/** Die Wahl im Studio: "preset" | "wuerfeln" | Kennung eines Archiv-Eintrags. */
 export type ErzaehlerQuelle = string;
 export function ladeQuelle(): ErzaehlerQuelle {
+  migriereAltePlaetze();
   const q = localStorage.getItem(QUELLE_KEY) || "preset";
-  return q === "preset" || q === "wuerfeln" || /^[0-9]$/.test(q) ? q : "preset";
+  return q === "preset" || q === "wuerfeln" || /^a:/.test(q) ? q : "preset";
 }
 export function setzeQuelle(q: ErzaehlerQuelle): void {
   try { localStorage.setItem(QUELLE_KEY, q); } catch { /* voll */ }
 }
 
-/** Ein Platz ist brauchbar, wenn sein Text genug Teilstücke hergibt. */
+/** Ein Text ist brauchbar, wenn er genug Teilstücke hergibt. */
 export function platzBrauchbar(e: Erzaehlung): boolean {
   return (e.text || "").split(/\s+/).filter(Boolean).length >= 40;
 }
 
-/** Der Bogen eines Platzes — oder null, wenn er leer/zu dünn ist. */
-export function erzaehlerBogen(index: number): DramaData | null {
-  const e = ladeErzaehlerbank()[index];
+/** Der Bogen einer Erzählung — oder null, wenn sie zu dünn ist. Die Bauform
+ *  wird zur Schlagfolge des Bogens; „eigen" leitet sie aus dem Text ab. */
+export function bogenAus(e: Erzaehlung | null | undefined): DramaData | null {
   if (!e || !platzBrauchbar(e)) return null;
   const drama = preset2AusText(e.text).drama;
-  // Die Bauform des Platzes wird zur Schlagfolge des Bogens — so schlägt sie
-  // in der Struktur „Dramaturgie" wirklich durch.
   if (e.folge === "eigen") drama.folge = ableiteSchlagfolge(e.text);
   else if (e.folge && SCHLAGFOLGEN[e.folge]) drama.folge = SCHLAGFOLGEN[e.folge]!.folge;
   return drama;
+}
+
+/** Kennung eines Archiv-Eintrags: Bauform + Titel-Identität. Stabil über
+ *  Textänderungen, weil der Titel die Identität ist (4.335.7); ohne Titel
+ *  der Wortlaut. */
+export function eintragId(e: Erzaehlung): string {
+  const basis = `${e.folge || "standard"}|${titelNorm(e.titel) || archivNorm(e)}`;
+  let h = 0;
+  for (let i = 0; i < basis.length; i++) h = (h * 31 + basis.charCodeAt(i)) >>> 0;
+  return `a:${e.folge || "standard"}:${h.toString(36)}`;
+}
+
+/** Alle Archiv-Einträge, nach Bauform in der Ordnung der SCHLAGFOLGEN. */
+export function archivEintraege(): (Erzaehlung & { id: string })[] {
+  migriereAltePlaetze();
+  const a = ladeArchiv();
+  const out: (Erzaehlung & { id: string })[] = [];
+  for (const k of Object.keys(SCHLAGFOLGEN)) for (const e of a[k] || []) out.push({ ...e, id: eintragId(e) });
+  for (const [k, l] of Object.entries(a)) if (!SCHLAGFOLGEN[k]) for (const e of l) out.push({ ...e, id: eintragId(e) });
+  return out;
+}
+export function eintragNachId(id: string): (Erzaehlung & { id: string }) | null {
+  return archivEintraege().find((e) => e.id === id) || null;
+}
+
+let letzter: (Erzaehlung & { id: string }) | null = null;
+/** Welcher Eintrag zuletzt gezogen wurde (auch beim Würfeln). */
+export function letzterGezogen(): (Erzaehlung & { id: string }) | null { return letzter; }
+export function bogenFuerErzeugung(): DramaData | null {
+  const q = ladeQuelle();
+  letzter = null;
+  if (q === "preset") return null;
+  if (q === "wuerfeln") {
+    const brauchbar = archivEintraege().filter((e) => platzBrauchbar(e));
+    if (!brauchbar.length) return null;
+    letzter = brauchbar[Math.floor(Math.random() * brauchbar.length)]!;
+    return bogenAus(letzter);
+  }
+  const e = eintragNachId(q);
+  if (!e || !platzBrauchbar(e)) return null;
+  letzter = e;
+  return bogenAus(e);
+}
+/** Beschriftung des geladenen Bogens — für Infoblasen. */
+export function bogenBeschriftung(): { bogen: string; bauform: string } {
+  const q = ladeQuelle();
+  if (letzter) return { bogen: `${q === "wuerfeln" ? "gewürfelt: " : ""}${letzter.titel || "Ohne Titel"}`, bauform: SCHLAGFOLGEN[letzter.folge || "standard"]?.name || letzter.folge || "" };
+  if (q === "preset") return { bogen: "aus Preset", bauform: "Steigender Bogen" };
+  return { bogen: q === "wuerfeln" ? "würfeln — kein brauchbarer Eintrag im Archiv" : "gewählter Eintrag fehlt im Archiv", bauform: "" };
+}
+
+/** Alte Zehn-Plätze-Bank ins Archiv überführen — einmalig, beim ersten
+ *  Aufruf nach dem Umbau. Der zuletzt gewählte Platz wird zum Arbeitsplatz
+ *  und bleibt gewählt; leere Plätze fallen. */
+let migriert = false;
+export function migriereAltePlaetze(): void {
+  if (migriert) return;
+  migriert = true;
+  try {
+    const roh = localStorage.getItem(ALTE_BANK_KEY);
+    if (!roh) return;
+    const alte = JSON.parse(roh) as Partial<Erzaehlung>[];
+    const q = localStorage.getItem(QUELLE_KEY) || "preset";
+    let gewaehlt: Erzaehlung | null = null;
+    if (Array.isArray(alte)) alte.forEach((p, i) => {
+      const e: Erzaehlung = { titel: String(p?.titel || "").slice(0, 60), text: String(p?.text || ""), folge: SCHLAGFOLGEN[String(p?.folge || "")] ? String(p?.folge) : "standard", geburt: typeof p?.geburt === "string" ? p.geburt : undefined };
+      if (!platzBrauchbar(e)) return;
+      archiviere(e);
+      if (String(i) === q || (!gewaehlt && q !== "preset" && q !== "wuerfeln" && !/^[0-9]$/.test(q))) gewaehlt = e;
+      if (!gewaehlt && q === "preset" && i === 0) gewaehlt = e;
+    });
+    if (gewaehlt) {
+      localStorage.setItem(ARBEITSPLATZ_KEY, JSON.stringify(gewaehlt));
+      if (/^[0-9]$/.test(q)) localStorage.setItem(QUELLE_KEY, eintragId(gewaehlt));
+    }
+    localStorage.removeItem(ALTE_BANK_KEY);
+  } catch { /* alte Bank unlesbar — sie bleibt liegen */ }
 }
 
 /** Leitet die Schlagfolge aus der Geschichte selbst ab: Jedes Teilstück wird
@@ -160,32 +243,6 @@ export function ableiteSchlagfolge(text: string): string[] {
  *  "preset" → null (der Preset-Bogen gilt); fester Platz → sein Bogen;
  *  "wuerfeln" → ein zufälliger brauchbarer Platz. Fällt alles aus (leere
  *  Plätze), ebenfalls null — die Maschine erzählt dann wie bisher. */
-let letzterPlatz = -1;
-/** Welcher Platz zuletzt gezogen wurde (auch beim Würfeln), -1 = keiner. Für
- *  die Infoblase „Bogen" in der Struktur-Ansicht. */
-export function letzterGezogenerPlatz(): number { return letzterPlatz; }
-export function bogenFuerErzeugung(): DramaData | null {
-  const q = ladeQuelle();
-  letzterPlatz = -1;
-  if (q === "preset") return null;
-  if (/^[0-9]$/.test(q)) { const i = parseInt(q, 10); const d = erzaehlerBogen(i); if (d) letzterPlatz = i; return d; }
-  const brauchbar = ladeErzaehlerbank().map((e, i) => ({ e, i })).filter((x) => platzBrauchbar(x.e));
-  if (!brauchbar.length) return null;
-  const i = brauchbar[Math.floor(Math.random() * brauchbar.length)]!.i;
-  letzterPlatz = i;
-  return erzaehlerBogen(i);
-}
-/** Beschriftung des geladenen Bogens — für Infoblasen. */
-export function bogenBeschriftung(): { bogen: string; bauform: string } {
-  const q = ladeQuelle();
-  if (letzterPlatz >= 0) {
-    const e = ladeErzaehlerbank()[letzterPlatz];
-    if (e) return { bogen: `${q === "wuerfeln" ? "gewürfelt: " : ""}Platz ${letzterPlatz + 1} · ${e.titel || "Ohne Titel"}`, bauform: SCHLAGFOLGEN[e.folge || "standard"]?.name || e.folge || "" };
-  }
-  if (q === "preset") return { bogen: "aus Preset", bauform: "Steigender Bogen" };
-  return { bogen: q === "wuerfeln" ? "würfeln — kein brauchbarer Platz" : "gewählter Platz ist leer", bauform: "" };
-}
-
 // ── KI: Einen Platz neu erzählen lassen ─────────────────────────────────────
 // Gewünscht: Die zehn Bögen sollen auch per KI erneuert/gewürfelt werden
 // können — jeder für sich. Die KI schreibt eine neue Kurzgeschichte in der
@@ -252,7 +309,6 @@ export function ladeArchiv(): ErzaehlArchiv {
 export function speichereArchiv(a: ErzaehlArchiv): void {
   try { localStorage.setItem(ARCHIV_KEY, JSON.stringify(a)); } catch { /* voll */ }
 }
-const archivNorm = (e: Erzaehlung): string => `${e.titel}\u241E${e.text}`.toLowerCase().replace(/\s+/g, " ").trim();
 
 /** Legt eine Geschichte im Archiv ihrer Bauform ab — gewünscht (4.335.7):
  *  Der TITEL ist die Identität. Gibt es unter dieser Bauform schon einen
@@ -261,7 +317,6 @@ const archivNorm = (e: Erzaehlung): string => `${e.titel}\u241E${e.text}`.toLowe
  *  neue Version. Erst ein NEUER Titel legt einen neuen Eintrag an.
  *  Ohne Titel gilt der Wortlaut als Identität, damit namenlose Texte sich
  *  nicht gegenseitig überschreiben. */
-const titelNorm = (t: string): string => (t || "").toLowerCase().replace(/\s+/g, " ").trim();
 export function archiviere(e: Erzaehlung): void {
   if (!platzBrauchbar(e)) return;
   const folge = e.folge || "standard";
@@ -286,4 +341,20 @@ export function loescheAusArchiv(folge: string, index: number): void {
   if (index < 0 || index >= liste.length) return;
   a[folge] = liste.filter((_, i) => i !== index);
   speichereArchiv(a);
+}
+export function loescheEintrag(id: string): void {
+  const a = ladeArchiv();
+  for (const [k, l] of Object.entries(a)) a[k] = l.filter((e) => eintragId(e) !== id);
+  speichereArchiv(a);
+}
+/** Bauform eines Archiv-Eintrags ändern: Der Eintrag zieht in das Archiv der
+ *  neuen Bauform um (Titel-Identität bleibt, Geburt bleibt). Gibt die neue
+ *  Kennung zurück. */
+export function bauformAendern(id: string, folge: string): string | null {
+  const e = eintragNachId(id);
+  if (!e || !SCHLAGFOLGEN[folge]) return null;
+  loescheEintrag(id);
+  const neu: Erzaehlung = { titel: e.titel, text: e.text, folge, geburt: e.geburt || e.folge };
+  archiviere(neu);
+  return eintragId(neu);
 }

@@ -4125,6 +4125,51 @@ function splitSpeakers(who) {
 init_text_utils();
 init_verben();
 init_verblex_data();
+
+// src/features/waechterStatistik.ts
+var KEY = "dm_waechter_statistik_v1";
+var BEISPIELE_JE = 5;
+var cache = null;
+var schreibTimer = null;
+function leer() {
+  return { zaehler: {}, beispiele: {}, seit: (/* @__PURE__ */ new Date()).toISOString() };
+}
+function ladeStatistik() {
+  if (cache) return cache;
+  try {
+    const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(KEY);
+    const v = raw ? JSON.parse(raw) : null;
+    cache = v && v.zaehler && v.beispiele ? v : leer();
+  } catch {
+    cache = leer();
+  }
+  return cache;
+}
+function speichern() {
+  if (schreibTimer !== null) return;
+  schreibTimer = (typeof window !== "undefined" ? window.setTimeout : setTimeout)(() => {
+    schreibTimer = null;
+    try {
+      if (typeof localStorage !== "undefined" && cache) localStorage.setItem(KEY, JSON.stringify(cache));
+    } catch {
+    }
+  }, 1e3);
+}
+function zaehle(was, beispiel) {
+  const st2 = ladeStatistik();
+  st2.zaehler[was] = (st2.zaehler[was] || 0) + 1;
+  if (beispiel) {
+    const b = st2.beispiele[was] || [];
+    const kurz = beispiel.trim().slice(0, 140);
+    if (!b.includes(kurz)) {
+      b.unshift(kurz);
+      st2.beispiele[was] = b.slice(0, BEISPIELE_JE);
+    }
+  }
+  speichern();
+}
+
+// src/generation/coherence.ts
 init_nouns_data();
 var PRAET_STRONG = /\b(war|waren|warst|hatte|hatten|wurde|wurden|ging|gingen|kam|kamen|sah|sahen|gab|gaben|stand|standen|blieb|blieben|hielt|hielten|ließ|ließen|fand|fanden|nahm|nahmen|sprach|sprachen|schrieb|schrieben|trug|trugen|fuhr|fuhren|lief|liefen|saß|saßen|lag|lagen|hieß|hießen|zog|zogen|schlief|schliefen|rief|riefen|fiel|fielen|sang|sangen|trank|tranken|schwieg|schwiegen|floss|flossen|stieg|stiegen|sank|sanken|bot|boten|schloss|schlossen|verlor|verloren|begann|begannen|geschah|geschahen|konnte|konnten|musste|mussten|wollte|wollten|sollte|sollten|durfte|durften|wusste|wussten|dachte|dachten|brachte|brachten)\b/i;
 var PRAET_WEAK = /\b[a-zäöüß]{3,}(te|ten|test)\b/;
@@ -4266,7 +4311,11 @@ function praesensUmschreiben(entry) {
     }
   }
   const text = words.join("");
-  return { text, ok: !isPastTense(text) && unklar === 0, changed };
+  const ok = !isPastTense(text) && unklar === 0;
+  if (ok && changed) zaehle("umgeschrieben", `${entry} \u2192 ${text}`);
+  else if (!ok && unklar) zaehle("unklar", entry);
+  else if (!ok) zaehle("praeteritumVerworfen", entry);
+  return { text, ok, changed };
 }
 function toPresentSicher(entry) {
   const AUX = /\b(hat|haben|habe|hast|habt|hatte|hatten|ist|sind|bin|bist|seid|war|waren|wird|werden|wurde|wurden|worden)\b/i;
@@ -4641,11 +4690,11 @@ var KNOB_SPANNE = {
   satzlaenge: { min: 0, max: 21, step: 3 },
   atomgroesse: { min: 0, max: 24, step: 2 }
 };
-var KEY = "dm_knobs_v1";
+var KEY2 = "dm_knobs_v1";
 var klemm = (v, s) => Math.max(s.min, Math.min(s.max, v));
 function loadKnobs() {
   try {
-    const r = localStorage.getItem(KEY);
+    const r = localStorage.getItem(KEY2);
     if (!r) return { ...KNOB_VORGABE };
     const p = JSON.parse(r);
     return {
@@ -4665,7 +4714,7 @@ function loadKnobs() {
 }
 function saveKnobs(k) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(k));
+    localStorage.setItem(KEY2, JSON.stringify(k));
   } catch {
   }
 }
@@ -4677,18 +4726,28 @@ var NP_KOPF = /^(der|die|das|ein|eine|einen|einem|einer|kein|keine|zwei|drei|man
 var NEBENSATZ = /,\s+(der|die|das|dem|den|dessen|deren|welche[rsmn]?|dass|weil|wenn|als|während|obwohl|nachdem|bevor|sobald|solange|seit|seitdem|damit|sodass|ohne|um|statt|anstatt|wo|worin|was|wer|wie|ob|falls|indem)\b[^,]*$/i;
 var tragfaehig = (s) => wc(s) >= 3 && (hatFinitesVerb(s) || NP_KOPF.test(s));
 function atomisiere(text, max) {
+  const teile = atomisiereRoh(text, max);
+  const t = trimSatz(text || "");
+  if (t && max >= 6 && wc(t) > max) {
+    if (teile.length > 1) zaehle("atomZerlegt", `${t} \u2192 ${teile.join(" | ")}`);
+    else if (teile.length === 1 && teile[0] !== t) zaehle("atomGekuerzt", `${t} \u2192 ${teile[0]}`);
+    else zaehle("atomGanzZuLang", t);
+  }
+  return teile;
+}
+function atomisiereRoh(text, max) {
   const t = trimSatz(text || "");
   if (!t) return [];
   if (!max || max < 6 || wc(t) <= max) return [t];
   const harte = t.split(/\s*(?:—|–|;|:)\s+/).map(trimSatz).filter((x) => wc(x) >= 3);
-  if (harte.length > 1) return harte.flatMap((x) => atomisiere(x, max));
+  if (harte.length > 1) return harte.flatMap((x) => atomisiereRoh(x, max));
   const koord = t.match(/^(.+?),\s+(und|aber|doch|denn|sondern)\s+(.+)$/i);
   if (koord && hatFinitesVerb(koord[1]) && hatFinitesVerb(koord[3]) && wc(koord[1]) >= 3 && wc(koord[3]) >= 3)
-    return [...atomisiere(koord[1], max), ...atomisiere(koord[3], max)];
+    return [...atomisiereRoh(koord[1], max), ...atomisiereRoh(koord[3], max)];
   const ns = t.match(NEBENSATZ);
   if (ns && ns.index !== void 0) {
     const haupt = trimSatz(t.slice(0, ns.index));
-    if (tragfaehig(haupt) && wc(haupt) >= 4) return atomisiere(haupt, max);
+    if (tragfaehig(haupt) && wc(haupt) >= 4) return atomisiereRoh(haupt, max);
   }
   return [t];
 }
@@ -5355,22 +5414,22 @@ function kategorieFuer(stueck, istSchluss) {
 }
 function presetAusText(text) {
   const stuecke = teilstuecke(text);
-  const bank2 = { motifs: [], hooks: [], props: [], turns: [], obstacles: [], stakes: [], endings: [] };
+  const bank = { motifs: [], hooks: [], props: [], turns: [], obstacles: [], stakes: [], endings: [] };
   const schlussGrenze = Math.max(0, stuecke.length - 2);
   const gesehen = /* @__PURE__ */ new Set();
   stuecke.forEach((s, i) => {
     const key = s.toLowerCase();
     if (gesehen.has(key)) return;
     gesehen.add(key);
-    bank2[kategorieFuer(s, i >= schlussGrenze && deriveAtom(s).typ === "hauptsatz")].push(s);
+    bank[kategorieFuer(s, i >= schlussGrenze && deriveAtom(s).typ === "hauptsatz")].push(s);
   });
   for (const k of KATEGORIEN) {
-    if (bank2[k].length) continue;
-    const vollste = KATEGORIEN.filter((x) => bank2[x].length > 1).sort((a, b) => bank2[b].length - bank2[a].length)[0];
-    if (vollste) bank2[k].push(bank2[vollste].pop());
+    if (bank[k].length) continue;
+    const vollste = KATEGORIEN.filter((x) => bank[x].length > 1).sort((a, b) => bank[b].length - bank[a].length)[0];
+    if (vollste) bank[k].push(bank[vollste].pop());
   }
   const woerter3 = (text || "").split(/\s+/).filter(Boolean).length;
-  return { bank: bank2, woerter: woerter3, stuecke: gesehen.size };
+  return { bank, woerter: woerter3, stuecke: gesehen.size };
 }
 function preset2AusText(text) {
   const p = presetAusText(text);
@@ -5393,6 +5452,8 @@ function preset2AusText(text) {
 var VORLAGE_EVOLUTION = `Das Leben probiert alles einmal aus. Ein Kiefer aus fr\xFCheren Zeiten. Die Flosse erinnert sich an den Weg zum Ufer. Ein Auge, das in vier Linien zugleich erfunden wird. Der lange Hals entscheidet \xFCber den Hunger. Eine Feder, die zuerst w\xE4rmt und dann tr\xE4gt. Das Wasser entl\xE4sst seine Kinder an Land. Ein Panzer mit Jahresringen. Die Zuf\xE4lle sammeln sich, bis sie wie ein Plan aussehen. Aber kein Bauplan liegt dem Ganzen bei. Die Kiemen schlie\xDFen sich, und die Lunge \xFCbernimmt. Ein Fossil im Kalk. Kein Merkmal wei\xDF, wof\xFCr es sp\xE4ter gut sein wird. Die Insel formt ihre eigenen Schn\xE4bel. Es geht um den n\xE4chsten Morgen, nicht um den fernen Plan. Pl\xF6tzlich kippt das Klima, und die Gr\xF6\xDFten verschwinden zuerst. Dann beginnt das Kleine, die leeren R\xE4ume zu besetzen. Ein angespitzter Zahn als Werkzeug. Die Landschaft schreibt an den K\xF6rpern mit. Der Wald weicht der Savanne, und der Gang richtet sich auf. Eine Hand mit einem Daumen, der den Fingern begegnet. Das Erbgut vergisst nichts und verr\xE4t nichts. Aber die L\xFCcke zwischen den Funden bleibt. Die H\xE4utung dauert eine Nacht und ein Erdzeitalter. Ein Bernstein mit M\xFCcke. Es geht um das Weiterreichen selbst. Die Arten wandern, wenn der Boden es verlangt. Ein Geweih, das zu schwer f\xFCr seinen Tr\xE4ger wird. Die Anpassung kennt keine Richtung, nur den n\xE4chsten Schritt. Pl\xF6tzlich steht ein Tier am Feuer und gibt ihm einen Namen. Dann wendet sich die Auslese nach innen. Die Schrift \xFCbernimmt, was die Knochen begonnen haben. Am Ende sitzt das Ergebnis am Mikroskop und sucht seinen Anfang. Zur\xFCck bleibt ein Abdruck im Schlamm, \xE4lter als jede Frage.`;
 
 // src/features/erzaehlerbank.ts
+var archivNorm = (e) => `${e.titel}\u241E${e.text}`.toLowerCase().replace(/\s+/g, " ").trim();
+var titelNorm = (t) => (t || "").toLowerCase().replace(/\s+/g, " ").trim();
 var SCHLAGFOLGEN = {
   standard: { name: "Steigender Bogen", folge: SCHLAG_STANDARD },
   kreis: { name: "Kreisschluss", folge: ["einstieg", "hook", "regel", "mitte", "konflikt", "ausloeser", "wende", "hoehepunkt", "einsatz", "schluss", "einstieg"] },
@@ -5409,32 +5470,34 @@ var SCHLAGFOLGEN = {
   // Text berechnet (ableiteSchlagfolge), sobald diese Bauform gewählt ist.
   eigen: { name: "Eigene \u2014 aus dem Text abgeleitet", folge: [] }
 };
-var ERZAEHLER_PLAETZE = 10;
-var BANK_KEY = "dm_erzaehlerbank_v1";
+var ARBEITSPLATZ_KEY = "dm_erzaehler_arbeitsplatz_v1";
+var ALTE_BANK_KEY = "dm_erzaehlerbank_v1";
 var QUELLE_KEY = "dm_erzaehler_quelle_v1";
-function ladeErzaehlerbank() {
-  let roh = [];
+function ladeArbeitsplatz() {
+  migriereAltePlaetze();
   try {
-    roh = JSON.parse(localStorage.getItem(BANK_KEY) || "[]");
-  } catch {
-    roh = [];
-  }
-  const list = Array.isArray(roh) ? roh : [];
-  return Array.from({ length: ERZAEHLER_PLAETZE }, (_, i) => {
-    const e = list[i];
+    const e = JSON.parse(localStorage.getItem(ARBEITSPLATZ_KEY) || "null");
     const f = String(e?.folge || "");
-    return { titel: String(e?.titel || "").slice(0, 60), text: String(e?.text || ""), folge: SCHLAGFOLGEN[f] ? f : void 0 };
-  });
+    return {
+      titel: String(e?.titel || "").slice(0, 60),
+      text: String(e?.text || ""),
+      folge: SCHLAGFOLGEN[f] ? f : "standard",
+      geburt: typeof e?.geburt === "string" ? e.geburt : void 0
+    };
+  } catch {
+    return { titel: "", text: "", folge: "standard" };
+  }
 }
-function speichereErzaehlerbank(list) {
+function speichereArbeitsplatz(e) {
   try {
-    localStorage.setItem(BANK_KEY, JSON.stringify(list.slice(0, ERZAEHLER_PLAETZE)));
+    localStorage.setItem(ARBEITSPLATZ_KEY, JSON.stringify(e));
   } catch {
   }
 }
 function ladeQuelle() {
+  migriereAltePlaetze();
   const q = localStorage.getItem(QUELLE_KEY) || "preset";
-  return q === "preset" || q === "wuerfeln" || /^[0-9]$/.test(q) ? q : "preset";
+  return q === "preset" || q === "wuerfeln" || /^a:/.test(q) ? q : "preset";
 }
 function setzeQuelle(q) {
   try {
@@ -5445,13 +5508,79 @@ function setzeQuelle(q) {
 function platzBrauchbar(e) {
   return (e.text || "").split(/\s+/).filter(Boolean).length >= 40;
 }
-function erzaehlerBogen(index) {
-  const e = ladeErzaehlerbank()[index];
+function bogenAus(e) {
   if (!e || !platzBrauchbar(e)) return null;
   const drama = preset2AusText(e.text).drama;
   if (e.folge === "eigen") drama.folge = ableiteSchlagfolge(e.text);
   else if (e.folge && SCHLAGFOLGEN[e.folge]) drama.folge = SCHLAGFOLGEN[e.folge].folge;
   return drama;
+}
+function eintragId(e) {
+  const basis = `${e.folge || "standard"}|${titelNorm(e.titel) || archivNorm(e)}`;
+  let h = 0;
+  for (let i = 0; i < basis.length; i++) h = h * 31 + basis.charCodeAt(i) >>> 0;
+  return `a:${e.folge || "standard"}:${h.toString(36)}`;
+}
+function archivEintraege() {
+  migriereAltePlaetze();
+  const a = ladeArchiv();
+  const out = [];
+  for (const k of Object.keys(SCHLAGFOLGEN)) for (const e of a[k] || []) out.push({ ...e, id: eintragId(e) });
+  for (const [k, l] of Object.entries(a)) if (!SCHLAGFOLGEN[k]) for (const e of l) out.push({ ...e, id: eintragId(e) });
+  return out;
+}
+function eintragNachId(id) {
+  return archivEintraege().find((e) => e.id === id) || null;
+}
+var letzter = null;
+function letzterGezogen() {
+  return letzter;
+}
+function bogenFuerErzeugung() {
+  const q = ladeQuelle();
+  letzter = null;
+  if (q === "preset") return null;
+  if (q === "wuerfeln") {
+    const brauchbar = archivEintraege().filter((e2) => platzBrauchbar(e2));
+    if (!brauchbar.length) return null;
+    letzter = brauchbar[Math.floor(Math.random() * brauchbar.length)];
+    return bogenAus(letzter);
+  }
+  const e = eintragNachId(q);
+  if (!e || !platzBrauchbar(e)) return null;
+  letzter = e;
+  return bogenAus(e);
+}
+function bogenBeschriftung() {
+  const q = ladeQuelle();
+  if (letzter) return { bogen: `${q === "wuerfeln" ? "gew\xFCrfelt: " : ""}${letzter.titel || "Ohne Titel"}`, bauform: SCHLAGFOLGEN[letzter.folge || "standard"]?.name || letzter.folge || "" };
+  if (q === "preset") return { bogen: "aus Preset", bauform: "Steigender Bogen" };
+  return { bogen: q === "wuerfeln" ? "w\xFCrfeln \u2014 kein brauchbarer Eintrag im Archiv" : "gew\xE4hlter Eintrag fehlt im Archiv", bauform: "" };
+}
+var migriert = false;
+function migriereAltePlaetze() {
+  if (migriert) return;
+  migriert = true;
+  try {
+    const roh = localStorage.getItem(ALTE_BANK_KEY);
+    if (!roh) return;
+    const alte = JSON.parse(roh);
+    const q = localStorage.getItem(QUELLE_KEY) || "preset";
+    let gewaehlt = null;
+    if (Array.isArray(alte)) alte.forEach((p, i) => {
+      const e = { titel: String(p?.titel || "").slice(0, 60), text: String(p?.text || ""), folge: SCHLAGFOLGEN[String(p?.folge || "")] ? String(p?.folge) : "standard", geburt: typeof p?.geburt === "string" ? p.geburt : void 0 };
+      if (!platzBrauchbar(e)) return;
+      archiviere(e);
+      if (String(i) === q || !gewaehlt && q !== "preset" && q !== "wuerfeln" && !/^[0-9]$/.test(q)) gewaehlt = e;
+      if (!gewaehlt && q === "preset" && i === 0) gewaehlt = e;
+    });
+    if (gewaehlt) {
+      localStorage.setItem(ARBEITSPLATZ_KEY, JSON.stringify(gewaehlt));
+      if (/^[0-9]$/.test(q)) localStorage.setItem(QUELLE_KEY, eintragId(gewaehlt));
+    }
+    localStorage.removeItem(ALTE_BANK_KEY);
+  } catch {
+  }
 }
 function ableiteSchlagfolge(text) {
   const stuecke = teilstuecke(text);
@@ -5504,35 +5633,6 @@ function ableiteSchlagfolge(text) {
   }
   return folge;
 }
-var letzterPlatz = -1;
-function letzterGezogenerPlatz() {
-  return letzterPlatz;
-}
-function bogenFuerErzeugung() {
-  const q = ladeQuelle();
-  letzterPlatz = -1;
-  if (q === "preset") return null;
-  if (/^[0-9]$/.test(q)) {
-    const i2 = parseInt(q, 10);
-    const d = erzaehlerBogen(i2);
-    if (d) letzterPlatz = i2;
-    return d;
-  }
-  const brauchbar = ladeErzaehlerbank().map((e, i2) => ({ e, i: i2 })).filter((x) => platzBrauchbar(x.e));
-  if (!brauchbar.length) return null;
-  const i = brauchbar[Math.floor(Math.random() * brauchbar.length)].i;
-  letzterPlatz = i;
-  return erzaehlerBogen(i);
-}
-function bogenBeschriftung() {
-  const q = ladeQuelle();
-  if (letzterPlatz >= 0) {
-    const e = ladeErzaehlerbank()[letzterPlatz];
-    if (e) return { bogen: `${q === "wuerfeln" ? "gew\xFCrfelt: " : ""}Platz ${letzterPlatz + 1} \xB7 ${e.titel || "Ohne Titel"}`, bauform: SCHLAGFOLGEN[e.folge || "standard"]?.name || e.folge || "" };
-  }
-  if (q === "preset") return { bogen: "aus Preset", bauform: "Steigender Bogen" };
-  return { bogen: q === "wuerfeln" ? "w\xFCrfeln \u2014 kein brauchbarer Platz" : "gew\xE4hlter Platz ist leer", bauform: "" };
-}
 var BAUFORM_ANWEISUNG = {
   standard: "ein klassisch steigender Bogen: ruhiger Anfang, wachsende St\xF6rung, Krise kurz vor Schluss, knappe Aufl\xF6sung",
   kreis: "ein Kreisschluss: das Ende kehrt erkennbar zum Bild des Anfangs zur\xFCck, leicht verschoben",
@@ -5577,8 +5677,6 @@ function speichereArchiv(a) {
   } catch {
   }
 }
-var archivNorm = (e) => `${e.titel}\u241E${e.text}`.toLowerCase().replace(/\s+/g, " ").trim();
-var titelNorm = (t) => (t || "").toLowerCase().replace(/\s+/g, " ").trim();
 function archiviere(e) {
   if (!platzBrauchbar(e)) return;
   const folge = e.folge || "standard";
@@ -5608,6 +5706,19 @@ function loescheAusArchiv(folge, index) {
   if (index < 0 || index >= liste.length) return;
   a[folge] = liste.filter((_, i) => i !== index);
   speichereArchiv(a);
+}
+function loescheEintrag(id) {
+  const a = ladeArchiv();
+  for (const [k, l] of Object.entries(a)) a[k] = l.filter((e) => eintragId(e) !== id);
+  speichereArchiv(a);
+}
+function bauformAendern(id, folge) {
+  const e = eintragNachId(id);
+  if (!e || !SCHLAGFOLGEN[folge]) return null;
+  loescheEintrag(id);
+  const neu = { titel: e.titel, text: e.text, folge, geburt: e.geburt || e.folge };
+  archiviere(neu);
+  return eintragId(neu);
 }
 
 // test/erzaehler.ts
@@ -8338,28 +8449,28 @@ var verbKandidat = (roh, istErstes = false) => {
 };
 var woerter2 = (s) => s.split(/\s+/).map((w) => w.replace(/[„“"»«().!?…;:]+/g, "")).filter(Boolean);
 var NP_KOPF2 = /^(der|die|das|ein|eine|einen|kein|keine|zwei|drei|viele|manche|jede[rs]?|irgendein|lauter)\b/i;
-function satzPlausibel(satz) {
+function pruefeSatz(satz) {
   const bare = satz.trim().replace(/[.!?…]+$/, "").trim();
-  if (!bare) return false;
+  if (!bare) return 2;
   const ws = woerter2(bare);
-  if (!ws.length) return false;
+  if (!ws.length) return 2;
   const letztes = ws[ws.length - 1].toLowerCase();
-  if (HAENGENDES_ENDE.has(letztes)) return false;
+  if (HAENGENDES_ENDE.has(letztes)) return 1;
   const hatVerb = ws.some((w, i) => verbKandidat(w, i === 0));
   if (!hatVerb) {
-    if (ws.length > 12) return false;
+    if (ws.length > 12) return 2;
     const kern = bare.replace(/^(und|aber|doch|dann|denn|oder|nur|auch)\s+/i, "");
     const kopf = kern.split(/\s+/)[0] || "";
     const ADVERB_KOPF = /^(irgendwo|irgendwann|irgendwie|dort|hier|heute|morgen|gestern|vielleicht|manchmal|so|bald|überall|nirgends|nirgendwo|draußen|drinnen|oben|unten|jetzt|damals|dennoch|trotzdem|deshalb|darum|davor|danach|zuerst|zuletzt|womöglich|angeblich|vermutlich|wahrscheinlich)$/i;
     const nomenKopf = /^[A-ZÄÖÜ]/.test(kopf) && !ADVERB_KOPF.test(kopf) && !FUNKTION2.has(kopf.toLowerCase());
     const prepKopf = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zu|zum|zur|mit|durch|gegen|um|seit|während|trotz|wegen)$/i.test(kopf);
-    if (ws.length > 5 && !NP_KOPF2.test(kern) && !nomenKopf && !prepKopf) return false;
+    if (ws.length > 5 && !NP_KOPF2.test(kern) && !nomenKopf && !prepKopf) return 2;
   }
   for (const teil of bare.split(/,\s*/).slice(1)) {
     const tw = woerter2(teil);
     if (!tw.length || !/^(was|wer|der|die|das|dem|den|wo|wie)$/i.test(tw[0])) continue;
     const undIdx = tw.findIndex((w, i) => i > 0 && /^(und|oder)$/i.test(w));
-    if (undIdx > 1 && verbKandidat(tw[undIdx + 1] || "", false) && !tw.slice(1, undIdx).some((w) => verbKandidat(w, false))) return false;
+    if (undIdx > 1 && verbKandidat(tw[undIdx + 1] || "", false) && !tw.slice(1, undIdx).some((w) => verbKandidat(w, false))) return 3;
   }
   const PREP_KOPF = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zum|zur|mit|durch|gegen|seit|trotz|wegen)$/i;
   for (const teil of bare.split(/,\s*/)) {
@@ -8371,7 +8482,7 @@ function satzPlausibel(satz) {
     if (vi < 2) continue;
     if (tw.slice(1, vi).some((w) => /^(es|er|sie|wir|ich|du|man|jemand|niemand|etwas|nichts|alles)$/i.test(w))) continue;
     const rest = tw.slice(vi + 1);
-    if (/^(wie|als)$/i.test(rest[0] || "") && rest.length <= 2) return false;
+    if (/^(wie|als)$/i.test(rest[0] || "") && rest.length <= 2) return 4;
   }
   for (const teil of bare.split(/[,;]\s*|\s+(?:und|aber|oder|doch|sondern)\s+/i)) {
     if (!/\bl(ä|ie)(ss|ß)t?\s+(es\s+)?sich\b/i.test(teil)) continue;
@@ -8379,7 +8490,7 @@ function satzPlausibel(satz) {
     const letztes2 = (tw[tw.length - 1] || "").toLowerCase();
     if (!letztes2 || /^[A-ZÄÖÜ]/.test(tw[tw.length - 1] || "")) continue;
     if (FUNKTION2.has(letztes2) || ADJEKTIV.has(letztes2) || HILFSVERB.has(letztes2)) continue;
-    if (/t$/.test(letztes2) && !/(en|eln|ern)$/.test(letztes2)) return false;
+    if (/t$/.test(letztes2) && !/(en|eln|ern)$/.test(letztes2)) return 5;
   }
   const finit = (w) => {
     const l = w.toLowerCase();
@@ -8391,21 +8502,29 @@ function satzPlausibel(satz) {
     for (let i = 0; i + 3 < tw.length; i++) {
       if (!finit(tw[i]) || !/^(der|die|das|den|dem|ein|eine|einen|einem)$/i.test(tw[i + 1])) continue;
       if (!/^[A-ZÄÖÜ]/.test(tw[i + 2])) continue;
-      if (HILFSVERB.has(tw[i + 3].toLowerCase())) return false;
+      if (HILFSVERB.has(tw[i + 3].toLowerCase())) return 6;
     }
   }
   {
     const auf = (bare.match(/[„»]/g) || []).length, zu = (bare.match(/[“«]/g) || []).length;
-    if (auf !== zu) return false;
+    if (auf !== zu) return 7;
   }
   for (const teil of bare.split(/[,;:—–]\s*/))
-    if (/^es gibt(\s+(jetzt|hier|dort|noch|nur|auch|bald|immer|nie))?$/i.test(teil.trim())) return false;
-  return true;
+    if (/^es gibt(\s+(jetzt|hier|dort|noch|nur|auch|bald|immer|nie))?$/i.test(teil.trim())) return 8;
+  return 0;
 }
 function stueckPlausibel(text) {
   const saetze = (text || "").split(/(?<=[.!?…])\s+/).map((s) => s.trim()).filter(Boolean);
   if (!saetze.length) return false;
-  return saetze.every(satzPlausibel);
+  for (const satz of saetze) {
+    const regel = pruefeSatz(satz);
+    if (regel) {
+      zaehle(`regel${regel}`, satz);
+      return false;
+    }
+  }
+  zaehle("angenommen", Math.random() < 0.1 ? text : void 0);
+  return true;
 }
 
 // src/features/livepools.ts
@@ -8802,7 +8921,7 @@ function buildVideoSequenceText(kit, shotCount = 5, totalSec = 15, lenTarget = 0
 // src/generation/length.ts
 init_text_utils();
 var count = (s) => (s || "").trim().split(/\s+/).filter(Boolean).length;
-function enforceWordTarget(text, target, bank2, model, markovMode = "mix") {
+function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
   const t0 = (text || "").trim();
   if (!t0) return t0;
   const tol = 10;
@@ -8845,7 +8964,7 @@ function enforceWordTarget(text, target, bank2, model, markovMode = "mix") {
         }
       }
     }
-    const cands = [...bank2.motifs || [], ...bank2.turns || [], ...bank2.hooks || []];
+    const cands = [...bank.motifs || [], ...bank.turns || [], ...bank.hooks || []];
     if (!cands.length) return null;
     const fresh = cands.filter((c) => {
       const k = clean(c).toLowerCase();
@@ -9784,7 +9903,7 @@ function pruefeAbgleich(endtext) {
 var GERUESTZEILE = /(^|\s)(SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE|DE|EN)\s*:|Shot\s*\d+\s*\()/;
 var GERUEST_MARKE = /^(?:SEQUENZ\s*—[^\n]*|(?:WER|WO|WANN|WAS|GESAMTLÄNGE|DE|EN)\s*:|Shot\s*\d+\s*\([^)]*\))\s*/;
 var traegtPerson = (t) => (t.toLowerCase().match(/[a-zäöüß]+/g) || []).some((w) => !!ICH_DU_ZU_ER[w]);
-function buildPool(bank2, perspektive, what, figur, model, markovMode) {
+function buildPool(bank, perspektive, what, figur, model, markovMode) {
   const pool = [];
   let i = 0;
   const w = (what || "").trim();
@@ -9876,7 +9995,7 @@ function buildPool(bank2, perspektive, what, figur, model, markovMode) {
       genommen++;
     }
   }
-  for (const [kat, arr] of Object.entries(bank2)) {
+  for (const [kat, arr] of Object.entries(bank)) {
     if (!Array.isArray(arr)) continue;
     if (KEINE_KATEGORIE.has(kat)) continue;
     for (const roh of arr) for (const t of atomisiere(roh, atomMax)) {
@@ -9914,9 +10033,9 @@ function buildPool(bank2, perspektive, what, figur, model, markovMode) {
 var divergenzOf = (input) => (input.varLevel === "high" ? 85 : input.varLevel === "low" ? 30 : 60) + (input.instability >= 2 ? 10 : 0);
 var wirktNominal = (t) => /^\s*(ein|eine|einen|einem|eines|einer|der|die|das|den|dem|des|mein|meine|meinen|sein|seine|ihr|ihre|kein|keine|viele|manche|jede|jeden|etwas|nichts|[A-ZÄÖÜ])/.test(t);
 var FLACH = /* @__PURE__ */ new Set(["nominalphrase", "praepositionalphrase", "fragment", "einwort"]);
-function buildRekombination(bank2, input, model) {
+function buildRekombination(bank, input, model) {
   const pool = buildPool(
-    bank2,
+    bank,
     input.perspective,
     input.what,
     (personKopf(splitSpeakers(normWho(input.who || ""))[0] || "") || "Jemand").trim(),
@@ -10114,9 +10233,9 @@ function buildRekombination(bank2, input, model) {
   pruefeAbgleich(fertig);
   return fertig;
 }
-function buildVersAtome(bank2, input, model) {
+function buildVersAtome(bank, input, model) {
   const figur = (personKopf(splitSpeakers(normWho(input.who || ""))[0] || "") || "Jemand").trim();
-  const pool = buildPool(bank2, input.perspective, input.what, figur, model, input.markovMode);
+  const pool = buildPool(bank, input.perspective, input.what, figur, model, input.markovMode);
   const ctx = {
     ort: normWhere(input.where || "") || "an einem Ort",
     zeit: normWhen(input.when || "") || "zu einer Zeit",
@@ -10829,9 +10948,9 @@ function berichtTauglich(satz) {
   if (/\b(ist|sind|war|waren|hat|haben|hatte|hatten)\b[^.]*\b(worden|gewesen)\b/i.test(s2)) return false;
   return true;
 }
-function satzOhneZahl(bank2, kats, benutzt, zusatz = []) {
+function satzOhneZahl(bank, kats, benutzt, zusatz = []) {
   const kandidaten = [];
-  for (const k of kats) for (const x of bank2[k] || []) {
+  for (const k of kats) for (const x of bank[k] || []) {
     if (/\d/.test(x) || ZAHLWORT.test(x) || EINSATZ_FORMEL.test(x) || !berichtTauglich(x)) continue;
     if (benutzt.has(satzSchluessel(x))) continue;
     kandidaten.push(x);
@@ -10875,7 +10994,7 @@ function mische(fakten, frei) {
   }
   return raus;
 }
-function hergang(fb, bank2, b, benutzt, extra, vorrat, blick) {
+function hergang(fb, bank, b, benutzt, extra, vorrat, blick) {
   const teile = [];
   const frei = [];
   const w = WORTE[blick];
@@ -10898,7 +11017,7 @@ function hergang(fb, bank2, b, benutzt, extra, vorrat, blick) {
     teile.push(pick(fassungen));
   }
   for (let i = 0; i < 1 + extra; i++) {
-    const roh = satzOhneZahl(bank2, ["obstacles", "turns"], benutzt, vorrat);
+    const roh = satzOhneZahl(bank, ["obstacles", "turns"], benutzt, vorrat);
     if (roh) frei.push(brauchtRahmen(roh) ? `${pick(NOMINALRAHMEN)} ${roh}.` : `${cap(roh)}.`);
   }
   const z2 = fb.zahlen[1];
@@ -10921,13 +11040,13 @@ function hergang(fb, bank2, b, benutzt, extra, vorrat, blick) {
   }
   return mische(teile, frei).join(" ");
 }
-function zitat(fb, bank2, b, benutzt, welche, vorrat) {
+function zitat(fb, bank, b, benutzt, welche, vorrat) {
   const p = fb.personen[welche];
   if (!p || !p.zitierfaehig) return "";
-  const kern = satzOhneZahl(bank2, ["hooks", "stakes"], benutzt, vorrat) || "Wir haben lange gewartet";
+  const kern = satzOhneZahl(bank, ["hooks", "stakes"], benutzt, vorrat) || "Wir haben lange gewartet";
   return `\u201E${cap(kern)}\u201C, sagte ${b.person(p)}.`;
 }
-function hintergrund(fb, bank2, b, benutzt, extra, vorrat) {
+function hintergrund(fb, bank, b, benutzt, extra, vorrat) {
   const teile = [];
   const c1 = fb.chronologie[0];
   const RK = RESSORTS[fb.ressort].hintergrundKopf;
@@ -10936,7 +11055,7 @@ function hintergrund(fb, bank2, b, benutzt, extra, vorrat) {
   let r = 0;
   const frei = [];
   for (let i = 0; i < 1 + extra; i++) {
-    const roh = satzOhneZahl(bank2, ["motifs", "props"], benutzt, vorrat);
+    const roh = satzOhneZahl(bank, ["motifs", "props"], benutzt, vorrat);
     if (!roh) continue;
     if (brauchtRahmen(roh) && r < rahmen.length) frei.push(`${rahmen[r++]} ${roh}.`);
     else frei.push(`${cap(roh)}.`);
@@ -10984,13 +11103,13 @@ function reihenfolge2(a) {
   }
   return x;
 }
-function buildBericht(bank2, input, ressort = "auto") {
+function buildBericht(bank, input, ressort = "auto") {
   const fb = ziehFaktenblatt(input, ressort);
   const b = new Buchfuehrung();
   const benutzt = /* @__PURE__ */ new Set();
   const ziel = Number.isFinite(input.lenTarget) ? input.lenTarget : 240;
   const extra = Math.max(0, Math.min(22, Math.round((ziel - 124) / 17)));
-  const vorrat = buildVersAtome(bank2, input).filter((x) => x.split(/\s+/).length >= 5);
+  const vorrat = buildVersAtome(bank, input).filter((x) => x.split(/\s+/).length >= 5);
   const blick = blickVonTon(input.tone || "");
   const abschnitte = [];
   abschnitte.push(dachzeile(fb));
@@ -10999,19 +11118,19 @@ function buildBericht(bank2, input, ressort = "auto") {
   benutzt.add(satzSchluessel(fb.was));
   abschnitte.push(zeile);
   abschnitte.push(vorspann(fb, b, blick));
-  const hergangText = hergang(fb, bank2, b, benutzt, extra, vorrat, blick);
+  const hergangText = hergang(fb, bank, b, benutzt, extra, vorrat, blick);
   abschnitte.push(hergangText);
-  const z1 = zitat(fb, bank2, b, benutzt, 0, vorrat);
+  const z1 = zitat(fb, bank, b, benutzt, 0, vorrat);
   if (z1) abschnitte.push(z1);
-  abschnitte.push(hintergrund(fb, bank2, b, benutzt, extra, vorrat));
-  const z2 = zitat(fb, bank2, b, benutzt, 1, vorrat);
+  abschnitte.push(hintergrund(fb, bank, b, benutzt, extra, vorrat));
+  const z2 = zitat(fb, bank, b, benutzt, 1, vorrat);
   if (z2) abschnitte.push(z2);
-  const z3s = zitat(fb, bank2, b, benutzt, 2, vorrat);
+  const z3s = zitat(fb, bank, b, benutzt, 2, vorrat);
   if (z3s) abschnitte.push(z3s);
   if (extra >= 3) {
     const teile = [];
     for (let i = 0; i < extra - 2; i++) {
-      const roh = satzOhneZahl(bank2, ["turns", "obstacles", "motifs"], benutzt, vorrat);
+      const roh = satzOhneZahl(bank, ["turns", "obstacles", "motifs"], benutzt, vorrat);
       if (roh) teile.push(`${cap(roh)}.`);
     }
     if (teile.length) abschnitte.push(`Zur Einordnung: ${teile.join(" ")}`);
@@ -11029,7 +11148,7 @@ function buildBericht(bank2, input, ressort = "auto") {
     const R = RESSORTS[fb.ressort];
     const teile = [];
     for (let i = 0; i < Math.min(R.zusatz.rahmen.length, 1 + Math.floor(extra / 3)); i++) {
-      const roh = satzOhneZahl(bank2, ["hooks", "turns", "stakes"], benutzt, vorrat);
+      const roh = satzOhneZahl(bank, ["hooks", "turns", "stakes"], benutzt, vorrat);
       if (roh) teile.push(`${R.zusatz.rahmen[i]} ${roh}.`);
     }
     if (teile.length) abschnitte.push(R.zusatz.titel ? `${R.zusatz.titel}: ${teile.join(" ")}` : teile.join(" "));
@@ -11969,8 +12088,8 @@ function applyHaikuPoem(rawText, anchorLine = "", lenTarget = 0, atome = []) {
     usedSrc.add(c.src);
     return c.text;
   };
-  const fromBank = (bank2, target) => {
-    const free = bank2.filter((l2) => !used.has(l2.toLowerCase()) && haikuSyllOf(l2) === target);
+  const fromBank = (bank, target) => {
+    const free = bank.filter((l2) => !used.has(l2.toLowerCase()) && haikuSyllOf(l2) === target);
     if (!free.length) return null;
     const l = pick(free);
     used.add(l.toLowerCase());
@@ -12378,7 +12497,7 @@ var STRUCTURES = ohneAuto(werte(STRUCTURE_OPTS)).filter((x) => x !== "dramaturgi
 var PERSPECTIVES = ohneAuto(werte(PERSP_OPTS));
 var RHYTHMS = ohneAuto(werte(RHYTHM_OPTS));
 var resBiased = (ui, kind, opts, aA, aB) => ui !== "auto" && opts.includes(ui) ? ui : biasedAutoChoice(kind, aA, aB) || pick(opts);
-function buildKit(bank2, input, model) {
+function buildKit(bank, input, model) {
   const archA = (input.archetypeA || "neutral").toLowerCase();
   const archB = (input.archetypeB || "neutral").toLowerCase();
   const modeKey = resBiased(input.mode, "mode", MODES, archA, archB);
@@ -12418,9 +12537,9 @@ function buildKit(bank2, input, model) {
     return fallback;
   };
   const aug = (list, key) => archetypeAugmentList(list, archA, archB, key);
-  const motif = maybeMarkov(pickSane(aug(bank2.motifs, "motifs")), 0.28);
-  const hook = maybeMarkov(pickSane(aug(bank2.hooks, "hooks")), 0.28);
-  const prop = ensureArticle(pickSane(aug(bank2.props, "props"), 1)).replace(/^(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/, (m) => m.toLowerCase());
+  const motif = maybeMarkov(pickSane(aug(bank.motifs, "motifs")), 0.28);
+  const hook = maybeMarkov(pickSane(aug(bank.hooks, "hooks")), 0.28);
+  const prop = ensureArticle(pickSane(aug(bank.props, "props"), 1)).replace(/^(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/, (m) => m.toLowerCase());
   const hookIsClause = looksLikeClausePhrase(hook);
   const hookQuote = hookIsClause ? clean(hook).replace(/[.!?…]+$/, "") : "";
   const hookAcc = hookIsClause ? `den Satz \u201E${hookQuote}\u201C` : safeCaseForm(hook, declineHookPhrase(hook, "acc"));
@@ -12440,10 +12559,10 @@ function buildKit(bank2, input, model) {
     prop,
     propAcc,
     propDat,
-    turn: maybeMarkov(pickSane(aug(bank2.turns, "turns")), 0.28),
-    obstacle: pickSane(aug(bank2.obstacles, "obstacles")),
-    stake: pickSane(aug(bank2.stakes, "stakes")),
-    ending: pickSane(aug(bank2.endings, "endings")),
+    turn: maybeMarkov(pickSane(aug(bank.turns, "turns")), 0.28),
+    obstacle: pickSane(aug(bank.obstacles, "obstacles")),
+    stake: pickSane(aug(bank.stakes, "stakes")),
+    ending: pickSane(aug(bank.endings, "endings")),
     speakerA: P2,
     speakerB: speakers[1] || pickSpeakerForArchetype(archB),
     speakers: speakers.length >= 2 ? speakers : [P2, pickSpeakerForArchetype(archB)],
@@ -12461,18 +12580,18 @@ function buildKit(bank2, input, model) {
     rhythm
   };
 }
-function buildStory(bank2, input, model) {
+function buildStory(bank, input, model) {
   resetMarkovTrace();
-  const kit = buildKit(bank2, input, model);
+  const kit = buildKit(bank, input, model);
   const lenTarget = Number.isFinite(input.lenTarget) ? input.lenTarget : 110;
-  if (input.form === "bericht") return kleinerArtikel(buildBericht(bank2, input, input.ressort ?? "auto").text);
+  if (input.form === "bericht") return kleinerArtikel(buildBericht(bank, input, input.ressort ?? "auto").text);
   if (input.form === "meldung") return kleinerArtikel(buildMeldung(input, input.ressort ?? "auto").text);
   if (input.form === "script") return postProcessText(makeDialogueScene(kit, lenTarget), input);
   if (input.form === "video") {
     return postProcessText(buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? 15, lenTarget), input);
   }
   if (input.form === "poem") {
-    const rk = input.structure === "rekombination" ? buildRekombination(bank2, input, model) : "";
+    const rk = input.structure === "rekombination" ? buildRekombination(bank, input, model) : "";
     if (rk.trim()) {
       const fertig = postProcessText(asProsePoem(rk), { ...input, form: "poem" });
       linkTrace(fertig);
@@ -12486,7 +12605,7 @@ function buildStory(bank2, input, model) {
   const effStructure = verseForm && kit.structure === "fragment" ? "linear" : kit.structure;
   const ASSEMBLER = /* @__PURE__ */ new Set(["rekombination", "linear", "reverse", "circle", "fragment", "object", "bogen"]);
   if (input.form === "prose" && ASSEMBLER.has(input.structure || "")) {
-    const rk = buildRekombination(bank2, input, model);
+    const rk = buildRekombination(bank, input, model);
     if (rk.trim()) {
       const fertig = postProcessText(paragraphize(rk), input);
       linkTrace(fertig);
@@ -12499,22 +12618,22 @@ function buildStory(bank2, input, model) {
   if (input.form === "prose" && input.emphasis) text = applyEmphasis(text, kit, input.emphasis);
   text = applyDisruptor(text, input.disruptor).text;
   text = applyRhythm(text, kit.rhythm);
-  if (input.form === "prose") text = applyTension(text, input.tension, { motifs: bank2.motifs, hooks: bank2.hooks });
+  if (input.form === "prose") text = applyTension(text, input.tension, { motifs: bank.motifs, hooks: bank.hooks });
   text = paragraphize(text);
   const paras = text.split(/\n\n+/).map(clean).filter(Boolean);
   text = effStructure === "object" ? paras.join("\n\n") : applyPerspective(paras, kit.perspective, kit.P, pick(kit.mode.nouns)).join("\n\n");
   if (kit.perspective === "third") text = pronominalize(text, kit.P, guessPronoun(kit.P));
   const finalText = postProcessText(text, input);
   const anchor = kit.ending || kit.Apure;
-  if (input.form === "reim") return asReim(finalText, anchor, lenTarget, buildVersAtome(bank2, input, model));
+  if (input.form === "reim") return asReim(finalText, anchor, lenTarget, buildVersAtome(bank, input, model));
   if (input.form === "haiku") {
-    return asHaiku(finalText, anchor, lenTarget, buildVersAtome(bank2, input, model));
+    return asHaiku(finalText, anchor, lenTarget, buildVersAtome(bank, input, model));
   }
   if (input.form === "strang") return asStrang(finalText, anchor, lenTarget);
   if (input.form === "drama") return asDrama(finalText, kit.speakerA, kit.speakerB || kit.P);
   return kommaVorInversion(kleinesPronomen(kleinerArtikel(verwandleMotive(
-    entferneDubletten(enforceWordTarget(finalText, lenTarget, bank2, model, input.markovMode || "mix")),
-    leseVerwandlungen(bank2.verwandlungen)
+    entferneDubletten(enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix")),
+    leseVerwandlungen(bank.verwandlungen)
   ))));
 }
 
@@ -12604,26 +12723,32 @@ var ist = (name, wert, soll) => {
   else fails.push(`${name}: \u201E${String(wert)}\u201C \u2014 erwartet \u201E${String(soll)}\u201C`);
 };
 var wahr = (name, b) => ist(name, b, true);
-ist("immer zehn Pl\xE4tze", ladeErzaehlerbank().length, ERZAEHLER_PLAETZE);
-localStorage.setItem("dm_erzaehlerbank_v1", "kaputt{");
-ist("kaputter Speicher \u2192 zehn leere Pl\xE4tze", ladeErzaehlerbank().filter((e) => !e.text).length, ERZAEHLER_PLAETZE);
-var bank = ladeErzaehlerbank();
-bank[2] = { titel: "Evolution", text: VORLAGE_EVOLUTION };
-speichereErzaehlerbank(bank);
-ist("gespeichert und gelesen", ladeErzaehlerbank()[2].titel, "Evolution");
-wahr("brauchbar ab vierzig W\xF6rtern", platzBrauchbar(bank[2]) && !platzBrauchbar({ titel: "x", text: "zu kurz" }));
-var b2 = erzaehlerBogen(2);
-wahr("ein voller Platz liefert einen Bogen", !!b2 && b2.einstieg.length >= 1 && b2.schluss.length >= 1);
-ist("ein leerer Platz liefert null", erzaehlerBogen(5), null);
-setzeQuelle("2");
-ist("die Wahl wird gehalten", ladeQuelle(), "2");
-wahr("fest gew\xE4hlt \u2192 der Bogen dieses Platzes", JSON.stringify(bogenFuerErzeugung()) === JSON.stringify(b2));
+localStorage.setItem("dm_erzaehler_arbeitsplatz_v1", "kaputt{");
+ist("kaputter Arbeitsplatz \u2192 leer", ladeArbeitsplatz().text, "");
+speichereArbeitsplatz({ titel: "Evolution", text: VORLAGE_EVOLUTION, folge: "kreis" });
+ist("Arbeitsplatz gespeichert und gelesen", ladeArbeitsplatz().titel, "Evolution");
+ist("mit Bauform", ladeArbeitsplatz().folge, "kreis");
+wahr("brauchbar ab vierzig W\xF6rtern", platzBrauchbar(ladeArbeitsplatz()) && !platzBrauchbar({ titel: "x", text: "zu kurz" }));
+localStorage.removeItem("dm_erzaehler_archiv_v1");
+archiviere({ titel: "Evolution", text: VORLAGE_EVOLUTION, folge: "kreis" });
+ist("das Archiv tr\xE4gt sie", archivEintraege().length, 1);
+var evoId = eintragId({ titel: "Evolution", text: VORLAGE_EVOLUTION, folge: "kreis" });
+ist("die Kennung ist stabil und \xFCber die Kennung auffindbar", eintragNachId(evoId).titel, "Evolution");
+ist("die Kennung h\xE4ngt am Titel, nicht am Text", eintragId({ titel: "Evolution", text: VORLAGE_EVOLUTION + " Noch ein Satz.", folge: "kreis" }), evoId);
+var b2 = bogenAus(ladeArbeitsplatz());
+wahr("eine volle Erz\xE4hlung liefert einen Bogen", !!b2 && b2.einstieg.length >= 1 && b2.schluss.length >= 1);
+ist("eine d\xFCnne liefert null", bogenAus({ titel: "x", text: "zu kurz" }), null);
+wahr("die Bauform wird zur Schlagfolge", (b2.folge || []).join(",") === SCHLAGFOLGEN["kreis"].folge.join(","));
+setzeQuelle(evoId);
+ist("die Wahl wird gehalten", ladeQuelle(), evoId);
+wahr("fest gew\xE4hlt \u2192 der Bogen dieses Eintrags", JSON.stringify(bogenFuerErzeugung()) === JSON.stringify(b2));
+ist("und der gezogene Eintrag ist bekannt", letzterGezogen().titel, "Evolution");
 setzeQuelle("preset");
 ist("aus Preset \u2192 null (der Preset-Bogen gilt)", bogenFuerErzeugung(), null);
 setzeQuelle("wuerfeln");
-wahr("w\xFCrfeln \u2192 ein brauchbarer Bogen", !!bogenFuerErzeugung());
-setzeQuelle("5");
-ist("fest auf leerem Platz \u2192 null, die Maschine erz\xE4hlt wie bisher", bogenFuerErzeugung(), null);
+wahr("w\xFCrfeln \u2192 ein brauchbarer Bogen aus dem Archiv", !!bogenFuerErzeugung());
+setzeQuelle("a:standard:gibtsnicht");
+ist("fest auf fehlendem Eintrag \u2192 null, die Maschine erz\xE4hlt wie bisher", bogenFuerErzeugung(), null);
 setzeQuelle("unsinn");
 ist("Unsinn f\xE4llt auf preset zur\xFCck", ladeQuelle(), "preset");
 setDramaData({ einstieg: ["Preset-Einstieg."], mitte: [], hoehepunkt: [], schluss: [], ausloeser: [], veraenderungen: [], konflikte: [], zeitanomalien: [], regeln: [] });
@@ -12637,15 +12762,17 @@ setDramaData(null);
 var st = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
 wahr("das Studio hat den Bogen-Regler neben der Struktur", /lockField\("Struktur", structure\),[\s\S]{0,400}?el\("span", \{\}, "Bogen"\)\), bogenSel, bogenStatus\)/.test(st));
 wahr("der Bogen ist nicht w\xFCrfelbar", !/ROLL_SELECTS = \[[^\]]*bogenSel/.test(st));
+wahr("der Regler zeigt das Archiv nach Bauform", /const alle = archivEintraege\(\)\.filter\(\(e\) => platzBrauchbar\(e\)\);/.test(st) && /el\("optgroup", \{ label: v\.name \}\)/.test(st));
 wahr("die Wahl wird beim Wechsel gesichert", /bogenSel\.addEventListener\("change", \(\) => \{\s*\n\s*setzeQuelle\(bogenSel\.value\); bauformSync\(\);/.test(st));
 wahr("vor jeder Erzeugung wird die Weiche gestellt", /setBogenOverride\(bogenFuerErzeugung\(\)\);\s*\n\s*const model = /.test(st));
 var ap = (0, import_fs.readFileSync)("src/ui/app.ts", "utf8");
 wahr("der Reiter steht neben der Wortbank", /\["Wortbank", mountWordbank\],\s*\n\s*\["Erzählerbank", mountErzaehlerbank\],/.test(ap));
 var ev = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
 wahr(
-  "jeder Platz hat Titel, Text, Bogen-Vorschau, Einf\xFCgen, Speichern, Leeren",
-  /Bogen zeigen/.test(ev) && /Einfügen/.test(ev) && /Platz leeren/.test(ev) && /preset2AusText\(textIn\.value\)\.drama/.test(ev)
+  "ein Arbeitsplatz: Titel, Text, Bauform, Bogen-Vorschau, Einf\xFCgen, Speichern, Leeren, Archivliste",
+  /Bogen zeigen/.test(ev) && /Einfügen/.test(ev) && /Arbeitsplatz leeren/.test(ev) && /preset2AusText\(textIn\.value\)\.drama/.test(ev) && /el\("optgroup", \{ label: v\.name \}\)/.test(ev)
 );
+wahr("\u201EIm Studio w\xE4hlen\u201C setzt die Quelle auf den Eintrag", /setzeQuelle\(eintragId\(ez\)\)/.test(ev));
 {
   ist("es sind zehn", ERZAEHLUNGEN_VORLAGEN.length, 10);
   wahr("alle brauchbar (\xFCber der 40-W\xF6rter-Schwelle)", ERZAEHLUNGEN_VORLAGEN.every((e) => platzBrauchbar(e)));
@@ -12656,9 +12783,8 @@ wahr(
   }));
   wahr("und die Texte sind verschieden lang gebaut (kein Klon)", new Set(ERZAEHLUNGEN_VORLAGEN.map((e) => e.text.length)).size === 10);
   const q2 = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
-  wahr("der Reiter hat den Vorlagen-Knopf", /"Vorlagen einsetzen \(leere Plätze\)"/.test(q2));
-  wahr("er f\xFCllt nur leere Pl\xE4tze", /if \(alle\[i\]!\.text\.trim\(\)\) continue;/.test(q2));
-  wahr("belegte Pl\xE4tze melden sich statt zu \xFCberschreiben", /"Kein Platz frei"/.test(q2));
+  wahr("der Reiter hat den Vorlagen-Knopf (ins Archiv)", /"Vorlagen ins Archiv"/.test(q2));
+  wahr("er archiviert alle zehn mit ihrer Geburt", /for \(const v of ERZAEHLUNGEN_VORLAGEN\) archiviere\(\{ \.\.\.v, geburt: v\.folge \}\);/.test(q2));
 }
 {
   wahr(
@@ -12676,10 +12802,7 @@ wahr(
   wahr("das offene Ende l\xE4sst den Schluss aus", !SCHLAGFOLGEN["offen"].folge.includes("schluss"));
   wahr("jede Vorlage tr\xE4gt ihre Bauform", ERZAEHLUNGEN_VORLAGEN.every((e) => !!e.folge && !!SCHLAGFOLGEN[e.folge]));
   ist("und alle zehn Bauformen kommen vor", new Set(ERZAEHLUNGEN_VORLAGEN.map((e) => e.folge)).size, 10);
-  const alle = ladeErzaehlerbank();
-  alle[0] = { ...ERZAEHLUNGEN_VORLAGEN[7] };
-  speichereErzaehlerbank(alle);
-  const bogen = erzaehlerBogen(0);
+  const bogen = bogenAus({ ...ERZAEHLUNGEN_VORLAGEN[7] });
   wahr("der Bogen tr\xE4gt die Folge der Bauform", (bogen.folge || []).join(",") === SCHLAGFOLGEN["katastrophe"].folge.join(","));
   setDramaData(bogen);
   let vorn = 0;
@@ -12769,9 +12892,9 @@ wahr(
   wahr("und die Wortspanne", /120 bis 170 Wörter/.test(pr));
   ist("unbekannte Bauform f\xE4llt auf die Standard-Anweisung", bauePromptErzaehlung("gibtsnicht").includes(BAUFORM_ANWEISUNG["standard"]), true);
   const qv = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
-  wahr("jeder Platz hat den KI-Knopf", /"KI: neu erzählen"/.test(qv));
+  wahr("der Arbeitsplatz hat den KI-Knopf", /"KI: neu erzählen"/.test(qv));
   wahr("er erz\xE4hlt in der Bauform des Platzes, Thema aus dem Titel", /kiErzaehlung\(folgeSel\.value, titelIn\.value\.trim\(\) \|\| undefined\)/.test(qv));
-  wahr("Erfolg ersetzt den Platz und speichert", /alle\[i\] = \{ \.\.\.neu, folge: folgeSel\.value, geburt: folgeSel\.value \};\s*\n\s*speichereErzaehlerbank\(alle\)/.test(qv));
+  wahr("Erfolg ersetzt den Arbeitsplatz und archiviert", /geburt = folgeSel\.value;\s*\n\s*titelIn\.value = neu\.titel; textIn\.value = neu\.text;\s*\n\s*const ez = aktuell\(\); speichereArbeitsplatz\(ez\); archiviere\(ez\);/.test(qv));
   wahr("Fehler stehen im Knopf, nichts scheitert stumm", /"KI-Fehler — noch einmal\?"/.test(qv));
 }
 {
@@ -12799,9 +12922,17 @@ wahr(
   ist("h\xF6chstens zwanzig je Bauform", archivFuer("still").length, ARCHIV_JE_BAUFORM);
   localStorage.removeItem("dm_erzaehler_archiv_v1");
   const qa = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
-  wahr("die Auswahl geh\xF6rt zur Bauform des Platzes", /archivFuer\(folgeSel\.value\)/.test(qa) && /folgeSel\.addEventListener\("change", fuelleArchiv\)/.test(qa));
-  wahr("w\xE4hlen l\xE4dt und speichert den Platz", /titelIn\.value = e\.titel; textIn\.value = e\.text;/.test(qa));
-  wahr("Speichern und KI archivieren", (qa.match(/archiviere\(alle\[i\]!\);/g) || []).length === 2);
+  wahr("die Liste zeigt ALLE Geschichten, nach Bauform gruppiert", /for \(const \[k, v\] of Object\.entries\(SCHLAGFOLGEN\)\) \{\s*\n\s*const gruppe = alle\.filter/.test(qa));
+  wahr("w\xE4hlen holt in den Arbeitsplatz", /titelIn\.value = x\.titel; textIn\.value = x\.text;/.test(qa));
+  wahr("Speichern und KI archivieren", (qa.match(/archiviere\(ez\);/g) || []).length >= 2);
+  archiviere({ titel: "Zum L\xF6schen", text: VORLAGE_EVOLUTION, folge: "still" });
+  const idL = eintragId({ titel: "Zum L\xF6schen", text: VORLAGE_EVOLUTION, folge: "still" });
+  loescheEintrag(idL);
+  ist("l\xF6schen \xFCber die Kennung", eintragNachId(idL), null);
+  archiviere({ titel: "Zieht um", text: VORLAGE_EVOLUTION, folge: "still", geburt: "still" });
+  const idU = bauformAendern(eintragId({ titel: "Zieht um", text: VORLAGE_EVOLUTION, folge: "still" }), "offen");
+  ist("Bauform \xE4ndern zieht ins andere Archiv, Geburt bleibt", eintragNachId(idU).geburt, "still");
+  ist("\u2026 und die neue Kennung tr\xE4gt die Bauform", eintragNachId(idU).folge, "offen");
 }
 {
   localStorage.removeItem("dm_erzaehler_archiv_v1");
@@ -12817,29 +12948,16 @@ wahr(
   ist("neuer Titel = neue Geschichte, geboren hier", archivFuer("kreis")[0].geburt, "kreis");
   localStorage.removeItem("dm_erzaehler_archiv_v1");
   const qg = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
-  wahr("die Auswahl kennzeichnet Geliehenes mit \u21C4 und Namen", /e\.geburt && e\.geburt !== folgeSel\.value/.test(qg) && /` · ⇄ \$\{name\}`/.test(qg));
-  wahr("W\xE4hlen tr\xE4gt die Geburt in den Platz", /geburt: e\.geburt \|\| e\.folge/.test(qg));
-  wahr("die KI setzt die Geburt auf ihre Bauform", /geburt: folgeSel\.value \}/.test(qg));
-}
-{
-  const qz = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
-  wahr("es gibt den Knopf neben den Vorlagen", /"Alles zurücksetzen"/.test(qz) && /vorlagenBtn, leerenBtn/.test(qz));
-  wahr("er fragt nach, bevor er leert", /if \(!confirm\("Alle zehn Plätze leeren\?/.test(qz));
-  wahr("er leert alle Pl\xE4tze und stellt die zehn Bauformen wieder her", /folge: ERZAEHLUNGEN_VORLAGEN\[i\]\?\.folge \|\| "standard"/.test(qz));
-  wahr("die Vorlagen tragen zehn verschiedene Bauformen", new Set(ERZAEHLUNGEN_VORLAGEN.map((e) => e.folge)).size === 10);
-  wahr("das Archiv bleibt unangetastet (kein Archiv-Zugriff im Handler)", !/leerenBtn[\s\S]{0,600}speichereArchiv|leerenBtn[\s\S]{0,600}dm_erzaehler_archiv/.test(qz));
-}
-{
-  const ql = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
-  wahr("der L\xF6schknopf ist beschriftet", /"Text löschen"/.test(ql));
-  wahr("er l\xF6scht unmittelbar ohne Nachfrage", !/archivWeg\.addEventListener\("click", \(\) => \{[\s\S]{0,400}?confirm/.test(ql));
+  wahr("die Auswahl kennzeichnet Geliehenes mit \u21C4 und Namen", /const geliehen = x\.geburt && x\.geburt !== k;/.test(qg) && /· ⇄ \$\{SCHLAGFOLGEN\[x\.geburt!\]\?\.name \|\| x\.geburt\}/.test(qg));
+  wahr("W\xE4hlen tr\xE4gt die Geburt in den Arbeitsplatz", /geburt = x\.geburt \|\| x\.folge;/.test(qg));
+  wahr("die KI setzt die Geburt auf ihre Bauform", /geburt = folgeSel\.value;/.test(qg));
 }
 {
   const qt = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
-  wahr("der Knopf hei\xDFt \u201EText l\xF6schen\u201C, kein \xD7 mehr", /"Text löschen"/.test(qt) && !qt.includes('}, "\xD7")'));
-  wahr("er steht neben \u201EPlatz leeren\u201C", /speichern, leeren, archivWeg\)/.test(qt));
-  wahr("er l\xF6scht unmittelbar, ohne Nachfrage", /archivWeg\.addEventListener\("click"/.test(qt) && !/archivWeg\.addEventListener\("click", \(\) => \{\s*\n\s*if \(!confirm/.test(qt));
-  wahr("ohne Auswahl ist er ausgegraut", /archivWeg\.disabled = !liste\.length \|\| archivSel\.value === ""/.test(qt));
+  wahr("der Knopf hei\xDFt \u201EText l\xF6schen\u201C", /"Text löschen"/.test(qt));
+  wahr("er steht in der Knopfzeile neben dem Leeren", /speichern, imStudio, leeren, archivWeg\)/.test(qt));
+  wahr("er l\xF6scht unmittelbar, ohne Nachfrage", /archivWeg\.addEventListener\("click", \(\) => \{\s*\n\s*if \(!archivSel\.value\) return;\s*\n\s*if \(ladeQuelle\(\) === archivSel\.value\) setzeQuelle\("preset"\);\s*\n\s*loescheEintrag/.test(qt));
+  wahr("\u201EArchiv leeren\u201C fragt nach", /confirm\("Alle Geschichten aus dem Archiv löschen\?/.test(qt));
 }
 {
   const V = ERZAEHLUNGEN_VORLAGEN;
@@ -12877,23 +12995,24 @@ wahr(
 {
   const qp = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
   wahr("der Bauplan schaltet sich auch bei \u201Ebogen\u201C ein", /const on = planChk\.checked && \(structure\.value === "rekombination" \|\| mitBogen\)/.test(qp));
-  wahr("Kopfzeile nennt Bogen, Stellschraube und Bogen-Anteil", /Bausteinen aus dem Bogen/.test(qp) && /Erzählbogen \$\{loadKnobs\(\)\.bogen\} %/.test(qp));
+  wahr("Kopfzeile nennt Bogen, Stellschraube und Bogen-Anteil", /Bausteinen aus dem Bogen/.test(qp) && /Erzählbogen \$\{loadKnobs\(\)\.bogen\} %/.test(qp) && /letzterGezogen\(\) \|\|/.test(qp));
   wahr("und die Phasenfolge aus der Schlagfolge", /"Phasenfolge: " \+ folge\.map/.test(qp));
   wahr("Bogen-Bausteine sind gekennzeichnet", /einstieg: "Bogen · Einstieg"/.test(qp) && /hoehepunkt: "Bogen · Höhepunkt"/.test(qp));
   const qh = (0, import_fs.readFileSync)("src/ui/helpView.ts", "utf8");
   wahr("die Hilfe sagt es", /Bauplan \(Rekombination und Rekombination mit Bogen\)/.test(qh));
 }
 {
-  const fuenf = Array.from({ length: 10 }, (_, i) => i === 4 ? { titel: "Der Leuchtturm", text: "Ein Text, der lang genug ist, um brauchbar zu sein. ".repeat(6), folge: "still" } : { titel: "", text: "", folge: "standard" });
-  speichereErzaehlerbank(fuenf);
-  setzeQuelle("4");
+  localStorage.removeItem("dm_erzaehler_archiv_v1");
+  const lt = { titel: "Der Leuchtturm", text: "Ein Text, der lang genug ist, um brauchbar zu sein. ".repeat(6), folge: "still" };
+  archiviere(lt);
+  setzeQuelle(eintragId(lt));
   bogenFuerErzeugung();
-  ist("fester Platz: die Blase nennt Platz und Titel", bogenBeschriftung().bogen, "Platz 5 \xB7 Der Leuchtturm");
+  ist("fester Eintrag: die Blase nennt den Titel", bogenBeschriftung().bogen, "Der Leuchtturm");
   ist("und die Bauform", bogenBeschriftung().bauform, "Stiller Bogen");
   setzeQuelle("wuerfeln");
   bogenFuerErzeugung();
-  ist("beim W\xFCrfeln: der konkret gezogene Platz", letzterGezogenerPlatz(), 4);
-  wahr("und die Blase sagt \u201Egew\xFCrfelt\u201C", /^gewürfelt: Platz 5 · Der Leuchtturm$/.test(bogenBeschriftung().bogen), bogenBeschriftung().bogen);
+  ist("beim W\xFCrfeln: der konkret gezogene Eintrag", letzterGezogen().titel, "Der Leuchtturm");
+  wahr("und die Blase sagt \u201Egew\xFCrfelt\u201C", /^gewürfelt: Der Leuchtturm$/.test(bogenBeschriftung().bogen));
   setzeQuelle("preset");
   bogenFuerErzeugung();
   ist("aus Preset: die Blase sagt es", bogenBeschriftung().bogen, "aus Preset");
@@ -12901,12 +13020,12 @@ wahr(
   wahr("die Struktur-Ansicht zeichnet Bogen, Bauform, Phasenfolge", /\["Bogen", snap\.bogen\]/.test(qv) && /\["Bauform", snap\.bauform\]/.test(qv) && /\["Phasenfolge", snap\.phasenfolge\]/.test(qv));
   const qs2 = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
   wahr("der Schnappschuss tr\xE4gt sie beim Erzeugen ein", /const b = bogenBeschriftung\(\);/.test(qs2) && /out\.phasenfolge = phasenAusSchlagfolge/.test(qs2));
-  speichereErzaehlerbank(Array.from({ length: 10 }, () => ({ titel: "", text: "", folge: "standard" })));
+  localStorage.removeItem("dm_erzaehler_archiv_v1");
 }
 {
   const qs3 = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
   wahr("Bogen und Bauform gehen als Auswahlfelder in die Schnellwahl", /\.\.\.\(snap\?\.bogen \? \{ Bogen: bogenSel, Bauform: bauformSel \} : \{\}\)/.test(qs3));
-  wahr("die Bauform-Auswahl schreibt in den Platz", /alle\[i\] = \{ \.\.\.alle\[i\]!, folge: bauformSel\.value \};\s*\n\s*speichereErzaehlerbank\(alle\)/.test(qs3));
+  wahr("die Bauform-Auswahl zieht den Eintrag ins andere Archiv um", /const neuId = bauformAendern\(q, bauformSel\.value\);/.test(qs3));
   wahr("bei \u201Eaus Preset\u201C/\u201Ew\xFCrfeln\u201C ist die Bauform nicht schaltbar", /bauformSel\.disabled = !e;/.test(qs3));
   wahr("kein Schloss an den Bogen-Blasen", /sel === bogenSel \|\| sel === bauformSel \? null : lockBtn\(sel\)/.test(qs3));
   const qv2 = (0, import_fs.readFileSync)("src/ui/structureView.ts", "utf8");
@@ -12916,7 +13035,7 @@ wahr(
   const q1 = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
   wahr("die Wahl eines Bogens stellt die Struktur auf Dramaturgie", /if \(bogenSel\.value !== "preset" && form\.value === "prose" && structure\.value !== "dramaturgie" && structure\.value !== "bogen"\) \{\s*\n\s*strukturVorher = structure\.value;\s*\n\s*structure\.value = "dramaturgie";/.test(q1));
   wahr("\u2026 sichtbar und r\xFCcknehmbar", /zurück auf „\$\{/.test(q1) && /structure\.value = strukturVorher!; strukturVorher = null;/.test(q1));
-  wahr("unter dem Regler steht, ob der Bogen wirkt", /bogenStatus\.append\("wirkt nicht: Struktur ist „/.test(q1) && /wirkt nicht: nur bei Form „Prosa“/.test(q1) && /wirkt nicht: der gewählte Platz ist leer/.test(q1));
+  wahr("unter dem Regler steht, ob der Bogen wirkt", /bogenStatus\.append\("wirkt nicht: Struktur ist „/.test(q1) && /wirkt nicht: nur bei Form „Prosa“/.test(q1) && /wirkt nicht: der gewählte Eintrag fehlt im Archiv/.test(q1));
   wahr("die Statuszeile h\xE4ngt am Regler", /el\("span", \{\}, "Bogen"\)\), bogenSel, bogenStatus\)/.test(q1));
   wahr("Struktur- und Formwechsel zeichnen sie neu", /form\.addEventListener\("change", bogenStatusMalen\)/.test(q1));
   wahr("\u201Eaus Preset\u201C l\xF6scht die R\xFCcknahme", /if \(bogenSel\.value === "preset"\) strukturVorher = null;/.test(q1));
@@ -12931,14 +13050,11 @@ wahr(
   wahr("keine zwei gleichen in Folge", f.every((x, i) => i === 0 || x !== f[i - 1]));
   wahr("die Folge stammt aus dem Text (Wende vor H\xF6hepunkt)", f.indexOf("wende") < f.indexOf("hoehepunkt"));
   ist("ohne Text: die Standardfolge", ableiteSchlagfolge("").join(","), SCHLAGFOLGEN["standard"].folge.join(","));
-  const zehn = Array.from({ length: 10 }, (_, i) => i === 0 ? { titel: "Haus", text: ERZAEHLUNGEN_VORLAGEN[1].text, folge: "eigen" } : { titel: "", text: "", folge: "standard" });
-  speichereErzaehlerbank(zehn);
-  ist("erzaehlerBogen tr\xE4gt die abgeleitete Folge", (erzaehlerBogen(0).folge || []).join(","), f.join(","));
-  speichereErzaehlerbank(Array.from({ length: 10 }, () => ({ titel: "", text: "", folge: "standard" })));
+  ist("bogenAus tr\xE4gt die abgeleitete Folge", (bogenAus({ titel: "Haus", text: ERZAEHLUNGEN_VORLAGEN[1].text, folge: "eigen" }).folge || []).join(","), f.join(","));
   const qt = (0, import_fs.readFileSync)("src/ui/treasuryView.ts", "utf8");
   wahr("die Schatzkammer hat den Knopf \u2192 Erz\xE4hlerbank", /button\("→ Erzählerbank"\)/.test(qt));
-  wahr("er legt in den ersten leeren Platz, sonst nach Nachfrage", /alle\.findIndex\(\(e\) => !e\.text\.trim\(\)\)/.test(qt) && /prompt\("Alle zehn Plätze sind belegt/.test(qt));
-  wahr("mit eigener Schlagfolge und Archiv", /folge: "eigen", geburt: "eigen"/.test(qt) && /archiviere\(alle\[i\]!\);/.test(qt));
+  wahr("er legt in den Arbeitsplatz, archiviert und w\xE4hlt im Studio", /speichereArbeitsplatz\(ez\);\s*\n\s*archiviere\(ez\);\s*\n\s*setzeQuelle\(eintragId\(ez\)\);/.test(qt));
+  wahr("mit eigener Schlagfolge", /folge: "eigen", geburt: "eigen"/.test(qt));
   const qv = (0, import_fs.readFileSync)("src/ui/erzaehlerbankView.ts", "utf8");
   wahr("\u201EBogen zeigen\u201C nennt die abgeleitete Schlagfolge", /Schlagfolge \(abgeleitet\): /.test(qv));
 }

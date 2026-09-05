@@ -4,7 +4,7 @@
 // Feld im Filter schaltet den Tresor mit „#g“ frei (× oder Tab-Wechsel verbirgt ihn wieder).
 import { el, button } from "./dom";
 import { icon } from "./icons";
-import { ladeErzaehlerbank, speichereErzaehlerbank, archiviere } from "../features/erzaehlerbank";
+import { speichereArbeitsplatz, archiviere, eintragId, setzeQuelle } from "../features/erzaehlerbank";
 import {
   loadTreasury, deleteTreasureAt, clearTreasury, exportTreasuryTxt,
   treasureType, wordCount, treasureStats, setTreasureSecretAt,
@@ -123,20 +123,13 @@ export function mountTreasury(root: HTMLElement): void {
       const zurBank = button("→ Erzählerbank");
       zurBank.title = "Diesen Text als Geschichte in die Erzählerbank legen — seine eigene Schlagfolge wird aus dem Text abgeleitet.";
       zurBank.addEventListener("click", () => {
-        const alle = ladeErzaehlerbank();
-        let i = alle.findIndex((e) => !e.text.trim());
-        if (i < 0) {
-          const antwort = prompt("Alle zehn Plätze sind belegt. Welchen Platz (1–10) ersetzen?", "10");
-          const n = parseInt(antwort || "", 10);
-          if (!(n >= 1 && n <= 10)) return;
-          i = n - 1;
-        }
         const ersteZeile = it.t.split(/\n/)[0]!.trim();
         const titel = (ersteZeile.split(/\s+/).length <= 6 && ersteZeile.length <= 60) ? ersteZeile.replace(/[.!?…:]+$/, "") : [it.who, it.what].filter(Boolean).join(" ").slice(0, 60) || "Aus der Schatzkammer";
-        alle[i] = { titel, text: it.t.replace(/\s+/g, " ").trim(), folge: "eigen", geburt: "eigen" };
-        speichereErzaehlerbank(alle);
-        archiviere(alle[i]!);
-        zurBank.textContent = `→ Platz ${i + 1} ✓`;
+        const ez = { titel, text: it.t.replace(/\s+/g, " ").trim(), folge: "eigen", geburt: "eigen" };
+        speichereArbeitsplatz(ez);
+        archiviere(ez);
+        setzeQuelle(eintragId(ez));
+        zurBank.textContent = "→ Erzählerbank ✓ (im Studio gewählt)";
         window.setTimeout(() => { zurBank.textContent = "→ Erzählerbank"; }, 2500);
       });
       const copy = button("Kopieren");

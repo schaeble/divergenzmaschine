@@ -7,8 +7,8 @@ import { JSDOM } from "jsdom";
 const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/" });
 (globalThis as unknown as Record<string, unknown>).localStorage = dom.window.localStorage;
 import { readFileSync } from "fs";
-import { ladeErzaehlerbank, speichereErzaehlerbank, erzaehlerBogen, bogenFuerErzeugung, setzeQuelle, ladeQuelle, platzBrauchbar, ERZAEHLER_PLAETZE, bauePromptErzaehlung, BAUFORM_ANWEISUNG, archiviere, archivFuer, loescheAusArchiv, ARCHIV_JE_BAUFORM } from "../src/features/erzaehlerbank";
-import { bogenBeschriftung, letzterGezogenerPlatz, ableiteSchlagfolge } from "../src/features/erzaehlerbank";
+import { ladeArbeitsplatz, speichereArbeitsplatz, bogenAus, bogenFuerErzeugung, setzeQuelle, ladeQuelle, platzBrauchbar, bauePromptErzaehlung, BAUFORM_ANWEISUNG, archiviere, archivFuer, loescheAusArchiv, ARCHIV_JE_BAUFORM,
+  archivEintraege, eintragId, eintragNachId, loescheEintrag, bauformAendern, bogenBeschriftung, letzterGezogen, ableiteSchlagfolge } from "../src/features/erzaehlerbank";
 import { SCHLAGFOLGEN } from "../src/features/erzaehlerbank";
 import { SCHLAG_NAMEN, SCHLAG_STANDARD } from "../src/generation/dramaturgie";
 import { DEFAULT_BANK } from "../src/constants";
@@ -35,31 +35,37 @@ const ist = (name: string, wert: unknown, soll: unknown): void => {
 };
 const wahr = (name: string, b: boolean): void => ist(name, b, true);
 
-// ── 1 · Die Bank: zehn Plätze, stabil gegen Müll ────────────────────────────
-ist("immer zehn Plätze", ladeErzaehlerbank().length, ERZAEHLER_PLAETZE);
-localStorage.setItem("dm_erzaehlerbank_v1", "kaputt{");
-ist("kaputter Speicher → zehn leere Plätze", ladeErzaehlerbank().filter((e) => !e.text).length, ERZAEHLER_PLAETZE);
-const bank = ladeErzaehlerbank();
-bank[2] = { titel: "Evolution", text: VORLAGE_EVOLUTION };
-speichereErzaehlerbank(bank);
-ist("gespeichert und gelesen", ladeErzaehlerbank()[2]!.titel, "Evolution");
-wahr("brauchbar ab vierzig Wörtern", platzBrauchbar(bank[2]!) && !platzBrauchbar({ titel: "x", text: "zu kurz" }));
+// ── 1 · Arbeitsplatz und Archiv, stabil gegen Müll ──────────────────────────
+localStorage.setItem("dm_erzaehler_arbeitsplatz_v1", "kaputt{");
+ist("kaputter Arbeitsplatz → leer", ladeArbeitsplatz().text, "");
+speichereArbeitsplatz({ titel: "Evolution", text: VORLAGE_EVOLUTION, folge: "kreis" });
+ist("Arbeitsplatz gespeichert und gelesen", ladeArbeitsplatz().titel, "Evolution");
+ist("mit Bauform", ladeArbeitsplatz().folge, "kreis");
+wahr("brauchbar ab vierzig Wörtern", platzBrauchbar(ladeArbeitsplatz()) && !platzBrauchbar({ titel: "x", text: "zu kurz" }));
+localStorage.removeItem("dm_erzaehler_archiv_v1");
+archiviere({ titel: "Evolution", text: VORLAGE_EVOLUTION, folge: "kreis" });
+ist("das Archiv trägt sie", archivEintraege().length, 1);
+const evoId = eintragId({ titel: "Evolution", text: VORLAGE_EVOLUTION, folge: "kreis" });
+ist("die Kennung ist stabil und über die Kennung auffindbar", eintragNachId(evoId)!.titel, "Evolution");
+ist("die Kennung hängt am Titel, nicht am Text", eintragId({ titel: "Evolution", text: VORLAGE_EVOLUTION + " Noch ein Satz.", folge: "kreis" }), evoId);
 
-// ── 2 · Der Bogen je Platz ──────────────────────────────────────────────────
-const b2 = erzaehlerBogen(2);
-wahr("ein voller Platz liefert einen Bogen", !!b2 && b2.einstieg.length >= 1 && b2.schluss.length >= 1);
-ist("ein leerer Platz liefert null", erzaehlerBogen(5), null);
+// ── 2 · Der Bogen einer Erzählung ───────────────────────────────────────────
+const b2 = bogenAus(ladeArbeitsplatz());
+wahr("eine volle Erzählung liefert einen Bogen", !!b2 && b2.einstieg.length >= 1 && b2.schluss.length >= 1);
+ist("eine dünne liefert null", bogenAus({ titel: "x", text: "zu kurz" }), null);
+wahr("die Bauform wird zur Schlagfolge", (b2!.folge || []).join(",") === SCHLAGFOLGEN["kreis"]!.folge.join(","));
 
 // ── 3 · Die Wahl: fest, würfeln, aus Preset ─────────────────────────────────
-setzeQuelle("2");
-ist("die Wahl wird gehalten", ladeQuelle(), "2");
-wahr("fest gewählt → der Bogen dieses Platzes", JSON.stringify(bogenFuerErzeugung()) === JSON.stringify(b2));
+setzeQuelle(evoId);
+ist("die Wahl wird gehalten", ladeQuelle(), evoId);
+wahr("fest gewählt → der Bogen dieses Eintrags", JSON.stringify(bogenFuerErzeugung()) === JSON.stringify(b2));
+ist("und der gezogene Eintrag ist bekannt", letzterGezogen()!.titel, "Evolution");
 setzeQuelle("preset");
 ist("aus Preset → null (der Preset-Bogen gilt)", bogenFuerErzeugung(), null);
 setzeQuelle("wuerfeln");
-wahr("würfeln → ein brauchbarer Bogen", !!bogenFuerErzeugung());
-setzeQuelle("5");
-ist("fest auf leerem Platz → null, die Maschine erzählt wie bisher", bogenFuerErzeugung(), null);
+wahr("würfeln → ein brauchbarer Bogen aus dem Archiv", !!bogenFuerErzeugung());
+setzeQuelle("a:standard:gibtsnicht");
+ist("fest auf fehlendem Eintrag → null, die Maschine erzählt wie bisher", bogenFuerErzeugung(), null);
 setzeQuelle("unsinn");
 ist("Unsinn fällt auf preset zurück", ladeQuelle(), "preset");
 
@@ -75,17 +81,17 @@ setDramaData(null);
 
 // ── 5 · Der Anschluss ───────────────────────────────────────────────────────
 const st = readFileSync("src/ui/studio.ts", "utf8");
-// Der Bogen hat bewusst KEIN Schloss: Der Würfel fasst ihn nicht an (nicht in
-// ROLL_SELECTS), die Wahl ist ohnehin fest — ein Schloss schützte nichts.
 wahr("das Studio hat den Bogen-Regler neben der Struktur", /lockField\("Struktur", structure\),[\s\S]{0,400}?el\("span", \{\}, "Bogen"\)\), bogenSel, bogenStatus\)/.test(st));
 wahr("der Bogen ist nicht würfelbar", !/ROLL_SELECTS = \[[^\]]*bogenSel/.test(st));
+wahr("der Regler zeigt das Archiv nach Bauform", /const alle = archivEintraege\(\)\.filter\(\(e\) => platzBrauchbar\(e\)\);/.test(st) && /el\("optgroup", \{ label: v\.name \}\)/.test(st));
 wahr("die Wahl wird beim Wechsel gesichert", /bogenSel\.addEventListener\("change", \(\) => \{\s*\n\s*setzeQuelle\(bogenSel\.value\); bauformSync\(\);/.test(st));
 wahr("vor jeder Erzeugung wird die Weiche gestellt", /setBogenOverride\(bogenFuerErzeugung\(\)\);\s*\n\s*const model = /.test(st));
 const ap = readFileSync("src/ui/app.ts", "utf8");
 wahr("der Reiter steht neben der Wortbank", /\["Wortbank", mountWordbank\],\s*\n\s*\["Erzählerbank", mountErzaehlerbank\],/.test(ap));
 const ev = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
-wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren",
-  /Bogen zeigen/.test(ev) && /Einfügen/.test(ev) && /Platz leeren/.test(ev) && /preset2AusText\(textIn\.value\)\.drama/.test(ev));
+wahr("ein Arbeitsplatz: Titel, Text, Bauform, Bogen-Vorschau, Einfügen, Speichern, Leeren, Archivliste",
+  /Bogen zeigen/.test(ev) && /Einfügen/.test(ev) && /Arbeitsplatz leeren/.test(ev) && /preset2AusText\(textIn\.value\)\.drama/.test(ev) && /el\("optgroup", \{ label: v\.name \}\)/.test(ev));
+wahr("„Im Studio wählen“ setzt die Quelle auf den Eintrag", /setzeQuelle\(eintragId\(ez\)\)/.test(ev));
 
 // ── Die zehn eingebauten Vorlagen ───────────────────────────────────────────
 // Gewünscht: zehn Geschichten mit unterschiedlichen Bögen, einsetzbar in die
@@ -100,9 +106,8 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   }));
   wahr("und die Texte sind verschieden lang gebaut (kein Klon)", new Set(ERZAEHLUNGEN_VORLAGEN.map((e) => e.text.length)).size === 10);
   const q2 = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
-  wahr("der Reiter hat den Vorlagen-Knopf", /"Vorlagen einsetzen \(leere Plätze\)"/.test(q2));
-  wahr("er füllt nur leere Plätze", /if \(alle\[i\]!\.text\.trim\(\)\) continue;/.test(q2));
-  wahr("belegte Plätze melden sich statt zu überschreiben", /"Kein Platz frei"/.test(q2));
+  wahr("der Reiter hat den Vorlagen-Knopf (ins Archiv)", /"Vorlagen ins Archiv"/.test(q2));
+  wahr("er archiviert alle zehn mit ihrer Geburt", /for \(const v of ERZAEHLUNGEN_VORLAGEN\) archiviere\(\{ \.\.\.v, geburt: v\.folge \}\);/.test(q2));
 }
 
 // ── Schlagfolge: Die Bauform ordnet die Schläge wirklich um ─────────────────
@@ -123,10 +128,7 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   ist("und alle zehn Bauformen kommen vor", new Set(ERZAEHLUNGEN_VORLAGEN.map((e) => e.folge)).size, 10);
   // Wirkung am gebauten Text: „Katastrophe zuerst" stellt den Höhepunkt an
   // den Anfang — ohne „Und dann"-Formel; im Standard steht er hinten mit ihr.
-  const alle = ladeErzaehlerbank();
-  alle[0] = { ...ERZAEHLUNGEN_VORLAGEN[7]! };   // Katastrophe zuerst
-  speichereErzaehlerbank(alle);
-  const bogen = erzaehlerBogen(0)!;
+  const bogen = bogenAus({ ...ERZAEHLUNGEN_VORLAGEN[7]! })!;   // Katastrophe zuerst
   wahr("der Bogen trägt die Folge der Bauform", (bogen.folge || []).join(",") === SCHLAGFOLGEN["katastrophe"]!.folge.join(","));
   setDramaData(bogen);
   // Der Ton darf einen Einleitungssatz davorschieben — deshalb zählen die
@@ -194,9 +196,9 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   wahr("und die Wortspanne", /120 bis 170 Wörter/.test(pr));
   ist("unbekannte Bauform fällt auf die Standard-Anweisung", bauePromptErzaehlung("gibtsnicht").includes(BAUFORM_ANWEISUNG["standard"]!), true);
   const qv = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
-  wahr("jeder Platz hat den KI-Knopf", /"KI: neu erzählen"/.test(qv));
+  wahr("der Arbeitsplatz hat den KI-Knopf", /"KI: neu erzählen"/.test(qv));
   wahr("er erzählt in der Bauform des Platzes, Thema aus dem Titel", /kiErzaehlung\(folgeSel\.value, titelIn\.value\.trim\(\) \|\| undefined\)/.test(qv));
-  wahr("Erfolg ersetzt den Platz und speichert", /alle\[i\] = \{ \.\.\.neu, folge: folgeSel\.value, geburt: folgeSel\.value \};\s*\n\s*speichereErzaehlerbank\(alle\)/.test(qv));
+  wahr("Erfolg ersetzt den Arbeitsplatz und archiviert", /geburt = folgeSel\.value;\s*\n\s*titelIn\.value = neu\.titel; textIn\.value = neu\.text;\s*\n\s*const ez = aktuell\(\); speichereArbeitsplatz\(ez\); archiviere\(ez\);/.test(qv));
   wahr("Fehler stehen im Knopf, nichts scheitert stumm", /"KI-Fehler — noch einmal\?"/.test(qv));
 }
 
@@ -231,9 +233,19 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   ist("höchstens zwanzig je Bauform", archivFuer("still").length, ARCHIV_JE_BAUFORM);
   localStorage.removeItem("dm_erzaehler_archiv_v1");
   const qa = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
-  wahr("die Auswahl gehört zur Bauform des Platzes", /archivFuer\(folgeSel\.value\)/.test(qa) && /folgeSel\.addEventListener\("change", fuelleArchiv\)/.test(qa));
-  wahr("wählen lädt und speichert den Platz", /titelIn\.value = e\.titel; textIn\.value = e\.text;/.test(qa));
-  wahr("Speichern und KI archivieren", (qa.match(/archiviere\(alle\[i\]!\);/g) || []).length === 2);
+  wahr("die Liste zeigt ALLE Geschichten, nach Bauform gruppiert", /for \(const \[k, v\] of Object\.entries\(SCHLAGFOLGEN\)\) \{\s*\n\s*const gruppe = alle\.filter/.test(qa));
+  wahr("wählen holt in den Arbeitsplatz", /titelIn\.value = x\.titel; textIn\.value = x\.text;/.test(qa));
+  wahr("Speichern und KI archivieren", (qa.match(/archiviere\(ez\);/g) || []).length >= 2);
+  // Löschen und Bauform ändern über die Kennung.
+  archiviere({ titel: "Zum Löschen", text: VORLAGE_EVOLUTION, folge: "still" });
+  const idL = eintragId({ titel: "Zum Löschen", text: VORLAGE_EVOLUTION, folge: "still" });
+  loescheEintrag(idL);
+  ist("löschen über die Kennung", eintragNachId(idL), null);
+  archiviere({ titel: "Zieht um", text: VORLAGE_EVOLUTION, folge: "still", geburt: "still" });
+  const idU = bauformAendern(eintragId({ titel: "Zieht um", text: VORLAGE_EVOLUTION, folge: "still" }), "offen");
+  ist("Bauform ändern zieht ins andere Archiv, Geburt bleibt", eintragNachId(idU!)!.geburt, "still");
+  ist("… und die neue Kennung trägt die Bauform", eintragNachId(idU!)!.folge, "offen");
+
 }
 
 // ── Herkunft festhalten: die Geburts-Bauform wandert mit ────────────────────
@@ -253,38 +265,18 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   ist("neuer Titel = neue Geschichte, geboren hier", archivFuer("kreis")[0]!.geburt, "kreis");
   localStorage.removeItem("dm_erzaehler_archiv_v1");
   const qg = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
-  wahr("die Auswahl kennzeichnet Geliehenes mit ⇄ und Namen", /e\.geburt && e\.geburt !== folgeSel\.value/.test(qg) && /` · ⇄ \$\{name\}`/.test(qg));
-  wahr("Wählen trägt die Geburt in den Platz", /geburt: e\.geburt \|\| e\.folge/.test(qg));
-  wahr("die KI setzt die Geburt auf ihre Bauform", /geburt: folgeSel\.value \}/.test(qg));
+  wahr("die Auswahl kennzeichnet Geliehenes mit ⇄ und Namen", /const geliehen = x\.geburt && x\.geburt !== k;/.test(qg) && /· ⇄ \$\{SCHLAGFOLGEN\[x\.geburt!\]\?\.name \|\| x\.geburt\}/.test(qg));
+  wahr("Wählen trägt die Geburt in den Arbeitsplatz", /geburt = x\.geburt \|\| x\.folge;/.test(qg));
+  wahr("die KI setzt die Geburt auf ihre Bauform", /geburt = folgeSel\.value;/.test(qg));
 }
 
-// ── „Alles zurücksetzen“ neben den Vorlagen ─────────────────────────────────
-{
-  const qz = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
-  wahr("es gibt den Knopf neben den Vorlagen", /"Alles zurücksetzen"/.test(qz) && /vorlagenBtn, leerenBtn/.test(qz));
-  wahr("er fragt nach, bevor er leert", /if \(!confirm\("Alle zehn Plätze leeren\?/.test(qz));
-  // Nachgemeldet: Die zehn Bauformen werden wiederhergestellt, je Platz eine.
-  wahr("er leert alle Plätze und stellt die zehn Bauformen wieder her", /folge: ERZAEHLUNGEN_VORLAGEN\[i\]\?\.folge \|\| "standard"/.test(qz));
-  wahr("die Vorlagen tragen zehn verschiedene Bauformen", new Set(ERZAEHLUNGEN_VORLAGEN.map((e) => e.folge)).size === 10);
-  wahr("das Archiv bleibt unangetastet (kein Archiv-Zugriff im Handler)", !/leerenBtn[\s\S]{0,600}speichereArchiv|leerenBtn[\s\S]{0,600}dm_erzaehler_archiv/.test(qz));
-}
-
-// ── Löschen aus dem Archiv: sichtbar beschriftet, mit Nachfrage und Namen ───
-{
-  const ql = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
-  wahr("der Löschknopf ist beschriftet", /"Text löschen"/.test(ql));
-  // Nachgemeldet: Das Löschen soll UNMITTELBAR wirken — die Nachfrage ist weg,
-  // dafür ist der Knopf ohne Auswahl ausgegraut.
-  wahr("er löscht unmittelbar ohne Nachfrage", !/archivWeg\.addEventListener\("click", \(\) => \{[\s\S]{0,400}?confirm/.test(ql));
-}
-
-// ── „Text löschen“ neben „Platz leeren“ — löscht die gewählte Geschichte sofort
+// ── „Text löschen“ neben „Arbeitsplatz leeren“ — löscht die gewählte Geschichte sofort
 {
   const qt = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
-  wahr("der Knopf heißt „Text löschen“, kein × mehr", /"Text löschen"/.test(qt) && !qt.includes('}, "\u00d7")'));
-  wahr("er steht neben „Platz leeren“", /speichern, leeren, archivWeg\)/.test(qt));
-  wahr("er löscht unmittelbar, ohne Nachfrage", /archivWeg\.addEventListener\("click"/.test(qt) && !/archivWeg\.addEventListener\("click", \(\) => \{\s*\n\s*if \(!confirm/.test(qt));
-  wahr("ohne Auswahl ist er ausgegraut", /archivWeg\.disabled = !liste\.length \|\| archivSel\.value === ""/.test(qt));
+  wahr("der Knopf heißt „Text löschen“", /"Text löschen"/.test(qt));
+  wahr("er steht in der Knopfzeile neben dem Leeren", /speichern, imStudio, leeren, archivWeg\)/.test(qt));
+  wahr("er löscht unmittelbar, ohne Nachfrage", /archivWeg\.addEventListener\("click", \(\) => \{\s*\n\s*if \(!archivSel\.value\) return;\s*\n\s*if \(ladeQuelle\(\) === archivSel\.value\) setzeQuelle\("preset"\);\s*\n\s*loescheEintrag/.test(qt));
+  wahr("„Archiv leeren“ fragt nach", /confirm\("Alle Geschichten aus dem Archiv löschen\?/.test(qt));
 }
 
 // ── Rekombination mit Bogen — der geregelte Mittelweg (4.337.0) ─────────────
@@ -317,7 +309,7 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
 {
   const qp = readFileSync("src/ui/studio.ts", "utf8");
   wahr("der Bauplan schaltet sich auch bei „bogen“ ein", /const on = planChk\.checked && \(structure\.value === "rekombination" \|\| mitBogen\)/.test(qp));
-  wahr("Kopfzeile nennt Bogen, Stellschraube und Bogen-Anteil", /Bausteinen aus dem Bogen/.test(qp) && /Erzählbogen \$\{loadKnobs\(\)\.bogen\} %/.test(qp));
+  wahr("Kopfzeile nennt Bogen, Stellschraube und Bogen-Anteil", /Bausteinen aus dem Bogen/.test(qp) && /Erzählbogen \$\{loadKnobs\(\)\.bogen\} %/.test(qp) && /letzterGezogen\(\) \|\|/.test(qp));
   wahr("und die Phasenfolge aus der Schlagfolge", /"Phasenfolge: " \+ folge\.map/.test(qp));
   wahr("Bogen-Bausteine sind gekennzeichnet", /einstieg: "Bogen · Einstieg"/.test(qp) && /hoehepunkt: "Bogen · Höhepunkt"/.test(qp));
   const qh = readFileSync("src/ui/helpView.ts", "utf8");
@@ -326,30 +318,29 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
 
 // ── Infoblasen in der Struktur-Ansicht: welcher Bogen geladen ist ───────────
 {
-  const fuenf = Array.from({ length: 10 }, (_, i) => i === 4
-    ? { titel: "Der Leuchtturm", text: "Ein Text, der lang genug ist, um brauchbar zu sein. ".repeat(6), folge: "still" }
-    : { titel: "", text: "", folge: "standard" });
-  speichereErzaehlerbank(fuenf);
-  setzeQuelle("4"); bogenFuerErzeugung();
-  ist("fester Platz: die Blase nennt Platz und Titel", bogenBeschriftung().bogen, "Platz 5 · Der Leuchtturm");
+  localStorage.removeItem("dm_erzaehler_archiv_v1");
+  const lt = { titel: "Der Leuchtturm", text: "Ein Text, der lang genug ist, um brauchbar zu sein. ".repeat(6), folge: "still" };
+  archiviere(lt);
+  setzeQuelle(eintragId(lt)); bogenFuerErzeugung();
+  ist("fester Eintrag: die Blase nennt den Titel", bogenBeschriftung().bogen, "Der Leuchtturm");
   ist("und die Bauform", bogenBeschriftung().bauform, "Stiller Bogen");
   setzeQuelle("wuerfeln"); bogenFuerErzeugung();
-  ist("beim Würfeln: der konkret gezogene Platz", letzterGezogenerPlatz(), 4);
-  wahr("und die Blase sagt „gewürfelt“", /^gewürfelt: Platz 5 · Der Leuchtturm$/.test(bogenBeschriftung().bogen), bogenBeschriftung().bogen);
+  ist("beim Würfeln: der konkret gezogene Eintrag", letzterGezogen()!.titel, "Der Leuchtturm");
+  wahr("und die Blase sagt „gewürfelt“", /^gewürfelt: Der Leuchtturm$/.test(bogenBeschriftung().bogen));
   setzeQuelle("preset"); bogenFuerErzeugung();
   ist("aus Preset: die Blase sagt es", bogenBeschriftung().bogen, "aus Preset");
   const qv = readFileSync("src/ui/structureView.ts", "utf8");
   wahr("die Struktur-Ansicht zeichnet Bogen, Bauform, Phasenfolge", /\["Bogen", snap\.bogen\]/.test(qv) && /\["Bauform", snap\.bauform\]/.test(qv) && /\["Phasenfolge", snap\.phasenfolge\]/.test(qv));
   const qs2 = readFileSync("src/ui/studio.ts", "utf8");
   wahr("der Schnappschuss trägt sie beim Erzeugen ein", /const b = bogenBeschriftung\(\);/.test(qs2) && /out\.phasenfolge = phasenAusSchlagfolge/.test(qs2));
-  speichereErzaehlerbank(Array.from({ length: 10 }, () => ({ titel: "", text: "", folge: "standard" })));
+  localStorage.removeItem("dm_erzaehler_archiv_v1");
 }
 
 // ── Die Blasen sind schaltbar ───────────────────────────────────────────────
 {
   const qs3 = readFileSync("src/ui/studio.ts", "utf8");
   wahr("Bogen und Bauform gehen als Auswahlfelder in die Schnellwahl", /\.\.\.\(snap\?\.bogen \? \{ Bogen: bogenSel, Bauform: bauformSel \} : \{\}\)/.test(qs3));
-  wahr("die Bauform-Auswahl schreibt in den Platz", /alle\[i\] = \{ \.\.\.alle\[i\]!, folge: bauformSel\.value \};\s*\n\s*speichereErzaehlerbank\(alle\)/.test(qs3));
+  wahr("die Bauform-Auswahl zieht den Eintrag ins andere Archiv um", /const neuId = bauformAendern\(q, bauformSel\.value\);/.test(qs3));
   wahr("bei „aus Preset“/„würfeln“ ist die Bauform nicht schaltbar", /bauformSel\.disabled = !e;/.test(qs3));
   wahr("kein Schloss an den Bogen-Blasen", /sel === bogenSel \|\| sel === bauformSel \? null : lockBtn\(sel\)/.test(qs3));
   const qv2 = readFileSync("src/ui/structureView.ts", "utf8");
@@ -361,7 +352,7 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   const q1 = readFileSync("src/ui/studio.ts", "utf8");
   wahr("die Wahl eines Bogens stellt die Struktur auf Dramaturgie", /if \(bogenSel\.value !== "preset" && form\.value === "prose" && structure\.value !== "dramaturgie" && structure\.value !== "bogen"\) \{\s*\n\s*strukturVorher = structure\.value;\s*\n\s*structure\.value = "dramaturgie";/.test(q1));
   wahr("… sichtbar und rücknehmbar", /zurück auf „\$\{/.test(q1) && /structure\.value = strukturVorher!; strukturVorher = null;/.test(q1));
-  wahr("unter dem Regler steht, ob der Bogen wirkt", /bogenStatus\.append\("wirkt nicht: Struktur ist „/.test(q1) && /wirkt nicht: nur bei Form „Prosa“/.test(q1) && /wirkt nicht: der gewählte Platz ist leer/.test(q1));
+  wahr("unter dem Regler steht, ob der Bogen wirkt", /bogenStatus\.append\("wirkt nicht: Struktur ist „/.test(q1) && /wirkt nicht: nur bei Form „Prosa“/.test(q1) && /wirkt nicht: der gewählte Eintrag fehlt im Archiv/.test(q1));
   wahr("die Statuszeile hängt am Regler", /el\("span", \{\}, "Bogen"\)\), bogenSel, bogenStatus\)/.test(q1));
   wahr("Struktur- und Formwechsel zeichnen sie neu", /form\.addEventListener\("change", bogenStatusMalen\)/.test(q1));
   wahr("„aus Preset“ löscht die Rücknahme", /if \(bogenSel\.value === "preset"\) strukturVorher = null;/.test(q1));
@@ -379,16 +370,13 @@ wahr("jeder Platz hat Titel, Text, Bogen-Vorschau, Einfügen, Speichern, Leeren"
   wahr("keine zwei gleichen in Folge", f.every((x, i) => i === 0 || x !== f[i - 1]));
   wahr("die Folge stammt aus dem Text (Wende vor Höhepunkt)", f.indexOf("wende") < f.indexOf("hoehepunkt"));
   ist("ohne Text: die Standardfolge", ableiteSchlagfolge("").join(","), SCHLAGFOLGEN["standard"]!.folge.join(","));
-  // erzaehlerBogen setzt sie in den Override.
-  const zehn = Array.from({ length: 10 }, (_, i) => i === 0 ? { titel: "Haus", text: ERZAEHLUNGEN_VORLAGEN[1]!.text, folge: "eigen" } : { titel: "", text: "", folge: "standard" });
-  speichereErzaehlerbank(zehn);
-  ist("erzaehlerBogen trägt die abgeleitete Folge", (erzaehlerBogen(0)!.folge || []).join(","), f.join(","));
-  speichereErzaehlerbank(Array.from({ length: 10 }, () => ({ titel: "", text: "", folge: "standard" })));
+  // bogenAus setzt sie in den Override.
+  ist("bogenAus trägt die abgeleitete Folge", (bogenAus({ titel: "Haus", text: ERZAEHLUNGEN_VORLAGEN[1]!.text, folge: "eigen" })!.folge || []).join(","), f.join(","));
   // (c) Aus der Schatzkammer zurück.
   const qt = readFileSync("src/ui/treasuryView.ts", "utf8");
   wahr("die Schatzkammer hat den Knopf → Erzählerbank", /button\("→ Erzählerbank"\)/.test(qt));
-  wahr("er legt in den ersten leeren Platz, sonst nach Nachfrage", /alle\.findIndex\(\(e\) => !e\.text\.trim\(\)\)/.test(qt) && /prompt\("Alle zehn Plätze sind belegt/.test(qt));
-  wahr("mit eigener Schlagfolge und Archiv", /folge: "eigen", geburt: "eigen"/.test(qt) && /archiviere\(alle\[i\]!\);/.test(qt));
+  wahr("er legt in den Arbeitsplatz, archiviert und wählt im Studio", /speichereArbeitsplatz\(ez\);\s*\n\s*archiviere\(ez\);\s*\n\s*setzeQuelle\(eintragId\(ez\)\);/.test(qt));
+  wahr("mit eigener Schlagfolge", /folge: "eigen", geburt: "eigen"/.test(qt));
   const qv = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
   wahr("„Bogen zeigen“ nennt die abgeleitete Schlagfolge", /Schlagfolge \(abgeleitet\): /.test(qv));
 }

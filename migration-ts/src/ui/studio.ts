@@ -16,7 +16,7 @@ import { feedLivePools, LIVE_W } from "../features/livepools";
 import { enforceWordTarget } from "../generation/length";
 import { randomContext } from "../generation/context";
 import { titelFuer } from "../generation/titel";
-import { ladeErzaehlerbank, speichereErzaehlerbank, ladeQuelle, setzeQuelle, platzBrauchbar, bogenFuerErzeugung, SCHLAGFOLGEN, bogenBeschriftung } from "../features/erzaehlerbank";
+import { archivEintraege, eintragNachId, bauformAendern, ladeQuelle, setzeQuelle, platzBrauchbar, bogenFuerErzeugung, SCHLAGFOLGEN, bogenBeschriftung, letzterGezogen } from "../features/erzaehlerbank";
 import { phasenAusSchlagfolge } from "../atoms/assemble";
 import { setBogenOverride } from "../generation/dramaturgie";
 import { ziehVorrat, vorratStand, type VorratFund } from "../features/wikisammler";
@@ -600,11 +600,16 @@ export function mountStudio(root: HTMLElement): void {
     const wahl = ladeQuelle();
     bogenSel.innerHTML = "";
     bogenSel.append(el("option", { value: "preset" }, "aus Preset"));
-    ladeErzaehlerbank().forEach((e, i) => {
-      if (!platzBrauchbar(e)) return;
-      bogenSel.append(el("option", { value: String(i) }, `${i + 1} · ${e.titel || "ohne Titel"}`));
-    });
-    bogenSel.append(el("option", { value: "wuerfeln" }, "würfeln je Erzeugung"));
+    // Das Archiv als Bank (4.341.0): alle Geschichten, nach Bauform gruppiert.
+    const alle = archivEintraege().filter((e) => platzBrauchbar(e));
+    for (const [k, v] of Object.entries(SCHLAGFOLGEN)) {
+      const gruppe = alle.filter((e) => (e.folge || "standard") === k);
+      if (!gruppe.length) continue;
+      const og = el("optgroup", { label: v.name });
+      for (const e of gruppe) og.append(el("option", { value: e.id }, e.titel || "Ohne Titel"));
+      bogenSel.append(og);
+    }
+    bogenSel.append(el("option", { value: "wuerfeln" }, alle.length ? `würfeln je Erzeugung (${alle.length} im Archiv)` : "würfeln je Erzeugung"));
     bogenSel.value = Array.from(bogenSel.options).some((o) => o.value === wahl) ? wahl : "preset";
   };
   bogenFuellen();
@@ -623,15 +628,15 @@ export function mountStudio(root: HTMLElement): void {
     if (q === "preset") { bogenStatus.style.display = "none"; return; }
     bogenStatus.style.display = "";
     const bogenStruktur = structure.value === "dramaturgie" || structure.value === "bogen";
-    const brauchbar = ladeErzaehlerbank().filter((e) => platzBrauchbar(e)).length;
-    const platzLeer = /^[0-9]$/.test(q) && !platzBrauchbar(ladeErzaehlerbank()[parseInt(q, 10)] || { titel: "", text: "" });
+    const brauchbar = archivEintraege().filter((e) => platzBrauchbar(e)).length;
+    const platzLeer = /^a:/.test(q) && !eintragNachId(q);
     if (form.value !== "prose") bogenStatus.append("wirkt nicht: nur bei Form „Prosa“");
     else if (!bogenStruktur) {
       const knopf = el("button", { type: "button", class: "mini-link" }, "auf „Dramaturgie“ stellen");
       knopf.addEventListener("click", () => { strukturVorher = structure.value; structure.value = "dramaturgie"; structure.dispatchEvent(new Event("change")); });
       bogenStatus.append("wirkt nicht: Struktur ist „", structure.options[structure.selectedIndex]?.text || structure.value, "“ — ", knopf);
-    } else if (platzLeer) bogenStatus.append("wirkt nicht: der gewählte Platz ist leer — in der Erzählerbank füllen");
-    else if (q === "wuerfeln" && !brauchbar) bogenStatus.append("wirkt nicht: kein Platz der Erzählerbank ist brauchbar");
+    } else if (platzLeer) bogenStatus.append("wirkt nicht: der gewählte Eintrag fehlt im Archiv — in der Erzählerbank wählen");
+    else if (q === "wuerfeln" && !brauchbar) bogenStatus.append("wirkt nicht: das Archiv der Erzählerbank ist leer");
     else if (strukturVorher) {
       const zurueck = el("button", { type: "button", class: "mini-link" }, `zurück auf „${STRUCTURE_OPTS.find(([v]) => v === strukturVorher)?.[1] || strukturVorher}“`);
       zurueck.addEventListener("click", () => { structure.value = strukturVorher!; strukturVorher = null; structure.dispatchEvent(new Event("change")); });
@@ -656,20 +661,16 @@ export function mountStudio(root: HTMLElement): void {
   const bauformSel = select("f-bauform", Object.entries(SCHLAGFOLGEN).map(([k, v]) => [k, v.name] as [string, string]), "standard");
   const bauformSync = (): void => {
     const q = ladeQuelle();
-    const i = /^[0-9]$/.test(q) ? parseInt(q, 10) : -1;
-    const e = i >= 0 ? ladeErzaehlerbank()[i] : null;
+    const e = /^a:/.test(q) ? eintragNachId(q) : null;
     bauformSel.disabled = !e;
-    bauformSel.title = e ? `Bauform von Platz ${i + 1} ändern — schreibt in die Erzählerbank` : "Bauform gehört zum gewählten Platz — bei „aus Preset“ oder „würfeln“ nicht schaltbar";
+    bauformSel.title = e ? `Bauform von „${e.titel || "Ohne Titel"}“ ändern — der Eintrag zieht ins Archiv der neuen Bauform` : "Bauform gehört zum gewählten Eintrag — bei „aus Preset“ oder „würfeln“ nicht schaltbar";
     if (e) bauformSel.value = e.folge || "standard";
   };
   bauformSel.addEventListener("change", () => {
     const q = ladeQuelle();
-    if (!/^[0-9]$/.test(q)) return;
-    const i = parseInt(q, 10);
-    const alle = ladeErzaehlerbank();
-    if (!alle[i]) return;
-    alle[i] = { ...alle[i]!, folge: bauformSel.value };
-    speichereErzaehlerbank(alle);
+    if (!/^a:/.test(q)) return;
+    const neuId = bauformAendern(q, bauformSel.value);
+    if (neuId) { setzeQuelle(neuId); bogenFuellen(); }
   });
   bauformSync();
   // Beim Rückwechsel in den Reiter können sich die Plätze geändert haben.
@@ -909,7 +910,7 @@ export function mountStudio(root: HTMLElement): void {
       const d = loadDramaData();
       const folge = phasenAusSchlagfolge(d?.folge);
       const q = ladeQuelle();
-      const platz = /^[0-9]$/.test(q) ? ladeErzaehlerbank()[parseInt(q, 10)] : null;
+      const platz = letzterGezogen() || (/^a:/.test(q) ? eintragNachId(q) : null);
       const bauform = platz ? (SCHLAGFOLGEN[platz.folge || "standard"]?.name || platz.folge || "") : (q === "wuerfeln" ? "gewürfelt" : d?.folge ? "aus Preset" : "ohne Bogen — lineare Folge");
       const ausBogen = tr.filter((x) => x.quelle === "dramaturgie").length;
       planBox.append(el("div", { class: "muted mini bp-kopf" },
@@ -1648,7 +1649,7 @@ export function mountStudio(root: HTMLElement): void {
     // jeder Form außer Prosa fällt der Bauweg ebenfalls zurück.
     // Seit der Erzählerbank zählt auch deren Wahl: Ein fester Platz oder
     // „würfeln" bringt einen Bogen mit, selbst wenn das Preset keinen hat.
-    const erzaehlerBogenDa = ladeQuelle() !== "preset" && ladeErzaehlerbank().some(platzBrauchbar);
+    const erzaehlerBogenDa = ladeQuelle() !== "preset" && archivEintraege().some(platzBrauchbar);
     // „Rekombination mit Bogen" (4.337.0) braucht dieselbe Quelle wie die
     // Dramaturgie; ohne Bogen fällt sie still auf die lineare Phasenfolge.
     const brauchtBogen = structure.value === "dramaturgie" || structure.value === "bogen";
@@ -1659,7 +1660,7 @@ export function mountStudio(root: HTMLElement): void {
         ? `Hinweis: „${name}“ wirkt nur bei Prosa — bei „${form.options[form.selectedIndex]?.text || form.value}“ bleibt die Struktur ohne Wirkung.`
         : `Hinweis: „${name}“ braucht einen Erzählbogen. Das aktive Preset hat keinen — `
           + (structure.value === "bogen"
-            ? "die Rekombination baut dann in der linearen Phasenfolge. Unter „Bogen“ im Werkzeugkasten einen Platz der Erzählerbank wählen."
+            ? "die Rekombination baut dann in der linearen Phasenfolge. Unter „Bogen“ im Werkzeugkasten eine Geschichte aus dem Archiv der Erzählerbank wählen."
             : "die Maschine baut über die Schablonen, die Struktur bleibt ohne Wirkung. In der Wortbank lässt sich ein Preset auf 2.0 heben.");
       return;
     }
