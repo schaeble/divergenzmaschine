@@ -394,6 +394,13 @@ export function nominativFragment(t: string): string {
  *  „Dann — dann, unvermittelt:" und „Gut. — das war der Anfang." */
 export function formelnGlaetten(t: string): string {
   return (t || "")
+    // Ein Formelrest ohne Fortsetzung: „— dann;" / „— dann." — gemeldet
+    // („Lange wartet ein Schwarm ohne Zentrum — dann; es geht um …"). Der
+    // Strich samt Rest fällt, das Satzzeichen bleibt.
+    .replace(/\s+—\s+(dann|danach|plötzlich)\s*([;.!?])/gi, "$2")
+    // „erinnert sich an wie das Ende" — ein Vergleichs-Bild in einem Slot,
+    // der eine Nominalphrase verlangt: der Vergleich fällt, das Bild bleibt.
+    .replace(/\b(an|auf|über|von|in|mit|nach) (wie|als) (der|die|das|den|dem|des|ein|eine|einen|einem|einer)\b/g, "$1 $3")
     // „Dann — dann, unvermittelt:" → „Dann, unvermittelt:"; „Dann — Dann," ebenso.
     .replace(/\b(Dann|Und dann|Plötzlich|Danach)\s+—\s+(dann|plötzlich|danach),/gi, (_m: string, a: string) => `${a},`)
     // Nach einem Satzende ist ein Gedankenstrich kein Anschluss: „Gut. — das
@@ -403,7 +410,7 @@ export function formelnGlaetten(t: string): string {
 
 export function kleinesPronomen(t: string): string {
   return (t || "")
-    .replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon|Mittags|Morgens|Abends|Nachts|Heute|Gestern|Morgen|Später|Manchmal|Damals|Irgendwann|Vormittags|Nachmittags)\b/g, (_m: string, sp: string, w: string) => sp + w.toLowerCase())
+    .replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon|Mittags|Morgens|Abends|Nachts|Heute|Gestern|Morgen|Später|Manchmal|Damals|Irgendwann|Vormittags|Nachmittags|Fast|Beinahe|Kaum|Knapp|Bald|Erst|Zuletzt|Endlich)\b/g, (_m: string, sp: string, w: string) => sp + w.toLowerCase())
     // Nach dem Komma beginnt kein Satz: Ein Nebensatz-Einleiter oder ein
     // Relativpronomen wird klein — gemeldet „in einem Beichtstuhl, Wo die
     // Straßen keine Namen tragen". „Die"/„Der" nach Komma sind nie Nomen.

@@ -396,6 +396,17 @@ ist("Gegenprobe: Strich mitten im Satz bleibt", formelnGlaetten("Sie geht — da
   wahr("Präsens-Plural wird nicht zerstört (halten)", u("Und die Sohlen halten noch bis zur Grenze.").text === "Und die Sohlen halten noch bis zur Grenze.");
 }
 
+// ── Blatt „Hinterhof 1348": Formelrest, Vergleich im Slot, Adverbien nach Strich
+ist("„— dann;“ fällt", formelnGlaetten("Lange wartet ein Schwarm ohne Zentrum — dann; es geht um Kontrolle."), "Lange wartet ein Schwarm ohne Zentrum; es geht um Kontrolle.");
+ist("„an wie das“ → „an das“", formelnGlaetten("Die Tür erinnert sich an wie das Ende eines langen Sommers."), "Die Tür erinnert sich an das Ende eines langen Sommers.");
+ist("Gegenprobe: „so wie das“ bleibt", formelnGlaetten("Es ist so wie das Ende eines Sommers."), "Es ist so wie das Ende eines Sommers.");
+ist("Fast nach Strich klein", kleinesPronomen("die es nicht mehr gibt — Fast."), "die es nicht mehr gibt — fast.");
+ist("Knapp nach Strich klein", kleinesPronomen("zu vollkommener Ruhe — Knapp eine Stunde später ist Ruhe."), "zu vollkommener Ruhe — knapp eine Stunde später ist Ruhe.");
+{
+  const qe = readFileSync("src/generation/emphasis.ts", "utf8");
+  wahr("ein Was auf trennbare Partikel bekommt nur den Verb-Rahmen", /test\(A\)\s*\n\s*\? \[`\$\{kit\.P\} \$\{kit\.AleadVerb \|\| "will"\} \$\{A\} — noch immer\.`\]/.test(qe));
+}
+
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

@@ -67,7 +67,12 @@ function plotLine(kit: StoryKit): string {
       ? [`Und wieder: ${A}.`, `Denn genau das geschieht: ${A}.`, `Im Kern bleibt es dabei — ${A}.`]
       : kit.AisInfinitiveLed
         ? [`Noch immer will ${kit.P} ${A}.`, `Alles drängt darauf, ${A}.`]
-        : [`${kit.P} ${kit.AleadVerb || "will"} ${A} — noch immer.`, `Es geht weiter um eines: ${A}.`])
+        // Endet das Was auf eine trennbare Partikel („die Spur bewusst auf" aus
+        // „nimmt die Spur bewusst auf"), trägt nur der Rahmen mit dem Verb —
+        // gemeldet: „Es geht weiter um eines: die Spur bewusst auf."
+        : /\b(auf|an|ab|aus|ein|zu|mit|nach|vor|weg|zurück|los|fest|um|hin|her|ent|über|unter|durch)$/i.test(A)
+          ? [`${kit.P} ${kit.AleadVerb || "will"} ${A} — noch immer.`]
+          : [`${kit.P} ${kit.AleadVerb || "will"} ${A} — noch immer.`, `Es geht weiter um eines: ${A}.`])
     : [];
   return pick([
     ...actionLines, ...actionLines, // Handlung doppelt gewichtet gegenüber Bank-Material
