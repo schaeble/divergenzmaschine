@@ -1203,10 +1203,15 @@ export function mountStudio(root: HTMLElement): void {
       const lead = (seg.match(/^\s*/) || [""])[0];
       const trail = (seg.match(/\s*$/) || [""])[0];
       const core = seg.slice(lead.length, seg.length - trail.length);
-      return escFeeds(lead) + `<span class="feed-plain">` + escFeeds(core) + "</span>" + escFeeds(trail);
+      return escFeeds(lead) + `<span class="feed-plain" title="Vorlage — anklicken zum Bearbeiten">` + escFeeds(core) + "</span>" + escFeeds(trail);
     };
     let html = "", i = 0, last = -1;
-    for (const x of m) { if (x.s < last) continue; html += emitPlain(plain.slice(i, x.s)) + `<span class="${x.cls}">` + escFeeds(plain.slice(x.s, x.e)) + "</span>"; i = x.e; last = x.e; }
+    // Mouse-over nennt die Textart (gewünscht): jede gefärbte Passage trägt
+    // ihre Herkunft als Tooltip — Wortbank, Ton, 4W-Kontext, Lebendige Pools,
+    // Markov, Erzählbogen, Korpus, Umwelt. Dieselbe Beschriftung wie die
+    // Legende und das Bearbeitungsfenster.
+    const FEED_NAMEN: Record<string, string> = { "feed-wb": "Wortbank", "feed-ton": "Ton", "feed-4w": "4W-Kontext", "feed-pool": "Lebendige Pools", "feed-markov": "Markov", "feed-drama": "Erzählbogen", "feed-korpus": "Korpus", "feed-nahrung": "Umwelt (Nahrung)", "feed-gift": "Umwelt (Gift)", "feed-plain": "Vorlage" };
+    for (const x of m) { if (x.s < last) continue; html += emitPlain(plain.slice(i, x.s)) + `<span class="${x.cls}" title="${FEED_NAMEN[x.cls] || "Passage"} — anklicken zum Bearbeiten">` + escFeeds(plain.slice(x.s, x.e)) + "</span>"; i = x.e; last = x.e; }
     html += emitPlain(plain.slice(i));
     out.innerHTML = html;
   };

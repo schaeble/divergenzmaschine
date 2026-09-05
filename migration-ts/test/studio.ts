@@ -654,6 +654,14 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
   wurzel.remove();
 }
 
+// ── Mouse-over auf gefärbten Passagen nennt die Textart ─────────────────────
+{
+  const q = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("jede gefärbte Passage trägt ihre Herkunft als Tooltip", /title="\$\{FEED_NAMEN\[x\.cls\] \|\| "Passage"\} — anklicken zum Bearbeiten"/.test(q));
+  wahr("die Namen decken alle Einspeisungen", /"feed-wb": "Wortbank"/.test(q) && /"feed-drama": "Erzählbogen"/.test(q) && /"feed-nahrung": "Umwelt \(Nahrung\)"/.test(q) && /"feed-korpus": "Korpus"/.test(q));
+  wahr("auch Vorlagen-Passagen", /class="feed-plain" title="Vorlage/.test(q));
+}
+
 console.log(`Prüfstand Studio — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {
