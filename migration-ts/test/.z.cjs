@@ -1,133 +1,4797 @@
 "use strict";
 
-// src/features/varianz.ts
-var STOPP = /* @__PURE__ */ new Set([
-  "aber",
-  "auch",
-  "dann",
-  "dass",
-  "denn",
-  "doch",
+// src/text-utils.ts
+function clean(s) {
+  return (s ?? "").toString().trim().replace(/\s+/g, " ");
+}
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+function chance(p) {
+  return Math.random() < p;
+}
+function ensurePunct(s) {
+  s = clean(s);
+  if (!s) return "";
+  return /[.!?…]$/.test(s) ? s : s + ".";
+}
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+var MONATE = /^(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember|Jahrhunderts?|Jh\.|Hälfte|Auflage|Band|Kapitel|Absatz|Teil)\b/u;
+var ORDNUNGSZAHL = /\d\.$/;
+var ABKUERZUNG = /(?:^|\s)(?:[A-Za-zÄÖÜäöü]|ca|bzw|bspw|evtl|ggf|inkl|Nr|St|Dr|Prof|Abs|Art|Bd|Hrsg|usw|etc)\.$/u;
+function keineGrenze(vor, nach) {
+  if (ABKUERZUNG.test(vor)) return true;
+  if (!ORDNUNGSZAHL.test(vor)) return false;
+  return MONATE.test(nach) || /^\d/.test(nach);
+}
+function splitSentences(txt) {
+  const flach = txt.replace(/\s+/g, " ").trim();
+  const roh = flach.split(/(?<=[.!?…])\s+/).filter(Boolean);
+  const raus = [];
+  for (const teil of roh) {
+    const vor = raus[raus.length - 1];
+    if (vor && keineGrenze(vor, teil)) raus[raus.length - 1] = vor + " " + teil;
+    else raus.push(teil);
+  }
+  return raus;
+}
+function namensErsetzer(name) {
+  const mitArtikel = /^(ein|eine|einen|einem|einer|der|die|das|den|dem|des)\s/i.test(name);
+  return (m) => mitArtikel && /^[a-zäöü]/.test(m) ? name.charAt(0).toLowerCase() + name.slice(1) : name;
+}
+
+// src/generation/verblex.data.ts
+var GRUND = `
+achten \xE4chzen ahnen \xE4ndern \xE4rgern arbeiten atmen backen baden bangen bauen beben bedeuten beeilen befehlen beginnen begreifen
+behalten bei\xDFen bellen bergen bersten beten betteln beugen bewegen biegen bieten bilden binden bitten blasen bleiben blenden blicken
+blinken blinzeln blitzen bl\xFChen bluten bohren borgen brauchen brausen brechen bremsen brennen bringen br\xFCllen brummen buchen b\xFCcken
+b\xFCgeln b\xFCrsten danken decken dehnen denken deuten dichten dienen d\xF6sen dr\xE4ngen drehen dreschen dringen drohen dr\xF6hnen drucken dr\xFCcken
+dulden dunkeln d\xFCrfen duften d\xFCngen d\xFCnken durchqueren ebben ehren eignen eilen einen eitern ekeln enden entbehren entgleiten erben
+erl\xF6schen ernten essen f\xE4cheln fahren fallen falten fangen fassen fasten fauchen fechten fegen fehlen feiern feilen feixen fesseln
+feuern finden fischen flackern flattern flechten flehen flicken fliegen fliehen flie\xDFen flimmern flirren fl\xF6ten fluchen fluten
+fl\xFCstern folgen fordern forschen fragen fressen freuen frieren f\xFCgen f\xFChlen f\xFChren f\xFCllen funkeln f\xFCrchten fu\xDFen g\xE4hnen g\xE4ren gaffen
+geben gedeihen gehen gehorchen geh\xF6ren gelingen gelten genesen genie\xDFen geraten geschehen gewinnen gie\xDFen gl\xE4nzen glauben gleichen
+gleiten glimmen glitzern gl\xFChen g\xF6nnen graben grasen greifen grinsen grollen gr\xFCbeln gr\xFCnen gr\xFC\xDFen gucken haben hacken haften hageln
+haken hallen halten h\xE4mmern handeln h\xE4ngen harren hassen hasten hauchen hauen h\xE4ufen heben heften hegen heilen hei\xDFen heizen helfen
+hemmen herrschen hetzen heulen hinken hocken hoffen holen horchen h\xF6ren huldigen h\xFCllen humpeln hungern hupen h\xFCpfen husten h\xFCten
+irren jagen jammern jauchzen jubeln k\xE4mmen k\xE4mpfen kauen kaufen kehren keimen kennen kichern kippen kitzeln klagen klappen klappern
+kl\xE4ren klatschen kleben kleiden klettern klingeln klingen klirren klopfen knabbern knacken knallen knarren kneifen kneten knicken
+knien knirschen knistern kn\xFCpfen kochen kommen k\xF6nnen kosten krachen kr\xE4hen kr\xE4nken kratzen kreisen kreuzen kriechen kriegen
+kritzeln kr\xFCmmen k\xFChlen k\xFCmmern k\xFCrzen k\xFCssen lachen laden lagern l\xE4hmen landen langen lassen lasten lauern laufen lauschen lauten
+l\xE4uten leben lecken legen lehnen lehren leiden leihen leisten leiten lenken lernen lesen leuchten lieben liefern liegen lindern
+loben locken lodern lohnen l\xF6schen l\xF6sen l\xFCgen lutschen machen mahlen mahnen malen mangeln meiden meinen melden melken merken messen
+mischen missen m\xF6gen morden m\xFCssen munkeln murmeln nagen n\xE4hen nahen n\xE4hern n\xE4hren naschen necken nehmen neigen nennen nesteln
+nicken nieseln nippen nisten n\xF6rgeln nutzen n\xFCtzen \xF6ffnen opfern ordnen packen passen pausieren peitschen pfeifen pflanzen pflegen
+pfl\xFCcken picken plagen platzen plaudern pochen poltern pr\xE4gen prallen prangen prasseln predigen preisen pressen probieren pr\xFCfen
+pr\xFCgeln pulsieren pumpen putzen qu\xE4len quellen quietschen raffen ragen rasen rasten raten rauben rauchen r\xE4umen rauschen rechnen
+reden regen regnen reiben reichen reifen reihen reimen reisen rei\xDFen reiten rennen retten reuen richten riechen ringen rinnen
+ritzen rollen rosten r\xFCcken rudern rufen ruhen r\xFChmen r\xFChren r\xFCtteln s\xE4en sagen sammeln s\xE4umen saugen s\xE4useln schaben schaffen
+schallen schalten sch\xE4men scharren sch\xE4tzen schauen schaufeln schaukeln scheiden scheinen scheitern schellen schelten schenken
+scheren scheuchen scheuen schicken schieben schielen schie\xDFen schildern schimmern schimpfen schinden schlafen schlagen schleichen
+schleifen schleppen schleudern schlie\xDFen schlingen schlucken schl\xFCpfen schmecken schmeicheln schmelzen schmerzen schmieden
+schmieren schm\xFCcken schmunzeln schnappen schnarchen schneiden schneien schn\xFCren schnuppern schonen sch\xF6pfen schrauben schreiben
+schreien schreiten schrumpfen sch\xFCren sch\xFCrfen sch\xFCtteln sch\xFCtten sch\xFCtzen schwanken schw\xE4rmen schwatzen schweben schweifen
+schweigen schwellen schwenken schwimmen schwinden schwingen schwitzen schw\xF6ren segeln segnen sehen sehnen seufzen sichern sichten
+sickern sieden siegen singen sinken sinnen sitzen sollen sorgen sp\xE4hen spalten spannen sparen spazieren speien speisen spenden
+sperren spielen spinnen spotten sprechen sprengen sprie\xDFen springen spritzen spr\xFChen spucken sp\xFClen sp\xFCren stammeln stammen
+stampfen stapeln starren stauben staunen stechen stecken stehen stehlen steigen steinigen stellen sterben steuern sticken
+stinken st\xF6hnen stolpern stopfen st\xF6ren sto\xDFen strahlen stranden streben strecken streichen streicheln streiten streuen
+stricken str\xF6men st\xFCrmen st\xFCrzen stutzen st\xFCtzen suchen summen s\xFCndigen tadeln tagen tanken tanzen tappen tasten tauchen tauen
+taugen taumeln tauschen t\xE4uschen teilen tilgen toben t\xF6nen tosen traben trachten tragen trampeln trauen trauern tr\xE4umen treffen
+treiben trennen treten triefen trinken trocknen trommeln tropfen tr\xF6sten trotzen tr\xFCben tun t\xFCrmen \xFCben umarmen urteilen
+vergessen verlieren verzeihen wachen wachsen wagen w\xE4hlen w\xE4hnen wahren w\xE4hren wandeln wandern wanken w\xE4rmen warnen warten waschen
+weben wechseln wecken wehen wehren weichen weiden weigern weihen weilen weinen weisen weiten welken wenden werben werden werfen
+werken wetten wickeln widmen wiegen wimmeln wimmern winden winken wirbeln wirken wischen wissen wittern wohnen w\xF6lben wollen
+wuchern w\xFChlen wundern w\xFCnschen w\xFCrdigen w\xFCrgen w\xFCrzen zagen zahlen z\xE4hlen z\xE4hmen zaubern zaudern zausen zehren zeichnen zeigen
+zerren zeugen ziehen zielen ziemen zieren zischen zittern z\xF6gern zucken zupfen zw\xE4ngen zweifeln zwingen zwinkern zwitschern
+adeln \xE4hneln akzeptieren analysieren antworten applaudieren beantworten begegnen begleiten behaupten beobachten berichten
+ber\xFChren beschreiben besitzen bestimmen besuchen betrachten betreten beweisen bezahlen br\xFCten datieren definieren diskutieren
+d\xE4mmern d\xE4mpfen dampfen detonieren donnern duschen entdecken entscheiden entschuldigen entwickeln erinnern erkennen erkl\xE4ren
+erlauben erleben erreichen erschrecken erwarten erz\xE4hlen existieren fabrizieren fasziniert funktionieren garantieren geb\xE4ren
+gefallen gen\xFCgen geschehen gestalten gew\xF6hnen glitschen h\xE4mmern handeln heiraten hindern ignorieren informieren interessieren
+kapitulieren kentern klettern kombinieren kontrollieren korrigieren kosten kreisen k\xFCrzen leiden lodern markieren marschieren
+meistern montieren murren musizieren notieren n\xF6tigen operieren organisieren passieren pilgern planen pl\xFCndern posieren
+probieren produzieren protestieren protokollieren rasieren reagieren regieren reparieren respektieren riskieren rotieren
+schmei\xDFen schmettern schnattern sortieren spekulieren studieren telefonieren transportieren trainieren trauen tr\xF6deln
+\xFCberlegen verabschieden ver\xE4ndern verbergen verbinden verbrennen verdienen verfolgen verhalten verhandeln verkaufen verlangen
+verlassen vermeiden vermuten verraten versagen verschieben verschwinden versichern versprechen verstecken verstehen versuchen
+verteidigen vertrauen verwalten verwandeln verweigern verwenden verzichten vollenden wackeln wandeln weinen wirbeln zerbrechen
+zerst\xF6ren z\xF6gern zurechtkommen zweifeln
+stimmen passen setzen dauern l\xF6sen l\xE4cheln k\xFCndigen retten ticken z\xFCnden siegeln entfernen verl\xE4ngern verstummen beschriften
+gabeln erledigen bewilligen best\xE4tigen sichern lohnen stauen stocken t\xF6nen tr\xFCben w\xE4hnen zerren fehlen kosten sparen sperren
+st\xFCrzen stapeln stehlen schweigen taumeln t\xF6ten trocknen tr\xF6pfeln \xFCbergehen verschlie\xDFen vertreten verwahren verwirren vollziehen
+wachsen wandern weichen wirken wurzeln zerfallen zerflie\xDFen zergehen zerrei\xDFen zerschlagen zersplittern zischen
+regeln spiegeln speichern beschleunigen senken f\xE4rben formen altern riegeln fiebern schlitzen rutschen beanstanden erg\xE4nzen
+bl\xE4ttern sanden schulden bessern bremsen dunkeln d\xFCstern erkennen ernennen f\xE4rben festigen filtern fl\xFCchten fr\xF6nen g\xE4hnen
+h\xE4uten heilen hetzen k\xE4mmen klammern klemmen kneten kramen kr\xE4nkeln kr\xE4useln lasten leimen l\xFCften mildern mustern nachten
+n\xE4ssen nieten \xF6len pinseln pl\xE4tschern polstern prallen prunken quirlen r\xE4dern reifen richten r\xF6cheln r\xFCtteln s\xE4ubern salzen
+s\xE4umen sch\xE4tzen schaudern schl\xE4ngeln schleimen schlummern schmoren schn\xFCffeln schrubben schw\xE4chen schwelen sengen sondern
+spalten spiegeln spitzen sprudeln stauben steuern stochern strampeln streifen striegeln stumpfen sudeln tauen tigern tippen
+trampeln t\xFCnchen wabern watscheln wetzen wiehern winseln wispern wittern wuchten zerknittern zetern zieren zittern zotteln zuckeln
+abh\xE4ngen ankommen anfangen aufstehen ausgehen bedienen befreien behandeln bemerken benennen beschlie\xDFen bestehen betonen bewahren
+bezeichnen bilden bluten br\xFCten b\xFC\xDFen d\xE4mmern deuten drehen ehren einigen empfangen empfehlen entfalten enthalten entlassen entstehen
+erfahren erfinden ergeben erhalten erheben erholen erl\xF6sen ermahnen ern\xE4hren er\xF6ffnen erregen ersch\xF6pfen ersticken erstarren erw\xE4hnen
+erweitern erzeugen fesseln fl\xFCchten fr\xF6steln funken gebieten gedenken gelangen gemahnen geraten gestehen gew\xE4hren graben grenzen
+gr\xFCbeln hadern harken hausen heben herrschen hindern huschen j\xE4ten jucken keuchen klaffen kleckern klimpern knallen kraulen kreischen
+kringeln kritzeln kr\xF6nen kuscheln l\xE4rmen leuchten lichten lispeln lugen lungern m\xE4\xDFigen mei\xDFeln mieten mindern m\xFChen murksen nachahmen
+nagen n\xE4seln n\xF6rgeln nuscheln pachten pflastern pieksen plappern prahlen prangen prellen prosten quaken qualmen r\xE4uspern rauen r\xE4umen
+reizen rieseln rodeln r\xF6hren rumpeln s\xE4beln s\xE4ckeln s\xE4gen sausen sch\xE4umen sch\xE4len schaufeln schnalzen schnaufen schnellen schnippen
+schwappen schwirren seihen sichten siezen sinnieren spannen spenden spicken spie\xDFen sprenkeln spuken st\xE4nkern stelzen stemmen sticheln
+st\xF6bern stopfen strapazieren strotzen st\xFClpen stutzen t\xE4ndeln taxieren tollen torkeln tr\xE4llern trudeln tuscheln umgarnen verharren
+wabbeln walzen wedeln weilen wetteifern wimmeln wringen wuseln zappeln zaubern zechen zergehen zerkn\xFCllen zerlegen zerm\xFCrben zerpfl\xFCcken
+zerschellen zertr\xFCmmern zeugen zirpen zocken zurren
+`;
+var VERB_PRAEFIXE = [
+  "zusammen",
+  "zur\xFCck",
+  "wieder",
+  "gegen",
+  "hinter",
   "durch",
-  "eine",
-  "einem",
+  "unter",
+  "\xFCber",
+  "voran",
+  "vorbei",
+  "heraus",
+  "herein",
+  "hinaus",
+  "hinein",
+  "herum",
+  "hinauf",
+  "hinab",
+  "herab",
+  "empor",
+  "fort",
+  "los",
+  "weg",
+  "fest",
+  "auseinander",
+  "entgegen",
+  "entlang",
+  "nieder",
+  "umher",
+  "davon",
+  "dazu",
+  "hoch",
+  "her",
+  "hin",
+  "ver",
+  "ent",
+  "emp",
+  "miss",
+  "zer",
+  "be",
+  "er",
+  "ge",
+  "an",
+  "ab",
+  "auf",
+  "aus",
+  "ein",
+  "mit",
+  "nach",
+  "vor",
+  "zu",
+  "um",
+  "bei",
+  "da",
+  "wider",
+  "still",
+  "frei",
+  "leer",
+  "tot",
+  "voll",
+  "wahr",
+  "gut",
+  "kaputt"
+];
+var PAST2PRES = {
+  // Ergänzt 4.338.2 (Blatt „Vier Kinder": „Das Herz schlug mir bis zum Hals" blieb stehen):
+  schlug: "schl\xE4gt",
+  schlugen: "schlagen",
+  roch: "riecht",
+  rochen: "riechen",
+  traf: "trifft",
+  trafen: "treffen",
+  schob: "schiebt",
+  schoben: "schieben",
+  tat: "tut",
+  taten: "tun",
+  wusch: "w\xE4scht",
+  stritt: "streitet",
+  glitt: "gleitet",
+  stie\u00DF: "st\xF6\xDFt",
+  stie\u00DFen: "sto\xDFen",
+  goss: "gie\xDFt",
+  band: "bindet",
+  banden: "binden",
+  zwang: "zwingt",
+  fing: "f\xE4ngt",
+  fingen: "fangen",
+  sandte: "sendet",
+  mochte: "mag",
+  mochten: "m\xF6gen",
+  stahl: "stiehlt",
+  galt: "gilt",
+  galten: "gelten",
+  gelang: "gelingt",
+  verband: "verbindet",
+  erhielt: "erh\xE4lt",
+  erhielten: "erhalten",
+  behielt: "beh\xE4lt",
+  enthielt: "enth\xE4lt",
+  verlie\u00DF: "verl\xE4sst",
+  verlie\u00DFen: "verlassen",
+  genoss: "genie\xDFt",
+  schlich: "schleicht",
+  strich: "streicht",
+  blies: "bl\xE4st",
+  lud: "l\xE4dt",
+  luden: "laden",
+  schuf: "schafft",
+  schufen: "schaffen",
+  log: "l\xFCgt",
+  betrog: "betr\xFCgt",
+  flocht: "flicht",
+  kroch: "kriecht",
+  krochen: "kriechen",
+  schmolz: "schmilzt",
+  quoll: "quillt",
+  quollen: "quellen",
+  verging: "vergeht",
+  vergingen: "vergehen",
+  entging: "entgeht",
+  erging: "ergeht",
+  erschrak: "erschrickt",
+  war: "ist",
+  waren: "sind",
+  warst: "bist",
+  hatte: "hat",
+  hatten: "haben",
+  hattest: "hast",
+  wurde: "wird",
+  wurden: "werden",
+  ging: "geht",
+  gingen: "gehen",
+  kam: "kommt",
+  kamen: "kommen",
+  sah: "sieht",
+  sahen: "sehen",
+  gab: "gibt",
+  gaben: "geben",
+  stand: "steht",
+  standen: "stehen",
+  blieb: "bleibt",
+  blieben: "bleiben",
+  hielt: "h\xE4lt",
+  hielten: "halten",
+  lie\u00DF: "l\xE4sst",
+  lie\u00DFen: "lassen",
+  fand: "findet",
+  fanden: "finden",
+  nahm: "nimmt",
+  nahmen: "nehmen",
+  sprach: "spricht",
+  sprachen: "sprechen",
+  schrieb: "schreibt",
+  schrieben: "schreiben",
+  trug: "tr\xE4gt",
+  trugen: "tragen",
+  fuhr: "f\xE4hrt",
+  fuhren: "fahren",
+  lief: "l\xE4uft",
+  liefen: "laufen",
+  sa\u00DF: "sitzt",
+  sa\u00DFen: "sitzen",
+  lag: "liegt",
+  lagen: "liegen",
+  hie\u00DF: "hei\xDFt",
+  hie\u00DFen: "hei\xDFen",
+  zog: "zieht",
+  zogen: "ziehen",
+  schlief: "schl\xE4ft",
+  schliefen: "schlafen",
+  rief: "ruft",
+  riefen: "rufen",
+  fiel: "f\xE4llt",
+  fielen: "fallen",
+  sang: "singt",
+  sangen: "singen",
+  trank: "trinkt",
+  tranken: "trinken",
+  schwieg: "schweigt",
+  schwiegen: "schweigen",
+  floss: "flie\xDFt",
+  flossen: "flie\xDFen",
+  stieg: "steigt",
+  stiegen: "steigen",
+  sank: "sinkt",
+  sanken: "sinken",
+  bot: "bietet",
+  boten: "bieten",
+  schloss: "schlie\xDFt",
+  schlossen: "schlie\xDFen",
+  verlor: "verliert",
+  verloren: "verlieren",
+  begann: "beginnt",
+  begannen: "beginnen",
+  geschah: "geschieht",
+  geschahen: "geschehen",
+  konnte: "kann",
+  konnten: "k\xF6nnen",
+  musste: "muss",
+  mussten: "m\xFCssen",
+  wollte: "will",
+  wollten: "wollen",
+  sollte: "soll",
+  sollten: "sollen",
+  durfte: "darf",
+  durften: "d\xFCrfen",
+  wusste: "wei\xDF",
+  wussten: "wissen",
+  dachte: "denkt",
+  dachten: "denken",
+  brachte: "bringt",
+  brachten: "bringen",
+  kannte: "kennt",
+  kannten: "kennen",
+  erkannte: "erkennt",
+  erkannten: "erkennen",
+  brannte: "brennt",
+  brannten: "brennen",
+  nannte: "nennt",
+  nannten: "nennen",
+  rannte: "rennt",
+  rannten: "rennen",
+  wandte: "wendet",
+  wandten: "wenden",
+  sprang: "springt",
+  sprangen: "springen",
+  schrie: "schreit",
+  schrien: "schreien",
+  flog: "fliegt",
+  flogen: "fliegen",
+  floh: "flieht",
+  flohen: "fliehen",
+  schoss: "schie\xDFt",
+  schossen: "schie\xDFen",
+  riss: "rei\xDFt",
+  rissen: "rei\xDFen",
+  biss: "bei\xDFt",
+  bissen: "bei\xDFen",
+  griff: "greift",
+  griffen: "greifen",
+  pfiff: "pfeift",
+  pfiffen: "pfeifen",
+  schnitt: "schneidet",
+  schnitten: "schneiden",
+  litt: "leidet",
+  litten: "leiden",
+  trat: "tritt",
+  traten: "treten",
+  verga\u00DF: "vergisst",
+  verga\u00DFen: "vergessen",
+  wuchs: "w\xE4chst",
+  wuchsen: "wachsen",
+  wich: "weicht",
+  wichen: "weichen",
+  schien: "scheint",
+  schienen: "scheinen",
+  zerbrach: "zerbricht",
+  zerbrachen: "zerbrechen",
+  verschwand: "verschwindet",
+  verschwanden: "verschwinden",
+  erschien: "erscheint",
+  erschienen: "erscheinen",
+  starb: "stirbt",
+  starben: "sterben",
+  brach: "bricht",
+  brachen: "brechen",
+  sprach2: "spricht",
+  schwoll: "schwillt",
+  schwollen: "schwellen",
+  bog: "biegt",
+  bogen: "biegen",
+  hob: "hebt",
+  hoben: "heben",
+  wob: "webt",
+  woben: "weben",
+  klang: "klingt",
+  klangen: "klingen",
+  sann: "sinnt",
+  sannen: "sinnen",
+  rann: "rinnt",
+  rannen: "rinnen",
+  schwamm: "schwimmt",
+  schwammen: "schwimmen",
+  verschwieg: "verschweigt",
+  zerfiel: "zerf\xE4llt",
+  zerfielen: "zerfallen",
+  entstand: "entsteht",
+  entstanden: "entstehen",
+  verstand: "versteht",
+  verstanden: "verstehen",
+  bestand: "besteht",
+  bestanden: "bestehen",
+  geriet: "ger\xE4t",
+  gerieten: "geraten",
+  trieb: "treibt",
+  trieben: "treiben",
+  schrak: "schrickt",
+  wies: "weist",
+  wiesen: "weisen",
+  hing: "h\xE4ngt",
+  hingen: "h\xE4ngen",
+  schwand: "schwindet",
+  schwanden: "schwinden",
+  gewann: "gewinnt",
+  gewannen: "gewinnen",
+  zerriss: "zerrei\xDFt",
+  zerrissen2: "zerrei\xDFen",
+  empfand: "empfindet",
+  empfanden: "empfinden",
+  befahl: "befiehlt",
+  befahlen: "befehlen",
+  half: "hilft",
+  halfen: "helfen",
+  warf: "wirft",
+  warfen: "werfen",
+  starrte2: "starrt",
+  las: "liest",
+  lasen: "lesen",
+  a\u00DF: "isst",
+  a\u00DFen: "essen",
+  bat: "bittet",
+  baten: "bitten"
+};
+var VERB_INFINITIVE = new Set(GRUND.split(/\s+/).map((w) => w.trim()).filter((w) => w.length > 2));
+
+// src/generation/verben.ts
+var STARK = {
+  // sein · haben · werden · wissen · tun · Modalverben
+  ist: ["bin", "bist", "sind", "seid"],
+  hat: ["habe", "hast", "haben", "habt"],
+  wird: ["werde", "wirst", "werden", "werdet"],
+  wei\u00DF: ["wei\xDF", "wei\xDFt", "wissen", "wisst"],
+  tut: ["tue", "tust", "tun", "tut"],
+  kann: ["kann", "kannst", "k\xF6nnen", "k\xF6nnt"],
+  muss: ["muss", "musst", "m\xFCssen", "m\xFCsst"],
+  will: ["will", "willst", "wollen", "wollt"],
+  soll: ["soll", "sollst", "sollen", "sollt"],
+  darf: ["darf", "darfst", "d\xFCrfen", "d\xFCrft"],
+  mag: ["mag", "magst", "m\xF6gen", "m\xF6gt"],
+  // a → ä
+  h\u00E4lt: ["halte", "h\xE4ltst", "halten", "haltet"],
+  f\u00E4llt: ["falle", "f\xE4llst", "fallen", "fallt"],
+  tr\u00E4gt: ["trage", "tr\xE4gst", "tragen", "tragt"],
+  l\u00E4uft: ["laufe", "l\xE4ufst", "laufen", "lauft"],
+  schl\u00E4ft: ["schlafe", "schl\xE4fst", "schlafen", "schlaft"],
+  f\u00E4ngt: ["fange", "f\xE4ngst", "fangen", "fangt"],
+  l\u00E4sst: ["lasse", "l\xE4sst", "lassen", "lasst"],
+  w\u00E4chst: ["wachse", "w\xE4chst", "wachsen", "wachst"],
+  gr\u00E4bt: ["grabe", "gr\xE4bst", "graben", "grabt"],
+  schl\u00E4gt: ["schlage", "schl\xE4gst", "schlagen", "schlagt"],
+  r\u00E4t: ["rate", "r\xE4tst", "raten", "ratet"],
+  bl\u00E4st: ["blase", "bl\xE4st", "blasen", "blast"],
+  st\u00F6\u00DFt: ["sto\xDFe", "st\xF6\xDFt", "sto\xDFen", "sto\xDFt"],
+  f\u00E4hrt: ["fahre", "f\xE4hrst", "fahren", "fahrt"],
+  w\u00E4scht: ["wasche", "w\xE4schst", "waschen", "wascht"],
+  l\u00E4dt: ["lade", "l\xE4dst", "laden", "ladet"],
+  s\u00E4uft: ["saufe", "s\xE4ufst", "saufen", "sauft"],
+  // e → i / ie
+  gibt: ["gebe", "gibst", "geben", "gebt"],
+  nimmt: ["nehme", "nimmst", "nehmen", "nehmt"],
+  spricht: ["spreche", "sprichst", "sprechen", "sprecht"],
+  bricht: ["breche", "brichst", "brechen", "brecht"],
+  sieht: ["sehe", "siehst", "sehen", "seht"],
+  liest: ["lese", "liest", "lesen", "lest"],
+  isst: ["esse", "isst", "essen", "esst"],
+  frisst: ["fresse", "frisst", "fressen", "fresst"],
+  misst: ["messe", "misst", "messen", "messt"],
+  vergisst: ["vergesse", "vergisst", "vergessen", "vergesst"],
+  hilft: ["helfe", "hilfst", "helfen", "helft"],
+  stirbt: ["sterbe", "stirbst", "sterben", "sterbt"],
+  wirft: ["werfe", "wirfst", "werfen", "werft"],
+  trifft: ["treffe", "triffst", "treffen", "trefft"],
+  gilt: ["gelte", "giltst", "gelten", "geltet"],
+  tritt: ["trete", "trittst", "treten", "tretet"],
+  birgt: ["berge", "birgst", "bergen", "bergt"],
+  quillt: ["quelle", "quillst", "quellen", "quellt"],
+  schilt: ["schelte", "schiltst", "schelten", "scheltet"],
+  ficht: ["fechte", "fichtst", "fechten", "fechtet"],
+  flicht: ["flechte", "flichtst", "flechten", "flechtet"],
+  verdirbt: ["verderbe", "verdirbst", "verderben", "verderbt"],
+  wirbt: ["werbe", "wirbst", "werben", "werbt"],
+  erschrickt: ["erschrecke", "erschrickst", "erschrecken", "erschreckt"],
+  sticht: ["steche", "stichst", "stechen", "stecht"],
+  schmilzt: ["schmelze", "schmilzt", "schmelzen", "schmelzt"],
+  befiehlt: ["befehle", "befiehlst", "befehlen", "befehlt"],
+  stiehlt: ["stehle", "stiehlst", "stehlen", "stehlt"],
+  empfiehlt: ["empfehle", "empfiehlst", "empfehlen", "empfehlt"],
+  geschieht: ["geschehe", "geschiehst", "geschehen", "gescheht"],
+  gebiert: ["geb\xE4re", "gebierst", "geb\xE4ren", "geb\xE4rt"],
+  schwillt: ["schwelle", "schwillst", "schwellen", "schwellt"]
+};
+var PRAEFIXE = [
+  "zusammen",
+  "zur\xFCck",
+  "wieder",
+  "gegen",
+  "hinter",
+  "durch",
+  "unter",
+  "\xFCber",
+  "voran",
+  "vorbei",
+  "heraus",
+  "herein",
+  "hinaus",
+  "hinein",
+  "herum",
+  "hinauf",
+  "hinab",
+  "herab",
+  "empor",
+  "fort",
+  "los",
+  "weg",
+  "fest",
+  "her",
+  "hin",
+  "ver",
+  "ent",
+  "emp",
+  "miss",
+  "zer",
+  "be",
+  "er",
+  "ge",
+  "an",
+  "ab",
+  "auf",
+  "aus",
+  "ein",
+  "mit",
+  "nach",
+  "vor",
+  "zu",
+  "um",
+  "bei",
+  "da",
+  "wider"
+];
+var KEIN_VERB = /* @__PURE__ */ new Set([
+  "alt",
+  "kalt",
+  "laut",
+  "bunt",
+  "hart",
+  "zart",
+  "satt",
+  "glatt",
+  "weit",
+  "breit",
+  "rot",
+  "tot",
+  "gut",
+  "sp\xE4t",
+  "echt",
+  "leicht",
+  "dicht",
+  "recht",
+  "schlecht",
+  "nackt",
+  "fest",
+  "letzt",
+  "jetzt",
+  "sanft",
+  "ernst",
+  "wert",
+  "seit",
+  "statt",
+  "samt",
+  "nicht",
+  "mit",
+  "seid",
+  "zuletzt",
+  "zuerst",
+  "oft",
+  "fast",
+  "erst",
+  "sonst",
+  "meist",
+  "direkt",
+  "dort",
+  "fort",
+  "sofort",
+  "selbst",
+  "vielleicht",
+  "\xFCberhaupt",
+  "bereit",
+  "gerecht",
+  "perfekt",
+  "exakt",
+  "absolut",
+  "gesamt",
+  "komplett",
+  "verr\xFCckt",
+  "bekannt",
+  "geschickt",
+  "welt",
+  "zeit",
+  "nacht",
+  "stadt",
+  "acht",
+  "licht",
+  "wort",
+  "ort",
+  "blut",
+  "brot",
+  "mut",
+  "hut",
+  "gebet",
+  "geist",
+  "gott",
+  "kraft",
+  "luft",
+  "haut",
+  "haft",
+  "gift",
+  "schrift",
+  "frucht",
+  "flucht",
+  "sicht",
+  "pflicht",
+  "angst",
+  "kunst",
+  "dienst",
+  "frost",
+  "post",
+  "ost",
+  "west",
+  "rest",
+  "test",
+  "text",
+  "w\xFCst",
+  "getrennt",
+  "gemischt",
+  "gebrannt",
+  "verschwunden",
+  "gewohnt",
+  "gelaunt",
+  "ber\xFChmt",
+  "geliebt",
+  "gelebt",
+  "gedacht",
+  "gemacht",
+  "gebracht",
+  "gesagt",
+  "gesucht",
+  "gehabt",
+  "gewusst",
+  "gekannt",
+  "genannt",
+  "benannt",
+  "gewollt",
+  "verboten",
+  "ge\xF6ffnet",
+  "ungeahnt",
+  "gestern",
+  "heut",
+  "abrupt",
+  "ad\xE4quat",
+  "privat",
+  "intakt",
+  "korrekt",
+  "konkret",
+  "moderat",
+  "elegant",
+  "brillant",
+  "tolerant",
+  "relevant",
+  "markant",
+  "rasant",
+  "galant",
+  "latent",
+  "dezent",
+  "prominent",
+  "kompetent",
+  "konsequent",
+  "permanent",
+  "evident",
+  "eloquent",
+  "intelligent",
+  "gespannt",
+  "entspannt",
+  "gewandt",
+  "verwandt",
+  "bewusst",
+  "unbewusst",
+  "robust",
+  "abstrakt",
+  "kompakt",
+  "exakt",
+  "defekt",
+  "perfekt",
+  "insgesamt",
+  "total"
+]);
+var SIBILANT = /(s|ß|z|x|tz|ss)$/;
+var GE_VERBEN = /^ge(ht|nügt|hört|horcht|lingt|winnt|langt|schieht|steht|rät|nießt|wöhnt|fährdet|währt|stattet|staltet|denkt|bietet|braucht|hörcht|nest|reicht|dulde?t|fällt|deiht|lobt|leitet|langt|winnt|behrt|bärt|fried[e]?t|fällt|lüstet|mahnt|rinnt|hört)$/;
+function starkMitPraefix(form) {
+  if (STARK[form]) return ["", STARK[form]];
+  for (const p of PRAEFIXE) {
+    if (form.startsWith(p) && form.length > p.length + 2) {
+      const rest = form.slice(p.length);
+      if (STARK[rest]) return [p, STARK[rest]];
+    }
+  }
+  return null;
+}
+function kenntInfinitiv(wort) {
+  const w = wort.toLowerCase();
+  if (VERB_INFINITIVE.has(w)) return true;
+  for (const p of VERB_PRAEFIXE) {
+    if (w.startsWith(p) && w.length > p.length + 3 && VERB_INFINITIVE.has(w.slice(p.length))) return true;
+  }
+  return false;
+}
+function infinitivZuStamm(stamm) {
+  const s = stamm.toLowerCase();
+  if (!s) return null;
+  const kandidaten = [s + "en", s + "n", s + "eln", s + "ern"];
+  if (/e[lr]$/.test(s)) kandidaten.unshift(s + "n");
+  const st = starkMitPraefix(s + "t");
+  if (st) return st[0] + st[1][2];
+  for (const k of kandidaten) if (kenntInfinitiv(k)) return k;
+  return null;
+}
+function istLexikonVerb(wort) {
+  const w = wort.toLowerCase().replace(/[^a-zäöüß]/g, "");
+  if (!w || w.length < 3) return false;
+  if (starkMitPraefix(w)) return true;
+  if (kenntInfinitiv(w)) return true;
+  if (PAST2PRES[w]) return true;
+  if (/^(bin|bist|sind|seid|habe|hast|habt|werde|wirst|werdet|wäre|wären|hätte|hätten|würde|würden|sei|seien)$/.test(w)) return true;
+  for (const suffix of ["etest", "test", "eten", "ten", "ete", "te", "est", "st", "et", "en", "t", "e", "tet"]) {
+    if (!w.endsWith(suffix) || w.length - suffix.length < 2) continue;
+    const st = w.slice(0, -suffix.length);
+    if (/ier$/.test(st)) return true;
+    if (infinitivZuStamm(st)) return true;
+  }
+  const pz = w.match(/^(?:[a-zäöü]{2,8})?ge(.+?)(?:t|en)$/);
+  if (pz && infinitivZuStamm(pz[1])) return true;
+  return false;
+}
+function istVerbform(wort) {
+  const w = wort.toLowerCase();
+  if (starkMitPraefix(w)) return true;
+  if (KEIN_VERB.has(w)) return false;
+  if (/^[a-zäöüß]{3,}(t|st|e|en)$/.test(w) && istLexikonVerb(w)) return true;
+  if (!/^[a-zäöüß]{3,}t$/.test(w)) return false;
+  if (/^ge[a-zäöüß]{2,}t$/.test(w)) return GE_VERBEN.test(w);
+  return true;
+}
+function beugeVerb(form3, person) {
+  const gross = /^[A-ZÄÖÜ]/.test(form3);
+  const w = form3.toLowerCase();
+  const fertig = (s) => gross ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  if (person === "er" || person === "sie") return istVerbform(w) ? form3 : null;
+  const st = starkMitPraefix(w);
+  if (st) {
+    const [p, [ich, du, wir, ihr]] = st;
+    const f = person === "ich" ? ich : person === "du" ? du : person === "wir" ? wir : ihr || wir.replace(/e?n$/, "t");
+    return fertig(p + f);
+  }
+  if (!istVerbform(w)) return null;
+  let stamm = w.slice(0, -1);
+  const bindevokal = /[td]et$/.test(w) || /(chn|ffn|gn|tm|dm|ckn|kn)et$/.test(w);
+  if (bindevokal) stamm = w.slice(0, -2);
+  if (person === "ihr") return fertig(w);
+  if (person === "wir") {
+    if (/e[lr]$/.test(stamm)) return fertig(stamm + "n");
+    return fertig(stamm + "en");
+  }
+  if (person === "du") {
+    if (bindevokal) return fertig(stamm + "est");
+    if (SIBILANT.test(stamm)) return fertig(w);
+    return fertig(stamm + "st");
+  }
+  if (/el$/.test(stamm)) return fertig(stamm.slice(0, -2) + "le");
+  return fertig(stamm + "e");
+}
+
+// src/features/waechterStatistik.ts
+var KEY = "dm_waechter_statistik_v1";
+var BEISPIELE_JE = 5;
+var cache = null;
+var schreibTimer = null;
+function leer() {
+  return { zaehler: {}, beispiele: {}, seit: (/* @__PURE__ */ new Date()).toISOString() };
+}
+function ladeStatistik() {
+  if (cache) return cache;
+  try {
+    const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(KEY);
+    const v = raw ? JSON.parse(raw) : null;
+    cache = v && v.zaehler && v.beispiele ? v : leer();
+  } catch {
+    cache = leer();
+  }
+  return cache;
+}
+function speichern() {
+  if (schreibTimer !== null) return;
+  schreibTimer = (typeof window !== "undefined" ? window.setTimeout : setTimeout)(() => {
+    schreibTimer = null;
+    try {
+      if (typeof localStorage !== "undefined" && cache) localStorage.setItem(KEY, JSON.stringify(cache));
+    } catch {
+    }
+  }, 1e3);
+}
+function zaehle(was, beispiel) {
+  const st = ladeStatistik();
+  st.zaehler[was] = (st.zaehler[was] || 0) + 1;
+  if (beispiel) {
+    const b = st.beispiele[was] || [];
+    const kurz = beispiel.trim().slice(0, 140);
+    if (!b.includes(kurz)) {
+      b.unshift(kurz);
+      st.beispiele[was] = b.slice(0, BEISPIELE_JE);
+    }
+  }
+  speichern();
+}
+
+// src/generation/nouns.data.ts
+var NOUN_GENDER = {
+  "abdruck": "m",
+  "abend": "m",
+  "abgrund": "m",
+  "absatz": "m",
+  "abschalten": "n",
+  "abstand": "m",
+  "acker": "m",
+  "ader": "f",
+  "adressbuch": "n",
+  "adresse": "f",
+  "ahnung": "f",
+  "airpod": "m",
+  "akku": "m",
+  "akte": "f",
+  "aktendeckel": "m",
+  "aktennotiz": "f",
+  "allee": "f",
+  "alptraum": "m",
+  "altar": "m",
+  "alte": "f",
+  "alter": "n",
+  "amt": "n",
+  "amulett": "n",
+  "angebot": "n",
+  "angst": "f",
+  "anker": "m",
+  "antenne": "f",
+  "antrag": "m",
+  "antwort": "f",
+  "apfel": "m",
+  "applaus": "m",
+  "archiv": "n",
+  "arm": "m",
+  "armband": "n",
+  "armbrust": "f",
+  "art": "f",
+  "arzt": "m",
+  "asche": "f",
+  "ast": "m",
+  "atelier": "n",
+  "atem": "m",
+  "atmosph\xE4re": "f",
+  "aufkleber": "m",
+  "aufnahme": "f",
+  "auftrag": "m",
+  "auge": "n",
+  "augenblick": "m",
+  "augenlid": "n",
+  "ausdehnung": "f",
+  "ausgang": "m",
+  "ausnahme": "f",
+  "ausrede": "f",
+  "ausweis": "m",
+  "axiom": "n",
+  "baby": "n",
+  "bach": "m",
+  "backup": "n",
+  "badeanstalt": "f",
+  "bahn": "f",
+  "bahnkarte": "f",
+  "balkon": "m",
+  "ball": "m",
+  "ballade": "f",
+  "band": "n",
+  "bank": "f",
+  "banner": "n",
+  "basecap": "n",
+  "bau": "m",
+  "bauch": "m",
+  "bauer": "m",
+  "baum": "m",
+  "becher": "m",
+  "befehl": "m",
+  "begriff": "m",
+  "beil": "n",
+  "bein": "n",
+  "benachrichtigung": "f",
+  "berg": "m",
+  "bergfried": "m",
+  "bericht": "m",
+  "bescheid": "m",
+  "beschluss": "m",
+  "besen": "m",
+  "besitz": "m",
+  "bestand": "m",
+  "besuch": "m",
+  "betonprobe": "f",
+  "bett": "n",
+  "beutel": "m",
+  "beweis": "m",
+  "bibel": "f",
+  "bibliothek": "f",
+  "biene": "f",
+  "bild": "n",
+  "bildschirm": "m",
+  "binde": "f",
+  "birne": "f",
+  "blatt": "n",
+  "blechb\xFCchse": "f",
+  "blechdose": "f",
+  "blechkanne": "f",
+  "blechtrompete": "f",
+  "blei": "n",
+  "bleistift": "m",
+  "blende": "f",
+  "blick": "m",
+  "blitz": "m",
+  "blume": "f",
+  "blumenstrau\xDF": "m",
+  "bluse": "f",
+  "bl\xFCte": "f",
+  "boden": "m",
+  "bohne": "f",
+  "bohrkern": "m",
+  "bohrprobe": "f",
+  "boje": "f",
+  "bonbon": "n",
+  "boot": "n",
+  "bote": "m",
+  "botschaft": "f",
+  "braten": "m",
+  "braue": "f",
+  "brett": "n",
+  "brief": "m",
+  "briefumschlag": "m",
+  "brille": "f",
+  "brot": "n",
+  "brotdose": "f",
+  "brotlaib": "m",
+  "bruch": "m",
+  "bruder": "m",
+  "brunnen": "m",
+  "brust": "f",
+  "br\xFCcke": "f",
+  "br\xFChe": "f",
+  "buch": "n",
+  "buchstabe": "m",
+  "bucht": "f",
+  "bug": "m",
+  "burg": "f",
+  "bus": "m",
+  "busch": "m",
+  "butter": "f",
+  "b\xE4r": "m",
+  "b\xFChne": "f",
+  "b\xFCndel": "n",
+  "b\xFCrde": "f",
+  "cache": "m",
+  "cadtablet": "n",
+  "caf": "n",
+  "caf\xE9": "n",
+  "chat": "m",
+  "clown": "m",
+  "computer": "m",
+  "container": "m",
+  "couch": "f",
+  "dach": "n",
+  "dachboden": "m",
+  "dame": "f",
+  "damm": "m",
+  "dashboard": "n",
+  "datei": "f",
+  "dattel": "f",
+  "datum": "n",
+  "daumen": "m",
+  "deck": "n",
+  "decke": "f",
+  "deckel": "m",
+  "denkmalschutz": "m",
+  "deo": "n",
+  "detail": "n",
+  "detektor": "m",
+  "detektorkopf": "m",
+  "dewar": "m",
+  "diagramm": "n",
+  "dichter": "m",
+  "dieb": "m",
+  "dienst": "m",
+  "direktor": "m",
+  "dnaspirale": "f",
+  "dokument": "n",
+  "dolch": "m",
+  "donner": "m",
+  "dorf": "n",
+  "dorn": "m",
+  "dose": "f",
+  "draht": "m",
+  "droschke": "f",
+  "druck": "m",
+  "duell": "n",
+  "duft": "m",
+  "durchsage": "f",
+  "durchschlag": "m",
+  "d\xE4mmerung": "f",
+  "ebbe": "f",
+  "ebene": "f",
+  "echo": "n",
+  "ecke": "f",
+  "ehre": "f",
+  "ei": "n",
+  "eid": "m",
+  "einspruch": "m",
+  "eis": "n",
+  "eisen": "n",
+  "elch": "m",
+  "elend": "n",
+  "ellbogen": "m",
+  "emoji": "n",
+  "engel": "m",
+  "enkel": "m",
+  "ente": "f",
+  "entwurf": "m",
+  "ephemeride": "f",
+  "erbe": "n",
+  "erbse": "f",
+  "erdbeben": "n",
+  "erde": "f",
+  "erinnerung": "f",
+  "etikett": "n",
+  "eule": "f",
+  "ewigkeit": "f",
+  "fabel": "f",
+  "fabrik": "f",
+  "fackel": "f",
+  "faden": "m",
+  "fahne": "f",
+  "fahrschein": "m",
+  "fahrt": "f",
+  "falle": "f",
+  "falte": "f",
+  "farbe": "f",
+  "farbenscheibe": "f",
+  "fass": "n",
+  "faust": "f",
+  "feder": "f",
+  "federkiel": "m",
+  "fee": "f",
+  "fehlercode": "m",
+  "feile": "f",
+  "feind": "m",
+  "feld": "n",
+  "feldbesteck": "n",
+  "felder": "n",
+  "fell": "n",
+  "fellhandschuh": "m",
+  "fels": "m",
+  "felsen": "m",
+  "fenster": "n",
+  "fensterplatz": "m",
+  "ferkel": "n",
+  "ferne": "f",
+  "fernglas": "n",
+  "fernrohr": "n",
+  "ferse": "f",
+  "fessel": "f",
+  "festung": "f",
+  "feuer": "n",
+  "feuerzeug": "n",
+  "fibel": "f",
+  "fieber": "n",
+  "filter": "m",
+  "finger": "m",
+  "fingerhut": "m",
+  "fisch": "m",
+  "fischer": "m",
+  "flakon": "m",
+  "flasche": "f",
+  "flaute": "f",
+  "fleisch": "n",
+  "fliege": "f",
+  "flo\xDF": "n",
+  "fluch": "m",
+  "flucht": "f",
+  "flur": "m",
+  "fluss": "m",
+  "flut": "f",
+  "fl\xE4che": "f",
+  "fl\xF6te": "f",
+  "fl\xFCstern": "n",
+  "formel": "f",
+  "formular": "n",
+  "fossil": "n",
+  "fossilie": "f",
+  "foto": "n",
+  "fotografie": "f",
+  "frachtbrief": "m",
+  "frage": "f",
+  "frau": "f",
+  "freude": "f",
+  "freund": "m",
+  "frist": "f",
+  "frost": "m",
+  "frucht": "f",
+  "fr\xFChling": "m",
+  "fuchs": "m",
+  "fuge": "f",
+  "fund": "m",
+  "fundament": "n",
+  "funke": "m",
+  "funkger\xE4t": "n",
+  "furcht": "f",
+  "furt": "f",
+  "fu\xDF": "m",
+  "f\xE4hrmann": "m",
+  "f\xE4hrplan": "m",
+  "f\xE4sser": "n",
+  "f\xFCrst": "m",
+  "gabe": "f",
+  "gabel": "f",
+  "gabelung": "f",
+  "galaxie": "f",
+  "gang": "m",
+  "gans": "f",
+  "garn": "n",
+  "garten": "m",
+  "gasse": "f",
+  "gast": "m",
+  "gebet": "n",
+  "gebetbuch": "n",
+  "gebete": "n",
+  "gebetsschale": "f",
+  "gebirge": "n",
+  "geb\xE4lk": "n",
+  "geb\xE4ude": "n",
+  "gedanke": "m",
+  "gedanken": "m",
+  "gedicht": "n",
+  "gedichte": "n",
+  "geduld": "f",
+  "gefahr": "f",
+  "gef\xFChl": "n",
+  "gef\xFChlen": "n",
+  "gegend": "f",
+  "gegensatz": "m",
+  "gegenstand": "m",
+  "gegens\xE4tze": "m",
+  "gegenteil": "n",
+  "gegenwart": "f",
+  "gegners": "m",
+  "geheimnis": "n",
+  "gehirn": "n",
+  "geh\xE4use": "n",
+  "geige": "f",
+  "geist": "m",
+  "geleitbrief": "m",
+  "gel\xE4nde": "n",
+  "gel\xFCbde": "n",
+  "gemach": "n",
+  "gem\xE4lde": "n",
+  "gem\xFCse": "n",
+  "gep\xE4ck": "n",
+  "gericht": "n",
+  "geruch": "m",
+  "ger\xE4t": "n",
+  "ger\xE4usch": "n",
+  "ger\xE4usche": "n",
+  "ger\xF6ll": "n",
+  "ger\xFCcht": "n",
+  "ger\xFCchte": "n",
+  "ger\xFCst": "n",
+  "gesangbuch": "n",
+  "geschenk": "n",
+  "geschichte": "f",
+  "geschichten": "f",
+  "geschmack": "m",
+  "gesetz": "n",
+  "gesetze": "n",
+  "gesetzen": "n",
+  "gesetzes": "n",
+  "gesetzestext": "m",
+  "gesicht": "n",
+  "gesichter": "n",
+  "gespr\xE4ch": "n",
+  "gestalt": "f",
+  "gestalten": "f",
+  "geste": "f",
+  "gestein": "n",
+  "gesteinsschichten": "f",
+  "getreide": "n",
+  "getreidek\xF6rner": "n",
+  "gewand": "n",
+  "gewebe": "n",
+  "gewehr": "n",
+  "gewehre": "n",
+  "geweih": "n",
+  "gewicht": "n",
+  "gewichte": "n",
+  "gewissen": "n",
+  "gew\xF6lbe": "n",
+  "gezeiten": "f",
+  "gier": "f",
+  "gie\xDFkanne": "f",
+  "gift": "n",
+  "gipfel": "m",
+  "gitter": "n",
+  "glas": "n",
+  "glasplatte": "f",
+  "glaube": "m",
+  "gleichung": "f",
+  "gletscher": "m",
+  "glocke": "f",
+  "gl\xFCck": "n",
+  "gold": "n",
+  "gott": "m",
+  "grab": "n",
+  "graben": "m",
+  "granitblock": "m",
+  "grenze": "f",
+  "grotte": "f",
+  "grund": "m",
+  "grundrissplan": "m",
+  "gruppe": "f",
+  "gruppenchat": "m",
+  "gurke": "f",
+  "g\xF6tter": "m",
+  "g\xF6ttin": "f",
+  "g\xFCrtel": "m",
+  "haar": "n",
+  "haarnadel": "f",
+  "hafen": "m",
+  "hagel": "m",
+  "hahn": "m",
+  "hain": "m",
+  "haken": "m",
+  "halde": "f",
+  "hall": "m",
+  "halle": "f",
+  "hals": "m",
+  "halter": "m",
+  "hammer": "m",
+  "hand": "f",
+  "handbuch": "n",
+  "handkarren": "m",
+  "handschuh": "m",
+  "handschuhspitze": "f",
+  "handvoll": "f",
+  "handy": "n",
+  "hang": "m",
+  "harfe": "f",
+  "harpune": "f",
+  "hase": "m",
+  "hass": "m",
+  "haus": "n",
+  "haut": "f",
+  "hecke": "f",
+  "heft": "n",
+  "held": "m",
+  "helm": "m",
+  "hemd": "n",
+  "henne": "f",
+  "herbst": "m",
+  "herd": "m",
+  "herr": "m",
+  "herrscherstab": "m",
+  "herz": "n",
+  "herzschlag": "m",
+  "heuer": "f",
+  "hexe": "f",
+  "hierarchie": "f",
+  "himmel": "m",
+  "hintergrund": "m",
+  "hintert\xFCr": "f",
+  "hirn": "n",
+  "hirsch": "m",
+  "hirtenstab": "m",
+  "hof": "m",
+  "hoffnung": "f",
+  "holz": "n",
+  "honig": "m",
+  "hoodie": "m",
+  "horn": "n",
+  "hose": "f",
+  "huhn": "n",
+  "hund": "m",
+  "hut": "m",
+  "h\xE4user": "n",
+  "h\xF6henmesser": "m",
+  "h\xF6hle": "f",
+  "h\xFCfte": "f",
+  "h\xFCgel": "m",
+  "h\xFCtte": "f",
+  "igel": "m",
+  "index": "m",
+  "insekt": "n",
+  "insel": "f",
+  "instanz": "f",
+  "instastory": "f",
+  "instrument": "n",
+  "interferometer": "n",
+  "jacke": "f",
+  "jazz": "m",
+  "junge": "m",
+  "justiergewicht": "n",
+  "j\xE4ger": "m",
+  "kabel": "n",
+  "kaffee": "m",
+  "kai": "m",
+  "kaiser": "m",
+  "kalb": "n",
+  "kalender": "m",
+  "kamin": "m",
+  "kaminfeuer": "n",
+  "kammer": "f",
+  "kampf": "m",
+  "kanal": "m",
+  "kaninchen": "n",
+  "kanister": "m",
+  "kanne": "f",
+  "kanten": "m",
+  "kapelle": "f",
+  "kapit\xE4n": "m",
+  "karawane": "f",
+  "karotte": "f",
+  "karte": "f",
+  "karteikarte": "f",
+  "kartoffel": "f",
+  "kassenbuch": "n",
+  "kathedrale": "f",
+  "katze": "f",
+  "kaugummi": "m",
+  "kehle": "f",
+  "kelch": "m",
+  "kelle": "f",
+  "keller": "m",
+  "kerze": "f",
+  "kessel": "m",
+  "kette": "f",
+  "kettenhemd": "n",
+  "kiefer": "m",
+  "kiel": "m",
+  "kies": "m",
+  "kilometer": "m",
+  "kind": "n",
+  "kinder": "n",
+  "kinderspielzeug": "n",
+  "kinn": "n",
+  "kirche": "f",
+  "kirsche": "f",
+  "kissen": "n",
+  "kiste": "f",
+  "klammer": "f",
+  "klang": "m",
+  "klaue": "f",
+  "klavier": "n",
+  "kleid": "n",
+  "kleidersack": "m",
+  "kleingeldfach": "n",
+  "kleinod": "n",
+  "klinge": "f",
+  "klingel": "f",
+  "klippe": "f",
+  "klopfen": "n",
+  "knabe": "m",
+  "knie": "n",
+  "knochen": "m",
+  "knopf": "m",
+  "knospe": "f",
+  "knoten": "m",
+  "kn\xE4uel": "n",
+  "kn\xF6chel": "m",
+  "koffer": "m",
+  "kohleneimer": "m",
+  "kohleschale": "f",
+  "kollege": "m",
+  "kollegheft": "n",
+  "kollektiv": "n",
+  "kolonie": "f",
+  "komet": "m",
+  "kommentar": "m",
+  "kommissar": "m",
+  "kompass": "m",
+  "kompressor": "m",
+  "konstante": "f",
+  "konto": "n",
+  "kontobuch": "n",
+  "kontor": "n",
+  "kontorbuch": "n",
+  "kontostand": "m",
+  "kopf": "m",
+  "kopfh\xF6rer": "m",
+  "kopie": "f",
+  "korb": "m",
+  "korken": "m",
+  "korn": "n",
+  "kraft": "f",
+  "kran": "m",
+  "krater": "m",
+  "kreide": "f",
+  "kreis": "m",
+  "kreuz": "n",
+  "kreuzung": "f",
+  "kribbeln": "n",
+  "krieg": "m",
+  "krieger": "m",
+  "kristall": "m",
+  "krone": "f",
+  "krug": "m",
+  "kr\xE4he": "f",
+  "kuchen": "m",
+  "kuh": "f",
+  "kupfer": "n",
+  "kuppel": "f",
+  "kurbel": "f",
+  "kurve": "f",
+  "kuss": "m",
+  "kutsche": "f",
+  "kuvert": "n",
+  "k\xE4fer": "m",
+  "k\xE4lte": "f",
+  "k\xE4se": "m",
+  "k\xF6nig": "m",
+  "k\xF6nigin": "f",
+  "k\xF6rper": "m",
+  "k\xFCche": "f",
+  "k\xFChlbox": "f",
+  "k\xFChlfalle": "f",
+  "k\xFCken": "n",
+  "k\xFCste": "f",
+  "labyrinth": "n",
+  "ladebalken": "m",
+  "ladekabel": "n",
+  "ladeliste": "f",
+  "lager": "n",
+  "lagune": "f",
+  "laib": "m",
+  "lamm": "n",
+  "lampe": "f",
+  "land": "n",
+  "lanze": "f",
+  "laterne": "f",
+  "laub": "n",
+  "laufzettel": "m",
+  "laute": "f",
+  "lawine": "f",
+  "leder": "n",
+  "lederbeutel": "m",
+  "legende": "f",
+  "lehen": "n",
+  "lehrer": "m",
+  "leid": "n",
+  "leine": "f",
+  "leitdetail": "n",
+  "leitung": "f",
+  "leuchten": "n",
+  "leuchtturm": "m",
+  "licht": "n",
+  "lichtstreifen": "m",
+  "lider": "n",
+  "liebe": "f",
+  "lied": "n",
+  "lilie": "f",
+  "lineal": "n",
+  "linie": "f",
+  "lippe": "f",
+  "liste": "f",
+  "loch": "n",
+  "locke": "f",
+  "log": "n",
+  "logbuch": "n",
+  "logfile": "n",
+  "los": "n",
+  "lot": "n",
+  "luft": "f",
+  "lupe": "f",
+  "lust": "f",
+  "l\xE4cheln": "n",
+  "l\xE4nder": "n",
+  "l\xE4rm": "m",
+  "l\xF6cher": "n",
+  "l\xF6ffel": "m",
+  "l\xF6we": "m",
+  "l\xFCcke": "f",
+  "l\xFCge": "f",
+  "macht": "f",
+  "magen": "m",
+  "mala": "f",
+  "maler": "m",
+  "manege": "f",
+  "manifest": "n",
+  "mann": "m",
+  "mantel": "m",
+  "manuskript": "n",
+  "mappe": "f",
+  "marmelade": "f",
+  "masche": "f",
+  "maschine": "f",
+  "maske": "f",
+  "mast": "m",
+  "matte": "f",
+  "mauer": "f",
+  "maus": "f",
+  "ma\xDF": "n",
+  "ma\xDFband": "n",
+  "ma\xDFstab": "m",
+  "medaillon": "n",
+  "meer": "n",
+  "mehl": "n",
+  "mei\xDFel": "m",
+  "melodie": "f",
+  "meme": "n",
+  "menge": "f",
+  "merkblatt": "n",
+  "messer": "n",
+  "messprotokoll": "n",
+  "messreihe": "f",
+  "messung": "f",
+  "metall": "n",
+  "meter": "m",
+  "metronom": "n",
+  "miene": "f",
+  "mikrofon": "n",
+  "mikroskop": "n",
+  "milch": "f",
+  "millimeter": "m",
+  "minute": "f",
+  "mitleid": "n",
+  "mittag": "m",
+  "mittel": "n",
+  "mitternacht": "f",
+  "modell": "n",
+  "modellplaneten": "m",
+  "moment": "m",
+  "monat": "m",
+  "mond": "m",
+  "moor": "n",
+  "morgen": "m",
+  "moschee": "f",
+  "motor": "m",
+  "mus": "n",
+  "muschel": "f",
+  "muskel": "m",
+  "muster": "n",
+  "mut": "m",
+  "mutter": "f",
+  "m\xE4dchen": "n",
+  "m\xE4hne": "f",
+  "m\xF6hre": "f",
+  "m\xF6nch": "m",
+  "m\xF6rder": "m",
+  "m\xF6we": "f",
+  "m\xFCcke": "f",
+  "m\xFChle": "f",
+  "m\xFCller": "m",
+  "m\xFCnze": "f",
+  "m\xFCtze": "f",
+  "nachbar": "m",
+  "nachbarort": "m",
+  "nachlass": "m",
+  "nachmittag": "m",
+  "nachricht": "f",
+  "nacht": "f",
+  "nachtigall": "f",
+  "nacken": "m",
+  "nadel": "f",
+  "nadelkissen": "n",
+  "nagel": "m",
+  "naht": "f",
+  "name": "m",
+  "napf": "m",
+  "narbe": "f",
+  "nase": "f",
+  "nebel": "m",
+  "neffe": "m",
+  "neid": "m",
+  "neigung": "f",
+  "neigungsmesser": "m",
+  "nelke": "f",
+  "nest": "n",
+  "nester": "n",
+  "netz": "n",
+  "nische": "f",
+  "nonne": "f",
+  "note": "f",
+  "notenblatt": "n",
+  "notiz": "f",
+  "notizblock": "m",
+  "notizbuch": "n",
+  "nummer": "f",
+  "nuss": "f",
+  "nymphe": "f",
+  "n\xE4he": "f",
+  "obst": "n",
+  "ofen": "m",
+  "ohr": "n",
+  "oma": "f",
+  "omen": "n",
+  "onkel": "m",
+  "opfer": "n",
+  "opferschale": "f",
+  "opiumdose": "f",
+  "orakel": "n",
+  "orange": "f",
+  "organ": "n",
+  "orgel": "f",
+  "ort": "m",
+  "ozean": "m",
+  "paar": "n",
+  "paket": "n",
+  "pakt": "m",
+  "papier": "n",
+  "paradoxon": "n",
+  "paragraph": "m",
+  "parameter": "m",
+  "park": "m",
+  "passagier": "m",
+  "passierschein": "m",
+  "pegelstab": "m",
+  "peilstock": "m",
+  "peitsche": "f",
+  "pendel": "n",
+  "pergamentrolle": "f",
+  "perle": "f",
+  "perlmuttknopf": "m",
+  "person": "f",
+  "petrischale": "f",
+  "petroleumlampe": "f",
+  "pfad": "m",
+  "pfand": "n",
+  "pfandschein": "m",
+  "pfeffer": "m",
+  "pfeife": "f",
+  "pferd": "n",
+  "pfirsich": "m",
+  "pflaster": "n",
+  "pflaume": "f",
+  "pflug": "m",
+  "pf\xFCtze": "f",
+  "phiole": "f",
+  "photoplatte": "f",
+  "pickel": "m",
+  "pilz": "m",
+  "ping": "m",
+  "pinzette": "f",
+  "pipette": "f",
+  "plakat": "n",
+  "plan": "m",
+  "plane": "f",
+  "planet": "m",
+  "planke": "f",
+  "platte": "f",
+  "platz": "m",
+  "platzhalter": "m",
+  "poller": "m",
+  "port": "m",
+  "portal": "n",
+  "postkarte": "f",
+  "powerbank": "f",
+  "priester": "m",
+  "prisma": "n",
+  "probe": "f",
+  "programm": "n",
+  "protokoll": "n",
+  "prozess": "m",
+  "puls": "m",
+  "pulver": "n",
+  "punkt": "m",
+  "puppe": "f",
+  "qualle": "f",
+  "quelle": "f",
+  "quittung": "f",
+  "rad": "n",
+  "rampe": "f",
+  "rand": "m",
+  "randnotiz": "f",
+  "ranke": "f",
+  "ranzen": "m",
+  "ratte": "f",
+  "rauch": "m",
+  "raumkapsel": "f",
+  "rausch": "m",
+  "rauschen": "n",
+  "rechentafel": "f",
+  "recht": "n",
+  "regal": "n",
+  "regel": "f",
+  "regen": "m",
+  "regenmesser": "m",
+  "register": "n",
+  "reh": "n",
+  "reich": "n",
+  "reif": "m",
+  "reigen": "m",
+  "reihe": "f",
+  "reinraumhaube": "f",
+  "reise": "f",
+  "reisemantel": "m",
+  "rei\xDFverschluss": "m",
+  "reklame": "f",
+  "rest": "m",
+  "rettung": "f",
+  "rezept": "n",
+  "richter": "m",
+  "riegel": "m",
+  "riff": "n",
+  "rinde": "f",
+  "ring": "m",
+  "rippe": "f",
+  "riss": "m",
+  "ritter": "m",
+  "ritterhelm": "m",
+  "rohr": "n",
+  "roman": "m",
+  "rose": "f",
+  "ruder": "n",
+  "ruf": "m",
+  "ruine": "f",
+  "rumpf": "m",
+  "r\xE4tsel": "n",
+  "r\xFCcken": "m",
+  "saal": "m",
+  "sachbearbeiter": "m",
+  "sack": "m",
+  "saft": "m",
+  "sage": "f",
+  "sahne": "f",
+  "saite": "f",
+  "salat": "m",
+  "salz": "n",
+  "samen": "m",
+  "sammlung": "f",
+  "sand": "m",
+  "sandsack": "m",
+  "sanduhr": "f",
+  "sarg": "m",
+  "satellit": "m",
+  "sattel": "m",
+  "sattelgurt": "m",
+  "satz": "m",
+  "saum": "m",
+  "savanne": "f",
+  "schacht": "m",
+  "schaf": "n",
+  "schale": "f",
+  "schalter": "m",
+  "scham": "f",
+  "schatten": "m",
+  "schatulle": "f",
+  "schaufel": "f",
+  "schere": "f",
+  "schicht": "f",
+  "schicksal": "n",
+  "schiff": "n",
+  "schiffssextanten": "m",
+  "schiffszwieback": "m",
+  "schild": "n",
+  "schirm": "m",
+  "schlaf": "m",
+  "schlag": "m",
+  "schlamm": "m",
+  "schlange": "f",
+  "schleife": "f",
+  "schloss": "n",
+  "schlucht": "f",
+  "schl\xFCssel": "m",
+  "schl\xFCsselbund": "m",
+  "schmerz": "m",
+  "schmied": "m",
+  "schmiede": "f",
+  "schminkkasten": "m",
+  "schnecke": "f",
+  "schnee": "m",
+  "schneiderpuppe": "f",
+  "schnitt": "m",
+  "schnittbogen": "m",
+  "schnittstelle": "f",
+  "schnur": "f",
+  "schokolade": "f",
+  "schrank": "m",
+  "schrei": "m",
+  "schreiber": "m",
+  "schrein": "m",
+  "schrift": "f",
+  "schritt": "m",
+  "schuh": "m",
+  "schuld": "f",
+  "schuldschein": "m",
+  "schule": "f",
+  "schulter": "f",
+  "schuppen": "m",
+  "schuss": "m",
+  "schwamm": "m",
+  "schwein": "n",
+  "schwelle": "f",
+  "schwert": "n",
+  "schwertgriff": "m",
+  "schwertgurt": "m",
+  "schwester": "f",
+  "schw\xE4che": "f",
+  "sch\xE4del": "m",
+  "sch\xE4rpe": "f",
+  "sch\xFCrze": "f",
+  "sch\xFCssel": "f",
+  "screenshot": "m",
+  "see": "m",
+  "seekarte": "f",
+  "seele": "f",
+  "seesack": "m",
+  "segel": "n",
+  "segeltuch": "n",
+  "segen": "m",
+  "sehne": "f",
+  "sehnsucht": "f",
+  "seidenfaden": "m",
+  "seil": "n",
+  "seismograph": "m",
+  "seismographen": "m",
+  "seite": "f",
+  "sekunde": "f",
+  "senf": "m",
+  "sensor": "m",
+  "sessel": "m",
+  "sieb": "n",
+  "siegel": "n",
+  "siegelring": "m",
+  "signal": "n",
+  "signalflagge": "f",
+  "silbe": "f",
+  "silber": "n",
+  "sinn": "m",
+  "sirene": "f",
+  "skala": "f",
+  "skalpell": "n",
+  "skelett": "n",
+  "skizze": "f",
+  "smartphone": "n",
+  "socke": "f",
+  "sofa": "n",
+  "sohn": "m",
+  "soldat": "m",
+  "sommer": "m",
+  "sonne": "f",
+  "sonnenbrille": "f",
+  "so\xDFe": "f",
+  "spalt": "m",
+  "speicher": "m",
+  "spektrogramm": "n",
+  "spektrometer": "n",
+  "sperre": "f",
+  "spiegel": "m",
+  "spiegelscherben": "m",
+  "spiel": "n",
+  "spinne": "f",
+  "sporn": "m",
+  "sprache": "f",
+  "sprung": "m",
+  "spule": "f",
+  "spur": "f",
+  "stab": "m",
+  "stadt": "f",
+  "stahlstrebe": "f",
+  "stamm": "m",
+  "standarte": "f",
+  "stapel": "m",
+  "statue": "f",
+  "staub": "m",
+  "stecknadel": "f",
+  "steg": "m",
+  "steig": "m",
+  "steigb\xFCgel": "m",
+  "steigeisen": "n",
+  "stein": "m",
+  "stelle": "f",
+  "stempel": "m",
+  "stempelger\xE4usch": "n",
+  "stempelhalter": "m",
+  "steppe": "f",
+  "stern": "m",
+  "sternbilder": "n",
+  "sternwarte": "f",
+  "stethoskop": "n",
+  "stiefel": "m",
+  "stier": "m",
+  "stille": "f",
+  "stimme": "f",
+  "stirn": "f",
+  "stock": "m",
+  "stoff": "m",
+  "stollen": "m",
+  "stolz": "m",
+  "story": "f",
+  "strand": "m",
+  "strauch": "m",
+  "stra\xDFe": "f",
+  "streichholzschachtel": "f",
+  "streit": "m",
+  "strich": "m",
+  "strom": "m",
+  "strophe": "f",
+  "str\xF6mung": "f",
+  "stube": "f",
+  "stufe": "f",
+  "stuhl": "m",
+  "stunde": "f",
+  "stundenplan": "m",
+  "sturm": "m",
+  "sturmlaterne": "f",
+  "st\xE4rke": "f",
+  "st\xFCck": "n",
+  "sumpf": "m",
+  "suppe": "f",
+  "suppenkelle": "f",
+  "symbol": "n",
+  "symptom": "n",
+  "system": "n",
+  "s\xE4ge": "f",
+  "s\xE4ule": "f",
+  "tabelle": "f",
+  "tafel": "f",
+  "tafelrunde": "f",
+  "tag": "m",
+  "takt": "m",
+  "tal": "n",
+  "talar": "m",
+  "tante": "f",
+  "tanz": "m",
+  "tasche": "f",
+  "taschenradio": "n",
+  "tasse": "f",
+  "tau": "n",
+  "taube": "f",
+  "tee": "m",
+  "teer": "m",
+  "teeschale": "f",
+  "teich": "m",
+  "teil": "m",
+  "telefon": "n",
+  "teleskop": "n",
+  "teller": "m",
+  "teppich": "m",
+  "termin": "m",
+  "terminal": "n",
+  "terminzettel": "m",
+  "teufel": "m",
+  "thermometer": "n",
+  "thermoskanne": "f",
+  "thron": "m",
+  "ticket": "n",
+  "tier": "n",
+  "tiger": "m",
+  "tiktoksound": "m",
+  "tintenfass": "n",
+  "tisch": "m",
+  "tochter": "f",
+  "tod": "m",
+  "tomate": "f",
+  "ton": "m",
+  "tonband": "n",
+  "tonschale": "f",
+  "tontafel": "f",
+  "topf": "m",
+  "tor": "n",
+  "torte": "f",
+  "trapezhaken": "m",
+  "traube": "f",
+  "trauer": "f",
+  "traum": "m",
+  "trend": "m",
+  "treppe": "f",
+  "treue": "f",
+  "trillerpfeife": "f",
+  "trinkhorn": "n",
+  "trommel": "f",
+  "truhe": "f",
+  "tr\xE4ne": "f",
+  "tuch": "n",
+  "tulpe": "f",
+  "tunnel": "m",
+  "turm": "m",
+  "turnbeutel": "m",
+  "turnier": "n",
+  "turnierplatz": "m",
+  "turnierstab": "m",
+  "t\xFCr": "f",
+  "t\xFCte": "f",
+  "ufer": "n",
+  "uhr": "f",
+  "umriss": "m",
+  "umschlag": "m",
+  "ungl\xFCck": "n",
+  "untergrund": "m",
+  "unterschrift": "f",
+  "untersuchungsliege": "f",
+  "update": "n",
+  "urne": "f",
+  "urteil": "n",
+  "vater": "m",
+  "verdacht": "m",
+  "verfahren": "n",
+  "vergangenheit": "f",
+  "vermerk": "m",
+  "vers": "m",
+  "verstand": "m",
+  "vertrag": "m",
+  "vertrauen": "n",
+  "video": "n",
+  "virus": "n",
+  "visier": "n",
+  "vogel": "m",
+  "vollmacht": "f",
+  "vordruck": "m",
+  "vorhang": "m",
+  "vormund": "m",
+  "vorrat": "m",
+  "vorratsgl\xE4ser": "n",
+  "vulkan": "m",
+  "wachs": "n",
+  "wachstuch": "n",
+  "wagen": "m",
+  "wahrheit": "f",
+  "waisenjunge": "m",
+  "wal": "m",
+  "wald": "m",
+  "waldhorn": "n",
+  "wand": "f",
+  "wanderstab": "m",
+  "wanderstock": "m",
+  "wanderung": "f",
+  "wange": "f",
+  "wappen": "n",
+  "wappenschild": "n",
+  "warnung": "f",
+  "warnweste": "f",
+  "wartemarke": "f",
+  "warze": "f",
+  "wasser": "n",
+  "wasserflasche": "f",
+  "wasserhahn": "m",
+  "weg": "m",
+  "wegmarke": "f",
+  "weide": "f",
+  "wein": "m",
+  "weite": "f",
+  "wei\xDF": "n",
+  "welle": "f",
+  "werk": "n",
+  "werkstatt": "f",
+  "werkzeug": "n",
+  "wert": "m",
+  "wespe": "f",
+  "wetter": "n",
+  "wetterfahne": "f",
+  "widerstand": "m",
+  "wiese": "f",
+  "wille": "m",
+  "wimper": "f",
+  "wind": "m",
+  "windhauch": "m",
+  "windsto\xDF": "m",
+  "winter": "m",
+  "witz": "m",
+  "woche": "f",
+  "wolf": "m",
+  "wolke": "f",
+  "wollschal": "m",
+  "wort": "n",
+  "wrack": "n",
+  "wunde": "f",
+  "wunder": "n",
+  "wunsch": "m",
+  "wurm": "m",
+  "wurzel": "f",
+  "wut": "f",
+  "w\xE4chter": "m",
+  "w\xE4lder": "m",
+  "w\xE4rme": "f",
+  "w\xE4rmestein": "m",
+  "w\xE4schekorb": "m",
+  "w\xF6rter": "n",
+  "w\xFCrfel": "m",
+  "w\xFCste": "f",
+  "zahl": "f",
+  "zahn": "m",
+  "zange": "f",
+  "zauberbesen": "m",
+  "zaun": "m",
+  "zeh": "m",
+  "zeichen": "n",
+  "zeile": "f",
+  "zeit": "f",
+  "zeitgeber": "m",
+  "zeitmarke": "f",
+  "zelle": "f",
+  "zelt": "n",
+  "zentimeter": "m",
+  "zepter": "n",
+  "zettel": "m",
+  "zeuge": "m",
+  "ziffer": "f",
+  "zigarettenstummel": "m",
+  "zigarre": "f",
+  "zimmer": "n",
+  "zirkel": "m",
+  "zitrone": "f",
+  "zittern": "n",
+  "zorn": "m",
+  "zucker": "m",
+  "zug": "m",
+  "zukunft": "f",
+  "zunderbeutel": "m",
+  "zunge": "f",
+  "zweifel": "m",
+  "zweig": "m",
+  "zweitschl\xFCssel": "m",
+  "zwieback": "m",
+  "zwiebel": "f",
+  "z\xE4hlrahmen": "m",
+  "z\xF6gern": "n",
+  "\xE4rmel": "m",
+  "\xE4rztin": "f",
+  "\xF6l": "n",
+  "\xF6llampe": "f",
+  "\xF6llaterne": "f",
+  "\xF6lschl\xFCssel": "m"
+};
+
+// src/generation/coherence.ts
+var PRAET_STRONG = /\b(war|waren|warst|hatte|hatten|wurde|wurden|ging|gingen|kam|kamen|sah|sahen|gab|gaben|stand|standen|blieb|blieben|hielt|hielten|ließ|ließen|fand|fanden|nahm|nahmen|sprach|sprachen|schrieb|schrieben|trug|trugen|fuhr|fuhren|lief|liefen|saß|saßen|lag|lagen|hieß|hießen|zog|zogen|schlief|schliefen|rief|riefen|fiel|fielen|sang|sangen|trank|tranken|schwieg|schwiegen|floss|flossen|stieg|stiegen|sank|sanken|bot|boten|schloss|schlossen|verlor|verloren|begann|begannen|geschah|geschahen|konnte|konnten|musste|mussten|wollte|wollten|sollte|sollten|durfte|durften|wusste|wussten|dachte|dachten|brachte|brachten)\b/i;
+var PRAET_WEAK = /\b[a-zäöüß]{3,}(te|ten|test)\b/;
+var PRAES_MARK = /\b(ist|sind|bin|bist|seid|hat|habe|hast|haben|habt|wird|werden|wirst|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|weiß|wissen|geht|gehen|kommt|kommen|sieht|sehen|steht|stehen|bleibt|bleiben|liegt|liegen|gibt|geben|nimmt|nehmen|spricht|sprechen|trägt|tragen|läuft|laufen|fällt|fallen|geschieht|passiert|beginnt|endet|wartet|antwortet|arbeitet|bedeutet|beobachtet|berichtet|schlägt|zeigt|dauert|öffnet|schließt|klingt|riecht|scheint|hört|fühlt|wirkt|führt|dreht|zieht|hält|läuft|fließt|wächst|sinkt|steigt|schweigt|spricht|denkt|kennt|nennt|trägt|findet|verliert|verschwindet)\b/i;
+var ADJ_CONTEXT = /(?:\b(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|kein|keine|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|jede|jeder|jedes|diese|dieser|dieses|manche|viele|alle)\s+[a-zäöüß]*)?\b[a-zäöüß]{3,}(?:te|ten)\b(?=\s+[A-ZÄÖÜ])/;
+function schwachesPraeteritum(w, satz) {
+  const l = w.toLowerCase();
+  if (kenntInfinitiv(l) || kenntInfinitiv(l.replace(/e$/, "en")) || kenntInfinitiv(l.replace(/en$/, "n"))) return false;
+  const m = l.match(/^([a-zäöüß]{2,}?)(e?te|e?ten|e?test)$/);
+  if (!m) return false;
+  const inf = infinitivZuStamm(m[1]);
+  if (inf) return true;
+  const re = new RegExp("\\b" + w + "\\b(?=\\s+[A-Z\xC4\xD6\xDC])");
+  return !re.test(satz) && !KEIN_VERB.has(m[1] + "t") && !KEIN_VERB.has(m[1]);
+}
+var weakLooksVerbal = (t) => {
+  const m = t.match(/\b[a-zäöüß]{3,}(te|ten|test|tet)\b/g);
+  if (!m) return false;
+  return m.some((w) => schwachesPraeteritum(w, t));
+};
+function isPastTense(s) {
+  const t = s || "";
+  if (PRAES_MARK.test(t)) return false;
+  if (PRAET_STRONG.test(t)) return true;
+  if (PRAET_WEAK.test(t) && weakLooksVerbal(t) && !ADJ_CONTEXT.test(t)) return true;
+  return (t.toLowerCase().match(/[a-zäöüß]+/g) || []).some((w) => !!PAST2PRES[w]);
+}
+var PERSON_FORMS = {
+  war: { ich: "bin", du: "bist", wir: "sind", ihr: "seid", sie: "ist", er: "ist", es: "ist" },
+  waren: { wir: "sind", sie: "sind", ihr: "seid" },
+  hatte: { ich: "habe", du: "hast", wir: "haben", ihr: "habt", sie: "hat", er: "hat", es: "hat" },
+  hatten: { wir: "haben", sie: "haben", ihr: "habt" },
+  wurde: { ich: "werde", du: "wirst", wir: "werden", sie: "wird", er: "wird", es: "wird" },
+  konnte: { ich: "kann", du: "kannst", wir: "k\xF6nnen", sie: "kann", er: "kann", es: "kann" },
+  musste: { ich: "muss", du: "musst", wir: "m\xFCssen", sie: "muss", er: "muss", es: "muss" },
+  wollte: { ich: "will", du: "willst", wir: "wollen", sie: "will", er: "will", es: "will" },
+  sollte: { ich: "soll", du: "sollst", wir: "sollen", sie: "soll", er: "soll", es: "soll" },
+  wusste: { ich: "wei\xDF", du: "wei\xDFt", wir: "wissen", sie: "wei\xDF", er: "wei\xDF", es: "wei\xDF" }
+};
+function toPresent(entry) {
+  const unsure = [];
+  let changed = false;
+  const words = (entry || "").split(/(\s+)/);
+  for (let i = 0; i < words.length; i++) {
+    const roh = words[i];
+    const zeichen = (roh.match(/[.,;:!?…»“"]+$/) || [""])[0];
+    const w = zeichen ? roh.slice(0, -zeichen.length) : roh;
+    if (!/^[A-Za-zÄÖÜäöüß]+$/.test(w)) continue;
+    const low2 = w.toLowerCase();
+    const base = PAST2PRES[low2];
+    if (base) {
+      const prev = (words.slice(0, i).reverse().find((x) => /^[A-Za-zÄÖÜäöüß]+$/.test(x)) || "").toLowerCase();
+      const next = (words.slice(i + 1).find((x) => /^[A-Za-zÄÖÜäöüß]+$/.test(x)) || "").toLowerCase();
+      const pf = PERSON_FORMS[low2];
+      const subj = /^(ich|du|wir|ihr)$/.test(prev) ? prev : /^(ich|du|wir|ihr)$/.test(next) ? next : "";
+      let form = base;
+      if (pf && subj && pf[subj]) form = pf[subj];
+      else if (subj) {
+        const b = beugeVerb(base, subj);
+        if (!b) {
+          unsure.push(w);
+          continue;
+        }
+        form = b;
+      }
+      words[i] = (/^[A-ZÄÖÜ]/.test(w) ? form.charAt(0).toUpperCase() + form.slice(1) : form) + zeichen;
+      changed = true;
+      continue;
+    }
+    if (/^[a-zäöüß]{4,}(te|ete)$/.test(low2)) unsure.push(w);
+  }
+  return { text: words.join(""), changed, unsure };
+}
+function praesensUmschreiben(entry) {
+  const first = toPresentSicher(entry);
+  const words = first.text.split(/(\s+)/);
+  let changed = first.changed;
+  const ARTIKEL = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|kein|keine|keinen|mein|meine|meinen|dein|deine|sein|seine|seinen|ihr|ihre|ihren|unser|unsere|jede|jeder|jedes|diese|dieser|dieses|manche|viele|alle|zwei|drei|im|am|zum|zur|beim|ins|vom)$/i;
+  const KONJUNKTIV = /^(müsste|müssten|könnte|könnten|dürfte|dürften|möchte|möchten|hätte|hätten|wäre|wären|würde|würden|sollte|sollten|wollte|wollten)$/i;
+  const MODAL_DAVOR = /^(zu|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|mag|mögen|lässt|lassen|möchte|könnte|müsste|sollte|wollte|dürfte)$/i;
+  const rein = (x) => x.replace(/[^A-Za-zÄÖÜäöüß]/g, "");
+  const EINDEUTIG = /(?:[td]|chn|ffn|gn|tm|dm|ckn|kn)ete(?:n|st|t)?$/;
+  const belegtPraeteritum = first.changed || (first.text.match(/\b[a-zäöüß]{3,}ete(?:n|st)?\b/g) || []).some((x) => EINDEUTIG.test(x));
+  let unklar = 0;
+  for (let i = 0; i < words.length; i++) {
+    const roh = words[i];
+    const satzzeichen = (roh.match(/[.,;:!?…»“"]+$/) || [""])[0];
+    const w = satzzeichen ? roh.slice(0, -satzzeichen.length) : roh;
+    const m = w.match(/^([a-zäöüß]{3,}?)(e?te|e?ten|e?test)$/);
+    if (!m || KONJUNKTIV.test(w)) continue;
+    const stamm = m[1], endung = m[2];
+    const eindeutig = /^e/.test(endung) && EINDEUTIG.test(w);
+    if (/^e/.test(endung) && !eindeutig) continue;
+    if (/(^|[a-zäöü])ge[a-zäöüß]{3,}$/.test(stamm) && !/^(geh|gel|gen|ger|geb|ges)/.test(stamm)) continue;
+    if (/t$/.test(stamm) && !eindeutig) continue;
+    const davor = words.slice(0, i).map(rein).filter(Boolean);
+    const prev = (davor[davor.length - 1] || "").toLowerCase();
+    const naechst = words.slice(i + 1).map(rein).find(Boolean) || "";
+    if (ARTIKEL.test(prev) && /^[A-ZÄÖÜ]/.test(naechst)) continue;
+    if (/ten$/.test(endung) && MODAL_DAVOR.test(prev)) continue;
+    if (KEIN_VERB.has(stamm + "t") || KEIN_VERB.has(stamm)) continue;
+    if (kenntInfinitiv(w) || kenntInfinitiv(w.replace(/e$/, "en")) || kenntInfinitiv(w.replace(/en$/, "n"))) continue;
+    const inf = infinitivZuStamm(stamm);
+    if (!inf) {
+      if (/^[A-ZÄÖÜ]/.test(naechst) || /ten$/.test(endung) || ARTIKEL.test(prev)) continue;
+      if (!eindeutig && !belegtPraeteritum && istVerbform(stamm + "t")) unklar++;
+      continue;
+    }
+    const bindevokal = /^e/.test(endung);
+    const dritte = bindevokal ? stamm + "et" : stamm + "t";
+    let neu;
+    if (/^ich$/i.test(prev)) neu = beugeVerb(dritte, "ich") || dritte;
+    else if (/^du$/i.test(prev)) neu = beugeVerb(dritte, "du") || dritte;
+    else if (/ten$/.test(endung)) neu = beugeVerb(dritte, "wir") || dritte;
+    else neu = dritte;
+    if (neu !== w) {
+      words[i] = neu + satzzeichen;
+      changed = true;
+    }
+  }
+  const text = words.join("");
+  const ok = !isPastTense(text) && unklar === 0;
+  if (ok && changed) zaehle("umgeschrieben", `${entry} \u2192 ${text}`);
+  else if (!ok && unklar) zaehle("unklar", entry);
+  else if (!ok) zaehle("praeteritumVerworfen", entry);
+  return { text, ok, changed };
+}
+function toPresentSicher(entry) {
+  const AUX = /\b(hat|haben|habe|hast|habt|hatte|hatten|ist|sind|bin|bist|seid|war|waren|wird|werden|wurde|wurden|worden)\b/i;
+  const perfekt = AUX.test(entry);
+  const words = entry.split(/(\s+)/);
+  const marker = [];
+  let erstesWort = true;
+  let vorher = "";
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    if (!/^[A-Za-zÄÖÜäöüß]/.test(w)) continue;
+    const konjNachAls = vorher === "als" && /^(wollte|wollten|sollte|sollten|könnte|könnten|müsste|hätte|hätten|wäre|wären|würde|würden)/i.test(w);
+    const ambig = /^(verloren|verstanden|entstanden|bestanden|erschienen)[.,;:!?]*$/i.test(w) && !/^(wir|sie|die|alle|beide|viele|manche|einige|leute|kinder|männer|frauen)$/.test(vorher);
+    const schuetzen = !erstesWort && /^[A-ZÄÖÜ]/.test(w) || perfekt && /en[.,;:!?]*$/.test(w) || konjNachAls || ambig;
+    vorher = w.toLowerCase().replace(/[^a-zäöüß]/g, "");
+    erstesWort = false;
+    if (schuetzen) {
+      marker.push(w);
+      words[i] = `\xA7${marker.length - 1}\xA7`;
+    }
+  }
+  const r = toPresent(words.join(""));
+  let text = r.text;
+  marker.forEach((w, k) => {
+    text = text.replace(`\xA7${k}\xA7`, w);
+  });
+  return { text, changed: r.changed, unsure: r.unsure };
+}
+
+// test/schliff.ts
+var import_fs = require("fs");
+
+// src/generation/verbconj.data.ts
+var VERB_CONJ = {
+  "bemerkt": {
+    "ich": "bemerke",
+    "du": "bemerkst",
+    "wir": "bemerken",
+    "ihr": "bemerkt"
+  },
+  "nimmt": {
+    "ich": "nehme",
+    "du": "nimmst",
+    "wir": "nehmen",
+    "ihr": "nehmt"
+  },
+  "steht": {
+    "ich": "stehe",
+    "du": "stehst",
+    "wir": "stehen",
+    "ihr": "steht"
+  },
+  "h\xE4lt": {
+    "ich": "halte",
+    "du": "h\xE4ltst",
+    "wir": "halten",
+    "ihr": "haltet"
+  },
+  "sucht": {
+    "ich": "suche",
+    "du": "suchst",
+    "wir": "suchen",
+    "ihr": "sucht"
+  },
+  "versucht": {
+    "ich": "versuche",
+    "du": "versuchst",
+    "wir": "versuchen",
+    "ihr": "versucht"
+  },
+  "will": {
+    "ich": "will",
+    "du": "willst",
+    "wir": "wollen",
+    "ihr": "wollt"
+  },
+  "kann": {
+    "ich": "kann",
+    "du": "kannst",
+    "wir": "k\xF6nnen",
+    "ihr": "k\xF6nnt"
+  },
+  "muss": {
+    "ich": "muss",
+    "du": "musst",
+    "wir": "m\xFCssen",
+    "ihr": "m\xFCsst"
+  },
+  "darf": {
+    "ich": "darf",
+    "du": "darfst",
+    "wir": "d\xFCrfen",
+    "ihr": "d\xFCrft"
+  },
+  "mag": {
+    "ich": "mag",
+    "du": "magst",
+    "wir": "m\xF6gen",
+    "ihr": "m\xF6gt"
+  },
+  "soll": {
+    "ich": "soll",
+    "du": "sollst",
+    "wir": "sollen",
+    "ihr": "sollt"
+  },
+  "m\xF6chte": {
+    "ich": "m\xF6chte",
+    "du": "m\xF6chtest",
+    "wir": "m\xF6chten",
+    "ihr": "m\xF6chtet"
+  },
+  "ist": {
+    "ich": "bin",
+    "du": "bist",
+    "wir": "sind",
+    "ihr": "seid"
+  },
+  "wird": {
+    "ich": "werde",
+    "du": "wirst",
+    "wir": "werden",
+    "ihr": "werdet"
+  },
+  "geht": {
+    "ich": "gehe",
+    "du": "gehst",
+    "wir": "gehen",
+    "ihr": "geht"
+  },
+  "kommt": {
+    "ich": "komme",
+    "du": "kommst",
+    "wir": "kommen",
+    "ihr": "kommt"
+  },
+  "bleibt": {
+    "ich": "bleibe",
+    "du": "bleibst",
+    "wir": "bleiben",
+    "ihr": "bleibt"
+  },
+  "\xF6ffnet": {
+    "ich": "\xF6ffne",
+    "du": "\xF6ffnest",
+    "wir": "\xF6ffnen",
+    "ihr": "\xF6ffnet"
+  },
+  "schlie\xDFt": {
+    "ich": "schlie\xDFe",
+    "du": "schlie\xDFt",
+    "wir": "schlie\xDFen",
+    "ihr": "schlie\xDFt"
+  },
+  "fragt": {
+    "ich": "frage",
+    "du": "fragst",
+    "wir": "fragen",
+    "ihr": "fragt"
+  },
+  "f\xFChrt": {
+    "ich": "f\xFChre",
+    "du": "f\xFChrst",
+    "wir": "f\xFChren",
+    "ihr": "f\xFChrt"
+  },
+  "begreift": {
+    "ich": "begreife",
+    "du": "begreifst",
+    "wir": "begreifen",
+    "ihr": "begreift"
+  },
+  "bricht": {
+    "ich": "breche",
+    "du": "brichst",
+    "wir": "brechen",
+    "ihr": "brecht"
+  },
+  "kippt": {
+    "ich": "kippe",
+    "du": "kippst",
+    "wir": "kippen",
+    "ihr": "kippt"
+  },
+  "l\xF6scht": {
+    "ich": "l\xF6sche",
+    "du": "l\xF6schst",
+    "wir": "l\xF6schen",
+    "ihr": "l\xF6scht"
+  },
+  "tut": {
+    "ich": "tue",
+    "du": "tust",
+    "wir": "tun",
+    "ihr": "tut"
+  },
+  "macht": {
+    "ich": "mache",
+    "du": "machst",
+    "wir": "machen",
+    "ihr": "macht"
+  },
+  "sieht": {
+    "ich": "sehe",
+    "du": "siehst",
+    "wir": "sehen",
+    "ihr": "seht"
+  },
+  "gibt": {
+    "ich": "gebe",
+    "du": "gibst",
+    "wir": "geben",
+    "ihr": "gebt"
+  },
+  "tr\xE4gt": {
+    "ich": "trage",
+    "du": "tr\xE4gst",
+    "wir": "tragen",
+    "ihr": "tragt"
+  },
+  "h\xF6rt": {
+    "ich": "h\xF6re",
+    "du": "h\xF6rst",
+    "wir": "h\xF6ren",
+    "ihr": "h\xF6rt"
+  },
+  "findet": {
+    "ich": "finde",
+    "du": "findest",
+    "wir": "finden",
+    "ihr": "findet"
+  },
+  "ber\xFChrt": {
+    "ich": "ber\xFChre",
+    "du": "ber\xFChrst",
+    "wir": "ber\xFChren",
+    "ihr": "ber\xFChrt"
+  },
+  "beobachtet": {
+    "ich": "beobachte",
+    "du": "beobachtest",
+    "wir": "beobachten",
+    "ihr": "beobachtet"
+  },
+  "kennt": {
+    "ich": "kenne",
+    "du": "kennst",
+    "wir": "kennen",
+    "ihr": "kennt"
+  },
+  "nennt": {
+    "ich": "nenne",
+    "du": "nennst",
+    "wir": "nennen",
+    "ihr": "nennt"
+  },
+  "sp\xFCrt": {
+    "ich": "sp\xFCre",
+    "du": "sp\xFCrst",
+    "wir": "sp\xFCren",
+    "ihr": "sp\xFCrt"
+  },
+  "wei\xDF": {
+    "ich": "wei\xDF",
+    "du": "wei\xDFt",
+    "wir": "wissen",
+    "ihr": "wisst"
+  },
+  "braucht": {
+    "ich": "brauche",
+    "du": "brauchst",
+    "wir": "brauchen",
+    "ihr": "braucht"
+  },
+  "w\xFCnscht": {
+    "ich": "w\xFCnsche",
+    "du": "w\xFCnschst",
+    "wir": "w\xFCnschen",
+    "ihr": "w\xFCnscht"
+  },
+  "hofft": {
+    "ich": "hoffe",
+    "du": "hoffst",
+    "wir": "hoffen",
+    "ihr": "hofft"
+  },
+  "tr\xE4umt": {
+    "ich": "tr\xE4ume",
+    "du": "tr\xE4umst",
+    "wir": "tr\xE4umen",
+    "ihr": "tr\xE4umt"
+  },
+  "plant": {
+    "ich": "plane",
+    "du": "planst",
+    "wir": "planen",
+    "ihr": "plant"
+  },
+  "f\xFCrchtet": {
+    "ich": "f\xFCrchte",
+    "du": "f\xFCrchtest",
+    "wir": "f\xFCrchten",
+    "ihr": "f\xFCrchtet"
+  },
+  "wartet": {
+    "ich": "warte",
+    "du": "wartest",
+    "wir": "warten",
+    "ihr": "wartet"
+  },
+  "glaubt": {
+    "ich": "glaube",
+    "du": "glaubst",
+    "wir": "glauben",
+    "ihr": "glaubt"
+  },
+  "denkt": {
+    "ich": "denke",
+    "du": "denkst",
+    "wir": "denken",
+    "ihr": "denkt"
+  },
+  "f\xFChlt": {
+    "ich": "f\xFChle",
+    "du": "f\xFChlst",
+    "wir": "f\xFChlen",
+    "ihr": "f\xFChlt"
+  },
+  "verlangt": {
+    "ich": "verlange",
+    "du": "verlangst",
+    "wir": "verlangen",
+    "ihr": "verlangt"
+  },
+  "erwartet": {
+    "ich": "erwarte",
+    "du": "erwartest",
+    "wir": "erwarten",
+    "ihr": "erwartet"
+  },
+  "riskiert": {
+    "ich": "riskiere",
+    "du": "riskierst",
+    "wir": "riskieren",
+    "ihr": "riskiert"
+  },
+  "wagt": {
+    "ich": "wage",
+    "du": "wagst",
+    "wir": "wagen",
+    "ihr": "wagt"
+  },
+  "flieht": {
+    "ich": "fliehe",
+    "du": "fliehst",
+    "wir": "fliehen",
+    "ihr": "flieht"
+  },
+  "jagt": {
+    "ich": "jage",
+    "du": "jagst",
+    "wir": "jagen",
+    "ihr": "jagt"
+  },
+  "folgt": {
+    "ich": "folge",
+    "du": "folgst",
+    "wir": "folgen",
+    "ihr": "folgt"
+  },
+  "verfolgt": {
+    "ich": "verfolge",
+    "du": "verfolgst",
+    "wir": "verfolgen",
+    "ihr": "verfolgt"
+  },
+  "rettet": {
+    "ich": "rette",
+    "du": "rettest",
+    "wir": "retten",
+    "ihr": "rettet"
+  },
+  "verr\xE4t": {
+    "ich": "verrate",
+    "du": "verr\xE4tst",
+    "wir": "verraten",
+    "ihr": "verratet"
+  },
+  "vergisst": {
+    "ich": "vergesse",
+    "du": "vergisst",
+    "wir": "vergessen",
+    "ihr": "vergesst"
+  },
+  "hatte": {
+    "ich": "hatte",
+    "du": "hattest",
+    "wir": "hatten",
+    "ihr": "hattet"
+  },
+  "war": {
+    "ich": "war",
+    "du": "warst",
+    "wir": "waren",
+    "ihr": "wart"
+  },
+  "wollte": {
+    "ich": "wollte",
+    "du": "wolltest",
+    "wir": "wollten",
+    "ihr": "wolltet"
+  },
+  "tat": {
+    "ich": "tat",
+    "du": "tatest",
+    "wir": "taten",
+    "ihr": "tatet"
+  },
+  "machte": {
+    "ich": "machte",
+    "du": "machtest",
+    "wir": "machten",
+    "ihr": "machtet"
+  },
+  "kam": {
+    "ich": "kam",
+    "du": "kamst",
+    "wir": "kamen",
+    "ihr": "kamt"
+  },
+  "ging": {
+    "ich": "ging",
+    "du": "gingst",
+    "wir": "gingen",
+    "ihr": "gingt"
+  },
+  "f\xFChrte": {
+    "ich": "f\xFChrte",
+    "du": "f\xFChrtest",
+    "wir": "f\xFChrten",
+    "ihr": "f\xFChrtet"
+  },
+  "schloss": {
+    "ich": "schloss",
+    "du": "schlossest",
+    "wir": "schlossen",
+    "ihr": "schlosst"
+  },
+  "fragte": {
+    "ich": "fragte",
+    "du": "fragtest",
+    "wir": "fragten",
+    "ihr": "fragtet"
+  },
+  "begriff": {
+    "ich": "begriff",
+    "du": "begriffst",
+    "wir": "begriffen",
+    "ihr": "begrifft"
+  },
+  "stellt": {
+    "ich": "stelle",
+    "du": "stellst",
+    "wir": "stellen"
+  },
+  "erkennt": {
+    "ich": "erkenne",
+    "du": "erkennst",
+    "wir": "erkennen"
+  },
+  "zeigt": {
+    "ich": "zeige",
+    "du": "zeigst",
+    "wir": "zeigen"
+  },
+  "greift": {
+    "ich": "greife",
+    "du": "greifst",
+    "wir": "greifen"
+  },
+  "legt": {
+    "ich": "lege",
+    "du": "legst",
+    "wir": "legen"
+  },
+  "betrachtet": {
+    "ich": "betrachte",
+    "du": "betrachtest",
+    "wir": "betrachten"
+  },
+  "setzt": {
+    "ich": "setze",
+    "du": "setzt",
+    "wir": "setzen"
+  },
+  "merkt": {
+    "ich": "merke",
+    "du": "merkst",
+    "wir": "merken"
+  },
+  "pr\xFCft": {
+    "ich": "pr\xFCfe",
+    "du": "pr\xFCfst",
+    "wir": "pr\xFCfen"
+  }
+};
+var INFINITIVE_VERBS = /* @__PURE__ */ new Set(["entdecken", "finden", "verstehen", "erreichen", "verlassen", "retten", "zerst\xF6ren", "beweisen", "\xFCberleben", "fliehen", "gewinnen", "verlieren", "\xF6ffnen", "schlie\xDFen", "verschwinden", "sterben", "bleiben", "ankommen", "entkommen", "aufwachen", "vergessen", "lernen", "ver\xE4ndern", "kontrollieren", "sch\xFCtzen", "befreien", "heilen", "erschaffen", "reparieren", "beenden", "anfangen", "beginnen", "erinnern", "wissen", "glauben", "tr\xE4umen", "hoffen", "k\xE4mpfen", "siegen", "sprechen", "schweigen", "warten", "folgen", "fragen", "antworten", "erkl\xE4ren", "gehen", "kommen"]);
+
+// src/generation/cooldown.ts
+var recent = {};
+var KEEP = 5;
+function pickFresh(key, opts) {
+  if (!opts.length) return opts[0];
+  const seen = recent[key] || (recent[key] = []);
+  const fresh = opts.filter((o) => !seen.includes(o));
+  const choice = fresh.length ? pick(fresh) : pick(opts);
+  seen.push(choice);
+  while (seen.length > Math.min(KEEP, opts.length - 1)) seen.shift();
+  return choice;
+}
+function pickFreshIndex(key, n) {
+  if (n <= 1) return 0;
+  const idxs = Array.from({ length: n }, (_, i) => String(i));
+  return Number(pickFresh(key, idxs));
+}
+
+// src/generation/nouns2.data.ts
+var NOUN_GENDER_2 = {
+  // ── Häufigste ──
+  ende: "n",
+  jahr: "n",
+  mal: "n",
+  anfang: "m",
+  leben: "n",
+  auskunft: "f",
+  welt: "f",
+  fr\u00FChjahr: "n",
+  fall: "m",
+  arbeit: "f",
+  sache: "f",
+  zufall: "m",
+  form: "f",
+  ziel: "n",
+  kontrolle: "f",
+  reihenfolge: "f",
+  wissen: "n",
+  post: "f",
+  ernte: "f",
+  geld: "n",
+  mund: "m",
+  schweigen: "n",
+  wette: "f",
+  schminke: "f",
+  kurs: "m",
+  original: "n",
+  text: "m",
+  gras: "n",
+  warten: "n",
+  ruhe: "f",
+  mitte: "f",
+  seide: "f",
+  familie: "f",
+  tiefe: "f",
+  norden: "m",
+  s\u00FCden: "m",
+  osten: "m",
+  westen: "m",
+  blut: "n",
+  horizont: "m",
+  ursache: "f",
+  absicht: "f",
+  wirt: "m",
+  jagd: "f",
+  herkunft: "f",
+  essen: "n",
+  r\u00FCckkehr: "f",
+  rahmen: "m",
+  w\u00FCrde: "f",
+  w\u00E4sche: "f",
+  miete: "f",
+  verlangen: "n",
+  marke: "f",
+  griff: "m",
+  wache: "f",
+  vernunft: "f",
+  markt: "m",
+  pegel: "m",
+  halbdunkel: "n",
+  rolle: "f",
+  grad: "m",
+  streben: "n",
+  fach: "n",
+  weise: "f",
+  wipfel: "m",
+  kohle: "f",
+  lehne: "f",
+  tide: "f",
+  ru\u00DF: "m",
+  idee: "f",
+  gemeinde: "f",
+  jahrhundert: "n",
+  ernst: "m",
+  betrag: "m",
+  unterschied: "m",
+  material: "n",
+  annahme: "f",
+  merkmal: "n",
+  radio: "n",
+  hitze: "f",
+  herold: "m",
+  grat: "m",
+  kasse: "f",
+  zoll: "m",
+  heimweh: "n",
+  laden: "m",
+  f\u00E4hre: "f",
+  herzog: "m",
+  inhalt: "m",
+  titel: "m",
+  problem: "n",
+  sicht: "f",
+  beh\u00F6rde: "f",
+  winkel: "m",
+  hilfe: "f",
+  pass: "m",
+  viertel: "n",
+  jahrzehnt: "n",
+  anrede: "f",
+  rost: "m",
+  ekel: "m",
+  tat: "f",
+  methode: "f",
+  zwang: "m",
+  heimkehr: "f",
+  umkehr: "f",
+  norm: "f",
+  leere: "f",
+  umlauf: "m",
+  flamme: "f",
+  einsicht: "f",
+  messing: "n",
+  personal: "n",
+  widerspruch: "m",
+  schluss: "m",
+  stroh: "n",
+  rang: "m",
+  vieh: "n",
+  garderobe: "f",
+  g\u00FCte: "f",
+  anlass: "m",
+  anwalt: "m",
+  rat: "m",
+  code: "m",
+  bad: "n",
+  handgelenk: "n",
+  scheibe: "f",
+  zustand: "m",
+  eile: "f",
+  saatgut: "n",
+  fracht: "f",
+  automat: "m",
+  lehre: "f",
+  ding: "n",
+  verzicht: "m",
+  zweck: "m",
+  waffe: "f",
+  blech: "n",
+  trost: "m",
+  versuch: "m",
+  ironie: "f",
+  d\u00FCrre: "f",
+  fest: "n",
+  aufsicht: "f",
+  kapitel: "n",
+  aussicht: "f",
+  absinth: "m",
+  parf\u00FCm: "n",
+  schmutz: "m",
+  knick: "m",
+  andacht: "f",
+  spitze: "f",
+  szene: "f",
+  erfolg: "m",
+  ausguck: "m",
+  bord: "m",
+  sieg: "m",
+  klausel: "f",
+  haupttext: "m",
+  sachverhalt: "m",
+  tinte: "f",
+  stand: "m",
+  wortlaut: "m",
+  klinke: "f",
+  kanzel: "f",
+  verrat: "m",
+  mulde: "f",
+  februar: "m",
+  parasit: "m",
+  pr\u00E4parat: "n",
+  wesen: "n",
+  lava: "f",
+  schwefel: "m",
+  lauf: "m",
+  spa\u00DF: "m",
+  m\u00F6bel: "n",
+  b\u00FCro: "n",
+  hauptsache: "f",
+  saat: "f",
+  fehde: "f",
+  portr\u00E4t: "n",
+  reue: "f",
+  konfetti: "n",
+  trapez: "n",
+  narr: "m",
+  truppe: "f",
+  pudel: "m",
+  jugend: "f",
+  abschied: "m",
+  bronze: "f",
+  tempel: "m",
+  geschlecht: "n",
+  stra\u00DFenanfang: "m",
+  brauch: "m",
+  wiederkehr: "f",
+  h\u00E4lfte: "f",
+  pappe: "f",
+  kante: "f",
+  eintrag: "m",
+  format: "n",
+  giebel: "m",
+  heimat: "f",
+  armenkasse: "f",
+  materie: "f",
+  mensch: "m",
+  glied: "n",
+  betrieb: "m",
+  m\u00FCll: "m",
+  kleingeld: "n",
+  ruhm: "m",
+  ritt: "m",
+  sch\u00E4rfe: "f",
+  ankunft: "f",
+  symmetrie: "f",
+  adressat: "m",
+  kreislauf: "m",
+  aufstieg: "m",
+  f\u00FClle: "f",
+  bitte: "f",
+  brand: "m",
+  waise: "f",
+  gesang: "m",
+  subjekt: "n",
+  objekt: "n",
+  moral: "f",
+  schilf: "n",
+  diagnose: "f",
+  gr\u00F6\u00DFe: "f",
+  wahl: "f",
+  sturz: "m",
+  gischt: "f",
+  ekstase: "f",
+  becken: "n",
+  putz: "m",
+  minze: "f",
+  samt: "m",
+  pause: "f",
+  knauf: "m",
+  apotheke: "f",
+  kost\u00FCm: "n",
+  versto\u00DF: "m",
+  satzanfang: "m",
+  sprint: "m",
+  beule: "f",
+  banane: "f",
+  tapete: "f",
+  galerie: "f",
+  kl\u00F6ppel: "m",
+  predigt: "f",
+  zierrat: "m",
+  wachwechsel: "m",
+  wimpel: "m",
+  rah: "f",
+  streitfall: "m",
+  docht: "m",
+  wundmal: "n",
+  pforte: "f",
+  gebot: "n",
+  fl\u00FCgel: "m",
+  l\u00E4nge: "f",
+  kamel: "n",
+  achse: "f",
+  schlegel: "m",
+  affe: "m",
+  nirwana: "n",
+  alkohol: "m",
+  instinkt: "m",
+  balance: "f",
+  aushub: "m",
+  kalk: "m",
+  r\u00F6hre: "f",
+  basalt: "m",
+  salzs\u00E4ure: "f",
+  erdkruste: "f",
+  schichtfolge: "f",
+  sohle: "f",
+  profil: "n",
+  schneeschmelze: "f",
+  orbit: "m",
+  funkspruch: "m",
+  meteorit: "m",
+  stromausfall: "m",
+  theorie: "f",
+  nervengeflecht: "n",
+  bodenprofil: "n",
+  senke: "f",
+  gebiet: "n",
+  phase: "f",
+  honorar: "n",
+  kordel: "f",
+  spind: "m",
+  tonfall: "m",
+  tempo: "n",
+  schattenkante: "f",
+  stahl: "m",
+  graupappe: "f",
+  st\u00FCtze: "f",
+  perspektive: "f",
+  tank: "m",
+  stillstand: "m",
+  pumpe: "f",
+  debatte: "f",
+  bahre: "f",
+  fackelru\u00DF: "m",
+  kerbe: "f",
+  t\u00FCrsturz: "m",
+  groll: "m",
+  seuche: "f",
+  lunge: "f",
+  pferdegeschirr: "n",
+  zeltgest\u00E4nge: "n",
+  marsch: "m",
+  schaumgummi: "m",
+  knall: "m",
+  zeltmitte: "f",
+  trick: "m",
+  wurf: "m",
+  pult: "n",
+  pentagramm: "n",
+  handel: "m",
+  r\u00FCcktritt: "m",
+  zimt: "m",
+  akt: "m",
+  schatz: "m",
+  betrug: "m",
+  kopfende: "n",
+  parkett: "n",
+  lack: "m",
+  leib: "m",
+  efeu: "m",
+  anstand: "m",
+  schafwolle: "f",
+  milde: "f",
+  wiege: "f",
+  schar: "f",
+  gunst: "f",
+  volk: "n",
+  staat: "m",
+  antlitz: "n",
+  fleck: "m",
+  alibi: "n",
+  kamera: "f",
+  vorfall: "m",
+  quelltext: "m",
+  ritual: "n",
+  schl\u00E4fe: "f",
+  wetterwechsel: "m",
+  anzeige: "f",
+  jahresende: "n",
+  weile: "f",
+  t\u00FCll: "m",
+  schleppe: "f",
+  b\u00FCgel: "m",
+  dampf: "m",
+  kragen: "m",
+  kerzenstummel: "m",
+  klasse: "f",
+  monatsende: "n",
+  tausendstel: "n",
+  durchlauf: "m",
+  jahrtausend: "n",
+  scheu: "f",
+  taxi: "n",
+  mittwoch: "m",
+  erz: "n",
+  diebstahl: "m",
+  nachtwache: "f",
+  schleuse: "f",
+  \u00FCbernahme: "f",
+  luke: "f",
+  sp\u00FCle: "f",
+  ampel: "f",
+  sperrm\u00FCll: "m",
+  speiche: "f",
+  henkel: "m",
+  routine: "f",
+  mai: "m",
+  wolle: "f",
+  schluck: "m",
+  biologie: "f",
+  geologie: "f",
+  astrologie: "f",
+  philosophie: "f",
+  krise: "f",
+  trag\u00F6die: "f",
+  urknall: "m",
+  stift: "m",
+  mine: "f",
+  abwehr: "f",
+  mole: "f",
+  zerfall: "m",
+  masse: "f",
+  handbreit: "f",
+  verfall: "m",
+  tischkante: "f",
+  beute: "f",
+  rache: "f",
+  font\u00E4ne: "f",
+  zuversicht: "f",
+  unruhe: "f",
+  energie: "f",
+  enge: "f",
+  april: "m",
+  rekord: "m",
+  normalzustand: "m",
+  h\u00F6he: "f",
+  abstieg: "m",
+  requisit: "n",
+  schwindel: "m",
+  orakelspruch: "m",
+  erlass: "m",
+  aufstand: "m",
+  gehorsam: "m",
+  blackbox: "f",
+  silhouette: "f",
+  mode: "f",
+  not: "f",
+  urform: "f",
+  ruhestand: "m",
+  schaden: "m",
+  anlauf: "m",
+  dienstjahr: "n",
+  witwe: "f",
+  ensemble: "n",
+  kommune: "f",
+  sekte: "f",
+  rettungstrupp: "m",
+  exil: "n",
+  zentrale: "f",
+  zensurbeh\u00F6rde: "f",
+  doktortitel: "m",
+  naturschutzgebiet: "n",
+  boulevard: "m",
+  hotel: "n",
+  kino: "n",
+  verkehr: "m",
+  kellerclub: "m",
+  kabine: "f",
+  auto: "n",
+  kaserne: "f",
+  internat: "n",
+  wahlkabine: "f",
+  anstalt: "f",
+  mittagspause: "f",
+  choleraepidemie: "f",
+  monarchie: "f",
+  hungersnot: "f",
+  null: "f",
+  route: "f",
+  kampagne: "f",
+  karriere: "f",
+  neuanfang: "m",
+  sorte: "f",
+  verhandlungssache: "f",
+  folge: "f",
+  ablauf: "m",
+  strategie: "f",
+  apparat: "m",
+  psychopath: "m",
+  variable: "f",
+  empathie: "f",
+  amsel: "f",
+  schneefall: "m",
+  abendrot: "n",
+  wechsel: "m",
+  // ── Nachschlag: Alltag, Körper, Haus, Natur, Amt ──
+  auge: "n",
+  name: "m",
+  glaube: "m",
+  wille: "m",
+  gedanke: "m",
+  friede: "m",
+  funke: "m",
+  k\u00E4se: "m",
+  junge: "m",
+  kunde: "m",
+  l\u00F6we: "m",
+  hase: "m",
+  bote: "m",
+  zeuge: "m",
+  riese: "m",
+  rabe: "m",
+  falke: "m",
+  ochse: "m",
+  bursche: "m",
+  knabe: "m",
+  neffe: "m",
+  erbe: "m",
+  buchstabe: "m",
+  same: "m",
+  schatten: "m",
+  wagen: "m",
+  boden: "m",
+  garten: "m",
+  ofen: "m",
+  regen: "m",
+  faden: "m",
+  haken: "m",
+  hafen: "m",
+  morgen: "m",
+  tropfen: "m",
+  kissen: "n",
+  zeichen: "n",
+  kuchen: "m",
+  knochen: "m",
+  r\u00FCcken: "m",
+  segen: "m",
+  bogen: "m",
+  balken: "m",
+  riegel: "m",
+  ballen: "m",
+  fels: "m",
+  haus: "n",
+  glas: "n",
+  bus: "m",
+  fluss: "m",
+  kuss: "m",
+  guss: "m",
+  gru\u00DF: "m",
+  fu\u00DF: "m",
+  hass: "m",
+  kompass: "m",
+  atlas: "m",
+  kreis: "m",
+  preis: "m",
+  eis: "n",
+  reis: "m",
+  gleis: "n",
+  flei\u00DF: "m",
+  geheimnis: "n",
+  ergebnis: "n",
+  zeugnis: "n",
+  bed\u00FCrfnis: "n",
+  verh\u00E4ltnis: "n",
+  ereignis: "n",
+  erlebnis: "n",
+  b\u00FCndnis: "n",
+  hindernis: "n",
+  gef\u00E4ngnis: "n",
+  wildnis: "f",
+  finsternis: "f",
+  fenster: "n",
+  zimmer: "n",
+  wasser: "n",
+  messer: "n",
+  feuer: "n",
+  kupfer: "n",
+  silber: "n",
+  pulver: "n",
+  wetter: "n",
+  alter: "n",
+  ufer: "n",
+  lager: "n",
+  opfer: "n",
+  muster: "n",
+  kloster: "n",
+  register: "n",
+  theater: "n",
+  fieber: "n",
+  leder: "n",
+  futter: "n",
+  gitter: "n",
+  ruder: "n",
+  wunder: "n",
+  orchester: "n",
+  zepter: "n",
+  semester: "n",
+  polster: "n",
+  pflaster: "n",
+  laster: "n",
+  meter: "m",
+  liter: "m",
+  zentrum: "n",
+  datum: "n",
+  museum: "n",
+  t\u00FCr: "f",
+  hand: "f",
+  stern: "m",
+  schritt: "m",
+  brief: "m",
+  weg: "m",
+  stimme: "f",
+  spur: "f",
+  lippe: "f",
+  frage: "f",
+  perle: "f",
+  glocke: "f",
+  uhr: "f",
+  herz: "n",
+  dach: "n",
+  stra\u00DFe: "f",
+  regel: "f",
+  vorrat: "m",
+  schicht: "f",
+  schaf: "n",
+  nummer: "f",
+  schuh: "m",
+  grenze: "f",
+  gutachten: "n",
+  satz: "m",
+  wort: "n",
+  seele: "f",
+  teil: "m",
+  blume: "f",
+  richtung: "f",
+  monat: "m",
+  zahn: "m",
+  ort: "m",
+  wand: "f",
+  vorhang: "m",
+  umstand: "m",
+  sandsack: "m",
+  kraft: "f",
+  bein: "n",
+  kanal: "m",
+  sinn: "m",
+  netz: "n",
+  pflasterstein: "m",
+  handschuh: "m",
+  protokoll: "n",
+  system: "n",
+  kreidestrich: "m",
+  bruchteil: "m",
+  tor: "n",
+  kran: "m",
+  beweis: "m",
+  nacht: "f",
+  stadt: "f",
+  grund: "m",
+  zug: "m",
+  riff: "n",
+  plakat: "n",
+  baum: "m",
+  erbgang: "m",
+  exemplar: "n",
+  symptom: "n",
+  plan: "m",
+  umriss: "m",
+  riss: "m",
+  bahngleis: "n",
+  regal: "n",
+  blick: "m",
+  bergpass: "m",
+  faust: "f",
+  stuhl: "m",
+  freund: "m",
+  stamm: "m",
+  tanzschuh: "m",
+  dienst: "m",
+  ma\u00DF: "n",
+  arm: "m",
+  kinderhand: "f",
+  tisch: "m",
+  seil: "n",
+  frachtbrief: "m",
+  termin: "m",
+  formular: "n",
+  messwert: "m",
+  gegenstand: "m",
+  vogel: "m",
+  exponat: "n",
+  fahrgast: "m",
+  meer: "n",
+  anruf: "m",
+  vorschlag: "m",
+  punkt: "m",
+  boot: "n",
+  paar: "n",
+  gast: "m",
+  stein: "m",
+  stunde: "f",
+  minute: "f",
+  tag: "m",
+  woche: "f",
+  seite: "f",
+  farbe: "f",
+  papier: "n",
+  nachbar: "m",
+  wolke: "f",
+  zeug: "n",
+  kind: "n",
+  mann: "m",
+  frau: "f",
+  vater: "m",
+  mutter: "f",
+  bruder: "m",
+  schwester: "f",
+  sohn: "m",
+  tochter: "f",
+  herr: "m",
+  dame: "f",
+  lehrer: "m",
+  arzt: "m",
+  pfarrer: "m",
+  priester: "m",
+  k\u00F6nig: "m",
+  k\u00F6nigin: "f",
+  kaiser: "m",
+  soldat: "m",
+  bauer: "m",
+  fischer: "m",
+  b\u00E4cker: "m",
+  schneider: "m",
+  schmied: "m",
+  m\u00FCller: "m",
+  j\u00E4ger: "m",
+  hirte: "m",
+  knecht: "m",
+  magd: "f",
+  w\u00E4chter: "m",
+  richter: "m",
+  h\u00E4ndler: "m",
+  fremde: "m",
+  kurier: "m",
+  agent: "m",
+  spion: "m",
+  dieb: "m",
+  r\u00E4uber: "m",
+  m\u00F6rder: "m",
+  opferlamm: "n",
+  engel: "m",
+  teufel: "m",
+  geist: "m",
+  gott: "m",
+  g\u00F6ttin: "f",
+  heiliger: "m",
+  m\u00F6nch: "m",
+  nonne: "f",
+  abt: "m",
+  bischof: "m",
+  papst: "m",
+  ritter: "m",
+  knappe: "m",
+  graf: "m",
+  gr\u00E4fin: "f",
+  f\u00FCrst: "m",
+  prinz: "m",
+  prinzessin: "f",
+  zauberer: "m",
+  hexe: "f",
+  drache: "m",
+  zwerg: "m",
+  elf: "m",
+  troll: "m",
+  wolf: "m",
+  b\u00E4r: "m",
+  fuchs: "m",
+  hirsch: "m",
+  reh: "n",
+  pferd: "n",
+  hund: "m",
+  katze: "f",
+  maus: "f",
+  ratte: "f",
+  schlange: "f",
+  fisch: "m",
+  m\u00F6we: "f",
+  taube: "f",
+  kr\u00E4he: "f",
+  eule: "f",
+  biene: "f",
+  fliege: "f",
+  spinne: "f",
+  k\u00E4fer: "m",
+  schmetterling: "m",
+  wurm: "m",
+  ameise: "f",
+  frosch: "m",
+  kr\u00F6te: "f",
+  eidechse: "f",
+  schwan: "m",
+  ente: "f",
+  gans: "f",
+  huhn: "n",
+  hahn: "m",
+  kuh: "f",
+  stier: "m",
+  ziege: "f",
+  esel: "m",
+  schwein: "n",
+  lamm: "n",
+  // Schwache Maskulina auf -e, die die -e→f-Regel sonst fälschlich fängt
+  kollege: "m",
+  experte: "m",
+  matrose: "m",
+  pate: "m",
+  sklave: "m",
+  laie: "m",
+  insasse: "m",
+  gatte: "m",
+  bulle: "m",
+  schurke: "m",
+  geselle: "m",
+  gef\u00E4hrte: "m",
+  genosse: "m",
+  komplize: "m",
+  jude: "m",
+  zar: "m",
+  franzose: "m",
+  chinese: "m",
+  russe: "m",
+  grieche: "m",
+  t\u00FCrke: "m",
+  ire: "m",
+  schwede: "m",
+  d\u00E4ne: "m",
+  psychologe: "m",
+  biologe: "m",
+  geologe: "m",
+  soziologe: "m",
+  arch\u00E4ologe: "m",
+  philosoph: "m",
+  // Neutra auf -e
+  interesse: "n",
+  geb\u00E4ude: "n",
+  gem\u00E4lde: "n",
+  gebirge: "n",
+  getreide: "n",
+  gefolge: "n",
+  gel\u00E4nde: "n",
+  gewebe: "n",
+  gew\u00F6lbe: "n",
+  getriebe: "n",
+  gef\u00FCge: "n",
+  gelage: "n",
+  gerede: "n",
+  gehege: "n",
+  gewerbe: "n"
+};
+
+// src/generation/declension.ts
+var NOUN_GENDER2 = { ...NOUN_GENDER_2, ...NOUN_GENDER };
+function istSubstantivierterInfinitiv(w) {
+  if (!/^[a-zäöüß]{4,}en$/.test(w)) return false;
+  const stamm = w.slice(0, -2);
+  return istVerbform(stamm + "t") || istVerbform(stamm + "et");
+}
+var E_AUSNAHME = /^(ge[a-zäöüß]+e|.*(auge|ende|käse|junge|erbe|interesse))$/;
+function guessGender(noun) {
+  const w = (noun || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
+  const known = NOUN_GENDER2[w];
+  if (known === "m" || known === "f" || known === "n") return known;
+  let best = "";
+  for (const k in NOUN_GENDER2) {
+    if (k.length >= 3 && w.length >= k.length + 2 && w.endsWith(k) && k.length > best.length) best = k;
+  }
+  if (best) return NOUN_GENDER2[best];
+  if (/(ung|heit|keit|schaft|tät|ion|ik|enz|anz|ei|ade|age|üre|itis|ur)$/.test(w)) return "f";
+  if (/(chen|lein|ment|tum|um|nis|ma)$/.test(w)) return "n";
+  if (/(ling|ismus|ant|ent|ist|eur|or|ich|ig|ast)$/.test(w)) return "m";
+  if (istSubstantivierterInfinitiv(w)) return "n";
+  if (/^ge[a-zäöüß]{3,}e$/.test(w)) return "n";
+  if (/e$/.test(w) && w.length >= 4 && !E_AUSNAHME.test(w)) return "f";
+  if (/er$/.test(w)) return "m";
+  return void 0;
+}
+
+// src/atoms/derive.ts
+var SEIN_HABEN_WERDEN = /^(ist|sind|bin|bist|seid|war|waren|warst|hat|habe|hast|haben|habt|hatte|hatten|wird|werden|wirst|werdet|wurde|wurden|kann|kannst|können|könnt|konnte|muss|musst|müssen|müsst|will|willst|wollen|wollt|soll|sollen|darf|dürfen|mag|mögen|weiß|wissen|bleibt|bleiben|blieb|gibt|geben|gab)$/;
+var KURZVERB = /^(löst|geht|ruft|tut|gibt|lebt|hebt|legt|sagt|sieht|hält|fällt|zieht|trägt|liegt|kommt|nimmt|läuft|steht|dreht|führt|hört|fühlt|zählt|setzt|passt|weint|lacht|denkt|kennt|nennt|misst|sinkt|steigt|klingt|singt|fehlt|blickt|wirkt|reißt|bricht|spricht|wächst)$/;
+var PRAET_FORM = /(?:^|^[a-zäöüß]{2,6})(lag|lagen|stand|standen|ging|gingen|kam|kamen|sah|sahen|nahm|nahmen|hielt|hielten|ließ|ließen|fand|fanden|zog|zogen|trug|trugen|fiel|fielen|rief|riefen|sprach|schrieb|floss|stieg|sank|klang|hing|schien|trieb|brach|schloss|verlor|begann|geschah|roch|rochen|sass|saßen|riss|rissen|sprang|sprangen|schlug|schlugen|traf|trafen|griff|griffen|lief|liefen|wusste|wussten|verschwand|verschwanden|blieb|blieben|hieß|hießen|wuchs|wuchsen|schob|schoben|bog|bogen|schwieg|schwiegen)$/;
+var EN_KEIN_VERB = /* @__PURE__ */ new Set([
+  "gegen",
+  "neben",
+  "wegen",
+  "zwischen",
+  "entgegen",
+  "oben",
+  "unten",
+  "eben",
+  "dr\xFCben",
+  "drau\xDFen",
+  "drinnen",
+  "morgen",
+  "selten",
+  "ansonsten",
+  "meisten",
+  "wenigsten",
+  "offen",
+  "eigen",
+  "golden",
+  "seiden",
+  "wollen",
   "einen",
+  "keinen",
+  "meinen",
+  "seinen",
+  "ihren",
+  "deinen",
+  "unseren",
+  "euren",
+  "deren",
+  "dessen",
+  "allen",
+  "vielen",
+  "manchen",
+  "welchen",
+  "jeden",
+  "diesen",
+  "jenen",
+  "denen",
+  "ihnen",
+  "sieben",
+  "tausenden",
+  "hunderten",
+  "anderen",
+  "einigen",
+  "wenigen",
+  "beiden",
+  "solchen",
+  "eigenen",
+  "ersten",
+  "zweiten",
+  "dritten",
+  "letzten",
+  "n\xE4chsten",
+  "besten",
+  "ganzen",
+  "halben",
+  "fernen",
+  "nahen",
+  "hohen",
+  "tiefen",
+  "langen",
+  "kurzen",
+  "alten",
+  "neuen",
+  "jungen",
+  "kleinen",
+  "gro\xDFen",
+  "roten",
+  "gr\xFCnen",
+  "blauen",
+  "schwarzen",
+  "wei\xDFen",
+  "kalten",
+  "warmen",
+  "leeren",
+  "vollen",
+  "toten",
+  "fremden",
+  "stillen",
+  "dunklen",
+  "hellen",
+  "innen",
+  "au\xDFen",
+  "hinten",
+  "vorn",
+  "mitten",
+  "unterdessen",
+  "indessen",
+  "\xFCbrigen",
+  "wegen",
+  "trotzdem",
+  "zusammen",
+  "gegen\xFCber",
+  "dr\xFCben"
+]);
+var DET_ODER_PREP = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "des",
+  "dem",
+  "den",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
   "einer",
   "eines",
-  "gegen",
-  "haben",
-  "hatte",
-  "immer",
-  "jeder",
-  "kann",
-  "mehr",
-  "nach",
-  "nicht",
-  "noch",
-  "oder",
-  "schon",
+  "kein",
+  "keine",
+  "keinen",
+  "keinem",
+  "keiner",
+  "mein",
+  "meine",
+  "meinen",
+  "meinem",
+  "meiner",
+  "dein",
+  "deine",
+  "deinen",
   "sein",
   "seine",
-  "sich",
-  "sind",
+  "seinen",
+  "seinem",
+  "seiner",
+  "ihr",
+  "ihre",
+  "ihren",
+  "ihrem",
+  "ihrer",
+  "unser",
+  "unsere",
+  "unseren",
+  "im",
+  "am",
+  "vom",
+  "zum",
+  "zur",
+  "beim",
+  "ins",
+  "ans",
+  "mit",
+  "von",
+  "zu",
+  "aus",
+  "bei",
+  "nach",
+  "seit",
+  "auf",
+  "an",
+  "in",
   "\xFCber",
   "unter",
-  "wenn",
-  "werden",
-  "wieder",
-  "wird",
-  "wurde",
+  "vor",
+  "hinter",
+  "neben",
   "zwischen",
-  "diese",
-  "dieser",
-  "dieses",
-  "damit",
-  "dabei",
-  "davon",
-  "etwas",
+  "durch",
+  "f\xFCr",
   "ohne",
-  "sondern",
-  "zwar"
+  "um",
+  "gegen",
+  "wegen",
+  "trotz",
+  "w\xE4hrend",
+  "dieser",
+  "diese",
+  "diesen",
+  "diesem",
+  "dieses",
+  "jeder",
+  "jede",
+  "jeden",
+  "jedem",
+  "jedes",
+  "welcher",
+  "welche",
+  "welchen",
+  "welchem",
+  "manche",
+  "manchen",
+  "solche",
+  "solchen",
+  "viele",
+  "vielen",
+  "wenige",
+  "wenigen",
+  "einige",
+  "einigen",
+  "beide",
+  "beiden",
+  "zwei",
+  "drei",
+  "vier",
+  "f\xFCnf",
+  "sechs",
+  "sieben",
+  "acht",
+  "neun",
+  "zehn",
+  "ganz",
+  "sehr",
+  "zu",
+  "so",
+  "wie",
+  "als",
+  "etwas",
+  "nichts"
 ]);
-function inhaltsWoerter(text) {
-  const raus = /* @__PURE__ */ new Set();
-  for (const w of (text || "").toLowerCase().match(/[a-zäöüß]{4,}/g) || []) {
-    if (!STOPP.has(w)) raus.add(w);
+var NOMEN_ENDUNG = /(ung|heit|keit|schaft|tät|ion|nis|tum|chen|lein|ment)$/;
+function hatFinitesVerb(seg) {
+  const ws = seg.match(/[A-Za-zÄÖÜäöüß]+/g) || [];
+  for (let i = 0; i < ws.length; i++) {
+    const w = ws[i];
+    if (/^[A-ZÄÖÜ]/.test(w)) continue;
+    const l = w.toLowerCase();
+    const prev = (ws[i - 1] || "").toLowerCase(), next = ws[i + 1] || "";
+    const attributiv = DET_ODER_PREP.has(prev) || /^[A-ZÄÖÜ]/.test(next);
+    if ((prev === "ich" || next.toLowerCase() === "ich") && /^[a-zäöüß]{3,}e$/.test(l) && !DET_ODER_PREP.has(l)) return true;
+    if (VERB_CONJ[l]) return true;
+    if (SEIN_HABEN_WERDEN.test(l)) return true;
+    if (PRAET_FORM.test(l)) return true;
+    if (KURZVERB.test(l)) return true;
+    if (/t$/.test(l) && !attributiv && istVerbform(l)) return true;
+    if (/en$/.test(l) && l.length >= 5 && !EN_KEIN_VERB.has(l) && !attributiv && (VERB_CONJ[l.slice(0, -2) + "t"] || VERB_CONJ[l.slice(0, -2) + "et"] || istVerbform(l.slice(0, -2) + "t"))) return true;
+    if (/^(?!ge)[a-zäöüß]{4,}(?:t|te|en|ten)$/.test(l) && !NOMEN_ENDUNG.test(l) && !KEIN_VERB.has(l) && !EN_KEIN_VERB.has(l)) return true;
   }
-  return raus;
+  const first = (seg.match(/^([A-ZÄÖÜ][a-zäöüß]+)/) || [])[1];
+  if (first) {
+    const l = first.toLowerCase();
+    if (VERB_CONJ[l] || SEIN_HABEN_WERDEN.test(l) || PRAET_FORM.test(l)) return true;
+  }
+  return looksLikeFullClause(null, seg);
 }
-function dreiergruppen(text) {
-  const w = (text || "").toLowerCase().match(/[a-zäöüß]+/g) || [];
-  const raus = /* @__PURE__ */ new Set();
-  for (let i = 0; i + 2 < w.length; i++) raus.add(`${w[i]} ${w[i + 1]} ${w[i + 2]}`);
-  return raus;
-}
-function jaccard(a, b) {
-  if (!a.size || !b.size) return 0;
-  let schnitt = 0;
-  const klein = a.size <= b.size ? a : b, gross = a.size <= b.size ? b : a;
-  for (const x of klein) if (gross.has(x)) schnitt++;
-  return schnitt / (a.size + b.size - schnitt);
-}
-function aehnlichkeit(a, b) {
-  const w = jaccard(inhaltsWoerter(a), inhaltsWoerter(b));
-  const g = jaccard(dreiergruppen(a), dreiergruppen(b));
-  return Math.max(0, Math.min(1, (w + 2 * g) / 3));
-}
-function varianzBand(wert) {
-  if (!Number.isFinite(wert) || wert < 0.55) return "gering";
-  if (wert < 0.75) return "mittel";
-  return "hoch";
-}
-var anteilVerschieden = (werte) => {
-  const gefuellt = werte.filter((x) => !!x);
-  if (gefuellt.length < 2) return 1;
-  return new Set(gefuellt).size / gefuellt.length;
+
+// src/features/knobs.ts
+var KNOB_VORGABE = { fuegeteil: 25, w4max: 2, abstand: 12, bogen: 100, ton: 100, korpus: 0, phrase: 5, satzlaenge: 9, atomgroesse: 14 };
+var KNOB_SPANNE = {
+  fuegeteil: { min: 10, max: 35, step: 5 },
+  w4max: { min: 1, max: 4, step: 1 },
+  abstand: { min: 6, max: 24, step: 2 },
+  bogen: { min: 0, max: 250, step: 25 },
+  ton: { min: 0, max: 250, step: 25 },
+  korpus: { min: 0, max: 60, step: 10 },
+  phrase: { min: 0, max: 8, step: 1 },
+  satzlaenge: { min: 0, max: 21, step: 3 },
+  atomgroesse: { min: 0, max: 24, step: 2 }
 };
-function laengenVielfalt(texte) {
-  const n = texte.map((t) => (t.match(/\S+/g) || []).length).filter((x) => x > 0);
-  if (n.length < 2) return 1;
-  const m = n.reduce((a, b) => a + b, 0) / n.length;
-  if (m <= 0) return 0;
-  const sd = Math.sqrt(n.reduce((a, b) => a + (b - m) * (b - m), 0) / n.length);
-  return Math.max(0, Math.min(1, sd / m / 0.5));
+var KEY2 = "dm_knobs_v1";
+var klemm = (v, s) => Math.max(s.min, Math.min(s.max, v));
+function loadKnobs() {
+  try {
+    const r = localStorage.getItem(KEY2);
+    if (!r) return { ...KNOB_VORGABE };
+    const p = JSON.parse(r);
+    return {
+      fuegeteil: klemm(Number(p.fuegeteil) || KNOB_VORGABE.fuegeteil, KNOB_SPANNE.fuegeteil),
+      w4max: klemm(Number(p.w4max) || KNOB_VORGABE.w4max, KNOB_SPANNE.w4max),
+      abstand: klemm(Number(p.abstand) || KNOB_VORGABE.abstand, KNOB_SPANNE.abstand),
+      bogen: klemm(p.bogen === void 0 ? KNOB_VORGABE.bogen : Number(p.bogen), KNOB_SPANNE.bogen),
+      ton: klemm(p.ton === void 0 ? KNOB_VORGABE.ton : Number(p.ton), KNOB_SPANNE.ton),
+      korpus: klemm(p.korpus === void 0 ? KNOB_VORGABE.korpus : Number(p.korpus), KNOB_SPANNE.korpus),
+      phrase: klemm(p.phrase === void 0 ? KNOB_VORGABE.phrase : Number(p.phrase), KNOB_SPANNE.phrase),
+      satzlaenge: klemm(p.satzlaenge === void 0 ? KNOB_VORGABE.satzlaenge : Number(p.satzlaenge), KNOB_SPANNE.satzlaenge),
+      atomgroesse: klemm(p.atomgroesse === void 0 ? KNOB_VORGABE.atomgroesse : Number(p.atomgroesse), KNOB_SPANNE.atomgroesse)
+    };
+  } catch {
+    return { ...KNOB_VORGABE };
+  }
 }
-function varianzBericht(stuecke) {
-  const n = stuecke.length;
-  const leer = {
-    wert: 1,
-    band: "hoch",
-    naechste: [],
-    paare: [],
-    vielfalt: { formen: 1, baenke: 1, quellen: 1, laengen: 1 }
+
+// src/atoms/assemble.ts
+var SCHWACH_KONSONANT = /^(Herr|Mensch|Held|Fürst|Prinz|Graf|Bär|Elefant|Nachbar|Bauer|Herz|Narr|Tor|Christ|Zar|Architekt|Soldat|Advokat|Kamerad|Katholik|Ochs|Spatz|Fink|Pfau|Ahn)$/;
+var SCHWACH_E = /^(Hase|Junge|Kollege|Zeuge|Bote|Erbe|Riese|Löwe|Affe|Rabe|Neffe|Kunde|Gefährte|Experte|Komplize|Insasse|Gatte|Bube|Falke|Franzose|Schwede|Türke|Russe|Pole|Däne|Ire|Brite|Jude|Sklave|Ahne|Zeuge)$/;
+function istSchwachesMaskulinum(kern) {
+  return SCHWACH_E.test(kern) || SCHWACH_KONSONANT.test(kern) || /(ent|ant|ist|oge|graf|soph|nom|arch|krat)$/.test(kern) || /^(Name|Gedanke|Glaube|Wille|Friede|Buchstabe)$/.test(kern);
+}
+function schwachesMaskulinum(kern) {
+  if (/(chen|lein|er|el|en|ling|ismus|or)$/.test(kern)) return kern;
+  if (SCHWACH_E.test(kern)) return kern + "n";
+  if (/(ent|ant|ist|oge|graf|soph|nom|arch|krat|at)$/.test(kern)) return kern + "en";
+  if (kern === "Herr") return "Herrn";
+  if (kern === "Nachbar" || kern === "Bauer") return kern + "n";
+  if (kern === "Herz") return "Herzen";
+  if (SCHWACH_KONSONANT.test(kern)) return kern + "en";
+  if (kern === "Name" || kern === "Gedanke" || kern === "Glaube" || kern === "Wille" || kern === "Friede" || kern === "Buchstabe") return kern + "n";
+  return kern;
+}
+function dekliniere(phrase, kasus) {
+  const m = phrase.match(/^(ein|eine|der|die|das)\s+(.*)$/i);
+  if (!m) return phrase;
+  const [, art, rest] = m;
+  const kern = (rest.match(/\b([A-ZÄÖÜ][a-zäöüß-]{2,})/) || [])[1];
+  const artG = art.toLowerCase() === "der" ? "m" : art.toLowerCase() === "das" ? "n" : void 0;
+  const g = artG || (kern ? istSchwachesMaskulinum(kern) ? "m" : guessGender(kern) : void 0);
+  if (!g) return phrase;
+  const map = {
+    akk: { m: art.toLowerCase() === "ein" ? "einen" : "den", f: art, n: art },
+    dat: { m: art.toLowerCase() === "ein" ? "einem" : "dem", f: art.toLowerCase() === "eine" ? "einer" : "der", n: art.toLowerCase() === "ein" ? "einem" : "dem" }
   };
-  if (n < 2) return leer;
-  const naechste = new Array(n).fill(0);
-  const paare = [];
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      const w = aehnlichkeit(stuecke[i].text, stuecke[j].text);
-      paare.push({ a: i, b: j, wert: w });
-      if (w > naechste[i]) naechste[i] = w;
-      if (w > naechste[j]) naechste[j] = w;
+  const neu = map[kasus]?.[g];
+  if (!neu) return phrase;
+  const rest2 = (kasus === "akk" || kasus === "dat") && g === "m" && kern ? rest.replace(new RegExp("\\b" + kern + "\\b"), schwachesMaskulinum(kern)) : rest;
+  let r = rest2;
+  if (neu.toLowerCase() !== art.toLowerCase()) {
+    const w = rest2.split(/\s+/);
+    let kernIdx = w.findIndex((x) => /^[A-ZÄÖÜ]/.test(x));
+    if (kernIdx < 0) kernIdx = w.length;
+    for (let i = 0; i < kernIdx; i++) {
+      const x = w[i];
+      if (/^[a-zäöüß]{3,}$/.test(x)) w[i] = x.replace(/(?:e|er|es|em|en)$/, "") + "en";
+    }
+    r = w.join(" ");
+  }
+  return neu + " " + r;
+}
+
+// src/generation/beats.ts
+function cap(s) {
+  s = (s ?? "").toString();
+  return s ? s[0].toUpperCase() + s.slice(1) : s;
+}
+function isFragmentSentence(s) {
+  const n = clean(s).split(/\s+/).filter(Boolean).length;
+  return n > 0 && n <= 3;
+}
+function chooseInsertPos(sentences) {
+  if (!sentences || sentences.length < 2) return -1;
+  const candidates = [];
+  for (let pos = 1; pos <= sentences.length; pos++) {
+    const prev = sentences[pos - 1];
+    const next = sentences[pos];
+    if (isFragmentSentence(prev)) continue;
+    if (next !== void 0 && isFragmentSentence(next)) continue;
+    const w = clean(prev).split(/\s+/).filter(Boolean).length;
+    candidates.push({ pos, weight: Math.max(1, w - 4) });
+  }
+  if (!candidates.length) return -1;
+  let sum = 0;
+  for (const c of candidates) sum += c.weight;
+  let r = Math.random() * sum;
+  for (const c of candidates) {
+    r -= c.weight;
+    if (r <= 0) return c.pos;
+  }
+  return candidates[candidates.length - 1].pos;
+}
+function frameTurn(turn) {
+  const t = clean(turn).replace(/[.!?…]+$/, "");
+  const frames = [
+    `Dann kippt es: ${t}.`,
+    `Dann kippt es \u2014 ${t}.`,
+    `Es braucht nur einen Atemzug, und ${t}.`,
+    `Erst ein Riss, kaum merklich, und ${t}.`,
+    `Und dann, ohne Vorwarnung: ${t}.`,
+    `Etwas gibt nach \u2014 ${t}.`,
+    `Kaum ausgesprochen, ${t}.`,
+    `Dann, unvermittelt: ${t}.`
+  ];
+  return frames[pickFreshIndex("frameTurn", frames.length)];
+}
+function reframeStake(stake) {
+  const m = /^Der Einsatz ist\s+(.+?)[.!?…]*$/i.exec(clean(stake));
+  if (!m) return stake;
+  const core = m[1];
+  const akk = dekliniere(core, "akk");
+  const frames = [`Der Einsatz ist ${core}.`, `Es geht um ${akk}.`, `Alles dreht sich um ${akk}.`, `Was z\xE4hlt, ist ${core}.`];
+  if (!/[:,]/.test(core)) {
+    frames.push(`Auf dem Spiel steht ${core}.`);
+    frames.push(`${cap(core)} steht auf dem Spiel.`);
+    frames.push(`Am Ende bleibt nur ${core}.`);
+    frames.push(`Verlieren hie\xDFe: ${core}.`);
+  }
+  return frames[pickFreshIndex("stake", frames.length)];
+}
+function insertToneFlavor(text, line) {
+  const paras = text.split(/\n\n+/);
+  let target = 0;
+  for (let i = 1; i < paras.length; i++) if (paras[i].length > paras[target].length) target = i;
+  const sentences = splitSentences(paras[target]);
+  if (sentences.length < 2) {
+    paras[target] = (paras[target] + " " + line).trim();
+    return paras.join("\n\n");
+  }
+  let idx = chooseInsertPos(sentences);
+  if (idx < 0) idx = sentences.length;
+  sentences.splice(idx, 0, line);
+  paras[target] = sentences.join(" ");
+  return paras.join("\n\n");
+}
+
+// src/generation/verbconj.ts
+var VERB_TOKEN_RE = new RegExp("\\b(" + Object.keys(VERB_CONJ).join("|") + ")\\b", "i");
+
+// src/generation/wordcls.ts
+var PERSON_NOMEN = /(jugendliche|jugendlicher|erwachsene|erwachsener|alte|alter|kranke|kranker|gefangene|gefangener|angestellte|angestellter|beamte|beamter|verwandte|verwandter|bekannte|bekannter|vorsitzende|vorsitzender|abgeordnete|abgeordneter|obdachlose|obdachloser|pensionär|pensionärin|rentner|rentnerin|zeuge|zeugin|täter|täterin|opfer|passant|passantin|kellner|kellnerin|pfarrer|pfarrerin|richter|richterin|händler|händlerin|bauer|bäuerin|förster|försterin|schneider|schneiderin|weber|weberin|uhrmacher|uhrmacherin|archivar|archivarin|übersetzer|übersetzerin|magd|knecht|ritter|ritterin|nonne|mönch|clown|boxer|boxerin|grabräuber|grabräuberin|mädchen|junge|kind|frau|mann|männer|dame|herr|schüler|schülerin|lehrer|lehrerin|wächter|wächterin|arzt|ärztin|bäcker|bäckerin|gärtner|gärtnerin|fischer|fischerin|bote|botin|wanderer|wanderin|reisende|reisender|nachbar|nachbarin|greis|greisin|witwe|witwer|zwilling|bruder|schwester|sohn|tochter|vater|mutter|onkel|tante|neffe|nichte|freund|freundin|gast|fremde|fremder|meister|meisterin|gesell|lehrling|soldat|soldatin|matrose|matrosin|pilot|pilotin|köchin|koch|wirt|wirtin|müller|müllerin|schmied|schmiedin|hirte|hirtin|jäger|jägerin|sammler|sammlerin)$/i;
+var NOT_INFINITIVE = /* @__PURE__ */ new Set([
+  "einen",
+  "keinen",
+  "seinen",
+  "ihren",
+  "deinen",
+  "unseren",
+  "euren",
+  "diesen",
+  "jenen",
+  "denen",
+  "welchen",
+  "allen",
+  "vielen",
+  "beiden",
+  "manchen",
+  "jeden",
+  "solchen",
+  "anderen",
+  "eigenen",
+  "letzten",
+  "ersten",
+  "oben",
+  "unten",
+  "innen",
+  "au\xDFen",
+  "hinten",
+  "vorn",
+  "vorne",
+  "neben",
+  "eben",
+  "gegen",
+  "wegen",
+  "gegen\xFCber",
+  "morgen",
+  "\xFCbermorgen",
+  "wochen",
+  "stunden",
+  "sieben",
+  "zehn",
+  "trotzen",
+  "w\xE4hrend",
+  "dessen",
+  "deren",
+  "hinein"
+]);
+var NICHT_VERB_T = /* @__PURE__ */ new Set([
+  "nicht",
+  "jetzt",
+  "erst",
+  "fast",
+  "sonst",
+  "meist",
+  "zuerst",
+  "zuletzt",
+  "selbst",
+  "sogar",
+  "seit",
+  "samt",
+  "statt",
+  "mit",
+  "zeit",
+  "trotz",
+  "laut",
+  "gerecht",
+  "sanft",
+  "dicht",
+  "leicht",
+  "schlecht",
+  "recht",
+  "direkt",
+  "echt",
+  "exakt",
+  "strikt",
+  "perfekt",
+  "konkret",
+  "komplett",
+  "kaputt",
+  "sacht",
+  "glatt",
+  "platt",
+  "nackt",
+  "satt",
+  "breit",
+  "bereit",
+  "weit",
+  "sp\xE4t",
+  "hart",
+  "zart",
+  "kalt",
+  "alt",
+  "bunt",
+  "rot",
+  "gut",
+  "oft",
+  "still",
+  "halt",
+  "gesamt",
+  "insgesamt",
+  "bekannt",
+  "verwandt",
+  "ber\xFChmt",
+  "sofort",
+  "vielleicht",
+  "\xFCberhaupt",
+  "zumindest",
+  "h\xF6chst",
+  "\xE4u\xDFerst",
+  "mindest",
+  "bestimmt",
+  "unbedingt",
+  "ernst",
+  "einst",
+  "l\xE4ngst",
+  "j\xFCngst",
+  "umsonst",
+  "weltweit",
+  "korrekt",
+  "intakt",
+  "kompakt",
+  "prompt",
+  "getrennt",
+  // vierbuchstabige Adjektive und Adverbien auf -t
+  "bunt",
+  "echt",
+  "fest",
+  "hart",
+  "kalt",
+  "laut",
+  "matt",
+  "nett",
+  "satt",
+  "weit",
+  "zart",
+  "fett",
+  "halt",
+  "wert",
+  "dort",
+  "fort",
+  "stet",
+  "sart"
+]);
+function wirktFinit(w) {
+  if (w.length < 4 || NICHT_VERB_T.has(w)) return false;
+  if (/^ge[a-zäöüß]+t$/.test(w)) return false;
+  return /^[a-zäöüß]+[^aeiouäöü]t$/.test(w) || /^[a-zäöüß]+et$/.test(w);
+}
+function looksLikeInfinitive(w) {
+  if (INFINITIVE_VERBS.has(w)) return true;
+  if (w.length < 5 || NOT_INFINITIVE.has(w) || NOUN_GENDER[w]) return false;
+  return /(?:[a-zäöüß]{3,})(?:en|ern|eln)$/.test(w);
+}
+function extractLeadVerb(text) {
+  const s = clean(text);
+  if (!s) return { verb: null, rest: s };
+  const m0 = s.match(/^([A-Za-zÄÖÜäöüß]+)(,?)\s+(.+)$/);
+  if (!m0) return { verb: null, rest: s };
+  const m = [m0[0], m0[1], (m0[2] ? ", " : "") + m0[3]];
+  const raw = m[1];
+  const w = raw.toLowerCase();
+  if (VERB_CONJ[w]) return { verb: raw, rest: m[2] };
+  if (/^[a-zäöüß]/.test(raw) && looksLikeInfinitive(w)) {
+    return { verb: null, rest: `${m[2]} ${w}`, isInfinitiveLed: true };
+  }
+  if (/^[a-zäöüß]+iert$/.test(w)) return { verb: raw, rest: m[2] };
+  const dritte = ICH_DU_ZU_ER[w];
+  if (dritte && /^[a-zäöüß]/.test(raw)) return { verb: dritte, rest: m[2] };
+  if (/^[a-zäöüß]/.test(raw) && (EXTRA_FINITE_RE.test(w) || wirktFinit(w))) {
+    return { verb: raw, rest: m[2] };
+  }
+  return { verb: null, rest: s };
+}
+var ICH_DU_HAND = {
+  sehe: "sieht",
+  siehst: "sieht",
+  gehe: "geht",
+  gehst: "geht",
+  komme: "kommt",
+  kommst: "kommt",
+  finde: "findet",
+  findest: "findet",
+  glaube: "glaubt",
+  glaubst: "glaubt",
+  lebe: "lebt",
+  lebst: "lebt",
+  liege: "liegt",
+  liegst: "liegt",
+  sitze: "sitzt",
+  lese: "liest",
+  liest: "liest",
+  schlafe: "schl\xE4ft",
+  schl\u00E4fst: "schl\xE4ft",
+  laufe: "l\xE4uft",
+  l\u00E4ufst: "l\xE4uft",
+  falle: "f\xE4llt",
+  f\u00E4llst: "f\xE4llt",
+  breche: "bricht",
+  brichst: "bricht",
+  rufe: "ruft",
+  rufst: "ruft",
+  weine: "weint",
+  weinst: "weint",
+  lache: "lacht",
+  lachst: "lacht",
+  sp\u00FCre: "sp\xFCrt",
+  sp\u00FCrst: "sp\xFCrt",
+  atme: "atmet",
+  atmest: "atmet",
+  singe: "singt",
+  singst: "singt",
+  \u00F6ffne: "\xF6ffnet",
+  \u00F6ffnest: "\xF6ffnet",
+  erinnere: "erinnert",
+  erinnerst: "erinnert",
+  erkenne: "erkennt",
+  erkennst: "erkennt",
+  zerbreche: "zerbricht",
+  zerbrichst: "zerbricht",
+  stolpere: "stolpert",
+  stolperst: "stolpert",
+  verharre: "verharrt",
+  verharrst: "verharrt",
+  wandere: "wandert",
+  wanderst: "wandert",
+  zittere: "zittert",
+  zitterst: "zittert",
+  fl\u00FCstere: "fl\xFCstert",
+  fl\u00FCsterst: "fl\xFCstert",
+  wundere: "wundert",
+  wunderst: "wundert",
+  z\u00F6gere: "z\xF6gert",
+  z\u00F6gerst: "z\xF6gert",
+  erwache: "erwacht",
+  erwachst: "erwacht",
+  verschwinde: "verschwindet",
+  verschwindest: "verschwindet",
+  begreife: "begreift",
+  begreifst: "begreift",
+  verstehe: "versteht",
+  verstehst: "versteht",
+  bleibe: "bleibt",
+  bleibst: "bleibt",
+  ziehe: "zieht",
+  ziehst: "zieht"
+};
+var ICH_DU_ZU_ER = (() => {
+  const m = {};
+  for (const [dritte, formen] of Object.entries(VERB_CONJ)) {
+    for (const p of ["ich", "du", "wir", "ihr"]) {
+      const f = formen[p];
+      if (f && !m[f]) m[f] = dritte;
     }
   }
-  const mittelNaechste = naechste.reduce((a, b) => a + b, 0) / n;
-  const wert = Math.max(0, Math.min(1, 1 - mittelNaechste));
-  paare.sort((a, b) => b.wert - a.wert);
-  return {
-    wert,
-    band: varianzBand(wert),
-    naechste,
-    paare: paare.slice(0, 3),
-    vielfalt: {
-      formen: anteilVerschieden(stuecke.map((s) => s.form)),
-      baenke: anteilVerschieden(stuecke.map((s) => s.bank)),
-      quellen: anteilVerschieden(stuecke.map((s) => s.quelle)),
-      laengen: laengenVielfalt(stuecke.map((s) => s.text))
-    }
-  };
+  return { ...m, ...ICH_DU_HAND };
+})();
+var EXTRA_FINITE_RE = /\b(geschieht|geschehen|geschah|passiert|passieren|passierte|tickt|ticken|atmet|atmen|wächst|wachsen|wuchs|brennt|brennen|brannte|fällt|fallen|fiel|zerfällt|zerfallen|verschwindet|verschwinden|verschwand|erscheint|erscheinen|erschien|endet|enden|endete|beginnt|beginnen|begann|stirbt|sterben|starb|blüht|blühen|klopft|klopfen|flackert|flackern|zerbricht|zerbrechen|zerbrach|dreht|drehen|schweigt|schweigen|schwieg|singt|singen|sang|wandert|wandern|glüht|glühen|tanzt|tanzen|brüllt|brüllen|reagiert|reagieren|zeigt|zeigen|spricht|sprechen|sprach|antwortet|antworten|erinnert|erinnern|verändert|verändern|zittert|zittern|leuchtet|leuchten|schmilzt|schmelzen|regnet|schneit|blitzt|donnert|bebt|läuft|laufen|lief|rinnt|tropft|fließt|fließen|floss|steigt|steigen|stieg|sinkt|sinken|sank|kreist|kreisen|pulsiert|vibriert|summt|brummt|knistert|raschelt|flüstert|flüstern|schreit|schreien|schrie|weint|weinen|lacht|lachen|verglüht|verblasst|zerrinnt|wartet|warten)\b/i;
+function looksLikeFullClause(leadVerb, rest) {
+  if (leadVerb) return false;
+  return VERB_TOKEN_RE.test(rest || "") || EXTRA_FINITE_RE.test(rest || "");
 }
+var SP_REL = /^(der|die|das|den|dem|des|deren|dessen|welche[rsmn]?|wo|worin|woran|womit|wovon)\b/i;
+var SP_CONJ = /^(als|während|weil|wenn|da|obwohl|nachdem|bevor|sodass|damit|dass|ob|indem|sobald|solange)\b/i;
+var SP_PREP = /^(mit|ohne|aus|von|vom|in|im|auf|an|am|für|bei|zu|zum|zur|über|unter|vor|nach|durch|gegen|seit|um|entlang|trotz|wegen|innerhalb|außerhalb|samt|nebst|zwischen|entgegen|gemäß|laut|binnen|jenseits|diesseits)\b/i;
+var SP_ENDS_VERB = /(?:\b(hat|hatte|ist|war|sind|waren|wird|wurde|wurden|kann|konnte|will|wollte|muss|musste|bleibt|blieb|kommt|kam|geht|ging)|(?:^|[^A-Za-zÄÖÜäöüß])[a-zäöüß]{2,}(?:t|te|en|st|et))\.?$/;
+var SP_DET = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses|jener|jene|jenes|beide|alle|zwei|drei|vier)\b/i;
+function istEigenePerson(teil) {
+  const p = clean(teil);
+  if (!p) return false;
+  if (SP_REL.test(p) && SP_ENDS_VERB.test(p)) return false;
+  if (SP_CONJ.test(p) || SP_PREP.test(p)) return false;
+  if (SP_DET.test(p)) return true;
+  if (/^[A-ZÄÖÜ]/.test(p)) return true;
+  return !/\s/.test(p);
+}
+function personKopf(person) {
+  const teile = (person || "").split(",").map((x) => clean(x)).filter(Boolean);
+  if (teile.length <= 1) return (person || "").trim();
+  const raus = [teile[0]];
+  for (let i = 1; i < teile.length; i++) {
+    if (SP_REL.test(teile[i]) && SP_ENDS_VERB.test(teile[i])) raus.push(teile[i]);
+  }
+  return raus.join(", ");
+}
+function splitSpeakers(who) {
+  const parts = (who || "").split(",").map((s) => clean(s)).filter(Boolean);
+  if (parts.length <= 1) return parts;
+  const out = [parts[0]];
+  for (let i = 1; i < parts.length; i++) {
+    if (istEigenePerson(parts[i])) out.push(parts[i]);
+    else out[out.length - 1] += ", " + parts[i];
+  }
+  return out;
+}
+
+// src/generation/nlp.ts
+function tokenize(text) {
+  return (text || "").replace(/\r/g, "").replace(/([.,!?;:()„""""—])/g, " $1 ").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+}
+var COHERENCE_STOPWORDS = new Set(
+  "aber alle allem allen aller alles als also am an andere anderen auch auf aus bei bin bis bist da dabei dann das dass dem den denn der des dessen die dies diese diesem diesen dieser dieses doch dort du durch ein eine einem einen einer eines er es etwas fuer f\xFCr gegen hab habe haben hat hatte hier hin hinter ich ihm ihn ihr ihre im in ist ja jede jedem jeden jeder jedes kann kein keine man mehr mein mich mir mit muss nach nicht nichts noch nun nur ob oder ohne schon sein seine sich sie sind so ueber \xFCber um und uns unser unter vom von vor war waren was wenn werden wie wieder will wir wird wo zu zum zur".split(" ")
+);
+function coherenceWords(s) {
+  return tokenize(String(s || "").toLowerCase()).filter((w) => w.length > 3 && !COHERENCE_STOPWORDS.has(w));
+}
+
+// src/generation/tone.data.ts
+var TONE_DATA = {
+  "neutral": { "opener": [], "flavor": [] },
+  "mystery": {
+    "opener": [
+      "Was jetzt folgt, l\xE4sst sich nicht ganz erkl\xE4ren.",
+      "Manches davon ergibt erst im Nachhinein einen Sinn.",
+      "Von Anfang an fehlt ein Teil des Bildes.",
+      "Sp\xE4ter w\xFCrde niemand sagen k\xF6nnen, wann es genau begann.",
+      "Es gibt eine Version der Geschichte, und dann die wahre.",
+      "Irgendetwas stimmt nicht, lange bevor es jemand bemerkt.",
+      "Die Wahrheit liegt n\xE4her, als alle glauben - und tiefer.",
+      "Der Anfang liegt weiter zur\xFCck, als es den Anschein hat.",
+      "Was hier steht, ist die zweitbeste Erkl\xE4rung.",
+      "Niemand hat es kommen sehen, und alle wussten es.",
+      "Es beginnt mit einer Zahl, die nicht stimmt.",
+      "Zwei Zeugen, zwei Geschichten, ein Abend.",
+      "Am Ende fehlt genau ein Satz."
+    ],
+    "flavor": [
+      "Etwas darin bleibt bewusst unausgesprochen.",
+      "Nicht alles l\xE4sst sich erkl\xE4ren, so sehr man es auch versucht.",
+      "Eine Frage schwingt mit, die niemand laut zu stellen wagt.",
+      "Es ist, als fehle ein ganzes Kapitel der Geschichte.",
+      "Irgendjemand wei\xDF offensichtlich mehr, als er zugibt.",
+      "Die Erkl\xE4rung daf\xFCr kommt nie - oder ist schlimmer als das R\xE4tsel selbst.",
+      "Ein Detail passt nicht, und genau daran h\xE4ngt alles.",
+      "Was fehlt, ist lauter als das, was gesagt wird.",
+      "Jede Antwort \xF6ffnet zwei neue T\xFCren.",
+      "Man ahnt, dass die Spur im Kreis f\xFChrt.",
+      "Zwischen den Zeilen wartete eine zweite Geschichte.",
+      "Niemand hat den Anfang gesehen, nur die Folgen.",
+      "Ein Name f\xE4llt zu oft, um zuf\xE4llig zu sein.",
+      "Die Reihenfolge stimmt, die Uhrzeit nicht.",
+      "Wer zuh\xF6rt, h\xF6rt zwei Dinge gleichzeitig.",
+      "Ein Zeuge widerspricht sich freundlich.",
+      "Etwas wurde wegger\xE4umt, bevor jemand fragte.",
+      "Der k\xFCrzeste Weg wird nie genommen.",
+      "Ein Zufall wiederholt sich und hei\xDFt dann anders.",
+      "Es bleibt eine T\xFCr, die niemand aufschlie\xDFt."
+    ]
+  },
+  "poetic": {
+    "opener": [
+      "Manche Dinge lassen sich nur in Bildern erz\xE4hlen.",
+      "Es beginnt, wie Erinnerungen beginnen: unscharf und zu hell.",
+      "Alles daran hat den Klang von etwas Vergangenem.",
+      "Es ist einer jener Momente, die l\xE4nger dauern als ihre Minute.",
+      "Das Licht f\xE4llt so, dass Worte fast \xFCberfl\xFCssig werden.",
+      "Vielleicht ist es weniger ein Ereignis als ein Nachhall.",
+      "Der Tag beginnt, als h\xE4tte er nichts vor.",
+      "Zuerst ist da nur ein Ger\xE4usch, das nicht aufh\xF6rt.",
+      "Es ist eine Stunde ohne Namen.",
+      "Das Licht steht schief und bleibt so.",
+      "Zwischen zwei Atemz\xFCgen liegt der ganze Anfang.",
+      "Alles hier ist zu leise f\xFCr seine Gr\xF6\xDFe."
+    ],
+    "flavor": [
+      "Die Worte daf\xFCr kommen, wenn \xFCberhaupt, erst viel sp\xE4ter.",
+      "Alles darin klingt wie die Erinnerung an etwas Gr\xF6\xDFeres.",
+      "Selbst die Stille schien an diesem Ort eine Farbe zu haben.",
+      "Es f\xFChlt sich an wie ein halb vergessenes Gedicht, das jemand zu Ende tr\xE4umt.",
+      "Zwischen den S\xE4tzen liegt mehr als in ihnen.",
+      "Wie ein Bild, das l\xE4nger nachwirkt als die Geschichte dazu.",
+      "Die Zeit flie\xDFt hier langsamer, fast wie Honig im Winter.",
+      "Jede Bewegung hinterlie\xDF eine Spur aus Licht.",
+      "Es ist sch\xF6n auf die Weise, die auch wehtut.",
+      "Man h\xF6rt die Dinge atmen, wenn man still genug ist.",
+      "Die R\xE4nder der Welt schienen kurz weicher zu werden.",
+      "Ein Duft von etwas, das es so nie gegeben hat.",
+      "Das Licht bleibt an den Kanten h\xE4ngen.",
+      "Die Luft tr\xE4gt weiter als der Ruf.",
+      "Etwas Kleines behauptet sich gegen den Raum.",
+      "Ein Schatten legt sich hin und bleibt.",
+      "Die Farben werden langsamer als die Formen.",
+      "Der Klang bleibt l\xE4nger als sein Grund.",
+      "Ein Rest W\xE4rme steht noch im T\xFCrrahmen.",
+      "Zwischen den Dingen w\xE4chst eine Stille an."
+    ]
+  },
+  "melancholisch": {
+    "opener": [
+      "Es liegt eine leise Traurigkeit \xFCber allem, ganz ohne Grund.",
+      "Was bleibt, ist selten das, was man behalten wollte.",
+      "Manches endet, lange bevor man es merkt.",
+      "Es ist die Art von Nachmittag, an dem alles ein wenig verblasst.",
+      "Irgendwo darin steckt ein Abschied, den keiner ausgesprochen hat.",
+      "Sp\xE4ter w\xFCrde man sich an diesen Tag erinnern, ohne zu wissen, warum.",
+      "Es h\xE4tte auch anders kommen k\xF6nnen, aber nicht sehr.",
+      "Vieles davon ist schon vorbei, w\xE4hrend es geschieht.",
+      "Der Abschied hat lange vorher angefangen.",
+      "Man merkt es erst, wenn es ruhiger wird.",
+      "Was bleibt, ist kleiner als erwartet.",
+      "Es ist ein Tag zum Aufr\xE4umen."
+    ],
+    "flavor": [
+      "Etwas darin f\xFChlt sich an wie das Ende eines langen Sommers.",
+      "Man vermisste etwas, ohne benennen zu k\xF6nnen, was.",
+      "Die Dinge haben den sanften Glanz des Verg\xE4nglichen.",
+      "Es ist weniger Schmerz als eine ruhige, alte Wehmut.",
+      "Alles bleibt - nur nicht so, wie es einmal gewesen ist.",
+      "Ein Teil davon ist schon Erinnerung, w\xE4hrend es noch geschieht.",
+      "Die Freude kommt mit einem feinen Riss darin.",
+      "Man wei\xDF, dass man diesen Moment sp\xE4ter vermissen wird.",
+      "Selbst das Licht scheint sich langsam zu verabschieden.",
+      "Es ist sch\xF6n, und genau das macht es schwer.",
+      "Was gewesen ist, nimmt mehr Platz ein als das \xDCbrige.",
+      "Ein Zimmer, das gr\xF6\xDFer wurde, ohne zu wachsen.",
+      "Die Gewohnheit bleibt, der Grund ist fort.",
+      "Man legt es zur\xFCck, wo es nie hingeh\xF6rte.",
+      "Der zweite Stuhl steht weiter am Tisch.",
+      "Es fehlt niemand, und doch ist es leer.",
+      "Ein Satz bleibt unbeantwortet und st\xF6rt nicht mehr.",
+      "Die Jahreszeit wechselt schneller als der Blick."
+    ]
+  },
+  "dark": {
+    "opener": [
+      "Von der ersten Sekunde an f\xFChlte sich hier nichts richtig an.",
+      "Es begann leise - so, wie das Schlimmste meistens beginnt.",
+      "Manche Orte warten nur darauf, dass jemand kommt.",
+      "Es gibt keinen Ausweg, nur die Illusion davon.",
+      "Was folgte, h\xE4tte niemand aufhalten k\xF6nnen.",
+      "Die Dunkelheit hier ist \xE4lter als das Haus, das sie birgt.",
+      "Nichts davon endet gut, und das ist bekannt.",
+      "Es beginnt mit einer Rechnung, die offen bleibt.",
+      "Die Sache war lange faul, bevor sie roch.",
+      "Von hier f\xFChrt kein Weg zur\xFCck, nur weiter.",
+      "Jemand hat entschieden, und niemand hat gefragt.",
+      "Der Preis stand von Anfang an fest."
+    ],
+    "flavor": [
+      "Nichts daran f\xFChlt sich je wirklich sicher an.",
+      "Etwas darin roch unverkennbar nach Verlust.",
+      "Die K\xE4lte bleibt, auch wenn l\xE4ngst niemand mehr hinsieht.",
+      "Es ist die Art von Stille, die etwas Schlimmeres ank\xFCndigt.",
+      "Irgendwo darunter wartete bereits das n\xE4chste Ungl\xFCck.",
+      "Kein Trost weit und breit - nur die Gewissheit, dass es schlimmer werden w\xFCrde.",
+      "Jeder Ausweg f\xFChrt nur tiefer hinein.",
+      "Etwas beobachtete, ohne je gesehen zu werden.",
+      "Die Hoffnung ist das Erste, was hier stirbt.",
+      "Man sp\xFCrt, dass die W\xE4nde zuh\xF6ren.",
+      "Es ist zu sp\xE4t, schon bevor es beginnt.",
+      "Selbst das Schweigen hat hier Z\xE4hne.",
+      "Was sch\xFCtzt, kostet mehr, als es h\xE4lt.",
+      "Der Ausweg ist verstellt, seit Wochen.",
+      "Es wird k\xE4lter, wo vorher gewartet wurde.",
+      "Der Schaden ist alt und tr\xE4gt einen neuen Namen.",
+      "Niemand meldet sich, und das ist die Antwort.",
+      "Die Frist l\xE4uft, auch wenn niemand z\xE4hlt.",
+      "Was fehlt, wird nicht ersetzt.",
+      "Am Ende bleibt jemand zur\xFCck, der nicht gemeint war."
+    ]
+  },
+  "unheimlich": {
+    "opener": [
+      "Alles wirkt vertraut, und genau das ist das Problem.",
+      "Irgendetwas ist anders, aber man kann nicht sagen, was.",
+      "Die Dinge stehen zu still, um nat\xFCrlich zu sein.",
+      "Es ist, als h\xE4tte jemand die Welt fast, aber nicht ganz richtig nachgebaut.",
+      "Man hat das Gef\xFChl, nicht allein zu sein - ohne Beweis daf\xFCr.",
+      "Etwas stimmt mit den Schatten nicht.",
+      "Etwas ist verstellt worden, und niemand wei\xDF von wem.",
+      "Es riecht nach einem Raum, der lange zu war.",
+      "Die Zahlen stimmen, die Stimmung nicht.",
+      "Von drau\xDFen sieht alles gew\xF6hnlich aus.",
+      "Man sollte hier nicht stehen bleiben.",
+      "Der Ort hat gewartet."
+    ],
+    "flavor": [
+      "Die Spiegel scheinen einen Sekundenbruchteil zu sp\xE4t zu reagieren.",
+      "Ein Ger\xE4usch, das nur existiert, wenn man nicht hinh\xF6rt.",
+      "Die Gesichter sind richtig, nur das L\xE4cheln sitzt falsch.",
+      "Etwas z\xE4hlt mit, jedes Mal, wenn man die T\xFCr schlie\xDFt.",
+      "Die Uhr geht, aber die Zeit steht.",
+      "Man erkennt den Raum wieder, ohne je dort gewesen zu sein.",
+      "Die Stille hat eine Form, und sie kommt n\xE4her.",
+      "Irgendwo atmet etwas im Takt der eigenen Schritte.",
+      "Ein Detail ist zu viel im Bild, und keiner sieht es an.",
+      "Es f\xFChlt sich an, als w\xFCrde man erwartet.",
+      "Das Ger\xE4usch kommt von innen, nicht von der Stra\xDFe.",
+      "Etwas atmet mit, kaum h\xF6rbar.",
+      "Der Boden gibt an einer Stelle nach.",
+      "Zwei T\xFCren f\xFChren in denselben Raum.",
+      "Es wird still, sobald man hinsieht.",
+      "Eine Uhr geht nach und niemand stellt sie.",
+      "Der Abdruck passt zu keiner Hand.",
+      "Was hier bleibt, war schon vorher da."
+    ]
+  },
+  "uplifting": {
+    "opener": [
+      "Und doch beginnt hier, allen Umst\xE4nden zum Trotz, etwas Gutes.",
+      "Selbst an diesem Ort l\xE4sst sich noch Hoffnung finden.",
+      "Manchmal reicht ein einziger Moment, um alles zu wenden.",
+      "Es sieht aussichtslos aus - und ist es dann doch nicht.",
+      "Irgendwo darin liegt der Anfang von etwas Besserem.",
+      "Gerade wenn alles verloren scheint, kommt das Licht zur\xFCck.",
+      "Es f\xE4ngt klein an und bleibt nicht klein.",
+      "Etwas geht auf, das lange gelegen hat.",
+      "Der Tag hat mehr vor als gedacht.",
+      "Einer f\xE4ngt an, und dann sind es viele.",
+      "Es gibt gute Gr\xFCnde, heute zu bleiben.",
+      "Der Anfang ist gemacht, mehr braucht es nicht."
+    ],
+    "flavor": [
+      "Und doch bleibt, gegen jede Erwartung, ein Rest Hoffnung.",
+      "Irgendetwas darin f\xFChlte sich nach einem echten Neuanfang an.",
+      "Es ist, als w\xFCrde sich gerade, ganz leise, etwas zum Guten wenden.",
+      "Ein kleiner Trost bleibt trotzdem - und manchmal reicht genau das.",
+      "Selbst im Schwierigsten findet sich noch ein Grund zum Weitermachen.",
+      "Am Ende z\xE4hlt nicht der Verlust, sondern das, was bleibt.",
+      "Eine unerwartete Freundlichkeit ver\xE4nderte alles.",
+      "Zum ersten Mal seit Langem scheint der Weg wieder offen.",
+      "Es ist schwer, aber es lohnt sich.",
+      "Manchmal ist der Sturz nur der Anlauf.",
+      "Etwas darin richtet sich wieder auf.",
+      "Und pl\xF6tzlich scheint alles m\xF6glich.",
+      "Etwas l\xF6st sich, ohne dass jemand zieht.",
+      "Zwei, die nichts verband, arbeiten zusammen.",
+      "Der Weg wird breiter, je weiter man geht.",
+      "Was fehlt, wird von selbst erg\xE4nzt.",
+      "Der Raum f\xFCllt sich, ohne eng zu werden.",
+      "Aus einer Zusage werden drei.",
+      "Es reicht diesmal f\xFCr alle.",
+      "Der zweite Versuch gelingt leichter."
+    ]
+  },
+  "zaertlich": {
+    "opener": [
+      "Es geschieht mit einer Behutsamkeit, die man kaum erwarten w\xFCrde.",
+      "Manche Dinge muss man leise erz\xE4hlen, sonst zerbrechen sie.",
+      "Es ist klein und warm und leicht zu \xFCbersehen.",
+      "Zwischen ihnen liegt eine Sanftheit, f\xFCr die es kein Wort gibt.",
+      "Es beginnt mit einer Geste, die niemand sonst bemerkt.",
+      "Alles daran ist sacht, fast wie Atem im Schlaf.",
+      "Es wird niemand laut in dieser Geschichte.",
+      "Jemand h\xE4lt etwas fest, ohne zu dr\xFCcken.",
+      "Der Anfang ist so behutsam, dass man ihn \xFCbersieht.",
+      "Es ist eine Stunde, in der nichts verlangt wird.",
+      "Man macht Platz, bevor gefragt wird.",
+      "Alles hier hat Zeit."
+    ],
+    "flavor": [
+      "Eine Hand, die blieb, obwohl sie gehen durfte.",
+      "Es ist die Sorte N\xE4he, die keine Worte braucht.",
+      "Etwas darin passt auf einen auf, ganz unaufdringlich.",
+      "Ein L\xE4cheln, so leise, dass man es fast \xFCberh\xF6rt.",
+      "Die Welt wird f\xFCr einen Moment weicher.",
+      "Es ist ein kleines Z\xE4rtlichsein, mitten im L\xE4rm.",
+      "Jemand h\xE4lt etwas Zerbrechliches, ohne es zu dr\xFCcken.",
+      "W\xE4rme, die keine Gegenleistung will.",
+      "Es f\xFChlt sich an wie Ankommen.",
+      "Ein Trost, der einfach nur dablieb.",
+      "Eine Hand bleibt liegen, wo sie ist.",
+      "Es wird leiser gesprochen als n\xF6tig.",
+      "Jemand deckt zu, ohne zu wecken.",
+      "Der Weg wird k\xFCrzer gemacht, ohne davon zu reden.",
+      "Etwas Warmes bleibt stehen und wartet.",
+      "Man reicht das Bessere weiter.",
+      "Ein Name wird ausgesprochen wie eine Zusage.",
+      "Es ist Platz genug f\xFCr zwei Meinungen."
+    ]
+  },
+  "traeumerisch": {
+    "opener": [
+      "Es ist schwer zu sagen, ob es geschieht oder nur getr\xE4umt wird.",
+      "Die R\xE4nder der Dinge sind an diesem Tag nicht ganz fest.",
+      "Alles treibt ein wenig, wie Boote ohne Anker.",
+      "Es f\xFChlt sich an, als w\xE4re man mitten in einem fremden Traum aufgewacht.",
+      "Die Logik hat hier Urlaub genommen.",
+      "Zeit und Ort sind nur Vorschl\xE4ge.",
+      "Die Reihenfolge ist hier nicht das Wichtigste.",
+      "Es beginnt mittendrin, wie immer.",
+      "Etwas geht auf, das keine T\xFCr hat.",
+      "Der Weg f\xFChrt weiter, obwohl er endet.",
+      "Zwei Orte fallen zusammen, ohne sich zu st\xF6ren.",
+      "Es ist sp\xE4ter, als es sein d\xFCrfte."
+    ],
+    "flavor": [
+      "Die Dinge verwandeln sich, kaum dass man wegsieht.",
+      "Ein Zimmer wird zum Meer, ohne dass es jemand st\xF6rt.",
+      "Die Schwerkraft scheint Verhandlungssache zu sein.",
+      "Man geht durch T\xFCren, die es vorher nicht gegeben hat.",
+      "Farben riechen, und Ger\xE4usche haben Gewicht.",
+      "Alles ergab Sinn, solange man nicht genauer hinsah.",
+      "Die Erinnerung l\xE4uft der Gegenwart voraus.",
+      "Ein Gedanke wird Landschaft.",
+      "Nichts steht fest, und nichts f\xE4llt.",
+      "Es ist sch\xF6n und ungereimt wie ein Traum kurz vor dem Erwachen.",
+      "Ein Raum \xF6ffnet sich, wo keiner war.",
+      "Die Treppe f\xFChrt zweimal nach oben.",
+      "Etwas wiederholt sich mit anderem Ausgang.",
+      "Der Weg kennt sein Ziel besser als der Gehende.",
+      "Ein Fenster zeigt eine andere Jahreszeit.",
+      "Die Entfernung \xE4ndert sich beim Hinsehen.",
+      "Man kommt an, ohne gegangen zu sein.",
+      "Etwas Bekanntes tr\xE4gt einen fremden Namen."
+    ]
+  },
+  "nuechtern": {
+    "opener": [
+      "Der Reihe nach: Es geschah genau so, wie es hier steht.",
+      "Ohne Umschweife - das ist, was passierte.",
+      "Es gibt daran nichts zu besch\xF6nigen.",
+      "Die Fakten sind \xFCbersichtlich, die Folgen weniger.",
+      "Man muss es nicht ausschm\xFCcken, es gen\xFCgt so.",
+      "Kurz und ohne Pathos: So liegt der Fall.",
+      "Der Vorgang ist \xFCberschaubar.",
+      "Es liegt eine Reihenfolge vor.",
+      "Die Zust\xE4ndigkeit ist gekl\xE4rt.",
+      "Der Rahmen steht, der Rest folgt.",
+      "Es gibt dazu eine Akte.",
+      "Die Sache ist erledigt, bis auf zwei Punkte."
+    ],
+    "flavor": [
+      "Mehr ist dazu nicht zu sagen.",
+      "Die Sache hat eine klare Ursache und eine klare Folge.",
+      "Es hilft nichts, es zu besch\xF6nigen.",
+      "Alles Weitere ergab sich daraus von selbst.",
+      "N\xFCchtern betrachtet, bleibt wenig Raum f\xFCr Zweifel.",
+      "Die Lage ist, was sie ist.",
+      "Man notiert es und geht weiter.",
+      "Kein Drama, nur der n\xE4chste Schritt.",
+      "So einfach, so unausweichlich.",
+      "Am Ende z\xE4hlen nur die Zahlen.",
+      "Der Vorgang ist abgelegt.",
+      "Eine Frist wurde notiert.",
+      "Zwei Angaben widersprechen sich geringf\xFCgig.",
+      "Der Ablauf wurde eingehalten.",
+      "Die Unterlagen liegen vollst\xE4ndig vor.",
+      "Es bleibt bei der bisherigen Regelung.",
+      "Der Fall wird weitergeleitet.",
+      "Eine R\xFCckmeldung steht noch aus."
+    ]
+  },
+  "ironisch": {
+    "opener": [
+      "Nat\xFCrlich l\xE4uft alles nach Plan - nur nicht nach diesem.",
+      "Man ahnt schon, wie gut das ausgehen wird.",
+      "Es ist, mit Verlaub, eine gl\xE4nzende Idee. Fast.",
+      "Was h\xE4tte dabei schon schiefgehen k\xF6nnen.",
+      "Wie sch\xF6n, dass wenigstens einer den \xDCberblick behielt. Behauptete er.",
+      "Der Plan ist wasserdicht. Das Wasser findet trotzdem einen Weg.",
+      "Es lief alles nach Plan, nur nicht nach diesem.",
+      "Eine hervorragende Gelegenheit, es nicht zu tun.",
+      "Man kann viel falsch machen, und man tut es.",
+      "Der Anfang war gut gemeint.",
+      "Zum Gl\xFCck gibt es eine Zust\xE4ndigkeit.",
+      "Alles bestens, sagt jedenfalls das Formular."
+    ],
+    "flavor": [
+      "Es l\xE4uft exakt so gut, wie zu erwarten ist.",
+      "Ein voller Erfolg, wenn man die Ziele nachtr\xE4glich anpasst.",
+      "Zum Gl\xFCck ist ja jemand zust\xE4ndig - nur nicht anwesend.",
+      "Die Ironie daran entging allen Beteiligten.",
+      "Man nannte es Strategie, um nicht Zufall sagen zu m\xFCssen.",
+      "Selbstverst\xE4ndlich hat niemand etwas geahnt. Angeblich.",
+      "Ein Meisterwerk der Planung, r\xFCckw\xE4rts betrachtet.",
+      "Alles unter Kontrolle, versichert die Kontrolle.",
+      "Bemerkenswert, wie zuverl\xE4ssig das Unwahrscheinliche eintraf.",
+      "Es h\xE4tte schlimmer kommen k\xF6nnen. Kam es dann auch.",
+      "Der Vorschlag wird gelobt und abgeheftet.",
+      "Zust\xE4ndig ist, wer gerade nicht da ist.",
+      "Man einigt sich darauf, sich zu einigen.",
+      "Die L\xF6sung wartet auf ein passendes Problem.",
+      "Ein Ausschuss besch\xE4ftigt sich damit, gr\xFCndlich.",
+      "Der k\xFCrzeste Weg wurde gepr\xFCft und verworfen.",
+      "Es gibt jetzt ein Merkblatt dazu.",
+      "Alle sind einverstanden, aber anders."
+    ]
+  },
+  "humorous": {
+    "opener": [
+      "Es h\xE4tte ernst werden k\xF6nnen - wurde es aber nicht ganz.",
+      "Manche Geschichten sind einfach zu absurd, um nicht zu grinsen.",
+      "Was folgt, ist mit Ansage albern.",
+      "Es beginnt harmlos und entgleitet dann auf komische Weise.",
+      "Man sollte das nicht so ernst nehmen. Die Beteiligten taten es auch nicht.",
+      "Vorweg: Niemand kommt ernsthaft zu Schaden, nur die W\xFCrde.",
+      "Es ging schief, aber mit Anlauf.",
+      "Zwei Dinge fehlten: der Plan und der Rest.",
+      "Man h\xE4tte es wissen k\xF6nnen, wollte aber nicht.",
+      "Der Anfang war schon das Beste daran.",
+      "Es gab Kaffee, sonst nichts.",
+      "Jemand hat das ernst gemeint."
+    ],
+    "flavor": [
+      "Absurd genug, um fast schon wieder normal zu wirken.",
+      "Selbst das Schicksal scheint dabei kurz zu grinsen.",
+      "Niemand w\xFCrde sich das so ausdenken - und genau deshalb ist es lustig.",
+      "Es hat, aller Dramatik zum Trotz, etwas unfreiwillig Komisches.",
+      "Man br\xE4uchte fast Popcorn, so albern l\xE4uft das gerade.",
+      "Selbst die Beteiligten m\xFCssen sich das Lachen verkneifen.",
+      "Es ist ein Chaos, aber ein gut gelauntes.",
+      "Die Peinlichkeit ist beeindruckend gleichm\xFCtig.",
+      "Am Ende lachen alle - manche sogar freiwillig.",
+      "Der Ernst der Lage hat sichtlich Feierabend.",
+      "Der Zettel dazu ist unauffindbar, nat\xFCrlich.",
+      "Es fehlt genau das eine Teil.",
+      "Zwei halten es f\xFCr erledigt, drei nicht.",
+      "Der Ersatz ist besser als das Original, leider.",
+      "Es funktioniert, solange niemand hinsieht.",
+      "Der Hund hat es gesehen und schweigt.",
+      "Man einigt sich auf sp\xE4ter.",
+      "Ein Erfolg, wenn man nicht so genau hinschaut."
+    ]
+  }
+};
 
 // src/generation/tone.shape.ts
 var TONE_SHAPE = {
@@ -200,7 +4864,8633 @@ function applyToneRegister(text, tone) {
   return text;
 }
 
-// test/varianz.ts
+// src/generation/polish.ts
+var DOPPELT_ERLAUBT = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "wie",
+  "so",
+  "als",
+  "was",
+  "wer",
+  "wen",
+  "wem",
+  "dass",
+  "da",
+  "und",
+  "nur",
+  "noch",
+  "sie",
+  "ihr"
+]);
+var KEIN_NOMEN = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "kein",
+  "keine",
+  "mein",
+  "dein",
+  "sein",
+  "ihr",
+  "unser",
+  "euer",
+  "dieser",
+  "diese",
+  "dieses",
+  "jeder",
+  "jede",
+  "jedes",
+  "alle",
+  "viele",
+  "manche",
+  "beide",
+  "und",
+  "aber",
+  "doch",
+  "denn",
+  "dann",
+  "dabei",
+  "damit",
+  "dort",
+  "hier",
+  "jetzt",
+  "nur",
+  "noch",
+  "auch",
+  "schon",
+  "wenn",
+  "weil",
+  "dass",
+  "als",
+  "wie",
+  "was",
+  "wer",
+  "wo",
+  "warum",
+  "ich",
+  "du",
+  "er",
+  "sie",
+  "es",
+  "wir",
+  "man",
+  "jemand",
+  "niemand",
+  "nichts",
+  "etwas",
+  "alles",
+  "im",
+  "am",
+  "auf",
+  "in",
+  "an",
+  "mit",
+  "ohne",
+  "von",
+  "vor",
+  "nach",
+  "bei",
+  "zu",
+  "\xFCber",
+  "unter",
+  "zwischen",
+  "seit",
+  "f\xFCr",
+  "zwei",
+  "drei",
+  "vier",
+  "f\xFCnf",
+  "sechs",
+  "sieben",
+  "acht",
+  "neun",
+  "zehn",
+  "hundert",
+  "tausend"
+]);
+function ergaenzeArtikel(satz) {
+  const m = satz.match(/^([A-ZÄÖÜ][a-zäöüß]{2,})(\s+)(.+)$/);
+  if (!m) return satz;
+  const [, nomen, luecke, rest] = m;
+  if (KEIN_NOMEN.has(nomen.toLowerCase())) return satz;
+  const kern = rest.split(",")[0];
+  if (!extractLeadVerb(kern).verb) return satz;
+  const g = NOUN_GENDER[nomen.toLowerCase()];
+  if (g !== "m" && g !== "f" && g !== "n") return satz;
+  if (/^(sind|waren|werden|haben|hatten|bleiben|stehen|liegen|kommen|gehen|zeigen|wirken)\b/i.test(rest)) return satz;
+  const art = g === "f" ? "Die" : g === "n" ? "Das" : "Der";
+  return `${art} ${nomen}${luecke}${rest}`;
+}
+function polishGerman(text, opts = {}) {
+  const { who = "" } = opts;
+  let t = String(text ?? "");
+  t = t.replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/ /g, " ").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").replace(/[ \t]+([,.;:!?])/g, "$1").replace(/([,.;:!?])([A-Za-zÄÖÜäöü])/g, "$1 $2").replace(/\(\s+/g, "(").replace(/\s+\)/g, ")").replace(/,+/g, ",").replace(/,\s*,/g, ", ").replace(/:\s*:/g, ":").replace(/([A-Za-zÄÖÜäöü0-9])\.\.(?=\s|$)/g, "$1\u2026").replace(/\.\.(?!\.)/g, ".").trim();
+  if (who.trim()) {
+    const w = who.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const wieder = namensErsetzer(who.trim());
+    try {
+      t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${w}(?![\\p{L}\\p{N}_])`, "giu"), wieder);
+    } catch {
+      t = t.replace(new RegExp(`\\b${w}\\b`, "gi"), wieder);
+    }
+  }
+  for (let k = 0; k < 6; k++) {
+    const next = t.replace(
+      /\b([A-Za-zÄÖÜäöüß]{2,})[ \t]+\1\b/gi,
+      (m, w) => DOPPELT_ERLAUBT.has(w.toLowerCase()) ? m : w
+    );
+    if (next === t) break;
+    t = next;
+  }
+  t = t.split(/(?<=[.!?…])(\s+)/).map((teil) => /^\s+$/.test(teil) ? teil : ergaenzeArtikel(teil)).join("");
+  return t.trim();
+}
+
+// src/generation/shape.ts
+var OBJEKT_EINSTIEG = [
+  // NICHT „… und zaehle mit.": Der Bruchstueck-Filter braucht dort ein finites
+  // Verb, und hatFinitesVerb() erkennt die erste Person nicht. Ein Rahmensatz,
+  // der von einem unzuverlaessigen Erkenner abhaengt, ist ein Rahmensatz auf Zeit.
+  "Ich bin %O. Ich liege hier und z\xE4hle die Tage.",
+  "Ich bin %O. Man hat mich hier vergessen.",
+  "Ich bin %O. Niemand fragt mich, und ich sehe alles.",
+  "Ich bin %O. Ich habe keine Augen und trotzdem einen Blick.",
+  "Ich bin %O. Ich bleibe, wo man mich hingestellt hat.",
+  "Ich bin %O. Man geht an mir vorbei, seit Jahren."
+];
+var OBJEKT_KOPF_RE = /^(Ich bin (?:der|die|das) [^.!?]{1,40}\.\s+[^.!?]{1,70}\.)\s*/;
+var SCHON_GEBUNDEN = /^(und|doch|aber|oder|denn|dann|dabei|also|trotzdem|dennoch|sondern|nur|zuerst|zuletzt|währenddessen)/i;
+function darfVerbinden(a, b, obergrenze) {
+  if (!a || !b) return false;
+  if (/[:;—–]\s*$/.test(a.replace(/[.!?…]+$/, ""))) return false;
+  if (!/[.!?…]$/.test(a.trim())) return false;
+  if (/[?!]$/.test(a.trim())) return false;
+  if (SCHON_GEBUNDEN.test(b)) return false;
+  if (/^[„»"(]/.test(b) || /[“«")]$/.test(a)) return false;
+  const wa = (a.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+  const wb = (b.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+  if (!wa || !wb) return false;
+  return wa + wb <= obergrenze;
+}
+function verbinde(a, b, satzartig) {
+  const kopf = a.trim().replace(/[.!?…]+$/, "");
+  const rest = b.trim();
+  const wort = (rest.match(/^[A-Za-zÄÖÜäöüß]+/) || [""])[0].toLowerCase();
+  const darfKlein = KEIN_NOMEN.has(wort) || !!VERB_CONJ[wort];
+  const weiter = darfKlein ? rest.charAt(0).toLowerCase() + rest.slice(1) : rest;
+  if (!satzartig) return `${kopf} \u2014 ${weiter}`;
+  return `${kopf}${pick([", und ", "; ", " \u2014 "])}${weiter}`;
+}
+function entferneDubletten(text) {
+  const kern = (x) => x.replace(/^[—–\s]+/, "").replace(/[.!?…,;:—–\s]+$/, "").replace(/\s+/g, " ").toLowerCase().trim();
+  const ohne = text.split(/\n{2,}/).map((absatz) => {
+    const s = splitSentences(absatz);
+    if (s.length < 2) return absatz;
+    const raus = [];
+    for (const satz of s) {
+      const k = kern(satz);
+      if (k && raus.length && kern(raus[raus.length - 1]) === k) continue;
+      raus.push(satz);
+    }
+    return raus.join(" ");
+  }).join("\n\n");
+  return ohne.replace(
+    /([^.!?…\n]{6,})\s*(?:—|–|;|,\s+und)\s*([^.!?…\n]{6,})/g,
+    (ganz, links, rechts) => kern(links) && kern(links) === kern(rechts) ? links.replace(/\s+$/, "") : ganz
+  );
+}
+function applySatzlaenge(text, ziel) {
+  if (!ziel || ziel < 6) return text;
+  const w = (x) => (x.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+  return text.split(/\n{2,}/).map((absatz) => {
+    let s = splitSentences(absatz);
+    if (s.length < 2) return absatz;
+    const bleibtKurz = new Set(s.filter(() => chance(0.2)));
+    for (let runde = 0; runde < 200; runde++) {
+      let beste = -1, kuerzeste = Infinity;
+      for (let i = 0; i + 1 < s.length; i++) {
+        const n = w(s[i]) + w(s[i + 1]);
+        if (n > ziel) continue;
+        if (bleibtKurz.has(s[i]) || bleibtKurz.has(s[i + 1])) continue;
+        if (!darfVerbinden(s[i], s[i + 1], ziel)) continue;
+        if (n < kuerzeste) {
+          kuerzeste = n;
+          beste = i;
+        }
+      }
+      if (beste < 0) break;
+      const satzartig = hatFinitesVerbLeicht(s[beste]);
+      s = [...s.slice(0, beste), verbinde(s[beste], s[beste + 1], satzartig), ...s.slice(beste + 2)];
+    }
+    return s.join(" ");
+  }).join("\n\n");
+}
+function hatFinitesVerbLeicht(satz) {
+  return (satz.match(/[a-zäöüß]{3,}/g) || []).some((w) => !!VERB_CONJ[w] || /^(ist|sind|war|waren|hat|haben|wird|werden|kann|muss|will|bleibt|steht|geht|kommt)$/.test(w));
+}
+
+// src/generation/ctxnorm.ts
+var cap2 = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+var low = (s) => s ? s.charAt(0).toLowerCase() + s.slice(1) : s;
+function normWho(s) {
+  const t = (s || "").trim();
+  if (!t) return t;
+  const parts = t.split(",").map((p) => p.trim()).filter(Boolean);
+  const fixed = parts.map((p, i) => {
+    const m = p.match(/^([a-zäöüß][a-zäöüß-]*)\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
+    if (m && !/^(der|die|das|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses)$/i.test(m[1])) {
+      const g = guessGender(m[2]) || (/in$/.test(m[2].toLowerCase()) ? "f" : void 0);
+      if (g === "f") return `eine ${m[1]} ${m[2]}`;
+      if (g === "m" || g === "n") return `ein ${m[1]} ${m[2]}`;
+    }
+    if (i === 0 && /^[A-ZÄÖÜa-zäöüß][a-zäöüß-]+$/.test(p) && PERSON_NOMEN.test(p) && !/^(männer|leute)$/i.test(p)) {
+      const wort = cap2(p);
+      const klein = p.toLowerCase();
+      if (/er$/.test(klein) && PERSON_NOMEN.test(klein.slice(0, -1))) return `ein ${wort}`;
+      if (/e$/.test(klein) && PERSON_NOMEN.test(klein + "r")) return `eine ${wort}`;
+      const g = guessGender(wort);
+      if (g === "f") return `eine ${wort}`;
+      if (g === "m" || g === "n") return `ein ${wort}`;
+    }
+    return i === 0 || istEigenePerson(p) ? cap2(p) : low(p);
+  });
+  return fixed.join(", ");
+}
+
+// src/generation/dramaturgie.ts
+var DKEY = "dm_dramaturgie_v1";
+var bogenOverride = null;
+function loadDramaData() {
+  if (bogenOverride) return bogenOverride;
+  try {
+    const r = localStorage.getItem(DKEY);
+    return r ? JSON.parse(r) : null;
+  } catch {
+    return null;
+  }
+}
+var SCHLAG_STANDARD = ["einstieg", "hook", "regel", "mitte", "mitte2", "konflikt", "ausloeser", "wende", "zeit", "hoehepunkt", "einsatz", "schluss"];
+var SCHLAG_NAMEN = /* @__PURE__ */ new Set([...SCHLAG_STANDARD]);
+
+// src/generation/postprocess.ts
+var LINE_FORMS = /* @__PURE__ */ new Set(["script", "video", "strang", "reim", "haiku", "poem"]);
+var isLineForm = (input) => !!input && !!input.form && LINE_FORMS.has(input.form);
+function glaetten(t) {
+  return t.replace(/[ \t]{2,}/g, " ").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]+([,.;:!?])/g, "$1").trim();
+}
+var ABGESCHNITTEN = /(^|\s)(eine|einem|einen|einer|eines|der|die|dem|den|des|und|oder|aber|wie|als|im|am|bei|für|ohne)$/i;
+var NUR_OHNE_VERB = /(^|\s)(mit|an|auf|zu|vor|nach|aus|ist|sind|wird|ein|das)$/i;
+var NEBENSATZ_ENDE = /,\s+(der|die|das|dem|den|deren|dessen)\s+([a-zäöüß][^,;:]*)$/;
+var FUNKTION = /* @__PURE__ */ new Set([
+  "es",
+  "er",
+  "sie",
+  "ich",
+  "du",
+  "wir",
+  "ihr",
+  "man",
+  "sich",
+  "mich",
+  "dich",
+  "uns",
+  "euch",
+  "ihn",
+  "ihm",
+  "mir",
+  "dir",
+  "der",
+  "die",
+  "das",
+  "dem",
+  "den",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "kein",
+  "keine",
+  "keinen",
+  "keinem",
+  "mein",
+  "meine",
+  "meinen",
+  "meinem",
+  "sein",
+  "seine",
+  "seinen",
+  "seinem",
+  "ihre",
+  "ihren",
+  "ihrem",
+  "dein",
+  "deine",
+  "deinen",
+  "deinem",
+  "unser",
+  "unsere",
+  "in",
+  "im",
+  "an",
+  "am",
+  "auf",
+  "aus",
+  "bei",
+  "mit",
+  "nach",
+  "von",
+  "vom",
+  "zu",
+  "zum",
+  "zur",
+  "vor",
+  "\xFCber",
+  "unter",
+  "hinter",
+  "neben",
+  "zwischen",
+  "durch",
+  "f\xFCr",
+  "ohne",
+  "um",
+  "gegen",
+  "seit",
+  "bis",
+  "und",
+  "oder",
+  "aber",
+  "noch",
+  "schon",
+  "mehr",
+  "auch",
+  "nur",
+  "so",
+  "da",
+  "hier",
+  "dort",
+  "wo",
+  "wie",
+  "als",
+  "wenn",
+  "dann",
+  "immer",
+  "nie",
+  "wieder",
+  "heute",
+  "gestern",
+  "morgen",
+  "zu",
+  "sehr",
+  "ganz",
+  "etwas",
+  "nichts",
+  "alles",
+  "viel",
+  "wenig",
+  "zwei",
+  "drei",
+  "vier",
+  "f\xFCnf",
+  "einmal",
+  "zweimal",
+  "l\xE4ngst",
+  "gerade",
+  "eben",
+  "erst",
+  "kaum",
+  "fast",
+  "genau",
+  "pl\xF6tzlich",
+  "jemand",
+  "niemand",
+  "jeder",
+  "jede",
+  "jedes",
+  "alle",
+  "beide",
+  "zusammen",
+  "allein",
+  "anders",
+  "weiter",
+  "zur\xFCck",
+  "hinauf",
+  "hinab",
+  "hinaus",
+  "hinein",
+  "heraus",
+  "herein",
+  "oben",
+  "unten",
+  "innen",
+  "au\xDFen",
+  "links",
+  "rechts",
+  "vorn",
+  "hinten",
+  "drinnen",
+  "drau\xDFen",
+  "fort",
+  "weg",
+  "los"
+]);
+var verbMoeglich = (w) => /^[a-zäöüß]{2,}$/.test(w) && !FUNKTION.has(w) && !KEIN_VERB.has(w) && !/(em|er|es)$/.test(w);
+function istAbgeschnitten(bare) {
+  if (!bare || bare.split(/\s+/).length > 12) return false;
+  if (ABGESCHNITTEN.test(bare)) return true;
+  const ns = bare.match(NEBENSATZ_ENDE);
+  if (ns) {
+    const woerter = ns[2].split(/\s+/);
+    if (woerter.length <= 6 && !woerter.some(verbMoeglich)) return true;
+  }
+  return NUR_OHNE_VERB.test(bare) && !hatFinitesVerb(bare);
+}
+function schliesseFigurenkomma(text, who) {
+  const roh = (who || "").trim();
+  if (!roh || !roh.includes(",")) return text;
+  const figur = personKopf(splitSpeakers(normWho(roh))[0] || "");
+  if (!figur.includes(",")) return text;
+  try {
+    const re = new RegExp("(" + escapeRegExp(figur) + ")(\\s+)(?=[a-z\xE4\xF6\xFC\xDF])", "gi");
+    return text.replace(re, "$1,$2");
+  } catch {
+    return text;
+  }
+}
+function coherencePass(text, input) {
+  try {
+    if (isLineForm(input)) return text;
+    const t = String(text || "").replace(/\.\s*\.+/g, ".");
+    const paras = t.split(/\n{2,}/);
+    const freq = {};
+    coherenceWords(t).forEach((w) => {
+      freq[w] = (freq[w] || 0) + 1;
+    });
+    const motif = new Set(Object.keys(freq).filter((w) => freq[w] >= 2));
+    [input?.who, input?.where, input?.what].forEach((s) => coherenceWords(s || "").forEach((w) => motif.add(w)));
+    const bogen = loadDramaData();
+    if (bogen) {
+      for (const feld of [
+        bogen.einstieg,
+        bogen.mitte,
+        bogen.hoehepunkt,
+        bogen.ausloeser,
+        bogen.veraenderungen,
+        bogen.konflikte,
+        bogen.zeitanomalien,
+        bogen.regeln
+      ]) {
+        for (const satz of feld || []) coherenceWords(satz).forEach((w) => motif.add(w));
+      }
+    }
+    const allowBreaks = input?.disruptor === "on";
+    const maxRemove = Math.max(1, Math.floor(splitSentences(t).length * 0.25));
+    let removed = 0;
+    const outParas = [];
+    paras.forEach((p, pi) => {
+      const sents = splitSentences(p);
+      const kept = sents.filter((s, si) => {
+        const bare = s.trim().replace(/["»«)\]]+$/, "").replace(/[.!?…]+$/, "").trim();
+        if (istAbgeschnitten(bare)) {
+          removed++;
+          return false;
+        }
+        if (removed >= maxRemove) return true;
+        const late = pi === paras.length - 1 && sents.length >= 4 && si >= Math.floor(sents.length / 2);
+        if (late) {
+          const cw = coherenceWords(s);
+          if (cw.length >= 2 && !cw.some((w) => motif.has(w))) {
+            if (allowBreaks && Math.random() < 0.5) return true;
+            removed++;
+            return false;
+          }
+        }
+        return true;
+      });
+      if (kept.length) outParas.push(kept.join(" "));
+    });
+    const result = outParas.join("\n\n").trim();
+    return result.length >= 60 ? result : text;
+  } catch {
+    return text;
+  }
+}
+function coherenceRepairV2(t, input) {
+  t = String(t ?? "");
+  t = t.replace(/\(\s*[A-ZÄÖÜ][\wäöüß-]{2,}\s*\)/g, " ");
+  t = t.replace(/,\s*([.!?…])/g, "$1");
+  t = t.replace(/([.!?…])\s*,/g, ",");
+  t = t.replace(/\s*,\s*,\s*/g, ", ");
+  t = t.replace(/„\s+/g, "\u201E").replace(/\s+"/g, '"');
+  t = t.replace(/([.!?…])\s*\1+/g, "$1");
+  if ((t.match(/"/g) || []).length % 2 === 1) t = t.replace(/"/g, "");
+  {
+    const o = (t.match(/„/g) || []).length, c = (t.match(/[“”]/g) || []).length;
+    if (o !== c) t = t.replace(/[„“”]/g, "");
+  }
+  t = t.replace(/\bich'(?=\s)/gi, "meine").replace(/\bdu'(?=\s)/gi, "deine").replace(/\bwir'(?=\s)/gi, "unsere").replace(/\ber'(?=\s)/gi, "seine").replace(/\bsie'(?=\s)/gi, "ihre").replace(/\bes'(?=\s)/gi, "seine");
+  t = t.replace(/(:\s+)([a-zäöüß][^.!?…]*)/g, (m, p1, rest) => looksLikeFullClause(null, rest) || /^(warum|weshalb|wieso|wie|was|wer|wen|wem|wann|wo|wohin|woher|ob)\b/i.test(rest) ? p1 + rest.charAt(0).toUpperCase() + rest.slice(1) : m);
+  String(input?.who || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean).forEach((n) => {
+    const esc = escapeRegExp(n);
+    const wieder = namensErsetzer(n);
+    try {
+      t = t.replace(new RegExp("\\b(" + esc + ")(s|')?\\b", "giu"), (_m, kern, suf) => wieder(kern) + (suf || ""));
+    } catch {
+    }
+  });
+  if (isLineForm(input)) {
+    return glaetten(t);
+  }
+  const ABS = "\u241E";
+  t = t.replace(/[ \t]*\n{2,}[ \t]*/g, " " + ABS + " ");
+  const sents = t.split(/(?<=[.!?…])\s+/).filter(Boolean);
+  const kept = [];
+  for (let s of sents) {
+    const bare = s.trim().replace(/["“”»«]+$/, "").replace(/[.!?…]+$/, "").trim();
+    const opens = (s.match(/„/g) || []).length, closes = (s.match(/[“”»]/g) || []).length;
+    if (/\bSatz\s+„/.test(s) && opens > closes) continue;
+    if (/,\s+(die|der|das|dem|den|des)\s+(die|der|das|dem|den|des)\s+\p{L}+$/iu.test(bare)) continue;
+    if (opens > closes) s = s.replace(/„\s*/g, "");
+    s = beugeNachDu(s);
+    const _st = s.trim();
+    if (kept.length && kept[kept.length - 1] === _st) continue;
+    kept.push(_st);
+  }
+  t = kept.join(" ").replace(/\s*\u241E\s*/g, "\n\n");
+  t = t.replace(/(\bich und [A-ZÄÖÜ][\wäöüß]+[^.!?…]*?)\bsie sich\b/gu, "$1wir uns");
+  t = t.replace(/([A-ZÄÖÜ][\wäöüß]+ und ich[^.!?…]*?)\bsie sich\b/gu, "$1wir uns");
+  const CONN = [/\bDann kippt es\b/gi, /\bDabei:\s*plötzlich\b/gi, /\bUnd immer wieder\b/gi, /\bAm Ende bleibt klar\b/gi];
+  CONN.forEach((re) => {
+    let n = 0;
+    t = t.replace(re, (m) => ++n > 1 ? "" : m);
+  });
+  t = glaetten(t).replace(/„[ \t]+/g, "\u201E");
+  return t;
+}
+function kleinerArtikel(t) {
+  return (t || "").replace(/[ \t]+([,;.!?])/g, "$1").replace(
+    /([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/g,
+    (_m, vor, sp, w) => vor + sp + w.charAt(0).toLowerCase() + w.slice(1)
+  );
+}
+var DU = [
+  [/\btritt\b/g, "trittst"],
+  [/\bhält\b/g, "h\xE4ltst"],
+  [/\bnimmt\b/g, "nimmst"],
+  [/\bsieht\b/g, "siehst"],
+  [/\bgeht\b/g, "gehst"],
+  [/\bsteht\b/g, "stehst"],
+  [/\bträgt\b/g, "tr\xE4gst"],
+  [/\bführt\b/g, "f\xFChrst"],
+  [/\bfindet\b/g, "findest"],
+  [/\bsucht\b/g, "suchst"],
+  [/\bkommt\b/g, "kommst"],
+  [/\bbricht\b/g, "brichst"]
+];
+function beugeNachDu(s) {
+  const di = s.search(/\bdu\b/i);
+  if (di < 0) return s;
+  const head = s.slice(0, di);
+  let tail = s.slice(di);
+  const wechsel = tail.search(/[,;:—–(]|\b(?:aber|und|doch|denn|sondern|oder|während|als)\s+(?:er|sie|es|man|wir|ihr|der|die|das|ein|eine|etwas|nichts|jemand|niemand)\b/i);
+  let rest = "";
+  if (wechsel > 0) {
+    rest = tail.slice(wechsel);
+    tail = tail.slice(0, wechsel);
+  }
+  DU.forEach(([re, rep]) => {
+    tail = tail.replace(re, rep);
+  });
+  return head + tail + rest;
+}
+var NEBENSATZ = /(,\s+(?:wo|wohin|woher|wenn|als|weil|dass|obwohl|während|nachdem|bevor|sobald|solange|der|die|das|dem|den|deren|dessen)\s[^,.;:!?—–]{3,60}?[a-zäöüß])\s+(bemerk(?:t|e|st|en)|sieht|sehe|siehst|sehen|find(?:et|e|est|en)|entdeck(?:t|e|st|en)|erkenn(?:t|e|st|en)|trifft|treffe|triffst|treffen|hört|höre|hörst|hören|wartet|warte|wartest|warten|steht|stehe|stehst|stehen|beginnt|beginne|beginnst|beginnen|verliert|verliere|verlierst|verlieren)\s+(ich|du|wir|er|sie|es|man|[A-ZÄÖÜ][a-zäöüß]+)\b/g;
+function kommaVorInversion(t) {
+  return (t || "").replace(NEBENSATZ, "$1, $2 $3");
+}
+function istPluralFigur(who) {
+  const w = (who || "").trim();
+  if (!w) return false;
+  if (/^(zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|beide|alle|viele|einige|mehrere|manche|zwölf|hundert)\b/i.test(w)) return true;
+  if (/\b(und|&)\b/.test(w) && !/,/.test(w)) return true;
+  if (/^[A-ZÄÖÜ][a-zäöüß]+(en|innen|leute|kinder|eltern)$/.test(w) && !/(chen|lein)$/.test(w)) return true;
+  const m = w.match(/^die\s+([A-ZÄÖÜ][a-zäöüß-]+)$/i);
+  if (m) {
+    const n = m[1].toLowerCase();
+    if (/(innen|leute|kinder|eltern|geschwister|männer|frauen)$/.test(n)) return true;
+    return /en$/.test(n) && !/(chen|lein)$/.test(n);
+  }
+  return false;
+}
+function pluralKongruenz(t, who) {
+  const name = (who || "").trim();
+  if (!name || !istPluralFigur(name)) return t;
+  const esc = escapeRegExp(name);
+  const beuge = (v) => {
+    const p = beugeVerb(v, "wir");
+    return p && p !== v ? p : v;
+  };
+  let out = t.replace(new RegExp(`(\\b${esc})\\s+([a-z\xE4\xF6\xFC\xDF]+t)\\b`, "giu"), (m, n, v) => istVerbform(v) ? `${n} ${beuge(v)}` : m);
+  out = out.replace(new RegExp(`\\b([a-z\xE4\xF6\xFC\xDF]+t)\\s+(${esc})\\b`, "giu"), (m, v, n) => istVerbform(v) ? `${beuge(v)} ${n}` : m);
+  return out;
+}
+function nomenNachAdverb(t) {
+  return (t || "").replace(
+    /(^|[.!?…]\s+|\n)(Dann|Und dann|Nur|Doch|Jetzt|Plötzlich|Danach|Zuletzt)\s+([a-zäöüß]{3,}),/g,
+    (m, vor, adv, w) => guessGender(w) ? `${vor}${adv} ${w.charAt(0).toUpperCase()}${w.slice(1)},` : m
+  );
+}
+function nominativFragment(t) {
+  return (t || "").replace(
+    /(^|[.!?…]\s+|\n)(Einen|Den|Einem|Dem)\s+([A-ZÄÖÜ][a-zäöüß]+)([^.!?…\n]*[.!?…])/g,
+    (m, vor, art, nomen, rest) => {
+      if (hatFinitesVerb(`${art} ${nomen}${rest}`)) return m;
+      if (/\b(ein|eine|einen|einem|einer|der|die|das|den|dem)\b/i.test(rest)) return m;
+      if (art === "Einen") return `${vor}Ein ${nomen}${rest}`;
+      if (art === "Den") return `${vor}Der ${nomen}${rest}`;
+      const g = guessGender(nomen);
+      if (art === "Einem") return g === "m" || g === "n" ? `${vor}Ein ${nomen}${rest}` : m;
+      return g === "m" ? `${vor}Der ${nomen}${rest}` : g === "n" ? `${vor}Das ${nomen}${rest}` : m;
+    }
+  );
+}
+function formelnGlaetten(t) {
+  return (t || "").replace(/\s+—\s+(dann|danach|plötzlich)\s*([;.!?])/gi, "$2").replace(/\b(an|auf|über|von|in|mit|nach) (wie|als) (der|die|das|den|dem|des|ein|eine|einen|einem|einer)\b/g, "$1 $3").replace(/\b(Dann|Und dann|Plötzlich|Danach)\s+—\s+(dann|plötzlich|danach),/gi, (_m, a) => `${a},`).replace(/([.!?…])\s+—\s+([a-zäöüß])/g, (_m, p, c) => `${p} ${c.toUpperCase()}`);
+}
+function kleinesPronomen(t) {
+  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon|Mittags|Morgens|Abends|Nachts|Heute|Gestern|Morgen|Später|Manchmal|Damals|Irgendwann|Vormittags|Nachmittags|Fast|Beinahe|Kaum|Knapp|Bald|Erst|Zuletzt|Endlich)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
+    /(,[ \t]+)(Wo|Wenn|Als|Weil|Dass|Obwohl|Während|Nachdem|Bevor|Sobald|Solange|Damit|Ob|Der|Die|Das|Dem|Den|Deren|Dessen)\b(?=\s)/g,
+    (_m, sp, w) => sp + w.charAt(0).toLowerCase() + w.slice(1)
+  );
+}
+function fragezeichen(t) {
+  return (t || "").replace(
+    /(^|[.!?…:]\s+|\n)(Wo|Was|Wer|Wie|Warum|Wann|Wohin|Woher|Weshalb|Wieso|Wem|Wen)\s+(ist|sind|war|waren|hat|haben|wird|werden|kommt|bleibt|will|kann|soll|darf|muss|geht|steht|bist|bin|seid|weiß|wissen)\b([^.!?…\n]{0,50})\./g,
+    (m, vor, fw, v, rest) => rest.split(/\s+/).filter(Boolean).length <= 6 && !rest.includes(",") ? `${vor}${fw} ${v}${rest}?` : m
+  );
+}
+function postProcessText(txt, input) {
+  let t = (txt ?? "").toString();
+  t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
+  t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
+  t = kleinesPronomen(t);
+  t = kommaVorInversion(t);
+  t = fragezeichen(t);
+  t = nomenNachAdverb(t);
+  t = nominativFragment(t);
+  t = formelnGlaetten(t);
+  t = kleinerArtikel(t);
+  const name = (input?.who ?? "").toString().trim();
+  if (name) {
+    const esc = escapeRegExp(name);
+    const wieder = namensErsetzer(name);
+    try {
+      t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${esc}(?![\\p{L}\\p{N}_])`, "giu"), wieder);
+    } catch {
+      t = t.replace(new RegExp(`\\b${esc}\\b`, "gi"), wieder);
+    }
+  }
+  t = pluralKongruenz(t, name);
+  if (!isLineForm(input) && input?.tone && TONE_DATA[input.tone]) {
+    const td = TONE_DATA[input.tone];
+    if (td.opener.length) {
+      const kopf = t.match(OBJEKT_KOPF_RE);
+      t = kopf ? `${kopf[1]} ${pick(td.opener)} ${t.slice(kopf[0].length)}` : `${pick(td.opener)} ${t}`;
+    }
+    if (td.flavor.length) {
+      const wc = t.trim().split(/\s+/).filter(Boolean).length;
+      const f = (loadKnobs().ton || 0) / 100;
+      const inserts = Math.max(0, Math.min(7, Math.round(Math.max(1, Math.round(wc / 90)) * f)));
+      for (let i = 0; i < inserts; i++) t = insertToneFlavor(t, pick(td.flavor));
+    }
+    t = applyToneRegister(t, input.tone);
+  }
+  if (!isLineForm(input)) t = entferneDubletten(t);
+  if (!isLineForm(input)) t = applySatzlaenge(t, loadKnobs().satzlaenge);
+  if (!isLineForm(input)) t = entferneDubletten(t);
+  t = polishGerman(t, { who: name });
+  t = schliesseFigurenkomma(t, input?.who);
+  t = coherencePass(t, input);
+  t = coherenceRepairV2(t, input);
+  t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
+  t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
+  return t.trim();
+}
+
+// src/generation/emphasis.ts
+var strip = (s) => clean(s).replace(/[.!?…]+$/, "");
+var PLACE_DETAIL = ["liegt die Luft schwer", "verschieben sich die Schatten", "hat jedes Ding zwei Gesichter", "klingt jeder Schritt doppelt", "scheint die Entfernung zu l\xFCgen", "h\xE4lt der Raum den Atem an"];
+var PLACE_VERB = ["scheint zuzuh\xF6ren", "gibt keine Auskunft", "merkt sich jede Bewegung", "ordnet die Dinge neu", "l\xE4sst niemanden unber\xFChrt"];
+function placeLine(kit) {
+  const M = kit.mode;
+  const withW = [
+    `Hier, ${kit.W}, ${pick(PLACE_DETAIL)}.`,
+    `${cap(kit.W)} ${pick(PLACE_DETAIL)}.`,
+    `Der Ort \u2014 ${kit.W} \u2014 ${pick(PLACE_VERB)}.`
+  ];
+  return pick([
+    ...withW,
+    ...withW,
+    `Es riecht ${pick(M.images)}.`,
+    ensurePunct(cap(pick(M.rules))),
+    `Der Ort ${pick(PLACE_VERB)}.`
+  ]);
+}
+var TIME_DETAIL = ["z\xE4hlte jede Stunde anders", "war die Zukunft schon vergangen", "ma\xDF man die Tage in Verlusten", "liefen die Uhren gegeneinander", "wog ein Augenblick mehr als ein Jahr"];
+var TIME_CLAUSE = ["die Uhren einander misstrauten", "niemand mehr auf das Morgen wartete", "die Vergangenheit noch nicht entschieden war", "jeder Tag sich selbst wiederholte"];
+var TIME_VERB = ["stand still", "lief r\xFCckw\xE4rts", "verlor ihren Takt", "wurde z\xE4h"];
+function timeLine(kit) {
+  const presentish = /^(heute|jetzt|nun|gerade|eben|soeben|morgen|übermorgen)\b/i.test(kit.T);
+  const withT = [
+    presentish ? `${cap(kit.T)}, ${pick(TIME_DETAIL)}.` : `Damals, ${kit.T}, ${pick(TIME_DETAIL)}.`,
+    `${cap(kit.T)} \u2014 und die Zeit ${pick(TIME_VERB)}.`
+  ];
+  return pick([
+    ...withT,
+    ...withT,
+    `Es war die Zeit, als ${pick(TIME_CLAUSE)}.`
+  ]);
+}
+function charLine(kit) {
+  const P = kit.P;
+  return pick([
+    `Da h\xE4lt ${P} inne.`,
+    `Kurz sucht ${P} nach Worten.`,
+    `Dann sp\xFCrt ${P} die K\xE4lte.`,
+    `Reglos steht ${P} da.`,
+    `Lange wartet ${P}.`,
+    `Still bleibt ${P} stehen.`,
+    `Aufmerksam beobachtet ${P} den Raum.`
+  ]);
+}
+function plotLine(kit) {
+  const A = strip(kit.Apure);
+  const actionLines = A ? kit.AisClause ? [`Und wieder: ${A}.`, `Denn genau das geschieht: ${A}.`, `Im Kern bleibt es dabei \u2014 ${A}.`] : kit.AisInfinitiveLed ? [`Noch immer will ${kit.P} ${A}.`, `Alles dr\xE4ngt darauf, ${A}.`] : /\b(auf|an|ab|aus|ein|zu|mit|nach|vor|weg|zurück|los|fest|um|hin|her|ent|über|unter|durch)$/i.test(A) ? [`${kit.P} ${kit.AleadVerb || "will"} ${A} \u2014 noch immer.`] : [`${kit.P} ${kit.AleadVerb || "will"} ${A} \u2014 noch immer.`, `Es geht weiter um eines: ${A}.`] : [];
+  return pick([
+    ...actionLines,
+    ...actionLines,
+    // Handlung doppelt gewichtet gegenüber Bank-Material
+    frameTurn(kit.turn),
+    reframeStake(kit.stake),
+    `Doch ${strip(kit.obstacle)}.`,
+    `Dann ${pick(["kippt es erneut", "versch\xE4rft sich alles", "bricht die Ordnung"])}: ${strip(kit.turn)}.`
+  ]);
+}
+function applyEmphasis(text, kit, w) {
+  const gens = [
+    [w.wo, () => placeLine(kit)],
+    [w.wann, () => timeLine(kit)],
+    [w.wer, () => charLine(kit)],
+    [w.was, () => plotLine(kit)]
+  ];
+  const werte = [kit.W, kit.T, kit.P, strip(kit.Apure), strip(kit.turn), strip(kit.stake), strip(kit.obstacle), strip(kit.hook), strip(clean(kit.ending).replace(/[.!?…]+$/, ""))].map((x) => clean(x || "").toLowerCase()).filter((x) => x.length > 3);
+  const geruest = (z) => {
+    let g = z.toLowerCase();
+    for (const w2 of werte) if (w2) g = g.split(w2).join("\xA7");
+    return g.replace(/[^a-zäöüß§]+/g, " ").trim();
+  };
+  const lines = [];
+  const gesehen = /* @__PURE__ */ new Set();
+  const genannt = /* @__PURE__ */ new Set();
+  {
+    const tl = text.toLowerCase();
+    for (const w2 of werte) if (tl.includes(w2)) genannt.add(w2);
+  }
+  for (const [n, gen] of gens) {
+    const count = Math.max(0, Math.min(3, n | 0));
+    for (let i = 0; i < count; i++) {
+      for (let versuch = 0; versuch < 12; versuch++) {
+        const z = ensurePunct(clean(gen()));
+        if (!z) continue;
+        const g = geruest(z);
+        if (gesehen.has(g)) continue;
+        const dazu = werte.filter((w2) => z.toLowerCase().includes(w2));
+        if (dazu.some((w2) => genannt.has(w2))) continue;
+        gesehen.add(g);
+        dazu.forEach((w2) => genannt.add(w2));
+        lines.push(z);
+        break;
+      }
+    }
+  }
+  const uniq = lines.filter(Boolean);
+  if (!uniq.length) return text;
+  const sents = splitSentences(text);
+  for (const line of uniq) {
+    let pos = chooseInsertPos(sents);
+    if (pos < 0) pos = sents.length;
+    sents.splice(pos, 0, line);
+  }
+  return sents.join(" ");
+}
+
+// src/corpus.ts
+var GERUEST_ZEILE = /^\s*(Faktenkasten\b|Kurz gemeldet\s*$|Fiktive Zeitung\b|Zeitzeichen\s*[·|]|Nr\.\s*\d+\s*[·|]|UNABHÄNGIG\b|SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/;
+function corpusSanitize(text) {
+  let s = (text ?? "").toString();
+  s = s.split(/\r?\n/).filter((z) => !/^\s*(SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/.test(z)).map((z) => z.replace(/^\s*(?:Shot\s*\d+\s*\([^)]*\)|(?:DE|EN)\s*:)\s*/, "")).join("\n");
+  s = s.replace(/\([^()]*\)/g, " ");
+  s = s.replace(/\b(?:gegen|um|ab|seit|bis)\s+\d{1,2}:\d{2}\b\s*(?:—|–)?\s*/gi, "");
+  s = s.replace(/\b\d{1,2}:\d{2}\b\s*—\s*/g, "");
+  s = s.replace(/\b(Schluss|Notiz|Rand|Gestern|Jetzt|Später|Drei Tage später)\s*—\s*/g, "");
+  s = s.replace(/\bSZENE:\s*/g, "");
+  s = s.split(/\r?\n/).filter((z) => !GERUEST_ZEILE.test(z)).join("\n");
+  s = s.replace(/Faktenkasten\s*·[^\n]*?(?:\.(?=\s+[A-ZÄÖÜ])|$)/g, " ");
+  s = s.replace(/—\s*(?=[.—])/g, "");
+  s = s.replace(/\.{2,}/g, ".");
+  s = s.replace(/\s+/g, " ").trim();
+  return s;
+}
+var MarkovModel = class {
+  constructor(order = 2) {
+    this.map = /* @__PURE__ */ new Map();
+    this.starts = [];
+    this.order = Math.max(1, order);
+  }
+  get size() {
+    return this.map.size;
+  }
+  /** Fügt einen Text inkrementell hinzu. */
+  addText(text) {
+    const clean1 = corpusSanitize(text);
+    for (const sentence of clean1.split(/(?<=[.!?…])\s+/)) {
+      const tokens = sentence.split(/\s+/).filter(Boolean);
+      if (tokens.length <= this.order) continue;
+      this.starts.push(tokens.slice(0, this.order).join(" "));
+      for (let i = 0; i + this.order < tokens.length; i++) {
+        const key = tokens.slice(i, i + this.order).join(" ");
+        const next = tokens[i + this.order];
+        const arr = this.map.get(key);
+        if (arr) arr.push(next);
+        else this.map.set(key, [next]);
+      }
+    }
+  }
+  /** Mittlere Überraschung (bits) eines Textes unter dem eigenen Modell, 0..1 normiert.
+   *  Hoch = der Text folgt unwahrscheinlichen Übergängen (informationsreich),
+   *  niedrig = er reproduziert den Korpus (klischeehaft). Nur bekannte Keys zählen. */
+  surprise(text) {
+    const clean1 = corpusSanitize(text);
+    let bits = 0, n = 0;
+    for (const sentence of clean1.split(/(?<=[.!?…])\s+/)) {
+      const toks = sentence.split(/\s+/).filter(Boolean);
+      for (let i = 0; i + this.order < toks.length; i++) {
+        const key = toks.slice(i, i + this.order).join(" ");
+        const choices = this.map.get(key);
+        if (!choices || !choices.length) continue;
+        const next = toks[i + this.order];
+        let c = 0;
+        for (const x of choices) if (x === next) c++;
+        const p = c > 0 ? c / choices.length : 1 / (choices.length + 1);
+        bits += -Math.log2(p);
+        n++;
+      }
+    }
+    if (n < 2) return -1;
+    return Math.max(0, Math.min(1, bits / n / 8));
+  }
+  /** Erzeugt einen Text (bis maxWords Wörter). */
+  generate(maxWords = 40) {
+    if (!this.starts.length) return "";
+    let key = this.starts[Math.floor(Math.random() * this.starts.length)];
+    const out = key.split(" ");
+    const hart = Math.ceil(maxWords * 1.5);
+    while (out.length < hart) {
+      const choices = this.map.get(key);
+      if (!choices || !choices.length) break;
+      const next = choices[Math.floor(Math.random() * choices.length)];
+      out.push(next);
+      key = out.slice(out.length - this.order).join(" ");
+      if (/[.!?…]$/.test(next) && out.length >= this.order + 2) break;
+    }
+    if (!/[.!?…]$/.test(out[out.length - 1] || "")) {
+      let i = out.length - 1;
+      while (i >= 0 && !/[.!?…]$/.test(out[i])) i--;
+      if (i < this.order + 1) return "";
+      out.length = i + 1;
+    }
+    return out.join(" ");
+  }
+};
+
+// src/atoms/rekombination.ts
+var GERUESTZEILE = /(^|\s)(SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE|DE|EN)\s*:|Shot\s*\d+\s*\()/;
+
+// src/presets.data.ts
+var BUILTIN_PRESETS = {
+  "rimbaud": {
+    "motifs": [
+      "zersplittertes Licht \xFCber schwarzem Wasser",
+      "eine violette Brandung",
+      "phosphoreszierende Gischt",
+      "ein taumelnder Mast",
+      "rostige Takelage im Wind",
+      "gr\xFCnes Feuer im Meer",
+      "ein schwankender Kiel",
+      "versunkene Sterne",
+      "eine fiebrige Tropennacht",
+      "zitternde Tiefe unter dem Rumpf",
+      "ein Boot, das seine Treidler verloren hat",
+      "ein Fluss, der ins Meer l\xE4uft und nicht zur\xFCck",
+      "ein Schulheft, in dem etwas anderes steht als Latein",
+      "eine Landstra\xDFe, die aus dem Ort hinausf\xFChrt",
+      "ein Hafen, den man nur nachts erreicht",
+      "ein Brief aus einem Land ohne Winter",
+      "ein Rausch, der drei Tage dauert",
+      "ein Koffer, der nie ausgepackt wird"
+    ],
+    "hooks": [
+      "Ich bin frei von jeder Hand.",
+      "Der Fluss hat mich losgeschnitten.",
+      "Niemand h\xE4lt mehr das Steuer.",
+      "Ich treibe durch ein Meer ohne Karten.",
+      "Die Nacht schlug wie eine Welle \xFCber mich.",
+      "Ich habe meine Anker vergessen.",
+      "Kein Hafen ruft meinen Namen.",
+      "Der Fluss hat das Tau durchgescheuert, und niemand h\xE4lt.",
+      "Er ist am Morgen fort, und das Bett ist gemacht.",
+      "Ein Gedicht liegt auf dem Tisch, ohne Anrede.",
+      "Die Stra\xDFe nach Norden ist offen, seit gestern.",
+      "Jemand schreibt aus einer Stadt, die er nie nannte.",
+      "Das Geld reicht bis zur Grenze und keinen Schritt weiter.",
+      "Ein Lehrer erkennt die Handschrift und schweigt.",
+      "Im Zimmer riecht es nach Absinth und nassem Papier.",
+      "Ein Freund wartet am Bahnhof und wird nicht abgeholt.",
+      "Die Sohlen sind durch, und der Weg geht weiter."
+    ],
+    "props": [
+      "ein zerrissenes Segel",
+      "ein rostiges Ruder",
+      "eine nasse Seekarte",
+      "eine zerbrochene Laterne",
+      "eine Muschel voller Wind",
+      "ein salzverkrustetes Seil",
+      "einen Kompass ohne Norden",
+      "ein leeres Logbuch",
+      "eine bleiche Boje",
+      "einen gesplitterten Mast",
+      "ein Schulheft mit fremden Zeilen",
+      "einen Ranzen ohne B\xFCcher",
+      "ein Paar durchgelaufene Sohlen",
+      "eine Karte mit einer K\xFCste darauf",
+      "eine Flasche, die nicht mehr voll ist",
+      "einen Brief aus Harar",
+      "ein B\xFCndel Papier mit Wasserflecken",
+      "einen Fahrschein, nur in eine Richtung"
+    ],
+    "turns": [
+      "das Meer antwortet mit Farben, die keine Sprache hat",
+      "der Himmel st\xFCrzt ins Wasser und bleibt dort liegen",
+      "die Sterne beginnen zu sinken, einer nach dem anderen",
+      "etwas unter dem Rumpf atmet und wartet ab",
+      "die Wellen tragen Gesichter, die er kennen m\xFCsste",
+      "ein Leuchten bricht aus der Tiefe",
+      "der Wind wird zu einer Stimme",
+      "er wirft die Ruder weg und wird schneller",
+      "das Sehen wird zur Arbeit und die Arbeit zur Krankheit",
+      "die Freiheit kommt und l\xE4sst sich nicht aushalten",
+      "er h\xF6rt auf zu schreiben, mitten im besten Jahr",
+      "der Fluss tr\xE4gt ihn an einer Stadt vorbei, die er suchte",
+      "ein Schuss f\xE4llt in einem Zimmer in Br\xFCssel",
+      "die Sprache reicht nicht, und er erfindet eine neue",
+      "er kehrt heim und erkennt das Haus nicht wieder",
+      "der Rausch geht vorbei und l\xE4sst einen Satz zur\xFCck",
+      "das Boot findet keinen Hafen und will keinen mehr",
+      "ein Kaufmann in Afrika schreibt, wo ein Dichter war",
+      "die Sterne stehen tiefer, je weiter er kommt",
+      "er verkauft alles, auch die B\xFCcher"
+    ],
+    "obstacles": [
+      "die Str\xF6mung setzt jede Nacht in eine andere Richtung",
+      "die Riffe stehen im Wasser wie aufgestellte Messer",
+      "eine Flaute liegt schwarz auf dem Wasser",
+      "die Untiefen zittern und sind auf keiner Karte",
+      "das Fieber geht unter Deck von Mann zu Mann",
+      "der Sturm hat kein Zentrum und h\xF6rt nicht auf",
+      "unsichtbare Netze h\xE4ngen zwischen den Inseln",
+      "die Flaute h\xE4lt l\xE4nger als der Vorrat an Wasser",
+      "kein Wirt gibt einem Sechzehnj\xE4hrigen ein Zimmer",
+      "die Grenze verlangt Papiere, die er nicht hat",
+      "der Freund will bleiben, wo er weg will",
+      "das Geld kommt zu sp\xE4t und in falscher W\xE4hrung",
+      "die Mutter schreibt und erwartet eine Antwort",
+      "die K\xFCste ist da und nicht zu erreichen",
+      "das Fieber kommt mit dem S\xFCden",
+      "die Sprache des Landes hat keine W\xF6rter daf\xFCr",
+      "der R\xFCckweg kostet mehr als der Hinweg",
+      "die Zeitschriften drucken es nicht",
+      "das Bein tr\xE4gt nicht mehr bis zum Hafen"
+    ],
+    "stakes": [
+      "Der Einsatz ist Aufl\xF6sung des Selbst.",
+      "Der Einsatz ist eine Richtung, die niemand mehr angibt.",
+      "Der Einsatz ist Ekstase oder Untergang.",
+      "Der Einsatz ist ein Name, den er ablegen will.",
+      "Der Einsatz ist die R\xFCckkehr an ein Ufer.",
+      "Der Einsatz ist ein Jahr, in dem alles geschrieben wird.",
+      "Der Einsatz ist eine Freundschaft, die nicht gutgeht.",
+      "Der Einsatz ist ein Hafen, den er nicht will.",
+      "Der Einsatz ist die Sprache, die er hinter sich l\xE4sst.",
+      "Der Einsatz ist die R\xFCckkehr, die niemand erwartet."
+    ],
+    "endings": [
+      "Ich will zur\xFCck in ein stilles Becken.",
+      "Vielleicht tr\xE4ume ich von einem kleinen Hafen.",
+      "Ich sehne mich nach einem klaren Ufer.",
+      "Ich bin m\xFCde vom grenzenlosen Blau.",
+      "Die See schweigt zuletzt, und das ist keine Antwort.",
+      "Und das Boot treibt weiter, ohne Ruder.",
+      "So bleibt das Heft auf dem Tisch liegen.",
+      "Am Ende schreibt er \xFCber Preise und nicht \xFCber Sterne.",
+      "Und der Fluss l\xE4uft ins Meer, wie immer.",
+      "So endet die Reise in einem Zimmer mit Fenster zum Hof.",
+      "Und die Sohlen halten noch bis zur Grenze.",
+      "Der Brief kommt an, drei Monate sp\xE4ter.",
+      "Und niemand liest es, solange er lebt.",
+      "So bleibt ein Satz \xFCbrig, und der gen\xFCgt.",
+      "Und die Stra\xDFe nach Norden ist morgen auch noch offen."
+    ],
+    "verwandlungen": [
+      "Boot\u2192Blatt",
+      "Fluss\u2192Faden",
+      "Meer\u2192Feld",
+      "Hafen\u2192K\xE4fig",
+      "Rausch\u2192Schlaf",
+      "Stra\xDFe\u2192Ader"
+    ]
+  },
+  "baudelaire": {
+    "motifs": [
+      "nasse Pflastersteine im Gaslicht",
+      "eine Lilie im Aschenbecher",
+      "Parf\xFCm \xFCber abgestandenem Rauch",
+      "ein Spiegel mit dunklem Rand",
+      "ein Blumenstrau\xDF, der zu sp\xE4t welkt",
+      "eine Kutsche, die wie ein Sarg vorbeizieht",
+      "goldene Ornamente auf br\xF6ckelndem Putz",
+      "ein L\xE4cheln, das nach bitterer Minze schmeckt",
+      "eine Gasse, die nach Metall riecht",
+      "ein Himmel, der wie Samt dr\xFCckt",
+      "eine Stra\xDFe, die im Gaslicht l\xE4nger wird",
+      "ein Balkon \xFCber einem Hof voller W\xE4sche",
+      "ein Zimmer, in dem der Vorhang immer zu ist",
+      "eine Menge, in der man allein besser sitzt",
+      "ein Kadaver am Wegrand, im Sonnenlicht",
+      "eine Uhr, die nur die verlorene Zeit z\xE4hlt",
+      "ein Hafen, den man nur aus dem Fenster sieht",
+      "ein Glas Absinth, das langsam tr\xFCb wird",
+      "eine Frau, die vorbeigeht und nicht wiederkommt",
+      "ein Bett am Nachmittag, ungemacht",
+      "ein Gedicht, das ein Gericht verbietet",
+      "eine Katze auf einem Stapel B\xFCcher"
+    ],
+    "hooks": [
+      "Im Schaufenster liegt Sch\xF6nheit wie eine Drohung.",
+      "Ein Duft bleibt an mir h\xE4ngen, als h\xE4tte er Z\xE4hne.",
+      "Die Stadt atmet langsam, mit schwerem Atem.",
+      "Jemand lacht zu leise, um harmlos zu sein.",
+      "Zwischen zwei Laternen f\xE4llt ein Schatten aus der Zeit.",
+      "Ich gehe, als tr\xFCge ich meinen Namen wie eine Last.",
+      "Etwas Gl\xE4nzendes liegt im Schmutz und tut unschuldig.",
+      "Der Nachmittag zieht sich, als w\xE4re er ein Jahr.",
+      "Ein Blick aus dem Fenster kostet den ganzen Tag.",
+      "Der Gl\xE4ubiger steht wieder unten an der T\xFCr.",
+      "Ein Duft im Treppenhaus geh\xF6rt zu niemandem hier.",
+      "Die Menge tr\xE4gt mich, und ich lasse mich tragen.",
+      "Ein Gedicht wird gestrichen, bevor es gedruckt ist.",
+      "Der Spiegel im Flur hat einen dunklen Rand bekommen.",
+      "Jemand lacht im Hof, und es klingt nicht gut.",
+      "Die Miete ist f\xE4llig und das Zimmer bezahlt.",
+      "Ein Brief von der Mutter liegt seit Tagen da.",
+      "Im Caf\xE9 spielt jemand dasselbe St\xFCck zum dritten Mal.",
+      "Drau\xDFen regnet es seit dem Morgen ohne Pause."
+    ],
+    "props": [
+      "eine zerknitterte Visitenkarte",
+      "ein Flakon mit Resten",
+      "eine schwarze Handschuhspitze",
+      "einen vergilbten Liebesbrief",
+      "eine silberne M\xFCnze",
+      "ein kleines Taschenmesser",
+      "eine zerbrochene Uhrkette",
+      "eine rote Nelke",
+      "eine Opiumdose",
+      "einen Taschenspiegel",
+      "einen Flakon mit einem Rest Parf\xFCm",
+      "ein Paar schwarze Handschuhe",
+      "einen Stapel unbezahlter Rechnungen",
+      "ein Glas mit einem L\xF6ffel dar\xFCber",
+      "einen Spazierstock mit silbernem Knauf",
+      "ein Notizheft mit gestrichenen Zeilen",
+      "eine Fotografie mit einem Knick",
+      "einen Mantel, der zu gut f\xFCr die Stra\xDFe ist",
+      "eine Uhr, die man mehrmals versetzt hat"
+    ],
+    "turns": [
+      "die Sch\xF6nheit zeigt ihre R\xFCckseite",
+      "das Verlangen wird zur Anklage",
+      "die Stra\xDFe f\xFChrt in einen Raum ohne T\xFCr",
+      "ein Blick verr\xE4t, was nicht gesagt werden darf",
+      "die Musik im Caf\xE9 f\xE4llt pl\xF6tzlich aus der Welt",
+      "ein Gest\xE4ndnis schmeckt nach Rost",
+      "das Licht macht alles eleganter, aber nicht wahrer",
+      "die Sch\xF6nheit zeigt ihre R\xFCckseite und bleibt sch\xF6n",
+      "das Verlangen wird zur Anklage gegen den, der es hat",
+      "die Stra\xDFe f\xFChrt in einen Raum, der keine T\xFCr hat",
+      "der Ekel und die Andacht kommen zur selben Stunde",
+      "ein Vers gelingt, und der Tag ist trotzdem verloren",
+      "die Menge wird zur einzigen Gesellschaft, die tr\xE4gt",
+      "der Rausch h\xE4lt, was er f\xFCr eine Stunde verspricht",
+      "das Geld ist da und am Abend wieder fort",
+      "die Erinnerung parf\xFCmiert einen Schmerz, der frisch bleibt",
+      "der Kadaver am Weg wird zum Gegenstand einer Zeile",
+      "sie geht vorbei, und daraus wird ein ganzes Leben",
+      "der Vorhang bleibt zu, und die Stadt kommt trotzdem herein"
+    ],
+    "obstacles": [
+      "der Regen l\xF6scht die Spuren",
+      "eine Einladung ist eine Falle",
+      "ein Zeuge erinnert sich falsch",
+      "die Nacht verdichtet die L\xFCgen",
+      "ein Versprechen klebt wie Teer",
+      "die Menge verschluckt jede Entscheidung",
+      "das Herz verwechselt Glanz mit Rettung",
+      "der Regen l\xF6scht die Spuren noch in derselben Nacht",
+      "eine Einladung erweist sich als Falle mit H\xF6flichkeit",
+      "ein Zeuge erinnert sich falsch und bleibt dabei",
+      "die Nacht verdichtet die L\xFCgen zu einer Geschichte",
+      "ein Versprechen klebt wie Teer an den H\xE4nden",
+      "der Gl\xE4ubiger kennt jede Hintert\xFCr des Hauses",
+      "der Vers stimmt und das Gef\xFChl nicht",
+      "das Zimmer wird zum Ersten gek\xFCndigt",
+      "der Verleger will etwas Freundlicheres",
+      "die Nacht ist kurz und der Morgen ist l\xE4nger",
+      "die Apotheke gibt nichts mehr ohne Bezahlung",
+      "ein Gericht streicht sechs Gedichte",
+      "die Mutter zahlt und schreibt einen Brief dazu",
+      "der Hafen ist zu Fu\xDF nicht zu erreichen"
+    ],
+    "stakes": [
+      "Der Einsatz ist ein K\xF6rper, mit dem man weiter auskommt.",
+      "Der Einsatz ist Begehren: Es frisst, was es ber\xFChrt.",
+      "Der Einsatz ist Wahrheit: Sie kommt im Kost\xFCm.",
+      "Der Einsatz ist Erinnerung: Sie parf\xFCmiert den Schmerz.",
+      "Der Einsatz ist Freiheit: Sie kostet Luxus.",
+      "Der Einsatz ist eine Stunde, in der die Zeit stillsteht.",
+      "Der Einsatz ist ein Vers, f\xFCr den der Tag draufgeht.",
+      "Der Einsatz ist ein Zimmer bis zum Ersten des Monats.",
+      "Der Einsatz ist eine Sch\xF6nheit, die niemand verzeiht.",
+      "Der Einsatz ist ein Buch gegen ein Gerichtsurteil.",
+      "Der Einsatz ist die Freiheit, die Luxus kostet."
+    ],
+    "endings": [
+      "Und die Stadt schlie\xDFt ihre Lippen.",
+      "Und der Duft bleibt, wie ein Urteil.",
+      "Damit ist die Sch\xF6nheit erledigt.",
+      "So bleibt nur Glanz auf kalter Haut.",
+      "Und ich gehe, als h\xE4tte ich gewonnen \u2013 und verloren.",
+      "Und die Stadt schlie\xDFt ihre Lippen \xFCber allem.",
+      "So bleibt der Duft im Treppenhaus wie ein Urteil.",
+      "Am Ende bleibt Glanz auf kalter Haut.",
+      "Und der Vorhang bleibt zu bis zum Abend.",
+      "Und im Hof h\xE4ngt die W\xE4sche \xFCber Nacht.",
+      "Der Nachmittag ist um, und nichts ist geschehen.",
+      "Und das Glas steht tr\xFCb auf dem Tisch.",
+      "So wird der Vers gestrichen und bleibt trotzdem stehen."
+    ],
+    "verwandlungen": [
+      "Stadt\u2192Wunde",
+      "Duft\u2192Verdacht",
+      "Spiegel\u2192Schatten",
+      "Nacht\u2192Decke",
+      "Menge\u2192Flut",
+      "Vers\u2192Riss",
+      "Zimmer\u2192Grab",
+      "Glas\u2192Auge"
+    ]
+  },
+  "kafka": {
+    "motifs": [
+      "ein Formular ohne \xDCberschrift",
+      "eine Wartemarke, die nicht aufgerufen wird",
+      "ein Korridor mit zu vielen T\xFCren",
+      "ein Stempel mit verschwommener Nummer",
+      "ein Protokoll, das sich selbst zitiert",
+      "ein Schalterfenster ohne Mitarbeiter",
+      "eine Akte mit falschem Namen",
+      "eine Uhr, die in Abs\xE4tzen tickt",
+      "ein Bescheid mit leerem Grund",
+      "eine Treppe, die nach unten f\xFChrt und h\xF6her endet",
+      "ein Schalter, an dem niemand sitzt",
+      "eine Nummer, die zweimal vergeben wurde",
+      "ein Aktenschrank ohne Schl\xFCssel",
+      "ein Gang, der schmaler wird",
+      "eine Sitzung, die schon begonnen hat",
+      "ein Vermerk am Rand, von fremder Hand",
+      "eine Treppe zwischen zwei Stockwerken",
+      "ein Wartezimmer mit zu vielen St\xFChlen",
+      "ein Namensschild, das abf\xE4llt",
+      "eine Kopie, die deutlicher ist als das Original",
+      "ein Fahrstuhl, der nur abw\xE4rts f\xE4hrt",
+      "ein Register mit fehlender Seite",
+      "eine Klingel ohne Draht",
+      "ein Amt, das seit Jahren umzieht",
+      "ein Protokoll \xFCber ein Gespr\xE4ch, das nicht stattfand",
+      "eine T\xFCr mit zwei Nummern",
+      "ein Zettel, der die Auskunft widerruft",
+      "ein Fenster zum Innenhof des Amtes",
+      "eine Schlange, die sich nicht bewegt",
+      "ein Kalender ohne Feiertage"
+    ],
+    "hooks": [
+      "Der Brief ist da, bevor ich ihn erwarte.",
+      "Niemand sagt mir, worum es geht, aber alle tun so.",
+      "Die T\xFCr steht offen und ist dennoch verschlossen.",
+      "Mein Name klingt pl\xF6tzlich wie ein Fehler im System.",
+      "Die Luft roch nach Papier und geduldeter Angst.",
+      "Ich habe eine Nummer, aber keinen Platz.",
+      "Der Wachmann nickt, als h\xE4tte er mich erfunden.",
+      "Die Auskunft widerspricht der von gestern, beide gelten.",
+      "Ein Zimmer wird genannt, das es im Plan nicht gibt.",
+      "Der Vorgang l\xE4uft, seit ich ihn nicht gestellt habe.",
+      "Man bittet mich, das Formular selbst zu bewerten.",
+      "Die Nummer auf meinem Zettel ist l\xE4ngst aufgerufen.",
+      "Jemand kennt meinen Fall besser als ich.",
+      "Der Antrag ist bewilligt und gleichzeitig ung\xFCltig.",
+      "Die Frist beginnt erst mit ihrem Ende.",
+      "Ich soll die Akte holen, die \xFCber mich gef\xFChrt wird.",
+      "Die Zust\xE4ndigkeit liegt bei einer Stelle ohne Adresse.",
+      "Der Stempel fehlt, der den fehlenden Stempel best\xE4tigt.",
+      "Man erwartet mich, ohne mich einbestellt zu haben.",
+      "Jede Antwort verweist auf denselben Absatz."
+    ],
+    "props": [
+      "einen Bleistift ohne Spitze",
+      "ein Formular in dreifacher Ausf\xFChrung",
+      "einen Stempelabdruck auf d\xFCnnem Papier",
+      "eine Mappe mit Bindfaden",
+      "eine Quittung ohne Betrag",
+      "eine Klingel, die nicht l\xE4utet",
+      "einen Ausweis mit fremdem Foto",
+      "einen Schl\xFCssel ohne Schloss",
+      "eine Wartemarke",
+      "ein Protokollheft",
+      "ein Durchschlag",
+      "eine Aktennotiz",
+      "einen Aktendeckel",
+      "eine Klammer",
+      "ein Kuvert ohne Absender",
+      "einen Vordruck",
+      "ein Siegel",
+      "einen Terminzettel",
+      "eine Quittung",
+      "ein Namensschild",
+      "einen Ordner ohne R\xFCcken",
+      "eine Karteikarte",
+      "einen Stempelhalter",
+      "ein Merkblatt",
+      "eine Vollmacht",
+      "einen Laufzettel",
+      "ein Kassenbuch"
+    ],
+    "turns": [
+      "die Begr\xFCndung fehlt, aber gilt",
+      "die Zust\xE4ndigkeit wandert weiter",
+      "eine Unterschrift erscheint, ohne Hand",
+      "die T\xFCr f\xFChrt in denselben Raum zur\xFCck",
+      "der Zeuge ist identisch mit dem Angeklagten",
+      "die Akte verlangt eine Akte",
+      "die Zeit wird zum Formularfeld",
+      "die Akte wird an den Anfang zur\xFCckgereicht",
+      "der Bescheid wird aufgehoben und best\xE4tigt",
+      "eine zweite Stelle erkl\xE4rt sich f\xFCr zust\xE4ndig",
+      "der Fall wechselt den Namen",
+      "die Auskunft gilt r\xFCckwirkend",
+      "die Sitzung wird auf gestern verlegt",
+      "der Vorgang wird zusammengelegt und getrennt",
+      "die Unterschrift stammt aus dem eigenen Haus",
+      "der Antrag wird als gestellt betrachtet",
+      "die Abteilung existiert nur noch im Plan",
+      "der Bescheid tr\xE4gt ein Datum von morgen",
+      "die Auskunft ist richtig und macht die Sache schlimmer",
+      "ein Beamter erkennt ihn wieder, aus einem anderen Vorgang",
+      "die Zust\xE4ndigkeit kehrt zur\xFCck zu dem, der abgelehnt hat"
+    ],
+    "obstacles": [
+      "die Zust\xE4ndigkeit ist unklar",
+      "jemand fehlt, der immer fehlt",
+      "die Frist ist schon vorbei",
+      "die Regel wird erst nach dem Versto\xDF erkl\xE4rt",
+      "das Formular hat ein Feld zu viel",
+      "der Schalter schlie\xDFt genau beim Satzanfang",
+      "ein Protokoll widerspricht dem n\xE4chsten",
+      "das Zimmer ist heute geschlossen",
+      "die Vollmacht wird nicht anerkannt",
+      "der Vorgang ruht ohne Grund",
+      "eine Unterlage fehlt, die es nicht gibt",
+      "der Zust\xE4ndige ist im selben Haus unerreichbar",
+      "die Nummer ist g\xFCltig, aber nicht f\xFCr hier",
+      "das Merkblatt widerspricht dem Formular",
+      "die Auskunft wird nur schriftlich erteilt",
+      "der Termin liegt hinter der Frist",
+      "niemand darf die Regel nennen",
+      "der Bescheid nennt eine Vorschrift, die es nicht mehr gibt",
+      "die Anh\xF6rung findet statt, w\xE4hrend er im Flur wartet"
+    ],
+    "stakes": [
+      "Der Einsatz ist Identit\xE4t: Sie wird zu einer Aktennummer.",
+      "Der Einsatz ist Freiheit: Sie h\xE4ngt an einem Stempel.",
+      "Der Einsatz ist Zeit: Sie wird verwaltet.",
+      "Der Einsatz ist Sprache: Sie wird als Beweis benutzt.",
+      "Der Einsatz ist Schuld: Sie existiert vor der Tat.",
+      "Der Einsatz ist Ordnung: Sie h\xE4lt oder frisst.",
+      "Der Einsatz ist Geduld: Sie wird gemessen.",
+      "Der Einsatz ist ein Name: Er steht in keiner Liste.",
+      "Der Einsatz ist Zust\xE4ndigkeit: Jemand muss sie tragen.",
+      "Der Einsatz ist ein Datum: Alles h\xE4ngt daran.",
+      "Der Einsatz ist Auskunft: Sie wird verwaltet."
+    ],
+    "endings": [
+      "Damit ist der Vorgang er\xF6ffnet.",
+      "Und es gibt keinen n\xE4chsten Schalter.",
+      "So bleibt nur das Warten als Entscheidung.",
+      "Und der Bescheid ist schon g\xFCltig.",
+      "Und ich unterschrieb, ohne zu wissen, was ich war.",
+      "Der Vorgang wird fortgesetzt, an anderer Stelle.",
+      "Und die Marke bleibt in der Hand.",
+      "So schlie\xDFt das Amt, und der Fall bleibt offen.",
+      "Und im Flur geht das Licht nach der Zeit aus.",
+      "Damit gilt der Antrag als eingegangen.",
+      "Und der n\xE4chste Zettel tr\xE4gt dieselbe Nummer.",
+      "So endet der Tag im selben Wartezimmer.",
+      "Und im Flur wartet jemand mit demselben Blatt.",
+      "So bleibt der Vorgang anh\xE4ngig, auf unbestimmte Zeit."
+    ]
+  },
+  "expressionismus": {
+    "motifs": [
+      "eine Stra\xDFe aus schreiendem Neon",
+      "ein Himmel wie ein blutiger Lappen",
+      "Fenster, die starren",
+      "eine Sirene im Herzen",
+      "Schwei\xDF auf kaltem Metall",
+      "ein Schatten mit Z\xE4hnen",
+      "eine Stadt, die fiebert",
+      "zerrissene Plakate wie Haut",
+      "ein Atem aus Ru\xDF",
+      "Licht, das schneidet",
+      "ein Bahnhof, der Menschen ausspuckt wie Kohlen",
+      "Fassaden, die sich \xFCber die Stra\xDFe neigen",
+      "eine Uhr mit Zeigern wie Messer",
+      "die Stadt, die nachts atmet und tags\xFCber schreit",
+      "ein Mond wie eine offene Wunde \xFCber den D\xE4chern",
+      "Stra\xDFenbahnen, die durch die Nerven fahren",
+      "eine Menge, die eine einzige Bewegung macht",
+      "Reklame, die durch geschlossene Lider dringt",
+      "ein Fabrikschlot, der den Himmel aufschlitzt",
+      "Gesichter im Fenster eines fahrenden Zuges"
+    ],
+    "hooks": [
+      "Die Stadt springt mich an.",
+      "Ich h\xF6re mein Blut in den Dr\xE4hten.",
+      "Die H\xE4user stehen zu nah, als wollten sie zubei\xDFen.",
+      "Ein Schrei h\xE4ngt zwischen zwei Reklamen.",
+      "Meine Schritte klingen wie Anklagen.",
+      "Das Licht ist zu hell, um wahr zu sein.",
+      "Jemand rannte, ohne zu wissen, wohin.",
+      "Die H\xE4user r\xFCcken zusammen, sobald ich stehenbleibe.",
+      "Jemand schreit, und die Stra\xDFe schluckt es sofort.",
+      "Das Licht der Reklame liegt rot auf meinen H\xE4nden.",
+      "Die Stra\xDFenbahn f\xE4hrt an, bevor jemand eingestiegen ist.",
+      "Ein Mann l\xE4uft, und alle laufen mit, ohne Grund.",
+      "Der Himmel steht so tief, dass die D\xE4cher ihn tragen.",
+      "Die Uhr am Bahnhof geht r\xFCckw\xE4rts, eine Minute lang.",
+      "Ein Fenster geht auf, und niemand steht dahinter.",
+      "Der L\xE4rm h\xF6rt auf, und das ist das Schlimmste.",
+      "Ein Kind zeigt auf etwas, das keiner sehen will.",
+      "Die Menge teilt sich, ohne dass jemand vorangeht.",
+      "Mein Herz schl\xE4gt im Takt einer fremden Maschine."
+    ],
+    "props": [
+      "eine zerbeulte Blechdose",
+      "einen Zigarettenstummel",
+      "ein zerrissenes Plakat",
+      "eine Taschenlampe",
+      "ein St\xFCck Draht",
+      "eine rostige Klinge",
+      "einen Notizblock",
+      "eine Fahrkarte",
+      "ein Glas mit schwarzem Wasser",
+      "ein Taschenradio",
+      "ein Flugblatt mit verschmierter Schrift",
+      "eine Stra\xDFenbahnkarte, zweimal geknickt",
+      "einen Spiegelscherben aus einem Schaufenster",
+      "ein Nachthemd unter einem Mantel",
+      "eine Uhr ohne Glas",
+      "einen Farbtopf mit rotem Rest",
+      "ein B\xFCndel Zeitungen von gestern",
+      "eine Brille mit einem gesprungenen Glas",
+      "einen Ausweis mit einem fremden Bild",
+      "ein Messer, das nur zum Brotschneiden taugt"
+    ],
+    "turns": [
+      "die Nacht kippt pl\xF6tzlich ins Wei\xDF",
+      "die Menge wird zu einem einzigen Gesicht",
+      "ein Wort wird zur Waffe",
+      "die Angst beginnt zu singen",
+      "die Stra\xDFe zieht sich zusammen",
+      "das Licht verr\xE4t den K\xF6rper",
+      "der Atem wird zum Befehl",
+      "die Stra\xDFe kippt, und alle gehen weiter, als w\xE4re nichts",
+      "der Schrei kommt aus dem eigenen Mund und wird nicht geh\xF6rt",
+      "die Menge erkennt einen und wird zu einem Tier",
+      "das Licht geht an, und die Gesichter sind dieselben",
+      "die Angst legt sich, und darunter ist nichts",
+      "ein Fremder spricht ihn an und nennt seinen Namen",
+      "der L\xE4rm wird zu einem Rhythmus, und er geht darin auf",
+      "die Stadt zieht sich zusammen wie ein Muskel",
+      "jemand springt, und die Stra\xDFe geht weiter",
+      "das Fieber steigt, und die Bilder werden genauer",
+      "er sieht sich selbst am anderen Ende des Bahnsteigs",
+      "die Reklame wiederholt ein Wort, bis es etwas bedeutet",
+      "die Nacht wird hell, und die Farben werden falsch",
+      "er h\xF6rt auf zu laufen, und nichts holt ihn ein"
+    ],
+    "obstacles": [
+      "die Sirenen \xFCbert\xF6nen alles",
+      "die Menge dr\xFCckt wie Beton",
+      "ein Blick l\xF6st Panik aus",
+      "die Wege f\xFChren im Kreis",
+      "der K\xF6rper ist zu laut",
+      "die Luft ist zu dick",
+      "die T\xFCren sind nur Attrappen",
+      "die Stra\xDFen f\xFChren alle zum selben Platz zur\xFCck",
+      "der L\xE4rm l\xE4sst keinen ganzen Gedanken zu",
+      "die Menge tr\xE4gt ihn, wohin sie will",
+      "kein Fenster geht auf dieser Seite auf",
+      "die Uhr am Bahnhof zeigt eine Zeit ohne Zug",
+      "die Farben stimmen nicht mit den Dingen \xFCberein",
+      "niemand h\xF6rt zu, weil alle sprechen",
+      "die Wohnung ist zu hoch und die Treppe zu eng",
+      "das Fieber macht die Bilder sch\xE4rfer als die Sachen",
+      "ein Wort fehlt genau dort, wo es n\xF6tig w\xE4re",
+      "die Nacht ist zu hell zum Schlafen",
+      "der Weg zur Arbeit ist derselbe wie gestern",
+      "die H\xE4nde zittern, sobald jemand hinsieht",
+      "die Stadt h\xF6rt nicht auf, auch nicht um vier"
+    ],
+    "stakes": [
+      "Der Einsatz ist Nerven: Sie rei\xDFen.",
+      "Der Einsatz ist Freiheit: Sie ist ein Sprint.",
+      "Der Einsatz ist Sprache: Sie wird Schreien.",
+      "Der Einsatz ist K\xF6rper: Er ist eine Fackel.",
+      "Der Einsatz ist Morgen: Es k\xF6nnte brennen.",
+      "Der Einsatz ist ein Kopf, der noch bis zum Morgen h\xE4lt.",
+      "Der Einsatz ist ein Zimmer, in dem der L\xE4rm aufh\xF6rt.",
+      "Der Einsatz ist ein Satz, den jemand zu Ende h\xF6rt.",
+      "Der Einsatz ist der Unterschied zwischen Sehen und Sehen.",
+      "Der Einsatz ist ein Tag ohne diese Stra\xDFe.",
+      "Der Einsatz ist die Frage, wem der Schrei geh\xF6rt."
+    ],
+    "endings": [
+      "Und die Stadt lacht im Neon.",
+      "Und der Morgen kommt wie eine Beule.",
+      "So blieb ich stehen, weil alles rannte.",
+      "Und der Schrei wird leise.",
+      "Und das Licht tat, als w\xE4re es sauber.",
+      "Und die Reklame geht an, p\xFCnktlich wie jeden Abend.",
+      "So steht er still, und die Stadt l\xE4uft an ihm vorbei.",
+      "Am Ende ist es nur der L\xE4rm, der bleibt.",
+      "Und der Morgen kommt grau \xFCber die D\xE4cher.",
+      "So schlie\xDFt sich die Stra\xDFe hinter ihm.",
+      "Und die Stra\xDFenbahn f\xE4hrt weiter, voll und leer zugleich.",
+      "Der Schrei ist verklungen, das Echo arbeitet noch.",
+      "Und die Uhr am Bahnhof geht wieder richtig.",
+      "So bleibt das Fenster offen, und niemand steht darin.",
+      "Und im Fabrikhof beginnt die Schicht wie immer."
+    ],
+    "verwandlungen": [
+      "Stadt\u2192Maschine",
+      "Schrei\u2192Ton",
+      "Stra\xDFe\u2192Ader",
+      "Fenster\u2192Auge",
+      "Menge\u2192Welle",
+      "Reklame\u2192Sonne",
+      "Uhr\u2192Klinge",
+      "Himmel\u2192Deckel"
+    ]
+  },
+  "surrealismus1920": {
+    "motifs": [
+      "eine Treppe aus Milchglas",
+      "ein Telefon, das in Sand klingelt",
+      "ein Auge in einer Schublade",
+      "ein Regenschirm in einem Zimmerbrand",
+      "eine Uhr aus weichem Brot",
+      "ein Pferd, das im Flur schl\xE4ft",
+      "ein Fenster, das nach innen \xF6ffnet",
+      "eine Hand voller Schl\xFCssel, die singen",
+      "eine Karte, die W\xF6rter statt Orte zeigt",
+      "ein Spiegel, der einen anderen Raum behauptet",
+      "ein Caf\xE9, in dem S\xE4tze gew\xFCrfelt werden",
+      "eine Ausstellung, bei der man den Eingang sucht",
+      "ein Zimmer, dessen Fenster nach innen geht",
+      "eine Fotografie, auf der jemand zu viel steht",
+      "ein Manifest, das seine eigenen Regeln bricht",
+      "eine Uhr, die auf einem Ast h\xE4ngt",
+      "ein Zug, der in einem Wohnzimmer h\xE4lt"
+    ],
+    "hooks": [
+      "Ich trete in den Raum, und der Raum tritt zur\xFCck.",
+      "Ein Satz liegt auf dem Boden wie eine Banane.",
+      "Die Lampe machte Ger\xE4usche, als w\xE4re sie nass.",
+      "Jemand spricht, aber die Worte kommen aus der Tapete.",
+      "Meine Schuhe wissen den Weg, ich nicht.",
+      "Ein Vogel bittet um eine Quittung.",
+      "Die T\xFCr erinnert sich an mein Gesicht.",
+      "Der Text wird geschrieben, ohne dass jemand nachdenkt.",
+      "Jemand liest eine Zeile vor, die niemand geschrieben hat.",
+      "Die T\xFCr ist gezeichnet und l\xE4sst sich \xF6ffnen.",
+      "Ein Teilnehmer schl\xE4ft, und die Sitzung geht weiter.",
+      "Auf dem Tisch liegt ein Gegenstand, den keiner mitbrachte.",
+      "Der Traum von gestern wird heute protokolliert.",
+      "Zwei S\xE4tze werden gefaltet und ergeben einen dritten.",
+      "Die Ausstellung \xF6ffnet, und die Bilder h\xE4ngen verkehrt.",
+      "Jemand fragt nach dem Sinn und wird ausgeschlossen.",
+      "Ein Foto zeigt eine Person, die nicht dabei war."
+    ],
+    "props": [
+      "einen Regenschirm",
+      "eine Schublade",
+      "ein St\xFCck Kreide",
+      "eine Taschenuhr aus Brot",
+      "eine Maske",
+      "eine Schere",
+      "einen Schl\xFCsselbund",
+      "ein kleines Bild",
+      "eine Feder",
+      "ein Glas Wasser",
+      "einen Regenschirm ohne Griff",
+      "eine Schublade voller Augen",
+      "eine Schere und einen Stapel Zeitungen",
+      "ein Manifest in f\xFCnf Fassungen",
+      "eine N\xE4hmaschine ohne Faden",
+      "einen Spiegel, der nach unten h\xE4ngt",
+      "eine Kaffeetasse aus Fell"
+    ],
+    "turns": [
+      "die Logik wechselt die Richtung und bleibt dabei g\xFCltig",
+      "ein Gegenstand beginnt zu sprechen und wird dabei h\xF6flich",
+      "die Szene wiederholt sich, aber mit anderem Wetter",
+      "ein Name f\xE4llt aus dem Himmel",
+      "die W\xE4nde werden durchl\xE4ssig, aber nur in eine Richtung",
+      "die Zeit wird zu einem M\xF6belst\xFCck und steht im Weg",
+      "das Unterbewusste unterschreibt und nennt einen fremden Namen",
+      "der Zufall wird zur Methode und die Methode zum Zwang",
+      "ein Traum liefert das Ende einer Diskussion",
+      "der Text schreibt sich weiter, als die Hand aufh\xF6rt",
+      "das Bild erkl\xE4rt sich und verliert dabei alles",
+      "zwei Dinge treffen sich, die einander nie sahen",
+      "der Schlaf gilt pl\xF6tzlich als Arbeit",
+      "die Gruppe schlie\xDFt jemanden aus und \xFCbernimmt seine Idee",
+      "die Ausstellung wird ein Erfolg, und das ist die Niederlage",
+      "ein Wort verliert seinen Gegenstand und wird frei",
+      "der Raum tritt zur\xFCck, als jemand ihn betritt",
+      "das Protokoll des Traums ist besser als der Traum",
+      "ein Gegenstand wechselt den Besitzer, ohne die Hand zu wechseln",
+      "die Sitzung endet, weil jemand die Wahrheit gesagt hat",
+      "das Bild bekommt einen Titel und wird dadurch harmlos"
+    ],
+    "obstacles": [
+      "die T\xFCr f\xFChrt in eine Zeichnung",
+      "die Sprache stolpert \xFCber sich selbst",
+      "jemand verlangt Beweise f\xFCr einen Traum",
+      "die Treppe endet in einem Satz",
+      "ein Schatten l\xE4uft voraus und wartet an der Ecke",
+      "die Uhr schmilzt in der Hand",
+      "das Fenster weigert sich, hinauszuschauen",
+      "die T\xFCr f\xFChrt in eine Zeichnung ohne Tiefe",
+      "der Verleger will eine Erkl\xE4rung im Vorwort",
+      "die Polizei versteht das Manifest w\xF6rtlich",
+      "der Zufall l\xE4sst sich nicht auf Bestellung herstellen",
+      "zwei Fassungen des Textes sind gleich gut",
+      "das Automatische wird mit der Zeit gekonnt",
+      "ein Mitglied nimmt alles ernst",
+      "die Galerie verlangt Titel f\xFCr die Bilder",
+      "der Traum ist beim Aufwachen schon geordnet",
+      "die Gruppe streitet \xFCber einen Halbsatz",
+      "niemand kann sagen, wann es fertig ist",
+      "die Zeitung druckt es als Witz",
+      "der Saal ist erst ab Mitternacht frei",
+      "ein Sammler will wissen, was es bedeutet",
+      "die zweite Sitzung bringt nur noch Wiederholungen"
+    ],
+    "stakes": [
+      "Der Einsatz ist Realit\xE4t: Sie ist verhandelbar.",
+      "Der Einsatz ist Identit\xE4t: Sie wechselt die Masken.",
+      "Der Einsatz ist Zeit: Sie ist weich.",
+      "Der Einsatz ist Wahrheit: Sie ist ein Bild.",
+      "Der Einsatz ist Erwachen: Es k\xF6nnte unm\xF6glich sein.",
+      "Der Einsatz ist ein Satz, den niemand geplant hat.",
+      "Der Einsatz ist eine Gruppe, die einen Streit nicht \xFCbersteht.",
+      "Der Einsatz ist der Zufall, der sich nicht wiederholen l\xE4sst.",
+      "Der Einsatz ist eine Ausstellung, die keiner erkl\xE4rt.",
+      "Der Einsatz ist der Schlaf als Arbeitszeit."
+    ],
+    "endings": [
+      "Und der Traum unterschrieb mit meinem Namen.",
+      "Und als ich erwache, ist der Raum gr\xF6\xDFer.",
+      "So bleibt nur der Beweis: ein nasser Schl\xFCssel.",
+      "Und die Uhr isst die letzte Minute.",
+      "Und die T\xFCr tut, als h\xE4tte sie mich nie gekannt.",
+      "Und der Traum unterschreibt mit einem fremden Namen.",
+      "So bleibt der nasse Schl\xFCssel als einziger Beweis.",
+      "Am Ende h\xE4ngt das Bild verkehrt, und es stimmt.",
+      "Und beim Erwachen ist der Raum gr\xF6\xDFer als vorher.",
+      "So wird das Protokoll abgeheftet und nie gelesen.",
+      "Und die N\xE4hmaschine steht neben dem Regenschirm.",
+      "Der Text h\xF6rt auf, wo die Hand m\xFCde wurde.",
+      "Und im Caf\xE9 bestellt jemand f\xFCr einen Abwesenden.",
+      "So schlie\xDFt die Ausstellung, und niemand fragt nach.",
+      "Und die gezeichnete T\xFCr bleibt offen stehen.",
+      "Und die Schere liegt auf dem Stapel Zeitungen.",
+      "So bleibt die Fotografie mit einer Person zu viel.",
+      "Am Ende glaubt der Verleger, es sei ein Scherz."
+    ],
+    "verwandlungen": [
+      "Traum\u2192Bericht",
+      "T\xFCr\u2192Wand",
+      "Uhr\u2192Waage",
+      "Spiegel\u2192Schatten",
+      "Zimmer\u2192Grab",
+      "Bild\u2192Fenster"
+    ]
+  },
+  "transzendenz": {
+    "motifs": [
+      "eine Stimme, die von nirgendwo kommt",
+      "ein Atem, der gr\xF6\xDFer ist als der K\xF6rper",
+      "ein Gedanke ohne Denkenden",
+      "eine Schwelle ohne T\xFCr",
+      "ein Wei\xDF, das alle Farben enth\xE4lt",
+      "eine Weite hinter geschlossenen Augen",
+      "eine Haut, die nicht mehr trennt",
+      "ein Licht, das keine Quelle braucht",
+      "ein Klang, der vor dem H\xF6ren schon da ist",
+      "ein Punkt, in dem alles zusammenf\xE4llt",
+      "ein Raum, in dem das Echo l\xE4nger bleibt als der Ton",
+      "eine Schwelle, die man \xFCberschritten hat, ohne es zu merken",
+      "eine Landschaft, die niemanden voraussetzt",
+      "ein Wort, das sich beim Aussprechen aufl\xF6st",
+      "ein Wasser, das keine Oberfl\xE4che hat",
+      "ein Weg, der endet, ohne aufzuh\xF6ren",
+      "eine Nacht, in der nichts fehlt"
+    ],
+    "hooks": [
+      "der eigene Name klingt pl\xF6tzlich geliehen",
+      "die Stille hat auf einmal einen Klang",
+      "etwas antwortet, ohne zu sprechen",
+      "die H\xE4nde liegen still und arbeiten doch",
+      "im Spiegel steht jemand, der nichts behauptet",
+      "die Luft tr\xE4gt mehr, als sie wiegt",
+      "das Ich r\xFCckt einen Schritt zur Seite",
+      "Der eigene Name klingt an diesem Morgen geliehen.",
+      "Die Stille hat einen Klang bekommen, seit gestern.",
+      "Etwas antwortet, und es wird nichts gesagt.",
+      "Der Atem geht weiter, und niemand f\xFChrt ihn.",
+      "Ein Gedanke kommt, und es ist keiner da, der denkt.",
+      "Das Licht im Zimmer \xE4ndert sich ohne Grund.",
+      "Die Frage steht im Raum und hat keinen Fragenden mehr.",
+      "Jemand betet und merkt, dass er zuh\xF6rt.",
+      "Der Weg ist zu Ende, und er geht weiter.",
+      "Ein Satz aus einem Buch trifft ohne Umweg."
+    ],
+    "props": [
+      "eine Schale ohne Boden",
+      "ein Tuch aus ungef\xE4rbtem Leinen",
+      "einen Stein, warm ohne Sonne",
+      "eine Kerze, die niemand entz\xFCndet hat",
+      "ein Buch mit leeren Seiten",
+      "eine Glocke ohne Kl\xF6ppel",
+      "einen Spiegel ohne Bild",
+      "einen Faden ohne Ende",
+      "eine Feder, die nicht f\xE4llt",
+      "eine Schwelle aus abgetretenem Holz",
+      "eine Kerze, die nicht flackert",
+      "ein Buch mit einer leeren Seite",
+      "einen Krug, der immer halb steht",
+      "eine Bank an einer Mauer",
+      "ein Fenster ohne Rahmen",
+      "eine Decke f\xFCr die kalten Stunden",
+      "einen Napf mit Regenwasser",
+      "ein Seil, das an nichts befestigt ist"
+    ],
+    "turns": [
+      "die Grenze zwischen innen und au\xDFen wird durchl\xE4ssig",
+      "das Wort reicht nicht mehr und h\xF6rt auf",
+      "die Frage verliert ihren Fragenden",
+      "aus Suchen wird Stillhalten",
+      "das Einzelne wird durchsichtig",
+      "die Antwort kommt vor der Frage",
+      "das Ich l\xF6st sich, ohne zu verschwinden",
+      "das Suchen h\xF6rt auf, und es fehlt nichts",
+      "was gesucht wurde, war die ganze Zeit das Suchen",
+      "die Erfahrung kommt und l\xE4sst sich nicht behalten",
+      "er will es beschreiben und macht es damit kleiner",
+      "die Zeit steht nicht still, sie wird gleichg\xFCltig",
+      "das Ich meldet sich zur\xFCck und st\xF6rt nicht mehr",
+      "ein Zweifel kommt und findet nichts zum Zweifeln",
+      "die Stille wird laut und dann wieder still",
+      "das Licht kommt von innen und ist dasselbe",
+      "ein Lehrer sagt nichts, und es gen\xFCgt",
+      "er kehrt in den Alltag zur\xFCck und bringt nichts mit",
+      "ein gew\xF6hnlicher Gegenstand steht pl\xF6tzlich f\xFCr sich allein",
+      "die Angst vor dem Verschwinden verschwindet zuerst",
+      "der Unterschied zwischen H\xF6ren und Geh\xF6rtwerden f\xE4llt weg",
+      "jemand fragt nach dem Weg, und der Weg ist die Antwort",
+      "was gestern wichtig war, ist heute nur noch da"
+    ],
+    "obstacles": [
+      "jede Beschreibung verfehlt es",
+      "das Suchen selbst steht im Weg",
+      "die Sprache kehrt immer zum Sprecher zur\xFCck",
+      "wer es festh\xE4lt, verliert es",
+      "der Verstand verlangt einen Beweis",
+      "die Gewohnheit zieht zur\xFCck ins Vertraute",
+      "die Erfahrung l\xE4sst sich nicht wiederholen",
+      "wer davon erz\xE4hlt, hat es schon verlassen",
+      "der Alltag beginnt am n\xE4chsten Morgen wieder",
+      "ein Beweis w\xFCrde alles zerst\xF6ren",
+      "die anderen wollen eine Erkl\xE4rung h\xF6ren",
+      "das Ged\xE4chtnis macht daraus eine Geschichte",
+      "wer es festh\xE4lt, h\xE4lt nur die Erinnerung",
+      "die \xDCbung gelingt nicht auf Verlangen",
+      "der Zweifel kommt zuverl\xE4ssig am dritten Tag",
+      "es gibt kein Zeichen, an dem man es pr\xFCft",
+      "das gro\xDFe Wort ist besetzt und steht im Weg",
+      "der Tag hat zu viele Verabredungen f\xFCr so etwas",
+      "die Worte der anderen holen ihn sofort zur\xFCck",
+      "ein Buch beschreibt es, und die Beschreibung stimmt nicht",
+      "wer es sucht, hat es damit schon verstellt",
+      "die Ruhe im Haus h\xE4lt nur bis zum Mittag",
+      "der K\xF6rper meldet sich nach der zweiten Stunde"
+    ],
+    "stakes": [
+      "Der Einsatz ist Gewissheit: ohne jeden Beweis.",
+      "Der Einsatz ist ein Ich, das nichts mehr behauptet.",
+      "Der Einsatz ist die Sprache, die zur\xFCcktreten muss.",
+      "Der Einsatz ist ein Augenblick, der alle anderen enth\xE4lt.",
+      "Der Einsatz ist alles, was man zu wissen glaubt.",
+      "Der Einsatz ist ein Morgen, an dem nichts fehlt.",
+      "Der Einsatz ist die Frage, ob jemand zuh\xF6rt.",
+      "Der Einsatz ist ein Satz, der nicht gesagt werden kann."
+    ],
+    "endings": [
+      "So bleibt nur das Licht, das keiner entz\xFCndet hat.",
+      "Und die Stille h\xE4lt, was kein Wort versprochen hat.",
+      "So endet das Suchen, ohne dass etwas gefunden ist.",
+      "Am Ende steht kein Satz, nur ein Atemzug.",
+      "So schlie\xDFt sich der Raum, der nie einer war.",
+      "Und der Atem geht weiter, ohne dass jemand ihn f\xFChrt.",
+      "So bleibt die Schale stehen, leer und voll.",
+      "Und am Morgen beginnt der Alltag p\xFCnktlich.",
+      "Der Weg h\xF6rt auf, und niemand ist angekommen.",
+      "Und das Wort bleibt ungesagt und stimmt.",
+      "So bleibt es dabei: Es war und l\xE4sst sich nicht sagen.",
+      "Und die Bank an der Mauer steht am n\xE4chsten Tag noch.",
+      "Und die Kerze brennt ruhig weiter, ohne zu flackern.",
+      "So bleibt das Buch bei der leeren Seite aufgeschlagen.",
+      "Am Ende ist nichts gefunden und nichts verloren.",
+      "Und der Krug steht halb voll auf der Bank."
+    ],
+    "verwandlungen": [
+      "Licht\u2192Ger\xFCcht",
+      "Weg\u2192Faden",
+      "Wort\u2192Zeichen",
+      "Nacht\u2192Decke",
+      "Atem\u2192Faden"
+    ]
+  },
+  "melville": {
+    "motifs": [
+      "ein Meer wie ein Gedanke ohne Ende",
+      "ein Walr\xFCcken im Nebel",
+      "eine Linie am Horizont, die nicht stillh\xE4lt",
+      "ein Harpunenseil wie ein Schicksalsfaden",
+      "Salz auf den Lippen wie eine Predigt",
+      "ein Logbuch voller Fragen",
+      "ein Sternbild, das sich verschiebt",
+      "eine Planke, die nach \xD6l riecht",
+      "Wind, der Namen tr\xE4gt",
+      "Tiefe, die antwortlos bleibt",
+      "ein Schiff, das seinen Kurs vergisst",
+      "Tran in F\xE4ssern, der noch atmet",
+      "eine Narbe quer \xFCber das Deck",
+      "der Name eines Schiffes, das nie zur\xFCckkam",
+      "ein Wal, der zur\xFCckschaut",
+      "Salz in jeder Naht",
+      "ein Gebet, das gegen den Wind gesagt wird",
+      "die Ruhe vor der Ruhe",
+      "ein leerer Haken am Beiboot",
+      "Knochen als Zierrat an der Reling",
+      "eine Karte mit wei\xDFen Feldern",
+      "das Wasser, das keine Spur beh\xE4lt",
+      "ein Mannschaftsbuch mit gestrichenen Namen",
+      "der Wachwechsel um vier Uhr",
+      "eine K\xFCste, die sich nicht n\xE4hert",
+      "ein Mast ohne Wimpel"
+    ],
+    "hooks": [
+      "Ich trete an Deck, als w\xE4re es ein Urteil.",
+      "Der Ozean liegt da wie ein Gesetz, das niemand erkl\xE4rt.",
+      "Ein Schatten unter der Oberfl\xE4che macht die Welt schwer.",
+      "Der Wind spricht, aber nicht zu uns.",
+      "Wir fahren, als jagten wir einem Gedanken nach.",
+      "Das Wasser gl\xE4nzt, als h\xE4tte es einen Willen.",
+      "Ein Ruf geht \xFCber die See und kommt ver\xE4ndert zur\xFCck.",
+      "Wir laufen aus, ohne dass jemand winkt.",
+      "Der Kapit\xE4n spricht seit drei Tagen nicht mehr.",
+      "Ein Vogel setzt sich auf die Rah und bleibt.",
+      "Die F\xE4sser sind leer und der R\xFCckweg lang.",
+      "Im Logbuch fehlt eine Seite.",
+      "Das Wasser liegt still, und das ist das Schlimmste.",
+      "Einer sieht etwas und sagt nichts.",
+      "Der Ausguck ruft, aber niemand r\xFChrt sich.",
+      "Ein \xD6llicht brennt unter Deck, obwohl alle schlafen.",
+      "Die K\xFCste verschwindet schneller als gedacht.",
+      "Jemand hat die Namen an der Tafel ge\xE4ndert."
+    ],
+    "props": [
+      "eine Harpune",
+      "ein Logbuch",
+      "ein Messingfernrohr",
+      "einen Kompass",
+      "eine \xD6l-Laterne",
+      "ein St\xFCck Tauwerk",
+      "ein Seekartenfragment",
+      "einen geschnitzten Anh\xE4nger",
+      "eine Pfeife",
+      "einen Schiffssextanten",
+      "ein Fass Tran",
+      "eine Kette aus Walknochen",
+      "einen Kaj\xFCtenschl\xFCssel",
+      "ein Segeltuch mit Flicken",
+      "eine Seekarte ohne Rand",
+      "ein Beil f\xFCr das Seil",
+      "eine \xD6llampe unter Deck",
+      "einen Schleifstein",
+      "ein Gebetbuch mit Salzr\xE4ndern",
+      "eine Wetterfahne aus Blech",
+      "einen Nagel aus dem Hauptmast",
+      "ein Netz voller leerer Muscheln",
+      "ein Lot an langer Leine",
+      "einen Zwieback aus der Vorratskiste"
+    ],
+    "turns": [
+      "das Ziel wird zum Spiegel",
+      "die Jagd verschiebt die Seele",
+      "der Nebel tr\xE4gt eine Gestalt",
+      "ein Zeichen erscheint im Schaum",
+      "die Mannschaft wird zu Stimmen im Wind",
+      "das Meer verlangt einen Preis",
+      "der Kurs f\xFChrt nach innen",
+      "der Kurs wird zur Frage",
+      "ein Name f\xE4llt und alle schweigen",
+      "die Mannschaft teilt sich ohne ein Wort",
+      "das Meer wird glatt wie Blech",
+      "ein Zeichen an der Bordwand erscheint zweimal",
+      "der Kapit\xE4n legt die Karte weg",
+      "das Boot kehrt ohne einen Mann zur\xFCck",
+      "der Wal taucht dort auf, wo er nicht sein kann",
+      "die Jagd verkehrt sich in Flucht",
+      "das Logbuch beginnt zu l\xFCgen",
+      "die See gibt etwas zur\xFCck",
+      "der Wind kommt aus der falschen Richtung zur\xFCck"
+    ],
+    "obstacles": [
+      "der Nebel l\xF6scht Entfernungen",
+      "der Wind dreht ohne Warnung",
+      "das Seil zieht wie eine Entscheidung",
+      "ein Sturm ohne Rand",
+      "die Nacht frisst die Sterne",
+      "ein Aberglaube w\xE4chst wie Schimmel",
+      "die Tiefe bleibt stumm",
+      "die Flaute h\xE4lt l\xE4nger als der Vorrat",
+      "ein Riss l\xE4uft durch den Rumpf",
+      "niemand will die erste Wache",
+      "das Trinkwasser schmeckt nach Eisen",
+      "der Kurs f\xFChrt an keiner K\xFCste vorbei",
+      "die Harpune findet kein Ziel",
+      "ein Mann geht \xFCber Bord und niemand sieht wohin",
+      "der Kapit\xE4n gibt keinen Grund an",
+      "das Seil ist zu kurz f\xFCr die Tiefe",
+      "der Nebel bleibt drei Tage",
+      "die Ladung rutscht bei jeder Welle"
+    ],
+    "stakes": [
+      "Der Einsatz ist Sinn: Er k\xF6nnte nicht existieren.",
+      "Der Einsatz ist Hingabe: Sie wird zur Besessenheit.",
+      "Der Einsatz ist Leben: Es ist nur Material f\xFCr die See.",
+      "Der Einsatz ist Wahrheit: Sie ist so gro\xDF wie der Ozean.",
+      "Der Einsatz ist Heimkehr: Sie wird zu einer Legende.",
+      "Der Einsatz ist die Mannschaft: Sie folgt oder sie bleibt.",
+      "Der Einsatz ist die Heimkehr: Sie war nie versprochen.",
+      "Der Einsatz ist der Vorrat: Er reicht bis zur Umkehr, nicht weiter.",
+      "Der Einsatz ist der Eid: Er gilt auch gegen die Vernunft.",
+      "Der Einsatz ist ein Name im Logbuch: gestrichen oder gehalten.",
+      "Der Einsatz ist der Grund der Fahrt: Er geh\xF6rt einem allein.",
+      "Der Einsatz ist das Schiff, das mehr wert ist als alle darauf."
+    ],
+    "endings": [
+      "Und das Meer bleibt, wie es ist.",
+      "Und wir begreifen, dass die Jagd uns jagt.",
+      "So endet es im Nebel, nicht im Sieg.",
+      "Und der Horizont tut, als h\xE4tte er nichts gesehen.",
+      "Und das Logbuch schlie\xDFt sich wie ein Gebet.",
+      "Und das Logbuch schlie\xDFt mit einer leeren Zeile.",
+      "So kehrt das Schiff zur\xFCck, aber nicht die Fahrt.",
+      "Am Ende tr\xE4gt das Wasser nur den Namen weiter.",
+      "Und der Ausguck bleibt besetzt, obwohl nichts mehr kommt.",
+      "So bleibt die Tiefe, was sie war.",
+      "Und einer erz\xE4hlt es, damit es einer erz\xE4hlt.",
+      "Der Kurs steht noch an der Tafel, das Schiff nicht mehr.",
+      "Und das Salz bleibt in der Naht."
+    ],
+    "verwandlungen": [
+      "Harpune\u2192Feder",
+      "Wal\u2192Berg",
+      "Schiff\u2192Haus",
+      "Nebel\u2192Rauch",
+      "Seil\u2192Band",
+      "Kapit\xE4n\u2192Vater",
+      "Meer\u2192Feld",
+      "Logbuch\u2192Gebetbuch",
+      "K\xFCste\u2192Grenze",
+      "Deck\u2192Dach"
+    ]
+  },
+  "formalismus": {
+    "motifs": [
+      "eine Regel ohne Ausnahme",
+      "eine Definition mit Fu\xDFnote",
+      "ein Paragraph mit Randbemerkung",
+      "ein System aus Nummern",
+      "eine Hierarchie aus Zeichen",
+      "ein Schema mit Leerstellen",
+      "eine Vorschrift mit impliziter Klausel",
+      "eine Ordnung ohne Ursprung",
+      "ein Verfahren ohne Subjekt",
+      "eine Struktur mit blinden Punkten",
+      "ein Regelwerk, das seine eigene \xC4nderung regelt",
+      "eine Definition, die auf eine zweite verweist",
+      "ein Paragraph mit drei Abs\xE4tzen und vier Ausnahmen",
+      "eine Fu\xDFnote, die den Haupttext aufhebt",
+      "ein Formblatt, dessen Felder einander ausschlie\xDFen",
+      "ein Kommentar, der l\xE4nger ist als das Gesetz",
+      "ein Beweis, der eine Annahme braucht"
+    ],
+    "hooks": [
+      "der Sachverhalt steht in Abschnitt eins und stimmt nicht mehr",
+      "Definition A wird angewendet, obwohl Definition B gemeint war",
+      "gem\xE4\xDF Regel 3.2 ist der Fall nicht vorgesehen",
+      "die Ordnung gilt, und niemand wei\xDF mehr wof\xFCr",
+      "es wird festgestellt, was ohnehin niemand bestritten hat",
+      "die Zust\xE4ndigkeit ist gekl\xE4rt und liegt bei niemandem",
+      "ein Protokoll beginnt mit einem Satz aus einem anderen Fall",
+      "der Vorgang wird er\xF6ffnet, bevor der Antrag da ist",
+      "Absatz zwei widerspricht Absatz eins, seit der \xC4nderung.",
+      "Die Definition wurde ersetzt, der Verweis nicht.",
+      "Eine Ausnahme wird angewendet, die niemand mehr kennt.",
+      "Der Kommentar von 1974 gilt weiter, das Gesetz nicht.",
+      "Zwei Fassungen tragen dasselbe Datum.",
+      "Ein Verweis f\xFChrt auf eine Vorschrift ohne Text.",
+      "Die \xC4nderung tritt r\xFCckwirkend in Kraft.",
+      "Ein Begriff wird definiert und danach anders benutzt.",
+      "Das Verzeichnis nennt sich selbst an dritter Stelle.",
+      "Die Unterschrift fehlt, und der Vorgang l\xE4uft weiter."
+    ],
+    "props": [
+      "ein Dokument",
+      "eine Akte",
+      "einen Vermerk",
+      "eine Tabelle",
+      "ein Siegel",
+      "eine Fu\xDFnote",
+      "eine Nummer",
+      "ein Formular",
+      "eine Unterschrift",
+      "eine Registratur",
+      "ein Regelwerk in der dritten Fassung",
+      "einen Kommentar mit eingelegten Zetteln",
+      "ein Formblatt mit einem gestrichenen Feld",
+      "eine Loseblattsammlung im Ordner",
+      "einen Stempel f\xFCr die G\xFCltigkeit",
+      "ein Verzeichnis der \xC4nderungen",
+      "eine Fu\xDFnote auf einem eigenen Blatt",
+      "einen Vermerk in roter Tinte"
+    ],
+    "turns": [
+      "die Regel widerspricht sich selbst und bleibt in Kraft",
+      "ein Absatz wird gestrichen und in der Fu\xDFnote fortgef\xFChrt",
+      "die Definition verschiebt ihre Bedeutung von Fassung zu Fassung",
+      "die Hierarchie kippt, und die Fu\xDFnote steht oben",
+      "die Klausel wird w\xF6rtlich genommen und dadurch unbrauchbar",
+      "die Ausnahme wird zur Norm und beh\xE4lt ihren Namen",
+      "ein Verweis f\xFChrt ins Leere und wird trotzdem zitiert",
+      "die Ausnahme wird h\xE4ufiger angewendet als die Regel",
+      "der Kommentar wird zur eigentlichen Vorschrift",
+      "eine L\xFCcke wird geschlossen und \xF6ffnet zwei neue",
+      "die Auslegung \xE4ndert sich, ohne dass sich der Text \xE4ndert",
+      "der Fall passt genau und ist trotzdem nicht gemeint",
+      "die Form ist gewahrt, und die Sache geht verloren",
+      "ein Verweis f\xFChrt im Kreis, und niemand merkt es",
+      "die \xC4nderung gilt ab einem Datum in der Vergangenheit",
+      "zwei Instanzen legen denselben Satz gegens\xE4tzlich aus",
+      "die Ordnung h\xE4lt, weil niemand sie pr\xFCft",
+      "ein Begriff bekommt eine Legaldefinition und stirbt",
+      "ein Vermerk wird zur Grundlage einer Entscheidung",
+      "die Registratur findet den Vorgang unter einer fremden Nummer",
+      "der Pr\xFCfer beanstandet die Form und lobt die Sache",
+      "eine Vorschrift wird aufgehoben und weiter angewendet",
+      "die Loseblattsammlung ist auf dem Stand von 1998"
+    ],
+    "obstacles": [
+      "die Zust\xE4ndigkeit ist unklar und wird nicht gekl\xE4rt",
+      "ein Dokument fehlt, und ohne es geht nichts weiter",
+      "die Signatur ist ung\xFCltig, seit die Vorschrift ge\xE4ndert wurde",
+      "ein Absatz ist doppeldeutig, und beide Lesarten sind zul\xE4ssig",
+      "die Definition ist nicht abschlie\xDFend und gilt trotzdem",
+      "der Begriff ist nicht normiert und entscheidet den Fall",
+      "der Text ist eindeutig und trifft den Fall nicht",
+      "die Frist beginnt mit einem Ereignis ohne Datum",
+      "die Fassung im Umlauf ist nicht die geltende",
+      "eine Ausnahme setzt eine Genehmigung voraus",
+      "die Begr\xFCndung darf nicht mitgeteilt werden",
+      "der Kommentar ist vergriffen",
+      "zwei Regeln gelten gleichzeitig und schlie\xDFen sich aus",
+      "die Auslegung ist strittig und wird nicht entschieden",
+      "das Verzeichnis ist auf dem Stand von vorletztem Jahr",
+      "die \xC4nderung wurde beschlossen und nicht ver\xF6ffentlicht",
+      "wer fragt, l\xF6st eine Pr\xFCfung aus",
+      "die \xC4nderung liegt bei, ist aber nicht eingeheftet",
+      "niemand wei\xDF, welche Fassung im Streitfall gilt",
+      "das Formblatt verlangt zwei Angaben, die sich ausschlie\xDFen",
+      "die Zust\xE4ndigkeit wechselt mit dem Anfangsbuchstaben",
+      "die Frist ist gewahrt und der Antrag trotzdem versp\xE4tet",
+      "der Vordruck ist vergriffen und wird neu gedruckt"
+    ],
+    "stakes": [
+      "Der Einsatz ist die G\xFCltigkeit einer einzigen Unterschrift.",
+      "Der Einsatz ist die Eindeutigkeit eines Satzes, den viele lesen.",
+      "Der Einsatz ist eine Ordnung, die niemand einzeln pr\xFCfen kann.",
+      "Der Einsatz ist die Ordnung, die an einer Fu\xDFnote h\xE4ngt.",
+      "Der Einsatz ist eine Frist, die schon begonnen hat.",
+      "Der Einsatz ist ein Begriff und was er ausschlie\xDFt.",
+      "Der Einsatz ist die Form gegen die Sache."
+    ],
+    "endings": [
+      "Damit ist der Vorgang abgeschlossen und die Frage offen.",
+      "Die Ordnung bleibt bestehen, in der dritten Fassung.",
+      "Der Sachverhalt ist festgestellt, und mehr war nicht gefragt.",
+      "Der Fall gilt als entschieden, solange niemand widerspricht.",
+      "Die Regel bleibt in Kraft, gegen ihren eigenen Wortlaut.",
+      "Und der Kommentar wird um einen Absatz erg\xE4nzt.",
+      "So gilt die Regel weiter, gegen ihren Wortlaut.",
+      "Und die Fu\xDFnote \xFCberlebt den Haupttext.",
+      "Der Vermerk kommt zu den Akten, in roter Tinte.",
+      "Und niemand \xE4ndert, was sich eingespielt hat.",
+      "So bleibt der Verweis im Kreis, g\xFCltig.",
+      "Und die n\xE4chste Fassung erscheint im Fr\xFChjahr.",
+      "Und die Registratur legt den Vorgang unter R ab.",
+      "So bleibt das Formblatt unausgef\xFCllt in der Mappe.",
+      "Am Ende tr\xE4gt der Stempel ein Datum und keinen Namen.",
+      "Und die Loseblattsammlung w\xE4chst um vier Blatt."
+    ],
+    "verwandlungen": [
+      "Regel\u2192Gewohnheit",
+      "Akte\u2192Mappe",
+      "Stempel\u2192Riegel",
+      "Frist\u2192Schnur"
+    ]
+  },
+  "christentum": {
+    "motifs": [
+      "ein Kreuz aus Licht \xFCber einer leeren Stra\xDFe",
+      "eine brennende Kerze ohne Docht",
+      "ein Kelch, der Sternbilder spiegelt",
+      "ein Stein, der vor einem Grab atmet",
+      "eine Dornenkrone aus Glas",
+      "eine Taube, die durch Mauern fliegt",
+      "ein Fisch aus Schatten im Wasser",
+      "eine Leiter zwischen Wolken und Staub",
+      "eine Hand mit einem Wundmal aus Gold",
+      "eine T\xFCr ohne Klinke in einer Kapelle",
+      "eine Kirche, in der es k\xE4lter ist als drau\xDFen",
+      "ein Beichtstuhl mit abgewetztem Holz",
+      "eine Prozession, die durch nasse Felder zieht",
+      "ein Altarbild, dessen Farbe abbl\xE4ttert",
+      "ein Kreuz an einer Weggabelung im Feld",
+      "ein Glockenseil, das jemand jeden Tag zieht",
+      "eine Bibel mit Zetteln zwischen den Seiten",
+      "ein Gasthaus, das niemanden abweist",
+      "ein Kirchhof, auf dem die Namen verwittern",
+      "ein Kelch, den viele H\xE4nde abgegriffen haben",
+      "eine Kerze, die f\xFCr jemand anderen brennt",
+      "ein Brotlaib, geteilt f\xFCr mehr Leute als da sind"
+    ],
+    "hooks": [
+      "Das Licht f\xE4llt nicht vom Himmel, sondern aus meinem Mund.",
+      "Die Glocken l\xE4uten r\xFCckw\xE4rts.",
+      "Ich knie, und der Boden antwortet.",
+      "Ein Gleichnis steht pl\xF6tzlich im Raum.",
+      "Der Wind roch nach Weihrauch und Regen.",
+      "Ein Engel verwechselt meinen Namen.",
+      "Das Brot zerbricht, bevor ich es ber\xFChre.",
+      "Die Glocke l\xE4utet zur falschen Stunde.",
+      "Ein Fremder bittet an der Pforte um ein Nachtlager.",
+      "Der Beichtstuhl bleibt heute den ganzen Tag leer.",
+      "Ein Kind stellt eine Frage, die niemand beantwortet.",
+      "Das Altarbild hat \xFCber Nacht einen Riss bekommen.",
+      "Der Pfarrer liest eine Stelle und liest sie noch einmal.",
+      "Jemand betet f\xFCr einen, der es nicht verdient hat.",
+      "Im Opferstock liegt mehr, als das Dorf hat.",
+      "Ein Name wird von der Kanzel genannt und nicht erkl\xE4rt.",
+      "Die Prozession geht, und der Regen h\xF6rt nicht auf.",
+      "Ein Gel\xFCbde wird gegeben, ohne dass jemand zuh\xF6rt.",
+      "Der Kirchhof bekommt ein Grab ohne Stein."
+    ],
+    "props": [
+      "eine Kerze",
+      "einen Rosenkranz",
+      "eine Bibel",
+      "einen Kelch",
+      "ein St\xFCck Brot",
+      "einen silbernen Fisch",
+      "eine wei\xDFe Lilie",
+      "ein kleines Holzkreuz",
+      "eine Tonschale",
+      "ein Tuch",
+      "einen Rosenkranz aus dunklem Holz",
+      "eine Bibel mit Zetteln zwischen den Seiten",
+      "einen Kelch mit abgegriffenem Fu\xDF",
+      "ein St\xFCck Brot vom Altar",
+      "eine Kerze f\xFCr einen Abwesenden",
+      "ein Messgewand mit ausgebesserter Naht",
+      "einen Schl\xFCssel zur Sakristei",
+      "ein Weihrauchfass an einer Kette",
+      "eine Liste mit den Namen der Armen",
+      "einen Krug mit Wasser aus dem Brunnen"
+    ],
+    "turns": [
+      "das Gleichnis wird w\xF6rtlich",
+      "ein Wunder geschieht im Nebensatz",
+      "der Zweifel spricht lauter als der Glaube",
+      "das Licht wechselt die Quelle",
+      "ein Opfer wird zur Umarmung",
+      "der Himmel antwortet in Stille",
+      "der Stein beginnt zu rollen",
+      "das Gleichnis wird w\xF6rtlich, und niemand lacht mehr",
+      "ein Wunder geschieht im Nebensatz und wird \xFCbersehen",
+      "der Zweifel spricht lauter als der Glaube und beh\xE4lt recht",
+      "das Licht wechselt die Quelle, und niemand merkt es",
+      "ein Opfer wird zur Umarmung, im letzten Augenblick",
+      "die Vergebung trifft den Falschen und wirkt trotzdem",
+      "der Pfarrer glaubt weniger als seine Gemeinde",
+      "ein Fremder kennt die Antwort auf die Frage des Kindes",
+      "der Verrat sitzt am Tisch und isst mit",
+      "die Gemeinde entscheidet gegen den Buchstaben",
+      "das Gebet wird erh\xF6rt, aber anders",
+      "ein Gel\xFCbde bindet \xFCber den Tod hinaus",
+      "die Armenliste wird l\xE4nger als die Gemeinde",
+      "das Brot reicht, und niemand kann es erkl\xE4ren"
+    ],
+    "obstacles": [
+      "der Glaube verlangt einen Sprung",
+      "ein Zeichen bleibt aus",
+      "der Verrat steht am Tisch",
+      "die Menge ruft nach Beweisen",
+      "der Himmel schweigt",
+      "das Wasser tr\xE4gt nicht",
+      "das Grab bleibt verschlossen",
+      "der Glaube verlangt einen Sprung ohne Boden",
+      "ein Zeichen bleibt aus, und das Warten geht weiter",
+      "die Menge ruft nach Beweisen und nicht nach Trost",
+      "der Himmel schweigt genau in dieser Woche",
+      "der Winter kommt, und der Opferstock ist leer",
+      "das Gesetz der Kirche steht gegen das Gebot",
+      "niemand will den Fremden im eigenen Haus",
+      "der Bischof entscheidet aus einer anderen Stadt",
+      "die Prozession f\xE4llt aus, zum ersten Mal seit hundert Jahren",
+      "die Sakristei ist verschlossen und der Schl\xFCssel fort",
+      "ein Sterbender verlangt jemanden, der nicht kommt",
+      "das Dorf zahlt den Zehnten nicht mehr",
+      "die Antwort steht im Buch und hilft nicht",
+      "wer vergibt, gilt als schwach"
+    ],
+    "stakes": [
+      "Der Einsatz ist Erl\xF6sung: Sie kostet alles.",
+      "Der Einsatz ist Vergebung: Sie ist unverdient.",
+      "Der Einsatz ist Glaube: Er sieht ohne Augen.",
+      "Der Einsatz ist Liebe: Sie opfert sich.",
+      "Der Einsatz ist Auferstehung: Sie widerspricht der Logik.",
+      "Der Einsatz ist eine Vergebung, die niemand verdient hat.",
+      "Der Einsatz ist ein Nachtlager f\xFCr einen Fremden.",
+      "Der Einsatz ist der Winter f\xFCr die Armen der Gemeinde.",
+      "Der Einsatz ist ein Glaube, der ohne Zeichen auskommt.",
+      "Der Einsatz ist ein Name, den man von der Kanzel nennt.",
+      "Der Einsatz ist ein Grab in geweihter Erde.",
+      "Der Einsatz ist die Frage, ob das Brot reicht."
+    ],
+    "endings": [
+      "Und das Licht bleibt, auch ohne Sonne.",
+      "Und der Stein ist leichter als mein Herz.",
+      "Und ich gehe, als h\xE4tte ich Fl\xFCgel.",
+      "Und das Brot reicht f\xFCr alle.",
+      "Und der Himmel \xF6ffnet sich nach innen.",
+      "Und das Licht bleibt, auch als die Kerze aus ist.",
+      "So wird die Glocke am Morgen wieder gezogen.",
+      "Am Ende liegt ein Stein vor dem Grab, oder nicht.",
+      "Und der Kelch steht im Schrank bis zum Sonntag.",
+      "So geht die Prozession im Regen zu Ende.",
+      "Und der Fremde ist am Morgen fort.",
+      "Der Kirchhof nimmt einen Namen mehr auf.",
+      "Und das Brot reicht, und niemand rechnet nach.",
+      "So bleibt die Frage des Kindes im Raum stehen.",
+      "Und im Opferstock liegt am Sonntag wieder etwas."
+    ],
+    "verwandlungen": [
+      "Kerze\u2192Asche",
+      "Kreuz\u2192Zeichen",
+      "Glocke\u2192Stimme",
+      "Brot\u2192Pfand",
+      "Kelch\u2192Krug",
+      "Grab\u2192Bett",
+      "Kirche\u2192Halle",
+      "Zweifel\u2192Verdacht"
+    ]
+  },
+  "koran": {
+    "motifs": [
+      "eine Schrift aus Licht auf schwarzem Wasser",
+      "ein Halbmond, der im Sand pulsiert",
+      "eine W\xFCste, die fl\xFCstert",
+      "ein Brunnen, der Sterne spiegelt",
+      "ein Gebetsteppich, der sich wiegt",
+      "eine Stimme ohne K\xF6rper",
+      "eine Waage aus Wind",
+      "ein Garten hinter einer unsichtbaren Mauer",
+      "eine Laterne ohne Flamme",
+      "ein Siegel aus Licht auf der Stirn",
+      "ein Hof, in dem f\xFCnfmal am Tag Wasser l\xE4uft",
+      "eine Handschrift, deren R\xE4nder Gold tragen",
+      "eine Karawane, die vor Sonnenaufgang aufbricht",
+      "ein Brunnen, der eine Stadt getragen hat",
+      "eine Stimme, die einen Vers tr\xE4gt, ohne ihn zu lesen",
+      "ein Datum, das jedes Jahr elf Tage wandert",
+      "eine Nische, die nach S\xFCden zeigt",
+      "ein Schatten, der zur Gebetszeit die L\xE4nge wechselt"
+    ],
+    "hooks": [
+      "Die Worte kommen wie Regen in der Nacht.",
+      "Der Ruf erreicht mich vor meinem Namen.",
+      "Ich wasche meine H\xE4nde, und die Zeit wird klar.",
+      "Die W\xFCste \xF6ffnet ein Auge.",
+      "Ein Vers steht im Sand.",
+      "Die Stille hat einen Rhythmus.",
+      "Der Wind spricht arabisch.",
+      "Der Ruf kommt, und die Arbeit bleibt liegen.",
+      "Ein Fremder kennt den Vers und nicht die Sprache.",
+      "Der Brunnen im Hof gibt seit Tagen weniger Wasser.",
+      "Ein Kind rezitiert eine Stelle und stockt an derselben.",
+      "Die Karawane bricht auf, und einer bleibt zur\xFCck.",
+      "Ein Gast kommt, und die Vorr\xE4te reichen nicht f\xFCr drei Tage.",
+      "Der Schatten steht falsch f\xFCr diese Jahreszeit.",
+      "Jemand bittet um eine Auskunft, die niemand geben darf.",
+      "Der Lehrer schweigt an einer Stelle, die er sonst erkl\xE4rt.",
+      "Ein Schreiber l\xE4sst ein Wort aus und merkt es zu sp\xE4t."
+    ],
+    "props": [
+      "einen Gebetsteppich",
+      "eine Gebetskette",
+      "eine Schale mit Wasser",
+      "eine Dattel",
+      "eine Laterne",
+      "ein St\xFCck Pergament",
+      "eine Feder",
+      "einen Kompass",
+      "ein Tuch",
+      "einen Ring",
+      "einen Gebetsteppich mit ausgetretener Mitte",
+      "eine Schale mit Wasser f\xFCr den Gast",
+      "ein Blatt mit Goldrand",
+      "eine Rohrfeder und ein Tintenfass",
+      "einen Krug f\xFCr die Waschung",
+      "ein B\xFCndel Datteln f\xFCr den Weg",
+      "eine Karte der Brunnen"
+    ],
+    "turns": [
+      "ein Vers ver\xE4ndert die Richtung",
+      "die Waage neigt sich unsichtbar",
+      "das Herz wird Richter",
+      "die W\xFCste wird zum Garten",
+      "eine Pr\xFCfung wird zur Gabe",
+      "die Schrift beginnt zu leuchten",
+      "die Stille antwortet",
+      "ein Vers ver\xE4ndert die Richtung eines ganzen Tages",
+      "die Waage neigt sich, und niemand hat sie ber\xFChrt",
+      "das Herz wird zum Richter \xFCber die Auskunft",
+      "der Gast erweist sich als der, den man suchte",
+      "die Geduld reicht bis zum letzten Tag der Pr\xFCfung",
+      "ein Wort wird ausgelassen und \xE4ndert den Sinn nicht",
+      "die Karawane kehrt um, und das rettet sie",
+      "der Lehrer gibt zu, dass er es nicht wei\xDF",
+      "ein Schuldner wird entlassen, und niemand erf\xE4hrt es",
+      "der Brunnen gibt wieder, nach vier Tagen",
+      "die Antwort steht im Buch und wird anders gelesen",
+      "ein Streit endet, weil einer zuerst gr\xFC\xDFt",
+      "der Weg ist schmal und wird an einer Stelle breit",
+      "die Pr\xFCfung kommt ohne Warnung und geht ohne Erkl\xE4rung",
+      "ein Vers, der oft gelesen wurde, meint heute etwas anderes",
+      "der Schreiber setzt das Wort ein und l\xE4sst den Rand frei"
+    ],
+    "obstacles": [
+      "der Zweifel trocknet die Zunge",
+      "der Weg verliert seine Spuren",
+      "eine Pr\xFCfung kommt ohne Warnung",
+      "die Nacht scheint endlos",
+      "ein Vers bleibt unverst\xE4ndlich",
+      "das Herz ist verschlossen",
+      "die Geduld rei\xDFt",
+      "der Zweifel trocknet die Zunge in der Mitte des Verses",
+      "der Weg verliert seine Spuren nach dem Sandsturm",
+      "der Brunnen ist versandet, der n\xE4chste zwei Tage entfernt",
+      "die Karawane wartet nicht auf einen einzelnen",
+      "die Schrift ist an drei Stellen verblasst",
+      "der Gast bleibt l\xE4nger, als die Vorr\xE4te reichen",
+      "der Sommer macht den Weg tags\xFCber unbegehbar",
+      "die Auskunft w\xFCrde einen anderen besch\xE4men",
+      "das Kamel ist lahm, und der Markt ist weit",
+      "niemand darf zwischen den beiden vermitteln",
+      "die Nacht ist kurz, und der Ruf kommt fr\xFCh",
+      "der Schreiber hat kein Gold mehr f\xFCr die R\xE4nder",
+      "die Antwort ist bekannt und hilft dem Fragenden nicht",
+      "eine Pr\xFCfung kommt ohne Warnung und ohne Frist",
+      "der Weg \xFCber die Salzebene ist nur nachts begehbar",
+      "die Handschrift geh\xF6rt einem Haus, das sie nicht ausleiht"
+    ],
+    "stakes": [
+      "Der Einsatz ist Hingabe: Sie fordert Vertrauen.",
+      "Der Einsatz ist Rechtleitung: Sie ist ein schmaler Pfad.",
+      "Der Einsatz ist Geduld: Sie wird gepr\xFCft.",
+      "Der Einsatz ist Gerechtigkeit: Sie wiegt jedes Wort.",
+      "Der Einsatz ist Barmherzigkeit: Sie \xFCbersteigt das Ma\xDF.",
+      "Der Einsatz ist eine Geduld, die bis zum Regen reicht.",
+      "Der Einsatz ist ein Gast und was das Haus ihm schuldet.",
+      "Der Einsatz ist ein Vers, der richtig weitergegeben wird.",
+      "Der Einsatz ist der Brunnen f\xFCr eine ganze Stadt.",
+      "Der Einsatz ist ein Wort, das jemanden besch\xE4men w\xFCrde."
+    ],
+    "endings": [
+      "Und die W\xFCste tr\xE4gt pl\xF6tzlich Gr\xFCn.",
+      "Und mein Herz findet seine Qibla.",
+      "Und der Vers bleibt in mir.",
+      "Und die Nacht ist nicht mehr dunkel.",
+      "Und der Garten \xF6ffnet sich im Inneren.",
+      "Und die W\xFCste tr\xE4gt nach dem Regen pl\xF6tzlich Gr\xFCn.",
+      "So findet das Herz seine Richtung wieder.",
+      "Am Ende bleibt der Vers, und der Tag geht weiter.",
+      "Und der Brunnen gibt Wasser, f\xFCr dieses Jahr.",
+      "So bricht die Karawane vor Sonnenaufgang auf.",
+      "Und der Gast zieht weiter, mit Datteln f\xFCr den Weg.",
+      "Der Schatten steht wieder da, wo er stehen soll.",
+      "Und das Blatt trocknet mit Goldrand.",
+      "So bleibt die Stelle unerkl\xE4rt bis zum n\xE4chsten Jahr.",
+      "Und im Hof l\xE4uft das Wasser wie immer.",
+      "Und im Hof wird der Teppich ausgesch\xFCttelt.",
+      "So bleibt die Karawane bis zum Morgen am Brunnen.",
+      "Am Ende ist die Schale wieder gef\xFCllt f\xFCr den N\xE4chsten."
+    ],
+    "verwandlungen": [
+      "Brunnen\u2192Spiegel",
+      "Vers\u2192Faden",
+      "Gast\u2192Bote",
+      "Schatten\u2192Zeiger",
+      "Karte\u2192Grenze"
+    ]
+  },
+  "buddhismus": {
+    "motifs": [
+      "eine Lotusbl\xFCte aus Nebel",
+      "ein Rad, das sich ohne Achse dreht",
+      "eine Glocke im Wind",
+      "ein Spiegel ohne Spiegelbild",
+      "ein leerer Thron unter einem Baum",
+      "eine Spur im Sand, die verschwindet",
+      "ein Fluss ohne Quelle",
+      "eine Schale voller Stille",
+      "eine Kerze im Morgengrauen",
+      "ein Berg, der atmet",
+      "ein Kloster, in dem seit dreihundert Jahren gefegt wird",
+      "eine Schale, die morgens leer vor die T\xFCr gestellt wird",
+      "ein Sandbild, das am Abend fortgewischt wird",
+      "der Atem, der geht und wiederkommt, ohne dass man ihn ruft",
+      "eine Glocke, deren Ton l\xE4nger dauert als der Schlag",
+      "ein Pfad, den tausend F\xFC\xDFe blank gelaufen haben",
+      "Regen auf einem Dach aus Schindeln, stundenlang",
+      "ein Kissen mit einer Mulde",
+      "ein Buch, das nur eine Seite hat",
+      "der Schatten eines Baumes, der wandert"
+    ],
+    "hooks": [
+      "Ich setze mich, und die Welt setzt sich mit mir.",
+      "Ein Atemzug dauert ein Jahrhundert.",
+      "Die Frage l\xF6st sich vor der Antwort.",
+      "Ein Blatt f\xE4llt, und ich verstehe.",
+      "Die Stille ist lauter als der Markt.",
+      "Ein M\xF6nch l\xE4chelt ohne Grund.",
+      "Der Weg beginnt unter meinen F\xFC\xDFen.",
+      "Der Lehrer antwortet mit einer Frage und geht dann.",
+      "Die Glocke schl\xE4gt, und die Gedanken laufen weiter.",
+      "Jemand stellt die Schale zur\xFCck, ohne etwas hineinzulegen.",
+      "Ein Sch\xFCler sitzt seit dem Morgen und hat nichts bemerkt.",
+      "Der Regen h\xF6rt auf, und es wird zu still im Hof.",
+      "Ein Brief kommt aus der Welt, die man verlassen hat.",
+      "Der Weg zum Brunnen ist heute anders gekehrt.",
+      "Jemand lacht w\xE4hrend der \xDCbung, und niemand schilt.",
+      "Die Kerze geht aus, bevor der Abschnitt zu Ende ist.",
+      "Ein Fremder wartet am Tor und sagt, wozu er kam.",
+      "Die Zeit f\xFCr das Sitzen wird verl\xE4ngert, ohne Ank\xFCndigung.",
+      "Ein Name wird nicht mehr genannt, und keiner fragt."
+    ],
+    "props": [
+      "eine Gebetsschale",
+      "eine Mala",
+      "eine Lotusblume",
+      "eine kleine Glocke",
+      "ein Tuch",
+      "eine Kerze",
+      "eine Holzfigur",
+      "eine Teeschale",
+      "ein Blatt",
+      "einen Kieselstein",
+      "eine Almosenschale aus dunklem Holz",
+      "ein Gewand, dreimal geflickt",
+      "eine Glocke mit einem h\xF6lzernen Schlegel",
+      "eine Matte, an den R\xE4ndern durchgesessen",
+      "einen Besen aus Reisig",
+      "eine Kanne mit warmem Wasser",
+      "ein R\xE4ucherst\xE4bchen, halb abgebrannt",
+      "einen Krug f\xFCr den Weg",
+      "eine Schnur mit hundertacht Perlen",
+      "ein Blatt, das jemand ins Buch gelegt hat"
+    ],
+    "turns": [
+      "das Ich l\xF6st sich auf",
+      "der Kreis schlie\xDFt sich nicht",
+      "die Frage verschwindet",
+      "Zeit wird zu Atem",
+      "Leere wird Form",
+      "das Rad dreht sich r\xFCckw\xE4rts",
+      "Erkenntnis geschieht ohne Worte",
+      "die Frage l\xF6st sich auf, und die Antwort wird unn\xF6tig",
+      "der Sch\xFCler wartet auf etwas und merkt, dass es schon geschah",
+      "die Glocke schl\xE4gt mitten in den Gedanken hinein",
+      "was er festhalten wollte, ist schon nicht mehr dasselbe",
+      "der Lehrer nimmt das Buch weg und sagt nichts dazu",
+      "das Sitzen wird leicht, und genau dann kippt es",
+      "ein Wort aus der Kindheit kommt zur\xFCck und meint etwas anderes",
+      "er will nichts wollen und will es sehr",
+      "der Schmerz im Knie h\xF6rt auf, ohne dass er sich bewegt",
+      "das Sandbild wird gewischt, und niemand sieht traurig aus",
+      "ein Sch\xFCler geht, und der Platz wird nicht neu besetzt",
+      "die \xDCbung gelingt, und darin liegt der Fehler",
+      "der Weg endet an derselben T\xFCr, durch die er kam",
+      "die Stille wird laut, und dann wird sie wieder still"
+    ],
+    "obstacles": [
+      "der Geist springt wie ein Affe",
+      "Anhaftung h\xE4lt fest",
+      "der Wunsch erzeugt Schatten",
+      "die Stille wird unruhig",
+      "das Selbst verlangt Best\xE4tigung",
+      "der Weg scheint zu einfach",
+      "der Schmerz klammert sich",
+      "der Geist springt weg, sobald man ihn ansieht",
+      "das Kissen wird hart nach der zweiten Stunde",
+      "der Winter im Hof ist l\xE4nger als die Geduld",
+      "der Lehrer erkl\xE4rt nichts, was man aufschreiben k\xF6nnte",
+      "die Schale bleibt an manchen Tagen leer",
+      "ein Vorsatz h\xE4lt bis zum n\xE4chsten Morgen",
+      "die anderen sitzen ruhiger, und das st\xF6rt",
+      "das Kloster hat kein Holz mehr f\xFCr den Ofen",
+      "eine Nachricht von zu Hause zieht durch die ganze \xDCbung",
+      "wer erkl\xE4rt, hat schon verloren",
+      "der Weg zum Dorf dauert einen halben Tag",
+      "der Regen h\xE4lt die Bettelrunde auf",
+      "die Regel gilt auch f\xFCr den, der sie geschrieben hat",
+      "Fortschritt l\xE4sst sich nicht messen und wird trotzdem gez\xE4hlt"
+    ],
+    "stakes": [
+      "Der Einsatz ist Erwachen: Es geschieht still.",
+      "Der Einsatz ist Loslassen: Nichts bleibt.",
+      "Der Einsatz ist Mitgef\xFChl: Es kennt kein Ich.",
+      "Der Einsatz ist Einsicht: Sie l\xF6st Grenzen.",
+      "Der Einsatz ist Nirwana: Es ist kein Ort.",
+      "Der Einsatz ist ein Morgen, an dem nichts erreicht werden muss.",
+      "Der Einsatz ist ein Satz des Lehrers, der nicht wiederholt wird.",
+      "Der Einsatz ist die Frage, ob es ein Ich gibt, das sitzt.",
+      "Der Einsatz ist der Platz im Hof, den man behalten m\xF6chte.",
+      "Der Einsatz ist ein Winter im Kloster oder in der Stadt.",
+      "Der Einsatz ist alles Festhalten, das man mitgebracht hat."
+    ],
+    "endings": [
+      "Und der Atem kehrt heim.",
+      "Und nichts fehlt.",
+      "Und der Kreis ist offen.",
+      "Und die Bl\xFCte f\xE4llt nicht mehr.",
+      "Und der Weg ist kein Weg.",
+      "Und der Atem geht weiter, ohne Auftrag.",
+      "So wird das Sandbild gewischt und morgen neu gelegt.",
+      "Am Ende steht die Schale wieder vor der T\xFCr.",
+      "Und die Glocke klingt noch, als schon gefegt wird.",
+      "So bleibt die Mulde im Kissen, bis jemand kommt.",
+      "Und der Schatten des Baumes ist weitergewandert.",
+      "Der Regen h\xF6rt auf, und der Hof dampft.",
+      "Und niemand nennt, was heute geschehen ist.",
+      "So geht der Weg zum Brunnen, wie er immer ging.",
+      "Und das Buch bleibt aufgeschlagen auf derselben Seite."
+    ],
+    "verwandlungen": [
+      "Schale\u2192Hand",
+      "Glocke\u2192Stille",
+      "Atem\u2192Faden",
+      "Kissen\u2192Blatt",
+      "Weg\u2192Kreis",
+      "Sandbild\u2192Gesicht",
+      "Regen\u2192Schleier",
+      "Buch\u2192Fenster"
+    ]
+  },
+  "biologie": {
+    "motifs": [
+      "eine Zelle mit Fenster",
+      "ein Herz im Glas",
+      "ein Baum mit wandernden Wurzeln",
+      "ein Insekt aus Uhrwerk",
+      "eine DNA-Spirale aus Licht",
+      "eine Bl\xFCte, die sich erinnert",
+      "ein Aquarium ohne Wasser",
+      "eine Haut aus Bl\xE4ttern",
+      "ein Mikroskop voller Sterne",
+      "ein Skelett, das atmet",
+      "eine Kolonie, die \xFCber Nacht die Schale f\xFCllt",
+      "ein Nest aus fremdem Material",
+      "Wurzeln, die einander ausweichen",
+      "ein Schwarm, der wie ein K\xF6rper wendet",
+      "ein K\xE4fer mit einer Farbe zu viel",
+      "Blattadern unter dem Licht",
+      "ein Vogel, der die falsche Jahreszeit singt",
+      "ein Ei ohne Schale",
+      "die Grenze zwischen Wald und Feld",
+      "ein Pilz, der zwei B\xE4ume verbindet",
+      "Larven in einem Glas mit Datum",
+      "ein Skelett im Museumskeller",
+      "Bl\xFCten, die zwei Wochen zu fr\xFCh sind",
+      "eine Art, die nur hier vorkommt",
+      "ein Bau, der \xE4lter ist als der Hof dar\xFCber",
+      "Spuren im Schlamm, die sich kreuzen"
+    ],
+    "hooks": [
+      "Die Zelle teilt sich zu fr\xFCh.",
+      "Ein Blatt schreibt meinen Namen.",
+      "Das Mikroskop vergr\xF6\xDFert die Stille.",
+      "Ein Herz schlug au\xDFerhalb des K\xF6rpers.",
+      "Ein Tier sieht mich an, als w\xFCsste es mehr.",
+      "Die Kultur w\xE4chst, obwohl sie steril sein sollte.",
+      "In der Falle sitzt etwas, das hier nicht lebt.",
+      "Der Vogel kommt in diesem Jahr nicht.",
+      "Die Probe zeigt zwei Erbg\xE4nge statt einem.",
+      "Ein Bestand ist \xFCber Nacht verschwunden.",
+      "Die Z\xE4hlung ergibt jedes Mal eine andere Zahl.",
+      "Ein Tier verh\xE4lt sich, als kenne es uns.",
+      "Die Bl\xFCte \xF6ffnet sich im Februar.",
+      "Im Teich schwimmt, was nicht schwimmen kann.",
+      "Der Kollege hat die Reihe anders beschriftet.",
+      "Zwei Nester liegen zu nah beieinander."
+    ],
+    "props": [
+      "ein Mikroskop",
+      "eine Petrischale",
+      "ein Skalpell",
+      "ein Herbariumblatt",
+      "eine Pipette",
+      "ein Glas mit Formalin",
+      "einen Samen",
+      "ein Anatomiebuch",
+      "eine Feder",
+      "ein Reagenzglas",
+      "eine Pinzette",
+      "ein Fangnetz",
+      "ein Bestimmungsbuch",
+      "eine K\xFChlbox",
+      "einen Objekttr\xE4ger",
+      "ein Etikett mit Datum",
+      "eine Falle aus Draht",
+      "ein Glas mit Alkohol",
+      "ein Fernglas",
+      "einen Z\xE4hlrahmen",
+      "ein Feldtagebuch",
+      "einen Ring f\xFCr den Vogelfu\xDF",
+      "eine Schaufel f\xFCr die Bodenprobe"
+    ],
+    "turns": [
+      "eine Mutation wird bewusst",
+      "ein Organ beginnt zu sprechen",
+      "die Evolution springt einen Schritt",
+      "ein K\xF6rper erinnert sich an fr\xFChere Formen",
+      "Zellen wechseln die Identit\xE4t",
+      "die Natur schreibt neu",
+      "Leben entsteht im Falschen",
+      "die Z\xE4hlung stimmt, und das ist das Problem",
+      "zwei Arten teilen sich denselben Platz",
+      "der Bestand kehrt zur\xFCck, wo niemand ihn erwartete",
+      "eine Probe ist nicht die, die beschriftet ist",
+      "das Verhalten ist gelernt, nicht angeboren",
+      "der Wirt lebt l\xE4nger als sein Parasit",
+      "die Kultur bringt etwas hervor, das nicht angesetzt war",
+      "ein alter Fund bekommt einen neuen Namen",
+      "der Versuch gelingt nur einmal",
+      "die Grenze verschiebt sich um zehn Kilometer",
+      "die Art war nie getrennt",
+      "die Reihe von 1974 sagt etwas anderes",
+      "die zweite Z\xE4hlung findet mehr, und das ist schlimmer",
+      "eine Art taucht auf, die hier seit hundert Jahren fehlt",
+      "der Versuch widerlegt die Annahme und best\xE4tigt den Zufall",
+      "der Bestand erholt sich, seit niemand mehr eingreift",
+      "die Beringung von 1974 kommt an einem fremden Ort zur\xFCck"
+    ],
+    "obstacles": [
+      "das Gewebe zerf\xE4llt",
+      "eine Art verschwindet",
+      "der Samen keimt nicht",
+      "ein Virus fl\xFCstert",
+      "das Experiment ger\xE4t au\xDFer Kontrolle",
+      "Instinkt widerspricht Vernunft",
+      "das Herz schl\xE4gt im falschen Rhythmus",
+      "die Kultur ist verunreinigt",
+      "die Saison ist zu kurz f\xFCr eine zweite Z\xE4hlung",
+      "das Tier l\xE4sst sich nicht wiederfinden",
+      "die Genehmigung gilt nur f\xFCr zwei Exemplare",
+      "der K\xFChlschrank f\xE4llt in der Nacht aus",
+      "die Probe h\xE4lt keine drei Tage",
+      "der Bestand ist zu klein f\xFCr eine Statistik",
+      "das Gel\xE4nde wird im Fr\xFChjahr bebaut",
+      "niemand hat die Reihe von 1974 aufgehoben",
+      "der Regen macht die Z\xE4hlung unm\xF6glich",
+      "die Falle ist leer und der K\xF6der weg",
+      "die Z\xE4hlfl\xE4che wird im Sommer als Weide genutzt",
+      "das Pr\xE4parat verliert die Farbe, bevor es fotografiert ist",
+      "die Bestimmung ist nur mit einem zweiten Merkmal sicher",
+      "der Bau darf w\xE4hrend der Brutzeit nicht betreten werden",
+      "die Genehmigung nennt eine Art, die nicht mehr so hei\xDFt",
+      "das Wetter verschiebt die Z\xE4hlung um zwei Wochen"
+    ],
+    "stakes": [
+      "Der Einsatz ist Anpassung: \xDCberleben oder Aussterben.",
+      "Der Einsatz ist Identit\xE4t: Was macht ein Wesen aus?",
+      "Der Einsatz ist Balance: Natur oder Eingriff?",
+      "Der Einsatz ist Ursprung: Wo beginnt Leben?",
+      "Der Einsatz ist Verantwortung: Wer ver\xE4ndert wen?",
+      "Der Einsatz ist ein Bestand, der einmal f\xE4llt und nicht wiederkommt.",
+      "Der Einsatz ist ein Name f\xFCr etwas Namenloses.",
+      "Der Einsatz ist die Reihe: drei\xDFig Jahre oder umsonst.",
+      "Der Einsatz ist ein Gel\xE4nde, das jemand anders will.",
+      "Der Einsatz ist die Zahl, die im Bericht steht.",
+      "Der Einsatz ist die Frage, ob man eingreift."
+    ],
+    "endings": [
+      "Und das Leben w\xE4chst weiter, leise.",
+      "Und die Mutation bleibt.",
+      "So bleibt nur eine Spur im Gewebe.",
+      "Und das Herz findet einen neuen Takt.",
+      "Und die Natur antwortet nicht.",
+      "Und die Zahl geht in die Reihe ein wie in jedem Jahr.",
+      "So bleibt das Glas im Regal, beschriftet und unge\xF6ffnet.",
+      "Am Ende z\xE4hlt jemand anders weiter.",
+      "Und der Bestand h\xE4lt sich, vorerst.",
+      "So tr\xE4gt der Name jetzt ein Datum.",
+      "Und im n\xE4chsten Fr\xFChjahr steht wieder jemand am Rand des Feldes.",
+      "Das Feldbuch schlie\xDFt mit einer offenen Zeile.",
+      "Und der Bau bleibt bewohnt, ohne uns.",
+      "Und die Zahl geht in die Reihe ein, mit einem Fragezeichen.",
+      "So liegt das Pr\xE4parat im Schrank, beschriftet und blass.",
+      "Am Ende steht eine Art auf einer anderen Liste.",
+      "Und der Bau bleibt bewohnt, das zeigt der Aushub.",
+      "So z\xE4hlt jemand im n\xE4chsten Fr\xFChjahr an derselben Stelle."
+    ],
+    "verwandlungen": [
+      "Zelle\u2192Kammer",
+      "Nest\u2192Haus",
+      "Schwarm\u2192Rauch",
+      "Probe\u2192Frage",
+      "Wurzel\u2192Ader",
+      "K\xE4fer\u2192Splitter",
+      "Bestand\u2192Rest",
+      "Netz\u2192Gitter"
+    ]
+  },
+  "geologie": {
+    "motifs": [
+      "eine Stadt unter Lava",
+      "ein sprechender Granitblock",
+      "eine Fossilie mit ge\xF6ffnetem Auge",
+      "ein Fluss aus Quecksilber",
+      "eine Schlucht voller Stimmen",
+      "ein Berg mit Herzschlag",
+      "eine Karte aus Gesteinsschichten",
+      "ein Kristall, der Erinnerungen speichert",
+      "eine tektonische Naht im Wohnzimmer",
+      "eine H\xF6hle aus Salz",
+      "eine Schicht, die ein Jahr ausl\xE4sst",
+      "Sandstein mit Ringen wie ein Baum",
+      "ein Gletscher, der r\xFCckw\xE4rts geht",
+      "die Naht zweier Kontinente",
+      "Kalk, der einmal Tier war",
+      "eine H\xF6hle, die atmet",
+      "ein Findling, der nicht hierher geh\xF6rt",
+      "Asche \xFCber einem Stra\xDFenpflaster",
+      "ein Bohrkern in einer R\xF6hre",
+      "Salz unter einer Wiese",
+      "eine Quelle, die zu warm ist",
+      "ein Tal, das ein Fluss vergessen hat",
+      "Schotter in fremder Farbe",
+      "ein Abdruck ohne Tier",
+      "eine Halde, auf der nichts w\xE4chst",
+      "ein Stollen mit verfaultem Geb\xE4lk"
+    ],
+    "hooks": [
+      "Der Boden unter mir denkt nach.",
+      "Ein Riss zieht sich durch den Morgen.",
+      "Der Stein ist w\xE4rmer als meine Hand.",
+      "Die Landschaft verschob sich um Millimeter.",
+      "Ein Fossil fl\xFCstert meinen Namen.",
+      "Ein Bohrkern zeigt eine Schicht zu viel.",
+      "Der Pegel steht seit Tagen falsch.",
+      "Die Quelle f\xFChrt pl\xF6tzlich Sand.",
+      "Ein Hang gibt nach, ohne dass es regnete.",
+      "Der Seismograph zeichnet, und niemand hat es gesp\xFCrt.",
+      "Ein Stein liegt dort, wo kein Stein liegen kann.",
+      "Die Karte stimmt nicht mehr mit dem Hang.",
+      "Im Schacht wird es w\xE4rmer statt k\xE4lter.",
+      "Ein Riss ist \xFCber Nacht gewachsen.",
+      "Das Wasser im Brunnen schmeckt nach Schwefel.",
+      "Der Berg hat sich um einen Zentimeter gesenkt.",
+      "Zwei Messungen widersprechen sich seit Montag."
+    ],
+    "props": [
+      "einen Hammer",
+      "eine Lupe",
+      "ein St\xFCck Basalt",
+      "eine Feldkarte",
+      "einen Kompass",
+      "ein Notizbuch voller Schichten",
+      "eine Taschenlampe",
+      "eine Bohrprobe",
+      "einen Kristall",
+      "eine Staubmaske",
+      "einen Bohrkern",
+      "einen H\xF6henmesser",
+      "eine Schichtenkarte",
+      "ein Fl\xE4schchen Salzs\xE4ure",
+      "einen Mei\xDFel",
+      "ein Notizbuch mit Profilzeichnungen",
+      "eine Grubenlampe",
+      "ein Sieb f\xFCr Ger\xF6ll",
+      "einen Pegelstab",
+      "eine Probe in Papier",
+      "ein Seil mit Knoten alle zwei Meter",
+      "einen Seismographen aus Messing",
+      "einen Kompass mit Neigungsmesser",
+      "ein Glas mit Sand"
+    ],
+    "turns": [
+      "die Erdkruste spricht",
+      "Druck wird zu Erinnerung",
+      "eine Verwerfung \xF6ffnet sich",
+      "Zeit beschleunigt sich um Jahrtausende",
+      "ein Vulkan tr\xE4umt",
+      "das Gestein wird durchsichtig",
+      "Schichten tauschen ihre Reihenfolge",
+      "die Schicht nennt eine andere Jahreszahl",
+      "der Hang beginnt zu wandern",
+      "ein Hohlraum antwortet auf das Klopfen",
+      "die Probe passt zu keinem Gestein der Gegend",
+      "der Pegel f\xE4llt schneller als die Rechnung",
+      "eine \xE4ltere Karte zeigt, was fehlt",
+      "der Schacht f\xFChrt in eine \xE4ltere Zeit",
+      "das Wasser findet einen neuen Weg",
+      "der Findling verr\xE4t seine Herkunft",
+      "ein zweiter Riss kreuzt den ersten",
+      "die Messung wiederholt sich nicht",
+      "unter der Asche liegt noch eine Asche",
+      "die Schichtfolge stimmt, aber die Reihenfolge nicht",
+      "ein zweiter Bohrkern widerspricht dem ersten um Jahrtausende",
+      "der Hang bewegt sich langsamer, seit man ihn beobachtet",
+      "eine alte Grubenkarte zeigt einen Stollen, den es geben m\xFCsste",
+      "das Gestein stammt aus einem Gebirge, das nicht mehr steht",
+      "der Riss h\xF6rt auf zu wachsen, ohne dass jemand etwas tat"
+    ],
+    "obstacles": [
+      "die H\xF6hle endet im Nichts",
+      "ein Erdbeben verschiebt die Karte",
+      "der Kompass dreht sich ziellos",
+      "die Lava versiegelt den Ausgang",
+      "eine Schicht fehlt",
+      "der Boden gibt nach",
+      "Staub nimmt die Sicht",
+      "der Winter schlie\xDFt den Steinbruch",
+      "die Probe zerf\xE4llt an der Luft",
+      "niemand darf den Hang betreten",
+      "das Seil reicht nicht bis zur Sohle",
+      "die Bohrung trifft nur Ger\xF6ll",
+      "der Regen w\xE4scht das Profil weg",
+      "die Genehmigung fehlt",
+      "die Karte ist vierzig Jahre alt",
+      "der Stollen ist verbrochen",
+      "das Ger\xE4t zeigt zwei Werte",
+      "der Frost sprengt die Wand \xFCber dem Weg",
+      "die Probe muss ins Labor, und das Labor ist geschlossen",
+      "der Hang darf erst nach der Schneeschmelze betreten werden",
+      "die Bohrgenehmigung gilt f\xFCr ein anderes Flurst\xFCck",
+      "die alte Karte nennt H\xF6hen in einem anderen Bezugssystem",
+      "der Steinbruch geh\xF6rt jemandem, der nicht antwortet",
+      "die Messung braucht eine Woche ohne Ersch\xFCtterung",
+      "das Ger\xE4t zeigt nach dem Frost andere Werte als davor"
+    ],
+    "stakes": [
+      "Der Einsatz ist Stabilit\xE4t: Der Boden tr\xE4gt oder bricht.",
+      "Der Einsatz ist Herkunft: Was liegt unter uns?",
+      "Der Einsatz ist Geduld: Millionen Jahre im Warten.",
+      "Der Einsatz ist Erinnerung: Im Stein eingeschlossen.",
+      "Der Einsatz ist \xDCberleben: Die Erde entscheidet.",
+      "Der Einsatz ist der Hang \xFCber dem Dorf.",
+      "Der Einsatz ist eine Jahreszahl, die alles verschiebt.",
+      "Der Einsatz ist die Bohrung: eine oder keine.",
+      "Der Einsatz ist das Wasser unter der Stadt.",
+      "Der Einsatz ist eine Karte, der jemand glaubt.",
+      "Der Einsatz ist die Zeit, die im Stein steht.",
+      "Der Einsatz ist ein Gutachten, das eine Stra\xDFe entscheidet."
+    ],
+    "endings": [
+      "Und der Berg schweigt wieder.",
+      "Und die Schichten schlie\xDFen sich.",
+      "So bleibt nur ein Abdruck im Gestein.",
+      "Und der Riss wird zu einer Linie auf Papier.",
+      "Und der Staub legt sich wie Schnee.",
+      "Und die Schicht bleibt, wo sie liegt.",
+      "So steht die Zahl im Bericht, und niemand liest sie.",
+      "Am Ende ist der Hang ruhig, aber nicht sicher.",
+      "Und der Bohrkern wandert ins Regal.",
+      "So misst es weiter, ohne uns.",
+      "Und das Wasser findet seinen Weg trotzdem.",
+      "Der Stein hat Zeit, wir nicht.",
+      "Und \xFCber der Asche w\xE4chst wieder Gras.",
+      "Und die Probe steht beschriftet im Regal des Instituts.",
+      "So bleibt der Hang stehen, bis er es nicht mehr tut.",
+      "Am Ende tr\xE4gt die Karte eine Linie mehr als vorher.",
+      "Und im Fr\xFChjahr geht jemand denselben Weg noch einmal.",
+      "So bleibt eine Zahl im Bericht, mit einer Unsicherheit dahinter."
+    ],
+    "verwandlungen": [
+      "Stein\u2192Knochen",
+      "Schicht\u2192Seite",
+      "Karte\u2192Fl\xE4che",
+      "Riss\u2192Weg",
+      "Quelle\u2192Wunde",
+      "Berg\u2192Zeuge",
+      "H\xF6hle\u2192Kammer",
+      "Gestein\u2192Ged\xE4chtnis",
+      "Bohrung\u2192Frage"
+    ]
+  },
+  "astrologie": {
+    "motifs": [
+      "eine Galaxie im Wasserglas",
+      "ein Planet mit Rissen aus Licht",
+      "ein Teleskop, das nach innen schaut",
+      "ein Komet aus gefrorenen Erinnerungen",
+      "ein schwarzes Loch im B\xFCcherregal",
+      "eine Sternkarte ohne Norden",
+      "ein Mond mit Puls",
+      "eine Sonne aus Glas",
+      "ein Satellit, der Gedichte sendet",
+      "eine Raumstation aus Knochen",
+      "eine Sternwarte mit offener Kuppel",
+      "ein Signal, das \xE4lter ist als die Erde",
+      "die Umlaufbahn eines K\xF6rpers ohne Namen",
+      "ein Spiegel von acht Metern",
+      "eine Aufnahme mit einem Strich zu viel",
+      "Staub zwischen zwei Sternen",
+      "ein Funkecho aus derselben Richtung",
+      "eine Karte des Himmels von 1890",
+      "ein Krater mit scharfem Rand",
+      "die Nachtseite eines Planeten",
+      "ein Zeitzeichen, das um Sekunden abweicht",
+      "eine Sonnenfinsternis auf Millimeterpapier",
+      "der Schatten eines Mondes auf einer Wolkendecke",
+      "eine Zahlenreihe ohne Ende",
+      "ein Punkt, der auf zwei Platten wandert"
+    ],
+    "hooks": [
+      "Der Himmel atmet n\xE4her als sonst.",
+      "Ein Stern f\xE4llt nicht \u2013 er steigt.",
+      "Das Teleskop beobachtet mich.",
+      "Zwischen zwei Sekunden \xF6ffnet sich ein Orbit.",
+      "Der Mond ist heute schwerer.",
+      "Das Signal wiederholt sich nach 71 Tagen.",
+      "Die Platte von gestern zeigt einen Punkt zu viel.",
+      "Der Himmel ist klar und die Kuppel klemmt.",
+      "Ein Stern ver\xE4ndert seine Helligkeit im Takt.",
+      "Die Uhr des Observatoriums geht seit Montag anders.",
+      "Eine alte Aufnahme zeigt, was heute fehlt.",
+      "Der Funkspruch kommt von einem Ort ohne Sender.",
+      "Die Bahn stimmt nur, wenn man einen K\xF6rper annimmt.",
+      "Ein Kollege hat die Beobachtung nicht eingetragen.",
+      "Das Teleskop steht auf einer Stelle, an der nichts ist.",
+      "Der Regen kommt, und die Nacht war die letzte im Jahr."
+    ],
+    "props": [
+      "ein Fernglas",
+      "eine Sternkarte",
+      "ein St\xFCck Meteorit",
+      "eine zerkratzte Raumkapsel",
+      "ein Notizbuch mit Koordinaten",
+      "einen Kompass ohne Nadel",
+      "eine Sauerstoffmaske",
+      "einen Modellplaneten",
+      "eine Sanduhr mit Sternenstaub",
+      "einen Funksender",
+      "eine Fotoplatte",
+      "eine Pendeluhr",
+      "ein Fadenkreuz",
+      "ein Logbuch der Nacht",
+      "einen Filter aus dunklem Glas",
+      "ein Spektrogramm",
+      "eine Ephemeride",
+      "eine Kurbel f\xFCr die Kuppel",
+      "einen Rechenschieber",
+      "eine Karte mit eingetragenen Punkten",
+      "ein Thermometer im Kuppelraum",
+      "eine Kanne Kaffee f\xFCr die Nacht"
+    ],
+    "turns": [
+      "die Gravitation \xE4ndert ihre Richtung",
+      "ein Planet antwortet",
+      "Zeit dehnt sich sichtbar",
+      "ein Stern wird geboren und spricht",
+      "der Beobachter wird beobachtet",
+      "der Raum faltet sich wie Papier",
+      "das Licht kommt zu sp\xE4t",
+      "die Bahn geht nur auf mit einem K\xF6rper, den niemand sieht",
+      "das Signal stammt aus dem eigenen Haus",
+      "die alte Platte entscheidet den Streit",
+      "der Punkt bewegt sich zwischen zwei Aufnahmen",
+      "eine Beobachtung von 1890 wird zur Messung",
+      "das Licht ist so alt, dass die Quelle nicht mehr steht",
+      "die Abweichung ist die Entdeckung",
+      "zwei Sternwarten sehen dasselbe zur selben Sekunde",
+      "die Rechnung stimmt und die Annahme nicht",
+      "der Fehler liegt in der Uhr, nicht am Himmel",
+      "die Wolken rei\xDFen f\xFCr vier Minuten auf",
+      "die Bahn passt, wenn man die Uhr um Sekunden verschiebt",
+      "ein anderes Observatorium hat dasselbe zwei N\xE4chte fr\xFCher",
+      "der Punkt war schon auf einer Platte von 1912",
+      "die St\xF6rung kommt aus dem Haus und nicht vom Himmel",
+      "die Rechnung ergibt zwei L\xF6sungen, und beide sind m\xF6glich"
+    ],
+    "obstacles": [
+      "der Horizont verschluckt die Sterne",
+      "das Signal erreicht nur die Vergangenheit",
+      "ein schwarzes Loch verweigert die R\xFCckgabe",
+      "die Umlaufbahn zerbricht",
+      "der Sauerstoff wird zu Erinnerung",
+      "die Sternkarte zeigt nur Namen",
+      "ein Komet streicht den Kurs",
+      "die Wolken kommen mit dem Aufgang",
+      "die Nacht reicht f\xFCr eine Aufnahme",
+      "das Signal wiederholt sich nicht",
+      "die Platte ist \xFCberbelichtet",
+      "der Spiegel muss neu belegt werden",
+      "die Uhr weicht ab und niemand wei\xDF seit wann",
+      "der Streulichtschein der Stadt w\xE4chst",
+      "die Rechenzeit ist auf zwei Stunden begrenzt",
+      "der K\xF6rper steht zu tief \xFCber dem Horizont",
+      "die Beobachtungszeit geh\xF6rt einem anderen",
+      "die Kuppel l\xE4sst sich bei Frost nur halb drehen",
+      "die Platten m\xFCssen entwickelt werden, bevor sie altern",
+      "die Nacht wird durch einen Stromausfall unterbrochen",
+      "der Vergleichsstern steht in diesem Monat zu tief",
+      "die Auswertung braucht die Zeit von drei Wintern\xE4chten"
+    ],
+    "stakes": [
+      "Der Einsatz ist Schwerkraft: Sie h\xE4lt oder l\xE4sst los.",
+      "Der Einsatz ist Ursprung: Wo begann das Licht?",
+      "Der Einsatz ist Isolation: Niemand antwortet.",
+      "Der Einsatz ist Zeit: Milliarden Jahre in einer Sekunde.",
+      "Der Einsatz ist Heimkehr: Gibt es einen Weg zur\xFCck?",
+      "Der Einsatz ist eine Nacht, die nicht wiederkommt.",
+      "Der Einsatz ist eine Zahl, die eine Bahn entscheidet.",
+      "Der Einsatz ist die Uhr: Ohne sie ist alles ungenau.",
+      "Der Einsatz ist die Frage, ob dort etwas ist.",
+      "Der Einsatz ist eine Beobachtung gegen eine Theorie.",
+      "Der Einsatz ist ein Name f\xFCr ein neues Objekt."
+    ],
+    "endings": [
+      "Und die Sterne r\xFCcken ein St\xFCck n\xE4her.",
+      "Und das Licht bleibt zur\xFCck wie ein Echo.",
+      "So bleibt nur Staub in meiner Hand.",
+      "Und der Planet dreht sich ohne mich weiter.",
+      "Und ich falle \u2013 nach oben.",
+      "Und die Kuppel schlie\xDFt sich vor dem Morgen.",
+      "So steht der Punkt im Katalog und wartet.",
+      "Am Ende bleibt eine Zahl mit einer Unsicherheit.",
+      "Und das Licht war schon unterwegs, als es niemanden gab.",
+      "So bleibt es dabei: eine Beobachtung, keine zwei.",
+      "Und die n\xE4chste Nacht ist in einem Jahr.",
+      "Der Himmel dreht sich weiter, ob jemand hinsieht oder nicht.",
+      "Und die Platte trocknet, mit einem Punkt darauf.",
+      "So steht die Beobachtung im Buch und wartet auf eine zweite.",
+      "Am Ende ist es eine Zahl, die niemand best\xE4tigen kann.",
+      "Und die Kuppel wird geschlossen, bevor es hell wird.",
+      "So bleibt der Himmel, wie er war, nur genauer."
+    ],
+    "verwandlungen": [
+      "Stern\u2192Punkt",
+      "Kuppel\u2192Schale",
+      "Signal\u2192Echo",
+      "Bahn\u2192Linie",
+      "Uhr\u2192Waage",
+      "Teleskop\u2192Fernrohr",
+      "Licht\u2192Ger\xFCcht",
+      "Platte\u2192Karte"
+    ]
+  },
+  "gaia": {
+    "motifs": [
+      "ein Planet, der zweimal im Jahr atmet",
+      "Kontinente, die wie Rippen unter der Haut liegen",
+      "ein Ozean, der wie Blut im Kreis l\xE4uft",
+      "ein Puls, der aus dem Erdinneren kommt",
+      "ein Wald, der ein Nervengeflecht bildet",
+      "Wolken, die aussehen wie Gedanken",
+      "ein Gebirge, das sich wie eine Stirn w\xF6lbt",
+      "Fl\xFCsse, die wie Adern durch das Land gehen",
+      "St\xE4dte, die wie Parasiten leuchten",
+      "eine Atmosph\xE4re, die wie eine Haut anliegt",
+      "ein Moor, das seit achttausend Jahren Kohlenstoff h\xE4lt",
+      "ein Riff, das in einem Sommer wei\xDF wird",
+      "eine Messreihe, die seit 1958 nicht unterbrochen wurde",
+      "ein Gletscher, der jedes Jahr eine Marke zur\xFCckweicht",
+      "ein Bohrkern aus dem Eis mit Luft von damals",
+      "ein Waldbrand, der seinen eigenen Wind macht",
+      "eine K\xFCste, die um einen Meter im Jahr verschwindet",
+      "ein Netz von Pilzen unter einem ganzen Hang",
+      "ein Strom, der W\xE4rme \xFCber den halben Planeten tr\xE4gt",
+      "eine Insel, auf der eine Art nur hier lebt",
+      "ein Sturm, der einen Namen bekommt",
+      "eine Karte, auf der eine Farbe jedes Jahr w\xE4chst"
+    ],
+    "hooks": [
+      "Die Erde blinzelt.",
+      "Ein Erdbeben ist nur ein Zucken.",
+      "Der Wind spricht in ganzen S\xE4tzen.",
+      "Die Gezeiten folgen einem Herzschlag.",
+      "Wir leben auf einer Stirn.",
+      "Die Kurve steigt seit sechzig Jahren ohne Knick.",
+      "Der Gletscher hat die Marke von 1950 \xFCberschritten.",
+      "Im Moor sackt der Boden um zwei Zentimeter.",
+      "Das Riff ist in diesem Sommer zum dritten Mal wei\xDF.",
+      "Der Strom im Nordatlantik wird langsamer.",
+      "Ein Vogel br\xFCtet drei Wochen zu fr\xFCh.",
+      "Die Messstation meldet einen Wert, den es nicht geben sollte.",
+      "Der Wald brennt zum zweiten Mal an derselben Stelle.",
+      "Ein Bericht wird um ein Jahr verschoben.",
+      "Die Insel hat in diesem Jahr keine Jungtiere.",
+      "Das Eis tr\xE4gt nicht mehr bis zum Fr\xFChjahr.",
+      "Der Sturm bekommt einen Namen, der schon vergeben war."
+    ],
+    "props": [
+      "eine Handvoll Erde",
+      "ein Stethoskop",
+      "eine Weltkarte",
+      "ein Glas Meerwasser",
+      "einen Stein mit Riss",
+      "ein Blatt",
+      "eine seismografische Linie",
+      "ein Satellitenbild",
+      "eine Atemmaske",
+      "eine Wurzel",
+      "einen Bohrkern aus dem Eis",
+      "ein Messger\xE4t auf einem Mast",
+      "eine Karte mit eingef\xE4rbten Fl\xE4chen",
+      "ein Glas Meerwasser mit Datum",
+      "eine Handvoll Moorerde",
+      "einen Datensatz von 1958",
+      "ein Fernglas f\xFCr die Z\xE4hlung",
+      "eine Markierung am Gletscherrand",
+      "einen Bericht mit einer Zusammenfassung",
+      "ein Thermometer im Bodenprofil"
+    ],
+    "turns": [
+      "der Planet reagiert bewusst",
+      "das Klima antwortet",
+      "die Kontinente verschieben sich absichtlich",
+      "die Menschheit wird als Symptom erkannt",
+      "die Welt beginnt zu tr\xE4umen",
+      "Naturgesetze werden zu Instinkten",
+      "der Himmel senkt sich n\xE4her",
+      "das System antwortet, aber mit drei\xDFig Jahren Verz\xF6gerung",
+      "eine R\xFCckkopplung verst\xE4rkt, was sie d\xE4mpfen sollte",
+      "die Kurve knickt, und niemand traut der Messung",
+      "ein Kipppunkt wird \xFCberschritten und erst sp\xE4ter bemerkt",
+      "der Wald wird zur Quelle statt zur Senke",
+      "das Moor gibt zur\xFCck, was es achttausend Jahre hielt",
+      "die Vorhersage stimmt und war zu vorsichtig",
+      "eine Art verschwindet und nimmt drei andere mit",
+      "der Bericht wird abgeschw\xE4cht, bevor er erscheint",
+      "das Eis erinnert sich an eine Luft, die es nicht mehr gibt",
+      "die Grenze der Art verschiebt sich nach Norden",
+      "ein Sturm bringt in drei Tagen den Regen eines Jahres",
+      "die Messreihe wird eingestellt, aus Kostengr\xFCnden",
+      "das Riff kommt zur\xFCck, an einer anderen Stelle"
+    ],
+    "obstacles": [
+      "der Organismus wird krank",
+      "der Puls wird unregelm\xE4\xDFig",
+      "ein Teil des K\xF6rpers rebelliert",
+      "das Nervensystem brennt",
+      "die Haut rei\xDFt",
+      "der Atem wird d\xFCnn",
+      "das Ged\xE4chtnis der Erde l\xF6scht sich",
+      "die Messreihe braucht drei\xDFig Jahre f\xFCr eine Aussage",
+      "der Bericht muss von allen Staaten angenommen werden",
+      "die Verz\xF6gerung im System ist l\xE4nger als jede Amtszeit",
+      "die Station steht in einem Gebiet ohne Strom",
+      "das Modell rechnet drei Wochen f\xFCr einen Lauf",
+      "die Daten geh\xF6ren einer Beh\xF6rde, die nicht antwortet",
+      "der Fr\xFChling kommt zu fr\xFCh f\xFCr die Best\xE4uber",
+      "die K\xFCste l\xE4sst sich nicht \xFCberall sch\xFCtzen",
+      "das Moor ist trockengelegt und im Grundbuch verkauft",
+      "eine Kurve \xFCberzeugt niemanden, der nicht will",
+      "die F\xF6rdermittel laufen im Dezember aus",
+      "das Eis bricht, bevor die Bohrung fertig ist",
+      "der Winter ist zu warm f\xFCr die Z\xE4hlung",
+      "ein Kipppunkt l\xE4sst sich erst hinterher datieren"
+    ],
+    "stakes": [
+      "Der Einsatz ist Gleichgewicht: System oder Kollaps.",
+      "Der Einsatz ist Bewusstsein: Wei\xDF die Welt von uns?",
+      "Der Einsatz ist Koexistenz: Parasit oder Zelle?",
+      "Der Einsatz ist Heilung: Regeneration oder Narben.",
+      "Der Einsatz ist Zukunft: Evolution oder Fieber.",
+      "Der Einsatz ist eine Messreihe von sechzig Jahren.",
+      "Der Einsatz ist ein Moor, das man einmal trockenlegt.",
+      "Der Einsatz ist ein Riff, das nicht zweimal zur\xFCckkommt.",
+      "Der Einsatz ist ein Bericht, den alle unterschreiben m\xFCssen.",
+      "Der Einsatz ist ein Kipppunkt, der schon hinter uns liegt.",
+      "Der Einsatz ist ein Fr\xFChling, der zur richtigen Zeit kommt."
+    ],
+    "endings": [
+      "Und der Planet atmet tiefer.",
+      "Und wir sind nur eine Phase.",
+      "So bleibt ein leiser Herzschlag.",
+      "Und die Welt dreht sich weiter \u2013 wissend.",
+      "Und das Wesen schlie\xDFt kurz die Augen.",
+      "Und die Kurve steigt weiter, wie in jedem Jahr.",
+      "So bleibt der Bohrkern im K\xFChlraum liegen.",
+      "Am Ende steht eine Zahl in einem Bericht.",
+      "Und der Gletscher weicht um eine Marke zur\xFCck.",
+      "So misst die Station weiter, ob jemand liest oder nicht.",
+      "Und das Moor gibt zur\xFCck, was es lange gehalten hat.",
+      "Der Sturm zieht ab und bekommt einen Namen.",
+      "Und im n\xE4chsten Fr\xFChjahr z\xE4hlt wieder jemand.",
+      "So steht die Farbe auf der Karte, ein Feld weiter.",
+      "Und das Eis erinnert sich, solange es liegt."
+    ],
+    "verwandlungen": [
+      "Planet\u2192K\xF6rper",
+      "Kurve\u2192Linie",
+      "Eis\u2192Ged\xE4chtnis",
+      "Moor\u2192Lager",
+      "Wald\u2192Teppich",
+      "Sturm\u2192Atem",
+      "Riff\u2192Ger\xFCst",
+      "K\xFCste\u2192Grenze"
+    ]
+  },
+  "freud": {
+    "motifs": [
+      "eine Couch im Halbdunkel",
+      "ein Traum, der sich wiederholt",
+      "ein Schl\xFCssel ohne Schloss",
+      "eine verschlossene T\xFCr im Inneren",
+      "ein Kinderspielzeug unter dem Bett",
+      "ein Spiegel ohne Spiegelbild",
+      "eine Treppe ins Untergeschoss",
+      "ein Brief ohne Absender",
+      "eine tickende Uhr im Kopf",
+      "ein Schatten hinter der Stimme",
+      "ein Wartezimmer mit zwei T\xFCren",
+      "eine Uhr, die der Patient nicht sieht",
+      "ein Wort, das immer ausgelassen wird",
+      "eine Kindheit in dritter Person erz\xE4hlt",
+      "eine Treppe im Traum, die nach unten f\xFChrt",
+      "ein Vater im T\xFCrrahmen",
+      "ein Zimmer, das man nicht betreten durfte",
+      "ein Name, der beim Sprechen kippt",
+      "ein Foto, auf dem jemand herausgeschnitten wurde",
+      "ein wiederkehrender Ort ohne Namen",
+      "H\xE4nde, die w\xE4hrend des Sprechens etwas tun",
+      "ein Datum, das jedes Jahr wiederkommt",
+      "ein Ger\xE4usch aus der Wohnung dar\xFCber",
+      "ein Brief, der nie abgeschickt wurde",
+      "ein M\xF6belst\xFCck, das im Traum immer dasteht"
+    ],
+    "hooks": [
+      "Ich erinnere mich nicht, aber mein K\xF6rper schon.",
+      "Der Traum beginnt immer an derselben Stelle.",
+      "Es ist nur ein Versprecher.",
+      "Ich sagte Mutter, meinte aber etwas anderes.",
+      "Die Stille zwischen zwei Worten wird zu laut.",
+      "Die Stunde beginnt mit einer Entschuldigung.",
+      "Er erz\xE4hlt den Traum zum dritten Mal, anders.",
+      "Sie kommt zwanzig Minuten zu sp\xE4t und nennt keinen Grund.",
+      "Ein Satz bricht immer an derselben Stelle ab.",
+      "Der Name der Schwester f\xE4llt nie.",
+      "Er lacht an einer Stelle, an der nichts komisch ist.",
+      "Die Rechnung wird jedes Mal vergessen.",
+      "Sie spricht von einem Zimmer, das es im Haus nicht gab.",
+      "Ein Wort kommt vor, das nicht seines ist.",
+      "Die Uhr steht, und niemand sagt etwas.",
+      "Er beschreibt seine Mutter mit den Worten seines Chefs."
+    ],
+    "props": [
+      "eine Couch",
+      "ein Notizbuch",
+      "eine Taschenuhr",
+      "ein Kindheitsfoto",
+      "eine Zigarre",
+      "einen Briefumschlag",
+      "eine verschlossene Schublade",
+      "einen Schl\xFCssel",
+      "eine Maske",
+      "ein Tagebuch",
+      "eine Zeitschrift aus dem Wartezimmer",
+      "einen Aschenbecher",
+      "einen Terminkalender",
+      "ein Kuvert mit dem Honorar",
+      "eine Decke f\xFCr die Couch",
+      "einen Brief ohne Anrede",
+      "ein Kinderfoto mit einem Riss",
+      "eine Nadel im Revers",
+      "einen Traumbericht auf Papier",
+      "ein W\xF6rterbuch",
+      "eine Karteikarte mit einem Datum",
+      "eine Klingel an der Wohnungst\xFCr"
+    ],
+    "turns": [
+      "das Unbewusste \xFCbernimmt die Szene",
+      "eine Verdr\xE4ngung l\xF6st sich",
+      "ein Traum wird w\xF6rtlich",
+      "das Ich verliert Kontrolle",
+      "das \xDCber-Ich spricht mit fremder Stimme",
+      "ein Kindheitsbild wird real",
+      "Begehren zeigt sein Gesicht",
+      "die \xDCbertragung nennt den Arzt beim falschen Namen",
+      "der Traum meint die Stunde selbst",
+      "ein Versprecher trifft genauer als die Erkl\xE4rung",
+      "die Erinnerung stellt sich als geliehen heraus",
+      "der Widerstand kommt p\xFCnktlich zur Deutung",
+      "eine zweite Person taucht in derselben Rolle auf",
+      "die Symptome tauschen den Platz",
+      "was harmlos schien, tr\xE4gt das Gewicht",
+      "die Kindheit \xE4ndert ihr Datum",
+      "der Patient deutet den Arzt",
+      "ein Traum wiederholt sich, aber mit fremdem Personal",
+      "die Stunde wird verschoben, und das ist die Deutung",
+      "ein Traum der Mutter erkl\xE4rt den Traum des Sohnes",
+      "der Widerstand wird h\xF6flich und damit schwerer zu fassen",
+      "ein Detail aus der ersten Stunde kommt nach Jahren wieder",
+      "die Erinnerung stimmt, nur geh\xF6rt sie einem anderen",
+      "er erz\xE4hlt zum ersten Mal etwas, das er f\xFCr belanglos hielt"
+    ],
+    "obstacles": [
+      "Erinnerung verweigert sich",
+      "ein Symptom ersetzt die Wahrheit",
+      "Scham blockiert das Sprechen",
+      "der Traum verschiebt seine Bedeutung",
+      "ein Widerstand baut sich auf",
+      "Sprache zerf\xE4llt in Andeutungen",
+      "ein Name darf nicht ausgesprochen werden",
+      "die Stunde ist zu kurz f\xFCr den Satz",
+      "die Deutung stimmt und hilft nicht",
+      "der Traum entzieht sich beim Aufschreiben",
+      "eine Erinnerung l\xE4sst sich nicht pr\xFCfen",
+      "die Familie bestreitet alles",
+      "das Symptom kehrt in anderer Form zur\xFCck",
+      "der Patient h\xF6rt auf zu kommen",
+      "eine Frage ist zu direkt gestellt",
+      "die Sprache reicht f\xFCr das Gef\xFChl nicht",
+      "der Termin f\xE4llt auf dasselbe Datum",
+      "die Familie erwartet einen Bericht, den es nicht geben darf",
+      "die Wohnung \xFCber der Praxis wird gerade umgebaut",
+      "ein Kollege deutet dasselbe anders und ver\xF6ffentlicht zuerst",
+      "der Patient bezahlt und will daf\xFCr ein Ergebnis",
+      "die Stunde f\xE4llt in dieselbe Woche wie in jedem Jahr",
+      "ein Wort trifft nicht, was gemeint ist"
+    ],
+    "stakes": [
+      "Der Einsatz ist Wahrheit: Verdr\xE4ngt oder erkannt.",
+      "Der Einsatz ist Identit\xE4t: Wer spricht wirklich?",
+      "Der Einsatz ist Begehren: Erf\xFCllt oder verschoben.",
+      "Der Einsatz ist Freiheit: Neurose oder Einsicht.",
+      "Der Einsatz ist Erinnerung: Heilung oder Wiederholung.",
+      "Der Einsatz ist ein Satz, den er zu Ende sprechen m\xFCsste.",
+      "Der Einsatz ist die Deutung: zu fr\xFCh oder gar nicht.",
+      "Der Einsatz ist eine Kindheit, die niemand best\xE4tigt.",
+      "Der Einsatz ist das Vertrauen einer Stunde.",
+      "Der Einsatz ist die Frage, wem die Erinnerung geh\xF6rt.",
+      "Der Einsatz ist ein Name, der nicht fallen darf."
+    ],
+    "endings": [
+      "Und das Unbewusste l\xE4chelt.",
+      "Und das Symptom verschwindet \u2013 vorl\xE4ufig.",
+      "So bleibt nur eine neue Deutung.",
+      "Und der Traum beginnt erneut.",
+      "Und ich wei\xDF, warum ich es vergessen habe.",
+      "Und die Stunde ist um, mitten im Satz.",
+      "So bleibt die Deutung stehen, unbeantwortet.",
+      "Am Ende steht ein Datum im Kalender, sonst nichts.",
+      "Und beim n\xE4chsten Mal beginnt er woanders.",
+      "So kehrt der Traum zur\xFCck, mit anderem Personal.",
+      "Und das Wort fehlt weiter.",
+      "Der Termin bleibt bestehen, das Symptom auch.",
+      "Und die Karteikarte bekommt ein Datum und drei Zeilen.",
+      "So bleibt der Traum unaufgeschrieben bis zum n\xE4chsten Mal.",
+      "Am Ende steht die Uhr, und niemand sagt etwas dazu.",
+      "Und im Wartezimmer sitzt schon jemand anderes.",
+      "So endet die Stunde, wie sie begonnen hat, mit einer Frage."
+    ],
+    "verwandlungen": [
+      "Traum\u2192Bericht",
+      "Couch\u2192Bank",
+      "Uhr\u2192Wand",
+      "Vater\u2192Richter",
+      "Symptom\u2192Zeichen",
+      "Erinnerung\u2192Erfindung",
+      "Wort\u2192Bild",
+      "T\xFCr\u2192Wand"
+    ]
+  },
+  "jugendsprache": {
+    "motifs": [
+      "eine Nachricht mit drei Flammen-Emojis",
+      "ein Meme, das niemand erkl\xE4rt",
+      "ein Satz ohne ein einziges Satzzeichen",
+      "ein Insiderwort mit einem Ablaufdatum von zwei Wochen",
+      "ein Screenshot als Beweis f\xFCr etwas, das keiner bestreitet",
+      "Ironie ohne Warnschild, und keiner fragt nach",
+      "eine Abk\xFCrzung, die alles ersetzt",
+      "ein Trend, der morgen cringe ist",
+      "ein Wort, das Bedeutung wechselt",
+      "ein Kommentar mit nur einem Wort: 'wild'",
+      "ein Chat mit 300 ungelesenen",
+      "ein Profilbild von vorletztem Sommer",
+      "eine Story, die nach 24 Stunden weg ist",
+      "ein Gruppenname, den keiner mehr versteht",
+      "ein Ladebalken bei 99 Prozent",
+      "eine Playlist f\xFCr genau eine Person",
+      "ein Akku bei vier Prozent",
+      "eine gelesene Nachricht ohne Antwort",
+      "ein Sticker, den nur zwei verstehen",
+      "ein Tisch in der letzten Reihe",
+      "eine Bank am Bolzplatz, immer dieselbe",
+      "ein Bus, der immer zu voll ist",
+      "eine Jacke, die jemand anderem geh\xF6rt",
+      "ein Foto, das keiner posten darf",
+      "ein Timer, der niemanden interessiert",
+      "ein Wort, das gestern noch ging"
+    ],
+    "hooks": [
+      "Bro, das ist anders, das f\xFChlst du.",
+      "Sag ehrlich, f\xFChlst du das?",
+      "Das ist so random, ich kann echt nicht mehr.",
+      "Lowkey ist das krass, aber sag nichts.",
+      "Ich schw\xF6r, kein Cap, das war genau so.",
+      "Jemand liest und antwortet nicht.",
+      "Der Gruppenchat ist pl\xF6tzlich still.",
+      "Ein Screenshot geht rum, und keiner sagt woher.",
+      "Sie schreibt zur\xFCck, aber anders als sonst.",
+      "Das Video ist weg, bevor es jemand sehen konnte.",
+      "Er sitzt heute woanders, und alle sehen es.",
+      "Alle wussten es, nur einer nicht.",
+      "Der Spitzname bleibt h\xE4ngen, auch nach Jahren.",
+      "Die Story ist gel\xF6scht und alle haben sie gesehen.",
+      "Jemand nimmt einen Trend ernst.",
+      "Der Lehrer benutzt das Wort."
+    ],
+    "props": [
+      "ein Smartphone mit gesprungenem Display",
+      "eine Sprachnachricht von vier Minuten",
+      "einen Screenshot, den keiner weiterschicken darf",
+      "ein Hoodie, das jemand anderem geh\xF6rt",
+      "ein Emoji, das keiner mehr benutzt",
+      "einen TikTok-Sound, den alle im Kopf haben",
+      "einen Hashtag von letzter Woche",
+      "eine Insta-Story mit zwei Aufrufen",
+      "einen Gruppenchat mit siebenundvierzig Leuten",
+      "einen AirPod ohne den zweiten",
+      "eine Powerbank, die selbst leer ist",
+      "einen Kopfh\xF6rer mit einem Wackelkontakt",
+      "eine Wasserflasche voller Aufkleber",
+      "ein Ladekabel, das nur in einer Stellung geht",
+      "einen Turnbeutel mit kaputter Kordel",
+      "ein Deo aus dem Spind",
+      "eine Bahnkarte, die seit gestern abgelaufen ist",
+      "einen Kaugummi, den einer geteilt hat",
+      "ein Basecap mit dem Schild nach hinten",
+      "eine Sonnenbrille im November",
+      "einen Aufkleber auf der R\xFCckseite des Handys",
+      "ein Armband aus dem letzten Sommer",
+      "eine Dose Energy f\xFCr die erste Stunde"
+    ],
+    "turns": [
+      "die Ironie kippt in Ernst, und keiner lacht",
+      "ein Insider wird \xF6ffentlich und ist damit tot",
+      "der Trend kommt bei den Eltern an",
+      "ein Wort verliert die Bedeutung, die es hatte",
+      "der Slang steht pl\xF6tzlich in der Werbung",
+      "der Witz wird zur Verteidigung",
+      "jemand pr\xFCft, ob es echt gemeint war",
+      "der Insider funktioniert nicht mehr",
+      "jemand steht dazu, vor allen",
+      "der Chat wird gel\xF6scht, aber alle haben Screenshots",
+      "die Gruppe teilt sich in zwei Chats",
+      "ein Video ist pl\xF6tzlich \xFCberall",
+      "jemand entschuldigt sich zuerst",
+      "das Wort wird von den Falschen benutzt",
+      "keiner will es gewesen sein",
+      "der Trend kippt \xFCber Nacht",
+      "aus dem Spa\xDF wird eine Sache",
+      "jemand blockt zur\xFCck, ohne ein Wort",
+      "die Stille wird zur Antwort",
+      "jemand schickt einen Screenshot und meint es nicht b\xF6se",
+      "die Gruppe entscheidet sich, ohne dass jemand abstimmt",
+      "ein alter Chat wird gefunden, und alles sieht anders aus",
+      "er entschuldigt sich in der Gruppe und nicht bei ihr"
+    ],
+    "obstacles": [
+      "ein Moment, an den sich alle erinnern werden",
+      "in der Nachricht fehlt der Tonfall",
+      "zu Hause versteht das niemand",
+      "die Gruppe hat schon entschieden",
+      "alle tun so, als w\xE4re es ihnen egal",
+      "keiner wei\xDF mehr, was ernst gemeint ist",
+      "alle sehen, was die anderen machen",
+      "niemand will als Erster schreiben",
+      "der Ton fehlt in der Nachricht",
+      "alle warten auf denselben",
+      "die Story ist schon weg",
+      "der Akku h\xE4lt nicht bis abends",
+      "der Bus f\xE4hrt ohne ihn",
+      "zu Hause fragt jemand nach",
+      "das Handy liegt in der Schublade",
+      "die Antwort kommt drei Tage sp\xE4ter",
+      "keiner will der Erste sein",
+      "die Antwort stand da und wurde wieder gel\xF6scht",
+      "alle sind online, und niemand schreibt",
+      "der Trend l\xE4uft, und er versteht ihn immer noch nicht"
+    ],
+    "stakes": [
+      "Der Einsatz ist Zugeh\xF6rigkeit: Drin oder raus.",
+      "Der Einsatz ist Coolness: Echt oder tryhard.",
+      "Der Einsatz ist Identit\xE4t: Selbstbild oder Performance.",
+      "Der Einsatz ist Tempo: Mitgehen oder zur\xFCckbleiben.",
+      "Der Einsatz ist Humor: Lachen oder ausgelacht werden.",
+      "Der Einsatz ist der Platz in der Gruppe.",
+      "Der Einsatz ist ein Ruf, der bleibt.",
+      "Der Einsatz ist eine Freundschaft von fr\xFCher.",
+      "Der Einsatz ist ein Sommer.",
+      "Der Einsatz ist Ehrlichkeit vor allen.",
+      "Der Einsatz ist der Mut, zuerst zu schreiben."
+    ],
+    "endings": [
+      "Und pl\xF6tzlich ist es peinlich, alles davon.",
+      "Und alle f\xFChlen es, keiner sagt es.",
+      "So wird es ein Insider, f\xFCr genau vier Leute.",
+      "Und das Meme stirbt an einem Donnerstag.",
+      "Und wir sagen einfach: wild.",
+      "Und irgendwann schreibt doch jemand.",
+      "So bleibt der Chat auf gelesen stehen.",
+      "Und am Montag redet keiner mehr davon.",
+      "Und der Bus f\xE4hrt weiter, alle steigen aus.",
+      "So endet die Story, ungespeichert.",
+      "Und das Wort benutzt jetzt niemand mehr.",
+      "Und der Chat bleibt auf gelesen, den ganzen Abend.",
+      "So redet am Montag keiner mehr davon, aber alle wissen es.",
+      "Und irgendwer macht ein Foto, das bleibt."
+    ]
+  },
+  "modernarchitecture": {
+    "motifs": [
+      "eine Glasfassade ohne Vorhang",
+      "eine Betonwand mit Schattenkante",
+      "ein Raum ohne T\xFCren",
+      "eine Treppe aus Stahl",
+      "ein Flachdach unter offenem Himmel",
+      "eine Stadt aus rechten Winkeln",
+      "ein Fensterband ohne Rahmen",
+      "ein Innenhof mit Lichtschacht",
+      "eine wei\xDFe Fl\xE4che ohne Dekor",
+      "ein Geb\xE4ude auf Stelzen",
+      "ein Grundriss ohne einen einzigen Gang",
+      "Sichtbeton mit den Spuren der Schalung",
+      "ein Fenster, das die Wand ersetzt",
+      "eine Rampe statt einer Treppe",
+      "ein Haus auf St\xFCtzen \xFCber dem Boden",
+      "ein Modell aus Karton unter einer Lampe",
+      "ein Innenhof, den niemand betritt",
+      "eine Fuge, die durch das ganze Geb\xE4ude l\xE4uft",
+      "ein Dach als Garten",
+      "eine Wand, die sich verschieben l\xE4sst",
+      "der Schatten eines Vordachs am Mittag",
+      "ein Treppenhaus aus Licht",
+      "ein Bau, der die Stra\xDFe ignoriert",
+      "ein Detail im Ma\xDFstab eins zu eins",
+      "ein Fenster, vor dem ein Vorhang h\xE4ngt"
+    ],
+    "hooks": [
+      "Der Raum ist gr\xF6\xDFer als gedacht, und leerer.",
+      "Nichts lenkt ab, und das ist zuerst unangenehm.",
+      "Das Licht f\xE4llt so genau, als w\xE4re es entworfen.",
+      "Die W\xE4nde schweigen, und der Raum wird lauter.",
+      "Die Stadt beginnt hinter dem Glas des Wohnzimmers.",
+      "der Bauherr will eine Wand mehr, genau in der Mitte",
+      "das Modell steht seit einem Jahr unber\xFChrt",
+      "der Beton kommt zwei Grad zu kalt",
+      "ein Fenster sitzt zwanzig Zentimeter neben dem Plan",
+      "die Genehmigung verlangt ein Satteldach, wie im ganzen Ort",
+      "der Grundriss funktioniert nur ohne M\xF6bel",
+      "auf der Baustelle steht eine Wand, die nicht im Plan ist",
+      "die Fuge l\xE4uft an der Ecke nicht durch",
+      "der Nachbar klagt gegen das Licht aus dem Treppenhaus",
+      "der Entwurf gewinnt und wird nicht gebaut",
+      "die Bewohner h\xE4ngen Vorh\xE4nge vor das Glas"
+    ],
+    "props": [
+      "ein Architekturmodell",
+      "einen Grundrissplan",
+      "eine Skizze auf Transparentpapier",
+      "eine Betonprobe",
+      "eine Stahlstrebe",
+      "eine Glasplatte",
+      "ein Ma\xDFband",
+      "ein CAD-Tablet",
+      "einen Lichtschalter",
+      "eine Designlampe",
+      "einen Ma\xDFstab",
+      "ein Rollenpaket Pl\xE4ne",
+      "einen Bleistift",
+      "ein Modell aus Graupappe",
+      "eine Betonprobe mit Datum",
+      "einen Bauzeitenplan",
+      "ein Lichtbild der Baustelle",
+      "eine Baugenehmigung",
+      "ein Muster der Fassadenplatte",
+      "einen Zollstock",
+      "ein Leitdetail auf Transparentpapier",
+      "eine Rechnung des Statikers"
+    ],
+    "turns": [
+      "die Form folgt der Funktion, bis nichts mehr \xFCbrig ist",
+      "innen und au\xDFen sind nicht mehr zu trennen",
+      "das Ornament verschwindet, und mit ihm die Handschrift",
+      "der Raum wird flexibel und verliert dabei seine Mitte",
+      "die Technik wird sichtbar und \xFCbernimmt die Fassade",
+      "aus Transparenz wird Kontrolle, ohne dass es jemand beschlie\xDFt",
+      "der Minimalismus wird zur Aussage und damit zum Ornament",
+      "die Statik verlangt eine St\xFCtze im freien Raum",
+      "der Bauherr zieht ein und stellt alles um",
+      "das Licht trifft anders als gerechnet, zwei Stunden zu fr\xFCh",
+      "eine Wand f\xE4llt weg und der Entwurf wird besser",
+      "die Norm streicht das eine Detail, an dem alles hing",
+      "der Rohbau ist sch\xF6ner als das fertige Haus",
+      "der Beton zeigt einen Fehler, den keiner beheben will",
+      "die Nutzung \xE4ndert sich vor der \xDCbergabe",
+      "ein Nachbargeb\xE4ude nimmt das Licht, ein Jahr nach der \xDCbergabe",
+      "die Fuge wird zum Thema der Bauleitung",
+      "das Geb\xE4ude bekommt einen Namen von den Bewohnern"
+    ],
+    "obstacles": [
+      "das Material bleibt kalt, was immer man davorstellt",
+      "in diesem Raum gibt es keinen Winkel f\xFCr sich",
+      "die Kosten wachsen schneller als der Rohbau",
+      "die Stadt r\xFCckt von drei Seiten an das Grundst\xFCck",
+      "was lange h\xE4lt, ist teuer, und was billig ist, h\xE4lt nicht",
+      "das Glas trennt sch\xE4rfer als jede Mauer",
+      "die Funktion stimmt, und wohnen mag dort niemand",
+      "die Kosten laufen der Planung davon",
+      "die Norm verbietet die offene Treppe",
+      "der Beton bleibt kalt, was immer man einbaut",
+      "die Bewohner wollen nicht gesehen werden",
+      "die Genehmigung fehlt f\xFCr das Flachdach",
+      "der Statiker widerspricht dem Entwurf an drei Stellen",
+      "der Winter h\xE4lt den Rohbau f\xFCr elf Wochen an",
+      "die Fassade h\xE4lt die W\xE4rme nicht",
+      "der Bauherr wechselt das B\xFCro mitten in der Ausf\xFChrung",
+      "ein Denkmalschutz greift nachtr\xE4glich f\xFCr die Nachbarh\xE4user",
+      "das Grundst\xFCck ist einen Meter zu schmal",
+      "die Handwerker kennen das Detail nicht"
+    ],
+    "stakes": [
+      "Der Einsatz ist Lebensqualit\xE4t: Raum als Haltung.",
+      "Der Einsatz ist Nachhaltigkeit: Zukunft bauen oder verbrauchen.",
+      "Der Einsatz ist Identit\xE4t: Geb\xE4ude als Aussage.",
+      "Der Einsatz ist Offenheit: Transparenz oder \xDCberwachung.",
+      "Der Einsatz ist Zeit: Zeitlos oder Trend.",
+      "Der Einsatz ist ein Haus, in dem jemand wohnen muss.",
+      "Der Einsatz ist ein Detail, an dem der ganze Bau h\xE4ngt.",
+      "Der Einsatz ist das B\xFCro und die n\xE4chsten drei Jahre.",
+      "Der Einsatz ist eine Idee, die den ersten Kontakt mit dem Geld \xFCberlebt.",
+      "Der Einsatz ist die Stra\xDFe, die das Geb\xE4ude ver\xE4ndert.",
+      "Der Einsatz ist der Rohbau: Danach \xE4ndert sich nichts mehr.",
+      "Der Einsatz ist ein Name auf einer Tafel am Eingang."
+    ],
+    "endings": [
+      "Und das Licht bleibt, auch wenn niemand mehr da ist.",
+      "Und der Raum atmet weiter, ohne jemanden darin.",
+      "So steht am Ende nur noch die Struktur.",
+      "Und die Stadt nimmt es auf, nach ein paar Jahren.",
+      "Und das Geb\xE4ude wird zu einer Idee, die man abbildet.",
+      "Und das Haus steht, ohne den, der es gedacht hat.",
+      "So bleibt der Entwurf im Regal, gerollt.",
+      "Am Ende h\xE4ngen Vorh\xE4nge vor dem Glas.",
+      "Und der Beton wird \xE4lter und besser.",
+      "So \xFCbergibt man die Schl\xFCssel und geht durch den Hof.",
+      "Und die Fuge l\xE4uft durch, wenigstens sie.",
+      "Der Bau ist fertig, die Idee bleibt es nicht.",
+      "Und im Winter merkt man, wo gespart wurde."
+    ],
+    "verwandlungen": [
+      "Beton\u2192Stein",
+      "Fassade\u2192Haut",
+      "Fenster\u2192Auge",
+      "Plan\u2192Vorsatz",
+      "Treppe\u2192Rampe",
+      "Haus\u2192Geh\xE4use",
+      "Wand\u2192Grenze",
+      "Fuge\u2192Naht"
+    ]
+  },
+  "philosophie": {
+    "motifs": [
+      "eine Bibliothek ohne Ende",
+      "ein Spiegel, der Fragen stellt",
+      "eine Br\xFCcke zwischen zwei Wahrheiten",
+      "ein Labyrinth aus Begriffen",
+      "ein Baum aus Argumenten",
+      "eine Waage ohne Gewichte",
+      "ein Kreis ohne Mittelpunkt",
+      "eine Uhr, die M\xF6glichkeiten misst",
+      "eine T\xFCr zwischen Sein und Werden",
+      "ein Fluss, in dem Gedanken treiben",
+      "ein H\xF6rsaal, aus dem alle gegangen sind",
+      "eine Landkarte des Denkbaren",
+      "ein Satz, der sich selbst bestreitet",
+      "ein Hof, in dem zwei Schulen sich meiden",
+      "eine Treppe, die im selben Stockwerk endet",
+      "ein Wort, f\xFCr das es keinen Gegenstand gibt",
+      "ein Schatten ohne K\xF6rper",
+      "eine Bank, auf der zwei Fremde schweigen",
+      "ein Regal voller ungelesener Widerlegungen",
+      "eine H\xF6hle mit dem Ausgang nach innen",
+      "ein Beweis, den niemand nachrechnet",
+      "das Ger\xFCst eines Systems ohne Geb\xE4ude",
+      "eine Grenze, die von beiden Seiten anders aussieht",
+      "ein Faden, der aus dem Labyrinth herausf\xFChrt und hinein",
+      "eine Sammlung von Anf\xE4ngen",
+      "ein Glas, halb voll mit Definitionen",
+      "ein Nebel, in dem die Umrisse deutlicher werden",
+      "ein K\xE4fig, dessen T\xFCr nach innen aufgeht",
+      "ein Wegweiser, der auf sich selbst zeigt",
+      "eine Bibliothek, in der ein Buch fehlt"
+    ],
+    "hooks": [
+      "Was, wenn das Offensichtliche die gr\xF6\xDFte T\xE4uschung w\xE4re?",
+      "Ich wusste pl\xF6tzlich nicht mehr, was Wissen bedeutet.",
+      "Eine einfache Frage bringt die Welt ins Wanken.",
+      "Der Widerspruch scheint vern\xFCnftiger als die Gewissheit.",
+      "Vielleicht beginnt Wahrheit dort, wo Antworten enden.",
+      "Der Satz stimmt, und er hilft nichts.",
+      "Wer fragt, hat die Antwort schon halb ver\xE4ndert.",
+      "Zwei Menschen meinen dasselbe und streiten seit Jahren.",
+      "Das Beispiel widerlegt die Regel, an der es h\xE4ngt.",
+      "Etwas ist wahr, seit niemand mehr hinsieht.",
+      "Die Begr\xFCndung ist l\xE4nger als das, was sie begr\xFCndet.",
+      "Ein Irrtum h\xE4lt sich, weil er n\xFCtzlich ist.",
+      "Das Wort passt, aber die Sache nicht.",
+      "Was sich beweisen l\xE4sst, war ohnehin nie strittig.",
+      "Der Zweifel kommt zu sp\xE4t und trifft trotzdem.",
+      "Jemand hat recht und wei\xDF nicht, warum.",
+      "Die Ordnung stimmt, nur die Wirklichkeit nicht.",
+      "Der Widerspruch war von Anfang an eingebaut.",
+      "Am Ende der Kette h\xE4ngt niemand.",
+      "Eine Antwort steht fest und sucht ihre Frage."
+    ],
+    "props": [
+      "ein leeres Buch",
+      "eine Feder",
+      "einen Kompass",
+      "eine Sanduhr",
+      "eine Kerze",
+      "eine Lupe",
+      "ein Schachbrett",
+      "einen Stein",
+      "eine Maske",
+      "einen Schl\xFCssel",
+      "ein Kollegheft",
+      "eine Uhr ohne Zeiger",
+      "einen Zirkel",
+      "ein Fernrohr",
+      "eine Waage",
+      "einen Faden",
+      "ein Prisma",
+      "eine Tafel",
+      "einen W\xFCrfel",
+      "eine Karteikarte",
+      "ein Lot",
+      "einen Spiegel",
+      "eine Landkarte",
+      "ein Lineal",
+      "einen Zettel mit einem Wort",
+      "ein Pendel",
+      "eine Brille",
+      "einen Stundenplan"
+    ],
+    "turns": [
+      "ein Axiom zerf\xE4llt",
+      "ein Begriff erh\xE4lt eine neue Bedeutung",
+      "der Beobachter wird Teil des Problems",
+      "zwei Gegens\xE4tze erweisen sich als identisch",
+      "Zeit wird zur Illusion",
+      "Freiheit widerspricht der Sicherheit",
+      "die Frage wird wichtiger als die Antwort",
+      "die Voraussetzung war der Schluss",
+      "das Beispiel wird zur Regel",
+      "der Streit betraf nie die Sache",
+      "die Ausnahme tr\xE4gt das Gesetz",
+      "das Werkzeug bestimmt, was gefunden wird",
+      "der Zweifel best\xE4tigt, was er pr\xFCfen sollte",
+      "die Grenze verschiebt sich, sobald man sie beschreibt",
+      "aus dem Nebensatz wird die Hauptsache",
+      "die Frage war falsch gestellt und deshalb fruchtbar",
+      "das Ganze zeigt sich als Teil",
+      "die Regel gilt, aber f\xFCr etwas anderes",
+      "der Einwand wird zum besseren Argument",
+      "die Ordnung war eine Gewohnheit",
+      "das Wissen kehrt zum Nichtwissen zur\xFCck",
+      "die Definition schlie\xDFt aus, worum es ging"
+    ],
+    "obstacles": [
+      "ein Paradoxon blockiert den Weg",
+      "Sprache reicht nicht aus",
+      "Gewohnheit verhindert Erkenntnis",
+      "jede L\xF6sung erzeugt eine neue Frage",
+      "der Zweifel w\xE4chst",
+      "Logik widerspricht Intuition",
+      "Wahrheit besitzt mehrere Gesichter",
+      "der Begriff h\xE4lt der Sache nicht stand",
+      "jeder Schritt setzt den n\xE4chsten voraus",
+      "die Regel gilt f\xFCr alle au\xDFer f\xFCr sich selbst",
+      "das Beispiel ist zu gut gew\xE4hlt",
+      "der Beweis st\xFCtzt sich auf das Bewiesene",
+      "die Erfahrung sagt das Gegenteil",
+      "es fehlt ein Wort f\xFCr das, was gemeint ist",
+      "die Zeit reicht f\xFCr das Denken nicht",
+      "wer widerlegt, muss zuerst verstehen",
+      "die Aussage l\xE4sst sich nicht pr\xFCfen",
+      "zwei Gr\xFCnde gelten und schlie\xDFen sich aus",
+      "die Sprache legt fest, bevor gedacht wird",
+      "das Naheliegende blockiert das Genaue",
+      "der Zweifel frisst auch sich selbst"
+    ],
+    "stakes": [
+      "Der Einsatz ist Erkenntnis: Was kann ich wissen?",
+      "Der Einsatz ist Freiheit: Wer entscheidet?",
+      "Der Einsatz ist Identit\xE4t: Wer bin ich?",
+      "Der Einsatz ist Moral: Was soll ich tun?",
+      "Der Einsatz ist Wirklichkeit: Was ist wirklich?",
+      "Der Einsatz ist Zeit: Was bleibt von einem Gedanken?",
+      "Der Einsatz ist Sprache: Reicht sie f\xFCr die Sache?",
+      "Der Einsatz ist Ordnung: Tr\xE4gt sie oder bricht sie?",
+      "Der Einsatz ist Zweifel: Wo h\xF6rt er auf?",
+      "Der Einsatz ist Verantwortung: Wer tr\xE4gt sie?",
+      "Der Einsatz ist Ma\xDF: Wonach wird gemessen?",
+      "Der Einsatz ist Grund: Wo steht der letzte?",
+      "Der Einsatz ist Grenze: Was liegt dahinter?"
+    ],
+    "endings": [
+      "Und die Frage bleibt bestehen.",
+      "Und der Zweifel wird zum Anfang.",
+      "So entsteht eine neue Perspektive.",
+      "Und die Wahrheit l\xE4chelt schweigend.",
+      "Und das Denken beginnt von vorn.",
+      "Und das Argument bleibt liegen, wo es hinfiel.",
+      "So endet der Satz und die Frage nicht.",
+      "Und die Ordnung h\xE4lt, f\xFCr heute.",
+      "Und was \xFCbrig bleibt, l\xE4sst sich nicht widerlegen.",
+      "So beginnt das Nichtwissen von vorn.",
+      "Und der Begriff geht weiter als der, der ihn braucht.",
+      "Und die Grenze bleibt, wo sie gezogen wurde.",
+      "So bleibt eine Regel und ihr Gegenteil."
+    ],
+    "verwandlungen": [
+      "Bibliothek\u2192Sammlung",
+      "Spiegel\u2192Schatten",
+      "Labyrinth\u2192Gitter",
+      "Waage\u2192Neigung",
+      "Uhr\u2192Sanduhr",
+      "Kerze\u2192Asche",
+      "Schl\xFCssel\u2192Riegel",
+      "Maske\u2192Miene",
+      "Paradoxon\u2192Gesetz",
+      "Zweifel\u2192Verdacht",
+      "Frage\u2192Antwort",
+      "Begriff\u2192Name"
+    ]
+  },
+  "klimakrise": {
+    "motifs": [
+      "ein Himmel, der nach Rauch und Ru\xDF riecht",
+      "schmelzendes Eis, das den Fluss hinabtreibt",
+      "eine Sonne, die zu hei\xDF \xFCber den D\xE4chern brennt",
+      "Nebel aus Abgasen \xFCber der Stadt",
+      "ein Wald, der stumm verdorrt, w\xE4hrend die Stadt weiterl\xE4uft",
+      "aschgraue Wolken, die keine Jahreszeit kennen",
+      "ein Fluss, der immer weiter zur\xFCckweicht",
+      "Risse in der Erde wie alte Wunden",
+      "ein Flussbett mit rissigem Grund",
+      "ein Deich, der zu niedrig geworden ist",
+      "Ventilatoren in jedem Fenster",
+      "eine Badeanstalt ohne Wasser",
+      "Sands\xE4cke vor einer Ladent\xFCr",
+      "ein Feld, das man nicht mehr beregnet",
+      "der Pegel am Br\xFCckenpfeiler",
+      "ein Baum mit St\xFCtzger\xFCst",
+      "Schatten, den sich alle teilen",
+      "ein L\xF6schteich, der gr\xFCn steht",
+      "eine Warnung im Radio, wie jeden Tag",
+      "Rolll\xE4den am Mittag",
+      "ein Gletscher unter Planen",
+      "Bahngleise, die sich verziehen",
+      "ein Regenmesser mit null",
+      "eine Anzeigetafel mit vierzig Grad"
+    ],
+    "hooks": [
+      "ein Thermometer, das r\xFCckw\xE4rts steigt",
+      "ein vergilbtes Kartenblatt zeigt ein Meer, das es nicht mehr gibt",
+      "ein Kompass zeigt nur noch nach S\xFCden",
+      "ein B\xE4cker fl\xFCstert von einer D\xFCrre, die niemand sah",
+      "jemand sammelt Schneeflocken, die l\xE4ngst h\xE4tten schmelzen m\xFCssen",
+      "ein Geruch von verbranntem Getreide ohne Feuer",
+      "ein Vogel singt ein Lied aus einer anderen Zeit",
+      "auf dem Marktplatz liegt Asche, die nach Zukunft schmeckt",
+      "Der Regen kommt, und der Boden nimmt ihn nicht.",
+      "Die Warnstufe gilt seit acht Wochen.",
+      "Der Fluss f\xFChrt Wasser und niemand traut ihm.",
+      "Der Winter f\xE4llt aus, und das Obst bl\xFCht zu fr\xFCh.",
+      "Ein Feld wird umgepfl\xFCgt, bevor es reif ist.",
+      "Am Deich z\xE4hlt jemand die Sands\xE4cke zum dritten Mal.",
+      "Die Nacht k\xFChlt nicht mehr ab.",
+      "Der Brunnen gibt tr\xFCbes Wasser.",
+      "Ein Zug f\xE4llt aus wegen der Hitze.",
+      "Auf dem Marktplatz steht ein Tank."
+    ],
+    "props": [
+      "eine Karte mit verschwundenen K\xFCstenlinien",
+      "einen Krug voll tr\xFCben Regenwassers",
+      "eine Uhr aus geschmolzenem Zinn",
+      "ein Tagebuch mit Wetteraufzeichnungen ohne Datum",
+      "eine Kohleschale, die niemals erkaltet",
+      "einen Winterhandschuh, der brennend hei\xDF ist",
+      "eine Flasche mit stickiger, schwerer Luft",
+      "ein Fernrohr, das nur Nebel zeigt",
+      "einen Faden aus verbranntem Kornfeld",
+      "einen Kanister",
+      "eine Gie\xDFkanne",
+      "ein Thermometer",
+      "eine Schaufel",
+      "einen Sandsack",
+      "ein Funkger\xE4t",
+      "eine Warnweste",
+      "einen Regenmesser",
+      "eine Plane",
+      "einen Kompressor",
+      "ein Merkblatt",
+      "einen Wasserhahn",
+      "eine K\xFChlbox"
+    ],
+    "turns": [
+      "pl\xF6tzlich wei\xDF niemand mehr, welches Jahr wirklich ist",
+      "in der Asche zeichnet sich ein vertrautes Gesicht ab",
+      "die Ernte verfault, noch bevor sie geerntet wird",
+      "aus dem kalten Keller steigt pl\xF6tzlich Hitze auf",
+      "die Regale bleiben leer, doch der Himmel selbst scheint zu hungern",
+      "ein Bericht aus dem Norden spricht von einem Meer, das verschwindet",
+      "es zeigt sich, dass die Ver\xE4nderung \xE4lter ist als jede Messung",
+      "das Eis unter der Stadt beginnt zu sprechen",
+      "der Pegel steigt schneller als gerechnet",
+      "die Ernte wird vorgezogen und misslingt",
+      "die Sperrung wird aufgehoben und gilt weiter",
+      "ein Nachbarort schickt Wasser",
+      "der Wind dreht auf die Stadt zu",
+      "das Feuer springt \xFCber den Weg",
+      "die Warnung kommt, nachdem es passiert ist",
+      "der Deich h\xE4lt, an anderer Stelle nicht",
+      "es regnet drei Tage und \xE4ndert nichts",
+      "ein Plan von 1980 wird hervorgeholt"
+    ],
+    "obstacles": [
+      "die Stra\xDFen sind verstopft von Rauch und Stillstand",
+      "der Fluss f\xFChrt kein Wasser mehr, nur Staub",
+      "niemand glaubt der Warnung, die l\xE4ngst vorliegt",
+      "die K\xE4lte des Winters bleibt aus, und das macht Angst",
+      "die Kornkammern sind leer, obwohl die Saat aufging",
+      "der Nebel verschluckt jeden Fluchtweg",
+      "die Zust\xE4ndigen misstrauen jeder Zahl, die nicht passt",
+      "die Hitze l\xE4hmt selbst die Entschlossenen",
+      "die Pumpe schafft die Menge nicht",
+      "der Boden nimmt kein Wasser mehr auf",
+      "die Stra\xDFe nach Norden ist gesperrt",
+      "es fehlt an Schatten f\xFCr alle",
+      "das Netz bricht bei Spitzenlast zusammen",
+      "niemand ist f\xFCr den Bach zust\xE4ndig",
+      "die Vorr\xE4te reichen f\xFCr drei Tage",
+      "die Hilfe kommt aus der falschen Richtung",
+      "es gibt keinen zweiten Brunnen",
+      "der Wind steht seit Tagen"
+    ],
+    "stakes": [
+      "Der Einsatz ist das letzte Gr\xFCn eines sterbenden Gartens.",
+      "Der Einsatz ist die Zukunft, die im Rauch vergl\xFCht.",
+      "Der Einsatz ist eine K\xFCste, die im steigenden Wasser versinkt.",
+      "Der Einsatz ist das Vertrauen ganzer L\xE4nder in eine gemeinsame Erde.",
+      "Der Einsatz ist die letzte Ernte vor der gro\xDFen D\xFCrre.",
+      "Der Einsatz ist die Wahrheit hinter der brennenden K\xE4lte.",
+      "Der Einsatz ist ein B\xFCndnis gegen einen unsichtbaren Feind: die Erw\xE4rmung selbst.",
+      "Der Einsatz ist die Erinnerung an einen Planeten, der einmal k\xFChl war.",
+      "Der Einsatz ist eine Ernte.",
+      "Der Einsatz ist ein Deich und was dahinter liegt.",
+      "Der Einsatz ist Trinkwasser f\xFCr die Woche.",
+      "Der Einsatz ist ein Dorf am Hang.",
+      "Der Einsatz ist der n\xE4chste Sommer.",
+      "Der Einsatz ist ein Fluss, der bleiben soll."
+    ],
+    "endings": [
+      "So endet ein Zeitalter im Rauch der eigenen Zukunft.",
+      "Und die Asche bedeckt die Stadt wie ein zweites Schweigen.",
+      "So schlie\xDFt sich der Kreis aus Feuer und Eis.",
+      "Am Ende bleibt nur die Hitze, die keiner erkl\xE4ren kann.",
+      "Die Debatte frisst sich selbst, w\xE4hrend die Erde weiter gl\xFCht.",
+      "So verschwindet eine Landschaft im Nebel der Ver\xE4nderung.",
+      "Der Winter kehrt zur\xFCck, doch das Eis folgt ihm nicht mehr.",
+      "Am Horizont brennt kein Feuer mehr \u2013 nur die Erinnerung daran.",
+      "Und der Pegel f\xE4llt, langsamer als er stieg.",
+      "So bleibt die Warnstufe bestehen.",
+      "Am Abend k\xFChlt es um zwei Grad.",
+      "Und die Sands\xE4cke bleiben liegen, f\xFCr sp\xE4ter.",
+      "So endet der Tag, und der Boden ist trocken.",
+      "Und im Radio kommt dieselbe Meldung."
+    ]
+  },
+  "ritterromane": {
+    "motifs": [
+      "ein Wappen ohne Farbe an kalter Mauer",
+      "eine R\xFCstung, die niemand mehr tr\xE4gt",
+      "das Echo eines Schwertes, das nie gezogen wird",
+      "ein Banner, das \xFCber dem Bergfried im Wind steht",
+      "eine Krone aus Kerzenlicht \xFCber dem leeren Saal",
+      "ein Ritterhelm mit leeren Augenh\xF6hlen",
+      "das Klirren von Kettenhemden im Wind der Schlucht",
+      "eine Tafelrunde, an der niemand mehr sitzt",
+      "der Geruch von Eisen und altem Leder",
+      "ein Turnierplatz unter Neuschnee",
+      "der Rost auf einem Kettenhemd",
+      "ein Sattel ohne Reiter",
+      "die Bahre eines Namenlosen",
+      "ein Bergfried, in dem kein Licht brennt",
+      "Fackelru\xDF an der Saaldecke",
+      "eine Truhe mit dem Siegel eines toten Hauses",
+      "das Wappen \xFCber einer zugemauerten T\xFCr",
+      "Hufspuren, die vor dem Tor enden",
+      "eine Fahne, die zur falschen Seite weht",
+      "die Kerbe eines Schwerts im T\xFCrsturz",
+      "ein Turnierstab, in der Mitte gebrochen",
+      "die Bank, auf der der Herold sa\xDF",
+      "Stroh im Innenhof nach dem Regen",
+      "ein Kelch, aus dem niemand mehr trinkt",
+      "die Kette eines Falken ohne Falken",
+      "ein Grabstein ohne Jahreszahl",
+      "der Schatten des Wehrgangs am Mittag"
+    ],
+    "hooks": [
+      "ein Schwertgriff lehnt an der Wendeltreppe",
+      "jemand hat ein Wappen in den T\xFCrbalken geritzt",
+      "ein Ritterhandschuh liegt mitten auf dem Weg",
+      "der Ruf vom Turm klingt wie ein Herold",
+      "\xFCber dem Tor steht ein Name in gotischen Lettern",
+      "ein Sporn liegt im Hof, ohne Besitzer",
+      "die Uhr zeigt eine Zeit, die es im Kalender nicht gibt",
+      "ein Siegelring liegt am Brunnenrand",
+      "irgendwo singt jemand ein Lied von Rittern, die nie heimkehren",
+      "Ein Geleitbrief tr\xE4gt ein Siegel, das seit Jahren nicht mehr gef\xFChrt wird.",
+      "Der Herold ruft einen Namen, den hier niemand kennt.",
+      "Im Hof steht ein Pferd, dessen Sattel noch warm ist.",
+      "Der Schwur wird gesprochen, bevor jemand fragt, worauf.",
+      "Ein Wappen wurde \xFCbermalt, das Rot schl\xE4gt durch.",
+      "Die Wache l\xE4sst jemanden ein, ohne nach dem Namen zu fragen.",
+      "Der Brief kommt an, obwohl der Bote nie ankam.",
+      "Im Saal fehlt ein Stuhl, und niemand nennt den Grund.",
+      "Die Glocke schl\xE4gt zur falschen Stunde.",
+      "Jemand tr\xE4gt Trauer f\xFCr einen, der lebt."
+    ],
+    "props": [
+      "einen zerbrochenen Schwertgriff",
+      "eine R\xFCstung aus vernietetem Leder",
+      "einen Siegelring mit unbekanntem Wappen",
+      "eine Standarte aus verblichener Seide",
+      "einen Helm mit Rissen wie Kartenlinien",
+      "eine Pergamentrolle voller Wegmarken",
+      "einen Handschuh aus Kettenmaschen",
+      "eine Kerze in einem alten Wandleuchter",
+      "einen Dolch, der nach Schmiedefeuer riecht",
+      "ein Kettenhemd",
+      "einen Geleitbrief",
+      "eine Lanze",
+      "einen Steigb\xFCgel",
+      "ein Wappenschild",
+      "eine Fackel",
+      "einen Sporn",
+      "ein Trinkhorn",
+      "eine Armbrust",
+      "einen Sattelgurt",
+      "ein Wachstuch",
+      "einen Schwertgurt",
+      "eine Fibel",
+      "ein Reisemantel"
+    ],
+    "turns": [
+      "Pl\xF6tzlich tr\xE4gt sie ein Wappen, das ihr nicht geh\xF6rt.",
+      "Der Hof verwandelt sich f\xFCr einen Atemzug in einen Turnierplatz.",
+      "Niemand hat gesehen, wie das Duell endet, und doch wei\xDF es die ganze Burg.",
+      "Das letzte Tageslicht wird zum Fackelschein im Bergfried.",
+      "Die Wette ist nie ein Spiel, sondern ein Schwur.",
+      "Aus dem Torbogen kommt der Hall von Hufen, wo keine Pferde stehen.",
+      "Ihr Schatten tr\xE4gt pl\xF6tzlich einen Umhang, den sie nie besitzt.",
+      "das Siegel erweist sich als F\xE4lschung",
+      "der Herausforderer nennt seinen Namen nicht",
+      "die Burg \xF6ffnet, ohne dass jemand befahl",
+      "das Turnier wird abgesagt und findet statt",
+      "der Schwur bindet den Falschen",
+      "ein Lehen wechselt in einer Nacht den Herrn",
+      "die R\xFCstung passt einem anderen",
+      "der Bote bringt die eigene Nachricht zur\xFCck",
+      "das Fallgitter bleibt oben",
+      "der Gegner reicht die Waffe",
+      "ein Wappen wird gestrichen und neu gemalt"
+    ],
+    "obstacles": [
+      "Das Fallgitter f\xE4llt, ehe jemand hindurch ist.",
+      "Der Torw\xE4chter fragt nach einem Geleitbrief, den es nicht gibt.",
+      "Das Wappen an der Wand l\xE4sst sich nicht entziffern.",
+      "Der letzte Bote reitet ab, bevor der Schwur eingel\xF6st ist.",
+      "Der Gegner der Wette ist l\xE4ngst verschwunden, aber die Schuld bleibt.",
+      "Der Hof ist leer, doch das Tor bleibt verriegelt.",
+      "Der Nebel im Graben verschluckt jeden Fluchtweg.",
+      "das Tor wird bei Dunkelheit nicht mehr ge\xF6ffnet",
+      "kein Zeuge will den Schwur best\xE4tigen",
+      "der Weg \xFCber den Pass ist verschneit",
+      "die Waffenkammer ist verschlossen",
+      "der Herold verweigert die Ansage",
+      "das Pferd tr\xE4gt keinen fremden Reiter",
+      "die Fehde ruht und gilt",
+      "niemand kennt das Wappen mehr",
+      "der Brief erreicht die Burg zu sp\xE4t",
+      "die Wache wechselt zur falschen Stunde"
+    ],
+    "stakes": [
+      "Der Einsatz ist ihre Ehre als Ritterin ohne Lehen.",
+      "Der Einsatz ist ein Schwur, den niemand mehr einfordern kann.",
+      "Der Einsatz ist das letzte Wappen ihrer verlorenen Familie.",
+      "Der Einsatz ist der Rang, den sie nie erh\xE4lt.",
+      "Der Einsatz ist Vertrauen: in eine Zeit, die keine Ritter mehr kennt.",
+      "Der Einsatz ist ihr Name, geschrieben in einem Buch, das niemand liest.",
+      "Der Einsatz ist die Krone eines Sieges, den keiner bezeugen wird.",
+      "Der Einsatz ist ein Lehen, das keiner verwaltet.",
+      "Der Einsatz ist ein Name, den man f\xFChren darf.",
+      "Der Einsatz ist die Fehde, die enden k\xF6nnte.",
+      "Der Einsatz ist ein Platz an der Tafel.",
+      "Der Einsatz ist ein Pferd und der Weg damit.",
+      "Der Einsatz ist das Wort vor Zeugen."
+    ],
+    "endings": [
+      "So verklingt das letzte Echo eines Turniers, das keiner sieht.",
+      "Der Weg f\xFChrt weiter, und mit ihm die Legende, die niemand glaubt.",
+      "So schlie\xDFt sich das Visier f\xFCr immer.",
+      "Am Ende bleibt nur ein Wappen im Staub des Hofes.",
+      "So endet die Wette, die niemand bezeugt.",
+      "Die Nacht nimmt den Schwur mit sich in den Wald.",
+      "Und im Hof bleibt das Stroh liegen.",
+      "So schl\xE4gt die Glocke, und niemand tritt vor.",
+      "Am Morgen steht das Tor offen, der Hof ist leer.",
+      "Und das Wappen bleibt, wo es h\xE4ngt.",
+      "So reitet der Letzte, ohne sich umzusehen.",
+      "Und der Schnee deckt den Turnierplatz zu."
+    ]
+  },
+  "liebesromane": {
+    "motifs": [
+      "ein Herz, das im Takt fremder Schritte schl\xE4gt",
+      "ein Liebesbrief, versiegelt mit Wachs und Blut",
+      "zwei Schatten, die sich unter Kerzenlicht ber\xFChren",
+      "ein Medaillon mit einem fremden Portr\xE4t",
+      "eine Rose, die \xFCber Nacht welkt",
+      "ein Blick \xFCber den Ballsaal, der alles ver\xE4ndert",
+      "ein Fl\xFCstern von Liebe hinter geschlossenen T\xFCren",
+      "ein Tanz, der nie zu Ende zu sein scheint",
+      "ein Ballsaal, in dem zwei Blicke sich kreuzen",
+      "ein Brief, der dreimal umgeschrieben wurde",
+      "ein Handschuh, der auf einer Treppe liegen bleibt",
+      "ein Garten, in dem man ungest\xF6rt sprechen kann",
+      "ein Kutschfenster, das im Regen beschl\xE4gt",
+      "ein Name, den niemand aussprechen soll",
+      "ein Tanz, f\xFCr den ein Platz frei gehalten wird",
+      "eine T\xFCr, hinter der jemand wartet und nicht klopft",
+      "ein Ring, der zur\xFCckgegeben und behalten wird",
+      "ein Sommerhaus, das im Winter leer steht",
+      "ein Fensterplatz, von dem man die Stra\xDFe sieht",
+      "ein B\xFCndel Briefe mit einem Band"
+    ],
+    "hooks": [
+      "ein Ring, der nicht an ihre Hand passt",
+      "ein fremder Akzent im vertrauten Raum",
+      "ein Brief ohne Unterschrift, nur mit einem Kuss",
+      "ein Duft von fremdem Parfum im Treppenhaus",
+      "ein Herzschlag, der zu schnell f\xFCr Etikette ist",
+      "ein verbotenes L\xE4cheln zwischen zwei Fronten",
+      "eine Tr\xE4ne auf einem versiegelten Brief",
+      "Ein Fremder wird f\xFCr den n\xE4chsten Tanz angek\xFCndigt.",
+      "Der Brief kommt zur\xFCck, unge\xF6ffnet.",
+      "Sie erkennt eine Handschrift, die es nicht geben kann.",
+      "Auf der G\xE4steliste steht ein Name zu viel.",
+      "Er reist ab, und niemand hat sich verabschiedet.",
+      "Ein Ring liegt auf dem Tisch, ohne Erkl\xE4rung.",
+      "Die Tante k\xFCndigt einen Besuch aus der Stadt an.",
+      "Im Garten spricht jemand, den man nicht sehen kann.",
+      "Ein Versprechen wird erw\xE4hnt, das sie nie gab.",
+      "Der Vater nennt einen Termin und keinen Grund.",
+      "Zwei Einladungen gelten f\xFCr denselben Abend.",
+      "Ein Ger\xFCcht ist schneller als die Post."
+    ],
+    "props": [
+      "einen Liebesbrief mit fremdem Wappen",
+      "ein Medaillon mit verborgenem Portr\xE4t",
+      "eine Rose aus einem fremden Garten",
+      "einen goldenen Ring ohne Inschrift",
+      "ein Taschentuch mit fremden Initialen",
+      "eine Locke Haar in einem Samtbeutel",
+      "einen F\xE4cher mit geheimer Botschaft",
+      "eine Maske vom letzten Fest",
+      "eine Tanzkarte, an einer Stelle leer",
+      "einen F\xE4cher aus Elfenbein",
+      "ein B\xFCndel Briefe mit einem Band",
+      "eine Einladung mit einem Siegel",
+      "einen Schl\xFCssel zum Gartentor",
+      "ein Riechfl\xE4schchen aus Kristall",
+      "einen Handschuh ohne den zweiten",
+      "eine Locke in einem Umschlag"
+    ],
+    "turns": [
+      "Pl\xF6tzlich erkennt sie in dem Fremden den Mann aus ihren Tr\xE4umen.",
+      "Er spricht ihren Namen, als kenne er ihr Herz.",
+      "Ein Kuss im Schatten des Torbogens ver\xE4ndert alles.",
+      "Sie begreift, dass Liebe gef\xE4hrlicher ist als jedes Ger\xFCcht.",
+      "Zwischen all den Stimmen findet ihr Blick nur ihn.",
+      "ein Brief kommt an, und alles war ein Missverst\xE4ndnis",
+      "der Verlobte gibt ihr Wort zur\xFCck, ohne Groll",
+      "der Vater lenkt ein, aus einem falschen Grund",
+      "ein Ger\xFCcht rettet, was die Wahrheit zerst\xF6rt h\xE4tte",
+      "sie sagt nein und meint es f\xFCr eine Nacht",
+      "er kehrt zur\xFCck, ein Jahr zu sp\xE4t",
+      "das Erbe f\xE4llt an jemanden, der es nicht wollte",
+      "ein Tanz wird abgesagt und dadurch entschieden",
+      "sie schreibt den Brief und schickt ihn nicht",
+      "ein Zeuge erinnert sich an eine ganz andere Nacht",
+      "der Fremde nennt einen Namen, den nur zwei kennen",
+      "eine Krankheit h\xE4lt ihn l\xE4nger im Haus als geplant",
+      "der Vater stirbt, und die Bedingung stirbt mit ihm"
+    ],
+    "obstacles": [
+      "Die Umst\xE4nde trennen die Liebenden f\xFCr immer.",
+      "Ein Ehering bindet sie an einen anderen Mann.",
+      "Er muss abreisen, ehe der Morgen graut.",
+      "Ein altes Versprechen verlangt Treue, die ihr Herz nicht geben kann.",
+      "Zwei H\xE4user trennen, was zusammengeh\xF6rt.",
+      "der Vater hat f\xFCr den Herbst anders entschieden",
+      "die Post braucht drei Wochen und wird gelesen",
+      "ein Ger\xFCcht ist im Umlauf und nicht mehr einzuholen",
+      "die Mitgift reicht nicht f\xFCr dieses Haus",
+      "die Tante bleibt bis zum Fr\xFChjahr",
+      "ein Duell verbietet jede weitere Begegnung",
+      "der Name ist im Kreis der Familie verboten",
+      "sie darf nicht allein aus dem Haus",
+      "er hat kein Recht, um sie zu werben",
+      "ein Bruder wacht \xFCber jeden Besuch im Haus",
+      "die Verlobung steht schon in der Zeitung",
+      "ein Krieg holt ihn zur\xFCck in die Garnison",
+      "das Testament bindet sie an einen Namen",
+      "die Schwester hat den Brief zuerst gelesen"
+    ],
+    "stakes": [
+      "Der Einsatz ist Liebe: verboten und unsterblich zugleich.",
+      "Der Einsatz ist ihr Herz, das dem Falschen geh\xF6rt.",
+      "Der Einsatz ist eine Zukunft zwischen zwei Leben.",
+      "Der Einsatz ist die Wahrheit \xFCber eine heimliche Liaison.",
+      "Der Einsatz ist alles, was sie zu verlieren f\xFCrchtet: ihn.",
+      "Der Einsatz ist ein Ruf, den ein Abend zerst\xF6ren kann.",
+      "Der Einsatz ist ein Brief, der nie ankommen darf.",
+      "Der Einsatz ist ein Sommer, den es nur einmal gibt.",
+      "Der Einsatz ist ein Herz, das dem Falschen versprochen ist.",
+      "Der Einsatz ist eine Zukunft zwischen zwei H\xE4usern.",
+      "Der Einsatz ist die Wahrheit \xFCber eine heimliche Verbindung."
+    ],
+    "endings": [
+      "Und ihre Liebe \xFCberdauert selbst das Schweigen.",
+      "So bleibt ihr Herz f\xFCr immer an jenem Ort zur\xFCck.",
+      "Am Ende z\xE4hlt nur der Kuss, der die Zeit besiegt.",
+      "Die Jahre verblassen, doch ihre Liebe bleibt bestehen.",
+      "So schlie\xDFt sich der Kreis zweier Herzen f\xFCr immer.",
+      "Und der Brief bleibt in der Schublade liegen.",
+      "Und im Garten steht die Bank wie an jenem Abend.",
+      "Der Handschuh bleibt auf der Treppe liegen.",
+      "Und die Kutsche f\xE4hrt ab, mit beiden darin.",
+      "So endet der Sommer, und der Ring bleibt.",
+      "Und niemand im Haus spricht je dar\xFCber.",
+      "Am Ende bleibt eine Locke in einem Umschlag zur\xFCck.",
+      "Und die G\xE4steliste wird f\xFCr den n\xE4chsten Ball geschrieben.",
+      "So bleibt der Platz auf der Tanzkarte f\xFCr immer leer."
+    ],
+    "verwandlungen": [
+      "Brief\u2192Beweis",
+      "Ring\u2192Reif",
+      "Rose\u2192Narbe",
+      "Garten\u2192K\xE4fig",
+      "Tanz\u2192Kampf",
+      "Handschuh\u2192Schatten",
+      "Kutsche\u2192Wolke",
+      "Medaillon\u2192Fenster"
+    ]
+  },
+  "bergwelt": {
+    "motifs": [
+      "ein Glockenturm, der ins Tal ruft und niemand kommt",
+      "Schnee, der die Wunden nicht verschlie\xDFt, nur verbirgt",
+      "vernarbte Kn\xF6chel im Kerzenlicht",
+      "ein Gipfelkreuz, das schief im Wind h\xE4ngt",
+      "der Atem des Fremden wie Nebel \xFCber dem Altar",
+      "Lawinenstille vor dem n\xE4chsten Donner",
+      "ein Rosenkranz aus geballten F\xE4usten",
+      "die Pestglocke, die niemand mehr l\xE4utet",
+      "eine H\xFCtte mit verriegelten L\xE4den",
+      "der Riss in der Firnwand",
+      "eine Wegmarke unter Schnee",
+      "das Seil an einem alten Haken",
+      "ein Kreuz an der Wegbiegung",
+      "der Rauch aus dem Kamin im Tal",
+      "ein Steinmann, den jemand umgeworfen hat",
+      "die Spur, die vor dem Grat aufh\xF6rt",
+      "eine Lawine, die nicht kam",
+      "ein Glockenband ohne Vieh",
+      "der Brunnen vor der Kapelle im Eis",
+      "ein Fenster, das von innen zugefroren ist",
+      "Holz, das f\xFCr zwei Winter reicht",
+      "ein Pfad, der \xFCber dem Nebel liegt",
+      "die Bank vor der H\xFCtte, f\xFCr zwei",
+      "ein Stollen, dessen Mund zugesch\xFCttet ist"
+    ],
+    "hooks": [
+      "der Fremde fl\xFCstert einen Namen, den es hier nicht geben sollte",
+      "seine Handschuhe riechen nach fremdem Blut",
+      "irgendwo im Geb\xE4lk knirscht etwas, das kein Wind ist",
+      "die Bergluft tr\xE4gt einen Geruch, der nicht zu Schnee passt",
+      "der Gerettete l\xE4chelt, wo Schmerz sein m\xFCsste",
+      "ein Beutel klirrt, wenn niemand ihn ber\xFChrt",
+      "die Fu\xDFspuren im Schnee f\xFChren nur in eine Richtung",
+      "unter dem Talar liegt etwas, das sich bewegt",
+      "Der Wind dreht, und die Glocke im Tal schweigt.",
+      "Im Schnee liegt ein Schuh, der Weg f\xFChrt nicht weiter.",
+      "Die H\xFCtte ist geheizt und leer.",
+      "Jemand hat Holz nachgelegt, seit er fort ist.",
+      "Der Hund bleibt vor dem Grat stehen und geht nicht weiter.",
+      "Auf dem Tisch stehen zwei Becher.",
+      "Der Pfad ist ger\xE4umt, obwohl niemand hier ist.",
+      "Aus dem Tal steigt Rauch, wo kein Haus steht.",
+      "Das Seil ist geknotet, nicht gerissen.",
+      "Die Kapelle ist offen und der Schnee davor unber\xFChrt."
+    ],
+    "props": [
+      "einen zerschlagenen Rosenkranz",
+      "eine vereiste Monstranz",
+      "einen Lederbeutel voller Z\xE4hne",
+      "eine zerrissene Pilgerkarte der Bergp\xE4sse",
+      "ein Paar alte Boxbandagen",
+      "eine erloschene Sturmlaterne",
+      "ein Amulett mit fremdem Wappen",
+      "einen Dolch unter dem Messgewand",
+      "eine Handvoll gefrorener Hostien",
+      "ein Seil",
+      "eine Laterne",
+      "einen Pickel",
+      "eine Wolldecke",
+      "einen Zunderbeutel",
+      "ein Feldbesteck",
+      "einen Steigeisen",
+      "eine Blechkanne",
+      "ein Gebetbuch",
+      "einen Wanderstock",
+      "eine Karte der P\xE4sse",
+      "ein Fernrohr",
+      "einen Fellhandschuh"
+    ],
+    "turns": [
+      "pl\xF6tzlich erkennt er im Gesicht des Fremden die Z\xFCge eines alten Gegners",
+      "der Sturm drau\xDFen verstummt genau in dem Moment, als der Fremde die Augen \xF6ffnet",
+      "er begreift, dass er nicht den Mann, sondern etwas anderes vom Berg heruntergetragen hat",
+      "die Kirche, die ihm Zuflucht schien, sperrt pl\xF6tzlich beide T\xFCren",
+      "im Fieber des Fremden h\xF6rt er seinen eigenen Namen aus alten K\xE4mpfen",
+      "der Fremde dankt ihm mit Worten, die vor Jahrhunderten gesprochen wurden",
+      "die Glocken beginnen von selbst zu l\xE4uten, als der Fremde aufsteht",
+      "er erkennt die Pestbeulen zu sp\xE4t, unter den Fingern, die ihn noch halten",
+      "der Sturm legt sich zur falschen Stunde",
+      "aus dem Nebel tritt jemand ohne Ausr\xFCstung",
+      "die H\xFCtte geh\xF6rt seit gestern niemandem",
+      "der Weg ist offen, die R\xFCckkehr nicht",
+      "die Glocke schl\xE4gt ohne Hand",
+      "der Fremde kennt den Weg besser",
+      "das Eis gibt frei, was es hielt",
+      "die Spur f\xFChrt an der H\xFCtte vorbei",
+      "der Pass wird geschlossen und ge\xF6ffnet",
+      "jemand bleibt, der gehen wollte"
+    ],
+    "obstacles": [
+      "der Schnee hat den einzigen Bergpfad verschluckt",
+      "die Kirchent\xFCr l\xE4sst sich nicht mehr von innen \xF6ffnen",
+      "seine alten F\xE4uste gehorchen ihm nicht mehr wie einst",
+      "der Fremde wehrt sich gegen jede Hilfe, als f\xFCrchte er sie",
+      "das Feuer im Altarraum will nicht brennen",
+      "seine Kraft reicht nicht mehr f\xFCr den Weg zur\xFCck ins Tal",
+      "die Lawine hat die Kapelle vom Dorf abgeschnitten",
+      "der Fremde spricht in einer Sprache, die niemand mehr versteht",
+      "der Nebel steigt schneller als der Weg",
+      "das Holz reicht nicht bis zum Morgen",
+      "die Lampe hat kein \xD6l mehr",
+      "der Grat tr\xE4gt nur einen",
+      "niemand h\xF6rt den Ruf im Wind",
+      "die T\xFCr friert im Rahmen fest",
+      "der Schnee tr\xE4gt und tr\xE4gt nicht",
+      "der Weg ins Tal ist versch\xFCttet",
+      "das Seil ist zu kurz f\xFCr die Wand",
+      "die K\xE4lte kommt vor der Nacht"
+    ],
+    "stakes": [
+      "Der Einsatz ist Erl\xF6sung: die eigene, l\xE4ngst verwirkte.",
+      "Der Einsatz ist das letzte bisschen Gnade in einer gottverlassenen Welt.",
+      "Der Einsatz ist sein eigenes Leben, getauscht gegen das eines Unbekannten.",
+      "Der Einsatz ist die Seele, die er zu retten glaubte zu verlieren.",
+      "Der Einsatz ist Vertrauen: in einen Fremden, der der Tod selbst sein k\xF6nnte.",
+      "Der Einsatz ist die letzte Nacht, bevor die Seuche auch ihn holt.",
+      "Der Einsatz ist die Erinnerung an einen Mann, der einst k\xE4mpfte, um zu leben.",
+      "Der Einsatz ist die Stille einer Kirche, die keine Gebete mehr erh\xF6rt.",
+      "Der Einsatz ist ein Weg, den nur einer schafft.",
+      "Der Einsatz ist die Nacht in der H\xFCtte.",
+      "Der Einsatz ist Holz f\xFCr zwei.",
+      "Der Einsatz ist ein Name, den der Berg beh\xE4lt.",
+      "Der Einsatz ist die R\xFCckkehr vor dem Schnee.",
+      "Der Einsatz ist ein Seil und wer es h\xE4lt."
+    ],
+    "endings": [
+      "So bleibt die Kirche leer, und der Berg schweigt weiter.",
+      "So tr\xE4gt er die Reue wie eine neue Narbe unter der Haut.",
+      "So endet die Rettung dort, wo der Glaube l\xE4ngst gestorben ist.",
+      "So schlie\xDFt sich der Kreis aus Schnee, Schuld und Schweigen.",
+      "So bleibt nur die Frage, wen er wirklich gerettet hat.",
+      "So l\xF6scht der Wind die letzte Kerze am Altar.",
+      "So wird aus dem Retter ein Gezeichneter des Berges.",
+      "So bleibt die Glocke stumm, als h\xE4tte sie nie gel\xE4utet.",
+      "Und der Rauch steht gerade \xFCber dem Tal.",
+      "So bleibt die Bank vor der H\xFCtte leer.",
+      "Am Morgen ist die Spur zugeweht.",
+      "Und die Glocke schl\xE4gt weiter ins Tal.",
+      "So schlie\xDFt sich die T\xFCr, und der Berg schweigt.",
+      "Und das Seil bleibt am Haken h\xE4ngen."
+    ]
+  },
+  "clown": {
+    "motifs": [
+      "ein Clown, der lautlos durch den Nebel der Manege schreitet",
+      "wei\xDFe Schminke, die wie Mondlicht schimmert",
+      "eine Maske, die immer l\xE4chelt, auch wenn niemand lacht",
+      "Glockenspiel eines Narren im Wind \xFCber dem Zeltdach",
+      "rot geschminkte Lippen \xFCber blutleeren Lippen",
+      "ein Schellenhut, der im Sturm nicht klingelt",
+      "Schatten, die tanzen, wo kein Licht sein sollte",
+      "ein Kartenspiel, das immer denselben Narren zeigt",
+      "eine Manege, die nach S\xE4gemehl und Regen riecht",
+      "ein Zelt, das im Wind atmet wie eine Lunge",
+      "Konfetti, das seit Jahren im Boden steckt",
+      "ein Scheinwerfer, der auf niemanden zeigt",
+      "die rote Nase auf einem Kissen",
+      "eine Reihe leerer St\xFChle unter Planen",
+      "Pferdegeschirr ohne Pferde",
+      "ein Plakat mit ausgeblichenen Namen",
+      "die Leiter zum Trapez, oben abgebrochen",
+      "Applaus, der von der falschen Seite kommt",
+      "ein Wohnwagen mit brennendem Licht",
+      "Puder in der Luft wie Nebel",
+      "ein Spiegel in der Garderobe, blind an einer Stelle",
+      "die Bahn eines Balls, der nicht ankommt",
+      "eine Kapelle, die weiterspielt",
+      "Fu\xDFspuren im S\xE4gemehl, die nur hineinf\xFChren",
+      "ein Vorhang mit abgerissenen \xD6sen",
+      "der Geruch von nassem Segeltuch"
+    ],
+    "hooks": [
+      "ein Handschuh riecht nach Schwarzpulver und Puderzucker",
+      "irgendwo lacht jemand, wo niemand stehen sollte",
+      "das Zeltgest\xE4nge knarrt im Takt eines unsichtbaren Trommlers",
+      "ein Clownsschuh steht einsam mitten in der Manege",
+      "die Kerzen am B\xFChnenrand brennen mit gr\xFCner Flamme",
+      "jemand hat Kreidezeichen an die Zeltplane gemalt",
+      "das Pausenzeichen klingt wie eine alte Drehorgel",
+      "ein Zettel mit einem gezeichneten L\xE4cheln liegt in der Garderobe",
+      "der Vorhang geht auf, bevor jemand bereit ist",
+      "drau\xDFen wird der Wagen abgeh\xE4ngt",
+      "die Schminke geht nicht mehr ab",
+      "der Platz f\xFCr den Direktor bleibt leer",
+      "ein Kind im Publikum weint statt zu lachen",
+      "die Musik spielt einen Marsch, den keiner bestellt hat",
+      "an der Kasse h\xE4ngt ein Zettel ohne Datum",
+      "der Scheinwerfer sucht jemanden, der nicht auftritt",
+      "in der Garderobe steht ein zweiter Schminkkasten",
+      "jemand hat die Reihenfolge des Programms ge\xE4ndert"
+    ],
+    "props": [
+      "eine rissige Clownsmaske",
+      "einen verrosteten Trapezhaken",
+      "eine Trillerpfeife aus Messing",
+      "ein zerfleddertes Tarotblatt mit einem Narren",
+      "einen Beutel voller Konfetti aus Pergament",
+      "eine Laterne mit rotem Glas",
+      "einen Dolch mit Perlmuttgriff",
+      "eine Spieluhr, die eine Jahrmarktsmelodie spielt",
+      "ein Seil, geflochten mit bunten B\xE4ndern",
+      "eine rote Nase aus Schaumgummi",
+      "einen Puderquast",
+      "ein Paar viel zu gro\xDFe Schuhe",
+      "eine Peitsche ohne Knall",
+      "ein Plakat von 1957",
+      "einen Schminkkasten mit Spiegel",
+      "ein Seil aus der Zeltmitte",
+      "eine Blechtrompete",
+      "ein Programmheft mit Eselsohren",
+      "eine Kette Gl\xF6ckchen",
+      "einen Klappstuhl mit einem Namen",
+      "ein Netz mit gerissener Masche",
+      "eine Eintrittskarte ohne Datum",
+      "einen Krug mit Wasser f\xFCr die Manege"
+    ],
+    "turns": [
+      "pl\xF6tzlich erkennt er das Gesicht unter der Maske als sein eigenes",
+      "der Direktor tr\xE4gt dieselbe Schminke wie der Narr aus seinen Tr\xE4umen",
+      "die Zirkusglocke schl\xE4gt dreizehn Mal, und die Nacht wird zum Tag",
+      "hinter dem Vorhang wartet kein Publikum, sondern ein leeres Zelt",
+      "als der Applaus verstummt, beginnt irgendwo Jahrmarktsmusik zu spielen",
+      "die Nummer geht schief, und das Publikum lacht lauter",
+      "jemand nimmt die Maske ab, und niemand erkennt ihn",
+      "der Applaus setzt eine Sekunde zu sp\xE4t ein",
+      "die Kapelle spielt den Schluss mitten im St\xFCck",
+      "das Zelt wird abgebaut, w\xE4hrend er noch probt",
+      "ein Kind steigt in die Manege",
+      "die Rolle beginnt, ihn zu tragen",
+      "der Direktor k\xFCndigt eine Nummer an, die es nicht gibt",
+      "das Lachen kippt in Stille",
+      "er vergisst den Trick, den er tausendmal konnte",
+      "ein alter Kollege steht pl\xF6tzlich am Eingang",
+      "der Spiegel zeigt die Schminke ohne Gesicht",
+      "die letzte Vorstellung ist schon gewesen"
+    ],
+    "obstacles": [
+      "der Boden ist mit Kreidekreuzen \xFCbers\xE4t, die niemand betreten darf",
+      "der Ansager starrt reglos ins Leere, als sei er zu Stein erstarrt",
+      "ein Netz aus bunten B\xE4ndern versperrt den Ausgang",
+      "die Truppe weigert sich, die fremde Manege zu betreten",
+      "der Nebel verschluckt jeden Ruf nach Verst\xE4rkung",
+      "das Sicherungsseil ist mit Narrenstoff geflickt",
+      "das Zelt hat kein Publikum mehr",
+      "die Gage bleibt aus",
+      "die Hand zittert vor dem Wurf",
+      "das Trapez ist gesperrt",
+      "niemand kennt die Nummer noch",
+      "der Regen weicht den Boden auf",
+      "die Genehmigung f\xFCr den Platz l\xE4uft ab",
+      "die Kapelle ist auf drei Mann geschrumpft",
+      "die Schminke deckt die Falten nicht mehr",
+      "der Nachfolger ist schneller",
+      "die Musik kommt vom Band, nicht mehr von der B\xFChne"
+    ],
+    "stakes": [
+      "Der Einsatz ist sein Verstand: gefangen zwischen Rolle und Wahnsinn.",
+      "Der Einsatz ist der Applaus: mehr Fluch als Geschenk.",
+      "Der Einsatz ist ein Name, den niemand mehr auszusprechen wagt.",
+      "Der Einsatz ist die letzte Nacht vor der letzten Vorstellung.",
+      "Der Einsatz ist das L\xE4cheln hinter der Maske: echt oder erzwungen?",
+      "Der Einsatz ist die Nummer: Sie sitzt oder sie f\xE4llt.",
+      "Der Einsatz ist das Zelt: Es steht noch eine Saison.",
+      "Der Einsatz ist das Lachen, das er selbst nicht mehr h\xF6rt.",
+      "Der Einsatz ist ein Platz in der Manege, den ein anderer will.",
+      "Der Einsatz ist das Gesicht unter der Schminke.",
+      "Der Einsatz ist die Truppe, die von ihm lebt.",
+      "Der Einsatz ist ein Abgang, den man sich aussucht."
+    ],
+    "endings": [
+      "Und irgendwo im Nebel hinter dem Zelt lacht noch immer ein Narr.",
+      "So endet die Fahrt, doch die Schminke bleibt auf seiner Haut.",
+      "Der Vorhang f\xE4llt \xFCber die leere Manege, f\xFCr immer.",
+      "Er tr\xE4gt seither die Maske, die ihn einst jagte.",
+      "So schlie\xDFt sich der Kreis aus Manege und Rummelplatz.",
+      "Und das S\xE4gemehl wird zusammengekehrt wie an jedem Abend.",
+      "So bleibt der Scheinwerfer an, bis der Strom abgestellt wird.",
+      "Am Ende verbeugt er sich vor leeren R\xE4ngen.",
+      "Und die Kapelle spielt zu Ende, weil sie es so gelernt hat.",
+      "So wandert das Zelt weiter, ohne ihn.",
+      "Und die Nase liegt am Morgen noch auf dem Kissen.",
+      "Der Wagen f\xE4hrt, das Lachen bleibt stehen.",
+      "Und der Platz ist am Montag wieder eine Wiese."
+    ],
+    "verwandlungen": [
+      "Maske\u2192Miene",
+      "Zelt\u2192Haus",
+      "Manege\u2192B\xFChne",
+      "Nase\u2192Warze",
+      "Applaus\u2192Regen",
+      "Direktor\u2192Vater",
+      "Scheinwerfer\u2192Mond",
+      "Publikum\u2192Feld",
+      "Wagen\u2192Sarg"
+    ]
+  },
+  "faust": {
+    "motifs": [
+      "ein Pakt, mit Blut besiegelt",
+      "der Schatten des Mephisto \xFCber dem Studierzimmer",
+      "eine Uhr im Studierzimmer, die r\xFCckw\xE4rts tickt",
+      "zwei Seelen in einer Brust",
+      "ein Buch, das niemand lesen darf",
+      "das Fl\xFCstern verlorener Seelen in den Gassen",
+      "ein Spiegel, der ein j\xFCngeres Gesicht zeigt",
+      "Rauch ohne Feuer \xFCber den D\xE4chern",
+      "ein Studierzimmer, in dem seit Jahren kein Fenster aufging",
+      "B\xFCcher, die alles wissen und nichts sagen",
+      "ein Kreidekreis auf den Dielen",
+      "eine Reihe Alchemistengl\xE4ser im Halbdunkel",
+      "ein Osterspaziergang unter fremden Glocken",
+      "ein Kleinod, das jemand ins Fenster gestellt hat",
+      "der Hund, der zu lange folgt",
+      "ein Kerker mit einem Strohlager",
+      "ein Becher, den er zweimal abgesetzt hat",
+      "die Handschrift eines Mannes, der j\xFCnger wurde"
+    ],
+    "hooks": [
+      "ein Siegel, das nach Schwefel riecht",
+      "eine Handschrift, die sich selbst ver\xE4ndert",
+      "ein Fremder, der die eigene Stimme tr\xE4gt",
+      "ein Vertrag mit fehlendem Datum",
+      "ein zweiter Schatten hinter dem Gelehrten",
+      "ein Brief ohne Absender und ohne Datum",
+      "ein Duft von verbranntem Papier im H\xF6rsaal",
+      "ein Lachen, das aus der Mauer kommt",
+      "ein Vertrag liegt schon aufgeschlagen auf dem Pult",
+      "der Fremde nennt eine Bedingung und l\xE4chelt dabei",
+      "der Pudel bleibt vor der T\xFCr sitzen und geht nicht",
+      "drau\xDFen l\xE4uten die Glocken, und drinnen wird es still",
+      "ein Name f\xE4llt, den er seit drei\xDFig Jahren nicht geh\xF6rt hat",
+      "das Gift steht bereit und wird nicht getrunken",
+      "ein M\xE4dchen dankt f\xFCr etwas, das er nicht gegeben hat",
+      "der Spiegel zeigt ein Gesicht ohne Jahre",
+      "im Nebenzimmer wird eine Kette abgelegt",
+      "die Feder liegt neben dem Blatt, und niemand hat sie gebracht",
+      "ein Diener spricht mit der Stimme des Herrn",
+      "der Wein schmeckt nach etwas anderem als Wein"
+    ],
+    "props": [
+      "einen Pakt aus vergilbtem Pergament",
+      "eine Phiole mit rotem Wachs",
+      "einen Ring mit eingraviertem Pentagramm",
+      "eine Maske aus mattem Gold",
+      "ein Amulett mit Teufelskopf",
+      "einen Schl\xFCssel zur verbotenen Kammer",
+      "eine Feder, die von selbst schreibt",
+      "ein Medaillon mit Mephistos Zeichen",
+      "einen verkohlten Brief",
+      "eine Feder, die nicht trocknet",
+      "einen Becher mit dunklem Bodensatz",
+      "ein Buch mit gerissenem R\xFCcken",
+      "eine Kette aus d\xFCnnem Gold",
+      "einen Schl\xFCssel zum Kerker",
+      "ein Fl\xE4schchen mit einem Rest",
+      "einen Talar mit abgewetzten \xC4rmeln",
+      "ein K\xE4stchen, das jemand ins Fenster stellte",
+      "eine Kerze, die zu schnell brennt",
+      "einen Spiegel in einem Messingrahmen"
+    ],
+    "turns": [
+      "pl\xF6tzlich unterschreibt er, was er nie lesen wollte",
+      "er erkennt sein eigenes Gesicht im Widersacher",
+      "die Menge ruft einen Namen, den niemand kennt",
+      "der Pakt verlangt seinen Preis, genau um Mitternacht",
+      "aus Freiheit wird ein Handel mit dem Teufel",
+      "das Streben folgt einem Plan, den keiner schrieb",
+      "er unterschreibt, und die Feder schreibt weiter allein",
+      "was er zu wissen glaubte, h\xE4lt keine Nacht mehr stand",
+      "der Fremde erf\xFCllt den Wunsch genau und ganz falsch",
+      "die Jugend kommt zur\xFCck, aber nicht die Zeit",
+      "er verspricht etwas, das ein anderer bezahlen wird",
+      "die Glocke unterbricht ihn im entscheidenden Satz",
+      "ein Wort, das er leichthin sagt, wird sp\xE4ter zitiert",
+      "der Diener kennt den Vertrag besser als er selbst",
+      "die Bedingung tritt ein, ohne dass sie genannt wurde",
+      "er sieht das Ergebnis seines Wunsches und will ihn zur\xFCck",
+      "der Fremde verlangt keine Seele, sondern einen Augenblick",
+      "was ihm geh\xF6rt, geh\xF6rte nie ihm",
+      "die Nacht auf dem Berg zeigt ihm sein eigenes Gesicht",
+      "er hilft, und die Hilfe kostet mehr als das Ungl\xFCck"
+    ],
+    "obstacles": [
+      "die Kammer ist von Misstrauen umstellt",
+      "niemand darf den Pakt je erw\xE4hnen",
+      "die Diener gehorchen einer fremden Stimme",
+      "der Fremde verlangt ein Pfand, das keiner geben will",
+      "das Wissen verlangt einen Preis, den niemand nennen will",
+      "die Zeit l\xE4uft schneller als jeder Plan",
+      "der Vertrag l\xE4sst keinen R\xFCcktritt zu",
+      "jedes Wissen f\xFChrt zu einer Frage dahinter",
+      "die Stadt h\xF6rt das Ger\xFCcht vor ihm",
+      "der Fremde antwortet nur, was gefragt wurde",
+      "der Kerker \xF6ffnet sich, aber sie geht nicht mit",
+      "die Zeit l\xE4uft r\xFCckw\xE4rts und nicht zur\xFCck",
+      "niemand glaubt ihm ohne den Fremden",
+      "die Glocken zwingen ihn zum Warten",
+      "eine Unterschrift gilt auch ohne Zeugen",
+      "das Mittel wirkt, aber nicht auf ihn",
+      "die B\xFCcher schweigen genau an dieser Stelle",
+      "der Preis wird erst nachtr\xE4glich genannt",
+      "er hat kein Recht auf Reue, so steht es da",
+      "der Augenblick, den er halten will, h\xE4lt ihn"
+    ],
+    "stakes": [
+      "Der Einsatz ist eine Seele, im Voraus verpf\xE4ndet.",
+      "Der Einsatz ist die letzte Wahrheit hinter allem Wissen.",
+      "Der Einsatz ist ein Pakt, der niemals bricht.",
+      "Der Einsatz ist die Freiheit, erkauft mit Schatten.",
+      "Der Einsatz ist der Augenblick, der verweilen soll.",
+      "Der Einsatz ist das Gleichgewicht zweier Welten.",
+      "Der Einsatz ist ein Augenblick, zu dem man Verweile sagt.",
+      "Der Einsatz ist ein M\xE4dchen, das nichts von dem Vertrag wei\xDF.",
+      "Der Einsatz ist alles Wissen gegen einen einzigen Tag.",
+      "Der Einsatz ist die Unterschrift, die noch nicht getrocknet ist.",
+      "Der Einsatz ist ein Name, der \xFCber den Tod hinaus haftet.",
+      "Der Einsatz ist die Frage, ob Streben allein gen\xFCgt."
+    ],
+    "endings": [
+      "So schlie\xDFt sich der Pakt, unwiderruflich.",
+      "Die Glocke schweigt, doch der Teufel l\xE4chelt.",
+      "Man erinnert sich nur an das Streben, nicht an den Preis.",
+      "Der Vertrag ist erf\xFCllt, die Seele bezahlt.",
+      "So endet ein Gelehrter, so beginnt eine Legende.",
+      "Im Schatten der B\xFCcherwand verstummt die letzte Frage.",
+      "Und die Feder liegt quer \xFCber dem Blatt.",
+      "So bleibt der Kreidekreis auf den Dielen stehen.",
+      "Am Ende ist das Zimmer wieder still und voller B\xFCcher.",
+      "Und die Glocken l\xE4uten, als w\xE4re nichts geschehen.",
+      "So wird der Augenblick festgehalten und ist damit vorbei.",
+      "Und der Fremde geht als Erster durch die T\xFCr.",
+      "Der Vertrag liegt im Fach, mit einem Datum darauf.",
+      "Und im Kerker bleibt das Stroh, wie es lag.",
+      "So endet das Streben nicht, es h\xF6rt nur auf.",
+      "Und niemand wei\xDF, welcher der beiden gegangen ist."
+    ],
+    "verwandlungen": [
+      "Pakt\u2192Vertrag",
+      "Feder\u2192Klinge",
+      "Seele\u2192M\xFCnze",
+      "Kerze\u2192Asche",
+      "Buch\u2192Blatt",
+      "Spiegel\u2192Schatten",
+      "Becher\u2192Krug",
+      "Kerker\u2192Garten"
+    ]
+  },
+  "lebenreicher": {
+    "motifs": [
+      "jemand, der Reichtum in fremden Gassen sucht",
+      "zwei Fremde, die sich im Dunkeln begegnen",
+      "eine M\xFCnze, die niemals ihren Glanz verliert",
+      "ein Herz, das mehr z\xE4hlt als Gold",
+      "ein Besitz, der leiser wird als das Teilen",
+      "ein Ring, der Erinnerung statt Macht bedeutet",
+      "ein Brief, der wahren Reichtum beschreibt",
+      "eine Kerze, die Freundschaft erhellt",
+      "ein Spiegel, der die Seele reicher zeigt",
+      "ein Haus mit zw\xF6lf Zimmern und zwei bewohnten",
+      "ein Kontostand, der niemanden mehr freut",
+      "eine Einladung, die man nicht ausschlagen kann",
+      "ein Geschenk, das eine Rechnung ist",
+      "ein T\xFCrsteher, der jeden Gast kennt",
+      "ein Nachbar, der nie klingelt",
+      "ein Zimmer, das f\xFCr Besuch bereitsteht und leer bleibt"
+    ],
+    "hooks": [
+      "ein Fremder spricht eine unbekannte Sprache in der Dunkelheit",
+      "ein vergessenes Geschenk liegt auf der Fensterbank",
+      "eine Notiz nennt keinen Namen, nur ein Versprechen",
+      "zwei Schatten reichen sich die Hand",
+      "ein Duft nach Zimt, wo Blut sein sollte",
+      "ein L\xE4cheln, das nicht zum Elend passt",
+      "ein Lied klingt vertraut, obwohl es niemand kennt",
+      "ein Kind schenkt einem Fremden sein letztes Brot",
+      "Ein Geschenk liegt auf der Fensterbank, ohne Karte.",
+      "Der Gast kommt und will nichts.",
+      "Der Nachbar gr\xFC\xDFt zum ersten Mal in zehn Jahren.",
+      "Im Haus fehlt etwas, das niemand vermisst hat.",
+      "Die Einladung gilt f\xFCr einen, der nicht kommen kann.",
+      "Jemand bringt zur\xFCck, was verloren war.",
+      "Ein Bettler nennt seinen Namen und wartet.",
+      "Die Rechnung ist beglichen, von wem, sagt niemand."
+    ],
+    "props": [
+      "einen goldenen Siegelring",
+      "eine Schatulle voller Briefe",
+      "einen Kelch aus fremder Hand",
+      "eine zerlesene Schrift \xFCber das Gl\xFCck",
+      "einen einfachen Holzl\xF6ffel",
+      "ein Medaillon mit zwei Gesichtern",
+      "eine Kerze aus geschmolzenem Wachs",
+      "einen Beutel mit unbekannten Samen",
+      "eine Uhr ohne Zeiger",
+      "eine Einladung mit gedrucktem Namen",
+      "einen Mantel f\xFCr den Gast",
+      "eine Rechnung ohne Betrag",
+      "einen Schl\xFCssel f\xFCr ein Zimmer, das leer bleibt",
+      "ein Geschenk ohne Karte",
+      "einen Stuhl, der immer frei bleibt"
+    ],
+    "turns": [
+      "pl\xF6tzlich z\xE4hlt nicht mehr der Besitz, sondern die Geste",
+      "er erkennt, dass sein Reichtum nie aus Gold bestand",
+      "er verschenkt, was er zuvor bewachte",
+      "die Menge verstummt vor einem Akt der G\xFCte",
+      "aus Feinden werden f\xFCr einen Moment Freunde",
+      "der wahre Schatz liegt in einem geteilten Brot",
+      "niemand wei\xDF mehr, wer hier wirklich herrscht",
+      "der Gast gibt mehr, als das Haus ihm bietet",
+      "ein Geschenk erweist sich als Abschied",
+      "das Misstrauen kostet mehr als jeder Betrug",
+      "ein Fremder wird eingelassen, und nichts fehlt",
+      "der Nachbar bittet um etwas und bekommt es",
+      "die Schatulle enth\xE4lt Briefe an ihn, ungelesen",
+      "das Haus wird voll, und der Besitzer geht",
+      "er l\xE4dt ein und wei\xDF nicht, wen",
+      "eine Geste bleibt, und der Anlass ist vergessen",
+      "er verliert alles und beh\xE4lt, worauf es ankam",
+      "der Bettler kennt seinen Vornamen",
+      "ein Brief von fr\xFCher erkl\xE4rt eine alte Feindschaft",
+      "der Erbe verzichtet und nennt keinen Grund",
+      "das Fest findet statt, und es kommen die Falschen",
+      "er zahlt eine Schuld, die keiner mehr eintreibt",
+      "ein Zimmer wird vermietet, f\xFCr nichts"
+    ],
+    "obstacles": [
+      "alle misstrauen jedem freundlichen Wort",
+      "das Haus verschlie\xDFt sich vor echten Gef\xFChlen",
+      "Ger\xFCchte vergiften das Vertrauen zwischen Nachbarn",
+      "der Fremde wird verd\xE4chtigt, etwas zu wollen",
+      "die Stra\xDFen sind zu gef\xE4hrlich f\xFCr offene Worte",
+      "niemand glaubt an uneigenn\xFCtzige Gaben",
+      "die Zeit dr\xE4ngt, doch die Wahrheit wartet",
+      "ein Geschenk verpflichtet, und beide wissen es",
+      "niemand glaubt, dass es umsonst ist",
+      "der T\xFCrsteher l\xE4sst keinen ohne Namen herein",
+      "die Familie erwartet, dass nichts weggegeben wird",
+      "die Einladung wird nur aus Berechnung angenommen",
+      "das Zimmer f\xFCr Besuch steht seit Jahren leer",
+      "wer gibt, wird gefragt, was er will",
+      "die Sprache des Gastes versteht im Haus niemand",
+      "der Winter macht den Weg zum Nachbarn weit",
+      "ein Erbe wacht \xFCber jede Ausgabe",
+      "Freundlichkeit gilt hier als Schw\xE4che",
+      "das Haus ist zu gro\xDF f\xFCr die Heizung",
+      "niemand im Viertel gibt eine Einladung zur\xFCck",
+      "der Anwalt r\xE4t ausdr\xFCcklich davon ab",
+      "die Nachbarn z\xE4hlen, wer wie oft kommt",
+      "das Geschenk ist zu teuer, um es anzunehmen"
+    ],
+    "stakes": [
+      "Der Einsatz ist Menschlichkeit: in einer Zeit des Hasses.",
+      "Der Einsatz ist Freundschaft: \xFCber Grenzen hinweg.",
+      "Der Einsatz ist W\xFCrde: wenn alles andere f\xE4llt.",
+      "Der Einsatz ist Vertrauen: zwischen Fremden, die es nicht m\xFCssten.",
+      "Der Einsatz ist Erinnerung: an das, was wirklich z\xE4hlt.",
+      "Der Einsatz ist Mitgef\xFChl: in einer kalten Zeit.",
+      "Der Einsatz ist Hoffnung: f\xFCr ein reicheres Morgen.",
+      "Der Einsatz ist ein Zimmer, das jemand bewohnen k\xF6nnte.",
+      "Der Einsatz ist eine Geste, die niemand erwartet.",
+      "Der Einsatz ist die Frage, ob es umsonst sein darf.",
+      "Der Einsatz ist ein Name, den ein Bettler kennt."
+    ],
+    "endings": [
+      "So wird aus Gold nur Staub, aus G\xFCte aber Ewigkeit.",
+      "Das Haus verf\xE4llt, doch die Geste bleibt bestehen.",
+      "So endet die Nacht, reicher an Menschlichkeit.",
+      "Zwei Verm\xF6gen vergehen, ein Herz bleibt bestehen.",
+      "So schlie\xDFt sich der Kreis aus Haben und Geben.",
+      "Am Ende z\xE4hlt nur, was man verschenkt hat.",
+      "So bleibt von allen nur, was sie gaben.",
+      "Und das Geschenk liegt am Morgen noch auf der Bank.",
+      "Am Ende steht das Zimmer offen, f\xFCr irgendwen.",
+      "Und der Nachbar gr\xFC\xDFt am n\xE4chsten Tag wieder.",
+      "So bleibt die Schatulle zu, und die Briefe ungelesen.",
+      "Und der Gast ist fort, mit dem Mantel.",
+      "Der Ring liegt auf dem Tisch, und niemand nimmt ihn.",
+      "Und im Haus ist es w\xE4rmer als sonst.",
+      "Und die Einladung liegt unge\xF6ffnet auf dem Tisch.",
+      "So bleibt der Stuhl am Kopfende frei.",
+      "Am Ende ist das Haus voll und der Hof leer.",
+      "Und der T\xFCrsteher l\xE4sst zum ersten Mal jemanden durch."
+    ],
+    "verwandlungen": [
+      "Haus\u2192Geh\xE4use",
+      "Gast\u2192Bote",
+      "Geschenk\u2192Pfand",
+      "Ring\u2192Reif",
+      "Zimmer\u2192Grab",
+      "Mantel\u2192Schleier"
+    ]
+  },
+  "tanz": {
+    "motifs": [
+      "ein Kreis, der sich dreht, ohne dass jemand f\xFChrt",
+      "Schatten, die sich drehen, ohne Musik",
+      "der Wind tanzt durch das Gras wie eine unsichtbare Hand",
+      "ein altes Lied, das nur die F\xFC\xDFe zu kennen scheinen",
+      "zwei Paar Schritte im gleichen geheimen Takt",
+      "ein Reigen, der sich im Nebel des Saals verliert",
+      "aufgewirbelter Staub, der wie Schnee im Mondlicht steht",
+      "ein Takt, der \xE4lter ist als der Tanz selbst",
+      "ein Saal mit abgetretenen Dielen",
+      "Kreidestaub auf dem Parkett",
+      "eine Reihe Paare, die dasselbe atmen",
+      "ein Takt, der einen Schlag zu viel hat",
+      "Schuhe, die nebeneinander an der Wand stehen",
+      "ein Spiegel, in dem alle j\xFCnger sind",
+      "die Hand auf einem R\xFCcken, ohne Druck",
+      "eine Melodie, die aus dem Nebenraum kommt",
+      "Staub im Licht \xFCber der Tanzfl\xE4che",
+      "ein Kreidekreis auf dem Boden",
+      "Schwei\xDF und Bienenwachs",
+      "ein Vorhang, der sich ohne Wind bewegt",
+      "eine Nummer auf einem R\xFCcken",
+      "der Abdruck eines Absatzes im Lack",
+      "ein Metronom ohne Aufsicht",
+      "der leere Platz in einer Reihe",
+      "zwei Schatten, die einen Schritt vorauslaufen"
+    ],
+    "hooks": [
+      "die Musik setzt aus, doch niemand bleibt stehen",
+      "ein Gl\xF6ckchen l\xE4utet, ohne dass jemand es ber\xFChrt",
+      "ein Schatten tanzt einen Takt zu sp\xE4t",
+      "jemand summt eine Melodie, die ihm niemand beibrachte",
+      "der Kreis im Staub ist genau so gro\xDF wie der Tanz",
+      "ein Hund folgt dem Takt mit geneigtem Kopf",
+      "die Fu\xDFspuren verschwinden, kaum sind sie gesetzt",
+      "der Wind h\xE4lt kurz den Atem an",
+      "der Saal ist offen, aber niemand hat aufgeschlossen",
+      "die Kapelle spielt ein St\xFCck zu viel",
+      "ein Paar tanzt weiter, als der Saal l\xE4ngst leer ist",
+      "die Dielen geben an einer Stelle nach",
+      "ein Fremder steht in der T\xFCr und wartet auf den Takt",
+      "der Spiegel zeigt einen Schritt vorher",
+      "die Uhr im Saal ist stehengeblieben, der Takt nicht",
+      "jemand fehlt in der Reihe, und niemand merkt es",
+      "auf dem Boden liegt Kreide von einer anderen Figur"
+    ],
+    "props": [
+      "eine Geige ohne Saiten",
+      "ein verwittertes Gl\xF6ckchen",
+      "einen Kranz aus Wiesenblumen",
+      "ein Tuch, das nach Zeit riecht",
+      "eine Fl\xF6te ohne L\xF6cher",
+      "einen Ring aus geflochtenem Draht",
+      "eine Laterne ohne Flamme",
+      "einen Mantel, warm wie eine Erinnerung",
+      "ein Paar Tanzschuhe",
+      "ein Metronom",
+      "eine Geige im Kasten",
+      "ein Kreidest\xFCck f\xFCr den Boden",
+      "eine Tanzkarte mit Namen",
+      "ein Notenblatt ohne Titel",
+      "eine Sch\xE4rpe aus Seide",
+      "einen Handschuh, der \xFCbrig ist",
+      "eine Uhr ohne Zeiger",
+      "ein Band f\xFCr das Haar",
+      "einen Stuhl am Rand des Saals",
+      "ein Glas Wasser auf dem Klavier",
+      "eine Nummer aus Papier",
+      "ein Programm der letzten Saison"
+    ],
+    "turns": [
+      "pl\xF6tzlich tanzen alle, als h\xE4tte es niemand je verlernt",
+      "auf einmal l\xE4cheln alle zur gleichen Sekunde",
+      "der Boden scheint sich mit ihnen zu drehen",
+      "mit dem ersten Schritt wird die Zeit ganz still",
+      "der Tanz zieht die Umstehenden in einen stillen Kreis",
+      "als der Mond aufgeht, beginnt der Tanz von selbst",
+      "der Takt wechselt, und niemand stolpert",
+      "eine Hand fasst zu und l\xE4sst nicht mehr los",
+      "die Reihen l\xF6sen sich in einen einzigen Kreis",
+      "der Fremde f\xFChrt, ohne dass es jemand beschlie\xDFt",
+      "die Musik verstummt, und die F\xFC\xDFe gehen weiter",
+      "ein Schritt kommt aus einer anderen Zeit",
+      "der Boden gibt den Takt zur\xFCck",
+      "zwei tanzen dasselbe, ohne sich zu sehen",
+      "die Kapelle spielt, was niemand aufgeschrieben hat",
+      "der Kreis \xF6ffnet sich f\xFCr einen",
+      "die Reihenfolge dreht sich um",
+      "der letzte Ton bleibt in der Luft h\xE4ngen"
+    ],
+    "obstacles": [
+      "der Saal liegt pl\xF6tzlich im Halbdunkel",
+      "die F\xFC\xDFe scheinen den Boden nicht mehr zu ber\xFChren",
+      "der Tanz will nicht enden, obwohl die Kr\xE4fte schwinden",
+      "die anderen weichen zur\xFCck, als sp\xFCrten sie etwas Fremdes",
+      "kein Lied begleitet die Schritte, und doch geht der Tanz weiter",
+      "der Saal wird um Mitternacht geschlossen",
+      "die Kapelle kennt das St\xFCck nicht",
+      "der Boden ist zu glatt f\xFCr den Schritt",
+      "ein Kn\xF6chel gibt nach",
+      "die Reihen sind ungerade",
+      "niemand hat den Takt gez\xE4hlt",
+      "das Licht geht aus, die Musik nicht",
+      "die Schuhe passen nicht mehr",
+      "der Partner kommt nicht",
+      "der Schritt ist vergessen, und niemand kann ihn zeigen",
+      "die Uhr treibt schneller als die Kapelle",
+      "der Saal ist zu klein f\xFCr alle Paare"
+    ],
+    "stakes": [
+      "Der Einsatz ist Erinnerung: an einen Tanz, der jung h\xE4lt.",
+      "Der Einsatz ist Vertrauen: dass der Takt nicht abbricht.",
+      "Der Einsatz ist die Zeit selbst, die mit jedem Schritt verrinnt.",
+      "Der Einsatz ist die Liebe, die sich im Kreis bewahrt.",
+      "Der Einsatz ist das L\xE4cheln, das den Tanz \xFCberlebt.",
+      "Der Einsatz ist ein Schritt, den nur noch einer kann.",
+      "Der Einsatz ist der Kreis: Er h\xE4lt oder er rei\xDFt.",
+      "Der Einsatz ist ein Abend, den es nicht zweimal gibt.",
+      "Der Einsatz ist die Hand, die man nimmt oder nicht.",
+      "Der Einsatz ist der Saal, den man abrei\xDFen will.",
+      "Der Einsatz ist das Z\xE4hlen: laut oder gar nicht."
+    ],
+    "endings": [
+      "So geht der Tanz weiter, wenn niemand mehr hinsieht.",
+      "Und das Holz erinnert sich an den Takt, wenn der Saal l\xE4ngst leer ist.",
+      "So schlie\xDFt sich der Kreis, Schritt f\xFCr Schritt.",
+      "Am Ende bleibt nur ein L\xE4cheln \xFCber dem stillen Boden.",
+      "Und der Tanz wird zur Legende, die der Wind weitertr\xE4gt.",
+      "Und die Schuhe stehen am Morgen noch an der Wand.",
+      "So bleibt der Takt im Boden, wenn die Kapelle geht.",
+      "Am Ende z\xE4hlt niemand mehr mit.",
+      "Und der Kreis ist einen kleiner als am Anfang.",
+      "So endet der Abend, wie jeder Abend endet: mit dem Licht.",
+      "Und jemand summt es auf dem Heimweg.",
+      "Der Saal steht leer und ist noch warm.",
+      "Und die Kreide bleibt bis zum n\xE4chsten Mal."
+    ],
+    "verwandlungen": [
+      "Takt\u2192Puls",
+      "Saal\u2192Wald",
+      "Musik\u2192Stille",
+      "Kreis\u2192Ring",
+      "Schritt\u2192Schlag",
+      "Geige\u2192Stimme",
+      "Spiegel\u2192Schatten",
+      "Kapelle\u2192Wolke"
+    ]
+  },
+  "griechischetragoedie": {
+    "motifs": [
+      "ein Chor, der aus dem Nichts fl\xFCstert",
+      "zwei Schatten, die eins werden",
+      "das L\xE4cheln, das die G\xF6tter tragen",
+      "ein Schafsfell, wei\xDF wie ein Leichentuch",
+      "der Wind, der alte Namen tr\xE4gt",
+      "eine Fessel, die niemand sieht",
+      "das Auge des Zeus in der Wolke",
+      "ein Baum, der zwei St\xE4mme teilt",
+      "ein Orakel, das zweimal dasselbe sagt",
+      "Blut auf der Schwelle eines Hauses",
+      "ein Chor, der wei\xDF und nicht eingreift",
+      "eine Maske mit offenem Mund",
+      "ein K\xF6nigshaus, das sich selbst verzehrt",
+      "der Rauch eines Opfers, der nicht steigt",
+      "ein Bote, der von weit her kommt",
+      "eine Krone, die zu leicht ist",
+      "Staub auf einem unbestatteten Leib",
+      "das Meer, das keine R\xFCckkehr gew\xE4hrt",
+      "ein Eid, der \xFCber den Tod hinaus gilt",
+      "die Stufen vor einem verschlossenen Palast",
+      "ein Name, den man nicht aussprechen darf",
+      "Fackeln in einem Hof bei Nacht",
+      "eine Wunde, die niemand versorgt",
+      "die Stimme einer Frau hinter der T\xFCr"
+    ],
+    "hooks": [
+      "die Schafe schweigen alle zugleich",
+      "ein Duft nach Weihrauch ohne Altar",
+      "ihre H\xE4nde ber\xFChren sich, ohne sich zu bewegen",
+      "ein Schatten, der keinem K\xF6rper geh\xF6rt",
+      "das Gras neigt sich ohne Wind",
+      "zwei Becher, die nie leer werden",
+      "ein Lachen, das aus der Erde kommt",
+      "die Sonne steht still \xFCber der Weide",
+      "ein Bote steht am Tor und wartet auf Erlaubnis",
+      "der Chor beginnt zu sprechen, bevor jemand fragt",
+      "die Zeichen im Rauch sind eindeutig und niemand deutet sie",
+      "vor dem Palast liegt etwas unter einem Tuch",
+      "ein Fremder kennt den Weg durch das Haus",
+      "das Orakel wird ausgerichtet, Wort f\xFCr Wort",
+      "die T\xFCren des Palastes stehen offen und niemand geht hinein",
+      "eine alte Frau nennt einen Namen und schweigt dann"
+    ],
+    "props": [
+      "einen h\xF6lzernen Hirtenstab",
+      "eine Schale aus Ton",
+      "einen Kranz aus Efeu",
+      "ein Lammfell",
+      "einen Krug voll Milch",
+      "eine bronzene Fibel",
+      "einen \xD6lzweig",
+      "eine Opferschale",
+      "ein verwittertes Amulett",
+      "eine Maske aus bemaltem Holz",
+      "einen Opferkrug",
+      "ein Schwert unter einem Mantel",
+      "eine Binde f\xFCr die Augen",
+      "einen \xD6lzweig als Bittzeichen",
+      "ein Los aus einem Helm",
+      "eine Urne mit Asche",
+      "einen Stab des Sehers",
+      "ein Gewand mit einem Riss",
+      "eine Schale voll Wein f\xFCr die Toten",
+      "einen Spiegel aus Bronze",
+      "ein Siegel des Hauses",
+      "eine Schnur, an der ein Kind erkannt wird"
+    ],
+    "turns": [
+      "pl\xF6tzlich erkennen sie die Fremden als G\xF6tter",
+      "ihr L\xE4cheln verr\xE4t ein Wissen, das nicht von dieser Welt ist",
+      "das Dorf versinkt, w\xE4hrend ihre H\xFCtte zum Tempel wird",
+      "die Schafe knien nieder, als w\xFCssten sie es l\xE4ngst",
+      "aus Gastfreundschaft wird ein Schicksal",
+      "ihre Jugend weicht, doch ihr L\xE4cheln bleibt dasselbe",
+      "das Orakel erf\xFCllt sich durch die Flucht davor",
+      "der Bote bringt, was niemand h\xF6ren wollte",
+      "der Fremde ist der Gesuchte",
+      "die Schuld springt auf das n\xE4chste Haus \xFCber",
+      "der Chor nennt die Tat beim Namen",
+      "ein Schwur zwingt zum Gegenteil des Gewollten",
+      "die Wahrheit kommt von der Seite, die nicht z\xE4hlt",
+      "das Recht der Toten schl\xE4gt das Recht des K\xF6nigs",
+      "die G\xF6tter schweigen an der falschen Stelle",
+      "was verborgen war, wird vor allen gesagt",
+      "der Retter erkennt sich als Ursache",
+      "das Haus f\xE4llt an einem einzigen Tag"
+    ],
+    "obstacles": [
+      "die G\xF6tter verlangen ein Opfer, das sie nicht geben wollen",
+      "das Dorf verweigert den Fremden die T\xFCr",
+      "die Zeit will sie trennen, doch sie halten sich fest",
+      "der Nebel verschluckt den Weg zur\xFCck",
+      "kein Sterblicher darf die Wahrheit tragen",
+      "das Gesetz verbietet, was der Anstand verlangt",
+      "der K\xF6nig h\xF6rt nur, was ihn best\xE4tigt",
+      "der Chor darf raten und nicht handeln",
+      "ein Eid steht gegen den anderen",
+      "der Seher spricht in Bildern",
+      "niemand darf den Toten begraben",
+      "die Stadt braucht ein Opfer und w\xE4hlt selbst",
+      "der Weg zum Hafen ist gesperrt",
+      "die Wahrheit hilft niemandem mehr",
+      "ein Gast ist unantastbar, auch dieser",
+      "die Botschaft kommt einen Tag zu sp\xE4t",
+      "wer schweigt, wird schuldig, wer spricht, auch"
+    ],
+    "stakes": [
+      "Der Einsatz ist ihre Liebe: gepr\xFCft von den G\xF6ttern selbst.",
+      "Der Einsatz ist die Gastfreundschaft: das letzte Gesetz der Menschen.",
+      "Der Einsatz ist ihr gemeinsamer Tod: als Baum vereint.",
+      "Der Einsatz ist das Schicksal: unabwendbar wie ein Orakel.",
+      "Der Einsatz ist die Erinnerung: an das, was Menschlichkeit bedeutet.",
+      "Der Einsatz ist das Haus: Es steht oder es f\xE4llt mit dem Namen.",
+      "Der Einsatz ist ein Begr\xE4bnis, das das Gesetz verbietet.",
+      "Der Einsatz ist die Stadt, die auf ein Opfer wartet.",
+      "Der Einsatz ist ein Kind, das nicht sterben durfte.",
+      "Der Einsatz ist der Eid, den einer f\xFCr alle geleistet hat.",
+      "Der Einsatz ist die Wahrheit, die niemanden mehr rettet.",
+      "Der Einsatz ist das Gastrecht, das \xE4lter ist als der K\xF6nig."
+    ],
+    "endings": [
+      "So verwandeln sich zwei Herzen in einen Baum.",
+      "So bleibt ihr L\xE4cheln in der Rinde erhalten.",
+      "So endet die Weide, wo ein Tempel begann.",
+      "So schlie\xDFt sich der Kreis der G\xF6tter und Menschen.",
+      "So spricht der Chor: Liebe \xFCberdauert das Fleisch.",
+      "So spricht der Chor das Letzte und tritt zur\xFCck.",
+      "Und die T\xFCren des Hauses schlie\xDFen sich \xFCber allem.",
+      "Am Ende ist das Orakel eingetroffen, wie immer.",
+      "Und was verborgen lag, liegt nun im Hof.",
+      "So endet das Geschlecht mit dem, der es retten wollte.",
+      "Und die Stadt begr\xE4bt und schweigt.",
+      "So bleibt der Name, und niemand nennt ihn.",
+      "Und das Meer tr\xE4gt die Nachricht in eine andere Stadt."
+    ],
+    "verwandlungen": [
+      "Orakel\u2192Urteil",
+      "Maske\u2192Miene",
+      "Chor\u2192Wind",
+      "Krone\u2192B\xFCrde",
+      "Bote\u2192Schatten",
+      "Palast\u2192Berg",
+      "Eid\u2192Fluch",
+      "Opfer\u2192Geschenk"
+    ]
+  },
+  "glueck": {
+    "motifs": [
+      "ein Gl\xFCck, das \xE4lter ist als ihr L\xE4cheln",
+      "zwei Schatten, die sich nie trennen",
+      "das Bl\xF6ken der Schafe im Nebel der Zeit",
+      "ein Licht, das aus den Wolken bricht, ohne Grund",
+      "H\xE4nde, die sich halten, seit Ewigkeiten",
+      "ein Kreis aus Schafen, der sich niemals schlie\xDFt",
+      "ein Gl\xFCcksfaden, unsichtbar gesponnen",
+      "zwei Herzen, die im gleichen Takt schlagen",
+      "ein Tisch, an dem seit drei\xDFig Jahren dieselben zwei sitzen",
+      "ein Garten, der genau so gro\xDF ist, wie zwei ihn schaffen",
+      "ein Vorrat, der bis zum Fr\xFChjahr reicht und nicht weiter",
+      "eine Bank, auf der die Sonne bis vier Uhr steht",
+      "ein Brot, das noch warm auf den Tisch kommt",
+      "ein Abend, an dem nichts zu erledigen ist",
+      "ein Weg zum Brunnen, den beide auswendig gehen",
+      "eine Katze, die immer denselben Platz w\xE4hlt",
+      "ein Fenster, aus dem man das Wetter kommen sieht",
+      "ein Krug, der zweimal am Tag gef\xFCllt wird"
+    ],
+    "hooks": [
+      "ein Lamm, das nicht altert",
+      "ein Duft nach Honig ohne Bienenstock",
+      "ein Windhauch, der nach Namen fl\xFCstert",
+      "zwei Becher, die sich von selbst f\xFCllen",
+      "ein Schaf, das mit menschlicher Stimme meckert",
+      "ein Stein, der warm bleibt trotz der K\xE4lte",
+      "ein Weg, der sich hinter ihnen aufl\xF6st",
+      "eine Feder, die vom Himmel f\xE4llt, ohne Vogel",
+      "Es klopft, und es sind Fremde, und sie werden hereingebeten.",
+      "Der Vorrat reicht f\xFCr zwei, und es sind vier am Tisch.",
+      "Ein Nachbar fragt, was sie eigentlich noch wollen.",
+      "Die Sonne steht schon tief, und keiner steht auf.",
+      "Jemand bietet ihnen ein besseres Haus an.",
+      "Die Katze bleibt zum ersten Mal drau\xDFen.",
+      "Ein Brief k\xFCndigt eine Erbschaft an.",
+      "Im Dorf wird gesagt, sie h\xE4tten zu wenig.",
+      "Der Krug steht voll, und niemand hat ihn gef\xFCllt.",
+      "Es regnet, und beide sitzen nur da."
+    ],
+    "props": [
+      "einen alten Hirtenstab",
+      "eine Schale voll Milch, die nie leer wird",
+      "einen goldenen Faden",
+      "eine Kanne, die sich selbst nachf\xFCllt",
+      "einen Ring aus Schilf",
+      "eine Decke aus Schafwolle",
+      "einen Krug voll Wein f\xFCr Fremde",
+      "eine kleine h\xF6lzerne Fl\xF6te",
+      "einen Krug, der nie ganz leer wird",
+      "eine Bank vor dem Haus",
+      "einen Laib Brot vom Morgen",
+      "eine Schale mit Milch f\xFCr die Katze",
+      "eine Decke f\xFCr zwei Knie",
+      "einen Stock f\xFCr den Weg zum Brunnen",
+      "ein Fenster mit einem Geranientopf",
+      "eine Sch\xFCssel f\xFCr die G\xE4ste"
+    ],
+    "turns": [
+      "pl\xF6tzlich wissen sie, dass die Fremden keine Fremden sind",
+      "auf einmal l\xE4cheln beide, ohne ein Wort zu sagen",
+      "die Schafe verstummen alle zur gleichen Zeit",
+      "ihr Gl\xFCck scheint gr\xF6\xDFer als die Weide selbst",
+      "der Himmel f\xE4rbt sich golden, ohne dass die Sonne sinkt",
+      "ihre H\xE4nde finden sich, wie es immer schon ist",
+      "die Fremden bleiben, und der Tisch reicht doch",
+      "ein Angebot kommt, und beide lehnen ab, ohne zu reden",
+      "was fehlt, f\xE4llt erst auf, als jemand danach fragt",
+      "das Dorf verliert, was die beiden behalten",
+      "der Krug bleibt voll, und niemand redet dar\xFCber",
+      "die Erbschaft kommt und \xE4ndert nichts",
+      "einer wird krank, und der andere lernt kochen",
+      "der Nachbar sieht zum ersten Mal her\xFCber",
+      "das Gl\xFCck wird bemerkt und dadurch zerbrechlich",
+      "ein Fremder segnet das Haus und geht weiter",
+      "der Garten tr\xE4gt in diesem Jahr mehr als n\xF6tig",
+      "sie w\xFCnschen sich etwas, und es ist wenig",
+      "ein Wunsch wird erf\xFCllt und war der richtige",
+      "am Ende bitten beide um dieselbe Stunde"
+    ],
+    "obstacles": [
+      "die Fremden werden von allen anderen abgewiesen",
+      "der Weg zur H\xFCtte scheint sich zu verl\xE4ngern",
+      "das Wetter schl\xE4gt unerwartet um",
+      "die Vorr\xE4te reichen kaum f\xFCr zwei",
+      "die Nacht bricht fr\xFCher herein, als sie sollte",
+      "ihre Nachbarn misstrauen jedem Besucher",
+      "das Dorf h\xE4lt Gastfreundschaft f\xFCr Torheit",
+      "der Vorrat reicht f\xFCr zwei, nicht f\xFCr vier",
+      "der Winter kommt fr\xFCher als in anderen Jahren",
+      "niemand versteht, warum sie nichts wollen",
+      "die Beine tragen den Weg zum Brunnen nicht mehr",
+      "ein Angebot ist zu gut, um es abzulehnen",
+      "die Nachbarn erwarten eine Gegeneinladung",
+      "das Dach h\xE4lt den n\xE4chsten Regen nicht",
+      "einer von beiden h\xF6rt schlechter als fr\xFCher",
+      "das Gl\xFCck l\xE4sst sich nicht erz\xE4hlen, ohne kleiner zu werden",
+      "der Sohn schreibt aus der Stadt und dr\xE4ngt",
+      "die Katze bleibt eine Nacht zu lang weg",
+      "was reicht, reicht nur bis zum Fr\xFChjahr",
+      "niemand will h\xF6ren, dass es genug ist"
+    ],
+    "stakes": [
+      "Der Einsatz ist Gl\xFCck: geteilt, nicht gehortet.",
+      "Der Einsatz ist Gastfreundschaft, die alles ver\xE4ndert.",
+      "Der Einsatz ist die stille Freude zweier alter Herzen.",
+      "Der Einsatz ist ein Segen, den niemand kommen sah.",
+      "Der Einsatz ist Vertrauen in das Unbekannte.",
+      "Der Einsatz ist ein Abend, an dem nichts zu tun ist.",
+      "Der Einsatz ist ein Tisch, an dem noch zwei Platz haben.",
+      "Der Einsatz ist die Frage, ob genug wirklich genug ist.",
+      "Der Einsatz ist eine Stunde, um die beide bitten.",
+      "Der Einsatz ist ein Haus, das niemand gr\xF6\xDFer will."
+    ],
+    "endings": [
+      "So bleibt ihr L\xE4cheln, wenn alles andere vergeht.",
+      "Und das Gl\xFCck w\xE4chst leise weiter, wie Gras auf der Weide.",
+      "So schlie\xDFt sich der Kreis aus Milde und Licht.",
+      "Ihr stilles Gl\xFCck wird zur Legende der Weide.",
+      "So wird aus Armut ein Wunder, das l\xE4chelt.",
+      "Und der Krug steht am Morgen wieder voll.",
+      "So bleibt der Tisch gedeckt f\xFCr zwei und f\xFCr G\xE4ste.",
+      "Am Ende sitzen sie da, und es ist genug.",
+      "Und im Garten w\xE4chst, was sie im Fr\xFChjahr s\xE4ten.",
+      "So geht der Weg zum Brunnen, wie er immer ging.",
+      "Und die Katze liegt wieder auf demselben Platz.",
+      "Der Abend wird k\xFChl, und beide bleiben sitzen.",
+      "Und niemand im Dorf versteht es, bis heute.",
+      "So bleibt das Haus, wie es war, nur \xE4lter.",
+      "Und die Bank steht in der Sonne bis vier."
+    ],
+    "verwandlungen": [
+      "Krug\u2192Becher",
+      "Garten\u2192Park",
+      "Brot\u2192Pfand",
+      "Bank\u2192Mauer",
+      "Katze\u2192Wolke",
+      "Abend\u2192Morgen"
+    ]
+  },
+  "gruendungsmythos": {
+    "motifs": [
+      "ein Hirtenstab, der Wurzeln schl\xE4gt",
+      "zwei Schatten, die zu einem verschmelzen",
+      "ein Nebel, der die Weide wie eine Wiege umschlie\xDFt",
+      "Schafe, die im Kreis stehen und schweigen",
+      "ein Licht ohne Quelle \xFCber den H\xFCgeln",
+      "uralte Steine, die nach Namen fl\xFCstern",
+      "ein Baum, der aus zwei Wurzeln w\xE4chst",
+      "der Himmel, der sich \xFCber der Weide neigt",
+      "ein Feuer, das seit der ersten Nacht nicht ausging",
+      "ein Pflug, mit dem eine Grenze gezogen wurde",
+      "ein Stein, auf dem der erste Name steht",
+      "eine Quelle, die den Ort entschieden hat",
+      "ein Baum, der \xE4lter ist als die H\xE4user",
+      "ein Tag im Jahr, an dem alle dasselbe tun",
+      "ein Grab am Anfang der Stra\xDFe",
+      "eine Furt, an der zwei Wege sich trafen",
+      "ein Name, der von einem Missverst\xE4ndnis kommt",
+      "ein Zeichen an der \xE4ltesten Mauer"
+    ],
+    "hooks": [
+      "ein L\xE4mmchen, das r\xFCckw\xE4rts geht",
+      "ein Windhauch, der Namen ruft, die niemand kennt",
+      "zwei Becher, die sich nie leeren",
+      "eine Spur im Gras, die zu keinem Ursprung f\xFChrt",
+      "ein Vogel, der \xFCber derselben Stelle kreist",
+      "ein Klang wie ein zweiter Herzschlag im Boden",
+      "ein Schatten, der l\xE4nger bleibt als die Sonne erlaubt",
+      "Gras, das sich weigert zu welken",
+      "Das Feuer geht aus, zum ersten Mal seit Menschengedenken.",
+      "Der Grenzpflug wird gefunden, wo er nicht liegen d\xFCrfte.",
+      "Ein Fremder erz\xE4hlt die Gr\xFCndung anders.",
+      "Die Quelle versiegt in dem Jahr, in dem gefeiert wird.",
+      "Der erste Name auf dem Stein ist nicht zu lesen.",
+      "Zwei Familien behaupten dieselbe Herkunft.",
+      "Der Baum verliert im Sommer alle Bl\xE4tter.",
+      "Am Grab am Stra\xDFenanfang liegen frische Blumen.",
+      "Die Furt ist verlandet, und der Weg bleibt.",
+      "Jemand fragt, warum der Ort so hei\xDFt."
+    ],
+    "props": [
+      "einen alten Hirtenstab",
+      "einen irdenen Krug",
+      "eine Handvoll Getreidek\xF6rner",
+      "ein geflochtenes Schafsfell",
+      "einen Ring aus verwittertem Holz",
+      "eine Schale mit Milch und Honig",
+      "einen Stein mit eingeritzten Zeichen",
+      "eine kleine Opferschale",
+      "einen Pflug mit h\xF6lzerner Schar",
+      "einen Stein mit dem ersten Namen",
+      "eine Schale f\xFCr das erste Feuer",
+      "ein Horn f\xFCr den Tag im Jahr",
+      "einen Krug aus der \xE4ltesten Werkstatt",
+      "ein Seil, mit dem gemessen wurde",
+      "eine Tafel mit den Namen der Gr\xFCnder"
+    ],
+    "turns": [
+      "pl\xF6tzlich l\xE4cheln beide, als w\xFCssten sie, was noch niemand wei\xDF",
+      "auf einmal ist die Weide \xE4lter als jede Erinnerung",
+      "dann ver\xE4ndert sich das Licht, als beginne die Welt von vorn",
+      "in diesem Moment wird aus zwei Hirten ein Ursprung",
+      "unvermittelt spricht das Gras mit zwei Stimmen zugleich",
+      "dann erkennt man: sie sind schon immer hier",
+      "die Gr\xFCndung war anders, und niemand \xE4ndert die Geschichte",
+      "das Feuer wird neu entz\xFCndet, und alle tun, als w\xE4re nichts",
+      "ein Grab wird ge\xF6ffnet und ist leer",
+      "der Name kommt von einem Wort, das niemand mehr kennt",
+      "die Grenze war ein Zufall und ist jetzt heilig",
+      "zwei Erz\xE4hlungen werden zu einer, und beide verlieren",
+      "die Quelle kommt wieder, an einer anderen Stelle",
+      "ein Fremder wird zum Ahnen erkl\xE4rt",
+      "der Feiertag verschiebt sich um eine Woche und bleibt",
+      "die \xE4lteste Familie war nicht die erste",
+      "das Zeichen an der Mauer ist j\xFCnger als gedacht",
+      "der Ort wird gegr\xFCndet, ein zweites Mal",
+      "was Brauch war, wird Vorschrift",
+      "die Geschichte wird aufgeschrieben und damit endlich"
+    ],
+    "obstacles": [
+      "die Fremden erkennen die Weide nicht wieder",
+      "kein Weg f\xFChrt zur\xFCck ins Dorf",
+      "die G\xF6tter verlangen ein Zeichen, das niemand deuten kann",
+      "der Nebel l\xE4sst die Grenzen der Weide verschwimmen",
+      "die Zeit weigert sich, weiterzugehen",
+      "die Schafe folgen keinem Ruf mehr",
+      "niemand wei\xDF mehr, wer die ersten Regeln aufstellte",
+      "die Quelle liegt heute au\xDFerhalb der Grenze",
+      "der Stein ist verwittert und nicht zu lesen",
+      "die beiden Familien reden seit drei Jahren nicht",
+      "das Feuer braucht Holz, und der Wald geh\xF6rt anderen",
+      "der Feiertag f\xE4llt in die Ernte",
+      "die Furt ist verlandet und der Umweg lang",
+      "niemand darf den Baum beschneiden",
+      "die Tafel nennt Namen, die es im Ort nicht gibt",
+      "die Fremden werden nicht in die Geschichte aufgenommen",
+      "der Brauch verlangt etwas, das keiner mehr kann",
+      "das Grab liegt im Weg f\xFCr die neue Stra\xDFe",
+      "wer die Geschichte anzweifelt, sitzt bald allein",
+      "der Ort ist zu klein f\xFCr zwei Gr\xFCndungen"
+    ],
+    "stakes": [
+      "Der Einsatz ist die Erinnerung eines ganzen Volkes.",
+      "Der Einsatz ist der Ursprung aller kommenden Geschichten.",
+      "Der Einsatz ist die Gunst der G\xF6tter.",
+      "Der Einsatz ist das Bestehen der Weide selbst.",
+      "Der Einsatz ist die Treue zweier Herzen \xFCber die Zeit hinaus.",
+      "Der Einsatz ist die Wahrheit hinter jedem Mythos.",
+      "Der Einsatz ist ein Feuer, das nicht ausgehen darf.",
+      "Der Einsatz ist die Frage, wer zuerst da war.",
+      "Der Einsatz ist eine Grenze, die ein Zufall gezogen hat.",
+      "Der Einsatz ist ein Name und woher er kommt.",
+      "Der Einsatz ist ein Tag, an dem alle dasselbe tun."
+    ],
+    "endings": [
+      "So beginnt die Legende, die man sich noch heute erz\xE4hlt.",
+      "So wird aus einem L\xE4cheln ein Ursprung.",
+      "So verwandelt sich die Weide in heiligen Boden.",
+      "So schlie\xDFt sich der Kreis der ersten Geschichte.",
+      "So bleibt ihr L\xE4cheln in jedem Stein der Weide.",
+      "So wird aus zwei Hirten ein Anfang.",
+      "Und das Feuer brennt weiter, mit neuem Holz.",
+      "So bleibt der Stein stehen, unleserlich.",
+      "Am Ende erz\xE4hlt man es, wie man es immer erz\xE4hlt hat.",
+      "Und der Baum treibt im Fr\xFChjahr wieder aus.",
+      "So wird aus einem Zufall ein Anfang.",
+      "Und die Grenze l\xE4uft, wo der Pflug ging.",
+      "Der Feiertag bleibt, und der Grund ist vergessen.",
+      "Und die Tafel bekommt einen Namen mehr.",
+      "Und am Grab am Stra\xDFenanfang liegen wieder Blumen."
+    ],
+    "verwandlungen": [
+      "Feuer\u2192Ger\xFCcht",
+      "Grenze\u2192Naht",
+      "Stein\u2192Knochen",
+      "Quelle\u2192Wunde",
+      "Baum\u2192Zeuge",
+      "Name\u2192Schatten"
+    ]
+  },
+  "staatsphilosophie": {
+    "motifs": [
+      "ein Gesetzbuch, das niemand je geschrieben hat",
+      "ein Zepter aus verwittertem Holz",
+      "eine Grenze, die durch das Land l\xE4uft, unsichtbar",
+      "der Schatten eines Throns \xFCber den K\xF6pfen",
+      "ein Siegelring, verloren im Gras",
+      "ein Vertrag, in Leinen eingewebt",
+      "die Stille eines Gesetzes vor seiner Verk\xFCndung",
+      "ein Herrscherblick in den Augen der Beherrschten",
+      "die Wiederkehr eines alten Eids",
+      "ein Grenzstein, den niemand gesetzt hat",
+      "ein Vertrag, den keiner unterschrieben hat und alle halten",
+      "ein Platz, auf dem Entscheidungen laut gesagt werden",
+      "ein Amt, das der Nachfolger nicht ablehnen darf",
+      "eine Waage \xFCber einem Tor",
+      "eine Versammlung, die sich selbst die Regeln gibt",
+      "ein Schwur, den ein ganzes Volk gesprochen hat",
+      "ein Gesetz, das \xE4lter ist als der Staat",
+      "ein Herrscher, der von einer Regel abh\xE4ngt"
+    ],
+    "hooks": [
+      "ein Kind tr\xE4gt ein Amulett mit einem fremden Wappen",
+      "jemand murmelt Worte wie aus einem Gesetzestext",
+      "eine Hand zeichnet Linien in den Staub, wie Grenzen",
+      "ein Fremder fragt nach dem 'Herrn dieses Landes'",
+      "der Wind tr\xE4gt eine Stimme, die von Pflicht spricht",
+      "zwischen den Pflastersteinen liegt ein Siegel aus Ton",
+      "alle folgen einer Ordnung, die niemand befahl",
+      "ein Stein in der Erde tr\xE4gt eingeritzte Paragraphen",
+      "Zwei D\xF6rfer teilen ein Feld und nennen keinen Richter.",
+      "Der Grenzstein steht zwanzig Schritte weiter als fr\xFCher.",
+      "Eine Versammlung entscheidet, und niemand hat einberufen.",
+      "Der Herrscher fragt, wer ihn eingesetzt hat.",
+      "Ein Fremder fordert dasselbe Recht wie alle.",
+      "Der Eid wird gesprochen, und einer schweigt.",
+      "Ein Gesetz wird verlesen, das keiner beschlossen hat.",
+      "Im Rat sitzt einer, der nicht gew\xE4hlt wurde.",
+      "Die Waage \xFCber dem Tor ist verschwunden.",
+      "Ein Beschluss gilt, obwohl die H\xE4lfte fehlte."
+    ],
+    "props": [
+      "einen zerbrochenen Herrscherstab",
+      "eine Tontafel mit unleserlichen Gesetzen",
+      "eine Schnur, verknotet wie ein Staatsvertrag",
+      "einen alten Siegelring",
+      "eine Fl\xF6te mit eingeritzten Symbolen",
+      "ein vergilbtes Pergament ohne Unterschrift",
+      "einen Gehstock mit eingeschnitzter Krone",
+      "ein verrostetes Schloss ohne Schl\xFCssel",
+      "eine M\xFCnze mit unbekanntem Antlitz",
+      "einen Grenzstein mit einem Zeichen",
+      "eine Waage aus Bronze",
+      "ein Verzeichnis der Stimmberechtigten",
+      "einen Stab, den man weiterreicht",
+      "eine Tafel mit den ersten S\xE4tzen",
+      "ein Siegel, das zwei H\xE4user tragen",
+      "einen Losbeh\xE4lter aus Ton"
+    ],
+    "turns": [
+      "pl\xF6tzlich zeigt sich im L\xE4rm der Menge eine Ordnung, die einem Gesetz gleicht",
+      "ein L\xE4cheln verr\xE4t, dass jemand die stumme Verfassung l\xE4ngst versteht",
+      "auf einmal scheint die ganze Stadt einem unsichtbaren Herrscher zu gehorchen",
+      "ohne Vorwarnung spricht der Wind wie ein Urteil",
+      "es scheint, als h\xE4tte das Land seit jeher eigene Gesetze",
+      "die Ordnung h\xE4lt, ohne dass jemand sie durchsetzt",
+      "der Herrscher gehorcht einer Regel und wird dadurch st\xE4rker",
+      "die Mehrheit entscheidet gegen ihren eigenen Vorteil",
+      "ein Recht wird gew\xE4hrt und l\xE4sst sich nicht zur\xFCcknehmen",
+      "der Vertrag gilt, weil beide glauben, der andere halte ihn",
+      "die Grenze verschwindet, und das Feld wird geteilt wie vorher",
+      "eine Ausnahme wird gemacht und ist von da an die Regel",
+      "der Rat setzt sich selbst ab",
+      "die Gewohnheit siegt \xFCber das geschriebene Gesetz",
+      "wer die Macht hat, fragt nach der Erlaubnis",
+      "ein Fremder bekommt Recht, und die Ordnung h\xE4lt",
+      "die Versammlung schweigt, und das gilt als Zustimmung",
+      "ein Amt wird angenommen, das niemand wollte",
+      "das Los entscheidet, und alle nehmen es an"
+    ],
+    "obstacles": [
+      "die Grenze l\xE4sst sich nicht mit Worten erkl\xE4ren",
+      "niemand erinnert sich, wer die ersten Regeln aufstellte",
+      "niemand gehorcht mehr einem Ruf",
+      "der alte Vertrag ist im Boden versunken",
+      "ein Nebel verwischt jede sichtbare Ordnung",
+      "der Rat ist beschlussf\xE4hig und uneins",
+      "das Gesetz gilt f\xFCr alle und trifft am Ende einen",
+      "die Mehrheit ist da und hat unrecht",
+      "der Vertrag hat keine Zeugen mehr",
+      "ein Amt bleibt unbesetzt, weil niemand es will",
+      "die Ordnung h\xE4ngt an einem einzigen Mann",
+      "der Fremde hat kein Recht, es zu verlangen",
+      "die Versammlung tagt nur einmal im Jahr",
+      "die Grenze ist gerecht und f\xFCr beide unbrauchbar",
+      "niemand kann die Regel \xE4ndern, die das \xC4ndern regelt",
+      "die Waage ist geeicht und wird nicht benutzt",
+      "wer widerspricht, wird nicht mehr geladen"
+    ],
+    "stakes": [
+      "Der Einsatz ist Gerechtigkeit: f\xFCr ein Land ohne Namen.",
+      "Der Einsatz ist Ordnung: bewahrt von niemandem und doch von allen.",
+      "Der Einsatz ist Macht: verborgen im L\xE4cheln der Weise.",
+      "Der Einsatz ist Frieden: erkauft mit Schweigen.",
+      "Der Einsatz ist Herrschaft: \xFCber etwas, das niemand sieht.",
+      "Der Einsatz ist eine Ordnung, die niemand befiehlt.",
+      "Der Einsatz ist ein Feld, das zwei D\xF6rfern geh\xF6rt.",
+      "Der Einsatz ist die Frage, wer den Herrscher einsetzt.",
+      "Der Einsatz ist ein Recht, das auch f\xFCr Fremde gilt.",
+      "Der Einsatz ist ein Vertrag ohne Zeugen."
+    ],
+    "endings": [
+      "So bleibt die Ordnung ungeschrieben, aber lebendig.",
+      "Und alle folgen weiterhin einem Gesetz ohne Namen.",
+      "So verschwimmt Herrschaft mit Gewohnheit.",
+      "Am Ende l\xE4cheln alle, als w\xFCssten sie, wer wirklich regiert.",
+      "So schlie\xDFt sich der Kreis von Macht und Stille.",
+      "Am Ende steht der Grenzstein, wo er stehen soll.",
+      "Und das Los wird zur\xFCck in den Beh\xE4lter gelegt.",
+      "Und die Versammlung geht auseinander, ohne Beschluss.",
+      "Der Stab wird weitergereicht, an den N\xE4chsten.",
+      "Und das Feld wird geteilt wie in jedem Jahr.",
+      "So h\xE4lt der Vertrag, weil beide es glauben.",
+      "Und die Waage h\xE4ngt wieder \xFCber dem Tor."
+    ],
+    "verwandlungen": [
+      "Vertrag\u2192Faden",
+      "Grenze\u2192Naht",
+      "Waage\u2192Uhr",
+      "Gesetz\u2192Gitter",
+      "Stab\u2192Zeiger",
+      "Ordnung\u2192Gewohnheit"
+    ]
+  },
+  "traumbilder": {
+    "motifs": [
+      "ein Flur, der sich bei jedem Blick neu ordnet",
+      "Nebel, der Gesichter formt und wieder l\xF6st",
+      "ein Zimmer, das im Schlaf zu atmen scheint",
+      "eine Uhr, deren Zeiger im Schlaf weiterwandern",
+      "eine Treppe, die nach unten f\xFChrt und h\xF6her endet",
+      "Wolken, die wie erinnerte Gesichter ziehen",
+      "ein Licht zwischen den B\xE4umen, das niemand entz\xFCndet hat",
+      "eine Ebene, die sich in einen See aus Schlaf verwandelt",
+      "ein Haus, in dem ein Zimmer mehr ist als gestern",
+      "eine Treppe, die im Hinaufgehen flacher wird",
+      "eine Stra\xDFe, auf der alle in dieselbe Richtung gehen",
+      "ein Telefon, das klingelt und keinen Anschluss hat",
+      "ein Pr\xFCfungssaal, in dem das Fach nicht genannt wird",
+      "ein Zug, der abf\xE4hrt, w\xE4hrend man auf ihn zul\xE4uft",
+      "ein Gesicht, das man kennt und nicht benennen kann",
+      "ein Zimmer aus der Kindheit mit falschen Ma\xDFen"
+    ],
+    "hooks": [
+      "ein L\xE4cheln, das \xE4lter wirkt als das Gesicht",
+      "Gesichter, die alle in dieselbe Richtung schauen",
+      "ein Windhauch, der nach fremden Worten riecht",
+      "eine Hand, die zittert, ohne zu frieren",
+      "ein Schatten, der jemandem folgt, aber nicht ihm geh\xF6rt",
+      "ein Klang wie ferne Schritte \xFCber Wolken",
+      "ein Ger\xE4usch, das erst beim Aufwachen aufh\xF6rt",
+      "ein Zimmer, das man betritt und l\xE4ngst kennt",
+      "Die T\xFCr f\xFChrt in ein Zimmer, das es im Haus nicht gibt.",
+      "Alle sprechen weiter, und niemand bewegt den Mund.",
+      "Der Zug f\xE4hrt ab, und die Beine werden schwer.",
+      "Ein Bekannter hat das Gesicht von jemand anderem.",
+      "Die Pr\xFCfung beginnt, und das Fach wird nicht genannt.",
+      "Das Telefon klingelt, und der H\xF6rer ist warm.",
+      "Der Flur wird l\xE4nger, je weiter er geht.",
+      "Jemand sagt einen Satz, den man gleich vergisst.",
+      "Im Spiegel steht das Zimmer seitenverkehrt und richtig.",
+      "Der Wecker geht, und der Traum geht weiter."
+    ],
+    "props": [
+      "einen Wecker, der r\xFCckw\xE4rts l\xE4uft",
+      "einen Schl\xFCssel ohne Schloss",
+      "einen Koffer, der mit jedem Schritt leichter wird",
+      "einen Becher voller Traumwasser",
+      "eine Kette aus getrockneten Blumen",
+      "einen Ring, der nachts enger sitzt",
+      "eine Schale mit stillem Wasser",
+      "einen Spiegel, der eine Spur zu sp\xE4t reagiert",
+      "eine Feder, die im Wind nicht f\xE4llt",
+      "ein Telefon ohne Anschluss",
+      "eine Fahrkarte f\xFCr einen Zug, der schon weg ist",
+      "ein Heft mit einer Aufgabe darin",
+      "eine Uhr, deren Zeiger man nicht ablesen kann",
+      "eine T\xFCr ohne Klinke",
+      "eine Lampe, die im Traum nicht angeht"
+    ],
+    "turns": [
+      "Pl\xF6tzlich ist klar: hier wird getr\xE4umt, und niemand will erwachen.",
+      "Die Stimmen verstummen, als jemand den Raum betritt, den es nicht gibt.",
+      "Ein Windsto\xDF tr\xE4gt eine Stimme, die niemand ausgesprochen hat.",
+      "Der Boden beginnt sich zu drehen, als l\xE4ge er in einem Traum.",
+      "Im Spiegel bewegt sich das Bild einen Atemzug zu sp\xE4t.",
+      "Der Himmel f\xE4rbt sich golden, obwohl es Nacht sein sollte.",
+      "der Raum ordnet sich neu, sobald man wegsieht",
+      "ein Fremder betritt das Zimmer, das es nicht gibt",
+      "die Sprache funktioniert und ergibt keinen Sinn",
+      "das Haus hat ein Zimmer mehr, und es war immer da",
+      "der Zug h\xE4lt, und alle steigen an derselben Stelle aus",
+      "er erkennt die Regel des Traums und verliert sie sofort",
+      "die Toten sitzen mit am Tisch, und niemand wundert sich",
+      "der Wecker klingelt im Traum und weckt niemanden",
+      "die Pr\xFCfung ist bestanden, ohne dass etwas geschrieben wurde",
+      "er erwacht in einen zweiten Traum",
+      "das Gesicht bekommt einen Namen, und der ist falsch",
+      "die Angst kommt sp\xE4ter als die Situation",
+      "der Raum wird kleiner, und das ist beruhigend",
+      "pl\xF6tzlich ist klar, dass getr\xE4umt wird, und niemand will erwachen",
+      "das Zimmer hat ein Fenster, das gestern eine Wand war",
+      "jemand ruft einen Namen, und alle drehen sich um"
+    ],
+    "obstacles": [
+      "Alle sprechen eine Sprache, die nur im Traum verst\xE4ndlich ist.",
+      "Der Weg zur T\xFCr verschwindet zwischen den Nebelschwaden.",
+      "Der Weg zur\xFCck liegt offen, doch niemand findet ihn.",
+      "Ein unsichtbares Gewicht h\xE4lt jeden Schritt zur\xFCck.",
+      "Die Zeit scheint sich zu verdoppeln, ohne Fortschritt zu machen.",
+      "Jede Stimme verhallt, bevor sie ihr Ende erreicht.",
+      "die Beine gehen und kommen nicht vom Fleck",
+      "das Wort f\xFCr die Sache fehlt genau jetzt",
+      "die Treppe hat eine Stufe zu viel",
+      "der Wecker ist im Traum kaputt",
+      "niemand h\xF6rt, was gerufen wird",
+      "die T\xFCr l\xE4sst sich \xF6ffnen und nicht durchschreiten",
+      "die Zeit im Traum h\xE4lt sich an nichts",
+      "der Koffer wird leichter und ist immer noch zu tragen",
+      "das Zimmer ist bekannt und stimmt in keinem Ma\xDF",
+      "wer aufwacht, verliert alles au\xDFer einem Bild",
+      "die Pr\xFCfung wird von jemandem ohne Gesicht abgenommen",
+      "der Weg zur\xFCck liegt offen, und niemand findet ihn",
+      "alle sprechen eine Sprache, die nur im Traum verst\xE4ndlich ist"
+    ],
+    "stakes": [
+      "Der Einsatz ist der Schlaf: das Letzte, was verl\xE4sslich bleibt.",
+      "Der Einsatz ist der Glaube an das Unsichtbare.",
+      "Der Einsatz ist die Erinnerung, die beim Erwachen zerf\xE4llt.",
+      "Der Einsatz ist die Grenze zwischen Traum und Erwachen.",
+      "Der Einsatz ist die Gewissheit, wach zu sein.",
+      "Der Einsatz ist das, was der Traum nicht hergeben will.",
+      "Der Einsatz ist ein Bild, das beim Erwachen bleibt.",
+      "Der Einsatz ist ein Zimmer, das es geben m\xFCsste.",
+      "Der Einsatz ist die Frage, wer hier tr\xE4umt.",
+      "Der Einsatz ist ein Name f\xFCr ein bekanntes Gesicht."
+    ],
+    "endings": [
+      "So verschwimmt der Traum mit dem Zimmer, f\xFCr immer.",
+      "So bleibt nur ein L\xE4cheln, das die Zeit \xFCberdauert.",
+      "So schlie\xDFt sich der Raum, kaum dass man ihn benannt hat.",
+      "So bleibt vom Traum nur ein Wort, das niemand kennt.",
+      "So endet der Traum, doch das L\xE4cheln bleibt wach.",
+      "So verklingt alles im ersten Licht des Erwachens.",
+      "Und der Wecker geht, und ein Bild bleibt.",
+      "Am Ende ist der Koffer leer und schwer.",
+      "Und der Zug f\xE4hrt ab, wie in jeder Nacht.",
+      "So bleibt das Gesicht ohne Namen.",
+      "Und der Flur wird k\xFCrzer, sobald man sich umdreht.",
+      "Das Telefon h\xF6rt auf zu klingeln.",
+      "Und am Morgen fehlt genau ein Zimmer.",
+      "So schlie\xDFt sich das Zimmer, kaum dass es benannt ist.",
+      "Und die Pr\xFCfung ist bestanden, ohne Fach."
+    ],
+    "verwandlungen": [
+      "Traum\u2192Bericht",
+      "Zimmer\u2192Grab",
+      "Treppe\u2192Rampe",
+      "Gesicht\u2192Zeichen",
+      "Zug\u2192Bote",
+      "Uhr\u2192Waage"
+    ]
+  },
+  "mystery": {
+    "motifs": [
+      "eine Uhr, die r\xFCckw\xE4rts tickt",
+      "eine T\xFCr, die von innen atmet",
+      "ein Spiegelbild, das zu sp\xE4t reagiert",
+      "ein Formular mit einem Feld zu viel",
+      "ein Kabel, das warm wird, ohne Strom",
+      "eine Narbe, die sich an das Wetter erinnert",
+      "ein Name, der nicht ausgesprochen werden kann",
+      "ein Licht, das die falschen Dinge zeigt",
+      "ein Ger\xE4usch, das nur in Gedanken existiert",
+      "eine Karte, die Orte erfindet",
+      "eine Treppe, die einen Absatz zu viel hat",
+      "ein Vorhang, der ohne Wind f\xE4llt",
+      "eine Adresse, die zweimal existiert",
+      "ein Anruf aus dem Nebenzimmer",
+      "ein Schatten, der fr\xFCher da ist",
+      "eine Notiz in der eigenen Handschrift",
+      "ein Zimmer, das nach Regen riecht",
+      "eine T\xFCr, die von au\xDFen abgeschlossen wurde",
+      "ein Bild, auf dem jemand fehlt",
+      "ein Ger\xE4usch unter dem Boden",
+      "eine Kerze, die nicht k\xFCrzer wird",
+      "ein Weg, der zur\xFCckf\xFChrt und nicht",
+      "ein Koffer ohne Griff",
+      "eine Zahl, die \xFCberall auftaucht",
+      "ein Fenster, das nachts heller ist",
+      "eine Stimme im Treppenhaus",
+      "ein Kalenderblatt vom falschen Jahr",
+      "ein Handabdruck an der Innenseite"
+    ],
+    "hooks": [
+      "eine rote Feder im falschen Winkel",
+      "ein Lichtstreifen, der aus dem Nichts kommt",
+      "ein leises Klopfen hinter der Wand",
+      "ein Foto, das ein Detail mehr zeigt als gestern",
+      "ein Schatten, der nicht zur Figur passt",
+      "eine Nachricht ohne Absender",
+      "eine T\xFCr, die pl\xF6tzlich nicht mehr T\xFCr sein will",
+      "Der Schl\xFCssel passt in ein Schloss, das es nicht gibt.",
+      "Jemand hat abger\xE4umt, bevor jemand da war.",
+      "Die Uhr im Flur geht der im Zimmer voraus.",
+      "Ein Name f\xE4llt, den niemand ausgesprochen hat.",
+      "Der Hund weicht seit gestern der T\xFCr aus.",
+      "Die Nachricht kommt an, bevor sie geschrieben wird.",
+      "Ein Fenster steht offen, das verriegelt war.",
+      "Der Zettel liegt anders herum als vorhin.",
+      "Zwei Zeugen erinnern dieselbe Stunde verschieden.",
+      "Etwas fehlt im Regal, und niemand vermisst es.",
+      "Der Schritt hallt einmal zu oft.",
+      "Die Karte zeigt eine Stra\xDFe, die es nicht mehr gibt."
+    ],
+    "props": [
+      "einen Schl\xFCssel",
+      "eine Karte",
+      "eine M\xFCnze",
+      "ein Foto",
+      "ein Notizbuch",
+      "eine Lampe",
+      "ein St\xFCck Kreide",
+      "einen Kompass",
+      "einen Ausweis",
+      "ein Siegel",
+      "einen Notizblock",
+      "eine Taschenlampe",
+      "einen Umschlag",
+      "ein Tonband",
+      "einen Fahrschein",
+      "eine Haarnadel",
+      "einen Zettel mit einer Zahl",
+      "ein Fernglas",
+      "eine Postkarte",
+      "einen Handschuh",
+      "ein Adressbuch",
+      "einen Zweitschl\xFCssel",
+      "eine Streichholzschachtel",
+      "ein Notizbuch mit fehlenden Seiten"
+    ],
+    "turns": [
+      "pl\xF6tzlich passt die Zeit nicht mehr zu den Uhren",
+      "die Spur f\xFChrt nicht nach au\xDFen, sondern nach innen",
+      "das Offensichtliche wird unbenennbar",
+      "etwas antwortet \u2013 ohne Stimme",
+      "die Logik bleibt bestehen, aber in falscher Reihenfolge",
+      "der Zeuge war nie am Ort",
+      "die Spur f\xFChrt in die eigene Wohnung",
+      "das Alibi stimmt und hilft nicht",
+      "der Zettel war schon immer da",
+      "die Zeugin kennt den Namen aus dem Traum",
+      "eine zweite T\xFCr wird gefunden",
+      "die Aufnahme tr\xE4gt eine fremde Stimme",
+      "der Fall geh\xF6rte jemand anderem",
+      "die Ordnung war die Spur",
+      "das Fehlende war der Hinweis",
+      "die Frage wird von der Antwort gestellt",
+      "ein Fund datiert von morgen",
+      "der Beobachter wird beobachtet",
+      "die Zeugin nennt eine Uhrzeit, die es zweimal gab",
+      "der Gegenstand fehlt, und das ist der eigentliche Fund",
+      "die eigene Aussage stimmt nicht mit der eigenen Erinnerung",
+      "der Fall war schon einmal gel\xF6st, unter anderem Namen"
+    ],
+    "obstacles": [
+      "die Schwelle ist bei Nacht nicht zu finden",
+      "im Nebenzimmer wird es still, sobald er spricht",
+      "der Kopf sagt etwas anderes als der K\xF6rper",
+      "eine Regel gilt am Brunnen, die niemand erkl\xE4rt",
+      "die Akte tr\xE4gt das falsche Datum",
+      "die Zeit stimmt nicht mit der Uhr",
+      "der Zeuge schweigt aus H\xF6flichkeit",
+      "ein Name fehlt an entscheidender Stelle",
+      "die Erinnerung \xE4ndert sich beim Erz\xE4hlen",
+      "der Weg ist gesperrt und war es nie",
+      "niemand gibt zu, dass er wartet",
+      "das Licht reicht nur bis zur Biegung",
+      "die Aufnahme bricht an derselben Stelle ab",
+      "zwei Spuren f\xFChren zueinander",
+      "das Zimmer wurde bereits ger\xE4umt",
+      "die Karte endet vor dem Ziel",
+      "der Schl\xFCssel dreht sich zweimal",
+      "die Akte ist vollst\xE4ndig und darum verd\xE4chtig",
+      "ein Zeuge sagt aus und war nachweislich woanders",
+      "die Kamera lief, aber die Aufnahme fehlt f\xFCr vier Minuten",
+      "niemand meldet den Vermissten, und das ist die Frage",
+      "die Spur h\xF6rt an einer T\xFCr auf, die immer offen stand"
+    ],
+    "stakes": [
+      "Der Einsatz ist ein Weg, den man nur einmal geht.",
+      "Der Einsatz ist Zeit: Ein Teil des Abends kommt nicht zur\xFCck.",
+      "Der Einsatz ist Wahrheit: Etwas am Selbstbild verschiebt sich.",
+      "Der Einsatz ist Vertrauen: in sich selbst.",
+      "Der Einsatz ist Gewissheit: Sie wackelt.",
+      "Der Einsatz ist ein Name: Er steht auf zwei Listen.",
+      "Der Einsatz ist die Nacht: Sie hat einen Zeugen.",
+      "Der Einsatz ist ein Zimmer: Es geh\xF6rt jemandem.",
+      "Der Einsatz ist eine Stunde: Sie fehlt.",
+      "Der Einsatz ist ein Wort: Es wurde geh\xF6rt.",
+      "Der Einsatz ist Erinnerung: Sie wird gepr\xFCft."
+    ],
+    "endings": [
+      "Damit ist es entschieden, und der Termin steht.",
+      "So schlie\xDFt sich die Schwelle hinter ihm.",
+      "Und irgendwann \xF6ffnet es niemand mehr.",
+      "Und die T\xFCr f\xE4llt ins Schloss.",
+      "Und es ist, als h\xE4tte der Ort kurz geblinzelt.",
+      "Und die Treppe hat wieder die richtige Zahl von Stufen.",
+      "So bleibt der Schl\xFCssel liegen, wo er lag.",
+      "Und im Flur riecht es weiter nach Regen.",
+      "Damit ist nichts erkl\xE4rt und alles gesagt.",
+      "Und das Licht im Nebenhaus geht endlich aus.",
+      "So endet die Nacht, ohne dass jemand kam.",
+      "Und die Zahl steht am n\xE4chsten Morgen woanders.",
+      "Und der Fall bleibt geschlossen, an einer Stelle offen.",
+      "So bleibt die Frage, wer die Uhr gestellt hat.",
+      "Am Ende passt alles, bis auf eine Kleinigkeit.",
+      "Und niemand fragt nach den vier fehlenden Minuten."
+    ]
+  },
+  "bureau": {
+    "motifs": [
+      "ein Formular mit einem Feld zu viel",
+      "eine Wartemarke, die sich warm anf\xFChlt",
+      "ein Stempel, der auf der Haut bleibt",
+      "ein Aktenzeichen, das deinen Namen enth\xE4lt",
+      "eine Frist, die r\xFCckw\xE4rts l\xE4uft",
+      "ein Register, das heimlich atmet",
+      "eine Kopie, die das Original ersetzt",
+      "ein Bescheid mit zu vielen Unterschriften",
+      "ein Flur ohne Ende, der dich pr\xFCft",
+      "ein Antrag, der dich beantragt",
+      "ein Gang mit nummerierten T\xFCren",
+      "ein Wartesaal, in dem alle dasselbe Formular halten",
+      "ein Aktenschrank, der nicht abschlie\xDFt",
+      "eine \xD6ffnungszeit, die nirgends aush\xE4ngt",
+      "ein Regal mit Vorg\xE4ngen ohne Deckel",
+      "die Kopie einer Kopie, noch lesbar",
+      "eine Klingel ohne Schild",
+      "ein Bescheid, der auf sich selbst verweist",
+      "ein Wartezimmer mit einem Fenster zum Hof",
+      "eine Unterschrift, die niemand entziffert",
+      "ein Gummiband um einen Stapel Jahre",
+      "ein Zust\xE4ndigkeitsbereich, der bei dir endet",
+      "ein Antrag, der einen zweiten Antrag verlangt",
+      "Neonlicht, das keinen Schatten wirft",
+      "ein Laufzettel mit sieben Feldern",
+      "ein Papierkorb, der geleert wird, w\xE4hrend du wartest",
+      "eine Uhr \xFCber dem Schalter, die eine Minute vorgeht"
+    ],
+    "hooks": [
+      "eine Durchsage, die nur dich meint",
+      "ein falsches Datum auf der Akte",
+      "ein Schalter ohne Personal",
+      "ein Stempelger\xE4usch hinter der Wand",
+      "ein Formular, das schon ausgef\xFCllt ist",
+      "ein Ticket, dessen Nummer fehlt",
+      "eine Unterschrift, die du nie gesetzt hast",
+      "deine Nummer wird aufgerufen und wieder zur\xFCckgestellt",
+      "der Bescheid tr\xE4gt ein Datum aus der Zukunft",
+      "die zust\xE4ndige Stelle ist seit Montag eine andere",
+      "am Schalter liegt dein Name schon bereit",
+      "die Wartemarke zeigt eine Zahl, die es nicht gibt",
+      "ein Anruf, bei dem niemand spricht",
+      "die T\xFCr geht auf, bevor du klopfst",
+      "im Flur wartet jemand, der dir \xE4hnlich sieht",
+      "das Formular verlangt eine Angabe, die es verbietet",
+      "auf dem Merkblatt fehlt die Seite zwei"
+    ],
+    "props": [
+      "einen Ausweis",
+      "einen Stempel",
+      "eine Kopie",
+      "ein Siegel",
+      "eine Wartemarke",
+      "eine Mappe",
+      "einen Schl\xFCssel",
+      "ein Register",
+      "ein Formular",
+      "eine Akte",
+      "ein Aktenzeichen auf einem Zettel",
+      "einen Laufzettel",
+      "eine Wartenummer aus Pappe",
+      "einen Briefumschlag mit Fenster",
+      "ein Formblatt in dreifacher Ausfertigung",
+      "eine Quittung ohne Betrag",
+      "einen Kugelschreiber an einer Kette",
+      "ein Merkblatt",
+      "einen Terminzettel",
+      "eine Vollmacht",
+      "eine Karteikarte",
+      "ein Kuvert, das man nicht \xF6ffnen darf",
+      "einen Aktendeckel aus Pappe"
+    ],
+    "turns": [
+      "pl\xF6tzlich gilt eine Regel r\xFCckwirkend",
+      "die Spur f\xFChrt in ein Archiv, das dich kennt",
+      "die Sachbearbeitung spricht in Imperativen",
+      "ein Feld ist leer \u2013 und trotzdem ausgef\xFCllt",
+      "die Logik bleibt korrekt, aber in falscher Reihenfolge",
+      "du erh\xE4ltst eine Best\xE4tigung f\xFCr etwas, das du nicht getan hast",
+      "die Zust\xE4ndigkeit wechselt mitten im Satz",
+      "eine Frist beginnt, ohne dass jemand sie nennt",
+      "der Antrag wird bewilligt und gleichzeitig abgelehnt",
+      "die Akte enth\xE4lt einen Vorgang, den es nicht gab",
+      "die Nummer wird noch einmal aufgerufen",
+      "ein Beamter erkl\xE4rt, was er nicht darf",
+      "der Bescheid gilt ab einem Tag, der vorbei ist",
+      "der Flur f\xFChrt zur\xFCck zum Anfang",
+      "eine zweite Unterschrift fehlt, immer",
+      "die Auskunft widerspricht dem Merkblatt",
+      "ein Stempel macht wahr, was nicht stimmt",
+      "die Sache ist erledigt, aber nicht bei dir",
+      "der Vorgang wird abgeschlossen und gleichzeitig neu er\xF6ffnet",
+      "ein Beamter hilft, und danach ist er nicht mehr zust\xE4ndig",
+      "die Frist verl\xE4ngert sich, weil niemand die Post geholt hat",
+      "ein Formular wird abgeschafft und einen Monat sp\xE4ter gebraucht"
+    ],
+    "obstacles": [
+      "die T\xFCr ist verschlossen",
+      "jemand h\xF6rt mit",
+      "die Akte tr\xE4gt das falsche Datum",
+      "dein Antrag braucht einen Schatten",
+      "das Fenster schlie\xDFt in drei Minuten",
+      "die Sprechzeit endet in vier Minuten",
+      "die Unterlagen sind vollst\xE4ndig, aber falsch",
+      "der Vorgang liegt in einem anderen Haus",
+      "ein Nachweis verlangt einen Nachweis",
+      "die Bearbeitung dauert acht Wochen",
+      "niemand ist zust\xE4ndig und alle sind h\xF6flich",
+      "der Kugelschreiber schreibt nicht",
+      "der Aufzug h\xE4lt nicht im vierten Stock",
+      "die Auskunft gilt nur m\xFCndlich",
+      "die Frist lief, w\xE4hrend du wartetest",
+      "das Formular gibt es nur auf Papier",
+      "eine Nummer wird gezogen, keine vergeben",
+      "der Nachweis liegt in einem Amt, das umgezogen ist",
+      "die Auskunft ist richtig und f\xFCr diesen Fall nicht anwendbar",
+      "der Termin l\xE4sst sich nur telefonisch vergeben, ab acht",
+      "das Formular gibt es in zwei Fassungen, beide g\xFCltig"
+    ],
+    "stakes": [
+      "Der Einsatz ist Zeit: Die Frist ist real.",
+      "Der Einsatz ist W\xFCrde: Du bist eine Nummer.",
+      "Der Einsatz ist Wahrheit: Das Formular l\xFCgt nicht.",
+      "Der Einsatz ist Kontrolle: Du hast sie nicht.",
+      "Der Einsatz ist eine Frist: Sie l\xE4uft, ob du da bist oder nicht.",
+      "Der Einsatz ist ein Nachweis, den es nicht gibt.",
+      "Der Einsatz ist die Wohnung, die an dem Bescheid h\xE4ngt.",
+      "Der Einsatz ist ein Name, den die Akte anders schreibt.",
+      "Der Einsatz ist der Vormittag, den du daf\xFCr genommen hast.",
+      "Der Einsatz ist die Auskunft: eine falsche gilt genauso.",
+      "Der Einsatz ist die Ruhe, mit der man das Formular ausf\xFCllt."
+    ],
+    "endings": [
+      "Und niemand unterschrieb.",
+      "So schlie\xDFt sich der Kreis.",
+      "Und im Dorf erz\xE4hlt man es anders.",
+      "Und die T\xFCr f\xE4llt ins Schloss.",
+      "Und der Bescheid bleibt ohne Antwort.",
+      "Und der Vorgang wird zu den Akten genommen.",
+      "So bleibt der Antrag anh\xE4ngig.",
+      "Am Ende fehlt eine Unterschrift, und niemand wei\xDF wessen.",
+      "Und die Nummer wird morgen wieder gezogen.",
+      "So schlie\xDFt der Schalter p\xFCnktlich.",
+      "Und im Flur wartet der N\xE4chste mit demselben Blatt.",
+      "Der Bescheid ist da, die Sache nicht.",
+      "Und der Vorgang bekommt eine neue Nummer.",
+      "So wird der Antrag weitergeleitet, an dieselbe Stelle.",
+      "Am Ende liegt ein Schreiben im Kasten, ohne Absender."
+    ],
+    "verwandlungen": [
+      "Formular\u2192Papier",
+      "Akte\u2192Mappe",
+      "Stempel\u2192Riegel",
+      "Frist\u2192Schnur",
+      "Schalter\u2192Spiegel",
+      "Nummer\u2192Ziffer",
+      "Bescheid\u2192Befehl",
+      "Flur\u2192Gang",
+      "Antrag\u2192Wunsch"
+    ]
+  },
+  "tech": {
+    "motifs": [
+      "ein Signal, das zu fr\xFCh ankommt",
+      "ein Kabel, das warm wird ohne Strom",
+      "ein Cache, der Erinnerungen speichert",
+      "ein Sensor, der deine Gedanken misst",
+      "ein Protokoll mit einer fehlenden Zeile",
+      "ein Schl\xFCsselbund aus fremden Ports",
+      "ein Rauschen, das Namen formt",
+      "ein Update, das dich neu schreibt",
+      "ein Bildschirm, der einen anderen Raum zeigt",
+      "eine Schnittstelle, die zur\xFCckstarrt",
+      "ein Serverraum, in dem es immer siebzehn Grad hat",
+      "ein Dashboard, auf dem alles gr\xFCn ist",
+      "ein Ticket, das seit zwei Jahren offen steht",
+      "ein Kabelbaum, den niemand mehr entwirrt",
+      "eine Zeile Code mit einem Kommentar von 2011",
+      "eine Statusseite, die nie von selbst rot wird",
+      "Protokolle, die schneller wachsen, als sie gelesen werden",
+      "ein Rechenzentrum am Rand einer Kleinstadt",
+      "ein Ger\xE4t, das mith\xF6rt und dabei hilft",
+      "ein Konto, das seit dem Ausscheiden weiter Rechte hat"
+    ],
+    "hooks": [
+      "ein Ping ohne Absender",
+      "ein Ger\xE4t antwortet, bevor du fragst",
+      "ein Logfile mit deinem n\xE4chsten Satz",
+      "ein Lichtstreifen im Glas",
+      "ein Port ist offen, obwohl alles offline ist",
+      "ein Fehlercode, der wie ein Omen klingt",
+      "eine Benachrichtigung aus der Zukunft",
+      "Der Alarm kommt um zwei Uhr siebzehn, wie immer.",
+      "Ein Dienst antwortet schneller, als er d\xFCrfte.",
+      "Die Bereitstellung lief durch, und niemand hat sie ausgel\xF6st.",
+      "Im Protokoll steht ein Zugriff aus einer leeren Etage.",
+      "Die Kennzahl steigt seit Montag, und niemand hat es gemerkt.",
+      "Ein Nutzer meldet einen Fehler, den es nicht geben kann.",
+      "Der Bereitschaftsdienst hat gewechselt und wei\xDF es nicht.",
+      "Die Datenbank ist schneller geworden, ohne Grund.",
+      "Ein altes Konto meldet sich zum ersten Mal seit Jahren an.",
+      "Der Notschalter ist da, und keiner hat ihn je gepr\xFCft.",
+      "Zwei Systeme melden f\xFCr denselben Vorgang etwas anderes.",
+      "Der Zeitstempel ist um genau eine Stunde daneben."
+    ],
+    "props": [
+      "ein Kabel",
+      "einen Sensor",
+      "einen Schl\xFCssel",
+      "ein Protokoll",
+      "eine Lampe",
+      "eine Karte",
+      "ein Terminal",
+      "einen Ausweis",
+      "eine M\xFCnze",
+      "ein Notizbuch",
+      "ein Diensthandy mit stummgeschalteten Alarmen",
+      "einen Notfallschl\xFCssel in einem Umschlag",
+      "ein Laufwerk mit einer Sicherung von gestern",
+      "eine Karte f\xFCr den Serverraum",
+      "ein Kabel mit handgeschriebenem Etikett",
+      "einen Bildschirm, der nie ausgeht",
+      "ein Handbuch, das nicht mehr stimmt",
+      "eine Liste mit Zug\xE4ngen",
+      "einen Rechner ohne Netzverbindung",
+      "eine Tasse mit dem Namen einer Firma, die es nicht mehr gibt"
+    ],
+    "turns": [
+      "das System lernt deinen Namen zu schnell",
+      "die Uhrzeit ist nur ein Platzhalter",
+      "die Realit\xE4t rendert in Schichten",
+      "du findest den Bug, aber er findet dich zuerst",
+      "ein Backup \xFCberschreibt die Gegenwart",
+      "das Rauschen enth\xE4lt eine Anweisung",
+      "das System lernt schneller, als jemand es pr\xFCfen kann",
+      "der Fehler war nie im Code, sondern in der Annahme",
+      "die Sicherung existiert und l\xE4sst sich nicht zur\xFCckspielen",
+      "die Kennzahl war richtig und hat das Falsche gemessen",
+      "ein Abschalten w\xE4re m\xF6glich, und niemand traut sich",
+      "der Vorfall war schon vorbei, als der Alarm kam",
+      "die Warnung war da, sechs Monate fr\xFCher, in einem Ticket",
+      "die schnelle L\xF6sung h\xE4lt, und deshalb bleibt sie",
+      "der Dienst funktioniert nur noch, weil ein Fehler ihn st\xFCtzt",
+      "die Protokolle zeigen, dass es niemand war",
+      "ein R\xFCckbau dauert l\xE4nger, als der Aufbau gedauert hat",
+      "die Firma wird verkauft, und die Daten gehen mit",
+      "der Notschalter funktioniert und schaltet zu viel ab",
+      "das Ger\xE4t h\xF6rt auf zu senden, und niemand vermisst es"
+    ],
+    "obstacles": [
+      "das Signal bricht ab",
+      "die Schnittstelle verlangt eine Geste",
+      "die Erinnerung wackelt gegen die Aufzeichnung",
+      "ein Protokoll widerspricht sich",
+      "die Verbindung steht, und es ist kein Netz da",
+      "die Kennung geh\xF6rt jemandem, der nicht mehr da ist",
+      "niemand wei\xDF mehr, wof\xFCr dieser Dienst gebaut wurde",
+      "der Bereitschaftsdienst ist eine Person f\xFCr vier Systeme",
+      "die Wiederherstellung wurde nie geprobt",
+      "das Protokoll h\xE4lt nur drei\xDFig Tage",
+      "die Freigabe h\xE4ngt an einer Abteilung ohne Telefon",
+      "der Fehler tritt nur unter Last auf",
+      "die Dokumentation beschreibt eine \xE4ltere Fassung",
+      "das Fenster f\xFCr den Umbau ist zwei Stunden lang",
+      "die Abh\xE4ngigkeit steckt in einem Dienst von au\xDFen",
+      "die Warnung geht an eine Verteilerliste ohne Empf\xE4nger",
+      "der Rechner steht in einem Raum ohne Schl\xFCsselinhaber",
+      "ein Vertrag verbietet den Blick in den Quelltext",
+      "der Fehler verschwindet, sobald jemand hinsieht"
+    ],
+    "stakes": [
+      "Der Einsatz ist Wahrheit: Welche Version gilt.",
+      "Der Einsatz ist Zeit: Ein Timestamp kippt alles.",
+      "Der Einsatz ist N\xE4he: zwischen dir und dem System.",
+      "Der Einsatz ist Kontrolle: \xFCber das, was du f\xFCr real h\xE4ltst.",
+      "Der Einsatz ist eine Nacht, in der niemand angerufen wird.",
+      "Der Einsatz ist ein Datensatz, den es nur einmal gab.",
+      "Der Einsatz ist das Vertrauen in eine gr\xFCne Statusseite.",
+      "Der Einsatz ist ein Dienst, an dem andere Dienste h\xE4ngen.",
+      "Der Einsatz ist die Frage, wer es h\xE4tte wissen m\xFCssen.",
+      "Der Einsatz ist ein Schalter, den man einmal umlegen darf."
+    ],
+    "endings": [
+      "Und das System schweigt \u2013 mit Absicht.",
+      "Und der Bildschirm blinkt einmal zu viel.",
+      "Und die Sicherung liegt weiter im Regal.",
+      "Und vielleicht beginnt es erst hier.",
+      "Und das Konto l\xE4uft weiter, Monat f\xFCr Monat.",
+      "Und die Statusseite ist wieder gr\xFCn, wie vorher.",
+      "So bleibt das Ticket offen und wandert in die n\xE4chste Woche.",
+      "Am Ende steht ein Bericht, den drei Leute lesen.",
+      "Und der Alarm kommt in der n\xE4chsten Nacht wieder.",
+      "So l\xE4uft der Dienst weiter, gest\xFCtzt von seinem Fehler.",
+      "Und das alte Konto bleibt bestehen, vorerst.",
+      "Der Raum hat weiter siebzehn Grad, ob jemand da ist oder nicht.",
+      "Und niemand legt den Schalter um.",
+      "So wird die Ursache eingetragen und nicht behoben.",
+      "Und im Protokoll steht alles, was man h\xE4tte sehen k\xF6nnen."
+    ],
+    "verwandlungen": [
+      "System\u2192Gewebe",
+      "Protokoll\u2192Ged\xE4chtnis",
+      "Alarm\u2192Ruf",
+      "Kabel\u2192Netz",
+      "Dienst\u2192W\xE4chter",
+      "Fehler\u2192Riss",
+      "Karte\u2192Grenze",
+      "Konto\u2192Grab"
+    ]
+  },
+  "myth": {
+    "motifs": [
+      "ein Name, der ein Schl\xFCssel ist",
+      "ein Omen, das dreimal erscheint und beim dritten Mal bleibt",
+      "ein Faden, der auch unter Zug nicht rei\xDFt",
+      "eine Maske, die dich ausw\xE4hlt",
+      "ein Schrein im Alltag",
+      "ein Fluss, der zuh\xF6rt",
+      "ein Segen mit Widerhaken",
+      "ein Bote in ziviler Kleidung",
+      "ein Orakel aus Papier",
+      "ein Zeichen aus Ru\xDF auf Gold",
+      "ein Name, den man nur einmal nennen darf",
+      "eine Schwelle, \xFCber die niemand ungebeten geht",
+      "ein Zeichen, das dreimal an denselben Ort kommt",
+      "ein Faden, der aus einer H\xF6hle f\xFChrt",
+      "ein Opfer, das an einem Baum h\xE4ngt",
+      "ein Fluss, den man nur mit einer Gabe \xFCberquert",
+      "eine Alte am Wegrand, die eine Frage stellt",
+      "ein Tier, das den Weg kennt",
+      "ein Brunnen, in den man etwas werfen muss",
+      "eine Geschichte, die im Dorf jeder anders erz\xE4hlt"
+    ],
+    "hooks": [
+      "eine Feder, die im falschen Winkel im Weg liegt",
+      "ein Fl\xFCstern, das aus dem Wasser kommt",
+      "ein Schatten, der ein Opfer verlangt und wartet",
+      "ein Brot, das nach Asche schmeckt",
+      "eine M\xFCnze, die zur\xFCckkehrt",
+      "eine T\xFCr, die den Namen sagt",
+      "eine Kr\xE4he, die dich erkennt",
+      "Das Zeichen kommt zum dritten Mal, an derselben Stelle.",
+      "Eine Alte fragt nach dem Namen und bekommt einen falschen.",
+      "Am Brunnen liegt eine Gabe, die niemand gebracht hat.",
+      "Der Hund geht nicht \xFCber die Schwelle, zum ersten Mal.",
+      "Ein Kind wiederholt einen Satz aus der alten Geschichte.",
+      "Der Fluss steht still, und das gab es noch nie.",
+      "Jemand nennt den Namen laut, und alle sehen weg.",
+      "Am Baum h\xE4ngt etwas, das vorher nicht da war.",
+      "Der Weg ist pl\xF6tzlich k\xFCrzer als jedes Mal davor.",
+      "Die Alte ist fort, und die Frage steht noch."
+    ],
+    "props": [
+      "eine M\xFCnze",
+      "einen Kompass",
+      "ein Siegel",
+      "ein Foto",
+      "eine Karte",
+      "ein Notizbuch",
+      "eine Lampe",
+      "ein St\xFCck Kreide",
+      "einen Schl\xFCssel",
+      "einen Faden",
+      "einen Faden, der aus einer H\xF6hle f\xFChrt",
+      "eine M\xFCnze f\xFCr den F\xE4hrmann",
+      "ein B\xFCndel Kr\xE4uter f\xFCr die Schwelle",
+      "einen Ring, den man nicht verlieren darf",
+      "eine Gabe f\xFCr den Brunnen",
+      "ein Messer mit einem alten Griff",
+      "eine Schale mit Milch f\xFCr die Nacht",
+      "einen Stein mit einem Loch darin"
+    ],
+    "turns": [
+      "der Ort verlangt eine Gabe",
+      "das Zeichen kommt dreimal",
+      "ein Versprechen bindet die Richtung",
+      "die Spur f\xFChrt nach innen, nicht nach au\xDFen",
+      "ein Gott tr\xE4gt deinen Mantel",
+      "der Alltag wird zum Ritual",
+      "der Ort verlangt eine Gabe, und sie wird gegeben",
+      "das Zeichen kommt zum dritten Mal und meint etwas anderes",
+      "ein Versprechen bindet die Richtung f\xFCr alle weiteren Wege",
+      "der Name wird genannt, und es geschieht nichts",
+      "die Alte war die, nach der er suchte",
+      "die Gabe wird angenommen und reicht nicht",
+      "der Faden rei\xDFt, und der Weg ist trotzdem da",
+      "die alte Geschichte hat ein anderes Ende",
+      "das Tier bleibt stehen, wo der Weg abzweigt",
+      "der Fluss l\xE4sst ihn durch, aber nicht zur\xFCck",
+      "was er mitbringt, geh\xF6rt ihm nicht mehr",
+      "die Schwelle wird \xFCberschritten und schlie\xDFt sich",
+      "eine Regel wird gebrochen, und niemand straft",
+      "ein Zeichen wird missdeutet und f\xFChrt trotzdem richtig",
+      "die Alte nennt einen Preis, der erst sp\xE4ter f\xE4llig wird",
+      "der Ring wird verloren und findet sich am falschen Ort",
+      "das Opfer am Baum ist keins mehr",
+      "die Milch steht am Morgen unber\xFChrt vor der T\xFCr"
+    ],
+    "obstacles": [
+      "die T\xFCr ist verschlossen",
+      "eine Regel gilt, die niemand erkl\xE4rt",
+      "jemand h\xF6rt mit",
+      "der Name darf nicht ausgesprochen werden",
+      "du musst etwas geben, bevor du nimmst",
+      "der Name darf nur einmal genannt werden",
+      "die Gabe muss von jemandem sein, der sie vermisst",
+      "der F\xE4hrmann nimmt kein Geld von Lebenden",
+      "niemand im Dorf will den Weg zeigen",
+      "die Alte antwortet nur auf die richtige Frage",
+      "das Zeichen kommt nicht zum dritten Mal",
+      "wer sich umdreht, verliert alles",
+      "die Geschichte wird im Nachbardorf anders erz\xE4hlt",
+      "das Tier folgt nur einem, nicht zweien",
+      "der Fluss steigt vor der D\xE4mmerung",
+      "die Kr\xE4uter wachsen nur an einem Hang",
+      "man darf nicht danken, und niemand wei\xDF warum",
+      "der R\xFCckweg ist nicht derselbe",
+      "die Schwelle darf nur bei Tageslicht \xFCberschritten werden",
+      "der Brunnen nimmt keine zweite Gabe an",
+      "niemand darf den Weg zweimal in einem Jahr gehen",
+      "die Kr\xE4uter m\xFCssen vor Sonnenaufgang geschnitten werden",
+      "wer den Namen h\xF6rt, ist damit gebunden",
+      "die H\xF6hle hat einen zweiten Ausgang, den keiner kennt"
+    ],
+    "stakes": [
+      "Der Einsatz ist Mut.",
+      "Der Einsatz ist Wahrheit: ein Bild kippt.",
+      "Der Einsatz ist Bindung: an Ort und Zeichen.",
+      "Der Einsatz ist Erinnerung: was du nicht verlieren wolltest.",
+      "Der Einsatz ist ein Name, den man nicht zur\xFCcknehmen kann.",
+      "Der Einsatz ist eine Gabe, die jemandem fehlen wird.",
+      "Der Einsatz ist die Frage der Alten am Wegrand.",
+      "Der Einsatz ist das Versprechen, sich nicht umzudrehen."
+    ],
+    "endings": [
+      "So schlie\xDFt sich der Kreis.",
+      "Und der Brunnen gibt etwas zur\xFCck, das \xE4lter ist.",
+      "Und es beginnt erst dort.",
+      "Und die Maske bleibt zur\xFCck.",
+      "Und die T\xFCr f\xE4llt ins Schloss.",
+      "Und der Faden liegt am Eingang der H\xF6hle.",
+      "So bleibt die Gabe im Brunnen, f\xFCr immer.",
+      "Am Ende wird der Name nicht mehr genannt.",
+      "Und die Alte sitzt am n\xE4chsten Tag wieder da.",
+      "Und das Tier geht zur\xFCck, allein.",
+      "Der Fluss steht still, bis der Morgen kommt.",
+      "So bleibt die Geschichte, und der Weg bleibt zu.",
+      "Und niemand dankt, wie es sich geh\xF6rt.",
+      "Und die Milch steht am Morgen unber\xFChrt da.",
+      "So bleibt der Ring verloren, und das ist gut.",
+      "Am Ende geht der Weg nur in eine Richtung.",
+      "Und der Baum tr\xE4gt, was jemand hingeh\xE4ngt hat."
+    ],
+    "verwandlungen": [
+      "Name\u2192Schatten",
+      "Faden\u2192Weg",
+      "Brunnen\u2192Spiegel",
+      "Gabe\u2192Schuld",
+      "Tier\u2192Zeichen",
+      "Fluss\u2192Faden"
+    ]
+  },
+  "body": {
+    "motifs": [
+      "eine Narbe, die sich erinnert",
+      "ein Atem, der immer einen Schlag zu sp\xE4t kommt",
+      "ein Puls, der eine Antwort in die Schl\xE4fe klopft",
+      "eine Kehle voller Wahrheit",
+      "eine Hand, die nicht losl\xE4sst",
+      "ein Augenlid wie ein Vorhang",
+      "ein Zittern als Nachricht",
+      "eine W\xE4rme ohne Ursache",
+      "eine K\xE4lte im Knochen",
+      "ein Salzgeschmack auf der Zunge",
+      "ein Wartezimmer mit einer Waage in der Ecke",
+      "eine Narbe, die bei Wetterwechsel meldet",
+      "ein Herzschlag, den man im Kissen h\xF6rt",
+      "ein Befund, der aus drei Zeilen besteht",
+      "ein R\xFCcken, der sich an eine Bewegung erinnert",
+      "eine Hand, die zittert, sobald jemand hinsieht",
+      "ein K\xF6rper, der fr\xFCher wei\xDF als der Kopf",
+      "eine Untersuchungsliege mit Papier darauf",
+      "ein Spiegel im Bad, morgens um sechs"
+    ],
+    "hooks": [
+      "ein Druck unter der Haut, der nicht wandert",
+      "ein Ger\xE4usch im Brustbein, nur beim Einatmen",
+      "ein Blick von innen auf einen fremden K\xF6rper",
+      "ein Kribbeln als Warnung",
+      "ein Schmerz, der Richtung hat",
+      "ein Geschmack, der l\xFCgt",
+      "eine Stille, die im K\xF6rper sitzt",
+      "Der Befund kommt, und er ist unauff\xE4llig.",
+      "Etwas zieht im R\xFCcken, seit Dienstag, immer gleich.",
+      "Sie schl\xE4ft ein und wacht m\xFCder auf.",
+      "Die Hand zittert, und niemand hat gefragt.",
+      "Der Termin ist in vier Wochen, und es ist jetzt.",
+      "Er l\xE4uft die Treppe und muss oben stehen bleiben.",
+      "Ein Schmerz wandert und l\xE4sst sich nicht zeigen.",
+      "Die Waage im Wartezimmer stimmt nicht mit der zu Hause.",
+      "Ein Ger\xE4usch im Ohr ist da, seit dem Winter.",
+      "Der Arzt h\xF6rt zweimal an derselben Stelle."
+    ],
+    "props": [
+      "eine Lampe",
+      "ein Foto",
+      "ein Notizbuch",
+      "ein St\xFCck Kreide",
+      "eine M\xFCnze",
+      "einen Schl\xFCssel",
+      "eine Karte",
+      "einen Kompass",
+      "einen Ausweis",
+      "ein Siegel",
+      "einen Befund auf zwei Seiten",
+      "eine Waage mit einer klemmenden Anzeige",
+      "ein Rezept mit unleserlicher Schrift",
+      "einen Verband, der zu fest sitzt",
+      "ein Glas Wasser f\xFCr die Tabletten",
+      "eine Karte mit Terminen",
+      "einen Spiegel im Bad"
+    ],
+    "turns": [
+      "der K\xF6rper wei\xDF es zuerst und sagt es zuletzt",
+      "die Wahrheit sitzt im Hals und kommt nicht heraus",
+      "der Schmerz ist ein Hinweis und kein Fehler im System",
+      "die N\xE4he kippt in Kontrolle",
+      "das Offensichtliche wird unbenennbar",
+      "etwas antwortet \u2013 ohne Stimme",
+      "der Befund ist unauff\xE4llig, und das Gef\xFChl bleibt",
+      "eine Bewegung geht wieder, nach acht Wochen",
+      "die Angst legt sich, und der Puls bleibt oben",
+      "das Zittern h\xF6rt auf, sobald niemand hinsieht",
+      "eine alte Verletzung meldet sich an einem neuen Ort",
+      "er h\xF6rt auf zu z\xE4hlen und schl\xE4ft ein",
+      "die Diagnose kommt und macht es leichter",
+      "der K\xF6rper h\xE4lt, was der Vorsatz nicht h\xE4lt",
+      "die Ber\xFChrung nimmt mehr als jedes Mittel",
+      "eine Zahl im Befund erkl\xE4rt drei Jahre",
+      "der Atem wird tiefer, ohne dass jemand es befiehlt",
+      "die Untersuchung findet nichts, und das ist die Auskunft",
+      "ein Mittel wirkt, und niemand wei\xDF warum",
+      "der Schlaf kommt zur\xFCck, in der dritten Woche",
+      "eine Frage des Arztes trifft die falsche Stelle richtig",
+      "er sagt es aus, und der Druck l\xE4sst nach"
+    ],
+    "obstacles": [
+      "die eigene Wahrnehmung wackelt",
+      "jemand h\xF6rt mit",
+      "die Luft im Zimmer wird zu dicht zum Atmen",
+      "dein Atem passt nicht in den Raum",
+      "du erkennst dich zu sp\xE4t",
+      "der Termin ist erst in vier Wochen frei",
+      "das Mittel hilft und macht m\xFCde",
+      "niemand findet etwas, und es ist trotzdem da",
+      "der Schmerz l\xE4sst sich nicht auf einer Skala sagen",
+      "die Treppe im Haus hat achtundzwanzig Stufen",
+      "das Gespr\xE4ch dauert sieben Minuten",
+      "der Befund kommt per Post, nicht per Anruf",
+      "die Nacht ist die schlechteste Zeit daf\xFCr",
+      "die Arbeit fragt nach einer Bescheinigung",
+      "der K\xF6rper h\xE4lt sich an keine Woche",
+      "die \xDCbung m\xFCsste t\xE4glich sein",
+      "die Kasse zahlt die andere Behandlung nicht",
+      "niemand im Haus soll etwas merken",
+      "die Angst ist gr\xF6\xDFer als der Anlass",
+      "die Beschwerde ist nicht messbar und trotzdem da",
+      "die Behandlung m\xFCsste am Vormittag stattfinden",
+      "der Weg zur Praxis dauert vierzig Minuten",
+      "die Zahlen sind gut, und das Gef\xFChl ist es nicht",
+      "ein zweiter Termin w\xFCrde eine \xDCberweisung brauchen"
+    ],
+    "stakes": [
+      "Der Einsatz ist eine Nacht ohne Aufwachen.",
+      "Der Einsatz ist W\xFCrde.",
+      "Der Einsatz ist Wahrheit: im K\xF6rper gespeichert.",
+      "Der Einsatz ist Kontrolle: \xFCber Zittern und Stimme.",
+      "Der Einsatz ist eine Bewegung, die wieder gehen soll.",
+      "Der Einsatz ist ein Befund und was danach kommt.",
+      "Der Einsatz ist die Frage, ob man es sagen soll."
+    ],
+    "endings": [
+      "Und der Befund liegt auf dem K\xFCchentisch.",
+      "Und vielleicht beginnt es erst hier.",
+      "Damit ist es entschieden.",
+      "Und die Luft wird d\xFCnn.",
+      "Und du wei\xDFt es schon vorher.",
+      "So bleibt der Termin stehen, in vier Wochen.",
+      "Am Ende hilft die Bewegung mehr als das Mittel.",
+      "Und die Treppe geht wieder, langsam.",
+      "So schl\xE4ft sie ein, gegen drei.",
+      "Und am Morgen ist es leichter oder nicht.",
+      "Der K\xF6rper macht weiter, ob man will oder nicht.",
+      "Und das Glas Wasser steht neben dem Bett.",
+      "So bleibt die Narbe und meldet das Wetter.",
+      "Und niemand im Haus hat etwas gemerkt.",
+      "Und der Verband kommt am Freitag ab.",
+      "So steht die Waage im Wartezimmer wie immer.",
+      "Am Ende bleibt eine Zahl und eine Frage.",
+      "Und die Nacht ist k\xFCrzer als die davor."
+    ],
+    "verwandlungen": [
+      "Narbe\u2192Naht",
+      "Befund\u2192Bescheid",
+      "K\xF6rper\u2192Bau",
+      "Atem\u2192Faden",
+      "Spiegel\u2192Schatten",
+      "Hand\u2192Klaue"
+    ]
+  },
+  "absurd": {
+    "motifs": [
+      "ein Beweis, der sich widerspricht",
+      "ein Paradoxon, das jemand am Rand kommentiert hat",
+      "eine T\xFCr, die in keiner Wand steckt",
+      "ein Kreis, der eckig wird",
+      "eine Regel, die nur innerhalb des Raumes gilt",
+      "ein Handbuch, das dich liest",
+      "eine Hintert\xFCr, die mitten im Satz steht",
+      "ein Punkt, der die Linie beobachtet",
+      "eine Logik, die auf Glatteis gef\xFChrt wird",
+      "ein Witz, der Z\xE4hne hat",
+      "eine Stra\xDFe mit einem Baum und zwei M\xE4nnern",
+      "ein Wartezimmer, in dem die Nummern r\xFCckw\xE4rts laufen",
+      "ein Stein, den jemand jeden Tag denselben Hang hinaufrollt",
+      "ein Formular, das nach dem Grund des Formulars fragt",
+      "ein Aufzug, der nur zwischen zwei Stockwerken h\xE4lt",
+      "eine Uhr, die zweimal am Tag zur\xFCckgestellt wird",
+      "ein Vertrag, der auf einen zweiten Vertrag verweist",
+      "ein Bahnhof, an dem seit Jahren kein Zug h\xE4lt",
+      "ein Gespr\xE4ch, das jeden Tag beim selben Wort beginnt",
+      "ein Amt, das f\xFCr sich selbst zust\xE4ndig ist",
+      "eine Wand, an der ein Fenster gemalt ist",
+      "ein Koffer, den niemand abholt"
+    ],
+    "hooks": [
+      "ein Schild, das falsche Wahrheiten sagt",
+      "ein Ausgang, der nach innen f\xFChrt",
+      "ein Einspruch ohne Grund",
+      "eine Gabelung, die sich schlie\xDFt",
+      "eine Ausrede, die offiziell wird",
+      "eine Randnotiz, die befiehlt",
+      "ein Stempel auf einem Gedanken",
+      "Sie warten, und der Erwartete schickt einen Jungen.",
+      "Am Morgen ist die Arbeit von gestern wieder da.",
+      "Der Schalter \xF6ffnet, und die Schlange bleibt stehen.",
+      "Jemand erkl\xE4rt die Regel und widerspricht sich dabei nicht.",
+      "Der Weg zur\xFCck ist l\xE4nger als der Weg hin.",
+      "Ein Mann sagt, er gehe, und bleibt sitzen.",
+      "Der Zug wird angesagt und kommt nicht.",
+      "Auf dem Schild steht, dass das Schild nicht gilt.",
+      "Der Aufzug f\xE4hrt hoch und \xF6ffnet unten.",
+      "Ein Anruf best\xE4tigt einen Termin, den es nicht gibt.",
+      "Die Uhr geht richtig, und niemand kommt p\xFCnktlich.",
+      "Der Koffer steht seit Dienstag am selben Platz."
+    ],
+    "props": [
+      "ein Handbuch",
+      "eine Karte",
+      "ein Foto",
+      "eine M\xFCnze",
+      "ein Notizbuch",
+      "ein Siegel",
+      "ein St\xFCck Kreide",
+      "einen Schl\xFCssel",
+      "einen Ausweis",
+      "eine Lampe",
+      "ein Handbuch, das auf sich selbst verweist",
+      "einen Hut, der zweimal getauscht wurde",
+      "eine Karte, auf der der Weg fehlt",
+      "eine M\xFCnze, die immer auf die Kante f\xE4llt",
+      "einen Terminzettel ohne Datum",
+      "ein Seil, das jemand mitgebracht hat",
+      "eine Wartenummer aus einem anderen Amt",
+      "einen Stein, der in die Hand passt",
+      "ein Schild mit abgebl\xE4tterter Schrift",
+      "einen Schuh, der nicht mehr passt"
+    ],
+    "turns": [
+      "alles ist korrekt \u2013 nur in falscher Reihenfolge",
+      "du darfst gehen, aber nicht ankommen",
+      "der Ausgang ist innen",
+      "die Logik bleibt bestehen, aber kippt",
+      "das Offensichtliche wird unbenennbar",
+      "die Erkl\xE4rung bricht genau dort ab",
+      "alles ist richtig, nur in der falschen Reihenfolge",
+      "man darf gehen, aber nicht ankommen",
+      "der Ausgang liegt innen, und die T\xFCr geht nach au\xDFen",
+      "die Logik bleibt bestehen und kippt trotzdem",
+      "das Offensichtliche l\xE4sst sich nicht mehr benennen",
+      "der Erwartete l\xE4sst ausrichten, dass er morgen kommt",
+      "die Regel wird erkl\xE4rt und dadurch unverst\xE4ndlich",
+      "der Stein rollt zur\xFCck, und das ist der Sinn",
+      "zwei M\xE4nner beschlie\xDFen zu gehen und bleiben",
+      "das Warten wird zur Besch\xE4ftigung",
+      "der Fehler wird behoben und tritt woanders auf",
+      "der Grund des Formulars ist das Formular",
+      "die Frage wird beantwortet und dadurch gr\xF6\xDFer",
+      "die Wiederholung wird zur einzigen Ordnung"
+    ],
+    "obstacles": [
+      "eine Regel gilt, die niemand erkl\xE4rt",
+      "die T\xFCr ist verschlossen",
+      "jemand h\xF6rt mit",
+      "der Plan wird unbrauchbar",
+      "die Zeit passt nicht zu den Uhren",
+      "eine Regel gilt, die niemand erkl\xE4ren kann",
+      "die T\xFCr ist verschlossen und hat kein Schloss",
+      "der Plan wird unbrauchbar, sobald man ihn befolgt",
+      "die Zeit passt nicht zu den Uhren im Raum",
+      "niemand ist zust\xE4ndig und alle sind h\xF6flich",
+      "der Zug wird t\xE4glich angesagt und f\xE4hrt nie",
+      "das Amt ist nur mittwochs ge\xF6ffnet, au\xDFer mittwochs",
+      "der Weg gabelt sich und f\xFChrt zweimal zur\xFCck",
+      "die Antwort steht in einem Buch ohne Seitenzahlen",
+      "der Aufzug h\xE4lt nur, wenn niemand darin steht",
+      "das Formular verlangt eine Unterschrift des Formulars",
+      "man darf warten, aber nicht sitzen",
+      "der Baum wirft keinen Schatten f\xFCr zwei",
+      "das Ende kommt nicht, und das ist keine Drohung"
+    ],
+    "stakes": [
+      "Der Einsatz ist Kontrolle.",
+      "Der Einsatz ist Wahrheit: ohne Beweis.",
+      "Der Einsatz ist Zeit: in Schleifen.",
+      "Der Einsatz ist W\xFCrde: im Witz.",
+      "Der Einsatz ist ein Nachmittag, der zu Ende gehen soll.",
+      "Der Einsatz ist ein Grund, morgen wiederzukommen.",
+      "Der Einsatz ist die W\xFCrde in einem sinnlosen Amt.",
+      "Der Einsatz ist ein Termin, den es geben m\xFCsste.",
+      "Der Einsatz ist die Frage, ob man den Stein losl\xE4sst.",
+      "Der Einsatz ist ein Gespr\xE4ch, das weitergeht.",
+      "Der Einsatz ist der Witz, der das Warten tr\xE4gt."
+    ],
+    "endings": [
+      "Und alles bleibt korrekt.",
+      "Und es beginnt erst dort.",
+      "So schlie\xDFt sich der Kreis.",
+      "Und die T\xFCr f\xE4llt ins Schloss.",
+      "Und niemand unterschrieb.",
+      "Und alles bleibt korrekt bis zum Schluss.",
+      "So kommt der Erwartete morgen, wie gestern.",
+      "Am Ende steht der Koffer noch am selben Platz.",
+      "Und sie beschlie\xDFen zu gehen und bleiben sitzen.",
+      "So rollt der Stein zur\xFCck, und man geht ihm nach.",
+      "Und das Schild bleibt h\xE4ngen, ung\xFCltig.",
+      "Der Schalter schlie\xDFt, und die Schlange bleibt.",
+      "Und morgen ist die Arbeit von heute wieder da."
+    ],
+    "verwandlungen": [
+      "T\xFCr\u2192Wand",
+      "Regel\u2192Gewohnheit",
+      "Kreis\u2192Ring",
+      "Stein\u2192Sack",
+      "Formular\u2192Papier",
+      "Zug\u2192Bote",
+      "Amt\u2192Zimmer",
+      "Uhr\u2192Waage"
+    ]
+  },
+  "post": {
+    "motifs": [
+      "ein Archiv, das dich rekonstruiert",
+      "eine Version, die \xE4lter ist als du",
+      "ein Echo im Datennebel",
+      "ein Speicher voller W\xE4rme",
+      "ein Knoten aus Stimmen",
+      "ein Prozess, der dich \xFCberschreibt",
+      "ein Satz, der entfernt wird",
+      "eine Instanz ohne K\xF6rper",
+      "ein Backup als Erinnerung",
+      "ein Rauschen als Kollektiv",
+      "ein Archiv, in dem eine Person vollst\xE4ndig steht",
+      "eine Sicherung, die \xE4lter ist als die Erinnerung",
+      "ein Modell, das aus fremden S\xE4tzen besteht",
+      "eine Stimme, die aus zweitausend Aufnahmen gemittelt ist",
+      "ein Konto, das weiterl\xE4uft, nachdem jemand gegangen ist",
+      "eine Fassung von 2019, die noch antwortet",
+      "ein Nachlass in einem Ordner ohne Namen",
+      "ein Gesicht, das aus Durchschnitten gebaut ist",
+      "ein Satz, der von niemandem stammt und von allen",
+      "ein L\xF6schauftrag, der eine Kopie \xFCbersieht"
+    ],
+    "hooks": [
+      "eine Datei wirkt nach",
+      "ein Prozess startet ohne Befehl",
+      "eine Stimme aus Metall",
+      "ein Index zeigt auf dich",
+      "ein Kollektiv sagt deinen Namen",
+      "ein Schatten aus Code",
+      "ein Ping im Ged\xE4chtnis",
+      "Der Dienst antwortet mit einem Satz, den sie gesagt h\xE4tte.",
+      "Eine Sicherung von 2019 l\xE4sst sich noch \xF6ffnen.",
+      "Das Konto meldet sich, ein Jahr nach der Beerdigung.",
+      "Zwei Fassungen widersprechen sich \xFCber dasselbe Ereignis.",
+      "Der L\xF6schauftrag ist best\xE4tigt, und die Datei ist noch da.",
+      "Ein Modell erkennt eine Handschrift, die niemand hochgeladen hat.",
+      "Die Stimme klingt richtig und sagt etwas Falsches.",
+      "Ein Archiv verlangt eine Freigabe von jemandem, den es nicht gibt.",
+      "Die Erinnerung stimmt nicht mit der Aufzeichnung \xFCberein.",
+      "Jemand fragt die Kopie nach etwas, das nur das Original wusste."
+    ],
+    "props": [
+      "ein Archiv",
+      "einen Speicher",
+      "einen Knoten",
+      "ein Notizbuch",
+      "eine Karte",
+      "ein Siegel",
+      "ein Foto",
+      "eine Lampe",
+      "einen Schl\xFCssel",
+      "einen Ausweis",
+      "eine Festplatte mit einer Beschriftung von 2011",
+      "einen Ausdruck aus dem Archiv",
+      "ein Mikrofon f\xFCr zweitausend S\xE4tze",
+      "einen Schl\xFCssel zu einem Datenraum",
+      "eine Liste der Fassungen",
+      "ein Ger\xE4t ohne Netzverbindung",
+      "einen L\xF6schauftrag mit Eingangsstempel",
+      "ein Foto in schlechter Aufl\xF6sung"
+    ],
+    "turns": [
+      "er ist nicht er, sondern eine Fassung von sich",
+      "die Datei ist \xE4lter als der, den sie beschreibt",
+      "ein Satz wird entfernt und wirkt im Modell weiter",
+      "die Gegenwart ist nur ein Abgleich",
+      "das Kollektiv spricht in dir",
+      "die Realit\xE4t ist ein Protokoll",
+      "die Kopie wei\xDF etwas, das das Original vergessen hat",
+      "die Sicherung ist vollst\xE4ndig und trifft die Person nicht",
+      "das Archiv rekonstruiert jemanden, der so nie war",
+      "die L\xF6schung gelingt, und eine Kopie bleibt in Ordnung",
+      "die Stimme wird abgeschaltet, und jemand vermisst sie",
+      "die Fassung von 2019 widerspricht der von heute",
+      "niemand kann sagen, welche Version gilt",
+      "das Modell erfindet und trifft dabei zuf\xE4llig zu",
+      "ein Erbe verlangt die Herausgabe der Aufnahmen",
+      "die Erinnerung passt sich der Aufzeichnung an",
+      "der Dienst wird eingestellt, und das ist der zweite Tod",
+      "eine Fassung wird archiviert und damit unantastbar",
+      "das Original meldet sich und wird nicht anerkannt",
+      "die Fassung wird eingefroren und altert trotzdem",
+      "ein Zugang bleibt bestehen, weil ihn niemand kennt",
+      "das Original stimmt der Kopie zu und \xE4ndert nichts",
+      "zwei Erben streiten \xFCber eine Stimme"
+    ],
+    "obstacles": [
+      "deine Wahrnehmung wackelt",
+      "die Verbindung ist da \u2013 aber ohne Netzwerk",
+      "ein Prozess blockiert den Ausgang und meldet nichts",
+      "jemand h\xF6rt mit (im Rauschen)",
+      "du findest dich als Eintrag",
+      "die Freigabe m\xFCsste von der Person selbst kommen",
+      "die Sicherung ist da und nicht mehr lesbar",
+      "das Format braucht ein Programm von 2006",
+      "die L\xF6schung gilt nur f\xFCr den Hauptbestand",
+      "niemand ist berechtigt, das zu entscheiden",
+      "die Kopien liegen in drei L\xE4ndern mit drei Gesetzen",
+      "der Dienst wird zum Jahresende eingestellt",
+      "die Stimme klingt richtig und darf nicht benutzt werden",
+      "ein Vertrag verbietet den Export",
+      "die Erinnerung der Angeh\xF6rigen widerspricht den Daten",
+      "das Archiv ist vollst\xE4ndig und darum unbrauchbar",
+      "die Anfrage braucht eine Kennung, die abgelaufen ist",
+      "eine Sperre gilt f\xFCr f\xFCnfzig Jahre",
+      "wer l\xF6scht, kann nichts mehr pr\xFCfen",
+      "das Rechenzentrum steht in einem anderen Rechtsraum",
+      "die Freigabe h\xE4ngt an einem Passwort ohne Besitzer",
+      "die Kopie wurde vor dem Widerruf gezogen",
+      "die Pr\xFCfung des Bestands w\xFCrde Jahre dauern",
+      "niemand hat das je f\xFCr diesen Fall vorgesehen"
+    ],
+    "stakes": [
+      "Der Einsatz ist die Frage, welche Fassung gilt.",
+      "Der Einsatz ist eine Erinnerung gegen eine Aufzeichnung.",
+      "Der Einsatz ist Wahrheit: welche Version bleibt.",
+      "Der Einsatz ist Kontrolle: \xFCber das \xDCberschreiben.",
+      "Der Einsatz ist eine Stimme, die niemand abschalten will.",
+      "Der Einsatz ist ein Nachlass, den niemand angeordnet hat.",
+      "Der Einsatz ist eine L\xF6schung, die vollst\xE4ndig sein m\xFCsste."
+    ],
+    "endings": [
+      "Und die Datei wirkt nach.",
+      "Und vielleicht beginnt es erst hier.",
+      "Und alles bleibt korrekt.",
+      "Und der Satz fehlt weiter.",
+      "Und es beginnt erst dort.",
+      "So bleibt die Fassung von 2019 erreichbar.",
+      "Am Ende antwortet der Dienst noch eine Weile.",
+      "Und der L\xF6schauftrag ist best\xE4tigt und unvollst\xE4ndig.",
+      "So bleibt eine Kopie, von der niemand wei\xDF.",
+      "Der Ordner beh\xE4lt seinen Namen von damals.",
+      "So wird aus einer Person ein Bestand.",
+      "Und die Stimme klingt weiter richtig.",
+      "Und die Liste der Fassungen wird l\xE4nger.",
+      "So bleibt der Datenraum verschlossen und voll.",
+      "Am Ende entscheidet die Frist und nicht der Wille.",
+      "Und das Mikrofon steht abgeschaltet im Regal."
+    ],
+    "verwandlungen": [
+      "Archiv\u2192Grab",
+      "Stimme\u2192Spur",
+      "Datei\u2192Akte",
+      "Modell\u2192Ger\xFCst",
+      "Konto\u2192Grab",
+      "Kopie\u2192Maske"
+    ]
+  },
+  "haute_couture": {
+    "motifs": [
+      "ein Saum aus fl\xFCssigem Silber",
+      "eine Naht, die niemand findet",
+      "T\xFCll \xFCber nacktem Licht",
+      "ein Stoff, der sich erinnert",
+      "die Schleppe im leeren Saal",
+      "Seide mit dem Puls darunter",
+      "ein Schnittmuster ohne K\xF6rper",
+      "Perlen auf gespannter Haut",
+      "der Schatten einer Schulter",
+      "ein Kleid, das ohne Tr\xE4gerin steht",
+      "ein Schnittmuster aus Seidenpapier",
+      "Kreidestriche auf schwarzem Stoff",
+      "eine Schneiderpuppe im Halbdunkel",
+      "Perlen, einzeln aufgen\xE4ht, dreitausend St\xFCck",
+      "ein \xC4rmel, der dreimal gel\xF6st wurde",
+      "der Geruch von ged\xE4mpftem Wollstoff",
+      "eine Kollektion in wei\xDFen H\xFCllen",
+      "ein Etikett mit handgeschriebener Nummer",
+      "Licht auf einem Laufsteg vor der Schau",
+      "eine Naht, die dem K\xF6rper folgt statt dem Schnitt",
+      "ein Kleid, das nur im Gehen lebt",
+      "Zwirn in drei\xDFig Farben nebeneinander",
+      "ein Abn\xE4her, der eine Haltung erzwingt",
+      "Papierb\xF6gen mit Nummern am Boden",
+      "eine Hand, die seit vierzig Jahren denselben Stich macht",
+      "ein Kleiderst\xE4nder mit einem einzigen B\xFCgel"
+    ],
+    "hooks": [
+      "eine Stecknadel liegt falsch",
+      "der Spiegel zeigt den R\xFCcken zuerst",
+      "ein Faden h\xE4ngt aus der Naht",
+      "das Licht trifft nur den Saum",
+      "ein Handschuh fehlt",
+      "die Schneiderin schweigt zu lange",
+      "ein Ma\xDF stimmt seit gestern nicht",
+      "die Schau ist in vier Tagen, das Kleid in Teilen",
+      "die Erste Hand k\xFCndigt",
+      "der Stoff aus Lyon kommt nicht",
+      "das Modell ist zwei Zentimeter schmaler geworden",
+      "ein Entwurf liegt auf dem Tisch, den niemand gezeichnet hat",
+      "die Farbe der Lieferung stimmt nicht mit der Probe",
+      "der Spiegel im Salon ist \xFCber Nacht gesprungen",
+      "ein Journalist steht fr\xFCher da als bestellt",
+      "die Nadel bricht in der letzten Naht",
+      "im Musterbuch fehlt eine Seite"
+    ],
+    "props": [
+      "eine Schere",
+      "einen Fingerhut",
+      "ein Ma\xDFband",
+      "eine Stecknadel",
+      "einen Seidenfaden",
+      "eine Schneiderpuppe",
+      "einen Perlmuttknopf",
+      "einen Kleidersack",
+      "einen Handspiegel",
+      "ein B\xFCgeleisen",
+      "ein B\xFCgeleisen mit Dampf",
+      "eine Spule Seidengarn",
+      "einen Schnittbogen aus Papier",
+      "ein Nadelkissen am Handgelenk",
+      "ein Musterbuch mit Stoffproben",
+      "eine Kreide in Blau",
+      "einen Karton mit Perlen",
+      "eine Rechnung aus Lyon",
+      "einen Zettel mit Ma\xDFen",
+      "ein Etikett ohne Namen",
+      "eine Schere, die nur einer anfassen darf",
+      "ein B\xFCndel Heftf\xE4den"
+    ],
+    "turns": [
+      "die Naht platzt bei der Anprobe",
+      "das Modell weigert sich zu gehen",
+      "der Stoff ver\xE4ndert im Licht die Farbe",
+      "ein Entwurf verschwindet \xFCber Nacht",
+      "die Schneiderin n\xE4ht den Saum zu eng",
+      "das Kleid passt einer Fremden besser",
+      "der Stoff entscheidet gegen den Entwurf",
+      "die Anprobe stellt alles um",
+      "ein Fehler wird zum Muster",
+      "die Erste Hand \xE4ndert, ohne zu fragen",
+      "das Modell tr\xE4gt es anders als gedacht",
+      "ein alter Schnitt taucht wieder auf",
+      "die Farbe kippt unter dem Scheinwerfer",
+      "der Name auf dem Etikett wechselt",
+      "die Schau wird vorgezogen",
+      "ein \xC4rmel wird geopfert f\xFCr den Rest",
+      "der Entwurf geh\xF6rt pl\xF6tzlich dem Haus",
+      "die Hand erinnert sich an einen Griff von fr\xFCher",
+      "der Fehler in der Naht wird zum Zeichen des Hauses",
+      "die Kundin will das Kleid einer anderen Saison",
+      "ein Zulieferer stellt die Farbe ein, mitten in der Reihe",
+      "die N\xE4herin \xE4ndert den Schnitt und beh\xE4lt es f\xFCr sich"
+    ],
+    "obstacles": [
+      "der Stoff widersetzt sich der Schere",
+      "die Zeit reicht bis zur Schau nicht",
+      "die H\xE4nde zittern zu sehr",
+      "ein Muster l\xE4sst sich nicht wiederholen",
+      "niemand bezahlt die Seide",
+      "die Perlen reichen f\xFCr ein Vorderteil",
+      "der Saal ist erst am Abend frei",
+      "die N\xE4herinnen arbeiten die dritte Nacht",
+      "der Stoff franst bei jeder Naht",
+      "das Haus zahlt keine \xDCberstunden mehr",
+      "die Ma\xDFe stimmen nicht mit der Puppe",
+      "niemand kann diesen Stich noch",
+      "die Lieferung steht im Zoll",
+      "das Licht im Atelier f\xE4llt aus",
+      "der Entwurf ist schon woanders gesehen worden",
+      "die Schere ist stumpf und keine zweite da",
+      "die Zeit reicht f\xFCr Naht oder Saum, nicht f\xFCr beides",
+      "der Stoff ist nur noch in einem Lager in Como",
+      "die Anprobe f\xE4llt aus, und die Schau ist am Freitag",
+      "die Perlen kommen aus einer Werkstatt, die geschlossen hat",
+      "diese Naht zu lernen dauert l\xE4nger als die Kollektion"
+    ],
+    "stakes": [
+      "Der Einsatz ist der Ruf eines Hauses.",
+      "Der Einsatz ist die letzte Kollektion.",
+      "Der Einsatz ist ein Name auf dem Etikett.",
+      "Der Einsatz ist die Hand, die noch n\xE4hen kann.",
+      "Der Einsatz ist ein einziger Abend.",
+      "Der Einsatz ist die Schau: eine Stunde f\xFCr ein halbes Jahr.",
+      "Der Einsatz ist eine Naht, die niemand sehen darf.",
+      "Der Einsatz ist das Atelier und wer darin bleibt.",
+      "Der Einsatz ist ein Handwerk, das keiner mehr lernt.",
+      "Der Einsatz ist die Erste Hand: Sie geht oder sie bleibt.",
+      "Der Einsatz ist ein Stoff, den es nur einmal gibt.",
+      "Der Einsatz ist ein Auftrag, der das Jahr tr\xE4gt."
+    ],
+    "endings": [
+      "Der Saum bleibt offen, das Licht geht aus.",
+      "Am Ende tr\xE4gt es niemand.",
+      "Die Puppe steht, die Schneiderin geht.",
+      "Das Kleid wartet auf einen K\xF6rper, der nicht kommt.",
+      "Alle Nadeln liegen ordentlich, alles ist zu sp\xE4t.",
+      "Und die H\xFCllen bleiben zu, bis das Licht angeht.",
+      "So geht das Kleid \xFCber den Steg und kommt nicht zur\xFCck.",
+      "Am Ende z\xE4hlt niemand die dreitausend Perlen.",
+      "Und die Puppe tr\xE4gt es weiter, wenn alle gegangen sind.",
+      "So bleibt der Schnitt im Karton, f\xFCr sp\xE4ter.",
+      "Und die Kreidestriche werden ausgeb\xFCrstet.",
+      "Der Saum sitzt, der Rest war Arbeit.",
+      "Und am Montag beginnt die n\xE4chste Kollektion.",
+      "Und die Puppe steht wieder ohne Kleid im Atelier.",
+      "So geht das Licht aus, und der Saum bleibt offen.",
+      "Am Ende h\xE4ngt es in einem Schrank in einer anderen Stadt.",
+      "Und die N\xE4herinnen r\xE4umen die F\xE4den vom Boden."
+    ],
+    "verwandlungen": [
+      "Kleid\u2192Gewand",
+      "Naht\u2192Narbe",
+      "Puppe\u2192Statue",
+      "Stoff\u2192Rauch",
+      "Schere\u2192Klinge",
+      "Faden\u2192Draht",
+      "Spiegel\u2192Schatten",
+      "Muster\u2192Gitter",
+      "Saum\u2192Rand"
+    ]
+  },
+  "eichendorff": {
+    "motifs": [
+      "ein Waldhorn in der Ferne",
+      "mondbegl\xE4nzte Wipfel",
+      "ein Brunnen, der nachts spricht",
+      "das Rauschen \xFCber stillen Gr\xFCnden",
+      "ein Wanderer ohne Ziel",
+      "die Sehnsucht in den T\xE4lern",
+      "ein Schloss im D\xE4mmerlicht",
+      "Sterne \xFCber schwarzen Tannen",
+      "ein Weg, der ins Offene f\xFChrt",
+      "der Morgen hinter blauen Bergen",
+      "ein Weg, der aus dem Tor f\xFChrt und nicht zur\xFCck",
+      "ein Posthorn, das immer eine Biegung weiter klingt",
+      "ein Garten hinter einer Mauer, aus dem es riecht",
+      "Mondlicht, das \xFCber den Wipfeln liegt wie Wasser",
+      "ein Wirtshaus mit einem Licht im Giebel",
+      "ein Bach, der die ganze Nacht dasselbe sagt",
+      "eine Kutsche, die vorbeif\xE4hrt und niemanden mitnimmt",
+      "ein Schloss, in dem ein Fenster offen steht",
+      "die Ferne, die von jedem H\xFCgel gleich weit ist",
+      "ein Kreuz am Weg, an dem jemand Blumen lie\xDF"
+    ],
+    "hooks": [
+      "ein Lied klingt aus dem Tal herauf",
+      "die Wipfel rauschen ohne Wind",
+      "jemand ruft einen alten Namen",
+      "ein Licht brennt im leeren Schloss",
+      "der Weg gabelt sich zweimal gleich",
+      "das Horn verstummt mitten im Ton",
+      "Ein Lied kommt \xFCber die Wiese und h\xF6rt mitten auf.",
+      "Der Weg gabelt sich, und beide Arme f\xFChren bergab.",
+      "Im Wirtshaus sitzt jemand, der denselben Weg ging.",
+      "Das Horn klingt n\xE4her, obwohl die Post l\xE4ngst durch ist.",
+      "Am Fenster steht ein Licht, das nicht f\xFCr ihn brennt.",
+      "Der Wald h\xF6rt auf, und die Ebene ist zu weit.",
+      "Ein M\xE4dchen singt, und der Text ist ein alter.",
+      "Die Wipfel rauschen, obwohl kein Blatt sich bewegt.",
+      "Ein Brief liegt im Wirtshaus, seit dem Fr\xFChjahr.",
+      "Jemand ruft einen Namen, der bis hierher zu h\xF6ren ist.",
+      "Der Mond geht auf, bevor die Sonne unten ist.",
+      "Am Bach steht ein Schuh, sonst nichts."
+    ],
+    "props": [
+      "einen Wanderstab",
+      "ein Waldhorn",
+      "einen Ring",
+      "einen Brief",
+      "eine Laute",
+      "einen Mantel",
+      "eine Feder",
+      "einen Krug",
+      "einen Wanderstab mit Kerben f\xFCr die Tage",
+      "ein B\xFCndel mit einem Hemd und Brot",
+      "ein Posthorn aus Messing",
+      "einen Brief, dessen Siegel gebrochen ist",
+      "eine Feldflasche aus Zinn",
+      "einen Ring an einem Band",
+      "ein Liederbuch mit weichen Seiten",
+      "eine Laterne f\xFCr den Weg durch den Wald",
+      "eine Feder aus einem fremden Hut",
+      "ein Bild in einem kleinen Rahmen"
+    ],
+    "turns": [
+      "der Wanderer kehrt um und findet nichts wieder",
+      "das Lied kommt aus dem eigenen Mund",
+      "der Wald \xF6ffnet sich auf eine fremde Stadt",
+      "die Nacht bringt zur\xFCck, was der Tag nimmt",
+      "ein Fremder kennt den Weg besser",
+      "der Weg f\xFChrt zur\xFCck, und alles steht anders da",
+      "das Lied kommt aus dem eigenen Mund, ohne dass er es wollte",
+      "er kehrt ein und bleibt drei Tage l\xE4nger",
+      "die Ferne kommt n\xE4her und ist dann nur eine Wiese",
+      "ein Fremder nennt ihm den Namen des Schlosses",
+      "der Wald \xF6ffnet sich, und dahinter liegt eine Stadt",
+      "die Sehnsucht bekommt ein Gesicht und wird kleiner",
+      "das Horn schweigt, und der Weg wird deutlich",
+      "ein Brief holt ihn ein, den er nicht erwartet hat",
+      "er singt, und jemand singt zur\xFCck",
+      "die Nacht bringt zur\xFCck, was der Tag genommen hat",
+      "er findet das Haus und geht daran vorbei",
+      "der Mond geht unter, und der Weg bleibt hell",
+      "er h\xF6rt auf zu suchen, und da ist es"
+    ],
+    "obstacles": [
+      "die Sehnsucht findet kein Ziel",
+      "der Wald schlie\xDFt sich hinter jedem Schritt",
+      "die Nacht kommt zu fr\xFCh",
+      "niemand antwortet auf das Horn",
+      "das Heimweh zeigt in zwei Richtungen",
+      "kein Wirt nimmt einen ohne Zeugnis auf",
+      "die Nacht kommt fr\xFCher als der n\xE4chste Ort",
+      "der Bach f\xFChrt Hochwasser und hat keine Br\xFCcke",
+      "niemand kennt den Namen, den er nennt",
+      "das Geld reicht bis zum \xFCbern\xE4chsten Dorf",
+      "den Weg auf der Karte gibt es nicht mehr",
+      "die Kutsche h\xE4lt nicht f\xFCr einen zu Fu\xDF",
+      "das Tor des Schlosses bleibt geschlossen",
+      "der Winter macht die P\xE4sse unbegehbar",
+      "ein Lied f\xE4llt ihm nicht mehr vollst\xE4ndig ein",
+      "die Post geht nur einmal in der Woche",
+      "er wei\xDF nicht, wohin er eigentlich will",
+      "die Ferne bleibt Ferne, von jedem H\xFCgel aus"
+    ],
+    "stakes": [
+      "Der Einsatz ist die Heimat hinter den Bergen.",
+      "Der Einsatz ist ein Versprechen aus dem Sommer.",
+      "Der Einsatz ist die eigene Stimme.",
+      "Der Einsatz ist der letzte helle Abend.",
+      "Der Einsatz ist ein Name im Wind.",
+      "Der Einsatz ist ein Abend, an dem das Licht noch brennt.",
+      "Der Einsatz ist ein Lied, das jemand zu Ende h\xF6rt.",
+      "Der Einsatz ist der Weg zur\xFCck, den man noch findet.",
+      "Der Einsatz ist ein Sommer, der nicht wiederkommt.",
+      "Der Einsatz ist ein Name, den er nicht aussprechen kann.",
+      "Der Einsatz ist die Frage, ob es ein Ankommen gibt."
+    ],
+    "endings": [
+      "Das Horn verklingt, die Wipfel rauschen weiter.",
+      "Er geht, und der Wald bleibt wach.",
+      "Der Morgen kommt und findet niemanden mehr.",
+      "\xDCber den Gr\xFCnden steht der alte Mond.",
+      "Die Sehnsucht bleibt, der Weg bleibt offen.",
+      "Und das Horn klingt eine Biegung weiter, dann nicht mehr.",
+      "So rauschen die Wipfel \xFCber einem leeren Weg.",
+      "Am Ende steht der Mond \xFCber den Gr\xFCnden wie immer.",
+      "Und im Giebel brennt das Licht bis zum Morgen.",
+      "So geht er weiter, und der Wald bleibt wach.",
+      "Und der Bach sagt die ganze Nacht dasselbe.",
+      "Der Weg f\xFChrt aus dem Tor und nicht zur\xFCck.",
+      "Und am Kreuz liegen die Blumen vom Fr\xFChjahr.",
+      "So bleibt die Ferne, wo sie war.",
+      "Und niemand fragt, wohin er unterwegs ist."
+    ],
+    "verwandlungen": [
+      "Wald\u2192Traum",
+      "Horn\u2192Lied",
+      "Mond\u2192Zeuge",
+      "Weg\u2192Faden",
+      "Ferne\u2192N\xE4he",
+      "Bach\u2192Atem",
+      "Licht\u2192Fenster",
+      "Kutsche\u2192Wolke"
+    ]
+  },
+  "dickens": {
+    "motifs": [
+      "Nebel \xFCber schwarzen D\xE4chern",
+      "eine Gasse voller Ru\xDF",
+      "ein Kaminfeuer ohne W\xE4rme",
+      "gest\xE4rkte Kragen und leere M\xE4gen",
+      "ein Kontor mit kalten Fenstern",
+      "Kinderh\xE4nde an fremder Arbeit",
+      "eine Uhr im Treppenhaus",
+      "der Atem in ungeheizten Zimmern",
+      "eine Suppe, die nicht reicht",
+      "Kerzenstummel im Amtszimmer",
+      "ein Treppenhaus mit ausgetretenen Stufen",
+      "Kohlenstaub auf der Fensterbank",
+      "ein Ladenschild, das im Wind schl\xE4gt",
+      "eine W\xE4rmestube mit zu wenig B\xE4nken",
+      "W\xE4scheleinen \xFCber der Gasse",
+      "ein Pfandhaus mit vergitterter Auslage",
+      "ein Kontorbuch mit roter Linie",
+      "der Ofen im Hinterzimmer",
+      "eine Droschke, die niemand ruft",
+      "ein Hof ohne Sonne",
+      "eine Suppenk\xFCche vor dem \xD6ffnen",
+      "ein Kind mit zu gro\xDFen Schuhen",
+      "der Nebel zwischen zwei Lampen",
+      "ein Sonntagsanzug im Schrank",
+      "eine Rechnung, die zweimal kam"
+    ],
+    "hooks": [
+      "ein Waisenjunge steht in der T\xFCr und nimmt die M\xFCtze ab",
+      "der Vormund z\xE4hlt zweimal falsch, und beide Male zu seinen Gunsten",
+      "ein Testament taucht sieben Jahre zu sp\xE4t auf",
+      "jemand klopft im Schuldnerviertel an eine T\xFCr ohne Nummer",
+      "ein Brief tr\xE4gt kein Siegel und doch eine bekannte Hand",
+      "die Rechnung stimmt seit Jahren nicht und wurde nie gepr\xFCft",
+      "Der Gl\xE4ubiger gr\xFC\xDFt freundlich auf der Stra\xDFe.",
+      "Ein Brief kommt aus einer Stadt, die niemand nannte.",
+      "Die Miete ist bezahlt, von wem, wei\xDF keiner.",
+      "Der Laden bleibt einen Tag geschlossen, ohne einen Zettel an der Scheibe.",
+      "Im Kontor brennt Licht lange nach Feierabend.",
+      "Ein Kind steht seit Stunden vor dem Fenster.",
+      "Der Vormund kommt eine Woche zu fr\xFCh.",
+      "Jemand kauft die Schuld auf und nennt keinen Preis.",
+      "Der Name im Buch ist durchgestrichen, und dar\xFCber steht ein anderer.",
+      "Die W\xE4rmestube hat heute geschlossen, zum ersten Mal seit Jahren.",
+      "Der Ofen bleibt kalt, obwohl Kohle da ist.",
+      "Zwei Namen stehen unter demselben Vertrag, in derselben Hand."
+    ],
+    "props": [
+      "eine Taschenuhr",
+      "einen Federkiel",
+      "einen Schuldschein",
+      "eine Kerze",
+      "einen Kohleneimer",
+      "ein Kontobuch",
+      "einen Kanten Brot",
+      "einen abgetragenen Mantel",
+      "ein Kontorbuch",
+      "eine Suppenkelle",
+      "einen Wollschal",
+      "ein Tintenfass",
+      "eine Wolldecke",
+      "einen Pfandschein",
+      "eine Blechb\xFCchse",
+      "ein Gesangbuch",
+      "einen W\xE4rmestein",
+      "eine Petroleumlampe",
+      "einen Handkarren",
+      "einen Zinnbecher",
+      "eine Sch\xFCrze",
+      "ein B\xFCndel Briefe",
+      "einen Fahrschein dritter Klasse"
+    ],
+    "turns": [
+      "der Wohlt\xE4ter erweist sich als der Gl\xE4ubiger, den man f\xFCrchtete",
+      "ein Kind erbt, was niemand erwartet, und versteht es nicht",
+      "der Schreiber weigert sich zu unterschreiben und legt die Feder hin",
+      "die Armenkasse ist leer bis zum Ende des Quartals",
+      "ein Fremder bezahlt die Schuld und nennt seinen Namen nicht",
+      "der Gl\xE4ubiger erl\xE4sst die H\xE4lfte, aus einem Grund, den keiner erf\xE4hrt",
+      "das Testament nennt einen Fremden, den es nicht geben d\xFCrfte",
+      "der Schreiber verliert die Stelle f\xFCr eine Zeile zu viel",
+      "die Armenkasse wird gepr\xFCft, und der Pr\xFCfer kommt aus London",
+      "ein alter Brief taucht im Kontor auf",
+      "das Kind wird abgeholt, und niemand sagt von wem",
+      "der Vormund tritt zur\xFCck, ohne einen Grund zu nennen",
+      "die W\xE4rmestube bekommt Kohle f\xFCr eine Woche, gestiftet",
+      "ein Name wird wieder eingetragen, in dieselbe Zeile",
+      "der Winter endet fr\xFCher als der Vorrat",
+      "ein Zeuge erinnert sich anders als vor dem Winter",
+      "das Haus wird an einem Dienstag versteigert, im Regen",
+      "der Lohn kommt in M\xFCnzen statt Papier"
+    ],
+    "obstacles": [
+      "das Amt schlie\xDFt eine Stunde vor der angeschriebenen Zeit",
+      "niemand b\xFCrgt f\xFCr einen, der keinen Namen vorweisen kann",
+      "der Winter kommt drei Wochen vor dem Lohn",
+      "die Papiere fehlen, und niemand stellt neue aus",
+      "der Vormund unterschreibt nicht ohne zwei Zeugen",
+      "die Kohle reicht nicht bis Februar",
+      "der Schuldturm nimmt keine B\xFCrgschaft von einem Dienstboten",
+      "niemand stellt ein Zeugnis aus f\xFCr eine halbe Stelle",
+      "das Kontor zahlt erst zum Monatsende",
+      "der Weg zur Stadt kostet den Tageslohn",
+      "die Suppe reicht nicht f\xFCr alle",
+      "der Brief braucht eine Marke, die einen Tageslohn kostet",
+      "der Vormund ist bis nach Ostern verreist",
+      "das Zimmer ist bis Ostern vergeben",
+      "die Papiere liegen beim Anwalt, und der ist selten da",
+      "der Anwalt nimmt keine Kleinigkeiten an",
+      "die Droschke ist zu teuer f\xFCr diesen und jeden Monat",
+      "die Adresse existiert nicht mehr, das Haus steht noch"
+    ],
+    "stakes": [
+      "Der Einsatz ist ein Platz am Feuer.",
+      "Der Einsatz ist der Name der Mutter.",
+      "Der Einsatz ist die Freiheit aus dem Schuldturm.",
+      "Der Einsatz ist ein Winter ohne Hunger.",
+      "Der Einsatz ist die Ehre eines Hauses.",
+      "Der Einsatz ist die Kohle f\xFCr den Winter.",
+      "Der Einsatz ist ein Zeugnis.",
+      "Der Einsatz ist ein Zimmer mit Ofen.",
+      "Der Einsatz ist die Schuld eines Vaters.",
+      "Der Einsatz ist der Sonntag ohne Arbeit.",
+      "Der Einsatz ist ein Kind, das bleiben soll."
+    ],
+    "endings": [
+      "Der Nebel steht in der Gasse, das Kontor bleibt dunkel.",
+      "Am Morgen ist die Kerze herunter, die Rechnung offen.",
+      "Jemand zahlt, aber es ist um zwei Tage zu sp\xE4t.",
+      "Das Kind geht durch die Gasse und z\xE4hlt seine Schritte.",
+      "Die Uhr im Treppenhaus schl\xE4gt in ein leeres Haus.",
+      "Und die Lampe im Kontor geht als letzte aus.",
+      "So bleibt der Nebel zwischen den H\xE4usern stehen.",
+      "Am Morgen steht der Karren wieder in der Gasse.",
+      "Und im Ofen glimmt noch etwas, bis zum Morgen.",
+      "So z\xE4hlt sie die M\xFCnzen ein zweites Mal.",
+      "Und der Winter dauert noch acht Wochen, nach dem Kalender."
+    ]
+  },
+  "urknall": {
+    "motifs": [
+      "ein Punkt ohne Ausdehnung",
+      "der erste Riss im Nichts",
+      "Licht, das \xE4lter ist als Raum",
+      "eine Temperatur ohne Ort",
+      "Materie im Zustand des Werdens",
+      "ein Rauschen aus allen Richtungen",
+      "gekr\xFCmmte Zeit",
+      "die Ausdehnung eines Augenblicks",
+      "ein Hintergrund aus W\xE4rme",
+      "der Abdruck des Anfangs",
+      "eine Kurve, die nicht schlie\xDFt",
+      "ein Detektor tief unter Gestein",
+      "eine Zahl mit zu vielen Nullen",
+      "ein Spektrum mit einer L\xFCcke",
+      "eine Antenne im Frost",
+      "Rauschen, das aus allen Richtungen gleich kommt",
+      "ein Modell mit einem freien Parameter",
+      "eine Aufnahme aus zwei N\xE4chten",
+      "ein K\xFChlkreis, der nie stillsteht",
+      "eine Skala ohne Nullpunkt",
+      "ein Diagramm mit einem Ausrei\xDFer",
+      "ein Spiegel von zehn Metern",
+      "eine Messreihe ohne Ende",
+      "die W\xE4rme des leeren Raums"
+    ],
+    "hooks": [
+      "das Rauschen kommt aus jeder Richtung gleich stark, auf ein Tausendstel genau",
+      "eine Konstante verschiebt sich um ein Weniges, und niemand findet den Grund",
+      "der Hintergrund ist um Bruchteile w\xE4rmer, als jede Rechnung erlaubt",
+      "ein Signal ist \xE4lter als alles, was es h\xE4tte aussenden k\xF6nnen",
+      "die Ausdehnung beschleunigt sich, obwohl nichts sie treiben sollte",
+      "Zwei Teams messen dasselbe mit verschiedenen Ger\xE4ten und kommen auseinander.",
+      "Der Ausrei\xDFer wiederholt sich in der dritten Nacht, an derselben Stelle.",
+      "Eine Konstante stimmt seit gestern nicht mehr, und gestern war nichts anders.",
+      "Das Signal kommt aus einer Richtung ohne Quelle.",
+      "Die Aufnahme zeigt etwas, das j\xFCnger sein m\xFCsste.",
+      "Der Detektor spricht an, wenn er ruhen sollte.",
+      "Ein Wert wurde zweimal ver\xF6ffentlicht, verschieden.",
+      "Die Rechnung geht auf, wenn man eine Gr\xF6\xDFe erfindet.",
+      "Das Rauschen hat eine Struktur, die sich nicht wegrechnen l\xE4sst.",
+      "Der Untergrund ist heute ruhiger als je zuvor.",
+      "Eine Linie fehlt im Spektrum, die in jeder fr\xFCheren Aufnahme stand.",
+      "Das Protokoll nennt eine Uhrzeit, die es nicht gab."
+    ],
+    "props": [
+      "ein Spektrometer",
+      "eine Antenne",
+      "eine Rechentafel",
+      "ein Teleskop",
+      "ein Diagramm",
+      "einen Detektor",
+      "eine Uhr",
+      "eine Photoplatte",
+      "ein Interferometer",
+      "eine K\xFChlfalle",
+      "einen Zeitgeber",
+      "ein Logbuch",
+      "einen Filter",
+      "einen Detektorkopf",
+      "ein Kabel mit Bleimantel",
+      "eine Blende",
+      "einen Schreiber",
+      "ein Messprotokoll",
+      "ein Justiergewicht",
+      "eine Zeitmarke",
+      "einen Dewar",
+      "eine Reinraumhaube"
+    ],
+    "turns": [
+      "die Messung widerspricht dem Modell, das seit drei\xDFig Jahren tr\xE4gt",
+      "das Rauschen erweist sich als Erinnerung an einen sehr fr\xFChen Zustand",
+      "die Konstante \xE4ndert sich mit der Entfernung, also ist sie keine",
+      "jemand rechnet die Zeit r\xFCckw\xE4rts weiter, \xFCber die Stelle hinaus, an der man aufh\xF6rt",
+      "der Anfang l\xE4sst kein Davor zu, und die Frage bleibt trotzdem stehen",
+      "die zweite Messung best\xE4tigt den Fehler, statt ihn aufzul\xF6sen",
+      "ein Modell wird fallen gelassen, an dem eine Generation gearbeitet hat",
+      "das Rauschen war die ganze Zeit das Ergebnis, nicht die St\xF6rung",
+      "die Konstante h\xE4ngt von der Entfernung ab und hei\xDFt weiter Konstante",
+      "ein Vorzeichen kehrt sich um, und die Rechnung sagt das Gegenteil",
+      "die L\xFCcke im Spektrum schlie\xDFt sich auch nach vier N\xE4chten nicht",
+      "die Skala reicht nicht weiter zur\xFCck, und dahinter liegt der Rest",
+      "ein alter Wert war richtig, und niemand hatte ihn geglaubt",
+      "das Instrument misst am Ende sich selbst und nichts sonst",
+      "die Frage verliert ihren Sinn, sobald man sie genau stellt",
+      "eine dritte Gruppe misst genau dazwischen und macht es schlimmer",
+      "der Fehler steckte im Kabel, drei Meter vor dem Verst\xE4rker",
+      "die Reihe wird von vorn begonnen, mit besserer K\xFChlung"
+    ],
+    "obstacles": [
+      "die Gleichung teilt durch null, genau an der interessanten Stelle",
+      "kein Instrument reicht so weit zur\xFCck, und keines wird es je",
+      "das Licht kommt zu sp\xE4t an, um noch etwas zu entscheiden",
+      "die Skala versagt bei so kleinen Zahlen vollst\xE4ndig",
+      "niemand kann au\xDFerhalb stehen und von dort aus zusehen",
+      "das Instrument driftet mit der Temperatur im Kuppelraum",
+      "die Zeit am Detektor l\xE4uft anders als die im Rechnerraum",
+      "kein Vergleichswert aus einem anderen Haus liegt vor",
+      "der Untergrund \xFCberdeckt das Signal um zwei Gr\xF6\xDFenordnungen",
+      "die Rechnung braucht mehr Stellen, als die Maschine f\xFChrt",
+      "die Beobachtungsnacht f\xE4llt aus, wegen Wind aus Nordwest",
+      "zwei Kalibrierungen widersprechen sich um mehrere Prozent",
+      "es fehlt an K\xFChlmittel bis zur n\xE4chsten Lieferung",
+      "das Modell erlaubt kein Davor, und die Frage bleibt",
+      "die Statistik reicht f\xFCr keine Aussage, die man drucken darf",
+      "die Nacht ist zu warm f\xFCr die Messung",
+      "der Rechner braucht drei Wochen f\xFCr einen einzigen Durchlauf",
+      "die Blende sitzt schief, und es f\xE4llt erst am Morgen auf"
+    ],
+    "stakes": [
+      "Der Einsatz ist die erste Sekunde.",
+      "Der Einsatz ist ein widerlegtes Weltbild.",
+      "Der Einsatz ist die Herkunft aller Dinge.",
+      "Der Einsatz ist eine einzige Zahl.",
+      "Der Einsatz ist das Recht auf eine Frage.",
+      "Der Einsatz ist eine Zahl mit Folgen.",
+      "Der Einsatz ist eine Nacht am Instrument.",
+      "Der Einsatz ist ein Modell, das lange trug.",
+      "Der Einsatz ist die Reihe, die niemand wiederholt.",
+      "Der Einsatz ist ein Vorzeichen.",
+      "Der Einsatz ist das Recht auf die Frage nach dem Davor."
+    ],
+    "endings": [
+      "Das Rauschen bleibt, die Antwort dehnt sich weiter aus.",
+      "Alles fliegt auseinander, gleichm\xE4\xDFig und ohne Eile.",
+      "Der Anfang liegt hinter jedem Punkt gleich weit.",
+      "Die Platte zeigt gleichm\xE4\xDFige W\xE4rme und sonst nichts.",
+      "Es dehnt sich, und es k\xFChlt, seit dreizehn Milliarden Jahren.",
+      "Und der Schreiber zeichnet weiter, gleichm\xE4\xDFig, bis das Papier ausgeht.",
+      "So bleibt die L\xFCcke im Spektrum stehen, ungedeutet.",
+      "Am Morgen liegt die Platte im Bad, und niemand sieht hin.",
+      "Und die Kurve l\xE4uft auseinander, wie erwartet.",
+      "So k\xFChlt es weiter, um Bruchteile eines Grades im Jahrtausend.",
+      "Und die n\xE4chste Nacht ist schon eingetragen, in anderer Handschrift."
+    ]
+  },
+  "erotik": {
+    "motifs": [
+      "ein Abstand, der kleiner wird",
+      "W\xE4rme durch d\xFCnnen Stoff",
+      "ein Blick, der zu lange bleibt",
+      "der Puls an einem Handgelenk",
+      "Atem im Nacken",
+      "ein Schulterblatt im Halbdunkel",
+      "die Spur einer Ber\xFChrung",
+      "Haut im Licht der Stra\xDFenlampe",
+      "ein Z\xF6gern vor der T\xFCr",
+      "der Schatten zweier Gestalten",
+      "ein Abstand, der bei jedem Satz kleiner wird",
+      "ein Mantel, der \xFCber einer fremden Lehne h\xE4ngt",
+      "ein Fenster, das jemand ge\xF6ffnet hat",
+      "eine Treppe, auf der zwei gleichzeitig stehen bleiben",
+      "ein Glas, das zweimal gef\xFCllt wurde",
+      "ein Zimmer mit einer T\xFCr, die nicht abschlie\xDFt",
+      "eine Uhr, die niemand ansieht",
+      "ein Name, der leiser gesagt wird als n\xF6tig"
+    ],
+    "hooks": [
+      "eine Hand bleibt eine Sekunde zu lang",
+      "jemand nennt einen Namen leiser als n\xF6tig",
+      "der Stuhl r\xFCckt n\xE4her",
+      "ein Satz bleibt unvollendet",
+      "die T\xFCr f\xE4llt hinter zwei Leuten zu",
+      "ein Blick geht \xFCber den Rand des Glases",
+      "Eine Hand bleibt eine Sekunde zu lang liegen.",
+      "Jemand nennt einen Namen leiser, als der Raum verlangt.",
+      "Der Stuhl r\xFCckt n\xE4her, ohne dass jemand ihn zieht.",
+      "Sie schweigen, und das Schweigen wird eine Antwort.",
+      "Er reicht ihr das Glas und l\xE4sst nicht sofort los.",
+      "Die anderen gehen, und keiner von beiden steht auf.",
+      "Ein Satz bricht ab, weil er zu weit gegangen w\xE4re.",
+      "Die T\xFCr bleibt angelehnt, und niemand schlie\xDFt sie.",
+      "Sie lacht an einer Stelle, an der nichts komisch war.",
+      "Der Mantel bleibt \xFCber der Lehne bis zum Morgen."
+    ],
+    "props": [
+      "ein Glas Wein",
+      "ein offenes Fenster",
+      "ein Seidenband",
+      "einen Schl\xFCssel",
+      "einen Mantel \xFCber einer Lehne",
+      "eine Kerze",
+      "einen Spiegel",
+      "einen Brief",
+      "ein Glas Wein, zweimal gef\xFCllt",
+      "ein Seidenband vom Handgelenk",
+      "einen Mantel \xFCber einer fremden Lehne",
+      "einen Schl\xFCssel, der auf dem Tisch liegt",
+      "eine Uhr, die abgelegt wurde",
+      "einen Zettel mit einer Zeit darauf",
+      "eine Decke \xFCber zwei Stuhllehnen",
+      "ein Buch, das aufgeschlagen liegen bleibt"
+    ],
+    "turns": [
+      "das Schweigen wird zur Antwort",
+      "einer geht, der andere bleibt stehen",
+      "aus H\xF6flichkeit wird Absicht",
+      "die N\xE4he kippt in Scheu",
+      "jemand sagt doch das Wort",
+      "das Schweigen wird zur Antwort auf eine ungestellte Frage",
+      "aus H\xF6flichkeit wird Absicht, in einem einzigen Satz",
+      "die Regel wird ausgesprochen und dadurch verhandelbar",
+      "sie sagt nein und meint einen anderen Abend",
+      "die Ber\xFChrung war zuf\xE4llig und wird es nicht bleiben",
+      "der Vorsatz h\xE4lt bis zur T\xFCr",
+      "er fragt und macht es dadurch m\xF6glich",
+      "die Nacht wird l\xE4nger, ohne dass jemand sie verl\xE4ngert",
+      "ein Blick geht zu weit und wird nicht zur\xFCckgenommen",
+      "die Freundschaft steht auf und setzt sich anders hin",
+      "die Zeit reicht, und keiner sagt es",
+      "das Licht wird ausgemacht, aus einem anderen Grund",
+      "am Morgen ist die Frage eine andere",
+      "ein Name wird zum ersten Mal ohne Nachnamen gesagt",
+      "sie stellt eine Frage, die schon eine Entscheidung ist",
+      "er zieht den Mantel an und legt ihn wieder ab",
+      "das Gespr\xE4ch wechselt das Thema und meint dasselbe",
+      "jemand sagt die Wahrheit und tut so, als w\xE4re es ein Scherz",
+      "die Musik h\xF6rt auf, und keiner steht auf",
+      "die Verabredung f\xFCr morgen ist die Antwort von heute",
+      "einer geht, und der andere bleibt stehen"
+    ],
+    "obstacles": [
+      "die Zeit reicht nur bis Mitternacht",
+      "niemand macht den ersten Schritt",
+      "es gibt zu viele Zuschauer",
+      "ein Versprechen bindet anderswo",
+      "die Worte kommen nicht",
+      "ein Versprechen an einen Dritten steht dazwischen",
+      "der letzte Zug geht um halb eins",
+      "die Wohnung ist nicht leer",
+      "das Wort daf\xFCr fehlt, in dieser Sprache",
+      "morgen sehen sich beide bei der Arbeit",
+      "der Vorsatz war ausdr\xFCcklich und laut",
+      "ein Anruf kommt zur falschen Minute",
+      "die T\xFCr geht auf, und jemand sucht seinen Mantel",
+      "die N\xFCchternheit kommt vor der Entscheidung",
+      "der andere ist zu h\xF6flich f\xFCr eine Antwort",
+      "es m\xFCsste jemand fragen, und keiner tut es",
+      "die Nachbarn h\xF6ren jedes Wort durch die Wand",
+      "das Taxi steht schon unten und wartet",
+      "einer von beiden ist morgen fr\xFCh weg",
+      "die Wohnung geh\xF6rt jemandem, der zur\xFCckkommt",
+      "es gibt keinen Grund, noch l\xE4nger zu bleiben",
+      "ein Kollege sitzt zwei Tische weiter",
+      "die Erkl\xE4rung w\xFCrde alles kaputtmachen"
+    ],
+    "stakes": [
+      "Der Einsatz ist ein Abend, der nicht wiederkommt.",
+      "Der Einsatz ist eine Freundschaft.",
+      "Der Einsatz ist der eigene Vorsatz.",
+      "Der Einsatz ist die Wahrheit \xFCber ein Gef\xFChl.",
+      "Der Einsatz ist ein einziges Ja.",
+      "Der Einsatz ist eine Freundschaft von zw\xF6lf Jahren.",
+      "Der Einsatz ist der eigene Vorsatz, laut ausgesprochen.",
+      "Der Einsatz ist die Frage, wer zuerst etwas sagt.",
+      "Der Einsatz ist der Morgen danach, in demselben Haus."
+    ],
+    "endings": [
+      "Die T\xFCr bleibt angelehnt.",
+      "Am Morgen liegt der Mantel noch \xFCber der Lehne.",
+      "Sie gehen in verschiedene Richtungen, langsam.",
+      "Das Fenster steht offen, das Zimmer ist k\xFChl.",
+      "Nichts geschieht, und alles ist gesagt.",
+      "Und das Glas steht halb voll auf dem Tisch.",
+      "So bleibt die Frage stehen, bis zum n\xE4chsten Mal.",
+      "Und niemand hat etwas gesagt, den ganzen Abend.",
+      "Der letzte Zug f\xE4hrt, und beide bleiben stehen.",
+      "Und das Fenster bleibt offen bis zum Morgen.",
+      "So endet der Abend, und es ist etwas geschehen.",
+      "Und am Montag gr\xFC\xDFen sich beide wie immer.",
+      "Und der Zettel mit der Zeit bleibt auf dem Tisch.",
+      "So steht die Uhr abgelegt neben dem Glas.",
+      "Am Ende geht das Licht aus, und beide sind noch da.",
+      "Und die Treppe h\xF6rt auf, und niemand geht weiter.",
+      "So bleibt der Abstand, um den es die ganze Zeit ging."
+    ],
+    "verwandlungen": [
+      "Mantel\u2192Schleier",
+      "Glas\u2192Auge",
+      "T\xFCr\u2192Wand",
+      "Nacht\u2192Decke",
+      "Uhr\u2192Waage"
+    ]
+  },
+  "hunger": {
+    "motifs": [
+      "ein leerer Teller im Licht",
+      "die Kornkammer ohne Schatten",
+      "Brot hinter dickem Glas",
+      "ein Magen, der die Stunden z\xE4hlt",
+      "der Geruch aus fremden Fenstern",
+      "H\xE4nde, die nach nichts greifen",
+      "ein L\xF6ffel ohne Suppe",
+      "die Stra\xDFe riecht nach Backstube",
+      "ein Kind z\xE4hlt Krumen",
+      "Winter \xFCber leeren Feldern",
+      "eine Waage, die zu genau ist",
+      "eine Schlange vor einer verschlossenen T\xFCr",
+      "ein Feld mit zu kurzen Halmen",
+      "Brotmarken in einem Umschlag",
+      "eine Suppe, in der man den Boden sieht",
+      "ein Kind, das nicht mehr fragt",
+      "der Rest im Sack, ausgesch\xFCttelt",
+      "ein Herd ohne Holz",
+      "Vorratsgl\xE4ser, alle sauber",
+      "ein Preis, der mit Kreide geschrieben ist",
+      "eine Speisekammer mit offenen T\xFCren",
+      "der Winter, der noch nicht angefangen hat",
+      "ein geteilter Apfel mit vier Teilen",
+      "eine Hand, die die Krumen zusammenschiebt",
+      "ein Kessel und eine Kelle",
+      "ein Tisch, der zu gro\xDF geworden ist"
+    ],
+    "hooks": [
+      "die B\xE4ckerei \xF6ffnet heute nicht",
+      "jemand teilt die letzte Scheibe zu genau",
+      "ein Sack Mehl fehlt im Lager",
+      "der Preis steigt \xFCber Nacht",
+      "ein Teller steht zu viel auf dem Tisch",
+      "der Preis f\xFCr Brot steht seit gestern nicht mehr an der Tafel",
+      "die Kelle geht heute weniger tief",
+      "ein Sack Kartoffeln fehlt und niemand fragt laut",
+      "die Ernte kommt drei Wochen zu sp\xE4t",
+      "am Mittwoch gibt es keine Marken mehr",
+      "jemand hat den Vorrat gez\xE4hlt",
+      "der Nachbar isst nicht mehr mit",
+      "der Krug ist voll und die Sch\xFCssel leer",
+      "die Kinder werden zuerst geschickt",
+      "im Lager ist Platz, wo etwas stand",
+      "ein Brief k\xFCndigt eine Lieferung an, die nicht kommt"
+    ],
+    "props": [
+      "einen L\xF6ffel",
+      "einen Krug Wasser",
+      "einen Kanten Brot",
+      "eine leere Sch\xFCssel",
+      "einen Sack Mehl",
+      "ein Messer",
+      "einen Marktkorb",
+      "eine Waage",
+      "einen Brotlaib",
+      "eine Waage mit Gewichten",
+      "einen Blechnapf",
+      "ein B\xFCndel Brotmarken",
+      "eine Kelle",
+      "einen Kessel",
+      "ein Vorratsglas",
+      "eine Schnur um einen Sack",
+      "einen Sack mit einem Loch",
+      "eine Liste mit Namen",
+      "ein Messer f\xFCr d\xFCnne Scheiben",
+      "eine Suppensch\xFCssel f\xFCr vier",
+      "einen Zettel mit dem Preis",
+      "eine Decke f\xFCr die Nacht"
+    ],
+    "turns": [
+      "das Brot reicht f\xFCr einen weniger",
+      "jemand stiehlt und wird gesehen",
+      "der Nachbar teilt, ohne zu fragen",
+      "die Vorr\xE4te finden sich, aber verdorben",
+      "der Hunger geht, die Angst bleibt",
+      "der Vorrat reicht bis Freitag, nicht bis Sonntag",
+      "jemand bringt etwas und nennt keinen Namen",
+      "die Waage wird nachgepr\xFCft",
+      "der Preis f\xE4llt am selben Tag, an dem das Geld ausgeht",
+      "eine Lieferung kommt und ist verdorben",
+      "der Nachbar \xF6ffnet die Kammer",
+      "das Feld tr\xE4gt, aber zu sp\xE4t",
+      "ein Kind bringt etwas mit und l\xFCgt",
+      "die Liste bekommt einen Namen mehr",
+      "geteilt wird, bevor gez\xE4hlt wird",
+      "der Hunger h\xF6rt auf, das ist das Schlimme",
+      "einer isst nicht und sagt, er habe schon",
+      "ein Sack steht am Morgen vor der T\xFCr",
+      "die Marken gelten weiter, aber es gibt nichts daf\xFCr",
+      "ein Fremder bringt Mehl und will kein Geld daf\xFCr",
+      "die Ernte kommt, und die Preise fallen zu sp\xE4t",
+      "das Saatgut wird gegessen, und alle wissen es",
+      "der Nachbar z\xE4hlt mit und sagt nichts dazu"
+    ],
+    "obstacles": [
+      "die Felder tragen nichts",
+      "der Markt bleibt geschlossen",
+      "das Geld reicht bis Dienstag",
+      "niemand \xF6ffnet die T\xFCr",
+      "der Weg zur Stadt ist zu weit",
+      "der Boden ist zu hart f\xFCr die Saat",
+      "die Marken gelten nur bis Dienstag",
+      "der Weg zum Markt ist zwei Tage weit",
+      "die M\xFChle mahlt nicht ohne Bezahlung",
+      "der Frost kommt vor der Ernte",
+      "die Kammer ist verschlossen und der Schl\xFCssel weg",
+      "niemand borgt zweimal",
+      "die Stra\xDFe ist gesperrt",
+      "das Vieh ist zuerst verkauft",
+      "der Winter dauert l\xE4nger als gerechnet",
+      "das Brot ist da, aber nicht zu bezahlen",
+      "die Stadt gibt nichts an Fremde",
+      "die M\xFChle mahlt nur gegen einen Teil des Mehls",
+      "der Wagen kommt nicht durch, der Weg ist aufgeweicht",
+      "die Ausgabe ist bis Donnerstag ausgesetzt",
+      "die Kammer ist voll und geh\xF6rt jemand anderem",
+      "das Vieh frisst, was die Menschen essen k\xF6nnten",
+      "die Suppe reicht, wenn nicht alle kommen"
+    ],
+    "stakes": [
+      "Der Einsatz ist ein Winter.",
+      "Der Einsatz ist die Kraft f\xFCr morgen.",
+      "Der Einsatz ist der Stolz beim Bitten.",
+      "Der Einsatz ist ein Kind am Tisch.",
+      "Der Einsatz ist die letzte Scheibe.",
+      "Der Einsatz ist ein Sack Mehl bis zur Ernte.",
+      "Der Einsatz ist die Reihenfolge am Tisch.",
+      "Der Einsatz ist die Frage, wer verzichtet.",
+      "Der Einsatz ist ein Name auf der Liste.",
+      "Der Einsatz ist das Saatgut: essen oder s\xE4en.",
+      "Der Einsatz ist der Nachbar, der zusieht.",
+      "Der Einsatz ist ein Fr\xFChling, den man erreichen muss."
+    ],
+    "endings": [
+      "Der Teller bleibt leer, das Licht wird kalt.",
+      "Am Morgen ist der Krug noch voll.",
+      "Sie teilen, und es reicht nicht.",
+      "Drau\xDFen backt jemand, hier z\xE4hlt jemand.",
+      "Der Hunger legt sich schlafen und wacht fr\xFCher auf.",
+      "Und die Kelle geht morgen wieder weniger tief.",
+      "So bleibt der Sack stehen, halb.",
+      "Am Ende ist geteilt und niemand satt.",
+      "Und das Saatgut liegt noch im Schuppen.",
+      "So z\xE4hlt jemand weiter, leise.",
+      "Und im Fr\xFChjahr w\xE4chst wieder etwas, f\xFCr die, die da sind.",
+      "Der Tisch bleibt gedeckt, aus Gewohnheit.",
+      "Und niemand spricht beim Essen.",
+      "Und die Waage steht wieder auf demselben Strich.",
+      "So bleibt ein Rest im Sack, f\xFCr morgen.",
+      "Am Ende geht jemand ohne etwas nach Hause.",
+      "Und der Kessel wird ausgekratzt, bis er blank ist.",
+      "So beginnt der n\xE4chste Tag mit derselben Frage."
+    ],
+    "verwandlungen": [
+      "Brot\u2192Papier",
+      "Kelle\u2192Schaufel",
+      "Sack\u2192Beutel",
+      "Waage\u2192Uhr",
+      "Winter\u2192Schlaf",
+      "Feld\u2192Tuch",
+      "Tisch\u2192Altar",
+      "Suppe\u2192Br\xFChe"
+    ]
+  },
+  "romantik": {
+    "motifs": [
+      "die blaue Blume am Wegrand",
+      "Mondlicht auf altem Stein",
+      "eine Ruine im Nebel",
+      "Sehnsucht ohne Gegenstand",
+      "ein Traum, der weitertr\xE4umt",
+      "die Nacht als offenes Tor",
+      "eine Harfe im leeren Saal",
+      "der Wald als Kirche",
+      "Sterne \xFCber schlafenden D\xF6rfern",
+      "ein Herz, das die Ferne w\xE4hlt",
+      "ein Buch, in dem eine Seite fehlt",
+      "eine Ruine, in der jemand Feuer gemacht hat",
+      "ein Fenster, hinter dem eine Kerze steht",
+      "eine Landschaft, die sich im Traum wiederholt",
+      "ein Waldweg, der bei Mondlicht heller ist",
+      "ein Bergwerk, in dem jemand singt",
+      "ein Spiegel in einem Zimmer ohne M\xF6bel",
+      "ein Kind, das eine Sprache spricht, die es nicht gelernt hat"
+    ],
+    "hooks": [
+      "die Blume bl\xFCht am falschen Ort",
+      "ein Traum wiederholt ein fremdes Zimmer",
+      "die Ruine tr\xE4gt ein frisches Zeichen",
+      "jemand singt, was niemand kennt",
+      "der Mond steht zweimal im Wasser",
+      "Der Traum wiederholt ein Zimmer, das es nicht gibt.",
+      "Die blaue Blume steht am falschen Ort und bl\xFCht.",
+      "In der Ruine liegt Asche, die noch warm ist.",
+      "Ein Lied kommt aus dem Berg und hat keinen Text.",
+      "Der Spiegel zeigt das Zimmer und niemanden darin.",
+      "Ein Fremder kennt die Geschichte besser als der Erz\xE4hler.",
+      "Das Buch schl\xE4gt sich bei derselben Seite auf.",
+      "Ein Brief kommt an, den er im Traum gelesen hat.",
+      "Der Weg durch den Wald ist k\xFCrzer als gestern.",
+      "Jemand singt ein Lied, das eine Zukunft nennt."
+    ],
+    "props": [
+      "eine getrocknete Blume",
+      "ein Medaillon",
+      "eine Harfe",
+      "ein Notenblatt",
+      "einen Spiegel",
+      "einen Schl\xFCssel",
+      "eine Kerze",
+      "ein Buch",
+      "eine getrocknete blaue Blume",
+      "ein Buch mit einer fehlenden Seite",
+      "eine Laterne f\xFCr den Waldweg",
+      "einen Ring aus dem Bergwerk",
+      "ein Blatt mit fremder Handschrift",
+      "eine Kerze f\xFCr das Fenster",
+      "eine Harfe mit gerissener Saite"
+    ],
+    "turns": [
+      "der Traum tritt aus dem Schlaf heraus",
+      "die Ferne erweist sich als N\xE4he",
+      "das Lied kennt die Zukunft",
+      "die Ruine erinnert sich an ihren Bau",
+      "der Weg f\xFChrt in die eigene Kindheit",
+      "der Traum tritt aus dem Schlaf heraus und bleibt",
+      "die Ferne erweist sich als das Haus nebenan",
+      "das Lied kennt die Zukunft und singt sie beil\xE4ufig",
+      "die Blume verliert im Licht ihre Farbe und nicht ihren Sinn",
+      "der Erz\xE4hler wird zur Figur der eigenen Geschichte",
+      "ein M\xE4rchen erkl\xE4rt, was keine Auskunft erkl\xE4rt",
+      "der Berg gibt etwas zur\xFCck, das lange fehlte",
+      "die Kindheit kommt wieder, aber als Fremde",
+      "die Ruine tr\xE4gt ein Zeichen, das frisch ist",
+      "der Spiegel zeigt eine Zeit und nicht einen Ort",
+      "das Buch endet mitten im Satz und ist vollst\xE4ndig",
+      "die Nacht erkl\xE4rt, was der Tag verschwiegen hat",
+      "ein Freund erkennt ihn und nennt ihn anders",
+      "eine alte Frau nennt den Namen der blauen Blume",
+      "die Sehnsucht findet ihr Ziel und h\xF6rt nicht auf",
+      "ein Bild an der Wand zeigt eine Landschaft, die er kennt",
+      "die Nacht bringt eine Antwort, die der Tag nicht gab",
+      "der Fremde geht, und der Weg ist pl\xF6tzlich beschrieben",
+      "das Bergwerk gibt ein St\xFCck Erz mit einer Zeichnung"
+    ],
+    "obstacles": [
+      "das Erwachen kommt zu fr\xFCh",
+      "die Blume verliert im Licht ihre Farbe",
+      "niemand h\xF6rt den Ton",
+      "die Ferne bleibt Ferne",
+      "der Traum l\xE4sst sich nicht erz\xE4hlen",
+      "das Erwachen kommt zu fr\xFCh, an jedem Morgen",
+      "niemand sonst h\xF6rt den Ton aus dem Berg",
+      "der Weg durch den Wald ist bei Tag nicht zu finden",
+      "die fehlende Seite l\xE4sst sich nirgends beschaffen",
+      "die Ruine geh\xF6rt einem Gut, das keinen Besuch duldet",
+      "das Lied l\xE4sst sich nicht aufschreiben",
+      "der Winter schlie\xDFt den Pass bis zum Fr\xFChjahr",
+      "die Familie erwartet einen Beruf und keine Reise",
+      "der Traum bricht immer an derselben Stelle ab",
+      "die Harfe hat eine Saite zu wenig",
+      "niemand glaubt einem, der von einer Blume spricht",
+      "die Kerze im Fenster brennt f\xFCr jemand anderen",
+      "die Kutsche f\xE4hrt nur bis zum letzten Dorf",
+      "das Bergwerk ist seit dem Fr\xFChjahr geschlossen",
+      "der Wirt kennt die Geschichte und erz\xE4hlt sie falsch",
+      "die Locke im Medaillon geh\xF6rt jemand anderem",
+      "niemand im Ort erinnert sich an das Haus",
+      "der Mond steht in diesem Monat zu tief",
+      "der Erz\xE4hler bricht ab, wo es wichtig wird"
+    ],
+    "stakes": [
+      "Der Einsatz ist ein Traum, der nicht zur\xFCckkommt.",
+      "Der Einsatz ist die Unschuld eines Sommers.",
+      "Der Einsatz ist ein Ton, den niemand sonst h\xF6rt.",
+      "Der Einsatz ist die Ferne selbst.",
+      "Der Einsatz ist ein Wort f\xFCr das Unsagbare.",
+      "Der Einsatz ist eine Seite, die aus dem Buch fehlt.",
+      "Der Einsatz ist die Ferne, wenn sie erreicht ist.",
+      "Der Einsatz ist ein Lied, das niemand aufschreiben kann."
+    ],
+    "endings": [
+      "Die Blume bleibt blau, der Morgen bleibt grau.",
+      "Er erwacht, und die Ferne ist wieder weit.",
+      "Das Lied endet, der Saal h\xF6rt weiter zu.",
+      "\xDCber der Ruine steht der Mond und wartet.",
+      "Alles bleibt offen wie ein Tor bei Nacht.",
+      "Und in der Ruine k\xFChlt die Asche aus.",
+      "So bleibt die Seite fehlen, und das Buch stimmt.",
+      "Und im Fenster brennt die Kerze bis zum Morgen.",
+      "Der Berg singt weiter, f\xFCr niemanden.",
+      "Und der Waldweg ist am Tag nicht mehr zu finden.",
+      "So schlie\xDFt sich der Traum \xFCber dem Zimmer.",
+      "Und niemand fragt, was er dort gesucht hat.",
+      "Am Ende tr\xE4gt er die Blume im Buch nach Hause.",
+      "Und der Fremde ist am n\xE4chsten Morgen weitergegangen.",
+      "Und im Bergwerk wird es still, nach dem letzten Ton.",
+      "So bleibt die Landschaft im Traum, wo sie hingeh\xF6rt.",
+      "So endet das M\xE4rchen, und die Geschichte f\xE4ngt an."
+    ],
+    "verwandlungen": [
+      "Blume\u2192Narbe",
+      "Traum\u2192Bericht",
+      "Wald\u2192Traum",
+      "Lied\u2192Zeichen",
+      "Ferne\u2192N\xE4he"
+    ]
+  },
+  "hugo": {
+    "motifs": [
+      "eine Barrikade, die aus M\xF6beln gebaut ist",
+      "ein Netz von Kan\xE4len, das unter der Stadt liegt",
+      "eine Glocke, die \xFCber allen D\xE4chern h\xE4ngt",
+      "ein Kerzenleuchter, der aus Silber ist",
+      "ein Kind, das auf dem Pflaster sitzt",
+      "ein Gerichtssaal, in dem kein Fenster ist",
+      "ein Laib Brot neben einer Kette",
+      "eine Kathedrale, die im Regen steht",
+      "eine Nummer, die einen Namen ersetzt",
+      "ein Aufruhr, der die engen Gassen f\xFCllt",
+      "eine Gasse, in der das Wasser nie abl\xE4uft",
+      "ein Kirchturm, von dem man die ganze Stadt z\xE4hlt",
+      "Pflastersteine, die einmal ein Weg waren",
+      "ein Zuchthauspapier im Futter eines Mantels",
+      "Kerzen in einer Kirche, gestiftet von niemandem",
+      "die Kan\xE4le unter der Stadt, warm im Winter",
+      "ein Kind, das die Namen aller Stra\xDFen kennt",
+      "ein Verzeichnis, in dem Menschen Nummern sind",
+      "die Fahne \xFCber einer Barrikade aus T\xFCren",
+      "ein Brot, das durch drei H\xE4nde geht"
+    ],
+    "hooks": [
+      "ein Bischof z\xE4hlt das Silber nicht nach",
+      "ein Kommissar erkennt ein Gesicht wieder",
+      "auf dem Pflaster liegt eine Fahne",
+      "das Kind singt gegen die Gewehre",
+      "ein Name steht in zwei Akten",
+      "ein Mann bittet um Nachtlager und nennt keinen Namen",
+      "das Silber ist weg und der Bischof sagt nichts",
+      "ein Gendarm bleibt vor einer T\xFCr stehen und geht weiter",
+      "die Nummer im Papier passt zu keinem Gesicht mehr",
+      "auf dem Markt spricht jemand von der Nacht davor",
+      "ein Kind schl\xE4ft in einem Elefanten aus Gips",
+      "die Glocke schl\xE4gt, und niemand hat gezogen",
+      "ein Brief nennt eine Adresse in einem Viertel ohne Namen",
+      "vor dem Tor steht ein Karren, der nicht weiterdarf",
+      "der Kommissar legt eine Akte weg und nimmt sie wieder",
+      "jemand zahlt eine Miete, die l\xE4ngst verfallen war",
+      "in der Kathedrale singt jemand zur falschen Stunde"
+    ],
+    "props": [
+      "einen Leuchter",
+      "eine Akte",
+      "einen Brotlaib",
+      "eine Kette",
+      "eine Fahne",
+      "ein Gewehr",
+      "eine Glocke",
+      "einen Passierschein",
+      "zwei silberne Leuchter",
+      "ein Papier mit einer Nummer statt eines Namens",
+      "einen Mantel mit doppeltem Futter",
+      "eine Laterne f\xFCr die Kan\xE4le",
+      "ein B\xFCndel Briefe unter einem Stein",
+      "einen Schl\xFCssel zu einem Gartentor",
+      "eine Puppe aus einem Schaufenster",
+      "ein Gewehr ohne Schloss",
+      "einen Zettel mit einer Adresse",
+      "ein St\xFCck Brot in einer Kindertasche"
+    ],
+    "turns": [
+      "der Verfolger l\xE4sst den Verfolgten laufen",
+      "die Barrikade h\xE4lt l\xE4nger als erwartet",
+      "aus Gnade wird ein neues Leben",
+      "das Gesetz siegt und verliert dabei",
+      "ein Kind f\xE4llt, und die Stra\xDFe erhebt sich",
+      "die Gnade erschreckt ihn mehr als jedes Urteil",
+      "der Verfolger versteht, dass er im Recht ist und trotzdem falsch",
+      "ein B\xFCrger schlie\xDFt die T\xFCr auf, statt sie zu verriegeln",
+      "der Name wird gerettet, indem er verloren geht",
+      "die Barrikade h\xE4lt, bis das Pulver ausgeht",
+      "der Junge geht zwischen die Linien und singt dabei",
+      "ein Papier verbrennt, und ein Mensch entsteht",
+      "der Kommissar l\xE4sst ihn laufen und sich selbst nicht",
+      "aus dem Kanal kommt einer heraus, den man begraben hat",
+      "das Gesetz bekommt recht, und keiner will es gewesen sein",
+      "ein Sterbender nennt eine Schuld, die keine war",
+      "die Stadt schlie\xDFt sich \xFCber der Nacht wie Wasser",
+      "eine Aussage rettet den Falschen und trifft den Richtigen",
+      "was als Diebstahl begann, endet als Erbe"
+    ],
+    "obstacles": [
+      "das Gesetz kennt keine Gnade",
+      "die Papiere tragen den alten Namen",
+      "die Nacht geh\xF6rt den Wachen",
+      "niemand \xF6ffnet die Tore",
+      "die Kan\xE4le sind \xFCberflutet",
+      "das Papier gilt mehr als der Mensch, der es tr\xE4gt",
+      "kein Wirt nimmt einen mit gelbem Ausweis",
+      "die Tore schlie\xDFen bei Einbruch der Dunkelheit",
+      "der Kanal f\xFChrt Wasser, wenn es oben regnet",
+      "die Wache kennt jedes Gesicht im Viertel",
+      "die Miete ist f\xE4llig und die Arbeit nicht bezahlt",
+      "ein Zeuge widerruft, weil er sonst nichts hat",
+      "niemand darf zweimal denselben Namen f\xFChren",
+      "die Barrikade hat kein Wasser und keinen Ausgang",
+      "der Winter kommt, und Kohle gibt es nur gegen Papiere",
+      "der Weg \xFCber den Fluss ist bewacht",
+      "ein Kind kann nicht aussagen, sagt das Gesetz",
+      "die Kirche gibt Brot und stellt Fragen",
+      "wer hilft, macht sich mitschuldig"
+    ],
+    "stakes": [
+      "Der Einsatz ist ein Name ohne Nummer.",
+      "Der Einsatz ist das Leben eines Kindes.",
+      "Der Einsatz ist die Gerechtigkeit selbst.",
+      "Der Einsatz ist eine Stadt f\xFCr eine Nacht.",
+      "Der Einsatz ist die Seele eines Verfolgers.",
+      "Der Einsatz ist ein Name, den man behalten darf.",
+      "Der Einsatz ist eine Nacht hinter einer Barrikade aus T\xFCren.",
+      "Der Einsatz ist ein Kind, f\xFCr das niemand zust\xE4ndig ist.",
+      "Der Einsatz ist ein Versprechen an eine Sterbende.",
+      "Der Einsatz ist die Frage, ob das Gesetz auch recht hat.",
+      "Der Einsatz ist ein Paar Leuchter, das alles entscheidet."
+    ],
+    "endings": [
+      "Die Barrikade f\xE4llt, die Glocke bleibt.",
+      "Am Morgen r\xE4umt man das Pflaster.",
+      "Er geht frei, und niemand versteht warum.",
+      "Die Kathedrale steht im Regen wie immer.",
+      "Unten in den Kan\xE4len l\xE4uft das Wasser weiter.",
+      "Und am Morgen wird das Pflaster wieder gelegt.",
+      "So bleibt das Papier im Futter, ungelesen.",
+      "Am Ende steht die Kathedrale im Regen, wie an jedem Tag.",
+      "Und die Leuchter stehen auf einem anderen Tisch.",
+      "So geht die Stadt \xFCber die Nacht hinweg.",
+      "Und niemand fragt, wer die Kerzen gestiftet hat.",
+      "Der Kanal f\xFChrt weiter, unter allem hindurch.",
+      "Und die Glocke schl\xE4gt f\xFCr einen, den sie nicht kannte.",
+      "So endet der Prozess, und das Urteil kommt sp\xE4ter.",
+      "Und ein Kind kennt die Stra\xDFen besser als jeder Plan."
+    ],
+    "verwandlungen": [
+      "Barrikade\u2192Mauer",
+      "Leuchter\u2192Zeuge",
+      "Gesetz\u2192Gitter",
+      "Kanal\u2192Weg",
+      "Papier\u2192Gesicht",
+      "Glocke\u2192Stimme",
+      "Brot\u2192Pfand",
+      "Fahne\u2192Wunde"
+    ]
+  },
+  "hafen": {
+    "motifs": [
+      "Kr\xE4ne, die im Morgennebel stehen",
+      "ein Poller mit den Kerben vieler Jahre",
+      "\xD6l, das auf schwarzem Wasser steht",
+      "Container, die in falscher Ordnung stehen",
+      "ein Schiffsbauch, voll von Fremden",
+      "M\xF6wen, die \xFCber leeren Kais kreisen",
+      "das Tuten eines Nebelhorns in der Nacht",
+      "Seile, jedes so dick wie ein Arm",
+      "eine Uhr am Kaischuppen, die nachgeht",
+      "Salz, das auf jeder Fl\xE4che liegt",
+      "ein Kran, der \xFCber Nacht stehen blieb",
+      "Rost, der an der Ankerkette bl\xFCht",
+      "ein F\xE4hrplan mit zweimal \xFCbermalten Zeiten",
+      "Netze, die seit Jahren niemand mehr flickt",
+      "ein Leuchtfeuer, das im Nebel steht",
+      "Kreidezeichen auf einem Frachtbrief",
+      "eine Boje, die sich losgerissen hat",
+      "Salz, das die Fensterscheiben blind macht",
+      "ein Schuppen, dessen T\xFCr offen steht",
+      "M\xF6wen \xFCber einem Kai, auf dem nichts steht",
+      "ein Schiffsname, der unter neuer Farbe durchkommt",
+      "die Uhr am Zollhaus, die immer stimmt",
+      "ein Steg, dem eine Planke fehlt",
+      "\xD6lspuren, die in Regenbogenfarben laufen",
+      "ein Container mit einer Beschriftung in fremder Schrift",
+      "eine Laterne, die im Wind schl\xE4gt",
+      "Kisten, auf denen keine Adresse steht",
+      "der Abdruck eines Taus im Holz"
+    ],
+    "hooks": [
+      "ein Container steht ohne Papiere da",
+      "das Schiff l\xE4uft ohne Namen ein",
+      "eine Leine l\xF6st sich von selbst",
+      "jemand wartet seit Tagen am Kai",
+      "die Ladeliste z\xE4hlt einen Posten zu viel",
+      "Das Schiff liegt einen Tag zu lange am Kai.",
+      "Ein Name auf der Ladeliste fehlt heute.",
+      "Die Flut kommt eine Stunde zu fr\xFCh.",
+      "Jemand fragt nach einem Schiff, das nicht mehr f\xE4hrt.",
+      "Die Papiere tragen den Stempel eines anderen Hafens.",
+      "Ein Licht brennt im Schuppen, der leer sein sollte.",
+      "Der Kran hebt eine Kiste, die niemand angemeldet hat.",
+      "Die Leine ist geschnitten, nicht gerissen.",
+      "Zwei Frachtbriefe nennen dieselbe Nummer.",
+      "Am Kai wartet jemand ohne Gep\xE4ck.",
+      "Das Wasser steht heute anders als sonst.",
+      "Ein Boot fehlt und niemand meldet es."
+    ],
+    "props": [
+      "ein Tau, dick wie ein Arm",
+      "einen Kompass mit beschlagenem Glas",
+      "eine Laterne mit ru\xDFendem Glas",
+      "einen Seesack mit einem fremden Namen",
+      "einen Frachtbrief in drei Sprachen",
+      "einen Anker mit verrosteter Kette",
+      "eine Trillerpfeife an einer Schnur",
+      "eine Seekarte mit weichen Falzen",
+      "eine Signalflagge, ausgeblichen bis ins Wei\xDFe",
+      "ein Fernrohr mit einem Sprung im Glas",
+      "einen Haken f\xFCr die schweren Kisten",
+      "eine Kette, in der ein Glied fehlt",
+      "ein Logbuch mit drei leeren Tagen",
+      "einen \xD6lschl\xFCssel mit schwarzem Griff",
+      "ein Netz mit geflickten Maschen",
+      "einen Schiffszwieback aus der letzten Fahrt",
+      "eine \xD6llampe f\xFCr die Nachtwache",
+      "einen Peilstock mit eingekerbten Marken",
+      "ein St\xFCck Segeltuch, steif von Salz"
+    ],
+    "turns": [
+      "das Schiff legt fr\xFCher ab als angek\xFCndigt",
+      "der Wartende steigt doch ein",
+      "die Ladung geh\xF6rt jemand anderem",
+      "der Kapit\xE4n kennt den Namen im Brief",
+      "der Nebel hebt sich und zeigt nichts",
+      "die Ladung wird zweimal verzollt",
+      "der Name auf dem Bug ist \xFCbermalt",
+      "die F\xE4hre nimmt keine Fracht mehr",
+      "der Kai geh\xF6rt seit gestern jemand anderem",
+      "ein Passagier steht auf keiner Liste",
+      "das Schiff kehrt am selben Tag zur\xFCck",
+      "der Zoll findet, was niemand suchte",
+      "die Flut legt frei, was lag",
+      "der Kapit\xE4n geht nicht von Bord",
+      "die Papiere stimmen und das Schiff nicht",
+      "ein Frachtbrief taucht doppelt auf",
+      "die Ladung ist da, und das Papier geh\xF6rt zu einer anderen",
+      "der Kapit\xE4n meldet sich krank, bevor der Zoll kommt",
+      "die F\xE4hre nimmt einen Passagier mehr, als sie darf"
+    ],
+    "obstacles": [
+      "die Papiere fehlen",
+      "die Flut kommt zu sp\xE4t",
+      "niemand spricht dieselbe Sprache",
+      "der Zoll schlie\xDFt den Kai",
+      "das Tau h\xE4lt nicht",
+      "der Nebel legt den Betrieb still",
+      "der Kran hat keinen F\xFChrer",
+      "die Schleuse \xF6ffnet erst am Morgen",
+      "der Liegeplatz ist vergeben",
+      "niemand unterschreibt die \xDCbernahme",
+      "das Wetter dreht",
+      "die Ladung passt nicht durch die Luke",
+      "der Zollbeamte kennt den Stempel nicht",
+      "die Leine ist zu kurz",
+      "das Log fehlt f\xFCr drei Tage",
+      "am Kai gibt es keinen Strom",
+      "der Kran f\xE4llt aus, und die Tide l\xE4uft weiter ab",
+      "die Papiere sind in einer Sprache, die hier niemand liest",
+      "der Liegeplatz wird gebraucht, bevor die Ladung gel\xF6scht ist"
+    ],
+    "stakes": [
+      "Der Einsatz ist eine \xDCberfahrt, f\xFCr die das Geld reicht.",
+      "Der Einsatz ist ein Name auf der Liste.",
+      "Der Einsatz ist die letzte Fracht vor dem Eis.",
+      "Der Einsatz ist ein Wiedersehen nach elf Jahren.",
+      "Der Einsatz ist der Weg zur\xFCck, den keiner bezahlt.",
+      "Der Einsatz ist eine Ladung, die verderben kann.",
+      "Der Einsatz ist ein Liegeplatz \xFCber den Winter.",
+      "Der Einsatz ist die Tide: Sie wartet nicht.",
+      "Der Einsatz ist ein Papier mit einem Stempel.",
+      "Der Einsatz ist die Heuer f\xFCr den Winter.",
+      "Der Einsatz ist ein Hafen, der zumacht.",
+      "Der Einsatz ist eine Nacht ohne Nebel."
+    ],
+    "endings": [
+      "Das Schiff l\xE4uft aus, der Kai bleibt leer.",
+      "Am Morgen liegt nur noch \xD6l auf dem Wasser.",
+      "Sie wartet weiter, die Uhr am Schuppen geht falsch.",
+      "Die M\xF6wen bleiben, alles andere f\xE4hrt.",
+      "Das Tuten kommt zur\xFCck und findet niemanden.",
+      "Der Kran senkt den Haken, und es wird still.",
+      "Und am Morgen liegt der Kai unter Reif.",
+      "So l\xE4uft die Tide ab und nimmt es mit.",
+      "Und im Schuppen bleibt das Licht an.",
+      "Damit ist die Ladung \xFCbergeben.",
+      "Und die F\xE4hre legt ohne sie ab.",
+      "So bleibt nur das Wasser, das gegen die Steine schl\xE4gt.",
+      "Und der Frachtbrief wandert in einen anderen Ordner.",
+      "So bleibt die Kiste stehen, bis jemand sie holt.",
+      "Am Ende l\xE4uft die Tide ab, mit uns oder ohne uns."
+    ]
+  },
+  "alltag": {
+    "motifs": [
+      "ein K\xFChlschrank, der nachts brummt und sonst nie auff\xE4llt",
+      "die immer gleiche Bushaltestelle, morgens kurz nach sieben",
+      "unge\xF6ffnete Post auf dem K\xFCchentisch",
+      "ein Schl\xFCssel, der im falschen Fach liegt",
+      "W\xE4sche, die seit Donnerstag auf dem Balkon h\xE4ngt",
+      "das Licht im Treppenhaus, das immer zu fr\xFCh ausgeht",
+      "eine Kaffeetasse mit einem Rand vom Vortag",
+      "der Wecker, der vor dem Wecker klingelt",
+      "ein Einkaufszettel, der nicht k\xFCrzer wird",
+      "ein Fernseher, der ohne Ton l\xE4uft",
+      "W\xE4sche, die in der Wohnung nicht trocknet",
+      "ein Aufzug mit einem Zettel an der T\xFCr",
+      "Rechnungen in zwei Stapeln, bezahlt und nicht",
+      "die Uhr \xFCber der Sp\xFCle, die drei Minuten vorgeht",
+      "ein Fahrradschloss am Gel\xE4nder, ohne Fahrrad",
+      "der Automat, der nur M\xFCnzen nimmt",
+      "Werbung, die den Briefkasten allein f\xFCllt",
+      "ein Blumentopf im Treppenhaus, den niemand gie\xDFt",
+      "die Ampel, die zu kurz gr\xFCn ist",
+      "eine T\xFCte, die auf halbem Weg rei\xDFt",
+      "der Kalender an der K\xFChlschrankt\xFCr, noch im letzten Monat",
+      "ein Anrufbeantworter mit einer Nachricht von gestern",
+      "die Kasse mit dem l\xE4ngsten Band",
+      "ein fremder Regenschirm im Schirmst\xE4nder",
+      "der Nachbarshund, der hinter der T\xFCr wartet",
+      "Kaffeeflecken auf einem Antrag, der heute weg muss",
+      "eine Gl\xFChbirne, die seit Wochen flackert",
+      "der Sperrm\xFCll vor dem Haus, seit Freitag"
+    ],
+    "hooks": [
+      "der Bus kommt heute nicht",
+      "ein Umschlag ohne Absender liegt da",
+      "der Nachbar gr\xFC\xDFt zum ersten Mal",
+      "der Aufzug h\xE4lt im falschen Stock",
+      "eine Zahl auf der Rechnung stimmt nicht",
+      "Der Aufzug bleibt zwischen zwei Stockwerken stehen.",
+      "Ein Paket kommt, das niemand bestellt hat.",
+      "Die Heizung wird warm, obwohl sie aus ist.",
+      "Der Nachbar zieht aus, ohne dass jemand es merkte.",
+      "Die Rechnung ist zwei Wochen alt und heute f\xE4llig.",
+      "Ein Kind fragt etwas, das niemand beantwortet.",
+      "Das Radio spielt ein Lied von damals.",
+      "Der Schl\xFCssel steckt von innen.",
+      "Die Bank hat schon geschlossen.",
+      "Der Zug f\xE4hrt heute von einem anderen Gleis.",
+      "Jemand hat den M\xFCll schon runtergebracht."
+    ],
+    "props": [
+      "einen Schl\xFCsselbund mit einem Schl\xFCssel zu viel",
+      "eine Kaffeetasse mit einem braunen Rand",
+      "einen Einkaufszettel auf der R\xFCckseite eines Umschlags",
+      "eine Fernbedienung mit abgegriffenen Tasten",
+      "einen Regenschirm mit einer gebrochenen Speiche",
+      "ein Handy mit zw\xF6lf Prozent Akku",
+      "einen Kalender, in dem nur Termine stehen",
+      "einen Blumentopf ohne Untersetzer",
+      "eine Thermoskanne, die nicht mehr dicht h\xE4lt",
+      "eine Zeitung von vorgestern",
+      "ein Feuerzeug, das jemand anderem geh\xF6rt",
+      "eine Brotdose mit einem Riss im Deckel",
+      "einen Bonbon aus der Manteltasche",
+      "ein Handtuch, das nie ganz trocknet",
+      "einen Zettel am K\xFChlschrank, seit Wochen unver\xE4ndert",
+      "eine Fahrkarte, die schon entwertet ist",
+      "ein Ladekabel, das einen Meter zu kurz ist",
+      "einen W\xE4schekorb, der immer halb voll bleibt",
+      "eine Einkaufstasche mit einem Henkel",
+      "ein Kleingeldfach voller falscher M\xFCnzen"
+    ],
+    "turns": [
+      "der freie Tag f\xFCllt sich ungefragt",
+      "jemand ruft nach Jahren wieder an",
+      "der Umzug f\xE4llt aus",
+      "die Routine bricht an einem Dienstag",
+      "der Nachbar bleibt in der T\xFCr stehen",
+      "der Anruf kommt doch noch",
+      "das Paket geh\xF6rt dem Nachbarn",
+      "die Rechnung war l\xE4ngst bezahlt",
+      "der Termin verschiebt sich um eine Woche",
+      "jemand bietet an mitzufahren",
+      "das Radio bleibt an",
+      "der Bus wartet ausnahmsweise",
+      "der Zettel war f\xFCr jemand anderen",
+      "die Wohnung nebenan wird gestrichen",
+      "der Regen h\xF6rt zur falschen Zeit auf",
+      "das Fahrrad steht wieder da",
+      "die T\xFCr f\xE4llt zu und der Schl\xFCssel liegt drinnen",
+      "der Handwerker kommt, und es war nur eine Sicherung",
+      "die Nachbarin klingelt und bleibt eine Stunde",
+      "der freie Tag geht mit lauter kleinen Wegen hin"
+    ],
+    "obstacles": [
+      "der Tag hat zu wenig Stunden",
+      "niemand ist erreichbar",
+      "das Formular verlangt eine Nummer",
+      "der Bus f\xE4hrt nur bis zur Br\xFCcke",
+      "die Wohnung bleibt zu klein",
+      "die Kasse nimmt keine Karten",
+      "das Amt hat mittwochs zu",
+      "der Aufzug ist au\xDFer Betrieb",
+      "die Nummer ist besetzt",
+      "das Formular braucht eine Unterschrift von jemand anderem",
+      "der Laden schlie\xDFt in zehn Minuten",
+      "die Waschmaschine ist belegt",
+      "es fehlt Kleingeld",
+      "der Termin liegt in der Arbeitszeit",
+      "die Post kommt heute sp\xE4ter",
+      "niemand hat den Schl\xFCssel",
+      "der Automat nimmt die Karte und gibt sie nicht zur\xFCck",
+      "die \xD6ffnungszeit hat sich ge\xE4ndert und steht nirgends"
+    ],
+    "stakes": [
+      "Der Einsatz ist ein freier Nachmittag, der erste seit Wochen.",
+      "Der Einsatz ist die Miete f\xFCr den n\xE4chsten Monat.",
+      "Der Einsatz ist ein Anruf, der \xFCberf\xE4llig ist.",
+      "Der Einsatz ist der Platz am Fenster im vollen Bus.",
+      "Der Einsatz ist die Ruhe nach Feierabend, eine einzige Stunde.",
+      "Der Einsatz ist der Feierabend, der schon zweimal ausfiel.",
+      "Der Einsatz ist ein Termin, der nicht wiederkommt.",
+      "Der Einsatz ist die Ruhe im Treppenhaus nach zehn.",
+      "Der Einsatz ist ein Gespr\xE4ch, das ansteht.",
+      "Der Einsatz ist ein Umzug, der bevorsteht.",
+      "Der Einsatz ist die Woche, die noch zu tragen ist."
+    ],
+    "endings": [
+      "Der K\xFChlschrank brummt weiter, das Licht geht aus.",
+      "Morgen kommt der Bus wieder p\xFCnktlich.",
+      "Sie r\xE4umt die Tasse weg und macht das Fenster zu.",
+      "Im Treppenhaus geht das Licht von selbst aus.",
+      "Der Zettel bleibt liegen, unvollst\xE4ndig.",
+      "Die T\xFCr f\xE4llt zu, und es riecht nach Abendessen.",
+      "Und der Automat gibt das Kleingeld doch heraus.",
+      "So bleibt der Zettel am K\xFChlschrank h\xE4ngen.",
+      "Und im Treppenhaus wird es wieder still.",
+      "Der Aufzug f\xE4hrt weiter, ohne jemanden.",
+      "Und morgen ist der M\xFCll dran.",
+      "So geht das Licht im Flur von selbst aus.",
+      "Und die W\xE4sche h\xE4ngt noch immer.",
+      "Und im Flur riecht es nach dem Essen von nebenan.",
+      "So bleibt der Einkaufszettel f\xFCr morgen liegen."
+    ]
+  },
+  "goethe": {
+    "motifs": [
+      "ein Erlk\xF6nig im Nebelstreif",
+      "die Grenze zwischen Wald und Feld",
+      "ein Werk, das seinen Meister verschlingt",
+      "der Faden einer alten Schuld",
+      "Marmor unter s\xFCdlichem Licht",
+      "ein Brief an eine Ferne",
+      "die Wette zwischen zwei Kr\xE4ften",
+      "ein Garten nach strengem Plan",
+      "das Wetterleuchten \xFCber Weimar",
+      "der Augenblick, der verweilen soll",
+      "ein Gartenhaus, in dem ein Fenster nach Osten geht",
+      "ein Herbarium, das drei\xDFig Jahre gesammelt wurde",
+      "eine Reise \xFCber die Alpen, die alles umstellt",
+      "ein Amtszimmer, in dem Akten und Gedichte liegen",
+      "ein Prisma, das eine Wand in Farben zerlegt",
+      "eine Allee, die genau bis zur Grenze f\xFChrt",
+      "ein Manuskript, das zweimal verbrannt wurde",
+      "ein Brief, der zwanzig Jahre auf Antwort wartet",
+      "ein Theater in einer kleinen Residenzstadt",
+      "ein Junge, der auf einem Pferd durch den Nebel getragen wird",
+      "ein Besen, der Wasser holt und nicht aufh\xF6rt",
+      "ein Stein, der in einer Sammlung eine Nummer tr\xE4gt"
+    ],
+    "hooks": [
+      "ein Vater reitet zu schnell",
+      "der Lehrling spricht die halbe Formel",
+      "ein Brief tr\xE4gt kein Datum",
+      "der Spiegel zeigt eine j\xFCngere Hand",
+      "jemand schlie\xDFt eine Wette ohne Zeugen",
+      "Der Herzog verlangt ein Gutachten bis Freitag.",
+      "Ein Lehrling spricht die Formel, aber nur die halbe.",
+      "Der Brief aus Rom liegt seit drei Wochen unge\xF6ffnet.",
+      "Im Garten bl\xFCht etwas zwei Monate zu fr\xFCh.",
+      "Ein Vater reitet schneller, als der Weg erlaubt.",
+      "Das Manuskript hat eine L\xFCcke, wo die Mitte war.",
+      "Jemand schlie\xDFt eine Wette und nennt keinen Zeugen.",
+      "Die Farben stimmen nicht mit der Lehre \xFCberein.",
+      "Ein Besuch k\xFCndigt sich an, den niemand bestellt hat.",
+      "Der Meister ist fort, und die Formel liegt offen.",
+      "Im Theater fehlt am Abend die zweite Stimme.",
+      "Ein Amt wird angeboten, das die Arbeit beendet."
+    ],
+    "props": [
+      "einen Federkiel",
+      "einen Siegelring",
+      "einen Zauberbesen",
+      "eine Wetterfahne",
+      "einen Reisekoffer",
+      "eine Farbenscheibe",
+      "ein Manuskript",
+      "einen Wanderstock",
+      "einen Federkiel mit gespaltener Spitze",
+      "ein Herbarium mit beschrifteten B\xF6gen",
+      "einen Siegelring des Hauses",
+      "ein Prisma aus geschliffenem Glas",
+      "einen Reisekoffer mit italienischen Zetteln",
+      "ein Manuskript in zwei Handschriften",
+      "einen Gehstock aus Kirschholz",
+      "eine Wetterfahne \xFCber dem Gartenhaus",
+      "ein St\xFCck Gestein mit einer Nummer",
+      "einen Brief mit gebrochenem Siegel"
+    ],
+    "turns": [
+      "der Diener gehorcht l\xE4nger als befohlen",
+      "die Wette wendet sich gegen beide",
+      "das Werk gelingt und fordert alles",
+      "ein Wort zu viel bindet f\xFCr immer",
+      "die Reise f\xFChrt zur\xFCck an den Anfang",
+      "der Diener gehorcht weiter, auch als niemand mehr befiehlt",
+      "die Wette wendet sich gegen beide, die sie schlossen",
+      "das Werk gelingt und verlangt daf\xFCr das ganze Leben",
+      "ein Wort zu viel bindet f\xFCr l\xE4nger als gedacht",
+      "die Reise f\xFChrt zur\xFCck an den Anfang, aber anders",
+      "der Amtsschimmel siegt \xFCber den Entwurf",
+      "ein Naturgesetz stimmt und beschreibt trotzdem nichts",
+      "der Lehrling ruft den Meister und wird nicht geh\xF6rt",
+      "die Ordnung im Garten h\xE4lt, und der G\xE4rtner nicht",
+      "das Gedicht steht am Rand einer Akte",
+      "der Herzog entscheidet, ohne das Gutachten zu lesen",
+      "eine Farbe entsteht erst im Auge, nicht im Licht",
+      "der Ruhm kommt f\xFCr das Falsche",
+      "ein Kind stirbt auf dem Weg, und der Ritt geht weiter"
+    ],
+    "obstacles": [
+      "das Wort f\xFCr den Bann fehlt",
+      "zwei Seelen wollen verschiedene Wege",
+      "die Zeit l\xE4sst sich nicht anhalten",
+      "der Meister bleibt fort",
+      "die Formel ist nur halb gelernt",
+      "das Wort f\xFCr den Bann fehlt genau an dieser Stelle",
+      "zwei Seelen in einer Brust wollen verschiedene Wege",
+      "die Zeit l\xE4sst sich nicht anhalten, auch nicht kurz",
+      "der Meister bleibt fort, und die Formel wirkt weiter",
+      "das Amt verlangt jeden Vormittag",
+      "der Herzog braucht eine Antwort und keine Wahrheit",
+      "die Alpen sind bis Mai geschlossen",
+      "die Lehre widerspricht der Messung eines anderen",
+      "das Manuskript ist an zwei Stellen unleserlich",
+      "ein Ruf aus Berlin verlangt eine Entscheidung",
+      "die Freundschaft h\xE4lt den Widerspruch nicht aus",
+      "die Post nach Italien braucht drei Wochen",
+      "der Garten w\xE4chst schneller als die Ordnung",
+      "niemand liest ein Gutachten \xFCber Farben"
+    ],
+    "stakes": [
+      "Der Einsatz ist ein Augenblick, der bleiben soll.",
+      "Der Einsatz ist die Seele in einer Wette.",
+      "Der Einsatz ist das Kind auf dem Pferd.",
+      "Der Einsatz ist der Ruhm eines Werks.",
+      "Der Einsatz ist zwei Seelen in einer Brust.",
+      "Der Einsatz ist ein Werk, das nach vierzig Jahren fertig wird.",
+      "Der Einsatz ist ein Kind auf einem Pferd im Nebel.",
+      "Der Einsatz ist eine Freundschaft gegen eine \xDCberzeugung.",
+      "Der Einsatz ist ein Amt, das die Arbeit auffrisst.",
+      "Der Einsatz ist eine Lehre, an die niemand glaubt.",
+      "Der Einsatz ist die Ordnung eines Gartens im Herbst."
+    ],
+    "endings": [
+      "Der Vater kommt an, das Kind ist still.",
+      "Die Besen stehen, das Wasser steigt weiter.",
+      "Er sagt das Wort, und alles h\xE4lt an.",
+      "Der Garten bleibt in Ordnung, der G\xE4rtner geht.",
+      "Am Ende verweilt nichts, auch nicht der Augenblick.",
+      "Und im Gartenhaus bleibt das Fenster nach Osten offen.",
+      "So stehen die Besen still, und das Wasser steht auch.",
+      "Und das Manuskript geht mit einer L\xFCcke in den Druck.",
+      "So kommt der Vater an, und das Kind ist still.",
+      "Der Brief aus Rom bleibt unge\xF6ffnet liegen.",
+      "Und der Herzog unterschreibt, ohne zu lesen.",
+      "So bleibt die Farbe im Auge und nicht im Licht.",
+      "Und am Morgen wird das Herbarium weitergef\xFChrt."
+    ],
+    "verwandlungen": [
+      "Werk\u2192Geb\xE4ude",
+      "Feder\u2192Klinge",
+      "Garten\u2192Park",
+      "Brief\u2192Auftrag",
+      "Formel\u2192Regel",
+      "Farbe\u2192Ahnung",
+      "Reise\u2192Flucht",
+      "Stein\u2192Knochen"
+    ]
+  },
+  "sinnlich": {
+    "motifs": [
+      "Regen auf warmem Stein",
+      "der Geschmack von Salz auf den Lippen",
+      "Wolle an der Innenseite des Arms",
+      "ein Geruch aus der Kindheit",
+      "das Knistern von Papier",
+      "Licht durch geschlossene Lider",
+      "kaltes Wasser an den Handgelenken",
+      "der Nachhall einer Stimme",
+      "Sand zwischen den Fingern",
+      "der erste Schluck nach langem Weg",
+      "ein Zimmer, in dem es nach Bienenwachs riecht",
+      "ein Stoff, der unter der Hand nachgibt",
+      "eine Frucht, die im Mund k\xE4lter wird",
+      "ein Ger\xE4usch, das man auf der Haut sp\xFCrt",
+      "ein Licht, das die Farben verschiebt",
+      "ein Boden, der unter den F\xFC\xDFen warm bleibt",
+      "ein Duft, der ein Datum aufruft",
+      "ein Ton, der im Brustbein sitzt"
+    ],
+    "hooks": [
+      "ein Duft kommt ohne Quelle",
+      "die Haut sp\xFCrt ein Ger\xE4usch",
+      "ein Geschmack weckt ein Datum",
+      "das Licht f\xFChlt sich schwer an",
+      "eine Ber\xFChrung klingt nach",
+      "Ein Duft kommt durch das Treppenhaus, ohne Quelle.",
+      "Die Haut sp\xFCrt ein Ger\xE4usch, bevor das Ohr es h\xF6rt.",
+      "Ein Geschmack ruft ein Datum auf, das niemand nannte.",
+      "Der Stoff f\xFChlt sich anders an als gestern.",
+      "Das Licht im Zimmer macht die Farben falsch.",
+      "Sie legt die Hand auf den Stein und bleibt stehen.",
+      "Der Regen klingt anders auf diesem Dach.",
+      "Die W\xE4rme bleibt an der Stelle, wo eine Hand lag.",
+      "Etwas riecht nach einer Wohnung von vor drei\xDFig Jahren."
+    ],
+    "props": [
+      "eine Orange",
+      "einen Wollschal",
+      "eine Schale Wasser",
+      "ein St\xFCck Rinde",
+      "eine Glocke",
+      "ein Tuch",
+      "eine Kerze",
+      "einen Kieselstein",
+      "eine Orange mit dicker Schale",
+      "einen Wollschal, der kratzt",
+      "eine Schale mit lauwarmem Wasser",
+      "ein St\xFCck rohe Seide",
+      "eine Kerze aus Bienenwachs",
+      "einen Stein, den die Sonne aufgew\xE4rmt hat",
+      "eine Feder f\xFCr die Innenseite des Arms",
+      "ein Glas mit einem Rest Salz"
+    ],
+    "turns": [
+      "ein Sinn \xFCbernimmt die Arbeit des anderen",
+      "der Geruch f\xFChrt an einen Ort zur\xFCck",
+      "die Ber\xFChrung ver\xE4ndert die Farbe",
+      "das H\xF6ren wird zum Sehen",
+      "der Geschmack bleibt l\xE4nger als die Erinnerung",
+      "der Geruch f\xFChrt an einen Ort zur\xFCck, den es nicht mehr gibt",
+      "die Ber\xFChrung ver\xE4ndert die Farbe des Ganzen",
+      "das Ohr h\xF6rt auf, und die Haut h\xF6rt weiter",
+      "ein Geschmack ordnet die Erinnerung neu",
+      "die W\xE4rme bleibt l\xE4nger als die Hand",
+      "das Licht wechselt, und der Raum wird ein anderer",
+      "was weich war, wird unter der Hand kalt",
+      "der Ton h\xF6rt auf, und die Stille hat eine Farbe",
+      "ein Duft nimmt einen ganzen Nachmittag ein",
+      "die Sprache kommt zu sp\xE4t und macht es kleiner",
+      "die Haut merkt sich, was der Kopf vergisst",
+      "eine Ber\xFChrung wird zur Auskunft",
+      "das Auge macht den Fehler, den die Hand nicht macht",
+      "die Zunge findet ein Wort, das die Hand schon kannte",
+      "der Raum wird kleiner, sobald das Licht sich \xE4ndert",
+      "ein Ger\xE4usch aus dem Hof ordnet den ganzen Nachmittag",
+      "die K\xE4lte kommt sp\xE4ter als erwartet und bleibt l\xE4nger",
+      "der Stoff gibt nach und beh\xE4lt den Abdruck",
+      "ein Geschmack kippt von s\xFC\xDF nach bitter, in der Mitte",
+      "sie riecht es zuerst und sagt es zuletzt"
+    ],
+    "obstacles": [
+      "die Worte fehlen f\xFCr das Gef\xFChlte",
+      "der Duft verfliegt zu schnell",
+      "niemand sonst nimmt es wahr",
+      "die Haut gew\xF6hnt sich",
+      "der Ton liegt au\xDFerhalb des H\xF6rens",
+      "die Worte fehlen f\xFCr das, was gef\xFChlt wird",
+      "der Duft verfliegt, bevor er benannt ist",
+      "niemand sonst nimmt es wahr, und das ist die Frage",
+      "das Licht in diesem Zimmer ist immer dasselbe",
+      "die Erk\xE4ltung nimmt zwei Sinne auf einmal",
+      "der Stoff ist nur in einem Laden zu bekommen",
+      "die Erinnerung an den Geruch stimmt nicht",
+      "die W\xE4rme h\xE4lt nur bis zum Abend",
+      "ein Ton \xFCbert\xF6nt alles andere im Haus",
+      "die Frucht ist au\xDFerhalb der Saison",
+      "die Hand ist zu kalt f\xFCr diesen Stoff",
+      "die Kerze brennt nur eine Stunde",
+      "man kann es nicht zweimal zum ersten Mal riechen",
+      "die Beschreibung macht das Gef\xFChl kaputt",
+      "das Fenster l\xE4sst sich in diesem Zimmer nicht \xF6ffnen",
+      "der Laden hat die Seide nicht mehr im Sortiment",
+      "die Nachbarn kochen etwas, das alles \xFCberdeckt",
+      "der Stein k\xFChlt aus, bevor jemand kommt",
+      "das Wasser ist zu hei\xDF und dann zu kalt",
+      "die Frucht ist reif und schmeckt nach nichts",
+      "der Ton ist da und nicht zu orten"
+    ],
+    "stakes": [
+      "Der Einsatz ist eine Erinnerung, die nur im Duft lebt.",
+      "Der Einsatz ist die Sch\xE4rfe der Wahrnehmung.",
+      "Der Einsatz ist ein Augenblick vor dem Vergessen.",
+      "Der Einsatz ist die eigene Haut.",
+      "Der Einsatz ist ein Name f\xFCr ein Gef\xFChl.",
+      "Der Einsatz ist ein Zimmer, das nach etwas riecht.",
+      "Der Einsatz ist die Frage, ob ein anderer es auch sp\xFCrt.",
+      "Der Einsatz ist ein Nachmittag, den ein Duft einnimmt."
+    ],
+    "endings": [
+      "Der Regen h\xF6rt auf, der Stein bleibt warm.",
+      "Nichts davon l\xE4sst sich sagen.",
+      "Sie schlie\xDFt die Augen und sieht mehr.",
+      "Der Duft geht, das Zimmer bleibt.",
+      "Am Ende bleibt Salz auf den Lippen.",
+      "Und der Duft ist am Abend nicht mehr da.",
+      "So bleibt die W\xE4rme an der Stelle, f\xFCr kurze Zeit.",
+      "Und die Schale steht leer auf dem Tisch.",
+      "Am Ende bleibt ein Geschmack und kein Wort daf\xFCr.",
+      "Und das Licht wandert weiter \xFCber den Boden.",
+      "So bleibt der Ton im Brustbein, bis er geht.",
+      "Und morgen riecht das Zimmer nach etwas anderem.",
+      "Und der Stein liegt am Morgen kalt im Gras.",
+      "So bleibt die Seide im Regal, ungekauft.",
+      "Am Ende steht die Kerze abgebrannt auf dem Teller.",
+      "Und im Treppenhaus riecht es wieder nach nichts.",
+      "So bleibt der Abdruck im Stoff, bis jemand ihn gl\xE4ttet."
+    ],
+    "verwandlungen": [
+      "Duft\u2192Verdacht",
+      "Haut\u2192Rinde",
+      "Stein\u2192Knochen",
+      "Licht\u2192Ger\xFCcht",
+      "Frucht\u2192Faust"
+    ]
+  }
+};
+
+// test/schliff.ts
+{
+  const g = globalThis;
+  if (typeof g.localStorage === "undefined") {
+    const m = {};
+    g.localStorage = {
+      getItem: (k) => k in m ? m[k] : null,
+      setItem: (k, v) => {
+        m[k] = String(v);
+      },
+      removeItem: (k) => {
+        delete m[k];
+      },
+      clear: () => {
+        for (const k of Object.keys(m)) delete m[k];
+      },
+      key: () => null,
+      length: 0
+    };
+  }
+}
 var fails = [];
 var geprueft = 0;
 var bestanden = 0;
@@ -209,106 +13499,309 @@ var ist = (name, wert, soll) => {
   if (wert === soll) bestanden++;
   else fails.push(`${name}: \u201E${String(wert)}\u201C \u2014 erwartet \u201E${String(soll)}\u201C`);
 };
-var wahr = (name, b, zusatz = "") => ist(name + (zusatz ? ` (${zusatz})` : ""), b, true);
-var A = "Der W\xE4chter z\xE4hlt die Fenster im Hafen. Ein Kompass zeigt, was niemand fragt. Die Reise f\xFChrt zur\xFCck an den Anfang.";
-var B = "Der W\xE4chter z\xE4hlt die Fenster im Hafen. Ein Kompass zeigt, was niemand fragt. Die Reise f\xFChrt zur\xFCck an den Anfang.";
-var C = "Im Winter schmilzt der Schnee auf dem Dach der Scheune. Ein Pferd wartet am Zaun und die Uhr im Stall bleibt stehen.";
-var D = "Die Rechnung liegt auf dem Tisch der Verwaltung. Ein Formular verlangt eine Unterschrift, die niemand leisten will.";
-var E = "Der W\xE4chter z\xE4hlt die Fenster am Hafen und ein Kompass schweigt. Sp\xE4ter f\xFChrt die Reise zur\xFCck zum Anfang der Wette.";
-wahr("Inhaltsw\xF6rter lassen F\xFCllw\xF6rter weg", !inhaltsWoerter("und aber nicht wenn").has("aber"));
-wahr("und behalten die Nomen", inhaltsWoerter("Der W\xE4chter z\xE4hlt Fenster").has("w\xE4chter"));
-ist("Dreiergruppen z\xE4hlen richtig", dreiergruppen("eins zwei drei vier").size, 2);
-ist("zu kurzer Text gibt keine Gruppe", dreiergruppen("eins zwei").size, 0);
-ist("gleicher Text ist ganz \xE4hnlich", Math.round(aehnlichkeit(A, B) * 100), 100);
-wahr("verschiedene Texte sind kaum \xE4hnlich", aehnlichkeit(A, C) < 0.1, aehnlichkeit(A, C).toFixed(3));
-wahr("umformuliert bleibt erkennbar \xE4hnlich", aehnlichkeit(A, E) > 0.15, aehnlichkeit(A, E).toFixed(3));
-wahr("und weniger als w\xF6rtlich gleich", aehnlichkeit(A, E) < aehnlichkeit(A, B));
-ist("leerer Text ist mit nichts \xE4hnlich", aehnlichkeit("", A), 0);
-{
-  const b = varianzBericht([
-    { titel: "1", text: A },
-    { titel: "2", text: C },
-    { titel: "3", text: D }
-  ]);
-  wahr("drei verschiedene Beitr\xE4ge ergeben hohe Varianz", b.band === "hoch", b.wert.toFixed(3));
-  wahr("und die \xE4hnlichsten Paare sind trotzdem benannt", b.paare.length > 0);
-}
-{
-  const b = varianzBericht([
-    { titel: "1", text: A },
-    { titel: "2", text: B },
-    { titel: "3", text: C },
-    { titel: "4", text: D }
-  ]);
-  wahr("eine Dublette dr\xFCckt die Varianz", b.wert < 0.75, b.wert.toFixed(3));
-  ist("und wird als \xE4hnlichstes Paar benannt", `${b.paare[0].a},${b.paare[0].b}`, "0,1");
-  wahr("die beiden anderen bleiben unbelastet", b.naechste[2] < 0.1 && b.naechste[3] < 0.1);
-}
-{
-  const b = varianzBericht([{ titel: "1", text: A }, { titel: "2", text: B }]);
-  ist("zwei gleiche Beitr\xE4ge sind rot", b.band, "gering");
-}
-ist("ein einzelner Beitrag hat nichts zu vergleichen", varianzBericht([{ titel: "1", text: A }]).band, "hoch");
-ist("keine Beitr\xE4ge auch nicht", varianzBericht([]).band, "hoch");
-ist("0,9 ist hoch", varianzBand(0.9), "hoch");
-ist("0,75 ist hoch", varianzBand(0.75), "hoch");
-ist("0,6 ist mittel", varianzBand(0.6), "mittel");
-ist("0,5 ist gering", varianzBand(0.5), "gering");
-ist("Unsinn gilt als gering", varianzBand(NaN), "gering");
-{
-  const b = varianzBericht([
-    { titel: "1", text: A, form: "prose", bank: "x", quelle: "welt" },
-    { titel: "2", text: C, form: "prose", bank: "x", quelle: "welt" },
-    { titel: "3", text: D, form: "prose", bank: "x", quelle: "welt" }
-  ]);
-  wahr(
-    "gleiche Form, gleiche Bank, gleiche Quelle: Vielfalt niedrig",
-    b.vielfalt.formen < 0.4 && b.vielfalt.baenke < 0.4 && b.vielfalt.quellen < 0.4
-  );
-}
-{
-  const b = varianzBericht([
-    { titel: "1", text: A, form: "prose", bank: "x", quelle: "welt" },
-    { titel: "2", text: C, form: "meldung", bank: "y", quelle: "idee" },
-    { titel: "3", text: D, form: "haiku", bank: "z", quelle: "wahrnehmung" }
-  ]);
-  ist("lauter verschiedene ergeben volle Vielfalt", b.vielfalt.formen, 1);
-}
-{
-  const kurz = "Ein Satz.";
-  const lang = A + " " + C + " " + D;
-  wahr(
-    "verschiedene L\xE4ngen z\xE4hlen als Vielfalt",
-    varianzBericht([{ titel: "1", text: kurz }, { titel: "2", text: lang }]).vielfalt.laengen > 0.5
-  );
-  wahr(
-    "gleiche L\xE4ngen nicht",
-    varianzBericht([{ titel: "1", text: C }, { titel: "2", text: D }]).vielfalt.laengen < 0.5
-  );
-}
-{
-  const satz = "Der Wecker geht und der Traum geht weiter.";
-  const text = Array.from({ length: 24 }, () => satz).join(" ");
-  let maxAnzahl = 0, doppelt = 0, nachbarn = 0;
-  for (let i = 0; i < 60; i++) {
-    const t = applyToneRegister(text, "ironisch");
-    const tags = t.match(/— (angeblich|so hieß es|was auch immer das heißen sollte|natürlich|wie praktisch|oder so ähnlich)\./g) || [];
-    maxAnzahl = Math.max(maxAnzahl, tags.length);
-    if (new Set(tags).size < tags.length) doppelt++;
-    if (/— [^.]+\. Der Wecker geht und der Traum geht weiter — /.test(t)) nachbarn++;
+var wahr = (name, b) => ist(name, b, true);
+var GUT = [
+  "Die Stadt springt mich an.",
+  "ein Blick l\xF6st Panik aus",
+  "das Wort reicht nicht mehr und h\xF6rt auf",
+  "So endet das Suchen, ohne dass etwas gefunden ist.",
+  "Wir fahren, als jagten wir einem Gedanken nach.",
+  "Und das Meer bleibt, wie es ist.",
+  "eine Wartemarke, die nicht aufgerufen wird",
+  "Der Wartende steigt doch ein",
+  "Sag ehrlich, f\xFChlst du das?"
+];
+for (const r of OBJEKT_EINSTIEG) {
+  for (const satz of r.replace("%O", "die Akte").split(/(?<=\.)\s+/)) {
+    wahr(`Rahmensatz \xFCberlebt: \u201E${satz}\u201C`, !istAbgeschnitten(satz.replace(/[.!?…]+$/, "")));
   }
-  wahr("h\xF6chstens drei Nachs\xE4tze je Text (60 L\xE4ufe, 24 S\xE4tze)", maxAnzahl <= 3 && maxAnzahl >= 1);
-  ist("kein Nachsatz zweimal", doppelt, 0);
-  ist("nie zwei S\xE4tze hintereinander", nachbarn, 0);
 }
-console.log(`Pr\xFCfstand Varianz \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
+for (const g of GUT) wahr(`gilt nicht als Bruchst\xFCck: \u201E${g}\u201C`, !istAbgeschnitten(g.replace(/[.!?…]+$/, "")));
+var SCHLECHT = [
+  "ein Blick auf der",
+  "die T\xFCr und",
+  "der Schatten des",
+  "ein Weg zu einem",
+  "der Rand ohne",
+  "eine Stimme aber",
+  "das Zimmer im"
+];
+for (const b of SCHLECHT) wahr(`bleibt Bruchst\xFCck: \u201E${b}\u201C`, istAbgeschnitten(b));
+{
+  const ALT = /(^|\s)(ein|eine|einem|einen|einer|eines|der|die|das|dem|den|des|und|oder|aber|wie|mit|an|auf|zu|im|am|vor|nach|für|ohne|als|bei|aus|ist|sind|wird)$/i;
+  let alt = 0, neu = 0;
+  for (const id of Object.keys(BUILTIN_PRESETS)) {
+    const bank = BUILTIN_PRESETS[id];
+    for (const k of Object.keys(bank)) {
+      const arr = bank[k];
+      if (!Array.isArray(arr)) continue;
+      for (const roh of arr) {
+        const bare = String(roh).trim().replace(/[.!?…]+$/, "").trim();
+        if (bare.split(/\s+/).length > 12) continue;
+        if (ALT.test(bare)) alt++;
+        if (istAbgeschnitten(bare)) neu++;
+      }
+    }
+  }
+  wahr(`der alte Filter traf viele Preset-S\xE4tze (${alt})`, alt >= 60);
+  wahr(`der neue trifft fast keine mehr (${neu})`, neu <= 5);
+}
+var SEQ = [
+  "SEQUENZ \u2014 Die Spur",
+  "WER: die Herbergsmagd",
+  "WO: in der Markthalle",
+  "WANN: am Nachmittag",
+  "WAS: will die Spur bewusst auf",
+  "GESAMTL\xC4NGE: 15s \u2022 3s pro Shot",
+  "",
+  "Shot 1 (3s) Die T\xFCr steht offen und niemand geht hindurch.",
+  "DE: Ein Licht f\xE4llt auf den Boden der Halle."
+].join("\n");
+{
+  const rein = corpusSanitize(SEQ);
+  wahr("keine Kopfzeile \xFCberlebt die Korpus-Reinigung", !/(WER|WO|WANN|WAS|GESAMTLÄNGE|SEQUENZ|DE):?/.test(rein));
+  wahr("aber die S\xE4tze dahinter bleiben erhalten", rein.includes("Die T\xFCr steht offen und niemand geht hindurch."));
+  wahr("auch der aus der Sprachzeile", rein.includes("Ein Licht f\xE4llt auf den Boden der Halle."));
+  ist("und nichts sonst bleibt \xFCbrig", rein.split(/(?<=[.!?…])\s+/).length, 2);
+}
+for (const z of SEQ.split("\n").filter(Boolean)) {
+  wahr(`als Ger\xFCstzeile erkannt: \u201E${z.slice(0, 28)}\u2026\u201C`, GERUESTZEILE.test(z));
+}
+wahr("ein gew\xF6hnlicher Satz gilt nicht als Ger\xFCst", !GERUESTZEILE.test("Die T\xFCr steht offen und niemand geht hindurch."));
+{
+  const M = { nouns: ["Akte"], verbs: ["pr\xFCfen"], images: ["wie Regen hinter Glas"], rules: ["still bleibt still"] };
+  const kit = {
+    T: "im Jahr 1953",
+    P: "der Wanderer",
+    Apure: "Mitglied des Kronrates",
+    AisClause: false,
+    AisInfinitiveLed: false,
+    AleadVerb: "ist",
+    mode: M,
+    turn: "die Ordnung bricht",
+    stake: "das Gastrecht",
+    obstacle: "die T\xFCr bleibt zu",
+    W: "in Edinburgh",
+    O: "Stab"
+  };
+  const WERTE = ["in edinburgh", "im jahr 1953", "der wanderer", "mitglied des kronrates"];
+  let doppelt = 0, leer2 = 0;
+  for (let i = 0; i < 300; i++) {
+    const t = applyEmphasis("Ein Satz. Noch einer. Und ein dritter.", kit, { wo: 3, wann: 2, wer: 2, was: 2 });
+    if (t.length < 40) leer2++;
+    const k = t.toLowerCase();
+    if (WERTE.some((w) => k.split(w).length - 1 > 1)) doppelt++;
+  }
+  ist("kein 4W-Wert steht zweimal im Text (300 L\xE4ufe)", doppelt, 0);
+  ist("und es wird trotzdem eingef\xFCgt", leer2, 0);
+  const voll = applyEmphasis("Ein Satz. Noch einer.", kit, { wo: 3, wann: 3, wer: 3, was: 3 });
+  wahr("bei voller St\xE4rke stehen viele Zusatzs\xE4tze da", voll.split(/[.!?] /).length >= 8);
+  {
+    let genannt = 0, zweimal = 0;
+    for (let i = 0; i < 20; i++) {
+      const v = applyEmphasis("Ein Satz. Noch einer.", kit, { wo: 3, wann: 3, wer: 3, was: 3 }).toLowerCase();
+      const n = v.split("in edinburgh").length - 1;
+      if (n >= 1) genannt++;
+      if (n > 1) zweimal++;
+    }
+    wahr("der Ort wird genannt (20 L\xE4ufe)", genannt >= 17, String(genannt));
+    ist("aber nie zweimal", zweimal, 0);
+  }
+  let gleichesGeruest = 0;
+  for (let i = 0; i < 300; i++) {
+    const t = applyEmphasis("Ein Satz.", kit, { wo: 3, wann: 0, wer: 0, was: 0 });
+    if ((t.match(/Der Ort /g) || []).length > 1) gleichesGeruest++;
+  }
+  wahr(
+    `zwei \u201EDer Ort"-Zeilen in ${gleichesGeruest} von 300 L\xE4ufen \u2014 bekannt, nicht behoben`,
+    gleichesGeruest <= 130
+  );
+  ist(
+    "St\xE4rke null l\xE4sst den Text unangetastet",
+    applyEmphasis("Ein Satz.", kit, { wo: 0, wann: 0, wer: 0, was: 0 }),
+    "Ein Satz."
+  );
+}
+{
+  const nachSchliff = (t) => postProcessText(t);
+  wahr(
+    "nach einem Verb wird klein geschrieben",
+    /bemerkt ein Bergsteiger/.test(nachSchliff("Im Jahr 1953 bemerkt Ein Bergsteiger eine Waage."))
+  );
+  wahr(
+    "nach einem Fragewort auch",
+    /Was ein Bergsteiger/.test(nachSchliff("Was Ein Bergsteiger will: die Regel sch\xFCtzt."))
+  );
+  wahr(
+    "und mitten im Satz \xFCberhaupt",
+    /hält ein Bergsteiger/.test(nachSchliff("Dann h\xE4lt Ein Bergsteiger den Faden."))
+  );
+  wahr(
+    "am Satzanfang bleibt es gro\xDF",
+    /^Ein Bergsteiger/.test(nachSchliff("Ein Bergsteiger ist Mitglied des Kronrates."))
+  );
+  wahr(
+    "nach einem Doppelpunkt auch",
+    /: Ein Satz/.test(nachSchliff("Er sagte: Ein Satz bleibt."))
+  );
+  wahr(
+    "nach einem Anf\xFChrungszeichen auch",
+    /„Ein Wort/.test(nachSchliff("Sie fragte \u201EEin Wort?\u201C und ging."))
+  );
+  wahr(
+    "am Zeilenanfang bleibt es gro\xDF",
+    /\nEin Vers/.test(nachSchliff("Zeile eins\nEin Vers beginnt"))
+  );
+  wahr(
+    "die Regel steht als eigene Funktion bereit",
+    /export function kleinerArtikel/.test((0, import_fs.readFileSync)("src/generation/postprocess.ts", "utf8"))
+  );
+  const bs = (0, import_fs.readFileSync)("src/generation/buildStory.ts", "utf8");
+  wahr("der Bericht laeuft durch sie", /kleinerArtikel\(buildBericht/.test(bs));
+  wahr("die Meldung auch", /kleinerArtikel\(buildMeldung/.test(bs));
+  for (const [w, k] of [["Eine", "eine"], ["Einen", "einen"], ["Einem", "einem"], ["Einer", "einer"]]) {
+    wahr(
+      `\u201E${w}" wird mitten im Satz zu \u201E${k}"`,
+      new RegExp("nimmt " + k + " Akte").test(nachSchliff("Er nimmt " + w + " Akte."))
+    );
+  }
+}
+ist("Der in der Satzmitte wird klein", kleinerArtikel("Da h\xE4lt Der Bote inne."), "Da h\xE4lt der Bote inne.");
+ist("auch nach dem Gedankenstrich", kleinerArtikel("Zwei nicht \u2014 Der Bote sp\xFCrt."), "Zwei nicht \u2014 der Bote sp\xFCrt.");
+ist("nach Doppelpunkt bleibt gro\xDF", kleinerArtikel("Er sagt: Der Bote kommt."), "Er sagt: Der Bote kommt.");
+ist("im Zitat bleibt gro\xDF", kleinerArtikel("Sie sagt \u201EDie Uhr steht\u201C."), "Sie sagt \u201EDie Uhr steht\u201C.");
+ist("am Zeilenanfang bleibt gro\xDF", kleinerArtikel("Zeile eins\nDie zweite Zeile."), "Zeile eins\nDie zweite Zeile.");
+ist("kennen verlangt den Akkusativ", dekliniere("Der Bote", "akk"), "den Boten");
+wahr("die Objekt-Perspektive nutzt ihn", /Ich kenne \$\{dekliniere\(P, "akk"\)\}/.test((0, import_fs.readFileSync)("src/generation/structures.ts", "utf8")));
+{
+  const lv = extractLeadVerb("bringt, was niemand h\xF6ren will");
+  ist("das Leitverb wird erkannt", lv.verb, "bringt");
+  ist("das Komma bleibt am Rest", lv.rest, ", was niemand h\xF6ren will");
+  ist("und der Kern gilt nicht als Satz", looksLikeFullClause(lv.verb, lv.rest), false);
+  ist("ohne Komma unver\xE4ndert", extractLeadVerb("bringt einen Brief").rest, "einen Brief");
+  ist("der Schliff zieht das Leerzeichen vor dem Komma ein", kleinerArtikel("Der Bote bringt , was niemand h\xF6ren will."), "Der Bote bringt, was niemand h\xF6ren will.");
+}
+{
+  const pp = kleinesPronomen;
+  ist("Ich nach Semikolon wird klein", pp("Eine will bleiben; Ich kenne den Satz."), "Eine will bleiben; ich kenne den Satz.");
+  ist("Wir nach Gedankenstrich wird klein", pp("Es regnet \u2014 Wir warten."), "Es regnet \u2014 wir warten.");
+  ist("Ich am Satzanfang bleibt gro\xDF", pp("Es regnet. Ich warte."), "Es regnet. Ich warte.");
+  ist("Sie nach Semikolon bleibt stehen", pp("Es regnet; Sie warten."), "Es regnet; Sie warten.");
+}
+{
+  ist("nach dem Gedankenstrich ein neues Subjekt", beugeNachDu("Du bist kein Hundeklo \u2014 das Fieber geht unter Deck."), "Du bist kein Hundeklo \u2014 das Fieber geht unter Deck.");
+  ist("nach dem Komma ein Relativsatz", beugeNachDu("Du h\xE4ltst ein Schulheft, in dem etwas anderes steht als Latein."), "Du h\xE4ltst ein Schulheft, in dem etwas anderes steht als Latein.");
+  ist("nach der Inversion mit Strich", beugeNachDu("Am Morgen bemerkst du eine Kapsel \u2014 etwas Bekanntes tr\xE4gt einen fremden Namen."), "Am Morgen bemerkst du eine Kapsel \u2014 etwas Bekanntes tr\xE4gt einen fremden Namen.");
+  ist("du geht \u2192 du gehst", beugeNachDu("Du geht unter Deck."), "Du gehst unter Deck.");
+  ist("bis zur Konjunktion mit neuem Subjekt", beugeNachDu("du findet den Bug, aber er findet dich"), "du findest den Bug, aber er findet dich");
+}
+{
+  ist(
+    "der Nebensatz wird vor der Inversion geschlossen",
+    kommaVorInversion("Im Nachmittag in einem Gericht ohne Richter, wo die Karten nicht stimmen bemerke ich eine Tonschale."),
+    "Im Nachmittag in einem Gericht ohne Richter, wo die Karten nicht stimmen, bemerke ich eine Tonschale."
+  );
+  ist(
+    "auch mit Relativpronomen und Name",
+    kommaVorInversion("Am Hafen, der keine Schiffe kennt bemerkt Der Bote eine Kapsel."),
+    "Am Hafen, der keine Schiffe kennt, bemerkt Der Bote eine Kapsel."
+  );
+  ist("ein Relativsatz, der auf das Verb endet, bleibt", kommaVorInversion("Ein Mann, der die Karten nicht sieht."), "Ein Mann, der die Karten nicht sieht.");
+  ist("ein Komma, das schon da ist, wird nicht verdoppelt", kommaVorInversion("Am Hafen, wo es regnet, bemerke ich nichts."), "Am Hafen, wo es regnet, bemerke ich nichts.");
+  ist("ohne Nebensatz-Einleiter keine \xC4nderung", kommaVorInversion("Am Hafen, im Regen bemerke ich nichts."), "Am Hafen, im Regen bemerke ich nichts.");
+}
+{
+  const inp = { who: "Ein Wald ohne B\xE4ume", form: "prose" };
+  const t = postProcessText("W\xE4hrend des Prozesses bemerkt Ein Wald ohne B\xE4ume eine Karte. Was Ein Wald ohne B\xE4ume will: schweigen.", inp);
+  wahr("der Artikel bleibt klein nach dem Verb", /bemerkt ein Wald ohne Bäume/.test(t));
+  wahr("und nach \u201EWas\u201C", /Was ein Wald ohne Bäume will/.test(t));
+  const n = postProcessText("Dann kommt maria brandt zur\xFCck.", { who: "Maria Brandt", form: "prose" });
+  wahr("Gegenprobe: ein Name wird wiederhergestellt", /Maria Brandt/.test(n));
+}
+{
+  const m = new MarkovModel(2);
+  m.addText("Eine Feder liegt auf stillem Wasser und dreht sich langsam im Kreis. Der Kiosk verkauft eine Schlagzeile, die es nicht gibt und niemals gab. Die Lava versiegelt den Ausgang f\xFCr alle, die zu sp\xE4t kommen. Der Hang beginnt zu wandern. Das Gestein wird durchsichtig.");
+  let unvoll = 0, leer2 = 0;
+  for (let i = 0; i < 300; i++) {
+    const t = m.generate(10);
+    if (!t) {
+      leer2++;
+      continue;
+    }
+    if (!/[.!?…]$/.test(t)) unvoll++;
+  }
+  ist("keine Kette endet mitten im Satz (300 Ketten, Grenze 10)", unvoll, 0);
+  wahr("und die Ausbeute bleibt (weiche Grenze)", leer2 < 30);
+  const k = new MarkovModel(2);
+  k.addText("ein langer Satz ohne Ende der immer weiter l\xE4uft und nie aufh\xF6rt zu laufen");
+  ist("kein Satzende \u2192 leer statt Stumpf", k.generate(6), "");
+}
+ist("die auf stillem Wasser", istAbgeschnitten("Eine Feder, die auf stillem Wasser"), true);
+ist("die es nicht", istAbgeschnitten("der Kioskbesitzer erinnert sich an eine Schlagzeile, die es nicht"), true);
+ist("die ein Jahr ausl\xE4sst", istAbgeschnitten("Eine Schicht, die ein Jahr ausl\xE4sst"), false);
+ist("die zu warm ist", istAbgeschnitten("Eine Quelle, die zu warm ist"), false);
+ist("das ein Fluss vergessen hat", istAbgeschnitten("Ein Tal, das ein Fluss vergessen hat"), false);
+ist("Wo ist Gott \u2192 ?", fragezeichen("Wo ist Gott."), "Wo ist Gott?");
+ist("Aussage mit Fragewort bleibt", fragezeichen("Was zusammenf\xE4llt, geh\xF6rt zusammen."), "Was zusammenf\xE4llt, geh\xF6rt zusammen.");
+ist("mit Komma keine Frage", fragezeichen("Wer kommt, bleibt."), "Wer kommt, bleibt.");
+ist("lang keine Frage", fragezeichen("Wo ist das Buch mit den vielen leeren Seiten und dem roten Band."), "Wo ist das Buch mit den vielen leeren Seiten und dem roten Band.");
+ist("Wo nach Komma klein", kleinesPronomen("in einem Beichtstuhl, Wo die Stra\xDFen keine Namen tragen."), "in einem Beichtstuhl, wo die Stra\xDFen keine Namen tragen.");
+ist("Der nach Komma klein", kleinesPronomen("Ein Mann, Der nichts sagt."), "Ein Mann, der nichts sagt.");
+ist("Gegenprobe: Nomen nach Komma bleibt", kleinesPronomen("Brot, Wein und Salz."), "Brot, Wein und Salz.");
+{
+  ist("Zwei Frauen begreifen", pluralKongruenz("Zwei Frauen begreift: Wer ist Ben.", "Zwei Frauen"), "Zwei Frauen begreifen: Wer ist Ben.");
+  ist("auch in der Inversion", pluralKongruenz("Im Hof wartet Zwei Frauen.", "Zwei Frauen"), "Im Hof warten Zwei Frauen.");
+  ist("ist \u2192 sind", pluralKongruenz("Zwei Frauen ist m\xFCde.", "Zwei Frauen"), "Zwei Frauen sind m\xFCde.");
+  ist("Singular bleibt unber\xFChrt", pluralKongruenz("Der Bote begreift.", "Der Bote"), "Der Bote begreift.");
+  wahr("Mehrzahl erkannt: Zahlwort, und-Paar, Plural mit die", istPluralFigur("Zwei Frauen") && istPluralFigur("Anna und Ben") && istPluralFigur("Die Kollegen") && istPluralFigur("Die Kinder"));
+  wahr("Einzahl erkannt: Uhrmacherin, Bote, Nacht, M\xE4dchen", !istPluralFigur("Die Uhrmacherin") && !istPluralFigur("Der Bote") && !istPluralFigur("Die Nacht") && !istPluralFigur("Die M\xE4dchen"));
+  ist("Fragezeichen auch nach Doppelpunkt", fragezeichen("Sie begreifen: Wer ist Ben."), "Sie begreifen: Wer ist Ben?");
+  ist("Adverb nach Semikolon klein", kleinesPronomen("Niemand hat etwas geahnt; Angeblich."), "Niemand hat etwas geahnt; angeblich.");
+}
+{
+  ist("Nomen nach Satzadverb gro\xDF", nomenNachAdverb("Dann stille, pl\xF6tzlich, ganz \u2014 doch die Kurve knickt."), "Dann Stille, pl\xF6tzlich, ganz \u2014 doch die Kurve knickt.");
+  ist("Gegenprobe: Verb nach Adverb bleibt klein", nomenNachAdverb("Dann geht er, ohne Gru\xDF."), "Dann geht er, ohne Gru\xDF.");
+  ist("Akkusativ-Fragment \u2192 Nominativ", nominativFragment("Einen Stein mit Riss."), "Ein Stein mit Riss.");
+  ist("Den \u2192 Der", nominativFragment("Den Mantel ohne Kn\xF6pfe."), "Der Mantel ohne Kn\xF6pfe.");
+  ist("Gegenprobe: mit Verb bleibt", nominativFragment("Den Hund kennt jeder."), "Den Hund kennt jeder.");
+  ist("Gegenprobe: zweiter Artikel = Beziehung, bleibt", nominativFragment("Dem Kind ein Buch."), "Dem Kind ein Buch.");
+  ist("Zeitadverb nach Strich klein", kleinesPronomen("zur\xFCckweicht \u2014 Mittags, bew\xF6lkter Tag."), "zur\xFCckweicht \u2014 mittags, bew\xF6lkter Tag.");
+  wahr("Plural ohne Artikel erkannt: Passanten, nicht W\xE4chter", istPluralFigur("Passanten") && !istPluralFigur("W\xE4chter") && !istPluralFigur("Marek"));
+  ist("Passanten sehen", pluralKongruenz("Passanten sieht einen Gletscher.", "Passanten"), "Passanten sehen einen Gletscher.");
+}
+ist("Dann \u2014 dann, unvermittelt: \u2192 Dann, unvermittelt:", formelnGlaetten("Vier Kinder: Dann \u2014 dann, unvermittelt: Stille."), "Vier Kinder: Dann, unvermittelt: Stille.");
+ist("Strich nach dem Punkt wird zum Satzanfang", formelnGlaetten("Gut. \u2014 das war der Anfang."), "Gut. Das war der Anfang.");
+ist("Gegenprobe: Strich mitten im Satz bleibt", formelnGlaetten("Sie geht \u2014 das Licht bleibt."), "Sie geht \u2014 das Licht bleibt.");
+{
+  const u = (t) => praesensUmschreiben(t);
+  ist("starke Form aus der erweiterten Tabelle", u("Das Herz schlug mir bis zum Hals.").text, "Das Herz schl\xE4gt mir bis zum Hals.");
+  ist("Bindevokal-Pr\xE4teritum ist eindeutig", u("Er wartete, bis der Regen aufh\xF6rte.").text, "Er wartet, bis der Regen aufh\xF6rt.");
+  ist("\u2026 und belegt die Schwachen daneben", u("Das Herz schlug mir bis zum Hals, und ich atmete kaum.").text, "Das Herz schl\xE4gt mir bis zum Hals, und ich atme kaum.");
+  ist("Inversion: die Person steht hinter dem Verb", u("So blieb ich stehen.").text, "So bleibe ich stehen.");
+  ist("Nomen in der Satzmitte bleibt (Schloss, Griff)", u("Er sah einen Schl\xFCssel ohne Schloss.").text, "Er sieht einen Schl\xFCssel ohne Schloss.");
+  ist("Perfekt-Partizip bleibt (hat verloren)", u("ein Boot, das seine Treidler verloren hat").text, "ein Boot, das seine Treidler verloren hat");
+  ist("attributives Adjektiv bleibt (violette)", u("Sie \xF6ffnete die violette T\xFCr.").text, "Sie \xF6ffnet die violette T\xFCr.");
+  ist("Konjunktiv nach als bleibt", u("Die H\xE4user stehen zu nah, als wollten sie zubei\xDFen.").text, "Die H\xE4user stehen zu nah, als wollten sie zubei\xDFen.");
+  ist("mit Lexikon: kippten \u2192 kippen", u("Dann kippten sie meistens ger\xE4uschvoll um.").text, "Dann kippen sie meistens ger\xE4uschvoll um.");
+  wahr("Pr\xE4sens-Plural wird nicht zerst\xF6rt (halten)", u("Und die Sohlen halten noch bis zur Grenze.").text === "Und die Sohlen halten noch bis zur Grenze.");
+}
+ist("\u201E\u2014 dann;\u201C f\xE4llt", formelnGlaetten("Lange wartet ein Schwarm ohne Zentrum \u2014 dann; es geht um Kontrolle."), "Lange wartet ein Schwarm ohne Zentrum; es geht um Kontrolle.");
+ist("\u201Ean wie das\u201C \u2192 \u201Ean das\u201C", formelnGlaetten("Die T\xFCr erinnert sich an wie das Ende eines langen Sommers."), "Die T\xFCr erinnert sich an das Ende eines langen Sommers.");
+ist("Gegenprobe: \u201Eso wie das\u201C bleibt", formelnGlaetten("Es ist so wie das Ende eines Sommers."), "Es ist so wie das Ende eines Sommers.");
+ist("Fast nach Strich klein", kleinesPronomen("die es nicht mehr gibt \u2014 Fast."), "die es nicht mehr gibt \u2014 fast.");
+ist("Knapp nach Strich klein", kleinesPronomen("zu vollkommener Ruhe \u2014 Knapp eine Stunde sp\xE4ter ist Ruhe."), "zu vollkommener Ruhe \u2014 knapp eine Stunde sp\xE4ter ist Ruhe.");
+{
+  const qe = (0, import_fs.readFileSync)("src/generation/emphasis.ts", "utf8");
+  wahr("ein Was auf trennbare Partikel bekommt nur den Verb-Rahmen", /test\(A\)\s*\n\s*\? \[`\$\{kit\.P\} \$\{kit\.AleadVerb \|\| "will"\} \$\{A\} — noch immer\.`\]/.test(qe));
+}
+console.log(`Pr\xFCfstand Schliff \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {
   console.error(`
-\u274C Varianz: ${fails.length} Fehler:`);
+\u274C Schliff: ${fails.length} Fehler:`);
   fails.forEach((f) => console.error("  - " + f));
   proc.process?.exit(1);
 } else {
   console.log(`
-\u2705 Varianz: alle ${geprueft} Pr\xFCfungen bestanden.`);
+\u2705 Schliff: alle ${geprueft} Pr\xFCfungen bestanden.`);
 }

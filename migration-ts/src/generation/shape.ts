@@ -87,16 +87,21 @@ export function applyRhythm(text: string, rhythm: string): string {
 // verbundene Bögen. Grammatik-sichere Operationen (wie applyRhythm). Nur Prosa.
 const TENSION_CENTER: Record<string, number> = { top: 0.15, mid: 0.5, low: 0.85 };
 export interface TensionMaterial { motifs?: string[]; hooks?: string[]; }
-export function applyTension(text: string, peak?: string, material?: TensionMaterial): string {
-  if (!peak || peak === "off") return text;
-  const center = TENSION_CENTER[peak];
+/** Mit `kurve` (4.345.0, Spannungskurve) folgt die Intensität nicht EINEM
+ *  Peak, sondern der Kurve über die ganze Textlänge; der Peak für Fragmente,
+ *  Verdichtung und Bruch liegt dann am Maximum der Kurve. */
+export function applyTension(text: string, peak?: string, material?: TensionMaterial, kurve?: (p: number) => number): string {
+  if (!kurve && (!peak || peak === "off")) return text;
+  let center = kurve ? 0.5 : TENSION_CENTER[peak || ""] as number | undefined;
   if (center === undefined) return text;
+  if (kurve) { let best = 0; for (let k = 0; k <= 20; k++) { const v = kurve(k / 20); if (v > kurve(best)) best = k / 20; } center = best; }
   const s = splitSentences(text);
   if (s.length < 5) return text; // erst bei längeren Passagen spürbar
   const width = 0.26;
   const intensity = (i: number, n: number): number => {
     const pos = n <= 1 ? 0 : i / (n - 1);
-    const d = (pos - center) / width;
+    if (kurve) return kurve(pos);
+    const d = (pos - (center as number)) / width;
     return Math.exp(-0.5 * d * d); // 0..1
   };
   // 1) Anspannen nahe Peak: lange, komma-getrennte Sätze in Staccato brechen (rückwärts, indexstabil)

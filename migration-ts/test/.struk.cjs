@@ -1,5 +1,36 @@
 "use strict";
 
+// src/features/spannungskurve.ts
+var STUETZEN = 7;
+var KEY = "dm_spannungskurve_v1";
+var KURVEN_VORLAGEN = {
+  steigend: { name: "Steigend", werte: [0.15, 0.25, 0.35, 0.5, 0.65, 0.9, 0.3] },
+  spaet: { name: "Sp\xE4te Wende", werte: [0.2, 0.3, 0.25, 0.2, 0.3, 0.95, 0.35] },
+  doppelt: { name: "Doppelt", werte: [0.2, 0.5, 0.85, 0.35, 0.6, 0.95, 0.25] },
+  katastrophe: { name: "Katastrophe zuerst", werte: [0.95, 0.7, 0.45, 0.35, 0.3, 0.4, 0.25] },
+  flach: { name: "Flach", werte: [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3] },
+  offen: { name: "Offen", werte: [0.2, 0.3, 0.4, 0.5, 0.65, 0.8, 0.9] }
+};
+var klemm = (x) => Math.max(0, Math.min(1, Number.isFinite(x) ? x : 0.3));
+function ladeKurve() {
+  try {
+    const v = JSON.parse(localStorage.getItem(KEY) || "null");
+    const werte2 = Array.isArray(v?.werte) && v.werte.length === STUETZEN ? v.werte.map(klemm) : [...KURVEN_VORLAGEN["steigend"].werte];
+    return { an: !!v?.an, werte: werte2 };
+  } catch {
+    return { an: false, werte: [...KURVEN_VORLAGEN["steigend"].werte] };
+  }
+}
+function kurveWert(werte2, p) {
+  const n = werte2.length;
+  if (n === 0) return 0.3;
+  if (n === 1) return klemm(werte2[0]);
+  const x = klemm(p) * (n - 1);
+  const i = Math.min(n - 2, Math.floor(x));
+  const t = x - i;
+  return klemm(werte2[i] * (1 - t) + werte2[i + 1] * t);
+}
+
 // src/modes.data.ts
 var MODE_DATA = {
   "bureau": {
@@ -3840,7 +3871,7 @@ var schliesstKopf = (t) => ["hauptsatz", "nominalphrase", "fragment", "einwort"]
 var schwelle = (divergenz) => divergenz < 25 ? 0 : divergenz < 55 ? 1 : divergenz < 80 ? 2 : 3;
 
 // src/features/waechterStatistik.ts
-var KEY = "dm_waechter_statistik_v1";
+var KEY2 = "dm_waechter_statistik_v1";
 var BEISPIELE_JE = 5;
 var cache = null;
 var schreibTimer = null;
@@ -3850,7 +3881,7 @@ function leer() {
 function ladeStatistik() {
   if (cache) return cache;
   try {
-    const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(KEY);
+    const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(KEY2);
     const v = raw ? JSON.parse(raw) : null;
     cache = v && v.zaehler && v.beispiele ? v : leer();
   } catch {
@@ -3863,7 +3894,7 @@ function speichern() {
   schreibTimer = (typeof window !== "undefined" ? window.setTimeout : setTimeout)(() => {
     schreibTimer = null;
     try {
-      if (typeof localStorage !== "undefined" && cache) localStorage.setItem(KEY, JSON.stringify(cache));
+      if (typeof localStorage !== "undefined" && cache) localStorage.setItem(KEY2, JSON.stringify(cache));
     } catch {
     }
   }, 1e3);
@@ -4421,23 +4452,23 @@ var KNOB_SPANNE = {
   satzlaenge: { min: 0, max: 21, step: 3 },
   atomgroesse: { min: 0, max: 24, step: 2 }
 };
-var KEY2 = "dm_knobs_v1";
-var klemm = (v, s) => Math.max(s.min, Math.min(s.max, v));
+var KEY3 = "dm_knobs_v1";
+var klemm2 = (v, s) => Math.max(s.min, Math.min(s.max, v));
 function loadKnobs() {
   try {
-    const r = localStorage.getItem(KEY2);
+    const r = localStorage.getItem(KEY3);
     if (!r) return { ...KNOB_VORGABE };
     const p = JSON.parse(r);
     return {
-      fuegeteil: klemm(Number(p.fuegeteil) || KNOB_VORGABE.fuegeteil, KNOB_SPANNE.fuegeteil),
-      w4max: klemm(Number(p.w4max) || KNOB_VORGABE.w4max, KNOB_SPANNE.w4max),
-      abstand: klemm(Number(p.abstand) || KNOB_VORGABE.abstand, KNOB_SPANNE.abstand),
-      bogen: klemm(p.bogen === void 0 ? KNOB_VORGABE.bogen : Number(p.bogen), KNOB_SPANNE.bogen),
-      ton: klemm(p.ton === void 0 ? KNOB_VORGABE.ton : Number(p.ton), KNOB_SPANNE.ton),
-      korpus: klemm(p.korpus === void 0 ? KNOB_VORGABE.korpus : Number(p.korpus), KNOB_SPANNE.korpus),
-      phrase: klemm(p.phrase === void 0 ? KNOB_VORGABE.phrase : Number(p.phrase), KNOB_SPANNE.phrase),
-      satzlaenge: klemm(p.satzlaenge === void 0 ? KNOB_VORGABE.satzlaenge : Number(p.satzlaenge), KNOB_SPANNE.satzlaenge),
-      atomgroesse: klemm(p.atomgroesse === void 0 ? KNOB_VORGABE.atomgroesse : Number(p.atomgroesse), KNOB_SPANNE.atomgroesse)
+      fuegeteil: klemm2(Number(p.fuegeteil) || KNOB_VORGABE.fuegeteil, KNOB_SPANNE.fuegeteil),
+      w4max: klemm2(Number(p.w4max) || KNOB_VORGABE.w4max, KNOB_SPANNE.w4max),
+      abstand: klemm2(Number(p.abstand) || KNOB_VORGABE.abstand, KNOB_SPANNE.abstand),
+      bogen: klemm2(p.bogen === void 0 ? KNOB_VORGABE.bogen : Number(p.bogen), KNOB_SPANNE.bogen),
+      ton: klemm2(p.ton === void 0 ? KNOB_VORGABE.ton : Number(p.ton), KNOB_SPANNE.ton),
+      korpus: klemm2(p.korpus === void 0 ? KNOB_VORGABE.korpus : Number(p.korpus), KNOB_SPANNE.korpus),
+      phrase: klemm2(p.phrase === void 0 ? KNOB_VORGABE.phrase : Number(p.phrase), KNOB_SPANNE.phrase),
+      satzlaenge: klemm2(p.satzlaenge === void 0 ? KNOB_VORGABE.satzlaenge : Number(p.satzlaenge), KNOB_SPANNE.satzlaenge),
+      atomgroesse: klemm2(p.atomgroesse === void 0 ? KNOB_VORGABE.atomgroesse : Number(p.atomgroesse), KNOB_SPANNE.atomgroesse)
     };
   } catch {
     return { ...KNOB_VORGABE };
@@ -6352,15 +6383,24 @@ function applyRhythm(text, rhythm) {
   return s.join(" ");
 }
 var TENSION_CENTER = { top: 0.15, mid: 0.5, low: 0.85 };
-function applyTension(text, peak, material) {
-  if (!peak || peak === "off") return text;
-  const center = TENSION_CENTER[peak];
+function applyTension(text, peak, material, kurve) {
+  if (!kurve && (!peak || peak === "off")) return text;
+  let center = kurve ? 0.5 : TENSION_CENTER[peak || ""];
   if (center === void 0) return text;
+  if (kurve) {
+    let best = 0;
+    for (let k = 0; k <= 20; k++) {
+      const v = kurve(k / 20);
+      if (v > kurve(best)) best = k / 20;
+    }
+    center = best;
+  }
   const s = splitSentences(text);
   if (s.length < 5) return text;
   const width = 0.26;
   const intensity = (i, n) => {
     const pos = n <= 1 ? 0 : i / (n - 1);
+    if (kurve) return kurve(pos);
     const d = (pos - center) / width;
     return Math.exp(-0.5 * d * d);
   };
@@ -19797,7 +19837,8 @@ function buildStory(bank, input, model) {
   if (input.form === "prose" && input.emphasis) text = applyEmphasis(text, kit, input.emphasis);
   text = applyDisruptor(text, input.disruptor).text;
   text = applyRhythm(text, kit.rhythm);
-  if (input.form === "prose") text = applyTension(text, input.tension, { motifs: bank.motifs, hooks: bank.hooks });
+  const kurve = ladeKurve();
+  if (input.form === "prose") text = kurve.an ? applyTension(text, input.tension, { motifs: bank.motifs, hooks: bank.hooks }, (p) => kurveWert(kurve.werte, p)) : applyTension(text, input.tension, { motifs: bank.motifs, hooks: bank.hooks });
   text = paragraphize(text);
   const paras = text.split(/\n\n+/).map(clean).filter(Boolean);
   text = effStructure === "object" ? paras.join("\n\n") : applyPerspective(paras, kit.perspective, kit.P, pick(kit.mode.nouns)).join("\n\n");

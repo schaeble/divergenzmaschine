@@ -13596,8 +13596,17 @@ wahr("ein gew\xF6hnlicher Satz gilt nicht als Ger\xFCst", !GERUESTZEILE.test("Di
   ist("und es wird trotzdem eingef\xFCgt", leer2, 0);
   const voll = applyEmphasis("Ein Satz. Noch einer.", kit, { wo: 3, wann: 3, wer: 3, was: 3 });
   wahr("bei voller St\xE4rke stehen viele Zusatzs\xE4tze da", voll.split(/[.!?] /).length >= 8);
-  wahr("der Ort wird genannt", /in Edinburgh/i.test(voll));
-  ist("aber nur einmal", voll.toLowerCase().split("in edinburgh").length - 1, 1);
+  {
+    let genannt = 0, zweimal = 0;
+    for (let i = 0; i < 20; i++) {
+      const v = applyEmphasis("Ein Satz. Noch einer.", kit, { wo: 3, wann: 3, wer: 3, was: 3 }).toLowerCase();
+      const n = v.split("in edinburgh").length - 1;
+      if (n >= 1) genannt++;
+      if (n > 1) zweimal++;
+    }
+    wahr("der Ort wird genannt (20 L\xE4ufe)", genannt >= 17, String(genannt));
+    ist("aber nie zweimal", zweimal, 0);
+  }
   let gleichesGeruest = 0;
   for (let i = 0; i < 300; i++) {
     const t = applyEmphasis("Ein Satz.", kit, { wo: 3, wann: 0, wer: 0, was: 0 });

@@ -1,4 +1,5 @@
 // Generierung: volle Kit-Fidelity (buildBaseModules) + Struktur + V4.1-Pipeline.
+import { ladeKurve, kurveWert } from "../features/spannungskurve";
 import type { Bank, GenInput, StoryKit } from "../types";
 import { MODE_DATA } from "../modes.data";
 import { pick, pickSane, clean, chance } from "../text-utils";
@@ -222,7 +223,12 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
 
   text = applyDisruptor(text, input.disruptor).text;
   text = applyRhythm(text, kit.rhythm);
-  if (input.form === "prose") text = applyTension(text, input.tension, { motifs: bank.motifs, hooks: bank.hooks });
+  // Spannungskurve (4.345.0): Ist sie an, folgt der Rhythmus der Kurve über
+  // die ganze Textlänge; sonst dem Regler „Spannung" mit seinem einen Peak.
+  const kurve = ladeKurve();
+  if (input.form === "prose") text = kurve.an
+    ? applyTension(text, input.tension, { motifs: bank.motifs, hooks: bank.hooks }, (p) => kurveWert(kurve.werte, p))
+    : applyTension(text, input.tension, { motifs: bank.motifs, hooks: bank.hooks });
   text = paragraphize(text);
   const paras = text.split(/\n\n+/).map(clean).filter(Boolean);
   text = effStructure === "object"
