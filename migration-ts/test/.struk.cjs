@@ -8266,45 +8266,6 @@ function biasedAutoChoice(kind, archA, archB) {
   return weightedPick(mergeWeights(arch(archA).weights?.[kind], arch(archB).weights?.[kind]));
 }
 
-// src/generation/video.data.ts
-var VIDEO_RULES = [
-  "das Symbol erscheint dreimal",
-  "die Schwerkraft setzt eine Sekunde zu sp\xE4t ein",
-  "der Ton kommt vor der Bewegung",
-  "Schatten l\xF6sen sich von K\xF6rpern",
-  "Spiegel zeigen einen anderen Raum"
-];
-var VIDEO_CAM_EXTENDED = [
-  "static camera (35mm)",
-  "slow push\u2011in (50mm)",
-  "slow pull\u2011back (24mm)",
-  "handheld micro\u2011shake",
-  "top\u2011down drift",
-  "macro close\u2011up (100mm)",
-  "wide angle, low perspective (18mm)",
-  "Steadicam follow",
-  "Dutch angle (15\xB0)",
-  "rack focus von Vordergrund zu Hintergrund",
-  "crane shot abw\xE4rts",
-  "POV aus Sicht des Objekts"
-];
-var VIDEO_LIGHT = [
-  "cold blue light",
-  "neon flicker",
-  "sodium vapor glow",
-  "hard backlight silhouette",
-  "moonlit haze",
-  "overcast diffuse light"
-];
-var VIDEO_TEX = [
-  "fine fog",
-  "floating dust",
-  "snow drifting indoors",
-  "digital glitch shimmer",
-  "condensation on glass",
-  "ice crystals"
-];
-
 // src/presets.data.ts
 var BUILTIN_PRESETS = {
   "rimbaud": {
@@ -15996,112 +15957,103 @@ var fmtSec = (x) => {
   const v = Math.round(x * 10) / 10;
   return (v % 1 === 0 ? v.toFixed(0) : String(v)) + "s";
 };
-var pickSymbol = () => pick(["\u2297", "\u27C2", "\u27E1", "\u2301", "\u27DF", "\u27D0", "\u2736", "\u27C1"]);
 var stripTailPunct = (s) => clean(s).replace(/[.!?…]+$/, "");
-var FINIT = /^(ist|sind|war|waren|hat|haben|hatte|wird|werden|wurde|kann|koennen|können|muss|müssen|will|wollen|bleibt|bleiben|steht|stehen|geht|gehen|kommt|kommen|liegt|liegen|zeigt|zeigen|faellt|fällt|reicht|gilt|klingt|wirkt|scheint|fehlt|passt|stimmt)$/i;
-function verbAnsEnde(satz) {
-  const w = stripTailPunct(satz).split(/\s+/).filter(Boolean);
-  if (w.length < 3 || w.length > 9) return null;
-  const vi = w.findIndex((x) => FINIT.test(x));
-  if (vi < 1 || vi === w.length - 1) return null;
-  if (w.slice(vi + 1).some((x) => FINIT.test(x))) return null;
-  const verb = w[vi];
-  return [...w.slice(0, vi), ...w.slice(vi + 1), verb].join(" ");
-}
 function normalizePlace(W) {
   const w = clean(W);
   if (!w) return "an einem Ort";
   if (/^(im|am|in|auf|bei|unter|über|vor|hinter)\b/i.test(w)) return w;
   return "an einem " + w;
 }
-function bogenSaetze(d, kit) {
-  const s = (a) => Array.isArray(a) ? a.filter(Boolean) : [];
-  const P2 = kit.P;
-  const fest = [];
-  const einstieg = s(d.einstieg), mitte = s(d.mitte), hoehe = s(d.hoehepunkt), aend = s(d.veraenderungen);
-  if (einstieg.length) fest.push(`${cap(stripTailPunct(pick(einstieg)))}.`);
-  if (mitte.length) fest.push(`${cap(stripTailPunct(pick(mitte)))}.`);
-  if (hoehe.length) fest.push(`Und dann: ${stripTailPunct(pick(hoehe))}.`);
-  if (aend.length) fest.push(`Etwas kippt: ${stripTailPunct(pick(aend))}.`);
-  const frei = [];
-  for (const r of s(d.regeln)) frei.push(`Regel: ${ensurePunct(r)}`);
-  for (const z of s(d.zeitanomalien)) frei.push(ensurePunct(z));
-  const K_RAHMEN = [`${P2} wei\xDF, worum es geht:`, "Im Bild bleibt:", "Der Einsatz sichtbar:", "Alles zielt auf:"];
-  const A_RAHMEN = ["Dann, unvermittelt:", "Ohne Vorwarnung:", "Ein Schnitt, und:", "Und pl\xF6tzlich:"];
-  s(d.konflikte).forEach((k, i) => frei.push(`${K_RAHMEN[i % K_RAHMEN.length]} ${stripTailPunct(k)}.`));
-  s(d.ausloeser).forEach((a, i) => frei.push(`${A_RAHMEN[i % A_RAHMEN.length]} ${stripTailPunct(a)}.`));
-  return { fest, frei };
-}
-function buildVideoShots(kit, shotCount, lenTarget = 0) {
-  const sym = pickSymbol();
+var LICHT = [
+  "Kaltes Blau liegt auf allem",
+  "Ein Neonlicht flackert, ohne Rhythmus",
+  "Natriumlicht, gelb und schwer",
+  "Gegenlicht, die Figur nur als Rand",
+  "Mondlicht durch Dunst",
+  "Ein bew\xF6lkter Tag ohne Schatten",
+  "Staub steht im Licht",
+  "Feiner Nebel auf Knieh\xF6he",
+  "Schnee treibt durch den Raum",
+  "Kondenswasser l\xE4uft an einer Scheibe",
+  "Das Licht kommt von unten",
+  "Ein einziger Lichtstreifen teilt den Raum",
+  "Die Farben sind aus dem Bild gewaschen",
+  "Ein Bild, das langsam nachdunkelt",
+  "Glanz auf nassem Stein",
+  "Die Luft k\xF6rnig wie Film"
+];
+var SCHNITT = [
+  "Schnitt.",
+  "Harter Schnitt.",
+  "Die Kamera bleibt, das Bild geht.",
+  "Schwarz, einen Atemzug lang.",
+  "\xDCberblendung ins N\xE4chste.",
+  "Der Ton l\xE4uft weiter, das Bild nicht.",
+  "Schnitt auf das Detail.",
+  "Schnitt, ohne dass sich etwas \xE4ndert.",
+  "Das Bild rei\xDFt."
+];
+var KAMERA = [
+  "Statische Einstellung, 35 mm",
+  "Langsame Fahrt hinein, 50 mm",
+  "Langsame Fahrt zur\xFCck, 24 mm",
+  "Handkamera, leichtes Zittern",
+  "Von oben, driftend",
+  "Makro, 100 mm",
+  "Weitwinkel aus Bodenh\xF6he, 18 mm",
+  "Steadicam, folgend",
+  "Verkantet, 15 Grad",
+  "Sch\xE4rfe wandert von vorn nach hinten",
+  "Kran abw\xE4rts",
+  "Aus der Sicht des Gegenstands"
+];
+function buildVideoShots(kit, shotCount, lenTarget = 0, bank, tone = "neutral") {
   const place = normalizePlace(kit.W);
   const who = kit.P;
-  const objClean = stripTailPunct(pick([kit.hookDat, kit.propDat]));
   const bogen = loadDramaData();
+  const s = (a) => Array.isArray(a) ? a.filter(Boolean).map(stripTailPunct) : [];
+  const bilder = reihenfolge([...s(bank?.motifs), ...s(bogen?.mitte)]);
+  const bewegungen = reihenfolge([...s(bank?.hooks), ...s(bank?.turns), ...s(bogen?.veraenderungen)]);
+  const requisiten = reihenfolge([...s(bank?.props), ...s(bogen?.ausloeser)]);
+  const hindernisse = reihenfolge([...s(bank?.obstacles)]);
+  const ton = TONE_DATA[tone]?.flavor ? reihenfolge([...TONE_DATA[tone].flavor]) : [];
+  const licht = reihenfolge(LICHT);
+  const kamera = reihenfolge(KAMERA);
+  const benutzt = /* @__PURE__ */ new Set();
+  for (const x of [kit.prop, kit.propDat, kit.propAcc]) if (x) benutzt.add(stripTailPunct(x).toLowerCase().replace(/^(einen|einem|einer|eine|ein)\s/, "ein "));
+  const norm = (y) => y.toLowerCase().replace(/^(einen|einem|einer|eine|ein)\s/, "ein ");
+  const zieh = (liste, fallback) => {
+    const x = liste.find((y) => !benutzt.has(norm(y)));
+    if (!x) return fallback;
+    benutzt.add(norm(x));
+    return x;
+  };
+  const proShot = lenTarget > 0 ? lenTarget / shotCount : 30;
+  const stufe = proShot < 26 ? 1 : proShot < 40 ? 2 : proShot < 55 ? 3 : 4;
+  const nominativ = (x) => x.replace(/^einen\s/i, (m) => m[0] === "E" ? "Ein " : "ein ").replace(/^den\s/i, (m) => m[0] === "D" ? "Der " : "der ");
   const shots = [];
-  let nachschub = [];
-  let nachschubVorrat = [];
-  const bild = () => `${cap(pick(VIDEO_LIGHT))}. ${cap(pick(VIDEO_CAM_EXTENDED))}.`;
-  if (bogen) {
-    const { fest, frei } = bogenSaetze(bogen, kit);
-    const rest = reihenfolge(frei);
-    shots.push(`${cap(place)}: ${who} nahe ${objClean}. ${cap(pick(VIDEO_TEX))}. ${bild()}`);
-    const folge = [];
-    for (let i = 0; i < fest.length; i++) {
-      folge.push(fest[i]);
-      if (rest.length && folge.length + 1 < shotCount) folge.push(rest.shift());
-    }
-    while (folge.length < shotCount - 1 && rest.length) folge.push(rest.shift());
-    for (const satz of folge.slice(0, shotCount - 2)) shots.push(`${satz} ${bild()}`);
-    nachschub = rest;
-    nachschubVorrat = frei;
-    shots.push(`${ensurePunct(kit.ending)} Nur: ${pick(["der Riss", "das Fenster", `das Symbol ${sym}`, "die Karte"])} bleibt sichtbar. ${cap(pick(VIDEO_TEX))}.`);
-  } else {
-    const hindernis = verbAnsEnde(kit.obstacle);
-    shots.push(`${cap(place)} steht ${who} nahe ${objClean}. ${cap(pick(VIDEO_LIGHT))}. ${cap(pick(VIDEO_CAM_EXTENDED))}. ${cap(pick(VIDEO_TEX))}.`);
-    shots.push(`Regel: ${cap(pick(VIDEO_RULES))}. ${sym}. ${hindernis ? `${who} bemerkt, dass ${hindernis}` : `${who} bemerkt: ${stripTailPunct(kit.obstacle)}`}. ${cap(pick(VIDEO_CAM_EXTENDED))}.`);
-    shots.push(`${ensurePunct(kit.turn)} Der Raum reagiert: ${sym} pulsiert, und ${pick(["die W\xE4nde atmen", "die Perspektive kippt", "der Boden verschiebt sich", "die Luft wird k\xF6rnig"])}. ${cap(pick(VIDEO_LIGHT))}.`);
-    shots.push(kit.AisClause || kit.AisInfinitiveLed ? `${who} erkennt: ${stripTailPunct(kit.Apure)} \u2014 aber ${pick(["die Zeit springt", "die Regeln drehen sich um", "die Schatten l\xF6sen sich"])}. ${cap(pick(VIDEO_CAM_EXTENDED))}.` : `${who} ${kit.AleadVerb || "versucht"} ${stripTailPunct(kit.Apure)}, aber ${pick(["die Zeit springt", "die Regeln drehen sich um", "die Schatten l\xF6sen sich"])}. ${cap(pick(VIDEO_CAM_EXTENDED))}.`);
-    shots.push(`${ensurePunct(kit.ending)} Nur: ${pick(["der Riss", "das Fenster", `das Symbol ${sym}`, "die Karte"])} bleibt sichtbar. ${cap(pick(VIDEO_TEX))}.`);
+  const kameras = [];
+  for (let i = 0; i < shotCount; i++) {
+    const erster = i === 0, letzter = i === shotCount - 1, mitte = i === Math.floor(shotCount / 2);
+    const teile = [];
+    if (erster) teile.push(`${cap(place)}: ${who} nahe ${stripTailPunct(kit.propDat || kit.prop)}.`);
+    const bild = zieh(bilder, stripTailPunct(kit.motif));
+    if (!erster || stufe >= 2) teile.push(`${cap(bild)}.`);
+    if (erster && bogen && s(bogen.einstieg).length) teile.push(`${cap(zieh(s(bogen.einstieg), kit.hook))}.`);
+    else if (mitte && bogen && s(bogen.hoehepunkt).length) teile.push(`${cap(zieh(s(bogen.hoehepunkt), kit.turn))}.`);
+    else if (letzter) teile.push(`${cap(stripTailPunct(kit.ending))}.`);
+    else teile.push(`${cap(zieh(bewegungen, kit.hook))}.`);
+    if (stufe >= 1 && !letzter) teile.push(`Nah: ${nominativ(zieh(requisiten, stripTailPunct(kit.prop)))}.`);
+    if (stufe >= 2 && !erster && !letzter && hindernisse.length && i >= Math.floor(shotCount / 3)) teile.push(`${cap(zieh(hindernisse, kit.obstacle))}.`);
+    if (stufe >= 2) teile.push(`${zieh(licht, "Ein bew\xF6lkter Tag ohne Schatten")}.`);
+    if (stufe >= 3 && ton.length) teile.push(ensurePunct(zieh(ton, "")).trim());
+    if (stufe >= 4) teile.push(`${cap(zieh(bilder, stripTailPunct(kit.motif)))}.`);
+    if (letzter) teile.push(`Nur ${pick(["der Riss", "das Fenster", "die Karte", "das Licht"])} bleibt sichtbar.`);
+    if (!letzter) teile.push(zieh(SCHNITT, "Schnitt."));
+    shots.push(teile.filter(Boolean).join(" "));
+    kameras.push(zieh(kamera, "Statische Einstellung, 35 mm"));
   }
-  while (shots.length < shotCount) {
-    shots.splice(
-      Math.max(1, shots.length - 1),
-      0,
-      `${who} passiert an ${pick(["einer Kante", "einem Spiegel", "einer T\xFCr ohne Griff"])} vorbei. ${bild()}`
-    );
-  }
-  const fertig = shots.slice(0, shotCount);
-  if (lenTarget > 0) {
-    const zaehl = () => fertig.join(" ").split(/\s+/).filter(Boolean).length;
-    const gesamt = new Set(fertig.flatMap((x) => x.split(". ").map((y) => y.trim() + ".")));
-    for (let runde = 0; runde < 20 && nachschubVorrat.length && zaehl() < lenTarget * 0.92; runde++) {
-      if (!nachschub.length) nachschub = reihenfolge(nachschubVorrat);
-      let gesetztInRunde = 0;
-      for (let i = 0; i < fertig.length && nachschub.length && zaehl() < lenTarget * 0.92; i++) {
-        const satz = nachschub.shift();
-        if (gesamt.has(satz)) continue;
-        gesamt.add(satz);
-        fertig[i] += " " + satz;
-        gesetztInRunde++;
-      }
-      if (!gesetztInRunde && !nachschub.length) break;
-    }
-    for (let runde = 0; runde < 12 && zaehl() < lenTarget * 0.92; runde++) {
-      for (let i = 0; i < fertig.length && zaehl() < lenTarget * 0.92; i++) {
-        const frei2 = (liste) => {
-          const schon = fertig[i].toLowerCase();
-          const offen = liste.filter((x) => !schon.includes(x.toLowerCase()));
-          return offen.length ? pick(offen) : null;
-        };
-        const tex = frei2(VIDEO_TEX);
-        const licht = frei2(VIDEO_LIGHT);
-        if (!tex && !licht) break;
-        fertig[i] += (tex ? " " + cap(tex) + "." : "") + (licht ? " " + cap(licht) + "." : "");
-      }
-    }
-  }
-  return fertig;
+  return { shots, kamera: kameras };
 }
 function reihenfolge(a) {
   const x = a.slice();
@@ -16111,15 +16063,15 @@ function reihenfolge(a) {
   }
   return x;
 }
-function buildVideoSequenceText(kit, shotCount = 5, totalSec = 15, lenTarget = 0) {
+function buildVideoSequenceText(kit, shotCount = 5, totalSec = 15, lenTarget = 0, bank, tone = "neutral") {
   const n = clampShotCount(shotCount);
   const total = clampTotalSec(totalSec);
   const dur = total / n;
-  const shots = buildVideoShots(kit, n, lenTarget);
+  const { shots, kamera } = buildVideoShots(kit, n, lenTarget, bank, tone);
   const titel = [loadActiveBankLabel(), kit.mode.label].filter(Boolean).join(" \xB7 ");
   const out = [`SEQUENZ \u2014 ${titel}`.trim(), `WER: ${kit.PRaw || kit.P}`, `WO: ${kit.W}`, `WANN: ${kit.T}`, `WAS: ${kit.A}`, `GESAMTL\xC4NGE: ${fmtSec(total)} \u2022 ${fmtSec(dur)} pro Shot`, ""];
   for (let i = 0; i < shots.length; i++) {
-    out.push(`Shot ${i + 1} (${fmtSec(dur)})`, `DE: ${shots[i]}`, "");
+    out.push(`Shot ${i + 1} (${fmtSec(dur)})`, `DE: ${shots[i]}`, `KAMERA: ${kamera[i]}.`, "");
   }
   return out.join("\n");
 }
@@ -19776,7 +19728,7 @@ function buildStory(bank, input, model) {
   if (input.form === "meldung") return kleinerArtikel(buildMeldung(input, input.ressort ?? "auto").text);
   if (input.form === "script") return postProcessText(makeDialogueScene(kit, lenTarget), input);
   if (input.form === "video") {
-    return postProcessText(buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? 15, lenTarget), input);
+    return postProcessText(buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? 15, lenTarget, bank, input.tone), input);
   }
   if (input.form === "poem") {
     const rk = input.structure === "rekombination" ? buildRekombination(bank, input, model) : "";

@@ -1,34 +1,17 @@
 // Video/Multi-Shot: Shot-Beschreibungen + Sequenz-Text.
-import type { StoryKit } from "../types";
+import type { StoryKit, Bank } from "../types";
+import { TONE_DATA } from "./tone.data";
 import { pick, clean, ensurePunct } from "../text-utils";
 import { cap } from "./beats";
-import { VIDEO_RULES, VIDEO_CAM_EXTENDED, VIDEO_LIGHT, VIDEO_TEX } from "./video.data";
-import { loadDramaData, type DramaData } from "./dramaturgie";
+
+import { loadDramaData } from "./dramaturgie";
 import { loadActiveBankLabel } from "../wordbank";
 
 export const clampShotCount = (n: number): number => Math.max(3, Math.min(10, Number.isFinite(n) ? n : 5));
 export const clampTotalSec = (n: number): number => Math.max(3, Math.min(600, Number.isFinite(n) ? n : 15));
 const fmtSec = (x: number): string => { if (!isFinite(x)) return "0s"; const v = Math.round(x * 10) / 10; return (v % 1 === 0 ? v.toFixed(0) : String(v)) + "s"; };
-const pickSymbol = (): string => pick(["⊗", "⟂", "⟡", "⌁", "⟟", "⟐", "✶", "⟁"]);
 const stripTailPunct = (s: string): string => clean(s).replace(/[.!?…]+$/, "");
 
-// Finite Verbformen, die im Nebensatz ans Ende gehoeren. Bewusst eine kurze,
-// geschlossene Liste: Lieber die Fuegung vermeiden als sie falsch bauen.
-const FINIT = /^(ist|sind|war|waren|hat|haben|hatte|wird|werden|wurde|kann|koennen|können|muss|müssen|will|wollen|bleibt|bleiben|steht|stehen|geht|gehen|kommt|kommen|liegt|liegen|zeigt|zeigen|faellt|fällt|reicht|gilt|klingt|wirkt|scheint|fehlt|passt|stimmt)$/i;
-
-/** Bringt einen Hauptsatz in die Nebensatzstellung: "die Frist ist vorbei"
- *  -> "die Frist vorbei ist". Gibt null zurueck, wenn die Form unklar ist -
- *  dann baut der Aufrufer lieber einen Doppelpunkt als einen falschen dass-Satz.
- *  Vorher stand im Text "Tim bemerkt, dass die Zustaendigkeit ist unklar". */
-function verbAnsEnde(satz: string): string | null {
-  const w = stripTailPunct(satz).split(/\s+/).filter(Boolean);
-  if (w.length < 3 || w.length > 9) return null;
-  const vi = w.findIndex((x) => FINIT.test(x));
-  if (vi < 1 || vi === w.length - 1) return null;        // schon am Ende oder nicht gefunden
-  if (w.slice(vi + 1).some((x) => FINIT.test(x))) return null;   // zwei finite Verben: zu unsicher
-  const verb = w[vi]!;
-  return [...w.slice(0, vi), ...w.slice(vi + 1), verb].join(" ");
-}
 function normalizePlace(W: string): string {
   const w = clean(W);
   if (!w) return "an einem Ort";
@@ -36,129 +19,105 @@ function normalizePlace(W: string): string {
   return "an einem " + w;
 }
 
-/**
- * F.4: Die Bildsaetze kommen aus dem Erzaehlbogen des Presets.
- *
- * Vorher waren es fuenf feste Schablonen - dieselbe Reihenfolge in jedem Stoff,
- * und der Inhalt beschraenkt auf Requisit, Hindernis, Wendung und Schluss. Der
- * Erzaehlbogen beschreibt Phasen, und eine Sequenz besteht aus Phasen: Das passt
- * ohne Umweg zusammen, und es sind rund zwanzig Eintraege je Preset statt vier.
- *
- * Die Phasenfolge bleibt dramaturgisch (Einstieg, Mitte, Hoehepunkt, Wendung,
- * Schluss) - sie soll ja tragen. Was sich aendert, ist der Inhalt jeder Phase.
- */
-function bogenSaetze(d: DramaData, kit: StoryKit): { fest: string[]; frei: string[] } {
-  const s = (a: string[] | undefined): string[] => (Array.isArray(a) ? a.filter(Boolean) : []);
-  const P = kit.P;
-  const fest: string[] = [];
-  const einstieg = s(d.einstieg), mitte = s(d.mitte), hoehe = s(d.hoehepunkt), aend = s(d.veraenderungen);
-  if (einstieg.length) fest.push(`${cap(stripTailPunct(pick(einstieg)))}.`);
-  if (mitte.length) fest.push(`${cap(stripTailPunct(pick(mitte)))}.`);
-  if (hoehe.length) fest.push(`Und dann: ${stripTailPunct(pick(hoehe))}.`);
-  if (aend.length) fest.push(`Etwas kippt: ${stripTailPunct(pick(aend))}.`);
-  // Frei einsetzbare Zwischenbilder - Reihenfolge egal, sie fuellen auf.
-  const frei: string[] = [];
-  for (const r of s(d.regeln)) frei.push(`Regel: ${ensurePunct(r)}`);
-  for (const z of s(d.zeitanomalien)) frei.push(ensurePunct(z));
-  // Rahmen durchwechseln: Mit einem festen Rahmen stand "Dann, unvermittelt:"
-  // drei Mal in derselben Sequenz - das klingt nach Schablone, obwohl der Inhalt
-  // jedes Mal ein anderer ist.
-  const K_RAHMEN = [`${P} weiß, worum es geht:`, "Im Bild bleibt:", "Der Einsatz sichtbar:", "Alles zielt auf:"];
-  const A_RAHMEN = ["Dann, unvermittelt:", "Ohne Vorwarnung:", "Ein Schnitt, und:", "Und plötzlich:"];
-  s(d.konflikte).forEach((k, i) => frei.push(`${K_RAHMEN[i % K_RAHMEN.length]} ${stripTailPunct(k)}.`));
-  s(d.ausloeser).forEach((a, i) => frei.push(`${A_RAHMEN[i % A_RAHMEN.length]} ${stripTailPunct(a)}.`));
-  return { fest, frei };
-}
+// ── Shot als Bildszene (Umbau 4.343.0) ─────────────────────────────────────
+// Gemeldet: Multi-Shot produziert zu schwache Sequenzen — zu kurz, wenig
+// ausdrucksstark, zu wenig bildhaft. Vorher war ein Shot ein Bogen-Satz plus
+// zwei englische Kameraangaben („cold blue light. slow push-in (50mm).") —
+// eine Liste, kein Bild.
+//
+// Jetzt hat jeder Shot fünf Sichtplätze, in fester Ordnung, jeder aus dem
+// Stoff des Presets:
+//   BILD      eine Nominalphrase — das, was man sieht (Bilder der Wortbank,
+//             Mitte des Bogens).
+//   BEWEGUNG  ein Hauptsatz mit der Figur — das, was geschieht (Haken,
+//             Wende, Veränderung; an den Gelenken der Bogen: Einstieg im
+//             ersten Shot, Höhepunkt in der Mitte, Schluss im letzten).
+//   NAH       eine Requisite als Detail — „Nah: eine Uhr ohne Zeiger."
+//   LICHT     Licht und Luft auf Deutsch, aus dem Ton gefärbt.
+//   SCHNITT   der Übergang zum nächsten Shot — nur zwischen Shots.
+// Der Längenregler bestimmt, wie viele Plätze je Shot gefüllt werden (drei bis
+// alle fünf, dazu Ton-Sätze), nicht, wie viele Kameraangaben nachgelegt werden.
+// Die Kameraangabe steht als eigene Zeile unter dem Bild („KAMERA: …"), damit
+// die Anweisung vom Bild getrennt bleibt.
+const LICHT: string[] = [
+  "Kaltes Blau liegt auf allem", "Ein Neonlicht flackert, ohne Rhythmus", "Natriumlicht, gelb und schwer", "Gegenlicht, die Figur nur als Rand",
+  "Mondlicht durch Dunst", "Ein bewölkter Tag ohne Schatten", "Staub steht im Licht", "Feiner Nebel auf Kniehöhe", "Schnee treibt durch den Raum",
+  "Kondenswasser läuft an einer Scheibe", "Das Licht kommt von unten", "Ein einziger Lichtstreifen teilt den Raum", "Die Farben sind aus dem Bild gewaschen",
+  "Ein Bild, das langsam nachdunkelt", "Glanz auf nassem Stein", "Die Luft körnig wie Film",
+];
+const SCHNITT: string[] = [
+  "Schnitt.", "Harter Schnitt.", "Die Kamera bleibt, das Bild geht.", "Schwarz, einen Atemzug lang.", "Überblendung ins Nächste.",
+  "Der Ton läuft weiter, das Bild nicht.", "Schnitt auf das Detail.", "Schnitt, ohne dass sich etwas ändert.", "Das Bild reißt.",
+];
+const KAMERA: string[] = [
+  "Statische Einstellung, 35 mm", "Langsame Fahrt hinein, 50 mm", "Langsame Fahrt zurück, 24 mm", "Handkamera, leichtes Zittern", "Von oben, driftend",
+  "Makro, 100 mm", "Weitwinkel aus Bodenhöhe, 18 mm", "Steadicam, folgend", "Verkantet, 15 Grad", "Schärfe wandert von vorn nach hinten",
+  "Kran abwärts", "Aus der Sicht des Gegenstands",
+];
 
-function buildVideoShots(kit: StoryKit, shotCount: number, lenTarget = 0): string[] {
-  const sym = pickSymbol();
+function buildVideoShots(kit: StoryKit, shotCount: number, lenTarget = 0, bank?: Bank, tone = "neutral"): { shots: string[]; kamera: string[] } {
   const place = normalizePlace(kit.W);
   const who = kit.P;
-  const objClean = stripTailPunct(pick([kit.hookDat, kit.propDat]));
   const bogen = loadDramaData();
+  const s = (a: string[] | undefined): string[] => (Array.isArray(a) ? a.filter(Boolean).map(stripTailPunct) : []);
+  // Vorräte je Sichtplatz — aus Bank und Bogen, gemischt, ohne Wiederholung.
+  const bilder = reihenfolge([...s(bank?.motifs), ...s(bogen?.mitte)]);
+  const bewegungen = reihenfolge([...s(bank?.hooks), ...s(bank?.turns), ...s(bogen?.veraenderungen)]);
+  const requisiten = reihenfolge([...s(bank?.props), ...s(bogen?.ausloeser)]);
+  const hindernisse = reihenfolge([...s(bank?.obstacles)]);
+  const ton = TONE_DATA[tone]?.flavor ? reihenfolge([...TONE_DATA[tone]!.flavor]) : [];
+  const licht = reihenfolge(LICHT);
+  const kamera = reihenfolge(KAMERA);
+  const benutzt = new Set<string>();
+  // Die Requisite des ersten Bildes („nahe einer Lampe") zählt als benutzt —
+  // sonst stand sie gleich darauf noch einmal als „Nah: eine Lampe".
+  for (const x of [kit.prop, kit.propDat, kit.propAcc]) if (x) benutzt.add(stripTailPunct(x).toLowerCase().replace(/^(einen|einem|einer|eine|ein)\s/, "ein "));
+  const norm = (y: string): string => y.toLowerCase().replace(/^(einen|einem|einer|eine|ein)\s/, "ein ");
+  const zieh = (liste: string[], fallback: string): string => {
+    const x = liste.find((y) => !benutzt.has(norm(y)));
+    if (!x) return fallback;
+    benutzt.add(norm(x));
+    return x;
+  };
+  // Wie viele Plätze je Shot? Der Längenregler entscheidet: bei 110 Wörtern
+  // Ziel drei Plätze (Bild, Bewegung, Nah), bei 200 alle fünf, ab 260 dazu
+  // ein Ton-Satz und ein zweites Bild.
+  const proShot = lenTarget > 0 ? lenTarget / shotCount : 30;
+  const stufe = proShot < 26 ? 1 : proShot < 40 ? 2 : proShot < 55 ? 3 : 4;
+  // „Nah:" verlangt den Nominativ — Requisiten stehen in der Bank oft im
+  // Akkusativ („einen Schlüssel"), weil die Rahmen sie so brauchen.
+  const nominativ = (x: string): string => x.replace(/^einen\s/i, (m) => m[0] === "E" ? "Ein " : "ein ").replace(/^den\s/i, (m) => m[0] === "D" ? "Der " : "der ");
+
   const shots: string[] = [];
-  let nachschub: string[] = [];
-  let nachschubVorrat: string[] = [];
-
-  const bild = (): string => `${cap(pick(VIDEO_LIGHT))}. ${cap(pick(VIDEO_CAM_EXTENDED))}.`;
-
-  if (bogen) {
-    const { fest, frei } = bogenSaetze(bogen, kit);
-    const rest = reihenfolge(frei);
-    // Erster Shot verankert Ort und Figur - ohne das weiss niemand, wo man ist.
-    shots.push(`${cap(place)}: ${who} nahe ${objClean}. ${cap(pick(VIDEO_TEX))}. ${bild()}`);
-    const folge: string[] = [];
-    for (let i = 0; i < fest.length; i++) {
-      folge.push(fest[i]!);
-      if (rest.length && folge.length + 1 < shotCount) folge.push(rest.shift()!);
-    }
-    while (folge.length < shotCount - 1 && rest.length) folge.push(rest.shift()!);
-    for (const satz of folge.slice(0, shotCount - 2)) shots.push(`${satz} ${bild()}`);
-    nachschub = rest; nachschubVorrat = frei;
-    shots.push(`${ensurePunct(kit.ending)} Nur: ${pick(["der Riss", "das Fenster", `das Symbol ${sym}`, "die Karte"])} bleibt sichtbar. ${cap(pick(VIDEO_TEX))}.`);
-  } else {
-    // Rueckfall ohne Erzaehlbogen: die alten Schablonen.
-    const hindernis = verbAnsEnde(kit.obstacle);
-    shots.push(`${cap(place)} steht ${who} nahe ${objClean}. ${cap(pick(VIDEO_LIGHT))}. ${cap(pick(VIDEO_CAM_EXTENDED))}. ${cap(pick(VIDEO_TEX))}.`);
-    shots.push(`Regel: ${cap(pick(VIDEO_RULES))}. ${sym}. ${hindernis
-      ? `${who} bemerkt, dass ${hindernis}`
-      : `${who} bemerkt: ${stripTailPunct(kit.obstacle)}`}. ${cap(pick(VIDEO_CAM_EXTENDED))}.`);
-    shots.push(`${ensurePunct(kit.turn)} Der Raum reagiert: ${sym} pulsiert, und ${pick(["die Wände atmen", "die Perspektive kippt", "der Boden verschiebt sich", "die Luft wird körnig"])}. ${cap(pick(VIDEO_LIGHT))}.`);
-    shots.push((kit.AisClause || kit.AisInfinitiveLed)
-      ? `${who} erkennt: ${stripTailPunct(kit.Apure)} — aber ${pick(["die Zeit springt", "die Regeln drehen sich um", "die Schatten lösen sich"])}. ${cap(pick(VIDEO_CAM_EXTENDED))}.`
-      : `${who} ${kit.AleadVerb || "versucht"} ${stripTailPunct(kit.Apure)}, aber ${pick(["die Zeit springt", "die Regeln drehen sich um", "die Schatten lösen sich"])}. ${cap(pick(VIDEO_CAM_EXTENDED))}.`);
-    shots.push(`${ensurePunct(kit.ending)} Nur: ${pick(["der Riss", "das Fenster", `das Symbol ${sym}`, "die Karte"])} bleibt sichtbar. ${cap(pick(VIDEO_TEX))}.`);
+  const kameras: string[] = [];
+  for (let i = 0; i < shotCount; i++) {
+    const erster = i === 0, letzter = i === shotCount - 1, mitte = i === Math.floor(shotCount / 2);
+    const teile: string[] = [];
+    // BILD
+    if (erster) teile.push(`${cap(place)}: ${who} nahe ${stripTailPunct(kit.propDat || kit.prop)}.`);
+    const bild = zieh(bilder, stripTailPunct(kit.motif));
+    if (!erster || stufe >= 2) teile.push(`${cap(bild)}.`);
+    // BEWEGUNG — an den Gelenken der Bogen
+    if (erster && bogen && s(bogen.einstieg).length) teile.push(`${cap(zieh(s(bogen.einstieg), kit.hook))}.`);
+    else if (mitte && bogen && s(bogen.hoehepunkt).length) teile.push(`${cap(zieh(s(bogen.hoehepunkt), kit.turn))}.`);
+    else if (letzter) teile.push(`${cap(stripTailPunct(kit.ending))}.`);
+    else teile.push(`${cap(zieh(bewegungen, kit.hook))}.`);
+    // NAH
+    if (stufe >= 1 && !letzter) teile.push(`Nah: ${nominativ(zieh(requisiten, stripTailPunct(kit.prop)))}.`);
+    // HINDERNIS im vorletzten Drittel
+    if (stufe >= 2 && !erster && !letzter && hindernisse.length && i >= Math.floor(shotCount / 3)) teile.push(`${cap(zieh(hindernisse, kit.obstacle))}.`);
+    // LICHT
+    if (stufe >= 2) teile.push(`${zieh(licht, "Ein bewölkter Tag ohne Schatten")}.`);
+    // TON und zweites Bild bei hoher Länge
+    if (stufe >= 3 && ton.length) teile.push(ensurePunct(zieh(ton, "")).trim());
+    if (stufe >= 4) teile.push(`${cap(zieh(bilder, stripTailPunct(kit.motif)))}.`);
+    if (letzter) teile.push(`Nur ${pick(["der Riss", "das Fenster", "die Karte", "das Licht"])} bleibt sichtbar.`);
+    // SCHNITT
+    if (!letzter) teile.push(zieh(SCHNITT, "Schnitt."));
+    shots.push(teile.filter(Boolean).join(" "));
+    kameras.push(zieh(kamera, "Statische Einstellung, 35 mm"));
   }
-
-  while (shots.length < shotCount) {
-    shots.splice(Math.max(1, shots.length - 1), 0,
-      `${who} passiert an ${pick(["einer Kante", "einem Spiegel", "einer Tür ohne Griff"])} vorbei. ${bild()}`);
-  }
-
-  const fertig = shots.slice(0, shotCount);
-  if (lenTarget > 0) {
-    // Nicht rechnen, sondern nachlegen bis die Marke steht: Eine Formel aus
-    // Shot-Zahl und Zieltext verfehlte sie deutlich (bei Ziel 400 kamen 207
-    // Woerter heraus), weil die Grundbeschreibungen unterschiedlich lang sind.
-    const zaehl = (): number => fertig.join(" ").split(/\s+/).filter(Boolean).length;
-    const gesamt = new Set<string>(fertig.flatMap((x) => x.split(". ").map((y) => y.trim() + ".")));
-    // Zuerst weiteres Bogen-Material verteilen. Nur Licht- und Texturangaben
-    // nachzulegen ergab bei Ziel 200 zehn davon je Shot - das liest sich wie eine
-    // Liste und nicht wie eine Anweisung, und das Preset kommt darin nicht vor.
-    for (let runde = 0; runde < 20 && nachschubVorrat.length && zaehl() < lenTarget * 0.92; runde++) {
-      // Vorrat aufgebraucht? Neu mischen. Bei Ziel 400 war er nach einer Runde
-      // leer, danach fuellten nur noch Bildangaben auf - der Anteil des Stoffs
-      // fiel auf ein Sechstel und die Ziellaenge wurde trotzdem verfehlt.
-      if (!nachschub.length) nachschub = reihenfolge(nachschubVorrat);
-      let gesetztInRunde = 0;
-      for (let i = 0; i < fertig.length && nachschub.length && zaehl() < lenTarget * 0.92; i++) {
-        const satz = nachschub.shift()!;
-        // Ueber die GANZE Sequenz pruefen, nicht nur im selben Shot: "Ein Schnitt,
-        // und: ein Stempel auf dem falschen Blatt" stand sonst in Shot 3 und 4.
-        if (gesamt.has(satz)) continue;
-        gesamt.add(satz); fertig[i] += " " + satz; gesetztInRunde++;
-      }
-      if (!gesetztInRunde && !nachschub.length) break;
-    }
-    for (let runde = 0; runde < 12 && zaehl() < lenTarget * 0.92; runde++) {
-      for (let i = 0; i < fertig.length && zaehl() < lenTarget * 0.92; i++) {
-        // Keine Bildangabe zweimal im selben Shot - "Floating dust. ... Floating
-        // dust." liest sich wie ein Fehler, nicht wie eine Anweisung.
-        const frei2 = (liste: string[]): string | null => {
-          // Gross-/Kleinschreibung ignorieren: Eingesetzt wird mit cap(), in der
-          // Liste steht die Kleinform - der Vergleich lief sonst immer ins Leere.
-          const schon = fertig[i]!.toLowerCase();
-          const offen = liste.filter((x) => !schon.includes(x.toLowerCase()));
-          return offen.length ? pick(offen) : null;
-        };
-        const tex = frei2(VIDEO_TEX as unknown as string[]);
-        const licht = frei2(VIDEO_LIGHT as unknown as string[]);
-        if (!tex && !licht) break;
-        fertig[i] += (tex ? " " + cap(tex) + "." : "") + (licht ? " " + cap(licht) + "." : "");
-      }
-    }
-  }
-  return fertig;
+  return { shots, kamera: kameras };
 }
 
 /** Zufaellige Reihenfolge ohne die Vorlage zu veraendern. */
@@ -168,19 +127,19 @@ function reihenfolge<T>(a: T[]): T[] {
   return x;
 }
 
-export function buildVideoSequenceText(kit: StoryKit, shotCount = 5, totalSec = 15, lenTarget = 0): string {
+export function buildVideoSequenceText(kit: StoryKit, shotCount = 5, totalSec = 15, lenTarget = 0, bank?: Bank, tone = "neutral"): string {
   const n = clampShotCount(shotCount);
   const total = clampTotalSec(totalSec);
   const dur = total / n;
   // F.2: Die Textmenge je Shot folgt dem Laengenregler. Die Shot-ZAHL bleibt am
   // eigenen Regler - sie ist eine Angabe fuer den Schnitt, keine Textlaenge.
-  const shots = buildVideoShots(kit, n, lenTarget);
+  const { shots, kamera } = buildVideoShots(kit, n, lenTarget, bank, tone);
   // Kopfzeile: zuerst das Preset, dann der Modus. Vorher stand dort NUR der
   // Modus - und der ist eine Einstellung, kein Titel: Wer ihn fest eingestellt
   // hat, las in jeder Sequenz dieselbe Zeile ("Intime Koerperwahrnehmung"), ohne
   // zu erfahren, aus welchem Stoff sie gebaut ist.
   const titel = [loadActiveBankLabel(), kit.mode.label].filter(Boolean).join(" · ");
   const out = [`SEQUENZ — ${titel}`.trim(), `WER: ${kit.PRaw || kit.P}`, `WO: ${kit.W}`, `WANN: ${kit.T}`, `WAS: ${kit.A}`, `GESAMTLÄNGE: ${fmtSec(total)} • ${fmtSec(dur)} pro Shot`, ""];
-  for (let i = 0; i < shots.length; i++) { out.push(`Shot ${i + 1} (${fmtSec(dur)})`, `DE: ${shots[i]}`, ""); }
+  for (let i = 0; i < shots.length; i++) { out.push(`Shot ${i + 1} (${fmtSec(dur)})`, `DE: ${shots[i]}`, `KAMERA: ${kamera[i]}.`, ""); }
   return out.join("\n");
 }

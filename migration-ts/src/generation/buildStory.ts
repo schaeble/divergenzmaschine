@@ -167,7 +167,7 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   if (input.form === "meldung") return kleinerArtikel(buildMeldung(input, (input.ressort as Parameters<typeof buildMeldung>[1]) ?? "auto").text);
   if (input.form === "script") return postProcessText(makeDialogueScene(kit, lenTarget), input);
   if (input.form === "video") {
-    return postProcessText(buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? 15, lenTarget), input);
+    return postProcessText(buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? 15, lenTarget, bank, input.tone), input);
   }
   if (input.form === "poem") {
     // Rekombination gilt auch fuers Prosagedicht: Der Zweig lag bisher hinter dieser
