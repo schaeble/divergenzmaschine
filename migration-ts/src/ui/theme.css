@@ -1155,3 +1155,10 @@ button.ek-probe:hover .ek-blaettern{opacity:1;color:var(--acc2)}
 .hyg-zeile button{padding:0 7px;font-size:12px;line-height:1.4}
 .hyg-gruppe{margin:4px 0}
 .hyg-gruppe summary{cursor:pointer;color:var(--muted)}
+/* Schaltplan, Stufe 1: klickbare Knoten und das Sprung-Ziel. */
+.sp-springt{cursor:pointer}
+.sp-springt:hover rect{stroke-width:2.5;filter:brightness(1.15)}
+.sp-springt:focus{outline:none}
+.sp-springt:focus rect{stroke-width:2.5}
+.sprung-ziel{outline:2px solid var(--acc2);outline-offset:3px;border-radius:8px;transition:outline-color .4s;animation:sprungPuls 2.2s ease-out}
+@keyframes sprungPuls{0%{box-shadow:0 0 0 0 rgba(0,120,200,.45)}100%{box-shadow:0 0 0 14px rgba(0,120,200,0)}}

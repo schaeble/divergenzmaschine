@@ -259,7 +259,7 @@ export function mountDiagnose(root: HTMLElement): void {
 // tat, was die Atomisierung zerlegte — und Stichproben dessen, was der Wächter
 // DURCHLÄSST. Dort steht das nächste Muster, bevor ein Blatt es zeigt.
 function mountWaechterStatistik(): HTMLElement {
-  const box = el("div", {});
+  const box = el("div", { id: "waechter-statistik", class: "diag-block" });
   const zeichnen = (): void => {
     box.innerHTML = "";
     const st = ladeStatistik();

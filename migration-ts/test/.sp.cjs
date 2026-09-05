@@ -15960,6 +15960,47 @@ var PRESET_LABELS = {
 };
 
 // src/features/schaltplan.ts
+function sprungZiel(id, u) {
+  if (id.startsWith("k-")) return { reiter: "Studio", element: id };
+  const T = {
+    korpus: { reiter: "Korpus" },
+    waechter: { reiter: "Diagnose", element: "waechter-statistik" },
+    sammler: { reiter: "Sammler" },
+    bilder: { reiter: "Bildwelt" },
+    themen: { reiter: "Sammler" },
+    // Erzählerbank: abgeklemmt → der Regler im Studio; leer → der Reiter.
+    erzaehler: u && u.bogenQuelle === "preset" && u.erzaehlerArchiv > 0 ? { reiter: "Studio", element: "f-bogen" } : { reiter: "Erz\xE4hlerbank" },
+    welt: { reiter: "Welt" },
+    live: { reiter: "Wortbank" },
+    ideen: { reiter: "Ideen" },
+    omni: { reiter: "Studio", element: "f-who" },
+    gewicht: { reiter: "Studio", element: "f-umwelt" },
+    preset: { reiter: "Studio", element: "f-preset" },
+    ton: { reiter: "Studio", element: "f-tone" },
+    struktur: { reiter: "Studio", element: "f-structure" },
+    drama: { reiter: "Studio", element: "f-bogen" },
+    modus: { reiter: "Studio", element: "f-mode" },
+    markov: { reiter: "Studio", element: "f-markov" },
+    disruptor: { reiter: "Studio", element: "f-disruptor" },
+    varianz: { reiter: "Studio", element: "f-varianz" },
+    instab: { reiter: "Studio", element: "f-instab" },
+    archa: { reiter: "Studio", element: "f-archa" },
+    archb: { reiter: "Studio", element: "f-archb" },
+    cast: { reiter: "Studio", element: "f-cast" },
+    umwelt: { reiter: "Studio", element: "f-umwelt" },
+    persp: { reiter: "Studio", element: "f-persp" },
+    rhythm: { reiter: "Studio", element: "f-rhythm" },
+    spannung: { reiter: "Studio", element: "f-tension" },
+    form: { reiter: "Studio", element: "f-form" },
+    ressort: { reiter: "Studio", element: "f-ressort" },
+    laenge: { reiter: "Studio", element: "f-len" },
+    w4: { reiter: "Studio", element: "f-where" },
+    neuheit: { reiter: "Studio", element: "f-novelty" },
+    ueberraschung: { reiter: "Studio", element: "f-surprise" },
+    schliff: { reiter: "Diagnose", element: "waechter-statistik" }
+  };
+  return T[id];
+}
 var QUELLE_ZU_KNOTEN = {
   "Welt": "welt",
   "Wiki": "sammler",
@@ -16033,7 +16074,7 @@ function baueAnlage(stand, u) {
   const r = stand.regler || {};
   const g = (id) => u.gesperrt.has(id);
   const knoten2 = (id, band2, label, wert, zustand, hinweis = "", schlossId = "") => {
-    K.push({ id, band: band2, label, wert, zustand, gesperrt: schlossId ? g(schlossId) : false, hinweis });
+    K.push({ id, band: band2, label, wert, zustand, gesperrt: schlossId ? g(schlossId) : false, hinweis, ziel: sprungZiel(id, u) });
     if (zustand === "leer") befunde.push(`${label}: ${hinweis}`);
   };
   const kante = (von, nach) => {
@@ -16119,7 +16160,8 @@ function baueAnlage(stand, u) {
     wert: `${gefuellt} von 4 gef\xFCllt`,
     zustand: gefuellt ? "an" : "leer",
     gesperrt: false,
-    hinweis: (gefuellt ? "" : "alle vier Felder sind leer \u2014 der Kontext tr\xE4gt nichts bei. ") + (w4Zu ? `${w4Zu} von 4 Feldern gesperrt` : "")
+    hinweis: (gefuellt ? "" : "alle vier Felder sind leer \u2014 der Kontext tr\xE4gt nichts bei. ") + (w4Zu ? `${w4Zu} von 4 Feldern gesperrt` : ""),
+    ziel: sprungZiel("w4", u)
   });
   if (!gefuellt) befunde.push("Vier W: alle vier Felder sind leer");
   const gew = (r["gewicht"] || "0/0/0/0").split("/");
@@ -27518,7 +27560,7 @@ function mountStudio(root) {
     const name = structure.value === "bogen" ? "Rekombination mit Bogen" : "Dramaturgie";
     if (brauchtBogen && !(form.value === "prose" && (hasDramaData() || erzaehlerBogenDa))) {
       rekHint.style.display = "";
-      rekHint.textContent = form.value !== "prose" ? `Hinweis: \u201E${name}\u201C wirkt nur bei Prosa \u2014 bei \u201E${form.options[form.selectedIndex]?.text || form.value}\u201C bleibt die Struktur ohne Wirkung.` : `Hinweis: \u201E${name}\u201C braucht einen Erz\xE4hlbogen. Das aktive Preset hat keinen \u2014 ` + (structure.value === "bogen" ? "die Rekombination baut dann in der linearen Phasenfolge. Unter \u201EBogen\u201C im Werkzeugkasten einen Platz der Erz\xE4hlerbank w\xE4hlen." : "die Maschine baut \xFCber die Schablonen, die Struktur bleibt ohne Wirkung. In der Wortbank l\xE4sst sich ein Preset auf 2.0 heben.");
+      rekHint.textContent = form.value !== "prose" ? `Hinweis: \u201E${name}\u201C wirkt nur bei Prosa \u2014 bei \u201E${form.options[form.selectedIndex]?.text || form.value}\u201C bleibt die Struktur ohne Wirkung.` : `Hinweis: \u201E${name}\u201C braucht einen Erz\xE4hlbogen. Das aktive Preset hat keinen \u2014 ` + (structure.value === "bogen" ? "die Rekombination baut dann in der linearen Phasenfolge. Unter \u201EBogen\u201C im Werkzeugkasten eine Geschichte aus dem Archiv der Erz\xE4hlerbank w\xE4hlen." : "die Maschine baut \xFCber die Schablonen, die Struktur bleibt ohne Wirkung. In der Wortbank l\xE4sst sich ein Preset auf 2.0 heben.");
       return;
     }
     rekHint.style.display = "none";
@@ -29388,11 +29430,25 @@ function renderSchaltplan(anlage) {
   for (const k of anlage.knoten) {
     const p = platz[k.id];
     if (!p) continue;
-    const g = e("g", { class: "sp-chip sp-" + k.zustand });
-    if (k.hinweis) {
+    const g = e("g", { class: "sp-chip sp-" + k.zustand + (k.ziel ? " sp-springt" : "") });
+    if (k.hinweis || k.ziel) {
       const t = e("title", {});
-      t.textContent = k.hinweis;
+      t.textContent = (k.hinweis ? k.hinweis + " \u2014 " : "") + (k.ziel ? `Klick: springt zu ${k.ziel.reiter}${k.ziel.element ? ", " + k.label : ""}` : "");
       g.append(t);
+    }
+    if (k.ziel) {
+      g.setAttribute("role", "button");
+      g.setAttribute("tabindex", "0");
+      const springe = () => {
+        document.dispatchEvent(new CustomEvent("dm-springe", { detail: k.ziel }));
+      };
+      g.addEventListener("click", springe);
+      g.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" || ev.key === " ") {
+          ev.preventDefault();
+          springe();
+        }
+      });
     }
     g.append(e("rect", { x: p.x, y: p.y, width: p.w, height: p.h, rx: 8, stroke: FARBE[k.zustand] }));
     const zeichen = e("text", { x: p.x + 10, y: p.y + 18, class: "sp-zeichen", fill: FARBE[k.zustand] });
@@ -30451,7 +30507,7 @@ function mountDiagnose(root) {
   renderNutzung();
 }
 function mountWaechterStatistik() {
-  const box = el("div", {});
+  const box = el("div", { id: "waechter-statistik", class: "diag-block" });
   const zeichnen = () => {
     box.innerHTML = "";
     const st = ladeStatistik();
@@ -31432,6 +31488,23 @@ var knoten = (a, id) => a.knoten.find((k) => k.id === id);
   ist("mit Z\xE4hlung: an", kn(voll, "waechter").zustand, "an");
   wahr("der Wert nennt Anteil, Umschreibungen, Zerlegungen", /12 von 100 verworfen \(12 %\) · 30 umgeschrieben · 7 zerlegt/.test(kn(voll, "waechter").wert));
   wahr("der Hinweis nennt die h\xE4ufigste Regel", /häufigste Regel: Wächter 4/.test(kn(voll, "waechter").hinweis));
+}
+{
+  const a = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ erzaehlerArchiv: 3 }));
+  const kn = (id) => a.knoten.find((k) => k.id === id);
+  ist("Struktur springt zum Regler im Studio", JSON.stringify(kn("struktur").ziel), JSON.stringify({ reiter: "Studio", element: "f-structure" }));
+  ist("Stellschraube springt zu ihrem Feld", JSON.stringify(kn("k-atomgroesse").ziel), JSON.stringify({ reiter: "Studio", element: "k-atomgroesse" }));
+  ist("Korpus springt in seinen Reiter", kn("korpus").ziel.reiter, "Korpus");
+  ist("W\xE4chter springt zur Statistik", kn("waechter").ziel.element, "waechter-statistik");
+  ist("Erz\xE4hlerbank abgeklemmt (Archiv voll, Quelle preset) \u2192 Regler Bogen", kn("erzaehler").ziel.element, "f-bogen");
+  const b = baueAnlage(STAND({}), UMGEBUNG({ erzaehlerArchiv: 0 }));
+  ist("Erz\xE4hlerbank leer \u2192 der Reiter", b.knoten.find((k) => k.id === "erzaehler").ziel.reiter, "Erz\xE4hlerbank");
+  wahr("fast jeder Knoten hat ein Ziel", a.knoten.filter((k) => !k.ziel).length <= 2, a.knoten.filter((k) => !k.ziel).map((k) => k.id).join(","));
+  const qv = (0, import_fs.readFileSync)("src/ui/schaltplanView.ts", "utf8");
+  wahr("der Knoten ist klickbar und l\xF6st dm-springe aus", /new CustomEvent\("dm-springe", \{ detail: k\.ziel \}\)/.test(qv) && /role", "button"/.test(qv));
+  const qa = (0, import_fs.readFileSync)("src/ui/app.ts", "utf8");
+  wahr("die App \xF6ffnet den Reiter, klappt details auf und hebt hervor", /addEventListener\("dm-springe"/.test(qa) && /instanceof HTMLDetailsElement\) p\.open = true/.test(qa) && /classList\.add\("sprung-ziel"\)/.test(qa));
+  wahr("der Sprung verstellt nichts (kein value =, kein dispatch change im Sprung)", !/dm-springe[\s\S]{0,1600}?\.value = /.test(qa));
 }
 console.log(`Pr\xFCfstand Schaltplan \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

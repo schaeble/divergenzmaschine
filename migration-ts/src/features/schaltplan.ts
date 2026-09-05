@@ -32,6 +32,10 @@ import { TONE_OPTS, FORM_OPTS, STRUCTURE_OPTS, MODE_OPTS, PERSP_OPTS, RHYTHM_OPT
  *  beschriftet. */
 export type Zustand = "an" | "leer" | "aus";
 
+/** Wohin ein Klick auf den Knoten springt (Stufe 1, 4.342.0): der Reiter und
+ *  — wenn es eines gibt — das Element (id), das ins Bild gerollt und kurz
+ *  hervorgehoben wird. Der Plan verstellt nichts; er zeigt nur den Weg. */
+export interface SprungZiel { reiter: string; element?: string }
 export interface Knoten {
   id: string;
   band: number;            // 0 Vorräte · 1 Material · 2 Steuerung · 3 Schliff · 4 Ausgabe
@@ -40,6 +44,31 @@ export interface Knoten {
   zustand: Zustand;
   gesperrt: boolean;
   hinweis: string;
+  ziel?: SprungZiel;
+}
+
+/** Ziele je Knoten. Stellschrauben (k-…) und Regler (f-…) liegen im Studio;
+ *  Vorräte in ihren Reitern; der Wächter in der Diagnose. Knoten ohne Eintrag
+ *  springen nicht. */
+export function sprungZiel(id: string, u?: Umgebung): SprungZiel | undefined {
+  if (id.startsWith("k-")) return { reiter: "Studio", element: id };
+  const T: Record<string, SprungZiel> = {
+    korpus: { reiter: "Korpus" }, waechter: { reiter: "Diagnose", element: "waechter-statistik" },
+    sammler: { reiter: "Sammler" }, bilder: { reiter: "Bildwelt" }, themen: { reiter: "Sammler" },
+    // Erzählerbank: abgeklemmt → der Regler im Studio; leer → der Reiter.
+    erzaehler: u && u.bogenQuelle === "preset" && u.erzaehlerArchiv > 0 ? { reiter: "Studio", element: "f-bogen" } : { reiter: "Erzählerbank" },
+    welt: { reiter: "Welt" }, live: { reiter: "Wortbank" }, ideen: { reiter: "Ideen" }, omni: { reiter: "Studio", element: "f-who" },
+    gewicht: { reiter: "Studio", element: "f-umwelt" }, preset: { reiter: "Studio", element: "f-preset" }, ton: { reiter: "Studio", element: "f-tone" },
+    struktur: { reiter: "Studio", element: "f-structure" }, drama: { reiter: "Studio", element: "f-bogen" },
+    modus: { reiter: "Studio", element: "f-mode" }, markov: { reiter: "Studio", element: "f-markov" }, disruptor: { reiter: "Studio", element: "f-disruptor" },
+    varianz: { reiter: "Studio", element: "f-varianz" }, instab: { reiter: "Studio", element: "f-instab" }, archa: { reiter: "Studio", element: "f-archa" }, archb: { reiter: "Studio", element: "f-archb" },
+    cast: { reiter: "Studio", element: "f-cast" }, umwelt: { reiter: "Studio", element: "f-umwelt" }, persp: { reiter: "Studio", element: "f-persp" }, rhythm: { reiter: "Studio", element: "f-rhythm" },
+    spannung: { reiter: "Studio", element: "f-tension" }, form: { reiter: "Studio", element: "f-form" }, ressort: { reiter: "Studio", element: "f-ressort" }, laenge: { reiter: "Studio", element: "f-len" },
+    w4: { reiter: "Studio", element: "f-where" },
+    neuheit: { reiter: "Studio", element: "f-novelty" }, ueberraschung: { reiter: "Studio", element: "f-surprise" },
+    schliff: { reiter: "Diagnose", element: "waechter-statistik" },
+  };
+  return T[id];
 }
 export interface Kante { von: string; nach: string; zustand: Zustand }
 export interface Anlage { knoten: Knoten[]; kanten: Kante[]; zeit: string; befunde: string[] }
@@ -160,7 +189,7 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
 
   const knoten = (id: string, band: number, label: string, wert: string,
                   zustand: Zustand, hinweis = "", schlossId = ""): void => {
-    K.push({ id, band, label, wert, zustand, gesperrt: schlossId ? g(schlossId) : false, hinweis });
+    K.push({ id, band, label, wert, zustand, gesperrt: schlossId ? g(schlossId) : false, hinweis, ziel: sprungZiel(id, u) });
     if (zustand === "leer") befunde.push(`${label}: ${hinweis}`);
   };
   const kante = (von: string, nach: string): void => {
@@ -254,6 +283,7 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
     zustand: gefuellt ? "an" : "leer", gesperrt: false,
     hinweis: (gefuellt ? "" : "alle vier Felder sind leer — der Kontext trägt nichts bei. ")
       + (w4Zu ? `${w4Zu} von 4 Feldern gesperrt` : ""),
+    ziel: sprungZiel("w4", u),
   });
   if (!gefuellt) befunde.push("Vier W: alle vier Felder sind leer");
   // Die Gewichtung der vier W ist ein eigener Regler mit eigenen Schlössern —

@@ -129,6 +129,30 @@ export function mountApp(root: HTMLElement): void {
 
   setzeKanon(TABS.map(([n]) => n));
 
+  // ── Springen (Schaltplan Stufe 1, 4.342.0) ──────────────────────────────
+  // Ein Knoten im Schaltplan weiß, wo er eingestellt wird. Das Ereignis
+  // „dm-springe" öffnet den Reiter, klappt zugeklappte <details> auf dem Weg
+  // zum Element auf, rollt es ins Bild und hebt es zwei Sekunden hervor.
+  // Verstellt wird nichts — der Klick ist nur der Weg vom Befund zur Stelle.
+  document.addEventListener("dm-springe", (ev) => {
+    const { reiter, element } = ((ev as CustomEvent).detail || {}) as { reiter?: string; element?: string };
+    if (!reiter) return;
+    const knopf = Array.from(bar.querySelectorAll("button")).find((b) => b.textContent === reiter);
+    if (knopf && offen !== reiter) knopf.click();
+    if (!element) { content.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+    window.setTimeout(() => {
+      const zielEl = document.getElementById(element);
+      if (!zielEl) return;
+      let p: HTMLElement | null = zielEl;
+      while (p) { if (p instanceof HTMLDetailsElement) p.open = true; p = p.parentElement; }
+      const traeger = (zielEl.closest(".field, .knobrow, .lenrow, .diag-block") as HTMLElement | null) || zielEl;
+      traeger.scrollIntoView({ behavior: "smooth", block: "center" });
+      traeger.classList.add("sprung-ziel");
+      window.setTimeout(() => traeger.classList.remove("sprung-ziel"), 2200);
+      if (zielEl instanceof HTMLSelectElement || zielEl instanceof HTMLInputElement) zielEl.focus({ preventScroll: true });
+    }, 60);
+  });
+
   const zeichneLeiste = (): void => {
     bar.innerHTML = "";
     const namen = sichtbar(TABS.map(([n]) => n), ladeStand());

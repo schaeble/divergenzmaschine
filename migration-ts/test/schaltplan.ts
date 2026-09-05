@@ -1033,6 +1033,25 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   wahr("der Hinweis nennt die häufigste Regel", /häufigste Regel: Wächter 4/.test(kn(voll, "waechter").hinweis));
 }
 
+// ── Springen (Stufe 1): jeder Knoten kennt sein Ziel ────────────────────────
+{
+  const a = baueAnlage(STAND({ structure: "dramaturgie" }), UMGEBUNG({ erzaehlerArchiv: 3 }));
+  const kn = (id: string) => a.knoten.find((k) => k.id === id)!;
+  ist("Struktur springt zum Regler im Studio", JSON.stringify(kn("struktur").ziel), JSON.stringify({ reiter: "Studio", element: "f-structure" }));
+  ist("Stellschraube springt zu ihrem Feld", JSON.stringify(kn("k-atomgroesse").ziel), JSON.stringify({ reiter: "Studio", element: "k-atomgroesse" }));
+  ist("Korpus springt in seinen Reiter", kn("korpus").ziel!.reiter, "Korpus");
+  ist("Wächter springt zur Statistik", kn("waechter").ziel!.element, "waechter-statistik");
+  ist("Erzählerbank abgeklemmt (Archiv voll, Quelle preset) → Regler Bogen", kn("erzaehler").ziel!.element, "f-bogen");
+  const b = baueAnlage(STAND({}), UMGEBUNG({ erzaehlerArchiv: 0 }));
+  ist("Erzählerbank leer → der Reiter", b.knoten.find((k) => k.id === "erzaehler")!.ziel!.reiter, "Erzählerbank");
+  wahr("fast jeder Knoten hat ein Ziel", a.knoten.filter((k) => !k.ziel).length <= 2, a.knoten.filter((k) => !k.ziel).map((k) => k.id).join(","));
+  const qv = readFileSync("src/ui/schaltplanView.ts", "utf8");
+  wahr("der Knoten ist klickbar und löst dm-springe aus", /new CustomEvent\("dm-springe", \{ detail: k\.ziel \}\)/.test(qv) && /role", "button"/.test(qv));
+  const qa = readFileSync("src/ui/app.ts", "utf8");
+  wahr("die App öffnet den Reiter, klappt details auf und hebt hervor", /addEventListener\("dm-springe"/.test(qa) && /instanceof HTMLDetailsElement\) p\.open = true/.test(qa) && /classList\.add\("sprung-ziel"\)/.test(qa));
+  wahr("der Sprung verstellt nichts (kein value =, kein dispatch change im Sprung)", !/dm-springe[\s\S]{0,1600}?\.value = /.test(qa));
+}
+
 console.log(`Prüfstand Schaltplan — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

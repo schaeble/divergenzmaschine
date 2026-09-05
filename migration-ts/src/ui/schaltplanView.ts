@@ -99,8 +99,21 @@ export function renderSchaltplan(anlage: Anlage): SVGElement {
   for (const k of anlage.knoten) {
     const p = platz[k.id];
     if (!p) continue;
-    const g = e("g", { class: "sp-chip sp-" + k.zustand });
-    if (k.hinweis) { const t = e("title", {}); t.textContent = k.hinweis; g.append(t); }
+    const g = e("g", { class: "sp-chip sp-" + k.zustand + (k.ziel ? " sp-springt" : "") });
+    // Springen (Stufe 1): Ein Knoten mit Ziel ist klickbar — er führt zum
+    // Reiter und rollt das Element ins Bild. Der Tooltip sagt es dazu.
+    if (k.hinweis || k.ziel) {
+      const t = e("title", {});
+      t.textContent = (k.hinweis ? k.hinweis + " — " : "") + (k.ziel ? `Klick: springt zu ${k.ziel.reiter}${k.ziel.element ? ", " + k.label : ""}` : "");
+      g.append(t);
+    }
+    if (k.ziel) {
+      g.setAttribute("role", "button");
+      g.setAttribute("tabindex", "0");
+      const springe = (): void => { document.dispatchEvent(new CustomEvent("dm-springe", { detail: k.ziel })); };
+      g.addEventListener("click", springe);
+      g.addEventListener("keydown", (ev) => { if ((ev as KeyboardEvent).key === "Enter" || (ev as KeyboardEvent).key === " ") { ev.preventDefault(); springe(); } });
+    }
     g.append(e("rect", { x: p.x, y: p.y, width: p.w, height: p.h, rx: 8, stroke: FARBE[k.zustand] }));
     // Ein Zeichen VOR der Beschriftung. Farbe allein trug den Unterschied nicht
     // (gemeldet: „die aktiven Rahmen sind schlecht unterscheidbar"), und ein
