@@ -1,6 +1,6 @@
 // Korpus-Tab: Trainingstext hinzufügen, Statistik, löschen, exportieren.
 import { el, button } from "./dom";
-import { loadPersistentCorpus, savePersistentCorpus, appendToPersistentCorpus, corpusHygiene } from "../corpus";
+import { loadPersistentCorpus, savePersistentCorpus, appendToPersistentCorpus, corpusHygiene, selbstreinigungAn, setzeSelbstreinigung, letzteReinigung } from "../corpus";
 import { loadSettings, saveSettings } from "../storage";
 
 export function mountKorpus(root: HTMLElement): void {
@@ -37,9 +37,22 @@ export function mountKorpus(root: HTMLElement): void {
     const h = corpusHygiene(ta.value);
     appendToPersistentCorpus(h.text);
     ta.value = "";
-    refresh();
+    refresh(); malRein();
     info.textContent = `Hinzugefügt: ${h.stats.sentencesAfter} Sätze übernommen, ${h.stats.removed} verworfen. · ${info.textContent}`;
   });
+
+  // Selbstreinigung: der Schalter „Korpus säubern" als Automatik.
+  const reinChk = el("input", { type: "checkbox", id: "korp-selbstreinigung" }) as HTMLInputElement;
+  reinChk.checked = selbstreinigungAn();
+  const reinStand = el("span", { class: "muted mini" });
+  const malRein = (): void => {
+    const l = letzteReinigung();
+    reinStand.textContent = !reinChk.checked ? " — aus: Duplikate bleiben, bis „Korpus säubern“ geklickt wird"
+      : l ? ` — zuletzt ${l.zeit}: ${l.removed} entfernt (${l.duplicates} Duplikate), ${l.sentencesAfter} Sätze` : " — läuft nach jedem Hinzufügen";
+  };
+  reinChk.addEventListener("change", () => { setzeSelbstreinigung(reinChk.checked); malRein(); });
+  const reinLbl = el("label", { class: "chk", title: "Nach jedem Hinzufügen (auch Selbstfütterung, Sammler, Abschrift, Bildwelt) läuft die Hygiene über den ganzen Korpus: doppelte Sätze und Bruchstücke gehen automatisch." }, reinChk, " Selbstreinigung: Duplikate und Bruchstücke automatisch entfernen", reinStand);
+  malRein();
 
   const cleanBtn = button("Korpus säubern");
   cleanBtn.addEventListener("click", () => {
@@ -109,7 +122,7 @@ export function mountKorpus(root: HTMLElement): void {
   });
 
   wrap.append(ta, el("div", { class: "btnrow" }, addBtn, showBtn, mgrBtn, cleanBtn, exportBtn, clearBtn), info,
-    el("div", { class: "btnrow" }, feedLbl), feedNote, view, mgr,
+    el("div", { class: "btnrow" }, feedLbl), feedNote, el("div", { class: "btnrow" }, reinLbl), view, mgr,
     el("p", { class: "muted" }, "Säubern segmentiert den Korpus satzweise und entfernt Fragmente, Kopfzeilen-Reste und doppelte Sätze — der Markov-Generator lernt sonst Fehler mit. Neu hinzugefügter Text wird bereits beim Hinzufügen gesäubert."),
     el("p", { class: "muted rightsnote" }, "⚖ Rechtlicher Hinweis: Dieser Text wird auf zwei Wegen weiterverwendet. Der Markov-Generator lernt daraus und kann Wortfolgen wiedergeben. Und der Regler „Korpus-Bausteine“ im Werkzeugkasten setzt ganze Sätze von hier — nicht Fragmente, sondern vollständige Sätze — unverändert in den erzeugten Text. Fügst du urheberrechtlich geschützte Literatur ein, auch Übersetzungen, die sind eigenständig geschützt, selbst wenn das Original gemeinfrei ist, dann steht sie wörtlich in deinen Texten. Für den privaten Gebrauch ist das unbedenklich; vor einer Veröffentlichung prüfe, woraus dein Korpus besteht. Unbedenklich sind eigene Texte, die Erzeugnisse dieser App und gemeinfreie Werke (Urheber vor mehr als 70 Jahren verstorben)."));
   root.append(wrap);

@@ -105,6 +105,23 @@ export function corpusHygiene(text: string): { text: string; stats: HygieneStats
   } };
 }
 
+// ── Selbstreinigung (4.344.0) ────────────────────────────────────────────────
+// Gewünscht: Doppelte Sätze und Bruchstücke sollen automatisch gehen — wie der
+// Schalter „Korpus säubern", nur ohne Klick. Ist die Selbstreinigung an
+// (Vorgabe: an), läuft nach jedem Hinzufügen dieselbe Hygiene über den ganzen
+// Korpus. Alle Zugänge sind erfasst, weil alle durch appendToPersistentCorpus
+// gehen: Korpus-Reiter, Selbstfütterung, Sammler, Abschrift, Bildsammler,
+// Bildwelt. Das Ergebnis der letzten Reinigung bleibt abrufbar (letzteReinigung).
+const SELBSTREINIGUNG_KEY = "dm_korpus_selbstreinigung_v1";
+export function selbstreinigungAn(): boolean {
+  try { const v = localStorage.getItem(SELBSTREINIGUNG_KEY); return v === null ? true : v === "1"; } catch { return true; }
+}
+export function setzeSelbstreinigung(an: boolean): void {
+  try { localStorage.setItem(SELBSTREINIGUNG_KEY, an ? "1" : "0"); } catch { /* voll */ }
+}
+let letzte: (HygieneStats & { zeit: string }) | null = null;
+export function letzteReinigung(): (HygieneStats & { zeit: string }) | null { return letzte; }
+
 export function appendToPersistentCorpus(textToAdd: string): void {
   const add = corpusSanitize(clean(textToAdd));
   if (!add) return;
@@ -116,6 +133,11 @@ export function appendToPersistentCorpus(textToAdd: string): void {
     corpus = corpus.slice(corpus.length - CORPUS_MAX);
     const cut = corpus.indexOf("\n\n");
     if (cut > 0 && cut < 5000) corpus = corpus.slice(cut + 2);
+  }
+  if (selbstreinigungAn()) {
+    const h = corpusHygiene(corpus);
+    if (h.stats.removed > 0 || h.stats.duplicates > 0) corpus = h.text;
+    letzte = { ...h.stats, zeit: new Date().toLocaleTimeString("de-DE") };
   }
   savePersistentCorpus(corpus);
 }
