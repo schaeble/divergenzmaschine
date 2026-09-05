@@ -61,9 +61,15 @@ ist("Klemmung", kurveWert([0, 1], 3), 1);
 // ── 4 · Verdrahtung ─────────────────────────────────────────────────────────
 {
   const qs = readFileSync("src/ui/studio.ts", "utf8");
-  wahr("der Graph hängt unter dem Einfachen Kopf", /koerper, skWrap\)/.test(qs));
-  wahr("Punkte sind ziehbar (pointerdown/move/up)", /c\.addEventListener\("pointerdown"/.test(qs) && /setPointerCapture/.test(qs));
-  wahr("loslassen speichert und erzeugt neu, wenn an", /c\.addEventListener\("pointerup", \(\) => \{ ziehe = false; skSichern\(\); if \(kurve\.an\) generate\(\); \}\)/.test(qs));
+  // 4.345.1: Der Graph ist vom Kopf ins Textfenster gewandert — eine Spur am
+  // linken Rand, nur im Editiermodus, dazu die Tönung im Text.
+  wahr("kein Graph mehr unter dem Einfachen Kopf", !/koerper, skWrap\)/.test(qs));
+  wahr("die Spur sitzt im Textfenster", /el\("div", \{ class: "outwrap" \}, mkGenArrow\("left"\), spur, out,/.test(qs));
+  wahr("nur im Editiermodus", /const an = feedsChk\.checked && kurve\.an;/.test(qs) && /skLeiste\.style\.display = feedsChk\.checked \? "" : "none"/.test(qs));
+  wahr("die Tönung folgt der Kurve", /out\.style\.backgroundImage = `linear-gradient\(to bottom, /.test(qs) && /0\.03 \+ v \* 0\.16/.test(qs));
+  wahr("Punkte sind ziehbar — waagerecht, rechts = mehr", /c\.addEventListener\("pointerdown"/.test(qs) && /setPointerCapture/.test(qs) && /\(x - 4\) \/ \(SPUR_B - 10\)/.test(qs));
+  wahr("loslassen speichert und erzeugt neu", /c\.addEventListener\("pointerup", \(\) => \{ ziehe = false; skSichern\(\); generate\(\); \}\)/.test(qs));
+  wahr("nach jeder Erzeugung wird die Spur neu gemalt", /renderTitel\(\); spurMalen\(\); \}/.test(qs));
   wahr("vor der Erzeugung: Schlagfolge aus der Kurve, Regler gesetzt", /setBogenOverride\(\{ \.\.\.basis, folge: schlagfolgeAusKurve\(kurve\.werte\) \}\)/.test(qs) && /tension\.value = soll/.test(qs));
   wahr("Vorlagen zur Wahl", /select\("f-sk-vorlage"/.test(qs));
   const qb = readFileSync("src/generation/buildStory.ts", "utf8");

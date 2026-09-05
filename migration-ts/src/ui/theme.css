@@ -1162,14 +1162,13 @@ button.ek-probe:hover .ek-blaettern{opacity:1;color:var(--acc2)}
 .sp-springt:focus rect{stroke-width:2.5}
 .sprung-ziel{outline:2px solid var(--acc2);outline-offset:3px;border-radius:8px;transition:outline-color .4s;animation:sprungPuls 2.2s ease-out}
 @keyframes sprungPuls{0%{box-shadow:0 0 0 0 rgba(0,120,200,.45)}100%{box-shadow:0 0 0 14px rgba(0,120,200,0)}}
-/* Spannungskurve unter dem Einfachen Kopf (4.345.0). */
-.sk-wrap{margin-top:10px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--panel, transparent)}
-.sk-leiste{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
-.sk-svg{width:100%;max-width:520px;height:auto;display:block;touch-action:none;user-select:none}
-.sk-gitter{stroke:var(--border2);stroke-width:1;stroke-dasharray:3 3}
-.sk-flaeche{fill:var(--acc2);opacity:.12}
+/* Spannungskurve als Spur am linken Rand des Textfensters, nur im Editiermodus (4.345.1). */
+.sk-spur{position:absolute;left:6px;top:0;height:100%;width:36px;touch-action:none;user-select:none;z-index:2}
+.out.sk-getoent{padding-left:48px}
+.outwrap.sk-an .genarrow.left{left:46px}
+.sk-flaeche{fill:var(--acc2);opacity:.14}
 .sk-linie{fill:none;stroke:var(--acc2);stroke-width:2.2;stroke-linejoin:round}
-.sk-punkt{fill:var(--panel, #fff);stroke:var(--acc2);stroke-width:2.2;cursor:ns-resize}
+.sk-punkt{fill:var(--panel, #fff);stroke:var(--acc2);stroke-width:2.2;cursor:ew-resize}
 .sk-punkt:hover,.sk-punkt:focus{stroke-width:3.2;outline:none}
-.sk-aus .sk-flaeche{opacity:.05}
-.sk-aus .sk-linie,.sk-aus .sk-punkt{stroke:var(--muted)}
+.sk-leiste{display:inline-flex;gap:8px;align-items:center;margin-left:8px}
+.out.sk-getoent{transition:background-image .3s}

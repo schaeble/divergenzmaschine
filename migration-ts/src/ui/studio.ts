@@ -863,7 +863,74 @@ export function mountStudio(root: HTMLElement): void {
     const v = Math.max(min, Math.min(max, (parseInt(lenSlider.value, 10) || 110) + (ev.key === "ArrowDown" ? schritt : -schritt)));
     lenSlider.value = String(v); lenVal.textContent = String(v); ev.preventDefault(); generate();
   });
-  const outWrap = el("div", { class: "outwrap" }, mkGenArrow("left"), out, mkGenArrow("right"), grip);
+  // ── Spannungskurve als Spur am linken Rand des Textfensters (4.345.1) ───
+  // Gewünscht: Statt des Graphen über dem Text die Kurve NEBEN dem Text — auf
+  // gleicher Höhe mit den Sätzen (0 % oben beim ersten, 100 % unten beim
+  // letzten), nur im Editiermodus. Jeder Punkt liegt neben der Stelle, die er
+  // steuert; ziehen nach rechts = mehr Spannung, loslassen erzeugt neu. Dazu
+  // die Tönung im Text: warmer Hintergrund, kräftiger, wo die Kurve hoch
+  // steht — man sieht die Kurve UND ihre Wirkung an derselben Stelle.
+  const NS = "http://www.w3.org/2000/svg";
+  const SPUR_B = 36;
+  const spur = document.createElementNS(NS, "svg");
+  spur.setAttribute("class", "sk-spur"); spur.setAttribute("aria-label", "Spannungskurve am Textrand, Punkte ziehbar (rechts = mehr Spannung)");
+  const spurFlaeche = document.createElementNS(NS, "path"); spurFlaeche.setAttribute("class", "sk-flaeche");
+  const spurLinie = document.createElementNS(NS, "path"); spurLinie.setAttribute("class", "sk-linie");
+  spur.append(spurFlaeche, spurLinie);
+  const spurPunkte: SVGCircleElement[] = [];
+  let kurve = ladeKurve();
+  const skChk = el("input", { type: "checkbox", id: "f-spannungskurve", title: "An: Die Kurve setzt Rhythmus je Position, Schlagfolge des Bogens und den Regler Spannung. Aus: Spur und Tönung verschwinden." }) as HTMLInputElement;
+  const skVorlage = select("f-sk-vorlage", Object.entries(KURVEN_VORLAGEN).map(([k, v]) => [k, v.name] as [string, string]), "steigend");
+  const skStand = el("span", { class: "muted mini" });
+  const spurMalen = (): void => {
+    const an = feedsChk.checked && kurve.an;
+    spur.style.display = an ? "" : "none";
+    out.classList.toggle("sk-getoent", an);
+    outWrap.classList.toggle("sk-an", an);
+    if (!an) { out.style.backgroundImage = ""; skStand.textContent = kurve.an ? "" : ""; return; }
+    const H = Math.max(120, out.offsetHeight || 300);
+    spur.setAttribute("viewBox", `0 0 ${SPUR_B} ${H}`); spur.setAttribute("height", String(H)); spur.setAttribute("width", String(SPUR_B));
+    const yVon = (i: number): number => 8 + (i / (STUETZEN - 1)) * (H - 16);
+    const xVon = (v: number): number => 4 + v * (SPUR_B - 10);
+    const pts = kurve.werte.map((v, i) => `${xVon(v).toFixed(1)},${yVon(i).toFixed(1)}`);
+    spurLinie.setAttribute("d", "M" + pts.join(" L"));
+    spurFlaeche.setAttribute("d", `M${xVon(0)},${yVon(0).toFixed(1)} L` + pts.join(" L") + ` L${xVon(0)},${yVon(STUETZEN - 1).toFixed(1)} Z`);
+    spurPunkte.forEach((c, i) => { c.setAttribute("cx", xVon(kurve.werte[i]!).toFixed(1)); c.setAttribute("cy", yVon(i).toFixed(1)); });
+    // Tönung: ein Verlauf von oben nach unten aus den sieben Werten.
+    const stops = kurve.werte.map((v, i) => `rgba(214,72,40,${(0.03 + v * 0.16).toFixed(3)}) ${Math.round((i / (STUETZEN - 1)) * 100)}%`);
+    out.style.backgroundImage = `linear-gradient(to bottom, ${stops.join(", ")})`;
+    const sp = kurveSpitzen(kurve.werte);
+    const endeHoch = kurve.werte[STUETZEN - 1]! >= 0.7;
+    const regler = reglerAusKurve(kurve.werte);
+    skStand.textContent = `setzt: Höhepunkt bei ${Math.round(sp.max * 100)} %` + (sp.zweite !== null ? `, zweite Wende bei ${Math.round(sp.zweite * 100)} %` : "")
+      + ` · Ende ${endeHoch ? "offen" : "geschlossen"} · Spannung ${regler === "off" ? "aus" : regler === "top" ? "oben" : regler === "mid" ? "Mitte" : "unten"}`;
+  };
+  const skSichern = (): void => { speichereKurve(kurve); spurMalen(); };
+  for (let i = 0; i < STUETZEN; i++) {
+    const c = document.createElementNS(NS, "circle") as SVGCircleElement;
+    c.setAttribute("r", "6"); c.setAttribute("class", "sk-punkt"); c.setAttribute("tabindex", "0");
+    c.setAttribute("aria-label", `Stützstelle ${i + 1} von ${STUETZEN} — rechts = mehr Spannung`);
+    let ziehe = false;
+    const setzeAusEvent = (ev: PointerEvent): void => {
+      const r = spur.getBoundingClientRect();
+      const x = (ev.clientX - r.left) / r.width * SPUR_B;
+      kurve.werte[i] = Math.max(0, Math.min(1, (x - 4) / (SPUR_B - 10)));
+      spurMalen();
+    };
+    c.addEventListener("pointerdown", (ev) => { ziehe = true; c.setPointerCapture(ev.pointerId); setzeAusEvent(ev); });
+    c.addEventListener("pointermove", (ev) => { if (ziehe) setzeAusEvent(ev); });
+    c.addEventListener("pointerup", () => { ziehe = false; skSichern(); generate(); });
+    c.addEventListener("keydown", (ev) => {
+      const k = (ev as KeyboardEvent).key;
+      if (k === "ArrowRight" || k === "ArrowLeft") { ev.preventDefault(); kurve.werte[i] = Math.max(0, Math.min(1, kurve.werte[i]! + (k === "ArrowRight" ? 0.05 : -0.05))); skSichern(); }
+    });
+    spurPunkte.push(c); spur.append(c);
+  }
+  skChk.checked = kurve.an;
+  skChk.addEventListener("change", () => { kurve.an = skChk.checked; skSichern(); generate(); });
+  skVorlage.addEventListener("change", () => { const v = KURVEN_VORLAGEN[skVorlage.value]; if (v) { kurve.werte = [...v.werte]; skSichern(); if (kurve.an) generate(); } });
+  const skLeiste = el("span", { class: "sk-leiste", style: "display:none" }, el("label", { class: "chk" }, skChk, " Spannungskurve"), skVorlage, skStand);
+  const outWrap = el("div", { class: "outwrap" }, mkGenArrow("left"), spur, out, mkGenArrow("right"), grip);
   // Pfeile mittig im SICHTBAREN Ausschnitt des Textfensters halten — unabhängig
   // von der Inhaltshöhe (kein Springen beim Generieren).
   const positionArrows = (): void => {
@@ -1005,7 +1072,7 @@ export function mountStudio(root: HTMLElement): void {
    *  Vorrats-Hinweis nachziehen. Beide hingen bisher allein an generate(), sodass
    *  nach Passagen-Austausch, Rueckgaengig, Variante oder einer Uebernahme aus dem
    *  Ranking die Balken noch den vorigen Text beschrieben. */
-  const nachTextwechsel = (): void => { renderStruktur(); updVorrat(); renderTitel(); };
+  const nachTextwechsel = (): void => { renderStruktur(); updVorrat(); renderTitel(); spurMalen(); };
 
   // ── Klick auf einen Balken der Textstruktur (A.2) ──────────────────────
   // Jeder Balken fuehrt zu dem Bedienelement, das ihn steuert - oder sagt, warum
@@ -1148,7 +1215,7 @@ export function mountStudio(root: HTMLElement): void {
       umweltLeg,
       el("span", { class: "muted" }, "· unmarkiert = Vorlagen · alles anklickbar")),
     el("div", { class: "feedsrow ansichtrow" },
-      ansicht(feedsChk, "Editieren"), ansicht(struktChk, "Struktur"), ansicht(planChk, "Bauplan"), undoBtn, umweltStatus));
+      ansicht(feedsChk, "Editieren"), ansicht(struktChk, "Struktur"), ansicht(planChk, "Bauplan"), undoBtn, umweltStatus, skLeiste));
   umweltLegZeigen();
 
   interface FMatch { s: number; e: number; cls: string; prio: number; }
@@ -1220,7 +1287,9 @@ export function mountStudio(root: HTMLElement): void {
     out.innerHTML = html;
   };
   const refreshFeeds = (): void => { if (feedsChk.checked) renderFeeds(); };
-  feedsChk.addEventListener("change", renderFeeds);
+  feedsChk.addEventListener("change", () => { renderFeeds(); skLeiste.style.display = feedsChk.checked ? "" : "none"; spurMalen(); });
+  skLeiste.style.display = feedsChk.checked ? "" : "none";
+  spurMalen();
 
   // ── Passagen-Austausch: farbigen Span anklicken -> Alternativen aus demselben Pool ──
   const feedPop = el("div", { class: "feedpop", style: "display:none" });
@@ -2378,77 +2447,8 @@ export function mountStudio(root: HTMLElement): void {
       el("div", { class: "ek-fussreihe" }, kopfLos,
         el("span", { class: "ek-hinweis" },
           "Alles Übrige würfelt die Maschine. Was sie gewürfelt hat, steht im Schaltplan unter Diagnose.")));
-  // ── Spannungskurve (4.345.0) — unter dem Einfachen Kopf ─────────────────
-  // Ein Graph, mit der Maus formbar: sieben Punkte über der Textlänge, jeder
-  // 0 (ruhig) bis 1 (angespannt). Im Hintergrund werden die Einsätze gesetzt:
-  // Rhythmus je Position, Schlagfolge des Bogens, Regler „Spannung". Aus ist
-  // die Kurve nur ein Bild. Die Zeile darunter sagt, was sie gerade setzt.
-  const skWrap = el("div", { class: "sk-wrap" });
-  const skChk = el("input", { type: "checkbox", id: "f-spannungskurve" }) as HTMLInputElement;
-  const skVorlage = select("f-sk-vorlage", Object.entries(KURVEN_VORLAGEN).map(([k, v]) => [k, v.name] as [string, string]), "steigend");
-  const skStand = el("div", { class: "muted mini", style: "margin-top:2px" });
-  const NS = "http://www.w3.org/2000/svg";
-  const W = 320, H = 96, PAD = 10;
-  const svg = document.createElementNS(NS, "svg");
-  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("class", "sk-svg"); svg.setAttribute("aria-label", "Spannungskurve, Punkte ziehbar");
-  const gitter = document.createElementNS(NS, "g");
-  for (const y of [0.25, 0.5, 0.75]) { const l = document.createElementNS(NS, "line"); l.setAttribute("x1", String(PAD)); l.setAttribute("x2", String(W - PAD)); l.setAttribute("y1", String(PAD + (1 - y) * (H - 2 * PAD))); l.setAttribute("y2", String(PAD + (1 - y) * (H - 2 * PAD))); l.setAttribute("class", "sk-gitter"); gitter.append(l); }
-  const flaeche = document.createElementNS(NS, "path"); flaeche.setAttribute("class", "sk-flaeche");
-  const linie = document.createElementNS(NS, "path"); linie.setAttribute("class", "sk-linie");
-  const punkte: SVGCircleElement[] = [];
-  svg.append(gitter, flaeche, linie);
-  let kurve = ladeKurve();
-  const xVon = (i: number): number => PAD + (i / (STUETZEN - 1)) * (W - 2 * PAD);
-  const yVon = (v: number): number => PAD + (1 - v) * (H - 2 * PAD);
-  const skMalen = (): void => {
-    const pts = kurve.werte.map((v, i) => `${xVon(i).toFixed(1)},${yVon(v).toFixed(1)}`);
-    linie.setAttribute("d", "M" + pts.join(" L"));
-    flaeche.setAttribute("d", `M${xVon(0).toFixed(1)},${yVon(0)} L` + pts.join(" L") + ` L${xVon(STUETZEN - 1).toFixed(1)},${yVon(0)} Z`);
-    punkte.forEach((c, i) => { c.setAttribute("cx", xVon(i).toFixed(1)); c.setAttribute("cy", yVon(kurve.werte[i]!).toFixed(1)); });
-    svg.classList.toggle("sk-aus", !kurve.an);
-    const sp = kurveSpitzen(kurve.werte);
-    const folge = schlagfolgeAusKurve(kurve.werte);
-    const endeHoch = kurve.werte[STUETZEN - 1]! >= 0.7;
-    skStand.textContent = !kurve.an
-      ? "aus — nur ein Bild; anschalten, dann setzt die Kurve Rhythmus, Schlagfolge und den Regler „Spannung“"
-      : `setzt: Höhepunkt bei ${Math.round(sp.max * 100)} % (${sp.hoehe >= 0.8 ? "hart" : sp.hoehe >= 0.5 ? "deutlich" : "leise"})`
-        + (sp.zweite !== null ? `, zweite Wende bei ${Math.round(sp.zweite * 100)} %` : "")
-        + ` · Ende ${endeHoch ? "offen" : "geschlossen"} · Regler Spannung: ${reglerAusKurve(kurve.werte) === "off" ? "aus" : reglerAusKurve(kurve.werte) === "top" ? "oben" : reglerAusKurve(kurve.werte) === "mid" ? "Mitte" : "unten"}`
-        + ` · Schlagfolge ${folge.length} Schläge`;
-  };
-  const skSichern = (): void => { speichereKurve(kurve); skMalen(); };
-  for (let i = 0; i < STUETZEN; i++) {
-    const c = document.createElementNS(NS, "circle") as SVGCircleElement;
-    c.setAttribute("r", "6"); c.setAttribute("class", "sk-punkt"); c.setAttribute("tabindex", "0");
-    c.setAttribute("aria-label", `Stützstelle ${i + 1} von ${STUETZEN}`);
-    let ziehe = false;
-    const setzeAusEvent = (ev: PointerEvent): void => {
-      const r = svg.getBoundingClientRect();
-      const yRel = (ev.clientY - r.top) / r.height * H;
-      kurve.werte[i] = Math.max(0, Math.min(1, 1 - (yRel - PAD) / (H - 2 * PAD)));
-      skMalen();
-    };
-    c.addEventListener("pointerdown", (ev) => { ziehe = true; c.setPointerCapture(ev.pointerId); setzeAusEvent(ev); });
-    c.addEventListener("pointermove", (ev) => { if (ziehe) setzeAusEvent(ev); });
-    c.addEventListener("pointerup", () => { ziehe = false; skSichern(); if (kurve.an) generate(); });
-    c.addEventListener("keydown", (ev) => {
-      const k = (ev as KeyboardEvent).key;
-      if (k === "ArrowUp" || k === "ArrowDown") { ev.preventDefault(); kurve.werte[i] = Math.max(0, Math.min(1, kurve.werte[i]! + (k === "ArrowUp" ? 0.05 : -0.05))); skSichern(); }
-    });
-    punkte.push(c); svg.append(c);
-  }
-  skChk.checked = kurve.an;
-  skChk.addEventListener("change", () => { kurve.an = skChk.checked; skSichern(); generate(); });
-  skVorlage.addEventListener("change", () => { const v = KURVEN_VORLAGEN[skVorlage.value]; if (v) { kurve.werte = [...v.werte]; skSichern(); if (kurve.an) generate(); } });
-  skWrap.append(
-    el("div", { class: "sk-leiste" },
-      el("label", { class: "chk", title: "An: Die Kurve setzt Rhythmus, Schlagfolge und den Regler Spannung. Aus: nur ein Bild." }, skChk, " Spannungskurve"),
-      el("span", { class: "muted mini" }, "Vorlage:"), skVorlage),
-    svg, skStand);
-  skMalen();
-
   const kopf = el("div", { class: "ek-kopf" },
-    el("div", { class: "ek-leiste" }, frage, umschalter), koerper, skWrap);
+    el("div", { class: "ek-leiste" }, frage, umschalter), koerper);
   wrap.prepend(kopf);
   // An die vorhandene Schloss-Anzeige haengen: Wer im Reglerkasten ein Schloss
   // oeffnet, soll den Kopf sofort frei sehen und nicht erst nach einem
