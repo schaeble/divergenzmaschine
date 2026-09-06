@@ -56,18 +56,26 @@ export function enforceWordTarget(text: string, target: number, bank: Bank, mode
         }
       }
     }
-    const cands: string[] = [...(bank.motifs || []), ...(bank.turns || []), ...(bank.hooks || [])];
+    // Der Vorrat fürs Auffüllen: Bilder, Wenden, Haken, Hindernisse, Requisiten
+    // — nicht die Schlüsse (die gehören ans Ende) und nicht die Einsätze (die
+    // tragen Formeln). Ist nichts Frisches mehr da, hört das Auffüllen auf:
+    // Ein kürzerer Text liest sich besser als ein wiederholter Satz. (Vorher
+    // wurde aus dem ganzen Vorrat nachgezogen — bei 400 Wörtern und kleinem
+    // Preset standen 24 Dubletten im Text.)
+    const cands: string[] = [...(bank.motifs || []), ...(bank.turns || []), ...(bank.hooks || []), ...(bank.obstacles || []), ...(bank.props || [])];
     if (!cands.length) return null;
     const fresh = cands.filter((c) => { const k = clean(c).toLowerCase(); return k && !used.has(k) && !out.toLowerCase().includes(k); });
-    const chosen = pick(fresh.length ? fresh : cands);
+    if (!fresh.length) return null;
+    const chosen = pick(fresh);
     used.add(clean(chosen).toLowerCase());
     return { text: chosen, raw: true };
   };
 
+  let leer = 0;
   for (let a = 0; a < maxAttempts; a++) {
     if (count(out) >= target - tol) break;
     const add = addition();
-    if (!add) continue;
+    if (!add) { if (++leer >= 3) break; continue; }
     let ca = add.text.trim().replace(/^[a-z]/, (c) => c.toUpperCase()).replace(/\s+([,.;:!?…])/g, "$1");
     if (!/[.!?…]$/.test(ca)) ca += ".";
     out = out.replace(/[.!?…]+\s*$/, "").trim();

@@ -16110,20 +16110,25 @@ function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
         }
       }
     }
-    const cands = [...bank.motifs || [], ...bank.turns || [], ...bank.hooks || []];
+    const cands = [...bank.motifs || [], ...bank.turns || [], ...bank.hooks || [], ...bank.obstacles || [], ...bank.props || []];
     if (!cands.length) return null;
     const fresh = cands.filter((c) => {
       const k = clean(c).toLowerCase();
       return k && !used.has(k) && !out.toLowerCase().includes(k);
     });
-    const chosen = pick(fresh.length ? fresh : cands);
+    if (!fresh.length) return null;
+    const chosen = pick(fresh);
     used.add(clean(chosen).toLowerCase());
     return { text: chosen, raw: true };
   };
+  let leer2 = 0;
   for (let a = 0; a < maxAttempts; a++) {
     if (count(out) >= target - tol) break;
     const add = addition();
-    if (!add) continue;
+    if (!add) {
+      if (++leer2 >= 3) break;
+      continue;
+    }
     let ca = add.text.trim().replace(/^[a-z]/, (c) => c.toUpperCase()).replace(/\s+([,.;:!?…])/g, "$1");
     if (!/[.!?…]$/.test(ca)) ca += ".";
     out = out.replace(/[.!?…]+\s*$/, "").trim();

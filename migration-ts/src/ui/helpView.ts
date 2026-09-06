@@ -173,7 +173,7 @@ export function mountHelp(root: HTMLElement): void {
     ["Pfeile / Wischen", P("die Pfeile links und rechts im Textfenster erzeugen eine neue Variante; auf dem Handy genügt ein Wischen nach links oder rechts über den Text.")],
     ["Lesen", P("Vollbild-Lesemodus mit Werkzeugleiste: A−/A+ (Schriftgröße), Kopieren, Merken, Vorlesen.")],
     ["Vorlesen", P("liest den Text per Browser-Sprachausgabe auf Deutsch vor (offline).")],
-    ["Textlänge", P("Ziel-Wortzahl (40–300): steuert bei Prosa das Kürzen/Auffüllen, bei Szene/Dialog die Rundenzahl.")],
+    ["Textlänge", P("Ziel-Wortzahl (40–400): steuert bei Prosa das Kürzen/Auffüllen, bei Szene/Dialog die Rundenzahl, bei Multi-Shot die Sichtplätze je Shot. Das Auffüllen zieht aus Bildern, Wenden, Haken, Hindernissen und Requisiten des Presets und hört auf, wenn nichts Frisches mehr da ist — ein kürzerer Text liest sich besser als ein wiederholter Satz. Für 400 Wörter braucht ein Preset darum Material: Die eingebauten (120–140 Einträge) tragen 400 und mehr; ein Preset aus Text mit 30 Sätzen wird deutlich früher aufhören.")],
   ]));
 
   wrap.append(section("faerben", "Editieren — Färben & Passagen-Austausch (im Studio)", [

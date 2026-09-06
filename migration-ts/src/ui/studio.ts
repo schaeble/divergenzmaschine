@@ -704,7 +704,7 @@ export function mountStudio(root: HTMLElement): void {
   wrap.append(el("div", { class: "grid3" }, lockField("Ton", tone), lockField("Form", form)));
 
 
-  const lenSlider = el("input", { id: "f-len", type: "range", min: "40", max: "300", step: "5", value: "110", style: "flex:1" }) as HTMLInputElement;
+  const lenSlider = el("input", { id: "f-len", type: "range", min: "40", max: "400", step: "5", value: "110", style: "flex:1" }) as HTMLInputElement;
   const lenVal = el("span", { class: "muted" }, "110");
   let lenTimer: ReturnType<typeof setTimeout> | undefined;
   let baseText = "";

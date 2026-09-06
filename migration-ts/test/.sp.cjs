@@ -6764,6 +6764,54 @@ function corpusSanitize(text) {
   s = s.replace(/\s+/g, " ").trim();
   return s;
 }
+function corpusHygiene(text) {
+  const src = corpusSanitize(text || "");
+  const sentences2 = src.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter(Boolean);
+  const charsBefore = (text || "").length;
+  const seen = /* @__PURE__ */ new Set();
+  const kept = [];
+  let duplicates = 0;
+  for (const raw of sentences2) {
+    const letters = (raw.match(/[a-zäöüßA-ZÄÖÜ]/g) || []).length;
+    const words3 = raw.match(/[a-zäöüßA-ZÄÖÜ]{2,}/g) || [];
+    if (words3.length < 4) continue;
+    if (letters / raw.length < 0.45) continue;
+    if (!words3.some((w) => /[aeiouäöüy]/i.test(w))) continue;
+    const upper = words3.filter((w) => /^[A-ZÄÖÜ]/.test(w)).length;
+    if (words3.length < 8 && upper / words3.length > 0.7) continue;
+    const norm = raw.toLowerCase().replace(/\s+/g, " ");
+    if (seen.has(norm)) {
+      duplicates++;
+      continue;
+    }
+    seen.add(norm);
+    kept.push(/[.!?…]$/.test(raw) ? raw : raw + ".");
+  }
+  let out = kept.join(" ");
+  if (out.length > CORPUS_MAX) {
+    out = out.slice(out.length - CORPUS_MAX);
+    const cut = out.indexOf(" ");
+    if (cut > 0) out = out.slice(cut + 1);
+  }
+  return { text: out, stats: {
+    sentencesBefore: sentences2.length,
+    sentencesAfter: kept.length,
+    removed: sentences2.length - kept.length,
+    duplicates,
+    charsBefore,
+    charsAfter: out.length
+  } };
+}
+var SELBSTREINIGUNG_KEY = "dm_korpus_selbstreinigung_v1";
+function selbstreinigungAn() {
+  try {
+    const v = localStorage.getItem(SELBSTREINIGUNG_KEY);
+    return v === null ? true : v === "1";
+  } catch {
+    return true;
+  }
+}
+var letzte = null;
 function appendToPersistentCorpus(textToAdd) {
   const add = corpusSanitize(clean(textToAdd));
   if (!add) return;
@@ -6778,6 +6826,11 @@ function appendToPersistentCorpus(textToAdd) {
     corpus = corpus.slice(corpus.length - CORPUS_MAX);
     const cut = corpus.indexOf("\n\n");
     if (cut > 0 && cut < 5e3) corpus = corpus.slice(cut + 2);
+  }
+  if (selbstreinigungAn()) {
+    const h = corpusHygiene(corpus);
+    if (h.stats.removed > 0 || h.stats.duplicates > 0) corpus = h.text;
+    letzte = { ...h.stats, zeit: (/* @__PURE__ */ new Date()).toLocaleTimeString("de-DE") };
   }
   savePersistentCorpus(corpus);
 }
@@ -17730,6 +17783,89 @@ function builtinDrama(id) {
   return BUILTIN_DRAMA[id.replace(/^builtin:/, "")] ?? null;
 }
 
+// src/features/spannungskurve.ts
+var STUETZEN = 7;
+var KEY4 = "dm_spannungskurve_v1";
+var KURVEN_VORLAGEN = {
+  steigend: { name: "Steigend", werte: [0.15, 0.25, 0.35, 0.5, 0.65, 0.9, 0.3] },
+  spaet: { name: "Sp\xE4te Wende", werte: [0.2, 0.3, 0.25, 0.2, 0.3, 0.95, 0.35] },
+  doppelt: { name: "Doppelt", werte: [0.2, 0.5, 0.85, 0.35, 0.6, 0.95, 0.25] },
+  katastrophe: { name: "Katastrophe zuerst", werte: [0.95, 0.7, 0.45, 0.35, 0.3, 0.4, 0.25] },
+  flach: { name: "Flach", werte: [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3] },
+  offen: { name: "Offen", werte: [0.2, 0.3, 0.4, 0.5, 0.65, 0.8, 0.9] }
+};
+var klemm2 = (x) => Math.max(0, Math.min(1, Number.isFinite(x) ? x : 0.3));
+function ladeKurve() {
+  try {
+    const v = JSON.parse(localStorage.getItem(KEY4) || "null");
+    const werte2 = Array.isArray(v?.werte) && v.werte.length === STUETZEN ? v.werte.map(klemm2) : [...KURVEN_VORLAGEN["steigend"].werte];
+    return { an: !!v?.an, werte: werte2 };
+  } catch {
+    return { an: false, werte: [...KURVEN_VORLAGEN["steigend"].werte] };
+  }
+}
+function speichereKurve(k) {
+  try {
+    localStorage.setItem(KEY4, JSON.stringify({ an: k.an, werte: k.werte.map(klemm2) }));
+  } catch {
+  }
+}
+function kurveWert(werte2, p) {
+  const n = werte2.length;
+  if (n === 0) return 0.3;
+  if (n === 1) return klemm2(werte2[0]);
+  const x = klemm2(p) * (n - 1);
+  const i = Math.min(n - 2, Math.floor(x));
+  const t = x - i;
+  return klemm2(werte2[i] * (1 - t) + werte2[i + 1] * t);
+}
+function kurveSpitzen(werte2) {
+  let mi = 0;
+  werte2.forEach((v, i) => {
+    if (v > werte2[mi]) mi = i;
+  });
+  let zweite = null;
+  let zh = 0;
+  werte2.forEach((v, i) => {
+    if (Math.abs(i - mi) < 2 || v < 0.5) return;
+    const l = werte2[i - 1] ?? -1, r = werte2[i + 1] ?? -1;
+    if (v >= l && v >= r && v > zh) {
+      zh = v;
+      zweite = i;
+    }
+  });
+  const n = werte2.length - 1;
+  return { max: mi / n, hoehe: werte2[mi], zweite: zweite === null ? null : zweite / n };
+}
+function schlagfolgeAusKurve(werte2) {
+  const { max, zweite } = kurveSpitzen(werte2);
+  const n = 12;
+  const folge = Array.from({ length: n }, () => "");
+  const setze = (p, s) => {
+    const i = Math.max(0, Math.min(n - 1, Math.round(p * (n - 1))));
+    folge[i] = s;
+  };
+  folge[0] = "einstieg";
+  setze(max, "hoehepunkt");
+  if (zweite !== null) setze(zweite, "wende");
+  else setze(Math.max(0.08, max - 0.2), "wende");
+  setze(Math.max(0.08, (zweite !== null ? Math.min(zweite, max) : max) - 0.35), "konflikt");
+  setze(Math.max(0.08, max - 0.1), "ausloeser");
+  if (folge[0] !== "einstieg" && !folge.includes("einstieg")) folge[1] = "einstieg";
+  const endeHoch = werte2[werte2.length - 1] >= 0.7;
+  folge[n - 1] = endeHoch ? "einsatz" : "schluss";
+  if (!endeHoch && !folge.includes("einsatz")) setze(Math.min(0.92, max + 0.12), "einsatz");
+  for (let i = 0; i < n; i++) if (!folge[i]) folge[i] = i === 1 ? "hook" : "mitte";
+  const out = [];
+  for (const s of folge) if (out[out.length - 1] !== s || s === "mitte") out.push(s);
+  return out;
+}
+function reglerAusKurve(werte2) {
+  const { max, hoehe } = kurveSpitzen(werte2);
+  if (hoehe < 0.45) return "off";
+  return max < 0.34 ? "top" : max < 0.67 ? "mid" : "low";
+}
+
 // src/generation/buildStory.ts
 init_text_utils();
 
@@ -18822,15 +18958,24 @@ function applyRhythm(text, rhythm) {
   return s.join(" ");
 }
 var TENSION_CENTER = { top: 0.15, mid: 0.5, low: 0.85 };
-function applyTension(text, peak, material) {
-  if (!peak || peak === "off") return text;
-  const center = TENSION_CENTER[peak];
+function applyTension(text, peak, material, kurve) {
+  if (!kurve && (!peak || peak === "off")) return text;
+  let center = kurve ? 0.5 : TENSION_CENTER[peak || ""];
   if (center === void 0) return text;
+  if (kurve) {
+    let best = 0;
+    for (let k = 0; k <= 20; k++) {
+      const v = kurve(k / 20);
+      if (v > kurve(best)) best = k / 20;
+    }
+    center = best;
+  }
   const s = splitSentences(text);
   if (s.length < 5) return text;
   const width = 0.26;
   const intensity = (i, n) => {
     const pos = n <= 1 ? 0 : i / (n - 1);
+    if (kurve) return kurve(pos);
     const d = (pos - center) / width;
     return Math.exp(-0.5 * d * d);
   };
@@ -19513,10 +19658,10 @@ function nominativFragment(t) {
   );
 }
 function formelnGlaetten(t) {
-  return (t || "").replace(/\b(Dann|Und dann|Plötzlich|Danach)\s+—\s+(dann|plötzlich|danach),/gi, (_m, a) => `${a},`).replace(/([.!?…])\s+—\s+([a-zäöüß])/g, (_m, p, c) => `${p} ${c.toUpperCase()}`);
+  return (t || "").replace(/\s+—\s+(dann|danach|plötzlich)\s*([;.!?])/gi, "$2").replace(/\b(an|auf|über|von|in|mit|nach) (wie|als) (der|die|das|den|dem|des|ein|eine|einen|einem|einer)\b/g, "$1 $3").replace(/\b(Dann|Und dann|Plötzlich|Danach)\s+—\s+(dann|plötzlich|danach),/gi, (_m, a) => `${a},`).replace(/([.!?…])\s+—\s+([a-zäöüß])/g, (_m, p, c) => `${p} ${c.toUpperCase()}`);
 }
 function kleinesPronomen(t) {
-  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon|Mittags|Morgens|Abends|Nachts|Heute|Gestern|Morgen|Später|Manchmal|Damals|Irgendwann|Vormittags|Nachmittags)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
+  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon|Mittags|Morgens|Abends|Nachts|Heute|Gestern|Morgen|Später|Manchmal|Damals|Irgendwann|Vormittags|Nachmittags|Fast|Beinahe|Kaum|Knapp|Bald|Erst|Zuletzt|Endlich)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
     /(,[ \t]+)(Wo|Wenn|Als|Weil|Dass|Obwohl|Während|Nachdem|Bevor|Sobald|Solange|Damit|Ob|Der|Die|Das|Dem|Den|Deren|Dessen)\b(?=\s)/g,
     (_m, sp, w) => sp + w.charAt(0).toLowerCase() + w.slice(1)
   );
@@ -20250,20 +20395,25 @@ function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
         }
       }
     }
-    const cands = [...bank.motifs || [], ...bank.turns || [], ...bank.hooks || []];
+    const cands = [...bank.motifs || [], ...bank.turns || [], ...bank.hooks || [], ...bank.obstacles || [], ...bank.props || []];
     if (!cands.length) return null;
     const fresh2 = cands.filter((c) => {
       const k = clean(c).toLowerCase();
       return k && !used.has(k) && !out.toLowerCase().includes(k);
     });
-    const chosen = pick(fresh2.length ? fresh2 : cands);
+    if (!fresh2.length) return null;
+    const chosen = pick(fresh2);
     used.add(clean(chosen).toLowerCase());
     return { text: chosen, raw: true };
   };
+  let leer2 = 0;
   for (let a = 0; a < maxAttempts; a++) {
     if (count(out) >= target - tol) break;
     const add = addition();
-    if (!add) continue;
+    if (!add) {
+      if (++leer2 >= 3) break;
+      continue;
+    }
     let ca = add.text.trim().replace(/^[a-z]/, (c) => c.toUpperCase()).replace(/\s+([,.;:!?…])/g, "$1");
     if (!/[.!?…]$/.test(ca)) ca += ".";
     out = out.replace(/[.!?…]+\s*$/, "").trim();
@@ -21394,7 +21544,7 @@ function buildRekombination(bank, input, model) {
     const fortschritt = woerterJetzt() / zielWoerter;
     if (fortschritt >= 1) break;
     const phase = phasenFolge(input.structure || "rekombination", fortschritt);
-    const letzte = fortschritt >= 0.92;
+    const letzte2 = fortschritt >= 0.92;
     let kand = pool.filter((a2) => passt(a2, k, phase) && !kurzGesperrt.has(a2.id) && !(wasGesetzt && a2.kategorie === "was"));
     if (out.length >= 3 && fuegeteile / out.length >= FUEGE_DECKEL) {
       const inhalt = kand.filter((a2) => a2.quelle !== "vorlage");
@@ -21405,7 +21555,7 @@ function buildRekombination(bank, input, model) {
         kand = rahmen;
       } else kand = inhalt;
     }
-    if (letzte) kand = kand.filter((a2) => !a2.oeffnet && !a2.verlangt);
+    if (letzte2) kand = kand.filter((a2) => !a2.oeffnet && !a2.verlangt);
     if (gleicheInFolge >= 2) {
       const anders = kand.filter((a2) => a2.typ !== letzterTyp);
       if (anders.length) kand = anders;
@@ -22253,7 +22403,7 @@ function charLine(kit) {
 }
 function plotLine(kit) {
   const A = strip(kit.Apure);
-  const actionLines = A ? kit.AisClause ? [`Und wieder: ${A}.`, `Denn genau das geschieht: ${A}.`, `Im Kern bleibt es dabei \u2014 ${A}.`] : kit.AisInfinitiveLed ? [`Noch immer will ${kit.P} ${A}.`, `Alles dr\xE4ngt darauf, ${A}.`] : [`${kit.P} ${kit.AleadVerb || "will"} ${A} \u2014 noch immer.`, `Es geht weiter um eines: ${A}.`] : [];
+  const actionLines = A ? kit.AisClause ? [`Und wieder: ${A}.`, `Denn genau das geschieht: ${A}.`, `Im Kern bleibt es dabei \u2014 ${A}.`] : kit.AisInfinitiveLed ? [`Noch immer will ${kit.P} ${A}.`, `Alles dr\xE4ngt darauf, ${A}.`] : /\b(auf|an|ab|aus|ein|zu|mit|nach|vor|weg|zurück|los|fest|um|hin|her|ent|über|unter|durch)$/i.test(A) ? [`${kit.P} ${kit.AleadVerb || "will"} ${A} \u2014 noch immer.`] : [`${kit.P} ${kit.AleadVerb || "will"} ${A} \u2014 noch immer.`, `Es geht weiter um eines: ${A}.`] : [];
   return pick([
     ...actionLines,
     ...actionLines,
@@ -23553,7 +23703,8 @@ function buildStory(bank, input, model) {
   if (input.form === "prose" && input.emphasis) text = applyEmphasis(text, kit, input.emphasis);
   text = applyDisruptor(text, input.disruptor).text;
   text = applyRhythm(text, kit.rhythm);
-  if (input.form === "prose") text = applyTension(text, input.tension, { motifs: bank.motifs, hooks: bank.hooks });
+  const kurve = ladeKurve();
+  if (input.form === "prose") text = kurve.an ? applyTension(text, input.tension, { motifs: bank.motifs, hooks: bank.hooks }, (p) => kurveWert(kurve.werte, p)) : applyTension(text, input.tension, { motifs: bank.motifs, hooks: bank.hooks });
   text = paragraphize(text);
   const paras = text.split(/\n\n+/).map(clean).filter(Boolean);
   text = effStructure === "object" ? paras.join("\n\n") : applyPerspective(paras, kit.perspective, kit.P, pick(kit.mode.nouns)).join("\n\n");
@@ -23971,16 +24122,16 @@ function analysiereHerkunft(text, tone, ctx) {
   }
   return { segmente, anteile, zeichen, exakt: false, poolUeberschneidung };
 }
-var KEY4 = "dm_last_input_v1";
+var KEY5 = "dm_last_input_v1";
 function saveSchnappschuss(s) {
   try {
-    localStorage.setItem(KEY4, JSON.stringify(s));
+    localStorage.setItem(KEY5, JSON.stringify(s));
   } catch {
   }
 }
 function loadSchnappschuss() {
   try {
-    const r = localStorage.getItem(KEY4);
+    const r = localStorage.getItem(KEY5);
     return r ? JSON.parse(r) : null;
   } catch {
     return null;
@@ -24943,7 +25094,7 @@ var REGLER = [
   }
 ];
 var SCHIEBER = [
-  { id: "f-len", schluessel: "lenTarget", min: 40, max: 300, step: 5 },
+  { id: "f-len", schluessel: "lenTarget", min: 40, max: 400, step: 5 },
   { id: "f-novelty", schluessel: "novelty", min: 0, max: 100, step: 5 },
   { id: "f-surprise", schluessel: "surprise", min: 0, max: 100, step: 5 },
   { id: "f-w-wo", schluessel: "gew-wo", min: 0, max: 3, step: 1 },
@@ -25158,10 +25309,10 @@ var THEMES = [
   { id: "traumlogik", label: "Traumlogik" },
   { id: "papier", label: "Papier (hell)" }
 ];
-var KEY5 = "divergenz_theme_v1";
+var KEY6 = "divergenz_theme_v1";
 function loadTheme() {
   try {
-    const v = localStorage.getItem(KEY5);
+    const v = localStorage.getItem(KEY6);
     if (v && THEMES.some((t) => t.id === v)) return v;
   } catch {
   }
@@ -25170,7 +25321,7 @@ function loadTheme() {
 function applyTheme(id) {
   document.documentElement.setAttribute("data-theme", id);
   try {
-    localStorage.setItem(KEY5, id);
+    localStorage.setItem(KEY6, id);
   } catch {
   }
 }
@@ -26400,7 +26551,7 @@ function mountStudio(root) {
   );
   wrap.append(presetField);
   wrap.append(el("div", { class: "grid3" }, lockField("Ton", tone), lockField("Form", form)));
-  const lenSlider = el("input", { id: "f-len", type: "range", min: "40", max: "300", step: "5", value: "110", style: "flex:1" });
+  const lenSlider = el("input", { id: "f-len", type: "range", min: "40", max: "400", step: "5", value: "110", style: "flex:1" });
   const lenVal = el("span", { class: "muted" }, "110");
   let lenTimer;
   let baseText = "";
@@ -26589,7 +26740,166 @@ function mountStudio(root) {
     ev.preventDefault();
     generate();
   });
-  const outWrap = el("div", { class: "outwrap" }, mkGenArrow("left"), out, mkGenArrow("right"), grip);
+  const NS2 = "http://www.w3.org/2000/svg";
+  const SPUR_B = 40;
+  const spur2 = document.createElementNS(NS2, "svg");
+  spur2.setAttribute("class", "sk-spur");
+  spur2.setAttribute("tabindex", "0");
+  spur2.setAttribute("aria-label", "Spannungskurve am Textrand: in den Saum greifen und ziehen, rechts = mehr Spannung; Tastatur: auf/ab w\xE4hlt die Stelle, links/rechts \xE4ndert sie");
+  const saum = document.createElementNS(NS2, "path");
+  saum.setAttribute("class", "sk-saum");
+  const zug = document.createElementNS(NS2, "path");
+  zug.setAttribute("class", "sk-zug");
+  const kerbe = document.createElementNS(NS2, "line");
+  kerbe.setAttribute("class", "sk-kerbe");
+  spur2.append(saum, zug, kerbe);
+  let kurve = ladeKurve();
+  let gewaehlt = -1;
+  let ziehe2 = false;
+  const skChk = el("input", { type: "checkbox", id: "f-spannungskurve", title: "An: Die Kurve setzt Rhythmus je Position, Schlagfolge des Bogens und den Regler Spannung. Aus: Saum und T\xF6nung verschwinden." });
+  const skVorlage = select("f-sk-vorlage", Object.entries(KURVEN_VORLAGEN).map(([k, v]) => [k, v.name]), "steigend");
+  const skStand = el("span", { class: "muted mini" });
+  const hoehe = () => Math.max(120, out.offsetHeight || 300);
+  const yVon = (i, H) => 8 + i / (STUETZEN - 1) * (H - 16);
+  const xVon = (v) => 3 + v * (SPUR_B - 8);
+  const weich = (pts) => {
+    if (pts.length < 2) return "";
+    let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+    for (let k = 0; k < pts.length - 1; k++) {
+      const p0 = pts[Math.max(0, k - 1)], p1 = pts[k], p2 = pts[k + 1], p3 = pts[Math.min(pts.length - 1, k + 2)];
+      const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+    }
+    return d;
+  };
+  const spurMalen = () => {
+    const an = feedsChk.checked && kurve.an;
+    spur2.style.display = an ? "" : "none";
+    out.classList.toggle("sk-getoent", an);
+    outWrap.classList.toggle("sk-an", an);
+    if (!an) {
+      out.style.backgroundImage = "";
+      skStand.textContent = "";
+      return;
+    }
+    const H = hoehe();
+    spur2.setAttribute("viewBox", `0 0 ${SPUR_B} ${H}`);
+    spur2.setAttribute("height", String(H));
+    spur2.setAttribute("width", String(SPUR_B));
+    const pts = kurve.werte.map((v, i) => [xVon(v), yVon(i, H)]);
+    const zugD = weich(pts);
+    zug.setAttribute("d", zugD);
+    saum.setAttribute("d", `M0,${yVon(0, H).toFixed(1)} L${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)} ` + zugD.slice(zugD.indexOf(" ") + 1).replace(/^C/, "C") + ` L0,${yVon(STUETZEN - 1, H).toFixed(1)} Z`);
+    if (gewaehlt >= 0) {
+      const y = yVon(gewaehlt, H), x = xVon(kurve.werte[gewaehlt]);
+      kerbe.setAttribute("x1", String(Math.max(0, x - 7)));
+      kerbe.setAttribute("x2", String(x + 7));
+      kerbe.setAttribute("y1", String(y));
+      kerbe.setAttribute("y2", String(y));
+      kerbe.style.display = "";
+    } else kerbe.style.display = "none";
+    const stops = kurve.werte.map((v, i) => `rgba(214,72,40,${(0.03 + v * 0.16).toFixed(3)}) ${Math.round(i / (STUETZEN - 1) * 100)}%`);
+    out.style.backgroundImage = `linear-gradient(to bottom, ${stops.join(", ")})`;
+    const sp = kurveSpitzen(kurve.werte);
+    const endeHoch = kurve.werte[STUETZEN - 1] >= 0.7;
+    const regler = reglerAusKurve(kurve.werte);
+    skStand.textContent = `setzt: H\xF6hepunkt bei ${Math.round(sp.max * 100)} %` + (sp.zweite !== null ? `, zweite Wende bei ${Math.round(sp.zweite * 100)} %` : "") + ` \xB7 Ende ${endeHoch ? "offen" : "geschlossen"} \xB7 Spannung ${regler === "off" ? "aus" : regler === "top" ? "oben" : regler === "mid" ? "Mitte" : "unten"}`;
+  };
+  const skSichern = () => {
+    speichereKurve(kurve);
+    spurMalen();
+  };
+  const stelleBei = (clientY) => {
+    const r = spur2.getBoundingClientRect();
+    const H = hoehe();
+    const y = (clientY - r.top) / r.height * H;
+    let best = 0;
+    for (let i = 1; i < STUETZEN; i++) if (Math.abs(yVon(i, H) - y) < Math.abs(yVon(best, H) - y)) best = i;
+    return best;
+  };
+  const wertBei = (clientX) => {
+    const r = spur2.getBoundingClientRect();
+    const x = (clientX - r.left) / r.width * SPUR_B;
+    return Math.max(0, Math.min(1, (x - 3) / (SPUR_B - 8)));
+  };
+  spur2.addEventListener("pointerenter", () => {
+    spur2.classList.add("sk-hand");
+  });
+  spur2.addEventListener("pointerleave", () => {
+    if (!ziehe2) {
+      spur2.classList.remove("sk-hand");
+      gewaehlt = -1;
+      spurMalen();
+    }
+  });
+  spur2.addEventListener("pointermove", (ev) => {
+    if (ziehe2) {
+      kurve.werte[gewaehlt] = wertBei(ev.clientX);
+      spurMalen();
+      return;
+    }
+    const n = stelleBei(ev.clientY);
+    if (n !== gewaehlt) {
+      gewaehlt = n;
+      spurMalen();
+    }
+  });
+  spur2.addEventListener("pointerdown", (ev) => {
+    ziehe2 = true;
+    gewaehlt = stelleBei(ev.clientY);
+    spur2.setPointerCapture(ev.pointerId);
+    kurve.werte[gewaehlt] = wertBei(ev.clientX);
+    spur2.classList.add("sk-hand");
+    spurMalen();
+  });
+  const loslassen = () => {
+    if (!ziehe2) return;
+    ziehe2 = false;
+    spur2.classList.remove("sk-hand");
+    gewaehlt = -1;
+    skSichern();
+    generate();
+  };
+  spur2.addEventListener("pointerup", loslassen);
+  spur2.addEventListener("pointercancel", loslassen);
+  spur2.addEventListener("keydown", (ev) => {
+    const k = ev.key;
+    if (k === "ArrowUp" || k === "ArrowDown") {
+      ev.preventDefault();
+      gewaehlt = Math.max(0, Math.min(STUETZEN - 1, (gewaehlt < 0 ? 0 : gewaehlt) + (k === "ArrowDown" ? 1 : -1)));
+      spur2.classList.add("sk-hand");
+      spurMalen();
+    } else if ((k === "ArrowRight" || k === "ArrowLeft") && gewaehlt >= 0) {
+      ev.preventDefault();
+      kurve.werte[gewaehlt] = Math.max(0, Math.min(1, kurve.werte[gewaehlt] + (k === "ArrowRight" ? 0.05 : -0.05)));
+      skSichern();
+    } else if (k === "Enter" && gewaehlt >= 0) {
+      ev.preventDefault();
+      generate();
+    }
+  });
+  spur2.addEventListener("blur", () => {
+    spur2.classList.remove("sk-hand");
+    gewaehlt = -1;
+    spurMalen();
+  });
+  skChk.checked = kurve.an;
+  skChk.addEventListener("change", () => {
+    kurve.an = skChk.checked;
+    skSichern();
+    generate();
+  });
+  skVorlage.addEventListener("change", () => {
+    const v = KURVEN_VORLAGEN[skVorlage.value];
+    if (v) {
+      kurve.werte = [...v.werte];
+      skSichern();
+      if (kurve.an) generate();
+    }
+  });
+  const skLeiste = el("span", { class: "sk-leiste", style: "display:none" }, el("label", { class: "chk" }, skChk, " Spannungskurve"), skVorlage, skStand);
+  const outWrap = el("div", { class: "outwrap" }, mkGenArrow("left"), spur2, out, mkGenArrow("right"), grip);
   const positionArrows = () => {
     const r = outWrap.getBoundingClientRect();
     if (r.height <= 0) return;
@@ -26765,6 +27075,7 @@ function mountStudio(root) {
     renderStruktur();
     updVorrat();
     renderTitel();
+    spurMalen();
   };
   const quelleHint = el("p", { class: "muted mini", style: "display:none" });
   const zeigeHinweis = (txt2) => {
@@ -26907,7 +27218,8 @@ function mountStudio(root) {
       ansicht(struktChk, "Struktur"),
       ansicht(planChk, "Bauplan"),
       undoBtn,
-      umweltStatus
+      umweltStatus,
+      skLeiste
     )
   );
   umweltLegZeigen();
@@ -27019,7 +27331,13 @@ function mountStudio(root) {
   const refreshFeeds = () => {
     if (feedsChk.checked) renderFeeds();
   };
-  feedsChk.addEventListener("change", renderFeeds);
+  feedsChk.addEventListener("change", () => {
+    renderFeeds();
+    skLeiste.style.display = feedsChk.checked ? "" : "none";
+    spurMalen();
+  });
+  skLeiste.style.display = feedsChk.checked ? "" : "none";
+  spurMalen();
   const feedPop = el("div", { class: "feedpop", style: "display:none" });
   document.body.appendChild(feedPop);
   let popSpan = null;
@@ -27850,6 +28168,15 @@ function mountStudio(root) {
   };
   const generate = () => {
     setBogenOverride(bogenFuerErzeugung());
+    {
+      const kurve2 = ladeKurve();
+      if (kurve2.an) {
+        const basis = loadDramaData();
+        if (basis) setBogenOverride({ ...basis, folge: schlagfolgeAusKurve(kurve2.werte) });
+        const soll = reglerAusKurve(kurve2.werte);
+        if (tension.value !== soll) tension.value = soll;
+      }
+    }
     const model = markov.value !== "off" ? buildModelFromCorpus(2) : void 0;
     const input = readInput();
     try {

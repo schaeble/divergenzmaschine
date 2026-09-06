@@ -56,7 +56,7 @@ export const REGLER: ReglerWahl[] = [
  *  nicht auslesen. Der Prüfstand hält beide gegeneinander. */
 export interface SchieberWahl { id: string; schluessel: string; min: number; max: number; step: number }
 export const SCHIEBER: SchieberWahl[] = [
-  { id: "f-len", schluessel: "lenTarget", min: 40, max: 300, step: 5 },
+  { id: "f-len", schluessel: "lenTarget", min: 40, max: 400, step: 5 },
   { id: "f-novelty", schluessel: "novelty", min: 0, max: 100, step: 5 },
   { id: "f-surprise", schluessel: "surprise", min: 0, max: 100, step: 5 },
   { id: "f-w-wo", schluessel: "gew-wo", min: 0, max: 3, step: 1 },
