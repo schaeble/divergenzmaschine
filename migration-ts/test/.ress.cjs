@@ -3794,7 +3794,7 @@ function ladeStatistik() {
 }
 function speichern() {
   if (schreibTimer !== null) return;
-  schreibTimer = (typeof window !== "undefined" ? window.setTimeout : setTimeout)(() => {
+  schreibTimer = setTimeout(() => {
     schreibTimer = null;
     try {
       if (typeof localStorage !== "undefined" && cache) localStorage.setItem(KEY, JSON.stringify(cache));
@@ -4408,9 +4408,11 @@ var PREPS = /^(in|im|an|am|auf|bei|beim|unter|über|vor|hinter|neben|zwischen|du
 var cap2 = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 var low = (s) => s ? s.charAt(0).toLowerCase() + s.slice(1) : s;
 function parseNP(s) {
-  const m = s.trim().match(/^(?:(der|die|das|ein|eine|einen|einem|einer)\s+)?(?:([a-zäöüß][a-zäöüß-]*)\s+)?([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
+  const m = s.trim().match(/^(?:(der|die|das|ein|eine|einen|einem|einer)\s+)?(?:([A-ZÄÖÜa-zäöüß][a-zäöüß-]*(?:e|en|er|es))\s+)?([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
   if (!m) return null;
-  return { art: (m[1] || "").toLowerCase(), adj: m[2] || "", noun: m[3] };
+  const adj = m[2] || "";
+  if (adj && /^[A-ZÄÖÜ]/.test(adj) && !/[a-zäöüß]$/.test(adj)) return null;
+  return { art: (m[1] || "").toLowerCase(), adj: adj.toLowerCase(), noun: m[3] };
 }
 function genderOf(art, noun) {
   if (art === "die" || art === "eine" || art === "einer") return "f";
@@ -4463,7 +4465,7 @@ function normWhere(s) {
     return kopf + t.slice(komma);
   }
   const zusatz = t.match(/^(.+?)\s+((?:in|im|an|am|auf|bei|vor|hinter|neben|unter|über|zwischen|nahe|gegenüber|ohne|mit|voller|aus)\s+.+)$/);
-  if (zusatz && !/\s/.test(zusatz[1].replace(/^(der|die|das|ein|eine)\s+/i, ""))) {
+  if (zusatz && parseNP(zusatz[1])) {
     const kopf = normWhere(zusatz[1]);
     if (kopf !== zusatz[1]) return `${kopf} ${zusatz[2]}`;
   }
@@ -4476,7 +4478,7 @@ function normWhere(s) {
   if (!g) return !np.art && !np.adj && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(t) ? `in ${t}` : t;
   const adj = np.adj ? adjDat(np.adj) + " " : "";
   const kind = AUF_NOUNS.test(np.noun) ? "auf" : AN_NOUNS.test(np.noun) || AN_ENDUNG.test(np.noun) ? "an" : "in";
-  const indef = np.art.startsWith("ein");
+  const indef = np.art.startsWith("ein") || !np.art && !!np.adj;
   if (indef) {
     const artD = g === "f" ? "einer" : "einem";
     return `${kind} ${artD} ${adj}${np.noun}`;

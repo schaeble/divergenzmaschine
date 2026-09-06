@@ -5,6 +5,13 @@ import { pick, clean, ensurePunct } from "../text-utils";
 import { cap } from "./beats";
 
 import { loadDramaData } from "./dramaturgie";
+import { normWhere } from "./ctxnorm";
+import { guessGender } from "./declension";
+import { atomisiere } from "../atoms/atomisieren";
+import { loadKnobs } from "../features/knobs";
+import { satzPlausibel } from "./satzwaechter";
+import { praesensUmschreiben } from "./coherence";
+import { hatFinitesVerb } from "../atoms/derive";
 import { loadActiveBankLabel } from "../wordbank";
 
 export const clampShotCount = (n: number): number => Math.max(3, Math.min(10, Number.isFinite(n) ? n : 5));
@@ -15,8 +22,25 @@ const stripTailPunct = (s: string): string => clean(s).replace(/[.!?…]+$/, "")
 function normalizePlace(W: string): string {
   const w = clean(W);
   if (!w) return "an einem Ort";
-  if (/^(im|am|in|auf|bei|unter|über|vor|hinter)\b/i.test(w)) return w;
-  return "an einem " + w;
+  // Der Kontext-Normalisierer kennt Genus und Kasus („Urbane Straße mit
+  // Graffiti-Wand" → „auf einer urbanen Straße …"); gemeldet war „An einem
+  // Urbane Straße".
+  const n = normWhere(w);
+  if (/^(im|am|in|auf|bei|unter|über|vor|hinter|an|zwischen|neben)\b/i.test(n)) return n;
+  // „Urbane Straße mit Graffiti-Wand" — Adjektiv + Nomen ohne Artikel (so
+  // kommen Orte aus den Sequenz-Vorlagen): Genus aus dem Nomen, das Adjektiv
+  // in die schwache Form, die Präposition nach dem Ort — „auf einer urbanen
+  // Straße mit Graffiti-Wand".
+  const m = n.match(/^([A-ZÄÖÜ][a-zäöüß]+?)(e|er|es|en|em)\s+([A-ZÄÖÜ][a-zäöüß-]+)(.*)$/);
+  if (m) {
+    const g = guessGender(m[3]!);
+    if (g) {
+      const art = g === "f" ? "einer" : "einem";
+      const prep = /(straße|platz|markt|hof|feld|weg|gasse|brücke|bahnhof|dach|insel|bühne)$/i.test(m[3]!) ? "auf" : "in";
+      return `${prep} ${art} ${m[1]!.toLowerCase()}en ${m[3]}${m[4] || ""}`;
+    }
+  }
+  return "an einem " + n;
 }
 
 // ── Shot als Bildszene (Umbau 4.343.0) ─────────────────────────────────────
@@ -59,11 +83,36 @@ function buildVideoShots(kit: StoryKit, shotCount: number, lenTarget = 0, bank?:
   const place = normalizePlace(kit.W);
   const who = kit.P;
   const bogen = loadDramaData();
-  const s = (a: string[] | undefined): string[] => (Array.isArray(a) ? a.filter(Boolean).map(stripTailPunct) : []);
   // Vorräte je Sichtplatz — aus Bank und Bogen, gemischt, ohne Wiederholung.
+  // Gemeldet (Sequenz „Wohnungslos"): Material aus einem Zeitungstext brachte
+  // Präteritum, halbe Zitate, 20-Wort-Sätze und Satzfetzen als Requisiten.
+  // Darum wird jeder Vorrat vor dem Bau gesäubert: atomisiert (Stellschraube
+  // Atomgröße), ins Präsens gebracht, durch den Satz-Wächter geprüft; eine
+  // Requisite muss eine Nominalphrase sein (kein finites Verb, kein „oder").
+  const atomMax = loadKnobs().atomgroesse;
+  const s = (a: string[] | undefined): string[] => {
+    if (!Array.isArray(a)) return [];
+    const out: string[] = [];
+    for (const roh of a) {
+      if (!roh) continue;
+      for (const t of atomisiere(stripTailPunct(roh), atomMax)) {
+        const u = praesensUmschreiben(t);
+        if (!u.ok) continue;
+        const x = stripTailPunct(u.text);
+        if (x.split(/\s+/).length < 2 || !satzPlausibel(x + ".")) continue;
+        out.push(x);
+      }
+    }
+    return out;
+  };
+  const istNP = (x: string): boolean => !hatFinitesVerb(x) && !/^(oder|und|aber|doch|denn)\b/i.test(x) && !/[»«„“"!?]/.test(x) && x.split(/\s+/).length <= 9;
   const bilder = reihenfolge([...s(bank?.motifs), ...s(bogen?.mitte)]);
-  const bewegungen = reihenfolge([...s(bank?.hooks), ...s(bank?.turns), ...s(bogen?.veraenderungen)]);
-  const requisiten = reihenfolge([...s(bank?.props), ...s(bogen?.ausloeser)]);
+  // Mit Schlagfolge sind die Veränderungen des Bogens für den Schlag „wende"
+  // reserviert — sonst zog ein früherer BEWEGUNG-Platz sie weg, und die Wende
+  // fiel auf die Bank zurück.
+  const mitFolge = !!(bogen?.folge && bogen.folge.length);
+  const bewegungen = reihenfolge([...s(bank?.hooks), ...s(bank?.turns), ...(mitFolge ? [] : s(bogen?.veraenderungen))]);
+  const requisiten = reihenfolge([...s(bank?.props), ...s(bogen?.ausloeser)].filter(istNP));
   const hindernisse = reihenfolge([...s(bank?.obstacles)]);
   const ton = TONE_DATA[tone]?.flavor ? reihenfolge([...TONE_DATA[tone]!.flavor]) : [];
   const licht = reihenfolge(LICHT);
@@ -73,12 +122,19 @@ function buildVideoShots(kit: StoryKit, shotCount: number, lenTarget = 0, bank?:
   // sonst stand sie gleich darauf noch einmal als „Nah: eine Lampe".
   for (const x of [kit.prop, kit.propDat, kit.propAcc]) if (x) benutzt.add(stripTailPunct(x).toLowerCase().replace(/^(einen|einem|einer|eine|ein)\s/, "ein "));
   const norm = (y: string): string => y.toLowerCase().replace(/^(einen|einem|einer|eine|ein)\s/, "ein ");
+  // Ist nichts Frisches mehr da, gilt der Rückfall nur EINMAL — danach fällt
+  // der Sichtplatz aus (leerer Text). Gemeldet: derselbe Rückfall-Satz stand
+  // sechsmal in einer Sequenz.
   const zieh = (liste: string[], fallback: string): string => {
     const x = liste.find((y) => !benutzt.has(norm(y)));
-    if (!x) return fallback;
+    // Auch der Rückfall (ein Baustein aus dem Kit) geht durch die Säuberung —
+    // sonst kam „Da, der Flohzirkus!«, flüstert Neumeier" als Haken herein.
+    if (!x) { const f = s([fallback || ""])[0] || ""; if (!f || benutzt.has(norm(f))) return ""; benutzt.add(norm(f)); return f; }
     benutzt.add(norm(x));
     return x;
   };
+  // Ein Sichtplatz ohne Text fällt aus.
+  const setze = (teile: string[], text: string): void => { if (text && text.replace(/[^A-Za-zÄÖÜäöüß]/g, "").length > 2) teile.push(text); };
   // Wie viele Plätze je Shot? Der Längenregler entscheidet: bei 110 Wörtern
   // Ziel drei Plätze (Bild, Bewegung, Nah), bei 200 alle fünf, ab 260 dazu
   // ein Ton-Satz und ein zweites Bild.
@@ -121,31 +177,31 @@ function buildVideoShots(kit: StoryKit, shotCount: number, lenTarget = 0, bank?:
     const erster = i === 0, letzter = i === shotCount - 1, mitte = i === Math.floor(shotCount / 2);
     const teile: string[] = [];
     // BILD
-    if (erster) teile.push(`${cap(place)}: ${who} nahe ${stripTailPunct(kit.propDat || kit.prop)}.`);
+    if (erster) { const p0 = stripTailPunct(kit.propDat || kit.prop); teile.push(istNP(p0) ? `${cap(place)}: ${who} nahe ${p0}.` : `${cap(place)}: ${who}.`); }
     const bild = zieh(bilder, stripTailPunct(kit.motif));
-    if (!erster || stufe >= 2) teile.push(`${cap(bild)}.`);
+    if ((!erster || stufe >= 2) && bild) setze(teile, `${cap(bild)}.`);
     // BEWEGUNG — mit Schlagfolge: die Schläge dieses Shots; sonst an den Gelenken der Bogen
     if (folge && schlaegeJeShot[i]!.length) {
-      const saetze = schlaegeJeShot[i]!.map(schlagSatz).filter((x): x is string => !!x && x.replace(/[^A-Za-zÄÖÜäöüß]/g, "").length > 3);
+      const saetze = schlaegeJeShot[i]!.map(schlagSatz).filter((x): x is string => !!x && !/:\s*\.$/.test(x) && !/^(Nah|Regel|Es geht um|Etwas kippt)[: ]+\.$/.test(x) && x.replace(/[^A-Za-zÄÖÜäöüß]/g, "").length > 3);
       if (saetze.length) teile.push(...saetze.slice(0, stufe >= 3 ? 3 : 2));
-      else teile.push(`${cap(zieh(bewegungen, kit.hook))}.`);
+      else { const b = zieh(bewegungen, kit.hook); if (b) setze(teile, `${cap(b)}.`); }
     }
-    else if (erster && bogen && s(bogen.einstieg).length) teile.push(`${cap(zieh(s(bogen.einstieg), kit.hook))}.`);
-    else if (mitte && bogen && s(bogen.hoehepunkt).length) teile.push(`${cap(zieh(s(bogen.hoehepunkt), kit.turn))}.`);
+    else if (erster && bogen && s(bogen.einstieg).length) { const b = zieh(s(bogen.einstieg), kit.hook); if (b) setze(teile, `${cap(b)}.`); }
+    else if (mitte && bogen && s(bogen.hoehepunkt).length) { const b = zieh(s(bogen.hoehepunkt), kit.turn); if (b) setze(teile, `${cap(b)}.`); }
     else if (letzter) teile.push(`${cap(stripTailPunct(kit.ending))}.`);
-    else teile.push(`${cap(zieh(bewegungen, kit.hook))}.`);
+    else { const b = zieh(bewegungen, kit.hook); if (b) setze(teile, `${cap(b)}.`); }
     // NAH
-    if (stufe >= 1 && !letzter && !teile.some((t) => t.startsWith("Nah: "))) teile.push(`Nah: ${nominativ(zieh(requisiten, stripTailPunct(kit.prop)))}.`);
+    if (stufe >= 1 && !letzter && !teile.some((t) => t.startsWith("Nah: "))) { const r = zieh(requisiten, istNP(stripTailPunct(kit.prop)) ? stripTailPunct(kit.prop) : ""); if (r) setze(teile, `Nah: ${nominativ(r)}.`); }
     // HINDERNIS im vorletzten Drittel
-    if (stufe >= 2 && !erster && !letzter && hindernisse.length && i >= Math.floor(shotCount / 3)) teile.push(`${cap(zieh(hindernisse, kit.obstacle))}.`);
+    if (stufe >= 2 && !erster && !letzter && hindernisse.length && i >= Math.floor(shotCount / 3)) { const h = zieh(hindernisse, kit.obstacle); if (h) setze(teile, `${cap(h)}.`); }
     // LICHT
-    if (stufe >= 2) teile.push(`${zieh(licht, "Ein bewölkter Tag ohne Schatten")}.`);
+    if (stufe >= 2) { const l = zieh(licht, ""); if (l) setze(teile, `${l}.`); }
     // TON und zweites Bild bei hoher Länge
-    if (stufe >= 3 && ton.length) teile.push(ensurePunct(zieh(ton, "")).trim());
-    if (stufe >= 4) teile.push(`${cap(zieh(bilder, stripTailPunct(kit.motif)))}.`);
+    if (stufe >= 3 && ton.length) { const t = zieh(ton, ""); if (t) setze(teile, ensurePunct(t).trim()); }
+    if (stufe >= 4) { const b2 = zieh(bilder, ""); if (b2) setze(teile, `${cap(b2)}.`); }
     if (letzter) teile.push(`Nur ${pick(["der Riss", "das Fenster", "die Karte", "das Licht"])} bleibt sichtbar.`);
     // SCHNITT
-    if (!letzter) teile.push(zieh(SCHNITT, "Schnitt."));
+    if (!letzter) teile.push(zieh(SCHNITT, "") || "Schnitt.");
     shots.push(teile.filter(Boolean).join(" "));
     kameras.push(zieh(kamera, "Statische Einstellung, 35 mm"));
   }

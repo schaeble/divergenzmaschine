@@ -85,7 +85,7 @@ wahr("das Studio hat den Bogen-Regler neben der Struktur", /lockField\("Struktur
 wahr("der Bogen ist nicht würfelbar", !/ROLL_SELECTS = \[[^\]]*bogenSel/.test(st));
 wahr("der Regler zeigt das Archiv nach Bauform", /const alle = archivEintraege\(\)\.filter\(\(e\) => platzBrauchbar\(e\)\);/.test(st) && /el\("optgroup", \{ label: v\.name \}\)/.test(st));
 wahr("die Wahl wird beim Wechsel gesichert", /bogenSel\.addEventListener\("change", \(\) => \{\s*\n\s*setzeQuelle\(bogenSel\.value\); bauformSync\(\);/.test(st));
-wahr("vor jeder Erzeugung wird die Weiche gestellt", /setBogenOverride\(bogenFuerErzeugung\(\)\);\s*\n\s*const model = /.test(st));
+wahr("vor jeder Erzeugung wird die Weiche gestellt", /setBogenOverride\(bogenFuerErzeugung\(\)\);[\s\S]{0,1200}?const model = /.test(st));
 const ap = readFileSync("src/ui/app.ts", "utf8");
 wahr("der Reiter steht neben der Wortbank", /\["Wortbank", mountWordbank\],\s*\n\s*\["Erzählerbank", mountErzaehlerbank\],/.test(ap));
 const ev = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");

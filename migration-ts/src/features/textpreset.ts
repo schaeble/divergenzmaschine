@@ -24,6 +24,7 @@ import type { Bank, BankKey } from "../types";
 import type { DramaData } from "../generation/dramaturgie";
 import { deriveAtom } from "../atoms/derive";
 import { clean } from "../text-utils";
+import { praesensUmschreiben } from "../generation/coherence";
 
 const KATEGORIEN: BankKey[] = ["motifs", "hooks", "props", "turns", "obstacles", "stakes", "endings"];
 
@@ -65,7 +66,12 @@ export function presetAusText(text: string): PresetAusText {
   const bank: Bank = { motifs: [], hooks: [], props: [], turns: [], obstacles: [], stakes: [], endings: [] };
   const schlussGrenze = Math.max(0, stuecke.length - 2);
   const gesehen = new Set<string>();
-  stuecke.forEach((s, i) => {
+  stuecke.forEach((s0, i) => {
+    // Zeitungstexte stehen im Präteritum — ein Preset soll im Präsens stehen.
+    // Der Umschreiber bringt, was er sicher kann; was er nicht entscheiden
+    // kann, bleibt (der Editor warnt).
+    const u = praesensUmschreiben(s0);
+    const s = u.ok && u.changed ? u.text : s0;
     const key = s.toLowerCase();
     if (gesehen.has(key)) return;
     gesehen.add(key);

@@ -12,9 +12,16 @@ const low = (s: string): string => (s ? s.charAt(0).toLowerCase() + s.slice(1) :
 
 /** Zerlegt eine einfache Phrase in [Artikel?, Adjektiv?, Nomen] — sonst null. */
 function parseNP(s: string): { art: string; adj: string; noun: string } | null {
-  const m = s.trim().match(/^(?:(der|die|das|ein|eine|einen|einem|einer)\s+)?(?:([a-zäöüß][a-zäöüß-]*)\s+)?([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
+  // Das Adjektiv darf großgeschrieben sein, wenn es am Anfang steht und ein
+  // Nomen folgt — gemeldet: „Urbane Straße mit Graffiti-Wand" wurde zu „An
+  // einem Urbane Straße". Es wird klein und dekliniert („an einer urbanen
+  // Straße"). Nur Adjektiv-Endungen zählen (-e, -en, -er, -es), damit ein
+  // Ortsname aus zwei Wörtern („Bad Aibling") kein Adjektiv bekommt.
+  const m = s.trim().match(/^(?:(der|die|das|ein|eine|einen|einem|einer)\s+)?(?:([A-ZÄÖÜa-zäöüß][a-zäöüß-]*(?:e|en|er|es))\s+)?([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
   if (!m) return null;
-  return { art: (m[1] || "").toLowerCase(), adj: m[2] || "", noun: m[3]! };
+  const adj = (m[2] || "");
+  if (adj && /^[A-ZÄÖÜ]/.test(adj) && !/[a-zäöüß]$/.test(adj)) return null;
+  return { art: (m[1] || "").toLowerCase(), adj: adj.toLowerCase(), noun: m[3]! };
 }
 /** Genus: aus explizitem Artikel oder Lexikon/Heuristik. */
 function genderOf(art: string, noun: string): "m" | "f" | "n" | undefined {
@@ -53,7 +60,7 @@ export function normWhere(s: string): string {
   // bekommt seine Präposition, der Zusatz bleibt („auf dem Platz in Hanoi").
   // Gemeldet: „Während des letzten Prozesses, Platz in Hanoi, Vietnam".
   const zusatz = t.match(/^(.+?)\s+((?:in|im|an|am|auf|bei|vor|hinter|neben|unter|über|zwischen|nahe|gegenüber|ohne|mit|voller|aus)\s+.+)$/);
-  if (zusatz && !/\s/.test(zusatz[1]!.replace(/^(der|die|das|ein|eine)\s+/i, ""))) {
+  if (zusatz && parseNP(zusatz[1]!)) {
     const kopf = normWhere(zusatz[1]!);
     if (kopf !== zusatz[1]) return `${kopf} ${zusatz[2]}`;
   }
@@ -76,7 +83,9 @@ export function normWhere(s: string): string {
   if (!g) return (!np.art && !np.adj && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(t)) ? `in ${t}` : t;
   const adj = np.adj ? adjDat(np.adj) + " " : "";
   const kind = AUF_NOUNS.test(np.noun) ? "auf" : (AN_NOUNS.test(np.noun) || AN_ENDUNG.test(np.noun)) ? "an" : "in";
-  const indef = np.art.startsWith("ein");
+  // Ohne Artikel, aber mit Adjektiv, ist der Ort unbestimmt: „Urbane Straße"
+  // → „auf einer urbanen Straße" (nicht „auf der" — die kennt niemand).
+  const indef = np.art.startsWith("ein") || (!np.art && !!np.adj);
   if (indef) {
     const artD = g === "f" ? "einer" : "einem";
     return `${kind} ${artD} ${adj}${np.noun}`;

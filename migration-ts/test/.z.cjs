@@ -4466,7 +4466,7 @@ function ladeStatistik() {
 }
 function speichern() {
   if (schreibTimer !== null) return;
-  schreibTimer = (typeof window !== "undefined" ? window.setTimeout : setTimeout)(() => {
+  schreibTimer = setTimeout(() => {
     schreibTimer = null;
     try {
       if (typeof localStorage !== "undefined" && cache) localStorage.setItem(KEY2, JSON.stringify(cache));
@@ -5893,9 +5893,11 @@ var PREPS = /^(in|im|an|am|auf|bei|beim|unter|über|vor|hinter|neben|zwischen|du
 var cap2 = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 var low = (s) => s ? s.charAt(0).toLowerCase() + s.slice(1) : s;
 function parseNP(s) {
-  const m = s.trim().match(/^(?:(der|die|das|ein|eine|einen|einem|einer)\s+)?(?:([a-zäöüß][a-zäöüß-]*)\s+)?([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
+  const m = s.trim().match(/^(?:(der|die|das|ein|eine|einen|einem|einer)\s+)?(?:([A-ZÄÖÜa-zäöüß][a-zäöüß-]*(?:e|en|er|es))\s+)?([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
   if (!m) return null;
-  return { art: (m[1] || "").toLowerCase(), adj: m[2] || "", noun: m[3] };
+  const adj = m[2] || "";
+  if (adj && /^[A-ZÄÖÜ]/.test(adj) && !/[a-zäöüß]$/.test(adj)) return null;
+  return { art: (m[1] || "").toLowerCase(), adj: adj.toLowerCase(), noun: m[3] };
 }
 function genderOf(art, noun) {
   if (art === "die" || art === "eine" || art === "einer") return "f";
@@ -5948,7 +5950,7 @@ function normWhere(s) {
     return kopf + t.slice(komma);
   }
   const zusatz = t.match(/^(.+?)\s+((?:in|im|an|am|auf|bei|vor|hinter|neben|unter|über|zwischen|nahe|gegenüber|ohne|mit|voller|aus)\s+.+)$/);
-  if (zusatz && !/\s/.test(zusatz[1].replace(/^(der|die|das|ein|eine)\s+/i, ""))) {
+  if (zusatz && parseNP(zusatz[1])) {
     const kopf = normWhere(zusatz[1]);
     if (kopf !== zusatz[1]) return `${kopf} ${zusatz[2]}`;
   }
@@ -5961,7 +5963,7 @@ function normWhere(s) {
   if (!g) return !np.art && !np.adj && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(t) ? `in ${t}` : t;
   const adj = np.adj ? adjDat(np.adj) + " " : "";
   const kind = AUF_NOUNS.test(np.noun) ? "auf" : AN_NOUNS.test(np.noun) || AN_ENDUNG.test(np.noun) ? "an" : "in";
-  const indef = np.art.startsWith("ein");
+  const indef = np.art.startsWith("ein") || !np.art && !!np.adj;
   if (indef) {
     const artD = g === "f" ? "einer" : "einem";
     return `${kind} ${artD} ${adj}${np.noun}`;
@@ -8590,6 +8592,9 @@ function pruefeSatz(satz) {
     if (/^es gibt(\s+(jetzt|hier|dort|noch|nur|auch|bald|immer|nie))?$/i.test(teil.trim())) return 8;
   return 0;
 }
+function satzPlausibel(satz) {
+  return pruefeSatz(satz) === 0;
+}
 function stueckPlausibel(text) {
   const saetze = (text || "").split(/(?<=[.!?…])\s+/).map((s) => s.trim()).filter(Boolean);
   if (!saetze.length) return false;
@@ -8933,8 +8938,18 @@ var stripTailPunct = (s) => clean(s).replace(/[.!?…]+$/, "");
 function normalizePlace(W) {
   const w = clean(W);
   if (!w) return "an einem Ort";
-  if (/^(im|am|in|auf|bei|unter|über|vor|hinter)\b/i.test(w)) return w;
-  return "an einem " + w;
+  const n = normWhere(w);
+  if (/^(im|am|in|auf|bei|unter|über|vor|hinter|an|zwischen|neben)\b/i.test(n)) return n;
+  const m = n.match(/^([A-ZÄÖÜ][a-zäöüß]+?)(e|er|es|en|em)\s+([A-ZÄÖÜ][a-zäöüß-]+)(.*)$/);
+  if (m) {
+    const g = guessGender(m[3]);
+    if (g) {
+      const art = g === "f" ? "einer" : "einem";
+      const prep = /(straße|platz|markt|hof|feld|weg|gasse|brücke|bahnhof|dach|insel|bühne)$/i.test(m[3]) ? "auf" : "in";
+      return `${prep} ${art} ${m[1].toLowerCase()}en ${m[3]}${m[4] || ""}`;
+    }
+  }
+  return "an einem " + n;
 }
 var LICHT = [
   "Kaltes Blau liegt auf allem",
@@ -8983,10 +8998,27 @@ function buildVideoShots(kit, shotCount, lenTarget = 0, bank, tone = "neutral") 
   const place = normalizePlace(kit.W);
   const who = kit.P;
   const bogen = loadDramaData();
-  const s = (a) => Array.isArray(a) ? a.filter(Boolean).map(stripTailPunct) : [];
+  const atomMax = loadKnobs().atomgroesse;
+  const s = (a) => {
+    if (!Array.isArray(a)) return [];
+    const out = [];
+    for (const roh of a) {
+      if (!roh) continue;
+      for (const t of atomisiere(stripTailPunct(roh), atomMax)) {
+        const u = praesensUmschreiben(t);
+        if (!u.ok) continue;
+        const x = stripTailPunct(u.text);
+        if (x.split(/\s+/).length < 2 || !satzPlausibel(x + ".")) continue;
+        out.push(x);
+      }
+    }
+    return out;
+  };
+  const istNP = (x) => !hatFinitesVerb(x) && !/^(oder|und|aber|doch|denn)\b/i.test(x) && !/[»«„“"!?]/.test(x) && x.split(/\s+/).length <= 9;
   const bilder = reihenfolge([...s(bank?.motifs), ...s(bogen?.mitte)]);
-  const bewegungen = reihenfolge([...s(bank?.hooks), ...s(bank?.turns), ...s(bogen?.veraenderungen)]);
-  const requisiten = reihenfolge([...s(bank?.props), ...s(bogen?.ausloeser)]);
+  const mitFolge = !!(bogen?.folge && bogen.folge.length);
+  const bewegungen = reihenfolge([...s(bank?.hooks), ...s(bank?.turns), ...mitFolge ? [] : s(bogen?.veraenderungen)]);
+  const requisiten = reihenfolge([...s(bank?.props), ...s(bogen?.ausloeser)].filter(istNP));
   const hindernisse = reihenfolge([...s(bank?.obstacles)]);
   const ton = TONE_DATA[tone]?.flavor ? reihenfolge([...TONE_DATA[tone].flavor]) : [];
   const licht = reihenfolge(LICHT);
@@ -8996,9 +9028,17 @@ function buildVideoShots(kit, shotCount, lenTarget = 0, bank, tone = "neutral") 
   const norm = (y) => y.toLowerCase().replace(/^(einen|einem|einer|eine|ein)\s/, "ein ");
   const zieh = (liste, fallback) => {
     const x = liste.find((y) => !benutzt.has(norm(y)));
-    if (!x) return fallback;
+    if (!x) {
+      const f = s([fallback || ""])[0] || "";
+      if (!f || benutzt.has(norm(f))) return "";
+      benutzt.add(norm(f));
+      return f;
+    }
     benutzt.add(norm(x));
     return x;
+  };
+  const setze = (teile, text) => {
+    if (text && text.replace(/[^A-Za-zÄÖÜäöüß]/g, "").length > 2) teile.push(text);
   };
   const proShot = lenTarget > 0 ? lenTarget / shotCount : 30;
   const stufe = proShot < 26 ? 1 : proShot < 40 ? 2 : proShot < 55 ? 3 : 4;
@@ -9043,24 +9083,52 @@ function buildVideoShots(kit, shotCount, lenTarget = 0, bank, tone = "neutral") 
   for (let i = 0; i < shotCount; i++) {
     const erster = i === 0, letzter = i === shotCount - 1, mitte = i === Math.floor(shotCount / 2);
     const teile = [];
-    if (erster) teile.push(`${cap(place)}: ${who} nahe ${stripTailPunct(kit.propDat || kit.prop)}.`);
+    if (erster) {
+      const p0 = stripTailPunct(kit.propDat || kit.prop);
+      teile.push(istNP(p0) ? `${cap(place)}: ${who} nahe ${p0}.` : `${cap(place)}: ${who}.`);
+    }
     const bild = zieh(bilder, stripTailPunct(kit.motif));
-    if (!erster || stufe >= 2) teile.push(`${cap(bild)}.`);
+    if ((!erster || stufe >= 2) && bild) setze(teile, `${cap(bild)}.`);
     if (folge && schlaegeJeShot[i].length) {
-      const saetze = schlaegeJeShot[i].map(schlagSatz).filter((x) => !!x && x.replace(/[^A-Za-zÄÖÜäöüß]/g, "").length > 3);
+      const saetze = schlaegeJeShot[i].map(schlagSatz).filter((x) => !!x && !/:\s*\.$/.test(x) && !/^(Nah|Regel|Es geht um|Etwas kippt)[: ]+\.$/.test(x) && x.replace(/[^A-Za-zÄÖÜäöüß]/g, "").length > 3);
       if (saetze.length) teile.push(...saetze.slice(0, stufe >= 3 ? 3 : 2));
-      else teile.push(`${cap(zieh(bewegungen, kit.hook))}.`);
-    } else if (erster && bogen && s(bogen.einstieg).length) teile.push(`${cap(zieh(s(bogen.einstieg), kit.hook))}.`);
-    else if (mitte && bogen && s(bogen.hoehepunkt).length) teile.push(`${cap(zieh(s(bogen.hoehepunkt), kit.turn))}.`);
-    else if (letzter) teile.push(`${cap(stripTailPunct(kit.ending))}.`);
-    else teile.push(`${cap(zieh(bewegungen, kit.hook))}.`);
-    if (stufe >= 1 && !letzter && !teile.some((t) => t.startsWith("Nah: "))) teile.push(`Nah: ${nominativ(zieh(requisiten, stripTailPunct(kit.prop)))}.`);
-    if (stufe >= 2 && !erster && !letzter && hindernisse.length && i >= Math.floor(shotCount / 3)) teile.push(`${cap(zieh(hindernisse, kit.obstacle))}.`);
-    if (stufe >= 2) teile.push(`${zieh(licht, "Ein bew\xF6lkter Tag ohne Schatten")}.`);
-    if (stufe >= 3 && ton.length) teile.push(ensurePunct(zieh(ton, "")).trim());
-    if (stufe >= 4) teile.push(`${cap(zieh(bilder, stripTailPunct(kit.motif)))}.`);
+      else {
+        const b = zieh(bewegungen, kit.hook);
+        if (b) setze(teile, `${cap(b)}.`);
+      }
+    } else if (erster && bogen && s(bogen.einstieg).length) {
+      const b = zieh(s(bogen.einstieg), kit.hook);
+      if (b) setze(teile, `${cap(b)}.`);
+    } else if (mitte && bogen && s(bogen.hoehepunkt).length) {
+      const b = zieh(s(bogen.hoehepunkt), kit.turn);
+      if (b) setze(teile, `${cap(b)}.`);
+    } else if (letzter) teile.push(`${cap(stripTailPunct(kit.ending))}.`);
+    else {
+      const b = zieh(bewegungen, kit.hook);
+      if (b) setze(teile, `${cap(b)}.`);
+    }
+    if (stufe >= 1 && !letzter && !teile.some((t) => t.startsWith("Nah: "))) {
+      const r = zieh(requisiten, istNP(stripTailPunct(kit.prop)) ? stripTailPunct(kit.prop) : "");
+      if (r) setze(teile, `Nah: ${nominativ(r)}.`);
+    }
+    if (stufe >= 2 && !erster && !letzter && hindernisse.length && i >= Math.floor(shotCount / 3)) {
+      const h = zieh(hindernisse, kit.obstacle);
+      if (h) setze(teile, `${cap(h)}.`);
+    }
+    if (stufe >= 2) {
+      const l = zieh(licht, "");
+      if (l) setze(teile, `${l}.`);
+    }
+    if (stufe >= 3 && ton.length) {
+      const t = zieh(ton, "");
+      if (t) setze(teile, ensurePunct(t).trim());
+    }
+    if (stufe >= 4) {
+      const b2 = zieh(bilder, "");
+      if (b2) setze(teile, `${cap(b2)}.`);
+    }
     if (letzter) teile.push(`Nur ${pick(["der Riss", "das Fenster", "die Karte", "das Licht"])} bleibt sichtbar.`);
-    if (!letzter) teile.push(zieh(SCHNITT, "Schnitt."));
+    if (!letzter) teile.push(zieh(SCHNITT, "") || "Schnitt.");
     shots.push(teile.filter(Boolean).join(" "));
     kameras.push(zieh(kamera, "Statische Einstellung, 35 mm"));
   }

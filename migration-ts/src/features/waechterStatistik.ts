@@ -55,7 +55,9 @@ function speichern(): void {
   if (schreibTimer !== null) return;
   // Gebündelt: Der Wächter läuft hundertfach je Erzeugung; ein Schreibvorgang
   // pro Sekunde genügt.
-  schreibTimer = (typeof window !== "undefined" ? window.setTimeout : setTimeout)(() => {
+  // Der globale setTimeout laeuft im Browser wie in Node; window.setTimeout
+  // unbound aufzurufen scheiterte in einem Pruefstand ohne echtes window.
+  schreibTimer = setTimeout(() => {
     schreibTimer = null;
     try { if (typeof localStorage !== "undefined" && cache) localStorage.setItem(KEY, JSON.stringify(cache)); } catch { /* voll */ }
   }, 1000) as unknown as number;

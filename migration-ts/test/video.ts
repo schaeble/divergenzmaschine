@@ -9,6 +9,7 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https
 (globalThis as unknown as Record<string, unknown>).localStorage = dom.window.localStorage;
 import { readFileSync } from "fs";
 import { DEFAULT_BANK } from "../src/constants";
+import { presetAusText } from "../src/features/textpreset";
 import { buildStory } from "../src/generation/buildStory";
 import { setDramaData } from "../src/generation/dramaturgie";
 import type { GenInput } from "../src/types";
@@ -95,6 +96,28 @@ const shots = (t: string): string[] => t.split("\n").filter((l) => l.startsWith(
   setDramaData(null);
   const qs = readFileSync("src/ui/studio.ts", "utf8");
   wahr("das Studio sagt bei Multi-Shot: wirkt", /wirkt · Multi-Shot verteilt die Schlagfolge auf die Shots/.test(qs));
+}
+
+// ── 6 · Sequenz „Wohnungslos": Material aus einem Zeitungstext ─────────────
+{
+  const artikel = "Neumeier hat gerade seinen Dienstwagen abgestellt, auf einem Parkplatz neben den Bahngleisen, unweit des Bonner Hauptbahnhofs. Da, der Flohzirkus!«, flüstert Neumeier. Ein Sozialarbeiter aus der Unterkunft, in der Micha Neumeier lebt, nennt ihn »absolut zuverlässig«. Irgendetwas darin fühlte sich nach einem echten Neuanfang an. Jetzt läuft er durch eine Unterführung, einen unbeleuchteten Tunnel, auf dem Boden liegen aufgeweichte Pappen und alte Kleider herum. Ein Bündel Papier mit Wasserflecken. Eine Decke im Regen. Es geht um ein Zuhause. Oder in einem Heim. Nur ein Zuhause finden sie nicht. Ein kleiner Trost bleibt trotzdem. Zum ersten Mal seit Langem scheint der Weg wieder offen. Es reicht diesmal für alle.";
+  const bank = presetAusText(artikel).bank;
+  let dubl = 0, praet = 0, halbeZitate = 0, nahMitVerb = 0, schlechterOrt = 0;
+  for (let i = 0; i < 10; i++) {
+    const t = buildStory(bank as never, { ...inp, where: "Urbane Straße mit Graffiti-Wand", lenTarget: 200 } as never);
+    const saetze = t.split(/(?<=[.!?…])\s+/).map((x) => x.toLowerCase().replace(/[^a-zäöüß ]/g, "").trim()).filter((x) => x.split(" ").length >= 4);
+    dubl += saetze.length - new Set(saetze).size;
+    if (/fühlte sich/.test(t)) praet++;
+    if (/»absolut zuverlässig\./.test(t) || /Flohzirkus!«/.test(t)) halbeZitate++;
+    if (/Nah: Oder /.test(t) || /Nah: .*flüstert/.test(t)) nahMitVerb++;
+    if (/An einem Urbane/.test(t)) schlechterOrt++;
+  }
+  ist("keine Dubletten mehr (10 Läufe)", dubl, 0);
+  ist("Präteritum wird zum Präsens", praet, 0);
+  ist("halbe Zitate fallen (Satz-Wächter)", halbeZitate, 0);
+  ist("Nah verlangt eine Nominalphrase", nahMitVerb, 0);
+  ist("Ort mit Adjektiv ohne Artikel wird gebeugt", schlechterOrt, 0);
+  wahr("„Auf einer urbanen Straße“", /Auf einer urbanen Straße mit Graffiti-Wand/.test(buildStory(bank as never, { ...inp, where: "Urbane Straße mit Graffiti-Wand" } as never)));
 }
 
 console.log(`Prüfstand Multi-Shot — ${geprueft} Prüfungen, ${bestanden} bestanden`);

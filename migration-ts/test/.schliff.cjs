@@ -824,7 +824,7 @@ function ladeStatistik() {
 }
 function speichern() {
   if (schreibTimer !== null) return;
-  schreibTimer = (typeof window !== "undefined" ? window.setTimeout : setTimeout)(() => {
+  schreibTimer = setTimeout(() => {
     schreibTimer = null;
     try {
       if (typeof localStorage !== "undefined" && cache) localStorage.setItem(KEY, JSON.stringify(cache));
