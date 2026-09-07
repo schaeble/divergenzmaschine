@@ -1,8 +1,6 @@
 // KI-Anbindung (Anthropic). Der API-Schlüssel bleibt ausschließlich lokal
 // (localStorage) und wird nur an api.anthropic.com gesendet — wie im Original.
 // Nicht offline testbar (echte API-Calls).
-import type { Bank } from "../types";
-import { normalizeBankShape } from "../storage";
 
 const AI_KEY = "divergenz_ai_key_v1";
 const AI_MODEL = "divergenz_ai_model_v1";
@@ -360,30 +358,8 @@ export function buildWordbankPrompt(ctx: WordbankCtx): string {
   return p;
 }
 
-/** Erzeugt eine Wortbank per KI und gibt sie normalisiert zurück (Aufrufer speichert sie als Preset). */
-export async function generateAiWordbank(ctx: WordbankCtx): Promise<Bank> {
-  // 120 statt 50 Einträge brauchen mehr Platz — bei 4096 riss die Antwort mittendrin ab.
-  const raw = await callClaude(buildWordbankPrompt(ctx), 8192, "{");
-  return normalizeBankShape(extractJson(raw));
-}
-
-/** Übergibt einen Text an Claude und gibt eine geglättete Rohfassung zurück. */
-export async function elaborateText(text: string, targetWords: number): Promise<string> {
-  const n = Math.max(100, Math.min(2000, Math.round(targetWords)));
-  const prompt = "Hier ist ein kurzer, oft sperriger Rohtext aus einem experimentellen Textgenerator "
-    + "(Divergenzmaschine). Arbeite ihn zu einem zusammenhängenden literarischen Prosatext von etwa " + n + " Wörtern aus: "
-    + "entfalte Bilder, Szenen, Figuren und Atmosphäre, vertiefe die vorhandenen Motive und behalte den surrealen, "
-    + "dichten Ton bei. Bleibe bei den vorgegebenen Figuren, Orten und der Grundidee; erfinde nichts, was dem Text "
-    + "widerspricht. Schreibe auf Deutsch. Gib NUR den ausgearbeiteten Text zurück, ohne Überschrift, Erklärung oder "
-    + "Meta-Kommentar.\n\n---\n\n" + text;
-  const maxTok = Math.min(8192, Math.ceil(n * 2.4) + 400);
-  return callClaude(prompt, maxTok);
-}
-
-export async function smoothText(text: string): Promise<string> {
-  const prompt = "Hier ist ein maschinell generierter, oft sperriger Rohtext aus einem kreativen Textgenerator "
-    + "(Divergenzmaschine). Schreibe daraus eine flüssige, kohärente Rohfassung: behebe Grammatikfehler, "
-    + "Logikbrüche und Wiederholungen, glätte den Erzählfluss, behalte aber Figuren, Orte und Handlung bei. "
-    + "Gib NUR den überarbeiteten Text zurück, ohne Erklärungen oder Meta-Kommentare.\n\n---\n\n" + text;
-  return callClaude(prompt);
-}
+// Hier standen bis 4.349.0 drei weitere KI-Wege: `generateAiWordbank`,
+// `elaborateText` und `smoothText` — fertige Prompts samt Token-Kosten, die
+// kein Knopf mehr auslöste. Die Wortbank kommt heute über den Preset-2.0-Weg,
+// die Textglättung über den Lehrer. Nachgezählt beim Aufräumen: kein Aufrufer
+// im Quelltext, keiner in den Prüfständen.

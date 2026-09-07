@@ -30,6 +30,7 @@ import { uebernehmeKontext, geaendert, W4_FELDER, offeneQuellen, ziehQuelle, QUE
 import { worldFillContext, WELT_SAAT } from "../src/features/world";
 import { mountStudio } from "../src/ui/studio";
 import { mountWordbank } from "../src/ui/wordbankView";
+import { hasDramaData, setDramaData } from "../src/generation/dramaturgie";
 import { mountIdeas } from "../src/ui/ideasView";
 import { loadBank } from "../src/storage";
 import { BUILTIN_PRESETS } from "../src/presets.data";
@@ -89,6 +90,7 @@ const welt = { where: "am Deich", when: "im Winter", who: "Ines", what: "sucht d
   ist("ein leerer Vorschlag überschreibt nicht", luecke.who, "Tom");
   ist("und ein fehlendes Feld auch nicht", luecke.when, "gestern");
 }
+
 
 // ── 1c · Die Welt muss etwas zu würfeln haben ───────────────────────────────
 // Gemeldet: „Wer aus den 4W wird nicht gewürfelt." Gemessen: Eine frische Welt
@@ -661,6 +663,42 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
   wahr("jede gefärbte Passage trägt ihre Herkunft als Tooltip", /title="\$\{FEED_NAMEN\[x\.cls\] \|\| "Passage"\} — anklicken zum Bearbeiten"/.test(q));
   wahr("die Namen decken alle Einspeisungen", /"feed-wb": "Wortbank"/.test(q) && /"feed-drama": "Erzählbogen"/.test(q) && /"feed-nahrung": "Umwelt \(Nahrung\)"/.test(q) && /"feed-korpus": "Korpus"/.test(q));
   wahr("auch Vorlagen-Passagen", /class="feed-plain" title="Vorlage/.test(q));
+}
+
+// ── Der Wortbank-Reiter kommt vollständig hoch ──────────────────────────────
+// Gefunden beim Aufräumen: Der Aufbau des Reiters wählt ein Anfangspreset und
+// löst dafür den `change`-Handler aus. Dieser Aufruf stand VOR `load`, `fullBox`
+// und allem, was der Handler anfasst — alles `const`. Also warf jeder Aufbau
+// einen ReferenceError, gemessen 20 von 20.
+//
+// Sichtbar war das nie: Ein Fehler in einem Ereignis-Handler dringt nicht nach
+// außen. Er brach den Handler nur MITTEN DRIN ab — Bank und Etikett standen,
+// aber die Dramaturgie des Presets kam nicht mehr dran.
+//
+// Deshalb prüft das hier nicht den Fehler, sondern seine FOLGE: Nach dem Aufbau
+// muss der Erzählbogen des gewählten Presets bereitliegen. Ein Prüfstand, der
+// auf die Fehlermeldung schaut, ginge beim nächsten verschluckten Fehler wieder
+// durch.
+{
+  const Dok3 = dom.window.document;
+  let mitBogen = 0;
+  for (let i = 0; i < 12; i++) {
+    // Die Voraussetzung wird hergestellt: Ohne das Leeren zählte die Prüfung
+    // den Bogen mit, den ein früherer Aufbau in diesem Lauf gesetzt hat — und
+    // ginge auch mit dem alten Fehler durch.
+    setDramaData(null);
+    const wz = Dok3.createElement("div");
+    Dok3.body.append(wz);
+    mountWordbank(wz);
+    if (hasDramaData()) mitBogen++;
+  }
+  ist(`nach dem Aufbau liegt der Erzählbogen bereit (${mitBogen} von 12)`, mitBogen, 12);
+  const q = readFileSync("src/ui/wordbankView.ts", "utf8");
+  const posAufruf = q.indexOf("preset.dispatchEvent(new Event(\"change\"));\n}");
+  const posLoad = q.indexOf("const load = (): void =>");
+  const posBox = q.indexOf("const fullBox");
+  wahr("die Anfangswahl steht hinter allem, was ihr Handler anfasst",
+    posAufruf > posLoad && posAufruf > posBox && posLoad > 0 && posBox > 0);
 }
 
 console.log(`Prüfstand Studio — ${geprueft} Prüfungen, ${bestanden} bestanden`);

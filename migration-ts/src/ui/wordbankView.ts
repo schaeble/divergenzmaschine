@@ -101,10 +101,6 @@ export function mountWordbank(root: HTMLElement): void {
       }
     }
   });
-  // Die Zufallswahl vom Aufruf jetzt wirklich ausführen — mit stehendem
-  // Handler, damit Auswahl und Listen von Anfang an dasselbe Preset zeigen.
-  zufallsPreset();
-  preset.dispatchEvent(new Event("change"));
   delPresetBtn.addEventListener("click", () => {
     if (!preset.value.startsWith("user:")) return;
     const name = preset.value.slice(5);
@@ -828,4 +824,27 @@ export function mountWordbank(root: HTMLElement): void {
   root.append(wrap);
   load();
   refresh2(); // 2.0-Felder initial füllen — die Box ist jetzt standardmäßig offen
+
+  // Zuletzt: das Anfangspreset wählen und den Handler dafür laufen lassen, damit
+  // Auswahl, Listen und Erzählbogen von Anfang an dasselbe Preset zeigen.
+  //
+  // Der Aufruf stand bis 4.349.0 weit oben im Aufbau — VOR `load`, `fullBox`
+  // und allem, was der Handler anfasst. Da alle drei `const` sind, warf jeder
+  // Aufbau des Reiters dort einen ReferenceError. Gemessen: 20 von 20
+  // Aufbauten, erst „Cannot access 'load'", nach dem ersten Verschieben
+  // „Cannot access 'fullBox'" — eine ganze Kette von Vorgriffen.
+  //
+  // Sichtbar war das nie: Ein Fehler in einem Ereignis-Handler dringt nicht
+  // nach außen. Er brach den Handler nur MITTEN DRIN ab. Bank und Etikett waren
+  // gespeichert, aber die Dramaturgie des Presets, die lebendigen Pools und die
+  // Studio-Übergabe kamen nicht mehr dran: Wer den Reiter öffnete, bekam ein
+  // Preset ohne seinen Erzählbogen. Nachgemessen — vorher lag nach 20 Aufbauten
+  // 0-mal ein Bogen bereit, nachher jedes Mal.
+  //
+  // Ein Fehler, der nichts sichtbar kaputt macht, wird nicht gemeldet; er wird
+  // nur nie behoben. Gefunden wurde er beim Aufräumen: Das Entfernen einer
+  // toten Einfuhr in `ki.ts` verschob die Reihenfolge der Bündelung so weit,
+  // dass er einmal durchschlug.
+  zufallsPreset();
+  preset.dispatchEvent(new Event("change"));
 }

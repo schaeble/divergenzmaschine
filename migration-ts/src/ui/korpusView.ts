@@ -47,13 +47,22 @@ export function mountKorpus(root: HTMLElement): void {
   const reinStand = el("span", { class: "muted mini" });
   const malRein = (): void => {
     const l = letzteReinigung();
-    reinStand.textContent = !reinChk.checked ? " — aus: Duplikate bleiben, bis „Korpus säubern“ geklickt wird"
+    reinStand.textContent = !reinChk.checked ? " — aus: Duplikate bleiben, bis „Korpus säubern“ geklickt wird (der Knopf steht dann unten)"
       : l ? ` — zuletzt ${l.zeit}: ${l.removed} entfernt (${l.duplicates} Duplikate), ${l.sentencesAfter} Sätze` : " — läuft nach jedem Hinzufügen";
   };
-  reinChk.addEventListener("change", () => { setzeSelbstreinigung(reinChk.checked); malRein(); });
+  reinChk.addEventListener("change", () => { setzeSelbstreinigung(reinChk.checked); malRein(); zeigeSaeubern(); });
   const reinLbl = el("label", { class: "chk", title: "Nach jedem Hinzufügen (auch Selbstfütterung, Sammler, Abschrift, Bildwelt) läuft die Hygiene über den ganzen Korpus: doppelte Sätze und Bruchstücke gehen automatisch." }, reinChk, " Selbstreinigung: Duplikate und Bruchstücke automatisch entfernen", reinStand);
   malRein();
 
+  // „Korpus säubern" gibt es nur, solange die Selbstreinigung aus ist.
+  //
+  // Nachgemessen: vier absichtlich schmutzige Zugaben (zwei Dubletten, ein
+  // Bruchstück, ein Kopfzeilenrest) ergaben mit eingeschalteter Automatik
+  // 0 säuberbare Sätze, mit ausgeschalteter 3 (davon 2 Duplikate). Die
+  // Automatik ist die Vorgabe. Der Knopf konnte also im Regelfall nur noch
+  // „Nichts zu säubern" sagen — ein Knopf, der nichts tun kann, ist keine
+  // Möglichkeit, sondern eine Frage an den Benutzer, die er nicht beantworten
+  // kann. Wer die Automatik abschaltet, bekommt ihn zurück.
   const cleanBtn = button("Korpus säubern");
   cleanBtn.addEventListener("click", () => {
     const cur = loadPersistentCorpus();
@@ -65,6 +74,9 @@ export function mountKorpus(root: HTMLElement): void {
     refresh();
     info.textContent = `Gesäubert: ${h.stats.sentencesBefore} → ${h.stats.sentencesAfter} Sätze (${h.stats.removed} entfernt, ${h.stats.duplicates} Duplikate).`;
   });
+
+  const zeigeSaeubern = (): void => { cleanBtn.style.display = reinChk.checked ? "none" : ""; };
+  zeigeSaeubern();
 
   const clearBtn = button("Korpus löschen", "danger");
   clearBtn.addEventListener("click", () => { if (confirm("Korpus wirklich löschen?")) { savePersistentCorpus(""); refresh(); } });

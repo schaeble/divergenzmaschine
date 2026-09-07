@@ -6,7 +6,7 @@ import { JSDOM } from "jsdom";
 const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/" });
 (globalThis as unknown as Record<string, unknown>).localStorage = dom.window.localStorage;
 import { readFileSync } from "fs";
-import { appendToPersistentCorpus, loadPersistentCorpus, savePersistentCorpus, selbstreinigungAn, setzeSelbstreinigung, letzteReinigung } from "../src/corpus";
+import { appendToPersistentCorpus, loadPersistentCorpus, savePersistentCorpus, selbstreinigungAn, setzeSelbstreinigung, letzteReinigung, corpusHygiene } from "../src/corpus";
 
 const fails: string[] = [];
 let geprueft = 0, bestanden = 0;
@@ -32,6 +32,38 @@ setzeSelbstreinigung(true);
 appendToPersistentCorpus("Ein weiterer Satz kommt hinzu und räumt auf.");
 ist("wieder an: die nächste Zugabe räumt auch Altes auf", zaehl("Der Fährmann zählt am Morgen die Ruder"), 1);
 savePersistentCorpus("");
+
+
+// ── Der Knopf, der nichts tun konnte ────────────────────────────────────────
+// Gemeldet: „Suche nach Funktionen, die überflüssig geworden sind. Z. B. in
+// Korpus ‚Korpus säubern‘."
+//
+// Der Befund stimmte, und zwar messbar: Vier absichtlich schmutzige Zugaben
+// ergaben mit eingeschalteter Automatik 0 säuberbare Sätze, mit ausgeschalteter
+// 3 (davon 2 Duplikate). Die Automatik ist die Vorgabe. Also steht der Knopf
+// jetzt nur noch da, wenn er etwas tun kann.
+{
+  savePersistentCorpus("");
+  setzeSelbstreinigung(true);
+  const schmutz = [
+    "Der Mann geht durch die Halle. Der Mann geht durch die Halle.",
+    "— Kapitel 3 —\nEin Bruchstück ohne",
+    "Der Mann geht durch die Halle. Eine Tür fällt zu.",
+    "Und noch ein Satz. Und noch ein Satz. Ein Fragment,",
+  ];
+  for (const t of schmutz) appendToPersistentCorpus(t);
+  ist("mit Automatik bliebe nichts zu säubern", corpusHygiene(loadPersistentCorpus()).stats.removed, 0);
+  savePersistentCorpus("");
+  setzeSelbstreinigung(false);
+  for (const t of schmutz) appendToPersistentCorpus(t);
+  wahr("ohne Automatik gäbe es Arbeit", corpusHygiene(loadPersistentCorpus()).stats.removed >= 3);
+  savePersistentCorpus("");
+  setzeSelbstreinigung(true);
+
+  const k = readFileSync("src/ui/korpusView.ts", "utf8");
+  wahr("der Knopf hängt am Schalter", /cleanBtn\.style\.display = reinChk\.checked \? "none" : ""/.test(k));
+  wahr("und wird beim Umlegen nachgezogen", /setzeSelbstreinigung\(reinChk\.checked\); malRein\(\); zeigeSaeubern\(\);/.test(k));
+}
 
 const q = readFileSync("src/ui/korpusView.ts", "utf8");
 wahr("der Korpus-Reiter hat den Schalter", /"korp-selbstreinigung"/.test(q) && /Selbstreinigung: Duplikate und Bruchstücke automatisch entfernen/.test(q));
