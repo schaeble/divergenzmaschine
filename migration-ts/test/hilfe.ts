@@ -8,7 +8,7 @@
 //
 // Was hier NICHT geprüft wird: ob die Erklärung stimmt. Das kann nur lesen, wer
 // die Maschine kennt.
-import { readFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 
 const hilfe = readFileSync("src/ui/helpView.ts", "utf8");
 const app = readFileSync("src/ui/app.ts", "utf8");
@@ -106,6 +106,40 @@ wahr(`es wurden ${teile.length} Einträge gemessen`, teile.length >= 60);
 // ausgeliefert und in der Hilfe nicht erwähnt.
 for (const w of ["Nutzung", "Selbsttest", "Schaltplan", "Füller", "Abschrift", "Motivverwandlungen", "Bildwelt", "Autopilot"]) {
   wahr(`die Hilfe kennt „${w}"`, hilfe.includes(w));
+}
+
+// ── Die Architekturgrafik ist auf dem Stand ────────────────────────────────
+// Sie zeigte einen Baustein, den es nicht mehr gibt, und kannte weder Sammler
+// noch Autopilot, Zeitungsseite, KI-Lehrer, Themenpool oder Erzaehlerbank. Ein Bild, das den Aufbau erklärt und einen
+// Baustein zeigt, den es nicht gibt, ist schlimmer als kein Bild.
+//
+// Geprüft wird gegen die REITERLISTE, nicht gegen eine abgeschriebene Liste:
+// Kommt ein Reiter dazu, faellt es hier auf.
+{
+  const svg = hilfe.slice(hilfe.indexOf("const ARCH_SVG"), hilfe.indexOf("`;", hilfe.indexOf("const ARCH_SVG")));
+  ist("der abgeloeste Baustein kommt nicht mehr vor", />Montage</.test(svg), false);
+  // Jeder Reiter, der einen eigenen Kasten verdient, muss vorkommen. Nicht
+  // alle: „Oszilloskop" und „Hilfe" sind Werkzeuge ueber der Maschine, keine
+  // Station im Weg eines Textes.
+  for (const r of ["STUDIO", "Ideen", "Sammler", "Welt", "Wortbank", "Erzählerbank",
+    "Korpus", "Schatzkammer", "Bildwelt", "Autopilot", "Werkstatt", "KI-Lehrer"]) {
+    wahr(`die Grafik kennt „${r}"`, svg.includes(r));
+  }
+  // Und die Dinge, die keinen Reiter haben, aber im Weg stehen.
+  for (const b of ["Zeitungsseite", "Lebendige Pools", "Bestenauslese", "Textindex", "Diagnose"]) {
+    wahr(`die Grafik kennt „${b}"`, svg.includes(b));
+  }
+  // Der Rahmen muss den Inhalt umschliessen. Beim ersten Wurf war er 878 hoch
+  // und der Inhalt 926 — die Fussnote stand ausserhalb des Blattes.
+  const vb = /viewBox="0 0 \d+ (\d+)"/.exec(svg);
+  const rah = /<rect x="1" y="1" width="\d+" height="(\d+)"/.exec(svg);
+  wahr("Rahmen und Blatt sind auffindbar", !!vb && !!rah);
+  wahr(`der Rahmen passt ins Blatt (${rah?.[1]} in ${vb?.[1]})`,
+    Number(rah![1]) <= Number(vb![1]) && Number(rah![1]) > Number(vb![1]) - 40);
+  // Die Grafik wird ERZEUGT. Von Hand gepflegt veraltet sie wieder.
+  wahr("es gibt einen Erzeuger", existsSync("scripts/arch.mjs"));
+  wahr("und die Grafik stammt daraus",
+    readFileSync("src/ui/arch.svg.txt", "utf8").trim() === svg.slice(svg.indexOf("<svg")).trim());
 }
 
 console.log(`Prüfstand Hilfe — ${geprueft} Prüfungen, ${bestanden} bestanden`);
