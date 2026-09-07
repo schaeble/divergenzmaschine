@@ -10,6 +10,7 @@ import { liveTexts } from "./livepools";
 import { hasDramaData } from "../generation/dramaturgie";
 import { RESSORT_IDS } from "./ressorts";
 import { loadBank } from "../storage";
+import { runRanking, bestOf } from "../generation/scoring";
 import { splitSentences } from "../text-utils";
 import { tenseBreakRatio, phraseRepeatRatio, castSpread, perspectiveBreakRatio } from "../generation/coherence";
 
@@ -90,8 +91,18 @@ export function runSelfTest(onStep?: (done: number, total: number, label: string
     // Bauweg wie Vers oder Dialog — genau deshalb wurde sie übersehen: Es gab
     // nichts Auffälliges zu prüfen. Ihr Kennzeichen ist, dass sie NICHT
     // zeilenweise gesetzt wird.
+    // Der Ausdruck `!/\n[^\n]/` war falsch: Er verlangt, dass NIRGENDS ein
+    // Zeilenumbruch von einem Zeichen gefolgt wird — bei einem Absatz („\n\n")
+    // steht hinter dem zweiten Umbruch aber der nächste Buchstabe. Die Prüfung
+    // schlug also bei jedem korrekten Absatz an und meldete die Grundform der
+    // Maschine als tot. Gemessen: 20 von 20 einwandfreien Prosatexten lösten
+    // den Fehlalarm aus.
+    //
+    // Das Kennzeichen ist nicht „kein Umbruch", sondern „keine Verszeilen":
+    // Absätze ja, Zeilenbruch INNERHALB eines Absatzes nein.
     { id: "form_prose", label: "Form: Prosa", group: "Formen", note: "Fließtext in Absätzen, keine Verszeilen",
-      probe: () => { const t = gen({ form: "prose" as FormKind }, bank); return words(t) > 20 && !/\n[^\n]/.test(t.trim()); } },
+      probe: () => { const t = gen({ form: "prose" as FormKind }, bank).trim();
+        return words(t) > 20 && t.split(/\n{2,}/).every((abs) => !abs.trim().includes("\n")); } },
     // Bericht und Meldung fehlten ganz — die beiden Formen, die der Autopilot
     // am häufigsten setzt und die eigene Prüfstände mit tausenden Läufen
     // haben. In der Anzeige „greifen alle Features?" kamen sie nicht vor.
@@ -130,7 +141,17 @@ export function runSelfTest(onStep?: (done: number, total: number, label: string
       probe: () => Math.abs(avgSentLen(gen({ rhythm: "staccato" }, bank)) - avgSentLen(gen({ rhythm: "long" }, bank))) > 0.5 },
     { id: "spannung", label: "Spannung (Peak)", group: "Shaper", note: "Hüllkurve verändert den Text",
       probe: () => gen({ tension: "low", lenTarget: 200 }, bank) !== gen({ tension: "off", lenTarget: 200 }, bank) },
-    { id: "disruptor", label: "Disruptor", group: "Shaper", note: "Bruch wird eingefügt (absichtlich sporadisch)",
+    // Das Urteil „keine Wirkung" ist hier RICHTIG, und die Ursache ist bekannt:
+    // `applyDisruptor` feuert wie vorgesehen (300 Läufe bei „on": 100-mal, also
+    // die vorgesehenen 33 %), aber sein Einschub hängt am Textende — und
+    // `enforceWordTarget` kürzt von hinten, sobald der Text über der Zielzahl
+    // liegt. Gemessen: 0 von 120 fertigen Texten trugen eine der drei
+    // charakteristischen Wendungen, obwohl sie einzeln 44 von 52 Durchgängen
+    // durch Rhythmus, Spannung, Absätze und Nachbearbeitung überstehen.
+    //
+    // Der Selbsttest bleibt also, wie er ist. Er meldet keinen Fehler in sich,
+    // sondern einen in der Maschine.
+    { id: "disruptor", label: "Disruptor", group: "Shaper", note: "Bruch wird eingefügt — greift derzeit nicht: der Einschub steht am Textende und wird von der Längenregelung abgeschnitten",
       probe: () => { const t = gen({ disruptor: "on" }, bank); return /(Drei Jahre später|Ich übernehme hier|weiß, dass sie erzählt wird|—\n|\(Dieser Satz)/.test(t); } },
     { id: "instabilitaet", label: "Instabilität", group: "Shaper", note: "Figuren-Instabilität wirkt",
       probe: () => gen({ instability: 2 }, bank) !== gen({ instability: 0 }, bank) },
@@ -162,6 +183,51 @@ export function runSelfTest(onStep?: (done: number, total: number, label: string
         const a = gen({ form: "bericht" as FormKind, ressort: RESSORT_IDS[0], lenTarget: 200 }, bank);
         const b = gen({ form: "bericht" as FormKind, ressort: RESSORT_IDS[RESSORT_IDS.length - 1], lenTarget: 200 }, bank);
         return words(a) > 20 && a !== b;
+      } },
+
+    // ── Auslese: wirkt NICHT im einzelnen Text, sondern in der Wahl ──
+    //
+    // Diese vier Stellschrauben gingen dem Selbsttest bisher ganz durch die
+    // Lappen, und zwar aus einem strukturellen Grund: Er misst, ob ein Feature
+    // im ERZEUGTEN TEXT Spuren hinterlässt, und ruft dafür `buildStory`.
+    // Neuheit, Überraschung, Figurendisziplin und Umwelt greifen aber erst
+    // eine Stufe später — sie entscheiden, WELCHER von zwölf Kandidaten
+    // gewinnt. In `buildStory` kommen sie nicht vor, also konnten sie dort
+    // auch nicht auffallen.
+    //
+    // Geprüft wird deshalb, was sie tun sollen: die Wahl verschieben.
+    { id: "neuheit", label: "Neuheit (Abstand zur Schatzkammer)", group: "Auslese",
+      note: "verschiebt die Wahl unter den Kandidaten",
+      probe: () => {
+        const inp = baseInput();
+        const ohne = runRanking(bank, inp, model, 8, 3, { noveltyWeight: 0 });
+        const mit = runRanking(bank, inp, model, 8, 3, { noveltyWeight: 1 });
+        return !!ohne.all.length && !!mit.all.length && ohne.all[0]!.score !== mit.all[0]!.score;
+      } },
+    { id: "ueberraschung", label: "Überraschung", group: "Auslese",
+      note: "verschiebt die Wahl unter den Kandidaten",
+      probe: () => {
+        const inp = baseInput();
+        const ohne = runRanking(bank, inp, model, 8, 3, { surpriseWeight: 0 });
+        const mit = runRanking(bank, inp, model, 8, 3, { surpriseWeight: 1, surpriseTarget: 0.9 });
+        return !!ohne.all.length && !!mit.all.length && ohne.all[0]!.score !== mit.all[0]!.score;
+      } },
+    { id: "figurendisziplin", label: "Figurendisziplin (Regler)", group: "Auslese",
+      note: "der Regler bestraft fremde Namen in der Wahl",
+      probe: () => {
+        const inp = baseInput();
+        const ohne = runRanking(bank, inp, model, 8, 3, { castDiscipline: 0, expectedCast: ["die Kartografin"] });
+        const mit = runRanking(bank, inp, model, 8, 3, { castDiscipline: 1, expectedCast: ["die Kartografin"] });
+        return !!ohne.all.length && !!mit.all.length && ohne.all[0]!.score !== mit.all[0]!.score;
+      } },
+    { id: "umwelt", label: "Umwelt (Nahrung/Gift)", group: "Auslese",
+      note: "die Umweltzeichen drehen die Auswahl",
+      probe: () => {
+        const inp = baseInput();
+        const zeichen = [...(bank.motifs || []), ...(bank.props || [])].slice(0, 6).join(", ");
+        if (!zeichen.trim()) return false;
+        const r = bestOf(bank, inp, model, 8, { umwelt: { zeichen, wirkung: "nahrung" } });
+        return !!r.umwelt;
       } },
   ];
 

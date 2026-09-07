@@ -21,6 +21,7 @@ import { QUELLE_LABEL } from "../src/features/kontext";
 import { mountIdeas } from "../src/ui/ideasView";
 import { mountWorld } from "../src/ui/worldView";
 import { wuerfleAlles, wuerfleVierW, REGLER, SCHIEBER } from "../src/features/wuerfeln";
+import { runSelfTest } from "../src/features/selftest";
 import { werte } from "../src/generation/optionen";
 import { ordne, BAND_NAME, renderSchaltplan, befundListe } from "../src/ui/schaltplanView";
 import { JSDOM } from "jsdom";
@@ -1127,6 +1128,49 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   wahr("und einer Leitung zu den vier W", a.kanten.some((k) => k.von === "fragen" && k.nach === "w4"));
   const b = baueAnlage(STAND(), UMGEBUNG({ fragen: 0 }));
   ist("ein leerer Pool wäre ein Befund", knoten(b, "fragen")?.zustand, "leer");
+}
+
+
+// ── 19 · Der Selbsttest darf nicht veralten ─────────────────────────────
+// Gefragt: „Ist der Selbsttest noch aktuell? Oder der Schaltplan besser?"
+//
+// Beide beantworten verschiedene Fragen — der Plan zeigt, WAS eingestellt ist,
+// der Selbsttest, OB es wirkt. Ersetzen kann keiner den anderen. Aber einen
+// Unterschied gab es: Die Liste des Plans wird gegen das laufende Studio
+// geprüft, die 33 Prüfungen des Selbsttests waren von Hand geführt — dieselbe
+// Bauart, die in diesem Haus schon mehrfach still veraltet ist.
+//
+// Nachgesehen: cast, novelty und surprise hatten keine Prüfung, ebenso die
+// Umwelt. Nicht aus Nachlässigkeit, sondern aus einem strukturellen Grund —
+// sie wirken nicht im erzeugten Text, sondern in der AUSWAHL unter den
+// Kandidaten, und der Selbsttest ruft `buildStory`. Sie haben jetzt eine
+// eigene Gruppe.
+//
+// Damit das nicht wieder passiert, hängt die Liste ab hier am Würfel: Jedes
+// Bedienelement, das `REGLER` oder `SCHIEBER` kennt, muss hier eine Zuordnung
+// haben, und die muss auf eine Prüfung zeigen, die es gibt.
+{
+  const ZUORDNUNG: Record<string, string> = {
+    tone: "ton", form: "form_prose", structure: "struct", mode: "modus",
+    perspective: "perspektive", rhythm: "rhythmus", tension: "spannung",
+    cast: "figurendisziplin", instability: "instabilitaet", markovMode: "markov",
+    disruptor: "disruptor", varLevel: "varianz", archetypeA: "archetyp",
+    archetypeB: "archetyp", ressort: "ressort", lenTarget: "textlaenge",
+    novelty: "neuheit", surprise: "ueberraschung",
+    "gew-wo": "emphasis", "gew-wann": "emphasis", "gew-wer": "emphasis", "gew-was": "emphasis",
+  };
+  const schluessel = [...REGLER.map((r) => r.schluessel), ...SCHIEBER.map((x) => x.schluessel)];
+  const ohneZuordnung = schluessel.filter((k) => !ZUORDNUNG[k]);
+  ist("jedes Bedienelement des Würfels hat eine Zuordnung", ohneZuordnung.join(","), "");
+
+  const kennungen = new Set(runSelfTest().map((f) => f.id));
+  const insLeere = [...new Set(Object.values(ZUORDNUNG))].filter((id) => !kennungen.has(id));
+  ist("und jede Zuordnung zeigt auf eine vorhandene Prüfung", insLeere.join(","), "");
+
+  // Und die Gegenrichtung: keine Zuordnung auf ein Bedienelement, das es nicht
+  // mehr gibt. Sonst bliebe eine Prüfung stehen, für die nichts mehr da ist.
+  const verwaist = Object.keys(ZUORDNUNG).filter((k) => !schluessel.includes(k));
+  ist("und keine Zuordnung ohne Bedienelement", verwaist.join(","), "");
 }
 
 console.log(`Prüfstand Schaltplan — ${geprueft} Prüfungen, ${bestanden} bestanden`);

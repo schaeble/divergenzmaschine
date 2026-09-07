@@ -518,7 +518,14 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
 // gewürfelten Presets, die eine Handauswahl kommentarlos ersetzten.
 {
   const Dok5 = dom.window.document;
+  // Die Ausgangslage wird HERGESTELLT, nicht angenommen. Seit 4.349.0 läuft der
+  // Handler des Wortbank-Reiters vollständig durch — er legt eine Übergabe für
+  // das Studio und ein aktives 2.0-Preset ab, und ein früherer Abschnitt dieses
+  // Prüfstands baut den Reiter auf. Ohne Aufräumen misst dieser Abschnitt dann
+  // nicht mehr seine eigene Voraussetzung, sondern die Nachwirkung des anderen.
   localStorage.removeItem("dm_multi_presets_v1");
+  localStorage.removeItem("dm_pending_studio");
+  localStorage.removeItem("dm_active_preset2_v1");
   const wurzelR = Dok5.createElement("div");
   Dok5.body.append(wurzelR);
   mountStudio(wurzelR);
