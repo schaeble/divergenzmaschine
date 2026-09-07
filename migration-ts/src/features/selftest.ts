@@ -141,17 +141,18 @@ export function runSelfTest(onStep?: (done: number, total: number, label: string
       probe: () => Math.abs(avgSentLen(gen({ rhythm: "staccato" }, bank)) - avgSentLen(gen({ rhythm: "long" }, bank))) > 0.5 },
     { id: "spannung", label: "Spannung (Peak)", group: "Shaper", note: "Hüllkurve verändert den Text",
       probe: () => gen({ tension: "low", lenTarget: 200 }, bank) !== gen({ tension: "off", lenTarget: 200 }, bank) },
-    // Das Urteil „keine Wirkung" ist hier RICHTIG, und die Ursache ist bekannt:
-    // `applyDisruptor` feuert wie vorgesehen (300 Läufe bei „on": 100-mal, also
-    // die vorgesehenen 33 %), aber sein Einschub hängt am Textende — und
-    // `enforceWordTarget` kürzt von hinten, sobald der Text über der Zielzahl
-    // liegt. Gemessen: 0 von 120 fertigen Texten trugen eine der drei
-    // charakteristischen Wendungen, obwohl sie einzeln 44 von 52 Durchgängen
-    // durch Rhythmus, Spannung, Absätze und Nachbearbeitung überstehen.
+    // Dieses Urteil war lange „keine Wirkung“ — und es stimmte. Die Ursache stand
+    // nicht dort, wo sie zu vermuten war: `applyDisruptor` feuerte wie vorgesehen
+    // (300 Läufe bei „on“: 100-mal), und sein Einschub überstand Rhythmus,
+    // Spannung, Absätze, Nachbearbeitung und Längenregelung in 38 von 40 Fällen.
+    // Er wurde nie ERREICHT: Der Assembler-Zweig in `buildStory` kehrt zurück,
+    // bevor der Disruptor an der Reihe ist — und das sind sieben der neun
+    // Strukturen, darunter die Rekombination selbst. Die Grundeinstellung dieser
+    // Prüfung ist `structure: "linear"`, genau so ein Weg.
     //
-    // Der Selbsttest bleibt also, wie er ist. Er meldet keinen Fehler in sich,
-    // sondern einen in der Maschine.
-    { id: "disruptor", label: "Disruptor", group: "Shaper", note: "Bruch wird eingefügt — greift derzeit nicht: der Einschub steht am Textende und wird von der Längenregelung abgeschnitten",
+    // Seit 4.351.0 läuft er auch dort. Die Prüfung selbst blieb unverändert —
+    // sie hatte die ganze Zeit recht, es hat nur niemand hingesehen.
+    { id: "disruptor", label: "Disruptor", group: "Shaper", note: "Bruch wird eingefügt (absichtlich sporadisch: feuert in einem Drittel der Läufe)",
       probe: () => { const t = gen({ disruptor: "on" }, bank); return /(Drei Jahre später|Ich übernehme hier|weiß, dass sie erzählt wird|—\n|\(Dieser Satz)/.test(t); } },
     { id: "instabilitaet", label: "Instabilität", group: "Shaper", note: "Figuren-Instabilität wirkt",
       probe: () => gen({ instability: 2 }, bank) !== gen({ instability: 0 }, bank) },

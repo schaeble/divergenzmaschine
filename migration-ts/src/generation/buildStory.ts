@@ -208,7 +208,27 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
     // Absaetze auch auf diesem Weg: Der Zweig kehrt vor paragraphize() zurueck,
     // die Rekombination lieferte deshalb immer einen einzigen Block - gemessen
     // 1,0 Absaetze in 51 von 51 Laeufen.
-    if (rk.trim()) { const fertig = postProcessText(paragraphize(rk), input); linkTrace(fertig); linkMarkovTrace(fertig); return fertig; }
+    // Der Disruptor gehoert auch auf diesen Weg.
+    //
+    // Gemeldet vom eigenen Selbsttest, jahrelang, mit dem Urteil „keine
+    // Wirkung" — und es stimmte. Die Ursache lag nicht in der Nachbearbeitung
+    // und nicht an der Laengenregelung (beides geprueft: der Einschub
+    // uebersteht sie in 38 von 40 Faellen), sondern HIER: Dieser Zweig kehrt
+    // zurueck, bevor `applyDisruptor` ueberhaupt an der Reihe ist.
+    //
+    // Nachgemessen mit einer eindeutigen Markierung, 100 Prosatexte je
+    // Struktur bei p = 0,33:
+    //
+    //   auto 42 · dramaturgie 35   — erreichen den Disruptor
+    //   linear · reverse · circle · fragment · object · rekombination · bogen
+    //                       je 0   — steigen vorher aus
+    //
+    // Sieben von neun Strukturen also, darunter die Rekombination selbst. Wer
+    // den Regler auf „An" stellte, bekam in aller Regel nichts.
+    if (rk.trim()) {
+      const gebrochen = applyDisruptor(rk, input.disruptor).text;
+      const fertig = postProcessText(paragraphize(gebrochen), input); linkTrace(fertig); linkMarkovTrace(fertig); return fertig;
+    }
   }
   let text = (input.form === "prose" && input.structure === "dramaturgie" && hasDramaData())
     ? buildDramaturgie({ ...kit })

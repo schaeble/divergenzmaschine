@@ -22,6 +22,9 @@ import { mountIdeas } from "../src/ui/ideasView";
 import { mountWorld } from "../src/ui/worldView";
 import { wuerfleAlles, wuerfleVierW, REGLER, SCHIEBER } from "../src/features/wuerfeln";
 import { runSelfTest } from "../src/features/selftest";
+import { buildStory } from "../src/generation/buildStory";
+import { loadBank } from "../src/storage";
+import { werte, STRUCTURE_OPTS } from "../src/generation/optionen";
 import { werte } from "../src/generation/optionen";
 import { ordne, BAND_NAME, renderSchaltplan, befundListe } from "../src/ui/schaltplanView";
 import { JSDOM } from "jsdom";
@@ -1171,6 +1174,47 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   // mehr gibt. Sonst bliebe eine Prüfung stehen, für die nichts mehr da ist.
   const verwaist = Object.keys(ZUORDNUNG).filter((k) => !schluessel.includes(k));
   ist("und keine Zuordnung ohne Bedienelement", verwaist.join(","), "");
+}
+
+
+// ── 20 · Der Disruptor kommt auf allen Wegen an ─────────────────────────
+// Der eigene Selbsttest meldete ihn lange als „keine Wirkung", und er hatte
+// recht. Die Ursache lag nicht in der Nachbearbeitung und nicht an der
+// Längenregelung — der Einschub übersteht beides in 38 von 40 Fällen. Er wurde
+// nie erreicht: Der Assembler-Zweig in `buildStory` kehrt zurück, bevor
+// `applyDisruptor` an der Reihe ist.
+//
+// Gemessen mit einer eindeutigen Markierung, 100 Prosatexte je Struktur bei
+// p = 0,33:
+//
+//   vorher   auto 42 · dramaturgie 35 · alle sieben anderen je 0
+//   nachher  jede Struktur trägt die Spur
+//
+// Geprüft wird hier die Spur im FERTIGEN Text, nicht die Zwischenstufe. Nur
+// drei der fünf Bruchsorten hinterlassen eine feste Wendung, deshalb liegt die
+// erwartete Rate bei etwa 3/5 × 33 % ≈ 20 %, nicht bei 33 %.
+{
+  const spur = /(Drei Jahre später ist die gleiche Stelle|Ich übernehme hier|weiß, dass sie erzählt wird)/;
+  const eingabe = (st: string, d: string): Record<string, unknown> => ({
+    where: "im Hafen", when: "im Winter", who: "die Kartografin", what: "ein Wunder geschieht",
+    tone: "neutral", varLevel: "mid", form: "prose", structure: st, mode: "auto", perspective: "third",
+    rhythm: "clean", markovMode: "off", disruptor: d, archetypeA: "neutral", archetypeB: "neutral",
+    instability: 0, polish: false, polishStyle: "surreal_precise", lenTarget: 120, tension: "off",
+    emphasis: { wo: 0, wann: 0, wer: 0, was: 0 },
+  });
+  const bank = loadBank();
+  const ohneSpur: string[] = [];
+  let mitAus = 0;
+  for (const st of werte(STRUCTURE_OPTS)) {
+    let an = 0;
+    for (let i = 0; i < 80; i++) {
+      if (spur.test(buildStory(bank, eingabe(String(st), "on") as never, undefined))) an++;
+      if (spur.test(buildStory(bank, eingabe(String(st), "off") as never, undefined))) mitAus++;
+    }
+    if (an === 0) ohneSpur.push(String(st));
+  }
+  ist("jede Struktur erreicht den Disruptor", ohneSpur.join(","), "");
+  ist("und bei „aus“ bricht nichts", mitAus, 0);
 }
 
 console.log(`Prüfstand Schaltplan — ${geprueft} Prüfungen, ${bestanden} bestanden`);
