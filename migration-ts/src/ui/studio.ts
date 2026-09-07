@@ -23,6 +23,7 @@ import { setBogenOverride } from "../generation/dramaturgie";
 import { ziehVorrat, vorratStand, type VorratFund } from "../features/wikisammler";
 import { ziehBildvorrat, ladeBildvorrat, type BildFund } from "../features/bildsammler";
 import { ziehThema, themenStand } from "../features/themenpool";
+import { ziehFrage, fragenStand } from "../features/fragen";
 import { normWhere, normWhen, normWho, rateWhere, rateWhen, rateWho } from "../generation/ctxnorm";
 import { getTraceFor, fuegeteilAnteil } from "../atoms/trace";
 import { saveSchnappschuss, loadSchnappschuss } from "../features/sources";
@@ -216,6 +217,10 @@ export function mountStudio(root: HTMLElement): void {
     } else if (quelle === "thema") {
       const f = ziehThema();
       if (f) { vorschlag = f.ctx; woher = `Thema · ${f.themaLabel}`; } else vorschlag = worldFillContext();
+    } else if (quelle === "fragen") {
+      const f = ziehFrage();
+      vorschlag = { where: f.where, when: f.when, who: f.who, what: f.what };
+      woher = `Fragen · ${f.who}`;
     } else if (quelle === "omni") {
       // Die Wahrnehmung gibt die Stilregler mit vor; sie werden weiter unten
       // NACH dem allgemeinen Wurf gesetzt, sonst überschriebe er sie sofort.
@@ -321,6 +326,19 @@ export function mountStudio(root: HTMLElement): void {
     setz(where, f.ctx.where); setz(when, f.ctx.when); setz(who, f.ctx.who); setz(what, f.ctx.what);
     wikiHint.textContent = `${f.themaLabel}: ${f.titel}`;
     updHints(); ctxSichern(); themaTitel();
+  });
+
+  // Fragen-Taste: derselbe Griff wie „Thema", nur aus einem EINGEBAUTEN Pool —
+  // fünfzig existenzielle Fragen mit Ort, Zeit und Fragendem. Sie braucht keinen
+  // Vorrat und kann deshalb als einzige der vier Tasten nie ins Leere greifen.
+  const fragenBtn = el("button", {}, icon("book"), " Fragen");
+  fragenBtn.title = `Zufällige Frage aus dem eingebauten Pool (${fragenStand().funde} Einträge) — ohne Netz`;
+  fragenBtn.addEventListener("click", () => {
+    const f = ziehFrage();
+    const setz = (inp: HTMLInputElement, v: string): void => { if (v && !locked.has(inp.id)) inp.value = v; };
+    setz(where, f.where); setz(when, f.when); setz(who, f.who); setz(what, f.what);
+    wikiHint.textContent = `Fragen: ${f.who}, ${f.when}`;
+    updHints(); ctxSichern();
   });
 
   const abschriftBtn = el("button", {}, icon("book"), " Abschrift");
@@ -445,7 +463,7 @@ export function mountStudio(root: HTMLElement): void {
         el("span", { class: "hilfe", title: "Begriffe, Wörter, Zahlenkombinationen oder Zeichen. Sie erzeugen keinen Text — sie richten die Auswahl: Nahrung bevorzugt Fassungen, die sie aufnehmen, Gift bevorzugt Fassungen, die sie meiden. Wirkt nur bei eingeschalteter Bestenauslese." }, "Umwelt"),
         umweltSel),
       umweltIn, umweltHint),
-    el("div", { class: "btnrow" }, ctxDice, alleBtn, oeffnenBtn, wikiBtn, abschriftBtn, themaBtn, ctxKeep, wikiHint));
+    el("div", { class: "btnrow" }, ctxDice, alleBtn, oeffnenBtn, wikiBtn, abschriftBtn, themaBtn, fragenBtn, ctxKeep, wikiHint));
 
   const lockBar = el("div", { class: "lockbar" });
   const preset = select("f-preset", markedPresetOptions());

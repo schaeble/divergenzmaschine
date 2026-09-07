@@ -22,6 +22,7 @@ import { worldFillContext } from "./world";
 import { ziehVorrat, vorratStand } from "./wikisammler";
 import { ziehBildvorrat, ladeBildvorrat } from "./bildsammler";
 import { ziehThema, themenStand } from "./themenpool";
+import { ziehFrage } from "./fragen";
 import { generateIdeaBatch } from "../generation/ideas";
 import { ideaProfileToConfig, loadIdeaProfile, wuerfleIdeaProfile } from "./ideaprofile";
 import { alleOmniProfile, profileToStudio } from "./omnikognition";
@@ -104,6 +105,13 @@ export function wuerfleVierW(vorher: Record<W4, string>, gesperrt: Set<string>, 
   } else if (quelle === "thema") {
     const f = sicher(() => ziehThema(), null);
     if (f) { vorschlag = f.ctx; woher = `Thema · ${f.themaLabel}`; } else vorschlag = sicher(() => worldFillContext() as Partial<Record<W4, string>>, {} as Partial<Record<W4, string>>);
+  } else if (quelle === "fragen") {
+    // Der einzige Zweig ohne Rückfall auf die Welt: Der Pool ist eingebaut und
+    // kann nicht leer sein. Gäbe es hier einen Rückfall, würde er nie laufen —
+    // und ein Zweig, der nie läuft, ist eine Behauptung, keine Vorsorge.
+    const f = ziehFrage();
+    vorschlag = { where: f.where, when: f.when, who: f.who, what: f.what };
+    woher = `Fragen · ${f.who}`;
   } else if (quelle === "ideen") {
     // Eine Prämisse trägt dieselben vier W wie jede andere Quelle — der Weg
     // „→ Studio" im Reiter Ideen übergibt seit jeher genau diese vier Felder.

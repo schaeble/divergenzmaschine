@@ -96,7 +96,7 @@ export interface AnlageStand {
  *  speisende Knoten zusätzlich, was DIESER Wurf gezogen hat. */
 export const QUELLE_ZU_KNOTEN: Record<string, string> = {
   "Welt": "welt", "Wiki": "sammler", "Abschrift": "bilder",
-  "Thema": "themen", "Ideen": "ideen", "Wahrnehmung": "omni",
+  "Thema": "themen", "Ideen": "ideen", "Wahrnehmung": "omni", "Fragen": "fragen",
 };
 /** Welches Feld im Plan zeigt das Schloss welches Bedienelements?
  *
@@ -149,6 +149,8 @@ export interface Umgebung {
   omniProfile: number;
   /** Name des eingestellten Wesens im Reiter Welt, leer wenn keines steht. */
   omniProfil: string;
+  /** Wie viele Fragen im eingebauten Pool liegen. */
+  fragen: number;
   /** Liegt ein Erzählbogen bereit? Gelesen wird DIESELBE Ablage, aus der der
    *  Bauweg liest (`dm_dramaturgie_v1`), nicht die Tabelle der eingebauten
    *  Presets. Bis 4.286 stand hier `builtinDrama(preset)` — das stimmt für die
@@ -219,6 +221,12 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
     u.sammlerFunde ? "" : "im Reiter Sammler einen Tag holen");
   knoten("bilder", 0, "Bildvorrat", `${u.bildFunde} Funde`, u.bildFunde ? "an" : "aus");
   knoten("themen", 0, "Themenpool", `${u.themenFunde} Funde`, u.themenFunde ? "an" : "aus");
+  // Der Fragenpool ist eingebaut und kann nicht leer sein — er hat keinen
+  // Zustand „aus". Steht die Zahl trotzdem auf null, ist die Datendatei kaputt,
+  // und das soll man sehen.
+  knoten("fragen", 0, "Fragen", `${u.fragen} Fragen`, u.fragen ? "an" : "leer",
+    u.fragen ? "Fester Pool: existenzielle Fragen mit Ort, Zeit und Fragendem"
+      : "Der eingebaute Fragenpool ist leer — das kann nicht sein");
   // Erzählerbank (seit 4.333.0): der Vorrat an Bögen. „an" nur, wenn sie auch
   // GEZOGEN wird (Regler „Bogen" auf Platz oder Würfeln) — brauchbare Plätze
   // bei Quelle „aus Preset" sind ein gefüllter, aber abgeklemmter Vorrat.
@@ -426,6 +434,7 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   for (const [a, b] of [
     ["korpus", "markov"], ["korpus", "k-korpus"],
     ["sammler", "w4"], ["bilder", "w4"], ["themen", "w4"], ["welt", "w4"], ["ideen", "w4"], ["omni", "w4"],
+    ["fragen", "w4"],
     ["preset", "drama"], ["erzaehler", "drama"],
   ] as [string, string][]) kante(a, b);
 
@@ -475,6 +484,7 @@ import { loadTreasury } from "./treasury";
 import { hasDramaData } from "../generation/dramaturgie";
 import { loadIdeaProfile } from "./ideaprofile";
 import { alleOmniProfile, loadOmniStand } from "./omnikognition";
+import { fragenStand } from "./fragen";
 import { PRESET_LABELS } from "../presets.data";
 
 const LOCK_KEY = "divergenz_studio_locks_v1";
@@ -513,6 +523,7 @@ export function sammleUmgebung(preset: string): Umgebung {
     ideenProfil: zahl(() => { const p = loadIdeaProfile(); return p ? (p.profil.name || p.profil.genre) : ""; }, ""),
     omniProfile: zahl(() => alleOmniProfile().length, 0),
     omniProfil: zahl(() => { const st = loadOmniStand(); return st ? (st.profil.name || "") : ""; }, ""),
+    fragen: zahl(() => fragenStand().funde, 0),
     // Auch EIGENE Presets beim Namen nennen. PRESET_LABELS kennt nur die 51
     // eingebauten; ein eigenes stand als „user:MeinPreset" im Plan, waehrend
     // das Studio daneben den blossen Namen zeigte.

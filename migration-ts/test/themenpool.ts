@@ -144,13 +144,15 @@ ist("null ebenso", zerlegeAntwort(null, lit).length, 0);
 // „→ Studio" übergibt seit jeher genau die. Welt und Ideen sind immer dabei,
 // weil beide auch beim ersten Start etwas liefern; die drei Vorräte kommen nur
 // mit Inhalt dazu.
-ist("ohne Vorräte bleiben Welt, Ideen und Wahrnehmung", offeneQuellen(0, 0, 0).join(","), "welt,ideen,omni");
-ist("mit Themenpool kommt Thema dazu", offeneQuellen(0, 0, 5).join(","), "welt,ideen,omni,thema");
-ist("mit allen Vorräten", offeneQuellen(1, 1, 1).join(","), "welt,ideen,omni,wiki,abschrift,thema");
+ist("ohne Vorräte bleiben die vier eingebauten", offeneQuellen(0, 0, 0).join(","), "welt,ideen,omni,fragen");
+ist("mit Themenpool kommt Thema dazu", offeneQuellen(0, 0, 5).join(","), "welt,ideen,omni,fragen,thema");
+ist("mit allen Vorräten", offeneQuellen(1, 1, 1).join(","), "welt,ideen,omni,fragen,wiki,abschrift,thema");
 wahr("jede Quelle hat eine Beschriftung", QUELLEN.every((q) => !!QUELLE_LABEL[q]));
 // Seit 4.299.0 ist die Wahrnehmung (Reiter Welt) eine eigene Quelle. Sie
 // steht immer offen, weil sie eingebaute Profile hat — wie Welt und Ideen.
-ist("es sind sechs", QUELLEN.length, 6);
+// Seit 4.348.0 ist der Fragenpool die siebte Quelle. Er steht immer offen,
+// weil er eingebaut ist — wie Welt, Ideen und Wahrnehmung.
+ist("es sind sieben", QUELLEN.length, 7);
 
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 // Erst zählen, wenn auch die Netz-Attrappen durch sind — sonst meldet der Kopf

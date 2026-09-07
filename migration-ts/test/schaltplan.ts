@@ -24,6 +24,9 @@ import { wuerfleAlles, wuerfleVierW, REGLER, SCHIEBER } from "../src/features/wu
 import { werte } from "../src/generation/optionen";
 import { ordne, BAND_NAME, renderSchaltplan, befundListe } from "../src/ui/schaltplanView";
 import { JSDOM } from "jsdom";
+import { FRAGEN, ziehFrage, fragenMerkerZuruecksetzen } from "../src/features/fragen";
+import { normWhere } from "../src/generation/ctxnorm";
+import { offeneQuellen } from "../src/features/kontext";
 import { saveAnlage } from "../src/features/schaltplan";
 import { mountDiagnose } from "../src/ui/diagnoseView";
 
@@ -46,7 +49,7 @@ const STAND = (regler: Record<string, string> = {}): AnlageStand => ({
 const UMGEBUNG = (u: Partial<Umgebung> = {}): Umgebung => ({
   korpusZeichen: 0, sammlerFunde: 0, bildFunde: 0, themenFunde: 0, weltFiguren: 0, weltOrte: 0,
   livePools: 0, schatzkammer: 0, knobs: { ...KNOB_VORGABE }, gesperrt: new Set<string>(),
-  dramaVorhanden: false, presetLabel: "Kafka", ideenProfil: "", omniProfile: 8, omniProfil: "",
+  dramaVorhanden: false, presetLabel: "Kafka", ideenProfil: "", omniProfile: 8, omniProfil: "", fragen: 50,
   bogenQuelle: "preset", erzaehlerPlatz: "", erzaehlerBrauchbar: 0, erzaehlerArchiv: 0,
   waechter: { verworfen: 0, angenommen: 0, quote: 0, haeufigste: "", umgeschrieben: 0, zerlegt: 0 }, ...u,
 });
@@ -1050,6 +1053,80 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   const qa = readFileSync("src/ui/app.ts", "utf8");
   wahr("die App öffnet den Reiter, klappt details auf und hebt hervor", /addEventListener\("dm-springe"/.test(qa) && /instanceof HTMLDetailsElement\) p\.open = true/.test(qa) && /classList\.add\("sprung-ziel"\)/.test(qa));
   wahr("der Sprung verstellt nichts (kein value =, kein dispatch change im Sprung)", !/dm-springe[\s\S]{0,1600}?\.value = /.test(qa));
+}
+
+
+// ── 18 · Der Fragenpool ──────────────────────────────────────────────────
+// Gewünscht: „Für die 4W hätte ich gerne einen Wahl-Schalter neben Thema, mit
+// den Existenziellen Fragen der Menschheit. Als festen Pool mit 50 Einträgen.
+// Möglichst kurze Eintragungen in den 4W."
+//
+// Drei Dinge, die hier festgehalten werden, weil sie sonst still verrutschen:
+// die ZAHL (fünfzig, nicht ungefähr fünfzig), die FORM der Einträge und der
+// Umstand, dass diese Quelle als einzige nie leer sein kann.
+{
+  ist("der Pool hat fünfzig Einträge", FRAGEN.length, 50);
+
+  // Die Form. Gemessen an `normWhere`: „Königsberg" wird zu „im Königsberg",
+  // „Florenz" zu „in der Florenz". Was mit einer Präposition beginnt, bleibt
+  // unangetastet — also muss sie drinstehen. Ein Prüfstand, der das nicht
+  // festhält, lässt den nächsten Eintrag ohne Präposition durch.
+  const ohnePraep = FRAGEN.filter((f) => normWhere(f.where) !== f.where);
+  ist("jedes Wo trägt seine Präposition schon", ohnePraep.map((f) => f.where).join(" · "), "");
+  const leer = FRAGEN.filter((f) => !f.who.trim() || !f.where.trim() || !f.when.trim() || !f.what.trim());
+  ist("kein Feld ist leer", leer.length, 0);
+  const lang = FRAGEN.filter((f) => f.what.length > 60 || f.who.length > 24 || f.where.length > 32 || f.when.length > 24);
+  ist("die Einträge bleiben kurz", lang.map((f) => f.who).join(","), "");
+  const doppelt = FRAGEN.length - new Set(FRAGEN.map((f) => f.what)).size;
+  ist("keine Frage steht zweimal drin", doppelt, 0);
+  const wer = FRAGEN.length - new Set(FRAGEN.map((f) => f.who)).size;
+  ist("und kein Fragender", wer, 0);
+
+  // Der Griff. Zweimal hintereinander dasselbe wäre bei fünfzig Einträgen
+  // selten, aber sichtbar — wer zweimal drückt und zweimal Sokrates bekommt,
+  // hält den Knopf für kaputt.
+  fragenMerkerZuruecksetzen();
+  const gesehen = new Set<string>();
+  let hintereinander = 0, vorher = "";
+  for (let i = 0; i < 500; i++) {
+    const f = ziehFrage();
+    const k = `${f.who}|${f.when}`;
+    if (k === vorher) hintereinander++;
+    vorher = k; gesehen.add(k);
+  }
+  ist(`alle fünfzig kommen vor (${gesehen.size})`, gesehen.size, 50);
+  ist("und keine zweimal hintereinander", hintereinander, 0);
+
+  // Die Quelle. Sie ist die einzige, die keinen Vorrat braucht — und der
+  // einzige Zweig in `wuerfleVierW` ohne Rückfall auf die Welt.
+  wahr("die Quelle steht ohne Vorräte offen", offeneQuellen(0, 0, 0).includes("fragen"));
+  const vorherW4 = { where: "im Archiv", when: "am Morgen", who: "die Archivarin", what: "sucht eine Akte" };
+  const quellen = new Set<string>();
+  let leerFeld = 0;
+  for (let i = 0; i < 60; i++) {
+    const w = wuerfleVierW(vorherW4, new Set<string>(), "fragen");
+    quellen.add(w.quelle);
+    for (const f of ["where", "when", "who", "what"] as const) if (!(w.w4[f] || "").trim()) leerFeld++;
+  }
+  wahr(`der Würfel zieht verschiedene Fragen (${quellen.size} in 60 Zügen)`, quellen.size >= 20);
+  ist("und füllt alle vier Felder", leerFeld, 0);
+  wahr("die Quelle nennt den Fragenden", [...quellen].every((q) => /^Fragen · \S/.test(q)));
+
+  // Ein Schloss hält auch hier.
+  let verschoben = 0;
+  for (let i = 0; i < 30; i++) {
+    const w = wuerfleVierW(vorherW4, new Set(["f-who"]), "fragen");
+    if (w.w4.who !== vorherW4.who) verschoben++;
+  }
+  ist("ein gesperrtes Wer bleibt stehen", verschoben, 0);
+
+  // Und der Plan kennt sie.
+  const a = baueAnlage(STAND(), UMGEBUNG({ fragen: 50 }));
+  ist("der Fragenpool steht im Plan", knoten(a, "fragen")?.zustand, "an");
+  ist("mit seiner Zahl", knoten(a, "fragen")?.wert, "50 Fragen");
+  wahr("und einer Leitung zu den vier W", a.kanten.some((k) => k.von === "fragen" && k.nach === "w4"));
+  const b = baueAnlage(STAND(), UMGEBUNG({ fragen: 0 }));
+  ist("ein leerer Pool wäre ein Befund", knoten(b, "fragen")?.zustand, "leer");
 }
 
 console.log(`Prüfstand Schaltplan — ${geprueft} Prüfungen, ${bestanden} bestanden`);

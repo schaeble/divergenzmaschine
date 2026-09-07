@@ -244,7 +244,7 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
     if (stil) stilWerte.add(stil.value);
   }
   // Seit 4.297.0 ist „Ideen" eine Quelle wie die Welt — beide sind immer dabei.
-  ist("alle offenen Quellen kommen im Studio vor", [...quellen].sort().join(","), "Abschrift,Ideen,Wahrnehmung,Welt,Wiki");
+  ist("alle offenen Quellen kommen im Studio vor", [...quellen].sort().join(","), "Abschrift,Fragen,Ideen,Wahrnehmung,Welt,Wiki");
   // Die vierte Quelle: der Themenpool. Er ist in diesem Lauf leer und darf
   // deshalb NICHT vorkommen — eine leere Quelle zu ziehen hieße, dass der Knopf
   // mal wirkt und mal nicht.
@@ -282,15 +282,16 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
 {
   // Seit 4.297.0 sind Welt UND Ideen immer dabei: Beide liefern auch beim
   // ersten Start etwas, die drei Vorräte nur mit Inhalt.
-  ist("ohne Vorräte bleiben Welt, Ideen und Wahrnehmung", offeneQuellen(0, 0).join(","), "welt,ideen,omni");
-  ist("mit Wiki-Vorrat kommt Wiki dazu", offeneQuellen(7, 0).join(","), "welt,ideen,omni,wiki");
-  ist("mit Bildvorrat die Abschrift", offeneQuellen(0, 3).join(","), "welt,ideen,omni,abschrift");
-  ist("mit beiden alle fünf", offeneQuellen(7, 3).join(","), "welt,ideen,omni,wiki,abschrift");
+  ist("ohne Vorräte bleiben die vier eingebauten", offeneQuellen(0, 0).join(","), "welt,ideen,omni,fragen");
+  ist("mit Wiki-Vorrat kommt Wiki dazu", offeneQuellen(7, 0).join(","), "welt,ideen,omni,fragen,wiki");
+  ist("mit Bildvorrat die Abschrift", offeneQuellen(0, 3).join(","), "welt,ideen,omni,fragen,abschrift");
+  ist("mit beiden alle sechs", offeneQuellen(7, 3).join(","), "welt,ideen,omni,fragen,wiki,abschrift");
   // Der Zufall ist ein Parameter — sonst ließe sich das hier nicht messen.
   const offen = offeneQuellen(1, 1);
   ist("erster Zug", ziehQuelle(offen, () => 0), "welt");
   ist("zweiter Zug", ziehQuelle(offen, () => 0.25), "ideen");
-  ist("dritter Zug", ziehQuelle(offen, () => 0.45), "omni");
+  ist("dritter Zug", ziehQuelle(offen, () => 0.4), "omni");
+  ist("vierter Zug", ziehQuelle(offen, () => 0.55), "fragen");
   ist("letzter Zug", ziehQuelle(offen, () => 0.99), "abschrift");
   ist("und 1.0 fällt nicht heraus", ziehQuelle(offen, () => 1), "abschrift");
   ist("aus dem Nichts kommt die Welt", ziehQuelle([], () => 0.5), "welt");

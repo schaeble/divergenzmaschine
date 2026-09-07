@@ -61,10 +61,15 @@ export function geaendert(
 // „omni" kam in 4.299.0 dazu: die Omnikognition aus dem Reiter Welt, gewünscht
 // als eigene Quelle. Sie liefert nicht nur die vier W, sondern die passenden
 // Stilregler dazu — ein Wesen wahrzunehmen ist eine Haltung, keine Ortsangabe.
-export const QUELLEN = ["welt", "wiki", "abschrift", "thema", "ideen", "omni"] as const;
+// „fragen" kam in 4.348.0 dazu: die existenziellen Fragen der Menschheit als
+// FESTER Pool von fünfzig Einträgen. Anders als Wiki, Abschrift und Thema holt
+// sie nichts aus dem Netz und ist nie leer — deshalb steht sie immer offen,
+// wie Welt, Ideen und Wahrnehmung.
+export const QUELLEN = ["welt", "wiki", "abschrift", "thema", "ideen", "omni", "fragen"] as const;
 export type Quelle = typeof QUELLEN[number];
 export const QUELLE_LABEL: Record<Quelle, string> = {
   welt: "Welt", wiki: "Wiki", abschrift: "Abschrift", thema: "Thema", ideen: "Ideen", omni: "Wahrnehmung",
+  fragen: "Fragen",
 };
 
 /** Welche Quellen stehen bereit? */
@@ -72,7 +77,7 @@ export function offeneQuellen(wikiFunde: number, bildFunde: number, themaFunde =
   // Welt, Ideen und Wahrnehmung sind immer dabei: Alle drei liefern auch beim
   // ersten Start etwas (die Welt legt sich selbst an, die beiden anderen haben
   // eingebaute Profile).
-  const raus: Quelle[] = ["welt", "ideen", "omni"];
+  const raus: Quelle[] = ["welt", "ideen", "omni", "fragen"];
   if (wikiFunde > 0) raus.push("wiki");
   if (bildFunde > 0) raus.push("abschrift");
   if (themaFunde > 0) raus.push("thema");

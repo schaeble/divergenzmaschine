@@ -63,6 +63,41 @@ wahr(`es wurden ${teile.length} Eintr\xE4ge gemessen`, teile.length >= 60);
 for (const w of ["Nutzung", "Selbsttest", "Schaltplan", "F\xFCller", "Abschrift", "Motivverwandlungen", "Bildwelt", "Autopilot"]) {
   wahr(`die Hilfe kennt \u201E${w}"`, hilfe.includes(w));
 }
+{
+  const svg = hilfe.slice(hilfe.indexOf("const ARCH_SVG"), hilfe.indexOf("`;", hilfe.indexOf("const ARCH_SVG")));
+  ist("der abgeloeste Baustein kommt nicht mehr vor", />Montage</.test(svg), false);
+  for (const r of [
+    "STUDIO",
+    "Ideen",
+    "Sammler",
+    "Welt",
+    "Wortbank",
+    "Erz\xE4hlerbank",
+    "Korpus",
+    "Schatzkammer",
+    "Bildwelt",
+    "Autopilot",
+    "Werkstatt",
+    "KI-Lehrer"
+  ]) {
+    wahr(`die Grafik kennt \u201E${r}"`, svg.includes(r));
+  }
+  for (const b of ["Zeitungsseite", "Lebendige Pools", "Bestenauslese", "Textindex", "Diagnose"]) {
+    wahr(`die Grafik kennt \u201E${b}"`, svg.includes(b));
+  }
+  const vb = /viewBox="0 0 \d+ (\d+)"/.exec(svg);
+  const rah = /<rect x="1" y="1" width="\d+" height="(\d+)"/.exec(svg);
+  wahr("Rahmen und Blatt sind auffindbar", !!vb && !!rah);
+  wahr(
+    `der Rahmen passt ins Blatt (${rah?.[1]} in ${vb?.[1]})`,
+    Number(rah[1]) <= Number(vb[1]) && Number(rah[1]) > Number(vb[1]) - 40
+  );
+  wahr("es gibt einen Erzeuger", (0, import_fs.existsSync)("scripts/arch.mjs"));
+  wahr(
+    "und die Grafik stammt daraus",
+    (0, import_fs.readFileSync)("src/ui/arch.svg.txt", "utf8").trim() === svg.slice(svg.indexOf("<svg")).trim()
+  );
+}
 console.log(`Pr\xFCfstand Hilfe \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {
