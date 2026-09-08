@@ -1175,3 +1175,19 @@ button.ek-probe:hover .ek-blaettern{opacity:1;color:var(--acc2)}
 .outwrap.sk-an .genarrow.left{left:46px}
 .sk-leiste{display:inline-flex;gap:8px;align-items:center;margin-left:8px}
 .out.sk-getoent{transition:background-image .3s}
+/* Zeitlupe: Stufenleiste und Aenderungsmarken (4.347.0). */
+.zeitlupe{margin-top:8px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;outline:none}
+.zeitlupe:focus{border-color:var(--acc2)}
+.zl-leiste{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.zl-kette{display:flex;gap:4px;flex-wrap:wrap;margin-left:6px}
+.zl-stufe{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--border2);background:var(--input-bg);color:var(--muted);cursor:pointer}
+.zl-stufe.zl-still{opacity:.55}
+.zl-stufe.zl-aktiv{color:var(--text);border-color:var(--acc2);background:color-mix(in srgb, var(--acc2) 14%, transparent)}
+.zl-text{line-height:1.7;font-family:Georgia,'Times New Roman',serif;font-size:15px;margin-top:4px}
+.zl-satz{border-radius:3px;padding:0 2px}
+.zl-gleich{opacity:.78}
+.zl-neu{background:rgba(60,170,90,.22)}
+.zl-geaendert{background:rgba(230,180,40,.28)}
+.zl-gefallen{margin-top:6px;line-height:1.6}
+.zl-weg{background:rgba(214,72,40,.16);text-decoration:line-through;opacity:.8}
+.zl-zahl{margin-left:6px}

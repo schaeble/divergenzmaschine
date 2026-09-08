@@ -3163,6 +3163,40 @@ function kurveWert(werte2, p) {
   return klemm(werte2[i] * (1 - t) + werte2[i + 1] * t);
 }
 
+// src/features/zeitlupe.ts
+var an = false;
+var stufen = [];
+var laufend = [];
+var STUFEN_ERKLAERUNG = {
+  "Bau": "Die Struktur f\xFCllt ihre Schl\xE4ge oder der Zusammenbau zieht seine Atome \u2014 der Rohtext.",
+  "Ensemble": "Mehrere Personen im Wer werden als Ensemble eingewoben.",
+  "Betonung": "Die vier W kommen zu Wort: Ort, Zeit, Figur, Vorgang werden in eigenen Zeilen betont.",
+  "St\xF6rung": "Der Disruptor bricht: Echo, Fragmentierung, ein Strich mitten im Text.",
+  "Rhythmus": "Satzl\xE4ngen nach dem Rhythmus-Regler: Staccato teilt, Fluss verbindet.",
+  "Spannung": "Regler oder Kurve: S\xE4tze werden an tragf\xE4higen Kommas geteilt, Fragmente eingestreut, am Peak verdichtet.",
+  "Perspektive": "Ich, Du, Wir oder dritte Person \u2014 Pronomen und Verben folgen.",
+  "Schliff": "Kongruenz, Fragezeichen, Nominativ, Formeln, Artikel, Namen \u2014 Regel f\xFCr Regel, jede aus einem Blatt.",
+  "Ton": "Die Ton-Einf\xE4rbung: Einleitung, Flavor-S\xE4tze, Register.",
+  "Satzl\xE4nge": "Dubletten fallen, kurze Nachbarn werden bis zur Obergrenze verbunden.",
+  "Koh\xE4renz": "Themenfremde S\xE4tze fallen, Reparaturen an Br\xFCchen; der Bogen sch\xFCtzt seine W\xF6rter.",
+  "Auff\xFCllen": "Auf die Ziell\xE4nge: Bilder, Wenden, Haken aus dem Preset oder Ketten aus dem Korpus \u2014 bis nichts Frisches mehr da ist.",
+  "Verwandlung": "Motivverwandlungen z\xE4hlen Vorkommen im fertigen Text und tauschen beim Wiederkehren.",
+  "Ende": "Der letzte kleine Schliff: Artikel, Pronomen, Komma vor der Inversion."
+};
+function zeitlupeStart() {
+  if (an) laufend = [];
+}
+function zeitlupeStufe(name, text) {
+  if (!an) return;
+  laufend.push({ name, text: String(text || ""), kurz: STUFEN_ERKLAERUNG[name] || "" });
+}
+function zeitlupeEnde() {
+  if (an && laufend.length) {
+    stufen = laufend;
+    laufend = [];
+  }
+}
+
 // src/modes.data.ts
 var MODE_DATA = {
   "bureau": {
@@ -4589,8 +4623,8 @@ function setBogenPhasen(folge) {
   STRUKTUR_PHASEN["bogen"] = phasenAusSchlagfolge(folge);
 }
 var bogenModus = false;
-function setBogenModus(an) {
-  bogenModus = an;
+function setBogenModus(an2) {
+  bogenModus = an2;
 }
 function gelenkBonus(a, phase, bogenGewicht) {
   if (!bogenModus || a.quelle !== "dramaturgie" || !phase) return 0;
@@ -7264,6 +7298,7 @@ function postProcessText(txt, input) {
     }
   }
   t = pluralKongruenz(t, name);
+  zeitlupeStufe("Schliff", t);
   if (!isLineForm(input) && input?.tone && TONE_DATA[input.tone]) {
     const td = TONE_DATA[input.tone];
     if (td.opener.length) {
@@ -7277,14 +7312,19 @@ function postProcessText(txt, input) {
       for (let i = 0; i < inserts; i++) t = insertToneFlavor(t, pick(td.flavor));
     }
     t = applyToneRegister(t, input.tone);
+    zeitlupeStufe("Ton", t);
   }
   if (!isLineForm(input)) t = entferneDubletten(t);
-  if (!isLineForm(input)) t = applySatzlaenge(t, loadKnobs().satzlaenge);
+  if (!isLineForm(input)) {
+    t = applySatzlaenge(t, loadKnobs().satzlaenge);
+    zeitlupeStufe("Satzl\xE4nge", t);
+  }
   if (!isLineForm(input)) t = entferneDubletten(t);
   t = polishGerman(t, { who: name });
   t = schliesseFigurenkomma(t, input?.who);
   t = coherencePass(t, input);
   t = coherenceRepairV2(t, input);
+  zeitlupeStufe("Koh\xE4renz", t);
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
   t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
   return t.trim();
@@ -19298,13 +19338,13 @@ function applyHaikuPoem(rawText, anchorLine = "", lenTarget = 0, atome = []) {
   const used = /* @__PURE__ */ new Set(), usedSrc = /* @__PURE__ */ new Set();
   const fromMaterial = (target, exakt = true, nurGanz = false) => {
     const free = cands.filter((c2) => !used.has(c2.text.toLowerCase()) && (nurGanz ? c2.ganz : true) && (exakt ? c2.syll === target : Math.abs(c2.syll - target) === 1));
-    const stufen = [
+    const stufen2 = [
       free.filter((c2) => c2.ganz && !usedSrc.has(c2.src)),
       free.filter((c2) => c2.ganz),
       free.filter((c2) => !usedSrc.has(c2.src)),
       free
     ];
-    const treffer = stufen.find((x) => x.length);
+    const treffer = stufen2.find((x) => x.length);
     const c = treffer ? pick(treffer) : null;
     if (!c) return null;
     used.add(c.text.toLowerCase());
@@ -19825,25 +19865,41 @@ function buildStory(bank, input, model) {
   const effStructure = verseForm && kit.structure === "fragment" ? "linear" : kit.structure;
   const ASSEMBLER = /* @__PURE__ */ new Set(["rekombination", "linear", "reverse", "circle", "fragment", "object", "bogen"]);
   if (input.form === "prose" && ASSEMBLER.has(input.structure || "")) {
+    zeitlupeStart();
     const rk = buildRekombination(bank, input, model);
     if (rk.trim()) {
+      zeitlupeStufe("Bau", rk);
       const fertig = postProcessText(paragraphize(rk), input);
       linkTrace(fertig);
       linkMarkovTrace(fertig);
+      zeitlupeStufe("Ende", fertig);
+      zeitlupeEnde();
       return fertig;
     }
   }
+  zeitlupeStart();
   let text = input.form === "prose" && input.structure === "dramaturgie" && hasDramaData() ? buildDramaturgie({ ...kit }) : pickStructureBuilder(effStructure)({ ...kit });
-  if (input.form === "prose" && kit.cast.length >= 2) text = weaveCast(text, kit.P, kit.cast);
-  if (input.form === "prose" && input.emphasis) text = applyEmphasis(text, kit, input.emphasis);
+  zeitlupeStufe("Bau", text);
+  if (input.form === "prose" && kit.cast.length >= 2) {
+    text = weaveCast(text, kit.P, kit.cast);
+    zeitlupeStufe("Ensemble", text);
+  }
+  if (input.form === "prose" && input.emphasis) {
+    text = applyEmphasis(text, kit, input.emphasis);
+    zeitlupeStufe("Betonung", text);
+  }
   text = applyDisruptor(text, input.disruptor).text;
+  zeitlupeStufe("St\xF6rung", text);
   text = applyRhythm(text, kit.rhythm);
+  zeitlupeStufe("Rhythmus", text);
   const kurve = ladeKurve();
   if (input.form === "prose") text = kurve.an ? applyTension(text, input.tension, { motifs: bank.motifs, hooks: bank.hooks }, (p) => kurveWert(kurve.werte, p)) : applyTension(text, input.tension, { motifs: bank.motifs, hooks: bank.hooks });
+  zeitlupeStufe("Spannung", text);
   text = paragraphize(text);
   const paras = text.split(/\n\n+/).map(clean).filter(Boolean);
   text = effStructure === "object" ? paras.join("\n\n") : applyPerspective(paras, kit.perspective, kit.P, pick(kit.mode.nouns)).join("\n\n");
   if (kit.perspective === "third") text = pronominalize(text, kit.P, guessPronoun(kit.P));
+  zeitlupeStufe("Perspektive", text);
   const finalText = postProcessText(text, input);
   const anchor = kit.ending || kit.Apure;
   if (input.form === "reim") return asReim(finalText, anchor, lenTarget, buildVersAtome(bank, input, model));
@@ -19852,10 +19908,14 @@ function buildStory(bank, input, model) {
   }
   if (input.form === "strang") return asStrang(finalText, anchor, lenTarget);
   if (input.form === "drama") return asDrama(finalText, kit.speakerA, kit.speakerB || kit.P);
-  return kommaVorInversion(kleinesPronomen(kleinerArtikel(verwandleMotive(
-    entferneDubletten(enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix")),
-    leseVerwandlungen(bank.verwandlungen)
-  ))));
+  const gefuellt = entferneDubletten(enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix"));
+  zeitlupeStufe("Auff\xFCllen", gefuellt);
+  const verwandelt = verwandleMotive(gefuellt, leseVerwandlungen(bank.verwandlungen));
+  zeitlupeStufe("Verwandlung", verwandelt);
+  const ende = kommaVorInversion(kleinesPronomen(kleinerArtikel(verwandelt)));
+  zeitlupeStufe("Ende", ende);
+  zeitlupeEnde();
+  return ende;
 }
 
 // test/verwandlung.ts

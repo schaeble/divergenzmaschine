@@ -4864,6 +4864,30 @@ function applyToneRegister(text, tone) {
   return text;
 }
 
+// src/features/zeitlupe.ts
+var an = false;
+var laufend = [];
+var STUFEN_ERKLAERUNG = {
+  "Bau": "Die Struktur f\xFCllt ihre Schl\xE4ge oder der Zusammenbau zieht seine Atome \u2014 der Rohtext.",
+  "Ensemble": "Mehrere Personen im Wer werden als Ensemble eingewoben.",
+  "Betonung": "Die vier W kommen zu Wort: Ort, Zeit, Figur, Vorgang werden in eigenen Zeilen betont.",
+  "St\xF6rung": "Der Disruptor bricht: Echo, Fragmentierung, ein Strich mitten im Text.",
+  "Rhythmus": "Satzl\xE4ngen nach dem Rhythmus-Regler: Staccato teilt, Fluss verbindet.",
+  "Spannung": "Regler oder Kurve: S\xE4tze werden an tragf\xE4higen Kommas geteilt, Fragmente eingestreut, am Peak verdichtet.",
+  "Perspektive": "Ich, Du, Wir oder dritte Person \u2014 Pronomen und Verben folgen.",
+  "Schliff": "Kongruenz, Fragezeichen, Nominativ, Formeln, Artikel, Namen \u2014 Regel f\xFCr Regel, jede aus einem Blatt.",
+  "Ton": "Die Ton-Einf\xE4rbung: Einleitung, Flavor-S\xE4tze, Register.",
+  "Satzl\xE4nge": "Dubletten fallen, kurze Nachbarn werden bis zur Obergrenze verbunden.",
+  "Koh\xE4renz": "Themenfremde S\xE4tze fallen, Reparaturen an Br\xFCchen; der Bogen sch\xFCtzt seine W\xF6rter.",
+  "Auff\xFCllen": "Auf die Ziell\xE4nge: Bilder, Wenden, Haken aus dem Preset oder Ketten aus dem Korpus \u2014 bis nichts Frisches mehr da ist.",
+  "Verwandlung": "Motivverwandlungen z\xE4hlen Vorkommen im fertigen Text und tauschen beim Wiederkehren.",
+  "Ende": "Der letzte kleine Schliff: Artikel, Pronomen, Komma vor der Inversion."
+};
+function zeitlupeStufe(name, text) {
+  if (!an) return;
+  laufend.push({ name, text: String(text || ""), kurz: STUFEN_ERKLAERUNG[name] || "" });
+}
+
 // src/generation/polish.ts
 var DOPPELT_ERLAUBT = /* @__PURE__ */ new Set([
   "der",
@@ -5572,6 +5596,7 @@ function postProcessText(txt, input) {
     }
   }
   t = pluralKongruenz(t, name);
+  zeitlupeStufe("Schliff", t);
   if (!isLineForm(input) && input?.tone && TONE_DATA[input.tone]) {
     const td = TONE_DATA[input.tone];
     if (td.opener.length) {
@@ -5585,14 +5610,19 @@ function postProcessText(txt, input) {
       for (let i = 0; i < inserts; i++) t = insertToneFlavor(t, pick(td.flavor));
     }
     t = applyToneRegister(t, input.tone);
+    zeitlupeStufe("Ton", t);
   }
   if (!isLineForm(input)) t = entferneDubletten(t);
-  if (!isLineForm(input)) t = applySatzlaenge(t, loadKnobs().satzlaenge);
+  if (!isLineForm(input)) {
+    t = applySatzlaenge(t, loadKnobs().satzlaenge);
+    zeitlupeStufe("Satzl\xE4nge", t);
+  }
   if (!isLineForm(input)) t = entferneDubletten(t);
   t = polishGerman(t, { who: name });
   t = schliesseFigurenkomma(t, input?.who);
   t = coherencePass(t, input);
   t = coherenceRepairV2(t, input);
+  zeitlupeStufe("Koh\xE4renz", t);
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
   t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
   return t.trim();

@@ -1,5 +1,6 @@
 // Generierung: volle Kit-Fidelity (buildBaseModules) + Struktur + V4.1-Pipeline.
 import { ladeKurve, kurveWert } from "../features/spannungskurve";
+import { zeitlupeStart, zeitlupeStufe, zeitlupeEnde } from "../features/zeitlupe";
 import type { Bank, GenInput, StoryKit } from "../types";
 import { MODE_DATA } from "../modes.data";
 import { pick, pickSane, clean, chance } from "../text-utils";
@@ -204,6 +205,7 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   // gerade nicht bedienen kann.
   const ASSEMBLER = new Set(["rekombination", "linear", "reverse", "circle", "fragment", "object", "bogen"]);
   if (input.form === "prose" && ASSEMBLER.has(input.structure || "")) {
+    zeitlupeStart();
     const rk = buildRekombination(bank, input, model);
     // Absaetze auch auf diesem Weg: Der Zweig kehrt vor paragraphize() zurueck,
     // die Rekombination lieferte deshalb immer einen einzigen Block - gemessen
@@ -226,35 +228,45 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
     // Sieben von neun Strukturen also, darunter die Rekombination selbst. Wer
     // den Regler auf „An" stellte, bekam in aller Regel nichts.
     if (rk.trim()) {
+      // Zeitlupe: Der Zusammenbau zieht seine Atome in EINER Stufe (Bau);
+      // danach Stoerung und die Stufen der Nachbearbeitung.
+      zeitlupeStufe("Bau", rk);
       const gebrochen = applyDisruptor(rk, input.disruptor).text;
-      const fertig = postProcessText(paragraphize(gebrochen), input); linkTrace(fertig); linkMarkovTrace(fertig); return fertig;
+      zeitlupeStufe("Störung", gebrochen);
+      const fertig = postProcessText(paragraphize(gebrochen), input); linkTrace(fertig); linkMarkovTrace(fertig);
+      zeitlupeStufe("Ende", fertig); zeitlupeEnde();
+      return fertig;
     }
   }
+  zeitlupeStart();
   let text = (input.form === "prose" && input.structure === "dramaturgie" && hasDramaData())
     ? buildDramaturgie({ ...kit })
     : pickStructureBuilder(effStructure)({ ...kit });
+  zeitlupeStufe("Bau", text);
 
   // Mehrere in "Wer" genannte Personen (Komma-getrennt) als Ensemble in die Prosa einweben.
-  if (input.form === "prose" && kit.cast.length >= 2) text = weaveCast(text, kit.P, kit.cast);
+  if (input.form === "prose" && kit.cast.length >= 2) { text = weaveCast(text, kit.P, kit.cast); zeitlupeStufe("Ensemble", text); }
 
   // Fragment ist jetzt fragmentierte Prosa (nicht mehr eine Zeilen-Liste) und
   // durchläuft daher den normalen Prosa-Pfad inkl. Längen-Auffüllung.
-  if (input.form === "prose" && input.emphasis) text = applyEmphasis(text, kit, input.emphasis);
+  if (input.form === "prose" && input.emphasis) { text = applyEmphasis(text, kit, input.emphasis); zeitlupeStufe("Betonung", text); }
 
-  text = applyDisruptor(text, input.disruptor).text;
-  text = applyRhythm(text, kit.rhythm);
+  text = applyDisruptor(text, input.disruptor).text; zeitlupeStufe("Störung", text);
+  text = applyRhythm(text, kit.rhythm); zeitlupeStufe("Rhythmus", text);
   // Spannungskurve (4.345.0): Ist sie an, folgt der Rhythmus der Kurve über
   // die ganze Textlänge; sonst dem Regler „Spannung" mit seinem einen Peak.
   const kurve = ladeKurve();
   if (input.form === "prose") text = kurve.an
     ? applyTension(text, input.tension, { motifs: bank.motifs, hooks: bank.hooks }, (p) => kurveWert(kurve.werte, p))
     : applyTension(text, input.tension, { motifs: bank.motifs, hooks: bank.hooks });
+  zeitlupeStufe("Spannung", text);
   text = paragraphize(text);
   const paras = text.split(/\n\n+/).map(clean).filter(Boolean);
   text = effStructure === "object"
     ? paras.join("\n\n")
     : applyPerspective(paras, kit.perspective, kit.P, pick(kit.mode.nouns)).join("\n\n");
   if (kit.perspective === "third") text = pronominalize(text, kit.P, guessPronoun(kit.P));
+  zeitlupeStufe("Perspektive", text);
   const finalText = postProcessText(text, input);
   const anchor = kit.ending || kit.Apure;
   if (input.form === "reim") return asReim(finalText, anchor, lenTarget, buildVersAtome(bank, input, model));
@@ -277,7 +289,12 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   // gemessen in 36 % der Objekt-Texte stand der Artikel groß in der Satzmitte.
   // kleinerArtikel, kleinesPronomen und kommaVorInversion ändern keine Fakten,
   // nur ein Zeichen; sie dürfen als Letzte laufen.
-  return kommaVorInversion(kleinesPronomen(kleinerArtikel(verwandleMotive(
-    entferneDubletten(enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix")),
-    leseVerwandlungen(bank.verwandlungen)))));
+  const gefuellt = entferneDubletten(enforceWordTarget(finalText, lenTarget, bank, model, input.markovMode || "mix"));
+  zeitlupeStufe("Auffüllen", gefuellt);
+  const verwandelt = verwandleMotive(gefuellt, leseVerwandlungen(bank.verwandlungen));
+  zeitlupeStufe("Verwandlung", verwandelt);
+  const ende = kommaVorInversion(kleinesPronomen(kleinerArtikel(verwandelt)));
+  zeitlupeStufe("Ende", ende);
+  zeitlupeEnde();
+  return ende;
 }

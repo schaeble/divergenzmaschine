@@ -10,6 +10,7 @@ import { coherenceWords } from "./nlp";
 import { TONE_DATA } from "./tone.data";
 import { loadKnobs } from "../features/knobs";
 import { applyToneRegister } from "./tone.shape";
+import { zeitlupeStufe } from "../features/zeitlupe";
 import { insertToneFlavor } from "./beats";
 import { polishGerman } from "./polish";
 import { applySatzlaenge, entferneDubletten, OBJEKT_KOPF_RE } from "./shape";
@@ -483,6 +484,7 @@ export function postProcessText(txt: string, input?: Input): string {
   }
 
   t = pluralKongruenz(t, name);
+  zeitlupeStufe("Schliff", t);
 
   // Ton-Einfärbung: Einleitung + verteilte Flavor-Einschübe (nicht bei
   // Zeilenformen). Frueher hing das zusaetzlich am Sprachschliff-Haken: Wer ihn
@@ -508,6 +510,7 @@ export function postProcessText(txt: string, input?: Input): string {
     }
     // Register-Nachlauf: Ton formt auch die Satzmuster (nüchtern flach, ironisch trocken).
     t = applyToneRegister(t, input.tone);
+    zeitlupeStufe("Ton", t);
   }
 
   // Satzlaenge ganz zum Schluss: Rhythmus, Spannung und die Ton-Einschuebe
@@ -519,7 +522,7 @@ export function postProcessText(txt: string, input?: Input): string {
   // VOR der Zusammenziehung: Sie verkleidet die Dublette als Halbsatz mit
   // Gedankenstrich, und dann ist sie schwerer zu erkennen als vorher.
   if (!isLineForm(input)) t = entferneDubletten(t);
-  if (!isLineForm(input)) t = applySatzlaenge(t, loadKnobs().satzlaenge);
+  if (!isLineForm(input)) { t = applySatzlaenge(t, loadKnobs().satzlaenge); zeitlupeStufe("Satzlänge", t); }
   // Und danach noch einmal: Die Zusammenziehung kann zwei gleiche Sätze erst
   // nebeneinander bringen, indem sie einen dritten dazwischen wegnimmt.
   if (!isLineForm(input)) t = entferneDubletten(t);
@@ -537,6 +540,7 @@ export function postProcessText(txt: string, input?: Input): string {
   t = schliesseFigurenkomma(t, input?.who);
   t = coherencePass(t, input);
   t = coherenceRepairV2(t, input);
+  zeitlupeStufe("Kohärenz", t);
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1: string, p2: string) => p1 + p2.toUpperCase());
   // Nach Konjunktion mitten im Satz: gross geschriebene Artikel/Pronomen klein
   // ("…, und Die Vergangenheit" -> "…, und die Vergangenheit"). Nomen (Realitaet)

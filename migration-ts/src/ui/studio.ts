@@ -19,6 +19,7 @@ import { titelFuer } from "../generation/titel";
 import { archivEintraege, eintragNachId, bauformAendern, ladeQuelle, setzeQuelle, platzBrauchbar, bogenFuerErzeugung, SCHLAGFOLGEN, bogenBeschriftung, letzterGezogen } from "../features/erzaehlerbank";
 import { phasenAusSchlagfolge } from "../atoms/assemble";
 import { ladeKurve, speichereKurve, schlagfolgeAusKurve, reglerAusKurve, kurveSpitzen, KURVEN_VORLAGEN, STUETZEN } from "../features/spannungskurve";
+import { zeitlupeSchalten, zeitlupeLesen, stufenDiff } from "../features/zeitlupe";
 import { setBogenOverride } from "../generation/dramaturgie";
 import { ziehVorrat, vorratStand, type VorratFund } from "../features/wikisammler";
 import { ziehBildvorrat, ladeBildvorrat, type BildFund } from "../features/bildsammler";
@@ -1074,6 +1075,75 @@ export function mountStudio(root: HTMLElement): void {
   };
   planChk.addEventListener("change", renderPlan);
 
+  // ── Zeitlupe (4.347.0): der Bau eines Textes in Stufen, Stop-and-go ────────
+  // Schalter neben dem Bauplan. Ist er an, zeichnet der Rekorder bei jeder
+  // Erzeugung die Stufen auf; die Ansicht zeigt eine Stufenleiste (Pfeile,
+  // Abspielen mit Tempo, Tastatur ←/→) und den Text der gewählten Stufe mit
+  // Änderungsmarken gegenüber der Stufe davor: grün neu, gelb geändert,
+  // gleich blass; darunter rot, was gefallen ist. Aus = Rekorder aus.
+  const zeitChk = el("input", { type: "checkbox", id: "f-zeitlupe" }) as HTMLInputElement;
+  const zeitBox = el("div", { class: "zeitlupe", style: "display:none" });
+  let zeitStufe = 0;
+  let zeitTimer: number | null = null;
+  const zeitStopp = (): void => { if (zeitTimer !== null) { window.clearInterval(zeitTimer); zeitTimer = null; } };
+  const renderZeit = (): void => {
+    const on = zeitChk.checked;
+    zeitlupeSchalten(on);
+    zeitBox.style.display = on ? "" : "none";
+    if (!on) { zeitStopp(); return; }
+    const st = zeitlupeLesen();
+    zeitBox.innerHTML = "";
+    if (!st.length) { zeitBox.append(el("span", { class: "muted mini" }, "Noch keine Aufzeichnung — den nächsten Text erzeugen, dann steht hier sein Bau in Stufen.")); return; }
+    zeitStufe = Math.max(0, Math.min(st.length - 1, zeitStufe));
+    const akt = st[zeitStufe]!;
+    const vorher = zeitStufe > 0 ? st[zeitStufe - 1]!.text : "";
+    const d = stufenDiff(vorher, akt.text);
+    // Leiste
+    const leiste = el("div", { class: "zl-leiste" });
+    const zurueck = el("button", { type: "button", title: "Stufe zurück (←)" }, "◀") as HTMLButtonElement;
+    const vor = el("button", { type: "button", title: "Stufe vor (→)" }, "▶") as HTMLButtonElement;
+    const ab = el("button", { type: "button", title: "Abspielen / anhalten (Leertaste)" }, zeitTimer !== null ? "❚❚" : "▶▶") as HTMLButtonElement;
+    const tempo = select("f-zl-tempo", [["2500", "langsam"], ["1200", "mittel"], ["500", "schnell"]], "1200");
+    zurueck.disabled = zeitStufe === 0; vor.disabled = zeitStufe === st.length - 1;
+    zurueck.addEventListener("click", () => { zeitStopp(); zeitStufe--; renderZeit(); });
+    vor.addEventListener("click", () => { zeitStopp(); zeitStufe++; renderZeit(); });
+    ab.addEventListener("click", () => {
+      if (zeitTimer !== null) { zeitStopp(); renderZeit(); return; }
+      if (zeitStufe >= st.length - 1) zeitStufe = 0;
+      zeitTimer = window.setInterval(() => { if (zeitStufe >= st.length - 1) { zeitStopp(); renderZeit(); return; } zeitStufe++; renderZeit(); }, parseInt(tempo.value, 10) || 1200);
+      renderZeit();
+    });
+    const stufenKette = el("div", { class: "zl-kette" });
+    st.forEach((x, i) => {
+      const k = el("button", { type: "button", class: "zl-stufe" + (i === zeitStufe ? " zl-aktiv" : "") + (i > 0 && x.text === st[i - 1]!.text ? " zl-still" : ""), title: x.kurz || x.name }, `${i + 1} ${x.name}`) as HTMLButtonElement;
+      k.addEventListener("click", () => { zeitStopp(); zeitStufe = i; renderZeit(); });
+      stufenKette.append(k);
+    });
+    leiste.append(zurueck, vor, ab, tempo, stufenKette);
+    const woerter = akt.text.split(/\s+/).filter(Boolean).length;
+    const neu = d.saetze.filter((x) => x.marke === "neu").length, ge = d.saetze.filter((x) => x.marke === "geaendert").length;
+    const stand = el("div", { class: "muted mini", style: "margin:4px 0" },
+      el("b", {}, `Stufe ${zeitStufe + 1} von ${st.length} · ${akt.name}`), ` — ${akt.kurz} `,
+      el("span", { class: "zl-zahl" }, zeitStufe === 0 ? `${woerter} Wörter` : (neu + ge + d.gefallen.length === 0 ? "ohne Änderung" : `${neu} neu · ${ge} geändert · ${d.gefallen.length} gefallen · ${woerter} Wörter`)));
+    // Text mit Marken
+    const text = el("div", { class: "zl-text" });
+    for (const sz of d.saetze) text.append(el("span", { class: "zl-satz zl-" + sz.marke, title: sz.marke === "neu" ? "neu in dieser Stufe" : sz.marke === "geaendert" ? "in dieser Stufe geändert" : "unverändert" }, sz.text + " "));
+    zeitBox.append(leiste, stand, text);
+    if (d.gefallen.length) {
+      const weg = el("div", { class: "zl-gefallen" }, el("span", { class: "muted mini" }, "gefallen: "));
+      for (const g of d.gefallen) weg.append(el("span", { class: "zl-satz zl-weg" }, g + " "));
+      zeitBox.append(weg);
+    }
+  };
+  zeitChk.addEventListener("change", () => { zeitStufe = 0; renderZeit(); });
+  zeitBox.addEventListener("keydown", (ev) => {
+    const k = (ev as KeyboardEvent).key;
+    if (k === "ArrowLeft" && zeitStufe > 0) { ev.preventDefault(); zeitStopp(); zeitStufe--; renderZeit(); }
+    else if (k === "ArrowRight") { ev.preventDefault(); zeitStopp(); zeitStufe++; renderZeit(); }
+    else if (k === " ") { ev.preventDefault(); (zeitBox.querySelector("button[title^='Abspielen']") as HTMLButtonElement | null)?.click(); }
+  });
+  zeitBox.setAttribute("tabindex", "0");
+
   // Textstruktur direkt unter dem Text: woraus besteht er, mit welchen Einstellungen?
   const struktChk = el("input", { type: "checkbox", id: "f-struktur" }) as HTMLInputElement;
   // Vorrats-Hinweis: Die Rekombination baut aus typisierten Bausteinen, und jeder
@@ -1129,7 +1199,7 @@ export function mountStudio(root: HTMLElement): void {
    *  Vorrats-Hinweis nachziehen. Beide hingen bisher allein an generate(), sodass
    *  nach Passagen-Austausch, Rueckgaengig, Variante oder einer Uebernahme aus dem
    *  Ranking die Balken noch den vorigen Text beschrieben. */
-  const nachTextwechsel = (): void => { renderStruktur(); updVorrat(); renderTitel(); spurMalen(); };
+  const nachTextwechsel = (): void => { renderStruktur(); updVorrat(); renderTitel(); spurMalen(); if (zeitChk.checked) { zeitStopp(); zeitStufe = 0; renderZeit(); } };
 
   // ── Klick auf einen Balken der Textstruktur (A.2) ──────────────────────
   // Jeder Balken fuehrt zu dem Bedienelement, das ihn steuert - oder sagt, warum
@@ -1272,7 +1342,7 @@ export function mountStudio(root: HTMLElement): void {
       umweltLeg,
       el("span", { class: "muted" }, "· unmarkiert = Vorlagen · alles anklickbar")),
     el("div", { class: "feedsrow ansichtrow" },
-      ansicht(feedsChk, "Editieren"), ansicht(struktChk, "Struktur"), ansicht(planChk, "Bauplan"), undoBtn, umweltStatus, skLeiste));
+      ansicht(feedsChk, "Editieren"), ansicht(struktChk, "Struktur"), ansicht(planChk, "Bauplan"), ansicht(zeitChk, "Zeitlupe"), undoBtn, umweltStatus, skLeiste));
   umweltLegZeigen();
 
   interface FMatch { s: number; e: number; cls: string; prio: number; }
@@ -1590,7 +1660,7 @@ export function mountStudio(root: HTMLElement): void {
   const bestChk = el("input", { type: "checkbox", id: "f-best" }) as HTMLInputElement;
   bestChk.checked = true;
   const bestLbl = el("label", { class: "chk", title: "Erzeugt bei jedem Klick 12 Kandidaten und zeigt den bestbewerteten (Längentreue, Wortvielfalt, Rhythmus, wenig Wiederholung, Grammatik, Abstand zur Schatzkammer)." }, bestChk, " Bestenauslese");
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl, titelLbl), titelEl, outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl, titelLbl), titelEl, outWrap, vorratHint, feedsRow, planBox, zeitBox, struktBox, kling);
 
   // ── Test & Ranking ──
   let lastRanking: Ranking | null = null;
