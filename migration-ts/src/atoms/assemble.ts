@@ -345,6 +345,17 @@ export function verfugen(teile: string[]): string {
 }
 
 /** Zieht gewichtet: bevorzugt passende Länge und Bildfeld-Nähe zum bisherigen Text. */
+/** Die letzte Ziehung, offengelegt — für die Zeitlupe (Stufe 3): Gewicht und
+ *  Anteil des Gewinners, die Zerlegung seines Gewichts, die zwei nächstbesten
+ *  Konkurrenten. Nur gefüllt, wenn die Zeitlupe an ist (sonst kostet die
+ *  Zerlegung nichts, weil sie nicht gerechnet wird). */
+export interface Ziehung { score: number; anteil: number; gruende: { name: string; wert: number }[]; kandidaten: number;
+  konkurrenten: { text: string; score: number; anteil: number; quelle: string; kategorie: string }[] }
+let letzteZiehung: Ziehung | null = null;
+let ziehungOffenlegen = false;
+export function setZiehungOffenlegen(an: boolean): void { ziehungOffenlegen = an; }
+export function letzteZiehungLesen(): Ziehung | null { return letzteZiehung; }
+
 export function ziehe(kandidaten: PoolAtom[], sollGewicht: string, bisher: string, phase?: Phase): PoolAtom | null {
   if (!kandidaten.length) return null;
   const stems = (t: string): Set<string> => new Set((t.toLowerCase().match(/[a-zäöüß]{5,}/g) || []).map((w) => w.slice(0, 5)));
@@ -372,6 +383,23 @@ export function ziehe(kandidaten: PoolAtom[], sollGewicht: string, bisher: strin
   };
   const total = kandidaten.reduce((n, a) => n + score(a), 0);
   let r = Math.random() * total;
-  for (const a of kandidaten) { r -= score(a); if (r <= 0) return a; }
-  return kandidaten[kandidaten.length - 1]!;
+  let gewinner: PoolAtom = kandidaten[kandidaten.length - 1]!;
+  for (const a of kandidaten) { r -= score(a); if (r <= 0) { gewinner = a; break; } }
+  if (ziehungOffenlegen) {
+    // Zerlegung des Gewichts des Gewinners — dieselben Terme wie in score().
+    const g: { name: string; wert: number }[] = [{ name: "Grund", wert: 1 }];
+    const ue = 0.4 * ueberlaenge(gewinner.text, atomMax); if (ue) g.push({ name: "Überlänge", wert: -ue });
+    if (phase) { const pb = phasenBonus(gewinner, phase); if (pb) g.push({ name: "Phase " + phase, wert: pb }); }
+    const gb = gelenkBonus(gewinner, phase, bogenGewicht); if (gb) g.push({ name: "Gelenk (Bogen)", wert: gb });
+    if (gewinner.rhythmus.gewicht === sollGewicht) g.push({ name: "Rhythmus passt", wert: 1.5 });
+    const ov = [...stems(gewinner.text)].filter((x) => kontext.has(x)).length;
+    if (ov) g.push({ name: `Anschluss (${ov} Stämme)`, wert: ov > 3 ? Math.min(ov, 2) * 0.8 - 2 : Math.min(ov, 2) * 0.8 });
+    if (gewinner.quelle === "dramaturgie" && bogenGewicht !== 1) g.push({ name: "Bogen-Gewicht ×", wert: bogenGewicht });
+    const andere = kandidaten.filter((a) => a !== gewinner).map((a) => ({ a, s: score(a) })).sort((x, y) => y.s - x.s).slice(0, 2);
+    letzteZiehung = {
+      score: score(gewinner), anteil: total ? score(gewinner) / total : 1, gruende: g, kandidaten: kandidaten.length,
+      konkurrenten: andere.map(({ a, s }) => ({ text: a.text, score: s, anteil: total ? s / total : 0, quelle: a.quelle, kategorie: a.kategorie || "—" })),
+    };
+  }
+  return gewinner;
 }

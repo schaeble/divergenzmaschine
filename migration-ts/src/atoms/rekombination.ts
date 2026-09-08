@@ -12,6 +12,8 @@ import { applyPerspective, pronominalize, guessPronoun } from "../generation/sha
 import { resetTrace, pushTrace, pruefeAbgleich } from "./trace";
 import { loadDramaData } from "../generation/dramaturgie";
 import { atomisiere } from "./atomisieren";
+import { zeitlupeSchritt, zeitlupeAn } from "../features/zeitlupe";
+import { setZiehungOffenlegen, letzteZiehungLesen } from "./assemble";
 import { praesensUmschreiben } from "../generation/coherence";
 import { loadKnobs } from "../features/knobs";
 import { isSaneMarkov, loadPersistentCorpus, corpusSanitize, type MarkovModel } from "../corpus";
@@ -275,6 +277,7 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
   // sich deren Verhalten nicht ändert.
   const mitBogen = input.structure === "bogen";
   setBogenModus(mitBogen);
+  setZiehungOffenlegen(zeitlupeAn());
   if (mitBogen) setBogenPhasen(loadDramaData()?.folge);
   // 0.6 Harte Dublettensperre: jedes Atom höchstens EINMAL je Text. Lieber ein
   // kürzerer Text als eine Phrasenschleife — für lange Texte mehrere Presets wählen.
@@ -466,6 +469,12 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
     out.push(text);
     if (a.quelle === "markov") traceMarkov(a.text);
     pushTrace({ text, quelle: a.quelle, kategorie: a.kategorie || "—", typ: a.typ, phase, fueller: fueller.length ? fueller : undefined });
+    // Zeitlupe, Stufe 3: dieser Schritt mit seiner Entscheidung.
+    if (zeitlupeAn()) {
+      const z = letzteZiehungLesen();
+      zeitlupeSchritt({ text: out.join(" "), atom: text, phase: String(phase || ""), slot: kurve[s % kurve.length]!, quelle: a.quelle, kategorie: a.kategorie || "—", typ: a.typ,
+        score: z?.score ?? 0, anteil: z?.anteil ?? 0, gruende: z?.gruende ?? [], kandidaten: z?.kandidaten ?? 0, konkurrenten: z?.konkurrenten ?? [] });
+    }
     gleicheInFolge = a.typ === letzterTyp ? gleicheInFolge + 1 : 0;
     flachInFolge = FLACH.has(a.typ) ? flachInFolge + 1 : 0;
     letzterTyp = a.typ;

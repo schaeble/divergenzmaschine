@@ -8,6 +8,8 @@ var import_fs = require("fs");
 var an = false;
 var stufen = [];
 var laufend = [];
+var aufzeichnungen = /* @__PURE__ */ new Map();
+var schluessel = (t2) => (t2 || "").replace(/\s+/g, " ").trim();
 var STUFEN_ERKLAERUNG = {
   "Bau": "Die Struktur f\xFCllt ihre Schl\xE4ge oder der Zusammenbau zieht seine Atome \u2014 der Rohtext.",
   "Ensemble": "Mehrere Personen im Wer werden als Ensemble eingewoben.",
@@ -34,20 +36,38 @@ function zeitlupeSchalten(a) {
   }
 }
 function zeitlupeStart() {
-  if (an) laufend = [];
+  if (an) {
+    laufend = [];
+    schritteLaufend = [];
+  }
 }
 function zeitlupeStufe(name, text) {
   if (!an) return;
-  laufend.push({ name, text: String(text || ""), kurz: STUFEN_ERKLAERUNG[name] || "" });
+  const st2 = { name, text: String(text || ""), kurz: STUFEN_ERKLAERUNG[name] || "" };
+  if (name === "Bau" && schritteLaufend.length) {
+    st2.schritte = schritteLaufend;
+    schritteLaufend = [];
+  }
+  laufend.push(st2);
+}
+var schritteLaufend = [];
+function zeitlupeSchritt(s) {
+  if (!an) return;
+  schritteLaufend.push({ ...s, nr: schritteLaufend.length + 1 });
 }
 function zeitlupeEnde() {
-  if (an && laufend.length) {
-    stufen = laufend;
-    laufend = [];
+  if (!(an && laufend.length)) return;
+  stufen = laufend;
+  laufend = [];
+  aufzeichnungen.set(schluessel(stufen[stufen.length - 1].text), stufen);
+  if (aufzeichnungen.size > 12) {
+    const erster = aufzeichnungen.keys().next().value;
+    if (erster !== void 0) aufzeichnungen.delete(erster);
   }
 }
-function zeitlupeLesen() {
-  return stufen;
+function zeitlupeLesen(text) {
+  if (text === void 0) return stufen;
+  return aufzeichnungen.get(schluessel(text)) || [];
 }
 var saetze = (t2) => (t2 || "").replace(/\n+/g, " ").split(/(?<=[.!?…])\s+/).map((s) => s.trim()).filter(Boolean);
 var norm = (s) => s.toLowerCase().replace(/[^a-zäöüß ]/g, "").replace(/\s+/g, " ").trim();
@@ -12510,6 +12530,14 @@ function verfugen(teile) {
   }
   return out.join(" ").replace(/([.!?…])\s*\1+/g, "$1").replace(/:\s*\./g, ":").trim();
 }
+var letzteZiehung = null;
+var ziehungOffenlegen = false;
+function setZiehungOffenlegen(an2) {
+  ziehungOffenlegen = an2;
+}
+function letzteZiehungLesen() {
+  return letzteZiehung;
+}
 function ziehe(kandidaten, sollGewicht, bisher, phase) {
   if (!kandidaten.length) return null;
   const stems = (t2) => new Set((t2.toLowerCase().match(/[a-zäöüß]{5,}/g) || []).map((w) => w.slice(0, 5)));
@@ -12531,11 +12559,38 @@ function ziehe(kandidaten, sollGewicht, bisher, phase) {
   };
   const total = kandidaten.reduce((n, a) => n + score(a), 0);
   let r = Math.random() * total;
+  let gewinner = kandidaten[kandidaten.length - 1];
   for (const a of kandidaten) {
     r -= score(a);
-    if (r <= 0) return a;
+    if (r <= 0) {
+      gewinner = a;
+      break;
+    }
   }
-  return kandidaten[kandidaten.length - 1];
+  if (ziehungOffenlegen) {
+    const g = [{ name: "Grund", wert: 1 }];
+    const ue = 0.4 * ueberlaenge(gewinner.text, atomMax);
+    if (ue) g.push({ name: "\xDCberl\xE4nge", wert: -ue });
+    if (phase) {
+      const pb = phasenBonus(gewinner, phase);
+      if (pb) g.push({ name: "Phase " + phase, wert: pb });
+    }
+    const gb = gelenkBonus(gewinner, phase, bogenGewicht);
+    if (gb) g.push({ name: "Gelenk (Bogen)", wert: gb });
+    if (gewinner.rhythmus.gewicht === sollGewicht) g.push({ name: "Rhythmus passt", wert: 1.5 });
+    const ov = [...stems(gewinner.text)].filter((x) => kontext.has(x)).length;
+    if (ov) g.push({ name: `Anschluss (${ov} St\xE4mme)`, wert: ov > 3 ? Math.min(ov, 2) * 0.8 - 2 : Math.min(ov, 2) * 0.8 });
+    if (gewinner.quelle === "dramaturgie" && bogenGewicht !== 1) g.push({ name: "Bogen-Gewicht \xD7", wert: bogenGewicht });
+    const andere = kandidaten.filter((a) => a !== gewinner).map((a) => ({ a, s: score(a) })).sort((x, y) => y.s - x.s).slice(0, 2);
+    letzteZiehung = {
+      score: score(gewinner),
+      anteil: total ? score(gewinner) / total : 1,
+      gruende: g,
+      kandidaten: kandidaten.length,
+      konkurrenten: andere.map(({ a, s }) => ({ text: a.text, score: s, anteil: total ? s / total : 0, quelle: a.quelle, kategorie: a.kategorie || "\u2014" }))
+    };
+  }
+  return gewinner;
 }
 
 // src/generation/beats.ts
@@ -14618,6 +14673,20 @@ function buildDramaturgie(kit) {
   for (const name of folge) {
     const b = schlag(name, beats.length === 0);
     if (b) beats.push(b);
+    if (zeitlupeAn()) zeitlupeSchritt({
+      text: beats.join(" "),
+      atom: b || "",
+      phase: name,
+      slot: name,
+      quelle: d ? "bogen" : "rahmen",
+      kategorie: name,
+      typ: "schlag",
+      score: 0,
+      anteil: 0,
+      gruende: b ? [{ name: "Schlag " + name, wert: 1 }] : [{ name: "ausgefallen \u2014 Liste aufgebraucht oder leer", wert: 0 }],
+      kandidaten: 0,
+      konkurrenten: []
+    });
   }
   return joinBeats(beats, kit.P);
 }
@@ -15053,7 +15122,8 @@ function postProcessText(txt, input) {
       const wc2 = t2.trim().split(/\s+/).filter(Boolean).length;
       const f = (loadKnobs().ton || 0) / 100;
       const inserts = Math.max(0, Math.min(7, Math.round(Math.max(1, Math.round(wc2 / 90)) * f)));
-      for (let i = 0; i < inserts; i++) t2 = insertToneFlavor(t2, pick(td.flavor));
+      const vorrat = [...td.flavor].sort(() => Math.random() - 0.5).filter((f2) => !t2.toLowerCase().includes(f2.toLowerCase().replace(/[.!?…]+$/, "")));
+      for (let i = 0; i < inserts && i < vorrat.length; i++) t2 = insertToneFlavor(t2, vorrat[i]);
     }
     t2 = applyToneRegister(t2, input.tone);
     zeitlupeStufe("Ton", t2);
@@ -15202,7 +15272,7 @@ function traceMarkov(s) {
   const t2 = (s || "").trim();
   if (t2.length >= 5) frags.push(t2);
 }
-var schluessel = (t2) => t2.toLowerCase().replace(/[^a-zäöüß]/g, "").slice(0, 400);
+var schluessel2 = (t2) => t2.toLowerCase().replace(/[^a-zäöüß]/g, "").slice(0, 400);
 var nachText = /* @__PURE__ */ new Map();
 function linkMarkovTrace(finalText) {
   if (!frags.length || !finalText) return;
@@ -15210,7 +15280,7 @@ function linkMarkovTrace(finalText) {
     const e = nachText.keys().next().value;
     if (e) nachText.delete(e);
   }
-  nachText.set(schluessel(finalText), frags.slice());
+  nachText.set(schluessel2(finalText), frags.slice());
 }
 
 // src/generation/archetypes.data.ts
@@ -17251,14 +17321,14 @@ function pushTrace(s) {
   spur.push(s);
 }
 var nachText2 = /* @__PURE__ */ new Map();
-var schluessel2 = (t2) => t2.toLowerCase().replace(/[^a-zäöüß]/g, "").slice(0, 400);
+var schluessel3 = (t2) => t2.toLowerCase().replace(/[^a-zäöüß]/g, "").slice(0, 400);
 function linkTrace(finalText) {
   if (!spur.length || !finalText) return;
   if (nachText2.size > 64) {
     const erste = nachText2.keys().next().value;
     if (erste) nachText2.delete(erste);
   }
-  nachText2.set(schluessel2(finalText), spur.slice());
+  nachText2.set(schluessel3(finalText), spur.slice());
 }
 function pruefeAbgleich(endtext) {
   const norm2 = (t2) => t2.toLowerCase().replace(/[^a-zäöüß ]/g, " ").replace(/\s+/g, " ").trim();
@@ -17468,6 +17538,7 @@ function buildRekombination(bank, input, model) {
   resetTrace();
   const mitBogen = input.structure === "bogen";
   setBogenModus(mitBogen);
+  setZiehungOffenlegen(zeitlupeAn());
   if (mitBogen) setBogenPhasen(loadDramaData()?.folge);
   let fuegeteile = 0;
   const schlussAmEnde = (STRUKTUR_PHASEN[input.structure || "rekombination"] || STRUKTUR_PHASEN["linear"]).slice(-1)[0] === "schluss";
@@ -17587,6 +17658,23 @@ function buildRekombination(bank, input, model) {
     out.push(text);
     if (a.quelle === "markov") traceMarkov(a.text);
     pushTrace({ text, quelle: a.quelle, kategorie: a.kategorie || "\u2014", typ: a.typ, phase, fueller: fueller.length ? fueller : void 0 });
+    if (zeitlupeAn()) {
+      const z = letzteZiehungLesen();
+      zeitlupeSchritt({
+        text: out.join(" "),
+        atom: text,
+        phase: String(phase || ""),
+        slot: kurve[s % kurve.length],
+        quelle: a.quelle,
+        kategorie: a.kategorie || "\u2014",
+        typ: a.typ,
+        score: z?.score ?? 0,
+        anteil: z?.anteil ?? 0,
+        gruende: z?.gruende ?? [],
+        kandidaten: z?.kandidaten ?? 0,
+        konkurrenten: z?.konkurrenten ?? []
+      });
+    }
     gleicheInFolge = a.typ === letzterTyp ? gleicheInFolge + 1 : 0;
     flachInFolge = FLACH.has(a.typ) ? flachInFolge + 1 : 0;
     letzterTyp = a.typ;
@@ -20067,12 +20155,56 @@ zeitlupeSchalten(false);
   wahr("der Schalter steuert den Rekorder", /zeitlupeSchalten\(on\)/.test(q));
   wahr("Stapel und Ebene liegen im Textfenster", /mkGenArrow\("left"\), spur, out, zeitEbene, zeitStapel, mkGenArrow\("right"\)/.test(q));
   wahr("nur im Editiermodus", /const sichtbar = on && feedsChk\.checked;/.test(q));
-  wahr("jede Stufe ist ein klickbarer Layer", /class: "zl-layer"/.test(q) && /b\.addEventListener\("click", \(\) => \{ zeitStufe = letzte \? -1 : i; renderZeit\(\); \}\)/.test(q));
+  wahr("jede Stufe ist ein klickbarer Layer", /class: "zl-layer"/.test(q) && /b\.addEventListener\("click", \(\) => \{ zeitStufe = letzte \? -1 : i; zeitSchritt = -1; renderZeit\(\); \}\)/.test(q));
   wahr("die Ebene liegt \xFCber dem Text, der Text bleibt", /out\.classList\.add\("zl-unter"\)/.test(q) && !/out\.textContent = akt/.test(q));
   wahr("die letzte Stufe nimmt die Ebene weg (Editieren bleibt m\xF6glich)", /if \(zeitStufe < 0\) \{ zeitEbene\.style\.display = "none"/.test(q));
   wahr("Marken: neu, ge\xE4ndert, gefallen", /zl-" \+ sz\.marke/.test(q) && /zl-weg/.test(q));
   wahr("kein Abspielen mehr", !/Abspielen/.test(q) && !/f-zl-tempo/.test(q));
-  wahr("nach jeder Erzeugung: Ebene weg, Stapel neu", /if \(zeitChk\.checked\) \{ zeitStufe = -1; renderZeit\(\); \}/.test(q));
+  wahr("nach jeder Erzeugung: Ebene weg, Stapel neu", /if \(zeitChk\.checked\) \{ zeitStufe = -1; zeitSchritt = -1; renderZeit\(\); \}/.test(q));
+}
+{
+  zeitlupeSchalten(true);
+  const a = buildStory(BUILTIN_PRESETS["kafka"], inp);
+  const b = buildStory(BUILTIN_PRESETS["kafka"], inp);
+  const stA = zeitlupeLesen(a), stB = zeitlupeLesen(b);
+  ist("die Aufzeichnung zu Text A endet mit A", stA[stA.length - 1].text, a);
+  ist("die zu Text B endet mit B", stB[stB.length - 1].text, b);
+  wahr("Bau und Ende geh\xF6ren zum selben Lauf", stA[0].text !== stB[0].text || a === b);
+  ist("zu einem fremden Text: keine Aufzeichnung", zeitlupeLesen("Ein Text, der nie gebaut wurde.").length, 0);
+  zeitlupeSchalten(false);
+  const q = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
+  wahr("die Ansicht holt die Aufzeichnung DIESES Textes", /zeitlupeLesen\(out\.textContent \|\| ""\)/.test(q));
+  wahr("und sagt es, wenn der Text nicht durch den Bau kam", /Zu diesem Text gibt es keine Aufzeichnung/.test(q));
+}
+{
+  zeitlupeSchalten(true);
+  const t3 = buildStory(BUILTIN_PRESETS["kafka"], inp);
+  const bau = zeitlupeLesen(t3).find((x) => x.name === "Bau");
+  wahr("der Bau tr\xE4gt Schritte", !!bau.schritte && bau.schritte.length >= 8, String(bau.schritte?.length));
+  const sch = bau.schritte;
+  wahr("jeder Schritt kennt Phase, Quelle, Typ", sch.every((x) => x.phase && x.quelle && x.typ));
+  wahr("der Text w\xE4chst Schritt f\xFCr Schritt", sch.every((x, i) => i === 0 || x.text.length > sch[i - 1].text.length));
+  wahr("der letzte Schritt ist der Rohtext des Baus (bis auf Fugen und Abs\xE4tze)", (() => {
+    const n = (x) => x.toLowerCase().replace(/[^a-zäöüß]/g, "");
+    const a = n(sch[sch.length - 1].text), b = n(bau.text);
+    return a.length > 0 && (b.includes(a.slice(0, 60)) && Math.abs(a.length - b.length) < b.length * 0.25);
+  })());
+  wahr("die Entscheidung ist zerlegt (Grund + mindestens ein Term)", sch.every((x) => x.gruende.length >= 1 && x.gruende[0].name === "Grund"));
+  wahr("Gewicht und Anteil stehen", sch.every((x) => x.score > 0 && x.anteil > 0 && x.anteil <= 1));
+  wahr("Konkurrenten mit Gewicht und Anteil, h\xF6chstens zwei", sch.some((x) => x.konkurrenten.length === 2) && sch.every((x) => x.konkurrenten.length <= 2 && x.konkurrenten.every((k) => k.score >= 0 && k.text)));
+  wahr("ein Konkurrent ist nie der Gewinner", sch.every((x) => x.konkurrenten.every((k) => k.text !== x.atom)));
+  setDramaData({ einstieg: ["Der Bote h\xF6rt die Glocke"], mitte: ["Ein Netz aus F\xE4den", "Ein Fenster ohne Glas"], hoehepunkt: ["Die Glocke schweigt"], schluss: ["Zur\xFCck bleibt ein Ton"], ausloeser: ["ein Strick"], veraenderungen: ["die Zeit kippt"], konflikte: [], zeitanomalien: [], regeln: [] });
+  const t4 = buildStory(BUILTIN_PRESETS["kafka"], { ...inp, structure: "dramaturgie" });
+  setDramaData(null);
+  const bau4 = zeitlupeLesen(t4).find((x) => x.name === "Bau");
+  wahr("Dramaturgie: Schritte sind Schl\xE4ge (einstieg zuerst)", !!bau4.schritte && bau4.schritte[0].phase === "einstieg" && bau4.schritte.every((x) => x.typ === "schlag"));
+  zeitlupeSchalten(false);
+  buildStory(BUILTIN_PRESETS["kafka"], inp);
+  const q = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
+  wahr("der Bau-Layer hat den Schritt-Stapel", /class: "zl-schritte"/.test(q) && /Schritt \$\{x\.nr\} von \$\{sch\.length\}/.test(q));
+  wahr("die Entscheidung mit Zerlegung und Konkurrenten steht daneben", /Konkurrenten, die es nicht wurden/.test(q) && /Zerlegung: /.test(q));
+  const qa = (0, import_fs.readFileSync)("src/atoms/assemble.ts", "utf8");
+  wahr("die Zerlegung wird nur gerechnet, wenn die Zeitlupe an ist", /if \(ziehungOffenlegen\) \{/.test(qa));
 }
 console.log(`Pr\xFCfstand Zeitlupe \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

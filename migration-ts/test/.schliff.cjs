@@ -5048,9 +5048,14 @@ var init_tone_shape = __esm({
 // src/features/zeitlupe.ts
 function zeitlupeStufe(name, text) {
   if (!an) return;
-  laufend.push({ name, text: String(text || ""), kurz: STUFEN_ERKLAERUNG[name] || "" });
+  const st = { name, text: String(text || ""), kurz: STUFEN_ERKLAERUNG[name] || "" };
+  if (name === "Bau" && schritteLaufend.length) {
+    st.schritte = schritteLaufend;
+    schritteLaufend = [];
+  }
+  laufend.push(st);
 }
-var an, laufend, STUFEN_ERKLAERUNG;
+var an, laufend, STUFEN_ERKLAERUNG, schritteLaufend;
 var init_zeitlupe = __esm({
   "src/features/zeitlupe.ts"() {
     "use strict";
@@ -5072,6 +5077,7 @@ var init_zeitlupe = __esm({
       "Verwandlung": "Motivverwandlungen z\xE4hlen Vorkommen im fertigen Text und tauschen beim Wiederkehren.",
       "Ende": "Der letzte kleine Schliff: Artikel, Pronomen, Komma vor der Inversion."
     };
+    schritteLaufend = [];
   }
 });
 
@@ -5396,6 +5402,7 @@ var init_dramaturgie = __esm({
   "src/generation/dramaturgie.ts"() {
     "use strict";
     init_text_utils();
+    init_zeitlupe();
     init_beats();
     DKEY = "dm_dramaturgie_v1";
     bogenOverride = null;
@@ -6122,6 +6129,8 @@ init_nouns_data();
 init_shape();
 init_dramaturgie();
 init_atomisieren();
+init_zeitlupe();
+init_assemble();
 init_coherence();
 init_knobs();
 init_coherence();

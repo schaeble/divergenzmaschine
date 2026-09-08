@@ -7,7 +7,23 @@
 // den letzten gebauten Text (kein Speicher, keine Projektdatei), kostet ein
 // paar Strings je Erzeugung und ist aus, solange niemand ihn anschaltet — die
 // Ansicht schaltet ihn ein, wenn sie offen ist.
-export interface Stufe { name: string; text: string; kurz: string }
+export interface Stufe { name: string; text: string; kurz: string; schritte?: Schritt[] }
+
+/** Stufe 3 (4.354.0): ein Schritt des Zusammenbaus — ein gezogenes Atom mit
+ *  der Entscheidung dahinter und den Konkurrenten, die es nicht wurden. */
+export interface Konkurrent { text: string; score: number; anteil: number; quelle: string; kategorie: string }
+export interface Schritt {
+  nr: number;
+  text: string;          // der Text NACH diesem Schritt
+  atom: string;          // der gesetzte Satz
+  phase: string;
+  slot: string;          // erwarteter Atomtyp (Rhythmus-Gewicht)
+  quelle: string; kategorie: string; typ: string;
+  score: number; anteil: number;       // Gewicht des Gewinners und sein Anteil an der Ziehung
+  gruende: { name: string; wert: number }[];   // Zerlegung des Gewichts
+  kandidaten: number;
+  konkurrenten: Konkurrent[];          // die zwei nächstbesten
+}
 
 let an = false;
 let stufen: Stufe[] = [];
@@ -43,14 +59,26 @@ export function zeitlupeAn(): boolean { return an; }
 export function zeitlupeSchalten(a: boolean): void { an = a; if (!a) { laufend = []; } }
 
 /** Beginn einer Erzeugung: die laufende Aufzeichnung wird geleert. */
-export function zeitlupeStart(): void { if (an) laufend = []; }
+export function zeitlupeStart(): void { if (an) { laufend = []; schritteLaufend = []; } }
 
 /** Eine Stufe festhalten. Gleiche Texte hintereinander werden trotzdem
  *  gehalten — die Ansicht zeigt dann „ohne Änderung", und das ist eine
  *  Information: Die Stufe hatte hier nichts zu tun. */
 export function zeitlupeStufe(name: string, text: string): void {
   if (!an) return;
-  laufend.push({ name, text: String(text || ""), kurz: STUFEN_ERKLAERUNG[name] || "" });
+  const st: Stufe = { name, text: String(text || ""), kurz: STUFEN_ERKLAERUNG[name] || "" };
+  if (name === "Bau" && schritteLaufend.length) { st.schritte = schritteLaufend; schritteLaufend = []; }
+  laufend.push(st);
+}
+
+/** Ein Schritt des Zusammenbaus — hängt an der zuletzt begonnenen Stufe
+ *  „Bau". Wird gerufen, BEVOR die Stufe „Bau" ihr Gesamtbild bekommt; die
+ *  Schritte sammeln sich in einer eigenen Liste und werden beim Festhalten der
+ *  Stufe „Bau" an sie gehängt. */
+let schritteLaufend: Schritt[] = [];
+export function zeitlupeSchritt(s: Omit<Schritt, "nr">): void {
+  if (!an) return;
+  schritteLaufend.push({ ...s, nr: schritteLaufend.length + 1 });
 }
 
 /** Ende einer Erzeugung: die Aufzeichnung wird zum letzten Bau. */

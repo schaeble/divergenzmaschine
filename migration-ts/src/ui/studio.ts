@@ -1090,6 +1090,7 @@ export function mountStudio(root: HTMLElement): void {
   // selbst die Stufe, und das Editieren bleibt möglich. Nur im Editiermodus.
   const zeitChk = el("input", { type: "checkbox", id: "f-zeitlupe" }) as HTMLInputElement;
   let zeitStufe = -1;                      // -1 = keine Ebene (der Text selbst)
+  let zeitSchritt = -1;                    // Stufe 3: gewählter Schritt im Bau (-1 = ganzer Bau)
   const renderZeit = (): void => {
     const on = zeitChk.checked;
     zeitlupeSchalten(on);
@@ -1112,14 +1113,66 @@ export function mountStudio(root: HTMLElement): void {
       const still = i > 0 && x.text === st[i - 1]!.text;
       const b = el("button", { type: "button", role: "tab", class: "zl-layer" + ((zeitStufe === i || (zeitStufe < 0 && letzte)) ? " zl-aktiv" : "") + (still ? " zl-still" : ""),
         title: `${i + 1} · ${x.name} — ${x.kurz}${still ? " (ohne Änderung)" : ""}` }, `${i + 1}`, el("span", { class: "zl-name" }, x.name)) as HTMLButtonElement;
-      b.addEventListener("click", () => { zeitStufe = letzte ? -1 : i; renderZeit(); });
+      b.addEventListener("click", () => { zeitStufe = letzte ? -1 : i; zeitSchritt = -1; renderZeit(); });
       zeitStapel.append(b);
     });
     if (zeitStufe < 0) { zeitEbene.style.display = "none"; out.classList.remove("zl-unter"); return; }
-    // Die Ebene: Text der Stufe mit Marken gegenüber der Stufe davor.
     const akt = st[zeitStufe]!;
-    const d = stufenDiff(zeitStufe > 0 ? st[zeitStufe - 1]!.text : "", akt.text);
     zeitEbene.innerHTML = "";
+    // ── Stufe 3 (4.354.0): die Zeitlupe innerhalb des Baus ──────────────
+    // Der Layer „Bau" trägt die Schritte des Zusammenbaus: ein Stapel „1 … n"
+    // unter der Kopfzeile; ein Klick zeigt den Text bis dahin, das neue Atom
+    // grün, daneben die Entscheidung — Phase, erwarteter Typ, Gewicht und
+    // Anteil des Gewinners, die Zerlegung des Gewichts, und die zwei
+    // Konkurrenten, die es nicht wurden. Bei der Dramaturgie sind die Schritte
+    // die Schläge.
+    if (akt.schritte && akt.schritte.length) {
+      const sch = akt.schritte;
+      if (zeitSchritt >= sch.length) zeitSchritt = sch.length - 1;
+      const kette = el("div", { class: "zl-schritte", role: "tablist", "aria-label": "Schritte des Zusammenbaus" });
+      const ganz = el("button", { type: "button", class: "zl-schritt" + (zeitSchritt < 0 ? " zl-aktiv" : ""), title: "Der ganze Bau, wie die Stufe ihn hinterlässt" }, "Bau") as HTMLButtonElement;
+      ganz.addEventListener("click", () => { zeitSchritt = -1; renderZeit(); });
+      kette.append(ganz);
+      sch.forEach((x, i) => {
+        const b = el("button", { type: "button", class: "zl-schritt" + (zeitSchritt === i ? " zl-aktiv" : "") + (x.atom ? "" : " zl-still"),
+          title: `${x.nr} · ${x.phase}${x.slot && x.slot !== x.phase ? " · erwartet " + x.slot : ""} · ${x.quelle}${x.kategorie && x.kategorie !== "—" ? " · " + x.kategorie : ""}` }, String(x.nr)) as HTMLButtonElement;
+        b.addEventListener("click", () => { zeitSchritt = i; renderZeit(); });
+        kette.append(b);
+      });
+      zeitEbene.append(kette);
+      if (zeitSchritt >= 0) {
+        const x = sch[zeitSchritt]!;
+        const vorherText = zeitSchritt > 0 ? sch[zeitSchritt - 1]!.text : "";
+        zeitEbene.append(el("div", { class: "muted mini zl-kopf" }, el("b", {}, `Schritt ${x.nr} von ${sch.length}`),
+          ` — Phase ${x.phase}` + (x.slot && x.slot !== x.phase ? `, erwartet „${x.slot}“` : "") + ` · ${x.quelle}${x.kategorie && x.kategorie !== "—" ? " · " + x.kategorie : ""} · ${x.typ}`
+          + (x.kandidaten ? ` · ${x.kandidaten} Kandidaten` : "")));
+        // Der Text bis hierher: alles vor dem Atom blass, das Atom grün.
+        const t = el("div", { class: "zl-text" });
+        if (vorherText) t.append(el("span", { class: "zl-satz zl-gleich" }, vorherText + " "));
+        if (x.atom) t.append(el("span", { class: "zl-satz zl-neu", title: "in diesem Schritt gesetzt" }, x.atom + " "));
+        else t.append(el("span", { class: "zl-satz zl-weg" }, "(ausgefallen) "));
+        zeitEbene.append(t);
+        // Die Entscheidung.
+        const ent = el("div", { class: "zl-entscheidung" });
+        if (x.kandidaten) {
+          ent.append(el("div", {}, el("b", {}, "Entscheidung: "), `Gewicht ${x.score.toFixed(2)} — Anteil an der Ziehung ${Math.round(x.anteil * 100)} %`,
+            el("span", { class: "muted mini" }, x.anteil >= 0.5 ? " (klarer Favorit)" : x.anteil >= 0.2 ? " (bevorzugt, aber nicht sicher)" : " (Würfelglück — das Gewicht allein hätte kaum gereicht)")));
+          const gl = el("div", { class: "muted mini" }, "Zerlegung: " + x.gruende.map((g) => `${g.name} ${g.name.startsWith("Bogen-Gewicht") ? "×" : ""}${g.wert >= 0 && !g.name.startsWith("Bogen-Gewicht") ? "+" : ""}${g.wert.toFixed(2)}`).join(" · "));
+          ent.append(gl);
+          if (x.konkurrenten.length) {
+            const k = el("div", { style: "margin-top:4px" }, el("b", {}, "Konkurrenten, die es nicht wurden: "));
+            for (const q of x.konkurrenten) k.append(el("div", { class: "zl-konkurrent" }, el("span", { class: "muted mini" }, `${q.score.toFixed(2)} · ${Math.round(q.anteil * 100)} % · ${q.quelle}${q.kategorie && q.kategorie !== "—" ? " · " + q.kategorie : ""}: `), q.text));
+            ent.append(k);
+          }
+        } else ent.append(el("div", { class: "muted mini" }, x.gruende.map((g) => g.name).join(" · ")));
+        zeitEbene.append(ent);
+        zeitEbene.style.display = "";
+        out.classList.add("zl-unter");
+        return;
+      }
+    }
+    // Die Ebene: Text der Stufe mit Marken gegenüber der Stufe davor.
+    const d = stufenDiff(zeitStufe > 0 ? st[zeitStufe - 1]!.text : "", akt.text);
     const neu = d.saetze.filter((x) => x.marke === "neu").length, ge = d.saetze.filter((x) => x.marke === "geaendert").length;
     zeitEbene.append(el("div", { class: "muted mini zl-kopf" }, el("b", {}, `${zeitStufe + 1} · ${akt.name}`), ` — ${akt.kurz} `,
       el("span", { class: "zl-zahl" }, zeitStufe === 0 ? `${akt.text.split(/\s+/).filter(Boolean).length} Wörter` : (neu + ge + d.gefallen.length === 0 ? "ohne Änderung" : `${neu} neu · ${ge} geändert · ${d.gefallen.length} gefallen`))));
@@ -1134,7 +1187,7 @@ export function mountStudio(root: HTMLElement): void {
     zeitEbene.style.display = "";
     out.classList.add("zl-unter");
   };
-  zeitChk.addEventListener("change", () => { zeitStufe = -1; renderZeit(); });
+  zeitChk.addEventListener("change", () => { zeitStufe = -1; zeitSchritt = -1; renderZeit(); });
   zeitStapel.addEventListener("keydown", (ev) => {
     const k = (ev as KeyboardEvent).key; const n = zeitlupeLesen().length;
     if (!n) return;
@@ -1197,7 +1250,7 @@ export function mountStudio(root: HTMLElement): void {
    *  Vorrats-Hinweis nachziehen. Beide hingen bisher allein an generate(), sodass
    *  nach Passagen-Austausch, Rueckgaengig, Variante oder einer Uebernahme aus dem
    *  Ranking die Balken noch den vorigen Text beschrieben. */
-  const nachTextwechsel = (): void => { renderStruktur(); updVorrat(); renderTitel(); spurMalen(); if (zeitChk.checked) { zeitStufe = -1; renderZeit(); } };
+  const nachTextwechsel = (): void => { renderStruktur(); updVorrat(); renderTitel(); spurMalen(); if (zeitChk.checked) { zeitStufe = -1; zeitSchritt = -1; renderZeit(); } };
 
   // ── Klick auf einen Balken der Textstruktur (A.2) ──────────────────────
   // Jeder Balken fuehrt zu dem Bedienelement, das ihn steuert - oder sagt, warum

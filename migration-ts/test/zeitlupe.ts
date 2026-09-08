@@ -62,12 +62,12 @@ zeitlupeSchalten(false);
   wahr("der Schalter steuert den Rekorder", /zeitlupeSchalten\(on\)/.test(q));
   wahr("Stapel und Ebene liegen im Textfenster", /mkGenArrow\("left"\), spur, out, zeitEbene, zeitStapel, mkGenArrow\("right"\)/.test(q));
   wahr("nur im Editiermodus", /const sichtbar = on && feedsChk\.checked;/.test(q));
-  wahr("jede Stufe ist ein klickbarer Layer", /class: "zl-layer"/.test(q) && /b\.addEventListener\("click", \(\) => \{ zeitStufe = letzte \? -1 : i; renderZeit\(\); \}\)/.test(q));
+  wahr("jede Stufe ist ein klickbarer Layer", /class: "zl-layer"/.test(q) && /b\.addEventListener\("click", \(\) => \{ zeitStufe = letzte \? -1 : i; zeitSchritt = -1; renderZeit\(\); \}\)/.test(q));
   wahr("die Ebene liegt über dem Text, der Text bleibt", /out\.classList\.add\("zl-unter"\)/.test(q) && !/out\.textContent = akt/.test(q));
   wahr("die letzte Stufe nimmt die Ebene weg (Editieren bleibt möglich)", /if \(zeitStufe < 0\) \{ zeitEbene\.style\.display = "none"/.test(q));
   wahr("Marken: neu, geändert, gefallen", /zl-" \+ sz\.marke/.test(q) && /zl-weg/.test(q));
   wahr("kein Abspielen mehr", !/Abspielen/.test(q) && !/f-zl-tempo/.test(q));
-  wahr("nach jeder Erzeugung: Ebene weg, Stapel neu", /if \(zeitChk\.checked\) \{ zeitStufe = -1; renderZeit\(\); \}/.test(q));
+  wahr("nach jeder Erzeugung: Ebene weg, Stapel neu", /if \(zeitChk\.checked\) \{ zeitStufe = -1; zeitSchritt = -1; renderZeit\(\); \}/.test(q));
 }
 
 // ── Gemeldet: „Vom Bau bis zum Ende? Stimmt das?" — die Aufzeichnung gehört zum Text
@@ -84,6 +84,35 @@ zeitlupeSchalten(false);
   const q = readFileSync("src/ui/studio.ts", "utf8");
   wahr("die Ansicht holt die Aufzeichnung DIESES Textes", /zeitlupeLesen\(out\.textContent \|\| ""\)/.test(q));
   wahr("und sagt es, wenn der Text nicht durch den Bau kam", /Zu diesem Text gibt es keine Aufzeichnung/.test(q));
+}
+
+// ── Stufe 3: die Zeitlupe innerhalb des Baus — Schritte mit Konkurrenten ────
+{
+  zeitlupeSchalten(true);
+  const t3 = buildStory(BUILTIN_PRESETS["kafka"] as Bank, inp);            // Zusammenbau (linear)
+  const bau = zeitlupeLesen(t3).find((x) => x.name === "Bau")!;
+  wahr("der Bau trägt Schritte", !!bau.schritte && bau.schritte.length >= 8, String(bau.schritte?.length));
+  const sch = bau.schritte!;
+  wahr("jeder Schritt kennt Phase, Quelle, Typ", sch.every((x) => x.phase && x.quelle && x.typ));
+  wahr("der Text wächst Schritt für Schritt", sch.every((x, i) => i === 0 || x.text.length > sch[i - 1]!.text.length));
+  wahr("der letzte Schritt ist der Rohtext des Baus (bis auf Fugen und Absätze)", (() => { const n = (x: string) => x.toLowerCase().replace(/[^a-zäöüß]/g, ""); const a = n(sch[sch.length - 1]!.text), b = n(bau.text); return a.length > 0 && (b.includes(a.slice(0, 60)) && Math.abs(a.length - b.length) < b.length * 0.25); })());
+  wahr("die Entscheidung ist zerlegt (Grund + mindestens ein Term)", sch.every((x) => x.gruende.length >= 1 && x.gruende[0]!.name === "Grund"));
+  wahr("Gewicht und Anteil stehen", sch.every((x) => x.score > 0 && x.anteil > 0 && x.anteil <= 1));
+  wahr("Konkurrenten mit Gewicht und Anteil, höchstens zwei", sch.some((x) => x.konkurrenten.length === 2) && sch.every((x) => x.konkurrenten.length <= 2 && x.konkurrenten.every((k) => k.score >= 0 && k.text)));
+  wahr("ein Konkurrent ist nie der Gewinner", sch.every((x) => x.konkurrenten.every((k) => k.text !== x.atom)));
+  // Dramaturgie: die Schritte sind die Schläge.
+  setDramaData({ einstieg: ["Der Bote hört die Glocke"], mitte: ["Ein Netz aus Fäden", "Ein Fenster ohne Glas"], hoehepunkt: ["Die Glocke schweigt"], schluss: ["Zurück bleibt ein Ton"], ausloeser: ["ein Strick"], veraenderungen: ["die Zeit kippt"], konflikte: [], zeitanomalien: [], regeln: [] });
+  const t4 = buildStory(BUILTIN_PRESETS["kafka"] as Bank, { ...inp, structure: "dramaturgie" } as never);
+  setDramaData(null);
+  const bau4 = zeitlupeLesen(t4).find((x) => x.name === "Bau")!;
+  wahr("Dramaturgie: Schritte sind Schläge (einstieg zuerst)", !!bau4.schritte && bau4.schritte[0]!.phase === "einstieg" && bau4.schritte.every((x) => x.typ === "schlag"));
+  zeitlupeSchalten(false);
+  buildStory(BUILTIN_PRESETS["kafka"] as Bank, inp);
+  const q = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("der Bau-Layer hat den Schritt-Stapel", /class: "zl-schritte"/.test(q) && /Schritt \$\{x\.nr\} von \$\{sch\.length\}/.test(q));
+  wahr("die Entscheidung mit Zerlegung und Konkurrenten steht daneben", /Konkurrenten, die es nicht wurden/.test(q) && /Zerlegung: /.test(q));
+  const qa = readFileSync("src/atoms/assemble.ts", "utf8");
+  wahr("die Zerlegung wird nur gerechnet, wenn die Zeitlupe an ist", /if \(ziehungOffenlegen\) \{/.test(qa));
 }
 
 console.log(`Prüfstand Zeitlupe — ${geprueft} Prüfungen, ${bestanden} bestanden`);

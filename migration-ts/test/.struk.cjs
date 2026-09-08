@@ -53,12 +53,28 @@ var STUFEN_ERKLAERUNG = {
   "Verwandlung": "Motivverwandlungen z\xE4hlen Vorkommen im fertigen Text und tauschen beim Wiederkehren.",
   "Ende": "Der letzte kleine Schliff: Artikel, Pronomen, Komma vor der Inversion."
 };
+function zeitlupeAn() {
+  return an;
+}
 function zeitlupeStart() {
-  if (an) laufend = [];
+  if (an) {
+    laufend = [];
+    schritteLaufend = [];
+  }
 }
 function zeitlupeStufe(name, text) {
   if (!an) return;
-  laufend.push({ name, text: String(text || ""), kurz: STUFEN_ERKLAERUNG[name] || "" });
+  const st = { name, text: String(text || ""), kurz: STUFEN_ERKLAERUNG[name] || "" };
+  if (name === "Bau" && schritteLaufend.length) {
+    st.schritte = schritteLaufend;
+    schritteLaufend = [];
+  }
+  laufend.push(st);
+}
+var schritteLaufend = [];
+function zeitlupeSchritt(s) {
+  if (!an) return;
+  schritteLaufend.push({ ...s, nr: schritteLaufend.length + 1 });
 }
 function zeitlupeEnde() {
   if (!(an && laufend.length)) return;
@@ -4749,6 +4765,14 @@ function verfugen(teile) {
   }
   return out.join(" ").replace(/([.!?…])\s*\1+/g, "$1").replace(/:\s*\./g, ":").trim();
 }
+var letzteZiehung = null;
+var ziehungOffenlegen = false;
+function setZiehungOffenlegen(an2) {
+  ziehungOffenlegen = an2;
+}
+function letzteZiehungLesen() {
+  return letzteZiehung;
+}
 function ziehe(kandidaten, sollGewicht, bisher, phase) {
   if (!kandidaten.length) return null;
   const stems = (t) => new Set((t.toLowerCase().match(/[a-zäöüß]{5,}/g) || []).map((w) => w.slice(0, 5)));
@@ -4770,11 +4794,38 @@ function ziehe(kandidaten, sollGewicht, bisher, phase) {
   };
   const total = kandidaten.reduce((n, a) => n + score(a), 0);
   let r = Math.random() * total;
+  let gewinner = kandidaten[kandidaten.length - 1];
   for (const a of kandidaten) {
     r -= score(a);
-    if (r <= 0) return a;
+    if (r <= 0) {
+      gewinner = a;
+      break;
+    }
   }
-  return kandidaten[kandidaten.length - 1];
+  if (ziehungOffenlegen) {
+    const g = [{ name: "Grund", wert: 1 }];
+    const ue = 0.4 * ueberlaenge(gewinner.text, atomMax);
+    if (ue) g.push({ name: "\xDCberl\xE4nge", wert: -ue });
+    if (phase) {
+      const pb = phasenBonus(gewinner, phase);
+      if (pb) g.push({ name: "Phase " + phase, wert: pb });
+    }
+    const gb = gelenkBonus(gewinner, phase, bogenGewicht);
+    if (gb) g.push({ name: "Gelenk (Bogen)", wert: gb });
+    if (gewinner.rhythmus.gewicht === sollGewicht) g.push({ name: "Rhythmus passt", wert: 1.5 });
+    const ov = [...stems(gewinner.text)].filter((x) => kontext.has(x)).length;
+    if (ov) g.push({ name: `Anschluss (${ov} St\xE4mme)`, wert: ov > 3 ? Math.min(ov, 2) * 0.8 - 2 : Math.min(ov, 2) * 0.8 });
+    if (gewinner.quelle === "dramaturgie" && bogenGewicht !== 1) g.push({ name: "Bogen-Gewicht \xD7", wert: bogenGewicht });
+    const andere = kandidaten.filter((a) => a !== gewinner).map((a) => ({ a, s: score(a) })).sort((x, y) => y.s - x.s).slice(0, 2);
+    letzteZiehung = {
+      score: score(gewinner),
+      anteil: total ? score(gewinner) / total : 1,
+      gruende: g,
+      kandidaten: kandidaten.length,
+      konkurrenten: andere.map(({ a, s }) => ({ text: a.text, score: s, anteil: total ? s / total : 0, quelle: a.quelle, kategorie: a.kategorie || "\u2014" }))
+    };
+  }
+  return gewinner;
 }
 
 // src/generation/beats.ts
@@ -6857,6 +6908,20 @@ function buildDramaturgie(kit) {
   for (const name of folge) {
     const b = schlag(name, beats.length === 0);
     if (b) beats.push(b);
+    if (zeitlupeAn()) zeitlupeSchritt({
+      text: beats.join(" "),
+      atom: b || "",
+      phase: name,
+      slot: name,
+      quelle: d ? "bogen" : "rahmen",
+      kategorie: name,
+      typ: "schlag",
+      score: 0,
+      anteil: 0,
+      gruende: b ? [{ name: "Schlag " + name, wert: 1 }] : [{ name: "ausgefallen \u2014 Liste aufgebraucht oder leer", wert: 0 }],
+      kandidaten: 0,
+      konkurrenten: []
+    });
   }
   return joinBeats(beats, kit.P);
 }
@@ -17449,6 +17514,7 @@ function buildRekombination(bank, input, model) {
   resetTrace();
   const mitBogen = input.structure === "bogen";
   setBogenModus(mitBogen);
+  setZiehungOffenlegen(zeitlupeAn());
   if (mitBogen) setBogenPhasen(loadDramaData()?.folge);
   let fuegeteile = 0;
   const schlussAmEnde = (STRUKTUR_PHASEN[input.structure || "rekombination"] || STRUKTUR_PHASEN["linear"]).slice(-1)[0] === "schluss";
@@ -17568,6 +17634,23 @@ function buildRekombination(bank, input, model) {
     out.push(text);
     if (a.quelle === "markov") traceMarkov(a.text);
     pushTrace({ text, quelle: a.quelle, kategorie: a.kategorie || "\u2014", typ: a.typ, phase, fueller: fueller.length ? fueller : void 0 });
+    if (zeitlupeAn()) {
+      const z = letzteZiehungLesen();
+      zeitlupeSchritt({
+        text: out.join(" "),
+        atom: text,
+        phase: String(phase || ""),
+        slot: kurve[s % kurve.length],
+        quelle: a.quelle,
+        kategorie: a.kategorie || "\u2014",
+        typ: a.typ,
+        score: z?.score ?? 0,
+        anteil: z?.anteil ?? 0,
+        gruende: z?.gruende ?? [],
+        kandidaten: z?.kandidaten ?? 0,
+        konkurrenten: z?.konkurrenten ?? []
+      });
+    }
     gleicheInFolge = a.typ === letzterTyp ? gleicheInFolge + 1 : 0;
     flachInFolge = FLACH.has(a.typ) ? flachInFolge + 1 : 0;
     letzterTyp = a.typ;

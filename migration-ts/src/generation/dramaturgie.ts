@@ -3,6 +3,7 @@
 // konflikte/zeitanomalien/regeln) und baut den Text entlang dieses Bogens — offline.
 import type { StoryKit } from "../types";
 import { pick, chance, ensurePunct, clean } from "../text-utils";
+import { zeitlupeSchritt, zeitlupeAn } from "../features/zeitlupe";
 import { cap, joinBeats, frameTurn, reframeStake } from "./beats";
 
 export interface DramaData {
@@ -137,6 +138,10 @@ export function buildDramaturgie(kit: StoryKit): string {
   for (const name of folge) {
     const b = schlag(name, beats.length === 0);
     if (b) beats.push(b);
+    // Zeitlupe, Stufe 3: jeder Schlag als Schritt — Name des Schlags statt
+    // Slot-Typ, ohne Konkurrenten (ein Schlag zieht aus seiner Liste).
+    if (zeitlupeAn()) zeitlupeSchritt({ text: beats.join(" "), atom: b || "", phase: name, slot: name, quelle: d ? "bogen" : "rahmen", kategorie: name, typ: "schlag",
+      score: 0, anteil: 0, gruende: b ? [{ name: "Schlag " + name, wert: 1 }] : [{ name: "ausgefallen — Liste aufgebraucht oder leer", wert: 0 }], kandidaten: 0, konkurrenten: [] });
   }
   return joinBeats(beats, kit.P);
 }
