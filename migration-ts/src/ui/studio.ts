@@ -1129,23 +1129,38 @@ export function mountStudio(root: HTMLElement): void {
     if (akt.schritte && akt.schritte.length) {
       const sch = akt.schritte;
       if (zeitSchritt >= sch.length) zeitSchritt = sch.length - 1;
+      // Gewünscht: die Quellen an den Schritten. Jeder Knopf trägt die Farbe
+      // seiner Quelle (dieselben Farben wie die Legende der Editieren-Ansicht)
+      // und einen Buchstaben; die Kopfzeile nennt die Quelle mit Namen.
+      const QUELLE: Record<string, { name: string; cls: string; kurz: string }> = {
+        wortbank: { name: "Wortbank", cls: "feed-wb", kurz: "W" }, vorlage: { name: "Vorlage", cls: "feed-plain", kurz: "V" },
+        korpus: { name: "Korpus", cls: "feed-korpus", kurz: "K" }, markov: { name: "Markov", cls: "feed-markov", kurz: "M" },
+        dramaturgie: { name: "Erzählbogen", cls: "feed-drama", kurz: "B" }, bogen: { name: "Erzählbogen", cls: "feed-drama", kurz: "B" },
+        kontext: { name: "4W-Kontext", cls: "feed-4w", kurz: "4" }, rahmen: { name: "Rahmen", cls: "feed-plain", kurz: "R" }, ton: { name: "Ton", cls: "feed-ton", kurz: "T" },
+      };
+      const qv = (q: string): { name: string; cls: string; kurz: string } => QUELLE[q] || { name: q, cls: "feed-plain", kurz: q.charAt(0).toUpperCase() };
       const kette = el("div", { class: "zl-schritte", role: "tablist", "aria-label": "Schritte des Zusammenbaus" });
       const ganz = el("button", { type: "button", class: "zl-schritt" + (zeitSchritt < 0 ? " zl-aktiv" : ""), title: "Der ganze Bau, wie die Stufe ihn hinterlässt" }, "Bau") as HTMLButtonElement;
       ganz.addEventListener("click", () => { zeitSchritt = -1; renderZeit(); });
       kette.append(ganz);
       sch.forEach((x, i) => {
-        const b = el("button", { type: "button", class: "zl-schritt" + (zeitSchritt === i ? " zl-aktiv" : "") + (x.atom ? "" : " zl-still"),
-          title: `${x.nr} · ${x.phase}${x.slot && x.slot !== x.phase ? " · erwartet " + x.slot : ""} · ${x.quelle}${x.kategorie && x.kategorie !== "—" ? " · " + x.kategorie : ""}` }, String(x.nr)) as HTMLButtonElement;
+        const q = qv(x.quelle);
+        const b = el("button", { type: "button", class: "zl-schritt " + q.cls + (zeitSchritt === i ? " zl-aktiv" : "") + (x.atom ? "" : " zl-still"),
+          title: `${x.nr} · ${q.name}${x.kategorie && x.kategorie !== "—" ? " · " + x.kategorie : ""} · Phase ${x.phase}${x.slot && x.slot !== x.phase ? " · erwartet " + x.slot : ""}` },
+          String(x.nr), el("span", { class: "zl-q" }, q.kurz)) as HTMLButtonElement;
         b.addEventListener("click", () => { zeitSchritt = i; renderZeit(); });
         kette.append(b);
       });
-      zeitEbene.append(kette);
+      // Legende der Quellen, nur die, die vorkommen.
+      const vorkommen = [...new Set(sch.map((x) => x.quelle))];
+      const legende = el("div", { class: "muted mini zl-legende" }, ...vorkommen.map((q) => el("span", { class: "zl-legende-item " + qv(q).cls }, `${qv(q).kurz} ${qv(q).name} (${sch.filter((x) => x.quelle === q).length})`)));
+      zeitEbene.append(kette, legende);
       if (zeitSchritt >= 0) {
         const x = sch[zeitSchritt]!;
         const vorherText = zeitSchritt > 0 ? sch[zeitSchritt - 1]!.text : "";
         zeitEbene.append(el("div", { class: "muted mini zl-kopf" }, el("b", {}, `Schritt ${x.nr} von ${sch.length}`),
-          ` — Phase ${x.phase}` + (x.slot && x.slot !== x.phase ? `, erwartet „${x.slot}“` : "") + ` · ${x.quelle}${x.kategorie && x.kategorie !== "—" ? " · " + x.kategorie : ""} · ${x.typ}`
-          + (x.kandidaten ? ` · ${x.kandidaten} Kandidaten` : "")));
+          " — Quelle ", el("span", { class: "zl-legende-item " + qv(x.quelle).cls }, qv(x.quelle).name), (x.kategorie && x.kategorie !== "—" ? ` · ${x.kategorie}` : "") + ` · ${x.typ}`
+          + ` · Phase ${x.phase}` + (x.slot && x.slot !== x.phase ? `, erwartet „${x.slot}“` : "") + (x.kandidaten ? ` · ${x.kandidaten} Kandidaten` : "")));
         // Der Text bis hierher: alles vor dem Atom blass, das Atom grün.
         const t = el("div", { class: "zl-text" });
         if (vorherText) t.append(el("span", { class: "zl-satz zl-gleich" }, vorherText + " "));
@@ -1161,7 +1176,7 @@ export function mountStudio(root: HTMLElement): void {
           ent.append(gl);
           if (x.konkurrenten.length) {
             const k = el("div", { style: "margin-top:4px" }, el("b", {}, "Konkurrenten, die es nicht wurden: "));
-            for (const q of x.konkurrenten) k.append(el("div", { class: "zl-konkurrent" }, el("span", { class: "muted mini" }, `${q.score.toFixed(2)} · ${Math.round(q.anteil * 100)} % · ${q.quelle}${q.kategorie && q.kategorie !== "—" ? " · " + q.kategorie : ""}: `), q.text));
+            for (const q of x.konkurrenten) k.append(el("div", { class: "zl-konkurrent" }, el("span", { class: "muted mini" }, `${q.score.toFixed(2)} · ${Math.round(q.anteil * 100)} % · `), el("span", { class: "zl-legende-item " + qv(q.quelle).cls }, qv(q.quelle).name), el("span", { class: "muted mini" }, `${q.kategorie && q.kategorie !== "—" ? " · " + q.kategorie : ""}: `), q.text));
             ent.append(k);
           }
         } else ent.append(el("div", { class: "muted mini" }, x.gruende.map((g) => g.name).join(" · ")));

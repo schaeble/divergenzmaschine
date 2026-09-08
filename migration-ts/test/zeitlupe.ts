@@ -110,6 +110,11 @@ zeitlupeSchalten(false);
   buildStory(BUILTIN_PRESETS["kafka"] as Bank, inp);
   const q = readFileSync("src/ui/studio.ts", "utf8");
   wahr("der Bau-Layer hat den Schritt-Stapel", /class: "zl-schritte"/.test(q) && /Schritt \$\{x\.nr\} von \$\{sch\.length\}/.test(q));
+  // Gewünscht: die Quellen an den Schritten.
+  wahr("jeder Schritt trägt Farbe und Buchstabe seiner Quelle", /class: "zl-schritt " \+ q\.cls/.test(q) && /el\("span", \{ class: "zl-q" \}, q\.kurz\)/.test(q));
+  wahr("die Kopfzeile nennt die Quelle beim Namen", /" — Quelle ", el\("span", \{ class: "zl-legende-item " \+ qv\(x\.quelle\)\.cls \}, qv\(x\.quelle\)\.name\)/.test(q));
+  wahr("eine Legende zählt die Quellen", /class: "muted mini zl-legende"/.test(q) && /sch\.filter\(\(x\) => x\.quelle === q\)\.length/.test(q));
+  wahr("dieselben Farben wie die Editieren-Legende", /wortbank: \{ name: "Wortbank", cls: "feed-wb"/.test(q) && /dramaturgie: \{ name: "Erzählbogen", cls: "feed-drama"/.test(q));
   wahr("die Entscheidung mit Zerlegung und Konkurrenten steht daneben", /Konkurrenten, die es nicht wurden/.test(q) && /Zerlegung: /.test(q));
   const qa = readFileSync("src/atoms/assemble.ts", "utf8");
   wahr("die Zerlegung wird nur gerechnet, wenn die Zeitlupe an ist", /if \(ziehungOffenlegen\) \{/.test(qa));
