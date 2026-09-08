@@ -506,7 +506,10 @@ export function postProcessText(txt: string, input?: Input): string {
       // Einleitung, bei 250 % bis zu sieben.
       const f = (loadKnobs().ton || 0) / 100;
       const inserts = Math.max(0, Math.min(7, Math.round(Math.max(1, Math.round(wc / 90)) * f)));
-      for (let i = 0; i < inserts; i++) t = insertToneFlavor(t, pick(td.flavor));
+      // Kein Flavor-Satz zweimal im Text — gemeldet: „Es fühlt sich an, als
+      // würde man erwartet" stand zweimal, weil jeder Einschub für sich zog.
+      const vorrat = [...td.flavor].sort(() => Math.random() - 0.5).filter((f) => !t.toLowerCase().includes(f.toLowerCase().replace(/[.!?…]+$/, "")));
+      for (let i = 0; i < inserts && i < vorrat.length; i++) t = insertToneFlavor(t, vorrat[i]!);
     }
     // Register-Nachlauf: Ton formt auch die Satzmuster (nüchtern flach, ironisch trocken).
     t = applyToneRegister(t, input.tone);

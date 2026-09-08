@@ -1096,10 +1096,14 @@ export function mountStudio(root: HTMLElement): void {
     const sichtbar = on && feedsChk.checked;
     zeitStapel.style.display = sichtbar ? "" : "none";
     if (!sichtbar) { zeitEbene.style.display = "none"; out.classList.remove("zl-unter"); return; }
-    const st = zeitlupeLesen();
+    // Die Aufzeichnung DIESES Textes — nicht die des letzten Laufs (bei
+    // Bestenauslese ist der Sieger selten der letzte Kandidat).
+    const st = zeitlupeLesen(out.textContent || "");
     zeitStapel.innerHTML = "";
     if (!st.length) {
-      zeitStapel.append(el("span", { class: "muted mini zl-hinweis" }, "Zeitlupe an — den nächsten Text erzeugen, dann stehen hier seine Stufen."));
+      zeitStapel.append(el("span", { class: "muted mini zl-hinweis" }, zeitlupeLesen().length
+        ? "Zu diesem Text gibt es keine Aufzeichnung — er kam nicht durch den Bau (Variante, Bearbeitung, Schatzkammer). Den nächsten Text erzeugen."
+        : "Zeitlupe an — den nächsten Text erzeugen, dann stehen hier seine Stufen."));
       zeitEbene.style.display = "none"; out.classList.remove("zl-unter"); return;
     }
     if (zeitStufe >= st.length) zeitStufe = st.length - 1;

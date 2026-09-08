@@ -412,6 +412,19 @@ ist("Knapp nach Strich klein", kleinesPronomen("zu vollkommener Ruhe — Knapp e
   wahr("ein Was auf trennbare Partikel bekommt nur den Verb-Rahmen", /test\(A\)\s*\n\s*\? \[`\$\{kit\.P\} \$\{kit\.AleadVerb \|\| "will"\} \$\{A\} — noch immer\.`\]/.test(qe));
 }
 
+// ── Ton-Einschübe: kein Flavor-Satz zweimal (gemeldet: „Es fühlt sich an, als würde man erwartet" ×2)
+{
+  const { postProcessText: pp } = require("../src/generation/postprocess") as { postProcessText: (t: string, i: unknown) => string };
+  const { TONE_DATA: TD } = require("../src/generation/tone.data") as { TONE_DATA: Record<string, { flavor: string[] }> };
+  const basis = Array.from({ length: 24 }, (_, i) => `Der Satz Nummer ${i + 1} steht ruhig im Text.`).join(" ");
+  let doppelt = 0;
+  for (let i = 0; i < 20; i++) {
+    const t = pp(basis, { tone: "uplifting", form: "prose", who: "Der Bote" }).toLowerCase();
+    for (const f of TD["uplifting"]!.flavor) { const k = f.toLowerCase().replace(/[.!?…]+$/, ""); if (t.split(k).length - 1 > 1) { doppelt++; break; } }
+  }
+  ist("kein Flavor-Satz zweimal (20 Läufe)", doppelt, 0);
+}
+
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

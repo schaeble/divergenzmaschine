@@ -35,6 +35,8 @@ function kurveWert(werte2, p) {
 var an = false;
 var stufen = [];
 var laufend = [];
+var aufzeichnungen = /* @__PURE__ */ new Map();
+var schluessel = (t) => (t || "").replace(/\s+/g, " ").trim();
 var STUFEN_ERKLAERUNG = {
   "Bau": "Die Struktur f\xFCllt ihre Schl\xE4ge oder der Zusammenbau zieht seine Atome \u2014 der Rohtext.",
   "Ensemble": "Mehrere Personen im Wer werden als Ensemble eingewoben.",
@@ -59,9 +61,13 @@ function zeitlupeStufe(name, text) {
   laufend.push({ name, text: String(text || ""), kurz: STUFEN_ERKLAERUNG[name] || "" });
 }
 function zeitlupeEnde() {
-  if (an && laufend.length) {
-    stufen = laufend;
-    laufend = [];
+  if (!(an && laufend.length)) return;
+  stufen = laufend;
+  laufend = [];
+  aufzeichnungen.set(schluessel(stufen[stufen.length - 1].text), stufen);
+  if (aufzeichnungen.size > 12) {
+    const erster = aufzeichnungen.keys().next().value;
+    if (erster !== void 0) aufzeichnungen.delete(erster);
   }
 }
 
@@ -7265,7 +7271,8 @@ function postProcessText(txt, input) {
       const wc2 = t.trim().split(/\s+/).filter(Boolean).length;
       const f = (loadKnobs().ton || 0) / 100;
       const inserts = Math.max(0, Math.min(7, Math.round(Math.max(1, Math.round(wc2 / 90)) * f)));
-      for (let i2 = 0; i2 < inserts; i2++) t = insertToneFlavor(t, pick(td.flavor));
+      const vorrat = [...td.flavor].sort(() => Math.random() - 0.5).filter((f2) => !t.toLowerCase().includes(f2.toLowerCase().replace(/[.!?…]+$/, "")));
+      for (let i2 = 0; i2 < inserts && i2 < vorrat.length; i2++) t = insertToneFlavor(t, vorrat[i2]);
     }
     t = applyToneRegister(t, input.tone);
     zeitlupeStufe("Ton", t);
@@ -7414,7 +7421,7 @@ function traceMarkov(s) {
   const t = (s || "").trim();
   if (t.length >= 5) frags.push(t);
 }
-var schluessel = (t) => t.toLowerCase().replace(/[^a-zäöüß]/g, "").slice(0, 400);
+var schluessel2 = (t) => t.toLowerCase().replace(/[^a-zäöüß]/g, "").slice(0, 400);
 var nachText = /* @__PURE__ */ new Map();
 function linkMarkovTrace(finalText) {
   if (!frags.length || !finalText) return;
@@ -7422,7 +7429,7 @@ function linkMarkovTrace(finalText) {
     const e = nachText.keys().next().value;
     if (e) nachText.delete(e);
   }
-  nachText.set(schluessel(finalText), frags.slice());
+  nachText.set(schluessel2(finalText), frags.slice());
 }
 
 // src/generation/archetypes.data.ts
@@ -17139,14 +17146,14 @@ function pushTrace(s) {
   spur.push(s);
 }
 var nachText2 = /* @__PURE__ */ new Map();
-var schluessel2 = (t) => t.toLowerCase().replace(/[^a-zäöüß]/g, "").slice(0, 400);
+var schluessel3 = (t) => t.toLowerCase().replace(/[^a-zäöüß]/g, "").slice(0, 400);
 function linkTrace(finalText) {
   if (!spur.length || !finalText) return;
   if (nachText2.size > 64) {
     const erste = nachText2.keys().next().value;
     if (erste) nachText2.delete(erste);
   }
-  nachText2.set(schluessel2(finalText), spur.slice());
+  nachText2.set(schluessel3(finalText), spur.slice());
 }
 function pruefeAbgleich(endtext) {
   const norm = (t) => t.toLowerCase().replace(/[^a-zäöüß ]/g, " ").replace(/\s+/g, " ").trim();

@@ -70,6 +70,22 @@ zeitlupeSchalten(false);
   wahr("nach jeder Erzeugung: Ebene weg, Stapel neu", /if \(zeitChk\.checked\) \{ zeitStufe = -1; renderZeit\(\); \}/.test(q));
 }
 
+// ── Gemeldet: „Vom Bau bis zum Ende? Stimmt das?" — die Aufzeichnung gehört zum Text
+{
+  zeitlupeSchalten(true);
+  const a = buildStory(BUILTIN_PRESETS["kafka"] as Bank, inp);
+  const b = buildStory(BUILTIN_PRESETS["kafka"] as Bank, inp);      // ein zweiter Kandidat, wie bei Bestenauslese
+  const stA = zeitlupeLesen(a), stB = zeitlupeLesen(b);
+  ist("die Aufzeichnung zu Text A endet mit A", stA[stA.length - 1]!.text, a);
+  ist("die zu Text B endet mit B", stB[stB.length - 1]!.text, b);
+  wahr("Bau und Ende gehören zum selben Lauf", stA[0]!.text !== stB[0]!.text || a === b);
+  ist("zu einem fremden Text: keine Aufzeichnung", zeitlupeLesen("Ein Text, der nie gebaut wurde.").length, 0);
+  zeitlupeSchalten(false);
+  const q = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("die Ansicht holt die Aufzeichnung DIESES Textes", /zeitlupeLesen\(out\.textContent \|\| ""\)/.test(q));
+  wahr("und sagt es, wenn der Text nicht durch den Bau kam", /Zu diesem Text gibt es keine Aufzeichnung/.test(q));
+}
+
 console.log(`Prüfstand Zeitlupe — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) { console.error(`\n❌ Zeitlupe: ${fails.length} Fehler:`); fails.forEach((f) => console.error("  - " + f)); proc.process?.exit(1); }

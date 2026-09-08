@@ -12,6 +12,14 @@ export interface Stufe { name: string; text: string; kurz: string }
 let an = false;
 let stufen: Stufe[] = [];
 let laufend: Stufe[] = [];
+// Gemeldet: "Vom Bau bis zum Ende? Stimmt das?" — Bau und Ende zeigten zwei
+// verschiedene Texte. Bei Bestenauslese und Varianten baut die Maschine
+// mehrere Kandidaten hintereinander; der Rekorder hielt nur den LETZTEN
+// Lauf, das Studio zeigte aber den Sieger. Darum jetzt: je Lauf eine
+// Aufzeichnung, gemerkt unter ihrem Endtext; die Ansicht holt die, deren
+// Ende der gezeigte Text ist. Ein Dutzend Läufe bleiben im Gedächtnis.
+const aufzeichnungen = new Map<string, Stufe[]>();
+const schluessel = (t: string): string => (t || "").replace(/\s+/g, " ").trim();
 
 /** Erläuterung je Stufenname — was diese Stufe tut. Steht in der Ansicht. */
 export const STUFEN_ERKLAERUNG: Record<string, string> = {
@@ -46,9 +54,21 @@ export function zeitlupeStufe(name: string, text: string): void {
 }
 
 /** Ende einer Erzeugung: die Aufzeichnung wird zum letzten Bau. */
-export function zeitlupeEnde(): void { if (an && laufend.length) { stufen = laufend; laufend = []; } }
+export function zeitlupeEnde(): void {
+  if (!(an && laufend.length)) return;
+  stufen = laufend; laufend = [];
+  aufzeichnungen.set(schluessel(stufen[stufen.length - 1]!.text), stufen);
+  if (aufzeichnungen.size > 12) { const erster = aufzeichnungen.keys().next().value; if (erster !== undefined) aufzeichnungen.delete(erster); }
+}
 
-export function zeitlupeLesen(): Stufe[] { return stufen; }
+/** Die Aufzeichnung zu einem Text — oder, ohne Angabe, die letzte. Gibt es
+ *  zum Text keine (er kam nicht durch den Bau, oder der Lauf ist verjährt),
+ *  ist das Ergebnis leer: Die Ansicht sagt es, statt den falschen Lauf zu
+ *  zeigen. */
+export function zeitlupeLesen(text?: string): Stufe[] {
+  if (text === undefined) return stufen;
+  return aufzeichnungen.get(schluessel(text)) || [];
+}
 
 // ── Änderungsmarken: Satzdiff zwischen zwei Stufen ─────────────────────────
 export type Marke = "gleich" | "neu" | "geaendert";
