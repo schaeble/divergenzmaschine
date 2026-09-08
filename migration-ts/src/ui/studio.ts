@@ -988,7 +988,11 @@ export function mountStudio(root: HTMLElement): void {
   skChk.addEventListener("change", () => { kurve.an = skChk.checked; skSichern(); generate(); });
   skVorlage.addEventListener("change", () => { const v = KURVEN_VORLAGEN[skVorlage.value]; if (v) { kurve.werte = [...v.werte]; skSichern(); if (kurve.an) generate(); } });
   const skLeiste = el("span", { class: "sk-leiste", style: "display:none" }, el("label", { class: "chk" }, skChk, " Spannungskurve"), skVorlage, skStand);
-  const outWrap = el("div", { class: "outwrap" }, mkGenArrow("left"), spur, out, mkGenArrow("right"), grip);
+  // Zeitlupe als Layer (4.353.0): Ebene über dem Text und Stapel der Stufen
+  // rechts — gefüllt und gesteuert weiter unten (renderZeit).
+  const zeitStapel = el("div", { class: "zl-stapel", style: "display:none", role: "tablist", "aria-label": "Stufen der Text-Werdung" });
+  const zeitEbene = el("div", { class: "zl-ebene", style: "display:none" });
+  const outWrap = el("div", { class: "outwrap" }, mkGenArrow("left"), spur, out, zeitEbene, zeitStapel, mkGenArrow("right"), grip);
   // Pfeile mittig im SICHTBAREN Ausschnitt des Textfensters halten — unabhängig
   // von der Inhaltshöhe (kein Springen beim Generieren).
   const positionArrows = (): void => {
@@ -1075,74 +1079,64 @@ export function mountStudio(root: HTMLElement): void {
   };
   planChk.addEventListener("change", renderPlan);
 
-  // ── Zeitlupe (4.347.0): der Bau eines Textes in Stufen, Stop-and-go ────────
-  // Schalter neben dem Bauplan. Ist er an, zeichnet der Rekorder bei jeder
-  // Erzeugung die Stufen auf; die Ansicht zeigt eine Stufenleiste (Pfeile,
-  // Abspielen mit Tempo, Tastatur ←/→) und den Text der gewählten Stufe mit
-  // Änderungsmarken gegenüber der Stufe davor: grün neu, gelb geändert,
-  // gleich blass; darunter rot, was gefallen ist. Aus = Rekorder aus.
+  // ── Zeitlupe als Layer im Editiermodus (4.353.0) ─────────────────────────
+  // Gewünscht: kein automatischer Durchlauf, keine Box unter dem Text — die Stufen der
+  // Text-Werdung als klickbare LAYER im Editorfenster. Rechts im Textfenster
+  // ein Stapel von Reitern (eine je Stufe); ein Klick legt den Text dieser
+  // Stufe als Ebene ÜBER den Text, mit Änderungsmarken gegenüber der Stufe
+  // davor (grün neu, gelb geändert, blass gleich, rot durchgestrichen, was
+  // fiel). Der wirkliche Text bleibt darunter unangetastet — die Ebene ist nur
+  // Sicht. Die letzte Stufe („Ende") nimmt die Ebene weg: Dort ist der Text
+  // selbst die Stufe, und das Editieren bleibt möglich. Nur im Editiermodus.
   const zeitChk = el("input", { type: "checkbox", id: "f-zeitlupe" }) as HTMLInputElement;
-  const zeitBox = el("div", { class: "zeitlupe", style: "display:none" });
-  let zeitStufe = 0;
-  let zeitTimer: number | null = null;
-  const zeitStopp = (): void => { if (zeitTimer !== null) { window.clearInterval(zeitTimer); zeitTimer = null; } };
+  let zeitStufe = -1;                      // -1 = keine Ebene (der Text selbst)
   const renderZeit = (): void => {
     const on = zeitChk.checked;
     zeitlupeSchalten(on);
-    zeitBox.style.display = on ? "" : "none";
-    if (!on) { zeitStopp(); return; }
+    const sichtbar = on && feedsChk.checked;
+    zeitStapel.style.display = sichtbar ? "" : "none";
+    if (!sichtbar) { zeitEbene.style.display = "none"; out.classList.remove("zl-unter"); return; }
     const st = zeitlupeLesen();
-    zeitBox.innerHTML = "";
-    if (!st.length) { zeitBox.append(el("span", { class: "muted mini" }, "Noch keine Aufzeichnung — den nächsten Text erzeugen, dann steht hier sein Bau in Stufen.")); return; }
-    zeitStufe = Math.max(0, Math.min(st.length - 1, zeitStufe));
-    const akt = st[zeitStufe]!;
-    const vorher = zeitStufe > 0 ? st[zeitStufe - 1]!.text : "";
-    const d = stufenDiff(vorher, akt.text);
-    // Leiste
-    const leiste = el("div", { class: "zl-leiste" });
-    const zurueck = el("button", { type: "button", title: "Stufe zurück (←)" }, "◀") as HTMLButtonElement;
-    const vor = el("button", { type: "button", title: "Stufe vor (→)" }, "▶") as HTMLButtonElement;
-    const ab = el("button", { type: "button", title: "Abspielen / anhalten (Leertaste)" }, zeitTimer !== null ? "❚❚" : "▶▶") as HTMLButtonElement;
-    const tempo = select("f-zl-tempo", [["2500", "langsam"], ["1200", "mittel"], ["500", "schnell"]], "1200");
-    zurueck.disabled = zeitStufe === 0; vor.disabled = zeitStufe === st.length - 1;
-    zurueck.addEventListener("click", () => { zeitStopp(); zeitStufe--; renderZeit(); });
-    vor.addEventListener("click", () => { zeitStopp(); zeitStufe++; renderZeit(); });
-    ab.addEventListener("click", () => {
-      if (zeitTimer !== null) { zeitStopp(); renderZeit(); return; }
-      if (zeitStufe >= st.length - 1) zeitStufe = 0;
-      zeitTimer = window.setInterval(() => { if (zeitStufe >= st.length - 1) { zeitStopp(); renderZeit(); return; } zeitStufe++; renderZeit(); }, parseInt(tempo.value, 10) || 1200);
-      renderZeit();
-    });
-    const stufenKette = el("div", { class: "zl-kette" });
+    zeitStapel.innerHTML = "";
+    if (!st.length) {
+      zeitStapel.append(el("span", { class: "muted mini zl-hinweis" }, "Zeitlupe an — den nächsten Text erzeugen, dann stehen hier seine Stufen."));
+      zeitEbene.style.display = "none"; out.classList.remove("zl-unter"); return;
+    }
+    if (zeitStufe >= st.length) zeitStufe = st.length - 1;
     st.forEach((x, i) => {
-      const k = el("button", { type: "button", class: "zl-stufe" + (i === zeitStufe ? " zl-aktiv" : "") + (i > 0 && x.text === st[i - 1]!.text ? " zl-still" : ""), title: x.kurz || x.name }, `${i + 1} ${x.name}`) as HTMLButtonElement;
-      k.addEventListener("click", () => { zeitStopp(); zeitStufe = i; renderZeit(); });
-      stufenKette.append(k);
+      const letzte = i === st.length - 1;
+      const still = i > 0 && x.text === st[i - 1]!.text;
+      const b = el("button", { type: "button", role: "tab", class: "zl-layer" + ((zeitStufe === i || (zeitStufe < 0 && letzte)) ? " zl-aktiv" : "") + (still ? " zl-still" : ""),
+        title: `${i + 1} · ${x.name} — ${x.kurz}${still ? " (ohne Änderung)" : ""}` }, `${i + 1}`, el("span", { class: "zl-name" }, x.name)) as HTMLButtonElement;
+      b.addEventListener("click", () => { zeitStufe = letzte ? -1 : i; renderZeit(); });
+      zeitStapel.append(b);
     });
-    leiste.append(zurueck, vor, ab, tempo, stufenKette);
-    const woerter = akt.text.split(/\s+/).filter(Boolean).length;
+    if (zeitStufe < 0) { zeitEbene.style.display = "none"; out.classList.remove("zl-unter"); return; }
+    // Die Ebene: Text der Stufe mit Marken gegenüber der Stufe davor.
+    const akt = st[zeitStufe]!;
+    const d = stufenDiff(zeitStufe > 0 ? st[zeitStufe - 1]!.text : "", akt.text);
+    zeitEbene.innerHTML = "";
     const neu = d.saetze.filter((x) => x.marke === "neu").length, ge = d.saetze.filter((x) => x.marke === "geaendert").length;
-    const stand = el("div", { class: "muted mini", style: "margin:4px 0" },
-      el("b", {}, `Stufe ${zeitStufe + 1} von ${st.length} · ${akt.name}`), ` — ${akt.kurz} `,
-      el("span", { class: "zl-zahl" }, zeitStufe === 0 ? `${woerter} Wörter` : (neu + ge + d.gefallen.length === 0 ? "ohne Änderung" : `${neu} neu · ${ge} geändert · ${d.gefallen.length} gefallen · ${woerter} Wörter`)));
-    // Text mit Marken
+    zeitEbene.append(el("div", { class: "muted mini zl-kopf" }, el("b", {}, `${zeitStufe + 1} · ${akt.name}`), ` — ${akt.kurz} `,
+      el("span", { class: "zl-zahl" }, zeitStufe === 0 ? `${akt.text.split(/\s+/).filter(Boolean).length} Wörter` : (neu + ge + d.gefallen.length === 0 ? "ohne Änderung" : `${neu} neu · ${ge} geändert · ${d.gefallen.length} gefallen`))));
     const text = el("div", { class: "zl-text" });
     for (const sz of d.saetze) text.append(el("span", { class: "zl-satz zl-" + sz.marke, title: sz.marke === "neu" ? "neu in dieser Stufe" : sz.marke === "geaendert" ? "in dieser Stufe geändert" : "unverändert" }, sz.text + " "));
-    zeitBox.append(leiste, stand, text);
+    zeitEbene.append(text);
     if (d.gefallen.length) {
       const weg = el("div", { class: "zl-gefallen" }, el("span", { class: "muted mini" }, "gefallen: "));
       for (const g of d.gefallen) weg.append(el("span", { class: "zl-satz zl-weg" }, g + " "));
-      zeitBox.append(weg);
+      zeitEbene.append(weg);
     }
+    zeitEbene.style.display = "";
+    out.classList.add("zl-unter");
   };
-  zeitChk.addEventListener("change", () => { zeitStufe = 0; renderZeit(); });
-  zeitBox.addEventListener("keydown", (ev) => {
-    const k = (ev as KeyboardEvent).key;
-    if (k === "ArrowLeft" && zeitStufe > 0) { ev.preventDefault(); zeitStopp(); zeitStufe--; renderZeit(); }
-    else if (k === "ArrowRight") { ev.preventDefault(); zeitStopp(); zeitStufe++; renderZeit(); }
-    else if (k === " ") { ev.preventDefault(); (zeitBox.querySelector("button[title^='Abspielen']") as HTMLButtonElement | null)?.click(); }
+  zeitChk.addEventListener("change", () => { zeitStufe = -1; renderZeit(); });
+  zeitStapel.addEventListener("keydown", (ev) => {
+    const k = (ev as KeyboardEvent).key; const n = zeitlupeLesen().length;
+    if (!n) return;
+    if (k === "ArrowUp" || k === "ArrowLeft") { ev.preventDefault(); zeitStufe = zeitStufe < 0 ? n - 2 : Math.max(0, zeitStufe - 1); renderZeit(); }
+    else if (k === "ArrowDown" || k === "ArrowRight") { ev.preventDefault(); zeitStufe = zeitStufe < 0 ? -1 : (zeitStufe + 1 >= n - 1 ? -1 : zeitStufe + 1); renderZeit(); }
   });
-  zeitBox.setAttribute("tabindex", "0");
 
   // Textstruktur direkt unter dem Text: woraus besteht er, mit welchen Einstellungen?
   const struktChk = el("input", { type: "checkbox", id: "f-struktur" }) as HTMLInputElement;
@@ -1199,7 +1193,7 @@ export function mountStudio(root: HTMLElement): void {
    *  Vorrats-Hinweis nachziehen. Beide hingen bisher allein an generate(), sodass
    *  nach Passagen-Austausch, Rueckgaengig, Variante oder einer Uebernahme aus dem
    *  Ranking die Balken noch den vorigen Text beschrieben. */
-  const nachTextwechsel = (): void => { renderStruktur(); updVorrat(); renderTitel(); spurMalen(); if (zeitChk.checked) { zeitStopp(); zeitStufe = 0; renderZeit(); } };
+  const nachTextwechsel = (): void => { renderStruktur(); updVorrat(); renderTitel(); spurMalen(); if (zeitChk.checked) { zeitStufe = -1; renderZeit(); } };
 
   // ── Klick auf einen Balken der Textstruktur (A.2) ──────────────────────
   // Jeder Balken fuehrt zu dem Bedienelement, das ihn steuert - oder sagt, warum
@@ -1414,7 +1408,7 @@ export function mountStudio(root: HTMLElement): void {
     out.innerHTML = html;
   };
   const refreshFeeds = (): void => { if (feedsChk.checked) renderFeeds(); };
-  feedsChk.addEventListener("change", () => { renderFeeds(); skLeiste.style.display = feedsChk.checked ? "" : "none"; spurMalen(); });
+  feedsChk.addEventListener("change", () => { renderFeeds(); skLeiste.style.display = feedsChk.checked ? "" : "none"; spurMalen(); renderZeit(); });
   skLeiste.style.display = feedsChk.checked ? "" : "none";
   spurMalen();
 
@@ -1660,7 +1654,7 @@ export function mountStudio(root: HTMLElement): void {
   const bestChk = el("input", { type: "checkbox", id: "f-best" }) as HTMLInputElement;
   bestChk.checked = true;
   const bestLbl = el("label", { class: "chk", title: "Erzeugt bei jedem Klick 12 Kandidaten und zeigt den bestbewerteten (Längentreue, Wortvielfalt, Rhythmus, wenig Wiederholung, Grammatik, Abstand zur Schatzkammer)." }, bestChk, " Bestenauslese");
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl, titelLbl), titelEl, outWrap, vorratHint, feedsRow, planBox, zeitBox, struktBox, kling);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl, titelLbl), titelEl, outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
 
   // ── Test & Ranking ──
   let lastRanking: Ranking | null = null;

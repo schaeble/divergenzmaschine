@@ -28,7 +28,7 @@ Object.defineProperty(G, "matchMedia", { value: keinMedia, writable: true, confi
 import { TONE_DATA } from "../src/generation/tone.data";
 import { uebernehmeKontext, geaendert, W4_FELDER, offeneQuellen, ziehQuelle, QUELLEN, QUELLE_LABEL } from "../src/features/kontext";
 import { worldFillContext, WELT_SAAT } from "../src/features/world";
-import { mountStudio } from "../src/ui/studio";
+import { mountStudio, uebernimmWurf } from "../src/ui/studio";
 import { mountWordbank } from "../src/ui/wordbankView";
 import { hasDramaData, setDramaData } from "../src/generation/dramaturgie";
 import { mountIdeas } from "../src/ui/ideasView";
@@ -526,6 +526,10 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
   localStorage.removeItem("dm_multi_presets_v1");
   localStorage.removeItem("dm_pending_studio");
   localStorage.removeItem("dm_active_preset2_v1");
+  // Deterministisch: Ein frueherer Abschnitt wuerfelt das Preset; faellt der
+  // Wurf auf Auto-Mix oder die Mischung, steht das Feld beim Neuaufbau auf
+  // Auto-Mix, und KEIN Kasten ist angekreuzt — die Ausgangslage waere Glueck.
+  uebernimmWurf({ "f-preset": "builtin:kafka" });
   const wurzelR = Dok5.createElement("div");
   Dok5.body.append(wurzelR);
   mountStudio(wurzelR);

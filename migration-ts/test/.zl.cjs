@@ -19967,7 +19967,9 @@ function buildStory(bank, input, model) {
     const rk = buildRekombination(bank, input, model);
     if (rk.trim()) {
       zeitlupeStufe("Bau", rk);
-      const fertig = postProcessText(paragraphize(rk), input);
+      const gebrochen = applyDisruptor(rk, input.disruptor).text;
+      zeitlupeStufe("St\xF6rung", gebrochen);
+      const fertig = postProcessText(paragraphize(gebrochen), input);
       linkTrace(fertig);
       linkMarkovTrace(fertig);
       zeitlupeStufe("Ende", fertig);
@@ -20063,9 +20065,14 @@ zeitlupeSchalten(false);
   const q = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
   wahr("Schalter \u201EZeitlupe\u201C neben dem Bauplan", /ansicht\(planChk, "Bauplan"\), ansicht\(zeitChk, "Zeitlupe"\)/.test(q));
   wahr("der Schalter steuert den Rekorder", /zeitlupeSchalten\(on\)/.test(q));
-  wahr("Stufenleiste mit zur\xFCck/vor/abspielen und Tempo", /title: "Stufe zurück \(←\)"/.test(q) && /title: "Abspielen \/ anhalten \(Leertaste\)"/.test(q) && /select\("f-zl-tempo"/.test(q));
+  wahr("Stapel und Ebene liegen im Textfenster", /mkGenArrow\("left"\), spur, out, zeitEbene, zeitStapel, mkGenArrow\("right"\)/.test(q));
+  wahr("nur im Editiermodus", /const sichtbar = on && feedsChk\.checked;/.test(q));
+  wahr("jede Stufe ist ein klickbarer Layer", /class: "zl-layer"/.test(q) && /b\.addEventListener\("click", \(\) => \{ zeitStufe = letzte \? -1 : i; renderZeit\(\); \}\)/.test(q));
+  wahr("die Ebene liegt \xFCber dem Text, der Text bleibt", /out\.classList\.add\("zl-unter"\)/.test(q) && !/out\.textContent = akt/.test(q));
+  wahr("die letzte Stufe nimmt die Ebene weg (Editieren bleibt m\xF6glich)", /if \(zeitStufe < 0\) \{ zeitEbene\.style\.display = "none"/.test(q));
   wahr("Marken: neu, ge\xE4ndert, gefallen", /zl-" \+ sz\.marke/.test(q) && /zl-weg/.test(q));
-  wahr("nach jeder Erzeugung springt sie auf Stufe 1", /if \(zeitChk\.checked\) \{ zeitStopp\(\); zeitStufe = 0; renderZeit\(\); \}/.test(q));
+  wahr("kein Abspielen mehr", !/Abspielen/.test(q) && !/f-zl-tempo/.test(q));
+  wahr("nach jeder Erzeugung: Ebene weg, Stapel neu", /if \(zeitChk\.checked\) \{ zeitStufe = -1; renderZeit\(\); \}/.test(q));
 }
 console.log(`Pr\xFCfstand Zeitlupe \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

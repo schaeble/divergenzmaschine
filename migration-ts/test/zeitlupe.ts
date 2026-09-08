@@ -57,11 +57,17 @@ zeitlupeSchalten(false);
 // ── 3 · Die Ansicht ─────────────────────────────────────────────────────────
 {
   const q = readFileSync("src/ui/studio.ts", "utf8");
+  // 4.353.0: Layer im Editorfenster statt Box unter dem Text, kein Abspielen.
   wahr("Schalter „Zeitlupe“ neben dem Bauplan", /ansicht\(planChk, "Bauplan"\), ansicht\(zeitChk, "Zeitlupe"\)/.test(q));
   wahr("der Schalter steuert den Rekorder", /zeitlupeSchalten\(on\)/.test(q));
-  wahr("Stufenleiste mit zurück/vor/abspielen und Tempo", /title: "Stufe zurück \(←\)"/.test(q) && /title: "Abspielen \/ anhalten \(Leertaste\)"/.test(q) && /select\("f-zl-tempo"/.test(q));
+  wahr("Stapel und Ebene liegen im Textfenster", /mkGenArrow\("left"\), spur, out, zeitEbene, zeitStapel, mkGenArrow\("right"\)/.test(q));
+  wahr("nur im Editiermodus", /const sichtbar = on && feedsChk\.checked;/.test(q));
+  wahr("jede Stufe ist ein klickbarer Layer", /class: "zl-layer"/.test(q) && /b\.addEventListener\("click", \(\) => \{ zeitStufe = letzte \? -1 : i; renderZeit\(\); \}\)/.test(q));
+  wahr("die Ebene liegt über dem Text, der Text bleibt", /out\.classList\.add\("zl-unter"\)/.test(q) && !/out\.textContent = akt/.test(q));
+  wahr("die letzte Stufe nimmt die Ebene weg (Editieren bleibt möglich)", /if \(zeitStufe < 0\) \{ zeitEbene\.style\.display = "none"/.test(q));
   wahr("Marken: neu, geändert, gefallen", /zl-" \+ sz\.marke/.test(q) && /zl-weg/.test(q));
-  wahr("nach jeder Erzeugung springt sie auf Stufe 1", /if \(zeitChk\.checked\) \{ zeitStopp\(\); zeitStufe = 0; renderZeit\(\); \}/.test(q));
+  wahr("kein Abspielen mehr", !/Abspielen/.test(q) && !/f-zl-tempo/.test(q));
+  wahr("nach jeder Erzeugung: Ebene weg, Stapel neu", /if \(zeitChk\.checked\) \{ zeitStufe = -1; renderZeit\(\); \}/.test(q));
 }
 
 console.log(`Prüfstand Zeitlupe — ${geprueft} Prüfungen, ${bestanden} bestanden`);

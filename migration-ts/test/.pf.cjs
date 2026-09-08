@@ -19855,7 +19855,9 @@ function buildStory(bank, input, model) {
     const rk = buildRekombination(bank, input, model);
     if (rk.trim()) {
       zeitlupeStufe("Bau", rk);
-      const fertig = postProcessText(paragraphize(rk), input);
+      const gebrochen = applyDisruptor(rk, input.disruptor).text;
+      zeitlupeStufe("St\xF6rung", gebrochen);
+      const fertig = postProcessText(paragraphize(gebrochen), input);
       linkTrace(fertig);
       linkMarkovTrace(fertig);
       zeitlupeStufe("Ende", fertig);

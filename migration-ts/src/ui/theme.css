@@ -1175,19 +1175,25 @@ button.ek-probe:hover .ek-blaettern{opacity:1;color:var(--acc2)}
 .outwrap.sk-an .genarrow.left{left:46px}
 .sk-leiste{display:inline-flex;gap:8px;align-items:center;margin-left:8px}
 .out.sk-getoent{transition:background-image .3s}
-/* Zeitlupe: Stufenleiste und Aenderungsmarken (4.347.0). */
-.zeitlupe{margin-top:8px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;outline:none}
-.zeitlupe:focus{border-color:var(--acc2)}
-.zl-leiste{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.zl-kette{display:flex;gap:4px;flex-wrap:wrap;margin-left:6px}
-.zl-stufe{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--border2);background:var(--input-bg);color:var(--muted);cursor:pointer}
-.zl-stufe.zl-still{opacity:.55}
-.zl-stufe.zl-aktiv{color:var(--text);border-color:var(--acc2);background:color-mix(in srgb, var(--acc2) 14%, transparent)}
-.zl-text{line-height:1.7;font-family:Georgia,'Times New Roman',serif;font-size:15px;margin-top:4px}
+/* Zeitlupe als Layer im Editorfenster (4.353.0): Stapel der Stufen rechts,
+   Ebene ueber dem Text. Der wirkliche Text bleibt darunter. */
+.zl-stapel{position:absolute;right:6px;top:8px;bottom:8px;width:88px;display:flex;flex-direction:column;gap:3px;overflow:auto;z-index:4;padding:2px}
+.zl-layer{display:flex;gap:6px;align-items:baseline;font-size:11px;padding:3px 7px;border-radius:7px;border:1px solid var(--border2);background:color-mix(in srgb, var(--panel) 88%, transparent);color:var(--muted);cursor:pointer;text-align:left;line-height:1.2}
+.zl-layer .zl-name{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zl-layer.zl-still{opacity:.5}
+.zl-layer:hover{color:var(--text);border-color:var(--acc2)}
+.zl-layer.zl-aktiv{color:var(--text);border-color:var(--acc2);background:color-mix(in srgb, var(--acc2) 16%, var(--panel))}
+.zl-hinweis{writing-mode:vertical-rl;transform:rotate(180deg);align-self:center;margin:auto 0}
+.zl-ebene{position:absolute;left:0;top:0;right:0;bottom:0;overflow:auto;z-index:3;padding:16px 108px 16px 20px;background:var(--panel, #fff);border-radius:inherit;line-height:1.7;font-family:Georgia,'Times New Roman',serif;font-size:15px}
+.out.zl-unter{visibility:hidden}
+.outwrap:has(.zl-stapel:not([style*="display: none"])) .out{padding-right:104px}
+.outwrap:has(.zl-stapel:not([style*="display: none"])) .genarrow.right{right:100px}
+.zl-kopf{margin-bottom:6px}
+.zl-text{margin-top:2px}
 .zl-satz{border-radius:3px;padding:0 2px}
 .zl-gleich{opacity:.78}
 .zl-neu{background:rgba(60,170,90,.22)}
 .zl-geaendert{background:rgba(230,180,40,.28)}
-.zl-gefallen{margin-top:6px;line-height:1.6}
+.zl-gefallen{margin-top:8px;line-height:1.6}
 .zl-weg{background:rgba(214,72,40,.16);text-decoration:line-through;opacity:.8}
 .zl-zahl{margin-left:6px}
