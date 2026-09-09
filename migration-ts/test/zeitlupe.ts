@@ -106,6 +106,15 @@ zeitlupeSchalten(false);
   setDramaData(null);
   const bau4 = zeitlupeLesen(t4).find((x) => x.name === "Bau")!;
   wahr("Dramaturgie: Schritte sind Schläge (einstieg zuerst)", !!bau4.schritte && bau4.schritte[0]!.phase === "einstieg" && bau4.schritte.every((x) => x.typ === "schlag"));
+  // Gemeldet: Alle zwölf Schläge standen als „Erzählbogen" — jetzt meldet jeder seine wirkliche Quelle.
+  {
+    const q4 = bau4.schritte!.map((x) => x.quelle);
+    wahr("der Haken kommt aus der Wortbank", bau4.schritte!.find((x) => x.phase === "hook")!.quelle === "wortbank");
+    wahr("der Höhepunkt aus dem Bogen", bau4.schritte!.find((x) => x.phase === "hoehepunkt")!.quelle === "bogen");
+    wahr("der Schluss aus der Wortbank (kein Bogen-Schluss war da)", bau4.schritte!.find((x) => x.phase === "schluss")!.quelle === "wortbank");
+    wahr("der Einstieg trägt Kontext und Bogen", /^kontext/.test(bau4.schritte![0]!.quelle));
+    wahr("nicht alle Schläge sind Erzählbogen", new Set(q4).size >= 3, [...new Set(q4)].join(","));
+  }
   zeitlupeSchalten(false);
   buildStory(BUILTIN_PRESETS["kafka"] as Bank, inp);
   const q = readFileSync("src/ui/studio.ts", "utf8");

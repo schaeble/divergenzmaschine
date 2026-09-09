@@ -1136,7 +1136,7 @@ export function mountStudio(root: HTMLElement): void {
         wortbank: { name: "Wortbank", cls: "feed-wb", kurz: "W" }, vorlage: { name: "Vorlage", cls: "feed-plain", kurz: "V" },
         korpus: { name: "Korpus", cls: "feed-korpus", kurz: "K" }, markov: { name: "Markov", cls: "feed-markov", kurz: "M" },
         dramaturgie: { name: "Erzählbogen", cls: "feed-drama", kurz: "B" }, bogen: { name: "Erzählbogen", cls: "feed-drama", kurz: "B" },
-        kontext: { name: "4W-Kontext", cls: "feed-4w", kurz: "4" }, rahmen: { name: "Rahmen", cls: "feed-plain", kurz: "R" }, ton: { name: "Ton", cls: "feed-ton", kurz: "T" },
+        kontext: { name: "4W-Kontext", cls: "feed-4w", kurz: "4" }, "kontext+bogen": { name: "Kontext + Erzählbogen", cls: "feed-drama", kurz: "4B" }, rahmen: { name: "Rahmen", cls: "feed-plain", kurz: "R" }, ton: { name: "Ton", cls: "feed-ton", kurz: "T" },
       };
       const qv = (q: string): { name: string; cls: string; kurz: string } => QUELLE[q] || { name: q, cls: "feed-plain", kurz: q.charAt(0).toUpperCase() };
       const kette = el("div", { class: "zl-schritte", role: "tablist", "aria-label": "Schritte des Zusammenbaus" });

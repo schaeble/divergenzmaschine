@@ -81,10 +81,18 @@ export function buildDramaturgie(kit: StoryKit): string {
     if (ohne.length) { const wahl = pick(ohne); benutzt.add(norm(wahl)); return { satz: wahl, nackt: false }; }
     return { satz: zieh(liste), nackt: true };                   // "" wenn aufgebraucht
   };
+  // Quelltext (4.355.1): Jeder Schlag meldet, WOHER sein Satz kam — aus dem
+  // Bogen (Erzählerbank oder Preset 2.0), aus der Wortbank (Haken, Wende,
+  // Einsatz, Schluss, Hindernis des Kits), aus dem Kontext (Wann/Wo) oder aus
+  // einer Vorlage (Modus-Regel). Gemeldet: Alle zwölf Schläge standen als
+  // „Erzählbogen", auch die aus der Wortbank.
+  let quelleSchlag = "rahmen";
   const schlag = (name: string, erster: boolean): string => {
+    quelleSchlag = "rahmen";
     switch (name) {
       case "einstieg": {
-        if (!(d && some(d.einstieg))) return erster ? `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.` : "";
+        if (!(d && some(d.einstieg))) { quelleSchlag = "kontext"; return erster ? `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.` : ""; }
+        quelleSchlag = erster ? "kontext+bogen" : "bogen";
         if (!erster) { const z = zieh(d.einstieg); return z ? `${cap(z)}.` : ""; }
         const z = zieh(d.einstieg) || pick(d.einstieg);
         // Beginnt das Wann selbst mit einem Nebensatz („Nachdem die letzte
@@ -95,40 +103,45 @@ export function buildDramaturgie(kit: StoryKit): string {
           return `${cap(kit.T)} ${kit.W} — ${z.charAt(0).toLowerCase()}${z.slice(1).replace(/[.!?…]+$/, "")}.`;
         return `${cap(kit.T)} ${kit.W}. ${cap(z)}.`;
       }
-      case "hook": return cap(ensurePunct(kit.hook));
-      case "regel": { const z = d && some(d.regeln) && chance(0.7) ? zieh(d.regeln) : ""; return z ? cap(ensurePunct(z)) : ensurePunct(pick(M.rules)); }
-      case "mitte": { const z = d && some(d.mitte) ? zieh(d.mitte) : ""; return z ? `${cap(z)}.` : ""; }
-      case "mitte2": { const z = d && some(d.mitte) && d.mitte.length > 1 && chance(0.6) ? zieh(d.mitte) : ""; return z ? `${cap(z)}.` : ""; }
+      case "hook": quelleSchlag = "wortbank"; return cap(ensurePunct(kit.hook));
+      case "regel": { const z = d && some(d.regeln) && chance(0.7) ? zieh(d.regeln) : ""; quelleSchlag = z ? "bogen" : "vorlage"; return z ? cap(ensurePunct(z)) : ensurePunct(pick(M.rules)); }
+      case "mitte": { const z = d && some(d.mitte) ? zieh(d.mitte) : ""; quelleSchlag = "bogen"; return z ? `${cap(z)}.` : ""; }
+      case "mitte2": { const z = d && some(d.mitte) && d.mitte.length > 1 && chance(0.6) ? zieh(d.mitte) : ""; quelleSchlag = "bogen"; return z ? `${cap(z)}.` : ""; }
       case "konflikt": {
         const konf = d && some(d.konflikte) ? zieh(d.konflikte) : "";  // "" → Rahmen unten
+        quelleSchlag = konf ? "bogen" : "wortbank";
         return konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`;
       }
       case "ausloeser": {
         if (!(d && some(d.ausloeser))) return "";
         const { satz, nackt } = ziehOhneZeitkopf(d.ausloeser);
         if (!satz) return "";
+        quelleSchlag = "bogen";
         return nackt ? cap(ensurePunct(satz)) : `Dann, unvermittelt: ${cap(satz)}.`;
       }
       case "wende": {
         // Auch der Rückfall auf die Bank-Wende zählt als benutzt — steht ihr
         // Wortlaut schon (etwa weil der Bogen denselben Satz als Auslöser
         // trug), fällt der Schlag aus statt zu wiederholen.
-        const kern = (d && some(d.veraenderungen) ? zieh(d.veraenderungen) : "") || (benutzt.has(norm(kit.turn)) ? "" : kit.turn);
+        const ausBogen = d && some(d.veraenderungen) ? zieh(d.veraenderungen) : "";
+        const kern = ausBogen || (benutzt.has(norm(kit.turn)) ? "" : kit.turn);
         if (!kern) return "";
+        quelleSchlag = ausBogen ? "bogen" : "wortbank";
         benutzt.add(norm(kern));
         return frameTurn(kern);
       }
-      case "zeit": { const z = d && some(d.zeitanomalien) && chance(0.4) ? zieh(d.zeitanomalien) : ""; return z ? cap(ensurePunct(z)) : ""; }
+      case "zeit": { const z = d && some(d.zeitanomalien) && chance(0.4) ? zieh(d.zeitanomalien) : ""; quelleSchlag = "bogen"; return z ? cap(ensurePunct(z)) : ""; }
       case "hoehepunkt":
         if (!(d && some(d.hoehepunkt))) return "";
+        quelleSchlag = "bogen";
         // Am Anfang trägt der Höhepunkt keine „Und dann"-Formel — dort IST er
         // der Anfang („Katastrophe zuerst").
         if (erster) { const z = zieh(d.hoehepunkt); return z ? `${cap(z)}.` : ""; }
         const { satz, nackt } = ziehOhneZeitkopf(d.hoehepunkt);
         if (!satz) return "";
         return nackt ? cap(ensurePunct(satz)) : `Und dann: ${cap(satz)}.`;
-      case "einsatz": return reframeStake(kit.stake);
-      case "schluss": return ensurePunct(kit.ending);
+      case "einsatz": quelleSchlag = "wortbank"; return reframeStake(kit.stake);
+      case "schluss": quelleSchlag = "wortbank"; return ensurePunct(kit.ending);
       default: return "";
     }
   };
@@ -140,7 +153,7 @@ export function buildDramaturgie(kit: StoryKit): string {
     if (b) beats.push(b);
     // Zeitlupe, Stufe 3: jeder Schlag als Schritt — Name des Schlags statt
     // Slot-Typ, ohne Konkurrenten (ein Schlag zieht aus seiner Liste).
-    if (zeitlupeAn()) zeitlupeSchritt({ text: beats.join(" "), atom: b || "", phase: name, slot: name, quelle: d ? "bogen" : "rahmen", kategorie: name, typ: "schlag",
+    if (zeitlupeAn()) zeitlupeSchritt({ text: beats.join(" "), atom: b || "", phase: name, slot: name, quelle: b ? quelleSchlag : "rahmen", kategorie: name, typ: "schlag",
       score: 0, anteil: 0, gruende: b ? [{ name: "Schlag " + name, wert: 1 }] : [{ name: "ausgefallen — Liste aufgebraucht oder leer", wert: 0 }], kandidaten: 0, konkurrenten: [] });
   }
   return joinBeats(beats, kit.P);

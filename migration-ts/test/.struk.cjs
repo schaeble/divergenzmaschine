@@ -6839,10 +6839,16 @@ function buildDramaturgie(kit) {
     }
     return { satz: zieh(liste), nackt: true };
   };
+  let quelleSchlag = "rahmen";
   const schlag = (name, erster) => {
+    quelleSchlag = "rahmen";
     switch (name) {
       case "einstieg": {
-        if (!(d && some(d.einstieg))) return erster ? `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.` : "";
+        if (!(d && some(d.einstieg))) {
+          quelleSchlag = "kontext";
+          return erster ? `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.` : "";
+        }
+        quelleSchlag = erster ? "kontext+bogen" : "bogen";
         if (!erster) {
           const z2 = zieh(d.einstieg);
           return z2 ? `${cap(z2)}.` : "";
@@ -6853,41 +6859,51 @@ function buildDramaturgie(kit) {
         return `${cap(kit.T)} ${kit.W}. ${cap(z)}.`;
       }
       case "hook":
+        quelleSchlag = "wortbank";
         return cap(ensurePunct(kit.hook));
       case "regel": {
         const z = d && some(d.regeln) && chance(0.7) ? zieh(d.regeln) : "";
+        quelleSchlag = z ? "bogen" : "vorlage";
         return z ? cap(ensurePunct(z)) : ensurePunct(pick(M.rules));
       }
       case "mitte": {
         const z = d && some(d.mitte) ? zieh(d.mitte) : "";
+        quelleSchlag = "bogen";
         return z ? `${cap(z)}.` : "";
       }
       case "mitte2": {
         const z = d && some(d.mitte) && d.mitte.length > 1 && chance(0.6) ? zieh(d.mitte) : "";
+        quelleSchlag = "bogen";
         return z ? `${cap(z)}.` : "";
       }
       case "konflikt": {
         const konf = d && some(d.konflikte) ? zieh(d.konflikte) : "";
+        quelleSchlag = konf ? "bogen" : "wortbank";
         return konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`;
       }
       case "ausloeser": {
         if (!(d && some(d.ausloeser))) return "";
         const { satz: satz2, nackt: nackt2 } = ziehOhneZeitkopf(d.ausloeser);
         if (!satz2) return "";
+        quelleSchlag = "bogen";
         return nackt2 ? cap(ensurePunct(satz2)) : `Dann, unvermittelt: ${cap(satz2)}.`;
       }
       case "wende": {
-        const kern = (d && some(d.veraenderungen) ? zieh(d.veraenderungen) : "") || (benutzt.has(norm(kit.turn)) ? "" : kit.turn);
+        const ausBogen = d && some(d.veraenderungen) ? zieh(d.veraenderungen) : "";
+        const kern = ausBogen || (benutzt.has(norm(kit.turn)) ? "" : kit.turn);
         if (!kern) return "";
+        quelleSchlag = ausBogen ? "bogen" : "wortbank";
         benutzt.add(norm(kern));
         return frameTurn(kern);
       }
       case "zeit": {
         const z = d && some(d.zeitanomalien) && chance(0.4) ? zieh(d.zeitanomalien) : "";
+        quelleSchlag = "bogen";
         return z ? cap(ensurePunct(z)) : "";
       }
       case "hoehepunkt":
         if (!(d && some(d.hoehepunkt))) return "";
+        quelleSchlag = "bogen";
         if (erster) {
           const z = zieh(d.hoehepunkt);
           return z ? `${cap(z)}.` : "";
@@ -6896,8 +6912,10 @@ function buildDramaturgie(kit) {
         if (!satz) return "";
         return nackt ? cap(ensurePunct(satz)) : `Und dann: ${cap(satz)}.`;
       case "einsatz":
+        quelleSchlag = "wortbank";
         return reframeStake(kit.stake);
       case "schluss":
+        quelleSchlag = "wortbank";
         return ensurePunct(kit.ending);
       default:
         return "";
@@ -6913,7 +6931,7 @@ function buildDramaturgie(kit) {
       atom: b || "",
       phase: name,
       slot: name,
-      quelle: d ? "bogen" : "rahmen",
+      quelle: b ? quelleSchlag : "rahmen",
       kategorie: name,
       typ: "schlag",
       score: 0,
