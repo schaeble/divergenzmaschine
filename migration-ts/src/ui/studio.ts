@@ -1104,7 +1104,7 @@ export function mountStudio(root: HTMLElement): void {
     if (!st.length) {
       zeitStapel.append(el("span", { class: "muted mini zl-hinweis" }, zeitlupeLesen().length
         ? "Zu diesem Text gibt es keine Aufzeichnung — er kam nicht durch den Bau (Variante, Bearbeitung, Schatzkammer). Den nächsten Text erzeugen."
-        : "Zeitlupe an — den nächsten Text erzeugen, dann stehen hier seine Stufen."));
+        : "Quelltext an — den nächsten Text erzeugen, dann stehen hier seine Stufen."));
       zeitEbene.style.display = "none"; out.classList.remove("zl-unter"); return;
     }
     if (zeitStufe >= st.length) zeitStufe = st.length - 1;
@@ -1157,15 +1157,18 @@ export function mountStudio(root: HTMLElement): void {
       zeitEbene.append(kette, legende);
       if (zeitSchritt >= 0) {
         const x = sch[zeitSchritt]!;
-        const vorherText = zeitSchritt > 0 ? sch[zeitSchritt - 1]!.text : "";
         zeitEbene.append(el("div", { class: "muted mini zl-kopf" }, el("b", {}, `Schritt ${x.nr} von ${sch.length}`),
           " — Quelle ", el("span", { class: "zl-legende-item " + qv(x.quelle).cls }, qv(x.quelle).name), (x.kategorie && x.kategorie !== "—" ? ` · ${x.kategorie}` : "") + ` · ${x.typ}`
           + ` · Phase ${x.phase}` + (x.slot && x.slot !== x.phase ? `, erwartet „${x.slot}“` : "") + (x.kandidaten ? ` · ${x.kandidaten} Kandidaten` : "")));
-        // Der Text bis hierher: alles vor dem Atom blass, das Atom grün.
+        // Der Text bis hierher als Folge der Atome, JEDES in der Farbe seiner
+        // Quelle (gewünscht: nicht grün, sondern die Kategorie zeigt den
+        // Fortschritt) — die früheren leicht blass, das aktuelle mit Rahmen.
         const t = el("div", { class: "zl-text" });
-        if (vorherText) t.append(el("span", { class: "zl-satz zl-gleich" }, vorherText + " "));
-        if (x.atom) t.append(el("span", { class: "zl-satz zl-neu", title: "in diesem Schritt gesetzt" }, x.atom + " "));
-        else t.append(el("span", { class: "zl-satz zl-weg" }, "(ausgefallen) "));
+        for (let j = 0; j <= zeitSchritt; j++) {
+          const y = sch[j]!;
+          if (!y.atom) { if (j === zeitSchritt) t.append(el("span", { class: "zl-satz zl-weg" }, "(ausgefallen) ")); continue; }
+          t.append(el("span", { class: "zl-satz " + qv(y.quelle).cls + (j === zeitSchritt ? " zl-jetzt" : " zl-frueher"), title: `${y.nr} · ${qv(y.quelle).name}${y.kategorie && y.kategorie !== "—" ? " · " + y.kategorie : ""}` }, y.atom + " "));
+        }
         zeitEbene.append(t);
         // Die Entscheidung.
         const ent = el("div", { class: "zl-entscheidung" });
@@ -1408,7 +1411,7 @@ export function mountStudio(root: HTMLElement): void {
       umweltLeg,
       el("span", { class: "muted" }, "· unmarkiert = Vorlagen · alles anklickbar")),
     el("div", { class: "feedsrow ansichtrow" },
-      ansicht(feedsChk, "Editieren"), ansicht(struktChk, "Struktur"), ansicht(planChk, "Bauplan"), ansicht(zeitChk, "Zeitlupe"), undoBtn, umweltStatus, skLeiste));
+      ansicht(feedsChk, "Editieren"), ansicht(struktChk, "Struktur"), ansicht(planChk, "Bauplan"), ansicht(zeitChk, "Quelltext"), undoBtn, umweltStatus, skLeiste));
   umweltLegZeigen();
 
   interface FMatch { s: number; e: number; cls: string; prio: number; }

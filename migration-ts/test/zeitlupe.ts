@@ -58,7 +58,7 @@ zeitlupeSchalten(false);
 {
   const q = readFileSync("src/ui/studio.ts", "utf8");
   // 4.353.0: Layer im Editorfenster statt Box unter dem Text, kein Abspielen.
-  wahr("Schalter „Zeitlupe“ neben dem Bauplan", /ansicht\(planChk, "Bauplan"\), ansicht\(zeitChk, "Zeitlupe"\)/.test(q));
+  wahr("Schalter „Quelltext“ neben dem Bauplan (vormals Zeitlupe)", /ansicht\(planChk, "Bauplan"\), ansicht\(zeitChk, "Quelltext"\)/.test(q));
   wahr("der Schalter steuert den Rekorder", /zeitlupeSchalten\(on\)/.test(q));
   wahr("Stapel und Ebene liegen im Textfenster", /mkGenArrow\("left"\), spur, out, zeitEbene, zeitStapel, mkGenArrow\("right"\)/.test(q));
   wahr("nur im Editiermodus", /const sichtbar = on && feedsChk\.checked;/.test(q));
@@ -112,6 +112,9 @@ zeitlupeSchalten(false);
   wahr("der Bau-Layer hat den Schritt-Stapel", /class: "zl-schritte"/.test(q) && /Schritt \$\{x\.nr\} von \$\{sch\.length\}/.test(q));
   // Gewünscht: die Quellen an den Schritten.
   wahr("jeder Schritt trägt Farbe und Buchstabe seiner Quelle", /class: "zl-schritt " \+ q\.cls/.test(q) && /el\("span", \{ class: "zl-q" \}, q\.kurz\)/.test(q));
+  // Gewünscht: der Fortschritt im Text in Quellfarben, nicht grün.
+  wahr("der Text bis dahin ist eine Folge der Atome in Quellfarben", /for \(let j = 0; j <= zeitSchritt; j\+\+\)/.test(q) && /class: "zl-satz " \+ qv\(y\.quelle\)\.cls \+ \(j === zeitSchritt \? " zl-jetzt" : " zl-frueher"\)/.test(q));
+  wahr("kein grünes Atom mehr im Schritt", !/class: "zl-satz zl-neu", title: "in diesem Schritt gesetzt"/.test(q));
   wahr("die Kopfzeile nennt die Quelle beim Namen", /" — Quelle ", el\("span", \{ class: "zl-legende-item " \+ qv\(x\.quelle\)\.cls \}, qv\(x\.quelle\)\.name\)/.test(q));
   wahr("eine Legende zählt die Quellen", /class: "muted mini zl-legende"/.test(q) && /sch\.filter\(\(x\) => x\.quelle === q\)\.length/.test(q));
   wahr("dieselben Farben wie die Editieren-Legende", /wortbank: \{ name: "Wortbank", cls: "feed-wb"/.test(q) && /dramaturgie: \{ name: "Erzählbogen", cls: "feed-drama"/.test(q));

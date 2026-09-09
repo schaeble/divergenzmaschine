@@ -1,4 +1,4 @@
-// Zeitlupe — der Bau eines Textes in Stufen (4.347.0).
+// Quelltext (vormals Zeitlupe) — der Bau eines Textes in Stufen (4.347.0, umbenannt 4.355.0).
 //
 // Gewünscht: den Bau eines Textes in Zeitlupe betrachten, Stop-and-go. Ein
 // Text entsteht in einer festen Folge von Stufen; hier hält jede Stufe ein

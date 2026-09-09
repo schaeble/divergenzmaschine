@@ -1210,3 +1210,6 @@ button.ek-probe:hover .ek-blaettern{opacity:1;color:var(--acc2)}
 .zl-schritt.feed-plain{background:var(--input-bg)}
 .zl-legende{display:flex;flex-wrap:wrap;gap:6px;margin:-2px 0 8px}
 .zl-legende-item{padding:0 5px;border-radius:3px}
+/* Quelltext im Bau: Fortschritt in Quellfarben (4.355.0). */
+.zl-frueher{opacity:.72}
+.zl-jetzt{outline:2px solid var(--acc2);outline-offset:1px}
