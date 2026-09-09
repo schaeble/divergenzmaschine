@@ -131,6 +131,8 @@ zeitlupeSchalten(false);
   // Gewünscht: der Fortschritt im Text in Quellfarben, nicht grün.
   wahr("der Text bis dahin ist eine Folge der Atome in Quellfarben", /for \(let j = 0; j <= zeitSchritt; j\+\+\)/.test(q) && /class: "zl-satz " \+ qv\(y\.quelle\)\.cls \+ \(j === zeitSchritt \? " zl-jetzt" : " zl-frueher"\)/.test(q));
   wahr("kein grünes Atom mehr im Schritt", !/class: "zl-satz zl-neu", title: "in diesem Schritt gesetzt"/.test(q));
+  // Gewünscht: Der ganze Bau zeigt die Struktur aus den Schritten — alle Atome in Quellfarben.
+  wahr("der ganze Bau: alle Atome in Quellfarben statt grün", /if \(zeitSchritt < 0\) \{\s*\n\s*const w = akt\.text/.test(q) && /for \(const y of sch\) \{\s*\n\s*if \(!y\.atom\) continue;\s*\n\s*t\.append\(el\("span", \{ class: "zl-satz " \+ qv\(y\.quelle\)\.cls/.test(q));
   // Gewünscht: die Herkunft der Wortbank — aus welchem Preset — beim Überfahren.
   wahr("Wortbank-Atome nennen ihr Preset (Suche in allen Presets)", /const presetHerkunft = \(text: string\): string =>/.test(q) && /for \(const \[id, p\] of Object\.entries\(getAllPresets\(\)\)\)/.test(q));
   wahr("… im Tooltip des Atoms, in der Kopfzeile und bei den Konkurrenten", /" · Preset " \+ herkunft\(y\.quelle, y\.atom\)/.test(q) && /` · Preset \$\{herkunft\(x\.quelle, x\.atom\)\}`/.test(q) && /herkunft\(q\.quelle, q\.text\)/.test(q));

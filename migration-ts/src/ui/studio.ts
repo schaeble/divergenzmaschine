@@ -1201,6 +1201,22 @@ export function mountStudio(root: HTMLElement): void {
       const vorkommen = [...new Set(sch.map((x) => x.quelle))];
       const legende = el("div", { class: "muted mini zl-legende" }, ...vorkommen.map((q) => el("span", { class: "zl-legende-item " + qv(q).cls }, `${qv(q).kurz} ${qv(q).name} (${sch.filter((x) => x.quelle === q).length})`)));
       zeitEbene.append(kette, legende);
+      // Gewünscht: Der ganze Bau zeigt die Struktur, die aus den Schritten
+      // entstand — jedes Atom in der Farbe seiner Quelle (wie der Klick auf
+      // den letzten Schritt), nicht ein grün hinterlegter Block.
+      if (zeitSchritt < 0) {
+        const w = akt.text.split(/\s+/).filter(Boolean).length;
+        zeitEbene.append(el("div", { class: "muted mini zl-kopf" }, el("b", {}, `1 · Bau`), ` — ${akt.kurz} `, el("span", { class: "zl-zahl" }, `${sch.length} Schritte · ${w} Wörter`)));
+        const t = el("div", { class: "zl-text" });
+        for (const y of sch) {
+          if (!y.atom) continue;
+          t.append(el("span", { class: "zl-satz " + qv(y.quelle).cls, title: `${y.nr} · ${qv(y.quelle).name}${herkunft(y.quelle, y.atom) ? " · Preset " + herkunft(y.quelle, y.atom) : ""}${y.kategorie && y.kategorie !== "—" ? " · " + y.kategorie : ""} · Phase ${y.phase}` }, y.atom + " "));
+        }
+        zeitEbene.append(t);
+        zeitEbene.style.display = "";
+        out.classList.add("zl-unter");
+        return;
+      }
       if (zeitSchritt >= 0) {
         const x = sch[zeitSchritt]!;
         zeitEbene.append(el("div", { class: "muted mini zl-kopf" }, el("b", {}, `Schritt ${x.nr} von ${sch.length}`),
