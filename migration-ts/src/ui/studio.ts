@@ -20,6 +20,7 @@ import { archivEintraege, eintragNachId, bauformAendern, ladeQuelle, setzeQuelle
 import { phasenAusSchlagfolge } from "../atoms/assemble";
 import { ladeKurve, speichereKurve, schlagfolgeAusKurve, reglerAusKurve, kurveSpitzen, KURVEN_VORLAGEN, STUETZEN } from "../features/spannungskurve";
 import { zeitlupeSchalten, zeitlupeLesen, stufenDiff } from "../features/zeitlupe";
+import { variabilitaetFuer, messeUndMerke, variabilitaetWort } from "../features/variabilitaet";
 import { setBogenOverride } from "../generation/dramaturgie";
 import { ziehVorrat, vorratStand, type VorratFund } from "../features/wikisammler";
 import { ziehBildvorrat, ladeBildvorrat, type BildFund } from "../features/bildsammler";
@@ -554,6 +555,7 @@ export function mountStudio(root: HTMLElement): void {
     const boxes: HTMLInputElement[] = [];
     const CATL: Record<string, string> = { motifs: "Motive", hooks: "Hooks", props: "Requisiten", turns: "Wendungen", obstacles: "Hindernisse", stakes: "Einsätze", endings: "Enden" };
     const mixSrc = preset.value === AUTOMIX_ID ? lastAutoMixSources() : {};
+    const alleP = getAllPresets();
     markedPresetOptions().filter(([v]) => v !== AUTOMIX_ID).forEach(([v, l]) => {
       const cb = el("input", { type: "checkbox" }) as HTMLInputElement;
       cb.checked = selected.has(v); cb.value = v;
@@ -567,6 +569,20 @@ export function mountStudio(root: HTMLElement): void {
       const cats = mixSrc[v];
       const item = el("label", { class: "chk mpitem" + (cats ? " mixsrc" : "") }, cb, " " + l);
       if (cats) { item.title = "Auto-Mix-Quelle: " + cats.map((k) => CATL[k] || k).join(", "); item.append(el("span", { class: "mixsrc-badge" }, String(cats.length))); }
+      // Variabilität (4.356.0): gemessen, wie verschieden die Texte eines
+      // Presets ausfallen — als Zahl neben dem Namen; für eigene Presets auf
+      // Knopfdruck (Klick auf das „?“ misst sechs Läufe).
+      const pb = alleP[v]?.bank;
+      if (pb) {
+        const w = variabilitaetFuer(v, pb);
+        const badge = el("span", { class: "var-badge", title: w !== null ? `Variabilität ${w} % — ${variabilitaetWort(w)}: Verschiedenheit zweier Texte dieses Presets (sechs Läufe, gleiche Einstellungen). Klick: neu messen.` : "Variabilität noch nicht gemessen — Klick misst sechs Läufe (ein paar Sekunden)." }, w !== null ? `${w} %` : "?");
+        badge.addEventListener("click", (ev) => {
+          ev.preventDefault(); ev.stopPropagation();
+          badge.textContent = "…";
+          window.setTimeout(() => { const n = messeUndMerke(v, pb); badge.textContent = `${n} %`; badge.title = `Variabilität ${n} % — ${variabilitaetWort(n)} (gerade gemessen). Klick: neu messen.`; }, 20);
+        });
+        item.append(badge);
+      }
       ziel.append(item);
     });
     const curOpt = Array.from(preset.options).find((o) => o.value === preset.value);
