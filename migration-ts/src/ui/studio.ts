@@ -573,7 +573,7 @@ export function mountStudio(root: HTMLElement): void {
       // Presets ausfallen — als Zahl neben dem Namen; für eigene Presets auf
       // Knopfdruck (Klick auf das „?“ misst sechs Läufe).
       const pb = alleP[v]?.bank;
-      if (pb) {
+      if (pb && localStorage.getItem("dm_variabilitaet_zeigen_v1") === "1") {
         const w = variabilitaetFuer(v, pb);
         const badge = el("span", { class: "var-badge", title: w !== null ? `Variabilität ${w} % — ${variabilitaetWort(w)}: Verschiedenheit zweier Texte dieses Presets (sechs Läufe, gleiche Einstellungen). Klick: neu messen.` : "Variabilität noch nicht gemessen — Klick misst sechs Läufe (ein paar Sekunden)." }, w !== null ? `${w} %` : "?");
         badge.addEventListener("click", (ev) => {
@@ -730,10 +730,15 @@ export function mountStudio(root: HTMLElement): void {
   const archB = select("f-archb", ARCH_OPTS, "neutral");
   // Alle würfelbaren Stil-Regler (Würfeln-Knopf UND Zufallsstart nutzen dieselbe Liste)
   const ROLL_SELECTS = [tone, form, structure, mode, persp, rhythm, tension, cast, instab, markov, disruptor, varianz, ressort, archA, archB, preset];
+  // Gewünscht: die Variabilitäts-Zahl mit Schalter (dm_variabilitaet_zeigen_v1, Vorgabe aus).
+  const varChk = el("input", { type: "checkbox", id: "f-var-zeigen" }) as HTMLInputElement;
+  varChk.checked = localStorage.getItem("dm_variabilitaet_zeigen_v1") === "1";
+  varChk.addEventListener("change", () => { try { localStorage.setItem("dm_variabilitaet_zeigen_v1", varChk.checked ? "1" : "0"); } catch { /* voll */ } renderPresetChecks(); });
+  const varLbl = el("label", { class: "chk mini", title: "Zeigt neben jedem Preset die gemessene Variabilität seines Materials: wie verschieden die Wortbank-Sätze zweier Texte ausfallen. Eingebaute Presets liegen alle bei 76–85; die Zahl unterscheidet eigene und kleine Presets." }, varChk, " Variabilität zeigen");
   const presetField = el("div", { class: "field presetfield" },
     el("span", { class: "field-label lockrow" }, el("span", {}, "Preset — eins oder mehrere ankreuzen"), presetStatus, lockBtn(preset, "Preset")),
     preset,
-    el("div", { class: "btnrow" }, autoMixStudioBtn),
+    el("div", { class: "btnrow" }, autoMixStudioBtn, varLbl),
     presetList);
   wrap.append(presetField);
   wrap.append(el("div", { class: "grid3" }, lockField("Ton", tone), lockField("Form", form)));
