@@ -124,7 +124,11 @@ zeitlupeSchalten(false);
   // Gewünscht: der Fortschritt im Text in Quellfarben, nicht grün.
   wahr("der Text bis dahin ist eine Folge der Atome in Quellfarben", /for \(let j = 0; j <= zeitSchritt; j\+\+\)/.test(q) && /class: "zl-satz " \+ qv\(y\.quelle\)\.cls \+ \(j === zeitSchritt \? " zl-jetzt" : " zl-frueher"\)/.test(q));
   wahr("kein grünes Atom mehr im Schritt", !/class: "zl-satz zl-neu", title: "in diesem Schritt gesetzt"/.test(q));
-  wahr("die Kopfzeile nennt die Quelle beim Namen", /" — Quelle ", el\("span", \{ class: "zl-legende-item " \+ qv\(x\.quelle\)\.cls \}, qv\(x\.quelle\)\.name\)/.test(q));
+  // Gewünscht: die Herkunft der Wortbank — aus welchem Preset — beim Überfahren.
+  wahr("Wortbank-Atome nennen ihr Preset (Suche in allen Presets)", /const presetHerkunft = \(text: string\): string =>/.test(q) && /for \(const \[id, p\] of Object\.entries\(getAllPresets\(\)\)\)/.test(q));
+  wahr("… im Tooltip des Atoms, in der Kopfzeile und bei den Konkurrenten", /" · Preset " \+ herkunft\(y\.quelle, y\.atom\)/.test(q) && /` · Preset \$\{herkunft\(x\.quelle, x\.atom\)\}`/.test(q) && /herkunft\(q\.quelle, q\.text\)/.test(q));
+  wahr("nur für die Wortbank, nicht für Bogen oder Korpus", /q === "wortbank" \? presetHerkunft\(text\) : ""/.test(q));
+  wahr("die Kopfzeile nennt die Quelle beim Namen", /" — Quelle ", el\("span", \{ class: "zl-legende-item " \+ qv\(x\.quelle\)\.cls \}, qv\(x\.quelle\)\.name \+ /.test(q));
   wahr("eine Legende zählt die Quellen", /class: "muted mini zl-legende"/.test(q) && /sch\.filter\(\(x\) => x\.quelle === q\)\.length/.test(q));
   wahr("dieselben Farben wie die Editieren-Legende", /wortbank: \{ name: "Wortbank", cls: "feed-wb"/.test(q) && /dramaturgie: \{ name: "Erzählbogen", cls: "feed-drama"/.test(q));
   wahr("die Entscheidung mit Zerlegung und Konkurrenten steht daneben", /Konkurrenten, die es nicht wurden/.test(q) && /Zerlegung: /.test(q));

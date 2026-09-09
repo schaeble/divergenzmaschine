@@ -1139,6 +1139,31 @@ export function mountStudio(root: HTMLElement): void {
         kontext: { name: "4W-Kontext", cls: "feed-4w", kurz: "4" }, "kontext+bogen": { name: "Kontext + Erzählbogen", cls: "feed-drama", kurz: "4B" }, rahmen: { name: "Rahmen", cls: "feed-plain", kurz: "R" }, ton: { name: "Ton", cls: "feed-ton", kurz: "T" },
       };
       const qv = (q: string): { name: string; cls: string; kurz: string } => QUELLE[q] || { name: q, cls: "feed-plain", kurz: q.charAt(0).toUpperCase() };
+      // Gewünscht: Bei Wortbank-Atomen die HERKUNFT — aus welchem Preset der
+      // Satz stammt, denn die aktive Bank ist oft aus mehreren gemischt. Der
+      // Satz wird normalisiert in allen Presets (eingebaut und eigene) gesucht;
+      // Platzhalter-Vorlagen und gefüllte Sätze stehen wörtlich in keinem, dann
+      // bleibt es „Wortbank".
+      const herkunftCache = new Map<string, string>();
+      const normH = (t: string): string => (t || "").toLowerCase().replace(/[^a-zäöüß ]/g, "").replace(/\s+/g, " ").trim();
+      const presetHerkunft = (text: string): string => {
+        const n = normH(text);
+        if (!n) return "";
+        if (herkunftCache.has(n)) return herkunftCache.get(n)!;
+        const treffer: string[] = [];
+        for (const [id, p] of Object.entries(getAllPresets())) {
+          const b = p.bank as unknown as Record<string, unknown>;
+          for (const k of ["motifs", "hooks", "props", "turns", "obstacles", "stakes", "endings"]) {
+            const l = b[k];
+            if (Array.isArray(l) && (l as string[]).some((e) => normH(e) === n)) { treffer.push(p.label || id.replace(/^builtin:/, "")); break; }
+          }
+          if (treffer.length >= 3) break;
+        }
+        const r = treffer.join(", ");
+        herkunftCache.set(n, r);
+        return r;
+      };
+      const herkunft = (q: string, text: string): string => (q === "wortbank" ? presetHerkunft(text) : "");
       const kette = el("div", { class: "zl-schritte", role: "tablist", "aria-label": "Schritte des Zusammenbaus" });
       const ganz = el("button", { type: "button", class: "zl-schritt" + (zeitSchritt < 0 ? " zl-aktiv" : ""), title: "Der ganze Bau, wie die Stufe ihn hinterlässt" }, "Bau") as HTMLButtonElement;
       ganz.addEventListener("click", () => { zeitSchritt = -1; renderZeit(); });
@@ -1146,7 +1171,7 @@ export function mountStudio(root: HTMLElement): void {
       sch.forEach((x, i) => {
         const q = qv(x.quelle);
         const b = el("button", { type: "button", class: "zl-schritt " + q.cls + (zeitSchritt === i ? " zl-aktiv" : "") + (x.atom ? "" : " zl-still"),
-          title: `${x.nr} · ${q.name}${x.kategorie && x.kategorie !== "—" ? " · " + x.kategorie : ""} · Phase ${x.phase}${x.slot && x.slot !== x.phase ? " · erwartet " + x.slot : ""}` },
+          title: `${x.nr} · ${q.name}${herkunft(x.quelle, x.atom) ? " (" + herkunft(x.quelle, x.atom) + ")" : ""}${x.kategorie && x.kategorie !== "—" ? " · " + x.kategorie : ""} · Phase ${x.phase}${x.slot && x.slot !== x.phase ? " · erwartet " + x.slot : ""}` },
           String(x.nr), el("span", { class: "zl-q" }, q.kurz)) as HTMLButtonElement;
         b.addEventListener("click", () => { zeitSchritt = i; renderZeit(); });
         kette.append(b);
@@ -1158,7 +1183,7 @@ export function mountStudio(root: HTMLElement): void {
       if (zeitSchritt >= 0) {
         const x = sch[zeitSchritt]!;
         zeitEbene.append(el("div", { class: "muted mini zl-kopf" }, el("b", {}, `Schritt ${x.nr} von ${sch.length}`),
-          " — Quelle ", el("span", { class: "zl-legende-item " + qv(x.quelle).cls }, qv(x.quelle).name), (x.kategorie && x.kategorie !== "—" ? ` · ${x.kategorie}` : "") + ` · ${x.typ}`
+          " — Quelle ", el("span", { class: "zl-legende-item " + qv(x.quelle).cls }, qv(x.quelle).name + (herkunft(x.quelle, x.atom) ? ` · Preset ${herkunft(x.quelle, x.atom)}` : "")), (x.kategorie && x.kategorie !== "—" ? ` · ${x.kategorie}` : "") + ` · ${x.typ}`
           + ` · Phase ${x.phase}` + (x.slot && x.slot !== x.phase ? `, erwartet „${x.slot}“` : "") + (x.kandidaten ? ` · ${x.kandidaten} Kandidaten` : "")));
         // Der Text bis hierher als Folge der Atome, JEDES in der Farbe seiner
         // Quelle (gewünscht: nicht grün, sondern die Kategorie zeigt den
@@ -1167,7 +1192,7 @@ export function mountStudio(root: HTMLElement): void {
         for (let j = 0; j <= zeitSchritt; j++) {
           const y = sch[j]!;
           if (!y.atom) { if (j === zeitSchritt) t.append(el("span", { class: "zl-satz zl-weg" }, "(ausgefallen) ")); continue; }
-          t.append(el("span", { class: "zl-satz " + qv(y.quelle).cls + (j === zeitSchritt ? " zl-jetzt" : " zl-frueher"), title: `${y.nr} · ${qv(y.quelle).name}${y.kategorie && y.kategorie !== "—" ? " · " + y.kategorie : ""}` }, y.atom + " "));
+          t.append(el("span", { class: "zl-satz " + qv(y.quelle).cls + (j === zeitSchritt ? " zl-jetzt" : " zl-frueher"), title: `${y.nr} · ${qv(y.quelle).name}${herkunft(y.quelle, y.atom) ? " · Preset " + herkunft(y.quelle, y.atom) : ""}${y.kategorie && y.kategorie !== "—" ? " · " + y.kategorie : ""}` }, y.atom + " "));
         }
         zeitEbene.append(t);
         // Die Entscheidung.
@@ -1179,7 +1204,7 @@ export function mountStudio(root: HTMLElement): void {
           ent.append(gl);
           if (x.konkurrenten.length) {
             const k = el("div", { style: "margin-top:4px" }, el("b", {}, "Konkurrenten, die es nicht wurden: "));
-            for (const q of x.konkurrenten) k.append(el("div", { class: "zl-konkurrent" }, el("span", { class: "muted mini" }, `${q.score.toFixed(2)} · ${Math.round(q.anteil * 100)} % · `), el("span", { class: "zl-legende-item " + qv(q.quelle).cls }, qv(q.quelle).name), el("span", { class: "muted mini" }, `${q.kategorie && q.kategorie !== "—" ? " · " + q.kategorie : ""}: `), q.text));
+            for (const q of x.konkurrenten) k.append(el("div", { class: "zl-konkurrent" }, el("span", { class: "muted mini" }, `${q.score.toFixed(2)} · ${Math.round(q.anteil * 100)} % · `), el("span", { class: "zl-legende-item " + qv(q.quelle).cls }, qv(q.quelle).name + (herkunft(q.quelle, q.text) ? ` · ${herkunft(q.quelle, q.text)}` : "")), el("span", { class: "muted mini" }, `${q.kategorie && q.kategorie !== "—" ? " · " + q.kategorie : ""}: `), q.text));
             ent.append(k);
           }
         } else ent.append(el("div", { class: "muted mini" }, x.gruende.map((g) => g.name).join(" · ")));
