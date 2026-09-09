@@ -473,7 +473,7 @@ export function buildRekombination(bank: Bank, input: GenInput, model?: MarkovMo
     if (zeitlupeAn()) {
       const z = letzteZiehungLesen();
       zeitlupeSchritt({ text: out.join(" "), atom: text, phase: String(phase || ""), slot: kurve[s % kurve.length]!, quelle: a.quelle, kategorie: a.kategorie || "—", typ: a.typ,
-        score: z?.score ?? 0, anteil: z?.anteil ?? 0, gruende: z?.gruende ?? [], kandidaten: z?.kandidaten ?? 0, konkurrenten: z?.konkurrenten ?? [] });
+        score: z?.score ?? 0, anteil: z?.anteil ?? 0, rang: z?.rang, bester: z?.bester, durchschnitt: z?.durchschnitt, gruende: z?.gruende ?? [], kandidaten: z?.kandidaten ?? 0, konkurrenten: z?.konkurrenten ?? [] });
     }
     gleicheInFolge = a.typ === letzterTyp ? gleicheInFolge + 1 : 0;
     flachInFolge = FLACH.has(a.typ) ? flachInFolge + 1 : 0;

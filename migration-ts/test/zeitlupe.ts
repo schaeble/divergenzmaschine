@@ -100,6 +100,13 @@ zeitlupeSchalten(false);
   wahr("Gewicht und Anteil stehen", sch.every((x) => x.score > 0 && x.anteil > 0 && x.anteil <= 1));
   wahr("Konkurrenten mit Gewicht und Anteil, höchstens zwei", sch.some((x) => x.konkurrenten.length === 2) && sch.every((x) => x.konkurrenten.length <= 2 && x.konkurrenten.every((k) => k.score >= 0 && k.text)));
   wahr("ein Konkurrent ist nie der Gewinner", sch.every((x) => x.konkurrenten.every((k) => k.text !== x.atom)));
+  // Gemeldet: „Anteil 1 % — Würfelglück" bei einem Gewinner nah an der Spitze. Jetzt Rang, Bester, Durchschnitt.
+  wahr("jeder Schritt kennt seinen Rang im Feld", sch.every((x) => (x.rang ?? 0) >= 1 && (x.rang ?? 0) <= x.kandidaten));
+  wahr("der Beste ist nie kleiner als der Gewinner", sch.every((x) => (x.bester ?? 0) >= x.score - 1e-9));
+  wahr("der Durchschnitt liegt zwischen null und dem Besten", sch.every((x) => (x.durchschnitt ?? 0) > 0 && (x.durchschnitt ?? 0) <= (x.bester ?? 0) + 1e-9));
+  wahr("Konkurrenten tragen ihren Rang", sch.every((x) => x.konkurrenten.every((k) => (k.rang ?? 0) >= 1)));
+  const q2 = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("die Erläuterung urteilt nach Rang, nicht nach Anteil", /quant <= 0\.05 \|\| rang <= 2 \? "unter den Besten"/.test(q2) && /Platz \$\{rang\} von \$\{n\}/.test(q2) && /gegenüber dem Durchschnitt/.test(q2));
   // Dramaturgie: die Schritte sind die Schläge.
   setDramaData({ einstieg: ["Der Bote hört die Glocke"], mitte: ["Ein Netz aus Fäden", "Ein Fenster ohne Glas"], hoehepunkt: ["Die Glocke schweigt"], schluss: ["Zurück bleibt ein Ton"], ausloeser: ["ein Strick"], veraenderungen: ["die Zeit kippt"], konflikte: [], zeitanomalien: [], regeln: [] });
   const t4 = buildStory(BUILTIN_PRESETS["kafka"] as Bank, { ...inp, structure: "dramaturgie" } as never);

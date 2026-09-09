@@ -1219,13 +1219,21 @@ export function mountStudio(root: HTMLElement): void {
         // Die Entscheidung.
         const ent = el("div", { class: "zl-entscheidung" });
         if (x.kandidaten) {
-          ent.append(el("div", {}, el("b", {}, "Entscheidung: "), `Gewicht ${x.score.toFixed(2)} — Anteil an der Ziehung ${Math.round(x.anteil * 100)} %`,
-            el("span", { class: "muted mini" }, x.anteil >= 0.5 ? " (klarer Favorit)" : x.anteil >= 0.2 ? " (bevorzugt, aber nicht sicher)" : " (Würfelglück — das Gewicht allein hätte kaum gereicht)")));
+          // Einordnung nach RANG im Feld, nicht nach Anteil: Bei hunderten
+          // Kandidaten hat jeder ein Prozent — der Anteil sagt nichts. Der Platz
+          // und das Verhältnis zum Durchschnitt sagen es.
+          const rang = x.rang ?? 0, n = x.kandidaten;
+          const quant = rang && n ? rang / n : 1;
+          const faktor = x.durchschnitt ? x.score / x.durchschnitt : 1;
+          const urteil = !rang ? "" : quant <= 0.05 || rang <= 2 ? "unter den Besten" : quant <= 0.25 ? "gut platziert" : quant <= 0.5 ? "Mittelfeld" : "Würfelglück — das Gewicht allein hätte kaum gereicht";
+          ent.append(el("div", {}, el("b", {}, "Entscheidung: "), `Gewicht ${x.score.toFixed(2)}` + (rang ? ` — Platz ${rang} von ${n}` : "") + (x.durchschnitt ? `, ×${faktor.toFixed(1)} gegenüber dem Durchschnitt (${x.durchschnitt.toFixed(2)})` : "") + (x.bester && x.bester > x.score ? `, bester ${x.bester.toFixed(2)}` : ""),
+            el("span", { class: "muted mini" }, urteil ? ` (${urteil})` : ""),
+            el("span", { class: "muted mini", title: "Die Ziehung ist ein gewichtetes Los: Jeder Kandidat wird mit seinem Gewicht gezogen. Bei vielen Kandidaten ist der Anteil des einzelnen klein, auch des besten." }, ` · Anteil an der Ziehung ${x.anteil >= 0.005 ? Math.round(x.anteil * 100) : "<1"} %`)));
           const gl = el("div", { class: "muted mini" }, "Zerlegung: " + x.gruende.map((g) => `${g.name} ${g.name.startsWith("Bogen-Gewicht") ? "×" : ""}${g.wert >= 0 && !g.name.startsWith("Bogen-Gewicht") ? "+" : ""}${g.wert.toFixed(2)}`).join(" · "));
           ent.append(gl);
           if (x.konkurrenten.length) {
             const k = el("div", { style: "margin-top:4px" }, el("b", {}, "Konkurrenten, die es nicht wurden: "));
-            for (const q of x.konkurrenten) k.append(el("div", { class: "zl-konkurrent" }, el("span", { class: "muted mini" }, `${q.score.toFixed(2)} · ${Math.round(q.anteil * 100)} % · `), el("span", { class: "zl-legende-item " + qv(q.quelle).cls }, qv(q.quelle).name + (herkunft(q.quelle, q.text) ? ` · ${herkunft(q.quelle, q.text)}` : "")), el("span", { class: "muted mini" }, `${q.kategorie && q.kategorie !== "—" ? " · " + q.kategorie : ""}: `), q.text));
+            for (const q of x.konkurrenten) k.append(el("div", { class: "zl-konkurrent" }, el("span", { class: "muted mini" }, `${q.score.toFixed(2)}${q.rang ? ` · Platz ${q.rang}` : ` · ${Math.round(q.anteil * 100)} %`} · `), el("span", { class: "zl-legende-item " + qv(q.quelle).cls }, qv(q.quelle).name + (herkunft(q.quelle, q.text) ? ` · ${herkunft(q.quelle, q.text)}` : "")), el("span", { class: "muted mini" }, `${q.kategorie && q.kategorie !== "—" ? " · " + q.kategorie : ""}: `), q.text));
             ent.append(k);
           }
         } else ent.append(el("div", { class: "muted mini" }, x.gruende.map((g) => g.name).join(" · ")));

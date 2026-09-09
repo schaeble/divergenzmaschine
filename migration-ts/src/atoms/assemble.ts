@@ -350,7 +350,8 @@ export function verfugen(teile: string[]): string {
  *  Konkurrenten. Nur gefüllt, wenn die Zeitlupe an ist (sonst kostet die
  *  Zerlegung nichts, weil sie nicht gerechnet wird). */
 export interface Ziehung { score: number; anteil: number; gruende: { name: string; wert: number }[]; kandidaten: number;
-  konkurrenten: { text: string; score: number; anteil: number; quelle: string; kategorie: string }[] }
+  rang: number; bester: number; durchschnitt: number;
+  konkurrenten: { text: string; score: number; anteil: number; rang: number; quelle: string; kategorie: string }[] }
 let letzteZiehung: Ziehung | null = null;
 let ziehungOffenlegen = false;
 export function setZiehungOffenlegen(an: boolean): void { ziehungOffenlegen = an; }
@@ -395,10 +396,18 @@ export function ziehe(kandidaten: PoolAtom[], sollGewicht: string, bisher: strin
     const ov = [...stems(gewinner.text)].filter((x) => kontext.has(x)).length;
     if (ov) g.push({ name: `Anschluss (${ov} Stämme)`, wert: ov > 3 ? Math.min(ov, 2) * 0.8 - 2 : Math.min(ov, 2) * 0.8 });
     if (gewinner.quelle === "dramaturgie" && bogenGewicht !== 1) g.push({ name: "Bogen-Gewicht ×", wert: bogenGewicht });
+    // Rang im Feld: Bei hunderten Kandidaten hat jeder nur ein Prozent Anteil —
+    // der Anteil sagt dann nichts über die Güte. Der Rang und das Verhältnis
+    // zum Durchschnitt tun es (gemeldet: „Anteil 1 % — Würfelglück" bei einem
+    // Gewinner nah an der Spitze).
+    const alleScores = kandidaten.map((a) => score(a)).sort((x, y) => y - x);
+    const sg = score(gewinner);
+    const rang = alleScores.findIndex((x) => x <= sg) + 1;
     const andere = kandidaten.filter((a) => a !== gewinner).map((a) => ({ a, s: score(a) })).sort((x, y) => y.s - x.s).slice(0, 2);
     letzteZiehung = {
-      score: score(gewinner), anteil: total ? score(gewinner) / total : 1, gruende: g, kandidaten: kandidaten.length,
-      konkurrenten: andere.map(({ a, s }) => ({ text: a.text, score: s, anteil: total ? s / total : 0, quelle: a.quelle, kategorie: a.kategorie || "—" })),
+      score: sg, anteil: total ? sg / total : 1, gruende: g, kandidaten: kandidaten.length,
+      rang: Math.max(1, rang), bester: alleScores[0] ?? sg, durchschnitt: kandidaten.length ? total / kandidaten.length : sg,
+      konkurrenten: andere.map(({ a, s }) => ({ text: a.text, score: s, anteil: total ? s / total : 0, rang: Math.max(1, alleScores.findIndex((x) => x <= s) + 1), quelle: a.quelle, kategorie: a.kategorie || "—" })),
     };
   }
   return gewinner;

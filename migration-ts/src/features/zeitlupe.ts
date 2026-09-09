@@ -11,7 +11,7 @@ export interface Stufe { name: string; text: string; kurz: string; schritte?: Sc
 
 /** Stufe 3 (4.354.0): ein Schritt des Zusammenbaus — ein gezogenes Atom mit
  *  der Entscheidung dahinter und den Konkurrenten, die es nicht wurden. */
-export interface Konkurrent { text: string; score: number; anteil: number; quelle: string; kategorie: string }
+export interface Konkurrent { text: string; score: number; anteil: number; rang?: number; quelle: string; kategorie: string }
 export interface Schritt {
   nr: number;
   text: string;          // der Text NACH diesem Schritt
@@ -20,6 +20,7 @@ export interface Schritt {
   slot: string;          // erwarteter Atomtyp (Rhythmus-Gewicht)
   quelle: string; kategorie: string; typ: string;
   score: number; anteil: number;       // Gewicht des Gewinners und sein Anteil an der Ziehung
+  rang?: number; bester?: number; durchschnitt?: number;   // Platz im Feld, bestes Gewicht, Durchschnitt
   gruende: { name: string; wert: number }[];   // Zerlegung des Gewichts
   kandidaten: number;
   konkurrenten: Konkurrent[];          // die zwei nächstbesten
