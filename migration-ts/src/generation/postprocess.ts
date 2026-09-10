@@ -398,6 +398,30 @@ export function adjektivKongruenz(t: string): string {
   });
 }
 
+/** Relativpronomen nach Präposition: „ein Fenster in der die Zeit stillsteht"
+ *  → „in dem". Gemeldet (Blatt „Ost-Berlin II"). Entsteht wie die Adjektiv-
+ *  Kongruenz durch Motivverwandlungen (Kammer → Fenster). Nur nach Dativ-
+ *  Präpositionen, nur bei bekanntem Genus des Bezugsnomens, und nur, wenn
+ *  hinter dem Pronomen ein Subjekt folgt (Artikel, Pronomen, „man"), damit
+ *  „im Haus an der Ecke" (Ortsangabe, kein Relativsatz) stehen bleibt. */
+export function relativKongruenz(t: string): string {
+  return (t || "").replace(/\b([A-ZÄÖÜ][a-zäöüß]{2,}),? (in|an|auf|unter|über|vor|hinter|neben|zwischen|bei|mit|aus|nach|von|zu) (der|dem) (die|der|das|ein|eine|man|es|sie|er|niemand|jemand|nichts|alles|ich|wir|du|ihr|kein|keine)\b/g,
+    (m, nomen: string, praep: string, pron: string, subj: string) => {
+      const g = genderOf(nomen);
+      if (!g) return m;
+      // Nach „von/bei/mit/aus/nach/zu" ist ein Artikel-Subjekt nicht sicher
+      // ein Relativsatz („bei der Arbeit") — dort nur mit Pronomen-Subjekt.
+      const praepSicher = /^(in|an|auf|unter|über|vor|hinter|neben|zwischen)$/.test(praep);
+      if (!praepSicher && /^(die|der|das|ein|eine|kein|keine)$/.test(subj)) return m;
+      // „in der Küche" — Artikel + großgeschriebenes Nomen ist eine Ortsangabe,
+      // kein Relativsatz: nur bei kleingeschriebenem Subjekt greifen.
+      const soll = g === "f" ? "der" : "dem";
+      if (soll === pron) return m;
+      // Ein Relativsatz trägt sein Komma — auch wenn das Material keines hatte.
+      return `${nomen}, ${praep} ${soll} ${subj}`;
+    });
+}
+
 export function nominativFragment(t: string): string {
   return (t || "").replace(/(^|[.!?…]\s+|\n)(Einen|Den|Einem|Dem)\s+([A-ZÄÖÜ][a-zäöüß]+)([^.!?…\n]*[.!?…])/g,
     (m: string, vor: string, art: string, nomen: string, rest: string) => {
@@ -471,6 +495,7 @@ export function postProcessText(txt: string, input?: Input): string {
   z("schliff_nomenNachAdverb", nomenNachAdverb);
   z("schliff_nominativFragment", nominativFragment);
   z("schliff_adjektivKongruenz", adjektivKongruenz);
+  z("schliff_relativKongruenz", relativKongruenz);
   z("schliff_formelnGlaetten", formelnGlaetten);
 
   // Unbestimmter Artikel MITTEN im Satz klein.

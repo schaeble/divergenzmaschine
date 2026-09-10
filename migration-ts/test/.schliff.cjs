@@ -5794,6 +5794,7 @@ __export(postprocess_exports, {
   nominativFragment: () => nominativFragment,
   pluralKongruenz: () => pluralKongruenz,
   postProcessText: () => postProcessText,
+  relativKongruenz: () => relativKongruenz,
   schliesseFigurenkomma: () => schliesseFigurenkomma
 });
 function glaetten(t) {
@@ -5999,6 +6000,20 @@ function adjektivKongruenz(t) {
     return `${vor}${sollArt} ${stamm}${sollEnd} ${nomen}`;
   });
 }
+function relativKongruenz(t) {
+  return (t || "").replace(
+    /\b([A-ZÄÖÜ][a-zäöüß]{2,}),? (in|an|auf|unter|über|vor|hinter|neben|zwischen|bei|mit|aus|nach|von|zu) (der|dem) (die|der|das|ein|eine|man|es|sie|er|niemand|jemand|nichts|alles|ich|wir|du|ihr|kein|keine)\b/g,
+    (m, nomen, praep, pron, subj) => {
+      const g = guessGender(nomen);
+      if (!g) return m;
+      const praepSicher = /^(in|an|auf|unter|über|vor|hinter|neben|zwischen)$/.test(praep);
+      if (!praepSicher && /^(die|der|das|ein|eine|kein|keine)$/.test(subj)) return m;
+      const soll = g === "f" ? "der" : "dem";
+      if (soll === pron) return m;
+      return `${nomen}, ${praep} ${soll} ${subj}`;
+    }
+  );
+}
 function nominativFragment(t) {
   return (t || "").replace(
     /(^|[.!?…]\s+|\n)(Einen|Den|Einem|Dem)\s+([A-ZÄÖÜ][a-zäöüß]+)([^.!?…\n]*[.!?…])/g,
@@ -6043,6 +6058,7 @@ function postProcessText(txt, input) {
   z("schliff_nomenNachAdverb", nomenNachAdverb);
   z("schliff_nominativFragment", nominativFragment);
   z("schliff_adjektivKongruenz", adjektivKongruenz);
+  z("schliff_relativKongruenz", relativKongruenz);
   z("schliff_formelnGlaetten", formelnGlaetten);
   z("schliff_kleinerArtikel", kleinerArtikel);
   const name = (input?.who ?? "").toString().trim();
@@ -14553,6 +14569,12 @@ ist("Knapp nach Strich klein", kleinesPronomen("zu vollkommener Ruhe \u2014 Knap
   ist("richtig bleibt richtig", adjektivKongruenz2("Eine kalte Nacht. Ein leises Haus."), "Eine kalte Nacht. Ein leises Haus.");
   ist("unbekanntes Genus: unangetastet", adjektivKongruenz2("Ein rotes Xylom steht."), "Ein rotes Xylom steht.");
   ist("nicht am Satzanfang: unangetastet (Akkusativ)", adjektivKongruenz2("Er h\xE4lt ein rotes Band."), "Er h\xE4lt ein rotes Band.");
+  const { relativKongruenz: relativKongruenz2 } = (init_postprocess(), __toCommonJS(postprocess_exports));
+  ist("Fenster in der die \u2026 \u2192 Fenster, in dem die \u2026", relativKongruenz2("ein Fenster in der die Zeit stillsteht"), "ein Fenster, in dem die Zeit stillsteht");
+  ist("Kammer in dem es \u2026 \u2192 Kammer, in der es \u2026", relativKongruenz2("eine Kammer in dem es dunkel ist"), "eine Kammer, in der es dunkel ist");
+  ist("Ortsangabe bleibt (an der Ecke)", relativKongruenz2("im Haus an der Ecke"), "im Haus an der Ecke");
+  ist("\u201Ebei der man\u201C bleibt, wenn es stimmt", relativKongruenz2("die Frau, bei der man klingelt"), "die Frau, bei der man klingelt");
+  ist("richtiger Relativsatz bleibt", relativKongruenz2("der Hof, in dem niemand wartet"), "der Hof, in dem niemand wartet");
   const { applyTension: at } = (init_shape(), __toCommonJS(shape_exports));
   let ellipse = 0;
   for (let i = 0; i < 40; i++) {

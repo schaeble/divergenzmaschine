@@ -16,7 +16,7 @@ export type Zaehler = string;
  *  Korpus-Hygiene. In der Diagnose hinter dem Schalter „erweitert". */
 export const EBENE2 = new Set<string>([
   "schliff_kleinesPronomen", "schliff_kommaVorInversion", "schliff_fragezeichen", "schliff_nomenNachAdverb", "schliff_nominativFragment",
-  "schliff_formelnGlaetten", "schliff_adjektivKongruenz", "schliff_kleinerArtikel", "schliff_pluralKongruenz", "schliff_polishGerman", "schliff_figurenkomma",
+  "schliff_formelnGlaetten", "schliff_adjektivKongruenz", "schliff_relativKongruenz", "schliff_kleinerArtikel", "schliff_pluralKongruenz", "schliff_polishGerman", "schliff_figurenkomma",
   "kohaerenzPass", "kohaerenzGefallen", "kohaerenzRepariert",
   "markovKurz", "markovWenigWoerter", "markovWiederholung", "markovFunktionswoerter", "markovSatzlaenge", "markovSatzzeichen", "markovBruchstueck",
   "fuellerStopp", "korpusHygiene",
@@ -45,6 +45,7 @@ export const ZAEHLER_NAMEN: Record<string, string> = {
   schliff_nominativFragment: "Schliff · Nominativ im Fragment",
   schliff_formelnGlaetten: "Schliff · Formeln geglättet",
   schliff_adjektivKongruenz: "Schliff · Adjektiv-Kongruenz am Satzanfang",
+  schliff_relativKongruenz: "Schliff · Relativpronomen nach Präposition",
   schliff_kleinerArtikel: "Schliff · Artikel klein in der Satzmitte",
   schliff_pluralKongruenz: "Schliff · Plural-Kongruenz",
   schliff_polishGerman: "Schliff · Sprachschliff (Artikel, Genus, Namen)",

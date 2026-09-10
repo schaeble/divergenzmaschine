@@ -433,6 +433,12 @@ ist("Knapp nach Strich klein", kleinesPronomen("zu vollkommener Ruhe — Knapp e
   ist("richtig bleibt richtig", adjektivKongruenz("Eine kalte Nacht. Ein leises Haus."), "Eine kalte Nacht. Ein leises Haus.");
   ist("unbekanntes Genus: unangetastet", adjektivKongruenz("Ein rotes Xylom steht."), "Ein rotes Xylom steht.");
   ist("nicht am Satzanfang: unangetastet (Akkusativ)", adjektivKongruenz("Er hält ein rotes Band."), "Er hält ein rotes Band.");
+  const { relativKongruenz } = require("../src/generation/postprocess") as { relativKongruenz: (t: string) => string };
+  ist("Fenster in der die … → Fenster, in dem die …", relativKongruenz("ein Fenster in der die Zeit stillsteht"), "ein Fenster, in dem die Zeit stillsteht");
+  ist("Kammer in dem es … → Kammer, in der es …", relativKongruenz("eine Kammer in dem es dunkel ist"), "eine Kammer, in der es dunkel ist");
+  ist("Ortsangabe bleibt (an der Ecke)", relativKongruenz("im Haus an der Ecke"), "im Haus an der Ecke");
+  ist("„bei der man“ bleibt, wenn es stimmt", relativKongruenz("die Frau, bei der man klingelt"), "die Frau, bei der man klingelt");
+  ist("richtiger Relativsatz bleibt", relativKongruenz("der Hof, in dem niemand wartet"), "der Hof, in dem niemand wartet");
   const { applyTension: at } = require("../src/generation/shape") as { applyTension: (t: string, p?: string, m?: unknown, k?: (p: number) => number) => string };
   let ellipse = 0;
   for (let i = 0; i < 40; i++) {

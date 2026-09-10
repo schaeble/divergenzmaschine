@@ -7371,6 +7371,20 @@ function adjektivKongruenz(t) {
     return `${vor}${sollArt} ${stamm}${sollEnd} ${nomen}`;
   });
 }
+function relativKongruenz(t) {
+  return (t || "").replace(
+    /\b([A-ZÄÖÜ][a-zäöüß]{2,}),? (in|an|auf|unter|über|vor|hinter|neben|zwischen|bei|mit|aus|nach|von|zu) (der|dem) (die|der|das|ein|eine|man|es|sie|er|niemand|jemand|nichts|alles|ich|wir|du|ihr|kein|keine)\b/g,
+    (m, nomen, praep, pron, subj) => {
+      const g = guessGender(nomen);
+      if (!g) return m;
+      const praepSicher = /^(in|an|auf|unter|über|vor|hinter|neben|zwischen)$/.test(praep);
+      if (!praepSicher && /^(die|der|das|ein|eine|kein|keine)$/.test(subj)) return m;
+      const soll = g === "f" ? "der" : "dem";
+      if (soll === pron) return m;
+      return `${nomen}, ${praep} ${soll} ${subj}`;
+    }
+  );
+}
 function nominativFragment(t) {
   return (t || "").replace(
     /(^|[.!?…]\s+|\n)(Einen|Den|Einem|Dem)\s+([A-ZÄÖÜ][a-zäöüß]+)([^.!?…\n]*[.!?…])/g,
@@ -7415,6 +7429,7 @@ function postProcessText(txt, input) {
   z("schliff_nomenNachAdverb", nomenNachAdverb);
   z("schliff_nominativFragment", nominativFragment);
   z("schliff_adjektivKongruenz", adjektivKongruenz);
+  z("schliff_relativKongruenz", relativKongruenz);
   z("schliff_formelnGlaetten", formelnGlaetten);
   z("schliff_kleinerArtikel", kleinerArtikel);
   const name = (input?.who ?? "").toString().trim();
