@@ -5,7 +5,7 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https
 (globalThis as unknown as Record<string, unknown>).localStorage = dom.window.localStorage;
 (globalThis as unknown as Record<string, unknown>).window = dom.window;
 import { readFileSync } from "fs";
-import { ladeStatistik, statistikKurz, statistikZuruecksetzen, zaehle } from "../src/features/waechterStatistik";
+import { ladeStatistik, statistikKurz, statistikZuruecksetzen, zaehle, ZAEHLER_NAMEN } from "../src/features/waechterStatistik";
 import { stueckPlausibel, pruefeSatz } from "../src/generation/satzwaechter";
 import { praesensUmschreiben } from "../src/generation/coherence";
 import { atomisiere } from "../src/atoms/atomisieren";
@@ -65,6 +65,28 @@ ist("zurückgesetzt", statistikKurz().verworfen, 0);
   wahr("Schaltplan hat den Knoten Satz-Wächter", /knoten\("waechter", 1, "Satz-Wächter"/.test(sp));
   const dg = readFileSync("src/ui/diagnoseView.ts", "utf8");
   wahr("Diagnose hat die Tafel mit Beispielen und Rücksetzknopf", /Wächter-Statistik — was die Regeln tun/.test(dg) && /Zähler zurücksetzen/.test(dg));
+}
+
+// ── Ebene 2 (4.357.0): die Wächter, die bisher nicht zählten ───────────────
+{
+  const { EBENE2, zaehleWennAnders } = require("../src/features/waechterStatistik") as { EBENE2: Set<string>; zaehleWennAnders: (w: string, a: string, b: string) => void };
+  const { isSaneMarkov } = require("../src/corpus") as { isSaneMarkov: (s: string) => boolean };
+  const { postProcessText } = require("../src/generation/postprocess") as { postProcessText: (t: string, i: unknown) => string };
+  statistikZuruecksetzen();
+  wahr("Ebene 2 kennt über zwanzig Wächter", EBENE2.size >= 20, String(EBENE2.size));
+  wahr("jeder hat einen Namen", [...EBENE2].every((z) => !!ZAEHLER_NAMEN[z]));
+  isSaneMarkov("zu kurz.");
+  isSaneMarkov("Und dann —");
+  ist("Markov-Sanity zählt je Grund", (ladeStatistik().zaehler["markovKurz"] || 0) >= 1, true);
+  zaehleWennAnders("schliff_fragezeichen", "Wer weiß das.", "Wer weiß das?");
+  zaehleWennAnders("schliff_fragezeichen", "Gleich.", "Gleich.");
+  ist("eine Regel zählt nur, wenn sie geändert hat", ladeStatistik().zaehler["schliff_fragezeichen"], 1);
+  wahr("mit Vorher → Nachher", /Wer weiß das\. → Wer weiß das\?/.test((ladeStatistik().beispiele["schliff_fragezeichen"] || [])[0] || ""));
+  postProcessText("Der Bote geht — Dann bleibt er stehen. Was zählt, ist der Weg. Ein Satz über Quantenphysik und Steuerrecht.", { tone: "neutral", form: "prose", who: "Der Bote" });
+  wahr("der Schliff hat im Bau gezählt", Object.keys(ladeStatistik().zaehler).some((k) => k.startsWith("schliff_")));
+  const dg = readFileSync("src/ui/diagnoseView.ts", "utf8");
+  wahr("die Diagnose hat den Schalter „erweitert“ und zeigt Ebene 2 dahinter", /id: "diag-waechter-erweitert"/.test(dg) && /dm_waechter_erweitert_v1/.test(dg) && /Zweite Ebene — Schliff, Kohärenz, Markov-Sanity, Füller, Korpus/.test(dg));
+  statistikZuruecksetzen();
 }
 
 console.log(`Prüfstand Wächter-Statistik — ${geprueft} Prüfungen, ${bestanden} bestanden`);

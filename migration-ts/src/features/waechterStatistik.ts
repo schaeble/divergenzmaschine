@@ -9,12 +9,20 @@
 // es zeigt. Die Zähler leben im localStorage (dm_waechter_statistik_v1) und
 // wandern mit der Projektdatei; ein Knopf in der Diagnose setzt sie zurück.
 
-export type Zaehler =
-  | "regel1" | "regel2" | "regel3" | "regel4" | "regel5" | "regel6" | "regel7" | "regel8"
-  | "angenommen" | "umgeschrieben" | "unklar" | "praeteritumVerworfen"
-  | "atomZerlegt" | "atomGekuerzt" | "atomGanzZuLang";
+export type Zaehler = string;
 
-export const ZAEHLER_NAMEN: Record<Zaehler, string> = {
+/** Ebene 2 (4.357.0): die Wächter, die dieselbe Arbeit tun, aber bisher
+ *  nicht zählten — Schliff-Regeln, Kohärenz, Markov-Sanity, Füller,
+ *  Korpus-Hygiene. In der Diagnose hinter dem Schalter „erweitert". */
+export const EBENE2 = new Set<string>([
+  "schliff_kleinesPronomen", "schliff_kommaVorInversion", "schliff_fragezeichen", "schliff_nomenNachAdverb", "schliff_nominativFragment",
+  "schliff_formelnGlaetten", "schliff_kleinerArtikel", "schliff_pluralKongruenz", "schliff_polishGerman", "schliff_figurenkomma",
+  "kohaerenzPass", "kohaerenzGefallen", "kohaerenzRepariert",
+  "markovKurz", "markovWenigWoerter", "markovWiederholung", "markovFunktionswoerter", "markovSatzlaenge", "markovSatzzeichen", "markovBruchstueck",
+  "fuellerStopp", "korpusHygiene",
+]);
+
+export const ZAEHLER_NAMEN: Record<string, string> = {
   regel1: "Wächter 1 · hängendes Ende",
   regel2: "Wächter 2 · ohne Verb, ohne Kopf",
   regel3: "Wächter 3 · gebrochene Klausel",
@@ -30,9 +38,41 @@ export const ZAEHLER_NAMEN: Record<Zaehler, string> = {
   atomZerlegt: "Atomisierung · zerlegt",
   atomGekuerzt: "Atomisierung · Nebensatz abgeschnitten",
   atomGanzZuLang: "Atomisierung · zu lang, ganz gelassen",
+  schliff_kleinesPronomen: "Schliff · Pronomen/Adverb nach Strich klein",
+  schliff_kommaVorInversion: "Schliff · Komma vor der Inversion",
+  schliff_fragezeichen: "Schliff · Fragezeichen",
+  schliff_nomenNachAdverb: "Schliff · Nomen nach Satzadverb groß",
+  schliff_nominativFragment: "Schliff · Nominativ im Fragment",
+  schliff_formelnGlaetten: "Schliff · Formeln geglättet",
+  schliff_kleinerArtikel: "Schliff · Artikel klein in der Satzmitte",
+  schliff_pluralKongruenz: "Schliff · Plural-Kongruenz",
+  schliff_polishGerman: "Schliff · Sprachschliff (Artikel, Genus, Namen)",
+  schliff_figurenkomma: "Schliff · Figurenkomma geschlossen",
+  kohaerenzPass: "Kohärenz · Lauf 1 (Brüche, Wiederholungen)",
+  kohaerenzGefallen: "Kohärenz · Satz gefallen (themenfremd)",
+  kohaerenzRepariert: "Kohärenz · Lauf 2 hat geändert",
+  markovKurz: "Markov-Sanity · zu kurz",
+  markovWenigWoerter: "Markov-Sanity · unter fünf Wörter",
+  markovWiederholung: "Markov-Sanity · ein Wort dominiert",
+  markovFunktionswoerter: "Markov-Sanity · nur Funktionswörter",
+  markovSatzlaenge: "Markov-Sanity · Satzlänge unpassend",
+  markovSatzzeichen: "Markov-Sanity · Satzzeichen gehäuft",
+  markovBruchstueck: "Markov-Sanity · Bruchstück am Ende",
+  fuellerStopp: "Füller · aufgehört, nichts Frisches mehr",
+  korpusHygiene: "Korpus-Hygiene · Selbstreinigung",
 };
 
-export interface Statistik { zaehler: Partial<Record<Zaehler, number>>; beispiele: Partial<Record<Zaehler, string[]>>; seit: string }
+/** Wächter-Helfer: eine Regel zählt, wenn sie den Text verändert hat — mit
+ *  Vorher → Nachher als Beispiel (auf das erste verschiedene Satzpaar
+ *  gekürzt). */
+export function zaehleWennAnders(was: Zaehler, vorher: string, nachher: string): void {
+  if (vorher === nachher) return;
+  const a = vorher.split(/(?<=[.!?…])\s+/), b = nachher.split(/(?<=[.!?…])\s+/);
+  let i = 0; while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  zaehle(was, `${(a[i] || "").slice(0, 70)} → ${(b[i] || "").slice(0, 70)}`);
+}
+
+export interface Statistik { zaehler: Partial<Record<string, number>>; beispiele: Partial<Record<string, string[]>>; seit: string }
 
 const KEY = "dm_waechter_statistik_v1";
 const BEISPIELE_JE = 5;
@@ -81,10 +121,10 @@ export function statistikZuruecksetzen(): void {
 }
 
 /** Zusammenfassung für den Schaltplan: verworfen gesamt, Anteil, häufigste Regel. */
-export function statistikKurz(): { verworfen: number; angenommen: number; quote: number; haeufigste: Zaehler | null; umgeschrieben: number; zerlegt: number } {
+export function statistikKurz(): { verworfen: number; angenommen: number; quote: number; haeufigste: string | null; umgeschrieben: number; zerlegt: number } {
   const st = ladeStatistik();
-  const regeln: Zaehler[] = ["regel1", "regel2", "regel3", "regel4", "regel5", "regel6", "regel7", "regel8"];
-  let verworfen = 0; let haeufigste: Zaehler | null = null; let max = 0;
+  const regeln: string[] = ["regel1", "regel2", "regel3", "regel4", "regel5", "regel6", "regel7", "regel8"];
+  let verworfen = 0; let haeufigste: string | null = null; let max = 0;
   for (const r of regeln) { const n = st.zaehler[r] || 0; verworfen += n; if (n > max) { max = n; haeufigste = r; } }
   const angenommen = st.zaehler.angenommen || 0;
   return { verworfen, angenommen, quote: verworfen + angenommen ? verworfen / (verworfen + angenommen) : 0, haeufigste,

@@ -5,6 +5,7 @@
 // (model.addText), statt bei jeder Generierung die ganze Kette neu aus dem
 // kompletten Korpus zu bauen. Das war die eigentliche Ursache der Hänger bei
 // großem Korpus.
+import { zaehle } from "./features/waechterStatistik";
 import { STORAGE_CORPUS, CORPUS_MAX } from "./constants";
 import { clean } from "./text-utils";
 import { safeSet } from "./features/storage-status";
@@ -136,7 +137,7 @@ export function appendToPersistentCorpus(textToAdd: string): void {
   }
   if (selbstreinigungAn()) {
     const h = corpusHygiene(corpus);
-    if (h.stats.removed > 0 || h.stats.duplicates > 0) corpus = h.text;
+    if (h.stats.removed > 0 || h.stats.duplicates > 0) { corpus = h.text; zaehle("korpusHygiene", `${h.stats.removed} entfernt (${h.stats.duplicates} Duplikate)`); }
     letzte = { ...h.stats, zeit: new Date().toLocaleTimeString("de-DE") };
   }
   savePersistentCorpus(corpus);
@@ -144,14 +145,14 @@ export function appendToPersistentCorpus(textToAdd: string): void {
 
 /** Prüft, ob ein Markov-Ergebnis brauchbar ist (aus dem Live-Code portiert). */
 export function isSaneMarkov(s: string): boolean {
-  if (!s || s.length < 20) return false;
+  if (!s || s.length < 20) { zaehle("markovKurz", s); return false; }
   const words = s.split(/\s+/);
-  if (words.length < 5) return false;
+  if (words.length < 5) { zaehle("markovWenigWoerter", s); return false; }
 
   const freq: Record<string, number> = {};
   for (const w of words) freq[w] = (freq[w] || 0) + 1;
   const maxFreq = Math.max(...Object.values(freq));
-  if (maxFreq / words.length > 0.5) return false;
+  if (maxFreq / words.length > 0.5) { zaehle("markovWiederholung", s); return false; }
 
   const functionWords = new Set([
     "der", "die", "das", "den", "dem", "des", "ein", "eine", "einen", "einem",
@@ -160,22 +161,22 @@ export function isSaneMarkov(s: string): boolean {
   ]);
   let fn = 0;
   for (const w of words) if (functionWords.has(w.toLowerCase())) fn++;
-  if (fn / words.length > 0.6) return false;
+  if (fn / words.length > 0.6) { zaehle("markovFunktionswoerter", s); return false; }
 
   const sentences = s.split(/[.!?]+/).filter(Boolean);
   for (const sentence of sentences) {
     const n = sentence.trim().split(/\s+/).length;
-    if (n > 30 || n < 2) return false;
+    if (n > 30 || n < 2) { zaehle("markovSatzlaenge", s); return false; }
   }
 
   const phrases: string[] = [];
   for (let i = 0; i < words.length - 2; i++) phrases.push(words.slice(i, i + 3).join(" "));
   const pc: Record<string, number> = {};
   for (const p of phrases) pc[p] = (pc[p] || 0) + 1;
-  for (const c of Object.values(pc)) if (c >= 3) return false;
+  for (const c of Object.values(pc)) if (c >= 3) { zaehle("markovSatzzeichen", s); return false; }
 
-  if (/\b(Schluss|Notiz|Rand)\s*—|\bSZENE:|dass\s*—|,\s*dass\s*$/i.test(s)) return false;
-  if (/[—–]\s*$/.test(s.trim())) return false;
+  if (/\b(Schluss|Notiz|Rand)\s*—|\bSZENE:|dass\s*—|,\s*dass\s*$/i.test(s)) { zaehle("markovBruchstueck", s); return false; }
+  if (/[—–]\s*$/.test(s.trim())) { zaehle("markovBruchstueck", s); return false; }
 
   // Naht-Bruch: Kopula/Hilfsverb + zweites finites Vollverb in kurzem Abstand ohne
   // Konjunktion/Komma (z. B. "… war er schon wartet") -> verwerfen. Bewusst nur von

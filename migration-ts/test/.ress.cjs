@@ -6388,13 +6388,22 @@ function corpusSanitize(text2) {
   return s;
 }
 function isSaneMarkov(s) {
-  if (!s || s.length < 20) return false;
+  if (!s || s.length < 20) {
+    zaehle("markovKurz", s);
+    return false;
+  }
   const words = s.split(/\s+/);
-  if (words.length < 5) return false;
+  if (words.length < 5) {
+    zaehle("markovWenigWoerter", s);
+    return false;
+  }
   const freq = {};
   for (const w of words) freq[w] = (freq[w] || 0) + 1;
   const maxFreq = Math.max(...Object.values(freq));
-  if (maxFreq / words.length > 0.5) return false;
+  if (maxFreq / words.length > 0.5) {
+    zaehle("markovWiederholung", s);
+    return false;
+  }
   const functionWords = /* @__PURE__ */ new Set([
     "der",
     "die",
@@ -6425,19 +6434,34 @@ function isSaneMarkov(s) {
   ]);
   let fn = 0;
   for (const w of words) if (functionWords.has(w.toLowerCase())) fn++;
-  if (fn / words.length > 0.6) return false;
+  if (fn / words.length > 0.6) {
+    zaehle("markovFunktionswoerter", s);
+    return false;
+  }
   const sentences = s.split(/[.!?]+/).filter(Boolean);
   for (const sentence of sentences) {
     const n = sentence.trim().split(/\s+/).length;
-    if (n > 30 || n < 2) return false;
+    if (n > 30 || n < 2) {
+      zaehle("markovSatzlaenge", s);
+      return false;
+    }
   }
   const phrases = [];
   for (let i = 0; i < words.length - 2; i++) phrases.push(words.slice(i, i + 3).join(" "));
   const pc = {};
   for (const p of phrases) pc[p] = (pc[p] || 0) + 1;
-  for (const c of Object.values(pc)) if (c >= 3) return false;
-  if (/\b(Schluss|Notiz|Rand)\s*—|\bSZENE:|dass\s*—|,\s*dass\s*$/i.test(s)) return false;
-  if (/[—–]\s*$/.test(s.trim())) return false;
+  for (const c of Object.values(pc)) if (c >= 3) {
+    zaehle("markovSatzzeichen", s);
+    return false;
+  }
+  if (/\b(Schluss|Notiz|Rand)\s*—|\bSZENE:|dass\s*—|,\s*dass\s*$/i.test(s)) {
+    zaehle("markovBruchstueck", s);
+    return false;
+  }
+  if (/[—–]\s*$/.test(s.trim())) {
+    zaehle("markovBruchstueck", s);
+    return false;
+  }
   const AUX_MK = /* @__PURE__ */ new Set(["bin", "bist", "ist", "sind", "seid", "war", "warst", "waren", "wart", "hatte", "hattest", "hatten", "hat", "habe", "hast", "habt", "haben", "wurde", "wurdest", "wurden", "wird", "werde", "werden", "w\xE4re", "w\xE4rst", "w\xE4ren"]);
   const CONN_MK = /* @__PURE__ */ new Set(["und", "oder", "aber", "denn", "sondern", "doch", "weil", "dass", "wenn", "als", "w\xE4hrend", "obwohl", "damit", "sodass", "bevor", "nachdem", "ob", "wie", "wo", "der", "die", "das", "dem", "den"]);
   for (let i = 0; i < words.length; i++) {

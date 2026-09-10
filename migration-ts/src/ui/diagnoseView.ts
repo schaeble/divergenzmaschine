@@ -11,7 +11,7 @@ import { renderSelfTest, renderSummary } from "./selftestView";
 import { mountWirkung } from "./wirkungView";
 import { baueAnlage, sammleUmgebung, loadAnlage } from "../features/schaltplan";
 import { renderSchaltplan, befundListe } from "./schaltplanView";
-import { ladeStatistik, statistikKurz, statistikZuruecksetzen, ZAEHLER_NAMEN, type Zaehler } from "../features/waechterStatistik";
+import { ladeStatistik, statistikKurz, statistikZuruecksetzen, ZAEHLER_NAMEN, EBENE2, type Zaehler } from "../features/waechterStatistik";
 import { wuerfleAlles } from "../features/wuerfeln";
 import { saveAnlage } from "../features/schaltplan";
 import { loadKnobs, saveKnobs } from "../features/knobs";
@@ -269,8 +269,20 @@ function mountWaechterStatistik(): HTMLElement {
     box.append(el("p", { class: "muted" }, "Der Satz-Wächter, der Präsens-Umschreiber und die Atomisierung zählen seit "
       + new Date(st.seit).toLocaleDateString("de-DE") + " mit. Zu jeder Regel die letzten Beispiele; unter „durchgelassen“ Stichproben dessen, was der Wächter passieren ließ — dort zeigt sich das nächste Muster, bevor ein Blatt es meldet."));
     if (!gesamt && !kurz.umgeschrieben && !kurz.zerlegt) { box.append(el("p", { class: "muted" }, "Noch nichts gezählt — der Wächter zählt ab der ersten Markov-Kette, die Atomisierung ab dem ersten langen Baustein.")); }
-    const reihen: Zaehler[] = ["regel1", "regel2", "regel3", "regel4", "regel5", "regel6", "regel7", "regel8", "angenommen", "umgeschrieben", "unklar", "praeteritumVerworfen", "atomZerlegt", "atomGekuerzt", "atomGanzZuLang"];
+    // Ebene 1: Satz-Wächter, Umschreiber, Atomisierung. Ebene 2 (Schalter
+    // „erweitert", gemerkt): Schliff-Regeln, Kohärenz, Markov-Sanity, Füller,
+    // Korpus-Hygiene — die Wächter, die dieselbe Arbeit tun.
+    const erweitert = localStorage.getItem("dm_waechter_erweitert_v1") === "1";
+    const ebene1: Zaehler[] = ["regel1", "regel2", "regel3", "regel4", "regel5", "regel6", "regel7", "regel8", "angenommen", "umgeschrieben", "unklar", "praeteritumVerworfen", "atomZerlegt", "atomGekuerzt", "atomGanzZuLang"];
+    const ebene2 = [...EBENE2].filter((z) => (st.zaehler[z] || 0) > 0).sort((a, b) => (st.zaehler[b] || 0) - (st.zaehler[a] || 0));
+    const erwChk = el("input", { type: "checkbox", id: "diag-waechter-erweitert" }) as HTMLInputElement;
+    erwChk.checked = erweitert;
+    erwChk.addEventListener("change", () => { try { localStorage.setItem("dm_waechter_erweitert_v1", erwChk.checked ? "1" : "0"); } catch { /* voll */ } zeichnen(); });
+    box.append(el("label", { class: "chk", title: "Zeigt auch die Wächter der zweiten Ebene: Schliff-Regeln, Kohärenz, Markov-Sanity, Füller, Korpus-Hygiene — jede mit Zahl und Beispiel." }, erwChk, ` erweitert: alle Wächter${ebene2.length ? ` (${ebene2.length} weitere haben gegriffen)` : ""}`));
+    const reihen: Zaehler[] = erweitert ? [...ebene1, ...ebene2] : ebene1;
+    let ebene2Kopf = false;
     for (const z of reihen) {
+      if (erweitert && !ebene2Kopf && EBENE2.has(z)) { box.append(el("h4", {}, "Zweite Ebene — Schliff, Kohärenz, Markov-Sanity, Füller, Korpus")); ebene2Kopf = true; }
       const n = st.zaehler[z] || 0;
       if (!n) continue;
       const bsp = st.beispiele[z] || [];

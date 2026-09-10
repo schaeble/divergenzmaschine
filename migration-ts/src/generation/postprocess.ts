@@ -11,6 +11,7 @@ import { TONE_DATA } from "./tone.data";
 import { loadKnobs } from "../features/knobs";
 import { applyToneRegister } from "./tone.shape";
 import { zeitlupeStufe } from "../features/zeitlupe";
+import { zaehleWennAnders, zaehle } from "../features/waechterStatistik";
 import { insertToneFlavor } from "./beats";
 import { polishGerman } from "./polish";
 import { applySatzlaenge, entferneDubletten, OBJEKT_KOPF_RE } from "./shape";
@@ -441,12 +442,14 @@ export function postProcessText(txt: string, input?: Input): string {
   // im Rhythmus lässt nach „; " die Großschreibung absichtlich stehen (Nomen,
   // Namen) — ein Pronomen ist aber kein Nomen. „Sie" bleibt außen vor: Es
   // könnte die Anrede sein.
-  t = kleinesPronomen(t);
-  t = kommaVorInversion(t);
-  t = fragezeichen(t);
-  t = nomenNachAdverb(t);
-  t = nominativFragment(t);
-  t = formelnGlaetten(t);
+  // Wächter-Statistik, Ebene 2 (4.357.0): jede Regel zählt, wenn sie greift.
+  const z = (was: string, f: (x: string) => string): void => { const v = t; t = f(t); zaehleWennAnders(was, v, t); };
+  z("schliff_kleinesPronomen", kleinesPronomen);
+  z("schliff_kommaVorInversion", kommaVorInversion);
+  z("schliff_fragezeichen", fragezeichen);
+  z("schliff_nomenNachAdverb", nomenNachAdverb);
+  z("schliff_nominativFragment", nominativFragment);
+  z("schliff_formelnGlaetten", formelnGlaetten);
 
   // Unbestimmter Artikel MITTEN im Satz klein.
   //
@@ -464,7 +467,7 @@ export function postProcessText(txt: string, input?: Input): string {
   // Vers" ist ein Zeilenanfang und bleibt gross. Den Umbruch nur aus der
   // Zeichenklasse davor auszuschliessen genuegte nicht — er steckte im
   // Zwischenraum.
-  t = kleinerArtikel(t);
+  z("schliff_kleinerArtikel", kleinerArtikel);
 
   const name = (input?.who ?? "").toString().trim();
   if (name) {
@@ -483,7 +486,7 @@ export function postProcessText(txt: string, input?: Input): string {
     }
   }
 
-  t = pluralKongruenz(t, name);
+  z("schliff_pluralKongruenz", (x) => pluralKongruenz(x, name));
   zeitlupeStufe("Schliff", t);
 
   // Ton-Einfärbung: Einleitung + verteilte Flavor-Einschübe (nicht bei
@@ -531,7 +534,7 @@ export function postProcessText(txt: string, input?: Input): string {
   if (!isLineForm(input)) t = entferneDubletten(t);
 
   // Sprachschliff: laeuft immer. Was uebrig ist, ist in jedem Text richtig.
-  t = polishGerman(t, { who: name });
+  z("schliff_polishGerman", (x) => polishGerman(x, { who: name }));
 
   // Der nachgestellte Relativsatz der Figur muss geschlossen werden. Im Blatt
   // stand „Ein Schulmädchen, das Karten fälscht bemerkt: …" — der Satz öffnet
@@ -540,9 +543,20 @@ export function postProcessText(txt: string, input?: Input): string {
   // Möglich ist die Reparatur nur, WEIL die Figur wörtlich bekannt ist. Ein
   // allgemeiner Erkenner für Relativsätze wäre hier so unzuverlässig wie alle
   // anderen; hier wird eine bekannte Zeichenkette gesucht, sonst nichts.
-  t = schliesseFigurenkomma(t, input?.who);
-  t = coherencePass(t, input);
-  t = coherenceRepairV2(t, input);
+  z("schliff_figurenkomma", (x) => schliesseFigurenkomma(x, input?.who));
+  z("kohaerenzPass", (x) => coherencePass(x, input));
+  {
+    // Kohärenz, Lauf 2: gefallene Sätze einzeln zählen (mit dem Satz), die
+    // übrigen Änderungen als „repariert".
+    const v = t;
+    t = coherenceRepairV2(t, input);
+    if (v !== t) {
+      const vs = new Set(t.split(/(?<=[.!?…])\s+/).map((x) => x.trim()));
+      const gefallen = v.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter((x) => x && !vs.has(x) && !t.includes(x.slice(0, 30)));
+      if (gefallen.length) for (const g of gefallen) zaehle("kohaerenzGefallen", g);
+      else zaehleWennAnders("kohaerenzRepariert", v, t);
+    }
+  }
   zeitlupeStufe("Kohärenz", t);
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1: string, p2: string) => p1 + p2.toUpperCase());
   // Nach Konjunktion mitten im Satz: gross geschriebene Artikel/Pronomen klein

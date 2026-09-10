@@ -843,6 +843,13 @@ var init_verben = __esm({
 });
 
 // src/features/waechterStatistik.ts
+function zaehleWennAnders(was, vorher, nachher) {
+  if (vorher === nachher) return;
+  const a = vorher.split(/(?<=[.!?…])\s+/), b = nachher.split(/(?<=[.!?…])\s+/);
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  zaehle(was, `${(a[i] || "").slice(0, 70)} \u2192 ${(b[i] || "").slice(0, 70)}`);
+}
 function leer() {
   return { zaehler: {}, beispiele: {}, seit: (/* @__PURE__ */ new Date()).toISOString() };
 }
@@ -5655,13 +5662,18 @@ function postProcessText(txt, input) {
   let t = (txt ?? "").toString();
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
   t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
-  t = kleinesPronomen(t);
-  t = kommaVorInversion(t);
-  t = fragezeichen(t);
-  t = nomenNachAdverb(t);
-  t = nominativFragment(t);
-  t = formelnGlaetten(t);
-  t = kleinerArtikel(t);
+  const z = (was, f) => {
+    const v = t;
+    t = f(t);
+    zaehleWennAnders(was, v, t);
+  };
+  z("schliff_kleinesPronomen", kleinesPronomen);
+  z("schliff_kommaVorInversion", kommaVorInversion);
+  z("schliff_fragezeichen", fragezeichen);
+  z("schliff_nomenNachAdverb", nomenNachAdverb);
+  z("schliff_nominativFragment", nominativFragment);
+  z("schliff_formelnGlaetten", formelnGlaetten);
+  z("schliff_kleinerArtikel", kleinerArtikel);
   const name = (input?.who ?? "").toString().trim();
   if (name) {
     const esc = escapeRegExp(name);
@@ -5672,7 +5684,7 @@ function postProcessText(txt, input) {
       t = t.replace(new RegExp(`\\b${esc}\\b`, "gi"), wieder);
     }
   }
-  t = pluralKongruenz(t, name);
+  z("schliff_pluralKongruenz", (x) => pluralKongruenz(x, name));
   zeitlupeStufe("Schliff", t);
   if (!isLineForm(input) && input?.tone && TONE_DATA[input.tone]) {
     const td = TONE_DATA[input.tone];
@@ -5696,10 +5708,19 @@ function postProcessText(txt, input) {
     zeitlupeStufe("Satzl\xE4nge", t);
   }
   if (!isLineForm(input)) t = entferneDubletten(t);
-  t = polishGerman(t, { who: name });
-  t = schliesseFigurenkomma(t, input?.who);
-  t = coherencePass(t, input);
-  t = coherenceRepairV2(t, input);
+  z("schliff_polishGerman", (x) => polishGerman(x, { who: name }));
+  z("schliff_figurenkomma", (x) => schliesseFigurenkomma(x, input?.who));
+  z("kohaerenzPass", (x) => coherencePass(x, input));
+  {
+    const v = t;
+    t = coherenceRepairV2(t, input);
+    if (v !== t) {
+      const vs = new Set(t.split(/(?<=[.!?…])\s+/).map((x) => x.trim()));
+      const gefallen = v.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter((x) => x && !vs.has(x) && !t.includes(x.slice(0, 30)));
+      if (gefallen.length) for (const g of gefallen) zaehle("kohaerenzGefallen", g);
+      else zaehleWennAnders("kohaerenzRepariert", v, t);
+    }
+  }
   zeitlupeStufe("Koh\xE4renz", t);
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
   t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
@@ -5718,6 +5739,7 @@ var init_postprocess = __esm({
     init_knobs();
     init_tone_shape();
     init_zeitlupe();
+    init_waechterStatistik();
     init_beats();
     init_polish();
     init_shape();
@@ -6023,6 +6045,7 @@ function applyEmphasis(text, kit, w) {
 }
 
 // src/corpus.ts
+init_waechterStatistik();
 init_text_utils();
 init_beats();
 

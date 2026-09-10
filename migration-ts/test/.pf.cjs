@@ -3927,6 +3927,13 @@ var schliesstKopf = (t) => ["hauptsatz", "nominalphrase", "fragment", "einwort"]
 var schwelle = (divergenz) => divergenz < 25 ? 0 : divergenz < 55 ? 1 : divergenz < 80 ? 2 : 3;
 
 // src/features/waechterStatistik.ts
+function zaehleWennAnders(was, vorher, nachher) {
+  if (vorher === nachher) return;
+  const a = vorher.split(/(?<=[.!?…])\s+/), b = nachher.split(/(?<=[.!?…])\s+/);
+  let i2 = 0;
+  while (i2 < a.length && i2 < b.length && a[i2] === b[i2]) i2++;
+  zaehle(was, `${(a[i2] || "").slice(0, 70)} \u2192 ${(b[i2] || "").slice(0, 70)}`);
+}
 var KEY2 = "dm_waechter_statistik_v1";
 var BEISPIELE_JE = 5;
 var cache = null;
@@ -7331,13 +7338,18 @@ function postProcessText(txt, input) {
   let t = (txt ?? "").toString();
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
   t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
-  t = kleinesPronomen(t);
-  t = kommaVorInversion(t);
-  t = fragezeichen(t);
-  t = nomenNachAdverb(t);
-  t = nominativFragment(t);
-  t = formelnGlaetten(t);
-  t = kleinerArtikel(t);
+  const z = (was, f) => {
+    const v = t;
+    t = f(t);
+    zaehleWennAnders(was, v, t);
+  };
+  z("schliff_kleinesPronomen", kleinesPronomen);
+  z("schliff_kommaVorInversion", kommaVorInversion);
+  z("schliff_fragezeichen", fragezeichen);
+  z("schliff_nomenNachAdverb", nomenNachAdverb);
+  z("schliff_nominativFragment", nominativFragment);
+  z("schliff_formelnGlaetten", formelnGlaetten);
+  z("schliff_kleinerArtikel", kleinerArtikel);
   const name = (input?.who ?? "").toString().trim();
   if (name) {
     const esc = escapeRegExp(name);
@@ -7348,7 +7360,7 @@ function postProcessText(txt, input) {
       t = t.replace(new RegExp(`\\b${esc}\\b`, "gi"), wieder);
     }
   }
-  t = pluralKongruenz(t, name);
+  z("schliff_pluralKongruenz", (x) => pluralKongruenz(x, name));
   zeitlupeStufe("Schliff", t);
   if (!isLineForm(input) && input?.tone && TONE_DATA[input.tone]) {
     const td = TONE_DATA[input.tone];
@@ -7372,10 +7384,19 @@ function postProcessText(txt, input) {
     zeitlupeStufe("Satzl\xE4nge", t);
   }
   if (!isLineForm(input)) t = entferneDubletten(t);
-  t = polishGerman(t, { who: name });
-  t = schliesseFigurenkomma(t, input?.who);
-  t = coherencePass(t, input);
-  t = coherenceRepairV2(t, input);
+  z("schliff_polishGerman", (x) => polishGerman(x, { who: name }));
+  z("schliff_figurenkomma", (x) => schliesseFigurenkomma(x, input?.who));
+  z("kohaerenzPass", (x) => coherencePass(x, input));
+  {
+    const v = t;
+    t = coherenceRepairV2(t, input);
+    if (v !== t) {
+      const vs = new Set(t.split(/(?<=[.!?…])\s+/).map((x) => x.trim()));
+      const gefallen = v.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter((x) => x && !vs.has(x) && !t.includes(x.slice(0, 30)));
+      if (gefallen.length) for (const g of gefallen) zaehle("kohaerenzGefallen", g);
+      else zaehleWennAnders("kohaerenzRepariert", v, t);
+    }
+  }
   zeitlupeStufe("Koh\xE4renz", t);
   t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
   t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
@@ -8193,13 +8214,22 @@ function corpusSanitize(text) {
   return s;
 }
 function isSaneMarkov(s) {
-  if (!s || s.length < 20) return false;
+  if (!s || s.length < 20) {
+    zaehle("markovKurz", s);
+    return false;
+  }
   const words = s.split(/\s+/);
-  if (words.length < 5) return false;
+  if (words.length < 5) {
+    zaehle("markovWenigWoerter", s);
+    return false;
+  }
   const freq = {};
   for (const w of words) freq[w] = (freq[w] || 0) + 1;
   const maxFreq = Math.max(...Object.values(freq));
-  if (maxFreq / words.length > 0.5) return false;
+  if (maxFreq / words.length > 0.5) {
+    zaehle("markovWiederholung", s);
+    return false;
+  }
   const functionWords = /* @__PURE__ */ new Set([
     "der",
     "die",
@@ -8230,19 +8260,34 @@ function isSaneMarkov(s) {
   ]);
   let fn = 0;
   for (const w of words) if (functionWords.has(w.toLowerCase())) fn++;
-  if (fn / words.length > 0.6) return false;
+  if (fn / words.length > 0.6) {
+    zaehle("markovFunktionswoerter", s);
+    return false;
+  }
   const sentences = s.split(/[.!?]+/).filter(Boolean);
   for (const sentence of sentences) {
     const n2 = sentence.trim().split(/\s+/).length;
-    if (n2 > 30 || n2 < 2) return false;
+    if (n2 > 30 || n2 < 2) {
+      zaehle("markovSatzlaenge", s);
+      return false;
+    }
   }
   const phrases = [];
   for (let i2 = 0; i2 < words.length - 2; i2++) phrases.push(words.slice(i2, i2 + 3).join(" "));
   const pc = {};
   for (const p of phrases) pc[p] = (pc[p] || 0) + 1;
-  for (const c of Object.values(pc)) if (c >= 3) return false;
-  if (/\b(Schluss|Notiz|Rand)\s*—|\bSZENE:|dass\s*—|,\s*dass\s*$/i.test(s)) return false;
-  if (/[—–]\s*$/.test(s.trim())) return false;
+  for (const c of Object.values(pc)) if (c >= 3) {
+    zaehle("markovSatzzeichen", s);
+    return false;
+  }
+  if (/\b(Schluss|Notiz|Rand)\s*—|\bSZENE:|dass\s*—|,\s*dass\s*$/i.test(s)) {
+    zaehle("markovBruchstueck", s);
+    return false;
+  }
+  if (/[—–]\s*$/.test(s.trim())) {
+    zaehle("markovBruchstueck", s);
+    return false;
+  }
   const AUX_MK = /* @__PURE__ */ new Set(["bin", "bist", "ist", "sind", "seid", "war", "warst", "waren", "wart", "hatte", "hattest", "hatten", "hat", "habe", "hast", "habt", "haben", "wurde", "wurdest", "wurden", "wird", "werde", "werden", "w\xE4re", "w\xE4rst", "w\xE4ren"]);
   const CONN_MK = /* @__PURE__ */ new Set(["und", "oder", "aber", "denn", "sondern", "doch", "weil", "dass", "wenn", "als", "w\xE4hrend", "obwohl", "damit", "sodass", "bevor", "nachdem", "ob", "wie", "wo", "der", "die", "das", "dem", "den"]);
   for (let i2 = 0; i2 < words.length; i2++) {
@@ -16337,7 +16382,10 @@ function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
     if (count(out) >= target - tol) break;
     const add = addition();
     if (!add) {
-      if (++leer2 >= 3) break;
+      if (++leer2 >= 3) {
+        zaehle("fuellerStopp", `${count(out)} von ${target} W\xF6rtern`);
+        break;
+      }
       continue;
     }
     let ca = add.text.trim().replace(/^[a-z]/, (c) => c.toUpperCase()).replace(/\s+([,.;:!?…])/g, "$1");

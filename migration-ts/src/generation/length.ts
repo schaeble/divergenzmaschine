@@ -4,6 +4,7 @@ import type { Bank } from "../types";
 import { clean, pick, ensurePunct, splitSentences } from "../text-utils";
 import { MarkovModel, isSaneMarkov, smoothMarkov } from "../corpus";
 import { praesensUmschreiben } from "./coherence";
+import { zaehle } from "../features/waechterStatistik";
 import { traceMarkov } from "./markovTrace";
 import { markovSeenRecently, noteMarkov } from "./cooldown";
 
@@ -75,7 +76,7 @@ export function enforceWordTarget(text: string, target: number, bank: Bank, mode
   for (let a = 0; a < maxAttempts; a++) {
     if (count(out) >= target - tol) break;
     const add = addition();
-    if (!add) { if (++leer >= 3) break; continue; }
+    if (!add) { if (++leer >= 3) { zaehle("fuellerStopp", `${count(out)} von ${target} Wörtern`); break; } continue; }
     let ca = add.text.trim().replace(/^[a-z]/, (c) => c.toUpperCase()).replace(/\s+([,.;:!?…])/g, "$1");
     if (!/[.!?…]$/.test(ca)) ca += ".";
     out = out.replace(/[.!?…]+\s*$/, "").trim();
