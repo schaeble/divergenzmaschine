@@ -2907,6 +2907,15 @@ var init_nouns2_data = __esm({
   "src/generation/nouns2.data.ts"() {
     "use strict";
     NOUN_GENDER_2 = {
+      // Nachtrag 4.357.1 (Blatt „Ost-Berlin": „Ein rotes Ballon")
+      ballon: "m",
+      luftballon: "m",
+      stoff: "m",
+      geschmack: "m",
+      sperrstunde: "f",
+      zugang: "m",
+      kopie: "f",
+      l\u00F6schung: "f",
       // ── Häufigste ──
       ende: "n",
       jahr: "n",
@@ -4221,6 +4230,20 @@ var init_beats = __esm({
 });
 
 // src/generation/verbconj.ts
+function conjugateVerbToken(verb, person) {
+  if (!verb) return verb;
+  const isCap = /^[A-ZÄÖÜ]/.test(verb);
+  const low2 = verb.toLowerCase();
+  const table = VERB_CONJ[low2];
+  let out;
+  if (table && table[person]) {
+    out = table[person];
+  } else {
+    const p = person === "ich" || person === "du" || person === "wir" || person === "ihr" ? person : "er";
+    out = beugeVerb(low2, p) ?? low2;
+  }
+  return isCap ? cap(out) : out;
+}
 var VERB_TOKEN_RE;
 var init_verbconj = __esm({
   "src/generation/verbconj.ts"() {
@@ -5260,6 +5283,310 @@ var init_polish = __esm({
 });
 
 // src/generation/shape.ts
+var shape_exports = {};
+__export(shape_exports, {
+  OBJEKT_EINSTIEG: () => OBJEKT_EINSTIEG,
+  OBJEKT_KOPF_RE: () => OBJEKT_KOPF_RE,
+  applyDisruptor: () => applyDisruptor,
+  applyPerspective: () => applyPerspective,
+  applyRhythm: () => applyRhythm,
+  applySatzlaenge: () => applySatzlaenge,
+  applyTension: () => applyTension,
+  entferneDubletten: () => entferneDubletten,
+  guessPronoun: () => guessPronoun,
+  objektName: () => objektName,
+  paragraphize: () => paragraphize,
+  pronominalize: () => pronominalize
+});
+function applyDisruptor(text, level) {
+  const p = level === "off" ? 0 : level === "on" ? 0.33 : 0.17;
+  if (!chance(p)) return { text, fired: false, kind: "\u2013" };
+  const kinds = [
+    { kind: "Zeitbruch", fn: (t) => t + " Drei Jahre sp\xE4ter ist die gleiche Stelle noch da, aber das Ger\xE4usch ist \xE4lter." },
+    { kind: "Erz\xE4hlerwechsel", fn: (t) => t.replace(/\n\n/g, "\n\n\u2014\n\n") + "\n\nIch \xFCbernehme hier. Nur kurz. Nur, um das Offensichtliche zu sagen." },
+    { kind: "Metakommentar", fn: (t) => t + "\n\n(Diese Geschichte wei\xDF, dass sie erz\xE4hlt wird.)" },
+    { kind: "Wiederholung", fn: (t) => {
+      const s = splitSentences(t);
+      if (s.length < 3) return t;
+      const FORMEL = /^(dann\b|und dann\b|danach\b|später\b|plötzlich\b|auf einmal\b|es braucht nur\b|erst ein riss\b|kaum ausgesprochen\b|etwas gibt nach\b|ohne vorwarnung\b|dann, unvermittelt)/i;
+      const start = Math.floor(s.length * 0.65);
+      for (let k2 = 0; k2 < s.length; k2++) {
+        const kand = s[(start + k2) % s.length];
+        if (!FORMEL.test(kand.trim())) return t + "\n\n" + kand;
+      }
+      return t;
+    } },
+    { kind: "Fragmentierung", fn: (t) => {
+      const s = splitSentences(t);
+      if (s.length < 4) return t;
+      s.splice(Math.floor(s.length / 2), 0, "\u2014");
+      return s.join(" ");
+    } }
+  ];
+  const k = pick(kinds);
+  return { text: k.fn(text), fired: true, kind: k.kind };
+}
+function applyRhythm(text, rhythm) {
+  const s = splitSentences(text);
+  const insertFrag = (prob) => {
+    if (chance(prob)) {
+      const pos = chooseInsertPos(s);
+      if (pos >= 0) s.splice(pos, 0, pick(FRAGMENTS));
+    }
+  };
+  if (rhythm === "clean") return s.join(" ");
+  if (rhythm === "breath") {
+    insertFrag(0.55);
+    if (s.length >= 5 && chance(0.45)) {
+      const i = Math.floor(1 + Math.random() * (s.length - 2));
+      s[i] = "Und " + s[i].charAt(0).toLowerCase() + s[i].slice(1);
+    }
+  }
+  if (rhythm === "staccato") {
+    insertFrag(0.75);
+    if (s.length >= 4 && chance(0.6)) {
+      const i = Math.floor(1 + Math.random() * (s.length - 2));
+      const t = s[i];
+      const cut = t.indexOf(", ");
+      if (cut > 10 && cut < 80 && !NEBENSATZ_ANFANG.test(t.slice(cut + 2))) {
+        s[i] = t.slice(0, cut) + ".";
+        s.splice(i + 1, 0, t.slice(cut + 2));
+      }
+    }
+    if (chance(0.35)) {
+      const at = Math.min(2, s.length);
+      if (!isFragmentSentence(s[at - 1] || "") && !isFragmentSentence(s[at] || "")) s.splice(at, 0, pick(["Stille.", "Warte.", "So.", "Gut."]));
+    }
+  }
+  if (rhythm === "long") {
+    if (s.length >= 6 && chance(0.6)) {
+      const i = Math.floor(1 + Math.random() * (s.length - 3));
+      const first = s[i].replace(/[.!?…]+$/, "");
+      const next = s[i + 1];
+      const joiner = /^(und|aber|doch|denn|sondern)\b/i.test(next) ? ", " : chance(0.5) ? ", und " : "; ";
+      s[i] = first + joiner + next.charAt(0).toLowerCase() + next.slice(1);
+      s.splice(i + 1, 1);
+    }
+    if (chance(0.4)) s.push("Und w\xE4hrend all das geschieht, bleibt etwas in der Luft h\xE4ngen, als w\xE4re es nie f\xFCr Menschen gedacht gewesen.");
+  }
+  if (rhythm === "fracture") {
+    insertFrag(0.7);
+    if (s.length >= 5 && chance(0.6)) {
+      const i = Math.floor(1 + Math.random() * (s.length - 2));
+      s[i] = s[i].replace(/[.!?…]+$/, "") + " \u2014";
+      s.splice(i + 1, 0, "und genau dort bricht die Erkl\xE4rung ab.");
+    }
+    if (chance(0.45)) s.splice(Math.floor(s.length * 0.65), 0, "(Dieser Satz war nicht geplant.)");
+  }
+  return s.join(" ");
+}
+function applyTension(text, peak, material, kurve) {
+  if (!kurve && (!peak || peak === "off")) return text;
+  let center = kurve ? 0.5 : TENSION_CENTER[peak || ""];
+  if (center === void 0) return text;
+  if (kurve) {
+    let best = 0;
+    for (let k = 0; k <= 20; k++) {
+      const v = kurve(k / 20);
+      if (v > kurve(best)) best = k / 20;
+    }
+    center = best;
+  }
+  const s = splitSentences(text);
+  if (s.length < 5) return text;
+  const width = 0.26;
+  const intensity = (i, n) => {
+    const pos = n <= 1 ? 0 : i / (n - 1);
+    if (kurve) return kurve(pos);
+    const d = (pos - center) / width;
+    return Math.exp(-0.5 * d * d);
+  };
+  for (let i = s.length - 1; i >= 0; i--) {
+    const it = intensity(i, s.length);
+    if (it > 0.6 && chance(it * 0.7)) {
+      const t = s[i];
+      const cut = t.indexOf(", ");
+      const rest = t.slice(cut + 2);
+      const ersteWort = (rest.match(/^([a-zäöüß]+)/) || [])[1] || "";
+      const verbVorn = ersteWort ? istVerbform(ersteWort) && !/^(dann|jetzt|nun|dort|hier|da|so|doch|aber|und|noch|nur|schon|bald|wieder|immer|nie|niemand|jemand|man|alles|nichts|etwas)$/.test(ersteWort) : false;
+      const unteilbar = NEBENSATZ_ANFANG.test(rest) || verbVorn;
+      if (cut > 10 && cut < 90 && !unteilbar) {
+        s[i] = t.slice(0, cut) + ".";
+        s.splice(i + 1, 0, cap(rest));
+      }
+    }
+  }
+  for (let pass = 0; pass < 2; pass++) {
+    const idx = Math.round(center * (s.length - 1));
+    if (idx > 0 && idx < s.length && chance(0.55) && !isFragmentSentence(s[idx - 1] || "") && !isFragmentSentence(s[idx] || "")) {
+      s.splice(idx, 0, pick(FRAGMENTS));
+    }
+  }
+  for (let i = 0; i < s.length - 1; i++) {
+    if (s.length <= 4) break;
+    const it = intensity(i, s.length);
+    if (it < 0.3 && chance((0.3 - it) * 1.2)) {
+      const first = s[i].replace(/[.!?…]+$/, "");
+      const next = s[i + 1];
+      if (first.length + next.length < 160 && !isFragmentSentence(first) && !isFragmentSentence(next)) {
+        const joiner = /^(und|aber|doch|denn|sondern)\b/i.test(next) ? ", " : chance(0.5) ? ", und " : "; ";
+        const cont = joiner === "; " ? next : next.charAt(0).toLowerCase() + next.slice(1);
+        s[i] = first + joiner + cont;
+        s.splice(i + 1, 1);
+        i--;
+      }
+    }
+  }
+  const mat = [...material?.hooks || [], ...material?.motifs || []].map((x) => (x || "").trim()).filter((x) => x.length >= 4);
+  if (mat.length) {
+    for (let k = 0; k < 2; k++) {
+      const cand = pick(mat);
+      if (!cand || s.join(" ").toLowerCase().includes(cand.toLowerCase())) continue;
+      if (!chance(0.7)) continue;
+      const idx = Math.max(1, Math.min(s.length, Math.round(center * (s.length - 1)) + k));
+      s.splice(idx, 0, cap(cand.replace(/[.!?…]+$/, "")) + ".");
+    }
+  }
+  {
+    const idx = Math.round(center * (s.length - 1));
+    if (idx > 0 && idx < s.length - 1 && chance(0.5)) {
+      const t = s[idx].replace(/[.!?…]+$/, "");
+      const nachbarn = [s[idx - 1] || "", s[idx + 1] || ""].join(" ").toLowerCase();
+      const bruch = pick(["und genau hier kippt es.", "kein Zur\xFCck.", "jetzt.", "und nichts h\xE4lt mehr."].filter((b) => !(b === "jetzt." && /\bjetzt\b/.test(nachbarn + " " + t.toLowerCase()))));
+      if (t.length > 12 && !isFragmentSentence(t) && !t.includes("\u2014")) {
+        s[idx] = t + " \u2014";
+        s.splice(idx + 1, 0, bruch);
+      }
+    }
+  }
+  return s.join(" ");
+}
+function paragraphize(txt) {
+  const s = splitSentences(txt);
+  if (s.length <= 3) return txt;
+  const breaks = /* @__PURE__ */ new Set();
+  const target = chance(0.6) ? 2 : 1;
+  while (breaks.size < target) breaks.add(Math.min(s.length - 2, Math.max(1, Math.floor(1 + Math.random() * (s.length - 2)))));
+  const out = [];
+  for (let i = 0; i < s.length; i++) {
+    out.push(s[i]);
+    if (breaks.has(i)) out.push("\n\n");
+  }
+  return out.join(" ").replace(/\s+\n\n\s+/g, "\n\n").trim();
+}
+function guessPronoun(P) {
+  const p = clean(P);
+  if (/^(der|ein)\s/i.test(p)) return "er";
+  if (/^(die|eine)\s/i.test(p)) return "sie";
+  if (/^das\s/i.test(p)) return "es";
+  if (/(a|e|in)$/i.test(p)) return "sie";
+  return "er";
+}
+function objektName(o) {
+  const t = clean(o);
+  if (!t) return "das Ding";
+  if (/^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines)\s/i.test(t)) return t;
+  const kern = t.split(" ")[0].replace(/[^A-Za-zÄÖÜäöüß]/g, "");
+  return `${DEF_ART[guessGender(kern) || "n"]} ${t}`;
+}
+function beugeToken(v, person) {
+  if (VERB_CONJ[v.toLowerCase()]) return conjugateVerbToken(v, person);
+  const p = person === "ich" || person === "du" || person === "wir" || person === "ihr" ? person : "er";
+  return beugeVerb(v, p) ?? v;
+}
+function applyPerspective(paras, perspective, who, objName) {
+  const P = clean(who) || "Jemand";
+  const O = objektName(clean(objName) || pick(DING_VORRAT));
+  const swap = (s, person, pronoun) => {
+    if (!P) return s;
+    try {
+      const re = new RegExp("([A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF]+\\s+)?\\b" + escapeRegExp(P) + "\\b(\\s+[A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF]+)?", "gi");
+      const ersetzt = s.replace(re, (_m, before, after, ...rest) => {
+        const idx = rest[rest.length - 2];
+        const voll = rest[rest.length - 1];
+        const posP = voll.toLowerCase().indexOf(P.toLowerCase(), idx);
+        if (posP > 0 && /[-–\wÄÖÜäöüß]/.test(voll.charAt(posP - 1))) return _m;
+        const davor = voll.slice(0, posP).replace(/\s+$/, "");
+        const gross = davor === "" || /[.!?…:„"»(]$/.test(davor);
+        const pron = gross ? pronoun.charAt(0).toUpperCase() + pronoun.slice(1) : pronoun;
+        const bw = before ? before.trim() : "";
+        const aw = after ? after.trim() : "";
+        const bw3 = ICH_DU_ZU_ER[bw.toLowerCase()] || bw;
+        const aw3 = ICH_DU_ZU_ER[aw.toLowerCase()] || aw;
+        const beuge = (v) => beugeToken(v, person);
+        const kennt = kenntVerb;
+        const letztesWort = (davor.match(/[A-Za-zÄÖÜäöüß-]+$/) || [""])[0];
+        const subjektstelle = gross || /[,;]$/.test(davor) || SUBJ_FUGE.test(letztesWort) || !!bw && kennt(bw3);
+        if (!subjektstelle) return _m;
+        if (bw && kennt(bw3)) return beuge(bw3) + " " + pron + (after || "");
+        if (aw && kennt(aw3)) return (before || "") + pron + " " + beuge(aw3);
+        return (before || "") + pron + (after || "");
+      });
+      const reihung = new RegExp(
+        "\\b(" + pronoun + ")\\s+([a-z\xE4\xF6\xFC\xDF]+)((?:\\s+[^\\s,.;:\u2014!?]+){0,6}?)\\s+(und|oder)\\s+([a-z\xE4\xF6\xFC\xDF]{3,}t)\\b",
+        "gi"
+      );
+      return ersetzt.replace(reihung, (m, pr, v1, mitte, konj, v2) => {
+        const v23 = ICH_DU_ZU_ER[v2.toLowerCase()] || v2;
+        if (!kenntVerb(v23)) return m;
+        const gebeugt = beugeToken(v23, person);
+        if (gebeugt === v2) return m;
+        return `${pr} ${v1}${mitte} ${konj} ${gebeugt}`;
+      });
+    } catch {
+      return s.replace(new RegExp("\\b" + escapeRegExp(P) + "\\b", "gi"), pronoun);
+    }
+  };
+  const toFirst = (s) => swap(s, "ich", "ich");
+  const toSecond = (s) => swap(s, "du", "du");
+  const toWe = (s) => swap(s, "wir", "wir");
+  const toObject = (s) => `${pick(OBJEKT_ZWISCHENRUF)} ${s}`;
+  if (perspective === "third") return paras;
+  if (perspective === "first") return paras.map(toFirst);
+  if (perspective === "second") return paras.map(toSecond);
+  if (perspective === "we") return paras.map(toWe);
+  if (perspective === "object") {
+    const einstieg = pick(OBJEKT_EINSTIEG).replace("%O", O);
+    return paras.map((p, i) => i === 0 ? `${einstieg} ${p}` : p);
+  }
+  const cycle = ["first", "second", "third", "object"];
+  return paras.map((p, i) => {
+    const k = cycle[i % cycle.length];
+    if (k === "first") return toFirst(p);
+    if (k === "second") return toSecond(p);
+    if (k === "object") return toObject(p);
+    return p;
+  });
+}
+function pronominalize(text, P, pronoun) {
+  const name = clean(P);
+  if (!name || !pronoun) return text;
+  let re;
+  try {
+    re = new RegExp(`^${escapeRegExp(name)}\\s+[a-z\xE4\xF6\xFC\xDF]`);
+  } catch {
+    return text;
+  }
+  let seen = false, lastReplaced = false;
+  return text.split(/\n\n+/).map((par) => {
+    const s = splitSentences(par);
+    for (let i = 0; i < s.length; i++) {
+      if (!re.test(s[i])) continue;
+      if (!seen) {
+        seen = true;
+        lastReplaced = false;
+        continue;
+      }
+      if (lastReplaced) {
+        lastReplaced = false;
+        continue;
+      }
+      s[i] = cap(pronoun) + s[i].slice(name.length);
+      lastReplaced = true;
+    }
+    return s.join(" ");
+  }).join("\n\n");
+}
 function darfVerbinden(a, b, obergrenze) {
   if (!a || !b) return false;
   if (/[:;—–]\s*$/.test(a.replace(/[.!?…]+$/, ""))) return false;
@@ -5328,7 +5655,7 @@ function applySatzlaenge(text, ziel) {
 function hatFinitesVerbLeicht(satz) {
   return (satz.match(/[a-zäöüß]{3,}/g) || []).some((w) => !!VERB_CONJ[w] || /^(ist|sind|war|waren|hat|haben|wird|werden|kann|muss|will|bleibt|steht|geht|kommt)$/.test(w));
 }
-var OBJEKT_EINSTIEG, OBJEKT_KOPF_RE, SCHON_GEBUNDEN;
+var FRAGMENTS, NEBENSATZ_ANFANG, TENSION_CENTER, SUBJ_FUGE, DEF_ART, DING_VORRAT, OBJEKT_EINSTIEG, OBJEKT_KOPF_RE, OBJEKT_ZWISCHENRUF, kenntVerb, SCHON_GEBUNDEN;
 var init_shape = __esm({
   "src/generation/shape.ts"() {
     "use strict";
@@ -5340,6 +5667,28 @@ var init_shape = __esm({
     init_wordcls();
     init_verben();
     init_declension();
+    FRAGMENTS = ["Stille.", "Zu nah.", "Zu klar.", "Ein Fehler.", "Noch nicht.", "Dann.", "Nein.", "Vielleicht.", "Fast.", "Genau jetzt."];
+    NEBENSATZ_ANFANG = /^(der|die|das|dem|den|des|deren|dessen|welche[rsmn]?|wo|worin|woran|worauf|als|wenn|weil|obwohl|während|nachdem|bevor|damit|dass|ob|sodass|indem|sobald|solange|bis|seit|falls|wobei|wodurch|womit|was|wer|wen|wem|wie|ohne|um|statt|anstatt)\b/i;
+    TENSION_CENTER = { top: 0.15, mid: 0.5, low: 0.85 };
+    SUBJ_FUGE = /^(und|oder|aber|denn|doch|sondern|dann|da|weil|dass|als|wenn|während|obwohl|bevor|nachdem|sobald|solange|ob|wie|so|auch|nur|jetzt|dort|hier|heute|gestern|morgen|plötzlich|dabei|dadurch|deshalb|trotzdem|später|zuerst|zuletzt|außerdem|schließlich)$/i;
+    DEF_ART = { m: "der", f: "die", n: "das" };
+    DING_VORRAT = [
+      "T\xFCr",
+      "Uhr",
+      "Karteikarte",
+      "Lampe",
+      "Schl\xFCssel",
+      "Fenster",
+      "Bank",
+      "Treppe",
+      "Spiegel",
+      "Kiste",
+      "Zettel",
+      "Mauer",
+      "Stuhl",
+      "Leitung",
+      "Schwelle"
+    ];
     OBJEKT_EINSTIEG = [
       // NICHT „… und zaehle mit.": Der Bruchstueck-Filter braucht dort ein finites
       // Verb, und hatFinitesVerb() erkennt die erste Person nicht. Ein Rahmensatz,
@@ -5352,6 +5701,15 @@ var init_shape = __esm({
       "Ich bin %O. Man geht an mir vorbei, seit Jahren."
     ];
     OBJEKT_KOPF_RE = /^(Ich bin (?:der|die|das) [^.!?]{1,40}\.\s+[^.!?]{1,70}\.)\s*/;
+    OBJEKT_ZWISCHENRUF = [
+      "Ich sehe zu.",
+      "Ich liege dabei.",
+      "Ich z\xE4hle mit.",
+      "Ich r\xFChre mich nicht.",
+      "Ich habe Zeit.",
+      "Ich merke es mir."
+    ];
+    kenntVerb = (v) => !!VERB_CONJ[v.toLowerCase()] || istVerbform(v);
     SCHON_GEBUNDEN = /^(und|doch|aber|oder|denn|dann|dabei|also|trotzdem|dennoch|sondern|nur|zuerst|zuletzt|währenddessen)/i;
   }
 });
@@ -5421,6 +5779,7 @@ var init_dramaturgie = __esm({
 // src/generation/postprocess.ts
 var postprocess_exports = {};
 __export(postprocess_exports, {
+  adjektivKongruenz: () => adjektivKongruenz,
   beugeNachDu: () => beugeNachDu,
   coherencePass: () => coherencePass,
   coherenceRepairV2: () => coherenceRepairV2,
@@ -5629,6 +5988,17 @@ function nomenNachAdverb(t) {
     (m, vor, adv, w) => guessGender(w) ? `${vor}${adv} ${w.charAt(0).toUpperCase()}${w.slice(1)},` : m
   );
 }
+function adjektivKongruenz(t) {
+  return (t || "").replace(/(^|[.!?…:;—]\s+)(Ein|Eine|Der|Die|Das) ([a-zäöüß]{3,}?)(e|er|es) ([A-ZÄÖÜ][a-zäöüß]{2,})\b/g, (m, vor, art, stamm, endung, nomen) => {
+    const g = guessGender(nomen);
+    if (!g) return m;
+    const indef = art.startsWith("Ein");
+    const sollArt = indef ? g === "f" ? "Eine" : "Ein" : g === "m" ? "Der" : g === "f" ? "Die" : "Das";
+    const sollEnd = indef ? g === "m" ? "er" : g === "f" ? "e" : "es" : "e";
+    if (sollArt === art && sollEnd === endung) return m;
+    return `${vor}${sollArt} ${stamm}${sollEnd} ${nomen}`;
+  });
+}
 function nominativFragment(t) {
   return (t || "").replace(
     /(^|[.!?…]\s+|\n)(Einen|Den|Einem|Dem)\s+([A-ZÄÖÜ][a-zäöüß]+)([^.!?…\n]*[.!?…])/g,
@@ -5672,6 +6042,7 @@ function postProcessText(txt, input) {
   z("schliff_fragezeichen", fragezeichen);
   z("schliff_nomenNachAdverb", nomenNachAdverb);
   z("schliff_nominativFragment", nominativFragment);
+  z("schliff_adjektivKongruenz", adjektivKongruenz);
   z("schliff_formelnGlaetten", formelnGlaetten);
   z("schliff_kleinerArtikel", kleinerArtikel);
   const name = (input?.who ?? "").toString().trim();
@@ -14174,6 +14545,21 @@ ist("Knapp nach Strich klein", kleinesPronomen("zu vollkommener Ruhe \u2014 Knap
     }
   }
   ist("kein Flavor-Satz zweimal (20 L\xE4ufe)", doppelt, 0);
+}
+{
+  const { adjektivKongruenz: adjektivKongruenz2 } = (init_postprocess(), __toCommonJS(postprocess_exports));
+  ist("Ein rotes Ballon \u2192 Ein roter Ballon", adjektivKongruenz2("Ein rotes Ballon in der Faust."), "Ein roter Ballon in der Faust.");
+  ist("Der alte Uhr \u2192 Die alte Uhr", adjektivKongruenz2("Der alte Uhr steht."), "Die alte Uhr steht.");
+  ist("richtig bleibt richtig", adjektivKongruenz2("Eine kalte Nacht. Ein leises Haus."), "Eine kalte Nacht. Ein leises Haus.");
+  ist("unbekanntes Genus: unangetastet", adjektivKongruenz2("Ein rotes Xylom steht."), "Ein rotes Xylom steht.");
+  ist("nicht am Satzanfang: unangetastet (Akkusativ)", adjektivKongruenz2("Er h\xE4lt ein rotes Band."), "Er h\xE4lt ein rotes Band.");
+  const { applyTension: at } = (init_shape(), __toCommonJS(shape_exports));
+  let ellipse = 0;
+  for (let i = 0; i < 40; i++) {
+    const t = at("Der Morgen liegt grau \xFCber der Weide, und niemand r\xFChrt sich. Marta l\xE4chelt, f\xFChrt beide in die K\xFCche. Die Glocke schl\xE4gt, der Hund hebt den Kopf. Ein Zug f\xE4hrt ein, quietschend. Der Regen h\xF6rt auf, der Stein bleibt warm.", "off", void 0, () => 0.95);
+    if (/(^|\.\s+)Führt beide/.test(t)) ellipse++;
+  }
+  ist("kein \u201EF\xFChrt beide in die K\xFCche.\u201C ohne Subjekt (40 L\xE4ufe)", ellipse, 0);
 }
 console.log(`Pr\xFCfstand Schliff \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

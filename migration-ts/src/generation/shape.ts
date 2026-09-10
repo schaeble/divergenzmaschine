@@ -114,7 +114,14 @@ export function applyTension(text: string, peak?: string, material?: TensionMate
       // Karten fälscht sucht die Spur", weil „ein Schulmädchen, das Karten
       // fälscht" hier auseinandergeschnitten wurde.
       const rest = t.slice(cut + 2);
-      const unteilbar = NEBENSATZ_ANFANG.test(rest);
+      // Auch nicht, wenn der Rest mit dem Verb beginnt — eine Subjekt-Ellipse
+      // („Marta lächelt, führt beide in die Küche") ergäbe „Führt beide in die
+      // Küche." ohne Subjekt. Der Rest muss mit etwas beginnen, das ein Subjekt
+      // sein kann: Artikel, Pronomen, Name, Adverb — nicht mit einer
+      // kleingeschriebenen Verbform.
+      const ersteWort = (rest.match(/^([a-zäöüß]+)/) || [])[1] || "";
+      const verbVorn = ersteWort ? istVerbform(ersteWort) && !/^(dann|jetzt|nun|dort|hier|da|so|doch|aber|und|noch|nur|schon|bald|wieder|immer|nie|niemand|jemand|man|alles|nichts|etwas)$/.test(ersteWort) : false;
+      const unteilbar = NEBENSATZ_ANFANG.test(rest) || verbVorn;
       if (cut > 10 && cut < 90 && !unteilbar) { s[i] = t.slice(0, cut) + "."; s.splice(i + 1, 0, cap(rest)); }
     }
   }

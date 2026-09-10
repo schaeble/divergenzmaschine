@@ -377,6 +377,27 @@ export function nomenNachAdverb(t: string): string {
  *  gemeldet: „Einen Stein mit Riss." Der Rest eines Rahmens („Wir sehen einen
  *  Stein …"). Der Artikel wird zum Nominativ; bei „Einem/Dem" entscheidet das
  *  Genus des Nomens, unbekannt bleibt stehen. Nur ohne finites Verb. */
+/** Adjektiv-Kongruenz am Satzanfang: „Ein rotes Ballon" → „Ein roter Ballon".
+ *  Gemeldet (Blatt „Ost-Berlin"). Entsteht, wenn eine Motivverwandlung ein
+ *  Nomen anderen Genus einsetzt oder das Material selbst falsch steht. Nur am
+ *  Satzanfang (Nominativ) und nur bei bekanntem Genus; Artikel und Adjektiv-
+ *  endung werden auf das Genus des Nomens gebracht. Ein Plural („Eine Reihe
+ *  rote Fahnen") ist nicht betroffen: das Nomen muss im Singular in der
+ *  Tabelle stehen. */
+export function adjektivKongruenz(t: string): string {
+  return (t || "").replace(/(^|[.!?…:;—]\s+)(Ein|Eine|Der|Die|Das) ([a-zäöüß]{3,}?)(e|er|es) ([A-ZÄÖÜ][a-zäöüß]{2,})\b/g, (m, vor: string, art: string, stamm: string, endung: string, nomen: string) => {
+    const g = genderOf(nomen);
+    if (!g) return m;
+    const indef = art.startsWith("Ein");
+    const sollArt = indef ? (g === "f" ? "Eine" : "Ein") : (g === "m" ? "Der" : g === "f" ? "Die" : "Das");
+    const sollEnd = indef ? (g === "m" ? "er" : g === "f" ? "e" : "es") : "e";
+    if (sollArt === art && sollEnd === endung) return m;
+    // Nur eingreifen, wenn Artikel UND Endung zum selben anderen Genus passen
+    // würden — sonst ist es eher ein Akkusativ-Fragment als ein Fehler.
+    return `${vor}${sollArt} ${stamm}${sollEnd} ${nomen}`;
+  });
+}
+
 export function nominativFragment(t: string): string {
   return (t || "").replace(/(^|[.!?…]\s+|\n)(Einen|Den|Einem|Dem)\s+([A-ZÄÖÜ][a-zäöüß]+)([^.!?…\n]*[.!?…])/g,
     (m: string, vor: string, art: string, nomen: string, rest: string) => {
@@ -449,6 +470,7 @@ export function postProcessText(txt: string, input?: Input): string {
   z("schliff_fragezeichen", fragezeichen);
   z("schliff_nomenNachAdverb", nomenNachAdverb);
   z("schliff_nominativFragment", nominativFragment);
+  z("schliff_adjektivKongruenz", adjektivKongruenz);
   z("schliff_formelnGlaetten", formelnGlaetten);
 
   // Unbestimmter Artikel MITTEN im Satz klein.

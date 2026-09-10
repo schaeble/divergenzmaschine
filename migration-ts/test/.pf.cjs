@@ -2481,6 +2481,15 @@ var NOUN_GENDER = {
 
 // src/generation/nouns2.data.ts
 var NOUN_GENDER_2 = {
+  // Nachtrag 4.357.1 (Blatt „Ost-Berlin": „Ein rotes Ballon")
+  ballon: "m",
+  luftballon: "m",
+  stoff: "m",
+  geschmack: "m",
+  sperrstunde: "f",
+  zugang: "m",
+  kopie: "f",
+  l\u00F6schung: "f",
   // ── Häufigste ──
   ende: "n",
   jahr: "n",
@@ -6495,7 +6504,9 @@ function applyTension(text, peak, material, kurve) {
       const t = s[i2];
       const cut = t.indexOf(", ");
       const rest = t.slice(cut + 2);
-      const unteilbar = NEBENSATZ_ANFANG.test(rest);
+      const ersteWort = (rest.match(/^([a-zäöüß]+)/) || [])[1] || "";
+      const verbVorn = ersteWort ? istVerbform(ersteWort) && !/^(dann|jetzt|nun|dort|hier|da|so|doch|aber|und|noch|nur|schon|bald|wieder|immer|nie|niemand|jemand|man|alles|nichts|etwas)$/.test(ersteWort) : false;
+      const unteilbar = NEBENSATZ_ANFANG.test(rest) || verbVorn;
       if (cut > 10 && cut < 90 && !unteilbar) {
         s[i2] = t.slice(0, cut) + ".";
         s.splice(i2 + 1, 0, cap(rest));
@@ -7305,6 +7316,17 @@ function nomenNachAdverb(t) {
     (m, vor, adv, w) => guessGender(w) ? `${vor}${adv} ${w.charAt(0).toUpperCase()}${w.slice(1)},` : m
   );
 }
+function adjektivKongruenz(t) {
+  return (t || "").replace(/(^|[.!?…:;—]\s+)(Ein|Eine|Der|Die|Das) ([a-zäöüß]{3,}?)(e|er|es) ([A-ZÄÖÜ][a-zäöüß]{2,})\b/g, (m, vor, art, stamm, endung, nomen) => {
+    const g = guessGender(nomen);
+    if (!g) return m;
+    const indef = art.startsWith("Ein");
+    const sollArt = indef ? g === "f" ? "Eine" : "Ein" : g === "m" ? "Der" : g === "f" ? "Die" : "Das";
+    const sollEnd = indef ? g === "m" ? "er" : g === "f" ? "e" : "es" : "e";
+    if (sollArt === art && sollEnd === endung) return m;
+    return `${vor}${sollArt} ${stamm}${sollEnd} ${nomen}`;
+  });
+}
 function nominativFragment(t) {
   return (t || "").replace(
     /(^|[.!?…]\s+|\n)(Einen|Den|Einem|Dem)\s+([A-ZÄÖÜ][a-zäöüß]+)([^.!?…\n]*[.!?…])/g,
@@ -7348,6 +7370,7 @@ function postProcessText(txt, input) {
   z("schliff_fragezeichen", fragezeichen);
   z("schliff_nomenNachAdverb", nomenNachAdverb);
   z("schliff_nominativFragment", nominativFragment);
+  z("schliff_adjektivKongruenz", adjektivKongruenz);
   z("schliff_formelnGlaetten", formelnGlaetten);
   z("schliff_kleinerArtikel", kleinerArtikel);
   const name = (input?.who ?? "").toString().trim();

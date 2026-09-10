@@ -10,6 +10,8 @@
 // declension.ts). Die Tabelle wird in NOUN_GENDER gemischt; ein Eintrag hier
 // überschreibt keinen dort.
 export const NOUN_GENDER_2: Record<string, "m" | "f" | "n"> = {
+  // Nachtrag 4.357.1 (Blatt „Ost-Berlin": „Ein rotes Ballon")
+  ballon: "m", luftballon: "m", stoff: "m", geschmack: "m", sperrstunde: "f", zugang: "m", kopie: "f", löschung: "f",
   // ── Häufigste ──
   ende: "n", jahr: "n", mal: "n", anfang: "m", leben: "n", auskunft: "f", welt: "f", frühjahr: "n", fall: "m",
   arbeit: "f", sache: "f", zufall: "m", form: "f", ziel: "n", kontrolle: "f", reihenfolge: "f", wissen: "n",

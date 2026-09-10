@@ -425,6 +425,23 @@ ist("Knapp nach Strich klein", kleinesPronomen("zu vollkommener Ruhe — Knapp e
   ist("kein Flavor-Satz zweimal (20 Läufe)", doppelt, 0);
 }
 
+// ── Blatt „Ost-Berlin": Adjektiv-Kongruenz, Teilung vor Verb-Ellipse
+{
+  const { adjektivKongruenz } = require("../src/generation/postprocess") as { adjektivKongruenz: (t: string) => string };
+  ist("Ein rotes Ballon → Ein roter Ballon", adjektivKongruenz("Ein rotes Ballon in der Faust."), "Ein roter Ballon in der Faust.");
+  ist("Der alte Uhr → Die alte Uhr", adjektivKongruenz("Der alte Uhr steht."), "Die alte Uhr steht.");
+  ist("richtig bleibt richtig", adjektivKongruenz("Eine kalte Nacht. Ein leises Haus."), "Eine kalte Nacht. Ein leises Haus.");
+  ist("unbekanntes Genus: unangetastet", adjektivKongruenz("Ein rotes Xylom steht."), "Ein rotes Xylom steht.");
+  ist("nicht am Satzanfang: unangetastet (Akkusativ)", adjektivKongruenz("Er hält ein rotes Band."), "Er hält ein rotes Band.");
+  const { applyTension: at } = require("../src/generation/shape") as { applyTension: (t: string, p?: string, m?: unknown, k?: (p: number) => number) => string };
+  let ellipse = 0;
+  for (let i = 0; i < 40; i++) {
+    const t = at("Der Morgen liegt grau über der Weide, und niemand rührt sich. Marta lächelt, führt beide in die Küche. Die Glocke schlägt, der Hund hebt den Kopf. Ein Zug fährt ein, quietschend. Der Regen hört auf, der Stein bleibt warm.", "off", undefined, () => 0.95);
+    if (/(^|\.\s+)Führt beide/.test(t)) ellipse++;
+  }
+  ist("kein „Führt beide in die Küche.“ ohne Subjekt (40 Läufe)", ellipse, 0);
+}
+
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

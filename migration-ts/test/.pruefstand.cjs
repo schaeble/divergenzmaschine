@@ -2140,6 +2140,15 @@ var NOUN_GENDER = {
 
 // src/generation/nouns2.data.ts
 var NOUN_GENDER_2 = {
+  // Nachtrag 4.357.1 (Blatt „Ost-Berlin": „Ein rotes Ballon")
+  ballon: "m",
+  luftballon: "m",
+  stoff: "m",
+  geschmack: "m",
+  sperrstunde: "f",
+  zugang: "m",
+  kopie: "f",
+  l\u00F6schung: "f",
   // ── Häufigste ──
   ende: "n",
   jahr: "n",
