@@ -140,7 +140,14 @@ export function buildDramaturgie(kit: StoryKit): string {
         const { satz, nackt } = ziehOhneZeitkopf(d.hoehepunkt);
         if (!satz) return "";
         return nackt ? cap(ensurePunct(satz)) : `Und dann: ${cap(satz)}.`;
-      case "einsatz": quelleSchlag = "wortbank"; return reframeStake(kit.stake);
+      case "einsatz": {
+        // Der Einsatz steht einmal — eine Schlagfolge kann ihn zweimal nennen
+        // (Blatt „Weilheim": „… steht auf dem Spiel" und „Es geht um …" mit
+        // demselben Einsatz). Der zweite Schlag fällt aus.
+        if (benutzt.has(norm(kit.stake))) return "";
+        benutzt.add(norm(kit.stake));
+        quelleSchlag = "wortbank"; return reframeStake(kit.stake);
+      }
       case "schluss": quelleSchlag = "wortbank"; return ensurePunct(kit.ending);
       default: return "";
     }

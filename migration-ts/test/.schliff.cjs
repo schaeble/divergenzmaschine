@@ -5597,6 +5597,8 @@ function darfVerbinden(a, b, obergrenze) {
   const wa = (a.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
   const wb = (b.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
   if (!wa || !wb) return false;
+  if (wb < 2 || wa < 2) return false;
+  if (/^(Es geht um|Der Einsatz ist|Auf dem Spiel steht|Alles dreht sich um|Was zählt, ist)\b/.test(a) || /steht auf dem Spiel\.$/.test(a)) return false;
   return wa + wb <= obergrenze;
 }
 function verbinde(a, b, satzartig) {
@@ -14582,6 +14584,14 @@ ist("Knapp nach Strich klein", kleinesPronomen("zu vollkommener Ruhe \u2014 Knap
     if (/(^|\.\s+)Führt beide/.test(t)) ellipse++;
   }
   ist("kein \u201EF\xFChrt beide in die K\xFCche.\u201C ohne Subjekt (40 L\xE4ufe)", ellipse, 0);
+}
+{
+  const { applySatzlaenge: asl } = (init_shape(), __toCommonJS(shape_exports));
+  const t = asl("Es geht um die Stille nach dem letzten Wort. Vielleicht. Noch immer will Ebi die Erkl\xE4rung finden. Man h\xF6rt die Dinge atmen.", 18);
+  wahr("\u201EVielleicht.\u201C bleibt ein eigener Satz", /\bVielleicht\.\s/.test(t) && !/, und vielleicht/.test(t), t);
+  wahr("der Einsatz-Satz wird nicht verl\xE4ngert", /Es geht um die Stille nach dem letzten Wort\./.test(t));
+  const qd = (0, import_fs.readFileSync)("src/generation/dramaturgie.ts", "utf8");
+  wahr("der Einsatz-Schlag steht einmal, der zweite f\xE4llt aus", /case "einsatz": \{\s*\n[\s\S]*?if \(benutzt\.has\(norm\(kit\.stake\)\)\) return "";/.test(qd));
 }
 console.log(`Pr\xFCfstand Schliff \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;

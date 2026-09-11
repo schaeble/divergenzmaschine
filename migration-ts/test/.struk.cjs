@@ -6756,6 +6756,8 @@ function darfVerbinden(a, b, obergrenze) {
   const wa = (a.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
   const wb = (b.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
   if (!wa || !wb) return false;
+  if (wb < 2 || wa < 2) return false;
+  if (/^(Es geht um|Der Einsatz ist|Auf dem Spiel steht|Alles dreht sich um|Was zählt, ist)\b/.test(a) || /steht auf dem Spiel\.$/.test(a)) return false;
   return wa + wb <= obergrenze;
 }
 function verbinde(a, b, satzartig) {
@@ -6935,9 +6937,12 @@ function buildDramaturgie(kit) {
         const { satz, nackt } = ziehOhneZeitkopf(d.hoehepunkt);
         if (!satz) return "";
         return nackt ? cap(ensurePunct(satz)) : `Und dann: ${cap(satz)}.`;
-      case "einsatz":
+      case "einsatz": {
+        if (benutzt.has(norm(kit.stake))) return "";
+        benutzt.add(norm(kit.stake));
         quelleSchlag = "wortbank";
         return reframeStake(kit.stake);
+      }
       case "schluss":
         quelleSchlag = "wortbank";
         return ensurePunct(kit.ending);
@@ -16468,40 +16473,66 @@ function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
   const missing = Math.max(0, target - wc2);
   const maxAttempts = Math.min(120, Math.ceil(missing / 6) + 6);
   const used = /* @__PURE__ */ new Set();
-  const strong = markovMode === "on";
-  const addition = () => {
-    if (model && (strong || Math.random() < 0.6)) {
-      const tries = strong ? 3 : 1;
-      for (let k = 0; k < tries; k++) {
+  const kurve = ladeKurve();
+  const staemme = (t) => new Set((t.toLowerCase().match(/[a-zäöüß]{5,}/g) || []).map((x) => x.slice(0, 5)));
+  const nominativ = (x) => x.replace(/^einen\s/i, (m) => m[0] === "E" ? "Ein " : "ein ").replace(/^den\s/i, (m) => m[0] === "D" ? "Der " : "der ");
+  const endungen = new Set((bank.endings || []).map((e) => clean(e).toLowerCase().replace(/[.!?…]+$/, "")));
+  let saetze = out.split(/\n\n+/).flatMap((abs, i) => (i ? ["\n\n"] : []).concat(splitSentences(abs)));
+  const istSchluss = (x) => endungen.has(clean(x).toLowerCase().replace(/[.!?…]+$/, ""));
+  let schlussAb = saetze.length - 1;
+  while (schlussAb > 1 && istSchluss(saetze[schlussAb - 1])) schlussAb--;
+  const einfuegeStellen = () => {
+    const idx = [];
+    for (let i = 1; i < schlussAb; i++) if (saetze[i] !== "\n\n") idx.push(i);
+    if (!idx.length) return [schlussAb];
+    if (kurve.an) return idx.map((i) => [i, kurveWert(kurve.werte, i / Math.max(1, saetze.length - 1))]).sort((a, b) => a[1] - b[1]).map((x) => x[0]);
+    const mitte = Math.floor(idx.length / 2);
+    const aus = [];
+    for (let k = 0; k < idx.length; k++) {
+      const j = mitte + (k % 2 ? -Math.ceil(k / 2) : Math.ceil(k / 2));
+      if (idx[j] !== void 0) aus.push(idx[j]);
+    }
+    return aus.length ? aus : idx;
+  };
+  let stelleNr = 0;
+  const addition = (davor) => {
+    if (model && Math.random() < (markovMode === "wild" ? 0.7 : 0.4)) {
+      for (let k = 0; k < 6; k++) {
         const roh = smoothMarkov(model.generate(Math.min(60, Math.max(20, Math.floor(missing * 0.8)))));
         const u = roh ? praesensUmschreiben(roh) : null;
         const m = u && u.ok ? u.text : "";
         if (m && isSaneMarkov(m) && m.length > 15 && !markovSeenRecently(m)) {
-          const key = m.toLowerCase();
-          if (!used.has(key) && !out.toLowerCase().includes(key.slice(0, 40))) {
-            used.add(key);
-            noteMarkov(m);
-            traceMarkov(m);
-            return { text: m, raw: false };
-          }
+          noteMarkov(m);
+          traceMarkov(m);
+          return { text: m, raw: false };
         }
       }
     }
-    const cands = [...bank.motifs || [], ...bank.turns || [], ...bank.hooks || [], ...bank.obstacles || [], ...bank.props || []];
+    const cands = [...bank.motifs || [], ...bank.turns || [], ...bank.hooks || [], ...bank.obstacles || [], ...(bank.props || []).map(nominativ)];
     if (!cands.length) return null;
     const fresh = cands.filter((c) => {
       const k = clean(c).toLowerCase();
       return k && !used.has(k) && !out.toLowerCase().includes(k);
     });
     if (!fresh.length) return null;
-    const chosen = pick(fresh);
+    const st = staemme(davor);
+    const anschluss = st.size ? fresh.filter((c) => {
+      for (const x of staemme(c)) if (st.has(x)) return true;
+      return false;
+    }) : [];
+    const chosen = anschluss.length && Math.random() < 0.7 ? pick(anschluss) : pick(fresh);
     used.add(clean(chosen).toLowerCase());
     return { text: chosen, raw: true };
   };
   let leer2 = 0;
   for (let a = 0; a < maxAttempts; a++) {
+    out = saetze.join(" ").replace(/ \n\n /g, "\n\n");
     if (count(out) >= target - tol) break;
-    const add = addition();
+    const stellen = einfuegeStellen();
+    const at = stellen[stelleNr % stellen.length];
+    stelleNr++;
+    const davor = saetze[at - 1] && saetze[at - 1] !== "\n\n" ? saetze[at - 1] : saetze[at] || "";
+    const add = addition(davor);
     if (!add) {
       if (++leer2 >= 3) {
         zaehle("fuellerStopp", `${count(out)} von ${target} W\xF6rtern`);
@@ -16511,10 +16542,10 @@ function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
     }
     let ca = add.text.trim().replace(/^[a-z]/, (c) => c.toUpperCase()).replace(/\s+([,.;:!?…])/g, "$1");
     if (!/[.!?…]$/.test(ca)) ca += ".";
-    out = out.replace(/[.!?…]+\s*$/, "").trim();
-    out += ". " + ca;
-    out = out.replace(/\s+/g, " ").trim();
+    saetze = [...saetze.slice(0, at), ca, ...saetze.slice(at)];
+    schlussAb++;
   }
+  out = saetze.join(" ").replace(/ \n\n /g, "\n\n").replace(/[ \t]+/g, " ").trim();
   return ensurePunct(out);
 }
 

@@ -46,6 +46,28 @@ for (const st of ["linear", "rekombination", "dramaturgie"]) {
   wahr("der Füller hört auf, statt zu wiederholen", /if \(!fresh\.length\) return null;/.test(ql));
 }
 
+// ── Blatt „Sonnenaufgang in Weilheim": Füller vor dem Schluss, mit Anschluss, im Nominativ
+{
+  const { enforceWordTarget } = require("../src/generation/length") as { enforceWordTarget: (t: string, ziel: number, bank: Bank) => string };
+  const basis = "Das Licht fällt so, dass Worte fast überflüssig werden. Ebi beobachtet den Raum. Ein Tonbandgerät liegt darin, vergessen von einem Handwerker. Die Melodie wiederholt sich, aber die Worte ändern sich. Nur der Nebel, der mir den Rücken deckt.";
+  const bank = { ...kafka, endings: ["Nur der Nebel, der mir den Rücken deckt", ...(kafka.endings || [])], props: ["einen Schlüssel für jedes Schloss", "einen Brief ohne Absenderzeile", "den Kompass ohne Nadel"] } as Bank;
+  let letzterBleibt = 0, akk = 0, anschluss = 0, n = 12;
+  for (let i = 0; i < n; i++) {
+    const t = enforceWordTarget(basis, 140, bank);
+    const s = t.split(/(?<=[.!?…])\s+/);
+    if (/Nur der Nebel, der mir den Rücken deckt\.$/.test(s[s.length - 1]!)) letzterBleibt++;
+    akk += (t.match(/(^|\. )(Einen|Den) [A-ZÄÖÜ]/g) || []).length;
+    // Anschluss: eingefügte Sätze teilen mit ihrem Vorgänger einen Stamm (mindestens ein Drittel der Einfügungen)
+    const st = (x: string) => new Set((x.toLowerCase().match(/[a-zäöüß]{5,}/g) || []).map((y) => y.slice(0, 5)));
+    let mit = 0, eing = 0;
+    for (let j = 1; j < s.length; j++) { if (basis.includes(s[j]!)) continue; eing++; const a = st(s[j - 1]!); for (const x of st(s[j]!)) if (a.has(x)) { mit++; break; } }
+    if (eing && mit / eing >= 0.3) anschluss++;
+  }
+  ist("der letzte Satz bleibt der letzte (12 Läufe)", letzterBleibt, n);
+  ist("keine Requisite im Akkusativ", akk, 0);
+  wahr("Anschluss: in vielen Läufen teilt mindestens ein Drittel der Einfügungen einen Stamm mit dem Vorgänger (vorher: Zufall)", anschluss >= n * 0.35, `${anschluss}/${n}`);
+}
+
 console.log(`Prüfstand Textlänge — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) { console.error(`\n❌ Textlänge: ${fails.length} Fehler:`); fails.forEach((f) => console.error("  - " + f)); proc.process?.exit(1); }

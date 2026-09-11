@@ -418,6 +418,12 @@ function darfVerbinden(a: string, b: string, obergrenze: number): boolean {
   const wa = (a.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
   const wb = (b.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
   if (!wa || !wb) return false;
+  // Ein Ein-Wort-Fragment („Vielleicht.", „Fast.") ist ein gesetzter Bruch —
+  // angenäht wird daraus „…, und vielleicht." (Blatt „Weilheim"). Es bleibt
+  // stehen, nach vorn wie nach hinten.
+  if (wb < 2 || wa < 2) return false;
+  // Ein Einsatz-Satz („Es geht um …", „… steht auf dem Spiel") bleibt für sich.
+  if (/^(Es geht um|Der Einsatz ist|Auf dem Spiel steht|Alles dreht sich um|Was zählt, ist)\b/.test(a) || /steht auf dem Spiel\.$/.test(a)) return false;
   return wa + wb <= obergrenze;
 }
 

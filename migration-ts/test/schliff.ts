@@ -448,6 +448,16 @@ ist("Knapp nach Strich klein", kleinesPronomen("zu vollkommener Ruhe — Knapp e
   ist("kein „Führt beide in die Küche.“ ohne Subjekt (40 Läufe)", ellipse, 0);
 }
 
+// ── Blatt „Weilheim": kein Fragment an einen Satz genäht, Einsatz bleibt für sich
+{
+  const { applySatzlaenge: asl } = require("../src/generation/shape") as { applySatzlaenge: (t: string, z: number) => string };
+  const t = asl("Es geht um die Stille nach dem letzten Wort. Vielleicht. Noch immer will Ebi die Erklärung finden. Man hört die Dinge atmen.", 18);
+  wahr("„Vielleicht.“ bleibt ein eigener Satz", /\bVielleicht\.\s/.test(t) && !/, und vielleicht/.test(t), t);
+  wahr("der Einsatz-Satz wird nicht verlängert", /Es geht um die Stille nach dem letzten Wort\./.test(t));
+  const qd = readFileSync("src/generation/dramaturgie.ts", "utf8");
+  wahr("der Einsatz-Schlag steht einmal, der zweite fällt aus", /case "einsatz": \{\s*\n[\s\S]*?if \(benutzt\.has\(norm\(kit\.stake\)\)\) return "";/.test(qd));
+}
+
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {
