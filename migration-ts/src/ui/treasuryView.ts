@@ -159,7 +159,9 @@ export function mountTreasury(root: HTMLElement): void {
         el("span", { class: "tdate" }, it.d),
         ...(it.secret ? [el("span", { class: "tsecret" }, icon("lock", 13), " Tresor")] : []),
         ...(ctxMeta ? [el("span", { class: "tctx" }, ctxMeta)] : []),
-        ...(setMeta ? [el("span", { class: "tctx" }, setMeta)] : []));
+        ...(setMeta ? [el("span", { class: "tctx" }, setMeta)] : []),
+        // Die Kette der Serie (4.363.0): Serie, Folge und die Fadenstärke des Glieds.
+        ...(it.set?.serie ? [el("span", { class: "tctx tserie", title: it.set.faden || "" }, `Serie „${it.set.serie}“ · Folge ${it.set.folge || "?"}${it.set.faden ? " · " + it.set.faden.replace(/ — .*$/, "") : ""}`)] : []));
 
       list.append(el("div", { class: "treasure" + (it.secret ? " secret" : "") },
         metaRow,

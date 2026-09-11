@@ -133,3 +133,64 @@ export function dingSatz(ding: string, rnd: () => number = Math.random): string 
   ];
   return formen[Math.floor(rnd() * formen.length)]!;
 }
+
+// ── Fadenstärke (4.363.0): Trägt der dünne Faden? ────────────────────────────
+// Vier prüfbare Größen je Glied (Folge n → n+1), dazu die Gegengröße Neuheit.
+// Die Kettenauslese belohnt Zusammenhang nur bis zu einer Schwelle — vier
+// von vier ist verdächtig (eine Serie, die sich selbst zitiert), zwei von
+// vier ist gut; Neuheit wiegt gleich viel.
+export interface Fadenstaerke {
+  ding: "natuerlich" | "hingelegt" | "fehlt";   // das Ding im Text
+  figur: boolean;                                // der Wer handelt im Text
+  frage: boolean;                                // ein Kernwort der Frage steht in einem Satz
+  echo: boolean;                                 // ein Kernwort des letzten Satzes von n im ersten Drittel von n+1
+  neuheit: number;                               // Anteil der Sätze, die nicht in der vorigen Folge stehen (0…1)
+  punkte: number;                                // 0…4
+  wert: number;                                  // Auslese-Wert mit Schwelle und Neuheit
+}
+const st5 = (t: string): Set<string> => new Set((t.toLowerCase().match(/[a-zäöüß]{5,}/g) || []).map((x) => x.slice(0, 5)));
+const kern = (t: string): Set<string> => new Set((t.match(/[A-ZÄÖÜ][a-zäöüß]{4,}/g) || []).map((x) => x.toLowerCase().slice(0, 5)));
+const FRAGEWORT = new Set(["was", "wer", "wird", "hat", "bleibt", "kommt", "geht", "aus", "den", "die", "der", "das", "dem", "ein", "eine", "einen", "und", "oder", "nicht", "niemand", "noch", "zurück", "gelassen", "zurückgelassen"]);
+
+export function fadenstaerke(vorher: string, nachher: string, f: Pick<Faden, "figur" | "ding" | "frage" | "letzterSatz">, dingHingelegt = false): Fadenstaerke {
+  const nach = nachher.replace(/\n+/g, " ");
+  const nachLow = nach.toLowerCase();
+  // Ding
+  const dingStamm = (f.ding.match(/[A-ZÄÖÜ][a-zäöüß]{3,}/) || [""])[0]!.toLowerCase().slice(0, 5);
+  const dingDa = !!dingStamm && nachLow.includes(dingStamm);
+  const ding: Fadenstaerke["ding"] = !dingDa ? "fehlt" : dingHingelegt ? "hingelegt" : "natuerlich";
+  // Figur: das letzte Wort des Wer (der Name oder das Nomen) im Text, oder ein Pronomen-Satz genügt nicht — es zählt das Wort.
+  const figurWort = (f.figur.match(/[A-ZÄÖÜ][a-zäöüß]{2,}$/) || [f.figur.split(/\s+/).pop() || ""])[0]!.toLowerCase();
+  const figur = !!figurWort && figurWort.length >= 3 && nachLow.includes(figurWort);
+  // Frage: ein Inhaltswort der Frage (≥ 5 Buchstaben, kein Fragewort) in einem Satz des Textes.
+  const frageWoerter = (f.frage.toLowerCase().match(/[a-zäöüß]{5,}/g) || []).filter((w) => !FRAGEWORT.has(w)).map((w) => w.slice(0, 5));
+  const frage = frageWoerter.some((w) => nachLow.includes(w));
+  // Echo über die Naht: Kernwort des letzten Satzes von n im ersten Drittel von n+1.
+  const saetze = splitSentences(nach);
+  const erstesDrittel = saetze.slice(0, Math.max(1, Math.ceil(saetze.length / 3))).join(" ");
+  const echo = [...kern(f.letzterSatz)].some((k) => erstesDrittel.toLowerCase().includes(k));
+  // Neuheit
+  const vorherSaetze = new Set(splitSentences(vorher.replace(/\n+/g, " ")).map((x) => x.toLowerCase().replace(/[^a-zäöüß ]/g, "").trim()));
+  const neu = saetze.filter((x) => !vorherSaetze.has(x.toLowerCase().replace(/[^a-zäöüß ]/g, "").trim()));
+  const neuheit = saetze.length ? neu.length / saetze.length : 1;
+  const punkte = (ding !== "fehlt" ? 1 : 0) + (figur ? 1 : 0) + (frage ? 1 : 0) + (echo ? 1 : 0);
+  // Auslese-Wert: bis zwei Punkte voll belohnt, der dritte halb, der vierte gar
+  // nicht — ein natürliches Ding zählt mehr als ein hingelegtes; Neuheit
+  // wiegt wie zwei Punkte.
+  const zusammenhang = Math.min(2, punkte) + (punkte >= 3 ? 0.5 : 0) + (ding === "natuerlich" ? 0.5 : 0);
+  const wert = zusammenhang + 2 * neuheit;
+  void st5;
+  return { ding, figur, frage, echo, neuheit, punkte, wert };
+}
+
+/** Kurzfassung für die Anzeige: „●●○○ — Ding hingelegt, Frage aufgenommen, kein Echo über die Naht". */
+export function fadenBeschreibung(s: Fadenstaerke): string {
+  const kugeln = "●".repeat(s.punkte) + "○".repeat(4 - s.punkte);
+  const teile = [
+    s.ding === "natuerlich" ? "Ding im Text" : s.ding === "hingelegt" ? "Ding hingelegt" : "Ding fehlt",
+    s.figur ? "Figur handelt" : "Figur fehlt",
+    s.frage ? "Frage aufgenommen" : "Frage nicht aufgenommen",
+    s.echo ? "Echo über die Naht" : "kein Echo über die Naht",
+  ];
+  return `Faden: ${kugeln} — ${teile.join(", ")} · Neuheit ${Math.round(s.neuheit * 100)} %`;
+}

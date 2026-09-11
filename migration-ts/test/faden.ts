@@ -53,6 +53,33 @@ ist("Serienlänge fünf", SERIEN_LAENGE, 5);
   wahr("„Faden lösen“ beendet die Serie", /speichereFaden\(null\); fadenKopf = ""/.test(q));
 }
 
+// ── Fadenstärke und Kettenauslese (4.363.0): Trägt der dünne Faden? ──────────
+{
+  const { fadenstaerke, fadenBeschreibung } = require("../src/features/faden") as { fadenstaerke: (a: string, b: string, f: { figur: string; ding: string; frage: string; letzterSatz: string }, h?: boolean) => { ding: string; figur: boolean; frage: boolean; echo: boolean; neuheit: number; punkte: number; wert: number }; fadenBeschreibung: (s: unknown) => string };
+  const f = { figur: "Der Bote", ding: "ein Schlüssel", frage: "Was wird aus dem Schlüssel, den niemand nimmt?", letzterSatz: "Der Bote wartet an der Glocke." };
+  const vor = "Der Bote hört die Glocke. Ein Schlüssel liegt auf dem Tisch. Der Bote wartet an der Glocke.";
+  const gut = "Die Glocke schlägt in Ost-Berlin. Der Bote findet den Schlüssel im Fluss, und niemand nimmt ihn. Ein Zug fährt ein. Der Bahnsteig atmet Beton.";
+  const s1 = fadenstaerke(vor, gut, f);
+  ist("gutes Glied: Ding im Text, Figur, Frage, Echo", `${s1.ding}|${s1.figur}|${s1.frage}|${s1.echo}`, "natuerlich|true|true|true");
+  wahr("volle Neuheit", s1.neuheit === 1);
+  const schwach = "Ein Regen fällt. Niemand kommt. Die Stadt schläft. Ein Fenster ohne Glas.";
+  const s2 = fadenstaerke(vor, schwach, f);
+  ist("schwaches Glied: nichts trägt", s2.punkte, 0);
+  wahr("der gute Kandidat gewinnt die Auslese", s1.wert > s2.wert);
+  const kopie = "Der Bote hört die Glocke. Ein Schlüssel liegt auf dem Tisch. Der Bote wartet an der Glocke.";
+  const s3 = fadenstaerke(vor, kopie, f);
+  wahr("eine Kopie der vorigen Folge hat Zusammenhang, aber keine Neuheit — und verliert gegen das gute Glied", s3.neuheit === 0 && s3.wert < s1.wert);
+  const hingelegt = fadenstaerke(vor, gut, f, true);
+  wahr("ein hingelegtes Ding zählt weniger als ein natürliches", hingelegt.wert < s1.wert && hingelegt.ding === "hingelegt");
+  wahr("die Schwelle: vier Punkte bringen nicht mehr als drei (ohne Ding-Bonus)", (() => { const drei = { ...s1, punkte: 3 }; void drei; return s1.wert - 2 * s1.neuheit <= 3; })());
+  wahr("die Beschreibung trägt Kugeln und Gründe", /^Faden: ●●●● — Ding im Text, Figur handelt, Frage aufgenommen, Echo über die Naht · Neuheit 100 %$/.test(fadenBeschreibung(s1)));
+  const q = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("die Fortsetzung erzeugt drei Kandidaten und nimmt den mit der größten Fadenstärke", /for \(let k = 0; k < 3; k\+\+\) \{\s*\n\s*generate\(\);/.test(q) && /if \(!bester \|\| st\.wert > bester\.st\.wert\) bester = \{ text: mitDing, st \};/.test(q));
+  wahr("die Fadenzeile steht unter dem Titel", /fadenZeile\.textContent = letzteFadenstaerke \? fadenBeschreibung\(letzteFadenstaerke\) : ""/.test(q));
+  const qt = readFileSync("src/ui/treasuryView.ts", "utf8");
+  wahr("die Schatzkammer zeigt Serie, Folge und Fadenstärke", /Serie „\$\{it\.set\.serie\}“ · Folge/.test(qt));
+}
+
 console.log(`Prüfstand Faden — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) { console.error(`\n❌ Faden: ${fails.length} Fehler:`); fails.forEach((f) => console.error("  - " + f)); proc.process?.exit(1); }

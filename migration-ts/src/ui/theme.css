@@ -1226,3 +1226,6 @@ button.ek-probe:hover .ek-blaettern{opacity:1;color:var(--acc2)}
 .outwrap:has(.zl-stapel:not([style*="display: none"])) .genarrow.wuerfel{right:100px}
 /* Der Faden: die Bisher-Zeile ueber dem Text (4.362.0). */
 .bisher{font-style:italic;font-size:13px;margin:-4px 0 8px;padding-left:2px}
+/* Der Faden: Fadenzeile unter dem Titel, Serien-Kennzeichen in der Schatzkammer (4.363.0). */
+.fadenzeile{margin:-4px 0 8px;letter-spacing:.02em}
+.tserie{color:var(--acc2)}
