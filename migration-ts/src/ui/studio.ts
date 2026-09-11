@@ -637,7 +637,10 @@ export function mountStudio(root: HTMLElement): void {
   const bogenFuellen = (): void => {
     const wahl = ladeQuelle();
     bogenSel.innerHTML = "";
-    bogenSel.append(el("option", { value: "preset" }, "aus Preset"));
+    // „aus Preset" nennt den Bogen des Presets beim Namen (4.364.0) — damit
+    // man nicht erst in den Quelltext muss, um zu wissen, wessen Bogen baut.
+    const dn = loadDramaData()?.name || "";
+    bogenSel.append(el("option", { value: "preset" }, dn && !/Erzählerbank/.test(dn) ? `aus Preset: ${dn.replace(/^Preset[s]? /, "")}` : "aus Preset"));
     // Das Archiv als Bank (4.341.0): alle Geschichten, nach Bauform gruppiert.
     const alle = archivEintraege().filter((e) => platzBrauchbar(e));
     for (const [k, v] of Object.entries(SCHLAGFOLGEN)) {
@@ -684,6 +687,7 @@ export function mountStudio(root: HTMLElement): void {
       bogenStatus.append("wirkt · Struktur wurde auf „Dramaturgie“ gestellt — ", zurueck);
     } else bogenStatus.append(`wirkt · Struktur „${structure.options[structure.selectedIndex]?.text || structure.value}“`);
   };
+  preset.addEventListener("change", () => { window.setTimeout(bogenFuellen, 0); });
   bogenSel.addEventListener("change", () => {
     setzeQuelle(bogenSel.value); bauformSync();
     // Automatik: Bogen gewählt, Struktur kennt ihn nicht → umstellen, merken, anzeigen.

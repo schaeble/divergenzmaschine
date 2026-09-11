@@ -9,7 +9,8 @@
 import { el } from "./dom";
 import { icon } from "./icons";
 import { ladeArbeitsplatz, speichereArbeitsplatz, platzBrauchbar, SCHLAGFOLGEN, kiErzaehlung, archiviere, archivEintraege, loescheEintrag,
-  ableiteSchlagfolge, eintragId, ladeQuelle, setzeQuelle, speichereArchiv, type Erzaehlung } from "../features/erzaehlerbank";
+  ableiteSchlagfolge, eintragId, ladeQuelle, setzeQuelle, speichereArchiv, eintragNachId, letzterGezogen, type Erzaehlung } from "../features/erzaehlerbank";
+import { loadDramaData } from "../generation/dramaturgie";
 import { ERZAEHLUNGEN_VORLAGEN } from "../features/erzaehlungen.data";
 import { preset2AusText } from "../features/textpreset";
 
@@ -27,7 +28,7 @@ export function mountErzaehlerbank(root: HTMLElement): void {
   const kopf = el("div", {},
     el("h2", {}, "Erzählerbank"),
     el("p", { class: "muted" },
-      "Ein Arbeitsplatz zum Schreiben, darunter das Archiv aller Geschichten — nach Bauform geordnet. „Speichern“ legt die Geschichte ins Archiv (der Titel ist ihre Identität: gleicher Titel = Fortschritt, neuer Titel = neue Geschichte), „wählen“ holt sie zurück. Das Archiv ist zugleich der Vorrat, aus dem das Studio unter „Bogen“ im Werkzeugkasten zieht: fest je Geschichte, oder würfeln je Erzeugung. Die Wortbank liefert das Was, die Erzählerbank das Wie. Richtwert: 300–400 Wörter; unter 40 gilt ein Text als zu dünn."));
+      "Drei Dinge, von oben nach unten: der Arbeitsplatz zum Schreiben (was hier steht, wird erst durch „Speichern“ Teil des Archivs), die aktiv eingestellte Geschichte (das, womit das Studio gerade baut — aus dem Preset, eine Geschichte aus dem Archiv, oder gewürfelt je Erzeugung), und das Archiv aller Geschichten, nach Bauform geordnet. „Speichern“ legt die Geschichte ins Archiv (der Titel ist ihre Identität: gleicher Titel = Fortschritt, neuer Titel = neue Geschichte), „wählen“ holt sie in den Arbeitsplatz, „Im Studio wählen“ macht sie zum Bogen. Die Wortbank liefert das Was, die Erzählerbank das Wie. Richtwert: 300–400 Wörter; unter 40 gilt ein Text als zu dünn."));
 
   // Vorlagen: zehn Geschichten, je eine Bauform, direkt ins Archiv.
   const vorlagenBtn = el("button", { type: "button", title: "Zehn eingebaute Geschichten mit unterschiedlichen Bauformen ins Archiv legen. Vorhandene gleichen Titels werden nicht verdoppelt." }, "Vorlagen ins Archiv") as HTMLButtonElement;
@@ -163,7 +164,7 @@ export function mountErzaehlerbank(root: HTMLElement): void {
     if (!archivSel.value) return;
     if (ladeQuelle() === archivSel.value) setzeQuelle("preset");
     loescheEintrag(archivSel.value);
-    malArchiv();
+    malArchiv(); malAktiv();
   });
   // Diesen Bogen im Studio wählen — der kurze Weg vom Arbeitsplatz zum Regler.
   const imStudio = el("button", { type: "button", title: "Diese Geschichte im Studio als Bogen wählen (Regler „Bogen“)." }, "Im Studio wählen") as HTMLButtonElement;
@@ -172,16 +173,55 @@ export function mountErzaehlerbank(root: HTMLElement): void {
     if (!platzBrauchbar(ez)) return;
     archiviere(ez);
     setzeQuelle(eintragId(ez));
-    malArchiv();
+    malArchiv(); malAktiv();
     imStudio.textContent = "Gewählt ✓"; window.setTimeout(() => { imStudio.textContent = "Im Studio wählen"; }, 1500);
   });
 
-  malStand(); malArchiv();
+  // ── Die aktiv eingestellte Geschichte (4.364.0, gewünscht) ───────────────
+  // Was das Studio gerade als Bogen benutzt — sichtbar, bevor man rät: aus dem
+  // Preset (mit dem Namen des Preset-Bogens), eine feste Geschichte aus dem
+  // Archiv (Titel, Bauform, Anfang) oder gewürfelt je Erzeugung. Mit den zwei
+  // Griffen, die man hier braucht: in den Arbeitsplatz holen, auf „aus
+  // Preset" stellen.
+  const aktivBox = el("div", { class: "card aktiv-geschichte", style: "margin-top:12px;padding:12px" });
+  const malAktiv = (): void => {
+    aktivBox.innerHTML = "";
+    const q = ladeQuelle();
+    aktivBox.append(el("div", { class: "muted mini", style: "letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px" }, "Aktiv eingestellte Geschichte — womit das Studio gerade baut"));
+    if (q === "preset") {
+      const d = loadDramaData();
+      aktivBox.append(el("div", {}, el("b", {}, "aus dem Preset"), d?.name ? ` — ${d.name.replace(/^Preset[s]? /, "")}` : " — das aktive Preset trägt keinen Bogen; die Maschine baut linear"),
+        el("div", { class: "muted mini", style: "margin-top:2px" }, "Keine Geschichte der Erzählerbank ist beteiligt. Ein eigenes Preset aus Text bringt seinen eigenen Bogen mit — der steht dann hier mit Namen."));
+    } else if (q === "wuerfeln") {
+      const n = archivEintraege().filter((e) => platzBrauchbar(e)).length;
+      const g = letzterGezogen();
+      aktivBox.append(el("div", {}, el("b", {}, "würfeln je Erzeugung"), ` — ${n} brauchbare Geschichten im Archiv`),
+        el("div", { class: "muted mini", style: "margin-top:2px" }, g ? `Zuletzt gezogen: „${g.titel || "Ohne Titel"}“ · ${SCHLAGFOLGEN[g.folge || "standard"]?.name || g.folge}` : "Noch nichts gezogen — beim nächsten Text."));
+    } else {
+      const e = eintragNachId(q);
+      if (!e) aktivBox.append(el("div", {}, el("b", {}, "eine Geschichte, die nicht mehr im Archiv liegt"), " — das Studio baut, bis neu gewählt wird, aus dem Preset."));
+      else {
+        const anfang = e.text.split(/(?<=[.!?…])\s+/).slice(0, 2).join(" ");
+        aktivBox.append(el("div", {}, el("b", {}, e.titel || "Ohne Titel"), ` · ${SCHLAGFOLGEN[e.folge || "standard"]?.name || e.folge}` + (e.geburt && e.geburt !== e.folge ? ` (entstanden unter ${SCHLAGFOLGEN[e.geburt]?.name || e.geburt})` : "")),
+          el("div", { class: "muted", style: "margin-top:2px;font-size:13px" }, anfang + (e.text.length > anfang.length ? " …" : "")));
+        const holen = el("button", { type: "button", title: "Diese Geschichte in den Arbeitsplatz holen" }, "In den Arbeitsplatz") as HTMLButtonElement;
+        holen.addEventListener("click", () => { archivSel.value = e.id; archivSel.dispatchEvent(new Event("change")); });
+        const ab = el("button", { type: "button", title: "Das Studio baut wieder aus dem Preset" }, "Auf „aus Preset“ stellen") as HTMLButtonElement;
+        ab.addEventListener("click", () => { setzeQuelle("preset"); malAktiv(); malArchiv(); });
+        aktivBox.append(el("div", { class: "btnrow", style: "margin-top:6px" }, holen, ab));
+      }
+    }
+  };
+  malStand(); malArchiv(); malAktiv();
+  document.addEventListener("visibilitychange", malAktiv);
 
   root.append(kopf, el("div", { class: "card", style: "margin-top:12px;padding:12px" },
     el("div", { style: "display:flex;gap:8px;align-items:center;margin-bottom:6px" }, titelIn, stand),
     textIn,
     el("div", { class: "btnrow", style: "margin-top:6px" }, folgeSel, einfuegen, kiBtn, bogenBtn, speichern, imStudio, leeren, archivWeg),
-    el("div", { class: "btnrow", style: "margin-top:6px;align-items:center" }, archivSel, archivStand),
-    bogenBox));
+    bogenBox),
+    aktivBox,
+    el("div", { class: "card", style: "margin-top:12px;padding:12px" },
+      el("div", { class: "muted mini", style: "letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px" }, "Archiv — alle Geschichten, nach Bauform"),
+      el("div", { class: "btnrow", style: "align-items:center" }, archivSel, archivStand)));
 }

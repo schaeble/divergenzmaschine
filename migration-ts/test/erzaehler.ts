@@ -390,6 +390,18 @@ wahr("„Im Studio wählen“ setzt die Quelle auf den Eintrag", /setzeQuelle\(e
   wahr("nie dieselbe Bauform noch einmal", /filter\(\(k\) => k !== \(e\.folge \|\| "standard"\)\)/.test(qs));
 }
 
+// ── Die aktiv eingestellte Geschichte (4.364.0) ─────────────────────────────
+{
+  const qv = readFileSync("src/ui/erzaehlerbankView.ts", "utf8");
+  wahr("zwischen Arbeitsplatz und Archiv steht die aktive Geschichte", /Aktiv eingestellte Geschichte — womit das Studio gerade baut/.test(qv) && /bogenBox\),\s*\n\s*aktivBox,/.test(qv));
+  wahr("aus Preset: mit dem Namen des Preset-Bogens", /el\("b", \{\}, "aus dem Preset"\), d\?\.name \?/.test(qv));
+  wahr("feste Geschichte: Titel, Bauform, Anfang, zwei Griffe", /"In den Arbeitsplatz"/.test(qv) && /"Auf „aus Preset“ stellen"/.test(qv));
+  wahr("würfeln: Zahl der brauchbaren und der zuletzt gezogene", /Zuletzt gezogen: „/.test(qv));
+  wahr("der Kopftext erklärt die drei Dinge", /Drei Dinge, von oben nach unten: der Arbeitsplatz/.test(qv));
+  const qs = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("der Regler „Bogen“ nennt bei „aus Preset“ den Preset-Bogen", /`aus Preset: \$\{dn\.replace/.test(qs));
+}
+
 console.log(`Prüfstand Erzählerbank — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {
