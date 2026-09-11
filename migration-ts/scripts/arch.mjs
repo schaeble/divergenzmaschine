@@ -128,7 +128,7 @@ bandKopf(y + 58, "⑥ AUSGEBEN");
 y = reihe(y + 68, 66, [
   ["★ Merken", ["→ Schatzkammer"]],
   ["Zeitungsseite", ["Satz · Umbruch · Füller · PDF"]],
-  ["Autopilot", ["ganze Ausgabe auf einen Druck"]],
+  ["Layout", ["ganze Ausgabe auf einen Druck"]],
 ], false);
 
 // ── Selbstfütterung ─────────────────────────────────────────────────────────

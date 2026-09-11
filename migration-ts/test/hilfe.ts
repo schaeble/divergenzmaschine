@@ -56,7 +56,7 @@ const MUSS: [string, string][] = [
   ["das Schließkreuz", "✕ oben rechts"],
   ["die Objektperspektive", "Ich bin die Akte"],
   ["die Struktur-Ansicht", "Struktur (Ansicht unter dem Text)"],
-  ["der Autopilot", '"Autopilot"'],
+  ["der Autopilot", '"Layout"'],
   ["die Varianzanzeige", "Grün (hohe Vielfalt)"],
   ["die Form Bericht", '"Bericht"'],
   ["die Form Meldung", "Meldung (kurz)"],
@@ -104,7 +104,7 @@ wahr(`es wurden ${teile.length} Einträge gemessen`, teile.length >= 60);
 
 // Deckung der jüngsten Bausteine. Sie fehlten: Der Nutzungszähler war gebaut,
 // ausgeliefert und in der Hilfe nicht erwähnt.
-for (const w of ["Nutzung", "Selbsttest", "Schaltplan", "Füller", "Abschrift", "Motivverwandlungen", "Bildwelt", "Autopilot"]) {
+for (const w of ["Nutzung", "Selbsttest", "Schaltplan", "Füller", "Abschrift", "Motivverwandlungen", "Bildwelt", "Layout"]) {
   wahr(`die Hilfe kennt „${w}"`, hilfe.includes(w));
 }
 
@@ -122,7 +122,7 @@ for (const w of ["Nutzung", "Selbsttest", "Schaltplan", "Füller", "Abschrift", 
   // alle: „Oszilloskop" und „Hilfe" sind Werkzeuge ueber der Maschine, keine
   // Station im Weg eines Textes.
   for (const r of ["STUDIO", "Ideen", "Sammler", "Welt", "Wortbank", "Erzählerbank",
-    "Korpus", "Schatzkammer", "Bildwelt", "Autopilot", "Werkstatt", "KI-Lehrer"]) {
+    "Korpus", "Schatzkammer", "Bildwelt", "Layout", "Werkstatt", "KI-Lehrer"]) {
     wahr(`die Grafik kennt „${r}"`, svg.includes(r));
   }
   // Und die Dinge, die keinen Reiter haben, aber im Weg stehen.

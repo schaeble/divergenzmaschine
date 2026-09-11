@@ -533,6 +533,23 @@ wahr("lange Titel werden gekürzt", titelAus({ who: "w".repeat(90), what: "x" })
 wahr("und enden mit Auslassung", titelAus({ who: "wort ".repeat(30), what: "x" }).endsWith("…"));
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
+// ── 4.361.0: Aktualität gegenüber dem Studio-Würfel; Umbenennung in "Layout" ──
+{
+  const { bogenFuerBeitrag, baueEingabe: be } = require("../src/features/autopilot") as { bogenFuerBeitrag: (e: { titel: string; text: string; folge?: string }[], b: string[], r?: () => number) => { eintrag: unknown; bauform: string }; baueEingabe: (a: unknown, c: unknown, r?: () => number) => Record<string, unknown> };
+  const eintraege = [{ titel: "Fährmann", text: "x", folge: "standard" }, { titel: "Haus", text: "y", folge: "kreis" }];
+  const formen = ["standard", "kreis", "still"];
+  ist("Los auf das Preset (rnd ≥ 0,34): kein Eintrag", bogenFuerBeitrag(eintraege, formen, () => 0.5).eintrag, null);
+  const w = bogenFuerBeitrag(eintraege, formen, (() => { const seq = [0.1, 0.9, 0.0]; let i = 0; return () => seq[i++ % seq.length]!; })());
+  wahr("Los auf die Erzählerbank: ein Eintrag mit gewürfelter Bauform, nie seiner eigenen", !!w.eintrag && (w.eintrag as { folge: string }).folge !== w.bauform && formen.includes(w.bauform), `${(w.eintrag as { titel: string } | null)?.titel} → ${w.bauform}`);
+  ist("leeres Archiv: kein Eintrag", bogenFuerBeitrag([], formen, () => 0.1).eintrag, null);
+  const ein = be({ form: "prose", woerter: 120, rolle: "spalte" }, { who: "a", where: "b", when: "c", what: "d" });
+  wahr("der Würfel des Layouts kennt jetzt die Spannung", typeof ein["tension"] === "string" && ["off", "top", "mid", "low"].includes(ein["tension"] as string));
+  const qv = readFileSync("src/ui/autopilotView.ts", "utf8");
+  wahr("die Weiche wird vor jedem Beitrag gestellt und danach abgeräumt", /setBogenOverride\(wahl\.eintrag \? bogenAus\(/.test(qv) && /setBogenOverride\(null\);/.test(qv));
+  wahr("das Protokoll nennt die Bögen", /zeile\("Bögen"/.test(qv));
+  wahr("der Reiter heißt Layout", /el\("h2", \{\}, "Layout"\)/.test(qv) && /\["Layout", mountAutopilot\]/.test(readFileSync("src/ui/app.ts", "utf8")));
+}
+
 console.log(`Prüfstand Autopilot — ${geprueft} Prüfungen (ohne API-Aufruf):`);
 zeilen.forEach((z) => console.log(z));
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };

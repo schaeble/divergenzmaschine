@@ -11,7 +11,7 @@
 
 import type { FormKind, GenInput } from "../types";
 import {
-  TONE_OPTS, STRUCTURE_OPTS, MODE_OPTS, PERSP_OPTS, RHYTHM_OPTS,
+  TONE_OPTS, TENSION_OPTS, STRUCTURE_OPTS, MODE_OPTS, PERSP_OPTS, RHYTHM_OPTS,
   VARIANZ_OPTS, DISRUPTOR_OPTS, ARCH_OPTS, FORM_OPTS, werte,
 } from "../generation/optionen";
 
@@ -270,8 +270,29 @@ export function baueEingabe(
     // ergab immer denselben Rückfall.
     archetypeA: w(werte(ARCH_OPTS)), archetypeB: w(werte(ARCH_OPTS)),
     instability: w([0, 1, 1, 2]) as GenInput["instability"],
+    // Spannung (4.361.0): fehlte im Wuerfel des Autopiloten — im Studio ein
+    // Regler wie jeder andere.
+    tension: w(werte(TENSION_OPTS)),
     ressort: "auto",
   };
+}
+
+/** Der Bogen je Beitrag (4.361.0, Wuerfellogik des Studios): Ein Drittel der
+ *  Beitraege bekommt eine Geschichte aus dem Archiv der Erzaehlerbank als
+ *  Bogen — mit einer zufaellig gewuerfelten Bauform, "derselbe Stoff, anders
+ *  erzaehlt", ohne das Archiv zu veraendern. Die uebrigen zwei Drittel bauen
+ *  mit dem Bogen des Presets (Override null). Vorher galt im Autopiloten
+ *  stumm, was das Studio zuletzt in die Weiche gelegt hatte. */
+export function bogenFuerBeitrag(
+  eintraege: { titel: string; text: string; folge?: string }[],
+  bauformen: string[],
+  rnd: () => number = Math.random,
+): { eintrag: { titel: string; text: string; folge?: string } | null; bauform: string } {
+  if (!eintraege.length || rnd() >= 0.34) return { eintrag: null, bauform: "" };
+  const e = eintraege[Math.floor(rnd() * eintraege.length)]!;
+  const andere = bauformen.filter((b) => b !== (e.folge || "standard"));
+  const bauform = andere.length ? andere[Math.floor(rnd() * andere.length)]! : (e.folge || "standard");
+  return { eintrag: e, bauform };
 }
 
 /** Eine Überschrift aus dem Kontext, falls der Text selbst keine mitbringt.

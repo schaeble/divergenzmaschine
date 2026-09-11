@@ -36,7 +36,7 @@ var MUSS = [
   ["das Schlie\xDFkreuz", "\u2715 oben rechts"],
   ["die Objektperspektive", "Ich bin die Akte"],
   ["die Struktur-Ansicht", "Struktur (Ansicht unter dem Text)"],
-  ["der Autopilot", '"Autopilot"'],
+  ["der Autopilot", '"Layout"'],
   ["die Varianzanzeige", "Gr\xFCn (hohe Vielfalt)"],
   ["die Form Bericht", '"Bericht"'],
   ["die Form Meldung", "Meldung (kurz)"],
@@ -60,7 +60,7 @@ ist(
   ""
 );
 wahr(`es wurden ${teile.length} Eintr\xE4ge gemessen`, teile.length >= 60);
-for (const w of ["Nutzung", "Selbsttest", "Schaltplan", "F\xFCller", "Abschrift", "Motivverwandlungen", "Bildwelt", "Autopilot"]) {
+for (const w of ["Nutzung", "Selbsttest", "Schaltplan", "F\xFCller", "Abschrift", "Motivverwandlungen", "Bildwelt", "Layout"]) {
   wahr(`die Hilfe kennt \u201E${w}"`, hilfe.includes(w));
 }
 {
@@ -76,7 +76,7 @@ for (const w of ["Nutzung", "Selbsttest", "Schaltplan", "F\xFCller", "Abschrift"
     "Korpus",
     "Schatzkammer",
     "Bildwelt",
-    "Autopilot",
+    "Layout",
     "Werkstatt",
     "KI-Lehrer"
   ]) {

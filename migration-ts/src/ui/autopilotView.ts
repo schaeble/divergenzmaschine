@@ -22,6 +22,8 @@ import { buildStory } from "../generation/buildStory";
 import { buildModelFromCorpus, loadPersistentCorpus } from "../corpus";
 import { addToTreasury, loadTreasury } from "../features/treasury";
 import { ladeKopf, sichereKopf, oeffneZeitungssetzer, ueberschriftVon } from "./zeitungView";
+import { archivEintraege, platzBrauchbar, bogenAus, SCHLAGFOLGEN } from "../features/erzaehlerbank";
+import { setBogenOverride } from "../generation/dramaturgie";
 import { ladeLayouts, sichereLayouts, legeLayout, textSchluessel, type Layout } from "../features/zeitungslayout";
 import { ziehVorrat } from "../features/wikisammler";
 import { ziehThema, themenStand } from "../features/themenpool";
@@ -42,7 +44,7 @@ import {
   letzteWas,
   maxBeitraege, BEITRAEGE_MIN, BEITRAEGE_MAX, BEITRAEGE_VORGABE, type Quelle,
   platzBudget, verteileLaengen, kuerzeBericht, ladeFaktor, WOERTER_JE_SEITE,
-  presetZahl, mischName,
+  presetZahl, mischName, bogenFuerBeitrag,
 } from "../features/autopilot";
 import { waehleGespreizt, mischAbstand } from "../features/register";
 import {
@@ -285,6 +287,7 @@ export function mountAutopilot(root: HTMLElement): void {
         }
 
         const erzeugt: { text: string; form: string; titel: string; preset: string; quelle: Quelle; ktx: string }[] = [];
+        const bogenNamen: string[] = [];
         const presetZaehler = new Map<string, number>();
         const abstaende: number[] = [];
         // Das Gedächtnis früherer Ausgaben ist der Startbestand des
@@ -382,6 +385,15 @@ export function mountAutopilot(root: HTMLElement): void {
             } as typeof eingabe;
           }
           presetZaehler.set(bankName, (presetZaehler.get(bankName) || 0) + 1);
+          // Bogen je Beitrag (4.361.0): ein Drittel aus dem Archiv der
+          // Erzaehlerbank mit gewuerfelter Bauform, sonst der Preset-Bogen.
+          // Die Weiche wird VOR jedem Beitrag gestellt — vorher galt stumm,
+          // was das Studio zuletzt hineingelegt hatte.
+          {
+            const wahl = bogenFuerBeitrag(archivEintraege().filter((e) => platzBrauchbar(e)), Object.keys(SCHLAGFOLGEN).filter((k) => k !== "eigen"));
+            setBogenOverride(wahl.eintrag ? bogenAus({ ...wahl.eintrag, folge: wahl.bauform }) : null);
+            if (wahl.eintrag) bogenNamen.push(`${wahl.eintrag.titel || "Ohne Titel"} · ${SCHLAGFOLGEN[wahl.bauform]?.name || wahl.bauform}`);
+          }
           let text = buildStory(bank, eingabe, model).trim();
           if (!text) continue;
           // Bericht und Meldung ignorieren die Ziellaenge in buildStory — sie
@@ -494,6 +506,8 @@ export function mountAutopilot(root: HTMLElement): void {
             + ` (0 = ein Register, 1 = die beiden entferntesten)`
           : "keine gemischte Bank in diesem Lauf");
         zeile("Formen", [...new Set(erzeugt.map((e) => e.form))].join(", "));
+        zeile("Bögen", bogenNamen.length ? `${bogenNamen.length} von ${erzeugt.length} aus der Erzählerbank: ${bogenNamen.join(" · ")}` : "alle aus dem Preset (kein brauchbarer Eintrag im Archiv, oder das Los fiel auf das Preset)");
+        setBogenOverride(null);   // die Weiche geht dem Studio nicht mit
         zeile("Korpus", `${loadPersistentCorpus().length} Zeichen, Markov-Kette 2. Ordnung`);
         const istWoerter = erzeugt.reduce((a, e) => a + (e.text.match(/\S+/g) || []).length, 0);
         const geplant = auftraege.reduce((a, x) => a + x.woerter, 0);
@@ -568,7 +582,7 @@ export function mountAutopilot(root: HTMLElement): void {
   });
 
   wrap.append(
-    el("h2", {}, "Autopilot"),
+    el("h2", {}, "Layout"),
     el("p", { class: "muted" },
       "Ein Druck, eine ganze Ausgabe: Beiträge erzeugen, Rollen verteilen, Layout ablegen, "
       + "Ausgabennummer hochzählen. Danach lässt sich die Seite im Zeitungssetzer öffnen, "

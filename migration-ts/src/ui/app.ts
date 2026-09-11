@@ -82,7 +82,7 @@ const TABS: [string, (root: HTMLElement) => void][] = [
   ["Oszilloskop", mountOscilloscope],
   ["Schatzkammer", mountTreasury],
   ["Bildwelt", mountBildwelt],
-  ["Autopilot", mountAutopilot],
+  ["Layout", mountAutopilot],
   ["Werkstatt", mountWorkshop],
   ["KI-Lehrer", mountLehrer],
   ["Diagnose", mountDiagnose],

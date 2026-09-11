@@ -45,7 +45,7 @@ ist("verschiedene Namen zählen getrennt", Object.keys(merke(s2, "Korpus", T0)).
 // DER KERNPUNKT: Die Liste zeigt, was es GIBT — nicht, was benutzt wurde. Ein
 // Baustein, der nie geöffnet wurde, wäre sonst unsichtbar. Genau der ist aber
 // die Antwort auf die Frage.
-const alle = ["Studio", "Korpus", "Bildwelt", "Autopilot"];
+const alle = ["Studio", "Korpus", "Bildwelt", "Layout"];
 const stand: Stand = {
   Studio: { n: 40, zuletzt: T0, zuerst: T0 - 30 * TAG },
   Korpus: { n: 3, zuletzt: T0 - 5 * TAG, zuerst: T0 - 20 * TAG },
