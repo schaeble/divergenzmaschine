@@ -455,6 +455,15 @@ export function formelnGlaetten(t: string): string {
     .replace(/([.!?…])\s+—\s+([a-zäöüß])/g, (_m: string, p: string, c: string) => `${p} ${c.toUpperCase()}`);
 }
 
+/** „Doch Diesen druckt die Zeitung nicht" (Blatt „Monarchie"): Ein Ton-Opener
+ *  („Doch", „Und", „Aber") wurde vor einen Satz gesetzt, dessen erstes Wort
+ *  seine Großschreibung behielt. Nach einer Satzanfangs-Konjunktion werden
+ *  Pronomen und Demonstrativa klein — Nomen nicht. */
+export function nachKonjunktionKlein(t: string): string {
+  return (t || "").replace(/(^|[.!?…]\s+)(Doch|Und|Aber|Denn|Oder|Nur|Auch) (Diesen|Dieser|Diese|Dieses|Diesem|Jenen|Jener|Jene|Er|Sie|Es|Ihn|Ihm|Ihr|Ihnen|Man|Jemand|Niemand|Alles|Nichts|Etwas|Wer|Was|Wo|Wie|Dann|Jetzt|Hier|Dort|Noch|Schon|Nie|Immer)\b(?! [A-ZÄÖÜ][a-zäöüß]+ (ist|sind|war|hat|wird))/g,
+    (_m, vor: string, konj: string, wort: string) => `${vor}${konj} ${wort.charAt(0).toLowerCase()}${wort.slice(1)}`);
+}
+
 export function kleinesPronomen(t: string): string {
   return (t || "")
     .replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon|Mittags|Morgens|Abends|Nachts|Heute|Gestern|Morgen|Später|Manchmal|Damals|Irgendwann|Vormittags|Nachmittags|Fast|Beinahe|Kaum|Knapp|Bald|Erst|Zuletzt|Endlich)\b/g, (_m: string, sp: string, w: string) => sp + w.toLowerCase())
@@ -490,6 +499,7 @@ export function postProcessText(txt: string, input?: Input): string {
   // Wächter-Statistik, Ebene 2 (4.357.0): jede Regel zählt, wenn sie greift.
   const z = (was: string, f: (x: string) => string): void => { const v = t; t = f(t); zaehleWennAnders(was, v, t); };
   z("schliff_kleinesPronomen", kleinesPronomen);
+  z("schliff_nachKonjunktionKlein", nachKonjunktionKlein);
   z("schliff_kommaVorInversion", kommaVorInversion);
   z("schliff_fragezeichen", fragezeichen);
   z("schliff_nomenNachAdverb", nomenNachAdverb);

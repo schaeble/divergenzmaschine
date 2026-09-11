@@ -7422,6 +7422,12 @@ function nominativFragment(t) {
 function formelnGlaetten(t) {
   return (t || "").replace(/\s+—\s+(dann|danach|plötzlich)\s*([;.!?])/gi, "$2").replace(/\b(an|auf|über|von|in|mit|nach) (wie|als) (der|die|das|den|dem|des|ein|eine|einen|einem|einer)\b/g, "$1 $3").replace(/\b(Dann|Und dann|Plötzlich|Danach)\s+—\s+(dann|plötzlich|danach),/gi, (_m, a) => `${a},`).replace(/([.!?…])\s+—\s+([a-zäöüß])/g, (_m, p, c) => `${p} ${c.toUpperCase()}`);
 }
+function nachKonjunktionKlein(t) {
+  return (t || "").replace(
+    /(^|[.!?…]\s+)(Doch|Und|Aber|Denn|Oder|Nur|Auch) (Diesen|Dieser|Diese|Dieses|Diesem|Jenen|Jener|Jene|Er|Sie|Es|Ihn|Ihm|Ihr|Ihnen|Man|Jemand|Niemand|Alles|Nichts|Etwas|Wer|Was|Wo|Wie|Dann|Jetzt|Hier|Dort|Noch|Schon|Nie|Immer)\b(?! [A-ZÄÖÜ][a-zäöüß]+ (ist|sind|war|hat|wird))/g,
+    (_m, vor, konj, wort) => `${vor}${konj} ${wort.charAt(0).toLowerCase()}${wort.slice(1)}`
+  );
+}
 function kleinesPronomen(t) {
   return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon|Mittags|Morgens|Abends|Nachts|Heute|Gestern|Morgen|Später|Manchmal|Damals|Irgendwann|Vormittags|Nachmittags|Fast|Beinahe|Kaum|Knapp|Bald|Erst|Zuletzt|Endlich)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
     /(,[ \t]+)(Wo|Wenn|Als|Weil|Dass|Obwohl|Während|Nachdem|Bevor|Sobald|Solange|Damit|Ob|Der|Die|Das|Dem|Den|Deren|Dessen)\b(?=\s)/g,
@@ -7444,6 +7450,7 @@ function postProcessText(txt, input) {
     zaehleWennAnders(was, v, t);
   };
   z("schliff_kleinesPronomen", kleinesPronomen);
+  z("schliff_nachKonjunktionKlein", nachKonjunktionKlein);
   z("schliff_kommaVorInversion", kommaVorInversion);
   z("schliff_fragezeichen", fragezeichen);
   z("schliff_nomenNachAdverb", nomenNachAdverb);

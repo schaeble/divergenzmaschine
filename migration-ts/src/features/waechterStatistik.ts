@@ -15,7 +15,7 @@ export type Zaehler = string;
  *  nicht zählten — Schliff-Regeln, Kohärenz, Markov-Sanity, Füller,
  *  Korpus-Hygiene. In der Diagnose hinter dem Schalter „erweitert". */
 export const EBENE2 = new Set<string>([
-  "schliff_kleinesPronomen", "schliff_kommaVorInversion", "schliff_fragezeichen", "schliff_nomenNachAdverb", "schliff_nominativFragment",
+  "schliff_kleinesPronomen", "schliff_nachKonjunktionKlein", "schliff_kommaVorInversion", "schliff_fragezeichen", "schliff_nomenNachAdverb", "schliff_nominativFragment",
   "schliff_formelnGlaetten", "schliff_adjektivKongruenz", "schliff_relativKongruenz", "schliff_kleinerArtikel", "schliff_pluralKongruenz", "schliff_polishGerman", "schliff_figurenkomma",
   "kohaerenzPass", "kohaerenzGefallen", "kohaerenzRepariert",
   "markovKurz", "markovWenigWoerter", "markovWiederholung", "markovFunktionswoerter", "markovSatzlaenge", "markovSatzzeichen", "markovBruchstueck",
@@ -39,6 +39,7 @@ export const ZAEHLER_NAMEN: Record<string, string> = {
   atomGekuerzt: "Atomisierung · Nebensatz abgeschnitten",
   atomGanzZuLang: "Atomisierung · zu lang, ganz gelassen",
   schliff_kleinesPronomen: "Schliff · Pronomen/Adverb nach Strich klein",
+  schliff_nachKonjunktionKlein: "Schliff · Pronomen nach Satzanfangs-Konjunktion klein",
   schliff_kommaVorInversion: "Schliff · Komma vor der Inversion",
   schliff_fragezeichen: "Schliff · Fragezeichen",
   schliff_nomenNachAdverb: "Schliff · Nomen nach Satzadverb groß",

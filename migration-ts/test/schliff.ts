@@ -458,6 +458,17 @@ ist("Knapp nach Strich klein", kleinesPronomen("zu vollkommener Ruhe — Knapp e
   wahr("der Einsatz-Schlag steht einmal, der zweite fällt aus", /case "einsatz": \{\s*\n[\s\S]*?if \(benutzt\.has\(norm\(kit\.stake\)\)\) return "";/.test(qd));
 }
 
+// ── Blatt „Monarchie": Pronomen nach Satzanfangs-Konjunktion klein; Pools im Präsens
+{
+  const { nachKonjunktionKlein } = require("../src/generation/postprocess") as { nachKonjunktionKlein: (t: string) => string };
+  ist("Doch Diesen → Doch diesen", nachKonjunktionKlein("Doch Diesen druckt die Zeitung nicht."), "Doch diesen druckt die Zeitung nicht.");
+  ist("Und Er → Und er", nachKonjunktionKlein("Es regnet. Und Er wartet."), "Es regnet. Und er wartet.");
+  ist("Nomen bleibt groß", nachKonjunktionKlein("Und Marta lächelt."), "Und Marta lächelt.");
+  ist("in der Satzmitte unangetastet", nachKonjunktionKlein("Er sagt, doch Diesen nicht."), "Er sagt, doch Diesen nicht.");
+  const lp = readFileSync("src/features/livepools.ts", "utf8");
+  wahr("die lebendigen Pools nehmen nur, was im Präsens steht oder sich umschreiben lässt", /extractPhrases\(text\)\.map\(\(p\) => \{ const u = praesensUmschreiben\(p\); return u\.ok \? u\.text : ""; \}\)/.test(lp));
+}
+
 console.log(`Prüfstand Schliff — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

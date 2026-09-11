@@ -1,6 +1,7 @@
 // Lebendige Pools: sammelt kurze Begriffe und Wendungen aus dem, was du
 // tatsächlich schreibst (Schatzkammer, Korpus, Generierungen) und mischt sie
 // zurück in die Ideenmaschine. Global gespeichert, gedeckelt, rein lokal.
+import { praesensUmschreiben } from "../generation/coherence";
 import { safeSet } from "./storage-status";
 
 const LP_KEY = "divergenz_live_pools_v1";
@@ -69,7 +70,12 @@ function saveLive(list: LiveItem[]): void {
 
 /** Füttert die Pools. weight über LIVE_W je nach Quelle. */
 export function feedLivePools(text: string, weight: number): void {
-  const phrases = extractPhrases(text);
+  // Präsens (4.360.1, Blatt „Monarchie"): Die Pools nahmen Korpus-Sätze roh —
+  // „Dann fiel die Mauer, Mutter und Tochter fuhren nach West-Berlin" stand
+  // im Präteritum im Text, während Markov und Korpus-Atome längst umgeschrieben
+  // werden. Jetzt geht jede Phrase durch den Umschreiber; was er nicht sicher
+  // ins Präsens bringt, kommt nicht in den Pool.
+  const phrases = extractPhrases(text).map((p) => { const u = praesensUmschreiben(p); return u.ok ? u.text : ""; }).filter(Boolean);
   if (!phrases.length) return;
   const list = loadLive();
   const idx = new Map(list.map((e, i) => [e.t, i]));
