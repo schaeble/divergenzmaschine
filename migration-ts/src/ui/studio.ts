@@ -21,6 +21,7 @@ import { phasenAusSchlagfolge } from "../atoms/assemble";
 import { ladeKurve, speichereKurve, schlagfolgeAusKurve, reglerAusKurve, kurveSpitzen, KURVEN_VORLAGEN, STUETZEN } from "../features/spannungskurve";
 import { zeitlupeSchalten, zeitlupeLesen, stufenDiff } from "../features/zeitlupe";
 import { variabilitaetFuer, messeUndMerke, variabilitaetWort } from "../features/variabilitaet";
+import { ladeFaden, speichereFaden, fadenAus, schlagDerFolge, BAUFORM_JE_SCHLAG, SCHLAG_NAME, dingSatz } from "../features/faden";
 import { setBogenOverride } from "../generation/dramaturgie";
 import { ziehVorrat, vorratStand, type VorratFund } from "../features/wikisammler";
 import { ziehBildvorrat, ladeBildvorrat, type BildFund } from "../features/bildsammler";
@@ -820,8 +821,10 @@ export function mountStudio(root: HTMLElement): void {
     }
     return titelAktuell;
   };
+  let fadenKopf = "";           // „Folge 3 · Wende" — Teil des Titels, gesetzt von „Fortsetzung"
   const renderTitel = (): void => {
-    const t = aktuellerTitel();
+    const t0 = aktuellerTitel();
+    const t = fadenKopf ? (t0 ? `${fadenKopf} — ${t0}` : fadenKopf) : t0;
     titelEl.textContent = t;
     titelEl.style.display = t ? "" : "none";
     // Gemeldet: Beim Drucken fehlte der Titel — Drucken und Zeitungsseite holen
@@ -1824,6 +1827,64 @@ export function mountStudio(root: HTMLElement): void {
   };
   diceBtn.addEventListener("click", () => { rollAlle(); renderPresetChecks(); generate(); });
   const keepLbl = el("span", {}, "Merken");
+  // ── Der Faden: Fortsetzungen (4.362.0) ────────────────────────────────────
+  // „Fortsetzung" nimmt den Text im Fenster als vorige Folge: zieht den Faden
+  // (Figur, ein Ding, die offene Frage, der letzte Satz), legt die Folge in
+  // die Schatzkammer, würfelt Ort, Zeit, Ton und Preset NEU, setzt Wer und
+  // Was aus dem Faden, wählt die Bauform nach dem Schlag der Folge (Serien-
+  // Bogen über fünf Folgen) und erzeugt. Über dem Text: „Folge 3 · Wende" und
+  // eine „Bisher"-Zeile. Das Ding kommt in die Folge, wenn der Text es nicht
+  // von selbst trägt. „Faden lösen" beendet die Serie.
+  const fadenBtn = el("button", { title: "Fortsetzung: Diesen Text als vorige Folge nehmen — Figur, ein Ding und die offene Frage wandern mit; Ort, Zeit, Ton und Preset werden neu gewürfelt." }, icon("arrowRight"), " Fortsetzung") as HTMLButtonElement;
+  const fadenLoesen = el("button", { class: "danger", style: "display:none", title: "Die Serie beenden — der nächste Text beginnt ohne Faden." }, "Faden lösen") as HTMLButtonElement;
+  const bisherEl = el("div", { class: "muted bisher", style: "display:none" });
+  const fadenStand = (): void => {
+    const f = ladeFaden();
+    fadenLoesen.style.display = f ? "" : "none";
+    fadenBtn.textContent = f ? ` Folge ${f.folge} erzeugen` : " Fortsetzung";
+    fadenBtn.prepend(icon("arrowRight"));
+  };
+  fadenLoesen.addEventListener("click", () => { speichereFaden(null); fadenKopf = ""; bisherEl.style.display = "none"; fadenStand(); renderTitel(); });
+  fadenBtn.addEventListener("click", () => {
+    const text = out.textContent || "";
+    if (!text.trim()) return;
+    const bisher = ladeFaden();
+    const f = fadenAus(text, who.value.trim() || "Jemand", bisher ? bisher.serie : (aktuellerTitel() || ""), bisher);
+    // Die vorige Folge in die Schatzkammer — die Kette der Serie.
+    addToTreasury(text, { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value, set: { ...einstellungen(), serie: f.serie, folge: String(f.folge - 1) } });
+    speichereFaden(f);
+    // Würfeln — aber Wer bleibt: die Figur ist der Faden.
+    rolling = true;
+    wuerfelbar().filter((c) => c !== preset).forEach(rollEins);
+    rollPresets();
+    rolling = false;
+    who.value = f.figur;
+    what.value = f.frage;
+    if (form.value !== "prose") form.value = "prose";
+    structure.value = "dramaturgie";
+    for (const el2 of [who, what, form, structure]) el2.dispatchEvent(new Event("change"));
+    // Die Bauform der Folge: Schlag der Serie → Bauform des Bogens.
+    const schlag = schlagDerFolge(f.folge, f.laenge);
+    const basis = loadDramaData();
+    if (basis) setBogenOverride({ ...basis, folge: SCHLAGFOLGEN[BAUFORM_JE_SCHLAG[schlag]]!.folge });
+    fadenKopf = `Folge ${f.folge} · ${SCHLAG_NAME[schlag]}`;
+    renderPresetChecks();
+    generate();
+    // Das Ding in die Folge, wenn der Text es nicht trägt.
+    const stamm = (f.ding.match(/[A-ZÄÖÜ][a-zäöüß]{3,}/) || [""])[0]!.toLowerCase().slice(0, 5);
+    if (stamm && !(out.textContent || "").toLowerCase().includes(stamm)) {
+      const s = (out.textContent || "").split(/(?<=[.!?…])\s+/);
+      const at = Math.max(1, Math.floor(s.length / 3));
+      s.splice(at, 0, dingSatz(f.ding));
+      out.textContent = s.join(" ");
+      persistEdit();
+    }
+    bisherEl.textContent = `Bisher: ${f.letzterSatz}`;
+    bisherEl.style.display = f.letzterSatz ? "" : "none";
+    fadenStand(); renderTitel(); nachTextwechsel();
+  });
+  fadenStand();
+
   const keepBtn = el("button", {}, icon("star"), " ", keepLbl);
   keepBtn.addEventListener("click", () => {
     const n = addToTreasury(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value, set: einstellungen() });
@@ -1850,7 +1911,7 @@ export function mountStudio(root: HTMLElement): void {
   const bestChk = el("input", { type: "checkbox", id: "f-best" }) as HTMLInputElement;
   bestChk.checked = true;
   const bestLbl = el("label", { class: "chk", title: "Erzeugt bei jedem Klick 12 Kandidaten und zeigt den bestbewerteten (Längentreue, Wortvielfalt, Rhythmus, wenig Wiederholung, Grammatik, Abstand zur Schatzkammer)." }, bestChk, " Bestenauslese");
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, vaultBtn, readBtn, speakBtn, lenRow, bestLbl, titelLbl), titelEl, outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, fadenBtn, fadenLoesen, vaultBtn, readBtn, speakBtn, lenRow, bestLbl, titelLbl), titelEl, bisherEl, outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
 
   // ── Test & Ranking ──
   let lastRanking: Ranking | null = null;
