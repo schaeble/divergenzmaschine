@@ -98,6 +98,14 @@ for (const w of ["Nutzung", "Selbsttest", "Schaltplan", "F\xFCller", "Abschrift"
     (0, import_fs.readFileSync)("src/ui/arch.svg.txt", "utf8").trim() === svg.slice(svg.indexOf("<svg")).trim()
   );
 }
+{
+  const ap = (0, import_fs.readFileSync)("src/ui/app.ts", "utf8");
+  wahr("die Einleitung sagt, dass Menschen aus Bruchst\xFCcken Sinn bauen", /Menschen aus Bruchstücken Sinn bauen/.test(ap));
+  wahr("\u2026 und dass die Koh\xE4renz vom Lesen kommt", /die Kohärenz kommt vom Lesen/.test(ap));
+  wahr("\u2026 nennt die drei Vorr\xE4te", /Die Wortbank liefert das Was/.test(ap) && /Die Erzählerbank liefert das Wie/.test(ap) && /Der Korpus liefert die fremde Stimme/.test(ap));
+  wahr("\u2026 und die Sichten (Editieren, Quelltext, Schaltplan, Spannungskurve)", /Quelltext zeigt den Bau/.test(ap) && /Schaltplan zeigt/.test(ap) && /Spannungskurve/.test(ap));
+  wahr("keine Versionsnummer in der Einleitung", !/\b4\.\d{3}\b/.test(ap.slice(ap.indexOf("\xDCber die Divergenzmaschine"), ap.indexOf("overlay.append(card)"))));
+}
 console.log(`Pr\xFCfstand Hilfe \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {

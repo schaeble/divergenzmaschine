@@ -142,6 +142,16 @@ for (const w of ["Nutzung", "Selbsttest", "Schaltplan", "Füller", "Abschrift", 
     readFileSync("src/ui/arch.svg.txt", "utf8").trim() === svg.slice(svg.indexOf("<svg")).trim());
 }
 
+// ── Die Einleitung („Über die Divergenzmaschine") trägt den Satz der Maschine ──
+{
+  const ap = readFileSync("src/ui/app.ts", "utf8");
+  wahr("die Einleitung sagt, dass Menschen aus Bruchstücken Sinn bauen", /Menschen aus Bruchstücken Sinn bauen/.test(ap));
+  wahr("… und dass die Kohärenz vom Lesen kommt", /die Kohärenz kommt vom Lesen/.test(ap));
+  wahr("… nennt die drei Vorräte", /Die Wortbank liefert das Was/.test(ap) && /Die Erzählerbank liefert das Wie/.test(ap) && /Der Korpus liefert die fremde Stimme/.test(ap));
+  wahr("… und die Sichten (Editieren, Quelltext, Schaltplan, Spannungskurve)", /Quelltext zeigt den Bau/.test(ap) && /Schaltplan zeigt/.test(ap) && /Spannungskurve/.test(ap));
+  wahr("keine Versionsnummer in der Einleitung", !/\b4\.\d{3}\b/.test(ap.slice(ap.indexOf("Über die Divergenzmaschine"), ap.indexOf("overlay.append(card)"))));
+}
+
 console.log(`Prüfstand Hilfe — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {
