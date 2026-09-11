@@ -1013,7 +1013,17 @@ export function mountStudio(root: HTMLElement): void {
   // rechts — gefüllt und gesteuert weiter unten (renderZeit).
   const zeitStapel = el("div", { class: "zl-stapel", style: "display:none", role: "tablist", "aria-label": "Stufen der Text-Werdung" });
   const zeitEbene = el("div", { class: "zl-ebene", style: "display:none" });
-  const outWrap = el("div", { class: "outwrap" }, mkGenArrow("left"), spur, out, zeitEbene, zeitStapel, mkGenArrow("right"), grip);
+  // Der Würfel im Rahmen (4.358.0, gewünscht): oben rechts im Textfenster, wie
+  // die Pfeile halbtransparent; tut, was der Würfeln-Knopf oben tut, und sagt
+  // beim Überfahren, welche Schlösser halten — damit man nicht nach oben muss.
+  const rahmenWuerfel = el("button", { class: "genarrow wuerfel", type: "button", "aria-label": "Alles würfeln" }, "⚄") as HTMLButtonElement;
+  const rahmenWuerfelTitel = (): void => {
+    const namen = Array.from(locked).map((id) => { const f = wrap.querySelector("#" + CSS.escape(id))?.closest(".field, .lenrow, .rankrow, .knobrow"); return f?.querySelector(".field-label span, .knob-label, label")?.textContent?.trim() || id; });
+    rahmenWuerfel.title = "Alles würfeln" + (namen.length ? ` — ${namen.length} ${namen.length === 1 ? "Schloss bleibt" : "Schlösser bleiben"}: ${namen.join(" · ")}` : " — kein Schloss gesetzt") + ". Presets: eins bis drei, zufällig.";
+  };
+  rahmenWuerfel.addEventListener("pointerenter", rahmenWuerfelTitel);
+  rahmenWuerfel.addEventListener("pointerdown", (e) => { e.preventDefault(); diceBtn.click(); });
+  const outWrap = el("div", { class: "outwrap" }, mkGenArrow("left"), spur, out, zeitEbene, zeitStapel, mkGenArrow("right"), rahmenWuerfel, grip);
   // Pfeile mittig im SICHTBAREN Ausschnitt des Textfensters halten — unabhängig
   // von der Inhaltshöhe (kein Springen beim Generieren).
   const positionArrows = (): void => {
@@ -1770,7 +1780,28 @@ export function mountStudio(root: HTMLElement): void {
   const rollEins = (c: HTMLSelectElement | HTMLInputElement): void => {
     if (c instanceof HTMLInputElement) rollRange(c); else rollSel(c);
   };
-  const rollAlle = (): void => { rolling = true; wuerfelbar().forEach(rollEins); rolling = false; };
+  // Beim Würfeln (4.358.0, gewünscht): bis zu DREI Presets zufällig aktiv.
+  // Der Würfel setzte bisher ein einzelnes Preset; jetzt wählt er eins, zwei
+  // oder drei (je ein Drittel Wahrscheinlichkeit) aus allen eingebauten und
+  // eigenen und stellt die Mehrfachauswahl her — die Mischung, die der
+  // Schaltplan als „gemischt"/„weit auseinander" bewertet. Das Preset-Schloss
+  // hält wie bisher alles fest.
+  const rollPresets = (): void => {
+    if (locked.has(preset.id)) return;
+    const ids = Object.keys(getAllPresets()).filter((id) => id !== AUTOMIX_ID && id !== MULTI_ID && id !== "__omni__");
+    if (ids.length < 2) return;
+    const k = Math.min(ids.length, 1 + Math.floor(Math.random() * 3));
+    const wahl: string[] = [];
+    const rest = [...ids];
+    while (wahl.length < k && rest.length) wahl.push(rest.splice(Math.floor(Math.random() * rest.length), 1)[0]!);
+    applySelection(wahl);
+  };
+  const rollAlle = (): void => {
+    rolling = true;
+    wuerfelbar().filter((c) => c !== preset).forEach(rollEins);
+    rollPresets();
+    rolling = false;
+  };
   diceBtn.addEventListener("click", () => { rollAlle(); renderPresetChecks(); generate(); });
   const keepLbl = el("span", {}, "Merken");
   const keepBtn = el("button", {}, icon("star"), " ", keepLbl);

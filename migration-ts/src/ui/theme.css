@@ -1216,3 +1216,6 @@ button.ek-probe:hover .ek-blaettern{opacity:1;color:var(--acc2)}
 /* Variabilitaet je Preset (4.356.0): Zahl neben dem Namen, klickbar zum Messen. */
 .var-badge{margin-left:6px;font-size:10.5px;padding:0 5px;border-radius:999px;border:1px solid var(--border2);color:var(--muted);cursor:pointer;font-variant-numeric:tabular-nums}
 .var-badge:hover{color:var(--text);border-color:var(--acc2)}
+/* Der Wuerfel im Rahmen des Textfensters (4.358.0): oben rechts, neben den Pfeilen. */
+.genarrow.wuerfel{top:8px;right:8px;transform:none;width:34px;height:34px;font-size:20px;border-radius:9px}
+.outwrap:has(.zl-stapel:not([style*="display: none"])) .genarrow.wuerfel{right:100px}

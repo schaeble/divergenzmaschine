@@ -712,6 +712,27 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
     posAufruf > posLoad && posAufruf > posBox && posLoad > 0 && posBox > 0);
 }
 
+// ── Der Würfel im Rahmen; beim Würfeln bis zu drei Presets ───────────────────
+{
+  const q = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("ein Würfel sitzt im Rahmen des Textfensters", /class: "genarrow wuerfel"/.test(q) && /mkGenArrow\("right"\), rahmenWuerfel, grip\)/.test(q));
+  wahr("er tut, was der Würfeln-Knopf tut", /rahmenWuerfel\.addEventListener\("pointerdown", \(e\) => \{ e\.preventDefault\(\); diceBtn\.click\(\); \}\)/.test(q));
+  wahr("und nennt beim Überfahren die Schlösser", /Schlösser bleiben/.test(q) && /rahmenWuerfel\.addEventListener\("pointerenter", rahmenWuerfelTitel\)/.test(q));
+  wahr("der Würfel wählt eins bis drei Presets", /const k = Math\.min\(ids\.length, 1 \+ Math\.floor\(Math\.random\(\) \* 3\)\);/.test(q) && /applySelection\(wahl\)/.test(q));
+  wahr("das Preset-Schloss hält weiter alles fest", /if \(locked\.has\(preset\.id\)\) return;\s*\n\s*const ids = Object\.keys\(getAllPresets\(\)\)/.test(q));
+  // Verhalten: nach vielen Würfen sind Mehrfachauswahlen dabei, nie mehr als drei.
+  const DW = dom.window.document;
+  const wurzelW = DW.createElement("div"); DW.body.append(wurzelW);
+  mountStudio(wurzelW);
+  const dice = Array.from(wurzelW.querySelectorAll("button")).find((b) => /Würfeln/.test(b.textContent || "")) as HTMLButtonElement;
+  const kaestenW = (): number => (Array.from(wurzelW.querySelectorAll(".mplist input[type=checkbox]")) as HTMLInputElement[]).filter((k) => k.checked).length;
+  const zahlen = new Set<number>(); let max = 0;
+  for (let i = 0; i < 5; i++) { dice.click(); const n = kaestenW(); zahlen.add(n); max = Math.max(max, n); }
+  wahr("nach 5 Würfen: mindestens einmal mehr als ein Preset (Wahrscheinlichkeit 99,6 %)", [...zahlen].some((n) => n >= 2), [...zahlen].join(","));
+  wahr("nie mehr als drei", max <= 3, String(max));
+  wahr("nie null", !zahlen.has(0));
+}
+
 console.log(`Prüfstand Studio — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {
