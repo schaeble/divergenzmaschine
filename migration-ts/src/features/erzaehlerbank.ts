@@ -109,6 +109,7 @@ export function bogenAus(e: Erzaehlung | null | undefined): DramaData | null {
   const drama = preset2AusText(e.text).drama;
   if (e.folge === "eigen") drama.folge = ableiteSchlagfolge(e.text);
   else if (e.folge && SCHLAGFOLGEN[e.folge]) drama.folge = SCHLAGFOLGEN[e.folge]!.folge;
+  drama.name = `Erzählerbank: ${e.titel || "Ohne Titel"}`;
   return drama;
 }
 

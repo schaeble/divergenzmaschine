@@ -47,7 +47,7 @@ ist("Serienlänge fünf", SERIEN_LAENGE, 5);
   wahr("Knopf „Fortsetzung“ neben Behalten", /" Fortsetzung"\)/.test(q) && /keepBtn, fadenBtn, fadenLoesen,/.test(q));
   wahr("er legt die vorige Folge in die Schatzkammer (Serie, Folge)", /serie: f\.serie, folge: String\(f\.folge - 1\)/.test(q));
   wahr("würfelt alles außer der Figur, setzt Wer und Was aus dem Faden", /who\.value = f\.figur;\s*\n\s*what\.value = f\.frage;/.test(q) && /rollPresets\(\);\s*\n\s*rolling = false;\s*\n\s*who\.value = f\.figur/.test(q));
-  wahr("die Bauform folgt dem Schlag der Folge", /SCHLAGFOLGEN\[BAUFORM_JE_SCHLAG\[schlag\]\]!\.folge/.test(q));
+  wahr("die Bauform folgt dem Schlag der Folge — als Merker, den generate() nach der Weiche anwendet", /folgeBauform = SCHLAGFOLGEN\[BAUFORM_JE_SCHLAG\[schlag\]\]!\.folge;/.test(q) && /if \(folgeBauform\) \{ const basisF = loadDramaData\(\); if \(basisF\) setBogenOverride\(\{ \.\.\.basisF, folge: folgeBauform/.test(q));
   wahr("Titel „Folge n · Schlag“ und Bisher-Zeile", /fadenKopf = `Folge \$\{f\.folge\} · \$\{SCHLAG_NAME\[schlag\]\}`/.test(q) && /bisherEl\.textContent = `Bisher: \$\{f\.letzterSatz\}`/.test(q));
   wahr("das Ding kommt in die Folge, wenn der Text es nicht trägt", /s\.splice\(at, 0, dingSatz\(f\.ding\)\)/.test(q));
   wahr("„Faden lösen“ beendet die Serie", /speichereFaden\(null\); fadenKopf = ""/.test(q));

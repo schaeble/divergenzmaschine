@@ -13,6 +13,11 @@ export interface DramaData {
    *  Standardfolge (steigender Bogen). Namen dürfen mehrfach vorkommen — der
    *  Schlag zieht dann jeweils frisches Material. Siehe SCHLAG_STANDARD. */
   folge?: string[];
+  /** Woher der Bogen kommt (4.363.2) — für den Quelltext: „Preset Kafka",
+   *  „Presets Hafen + Romantik", „Erzählerbank: Ein Kind, das zu viel weiß".
+   *  Gemeldet: „Die Tasche aus dem Erzählbogen?" — der Quelltext sagte
+   *  „Erzählbogen", aber nicht welcher. */
+  name?: string;
 }
 const DKEY = "dm_dramaturgie_v1";
 

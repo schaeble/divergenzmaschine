@@ -27,7 +27,7 @@ wahr("Messung liegt im Band der Tabelle (±8 bei 6 Läufen)", Math.abs(messeVari
 ist("Wort zur Zahl", variabilitaetWort(82), "hoch — wie die eingebauten");
 const q = readFileSync("src/ui/studio.ts", "utf8");
 wahr("die Preset-Liste zeigt die Zahl neben dem Namen", /class: "var-badge"/.test(q) && /variabilitaetFuer\(v, pb\)/.test(q));
-wahr("… nur, wenn der Schalter an ist (Vorgabe aus, gemerkt)", /id: "f-var-zeigen"/.test(q) && /if \(pb && localStorage\.getItem\("dm_variabilitaet_zeigen_v1"\) === "1"\)/.test(q));
+wahr("… nur, wenn der Schalter an ist (Vorgabe aus, gemerkt)", /id: "var-zeigen"/.test(q) && /if \(pb && localStorage\.getItem\("dm_variabilitaet_zeigen_v1"\) === "1"\)/.test(q));
 wahr("Klick misst sechs Läufe und merkt", /messeUndMerke\(v, pb\)/.test(q));
 
 console.log(`Prüfstand Variabilität — ${geprueft} Prüfungen, ${bestanden} bestanden`);

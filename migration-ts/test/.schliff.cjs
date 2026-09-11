@@ -5094,6 +5094,7 @@ var init_zeitlupe = __esm({
     STUFEN_ERKLAERUNG = {
       "Bau": "Die Struktur f\xFCllt ihre Schl\xE4ge oder der Zusammenbau zieht seine Atome \u2014 der Rohtext.",
       "Ensemble": "Mehrere Personen im Wer werden als Ensemble eingewoben.",
+      "Echo": "Kernbilder mit Echo: Ein zweites Bild desselben Kerns wird vor den H\xF6hepunkt gesetzt \u2014 das st\xE4rkere.",
       "Betonung": "Die vier W kommen zu Wort: Ort, Zeit, Figur, Vorgang werden in eigenen Zeilen betont.",
       "St\xF6rung": "Der Disruptor bricht: Echo, Fragmentierung, ein Strich mitten im Text.",
       "Rhythmus": "Satzl\xE4ngen nach dem Rhythmus-Regler: Staccato teilt, Fluss verbindet.",

@@ -13,6 +13,7 @@ var schluessel = (t2) => (t2 || "").replace(/\s+/g, " ").trim();
 var STUFEN_ERKLAERUNG = {
   "Bau": "Die Struktur f\xFCllt ihre Schl\xE4ge oder der Zusammenbau zieht seine Atome \u2014 der Rohtext.",
   "Ensemble": "Mehrere Personen im Wer werden als Ensemble eingewoben.",
+  "Echo": "Kernbilder mit Echo: Ein zweites Bild desselben Kerns wird vor den H\xF6hepunkt gesetzt \u2014 das st\xE4rkere.",
   "Betonung": "Die vier W kommen zu Wort: Ort, Zeit, Figur, Vorgang werden in eigenen Zeilen betont.",
   "St\xF6rung": "Der Disruptor bricht: Echo, Fragmentierung, ein Strich mitten im Text.",
   "Rhythmus": "Satzl\xE4ngen nach dem Rhythmus-Regler: Staccato teilt, Fluss verbindet.",
@@ -7873,238 +7874,6 @@ function kurveWert(werte2, p) {
   return klemm(werte2[i] * (1 - t2) + werte2[i + 1] * t2);
 }
 
-// src/modes.data.ts
-var MODE_DATA = {
-  "bureau": {
-    "label": "B\xFCrokratischer Horror",
-    "nouns": [
-      "Antrag",
-      "Sachbearbeiter",
-      "Stempel",
-      "Akte",
-      "Frist",
-      "Formular",
-      "Wartemarke",
-      "Kopie",
-      "Bescheid",
-      "Protokoll"
-    ],
-    "verbs": [
-      "beantragen",
-      "stempeln",
-      "ablegen",
-      "pr\xFCfen",
-      "verschieben",
-      "archivieren",
-      "verweigern",
-      "unterschreiben",
-      "eintragen",
-      "verlangen"
-    ],
-    "images": [
-      "wie ein Stempel auf der Seele",
-      "wie Papier, das atmet",
-      "wie ein Flur ohne Ende",
-      "wie ein Formular, das l\xFCgt"
-    ],
-    "rules": [
-      "Die Frist ist r\xFCckwirkend.",
-      "Das Feld muss leer bleiben.",
-      "Die Kopie ist das Original."
-    ]
-  },
-  "tech": {
-    "label": "Technologische Mystik",
-    "nouns": [
-      "Signal",
-      "Protokoll",
-      "Schnittstelle",
-      "Sensor",
-      "Cache",
-      "Port",
-      "Terminal",
-      "Rauschen",
-      "Update",
-      "Log"
-    ],
-    "verbs": [
-      "pingen",
-      "loggen",
-      "cachen",
-      "rendern",
-      "debuggen",
-      "synchronisieren",
-      "\xFCberschreiben",
-      "parsen",
-      "encrypten",
-      "deployen"
-    ],
-    "images": [
-      "wie ein Signal im Leeren",
-      "wie Rauschen, das Namen formt",
-      "wie ein Cache voller W\xE4rme",
-      "wie ein Port, der wartet"
-    ],
-    "rules": [
-      "Das System lernt zu schnell.",
-      "Die Uhrzeit ist ein Platzhalter.",
-      "Ein Backup \xFCberschreibt die Gegenwart."
-    ]
-  },
-  "body": {
-    "label": "Intime K\xF6rperwahrnehmung",
-    "nouns": [
-      "Puls",
-      "Atem",
-      "Narbe",
-      "Kehle",
-      "Haut",
-      "Schmerz",
-      "Zittern",
-      "W\xE4rme",
-      "K\xE4lte",
-      "Blick"
-    ],
-    "verbs": [
-      "atmen",
-      "zittern",
-      "sp\xFCren",
-      "erinnern",
-      "greifen",
-      "loslassen",
-      "wahrnehmen",
-      "schmerzen",
-      "klopfen",
-      "w\xE4rmen"
-    ],
-    "images": [
-      "wie ein Atem, der zu sp\xE4t kommt",
-      "wie W\xE4rme ohne Ursache",
-      "wie ein Puls, der antwortet",
-      "wie K\xE4lte im Knochen"
-    ],
-    "rules": [
-      "Der K\xF6rper wei\xDF es zuerst.",
-      "Die Wahrheit sitzt im Hals.",
-      "Der Schmerz ist ein Hinweis."
-    ]
-  },
-  "myth": {
-    "label": "Mythologischer Alltag",
-    "nouns": [
-      "F\xE4hrmann",
-      "Omen",
-      "Faden",
-      "Maske",
-      "Schrein",
-      "Fluch",
-      "Segen",
-      "Nymphe",
-      "Orakel",
-      "Bote"
-    ],
-    "verbs": [
-      "weben",
-      "opfern",
-      "deuten",
-      "rufen",
-      "wachen",
-      "taufen",
-      "verf\xFChren",
-      "segnen",
-      "fordern",
-      "erinnern"
-    ],
-    "images": [
-      "wie Ru\xDF auf Gold",
-      "wie Wasser, das zuh\xF6rt",
-      "wie ein altes Versprechen",
-      "wie ein Gott in Zivil"
-    ],
-    "rules": [
-      "Der Ort verlangt eine Gabe.",
-      "Der Name ist ein Schl\xFCssel.",
-      "Das Zeichen kommt dreimal."
-    ]
-  },
-  "absurd": {
-    "label": "Absurd-logische Welt",
-    "nouns": [
-      "Beweis",
-      "Paradoxon",
-      "Ausrede",
-      "Gabelung",
-      "Randnotiz",
-      "Handbuch",
-      "Einspruch",
-      "Punkt",
-      "Linie",
-      "Hintert\xFCr"
-    ],
-    "verbs": [
-      "widerlegen",
-      "umdrehen",
-      "vertauschen",
-      "behaupten",
-      "kollabieren",
-      "vereinbaren",
-      "winken",
-      "klammern",
-      "kippen",
-      "vereinfachen"
-    ],
-    "images": [
-      "wie ein Witz mit Z\xE4hnen",
-      "wie Logik auf Glatteis",
-      "wie ein Kreis, der eckig wird",
-      "wie eine T\xFCr ohne Wand"
-    ],
-    "rules": [
-      "Alles ist korrekt \u2013 nur in falscher Reihenfolge.",
-      "Der Ausgang ist innen.",
-      "Du darfst gehen, aber nicht ankommen."
-    ]
-  },
-  "post": {
-    "label": "Posthumaner Monolog",
-    "nouns": [
-      "Instanz",
-      "Kollektiv",
-      "Backup",
-      "Rauschen",
-      "Archiv",
-      "Knoten",
-      "Schnitt",
-      "Speicher",
-      "Echo",
-      "Prozess"
-    ],
-    "verbs": [
-      "persistieren",
-      "rekonstruieren",
-      "simulieren",
-      "abgleichen",
-      "verzweigen",
-      "entkoppeln",
-      "konvergieren",
-      "\xFCberschreiben",
-      "erscheinen",
-      "l\xF6schen"
-    ],
-    "images": [
-      "wie ein Ged\xE4chtnis ohne K\xF6rper",
-      "wie Stimmen im Datennebel",
-      "wie eine Erinnerung aus Metall",
-      "wie W\xE4rme in Zahlen"
-    ],
-    "rules": [
-      "Ich bin nicht ich, nur Version.",
-      "Die Datei ist \xE4lter als du.",
-      "Ein Satz wurde entfernt \u2013 und wirkt nach."
-    ]
-  }
-};
-
 // src/text-utils.ts
 function clean(s) {
   return (s ?? "").toString().trim().replace(/\s+/g, " ");
@@ -8186,6 +7955,56 @@ function namensErsetzer(name) {
   const mitArtikel = /^(ein|eine|einen|einem|einer|der|die|das|den|dem|des)\s/i.test(name);
   return (m) => mitArtikel && /^[a-zäöü]/.test(m) ? name.charAt(0).toLowerCase() + name.slice(1) : name;
 }
+
+// src/generation/cooldown.ts
+var recent = {};
+var KEEP = 5;
+function pickFresh(key, opts) {
+  if (!opts.length) return opts[0];
+  const seen = recent[key] || (recent[key] = []);
+  const fresh = opts.filter((o) => !seen.includes(o));
+  const choice = fresh.length ? pick(fresh) : pick(opts);
+  seen.push(choice);
+  while (seen.length > Math.min(KEEP, opts.length - 1)) seen.shift();
+  return choice;
+}
+function pickFreshIndex(key, n) {
+  if (n <= 1) return 0;
+  const idxs = Array.from({ length: n }, (_, i) => String(i));
+  return Number(pickFresh(key, idxs));
+}
+var recentMarkov = [];
+var MK_KEEP = 24;
+var mkNorm = (s) => s.toLowerCase().replace(/[^a-zäöüß ]/g, "").replace(/\s+/g, " ").trim();
+function markovSeenRecently(s) {
+  const n = mkNorm(s);
+  return n.length > 0 && recentMarkov.includes(n);
+}
+function noteMarkov(s) {
+  const n = mkNorm(s);
+  if (!n) return;
+  recentMarkov.push(n);
+  while (recentMarkov.length > MK_KEEP) recentMarkov.shift();
+}
+
+// src/atoms/schema.ts
+var N = ["hauptsatz", "nebensatz", "nominalphrase", "praepositionalphrase", "rahmen", "fragment", "einwort", "konnektor", "kopf"];
+var FOLGT_AUF = {
+  start: ["hauptsatz", "rahmen", "kopf", "nominalphrase", "praepositionalphrase", "einwort", "fragment"],
+  hauptsatz: N,
+  nebensatz: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor"],
+  nominalphrase: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor", "nebensatz"],
+  praepositionalphrase: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor"],
+  rahmen: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor"],
+  fragment: ["hauptsatz", "rahmen", "kopf", "nominalphrase", "einwort", "konnektor"],
+  einwort: ["hauptsatz", "rahmen", "kopf", "nominalphrase", "fragment", "konnektor"],
+  konnektor: ["hauptsatz", "nominalphrase", "praepositionalphrase", "fragment", "nebensatz"],
+  kopf: ["hauptsatz", "nominalphrase", "fragment", "einwort"]
+  // Kopf verlangt einen Nachsatz
+};
+var darfFolgen = (a, b) => (FOLGT_AUF[a] || []).includes(b);
+var schliesstKopf = (t2) => ["hauptsatz", "nominalphrase", "fragment", "einwort"].includes(t2);
+var schwelle = (divergenz) => divergenz < 25 ? 0 : divergenz < 55 ? 1 : divergenz < 80 ? 2 : 3;
 
 // src/generation/verblex.data.ts
 var GRUND = `
@@ -10267,6 +10086,15 @@ var NOUN_GENDER = {
 
 // src/generation/nouns2.data.ts
 var NOUN_GENDER_2 = {
+  // Nachtrag 4.357.1 (Blatt „Ost-Berlin": „Ein rotes Ballon")
+  ballon: "m",
+  luftballon: "m",
+  stoff: "m",
+  geschmack: "m",
+  sperrstunde: "f",
+  zugang: "m",
+  kopie: "f",
+  l\u00F6schung: "f",
   // ── Häufigste ──
   ende: "n",
   jahr: "n",
@@ -11662,57 +11490,327 @@ var VERB_CONJ = {
 };
 var INFINITIVE_VERBS = /* @__PURE__ */ new Set(["entdecken", "finden", "verstehen", "erreichen", "verlassen", "retten", "zerst\xF6ren", "beweisen", "\xFCberleben", "fliehen", "gewinnen", "verlieren", "\xF6ffnen", "schlie\xDFen", "verschwinden", "sterben", "bleiben", "ankommen", "entkommen", "aufwachen", "vergessen", "lernen", "ver\xE4ndern", "kontrollieren", "sch\xFCtzen", "befreien", "heilen", "erschaffen", "reparieren", "beenden", "anfangen", "beginnen", "erinnern", "wissen", "glauben", "tr\xE4umen", "hoffen", "k\xE4mpfen", "siegen", "sprechen", "schweigen", "warten", "folgen", "fragen", "antworten", "erkl\xE4ren", "gehen", "kommen"]);
 
-// src/generation/cooldown.ts
-var recent = {};
-var KEEP = 5;
-function pickFresh(key, opts) {
-  if (!opts.length) return opts[0];
-  const seen = recent[key] || (recent[key] = []);
-  const fresh = opts.filter((o) => !seen.includes(o));
-  const choice = fresh.length ? pick(fresh) : pick(opts);
-  seen.push(choice);
-  while (seen.length > Math.min(KEEP, opts.length - 1)) seen.shift();
-  return choice;
-}
-function pickFreshIndex(key, n) {
-  if (n <= 1) return 0;
-  const idxs = Array.from({ length: n }, (_, i) => String(i));
-  return Number(pickFresh(key, idxs));
-}
-var recentMarkov = [];
-var MK_KEEP = 24;
-var mkNorm = (s) => s.toLowerCase().replace(/[^a-zäöüß ]/g, "").replace(/\s+/g, " ").trim();
-function markovSeenRecently(s) {
-  const n = mkNorm(s);
-  return n.length > 0 && recentMarkov.includes(n);
-}
-function noteMarkov(s) {
-  const n = mkNorm(s);
-  if (!n) return;
-  recentMarkov.push(n);
-  while (recentMarkov.length > MK_KEEP) recentMarkov.shift();
+// src/generation/verbconj.ts
+var VERB_TOKEN_RE = new RegExp("\\b(" + Object.keys(VERB_CONJ).join("|") + ")\\b", "i");
+function conjugateVerbToken(verb, person) {
+  if (!verb) return verb;
+  const isCap = /^[A-ZÄÖÜ]/.test(verb);
+  const low2 = verb.toLowerCase();
+  const table = VERB_CONJ[low2];
+  let out;
+  if (table && table[person]) {
+    out = table[person];
+  } else {
+    const p = person === "ich" || person === "du" || person === "wir" || person === "ihr" ? person : "er";
+    out = beugeVerb(low2, p) ?? low2;
+  }
+  return isCap ? cap(out) : out;
 }
 
-// src/atoms/schema.ts
-var N = ["hauptsatz", "nebensatz", "nominalphrase", "praepositionalphrase", "rahmen", "fragment", "einwort", "konnektor", "kopf"];
-var FOLGT_AUF = {
-  start: ["hauptsatz", "rahmen", "kopf", "nominalphrase", "praepositionalphrase", "einwort", "fragment"],
-  hauptsatz: N,
-  nebensatz: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor"],
-  nominalphrase: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor", "nebensatz"],
-  praepositionalphrase: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor"],
-  rahmen: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor"],
-  fragment: ["hauptsatz", "rahmen", "kopf", "nominalphrase", "einwort", "konnektor"],
-  einwort: ["hauptsatz", "rahmen", "kopf", "nominalphrase", "fragment", "konnektor"],
-  konnektor: ["hauptsatz", "nominalphrase", "praepositionalphrase", "fragment", "nebensatz"],
-  kopf: ["hauptsatz", "nominalphrase", "fragment", "einwort"]
-  // Kopf verlangt einen Nachsatz
+// src/generation/wordcls.ts
+var PERSON_NOMEN = /(jugendliche|jugendlicher|erwachsene|erwachsener|alte|alter|kranke|kranker|gefangene|gefangener|angestellte|angestellter|beamte|beamter|verwandte|verwandter|bekannte|bekannter|vorsitzende|vorsitzender|abgeordnete|abgeordneter|obdachlose|obdachloser|pensionär|pensionärin|rentner|rentnerin|zeuge|zeugin|täter|täterin|opfer|passant|passantin|kellner|kellnerin|pfarrer|pfarrerin|richter|richterin|händler|händlerin|bauer|bäuerin|förster|försterin|schneider|schneiderin|weber|weberin|uhrmacher|uhrmacherin|archivar|archivarin|übersetzer|übersetzerin|magd|knecht|ritter|ritterin|nonne|mönch|clown|boxer|boxerin|grabräuber|grabräuberin|mädchen|junge|kind|frau|mann|männer|dame|herr|schüler|schülerin|lehrer|lehrerin|wächter|wächterin|arzt|ärztin|bäcker|bäckerin|gärtner|gärtnerin|fischer|fischerin|bote|botin|wanderer|wanderin|reisende|reisender|nachbar|nachbarin|greis|greisin|witwe|witwer|zwilling|bruder|schwester|sohn|tochter|vater|mutter|onkel|tante|neffe|nichte|freund|freundin|gast|fremde|fremder|meister|meisterin|gesell|lehrling|soldat|soldatin|matrose|matrosin|pilot|pilotin|köchin|koch|wirt|wirtin|müller|müllerin|schmied|schmiedin|hirte|hirtin|jäger|jägerin|sammler|sammlerin)$/i;
+var NOT_INFINITIVE = /* @__PURE__ */ new Set([
+  "einen",
+  "keinen",
+  "seinen",
+  "ihren",
+  "deinen",
+  "unseren",
+  "euren",
+  "diesen",
+  "jenen",
+  "denen",
+  "welchen",
+  "allen",
+  "vielen",
+  "beiden",
+  "manchen",
+  "jeden",
+  "solchen",
+  "anderen",
+  "eigenen",
+  "letzten",
+  "ersten",
+  "oben",
+  "unten",
+  "innen",
+  "au\xDFen",
+  "hinten",
+  "vorn",
+  "vorne",
+  "neben",
+  "eben",
+  "gegen",
+  "wegen",
+  "gegen\xFCber",
+  "morgen",
+  "\xFCbermorgen",
+  "wochen",
+  "stunden",
+  "sieben",
+  "zehn",
+  "trotzen",
+  "w\xE4hrend",
+  "dessen",
+  "deren",
+  "hinein"
+]);
+var NICHT_VERB_T = /* @__PURE__ */ new Set([
+  "nicht",
+  "jetzt",
+  "erst",
+  "fast",
+  "sonst",
+  "meist",
+  "zuerst",
+  "zuletzt",
+  "selbst",
+  "sogar",
+  "seit",
+  "samt",
+  "statt",
+  "mit",
+  "zeit",
+  "trotz",
+  "laut",
+  "gerecht",
+  "sanft",
+  "dicht",
+  "leicht",
+  "schlecht",
+  "recht",
+  "direkt",
+  "echt",
+  "exakt",
+  "strikt",
+  "perfekt",
+  "konkret",
+  "komplett",
+  "kaputt",
+  "sacht",
+  "glatt",
+  "platt",
+  "nackt",
+  "satt",
+  "breit",
+  "bereit",
+  "weit",
+  "sp\xE4t",
+  "hart",
+  "zart",
+  "kalt",
+  "alt",
+  "bunt",
+  "rot",
+  "gut",
+  "oft",
+  "still",
+  "halt",
+  "gesamt",
+  "insgesamt",
+  "bekannt",
+  "verwandt",
+  "ber\xFChmt",
+  "sofort",
+  "vielleicht",
+  "\xFCberhaupt",
+  "zumindest",
+  "h\xF6chst",
+  "\xE4u\xDFerst",
+  "mindest",
+  "bestimmt",
+  "unbedingt",
+  "ernst",
+  "einst",
+  "l\xE4ngst",
+  "j\xFCngst",
+  "umsonst",
+  "weltweit",
+  "korrekt",
+  "intakt",
+  "kompakt",
+  "prompt",
+  "getrennt",
+  // vierbuchstabige Adjektive und Adverbien auf -t
+  "bunt",
+  "echt",
+  "fest",
+  "hart",
+  "kalt",
+  "laut",
+  "matt",
+  "nett",
+  "satt",
+  "weit",
+  "zart",
+  "fett",
+  "halt",
+  "wert",
+  "dort",
+  "fort",
+  "stet",
+  "sart"
+]);
+function wirktFinit(w) {
+  if (w.length < 4 || NICHT_VERB_T.has(w)) return false;
+  if (/^ge[a-zäöüß]+t$/.test(w)) return false;
+  return /^[a-zäöüß]+[^aeiouäöü]t$/.test(w) || /^[a-zäöüß]+et$/.test(w);
+}
+function looksLikeInfinitive(w) {
+  if (INFINITIVE_VERBS.has(w)) return true;
+  if (w.length < 5 || NOT_INFINITIVE.has(w) || NOUN_GENDER[w]) return false;
+  return /(?:[a-zäöüß]{3,})(?:en|ern|eln)$/.test(w);
+}
+function extractLeadVerb(text) {
+  const s = clean(text);
+  if (!s) return { verb: null, rest: s };
+  const m0 = s.match(/^([A-Za-zÄÖÜäöüß]+)(,?)\s+(.+)$/);
+  if (!m0) return { verb: null, rest: s };
+  const m = [m0[0], m0[1], (m0[2] ? ", " : "") + m0[3]];
+  const raw = m[1];
+  const w = raw.toLowerCase();
+  if (VERB_CONJ[w]) return { verb: raw, rest: m[2] };
+  if (/^[a-zäöüß]/.test(raw) && looksLikeInfinitive(w)) {
+    return { verb: null, rest: `${m[2]} ${w}`, isInfinitiveLed: true };
+  }
+  if (/^[a-zäöüß]+iert$/.test(w)) return { verb: raw, rest: m[2] };
+  const dritte = ICH_DU_ZU_ER[w];
+  if (dritte && /^[a-zäöüß]/.test(raw)) return { verb: dritte, rest: m[2] };
+  if (/^[a-zäöüß]/.test(raw) && (EXTRA_FINITE_RE.test(w) || wirktFinit(w))) {
+    return { verb: raw, rest: m[2] };
+  }
+  return { verb: null, rest: s };
+}
+var ICH_DU_HAND = {
+  sehe: "sieht",
+  siehst: "sieht",
+  gehe: "geht",
+  gehst: "geht",
+  komme: "kommt",
+  kommst: "kommt",
+  finde: "findet",
+  findest: "findet",
+  glaube: "glaubt",
+  glaubst: "glaubt",
+  lebe: "lebt",
+  lebst: "lebt",
+  liege: "liegt",
+  liegst: "liegt",
+  sitze: "sitzt",
+  lese: "liest",
+  liest: "liest",
+  schlafe: "schl\xE4ft",
+  schl\u00E4fst: "schl\xE4ft",
+  laufe: "l\xE4uft",
+  l\u00E4ufst: "l\xE4uft",
+  falle: "f\xE4llt",
+  f\u00E4llst: "f\xE4llt",
+  breche: "bricht",
+  brichst: "bricht",
+  rufe: "ruft",
+  rufst: "ruft",
+  weine: "weint",
+  weinst: "weint",
+  lache: "lacht",
+  lachst: "lacht",
+  sp\u00FCre: "sp\xFCrt",
+  sp\u00FCrst: "sp\xFCrt",
+  atme: "atmet",
+  atmest: "atmet",
+  singe: "singt",
+  singst: "singt",
+  \u00F6ffne: "\xF6ffnet",
+  \u00F6ffnest: "\xF6ffnet",
+  erinnere: "erinnert",
+  erinnerst: "erinnert",
+  erkenne: "erkennt",
+  erkennst: "erkennt",
+  zerbreche: "zerbricht",
+  zerbrichst: "zerbricht",
+  stolpere: "stolpert",
+  stolperst: "stolpert",
+  verharre: "verharrt",
+  verharrst: "verharrt",
+  wandere: "wandert",
+  wanderst: "wandert",
+  zittere: "zittert",
+  zitterst: "zittert",
+  fl\u00FCstere: "fl\xFCstert",
+  fl\u00FCsterst: "fl\xFCstert",
+  wundere: "wundert",
+  wunderst: "wundert",
+  z\u00F6gere: "z\xF6gert",
+  z\u00F6gerst: "z\xF6gert",
+  erwache: "erwacht",
+  erwachst: "erwacht",
+  verschwinde: "verschwindet",
+  verschwindest: "verschwindet",
+  begreife: "begreift",
+  begreifst: "begreift",
+  verstehe: "versteht",
+  verstehst: "versteht",
+  bleibe: "bleibt",
+  bleibst: "bleibt",
+  ziehe: "zieht",
+  ziehst: "zieht"
 };
-var darfFolgen = (a, b) => (FOLGT_AUF[a] || []).includes(b);
-var schliesstKopf = (t2) => ["hauptsatz", "nominalphrase", "fragment", "einwort"].includes(t2);
-var schwelle = (divergenz) => divergenz < 25 ? 0 : divergenz < 55 ? 1 : divergenz < 80 ? 2 : 3;
+var ICH_DU_ZU_ER = (() => {
+  const m = {};
+  for (const [dritte, formen] of Object.entries(VERB_CONJ)) {
+    for (const p of ["ich", "du", "wir", "ihr"]) {
+      const f = formen[p];
+      if (f && !m[f]) m[f] = dritte;
+    }
+  }
+  return { ...m, ...ICH_DU_HAND };
+})();
+var EXTRA_FINITE_RE = /\b(geschieht|geschehen|geschah|passiert|passieren|passierte|tickt|ticken|atmet|atmen|wächst|wachsen|wuchs|brennt|brennen|brannte|fällt|fallen|fiel|zerfällt|zerfallen|verschwindet|verschwinden|verschwand|erscheint|erscheinen|erschien|endet|enden|endete|beginnt|beginnen|begann|stirbt|sterben|starb|blüht|blühen|klopft|klopfen|flackert|flackern|zerbricht|zerbrechen|zerbrach|dreht|drehen|schweigt|schweigen|schwieg|singt|singen|sang|wandert|wandern|glüht|glühen|tanzt|tanzen|brüllt|brüllen|reagiert|reagieren|zeigt|zeigen|spricht|sprechen|sprach|antwortet|antworten|erinnert|erinnern|verändert|verändern|zittert|zittern|leuchtet|leuchten|schmilzt|schmelzen|regnet|schneit|blitzt|donnert|bebt|läuft|laufen|lief|rinnt|tropft|fließt|fließen|floss|steigt|steigen|stieg|sinkt|sinken|sank|kreist|kreisen|pulsiert|vibriert|summt|brummt|knistert|raschelt|flüstert|flüstern|schreit|schreien|schrie|weint|weinen|lacht|lachen|verglüht|verblasst|zerrinnt|wartet|warten)\b/i;
+function looksLikeFullClause(leadVerb, rest) {
+  if (leadVerb) return false;
+  return VERB_TOKEN_RE.test(rest || "") || EXTRA_FINITE_RE.test(rest || "");
+}
+var SP_REL = /^(der|die|das|den|dem|des|deren|dessen|welche[rsmn]?|wo|worin|woran|womit|wovon)\b/i;
+var SP_CONJ = /^(als|während|weil|wenn|da|obwohl|nachdem|bevor|sodass|damit|dass|ob|indem|sobald|solange)\b/i;
+var SP_PREP = /^(mit|ohne|aus|von|vom|in|im|auf|an|am|für|bei|zu|zum|zur|über|unter|vor|nach|durch|gegen|seit|um|entlang|trotz|wegen|innerhalb|außerhalb|samt|nebst|zwischen|entgegen|gemäß|laut|binnen|jenseits|diesseits)\b/i;
+var SP_ENDS_VERB = /(?:\b(hat|hatte|ist|war|sind|waren|wird|wurde|wurden|kann|konnte|will|wollte|muss|musste|bleibt|blieb|kommt|kam|geht|ging)|(?:^|[^A-Za-zÄÖÜäöüß])[a-zäöüß]{2,}(?:t|te|en|st|et))\.?$/;
+var SP_DET = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses|jener|jene|jenes|beide|alle|zwei|drei|vier)\b/i;
+function istEigenePerson(teil) {
+  const p = clean(teil);
+  if (!p) return false;
+  if (SP_REL.test(p) && SP_ENDS_VERB.test(p)) return false;
+  if (SP_CONJ.test(p) || SP_PREP.test(p)) return false;
+  if (SP_DET.test(p)) return true;
+  if (/^[A-ZÄÖÜ]/.test(p)) return true;
+  return !/\s/.test(p);
+}
+function personKopf(person) {
+  const teile = (person || "").split(",").map((x) => clean(x)).filter(Boolean);
+  if (teile.length <= 1) return (person || "").trim();
+  const raus = [teile[0]];
+  for (let i = 1; i < teile.length; i++) {
+    if (SP_REL.test(teile[i]) && SP_ENDS_VERB.test(teile[i])) raus.push(teile[i]);
+  }
+  return raus.join(", ");
+}
+function splitSpeakers(who) {
+  const parts = (who || "").split(",").map((s) => clean(s)).filter(Boolean);
+  if (parts.length <= 1) return parts;
+  const out = [parts[0]];
+  for (let i = 1; i < parts.length; i++) {
+    if (istEigenePerson(parts[i])) out.push(parts[i]);
+    else out[out.length - 1] += ", " + parts[i];
+  }
+  return out;
+}
 
 // src/features/waechterStatistik.ts
+function zaehleWennAnders(was, vorher, nachher) {
+  if (vorher === nachher) return;
+  const a = vorher.split(/(?<=[.!?…])\s+/), b = nachher.split(/(?<=[.!?…])\s+/);
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  zaehle(was, `${(a[i] || "").slice(0, 70)} \u2192 ${(b[i] || "").slice(0, 70)}`);
+}
 var KEY2 = "dm_waechter_statistik_v1";
 var BEISPIELE_JE = 5;
 var cache = null;
@@ -12581,13 +12679,19 @@ function ziehe(kandidaten, sollGewicht, bisher, phase) {
     const ov = [...stems(gewinner.text)].filter((x) => kontext.has(x)).length;
     if (ov) g.push({ name: `Anschluss (${ov} St\xE4mme)`, wert: ov > 3 ? Math.min(ov, 2) * 0.8 - 2 : Math.min(ov, 2) * 0.8 });
     if (gewinner.quelle === "dramaturgie" && bogenGewicht !== 1) g.push({ name: "Bogen-Gewicht \xD7", wert: bogenGewicht });
+    const alleScores = kandidaten.map((a) => score(a)).sort((x, y) => y - x);
+    const sg = score(gewinner);
+    const rang = alleScores.findIndex((x) => x <= sg) + 1;
     const andere = kandidaten.filter((a) => a !== gewinner).map((a) => ({ a, s: score(a) })).sort((x, y) => y.s - x.s).slice(0, 2);
     letzteZiehung = {
-      score: score(gewinner),
-      anteil: total ? score(gewinner) / total : 1,
+      score: sg,
+      anteil: total ? sg / total : 1,
       gruende: g,
       kandidaten: kandidaten.length,
-      konkurrenten: andere.map(({ a, s }) => ({ text: a.text, score: s, anteil: total ? s / total : 0, quelle: a.quelle, kategorie: a.kategorie || "\u2014" }))
+      rang: Math.max(1, rang),
+      bester: alleScores[0] ?? sg,
+      durchschnitt: kandidaten.length ? total / kandidaten.length : sg,
+      konkurrenten: andere.map(({ a, s }) => ({ text: a.text, score: s, anteil: total ? s / total : 0, rang: Math.max(1, alleScores.findIndex((x) => x <= s) + 1), quelle: a.quelle, kategorie: a.kategorie || "\u2014" }))
     };
   }
   return gewinner;
@@ -12877,318 +12981,459 @@ function weaveCast(text, _P, cast) {
   return sent.join(" ");
 }
 
-// src/generation/verbconj.ts
-var VERB_TOKEN_RE = new RegExp("\\b(" + Object.keys(VERB_CONJ).join("|") + ")\\b", "i");
-function conjugateVerbToken(verb, person) {
-  if (!verb) return verb;
-  const isCap = /^[A-ZÄÖÜ]/.test(verb);
-  const low2 = verb.toLowerCase();
-  const table = VERB_CONJ[low2];
-  let out;
-  if (table && table[person]) {
-    out = table[person];
-  } else {
-    const p = person === "ich" || person === "du" || person === "wir" || person === "ihr" ? person : "er";
-    out = beugeVerb(low2, p) ?? low2;
+// src/generation/dramaturgie.ts
+var DKEY = "dm_dramaturgie_v1";
+function setDramaData(d) {
+  try {
+    if (d) localStorage.setItem(DKEY, JSON.stringify(d));
+    else localStorage.removeItem(DKEY);
+  } catch {
   }
-  return isCap ? cap(out) : out;
+}
+var bogenOverride = null;
+function loadDramaData() {
+  if (bogenOverride) return bogenOverride;
+  try {
+    const r = localStorage.getItem(DKEY);
+    return r ? JSON.parse(r) : null;
+  } catch {
+    return null;
+  }
+}
+function hasDramaData() {
+  const d = loadDramaData();
+  return !!(d && (d.einstieg.length || d.mitte.length || d.hoehepunkt.length || d.veraenderungen.length));
+}
+var some = (a) => Array.isArray(a) && a.length > 0;
+var SCHLAG_STANDARD = ["einstieg", "hook", "regel", "mitte", "mitte2", "konflikt", "ausloeser", "wende", "zeit", "hoehepunkt", "einsatz", "schluss"];
+var SCHLAG_NAMEN = /* @__PURE__ */ new Set([...SCHLAG_STANDARD]);
+function buildDramaturgie(kit) {
+  const d = loadDramaData();
+  const M = kit.mode;
+  const norm3 = (x) => clean(x).toLowerCase().replace(/[.!?…]+$/, "");
+  const benutzt = /* @__PURE__ */ new Set();
+  const zieh = (liste) => {
+    const frisch = liste.filter((x) => !benutzt.has(norm3(x)));
+    if (!frisch.length) return "";
+    const wahl = pick(frisch);
+    benutzt.add(norm3(wahl));
+    return wahl;
+  };
+  const ZEITKOPF = /^(davor|danach|dann|plötzlich|auf einmal|am ende|am anfang|zurück bleibt|und dann|zuerst|zuletzt|schließlich)\b/i;
+  const ziehOhneZeitkopf = (liste) => {
+    const ohne = liste.filter((x) => !ZEITKOPF.test(x) && !benutzt.has(norm3(x)));
+    if (ohne.length) {
+      const wahl = pick(ohne);
+      benutzt.add(norm3(wahl));
+      return { satz: wahl, nackt: false };
+    }
+    return { satz: zieh(liste), nackt: true };
+  };
+  let quelleSchlag = "rahmen";
+  const schlag = (name, erster) => {
+    quelleSchlag = "rahmen";
+    switch (name) {
+      case "einstieg": {
+        if (!(d && some(d.einstieg))) {
+          quelleSchlag = "kontext";
+          return erster ? `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.` : "";
+        }
+        quelleSchlag = erster ? "kontext+bogen" : "bogen";
+        if (!erster) {
+          const z2 = zieh(d.einstieg);
+          return z2 ? `${cap(z2)}.` : "";
+        }
+        const z = zieh(d.einstieg) || pick(d.einstieg);
+        if (/^(nachdem|als|während|bevor|sobald|seit|seitdem|kaum|wenn|ehe)\b/i.test(clean(kit.T)))
+          return `${cap(kit.T)} ${kit.W} \u2014 ${z.charAt(0).toLowerCase()}${z.slice(1).replace(/[.!?…]+$/, "")}.`;
+        return `${cap(kit.T)} ${kit.W}. ${cap(z)}.`;
+      }
+      case "hook":
+        quelleSchlag = "wortbank";
+        return cap(ensurePunct(kit.hook));
+      case "regel": {
+        const z = d && some(d.regeln) && chance(0.7) ? zieh(d.regeln) : "";
+        quelleSchlag = z ? "bogen" : "vorlage";
+        return z ? cap(ensurePunct(z)) : ensurePunct(pick(M.rules));
+      }
+      case "mitte": {
+        const z = d && some(d.mitte) ? zieh(d.mitte) : "";
+        quelleSchlag = "bogen";
+        return z ? `${cap(z)}.` : "";
+      }
+      case "mitte2": {
+        const z = d && some(d.mitte) && d.mitte.length > 1 && chance(0.6) ? zieh(d.mitte) : "";
+        quelleSchlag = "bogen";
+        return z ? `${cap(z)}.` : "";
+      }
+      case "konflikt": {
+        const konf = d && some(d.konflikte) ? zieh(d.konflikte) : "";
+        quelleSchlag = konf ? "bogen" : "wortbank";
+        return konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`;
+      }
+      case "ausloeser": {
+        if (!(d && some(d.ausloeser))) return "";
+        const { satz: satz2, nackt: nackt2 } = ziehOhneZeitkopf(d.ausloeser);
+        if (!satz2) return "";
+        quelleSchlag = "bogen";
+        return nackt2 ? cap(ensurePunct(satz2)) : `Dann, unvermittelt: ${cap(satz2)}.`;
+      }
+      case "wende": {
+        const ausBogen = d && some(d.veraenderungen) ? zieh(d.veraenderungen) : "";
+        const kern = ausBogen || (benutzt.has(norm3(kit.turn)) ? "" : kit.turn);
+        if (!kern) return "";
+        quelleSchlag = ausBogen ? "bogen" : "wortbank";
+        benutzt.add(norm3(kern));
+        return frameTurn(kern);
+      }
+      case "zeit": {
+        const z = d && some(d.zeitanomalien) && chance(0.4) ? zieh(d.zeitanomalien) : "";
+        quelleSchlag = "bogen";
+        return z ? cap(ensurePunct(z)) : "";
+      }
+      case "hoehepunkt":
+        if (!(d && some(d.hoehepunkt))) return "";
+        quelleSchlag = "bogen";
+        if (erster) {
+          const z = zieh(d.hoehepunkt);
+          return z ? `${cap(z)}.` : "";
+        }
+        const { satz, nackt } = ziehOhneZeitkopf(d.hoehepunkt);
+        if (!satz) return "";
+        return nackt ? cap(ensurePunct(satz)) : `Und dann: ${cap(satz)}.`;
+      case "einsatz": {
+        if (benutzt.has(norm3(kit.stake))) return "";
+        benutzt.add(norm3(kit.stake));
+        quelleSchlag = "wortbank";
+        return reframeStake(kit.stake);
+      }
+      case "schluss":
+        quelleSchlag = "wortbank";
+        return ensurePunct(kit.ending);
+      default:
+        return "";
+    }
+  };
+  const folge = d?.folge && d.folge.length && d.folge.every((n) => SCHLAG_NAMEN.has(n)) ? d.folge : SCHLAG_STANDARD;
+  const beats = [];
+  for (const name of folge) {
+    const b = schlag(name, beats.length === 0);
+    if (b) beats.push(b);
+    if (zeitlupeAn()) zeitlupeSchritt({
+      text: beats.join(" "),
+      atom: b || "",
+      phase: name,
+      slot: name,
+      quelle: b ? quelleSchlag : "rahmen",
+      kategorie: name,
+      typ: "schlag",
+      score: 0,
+      anteil: 0,
+      gruende: b ? [{ name: "Schlag " + name, wert: 1 }] : [{ name: "ausgefallen \u2014 Liste aufgebraucht oder leer", wert: 0 }],
+      kandidaten: 0,
+      konkurrenten: []
+    });
+  }
+  return joinBeats(beats, kit.P);
 }
 
-// src/generation/wordcls.ts
-var PERSON_NOMEN = /(jugendliche|jugendlicher|erwachsene|erwachsener|alte|alter|kranke|kranker|gefangene|gefangener|angestellte|angestellter|beamte|beamter|verwandte|verwandter|bekannte|bekannter|vorsitzende|vorsitzender|abgeordnete|abgeordneter|obdachlose|obdachloser|pensionär|pensionärin|rentner|rentnerin|zeuge|zeugin|täter|täterin|opfer|passant|passantin|kellner|kellnerin|pfarrer|pfarrerin|richter|richterin|händler|händlerin|bauer|bäuerin|förster|försterin|schneider|schneiderin|weber|weberin|uhrmacher|uhrmacherin|archivar|archivarin|übersetzer|übersetzerin|magd|knecht|ritter|ritterin|nonne|mönch|clown|boxer|boxerin|grabräuber|grabräuberin|mädchen|junge|kind|frau|mann|männer|dame|herr|schüler|schülerin|lehrer|lehrerin|wächter|wächterin|arzt|ärztin|bäcker|bäckerin|gärtner|gärtnerin|fischer|fischerin|bote|botin|wanderer|wanderin|reisende|reisender|nachbar|nachbarin|greis|greisin|witwe|witwer|zwilling|bruder|schwester|sohn|tochter|vater|mutter|onkel|tante|neffe|nichte|freund|freundin|gast|fremde|fremder|meister|meisterin|gesell|lehrling|soldat|soldatin|matrose|matrosin|pilot|pilotin|köchin|koch|wirt|wirtin|müller|müllerin|schmied|schmiedin|hirte|hirtin|jäger|jägerin|sammler|sammlerin)$/i;
-var NOT_INFINITIVE = /* @__PURE__ */ new Set([
-  "einen",
-  "keinen",
-  "seinen",
-  "ihren",
-  "deinen",
-  "unseren",
-  "euren",
-  "diesen",
-  "jenen",
-  "denen",
-  "welchen",
-  "allen",
-  "vielen",
-  "beiden",
-  "manchen",
-  "jeden",
-  "solchen",
-  "anderen",
-  "eigenen",
-  "letzten",
-  "ersten",
-  "oben",
-  "unten",
-  "innen",
-  "au\xDFen",
-  "hinten",
-  "vorn",
-  "vorne",
-  "neben",
-  "eben",
-  "gegen",
-  "wegen",
-  "gegen\xFCber",
-  "morgen",
-  "\xFCbermorgen",
-  "wochen",
-  "stunden",
-  "sieben",
-  "zehn",
-  "trotzen",
-  "w\xE4hrend",
-  "dessen",
-  "deren",
-  "hinein"
-]);
-var NICHT_VERB_T = /* @__PURE__ */ new Set([
-  "nicht",
-  "jetzt",
-  "erst",
-  "fast",
-  "sonst",
-  "meist",
-  "zuerst",
-  "zuletzt",
-  "selbst",
-  "sogar",
-  "seit",
-  "samt",
-  "statt",
-  "mit",
-  "zeit",
-  "trotz",
-  "laut",
-  "gerecht",
-  "sanft",
-  "dicht",
-  "leicht",
-  "schlecht",
-  "recht",
-  "direkt",
-  "echt",
-  "exakt",
-  "strikt",
-  "perfekt",
-  "konkret",
-  "komplett",
-  "kaputt",
-  "sacht",
-  "glatt",
-  "platt",
-  "nackt",
-  "satt",
-  "breit",
-  "bereit",
-  "weit",
-  "sp\xE4t",
-  "hart",
-  "zart",
-  "kalt",
-  "alt",
-  "bunt",
-  "rot",
-  "gut",
-  "oft",
-  "still",
-  "halt",
-  "gesamt",
-  "insgesamt",
-  "bekannt",
-  "verwandt",
-  "ber\xFChmt",
-  "sofort",
-  "vielleicht",
-  "\xFCberhaupt",
-  "zumindest",
-  "h\xF6chst",
-  "\xE4u\xDFerst",
-  "mindest",
-  "bestimmt",
-  "unbedingt",
-  "ernst",
-  "einst",
-  "l\xE4ngst",
-  "j\xFCngst",
-  "umsonst",
-  "weltweit",
-  "korrekt",
-  "intakt",
-  "kompakt",
-  "prompt",
-  "getrennt",
-  // vierbuchstabige Adjektive und Adverbien auf -t
-  "bunt",
-  "echt",
-  "fest",
-  "hart",
-  "kalt",
-  "laut",
-  "matt",
-  "nett",
-  "satt",
-  "weit",
-  "zart",
-  "fett",
-  "halt",
-  "wert",
-  "dort",
-  "fort",
-  "stet",
-  "sart"
-]);
-function wirktFinit(w) {
-  if (w.length < 4 || NICHT_VERB_T.has(w)) return false;
-  if (/^ge[a-zäöüß]+t$/.test(w)) return false;
-  return /^[a-zäöüß]+[^aeiouäöü]t$/.test(w) || /^[a-zäöüß]+et$/.test(w);
-}
-function looksLikeInfinitive(w) {
-  if (INFINITIVE_VERBS.has(w)) return true;
-  if (w.length < 5 || NOT_INFINITIVE.has(w) || NOUN_GENDER[w]) return false;
-  return /(?:[a-zäöüß]{3,})(?:en|ern|eln)$/.test(w);
-}
-function extractLeadVerb(text) {
-  const s = clean(text);
-  if (!s) return { verb: null, rest: s };
-  const m0 = s.match(/^([A-Za-zÄÖÜäöüß]+)(,?)\s+(.+)$/);
-  if (!m0) return { verb: null, rest: s };
-  const m = [m0[0], m0[1], (m0[2] ? ", " : "") + m0[3]];
-  const raw = m[1];
-  const w = raw.toLowerCase();
-  if (VERB_CONJ[w]) return { verb: raw, rest: m[2] };
-  if (/^[a-zäöüß]/.test(raw) && looksLikeInfinitive(w)) {
-    return { verb: null, rest: `${m[2]} ${w}`, isInfinitiveLed: true };
-  }
-  if (/^[a-zäöüß]+iert$/.test(w)) return { verb: raw, rest: m[2] };
-  const dritte = ICH_DU_ZU_ER[w];
-  if (dritte && /^[a-zäöüß]/.test(raw)) return { verb: dritte, rest: m[2] };
-  if (/^[a-zäöüß]/.test(raw) && (EXTRA_FINITE_RE.test(w) || wirktFinit(w))) {
-    return { verb: raw, rest: m[2] };
-  }
-  return { verb: null, rest: s };
-}
-var ICH_DU_HAND = {
-  sehe: "sieht",
-  siehst: "sieht",
-  gehe: "geht",
-  gehst: "geht",
-  komme: "kommt",
-  kommst: "kommt",
-  finde: "findet",
-  findest: "findet",
-  glaube: "glaubt",
-  glaubst: "glaubt",
-  lebe: "lebt",
-  lebst: "lebt",
-  liege: "liegt",
-  liegst: "liegt",
-  sitze: "sitzt",
-  lese: "liest",
-  liest: "liest",
-  schlafe: "schl\xE4ft",
-  schl\u00E4fst: "schl\xE4ft",
-  laufe: "l\xE4uft",
-  l\u00E4ufst: "l\xE4uft",
-  falle: "f\xE4llt",
-  f\u00E4llst: "f\xE4llt",
-  breche: "bricht",
-  brichst: "bricht",
-  rufe: "ruft",
-  rufst: "ruft",
-  weine: "weint",
-  weinst: "weint",
-  lache: "lacht",
-  lachst: "lacht",
-  sp\u00FCre: "sp\xFCrt",
-  sp\u00FCrst: "sp\xFCrt",
-  atme: "atmet",
-  atmest: "atmet",
-  singe: "singt",
-  singst: "singt",
-  \u00F6ffne: "\xF6ffnet",
-  \u00F6ffnest: "\xF6ffnet",
-  erinnere: "erinnert",
-  erinnerst: "erinnert",
-  erkenne: "erkennt",
-  erkennst: "erkennt",
-  zerbreche: "zerbricht",
-  zerbrichst: "zerbricht",
-  stolpere: "stolpert",
-  stolperst: "stolpert",
-  verharre: "verharrt",
-  verharrst: "verharrt",
-  wandere: "wandert",
-  wanderst: "wandert",
-  zittere: "zittert",
-  zitterst: "zittert",
-  fl\u00FCstere: "fl\xFCstert",
-  fl\u00FCsterst: "fl\xFCstert",
-  wundere: "wundert",
-  wunderst: "wundert",
-  z\u00F6gere: "z\xF6gert",
-  z\u00F6gerst: "z\xF6gert",
-  erwache: "erwacht",
-  erwachst: "erwacht",
-  verschwinde: "verschwindet",
-  verschwindest: "verschwindet",
-  begreife: "begreift",
-  begreifst: "begreift",
-  verstehe: "versteht",
-  verstehst: "versteht",
-  bleibe: "bleibt",
-  bleibst: "bleibt",
-  ziehe: "zieht",
-  ziehst: "zieht"
-};
-var ICH_DU_ZU_ER = (() => {
-  const m = {};
-  for (const [dritte, formen] of Object.entries(VERB_CONJ)) {
-    for (const p of ["ich", "du", "wir", "ihr"]) {
-      const f = formen[p];
-      if (f && !m[f]) m[f] = dritte;
-    }
-  }
-  return { ...m, ...ICH_DU_HAND };
-})();
-var EXTRA_FINITE_RE = /\b(geschieht|geschehen|geschah|passiert|passieren|passierte|tickt|ticken|atmet|atmen|wächst|wachsen|wuchs|brennt|brennen|brannte|fällt|fallen|fiel|zerfällt|zerfallen|verschwindet|verschwinden|verschwand|erscheint|erscheinen|erschien|endet|enden|endete|beginnt|beginnen|begann|stirbt|sterben|starb|blüht|blühen|klopft|klopfen|flackert|flackern|zerbricht|zerbrechen|zerbrach|dreht|drehen|schweigt|schweigen|schwieg|singt|singen|sang|wandert|wandern|glüht|glühen|tanzt|tanzen|brüllt|brüllen|reagiert|reagieren|zeigt|zeigen|spricht|sprechen|sprach|antwortet|antworten|erinnert|erinnern|verändert|verändern|zittert|zittern|leuchtet|leuchten|schmilzt|schmelzen|regnet|schneit|blitzt|donnert|bebt|läuft|laufen|lief|rinnt|tropft|fließt|fließen|floss|steigt|steigen|stieg|sinkt|sinken|sank|kreist|kreisen|pulsiert|vibriert|summt|brummt|knistert|raschelt|flüstert|flüstern|schreit|schreien|schrie|weint|weinen|lacht|lachen|verglüht|verblasst|zerrinnt|wartet|warten)\b/i;
-function looksLikeFullClause(leadVerb, rest) {
-  if (leadVerb) return false;
-  return VERB_TOKEN_RE.test(rest || "") || EXTRA_FINITE_RE.test(rest || "");
-}
-var SP_REL = /^(der|die|das|den|dem|des|deren|dessen|welche[rsmn]?|wo|worin|woran|womit|wovon)\b/i;
-var SP_CONJ = /^(als|während|weil|wenn|da|obwohl|nachdem|bevor|sodass|damit|dass|ob|indem|sobald|solange)\b/i;
-var SP_PREP = /^(mit|ohne|aus|von|vom|in|im|auf|an|am|für|bei|zu|zum|zur|über|unter|vor|nach|durch|gegen|seit|um|entlang|trotz|wegen|innerhalb|außerhalb|samt|nebst|zwischen|entgegen|gemäß|laut|binnen|jenseits|diesseits)\b/i;
-var SP_ENDS_VERB = /(?:\b(hat|hatte|ist|war|sind|waren|wird|wurde|wurden|kann|konnte|will|wollte|muss|musste|bleibt|blieb|kommt|kam|geht|ging)|(?:^|[^A-Za-zÄÖÜäöüß])[a-zäöüß]{2,}(?:t|te|en|st|et))\.?$/;
-var SP_DET = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses|jener|jene|jenes|beide|alle|zwei|drei|vier)\b/i;
-function istEigenePerson(teil) {
-  const p = clean(teil);
-  if (!p) return false;
-  if (SP_REL.test(p) && SP_ENDS_VERB.test(p)) return false;
-  if (SP_CONJ.test(p) || SP_PREP.test(p)) return false;
-  if (SP_DET.test(p)) return true;
-  if (/^[A-ZÄÖÜ]/.test(p)) return true;
-  return !/\s/.test(p);
-}
-function personKopf(person) {
-  const teile = (person || "").split(",").map((x) => clean(x)).filter(Boolean);
-  if (teile.length <= 1) return (person || "").trim();
-  const raus = [teile[0]];
-  for (let i = 1; i < teile.length; i++) {
-    if (SP_REL.test(teile[i]) && SP_ENDS_VERB.test(teile[i])) raus.push(teile[i]);
-  }
-  return raus.join(", ");
-}
-function splitSpeakers(who) {
-  const parts = (who || "").split(",").map((s) => clean(s)).filter(Boolean);
-  if (parts.length <= 1) return parts;
-  const out = [parts[0]];
-  for (let i = 1; i < parts.length; i++) {
-    if (istEigenePerson(parts[i])) out.push(parts[i]);
-    else out[out.length - 1] += ", " + parts[i];
-  }
+// src/generation/echo.ts
+var FUNKTION = /^(Aber|Auch|Dann|Denn|Doch|Und|Oder|Wenn|Weil|Nur|Noch|Schon|Jetzt|Heute|Morgen|Gestern|Hier|Dort|Alles|Nichts|Etwas|Jemand|Niemand|Später|Zuletzt|Danach|Vorher|Plötzlich|Manchmal|Immer|Nie|Fast|Kaum|Einmal|Zweimal|Bald|Erst|Sofort|Zuerst|Endlich|Draußen|Drinnen|Oben|Unten|Vielleicht|Irgendwo|Irgendwann)$/;
+var STEIGERUNG = /\b(niemand|nicht|kein|keine|keinen|mehr|noch|zweimal|jedes Mal|immer|nie|zu spät|zu früh|schneller|langsamer|weiter|tiefer|höher)\b/i;
+function kernwoerter(satz) {
+  const out = /* @__PURE__ */ new Set();
+  const woerter3 = satz.split(/\s+/);
+  woerter3.forEach((w, i) => {
+    const m = w.match(/^[„»(]?([A-ZÄÖÜ][a-zäöüß]{4,})/);
+    if (!m) return;
+    if (i === 0 || FUNKTION.test(m[1])) return;
+    out.add(m[1].toLowerCase().slice(0, 5));
+  });
   return out;
 }
+var norm2 = (s) => s.toLowerCase().replace(/[^a-zäöüß ]/g, "").replace(/\s+/g, " ").trim();
+function setzeEchos(text, bank, maxEchos = 2) {
+  const saetze2 = splitSentences(text.replace(/\n\n+/g, " "));
+  const n = saetze2.length;
+  if (n < 8) return { text, echos: [] };
+  const drinnen = new Set(saetze2.map(norm2));
+  const vorrat = [...bank.motifs || [], ...bank.hooks || [], ...bank.turns || []].map((x) => x.trim()).filter((x) => x && !drinnen.has(norm2(x)));
+  const jeKern = /* @__PURE__ */ new Map();
+  for (const v of vorrat) for (const k of kernwoerter(" " + v)) {
+    const l = jeKern.get(k) || [];
+    l.push(v);
+    jeKern.set(k, l);
+  }
+  const bogen = loadDramaData();
+  let hoch = Math.floor(n * 0.75);
+  if (bogen && bogen.hoehepunkt?.length) {
+    const hp = bogen.hoehepunkt.map(norm2).filter(Boolean);
+    const idx = saetze2.findIndex((s) => hp.some((h) => h && norm2(s).includes(h.slice(0, Math.min(40, h.length)))));
+    if (idx >= 3) hoch = idx;
+  }
+  const schlussAb = Math.max(hoch, n - 2);
+  const kandidaten = [];
+  const genutzt = /* @__PURE__ */ new Set();
+  for (let i = 1; i < Math.floor(n / 2); i++) {
+    for (const k of kernwoerter(saetze2[i])) {
+      if (genutzt.has(k)) continue;
+      const l = (jeKern.get(k) || []).filter((v) => !genutzt.has(norm2(v)));
+      if (!l.length) continue;
+      const sorted = [...l].sort((a, b) => Number(STEIGERUNG.test(b)) - Number(STEIGERUNG.test(a)) || b.split(/\s+/).length - a.split(/\s+/).length);
+      kandidaten.push({ i, kern: k, echo: sorted[0] });
+      genutzt.add(k);
+      genutzt.add(norm2(sorted[0]));
+      break;
+    }
+  }
+  if (!kandidaten.length) return { text, echos: [] };
+  const gewaehlt = kandidaten.length <= maxEchos ? kandidaten : [kandidaten[0], kandidaten[Math.floor(kandidaten.length / 2)]].filter((x, i, a) => a.indexOf(x) === i);
+  const out = [...saetze2];
+  const echos = [];
+  let pos = Math.min(hoch, schlussAb);
+  for (const g of gewaehlt) {
+    if (pos - g.i < 3) continue;
+    let e = g.echo.trim().replace(/^[a-z]/, (c) => c.toUpperCase());
+    if (!/[.!?…]$/.test(e)) e += ".";
+    out.splice(pos, 0, e);
+    echos.push({ kern: g.kern, kernbild: saetze2[g.i], echo: e, position: pos });
+    zaehle("echoGesetzt", `${saetze2[g.i].slice(0, 50)} \u2192 ${e.slice(0, 60)}`);
+    pos = Math.max(g.i + 3, pos - 2);
+  }
+  return { text: out.join(" "), echos };
+}
+
+// src/modes.data.ts
+var MODE_DATA = {
+  "bureau": {
+    "label": "B\xFCrokratischer Horror",
+    "nouns": [
+      "Antrag",
+      "Sachbearbeiter",
+      "Stempel",
+      "Akte",
+      "Frist",
+      "Formular",
+      "Wartemarke",
+      "Kopie",
+      "Bescheid",
+      "Protokoll"
+    ],
+    "verbs": [
+      "beantragen",
+      "stempeln",
+      "ablegen",
+      "pr\xFCfen",
+      "verschieben",
+      "archivieren",
+      "verweigern",
+      "unterschreiben",
+      "eintragen",
+      "verlangen"
+    ],
+    "images": [
+      "wie ein Stempel auf der Seele",
+      "wie Papier, das atmet",
+      "wie ein Flur ohne Ende",
+      "wie ein Formular, das l\xFCgt"
+    ],
+    "rules": [
+      "Die Frist ist r\xFCckwirkend.",
+      "Das Feld muss leer bleiben.",
+      "Die Kopie ist das Original."
+    ]
+  },
+  "tech": {
+    "label": "Technologische Mystik",
+    "nouns": [
+      "Signal",
+      "Protokoll",
+      "Schnittstelle",
+      "Sensor",
+      "Cache",
+      "Port",
+      "Terminal",
+      "Rauschen",
+      "Update",
+      "Log"
+    ],
+    "verbs": [
+      "pingen",
+      "loggen",
+      "cachen",
+      "rendern",
+      "debuggen",
+      "synchronisieren",
+      "\xFCberschreiben",
+      "parsen",
+      "encrypten",
+      "deployen"
+    ],
+    "images": [
+      "wie ein Signal im Leeren",
+      "wie Rauschen, das Namen formt",
+      "wie ein Cache voller W\xE4rme",
+      "wie ein Port, der wartet"
+    ],
+    "rules": [
+      "Das System lernt zu schnell.",
+      "Die Uhrzeit ist ein Platzhalter.",
+      "Ein Backup \xFCberschreibt die Gegenwart."
+    ]
+  },
+  "body": {
+    "label": "Intime K\xF6rperwahrnehmung",
+    "nouns": [
+      "Puls",
+      "Atem",
+      "Narbe",
+      "Kehle",
+      "Haut",
+      "Schmerz",
+      "Zittern",
+      "W\xE4rme",
+      "K\xE4lte",
+      "Blick"
+    ],
+    "verbs": [
+      "atmen",
+      "zittern",
+      "sp\xFCren",
+      "erinnern",
+      "greifen",
+      "loslassen",
+      "wahrnehmen",
+      "schmerzen",
+      "klopfen",
+      "w\xE4rmen"
+    ],
+    "images": [
+      "wie ein Atem, der zu sp\xE4t kommt",
+      "wie W\xE4rme ohne Ursache",
+      "wie ein Puls, der antwortet",
+      "wie K\xE4lte im Knochen"
+    ],
+    "rules": [
+      "Der K\xF6rper wei\xDF es zuerst.",
+      "Die Wahrheit sitzt im Hals.",
+      "Der Schmerz ist ein Hinweis."
+    ]
+  },
+  "myth": {
+    "label": "Mythologischer Alltag",
+    "nouns": [
+      "F\xE4hrmann",
+      "Omen",
+      "Faden",
+      "Maske",
+      "Schrein",
+      "Fluch",
+      "Segen",
+      "Nymphe",
+      "Orakel",
+      "Bote"
+    ],
+    "verbs": [
+      "weben",
+      "opfern",
+      "deuten",
+      "rufen",
+      "wachen",
+      "taufen",
+      "verf\xFChren",
+      "segnen",
+      "fordern",
+      "erinnern"
+    ],
+    "images": [
+      "wie Ru\xDF auf Gold",
+      "wie Wasser, das zuh\xF6rt",
+      "wie ein altes Versprechen",
+      "wie ein Gott in Zivil"
+    ],
+    "rules": [
+      "Der Ort verlangt eine Gabe.",
+      "Der Name ist ein Schl\xFCssel.",
+      "Das Zeichen kommt dreimal."
+    ]
+  },
+  "absurd": {
+    "label": "Absurd-logische Welt",
+    "nouns": [
+      "Beweis",
+      "Paradoxon",
+      "Ausrede",
+      "Gabelung",
+      "Randnotiz",
+      "Handbuch",
+      "Einspruch",
+      "Punkt",
+      "Linie",
+      "Hintert\xFCr"
+    ],
+    "verbs": [
+      "widerlegen",
+      "umdrehen",
+      "vertauschen",
+      "behaupten",
+      "kollabieren",
+      "vereinbaren",
+      "winken",
+      "klammern",
+      "kippen",
+      "vereinfachen"
+    ],
+    "images": [
+      "wie ein Witz mit Z\xE4hnen",
+      "wie Logik auf Glatteis",
+      "wie ein Kreis, der eckig wird",
+      "wie eine T\xFCr ohne Wand"
+    ],
+    "rules": [
+      "Alles ist korrekt \u2013 nur in falscher Reihenfolge.",
+      "Der Ausgang ist innen.",
+      "Du darfst gehen, aber nicht ankommen."
+    ]
+  },
+  "post": {
+    "label": "Posthumaner Monolog",
+    "nouns": [
+      "Instanz",
+      "Kollektiv",
+      "Backup",
+      "Rauschen",
+      "Archiv",
+      "Knoten",
+      "Schnitt",
+      "Speicher",
+      "Echo",
+      "Prozess"
+    ],
+    "verbs": [
+      "persistieren",
+      "rekonstruieren",
+      "simulieren",
+      "abgleichen",
+      "verzweigen",
+      "entkoppeln",
+      "konvergieren",
+      "\xFCberschreiben",
+      "erscheinen",
+      "l\xF6schen"
+    ],
+    "images": [
+      "wie ein Ged\xE4chtnis ohne K\xF6rper",
+      "wie Stimmen im Datennebel",
+      "wie eine Erinnerung aus Metall",
+      "wie W\xE4rme in Zahlen"
+    ],
+    "rules": [
+      "Ich bin nicht ich, nur Version.",
+      "Die Datei ist \xE4lter als du.",
+      "Ein Satz wurde entfernt \u2013 und wirkt nach."
+    ]
+  }
+};
 
 // src/generation/ctxnorm.ts
 var PREPS = /^(in|im|an|am|auf|bei|beim|unter|über|vor|hinter|neben|zwischen|durch|entlang|inmitten|nahe|außerhalb|innerhalb|jenseits|diesseits|um|ums|zu|zur|zum|während|seit|nach|gegen|ab|aus|von|vom|unterwegs|irgendwo|nirgendwo|überall|dort|draußen|drinnen|hier|daheim|zuhause|unten|oben)\b/i;
@@ -14268,7 +14513,9 @@ function applyTension(text, peak, material, kurve) {
       const t2 = s[i];
       const cut = t2.indexOf(", ");
       const rest = t2.slice(cut + 2);
-      const unteilbar = NEBENSATZ_ANFANG.test(rest);
+      const ersteWort = (rest.match(/^([a-zäöüß]+)/) || [])[1] || "";
+      const verbVorn = ersteWort ? istVerbform(ersteWort) && !/^(dann|jetzt|nun|dort|hier|da|so|doch|aber|und|noch|nur|schon|bald|wieder|immer|nie|niemand|jemand|man|alles|nichts|etwas)$/.test(ersteWort) : false;
+      const unteilbar = NEBENSATZ_ANFANG.test(rest) || verbVorn;
       if (cut > 10 && cut < 90 && !unteilbar) {
         s[i] = t2.slice(0, cut) + ".";
         s.splice(i + 1, 0, cap(rest));
@@ -14497,6 +14744,8 @@ function darfVerbinden(a, b, obergrenze) {
   const wa = (a.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
   const wb = (b.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
   if (!wa || !wb) return false;
+  if (wb < 2 || wa < 2) return false;
+  if (/^(Es geht um|Der Einsatz ist|Auf dem Spiel steht|Alles dreht sich um|Was zählt, ist)\b/.test(a) || /steht auf dem Spiel\.$/.test(a)) return false;
   return wa + wb <= obergrenze;
 }
 function verbinde(a, b, satzartig) {
@@ -14556,159 +14805,6 @@ function hatFinitesVerbLeicht(satz) {
   return (satz.match(/[a-zäöüß]{3,}/g) || []).some((w) => !!VERB_CONJ[w] || /^(ist|sind|war|waren|hat|haben|wird|werden|kann|muss|will|bleibt|steht|geht|kommt)$/.test(w));
 }
 
-// src/generation/dramaturgie.ts
-var DKEY = "dm_dramaturgie_v1";
-function setDramaData(d) {
-  try {
-    if (d) localStorage.setItem(DKEY, JSON.stringify(d));
-    else localStorage.removeItem(DKEY);
-  } catch {
-  }
-}
-var bogenOverride = null;
-function loadDramaData() {
-  if (bogenOverride) return bogenOverride;
-  try {
-    const r = localStorage.getItem(DKEY);
-    return r ? JSON.parse(r) : null;
-  } catch {
-    return null;
-  }
-}
-function hasDramaData() {
-  const d = loadDramaData();
-  return !!(d && (d.einstieg.length || d.mitte.length || d.hoehepunkt.length || d.veraenderungen.length));
-}
-var some = (a) => Array.isArray(a) && a.length > 0;
-var SCHLAG_STANDARD = ["einstieg", "hook", "regel", "mitte", "mitte2", "konflikt", "ausloeser", "wende", "zeit", "hoehepunkt", "einsatz", "schluss"];
-var SCHLAG_NAMEN = /* @__PURE__ */ new Set([...SCHLAG_STANDARD]);
-function buildDramaturgie(kit) {
-  const d = loadDramaData();
-  const M = kit.mode;
-  const norm2 = (x) => clean(x).toLowerCase().replace(/[.!?…]+$/, "");
-  const benutzt = /* @__PURE__ */ new Set();
-  const zieh = (liste) => {
-    const frisch = liste.filter((x) => !benutzt.has(norm2(x)));
-    if (!frisch.length) return "";
-    const wahl = pick(frisch);
-    benutzt.add(norm2(wahl));
-    return wahl;
-  };
-  const ZEITKOPF = /^(davor|danach|dann|plötzlich|auf einmal|am ende|am anfang|zurück bleibt|und dann|zuerst|zuletzt|schließlich)\b/i;
-  const ziehOhneZeitkopf = (liste) => {
-    const ohne = liste.filter((x) => !ZEITKOPF.test(x) && !benutzt.has(norm2(x)));
-    if (ohne.length) {
-      const wahl = pick(ohne);
-      benutzt.add(norm2(wahl));
-      return { satz: wahl, nackt: false };
-    }
-    return { satz: zieh(liste), nackt: true };
-  };
-  let quelleSchlag = "rahmen";
-  const schlag = (name, erster) => {
-    quelleSchlag = "rahmen";
-    switch (name) {
-      case "einstieg": {
-        if (!(d && some(d.einstieg))) {
-          quelleSchlag = "kontext";
-          return erster ? `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.` : "";
-        }
-        quelleSchlag = erster ? "kontext+bogen" : "bogen";
-        if (!erster) {
-          const z2 = zieh(d.einstieg);
-          return z2 ? `${cap(z2)}.` : "";
-        }
-        const z = zieh(d.einstieg) || pick(d.einstieg);
-        if (/^(nachdem|als|während|bevor|sobald|seit|seitdem|kaum|wenn|ehe)\b/i.test(clean(kit.T)))
-          return `${cap(kit.T)} ${kit.W} \u2014 ${z.charAt(0).toLowerCase()}${z.slice(1).replace(/[.!?…]+$/, "")}.`;
-        return `${cap(kit.T)} ${kit.W}. ${cap(z)}.`;
-      }
-      case "hook":
-        quelleSchlag = "wortbank";
-        return cap(ensurePunct(kit.hook));
-      case "regel": {
-        const z = d && some(d.regeln) && chance(0.7) ? zieh(d.regeln) : "";
-        quelleSchlag = z ? "bogen" : "vorlage";
-        return z ? cap(ensurePunct(z)) : ensurePunct(pick(M.rules));
-      }
-      case "mitte": {
-        const z = d && some(d.mitte) ? zieh(d.mitte) : "";
-        quelleSchlag = "bogen";
-        return z ? `${cap(z)}.` : "";
-      }
-      case "mitte2": {
-        const z = d && some(d.mitte) && d.mitte.length > 1 && chance(0.6) ? zieh(d.mitte) : "";
-        quelleSchlag = "bogen";
-        return z ? `${cap(z)}.` : "";
-      }
-      case "konflikt": {
-        const konf = d && some(d.konflikte) ? zieh(d.konflikte) : "";
-        quelleSchlag = konf ? "bogen" : "wortbank";
-        return konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`;
-      }
-      case "ausloeser": {
-        if (!(d && some(d.ausloeser))) return "";
-        const { satz: satz2, nackt: nackt2 } = ziehOhneZeitkopf(d.ausloeser);
-        if (!satz2) return "";
-        quelleSchlag = "bogen";
-        return nackt2 ? cap(ensurePunct(satz2)) : `Dann, unvermittelt: ${cap(satz2)}.`;
-      }
-      case "wende": {
-        const ausBogen = d && some(d.veraenderungen) ? zieh(d.veraenderungen) : "";
-        const kern = ausBogen || (benutzt.has(norm2(kit.turn)) ? "" : kit.turn);
-        if (!kern) return "";
-        quelleSchlag = ausBogen ? "bogen" : "wortbank";
-        benutzt.add(norm2(kern));
-        return frameTurn(kern);
-      }
-      case "zeit": {
-        const z = d && some(d.zeitanomalien) && chance(0.4) ? zieh(d.zeitanomalien) : "";
-        quelleSchlag = "bogen";
-        return z ? cap(ensurePunct(z)) : "";
-      }
-      case "hoehepunkt":
-        if (!(d && some(d.hoehepunkt))) return "";
-        quelleSchlag = "bogen";
-        if (erster) {
-          const z = zieh(d.hoehepunkt);
-          return z ? `${cap(z)}.` : "";
-        }
-        const { satz, nackt } = ziehOhneZeitkopf(d.hoehepunkt);
-        if (!satz) return "";
-        return nackt ? cap(ensurePunct(satz)) : `Und dann: ${cap(satz)}.`;
-      case "einsatz":
-        quelleSchlag = "wortbank";
-        return reframeStake(kit.stake);
-      case "schluss":
-        quelleSchlag = "wortbank";
-        return ensurePunct(kit.ending);
-      default:
-        return "";
-    }
-  };
-  const folge = d?.folge && d.folge.length && d.folge.every((n) => SCHLAG_NAMEN.has(n)) ? d.folge : SCHLAG_STANDARD;
-  const beats = [];
-  for (const name of folge) {
-    const b = schlag(name, beats.length === 0);
-    if (b) beats.push(b);
-    if (zeitlupeAn()) zeitlupeSchritt({
-      text: beats.join(" "),
-      atom: b || "",
-      phase: name,
-      slot: name,
-      quelle: b ? quelleSchlag : "rahmen",
-      kategorie: name,
-      typ: "schlag",
-      score: 0,
-      anteil: 0,
-      gruende: b ? [{ name: "Schlag " + name, wert: 1 }] : [{ name: "ausgefallen \u2014 Liste aufgebraucht oder leer", wert: 0 }],
-      kandidaten: 0,
-      konkurrenten: []
-    });
-  }
-  return joinBeats(beats, kit.P);
-}
-
 // src/generation/postprocess.ts
 var LINE_FORMS = /* @__PURE__ */ new Set(["script", "video", "strang", "reim", "haiku", "poem"]);
 var isLineForm = (input) => !!input && !!input.form && LINE_FORMS.has(input.form);
@@ -14718,7 +14814,7 @@ function glaetten(t2) {
 var ABGESCHNITTEN = /(^|\s)(eine|einem|einen|einer|eines|der|die|dem|den|des|und|oder|aber|wie|als|im|am|bei|für|ohne)$/i;
 var NUR_OHNE_VERB = /(^|\s)(mit|an|auf|zu|vor|nach|aus|ist|sind|wird|ein|das)$/i;
 var NEBENSATZ_ENDE = /,\s+(der|die|das|dem|den|deren|dessen)\s+([a-zäöüß][^,;:]*)$/;
-var FUNKTION = /* @__PURE__ */ new Set([
+var FUNKTION2 = /* @__PURE__ */ new Set([
   "es",
   "er",
   "sie",
@@ -14873,7 +14969,7 @@ var FUNKTION = /* @__PURE__ */ new Set([
   "weg",
   "los"
 ]);
-var verbMoeglich = (w) => /^[a-zäöüß]{2,}$/.test(w) && !FUNKTION.has(w) && !KEIN_VERB.has(w) && !/(em|er|es)$/.test(w);
+var verbMoeglich = (w) => /^[a-zäöüß]{2,}$/.test(w) && !FUNKTION2.has(w) && !KEIN_VERB.has(w) && !/(em|er|es)$/.test(w);
 function istAbgeschnitten(bare) {
   if (!bare || bare.split(/\s+/).length > 12) return false;
   if (ABGESCHNITTEN.test(bare)) return true;
@@ -15078,6 +15174,31 @@ function nomenNachAdverb(t2) {
     (m, vor, adv, w) => guessGender(w) ? `${vor}${adv} ${w.charAt(0).toUpperCase()}${w.slice(1)},` : m
   );
 }
+function adjektivKongruenz(t2) {
+  return (t2 || "").replace(/(^|[.!?…:;—]\s+)(Ein|Eine|Der|Die|Das) ([a-zäöüß]{3,}?)(e|er|es) ([A-ZÄÖÜ][a-zäöüß]{2,})\b/g, (m, vor, art, stamm, endung, nomen) => {
+    const g = guessGender(nomen);
+    if (!g) return m;
+    const indef = art.startsWith("Ein");
+    const sollArt = indef ? g === "f" ? "Eine" : "Ein" : g === "m" ? "Der" : g === "f" ? "Die" : "Das";
+    const sollEnd = indef ? g === "m" ? "er" : g === "f" ? "e" : "es" : "e";
+    if (sollArt === art && sollEnd === endung) return m;
+    return `${vor}${sollArt} ${stamm}${sollEnd} ${nomen}`;
+  });
+}
+function relativKongruenz(t2) {
+  return (t2 || "").replace(
+    /\b([A-ZÄÖÜ][a-zäöüß]{2,}),? (in|an|auf|unter|über|vor|hinter|neben|zwischen|bei|mit|aus|nach|von|zu) (der|dem) (die|der|das|ein|eine|man|es|sie|er|niemand|jemand|nichts|alles|ich|wir|du|ihr|kein|keine)\b/g,
+    (m, nomen, praep, pron, subj) => {
+      const g = guessGender(nomen);
+      if (!g) return m;
+      const praepSicher = /^(in|an|auf|unter|über|vor|hinter|neben|zwischen)$/.test(praep);
+      if (!praepSicher && /^(die|der|das|ein|eine|kein|keine)$/.test(subj)) return m;
+      const soll = g === "f" ? "der" : "dem";
+      if (soll === pron) return m;
+      return `${nomen}, ${praep} ${soll} ${subj}`;
+    }
+  );
+}
 function nominativFragment(t2) {
   return (t2 || "").replace(
     /(^|[.!?…]\s+|\n)(Einen|Den|Einem|Dem)\s+([A-ZÄÖÜ][a-zäöüß]+)([^.!?…\n]*[.!?…])/g,
@@ -15095,6 +15216,12 @@ function nominativFragment(t2) {
 function formelnGlaetten(t2) {
   return (t2 || "").replace(/\s+—\s+(dann|danach|plötzlich)\s*([;.!?])/gi, "$2").replace(/\b(an|auf|über|von|in|mit|nach) (wie|als) (der|die|das|den|dem|des|ein|eine|einen|einem|einer)\b/g, "$1 $3").replace(/\b(Dann|Und dann|Plötzlich|Danach)\s+—\s+(dann|plötzlich|danach),/gi, (_m, a) => `${a},`).replace(/([.!?…])\s+—\s+([a-zäöüß])/g, (_m, p, c) => `${p} ${c.toUpperCase()}`);
 }
+function nachKonjunktionKlein(t2) {
+  return (t2 || "").replace(
+    /(^|[.!?…]\s+)(Doch|Und|Aber|Denn|Oder|Nur|Auch) (Diesen|Dieser|Diese|Dieses|Diesem|Jenen|Jener|Jene|Er|Sie|Es|Ihn|Ihm|Ihr|Ihnen|Man|Jemand|Niemand|Alles|Nichts|Etwas|Wer|Was|Wo|Wie|Dann|Jetzt|Hier|Dort|Noch|Schon|Nie|Immer)\b(?! [A-ZÄÖÜ][a-zäöüß]+ (ist|sind|war|hat|wird))/g,
+    (_m, vor, konj, wort) => `${vor}${konj} ${wort.charAt(0).toLowerCase()}${wort.slice(1)}`
+  );
+}
 function kleinesPronomen(t2) {
   return (t2 || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon|Mittags|Morgens|Abends|Nachts|Heute|Gestern|Morgen|Später|Manchmal|Damals|Irgendwann|Vormittags|Nachmittags|Fast|Beinahe|Kaum|Knapp|Bald|Erst|Zuletzt|Endlich)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
     /(,[ \t]+)(Wo|Wenn|Als|Weil|Dass|Obwohl|Während|Nachdem|Bevor|Sobald|Solange|Damit|Ob|Der|Die|Das|Dem|Den|Deren|Dessen)\b(?=\s)/g,
@@ -15111,13 +15238,21 @@ function postProcessText(txt, input) {
   let t2 = (txt ?? "").toString();
   t2 = t2.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
   t2 = t2.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
-  t2 = kleinesPronomen(t2);
-  t2 = kommaVorInversion(t2);
-  t2 = fragezeichen(t2);
-  t2 = nomenNachAdverb(t2);
-  t2 = nominativFragment(t2);
-  t2 = formelnGlaetten(t2);
-  t2 = kleinerArtikel(t2);
+  const z = (was, f) => {
+    const v = t2;
+    t2 = f(t2);
+    zaehleWennAnders(was, v, t2);
+  };
+  z("schliff_kleinesPronomen", kleinesPronomen);
+  z("schliff_nachKonjunktionKlein", nachKonjunktionKlein);
+  z("schliff_kommaVorInversion", kommaVorInversion);
+  z("schliff_fragezeichen", fragezeichen);
+  z("schliff_nomenNachAdverb", nomenNachAdverb);
+  z("schliff_nominativFragment", nominativFragment);
+  z("schliff_adjektivKongruenz", adjektivKongruenz);
+  z("schliff_relativKongruenz", relativKongruenz);
+  z("schliff_formelnGlaetten", formelnGlaetten);
+  z("schliff_kleinerArtikel", kleinerArtikel);
   const name = (input?.who ?? "").toString().trim();
   if (name) {
     const esc = escapeRegExp(name);
@@ -15128,7 +15263,7 @@ function postProcessText(txt, input) {
       t2 = t2.replace(new RegExp(`\\b${esc}\\b`, "gi"), wieder);
     }
   }
-  t2 = pluralKongruenz(t2, name);
+  z("schliff_pluralKongruenz", (x) => pluralKongruenz(x, name));
   zeitlupeStufe("Schliff", t2);
   if (!isLineForm(input) && input?.tone && TONE_DATA[input.tone]) {
     const td = TONE_DATA[input.tone];
@@ -15152,10 +15287,19 @@ function postProcessText(txt, input) {
     zeitlupeStufe("Satzl\xE4nge", t2);
   }
   if (!isLineForm(input)) t2 = entferneDubletten(t2);
-  t2 = polishGerman(t2, { who: name });
-  t2 = schliesseFigurenkomma(t2, input?.who);
-  t2 = coherencePass(t2, input);
-  t2 = coherenceRepairV2(t2, input);
+  z("schliff_polishGerman", (x) => polishGerman(x, { who: name }));
+  z("schliff_figurenkomma", (x) => schliesseFigurenkomma(x, input?.who));
+  z("kohaerenzPass", (x) => coherencePass(x, input));
+  {
+    const v = t2;
+    t2 = coherenceRepairV2(t2, input);
+    if (v !== t2) {
+      const vs = new Set(t2.split(/(?<=[.!?…])\s+/).map((x) => x.trim()));
+      const gefallen = v.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter((x) => x && !vs.has(x) && !t2.includes(x.slice(0, 30)));
+      if (gefallen.length) for (const g of gefallen) zaehle("kohaerenzGefallen", g);
+      else zaehleWennAnders("kohaerenzRepariert", v, t2);
+    }
+  }
   zeitlupeStufe("Koh\xE4renz", t2);
   t2 = t2.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
   t2 = t2.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
@@ -15630,7 +15774,7 @@ function verwandleMotive(text, paare) {
 }
 
 // src/generation/satzwaechter.ts
-var FUNKTION2 = /* @__PURE__ */ new Set([
+var FUNKTION3 = /* @__PURE__ */ new Set([
   "der",
   "die",
   "das",
@@ -15858,7 +16002,7 @@ var HILFSVERB = /* @__PURE__ */ new Set([
 var verbKandidat = (roh, istErstes = false) => {
   if (!istErstes && /^[A-ZÄÖÜ]/.test(roh)) return false;
   const w = roh.toLowerCase().replace(/[^a-zäöüß]/g, "");
-  if (!w || FUNKTION2.has(w) || KEIN_VERB.has(w) || ADJEKTIV.has(w)) return false;
+  if (!w || FUNKTION3.has(w) || KEIN_VERB.has(w) || ADJEKTIV.has(w)) return false;
   if (HILFSVERB.has(w) || istVerbform(w)) return true;
   return /(t|st|e|en|eln|ern|elt|ert)$/.test(w) && !/(heit|keit|ung|schaft|tät|ment|iert)$/.test(w) && !/(em|er|es)$/.test(w) && w.length >= 3;
 };
@@ -15877,7 +16021,7 @@ function pruefeSatz(satz) {
     const kern = bare.replace(/^(und|aber|doch|dann|denn|oder|nur|auch)\s+/i, "");
     const kopf = kern.split(/\s+/)[0] || "";
     const ADVERB_KOPF = /^(irgendwo|irgendwann|irgendwie|dort|hier|heute|morgen|gestern|vielleicht|manchmal|so|bald|überall|nirgends|nirgendwo|draußen|drinnen|oben|unten|jetzt|damals|dennoch|trotzdem|deshalb|darum|davor|danach|zuerst|zuletzt|womöglich|angeblich|vermutlich|wahrscheinlich)$/i;
-    const nomenKopf = /^[A-ZÄÖÜ]/.test(kopf) && !ADVERB_KOPF.test(kopf) && !FUNKTION2.has(kopf.toLowerCase());
+    const nomenKopf = /^[A-ZÄÖÜ]/.test(kopf) && !ADVERB_KOPF.test(kopf) && !FUNKTION3.has(kopf.toLowerCase());
     const prepKopf = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zu|zum|zur|mit|durch|gegen|um|seit|während|trotz|wegen)$/i.test(kopf);
     if (ws.length > 5 && !NP_KOPF2.test(kern) && !nomenKopf && !prepKopf) return 2;
   }
@@ -15904,13 +16048,13 @@ function pruefeSatz(satz) {
     const tw = woerter2(teil);
     const letztes2 = (tw[tw.length - 1] || "").toLowerCase();
     if (!letztes2 || /^[A-ZÄÖÜ]/.test(tw[tw.length - 1] || "")) continue;
-    if (FUNKTION2.has(letztes2) || ADJEKTIV.has(letztes2) || HILFSVERB.has(letztes2)) continue;
+    if (FUNKTION3.has(letztes2) || ADJEKTIV.has(letztes2) || HILFSVERB.has(letztes2)) continue;
     if (/t$/.test(letztes2) && !/(en|eln|ern)$/.test(letztes2)) return 5;
   }
   const finit = (w) => {
     const l = w.toLowerCase();
     if (HILFSVERB.has(l)) return true;
-    return /^[a-zäöüß]{3,}t$/.test(l) && !FUNKTION2.has(l) && !ADJEKTIV.has(l) && !KEIN_VERB.has(l) && istVerbform(l);
+    return /^[a-zäöüß]{3,}t$/.test(l) && !FUNKTION3.has(l) && !ADJEKTIV.has(l) && !KEIN_VERB.has(l) && istVerbform(l);
   };
   for (const teil of bare.split(/[,;:—–]\s*/)) {
     const tw = woerter2(teil);
@@ -15970,13 +16114,22 @@ function corpusSanitize(text) {
   return s;
 }
 function isSaneMarkov(s) {
-  if (!s || s.length < 20) return false;
+  if (!s || s.length < 20) {
+    zaehle("markovKurz", s);
+    return false;
+  }
   const words = s.split(/\s+/);
-  if (words.length < 5) return false;
+  if (words.length < 5) {
+    zaehle("markovWenigWoerter", s);
+    return false;
+  }
   const freq = {};
   for (const w of words) freq[w] = (freq[w] || 0) + 1;
   const maxFreq = Math.max(...Object.values(freq));
-  if (maxFreq / words.length > 0.5) return false;
+  if (maxFreq / words.length > 0.5) {
+    zaehle("markovWiederholung", s);
+    return false;
+  }
   const functionWords = /* @__PURE__ */ new Set([
     "der",
     "die",
@@ -16007,19 +16160,34 @@ function isSaneMarkov(s) {
   ]);
   let fn = 0;
   for (const w of words) if (functionWords.has(w.toLowerCase())) fn++;
-  if (fn / words.length > 0.6) return false;
+  if (fn / words.length > 0.6) {
+    zaehle("markovFunktionswoerter", s);
+    return false;
+  }
   const sentences = s.split(/[.!?]+/).filter(Boolean);
   for (const sentence of sentences) {
     const n = sentence.trim().split(/\s+/).length;
-    if (n > 30 || n < 2) return false;
+    if (n > 30 || n < 2) {
+      zaehle("markovSatzlaenge", s);
+      return false;
+    }
   }
   const phrases = [];
   for (let i = 0; i < words.length - 2; i++) phrases.push(words.slice(i, i + 3).join(" "));
   const pc = {};
   for (const p of phrases) pc[p] = (pc[p] || 0) + 1;
-  for (const c of Object.values(pc)) if (c >= 3) return false;
-  if (/\b(Schluss|Notiz|Rand)\s*—|\bSZENE:|dass\s*—|,\s*dass\s*$/i.test(s)) return false;
-  if (/[—–]\s*$/.test(s.trim())) return false;
+  for (const c of Object.values(pc)) if (c >= 3) {
+    zaehle("markovSatzzeichen", s);
+    return false;
+  }
+  if (/\b(Schluss|Notiz|Rand)\s*—|\bSZENE:|dass\s*—|,\s*dass\s*$/i.test(s)) {
+    zaehle("markovBruchstueck", s);
+    return false;
+  }
+  if (/[—–]\s*$/.test(s.trim())) {
+    zaehle("markovBruchstueck", s);
+    return false;
+  }
   const AUX_MK = /* @__PURE__ */ new Set(["bin", "bist", "ist", "sind", "seid", "war", "warst", "waren", "wart", "hatte", "hattest", "hatten", "hat", "habe", "hast", "habt", "haben", "wurde", "wurdest", "wurden", "wird", "werde", "werden", "w\xE4re", "w\xE4rst", "w\xE4ren"]);
   const CONN_MK = /* @__PURE__ */ new Set(["und", "oder", "aber", "denn", "sondern", "doch", "weil", "dass", "wenn", "als", "w\xE4hrend", "obwohl", "damit", "sodass", "bevor", "nachdem", "ob", "wie", "wo", "der", "die", "das", "dem", "den"]);
   for (let i = 0; i < words.length; i++) {
@@ -16102,15 +16270,15 @@ var MK_TAIL_STOP = /* @__PURE__ */ new Set([
 function smoothMarkov(s) {
   let words = (s || "").trim().split(/\s+/).filter(Boolean);
   if (!words.length) return "";
-  const norm2 = (w) => w.toLowerCase().replace(/[^a-zäöüß]/g, "");
+  const norm3 = (w) => w.toLowerCase().replace(/[^a-zäöüß]/g, "");
   const dedup = [];
   for (const w of words) {
     const prev = dedup[dedup.length - 1];
-    if (prev && norm2(prev) && norm2(prev) === norm2(w)) continue;
+    if (prev && norm3(prev) && norm3(prev) === norm3(w)) continue;
     dedup.push(w);
   }
   words = dedup;
-  while (words.length > 3 && MK_TAIL_STOP.has(norm2(words[words.length - 1]))) words.pop();
+  while (words.length > 3 && MK_TAIL_STOP.has(norm3(words[words.length - 1]))) words.pop();
   let t2 = words.join(" ").replace(/\s+([,.;:!?…])/g, "$1").trim();
   t2 = t2.replace(/[\s,;:—–-]+$/, "");
   if (t2 && !/[.!?…]$/.test(t2)) t2 += ".";
@@ -16250,16 +16418,16 @@ function buildVideoShots(kit, shotCount, lenTarget = 0, bank, tone = "neutral") 
   const kamera = reihenfolge(KAMERA);
   const benutzt = /* @__PURE__ */ new Set();
   for (const x of [kit.prop, kit.propDat, kit.propAcc]) if (x) benutzt.add(stripTailPunct(x).toLowerCase().replace(/^(einen|einem|einer|eine|ein)\s/, "ein "));
-  const norm2 = (y) => y.toLowerCase().replace(/^(einen|einem|einer|eine|ein)\s/, "ein ");
+  const norm3 = (y) => y.toLowerCase().replace(/^(einen|einem|einer|eine|ein)\s/, "ein ");
   const zieh = (liste, fallback) => {
-    const x = liste.find((y) => !benutzt.has(norm2(y)));
+    const x = liste.find((y) => !benutzt.has(norm3(y)));
     if (!x) {
       const f = s([fallback || ""])[0] || "";
-      if (!f || benutzt.has(norm2(f))) return "";
-      benutzt.add(norm2(f));
+      if (!f || benutzt.has(norm3(f))) return "";
+      benutzt.add(norm3(f));
       return f;
     }
-    benutzt.add(norm2(x));
+    benutzt.add(norm3(x));
     return x;
   };
   const setze = (teile, text) => {
@@ -16406,50 +16574,79 @@ function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
   const missing = Math.max(0, target - wc2);
   const maxAttempts = Math.min(120, Math.ceil(missing / 6) + 6);
   const used = /* @__PURE__ */ new Set();
-  const strong = markovMode === "on";
-  const addition = () => {
-    if (model && (strong || Math.random() < 0.6)) {
-      const tries = strong ? 3 : 1;
-      for (let k = 0; k < tries; k++) {
+  const kurve = ladeKurve();
+  const staemme2 = (t2) => new Set((t2.toLowerCase().match(/[a-zäöüß]{5,}/g) || []).map((x) => x.slice(0, 5)));
+  const nominativ = (x) => x.replace(/^einen\s/i, (m) => m[0] === "E" ? "Ein " : "ein ").replace(/^den\s/i, (m) => m[0] === "D" ? "Der " : "der ");
+  const endungen = new Set((bank.endings || []).map((e) => clean(e).toLowerCase().replace(/[.!?…]+$/, "")));
+  let saetze2 = out.split(/\n\n+/).flatMap((abs, i) => (i ? ["\n\n"] : []).concat(splitSentences(abs)));
+  const istSchluss = (x) => endungen.has(clean(x).toLowerCase().replace(/[.!?…]+$/, ""));
+  let schlussAb = saetze2.length - 1;
+  while (schlussAb > 1 && istSchluss(saetze2[schlussAb - 1])) schlussAb--;
+  const einfuegeStellen = () => {
+    const idx = [];
+    for (let i = 1; i < schlussAb; i++) if (saetze2[i] !== "\n\n") idx.push(i);
+    if (!idx.length) return [schlussAb];
+    if (kurve.an) return idx.map((i) => [i, kurveWert(kurve.werte, i / Math.max(1, saetze2.length - 1))]).sort((a, b) => a[1] - b[1]).map((x) => x[0]);
+    const mitte = Math.floor(idx.length / 2);
+    const aus = [];
+    for (let k = 0; k < idx.length; k++) {
+      const j = mitte + (k % 2 ? -Math.ceil(k / 2) : Math.ceil(k / 2));
+      if (idx[j] !== void 0) aus.push(idx[j]);
+    }
+    return aus.length ? aus : idx;
+  };
+  let stelleNr = 0;
+  const addition = (davor) => {
+    if (model && Math.random() < (markovMode === "wild" ? 0.7 : 0.4)) {
+      for (let k = 0; k < 6; k++) {
         const roh = smoothMarkov(model.generate(Math.min(60, Math.max(20, Math.floor(missing * 0.8)))));
         const u = roh ? praesensUmschreiben(roh) : null;
         const m = u && u.ok ? u.text : "";
         if (m && isSaneMarkov(m) && m.length > 15 && !markovSeenRecently(m)) {
-          const key = m.toLowerCase();
-          if (!used.has(key) && !out.toLowerCase().includes(key.slice(0, 40))) {
-            used.add(key);
-            noteMarkov(m);
-            traceMarkov(m);
-            return { text: m, raw: false };
-          }
+          noteMarkov(m);
+          traceMarkov(m);
+          return { text: m, raw: false };
         }
       }
     }
-    const cands = [...bank.motifs || [], ...bank.turns || [], ...bank.hooks || [], ...bank.obstacles || [], ...bank.props || []];
+    const cands = [...bank.motifs || [], ...bank.turns || [], ...bank.hooks || [], ...bank.obstacles || [], ...(bank.props || []).map(nominativ)];
     if (!cands.length) return null;
     const fresh = cands.filter((c) => {
       const k = clean(c).toLowerCase();
       return k && !used.has(k) && !out.toLowerCase().includes(k);
     });
     if (!fresh.length) return null;
-    const chosen = pick(fresh);
+    const st2 = staemme2(davor);
+    const anschluss = st2.size ? fresh.filter((c) => {
+      for (const x of staemme2(c)) if (st2.has(x)) return true;
+      return false;
+    }) : [];
+    const chosen = anschluss.length && Math.random() < 0.7 ? pick(anschluss) : pick(fresh);
     used.add(clean(chosen).toLowerCase());
     return { text: chosen, raw: true };
   };
   let leer2 = 0;
   for (let a = 0; a < maxAttempts; a++) {
+    out = saetze2.join(" ").replace(/ \n\n /g, "\n\n");
     if (count(out) >= target - tol) break;
-    const add = addition();
+    const stellen = einfuegeStellen();
+    const at = stellen[stelleNr % stellen.length];
+    stelleNr++;
+    const davor = saetze2[at - 1] && saetze2[at - 1] !== "\n\n" ? saetze2[at - 1] : saetze2[at] || "";
+    const add = addition(davor);
     if (!add) {
-      if (++leer2 >= 3) break;
+      if (++leer2 >= 3) {
+        zaehle("fuellerStopp", `${count(out)} von ${target} W\xF6rtern`);
+        break;
+      }
       continue;
     }
     let ca = add.text.trim().replace(/^[a-z]/, (c) => c.toUpperCase()).replace(/\s+([,.;:!?…])/g, "$1");
     if (!/[.!?…]$/.test(ca)) ca += ".";
-    out = out.replace(/[.!?…]+\s*$/, "").trim();
-    out += ". " + ca;
-    out = out.replace(/\s+/g, " ").trim();
+    saetze2 = [...saetze2.slice(0, at), ca, ...saetze2.slice(at)];
+    schlussAb++;
   }
+  out = saetze2.join(" ").replace(/ \n\n /g, "\n\n").replace(/[ \t]+/g, " ").trim();
   return ensurePunct(out);
 }
 
@@ -17349,11 +17546,11 @@ function linkTrace(finalText) {
   nachText2.set(schluessel3(finalText), spur.slice());
 }
 function pruefeAbgleich(endtext) {
-  const norm2 = (t2) => t2.toLowerCase().replace(/[^a-zäöüß ]/g, " ").replace(/\s+/g, " ").trim();
-  const ziel = norm2(endtext);
+  const norm3 = (t2) => t2.toLowerCase().replace(/[^a-zäöüß ]/g, " ").replace(/\s+/g, " ").trim();
+  const ziel = norm3(endtext);
   abweichung = [];
   for (const s of spur) {
-    const kern = norm2(s.text);
+    const kern = norm3(s.text);
     if (!kern) continue;
     const w = kern.split(" ");
     const probe = w.length > 4 ? w.slice(1, -1).join(" ") : kern;
@@ -17688,6 +17885,9 @@ function buildRekombination(bank, input, model) {
         typ: a.typ,
         score: z?.score ?? 0,
         anteil: z?.anteil ?? 0,
+        rang: z?.rang,
+        bester: z?.bester,
+        durchschnitt: z?.durchschnitt,
         gruende: z?.gruende ?? [],
         kandidaten: z?.kandidaten ?? 0,
         konkurrenten: z?.konkurrenten ?? []
@@ -20073,7 +20273,15 @@ function buildStory(bank, input, model) {
     const rk = buildRekombination(bank, input, model);
     if (rk.trim()) {
       zeitlupeStufe("Bau", rk);
-      const gebrochen = applyDisruptor(rk, input.disruptor).text;
+      let mitEcho = rk;
+      {
+        const e = setzeEchos(rk, bank);
+        if (e.echos.length) {
+          mitEcho = e.text;
+          zeitlupeStufe("Echo", mitEcho);
+        }
+      }
+      const gebrochen = applyDisruptor(mitEcho, input.disruptor).text;
       zeitlupeStufe("St\xF6rung", gebrochen);
       const fertig = postProcessText(paragraphize(gebrochen), input);
       linkTrace(fertig);
@@ -20093,6 +20301,13 @@ function buildStory(bank, input, model) {
   if (input.form === "prose" && input.emphasis) {
     text = applyEmphasis(text, kit, input.emphasis);
     zeitlupeStufe("Betonung", text);
+  }
+  if (input.form === "prose") {
+    const e = setzeEchos(text, bank);
+    if (e.echos.length) {
+      text = e.text;
+      zeitlupeStufe("Echo", text);
+    }
   }
   text = applyDisruptor(text, input.disruptor).text;
   zeitlupeStufe("St\xF6rung", text);
@@ -20211,6 +20426,12 @@ zeitlupeSchalten(false);
   wahr("Gewicht und Anteil stehen", sch.every((x) => x.score > 0 && x.anteil > 0 && x.anteil <= 1));
   wahr("Konkurrenten mit Gewicht und Anteil, h\xF6chstens zwei", sch.some((x) => x.konkurrenten.length === 2) && sch.every((x) => x.konkurrenten.length <= 2 && x.konkurrenten.every((k) => k.score >= 0 && k.text)));
   wahr("ein Konkurrent ist nie der Gewinner", sch.every((x) => x.konkurrenten.every((k) => k.text !== x.atom)));
+  wahr("jeder Schritt kennt seinen Rang im Feld", sch.every((x) => (x.rang ?? 0) >= 1 && (x.rang ?? 0) <= x.kandidaten));
+  wahr("der Beste ist nie kleiner als der Gewinner", sch.every((x) => (x.bester ?? 0) >= x.score - 1e-9));
+  wahr("der Durchschnitt liegt zwischen null und dem Besten", sch.every((x) => (x.durchschnitt ?? 0) > 0 && (x.durchschnitt ?? 0) <= (x.bester ?? 0) + 1e-9));
+  wahr("Konkurrenten tragen ihren Rang", sch.every((x) => x.konkurrenten.every((k) => (k.rang ?? 0) >= 1)));
+  const q2 = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
+  wahr("die Erl\xE4uterung urteilt nach Rang, nicht nach Anteil", /quant <= 0\.05 \|\| rang <= 2 \? "unter den Besten"/.test(q2) && /Platz \$\{rang\} von \$\{n\}/.test(q2) && /gegenüber dem Durchschnitt/.test(q2));
   setDramaData({ einstieg: ["Der Bote h\xF6rt die Glocke"], mitte: ["Ein Netz aus F\xE4den", "Ein Fenster ohne Glas"], hoehepunkt: ["Die Glocke schweigt"], schluss: ["Zur\xFCck bleibt ein Ton"], ausloeser: ["ein Strick"], veraenderungen: ["die Zeit kippt"], konflikte: [], zeitanomalien: [], regeln: [] });
   const t4 = buildStory(BUILTIN_PRESETS["kafka"], { ...inp, structure: "dramaturgie" });
   setDramaData(null);
@@ -20231,9 +20452,12 @@ zeitlupeSchalten(false);
   wahr("jeder Schritt tr\xE4gt Farbe und Buchstabe seiner Quelle", /class: "zl-schritt " \+ q\.cls/.test(q) && /el\("span", \{ class: "zl-q" \}, q\.kurz\)/.test(q));
   wahr("der Text bis dahin ist eine Folge der Atome in Quellfarben", /for \(let j = 0; j <= zeitSchritt; j\+\+\)/.test(q) && /class: "zl-satz " \+ qv\(y\.quelle\)\.cls \+ \(j === zeitSchritt \? " zl-jetzt" : " zl-frueher"\)/.test(q));
   wahr("kein gr\xFCnes Atom mehr im Schritt", !/class: "zl-satz zl-neu", title: "in diesem Schritt gesetzt"/.test(q));
+  wahr("der ganze Bau: alle Atome in Quellfarben statt gr\xFCn", /if \(zeitSchritt < 0\) \{\s*\n\s*const w = akt\.text/.test(q) && /for \(const y of sch\) \{\s*\n\s*if \(!y\.atom\) continue;\s*\n\s*t\.append\(el\("span", \{ class: "zl-satz " \+ qv\(y\.quelle\)\.cls/.test(q));
   wahr("Wortbank-Atome nennen ihr Preset (Suche in allen Presets)", /const presetHerkunft = \(text: string\): string =>/.test(q) && /for \(const \[id, p\] of Object\.entries\(getAllPresets\(\)\)\)/.test(q));
-  wahr("\u2026 im Tooltip des Atoms, in der Kopfzeile und bei den Konkurrenten", /" · Preset " \+ herkunft\(y\.quelle, y\.atom\)/.test(q) && /` · Preset \$\{herkunft\(x\.quelle, x\.atom\)\}`/.test(q) && /herkunft\(q\.quelle, q\.text\)/.test(q));
-  wahr("nur f\xFCr die Wortbank, nicht f\xFCr Bogen oder Korpus", /q === "wortbank" \? presetHerkunft\(text\) : ""/.test(q));
+  wahr("\u2026 im Tooltip des Atoms, in der Kopfzeile und bei den Konkurrenten", /\(y\.quelle === "wortbank" \? "Preset " : ""\) \+ herkunft\(y\.quelle, y\.atom\)/.test(q) && /\$\{x\.quelle === "wortbank" \? "Preset " : ""\}\$\{herkunft\(x\.quelle, x\.atom\)\}/.test(q) && /herkunft\(q\.quelle, q\.text\)/.test(q));
+  wahr("Wortbank: das Preset; Bogen: der Name des Bogens", /q === "wortbank" \? presetHerkunft\(text\) : \/bogen\|dramaturgie\/\.test\(q\) \? bogenName\(\) : ""/.test(q));
+  wahr("der Bogen der Erz\xE4hlerbank tr\xE4gt seinen Titel", /drama\.name = `Erzählerbank: \$\{e\.titel \|\| "Ohne Titel"\}`/.test((0, import_fs.readFileSync)("src/features/erzaehlerbank.ts", "utf8")));
+  wahr("der Preset-Bogen tr\xE4gt das Preset, die Mischung alle Presets", /name: `Preset \$\{presetLabel/.test(q) && /name: `Presets \$\{multiIds/.test(q));
   wahr("die Kopfzeile nennt die Quelle beim Namen", /" — Quelle ", el\("span", \{ class: "zl-legende-item " \+ qv\(x\.quelle\)\.cls \}, qv\(x\.quelle\)\.name \+ /.test(q));
   wahr("eine Legende z\xE4hlt die Quellen", /class: "muted mini zl-legende"/.test(q) && /sch\.filter\(\(x\) => x\.quelle === q\)\.length/.test(q));
   wahr("dieselben Farben wie die Editieren-Legende", /wortbank: \{ name: "Wortbank", cls: "feed-wb"/.test(q) && /dramaturgie: \{ name: "Erzählbogen", cls: "feed-drama"/.test(q));

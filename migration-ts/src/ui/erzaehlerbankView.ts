@@ -13,7 +13,7 @@ import { ladeArbeitsplatz, speichereArbeitsplatz, platzBrauchbar, SCHLAGFOLGEN, 
 import { ERZAEHLUNGEN_VORLAGEN } from "../features/erzaehlungen.data";
 import { preset2AusText } from "../features/textpreset";
 
-const PHASEN: [keyof ReturnType<typeof preset2AusText>["drama"], string][] = [
+const PHASEN: [Exclude<keyof ReturnType<typeof preset2AusText>["drama"], "folge" | "name">, string][] = [
   ["einstieg", "Einstieg"], ["mitte", "Mitte"], ["hoehepunkt", "Höhepunkt"], ["schluss", "Schluss"],
   ["ausloeser", "Auslöser"], ["veraenderungen", "Veränderungen"], ["konflikte", "Konflikte"],
 ];
@@ -77,7 +77,7 @@ export function mountErzaehlerbank(root: HTMLElement): void {
     if (folgeSel.value === "eigen")
       bogenBox.append(el("div", { style: "margin-bottom:6px" }, el("strong", { style: "color:var(--acc2)" }, "Schlagfolge (abgeleitet): "), ableiteSchlagfolge(textIn.value).map((x) => SCHLAG_NAMEN[x] || x).join(" → ")));
     for (const [k, name] of PHASEN) {
-      const zeilen = d[k] || [];
+      const zeilen = (Array.isArray(d[k]) ? d[k] : []) as string[];
       if (zeilen.length) bogenBox.append(el("div", {}, el("strong", { style: "color:var(--acc2)" }, name + ": "), zeilen.join(" · ")));
     }
   };

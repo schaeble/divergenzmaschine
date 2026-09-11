@@ -135,8 +135,11 @@ zeitlupeSchalten(false);
   wahr("der ganze Bau: alle Atome in Quellfarben statt grün", /if \(zeitSchritt < 0\) \{\s*\n\s*const w = akt\.text/.test(q) && /for \(const y of sch\) \{\s*\n\s*if \(!y\.atom\) continue;\s*\n\s*t\.append\(el\("span", \{ class: "zl-satz " \+ qv\(y\.quelle\)\.cls/.test(q));
   // Gewünscht: die Herkunft der Wortbank — aus welchem Preset — beim Überfahren.
   wahr("Wortbank-Atome nennen ihr Preset (Suche in allen Presets)", /const presetHerkunft = \(text: string\): string =>/.test(q) && /for \(const \[id, p\] of Object\.entries\(getAllPresets\(\)\)\)/.test(q));
-  wahr("… im Tooltip des Atoms, in der Kopfzeile und bei den Konkurrenten", /" · Preset " \+ herkunft\(y\.quelle, y\.atom\)/.test(q) && /` · Preset \$\{herkunft\(x\.quelle, x\.atom\)\}`/.test(q) && /herkunft\(q\.quelle, q\.text\)/.test(q));
-  wahr("nur für die Wortbank, nicht für Bogen oder Korpus", /q === "wortbank" \? presetHerkunft\(text\) : ""/.test(q));
+  wahr("… im Tooltip des Atoms, in der Kopfzeile und bei den Konkurrenten", /\(y\.quelle === "wortbank" \? "Preset " : ""\) \+ herkunft\(y\.quelle, y\.atom\)/.test(q) && /\$\{x\.quelle === "wortbank" \? "Preset " : ""\}\$\{herkunft\(x\.quelle, x\.atom\)\}/.test(q) && /herkunft\(q\.quelle, q\.text\)/.test(q));
+  wahr("Wortbank: das Preset; Bogen: der Name des Bogens", /q === "wortbank" \? presetHerkunft\(text\) : \/bogen\|dramaturgie\/\.test\(q\) \? bogenName\(\) : ""/.test(q));
+  // Gemeldet: „Die Tasche aus dem Erzählbogen?" — der Bogen trägt jetzt seinen Namen.
+  wahr("der Bogen der Erzählerbank trägt seinen Titel", /drama\.name = `Erzählerbank: \$\{e\.titel \|\| "Ohne Titel"\}`/.test(readFileSync("src/features/erzaehlerbank.ts", "utf8")));
+  wahr("der Preset-Bogen trägt das Preset, die Mischung alle Presets", /name: `Preset \$\{presetLabel/.test(q) && /name: `Presets \$\{multiIds/.test(q));
   wahr("die Kopfzeile nennt die Quelle beim Namen", /" — Quelle ", el\("span", \{ class: "zl-legende-item " \+ qv\(x\.quelle\)\.cls \}, qv\(x\.quelle\)\.name \+ /.test(q));
   wahr("eine Legende zählt die Quellen", /class: "muted mini zl-legende"/.test(q) && /sch\.filter\(\(x\) => x\.quelle === q\)\.length/.test(q));
   wahr("dieselben Farben wie die Editieren-Legende", /wortbank: \{ name: "Wortbank", cls: "feed-wb"/.test(q) && /dramaturgie: \{ name: "Erzählbogen", cls: "feed-drama"/.test(q));

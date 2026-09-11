@@ -2,7 +2,7 @@
 // Lesemodus (Vollbild) und Vorlesen (SpeechSynthesis).
 import type { GenInput, FormKind } from "../types";
 import { loadBank, saveBank } from "../storage";
-import { getAllPresets, saveActiveBankLabel, buildAutoMixBank, buildMergedBank, lastAutoMixSources, AUTOMIX_ID } from "../wordbank";
+import { getAllPresets, saveActiveBankLabel, buildAutoMixBank, buildMergedBank, lastAutoMixSources, AUTOMIX_ID, presetLabel } from "../wordbank";
 import { markedPresetOptions, getUserPreset2 } from "../features/preset2";
 import { setDramaData, hasDramaData, loadDramaData } from "../generation/dramaturgie";
 import { loadUmwelt, saveUmwelt, umweltTeile, type UmweltWirkung } from "../features/umwelt";
@@ -490,9 +490,9 @@ export function mountStudio(root: HTMLElement): void {
     // Eingebaute Presets bringen ihre Dramaturgie jetzt selbst mit — fest im
     // Programm statt per KI erzeugt. Ohne sie fiel der Dramaturgie-Bauweg
     // wortlos auf den gewoehnlichen zurueck.
-    if (!a2) { setDramaData(builtinDrama(preset.value)); updRekHint(); return; }
+    if (!a2) { const bd = builtinDrama(preset.value); setDramaData(bd ? { ...bd, name: `Preset ${presetLabel(preset.value.replace(/^builtin:/, ""))}` } : null); updRekHint(); return; }
     if (a2) {
-      setDramaData(a2.drama);
+      setDramaData(a2.drama ? { ...a2.drama, name: `Preset ${preset.value.replace(/^(user|builtin):/, "")} (2.0)` } : null);
       const setV = (sel: HTMLSelectElement, v?: string): void => { if (v && Array.from(sel.options).some((o) => o.value === v)) sel.value = v; };
       const st = a2.settings;
       setV(tone, st.tone); setV(form, st.form); setV(structure, st.structure); setV(disruptor, st.disruptor); setV(instab, st.instability);
@@ -524,6 +524,7 @@ export function mountStudio(root: HTMLElement): void {
       einstieg: misch("einstieg"), mitte: misch("mitte"), hoehepunkt: misch("hoehepunkt"),
       schluss: misch("schluss"), ausloeser: misch("ausloeser"), veraenderungen: misch("veraenderungen"),
       konflikte: misch("konflikte"), zeitanomalien: misch("zeitanomalien"), regeln: misch("regeln"),
+      name: `Presets ${multiIds.map((id) => presetLabel(id.replace(/^builtin:/, "")).replace(/^👤 /, "")).join(" + ")}`,
     });
   };
   const ensureMultiOption = (): void => {
@@ -732,16 +733,18 @@ export function mountStudio(root: HTMLElement): void {
   // Alle würfelbaren Stil-Regler (Würfeln-Knopf UND Zufallsstart nutzen dieselbe Liste)
   const ROLL_SELECTS = [tone, form, structure, mode, persp, rhythm, tension, cast, instab, markov, disruptor, varianz, ressort, archA, archB, preset];
   // Gewünscht: die Variabilitäts-Zahl mit Schalter (dm_variabilitaet_zeigen_v1, Vorgabe aus).
-  const varChk = el("input", { type: "checkbox", id: "f-var-zeigen" }) as HTMLInputElement;
+  const varChk = el("input", { type: "checkbox", id: "var-zeigen" }) as HTMLInputElement;
   varChk.checked = localStorage.getItem("dm_variabilitaet_zeigen_v1") === "1";
   varChk.addEventListener("change", () => { try { localStorage.setItem("dm_variabilitaet_zeigen_v1", varChk.checked ? "1" : "0"); } catch { /* voll */ } renderPresetChecks(); });
   const varLbl = el("label", { class: "chk mini", title: "Zeigt neben jedem Preset die gemessene Variabilität seines Materials: wie verschieden die Wortbank-Sätze zweier Texte ausfallen. Eingebaute Presets liegen alle bei 76–85; die Zahl unterscheidet eigene und kleine Presets." }, varChk, " Variabilität zeigen");
   const presetField = el("div", { class: "field presetfield" },
     el("span", { class: "field-label lockrow" }, el("span", {}, "Preset — eins oder mehrere ankreuzen"), presetStatus, lockBtn(preset, "Preset")),
     preset,
-    el("div", { class: "btnrow" }, autoMixStudioBtn, varLbl),
+    el("div", { class: "btnrow" }, autoMixStudioBtn),
     presetList);
-  wrap.append(presetField);
+  // Der Schalter steht NEBEN dem Preset-Feld, nicht darin: Das Feld trägt ein
+  // Schloss, und alles darin gilt dem Schaltplan als Regler.
+  wrap.append(presetField, el("div", { class: "btnrow mini", style: "margin:-6px 0 8px" }, varLbl));
   wrap.append(el("div", { class: "grid3" }, lockField("Ton", tone), lockField("Form", form)));
 
 
@@ -822,6 +825,7 @@ export function mountStudio(root: HTMLElement): void {
     return titelAktuell;
   };
   let fadenKopf = "";           // „Folge 3 · Wende" — Teil des Titels, gesetzt von „Fortsetzung"
+  let folgeBauform: string[] | null = null;   // die Schlagfolge der Folge, solange eine Fortsetzung läuft
   const renderTitel = (): void => {
     const t0 = aktuellerTitel();
     const t = fadenKopf ? (t0 ? `${fadenKopf} — ${t0}` : fadenKopf) : t0;
@@ -1200,7 +1204,8 @@ export function mountStudio(root: HTMLElement): void {
         herkunftCache.set(n, r);
         return r;
       };
-      const herkunft = (q: string, text: string): string => (q === "wortbank" ? presetHerkunft(text) : "");
+      const bogenName = (): string => loadDramaData()?.name || bogenBeschriftung().bogen;
+      const herkunft = (q: string, text: string): string => (q === "wortbank" ? presetHerkunft(text) : /bogen|dramaturgie/.test(q) ? bogenName() : "");
       const kette = el("div", { class: "zl-schritte", role: "tablist", "aria-label": "Schritte des Zusammenbaus" });
       const ganz = el("button", { type: "button", class: "zl-schritt" + (zeitSchritt < 0 ? " zl-aktiv" : ""), title: "Der ganze Bau, wie die Stufe ihn hinterlässt" }, "Bau") as HTMLButtonElement;
       ganz.addEventListener("click", () => { zeitSchritt = -1; renderZeit(); });
@@ -1226,7 +1231,7 @@ export function mountStudio(root: HTMLElement): void {
         const t = el("div", { class: "zl-text" });
         for (const y of sch) {
           if (!y.atom) continue;
-          t.append(el("span", { class: "zl-satz " + qv(y.quelle).cls, title: `${y.nr} · ${qv(y.quelle).name}${herkunft(y.quelle, y.atom) ? " · Preset " + herkunft(y.quelle, y.atom) : ""}${y.kategorie && y.kategorie !== "—" ? " · " + y.kategorie : ""} · Phase ${y.phase}` }, y.atom + " "));
+          t.append(el("span", { class: "zl-satz " + qv(y.quelle).cls, title: `${y.nr} · ${qv(y.quelle).name}${herkunft(y.quelle, y.atom) ? " · " + (y.quelle === "wortbank" ? "Preset " : "") + herkunft(y.quelle, y.atom) : ""}${y.kategorie && y.kategorie !== "—" ? " · " + y.kategorie : ""} · Phase ${y.phase}` }, y.atom + " "));
         }
         zeitEbene.append(t);
         zeitEbene.style.display = "";
@@ -1236,7 +1241,7 @@ export function mountStudio(root: HTMLElement): void {
       if (zeitSchritt >= 0) {
         const x = sch[zeitSchritt]!;
         zeitEbene.append(el("div", { class: "muted mini zl-kopf" }, el("b", {}, `Schritt ${x.nr} von ${sch.length}`),
-          " — Quelle ", el("span", { class: "zl-legende-item " + qv(x.quelle).cls }, qv(x.quelle).name + (herkunft(x.quelle, x.atom) ? ` · Preset ${herkunft(x.quelle, x.atom)}` : "")), (x.kategorie && x.kategorie !== "—" ? ` · ${x.kategorie}` : "") + ` · ${x.typ}`
+          " — Quelle ", el("span", { class: "zl-legende-item " + qv(x.quelle).cls }, qv(x.quelle).name + (herkunft(x.quelle, x.atom) ? ` · ${x.quelle === "wortbank" ? "Preset " : ""}${herkunft(x.quelle, x.atom)}` : "")), (x.kategorie && x.kategorie !== "—" ? ` · ${x.kategorie}` : "") + ` · ${x.typ}`
           + ` · Phase ${x.phase}` + (x.slot && x.slot !== x.phase ? `, erwartet „${x.slot}“` : "") + (x.kandidaten ? ` · ${x.kandidaten} Kandidaten` : "")));
         // Der Text bis hierher als Folge der Atome, JEDES in der Farbe seiner
         // Quelle (gewünscht: nicht grün, sondern die Kategorie zeigt den
@@ -1846,7 +1851,7 @@ export function mountStudio(root: HTMLElement): void {
     fadenBtn.textContent = f ? ` Folge ${f.folge} erzeugen` : " Fortsetzung";
     fadenBtn.prepend(icon("arrowRight"));
   };
-  fadenLoesen.addEventListener("click", () => { speichereFaden(null); fadenKopf = ""; bisherEl.style.display = "none"; fadenZeile.style.display = "none"; letzteFadenstaerke = null; fadenStand(); renderTitel(); });
+  fadenLoesen.addEventListener("click", () => { speichereFaden(null); fadenKopf = ""; folgeBauform = null; bisherEl.style.display = "none"; fadenZeile.style.display = "none"; letzteFadenstaerke = null; fadenStand(); renderTitel(); });
   fadenBtn.addEventListener("click", () => {
     const text = out.textContent || "";
     if (!text.trim()) return;
@@ -1867,8 +1872,10 @@ export function mountStudio(root: HTMLElement): void {
     for (const el2 of [who, what, form, structure]) el2.dispatchEvent(new Event("change"));
     // Die Bauform der Folge: Schlag der Serie → Bauform des Bogens.
     const schlag = schlagDerFolge(f.folge, f.laenge);
-    const basis = loadDramaData();
-    if (basis) setBogenOverride({ ...basis, folge: SCHLAGFOLGEN[BAUFORM_JE_SCHLAG[schlag]]!.folge });
+    // Die Bauform der Folge: generate() stellt die Weiche zuerst auf den
+    // Regler zurück — darum wird die Folge-Bauform als Merker gesetzt, den
+    // generate() nach der Weiche anwendet (folgeBauform).
+    folgeBauform = SCHLAGFOLGEN[BAUFORM_JE_SCHLAG[schlag]]!.folge;
     fadenKopf = `Folge ${f.folge} · ${SCHLAG_NAME[schlag]}`;
     renderPresetChecks();
     // Kettenauslese (4.363.0): drei Kandidaten für die Folge, jeder mit
@@ -2372,6 +2379,9 @@ export function mountStudio(root: HTMLElement): void {
     // der gespeicherte Preset-Bogen gilt. Vor der Erzeugung gesetzt, ist er
     // für den ganzen Text stabil, auch beim Würfeln.
     setBogenOverride(bogenFuerErzeugung());
+    // Der Faden (4.363.2): Die Bauform der Folge liegt über allem, solange
+    // "Fortsetzung" sie gesetzt hat — der Serien-Bogen führt.
+    if (folgeBauform) { const basisF = loadDramaData(); if (basisF) setBogenOverride({ ...basisF, folge: folgeBauform, name: (basisF.name || "Bogen") + " · Folge-Bauform" }); }
     // Spannungskurve (4.345.0): Ist sie an, wird die Schlagfolge des Bogens
     // aus der Kurve gelegt — der Höhepunkt ans Maximum, die Wende an die
     // zweite Spitze. Ohne Bogen aus der Erzählerbank nimmt sie den

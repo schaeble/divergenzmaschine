@@ -42,6 +42,7 @@ const schluessel = (t: string): string => (t || "").replace(/\s+/g, " ").trim();
 export const STUFEN_ERKLAERUNG: Record<string, string> = {
   "Bau": "Die Struktur füllt ihre Schläge oder der Zusammenbau zieht seine Atome — der Rohtext.",
   "Ensemble": "Mehrere Personen im Wer werden als Ensemble eingewoben.",
+  "Echo": "Kernbilder mit Echo: Ein zweites Bild desselben Kerns wird vor den Höhepunkt gesetzt — das stärkere.",
   "Betonung": "Die vier W kommen zu Wort: Ort, Zeit, Figur, Vorgang werden in eigenen Zeilen betont.",
   "Störung": "Der Disruptor bricht: Echo, Fragmentierung, ein Strich mitten im Text.",
   "Rhythmus": "Satzlängen nach dem Rhythmus-Regler: Staccato teilt, Fluss verbindet.",
