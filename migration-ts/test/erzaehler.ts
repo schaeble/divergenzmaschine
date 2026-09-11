@@ -381,6 +381,15 @@ wahr("„Im Studio wählen“ setzt die Quelle auf den Eintrag", /setzeQuelle\(e
   wahr("„Bogen zeigen“ nennt die abgeleitete Schlagfolge", /Schlagfolge \(abgeleitet\): /.test(qv));
 }
 
+// ── Würfeln: Bauform der festen Geschichte wechselt, die Geschichte bleibt ───
+{
+  const qs = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("der Würfel würfelt die Bauform mit", /const rollBauform = \(\): void => \{/.test(qs) && /rollPresets\(\);\s*\n\s*rollBauform\(\);/.test(qs));
+  wahr("nur bei fester Geschichte (Kennung a:…)", /if \(!\/\^a:\/\.test\(q\)\) return;/.test(qs));
+  wahr("die Geschichte zieht ins Archiv der neuen Bauform um", /const neuId = bauformAendern\(q, neu\);\s*\n\s*if \(neuId\) \{ setzeQuelle\(neuId\); bogenFuellen\(\); bauformSync\(\); \}/.test(qs));
+  wahr("nie dieselbe Bauform noch einmal", /filter\(\(k\) => k !== \(e\.folge \|\| "standard"\)\)/.test(qs));
+}
+
 console.log(`Prüfstand Erzählerbank — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) {

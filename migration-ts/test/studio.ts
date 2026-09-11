@@ -727,8 +727,10 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
   const dice = Array.from(wurzelW.querySelectorAll("button")).find((b) => /Würfeln/.test(b.textContent || "")) as HTMLButtonElement;
   const kaestenW = (): number => (Array.from(wurzelW.querySelectorAll(".mplist input[type=checkbox]")) as HTMLInputElement[]).filter((k) => k.checked).length;
   const zahlen = new Set<number>(); let max = 0;
-  for (let i = 0; i < 5; i++) { dice.click(); const n = kaestenW(); zahlen.add(n); max = Math.max(max, n); }
-  wahr("nach 5 Würfen: mindestens einmal mehr als ein Preset (Wahrscheinlichkeit 99,6 %)", [...zahlen].some((n) => n >= 2), [...zahlen].join(","));
+  // Würfeln erzeugt jedes Mal einen Text — darum so wenige Würfe wie nötig:
+  // aufhören, sobald eine Mehrfachauswahl gesehen wurde (höchstens sechs).
+  for (let i = 0; i < 6; i++) { dice.click(); const n = kaestenW(); zahlen.add(n); max = Math.max(max, n); if (n >= 2) break; }
+  wahr("mindestens einmal mehr als ein Preset (spätestens im sechsten Wurf, 99,9 %)", [...zahlen].some((n) => n >= 2), [...zahlen].join(","));
   wahr("nie mehr als drei", max <= 3, String(max));
   wahr("nie null", !zahlen.has(0));
 }

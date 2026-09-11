@@ -1019,7 +1019,7 @@ export function mountStudio(root: HTMLElement): void {
   const rahmenWuerfel = el("button", { class: "genarrow wuerfel", type: "button", "aria-label": "Alles würfeln" }, "⚄") as HTMLButtonElement;
   const rahmenWuerfelTitel = (): void => {
     const namen = Array.from(locked).map((id) => { const f = wrap.querySelector("#" + CSS.escape(id))?.closest(".field, .lenrow, .rankrow, .knobrow"); return f?.querySelector(".field-label span, .knob-label, label")?.textContent?.trim() || id; });
-    rahmenWuerfel.title = "Alles würfeln" + (namen.length ? ` — ${namen.length} ${namen.length === 1 ? "Schloss bleibt" : "Schlösser bleiben"}: ${namen.join(" · ")}` : " — kein Schloss gesetzt") + ". Presets: eins bis drei, zufällig.";
+    rahmenWuerfel.title = "Alles würfeln" + (namen.length ? ` — ${namen.length} ${namen.length === 1 ? "Schloss bleibt" : "Schlösser bleiben"}: ${namen.join(" · ")}` : " — kein Schloss gesetzt") + ". Presets: eins bis drei, zufällig; bei fester Geschichte der Erzählerbank wechselt ihre Bauform.";
   };
   rahmenWuerfel.addEventListener("pointerenter", rahmenWuerfelTitel);
   rahmenWuerfel.addEventListener("pointerdown", (e) => { e.preventDefault(); diceBtn.click(); });
@@ -1796,10 +1796,27 @@ export function mountStudio(root: HTMLElement): void {
     while (wahl.length < k && rest.length) wahl.push(rest.splice(Math.floor(Math.random() * rest.length), 1)[0]!);
     applySelection(wahl);
   };
+  // Bauform des Bogens mitwürfeln (4.358.1, gewünscht, Fassung 2): Die
+  // Geschichte der Erzählerbank bleibt, aber ihre Bauform wechselt — derselbe
+  // Stoff, jedes Mal anders erzählt. Nur bei fester Geschichte; „aus Preset"
+  // und „würfeln je Erzeugung" haben keine Bauform, die man würfeln könnte.
+  // Der Eintrag zieht ins Archiv der neuen Bauform um, wie beim Bauform-Chip.
+  const rollBauform = (): void => {
+    const q = ladeQuelle();
+    if (!/^a:/.test(q)) return;
+    const e = eintragNachId(q);
+    if (!e) return;
+    const formen = Object.keys(SCHLAGFOLGEN).filter((k) => k !== (e.folge || "standard"));
+    if (!formen.length) return;
+    const neu = formen[Math.floor(Math.random() * formen.length)]!;
+    const neuId = bauformAendern(q, neu);
+    if (neuId) { setzeQuelle(neuId); bogenFuellen(); bauformSync(); }
+  };
   const rollAlle = (): void => {
     rolling = true;
     wuerfelbar().filter((c) => c !== preset).forEach(rollEins);
     rollPresets();
+    rollBauform();
     rolling = false;
   };
   diceBtn.addEventListener("click", () => { rollAlle(); renderPresetChecks(); generate(); });
