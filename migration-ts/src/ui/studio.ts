@@ -59,7 +59,7 @@ import { wuerfleVierW } from "../features/wuerfeln";
 import { openReader } from "./reader";
 import { worldLogGeneration, worldFillContext } from "../features/world";
 import { uebernehmeKontext, geaendert as geaenderteFelder, offeneQuellen, ziehQuelle, QUELLE_LABEL, W4_FELDER, type W4 } from "../features/kontext";
-import { addToTreasury, addToTreasurySecret, clearTreasury } from "../features/treasury";
+import { loadTreasury, addToTreasury, addToTreasurySecret, clearTreasury } from "../features/treasury";
 import { THEMES, loadTheme, applyTheme, loadAccent, saveAccent, applyAccent } from "../features/theme";
 import { loadAiKey, saveAiKey, loadAiModel, saveAiModel } from "../features/ki";
 import { storageReport, lesePosten, formatBytes } from "../features/storage-status";
@@ -1845,7 +1845,7 @@ export function mountStudio(root: HTMLElement): void {
   // eine „Bisher"-Zeile. Das Ding kommt in die Folge, wenn der Text es nicht
   // von selbst trägt. „Faden lösen" beendet die Serie.
   const fadenBtn = el("button", { title: "Fortsetzung: Diesen Text als vorige Folge nehmen — Figur, ein Ding und die offene Frage wandern mit; Ort, Zeit, Ton und Preset werden neu gewürfelt." }, icon("arrowRight"), " Fortsetzung") as HTMLButtonElement;
-  const fadenLoesen = el("button", { class: "danger", style: "display:none", title: "Die Serie beenden — der nächste Text beginnt ohne Faden." }, "Faden lösen") as HTMLButtonElement;
+  const fadenLoesen = el("button", { class: "danger", style: "display:none", title: "Die Serie beenden: die letzte Folge mit ihrer Nummer in die Schatzkammer legen (falls sie noch nicht dort liegt) und den Faden lösen — der nächste Text beginnt ohne Faden." }, "Serie beenden") as HTMLButtonElement;
   const bisherEl = el("div", { class: "muted bisher", style: "display:none" });
   const fadenZeile = el("div", { class: "muted mini fadenzeile", style: "display:none" });
   let letzteFadenstaerke: ReturnType<typeof fadenstaerke> | null = null;
@@ -1855,7 +1855,17 @@ export function mountStudio(root: HTMLElement): void {
     fadenBtn.textContent = f ? ` Folge ${f.folge} erzeugen` : " Fortsetzung";
     fadenBtn.prepend(icon("arrowRight"));
   };
-  fadenLoesen.addEventListener("click", () => { speichereFaden(null); fadenKopf = ""; folgeBauform = null; bisherEl.style.display = "none"; fadenZeile.style.display = "none"; letzteFadenstaerke = null; fadenStand(); renderTitel(); });
+  fadenLoesen.addEventListener("click", () => {
+    // Serie beenden (4.364.1, gewünscht): Die letzte Folge liegt nur im
+    // Fenster — sie wird mit ihrer Nummer abgelegt, wenn sie noch fehlt; dann
+    // löst sich der Faden.
+    const f = ladeFaden();
+    const text = out.textContent || "";
+    if (f && fadenKopf && text.trim() && !loadTreasury().some((t) => t.t.trim() === text.trim())) {
+      addToTreasury(text, { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value, set: { ...einstellungen(), serie: f.serie, folge: String(f.folge), ...(letzteFadenstaerke ? { faden: fadenBeschreibung(letzteFadenstaerke) } : {}) } });
+    }
+    speichereFaden(null); fadenKopf = ""; folgeBauform = null; bisherEl.style.display = "none"; fadenZeile.style.display = "none"; letzteFadenstaerke = null; fadenStand(); renderTitel();
+  });
   fadenBtn.addEventListener("click", () => {
     const text = out.textContent || "";
     if (!text.trim()) return;
@@ -1922,7 +1932,10 @@ export function mountStudio(root: HTMLElement): void {
     // "Fortsetzung" von selbst ab — die LETZTE nicht. "Behalten" traegt sie
     // jetzt mit Serie, Nummer und Fadenstaerke ein, wenn ein Faden aktiv ist.
     const f = ladeFaden();
-    const serienSet = f && fadenKopf ? { serie: f.serie, folge: String(f.folge - 1), ...(letzteFadenstaerke ? { faden: fadenBeschreibung(letzteFadenstaerke) } : {}) } : {};
+    // f.folge ist die Nummer der Folge, die JETZT im Fenster steht (die
+    // Fortsetzung hat sie gerade erzeugt) — gemeldet: "Behalten" legte Folge 4
+    // als Folge 3 ab.
+    const serienSet = f && fadenKopf ? { serie: f.serie, folge: String(f.folge), ...(letzteFadenstaerke ? { faden: fadenBeschreibung(letzteFadenstaerke) } : {}) } : {};
     const n = addToTreasury(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value, set: { ...einstellungen(), ...serienSet } });
     // Erst HIER weiss man, dass der Text behalten wird. Der Index traegt es
     // nach; ohne diesen Schritt saehe jeder Eintrag gleich aus und die

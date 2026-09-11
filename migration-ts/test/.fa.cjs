@@ -3204,7 +3204,7 @@ ist("Serienl\xE4nge f\xFCnf", SERIEN_LAENGE, 5);
   wahr("Knopf \u201EFortsetzung\u201C neben Behalten", /" Fortsetzung"\)/.test(q) && /keepBtn, fadenBtn, fadenLoesen,/.test(q));
   wahr("er legt die vorige Folge in die Schatzkammer (Serie, Folge)", /serie: f\.serie, folge: String\(f\.folge - 1\)/.test(q));
   wahr("w\xFCrfelt alles au\xDFer der Figur, setzt Wer und Was aus dem Faden", /who\.value = f\.figur;\s*\n\s*what\.value = f\.frage;/.test(q) && /rollPresets\(\);\s*\n\s*rolling = false;\s*\n\s*who\.value = f\.figur/.test(q));
-  wahr("die Bauform folgt dem Schlag der Folge", /SCHLAGFOLGEN\[BAUFORM_JE_SCHLAG\[schlag\]\]!\.folge/.test(q));
+  wahr("die Bauform folgt dem Schlag der Folge \u2014 als Merker, den generate() nach der Weiche anwendet", /folgeBauform = SCHLAGFOLGEN\[BAUFORM_JE_SCHLAG\[schlag\]\]!\.folge;/.test(q) && /if \(folgeBauform\) \{ const basisF = loadDramaData\(\); if \(basisF\) setBogenOverride\(\{ \.\.\.basisF, folge: folgeBauform/.test(q));
   wahr("Titel \u201EFolge n \xB7 Schlag\u201C und Bisher-Zeile", /fadenKopf = `Folge \$\{f\.folge\} · \$\{SCHLAG_NAME\[schlag\]\}`/.test(q) && /bisherEl\.textContent = `Bisher: \$\{f\.letzterSatz\}`/.test(q));
   wahr("das Ding kommt in die Folge, wenn der Text es nicht tr\xE4gt", /s\.splice\(at, 0, dingSatz\(f\.ding\)\)/.test(q));
   wahr("\u201EFaden l\xF6sen\u201C beendet die Serie", /speichereFaden\(null\); fadenKopf = ""/.test(q));
@@ -3234,6 +3234,8 @@ ist("Serienl\xE4nge f\xFCnf", SERIEN_LAENGE, 5);
   const q = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
   wahr("die Fortsetzung erzeugt drei Kandidaten und nimmt den mit der gr\xF6\xDFten Fadenst\xE4rke", /for \(let k = 0; k < 3; k\+\+\) \{\s*\n\s*generate\(\);/.test(q) && /if \(!bester \|\| st\.wert > bester\.st\.wert\) bester = \{ text: mitDing, st \};/.test(q));
   wahr("die Fadenzeile steht unter dem Titel", /fadenZeile\.textContent = letzteFadenstaerke \? fadenBeschreibung\(letzteFadenstaerke\) : ""/.test(q));
+  wahr("\u201EBehalten\u201C merkt die letzte Folge mit ihrer eigenen Nummer (f.folge, nicht f.folge \u2212 1)", /const serienSet = f && fadenKopf \? \{ serie: f\.serie, folge: String\(f\.folge\)/.test(q) && /set: \{ \.\.\.einstellungen\(\), \.\.\.serienSet \}/.test(q));
+  wahr("\u201EFortsetzung\u201C legt die vorige Folge mit f.folge \u2212 1 ab \u2014 der Faden z\xE4hlt die Folge im Fenster", /serie: f\.serie, folge: String\(f\.folge - 1\)/.test(q));
   const qt = (0, import_fs.readFileSync)("src/ui/treasuryView.ts", "utf8");
   wahr("die Schatzkammer zeigt Serie, Folge und Fadenst\xE4rke", /Serie „\$\{it\.set\.serie\}“ · Folge/.test(qt));
 }

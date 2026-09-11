@@ -50,7 +50,7 @@ ist("Serienlänge fünf", SERIEN_LAENGE, 5);
   wahr("die Bauform folgt dem Schlag der Folge — als Merker, den generate() nach der Weiche anwendet", /folgeBauform = SCHLAGFOLGEN\[BAUFORM_JE_SCHLAG\[schlag\]\]!\.folge;/.test(q) && /if \(folgeBauform\) \{ const basisF = loadDramaData\(\); if \(basisF\) setBogenOverride\(\{ \.\.\.basisF, folge: folgeBauform/.test(q));
   wahr("Titel „Folge n · Schlag“ und Bisher-Zeile", /fadenKopf = `Folge \$\{f\.folge\} · \$\{SCHLAG_NAME\[schlag\]\}`/.test(q) && /bisherEl\.textContent = `Bisher: \$\{f\.letzterSatz\}`/.test(q));
   wahr("das Ding kommt in die Folge, wenn der Text es nicht trägt", /s\.splice\(at, 0, dingSatz\(f\.ding\)\)/.test(q));
-  wahr("„Faden lösen“ beendet die Serie", /speichereFaden\(null\); fadenKopf = ""/.test(q));
+  wahr("„Serie beenden“ legt die letzte Folge ab (falls sie fehlt) und löst den Faden", /"Serie beenden"\)/.test(q) && /!loadTreasury\(\)\.some\(\(t\) => t\.t\.trim\(\) === text\.trim\(\)\)/.test(q) && /speichereFaden\(null\); fadenKopf = ""/.test(q));
 }
 
 // ── Fadenstärke und Kettenauslese (4.363.0): Trägt der dünne Faden? ──────────
@@ -76,7 +76,8 @@ ist("Serienlänge fünf", SERIEN_LAENGE, 5);
   const q = readFileSync("src/ui/studio.ts", "utf8");
   wahr("die Fortsetzung erzeugt drei Kandidaten und nimmt den mit der größten Fadenstärke", /for \(let k = 0; k < 3; k\+\+\) \{\s*\n\s*generate\(\);/.test(q) && /if \(!bester \|\| st\.wert > bester\.st\.wert\) bester = \{ text: mitDing, st \};/.test(q));
   wahr("die Fadenzeile steht unter dem Titel", /fadenZeile\.textContent = letzteFadenstaerke \? fadenBeschreibung\(letzteFadenstaerke\) : ""/.test(q));
-  wahr("„Behalten“ merkt die letzte Folge mit Serie, Nummer und Fadenstärke", /const serienSet = f && fadenKopf \? \{ serie: f\.serie, folge: String\(f\.folge - 1\)/.test(q) && /set: \{ \.\.\.einstellungen\(\), \.\.\.serienSet \}/.test(q));
+  wahr("„Behalten“ merkt die letzte Folge mit ihrer eigenen Nummer (f.folge, nicht f.folge − 1)", /const serienSet = f && fadenKopf \? \{ serie: f\.serie, folge: String\(f\.folge\)/.test(q) && /set: \{ \.\.\.einstellungen\(\), \.\.\.serienSet \}/.test(q));
+  wahr("„Fortsetzung“ legt die vorige Folge mit f.folge − 1 ab — der Faden zählt die Folge im Fenster", /serie: f\.serie, folge: String\(f\.folge - 1\)/.test(q));
   const qt = readFileSync("src/ui/treasuryView.ts", "utf8");
   wahr("die Schatzkammer zeigt Serie, Folge und Fadenstärke", /Serie „\$\{it\.set\.serie\}“ · Folge/.test(qt));
 }
