@@ -53,7 +53,7 @@ import { mountLehrer } from "./lehrerView";
 const AKTIONEN: Record<string, (() => void) | undefined> = {
   "Drucken": () => {
     const t = leseText();
-    oeffneDruckvorschau(t.text, t.form, loadActiveBankLabel());
+    oeffneDruckvorschau(t.text, t.form, loadActiveBankLabel(), t.titel);
   },
   "Zeitungsseite": () => {
     const t = leseText();
@@ -63,11 +63,12 @@ const AKTIONEN: Record<string, (() => void) | undefined> = {
 
 /** Der zuletzt im Studio erzeugte Text samt Form. Beide Fenster brauchen ihn,
  *  und aus der Leiste heraus gibt es keinen Zugriff auf das Studio. */
-function leseText(): { text: string; form: string } {
-  let text = "", form = "prose";
+function leseText(): { text: string; form: string; titel: string } {
+  let text = "", form = "prose", titel = "";
   try { text = localStorage.getItem("dm_last_text") || ""; } catch { /* gesperrt */ }
   try { form = localStorage.getItem("dm_last_form") || "prose"; } catch { /* gesperrt */ }
-  return { text, form };
+  try { titel = localStorage.getItem("dm_last_titel") || ""; } catch { /* gesperrt */ }
+  return { text, form, titel };
 }
 
 const TABS: [string, (root: HTMLElement) => void][] = [

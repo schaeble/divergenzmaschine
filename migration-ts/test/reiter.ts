@@ -136,6 +136,17 @@ ist("die Liste wird als Kopie herausgegeben, nicht als Griff", derKanon().length
 wahr("das Studio ist Pflichtreiter", PFLICHT.includes("Studio"));
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
+// ── Drucken: der Titel des Textes steht auf dem Blatt (gemeldet: fehlte) ─────
+{
+  const { readFileSync } = require("fs") as { readFileSync: (p: string, e: string) => string };
+  const qs = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("das Studio merkt sich den Titel des Textes (dm_last_titel)", /localStorage\.setItem\("dm_last_titel", t\)/.test(qs));
+  const qa = readFileSync("src/ui/app.ts", "utf8");
+  wahr("Drucken bekommt den Titel", /oeffneDruckvorschau\(t\.text, t\.form, loadActiveBankLabel\(\), t\.titel\)/.test(qa) && /dm_last_titel/.test(qa));
+  const qp = readFileSync("src/ui/printView.ts", "utf8");
+  wahr("das Blatt trägt ihn als Überschrift, wenn einer da ist", /el\("h1", \{ class: "dm-titel" \}, o\.titel\.trim\(\)\)/.test(qp) && /feld\("Titel", titelIn\)/.test(qp));
+}
+
 console.log(`Prüfstand Reiter — ${geprueft} Prüfungen:`);
 zeilen.forEach((z) => console.log(z));
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };

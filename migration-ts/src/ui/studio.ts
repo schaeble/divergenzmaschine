@@ -824,6 +824,9 @@ export function mountStudio(root: HTMLElement): void {
     const t = aktuellerTitel();
     titelEl.textContent = t;
     titelEl.style.display = t ? "" : "none";
+    // Gemeldet: Beim Drucken fehlte der Titel — Drucken und Zeitungsseite holen
+    // sich den Text aus dm_last_text und kannten den Titel nicht.
+    try { localStorage.setItem("dm_last_titel", t); } catch { /* voll */ }
   };
   titelChk.addEventListener("change", () => {
     try { localStorage.setItem(TITEL_KEY, titelChk.checked ? "an" : "aus"); } catch { /* voll */ }

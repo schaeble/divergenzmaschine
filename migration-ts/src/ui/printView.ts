@@ -33,7 +33,7 @@ export function profilFuerForm(form: string): Profil {
   }
 }
 
-interface KopfOpts { blatt: string; rechts: string; datum: boolean; fiktion: boolean; }
+interface KopfOpts { blatt: string; rechts: string; datum: boolean; fiktion: boolean; titel?: string; }
 
 // ── Text in Auszeichnung überführen ───────────────────────────────────────
 // Die Formen liefern Klartext mit bekannter Struktur. Wer sie nicht auswertet,
@@ -132,7 +132,9 @@ export function baueDruckDom(text: string, profil: Profil, o: KopfOpts): HTMLEle
     : profil === "buehne" ? inhaltBuehne(text)
     : profil === "shots" ? inhaltShots(text)
     : inhaltFliess(text);
-  wurzel.append(kopf, inhalt, fuss);
+  // Der Titel des Textes (4.360.3) — über dem Inhalt, wenn einer da ist.
+  if (o.titel && o.titel.trim()) wurzel.append(kopf, el("h1", { class: "dm-titel" }, o.titel.trim()), inhalt, fuss);
+  else wurzel.append(kopf, inhalt, fuss);
   return wurzel;
 }
 
@@ -140,7 +142,7 @@ export function baueDruckDom(text: string, profil: Profil, o: KopfOpts): HTMLEle
 
 const GRAD: Record<string, string> = { klein: "0.88", normal: "1", gross: "1.15" };
 
-export function oeffneDruckvorschau(text: string, form: string, titel: string): void {
+export function oeffneDruckvorschau(text: string, form: string, titel: string, textTitel = ""): void {
   if (!text.trim()) return;
   let profil = profilFuerForm(form);
 
@@ -151,6 +153,7 @@ export function oeffneDruckvorschau(text: string, form: string, titel: string): 
   (Object.keys(PROFIL_LABEL) as Profil[]).forEach((p) => profilSel.append(el("option", { value: p }, PROFIL_LABEL[p])));
   profilSel.value = profil;
   const blattIn = el("input", { type: "text", value: titel || "", placeholder: "Blattname oder Titel" }) as HTMLInputElement;
+  const titelIn = el("input", { type: "text", value: textTitel || "", placeholder: "Titel des Textes (leer = kein Titel)" }) as HTMLInputElement;
   const datumChk = el("input", { type: "checkbox" }) as HTMLInputElement; datumChk.checked = true;
   const fiktChk = el("input", { type: "checkbox" }) as HTMLInputElement; fiktChk.checked = true;
   const gradSel = el("select", {}) as HTMLSelectElement;
@@ -168,7 +171,7 @@ export function oeffneDruckvorschau(text: string, form: string, titel: string): 
     fiktChk.disabled = zwang;
     blatt.innerHTML = "";
     const dom = baueDruckDom(text, profil, {
-      blatt: blattIn.value, rechts: form, datum: datumChk.checked, fiktion: fiktChk.checked,
+      blatt: blattIn.value, rechts: form, datum: datumChk.checked, fiktion: fiktChk.checked, titel: titelIn.value,
     });
     dom.style.setProperty("--dm-grad", GRAD[gradSel.value] || "1");
     blatt.append(dom);
@@ -179,7 +182,7 @@ export function oeffneDruckvorschau(text: string, form: string, titel: string): 
     fuerDruck.classList.add("dm-print-aktiv");
     document.body.append(fuerDruck);
   };
-  [profilSel, blattIn, datumChk, fiktChk, gradSel].forEach((x) => {
+  [profilSel, blattIn, titelIn, datumChk, fiktChk, gradSel].forEach((x) => {
     x.addEventListener("change", zeichne); x.addEventListener("input", zeichne);
   });
 
@@ -198,7 +201,7 @@ export function oeffneDruckvorschau(text: string, form: string, titel: string): 
 
   buehne.append(el("div", { class: "druckdialog" },
     el("div", { class: "druckleiste" },
-      feld("Profil", profilSel), feld("Kopfzeile", blattIn),
+      feld("Profil", profilSel), feld("Kopfzeile", blattIn), feld("Titel", titelIn),
       feld("Datum", datumChk), feld("Fiktionshinweis", fiktChk), feld("Schriftgrad", gradSel),
       el("span", { class: "druckspacer" }), drucken, zu),
     blatt));

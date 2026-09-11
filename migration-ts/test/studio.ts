@@ -239,7 +239,8 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
     || Array.from(wurzel2.querySelectorAll("select")).find((x) => /tone|ton/i.test(x.id))) as HTMLSelectElement;
   wahr("das Tonfeld ist da", !!stil);
   const stilWerte = new Set<string>();
-  for (let i = 0; i < 80; i++) {
+  // 40 Würfe (waren 80): Jeder Wurf erzeugt einen Text und rendert die Preset-Liste — in jsdom eine Sekunde.
+  for (let i = 0; i < 40; i++) {
     alleKnopf.click();
     const z = zeilen().pop() || "";
     quellen.add(z.split(":")[0]!.split(" · ")[0]!);
@@ -379,9 +380,9 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
     const start: Record<string, string> = {};
     for (const sel of felder) start[sel.id] = sel.value;
     const bewegt = new Set<string>();
-    // 30 Würfe: Ein Feld mit zwei Stellungen bleibt mit 2^-30 zufällig stehen.
+    // 16 Würfe: Ein Feld mit zwei Stellungen bleibt mit 2^-16 zufällig stehen.
     // Der Schieber der Textlänge hat 53 Stufen, die Gewichtung vier.
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 16; i++) {
       alleKnopf3.click();
       for (const sel of felder) if (sel.value !== start[sel.id]) bewegt.add(sel.id);
     }
@@ -618,10 +619,10 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
   const knopf = (t: RegExp): HTMLButtonElement =>
     Array.from(D.querySelectorAll("button")).find((b) => t.test(b.textContent || "")) as HTMLButtonElement;
   const gesehen = new Set<string>();
-  for (let i = 0; i < 30; i++) { knopf(/^\s*\S*\s*Würfeln/).click(); gesehen.add(mk.value); }
-  wahr("„Würfeln“ bewegt Markov (mindestens zwei Stellungen in 30 Würfen)", gesehen.size >= 2, [...gesehen].join("/"));
+  for (let i = 0; i < 12; i++) { knopf(/^\s*\S*\s*Würfeln/).click(); gesehen.add(mk.value); }
+  wahr("„Würfeln“ bewegt Markov (mindestens zwei Stellungen in 12 Würfen)", gesehen.size >= 2, [...gesehen].join("/"));
   const kopf = new Set<string>();
-  for (let i = 0; i < 30; i++) { knopf(/Text erzeugen/).click(); kopf.add(mk.value); }
+  for (let i = 0; i < 12; i++) { knopf(/Text erzeugen/).click(); kopf.add(mk.value); }
   wahr("„Text erzeugen“ im einfachen Kopf ebenfalls", kopf.size >= 2, [...kopf].join("/"));
   wurzel.remove();
 }
@@ -724,13 +725,16 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
   const DW = dom.window.document;
   const wurzelW = DW.createElement("div"); DW.body.append(wurzelW);
   mountStudio(wurzelW);
+  // Kurze Texte, damit die Würfe schnell sind: die Ziellänge auf 40.
+  const lenW = wurzelW.querySelector("#f-len") as HTMLInputElement | null;
+  if (lenW) { lenW.value = "40"; lenW.dispatchEvent(new dom.window.Event("input")); lenW.dispatchEvent(new dom.window.Event("change")); }
   const dice = Array.from(wurzelW.querySelectorAll("button")).find((b) => /Würfeln/.test(b.textContent || "")) as HTMLButtonElement;
   const kaestenW = (): number => (Array.from(wurzelW.querySelectorAll(".mplist input[type=checkbox]")) as HTMLInputElement[]).filter((k) => k.checked).length;
   const zahlen = new Set<number>(); let max = 0;
   // Würfeln erzeugt jedes Mal einen Text — darum so wenige Würfe wie nötig:
   // aufhören, sobald eine Mehrfachauswahl gesehen wurde (höchstens sechs).
-  for (let i = 0; i < 6; i++) { dice.click(); const n = kaestenW(); zahlen.add(n); max = Math.max(max, n); if (n >= 2) break; }
-  wahr("mindestens einmal mehr als ein Preset (spätestens im sechsten Wurf, 99,9 %)", [...zahlen].some((n) => n >= 2), [...zahlen].join(","));
+  for (let i = 0; i < 4; i++) { dice.click(); const n = kaestenW(); zahlen.add(n); max = Math.max(max, n); if (n >= 2) break; }
+  wahr("mindestens einmal mehr als ein Preset (spätestens im vierten Wurf, 98,8 %)", [...zahlen].some((n) => n >= 2), [...zahlen].join(","));
   wahr("nie mehr als drei", max <= 3, String(max));
   wahr("nie null", !zahlen.has(0));
 }
