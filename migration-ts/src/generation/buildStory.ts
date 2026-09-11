@@ -1,6 +1,7 @@
 // Generierung: volle Kit-Fidelity (buildBaseModules) + Struktur + V4.1-Pipeline.
 import { ladeKurve, kurveWert } from "../features/spannungskurve";
 import { zeitlupeStart, zeitlupeStufe, zeitlupeEnde } from "../features/zeitlupe";
+import { setzeEchos } from "./echo";
 import type { Bank, GenInput, StoryKit } from "../types";
 import { MODE_DATA } from "../modes.data";
 import { pick, pickSane, clean, chance } from "../text-utils";
@@ -231,7 +232,10 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
       // Zeitlupe: Der Zusammenbau zieht seine Atome in EINER Stufe (Bau);
       // danach Stoerung und die Stufen der Nachbearbeitung.
       zeitlupeStufe("Bau", rk);
-      const gebrochen = applyDisruptor(rk, input.disruptor).text;
+      // Kernbilder mit Echo (4.360.0): ein zweites Bild desselben Kerns vor dem Höhepunkt.
+      let mitEcho = rk;
+      { const e = setzeEchos(rk, bank); if (e.echos.length) { mitEcho = e.text; zeitlupeStufe("Echo", mitEcho); } }
+      const gebrochen = applyDisruptor(mitEcho, input.disruptor).text;
       zeitlupeStufe("Störung", gebrochen);
       const fertig = postProcessText(paragraphize(gebrochen), input); linkTrace(fertig); linkMarkovTrace(fertig);
       zeitlupeStufe("Ende", fertig); zeitlupeEnde();
@@ -251,6 +255,8 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   // durchläuft daher den normalen Prosa-Pfad inkl. Längen-Auffüllung.
   if (input.form === "prose" && input.emphasis) { text = applyEmphasis(text, kit, input.emphasis); zeitlupeStufe("Betonung", text); }
 
+  // Kernbilder mit Echo (4.360.0): ein zweites Bild desselben Kerns vor dem Höhepunkt.
+  if (input.form === "prose") { const e = setzeEchos(text, bank); if (e.echos.length) { text = e.text; zeitlupeStufe("Echo", text); } }
   text = applyDisruptor(text, input.disruptor).text; zeitlupeStufe("Störung", text);
   text = applyRhythm(text, kit.rhythm); zeitlupeStufe("Rhythmus", text);
   // Spannungskurve (4.345.0): Ist sie an, folgt der Rhythmus der Kurve über

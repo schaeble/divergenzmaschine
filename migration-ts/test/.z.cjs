@@ -1,15 +1,42 @@
 "use strict";
 
-// test/zeitlupe.ts
-var import_jsdom = require("jsdom");
-var import_fs = require("fs");
+// src/features/spannungskurve.ts
+var STUETZEN = 7;
+var KEY = "dm_spannungskurve_v1";
+var KURVEN_VORLAGEN = {
+  steigend: { name: "Steigend", werte: [0.15, 0.25, 0.35, 0.5, 0.65, 0.9, 0.3] },
+  spaet: { name: "Sp\xE4te Wende", werte: [0.2, 0.3, 0.25, 0.2, 0.3, 0.95, 0.35] },
+  doppelt: { name: "Doppelt", werte: [0.2, 0.5, 0.85, 0.35, 0.6, 0.95, 0.25] },
+  katastrophe: { name: "Katastrophe zuerst", werte: [0.95, 0.7, 0.45, 0.35, 0.3, 0.4, 0.25] },
+  flach: { name: "Flach", werte: [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3] },
+  offen: { name: "Offen", werte: [0.2, 0.3, 0.4, 0.5, 0.65, 0.8, 0.9] }
+};
+var klemm = (x) => Math.max(0, Math.min(1, Number.isFinite(x) ? x : 0.3));
+function ladeKurve() {
+  try {
+    const v = JSON.parse(localStorage.getItem(KEY) || "null");
+    const werte2 = Array.isArray(v?.werte) && v.werte.length === STUETZEN ? v.werte.map(klemm) : [...KURVEN_VORLAGEN["steigend"].werte];
+    return { an: !!v?.an, werte: werte2 };
+  } catch {
+    return { an: false, werte: [...KURVEN_VORLAGEN["steigend"].werte] };
+  }
+}
+function kurveWert(werte2, p) {
+  const n = werte2.length;
+  if (n === 0) return 0.3;
+  if (n === 1) return klemm(werte2[0]);
+  const x = klemm(p) * (n - 1);
+  const i = Math.min(n - 2, Math.floor(x));
+  const t = x - i;
+  return klemm(werte2[i] * (1 - t) + werte2[i + 1] * t);
+}
 
 // src/features/zeitlupe.ts
 var an = false;
 var stufen = [];
 var laufend = [];
 var aufzeichnungen = /* @__PURE__ */ new Map();
-var schluessel = (t2) => (t2 || "").replace(/\s+/g, " ").trim();
+var schluessel = (t) => (t || "").replace(/\s+/g, " ").trim();
 var STUFEN_ERKLAERUNG = {
   "Bau": "Die Struktur f\xFCllt ihre Schl\xE4ge oder der Zusammenbau zieht seine Atome \u2014 der Rohtext.",
   "Ensemble": "Mehrere Personen im Wer werden als Ensemble eingewoben.",
@@ -29,12 +56,6 @@ var STUFEN_ERKLAERUNG = {
 function zeitlupeAn() {
   return an;
 }
-function zeitlupeSchalten(a) {
-  an = a;
-  if (!a) {
-    laufend = [];
-  }
-}
 function zeitlupeStart() {
   if (an) {
     laufend = [];
@@ -43,12 +64,12 @@ function zeitlupeStart() {
 }
 function zeitlupeStufe(name, text) {
   if (!an) return;
-  const st2 = { name, text: String(text || ""), kurz: STUFEN_ERKLAERUNG[name] || "" };
+  const st = { name, text: String(text || ""), kurz: STUFEN_ERKLAERUNG[name] || "" };
   if (name === "Bau" && schritteLaufend.length) {
-    st2.schritte = schritteLaufend;
+    st.schritte = schritteLaufend;
     schritteLaufend = [];
   }
-  laufend.push(st2);
+  laufend.push(st);
 }
 var schritteLaufend = [];
 function zeitlupeSchritt(s) {
@@ -65,43 +86,7918 @@ function zeitlupeEnde() {
     if (erster !== void 0) aufzeichnungen.delete(erster);
   }
 }
-function zeitlupeLesen(text) {
-  if (text === void 0) return stufen;
-  return aufzeichnungen.get(schluessel(text)) || [];
+
+// src/text-utils.ts
+function clean(s) {
+  return (s ?? "").toString().trim().replace(/\s+/g, " ");
 }
-var saetze = (t2) => (t2 || "").replace(/\n+/g, " ").split(/(?<=[.!?…])\s+/).map((s) => s.trim()).filter(Boolean);
-var norm = (s) => s.toLowerCase().replace(/[^a-zäöüß ]/g, "").replace(/\s+/g, " ").trim();
-var staemme = (s) => new Set((norm(s).match(/[a-zäöüß]{4,}/g) || []).map((w) => w.slice(0, 5)));
-var aehnlich = (a, b) => {
-  const A = staemme(a), B = staemme(b);
-  if (!A.size || !B.size) return false;
-  let g = 0;
-  for (const x of A) if (B.has(x)) g++;
-  return g / Math.min(A.size, B.size) >= 0.6 && g >= 2;
-};
-function stufenDiff(vorher, nachher) {
-  const alt = saetze(vorher), neu = saetze(nachher);
-  const altNorm = alt.map(norm);
-  const verbraucht = /* @__PURE__ */ new Set();
-  const out = [];
-  for (const s of neu) {
-    const n = norm(s);
-    let idx = altNorm.findIndex((a, i) => !verbraucht.has(i) && a === n);
-    if (idx >= 0) {
-      verbraucht.add(idx);
-      out.push({ text: s, marke: "gleich" });
-      continue;
-    }
-    idx = alt.findIndex((a, i) => !verbraucht.has(i) && aehnlich(a, s));
-    if (idx >= 0) {
-      verbraucht.add(idx);
-      out.push({ text: s, marke: "geaendert" });
-      continue;
-    }
-    out.push({ text: s, marke: "neu" });
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+function pickSane(arr, minWords = 2) {
+  const list = Array.isArray(arr) ? arr : [];
+  const ok = list.filter(
+    (x) => String(x ?? "").trim().split(/\s+/).filter(Boolean).length >= minWords
+  );
+  return (ok.length ? pick(ok) : pick(list)) ?? "";
+}
+function chance(p) {
+  return Math.random() < p;
+}
+function ensurePunct(s) {
+  s = clean(s);
+  if (!s) return "";
+  return /[.!?…]$/.test(s) ? s : s + ".";
+}
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+var MONATE = /^(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember|Jahrhunderts?|Jh\.|Hälfte|Auflage|Band|Kapitel|Absatz|Teil)\b/u;
+var ORDNUNGSZAHL = /\d\.$/;
+var ABKUERZUNG = /(?:^|\s)(?:[A-Za-zÄÖÜäöü]|ca|bzw|bspw|evtl|ggf|inkl|Nr|St|Dr|Prof|Abs|Art|Bd|Hrsg|usw|etc)\.$/u;
+function keineGrenze(vor, nach) {
+  if (ABKUERZUNG.test(vor)) return true;
+  if (!ORDNUNGSZAHL.test(vor)) return false;
+  return MONATE.test(nach) || /^\d/.test(nach);
+}
+function splitSentences(txt) {
+  const flach = txt.replace(/\s+/g, " ").trim();
+  const roh = flach.split(/(?<=[.!?…])\s+/).filter(Boolean);
+  const raus = [];
+  for (const teil of roh) {
+    const vor = raus[raus.length - 1];
+    if (vor && keineGrenze(vor, teil)) raus[raus.length - 1] = vor + " " + teil;
+    else raus.push(teil);
   }
-  const gefallen = alt.filter((_, i) => !verbraucht.has(i));
-  return { saetze: out, gefallen };
+  return raus;
+}
+var HAENGT_IN_DER_LUFT = /(^|\s)(ein|eine|einem|einen|einer|eines|der|die|das|dem|den|des|und|oder|aber|wie|als|im|am|beim|zum|zur|vom|von|für|ohne|durch|gegen|bei|seit|während|wegen|trotz|dass|weil|denn|sondern|sowie|bzw|etwa|sehr|dessen|deren|welche[rsmn]?)$/i;
+function kuerzeAmBruch(text) {
+  let t = (text || "").replace(/\s*…\s*$/, "").replace(/\s*[.,;:–—-]+\s*$/, "").trim();
+  for (let i = 0; i < 8 && t && HAENGT_IN_DER_LUFT.test(t); i++) {
+    const komma = t.lastIndexOf(",");
+    if (komma >= 12) {
+      t = t.slice(0, komma).replace(/\s*[.,;:–—-]+\s*$/, "").trim();
+      continue;
+    }
+    const ohneWort = t.replace(/\s+\S+$/, "").replace(/\s*[.,;:–—-]+\s*$/, "").trim();
+    if (!ohneWort || ohneWort === t) {
+      t = "";
+      break;
+    }
+    t = ohneWort;
+  }
+  {
+    const komma = t.lastIndexOf(",");
+    if (komma >= 12) {
+      const schwanz = t.slice(komma + 1).trim();
+      const relativ = /^(der|die|das|dem|den|dessen|deren|welche[rsmn]?|wo|worin|woran)\s/i.test(schwanz);
+      const hatVerb = /(?:^|[^A-Za-zÄÖÜäöüß])[a-zäöüß]{2,}(?:t|te|en|st|et)(?![A-Za-zÄÖÜäöüß])/.test(schwanz);
+      const endetAufNomen = /[A-ZÄÖÜ][a-zäöüß]+$/.test(schwanz);
+      if (relativ && endetAufNomen && !hatVerb) t = t.slice(0, komma).trim();
+    }
+  }
+  for (let i = 0; i < 4; i++) {
+    const m = t.match(/(\S+)\s+(an|auf|aus|ein|mit|nach|vor|zu|über|unter|um|ab|bei|los|weg|hin|her)$/i);
+    if (!m || !/^[A-ZÄÖÜ]/.test(m[1])) break;
+    t = t.replace(/\s+\S+$/, "").trim();
+  }
+  return HAENGT_IN_DER_LUFT.test(t) ? "" : t;
+}
+function namensErsetzer(name) {
+  const mitArtikel = /^(ein|eine|einen|einem|einer|der|die|das|den|dem|des)\s/i.test(name);
+  return (m) => mitArtikel && /^[a-zäöü]/.test(m) ? name.charAt(0).toLowerCase() + name.slice(1) : name;
+}
+
+// src/generation/cooldown.ts
+var recent = {};
+var KEEP = 5;
+function pickFresh(key, opts) {
+  if (!opts.length) return opts[0];
+  const seen = recent[key] || (recent[key] = []);
+  const fresh = opts.filter((o) => !seen.includes(o));
+  const choice = fresh.length ? pick(fresh) : pick(opts);
+  seen.push(choice);
+  while (seen.length > Math.min(KEEP, opts.length - 1)) seen.shift();
+  return choice;
+}
+function pickFreshIndex(key, n) {
+  if (n <= 1) return 0;
+  const idxs = Array.from({ length: n }, (_, i) => String(i));
+  return Number(pickFresh(key, idxs));
+}
+var recentMarkov = [];
+var MK_KEEP = 24;
+var mkNorm = (s) => s.toLowerCase().replace(/[^a-zäöüß ]/g, "").replace(/\s+/g, " ").trim();
+function markovSeenRecently(s) {
+  const n = mkNorm(s);
+  return n.length > 0 && recentMarkov.includes(n);
+}
+function noteMarkov(s) {
+  const n = mkNorm(s);
+  if (!n) return;
+  recentMarkov.push(n);
+  while (recentMarkov.length > MK_KEEP) recentMarkov.shift();
+}
+
+// src/atoms/schema.ts
+var N = ["hauptsatz", "nebensatz", "nominalphrase", "praepositionalphrase", "rahmen", "fragment", "einwort", "konnektor", "kopf"];
+var FOLGT_AUF = {
+  start: ["hauptsatz", "rahmen", "kopf", "nominalphrase", "praepositionalphrase", "einwort", "fragment"],
+  hauptsatz: N,
+  nebensatz: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor"],
+  nominalphrase: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor", "nebensatz"],
+  praepositionalphrase: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor"],
+  rahmen: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor"],
+  fragment: ["hauptsatz", "rahmen", "kopf", "nominalphrase", "einwort", "konnektor"],
+  einwort: ["hauptsatz", "rahmen", "kopf", "nominalphrase", "fragment", "konnektor"],
+  konnektor: ["hauptsatz", "nominalphrase", "praepositionalphrase", "fragment", "nebensatz"],
+  kopf: ["hauptsatz", "nominalphrase", "fragment", "einwort"]
+  // Kopf verlangt einen Nachsatz
+};
+var darfFolgen = (a, b) => (FOLGT_AUF[a] || []).includes(b);
+var schliesstKopf = (t) => ["hauptsatz", "nominalphrase", "fragment", "einwort"].includes(t);
+var schwelle = (divergenz) => divergenz < 25 ? 0 : divergenz < 55 ? 1 : divergenz < 80 ? 2 : 3;
+
+// src/generation/verblex.data.ts
+var GRUND = `
+achten \xE4chzen ahnen \xE4ndern \xE4rgern arbeiten atmen backen baden bangen bauen beben bedeuten beeilen befehlen beginnen begreifen
+behalten bei\xDFen bellen bergen bersten beten betteln beugen bewegen biegen bieten bilden binden bitten blasen bleiben blenden blicken
+blinken blinzeln blitzen bl\xFChen bluten bohren borgen brauchen brausen brechen bremsen brennen bringen br\xFCllen brummen buchen b\xFCcken
+b\xFCgeln b\xFCrsten danken decken dehnen denken deuten dichten dienen d\xF6sen dr\xE4ngen drehen dreschen dringen drohen dr\xF6hnen drucken dr\xFCcken
+dulden dunkeln d\xFCrfen duften d\xFCngen d\xFCnken durchqueren ebben ehren eignen eilen einen eitern ekeln enden entbehren entgleiten erben
+erl\xF6schen ernten essen f\xE4cheln fahren fallen falten fangen fassen fasten fauchen fechten fegen fehlen feiern feilen feixen fesseln
+feuern finden fischen flackern flattern flechten flehen flicken fliegen fliehen flie\xDFen flimmern flirren fl\xF6ten fluchen fluten
+fl\xFCstern folgen fordern forschen fragen fressen freuen frieren f\xFCgen f\xFChlen f\xFChren f\xFCllen funkeln f\xFCrchten fu\xDFen g\xE4hnen g\xE4ren gaffen
+geben gedeihen gehen gehorchen geh\xF6ren gelingen gelten genesen genie\xDFen geraten geschehen gewinnen gie\xDFen gl\xE4nzen glauben gleichen
+gleiten glimmen glitzern gl\xFChen g\xF6nnen graben grasen greifen grinsen grollen gr\xFCbeln gr\xFCnen gr\xFC\xDFen gucken haben hacken haften hageln
+haken hallen halten h\xE4mmern handeln h\xE4ngen harren hassen hasten hauchen hauen h\xE4ufen heben heften hegen heilen hei\xDFen heizen helfen
+hemmen herrschen hetzen heulen hinken hocken hoffen holen horchen h\xF6ren huldigen h\xFCllen humpeln hungern hupen h\xFCpfen husten h\xFCten
+irren jagen jammern jauchzen jubeln k\xE4mmen k\xE4mpfen kauen kaufen kehren keimen kennen kichern kippen kitzeln klagen klappen klappern
+kl\xE4ren klatschen kleben kleiden klettern klingeln klingen klirren klopfen knabbern knacken knallen knarren kneifen kneten knicken
+knien knirschen knistern kn\xFCpfen kochen kommen k\xF6nnen kosten krachen kr\xE4hen kr\xE4nken kratzen kreisen kreuzen kriechen kriegen
+kritzeln kr\xFCmmen k\xFChlen k\xFCmmern k\xFCrzen k\xFCssen lachen laden lagern l\xE4hmen landen langen lassen lasten lauern laufen lauschen lauten
+l\xE4uten leben lecken legen lehnen lehren leiden leihen leisten leiten lenken lernen lesen leuchten lieben liefern liegen lindern
+loben locken lodern lohnen l\xF6schen l\xF6sen l\xFCgen lutschen machen mahlen mahnen malen mangeln meiden meinen melden melken merken messen
+mischen missen m\xF6gen morden m\xFCssen munkeln murmeln nagen n\xE4hen nahen n\xE4hern n\xE4hren naschen necken nehmen neigen nennen nesteln
+nicken nieseln nippen nisten n\xF6rgeln nutzen n\xFCtzen \xF6ffnen opfern ordnen packen passen pausieren peitschen pfeifen pflanzen pflegen
+pfl\xFCcken picken plagen platzen plaudern pochen poltern pr\xE4gen prallen prangen prasseln predigen preisen pressen probieren pr\xFCfen
+pr\xFCgeln pulsieren pumpen putzen qu\xE4len quellen quietschen raffen ragen rasen rasten raten rauben rauchen r\xE4umen rauschen rechnen
+reden regen regnen reiben reichen reifen reihen reimen reisen rei\xDFen reiten rennen retten reuen richten riechen ringen rinnen
+ritzen rollen rosten r\xFCcken rudern rufen ruhen r\xFChmen r\xFChren r\xFCtteln s\xE4en sagen sammeln s\xE4umen saugen s\xE4useln schaben schaffen
+schallen schalten sch\xE4men scharren sch\xE4tzen schauen schaufeln schaukeln scheiden scheinen scheitern schellen schelten schenken
+scheren scheuchen scheuen schicken schieben schielen schie\xDFen schildern schimmern schimpfen schinden schlafen schlagen schleichen
+schleifen schleppen schleudern schlie\xDFen schlingen schlucken schl\xFCpfen schmecken schmeicheln schmelzen schmerzen schmieden
+schmieren schm\xFCcken schmunzeln schnappen schnarchen schneiden schneien schn\xFCren schnuppern schonen sch\xF6pfen schrauben schreiben
+schreien schreiten schrumpfen sch\xFCren sch\xFCrfen sch\xFCtteln sch\xFCtten sch\xFCtzen schwanken schw\xE4rmen schwatzen schweben schweifen
+schweigen schwellen schwenken schwimmen schwinden schwingen schwitzen schw\xF6ren segeln segnen sehen sehnen seufzen sichern sichten
+sickern sieden siegen singen sinken sinnen sitzen sollen sorgen sp\xE4hen spalten spannen sparen spazieren speien speisen spenden
+sperren spielen spinnen spotten sprechen sprengen sprie\xDFen springen spritzen spr\xFChen spucken sp\xFClen sp\xFCren stammeln stammen
+stampfen stapeln starren stauben staunen stechen stecken stehen stehlen steigen steinigen stellen sterben steuern sticken
+stinken st\xF6hnen stolpern stopfen st\xF6ren sto\xDFen strahlen stranden streben strecken streichen streicheln streiten streuen
+stricken str\xF6men st\xFCrmen st\xFCrzen stutzen st\xFCtzen suchen summen s\xFCndigen tadeln tagen tanken tanzen tappen tasten tauchen tauen
+taugen taumeln tauschen t\xE4uschen teilen tilgen toben t\xF6nen tosen traben trachten tragen trampeln trauen trauern tr\xE4umen treffen
+treiben trennen treten triefen trinken trocknen trommeln tropfen tr\xF6sten trotzen tr\xFCben tun t\xFCrmen \xFCben umarmen urteilen
+vergessen verlieren verzeihen wachen wachsen wagen w\xE4hlen w\xE4hnen wahren w\xE4hren wandeln wandern wanken w\xE4rmen warnen warten waschen
+weben wechseln wecken wehen wehren weichen weiden weigern weihen weilen weinen weisen weiten welken wenden werben werden werfen
+werken wetten wickeln widmen wiegen wimmeln wimmern winden winken wirbeln wirken wischen wissen wittern wohnen w\xF6lben wollen
+wuchern w\xFChlen wundern w\xFCnschen w\xFCrdigen w\xFCrgen w\xFCrzen zagen zahlen z\xE4hlen z\xE4hmen zaubern zaudern zausen zehren zeichnen zeigen
+zerren zeugen ziehen zielen ziemen zieren zischen zittern z\xF6gern zucken zupfen zw\xE4ngen zweifeln zwingen zwinkern zwitschern
+adeln \xE4hneln akzeptieren analysieren antworten applaudieren beantworten begegnen begleiten behaupten beobachten berichten
+ber\xFChren beschreiben besitzen bestimmen besuchen betrachten betreten beweisen bezahlen br\xFCten datieren definieren diskutieren
+d\xE4mmern d\xE4mpfen dampfen detonieren donnern duschen entdecken entscheiden entschuldigen entwickeln erinnern erkennen erkl\xE4ren
+erlauben erleben erreichen erschrecken erwarten erz\xE4hlen existieren fabrizieren fasziniert funktionieren garantieren geb\xE4ren
+gefallen gen\xFCgen geschehen gestalten gew\xF6hnen glitschen h\xE4mmern handeln heiraten hindern ignorieren informieren interessieren
+kapitulieren kentern klettern kombinieren kontrollieren korrigieren kosten kreisen k\xFCrzen leiden lodern markieren marschieren
+meistern montieren murren musizieren notieren n\xF6tigen operieren organisieren passieren pilgern planen pl\xFCndern posieren
+probieren produzieren protestieren protokollieren rasieren reagieren regieren reparieren respektieren riskieren rotieren
+schmei\xDFen schmettern schnattern sortieren spekulieren studieren telefonieren transportieren trainieren trauen tr\xF6deln
+\xFCberlegen verabschieden ver\xE4ndern verbergen verbinden verbrennen verdienen verfolgen verhalten verhandeln verkaufen verlangen
+verlassen vermeiden vermuten verraten versagen verschieben verschwinden versichern versprechen verstecken verstehen versuchen
+verteidigen vertrauen verwalten verwandeln verweigern verwenden verzichten vollenden wackeln wandeln weinen wirbeln zerbrechen
+zerst\xF6ren z\xF6gern zurechtkommen zweifeln
+stimmen passen setzen dauern l\xF6sen l\xE4cheln k\xFCndigen retten ticken z\xFCnden siegeln entfernen verl\xE4ngern verstummen beschriften
+gabeln erledigen bewilligen best\xE4tigen sichern lohnen stauen stocken t\xF6nen tr\xFCben w\xE4hnen zerren fehlen kosten sparen sperren
+st\xFCrzen stapeln stehlen schweigen taumeln t\xF6ten trocknen tr\xF6pfeln \xFCbergehen verschlie\xDFen vertreten verwahren verwirren vollziehen
+wachsen wandern weichen wirken wurzeln zerfallen zerflie\xDFen zergehen zerrei\xDFen zerschlagen zersplittern zischen
+regeln spiegeln speichern beschleunigen senken f\xE4rben formen altern riegeln fiebern schlitzen rutschen beanstanden erg\xE4nzen
+bl\xE4ttern sanden schulden bessern bremsen dunkeln d\xFCstern erkennen ernennen f\xE4rben festigen filtern fl\xFCchten fr\xF6nen g\xE4hnen
+h\xE4uten heilen hetzen k\xE4mmen klammern klemmen kneten kramen kr\xE4nkeln kr\xE4useln lasten leimen l\xFCften mildern mustern nachten
+n\xE4ssen nieten \xF6len pinseln pl\xE4tschern polstern prallen prunken quirlen r\xE4dern reifen richten r\xF6cheln r\xFCtteln s\xE4ubern salzen
+s\xE4umen sch\xE4tzen schaudern schl\xE4ngeln schleimen schlummern schmoren schn\xFCffeln schrubben schw\xE4chen schwelen sengen sondern
+spalten spiegeln spitzen sprudeln stauben steuern stochern strampeln streifen striegeln stumpfen sudeln tauen tigern tippen
+trampeln t\xFCnchen wabern watscheln wetzen wiehern winseln wispern wittern wuchten zerknittern zetern zieren zittern zotteln zuckeln
+abh\xE4ngen ankommen anfangen aufstehen ausgehen bedienen befreien behandeln bemerken benennen beschlie\xDFen bestehen betonen bewahren
+bezeichnen bilden bluten br\xFCten b\xFC\xDFen d\xE4mmern deuten drehen ehren einigen empfangen empfehlen entfalten enthalten entlassen entstehen
+erfahren erfinden ergeben erhalten erheben erholen erl\xF6sen ermahnen ern\xE4hren er\xF6ffnen erregen ersch\xF6pfen ersticken erstarren erw\xE4hnen
+erweitern erzeugen fesseln fl\xFCchten fr\xF6steln funken gebieten gedenken gelangen gemahnen geraten gestehen gew\xE4hren graben grenzen
+gr\xFCbeln hadern harken hausen heben herrschen hindern huschen j\xE4ten jucken keuchen klaffen kleckern klimpern knallen kraulen kreischen
+kringeln kritzeln kr\xF6nen kuscheln l\xE4rmen leuchten lichten lispeln lugen lungern m\xE4\xDFigen mei\xDFeln mieten mindern m\xFChen murksen nachahmen
+nagen n\xE4seln n\xF6rgeln nuscheln pachten pflastern pieksen plappern prahlen prangen prellen prosten quaken qualmen r\xE4uspern rauen r\xE4umen
+reizen rieseln rodeln r\xF6hren rumpeln s\xE4beln s\xE4ckeln s\xE4gen sausen sch\xE4umen sch\xE4len schaufeln schnalzen schnaufen schnellen schnippen
+schwappen schwirren seihen sichten siezen sinnieren spannen spenden spicken spie\xDFen sprenkeln spuken st\xE4nkern stelzen stemmen sticheln
+st\xF6bern stopfen strapazieren strotzen st\xFClpen stutzen t\xE4ndeln taxieren tollen torkeln tr\xE4llern trudeln tuscheln umgarnen verharren
+wabbeln walzen wedeln weilen wetteifern wimmeln wringen wuseln zappeln zaubern zechen zergehen zerkn\xFCllen zerlegen zerm\xFCrben zerpfl\xFCcken
+zerschellen zertr\xFCmmern zeugen zirpen zocken zurren
+`;
+var VERB_PRAEFIXE = [
+  "zusammen",
+  "zur\xFCck",
+  "wieder",
+  "gegen",
+  "hinter",
+  "durch",
+  "unter",
+  "\xFCber",
+  "voran",
+  "vorbei",
+  "heraus",
+  "herein",
+  "hinaus",
+  "hinein",
+  "herum",
+  "hinauf",
+  "hinab",
+  "herab",
+  "empor",
+  "fort",
+  "los",
+  "weg",
+  "fest",
+  "auseinander",
+  "entgegen",
+  "entlang",
+  "nieder",
+  "umher",
+  "davon",
+  "dazu",
+  "hoch",
+  "her",
+  "hin",
+  "ver",
+  "ent",
+  "emp",
+  "miss",
+  "zer",
+  "be",
+  "er",
+  "ge",
+  "an",
+  "ab",
+  "auf",
+  "aus",
+  "ein",
+  "mit",
+  "nach",
+  "vor",
+  "zu",
+  "um",
+  "bei",
+  "da",
+  "wider",
+  "still",
+  "frei",
+  "leer",
+  "tot",
+  "voll",
+  "wahr",
+  "gut",
+  "kaputt"
+];
+var PAST2PRES = {
+  // Ergänzt 4.338.2 (Blatt „Vier Kinder": „Das Herz schlug mir bis zum Hals" blieb stehen):
+  schlug: "schl\xE4gt",
+  schlugen: "schlagen",
+  roch: "riecht",
+  rochen: "riechen",
+  traf: "trifft",
+  trafen: "treffen",
+  schob: "schiebt",
+  schoben: "schieben",
+  tat: "tut",
+  taten: "tun",
+  wusch: "w\xE4scht",
+  stritt: "streitet",
+  glitt: "gleitet",
+  stie\u00DF: "st\xF6\xDFt",
+  stie\u00DFen: "sto\xDFen",
+  goss: "gie\xDFt",
+  band: "bindet",
+  banden: "binden",
+  zwang: "zwingt",
+  fing: "f\xE4ngt",
+  fingen: "fangen",
+  sandte: "sendet",
+  mochte: "mag",
+  mochten: "m\xF6gen",
+  stahl: "stiehlt",
+  galt: "gilt",
+  galten: "gelten",
+  gelang: "gelingt",
+  verband: "verbindet",
+  erhielt: "erh\xE4lt",
+  erhielten: "erhalten",
+  behielt: "beh\xE4lt",
+  enthielt: "enth\xE4lt",
+  verlie\u00DF: "verl\xE4sst",
+  verlie\u00DFen: "verlassen",
+  genoss: "genie\xDFt",
+  schlich: "schleicht",
+  strich: "streicht",
+  blies: "bl\xE4st",
+  lud: "l\xE4dt",
+  luden: "laden",
+  schuf: "schafft",
+  schufen: "schaffen",
+  log: "l\xFCgt",
+  betrog: "betr\xFCgt",
+  flocht: "flicht",
+  kroch: "kriecht",
+  krochen: "kriechen",
+  schmolz: "schmilzt",
+  quoll: "quillt",
+  quollen: "quellen",
+  verging: "vergeht",
+  vergingen: "vergehen",
+  entging: "entgeht",
+  erging: "ergeht",
+  erschrak: "erschrickt",
+  war: "ist",
+  waren: "sind",
+  warst: "bist",
+  hatte: "hat",
+  hatten: "haben",
+  hattest: "hast",
+  wurde: "wird",
+  wurden: "werden",
+  ging: "geht",
+  gingen: "gehen",
+  kam: "kommt",
+  kamen: "kommen",
+  sah: "sieht",
+  sahen: "sehen",
+  gab: "gibt",
+  gaben: "geben",
+  stand: "steht",
+  standen: "stehen",
+  blieb: "bleibt",
+  blieben: "bleiben",
+  hielt: "h\xE4lt",
+  hielten: "halten",
+  lie\u00DF: "l\xE4sst",
+  lie\u00DFen: "lassen",
+  fand: "findet",
+  fanden: "finden",
+  nahm: "nimmt",
+  nahmen: "nehmen",
+  sprach: "spricht",
+  sprachen: "sprechen",
+  schrieb: "schreibt",
+  schrieben: "schreiben",
+  trug: "tr\xE4gt",
+  trugen: "tragen",
+  fuhr: "f\xE4hrt",
+  fuhren: "fahren",
+  lief: "l\xE4uft",
+  liefen: "laufen",
+  sa\u00DF: "sitzt",
+  sa\u00DFen: "sitzen",
+  lag: "liegt",
+  lagen: "liegen",
+  hie\u00DF: "hei\xDFt",
+  hie\u00DFen: "hei\xDFen",
+  zog: "zieht",
+  zogen: "ziehen",
+  schlief: "schl\xE4ft",
+  schliefen: "schlafen",
+  rief: "ruft",
+  riefen: "rufen",
+  fiel: "f\xE4llt",
+  fielen: "fallen",
+  sang: "singt",
+  sangen: "singen",
+  trank: "trinkt",
+  tranken: "trinken",
+  schwieg: "schweigt",
+  schwiegen: "schweigen",
+  floss: "flie\xDFt",
+  flossen: "flie\xDFen",
+  stieg: "steigt",
+  stiegen: "steigen",
+  sank: "sinkt",
+  sanken: "sinken",
+  bot: "bietet",
+  boten: "bieten",
+  schloss: "schlie\xDFt",
+  schlossen: "schlie\xDFen",
+  verlor: "verliert",
+  verloren: "verlieren",
+  begann: "beginnt",
+  begannen: "beginnen",
+  geschah: "geschieht",
+  geschahen: "geschehen",
+  konnte: "kann",
+  konnten: "k\xF6nnen",
+  musste: "muss",
+  mussten: "m\xFCssen",
+  wollte: "will",
+  wollten: "wollen",
+  sollte: "soll",
+  sollten: "sollen",
+  durfte: "darf",
+  durften: "d\xFCrfen",
+  wusste: "wei\xDF",
+  wussten: "wissen",
+  dachte: "denkt",
+  dachten: "denken",
+  brachte: "bringt",
+  brachten: "bringen",
+  kannte: "kennt",
+  kannten: "kennen",
+  erkannte: "erkennt",
+  erkannten: "erkennen",
+  brannte: "brennt",
+  brannten: "brennen",
+  nannte: "nennt",
+  nannten: "nennen",
+  rannte: "rennt",
+  rannten: "rennen",
+  wandte: "wendet",
+  wandten: "wenden",
+  sprang: "springt",
+  sprangen: "springen",
+  schrie: "schreit",
+  schrien: "schreien",
+  flog: "fliegt",
+  flogen: "fliegen",
+  floh: "flieht",
+  flohen: "fliehen",
+  schoss: "schie\xDFt",
+  schossen: "schie\xDFen",
+  riss: "rei\xDFt",
+  rissen: "rei\xDFen",
+  biss: "bei\xDFt",
+  bissen: "bei\xDFen",
+  griff: "greift",
+  griffen: "greifen",
+  pfiff: "pfeift",
+  pfiffen: "pfeifen",
+  schnitt: "schneidet",
+  schnitten: "schneiden",
+  litt: "leidet",
+  litten: "leiden",
+  trat: "tritt",
+  traten: "treten",
+  verga\u00DF: "vergisst",
+  verga\u00DFen: "vergessen",
+  wuchs: "w\xE4chst",
+  wuchsen: "wachsen",
+  wich: "weicht",
+  wichen: "weichen",
+  schien: "scheint",
+  schienen: "scheinen",
+  zerbrach: "zerbricht",
+  zerbrachen: "zerbrechen",
+  verschwand: "verschwindet",
+  verschwanden: "verschwinden",
+  erschien: "erscheint",
+  erschienen: "erscheinen",
+  starb: "stirbt",
+  starben: "sterben",
+  brach: "bricht",
+  brachen: "brechen",
+  sprach2: "spricht",
+  schwoll: "schwillt",
+  schwollen: "schwellen",
+  bog: "biegt",
+  bogen: "biegen",
+  hob: "hebt",
+  hoben: "heben",
+  wob: "webt",
+  woben: "weben",
+  klang: "klingt",
+  klangen: "klingen",
+  sann: "sinnt",
+  sannen: "sinnen",
+  rann: "rinnt",
+  rannen: "rinnen",
+  schwamm: "schwimmt",
+  schwammen: "schwimmen",
+  verschwieg: "verschweigt",
+  zerfiel: "zerf\xE4llt",
+  zerfielen: "zerfallen",
+  entstand: "entsteht",
+  entstanden: "entstehen",
+  verstand: "versteht",
+  verstanden: "verstehen",
+  bestand: "besteht",
+  bestanden: "bestehen",
+  geriet: "ger\xE4t",
+  gerieten: "geraten",
+  trieb: "treibt",
+  trieben: "treiben",
+  schrak: "schrickt",
+  wies: "weist",
+  wiesen: "weisen",
+  hing: "h\xE4ngt",
+  hingen: "h\xE4ngen",
+  schwand: "schwindet",
+  schwanden: "schwinden",
+  gewann: "gewinnt",
+  gewannen: "gewinnen",
+  zerriss: "zerrei\xDFt",
+  zerrissen2: "zerrei\xDFen",
+  empfand: "empfindet",
+  empfanden: "empfinden",
+  befahl: "befiehlt",
+  befahlen: "befehlen",
+  half: "hilft",
+  halfen: "helfen",
+  warf: "wirft",
+  warfen: "werfen",
+  starrte2: "starrt",
+  las: "liest",
+  lasen: "lesen",
+  a\u00DF: "isst",
+  a\u00DFen: "essen",
+  bat: "bittet",
+  baten: "bitten"
+};
+var VERB_INFINITIVE = new Set(GRUND.split(/\s+/).map((w) => w.trim()).filter((w) => w.length > 2));
+
+// src/generation/verben.ts
+var STARK = {
+  // sein · haben · werden · wissen · tun · Modalverben
+  ist: ["bin", "bist", "sind", "seid"],
+  hat: ["habe", "hast", "haben", "habt"],
+  wird: ["werde", "wirst", "werden", "werdet"],
+  wei\u00DF: ["wei\xDF", "wei\xDFt", "wissen", "wisst"],
+  tut: ["tue", "tust", "tun", "tut"],
+  kann: ["kann", "kannst", "k\xF6nnen", "k\xF6nnt"],
+  muss: ["muss", "musst", "m\xFCssen", "m\xFCsst"],
+  will: ["will", "willst", "wollen", "wollt"],
+  soll: ["soll", "sollst", "sollen", "sollt"],
+  darf: ["darf", "darfst", "d\xFCrfen", "d\xFCrft"],
+  mag: ["mag", "magst", "m\xF6gen", "m\xF6gt"],
+  // a → ä
+  h\u00E4lt: ["halte", "h\xE4ltst", "halten", "haltet"],
+  f\u00E4llt: ["falle", "f\xE4llst", "fallen", "fallt"],
+  tr\u00E4gt: ["trage", "tr\xE4gst", "tragen", "tragt"],
+  l\u00E4uft: ["laufe", "l\xE4ufst", "laufen", "lauft"],
+  schl\u00E4ft: ["schlafe", "schl\xE4fst", "schlafen", "schlaft"],
+  f\u00E4ngt: ["fange", "f\xE4ngst", "fangen", "fangt"],
+  l\u00E4sst: ["lasse", "l\xE4sst", "lassen", "lasst"],
+  w\u00E4chst: ["wachse", "w\xE4chst", "wachsen", "wachst"],
+  gr\u00E4bt: ["grabe", "gr\xE4bst", "graben", "grabt"],
+  schl\u00E4gt: ["schlage", "schl\xE4gst", "schlagen", "schlagt"],
+  r\u00E4t: ["rate", "r\xE4tst", "raten", "ratet"],
+  bl\u00E4st: ["blase", "bl\xE4st", "blasen", "blast"],
+  st\u00F6\u00DFt: ["sto\xDFe", "st\xF6\xDFt", "sto\xDFen", "sto\xDFt"],
+  f\u00E4hrt: ["fahre", "f\xE4hrst", "fahren", "fahrt"],
+  w\u00E4scht: ["wasche", "w\xE4schst", "waschen", "wascht"],
+  l\u00E4dt: ["lade", "l\xE4dst", "laden", "ladet"],
+  s\u00E4uft: ["saufe", "s\xE4ufst", "saufen", "sauft"],
+  // e → i / ie
+  gibt: ["gebe", "gibst", "geben", "gebt"],
+  nimmt: ["nehme", "nimmst", "nehmen", "nehmt"],
+  spricht: ["spreche", "sprichst", "sprechen", "sprecht"],
+  bricht: ["breche", "brichst", "brechen", "brecht"],
+  sieht: ["sehe", "siehst", "sehen", "seht"],
+  liest: ["lese", "liest", "lesen", "lest"],
+  isst: ["esse", "isst", "essen", "esst"],
+  frisst: ["fresse", "frisst", "fressen", "fresst"],
+  misst: ["messe", "misst", "messen", "messt"],
+  vergisst: ["vergesse", "vergisst", "vergessen", "vergesst"],
+  hilft: ["helfe", "hilfst", "helfen", "helft"],
+  stirbt: ["sterbe", "stirbst", "sterben", "sterbt"],
+  wirft: ["werfe", "wirfst", "werfen", "werft"],
+  trifft: ["treffe", "triffst", "treffen", "trefft"],
+  gilt: ["gelte", "giltst", "gelten", "geltet"],
+  tritt: ["trete", "trittst", "treten", "tretet"],
+  birgt: ["berge", "birgst", "bergen", "bergt"],
+  quillt: ["quelle", "quillst", "quellen", "quellt"],
+  schilt: ["schelte", "schiltst", "schelten", "scheltet"],
+  ficht: ["fechte", "fichtst", "fechten", "fechtet"],
+  flicht: ["flechte", "flichtst", "flechten", "flechtet"],
+  verdirbt: ["verderbe", "verdirbst", "verderben", "verderbt"],
+  wirbt: ["werbe", "wirbst", "werben", "werbt"],
+  erschrickt: ["erschrecke", "erschrickst", "erschrecken", "erschreckt"],
+  sticht: ["steche", "stichst", "stechen", "stecht"],
+  schmilzt: ["schmelze", "schmilzt", "schmelzen", "schmelzt"],
+  befiehlt: ["befehle", "befiehlst", "befehlen", "befehlt"],
+  stiehlt: ["stehle", "stiehlst", "stehlen", "stehlt"],
+  empfiehlt: ["empfehle", "empfiehlst", "empfehlen", "empfehlt"],
+  geschieht: ["geschehe", "geschiehst", "geschehen", "gescheht"],
+  gebiert: ["geb\xE4re", "gebierst", "geb\xE4ren", "geb\xE4rt"],
+  schwillt: ["schwelle", "schwillst", "schwellen", "schwellt"]
+};
+var PRAEFIXE = [
+  "zusammen",
+  "zur\xFCck",
+  "wieder",
+  "gegen",
+  "hinter",
+  "durch",
+  "unter",
+  "\xFCber",
+  "voran",
+  "vorbei",
+  "heraus",
+  "herein",
+  "hinaus",
+  "hinein",
+  "herum",
+  "hinauf",
+  "hinab",
+  "herab",
+  "empor",
+  "fort",
+  "los",
+  "weg",
+  "fest",
+  "her",
+  "hin",
+  "ver",
+  "ent",
+  "emp",
+  "miss",
+  "zer",
+  "be",
+  "er",
+  "ge",
+  "an",
+  "ab",
+  "auf",
+  "aus",
+  "ein",
+  "mit",
+  "nach",
+  "vor",
+  "zu",
+  "um",
+  "bei",
+  "da",
+  "wider"
+];
+var KEIN_VERB = /* @__PURE__ */ new Set([
+  "alt",
+  "kalt",
+  "laut",
+  "bunt",
+  "hart",
+  "zart",
+  "satt",
+  "glatt",
+  "weit",
+  "breit",
+  "rot",
+  "tot",
+  "gut",
+  "sp\xE4t",
+  "echt",
+  "leicht",
+  "dicht",
+  "recht",
+  "schlecht",
+  "nackt",
+  "fest",
+  "letzt",
+  "jetzt",
+  "sanft",
+  "ernst",
+  "wert",
+  "seit",
+  "statt",
+  "samt",
+  "nicht",
+  "mit",
+  "seid",
+  "zuletzt",
+  "zuerst",
+  "oft",
+  "fast",
+  "erst",
+  "sonst",
+  "meist",
+  "direkt",
+  "dort",
+  "fort",
+  "sofort",
+  "selbst",
+  "vielleicht",
+  "\xFCberhaupt",
+  "bereit",
+  "gerecht",
+  "perfekt",
+  "exakt",
+  "absolut",
+  "gesamt",
+  "komplett",
+  "verr\xFCckt",
+  "bekannt",
+  "geschickt",
+  "welt",
+  "zeit",
+  "nacht",
+  "stadt",
+  "acht",
+  "licht",
+  "wort",
+  "ort",
+  "blut",
+  "brot",
+  "mut",
+  "hut",
+  "gebet",
+  "geist",
+  "gott",
+  "kraft",
+  "luft",
+  "haut",
+  "haft",
+  "gift",
+  "schrift",
+  "frucht",
+  "flucht",
+  "sicht",
+  "pflicht",
+  "angst",
+  "kunst",
+  "dienst",
+  "frost",
+  "post",
+  "ost",
+  "west",
+  "rest",
+  "test",
+  "text",
+  "w\xFCst",
+  "getrennt",
+  "gemischt",
+  "gebrannt",
+  "verschwunden",
+  "gewohnt",
+  "gelaunt",
+  "ber\xFChmt",
+  "geliebt",
+  "gelebt",
+  "gedacht",
+  "gemacht",
+  "gebracht",
+  "gesagt",
+  "gesucht",
+  "gehabt",
+  "gewusst",
+  "gekannt",
+  "genannt",
+  "benannt",
+  "gewollt",
+  "verboten",
+  "ge\xF6ffnet",
+  "ungeahnt",
+  "gestern",
+  "heut",
+  "abrupt",
+  "ad\xE4quat",
+  "privat",
+  "intakt",
+  "korrekt",
+  "konkret",
+  "moderat",
+  "elegant",
+  "brillant",
+  "tolerant",
+  "relevant",
+  "markant",
+  "rasant",
+  "galant",
+  "latent",
+  "dezent",
+  "prominent",
+  "kompetent",
+  "konsequent",
+  "permanent",
+  "evident",
+  "eloquent",
+  "intelligent",
+  "gespannt",
+  "entspannt",
+  "gewandt",
+  "verwandt",
+  "bewusst",
+  "unbewusst",
+  "robust",
+  "abstrakt",
+  "kompakt",
+  "exakt",
+  "defekt",
+  "perfekt",
+  "insgesamt",
+  "total"
+]);
+var SIBILANT = /(s|ß|z|x|tz|ss)$/;
+var GE_VERBEN = /^ge(ht|nügt|hört|horcht|lingt|winnt|langt|schieht|steht|rät|nießt|wöhnt|fährdet|währt|stattet|staltet|denkt|bietet|braucht|hörcht|nest|reicht|dulde?t|fällt|deiht|lobt|leitet|langt|winnt|behrt|bärt|fried[e]?t|fällt|lüstet|mahnt|rinnt|hört)$/;
+function starkMitPraefix(form) {
+  if (STARK[form]) return ["", STARK[form]];
+  for (const p of PRAEFIXE) {
+    if (form.startsWith(p) && form.length > p.length + 2) {
+      const rest = form.slice(p.length);
+      if (STARK[rest]) return [p, STARK[rest]];
+    }
+  }
+  return null;
+}
+function kenntInfinitiv(wort) {
+  const w = wort.toLowerCase();
+  if (VERB_INFINITIVE.has(w)) return true;
+  for (const p of VERB_PRAEFIXE) {
+    if (w.startsWith(p) && w.length > p.length + 3 && VERB_INFINITIVE.has(w.slice(p.length))) return true;
+  }
+  return false;
+}
+function infinitivZuStamm(stamm) {
+  const s = stamm.toLowerCase();
+  if (!s) return null;
+  const kandidaten = [s + "en", s + "n", s + "eln", s + "ern"];
+  if (/e[lr]$/.test(s)) kandidaten.unshift(s + "n");
+  const st = starkMitPraefix(s + "t");
+  if (st) return st[0] + st[1][2];
+  for (const k of kandidaten) if (kenntInfinitiv(k)) return k;
+  return null;
+}
+function istLexikonVerb(wort) {
+  const w = wort.toLowerCase().replace(/[^a-zäöüß]/g, "");
+  if (!w || w.length < 3) return false;
+  if (starkMitPraefix(w)) return true;
+  if (kenntInfinitiv(w)) return true;
+  if (PAST2PRES[w]) return true;
+  if (/^(bin|bist|sind|seid|habe|hast|habt|werde|wirst|werdet|wäre|wären|hätte|hätten|würde|würden|sei|seien)$/.test(w)) return true;
+  for (const suffix of ["etest", "test", "eten", "ten", "ete", "te", "est", "st", "et", "en", "t", "e", "tet"]) {
+    if (!w.endsWith(suffix) || w.length - suffix.length < 2) continue;
+    const st = w.slice(0, -suffix.length);
+    if (/ier$/.test(st)) return true;
+    if (infinitivZuStamm(st)) return true;
+  }
+  const pz = w.match(/^(?:[a-zäöü]{2,8})?ge(.+?)(?:t|en)$/);
+  if (pz && infinitivZuStamm(pz[1])) return true;
+  return false;
+}
+function istVerbform(wort) {
+  const w = wort.toLowerCase();
+  if (starkMitPraefix(w)) return true;
+  if (KEIN_VERB.has(w)) return false;
+  if (/^[a-zäöüß]{3,}(t|st|e|en)$/.test(w) && istLexikonVerb(w)) return true;
+  if (!/^[a-zäöüß]{3,}t$/.test(w)) return false;
+  if (/^ge[a-zäöüß]{2,}t$/.test(w)) return GE_VERBEN.test(w);
+  return true;
+}
+function beugeVerb(form3, person) {
+  const gross = /^[A-ZÄÖÜ]/.test(form3);
+  const w = form3.toLowerCase();
+  const fertig = (s) => gross ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  if (person === "er" || person === "sie") return istVerbform(w) ? form3 : null;
+  const st = starkMitPraefix(w);
+  if (st) {
+    const [p, [ich, du, wir, ihr]] = st;
+    const f = person === "ich" ? ich : person === "du" ? du : person === "wir" ? wir : ihr || wir.replace(/e?n$/, "t");
+    return fertig(p + f);
+  }
+  if (!istVerbform(w)) return null;
+  let stamm = w.slice(0, -1);
+  const bindevokal = /[td]et$/.test(w) || /(chn|ffn|gn|tm|dm|ckn|kn)et$/.test(w);
+  if (bindevokal) stamm = w.slice(0, -2);
+  if (person === "ihr") return fertig(w);
+  if (person === "wir") {
+    if (/e[lr]$/.test(stamm)) return fertig(stamm + "n");
+    return fertig(stamm + "en");
+  }
+  if (person === "du") {
+    if (bindevokal) return fertig(stamm + "est");
+    if (SIBILANT.test(stamm)) return fertig(w);
+    return fertig(stamm + "st");
+  }
+  if (/el$/.test(stamm)) return fertig(stamm.slice(0, -2) + "le");
+  return fertig(stamm + "e");
+}
+
+// src/generation/nouns.data.ts
+var NOUN_GENDER = {
+  "abdruck": "m",
+  "abend": "m",
+  "abgrund": "m",
+  "absatz": "m",
+  "abschalten": "n",
+  "abstand": "m",
+  "acker": "m",
+  "ader": "f",
+  "adressbuch": "n",
+  "adresse": "f",
+  "ahnung": "f",
+  "airpod": "m",
+  "akku": "m",
+  "akte": "f",
+  "aktendeckel": "m",
+  "aktennotiz": "f",
+  "allee": "f",
+  "alptraum": "m",
+  "altar": "m",
+  "alte": "f",
+  "alter": "n",
+  "amt": "n",
+  "amulett": "n",
+  "angebot": "n",
+  "angst": "f",
+  "anker": "m",
+  "antenne": "f",
+  "antrag": "m",
+  "antwort": "f",
+  "apfel": "m",
+  "applaus": "m",
+  "archiv": "n",
+  "arm": "m",
+  "armband": "n",
+  "armbrust": "f",
+  "art": "f",
+  "arzt": "m",
+  "asche": "f",
+  "ast": "m",
+  "atelier": "n",
+  "atem": "m",
+  "atmosph\xE4re": "f",
+  "aufkleber": "m",
+  "aufnahme": "f",
+  "auftrag": "m",
+  "auge": "n",
+  "augenblick": "m",
+  "augenlid": "n",
+  "ausdehnung": "f",
+  "ausgang": "m",
+  "ausnahme": "f",
+  "ausrede": "f",
+  "ausweis": "m",
+  "axiom": "n",
+  "baby": "n",
+  "bach": "m",
+  "backup": "n",
+  "badeanstalt": "f",
+  "bahn": "f",
+  "bahnkarte": "f",
+  "balkon": "m",
+  "ball": "m",
+  "ballade": "f",
+  "band": "n",
+  "bank": "f",
+  "banner": "n",
+  "basecap": "n",
+  "bau": "m",
+  "bauch": "m",
+  "bauer": "m",
+  "baum": "m",
+  "becher": "m",
+  "befehl": "m",
+  "begriff": "m",
+  "beil": "n",
+  "bein": "n",
+  "benachrichtigung": "f",
+  "berg": "m",
+  "bergfried": "m",
+  "bericht": "m",
+  "bescheid": "m",
+  "beschluss": "m",
+  "besen": "m",
+  "besitz": "m",
+  "bestand": "m",
+  "besuch": "m",
+  "betonprobe": "f",
+  "bett": "n",
+  "beutel": "m",
+  "beweis": "m",
+  "bibel": "f",
+  "bibliothek": "f",
+  "biene": "f",
+  "bild": "n",
+  "bildschirm": "m",
+  "binde": "f",
+  "birne": "f",
+  "blatt": "n",
+  "blechb\xFCchse": "f",
+  "blechdose": "f",
+  "blechkanne": "f",
+  "blechtrompete": "f",
+  "blei": "n",
+  "bleistift": "m",
+  "blende": "f",
+  "blick": "m",
+  "blitz": "m",
+  "blume": "f",
+  "blumenstrau\xDF": "m",
+  "bluse": "f",
+  "bl\xFCte": "f",
+  "boden": "m",
+  "bohne": "f",
+  "bohrkern": "m",
+  "bohrprobe": "f",
+  "boje": "f",
+  "bonbon": "n",
+  "boot": "n",
+  "bote": "m",
+  "botschaft": "f",
+  "braten": "m",
+  "braue": "f",
+  "brett": "n",
+  "brief": "m",
+  "briefumschlag": "m",
+  "brille": "f",
+  "brot": "n",
+  "brotdose": "f",
+  "brotlaib": "m",
+  "bruch": "m",
+  "bruder": "m",
+  "brunnen": "m",
+  "brust": "f",
+  "br\xFCcke": "f",
+  "br\xFChe": "f",
+  "buch": "n",
+  "buchstabe": "m",
+  "bucht": "f",
+  "bug": "m",
+  "burg": "f",
+  "bus": "m",
+  "busch": "m",
+  "butter": "f",
+  "b\xE4r": "m",
+  "b\xFChne": "f",
+  "b\xFCndel": "n",
+  "b\xFCrde": "f",
+  "cache": "m",
+  "cadtablet": "n",
+  "caf": "n",
+  "caf\xE9": "n",
+  "chat": "m",
+  "clown": "m",
+  "computer": "m",
+  "container": "m",
+  "couch": "f",
+  "dach": "n",
+  "dachboden": "m",
+  "dame": "f",
+  "damm": "m",
+  "dashboard": "n",
+  "datei": "f",
+  "dattel": "f",
+  "datum": "n",
+  "daumen": "m",
+  "deck": "n",
+  "decke": "f",
+  "deckel": "m",
+  "denkmalschutz": "m",
+  "deo": "n",
+  "detail": "n",
+  "detektor": "m",
+  "detektorkopf": "m",
+  "dewar": "m",
+  "diagramm": "n",
+  "dichter": "m",
+  "dieb": "m",
+  "dienst": "m",
+  "direktor": "m",
+  "dnaspirale": "f",
+  "dokument": "n",
+  "dolch": "m",
+  "donner": "m",
+  "dorf": "n",
+  "dorn": "m",
+  "dose": "f",
+  "draht": "m",
+  "droschke": "f",
+  "druck": "m",
+  "duell": "n",
+  "duft": "m",
+  "durchsage": "f",
+  "durchschlag": "m",
+  "d\xE4mmerung": "f",
+  "ebbe": "f",
+  "ebene": "f",
+  "echo": "n",
+  "ecke": "f",
+  "ehre": "f",
+  "ei": "n",
+  "eid": "m",
+  "einspruch": "m",
+  "eis": "n",
+  "eisen": "n",
+  "elch": "m",
+  "elend": "n",
+  "ellbogen": "m",
+  "emoji": "n",
+  "engel": "m",
+  "enkel": "m",
+  "ente": "f",
+  "entwurf": "m",
+  "ephemeride": "f",
+  "erbe": "n",
+  "erbse": "f",
+  "erdbeben": "n",
+  "erde": "f",
+  "erinnerung": "f",
+  "etikett": "n",
+  "eule": "f",
+  "ewigkeit": "f",
+  "fabel": "f",
+  "fabrik": "f",
+  "fackel": "f",
+  "faden": "m",
+  "fahne": "f",
+  "fahrschein": "m",
+  "fahrt": "f",
+  "falle": "f",
+  "falte": "f",
+  "farbe": "f",
+  "farbenscheibe": "f",
+  "fass": "n",
+  "faust": "f",
+  "feder": "f",
+  "federkiel": "m",
+  "fee": "f",
+  "fehlercode": "m",
+  "feile": "f",
+  "feind": "m",
+  "feld": "n",
+  "feldbesteck": "n",
+  "felder": "n",
+  "fell": "n",
+  "fellhandschuh": "m",
+  "fels": "m",
+  "felsen": "m",
+  "fenster": "n",
+  "fensterplatz": "m",
+  "ferkel": "n",
+  "ferne": "f",
+  "fernglas": "n",
+  "fernrohr": "n",
+  "ferse": "f",
+  "fessel": "f",
+  "festung": "f",
+  "feuer": "n",
+  "feuerzeug": "n",
+  "fibel": "f",
+  "fieber": "n",
+  "filter": "m",
+  "finger": "m",
+  "fingerhut": "m",
+  "fisch": "m",
+  "fischer": "m",
+  "flakon": "m",
+  "flasche": "f",
+  "flaute": "f",
+  "fleisch": "n",
+  "fliege": "f",
+  "flo\xDF": "n",
+  "fluch": "m",
+  "flucht": "f",
+  "flur": "m",
+  "fluss": "m",
+  "flut": "f",
+  "fl\xE4che": "f",
+  "fl\xF6te": "f",
+  "fl\xFCstern": "n",
+  "formel": "f",
+  "formular": "n",
+  "fossil": "n",
+  "fossilie": "f",
+  "foto": "n",
+  "fotografie": "f",
+  "frachtbrief": "m",
+  "frage": "f",
+  "frau": "f",
+  "freude": "f",
+  "freund": "m",
+  "frist": "f",
+  "frost": "m",
+  "frucht": "f",
+  "fr\xFChling": "m",
+  "fuchs": "m",
+  "fuge": "f",
+  "fund": "m",
+  "fundament": "n",
+  "funke": "m",
+  "funkger\xE4t": "n",
+  "furcht": "f",
+  "furt": "f",
+  "fu\xDF": "m",
+  "f\xE4hrmann": "m",
+  "f\xE4hrplan": "m",
+  "f\xE4sser": "n",
+  "f\xFCrst": "m",
+  "gabe": "f",
+  "gabel": "f",
+  "gabelung": "f",
+  "galaxie": "f",
+  "gang": "m",
+  "gans": "f",
+  "garn": "n",
+  "garten": "m",
+  "gasse": "f",
+  "gast": "m",
+  "gebet": "n",
+  "gebetbuch": "n",
+  "gebete": "n",
+  "gebetsschale": "f",
+  "gebirge": "n",
+  "geb\xE4lk": "n",
+  "geb\xE4ude": "n",
+  "gedanke": "m",
+  "gedanken": "m",
+  "gedicht": "n",
+  "gedichte": "n",
+  "geduld": "f",
+  "gefahr": "f",
+  "gef\xFChl": "n",
+  "gef\xFChlen": "n",
+  "gegend": "f",
+  "gegensatz": "m",
+  "gegenstand": "m",
+  "gegens\xE4tze": "m",
+  "gegenteil": "n",
+  "gegenwart": "f",
+  "gegners": "m",
+  "geheimnis": "n",
+  "gehirn": "n",
+  "geh\xE4use": "n",
+  "geige": "f",
+  "geist": "m",
+  "geleitbrief": "m",
+  "gel\xE4nde": "n",
+  "gel\xFCbde": "n",
+  "gemach": "n",
+  "gem\xE4lde": "n",
+  "gem\xFCse": "n",
+  "gep\xE4ck": "n",
+  "gericht": "n",
+  "geruch": "m",
+  "ger\xE4t": "n",
+  "ger\xE4usch": "n",
+  "ger\xE4usche": "n",
+  "ger\xF6ll": "n",
+  "ger\xFCcht": "n",
+  "ger\xFCchte": "n",
+  "ger\xFCst": "n",
+  "gesangbuch": "n",
+  "geschenk": "n",
+  "geschichte": "f",
+  "geschichten": "f",
+  "geschmack": "m",
+  "gesetz": "n",
+  "gesetze": "n",
+  "gesetzen": "n",
+  "gesetzes": "n",
+  "gesetzestext": "m",
+  "gesicht": "n",
+  "gesichter": "n",
+  "gespr\xE4ch": "n",
+  "gestalt": "f",
+  "gestalten": "f",
+  "geste": "f",
+  "gestein": "n",
+  "gesteinsschichten": "f",
+  "getreide": "n",
+  "getreidek\xF6rner": "n",
+  "gewand": "n",
+  "gewebe": "n",
+  "gewehr": "n",
+  "gewehre": "n",
+  "geweih": "n",
+  "gewicht": "n",
+  "gewichte": "n",
+  "gewissen": "n",
+  "gew\xF6lbe": "n",
+  "gezeiten": "f",
+  "gier": "f",
+  "gie\xDFkanne": "f",
+  "gift": "n",
+  "gipfel": "m",
+  "gitter": "n",
+  "glas": "n",
+  "glasplatte": "f",
+  "glaube": "m",
+  "gleichung": "f",
+  "gletscher": "m",
+  "glocke": "f",
+  "gl\xFCck": "n",
+  "gold": "n",
+  "gott": "m",
+  "grab": "n",
+  "graben": "m",
+  "granitblock": "m",
+  "grenze": "f",
+  "grotte": "f",
+  "grund": "m",
+  "grundrissplan": "m",
+  "gruppe": "f",
+  "gruppenchat": "m",
+  "gurke": "f",
+  "g\xF6tter": "m",
+  "g\xF6ttin": "f",
+  "g\xFCrtel": "m",
+  "haar": "n",
+  "haarnadel": "f",
+  "hafen": "m",
+  "hagel": "m",
+  "hahn": "m",
+  "hain": "m",
+  "haken": "m",
+  "halde": "f",
+  "hall": "m",
+  "halle": "f",
+  "hals": "m",
+  "halter": "m",
+  "hammer": "m",
+  "hand": "f",
+  "handbuch": "n",
+  "handkarren": "m",
+  "handschuh": "m",
+  "handschuhspitze": "f",
+  "handvoll": "f",
+  "handy": "n",
+  "hang": "m",
+  "harfe": "f",
+  "harpune": "f",
+  "hase": "m",
+  "hass": "m",
+  "haus": "n",
+  "haut": "f",
+  "hecke": "f",
+  "heft": "n",
+  "held": "m",
+  "helm": "m",
+  "hemd": "n",
+  "henne": "f",
+  "herbst": "m",
+  "herd": "m",
+  "herr": "m",
+  "herrscherstab": "m",
+  "herz": "n",
+  "herzschlag": "m",
+  "heuer": "f",
+  "hexe": "f",
+  "hierarchie": "f",
+  "himmel": "m",
+  "hintergrund": "m",
+  "hintert\xFCr": "f",
+  "hirn": "n",
+  "hirsch": "m",
+  "hirtenstab": "m",
+  "hof": "m",
+  "hoffnung": "f",
+  "holz": "n",
+  "honig": "m",
+  "hoodie": "m",
+  "horn": "n",
+  "hose": "f",
+  "huhn": "n",
+  "hund": "m",
+  "hut": "m",
+  "h\xE4user": "n",
+  "h\xF6henmesser": "m",
+  "h\xF6hle": "f",
+  "h\xFCfte": "f",
+  "h\xFCgel": "m",
+  "h\xFCtte": "f",
+  "igel": "m",
+  "index": "m",
+  "insekt": "n",
+  "insel": "f",
+  "instanz": "f",
+  "instastory": "f",
+  "instrument": "n",
+  "interferometer": "n",
+  "jacke": "f",
+  "jazz": "m",
+  "junge": "m",
+  "justiergewicht": "n",
+  "j\xE4ger": "m",
+  "kabel": "n",
+  "kaffee": "m",
+  "kai": "m",
+  "kaiser": "m",
+  "kalb": "n",
+  "kalender": "m",
+  "kamin": "m",
+  "kaminfeuer": "n",
+  "kammer": "f",
+  "kampf": "m",
+  "kanal": "m",
+  "kaninchen": "n",
+  "kanister": "m",
+  "kanne": "f",
+  "kanten": "m",
+  "kapelle": "f",
+  "kapit\xE4n": "m",
+  "karawane": "f",
+  "karotte": "f",
+  "karte": "f",
+  "karteikarte": "f",
+  "kartoffel": "f",
+  "kassenbuch": "n",
+  "kathedrale": "f",
+  "katze": "f",
+  "kaugummi": "m",
+  "kehle": "f",
+  "kelch": "m",
+  "kelle": "f",
+  "keller": "m",
+  "kerze": "f",
+  "kessel": "m",
+  "kette": "f",
+  "kettenhemd": "n",
+  "kiefer": "m",
+  "kiel": "m",
+  "kies": "m",
+  "kilometer": "m",
+  "kind": "n",
+  "kinder": "n",
+  "kinderspielzeug": "n",
+  "kinn": "n",
+  "kirche": "f",
+  "kirsche": "f",
+  "kissen": "n",
+  "kiste": "f",
+  "klammer": "f",
+  "klang": "m",
+  "klaue": "f",
+  "klavier": "n",
+  "kleid": "n",
+  "kleidersack": "m",
+  "kleingeldfach": "n",
+  "kleinod": "n",
+  "klinge": "f",
+  "klingel": "f",
+  "klippe": "f",
+  "klopfen": "n",
+  "knabe": "m",
+  "knie": "n",
+  "knochen": "m",
+  "knopf": "m",
+  "knospe": "f",
+  "knoten": "m",
+  "kn\xE4uel": "n",
+  "kn\xF6chel": "m",
+  "koffer": "m",
+  "kohleneimer": "m",
+  "kohleschale": "f",
+  "kollege": "m",
+  "kollegheft": "n",
+  "kollektiv": "n",
+  "kolonie": "f",
+  "komet": "m",
+  "kommentar": "m",
+  "kommissar": "m",
+  "kompass": "m",
+  "kompressor": "m",
+  "konstante": "f",
+  "konto": "n",
+  "kontobuch": "n",
+  "kontor": "n",
+  "kontorbuch": "n",
+  "kontostand": "m",
+  "kopf": "m",
+  "kopfh\xF6rer": "m",
+  "kopie": "f",
+  "korb": "m",
+  "korken": "m",
+  "korn": "n",
+  "kraft": "f",
+  "kran": "m",
+  "krater": "m",
+  "kreide": "f",
+  "kreis": "m",
+  "kreuz": "n",
+  "kreuzung": "f",
+  "kribbeln": "n",
+  "krieg": "m",
+  "krieger": "m",
+  "kristall": "m",
+  "krone": "f",
+  "krug": "m",
+  "kr\xE4he": "f",
+  "kuchen": "m",
+  "kuh": "f",
+  "kupfer": "n",
+  "kuppel": "f",
+  "kurbel": "f",
+  "kurve": "f",
+  "kuss": "m",
+  "kutsche": "f",
+  "kuvert": "n",
+  "k\xE4fer": "m",
+  "k\xE4lte": "f",
+  "k\xE4se": "m",
+  "k\xF6nig": "m",
+  "k\xF6nigin": "f",
+  "k\xF6rper": "m",
+  "k\xFCche": "f",
+  "k\xFChlbox": "f",
+  "k\xFChlfalle": "f",
+  "k\xFCken": "n",
+  "k\xFCste": "f",
+  "labyrinth": "n",
+  "ladebalken": "m",
+  "ladekabel": "n",
+  "ladeliste": "f",
+  "lager": "n",
+  "lagune": "f",
+  "laib": "m",
+  "lamm": "n",
+  "lampe": "f",
+  "land": "n",
+  "lanze": "f",
+  "laterne": "f",
+  "laub": "n",
+  "laufzettel": "m",
+  "laute": "f",
+  "lawine": "f",
+  "leder": "n",
+  "lederbeutel": "m",
+  "legende": "f",
+  "lehen": "n",
+  "lehrer": "m",
+  "leid": "n",
+  "leine": "f",
+  "leitdetail": "n",
+  "leitung": "f",
+  "leuchten": "n",
+  "leuchtturm": "m",
+  "licht": "n",
+  "lichtstreifen": "m",
+  "lider": "n",
+  "liebe": "f",
+  "lied": "n",
+  "lilie": "f",
+  "lineal": "n",
+  "linie": "f",
+  "lippe": "f",
+  "liste": "f",
+  "loch": "n",
+  "locke": "f",
+  "log": "n",
+  "logbuch": "n",
+  "logfile": "n",
+  "los": "n",
+  "lot": "n",
+  "luft": "f",
+  "lupe": "f",
+  "lust": "f",
+  "l\xE4cheln": "n",
+  "l\xE4nder": "n",
+  "l\xE4rm": "m",
+  "l\xF6cher": "n",
+  "l\xF6ffel": "m",
+  "l\xF6we": "m",
+  "l\xFCcke": "f",
+  "l\xFCge": "f",
+  "macht": "f",
+  "magen": "m",
+  "mala": "f",
+  "maler": "m",
+  "manege": "f",
+  "manifest": "n",
+  "mann": "m",
+  "mantel": "m",
+  "manuskript": "n",
+  "mappe": "f",
+  "marmelade": "f",
+  "masche": "f",
+  "maschine": "f",
+  "maske": "f",
+  "mast": "m",
+  "matte": "f",
+  "mauer": "f",
+  "maus": "f",
+  "ma\xDF": "n",
+  "ma\xDFband": "n",
+  "ma\xDFstab": "m",
+  "medaillon": "n",
+  "meer": "n",
+  "mehl": "n",
+  "mei\xDFel": "m",
+  "melodie": "f",
+  "meme": "n",
+  "menge": "f",
+  "merkblatt": "n",
+  "messer": "n",
+  "messprotokoll": "n",
+  "messreihe": "f",
+  "messung": "f",
+  "metall": "n",
+  "meter": "m",
+  "metronom": "n",
+  "miene": "f",
+  "mikrofon": "n",
+  "mikroskop": "n",
+  "milch": "f",
+  "millimeter": "m",
+  "minute": "f",
+  "mitleid": "n",
+  "mittag": "m",
+  "mittel": "n",
+  "mitternacht": "f",
+  "modell": "n",
+  "modellplaneten": "m",
+  "moment": "m",
+  "monat": "m",
+  "mond": "m",
+  "moor": "n",
+  "morgen": "m",
+  "moschee": "f",
+  "motor": "m",
+  "mus": "n",
+  "muschel": "f",
+  "muskel": "m",
+  "muster": "n",
+  "mut": "m",
+  "mutter": "f",
+  "m\xE4dchen": "n",
+  "m\xE4hne": "f",
+  "m\xF6hre": "f",
+  "m\xF6nch": "m",
+  "m\xF6rder": "m",
+  "m\xF6we": "f",
+  "m\xFCcke": "f",
+  "m\xFChle": "f",
+  "m\xFCller": "m",
+  "m\xFCnze": "f",
+  "m\xFCtze": "f",
+  "nachbar": "m",
+  "nachbarort": "m",
+  "nachlass": "m",
+  "nachmittag": "m",
+  "nachricht": "f",
+  "nacht": "f",
+  "nachtigall": "f",
+  "nacken": "m",
+  "nadel": "f",
+  "nadelkissen": "n",
+  "nagel": "m",
+  "naht": "f",
+  "name": "m",
+  "napf": "m",
+  "narbe": "f",
+  "nase": "f",
+  "nebel": "m",
+  "neffe": "m",
+  "neid": "m",
+  "neigung": "f",
+  "neigungsmesser": "m",
+  "nelke": "f",
+  "nest": "n",
+  "nester": "n",
+  "netz": "n",
+  "nische": "f",
+  "nonne": "f",
+  "note": "f",
+  "notenblatt": "n",
+  "notiz": "f",
+  "notizblock": "m",
+  "notizbuch": "n",
+  "nummer": "f",
+  "nuss": "f",
+  "nymphe": "f",
+  "n\xE4he": "f",
+  "obst": "n",
+  "ofen": "m",
+  "ohr": "n",
+  "oma": "f",
+  "omen": "n",
+  "onkel": "m",
+  "opfer": "n",
+  "opferschale": "f",
+  "opiumdose": "f",
+  "orakel": "n",
+  "orange": "f",
+  "organ": "n",
+  "orgel": "f",
+  "ort": "m",
+  "ozean": "m",
+  "paar": "n",
+  "paket": "n",
+  "pakt": "m",
+  "papier": "n",
+  "paradoxon": "n",
+  "paragraph": "m",
+  "parameter": "m",
+  "park": "m",
+  "passagier": "m",
+  "passierschein": "m",
+  "pegelstab": "m",
+  "peilstock": "m",
+  "peitsche": "f",
+  "pendel": "n",
+  "pergamentrolle": "f",
+  "perle": "f",
+  "perlmuttknopf": "m",
+  "person": "f",
+  "petrischale": "f",
+  "petroleumlampe": "f",
+  "pfad": "m",
+  "pfand": "n",
+  "pfandschein": "m",
+  "pfeffer": "m",
+  "pfeife": "f",
+  "pferd": "n",
+  "pfirsich": "m",
+  "pflaster": "n",
+  "pflaume": "f",
+  "pflug": "m",
+  "pf\xFCtze": "f",
+  "phiole": "f",
+  "photoplatte": "f",
+  "pickel": "m",
+  "pilz": "m",
+  "ping": "m",
+  "pinzette": "f",
+  "pipette": "f",
+  "plakat": "n",
+  "plan": "m",
+  "plane": "f",
+  "planet": "m",
+  "planke": "f",
+  "platte": "f",
+  "platz": "m",
+  "platzhalter": "m",
+  "poller": "m",
+  "port": "m",
+  "portal": "n",
+  "postkarte": "f",
+  "powerbank": "f",
+  "priester": "m",
+  "prisma": "n",
+  "probe": "f",
+  "programm": "n",
+  "protokoll": "n",
+  "prozess": "m",
+  "puls": "m",
+  "pulver": "n",
+  "punkt": "m",
+  "puppe": "f",
+  "qualle": "f",
+  "quelle": "f",
+  "quittung": "f",
+  "rad": "n",
+  "rampe": "f",
+  "rand": "m",
+  "randnotiz": "f",
+  "ranke": "f",
+  "ranzen": "m",
+  "ratte": "f",
+  "rauch": "m",
+  "raumkapsel": "f",
+  "rausch": "m",
+  "rauschen": "n",
+  "rechentafel": "f",
+  "recht": "n",
+  "regal": "n",
+  "regel": "f",
+  "regen": "m",
+  "regenmesser": "m",
+  "register": "n",
+  "reh": "n",
+  "reich": "n",
+  "reif": "m",
+  "reigen": "m",
+  "reihe": "f",
+  "reinraumhaube": "f",
+  "reise": "f",
+  "reisemantel": "m",
+  "rei\xDFverschluss": "m",
+  "reklame": "f",
+  "rest": "m",
+  "rettung": "f",
+  "rezept": "n",
+  "richter": "m",
+  "riegel": "m",
+  "riff": "n",
+  "rinde": "f",
+  "ring": "m",
+  "rippe": "f",
+  "riss": "m",
+  "ritter": "m",
+  "ritterhelm": "m",
+  "rohr": "n",
+  "roman": "m",
+  "rose": "f",
+  "ruder": "n",
+  "ruf": "m",
+  "ruine": "f",
+  "rumpf": "m",
+  "r\xE4tsel": "n",
+  "r\xFCcken": "m",
+  "saal": "m",
+  "sachbearbeiter": "m",
+  "sack": "m",
+  "saft": "m",
+  "sage": "f",
+  "sahne": "f",
+  "saite": "f",
+  "salat": "m",
+  "salz": "n",
+  "samen": "m",
+  "sammlung": "f",
+  "sand": "m",
+  "sandsack": "m",
+  "sanduhr": "f",
+  "sarg": "m",
+  "satellit": "m",
+  "sattel": "m",
+  "sattelgurt": "m",
+  "satz": "m",
+  "saum": "m",
+  "savanne": "f",
+  "schacht": "m",
+  "schaf": "n",
+  "schale": "f",
+  "schalter": "m",
+  "scham": "f",
+  "schatten": "m",
+  "schatulle": "f",
+  "schaufel": "f",
+  "schere": "f",
+  "schicht": "f",
+  "schicksal": "n",
+  "schiff": "n",
+  "schiffssextanten": "m",
+  "schiffszwieback": "m",
+  "schild": "n",
+  "schirm": "m",
+  "schlaf": "m",
+  "schlag": "m",
+  "schlamm": "m",
+  "schlange": "f",
+  "schleife": "f",
+  "schloss": "n",
+  "schlucht": "f",
+  "schl\xFCssel": "m",
+  "schl\xFCsselbund": "m",
+  "schmerz": "m",
+  "schmied": "m",
+  "schmiede": "f",
+  "schminkkasten": "m",
+  "schnecke": "f",
+  "schnee": "m",
+  "schneiderpuppe": "f",
+  "schnitt": "m",
+  "schnittbogen": "m",
+  "schnittstelle": "f",
+  "schnur": "f",
+  "schokolade": "f",
+  "schrank": "m",
+  "schrei": "m",
+  "schreiber": "m",
+  "schrein": "m",
+  "schrift": "f",
+  "schritt": "m",
+  "schuh": "m",
+  "schuld": "f",
+  "schuldschein": "m",
+  "schule": "f",
+  "schulter": "f",
+  "schuppen": "m",
+  "schuss": "m",
+  "schwamm": "m",
+  "schwein": "n",
+  "schwelle": "f",
+  "schwert": "n",
+  "schwertgriff": "m",
+  "schwertgurt": "m",
+  "schwester": "f",
+  "schw\xE4che": "f",
+  "sch\xE4del": "m",
+  "sch\xE4rpe": "f",
+  "sch\xFCrze": "f",
+  "sch\xFCssel": "f",
+  "screenshot": "m",
+  "see": "m",
+  "seekarte": "f",
+  "seele": "f",
+  "seesack": "m",
+  "segel": "n",
+  "segeltuch": "n",
+  "segen": "m",
+  "sehne": "f",
+  "sehnsucht": "f",
+  "seidenfaden": "m",
+  "seil": "n",
+  "seismograph": "m",
+  "seismographen": "m",
+  "seite": "f",
+  "sekunde": "f",
+  "senf": "m",
+  "sensor": "m",
+  "sessel": "m",
+  "sieb": "n",
+  "siegel": "n",
+  "siegelring": "m",
+  "signal": "n",
+  "signalflagge": "f",
+  "silbe": "f",
+  "silber": "n",
+  "sinn": "m",
+  "sirene": "f",
+  "skala": "f",
+  "skalpell": "n",
+  "skelett": "n",
+  "skizze": "f",
+  "smartphone": "n",
+  "socke": "f",
+  "sofa": "n",
+  "sohn": "m",
+  "soldat": "m",
+  "sommer": "m",
+  "sonne": "f",
+  "sonnenbrille": "f",
+  "so\xDFe": "f",
+  "spalt": "m",
+  "speicher": "m",
+  "spektrogramm": "n",
+  "spektrometer": "n",
+  "sperre": "f",
+  "spiegel": "m",
+  "spiegelscherben": "m",
+  "spiel": "n",
+  "spinne": "f",
+  "sporn": "m",
+  "sprache": "f",
+  "sprung": "m",
+  "spule": "f",
+  "spur": "f",
+  "stab": "m",
+  "stadt": "f",
+  "stahlstrebe": "f",
+  "stamm": "m",
+  "standarte": "f",
+  "stapel": "m",
+  "statue": "f",
+  "staub": "m",
+  "stecknadel": "f",
+  "steg": "m",
+  "steig": "m",
+  "steigb\xFCgel": "m",
+  "steigeisen": "n",
+  "stein": "m",
+  "stelle": "f",
+  "stempel": "m",
+  "stempelger\xE4usch": "n",
+  "stempelhalter": "m",
+  "steppe": "f",
+  "stern": "m",
+  "sternbilder": "n",
+  "sternwarte": "f",
+  "stethoskop": "n",
+  "stiefel": "m",
+  "stier": "m",
+  "stille": "f",
+  "stimme": "f",
+  "stirn": "f",
+  "stock": "m",
+  "stoff": "m",
+  "stollen": "m",
+  "stolz": "m",
+  "story": "f",
+  "strand": "m",
+  "strauch": "m",
+  "stra\xDFe": "f",
+  "streichholzschachtel": "f",
+  "streit": "m",
+  "strich": "m",
+  "strom": "m",
+  "strophe": "f",
+  "str\xF6mung": "f",
+  "stube": "f",
+  "stufe": "f",
+  "stuhl": "m",
+  "stunde": "f",
+  "stundenplan": "m",
+  "sturm": "m",
+  "sturmlaterne": "f",
+  "st\xE4rke": "f",
+  "st\xFCck": "n",
+  "sumpf": "m",
+  "suppe": "f",
+  "suppenkelle": "f",
+  "symbol": "n",
+  "symptom": "n",
+  "system": "n",
+  "s\xE4ge": "f",
+  "s\xE4ule": "f",
+  "tabelle": "f",
+  "tafel": "f",
+  "tafelrunde": "f",
+  "tag": "m",
+  "takt": "m",
+  "tal": "n",
+  "talar": "m",
+  "tante": "f",
+  "tanz": "m",
+  "tasche": "f",
+  "taschenradio": "n",
+  "tasse": "f",
+  "tau": "n",
+  "taube": "f",
+  "tee": "m",
+  "teer": "m",
+  "teeschale": "f",
+  "teich": "m",
+  "teil": "m",
+  "telefon": "n",
+  "teleskop": "n",
+  "teller": "m",
+  "teppich": "m",
+  "termin": "m",
+  "terminal": "n",
+  "terminzettel": "m",
+  "teufel": "m",
+  "thermometer": "n",
+  "thermoskanne": "f",
+  "thron": "m",
+  "ticket": "n",
+  "tier": "n",
+  "tiger": "m",
+  "tiktoksound": "m",
+  "tintenfass": "n",
+  "tisch": "m",
+  "tochter": "f",
+  "tod": "m",
+  "tomate": "f",
+  "ton": "m",
+  "tonband": "n",
+  "tonschale": "f",
+  "tontafel": "f",
+  "topf": "m",
+  "tor": "n",
+  "torte": "f",
+  "trapezhaken": "m",
+  "traube": "f",
+  "trauer": "f",
+  "traum": "m",
+  "trend": "m",
+  "treppe": "f",
+  "treue": "f",
+  "trillerpfeife": "f",
+  "trinkhorn": "n",
+  "trommel": "f",
+  "truhe": "f",
+  "tr\xE4ne": "f",
+  "tuch": "n",
+  "tulpe": "f",
+  "tunnel": "m",
+  "turm": "m",
+  "turnbeutel": "m",
+  "turnier": "n",
+  "turnierplatz": "m",
+  "turnierstab": "m",
+  "t\xFCr": "f",
+  "t\xFCte": "f",
+  "ufer": "n",
+  "uhr": "f",
+  "umriss": "m",
+  "umschlag": "m",
+  "ungl\xFCck": "n",
+  "untergrund": "m",
+  "unterschrift": "f",
+  "untersuchungsliege": "f",
+  "update": "n",
+  "urne": "f",
+  "urteil": "n",
+  "vater": "m",
+  "verdacht": "m",
+  "verfahren": "n",
+  "vergangenheit": "f",
+  "vermerk": "m",
+  "vers": "m",
+  "verstand": "m",
+  "vertrag": "m",
+  "vertrauen": "n",
+  "video": "n",
+  "virus": "n",
+  "visier": "n",
+  "vogel": "m",
+  "vollmacht": "f",
+  "vordruck": "m",
+  "vorhang": "m",
+  "vormund": "m",
+  "vorrat": "m",
+  "vorratsgl\xE4ser": "n",
+  "vulkan": "m",
+  "wachs": "n",
+  "wachstuch": "n",
+  "wagen": "m",
+  "wahrheit": "f",
+  "waisenjunge": "m",
+  "wal": "m",
+  "wald": "m",
+  "waldhorn": "n",
+  "wand": "f",
+  "wanderstab": "m",
+  "wanderstock": "m",
+  "wanderung": "f",
+  "wange": "f",
+  "wappen": "n",
+  "wappenschild": "n",
+  "warnung": "f",
+  "warnweste": "f",
+  "wartemarke": "f",
+  "warze": "f",
+  "wasser": "n",
+  "wasserflasche": "f",
+  "wasserhahn": "m",
+  "weg": "m",
+  "wegmarke": "f",
+  "weide": "f",
+  "wein": "m",
+  "weite": "f",
+  "wei\xDF": "n",
+  "welle": "f",
+  "werk": "n",
+  "werkstatt": "f",
+  "werkzeug": "n",
+  "wert": "m",
+  "wespe": "f",
+  "wetter": "n",
+  "wetterfahne": "f",
+  "widerstand": "m",
+  "wiese": "f",
+  "wille": "m",
+  "wimper": "f",
+  "wind": "m",
+  "windhauch": "m",
+  "windsto\xDF": "m",
+  "winter": "m",
+  "witz": "m",
+  "woche": "f",
+  "wolf": "m",
+  "wolke": "f",
+  "wollschal": "m",
+  "wort": "n",
+  "wrack": "n",
+  "wunde": "f",
+  "wunder": "n",
+  "wunsch": "m",
+  "wurm": "m",
+  "wurzel": "f",
+  "wut": "f",
+  "w\xE4chter": "m",
+  "w\xE4lder": "m",
+  "w\xE4rme": "f",
+  "w\xE4rmestein": "m",
+  "w\xE4schekorb": "m",
+  "w\xF6rter": "n",
+  "w\xFCrfel": "m",
+  "w\xFCste": "f",
+  "zahl": "f",
+  "zahn": "m",
+  "zange": "f",
+  "zauberbesen": "m",
+  "zaun": "m",
+  "zeh": "m",
+  "zeichen": "n",
+  "zeile": "f",
+  "zeit": "f",
+  "zeitgeber": "m",
+  "zeitmarke": "f",
+  "zelle": "f",
+  "zelt": "n",
+  "zentimeter": "m",
+  "zepter": "n",
+  "zettel": "m",
+  "zeuge": "m",
+  "ziffer": "f",
+  "zigarettenstummel": "m",
+  "zigarre": "f",
+  "zimmer": "n",
+  "zirkel": "m",
+  "zitrone": "f",
+  "zittern": "n",
+  "zorn": "m",
+  "zucker": "m",
+  "zug": "m",
+  "zukunft": "f",
+  "zunderbeutel": "m",
+  "zunge": "f",
+  "zweifel": "m",
+  "zweig": "m",
+  "zweitschl\xFCssel": "m",
+  "zwieback": "m",
+  "zwiebel": "f",
+  "z\xE4hlrahmen": "m",
+  "z\xF6gern": "n",
+  "\xE4rmel": "m",
+  "\xE4rztin": "f",
+  "\xF6l": "n",
+  "\xF6llampe": "f",
+  "\xF6llaterne": "f",
+  "\xF6lschl\xFCssel": "m"
+};
+
+// src/generation/nouns2.data.ts
+var NOUN_GENDER_2 = {
+  // Nachtrag 4.357.1 (Blatt „Ost-Berlin": „Ein rotes Ballon")
+  ballon: "m",
+  luftballon: "m",
+  stoff: "m",
+  geschmack: "m",
+  sperrstunde: "f",
+  zugang: "m",
+  kopie: "f",
+  l\u00F6schung: "f",
+  // ── Häufigste ──
+  ende: "n",
+  jahr: "n",
+  mal: "n",
+  anfang: "m",
+  leben: "n",
+  auskunft: "f",
+  welt: "f",
+  fr\u00FChjahr: "n",
+  fall: "m",
+  arbeit: "f",
+  sache: "f",
+  zufall: "m",
+  form: "f",
+  ziel: "n",
+  kontrolle: "f",
+  reihenfolge: "f",
+  wissen: "n",
+  post: "f",
+  ernte: "f",
+  geld: "n",
+  mund: "m",
+  schweigen: "n",
+  wette: "f",
+  schminke: "f",
+  kurs: "m",
+  original: "n",
+  text: "m",
+  gras: "n",
+  warten: "n",
+  ruhe: "f",
+  mitte: "f",
+  seide: "f",
+  familie: "f",
+  tiefe: "f",
+  norden: "m",
+  s\u00FCden: "m",
+  osten: "m",
+  westen: "m",
+  blut: "n",
+  horizont: "m",
+  ursache: "f",
+  absicht: "f",
+  wirt: "m",
+  jagd: "f",
+  herkunft: "f",
+  essen: "n",
+  r\u00FCckkehr: "f",
+  rahmen: "m",
+  w\u00FCrde: "f",
+  w\u00E4sche: "f",
+  miete: "f",
+  verlangen: "n",
+  marke: "f",
+  griff: "m",
+  wache: "f",
+  vernunft: "f",
+  markt: "m",
+  pegel: "m",
+  halbdunkel: "n",
+  rolle: "f",
+  grad: "m",
+  streben: "n",
+  fach: "n",
+  weise: "f",
+  wipfel: "m",
+  kohle: "f",
+  lehne: "f",
+  tide: "f",
+  ru\u00DF: "m",
+  idee: "f",
+  gemeinde: "f",
+  jahrhundert: "n",
+  ernst: "m",
+  betrag: "m",
+  unterschied: "m",
+  material: "n",
+  annahme: "f",
+  merkmal: "n",
+  radio: "n",
+  hitze: "f",
+  herold: "m",
+  grat: "m",
+  kasse: "f",
+  zoll: "m",
+  heimweh: "n",
+  laden: "m",
+  f\u00E4hre: "f",
+  herzog: "m",
+  inhalt: "m",
+  titel: "m",
+  problem: "n",
+  sicht: "f",
+  beh\u00F6rde: "f",
+  winkel: "m",
+  hilfe: "f",
+  pass: "m",
+  viertel: "n",
+  jahrzehnt: "n",
+  anrede: "f",
+  rost: "m",
+  ekel: "m",
+  tat: "f",
+  methode: "f",
+  zwang: "m",
+  heimkehr: "f",
+  umkehr: "f",
+  norm: "f",
+  leere: "f",
+  umlauf: "m",
+  flamme: "f",
+  einsicht: "f",
+  messing: "n",
+  personal: "n",
+  widerspruch: "m",
+  schluss: "m",
+  stroh: "n",
+  rang: "m",
+  vieh: "n",
+  garderobe: "f",
+  g\u00FCte: "f",
+  anlass: "m",
+  anwalt: "m",
+  rat: "m",
+  code: "m",
+  bad: "n",
+  handgelenk: "n",
+  scheibe: "f",
+  zustand: "m",
+  eile: "f",
+  saatgut: "n",
+  fracht: "f",
+  automat: "m",
+  lehre: "f",
+  ding: "n",
+  verzicht: "m",
+  zweck: "m",
+  waffe: "f",
+  blech: "n",
+  trost: "m",
+  versuch: "m",
+  ironie: "f",
+  d\u00FCrre: "f",
+  fest: "n",
+  aufsicht: "f",
+  kapitel: "n",
+  aussicht: "f",
+  absinth: "m",
+  parf\u00FCm: "n",
+  schmutz: "m",
+  knick: "m",
+  andacht: "f",
+  spitze: "f",
+  szene: "f",
+  erfolg: "m",
+  ausguck: "m",
+  bord: "m",
+  sieg: "m",
+  klausel: "f",
+  haupttext: "m",
+  sachverhalt: "m",
+  tinte: "f",
+  stand: "m",
+  wortlaut: "m",
+  klinke: "f",
+  kanzel: "f",
+  verrat: "m",
+  mulde: "f",
+  februar: "m",
+  parasit: "m",
+  pr\u00E4parat: "n",
+  wesen: "n",
+  lava: "f",
+  schwefel: "m",
+  lauf: "m",
+  spa\u00DF: "m",
+  m\u00F6bel: "n",
+  b\u00FCro: "n",
+  hauptsache: "f",
+  saat: "f",
+  fehde: "f",
+  portr\u00E4t: "n",
+  reue: "f",
+  konfetti: "n",
+  trapez: "n",
+  narr: "m",
+  truppe: "f",
+  pudel: "m",
+  jugend: "f",
+  abschied: "m",
+  bronze: "f",
+  tempel: "m",
+  geschlecht: "n",
+  stra\u00DFenanfang: "m",
+  brauch: "m",
+  wiederkehr: "f",
+  h\u00E4lfte: "f",
+  pappe: "f",
+  kante: "f",
+  eintrag: "m",
+  format: "n",
+  giebel: "m",
+  heimat: "f",
+  armenkasse: "f",
+  materie: "f",
+  mensch: "m",
+  glied: "n",
+  betrieb: "m",
+  m\u00FCll: "m",
+  kleingeld: "n",
+  ruhm: "m",
+  ritt: "m",
+  sch\u00E4rfe: "f",
+  ankunft: "f",
+  symmetrie: "f",
+  adressat: "m",
+  kreislauf: "m",
+  aufstieg: "m",
+  f\u00FClle: "f",
+  bitte: "f",
+  brand: "m",
+  waise: "f",
+  gesang: "m",
+  subjekt: "n",
+  objekt: "n",
+  moral: "f",
+  schilf: "n",
+  diagnose: "f",
+  gr\u00F6\u00DFe: "f",
+  wahl: "f",
+  sturz: "m",
+  gischt: "f",
+  ekstase: "f",
+  becken: "n",
+  putz: "m",
+  minze: "f",
+  samt: "m",
+  pause: "f",
+  knauf: "m",
+  apotheke: "f",
+  kost\u00FCm: "n",
+  versto\u00DF: "m",
+  satzanfang: "m",
+  sprint: "m",
+  beule: "f",
+  banane: "f",
+  tapete: "f",
+  galerie: "f",
+  kl\u00F6ppel: "m",
+  predigt: "f",
+  zierrat: "m",
+  wachwechsel: "m",
+  wimpel: "m",
+  rah: "f",
+  streitfall: "m",
+  docht: "m",
+  wundmal: "n",
+  pforte: "f",
+  gebot: "n",
+  fl\u00FCgel: "m",
+  l\u00E4nge: "f",
+  kamel: "n",
+  achse: "f",
+  schlegel: "m",
+  affe: "m",
+  nirwana: "n",
+  alkohol: "m",
+  instinkt: "m",
+  balance: "f",
+  aushub: "m",
+  kalk: "m",
+  r\u00F6hre: "f",
+  basalt: "m",
+  salzs\u00E4ure: "f",
+  erdkruste: "f",
+  schichtfolge: "f",
+  sohle: "f",
+  profil: "n",
+  schneeschmelze: "f",
+  orbit: "m",
+  funkspruch: "m",
+  meteorit: "m",
+  stromausfall: "m",
+  theorie: "f",
+  nervengeflecht: "n",
+  bodenprofil: "n",
+  senke: "f",
+  gebiet: "n",
+  phase: "f",
+  honorar: "n",
+  kordel: "f",
+  spind: "m",
+  tonfall: "m",
+  tempo: "n",
+  schattenkante: "f",
+  stahl: "m",
+  graupappe: "f",
+  st\u00FCtze: "f",
+  perspektive: "f",
+  tank: "m",
+  stillstand: "m",
+  pumpe: "f",
+  debatte: "f",
+  bahre: "f",
+  fackelru\u00DF: "m",
+  kerbe: "f",
+  t\u00FCrsturz: "m",
+  groll: "m",
+  seuche: "f",
+  lunge: "f",
+  pferdegeschirr: "n",
+  zeltgest\u00E4nge: "n",
+  marsch: "m",
+  schaumgummi: "m",
+  knall: "m",
+  zeltmitte: "f",
+  trick: "m",
+  wurf: "m",
+  pult: "n",
+  pentagramm: "n",
+  handel: "m",
+  r\u00FCcktritt: "m",
+  zimt: "m",
+  akt: "m",
+  schatz: "m",
+  betrug: "m",
+  kopfende: "n",
+  parkett: "n",
+  lack: "m",
+  leib: "m",
+  efeu: "m",
+  anstand: "m",
+  schafwolle: "f",
+  milde: "f",
+  wiege: "f",
+  schar: "f",
+  gunst: "f",
+  volk: "n",
+  staat: "m",
+  antlitz: "n",
+  fleck: "m",
+  alibi: "n",
+  kamera: "f",
+  vorfall: "m",
+  quelltext: "m",
+  ritual: "n",
+  schl\u00E4fe: "f",
+  wetterwechsel: "m",
+  anzeige: "f",
+  jahresende: "n",
+  weile: "f",
+  t\u00FCll: "m",
+  schleppe: "f",
+  b\u00FCgel: "m",
+  dampf: "m",
+  kragen: "m",
+  kerzenstummel: "m",
+  klasse: "f",
+  monatsende: "n",
+  tausendstel: "n",
+  durchlauf: "m",
+  jahrtausend: "n",
+  scheu: "f",
+  taxi: "n",
+  mittwoch: "m",
+  erz: "n",
+  diebstahl: "m",
+  nachtwache: "f",
+  schleuse: "f",
+  \u00FCbernahme: "f",
+  luke: "f",
+  sp\u00FCle: "f",
+  ampel: "f",
+  sperrm\u00FCll: "m",
+  speiche: "f",
+  henkel: "m",
+  routine: "f",
+  mai: "m",
+  wolle: "f",
+  schluck: "m",
+  biologie: "f",
+  geologie: "f",
+  astrologie: "f",
+  philosophie: "f",
+  krise: "f",
+  trag\u00F6die: "f",
+  urknall: "m",
+  stift: "m",
+  mine: "f",
+  abwehr: "f",
+  mole: "f",
+  zerfall: "m",
+  masse: "f",
+  handbreit: "f",
+  verfall: "m",
+  tischkante: "f",
+  beute: "f",
+  rache: "f",
+  font\u00E4ne: "f",
+  zuversicht: "f",
+  unruhe: "f",
+  energie: "f",
+  enge: "f",
+  april: "m",
+  rekord: "m",
+  normalzustand: "m",
+  h\u00F6he: "f",
+  abstieg: "m",
+  requisit: "n",
+  schwindel: "m",
+  orakelspruch: "m",
+  erlass: "m",
+  aufstand: "m",
+  gehorsam: "m",
+  blackbox: "f",
+  silhouette: "f",
+  mode: "f",
+  not: "f",
+  urform: "f",
+  ruhestand: "m",
+  schaden: "m",
+  anlauf: "m",
+  dienstjahr: "n",
+  witwe: "f",
+  ensemble: "n",
+  kommune: "f",
+  sekte: "f",
+  rettungstrupp: "m",
+  exil: "n",
+  zentrale: "f",
+  zensurbeh\u00F6rde: "f",
+  doktortitel: "m",
+  naturschutzgebiet: "n",
+  boulevard: "m",
+  hotel: "n",
+  kino: "n",
+  verkehr: "m",
+  kellerclub: "m",
+  kabine: "f",
+  auto: "n",
+  kaserne: "f",
+  internat: "n",
+  wahlkabine: "f",
+  anstalt: "f",
+  mittagspause: "f",
+  choleraepidemie: "f",
+  monarchie: "f",
+  hungersnot: "f",
+  null: "f",
+  route: "f",
+  kampagne: "f",
+  karriere: "f",
+  neuanfang: "m",
+  sorte: "f",
+  verhandlungssache: "f",
+  folge: "f",
+  ablauf: "m",
+  strategie: "f",
+  apparat: "m",
+  psychopath: "m",
+  variable: "f",
+  empathie: "f",
+  amsel: "f",
+  schneefall: "m",
+  abendrot: "n",
+  wechsel: "m",
+  // ── Nachschlag: Alltag, Körper, Haus, Natur, Amt ──
+  auge: "n",
+  name: "m",
+  glaube: "m",
+  wille: "m",
+  gedanke: "m",
+  friede: "m",
+  funke: "m",
+  k\u00E4se: "m",
+  junge: "m",
+  kunde: "m",
+  l\u00F6we: "m",
+  hase: "m",
+  bote: "m",
+  zeuge: "m",
+  riese: "m",
+  rabe: "m",
+  falke: "m",
+  ochse: "m",
+  bursche: "m",
+  knabe: "m",
+  neffe: "m",
+  erbe: "m",
+  buchstabe: "m",
+  same: "m",
+  schatten: "m",
+  wagen: "m",
+  boden: "m",
+  garten: "m",
+  ofen: "m",
+  regen: "m",
+  faden: "m",
+  haken: "m",
+  hafen: "m",
+  morgen: "m",
+  tropfen: "m",
+  kissen: "n",
+  zeichen: "n",
+  kuchen: "m",
+  knochen: "m",
+  r\u00FCcken: "m",
+  segen: "m",
+  bogen: "m",
+  balken: "m",
+  riegel: "m",
+  ballen: "m",
+  fels: "m",
+  haus: "n",
+  glas: "n",
+  bus: "m",
+  fluss: "m",
+  kuss: "m",
+  guss: "m",
+  gru\u00DF: "m",
+  fu\u00DF: "m",
+  hass: "m",
+  kompass: "m",
+  atlas: "m",
+  kreis: "m",
+  preis: "m",
+  eis: "n",
+  reis: "m",
+  gleis: "n",
+  flei\u00DF: "m",
+  geheimnis: "n",
+  ergebnis: "n",
+  zeugnis: "n",
+  bed\u00FCrfnis: "n",
+  verh\u00E4ltnis: "n",
+  ereignis: "n",
+  erlebnis: "n",
+  b\u00FCndnis: "n",
+  hindernis: "n",
+  gef\u00E4ngnis: "n",
+  wildnis: "f",
+  finsternis: "f",
+  fenster: "n",
+  zimmer: "n",
+  wasser: "n",
+  messer: "n",
+  feuer: "n",
+  kupfer: "n",
+  silber: "n",
+  pulver: "n",
+  wetter: "n",
+  alter: "n",
+  ufer: "n",
+  lager: "n",
+  opfer: "n",
+  muster: "n",
+  kloster: "n",
+  register: "n",
+  theater: "n",
+  fieber: "n",
+  leder: "n",
+  futter: "n",
+  gitter: "n",
+  ruder: "n",
+  wunder: "n",
+  orchester: "n",
+  zepter: "n",
+  semester: "n",
+  polster: "n",
+  pflaster: "n",
+  laster: "n",
+  meter: "m",
+  liter: "m",
+  zentrum: "n",
+  datum: "n",
+  museum: "n",
+  t\u00FCr: "f",
+  hand: "f",
+  stern: "m",
+  schritt: "m",
+  brief: "m",
+  weg: "m",
+  stimme: "f",
+  spur: "f",
+  lippe: "f",
+  frage: "f",
+  perle: "f",
+  glocke: "f",
+  uhr: "f",
+  herz: "n",
+  dach: "n",
+  stra\u00DFe: "f",
+  regel: "f",
+  vorrat: "m",
+  schicht: "f",
+  schaf: "n",
+  nummer: "f",
+  schuh: "m",
+  grenze: "f",
+  gutachten: "n",
+  satz: "m",
+  wort: "n",
+  seele: "f",
+  teil: "m",
+  blume: "f",
+  richtung: "f",
+  monat: "m",
+  zahn: "m",
+  ort: "m",
+  wand: "f",
+  vorhang: "m",
+  umstand: "m",
+  sandsack: "m",
+  kraft: "f",
+  bein: "n",
+  kanal: "m",
+  sinn: "m",
+  netz: "n",
+  pflasterstein: "m",
+  handschuh: "m",
+  protokoll: "n",
+  system: "n",
+  kreidestrich: "m",
+  bruchteil: "m",
+  tor: "n",
+  kran: "m",
+  beweis: "m",
+  nacht: "f",
+  stadt: "f",
+  grund: "m",
+  zug: "m",
+  riff: "n",
+  plakat: "n",
+  baum: "m",
+  erbgang: "m",
+  exemplar: "n",
+  symptom: "n",
+  plan: "m",
+  umriss: "m",
+  riss: "m",
+  bahngleis: "n",
+  regal: "n",
+  blick: "m",
+  bergpass: "m",
+  faust: "f",
+  stuhl: "m",
+  freund: "m",
+  stamm: "m",
+  tanzschuh: "m",
+  dienst: "m",
+  ma\u00DF: "n",
+  arm: "m",
+  kinderhand: "f",
+  tisch: "m",
+  seil: "n",
+  frachtbrief: "m",
+  termin: "m",
+  formular: "n",
+  messwert: "m",
+  gegenstand: "m",
+  vogel: "m",
+  exponat: "n",
+  fahrgast: "m",
+  meer: "n",
+  anruf: "m",
+  vorschlag: "m",
+  punkt: "m",
+  boot: "n",
+  paar: "n",
+  gast: "m",
+  stein: "m",
+  stunde: "f",
+  minute: "f",
+  tag: "m",
+  woche: "f",
+  seite: "f",
+  farbe: "f",
+  papier: "n",
+  nachbar: "m",
+  wolke: "f",
+  zeug: "n",
+  kind: "n",
+  mann: "m",
+  frau: "f",
+  vater: "m",
+  mutter: "f",
+  bruder: "m",
+  schwester: "f",
+  sohn: "m",
+  tochter: "f",
+  herr: "m",
+  dame: "f",
+  lehrer: "m",
+  arzt: "m",
+  pfarrer: "m",
+  priester: "m",
+  k\u00F6nig: "m",
+  k\u00F6nigin: "f",
+  kaiser: "m",
+  soldat: "m",
+  bauer: "m",
+  fischer: "m",
+  b\u00E4cker: "m",
+  schneider: "m",
+  schmied: "m",
+  m\u00FCller: "m",
+  j\u00E4ger: "m",
+  hirte: "m",
+  knecht: "m",
+  magd: "f",
+  w\u00E4chter: "m",
+  richter: "m",
+  h\u00E4ndler: "m",
+  fremde: "m",
+  kurier: "m",
+  agent: "m",
+  spion: "m",
+  dieb: "m",
+  r\u00E4uber: "m",
+  m\u00F6rder: "m",
+  opferlamm: "n",
+  engel: "m",
+  teufel: "m",
+  geist: "m",
+  gott: "m",
+  g\u00F6ttin: "f",
+  heiliger: "m",
+  m\u00F6nch: "m",
+  nonne: "f",
+  abt: "m",
+  bischof: "m",
+  papst: "m",
+  ritter: "m",
+  knappe: "m",
+  graf: "m",
+  gr\u00E4fin: "f",
+  f\u00FCrst: "m",
+  prinz: "m",
+  prinzessin: "f",
+  zauberer: "m",
+  hexe: "f",
+  drache: "m",
+  zwerg: "m",
+  elf: "m",
+  troll: "m",
+  wolf: "m",
+  b\u00E4r: "m",
+  fuchs: "m",
+  hirsch: "m",
+  reh: "n",
+  pferd: "n",
+  hund: "m",
+  katze: "f",
+  maus: "f",
+  ratte: "f",
+  schlange: "f",
+  fisch: "m",
+  m\u00F6we: "f",
+  taube: "f",
+  kr\u00E4he: "f",
+  eule: "f",
+  biene: "f",
+  fliege: "f",
+  spinne: "f",
+  k\u00E4fer: "m",
+  schmetterling: "m",
+  wurm: "m",
+  ameise: "f",
+  frosch: "m",
+  kr\u00F6te: "f",
+  eidechse: "f",
+  schwan: "m",
+  ente: "f",
+  gans: "f",
+  huhn: "n",
+  hahn: "m",
+  kuh: "f",
+  stier: "m",
+  ziege: "f",
+  esel: "m",
+  schwein: "n",
+  lamm: "n",
+  // Schwache Maskulina auf -e, die die -e→f-Regel sonst fälschlich fängt
+  kollege: "m",
+  experte: "m",
+  matrose: "m",
+  pate: "m",
+  sklave: "m",
+  laie: "m",
+  insasse: "m",
+  gatte: "m",
+  bulle: "m",
+  schurke: "m",
+  geselle: "m",
+  gef\u00E4hrte: "m",
+  genosse: "m",
+  komplize: "m",
+  jude: "m",
+  zar: "m",
+  franzose: "m",
+  chinese: "m",
+  russe: "m",
+  grieche: "m",
+  t\u00FCrke: "m",
+  ire: "m",
+  schwede: "m",
+  d\u00E4ne: "m",
+  psychologe: "m",
+  biologe: "m",
+  geologe: "m",
+  soziologe: "m",
+  arch\u00E4ologe: "m",
+  philosoph: "m",
+  // Neutra auf -e
+  interesse: "n",
+  geb\u00E4ude: "n",
+  gem\u00E4lde: "n",
+  gebirge: "n",
+  getreide: "n",
+  gefolge: "n",
+  gel\u00E4nde: "n",
+  gewebe: "n",
+  gew\u00F6lbe: "n",
+  getriebe: "n",
+  gef\u00FCge: "n",
+  gelage: "n",
+  gerede: "n",
+  gehege: "n",
+  gewerbe: "n"
+};
+
+// src/generation/declension.ts
+var NOUN_GENDER2 = { ...NOUN_GENDER_2, ...NOUN_GENDER };
+function istSubstantivierterInfinitiv(w) {
+  if (!/^[a-zäöüß]{4,}en$/.test(w)) return false;
+  const stamm = w.slice(0, -2);
+  return istVerbform(stamm + "t") || istVerbform(stamm + "et");
+}
+var E_AUSNAHME = /^(ge[a-zäöüß]+e|.*(auge|ende|käse|junge|erbe|interesse))$/;
+function adjStamm(adj) {
+  const m = adj.match(/^(.*?)(es|er|em|en|e)$/);
+  return m && m[1].length >= 4 ? m[1] : adj;
+}
+function adjustAdjectiveEnding(adj, gender, targetCase) {
+  const stem = adjStamm(adj);
+  if (targetCase === "nom") return gender === "m" ? stem + "er" : gender === "f" ? stem + "e" : stem + "es";
+  if (targetCase === "dat") return stem + "en";
+  if (targetCase === "acc") return gender === "m" ? stem + "en" : gender === "f" ? stem + "e" : stem + "es";
+  return adj;
+}
+function guessGender(noun) {
+  const w = (noun || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
+  const known = NOUN_GENDER2[w];
+  if (known === "m" || known === "f" || known === "n") return known;
+  let best = "";
+  for (const k in NOUN_GENDER2) {
+    if (k.length >= 3 && w.length >= k.length + 2 && w.endsWith(k) && k.length > best.length) best = k;
+  }
+  if (best) return NOUN_GENDER2[best];
+  if (/(ung|heit|keit|schaft|tät|ion|ik|enz|anz|ei|ade|age|üre|itis|ur)$/.test(w)) return "f";
+  if (/(chen|lein|ment|tum|um|nis|ma)$/.test(w)) return "n";
+  if (/(ling|ismus|ant|ent|ist|eur|or|ich|ig|ast)$/.test(w)) return "m";
+  if (istSubstantivierterInfinitiv(w)) return "n";
+  if (/^ge[a-zäöüß]{3,}e$/.test(w)) return "n";
+  if (/e$/.test(w) && w.length >= 4 && !E_AUSNAHME.test(w)) return "f";
+  if (/er$/.test(w)) return "m";
+  return void 0;
+}
+function ensureArticle(phrase) {
+  const s = clean(phrase);
+  if (/^(ein|eine|einen|einem|einer|eines|der|die|das|den|dem|des|kein|keine|mein|dein|sein|ihr|unser)\b/i.test(s)) return s;
+  const words = s.split(" ");
+  if (words.length > 5) return s;
+  let nounIdx = words.findIndex((w) => /^[A-ZÄÖÜ]/.test(w));
+  if (nounIdx === -1) return s;
+  if (nounIdx + 1 < words.length && /^[A-ZÄÖÜ]/.test(words[nounIdx + 1]) && /(e|er|es|en|em|te|ne)$/.test(words[nounIdx])) {
+    words[nounIdx] = words[nounIdx].charAt(0).toLowerCase() + words[nounIdx].slice(1);
+    nounIdx++;
+  }
+  const g = guessGender(words[nounIdx].replace(/[^A-Za-zÄÖÜäöüß]/g, ""));
+  if (!g) return words.join(" ");
+  return `${g === "f" ? "eine" : "ein"} ${words.join(" ")}`;
+}
+var ART_GENUS = {
+  ein: void 0,
+  eine: "f",
+  einen: "m",
+  einem: void 0,
+  einer: "f",
+  eines: void 0
+};
+function declineHookPhrase(phrase, targetCase) {
+  const s = clean(phrase);
+  const m = s.match(/^(ein|eine|einen|einem|einer|eines)\s+(.*)$/i);
+  if (!m) return s;
+  const restWords = m[2].split(" ");
+  let nounIdx = -1;
+  for (let i = 0; i < restWords.length && i <= 2; i++) {
+    if (/^[A-ZÄÖÜ]/.test(restWords[i])) {
+      nounIdx = i;
+      break;
+    }
+  }
+  if (nounIdx === -1) return s;
+  const nounWord = restWords[nounIdx].replace(/[,.;:!?]+$/, "");
+  const art0 = m[1].toLowerCase();
+  const gender = ART_GENUS[art0] || NOUN_GENDER2[nounWord.toLowerCase()] || guessGender(nounWord);
+  if (!gender) return s;
+  const artForms = {
+    m: { nom: "ein", acc: "einen", dat: "einem" },
+    f: { nom: "eine", acc: "eine", dat: "einer" },
+    n: { nom: "ein", acc: "ein", dat: "einem" }
+  };
+  const newArt = artForms[gender][targetCase] || artForms[gender].nom;
+  const words = restWords.slice();
+  for (let i = 0; i < nounIdx; i++) words[i] = adjustAdjectiveEnding(words[i], gender, targetCase);
+  return `${newArt} ${words.join(" ")}`;
+}
+
+// src/generation/verbconj.data.ts
+var VERB_CONJ = {
+  "bemerkt": {
+    "ich": "bemerke",
+    "du": "bemerkst",
+    "wir": "bemerken",
+    "ihr": "bemerkt"
+  },
+  "nimmt": {
+    "ich": "nehme",
+    "du": "nimmst",
+    "wir": "nehmen",
+    "ihr": "nehmt"
+  },
+  "steht": {
+    "ich": "stehe",
+    "du": "stehst",
+    "wir": "stehen",
+    "ihr": "steht"
+  },
+  "h\xE4lt": {
+    "ich": "halte",
+    "du": "h\xE4ltst",
+    "wir": "halten",
+    "ihr": "haltet"
+  },
+  "sucht": {
+    "ich": "suche",
+    "du": "suchst",
+    "wir": "suchen",
+    "ihr": "sucht"
+  },
+  "versucht": {
+    "ich": "versuche",
+    "du": "versuchst",
+    "wir": "versuchen",
+    "ihr": "versucht"
+  },
+  "will": {
+    "ich": "will",
+    "du": "willst",
+    "wir": "wollen",
+    "ihr": "wollt"
+  },
+  "kann": {
+    "ich": "kann",
+    "du": "kannst",
+    "wir": "k\xF6nnen",
+    "ihr": "k\xF6nnt"
+  },
+  "muss": {
+    "ich": "muss",
+    "du": "musst",
+    "wir": "m\xFCssen",
+    "ihr": "m\xFCsst"
+  },
+  "darf": {
+    "ich": "darf",
+    "du": "darfst",
+    "wir": "d\xFCrfen",
+    "ihr": "d\xFCrft"
+  },
+  "mag": {
+    "ich": "mag",
+    "du": "magst",
+    "wir": "m\xF6gen",
+    "ihr": "m\xF6gt"
+  },
+  "soll": {
+    "ich": "soll",
+    "du": "sollst",
+    "wir": "sollen",
+    "ihr": "sollt"
+  },
+  "m\xF6chte": {
+    "ich": "m\xF6chte",
+    "du": "m\xF6chtest",
+    "wir": "m\xF6chten",
+    "ihr": "m\xF6chtet"
+  },
+  "ist": {
+    "ich": "bin",
+    "du": "bist",
+    "wir": "sind",
+    "ihr": "seid"
+  },
+  "wird": {
+    "ich": "werde",
+    "du": "wirst",
+    "wir": "werden",
+    "ihr": "werdet"
+  },
+  "geht": {
+    "ich": "gehe",
+    "du": "gehst",
+    "wir": "gehen",
+    "ihr": "geht"
+  },
+  "kommt": {
+    "ich": "komme",
+    "du": "kommst",
+    "wir": "kommen",
+    "ihr": "kommt"
+  },
+  "bleibt": {
+    "ich": "bleibe",
+    "du": "bleibst",
+    "wir": "bleiben",
+    "ihr": "bleibt"
+  },
+  "\xF6ffnet": {
+    "ich": "\xF6ffne",
+    "du": "\xF6ffnest",
+    "wir": "\xF6ffnen",
+    "ihr": "\xF6ffnet"
+  },
+  "schlie\xDFt": {
+    "ich": "schlie\xDFe",
+    "du": "schlie\xDFt",
+    "wir": "schlie\xDFen",
+    "ihr": "schlie\xDFt"
+  },
+  "fragt": {
+    "ich": "frage",
+    "du": "fragst",
+    "wir": "fragen",
+    "ihr": "fragt"
+  },
+  "f\xFChrt": {
+    "ich": "f\xFChre",
+    "du": "f\xFChrst",
+    "wir": "f\xFChren",
+    "ihr": "f\xFChrt"
+  },
+  "begreift": {
+    "ich": "begreife",
+    "du": "begreifst",
+    "wir": "begreifen",
+    "ihr": "begreift"
+  },
+  "bricht": {
+    "ich": "breche",
+    "du": "brichst",
+    "wir": "brechen",
+    "ihr": "brecht"
+  },
+  "kippt": {
+    "ich": "kippe",
+    "du": "kippst",
+    "wir": "kippen",
+    "ihr": "kippt"
+  },
+  "l\xF6scht": {
+    "ich": "l\xF6sche",
+    "du": "l\xF6schst",
+    "wir": "l\xF6schen",
+    "ihr": "l\xF6scht"
+  },
+  "tut": {
+    "ich": "tue",
+    "du": "tust",
+    "wir": "tun",
+    "ihr": "tut"
+  },
+  "macht": {
+    "ich": "mache",
+    "du": "machst",
+    "wir": "machen",
+    "ihr": "macht"
+  },
+  "sieht": {
+    "ich": "sehe",
+    "du": "siehst",
+    "wir": "sehen",
+    "ihr": "seht"
+  },
+  "gibt": {
+    "ich": "gebe",
+    "du": "gibst",
+    "wir": "geben",
+    "ihr": "gebt"
+  },
+  "tr\xE4gt": {
+    "ich": "trage",
+    "du": "tr\xE4gst",
+    "wir": "tragen",
+    "ihr": "tragt"
+  },
+  "h\xF6rt": {
+    "ich": "h\xF6re",
+    "du": "h\xF6rst",
+    "wir": "h\xF6ren",
+    "ihr": "h\xF6rt"
+  },
+  "findet": {
+    "ich": "finde",
+    "du": "findest",
+    "wir": "finden",
+    "ihr": "findet"
+  },
+  "ber\xFChrt": {
+    "ich": "ber\xFChre",
+    "du": "ber\xFChrst",
+    "wir": "ber\xFChren",
+    "ihr": "ber\xFChrt"
+  },
+  "beobachtet": {
+    "ich": "beobachte",
+    "du": "beobachtest",
+    "wir": "beobachten",
+    "ihr": "beobachtet"
+  },
+  "kennt": {
+    "ich": "kenne",
+    "du": "kennst",
+    "wir": "kennen",
+    "ihr": "kennt"
+  },
+  "nennt": {
+    "ich": "nenne",
+    "du": "nennst",
+    "wir": "nennen",
+    "ihr": "nennt"
+  },
+  "sp\xFCrt": {
+    "ich": "sp\xFCre",
+    "du": "sp\xFCrst",
+    "wir": "sp\xFCren",
+    "ihr": "sp\xFCrt"
+  },
+  "wei\xDF": {
+    "ich": "wei\xDF",
+    "du": "wei\xDFt",
+    "wir": "wissen",
+    "ihr": "wisst"
+  },
+  "braucht": {
+    "ich": "brauche",
+    "du": "brauchst",
+    "wir": "brauchen",
+    "ihr": "braucht"
+  },
+  "w\xFCnscht": {
+    "ich": "w\xFCnsche",
+    "du": "w\xFCnschst",
+    "wir": "w\xFCnschen",
+    "ihr": "w\xFCnscht"
+  },
+  "hofft": {
+    "ich": "hoffe",
+    "du": "hoffst",
+    "wir": "hoffen",
+    "ihr": "hofft"
+  },
+  "tr\xE4umt": {
+    "ich": "tr\xE4ume",
+    "du": "tr\xE4umst",
+    "wir": "tr\xE4umen",
+    "ihr": "tr\xE4umt"
+  },
+  "plant": {
+    "ich": "plane",
+    "du": "planst",
+    "wir": "planen",
+    "ihr": "plant"
+  },
+  "f\xFCrchtet": {
+    "ich": "f\xFCrchte",
+    "du": "f\xFCrchtest",
+    "wir": "f\xFCrchten",
+    "ihr": "f\xFCrchtet"
+  },
+  "wartet": {
+    "ich": "warte",
+    "du": "wartest",
+    "wir": "warten",
+    "ihr": "wartet"
+  },
+  "glaubt": {
+    "ich": "glaube",
+    "du": "glaubst",
+    "wir": "glauben",
+    "ihr": "glaubt"
+  },
+  "denkt": {
+    "ich": "denke",
+    "du": "denkst",
+    "wir": "denken",
+    "ihr": "denkt"
+  },
+  "f\xFChlt": {
+    "ich": "f\xFChle",
+    "du": "f\xFChlst",
+    "wir": "f\xFChlen",
+    "ihr": "f\xFChlt"
+  },
+  "verlangt": {
+    "ich": "verlange",
+    "du": "verlangst",
+    "wir": "verlangen",
+    "ihr": "verlangt"
+  },
+  "erwartet": {
+    "ich": "erwarte",
+    "du": "erwartest",
+    "wir": "erwarten",
+    "ihr": "erwartet"
+  },
+  "riskiert": {
+    "ich": "riskiere",
+    "du": "riskierst",
+    "wir": "riskieren",
+    "ihr": "riskiert"
+  },
+  "wagt": {
+    "ich": "wage",
+    "du": "wagst",
+    "wir": "wagen",
+    "ihr": "wagt"
+  },
+  "flieht": {
+    "ich": "fliehe",
+    "du": "fliehst",
+    "wir": "fliehen",
+    "ihr": "flieht"
+  },
+  "jagt": {
+    "ich": "jage",
+    "du": "jagst",
+    "wir": "jagen",
+    "ihr": "jagt"
+  },
+  "folgt": {
+    "ich": "folge",
+    "du": "folgst",
+    "wir": "folgen",
+    "ihr": "folgt"
+  },
+  "verfolgt": {
+    "ich": "verfolge",
+    "du": "verfolgst",
+    "wir": "verfolgen",
+    "ihr": "verfolgt"
+  },
+  "rettet": {
+    "ich": "rette",
+    "du": "rettest",
+    "wir": "retten",
+    "ihr": "rettet"
+  },
+  "verr\xE4t": {
+    "ich": "verrate",
+    "du": "verr\xE4tst",
+    "wir": "verraten",
+    "ihr": "verratet"
+  },
+  "vergisst": {
+    "ich": "vergesse",
+    "du": "vergisst",
+    "wir": "vergessen",
+    "ihr": "vergesst"
+  },
+  "hatte": {
+    "ich": "hatte",
+    "du": "hattest",
+    "wir": "hatten",
+    "ihr": "hattet"
+  },
+  "war": {
+    "ich": "war",
+    "du": "warst",
+    "wir": "waren",
+    "ihr": "wart"
+  },
+  "wollte": {
+    "ich": "wollte",
+    "du": "wolltest",
+    "wir": "wollten",
+    "ihr": "wolltet"
+  },
+  "tat": {
+    "ich": "tat",
+    "du": "tatest",
+    "wir": "taten",
+    "ihr": "tatet"
+  },
+  "machte": {
+    "ich": "machte",
+    "du": "machtest",
+    "wir": "machten",
+    "ihr": "machtet"
+  },
+  "kam": {
+    "ich": "kam",
+    "du": "kamst",
+    "wir": "kamen",
+    "ihr": "kamt"
+  },
+  "ging": {
+    "ich": "ging",
+    "du": "gingst",
+    "wir": "gingen",
+    "ihr": "gingt"
+  },
+  "f\xFChrte": {
+    "ich": "f\xFChrte",
+    "du": "f\xFChrtest",
+    "wir": "f\xFChrten",
+    "ihr": "f\xFChrtet"
+  },
+  "schloss": {
+    "ich": "schloss",
+    "du": "schlossest",
+    "wir": "schlossen",
+    "ihr": "schlosst"
+  },
+  "fragte": {
+    "ich": "fragte",
+    "du": "fragtest",
+    "wir": "fragten",
+    "ihr": "fragtet"
+  },
+  "begriff": {
+    "ich": "begriff",
+    "du": "begriffst",
+    "wir": "begriffen",
+    "ihr": "begrifft"
+  },
+  "stellt": {
+    "ich": "stelle",
+    "du": "stellst",
+    "wir": "stellen"
+  },
+  "erkennt": {
+    "ich": "erkenne",
+    "du": "erkennst",
+    "wir": "erkennen"
+  },
+  "zeigt": {
+    "ich": "zeige",
+    "du": "zeigst",
+    "wir": "zeigen"
+  },
+  "greift": {
+    "ich": "greife",
+    "du": "greifst",
+    "wir": "greifen"
+  },
+  "legt": {
+    "ich": "lege",
+    "du": "legst",
+    "wir": "legen"
+  },
+  "betrachtet": {
+    "ich": "betrachte",
+    "du": "betrachtest",
+    "wir": "betrachten"
+  },
+  "setzt": {
+    "ich": "setze",
+    "du": "setzt",
+    "wir": "setzen"
+  },
+  "merkt": {
+    "ich": "merke",
+    "du": "merkst",
+    "wir": "merken"
+  },
+  "pr\xFCft": {
+    "ich": "pr\xFCfe",
+    "du": "pr\xFCfst",
+    "wir": "pr\xFCfen"
+  }
+};
+var INFINITIVE_VERBS = /* @__PURE__ */ new Set(["entdecken", "finden", "verstehen", "erreichen", "verlassen", "retten", "zerst\xF6ren", "beweisen", "\xFCberleben", "fliehen", "gewinnen", "verlieren", "\xF6ffnen", "schlie\xDFen", "verschwinden", "sterben", "bleiben", "ankommen", "entkommen", "aufwachen", "vergessen", "lernen", "ver\xE4ndern", "kontrollieren", "sch\xFCtzen", "befreien", "heilen", "erschaffen", "reparieren", "beenden", "anfangen", "beginnen", "erinnern", "wissen", "glauben", "tr\xE4umen", "hoffen", "k\xE4mpfen", "siegen", "sprechen", "schweigen", "warten", "folgen", "fragen", "antworten", "erkl\xE4ren", "gehen", "kommen"]);
+
+// src/generation/verbconj.ts
+var VERB_TOKEN_RE = new RegExp("\\b(" + Object.keys(VERB_CONJ).join("|") + ")\\b", "i");
+function conjugateVerbToken(verb, person) {
+  if (!verb) return verb;
+  const isCap = /^[A-ZÄÖÜ]/.test(verb);
+  const low2 = verb.toLowerCase();
+  const table = VERB_CONJ[low2];
+  let out;
+  if (table && table[person]) {
+    out = table[person];
+  } else {
+    const p = person === "ich" || person === "du" || person === "wir" || person === "ihr" ? person : "er";
+    out = beugeVerb(low2, p) ?? low2;
+  }
+  return isCap ? cap(out) : out;
+}
+
+// src/generation/wordcls.ts
+var PERSON_NOMEN = /(jugendliche|jugendlicher|erwachsene|erwachsener|alte|alter|kranke|kranker|gefangene|gefangener|angestellte|angestellter|beamte|beamter|verwandte|verwandter|bekannte|bekannter|vorsitzende|vorsitzender|abgeordnete|abgeordneter|obdachlose|obdachloser|pensionär|pensionärin|rentner|rentnerin|zeuge|zeugin|täter|täterin|opfer|passant|passantin|kellner|kellnerin|pfarrer|pfarrerin|richter|richterin|händler|händlerin|bauer|bäuerin|förster|försterin|schneider|schneiderin|weber|weberin|uhrmacher|uhrmacherin|archivar|archivarin|übersetzer|übersetzerin|magd|knecht|ritter|ritterin|nonne|mönch|clown|boxer|boxerin|grabräuber|grabräuberin|mädchen|junge|kind|frau|mann|männer|dame|herr|schüler|schülerin|lehrer|lehrerin|wächter|wächterin|arzt|ärztin|bäcker|bäckerin|gärtner|gärtnerin|fischer|fischerin|bote|botin|wanderer|wanderin|reisende|reisender|nachbar|nachbarin|greis|greisin|witwe|witwer|zwilling|bruder|schwester|sohn|tochter|vater|mutter|onkel|tante|neffe|nichte|freund|freundin|gast|fremde|fremder|meister|meisterin|gesell|lehrling|soldat|soldatin|matrose|matrosin|pilot|pilotin|köchin|koch|wirt|wirtin|müller|müllerin|schmied|schmiedin|hirte|hirtin|jäger|jägerin|sammler|sammlerin)$/i;
+var NOT_INFINITIVE = /* @__PURE__ */ new Set([
+  "einen",
+  "keinen",
+  "seinen",
+  "ihren",
+  "deinen",
+  "unseren",
+  "euren",
+  "diesen",
+  "jenen",
+  "denen",
+  "welchen",
+  "allen",
+  "vielen",
+  "beiden",
+  "manchen",
+  "jeden",
+  "solchen",
+  "anderen",
+  "eigenen",
+  "letzten",
+  "ersten",
+  "oben",
+  "unten",
+  "innen",
+  "au\xDFen",
+  "hinten",
+  "vorn",
+  "vorne",
+  "neben",
+  "eben",
+  "gegen",
+  "wegen",
+  "gegen\xFCber",
+  "morgen",
+  "\xFCbermorgen",
+  "wochen",
+  "stunden",
+  "sieben",
+  "zehn",
+  "trotzen",
+  "w\xE4hrend",
+  "dessen",
+  "deren",
+  "hinein"
+]);
+var NICHT_VERB_T = /* @__PURE__ */ new Set([
+  "nicht",
+  "jetzt",
+  "erst",
+  "fast",
+  "sonst",
+  "meist",
+  "zuerst",
+  "zuletzt",
+  "selbst",
+  "sogar",
+  "seit",
+  "samt",
+  "statt",
+  "mit",
+  "zeit",
+  "trotz",
+  "laut",
+  "gerecht",
+  "sanft",
+  "dicht",
+  "leicht",
+  "schlecht",
+  "recht",
+  "direkt",
+  "echt",
+  "exakt",
+  "strikt",
+  "perfekt",
+  "konkret",
+  "komplett",
+  "kaputt",
+  "sacht",
+  "glatt",
+  "platt",
+  "nackt",
+  "satt",
+  "breit",
+  "bereit",
+  "weit",
+  "sp\xE4t",
+  "hart",
+  "zart",
+  "kalt",
+  "alt",
+  "bunt",
+  "rot",
+  "gut",
+  "oft",
+  "still",
+  "halt",
+  "gesamt",
+  "insgesamt",
+  "bekannt",
+  "verwandt",
+  "ber\xFChmt",
+  "sofort",
+  "vielleicht",
+  "\xFCberhaupt",
+  "zumindest",
+  "h\xF6chst",
+  "\xE4u\xDFerst",
+  "mindest",
+  "bestimmt",
+  "unbedingt",
+  "ernst",
+  "einst",
+  "l\xE4ngst",
+  "j\xFCngst",
+  "umsonst",
+  "weltweit",
+  "korrekt",
+  "intakt",
+  "kompakt",
+  "prompt",
+  "getrennt",
+  // vierbuchstabige Adjektive und Adverbien auf -t
+  "bunt",
+  "echt",
+  "fest",
+  "hart",
+  "kalt",
+  "laut",
+  "matt",
+  "nett",
+  "satt",
+  "weit",
+  "zart",
+  "fett",
+  "halt",
+  "wert",
+  "dort",
+  "fort",
+  "stet",
+  "sart"
+]);
+function wirktFinit(w) {
+  if (w.length < 4 || NICHT_VERB_T.has(w)) return false;
+  if (/^ge[a-zäöüß]+t$/.test(w)) return false;
+  return /^[a-zäöüß]+[^aeiouäöü]t$/.test(w) || /^[a-zäöüß]+et$/.test(w);
+}
+function looksLikeInfinitive(w) {
+  if (INFINITIVE_VERBS.has(w)) return true;
+  if (w.length < 5 || NOT_INFINITIVE.has(w) || NOUN_GENDER[w]) return false;
+  return /(?:[a-zäöüß]{3,})(?:en|ern|eln)$/.test(w);
+}
+function extractLeadVerb(text) {
+  const s = clean(text);
+  if (!s) return { verb: null, rest: s };
+  const m0 = s.match(/^([A-Za-zÄÖÜäöüß]+)(,?)\s+(.+)$/);
+  if (!m0) return { verb: null, rest: s };
+  const m = [m0[0], m0[1], (m0[2] ? ", " : "") + m0[3]];
+  const raw = m[1];
+  const w = raw.toLowerCase();
+  if (VERB_CONJ[w]) return { verb: raw, rest: m[2] };
+  if (/^[a-zäöüß]/.test(raw) && looksLikeInfinitive(w)) {
+    return { verb: null, rest: `${m[2]} ${w}`, isInfinitiveLed: true };
+  }
+  if (/^[a-zäöüß]+iert$/.test(w)) return { verb: raw, rest: m[2] };
+  const dritte = ICH_DU_ZU_ER[w];
+  if (dritte && /^[a-zäöüß]/.test(raw)) return { verb: dritte, rest: m[2] };
+  if (/^[a-zäöüß]/.test(raw) && (EXTRA_FINITE_RE.test(w) || wirktFinit(w))) {
+    return { verb: raw, rest: m[2] };
+  }
+  return { verb: null, rest: s };
+}
+var ICH_DU_HAND = {
+  sehe: "sieht",
+  siehst: "sieht",
+  gehe: "geht",
+  gehst: "geht",
+  komme: "kommt",
+  kommst: "kommt",
+  finde: "findet",
+  findest: "findet",
+  glaube: "glaubt",
+  glaubst: "glaubt",
+  lebe: "lebt",
+  lebst: "lebt",
+  liege: "liegt",
+  liegst: "liegt",
+  sitze: "sitzt",
+  lese: "liest",
+  liest: "liest",
+  schlafe: "schl\xE4ft",
+  schl\u00E4fst: "schl\xE4ft",
+  laufe: "l\xE4uft",
+  l\u00E4ufst: "l\xE4uft",
+  falle: "f\xE4llt",
+  f\u00E4llst: "f\xE4llt",
+  breche: "bricht",
+  brichst: "bricht",
+  rufe: "ruft",
+  rufst: "ruft",
+  weine: "weint",
+  weinst: "weint",
+  lache: "lacht",
+  lachst: "lacht",
+  sp\u00FCre: "sp\xFCrt",
+  sp\u00FCrst: "sp\xFCrt",
+  atme: "atmet",
+  atmest: "atmet",
+  singe: "singt",
+  singst: "singt",
+  \u00F6ffne: "\xF6ffnet",
+  \u00F6ffnest: "\xF6ffnet",
+  erinnere: "erinnert",
+  erinnerst: "erinnert",
+  erkenne: "erkennt",
+  erkennst: "erkennt",
+  zerbreche: "zerbricht",
+  zerbrichst: "zerbricht",
+  stolpere: "stolpert",
+  stolperst: "stolpert",
+  verharre: "verharrt",
+  verharrst: "verharrt",
+  wandere: "wandert",
+  wanderst: "wandert",
+  zittere: "zittert",
+  zitterst: "zittert",
+  fl\u00FCstere: "fl\xFCstert",
+  fl\u00FCsterst: "fl\xFCstert",
+  wundere: "wundert",
+  wunderst: "wundert",
+  z\u00F6gere: "z\xF6gert",
+  z\u00F6gerst: "z\xF6gert",
+  erwache: "erwacht",
+  erwachst: "erwacht",
+  verschwinde: "verschwindet",
+  verschwindest: "verschwindet",
+  begreife: "begreift",
+  begreifst: "begreift",
+  verstehe: "versteht",
+  verstehst: "versteht",
+  bleibe: "bleibt",
+  bleibst: "bleibt",
+  ziehe: "zieht",
+  ziehst: "zieht"
+};
+var ICH_DU_ZU_ER = (() => {
+  const m = {};
+  for (const [dritte, formen] of Object.entries(VERB_CONJ)) {
+    for (const p of ["ich", "du", "wir", "ihr"]) {
+      const f = formen[p];
+      if (f && !m[f]) m[f] = dritte;
+    }
+  }
+  return { ...m, ...ICH_DU_HAND };
+})();
+var EXTRA_FINITE_RE = /\b(geschieht|geschehen|geschah|passiert|passieren|passierte|tickt|ticken|atmet|atmen|wächst|wachsen|wuchs|brennt|brennen|brannte|fällt|fallen|fiel|zerfällt|zerfallen|verschwindet|verschwinden|verschwand|erscheint|erscheinen|erschien|endet|enden|endete|beginnt|beginnen|begann|stirbt|sterben|starb|blüht|blühen|klopft|klopfen|flackert|flackern|zerbricht|zerbrechen|zerbrach|dreht|drehen|schweigt|schweigen|schwieg|singt|singen|sang|wandert|wandern|glüht|glühen|tanzt|tanzen|brüllt|brüllen|reagiert|reagieren|zeigt|zeigen|spricht|sprechen|sprach|antwortet|antworten|erinnert|erinnern|verändert|verändern|zittert|zittern|leuchtet|leuchten|schmilzt|schmelzen|regnet|schneit|blitzt|donnert|bebt|läuft|laufen|lief|rinnt|tropft|fließt|fließen|floss|steigt|steigen|stieg|sinkt|sinken|sank|kreist|kreisen|pulsiert|vibriert|summt|brummt|knistert|raschelt|flüstert|flüstern|schreit|schreien|schrie|weint|weinen|lacht|lachen|verglüht|verblasst|zerrinnt|wartet|warten)\b/i;
+function looksLikeFullClause(leadVerb, rest) {
+  if (leadVerb) return false;
+  return VERB_TOKEN_RE.test(rest || "") || EXTRA_FINITE_RE.test(rest || "");
+}
+var SP_REL = /^(der|die|das|den|dem|des|deren|dessen|welche[rsmn]?|wo|worin|woran|womit|wovon)\b/i;
+var SP_CONJ = /^(als|während|weil|wenn|da|obwohl|nachdem|bevor|sodass|damit|dass|ob|indem|sobald|solange)\b/i;
+var SP_PREP = /^(mit|ohne|aus|von|vom|in|im|auf|an|am|für|bei|zu|zum|zur|über|unter|vor|nach|durch|gegen|seit|um|entlang|trotz|wegen|innerhalb|außerhalb|samt|nebst|zwischen|entgegen|gemäß|laut|binnen|jenseits|diesseits)\b/i;
+var SP_ENDS_VERB = /(?:\b(hat|hatte|ist|war|sind|waren|wird|wurde|wurden|kann|konnte|will|wollte|muss|musste|bleibt|blieb|kommt|kam|geht|ging)|(?:^|[^A-Za-zÄÖÜäöüß])[a-zäöüß]{2,}(?:t|te|en|st|et))\.?$/;
+var SP_DET = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses|jener|jene|jenes|beide|alle|zwei|drei|vier)\b/i;
+function istEigenePerson(teil) {
+  const p = clean(teil);
+  if (!p) return false;
+  if (SP_REL.test(p) && SP_ENDS_VERB.test(p)) return false;
+  if (SP_CONJ.test(p) || SP_PREP.test(p)) return false;
+  if (SP_DET.test(p)) return true;
+  if (/^[A-ZÄÖÜ]/.test(p)) return true;
+  return !/\s/.test(p);
+}
+function personKopf(person) {
+  const teile = (person || "").split(",").map((x) => clean(x)).filter(Boolean);
+  if (teile.length <= 1) return (person || "").trim();
+  const raus = [teile[0]];
+  for (let i = 1; i < teile.length; i++) {
+    if (SP_REL.test(teile[i]) && SP_ENDS_VERB.test(teile[i])) raus.push(teile[i]);
+  }
+  return raus.join(", ");
+}
+function splitSpeakers(who) {
+  const parts = (who || "").split(",").map((s) => clean(s)).filter(Boolean);
+  if (parts.length <= 1) return parts;
+  const out = [parts[0]];
+  for (let i = 1; i < parts.length; i++) {
+    if (istEigenePerson(parts[i])) out.push(parts[i]);
+    else out[out.length - 1] += ", " + parts[i];
+  }
+  return out;
+}
+
+// src/features/waechterStatistik.ts
+function zaehleWennAnders(was, vorher, nachher) {
+  if (vorher === nachher) return;
+  const a = vorher.split(/(?<=[.!?…])\s+/), b = nachher.split(/(?<=[.!?…])\s+/);
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  zaehle(was, `${(a[i] || "").slice(0, 70)} \u2192 ${(b[i] || "").slice(0, 70)}`);
+}
+var KEY2 = "dm_waechter_statistik_v1";
+var BEISPIELE_JE = 5;
+var cache = null;
+var schreibTimer = null;
+function leer() {
+  return { zaehler: {}, beispiele: {}, seit: (/* @__PURE__ */ new Date()).toISOString() };
+}
+function ladeStatistik() {
+  if (cache) return cache;
+  try {
+    const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(KEY2);
+    const v = raw ? JSON.parse(raw) : null;
+    cache = v && v.zaehler && v.beispiele ? v : leer();
+  } catch {
+    cache = leer();
+  }
+  return cache;
+}
+function speichern() {
+  if (schreibTimer !== null) return;
+  schreibTimer = setTimeout(() => {
+    schreibTimer = null;
+    try {
+      if (typeof localStorage !== "undefined" && cache) localStorage.setItem(KEY2, JSON.stringify(cache));
+    } catch {
+    }
+  }, 1e3);
+}
+function zaehle(was, beispiel) {
+  const st = ladeStatistik();
+  st.zaehler[was] = (st.zaehler[was] || 0) + 1;
+  if (beispiel) {
+    const b = st.beispiele[was] || [];
+    const kurz = beispiel.trim().slice(0, 140);
+    if (!b.includes(kurz)) {
+      b.unshift(kurz);
+      st.beispiele[was] = b.slice(0, BEISPIELE_JE);
+    }
+  }
+  speichern();
+}
+
+// src/generation/coherence.ts
+var PRAET_STRONG = /\b(war|waren|warst|hatte|hatten|wurde|wurden|ging|gingen|kam|kamen|sah|sahen|gab|gaben|stand|standen|blieb|blieben|hielt|hielten|ließ|ließen|fand|fanden|nahm|nahmen|sprach|sprachen|schrieb|schrieben|trug|trugen|fuhr|fuhren|lief|liefen|saß|saßen|lag|lagen|hieß|hießen|zog|zogen|schlief|schliefen|rief|riefen|fiel|fielen|sang|sangen|trank|tranken|schwieg|schwiegen|floss|flossen|stieg|stiegen|sank|sanken|bot|boten|schloss|schlossen|verlor|verloren|begann|begannen|geschah|geschahen|konnte|konnten|musste|mussten|wollte|wollten|sollte|sollten|durfte|durften|wusste|wussten|dachte|dachten|brachte|brachten)\b/i;
+var PRAET_WEAK = /\b[a-zäöüß]{3,}(te|ten|test)\b/;
+var PRAES_MARK = /\b(ist|sind|bin|bist|seid|hat|habe|hast|haben|habt|wird|werden|wirst|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|weiß|wissen|geht|gehen|kommt|kommen|sieht|sehen|steht|stehen|bleibt|bleiben|liegt|liegen|gibt|geben|nimmt|nehmen|spricht|sprechen|trägt|tragen|läuft|laufen|fällt|fallen|geschieht|passiert|beginnt|endet|wartet|antwortet|arbeitet|bedeutet|beobachtet|berichtet|schlägt|zeigt|dauert|öffnet|schließt|klingt|riecht|scheint|hört|fühlt|wirkt|führt|dreht|zieht|hält|läuft|fließt|wächst|sinkt|steigt|schweigt|spricht|denkt|kennt|nennt|trägt|findet|verliert|verschwindet)\b/i;
+var ADJ_CONTEXT = /(?:\b(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|kein|keine|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|jede|jeder|jedes|diese|dieser|dieses|manche|viele|alle)\s+[a-zäöüß]*)?\b[a-zäöüß]{3,}(?:te|ten)\b(?=\s+[A-ZÄÖÜ])/;
+function schwachesPraeteritum(w, satz) {
+  const l = w.toLowerCase();
+  if (kenntInfinitiv(l) || kenntInfinitiv(l.replace(/e$/, "en")) || kenntInfinitiv(l.replace(/en$/, "n"))) return false;
+  const m = l.match(/^([a-zäöüß]{2,}?)(e?te|e?ten|e?test)$/);
+  if (!m) return false;
+  const inf = infinitivZuStamm(m[1]);
+  if (inf) return true;
+  const re = new RegExp("\\b" + w + "\\b(?=\\s+[A-Z\xC4\xD6\xDC])");
+  return !re.test(satz) && !KEIN_VERB.has(m[1] + "t") && !KEIN_VERB.has(m[1]);
+}
+var weakLooksVerbal = (t) => {
+  const m = t.match(/\b[a-zäöüß]{3,}(te|ten|test|tet)\b/g);
+  if (!m) return false;
+  return m.some((w) => schwachesPraeteritum(w, t));
+};
+function isPastTense(s) {
+  const t = s || "";
+  if (PRAES_MARK.test(t)) return false;
+  if (PRAET_STRONG.test(t)) return true;
+  if (PRAET_WEAK.test(t) && weakLooksVerbal(t) && !ADJ_CONTEXT.test(t)) return true;
+  return (t.toLowerCase().match(/[a-zäöüß]+/g) || []).some((w) => !!PAST2PRES[w]);
+}
+var tokens = (t) => t.toLowerCase().match(/[a-zäöüß]{2,}/g) || [];
+function ngrams(t, n) {
+  const w = tokens(t);
+  const out = [];
+  for (let i = 0; i + n <= w.length; i++) out.push(w.slice(i, i + n).join(" "));
+  return out;
+}
+function phraseRepeatRatio(text) {
+  let dup = 0, total = 0;
+  for (const n of [3, 4]) {
+    const g = ngrams(text, n);
+    if (g.length < 4) continue;
+    const seen = /* @__PURE__ */ new Set();
+    for (const x of g) {
+      total++;
+      if (seen.has(x)) dup++;
+      else seen.add(x);
+    }
+  }
+  return total ? dup / total : 0;
+}
+var NAME_STOP = /* @__PURE__ */ new Set(["der", "die", "das", "den", "dem", "des", "ein", "eine", "einen", "einem", "einer", "und", "oder", "aber", "denn", "doch", "dann", "als", "wie", "was", "wer", "wo", "wann", "warum", "ich", "du", "er", "sie", "es", "wir", "ihr", "man", "hier", "dort", "jetzt", "noch", "nur", "auch", "schon", "immer", "nie", "sehr", "so", "zu", "im", "am", "auf", "in", "an", "mit", "von", "f\xFCr", "bei", "nach", "vor", "\xFCber", "unter", "durch", "um", "ohne", "seit", "damals", "sp\xE4ter", "zuerst", "zuletzt", "stille", "nein", "ja", "fast", "vielleicht", "genau", "warte", "gut", "dabei", "dazu", "dann"]);
+var DETERMINER = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|meinen|meinem|meiner|dein|deine|sein|seine|seinen|seinem|ihr|ihre|ihren|ihrem|unser|unsere|euer|eure|kein|keine|keinen|keinem|jeder|jede|jedes|dieser|diese|dieses|diesem|diesen|jener|jene|manche|viele|alle|beide|im|am|zum|zur|ins|ans|vom|beim|aufs|durchs|übers|unters)$/i;
+var PREP = /^(in|an|auf|bei|mit|von|zu|nach|über|unter|vor|hinter|neben|zwischen|durch|für|ohne|um|gegen|seit|trotz|wegen|während|aus)$/i;
+function properNames(text) {
+  const out = /* @__PURE__ */ new Set();
+  for (const sent of splitSentences(text)) {
+    const w = sent.trim().split(/\s+/);
+    for (let i = 1; i < w.length; i++) {
+      const raw = w[i].replace(/[^A-Za-zÄÖÜäöüß-]/g, "");
+      if (raw.length < 3 || !/^[A-ZÄÖÜ]/.test(raw)) continue;
+      const lowRaw = raw.toLowerCase();
+      if (NAME_STOP.has(lowRaw)) continue;
+      if (NOUN_GENDER[lowRaw]) continue;
+      const prev = (w[i - 1] || "").replace(/[^A-Za-zÄÖÜäöüß]/g, "");
+      if (DETERMINER.test(prev) || PREP.test(prev)) continue;
+      out.add(raw);
+    }
+  }
+  return [...out];
+}
+var PERSON_FORMS = {
+  war: { ich: "bin", du: "bist", wir: "sind", ihr: "seid", sie: "ist", er: "ist", es: "ist" },
+  waren: { wir: "sind", sie: "sind", ihr: "seid" },
+  hatte: { ich: "habe", du: "hast", wir: "haben", ihr: "habt", sie: "hat", er: "hat", es: "hat" },
+  hatten: { wir: "haben", sie: "haben", ihr: "habt" },
+  wurde: { ich: "werde", du: "wirst", wir: "werden", sie: "wird", er: "wird", es: "wird" },
+  konnte: { ich: "kann", du: "kannst", wir: "k\xF6nnen", sie: "kann", er: "kann", es: "kann" },
+  musste: { ich: "muss", du: "musst", wir: "m\xFCssen", sie: "muss", er: "muss", es: "muss" },
+  wollte: { ich: "will", du: "willst", wir: "wollen", sie: "will", er: "will", es: "will" },
+  sollte: { ich: "soll", du: "sollst", wir: "sollen", sie: "soll", er: "soll", es: "soll" },
+  wusste: { ich: "wei\xDF", du: "wei\xDFt", wir: "wissen", sie: "wei\xDF", er: "wei\xDF", es: "wei\xDF" }
+};
+function toPresent(entry) {
+  const unsure = [];
+  let changed = false;
+  const words = (entry || "").split(/(\s+)/);
+  for (let i = 0; i < words.length; i++) {
+    const roh = words[i];
+    const zeichen = (roh.match(/[.,;:!?…»“"]+$/) || [""])[0];
+    const w = zeichen ? roh.slice(0, -zeichen.length) : roh;
+    if (!/^[A-Za-zÄÖÜäöüß]+$/.test(w)) continue;
+    const low2 = w.toLowerCase();
+    const base = PAST2PRES[low2];
+    if (base) {
+      const prev = (words.slice(0, i).reverse().find((x) => /^[A-Za-zÄÖÜäöüß]+$/.test(x)) || "").toLowerCase();
+      const next = (words.slice(i + 1).find((x) => /^[A-Za-zÄÖÜäöüß]+$/.test(x)) || "").toLowerCase();
+      const pf = PERSON_FORMS[low2];
+      const subj = /^(ich|du|wir|ihr)$/.test(prev) ? prev : /^(ich|du|wir|ihr)$/.test(next) ? next : "";
+      let form = base;
+      if (pf && subj && pf[subj]) form = pf[subj];
+      else if (subj) {
+        const b = beugeVerb(base, subj);
+        if (!b) {
+          unsure.push(w);
+          continue;
+        }
+        form = b;
+      }
+      words[i] = (/^[A-ZÄÖÜ]/.test(w) ? form.charAt(0).toUpperCase() + form.slice(1) : form) + zeichen;
+      changed = true;
+      continue;
+    }
+    if (/^[a-zäöüß]{4,}(te|ete)$/.test(low2)) unsure.push(w);
+  }
+  return { text: words.join(""), changed, unsure };
+}
+function praesensUmschreiben(entry) {
+  const first = toPresentSicher(entry);
+  const words = first.text.split(/(\s+)/);
+  let changed = first.changed;
+  const ARTIKEL2 = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|kein|keine|keinen|mein|meine|meinen|dein|deine|sein|seine|seinen|ihr|ihre|ihren|unser|unsere|jede|jeder|jedes|diese|dieser|dieses|manche|viele|alle|zwei|drei|im|am|zum|zur|beim|ins|vom)$/i;
+  const KONJUNKTIV = /^(müsste|müssten|könnte|könnten|dürfte|dürften|möchte|möchten|hätte|hätten|wäre|wären|würde|würden|sollte|sollten|wollte|wollten)$/i;
+  const MODAL_DAVOR = /^(zu|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|mag|mögen|lässt|lassen|möchte|könnte|müsste|sollte|wollte|dürfte)$/i;
+  const rein = (x) => x.replace(/[^A-Za-zÄÖÜäöüß]/g, "");
+  const EINDEUTIG = /(?:[td]|chn|ffn|gn|tm|dm|ckn|kn)ete(?:n|st|t)?$/;
+  const belegtPraeteritum = first.changed || (first.text.match(/\b[a-zäöüß]{3,}ete(?:n|st)?\b/g) || []).some((x) => EINDEUTIG.test(x));
+  let unklar = 0;
+  for (let i = 0; i < words.length; i++) {
+    const roh = words[i];
+    const satzzeichen = (roh.match(/[.,;:!?…»“"]+$/) || [""])[0];
+    const w = satzzeichen ? roh.slice(0, -satzzeichen.length) : roh;
+    const m = w.match(/^([a-zäöüß]{3,}?)(e?te|e?ten|e?test)$/);
+    if (!m || KONJUNKTIV.test(w)) continue;
+    const stamm = m[1], endung = m[2];
+    const eindeutig = /^e/.test(endung) && EINDEUTIG.test(w);
+    if (/^e/.test(endung) && !eindeutig) continue;
+    if (/(^|[a-zäöü])ge[a-zäöüß]{3,}$/.test(stamm) && !/^(geh|gel|gen|ger|geb|ges)/.test(stamm)) continue;
+    if (/t$/.test(stamm) && !eindeutig) continue;
+    const davor = words.slice(0, i).map(rein).filter(Boolean);
+    const prev = (davor[davor.length - 1] || "").toLowerCase();
+    const naechst = words.slice(i + 1).map(rein).find(Boolean) || "";
+    if (ARTIKEL2.test(prev) && /^[A-ZÄÖÜ]/.test(naechst)) continue;
+    if (/ten$/.test(endung) && MODAL_DAVOR.test(prev)) continue;
+    if (KEIN_VERB.has(stamm + "t") || KEIN_VERB.has(stamm)) continue;
+    if (kenntInfinitiv(w) || kenntInfinitiv(w.replace(/e$/, "en")) || kenntInfinitiv(w.replace(/en$/, "n"))) continue;
+    const inf = infinitivZuStamm(stamm);
+    if (!inf) {
+      if (/^[A-ZÄÖÜ]/.test(naechst) || /ten$/.test(endung) || ARTIKEL2.test(prev)) continue;
+      if (!eindeutig && !belegtPraeteritum && istVerbform(stamm + "t")) unklar++;
+      continue;
+    }
+    const bindevokal = /^e/.test(endung);
+    const dritte = bindevokal ? stamm + "et" : stamm + "t";
+    let neu;
+    if (/^ich$/i.test(prev)) neu = beugeVerb(dritte, "ich") || dritte;
+    else if (/^du$/i.test(prev)) neu = beugeVerb(dritte, "du") || dritte;
+    else if (/ten$/.test(endung)) neu = beugeVerb(dritte, "wir") || dritte;
+    else neu = dritte;
+    if (neu !== w) {
+      words[i] = neu + satzzeichen;
+      changed = true;
+    }
+  }
+  const text = words.join("");
+  const ok = !isPastTense(text) && unklar === 0;
+  if (ok && changed) zaehle("umgeschrieben", `${entry} \u2192 ${text}`);
+  else if (!ok && unklar) zaehle("unklar", entry);
+  else if (!ok) zaehle("praeteritumVerworfen", entry);
+  return { text, ok, changed };
+}
+function toPresentSicher(entry) {
+  const AUX = /\b(hat|haben|habe|hast|habt|hatte|hatten|ist|sind|bin|bist|seid|war|waren|wird|werden|wurde|wurden|worden)\b/i;
+  const perfekt = AUX.test(entry);
+  const words = entry.split(/(\s+)/);
+  const marker = [];
+  let erstesWort = true;
+  let vorher = "";
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    if (!/^[A-Za-zÄÖÜäöüß]/.test(w)) continue;
+    const konjNachAls = vorher === "als" && /^(wollte|wollten|sollte|sollten|könnte|könnten|müsste|hätte|hätten|wäre|wären|würde|würden)/i.test(w);
+    const ambig = /^(verloren|verstanden|entstanden|bestanden|erschienen)[.,;:!?]*$/i.test(w) && !/^(wir|sie|die|alle|beide|viele|manche|einige|leute|kinder|männer|frauen)$/.test(vorher);
+    const schuetzen = !erstesWort && /^[A-ZÄÖÜ]/.test(w) || perfekt && /en[.,;:!?]*$/.test(w) || konjNachAls || ambig;
+    vorher = w.toLowerCase().replace(/[^a-zäöüß]/g, "");
+    erstesWort = false;
+    if (schuetzen) {
+      marker.push(w);
+      words[i] = `\xA7${marker.length - 1}\xA7`;
+    }
+  }
+  const r = toPresent(words.join(""));
+  let text = r.text;
+  marker.forEach((w, k) => {
+    text = text.replace(`\xA7${k}\xA7`, w);
+  });
+  return { text, changed: r.changed, unsure: r.unsure };
+}
+var DU_FORM = /\b(du|dir|dich|dein|deine|deinen|deinem|deiner|deines)\b/i;
+var ICH_FORM = /\b(ich|mir|mich|mein|meine|meinen|meinem|meiner|meines)\b/i;
+function isSecondPerson(s) {
+  return DU_FORM.test(s || "");
+}
+function isFirstPerson(s) {
+  return ICH_FORM.test(s || "");
+}
+
+// src/atoms/derive.ts
+var SEIN_HABEN_WERDEN = /^(ist|sind|bin|bist|seid|war|waren|warst|hat|habe|hast|haben|habt|hatte|hatten|wird|werden|wirst|werdet|wurde|wurden|kann|kannst|können|könnt|konnte|muss|musst|müssen|müsst|will|willst|wollen|wollt|soll|sollen|darf|dürfen|mag|mögen|weiß|wissen|bleibt|bleiben|blieb|gibt|geben|gab)$/;
+var KURZVERB = /^(löst|geht|ruft|tut|gibt|lebt|hebt|legt|sagt|sieht|hält|fällt|zieht|trägt|liegt|kommt|nimmt|läuft|steht|dreht|führt|hört|fühlt|zählt|setzt|passt|weint|lacht|denkt|kennt|nennt|misst|sinkt|steigt|klingt|singt|fehlt|blickt|wirkt|reißt|bricht|spricht|wächst)$/;
+var PRAET_FORM = /(?:^|^[a-zäöüß]{2,6})(lag|lagen|stand|standen|ging|gingen|kam|kamen|sah|sahen|nahm|nahmen|hielt|hielten|ließ|ließen|fand|fanden|zog|zogen|trug|trugen|fiel|fielen|rief|riefen|sprach|schrieb|floss|stieg|sank|klang|hing|schien|trieb|brach|schloss|verlor|begann|geschah|roch|rochen|sass|saßen|riss|rissen|sprang|sprangen|schlug|schlugen|traf|trafen|griff|griffen|lief|liefen|wusste|wussten|verschwand|verschwanden|blieb|blieben|hieß|hießen|wuchs|wuchsen|schob|schoben|bog|bogen|schwieg|schwiegen)$/;
+var EN_KEIN_VERB = /* @__PURE__ */ new Set([
+  "gegen",
+  "neben",
+  "wegen",
+  "zwischen",
+  "entgegen",
+  "oben",
+  "unten",
+  "eben",
+  "dr\xFCben",
+  "drau\xDFen",
+  "drinnen",
+  "morgen",
+  "selten",
+  "ansonsten",
+  "meisten",
+  "wenigsten",
+  "offen",
+  "eigen",
+  "golden",
+  "seiden",
+  "wollen",
+  "einen",
+  "keinen",
+  "meinen",
+  "seinen",
+  "ihren",
+  "deinen",
+  "unseren",
+  "euren",
+  "deren",
+  "dessen",
+  "allen",
+  "vielen",
+  "manchen",
+  "welchen",
+  "jeden",
+  "diesen",
+  "jenen",
+  "denen",
+  "ihnen",
+  "sieben",
+  "tausenden",
+  "hunderten",
+  "anderen",
+  "einigen",
+  "wenigen",
+  "beiden",
+  "solchen",
+  "eigenen",
+  "ersten",
+  "zweiten",
+  "dritten",
+  "letzten",
+  "n\xE4chsten",
+  "besten",
+  "ganzen",
+  "halben",
+  "fernen",
+  "nahen",
+  "hohen",
+  "tiefen",
+  "langen",
+  "kurzen",
+  "alten",
+  "neuen",
+  "jungen",
+  "kleinen",
+  "gro\xDFen",
+  "roten",
+  "gr\xFCnen",
+  "blauen",
+  "schwarzen",
+  "wei\xDFen",
+  "kalten",
+  "warmen",
+  "leeren",
+  "vollen",
+  "toten",
+  "fremden",
+  "stillen",
+  "dunklen",
+  "hellen",
+  "innen",
+  "au\xDFen",
+  "hinten",
+  "vorn",
+  "mitten",
+  "unterdessen",
+  "indessen",
+  "\xFCbrigen",
+  "wegen",
+  "trotzdem",
+  "zusammen",
+  "gegen\xFCber",
+  "dr\xFCben"
+]);
+var DET_ODER_PREP = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "des",
+  "dem",
+  "den",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "kein",
+  "keine",
+  "keinen",
+  "keinem",
+  "keiner",
+  "mein",
+  "meine",
+  "meinen",
+  "meinem",
+  "meiner",
+  "dein",
+  "deine",
+  "deinen",
+  "sein",
+  "seine",
+  "seinen",
+  "seinem",
+  "seiner",
+  "ihr",
+  "ihre",
+  "ihren",
+  "ihrem",
+  "ihrer",
+  "unser",
+  "unsere",
+  "unseren",
+  "im",
+  "am",
+  "vom",
+  "zum",
+  "zur",
+  "beim",
+  "ins",
+  "ans",
+  "mit",
+  "von",
+  "zu",
+  "aus",
+  "bei",
+  "nach",
+  "seit",
+  "auf",
+  "an",
+  "in",
+  "\xFCber",
+  "unter",
+  "vor",
+  "hinter",
+  "neben",
+  "zwischen",
+  "durch",
+  "f\xFCr",
+  "ohne",
+  "um",
+  "gegen",
+  "wegen",
+  "trotz",
+  "w\xE4hrend",
+  "dieser",
+  "diese",
+  "diesen",
+  "diesem",
+  "dieses",
+  "jeder",
+  "jede",
+  "jeden",
+  "jedem",
+  "jedes",
+  "welcher",
+  "welche",
+  "welchen",
+  "welchem",
+  "manche",
+  "manchen",
+  "solche",
+  "solchen",
+  "viele",
+  "vielen",
+  "wenige",
+  "wenigen",
+  "einige",
+  "einigen",
+  "beide",
+  "beiden",
+  "zwei",
+  "drei",
+  "vier",
+  "f\xFCnf",
+  "sechs",
+  "sieben",
+  "acht",
+  "neun",
+  "zehn",
+  "ganz",
+  "sehr",
+  "zu",
+  "so",
+  "wie",
+  "als",
+  "etwas",
+  "nichts"
+]);
+var NOMEN_ENDUNG = /(ung|heit|keit|schaft|tät|ion|nis|tum|chen|lein|ment)$/;
+var PREP2 = /^(in|im|an|am|auf|bei|beim|mit|von|vom|zu|zum|zur|nach|über|unter|vor|hinter|neben|zwischen|durch|für|ohne|um|gegen|seit|trotz|wegen|während|aus|entlang|inmitten|jenseits|abseits)\b/i;
+var SUBJUNKTION = /^(dass|weil|obwohl|wenn|nachdem|bevor|ob|indem|sobald|solange|falls|sodass)\b/i;
+var REL = /^(der|die|das|den|dem|des|welche[rsmn]?)\s+\S+\s/i;
+var KONNEKTOR = /^(und|oder|aber|doch|denn|sondern|dann|dabei|also|somit|trotzdem|dennoch|außerdem|zudem)(\s+\w+)?$/i;
+var ARTIKEL = /^(ein|eine|einen|einem|einer|eines|der|die|das|den|dem|des|kein|keine|mein|meine|dein|deine|sein|seine|ihr|ihre|dieser|diese|dieses|jener|jene)\b/i;
+var PRON_START = /^(er|sie|es|ihm|ihr|ihn|ihnen|dessen|deren|diese[rs]?|jene[rs]?)\b/i;
+var silben = (t) => {
+  const w = t.toLowerCase().match(/[a-zäöüß]+/g) || [];
+  return w.reduce((n, x) => n + Math.max(1, (x.match(/[aeiouäöüy]+/g) || []).length), 0);
+};
+var woerter = (t) => (t.match(/\S+/g) || []).length;
+var tiefe = (t) => (t.match(/,\s*(dass|weil|obwohl|wenn|als|während|nachdem|bevor|damit|ob|indem|der|die|das|den|dem|welche)/gi) || []).length;
+function subjektOf(t, typ) {
+  if (!["hauptsatz", "nebensatz", "rahmen", "kopf"].includes(typ)) return null;
+  const s = " " + t.toLowerCase() + " ";
+  if (/\b(ich|mir|mich)\b/.test(s)) return { person: 1, numerus: "sg", genus: null };
+  if (/\b(wir|uns)\b/.test(s)) return { person: 1, numerus: "pl", genus: null };
+  if (/\b(du|dir|dich)\b/.test(s)) return { person: 2, numerus: "sg", genus: null };
+  if (/\b(ihr|euch)\b/.test(s)) return { person: 2, numerus: "pl", genus: null };
+  const m = t.match(/\b(?:der|die|das|ein|eine)\s+([A-ZÄÖÜ][a-zäöüß-]+)/);
+  const g = m ? guessGender(m[1]) : void 0;
+  const genus = g === "m" ? "mask" : g === "f" ? "fem" : g === "n" ? "neut" : null;
+  const plural = /\b(sie|die)\s+\w+en\b/.test(t.toLowerCase()) || /\b(sind|waren|haben|werden)\b/.test(t.toLowerCase());
+  return { person: 3, numerus: plural ? "pl" : "sg", genus };
+}
+function hatFinitesVerb(seg) {
+  const ws = seg.match(/[A-Za-zÄÖÜäöüß]+/g) || [];
+  for (let i = 0; i < ws.length; i++) {
+    const w = ws[i];
+    if (/^[A-ZÄÖÜ]/.test(w)) continue;
+    const l = w.toLowerCase();
+    const prev = (ws[i - 1] || "").toLowerCase(), next = ws[i + 1] || "";
+    const attributiv = DET_ODER_PREP.has(prev) || /^[A-ZÄÖÜ]/.test(next);
+    if ((prev === "ich" || next.toLowerCase() === "ich") && /^[a-zäöüß]{3,}e$/.test(l) && !DET_ODER_PREP.has(l)) return true;
+    if (VERB_CONJ[l]) return true;
+    if (SEIN_HABEN_WERDEN.test(l)) return true;
+    if (PRAET_FORM.test(l)) return true;
+    if (KURZVERB.test(l)) return true;
+    if (/t$/.test(l) && !attributiv && istVerbform(l)) return true;
+    if (/en$/.test(l) && l.length >= 5 && !EN_KEIN_VERB.has(l) && !attributiv && (VERB_CONJ[l.slice(0, -2) + "t"] || VERB_CONJ[l.slice(0, -2) + "et"] || istVerbform(l.slice(0, -2) + "t"))) return true;
+    if (/^(?!ge)[a-zäöüß]{4,}(?:t|te|en|ten)$/.test(l) && !NOMEN_ENDUNG.test(l) && !KEIN_VERB.has(l) && !EN_KEIN_VERB.has(l)) return true;
+  }
+  const first = (seg.match(/^([A-ZÄÖÜ][a-zäöüß]+)/) || [])[1];
+  if (first) {
+    const l = first.toLowerCase();
+    if (VERB_CONJ[l] || SEIN_HABEN_WERDEN.test(l) || PRAET_FORM.test(l)) return true;
+  }
+  return looksLikeFullClause(null, seg);
+}
+function deriveAtom(raw) {
+  const text = (raw || "").trim();
+  const unsicher = [];
+  const wcount = woerter(text);
+  const end = (text.match(/[.!?:;—]$/) || [""])[0];
+  const lead = extractLeadVerb(text);
+  const haupt = text.split(",")[0];
+  const hatFinit = !!lead.verb || hatFinitesVerb(haupt);
+  let typ;
+  if (/:$/.test(text)) typ = "kopf";
+  else if (text.includes("\u27E8")) typ = "rahmen";
+  else if (wcount === 1) typ = "einwort";
+  else if (KONNEKTOR.test(text)) typ = "konnektor";
+  else if (SUBJUNKTION.test(text) && hatFinit) typ = "nebensatz";
+  else if (REL.test(text) && hatFinit && /,/.test(text) === false && /\ben\b|\bt\b/.test("")) typ = "nebensatz";
+  else if (hatFinit) typ = "hauptsatz";
+  else if (PREP2.test(text)) typ = "praepositionalphrase";
+  else if (ARTIKEL.test(text) || /\b[A-ZÄÖÜ][a-zäöüß-]{2,}/.test(text)) typ = "nominalphrase";
+  else typ = "fragment";
+  if (PREP2.test(text) && hatFinit) unsicher.push("typ (Inversion?)");
+  if (typ === "fragment" && wcount >= 6) unsicher.push("typ (langes Fragment?)");
+  let kasus = null;
+  if (typ === "nominalphrase") {
+    const a = (text.match(/^(\S+)/) || [""])[0].toLowerCase();
+    const kern = (text.match(/\b([A-ZÄÖÜ][a-zäöüß-]{2,})/) || [])[1];
+    const g = kern ? guessGender(kern) : void 0;
+    if (/^(einen|den)$/.test(a)) kasus = "akk";
+    else if (/^(einem|dem|einer)$/.test(a)) kasus = "dat";
+    else if (a === "der") {
+      kasus = g === "f" ? "dat" : g === "m" ? "nom" : null;
+      if (!kasus) unsicher.push("kasus (der: Nom/Dat)");
+    } else if (/^(eines|des)$/.test(a)) kasus = "gen";
+    else if (/^(ein|eine|die|das)$/.test(a)) {
+      kasus = "nom_akk";
+      unsicher.push("kasus (nom/akk mehrdeutig)");
+    } else unsicher.push("kasus");
+  }
+  const kadenz = end === ":" ? "schwebend" : end ? "fallend" : "offen";
+  const tempus = typ === "nominalphrase" || typ === "fragment" || typ === "praepositionalphrase" || typ === "einwort" ? "kein" : isPastTense(text) ? "praeteritum" : "praesens";
+  const bezug = PRON_START.test(text) ? { pronomen: (text.match(/^\S+/) || [""])[0].toLowerCase(), genus: /^(sie|ihr|ihnen)/i.test(text) ? "fem" : "mask", numerus: "sg" } : null;
+  if (bezug) unsicher.push("verlangt_bezug (Genus gesch\xE4tzt)");
+  const s = silben(text);
+  return {
+    text,
+    typ,
+    bietet: { kasus, kadenz },
+    subjekt: subjektOf(text, typ),
+    tempus,
+    fuehrt_ein: properNames(text),
+    verlangt_bezug: bezug,
+    oeffnet: typ === "kopf",
+    rhythmus: { woerter: wcount, silben: s, tiefe: tiefe(text), endzeichen: end, gewicht: wcount <= 4 ? "kurz" : wcount <= 9 ? "mittel" : "lang" },
+    unsicher
+  };
+}
+
+// src/features/knobs.ts
+var KNOB_VORGABE = { fuegeteil: 25, w4max: 2, abstand: 12, bogen: 100, ton: 100, korpus: 0, phrase: 5, satzlaenge: 9, atomgroesse: 14 };
+var KNOB_SPANNE = {
+  fuegeteil: { min: 10, max: 35, step: 5 },
+  w4max: { min: 1, max: 4, step: 1 },
+  abstand: { min: 6, max: 24, step: 2 },
+  bogen: { min: 0, max: 250, step: 25 },
+  ton: { min: 0, max: 250, step: 25 },
+  korpus: { min: 0, max: 60, step: 10 },
+  phrase: { min: 0, max: 8, step: 1 },
+  satzlaenge: { min: 0, max: 21, step: 3 },
+  atomgroesse: { min: 0, max: 24, step: 2 }
+};
+var KEY3 = "dm_knobs_v1";
+var klemm2 = (v, s) => Math.max(s.min, Math.min(s.max, v));
+function loadKnobs() {
+  try {
+    const r = localStorage.getItem(KEY3);
+    if (!r) return { ...KNOB_VORGABE };
+    const p = JSON.parse(r);
+    return {
+      fuegeteil: klemm2(Number(p.fuegeteil) || KNOB_VORGABE.fuegeteil, KNOB_SPANNE.fuegeteil),
+      w4max: klemm2(Number(p.w4max) || KNOB_VORGABE.w4max, KNOB_SPANNE.w4max),
+      abstand: klemm2(Number(p.abstand) || KNOB_VORGABE.abstand, KNOB_SPANNE.abstand),
+      bogen: klemm2(p.bogen === void 0 ? KNOB_VORGABE.bogen : Number(p.bogen), KNOB_SPANNE.bogen),
+      ton: klemm2(p.ton === void 0 ? KNOB_VORGABE.ton : Number(p.ton), KNOB_SPANNE.ton),
+      korpus: klemm2(p.korpus === void 0 ? KNOB_VORGABE.korpus : Number(p.korpus), KNOB_SPANNE.korpus),
+      phrase: klemm2(p.phrase === void 0 ? KNOB_VORGABE.phrase : Number(p.phrase), KNOB_SPANNE.phrase),
+      satzlaenge: klemm2(p.satzlaenge === void 0 ? KNOB_VORGABE.satzlaenge : Number(p.satzlaenge), KNOB_SPANNE.satzlaenge),
+      atomgroesse: klemm2(p.atomgroesse === void 0 ? KNOB_VORGABE.atomgroesse : Number(p.atomgroesse), KNOB_SPANNE.atomgroesse)
+    };
+  } catch {
+    return { ...KNOB_VORGABE };
+  }
+}
+
+// src/atoms/atomisieren.ts
+var wc = (s) => (s.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+var trimSatz = (s) => s.trim().replace(/^[,;:—–\s]+|[,;:—–\s]+$/g, "").trim();
+var NP_KOPF = /^(der|die|das|ein|eine|einen|einem|einer|kein|keine|zwei|drei|manche|viele|jede[rs]?|alle)\b/i;
+var NEBENSATZ = /,\s+(der|die|das|dem|den|dessen|deren|welche[rsmn]?|dass|weil|wenn|als|während|obwohl|nachdem|bevor|sobald|solange|seit|seitdem|damit|sodass|ohne|um|statt|anstatt|wo|worin|was|wer|wie|ob|falls|indem)\b[^,]*$/i;
+var tragfaehig = (s) => wc(s) >= 3 && (hatFinitesVerb(s) || NP_KOPF.test(s));
+function atomisiere(text, max) {
+  const teile = atomisiereRoh(text, max);
+  const t = trimSatz(text || "");
+  if (t && max >= 6 && wc(t) > max) {
+    if (teile.length > 1) zaehle("atomZerlegt", `${t} \u2192 ${teile.join(" | ")}`);
+    else if (teile.length === 1 && teile[0] !== t) zaehle("atomGekuerzt", `${t} \u2192 ${teile[0]}`);
+    else zaehle("atomGanzZuLang", t);
+  }
+  return teile;
+}
+function atomisiereRoh(text, max) {
+  const t = trimSatz(text || "");
+  if (!t) return [];
+  if (!max || max < 6 || wc(t) <= max) return [t];
+  const harte = t.split(/\s*(?:—|–|;|:)\s+/).map(trimSatz).filter((x) => wc(x) >= 3);
+  if (harte.length > 1) return harte.flatMap((x) => atomisiereRoh(x, max));
+  const koord = t.match(/^(.+?),\s+(und|aber|doch|denn|sondern)\s+(.+)$/i);
+  if (koord && hatFinitesVerb(koord[1]) && hatFinitesVerb(koord[3]) && wc(koord[1]) >= 3 && wc(koord[3]) >= 3)
+    return [...atomisiereRoh(koord[1], max), ...atomisiereRoh(koord[3], max)];
+  const ns = t.match(NEBENSATZ);
+  if (ns && ns.index !== void 0) {
+    const haupt = trimSatz(t.slice(0, ns.index));
+    if (tragfaehig(haupt) && wc(haupt) >= 4) return atomisiereRoh(haupt, max);
+  }
+  return [t];
+}
+function ueberlaenge(text, max) {
+  if (!max || max < 6) return 0;
+  return Math.max(0, wc(text) - max);
+}
+
+// src/atoms/assemble.ts
+var PHASEN_KATEGORIEN = {
+  // Die Dramaturgie-Kategorien tragen ihre Phase bereits im Namen — der Erzaehlbogen
+  // eines Presets beschreibt genau das, was der Assembler ohnehin in Phasen baut.
+  exposition: ["motifs", "hooks", "was", "einstieg", "regeln"],
+  verdichtung: ["props", "obstacles", "stakes", "was", "mitte", "konflikte", "zeitanomalien"],
+  umschlag: ["turns", "hoehepunkt", "ausloeser", "veraenderungen"],
+  schluss: ["endings"]
+};
+var STRUKTUR_PHASEN = {
+  // Unverändert die alte Verteilung 30/30/20/20 — die Rekombination soll sich
+  // durch diesen Umbau NICHT ändern.
+  rekombination: ["exposition", "exposition", "exposition", "verdichtung", "verdichtung", "verdichtung", "umschlag", "umschlag", "schluss", "schluss"],
+  linear: ["exposition", "exposition", "exposition", "verdichtung", "verdichtung", "verdichtung", "umschlag", "umschlag", "schluss", "schluss"],
+  // Vom Ende her: erst das Ergebnis, dann die Wende, zuletzt der Anlass.
+  reverse: ["schluss", "schluss", "umschlag", "umschlag", "verdichtung", "verdichtung", "verdichtung", "exposition", "exposition", "exposition"],
+  // Der Kreis kehrt zurück: Die letzte Position trägt wieder die Eröffnung.
+  circle: ["exposition", "exposition", "verdichtung", "verdichtung", "verdichtung", "umschlag", "umschlag", "schluss", "exposition", "exposition"],
+  // Das Fragment springt. Kein Zufall zur Laufzeit: Eine feste, unruhige Folge
+  // ist reproduzierbar und damit prüfbar.
+  fragment: ["verdichtung", "exposition", "umschlag", "verdichtung", "schluss", "exposition", "umschlag", "verdichtung", "exposition", "schluss"],
+  // Das Ding sieht zu: langer Mittelteil, kurzer Anfang, kurzer Schluss.
+  object: ["exposition", "verdichtung", "verdichtung", "umschlag", "verdichtung", "umschlag", "verdichtung", "umschlag", "schluss", "schluss"]
+};
+var SCHLAG_PHASE = {
+  einstieg: "exposition",
+  hook: "exposition",
+  regel: "exposition",
+  mitte: "verdichtung",
+  mitte2: "verdichtung",
+  konflikt: "verdichtung",
+  zeit: "verdichtung",
+  einsatz: "verdichtung",
+  ausloeser: "umschlag",
+  wende: "umschlag",
+  hoehepunkt: "umschlag",
+  schluss: "schluss"
+};
+function phasenAusSchlagfolge(folge) {
+  const roh = (folge || []).map((n) => SCHLAG_PHASE[n]).filter((p) => !!p);
+  if (!roh.length) return STRUKTUR_PHASEN["linear"];
+  return Array.from({ length: 10 }, (_, i) => roh[Math.round(i * (roh.length - 1) / 9)]);
+}
+function setBogenPhasen(folge) {
+  STRUKTUR_PHASEN["bogen"] = phasenAusSchlagfolge(folge);
+}
+var bogenModus = false;
+function setBogenModus(an2) {
+  bogenModus = an2;
+}
+function gelenkBonus(a, phase, bogenGewicht) {
+  if (!bogenModus || a.quelle !== "dramaturgie" || !phase) return 0;
+  const faktor = phase === "umschlag" || phase === "schluss" ? 2.5 : phase === "exposition" ? 1.2 : 0.4;
+  return faktor * bogenGewicht;
+}
+function phasenFolge(struktur, fortschritt) {
+  const f = STRUKTUR_PHASEN[struktur] || STRUKTUR_PHASEN["linear"];
+  const i = Math.min(f.length - 1, Math.max(0, Math.floor(fortschritt * f.length)));
+  return f[i];
+}
+function phasenBonus(a, phase) {
+  if (a.quelle === "vorlage") return phase === "exposition" ? 1.2 : 0.4;
+  if (a.kategorie === "was") return phase === "schluss" ? 0.5 : 3.5;
+  if (!a.kategorie) return 0;
+  if (PHASEN_KATEGORIEN[phase].includes(a.kategorie)) return 2.2;
+  if (a.kategorie === "endings" && phase !== "schluss") return -3;
+  if (a.kategorie === "motifs" && phase === "schluss") return -1.5;
+  return 0;
+}
+function naechsterSlot(text) {
+  const m = text.match(/⟨(AKK|DAT|NOM|SATZ)⟩/);
+  if (!m) return null;
+  const k = m[1];
+  if (k === "SATZ") return { rolle: "ergaenzung", kasus: "nom", art: "hauptsatz" };
+  return { rolle: "objekt", kasus: k.toLowerCase(), art: "nominalphrase" };
+}
+function wirktSatzwertig(text) {
+  const haupt = text.split(/[,;–—]/)[0] || text;
+  return hatFinitesVerb(haupt);
+}
+function passt(a, k, phase, slot) {
+  if (k.benutzt.has(a.id)) return false;
+  if (phase && a.kategorie === "endings" && phase !== "schluss") return false;
+  if (phase && phase === "schluss" && a.kategorie === "motifs") return false;
+  const v = slot !== void 0 ? slot : k.vorheriges?.verlangt ?? null;
+  const fuelltSlot = !!v;
+  if (!fuelltSlot && a.typ === "nominalphrase" && (a.bietet.kasus === "akk" || a.bietet.kasus === "dat")) return false;
+  const vorTyp = k.vorheriges ? k.vorheriges.typ : "start";
+  if (!fuelltSlot && !darfFolgen(vorTyp, a.typ)) return false;
+  if (k.offenerKopf && !schliesstKopf(a.typ)) return false;
+  if (v) {
+    if (a.typ !== v.art) return false;
+    if (v.art === "nominalphrase" && wirktSatzwertig(a.text)) return false;
+    if (v.art === "hauptsatz" && !wirktSatzwertig(a.text) && a.typ !== "hauptsatz") return false;
+    if (v.art === "nominalphrase") {
+      const bietet = a.bietet.kasus;
+      if (!bietet) return false;
+      if (bietet !== v.kasus && !(bietet === "nom_akk" && (v.kasus === "nom" || v.kasus === "akk"))) return false;
+    }
+  }
+  if (a.verlangt_bezug) {
+    let da = false;
+    for (const e of k.entitaeten.values()) if (e.abstand <= 2) {
+      da = true;
+      break;
+    }
+    if (!da) return false;
+  }
+  if (k.tempus && a.tempus !== "kein" && a.tempus !== k.tempus) return false;
+  if (a.bruchgrad > schwelle(k.divergenz)) return false;
+  return true;
+}
+function fortschreiben(k, a) {
+  k.vorheriges = a;
+  k.benutzt.add(a.id);
+  k.offenerKopf = a.oeffnet || !!a.verlangt;
+  if (a.tempus !== "kein" && !k.tempus) k.tempus = a.tempus;
+  for (const e of k.entitaeten.values()) e.abstand++;
+  for (const n of a.fuehrt_ein) k.entitaeten.set(n, { abstand: 0 });
+}
+function fuelleKontext(text, ctx) {
+  return text.replace(/⟨ORT⟩/g, ctx.ort).replace(/⟨ZEIT⟩/g, ctx.zeit).replace(/⟨FIGUR⟩/g, ctx.figur).replace(/⟨VERB⟩/g, ctx.verb);
+}
+var SCHWACH_KONSONANT = /^(Herr|Mensch|Held|Fürst|Prinz|Graf|Bär|Elefant|Nachbar|Bauer|Herz|Narr|Tor|Christ|Zar|Architekt|Soldat|Advokat|Kamerad|Katholik|Ochs|Spatz|Fink|Pfau|Ahn)$/;
+var SCHWACH_E = /^(Hase|Junge|Kollege|Zeuge|Bote|Erbe|Riese|Löwe|Affe|Rabe|Neffe|Kunde|Gefährte|Experte|Komplize|Insasse|Gatte|Bube|Falke|Franzose|Schwede|Türke|Russe|Pole|Däne|Ire|Brite|Jude|Sklave|Ahne|Zeuge)$/;
+function istSchwachesMaskulinum(kern) {
+  return SCHWACH_E.test(kern) || SCHWACH_KONSONANT.test(kern) || /(ent|ant|ist|oge|graf|soph|nom|arch|krat)$/.test(kern) || /^(Name|Gedanke|Glaube|Wille|Friede|Buchstabe)$/.test(kern);
+}
+function schwachesMaskulinum(kern) {
+  if (/(chen|lein|er|el|en|ling|ismus|or)$/.test(kern)) return kern;
+  if (SCHWACH_E.test(kern)) return kern + "n";
+  if (/(ent|ant|ist|oge|graf|soph|nom|arch|krat|at)$/.test(kern)) return kern + "en";
+  if (kern === "Herr") return "Herrn";
+  if (kern === "Nachbar" || kern === "Bauer") return kern + "n";
+  if (kern === "Herz") return "Herzen";
+  if (SCHWACH_KONSONANT.test(kern)) return kern + "en";
+  if (kern === "Name" || kern === "Gedanke" || kern === "Glaube" || kern === "Wille" || kern === "Friede" || kern === "Buchstabe") return kern + "n";
+  return kern;
+}
+function dekliniere(phrase, kasus) {
+  const m = phrase.match(/^(ein|eine|der|die|das)\s+(.*)$/i);
+  if (!m) return phrase;
+  const [, art, rest] = m;
+  const kern = (rest.match(/\b([A-ZÄÖÜ][a-zäöüß-]{2,})/) || [])[1];
+  const artG = art.toLowerCase() === "der" ? "m" : art.toLowerCase() === "das" ? "n" : void 0;
+  const g = artG || (kern ? istSchwachesMaskulinum(kern) ? "m" : guessGender(kern) : void 0);
+  if (!g) return phrase;
+  const map = {
+    akk: { m: art.toLowerCase() === "ein" ? "einen" : "den", f: art, n: art },
+    dat: { m: art.toLowerCase() === "ein" ? "einem" : "dem", f: art.toLowerCase() === "eine" ? "einer" : "der", n: art.toLowerCase() === "ein" ? "einem" : "dem" }
+  };
+  const neu = map[kasus]?.[g];
+  if (!neu) return phrase;
+  const rest2 = (kasus === "akk" || kasus === "dat") && g === "m" && kern ? rest.replace(new RegExp("\\b" + kern + "\\b"), schwachesMaskulinum(kern)) : rest;
+  let r = rest2;
+  if (neu.toLowerCase() !== art.toLowerCase()) {
+    const w = rest2.split(/\s+/);
+    let kernIdx = w.findIndex((x) => /^[A-ZÄÖÜ]/.test(x));
+    if (kernIdx < 0) kernIdx = w.length;
+    for (let i = 0; i < kernIdx; i++) {
+      const x = w[i];
+      if (/^[a-zäöüß]{3,}$/.test(x)) w[i] = x.replace(/(?:e|er|es|em|en)$/, "") + "en";
+    }
+    r = w.join(" ");
+  }
+  return neu + " " + r;
+}
+function fuelleSlot(rahmen, fueller) {
+  const m = rahmen.match(/⟨(AKK|DAT|NOM|SATZ)⟩/);
+  const kasus = m ? m[1].toLowerCase() : "";
+  let f = fueller.replace(/[.!?…]+$/, "");
+  if (kasus === "akk" || kasus === "dat") f = dekliniere(f, kasus);
+  return rahmen.replace(/⟨(AKK|DAT|NOM|SATZ)⟩/, f);
+}
+var offeneSlots = (t) => (t.match(/⟨(AKK|DAT|NOM|SATZ)⟩/g) || []).length;
+function verfugen(teile) {
+  const out = [];
+  for (let i = 0; i < teile.length; i++) {
+    let t = teile[i].trim().replace(/\s+([.,;:!?])/g, "$1");
+    if (!t) continue;
+    const vorOffen = i > 0 && /[:—]$/.test(out[out.length - 1] || "");
+    t = vorOffen ? t.charAt(0).toLowerCase() + t.slice(1) : t.charAt(0).toUpperCase() + t.slice(1);
+    t = t.replace(
+      /^(Und|Doch|Aber|Oder|Denn|Dann|Dabei|Also)\s+([A-ZÄÖÜ])(?=[a-zäöüß])/,
+      (_m, k, c) => k + " " + c.toLowerCase()
+    );
+    const endet = /[.!?…:;—]$/.test(t);
+    const naechsterFolgtDirekt = t.endsWith(":") || t.endsWith("\u2014");
+    if (!endet) t += ".";
+    if (naechsterFolgtDirekt && i + 1 < teile.length) {
+      const n = teile[i + 1].trim();
+      teile[i + 1] = n.charAt(0).toLowerCase() + n.slice(1);
+    }
+    out.push(t);
+  }
+  return out.join(" ").replace(/([.!?…])\s*\1+/g, "$1").replace(/:\s*\./g, ":").trim();
+}
+var letzteZiehung = null;
+var ziehungOffenlegen = false;
+function setZiehungOffenlegen(an2) {
+  ziehungOffenlegen = an2;
+}
+function letzteZiehungLesen() {
+  return letzteZiehung;
+}
+function ziehe(kandidaten, sollGewicht, bisher, phase) {
+  if (!kandidaten.length) return null;
+  const stems = (t) => new Set((t.toLowerCase().match(/[a-zäöüß]{5,}/g) || []).map((w) => w.slice(0, 5)));
+  const kontext = stems(bisher);
+  const bogenGewicht = (loadKnobs().bogen || 100) / 100;
+  const atomMax = loadKnobs().atomgroesse;
+  const score = (a) => {
+    let s = 1;
+    s -= 0.4 * ueberlaenge(a.text, atomMax);
+    if (phase) s += phasenBonus(a, phase);
+    s += gelenkBonus(a, phase, bogenGewicht);
+    if (a.rhythmus.gewicht === sollGewicht) s += 1.5;
+    const ov = [...stems(a.text)].filter((x) => kontext.has(x)).length;
+    s += Math.min(ov, 2) * 0.8;
+    if (ov > 3) s -= 2;
+    s = Math.max(0.05, s);
+    if (a.quelle === "dramaturgie") s = bogenGewicht === 0 ? 1e-4 : s * bogenGewicht;
+    return s;
+  };
+  const total = kandidaten.reduce((n, a) => n + score(a), 0);
+  let r = Math.random() * total;
+  let gewinner = kandidaten[kandidaten.length - 1];
+  for (const a of kandidaten) {
+    r -= score(a);
+    if (r <= 0) {
+      gewinner = a;
+      break;
+    }
+  }
+  if (ziehungOffenlegen) {
+    const g = [{ name: "Grund", wert: 1 }];
+    const ue = 0.4 * ueberlaenge(gewinner.text, atomMax);
+    if (ue) g.push({ name: "\xDCberl\xE4nge", wert: -ue });
+    if (phase) {
+      const pb = phasenBonus(gewinner, phase);
+      if (pb) g.push({ name: "Phase " + phase, wert: pb });
+    }
+    const gb = gelenkBonus(gewinner, phase, bogenGewicht);
+    if (gb) g.push({ name: "Gelenk (Bogen)", wert: gb });
+    if (gewinner.rhythmus.gewicht === sollGewicht) g.push({ name: "Rhythmus passt", wert: 1.5 });
+    const ov = [...stems(gewinner.text)].filter((x) => kontext.has(x)).length;
+    if (ov) g.push({ name: `Anschluss (${ov} St\xE4mme)`, wert: ov > 3 ? Math.min(ov, 2) * 0.8 - 2 : Math.min(ov, 2) * 0.8 });
+    if (gewinner.quelle === "dramaturgie" && bogenGewicht !== 1) g.push({ name: "Bogen-Gewicht \xD7", wert: bogenGewicht });
+    const alleScores = kandidaten.map((a) => score(a)).sort((x, y) => y - x);
+    const sg = score(gewinner);
+    const rang = alleScores.findIndex((x) => x <= sg) + 1;
+    const andere = kandidaten.filter((a) => a !== gewinner).map((a) => ({ a, s: score(a) })).sort((x, y) => y.s - x.s).slice(0, 2);
+    letzteZiehung = {
+      score: sg,
+      anteil: total ? sg / total : 1,
+      gruende: g,
+      kandidaten: kandidaten.length,
+      rang: Math.max(1, rang),
+      bester: alleScores[0] ?? sg,
+      durchschnitt: kandidaten.length ? total / kandidaten.length : sg,
+      konkurrenten: andere.map(({ a, s }) => ({ text: a.text, score: s, anteil: total ? s / total : 0, rang: Math.max(1, alleScores.findIndex((x) => x <= s) + 1), quelle: a.quelle, kategorie: a.kategorie || "\u2014" }))
+    };
+  }
+  return gewinner;
+}
+
+// src/generation/beats.ts
+function cap(s) {
+  s = (s ?? "").toString();
+  return s ? s[0].toUpperCase() + s.slice(1) : s;
+}
+function isFragmentSentence(s) {
+  const n = clean(s).split(/\s+/).filter(Boolean).length;
+  return n > 0 && n <= 3;
+}
+var CLAUSE_VERBS = /* @__PURE__ */ new Set(["antworten", "antwortet", "atmen", "atmet", "bebt", "begann", "beginnen", "beginnt", "beobachten", "beobachtet", "ber\xFChren", "ber\xFChrt", "bin", "bist", "bleiben", "bleibt", "blieb", "blitzt", "brannte", "brennen", "brennt", "brummt", "br\xFCllen", "br\xFCllt", "dachte", "darf", "denken", "denkt", "donnert", "drehen", "dreht", "drehte", "durfte", "d\xFCrfen", "enden", "endet", "endete", "erinnern", "erinnert", "fahren", "fallen", "fand", "fiel", "fielen", "finden", "findet", "fliegen", "fliegt", "fliehen", "flieht", "flie\xDFen", "flie\xDFt", "flog", "floss", "fl\xFCstern", "fl\xFCstert", "folgen", "folgt", "folgte", "formen", "formt", "fragen", "fragt", "fragte", "fuhr", "f\xE4hrt", "f\xE4llt", "f\xFChlen", "f\xFChlt", "f\xFChren", "f\xFChrt", "f\xFChrte", "f\xFCrchten", "f\xFCrchtet", "gab", "gaben", "galt", "geben", "gehen", "geht", "gelten", "geschah", "geschehen", "geschieht", "gibt", "gilt", "ging", "gingen", "glauben", "glaubt", "haben", "habt", "halten", "hat", "hatte", "hatten", "hielt", "hielten", "hoffen", "hofft", "h\xE4lt", "h\xE4tte", "h\xF6ren", "h\xF6rt", "h\xF6rte", "ist", "jagen", "jagt", "kam", "kamen", "kann", "kannte", "kennen", "kennt", "kippen", "kippt", "knistert", "kommen", "kommt", "konnte", "konnten", "kreisen", "kreist", "k\xF6nnen", "lachen", "lacht", "lag", "lagen", "laufen", "leuchten", "leuchtet", "lief", "liefen", "liegen", "liegt", "l\xE4uft", "l\xF6schen", "l\xF6scht", "machen", "macht", "machte", "machten", "mag", "muss", "musste", "mussten", "m\xF6chte", "m\xF6chten", "m\xF6gen", "m\xFCssen", "nahm", "nahmen", "nehmen", "nimmt", "passieren", "passiert", "passierte", "planen", "plant", "pulsiert", "raschelt", "reagieren", "reagiert", "regnet", "retten", "rettet", "rief", "rinnt", "riskiert", "rufen", "ruft", "sah", "sahen", "sang", "sank", "sa\xDF", "schlafen", "schlief", "schlie\xDFen", "schlie\xDFt", "schloss", "schl\xE4ft", "schmelzen", "schmilzt", "schneit", "schreien", "schreit", "schrie", "schweigen", "schweigt", "schwieg", "sehen", "seid", "sieht", "sind", "singen", "singt", "sinken", "sinkt", "sitzen", "sitzt", "soll", "sollen", "sollte", "sprach", "sprachen", "sprang", "sprechen", "spricht", "springen", "springt", "stand", "standen", "stehen", "steht", "steigen", "steigt", "stieg", "suchen", "sucht", "suchte", "summt", "tanzen", "tanzt", "tat", "taten", "ticken", "tickt", "tragen", "tropft", "trug", "trugen", "tr\xE4gt", "tr\xE4umen", "tr\xE4umt", "tun", "tut", "unterschreiben", "unterschreibt", "verfolgen", "verfolgt", "vergessen", "vergisst", "verlangen", "verlangt", "verraten", "verr\xE4t", "ver\xE4ndern", "ver\xE4ndert", "vibriert", "wachsen", "wagen", "wagt", "wandern", "wandert", "war", "waren", "warten", "wartet", "wartete", "wechseln", "wechselt", "weigern", "weigert", "weinen", "weint", "wei\xDF", "werden", "werdet", "wiederholen", "wiederholt", "will", "wird", "wirst", "wissen", "wollen", "wollte", "wollten", "wurde", "wurden", "wusste", "w\xE4chst", "w\xE4re", "w\xE4ren", "w\xFCrde", "w\xFCrden", "zeigen", "zeigt", "zeigte", "zerbrechen", "zerbricht", "ziehen", "zieht", "zittern", "zittert", "zog", "zogen", "\xF6ffnen", "\xF6ffnet", "\xFCberschreiben", "\xFCberschreibt"]);
+var CLAUSE_STOP = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "kein",
+  "keine",
+  "keinen",
+  "keinem",
+  "keiner",
+  "mein",
+  "meine",
+  "meinen",
+  "dein",
+  "deine",
+  "sein",
+  "seine",
+  "seinen",
+  "ihr",
+  "ihre",
+  "ihren",
+  "unser",
+  "unsere",
+  "euer",
+  "eure",
+  "dieser",
+  "diese",
+  "dieses",
+  "diesen",
+  "diesem",
+  "jener",
+  "jene",
+  "jenes",
+  "jeder",
+  "jede",
+  "jedes",
+  "jeden",
+  "jedem",
+  "manch",
+  "manche",
+  "alle",
+  "allen",
+  "beide",
+  "beiden",
+  "viele",
+  "vielen",
+  "solche",
+  "solchen",
+  "mit",
+  "ohne",
+  "aus",
+  "von",
+  "vom",
+  "in",
+  "im",
+  "auf",
+  "an",
+  "am",
+  "f\xFCr",
+  "bei",
+  "zu",
+  "zum",
+  "zur",
+  "\xFCber",
+  "unter",
+  "vor",
+  "nach",
+  "durch",
+  "gegen",
+  "seit",
+  "um",
+  "neben",
+  "zwischen",
+  "hinter",
+  "wegen",
+  "trotz",
+  "w\xE4hrend",
+  "entlang",
+  "und",
+  "oder",
+  "aber",
+  "denn",
+  "sondern",
+  "nicht",
+  "jetzt",
+  "fast",
+  "erst",
+  "sonst",
+  "selbst",
+  "meist",
+  "dennoch",
+  "trotzdem"
+]);
+var CLAUSE_PRON = /* @__PURE__ */ new Set(["ich", "du", "er", "sie", "es", "wir", "man", "jemand", "niemand", "etwas", "nichts", "wer", "alles"]);
+function mainHasFiniteVerb(part) {
+  const toks = part.trim().split(/\s+/);
+  let sawSubject = false;
+  for (let i = 0; i < toks.length; i++) {
+    const raw = toks[i];
+    const lower = raw.toLowerCase().replace(/[^a-zäöüß]/g, "");
+    if (i > 0 && sawSubject && /^[a-zäöüß]/.test(raw) && lower.length >= 3 && !CLAUSE_STOP.has(lower)) {
+      if (CLAUSE_VERBS.has(lower)) return true;
+      if (/iert$/.test(lower)) return true;
+      if (/en$/.test(lower)) {
+        const next = toks[i + 1];
+        if (!next || /^[a-zäöüß]/.test(next)) return true;
+      }
+    }
+    if (i > 0 && /^[A-ZÄÖÜ]/.test(raw) || CLAUSE_PRON.has(lower)) sawSubject = true;
+  }
+  return false;
+}
+function looksLikeClausePhrase(phrase) {
+  const s = clean(phrase);
+  if (!s) return false;
+  if (/[.!?]$/.test(s)) return true;
+  const mainPart = (s.split(",")[0] || s).trim();
+  return mainHasFiniteVerb(mainPart);
+}
+function chooseInsertPos(sentences) {
+  if (!sentences || sentences.length < 2) return -1;
+  const candidates = [];
+  for (let pos = 1; pos <= sentences.length; pos++) {
+    const prev = sentences[pos - 1];
+    const next = sentences[pos];
+    if (isFragmentSentence(prev)) continue;
+    if (next !== void 0 && isFragmentSentence(next)) continue;
+    const w = clean(prev).split(/\s+/).filter(Boolean).length;
+    candidates.push({ pos, weight: Math.max(1, w - 4) });
+  }
+  if (!candidates.length) return -1;
+  let sum = 0;
+  for (const c of candidates) sum += c.weight;
+  let r = Math.random() * sum;
+  for (const c of candidates) {
+    r -= c.weight;
+    if (r <= 0) return c.pos;
+  }
+  return candidates[candidates.length - 1].pos;
+}
+var BEAT_CONNECTORS = ["Kurz darauf", "Gleichzeitig", "Wenig sp\xE4ter", "Im selben Atemzug", "Noch am selben Ort"];
+var beatKopf = (p) => {
+  const w = p.toLowerCase().replace(/^und\s+/, "").split(/[\s,:;—]+/).filter(Boolean);
+  return w[0] || "";
+};
+function joinBeats(beats, P2) {
+  const parts = beats.map((b) => ensurePunct(clean(b))).filter(Boolean);
+  for (let i = 1; i < parts.length; i++) {
+    const prevRoh = (parts[i - 1].split(/\s+/)[0] || "").toLowerCase();
+    const curRoh = (parts[i].split(/\s+/)[0] || "").toLowerCase();
+    if (prevRoh === curRoh && curRoh === "und") {
+      parts[i] = cap(parts[i].replace(/^Und\s+/i, ""));
+    }
+    if (beatKopf(parts[i]) === "dann" && (beatKopf(parts[i - 1]) === "dann" || i >= 2 && beatKopf(parts[i - 2]) === "dann")) {
+      parts[i] = /^und\s+dann\b/i.test(parts[i]) ? parts[i].replace(/^Und\s+dann\b/i, pick(["Schlie\xDFlich", "Zuletzt", "Am Ende"])) : parts[i].replace(/^Dann\b/i, pick(["Danach", "Kurz darauf", "Sp\xE4ter"]));
+    }
+  }
+  if (P2 && parts.length >= 4 && chance(0.6)) {
+    const idx = 1 + Math.floor(Math.random() * (parts.length - 2));
+    const m = new RegExp(`^${escapeRegExp(P2)}\\s+([a-z\xE4\xF6\xFC\xDF]+)\\s+([\\s\\S]+)$`).exec(parts[idx]);
+    if (m) parts[idx] = `${pick(BEAT_CONNECTORS)} ${m[1]} ${P2} ${m[2]}`;
+  }
+  return parts.join(" ");
+}
+function frameTurn(turn) {
+  const t = clean(turn).replace(/[.!?…]+$/, "");
+  const frames = [
+    `Dann kippt es: ${t}.`,
+    `Dann kippt es \u2014 ${t}.`,
+    `Es braucht nur einen Atemzug, und ${t}.`,
+    `Erst ein Riss, kaum merklich, und ${t}.`,
+    `Und dann, ohne Vorwarnung: ${t}.`,
+    `Etwas gibt nach \u2014 ${t}.`,
+    `Kaum ausgesprochen, ${t}.`,
+    `Dann, unvermittelt: ${t}.`
+  ];
+  return frames[pickFreshIndex("frameTurn", frames.length)];
+}
+function reframeStake(stake) {
+  const m = /^Der Einsatz ist\s+(.+?)[.!?…]*$/i.exec(clean(stake));
+  if (!m) return stake;
+  const core = m[1];
+  const akk = dekliniere(core, "akk");
+  const frames = [`Der Einsatz ist ${core}.`, `Es geht um ${akk}.`, `Alles dreht sich um ${akk}.`, `Was z\xE4hlt, ist ${core}.`];
+  if (!/[:,]/.test(core)) {
+    frames.push(`Auf dem Spiel steht ${core}.`);
+    frames.push(`${cap(core)} steht auf dem Spiel.`);
+    frames.push(`Am Ende bleibt nur ${core}.`);
+    frames.push(`Verlieren hie\xDFe: ${core}.`);
+  }
+  return frames[pickFreshIndex("stake", frames.length)];
+}
+function safeCaseForm(rawPhrase, casedPhrase) {
+  if (looksLikeClausePhrase(rawPhrase)) return `\u201E${clean(rawPhrase)}\u201C`;
+  return casedPhrase;
+}
+function weaveMotif(text, motif) {
+  if (!motif) return text;
+  const motifLine = looksLikeClausePhrase(motif) ? ensurePunct(cap(clean(motif))) : ensurePunct(`Dabei: ${motif}`);
+  const s = splitSentences(text);
+  if (s.length < 2) return text + " " + motifLine;
+  let pos = chooseInsertPos(s);
+  if (pos < 0) pos = Math.min(s.length - 1, Math.max(1, Math.floor(s.length * 0.55)));
+  s.splice(pos, 0, motifLine);
+  return s.join(" ");
+}
+function randomFragmentTime() {
+  const h = pick([23, 0, 1, 2, 3, 4, 5]);
+  const m = Math.floor(Math.random() * 60);
+  return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+}
+function insertToneFlavor(text, line) {
+  const paras = text.split(/\n\n+/);
+  let target = 0;
+  for (let i = 1; i < paras.length; i++) if (paras[i].length > paras[target].length) target = i;
+  const sentences = splitSentences(paras[target]);
+  if (sentences.length < 2) {
+    paras[target] = (paras[target] + " " + line).trim();
+    return paras.join("\n\n");
+  }
+  let idx = chooseInsertPos(sentences);
+  if (idx < 0) idx = sentences.length;
+  sentences.splice(idx, 0, line);
+  paras[target] = sentences.join(" ");
+  return paras.join("\n\n");
+}
+function weaveCast(text, _P, cast) {
+  const others = (cast || []).slice(1).map((c) => clean(c)).filter(Boolean);
+  if (!others.length) return text;
+  const nm = (n) => (n.split(",")[0] || n).trim();
+  const soloVerbs = ["steht daneben und schweigt", "wartet", "sieht zu", "z\xF6gert", "sagt nichts", "nickt kaum", "atmet flach", "tritt einen Schritt zur\xFCck", "h\xE4lt sich zur\xFCck"];
+  const soloWants = ["das Gegenteil", "mehr", "weg", "bleiben", "die Wahrheit", "nichts davon"];
+  const beats = [];
+  others.slice(0, 2).map(nm).forEach((who) => {
+    beats.push(chance(0.5) ? `${who} ${pick(soloVerbs)}.` : `${who} will ${pick(soloWants)}.`);
+  });
+  if (chance(0.7)) {
+    beats.push(pick([
+      `Keiner von ihnen ${pick(["spricht zuerst", "weicht aus", "sagt es laut"])}.`,
+      `Zwischen ihnen ${pick(["bleibt ein Satz offen", "spannt sich die Luft", "steht etwas Ungesagtes"])}.`
+    ]));
+  }
+  const rest = others.slice(2).map(nm);
+  if (rest.length) {
+    const grp = rest.length === 1 ? rest[0] : rest.slice(0, -1).join(", ") + " und " + rest[rest.length - 1];
+    const v = rest.length === 1 ? pick(["ist dabei", "kommt dazu", "h\xE4lt sich zur\xFCck"]) : pick(["sind dabei", "kommen dazu", "halten sich zur\xFCck"]);
+    beats.push(`Auch ${grp} ${v}.`);
+  }
+  for (let i = beats.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [beats[i], beats[j]] = [beats[j], beats[i]];
+  }
+  const sent = splitSentences(text);
+  for (const b of beats) {
+    const line = ensurePunct(cap(clean(b)));
+    if (sent.length < 2) {
+      sent.push(line);
+      continue;
+    }
+    let pos = chooseInsertPos(sent);
+    if (pos < 0) pos = Math.min(sent.length, Math.max(1, Math.floor(sent.length * 0.5)));
+    sent.splice(pos, 0, line);
+  }
+  return sent.join(" ");
+}
+
+// src/generation/dramaturgie.ts
+var DKEY = "dm_dramaturgie_v1";
+function setDramaData(d) {
+  try {
+    if (d) localStorage.setItem(DKEY, JSON.stringify(d));
+    else localStorage.removeItem(DKEY);
+  } catch {
+  }
+}
+var bogenOverride = null;
+function loadDramaData() {
+  if (bogenOverride) return bogenOverride;
+  try {
+    const r = localStorage.getItem(DKEY);
+    return r ? JSON.parse(r) : null;
+  } catch {
+    return null;
+  }
+}
+function hasDramaData() {
+  const d = loadDramaData();
+  return !!(d && (d.einstieg.length || d.mitte.length || d.hoehepunkt.length || d.veraenderungen.length));
+}
+var some = (a) => Array.isArray(a) && a.length > 0;
+var SCHLAG_STANDARD = ["einstieg", "hook", "regel", "mitte", "mitte2", "konflikt", "ausloeser", "wende", "zeit", "hoehepunkt", "einsatz", "schluss"];
+var SCHLAG_NAMEN = /* @__PURE__ */ new Set([...SCHLAG_STANDARD]);
+function buildDramaturgie(kit) {
+  const d = loadDramaData();
+  const M = kit.mode;
+  const norm2 = (x) => clean(x).toLowerCase().replace(/[.!?…]+$/, "");
+  const benutzt = /* @__PURE__ */ new Set();
+  const zieh = (liste) => {
+    const frisch = liste.filter((x) => !benutzt.has(norm2(x)));
+    if (!frisch.length) return "";
+    const wahl = pick(frisch);
+    benutzt.add(norm2(wahl));
+    return wahl;
+  };
+  const ZEITKOPF = /^(davor|danach|dann|plötzlich|auf einmal|am ende|am anfang|zurück bleibt|und dann|zuerst|zuletzt|schließlich)\b/i;
+  const ziehOhneZeitkopf = (liste) => {
+    const ohne = liste.filter((x) => !ZEITKOPF.test(x) && !benutzt.has(norm2(x)));
+    if (ohne.length) {
+      const wahl = pick(ohne);
+      benutzt.add(norm2(wahl));
+      return { satz: wahl, nackt: false };
+    }
+    return { satz: zieh(liste), nackt: true };
+  };
+  let quelleSchlag = "rahmen";
+  const schlag = (name, erster) => {
+    quelleSchlag = "rahmen";
+    switch (name) {
+      case "einstieg": {
+        if (!(d && some(d.einstieg))) {
+          quelleSchlag = "kontext";
+          return erster ? `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.` : "";
+        }
+        quelleSchlag = erster ? "kontext+bogen" : "bogen";
+        if (!erster) {
+          const z2 = zieh(d.einstieg);
+          return z2 ? `${cap(z2)}.` : "";
+        }
+        const z = zieh(d.einstieg) || pick(d.einstieg);
+        if (/^(nachdem|als|während|bevor|sobald|seit|seitdem|kaum|wenn|ehe)\b/i.test(clean(kit.T)))
+          return `${cap(kit.T)} ${kit.W} \u2014 ${z.charAt(0).toLowerCase()}${z.slice(1).replace(/[.!?…]+$/, "")}.`;
+        return `${cap(kit.T)} ${kit.W}. ${cap(z)}.`;
+      }
+      case "hook":
+        quelleSchlag = "wortbank";
+        return cap(ensurePunct(kit.hook));
+      case "regel": {
+        const z = d && some(d.regeln) && chance(0.7) ? zieh(d.regeln) : "";
+        quelleSchlag = z ? "bogen" : "vorlage";
+        return z ? cap(ensurePunct(z)) : ensurePunct(pick(M.rules));
+      }
+      case "mitte": {
+        const z = d && some(d.mitte) ? zieh(d.mitte) : "";
+        quelleSchlag = "bogen";
+        return z ? `${cap(z)}.` : "";
+      }
+      case "mitte2": {
+        const z = d && some(d.mitte) && d.mitte.length > 1 && chance(0.6) ? zieh(d.mitte) : "";
+        quelleSchlag = "bogen";
+        return z ? `${cap(z)}.` : "";
+      }
+      case "konflikt": {
+        const konf = d && some(d.konflikte) ? zieh(d.konflikte) : "";
+        quelleSchlag = konf ? "bogen" : "wortbank";
+        return konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`;
+      }
+      case "ausloeser": {
+        if (!(d && some(d.ausloeser))) return "";
+        const { satz: satz2, nackt: nackt2 } = ziehOhneZeitkopf(d.ausloeser);
+        if (!satz2) return "";
+        quelleSchlag = "bogen";
+        return nackt2 ? cap(ensurePunct(satz2)) : `Dann, unvermittelt: ${cap(satz2)}.`;
+      }
+      case "wende": {
+        const ausBogen = d && some(d.veraenderungen) ? zieh(d.veraenderungen) : "";
+        const kern = ausBogen || (benutzt.has(norm2(kit.turn)) ? "" : kit.turn);
+        if (!kern) return "";
+        quelleSchlag = ausBogen ? "bogen" : "wortbank";
+        benutzt.add(norm2(kern));
+        return frameTurn(kern);
+      }
+      case "zeit": {
+        const z = d && some(d.zeitanomalien) && chance(0.4) ? zieh(d.zeitanomalien) : "";
+        quelleSchlag = "bogen";
+        return z ? cap(ensurePunct(z)) : "";
+      }
+      case "hoehepunkt":
+        if (!(d && some(d.hoehepunkt))) return "";
+        quelleSchlag = "bogen";
+        if (erster) {
+          const z = zieh(d.hoehepunkt);
+          return z ? `${cap(z)}.` : "";
+        }
+        const { satz, nackt } = ziehOhneZeitkopf(d.hoehepunkt);
+        if (!satz) return "";
+        return nackt ? cap(ensurePunct(satz)) : `Und dann: ${cap(satz)}.`;
+      case "einsatz": {
+        if (benutzt.has(norm2(kit.stake))) return "";
+        benutzt.add(norm2(kit.stake));
+        quelleSchlag = "wortbank";
+        return reframeStake(kit.stake);
+      }
+      case "schluss":
+        quelleSchlag = "wortbank";
+        return ensurePunct(kit.ending);
+      default:
+        return "";
+    }
+  };
+  const folge = d?.folge && d.folge.length && d.folge.every((n) => SCHLAG_NAMEN.has(n)) ? d.folge : SCHLAG_STANDARD;
+  const beats = [];
+  for (const name of folge) {
+    const b = schlag(name, beats.length === 0);
+    if (b) beats.push(b);
+    if (zeitlupeAn()) zeitlupeSchritt({
+      text: beats.join(" "),
+      atom: b || "",
+      phase: name,
+      slot: name,
+      quelle: b ? quelleSchlag : "rahmen",
+      kategorie: name,
+      typ: "schlag",
+      score: 0,
+      anteil: 0,
+      gruende: b ? [{ name: "Schlag " + name, wert: 1 }] : [{ name: "ausgefallen \u2014 Liste aufgebraucht oder leer", wert: 0 }],
+      kandidaten: 0,
+      konkurrenten: []
+    });
+  }
+  return joinBeats(beats, kit.P);
+}
+
+// src/generation/echo.ts
+var FUNKTION = /^(Aber|Auch|Dann|Denn|Doch|Und|Oder|Wenn|Weil|Nur|Noch|Schon|Jetzt|Heute|Morgen|Gestern|Hier|Dort|Alles|Nichts|Etwas|Jemand|Niemand|Später|Zuletzt|Danach|Vorher|Plötzlich|Manchmal|Immer|Nie|Fast|Kaum|Einmal|Zweimal|Bald|Erst|Sofort|Zuerst|Endlich|Draußen|Drinnen|Oben|Unten|Vielleicht|Irgendwo|Irgendwann)$/;
+var STEIGERUNG = /\b(niemand|nicht|kein|keine|keinen|mehr|noch|zweimal|jedes Mal|immer|nie|zu spät|zu früh|schneller|langsamer|weiter|tiefer|höher)\b/i;
+function kernwoerter(satz) {
+  const out = /* @__PURE__ */ new Set();
+  const woerter3 = satz.split(/\s+/);
+  woerter3.forEach((w, i) => {
+    const m = w.match(/^[„»(]?([A-ZÄÖÜ][a-zäöüß]{4,})/);
+    if (!m) return;
+    if (i === 0 || FUNKTION.test(m[1])) return;
+    out.add(m[1].toLowerCase().slice(0, 5));
+  });
+  return out;
+}
+var norm = (s) => s.toLowerCase().replace(/[^a-zäöüß ]/g, "").replace(/\s+/g, " ").trim();
+function setzeEchos(text, bank, maxEchos = 2) {
+  const saetze = splitSentences(text.replace(/\n\n+/g, " "));
+  const n = saetze.length;
+  if (n < 8) return { text, echos: [] };
+  const drinnen = new Set(saetze.map(norm));
+  const vorrat = [...bank.motifs || [], ...bank.hooks || [], ...bank.turns || []].map((x) => x.trim()).filter((x) => x && !drinnen.has(norm(x)));
+  const jeKern = /* @__PURE__ */ new Map();
+  for (const v of vorrat) for (const k of kernwoerter(" " + v)) {
+    const l = jeKern.get(k) || [];
+    l.push(v);
+    jeKern.set(k, l);
+  }
+  const bogen = loadDramaData();
+  let hoch = Math.floor(n * 0.75);
+  if (bogen && bogen.hoehepunkt?.length) {
+    const hp = bogen.hoehepunkt.map(norm).filter(Boolean);
+    const idx = saetze.findIndex((s) => hp.some((h) => h && norm(s).includes(h.slice(0, Math.min(40, h.length)))));
+    if (idx >= 3) hoch = idx;
+  }
+  const schlussAb = Math.max(hoch, n - 2);
+  const kandidaten = [];
+  const genutzt = /* @__PURE__ */ new Set();
+  for (let i = 1; i < Math.floor(n / 2); i++) {
+    for (const k of kernwoerter(saetze[i])) {
+      if (genutzt.has(k)) continue;
+      const l = (jeKern.get(k) || []).filter((v) => !genutzt.has(norm(v)));
+      if (!l.length) continue;
+      const sorted = [...l].sort((a, b) => Number(STEIGERUNG.test(b)) - Number(STEIGERUNG.test(a)) || b.split(/\s+/).length - a.split(/\s+/).length);
+      kandidaten.push({ i, kern: k, echo: sorted[0] });
+      genutzt.add(k);
+      genutzt.add(norm(sorted[0]));
+      break;
+    }
+  }
+  if (!kandidaten.length) return { text, echos: [] };
+  const gewaehlt = kandidaten.length <= maxEchos ? kandidaten : [kandidaten[0], kandidaten[Math.floor(kandidaten.length / 2)]].filter((x, i, a) => a.indexOf(x) === i);
+  const out = [...saetze];
+  const echos = [];
+  let pos = Math.min(hoch, schlussAb);
+  for (const g of gewaehlt) {
+    if (pos - g.i < 3) continue;
+    let e = g.echo.trim().replace(/^[a-z]/, (c) => c.toUpperCase());
+    if (!/[.!?…]$/.test(e)) e += ".";
+    out.splice(pos, 0, e);
+    echos.push({ kern: g.kern, kernbild: saetze[g.i], echo: e, position: pos });
+    zaehle("echoGesetzt", `${saetze[g.i].slice(0, 50)} \u2192 ${e.slice(0, 60)}`);
+    pos = Math.max(g.i + 3, pos - 2);
+  }
+  return { text: out.join(" "), echos };
+}
+
+// src/modes.data.ts
+var MODE_DATA = {
+  "bureau": {
+    "label": "B\xFCrokratischer Horror",
+    "nouns": [
+      "Antrag",
+      "Sachbearbeiter",
+      "Stempel",
+      "Akte",
+      "Frist",
+      "Formular",
+      "Wartemarke",
+      "Kopie",
+      "Bescheid",
+      "Protokoll"
+    ],
+    "verbs": [
+      "beantragen",
+      "stempeln",
+      "ablegen",
+      "pr\xFCfen",
+      "verschieben",
+      "archivieren",
+      "verweigern",
+      "unterschreiben",
+      "eintragen",
+      "verlangen"
+    ],
+    "images": [
+      "wie ein Stempel auf der Seele",
+      "wie Papier, das atmet",
+      "wie ein Flur ohne Ende",
+      "wie ein Formular, das l\xFCgt"
+    ],
+    "rules": [
+      "Die Frist ist r\xFCckwirkend.",
+      "Das Feld muss leer bleiben.",
+      "Die Kopie ist das Original."
+    ]
+  },
+  "tech": {
+    "label": "Technologische Mystik",
+    "nouns": [
+      "Signal",
+      "Protokoll",
+      "Schnittstelle",
+      "Sensor",
+      "Cache",
+      "Port",
+      "Terminal",
+      "Rauschen",
+      "Update",
+      "Log"
+    ],
+    "verbs": [
+      "pingen",
+      "loggen",
+      "cachen",
+      "rendern",
+      "debuggen",
+      "synchronisieren",
+      "\xFCberschreiben",
+      "parsen",
+      "encrypten",
+      "deployen"
+    ],
+    "images": [
+      "wie ein Signal im Leeren",
+      "wie Rauschen, das Namen formt",
+      "wie ein Cache voller W\xE4rme",
+      "wie ein Port, der wartet"
+    ],
+    "rules": [
+      "Das System lernt zu schnell.",
+      "Die Uhrzeit ist ein Platzhalter.",
+      "Ein Backup \xFCberschreibt die Gegenwart."
+    ]
+  },
+  "body": {
+    "label": "Intime K\xF6rperwahrnehmung",
+    "nouns": [
+      "Puls",
+      "Atem",
+      "Narbe",
+      "Kehle",
+      "Haut",
+      "Schmerz",
+      "Zittern",
+      "W\xE4rme",
+      "K\xE4lte",
+      "Blick"
+    ],
+    "verbs": [
+      "atmen",
+      "zittern",
+      "sp\xFCren",
+      "erinnern",
+      "greifen",
+      "loslassen",
+      "wahrnehmen",
+      "schmerzen",
+      "klopfen",
+      "w\xE4rmen"
+    ],
+    "images": [
+      "wie ein Atem, der zu sp\xE4t kommt",
+      "wie W\xE4rme ohne Ursache",
+      "wie ein Puls, der antwortet",
+      "wie K\xE4lte im Knochen"
+    ],
+    "rules": [
+      "Der K\xF6rper wei\xDF es zuerst.",
+      "Die Wahrheit sitzt im Hals.",
+      "Der Schmerz ist ein Hinweis."
+    ]
+  },
+  "myth": {
+    "label": "Mythologischer Alltag",
+    "nouns": [
+      "F\xE4hrmann",
+      "Omen",
+      "Faden",
+      "Maske",
+      "Schrein",
+      "Fluch",
+      "Segen",
+      "Nymphe",
+      "Orakel",
+      "Bote"
+    ],
+    "verbs": [
+      "weben",
+      "opfern",
+      "deuten",
+      "rufen",
+      "wachen",
+      "taufen",
+      "verf\xFChren",
+      "segnen",
+      "fordern",
+      "erinnern"
+    ],
+    "images": [
+      "wie Ru\xDF auf Gold",
+      "wie Wasser, das zuh\xF6rt",
+      "wie ein altes Versprechen",
+      "wie ein Gott in Zivil"
+    ],
+    "rules": [
+      "Der Ort verlangt eine Gabe.",
+      "Der Name ist ein Schl\xFCssel.",
+      "Das Zeichen kommt dreimal."
+    ]
+  },
+  "absurd": {
+    "label": "Absurd-logische Welt",
+    "nouns": [
+      "Beweis",
+      "Paradoxon",
+      "Ausrede",
+      "Gabelung",
+      "Randnotiz",
+      "Handbuch",
+      "Einspruch",
+      "Punkt",
+      "Linie",
+      "Hintert\xFCr"
+    ],
+    "verbs": [
+      "widerlegen",
+      "umdrehen",
+      "vertauschen",
+      "behaupten",
+      "kollabieren",
+      "vereinbaren",
+      "winken",
+      "klammern",
+      "kippen",
+      "vereinfachen"
+    ],
+    "images": [
+      "wie ein Witz mit Z\xE4hnen",
+      "wie Logik auf Glatteis",
+      "wie ein Kreis, der eckig wird",
+      "wie eine T\xFCr ohne Wand"
+    ],
+    "rules": [
+      "Alles ist korrekt \u2013 nur in falscher Reihenfolge.",
+      "Der Ausgang ist innen.",
+      "Du darfst gehen, aber nicht ankommen."
+    ]
+  },
+  "post": {
+    "label": "Posthumaner Monolog",
+    "nouns": [
+      "Instanz",
+      "Kollektiv",
+      "Backup",
+      "Rauschen",
+      "Archiv",
+      "Knoten",
+      "Schnitt",
+      "Speicher",
+      "Echo",
+      "Prozess"
+    ],
+    "verbs": [
+      "persistieren",
+      "rekonstruieren",
+      "simulieren",
+      "abgleichen",
+      "verzweigen",
+      "entkoppeln",
+      "konvergieren",
+      "\xFCberschreiben",
+      "erscheinen",
+      "l\xF6schen"
+    ],
+    "images": [
+      "wie ein Ged\xE4chtnis ohne K\xF6rper",
+      "wie Stimmen im Datennebel",
+      "wie eine Erinnerung aus Metall",
+      "wie W\xE4rme in Zahlen"
+    ],
+    "rules": [
+      "Ich bin nicht ich, nur Version.",
+      "Die Datei ist \xE4lter als du.",
+      "Ein Satz wurde entfernt \u2013 und wirkt nach."
+    ]
+  }
+};
+
+// src/generation/ctxnorm.ts
+var PREPS = /^(in|im|an|am|auf|bei|beim|unter|über|vor|hinter|neben|zwischen|durch|entlang|inmitten|nahe|außerhalb|innerhalb|jenseits|diesseits|um|ums|zu|zur|zum|während|seit|nach|gegen|ab|aus|von|vom|unterwegs|irgendwo|nirgendwo|überall|dort|draußen|drinnen|hier|daheim|zuhause|unten|oben)\b/i;
+var cap2 = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+var low = (s) => s ? s.charAt(0).toLowerCase() + s.slice(1) : s;
+function parseNP(s) {
+  const m = s.trim().match(/^(?:(der|die|das|ein|eine|einen|einem|einer)\s+)?(?:([A-ZÄÖÜa-zäöüß][a-zäöüß-]*(?:e|en|er|es))\s+)?([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
+  if (!m) return null;
+  const adj = m[2] || "";
+  if (adj && /^[A-ZÄÖÜ]/.test(adj) && !/[a-zäöüß]$/.test(adj)) return null;
+  return { art: (m[1] || "").toLowerCase(), adj: adj.toLowerCase(), noun: m[3] };
+}
+function genderOf(art, noun) {
+  if (art === "die" || art === "eine" || art === "einer") return "f";
+  if (art === "das") return "n";
+  if (art === "der" || art === "ein" || art === "einen" || art === "einem") {
+    const g = guessGender(noun);
+    return g || (art === "der" ? "m" : void 0);
+  }
+  return guessGender(noun);
+}
+var adjDat = (adj) => adj ? adj.replace(/(er|es|em|en|e)$/i, "") + "en" : "";
+var AN_NOUNS = /^(meer|see|ozean|küste|strand|ufer|fluss|bach|rand|abgrund|fenster|tor|hafenbecken)$/i;
+var AUF_NOUNS = /^(insel|wiese|weide|feld|berg|hügel|gipfel|dach|turm|platz|markt|straße|brücke|lichtung|bühne|terrasse|balkon)$/i;
+var LAND_GATTUNG = /* @__PURE__ */ new Set([
+  "ausland",
+  "inland",
+  "umland",
+  "hinterland",
+  "festland",
+  "neuland",
+  "brachland",
+  "flachland",
+  "hochland",
+  "weideland",
+  "ackerland",
+  "vaterland",
+  "heimatland",
+  "niemandsland",
+  "grenzland",
+  "marschland",
+  "\xF6dland",
+  "bauland",
+  "bergland",
+  "tiefland",
+  "binnenland",
+  "vorland",
+  "kernland",
+  "mutterland",
+  "traumland",
+  "schlaraffenland"
+]);
+var ORTSNAME_ENDUNG = /(grad|burg|furt|ingen|hausen|heim|kirchen|brück|wick|ford|ton|ville|polis|stan|land|ien)$/;
+var AN_ENDUNG = /(ufer|meer|see|strand|küste|fluss|bach)$/i;
+function normWhere(s) {
+  const t = (s || "").trim();
+  if (!t || PREPS.test(t)) return t;
+  const komma = t.indexOf(",");
+  if (komma > 0) {
+    const kopf = normWhere(t.slice(0, komma));
+    return kopf + t.slice(komma);
+  }
+  const zusatz = t.match(/^(.+?)\s+((?:in|im|an|am|auf|bei|vor|hinter|neben|unter|über|zwischen|nahe|gegenüber|ohne|mit|voller|aus)\s+.+)$/);
+  if (zusatz && parseNP(zusatz[1])) {
+    const kopf = normWhere(zusatz[1]);
+    if (kopf !== zusatz[1]) return `${kopf} ${zusatz[2]}`;
+  }
+  const np = parseNP(t);
+  if (!np) return t;
+  const nurWort = !np.art && !np.adj && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(t);
+  const inTabelle = !!(NOUN_GENDER[t.toLowerCase()] || NOUN_GENDER_2[t.toLowerCase()]);
+  if (nurWort && !inTabelle && ORTSNAME_ENDUNG.test(t) && !LAND_GATTUNG.has(t.toLowerCase())) return `in ${t}`;
+  const g = genderOf(np.art, np.noun);
+  if (!g) return !np.art && !np.adj && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(t) ? `in ${t}` : t;
+  const adj = np.adj ? adjDat(np.adj) + " " : "";
+  const kind = AUF_NOUNS.test(np.noun) ? "auf" : AN_NOUNS.test(np.noun) || AN_ENDUNG.test(np.noun) ? "an" : "in";
+  const indef = np.art.startsWith("ein") || !np.art && !!np.adj;
+  if (indef) {
+    const artD = g === "f" ? "einer" : "einem";
+    return `${kind} ${artD} ${adj}${np.noun}`;
+  }
+  if (kind === "in") return g === "f" ? `in der ${adj}${np.noun}` : `im ${adj}${np.noun}`;
+  if (kind === "an") return g === "f" ? `an der ${adj}${np.noun}` : `am ${adj}${np.noun}`;
+  return g === "f" ? `auf der ${adj}${np.noun}` : `auf dem ${adj}${np.noun}`;
+}
+var WEEKDAYS = /^(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag)$/i;
+var MONTHS = /^(januar|februar|märz|april|mai|juni|juli|august|september|oktober|november|dezember)$/i;
+var SEASONS = /^(frühling|frühjahr|sommer|herbst|winter)$/i;
+var TIME_ADV = /^(heute|morgen|gestern|übermorgen|vorgestern|damals|jetzt|nun|bald|einst|früher|später|nachts|morgens|abends|mittags|vormittags|nachmittags|irgendwann|immer|nie|niemals|neulich|kürzlich|demnächst|gerade|soeben|zugleich|währenddessen|einmal)\b/i;
+var AM_TIMES = /^(morgen|vormittag|mittag|nachmittag|abend|tag|anfang|ende|wochenende|feierabend)$/i;
+function normWhen(s) {
+  const t = (s || "").trim();
+  if (!t || PREPS.test(t) || TIME_ADV.test(t) || t.includes(",") || /\d+\s*uhr/i.test(t)) return t;
+  if (/^\d{3,4}$/.test(t)) return `im Jahr ${t}`;
+  const one = t.match(/^([A-ZÄÖÜa-zäöü][A-Za-zÄÖÜäöüß-]*)$/) ? t : null;
+  if (!one) return t;
+  const w = one;
+  if (WEEKDAYS.test(w)) return `an einem ${cap2(w)}`;
+  if (MONTHS.test(w) || SEASONS.test(w)) return `im ${cap2(w)}`;
+  if (/^mitternacht$/i.test(w)) return "um Mitternacht";
+  if (/^nacht$/i.test(w)) return "in der Nacht";
+  if (/^dämmerung$/i.test(w)) return "in der D\xE4mmerung";
+  if (AM_TIMES.test(w)) return `am ${cap2(w)}`;
+  const g = guessGender(w);
+  if (g === "f") return `in der ${cap2(w)}`;
+  if (g === "m" || g === "n") return `im ${cap2(w)}`;
+  return t;
+}
+function normWho(s) {
+  const t = (s || "").trim();
+  if (!t) return t;
+  const parts = t.split(",").map((p) => p.trim()).filter(Boolean);
+  const fixed = parts.map((p, i) => {
+    const m = p.match(/^([a-zäöüß][a-zäöüß-]*)\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
+    if (m && !/^(der|die|das|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses)$/i.test(m[1])) {
+      const g = guessGender(m[2]) || (/in$/.test(m[2].toLowerCase()) ? "f" : void 0);
+      if (g === "f") return `eine ${m[1]} ${m[2]}`;
+      if (g === "m" || g === "n") return `ein ${m[1]} ${m[2]}`;
+    }
+    if (i === 0 && /^[A-ZÄÖÜa-zäöüß][a-zäöüß-]+$/.test(p) && PERSON_NOMEN.test(p) && !/^(männer|leute)$/i.test(p)) {
+      const wort = cap2(p);
+      const klein = p.toLowerCase();
+      if (/er$/.test(klein) && PERSON_NOMEN.test(klein.slice(0, -1))) return `ein ${wort}`;
+      if (/e$/.test(klein) && PERSON_NOMEN.test(klein + "r")) return `eine ${wort}`;
+      const g = guessGender(wort);
+      if (g === "f") return `eine ${wort}`;
+      if (g === "m" || g === "n") return `ein ${wort}`;
+    }
+    return i === 0 || istEigenePerson(p) ? cap2(p) : low(p);
+  });
+  return fixed.join(", ");
+}
+
+// src/generation/dialogue.ts
+var ARCHETYPE_SPEAKERS = {
+  neutral: ["Die Stimme", "Das System", "Ein Unbekannter", "Das Archiv", "Der Apparat"],
+  skorpion: ["Die Zeugin", "Der Blick", "Die Hand", "Die Stimme", "Der Vermerk"],
+  psychopath: ["Der Gutachter", "Das Protokoll", "Die Instanz", "Der Operator", "Die Akte"],
+  entdecker: ["Die Karte", "Der Weg", "Die T\xFCr", "Der Rand", "Das Zeichen"]
+};
+function pickSpeakerForArchetype(archId) {
+  return pick(ARCHETYPE_SPEAKERS[archId] || ARCHETYPE_SPEAKERS.neutral);
+}
+function makeDialogueScene(kit, lenTarget = 110) {
+  const aId = kit.archetypeA || "neutral";
+  const bId = kit.archetypeB || "neutral";
+  const speakerA = kit.speakerA || kit.P;
+  const speakerB = kit.speakerB || pickSpeakerForArchetype(bId);
+  const cast = kit.speakers && kit.speakers.length >= 2 ? kit.speakers : [speakerA, speakerB];
+  let rounds = Math.round(lenTarget / 7) + (kit.instability === 2 ? 2 : kit.instability === 1 ? 1 : 0);
+  rounds = Math.max(4, Math.min(30, rounds));
+  if (rounds % 2 !== 0) rounds = Math.min(30, rounds + 1);
+  const evenAt = (f) => {
+    let x = Math.round(rounds * f);
+    if (x % 2 !== 0) x++;
+    return Math.max(2, Math.min(rounds - 2, x));
+  };
+  const oddAt = (f) => {
+    let x = Math.round(rounds * f);
+    if (x % 2 === 0) x++;
+    return Math.max(3, Math.min(rounds - 1, x));
+  };
+  const BEAT = {
+    propB: oddAt(0.22),
+    obstA: evenAt(0.38),
+    surfB: oddAt(0.42),
+    turnA: evenAt(0.64),
+    stakeB: oddAt(0.68),
+    endA: rounds - 2,
+    stageB: rounds - 1
+  };
+  const phaseFor = (i) => {
+    const p = i / (rounds - 1);
+    if (p < 0.3) return 0;
+    if (p < 0.6) return 1;
+    if (p < 0.85) return 2;
+    return 3;
+  };
+  const POOLS = {
+    neutral: {
+      setup: ["Was genau ist hier los?", "Sag mir, was du gesehen hast.", "Ich versuche, es zu verstehen.", "Wir sind noch nicht sicher.", "Fang von vorne an.", "Was hast du wirklich gesehen?", "Ich h\xF6re zu."],
+      conflict: ["Du weichst aus.", "Das passt nicht zusammen.", "Du verdrehst die Reihenfolge.", "Du h\xF6rst nicht zu.", "Das ergibt keinen Sinn.", "Du l\xE4sst etwas weg.", "Bleib bei der Wahrheit."],
+      twist: ["Vielleicht war es nie so gemeint.", "Dann dreht sich die Ursache um.", "Es sagt etwas anderes, als wir h\xF6ren.", "Die Regel gilt, aber anders.", "Vielleicht liegt es an uns.", "Der Grund verschiebt sich.", "Nichts davon war geplant."],
+      fallout: ["Also bleibt nur das Ende.", "Dann ist das entschieden.", "Wir gehen von hier weg.", "Damit m\xFCssen wir leben.", "Dann ist es vorbei.", "Wir tragen es mit.", "Mehr bleibt nicht."]
+    },
+    skorpion: {
+      setup: ["Ich sehe, dass du etwas verschweigst.", "Du bist n\xE4her, als du sein solltest.", "Das ist kein Zufall.", "Sag es \u2013 ohne Ausflucht.", "Du z\xF6gerst.", "Ich rieche die L\xFCge."],
+      conflict: ["Du kontrollierst die Geschichte.", "Dein Schweigen ist ein Griff um meinen Hals.", "Ich kenne deine L\xFCcken.", "Du willst Besitz, nicht Wahrheit.", "Du h\xE4ltst etwas fest.", "Gib es zu."],
+      twist: ["Dann geh\xF6rt die Wahrheit niemandem.", "Die N\xE4he kippt: Jetzt h\xE4lt es dich fest.", "Du wirst von deinem Satz behalten.", "Was du willst, will dich auch.", "Jetzt kehrt es sich um.", "Deine N\xE4he wird zur Falle."],
+      fallout: ["Du gibst es zu, oder du verlierst alles.", "Ich lasse dich nicht ungeschoren.", "Wir sind jetzt Teil davon.", "Das Ende tr\xE4gt deinen Namen.", "Du tr\xE4gst die Schuld.", "Nichts entkommt mir."]
+    },
+    psychopath: {
+      setup: ["Beschreibe den Sachverhalt.", "Emotion ist hier irrelevant.", "Das ist eine Beobachtung.", "Wir messen, was bleibt.", "Nenne die Fakten.", "Gef\xFChle sind Rauschen."],
+      conflict: ["Deine Schl\xFCsse sind unzul\xE4ssig.", "Du verwechselst Gef\xFChl mit Fakt.", "Das ist Inkonsistenz.", "Du \xFCbersch\xE4tzt Bedeutung.", "Dein Schluss ist falsch.", "Das ist unpr\xE4zise."],
+      twist: ["Dann drehen wir den Vektor um.", "Die Ursache ist das Symptom.", "Du bist das Experiment.", "Die Regel ist nur ein Modell.", "Die Ursache ist Effekt.", "Du bist die Variable."],
+      fallout: ["Der Fall ist abgeschlossen.", "Das Ergebnis ist eindeutig.", "Wir protokollieren das.", "Damit ist es erledigt.", "Abgeschlossen.", "Das Ergebnis steht."]
+    },
+    entdecker: {
+      setup: ["Da vorne ist noch etwas.", "Wir gehen weiter.", "Die Richtung ist nicht zuf\xE4llig.", "Ich will sehen, was dahinter liegt.", "Da vorn ist mehr.", "Komm weiter."],
+      conflict: ["Du h\xE4ltst mich auf.", "Du willst stehen bleiben.", "Du sperrst den Weg.", "Du hast Angst vor der n\xE4chsten T\xFCr.", "Du bremst.", "Du f\xFCrchtest die T\xFCr."],
+      twist: ["Dann \xF6ffnet sich der Raum in die falsche Richtung.", "Die Karte beginnt zu laufen.", "Der Weg entdeckt uns.", "Hinter uns ist das Ziel.", "Der Weg dreht sich.", "Das Ziel liegt hinter uns."],
+      fallout: ["Wir nehmen mit, was wir k\xF6nnen.", "Wir lassen den Rest zur\xFCck.", "Es bleibt eine Spur.", "Und dann: weiter.", "Wir ziehen weiter.", "Eine Spur bleibt."]
+    }
+  };
+  const STANCE_LINES = {
+    glauben: {
+      setup: ["Ich wei\xDF, was ich gesehen habe.", "Es war genau so.", "H\xF6r mir zu, es stimmt.", "Ich habe keinen Zweifel.", "Das ist die Wahrheit, ob du willst oder nicht."],
+      conflict: ["Es ist trotzdem wahr.", "Ich bleibe dabei.", "Du musst mir das glauben.", "Ich habe es selbst erlebt.", "Daran \xE4ndert dein Zweifel nichts."],
+      twist: ["Also hatte ich recht.", "Dann best\xE4tigt es sich.", "Ich wusste es die ganze Zeit.", "Genau das habe ich gesagt.", "Siehst du \u2014 es stimmt."],
+      fallout: ["Ich stehe dazu.", "Es bleibt wahr.", "Ich bereue kein Wort.", "So war es, so bleibt es."]
+    },
+    zweifeln: {
+      setup: ["Woher willst du das wissen?", "Bist du sicher?", "Das klingt zu einfach.", "Kann das \xFCberhaupt stimmen?", "Ich glaube nichts ohne Beweis."],
+      conflict: ["Das kann nicht stimmen.", "Beweis es mir.", "Da fehlt etwas.", "Warum sollte ich dir glauben?", "Deine Geschichte hat L\xF6cher."],
+      twist: ["Vielleicht hatte ich unrecht.", "Oder es ist ganz anders.", "Und wenn es doch stimmt?", "Jetzt zweifle ich an meinem Zweifel."],
+      fallout: ["Ich bin noch nicht \xFCberzeugt.", "Sicher bin ich trotzdem nicht.", "Vielleicht. Vielleicht auch nicht.", "Ich behalte meine Fragen."]
+    },
+    abwehren: {
+      setup: ["Muss das jetzt sein?", "Lass uns nicht dar\xFCber reden.", "Das geht dich nichts an.", "Ich will das nicht.", "Es ist nicht so wichtig."],
+      conflict: ["Das f\xFChrt zu nichts.", "H\xF6r auf zu bohren.", "Ich habe nichts gesagt.", "Lenk nicht ab.", "Reden wir \xFCber etwas anderes."],
+      twist: ["Es ist zu sp\xE4t daf\xFCr.", "Jetzt ist es sowieso egal.", "Ich h\xE4tte schweigen sollen.", "Vergiss, was ich gesagt habe."],
+      fallout: ["Es ist erledigt.", "Reden wir nicht mehr davon.", "Vergessen wir das.", "Genug jetzt."]
+    }
+  };
+  const STANCES = ["glauben", "zweifeln", "abwehren"];
+  for (let k = STANCES.length - 1; k > 0; k--) {
+    const j = Math.floor(Math.random() * (k + 1));
+    [STANCES[k], STANCES[j]] = [STANCES[j], STANCES[k]];
+  }
+  const stanceOf = (castIdx) => STANCES[castIdx % STANCES.length];
+  const capFirst = (s) => {
+    s = String(s || "").trim();
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  };
+  const stripLead = (s) => String(s || "").replace(/^(und|dann|aber|denn|so|doch)\s+/i, "").trim();
+  const topic = clean(kit.motif || kit.W || "").replace(/[.!?…]+$/, "");
+  const STAGE = ["Stille.", "Ein langer Blick.", "Keiner spricht weiter.", "Der Wind tr\xE4gt den Rest fort.", "Die Weide liegt still.", "Nichts bewegt sich."];
+  const cleanDialogLine = (s) => {
+    s = clean(s);
+    s = s.replace(/,\s*([.!?…])/g, "$1").replace(/\s*,\s*,\s*/g, ", ").replace(/„\s+/g, "\u201E").replace(/\s+"/g, '"').replace(/\.{2,}/g, ".").replace(/\s+([,.;:!?])/g, "$1").replace(/\)\s*\.$/, ")");
+    return capFirst(s);
+  };
+  const usedRaw = /* @__PURE__ */ new Set();
+  let prevRaw = "";
+  const pickLine = (stance, archetype, phase) => {
+    const key = phase === 0 ? "setup" : phase === 1 ? "conflict" : phase === 2 ? "twist" : "fallout";
+    const useArch = archetype !== "neutral" && chance(0.4);
+    const P2 = useArch ? POOLS[archetype] || POOLS.neutral : STANCE_LINES[stance] || POOLS.neutral;
+    const arr = P2[key] || [];
+    if (!arr.length) return "\u2026";
+    const fresh = arr.filter((l) => l !== prevRaw && !usedRaw.has(l));
+    let cand;
+    if (fresh.length) cand = pick(fresh);
+    else {
+      const notPrev = arr.filter((l) => l !== prevRaw);
+      cand = notPrev.length ? pick(notPrev) : pick(arr);
+    }
+    usedRaw.add(cand);
+    prevRaw = cand;
+    return cand;
+  };
+  const injectBeat = (i) => {
+    if (i === 0) return topic ? `Das Thema: ${topic}.` : "Sag mir, was du gesehen hast.";
+    if (i === 1) return topic ? "Und was hat das mit uns zu tun?" : "Was genau meinst du?";
+    if (i === BEAT.propB && kit.propAcc) return `Du hast ${kit.propAcc} dabei.`;
+    if (i === BEAT.obstA) return ensurePunct(capFirst(stripLead(kit.obstacle)));
+    if (i === BEAT.surfB) return "Das ist nur die Oberfl\xE4che.";
+    if (i === BEAT.turnA) return `Dann \u2014 ${capFirst(stripLead(clean(kit.turn).replace(/[.!?…]+$/, "")))}.`;
+    if (i === BEAT.stakeB) return ensurePunct(capFirst(stripLead(kit.stake)));
+    if (i === BEAT.endA) return ensurePunct(capFirst(kit.ending));
+    if (i === BEAT.stageB) return chance(0.6) ? `(${pick(STAGE)})` : null;
+    return null;
+  };
+  const applyInstability = (line, archetype, phase) => {
+    if (kit.instability !== 2) return line;
+    if (/[()]/.test(line) || line.includes("\u2014") || line.includes(":")) return line;
+    if (chance(0.32 + phase * 0.06)) {
+      const activeVerbs = ["\xF6ffnet", "nimmt", "sieht", "h\xE4lt", "stellt", "schreibt", "tr\xE4gt", "f\xFChrt", "bricht", "nennt", "findet", "ber\xFChrt", "beobachtet", "sucht"];
+      const m = line.match(new RegExp(`^(.+?)\\s+(${activeVerbs.join("|")})\\s+(.+?)\\.$`, "i"));
+      if (m) {
+        const subj = m[1].trim(), verb = m[2], obj = m[3].trim();
+        if (obj.length < 40 && subj.toLowerCase() !== obj.toLowerCase() && obj.split(/\s+/).length <= 4 && !obj.includes(subj)) {
+          line = `${obj} ${verb} ${subj}.`;
+        }
+      }
+    }
+    if (chance(0.22)) {
+      if (archetype === "skorpion" && !line.includes("wei\xDFt")) line = line.replace(/\.$/, " \u2013 und du wei\xDFt es.");
+      else if (archetype === "psychopath" && !line.includes("Notiert")) line = line.replace(/\.$/, ". Notiert.");
+      else if (archetype === "entdecker" && !line.includes("Weiter")) line = line.replace(/\.$/, ". Weiter.");
+    }
+    return line.replace(/\bIch kenne ich\b/gi, "Ich kenne mich").replace(/\bIch nennen\b/gi, "Ich nenne").replace(/\bIch sucht\b/gi, "Ich suche").replace(/\.\s*\./g, ".").replace(/\s{2,}/g, " ").trim();
+  };
+  const out = [`SZENE: ${kit.W}, ${kit.T}.`];
+  for (let i = 0; i < rounds; i++) {
+    const isA = i % 2 === 0;
+    const ci = i % cast.length;
+    const speaker = cast[ci];
+    const arch2 = isA ? aId : bId;
+    const ph = phaseFor(i);
+    let line = injectBeat(i) ?? pickLine(stanceOf(ci), arch2, ph);
+    line = ensurePunct(line);
+    line = applyInstability(line, arch2, ph);
+    line = cleanDialogLine(line);
+    out.push(`${speaker}: ${line}`);
+  }
+  return out.join("\n");
+}
+
+// src/generation/nlp.ts
+function tokenize(text) {
+  return (text || "").replace(/\r/g, "").replace(/([.,!?;:()„""""—])/g, " $1 ").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+}
+var COHERENCE_STOPWORDS = new Set(
+  "aber alle allem allen aller alles als also am an andere anderen auch auf aus bei bin bis bist da dabei dann das dass dem den denn der des dessen die dies diese diesem diesen dieser dieses doch dort du durch ein eine einem einen einer eines er es etwas fuer f\xFCr gegen hab habe haben hat hatte hier hin hinter ich ihm ihn ihr ihre im in ist ja jede jedem jeden jeder jedes kann kein keine man mehr mein mich mir mit muss nach nicht nichts noch nun nur ob oder ohne schon sein seine sich sie sind so ueber \xFCber um und uns unser unter vom von vor war waren was wenn werden wie wieder will wir wird wo zu zum zur".split(" ")
+);
+function coherenceWords(s) {
+  return tokenize(String(s || "").toLowerCase()).filter((w) => w.length > 3 && !COHERENCE_STOPWORDS.has(w));
+}
+
+// src/generation/tone.data.ts
+var TONE_DATA = {
+  "neutral": { "opener": [], "flavor": [] },
+  "mystery": {
+    "opener": [
+      "Was jetzt folgt, l\xE4sst sich nicht ganz erkl\xE4ren.",
+      "Manches davon ergibt erst im Nachhinein einen Sinn.",
+      "Von Anfang an fehlt ein Teil des Bildes.",
+      "Sp\xE4ter w\xFCrde niemand sagen k\xF6nnen, wann es genau begann.",
+      "Es gibt eine Version der Geschichte, und dann die wahre.",
+      "Irgendetwas stimmt nicht, lange bevor es jemand bemerkt.",
+      "Die Wahrheit liegt n\xE4her, als alle glauben - und tiefer.",
+      "Der Anfang liegt weiter zur\xFCck, als es den Anschein hat.",
+      "Was hier steht, ist die zweitbeste Erkl\xE4rung.",
+      "Niemand hat es kommen sehen, und alle wussten es.",
+      "Es beginnt mit einer Zahl, die nicht stimmt.",
+      "Zwei Zeugen, zwei Geschichten, ein Abend.",
+      "Am Ende fehlt genau ein Satz."
+    ],
+    "flavor": [
+      "Etwas darin bleibt bewusst unausgesprochen.",
+      "Nicht alles l\xE4sst sich erkl\xE4ren, so sehr man es auch versucht.",
+      "Eine Frage schwingt mit, die niemand laut zu stellen wagt.",
+      "Es ist, als fehle ein ganzes Kapitel der Geschichte.",
+      "Irgendjemand wei\xDF offensichtlich mehr, als er zugibt.",
+      "Die Erkl\xE4rung daf\xFCr kommt nie - oder ist schlimmer als das R\xE4tsel selbst.",
+      "Ein Detail passt nicht, und genau daran h\xE4ngt alles.",
+      "Was fehlt, ist lauter als das, was gesagt wird.",
+      "Jede Antwort \xF6ffnet zwei neue T\xFCren.",
+      "Man ahnt, dass die Spur im Kreis f\xFChrt.",
+      "Zwischen den Zeilen wartete eine zweite Geschichte.",
+      "Niemand hat den Anfang gesehen, nur die Folgen.",
+      "Ein Name f\xE4llt zu oft, um zuf\xE4llig zu sein.",
+      "Die Reihenfolge stimmt, die Uhrzeit nicht.",
+      "Wer zuh\xF6rt, h\xF6rt zwei Dinge gleichzeitig.",
+      "Ein Zeuge widerspricht sich freundlich.",
+      "Etwas wurde wegger\xE4umt, bevor jemand fragte.",
+      "Der k\xFCrzeste Weg wird nie genommen.",
+      "Ein Zufall wiederholt sich und hei\xDFt dann anders.",
+      "Es bleibt eine T\xFCr, die niemand aufschlie\xDFt."
+    ]
+  },
+  "poetic": {
+    "opener": [
+      "Manche Dinge lassen sich nur in Bildern erz\xE4hlen.",
+      "Es beginnt, wie Erinnerungen beginnen: unscharf und zu hell.",
+      "Alles daran hat den Klang von etwas Vergangenem.",
+      "Es ist einer jener Momente, die l\xE4nger dauern als ihre Minute.",
+      "Das Licht f\xE4llt so, dass Worte fast \xFCberfl\xFCssig werden.",
+      "Vielleicht ist es weniger ein Ereignis als ein Nachhall.",
+      "Der Tag beginnt, als h\xE4tte er nichts vor.",
+      "Zuerst ist da nur ein Ger\xE4usch, das nicht aufh\xF6rt.",
+      "Es ist eine Stunde ohne Namen.",
+      "Das Licht steht schief und bleibt so.",
+      "Zwischen zwei Atemz\xFCgen liegt der ganze Anfang.",
+      "Alles hier ist zu leise f\xFCr seine Gr\xF6\xDFe."
+    ],
+    "flavor": [
+      "Die Worte daf\xFCr kommen, wenn \xFCberhaupt, erst viel sp\xE4ter.",
+      "Alles darin klingt wie die Erinnerung an etwas Gr\xF6\xDFeres.",
+      "Selbst die Stille schien an diesem Ort eine Farbe zu haben.",
+      "Es f\xFChlt sich an wie ein halb vergessenes Gedicht, das jemand zu Ende tr\xE4umt.",
+      "Zwischen den S\xE4tzen liegt mehr als in ihnen.",
+      "Wie ein Bild, das l\xE4nger nachwirkt als die Geschichte dazu.",
+      "Die Zeit flie\xDFt hier langsamer, fast wie Honig im Winter.",
+      "Jede Bewegung hinterlie\xDF eine Spur aus Licht.",
+      "Es ist sch\xF6n auf die Weise, die auch wehtut.",
+      "Man h\xF6rt die Dinge atmen, wenn man still genug ist.",
+      "Die R\xE4nder der Welt schienen kurz weicher zu werden.",
+      "Ein Duft von etwas, das es so nie gegeben hat.",
+      "Das Licht bleibt an den Kanten h\xE4ngen.",
+      "Die Luft tr\xE4gt weiter als der Ruf.",
+      "Etwas Kleines behauptet sich gegen den Raum.",
+      "Ein Schatten legt sich hin und bleibt.",
+      "Die Farben werden langsamer als die Formen.",
+      "Der Klang bleibt l\xE4nger als sein Grund.",
+      "Ein Rest W\xE4rme steht noch im T\xFCrrahmen.",
+      "Zwischen den Dingen w\xE4chst eine Stille an."
+    ]
+  },
+  "melancholisch": {
+    "opener": [
+      "Es liegt eine leise Traurigkeit \xFCber allem, ganz ohne Grund.",
+      "Was bleibt, ist selten das, was man behalten wollte.",
+      "Manches endet, lange bevor man es merkt.",
+      "Es ist die Art von Nachmittag, an dem alles ein wenig verblasst.",
+      "Irgendwo darin steckt ein Abschied, den keiner ausgesprochen hat.",
+      "Sp\xE4ter w\xFCrde man sich an diesen Tag erinnern, ohne zu wissen, warum.",
+      "Es h\xE4tte auch anders kommen k\xF6nnen, aber nicht sehr.",
+      "Vieles davon ist schon vorbei, w\xE4hrend es geschieht.",
+      "Der Abschied hat lange vorher angefangen.",
+      "Man merkt es erst, wenn es ruhiger wird.",
+      "Was bleibt, ist kleiner als erwartet.",
+      "Es ist ein Tag zum Aufr\xE4umen."
+    ],
+    "flavor": [
+      "Etwas darin f\xFChlt sich an wie das Ende eines langen Sommers.",
+      "Man vermisste etwas, ohne benennen zu k\xF6nnen, was.",
+      "Die Dinge haben den sanften Glanz des Verg\xE4nglichen.",
+      "Es ist weniger Schmerz als eine ruhige, alte Wehmut.",
+      "Alles bleibt - nur nicht so, wie es einmal gewesen ist.",
+      "Ein Teil davon ist schon Erinnerung, w\xE4hrend es noch geschieht.",
+      "Die Freude kommt mit einem feinen Riss darin.",
+      "Man wei\xDF, dass man diesen Moment sp\xE4ter vermissen wird.",
+      "Selbst das Licht scheint sich langsam zu verabschieden.",
+      "Es ist sch\xF6n, und genau das macht es schwer.",
+      "Was gewesen ist, nimmt mehr Platz ein als das \xDCbrige.",
+      "Ein Zimmer, das gr\xF6\xDFer wurde, ohne zu wachsen.",
+      "Die Gewohnheit bleibt, der Grund ist fort.",
+      "Man legt es zur\xFCck, wo es nie hingeh\xF6rte.",
+      "Der zweite Stuhl steht weiter am Tisch.",
+      "Es fehlt niemand, und doch ist es leer.",
+      "Ein Satz bleibt unbeantwortet und st\xF6rt nicht mehr.",
+      "Die Jahreszeit wechselt schneller als der Blick."
+    ]
+  },
+  "dark": {
+    "opener": [
+      "Von der ersten Sekunde an f\xFChlte sich hier nichts richtig an.",
+      "Es begann leise - so, wie das Schlimmste meistens beginnt.",
+      "Manche Orte warten nur darauf, dass jemand kommt.",
+      "Es gibt keinen Ausweg, nur die Illusion davon.",
+      "Was folgte, h\xE4tte niemand aufhalten k\xF6nnen.",
+      "Die Dunkelheit hier ist \xE4lter als das Haus, das sie birgt.",
+      "Nichts davon endet gut, und das ist bekannt.",
+      "Es beginnt mit einer Rechnung, die offen bleibt.",
+      "Die Sache war lange faul, bevor sie roch.",
+      "Von hier f\xFChrt kein Weg zur\xFCck, nur weiter.",
+      "Jemand hat entschieden, und niemand hat gefragt.",
+      "Der Preis stand von Anfang an fest."
+    ],
+    "flavor": [
+      "Nichts daran f\xFChlt sich je wirklich sicher an.",
+      "Etwas darin roch unverkennbar nach Verlust.",
+      "Die K\xE4lte bleibt, auch wenn l\xE4ngst niemand mehr hinsieht.",
+      "Es ist die Art von Stille, die etwas Schlimmeres ank\xFCndigt.",
+      "Irgendwo darunter wartete bereits das n\xE4chste Ungl\xFCck.",
+      "Kein Trost weit und breit - nur die Gewissheit, dass es schlimmer werden w\xFCrde.",
+      "Jeder Ausweg f\xFChrt nur tiefer hinein.",
+      "Etwas beobachtete, ohne je gesehen zu werden.",
+      "Die Hoffnung ist das Erste, was hier stirbt.",
+      "Man sp\xFCrt, dass die W\xE4nde zuh\xF6ren.",
+      "Es ist zu sp\xE4t, schon bevor es beginnt.",
+      "Selbst das Schweigen hat hier Z\xE4hne.",
+      "Was sch\xFCtzt, kostet mehr, als es h\xE4lt.",
+      "Der Ausweg ist verstellt, seit Wochen.",
+      "Es wird k\xE4lter, wo vorher gewartet wurde.",
+      "Der Schaden ist alt und tr\xE4gt einen neuen Namen.",
+      "Niemand meldet sich, und das ist die Antwort.",
+      "Die Frist l\xE4uft, auch wenn niemand z\xE4hlt.",
+      "Was fehlt, wird nicht ersetzt.",
+      "Am Ende bleibt jemand zur\xFCck, der nicht gemeint war."
+    ]
+  },
+  "unheimlich": {
+    "opener": [
+      "Alles wirkt vertraut, und genau das ist das Problem.",
+      "Irgendetwas ist anders, aber man kann nicht sagen, was.",
+      "Die Dinge stehen zu still, um nat\xFCrlich zu sein.",
+      "Es ist, als h\xE4tte jemand die Welt fast, aber nicht ganz richtig nachgebaut.",
+      "Man hat das Gef\xFChl, nicht allein zu sein - ohne Beweis daf\xFCr.",
+      "Etwas stimmt mit den Schatten nicht.",
+      "Etwas ist verstellt worden, und niemand wei\xDF von wem.",
+      "Es riecht nach einem Raum, der lange zu war.",
+      "Die Zahlen stimmen, die Stimmung nicht.",
+      "Von drau\xDFen sieht alles gew\xF6hnlich aus.",
+      "Man sollte hier nicht stehen bleiben.",
+      "Der Ort hat gewartet."
+    ],
+    "flavor": [
+      "Die Spiegel scheinen einen Sekundenbruchteil zu sp\xE4t zu reagieren.",
+      "Ein Ger\xE4usch, das nur existiert, wenn man nicht hinh\xF6rt.",
+      "Die Gesichter sind richtig, nur das L\xE4cheln sitzt falsch.",
+      "Etwas z\xE4hlt mit, jedes Mal, wenn man die T\xFCr schlie\xDFt.",
+      "Die Uhr geht, aber die Zeit steht.",
+      "Man erkennt den Raum wieder, ohne je dort gewesen zu sein.",
+      "Die Stille hat eine Form, und sie kommt n\xE4her.",
+      "Irgendwo atmet etwas im Takt der eigenen Schritte.",
+      "Ein Detail ist zu viel im Bild, und keiner sieht es an.",
+      "Es f\xFChlt sich an, als w\xFCrde man erwartet.",
+      "Das Ger\xE4usch kommt von innen, nicht von der Stra\xDFe.",
+      "Etwas atmet mit, kaum h\xF6rbar.",
+      "Der Boden gibt an einer Stelle nach.",
+      "Zwei T\xFCren f\xFChren in denselben Raum.",
+      "Es wird still, sobald man hinsieht.",
+      "Eine Uhr geht nach und niemand stellt sie.",
+      "Der Abdruck passt zu keiner Hand.",
+      "Was hier bleibt, war schon vorher da."
+    ]
+  },
+  "uplifting": {
+    "opener": [
+      "Und doch beginnt hier, allen Umst\xE4nden zum Trotz, etwas Gutes.",
+      "Selbst an diesem Ort l\xE4sst sich noch Hoffnung finden.",
+      "Manchmal reicht ein einziger Moment, um alles zu wenden.",
+      "Es sieht aussichtslos aus - und ist es dann doch nicht.",
+      "Irgendwo darin liegt der Anfang von etwas Besserem.",
+      "Gerade wenn alles verloren scheint, kommt das Licht zur\xFCck.",
+      "Es f\xE4ngt klein an und bleibt nicht klein.",
+      "Etwas geht auf, das lange gelegen hat.",
+      "Der Tag hat mehr vor als gedacht.",
+      "Einer f\xE4ngt an, und dann sind es viele.",
+      "Es gibt gute Gr\xFCnde, heute zu bleiben.",
+      "Der Anfang ist gemacht, mehr braucht es nicht."
+    ],
+    "flavor": [
+      "Und doch bleibt, gegen jede Erwartung, ein Rest Hoffnung.",
+      "Irgendetwas darin f\xFChlte sich nach einem echten Neuanfang an.",
+      "Es ist, als w\xFCrde sich gerade, ganz leise, etwas zum Guten wenden.",
+      "Ein kleiner Trost bleibt trotzdem - und manchmal reicht genau das.",
+      "Selbst im Schwierigsten findet sich noch ein Grund zum Weitermachen.",
+      "Am Ende z\xE4hlt nicht der Verlust, sondern das, was bleibt.",
+      "Eine unerwartete Freundlichkeit ver\xE4nderte alles.",
+      "Zum ersten Mal seit Langem scheint der Weg wieder offen.",
+      "Es ist schwer, aber es lohnt sich.",
+      "Manchmal ist der Sturz nur der Anlauf.",
+      "Etwas darin richtet sich wieder auf.",
+      "Und pl\xF6tzlich scheint alles m\xF6glich.",
+      "Etwas l\xF6st sich, ohne dass jemand zieht.",
+      "Zwei, die nichts verband, arbeiten zusammen.",
+      "Der Weg wird breiter, je weiter man geht.",
+      "Was fehlt, wird von selbst erg\xE4nzt.",
+      "Der Raum f\xFCllt sich, ohne eng zu werden.",
+      "Aus einer Zusage werden drei.",
+      "Es reicht diesmal f\xFCr alle.",
+      "Der zweite Versuch gelingt leichter."
+    ]
+  },
+  "zaertlich": {
+    "opener": [
+      "Es geschieht mit einer Behutsamkeit, die man kaum erwarten w\xFCrde.",
+      "Manche Dinge muss man leise erz\xE4hlen, sonst zerbrechen sie.",
+      "Es ist klein und warm und leicht zu \xFCbersehen.",
+      "Zwischen ihnen liegt eine Sanftheit, f\xFCr die es kein Wort gibt.",
+      "Es beginnt mit einer Geste, die niemand sonst bemerkt.",
+      "Alles daran ist sacht, fast wie Atem im Schlaf.",
+      "Es wird niemand laut in dieser Geschichte.",
+      "Jemand h\xE4lt etwas fest, ohne zu dr\xFCcken.",
+      "Der Anfang ist so behutsam, dass man ihn \xFCbersieht.",
+      "Es ist eine Stunde, in der nichts verlangt wird.",
+      "Man macht Platz, bevor gefragt wird.",
+      "Alles hier hat Zeit."
+    ],
+    "flavor": [
+      "Eine Hand, die blieb, obwohl sie gehen durfte.",
+      "Es ist die Sorte N\xE4he, die keine Worte braucht.",
+      "Etwas darin passt auf einen auf, ganz unaufdringlich.",
+      "Ein L\xE4cheln, so leise, dass man es fast \xFCberh\xF6rt.",
+      "Die Welt wird f\xFCr einen Moment weicher.",
+      "Es ist ein kleines Z\xE4rtlichsein, mitten im L\xE4rm.",
+      "Jemand h\xE4lt etwas Zerbrechliches, ohne es zu dr\xFCcken.",
+      "W\xE4rme, die keine Gegenleistung will.",
+      "Es f\xFChlt sich an wie Ankommen.",
+      "Ein Trost, der einfach nur dablieb.",
+      "Eine Hand bleibt liegen, wo sie ist.",
+      "Es wird leiser gesprochen als n\xF6tig.",
+      "Jemand deckt zu, ohne zu wecken.",
+      "Der Weg wird k\xFCrzer gemacht, ohne davon zu reden.",
+      "Etwas Warmes bleibt stehen und wartet.",
+      "Man reicht das Bessere weiter.",
+      "Ein Name wird ausgesprochen wie eine Zusage.",
+      "Es ist Platz genug f\xFCr zwei Meinungen."
+    ]
+  },
+  "traeumerisch": {
+    "opener": [
+      "Es ist schwer zu sagen, ob es geschieht oder nur getr\xE4umt wird.",
+      "Die R\xE4nder der Dinge sind an diesem Tag nicht ganz fest.",
+      "Alles treibt ein wenig, wie Boote ohne Anker.",
+      "Es f\xFChlt sich an, als w\xE4re man mitten in einem fremden Traum aufgewacht.",
+      "Die Logik hat hier Urlaub genommen.",
+      "Zeit und Ort sind nur Vorschl\xE4ge.",
+      "Die Reihenfolge ist hier nicht das Wichtigste.",
+      "Es beginnt mittendrin, wie immer.",
+      "Etwas geht auf, das keine T\xFCr hat.",
+      "Der Weg f\xFChrt weiter, obwohl er endet.",
+      "Zwei Orte fallen zusammen, ohne sich zu st\xF6ren.",
+      "Es ist sp\xE4ter, als es sein d\xFCrfte."
+    ],
+    "flavor": [
+      "Die Dinge verwandeln sich, kaum dass man wegsieht.",
+      "Ein Zimmer wird zum Meer, ohne dass es jemand st\xF6rt.",
+      "Die Schwerkraft scheint Verhandlungssache zu sein.",
+      "Man geht durch T\xFCren, die es vorher nicht gegeben hat.",
+      "Farben riechen, und Ger\xE4usche haben Gewicht.",
+      "Alles ergab Sinn, solange man nicht genauer hinsah.",
+      "Die Erinnerung l\xE4uft der Gegenwart voraus.",
+      "Ein Gedanke wird Landschaft.",
+      "Nichts steht fest, und nichts f\xE4llt.",
+      "Es ist sch\xF6n und ungereimt wie ein Traum kurz vor dem Erwachen.",
+      "Ein Raum \xF6ffnet sich, wo keiner war.",
+      "Die Treppe f\xFChrt zweimal nach oben.",
+      "Etwas wiederholt sich mit anderem Ausgang.",
+      "Der Weg kennt sein Ziel besser als der Gehende.",
+      "Ein Fenster zeigt eine andere Jahreszeit.",
+      "Die Entfernung \xE4ndert sich beim Hinsehen.",
+      "Man kommt an, ohne gegangen zu sein.",
+      "Etwas Bekanntes tr\xE4gt einen fremden Namen."
+    ]
+  },
+  "nuechtern": {
+    "opener": [
+      "Der Reihe nach: Es geschah genau so, wie es hier steht.",
+      "Ohne Umschweife - das ist, was passierte.",
+      "Es gibt daran nichts zu besch\xF6nigen.",
+      "Die Fakten sind \xFCbersichtlich, die Folgen weniger.",
+      "Man muss es nicht ausschm\xFCcken, es gen\xFCgt so.",
+      "Kurz und ohne Pathos: So liegt der Fall.",
+      "Der Vorgang ist \xFCberschaubar.",
+      "Es liegt eine Reihenfolge vor.",
+      "Die Zust\xE4ndigkeit ist gekl\xE4rt.",
+      "Der Rahmen steht, der Rest folgt.",
+      "Es gibt dazu eine Akte.",
+      "Die Sache ist erledigt, bis auf zwei Punkte."
+    ],
+    "flavor": [
+      "Mehr ist dazu nicht zu sagen.",
+      "Die Sache hat eine klare Ursache und eine klare Folge.",
+      "Es hilft nichts, es zu besch\xF6nigen.",
+      "Alles Weitere ergab sich daraus von selbst.",
+      "N\xFCchtern betrachtet, bleibt wenig Raum f\xFCr Zweifel.",
+      "Die Lage ist, was sie ist.",
+      "Man notiert es und geht weiter.",
+      "Kein Drama, nur der n\xE4chste Schritt.",
+      "So einfach, so unausweichlich.",
+      "Am Ende z\xE4hlen nur die Zahlen.",
+      "Der Vorgang ist abgelegt.",
+      "Eine Frist wurde notiert.",
+      "Zwei Angaben widersprechen sich geringf\xFCgig.",
+      "Der Ablauf wurde eingehalten.",
+      "Die Unterlagen liegen vollst\xE4ndig vor.",
+      "Es bleibt bei der bisherigen Regelung.",
+      "Der Fall wird weitergeleitet.",
+      "Eine R\xFCckmeldung steht noch aus."
+    ]
+  },
+  "ironisch": {
+    "opener": [
+      "Nat\xFCrlich l\xE4uft alles nach Plan - nur nicht nach diesem.",
+      "Man ahnt schon, wie gut das ausgehen wird.",
+      "Es ist, mit Verlaub, eine gl\xE4nzende Idee. Fast.",
+      "Was h\xE4tte dabei schon schiefgehen k\xF6nnen.",
+      "Wie sch\xF6n, dass wenigstens einer den \xDCberblick behielt. Behauptete er.",
+      "Der Plan ist wasserdicht. Das Wasser findet trotzdem einen Weg.",
+      "Es lief alles nach Plan, nur nicht nach diesem.",
+      "Eine hervorragende Gelegenheit, es nicht zu tun.",
+      "Man kann viel falsch machen, und man tut es.",
+      "Der Anfang war gut gemeint.",
+      "Zum Gl\xFCck gibt es eine Zust\xE4ndigkeit.",
+      "Alles bestens, sagt jedenfalls das Formular."
+    ],
+    "flavor": [
+      "Es l\xE4uft exakt so gut, wie zu erwarten ist.",
+      "Ein voller Erfolg, wenn man die Ziele nachtr\xE4glich anpasst.",
+      "Zum Gl\xFCck ist ja jemand zust\xE4ndig - nur nicht anwesend.",
+      "Die Ironie daran entging allen Beteiligten.",
+      "Man nannte es Strategie, um nicht Zufall sagen zu m\xFCssen.",
+      "Selbstverst\xE4ndlich hat niemand etwas geahnt. Angeblich.",
+      "Ein Meisterwerk der Planung, r\xFCckw\xE4rts betrachtet.",
+      "Alles unter Kontrolle, versichert die Kontrolle.",
+      "Bemerkenswert, wie zuverl\xE4ssig das Unwahrscheinliche eintraf.",
+      "Es h\xE4tte schlimmer kommen k\xF6nnen. Kam es dann auch.",
+      "Der Vorschlag wird gelobt und abgeheftet.",
+      "Zust\xE4ndig ist, wer gerade nicht da ist.",
+      "Man einigt sich darauf, sich zu einigen.",
+      "Die L\xF6sung wartet auf ein passendes Problem.",
+      "Ein Ausschuss besch\xE4ftigt sich damit, gr\xFCndlich.",
+      "Der k\xFCrzeste Weg wurde gepr\xFCft und verworfen.",
+      "Es gibt jetzt ein Merkblatt dazu.",
+      "Alle sind einverstanden, aber anders."
+    ]
+  },
+  "humorous": {
+    "opener": [
+      "Es h\xE4tte ernst werden k\xF6nnen - wurde es aber nicht ganz.",
+      "Manche Geschichten sind einfach zu absurd, um nicht zu grinsen.",
+      "Was folgt, ist mit Ansage albern.",
+      "Es beginnt harmlos und entgleitet dann auf komische Weise.",
+      "Man sollte das nicht so ernst nehmen. Die Beteiligten taten es auch nicht.",
+      "Vorweg: Niemand kommt ernsthaft zu Schaden, nur die W\xFCrde.",
+      "Es ging schief, aber mit Anlauf.",
+      "Zwei Dinge fehlten: der Plan und der Rest.",
+      "Man h\xE4tte es wissen k\xF6nnen, wollte aber nicht.",
+      "Der Anfang war schon das Beste daran.",
+      "Es gab Kaffee, sonst nichts.",
+      "Jemand hat das ernst gemeint."
+    ],
+    "flavor": [
+      "Absurd genug, um fast schon wieder normal zu wirken.",
+      "Selbst das Schicksal scheint dabei kurz zu grinsen.",
+      "Niemand w\xFCrde sich das so ausdenken - und genau deshalb ist es lustig.",
+      "Es hat, aller Dramatik zum Trotz, etwas unfreiwillig Komisches.",
+      "Man br\xE4uchte fast Popcorn, so albern l\xE4uft das gerade.",
+      "Selbst die Beteiligten m\xFCssen sich das Lachen verkneifen.",
+      "Es ist ein Chaos, aber ein gut gelauntes.",
+      "Die Peinlichkeit ist beeindruckend gleichm\xFCtig.",
+      "Am Ende lachen alle - manche sogar freiwillig.",
+      "Der Ernst der Lage hat sichtlich Feierabend.",
+      "Der Zettel dazu ist unauffindbar, nat\xFCrlich.",
+      "Es fehlt genau das eine Teil.",
+      "Zwei halten es f\xFCr erledigt, drei nicht.",
+      "Der Ersatz ist besser als das Original, leider.",
+      "Es funktioniert, solange niemand hinsieht.",
+      "Der Hund hat es gesehen und schweigt.",
+      "Man einigt sich auf sp\xE4ter.",
+      "Ein Erfolg, wenn man nicht so genau hinschaut."
+    ]
+  }
+};
+
+// src/generation/tone.shape.ts
+var TONE_SHAPE = {
+  neutral: {},
+  mystery: { rhythm: "long" },
+  poetic: { rhythm: "breath", register: "lyrical" },
+  melancholisch: { rhythm: "long", register: "lyrical" },
+  dark: { rhythm: "fracture", register: "dark" },
+  unheimlich: { rhythm: "fracture", register: "dark" },
+  uplifting: { rhythm: "clean" },
+  zaertlich: { rhythm: "breath", register: "lyrical" },
+  traeumerisch: { rhythm: "breath", register: "lyrical" },
+  nuechtern: { rhythm: "clean", register: "plain" },
+  ironisch: { rhythm: "clean", register: "wry" },
+  humorous: { rhythm: "staccato", register: "wry" }
+};
+function toneRhythm(tone) {
+  return tone ? TONE_SHAPE[tone]?.rhythm : void 0;
+}
+function toneRegister(tone) {
+  return tone && TONE_SHAPE[tone]?.register || null;
+}
+var cap1 = (s) => s ? s[0].toUpperCase() + s.slice(1) : s;
+function applyToneRegister(text, tone) {
+  const reg = toneRegister(tone);
+  if (!reg || !text) return text;
+  if (reg === "plain") {
+    let t = text.replace(/\b(gleichsam|wie Honig im Winter|wie ein halb vergessenes Gedicht[^.,;]*)\b/gi, "").replace(/\s{2,}/g, " ");
+    t = t.split(/\n\n+/).map((para) => {
+      const sents = para.split(/(?<=[.!?…])\s+/);
+      const out = [];
+      for (const sen of sents) {
+        const wc2 = sen.split(/\s+/).filter(Boolean).length;
+        if (wc2 > 16) {
+          const parts = sen.split(/,\s+(?=und |aber |denn |während |sodass |wobei )/);
+          if (parts.length > 1) {
+            parts.forEach((p, i) => {
+              let seg = p.replace(/^,?\s*(und|aber|denn|während|sodass|wobei)\s+/i, "").trim();
+              if (!seg) return;
+              seg = cap1(seg);
+              if (!/[.!?…]$/.test(seg)) seg += ".";
+              out.push(i === 0 && /[.!?…]$/.test(p) ? cap1(p.trim()) : seg);
+            });
+            continue;
+          }
+        }
+        out.push(sen);
+      }
+      return out.join(" ");
+    }).join("\n\n");
+    return t.replace(/\s+([,.;:!?…])/g, "$1").replace(/\s{2,}/g, " ").trim();
+  }
+  if (reg === "wry") {
+    const tags = ["\u2014 angeblich.", "\u2014 so hie\xDF es.", "\u2014 was auch immer das hei\xDFen sollte.", "\u2014 nat\xFCrlich.", "\u2014 wie praktisch.", "\u2014 oder so \xE4hnlich."];
+    let ti = Math.floor(Math.random() * tags.length);
+    let gesetzt = 0, vorherGesetzt = false;
+    return text.split(/\n\n+/).map((para) => {
+      const sents = para.split(/(?<=[.!?…])\s+/);
+      return sents.map((sen) => {
+        const wc2 = sen.split(/\s+/).filter(Boolean).length;
+        if (gesetzt < 3 && !vorherGesetzt && wc2 >= 5 && wc2 <= 18 && /[.]$/.test(sen) && !/[()"„:—–]/.test(sen) && Math.random() < 0.3) {
+          const tag = tags[ti % tags.length];
+          ti++;
+          gesetzt++;
+          vorherGesetzt = true;
+          return sen.replace(/\.$/, " " + tag);
+        }
+        vorherGesetzt = false;
+        return sen;
+      }).join(" ");
+    }).join("\n\n");
+  }
+  return text;
+}
+
+// src/generation/polish.ts
+var DOPPELT_ERLAUBT = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "wie",
+  "so",
+  "als",
+  "was",
+  "wer",
+  "wen",
+  "wem",
+  "dass",
+  "da",
+  "und",
+  "nur",
+  "noch",
+  "sie",
+  "ihr"
+]);
+var KEIN_NOMEN = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "kein",
+  "keine",
+  "mein",
+  "dein",
+  "sein",
+  "ihr",
+  "unser",
+  "euer",
+  "dieser",
+  "diese",
+  "dieses",
+  "jeder",
+  "jede",
+  "jedes",
+  "alle",
+  "viele",
+  "manche",
+  "beide",
+  "und",
+  "aber",
+  "doch",
+  "denn",
+  "dann",
+  "dabei",
+  "damit",
+  "dort",
+  "hier",
+  "jetzt",
+  "nur",
+  "noch",
+  "auch",
+  "schon",
+  "wenn",
+  "weil",
+  "dass",
+  "als",
+  "wie",
+  "was",
+  "wer",
+  "wo",
+  "warum",
+  "ich",
+  "du",
+  "er",
+  "sie",
+  "es",
+  "wir",
+  "man",
+  "jemand",
+  "niemand",
+  "nichts",
+  "etwas",
+  "alles",
+  "im",
+  "am",
+  "auf",
+  "in",
+  "an",
+  "mit",
+  "ohne",
+  "von",
+  "vor",
+  "nach",
+  "bei",
+  "zu",
+  "\xFCber",
+  "unter",
+  "zwischen",
+  "seit",
+  "f\xFCr",
+  "zwei",
+  "drei",
+  "vier",
+  "f\xFCnf",
+  "sechs",
+  "sieben",
+  "acht",
+  "neun",
+  "zehn",
+  "hundert",
+  "tausend"
+]);
+function ergaenzeArtikel(satz) {
+  const m = satz.match(/^([A-ZÄÖÜ][a-zäöüß]{2,})(\s+)(.+)$/);
+  if (!m) return satz;
+  const [, nomen, luecke, rest] = m;
+  if (KEIN_NOMEN.has(nomen.toLowerCase())) return satz;
+  const kern = rest.split(",")[0];
+  if (!extractLeadVerb(kern).verb) return satz;
+  const g = NOUN_GENDER[nomen.toLowerCase()];
+  if (g !== "m" && g !== "f" && g !== "n") return satz;
+  if (/^(sind|waren|werden|haben|hatten|bleiben|stehen|liegen|kommen|gehen|zeigen|wirken)\b/i.test(rest)) return satz;
+  const art = g === "f" ? "Die" : g === "n" ? "Das" : "Der";
+  return `${art} ${nomen}${luecke}${rest}`;
+}
+function polishGerman(text, opts = {}) {
+  const { who = "" } = opts;
+  let t = String(text ?? "");
+  t = t.replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/ /g, " ").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").replace(/[ \t]+([,.;:!?])/g, "$1").replace(/([,.;:!?])([A-Za-zÄÖÜäöü])/g, "$1 $2").replace(/\(\s+/g, "(").replace(/\s+\)/g, ")").replace(/,+/g, ",").replace(/,\s*,/g, ", ").replace(/:\s*:/g, ":").replace(/([A-Za-zÄÖÜäöü0-9])\.\.(?=\s|$)/g, "$1\u2026").replace(/\.\.(?!\.)/g, ".").trim();
+  if (who.trim()) {
+    const w = who.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const wieder = namensErsetzer(who.trim());
+    try {
+      t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${w}(?![\\p{L}\\p{N}_])`, "giu"), wieder);
+    } catch {
+      t = t.replace(new RegExp(`\\b${w}\\b`, "gi"), wieder);
+    }
+  }
+  for (let k = 0; k < 6; k++) {
+    const next = t.replace(
+      /\b([A-Za-zÄÖÜäöüß]{2,})[ \t]+\1\b/gi,
+      (m, w) => DOPPELT_ERLAUBT.has(w.toLowerCase()) ? m : w
+    );
+    if (next === t) break;
+    t = next;
+  }
+  t = t.split(/(?<=[.!?…])(\s+)/).map((teil) => /^\s+$/.test(teil) ? teil : ergaenzeArtikel(teil)).join("");
+  return t.trim();
+}
+
+// src/generation/shape.ts
+function applyDisruptor(text, level) {
+  const p = level === "off" ? 0 : level === "on" ? 0.33 : 0.17;
+  if (!chance(p)) return { text, fired: false, kind: "\u2013" };
+  const kinds = [
+    { kind: "Zeitbruch", fn: (t) => t + " Drei Jahre sp\xE4ter ist die gleiche Stelle noch da, aber das Ger\xE4usch ist \xE4lter." },
+    { kind: "Erz\xE4hlerwechsel", fn: (t) => t.replace(/\n\n/g, "\n\n\u2014\n\n") + "\n\nIch \xFCbernehme hier. Nur kurz. Nur, um das Offensichtliche zu sagen." },
+    { kind: "Metakommentar", fn: (t) => t + "\n\n(Diese Geschichte wei\xDF, dass sie erz\xE4hlt wird.)" },
+    { kind: "Wiederholung", fn: (t) => {
+      const s = splitSentences(t);
+      if (s.length < 3) return t;
+      const FORMEL = /^(dann\b|und dann\b|danach\b|später\b|plötzlich\b|auf einmal\b|es braucht nur\b|erst ein riss\b|kaum ausgesprochen\b|etwas gibt nach\b|ohne vorwarnung\b|dann, unvermittelt)/i;
+      const start = Math.floor(s.length * 0.65);
+      for (let k2 = 0; k2 < s.length; k2++) {
+        const kand = s[(start + k2) % s.length];
+        if (!FORMEL.test(kand.trim())) return t + "\n\n" + kand;
+      }
+      return t;
+    } },
+    { kind: "Fragmentierung", fn: (t) => {
+      const s = splitSentences(t);
+      if (s.length < 4) return t;
+      s.splice(Math.floor(s.length / 2), 0, "\u2014");
+      return s.join(" ");
+    } }
+  ];
+  const k = pick(kinds);
+  return { text: k.fn(text), fired: true, kind: k.kind };
+}
+var FRAGMENTS = ["Stille.", "Zu nah.", "Zu klar.", "Ein Fehler.", "Noch nicht.", "Dann.", "Nein.", "Vielleicht.", "Fast.", "Genau jetzt."];
+var NEBENSATZ_ANFANG = /^(der|die|das|dem|den|des|deren|dessen|welche[rsmn]?|wo|worin|woran|worauf|als|wenn|weil|obwohl|während|nachdem|bevor|damit|dass|ob|sodass|indem|sobald|solange|bis|seit|falls|wobei|wodurch|womit|was|wer|wen|wem|wie|ohne|um|statt|anstatt)\b/i;
+function applyRhythm(text, rhythm) {
+  const s = splitSentences(text);
+  const insertFrag = (prob) => {
+    if (chance(prob)) {
+      const pos = chooseInsertPos(s);
+      if (pos >= 0) s.splice(pos, 0, pick(FRAGMENTS));
+    }
+  };
+  if (rhythm === "clean") return s.join(" ");
+  if (rhythm === "breath") {
+    insertFrag(0.55);
+    if (s.length >= 5 && chance(0.45)) {
+      const i = Math.floor(1 + Math.random() * (s.length - 2));
+      s[i] = "Und " + s[i].charAt(0).toLowerCase() + s[i].slice(1);
+    }
+  }
+  if (rhythm === "staccato") {
+    insertFrag(0.75);
+    if (s.length >= 4 && chance(0.6)) {
+      const i = Math.floor(1 + Math.random() * (s.length - 2));
+      const t = s[i];
+      const cut = t.indexOf(", ");
+      if (cut > 10 && cut < 80 && !NEBENSATZ_ANFANG.test(t.slice(cut + 2))) {
+        s[i] = t.slice(0, cut) + ".";
+        s.splice(i + 1, 0, t.slice(cut + 2));
+      }
+    }
+    if (chance(0.35)) {
+      const at = Math.min(2, s.length);
+      if (!isFragmentSentence(s[at - 1] || "") && !isFragmentSentence(s[at] || "")) s.splice(at, 0, pick(["Stille.", "Warte.", "So.", "Gut."]));
+    }
+  }
+  if (rhythm === "long") {
+    if (s.length >= 6 && chance(0.6)) {
+      const i = Math.floor(1 + Math.random() * (s.length - 3));
+      const first = s[i].replace(/[.!?…]+$/, "");
+      const next = s[i + 1];
+      const joiner = /^(und|aber|doch|denn|sondern)\b/i.test(next) ? ", " : chance(0.5) ? ", und " : "; ";
+      s[i] = first + joiner + next.charAt(0).toLowerCase() + next.slice(1);
+      s.splice(i + 1, 1);
+    }
+    if (chance(0.4)) s.push("Und w\xE4hrend all das geschieht, bleibt etwas in der Luft h\xE4ngen, als w\xE4re es nie f\xFCr Menschen gedacht gewesen.");
+  }
+  if (rhythm === "fracture") {
+    insertFrag(0.7);
+    if (s.length >= 5 && chance(0.6)) {
+      const i = Math.floor(1 + Math.random() * (s.length - 2));
+      s[i] = s[i].replace(/[.!?…]+$/, "") + " \u2014";
+      s.splice(i + 1, 0, "und genau dort bricht die Erkl\xE4rung ab.");
+    }
+    if (chance(0.45)) s.splice(Math.floor(s.length * 0.65), 0, "(Dieser Satz war nicht geplant.)");
+  }
+  return s.join(" ");
+}
+var TENSION_CENTER = { top: 0.15, mid: 0.5, low: 0.85 };
+function applyTension(text, peak, material, kurve) {
+  if (!kurve && (!peak || peak === "off")) return text;
+  let center = kurve ? 0.5 : TENSION_CENTER[peak || ""];
+  if (center === void 0) return text;
+  if (kurve) {
+    let best = 0;
+    for (let k = 0; k <= 20; k++) {
+      const v = kurve(k / 20);
+      if (v > kurve(best)) best = k / 20;
+    }
+    center = best;
+  }
+  const s = splitSentences(text);
+  if (s.length < 5) return text;
+  const width = 0.26;
+  const intensity = (i, n) => {
+    const pos = n <= 1 ? 0 : i / (n - 1);
+    if (kurve) return kurve(pos);
+    const d = (pos - center) / width;
+    return Math.exp(-0.5 * d * d);
+  };
+  for (let i = s.length - 1; i >= 0; i--) {
+    const it = intensity(i, s.length);
+    if (it > 0.6 && chance(it * 0.7)) {
+      const t = s[i];
+      const cut = t.indexOf(", ");
+      const rest = t.slice(cut + 2);
+      const ersteWort = (rest.match(/^([a-zäöüß]+)/) || [])[1] || "";
+      const verbVorn = ersteWort ? istVerbform(ersteWort) && !/^(dann|jetzt|nun|dort|hier|da|so|doch|aber|und|noch|nur|schon|bald|wieder|immer|nie|niemand|jemand|man|alles|nichts|etwas)$/.test(ersteWort) : false;
+      const unteilbar = NEBENSATZ_ANFANG.test(rest) || verbVorn;
+      if (cut > 10 && cut < 90 && !unteilbar) {
+        s[i] = t.slice(0, cut) + ".";
+        s.splice(i + 1, 0, cap(rest));
+      }
+    }
+  }
+  for (let pass = 0; pass < 2; pass++) {
+    const idx = Math.round(center * (s.length - 1));
+    if (idx > 0 && idx < s.length && chance(0.55) && !isFragmentSentence(s[idx - 1] || "") && !isFragmentSentence(s[idx] || "")) {
+      s.splice(idx, 0, pick(FRAGMENTS));
+    }
+  }
+  for (let i = 0; i < s.length - 1; i++) {
+    if (s.length <= 4) break;
+    const it = intensity(i, s.length);
+    if (it < 0.3 && chance((0.3 - it) * 1.2)) {
+      const first = s[i].replace(/[.!?…]+$/, "");
+      const next = s[i + 1];
+      if (first.length + next.length < 160 && !isFragmentSentence(first) && !isFragmentSentence(next)) {
+        const joiner = /^(und|aber|doch|denn|sondern)\b/i.test(next) ? ", " : chance(0.5) ? ", und " : "; ";
+        const cont = joiner === "; " ? next : next.charAt(0).toLowerCase() + next.slice(1);
+        s[i] = first + joiner + cont;
+        s.splice(i + 1, 1);
+        i--;
+      }
+    }
+  }
+  const mat = [...material?.hooks || [], ...material?.motifs || []].map((x) => (x || "").trim()).filter((x) => x.length >= 4);
+  if (mat.length) {
+    for (let k = 0; k < 2; k++) {
+      const cand = pick(mat);
+      if (!cand || s.join(" ").toLowerCase().includes(cand.toLowerCase())) continue;
+      if (!chance(0.7)) continue;
+      const idx = Math.max(1, Math.min(s.length, Math.round(center * (s.length - 1)) + k));
+      s.splice(idx, 0, cap(cand.replace(/[.!?…]+$/, "")) + ".");
+    }
+  }
+  {
+    const idx = Math.round(center * (s.length - 1));
+    if (idx > 0 && idx < s.length - 1 && chance(0.5)) {
+      const t = s[idx].replace(/[.!?…]+$/, "");
+      const nachbarn = [s[idx - 1] || "", s[idx + 1] || ""].join(" ").toLowerCase();
+      const bruch = pick(["und genau hier kippt es.", "kein Zur\xFCck.", "jetzt.", "und nichts h\xE4lt mehr."].filter((b) => !(b === "jetzt." && /\bjetzt\b/.test(nachbarn + " " + t.toLowerCase()))));
+      if (t.length > 12 && !isFragmentSentence(t) && !t.includes("\u2014")) {
+        s[idx] = t + " \u2014";
+        s.splice(idx + 1, 0, bruch);
+      }
+    }
+  }
+  return s.join(" ");
+}
+function paragraphize(txt) {
+  const s = splitSentences(txt);
+  if (s.length <= 3) return txt;
+  const breaks = /* @__PURE__ */ new Set();
+  const target = chance(0.6) ? 2 : 1;
+  while (breaks.size < target) breaks.add(Math.min(s.length - 2, Math.max(1, Math.floor(1 + Math.random() * (s.length - 2)))));
+  const out = [];
+  for (let i = 0; i < s.length; i++) {
+    out.push(s[i]);
+    if (breaks.has(i)) out.push("\n\n");
+  }
+  return out.join(" ").replace(/\s+\n\n\s+/g, "\n\n").trim();
+}
+function guessPronoun(P2) {
+  const p = clean(P2);
+  if (/^(der|ein)\s/i.test(p)) return "er";
+  if (/^(die|eine)\s/i.test(p)) return "sie";
+  if (/^das\s/i.test(p)) return "es";
+  if (/(a|e|in)$/i.test(p)) return "sie";
+  return "er";
+}
+var SUBJ_FUGE = /^(und|oder|aber|denn|doch|sondern|dann|da|weil|dass|als|wenn|während|obwohl|bevor|nachdem|sobald|solange|ob|wie|so|auch|nur|jetzt|dort|hier|heute|gestern|morgen|plötzlich|dabei|dadurch|deshalb|trotzdem|später|zuerst|zuletzt|außerdem|schließlich)$/i;
+var DEF_ART = { m: "der", f: "die", n: "das" };
+function objektName(o) {
+  const t = clean(o);
+  if (!t) return "das Ding";
+  if (/^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines)\s/i.test(t)) return t;
+  const kern = t.split(" ")[0].replace(/[^A-Za-zÄÖÜäöüß]/g, "");
+  return `${DEF_ART[guessGender(kern) || "n"]} ${t}`;
+}
+var DING_VORRAT = [
+  "T\xFCr",
+  "Uhr",
+  "Karteikarte",
+  "Lampe",
+  "Schl\xFCssel",
+  "Fenster",
+  "Bank",
+  "Treppe",
+  "Spiegel",
+  "Kiste",
+  "Zettel",
+  "Mauer",
+  "Stuhl",
+  "Leitung",
+  "Schwelle"
+];
+var OBJEKT_EINSTIEG = [
+  // NICHT „… und zaehle mit.": Der Bruchstueck-Filter braucht dort ein finites
+  // Verb, und hatFinitesVerb() erkennt die erste Person nicht. Ein Rahmensatz,
+  // der von einem unzuverlaessigen Erkenner abhaengt, ist ein Rahmensatz auf Zeit.
+  "Ich bin %O. Ich liege hier und z\xE4hle die Tage.",
+  "Ich bin %O. Man hat mich hier vergessen.",
+  "Ich bin %O. Niemand fragt mich, und ich sehe alles.",
+  "Ich bin %O. Ich habe keine Augen und trotzdem einen Blick.",
+  "Ich bin %O. Ich bleibe, wo man mich hingestellt hat.",
+  "Ich bin %O. Man geht an mir vorbei, seit Jahren."
+];
+var OBJEKT_KOPF_RE = /^(Ich bin (?:der|die|das) [^.!?]{1,40}\.\s+[^.!?]{1,70}\.)\s*/;
+var OBJEKT_ZWISCHENRUF = [
+  "Ich sehe zu.",
+  "Ich liege dabei.",
+  "Ich z\xE4hle mit.",
+  "Ich r\xFChre mich nicht.",
+  "Ich habe Zeit.",
+  "Ich merke es mir."
+];
+function beugeToken(v, person) {
+  if (VERB_CONJ[v.toLowerCase()]) return conjugateVerbToken(v, person);
+  const p = person === "ich" || person === "du" || person === "wir" || person === "ihr" ? person : "er";
+  return beugeVerb(v, p) ?? v;
+}
+var kenntVerb = (v) => !!VERB_CONJ[v.toLowerCase()] || istVerbform(v);
+function applyPerspective(paras, perspective, who, objName) {
+  const P2 = clean(who) || "Jemand";
+  const O = objektName(clean(objName) || pick(DING_VORRAT));
+  const swap = (s, person, pronoun) => {
+    if (!P2) return s;
+    try {
+      const re = new RegExp("([A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF]+\\s+)?\\b" + escapeRegExp(P2) + "\\b(\\s+[A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF]+)?", "gi");
+      const ersetzt = s.replace(re, (_m, before, after, ...rest) => {
+        const idx = rest[rest.length - 2];
+        const voll = rest[rest.length - 1];
+        const posP = voll.toLowerCase().indexOf(P2.toLowerCase(), idx);
+        if (posP > 0 && /[-–\wÄÖÜäöüß]/.test(voll.charAt(posP - 1))) return _m;
+        const davor = voll.slice(0, posP).replace(/\s+$/, "");
+        const gross = davor === "" || /[.!?…:„"»(]$/.test(davor);
+        const pron = gross ? pronoun.charAt(0).toUpperCase() + pronoun.slice(1) : pronoun;
+        const bw = before ? before.trim() : "";
+        const aw = after ? after.trim() : "";
+        const bw3 = ICH_DU_ZU_ER[bw.toLowerCase()] || bw;
+        const aw3 = ICH_DU_ZU_ER[aw.toLowerCase()] || aw;
+        const beuge = (v) => beugeToken(v, person);
+        const kennt = kenntVerb;
+        const letztesWort = (davor.match(/[A-Za-zÄÖÜäöüß-]+$/) || [""])[0];
+        const subjektstelle = gross || /[,;]$/.test(davor) || SUBJ_FUGE.test(letztesWort) || !!bw && kennt(bw3);
+        if (!subjektstelle) return _m;
+        if (bw && kennt(bw3)) return beuge(bw3) + " " + pron + (after || "");
+        if (aw && kennt(aw3)) return (before || "") + pron + " " + beuge(aw3);
+        return (before || "") + pron + (after || "");
+      });
+      const reihung = new RegExp(
+        "\\b(" + pronoun + ")\\s+([a-z\xE4\xF6\xFC\xDF]+)((?:\\s+[^\\s,.;:\u2014!?]+){0,6}?)\\s+(und|oder)\\s+([a-z\xE4\xF6\xFC\xDF]{3,}t)\\b",
+        "gi"
+      );
+      return ersetzt.replace(reihung, (m, pr, v1, mitte, konj, v2) => {
+        const v23 = ICH_DU_ZU_ER[v2.toLowerCase()] || v2;
+        if (!kenntVerb(v23)) return m;
+        const gebeugt = beugeToken(v23, person);
+        if (gebeugt === v2) return m;
+        return `${pr} ${v1}${mitte} ${konj} ${gebeugt}`;
+      });
+    } catch {
+      return s.replace(new RegExp("\\b" + escapeRegExp(P2) + "\\b", "gi"), pronoun);
+    }
+  };
+  const toFirst = (s) => swap(s, "ich", "ich");
+  const toSecond = (s) => swap(s, "du", "du");
+  const toWe = (s) => swap(s, "wir", "wir");
+  const toObject = (s) => `${pick(OBJEKT_ZWISCHENRUF)} ${s}`;
+  if (perspective === "third") return paras;
+  if (perspective === "first") return paras.map(toFirst);
+  if (perspective === "second") return paras.map(toSecond);
+  if (perspective === "we") return paras.map(toWe);
+  if (perspective === "object") {
+    const einstieg = pick(OBJEKT_EINSTIEG).replace("%O", O);
+    return paras.map((p, i) => i === 0 ? `${einstieg} ${p}` : p);
+  }
+  const cycle = ["first", "second", "third", "object"];
+  return paras.map((p, i) => {
+    const k = cycle[i % cycle.length];
+    if (k === "first") return toFirst(p);
+    if (k === "second") return toSecond(p);
+    if (k === "object") return toObject(p);
+    return p;
+  });
+}
+function pronominalize(text, P2, pronoun) {
+  const name = clean(P2);
+  if (!name || !pronoun) return text;
+  let re;
+  try {
+    re = new RegExp(`^${escapeRegExp(name)}\\s+[a-z\xE4\xF6\xFC\xDF]`);
+  } catch {
+    return text;
+  }
+  let seen = false, lastReplaced = false;
+  return text.split(/\n\n+/).map((par) => {
+    const s = splitSentences(par);
+    for (let i = 0; i < s.length; i++) {
+      if (!re.test(s[i])) continue;
+      if (!seen) {
+        seen = true;
+        lastReplaced = false;
+        continue;
+      }
+      if (lastReplaced) {
+        lastReplaced = false;
+        continue;
+      }
+      s[i] = cap(pronoun) + s[i].slice(name.length);
+      lastReplaced = true;
+    }
+    return s.join(" ");
+  }).join("\n\n");
+}
+var SCHON_GEBUNDEN = /^(und|doch|aber|oder|denn|dann|dabei|also|trotzdem|dennoch|sondern|nur|zuerst|zuletzt|währenddessen)/i;
+function darfVerbinden(a, b, obergrenze) {
+  if (!a || !b) return false;
+  if (/[:;—–]\s*$/.test(a.replace(/[.!?…]+$/, ""))) return false;
+  if (!/[.!?…]$/.test(a.trim())) return false;
+  if (/[?!]$/.test(a.trim())) return false;
+  if (SCHON_GEBUNDEN.test(b)) return false;
+  if (/^[„»"(]/.test(b) || /[“«")]$/.test(a)) return false;
+  const wa = (a.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+  const wb = (b.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+  if (!wa || !wb) return false;
+  if (wb < 2 || wa < 2) return false;
+  if (/^(Es geht um|Der Einsatz ist|Auf dem Spiel steht|Alles dreht sich um|Was zählt, ist)\b/.test(a) || /steht auf dem Spiel\.$/.test(a)) return false;
+  return wa + wb <= obergrenze;
+}
+function verbinde(a, b, satzartig) {
+  const kopf = a.trim().replace(/[.!?…]+$/, "");
+  const rest = b.trim();
+  const wort = (rest.match(/^[A-Za-zÄÖÜäöüß]+/) || [""])[0].toLowerCase();
+  const darfKlein = KEIN_NOMEN.has(wort) || !!VERB_CONJ[wort];
+  const weiter = darfKlein ? rest.charAt(0).toLowerCase() + rest.slice(1) : rest;
+  if (!satzartig) return `${kopf} \u2014 ${weiter}`;
+  return `${kopf}${pick([", und ", "; ", " \u2014 "])}${weiter}`;
+}
+function entferneDubletten(text) {
+  const kern = (x) => x.replace(/^[—–\s]+/, "").replace(/[.!?…,;:—–\s]+$/, "").replace(/\s+/g, " ").toLowerCase().trim();
+  const ohne = text.split(/\n{2,}/).map((absatz) => {
+    const s = splitSentences(absatz);
+    if (s.length < 2) return absatz;
+    const raus = [];
+    for (const satz of s) {
+      const k = kern(satz);
+      if (k && raus.length && kern(raus[raus.length - 1]) === k) continue;
+      raus.push(satz);
+    }
+    return raus.join(" ");
+  }).join("\n\n");
+  return ohne.replace(
+    /([^.!?…\n]{6,})\s*(?:—|–|;|,\s+und)\s*([^.!?…\n]{6,})/g,
+    (ganz, links, rechts) => kern(links) && kern(links) === kern(rechts) ? links.replace(/\s+$/, "") : ganz
+  );
+}
+function applySatzlaenge(text, ziel) {
+  if (!ziel || ziel < 6) return text;
+  const w = (x) => (x.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+  return text.split(/\n{2,}/).map((absatz) => {
+    let s = splitSentences(absatz);
+    if (s.length < 2) return absatz;
+    const bleibtKurz = new Set(s.filter(() => chance(0.2)));
+    for (let runde = 0; runde < 200; runde++) {
+      let beste = -1, kuerzeste = Infinity;
+      for (let i = 0; i + 1 < s.length; i++) {
+        const n = w(s[i]) + w(s[i + 1]);
+        if (n > ziel) continue;
+        if (bleibtKurz.has(s[i]) || bleibtKurz.has(s[i + 1])) continue;
+        if (!darfVerbinden(s[i], s[i + 1], ziel)) continue;
+        if (n < kuerzeste) {
+          kuerzeste = n;
+          beste = i;
+        }
+      }
+      if (beste < 0) break;
+      const satzartig = hatFinitesVerbLeicht(s[beste]);
+      s = [...s.slice(0, beste), verbinde(s[beste], s[beste + 1], satzartig), ...s.slice(beste + 2)];
+    }
+    return s.join(" ");
+  }).join("\n\n");
+}
+function hatFinitesVerbLeicht(satz) {
+  return (satz.match(/[a-zäöüß]{3,}/g) || []).some((w) => !!VERB_CONJ[w] || /^(ist|sind|war|waren|hat|haben|wird|werden|kann|muss|will|bleibt|steht|geht|kommt)$/.test(w));
+}
+
+// src/generation/postprocess.ts
+var LINE_FORMS = /* @__PURE__ */ new Set(["script", "video", "strang", "reim", "haiku", "poem"]);
+var isLineForm = (input) => !!input && !!input.form && LINE_FORMS.has(input.form);
+function glaetten(t) {
+  return t.replace(/[ \t]{2,}/g, " ").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]+([,.;:!?])/g, "$1").trim();
+}
+var ABGESCHNITTEN = /(^|\s)(eine|einem|einen|einer|eines|der|die|dem|den|des|und|oder|aber|wie|als|im|am|bei|für|ohne)$/i;
+var NUR_OHNE_VERB = /(^|\s)(mit|an|auf|zu|vor|nach|aus|ist|sind|wird|ein|das)$/i;
+var NEBENSATZ_ENDE = /,\s+(der|die|das|dem|den|deren|dessen)\s+([a-zäöüß][^,;:]*)$/;
+var FUNKTION2 = /* @__PURE__ */ new Set([
+  "es",
+  "er",
+  "sie",
+  "ich",
+  "du",
+  "wir",
+  "ihr",
+  "man",
+  "sich",
+  "mich",
+  "dich",
+  "uns",
+  "euch",
+  "ihn",
+  "ihm",
+  "mir",
+  "dir",
+  "der",
+  "die",
+  "das",
+  "dem",
+  "den",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "kein",
+  "keine",
+  "keinen",
+  "keinem",
+  "mein",
+  "meine",
+  "meinen",
+  "meinem",
+  "sein",
+  "seine",
+  "seinen",
+  "seinem",
+  "ihre",
+  "ihren",
+  "ihrem",
+  "dein",
+  "deine",
+  "deinen",
+  "deinem",
+  "unser",
+  "unsere",
+  "in",
+  "im",
+  "an",
+  "am",
+  "auf",
+  "aus",
+  "bei",
+  "mit",
+  "nach",
+  "von",
+  "vom",
+  "zu",
+  "zum",
+  "zur",
+  "vor",
+  "\xFCber",
+  "unter",
+  "hinter",
+  "neben",
+  "zwischen",
+  "durch",
+  "f\xFCr",
+  "ohne",
+  "um",
+  "gegen",
+  "seit",
+  "bis",
+  "und",
+  "oder",
+  "aber",
+  "noch",
+  "schon",
+  "mehr",
+  "auch",
+  "nur",
+  "so",
+  "da",
+  "hier",
+  "dort",
+  "wo",
+  "wie",
+  "als",
+  "wenn",
+  "dann",
+  "immer",
+  "nie",
+  "wieder",
+  "heute",
+  "gestern",
+  "morgen",
+  "zu",
+  "sehr",
+  "ganz",
+  "etwas",
+  "nichts",
+  "alles",
+  "viel",
+  "wenig",
+  "zwei",
+  "drei",
+  "vier",
+  "f\xFCnf",
+  "einmal",
+  "zweimal",
+  "l\xE4ngst",
+  "gerade",
+  "eben",
+  "erst",
+  "kaum",
+  "fast",
+  "genau",
+  "pl\xF6tzlich",
+  "jemand",
+  "niemand",
+  "jeder",
+  "jede",
+  "jedes",
+  "alle",
+  "beide",
+  "zusammen",
+  "allein",
+  "anders",
+  "weiter",
+  "zur\xFCck",
+  "hinauf",
+  "hinab",
+  "hinaus",
+  "hinein",
+  "heraus",
+  "herein",
+  "oben",
+  "unten",
+  "innen",
+  "au\xDFen",
+  "links",
+  "rechts",
+  "vorn",
+  "hinten",
+  "drinnen",
+  "drau\xDFen",
+  "fort",
+  "weg",
+  "los"
+]);
+var verbMoeglich = (w) => /^[a-zäöüß]{2,}$/.test(w) && !FUNKTION2.has(w) && !KEIN_VERB.has(w) && !/(em|er|es)$/.test(w);
+function istAbgeschnitten(bare) {
+  if (!bare || bare.split(/\s+/).length > 12) return false;
+  if (ABGESCHNITTEN.test(bare)) return true;
+  const ns = bare.match(NEBENSATZ_ENDE);
+  if (ns) {
+    const woerter3 = ns[2].split(/\s+/);
+    if (woerter3.length <= 6 && !woerter3.some(verbMoeglich)) return true;
+  }
+  return NUR_OHNE_VERB.test(bare) && !hatFinitesVerb(bare);
+}
+function schliesseFigurenkomma(text, who) {
+  const roh = (who || "").trim();
+  if (!roh || !roh.includes(",")) return text;
+  const figur = personKopf(splitSpeakers(normWho(roh))[0] || "");
+  if (!figur.includes(",")) return text;
+  try {
+    const re = new RegExp("(" + escapeRegExp(figur) + ")(\\s+)(?=[a-z\xE4\xF6\xFC\xDF])", "gi");
+    return text.replace(re, "$1,$2");
+  } catch {
+    return text;
+  }
+}
+function coherencePass(text, input) {
+  try {
+    if (isLineForm(input)) return text;
+    const t = String(text || "").replace(/\.\s*\.+/g, ".");
+    const paras = t.split(/\n{2,}/);
+    const freq = {};
+    coherenceWords(t).forEach((w) => {
+      freq[w] = (freq[w] || 0) + 1;
+    });
+    const motif = new Set(Object.keys(freq).filter((w) => freq[w] >= 2));
+    [input?.who, input?.where, input?.what].forEach((s) => coherenceWords(s || "").forEach((w) => motif.add(w)));
+    const bogen = loadDramaData();
+    if (bogen) {
+      for (const feld of [
+        bogen.einstieg,
+        bogen.mitte,
+        bogen.hoehepunkt,
+        bogen.ausloeser,
+        bogen.veraenderungen,
+        bogen.konflikte,
+        bogen.zeitanomalien,
+        bogen.regeln
+      ]) {
+        for (const satz of feld || []) coherenceWords(satz).forEach((w) => motif.add(w));
+      }
+    }
+    const allowBreaks = input?.disruptor === "on";
+    const maxRemove = Math.max(1, Math.floor(splitSentences(t).length * 0.25));
+    let removed = 0;
+    const outParas = [];
+    paras.forEach((p, pi) => {
+      const sents = splitSentences(p);
+      const kept = sents.filter((s, si) => {
+        const bare = s.trim().replace(/["»«)\]]+$/, "").replace(/[.!?…]+$/, "").trim();
+        if (istAbgeschnitten(bare)) {
+          removed++;
+          return false;
+        }
+        if (removed >= maxRemove) return true;
+        const late = pi === paras.length - 1 && sents.length >= 4 && si >= Math.floor(sents.length / 2);
+        if (late) {
+          const cw = coherenceWords(s);
+          if (cw.length >= 2 && !cw.some((w) => motif.has(w))) {
+            if (allowBreaks && Math.random() < 0.5) return true;
+            removed++;
+            return false;
+          }
+        }
+        return true;
+      });
+      if (kept.length) outParas.push(kept.join(" "));
+    });
+    const result = outParas.join("\n\n").trim();
+    return result.length >= 60 ? result : text;
+  } catch {
+    return text;
+  }
+}
+function coherenceRepairV2(t, input) {
+  t = String(t ?? "");
+  t = t.replace(/\(\s*[A-ZÄÖÜ][\wäöüß-]{2,}\s*\)/g, " ");
+  t = t.replace(/,\s*([.!?…])/g, "$1");
+  t = t.replace(/([.!?…])\s*,/g, ",");
+  t = t.replace(/\s*,\s*,\s*/g, ", ");
+  t = t.replace(/„\s+/g, "\u201E").replace(/\s+"/g, '"');
+  t = t.replace(/([.!?…])\s*\1+/g, "$1");
+  if ((t.match(/"/g) || []).length % 2 === 1) t = t.replace(/"/g, "");
+  {
+    const o = (t.match(/„/g) || []).length, c = (t.match(/[“”]/g) || []).length;
+    if (o !== c) t = t.replace(/[„“”]/g, "");
+  }
+  t = t.replace(/\bich'(?=\s)/gi, "meine").replace(/\bdu'(?=\s)/gi, "deine").replace(/\bwir'(?=\s)/gi, "unsere").replace(/\ber'(?=\s)/gi, "seine").replace(/\bsie'(?=\s)/gi, "ihre").replace(/\bes'(?=\s)/gi, "seine");
+  t = t.replace(/(:\s+)([a-zäöüß][^.!?…]*)/g, (m, p1, rest) => looksLikeFullClause(null, rest) || /^(warum|weshalb|wieso|wie|was|wer|wen|wem|wann|wo|wohin|woher|ob)\b/i.test(rest) ? p1 + rest.charAt(0).toUpperCase() + rest.slice(1) : m);
+  String(input?.who || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean).forEach((n) => {
+    const esc = escapeRegExp(n);
+    const wieder = namensErsetzer(n);
+    try {
+      t = t.replace(new RegExp("\\b(" + esc + ")(s|')?\\b", "giu"), (_m, kern, suf) => wieder(kern) + (suf || ""));
+    } catch {
+    }
+  });
+  if (isLineForm(input)) {
+    return glaetten(t);
+  }
+  const ABS = "\u241E";
+  t = t.replace(/[ \t]*\n{2,}[ \t]*/g, " " + ABS + " ");
+  const sents = t.split(/(?<=[.!?…])\s+/).filter(Boolean);
+  const kept = [];
+  for (let s of sents) {
+    const bare = s.trim().replace(/["“”»«]+$/, "").replace(/[.!?…]+$/, "").trim();
+    const opens = (s.match(/„/g) || []).length, closes = (s.match(/[“”»]/g) || []).length;
+    if (/\bSatz\s+„/.test(s) && opens > closes) continue;
+    if (/,\s+(die|der|das|dem|den|des)\s+(die|der|das|dem|den|des)\s+\p{L}+$/iu.test(bare)) continue;
+    if (opens > closes) s = s.replace(/„\s*/g, "");
+    s = beugeNachDu(s);
+    const _st = s.trim();
+    if (kept.length && kept[kept.length - 1] === _st) continue;
+    kept.push(_st);
+  }
+  t = kept.join(" ").replace(/\s*\u241E\s*/g, "\n\n");
+  t = t.replace(/(\bich und [A-ZÄÖÜ][\wäöüß]+[^.!?…]*?)\bsie sich\b/gu, "$1wir uns");
+  t = t.replace(/([A-ZÄÖÜ][\wäöüß]+ und ich[^.!?…]*?)\bsie sich\b/gu, "$1wir uns");
+  const CONN = [/\bDann kippt es\b/gi, /\bDabei:\s*plötzlich\b/gi, /\bUnd immer wieder\b/gi, /\bAm Ende bleibt klar\b/gi];
+  CONN.forEach((re) => {
+    let n = 0;
+    t = t.replace(re, (m) => ++n > 1 ? "" : m);
+  });
+  t = glaetten(t).replace(/„[ \t]+/g, "\u201E");
+  return t;
+}
+function kleinerArtikel(t) {
+  return (t || "").replace(/[ \t]+([,;.!?])/g, "$1").replace(
+    /([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/g,
+    (_m, vor, sp, w) => vor + sp + w.charAt(0).toLowerCase() + w.slice(1)
+  );
+}
+var DU = [
+  [/\btritt\b/g, "trittst"],
+  [/\bhält\b/g, "h\xE4ltst"],
+  [/\bnimmt\b/g, "nimmst"],
+  [/\bsieht\b/g, "siehst"],
+  [/\bgeht\b/g, "gehst"],
+  [/\bsteht\b/g, "stehst"],
+  [/\bträgt\b/g, "tr\xE4gst"],
+  [/\bführt\b/g, "f\xFChrst"],
+  [/\bfindet\b/g, "findest"],
+  [/\bsucht\b/g, "suchst"],
+  [/\bkommt\b/g, "kommst"],
+  [/\bbricht\b/g, "brichst"]
+];
+function beugeNachDu(s) {
+  const di = s.search(/\bdu\b/i);
+  if (di < 0) return s;
+  const head = s.slice(0, di);
+  let tail = s.slice(di);
+  const wechsel = tail.search(/[,;:—–(]|\b(?:aber|und|doch|denn|sondern|oder|während|als)\s+(?:er|sie|es|man|wir|ihr|der|die|das|ein|eine|etwas|nichts|jemand|niemand)\b/i);
+  let rest = "";
+  if (wechsel > 0) {
+    rest = tail.slice(wechsel);
+    tail = tail.slice(0, wechsel);
+  }
+  DU.forEach(([re, rep]) => {
+    tail = tail.replace(re, rep);
+  });
+  return head + tail + rest;
+}
+var NEBENSATZ2 = /(,\s+(?:wo|wohin|woher|wenn|als|weil|dass|obwohl|während|nachdem|bevor|sobald|solange|der|die|das|dem|den|deren|dessen)\s[^,.;:!?—–]{3,60}?[a-zäöüß])\s+(bemerk(?:t|e|st|en)|sieht|sehe|siehst|sehen|find(?:et|e|est|en)|entdeck(?:t|e|st|en)|erkenn(?:t|e|st|en)|trifft|treffe|triffst|treffen|hört|höre|hörst|hören|wartet|warte|wartest|warten|steht|stehe|stehst|stehen|beginnt|beginne|beginnst|beginnen|verliert|verliere|verlierst|verlieren)\s+(ich|du|wir|er|sie|es|man|[A-ZÄÖÜ][a-zäöüß]+)\b/g;
+function kommaVorInversion(t) {
+  return (t || "").replace(NEBENSATZ2, "$1, $2 $3");
+}
+function istPluralFigur(who) {
+  const w = (who || "").trim();
+  if (!w) return false;
+  if (/^(zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|beide|alle|viele|einige|mehrere|manche|zwölf|hundert)\b/i.test(w)) return true;
+  if (/\b(und|&)\b/.test(w) && !/,/.test(w)) return true;
+  if (/^[A-ZÄÖÜ][a-zäöüß]+(en|innen|leute|kinder|eltern)$/.test(w) && !/(chen|lein)$/.test(w)) return true;
+  const m = w.match(/^die\s+([A-ZÄÖÜ][a-zäöüß-]+)$/i);
+  if (m) {
+    const n = m[1].toLowerCase();
+    if (/(innen|leute|kinder|eltern|geschwister|männer|frauen)$/.test(n)) return true;
+    return /en$/.test(n) && !/(chen|lein)$/.test(n);
+  }
+  return false;
+}
+function pluralKongruenz(t, who) {
+  const name = (who || "").trim();
+  if (!name || !istPluralFigur(name)) return t;
+  const esc = escapeRegExp(name);
+  const beuge = (v) => {
+    const p = beugeVerb(v, "wir");
+    return p && p !== v ? p : v;
+  };
+  let out = t.replace(new RegExp(`(\\b${esc})\\s+([a-z\xE4\xF6\xFC\xDF]+t)\\b`, "giu"), (m, n, v) => istVerbform(v) ? `${n} ${beuge(v)}` : m);
+  out = out.replace(new RegExp(`\\b([a-z\xE4\xF6\xFC\xDF]+t)\\s+(${esc})\\b`, "giu"), (m, v, n) => istVerbform(v) ? `${beuge(v)} ${n}` : m);
+  return out;
+}
+function nomenNachAdverb(t) {
+  return (t || "").replace(
+    /(^|[.!?…]\s+|\n)(Dann|Und dann|Nur|Doch|Jetzt|Plötzlich|Danach|Zuletzt)\s+([a-zäöüß]{3,}),/g,
+    (m, vor, adv, w) => guessGender(w) ? `${vor}${adv} ${w.charAt(0).toUpperCase()}${w.slice(1)},` : m
+  );
+}
+function adjektivKongruenz(t) {
+  return (t || "").replace(/(^|[.!?…:;—]\s+)(Ein|Eine|Der|Die|Das) ([a-zäöüß]{3,}?)(e|er|es) ([A-ZÄÖÜ][a-zäöüß]{2,})\b/g, (m, vor, art, stamm, endung, nomen) => {
+    const g = guessGender(nomen);
+    if (!g) return m;
+    const indef = art.startsWith("Ein");
+    const sollArt = indef ? g === "f" ? "Eine" : "Ein" : g === "m" ? "Der" : g === "f" ? "Die" : "Das";
+    const sollEnd = indef ? g === "m" ? "er" : g === "f" ? "e" : "es" : "e";
+    if (sollArt === art && sollEnd === endung) return m;
+    return `${vor}${sollArt} ${stamm}${sollEnd} ${nomen}`;
+  });
+}
+function relativKongruenz(t) {
+  return (t || "").replace(
+    /\b([A-ZÄÖÜ][a-zäöüß]{2,}),? (in|an|auf|unter|über|vor|hinter|neben|zwischen|bei|mit|aus|nach|von|zu) (der|dem) (die|der|das|ein|eine|man|es|sie|er|niemand|jemand|nichts|alles|ich|wir|du|ihr|kein|keine)\b/g,
+    (m, nomen, praep, pron, subj) => {
+      const g = guessGender(nomen);
+      if (!g) return m;
+      const praepSicher = /^(in|an|auf|unter|über|vor|hinter|neben|zwischen)$/.test(praep);
+      if (!praepSicher && /^(die|der|das|ein|eine|kein|keine)$/.test(subj)) return m;
+      const soll = g === "f" ? "der" : "dem";
+      if (soll === pron) return m;
+      return `${nomen}, ${praep} ${soll} ${subj}`;
+    }
+  );
+}
+function nominativFragment(t) {
+  return (t || "").replace(
+    /(^|[.!?…]\s+|\n)(Einen|Den|Einem|Dem)\s+([A-ZÄÖÜ][a-zäöüß]+)([^.!?…\n]*[.!?…])/g,
+    (m, vor, art, nomen, rest) => {
+      if (hatFinitesVerb(`${art} ${nomen}${rest}`)) return m;
+      if (/\b(ein|eine|einen|einem|einer|der|die|das|den|dem)\b/i.test(rest)) return m;
+      if (art === "Einen") return `${vor}Ein ${nomen}${rest}`;
+      if (art === "Den") return `${vor}Der ${nomen}${rest}`;
+      const g = guessGender(nomen);
+      if (art === "Einem") return g === "m" || g === "n" ? `${vor}Ein ${nomen}${rest}` : m;
+      return g === "m" ? `${vor}Der ${nomen}${rest}` : g === "n" ? `${vor}Das ${nomen}${rest}` : m;
+    }
+  );
+}
+function formelnGlaetten(t) {
+  return (t || "").replace(/\s+—\s+(dann|danach|plötzlich)\s*([;.!?])/gi, "$2").replace(/\b(an|auf|über|von|in|mit|nach) (wie|als) (der|die|das|den|dem|des|ein|eine|einen|einem|einer)\b/g, "$1 $3").replace(/\b(Dann|Und dann|Plötzlich|Danach)\s+—\s+(dann|plötzlich|danach),/gi, (_m, a) => `${a},`).replace(/([.!?…])\s+—\s+([a-zäöüß])/g, (_m, p, c) => `${p} ${c.toUpperCase()}`);
+}
+function kleinesPronomen(t) {
+  return (t || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon|Mittags|Morgens|Abends|Nachts|Heute|Gestern|Morgen|Später|Manchmal|Damals|Irgendwann|Vormittags|Nachmittags|Fast|Beinahe|Kaum|Knapp|Bald|Erst|Zuletzt|Endlich)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
+    /(,[ \t]+)(Wo|Wenn|Als|Weil|Dass|Obwohl|Während|Nachdem|Bevor|Sobald|Solange|Damit|Ob|Der|Die|Das|Dem|Den|Deren|Dessen)\b(?=\s)/g,
+    (_m, sp, w) => sp + w.charAt(0).toLowerCase() + w.slice(1)
+  );
+}
+function fragezeichen(t) {
+  return (t || "").replace(
+    /(^|[.!?…:]\s+|\n)(Wo|Was|Wer|Wie|Warum|Wann|Wohin|Woher|Weshalb|Wieso|Wem|Wen)\s+(ist|sind|war|waren|hat|haben|wird|werden|kommt|bleibt|will|kann|soll|darf|muss|geht|steht|bist|bin|seid|weiß|wissen)\b([^.!?…\n]{0,50})\./g,
+    (m, vor, fw, v, rest) => rest.split(/\s+/).filter(Boolean).length <= 6 && !rest.includes(",") ? `${vor}${fw} ${v}${rest}?` : m
+  );
+}
+function postProcessText(txt, input) {
+  let t = (txt ?? "").toString();
+  t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
+  t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
+  const z = (was, f) => {
+    const v = t;
+    t = f(t);
+    zaehleWennAnders(was, v, t);
+  };
+  z("schliff_kleinesPronomen", kleinesPronomen);
+  z("schliff_kommaVorInversion", kommaVorInversion);
+  z("schliff_fragezeichen", fragezeichen);
+  z("schliff_nomenNachAdverb", nomenNachAdverb);
+  z("schliff_nominativFragment", nominativFragment);
+  z("schliff_adjektivKongruenz", adjektivKongruenz);
+  z("schliff_relativKongruenz", relativKongruenz);
+  z("schliff_formelnGlaetten", formelnGlaetten);
+  z("schliff_kleinerArtikel", kleinerArtikel);
+  const name = (input?.who ?? "").toString().trim();
+  if (name) {
+    const esc = escapeRegExp(name);
+    const wieder = namensErsetzer(name);
+    try {
+      t = t.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${esc}(?![\\p{L}\\p{N}_])`, "giu"), wieder);
+    } catch {
+      t = t.replace(new RegExp(`\\b${esc}\\b`, "gi"), wieder);
+    }
+  }
+  z("schliff_pluralKongruenz", (x) => pluralKongruenz(x, name));
+  zeitlupeStufe("Schliff", t);
+  if (!isLineForm(input) && input?.tone && TONE_DATA[input.tone]) {
+    const td = TONE_DATA[input.tone];
+    if (td.opener.length) {
+      const kopf = t.match(OBJEKT_KOPF_RE);
+      t = kopf ? `${kopf[1]} ${pick(td.opener)} ${t.slice(kopf[0].length)}` : `${pick(td.opener)} ${t}`;
+    }
+    if (td.flavor.length) {
+      const wc2 = t.trim().split(/\s+/).filter(Boolean).length;
+      const f = (loadKnobs().ton || 0) / 100;
+      const inserts = Math.max(0, Math.min(7, Math.round(Math.max(1, Math.round(wc2 / 90)) * f)));
+      const vorrat = [...td.flavor].sort(() => Math.random() - 0.5).filter((f2) => !t.toLowerCase().includes(f2.toLowerCase().replace(/[.!?…]+$/, "")));
+      for (let i = 0; i < inserts && i < vorrat.length; i++) t = insertToneFlavor(t, vorrat[i]);
+    }
+    t = applyToneRegister(t, input.tone);
+    zeitlupeStufe("Ton", t);
+  }
+  if (!isLineForm(input)) t = entferneDubletten(t);
+  if (!isLineForm(input)) {
+    t = applySatzlaenge(t, loadKnobs().satzlaenge);
+    zeitlupeStufe("Satzl\xE4nge", t);
+  }
+  if (!isLineForm(input)) t = entferneDubletten(t);
+  z("schliff_polishGerman", (x) => polishGerman(x, { who: name }));
+  z("schliff_figurenkomma", (x) => schliesseFigurenkomma(x, input?.who));
+  z("kohaerenzPass", (x) => coherencePass(x, input));
+  {
+    const v = t;
+    t = coherenceRepairV2(t, input);
+    if (v !== t) {
+      const vs = new Set(t.split(/(?<=[.!?…])\s+/).map((x) => x.trim()));
+      const gefallen = v.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter((x) => x && !vs.has(x) && !t.includes(x.slice(0, 30)));
+      if (gefallen.length) for (const g of gefallen) zaehle("kohaerenzGefallen", g);
+      else zaehleWennAnders("kohaerenzRepariert", v, t);
+    }
+  }
+  zeitlupeStufe("Koh\xE4renz", t);
+  t = t.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
+  t = t.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
+  return t.trim();
+}
+
+// src/generation/structures.ts
+var rot = (key, arr) => arr[pickFreshIndex(key, arr.length)];
+function buildLinear(kit) {
+  const M = kit.mode;
+  const opener = rot("lin.opener", [
+    `${kit.T} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.`,
+    `${kit.T} ${kit.W} findet ${kit.P} ${kit.hookAcc}.`,
+    `${kit.P} sieht ${kit.hookAcc} \u2014 ${kit.T}, ${kit.W}.`,
+    `Zuerst ${kit.W}, ${kit.T}: ${kit.P} bemerkt ${kit.hookAcc}.`,
+    `${kit.T} ${kit.W}. ${kit.P} h\xE4lt ${kit.hookAcc} fest.`
+  ]);
+  const goal = kit.AisClause ? rot("lin.goalC", [
+    `${kit.P} stellt fest: ${kit.Apure} \u2014 aber ${kit.obstacle}.`,
+    `${kit.P} begreift: ${kit.Apure}. Doch ${kit.obstacle}.`,
+    `Klar wird: ${kit.Apure}. Nur ${kit.obstacle}.`
+  ]) : rot("lin.goal", [
+    `${kit.P} ${kit.AleadVerb || "will"} ${kit.Apure}, aber ${kit.obstacle}.`,
+    `${kit.P} ${kit.AleadVerb || "will"} ${kit.Apure} \u2014 ${kit.obstacle}.`,
+    `Was ${kit.P} ${kit.AleadVerb || "will"}: ${kit.Apure}. Was im Weg steht: ${kit.obstacle}.`
+  ]);
+  const action = rot("lin.action", [
+    `${kit.P} nimmt ${kit.propAcc} und ${pick(["tritt n\xE4her", "fragt nach", "h\xE4lt den Blick aus", "\xF6ffnet, was verschlossen war", "bleibt stehen"])}.`,
+    `${kit.P} h\xE4lt ${kit.propAcc} und ${pick(["z\xF6gert", "atmet durch", "macht den ersten Schritt", "h\xF6rt auf zu z\xE4hlen"])}.`,
+    `${kit.P} greift nach dem, was bleibt, und ${pick(["wartet", "horcht", "rechnet", "beginnt"])}.`,
+    `${kit.P} legt ${kit.propAcc} beiseite und ${pick(["sieht auf", "sagt es doch", "dreht sich um", "bleibt"])}.`
+  ]);
+  const modeSpice = pick([
+    `Es riecht ${rot("mode.img", M.images)}. ${rot("mode.rule", M.rules)}`,
+    `${rot("mode.rule", M.rules)} Es riecht ${rot("mode.img", M.images)}.`,
+    `Irgendwo ${rot("mode.img", M.images)}. ${rot("mode.rule", M.rules)}`
+  ]);
+  const beats = [opener, modeSpice, goal, action, frameTurn(kit.turn), reframeStake(kit.stake), kit.ending];
+  if (Math.random() < 0.4) beats.splice(4, 0, `${pick(["Ein Ger\xE4usch", "Ein Licht", "Ein Schatten", "Ein Zug Luft"])} ${pick(["ver\xE4ndert alles", "bleibt", "kippt den Moment", "zieht vorbei"])}.`);
+  return joinBeats(beats, kit.P);
+}
+function buildReverse(kit) {
+  const M = kit.mode;
+  const end = `${kit.ending}`;
+  const reveal = `Du erf\xE4hrst erst sp\xE4ter: ${kit.motif} \u2014 das war der Anfang.`;
+  const before = `${kit.P} hatte ${kit.propAcc} schon in der Hand, denn ${kit.obstacle}.`;
+  const inciting = `${kit.T} ${kit.W}: ${kit.hook}.`;
+  const rule = `${rot("mode.rule", M.rules)} Es riecht ${rot("mode.img", M.images)}.`;
+  const turn = `Und dann, r\xFCckw\xE4rts betrachtet: ${kit.turn}.`;
+  return joinBeats([end, reveal, reframeStake(kit.stake), turn, before, rule, inciting], kit.P);
+}
+function buildCircle(kit) {
+  const M = kit.mode;
+  const a = rot("circ.a", [
+    `${kit.T} ${kit.W} steht ${kit.P} vor ${kit.hookDat}.`,
+    `${kit.T} ${kit.W}: wieder ${kit.hookDat} gegen\xFCber steht ${kit.P}.`,
+    `Am Anfang steht ${kit.P} vor ${kit.hookDat}. ${kit.T}, ${kit.W}.`
+  ]);
+  const b = kit.AisClause ? `${kit.P} bemerkt: ${kit.Apure}. ${rot("mode.rule", M.rules)}` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}. ${rot("mode.rule", M.rules)}`;
+  const c = `Die Dinge werden ${pick(["fremd", "zu klar", "unruhig", "pr\xE4zise"])}, denn ${kit.obstacle}.`;
+  let t = joinBeats([a, b, c, frameTurn(kit.turn), reframeStake(kit.stake), kit.ending], kit.P);
+  t = weaveMotif(t, kit.motif);
+  t += " " + ensurePunct(pick([`Und wieder: ${kit.hook}`, `Und von vorn: ${kit.hook}`, `Der Kreis schlie\xDFt sich: ${kit.hook}`]));
+  return t;
+}
+function buildFragment(kit) {
+  const M = kit.mode;
+  const beats = [
+    cap(ensurePunct(kit.hook)),
+    cap(ensurePunct(kit.obstacle)),
+    cap(frameTurn(kit.turn)),
+    cap(ensurePunct(`${kit.P} h\xE4lt ${kit.propAcc}`)),
+    cap(ensurePunct(rot("mode.rule", M.rules))),
+    cap(ensurePunct(`Es riecht ${rot("mode.img", M.images)}`)),
+    cap(reframeStake(kit.stake)),
+    cap(ensurePunct(kit.ending))
+  ];
+  for (let i = beats.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [beats[i], beats[j]] = [beats[j], beats[i]];
+  }
+  const marks = [
+    "Sp\xE4ter.",
+    "Davor.",
+    "Viel fr\xFCher.",
+    "Und dann, ohne \xDCbergang.",
+    "Irgendwann dazwischen.",
+    "R\xFCckw\xE4rts betrachtet.",
+    `Gegen ${randomFragmentTime()}.`
+  ];
+  for (let i = marks.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [marks[i], marks[j]] = [marks[j], marks[i]];
+  }
+  const woven = [];
+  let mi = 0;
+  beats.forEach((b, i) => {
+    if (i > 0 && Math.random() < 0.5 && mi < marks.length) woven.push(marks[mi++]);
+    woven.push(b);
+  });
+  return joinBeats(woven, kit.P);
+}
+function buildObjectCentric(kit) {
+  const M = kit.mode;
+  const obj = pick(M.nouns);
+  const P2 = kit.P;
+  const a = `Ich bin ${objektName(obj)}. Ich liege ${kit.W}.`;
+  const b = `Ich kenne ${dekliniere(P2, "akk")}. Ich kenne ${kit.hookAcc}.`;
+  const c = `Sie nennen es ${pick(["Fehler", "Vorgang", "Omen", "Signal", "Symptom", "Protokoll", "Zufall", "Nichts"])}. Ich nenne es ${pick(["Erinnerung", "Beweis", "Anfang", "Schuld"])}.`;
+  const d = ensurePunct(rot("mode.rule", M.rules));
+  const e = kit.AisClause ? `${P2} sp\xFCrt: ${kit.Apure}. ${kit.obstacle}.` : `${P2} ${kit.AleadVerb || "will"} ${kit.Apure}. ${kit.obstacle}.`;
+  const f = pick([`Dann sp\xFCre ich: ${kit.turn}.`, `Und dann, durch mich hindurch: ${kit.turn}.`, `Ich registriere: ${kit.turn}.`]);
+  return joinBeats([a, b, c, d, e, f, reframeStake(kit.stake), kit.ending], kit.P);
+}
+var BUILDERS = {
+  linear: buildLinear,
+  reverse: buildReverse,
+  circle: buildCircle,
+  fragment: buildFragment,
+  object: buildObjectCentric
+};
+function pickStructureBuilder(structure) {
+  return BUILDERS[structure] || buildLinear;
+}
+
+// src/generation/markovTrace.ts
+var frags = [];
+function resetMarkovTrace() {
+  frags = [];
+}
+function traceMarkov(s) {
+  const t = (s || "").trim();
+  if (t.length >= 5) frags.push(t);
+}
+var schluessel2 = (t) => t.toLowerCase().replace(/[^a-zäöüß]/g, "").slice(0, 400);
+var nachText = /* @__PURE__ */ new Map();
+function linkMarkovTrace(finalText) {
+  if (!frags.length || !finalText) return;
+  if (nachText.size > 64) {
+    const e = nachText.keys().next().value;
+    if (e) nachText.delete(e);
+  }
+  nachText.set(schluessel2(finalText), frags.slice());
+}
+
+// src/generation/archetypes.data.ts
+var ARCHETYPES = {
+  "neutral": {
+    "label": "Neutral",
+    "weights": {
+      "mode": {
+        "bureau": 1,
+        "tech": 1,
+        "body": 1,
+        "myth": 1,
+        "absurd": 1,
+        "post": 1
+      },
+      "structure": {
+        "linear": 1,
+        "reverse": 1,
+        "circle": 1,
+        "fragment": 1,
+        "object": 1
+      },
+      "perspective": {
+        "third": 1,
+        "first": 1,
+        "second": 1,
+        "we": 1,
+        "object": 1
+      },
+      "rhythm": {
+        "breath": 1,
+        "staccato": 1,
+        "long": 1,
+        "fracture": 1,
+        "clean": 1
+      }
+    },
+    "add": {
+      "motifs": [],
+      "hooks": [],
+      "props": [],
+      "turns": [],
+      "obstacles": [],
+      "stakes": [],
+      "endings": []
+    },
+    "speakers": [
+      "Die Stimme",
+      "Das System",
+      "Ein Unbekannter",
+      "Das Archiv",
+      "Der Apparat"
+    ]
+  },
+  "skorpion": {
+    "label": "Skorpion",
+    "weights": {
+      "mode": {
+        "body": 2.6,
+        "bureau": 1.6,
+        "myth": 1.2,
+        "absurd": 1.1,
+        "tech": 1,
+        "post": 1
+      },
+      "structure": {
+        "circle": 2,
+        "fragment": 1.6,
+        "reverse": 1.3,
+        "linear": 1.1,
+        "object": 1.2
+      },
+      "perspective": {
+        "second": 2.2,
+        "first": 1.7,
+        "third": 1.2,
+        "we": 1,
+        "object": 0.9
+      },
+      "rhythm": {
+        "breath": 2,
+        "staccato": 1.4,
+        "fracture": 1.2,
+        "long": 1,
+        "clean": 0.9
+      }
+    },
+    "add": {
+      "motifs": [
+        "ein Blick, der festh\xE4lt",
+        "eine N\xE4he, die Kontrolle wird",
+        "ein Geheimnis mit Puls",
+        "ein Satz, der Besitz markiert"
+      ],
+      "hooks": [
+        "eine Hand auf dem Nacken",
+        "ein Fl\xFCstern, das an dir klebt",
+        "eine Spur, die dich w\xE4hlt"
+      ],
+      "turns": [
+        "die N\xE4he kippt in Kontrolle",
+        "die Wahrheit wird Besitz",
+        "das Begehren wird zur Regel"
+      ],
+      "obstacles": [
+        "du darfst nicht frei sprechen",
+        "jemand legt fest, was du meinst",
+        "eine Grenze wird unsichtbar gezogen"
+      ],
+      "stakes": [
+        "Der Einsatz ist Bindung.",
+        "Der Einsatz ist Kontrolle.",
+        "Der Einsatz ist Wahrheit: in deiner Hand."
+      ],
+      "endings": [
+        "Und du wusstest, wem es geh\xF6rt.",
+        "Und der Blick blieb.",
+        "Und die N\xE4he war das Urteil."
+      ]
+    },
+    "speakers": [
+      "Die Zeugin",
+      "Der Blick",
+      "Die Hand",
+      "Die Stimme",
+      "Der Vermerk"
+    ]
+  },
+  "psychopath": {
+    "label": "Psychopath",
+    "weights": {
+      "mode": {
+        "bureau": 2.2,
+        "tech": 1.9,
+        "absurd": 1.4,
+        "post": 1.3,
+        "body": 1,
+        "myth": 0.9
+      },
+      "structure": {
+        "reverse": 1.9,
+        "object": 1.7,
+        "fragment": 1.4,
+        "linear": 1.1,
+        "circle": 1
+      },
+      "perspective": {
+        "third": 2,
+        "object": 1.8,
+        "first": 1.2,
+        "second": 1.1,
+        "we": 0.9
+      },
+      "rhythm": {
+        "clean": 2,
+        "staccato": 1.6,
+        "long": 1.1,
+        "fracture": 1.1,
+        "breath": 0.9
+      }
+    },
+    "add": {
+      "motifs": [
+        "ein Protokoll ohne Gef\xFChl",
+        "eine Diagnose im Rand",
+        "ein Experiment mit Namen",
+        "eine Moral als Variable"
+      ],
+      "hooks": [
+        "ein Befund ohne Ursache",
+        "ein Blick wie Messung",
+        "eine Akte, die kalt bleibt"
+      ],
+      "turns": [
+        "die Erkl\xE4rung wird zur Waffe",
+        "das Subjekt wird Objekt",
+        "die Empathie wird gestrichen"
+      ],
+      "obstacles": [
+        "die Zust\xE4ndigkeit ist unklar",
+        "ein Beweis fehlt",
+        "die Definition ist nicht abschlie\xDFend"
+      ],
+      "stakes": [
+        "Der Einsatz ist G\xFCltigkeit.",
+        "Der Einsatz ist Kontrolle: \xFCber Bedeutung.",
+        "Der Einsatz ist Eindeutigkeit."
+      ],
+      "endings": [
+        "Damit ist der Vorgang abgeschlossen.",
+        "Und der Befund blieb bestehen.",
+        "Und niemand musste f\xFChlen."
+      ]
+    },
+    "speakers": [
+      "Der Gutachter",
+      "Das Protokoll",
+      "Die Instanz",
+      "Der Operator",
+      "Die Akte"
+    ]
+  },
+  "entdecker": {
+    "label": "Entdecker",
+    "weights": {
+      "mode": {
+        "myth": 2.1,
+        "mystery": 0,
+        "tech": 1.4,
+        "absurd": 1.3,
+        "body": 1.1,
+        "bureau": 1,
+        "post": 1
+      },
+      "structure": {
+        "fragment": 1.8,
+        "linear": 1.6,
+        "circle": 1.3,
+        "object": 1.2,
+        "reverse": 1
+      },
+      "perspective": {
+        "first": 1.7,
+        "we": 1.6,
+        "second": 1.2,
+        "third": 1.1,
+        "object": 1
+      },
+      "rhythm": {
+        "long": 1.8,
+        "breath": 1.4,
+        "fracture": 1.2,
+        "clean": 1,
+        "staccato": 0.9
+      }
+    },
+    "add": {
+      "motifs": [
+        "eine Karte, die weiterf\xFChrt",
+        "ein Rand, der ruft",
+        "eine T\xFCr hinter der T\xFCr",
+        "ein Zeichen, das Richtung hat"
+      ],
+      "hooks": [
+        "eine Spur im Staub",
+        "ein Lichtstreifen im Wasser",
+        "eine Kante, die einl\xE4dt"
+      ],
+      "turns": [
+        "der Ausgang ist innen",
+        "die Spur f\xFChrt nach innen",
+        "die Richtung wird zum Gesetz"
+      ],
+      "obstacles": [
+        "der Weg verschiebt sich",
+        "die Karte widerspricht sich",
+        "die T\xFCr ist da, aber anders"
+      ],
+      "stakes": [
+        "Der Einsatz ist Mut.",
+        "Der Einsatz ist Richtung.",
+        "Der Einsatz ist Entdeckung."
+      ],
+      "endings": [
+        "Und du gingst weiter.",
+        "Und der Ort \xF6ffnete sich.",
+        "Und die Richtung blieb."
+      ]
+    },
+    "speakers": [
+      "Die Karte",
+      "Der Weg",
+      "Die T\xFCr",
+      "Der Rand",
+      "Das Zeichen"
+    ]
+  }
+};
+
+// src/generation/archetype.ts
+function arch(id) {
+  return ARCHETYPES[id] || ARCHETYPES.neutral;
+}
+function archetypeAugmentList(baseList, archA, archB, key) {
+  const A = arch(archA), B = arch(archB);
+  const extra = [].concat(A.add?.[key] || []).concat(B.add?.[key] || []);
+  const base = Array.isArray(baseList) ? baseList : [];
+  if (extra.length) return base.concat(extra, extra);
+  return base;
+}
+
+// src/generation/verwandlung.ts
+function geschlecht(w) {
+  const kern = (w || "").trim().split(/\s+/).pop() || "";
+  return guessGender(kern.replace(/[^A-Za-zÄÖÜäöüß]/g, ""));
+}
+function leseVerwandlungen(roh) {
+  const raus = [];
+  for (const z of roh || []) {
+    const m = String(z).split(/\s*(?:→|->|>)\s*/);
+    if (m.length !== 2) continue;
+    const von = m[0].trim(), nach = m[1].trim();
+    if (!von || !nach || von.toLowerCase() === nach.toLowerCase()) continue;
+    const g1 = geschlecht(von), g2 = geschlecht(nach);
+    if (!g1 || !g2 || g1 !== g2) continue;
+    raus.push({ von, nach });
+  }
+  return raus;
+}
+function wieGefunden(gefunden, ziel) {
+  const grossAmAnfang = /^[A-ZÄÖÜ]/.test(gefunden);
+  return grossAmAnfang ? ziel.charAt(0).toUpperCase() + ziel.slice(1) : ziel.charAt(0).toLowerCase() + ziel.slice(1);
+}
+function verwandleMotive(text, paare) {
+  if (!text || !paare.length) return text;
+  let t = text;
+  for (const { von, nach } of paare) {
+    let gesehen = 0;
+    try {
+      const re = new RegExp(`(^|[^A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])(${escapeRegExp(von)})(?![A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])`, "gi");
+      t = t.replace(re, (ganz, davor, wort) => {
+        gesehen++;
+        return gesehen === 1 ? ganz : davor + wieGefunden(wort, nach);
+      });
+    } catch {
+    }
+  }
+  return t;
 }
 
 // src/constants.ts
@@ -168,6 +8064,542 @@ var DEFAULT_BANK = {
     "Und es war, als h\xE4tte der Ort kurz geblinzelt."
   ]
 };
+
+// src/generation/satzwaechter.ts
+var FUNKTION3 = /* @__PURE__ */ new Set([
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "und",
+  "oder",
+  "aber",
+  "doch",
+  "denn",
+  "sondern",
+  "als",
+  "wie",
+  "dass",
+  "ob",
+  "weil",
+  "wenn",
+  "ohne",
+  "mit",
+  "von",
+  "aus",
+  "an",
+  "auf",
+  "in",
+  "im",
+  "am",
+  "f\xFCr",
+  "zu",
+  "zum",
+  "zur",
+  "bei",
+  "beim",
+  "nach",
+  "vor",
+  "\xFCber",
+  "unter",
+  "neben",
+  "zwischen",
+  "hinter",
+  "durch",
+  "gegen",
+  "um",
+  "seit",
+  "es",
+  "sich",
+  "man",
+  "sie",
+  "er",
+  "wir",
+  "ich",
+  "du",
+  "ihr",
+  "was",
+  "wer",
+  "wo",
+  "so",
+  "nur",
+  "auch",
+  "noch",
+  "schon",
+  "sehr",
+  "nicht",
+  "kein",
+  "keine",
+  "jeder",
+  "jede",
+  "jedes",
+  "alle"
+]);
+var HAENGENDES_ENDE = /* @__PURE__ */ new Set([
+  "der",
+  "den",
+  "dem",
+  "des",
+  "und",
+  "oder",
+  "aber",
+  "sondern",
+  "als",
+  "dass",
+  "weil",
+  "wenn",
+  "f\xFCr",
+  "zwischen",
+  "seit"
+  // NICHT in der Liste: alles, was im Deutschen legitim am Satzende steht —
+  // trennbare Verbpartikel („geht auf", „holt ihn ein", „gibt nach"),
+  // Infinitiv-zu („um wahr zu sein"), Vergleiche („schwer wie Blei"),
+  // Pronomen und Zahlwörter („der Grat trägt nur einen", „statt einem",
+  // „will es sehr"). Die Gegenprobe über 6930 eingebaute Sätze hat die
+  // Liste auf diesen Kern gestutzt.
+]);
+var ADJEKTIV = /* @__PURE__ */ new Set([
+  "fest",
+  "echt",
+  "leicht",
+  "schlecht",
+  "recht",
+  "dicht",
+  "glatt",
+  "satt",
+  "bunt",
+  "kalt",
+  "alt",
+  "laut",
+  "tot",
+  "rot",
+  "gut",
+  "weit",
+  "hart",
+  "zart",
+  "nett",
+  "matt",
+  "sp\xE4t",
+  "bereit",
+  "breit",
+  "nackt",
+  "exakt",
+  "direkt",
+  "perfekt",
+  "korrekt",
+  "konkret",
+  "komplett",
+  "ernst",
+  "feist",
+  "meist",
+  "erst",
+  "zun\xE4chst",
+  "h\xF6chst",
+  "\xE4u\xDFerst",
+  "einst",
+  "sonst",
+  "fast",
+  "blo\xDF"
+]);
+var HILFSVERB = /* @__PURE__ */ new Set([
+  "bin",
+  "bist",
+  "sind",
+  "seid",
+  "war",
+  "warst",
+  "waren",
+  "wart",
+  "sei",
+  "w\xE4re",
+  "w\xE4ren",
+  "hab",
+  "habe",
+  "hast",
+  "haben",
+  "habt",
+  "hatte",
+  "hatten",
+  "h\xE4tte",
+  "h\xE4tten",
+  "werde",
+  "wirst",
+  "wird",
+  "werden",
+  "werdet",
+  "wurde",
+  "wurden",
+  "w\xFCrde",
+  "w\xFCrden",
+  "kann",
+  "kannst",
+  "k\xF6nnen",
+  "k\xF6nnt",
+  "konnte",
+  "konnten",
+  "k\xF6nnte",
+  "k\xF6nnten",
+  "muss",
+  "musst",
+  "m\xFCssen",
+  "m\xFCsst",
+  "musste",
+  "mussten",
+  "m\xFCsste",
+  "darf",
+  "darfst",
+  "d\xFCrfen",
+  "d\xFCrft",
+  "durfte",
+  "durften",
+  "d\xFCrfte",
+  "soll",
+  "sollst",
+  "sollen",
+  "sollt",
+  "sollte",
+  "sollten",
+  "mag",
+  "magst",
+  "m\xF6gen",
+  "m\xF6gt",
+  "mochte",
+  "m\xF6chte",
+  "m\xF6chten",
+  "will",
+  "willst",
+  "wollen",
+  "wollt",
+  "wollte",
+  "wollten",
+  "l\xE4sst",
+  "lie\xDF",
+  "lie\xDFen",
+  "gibt",
+  "gab",
+  "gaben",
+  "tut",
+  "tat",
+  "schw\xF6r",
+  "schw\xF6re"
+]);
+var verbKandidat = (roh, istErstes = false) => {
+  if (!istErstes && /^[A-ZÄÖÜ]/.test(roh)) return false;
+  const w = roh.toLowerCase().replace(/[^a-zäöüß]/g, "");
+  if (!w || FUNKTION3.has(w) || KEIN_VERB.has(w) || ADJEKTIV.has(w)) return false;
+  if (HILFSVERB.has(w) || istVerbform(w)) return true;
+  return /(t|st|e|en|eln|ern|elt|ert)$/.test(w) && !/(heit|keit|ung|schaft|tät|ment|iert)$/.test(w) && !/(em|er|es)$/.test(w) && w.length >= 3;
+};
+var woerter2 = (s) => s.split(/\s+/).map((w) => w.replace(/[„“"»«().!?…;:]+/g, "")).filter(Boolean);
+var NP_KOPF2 = /^(der|die|das|ein|eine|einen|kein|keine|zwei|drei|viele|manche|jede[rs]?|irgendein|lauter)\b/i;
+function pruefeSatz(satz) {
+  const bare = satz.trim().replace(/[.!?…]+$/, "").trim();
+  if (!bare) return 2;
+  const ws = woerter2(bare);
+  if (!ws.length) return 2;
+  const letztes = ws[ws.length - 1].toLowerCase();
+  if (HAENGENDES_ENDE.has(letztes)) return 1;
+  const hatVerb = ws.some((w, i) => verbKandidat(w, i === 0));
+  if (!hatVerb) {
+    if (ws.length > 12) return 2;
+    const kern = bare.replace(/^(und|aber|doch|dann|denn|oder|nur|auch)\s+/i, "");
+    const kopf = kern.split(/\s+/)[0] || "";
+    const ADVERB_KOPF = /^(irgendwo|irgendwann|irgendwie|dort|hier|heute|morgen|gestern|vielleicht|manchmal|so|bald|überall|nirgends|nirgendwo|draußen|drinnen|oben|unten|jetzt|damals|dennoch|trotzdem|deshalb|darum|davor|danach|zuerst|zuletzt|womöglich|angeblich|vermutlich|wahrscheinlich)$/i;
+    const nomenKopf = /^[A-ZÄÖÜ]/.test(kopf) && !ADVERB_KOPF.test(kopf) && !FUNKTION3.has(kopf.toLowerCase());
+    const prepKopf = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zu|zum|zur|mit|durch|gegen|um|seit|während|trotz|wegen)$/i.test(kopf);
+    if (ws.length > 5 && !NP_KOPF2.test(kern) && !nomenKopf && !prepKopf) return 2;
+  }
+  for (const teil of bare.split(/,\s*/).slice(1)) {
+    const tw = woerter2(teil);
+    if (!tw.length || !/^(was|wer|der|die|das|dem|den|wo|wie)$/i.test(tw[0])) continue;
+    const undIdx = tw.findIndex((w, i) => i > 0 && /^(und|oder)$/i.test(w));
+    if (undIdx > 1 && verbKandidat(tw[undIdx + 1] || "", false) && !tw.slice(1, undIdx).some((w) => verbKandidat(w, false))) return 3;
+  }
+  const PREP_KOPF = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zum|zur|mit|durch|gegen|seit|trotz|wegen)$/i;
+  for (const teil of bare.split(/,\s*/)) {
+    const tw = woerter2(teil);
+    if (tw.length < 4 || !PREP_KOPF.test(tw[0])) continue;
+    if (/^(dem|denen|deren|dessen|welche[rmn]?)$/i.test(tw[1] || "")) continue;
+    if (tw.slice(1).some((w) => /^zu$/i.test(w))) continue;
+    const vi = tw.findIndex((w, i) => i > 1 && verbKandidat(w, false));
+    if (vi < 2) continue;
+    if (tw.slice(1, vi).some((w) => /^(es|er|sie|wir|ich|du|man|jemand|niemand|etwas|nichts|alles)$/i.test(w))) continue;
+    const rest = tw.slice(vi + 1);
+    if (/^(wie|als)$/i.test(rest[0] || "") && rest.length <= 2) return 4;
+  }
+  for (const teil of bare.split(/[,;]\s*|\s+(?:und|aber|oder|doch|sondern)\s+/i)) {
+    if (!/\bl(ä|ie)(ss|ß)t?\s+(es\s+)?sich\b/i.test(teil)) continue;
+    const tw = woerter2(teil);
+    const letztes2 = (tw[tw.length - 1] || "").toLowerCase();
+    if (!letztes2 || /^[A-ZÄÖÜ]/.test(tw[tw.length - 1] || "")) continue;
+    if (FUNKTION3.has(letztes2) || ADJEKTIV.has(letztes2) || HILFSVERB.has(letztes2)) continue;
+    if (/t$/.test(letztes2) && !/(en|eln|ern)$/.test(letztes2)) return 5;
+  }
+  const finit = (w) => {
+    const l = w.toLowerCase();
+    if (HILFSVERB.has(l)) return true;
+    return /^[a-zäöüß]{3,}t$/.test(l) && !FUNKTION3.has(l) && !ADJEKTIV.has(l) && !KEIN_VERB.has(l) && istVerbform(l);
+  };
+  for (const teil of bare.split(/[,;:—–]\s*/)) {
+    const tw = woerter2(teil);
+    for (let i = 0; i + 3 < tw.length; i++) {
+      if (!finit(tw[i]) || !/^(der|die|das|den|dem|ein|eine|einen|einem)$/i.test(tw[i + 1])) continue;
+      if (!/^[A-ZÄÖÜ]/.test(tw[i + 2])) continue;
+      if (HILFSVERB.has(tw[i + 3].toLowerCase())) return 6;
+    }
+  }
+  {
+    const auf = (bare.match(/[„»]/g) || []).length, zu = (bare.match(/[“«]/g) || []).length;
+    if (auf !== zu) return 7;
+  }
+  for (const teil of bare.split(/[,;:—–]\s*/))
+    if (/^es gibt(\s+(jetzt|hier|dort|noch|nur|auch|bald|immer|nie))?$/i.test(teil.trim())) return 8;
+  return 0;
+}
+function satzPlausibel(satz) {
+  return pruefeSatz(satz) === 0;
+}
+function stueckPlausibel(text) {
+  const saetze = (text || "").split(/(?<=[.!?…])\s+/).map((s) => s.trim()).filter(Boolean);
+  if (!saetze.length) return false;
+  for (const satz of saetze) {
+    const regel = pruefeSatz(satz);
+    if (regel) {
+      zaehle(`regel${regel}`, satz);
+      return false;
+    }
+  }
+  zaehle("angenommen", Math.random() < 0.1 ? text : void 0);
+  return true;
+}
+
+// src/corpus.ts
+function loadPersistentCorpus() {
+  try {
+    return localStorage.getItem(STORAGE_CORPUS) || "";
+  } catch {
+    return "";
+  }
+}
+var GERUEST_ZEILE = /^\s*(Faktenkasten\b|Kurz gemeldet\s*$|Fiktive Zeitung\b|Zeitzeichen\s*[·|]|Nr\.\s*\d+\s*[·|]|UNABHÄNGIG\b|SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/;
+function corpusSanitize(text) {
+  let s = (text ?? "").toString();
+  s = s.split(/\r?\n/).filter((z) => !/^\s*(SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/.test(z)).map((z) => z.replace(/^\s*(?:Shot\s*\d+\s*\([^)]*\)|(?:DE|EN)\s*:)\s*/, "")).join("\n");
+  s = s.replace(/\([^()]*\)/g, " ");
+  s = s.replace(/\b(?:gegen|um|ab|seit|bis)\s+\d{1,2}:\d{2}\b\s*(?:—|–)?\s*/gi, "");
+  s = s.replace(/\b\d{1,2}:\d{2}\b\s*—\s*/g, "");
+  s = s.replace(/\b(Schluss|Notiz|Rand|Gestern|Jetzt|Später|Drei Tage später)\s*—\s*/g, "");
+  s = s.replace(/\bSZENE:\s*/g, "");
+  s = s.split(/\r?\n/).filter((z) => !GERUEST_ZEILE.test(z)).join("\n");
+  s = s.replace(/Faktenkasten\s*·[^\n]*?(?:\.(?=\s+[A-ZÄÖÜ])|$)/g, " ");
+  s = s.replace(/—\s*(?=[.—])/g, "");
+  s = s.replace(/\.{2,}/g, ".");
+  s = s.replace(/\s+/g, " ").trim();
+  return s;
+}
+function isSaneMarkov(s) {
+  if (!s || s.length < 20) {
+    zaehle("markovKurz", s);
+    return false;
+  }
+  const words = s.split(/\s+/);
+  if (words.length < 5) {
+    zaehle("markovWenigWoerter", s);
+    return false;
+  }
+  const freq = {};
+  for (const w of words) freq[w] = (freq[w] || 0) + 1;
+  const maxFreq = Math.max(...Object.values(freq));
+  if (maxFreq / words.length > 0.5) {
+    zaehle("markovWiederholung", s);
+    return false;
+  }
+  const functionWords = /* @__PURE__ */ new Set([
+    "der",
+    "die",
+    "das",
+    "den",
+    "dem",
+    "des",
+    "ein",
+    "eine",
+    "einen",
+    "einem",
+    "einer",
+    "eines",
+    "in",
+    "auf",
+    "an",
+    "bei",
+    "mit",
+    "nach",
+    "von",
+    "aus",
+    "vor",
+    "hinter",
+    "\xFCber",
+    "unter",
+    "neben",
+    "zwischen"
+  ]);
+  let fn = 0;
+  for (const w of words) if (functionWords.has(w.toLowerCase())) fn++;
+  if (fn / words.length > 0.6) {
+    zaehle("markovFunktionswoerter", s);
+    return false;
+  }
+  const sentences = s.split(/[.!?]+/).filter(Boolean);
+  for (const sentence of sentences) {
+    const n = sentence.trim().split(/\s+/).length;
+    if (n > 30 || n < 2) {
+      zaehle("markovSatzlaenge", s);
+      return false;
+    }
+  }
+  const phrases = [];
+  for (let i = 0; i < words.length - 2; i++) phrases.push(words.slice(i, i + 3).join(" "));
+  const pc = {};
+  for (const p of phrases) pc[p] = (pc[p] || 0) + 1;
+  for (const c of Object.values(pc)) if (c >= 3) {
+    zaehle("markovSatzzeichen", s);
+    return false;
+  }
+  if (/\b(Schluss|Notiz|Rand)\s*—|\bSZENE:|dass\s*—|,\s*dass\s*$/i.test(s)) {
+    zaehle("markovBruchstueck", s);
+    return false;
+  }
+  if (/[—–]\s*$/.test(s.trim())) {
+    zaehle("markovBruchstueck", s);
+    return false;
+  }
+  const AUX_MK = /* @__PURE__ */ new Set(["bin", "bist", "ist", "sind", "seid", "war", "warst", "waren", "wart", "hatte", "hattest", "hatten", "hat", "habe", "hast", "habt", "haben", "wurde", "wurdest", "wurden", "wird", "werde", "werden", "w\xE4re", "w\xE4rst", "w\xE4ren"]);
+  const CONN_MK = /* @__PURE__ */ new Set(["und", "oder", "aber", "denn", "sondern", "doch", "weil", "dass", "wenn", "als", "w\xE4hrend", "obwohl", "damit", "sodass", "bevor", "nachdem", "ob", "wie", "wo", "der", "die", "das", "dem", "den"]);
+  for (let i = 0; i < words.length; i++) {
+    const wi = words[i].toLowerCase().replace(/[^a-zäöüß]/g, "");
+    if (!AUX_MK.has(wi)) continue;
+    for (let j = i + 1; j <= Math.min(words.length - 1, i + 3); j++) {
+      const wj = words[j].toLowerCase().replace(/[^a-zäöüß]/g, "");
+      if (CONN_MK.has(wj) || /[,;:]/.test(words[j])) break;
+      const finite = /(t|te|ten|st)$/.test(wj) && CLAUSE_VERBS.has(wj) && !/^ge/.test(wj) && !AUX_MK.has(wj);
+      if (finite) return false;
+    }
+  }
+  const lw = words.map((w) => w.toLowerCase().replace(/[^a-zäöüß]/g, ""));
+  for (let i = 0; i < lw.length; i++) {
+    if (lw[i].length < 5) continue;
+    for (let j = i + 1; j <= Math.min(lw.length - 1, i + 3); j++) {
+      if (lw[j] === lw[i]) return false;
+    }
+  }
+  if (!stueckPlausibel(s)) return false;
+  return true;
+}
+var MK_TAIL_STOP = /* @__PURE__ */ new Set([
+  "und",
+  "oder",
+  "aber",
+  "denn",
+  "sondern",
+  "doch",
+  "wie",
+  "als",
+  "ob",
+  "dass",
+  "weil",
+  "w\xE4hrend",
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "zu",
+  "in",
+  "auf",
+  "an",
+  "mit",
+  "von",
+  "aus",
+  "vor",
+  "f\xFCr",
+  "bei",
+  "nach",
+  "\xFCber",
+  "unter",
+  "noch",
+  "nur",
+  "auch",
+  "so",
+  "dann",
+  "genau",
+  "im",
+  "am",
+  "beim",
+  "zum",
+  "zur",
+  "ins",
+  "vom",
+  "ans",
+  "aufs",
+  "f\xFCrs",
+  "durchs",
+  "\xFCbers",
+  "ums"
+]);
+function smoothMarkov(s) {
+  let words = (s || "").trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "";
+  const norm2 = (w) => w.toLowerCase().replace(/[^a-zäöüß]/g, "");
+  const dedup = [];
+  for (const w of words) {
+    const prev = dedup[dedup.length - 1];
+    if (prev && norm2(prev) && norm2(prev) === norm2(w)) continue;
+    dedup.push(w);
+  }
+  words = dedup;
+  while (words.length > 3 && MK_TAIL_STOP.has(norm2(words[words.length - 1]))) words.pop();
+  let t = words.join(" ").replace(/\s+([,.;:!?…])/g, "$1").trim();
+  t = t.replace(/[\s,;:—–-]+$/, "");
+  if (t && !/[.!?…]$/.test(t)) t += ".";
+  t = t.replace(/^([a-zäöüß])/, (c) => c.toUpperCase());
+  return t;
+}
+
+// src/generation/autochoice.ts
+function mergeWeights(a, b) {
+  const out = {};
+  for (const [k, w] of Object.entries(a || {})) out[k] = (out[k] || 0) + w;
+  for (const [k, w] of Object.entries(b || {})) out[k] = (out[k] || 0) + w;
+  return out;
+}
+function weightedPick(map) {
+  const entries = Object.entries(map || {}).filter(([, w]) => Number.isFinite(w) && w > 0);
+  if (!entries.length) return null;
+  let sum = 0;
+  for (const [, w] of entries) sum += w;
+  let r = Math.random() * sum;
+  for (const [k, w] of entries) {
+    r -= w;
+    if (r <= 0) return k;
+  }
+  return entries[entries.length - 1][0];
+}
+function biasedAutoChoice(kind, archA, archB) {
+  return weightedPick(mergeWeights(arch(archA).weights?.[kind], arch(archB).weights?.[kind]));
+}
 
 // src/presets.data.ts
 var BUILTIN_PRESETS = {
@@ -7842,8399 +16274,6 @@ var BUILTIN_PRESETS = {
   }
 };
 
-// src/features/spannungskurve.ts
-var STUETZEN = 7;
-var KEY = "dm_spannungskurve_v1";
-var KURVEN_VORLAGEN = {
-  steigend: { name: "Steigend", werte: [0.15, 0.25, 0.35, 0.5, 0.65, 0.9, 0.3] },
-  spaet: { name: "Sp\xE4te Wende", werte: [0.2, 0.3, 0.25, 0.2, 0.3, 0.95, 0.35] },
-  doppelt: { name: "Doppelt", werte: [0.2, 0.5, 0.85, 0.35, 0.6, 0.95, 0.25] },
-  katastrophe: { name: "Katastrophe zuerst", werte: [0.95, 0.7, 0.45, 0.35, 0.3, 0.4, 0.25] },
-  flach: { name: "Flach", werte: [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3] },
-  offen: { name: "Offen", werte: [0.2, 0.3, 0.4, 0.5, 0.65, 0.8, 0.9] }
-};
-var klemm = (x) => Math.max(0, Math.min(1, Number.isFinite(x) ? x : 0.3));
-function ladeKurve() {
-  try {
-    const v = JSON.parse(localStorage.getItem(KEY) || "null");
-    const werte2 = Array.isArray(v?.werte) && v.werte.length === STUETZEN ? v.werte.map(klemm) : [...KURVEN_VORLAGEN["steigend"].werte];
-    return { an: !!v?.an, werte: werte2 };
-  } catch {
-    return { an: false, werte: [...KURVEN_VORLAGEN["steigend"].werte] };
-  }
-}
-function kurveWert(werte2, p) {
-  const n = werte2.length;
-  if (n === 0) return 0.3;
-  if (n === 1) return klemm(werte2[0]);
-  const x = klemm(p) * (n - 1);
-  const i = Math.min(n - 2, Math.floor(x));
-  const t2 = x - i;
-  return klemm(werte2[i] * (1 - t2) + werte2[i + 1] * t2);
-}
-
-// src/modes.data.ts
-var MODE_DATA = {
-  "bureau": {
-    "label": "B\xFCrokratischer Horror",
-    "nouns": [
-      "Antrag",
-      "Sachbearbeiter",
-      "Stempel",
-      "Akte",
-      "Frist",
-      "Formular",
-      "Wartemarke",
-      "Kopie",
-      "Bescheid",
-      "Protokoll"
-    ],
-    "verbs": [
-      "beantragen",
-      "stempeln",
-      "ablegen",
-      "pr\xFCfen",
-      "verschieben",
-      "archivieren",
-      "verweigern",
-      "unterschreiben",
-      "eintragen",
-      "verlangen"
-    ],
-    "images": [
-      "wie ein Stempel auf der Seele",
-      "wie Papier, das atmet",
-      "wie ein Flur ohne Ende",
-      "wie ein Formular, das l\xFCgt"
-    ],
-    "rules": [
-      "Die Frist ist r\xFCckwirkend.",
-      "Das Feld muss leer bleiben.",
-      "Die Kopie ist das Original."
-    ]
-  },
-  "tech": {
-    "label": "Technologische Mystik",
-    "nouns": [
-      "Signal",
-      "Protokoll",
-      "Schnittstelle",
-      "Sensor",
-      "Cache",
-      "Port",
-      "Terminal",
-      "Rauschen",
-      "Update",
-      "Log"
-    ],
-    "verbs": [
-      "pingen",
-      "loggen",
-      "cachen",
-      "rendern",
-      "debuggen",
-      "synchronisieren",
-      "\xFCberschreiben",
-      "parsen",
-      "encrypten",
-      "deployen"
-    ],
-    "images": [
-      "wie ein Signal im Leeren",
-      "wie Rauschen, das Namen formt",
-      "wie ein Cache voller W\xE4rme",
-      "wie ein Port, der wartet"
-    ],
-    "rules": [
-      "Das System lernt zu schnell.",
-      "Die Uhrzeit ist ein Platzhalter.",
-      "Ein Backup \xFCberschreibt die Gegenwart."
-    ]
-  },
-  "body": {
-    "label": "Intime K\xF6rperwahrnehmung",
-    "nouns": [
-      "Puls",
-      "Atem",
-      "Narbe",
-      "Kehle",
-      "Haut",
-      "Schmerz",
-      "Zittern",
-      "W\xE4rme",
-      "K\xE4lte",
-      "Blick"
-    ],
-    "verbs": [
-      "atmen",
-      "zittern",
-      "sp\xFCren",
-      "erinnern",
-      "greifen",
-      "loslassen",
-      "wahrnehmen",
-      "schmerzen",
-      "klopfen",
-      "w\xE4rmen"
-    ],
-    "images": [
-      "wie ein Atem, der zu sp\xE4t kommt",
-      "wie W\xE4rme ohne Ursache",
-      "wie ein Puls, der antwortet",
-      "wie K\xE4lte im Knochen"
-    ],
-    "rules": [
-      "Der K\xF6rper wei\xDF es zuerst.",
-      "Die Wahrheit sitzt im Hals.",
-      "Der Schmerz ist ein Hinweis."
-    ]
-  },
-  "myth": {
-    "label": "Mythologischer Alltag",
-    "nouns": [
-      "F\xE4hrmann",
-      "Omen",
-      "Faden",
-      "Maske",
-      "Schrein",
-      "Fluch",
-      "Segen",
-      "Nymphe",
-      "Orakel",
-      "Bote"
-    ],
-    "verbs": [
-      "weben",
-      "opfern",
-      "deuten",
-      "rufen",
-      "wachen",
-      "taufen",
-      "verf\xFChren",
-      "segnen",
-      "fordern",
-      "erinnern"
-    ],
-    "images": [
-      "wie Ru\xDF auf Gold",
-      "wie Wasser, das zuh\xF6rt",
-      "wie ein altes Versprechen",
-      "wie ein Gott in Zivil"
-    ],
-    "rules": [
-      "Der Ort verlangt eine Gabe.",
-      "Der Name ist ein Schl\xFCssel.",
-      "Das Zeichen kommt dreimal."
-    ]
-  },
-  "absurd": {
-    "label": "Absurd-logische Welt",
-    "nouns": [
-      "Beweis",
-      "Paradoxon",
-      "Ausrede",
-      "Gabelung",
-      "Randnotiz",
-      "Handbuch",
-      "Einspruch",
-      "Punkt",
-      "Linie",
-      "Hintert\xFCr"
-    ],
-    "verbs": [
-      "widerlegen",
-      "umdrehen",
-      "vertauschen",
-      "behaupten",
-      "kollabieren",
-      "vereinbaren",
-      "winken",
-      "klammern",
-      "kippen",
-      "vereinfachen"
-    ],
-    "images": [
-      "wie ein Witz mit Z\xE4hnen",
-      "wie Logik auf Glatteis",
-      "wie ein Kreis, der eckig wird",
-      "wie eine T\xFCr ohne Wand"
-    ],
-    "rules": [
-      "Alles ist korrekt \u2013 nur in falscher Reihenfolge.",
-      "Der Ausgang ist innen.",
-      "Du darfst gehen, aber nicht ankommen."
-    ]
-  },
-  "post": {
-    "label": "Posthumaner Monolog",
-    "nouns": [
-      "Instanz",
-      "Kollektiv",
-      "Backup",
-      "Rauschen",
-      "Archiv",
-      "Knoten",
-      "Schnitt",
-      "Speicher",
-      "Echo",
-      "Prozess"
-    ],
-    "verbs": [
-      "persistieren",
-      "rekonstruieren",
-      "simulieren",
-      "abgleichen",
-      "verzweigen",
-      "entkoppeln",
-      "konvergieren",
-      "\xFCberschreiben",
-      "erscheinen",
-      "l\xF6schen"
-    ],
-    "images": [
-      "wie ein Ged\xE4chtnis ohne K\xF6rper",
-      "wie Stimmen im Datennebel",
-      "wie eine Erinnerung aus Metall",
-      "wie W\xE4rme in Zahlen"
-    ],
-    "rules": [
-      "Ich bin nicht ich, nur Version.",
-      "Die Datei ist \xE4lter als du.",
-      "Ein Satz wurde entfernt \u2013 und wirkt nach."
-    ]
-  }
-};
-
-// src/text-utils.ts
-function clean(s) {
-  return (s ?? "").toString().trim().replace(/\s+/g, " ");
-}
-function pick(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-function pickSane(arr, minWords = 2) {
-  const list = Array.isArray(arr) ? arr : [];
-  const ok = list.filter(
-    (x) => String(x ?? "").trim().split(/\s+/).filter(Boolean).length >= minWords
-  );
-  return (ok.length ? pick(ok) : pick(list)) ?? "";
-}
-function chance(p) {
-  return Math.random() < p;
-}
-function ensurePunct(s) {
-  s = clean(s);
-  if (!s) return "";
-  return /[.!?…]$/.test(s) ? s : s + ".";
-}
-function escapeRegExp(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-var MONATE = /^(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember|Jahrhunderts?|Jh\.|Hälfte|Auflage|Band|Kapitel|Absatz|Teil)\b/u;
-var ORDNUNGSZAHL = /\d\.$/;
-var ABKUERZUNG = /(?:^|\s)(?:[A-Za-zÄÖÜäöü]|ca|bzw|bspw|evtl|ggf|inkl|Nr|St|Dr|Prof|Abs|Art|Bd|Hrsg|usw|etc)\.$/u;
-function keineGrenze(vor, nach) {
-  if (ABKUERZUNG.test(vor)) return true;
-  if (!ORDNUNGSZAHL.test(vor)) return false;
-  return MONATE.test(nach) || /^\d/.test(nach);
-}
-function splitSentences(txt) {
-  const flach = txt.replace(/\s+/g, " ").trim();
-  const roh = flach.split(/(?<=[.!?…])\s+/).filter(Boolean);
-  const raus = [];
-  for (const teil of roh) {
-    const vor = raus[raus.length - 1];
-    if (vor && keineGrenze(vor, teil)) raus[raus.length - 1] = vor + " " + teil;
-    else raus.push(teil);
-  }
-  return raus;
-}
-var HAENGT_IN_DER_LUFT = /(^|\s)(ein|eine|einem|einen|einer|eines|der|die|das|dem|den|des|und|oder|aber|wie|als|im|am|beim|zum|zur|vom|von|für|ohne|durch|gegen|bei|seit|während|wegen|trotz|dass|weil|denn|sondern|sowie|bzw|etwa|sehr|dessen|deren|welche[rsmn]?)$/i;
-function kuerzeAmBruch(text) {
-  let t2 = (text || "").replace(/\s*…\s*$/, "").replace(/\s*[.,;:–—-]+\s*$/, "").trim();
-  for (let i = 0; i < 8 && t2 && HAENGT_IN_DER_LUFT.test(t2); i++) {
-    const komma = t2.lastIndexOf(",");
-    if (komma >= 12) {
-      t2 = t2.slice(0, komma).replace(/\s*[.,;:–—-]+\s*$/, "").trim();
-      continue;
-    }
-    const ohneWort = t2.replace(/\s+\S+$/, "").replace(/\s*[.,;:–—-]+\s*$/, "").trim();
-    if (!ohneWort || ohneWort === t2) {
-      t2 = "";
-      break;
-    }
-    t2 = ohneWort;
-  }
-  {
-    const komma = t2.lastIndexOf(",");
-    if (komma >= 12) {
-      const schwanz = t2.slice(komma + 1).trim();
-      const relativ = /^(der|die|das|dem|den|dessen|deren|welche[rsmn]?|wo|worin|woran)\s/i.test(schwanz);
-      const hatVerb = /(?:^|[^A-Za-zÄÖÜäöüß])[a-zäöüß]{2,}(?:t|te|en|st|et)(?![A-Za-zÄÖÜäöüß])/.test(schwanz);
-      const endetAufNomen = /[A-ZÄÖÜ][a-zäöüß]+$/.test(schwanz);
-      if (relativ && endetAufNomen && !hatVerb) t2 = t2.slice(0, komma).trim();
-    }
-  }
-  for (let i = 0; i < 4; i++) {
-    const m = t2.match(/(\S+)\s+(an|auf|aus|ein|mit|nach|vor|zu|über|unter|um|ab|bei|los|weg|hin|her)$/i);
-    if (!m || !/^[A-ZÄÖÜ]/.test(m[1])) break;
-    t2 = t2.replace(/\s+\S+$/, "").trim();
-  }
-  return HAENGT_IN_DER_LUFT.test(t2) ? "" : t2;
-}
-function namensErsetzer(name) {
-  const mitArtikel = /^(ein|eine|einen|einem|einer|der|die|das|den|dem|des)\s/i.test(name);
-  return (m) => mitArtikel && /^[a-zäöü]/.test(m) ? name.charAt(0).toLowerCase() + name.slice(1) : name;
-}
-
-// src/generation/verblex.data.ts
-var GRUND = `
-achten \xE4chzen ahnen \xE4ndern \xE4rgern arbeiten atmen backen baden bangen bauen beben bedeuten beeilen befehlen beginnen begreifen
-behalten bei\xDFen bellen bergen bersten beten betteln beugen bewegen biegen bieten bilden binden bitten blasen bleiben blenden blicken
-blinken blinzeln blitzen bl\xFChen bluten bohren borgen brauchen brausen brechen bremsen brennen bringen br\xFCllen brummen buchen b\xFCcken
-b\xFCgeln b\xFCrsten danken decken dehnen denken deuten dichten dienen d\xF6sen dr\xE4ngen drehen dreschen dringen drohen dr\xF6hnen drucken dr\xFCcken
-dulden dunkeln d\xFCrfen duften d\xFCngen d\xFCnken durchqueren ebben ehren eignen eilen einen eitern ekeln enden entbehren entgleiten erben
-erl\xF6schen ernten essen f\xE4cheln fahren fallen falten fangen fassen fasten fauchen fechten fegen fehlen feiern feilen feixen fesseln
-feuern finden fischen flackern flattern flechten flehen flicken fliegen fliehen flie\xDFen flimmern flirren fl\xF6ten fluchen fluten
-fl\xFCstern folgen fordern forschen fragen fressen freuen frieren f\xFCgen f\xFChlen f\xFChren f\xFCllen funkeln f\xFCrchten fu\xDFen g\xE4hnen g\xE4ren gaffen
-geben gedeihen gehen gehorchen geh\xF6ren gelingen gelten genesen genie\xDFen geraten geschehen gewinnen gie\xDFen gl\xE4nzen glauben gleichen
-gleiten glimmen glitzern gl\xFChen g\xF6nnen graben grasen greifen grinsen grollen gr\xFCbeln gr\xFCnen gr\xFC\xDFen gucken haben hacken haften hageln
-haken hallen halten h\xE4mmern handeln h\xE4ngen harren hassen hasten hauchen hauen h\xE4ufen heben heften hegen heilen hei\xDFen heizen helfen
-hemmen herrschen hetzen heulen hinken hocken hoffen holen horchen h\xF6ren huldigen h\xFCllen humpeln hungern hupen h\xFCpfen husten h\xFCten
-irren jagen jammern jauchzen jubeln k\xE4mmen k\xE4mpfen kauen kaufen kehren keimen kennen kichern kippen kitzeln klagen klappen klappern
-kl\xE4ren klatschen kleben kleiden klettern klingeln klingen klirren klopfen knabbern knacken knallen knarren kneifen kneten knicken
-knien knirschen knistern kn\xFCpfen kochen kommen k\xF6nnen kosten krachen kr\xE4hen kr\xE4nken kratzen kreisen kreuzen kriechen kriegen
-kritzeln kr\xFCmmen k\xFChlen k\xFCmmern k\xFCrzen k\xFCssen lachen laden lagern l\xE4hmen landen langen lassen lasten lauern laufen lauschen lauten
-l\xE4uten leben lecken legen lehnen lehren leiden leihen leisten leiten lenken lernen lesen leuchten lieben liefern liegen lindern
-loben locken lodern lohnen l\xF6schen l\xF6sen l\xFCgen lutschen machen mahlen mahnen malen mangeln meiden meinen melden melken merken messen
-mischen missen m\xF6gen morden m\xFCssen munkeln murmeln nagen n\xE4hen nahen n\xE4hern n\xE4hren naschen necken nehmen neigen nennen nesteln
-nicken nieseln nippen nisten n\xF6rgeln nutzen n\xFCtzen \xF6ffnen opfern ordnen packen passen pausieren peitschen pfeifen pflanzen pflegen
-pfl\xFCcken picken plagen platzen plaudern pochen poltern pr\xE4gen prallen prangen prasseln predigen preisen pressen probieren pr\xFCfen
-pr\xFCgeln pulsieren pumpen putzen qu\xE4len quellen quietschen raffen ragen rasen rasten raten rauben rauchen r\xE4umen rauschen rechnen
-reden regen regnen reiben reichen reifen reihen reimen reisen rei\xDFen reiten rennen retten reuen richten riechen ringen rinnen
-ritzen rollen rosten r\xFCcken rudern rufen ruhen r\xFChmen r\xFChren r\xFCtteln s\xE4en sagen sammeln s\xE4umen saugen s\xE4useln schaben schaffen
-schallen schalten sch\xE4men scharren sch\xE4tzen schauen schaufeln schaukeln scheiden scheinen scheitern schellen schelten schenken
-scheren scheuchen scheuen schicken schieben schielen schie\xDFen schildern schimmern schimpfen schinden schlafen schlagen schleichen
-schleifen schleppen schleudern schlie\xDFen schlingen schlucken schl\xFCpfen schmecken schmeicheln schmelzen schmerzen schmieden
-schmieren schm\xFCcken schmunzeln schnappen schnarchen schneiden schneien schn\xFCren schnuppern schonen sch\xF6pfen schrauben schreiben
-schreien schreiten schrumpfen sch\xFCren sch\xFCrfen sch\xFCtteln sch\xFCtten sch\xFCtzen schwanken schw\xE4rmen schwatzen schweben schweifen
-schweigen schwellen schwenken schwimmen schwinden schwingen schwitzen schw\xF6ren segeln segnen sehen sehnen seufzen sichern sichten
-sickern sieden siegen singen sinken sinnen sitzen sollen sorgen sp\xE4hen spalten spannen sparen spazieren speien speisen spenden
-sperren spielen spinnen spotten sprechen sprengen sprie\xDFen springen spritzen spr\xFChen spucken sp\xFClen sp\xFCren stammeln stammen
-stampfen stapeln starren stauben staunen stechen stecken stehen stehlen steigen steinigen stellen sterben steuern sticken
-stinken st\xF6hnen stolpern stopfen st\xF6ren sto\xDFen strahlen stranden streben strecken streichen streicheln streiten streuen
-stricken str\xF6men st\xFCrmen st\xFCrzen stutzen st\xFCtzen suchen summen s\xFCndigen tadeln tagen tanken tanzen tappen tasten tauchen tauen
-taugen taumeln tauschen t\xE4uschen teilen tilgen toben t\xF6nen tosen traben trachten tragen trampeln trauen trauern tr\xE4umen treffen
-treiben trennen treten triefen trinken trocknen trommeln tropfen tr\xF6sten trotzen tr\xFCben tun t\xFCrmen \xFCben umarmen urteilen
-vergessen verlieren verzeihen wachen wachsen wagen w\xE4hlen w\xE4hnen wahren w\xE4hren wandeln wandern wanken w\xE4rmen warnen warten waschen
-weben wechseln wecken wehen wehren weichen weiden weigern weihen weilen weinen weisen weiten welken wenden werben werden werfen
-werken wetten wickeln widmen wiegen wimmeln wimmern winden winken wirbeln wirken wischen wissen wittern wohnen w\xF6lben wollen
-wuchern w\xFChlen wundern w\xFCnschen w\xFCrdigen w\xFCrgen w\xFCrzen zagen zahlen z\xE4hlen z\xE4hmen zaubern zaudern zausen zehren zeichnen zeigen
-zerren zeugen ziehen zielen ziemen zieren zischen zittern z\xF6gern zucken zupfen zw\xE4ngen zweifeln zwingen zwinkern zwitschern
-adeln \xE4hneln akzeptieren analysieren antworten applaudieren beantworten begegnen begleiten behaupten beobachten berichten
-ber\xFChren beschreiben besitzen bestimmen besuchen betrachten betreten beweisen bezahlen br\xFCten datieren definieren diskutieren
-d\xE4mmern d\xE4mpfen dampfen detonieren donnern duschen entdecken entscheiden entschuldigen entwickeln erinnern erkennen erkl\xE4ren
-erlauben erleben erreichen erschrecken erwarten erz\xE4hlen existieren fabrizieren fasziniert funktionieren garantieren geb\xE4ren
-gefallen gen\xFCgen geschehen gestalten gew\xF6hnen glitschen h\xE4mmern handeln heiraten hindern ignorieren informieren interessieren
-kapitulieren kentern klettern kombinieren kontrollieren korrigieren kosten kreisen k\xFCrzen leiden lodern markieren marschieren
-meistern montieren murren musizieren notieren n\xF6tigen operieren organisieren passieren pilgern planen pl\xFCndern posieren
-probieren produzieren protestieren protokollieren rasieren reagieren regieren reparieren respektieren riskieren rotieren
-schmei\xDFen schmettern schnattern sortieren spekulieren studieren telefonieren transportieren trainieren trauen tr\xF6deln
-\xFCberlegen verabschieden ver\xE4ndern verbergen verbinden verbrennen verdienen verfolgen verhalten verhandeln verkaufen verlangen
-verlassen vermeiden vermuten verraten versagen verschieben verschwinden versichern versprechen verstecken verstehen versuchen
-verteidigen vertrauen verwalten verwandeln verweigern verwenden verzichten vollenden wackeln wandeln weinen wirbeln zerbrechen
-zerst\xF6ren z\xF6gern zurechtkommen zweifeln
-stimmen passen setzen dauern l\xF6sen l\xE4cheln k\xFCndigen retten ticken z\xFCnden siegeln entfernen verl\xE4ngern verstummen beschriften
-gabeln erledigen bewilligen best\xE4tigen sichern lohnen stauen stocken t\xF6nen tr\xFCben w\xE4hnen zerren fehlen kosten sparen sperren
-st\xFCrzen stapeln stehlen schweigen taumeln t\xF6ten trocknen tr\xF6pfeln \xFCbergehen verschlie\xDFen vertreten verwahren verwirren vollziehen
-wachsen wandern weichen wirken wurzeln zerfallen zerflie\xDFen zergehen zerrei\xDFen zerschlagen zersplittern zischen
-regeln spiegeln speichern beschleunigen senken f\xE4rben formen altern riegeln fiebern schlitzen rutschen beanstanden erg\xE4nzen
-bl\xE4ttern sanden schulden bessern bremsen dunkeln d\xFCstern erkennen ernennen f\xE4rben festigen filtern fl\xFCchten fr\xF6nen g\xE4hnen
-h\xE4uten heilen hetzen k\xE4mmen klammern klemmen kneten kramen kr\xE4nkeln kr\xE4useln lasten leimen l\xFCften mildern mustern nachten
-n\xE4ssen nieten \xF6len pinseln pl\xE4tschern polstern prallen prunken quirlen r\xE4dern reifen richten r\xF6cheln r\xFCtteln s\xE4ubern salzen
-s\xE4umen sch\xE4tzen schaudern schl\xE4ngeln schleimen schlummern schmoren schn\xFCffeln schrubben schw\xE4chen schwelen sengen sondern
-spalten spiegeln spitzen sprudeln stauben steuern stochern strampeln streifen striegeln stumpfen sudeln tauen tigern tippen
-trampeln t\xFCnchen wabern watscheln wetzen wiehern winseln wispern wittern wuchten zerknittern zetern zieren zittern zotteln zuckeln
-abh\xE4ngen ankommen anfangen aufstehen ausgehen bedienen befreien behandeln bemerken benennen beschlie\xDFen bestehen betonen bewahren
-bezeichnen bilden bluten br\xFCten b\xFC\xDFen d\xE4mmern deuten drehen ehren einigen empfangen empfehlen entfalten enthalten entlassen entstehen
-erfahren erfinden ergeben erhalten erheben erholen erl\xF6sen ermahnen ern\xE4hren er\xF6ffnen erregen ersch\xF6pfen ersticken erstarren erw\xE4hnen
-erweitern erzeugen fesseln fl\xFCchten fr\xF6steln funken gebieten gedenken gelangen gemahnen geraten gestehen gew\xE4hren graben grenzen
-gr\xFCbeln hadern harken hausen heben herrschen hindern huschen j\xE4ten jucken keuchen klaffen kleckern klimpern knallen kraulen kreischen
-kringeln kritzeln kr\xF6nen kuscheln l\xE4rmen leuchten lichten lispeln lugen lungern m\xE4\xDFigen mei\xDFeln mieten mindern m\xFChen murksen nachahmen
-nagen n\xE4seln n\xF6rgeln nuscheln pachten pflastern pieksen plappern prahlen prangen prellen prosten quaken qualmen r\xE4uspern rauen r\xE4umen
-reizen rieseln rodeln r\xF6hren rumpeln s\xE4beln s\xE4ckeln s\xE4gen sausen sch\xE4umen sch\xE4len schaufeln schnalzen schnaufen schnellen schnippen
-schwappen schwirren seihen sichten siezen sinnieren spannen spenden spicken spie\xDFen sprenkeln spuken st\xE4nkern stelzen stemmen sticheln
-st\xF6bern stopfen strapazieren strotzen st\xFClpen stutzen t\xE4ndeln taxieren tollen torkeln tr\xE4llern trudeln tuscheln umgarnen verharren
-wabbeln walzen wedeln weilen wetteifern wimmeln wringen wuseln zappeln zaubern zechen zergehen zerkn\xFCllen zerlegen zerm\xFCrben zerpfl\xFCcken
-zerschellen zertr\xFCmmern zeugen zirpen zocken zurren
-`;
-var VERB_PRAEFIXE = [
-  "zusammen",
-  "zur\xFCck",
-  "wieder",
-  "gegen",
-  "hinter",
-  "durch",
-  "unter",
-  "\xFCber",
-  "voran",
-  "vorbei",
-  "heraus",
-  "herein",
-  "hinaus",
-  "hinein",
-  "herum",
-  "hinauf",
-  "hinab",
-  "herab",
-  "empor",
-  "fort",
-  "los",
-  "weg",
-  "fest",
-  "auseinander",
-  "entgegen",
-  "entlang",
-  "nieder",
-  "umher",
-  "davon",
-  "dazu",
-  "hoch",
-  "her",
-  "hin",
-  "ver",
-  "ent",
-  "emp",
-  "miss",
-  "zer",
-  "be",
-  "er",
-  "ge",
-  "an",
-  "ab",
-  "auf",
-  "aus",
-  "ein",
-  "mit",
-  "nach",
-  "vor",
-  "zu",
-  "um",
-  "bei",
-  "da",
-  "wider",
-  "still",
-  "frei",
-  "leer",
-  "tot",
-  "voll",
-  "wahr",
-  "gut",
-  "kaputt"
-];
-var PAST2PRES = {
-  // Ergänzt 4.338.2 (Blatt „Vier Kinder": „Das Herz schlug mir bis zum Hals" blieb stehen):
-  schlug: "schl\xE4gt",
-  schlugen: "schlagen",
-  roch: "riecht",
-  rochen: "riechen",
-  traf: "trifft",
-  trafen: "treffen",
-  schob: "schiebt",
-  schoben: "schieben",
-  tat: "tut",
-  taten: "tun",
-  wusch: "w\xE4scht",
-  stritt: "streitet",
-  glitt: "gleitet",
-  stie\u00DF: "st\xF6\xDFt",
-  stie\u00DFen: "sto\xDFen",
-  goss: "gie\xDFt",
-  band: "bindet",
-  banden: "binden",
-  zwang: "zwingt",
-  fing: "f\xE4ngt",
-  fingen: "fangen",
-  sandte: "sendet",
-  mochte: "mag",
-  mochten: "m\xF6gen",
-  stahl: "stiehlt",
-  galt: "gilt",
-  galten: "gelten",
-  gelang: "gelingt",
-  verband: "verbindet",
-  erhielt: "erh\xE4lt",
-  erhielten: "erhalten",
-  behielt: "beh\xE4lt",
-  enthielt: "enth\xE4lt",
-  verlie\u00DF: "verl\xE4sst",
-  verlie\u00DFen: "verlassen",
-  genoss: "genie\xDFt",
-  schlich: "schleicht",
-  strich: "streicht",
-  blies: "bl\xE4st",
-  lud: "l\xE4dt",
-  luden: "laden",
-  schuf: "schafft",
-  schufen: "schaffen",
-  log: "l\xFCgt",
-  betrog: "betr\xFCgt",
-  flocht: "flicht",
-  kroch: "kriecht",
-  krochen: "kriechen",
-  schmolz: "schmilzt",
-  quoll: "quillt",
-  quollen: "quellen",
-  verging: "vergeht",
-  vergingen: "vergehen",
-  entging: "entgeht",
-  erging: "ergeht",
-  erschrak: "erschrickt",
-  war: "ist",
-  waren: "sind",
-  warst: "bist",
-  hatte: "hat",
-  hatten: "haben",
-  hattest: "hast",
-  wurde: "wird",
-  wurden: "werden",
-  ging: "geht",
-  gingen: "gehen",
-  kam: "kommt",
-  kamen: "kommen",
-  sah: "sieht",
-  sahen: "sehen",
-  gab: "gibt",
-  gaben: "geben",
-  stand: "steht",
-  standen: "stehen",
-  blieb: "bleibt",
-  blieben: "bleiben",
-  hielt: "h\xE4lt",
-  hielten: "halten",
-  lie\u00DF: "l\xE4sst",
-  lie\u00DFen: "lassen",
-  fand: "findet",
-  fanden: "finden",
-  nahm: "nimmt",
-  nahmen: "nehmen",
-  sprach: "spricht",
-  sprachen: "sprechen",
-  schrieb: "schreibt",
-  schrieben: "schreiben",
-  trug: "tr\xE4gt",
-  trugen: "tragen",
-  fuhr: "f\xE4hrt",
-  fuhren: "fahren",
-  lief: "l\xE4uft",
-  liefen: "laufen",
-  sa\u00DF: "sitzt",
-  sa\u00DFen: "sitzen",
-  lag: "liegt",
-  lagen: "liegen",
-  hie\u00DF: "hei\xDFt",
-  hie\u00DFen: "hei\xDFen",
-  zog: "zieht",
-  zogen: "ziehen",
-  schlief: "schl\xE4ft",
-  schliefen: "schlafen",
-  rief: "ruft",
-  riefen: "rufen",
-  fiel: "f\xE4llt",
-  fielen: "fallen",
-  sang: "singt",
-  sangen: "singen",
-  trank: "trinkt",
-  tranken: "trinken",
-  schwieg: "schweigt",
-  schwiegen: "schweigen",
-  floss: "flie\xDFt",
-  flossen: "flie\xDFen",
-  stieg: "steigt",
-  stiegen: "steigen",
-  sank: "sinkt",
-  sanken: "sinken",
-  bot: "bietet",
-  boten: "bieten",
-  schloss: "schlie\xDFt",
-  schlossen: "schlie\xDFen",
-  verlor: "verliert",
-  verloren: "verlieren",
-  begann: "beginnt",
-  begannen: "beginnen",
-  geschah: "geschieht",
-  geschahen: "geschehen",
-  konnte: "kann",
-  konnten: "k\xF6nnen",
-  musste: "muss",
-  mussten: "m\xFCssen",
-  wollte: "will",
-  wollten: "wollen",
-  sollte: "soll",
-  sollten: "sollen",
-  durfte: "darf",
-  durften: "d\xFCrfen",
-  wusste: "wei\xDF",
-  wussten: "wissen",
-  dachte: "denkt",
-  dachten: "denken",
-  brachte: "bringt",
-  brachten: "bringen",
-  kannte: "kennt",
-  kannten: "kennen",
-  erkannte: "erkennt",
-  erkannten: "erkennen",
-  brannte: "brennt",
-  brannten: "brennen",
-  nannte: "nennt",
-  nannten: "nennen",
-  rannte: "rennt",
-  rannten: "rennen",
-  wandte: "wendet",
-  wandten: "wenden",
-  sprang: "springt",
-  sprangen: "springen",
-  schrie: "schreit",
-  schrien: "schreien",
-  flog: "fliegt",
-  flogen: "fliegen",
-  floh: "flieht",
-  flohen: "fliehen",
-  schoss: "schie\xDFt",
-  schossen: "schie\xDFen",
-  riss: "rei\xDFt",
-  rissen: "rei\xDFen",
-  biss: "bei\xDFt",
-  bissen: "bei\xDFen",
-  griff: "greift",
-  griffen: "greifen",
-  pfiff: "pfeift",
-  pfiffen: "pfeifen",
-  schnitt: "schneidet",
-  schnitten: "schneiden",
-  litt: "leidet",
-  litten: "leiden",
-  trat: "tritt",
-  traten: "treten",
-  verga\u00DF: "vergisst",
-  verga\u00DFen: "vergessen",
-  wuchs: "w\xE4chst",
-  wuchsen: "wachsen",
-  wich: "weicht",
-  wichen: "weichen",
-  schien: "scheint",
-  schienen: "scheinen",
-  zerbrach: "zerbricht",
-  zerbrachen: "zerbrechen",
-  verschwand: "verschwindet",
-  verschwanden: "verschwinden",
-  erschien: "erscheint",
-  erschienen: "erscheinen",
-  starb: "stirbt",
-  starben: "sterben",
-  brach: "bricht",
-  brachen: "brechen",
-  sprach2: "spricht",
-  schwoll: "schwillt",
-  schwollen: "schwellen",
-  bog: "biegt",
-  bogen: "biegen",
-  hob: "hebt",
-  hoben: "heben",
-  wob: "webt",
-  woben: "weben",
-  klang: "klingt",
-  klangen: "klingen",
-  sann: "sinnt",
-  sannen: "sinnen",
-  rann: "rinnt",
-  rannen: "rinnen",
-  schwamm: "schwimmt",
-  schwammen: "schwimmen",
-  verschwieg: "verschweigt",
-  zerfiel: "zerf\xE4llt",
-  zerfielen: "zerfallen",
-  entstand: "entsteht",
-  entstanden: "entstehen",
-  verstand: "versteht",
-  verstanden: "verstehen",
-  bestand: "besteht",
-  bestanden: "bestehen",
-  geriet: "ger\xE4t",
-  gerieten: "geraten",
-  trieb: "treibt",
-  trieben: "treiben",
-  schrak: "schrickt",
-  wies: "weist",
-  wiesen: "weisen",
-  hing: "h\xE4ngt",
-  hingen: "h\xE4ngen",
-  schwand: "schwindet",
-  schwanden: "schwinden",
-  gewann: "gewinnt",
-  gewannen: "gewinnen",
-  zerriss: "zerrei\xDFt",
-  zerrissen2: "zerrei\xDFen",
-  empfand: "empfindet",
-  empfanden: "empfinden",
-  befahl: "befiehlt",
-  befahlen: "befehlen",
-  half: "hilft",
-  halfen: "helfen",
-  warf: "wirft",
-  warfen: "werfen",
-  starrte2: "starrt",
-  las: "liest",
-  lasen: "lesen",
-  a\u00DF: "isst",
-  a\u00DFen: "essen",
-  bat: "bittet",
-  baten: "bitten"
-};
-var VERB_INFINITIVE = new Set(GRUND.split(/\s+/).map((w) => w.trim()).filter((w) => w.length > 2));
-
-// src/generation/verben.ts
-var STARK = {
-  // sein · haben · werden · wissen · tun · Modalverben
-  ist: ["bin", "bist", "sind", "seid"],
-  hat: ["habe", "hast", "haben", "habt"],
-  wird: ["werde", "wirst", "werden", "werdet"],
-  wei\u00DF: ["wei\xDF", "wei\xDFt", "wissen", "wisst"],
-  tut: ["tue", "tust", "tun", "tut"],
-  kann: ["kann", "kannst", "k\xF6nnen", "k\xF6nnt"],
-  muss: ["muss", "musst", "m\xFCssen", "m\xFCsst"],
-  will: ["will", "willst", "wollen", "wollt"],
-  soll: ["soll", "sollst", "sollen", "sollt"],
-  darf: ["darf", "darfst", "d\xFCrfen", "d\xFCrft"],
-  mag: ["mag", "magst", "m\xF6gen", "m\xF6gt"],
-  // a → ä
-  h\u00E4lt: ["halte", "h\xE4ltst", "halten", "haltet"],
-  f\u00E4llt: ["falle", "f\xE4llst", "fallen", "fallt"],
-  tr\u00E4gt: ["trage", "tr\xE4gst", "tragen", "tragt"],
-  l\u00E4uft: ["laufe", "l\xE4ufst", "laufen", "lauft"],
-  schl\u00E4ft: ["schlafe", "schl\xE4fst", "schlafen", "schlaft"],
-  f\u00E4ngt: ["fange", "f\xE4ngst", "fangen", "fangt"],
-  l\u00E4sst: ["lasse", "l\xE4sst", "lassen", "lasst"],
-  w\u00E4chst: ["wachse", "w\xE4chst", "wachsen", "wachst"],
-  gr\u00E4bt: ["grabe", "gr\xE4bst", "graben", "grabt"],
-  schl\u00E4gt: ["schlage", "schl\xE4gst", "schlagen", "schlagt"],
-  r\u00E4t: ["rate", "r\xE4tst", "raten", "ratet"],
-  bl\u00E4st: ["blase", "bl\xE4st", "blasen", "blast"],
-  st\u00F6\u00DFt: ["sto\xDFe", "st\xF6\xDFt", "sto\xDFen", "sto\xDFt"],
-  f\u00E4hrt: ["fahre", "f\xE4hrst", "fahren", "fahrt"],
-  w\u00E4scht: ["wasche", "w\xE4schst", "waschen", "wascht"],
-  l\u00E4dt: ["lade", "l\xE4dst", "laden", "ladet"],
-  s\u00E4uft: ["saufe", "s\xE4ufst", "saufen", "sauft"],
-  // e → i / ie
-  gibt: ["gebe", "gibst", "geben", "gebt"],
-  nimmt: ["nehme", "nimmst", "nehmen", "nehmt"],
-  spricht: ["spreche", "sprichst", "sprechen", "sprecht"],
-  bricht: ["breche", "brichst", "brechen", "brecht"],
-  sieht: ["sehe", "siehst", "sehen", "seht"],
-  liest: ["lese", "liest", "lesen", "lest"],
-  isst: ["esse", "isst", "essen", "esst"],
-  frisst: ["fresse", "frisst", "fressen", "fresst"],
-  misst: ["messe", "misst", "messen", "messt"],
-  vergisst: ["vergesse", "vergisst", "vergessen", "vergesst"],
-  hilft: ["helfe", "hilfst", "helfen", "helft"],
-  stirbt: ["sterbe", "stirbst", "sterben", "sterbt"],
-  wirft: ["werfe", "wirfst", "werfen", "werft"],
-  trifft: ["treffe", "triffst", "treffen", "trefft"],
-  gilt: ["gelte", "giltst", "gelten", "geltet"],
-  tritt: ["trete", "trittst", "treten", "tretet"],
-  birgt: ["berge", "birgst", "bergen", "bergt"],
-  quillt: ["quelle", "quillst", "quellen", "quellt"],
-  schilt: ["schelte", "schiltst", "schelten", "scheltet"],
-  ficht: ["fechte", "fichtst", "fechten", "fechtet"],
-  flicht: ["flechte", "flichtst", "flechten", "flechtet"],
-  verdirbt: ["verderbe", "verdirbst", "verderben", "verderbt"],
-  wirbt: ["werbe", "wirbst", "werben", "werbt"],
-  erschrickt: ["erschrecke", "erschrickst", "erschrecken", "erschreckt"],
-  sticht: ["steche", "stichst", "stechen", "stecht"],
-  schmilzt: ["schmelze", "schmilzt", "schmelzen", "schmelzt"],
-  befiehlt: ["befehle", "befiehlst", "befehlen", "befehlt"],
-  stiehlt: ["stehle", "stiehlst", "stehlen", "stehlt"],
-  empfiehlt: ["empfehle", "empfiehlst", "empfehlen", "empfehlt"],
-  geschieht: ["geschehe", "geschiehst", "geschehen", "gescheht"],
-  gebiert: ["geb\xE4re", "gebierst", "geb\xE4ren", "geb\xE4rt"],
-  schwillt: ["schwelle", "schwillst", "schwellen", "schwellt"]
-};
-var PRAEFIXE = [
-  "zusammen",
-  "zur\xFCck",
-  "wieder",
-  "gegen",
-  "hinter",
-  "durch",
-  "unter",
-  "\xFCber",
-  "voran",
-  "vorbei",
-  "heraus",
-  "herein",
-  "hinaus",
-  "hinein",
-  "herum",
-  "hinauf",
-  "hinab",
-  "herab",
-  "empor",
-  "fort",
-  "los",
-  "weg",
-  "fest",
-  "her",
-  "hin",
-  "ver",
-  "ent",
-  "emp",
-  "miss",
-  "zer",
-  "be",
-  "er",
-  "ge",
-  "an",
-  "ab",
-  "auf",
-  "aus",
-  "ein",
-  "mit",
-  "nach",
-  "vor",
-  "zu",
-  "um",
-  "bei",
-  "da",
-  "wider"
-];
-var KEIN_VERB = /* @__PURE__ */ new Set([
-  "alt",
-  "kalt",
-  "laut",
-  "bunt",
-  "hart",
-  "zart",
-  "satt",
-  "glatt",
-  "weit",
-  "breit",
-  "rot",
-  "tot",
-  "gut",
-  "sp\xE4t",
-  "echt",
-  "leicht",
-  "dicht",
-  "recht",
-  "schlecht",
-  "nackt",
-  "fest",
-  "letzt",
-  "jetzt",
-  "sanft",
-  "ernst",
-  "wert",
-  "seit",
-  "statt",
-  "samt",
-  "nicht",
-  "mit",
-  "seid",
-  "zuletzt",
-  "zuerst",
-  "oft",
-  "fast",
-  "erst",
-  "sonst",
-  "meist",
-  "direkt",
-  "dort",
-  "fort",
-  "sofort",
-  "selbst",
-  "vielleicht",
-  "\xFCberhaupt",
-  "bereit",
-  "gerecht",
-  "perfekt",
-  "exakt",
-  "absolut",
-  "gesamt",
-  "komplett",
-  "verr\xFCckt",
-  "bekannt",
-  "geschickt",
-  "welt",
-  "zeit",
-  "nacht",
-  "stadt",
-  "acht",
-  "licht",
-  "wort",
-  "ort",
-  "blut",
-  "brot",
-  "mut",
-  "hut",
-  "gebet",
-  "geist",
-  "gott",
-  "kraft",
-  "luft",
-  "haut",
-  "haft",
-  "gift",
-  "schrift",
-  "frucht",
-  "flucht",
-  "sicht",
-  "pflicht",
-  "angst",
-  "kunst",
-  "dienst",
-  "frost",
-  "post",
-  "ost",
-  "west",
-  "rest",
-  "test",
-  "text",
-  "w\xFCst",
-  "getrennt",
-  "gemischt",
-  "gebrannt",
-  "verschwunden",
-  "gewohnt",
-  "gelaunt",
-  "ber\xFChmt",
-  "geliebt",
-  "gelebt",
-  "gedacht",
-  "gemacht",
-  "gebracht",
-  "gesagt",
-  "gesucht",
-  "gehabt",
-  "gewusst",
-  "gekannt",
-  "genannt",
-  "benannt",
-  "gewollt",
-  "verboten",
-  "ge\xF6ffnet",
-  "ungeahnt",
-  "gestern",
-  "heut",
-  "abrupt",
-  "ad\xE4quat",
-  "privat",
-  "intakt",
-  "korrekt",
-  "konkret",
-  "moderat",
-  "elegant",
-  "brillant",
-  "tolerant",
-  "relevant",
-  "markant",
-  "rasant",
-  "galant",
-  "latent",
-  "dezent",
-  "prominent",
-  "kompetent",
-  "konsequent",
-  "permanent",
-  "evident",
-  "eloquent",
-  "intelligent",
-  "gespannt",
-  "entspannt",
-  "gewandt",
-  "verwandt",
-  "bewusst",
-  "unbewusst",
-  "robust",
-  "abstrakt",
-  "kompakt",
-  "exakt",
-  "defekt",
-  "perfekt",
-  "insgesamt",
-  "total"
-]);
-var SIBILANT = /(s|ß|z|x|tz|ss)$/;
-var GE_VERBEN = /^ge(ht|nügt|hört|horcht|lingt|winnt|langt|schieht|steht|rät|nießt|wöhnt|fährdet|währt|stattet|staltet|denkt|bietet|braucht|hörcht|nest|reicht|dulde?t|fällt|deiht|lobt|leitet|langt|winnt|behrt|bärt|fried[e]?t|fällt|lüstet|mahnt|rinnt|hört)$/;
-function starkMitPraefix(form) {
-  if (STARK[form]) return ["", STARK[form]];
-  for (const p of PRAEFIXE) {
-    if (form.startsWith(p) && form.length > p.length + 2) {
-      const rest = form.slice(p.length);
-      if (STARK[rest]) return [p, STARK[rest]];
-    }
-  }
-  return null;
-}
-function kenntInfinitiv(wort) {
-  const w = wort.toLowerCase();
-  if (VERB_INFINITIVE.has(w)) return true;
-  for (const p of VERB_PRAEFIXE) {
-    if (w.startsWith(p) && w.length > p.length + 3 && VERB_INFINITIVE.has(w.slice(p.length))) return true;
-  }
-  return false;
-}
-function infinitivZuStamm(stamm) {
-  const s = stamm.toLowerCase();
-  if (!s) return null;
-  const kandidaten = [s + "en", s + "n", s + "eln", s + "ern"];
-  if (/e[lr]$/.test(s)) kandidaten.unshift(s + "n");
-  const st2 = starkMitPraefix(s + "t");
-  if (st2) return st2[0] + st2[1][2];
-  for (const k of kandidaten) if (kenntInfinitiv(k)) return k;
-  return null;
-}
-function istLexikonVerb(wort) {
-  const w = wort.toLowerCase().replace(/[^a-zäöüß]/g, "");
-  if (!w || w.length < 3) return false;
-  if (starkMitPraefix(w)) return true;
-  if (kenntInfinitiv(w)) return true;
-  if (PAST2PRES[w]) return true;
-  if (/^(bin|bist|sind|seid|habe|hast|habt|werde|wirst|werdet|wäre|wären|hätte|hätten|würde|würden|sei|seien)$/.test(w)) return true;
-  for (const suffix of ["etest", "test", "eten", "ten", "ete", "te", "est", "st", "et", "en", "t", "e", "tet"]) {
-    if (!w.endsWith(suffix) || w.length - suffix.length < 2) continue;
-    const st2 = w.slice(0, -suffix.length);
-    if (/ier$/.test(st2)) return true;
-    if (infinitivZuStamm(st2)) return true;
-  }
-  const pz = w.match(/^(?:[a-zäöü]{2,8})?ge(.+?)(?:t|en)$/);
-  if (pz && infinitivZuStamm(pz[1])) return true;
-  return false;
-}
-function istVerbform(wort) {
-  const w = wort.toLowerCase();
-  if (starkMitPraefix(w)) return true;
-  if (KEIN_VERB.has(w)) return false;
-  if (/^[a-zäöüß]{3,}(t|st|e|en)$/.test(w) && istLexikonVerb(w)) return true;
-  if (!/^[a-zäöüß]{3,}t$/.test(w)) return false;
-  if (/^ge[a-zäöüß]{2,}t$/.test(w)) return GE_VERBEN.test(w);
-  return true;
-}
-function beugeVerb(form3, person) {
-  const gross = /^[A-ZÄÖÜ]/.test(form3);
-  const w = form3.toLowerCase();
-  const fertig = (s) => gross ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-  if (person === "er" || person === "sie") return istVerbform(w) ? form3 : null;
-  const st2 = starkMitPraefix(w);
-  if (st2) {
-    const [p, [ich, du, wir, ihr]] = st2;
-    const f = person === "ich" ? ich : person === "du" ? du : person === "wir" ? wir : ihr || wir.replace(/e?n$/, "t");
-    return fertig(p + f);
-  }
-  if (!istVerbform(w)) return null;
-  let stamm = w.slice(0, -1);
-  const bindevokal = /[td]et$/.test(w) || /(chn|ffn|gn|tm|dm|ckn|kn)et$/.test(w);
-  if (bindevokal) stamm = w.slice(0, -2);
-  if (person === "ihr") return fertig(w);
-  if (person === "wir") {
-    if (/e[lr]$/.test(stamm)) return fertig(stamm + "n");
-    return fertig(stamm + "en");
-  }
-  if (person === "du") {
-    if (bindevokal) return fertig(stamm + "est");
-    if (SIBILANT.test(stamm)) return fertig(w);
-    return fertig(stamm + "st");
-  }
-  if (/el$/.test(stamm)) return fertig(stamm.slice(0, -2) + "le");
-  return fertig(stamm + "e");
-}
-
-// src/generation/nouns.data.ts
-var NOUN_GENDER = {
-  "abdruck": "m",
-  "abend": "m",
-  "abgrund": "m",
-  "absatz": "m",
-  "abschalten": "n",
-  "abstand": "m",
-  "acker": "m",
-  "ader": "f",
-  "adressbuch": "n",
-  "adresse": "f",
-  "ahnung": "f",
-  "airpod": "m",
-  "akku": "m",
-  "akte": "f",
-  "aktendeckel": "m",
-  "aktennotiz": "f",
-  "allee": "f",
-  "alptraum": "m",
-  "altar": "m",
-  "alte": "f",
-  "alter": "n",
-  "amt": "n",
-  "amulett": "n",
-  "angebot": "n",
-  "angst": "f",
-  "anker": "m",
-  "antenne": "f",
-  "antrag": "m",
-  "antwort": "f",
-  "apfel": "m",
-  "applaus": "m",
-  "archiv": "n",
-  "arm": "m",
-  "armband": "n",
-  "armbrust": "f",
-  "art": "f",
-  "arzt": "m",
-  "asche": "f",
-  "ast": "m",
-  "atelier": "n",
-  "atem": "m",
-  "atmosph\xE4re": "f",
-  "aufkleber": "m",
-  "aufnahme": "f",
-  "auftrag": "m",
-  "auge": "n",
-  "augenblick": "m",
-  "augenlid": "n",
-  "ausdehnung": "f",
-  "ausgang": "m",
-  "ausnahme": "f",
-  "ausrede": "f",
-  "ausweis": "m",
-  "axiom": "n",
-  "baby": "n",
-  "bach": "m",
-  "backup": "n",
-  "badeanstalt": "f",
-  "bahn": "f",
-  "bahnkarte": "f",
-  "balkon": "m",
-  "ball": "m",
-  "ballade": "f",
-  "band": "n",
-  "bank": "f",
-  "banner": "n",
-  "basecap": "n",
-  "bau": "m",
-  "bauch": "m",
-  "bauer": "m",
-  "baum": "m",
-  "becher": "m",
-  "befehl": "m",
-  "begriff": "m",
-  "beil": "n",
-  "bein": "n",
-  "benachrichtigung": "f",
-  "berg": "m",
-  "bergfried": "m",
-  "bericht": "m",
-  "bescheid": "m",
-  "beschluss": "m",
-  "besen": "m",
-  "besitz": "m",
-  "bestand": "m",
-  "besuch": "m",
-  "betonprobe": "f",
-  "bett": "n",
-  "beutel": "m",
-  "beweis": "m",
-  "bibel": "f",
-  "bibliothek": "f",
-  "biene": "f",
-  "bild": "n",
-  "bildschirm": "m",
-  "binde": "f",
-  "birne": "f",
-  "blatt": "n",
-  "blechb\xFCchse": "f",
-  "blechdose": "f",
-  "blechkanne": "f",
-  "blechtrompete": "f",
-  "blei": "n",
-  "bleistift": "m",
-  "blende": "f",
-  "blick": "m",
-  "blitz": "m",
-  "blume": "f",
-  "blumenstrau\xDF": "m",
-  "bluse": "f",
-  "bl\xFCte": "f",
-  "boden": "m",
-  "bohne": "f",
-  "bohrkern": "m",
-  "bohrprobe": "f",
-  "boje": "f",
-  "bonbon": "n",
-  "boot": "n",
-  "bote": "m",
-  "botschaft": "f",
-  "braten": "m",
-  "braue": "f",
-  "brett": "n",
-  "brief": "m",
-  "briefumschlag": "m",
-  "brille": "f",
-  "brot": "n",
-  "brotdose": "f",
-  "brotlaib": "m",
-  "bruch": "m",
-  "bruder": "m",
-  "brunnen": "m",
-  "brust": "f",
-  "br\xFCcke": "f",
-  "br\xFChe": "f",
-  "buch": "n",
-  "buchstabe": "m",
-  "bucht": "f",
-  "bug": "m",
-  "burg": "f",
-  "bus": "m",
-  "busch": "m",
-  "butter": "f",
-  "b\xE4r": "m",
-  "b\xFChne": "f",
-  "b\xFCndel": "n",
-  "b\xFCrde": "f",
-  "cache": "m",
-  "cadtablet": "n",
-  "caf": "n",
-  "caf\xE9": "n",
-  "chat": "m",
-  "clown": "m",
-  "computer": "m",
-  "container": "m",
-  "couch": "f",
-  "dach": "n",
-  "dachboden": "m",
-  "dame": "f",
-  "damm": "m",
-  "dashboard": "n",
-  "datei": "f",
-  "dattel": "f",
-  "datum": "n",
-  "daumen": "m",
-  "deck": "n",
-  "decke": "f",
-  "deckel": "m",
-  "denkmalschutz": "m",
-  "deo": "n",
-  "detail": "n",
-  "detektor": "m",
-  "detektorkopf": "m",
-  "dewar": "m",
-  "diagramm": "n",
-  "dichter": "m",
-  "dieb": "m",
-  "dienst": "m",
-  "direktor": "m",
-  "dnaspirale": "f",
-  "dokument": "n",
-  "dolch": "m",
-  "donner": "m",
-  "dorf": "n",
-  "dorn": "m",
-  "dose": "f",
-  "draht": "m",
-  "droschke": "f",
-  "druck": "m",
-  "duell": "n",
-  "duft": "m",
-  "durchsage": "f",
-  "durchschlag": "m",
-  "d\xE4mmerung": "f",
-  "ebbe": "f",
-  "ebene": "f",
-  "echo": "n",
-  "ecke": "f",
-  "ehre": "f",
-  "ei": "n",
-  "eid": "m",
-  "einspruch": "m",
-  "eis": "n",
-  "eisen": "n",
-  "elch": "m",
-  "elend": "n",
-  "ellbogen": "m",
-  "emoji": "n",
-  "engel": "m",
-  "enkel": "m",
-  "ente": "f",
-  "entwurf": "m",
-  "ephemeride": "f",
-  "erbe": "n",
-  "erbse": "f",
-  "erdbeben": "n",
-  "erde": "f",
-  "erinnerung": "f",
-  "etikett": "n",
-  "eule": "f",
-  "ewigkeit": "f",
-  "fabel": "f",
-  "fabrik": "f",
-  "fackel": "f",
-  "faden": "m",
-  "fahne": "f",
-  "fahrschein": "m",
-  "fahrt": "f",
-  "falle": "f",
-  "falte": "f",
-  "farbe": "f",
-  "farbenscheibe": "f",
-  "fass": "n",
-  "faust": "f",
-  "feder": "f",
-  "federkiel": "m",
-  "fee": "f",
-  "fehlercode": "m",
-  "feile": "f",
-  "feind": "m",
-  "feld": "n",
-  "feldbesteck": "n",
-  "felder": "n",
-  "fell": "n",
-  "fellhandschuh": "m",
-  "fels": "m",
-  "felsen": "m",
-  "fenster": "n",
-  "fensterplatz": "m",
-  "ferkel": "n",
-  "ferne": "f",
-  "fernglas": "n",
-  "fernrohr": "n",
-  "ferse": "f",
-  "fessel": "f",
-  "festung": "f",
-  "feuer": "n",
-  "feuerzeug": "n",
-  "fibel": "f",
-  "fieber": "n",
-  "filter": "m",
-  "finger": "m",
-  "fingerhut": "m",
-  "fisch": "m",
-  "fischer": "m",
-  "flakon": "m",
-  "flasche": "f",
-  "flaute": "f",
-  "fleisch": "n",
-  "fliege": "f",
-  "flo\xDF": "n",
-  "fluch": "m",
-  "flucht": "f",
-  "flur": "m",
-  "fluss": "m",
-  "flut": "f",
-  "fl\xE4che": "f",
-  "fl\xF6te": "f",
-  "fl\xFCstern": "n",
-  "formel": "f",
-  "formular": "n",
-  "fossil": "n",
-  "fossilie": "f",
-  "foto": "n",
-  "fotografie": "f",
-  "frachtbrief": "m",
-  "frage": "f",
-  "frau": "f",
-  "freude": "f",
-  "freund": "m",
-  "frist": "f",
-  "frost": "m",
-  "frucht": "f",
-  "fr\xFChling": "m",
-  "fuchs": "m",
-  "fuge": "f",
-  "fund": "m",
-  "fundament": "n",
-  "funke": "m",
-  "funkger\xE4t": "n",
-  "furcht": "f",
-  "furt": "f",
-  "fu\xDF": "m",
-  "f\xE4hrmann": "m",
-  "f\xE4hrplan": "m",
-  "f\xE4sser": "n",
-  "f\xFCrst": "m",
-  "gabe": "f",
-  "gabel": "f",
-  "gabelung": "f",
-  "galaxie": "f",
-  "gang": "m",
-  "gans": "f",
-  "garn": "n",
-  "garten": "m",
-  "gasse": "f",
-  "gast": "m",
-  "gebet": "n",
-  "gebetbuch": "n",
-  "gebete": "n",
-  "gebetsschale": "f",
-  "gebirge": "n",
-  "geb\xE4lk": "n",
-  "geb\xE4ude": "n",
-  "gedanke": "m",
-  "gedanken": "m",
-  "gedicht": "n",
-  "gedichte": "n",
-  "geduld": "f",
-  "gefahr": "f",
-  "gef\xFChl": "n",
-  "gef\xFChlen": "n",
-  "gegend": "f",
-  "gegensatz": "m",
-  "gegenstand": "m",
-  "gegens\xE4tze": "m",
-  "gegenteil": "n",
-  "gegenwart": "f",
-  "gegners": "m",
-  "geheimnis": "n",
-  "gehirn": "n",
-  "geh\xE4use": "n",
-  "geige": "f",
-  "geist": "m",
-  "geleitbrief": "m",
-  "gel\xE4nde": "n",
-  "gel\xFCbde": "n",
-  "gemach": "n",
-  "gem\xE4lde": "n",
-  "gem\xFCse": "n",
-  "gep\xE4ck": "n",
-  "gericht": "n",
-  "geruch": "m",
-  "ger\xE4t": "n",
-  "ger\xE4usch": "n",
-  "ger\xE4usche": "n",
-  "ger\xF6ll": "n",
-  "ger\xFCcht": "n",
-  "ger\xFCchte": "n",
-  "ger\xFCst": "n",
-  "gesangbuch": "n",
-  "geschenk": "n",
-  "geschichte": "f",
-  "geschichten": "f",
-  "geschmack": "m",
-  "gesetz": "n",
-  "gesetze": "n",
-  "gesetzen": "n",
-  "gesetzes": "n",
-  "gesetzestext": "m",
-  "gesicht": "n",
-  "gesichter": "n",
-  "gespr\xE4ch": "n",
-  "gestalt": "f",
-  "gestalten": "f",
-  "geste": "f",
-  "gestein": "n",
-  "gesteinsschichten": "f",
-  "getreide": "n",
-  "getreidek\xF6rner": "n",
-  "gewand": "n",
-  "gewebe": "n",
-  "gewehr": "n",
-  "gewehre": "n",
-  "geweih": "n",
-  "gewicht": "n",
-  "gewichte": "n",
-  "gewissen": "n",
-  "gew\xF6lbe": "n",
-  "gezeiten": "f",
-  "gier": "f",
-  "gie\xDFkanne": "f",
-  "gift": "n",
-  "gipfel": "m",
-  "gitter": "n",
-  "glas": "n",
-  "glasplatte": "f",
-  "glaube": "m",
-  "gleichung": "f",
-  "gletscher": "m",
-  "glocke": "f",
-  "gl\xFCck": "n",
-  "gold": "n",
-  "gott": "m",
-  "grab": "n",
-  "graben": "m",
-  "granitblock": "m",
-  "grenze": "f",
-  "grotte": "f",
-  "grund": "m",
-  "grundrissplan": "m",
-  "gruppe": "f",
-  "gruppenchat": "m",
-  "gurke": "f",
-  "g\xF6tter": "m",
-  "g\xF6ttin": "f",
-  "g\xFCrtel": "m",
-  "haar": "n",
-  "haarnadel": "f",
-  "hafen": "m",
-  "hagel": "m",
-  "hahn": "m",
-  "hain": "m",
-  "haken": "m",
-  "halde": "f",
-  "hall": "m",
-  "halle": "f",
-  "hals": "m",
-  "halter": "m",
-  "hammer": "m",
-  "hand": "f",
-  "handbuch": "n",
-  "handkarren": "m",
-  "handschuh": "m",
-  "handschuhspitze": "f",
-  "handvoll": "f",
-  "handy": "n",
-  "hang": "m",
-  "harfe": "f",
-  "harpune": "f",
-  "hase": "m",
-  "hass": "m",
-  "haus": "n",
-  "haut": "f",
-  "hecke": "f",
-  "heft": "n",
-  "held": "m",
-  "helm": "m",
-  "hemd": "n",
-  "henne": "f",
-  "herbst": "m",
-  "herd": "m",
-  "herr": "m",
-  "herrscherstab": "m",
-  "herz": "n",
-  "herzschlag": "m",
-  "heuer": "f",
-  "hexe": "f",
-  "hierarchie": "f",
-  "himmel": "m",
-  "hintergrund": "m",
-  "hintert\xFCr": "f",
-  "hirn": "n",
-  "hirsch": "m",
-  "hirtenstab": "m",
-  "hof": "m",
-  "hoffnung": "f",
-  "holz": "n",
-  "honig": "m",
-  "hoodie": "m",
-  "horn": "n",
-  "hose": "f",
-  "huhn": "n",
-  "hund": "m",
-  "hut": "m",
-  "h\xE4user": "n",
-  "h\xF6henmesser": "m",
-  "h\xF6hle": "f",
-  "h\xFCfte": "f",
-  "h\xFCgel": "m",
-  "h\xFCtte": "f",
-  "igel": "m",
-  "index": "m",
-  "insekt": "n",
-  "insel": "f",
-  "instanz": "f",
-  "instastory": "f",
-  "instrument": "n",
-  "interferometer": "n",
-  "jacke": "f",
-  "jazz": "m",
-  "junge": "m",
-  "justiergewicht": "n",
-  "j\xE4ger": "m",
-  "kabel": "n",
-  "kaffee": "m",
-  "kai": "m",
-  "kaiser": "m",
-  "kalb": "n",
-  "kalender": "m",
-  "kamin": "m",
-  "kaminfeuer": "n",
-  "kammer": "f",
-  "kampf": "m",
-  "kanal": "m",
-  "kaninchen": "n",
-  "kanister": "m",
-  "kanne": "f",
-  "kanten": "m",
-  "kapelle": "f",
-  "kapit\xE4n": "m",
-  "karawane": "f",
-  "karotte": "f",
-  "karte": "f",
-  "karteikarte": "f",
-  "kartoffel": "f",
-  "kassenbuch": "n",
-  "kathedrale": "f",
-  "katze": "f",
-  "kaugummi": "m",
-  "kehle": "f",
-  "kelch": "m",
-  "kelle": "f",
-  "keller": "m",
-  "kerze": "f",
-  "kessel": "m",
-  "kette": "f",
-  "kettenhemd": "n",
-  "kiefer": "m",
-  "kiel": "m",
-  "kies": "m",
-  "kilometer": "m",
-  "kind": "n",
-  "kinder": "n",
-  "kinderspielzeug": "n",
-  "kinn": "n",
-  "kirche": "f",
-  "kirsche": "f",
-  "kissen": "n",
-  "kiste": "f",
-  "klammer": "f",
-  "klang": "m",
-  "klaue": "f",
-  "klavier": "n",
-  "kleid": "n",
-  "kleidersack": "m",
-  "kleingeldfach": "n",
-  "kleinod": "n",
-  "klinge": "f",
-  "klingel": "f",
-  "klippe": "f",
-  "klopfen": "n",
-  "knabe": "m",
-  "knie": "n",
-  "knochen": "m",
-  "knopf": "m",
-  "knospe": "f",
-  "knoten": "m",
-  "kn\xE4uel": "n",
-  "kn\xF6chel": "m",
-  "koffer": "m",
-  "kohleneimer": "m",
-  "kohleschale": "f",
-  "kollege": "m",
-  "kollegheft": "n",
-  "kollektiv": "n",
-  "kolonie": "f",
-  "komet": "m",
-  "kommentar": "m",
-  "kommissar": "m",
-  "kompass": "m",
-  "kompressor": "m",
-  "konstante": "f",
-  "konto": "n",
-  "kontobuch": "n",
-  "kontor": "n",
-  "kontorbuch": "n",
-  "kontostand": "m",
-  "kopf": "m",
-  "kopfh\xF6rer": "m",
-  "kopie": "f",
-  "korb": "m",
-  "korken": "m",
-  "korn": "n",
-  "kraft": "f",
-  "kran": "m",
-  "krater": "m",
-  "kreide": "f",
-  "kreis": "m",
-  "kreuz": "n",
-  "kreuzung": "f",
-  "kribbeln": "n",
-  "krieg": "m",
-  "krieger": "m",
-  "kristall": "m",
-  "krone": "f",
-  "krug": "m",
-  "kr\xE4he": "f",
-  "kuchen": "m",
-  "kuh": "f",
-  "kupfer": "n",
-  "kuppel": "f",
-  "kurbel": "f",
-  "kurve": "f",
-  "kuss": "m",
-  "kutsche": "f",
-  "kuvert": "n",
-  "k\xE4fer": "m",
-  "k\xE4lte": "f",
-  "k\xE4se": "m",
-  "k\xF6nig": "m",
-  "k\xF6nigin": "f",
-  "k\xF6rper": "m",
-  "k\xFCche": "f",
-  "k\xFChlbox": "f",
-  "k\xFChlfalle": "f",
-  "k\xFCken": "n",
-  "k\xFCste": "f",
-  "labyrinth": "n",
-  "ladebalken": "m",
-  "ladekabel": "n",
-  "ladeliste": "f",
-  "lager": "n",
-  "lagune": "f",
-  "laib": "m",
-  "lamm": "n",
-  "lampe": "f",
-  "land": "n",
-  "lanze": "f",
-  "laterne": "f",
-  "laub": "n",
-  "laufzettel": "m",
-  "laute": "f",
-  "lawine": "f",
-  "leder": "n",
-  "lederbeutel": "m",
-  "legende": "f",
-  "lehen": "n",
-  "lehrer": "m",
-  "leid": "n",
-  "leine": "f",
-  "leitdetail": "n",
-  "leitung": "f",
-  "leuchten": "n",
-  "leuchtturm": "m",
-  "licht": "n",
-  "lichtstreifen": "m",
-  "lider": "n",
-  "liebe": "f",
-  "lied": "n",
-  "lilie": "f",
-  "lineal": "n",
-  "linie": "f",
-  "lippe": "f",
-  "liste": "f",
-  "loch": "n",
-  "locke": "f",
-  "log": "n",
-  "logbuch": "n",
-  "logfile": "n",
-  "los": "n",
-  "lot": "n",
-  "luft": "f",
-  "lupe": "f",
-  "lust": "f",
-  "l\xE4cheln": "n",
-  "l\xE4nder": "n",
-  "l\xE4rm": "m",
-  "l\xF6cher": "n",
-  "l\xF6ffel": "m",
-  "l\xF6we": "m",
-  "l\xFCcke": "f",
-  "l\xFCge": "f",
-  "macht": "f",
-  "magen": "m",
-  "mala": "f",
-  "maler": "m",
-  "manege": "f",
-  "manifest": "n",
-  "mann": "m",
-  "mantel": "m",
-  "manuskript": "n",
-  "mappe": "f",
-  "marmelade": "f",
-  "masche": "f",
-  "maschine": "f",
-  "maske": "f",
-  "mast": "m",
-  "matte": "f",
-  "mauer": "f",
-  "maus": "f",
-  "ma\xDF": "n",
-  "ma\xDFband": "n",
-  "ma\xDFstab": "m",
-  "medaillon": "n",
-  "meer": "n",
-  "mehl": "n",
-  "mei\xDFel": "m",
-  "melodie": "f",
-  "meme": "n",
-  "menge": "f",
-  "merkblatt": "n",
-  "messer": "n",
-  "messprotokoll": "n",
-  "messreihe": "f",
-  "messung": "f",
-  "metall": "n",
-  "meter": "m",
-  "metronom": "n",
-  "miene": "f",
-  "mikrofon": "n",
-  "mikroskop": "n",
-  "milch": "f",
-  "millimeter": "m",
-  "minute": "f",
-  "mitleid": "n",
-  "mittag": "m",
-  "mittel": "n",
-  "mitternacht": "f",
-  "modell": "n",
-  "modellplaneten": "m",
-  "moment": "m",
-  "monat": "m",
-  "mond": "m",
-  "moor": "n",
-  "morgen": "m",
-  "moschee": "f",
-  "motor": "m",
-  "mus": "n",
-  "muschel": "f",
-  "muskel": "m",
-  "muster": "n",
-  "mut": "m",
-  "mutter": "f",
-  "m\xE4dchen": "n",
-  "m\xE4hne": "f",
-  "m\xF6hre": "f",
-  "m\xF6nch": "m",
-  "m\xF6rder": "m",
-  "m\xF6we": "f",
-  "m\xFCcke": "f",
-  "m\xFChle": "f",
-  "m\xFCller": "m",
-  "m\xFCnze": "f",
-  "m\xFCtze": "f",
-  "nachbar": "m",
-  "nachbarort": "m",
-  "nachlass": "m",
-  "nachmittag": "m",
-  "nachricht": "f",
-  "nacht": "f",
-  "nachtigall": "f",
-  "nacken": "m",
-  "nadel": "f",
-  "nadelkissen": "n",
-  "nagel": "m",
-  "naht": "f",
-  "name": "m",
-  "napf": "m",
-  "narbe": "f",
-  "nase": "f",
-  "nebel": "m",
-  "neffe": "m",
-  "neid": "m",
-  "neigung": "f",
-  "neigungsmesser": "m",
-  "nelke": "f",
-  "nest": "n",
-  "nester": "n",
-  "netz": "n",
-  "nische": "f",
-  "nonne": "f",
-  "note": "f",
-  "notenblatt": "n",
-  "notiz": "f",
-  "notizblock": "m",
-  "notizbuch": "n",
-  "nummer": "f",
-  "nuss": "f",
-  "nymphe": "f",
-  "n\xE4he": "f",
-  "obst": "n",
-  "ofen": "m",
-  "ohr": "n",
-  "oma": "f",
-  "omen": "n",
-  "onkel": "m",
-  "opfer": "n",
-  "opferschale": "f",
-  "opiumdose": "f",
-  "orakel": "n",
-  "orange": "f",
-  "organ": "n",
-  "orgel": "f",
-  "ort": "m",
-  "ozean": "m",
-  "paar": "n",
-  "paket": "n",
-  "pakt": "m",
-  "papier": "n",
-  "paradoxon": "n",
-  "paragraph": "m",
-  "parameter": "m",
-  "park": "m",
-  "passagier": "m",
-  "passierschein": "m",
-  "pegelstab": "m",
-  "peilstock": "m",
-  "peitsche": "f",
-  "pendel": "n",
-  "pergamentrolle": "f",
-  "perle": "f",
-  "perlmuttknopf": "m",
-  "person": "f",
-  "petrischale": "f",
-  "petroleumlampe": "f",
-  "pfad": "m",
-  "pfand": "n",
-  "pfandschein": "m",
-  "pfeffer": "m",
-  "pfeife": "f",
-  "pferd": "n",
-  "pfirsich": "m",
-  "pflaster": "n",
-  "pflaume": "f",
-  "pflug": "m",
-  "pf\xFCtze": "f",
-  "phiole": "f",
-  "photoplatte": "f",
-  "pickel": "m",
-  "pilz": "m",
-  "ping": "m",
-  "pinzette": "f",
-  "pipette": "f",
-  "plakat": "n",
-  "plan": "m",
-  "plane": "f",
-  "planet": "m",
-  "planke": "f",
-  "platte": "f",
-  "platz": "m",
-  "platzhalter": "m",
-  "poller": "m",
-  "port": "m",
-  "portal": "n",
-  "postkarte": "f",
-  "powerbank": "f",
-  "priester": "m",
-  "prisma": "n",
-  "probe": "f",
-  "programm": "n",
-  "protokoll": "n",
-  "prozess": "m",
-  "puls": "m",
-  "pulver": "n",
-  "punkt": "m",
-  "puppe": "f",
-  "qualle": "f",
-  "quelle": "f",
-  "quittung": "f",
-  "rad": "n",
-  "rampe": "f",
-  "rand": "m",
-  "randnotiz": "f",
-  "ranke": "f",
-  "ranzen": "m",
-  "ratte": "f",
-  "rauch": "m",
-  "raumkapsel": "f",
-  "rausch": "m",
-  "rauschen": "n",
-  "rechentafel": "f",
-  "recht": "n",
-  "regal": "n",
-  "regel": "f",
-  "regen": "m",
-  "regenmesser": "m",
-  "register": "n",
-  "reh": "n",
-  "reich": "n",
-  "reif": "m",
-  "reigen": "m",
-  "reihe": "f",
-  "reinraumhaube": "f",
-  "reise": "f",
-  "reisemantel": "m",
-  "rei\xDFverschluss": "m",
-  "reklame": "f",
-  "rest": "m",
-  "rettung": "f",
-  "rezept": "n",
-  "richter": "m",
-  "riegel": "m",
-  "riff": "n",
-  "rinde": "f",
-  "ring": "m",
-  "rippe": "f",
-  "riss": "m",
-  "ritter": "m",
-  "ritterhelm": "m",
-  "rohr": "n",
-  "roman": "m",
-  "rose": "f",
-  "ruder": "n",
-  "ruf": "m",
-  "ruine": "f",
-  "rumpf": "m",
-  "r\xE4tsel": "n",
-  "r\xFCcken": "m",
-  "saal": "m",
-  "sachbearbeiter": "m",
-  "sack": "m",
-  "saft": "m",
-  "sage": "f",
-  "sahne": "f",
-  "saite": "f",
-  "salat": "m",
-  "salz": "n",
-  "samen": "m",
-  "sammlung": "f",
-  "sand": "m",
-  "sandsack": "m",
-  "sanduhr": "f",
-  "sarg": "m",
-  "satellit": "m",
-  "sattel": "m",
-  "sattelgurt": "m",
-  "satz": "m",
-  "saum": "m",
-  "savanne": "f",
-  "schacht": "m",
-  "schaf": "n",
-  "schale": "f",
-  "schalter": "m",
-  "scham": "f",
-  "schatten": "m",
-  "schatulle": "f",
-  "schaufel": "f",
-  "schere": "f",
-  "schicht": "f",
-  "schicksal": "n",
-  "schiff": "n",
-  "schiffssextanten": "m",
-  "schiffszwieback": "m",
-  "schild": "n",
-  "schirm": "m",
-  "schlaf": "m",
-  "schlag": "m",
-  "schlamm": "m",
-  "schlange": "f",
-  "schleife": "f",
-  "schloss": "n",
-  "schlucht": "f",
-  "schl\xFCssel": "m",
-  "schl\xFCsselbund": "m",
-  "schmerz": "m",
-  "schmied": "m",
-  "schmiede": "f",
-  "schminkkasten": "m",
-  "schnecke": "f",
-  "schnee": "m",
-  "schneiderpuppe": "f",
-  "schnitt": "m",
-  "schnittbogen": "m",
-  "schnittstelle": "f",
-  "schnur": "f",
-  "schokolade": "f",
-  "schrank": "m",
-  "schrei": "m",
-  "schreiber": "m",
-  "schrein": "m",
-  "schrift": "f",
-  "schritt": "m",
-  "schuh": "m",
-  "schuld": "f",
-  "schuldschein": "m",
-  "schule": "f",
-  "schulter": "f",
-  "schuppen": "m",
-  "schuss": "m",
-  "schwamm": "m",
-  "schwein": "n",
-  "schwelle": "f",
-  "schwert": "n",
-  "schwertgriff": "m",
-  "schwertgurt": "m",
-  "schwester": "f",
-  "schw\xE4che": "f",
-  "sch\xE4del": "m",
-  "sch\xE4rpe": "f",
-  "sch\xFCrze": "f",
-  "sch\xFCssel": "f",
-  "screenshot": "m",
-  "see": "m",
-  "seekarte": "f",
-  "seele": "f",
-  "seesack": "m",
-  "segel": "n",
-  "segeltuch": "n",
-  "segen": "m",
-  "sehne": "f",
-  "sehnsucht": "f",
-  "seidenfaden": "m",
-  "seil": "n",
-  "seismograph": "m",
-  "seismographen": "m",
-  "seite": "f",
-  "sekunde": "f",
-  "senf": "m",
-  "sensor": "m",
-  "sessel": "m",
-  "sieb": "n",
-  "siegel": "n",
-  "siegelring": "m",
-  "signal": "n",
-  "signalflagge": "f",
-  "silbe": "f",
-  "silber": "n",
-  "sinn": "m",
-  "sirene": "f",
-  "skala": "f",
-  "skalpell": "n",
-  "skelett": "n",
-  "skizze": "f",
-  "smartphone": "n",
-  "socke": "f",
-  "sofa": "n",
-  "sohn": "m",
-  "soldat": "m",
-  "sommer": "m",
-  "sonne": "f",
-  "sonnenbrille": "f",
-  "so\xDFe": "f",
-  "spalt": "m",
-  "speicher": "m",
-  "spektrogramm": "n",
-  "spektrometer": "n",
-  "sperre": "f",
-  "spiegel": "m",
-  "spiegelscherben": "m",
-  "spiel": "n",
-  "spinne": "f",
-  "sporn": "m",
-  "sprache": "f",
-  "sprung": "m",
-  "spule": "f",
-  "spur": "f",
-  "stab": "m",
-  "stadt": "f",
-  "stahlstrebe": "f",
-  "stamm": "m",
-  "standarte": "f",
-  "stapel": "m",
-  "statue": "f",
-  "staub": "m",
-  "stecknadel": "f",
-  "steg": "m",
-  "steig": "m",
-  "steigb\xFCgel": "m",
-  "steigeisen": "n",
-  "stein": "m",
-  "stelle": "f",
-  "stempel": "m",
-  "stempelger\xE4usch": "n",
-  "stempelhalter": "m",
-  "steppe": "f",
-  "stern": "m",
-  "sternbilder": "n",
-  "sternwarte": "f",
-  "stethoskop": "n",
-  "stiefel": "m",
-  "stier": "m",
-  "stille": "f",
-  "stimme": "f",
-  "stirn": "f",
-  "stock": "m",
-  "stoff": "m",
-  "stollen": "m",
-  "stolz": "m",
-  "story": "f",
-  "strand": "m",
-  "strauch": "m",
-  "stra\xDFe": "f",
-  "streichholzschachtel": "f",
-  "streit": "m",
-  "strich": "m",
-  "strom": "m",
-  "strophe": "f",
-  "str\xF6mung": "f",
-  "stube": "f",
-  "stufe": "f",
-  "stuhl": "m",
-  "stunde": "f",
-  "stundenplan": "m",
-  "sturm": "m",
-  "sturmlaterne": "f",
-  "st\xE4rke": "f",
-  "st\xFCck": "n",
-  "sumpf": "m",
-  "suppe": "f",
-  "suppenkelle": "f",
-  "symbol": "n",
-  "symptom": "n",
-  "system": "n",
-  "s\xE4ge": "f",
-  "s\xE4ule": "f",
-  "tabelle": "f",
-  "tafel": "f",
-  "tafelrunde": "f",
-  "tag": "m",
-  "takt": "m",
-  "tal": "n",
-  "talar": "m",
-  "tante": "f",
-  "tanz": "m",
-  "tasche": "f",
-  "taschenradio": "n",
-  "tasse": "f",
-  "tau": "n",
-  "taube": "f",
-  "tee": "m",
-  "teer": "m",
-  "teeschale": "f",
-  "teich": "m",
-  "teil": "m",
-  "telefon": "n",
-  "teleskop": "n",
-  "teller": "m",
-  "teppich": "m",
-  "termin": "m",
-  "terminal": "n",
-  "terminzettel": "m",
-  "teufel": "m",
-  "thermometer": "n",
-  "thermoskanne": "f",
-  "thron": "m",
-  "ticket": "n",
-  "tier": "n",
-  "tiger": "m",
-  "tiktoksound": "m",
-  "tintenfass": "n",
-  "tisch": "m",
-  "tochter": "f",
-  "tod": "m",
-  "tomate": "f",
-  "ton": "m",
-  "tonband": "n",
-  "tonschale": "f",
-  "tontafel": "f",
-  "topf": "m",
-  "tor": "n",
-  "torte": "f",
-  "trapezhaken": "m",
-  "traube": "f",
-  "trauer": "f",
-  "traum": "m",
-  "trend": "m",
-  "treppe": "f",
-  "treue": "f",
-  "trillerpfeife": "f",
-  "trinkhorn": "n",
-  "trommel": "f",
-  "truhe": "f",
-  "tr\xE4ne": "f",
-  "tuch": "n",
-  "tulpe": "f",
-  "tunnel": "m",
-  "turm": "m",
-  "turnbeutel": "m",
-  "turnier": "n",
-  "turnierplatz": "m",
-  "turnierstab": "m",
-  "t\xFCr": "f",
-  "t\xFCte": "f",
-  "ufer": "n",
-  "uhr": "f",
-  "umriss": "m",
-  "umschlag": "m",
-  "ungl\xFCck": "n",
-  "untergrund": "m",
-  "unterschrift": "f",
-  "untersuchungsliege": "f",
-  "update": "n",
-  "urne": "f",
-  "urteil": "n",
-  "vater": "m",
-  "verdacht": "m",
-  "verfahren": "n",
-  "vergangenheit": "f",
-  "vermerk": "m",
-  "vers": "m",
-  "verstand": "m",
-  "vertrag": "m",
-  "vertrauen": "n",
-  "video": "n",
-  "virus": "n",
-  "visier": "n",
-  "vogel": "m",
-  "vollmacht": "f",
-  "vordruck": "m",
-  "vorhang": "m",
-  "vormund": "m",
-  "vorrat": "m",
-  "vorratsgl\xE4ser": "n",
-  "vulkan": "m",
-  "wachs": "n",
-  "wachstuch": "n",
-  "wagen": "m",
-  "wahrheit": "f",
-  "waisenjunge": "m",
-  "wal": "m",
-  "wald": "m",
-  "waldhorn": "n",
-  "wand": "f",
-  "wanderstab": "m",
-  "wanderstock": "m",
-  "wanderung": "f",
-  "wange": "f",
-  "wappen": "n",
-  "wappenschild": "n",
-  "warnung": "f",
-  "warnweste": "f",
-  "wartemarke": "f",
-  "warze": "f",
-  "wasser": "n",
-  "wasserflasche": "f",
-  "wasserhahn": "m",
-  "weg": "m",
-  "wegmarke": "f",
-  "weide": "f",
-  "wein": "m",
-  "weite": "f",
-  "wei\xDF": "n",
-  "welle": "f",
-  "werk": "n",
-  "werkstatt": "f",
-  "werkzeug": "n",
-  "wert": "m",
-  "wespe": "f",
-  "wetter": "n",
-  "wetterfahne": "f",
-  "widerstand": "m",
-  "wiese": "f",
-  "wille": "m",
-  "wimper": "f",
-  "wind": "m",
-  "windhauch": "m",
-  "windsto\xDF": "m",
-  "winter": "m",
-  "witz": "m",
-  "woche": "f",
-  "wolf": "m",
-  "wolke": "f",
-  "wollschal": "m",
-  "wort": "n",
-  "wrack": "n",
-  "wunde": "f",
-  "wunder": "n",
-  "wunsch": "m",
-  "wurm": "m",
-  "wurzel": "f",
-  "wut": "f",
-  "w\xE4chter": "m",
-  "w\xE4lder": "m",
-  "w\xE4rme": "f",
-  "w\xE4rmestein": "m",
-  "w\xE4schekorb": "m",
-  "w\xF6rter": "n",
-  "w\xFCrfel": "m",
-  "w\xFCste": "f",
-  "zahl": "f",
-  "zahn": "m",
-  "zange": "f",
-  "zauberbesen": "m",
-  "zaun": "m",
-  "zeh": "m",
-  "zeichen": "n",
-  "zeile": "f",
-  "zeit": "f",
-  "zeitgeber": "m",
-  "zeitmarke": "f",
-  "zelle": "f",
-  "zelt": "n",
-  "zentimeter": "m",
-  "zepter": "n",
-  "zettel": "m",
-  "zeuge": "m",
-  "ziffer": "f",
-  "zigarettenstummel": "m",
-  "zigarre": "f",
-  "zimmer": "n",
-  "zirkel": "m",
-  "zitrone": "f",
-  "zittern": "n",
-  "zorn": "m",
-  "zucker": "m",
-  "zug": "m",
-  "zukunft": "f",
-  "zunderbeutel": "m",
-  "zunge": "f",
-  "zweifel": "m",
-  "zweig": "m",
-  "zweitschl\xFCssel": "m",
-  "zwieback": "m",
-  "zwiebel": "f",
-  "z\xE4hlrahmen": "m",
-  "z\xF6gern": "n",
-  "\xE4rmel": "m",
-  "\xE4rztin": "f",
-  "\xF6l": "n",
-  "\xF6llampe": "f",
-  "\xF6llaterne": "f",
-  "\xF6lschl\xFCssel": "m"
-};
-
-// src/generation/nouns2.data.ts
-var NOUN_GENDER_2 = {
-  // Nachtrag 4.357.1 (Blatt „Ost-Berlin": „Ein rotes Ballon")
-  ballon: "m",
-  luftballon: "m",
-  stoff: "m",
-  geschmack: "m",
-  sperrstunde: "f",
-  zugang: "m",
-  kopie: "f",
-  l\u00F6schung: "f",
-  // ── Häufigste ──
-  ende: "n",
-  jahr: "n",
-  mal: "n",
-  anfang: "m",
-  leben: "n",
-  auskunft: "f",
-  welt: "f",
-  fr\u00FChjahr: "n",
-  fall: "m",
-  arbeit: "f",
-  sache: "f",
-  zufall: "m",
-  form: "f",
-  ziel: "n",
-  kontrolle: "f",
-  reihenfolge: "f",
-  wissen: "n",
-  post: "f",
-  ernte: "f",
-  geld: "n",
-  mund: "m",
-  schweigen: "n",
-  wette: "f",
-  schminke: "f",
-  kurs: "m",
-  original: "n",
-  text: "m",
-  gras: "n",
-  warten: "n",
-  ruhe: "f",
-  mitte: "f",
-  seide: "f",
-  familie: "f",
-  tiefe: "f",
-  norden: "m",
-  s\u00FCden: "m",
-  osten: "m",
-  westen: "m",
-  blut: "n",
-  horizont: "m",
-  ursache: "f",
-  absicht: "f",
-  wirt: "m",
-  jagd: "f",
-  herkunft: "f",
-  essen: "n",
-  r\u00FCckkehr: "f",
-  rahmen: "m",
-  w\u00FCrde: "f",
-  w\u00E4sche: "f",
-  miete: "f",
-  verlangen: "n",
-  marke: "f",
-  griff: "m",
-  wache: "f",
-  vernunft: "f",
-  markt: "m",
-  pegel: "m",
-  halbdunkel: "n",
-  rolle: "f",
-  grad: "m",
-  streben: "n",
-  fach: "n",
-  weise: "f",
-  wipfel: "m",
-  kohle: "f",
-  lehne: "f",
-  tide: "f",
-  ru\u00DF: "m",
-  idee: "f",
-  gemeinde: "f",
-  jahrhundert: "n",
-  ernst: "m",
-  betrag: "m",
-  unterschied: "m",
-  material: "n",
-  annahme: "f",
-  merkmal: "n",
-  radio: "n",
-  hitze: "f",
-  herold: "m",
-  grat: "m",
-  kasse: "f",
-  zoll: "m",
-  heimweh: "n",
-  laden: "m",
-  f\u00E4hre: "f",
-  herzog: "m",
-  inhalt: "m",
-  titel: "m",
-  problem: "n",
-  sicht: "f",
-  beh\u00F6rde: "f",
-  winkel: "m",
-  hilfe: "f",
-  pass: "m",
-  viertel: "n",
-  jahrzehnt: "n",
-  anrede: "f",
-  rost: "m",
-  ekel: "m",
-  tat: "f",
-  methode: "f",
-  zwang: "m",
-  heimkehr: "f",
-  umkehr: "f",
-  norm: "f",
-  leere: "f",
-  umlauf: "m",
-  flamme: "f",
-  einsicht: "f",
-  messing: "n",
-  personal: "n",
-  widerspruch: "m",
-  schluss: "m",
-  stroh: "n",
-  rang: "m",
-  vieh: "n",
-  garderobe: "f",
-  g\u00FCte: "f",
-  anlass: "m",
-  anwalt: "m",
-  rat: "m",
-  code: "m",
-  bad: "n",
-  handgelenk: "n",
-  scheibe: "f",
-  zustand: "m",
-  eile: "f",
-  saatgut: "n",
-  fracht: "f",
-  automat: "m",
-  lehre: "f",
-  ding: "n",
-  verzicht: "m",
-  zweck: "m",
-  waffe: "f",
-  blech: "n",
-  trost: "m",
-  versuch: "m",
-  ironie: "f",
-  d\u00FCrre: "f",
-  fest: "n",
-  aufsicht: "f",
-  kapitel: "n",
-  aussicht: "f",
-  absinth: "m",
-  parf\u00FCm: "n",
-  schmutz: "m",
-  knick: "m",
-  andacht: "f",
-  spitze: "f",
-  szene: "f",
-  erfolg: "m",
-  ausguck: "m",
-  bord: "m",
-  sieg: "m",
-  klausel: "f",
-  haupttext: "m",
-  sachverhalt: "m",
-  tinte: "f",
-  stand: "m",
-  wortlaut: "m",
-  klinke: "f",
-  kanzel: "f",
-  verrat: "m",
-  mulde: "f",
-  februar: "m",
-  parasit: "m",
-  pr\u00E4parat: "n",
-  wesen: "n",
-  lava: "f",
-  schwefel: "m",
-  lauf: "m",
-  spa\u00DF: "m",
-  m\u00F6bel: "n",
-  b\u00FCro: "n",
-  hauptsache: "f",
-  saat: "f",
-  fehde: "f",
-  portr\u00E4t: "n",
-  reue: "f",
-  konfetti: "n",
-  trapez: "n",
-  narr: "m",
-  truppe: "f",
-  pudel: "m",
-  jugend: "f",
-  abschied: "m",
-  bronze: "f",
-  tempel: "m",
-  geschlecht: "n",
-  stra\u00DFenanfang: "m",
-  brauch: "m",
-  wiederkehr: "f",
-  h\u00E4lfte: "f",
-  pappe: "f",
-  kante: "f",
-  eintrag: "m",
-  format: "n",
-  giebel: "m",
-  heimat: "f",
-  armenkasse: "f",
-  materie: "f",
-  mensch: "m",
-  glied: "n",
-  betrieb: "m",
-  m\u00FCll: "m",
-  kleingeld: "n",
-  ruhm: "m",
-  ritt: "m",
-  sch\u00E4rfe: "f",
-  ankunft: "f",
-  symmetrie: "f",
-  adressat: "m",
-  kreislauf: "m",
-  aufstieg: "m",
-  f\u00FClle: "f",
-  bitte: "f",
-  brand: "m",
-  waise: "f",
-  gesang: "m",
-  subjekt: "n",
-  objekt: "n",
-  moral: "f",
-  schilf: "n",
-  diagnose: "f",
-  gr\u00F6\u00DFe: "f",
-  wahl: "f",
-  sturz: "m",
-  gischt: "f",
-  ekstase: "f",
-  becken: "n",
-  putz: "m",
-  minze: "f",
-  samt: "m",
-  pause: "f",
-  knauf: "m",
-  apotheke: "f",
-  kost\u00FCm: "n",
-  versto\u00DF: "m",
-  satzanfang: "m",
-  sprint: "m",
-  beule: "f",
-  banane: "f",
-  tapete: "f",
-  galerie: "f",
-  kl\u00F6ppel: "m",
-  predigt: "f",
-  zierrat: "m",
-  wachwechsel: "m",
-  wimpel: "m",
-  rah: "f",
-  streitfall: "m",
-  docht: "m",
-  wundmal: "n",
-  pforte: "f",
-  gebot: "n",
-  fl\u00FCgel: "m",
-  l\u00E4nge: "f",
-  kamel: "n",
-  achse: "f",
-  schlegel: "m",
-  affe: "m",
-  nirwana: "n",
-  alkohol: "m",
-  instinkt: "m",
-  balance: "f",
-  aushub: "m",
-  kalk: "m",
-  r\u00F6hre: "f",
-  basalt: "m",
-  salzs\u00E4ure: "f",
-  erdkruste: "f",
-  schichtfolge: "f",
-  sohle: "f",
-  profil: "n",
-  schneeschmelze: "f",
-  orbit: "m",
-  funkspruch: "m",
-  meteorit: "m",
-  stromausfall: "m",
-  theorie: "f",
-  nervengeflecht: "n",
-  bodenprofil: "n",
-  senke: "f",
-  gebiet: "n",
-  phase: "f",
-  honorar: "n",
-  kordel: "f",
-  spind: "m",
-  tonfall: "m",
-  tempo: "n",
-  schattenkante: "f",
-  stahl: "m",
-  graupappe: "f",
-  st\u00FCtze: "f",
-  perspektive: "f",
-  tank: "m",
-  stillstand: "m",
-  pumpe: "f",
-  debatte: "f",
-  bahre: "f",
-  fackelru\u00DF: "m",
-  kerbe: "f",
-  t\u00FCrsturz: "m",
-  groll: "m",
-  seuche: "f",
-  lunge: "f",
-  pferdegeschirr: "n",
-  zeltgest\u00E4nge: "n",
-  marsch: "m",
-  schaumgummi: "m",
-  knall: "m",
-  zeltmitte: "f",
-  trick: "m",
-  wurf: "m",
-  pult: "n",
-  pentagramm: "n",
-  handel: "m",
-  r\u00FCcktritt: "m",
-  zimt: "m",
-  akt: "m",
-  schatz: "m",
-  betrug: "m",
-  kopfende: "n",
-  parkett: "n",
-  lack: "m",
-  leib: "m",
-  efeu: "m",
-  anstand: "m",
-  schafwolle: "f",
-  milde: "f",
-  wiege: "f",
-  schar: "f",
-  gunst: "f",
-  volk: "n",
-  staat: "m",
-  antlitz: "n",
-  fleck: "m",
-  alibi: "n",
-  kamera: "f",
-  vorfall: "m",
-  quelltext: "m",
-  ritual: "n",
-  schl\u00E4fe: "f",
-  wetterwechsel: "m",
-  anzeige: "f",
-  jahresende: "n",
-  weile: "f",
-  t\u00FCll: "m",
-  schleppe: "f",
-  b\u00FCgel: "m",
-  dampf: "m",
-  kragen: "m",
-  kerzenstummel: "m",
-  klasse: "f",
-  monatsende: "n",
-  tausendstel: "n",
-  durchlauf: "m",
-  jahrtausend: "n",
-  scheu: "f",
-  taxi: "n",
-  mittwoch: "m",
-  erz: "n",
-  diebstahl: "m",
-  nachtwache: "f",
-  schleuse: "f",
-  \u00FCbernahme: "f",
-  luke: "f",
-  sp\u00FCle: "f",
-  ampel: "f",
-  sperrm\u00FCll: "m",
-  speiche: "f",
-  henkel: "m",
-  routine: "f",
-  mai: "m",
-  wolle: "f",
-  schluck: "m",
-  biologie: "f",
-  geologie: "f",
-  astrologie: "f",
-  philosophie: "f",
-  krise: "f",
-  trag\u00F6die: "f",
-  urknall: "m",
-  stift: "m",
-  mine: "f",
-  abwehr: "f",
-  mole: "f",
-  zerfall: "m",
-  masse: "f",
-  handbreit: "f",
-  verfall: "m",
-  tischkante: "f",
-  beute: "f",
-  rache: "f",
-  font\u00E4ne: "f",
-  zuversicht: "f",
-  unruhe: "f",
-  energie: "f",
-  enge: "f",
-  april: "m",
-  rekord: "m",
-  normalzustand: "m",
-  h\u00F6he: "f",
-  abstieg: "m",
-  requisit: "n",
-  schwindel: "m",
-  orakelspruch: "m",
-  erlass: "m",
-  aufstand: "m",
-  gehorsam: "m",
-  blackbox: "f",
-  silhouette: "f",
-  mode: "f",
-  not: "f",
-  urform: "f",
-  ruhestand: "m",
-  schaden: "m",
-  anlauf: "m",
-  dienstjahr: "n",
-  witwe: "f",
-  ensemble: "n",
-  kommune: "f",
-  sekte: "f",
-  rettungstrupp: "m",
-  exil: "n",
-  zentrale: "f",
-  zensurbeh\u00F6rde: "f",
-  doktortitel: "m",
-  naturschutzgebiet: "n",
-  boulevard: "m",
-  hotel: "n",
-  kino: "n",
-  verkehr: "m",
-  kellerclub: "m",
-  kabine: "f",
-  auto: "n",
-  kaserne: "f",
-  internat: "n",
-  wahlkabine: "f",
-  anstalt: "f",
-  mittagspause: "f",
-  choleraepidemie: "f",
-  monarchie: "f",
-  hungersnot: "f",
-  null: "f",
-  route: "f",
-  kampagne: "f",
-  karriere: "f",
-  neuanfang: "m",
-  sorte: "f",
-  verhandlungssache: "f",
-  folge: "f",
-  ablauf: "m",
-  strategie: "f",
-  apparat: "m",
-  psychopath: "m",
-  variable: "f",
-  empathie: "f",
-  amsel: "f",
-  schneefall: "m",
-  abendrot: "n",
-  wechsel: "m",
-  // ── Nachschlag: Alltag, Körper, Haus, Natur, Amt ──
-  auge: "n",
-  name: "m",
-  glaube: "m",
-  wille: "m",
-  gedanke: "m",
-  friede: "m",
-  funke: "m",
-  k\u00E4se: "m",
-  junge: "m",
-  kunde: "m",
-  l\u00F6we: "m",
-  hase: "m",
-  bote: "m",
-  zeuge: "m",
-  riese: "m",
-  rabe: "m",
-  falke: "m",
-  ochse: "m",
-  bursche: "m",
-  knabe: "m",
-  neffe: "m",
-  erbe: "m",
-  buchstabe: "m",
-  same: "m",
-  schatten: "m",
-  wagen: "m",
-  boden: "m",
-  garten: "m",
-  ofen: "m",
-  regen: "m",
-  faden: "m",
-  haken: "m",
-  hafen: "m",
-  morgen: "m",
-  tropfen: "m",
-  kissen: "n",
-  zeichen: "n",
-  kuchen: "m",
-  knochen: "m",
-  r\u00FCcken: "m",
-  segen: "m",
-  bogen: "m",
-  balken: "m",
-  riegel: "m",
-  ballen: "m",
-  fels: "m",
-  haus: "n",
-  glas: "n",
-  bus: "m",
-  fluss: "m",
-  kuss: "m",
-  guss: "m",
-  gru\u00DF: "m",
-  fu\u00DF: "m",
-  hass: "m",
-  kompass: "m",
-  atlas: "m",
-  kreis: "m",
-  preis: "m",
-  eis: "n",
-  reis: "m",
-  gleis: "n",
-  flei\u00DF: "m",
-  geheimnis: "n",
-  ergebnis: "n",
-  zeugnis: "n",
-  bed\u00FCrfnis: "n",
-  verh\u00E4ltnis: "n",
-  ereignis: "n",
-  erlebnis: "n",
-  b\u00FCndnis: "n",
-  hindernis: "n",
-  gef\u00E4ngnis: "n",
-  wildnis: "f",
-  finsternis: "f",
-  fenster: "n",
-  zimmer: "n",
-  wasser: "n",
-  messer: "n",
-  feuer: "n",
-  kupfer: "n",
-  silber: "n",
-  pulver: "n",
-  wetter: "n",
-  alter: "n",
-  ufer: "n",
-  lager: "n",
-  opfer: "n",
-  muster: "n",
-  kloster: "n",
-  register: "n",
-  theater: "n",
-  fieber: "n",
-  leder: "n",
-  futter: "n",
-  gitter: "n",
-  ruder: "n",
-  wunder: "n",
-  orchester: "n",
-  zepter: "n",
-  semester: "n",
-  polster: "n",
-  pflaster: "n",
-  laster: "n",
-  meter: "m",
-  liter: "m",
-  zentrum: "n",
-  datum: "n",
-  museum: "n",
-  t\u00FCr: "f",
-  hand: "f",
-  stern: "m",
-  schritt: "m",
-  brief: "m",
-  weg: "m",
-  stimme: "f",
-  spur: "f",
-  lippe: "f",
-  frage: "f",
-  perle: "f",
-  glocke: "f",
-  uhr: "f",
-  herz: "n",
-  dach: "n",
-  stra\u00DFe: "f",
-  regel: "f",
-  vorrat: "m",
-  schicht: "f",
-  schaf: "n",
-  nummer: "f",
-  schuh: "m",
-  grenze: "f",
-  gutachten: "n",
-  satz: "m",
-  wort: "n",
-  seele: "f",
-  teil: "m",
-  blume: "f",
-  richtung: "f",
-  monat: "m",
-  zahn: "m",
-  ort: "m",
-  wand: "f",
-  vorhang: "m",
-  umstand: "m",
-  sandsack: "m",
-  kraft: "f",
-  bein: "n",
-  kanal: "m",
-  sinn: "m",
-  netz: "n",
-  pflasterstein: "m",
-  handschuh: "m",
-  protokoll: "n",
-  system: "n",
-  kreidestrich: "m",
-  bruchteil: "m",
-  tor: "n",
-  kran: "m",
-  beweis: "m",
-  nacht: "f",
-  stadt: "f",
-  grund: "m",
-  zug: "m",
-  riff: "n",
-  plakat: "n",
-  baum: "m",
-  erbgang: "m",
-  exemplar: "n",
-  symptom: "n",
-  plan: "m",
-  umriss: "m",
-  riss: "m",
-  bahngleis: "n",
-  regal: "n",
-  blick: "m",
-  bergpass: "m",
-  faust: "f",
-  stuhl: "m",
-  freund: "m",
-  stamm: "m",
-  tanzschuh: "m",
-  dienst: "m",
-  ma\u00DF: "n",
-  arm: "m",
-  kinderhand: "f",
-  tisch: "m",
-  seil: "n",
-  frachtbrief: "m",
-  termin: "m",
-  formular: "n",
-  messwert: "m",
-  gegenstand: "m",
-  vogel: "m",
-  exponat: "n",
-  fahrgast: "m",
-  meer: "n",
-  anruf: "m",
-  vorschlag: "m",
-  punkt: "m",
-  boot: "n",
-  paar: "n",
-  gast: "m",
-  stein: "m",
-  stunde: "f",
-  minute: "f",
-  tag: "m",
-  woche: "f",
-  seite: "f",
-  farbe: "f",
-  papier: "n",
-  nachbar: "m",
-  wolke: "f",
-  zeug: "n",
-  kind: "n",
-  mann: "m",
-  frau: "f",
-  vater: "m",
-  mutter: "f",
-  bruder: "m",
-  schwester: "f",
-  sohn: "m",
-  tochter: "f",
-  herr: "m",
-  dame: "f",
-  lehrer: "m",
-  arzt: "m",
-  pfarrer: "m",
-  priester: "m",
-  k\u00F6nig: "m",
-  k\u00F6nigin: "f",
-  kaiser: "m",
-  soldat: "m",
-  bauer: "m",
-  fischer: "m",
-  b\u00E4cker: "m",
-  schneider: "m",
-  schmied: "m",
-  m\u00FCller: "m",
-  j\u00E4ger: "m",
-  hirte: "m",
-  knecht: "m",
-  magd: "f",
-  w\u00E4chter: "m",
-  richter: "m",
-  h\u00E4ndler: "m",
-  fremde: "m",
-  kurier: "m",
-  agent: "m",
-  spion: "m",
-  dieb: "m",
-  r\u00E4uber: "m",
-  m\u00F6rder: "m",
-  opferlamm: "n",
-  engel: "m",
-  teufel: "m",
-  geist: "m",
-  gott: "m",
-  g\u00F6ttin: "f",
-  heiliger: "m",
-  m\u00F6nch: "m",
-  nonne: "f",
-  abt: "m",
-  bischof: "m",
-  papst: "m",
-  ritter: "m",
-  knappe: "m",
-  graf: "m",
-  gr\u00E4fin: "f",
-  f\u00FCrst: "m",
-  prinz: "m",
-  prinzessin: "f",
-  zauberer: "m",
-  hexe: "f",
-  drache: "m",
-  zwerg: "m",
-  elf: "m",
-  troll: "m",
-  wolf: "m",
-  b\u00E4r: "m",
-  fuchs: "m",
-  hirsch: "m",
-  reh: "n",
-  pferd: "n",
-  hund: "m",
-  katze: "f",
-  maus: "f",
-  ratte: "f",
-  schlange: "f",
-  fisch: "m",
-  m\u00F6we: "f",
-  taube: "f",
-  kr\u00E4he: "f",
-  eule: "f",
-  biene: "f",
-  fliege: "f",
-  spinne: "f",
-  k\u00E4fer: "m",
-  schmetterling: "m",
-  wurm: "m",
-  ameise: "f",
-  frosch: "m",
-  kr\u00F6te: "f",
-  eidechse: "f",
-  schwan: "m",
-  ente: "f",
-  gans: "f",
-  huhn: "n",
-  hahn: "m",
-  kuh: "f",
-  stier: "m",
-  ziege: "f",
-  esel: "m",
-  schwein: "n",
-  lamm: "n",
-  // Schwache Maskulina auf -e, die die -e→f-Regel sonst fälschlich fängt
-  kollege: "m",
-  experte: "m",
-  matrose: "m",
-  pate: "m",
-  sklave: "m",
-  laie: "m",
-  insasse: "m",
-  gatte: "m",
-  bulle: "m",
-  schurke: "m",
-  geselle: "m",
-  gef\u00E4hrte: "m",
-  genosse: "m",
-  komplize: "m",
-  jude: "m",
-  zar: "m",
-  franzose: "m",
-  chinese: "m",
-  russe: "m",
-  grieche: "m",
-  t\u00FCrke: "m",
-  ire: "m",
-  schwede: "m",
-  d\u00E4ne: "m",
-  psychologe: "m",
-  biologe: "m",
-  geologe: "m",
-  soziologe: "m",
-  arch\u00E4ologe: "m",
-  philosoph: "m",
-  // Neutra auf -e
-  interesse: "n",
-  geb\u00E4ude: "n",
-  gem\u00E4lde: "n",
-  gebirge: "n",
-  getreide: "n",
-  gefolge: "n",
-  gel\u00E4nde: "n",
-  gewebe: "n",
-  gew\u00F6lbe: "n",
-  getriebe: "n",
-  gef\u00FCge: "n",
-  gelage: "n",
-  gerede: "n",
-  gehege: "n",
-  gewerbe: "n"
-};
-
-// src/generation/declension.ts
-var NOUN_GENDER2 = { ...NOUN_GENDER_2, ...NOUN_GENDER };
-function istSubstantivierterInfinitiv(w) {
-  if (!/^[a-zäöüß]{4,}en$/.test(w)) return false;
-  const stamm = w.slice(0, -2);
-  return istVerbform(stamm + "t") || istVerbform(stamm + "et");
-}
-var E_AUSNAHME = /^(ge[a-zäöüß]+e|.*(auge|ende|käse|junge|erbe|interesse))$/;
-function adjStamm(adj) {
-  const m = adj.match(/^(.*?)(es|er|em|en|e)$/);
-  return m && m[1].length >= 4 ? m[1] : adj;
-}
-function adjustAdjectiveEnding(adj, gender, targetCase) {
-  const stem = adjStamm(adj);
-  if (targetCase === "nom") return gender === "m" ? stem + "er" : gender === "f" ? stem + "e" : stem + "es";
-  if (targetCase === "dat") return stem + "en";
-  if (targetCase === "acc") return gender === "m" ? stem + "en" : gender === "f" ? stem + "e" : stem + "es";
-  return adj;
-}
-function guessGender(noun) {
-  const w = (noun || "").toLowerCase().replace(/[^a-zäöüß]/g, "");
-  const known = NOUN_GENDER2[w];
-  if (known === "m" || known === "f" || known === "n") return known;
-  let best = "";
-  for (const k in NOUN_GENDER2) {
-    if (k.length >= 3 && w.length >= k.length + 2 && w.endsWith(k) && k.length > best.length) best = k;
-  }
-  if (best) return NOUN_GENDER2[best];
-  if (/(ung|heit|keit|schaft|tät|ion|ik|enz|anz|ei|ade|age|üre|itis|ur)$/.test(w)) return "f";
-  if (/(chen|lein|ment|tum|um|nis|ma)$/.test(w)) return "n";
-  if (/(ling|ismus|ant|ent|ist|eur|or|ich|ig|ast)$/.test(w)) return "m";
-  if (istSubstantivierterInfinitiv(w)) return "n";
-  if (/^ge[a-zäöüß]{3,}e$/.test(w)) return "n";
-  if (/e$/.test(w) && w.length >= 4 && !E_AUSNAHME.test(w)) return "f";
-  if (/er$/.test(w)) return "m";
-  return void 0;
-}
-function ensureArticle(phrase) {
-  const s = clean(phrase);
-  if (/^(ein|eine|einen|einem|einer|eines|der|die|das|den|dem|des|kein|keine|mein|dein|sein|ihr|unser)\b/i.test(s)) return s;
-  const words = s.split(" ");
-  if (words.length > 5) return s;
-  let nounIdx = words.findIndex((w) => /^[A-ZÄÖÜ]/.test(w));
-  if (nounIdx === -1) return s;
-  if (nounIdx + 1 < words.length && /^[A-ZÄÖÜ]/.test(words[nounIdx + 1]) && /(e|er|es|en|em|te|ne)$/.test(words[nounIdx])) {
-    words[nounIdx] = words[nounIdx].charAt(0).toLowerCase() + words[nounIdx].slice(1);
-    nounIdx++;
-  }
-  const g = guessGender(words[nounIdx].replace(/[^A-Za-zÄÖÜäöüß]/g, ""));
-  if (!g) return words.join(" ");
-  return `${g === "f" ? "eine" : "ein"} ${words.join(" ")}`;
-}
-var ART_GENUS = {
-  ein: void 0,
-  eine: "f",
-  einen: "m",
-  einem: void 0,
-  einer: "f",
-  eines: void 0
-};
-function declineHookPhrase(phrase, targetCase) {
-  const s = clean(phrase);
-  const m = s.match(/^(ein|eine|einen|einem|einer|eines)\s+(.*)$/i);
-  if (!m) return s;
-  const restWords = m[2].split(" ");
-  let nounIdx = -1;
-  for (let i = 0; i < restWords.length && i <= 2; i++) {
-    if (/^[A-ZÄÖÜ]/.test(restWords[i])) {
-      nounIdx = i;
-      break;
-    }
-  }
-  if (nounIdx === -1) return s;
-  const nounWord = restWords[nounIdx].replace(/[,.;:!?]+$/, "");
-  const art0 = m[1].toLowerCase();
-  const gender = ART_GENUS[art0] || NOUN_GENDER2[nounWord.toLowerCase()] || guessGender(nounWord);
-  if (!gender) return s;
-  const artForms = {
-    m: { nom: "ein", acc: "einen", dat: "einem" },
-    f: { nom: "eine", acc: "eine", dat: "einer" },
-    n: { nom: "ein", acc: "ein", dat: "einem" }
-  };
-  const newArt = artForms[gender][targetCase] || artForms[gender].nom;
-  const words = restWords.slice();
-  for (let i = 0; i < nounIdx; i++) words[i] = adjustAdjectiveEnding(words[i], gender, targetCase);
-  return `${newArt} ${words.join(" ")}`;
-}
-
-// src/generation/verbconj.data.ts
-var VERB_CONJ = {
-  "bemerkt": {
-    "ich": "bemerke",
-    "du": "bemerkst",
-    "wir": "bemerken",
-    "ihr": "bemerkt"
-  },
-  "nimmt": {
-    "ich": "nehme",
-    "du": "nimmst",
-    "wir": "nehmen",
-    "ihr": "nehmt"
-  },
-  "steht": {
-    "ich": "stehe",
-    "du": "stehst",
-    "wir": "stehen",
-    "ihr": "steht"
-  },
-  "h\xE4lt": {
-    "ich": "halte",
-    "du": "h\xE4ltst",
-    "wir": "halten",
-    "ihr": "haltet"
-  },
-  "sucht": {
-    "ich": "suche",
-    "du": "suchst",
-    "wir": "suchen",
-    "ihr": "sucht"
-  },
-  "versucht": {
-    "ich": "versuche",
-    "du": "versuchst",
-    "wir": "versuchen",
-    "ihr": "versucht"
-  },
-  "will": {
-    "ich": "will",
-    "du": "willst",
-    "wir": "wollen",
-    "ihr": "wollt"
-  },
-  "kann": {
-    "ich": "kann",
-    "du": "kannst",
-    "wir": "k\xF6nnen",
-    "ihr": "k\xF6nnt"
-  },
-  "muss": {
-    "ich": "muss",
-    "du": "musst",
-    "wir": "m\xFCssen",
-    "ihr": "m\xFCsst"
-  },
-  "darf": {
-    "ich": "darf",
-    "du": "darfst",
-    "wir": "d\xFCrfen",
-    "ihr": "d\xFCrft"
-  },
-  "mag": {
-    "ich": "mag",
-    "du": "magst",
-    "wir": "m\xF6gen",
-    "ihr": "m\xF6gt"
-  },
-  "soll": {
-    "ich": "soll",
-    "du": "sollst",
-    "wir": "sollen",
-    "ihr": "sollt"
-  },
-  "m\xF6chte": {
-    "ich": "m\xF6chte",
-    "du": "m\xF6chtest",
-    "wir": "m\xF6chten",
-    "ihr": "m\xF6chtet"
-  },
-  "ist": {
-    "ich": "bin",
-    "du": "bist",
-    "wir": "sind",
-    "ihr": "seid"
-  },
-  "wird": {
-    "ich": "werde",
-    "du": "wirst",
-    "wir": "werden",
-    "ihr": "werdet"
-  },
-  "geht": {
-    "ich": "gehe",
-    "du": "gehst",
-    "wir": "gehen",
-    "ihr": "geht"
-  },
-  "kommt": {
-    "ich": "komme",
-    "du": "kommst",
-    "wir": "kommen",
-    "ihr": "kommt"
-  },
-  "bleibt": {
-    "ich": "bleibe",
-    "du": "bleibst",
-    "wir": "bleiben",
-    "ihr": "bleibt"
-  },
-  "\xF6ffnet": {
-    "ich": "\xF6ffne",
-    "du": "\xF6ffnest",
-    "wir": "\xF6ffnen",
-    "ihr": "\xF6ffnet"
-  },
-  "schlie\xDFt": {
-    "ich": "schlie\xDFe",
-    "du": "schlie\xDFt",
-    "wir": "schlie\xDFen",
-    "ihr": "schlie\xDFt"
-  },
-  "fragt": {
-    "ich": "frage",
-    "du": "fragst",
-    "wir": "fragen",
-    "ihr": "fragt"
-  },
-  "f\xFChrt": {
-    "ich": "f\xFChre",
-    "du": "f\xFChrst",
-    "wir": "f\xFChren",
-    "ihr": "f\xFChrt"
-  },
-  "begreift": {
-    "ich": "begreife",
-    "du": "begreifst",
-    "wir": "begreifen",
-    "ihr": "begreift"
-  },
-  "bricht": {
-    "ich": "breche",
-    "du": "brichst",
-    "wir": "brechen",
-    "ihr": "brecht"
-  },
-  "kippt": {
-    "ich": "kippe",
-    "du": "kippst",
-    "wir": "kippen",
-    "ihr": "kippt"
-  },
-  "l\xF6scht": {
-    "ich": "l\xF6sche",
-    "du": "l\xF6schst",
-    "wir": "l\xF6schen",
-    "ihr": "l\xF6scht"
-  },
-  "tut": {
-    "ich": "tue",
-    "du": "tust",
-    "wir": "tun",
-    "ihr": "tut"
-  },
-  "macht": {
-    "ich": "mache",
-    "du": "machst",
-    "wir": "machen",
-    "ihr": "macht"
-  },
-  "sieht": {
-    "ich": "sehe",
-    "du": "siehst",
-    "wir": "sehen",
-    "ihr": "seht"
-  },
-  "gibt": {
-    "ich": "gebe",
-    "du": "gibst",
-    "wir": "geben",
-    "ihr": "gebt"
-  },
-  "tr\xE4gt": {
-    "ich": "trage",
-    "du": "tr\xE4gst",
-    "wir": "tragen",
-    "ihr": "tragt"
-  },
-  "h\xF6rt": {
-    "ich": "h\xF6re",
-    "du": "h\xF6rst",
-    "wir": "h\xF6ren",
-    "ihr": "h\xF6rt"
-  },
-  "findet": {
-    "ich": "finde",
-    "du": "findest",
-    "wir": "finden",
-    "ihr": "findet"
-  },
-  "ber\xFChrt": {
-    "ich": "ber\xFChre",
-    "du": "ber\xFChrst",
-    "wir": "ber\xFChren",
-    "ihr": "ber\xFChrt"
-  },
-  "beobachtet": {
-    "ich": "beobachte",
-    "du": "beobachtest",
-    "wir": "beobachten",
-    "ihr": "beobachtet"
-  },
-  "kennt": {
-    "ich": "kenne",
-    "du": "kennst",
-    "wir": "kennen",
-    "ihr": "kennt"
-  },
-  "nennt": {
-    "ich": "nenne",
-    "du": "nennst",
-    "wir": "nennen",
-    "ihr": "nennt"
-  },
-  "sp\xFCrt": {
-    "ich": "sp\xFCre",
-    "du": "sp\xFCrst",
-    "wir": "sp\xFCren",
-    "ihr": "sp\xFCrt"
-  },
-  "wei\xDF": {
-    "ich": "wei\xDF",
-    "du": "wei\xDFt",
-    "wir": "wissen",
-    "ihr": "wisst"
-  },
-  "braucht": {
-    "ich": "brauche",
-    "du": "brauchst",
-    "wir": "brauchen",
-    "ihr": "braucht"
-  },
-  "w\xFCnscht": {
-    "ich": "w\xFCnsche",
-    "du": "w\xFCnschst",
-    "wir": "w\xFCnschen",
-    "ihr": "w\xFCnscht"
-  },
-  "hofft": {
-    "ich": "hoffe",
-    "du": "hoffst",
-    "wir": "hoffen",
-    "ihr": "hofft"
-  },
-  "tr\xE4umt": {
-    "ich": "tr\xE4ume",
-    "du": "tr\xE4umst",
-    "wir": "tr\xE4umen",
-    "ihr": "tr\xE4umt"
-  },
-  "plant": {
-    "ich": "plane",
-    "du": "planst",
-    "wir": "planen",
-    "ihr": "plant"
-  },
-  "f\xFCrchtet": {
-    "ich": "f\xFCrchte",
-    "du": "f\xFCrchtest",
-    "wir": "f\xFCrchten",
-    "ihr": "f\xFCrchtet"
-  },
-  "wartet": {
-    "ich": "warte",
-    "du": "wartest",
-    "wir": "warten",
-    "ihr": "wartet"
-  },
-  "glaubt": {
-    "ich": "glaube",
-    "du": "glaubst",
-    "wir": "glauben",
-    "ihr": "glaubt"
-  },
-  "denkt": {
-    "ich": "denke",
-    "du": "denkst",
-    "wir": "denken",
-    "ihr": "denkt"
-  },
-  "f\xFChlt": {
-    "ich": "f\xFChle",
-    "du": "f\xFChlst",
-    "wir": "f\xFChlen",
-    "ihr": "f\xFChlt"
-  },
-  "verlangt": {
-    "ich": "verlange",
-    "du": "verlangst",
-    "wir": "verlangen",
-    "ihr": "verlangt"
-  },
-  "erwartet": {
-    "ich": "erwarte",
-    "du": "erwartest",
-    "wir": "erwarten",
-    "ihr": "erwartet"
-  },
-  "riskiert": {
-    "ich": "riskiere",
-    "du": "riskierst",
-    "wir": "riskieren",
-    "ihr": "riskiert"
-  },
-  "wagt": {
-    "ich": "wage",
-    "du": "wagst",
-    "wir": "wagen",
-    "ihr": "wagt"
-  },
-  "flieht": {
-    "ich": "fliehe",
-    "du": "fliehst",
-    "wir": "fliehen",
-    "ihr": "flieht"
-  },
-  "jagt": {
-    "ich": "jage",
-    "du": "jagst",
-    "wir": "jagen",
-    "ihr": "jagt"
-  },
-  "folgt": {
-    "ich": "folge",
-    "du": "folgst",
-    "wir": "folgen",
-    "ihr": "folgt"
-  },
-  "verfolgt": {
-    "ich": "verfolge",
-    "du": "verfolgst",
-    "wir": "verfolgen",
-    "ihr": "verfolgt"
-  },
-  "rettet": {
-    "ich": "rette",
-    "du": "rettest",
-    "wir": "retten",
-    "ihr": "rettet"
-  },
-  "verr\xE4t": {
-    "ich": "verrate",
-    "du": "verr\xE4tst",
-    "wir": "verraten",
-    "ihr": "verratet"
-  },
-  "vergisst": {
-    "ich": "vergesse",
-    "du": "vergisst",
-    "wir": "vergessen",
-    "ihr": "vergesst"
-  },
-  "hatte": {
-    "ich": "hatte",
-    "du": "hattest",
-    "wir": "hatten",
-    "ihr": "hattet"
-  },
-  "war": {
-    "ich": "war",
-    "du": "warst",
-    "wir": "waren",
-    "ihr": "wart"
-  },
-  "wollte": {
-    "ich": "wollte",
-    "du": "wolltest",
-    "wir": "wollten",
-    "ihr": "wolltet"
-  },
-  "tat": {
-    "ich": "tat",
-    "du": "tatest",
-    "wir": "taten",
-    "ihr": "tatet"
-  },
-  "machte": {
-    "ich": "machte",
-    "du": "machtest",
-    "wir": "machten",
-    "ihr": "machtet"
-  },
-  "kam": {
-    "ich": "kam",
-    "du": "kamst",
-    "wir": "kamen",
-    "ihr": "kamt"
-  },
-  "ging": {
-    "ich": "ging",
-    "du": "gingst",
-    "wir": "gingen",
-    "ihr": "gingt"
-  },
-  "f\xFChrte": {
-    "ich": "f\xFChrte",
-    "du": "f\xFChrtest",
-    "wir": "f\xFChrten",
-    "ihr": "f\xFChrtet"
-  },
-  "schloss": {
-    "ich": "schloss",
-    "du": "schlossest",
-    "wir": "schlossen",
-    "ihr": "schlosst"
-  },
-  "fragte": {
-    "ich": "fragte",
-    "du": "fragtest",
-    "wir": "fragten",
-    "ihr": "fragtet"
-  },
-  "begriff": {
-    "ich": "begriff",
-    "du": "begriffst",
-    "wir": "begriffen",
-    "ihr": "begrifft"
-  },
-  "stellt": {
-    "ich": "stelle",
-    "du": "stellst",
-    "wir": "stellen"
-  },
-  "erkennt": {
-    "ich": "erkenne",
-    "du": "erkennst",
-    "wir": "erkennen"
-  },
-  "zeigt": {
-    "ich": "zeige",
-    "du": "zeigst",
-    "wir": "zeigen"
-  },
-  "greift": {
-    "ich": "greife",
-    "du": "greifst",
-    "wir": "greifen"
-  },
-  "legt": {
-    "ich": "lege",
-    "du": "legst",
-    "wir": "legen"
-  },
-  "betrachtet": {
-    "ich": "betrachte",
-    "du": "betrachtest",
-    "wir": "betrachten"
-  },
-  "setzt": {
-    "ich": "setze",
-    "du": "setzt",
-    "wir": "setzen"
-  },
-  "merkt": {
-    "ich": "merke",
-    "du": "merkst",
-    "wir": "merken"
-  },
-  "pr\xFCft": {
-    "ich": "pr\xFCfe",
-    "du": "pr\xFCfst",
-    "wir": "pr\xFCfen"
-  }
-};
-var INFINITIVE_VERBS = /* @__PURE__ */ new Set(["entdecken", "finden", "verstehen", "erreichen", "verlassen", "retten", "zerst\xF6ren", "beweisen", "\xFCberleben", "fliehen", "gewinnen", "verlieren", "\xF6ffnen", "schlie\xDFen", "verschwinden", "sterben", "bleiben", "ankommen", "entkommen", "aufwachen", "vergessen", "lernen", "ver\xE4ndern", "kontrollieren", "sch\xFCtzen", "befreien", "heilen", "erschaffen", "reparieren", "beenden", "anfangen", "beginnen", "erinnern", "wissen", "glauben", "tr\xE4umen", "hoffen", "k\xE4mpfen", "siegen", "sprechen", "schweigen", "warten", "folgen", "fragen", "antworten", "erkl\xE4ren", "gehen", "kommen"]);
-
-// src/generation/cooldown.ts
-var recent = {};
-var KEEP = 5;
-function pickFresh(key, opts) {
-  if (!opts.length) return opts[0];
-  const seen = recent[key] || (recent[key] = []);
-  const fresh = opts.filter((o) => !seen.includes(o));
-  const choice = fresh.length ? pick(fresh) : pick(opts);
-  seen.push(choice);
-  while (seen.length > Math.min(KEEP, opts.length - 1)) seen.shift();
-  return choice;
-}
-function pickFreshIndex(key, n) {
-  if (n <= 1) return 0;
-  const idxs = Array.from({ length: n }, (_, i) => String(i));
-  return Number(pickFresh(key, idxs));
-}
-var recentMarkov = [];
-var MK_KEEP = 24;
-var mkNorm = (s) => s.toLowerCase().replace(/[^a-zäöüß ]/g, "").replace(/\s+/g, " ").trim();
-function markovSeenRecently(s) {
-  const n = mkNorm(s);
-  return n.length > 0 && recentMarkov.includes(n);
-}
-function noteMarkov(s) {
-  const n = mkNorm(s);
-  if (!n) return;
-  recentMarkov.push(n);
-  while (recentMarkov.length > MK_KEEP) recentMarkov.shift();
-}
-
-// src/atoms/schema.ts
-var N = ["hauptsatz", "nebensatz", "nominalphrase", "praepositionalphrase", "rahmen", "fragment", "einwort", "konnektor", "kopf"];
-var FOLGT_AUF = {
-  start: ["hauptsatz", "rahmen", "kopf", "nominalphrase", "praepositionalphrase", "einwort", "fragment"],
-  hauptsatz: N,
-  nebensatz: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor"],
-  nominalphrase: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor", "nebensatz"],
-  praepositionalphrase: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor"],
-  rahmen: ["hauptsatz", "rahmen", "kopf", "fragment", "einwort", "konnektor"],
-  fragment: ["hauptsatz", "rahmen", "kopf", "nominalphrase", "einwort", "konnektor"],
-  einwort: ["hauptsatz", "rahmen", "kopf", "nominalphrase", "fragment", "konnektor"],
-  konnektor: ["hauptsatz", "nominalphrase", "praepositionalphrase", "fragment", "nebensatz"],
-  kopf: ["hauptsatz", "nominalphrase", "fragment", "einwort"]
-  // Kopf verlangt einen Nachsatz
-};
-var darfFolgen = (a, b) => (FOLGT_AUF[a] || []).includes(b);
-var schliesstKopf = (t2) => ["hauptsatz", "nominalphrase", "fragment", "einwort"].includes(t2);
-var schwelle = (divergenz) => divergenz < 25 ? 0 : divergenz < 55 ? 1 : divergenz < 80 ? 2 : 3;
-
-// src/features/waechterStatistik.ts
-function zaehleWennAnders(was, vorher, nachher) {
-  if (vorher === nachher) return;
-  const a = vorher.split(/(?<=[.!?…])\s+/), b = nachher.split(/(?<=[.!?…])\s+/);
-  let i = 0;
-  while (i < a.length && i < b.length && a[i] === b[i]) i++;
-  zaehle(was, `${(a[i] || "").slice(0, 70)} \u2192 ${(b[i] || "").slice(0, 70)}`);
-}
-var KEY2 = "dm_waechter_statistik_v1";
-var BEISPIELE_JE = 5;
-var cache = null;
-var schreibTimer = null;
-function leer() {
-  return { zaehler: {}, beispiele: {}, seit: (/* @__PURE__ */ new Date()).toISOString() };
-}
-function ladeStatistik() {
-  if (cache) return cache;
-  try {
-    const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(KEY2);
-    const v = raw ? JSON.parse(raw) : null;
-    cache = v && v.zaehler && v.beispiele ? v : leer();
-  } catch {
-    cache = leer();
-  }
-  return cache;
-}
-function speichern() {
-  if (schreibTimer !== null) return;
-  schreibTimer = setTimeout(() => {
-    schreibTimer = null;
-    try {
-      if (typeof localStorage !== "undefined" && cache) localStorage.setItem(KEY2, JSON.stringify(cache));
-    } catch {
-    }
-  }, 1e3);
-}
-function zaehle(was, beispiel) {
-  const st2 = ladeStatistik();
-  st2.zaehler[was] = (st2.zaehler[was] || 0) + 1;
-  if (beispiel) {
-    const b = st2.beispiele[was] || [];
-    const kurz = beispiel.trim().slice(0, 140);
-    if (!b.includes(kurz)) {
-      b.unshift(kurz);
-      st2.beispiele[was] = b.slice(0, BEISPIELE_JE);
-    }
-  }
-  speichern();
-}
-
-// src/generation/coherence.ts
-var PRAET_STRONG = /\b(war|waren|warst|hatte|hatten|wurde|wurden|ging|gingen|kam|kamen|sah|sahen|gab|gaben|stand|standen|blieb|blieben|hielt|hielten|ließ|ließen|fand|fanden|nahm|nahmen|sprach|sprachen|schrieb|schrieben|trug|trugen|fuhr|fuhren|lief|liefen|saß|saßen|lag|lagen|hieß|hießen|zog|zogen|schlief|schliefen|rief|riefen|fiel|fielen|sang|sangen|trank|tranken|schwieg|schwiegen|floss|flossen|stieg|stiegen|sank|sanken|bot|boten|schloss|schlossen|verlor|verloren|begann|begannen|geschah|geschahen|konnte|konnten|musste|mussten|wollte|wollten|sollte|sollten|durfte|durften|wusste|wussten|dachte|dachten|brachte|brachten)\b/i;
-var PRAET_WEAK = /\b[a-zäöüß]{3,}(te|ten|test)\b/;
-var PRAES_MARK = /\b(ist|sind|bin|bist|seid|hat|habe|hast|haben|habt|wird|werden|wirst|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|weiß|wissen|geht|gehen|kommt|kommen|sieht|sehen|steht|stehen|bleibt|bleiben|liegt|liegen|gibt|geben|nimmt|nehmen|spricht|sprechen|trägt|tragen|läuft|laufen|fällt|fallen|geschieht|passiert|beginnt|endet|wartet|antwortet|arbeitet|bedeutet|beobachtet|berichtet|schlägt|zeigt|dauert|öffnet|schließt|klingt|riecht|scheint|hört|fühlt|wirkt|führt|dreht|zieht|hält|läuft|fließt|wächst|sinkt|steigt|schweigt|spricht|denkt|kennt|nennt|trägt|findet|verliert|verschwindet)\b/i;
-var ADJ_CONTEXT = /(?:\b(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|kein|keine|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|jede|jeder|jedes|diese|dieser|dieses|manche|viele|alle)\s+[a-zäöüß]*)?\b[a-zäöüß]{3,}(?:te|ten)\b(?=\s+[A-ZÄÖÜ])/;
-function schwachesPraeteritum(w, satz) {
-  const l = w.toLowerCase();
-  if (kenntInfinitiv(l) || kenntInfinitiv(l.replace(/e$/, "en")) || kenntInfinitiv(l.replace(/en$/, "n"))) return false;
-  const m = l.match(/^([a-zäöüß]{2,}?)(e?te|e?ten|e?test)$/);
-  if (!m) return false;
-  const inf = infinitivZuStamm(m[1]);
-  if (inf) return true;
-  const re = new RegExp("\\b" + w + "\\b(?=\\s+[A-Z\xC4\xD6\xDC])");
-  return !re.test(satz) && !KEIN_VERB.has(m[1] + "t") && !KEIN_VERB.has(m[1]);
-}
-var weakLooksVerbal = (t2) => {
-  const m = t2.match(/\b[a-zäöüß]{3,}(te|ten|test|tet)\b/g);
-  if (!m) return false;
-  return m.some((w) => schwachesPraeteritum(w, t2));
-};
-function isPastTense(s) {
-  const t2 = s || "";
-  if (PRAES_MARK.test(t2)) return false;
-  if (PRAET_STRONG.test(t2)) return true;
-  if (PRAET_WEAK.test(t2) && weakLooksVerbal(t2) && !ADJ_CONTEXT.test(t2)) return true;
-  return (t2.toLowerCase().match(/[a-zäöüß]+/g) || []).some((w) => !!PAST2PRES[w]);
-}
-var NAME_STOP = /* @__PURE__ */ new Set(["der", "die", "das", "den", "dem", "des", "ein", "eine", "einen", "einem", "einer", "und", "oder", "aber", "denn", "doch", "dann", "als", "wie", "was", "wer", "wo", "wann", "warum", "ich", "du", "er", "sie", "es", "wir", "ihr", "man", "hier", "dort", "jetzt", "noch", "nur", "auch", "schon", "immer", "nie", "sehr", "so", "zu", "im", "am", "auf", "in", "an", "mit", "von", "f\xFCr", "bei", "nach", "vor", "\xFCber", "unter", "durch", "um", "ohne", "seit", "damals", "sp\xE4ter", "zuerst", "zuletzt", "stille", "nein", "ja", "fast", "vielleicht", "genau", "warte", "gut", "dabei", "dazu", "dann"]);
-var DETERMINER = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|meinen|meinem|meiner|dein|deine|sein|seine|seinen|seinem|ihr|ihre|ihren|ihrem|unser|unsere|euer|eure|kein|keine|keinen|keinem|jeder|jede|jedes|dieser|diese|dieses|diesem|diesen|jener|jene|manche|viele|alle|beide|im|am|zum|zur|ins|ans|vom|beim|aufs|durchs|übers|unters)$/i;
-var PREP = /^(in|an|auf|bei|mit|von|zu|nach|über|unter|vor|hinter|neben|zwischen|durch|für|ohne|um|gegen|seit|trotz|wegen|während|aus)$/i;
-function properNames(text) {
-  const out = /* @__PURE__ */ new Set();
-  for (const sent of splitSentences(text)) {
-    const w = sent.trim().split(/\s+/);
-    for (let i = 1; i < w.length; i++) {
-      const raw = w[i].replace(/[^A-Za-zÄÖÜäöüß-]/g, "");
-      if (raw.length < 3 || !/^[A-ZÄÖÜ]/.test(raw)) continue;
-      const lowRaw = raw.toLowerCase();
-      if (NAME_STOP.has(lowRaw)) continue;
-      if (NOUN_GENDER[lowRaw]) continue;
-      const prev = (w[i - 1] || "").replace(/[^A-Za-zÄÖÜäöüß]/g, "");
-      if (DETERMINER.test(prev) || PREP.test(prev)) continue;
-      out.add(raw);
-    }
-  }
-  return [...out];
-}
-var PERSON_FORMS = {
-  war: { ich: "bin", du: "bist", wir: "sind", ihr: "seid", sie: "ist", er: "ist", es: "ist" },
-  waren: { wir: "sind", sie: "sind", ihr: "seid" },
-  hatte: { ich: "habe", du: "hast", wir: "haben", ihr: "habt", sie: "hat", er: "hat", es: "hat" },
-  hatten: { wir: "haben", sie: "haben", ihr: "habt" },
-  wurde: { ich: "werde", du: "wirst", wir: "werden", sie: "wird", er: "wird", es: "wird" },
-  konnte: { ich: "kann", du: "kannst", wir: "k\xF6nnen", sie: "kann", er: "kann", es: "kann" },
-  musste: { ich: "muss", du: "musst", wir: "m\xFCssen", sie: "muss", er: "muss", es: "muss" },
-  wollte: { ich: "will", du: "willst", wir: "wollen", sie: "will", er: "will", es: "will" },
-  sollte: { ich: "soll", du: "sollst", wir: "sollen", sie: "soll", er: "soll", es: "soll" },
-  wusste: { ich: "wei\xDF", du: "wei\xDFt", wir: "wissen", sie: "wei\xDF", er: "wei\xDF", es: "wei\xDF" }
-};
-function toPresent(entry) {
-  const unsure = [];
-  let changed = false;
-  const words = (entry || "").split(/(\s+)/);
-  for (let i = 0; i < words.length; i++) {
-    const roh = words[i];
-    const zeichen = (roh.match(/[.,;:!?…»“"]+$/) || [""])[0];
-    const w = zeichen ? roh.slice(0, -zeichen.length) : roh;
-    if (!/^[A-Za-zÄÖÜäöüß]+$/.test(w)) continue;
-    const low2 = w.toLowerCase();
-    const base = PAST2PRES[low2];
-    if (base) {
-      const prev = (words.slice(0, i).reverse().find((x) => /^[A-Za-zÄÖÜäöüß]+$/.test(x)) || "").toLowerCase();
-      const next = (words.slice(i + 1).find((x) => /^[A-Za-zÄÖÜäöüß]+$/.test(x)) || "").toLowerCase();
-      const pf = PERSON_FORMS[low2];
-      const subj = /^(ich|du|wir|ihr)$/.test(prev) ? prev : /^(ich|du|wir|ihr)$/.test(next) ? next : "";
-      let form = base;
-      if (pf && subj && pf[subj]) form = pf[subj];
-      else if (subj) {
-        const b = beugeVerb(base, subj);
-        if (!b) {
-          unsure.push(w);
-          continue;
-        }
-        form = b;
-      }
-      words[i] = (/^[A-ZÄÖÜ]/.test(w) ? form.charAt(0).toUpperCase() + form.slice(1) : form) + zeichen;
-      changed = true;
-      continue;
-    }
-    if (/^[a-zäöüß]{4,}(te|ete)$/.test(low2)) unsure.push(w);
-  }
-  return { text: words.join(""), changed, unsure };
-}
-function praesensUmschreiben(entry) {
-  const first = toPresentSicher(entry);
-  const words = first.text.split(/(\s+)/);
-  let changed = first.changed;
-  const ARTIKEL2 = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|kein|keine|keinen|mein|meine|meinen|dein|deine|sein|seine|seinen|ihr|ihre|ihren|unser|unsere|jede|jeder|jedes|diese|dieser|dieses|manche|viele|alle|zwei|drei|im|am|zum|zur|beim|ins|vom)$/i;
-  const KONJUNKTIV = /^(müsste|müssten|könnte|könnten|dürfte|dürften|möchte|möchten|hätte|hätten|wäre|wären|würde|würden|sollte|sollten|wollte|wollten)$/i;
-  const MODAL_DAVOR = /^(zu|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|mag|mögen|lässt|lassen|möchte|könnte|müsste|sollte|wollte|dürfte)$/i;
-  const rein = (x) => x.replace(/[^A-Za-zÄÖÜäöüß]/g, "");
-  const EINDEUTIG = /(?:[td]|chn|ffn|gn|tm|dm|ckn|kn)ete(?:n|st|t)?$/;
-  const belegtPraeteritum = first.changed || (first.text.match(/\b[a-zäöüß]{3,}ete(?:n|st)?\b/g) || []).some((x) => EINDEUTIG.test(x));
-  let unklar = 0;
-  for (let i = 0; i < words.length; i++) {
-    const roh = words[i];
-    const satzzeichen = (roh.match(/[.,;:!?…»“"]+$/) || [""])[0];
-    const w = satzzeichen ? roh.slice(0, -satzzeichen.length) : roh;
-    const m = w.match(/^([a-zäöüß]{3,}?)(e?te|e?ten|e?test)$/);
-    if (!m || KONJUNKTIV.test(w)) continue;
-    const stamm = m[1], endung = m[2];
-    const eindeutig = /^e/.test(endung) && EINDEUTIG.test(w);
-    if (/^e/.test(endung) && !eindeutig) continue;
-    if (/(^|[a-zäöü])ge[a-zäöüß]{3,}$/.test(stamm) && !/^(geh|gel|gen|ger|geb|ges)/.test(stamm)) continue;
-    if (/t$/.test(stamm) && !eindeutig) continue;
-    const davor = words.slice(0, i).map(rein).filter(Boolean);
-    const prev = (davor[davor.length - 1] || "").toLowerCase();
-    const naechst = words.slice(i + 1).map(rein).find(Boolean) || "";
-    if (ARTIKEL2.test(prev) && /^[A-ZÄÖÜ]/.test(naechst)) continue;
-    if (/ten$/.test(endung) && MODAL_DAVOR.test(prev)) continue;
-    if (KEIN_VERB.has(stamm + "t") || KEIN_VERB.has(stamm)) continue;
-    if (kenntInfinitiv(w) || kenntInfinitiv(w.replace(/e$/, "en")) || kenntInfinitiv(w.replace(/en$/, "n"))) continue;
-    const inf = infinitivZuStamm(stamm);
-    if (!inf) {
-      if (/^[A-ZÄÖÜ]/.test(naechst) || /ten$/.test(endung) || ARTIKEL2.test(prev)) continue;
-      if (!eindeutig && !belegtPraeteritum && istVerbform(stamm + "t")) unklar++;
-      continue;
-    }
-    const bindevokal = /^e/.test(endung);
-    const dritte = bindevokal ? stamm + "et" : stamm + "t";
-    let neu;
-    if (/^ich$/i.test(prev)) neu = beugeVerb(dritte, "ich") || dritte;
-    else if (/^du$/i.test(prev)) neu = beugeVerb(dritte, "du") || dritte;
-    else if (/ten$/.test(endung)) neu = beugeVerb(dritte, "wir") || dritte;
-    else neu = dritte;
-    if (neu !== w) {
-      words[i] = neu + satzzeichen;
-      changed = true;
-    }
-  }
-  const text = words.join("");
-  const ok = !isPastTense(text) && unklar === 0;
-  if (ok && changed) zaehle("umgeschrieben", `${entry} \u2192 ${text}`);
-  else if (!ok && unklar) zaehle("unklar", entry);
-  else if (!ok) zaehle("praeteritumVerworfen", entry);
-  return { text, ok, changed };
-}
-function toPresentSicher(entry) {
-  const AUX = /\b(hat|haben|habe|hast|habt|hatte|hatten|ist|sind|bin|bist|seid|war|waren|wird|werden|wurde|wurden|worden)\b/i;
-  const perfekt = AUX.test(entry);
-  const words = entry.split(/(\s+)/);
-  const marker = [];
-  let erstesWort = true;
-  let vorher = "";
-  for (let i = 0; i < words.length; i++) {
-    const w = words[i];
-    if (!/^[A-Za-zÄÖÜäöüß]/.test(w)) continue;
-    const konjNachAls = vorher === "als" && /^(wollte|wollten|sollte|sollten|könnte|könnten|müsste|hätte|hätten|wäre|wären|würde|würden)/i.test(w);
-    const ambig = /^(verloren|verstanden|entstanden|bestanden|erschienen)[.,;:!?]*$/i.test(w) && !/^(wir|sie|die|alle|beide|viele|manche|einige|leute|kinder|männer|frauen)$/.test(vorher);
-    const schuetzen = !erstesWort && /^[A-ZÄÖÜ]/.test(w) || perfekt && /en[.,;:!?]*$/.test(w) || konjNachAls || ambig;
-    vorher = w.toLowerCase().replace(/[^a-zäöüß]/g, "");
-    erstesWort = false;
-    if (schuetzen) {
-      marker.push(w);
-      words[i] = `\xA7${marker.length - 1}\xA7`;
-    }
-  }
-  const r = toPresent(words.join(""));
-  let text = r.text;
-  marker.forEach((w, k) => {
-    text = text.replace(`\xA7${k}\xA7`, w);
-  });
-  return { text, changed: r.changed, unsure: r.unsure };
-}
-var DU_FORM = /\b(du|dir|dich|dein|deine|deinen|deinem|deiner|deines)\b/i;
-var ICH_FORM = /\b(ich|mir|mich|mein|meine|meinen|meinem|meiner|meines)\b/i;
-function isSecondPerson(s) {
-  return DU_FORM.test(s || "");
-}
-function isFirstPerson(s) {
-  return ICH_FORM.test(s || "");
-}
-
-// src/atoms/derive.ts
-var SEIN_HABEN_WERDEN = /^(ist|sind|bin|bist|seid|war|waren|warst|hat|habe|hast|haben|habt|hatte|hatten|wird|werden|wirst|werdet|wurde|wurden|kann|kannst|können|könnt|konnte|muss|musst|müssen|müsst|will|willst|wollen|wollt|soll|sollen|darf|dürfen|mag|mögen|weiß|wissen|bleibt|bleiben|blieb|gibt|geben|gab)$/;
-var KURZVERB = /^(löst|geht|ruft|tut|gibt|lebt|hebt|legt|sagt|sieht|hält|fällt|zieht|trägt|liegt|kommt|nimmt|läuft|steht|dreht|führt|hört|fühlt|zählt|setzt|passt|weint|lacht|denkt|kennt|nennt|misst|sinkt|steigt|klingt|singt|fehlt|blickt|wirkt|reißt|bricht|spricht|wächst)$/;
-var PRAET_FORM = /(?:^|^[a-zäöüß]{2,6})(lag|lagen|stand|standen|ging|gingen|kam|kamen|sah|sahen|nahm|nahmen|hielt|hielten|ließ|ließen|fand|fanden|zog|zogen|trug|trugen|fiel|fielen|rief|riefen|sprach|schrieb|floss|stieg|sank|klang|hing|schien|trieb|brach|schloss|verlor|begann|geschah|roch|rochen|sass|saßen|riss|rissen|sprang|sprangen|schlug|schlugen|traf|trafen|griff|griffen|lief|liefen|wusste|wussten|verschwand|verschwanden|blieb|blieben|hieß|hießen|wuchs|wuchsen|schob|schoben|bog|bogen|schwieg|schwiegen)$/;
-var EN_KEIN_VERB = /* @__PURE__ */ new Set([
-  "gegen",
-  "neben",
-  "wegen",
-  "zwischen",
-  "entgegen",
-  "oben",
-  "unten",
-  "eben",
-  "dr\xFCben",
-  "drau\xDFen",
-  "drinnen",
-  "morgen",
-  "selten",
-  "ansonsten",
-  "meisten",
-  "wenigsten",
-  "offen",
-  "eigen",
-  "golden",
-  "seiden",
-  "wollen",
-  "einen",
-  "keinen",
-  "meinen",
-  "seinen",
-  "ihren",
-  "deinen",
-  "unseren",
-  "euren",
-  "deren",
-  "dessen",
-  "allen",
-  "vielen",
-  "manchen",
-  "welchen",
-  "jeden",
-  "diesen",
-  "jenen",
-  "denen",
-  "ihnen",
-  "sieben",
-  "tausenden",
-  "hunderten",
-  "anderen",
-  "einigen",
-  "wenigen",
-  "beiden",
-  "solchen",
-  "eigenen",
-  "ersten",
-  "zweiten",
-  "dritten",
-  "letzten",
-  "n\xE4chsten",
-  "besten",
-  "ganzen",
-  "halben",
-  "fernen",
-  "nahen",
-  "hohen",
-  "tiefen",
-  "langen",
-  "kurzen",
-  "alten",
-  "neuen",
-  "jungen",
-  "kleinen",
-  "gro\xDFen",
-  "roten",
-  "gr\xFCnen",
-  "blauen",
-  "schwarzen",
-  "wei\xDFen",
-  "kalten",
-  "warmen",
-  "leeren",
-  "vollen",
-  "toten",
-  "fremden",
-  "stillen",
-  "dunklen",
-  "hellen",
-  "innen",
-  "au\xDFen",
-  "hinten",
-  "vorn",
-  "mitten",
-  "unterdessen",
-  "indessen",
-  "\xFCbrigen",
-  "wegen",
-  "trotzdem",
-  "zusammen",
-  "gegen\xFCber",
-  "dr\xFCben"
-]);
-var DET_ODER_PREP = /* @__PURE__ */ new Set([
-  "der",
-  "die",
-  "das",
-  "des",
-  "dem",
-  "den",
-  "ein",
-  "eine",
-  "einen",
-  "einem",
-  "einer",
-  "eines",
-  "kein",
-  "keine",
-  "keinen",
-  "keinem",
-  "keiner",
-  "mein",
-  "meine",
-  "meinen",
-  "meinem",
-  "meiner",
-  "dein",
-  "deine",
-  "deinen",
-  "sein",
-  "seine",
-  "seinen",
-  "seinem",
-  "seiner",
-  "ihr",
-  "ihre",
-  "ihren",
-  "ihrem",
-  "ihrer",
-  "unser",
-  "unsere",
-  "unseren",
-  "im",
-  "am",
-  "vom",
-  "zum",
-  "zur",
-  "beim",
-  "ins",
-  "ans",
-  "mit",
-  "von",
-  "zu",
-  "aus",
-  "bei",
-  "nach",
-  "seit",
-  "auf",
-  "an",
-  "in",
-  "\xFCber",
-  "unter",
-  "vor",
-  "hinter",
-  "neben",
-  "zwischen",
-  "durch",
-  "f\xFCr",
-  "ohne",
-  "um",
-  "gegen",
-  "wegen",
-  "trotz",
-  "w\xE4hrend",
-  "dieser",
-  "diese",
-  "diesen",
-  "diesem",
-  "dieses",
-  "jeder",
-  "jede",
-  "jeden",
-  "jedem",
-  "jedes",
-  "welcher",
-  "welche",
-  "welchen",
-  "welchem",
-  "manche",
-  "manchen",
-  "solche",
-  "solchen",
-  "viele",
-  "vielen",
-  "wenige",
-  "wenigen",
-  "einige",
-  "einigen",
-  "beide",
-  "beiden",
-  "zwei",
-  "drei",
-  "vier",
-  "f\xFCnf",
-  "sechs",
-  "sieben",
-  "acht",
-  "neun",
-  "zehn",
-  "ganz",
-  "sehr",
-  "zu",
-  "so",
-  "wie",
-  "als",
-  "etwas",
-  "nichts"
-]);
-var NOMEN_ENDUNG = /(ung|heit|keit|schaft|tät|ion|nis|tum|chen|lein|ment)$/;
-var PREP2 = /^(in|im|an|am|auf|bei|beim|mit|von|vom|zu|zum|zur|nach|über|unter|vor|hinter|neben|zwischen|durch|für|ohne|um|gegen|seit|trotz|wegen|während|aus|entlang|inmitten|jenseits|abseits)\b/i;
-var SUBJUNKTION = /^(dass|weil|obwohl|wenn|nachdem|bevor|ob|indem|sobald|solange|falls|sodass)\b/i;
-var REL = /^(der|die|das|den|dem|des|welche[rsmn]?)\s+\S+\s/i;
-var KONNEKTOR = /^(und|oder|aber|doch|denn|sondern|dann|dabei|also|somit|trotzdem|dennoch|außerdem|zudem)(\s+\w+)?$/i;
-var ARTIKEL = /^(ein|eine|einen|einem|einer|eines|der|die|das|den|dem|des|kein|keine|mein|meine|dein|deine|sein|seine|ihr|ihre|dieser|diese|dieses|jener|jene)\b/i;
-var PRON_START = /^(er|sie|es|ihm|ihr|ihn|ihnen|dessen|deren|diese[rs]?|jene[rs]?)\b/i;
-var silben = (t2) => {
-  const w = t2.toLowerCase().match(/[a-zäöüß]+/g) || [];
-  return w.reduce((n, x) => n + Math.max(1, (x.match(/[aeiouäöüy]+/g) || []).length), 0);
-};
-var woerter = (t2) => (t2.match(/\S+/g) || []).length;
-var tiefe = (t2) => (t2.match(/,\s*(dass|weil|obwohl|wenn|als|während|nachdem|bevor|damit|ob|indem|der|die|das|den|dem|welche)/gi) || []).length;
-function subjektOf(t2, typ) {
-  if (!["hauptsatz", "nebensatz", "rahmen", "kopf"].includes(typ)) return null;
-  const s = " " + t2.toLowerCase() + " ";
-  if (/\b(ich|mir|mich)\b/.test(s)) return { person: 1, numerus: "sg", genus: null };
-  if (/\b(wir|uns)\b/.test(s)) return { person: 1, numerus: "pl", genus: null };
-  if (/\b(du|dir|dich)\b/.test(s)) return { person: 2, numerus: "sg", genus: null };
-  if (/\b(ihr|euch)\b/.test(s)) return { person: 2, numerus: "pl", genus: null };
-  const m = t2.match(/\b(?:der|die|das|ein|eine)\s+([A-ZÄÖÜ][a-zäöüß-]+)/);
-  const g = m ? guessGender(m[1]) : void 0;
-  const genus = g === "m" ? "mask" : g === "f" ? "fem" : g === "n" ? "neut" : null;
-  const plural = /\b(sie|die)\s+\w+en\b/.test(t2.toLowerCase()) || /\b(sind|waren|haben|werden)\b/.test(t2.toLowerCase());
-  return { person: 3, numerus: plural ? "pl" : "sg", genus };
-}
-function hatFinitesVerb(seg) {
-  const ws = seg.match(/[A-Za-zÄÖÜäöüß]+/g) || [];
-  for (let i = 0; i < ws.length; i++) {
-    const w = ws[i];
-    if (/^[A-ZÄÖÜ]/.test(w)) continue;
-    const l = w.toLowerCase();
-    const prev = (ws[i - 1] || "").toLowerCase(), next = ws[i + 1] || "";
-    const attributiv = DET_ODER_PREP.has(prev) || /^[A-ZÄÖÜ]/.test(next);
-    if ((prev === "ich" || next.toLowerCase() === "ich") && /^[a-zäöüß]{3,}e$/.test(l) && !DET_ODER_PREP.has(l)) return true;
-    if (VERB_CONJ[l]) return true;
-    if (SEIN_HABEN_WERDEN.test(l)) return true;
-    if (PRAET_FORM.test(l)) return true;
-    if (KURZVERB.test(l)) return true;
-    if (/t$/.test(l) && !attributiv && istVerbform(l)) return true;
-    if (/en$/.test(l) && l.length >= 5 && !EN_KEIN_VERB.has(l) && !attributiv && (VERB_CONJ[l.slice(0, -2) + "t"] || VERB_CONJ[l.slice(0, -2) + "et"] || istVerbform(l.slice(0, -2) + "t"))) return true;
-    if (/^(?!ge)[a-zäöüß]{4,}(?:t|te|en|ten)$/.test(l) && !NOMEN_ENDUNG.test(l) && !KEIN_VERB.has(l) && !EN_KEIN_VERB.has(l)) return true;
-  }
-  const first = (seg.match(/^([A-ZÄÖÜ][a-zäöüß]+)/) || [])[1];
-  if (first) {
-    const l = first.toLowerCase();
-    if (VERB_CONJ[l] || SEIN_HABEN_WERDEN.test(l) || PRAET_FORM.test(l)) return true;
-  }
-  return looksLikeFullClause(null, seg);
-}
-function deriveAtom(raw) {
-  const text = (raw || "").trim();
-  const unsicher = [];
-  const wcount = woerter(text);
-  const end = (text.match(/[.!?:;—]$/) || [""])[0];
-  const lead = extractLeadVerb(text);
-  const haupt = text.split(",")[0];
-  const hatFinit = !!lead.verb || hatFinitesVerb(haupt);
-  let typ;
-  if (/:$/.test(text)) typ = "kopf";
-  else if (text.includes("\u27E8")) typ = "rahmen";
-  else if (wcount === 1) typ = "einwort";
-  else if (KONNEKTOR.test(text)) typ = "konnektor";
-  else if (SUBJUNKTION.test(text) && hatFinit) typ = "nebensatz";
-  else if (REL.test(text) && hatFinit && /,/.test(text) === false && /\ben\b|\bt\b/.test("")) typ = "nebensatz";
-  else if (hatFinit) typ = "hauptsatz";
-  else if (PREP2.test(text)) typ = "praepositionalphrase";
-  else if (ARTIKEL.test(text) || /\b[A-ZÄÖÜ][a-zäöüß-]{2,}/.test(text)) typ = "nominalphrase";
-  else typ = "fragment";
-  if (PREP2.test(text) && hatFinit) unsicher.push("typ (Inversion?)");
-  if (typ === "fragment" && wcount >= 6) unsicher.push("typ (langes Fragment?)");
-  let kasus = null;
-  if (typ === "nominalphrase") {
-    const a = (text.match(/^(\S+)/) || [""])[0].toLowerCase();
-    const kern = (text.match(/\b([A-ZÄÖÜ][a-zäöüß-]{2,})/) || [])[1];
-    const g = kern ? guessGender(kern) : void 0;
-    if (/^(einen|den)$/.test(a)) kasus = "akk";
-    else if (/^(einem|dem|einer)$/.test(a)) kasus = "dat";
-    else if (a === "der") {
-      kasus = g === "f" ? "dat" : g === "m" ? "nom" : null;
-      if (!kasus) unsicher.push("kasus (der: Nom/Dat)");
-    } else if (/^(eines|des)$/.test(a)) kasus = "gen";
-    else if (/^(ein|eine|die|das)$/.test(a)) {
-      kasus = "nom_akk";
-      unsicher.push("kasus (nom/akk mehrdeutig)");
-    } else unsicher.push("kasus");
-  }
-  const kadenz = end === ":" ? "schwebend" : end ? "fallend" : "offen";
-  const tempus = typ === "nominalphrase" || typ === "fragment" || typ === "praepositionalphrase" || typ === "einwort" ? "kein" : isPastTense(text) ? "praeteritum" : "praesens";
-  const bezug = PRON_START.test(text) ? { pronomen: (text.match(/^\S+/) || [""])[0].toLowerCase(), genus: /^(sie|ihr|ihnen)/i.test(text) ? "fem" : "mask", numerus: "sg" } : null;
-  if (bezug) unsicher.push("verlangt_bezug (Genus gesch\xE4tzt)");
-  const s = silben(text);
-  return {
-    text,
-    typ,
-    bietet: { kasus, kadenz },
-    subjekt: subjektOf(text, typ),
-    tempus,
-    fuehrt_ein: properNames(text),
-    verlangt_bezug: bezug,
-    oeffnet: typ === "kopf",
-    rhythmus: { woerter: wcount, silben: s, tiefe: tiefe(text), endzeichen: end, gewicht: wcount <= 4 ? "kurz" : wcount <= 9 ? "mittel" : "lang" },
-    unsicher
-  };
-}
-
-// src/features/knobs.ts
-var KNOB_VORGABE = { fuegeteil: 25, w4max: 2, abstand: 12, bogen: 100, ton: 100, korpus: 0, phrase: 5, satzlaenge: 9, atomgroesse: 14 };
-var KNOB_SPANNE = {
-  fuegeteil: { min: 10, max: 35, step: 5 },
-  w4max: { min: 1, max: 4, step: 1 },
-  abstand: { min: 6, max: 24, step: 2 },
-  bogen: { min: 0, max: 250, step: 25 },
-  ton: { min: 0, max: 250, step: 25 },
-  korpus: { min: 0, max: 60, step: 10 },
-  phrase: { min: 0, max: 8, step: 1 },
-  satzlaenge: { min: 0, max: 21, step: 3 },
-  atomgroesse: { min: 0, max: 24, step: 2 }
-};
-var KEY3 = "dm_knobs_v1";
-var klemm2 = (v, s) => Math.max(s.min, Math.min(s.max, v));
-function loadKnobs() {
-  try {
-    const r = localStorage.getItem(KEY3);
-    if (!r) return { ...KNOB_VORGABE };
-    const p = JSON.parse(r);
-    return {
-      fuegeteil: klemm2(Number(p.fuegeteil) || KNOB_VORGABE.fuegeteil, KNOB_SPANNE.fuegeteil),
-      w4max: klemm2(Number(p.w4max) || KNOB_VORGABE.w4max, KNOB_SPANNE.w4max),
-      abstand: klemm2(Number(p.abstand) || KNOB_VORGABE.abstand, KNOB_SPANNE.abstand),
-      bogen: klemm2(p.bogen === void 0 ? KNOB_VORGABE.bogen : Number(p.bogen), KNOB_SPANNE.bogen),
-      ton: klemm2(p.ton === void 0 ? KNOB_VORGABE.ton : Number(p.ton), KNOB_SPANNE.ton),
-      korpus: klemm2(p.korpus === void 0 ? KNOB_VORGABE.korpus : Number(p.korpus), KNOB_SPANNE.korpus),
-      phrase: klemm2(p.phrase === void 0 ? KNOB_VORGABE.phrase : Number(p.phrase), KNOB_SPANNE.phrase),
-      satzlaenge: klemm2(p.satzlaenge === void 0 ? KNOB_VORGABE.satzlaenge : Number(p.satzlaenge), KNOB_SPANNE.satzlaenge),
-      atomgroesse: klemm2(p.atomgroesse === void 0 ? KNOB_VORGABE.atomgroesse : Number(p.atomgroesse), KNOB_SPANNE.atomgroesse)
-    };
-  } catch {
-    return { ...KNOB_VORGABE };
-  }
-}
-
-// src/atoms/atomisieren.ts
-var wc = (s) => (s.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
-var trimSatz = (s) => s.trim().replace(/^[,;:—–\s]+|[,;:—–\s]+$/g, "").trim();
-var NP_KOPF = /^(der|die|das|ein|eine|einen|einem|einer|kein|keine|zwei|drei|manche|viele|jede[rs]?|alle)\b/i;
-var NEBENSATZ = /,\s+(der|die|das|dem|den|dessen|deren|welche[rsmn]?|dass|weil|wenn|als|während|obwohl|nachdem|bevor|sobald|solange|seit|seitdem|damit|sodass|ohne|um|statt|anstatt|wo|worin|was|wer|wie|ob|falls|indem)\b[^,]*$/i;
-var tragfaehig = (s) => wc(s) >= 3 && (hatFinitesVerb(s) || NP_KOPF.test(s));
-function atomisiere(text, max) {
-  const teile = atomisiereRoh(text, max);
-  const t2 = trimSatz(text || "");
-  if (t2 && max >= 6 && wc(t2) > max) {
-    if (teile.length > 1) zaehle("atomZerlegt", `${t2} \u2192 ${teile.join(" | ")}`);
-    else if (teile.length === 1 && teile[0] !== t2) zaehle("atomGekuerzt", `${t2} \u2192 ${teile[0]}`);
-    else zaehle("atomGanzZuLang", t2);
-  }
-  return teile;
-}
-function atomisiereRoh(text, max) {
-  const t2 = trimSatz(text || "");
-  if (!t2) return [];
-  if (!max || max < 6 || wc(t2) <= max) return [t2];
-  const harte = t2.split(/\s*(?:—|–|;|:)\s+/).map(trimSatz).filter((x) => wc(x) >= 3);
-  if (harte.length > 1) return harte.flatMap((x) => atomisiereRoh(x, max));
-  const koord = t2.match(/^(.+?),\s+(und|aber|doch|denn|sondern)\s+(.+)$/i);
-  if (koord && hatFinitesVerb(koord[1]) && hatFinitesVerb(koord[3]) && wc(koord[1]) >= 3 && wc(koord[3]) >= 3)
-    return [...atomisiereRoh(koord[1], max), ...atomisiereRoh(koord[3], max)];
-  const ns = t2.match(NEBENSATZ);
-  if (ns && ns.index !== void 0) {
-    const haupt = trimSatz(t2.slice(0, ns.index));
-    if (tragfaehig(haupt) && wc(haupt) >= 4) return atomisiereRoh(haupt, max);
-  }
-  return [t2];
-}
-function ueberlaenge(text, max) {
-  if (!max || max < 6) return 0;
-  return Math.max(0, wc(text) - max);
-}
-
-// src/atoms/assemble.ts
-var PHASEN_KATEGORIEN = {
-  // Die Dramaturgie-Kategorien tragen ihre Phase bereits im Namen — der Erzaehlbogen
-  // eines Presets beschreibt genau das, was der Assembler ohnehin in Phasen baut.
-  exposition: ["motifs", "hooks", "was", "einstieg", "regeln"],
-  verdichtung: ["props", "obstacles", "stakes", "was", "mitte", "konflikte", "zeitanomalien"],
-  umschlag: ["turns", "hoehepunkt", "ausloeser", "veraenderungen"],
-  schluss: ["endings"]
-};
-var STRUKTUR_PHASEN = {
-  // Unverändert die alte Verteilung 30/30/20/20 — die Rekombination soll sich
-  // durch diesen Umbau NICHT ändern.
-  rekombination: ["exposition", "exposition", "exposition", "verdichtung", "verdichtung", "verdichtung", "umschlag", "umschlag", "schluss", "schluss"],
-  linear: ["exposition", "exposition", "exposition", "verdichtung", "verdichtung", "verdichtung", "umschlag", "umschlag", "schluss", "schluss"],
-  // Vom Ende her: erst das Ergebnis, dann die Wende, zuletzt der Anlass.
-  reverse: ["schluss", "schluss", "umschlag", "umschlag", "verdichtung", "verdichtung", "verdichtung", "exposition", "exposition", "exposition"],
-  // Der Kreis kehrt zurück: Die letzte Position trägt wieder die Eröffnung.
-  circle: ["exposition", "exposition", "verdichtung", "verdichtung", "verdichtung", "umschlag", "umschlag", "schluss", "exposition", "exposition"],
-  // Das Fragment springt. Kein Zufall zur Laufzeit: Eine feste, unruhige Folge
-  // ist reproduzierbar und damit prüfbar.
-  fragment: ["verdichtung", "exposition", "umschlag", "verdichtung", "schluss", "exposition", "umschlag", "verdichtung", "exposition", "schluss"],
-  // Das Ding sieht zu: langer Mittelteil, kurzer Anfang, kurzer Schluss.
-  object: ["exposition", "verdichtung", "verdichtung", "umschlag", "verdichtung", "umschlag", "verdichtung", "umschlag", "schluss", "schluss"]
-};
-var SCHLAG_PHASE = {
-  einstieg: "exposition",
-  hook: "exposition",
-  regel: "exposition",
-  mitte: "verdichtung",
-  mitte2: "verdichtung",
-  konflikt: "verdichtung",
-  zeit: "verdichtung",
-  einsatz: "verdichtung",
-  ausloeser: "umschlag",
-  wende: "umschlag",
-  hoehepunkt: "umschlag",
-  schluss: "schluss"
-};
-function phasenAusSchlagfolge(folge) {
-  const roh = (folge || []).map((n) => SCHLAG_PHASE[n]).filter((p) => !!p);
-  if (!roh.length) return STRUKTUR_PHASEN["linear"];
-  return Array.from({ length: 10 }, (_, i) => roh[Math.round(i * (roh.length - 1) / 9)]);
-}
-function setBogenPhasen(folge) {
-  STRUKTUR_PHASEN["bogen"] = phasenAusSchlagfolge(folge);
-}
-var bogenModus = false;
-function setBogenModus(an2) {
-  bogenModus = an2;
-}
-function gelenkBonus(a, phase, bogenGewicht) {
-  if (!bogenModus || a.quelle !== "dramaturgie" || !phase) return 0;
-  const faktor = phase === "umschlag" || phase === "schluss" ? 2.5 : phase === "exposition" ? 1.2 : 0.4;
-  return faktor * bogenGewicht;
-}
-function phasenFolge(struktur, fortschritt) {
-  const f = STRUKTUR_PHASEN[struktur] || STRUKTUR_PHASEN["linear"];
-  const i = Math.min(f.length - 1, Math.max(0, Math.floor(fortschritt * f.length)));
-  return f[i];
-}
-function phasenBonus(a, phase) {
-  if (a.quelle === "vorlage") return phase === "exposition" ? 1.2 : 0.4;
-  if (a.kategorie === "was") return phase === "schluss" ? 0.5 : 3.5;
-  if (!a.kategorie) return 0;
-  if (PHASEN_KATEGORIEN[phase].includes(a.kategorie)) return 2.2;
-  if (a.kategorie === "endings" && phase !== "schluss") return -3;
-  if (a.kategorie === "motifs" && phase === "schluss") return -1.5;
-  return 0;
-}
-function naechsterSlot(text) {
-  const m = text.match(/⟨(AKK|DAT|NOM|SATZ)⟩/);
-  if (!m) return null;
-  const k = m[1];
-  if (k === "SATZ") return { rolle: "ergaenzung", kasus: "nom", art: "hauptsatz" };
-  return { rolle: "objekt", kasus: k.toLowerCase(), art: "nominalphrase" };
-}
-function wirktSatzwertig(text) {
-  const haupt = text.split(/[,;–—]/)[0] || text;
-  return hatFinitesVerb(haupt);
-}
-function passt(a, k, phase, slot) {
-  if (k.benutzt.has(a.id)) return false;
-  if (phase && a.kategorie === "endings" && phase !== "schluss") return false;
-  if (phase && phase === "schluss" && a.kategorie === "motifs") return false;
-  const v = slot !== void 0 ? slot : k.vorheriges?.verlangt ?? null;
-  const fuelltSlot = !!v;
-  if (!fuelltSlot && a.typ === "nominalphrase" && (a.bietet.kasus === "akk" || a.bietet.kasus === "dat")) return false;
-  const vorTyp = k.vorheriges ? k.vorheriges.typ : "start";
-  if (!fuelltSlot && !darfFolgen(vorTyp, a.typ)) return false;
-  if (k.offenerKopf && !schliesstKopf(a.typ)) return false;
-  if (v) {
-    if (a.typ !== v.art) return false;
-    if (v.art === "nominalphrase" && wirktSatzwertig(a.text)) return false;
-    if (v.art === "hauptsatz" && !wirktSatzwertig(a.text) && a.typ !== "hauptsatz") return false;
-    if (v.art === "nominalphrase") {
-      const bietet = a.bietet.kasus;
-      if (!bietet) return false;
-      if (bietet !== v.kasus && !(bietet === "nom_akk" && (v.kasus === "nom" || v.kasus === "akk"))) return false;
-    }
-  }
-  if (a.verlangt_bezug) {
-    let da = false;
-    for (const e of k.entitaeten.values()) if (e.abstand <= 2) {
-      da = true;
-      break;
-    }
-    if (!da) return false;
-  }
-  if (k.tempus && a.tempus !== "kein" && a.tempus !== k.tempus) return false;
-  if (a.bruchgrad > schwelle(k.divergenz)) return false;
-  return true;
-}
-function fortschreiben(k, a) {
-  k.vorheriges = a;
-  k.benutzt.add(a.id);
-  k.offenerKopf = a.oeffnet || !!a.verlangt;
-  if (a.tempus !== "kein" && !k.tempus) k.tempus = a.tempus;
-  for (const e of k.entitaeten.values()) e.abstand++;
-  for (const n of a.fuehrt_ein) k.entitaeten.set(n, { abstand: 0 });
-}
-function fuelleKontext(text, ctx) {
-  return text.replace(/⟨ORT⟩/g, ctx.ort).replace(/⟨ZEIT⟩/g, ctx.zeit).replace(/⟨FIGUR⟩/g, ctx.figur).replace(/⟨VERB⟩/g, ctx.verb);
-}
-var SCHWACH_KONSONANT = /^(Herr|Mensch|Held|Fürst|Prinz|Graf|Bär|Elefant|Nachbar|Bauer|Herz|Narr|Tor|Christ|Zar|Architekt|Soldat|Advokat|Kamerad|Katholik|Ochs|Spatz|Fink|Pfau|Ahn)$/;
-var SCHWACH_E = /^(Hase|Junge|Kollege|Zeuge|Bote|Erbe|Riese|Löwe|Affe|Rabe|Neffe|Kunde|Gefährte|Experte|Komplize|Insasse|Gatte|Bube|Falke|Franzose|Schwede|Türke|Russe|Pole|Däne|Ire|Brite|Jude|Sklave|Ahne|Zeuge)$/;
-function istSchwachesMaskulinum(kern) {
-  return SCHWACH_E.test(kern) || SCHWACH_KONSONANT.test(kern) || /(ent|ant|ist|oge|graf|soph|nom|arch|krat)$/.test(kern) || /^(Name|Gedanke|Glaube|Wille|Friede|Buchstabe)$/.test(kern);
-}
-function schwachesMaskulinum(kern) {
-  if (/(chen|lein|er|el|en|ling|ismus|or)$/.test(kern)) return kern;
-  if (SCHWACH_E.test(kern)) return kern + "n";
-  if (/(ent|ant|ist|oge|graf|soph|nom|arch|krat|at)$/.test(kern)) return kern + "en";
-  if (kern === "Herr") return "Herrn";
-  if (kern === "Nachbar" || kern === "Bauer") return kern + "n";
-  if (kern === "Herz") return "Herzen";
-  if (SCHWACH_KONSONANT.test(kern)) return kern + "en";
-  if (kern === "Name" || kern === "Gedanke" || kern === "Glaube" || kern === "Wille" || kern === "Friede" || kern === "Buchstabe") return kern + "n";
-  return kern;
-}
-function dekliniere(phrase, kasus) {
-  const m = phrase.match(/^(ein|eine|der|die|das)\s+(.*)$/i);
-  if (!m) return phrase;
-  const [, art, rest] = m;
-  const kern = (rest.match(/\b([A-ZÄÖÜ][a-zäöüß-]{2,})/) || [])[1];
-  const artG = art.toLowerCase() === "der" ? "m" : art.toLowerCase() === "das" ? "n" : void 0;
-  const g = artG || (kern ? istSchwachesMaskulinum(kern) ? "m" : guessGender(kern) : void 0);
-  if (!g) return phrase;
-  const map = {
-    akk: { m: art.toLowerCase() === "ein" ? "einen" : "den", f: art, n: art },
-    dat: { m: art.toLowerCase() === "ein" ? "einem" : "dem", f: art.toLowerCase() === "eine" ? "einer" : "der", n: art.toLowerCase() === "ein" ? "einem" : "dem" }
-  };
-  const neu = map[kasus]?.[g];
-  if (!neu) return phrase;
-  const rest2 = (kasus === "akk" || kasus === "dat") && g === "m" && kern ? rest.replace(new RegExp("\\b" + kern + "\\b"), schwachesMaskulinum(kern)) : rest;
-  let r = rest2;
-  if (neu.toLowerCase() !== art.toLowerCase()) {
-    const w = rest2.split(/\s+/);
-    let kernIdx = w.findIndex((x) => /^[A-ZÄÖÜ]/.test(x));
-    if (kernIdx < 0) kernIdx = w.length;
-    for (let i = 0; i < kernIdx; i++) {
-      const x = w[i];
-      if (/^[a-zäöüß]{3,}$/.test(x)) w[i] = x.replace(/(?:e|er|es|em|en)$/, "") + "en";
-    }
-    r = w.join(" ");
-  }
-  return neu + " " + r;
-}
-function fuelleSlot(rahmen, fueller) {
-  const m = rahmen.match(/⟨(AKK|DAT|NOM|SATZ)⟩/);
-  const kasus = m ? m[1].toLowerCase() : "";
-  let f = fueller.replace(/[.!?…]+$/, "");
-  if (kasus === "akk" || kasus === "dat") f = dekliniere(f, kasus);
-  return rahmen.replace(/⟨(AKK|DAT|NOM|SATZ)⟩/, f);
-}
-var offeneSlots = (t2) => (t2.match(/⟨(AKK|DAT|NOM|SATZ)⟩/g) || []).length;
-function verfugen(teile) {
-  const out = [];
-  for (let i = 0; i < teile.length; i++) {
-    let t2 = teile[i].trim().replace(/\s+([.,;:!?])/g, "$1");
-    if (!t2) continue;
-    const vorOffen = i > 0 && /[:—]$/.test(out[out.length - 1] || "");
-    t2 = vorOffen ? t2.charAt(0).toLowerCase() + t2.slice(1) : t2.charAt(0).toUpperCase() + t2.slice(1);
-    t2 = t2.replace(
-      /^(Und|Doch|Aber|Oder|Denn|Dann|Dabei|Also)\s+([A-ZÄÖÜ])(?=[a-zäöüß])/,
-      (_m, k, c) => k + " " + c.toLowerCase()
-    );
-    const endet = /[.!?…:;—]$/.test(t2);
-    const naechsterFolgtDirekt = t2.endsWith(":") || t2.endsWith("\u2014");
-    if (!endet) t2 += ".";
-    if (naechsterFolgtDirekt && i + 1 < teile.length) {
-      const n = teile[i + 1].trim();
-      teile[i + 1] = n.charAt(0).toLowerCase() + n.slice(1);
-    }
-    out.push(t2);
-  }
-  return out.join(" ").replace(/([.!?…])\s*\1+/g, "$1").replace(/:\s*\./g, ":").trim();
-}
-var letzteZiehung = null;
-var ziehungOffenlegen = false;
-function setZiehungOffenlegen(an2) {
-  ziehungOffenlegen = an2;
-}
-function letzteZiehungLesen() {
-  return letzteZiehung;
-}
-function ziehe(kandidaten, sollGewicht, bisher, phase) {
-  if (!kandidaten.length) return null;
-  const stems = (t2) => new Set((t2.toLowerCase().match(/[a-zäöüß]{5,}/g) || []).map((w) => w.slice(0, 5)));
-  const kontext = stems(bisher);
-  const bogenGewicht = (loadKnobs().bogen || 100) / 100;
-  const atomMax = loadKnobs().atomgroesse;
-  const score = (a) => {
-    let s = 1;
-    s -= 0.4 * ueberlaenge(a.text, atomMax);
-    if (phase) s += phasenBonus(a, phase);
-    s += gelenkBonus(a, phase, bogenGewicht);
-    if (a.rhythmus.gewicht === sollGewicht) s += 1.5;
-    const ov = [...stems(a.text)].filter((x) => kontext.has(x)).length;
-    s += Math.min(ov, 2) * 0.8;
-    if (ov > 3) s -= 2;
-    s = Math.max(0.05, s);
-    if (a.quelle === "dramaturgie") s = bogenGewicht === 0 ? 1e-4 : s * bogenGewicht;
-    return s;
-  };
-  const total = kandidaten.reduce((n, a) => n + score(a), 0);
-  let r = Math.random() * total;
-  let gewinner = kandidaten[kandidaten.length - 1];
-  for (const a of kandidaten) {
-    r -= score(a);
-    if (r <= 0) {
-      gewinner = a;
-      break;
-    }
-  }
-  if (ziehungOffenlegen) {
-    const g = [{ name: "Grund", wert: 1 }];
-    const ue = 0.4 * ueberlaenge(gewinner.text, atomMax);
-    if (ue) g.push({ name: "\xDCberl\xE4nge", wert: -ue });
-    if (phase) {
-      const pb = phasenBonus(gewinner, phase);
-      if (pb) g.push({ name: "Phase " + phase, wert: pb });
-    }
-    const gb = gelenkBonus(gewinner, phase, bogenGewicht);
-    if (gb) g.push({ name: "Gelenk (Bogen)", wert: gb });
-    if (gewinner.rhythmus.gewicht === sollGewicht) g.push({ name: "Rhythmus passt", wert: 1.5 });
-    const ov = [...stems(gewinner.text)].filter((x) => kontext.has(x)).length;
-    if (ov) g.push({ name: `Anschluss (${ov} St\xE4mme)`, wert: ov > 3 ? Math.min(ov, 2) * 0.8 - 2 : Math.min(ov, 2) * 0.8 });
-    if (gewinner.quelle === "dramaturgie" && bogenGewicht !== 1) g.push({ name: "Bogen-Gewicht \xD7", wert: bogenGewicht });
-    const alleScores = kandidaten.map((a) => score(a)).sort((x, y) => y - x);
-    const sg = score(gewinner);
-    const rang = alleScores.findIndex((x) => x <= sg) + 1;
-    const andere = kandidaten.filter((a) => a !== gewinner).map((a) => ({ a, s: score(a) })).sort((x, y) => y.s - x.s).slice(0, 2);
-    letzteZiehung = {
-      score: sg,
-      anteil: total ? sg / total : 1,
-      gruende: g,
-      kandidaten: kandidaten.length,
-      rang: Math.max(1, rang),
-      bester: alleScores[0] ?? sg,
-      durchschnitt: kandidaten.length ? total / kandidaten.length : sg,
-      konkurrenten: andere.map(({ a, s }) => ({ text: a.text, score: s, anteil: total ? s / total : 0, rang: Math.max(1, alleScores.findIndex((x) => x <= s) + 1), quelle: a.quelle, kategorie: a.kategorie || "\u2014" }))
-    };
-  }
-  return gewinner;
-}
-
-// src/generation/beats.ts
-function cap(s) {
-  s = (s ?? "").toString();
-  return s ? s[0].toUpperCase() + s.slice(1) : s;
-}
-function isFragmentSentence(s) {
-  const n = clean(s).split(/\s+/).filter(Boolean).length;
-  return n > 0 && n <= 3;
-}
-var CLAUSE_VERBS = /* @__PURE__ */ new Set(["antworten", "antwortet", "atmen", "atmet", "bebt", "begann", "beginnen", "beginnt", "beobachten", "beobachtet", "ber\xFChren", "ber\xFChrt", "bin", "bist", "bleiben", "bleibt", "blieb", "blitzt", "brannte", "brennen", "brennt", "brummt", "br\xFCllen", "br\xFCllt", "dachte", "darf", "denken", "denkt", "donnert", "drehen", "dreht", "drehte", "durfte", "d\xFCrfen", "enden", "endet", "endete", "erinnern", "erinnert", "fahren", "fallen", "fand", "fiel", "fielen", "finden", "findet", "fliegen", "fliegt", "fliehen", "flieht", "flie\xDFen", "flie\xDFt", "flog", "floss", "fl\xFCstern", "fl\xFCstert", "folgen", "folgt", "folgte", "formen", "formt", "fragen", "fragt", "fragte", "fuhr", "f\xE4hrt", "f\xE4llt", "f\xFChlen", "f\xFChlt", "f\xFChren", "f\xFChrt", "f\xFChrte", "f\xFCrchten", "f\xFCrchtet", "gab", "gaben", "galt", "geben", "gehen", "geht", "gelten", "geschah", "geschehen", "geschieht", "gibt", "gilt", "ging", "gingen", "glauben", "glaubt", "haben", "habt", "halten", "hat", "hatte", "hatten", "hielt", "hielten", "hoffen", "hofft", "h\xE4lt", "h\xE4tte", "h\xF6ren", "h\xF6rt", "h\xF6rte", "ist", "jagen", "jagt", "kam", "kamen", "kann", "kannte", "kennen", "kennt", "kippen", "kippt", "knistert", "kommen", "kommt", "konnte", "konnten", "kreisen", "kreist", "k\xF6nnen", "lachen", "lacht", "lag", "lagen", "laufen", "leuchten", "leuchtet", "lief", "liefen", "liegen", "liegt", "l\xE4uft", "l\xF6schen", "l\xF6scht", "machen", "macht", "machte", "machten", "mag", "muss", "musste", "mussten", "m\xF6chte", "m\xF6chten", "m\xF6gen", "m\xFCssen", "nahm", "nahmen", "nehmen", "nimmt", "passieren", "passiert", "passierte", "planen", "plant", "pulsiert", "raschelt", "reagieren", "reagiert", "regnet", "retten", "rettet", "rief", "rinnt", "riskiert", "rufen", "ruft", "sah", "sahen", "sang", "sank", "sa\xDF", "schlafen", "schlief", "schlie\xDFen", "schlie\xDFt", "schloss", "schl\xE4ft", "schmelzen", "schmilzt", "schneit", "schreien", "schreit", "schrie", "schweigen", "schweigt", "schwieg", "sehen", "seid", "sieht", "sind", "singen", "singt", "sinken", "sinkt", "sitzen", "sitzt", "soll", "sollen", "sollte", "sprach", "sprachen", "sprang", "sprechen", "spricht", "springen", "springt", "stand", "standen", "stehen", "steht", "steigen", "steigt", "stieg", "suchen", "sucht", "suchte", "summt", "tanzen", "tanzt", "tat", "taten", "ticken", "tickt", "tragen", "tropft", "trug", "trugen", "tr\xE4gt", "tr\xE4umen", "tr\xE4umt", "tun", "tut", "unterschreiben", "unterschreibt", "verfolgen", "verfolgt", "vergessen", "vergisst", "verlangen", "verlangt", "verraten", "verr\xE4t", "ver\xE4ndern", "ver\xE4ndert", "vibriert", "wachsen", "wagen", "wagt", "wandern", "wandert", "war", "waren", "warten", "wartet", "wartete", "wechseln", "wechselt", "weigern", "weigert", "weinen", "weint", "wei\xDF", "werden", "werdet", "wiederholen", "wiederholt", "will", "wird", "wirst", "wissen", "wollen", "wollte", "wollten", "wurde", "wurden", "wusste", "w\xE4chst", "w\xE4re", "w\xE4ren", "w\xFCrde", "w\xFCrden", "zeigen", "zeigt", "zeigte", "zerbrechen", "zerbricht", "ziehen", "zieht", "zittern", "zittert", "zog", "zogen", "\xF6ffnen", "\xF6ffnet", "\xFCberschreiben", "\xFCberschreibt"]);
-var CLAUSE_STOP = /* @__PURE__ */ new Set([
-  "der",
-  "die",
-  "das",
-  "den",
-  "dem",
-  "des",
-  "ein",
-  "eine",
-  "einen",
-  "einem",
-  "einer",
-  "eines",
-  "kein",
-  "keine",
-  "keinen",
-  "keinem",
-  "keiner",
-  "mein",
-  "meine",
-  "meinen",
-  "dein",
-  "deine",
-  "sein",
-  "seine",
-  "seinen",
-  "ihr",
-  "ihre",
-  "ihren",
-  "unser",
-  "unsere",
-  "euer",
-  "eure",
-  "dieser",
-  "diese",
-  "dieses",
-  "diesen",
-  "diesem",
-  "jener",
-  "jene",
-  "jenes",
-  "jeder",
-  "jede",
-  "jedes",
-  "jeden",
-  "jedem",
-  "manch",
-  "manche",
-  "alle",
-  "allen",
-  "beide",
-  "beiden",
-  "viele",
-  "vielen",
-  "solche",
-  "solchen",
-  "mit",
-  "ohne",
-  "aus",
-  "von",
-  "vom",
-  "in",
-  "im",
-  "auf",
-  "an",
-  "am",
-  "f\xFCr",
-  "bei",
-  "zu",
-  "zum",
-  "zur",
-  "\xFCber",
-  "unter",
-  "vor",
-  "nach",
-  "durch",
-  "gegen",
-  "seit",
-  "um",
-  "neben",
-  "zwischen",
-  "hinter",
-  "wegen",
-  "trotz",
-  "w\xE4hrend",
-  "entlang",
-  "und",
-  "oder",
-  "aber",
-  "denn",
-  "sondern",
-  "nicht",
-  "jetzt",
-  "fast",
-  "erst",
-  "sonst",
-  "selbst",
-  "meist",
-  "dennoch",
-  "trotzdem"
-]);
-var CLAUSE_PRON = /* @__PURE__ */ new Set(["ich", "du", "er", "sie", "es", "wir", "man", "jemand", "niemand", "etwas", "nichts", "wer", "alles"]);
-function mainHasFiniteVerb(part) {
-  const toks = part.trim().split(/\s+/);
-  let sawSubject = false;
-  for (let i = 0; i < toks.length; i++) {
-    const raw = toks[i];
-    const lower = raw.toLowerCase().replace(/[^a-zäöüß]/g, "");
-    if (i > 0 && sawSubject && /^[a-zäöüß]/.test(raw) && lower.length >= 3 && !CLAUSE_STOP.has(lower)) {
-      if (CLAUSE_VERBS.has(lower)) return true;
-      if (/iert$/.test(lower)) return true;
-      if (/en$/.test(lower)) {
-        const next = toks[i + 1];
-        if (!next || /^[a-zäöüß]/.test(next)) return true;
-      }
-    }
-    if (i > 0 && /^[A-ZÄÖÜ]/.test(raw) || CLAUSE_PRON.has(lower)) sawSubject = true;
-  }
-  return false;
-}
-function looksLikeClausePhrase(phrase) {
-  const s = clean(phrase);
-  if (!s) return false;
-  if (/[.!?]$/.test(s)) return true;
-  const mainPart = (s.split(",")[0] || s).trim();
-  return mainHasFiniteVerb(mainPart);
-}
-function chooseInsertPos(sentences) {
-  if (!sentences || sentences.length < 2) return -1;
-  const candidates = [];
-  for (let pos = 1; pos <= sentences.length; pos++) {
-    const prev = sentences[pos - 1];
-    const next = sentences[pos];
-    if (isFragmentSentence(prev)) continue;
-    if (next !== void 0 && isFragmentSentence(next)) continue;
-    const w = clean(prev).split(/\s+/).filter(Boolean).length;
-    candidates.push({ pos, weight: Math.max(1, w - 4) });
-  }
-  if (!candidates.length) return -1;
-  let sum = 0;
-  for (const c of candidates) sum += c.weight;
-  let r = Math.random() * sum;
-  for (const c of candidates) {
-    r -= c.weight;
-    if (r <= 0) return c.pos;
-  }
-  return candidates[candidates.length - 1].pos;
-}
-var BEAT_CONNECTORS = ["Kurz darauf", "Gleichzeitig", "Wenig sp\xE4ter", "Im selben Atemzug", "Noch am selben Ort"];
-var beatKopf = (p) => {
-  const w = p.toLowerCase().replace(/^und\s+/, "").split(/[\s,:;—]+/).filter(Boolean);
-  return w[0] || "";
-};
-function joinBeats(beats, P2) {
-  const parts = beats.map((b) => ensurePunct(clean(b))).filter(Boolean);
-  for (let i = 1; i < parts.length; i++) {
-    const prevRoh = (parts[i - 1].split(/\s+/)[0] || "").toLowerCase();
-    const curRoh = (parts[i].split(/\s+/)[0] || "").toLowerCase();
-    if (prevRoh === curRoh && curRoh === "und") {
-      parts[i] = cap(parts[i].replace(/^Und\s+/i, ""));
-    }
-    if (beatKopf(parts[i]) === "dann" && (beatKopf(parts[i - 1]) === "dann" || i >= 2 && beatKopf(parts[i - 2]) === "dann")) {
-      parts[i] = /^und\s+dann\b/i.test(parts[i]) ? parts[i].replace(/^Und\s+dann\b/i, pick(["Schlie\xDFlich", "Zuletzt", "Am Ende"])) : parts[i].replace(/^Dann\b/i, pick(["Danach", "Kurz darauf", "Sp\xE4ter"]));
-    }
-  }
-  if (P2 && parts.length >= 4 && chance(0.6)) {
-    const idx = 1 + Math.floor(Math.random() * (parts.length - 2));
-    const m = new RegExp(`^${escapeRegExp(P2)}\\s+([a-z\xE4\xF6\xFC\xDF]+)\\s+([\\s\\S]+)$`).exec(parts[idx]);
-    if (m) parts[idx] = `${pick(BEAT_CONNECTORS)} ${m[1]} ${P2} ${m[2]}`;
-  }
-  return parts.join(" ");
-}
-function frameTurn(turn) {
-  const t2 = clean(turn).replace(/[.!?…]+$/, "");
-  const frames = [
-    `Dann kippt es: ${t2}.`,
-    `Dann kippt es \u2014 ${t2}.`,
-    `Es braucht nur einen Atemzug, und ${t2}.`,
-    `Erst ein Riss, kaum merklich, und ${t2}.`,
-    `Und dann, ohne Vorwarnung: ${t2}.`,
-    `Etwas gibt nach \u2014 ${t2}.`,
-    `Kaum ausgesprochen, ${t2}.`,
-    `Dann, unvermittelt: ${t2}.`
-  ];
-  return frames[pickFreshIndex("frameTurn", frames.length)];
-}
-function reframeStake(stake) {
-  const m = /^Der Einsatz ist\s+(.+?)[.!?…]*$/i.exec(clean(stake));
-  if (!m) return stake;
-  const core = m[1];
-  const akk = dekliniere(core, "akk");
-  const frames = [`Der Einsatz ist ${core}.`, `Es geht um ${akk}.`, `Alles dreht sich um ${akk}.`, `Was z\xE4hlt, ist ${core}.`];
-  if (!/[:,]/.test(core)) {
-    frames.push(`Auf dem Spiel steht ${core}.`);
-    frames.push(`${cap(core)} steht auf dem Spiel.`);
-    frames.push(`Am Ende bleibt nur ${core}.`);
-    frames.push(`Verlieren hie\xDFe: ${core}.`);
-  }
-  return frames[pickFreshIndex("stake", frames.length)];
-}
-function safeCaseForm(rawPhrase, casedPhrase) {
-  if (looksLikeClausePhrase(rawPhrase)) return `\u201E${clean(rawPhrase)}\u201C`;
-  return casedPhrase;
-}
-function weaveMotif(text, motif) {
-  if (!motif) return text;
-  const motifLine = looksLikeClausePhrase(motif) ? ensurePunct(cap(clean(motif))) : ensurePunct(`Dabei: ${motif}`);
-  const s = splitSentences(text);
-  if (s.length < 2) return text + " " + motifLine;
-  let pos = chooseInsertPos(s);
-  if (pos < 0) pos = Math.min(s.length - 1, Math.max(1, Math.floor(s.length * 0.55)));
-  s.splice(pos, 0, motifLine);
-  return s.join(" ");
-}
-function randomFragmentTime() {
-  const h = pick([23, 0, 1, 2, 3, 4, 5]);
-  const m = Math.floor(Math.random() * 60);
-  return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
-}
-function insertToneFlavor(text, line) {
-  const paras = text.split(/\n\n+/);
-  let target = 0;
-  for (let i = 1; i < paras.length; i++) if (paras[i].length > paras[target].length) target = i;
-  const sentences = splitSentences(paras[target]);
-  if (sentences.length < 2) {
-    paras[target] = (paras[target] + " " + line).trim();
-    return paras.join("\n\n");
-  }
-  let idx = chooseInsertPos(sentences);
-  if (idx < 0) idx = sentences.length;
-  sentences.splice(idx, 0, line);
-  paras[target] = sentences.join(" ");
-  return paras.join("\n\n");
-}
-function weaveCast(text, _P, cast) {
-  const others = (cast || []).slice(1).map((c) => clean(c)).filter(Boolean);
-  if (!others.length) return text;
-  const nm = (n) => (n.split(",")[0] || n).trim();
-  const soloVerbs = ["steht daneben und schweigt", "wartet", "sieht zu", "z\xF6gert", "sagt nichts", "nickt kaum", "atmet flach", "tritt einen Schritt zur\xFCck", "h\xE4lt sich zur\xFCck"];
-  const soloWants = ["das Gegenteil", "mehr", "weg", "bleiben", "die Wahrheit", "nichts davon"];
-  const beats = [];
-  others.slice(0, 2).map(nm).forEach((who) => {
-    beats.push(chance(0.5) ? `${who} ${pick(soloVerbs)}.` : `${who} will ${pick(soloWants)}.`);
-  });
-  if (chance(0.7)) {
-    beats.push(pick([
-      `Keiner von ihnen ${pick(["spricht zuerst", "weicht aus", "sagt es laut"])}.`,
-      `Zwischen ihnen ${pick(["bleibt ein Satz offen", "spannt sich die Luft", "steht etwas Ungesagtes"])}.`
-    ]));
-  }
-  const rest = others.slice(2).map(nm);
-  if (rest.length) {
-    const grp = rest.length === 1 ? rest[0] : rest.slice(0, -1).join(", ") + " und " + rest[rest.length - 1];
-    const v = rest.length === 1 ? pick(["ist dabei", "kommt dazu", "h\xE4lt sich zur\xFCck"]) : pick(["sind dabei", "kommen dazu", "halten sich zur\xFCck"]);
-    beats.push(`Auch ${grp} ${v}.`);
-  }
-  for (let i = beats.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [beats[i], beats[j]] = [beats[j], beats[i]];
-  }
-  const sent = splitSentences(text);
-  for (const b of beats) {
-    const line = ensurePunct(cap(clean(b)));
-    if (sent.length < 2) {
-      sent.push(line);
-      continue;
-    }
-    let pos = chooseInsertPos(sent);
-    if (pos < 0) pos = Math.min(sent.length, Math.max(1, Math.floor(sent.length * 0.5)));
-    sent.splice(pos, 0, line);
-  }
-  return sent.join(" ");
-}
-
-// src/generation/verbconj.ts
-var VERB_TOKEN_RE = new RegExp("\\b(" + Object.keys(VERB_CONJ).join("|") + ")\\b", "i");
-function conjugateVerbToken(verb, person) {
-  if (!verb) return verb;
-  const isCap = /^[A-ZÄÖÜ]/.test(verb);
-  const low2 = verb.toLowerCase();
-  const table = VERB_CONJ[low2];
-  let out;
-  if (table && table[person]) {
-    out = table[person];
-  } else {
-    const p = person === "ich" || person === "du" || person === "wir" || person === "ihr" ? person : "er";
-    out = beugeVerb(low2, p) ?? low2;
-  }
-  return isCap ? cap(out) : out;
-}
-
-// src/generation/wordcls.ts
-var PERSON_NOMEN = /(jugendliche|jugendlicher|erwachsene|erwachsener|alte|alter|kranke|kranker|gefangene|gefangener|angestellte|angestellter|beamte|beamter|verwandte|verwandter|bekannte|bekannter|vorsitzende|vorsitzender|abgeordnete|abgeordneter|obdachlose|obdachloser|pensionär|pensionärin|rentner|rentnerin|zeuge|zeugin|täter|täterin|opfer|passant|passantin|kellner|kellnerin|pfarrer|pfarrerin|richter|richterin|händler|händlerin|bauer|bäuerin|förster|försterin|schneider|schneiderin|weber|weberin|uhrmacher|uhrmacherin|archivar|archivarin|übersetzer|übersetzerin|magd|knecht|ritter|ritterin|nonne|mönch|clown|boxer|boxerin|grabräuber|grabräuberin|mädchen|junge|kind|frau|mann|männer|dame|herr|schüler|schülerin|lehrer|lehrerin|wächter|wächterin|arzt|ärztin|bäcker|bäckerin|gärtner|gärtnerin|fischer|fischerin|bote|botin|wanderer|wanderin|reisende|reisender|nachbar|nachbarin|greis|greisin|witwe|witwer|zwilling|bruder|schwester|sohn|tochter|vater|mutter|onkel|tante|neffe|nichte|freund|freundin|gast|fremde|fremder|meister|meisterin|gesell|lehrling|soldat|soldatin|matrose|matrosin|pilot|pilotin|köchin|koch|wirt|wirtin|müller|müllerin|schmied|schmiedin|hirte|hirtin|jäger|jägerin|sammler|sammlerin)$/i;
-var NOT_INFINITIVE = /* @__PURE__ */ new Set([
-  "einen",
-  "keinen",
-  "seinen",
-  "ihren",
-  "deinen",
-  "unseren",
-  "euren",
-  "diesen",
-  "jenen",
-  "denen",
-  "welchen",
-  "allen",
-  "vielen",
-  "beiden",
-  "manchen",
-  "jeden",
-  "solchen",
-  "anderen",
-  "eigenen",
-  "letzten",
-  "ersten",
-  "oben",
-  "unten",
-  "innen",
-  "au\xDFen",
-  "hinten",
-  "vorn",
-  "vorne",
-  "neben",
-  "eben",
-  "gegen",
-  "wegen",
-  "gegen\xFCber",
-  "morgen",
-  "\xFCbermorgen",
-  "wochen",
-  "stunden",
-  "sieben",
-  "zehn",
-  "trotzen",
-  "w\xE4hrend",
-  "dessen",
-  "deren",
-  "hinein"
-]);
-var NICHT_VERB_T = /* @__PURE__ */ new Set([
-  "nicht",
-  "jetzt",
-  "erst",
-  "fast",
-  "sonst",
-  "meist",
-  "zuerst",
-  "zuletzt",
-  "selbst",
-  "sogar",
-  "seit",
-  "samt",
-  "statt",
-  "mit",
-  "zeit",
-  "trotz",
-  "laut",
-  "gerecht",
-  "sanft",
-  "dicht",
-  "leicht",
-  "schlecht",
-  "recht",
-  "direkt",
-  "echt",
-  "exakt",
-  "strikt",
-  "perfekt",
-  "konkret",
-  "komplett",
-  "kaputt",
-  "sacht",
-  "glatt",
-  "platt",
-  "nackt",
-  "satt",
-  "breit",
-  "bereit",
-  "weit",
-  "sp\xE4t",
-  "hart",
-  "zart",
-  "kalt",
-  "alt",
-  "bunt",
-  "rot",
-  "gut",
-  "oft",
-  "still",
-  "halt",
-  "gesamt",
-  "insgesamt",
-  "bekannt",
-  "verwandt",
-  "ber\xFChmt",
-  "sofort",
-  "vielleicht",
-  "\xFCberhaupt",
-  "zumindest",
-  "h\xF6chst",
-  "\xE4u\xDFerst",
-  "mindest",
-  "bestimmt",
-  "unbedingt",
-  "ernst",
-  "einst",
-  "l\xE4ngst",
-  "j\xFCngst",
-  "umsonst",
-  "weltweit",
-  "korrekt",
-  "intakt",
-  "kompakt",
-  "prompt",
-  "getrennt",
-  // vierbuchstabige Adjektive und Adverbien auf -t
-  "bunt",
-  "echt",
-  "fest",
-  "hart",
-  "kalt",
-  "laut",
-  "matt",
-  "nett",
-  "satt",
-  "weit",
-  "zart",
-  "fett",
-  "halt",
-  "wert",
-  "dort",
-  "fort",
-  "stet",
-  "sart"
-]);
-function wirktFinit(w) {
-  if (w.length < 4 || NICHT_VERB_T.has(w)) return false;
-  if (/^ge[a-zäöüß]+t$/.test(w)) return false;
-  return /^[a-zäöüß]+[^aeiouäöü]t$/.test(w) || /^[a-zäöüß]+et$/.test(w);
-}
-function looksLikeInfinitive(w) {
-  if (INFINITIVE_VERBS.has(w)) return true;
-  if (w.length < 5 || NOT_INFINITIVE.has(w) || NOUN_GENDER[w]) return false;
-  return /(?:[a-zäöüß]{3,})(?:en|ern|eln)$/.test(w);
-}
-function extractLeadVerb(text) {
-  const s = clean(text);
-  if (!s) return { verb: null, rest: s };
-  const m0 = s.match(/^([A-Za-zÄÖÜäöüß]+)(,?)\s+(.+)$/);
-  if (!m0) return { verb: null, rest: s };
-  const m = [m0[0], m0[1], (m0[2] ? ", " : "") + m0[3]];
-  const raw = m[1];
-  const w = raw.toLowerCase();
-  if (VERB_CONJ[w]) return { verb: raw, rest: m[2] };
-  if (/^[a-zäöüß]/.test(raw) && looksLikeInfinitive(w)) {
-    return { verb: null, rest: `${m[2]} ${w}`, isInfinitiveLed: true };
-  }
-  if (/^[a-zäöüß]+iert$/.test(w)) return { verb: raw, rest: m[2] };
-  const dritte = ICH_DU_ZU_ER[w];
-  if (dritte && /^[a-zäöüß]/.test(raw)) return { verb: dritte, rest: m[2] };
-  if (/^[a-zäöüß]/.test(raw) && (EXTRA_FINITE_RE.test(w) || wirktFinit(w))) {
-    return { verb: raw, rest: m[2] };
-  }
-  return { verb: null, rest: s };
-}
-var ICH_DU_HAND = {
-  sehe: "sieht",
-  siehst: "sieht",
-  gehe: "geht",
-  gehst: "geht",
-  komme: "kommt",
-  kommst: "kommt",
-  finde: "findet",
-  findest: "findet",
-  glaube: "glaubt",
-  glaubst: "glaubt",
-  lebe: "lebt",
-  lebst: "lebt",
-  liege: "liegt",
-  liegst: "liegt",
-  sitze: "sitzt",
-  lese: "liest",
-  liest: "liest",
-  schlafe: "schl\xE4ft",
-  schl\u00E4fst: "schl\xE4ft",
-  laufe: "l\xE4uft",
-  l\u00E4ufst: "l\xE4uft",
-  falle: "f\xE4llt",
-  f\u00E4llst: "f\xE4llt",
-  breche: "bricht",
-  brichst: "bricht",
-  rufe: "ruft",
-  rufst: "ruft",
-  weine: "weint",
-  weinst: "weint",
-  lache: "lacht",
-  lachst: "lacht",
-  sp\u00FCre: "sp\xFCrt",
-  sp\u00FCrst: "sp\xFCrt",
-  atme: "atmet",
-  atmest: "atmet",
-  singe: "singt",
-  singst: "singt",
-  \u00F6ffne: "\xF6ffnet",
-  \u00F6ffnest: "\xF6ffnet",
-  erinnere: "erinnert",
-  erinnerst: "erinnert",
-  erkenne: "erkennt",
-  erkennst: "erkennt",
-  zerbreche: "zerbricht",
-  zerbrichst: "zerbricht",
-  stolpere: "stolpert",
-  stolperst: "stolpert",
-  verharre: "verharrt",
-  verharrst: "verharrt",
-  wandere: "wandert",
-  wanderst: "wandert",
-  zittere: "zittert",
-  zitterst: "zittert",
-  fl\u00FCstere: "fl\xFCstert",
-  fl\u00FCsterst: "fl\xFCstert",
-  wundere: "wundert",
-  wunderst: "wundert",
-  z\u00F6gere: "z\xF6gert",
-  z\u00F6gerst: "z\xF6gert",
-  erwache: "erwacht",
-  erwachst: "erwacht",
-  verschwinde: "verschwindet",
-  verschwindest: "verschwindet",
-  begreife: "begreift",
-  begreifst: "begreift",
-  verstehe: "versteht",
-  verstehst: "versteht",
-  bleibe: "bleibt",
-  bleibst: "bleibt",
-  ziehe: "zieht",
-  ziehst: "zieht"
-};
-var ICH_DU_ZU_ER = (() => {
-  const m = {};
-  for (const [dritte, formen] of Object.entries(VERB_CONJ)) {
-    for (const p of ["ich", "du", "wir", "ihr"]) {
-      const f = formen[p];
-      if (f && !m[f]) m[f] = dritte;
-    }
-  }
-  return { ...m, ...ICH_DU_HAND };
-})();
-var EXTRA_FINITE_RE = /\b(geschieht|geschehen|geschah|passiert|passieren|passierte|tickt|ticken|atmet|atmen|wächst|wachsen|wuchs|brennt|brennen|brannte|fällt|fallen|fiel|zerfällt|zerfallen|verschwindet|verschwinden|verschwand|erscheint|erscheinen|erschien|endet|enden|endete|beginnt|beginnen|begann|stirbt|sterben|starb|blüht|blühen|klopft|klopfen|flackert|flackern|zerbricht|zerbrechen|zerbrach|dreht|drehen|schweigt|schweigen|schwieg|singt|singen|sang|wandert|wandern|glüht|glühen|tanzt|tanzen|brüllt|brüllen|reagiert|reagieren|zeigt|zeigen|spricht|sprechen|sprach|antwortet|antworten|erinnert|erinnern|verändert|verändern|zittert|zittern|leuchtet|leuchten|schmilzt|schmelzen|regnet|schneit|blitzt|donnert|bebt|läuft|laufen|lief|rinnt|tropft|fließt|fließen|floss|steigt|steigen|stieg|sinkt|sinken|sank|kreist|kreisen|pulsiert|vibriert|summt|brummt|knistert|raschelt|flüstert|flüstern|schreit|schreien|schrie|weint|weinen|lacht|lachen|verglüht|verblasst|zerrinnt|wartet|warten)\b/i;
-function looksLikeFullClause(leadVerb, rest) {
-  if (leadVerb) return false;
-  return VERB_TOKEN_RE.test(rest || "") || EXTRA_FINITE_RE.test(rest || "");
-}
-var SP_REL = /^(der|die|das|den|dem|des|deren|dessen|welche[rsmn]?|wo|worin|woran|womit|wovon)\b/i;
-var SP_CONJ = /^(als|während|weil|wenn|da|obwohl|nachdem|bevor|sodass|damit|dass|ob|indem|sobald|solange)\b/i;
-var SP_PREP = /^(mit|ohne|aus|von|vom|in|im|auf|an|am|für|bei|zu|zum|zur|über|unter|vor|nach|durch|gegen|seit|um|entlang|trotz|wegen|innerhalb|außerhalb|samt|nebst|zwischen|entgegen|gemäß|laut|binnen|jenseits|diesseits)\b/i;
-var SP_ENDS_VERB = /(?:\b(hat|hatte|ist|war|sind|waren|wird|wurde|wurden|kann|konnte|will|wollte|muss|musste|bleibt|blieb|kommt|kam|geht|ging)|(?:^|[^A-Za-zÄÖÜäöüß])[a-zäöüß]{2,}(?:t|te|en|st|et))\.?$/;
-var SP_DET = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses|jener|jene|jenes|beide|alle|zwei|drei|vier)\b/i;
-function istEigenePerson(teil) {
-  const p = clean(teil);
-  if (!p) return false;
-  if (SP_REL.test(p) && SP_ENDS_VERB.test(p)) return false;
-  if (SP_CONJ.test(p) || SP_PREP.test(p)) return false;
-  if (SP_DET.test(p)) return true;
-  if (/^[A-ZÄÖÜ]/.test(p)) return true;
-  return !/\s/.test(p);
-}
-function personKopf(person) {
-  const teile = (person || "").split(",").map((x) => clean(x)).filter(Boolean);
-  if (teile.length <= 1) return (person || "").trim();
-  const raus = [teile[0]];
-  for (let i = 1; i < teile.length; i++) {
-    if (SP_REL.test(teile[i]) && SP_ENDS_VERB.test(teile[i])) raus.push(teile[i]);
-  }
-  return raus.join(", ");
-}
-function splitSpeakers(who) {
-  const parts = (who || "").split(",").map((s) => clean(s)).filter(Boolean);
-  if (parts.length <= 1) return parts;
-  const out = [parts[0]];
-  for (let i = 1; i < parts.length; i++) {
-    if (istEigenePerson(parts[i])) out.push(parts[i]);
-    else out[out.length - 1] += ", " + parts[i];
-  }
-  return out;
-}
-
-// src/generation/ctxnorm.ts
-var PREPS = /^(in|im|an|am|auf|bei|beim|unter|über|vor|hinter|neben|zwischen|durch|entlang|inmitten|nahe|außerhalb|innerhalb|jenseits|diesseits|um|ums|zu|zur|zum|während|seit|nach|gegen|ab|aus|von|vom|unterwegs|irgendwo|nirgendwo|überall|dort|draußen|drinnen|hier|daheim|zuhause|unten|oben)\b/i;
-var cap2 = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-var low = (s) => s ? s.charAt(0).toLowerCase() + s.slice(1) : s;
-function parseNP(s) {
-  const m = s.trim().match(/^(?:(der|die|das|ein|eine|einen|einem|einer)\s+)?(?:([A-ZÄÖÜa-zäöüß][a-zäöüß-]*(?:e|en|er|es))\s+)?([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
-  if (!m) return null;
-  const adj = m[2] || "";
-  if (adj && /^[A-ZÄÖÜ]/.test(adj) && !/[a-zäöüß]$/.test(adj)) return null;
-  return { art: (m[1] || "").toLowerCase(), adj: adj.toLowerCase(), noun: m[3] };
-}
-function genderOf(art, noun) {
-  if (art === "die" || art === "eine" || art === "einer") return "f";
-  if (art === "das") return "n";
-  if (art === "der" || art === "ein" || art === "einen" || art === "einem") {
-    const g = guessGender(noun);
-    return g || (art === "der" ? "m" : void 0);
-  }
-  return guessGender(noun);
-}
-var adjDat = (adj) => adj ? adj.replace(/(er|es|em|en|e)$/i, "") + "en" : "";
-var AN_NOUNS = /^(meer|see|ozean|küste|strand|ufer|fluss|bach|rand|abgrund|fenster|tor|hafenbecken)$/i;
-var AUF_NOUNS = /^(insel|wiese|weide|feld|berg|hügel|gipfel|dach|turm|platz|markt|straße|brücke|lichtung|bühne|terrasse|balkon)$/i;
-var LAND_GATTUNG = /* @__PURE__ */ new Set([
-  "ausland",
-  "inland",
-  "umland",
-  "hinterland",
-  "festland",
-  "neuland",
-  "brachland",
-  "flachland",
-  "hochland",
-  "weideland",
-  "ackerland",
-  "vaterland",
-  "heimatland",
-  "niemandsland",
-  "grenzland",
-  "marschland",
-  "\xF6dland",
-  "bauland",
-  "bergland",
-  "tiefland",
-  "binnenland",
-  "vorland",
-  "kernland",
-  "mutterland",
-  "traumland",
-  "schlaraffenland"
-]);
-var ORTSNAME_ENDUNG = /(grad|burg|furt|ingen|hausen|heim|kirchen|brück|wick|ford|ton|ville|polis|stan|land|ien)$/;
-var AN_ENDUNG = /(ufer|meer|see|strand|küste|fluss|bach)$/i;
-function normWhere(s) {
-  const t2 = (s || "").trim();
-  if (!t2 || PREPS.test(t2)) return t2;
-  const komma = t2.indexOf(",");
-  if (komma > 0) {
-    const kopf = normWhere(t2.slice(0, komma));
-    return kopf + t2.slice(komma);
-  }
-  const zusatz = t2.match(/^(.+?)\s+((?:in|im|an|am|auf|bei|vor|hinter|neben|unter|über|zwischen|nahe|gegenüber|ohne|mit|voller|aus)\s+.+)$/);
-  if (zusatz && parseNP(zusatz[1])) {
-    const kopf = normWhere(zusatz[1]);
-    if (kopf !== zusatz[1]) return `${kopf} ${zusatz[2]}`;
-  }
-  const np = parseNP(t2);
-  if (!np) return t2;
-  const nurWort = !np.art && !np.adj && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(t2);
-  const inTabelle = !!(NOUN_GENDER[t2.toLowerCase()] || NOUN_GENDER_2[t2.toLowerCase()]);
-  if (nurWort && !inTabelle && ORTSNAME_ENDUNG.test(t2) && !LAND_GATTUNG.has(t2.toLowerCase())) return `in ${t2}`;
-  const g = genderOf(np.art, np.noun);
-  if (!g) return !np.art && !np.adj && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(t2) ? `in ${t2}` : t2;
-  const adj = np.adj ? adjDat(np.adj) + " " : "";
-  const kind = AUF_NOUNS.test(np.noun) ? "auf" : AN_NOUNS.test(np.noun) || AN_ENDUNG.test(np.noun) ? "an" : "in";
-  const indef = np.art.startsWith("ein") || !np.art && !!np.adj;
-  if (indef) {
-    const artD = g === "f" ? "einer" : "einem";
-    return `${kind} ${artD} ${adj}${np.noun}`;
-  }
-  if (kind === "in") return g === "f" ? `in der ${adj}${np.noun}` : `im ${adj}${np.noun}`;
-  if (kind === "an") return g === "f" ? `an der ${adj}${np.noun}` : `am ${adj}${np.noun}`;
-  return g === "f" ? `auf der ${adj}${np.noun}` : `auf dem ${adj}${np.noun}`;
-}
-var WEEKDAYS = /^(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag)$/i;
-var MONTHS = /^(januar|februar|märz|april|mai|juni|juli|august|september|oktober|november|dezember)$/i;
-var SEASONS = /^(frühling|frühjahr|sommer|herbst|winter)$/i;
-var TIME_ADV = /^(heute|morgen|gestern|übermorgen|vorgestern|damals|jetzt|nun|bald|einst|früher|später|nachts|morgens|abends|mittags|vormittags|nachmittags|irgendwann|immer|nie|niemals|neulich|kürzlich|demnächst|gerade|soeben|zugleich|währenddessen|einmal)\b/i;
-var AM_TIMES = /^(morgen|vormittag|mittag|nachmittag|abend|tag|anfang|ende|wochenende|feierabend)$/i;
-function normWhen(s) {
-  const t2 = (s || "").trim();
-  if (!t2 || PREPS.test(t2) || TIME_ADV.test(t2) || t2.includes(",") || /\d+\s*uhr/i.test(t2)) return t2;
-  if (/^\d{3,4}$/.test(t2)) return `im Jahr ${t2}`;
-  const one = t2.match(/^([A-ZÄÖÜa-zäöü][A-Za-zÄÖÜäöüß-]*)$/) ? t2 : null;
-  if (!one) return t2;
-  const w = one;
-  if (WEEKDAYS.test(w)) return `an einem ${cap2(w)}`;
-  if (MONTHS.test(w) || SEASONS.test(w)) return `im ${cap2(w)}`;
-  if (/^mitternacht$/i.test(w)) return "um Mitternacht";
-  if (/^nacht$/i.test(w)) return "in der Nacht";
-  if (/^dämmerung$/i.test(w)) return "in der D\xE4mmerung";
-  if (AM_TIMES.test(w)) return `am ${cap2(w)}`;
-  const g = guessGender(w);
-  if (g === "f") return `in der ${cap2(w)}`;
-  if (g === "m" || g === "n") return `im ${cap2(w)}`;
-  return t2;
-}
-function normWho(s) {
-  const t2 = (s || "").trim();
-  if (!t2) return t2;
-  const parts = t2.split(",").map((p) => p.trim()).filter(Boolean);
-  const fixed = parts.map((p, i) => {
-    const m = p.match(/^([a-zäöüß][a-zäöüß-]*)\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]*)$/);
-    if (m && !/^(der|die|das|ein|eine|einen|einem|einer|eines|mein|meine|dein|deine|sein|seine|ihr|ihre|unser|unsere|euer|eure|kein|keine|jeder|jede|jedes|dieser|diese|dieses)$/i.test(m[1])) {
-      const g = guessGender(m[2]) || (/in$/.test(m[2].toLowerCase()) ? "f" : void 0);
-      if (g === "f") return `eine ${m[1]} ${m[2]}`;
-      if (g === "m" || g === "n") return `ein ${m[1]} ${m[2]}`;
-    }
-    if (i === 0 && /^[A-ZÄÖÜa-zäöüß][a-zäöüß-]+$/.test(p) && PERSON_NOMEN.test(p) && !/^(männer|leute)$/i.test(p)) {
-      const wort = cap2(p);
-      const klein = p.toLowerCase();
-      if (/er$/.test(klein) && PERSON_NOMEN.test(klein.slice(0, -1))) return `ein ${wort}`;
-      if (/e$/.test(klein) && PERSON_NOMEN.test(klein + "r")) return `eine ${wort}`;
-      const g = guessGender(wort);
-      if (g === "f") return `eine ${wort}`;
-      if (g === "m" || g === "n") return `ein ${wort}`;
-    }
-    return i === 0 || istEigenePerson(p) ? cap2(p) : low(p);
-  });
-  return fixed.join(", ");
-}
-
-// src/generation/dialogue.ts
-var ARCHETYPE_SPEAKERS = {
-  neutral: ["Die Stimme", "Das System", "Ein Unbekannter", "Das Archiv", "Der Apparat"],
-  skorpion: ["Die Zeugin", "Der Blick", "Die Hand", "Die Stimme", "Der Vermerk"],
-  psychopath: ["Der Gutachter", "Das Protokoll", "Die Instanz", "Der Operator", "Die Akte"],
-  entdecker: ["Die Karte", "Der Weg", "Die T\xFCr", "Der Rand", "Das Zeichen"]
-};
-function pickSpeakerForArchetype(archId) {
-  return pick(ARCHETYPE_SPEAKERS[archId] || ARCHETYPE_SPEAKERS.neutral);
-}
-function makeDialogueScene(kit, lenTarget = 110) {
-  const aId = kit.archetypeA || "neutral";
-  const bId = kit.archetypeB || "neutral";
-  const speakerA = kit.speakerA || kit.P;
-  const speakerB = kit.speakerB || pickSpeakerForArchetype(bId);
-  const cast = kit.speakers && kit.speakers.length >= 2 ? kit.speakers : [speakerA, speakerB];
-  let rounds = Math.round(lenTarget / 7) + (kit.instability === 2 ? 2 : kit.instability === 1 ? 1 : 0);
-  rounds = Math.max(4, Math.min(30, rounds));
-  if (rounds % 2 !== 0) rounds = Math.min(30, rounds + 1);
-  const evenAt = (f) => {
-    let x = Math.round(rounds * f);
-    if (x % 2 !== 0) x++;
-    return Math.max(2, Math.min(rounds - 2, x));
-  };
-  const oddAt = (f) => {
-    let x = Math.round(rounds * f);
-    if (x % 2 === 0) x++;
-    return Math.max(3, Math.min(rounds - 1, x));
-  };
-  const BEAT = {
-    propB: oddAt(0.22),
-    obstA: evenAt(0.38),
-    surfB: oddAt(0.42),
-    turnA: evenAt(0.64),
-    stakeB: oddAt(0.68),
-    endA: rounds - 2,
-    stageB: rounds - 1
-  };
-  const phaseFor = (i) => {
-    const p = i / (rounds - 1);
-    if (p < 0.3) return 0;
-    if (p < 0.6) return 1;
-    if (p < 0.85) return 2;
-    return 3;
-  };
-  const POOLS = {
-    neutral: {
-      setup: ["Was genau ist hier los?", "Sag mir, was du gesehen hast.", "Ich versuche, es zu verstehen.", "Wir sind noch nicht sicher.", "Fang von vorne an.", "Was hast du wirklich gesehen?", "Ich h\xF6re zu."],
-      conflict: ["Du weichst aus.", "Das passt nicht zusammen.", "Du verdrehst die Reihenfolge.", "Du h\xF6rst nicht zu.", "Das ergibt keinen Sinn.", "Du l\xE4sst etwas weg.", "Bleib bei der Wahrheit."],
-      twist: ["Vielleicht war es nie so gemeint.", "Dann dreht sich die Ursache um.", "Es sagt etwas anderes, als wir h\xF6ren.", "Die Regel gilt, aber anders.", "Vielleicht liegt es an uns.", "Der Grund verschiebt sich.", "Nichts davon war geplant."],
-      fallout: ["Also bleibt nur das Ende.", "Dann ist das entschieden.", "Wir gehen von hier weg.", "Damit m\xFCssen wir leben.", "Dann ist es vorbei.", "Wir tragen es mit.", "Mehr bleibt nicht."]
-    },
-    skorpion: {
-      setup: ["Ich sehe, dass du etwas verschweigst.", "Du bist n\xE4her, als du sein solltest.", "Das ist kein Zufall.", "Sag es \u2013 ohne Ausflucht.", "Du z\xF6gerst.", "Ich rieche die L\xFCge."],
-      conflict: ["Du kontrollierst die Geschichte.", "Dein Schweigen ist ein Griff um meinen Hals.", "Ich kenne deine L\xFCcken.", "Du willst Besitz, nicht Wahrheit.", "Du h\xE4ltst etwas fest.", "Gib es zu."],
-      twist: ["Dann geh\xF6rt die Wahrheit niemandem.", "Die N\xE4he kippt: Jetzt h\xE4lt es dich fest.", "Du wirst von deinem Satz behalten.", "Was du willst, will dich auch.", "Jetzt kehrt es sich um.", "Deine N\xE4he wird zur Falle."],
-      fallout: ["Du gibst es zu, oder du verlierst alles.", "Ich lasse dich nicht ungeschoren.", "Wir sind jetzt Teil davon.", "Das Ende tr\xE4gt deinen Namen.", "Du tr\xE4gst die Schuld.", "Nichts entkommt mir."]
-    },
-    psychopath: {
-      setup: ["Beschreibe den Sachverhalt.", "Emotion ist hier irrelevant.", "Das ist eine Beobachtung.", "Wir messen, was bleibt.", "Nenne die Fakten.", "Gef\xFChle sind Rauschen."],
-      conflict: ["Deine Schl\xFCsse sind unzul\xE4ssig.", "Du verwechselst Gef\xFChl mit Fakt.", "Das ist Inkonsistenz.", "Du \xFCbersch\xE4tzt Bedeutung.", "Dein Schluss ist falsch.", "Das ist unpr\xE4zise."],
-      twist: ["Dann drehen wir den Vektor um.", "Die Ursache ist das Symptom.", "Du bist das Experiment.", "Die Regel ist nur ein Modell.", "Die Ursache ist Effekt.", "Du bist die Variable."],
-      fallout: ["Der Fall ist abgeschlossen.", "Das Ergebnis ist eindeutig.", "Wir protokollieren das.", "Damit ist es erledigt.", "Abgeschlossen.", "Das Ergebnis steht."]
-    },
-    entdecker: {
-      setup: ["Da vorne ist noch etwas.", "Wir gehen weiter.", "Die Richtung ist nicht zuf\xE4llig.", "Ich will sehen, was dahinter liegt.", "Da vorn ist mehr.", "Komm weiter."],
-      conflict: ["Du h\xE4ltst mich auf.", "Du willst stehen bleiben.", "Du sperrst den Weg.", "Du hast Angst vor der n\xE4chsten T\xFCr.", "Du bremst.", "Du f\xFCrchtest die T\xFCr."],
-      twist: ["Dann \xF6ffnet sich der Raum in die falsche Richtung.", "Die Karte beginnt zu laufen.", "Der Weg entdeckt uns.", "Hinter uns ist das Ziel.", "Der Weg dreht sich.", "Das Ziel liegt hinter uns."],
-      fallout: ["Wir nehmen mit, was wir k\xF6nnen.", "Wir lassen den Rest zur\xFCck.", "Es bleibt eine Spur.", "Und dann: weiter.", "Wir ziehen weiter.", "Eine Spur bleibt."]
-    }
-  };
-  const STANCE_LINES = {
-    glauben: {
-      setup: ["Ich wei\xDF, was ich gesehen habe.", "Es war genau so.", "H\xF6r mir zu, es stimmt.", "Ich habe keinen Zweifel.", "Das ist die Wahrheit, ob du willst oder nicht."],
-      conflict: ["Es ist trotzdem wahr.", "Ich bleibe dabei.", "Du musst mir das glauben.", "Ich habe es selbst erlebt.", "Daran \xE4ndert dein Zweifel nichts."],
-      twist: ["Also hatte ich recht.", "Dann best\xE4tigt es sich.", "Ich wusste es die ganze Zeit.", "Genau das habe ich gesagt.", "Siehst du \u2014 es stimmt."],
-      fallout: ["Ich stehe dazu.", "Es bleibt wahr.", "Ich bereue kein Wort.", "So war es, so bleibt es."]
-    },
-    zweifeln: {
-      setup: ["Woher willst du das wissen?", "Bist du sicher?", "Das klingt zu einfach.", "Kann das \xFCberhaupt stimmen?", "Ich glaube nichts ohne Beweis."],
-      conflict: ["Das kann nicht stimmen.", "Beweis es mir.", "Da fehlt etwas.", "Warum sollte ich dir glauben?", "Deine Geschichte hat L\xF6cher."],
-      twist: ["Vielleicht hatte ich unrecht.", "Oder es ist ganz anders.", "Und wenn es doch stimmt?", "Jetzt zweifle ich an meinem Zweifel."],
-      fallout: ["Ich bin noch nicht \xFCberzeugt.", "Sicher bin ich trotzdem nicht.", "Vielleicht. Vielleicht auch nicht.", "Ich behalte meine Fragen."]
-    },
-    abwehren: {
-      setup: ["Muss das jetzt sein?", "Lass uns nicht dar\xFCber reden.", "Das geht dich nichts an.", "Ich will das nicht.", "Es ist nicht so wichtig."],
-      conflict: ["Das f\xFChrt zu nichts.", "H\xF6r auf zu bohren.", "Ich habe nichts gesagt.", "Lenk nicht ab.", "Reden wir \xFCber etwas anderes."],
-      twist: ["Es ist zu sp\xE4t daf\xFCr.", "Jetzt ist es sowieso egal.", "Ich h\xE4tte schweigen sollen.", "Vergiss, was ich gesagt habe."],
-      fallout: ["Es ist erledigt.", "Reden wir nicht mehr davon.", "Vergessen wir das.", "Genug jetzt."]
-    }
-  };
-  const STANCES = ["glauben", "zweifeln", "abwehren"];
-  for (let k = STANCES.length - 1; k > 0; k--) {
-    const j = Math.floor(Math.random() * (k + 1));
-    [STANCES[k], STANCES[j]] = [STANCES[j], STANCES[k]];
-  }
-  const stanceOf = (castIdx) => STANCES[castIdx % STANCES.length];
-  const capFirst = (s) => {
-    s = String(s || "").trim();
-    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-  };
-  const stripLead = (s) => String(s || "").replace(/^(und|dann|aber|denn|so|doch)\s+/i, "").trim();
-  const topic = clean(kit.motif || kit.W || "").replace(/[.!?…]+$/, "");
-  const STAGE = ["Stille.", "Ein langer Blick.", "Keiner spricht weiter.", "Der Wind tr\xE4gt den Rest fort.", "Die Weide liegt still.", "Nichts bewegt sich."];
-  const cleanDialogLine = (s) => {
-    s = clean(s);
-    s = s.replace(/,\s*([.!?…])/g, "$1").replace(/\s*,\s*,\s*/g, ", ").replace(/„\s+/g, "\u201E").replace(/\s+"/g, '"').replace(/\.{2,}/g, ".").replace(/\s+([,.;:!?])/g, "$1").replace(/\)\s*\.$/, ")");
-    return capFirst(s);
-  };
-  const usedRaw = /* @__PURE__ */ new Set();
-  let prevRaw = "";
-  const pickLine = (stance, archetype, phase) => {
-    const key = phase === 0 ? "setup" : phase === 1 ? "conflict" : phase === 2 ? "twist" : "fallout";
-    const useArch = archetype !== "neutral" && chance(0.4);
-    const P2 = useArch ? POOLS[archetype] || POOLS.neutral : STANCE_LINES[stance] || POOLS.neutral;
-    const arr = P2[key] || [];
-    if (!arr.length) return "\u2026";
-    const fresh = arr.filter((l) => l !== prevRaw && !usedRaw.has(l));
-    let cand;
-    if (fresh.length) cand = pick(fresh);
-    else {
-      const notPrev = arr.filter((l) => l !== prevRaw);
-      cand = notPrev.length ? pick(notPrev) : pick(arr);
-    }
-    usedRaw.add(cand);
-    prevRaw = cand;
-    return cand;
-  };
-  const injectBeat = (i) => {
-    if (i === 0) return topic ? `Das Thema: ${topic}.` : "Sag mir, was du gesehen hast.";
-    if (i === 1) return topic ? "Und was hat das mit uns zu tun?" : "Was genau meinst du?";
-    if (i === BEAT.propB && kit.propAcc) return `Du hast ${kit.propAcc} dabei.`;
-    if (i === BEAT.obstA) return ensurePunct(capFirst(stripLead(kit.obstacle)));
-    if (i === BEAT.surfB) return "Das ist nur die Oberfl\xE4che.";
-    if (i === BEAT.turnA) return `Dann \u2014 ${capFirst(stripLead(clean(kit.turn).replace(/[.!?…]+$/, "")))}.`;
-    if (i === BEAT.stakeB) return ensurePunct(capFirst(stripLead(kit.stake)));
-    if (i === BEAT.endA) return ensurePunct(capFirst(kit.ending));
-    if (i === BEAT.stageB) return chance(0.6) ? `(${pick(STAGE)})` : null;
-    return null;
-  };
-  const applyInstability = (line, archetype, phase) => {
-    if (kit.instability !== 2) return line;
-    if (/[()]/.test(line) || line.includes("\u2014") || line.includes(":")) return line;
-    if (chance(0.32 + phase * 0.06)) {
-      const activeVerbs = ["\xF6ffnet", "nimmt", "sieht", "h\xE4lt", "stellt", "schreibt", "tr\xE4gt", "f\xFChrt", "bricht", "nennt", "findet", "ber\xFChrt", "beobachtet", "sucht"];
-      const m = line.match(new RegExp(`^(.+?)\\s+(${activeVerbs.join("|")})\\s+(.+?)\\.$`, "i"));
-      if (m) {
-        const subj = m[1].trim(), verb = m[2], obj = m[3].trim();
-        if (obj.length < 40 && subj.toLowerCase() !== obj.toLowerCase() && obj.split(/\s+/).length <= 4 && !obj.includes(subj)) {
-          line = `${obj} ${verb} ${subj}.`;
-        }
-      }
-    }
-    if (chance(0.22)) {
-      if (archetype === "skorpion" && !line.includes("wei\xDFt")) line = line.replace(/\.$/, " \u2013 und du wei\xDFt es.");
-      else if (archetype === "psychopath" && !line.includes("Notiert")) line = line.replace(/\.$/, ". Notiert.");
-      else if (archetype === "entdecker" && !line.includes("Weiter")) line = line.replace(/\.$/, ". Weiter.");
-    }
-    return line.replace(/\bIch kenne ich\b/gi, "Ich kenne mich").replace(/\bIch nennen\b/gi, "Ich nenne").replace(/\bIch sucht\b/gi, "Ich suche").replace(/\.\s*\./g, ".").replace(/\s{2,}/g, " ").trim();
-  };
-  const out = [`SZENE: ${kit.W}, ${kit.T}.`];
-  for (let i = 0; i < rounds; i++) {
-    const isA = i % 2 === 0;
-    const ci = i % cast.length;
-    const speaker = cast[ci];
-    const arch2 = isA ? aId : bId;
-    const ph = phaseFor(i);
-    let line = injectBeat(i) ?? pickLine(stanceOf(ci), arch2, ph);
-    line = ensurePunct(line);
-    line = applyInstability(line, arch2, ph);
-    line = cleanDialogLine(line);
-    out.push(`${speaker}: ${line}`);
-  }
-  return out.join("\n");
-}
-
-// src/generation/nlp.ts
-function tokenize(text) {
-  return (text || "").replace(/\r/g, "").replace(/([.,!?;:()„""""—])/g, " $1 ").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
-}
-var COHERENCE_STOPWORDS = new Set(
-  "aber alle allem allen aller alles als also am an andere anderen auch auf aus bei bin bis bist da dabei dann das dass dem den denn der des dessen die dies diese diesem diesen dieser dieses doch dort du durch ein eine einem einen einer eines er es etwas fuer f\xFCr gegen hab habe haben hat hatte hier hin hinter ich ihm ihn ihr ihre im in ist ja jede jedem jeden jeder jedes kann kein keine man mehr mein mich mir mit muss nach nicht nichts noch nun nur ob oder ohne schon sein seine sich sie sind so ueber \xFCber um und uns unser unter vom von vor war waren was wenn werden wie wieder will wir wird wo zu zum zur".split(" ")
-);
-function coherenceWords(s) {
-  return tokenize(String(s || "").toLowerCase()).filter((w) => w.length > 3 && !COHERENCE_STOPWORDS.has(w));
-}
-
-// src/generation/tone.data.ts
-var TONE_DATA = {
-  "neutral": { "opener": [], "flavor": [] },
-  "mystery": {
-    "opener": [
-      "Was jetzt folgt, l\xE4sst sich nicht ganz erkl\xE4ren.",
-      "Manches davon ergibt erst im Nachhinein einen Sinn.",
-      "Von Anfang an fehlt ein Teil des Bildes.",
-      "Sp\xE4ter w\xFCrde niemand sagen k\xF6nnen, wann es genau begann.",
-      "Es gibt eine Version der Geschichte, und dann die wahre.",
-      "Irgendetwas stimmt nicht, lange bevor es jemand bemerkt.",
-      "Die Wahrheit liegt n\xE4her, als alle glauben - und tiefer.",
-      "Der Anfang liegt weiter zur\xFCck, als es den Anschein hat.",
-      "Was hier steht, ist die zweitbeste Erkl\xE4rung.",
-      "Niemand hat es kommen sehen, und alle wussten es.",
-      "Es beginnt mit einer Zahl, die nicht stimmt.",
-      "Zwei Zeugen, zwei Geschichten, ein Abend.",
-      "Am Ende fehlt genau ein Satz."
-    ],
-    "flavor": [
-      "Etwas darin bleibt bewusst unausgesprochen.",
-      "Nicht alles l\xE4sst sich erkl\xE4ren, so sehr man es auch versucht.",
-      "Eine Frage schwingt mit, die niemand laut zu stellen wagt.",
-      "Es ist, als fehle ein ganzes Kapitel der Geschichte.",
-      "Irgendjemand wei\xDF offensichtlich mehr, als er zugibt.",
-      "Die Erkl\xE4rung daf\xFCr kommt nie - oder ist schlimmer als das R\xE4tsel selbst.",
-      "Ein Detail passt nicht, und genau daran h\xE4ngt alles.",
-      "Was fehlt, ist lauter als das, was gesagt wird.",
-      "Jede Antwort \xF6ffnet zwei neue T\xFCren.",
-      "Man ahnt, dass die Spur im Kreis f\xFChrt.",
-      "Zwischen den Zeilen wartete eine zweite Geschichte.",
-      "Niemand hat den Anfang gesehen, nur die Folgen.",
-      "Ein Name f\xE4llt zu oft, um zuf\xE4llig zu sein.",
-      "Die Reihenfolge stimmt, die Uhrzeit nicht.",
-      "Wer zuh\xF6rt, h\xF6rt zwei Dinge gleichzeitig.",
-      "Ein Zeuge widerspricht sich freundlich.",
-      "Etwas wurde wegger\xE4umt, bevor jemand fragte.",
-      "Der k\xFCrzeste Weg wird nie genommen.",
-      "Ein Zufall wiederholt sich und hei\xDFt dann anders.",
-      "Es bleibt eine T\xFCr, die niemand aufschlie\xDFt."
-    ]
-  },
-  "poetic": {
-    "opener": [
-      "Manche Dinge lassen sich nur in Bildern erz\xE4hlen.",
-      "Es beginnt, wie Erinnerungen beginnen: unscharf und zu hell.",
-      "Alles daran hat den Klang von etwas Vergangenem.",
-      "Es ist einer jener Momente, die l\xE4nger dauern als ihre Minute.",
-      "Das Licht f\xE4llt so, dass Worte fast \xFCberfl\xFCssig werden.",
-      "Vielleicht ist es weniger ein Ereignis als ein Nachhall.",
-      "Der Tag beginnt, als h\xE4tte er nichts vor.",
-      "Zuerst ist da nur ein Ger\xE4usch, das nicht aufh\xF6rt.",
-      "Es ist eine Stunde ohne Namen.",
-      "Das Licht steht schief und bleibt so.",
-      "Zwischen zwei Atemz\xFCgen liegt der ganze Anfang.",
-      "Alles hier ist zu leise f\xFCr seine Gr\xF6\xDFe."
-    ],
-    "flavor": [
-      "Die Worte daf\xFCr kommen, wenn \xFCberhaupt, erst viel sp\xE4ter.",
-      "Alles darin klingt wie die Erinnerung an etwas Gr\xF6\xDFeres.",
-      "Selbst die Stille schien an diesem Ort eine Farbe zu haben.",
-      "Es f\xFChlt sich an wie ein halb vergessenes Gedicht, das jemand zu Ende tr\xE4umt.",
-      "Zwischen den S\xE4tzen liegt mehr als in ihnen.",
-      "Wie ein Bild, das l\xE4nger nachwirkt als die Geschichte dazu.",
-      "Die Zeit flie\xDFt hier langsamer, fast wie Honig im Winter.",
-      "Jede Bewegung hinterlie\xDF eine Spur aus Licht.",
-      "Es ist sch\xF6n auf die Weise, die auch wehtut.",
-      "Man h\xF6rt die Dinge atmen, wenn man still genug ist.",
-      "Die R\xE4nder der Welt schienen kurz weicher zu werden.",
-      "Ein Duft von etwas, das es so nie gegeben hat.",
-      "Das Licht bleibt an den Kanten h\xE4ngen.",
-      "Die Luft tr\xE4gt weiter als der Ruf.",
-      "Etwas Kleines behauptet sich gegen den Raum.",
-      "Ein Schatten legt sich hin und bleibt.",
-      "Die Farben werden langsamer als die Formen.",
-      "Der Klang bleibt l\xE4nger als sein Grund.",
-      "Ein Rest W\xE4rme steht noch im T\xFCrrahmen.",
-      "Zwischen den Dingen w\xE4chst eine Stille an."
-    ]
-  },
-  "melancholisch": {
-    "opener": [
-      "Es liegt eine leise Traurigkeit \xFCber allem, ganz ohne Grund.",
-      "Was bleibt, ist selten das, was man behalten wollte.",
-      "Manches endet, lange bevor man es merkt.",
-      "Es ist die Art von Nachmittag, an dem alles ein wenig verblasst.",
-      "Irgendwo darin steckt ein Abschied, den keiner ausgesprochen hat.",
-      "Sp\xE4ter w\xFCrde man sich an diesen Tag erinnern, ohne zu wissen, warum.",
-      "Es h\xE4tte auch anders kommen k\xF6nnen, aber nicht sehr.",
-      "Vieles davon ist schon vorbei, w\xE4hrend es geschieht.",
-      "Der Abschied hat lange vorher angefangen.",
-      "Man merkt es erst, wenn es ruhiger wird.",
-      "Was bleibt, ist kleiner als erwartet.",
-      "Es ist ein Tag zum Aufr\xE4umen."
-    ],
-    "flavor": [
-      "Etwas darin f\xFChlt sich an wie das Ende eines langen Sommers.",
-      "Man vermisste etwas, ohne benennen zu k\xF6nnen, was.",
-      "Die Dinge haben den sanften Glanz des Verg\xE4nglichen.",
-      "Es ist weniger Schmerz als eine ruhige, alte Wehmut.",
-      "Alles bleibt - nur nicht so, wie es einmal gewesen ist.",
-      "Ein Teil davon ist schon Erinnerung, w\xE4hrend es noch geschieht.",
-      "Die Freude kommt mit einem feinen Riss darin.",
-      "Man wei\xDF, dass man diesen Moment sp\xE4ter vermissen wird.",
-      "Selbst das Licht scheint sich langsam zu verabschieden.",
-      "Es ist sch\xF6n, und genau das macht es schwer.",
-      "Was gewesen ist, nimmt mehr Platz ein als das \xDCbrige.",
-      "Ein Zimmer, das gr\xF6\xDFer wurde, ohne zu wachsen.",
-      "Die Gewohnheit bleibt, der Grund ist fort.",
-      "Man legt es zur\xFCck, wo es nie hingeh\xF6rte.",
-      "Der zweite Stuhl steht weiter am Tisch.",
-      "Es fehlt niemand, und doch ist es leer.",
-      "Ein Satz bleibt unbeantwortet und st\xF6rt nicht mehr.",
-      "Die Jahreszeit wechselt schneller als der Blick."
-    ]
-  },
-  "dark": {
-    "opener": [
-      "Von der ersten Sekunde an f\xFChlte sich hier nichts richtig an.",
-      "Es begann leise - so, wie das Schlimmste meistens beginnt.",
-      "Manche Orte warten nur darauf, dass jemand kommt.",
-      "Es gibt keinen Ausweg, nur die Illusion davon.",
-      "Was folgte, h\xE4tte niemand aufhalten k\xF6nnen.",
-      "Die Dunkelheit hier ist \xE4lter als das Haus, das sie birgt.",
-      "Nichts davon endet gut, und das ist bekannt.",
-      "Es beginnt mit einer Rechnung, die offen bleibt.",
-      "Die Sache war lange faul, bevor sie roch.",
-      "Von hier f\xFChrt kein Weg zur\xFCck, nur weiter.",
-      "Jemand hat entschieden, und niemand hat gefragt.",
-      "Der Preis stand von Anfang an fest."
-    ],
-    "flavor": [
-      "Nichts daran f\xFChlt sich je wirklich sicher an.",
-      "Etwas darin roch unverkennbar nach Verlust.",
-      "Die K\xE4lte bleibt, auch wenn l\xE4ngst niemand mehr hinsieht.",
-      "Es ist die Art von Stille, die etwas Schlimmeres ank\xFCndigt.",
-      "Irgendwo darunter wartete bereits das n\xE4chste Ungl\xFCck.",
-      "Kein Trost weit und breit - nur die Gewissheit, dass es schlimmer werden w\xFCrde.",
-      "Jeder Ausweg f\xFChrt nur tiefer hinein.",
-      "Etwas beobachtete, ohne je gesehen zu werden.",
-      "Die Hoffnung ist das Erste, was hier stirbt.",
-      "Man sp\xFCrt, dass die W\xE4nde zuh\xF6ren.",
-      "Es ist zu sp\xE4t, schon bevor es beginnt.",
-      "Selbst das Schweigen hat hier Z\xE4hne.",
-      "Was sch\xFCtzt, kostet mehr, als es h\xE4lt.",
-      "Der Ausweg ist verstellt, seit Wochen.",
-      "Es wird k\xE4lter, wo vorher gewartet wurde.",
-      "Der Schaden ist alt und tr\xE4gt einen neuen Namen.",
-      "Niemand meldet sich, und das ist die Antwort.",
-      "Die Frist l\xE4uft, auch wenn niemand z\xE4hlt.",
-      "Was fehlt, wird nicht ersetzt.",
-      "Am Ende bleibt jemand zur\xFCck, der nicht gemeint war."
-    ]
-  },
-  "unheimlich": {
-    "opener": [
-      "Alles wirkt vertraut, und genau das ist das Problem.",
-      "Irgendetwas ist anders, aber man kann nicht sagen, was.",
-      "Die Dinge stehen zu still, um nat\xFCrlich zu sein.",
-      "Es ist, als h\xE4tte jemand die Welt fast, aber nicht ganz richtig nachgebaut.",
-      "Man hat das Gef\xFChl, nicht allein zu sein - ohne Beweis daf\xFCr.",
-      "Etwas stimmt mit den Schatten nicht.",
-      "Etwas ist verstellt worden, und niemand wei\xDF von wem.",
-      "Es riecht nach einem Raum, der lange zu war.",
-      "Die Zahlen stimmen, die Stimmung nicht.",
-      "Von drau\xDFen sieht alles gew\xF6hnlich aus.",
-      "Man sollte hier nicht stehen bleiben.",
-      "Der Ort hat gewartet."
-    ],
-    "flavor": [
-      "Die Spiegel scheinen einen Sekundenbruchteil zu sp\xE4t zu reagieren.",
-      "Ein Ger\xE4usch, das nur existiert, wenn man nicht hinh\xF6rt.",
-      "Die Gesichter sind richtig, nur das L\xE4cheln sitzt falsch.",
-      "Etwas z\xE4hlt mit, jedes Mal, wenn man die T\xFCr schlie\xDFt.",
-      "Die Uhr geht, aber die Zeit steht.",
-      "Man erkennt den Raum wieder, ohne je dort gewesen zu sein.",
-      "Die Stille hat eine Form, und sie kommt n\xE4her.",
-      "Irgendwo atmet etwas im Takt der eigenen Schritte.",
-      "Ein Detail ist zu viel im Bild, und keiner sieht es an.",
-      "Es f\xFChlt sich an, als w\xFCrde man erwartet.",
-      "Das Ger\xE4usch kommt von innen, nicht von der Stra\xDFe.",
-      "Etwas atmet mit, kaum h\xF6rbar.",
-      "Der Boden gibt an einer Stelle nach.",
-      "Zwei T\xFCren f\xFChren in denselben Raum.",
-      "Es wird still, sobald man hinsieht.",
-      "Eine Uhr geht nach und niemand stellt sie.",
-      "Der Abdruck passt zu keiner Hand.",
-      "Was hier bleibt, war schon vorher da."
-    ]
-  },
-  "uplifting": {
-    "opener": [
-      "Und doch beginnt hier, allen Umst\xE4nden zum Trotz, etwas Gutes.",
-      "Selbst an diesem Ort l\xE4sst sich noch Hoffnung finden.",
-      "Manchmal reicht ein einziger Moment, um alles zu wenden.",
-      "Es sieht aussichtslos aus - und ist es dann doch nicht.",
-      "Irgendwo darin liegt der Anfang von etwas Besserem.",
-      "Gerade wenn alles verloren scheint, kommt das Licht zur\xFCck.",
-      "Es f\xE4ngt klein an und bleibt nicht klein.",
-      "Etwas geht auf, das lange gelegen hat.",
-      "Der Tag hat mehr vor als gedacht.",
-      "Einer f\xE4ngt an, und dann sind es viele.",
-      "Es gibt gute Gr\xFCnde, heute zu bleiben.",
-      "Der Anfang ist gemacht, mehr braucht es nicht."
-    ],
-    "flavor": [
-      "Und doch bleibt, gegen jede Erwartung, ein Rest Hoffnung.",
-      "Irgendetwas darin f\xFChlte sich nach einem echten Neuanfang an.",
-      "Es ist, als w\xFCrde sich gerade, ganz leise, etwas zum Guten wenden.",
-      "Ein kleiner Trost bleibt trotzdem - und manchmal reicht genau das.",
-      "Selbst im Schwierigsten findet sich noch ein Grund zum Weitermachen.",
-      "Am Ende z\xE4hlt nicht der Verlust, sondern das, was bleibt.",
-      "Eine unerwartete Freundlichkeit ver\xE4nderte alles.",
-      "Zum ersten Mal seit Langem scheint der Weg wieder offen.",
-      "Es ist schwer, aber es lohnt sich.",
-      "Manchmal ist der Sturz nur der Anlauf.",
-      "Etwas darin richtet sich wieder auf.",
-      "Und pl\xF6tzlich scheint alles m\xF6glich.",
-      "Etwas l\xF6st sich, ohne dass jemand zieht.",
-      "Zwei, die nichts verband, arbeiten zusammen.",
-      "Der Weg wird breiter, je weiter man geht.",
-      "Was fehlt, wird von selbst erg\xE4nzt.",
-      "Der Raum f\xFCllt sich, ohne eng zu werden.",
-      "Aus einer Zusage werden drei.",
-      "Es reicht diesmal f\xFCr alle.",
-      "Der zweite Versuch gelingt leichter."
-    ]
-  },
-  "zaertlich": {
-    "opener": [
-      "Es geschieht mit einer Behutsamkeit, die man kaum erwarten w\xFCrde.",
-      "Manche Dinge muss man leise erz\xE4hlen, sonst zerbrechen sie.",
-      "Es ist klein und warm und leicht zu \xFCbersehen.",
-      "Zwischen ihnen liegt eine Sanftheit, f\xFCr die es kein Wort gibt.",
-      "Es beginnt mit einer Geste, die niemand sonst bemerkt.",
-      "Alles daran ist sacht, fast wie Atem im Schlaf.",
-      "Es wird niemand laut in dieser Geschichte.",
-      "Jemand h\xE4lt etwas fest, ohne zu dr\xFCcken.",
-      "Der Anfang ist so behutsam, dass man ihn \xFCbersieht.",
-      "Es ist eine Stunde, in der nichts verlangt wird.",
-      "Man macht Platz, bevor gefragt wird.",
-      "Alles hier hat Zeit."
-    ],
-    "flavor": [
-      "Eine Hand, die blieb, obwohl sie gehen durfte.",
-      "Es ist die Sorte N\xE4he, die keine Worte braucht.",
-      "Etwas darin passt auf einen auf, ganz unaufdringlich.",
-      "Ein L\xE4cheln, so leise, dass man es fast \xFCberh\xF6rt.",
-      "Die Welt wird f\xFCr einen Moment weicher.",
-      "Es ist ein kleines Z\xE4rtlichsein, mitten im L\xE4rm.",
-      "Jemand h\xE4lt etwas Zerbrechliches, ohne es zu dr\xFCcken.",
-      "W\xE4rme, die keine Gegenleistung will.",
-      "Es f\xFChlt sich an wie Ankommen.",
-      "Ein Trost, der einfach nur dablieb.",
-      "Eine Hand bleibt liegen, wo sie ist.",
-      "Es wird leiser gesprochen als n\xF6tig.",
-      "Jemand deckt zu, ohne zu wecken.",
-      "Der Weg wird k\xFCrzer gemacht, ohne davon zu reden.",
-      "Etwas Warmes bleibt stehen und wartet.",
-      "Man reicht das Bessere weiter.",
-      "Ein Name wird ausgesprochen wie eine Zusage.",
-      "Es ist Platz genug f\xFCr zwei Meinungen."
-    ]
-  },
-  "traeumerisch": {
-    "opener": [
-      "Es ist schwer zu sagen, ob es geschieht oder nur getr\xE4umt wird.",
-      "Die R\xE4nder der Dinge sind an diesem Tag nicht ganz fest.",
-      "Alles treibt ein wenig, wie Boote ohne Anker.",
-      "Es f\xFChlt sich an, als w\xE4re man mitten in einem fremden Traum aufgewacht.",
-      "Die Logik hat hier Urlaub genommen.",
-      "Zeit und Ort sind nur Vorschl\xE4ge.",
-      "Die Reihenfolge ist hier nicht das Wichtigste.",
-      "Es beginnt mittendrin, wie immer.",
-      "Etwas geht auf, das keine T\xFCr hat.",
-      "Der Weg f\xFChrt weiter, obwohl er endet.",
-      "Zwei Orte fallen zusammen, ohne sich zu st\xF6ren.",
-      "Es ist sp\xE4ter, als es sein d\xFCrfte."
-    ],
-    "flavor": [
-      "Die Dinge verwandeln sich, kaum dass man wegsieht.",
-      "Ein Zimmer wird zum Meer, ohne dass es jemand st\xF6rt.",
-      "Die Schwerkraft scheint Verhandlungssache zu sein.",
-      "Man geht durch T\xFCren, die es vorher nicht gegeben hat.",
-      "Farben riechen, und Ger\xE4usche haben Gewicht.",
-      "Alles ergab Sinn, solange man nicht genauer hinsah.",
-      "Die Erinnerung l\xE4uft der Gegenwart voraus.",
-      "Ein Gedanke wird Landschaft.",
-      "Nichts steht fest, und nichts f\xE4llt.",
-      "Es ist sch\xF6n und ungereimt wie ein Traum kurz vor dem Erwachen.",
-      "Ein Raum \xF6ffnet sich, wo keiner war.",
-      "Die Treppe f\xFChrt zweimal nach oben.",
-      "Etwas wiederholt sich mit anderem Ausgang.",
-      "Der Weg kennt sein Ziel besser als der Gehende.",
-      "Ein Fenster zeigt eine andere Jahreszeit.",
-      "Die Entfernung \xE4ndert sich beim Hinsehen.",
-      "Man kommt an, ohne gegangen zu sein.",
-      "Etwas Bekanntes tr\xE4gt einen fremden Namen."
-    ]
-  },
-  "nuechtern": {
-    "opener": [
-      "Der Reihe nach: Es geschah genau so, wie es hier steht.",
-      "Ohne Umschweife - das ist, was passierte.",
-      "Es gibt daran nichts zu besch\xF6nigen.",
-      "Die Fakten sind \xFCbersichtlich, die Folgen weniger.",
-      "Man muss es nicht ausschm\xFCcken, es gen\xFCgt so.",
-      "Kurz und ohne Pathos: So liegt der Fall.",
-      "Der Vorgang ist \xFCberschaubar.",
-      "Es liegt eine Reihenfolge vor.",
-      "Die Zust\xE4ndigkeit ist gekl\xE4rt.",
-      "Der Rahmen steht, der Rest folgt.",
-      "Es gibt dazu eine Akte.",
-      "Die Sache ist erledigt, bis auf zwei Punkte."
-    ],
-    "flavor": [
-      "Mehr ist dazu nicht zu sagen.",
-      "Die Sache hat eine klare Ursache und eine klare Folge.",
-      "Es hilft nichts, es zu besch\xF6nigen.",
-      "Alles Weitere ergab sich daraus von selbst.",
-      "N\xFCchtern betrachtet, bleibt wenig Raum f\xFCr Zweifel.",
-      "Die Lage ist, was sie ist.",
-      "Man notiert es und geht weiter.",
-      "Kein Drama, nur der n\xE4chste Schritt.",
-      "So einfach, so unausweichlich.",
-      "Am Ende z\xE4hlen nur die Zahlen.",
-      "Der Vorgang ist abgelegt.",
-      "Eine Frist wurde notiert.",
-      "Zwei Angaben widersprechen sich geringf\xFCgig.",
-      "Der Ablauf wurde eingehalten.",
-      "Die Unterlagen liegen vollst\xE4ndig vor.",
-      "Es bleibt bei der bisherigen Regelung.",
-      "Der Fall wird weitergeleitet.",
-      "Eine R\xFCckmeldung steht noch aus."
-    ]
-  },
-  "ironisch": {
-    "opener": [
-      "Nat\xFCrlich l\xE4uft alles nach Plan - nur nicht nach diesem.",
-      "Man ahnt schon, wie gut das ausgehen wird.",
-      "Es ist, mit Verlaub, eine gl\xE4nzende Idee. Fast.",
-      "Was h\xE4tte dabei schon schiefgehen k\xF6nnen.",
-      "Wie sch\xF6n, dass wenigstens einer den \xDCberblick behielt. Behauptete er.",
-      "Der Plan ist wasserdicht. Das Wasser findet trotzdem einen Weg.",
-      "Es lief alles nach Plan, nur nicht nach diesem.",
-      "Eine hervorragende Gelegenheit, es nicht zu tun.",
-      "Man kann viel falsch machen, und man tut es.",
-      "Der Anfang war gut gemeint.",
-      "Zum Gl\xFCck gibt es eine Zust\xE4ndigkeit.",
-      "Alles bestens, sagt jedenfalls das Formular."
-    ],
-    "flavor": [
-      "Es l\xE4uft exakt so gut, wie zu erwarten ist.",
-      "Ein voller Erfolg, wenn man die Ziele nachtr\xE4glich anpasst.",
-      "Zum Gl\xFCck ist ja jemand zust\xE4ndig - nur nicht anwesend.",
-      "Die Ironie daran entging allen Beteiligten.",
-      "Man nannte es Strategie, um nicht Zufall sagen zu m\xFCssen.",
-      "Selbstverst\xE4ndlich hat niemand etwas geahnt. Angeblich.",
-      "Ein Meisterwerk der Planung, r\xFCckw\xE4rts betrachtet.",
-      "Alles unter Kontrolle, versichert die Kontrolle.",
-      "Bemerkenswert, wie zuverl\xE4ssig das Unwahrscheinliche eintraf.",
-      "Es h\xE4tte schlimmer kommen k\xF6nnen. Kam es dann auch.",
-      "Der Vorschlag wird gelobt und abgeheftet.",
-      "Zust\xE4ndig ist, wer gerade nicht da ist.",
-      "Man einigt sich darauf, sich zu einigen.",
-      "Die L\xF6sung wartet auf ein passendes Problem.",
-      "Ein Ausschuss besch\xE4ftigt sich damit, gr\xFCndlich.",
-      "Der k\xFCrzeste Weg wurde gepr\xFCft und verworfen.",
-      "Es gibt jetzt ein Merkblatt dazu.",
-      "Alle sind einverstanden, aber anders."
-    ]
-  },
-  "humorous": {
-    "opener": [
-      "Es h\xE4tte ernst werden k\xF6nnen - wurde es aber nicht ganz.",
-      "Manche Geschichten sind einfach zu absurd, um nicht zu grinsen.",
-      "Was folgt, ist mit Ansage albern.",
-      "Es beginnt harmlos und entgleitet dann auf komische Weise.",
-      "Man sollte das nicht so ernst nehmen. Die Beteiligten taten es auch nicht.",
-      "Vorweg: Niemand kommt ernsthaft zu Schaden, nur die W\xFCrde.",
-      "Es ging schief, aber mit Anlauf.",
-      "Zwei Dinge fehlten: der Plan und der Rest.",
-      "Man h\xE4tte es wissen k\xF6nnen, wollte aber nicht.",
-      "Der Anfang war schon das Beste daran.",
-      "Es gab Kaffee, sonst nichts.",
-      "Jemand hat das ernst gemeint."
-    ],
-    "flavor": [
-      "Absurd genug, um fast schon wieder normal zu wirken.",
-      "Selbst das Schicksal scheint dabei kurz zu grinsen.",
-      "Niemand w\xFCrde sich das so ausdenken - und genau deshalb ist es lustig.",
-      "Es hat, aller Dramatik zum Trotz, etwas unfreiwillig Komisches.",
-      "Man br\xE4uchte fast Popcorn, so albern l\xE4uft das gerade.",
-      "Selbst die Beteiligten m\xFCssen sich das Lachen verkneifen.",
-      "Es ist ein Chaos, aber ein gut gelauntes.",
-      "Die Peinlichkeit ist beeindruckend gleichm\xFCtig.",
-      "Am Ende lachen alle - manche sogar freiwillig.",
-      "Der Ernst der Lage hat sichtlich Feierabend.",
-      "Der Zettel dazu ist unauffindbar, nat\xFCrlich.",
-      "Es fehlt genau das eine Teil.",
-      "Zwei halten es f\xFCr erledigt, drei nicht.",
-      "Der Ersatz ist besser als das Original, leider.",
-      "Es funktioniert, solange niemand hinsieht.",
-      "Der Hund hat es gesehen und schweigt.",
-      "Man einigt sich auf sp\xE4ter.",
-      "Ein Erfolg, wenn man nicht so genau hinschaut."
-    ]
-  }
-};
-
-// src/generation/tone.shape.ts
-var TONE_SHAPE = {
-  neutral: {},
-  mystery: { rhythm: "long" },
-  poetic: { rhythm: "breath", register: "lyrical" },
-  melancholisch: { rhythm: "long", register: "lyrical" },
-  dark: { rhythm: "fracture", register: "dark" },
-  unheimlich: { rhythm: "fracture", register: "dark" },
-  uplifting: { rhythm: "clean" },
-  zaertlich: { rhythm: "breath", register: "lyrical" },
-  traeumerisch: { rhythm: "breath", register: "lyrical" },
-  nuechtern: { rhythm: "clean", register: "plain" },
-  ironisch: { rhythm: "clean", register: "wry" },
-  humorous: { rhythm: "staccato", register: "wry" }
-};
-function toneRhythm(tone) {
-  return tone ? TONE_SHAPE[tone]?.rhythm : void 0;
-}
-function toneRegister(tone) {
-  return tone && TONE_SHAPE[tone]?.register || null;
-}
-var cap1 = (s) => s ? s[0].toUpperCase() + s.slice(1) : s;
-function applyToneRegister(text, tone) {
-  const reg = toneRegister(tone);
-  if (!reg || !text) return text;
-  if (reg === "plain") {
-    let t2 = text.replace(/\b(gleichsam|wie Honig im Winter|wie ein halb vergessenes Gedicht[^.,;]*)\b/gi, "").replace(/\s{2,}/g, " ");
-    t2 = t2.split(/\n\n+/).map((para) => {
-      const sents = para.split(/(?<=[.!?…])\s+/);
-      const out = [];
-      for (const sen of sents) {
-        const wc2 = sen.split(/\s+/).filter(Boolean).length;
-        if (wc2 > 16) {
-          const parts = sen.split(/,\s+(?=und |aber |denn |während |sodass |wobei )/);
-          if (parts.length > 1) {
-            parts.forEach((p, i) => {
-              let seg = p.replace(/^,?\s*(und|aber|denn|während|sodass|wobei)\s+/i, "").trim();
-              if (!seg) return;
-              seg = cap1(seg);
-              if (!/[.!?…]$/.test(seg)) seg += ".";
-              out.push(i === 0 && /[.!?…]$/.test(p) ? cap1(p.trim()) : seg);
-            });
-            continue;
-          }
-        }
-        out.push(sen);
-      }
-      return out.join(" ");
-    }).join("\n\n");
-    return t2.replace(/\s+([,.;:!?…])/g, "$1").replace(/\s{2,}/g, " ").trim();
-  }
-  if (reg === "wry") {
-    const tags = ["\u2014 angeblich.", "\u2014 so hie\xDF es.", "\u2014 was auch immer das hei\xDFen sollte.", "\u2014 nat\xFCrlich.", "\u2014 wie praktisch.", "\u2014 oder so \xE4hnlich."];
-    let ti = Math.floor(Math.random() * tags.length);
-    let gesetzt = 0, vorherGesetzt = false;
-    return text.split(/\n\n+/).map((para) => {
-      const sents = para.split(/(?<=[.!?…])\s+/);
-      return sents.map((sen) => {
-        const wc2 = sen.split(/\s+/).filter(Boolean).length;
-        if (gesetzt < 3 && !vorherGesetzt && wc2 >= 5 && wc2 <= 18 && /[.]$/.test(sen) && !/[()"„:—–]/.test(sen) && Math.random() < 0.3) {
-          const tag = tags[ti % tags.length];
-          ti++;
-          gesetzt++;
-          vorherGesetzt = true;
-          return sen.replace(/\.$/, " " + tag);
-        }
-        vorherGesetzt = false;
-        return sen;
-      }).join(" ");
-    }).join("\n\n");
-  }
-  return text;
-}
-
-// src/generation/polish.ts
-var DOPPELT_ERLAUBT = /* @__PURE__ */ new Set([
-  "der",
-  "die",
-  "das",
-  "den",
-  "dem",
-  "des",
-  "ein",
-  "eine",
-  "einen",
-  "einem",
-  "einer",
-  "eines",
-  "wie",
-  "so",
-  "als",
-  "was",
-  "wer",
-  "wen",
-  "wem",
-  "dass",
-  "da",
-  "und",
-  "nur",
-  "noch",
-  "sie",
-  "ihr"
-]);
-var KEIN_NOMEN = /* @__PURE__ */ new Set([
-  "der",
-  "die",
-  "das",
-  "den",
-  "dem",
-  "des",
-  "ein",
-  "eine",
-  "einen",
-  "einem",
-  "einer",
-  "eines",
-  "kein",
-  "keine",
-  "mein",
-  "dein",
-  "sein",
-  "ihr",
-  "unser",
-  "euer",
-  "dieser",
-  "diese",
-  "dieses",
-  "jeder",
-  "jede",
-  "jedes",
-  "alle",
-  "viele",
-  "manche",
-  "beide",
-  "und",
-  "aber",
-  "doch",
-  "denn",
-  "dann",
-  "dabei",
-  "damit",
-  "dort",
-  "hier",
-  "jetzt",
-  "nur",
-  "noch",
-  "auch",
-  "schon",
-  "wenn",
-  "weil",
-  "dass",
-  "als",
-  "wie",
-  "was",
-  "wer",
-  "wo",
-  "warum",
-  "ich",
-  "du",
-  "er",
-  "sie",
-  "es",
-  "wir",
-  "man",
-  "jemand",
-  "niemand",
-  "nichts",
-  "etwas",
-  "alles",
-  "im",
-  "am",
-  "auf",
-  "in",
-  "an",
-  "mit",
-  "ohne",
-  "von",
-  "vor",
-  "nach",
-  "bei",
-  "zu",
-  "\xFCber",
-  "unter",
-  "zwischen",
-  "seit",
-  "f\xFCr",
-  "zwei",
-  "drei",
-  "vier",
-  "f\xFCnf",
-  "sechs",
-  "sieben",
-  "acht",
-  "neun",
-  "zehn",
-  "hundert",
-  "tausend"
-]);
-function ergaenzeArtikel(satz) {
-  const m = satz.match(/^([A-ZÄÖÜ][a-zäöüß]{2,})(\s+)(.+)$/);
-  if (!m) return satz;
-  const [, nomen, luecke, rest] = m;
-  if (KEIN_NOMEN.has(nomen.toLowerCase())) return satz;
-  const kern = rest.split(",")[0];
-  if (!extractLeadVerb(kern).verb) return satz;
-  const g = NOUN_GENDER[nomen.toLowerCase()];
-  if (g !== "m" && g !== "f" && g !== "n") return satz;
-  if (/^(sind|waren|werden|haben|hatten|bleiben|stehen|liegen|kommen|gehen|zeigen|wirken)\b/i.test(rest)) return satz;
-  const art = g === "f" ? "Die" : g === "n" ? "Das" : "Der";
-  return `${art} ${nomen}${luecke}${rest}`;
-}
-function polishGerman(text, opts = {}) {
-  const { who = "" } = opts;
-  let t2 = String(text ?? "");
-  t2 = t2.replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/ /g, " ").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").replace(/[ \t]+([,.;:!?])/g, "$1").replace(/([,.;:!?])([A-Za-zÄÖÜäöü])/g, "$1 $2").replace(/\(\s+/g, "(").replace(/\s+\)/g, ")").replace(/,+/g, ",").replace(/,\s*,/g, ", ").replace(/:\s*:/g, ":").replace(/([A-Za-zÄÖÜäöü0-9])\.\.(?=\s|$)/g, "$1\u2026").replace(/\.\.(?!\.)/g, ".").trim();
-  if (who.trim()) {
-    const w = who.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const wieder = namensErsetzer(who.trim());
-    try {
-      t2 = t2.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${w}(?![\\p{L}\\p{N}_])`, "giu"), wieder);
-    } catch {
-      t2 = t2.replace(new RegExp(`\\b${w}\\b`, "gi"), wieder);
-    }
-  }
-  for (let k = 0; k < 6; k++) {
-    const next = t2.replace(
-      /\b([A-Za-zÄÖÜäöüß]{2,})[ \t]+\1\b/gi,
-      (m, w) => DOPPELT_ERLAUBT.has(w.toLowerCase()) ? m : w
-    );
-    if (next === t2) break;
-    t2 = next;
-  }
-  t2 = t2.split(/(?<=[.!?…])(\s+)/).map((teil) => /^\s+$/.test(teil) ? teil : ergaenzeArtikel(teil)).join("");
-  return t2.trim();
-}
-
-// src/generation/shape.ts
-function applyDisruptor(text, level) {
-  const p = level === "off" ? 0 : level === "on" ? 0.33 : 0.17;
-  if (!chance(p)) return { text, fired: false, kind: "\u2013" };
-  const kinds = [
-    { kind: "Zeitbruch", fn: (t2) => t2 + " Drei Jahre sp\xE4ter ist die gleiche Stelle noch da, aber das Ger\xE4usch ist \xE4lter." },
-    { kind: "Erz\xE4hlerwechsel", fn: (t2) => t2.replace(/\n\n/g, "\n\n\u2014\n\n") + "\n\nIch \xFCbernehme hier. Nur kurz. Nur, um das Offensichtliche zu sagen." },
-    { kind: "Metakommentar", fn: (t2) => t2 + "\n\n(Diese Geschichte wei\xDF, dass sie erz\xE4hlt wird.)" },
-    { kind: "Wiederholung", fn: (t2) => {
-      const s = splitSentences(t2);
-      if (s.length < 3) return t2;
-      const FORMEL = /^(dann\b|und dann\b|danach\b|später\b|plötzlich\b|auf einmal\b|es braucht nur\b|erst ein riss\b|kaum ausgesprochen\b|etwas gibt nach\b|ohne vorwarnung\b|dann, unvermittelt)/i;
-      const start = Math.floor(s.length * 0.65);
-      for (let k2 = 0; k2 < s.length; k2++) {
-        const kand = s[(start + k2) % s.length];
-        if (!FORMEL.test(kand.trim())) return t2 + "\n\n" + kand;
-      }
-      return t2;
-    } },
-    { kind: "Fragmentierung", fn: (t2) => {
-      const s = splitSentences(t2);
-      if (s.length < 4) return t2;
-      s.splice(Math.floor(s.length / 2), 0, "\u2014");
-      return s.join(" ");
-    } }
-  ];
-  const k = pick(kinds);
-  return { text: k.fn(text), fired: true, kind: k.kind };
-}
-var FRAGMENTS = ["Stille.", "Zu nah.", "Zu klar.", "Ein Fehler.", "Noch nicht.", "Dann.", "Nein.", "Vielleicht.", "Fast.", "Genau jetzt."];
-var NEBENSATZ_ANFANG = /^(der|die|das|dem|den|des|deren|dessen|welche[rsmn]?|wo|worin|woran|worauf|als|wenn|weil|obwohl|während|nachdem|bevor|damit|dass|ob|sodass|indem|sobald|solange|bis|seit|falls|wobei|wodurch|womit|was|wer|wen|wem|wie|ohne|um|statt|anstatt)\b/i;
-function applyRhythm(text, rhythm) {
-  const s = splitSentences(text);
-  const insertFrag = (prob) => {
-    if (chance(prob)) {
-      const pos = chooseInsertPos(s);
-      if (pos >= 0) s.splice(pos, 0, pick(FRAGMENTS));
-    }
-  };
-  if (rhythm === "clean") return s.join(" ");
-  if (rhythm === "breath") {
-    insertFrag(0.55);
-    if (s.length >= 5 && chance(0.45)) {
-      const i = Math.floor(1 + Math.random() * (s.length - 2));
-      s[i] = "Und " + s[i].charAt(0).toLowerCase() + s[i].slice(1);
-    }
-  }
-  if (rhythm === "staccato") {
-    insertFrag(0.75);
-    if (s.length >= 4 && chance(0.6)) {
-      const i = Math.floor(1 + Math.random() * (s.length - 2));
-      const t2 = s[i];
-      const cut = t2.indexOf(", ");
-      if (cut > 10 && cut < 80 && !NEBENSATZ_ANFANG.test(t2.slice(cut + 2))) {
-        s[i] = t2.slice(0, cut) + ".";
-        s.splice(i + 1, 0, t2.slice(cut + 2));
-      }
-    }
-    if (chance(0.35)) {
-      const at = Math.min(2, s.length);
-      if (!isFragmentSentence(s[at - 1] || "") && !isFragmentSentence(s[at] || "")) s.splice(at, 0, pick(["Stille.", "Warte.", "So.", "Gut."]));
-    }
-  }
-  if (rhythm === "long") {
-    if (s.length >= 6 && chance(0.6)) {
-      const i = Math.floor(1 + Math.random() * (s.length - 3));
-      const first = s[i].replace(/[.!?…]+$/, "");
-      const next = s[i + 1];
-      const joiner = /^(und|aber|doch|denn|sondern)\b/i.test(next) ? ", " : chance(0.5) ? ", und " : "; ";
-      s[i] = first + joiner + next.charAt(0).toLowerCase() + next.slice(1);
-      s.splice(i + 1, 1);
-    }
-    if (chance(0.4)) s.push("Und w\xE4hrend all das geschieht, bleibt etwas in der Luft h\xE4ngen, als w\xE4re es nie f\xFCr Menschen gedacht gewesen.");
-  }
-  if (rhythm === "fracture") {
-    insertFrag(0.7);
-    if (s.length >= 5 && chance(0.6)) {
-      const i = Math.floor(1 + Math.random() * (s.length - 2));
-      s[i] = s[i].replace(/[.!?…]+$/, "") + " \u2014";
-      s.splice(i + 1, 0, "und genau dort bricht die Erkl\xE4rung ab.");
-    }
-    if (chance(0.45)) s.splice(Math.floor(s.length * 0.65), 0, "(Dieser Satz war nicht geplant.)");
-  }
-  return s.join(" ");
-}
-var TENSION_CENTER = { top: 0.15, mid: 0.5, low: 0.85 };
-function applyTension(text, peak, material, kurve) {
-  if (!kurve && (!peak || peak === "off")) return text;
-  let center = kurve ? 0.5 : TENSION_CENTER[peak || ""];
-  if (center === void 0) return text;
-  if (kurve) {
-    let best = 0;
-    for (let k = 0; k <= 20; k++) {
-      const v = kurve(k / 20);
-      if (v > kurve(best)) best = k / 20;
-    }
-    center = best;
-  }
-  const s = splitSentences(text);
-  if (s.length < 5) return text;
-  const width = 0.26;
-  const intensity = (i, n) => {
-    const pos = n <= 1 ? 0 : i / (n - 1);
-    if (kurve) return kurve(pos);
-    const d = (pos - center) / width;
-    return Math.exp(-0.5 * d * d);
-  };
-  for (let i = s.length - 1; i >= 0; i--) {
-    const it = intensity(i, s.length);
-    if (it > 0.6 && chance(it * 0.7)) {
-      const t2 = s[i];
-      const cut = t2.indexOf(", ");
-      const rest = t2.slice(cut + 2);
-      const ersteWort = (rest.match(/^([a-zäöüß]+)/) || [])[1] || "";
-      const verbVorn = ersteWort ? istVerbform(ersteWort) && !/^(dann|jetzt|nun|dort|hier|da|so|doch|aber|und|noch|nur|schon|bald|wieder|immer|nie|niemand|jemand|man|alles|nichts|etwas)$/.test(ersteWort) : false;
-      const unteilbar = NEBENSATZ_ANFANG.test(rest) || verbVorn;
-      if (cut > 10 && cut < 90 && !unteilbar) {
-        s[i] = t2.slice(0, cut) + ".";
-        s.splice(i + 1, 0, cap(rest));
-      }
-    }
-  }
-  for (let pass = 0; pass < 2; pass++) {
-    const idx = Math.round(center * (s.length - 1));
-    if (idx > 0 && idx < s.length && chance(0.55) && !isFragmentSentence(s[idx - 1] || "") && !isFragmentSentence(s[idx] || "")) {
-      s.splice(idx, 0, pick(FRAGMENTS));
-    }
-  }
-  for (let i = 0; i < s.length - 1; i++) {
-    if (s.length <= 4) break;
-    const it = intensity(i, s.length);
-    if (it < 0.3 && chance((0.3 - it) * 1.2)) {
-      const first = s[i].replace(/[.!?…]+$/, "");
-      const next = s[i + 1];
-      if (first.length + next.length < 160 && !isFragmentSentence(first) && !isFragmentSentence(next)) {
-        const joiner = /^(und|aber|doch|denn|sondern)\b/i.test(next) ? ", " : chance(0.5) ? ", und " : "; ";
-        const cont = joiner === "; " ? next : next.charAt(0).toLowerCase() + next.slice(1);
-        s[i] = first + joiner + cont;
-        s.splice(i + 1, 1);
-        i--;
-      }
-    }
-  }
-  const mat = [...material?.hooks || [], ...material?.motifs || []].map((x) => (x || "").trim()).filter((x) => x.length >= 4);
-  if (mat.length) {
-    for (let k = 0; k < 2; k++) {
-      const cand = pick(mat);
-      if (!cand || s.join(" ").toLowerCase().includes(cand.toLowerCase())) continue;
-      if (!chance(0.7)) continue;
-      const idx = Math.max(1, Math.min(s.length, Math.round(center * (s.length - 1)) + k));
-      s.splice(idx, 0, cap(cand.replace(/[.!?…]+$/, "")) + ".");
-    }
-  }
-  {
-    const idx = Math.round(center * (s.length - 1));
-    if (idx > 0 && idx < s.length - 1 && chance(0.5)) {
-      const t2 = s[idx].replace(/[.!?…]+$/, "");
-      const nachbarn = [s[idx - 1] || "", s[idx + 1] || ""].join(" ").toLowerCase();
-      const bruch = pick(["und genau hier kippt es.", "kein Zur\xFCck.", "jetzt.", "und nichts h\xE4lt mehr."].filter((b) => !(b === "jetzt." && /\bjetzt\b/.test(nachbarn + " " + t2.toLowerCase()))));
-      if (t2.length > 12 && !isFragmentSentence(t2) && !t2.includes("\u2014")) {
-        s[idx] = t2 + " \u2014";
-        s.splice(idx + 1, 0, bruch);
-      }
-    }
-  }
-  return s.join(" ");
-}
-function paragraphize(txt) {
-  const s = splitSentences(txt);
-  if (s.length <= 3) return txt;
-  const breaks = /* @__PURE__ */ new Set();
-  const target = chance(0.6) ? 2 : 1;
-  while (breaks.size < target) breaks.add(Math.min(s.length - 2, Math.max(1, Math.floor(1 + Math.random() * (s.length - 2)))));
-  const out = [];
-  for (let i = 0; i < s.length; i++) {
-    out.push(s[i]);
-    if (breaks.has(i)) out.push("\n\n");
-  }
-  return out.join(" ").replace(/\s+\n\n\s+/g, "\n\n").trim();
-}
-function guessPronoun(P2) {
-  const p = clean(P2);
-  if (/^(der|ein)\s/i.test(p)) return "er";
-  if (/^(die|eine)\s/i.test(p)) return "sie";
-  if (/^das\s/i.test(p)) return "es";
-  if (/(a|e|in)$/i.test(p)) return "sie";
-  return "er";
-}
-var SUBJ_FUGE = /^(und|oder|aber|denn|doch|sondern|dann|da|weil|dass|als|wenn|während|obwohl|bevor|nachdem|sobald|solange|ob|wie|so|auch|nur|jetzt|dort|hier|heute|gestern|morgen|plötzlich|dabei|dadurch|deshalb|trotzdem|später|zuerst|zuletzt|außerdem|schließlich)$/i;
-var DEF_ART = { m: "der", f: "die", n: "das" };
-function objektName(o) {
-  const t2 = clean(o);
-  if (!t2) return "das Ding";
-  if (/^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines)\s/i.test(t2)) return t2;
-  const kern = t2.split(" ")[0].replace(/[^A-Za-zÄÖÜäöüß]/g, "");
-  return `${DEF_ART[guessGender(kern) || "n"]} ${t2}`;
-}
-var DING_VORRAT = [
-  "T\xFCr",
-  "Uhr",
-  "Karteikarte",
-  "Lampe",
-  "Schl\xFCssel",
-  "Fenster",
-  "Bank",
-  "Treppe",
-  "Spiegel",
-  "Kiste",
-  "Zettel",
-  "Mauer",
-  "Stuhl",
-  "Leitung",
-  "Schwelle"
-];
-var OBJEKT_EINSTIEG = [
-  // NICHT „… und zaehle mit.": Der Bruchstueck-Filter braucht dort ein finites
-  // Verb, und hatFinitesVerb() erkennt die erste Person nicht. Ein Rahmensatz,
-  // der von einem unzuverlaessigen Erkenner abhaengt, ist ein Rahmensatz auf Zeit.
-  "Ich bin %O. Ich liege hier und z\xE4hle die Tage.",
-  "Ich bin %O. Man hat mich hier vergessen.",
-  "Ich bin %O. Niemand fragt mich, und ich sehe alles.",
-  "Ich bin %O. Ich habe keine Augen und trotzdem einen Blick.",
-  "Ich bin %O. Ich bleibe, wo man mich hingestellt hat.",
-  "Ich bin %O. Man geht an mir vorbei, seit Jahren."
-];
-var OBJEKT_KOPF_RE = /^(Ich bin (?:der|die|das) [^.!?]{1,40}\.\s+[^.!?]{1,70}\.)\s*/;
-var OBJEKT_ZWISCHENRUF = [
-  "Ich sehe zu.",
-  "Ich liege dabei.",
-  "Ich z\xE4hle mit.",
-  "Ich r\xFChre mich nicht.",
-  "Ich habe Zeit.",
-  "Ich merke es mir."
-];
-function beugeToken(v, person) {
-  if (VERB_CONJ[v.toLowerCase()]) return conjugateVerbToken(v, person);
-  const p = person === "ich" || person === "du" || person === "wir" || person === "ihr" ? person : "er";
-  return beugeVerb(v, p) ?? v;
-}
-var kenntVerb = (v) => !!VERB_CONJ[v.toLowerCase()] || istVerbform(v);
-function applyPerspective(paras, perspective, who, objName) {
-  const P2 = clean(who) || "Jemand";
-  const O = objektName(clean(objName) || pick(DING_VORRAT));
-  const swap = (s, person, pronoun) => {
-    if (!P2) return s;
-    try {
-      const re = new RegExp("([A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF]+\\s+)?\\b" + escapeRegExp(P2) + "\\b(\\s+[A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF]+)?", "gi");
-      const ersetzt = s.replace(re, (_m, before, after, ...rest) => {
-        const idx = rest[rest.length - 2];
-        const voll = rest[rest.length - 1];
-        const posP = voll.toLowerCase().indexOf(P2.toLowerCase(), idx);
-        if (posP > 0 && /[-–\wÄÖÜäöüß]/.test(voll.charAt(posP - 1))) return _m;
-        const davor = voll.slice(0, posP).replace(/\s+$/, "");
-        const gross = davor === "" || /[.!?…:„"»(]$/.test(davor);
-        const pron = gross ? pronoun.charAt(0).toUpperCase() + pronoun.slice(1) : pronoun;
-        const bw = before ? before.trim() : "";
-        const aw = after ? after.trim() : "";
-        const bw3 = ICH_DU_ZU_ER[bw.toLowerCase()] || bw;
-        const aw3 = ICH_DU_ZU_ER[aw.toLowerCase()] || aw;
-        const beuge = (v) => beugeToken(v, person);
-        const kennt = kenntVerb;
-        const letztesWort = (davor.match(/[A-Za-zÄÖÜäöüß-]+$/) || [""])[0];
-        const subjektstelle = gross || /[,;]$/.test(davor) || SUBJ_FUGE.test(letztesWort) || !!bw && kennt(bw3);
-        if (!subjektstelle) return _m;
-        if (bw && kennt(bw3)) return beuge(bw3) + " " + pron + (after || "");
-        if (aw && kennt(aw3)) return (before || "") + pron + " " + beuge(aw3);
-        return (before || "") + pron + (after || "");
-      });
-      const reihung = new RegExp(
-        "\\b(" + pronoun + ")\\s+([a-z\xE4\xF6\xFC\xDF]+)((?:\\s+[^\\s,.;:\u2014!?]+){0,6}?)\\s+(und|oder)\\s+([a-z\xE4\xF6\xFC\xDF]{3,}t)\\b",
-        "gi"
-      );
-      return ersetzt.replace(reihung, (m, pr, v1, mitte, konj, v2) => {
-        const v23 = ICH_DU_ZU_ER[v2.toLowerCase()] || v2;
-        if (!kenntVerb(v23)) return m;
-        const gebeugt = beugeToken(v23, person);
-        if (gebeugt === v2) return m;
-        return `${pr} ${v1}${mitte} ${konj} ${gebeugt}`;
-      });
-    } catch {
-      return s.replace(new RegExp("\\b" + escapeRegExp(P2) + "\\b", "gi"), pronoun);
-    }
-  };
-  const toFirst = (s) => swap(s, "ich", "ich");
-  const toSecond = (s) => swap(s, "du", "du");
-  const toWe = (s) => swap(s, "wir", "wir");
-  const toObject = (s) => `${pick(OBJEKT_ZWISCHENRUF)} ${s}`;
-  if (perspective === "third") return paras;
-  if (perspective === "first") return paras.map(toFirst);
-  if (perspective === "second") return paras.map(toSecond);
-  if (perspective === "we") return paras.map(toWe);
-  if (perspective === "object") {
-    const einstieg = pick(OBJEKT_EINSTIEG).replace("%O", O);
-    return paras.map((p, i) => i === 0 ? `${einstieg} ${p}` : p);
-  }
-  const cycle = ["first", "second", "third", "object"];
-  return paras.map((p, i) => {
-    const k = cycle[i % cycle.length];
-    if (k === "first") return toFirst(p);
-    if (k === "second") return toSecond(p);
-    if (k === "object") return toObject(p);
-    return p;
-  });
-}
-function pronominalize(text, P2, pronoun) {
-  const name = clean(P2);
-  if (!name || !pronoun) return text;
-  let re;
-  try {
-    re = new RegExp(`^${escapeRegExp(name)}\\s+[a-z\xE4\xF6\xFC\xDF]`);
-  } catch {
-    return text;
-  }
-  let seen = false, lastReplaced = false;
-  return text.split(/\n\n+/).map((par) => {
-    const s = splitSentences(par);
-    for (let i = 0; i < s.length; i++) {
-      if (!re.test(s[i])) continue;
-      if (!seen) {
-        seen = true;
-        lastReplaced = false;
-        continue;
-      }
-      if (lastReplaced) {
-        lastReplaced = false;
-        continue;
-      }
-      s[i] = cap(pronoun) + s[i].slice(name.length);
-      lastReplaced = true;
-    }
-    return s.join(" ");
-  }).join("\n\n");
-}
-var SCHON_GEBUNDEN = /^(und|doch|aber|oder|denn|dann|dabei|also|trotzdem|dennoch|sondern|nur|zuerst|zuletzt|währenddessen)/i;
-function darfVerbinden(a, b, obergrenze) {
-  if (!a || !b) return false;
-  if (/[:;—–]\s*$/.test(a.replace(/[.!?…]+$/, ""))) return false;
-  if (!/[.!?…]$/.test(a.trim())) return false;
-  if (/[?!]$/.test(a.trim())) return false;
-  if (SCHON_GEBUNDEN.test(b)) return false;
-  if (/^[„»"(]/.test(b) || /[“«")]$/.test(a)) return false;
-  const wa = (a.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
-  const wb = (b.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
-  if (!wa || !wb) return false;
-  if (wb < 2 || wa < 2) return false;
-  if (/^(Es geht um|Der Einsatz ist|Auf dem Spiel steht|Alles dreht sich um|Was zählt, ist)\b/.test(a) || /steht auf dem Spiel\.$/.test(a)) return false;
-  return wa + wb <= obergrenze;
-}
-function verbinde(a, b, satzartig) {
-  const kopf = a.trim().replace(/[.!?…]+$/, "");
-  const rest = b.trim();
-  const wort = (rest.match(/^[A-Za-zÄÖÜäöüß]+/) || [""])[0].toLowerCase();
-  const darfKlein = KEIN_NOMEN.has(wort) || !!VERB_CONJ[wort];
-  const weiter = darfKlein ? rest.charAt(0).toLowerCase() + rest.slice(1) : rest;
-  if (!satzartig) return `${kopf} \u2014 ${weiter}`;
-  return `${kopf}${pick([", und ", "; ", " \u2014 "])}${weiter}`;
-}
-function entferneDubletten(text) {
-  const kern = (x) => x.replace(/^[—–\s]+/, "").replace(/[.!?…,;:—–\s]+$/, "").replace(/\s+/g, " ").toLowerCase().trim();
-  const ohne = text.split(/\n{2,}/).map((absatz) => {
-    const s = splitSentences(absatz);
-    if (s.length < 2) return absatz;
-    const raus = [];
-    for (const satz of s) {
-      const k = kern(satz);
-      if (k && raus.length && kern(raus[raus.length - 1]) === k) continue;
-      raus.push(satz);
-    }
-    return raus.join(" ");
-  }).join("\n\n");
-  return ohne.replace(
-    /([^.!?…\n]{6,})\s*(?:—|–|;|,\s+und)\s*([^.!?…\n]{6,})/g,
-    (ganz, links, rechts) => kern(links) && kern(links) === kern(rechts) ? links.replace(/\s+$/, "") : ganz
-  );
-}
-function applySatzlaenge(text, ziel) {
-  if (!ziel || ziel < 6) return text;
-  const w = (x) => (x.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
-  return text.split(/\n{2,}/).map((absatz) => {
-    let s = splitSentences(absatz);
-    if (s.length < 2) return absatz;
-    const bleibtKurz = new Set(s.filter(() => chance(0.2)));
-    for (let runde = 0; runde < 200; runde++) {
-      let beste = -1, kuerzeste = Infinity;
-      for (let i = 0; i + 1 < s.length; i++) {
-        const n = w(s[i]) + w(s[i + 1]);
-        if (n > ziel) continue;
-        if (bleibtKurz.has(s[i]) || bleibtKurz.has(s[i + 1])) continue;
-        if (!darfVerbinden(s[i], s[i + 1], ziel)) continue;
-        if (n < kuerzeste) {
-          kuerzeste = n;
-          beste = i;
-        }
-      }
-      if (beste < 0) break;
-      const satzartig = hatFinitesVerbLeicht(s[beste]);
-      s = [...s.slice(0, beste), verbinde(s[beste], s[beste + 1], satzartig), ...s.slice(beste + 2)];
-    }
-    return s.join(" ");
-  }).join("\n\n");
-}
-function hatFinitesVerbLeicht(satz) {
-  return (satz.match(/[a-zäöüß]{3,}/g) || []).some((w) => !!VERB_CONJ[w] || /^(ist|sind|war|waren|hat|haben|wird|werden|kann|muss|will|bleibt|steht|geht|kommt)$/.test(w));
-}
-
-// src/generation/dramaturgie.ts
-var DKEY = "dm_dramaturgie_v1";
-function setDramaData(d) {
-  try {
-    if (d) localStorage.setItem(DKEY, JSON.stringify(d));
-    else localStorage.removeItem(DKEY);
-  } catch {
-  }
-}
-var bogenOverride = null;
-function loadDramaData() {
-  if (bogenOverride) return bogenOverride;
-  try {
-    const r = localStorage.getItem(DKEY);
-    return r ? JSON.parse(r) : null;
-  } catch {
-    return null;
-  }
-}
-function hasDramaData() {
-  const d = loadDramaData();
-  return !!(d && (d.einstieg.length || d.mitte.length || d.hoehepunkt.length || d.veraenderungen.length));
-}
-var some = (a) => Array.isArray(a) && a.length > 0;
-var SCHLAG_STANDARD = ["einstieg", "hook", "regel", "mitte", "mitte2", "konflikt", "ausloeser", "wende", "zeit", "hoehepunkt", "einsatz", "schluss"];
-var SCHLAG_NAMEN = /* @__PURE__ */ new Set([...SCHLAG_STANDARD]);
-function buildDramaturgie(kit) {
-  const d = loadDramaData();
-  const M = kit.mode;
-  const norm2 = (x) => clean(x).toLowerCase().replace(/[.!?…]+$/, "");
-  const benutzt = /* @__PURE__ */ new Set();
-  const zieh = (liste) => {
-    const frisch = liste.filter((x) => !benutzt.has(norm2(x)));
-    if (!frisch.length) return "";
-    const wahl = pick(frisch);
-    benutzt.add(norm2(wahl));
-    return wahl;
-  };
-  const ZEITKOPF = /^(davor|danach|dann|plötzlich|auf einmal|am ende|am anfang|zurück bleibt|und dann|zuerst|zuletzt|schließlich)\b/i;
-  const ziehOhneZeitkopf = (liste) => {
-    const ohne = liste.filter((x) => !ZEITKOPF.test(x) && !benutzt.has(norm2(x)));
-    if (ohne.length) {
-      const wahl = pick(ohne);
-      benutzt.add(norm2(wahl));
-      return { satz: wahl, nackt: false };
-    }
-    return { satz: zieh(liste), nackt: true };
-  };
-  let quelleSchlag = "rahmen";
-  const schlag = (name, erster) => {
-    quelleSchlag = "rahmen";
-    switch (name) {
-      case "einstieg": {
-        if (!(d && some(d.einstieg))) {
-          quelleSchlag = "kontext";
-          return erster ? `${cap(kit.T)} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.` : "";
-        }
-        quelleSchlag = erster ? "kontext+bogen" : "bogen";
-        if (!erster) {
-          const z2 = zieh(d.einstieg);
-          return z2 ? `${cap(z2)}.` : "";
-        }
-        const z = zieh(d.einstieg) || pick(d.einstieg);
-        if (/^(nachdem|als|während|bevor|sobald|seit|seitdem|kaum|wenn|ehe)\b/i.test(clean(kit.T)))
-          return `${cap(kit.T)} ${kit.W} \u2014 ${z.charAt(0).toLowerCase()}${z.slice(1).replace(/[.!?…]+$/, "")}.`;
-        return `${cap(kit.T)} ${kit.W}. ${cap(z)}.`;
-      }
-      case "hook":
-        quelleSchlag = "wortbank";
-        return cap(ensurePunct(kit.hook));
-      case "regel": {
-        const z = d && some(d.regeln) && chance(0.7) ? zieh(d.regeln) : "";
-        quelleSchlag = z ? "bogen" : "vorlage";
-        return z ? cap(ensurePunct(z)) : ensurePunct(pick(M.rules));
-      }
-      case "mitte": {
-        const z = d && some(d.mitte) ? zieh(d.mitte) : "";
-        quelleSchlag = "bogen";
-        return z ? `${cap(z)}.` : "";
-      }
-      case "mitte2": {
-        const z = d && some(d.mitte) && d.mitte.length > 1 && chance(0.6) ? zieh(d.mitte) : "";
-        quelleSchlag = "bogen";
-        return z ? `${cap(z)}.` : "";
-      }
-      case "konflikt": {
-        const konf = d && some(d.konflikte) ? zieh(d.konflikte) : "";
-        quelleSchlag = konf ? "bogen" : "wortbank";
-        return konf ? `Es geht um ${konf}.` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}, aber ${kit.obstacle}.`;
-      }
-      case "ausloeser": {
-        if (!(d && some(d.ausloeser))) return "";
-        const { satz: satz2, nackt: nackt2 } = ziehOhneZeitkopf(d.ausloeser);
-        if (!satz2) return "";
-        quelleSchlag = "bogen";
-        return nackt2 ? cap(ensurePunct(satz2)) : `Dann, unvermittelt: ${cap(satz2)}.`;
-      }
-      case "wende": {
-        const ausBogen = d && some(d.veraenderungen) ? zieh(d.veraenderungen) : "";
-        const kern = ausBogen || (benutzt.has(norm2(kit.turn)) ? "" : kit.turn);
-        if (!kern) return "";
-        quelleSchlag = ausBogen ? "bogen" : "wortbank";
-        benutzt.add(norm2(kern));
-        return frameTurn(kern);
-      }
-      case "zeit": {
-        const z = d && some(d.zeitanomalien) && chance(0.4) ? zieh(d.zeitanomalien) : "";
-        quelleSchlag = "bogen";
-        return z ? cap(ensurePunct(z)) : "";
-      }
-      case "hoehepunkt":
-        if (!(d && some(d.hoehepunkt))) return "";
-        quelleSchlag = "bogen";
-        if (erster) {
-          const z = zieh(d.hoehepunkt);
-          return z ? `${cap(z)}.` : "";
-        }
-        const { satz, nackt } = ziehOhneZeitkopf(d.hoehepunkt);
-        if (!satz) return "";
-        return nackt ? cap(ensurePunct(satz)) : `Und dann: ${cap(satz)}.`;
-      case "einsatz": {
-        if (benutzt.has(norm2(kit.stake))) return "";
-        benutzt.add(norm2(kit.stake));
-        quelleSchlag = "wortbank";
-        return reframeStake(kit.stake);
-      }
-      case "schluss":
-        quelleSchlag = "wortbank";
-        return ensurePunct(kit.ending);
-      default:
-        return "";
-    }
-  };
-  const folge = d?.folge && d.folge.length && d.folge.every((n) => SCHLAG_NAMEN.has(n)) ? d.folge : SCHLAG_STANDARD;
-  const beats = [];
-  for (const name of folge) {
-    const b = schlag(name, beats.length === 0);
-    if (b) beats.push(b);
-    if (zeitlupeAn()) zeitlupeSchritt({
-      text: beats.join(" "),
-      atom: b || "",
-      phase: name,
-      slot: name,
-      quelle: b ? quelleSchlag : "rahmen",
-      kategorie: name,
-      typ: "schlag",
-      score: 0,
-      anteil: 0,
-      gruende: b ? [{ name: "Schlag " + name, wert: 1 }] : [{ name: "ausgefallen \u2014 Liste aufgebraucht oder leer", wert: 0 }],
-      kandidaten: 0,
-      konkurrenten: []
-    });
-  }
-  return joinBeats(beats, kit.P);
-}
-
-// src/generation/postprocess.ts
-var LINE_FORMS = /* @__PURE__ */ new Set(["script", "video", "strang", "reim", "haiku", "poem"]);
-var isLineForm = (input) => !!input && !!input.form && LINE_FORMS.has(input.form);
-function glaetten(t2) {
-  return t2.replace(/[ \t]{2,}/g, " ").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]+([,.;:!?])/g, "$1").trim();
-}
-var ABGESCHNITTEN = /(^|\s)(eine|einem|einen|einer|eines|der|die|dem|den|des|und|oder|aber|wie|als|im|am|bei|für|ohne)$/i;
-var NUR_OHNE_VERB = /(^|\s)(mit|an|auf|zu|vor|nach|aus|ist|sind|wird|ein|das)$/i;
-var NEBENSATZ_ENDE = /,\s+(der|die|das|dem|den|deren|dessen)\s+([a-zäöüß][^,;:]*)$/;
-var FUNKTION = /* @__PURE__ */ new Set([
-  "es",
-  "er",
-  "sie",
-  "ich",
-  "du",
-  "wir",
-  "ihr",
-  "man",
-  "sich",
-  "mich",
-  "dich",
-  "uns",
-  "euch",
-  "ihn",
-  "ihm",
-  "mir",
-  "dir",
-  "der",
-  "die",
-  "das",
-  "dem",
-  "den",
-  "des",
-  "ein",
-  "eine",
-  "einen",
-  "einem",
-  "einer",
-  "eines",
-  "kein",
-  "keine",
-  "keinen",
-  "keinem",
-  "mein",
-  "meine",
-  "meinen",
-  "meinem",
-  "sein",
-  "seine",
-  "seinen",
-  "seinem",
-  "ihre",
-  "ihren",
-  "ihrem",
-  "dein",
-  "deine",
-  "deinen",
-  "deinem",
-  "unser",
-  "unsere",
-  "in",
-  "im",
-  "an",
-  "am",
-  "auf",
-  "aus",
-  "bei",
-  "mit",
-  "nach",
-  "von",
-  "vom",
-  "zu",
-  "zum",
-  "zur",
-  "vor",
-  "\xFCber",
-  "unter",
-  "hinter",
-  "neben",
-  "zwischen",
-  "durch",
-  "f\xFCr",
-  "ohne",
-  "um",
-  "gegen",
-  "seit",
-  "bis",
-  "und",
-  "oder",
-  "aber",
-  "noch",
-  "schon",
-  "mehr",
-  "auch",
-  "nur",
-  "so",
-  "da",
-  "hier",
-  "dort",
-  "wo",
-  "wie",
-  "als",
-  "wenn",
-  "dann",
-  "immer",
-  "nie",
-  "wieder",
-  "heute",
-  "gestern",
-  "morgen",
-  "zu",
-  "sehr",
-  "ganz",
-  "etwas",
-  "nichts",
-  "alles",
-  "viel",
-  "wenig",
-  "zwei",
-  "drei",
-  "vier",
-  "f\xFCnf",
-  "einmal",
-  "zweimal",
-  "l\xE4ngst",
-  "gerade",
-  "eben",
-  "erst",
-  "kaum",
-  "fast",
-  "genau",
-  "pl\xF6tzlich",
-  "jemand",
-  "niemand",
-  "jeder",
-  "jede",
-  "jedes",
-  "alle",
-  "beide",
-  "zusammen",
-  "allein",
-  "anders",
-  "weiter",
-  "zur\xFCck",
-  "hinauf",
-  "hinab",
-  "hinaus",
-  "hinein",
-  "heraus",
-  "herein",
-  "oben",
-  "unten",
-  "innen",
-  "au\xDFen",
-  "links",
-  "rechts",
-  "vorn",
-  "hinten",
-  "drinnen",
-  "drau\xDFen",
-  "fort",
-  "weg",
-  "los"
-]);
-var verbMoeglich = (w) => /^[a-zäöüß]{2,}$/.test(w) && !FUNKTION.has(w) && !KEIN_VERB.has(w) && !/(em|er|es)$/.test(w);
-function istAbgeschnitten(bare) {
-  if (!bare || bare.split(/\s+/).length > 12) return false;
-  if (ABGESCHNITTEN.test(bare)) return true;
-  const ns = bare.match(NEBENSATZ_ENDE);
-  if (ns) {
-    const woerter3 = ns[2].split(/\s+/);
-    if (woerter3.length <= 6 && !woerter3.some(verbMoeglich)) return true;
-  }
-  return NUR_OHNE_VERB.test(bare) && !hatFinitesVerb(bare);
-}
-function schliesseFigurenkomma(text, who) {
-  const roh = (who || "").trim();
-  if (!roh || !roh.includes(",")) return text;
-  const figur = personKopf(splitSpeakers(normWho(roh))[0] || "");
-  if (!figur.includes(",")) return text;
-  try {
-    const re = new RegExp("(" + escapeRegExp(figur) + ")(\\s+)(?=[a-z\xE4\xF6\xFC\xDF])", "gi");
-    return text.replace(re, "$1,$2");
-  } catch {
-    return text;
-  }
-}
-function coherencePass(text, input) {
-  try {
-    if (isLineForm(input)) return text;
-    const t2 = String(text || "").replace(/\.\s*\.+/g, ".");
-    const paras = t2.split(/\n{2,}/);
-    const freq = {};
-    coherenceWords(t2).forEach((w) => {
-      freq[w] = (freq[w] || 0) + 1;
-    });
-    const motif = new Set(Object.keys(freq).filter((w) => freq[w] >= 2));
-    [input?.who, input?.where, input?.what].forEach((s) => coherenceWords(s || "").forEach((w) => motif.add(w)));
-    const bogen = loadDramaData();
-    if (bogen) {
-      for (const feld of [
-        bogen.einstieg,
-        bogen.mitte,
-        bogen.hoehepunkt,
-        bogen.ausloeser,
-        bogen.veraenderungen,
-        bogen.konflikte,
-        bogen.zeitanomalien,
-        bogen.regeln
-      ]) {
-        for (const satz of feld || []) coherenceWords(satz).forEach((w) => motif.add(w));
-      }
-    }
-    const allowBreaks = input?.disruptor === "on";
-    const maxRemove = Math.max(1, Math.floor(splitSentences(t2).length * 0.25));
-    let removed = 0;
-    const outParas = [];
-    paras.forEach((p, pi) => {
-      const sents = splitSentences(p);
-      const kept = sents.filter((s, si) => {
-        const bare = s.trim().replace(/["»«)\]]+$/, "").replace(/[.!?…]+$/, "").trim();
-        if (istAbgeschnitten(bare)) {
-          removed++;
-          return false;
-        }
-        if (removed >= maxRemove) return true;
-        const late = pi === paras.length - 1 && sents.length >= 4 && si >= Math.floor(sents.length / 2);
-        if (late) {
-          const cw = coherenceWords(s);
-          if (cw.length >= 2 && !cw.some((w) => motif.has(w))) {
-            if (allowBreaks && Math.random() < 0.5) return true;
-            removed++;
-            return false;
-          }
-        }
-        return true;
-      });
-      if (kept.length) outParas.push(kept.join(" "));
-    });
-    const result = outParas.join("\n\n").trim();
-    return result.length >= 60 ? result : text;
-  } catch {
-    return text;
-  }
-}
-function coherenceRepairV2(t2, input) {
-  t2 = String(t2 ?? "");
-  t2 = t2.replace(/\(\s*[A-ZÄÖÜ][\wäöüß-]{2,}\s*\)/g, " ");
-  t2 = t2.replace(/,\s*([.!?…])/g, "$1");
-  t2 = t2.replace(/([.!?…])\s*,/g, ",");
-  t2 = t2.replace(/\s*,\s*,\s*/g, ", ");
-  t2 = t2.replace(/„\s+/g, "\u201E").replace(/\s+"/g, '"');
-  t2 = t2.replace(/([.!?…])\s*\1+/g, "$1");
-  if ((t2.match(/"/g) || []).length % 2 === 1) t2 = t2.replace(/"/g, "");
-  {
-    const o = (t2.match(/„/g) || []).length, c = (t2.match(/[“”]/g) || []).length;
-    if (o !== c) t2 = t2.replace(/[„“”]/g, "");
-  }
-  t2 = t2.replace(/\bich'(?=\s)/gi, "meine").replace(/\bdu'(?=\s)/gi, "deine").replace(/\bwir'(?=\s)/gi, "unsere").replace(/\ber'(?=\s)/gi, "seine").replace(/\bsie'(?=\s)/gi, "ihre").replace(/\bes'(?=\s)/gi, "seine");
-  t2 = t2.replace(/(:\s+)([a-zäöüß][^.!?…]*)/g, (m, p1, rest) => looksLikeFullClause(null, rest) || /^(warum|weshalb|wieso|wie|was|wer|wen|wem|wann|wo|wohin|woher|ob)\b/i.test(rest) ? p1 + rest.charAt(0).toUpperCase() + rest.slice(1) : m);
-  String(input?.who || "").split(/[,;]/).map((x) => x.trim()).filter(Boolean).forEach((n) => {
-    const esc = escapeRegExp(n);
-    const wieder = namensErsetzer(n);
-    try {
-      t2 = t2.replace(new RegExp("\\b(" + esc + ")(s|')?\\b", "giu"), (_m, kern, suf) => wieder(kern) + (suf || ""));
-    } catch {
-    }
-  });
-  if (isLineForm(input)) {
-    return glaetten(t2);
-  }
-  const ABS = "\u241E";
-  t2 = t2.replace(/[ \t]*\n{2,}[ \t]*/g, " " + ABS + " ");
-  const sents = t2.split(/(?<=[.!?…])\s+/).filter(Boolean);
-  const kept = [];
-  for (let s of sents) {
-    const bare = s.trim().replace(/["“”»«]+$/, "").replace(/[.!?…]+$/, "").trim();
-    const opens = (s.match(/„/g) || []).length, closes = (s.match(/[“”»]/g) || []).length;
-    if (/\bSatz\s+„/.test(s) && opens > closes) continue;
-    if (/,\s+(die|der|das|dem|den|des)\s+(die|der|das|dem|den|des)\s+\p{L}+$/iu.test(bare)) continue;
-    if (opens > closes) s = s.replace(/„\s*/g, "");
-    s = beugeNachDu(s);
-    const _st = s.trim();
-    if (kept.length && kept[kept.length - 1] === _st) continue;
-    kept.push(_st);
-  }
-  t2 = kept.join(" ").replace(/\s*\u241E\s*/g, "\n\n");
-  t2 = t2.replace(/(\bich und [A-ZÄÖÜ][\wäöüß]+[^.!?…]*?)\bsie sich\b/gu, "$1wir uns");
-  t2 = t2.replace(/([A-ZÄÖÜ][\wäöüß]+ und ich[^.!?…]*?)\bsie sich\b/gu, "$1wir uns");
-  const CONN = [/\bDann kippt es\b/gi, /\bDabei:\s*plötzlich\b/gi, /\bUnd immer wieder\b/gi, /\bAm Ende bleibt klar\b/gi];
-  CONN.forEach((re) => {
-    let n = 0;
-    t2 = t2.replace(re, (m) => ++n > 1 ? "" : m);
-  });
-  t2 = glaetten(t2).replace(/„[ \t]+/g, "\u201E");
-  return t2;
-}
-function kleinerArtikel(t2) {
-  return (t2 || "").replace(/[ \t]+([,;.!?])/g, "$1").replace(
-    /([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/g,
-    (_m, vor, sp, w) => vor + sp + w.charAt(0).toLowerCase() + w.slice(1)
-  );
-}
-var DU = [
-  [/\btritt\b/g, "trittst"],
-  [/\bhält\b/g, "h\xE4ltst"],
-  [/\bnimmt\b/g, "nimmst"],
-  [/\bsieht\b/g, "siehst"],
-  [/\bgeht\b/g, "gehst"],
-  [/\bsteht\b/g, "stehst"],
-  [/\bträgt\b/g, "tr\xE4gst"],
-  [/\bführt\b/g, "f\xFChrst"],
-  [/\bfindet\b/g, "findest"],
-  [/\bsucht\b/g, "suchst"],
-  [/\bkommt\b/g, "kommst"],
-  [/\bbricht\b/g, "brichst"]
-];
-function beugeNachDu(s) {
-  const di = s.search(/\bdu\b/i);
-  if (di < 0) return s;
-  const head = s.slice(0, di);
-  let tail = s.slice(di);
-  const wechsel = tail.search(/[,;:—–(]|\b(?:aber|und|doch|denn|sondern|oder|während|als)\s+(?:er|sie|es|man|wir|ihr|der|die|das|ein|eine|etwas|nichts|jemand|niemand)\b/i);
-  let rest = "";
-  if (wechsel > 0) {
-    rest = tail.slice(wechsel);
-    tail = tail.slice(0, wechsel);
-  }
-  DU.forEach(([re, rep]) => {
-    tail = tail.replace(re, rep);
-  });
-  return head + tail + rest;
-}
-var NEBENSATZ2 = /(,\s+(?:wo|wohin|woher|wenn|als|weil|dass|obwohl|während|nachdem|bevor|sobald|solange|der|die|das|dem|den|deren|dessen)\s[^,.;:!?—–]{3,60}?[a-zäöüß])\s+(bemerk(?:t|e|st|en)|sieht|sehe|siehst|sehen|find(?:et|e|est|en)|entdeck(?:t|e|st|en)|erkenn(?:t|e|st|en)|trifft|treffe|triffst|treffen|hört|höre|hörst|hören|wartet|warte|wartest|warten|steht|stehe|stehst|stehen|beginnt|beginne|beginnst|beginnen|verliert|verliere|verlierst|verlieren)\s+(ich|du|wir|er|sie|es|man|[A-ZÄÖÜ][a-zäöüß]+)\b/g;
-function kommaVorInversion(t2) {
-  return (t2 || "").replace(NEBENSATZ2, "$1, $2 $3");
-}
-function istPluralFigur(who) {
-  const w = (who || "").trim();
-  if (!w) return false;
-  if (/^(zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|beide|alle|viele|einige|mehrere|manche|zwölf|hundert)\b/i.test(w)) return true;
-  if (/\b(und|&)\b/.test(w) && !/,/.test(w)) return true;
-  if (/^[A-ZÄÖÜ][a-zäöüß]+(en|innen|leute|kinder|eltern)$/.test(w) && !/(chen|lein)$/.test(w)) return true;
-  const m = w.match(/^die\s+([A-ZÄÖÜ][a-zäöüß-]+)$/i);
-  if (m) {
-    const n = m[1].toLowerCase();
-    if (/(innen|leute|kinder|eltern|geschwister|männer|frauen)$/.test(n)) return true;
-    return /en$/.test(n) && !/(chen|lein)$/.test(n);
-  }
-  return false;
-}
-function pluralKongruenz(t2, who) {
-  const name = (who || "").trim();
-  if (!name || !istPluralFigur(name)) return t2;
-  const esc = escapeRegExp(name);
-  const beuge = (v) => {
-    const p = beugeVerb(v, "wir");
-    return p && p !== v ? p : v;
-  };
-  let out = t2.replace(new RegExp(`(\\b${esc})\\s+([a-z\xE4\xF6\xFC\xDF]+t)\\b`, "giu"), (m, n, v) => istVerbform(v) ? `${n} ${beuge(v)}` : m);
-  out = out.replace(new RegExp(`\\b([a-z\xE4\xF6\xFC\xDF]+t)\\s+(${esc})\\b`, "giu"), (m, v, n) => istVerbform(v) ? `${beuge(v)} ${n}` : m);
-  return out;
-}
-function nomenNachAdverb(t2) {
-  return (t2 || "").replace(
-    /(^|[.!?…]\s+|\n)(Dann|Und dann|Nur|Doch|Jetzt|Plötzlich|Danach|Zuletzt)\s+([a-zäöüß]{3,}),/g,
-    (m, vor, adv, w) => guessGender(w) ? `${vor}${adv} ${w.charAt(0).toUpperCase()}${w.slice(1)},` : m
-  );
-}
-function adjektivKongruenz(t2) {
-  return (t2 || "").replace(/(^|[.!?…:;—]\s+)(Ein|Eine|Der|Die|Das) ([a-zäöüß]{3,}?)(e|er|es) ([A-ZÄÖÜ][a-zäöüß]{2,})\b/g, (m, vor, art, stamm, endung, nomen) => {
-    const g = guessGender(nomen);
-    if (!g) return m;
-    const indef = art.startsWith("Ein");
-    const sollArt = indef ? g === "f" ? "Eine" : "Ein" : g === "m" ? "Der" : g === "f" ? "Die" : "Das";
-    const sollEnd = indef ? g === "m" ? "er" : g === "f" ? "e" : "es" : "e";
-    if (sollArt === art && sollEnd === endung) return m;
-    return `${vor}${sollArt} ${stamm}${sollEnd} ${nomen}`;
-  });
-}
-function relativKongruenz(t2) {
-  return (t2 || "").replace(
-    /\b([A-ZÄÖÜ][a-zäöüß]{2,}),? (in|an|auf|unter|über|vor|hinter|neben|zwischen|bei|mit|aus|nach|von|zu) (der|dem) (die|der|das|ein|eine|man|es|sie|er|niemand|jemand|nichts|alles|ich|wir|du|ihr|kein|keine)\b/g,
-    (m, nomen, praep, pron, subj) => {
-      const g = guessGender(nomen);
-      if (!g) return m;
-      const praepSicher = /^(in|an|auf|unter|über|vor|hinter|neben|zwischen)$/.test(praep);
-      if (!praepSicher && /^(die|der|das|ein|eine|kein|keine)$/.test(subj)) return m;
-      const soll = g === "f" ? "der" : "dem";
-      if (soll === pron) return m;
-      return `${nomen}, ${praep} ${soll} ${subj}`;
-    }
-  );
-}
-function nominativFragment(t2) {
-  return (t2 || "").replace(
-    /(^|[.!?…]\s+|\n)(Einen|Den|Einem|Dem)\s+([A-ZÄÖÜ][a-zäöüß]+)([^.!?…\n]*[.!?…])/g,
-    (m, vor, art, nomen, rest) => {
-      if (hatFinitesVerb(`${art} ${nomen}${rest}`)) return m;
-      if (/\b(ein|eine|einen|einem|einer|der|die|das|den|dem)\b/i.test(rest)) return m;
-      if (art === "Einen") return `${vor}Ein ${nomen}${rest}`;
-      if (art === "Den") return `${vor}Der ${nomen}${rest}`;
-      const g = guessGender(nomen);
-      if (art === "Einem") return g === "m" || g === "n" ? `${vor}Ein ${nomen}${rest}` : m;
-      return g === "m" ? `${vor}Der ${nomen}${rest}` : g === "n" ? `${vor}Das ${nomen}${rest}` : m;
-    }
-  );
-}
-function formelnGlaetten(t2) {
-  return (t2 || "").replace(/\s+—\s+(dann|danach|plötzlich)\s*([;.!?])/gi, "$2").replace(/\b(an|auf|über|von|in|mit|nach) (wie|als) (der|die|das|den|dem|des|ein|eine|einen|einem|einer)\b/g, "$1 $3").replace(/\b(Dann|Und dann|Plötzlich|Danach)\s+—\s+(dann|plötzlich|danach),/gi, (_m, a) => `${a},`).replace(/([.!?…])\s+—\s+([a-zäöüß])/g, (_m, p, c) => `${p} ${c.toUpperCase()}`);
-}
-function kleinesPronomen(t2) {
-  return (t2 || "").replace(/([;—–][ \t]+)(Ich|Er|Es|Wir|Du|Man|Ihr|Angeblich|Natürlich|Vielleicht|Jedenfalls|Immerhin|Trotzdem|Allerdings|Jetzt|Dann|Hier|Dort|Aber|Und|Doch|Oder|Nur|Noch|Schon|Mittags|Morgens|Abends|Nachts|Heute|Gestern|Morgen|Später|Manchmal|Damals|Irgendwann|Vormittags|Nachmittags|Fast|Beinahe|Kaum|Knapp|Bald|Erst|Zuletzt|Endlich)\b/g, (_m, sp, w) => sp + w.toLowerCase()).replace(
-    /(,[ \t]+)(Wo|Wenn|Als|Weil|Dass|Obwohl|Während|Nachdem|Bevor|Sobald|Solange|Damit|Ob|Der|Die|Das|Dem|Den|Deren|Dessen)\b(?=\s)/g,
-    (_m, sp, w) => sp + w.charAt(0).toLowerCase() + w.slice(1)
-  );
-}
-function fragezeichen(t2) {
-  return (t2 || "").replace(
-    /(^|[.!?…:]\s+|\n)(Wo|Was|Wer|Wie|Warum|Wann|Wohin|Woher|Weshalb|Wieso|Wem|Wen)\s+(ist|sind|war|waren|hat|haben|wird|werden|kommt|bleibt|will|kann|soll|darf|muss|geht|steht|bist|bin|seid|weiß|wissen)\b([^.!?…\n]{0,50})\./g,
-    (m, vor, fw, v, rest) => rest.split(/\s+/).filter(Boolean).length <= 6 && !rest.includes(",") ? `${vor}${fw} ${v}${rest}?` : m
-  );
-}
-function postProcessText(txt, input) {
-  let t2 = (txt ?? "").toString();
-  t2 = t2.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
-  t2 = t2.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
-  const z = (was, f) => {
-    const v = t2;
-    t2 = f(t2);
-    zaehleWennAnders(was, v, t2);
-  };
-  z("schliff_kleinesPronomen", kleinesPronomen);
-  z("schliff_kommaVorInversion", kommaVorInversion);
-  z("schliff_fragezeichen", fragezeichen);
-  z("schliff_nomenNachAdverb", nomenNachAdverb);
-  z("schliff_nominativFragment", nominativFragment);
-  z("schliff_adjektivKongruenz", adjektivKongruenz);
-  z("schliff_relativKongruenz", relativKongruenz);
-  z("schliff_formelnGlaetten", formelnGlaetten);
-  z("schliff_kleinerArtikel", kleinerArtikel);
-  const name = (input?.who ?? "").toString().trim();
-  if (name) {
-    const esc = escapeRegExp(name);
-    const wieder = namensErsetzer(name);
-    try {
-      t2 = t2.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${esc}(?![\\p{L}\\p{N}_])`, "giu"), wieder);
-    } catch {
-      t2 = t2.replace(new RegExp(`\\b${esc}\\b`, "gi"), wieder);
-    }
-  }
-  z("schliff_pluralKongruenz", (x) => pluralKongruenz(x, name));
-  zeitlupeStufe("Schliff", t2);
-  if (!isLineForm(input) && input?.tone && TONE_DATA[input.tone]) {
-    const td = TONE_DATA[input.tone];
-    if (td.opener.length) {
-      const kopf = t2.match(OBJEKT_KOPF_RE);
-      t2 = kopf ? `${kopf[1]} ${pick(td.opener)} ${t2.slice(kopf[0].length)}` : `${pick(td.opener)} ${t2}`;
-    }
-    if (td.flavor.length) {
-      const wc2 = t2.trim().split(/\s+/).filter(Boolean).length;
-      const f = (loadKnobs().ton || 0) / 100;
-      const inserts = Math.max(0, Math.min(7, Math.round(Math.max(1, Math.round(wc2 / 90)) * f)));
-      const vorrat = [...td.flavor].sort(() => Math.random() - 0.5).filter((f2) => !t2.toLowerCase().includes(f2.toLowerCase().replace(/[.!?…]+$/, "")));
-      for (let i = 0; i < inserts && i < vorrat.length; i++) t2 = insertToneFlavor(t2, vorrat[i]);
-    }
-    t2 = applyToneRegister(t2, input.tone);
-    zeitlupeStufe("Ton", t2);
-  }
-  if (!isLineForm(input)) t2 = entferneDubletten(t2);
-  if (!isLineForm(input)) {
-    t2 = applySatzlaenge(t2, loadKnobs().satzlaenge);
-    zeitlupeStufe("Satzl\xE4nge", t2);
-  }
-  if (!isLineForm(input)) t2 = entferneDubletten(t2);
-  z("schliff_polishGerman", (x) => polishGerman(x, { who: name }));
-  z("schliff_figurenkomma", (x) => schliesseFigurenkomma(x, input?.who));
-  z("kohaerenzPass", (x) => coherencePass(x, input));
-  {
-    const v = t2;
-    t2 = coherenceRepairV2(t2, input);
-    if (v !== t2) {
-      const vs = new Set(t2.split(/(?<=[.!?…])\s+/).map((x) => x.trim()));
-      const gefallen = v.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter((x) => x && !vs.has(x) && !t2.includes(x.slice(0, 30)));
-      if (gefallen.length) for (const g of gefallen) zaehle("kohaerenzGefallen", g);
-      else zaehleWennAnders("kohaerenzRepariert", v, t2);
-    }
-  }
-  zeitlupeStufe("Koh\xE4renz", t2);
-  t2 = t2.replace(/(^|[.!?…]\s+)([a-zäöü])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
-  t2 = t2.replace(/\b(und|oder|aber|denn|sondern|sowie|nur|auch|selbst|sogar|erst|schon|noch|doch|nun|dann)(\s+)(die|der|das|den|dem|des|ein|eine|einen|einem|einer|sie|er|es|man|wir|ich|du|ihr|ihre|sein|seine|dann|dabei|dadurch|vielleicht|plötzlich)\b/gi, (_m, c, sp, w) => c + sp + w.charAt(0).toLowerCase() + w.slice(1));
-  return t2.trim();
-}
-
-// src/generation/structures.ts
-var rot = (key, arr) => arr[pickFreshIndex(key, arr.length)];
-function buildLinear(kit) {
-  const M = kit.mode;
-  const opener = rot("lin.opener", [
-    `${kit.T} ${kit.W} bemerkt ${kit.P} ${kit.hookAcc}.`,
-    `${kit.T} ${kit.W} findet ${kit.P} ${kit.hookAcc}.`,
-    `${kit.P} sieht ${kit.hookAcc} \u2014 ${kit.T}, ${kit.W}.`,
-    `Zuerst ${kit.W}, ${kit.T}: ${kit.P} bemerkt ${kit.hookAcc}.`,
-    `${kit.T} ${kit.W}. ${kit.P} h\xE4lt ${kit.hookAcc} fest.`
-  ]);
-  const goal = kit.AisClause ? rot("lin.goalC", [
-    `${kit.P} stellt fest: ${kit.Apure} \u2014 aber ${kit.obstacle}.`,
-    `${kit.P} begreift: ${kit.Apure}. Doch ${kit.obstacle}.`,
-    `Klar wird: ${kit.Apure}. Nur ${kit.obstacle}.`
-  ]) : rot("lin.goal", [
-    `${kit.P} ${kit.AleadVerb || "will"} ${kit.Apure}, aber ${kit.obstacle}.`,
-    `${kit.P} ${kit.AleadVerb || "will"} ${kit.Apure} \u2014 ${kit.obstacle}.`,
-    `Was ${kit.P} ${kit.AleadVerb || "will"}: ${kit.Apure}. Was im Weg steht: ${kit.obstacle}.`
-  ]);
-  const action = rot("lin.action", [
-    `${kit.P} nimmt ${kit.propAcc} und ${pick(["tritt n\xE4her", "fragt nach", "h\xE4lt den Blick aus", "\xF6ffnet, was verschlossen war", "bleibt stehen"])}.`,
-    `${kit.P} h\xE4lt ${kit.propAcc} und ${pick(["z\xF6gert", "atmet durch", "macht den ersten Schritt", "h\xF6rt auf zu z\xE4hlen"])}.`,
-    `${kit.P} greift nach dem, was bleibt, und ${pick(["wartet", "horcht", "rechnet", "beginnt"])}.`,
-    `${kit.P} legt ${kit.propAcc} beiseite und ${pick(["sieht auf", "sagt es doch", "dreht sich um", "bleibt"])}.`
-  ]);
-  const modeSpice = pick([
-    `Es riecht ${rot("mode.img", M.images)}. ${rot("mode.rule", M.rules)}`,
-    `${rot("mode.rule", M.rules)} Es riecht ${rot("mode.img", M.images)}.`,
-    `Irgendwo ${rot("mode.img", M.images)}. ${rot("mode.rule", M.rules)}`
-  ]);
-  const beats = [opener, modeSpice, goal, action, frameTurn(kit.turn), reframeStake(kit.stake), kit.ending];
-  if (Math.random() < 0.4) beats.splice(4, 0, `${pick(["Ein Ger\xE4usch", "Ein Licht", "Ein Schatten", "Ein Zug Luft"])} ${pick(["ver\xE4ndert alles", "bleibt", "kippt den Moment", "zieht vorbei"])}.`);
-  return joinBeats(beats, kit.P);
-}
-function buildReverse(kit) {
-  const M = kit.mode;
-  const end = `${kit.ending}`;
-  const reveal = `Du erf\xE4hrst erst sp\xE4ter: ${kit.motif} \u2014 das war der Anfang.`;
-  const before = `${kit.P} hatte ${kit.propAcc} schon in der Hand, denn ${kit.obstacle}.`;
-  const inciting = `${kit.T} ${kit.W}: ${kit.hook}.`;
-  const rule = `${rot("mode.rule", M.rules)} Es riecht ${rot("mode.img", M.images)}.`;
-  const turn = `Und dann, r\xFCckw\xE4rts betrachtet: ${kit.turn}.`;
-  return joinBeats([end, reveal, reframeStake(kit.stake), turn, before, rule, inciting], kit.P);
-}
-function buildCircle(kit) {
-  const M = kit.mode;
-  const a = rot("circ.a", [
-    `${kit.T} ${kit.W} steht ${kit.P} vor ${kit.hookDat}.`,
-    `${kit.T} ${kit.W}: wieder ${kit.hookDat} gegen\xFCber steht ${kit.P}.`,
-    `Am Anfang steht ${kit.P} vor ${kit.hookDat}. ${kit.T}, ${kit.W}.`
-  ]);
-  const b = kit.AisClause ? `${kit.P} bemerkt: ${kit.Apure}. ${rot("mode.rule", M.rules)}` : `${kit.P} ${kit.AleadVerb || (kit.AisInfinitiveLed ? "will" : "sucht")} ${kit.Apure}. ${rot("mode.rule", M.rules)}`;
-  const c = `Die Dinge werden ${pick(["fremd", "zu klar", "unruhig", "pr\xE4zise"])}, denn ${kit.obstacle}.`;
-  let t2 = joinBeats([a, b, c, frameTurn(kit.turn), reframeStake(kit.stake), kit.ending], kit.P);
-  t2 = weaveMotif(t2, kit.motif);
-  t2 += " " + ensurePunct(pick([`Und wieder: ${kit.hook}`, `Und von vorn: ${kit.hook}`, `Der Kreis schlie\xDFt sich: ${kit.hook}`]));
-  return t2;
-}
-function buildFragment(kit) {
-  const M = kit.mode;
-  const beats = [
-    cap(ensurePunct(kit.hook)),
-    cap(ensurePunct(kit.obstacle)),
-    cap(frameTurn(kit.turn)),
-    cap(ensurePunct(`${kit.P} h\xE4lt ${kit.propAcc}`)),
-    cap(ensurePunct(rot("mode.rule", M.rules))),
-    cap(ensurePunct(`Es riecht ${rot("mode.img", M.images)}`)),
-    cap(reframeStake(kit.stake)),
-    cap(ensurePunct(kit.ending))
-  ];
-  for (let i = beats.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [beats[i], beats[j]] = [beats[j], beats[i]];
-  }
-  const marks = [
-    "Sp\xE4ter.",
-    "Davor.",
-    "Viel fr\xFCher.",
-    "Und dann, ohne \xDCbergang.",
-    "Irgendwann dazwischen.",
-    "R\xFCckw\xE4rts betrachtet.",
-    `Gegen ${randomFragmentTime()}.`
-  ];
-  for (let i = marks.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [marks[i], marks[j]] = [marks[j], marks[i]];
-  }
-  const woven = [];
-  let mi = 0;
-  beats.forEach((b, i) => {
-    if (i > 0 && Math.random() < 0.5 && mi < marks.length) woven.push(marks[mi++]);
-    woven.push(b);
-  });
-  return joinBeats(woven, kit.P);
-}
-function buildObjectCentric(kit) {
-  const M = kit.mode;
-  const obj = pick(M.nouns);
-  const P2 = kit.P;
-  const a = `Ich bin ${objektName(obj)}. Ich liege ${kit.W}.`;
-  const b = `Ich kenne ${dekliniere(P2, "akk")}. Ich kenne ${kit.hookAcc}.`;
-  const c = `Sie nennen es ${pick(["Fehler", "Vorgang", "Omen", "Signal", "Symptom", "Protokoll", "Zufall", "Nichts"])}. Ich nenne es ${pick(["Erinnerung", "Beweis", "Anfang", "Schuld"])}.`;
-  const d = ensurePunct(rot("mode.rule", M.rules));
-  const e = kit.AisClause ? `${P2} sp\xFCrt: ${kit.Apure}. ${kit.obstacle}.` : `${P2} ${kit.AleadVerb || "will"} ${kit.Apure}. ${kit.obstacle}.`;
-  const f = pick([`Dann sp\xFCre ich: ${kit.turn}.`, `Und dann, durch mich hindurch: ${kit.turn}.`, `Ich registriere: ${kit.turn}.`]);
-  return joinBeats([a, b, c, d, e, f, reframeStake(kit.stake), kit.ending], kit.P);
-}
-var BUILDERS = {
-  linear: buildLinear,
-  reverse: buildReverse,
-  circle: buildCircle,
-  fragment: buildFragment,
-  object: buildObjectCentric
-};
-function pickStructureBuilder(structure) {
-  return BUILDERS[structure] || buildLinear;
-}
-
-// src/generation/markovTrace.ts
-var frags = [];
-function resetMarkovTrace() {
-  frags = [];
-}
-function traceMarkov(s) {
-  const t2 = (s || "").trim();
-  if (t2.length >= 5) frags.push(t2);
-}
-var schluessel2 = (t2) => t2.toLowerCase().replace(/[^a-zäöüß]/g, "").slice(0, 400);
-var nachText = /* @__PURE__ */ new Map();
-function linkMarkovTrace(finalText) {
-  if (!frags.length || !finalText) return;
-  if (nachText.size > 64) {
-    const e = nachText.keys().next().value;
-    if (e) nachText.delete(e);
-  }
-  nachText.set(schluessel2(finalText), frags.slice());
-}
-
-// src/generation/archetypes.data.ts
-var ARCHETYPES = {
-  "neutral": {
-    "label": "Neutral",
-    "weights": {
-      "mode": {
-        "bureau": 1,
-        "tech": 1,
-        "body": 1,
-        "myth": 1,
-        "absurd": 1,
-        "post": 1
-      },
-      "structure": {
-        "linear": 1,
-        "reverse": 1,
-        "circle": 1,
-        "fragment": 1,
-        "object": 1
-      },
-      "perspective": {
-        "third": 1,
-        "first": 1,
-        "second": 1,
-        "we": 1,
-        "object": 1
-      },
-      "rhythm": {
-        "breath": 1,
-        "staccato": 1,
-        "long": 1,
-        "fracture": 1,
-        "clean": 1
-      }
-    },
-    "add": {
-      "motifs": [],
-      "hooks": [],
-      "props": [],
-      "turns": [],
-      "obstacles": [],
-      "stakes": [],
-      "endings": []
-    },
-    "speakers": [
-      "Die Stimme",
-      "Das System",
-      "Ein Unbekannter",
-      "Das Archiv",
-      "Der Apparat"
-    ]
-  },
-  "skorpion": {
-    "label": "Skorpion",
-    "weights": {
-      "mode": {
-        "body": 2.6,
-        "bureau": 1.6,
-        "myth": 1.2,
-        "absurd": 1.1,
-        "tech": 1,
-        "post": 1
-      },
-      "structure": {
-        "circle": 2,
-        "fragment": 1.6,
-        "reverse": 1.3,
-        "linear": 1.1,
-        "object": 1.2
-      },
-      "perspective": {
-        "second": 2.2,
-        "first": 1.7,
-        "third": 1.2,
-        "we": 1,
-        "object": 0.9
-      },
-      "rhythm": {
-        "breath": 2,
-        "staccato": 1.4,
-        "fracture": 1.2,
-        "long": 1,
-        "clean": 0.9
-      }
-    },
-    "add": {
-      "motifs": [
-        "ein Blick, der festh\xE4lt",
-        "eine N\xE4he, die Kontrolle wird",
-        "ein Geheimnis mit Puls",
-        "ein Satz, der Besitz markiert"
-      ],
-      "hooks": [
-        "eine Hand auf dem Nacken",
-        "ein Fl\xFCstern, das an dir klebt",
-        "eine Spur, die dich w\xE4hlt"
-      ],
-      "turns": [
-        "die N\xE4he kippt in Kontrolle",
-        "die Wahrheit wird Besitz",
-        "das Begehren wird zur Regel"
-      ],
-      "obstacles": [
-        "du darfst nicht frei sprechen",
-        "jemand legt fest, was du meinst",
-        "eine Grenze wird unsichtbar gezogen"
-      ],
-      "stakes": [
-        "Der Einsatz ist Bindung.",
-        "Der Einsatz ist Kontrolle.",
-        "Der Einsatz ist Wahrheit: in deiner Hand."
-      ],
-      "endings": [
-        "Und du wusstest, wem es geh\xF6rt.",
-        "Und der Blick blieb.",
-        "Und die N\xE4he war das Urteil."
-      ]
-    },
-    "speakers": [
-      "Die Zeugin",
-      "Der Blick",
-      "Die Hand",
-      "Die Stimme",
-      "Der Vermerk"
-    ]
-  },
-  "psychopath": {
-    "label": "Psychopath",
-    "weights": {
-      "mode": {
-        "bureau": 2.2,
-        "tech": 1.9,
-        "absurd": 1.4,
-        "post": 1.3,
-        "body": 1,
-        "myth": 0.9
-      },
-      "structure": {
-        "reverse": 1.9,
-        "object": 1.7,
-        "fragment": 1.4,
-        "linear": 1.1,
-        "circle": 1
-      },
-      "perspective": {
-        "third": 2,
-        "object": 1.8,
-        "first": 1.2,
-        "second": 1.1,
-        "we": 0.9
-      },
-      "rhythm": {
-        "clean": 2,
-        "staccato": 1.6,
-        "long": 1.1,
-        "fracture": 1.1,
-        "breath": 0.9
-      }
-    },
-    "add": {
-      "motifs": [
-        "ein Protokoll ohne Gef\xFChl",
-        "eine Diagnose im Rand",
-        "ein Experiment mit Namen",
-        "eine Moral als Variable"
-      ],
-      "hooks": [
-        "ein Befund ohne Ursache",
-        "ein Blick wie Messung",
-        "eine Akte, die kalt bleibt"
-      ],
-      "turns": [
-        "die Erkl\xE4rung wird zur Waffe",
-        "das Subjekt wird Objekt",
-        "die Empathie wird gestrichen"
-      ],
-      "obstacles": [
-        "die Zust\xE4ndigkeit ist unklar",
-        "ein Beweis fehlt",
-        "die Definition ist nicht abschlie\xDFend"
-      ],
-      "stakes": [
-        "Der Einsatz ist G\xFCltigkeit.",
-        "Der Einsatz ist Kontrolle: \xFCber Bedeutung.",
-        "Der Einsatz ist Eindeutigkeit."
-      ],
-      "endings": [
-        "Damit ist der Vorgang abgeschlossen.",
-        "Und der Befund blieb bestehen.",
-        "Und niemand musste f\xFChlen."
-      ]
-    },
-    "speakers": [
-      "Der Gutachter",
-      "Das Protokoll",
-      "Die Instanz",
-      "Der Operator",
-      "Die Akte"
-    ]
-  },
-  "entdecker": {
-    "label": "Entdecker",
-    "weights": {
-      "mode": {
-        "myth": 2.1,
-        "mystery": 0,
-        "tech": 1.4,
-        "absurd": 1.3,
-        "body": 1.1,
-        "bureau": 1,
-        "post": 1
-      },
-      "structure": {
-        "fragment": 1.8,
-        "linear": 1.6,
-        "circle": 1.3,
-        "object": 1.2,
-        "reverse": 1
-      },
-      "perspective": {
-        "first": 1.7,
-        "we": 1.6,
-        "second": 1.2,
-        "third": 1.1,
-        "object": 1
-      },
-      "rhythm": {
-        "long": 1.8,
-        "breath": 1.4,
-        "fracture": 1.2,
-        "clean": 1,
-        "staccato": 0.9
-      }
-    },
-    "add": {
-      "motifs": [
-        "eine Karte, die weiterf\xFChrt",
-        "ein Rand, der ruft",
-        "eine T\xFCr hinter der T\xFCr",
-        "ein Zeichen, das Richtung hat"
-      ],
-      "hooks": [
-        "eine Spur im Staub",
-        "ein Lichtstreifen im Wasser",
-        "eine Kante, die einl\xE4dt"
-      ],
-      "turns": [
-        "der Ausgang ist innen",
-        "die Spur f\xFChrt nach innen",
-        "die Richtung wird zum Gesetz"
-      ],
-      "obstacles": [
-        "der Weg verschiebt sich",
-        "die Karte widerspricht sich",
-        "die T\xFCr ist da, aber anders"
-      ],
-      "stakes": [
-        "Der Einsatz ist Mut.",
-        "Der Einsatz ist Richtung.",
-        "Der Einsatz ist Entdeckung."
-      ],
-      "endings": [
-        "Und du gingst weiter.",
-        "Und der Ort \xF6ffnete sich.",
-        "Und die Richtung blieb."
-      ]
-    },
-    "speakers": [
-      "Die Karte",
-      "Der Weg",
-      "Die T\xFCr",
-      "Der Rand",
-      "Das Zeichen"
-    ]
-  }
-};
-
-// src/generation/archetype.ts
-function arch(id) {
-  return ARCHETYPES[id] || ARCHETYPES.neutral;
-}
-function archetypeAugmentList(baseList, archA, archB, key) {
-  const A = arch(archA), B = arch(archB);
-  const extra = [].concat(A.add?.[key] || []).concat(B.add?.[key] || []);
-  const base = Array.isArray(baseList) ? baseList : [];
-  if (extra.length) return base.concat(extra, extra);
-  return base;
-}
-
-// src/generation/verwandlung.ts
-function geschlecht(w) {
-  const kern = (w || "").trim().split(/\s+/).pop() || "";
-  return guessGender(kern.replace(/[^A-Za-zÄÖÜäöüß]/g, ""));
-}
-function leseVerwandlungen(roh) {
-  const raus = [];
-  for (const z of roh || []) {
-    const m = String(z).split(/\s*(?:→|->|>)\s*/);
-    if (m.length !== 2) continue;
-    const von = m[0].trim(), nach = m[1].trim();
-    if (!von || !nach || von.toLowerCase() === nach.toLowerCase()) continue;
-    const g1 = geschlecht(von), g2 = geschlecht(nach);
-    if (!g1 || !g2 || g1 !== g2) continue;
-    raus.push({ von, nach });
-  }
-  return raus;
-}
-function wieGefunden(gefunden, ziel) {
-  const grossAmAnfang = /^[A-ZÄÖÜ]/.test(gefunden);
-  return grossAmAnfang ? ziel.charAt(0).toUpperCase() + ziel.slice(1) : ziel.charAt(0).toLowerCase() + ziel.slice(1);
-}
-function verwandleMotive(text, paare) {
-  if (!text || !paare.length) return text;
-  let t2 = text;
-  for (const { von, nach } of paare) {
-    let gesehen = 0;
-    try {
-      const re = new RegExp(`(^|[^A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])(${escapeRegExp(von)})(?![A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])`, "gi");
-      t2 = t2.replace(re, (ganz, davor, wort) => {
-        gesehen++;
-        return gesehen === 1 ? ganz : davor + wieGefunden(wort, nach);
-      });
-    } catch {
-    }
-  }
-  return t2;
-}
-
-// src/generation/satzwaechter.ts
-var FUNKTION2 = /* @__PURE__ */ new Set([
-  "der",
-  "die",
-  "das",
-  "den",
-  "dem",
-  "des",
-  "ein",
-  "eine",
-  "einen",
-  "einem",
-  "einer",
-  "eines",
-  "und",
-  "oder",
-  "aber",
-  "doch",
-  "denn",
-  "sondern",
-  "als",
-  "wie",
-  "dass",
-  "ob",
-  "weil",
-  "wenn",
-  "ohne",
-  "mit",
-  "von",
-  "aus",
-  "an",
-  "auf",
-  "in",
-  "im",
-  "am",
-  "f\xFCr",
-  "zu",
-  "zum",
-  "zur",
-  "bei",
-  "beim",
-  "nach",
-  "vor",
-  "\xFCber",
-  "unter",
-  "neben",
-  "zwischen",
-  "hinter",
-  "durch",
-  "gegen",
-  "um",
-  "seit",
-  "es",
-  "sich",
-  "man",
-  "sie",
-  "er",
-  "wir",
-  "ich",
-  "du",
-  "ihr",
-  "was",
-  "wer",
-  "wo",
-  "so",
-  "nur",
-  "auch",
-  "noch",
-  "schon",
-  "sehr",
-  "nicht",
-  "kein",
-  "keine",
-  "jeder",
-  "jede",
-  "jedes",
-  "alle"
-]);
-var HAENGENDES_ENDE = /* @__PURE__ */ new Set([
-  "der",
-  "den",
-  "dem",
-  "des",
-  "und",
-  "oder",
-  "aber",
-  "sondern",
-  "als",
-  "dass",
-  "weil",
-  "wenn",
-  "f\xFCr",
-  "zwischen",
-  "seit"
-  // NICHT in der Liste: alles, was im Deutschen legitim am Satzende steht —
-  // trennbare Verbpartikel („geht auf", „holt ihn ein", „gibt nach"),
-  // Infinitiv-zu („um wahr zu sein"), Vergleiche („schwer wie Blei"),
-  // Pronomen und Zahlwörter („der Grat trägt nur einen", „statt einem",
-  // „will es sehr"). Die Gegenprobe über 6930 eingebaute Sätze hat die
-  // Liste auf diesen Kern gestutzt.
-]);
-var ADJEKTIV = /* @__PURE__ */ new Set([
-  "fest",
-  "echt",
-  "leicht",
-  "schlecht",
-  "recht",
-  "dicht",
-  "glatt",
-  "satt",
-  "bunt",
-  "kalt",
-  "alt",
-  "laut",
-  "tot",
-  "rot",
-  "gut",
-  "weit",
-  "hart",
-  "zart",
-  "nett",
-  "matt",
-  "sp\xE4t",
-  "bereit",
-  "breit",
-  "nackt",
-  "exakt",
-  "direkt",
-  "perfekt",
-  "korrekt",
-  "konkret",
-  "komplett",
-  "ernst",
-  "feist",
-  "meist",
-  "erst",
-  "zun\xE4chst",
-  "h\xF6chst",
-  "\xE4u\xDFerst",
-  "einst",
-  "sonst",
-  "fast",
-  "blo\xDF"
-]);
-var HILFSVERB = /* @__PURE__ */ new Set([
-  "bin",
-  "bist",
-  "sind",
-  "seid",
-  "war",
-  "warst",
-  "waren",
-  "wart",
-  "sei",
-  "w\xE4re",
-  "w\xE4ren",
-  "hab",
-  "habe",
-  "hast",
-  "haben",
-  "habt",
-  "hatte",
-  "hatten",
-  "h\xE4tte",
-  "h\xE4tten",
-  "werde",
-  "wirst",
-  "wird",
-  "werden",
-  "werdet",
-  "wurde",
-  "wurden",
-  "w\xFCrde",
-  "w\xFCrden",
-  "kann",
-  "kannst",
-  "k\xF6nnen",
-  "k\xF6nnt",
-  "konnte",
-  "konnten",
-  "k\xF6nnte",
-  "k\xF6nnten",
-  "muss",
-  "musst",
-  "m\xFCssen",
-  "m\xFCsst",
-  "musste",
-  "mussten",
-  "m\xFCsste",
-  "darf",
-  "darfst",
-  "d\xFCrfen",
-  "d\xFCrft",
-  "durfte",
-  "durften",
-  "d\xFCrfte",
-  "soll",
-  "sollst",
-  "sollen",
-  "sollt",
-  "sollte",
-  "sollten",
-  "mag",
-  "magst",
-  "m\xF6gen",
-  "m\xF6gt",
-  "mochte",
-  "m\xF6chte",
-  "m\xF6chten",
-  "will",
-  "willst",
-  "wollen",
-  "wollt",
-  "wollte",
-  "wollten",
-  "l\xE4sst",
-  "lie\xDF",
-  "lie\xDFen",
-  "gibt",
-  "gab",
-  "gaben",
-  "tut",
-  "tat",
-  "schw\xF6r",
-  "schw\xF6re"
-]);
-var verbKandidat = (roh, istErstes = false) => {
-  if (!istErstes && /^[A-ZÄÖÜ]/.test(roh)) return false;
-  const w = roh.toLowerCase().replace(/[^a-zäöüß]/g, "");
-  if (!w || FUNKTION2.has(w) || KEIN_VERB.has(w) || ADJEKTIV.has(w)) return false;
-  if (HILFSVERB.has(w) || istVerbform(w)) return true;
-  return /(t|st|e|en|eln|ern|elt|ert)$/.test(w) && !/(heit|keit|ung|schaft|tät|ment|iert)$/.test(w) && !/(em|er|es)$/.test(w) && w.length >= 3;
-};
-var woerter2 = (s) => s.split(/\s+/).map((w) => w.replace(/[„“"»«().!?…;:]+/g, "")).filter(Boolean);
-var NP_KOPF2 = /^(der|die|das|ein|eine|einen|kein|keine|zwei|drei|viele|manche|jede[rs]?|irgendein|lauter)\b/i;
-function pruefeSatz(satz) {
-  const bare = satz.trim().replace(/[.!?…]+$/, "").trim();
-  if (!bare) return 2;
-  const ws = woerter2(bare);
-  if (!ws.length) return 2;
-  const letztes = ws[ws.length - 1].toLowerCase();
-  if (HAENGENDES_ENDE.has(letztes)) return 1;
-  const hatVerb = ws.some((w, i) => verbKandidat(w, i === 0));
-  if (!hatVerb) {
-    if (ws.length > 12) return 2;
-    const kern = bare.replace(/^(und|aber|doch|dann|denn|oder|nur|auch)\s+/i, "");
-    const kopf = kern.split(/\s+/)[0] || "";
-    const ADVERB_KOPF = /^(irgendwo|irgendwann|irgendwie|dort|hier|heute|morgen|gestern|vielleicht|manchmal|so|bald|überall|nirgends|nirgendwo|draußen|drinnen|oben|unten|jetzt|damals|dennoch|trotzdem|deshalb|darum|davor|danach|zuerst|zuletzt|womöglich|angeblich|vermutlich|wahrscheinlich)$/i;
-    const nomenKopf = /^[A-ZÄÖÜ]/.test(kopf) && !ADVERB_KOPF.test(kopf) && !FUNKTION2.has(kopf.toLowerCase());
-    const prepKopf = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zu|zum|zur|mit|durch|gegen|um|seit|während|trotz|wegen)$/i.test(kopf);
-    if (ws.length > 5 && !NP_KOPF2.test(kern) && !nomenKopf && !prepKopf) return 2;
-  }
-  for (const teil of bare.split(/,\s*/).slice(1)) {
-    const tw = woerter2(teil);
-    if (!tw.length || !/^(was|wer|der|die|das|dem|den|wo|wie)$/i.test(tw[0])) continue;
-    const undIdx = tw.findIndex((w, i) => i > 0 && /^(und|oder)$/i.test(w));
-    if (undIdx > 1 && verbKandidat(tw[undIdx + 1] || "", false) && !tw.slice(1, undIdx).some((w) => verbKandidat(w, false))) return 3;
-  }
-  const PREP_KOPF = /^(in|im|ins|über|überm|unter|unterm|auf|aufs|an|am|ans|bei|beim|hinter|vor|vorm|neben|zwischen|aus|von|vom|nach|zum|zur|mit|durch|gegen|seit|trotz|wegen)$/i;
-  for (const teil of bare.split(/,\s*/)) {
-    const tw = woerter2(teil);
-    if (tw.length < 4 || !PREP_KOPF.test(tw[0])) continue;
-    if (/^(dem|denen|deren|dessen|welche[rmn]?)$/i.test(tw[1] || "")) continue;
-    if (tw.slice(1).some((w) => /^zu$/i.test(w))) continue;
-    const vi = tw.findIndex((w, i) => i > 1 && verbKandidat(w, false));
-    if (vi < 2) continue;
-    if (tw.slice(1, vi).some((w) => /^(es|er|sie|wir|ich|du|man|jemand|niemand|etwas|nichts|alles)$/i.test(w))) continue;
-    const rest = tw.slice(vi + 1);
-    if (/^(wie|als)$/i.test(rest[0] || "") && rest.length <= 2) return 4;
-  }
-  for (const teil of bare.split(/[,;]\s*|\s+(?:und|aber|oder|doch|sondern)\s+/i)) {
-    if (!/\bl(ä|ie)(ss|ß)t?\s+(es\s+)?sich\b/i.test(teil)) continue;
-    const tw = woerter2(teil);
-    const letztes2 = (tw[tw.length - 1] || "").toLowerCase();
-    if (!letztes2 || /^[A-ZÄÖÜ]/.test(tw[tw.length - 1] || "")) continue;
-    if (FUNKTION2.has(letztes2) || ADJEKTIV.has(letztes2) || HILFSVERB.has(letztes2)) continue;
-    if (/t$/.test(letztes2) && !/(en|eln|ern)$/.test(letztes2)) return 5;
-  }
-  const finit = (w) => {
-    const l = w.toLowerCase();
-    if (HILFSVERB.has(l)) return true;
-    return /^[a-zäöüß]{3,}t$/.test(l) && !FUNKTION2.has(l) && !ADJEKTIV.has(l) && !KEIN_VERB.has(l) && istVerbform(l);
-  };
-  for (const teil of bare.split(/[,;:—–]\s*/)) {
-    const tw = woerter2(teil);
-    for (let i = 0; i + 3 < tw.length; i++) {
-      if (!finit(tw[i]) || !/^(der|die|das|den|dem|ein|eine|einen|einem)$/i.test(tw[i + 1])) continue;
-      if (!/^[A-ZÄÖÜ]/.test(tw[i + 2])) continue;
-      if (HILFSVERB.has(tw[i + 3].toLowerCase())) return 6;
-    }
-  }
-  {
-    const auf = (bare.match(/[„»]/g) || []).length, zu = (bare.match(/[“«]/g) || []).length;
-    if (auf !== zu) return 7;
-  }
-  for (const teil of bare.split(/[,;:—–]\s*/))
-    if (/^es gibt(\s+(jetzt|hier|dort|noch|nur|auch|bald|immer|nie))?$/i.test(teil.trim())) return 8;
-  return 0;
-}
-function satzPlausibel(satz) {
-  return pruefeSatz(satz) === 0;
-}
-function stueckPlausibel(text) {
-  const saetze2 = (text || "").split(/(?<=[.!?…])\s+/).map((s) => s.trim()).filter(Boolean);
-  if (!saetze2.length) return false;
-  for (const satz of saetze2) {
-    const regel = pruefeSatz(satz);
-    if (regel) {
-      zaehle(`regel${regel}`, satz);
-      return false;
-    }
-  }
-  zaehle("angenommen", Math.random() < 0.1 ? text : void 0);
-  return true;
-}
-
-// src/corpus.ts
-function loadPersistentCorpus() {
-  try {
-    return localStorage.getItem(STORAGE_CORPUS) || "";
-  } catch {
-    return "";
-  }
-}
-var GERUEST_ZEILE = /^\s*(Faktenkasten\b|Kurz gemeldet\s*$|Fiktive Zeitung\b|Zeitzeichen\s*[·|]|Nr\.\s*\d+\s*[·|]|UNABHÄNGIG\b|SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/;
-function corpusSanitize(text) {
-  let s = (text ?? "").toString();
-  s = s.split(/\r?\n/).filter((z) => !/^\s*(SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE)\s*:)/.test(z)).map((z) => z.replace(/^\s*(?:Shot\s*\d+\s*\([^)]*\)|(?:DE|EN)\s*:)\s*/, "")).join("\n");
-  s = s.replace(/\([^()]*\)/g, " ");
-  s = s.replace(/\b(?:gegen|um|ab|seit|bis)\s+\d{1,2}:\d{2}\b\s*(?:—|–)?\s*/gi, "");
-  s = s.replace(/\b\d{1,2}:\d{2}\b\s*—\s*/g, "");
-  s = s.replace(/\b(Schluss|Notiz|Rand|Gestern|Jetzt|Später|Drei Tage später)\s*—\s*/g, "");
-  s = s.replace(/\bSZENE:\s*/g, "");
-  s = s.split(/\r?\n/).filter((z) => !GERUEST_ZEILE.test(z)).join("\n");
-  s = s.replace(/Faktenkasten\s*·[^\n]*?(?:\.(?=\s+[A-ZÄÖÜ])|$)/g, " ");
-  s = s.replace(/—\s*(?=[.—])/g, "");
-  s = s.replace(/\.{2,}/g, ".");
-  s = s.replace(/\s+/g, " ").trim();
-  return s;
-}
-function isSaneMarkov(s) {
-  if (!s || s.length < 20) {
-    zaehle("markovKurz", s);
-    return false;
-  }
-  const words = s.split(/\s+/);
-  if (words.length < 5) {
-    zaehle("markovWenigWoerter", s);
-    return false;
-  }
-  const freq = {};
-  for (const w of words) freq[w] = (freq[w] || 0) + 1;
-  const maxFreq = Math.max(...Object.values(freq));
-  if (maxFreq / words.length > 0.5) {
-    zaehle("markovWiederholung", s);
-    return false;
-  }
-  const functionWords = /* @__PURE__ */ new Set([
-    "der",
-    "die",
-    "das",
-    "den",
-    "dem",
-    "des",
-    "ein",
-    "eine",
-    "einen",
-    "einem",
-    "einer",
-    "eines",
-    "in",
-    "auf",
-    "an",
-    "bei",
-    "mit",
-    "nach",
-    "von",
-    "aus",
-    "vor",
-    "hinter",
-    "\xFCber",
-    "unter",
-    "neben",
-    "zwischen"
-  ]);
-  let fn = 0;
-  for (const w of words) if (functionWords.has(w.toLowerCase())) fn++;
-  if (fn / words.length > 0.6) {
-    zaehle("markovFunktionswoerter", s);
-    return false;
-  }
-  const sentences = s.split(/[.!?]+/).filter(Boolean);
-  for (const sentence of sentences) {
-    const n = sentence.trim().split(/\s+/).length;
-    if (n > 30 || n < 2) {
-      zaehle("markovSatzlaenge", s);
-      return false;
-    }
-  }
-  const phrases = [];
-  for (let i = 0; i < words.length - 2; i++) phrases.push(words.slice(i, i + 3).join(" "));
-  const pc = {};
-  for (const p of phrases) pc[p] = (pc[p] || 0) + 1;
-  for (const c of Object.values(pc)) if (c >= 3) {
-    zaehle("markovSatzzeichen", s);
-    return false;
-  }
-  if (/\b(Schluss|Notiz|Rand)\s*—|\bSZENE:|dass\s*—|,\s*dass\s*$/i.test(s)) {
-    zaehle("markovBruchstueck", s);
-    return false;
-  }
-  if (/[—–]\s*$/.test(s.trim())) {
-    zaehle("markovBruchstueck", s);
-    return false;
-  }
-  const AUX_MK = /* @__PURE__ */ new Set(["bin", "bist", "ist", "sind", "seid", "war", "warst", "waren", "wart", "hatte", "hattest", "hatten", "hat", "habe", "hast", "habt", "haben", "wurde", "wurdest", "wurden", "wird", "werde", "werden", "w\xE4re", "w\xE4rst", "w\xE4ren"]);
-  const CONN_MK = /* @__PURE__ */ new Set(["und", "oder", "aber", "denn", "sondern", "doch", "weil", "dass", "wenn", "als", "w\xE4hrend", "obwohl", "damit", "sodass", "bevor", "nachdem", "ob", "wie", "wo", "der", "die", "das", "dem", "den"]);
-  for (let i = 0; i < words.length; i++) {
-    const wi = words[i].toLowerCase().replace(/[^a-zäöüß]/g, "");
-    if (!AUX_MK.has(wi)) continue;
-    for (let j = i + 1; j <= Math.min(words.length - 1, i + 3); j++) {
-      const wj = words[j].toLowerCase().replace(/[^a-zäöüß]/g, "");
-      if (CONN_MK.has(wj) || /[,;:]/.test(words[j])) break;
-      const finite = /(t|te|ten|st)$/.test(wj) && CLAUSE_VERBS.has(wj) && !/^ge/.test(wj) && !AUX_MK.has(wj);
-      if (finite) return false;
-    }
-  }
-  const lw = words.map((w) => w.toLowerCase().replace(/[^a-zäöüß]/g, ""));
-  for (let i = 0; i < lw.length; i++) {
-    if (lw[i].length < 5) continue;
-    for (let j = i + 1; j <= Math.min(lw.length - 1, i + 3); j++) {
-      if (lw[j] === lw[i]) return false;
-    }
-  }
-  if (!stueckPlausibel(s)) return false;
-  return true;
-}
-var MK_TAIL_STOP = /* @__PURE__ */ new Set([
-  "und",
-  "oder",
-  "aber",
-  "denn",
-  "sondern",
-  "doch",
-  "wie",
-  "als",
-  "ob",
-  "dass",
-  "weil",
-  "w\xE4hrend",
-  "der",
-  "die",
-  "das",
-  "den",
-  "dem",
-  "des",
-  "ein",
-  "eine",
-  "einen",
-  "einem",
-  "einer",
-  "zu",
-  "in",
-  "auf",
-  "an",
-  "mit",
-  "von",
-  "aus",
-  "vor",
-  "f\xFCr",
-  "bei",
-  "nach",
-  "\xFCber",
-  "unter",
-  "noch",
-  "nur",
-  "auch",
-  "so",
-  "dann",
-  "genau",
-  "im",
-  "am",
-  "beim",
-  "zum",
-  "zur",
-  "ins",
-  "vom",
-  "ans",
-  "aufs",
-  "f\xFCrs",
-  "durchs",
-  "\xFCbers",
-  "ums"
-]);
-function smoothMarkov(s) {
-  let words = (s || "").trim().split(/\s+/).filter(Boolean);
-  if (!words.length) return "";
-  const norm2 = (w) => w.toLowerCase().replace(/[^a-zäöüß]/g, "");
-  const dedup = [];
-  for (const w of words) {
-    const prev = dedup[dedup.length - 1];
-    if (prev && norm2(prev) && norm2(prev) === norm2(w)) continue;
-    dedup.push(w);
-  }
-  words = dedup;
-  while (words.length > 3 && MK_TAIL_STOP.has(norm2(words[words.length - 1]))) words.pop();
-  let t2 = words.join(" ").replace(/\s+([,.;:!?…])/g, "$1").trim();
-  t2 = t2.replace(/[\s,;:—–-]+$/, "");
-  if (t2 && !/[.!?…]$/.test(t2)) t2 += ".";
-  t2 = t2.replace(/^([a-zäöüß])/, (c) => c.toUpperCase());
-  return t2;
-}
-
-// src/generation/autochoice.ts
-function mergeWeights(a, b) {
-  const out = {};
-  for (const [k, w] of Object.entries(a || {})) out[k] = (out[k] || 0) + w;
-  for (const [k, w] of Object.entries(b || {})) out[k] = (out[k] || 0) + w;
-  return out;
-}
-function weightedPick(map) {
-  const entries = Object.entries(map || {}).filter(([, w]) => Number.isFinite(w) && w > 0);
-  if (!entries.length) return null;
-  let sum = 0;
-  for (const [, w] of entries) sum += w;
-  let r = Math.random() * sum;
-  for (const [k, w] of entries) {
-    r -= w;
-    if (r <= 0) return k;
-  }
-  return entries[entries.length - 1][0];
-}
-function biasedAutoChoice(kind, archA, archB) {
-  return weightedPick(mergeWeights(arch(archA).weights?.[kind], arch(archB).weights?.[kind]));
-}
-
 // src/wordbank.ts
 var ACTIVE_KEY = "divergenz_active_preset_v1";
 function loadActiveBankLabel() {
@@ -16323,8 +16362,8 @@ function buildVideoShots(kit, shotCount, lenTarget = 0, bank, tone = "neutral") 
     const out = [];
     for (const roh of a) {
       if (!roh) continue;
-      for (const t2 of atomisiere(stripTailPunct(roh), atomMax)) {
-        const u = praesensUmschreiben(t2);
+      for (const t of atomisiere(stripTailPunct(roh), atomMax)) {
+        const u = praesensUmschreiben(t);
         if (!u.ok) continue;
         const x = stripTailPunct(u.text);
         if (x.split(/\s+/).length < 2 || !satzPlausibel(x + ".")) continue;
@@ -16409,8 +16448,8 @@ function buildVideoShots(kit, shotCount, lenTarget = 0, bank, tone = "neutral") 
     const bild = zieh(bilder, stripTailPunct(kit.motif));
     if ((!erster || stufe >= 2) && bild) setze(teile, `${cap(bild)}.`);
     if (folge && schlaegeJeShot[i].length) {
-      const saetze2 = schlaegeJeShot[i].map(schlagSatz).filter((x) => !!x && !/:\s*\.$/.test(x) && !/^(Nah|Regel|Es geht um|Etwas kippt)[: ]+\.$/.test(x) && x.replace(/[^A-Za-zÄÖÜäöüß]/g, "").length > 3);
-      if (saetze2.length) teile.push(...saetze2.slice(0, stufe >= 3 ? 3 : 2));
+      const saetze = schlaegeJeShot[i].map(schlagSatz).filter((x) => !!x && !/:\s*\.$/.test(x) && !/^(Nah|Regel|Es geht um|Etwas kippt)[: ]+\.$/.test(x) && x.replace(/[^A-Za-zÄÖÜäöüß]/g, "").length > 3);
+      if (saetze.length) teile.push(...saetze.slice(0, stufe >= 3 ? 3 : 2));
       else {
         const b = zieh(bewegungen, kit.hook);
         if (b) setze(teile, `${cap(b)}.`);
@@ -16426,7 +16465,7 @@ function buildVideoShots(kit, shotCount, lenTarget = 0, bank, tone = "neutral") 
       const b = zieh(bewegungen, kit.hook);
       if (b) setze(teile, `${cap(b)}.`);
     }
-    if (stufe >= 1 && !letzter && !teile.some((t2) => t2.startsWith("Nah: "))) {
+    if (stufe >= 1 && !letzter && !teile.some((t) => t.startsWith("Nah: "))) {
       const r = zieh(requisiten, istNP(stripTailPunct(kit.prop)) ? stripTailPunct(kit.prop) : "");
       if (r) setze(teile, `Nah: ${nominativ(r)}.`);
     }
@@ -16439,8 +16478,8 @@ function buildVideoShots(kit, shotCount, lenTarget = 0, bank, tone = "neutral") 
       if (l) setze(teile, `${l}.`);
     }
     if (stufe >= 3 && ton.length) {
-      const t2 = zieh(ton, "");
-      if (t2) setze(teile, ensurePunct(t2).trim());
+      const t = zieh(ton, "");
+      if (t) setze(teile, ensurePunct(t).trim());
     }
     if (stufe >= 4) {
       const b2 = zieh(bilder, "");
@@ -16501,18 +16540,18 @@ function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
   const maxAttempts = Math.min(120, Math.ceil(missing / 6) + 6);
   const used = /* @__PURE__ */ new Set();
   const kurve = ladeKurve();
-  const staemme2 = (t2) => new Set((t2.toLowerCase().match(/[a-zäöüß]{5,}/g) || []).map((x) => x.slice(0, 5)));
+  const staemme = (t) => new Set((t.toLowerCase().match(/[a-zäöüß]{5,}/g) || []).map((x) => x.slice(0, 5)));
   const nominativ = (x) => x.replace(/^einen\s/i, (m) => m[0] === "E" ? "Ein " : "ein ").replace(/^den\s/i, (m) => m[0] === "D" ? "Der " : "der ");
   const endungen = new Set((bank.endings || []).map((e) => clean(e).toLowerCase().replace(/[.!?…]+$/, "")));
-  let saetze2 = out.split(/\n\n+/).flatMap((abs, i) => (i ? ["\n\n"] : []).concat(splitSentences(abs)));
+  let saetze = out.split(/\n\n+/).flatMap((abs, i) => (i ? ["\n\n"] : []).concat(splitSentences(abs)));
   const istSchluss = (x) => endungen.has(clean(x).toLowerCase().replace(/[.!?…]+$/, ""));
-  let schlussAb = saetze2.length - 1;
-  while (schlussAb > 1 && istSchluss(saetze2[schlussAb - 1])) schlussAb--;
+  let schlussAb = saetze.length - 1;
+  while (schlussAb > 1 && istSchluss(saetze[schlussAb - 1])) schlussAb--;
   const einfuegeStellen = () => {
     const idx = [];
-    for (let i = 1; i < schlussAb; i++) if (saetze2[i] !== "\n\n") idx.push(i);
+    for (let i = 1; i < schlussAb; i++) if (saetze[i] !== "\n\n") idx.push(i);
     if (!idx.length) return [schlussAb];
-    if (kurve.an) return idx.map((i) => [i, kurveWert(kurve.werte, i / Math.max(1, saetze2.length - 1))]).sort((a, b) => a[1] - b[1]).map((x) => x[0]);
+    if (kurve.an) return idx.map((i) => [i, kurveWert(kurve.werte, i / Math.max(1, saetze.length - 1))]).sort((a, b) => a[1] - b[1]).map((x) => x[0]);
     const mitte = Math.floor(idx.length / 2);
     const aus = [];
     for (let k = 0; k < idx.length; k++) {
@@ -16542,9 +16581,9 @@ function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
       return k && !used.has(k) && !out.toLowerCase().includes(k);
     });
     if (!fresh.length) return null;
-    const st2 = staemme2(davor);
-    const anschluss = st2.size ? fresh.filter((c) => {
-      for (const x of staemme2(c)) if (st2.has(x)) return true;
+    const st = staemme(davor);
+    const anschluss = st.size ? fresh.filter((c) => {
+      for (const x of staemme(c)) if (st.has(x)) return true;
       return false;
     }) : [];
     const chosen = anschluss.length && Math.random() < 0.7 ? pick(anschluss) : pick(fresh);
@@ -16553,12 +16592,12 @@ function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
   };
   let leer2 = 0;
   for (let a = 0; a < maxAttempts; a++) {
-    out = saetze2.join(" ").replace(/ \n\n /g, "\n\n");
+    out = saetze.join(" ").replace(/ \n\n /g, "\n\n");
     if (count(out) >= target - tol) break;
     const stellen = einfuegeStellen();
     const at = stellen[stelleNr % stellen.length];
     stelleNr++;
-    const davor = saetze2[at - 1] && saetze2[at - 1] !== "\n\n" ? saetze2[at - 1] : saetze2[at] || "";
+    const davor = saetze[at - 1] && saetze[at - 1] !== "\n\n" ? saetze[at - 1] : saetze[at] || "";
     const add = addition(davor);
     if (!add) {
       if (++leer2 >= 3) {
@@ -16569,10 +16608,10 @@ function enforceWordTarget(text, target, bank, model, markovMode = "mix") {
     }
     let ca = add.text.trim().replace(/^[a-z]/, (c) => c.toUpperCase()).replace(/\s+([,.;:!?…])/g, "$1");
     if (!/[.!?…]$/.test(ca)) ca += ".";
-    saetze2 = [...saetze2.slice(0, at), ca, ...saetze2.slice(at)];
+    saetze = [...saetze.slice(0, at), ca, ...saetze.slice(at)];
     schlussAb++;
   }
-  out = saetze2.join(" ").replace(/ \n\n /g, "\n\n").replace(/[ \t]+/g, " ").trim();
+  out = saetze.join(" ").replace(/ \n\n /g, "\n\n").replace(/[ \t]+/g, " ").trim();
   return ensurePunct(out);
 }
 
@@ -17461,8 +17500,11 @@ function resetTrace() {
 function pushTrace(s) {
   spur.push(s);
 }
+function getTrace() {
+  return spur.slice();
+}
 var nachText2 = /* @__PURE__ */ new Map();
-var schluessel3 = (t2) => t2.toLowerCase().replace(/[^a-zäöüß]/g, "").slice(0, 400);
+var schluessel3 = (t) => t.toLowerCase().replace(/[^a-zäöüß]/g, "").slice(0, 400);
 function linkTrace(finalText) {
   if (!spur.length || !finalText) return;
   if (nachText2.size > 64) {
@@ -17472,7 +17514,7 @@ function linkTrace(finalText) {
   nachText2.set(schluessel3(finalText), spur.slice());
 }
 function pruefeAbgleich(endtext) {
-  const norm2 = (t2) => t2.toLowerCase().replace(/[^a-zäöüß ]/g, " ").replace(/\s+/g, " ").trim();
+  const norm2 = (t) => t.toLowerCase().replace(/[^a-zäöüß ]/g, " ").replace(/\s+/g, " ").trim();
   const ziel = norm2(endtext);
   abweichung = [];
   for (const s of spur) {
@@ -17488,7 +17530,7 @@ function pruefeAbgleich(endtext) {
 // src/atoms/rekombination.ts
 var GERUESTZEILE = /(^|\s)(SEQUENZ\s*—|(?:WER|WO|WANN|WAS|GESAMTLÄNGE|DE|EN)\s*:|Shot\s*\d+\s*\()/;
 var GERUEST_MARKE = /^(?:SEQUENZ\s*—[^\n]*|(?:WER|WO|WANN|WAS|GESAMTLÄNGE|DE|EN)\s*:|Shot\s*\d+\s*\([^)]*\))\s*/;
-var traegtPerson = (t2) => (t2.toLowerCase().match(/[a-zäöüß]+/g) || []).some((w) => !!ICH_DU_ZU_ER[w]);
+var traegtPerson = (t) => (t.toLowerCase().match(/[a-zäöüß]+/g) || []).some((w) => !!ICH_DU_ZU_ER[w]);
 function buildPool(bank, perspektive, what, figur, model, markovMode) {
   const pool = [];
   let i = 0;
@@ -17497,9 +17539,9 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
     const lead = extractLeadVerb(w);
     const kern = lead.rest.replace(/[.!?…]+$/, "");
     const P2 = figur || "Jemand";
-    const saetze2 = lead.isInfinitiveLed ? [`${P2} will ${kern}`, `Alles dr\xE4ngt darauf, ${kern.replace(/(\S+)$/, "zu $1")}`] : lead.verb ? [`${P2} ${lead.verb} ${kern}`] : looksLikeFullClause(lead.verb, kern) || hatFinitesVerb(kern) || !wirktNominal(kern) ? [kern] : [`Es geht um eines: ${kern}`, `${P2} sucht ${kern}`];
-    for (const t2 of saetze2) {
-      const d = deriveAtom(t2);
+    const saetze = lead.isInfinitiveLed ? [`${P2} will ${kern}`, `Alles dr\xE4ngt darauf, ${kern.replace(/(\S+)$/, "zu $1")}`] : lead.verb ? [`${P2} ${lead.verb} ${kern}`] : looksLikeFullClause(lead.verb, kern) || hatFinitesVerb(kern) || !wirktNominal(kern) ? [kern] : [`Es geht um eines: ${kern}`, `${P2} sucht ${kern}`];
+    for (const t of saetze) {
+      const d = deriveAtom(t);
       pool.push({ ...d, id: `was-${pool.length}`, quelle: "kontext", kategorie: "was", verlangt: null, bruchgrad: 0 });
     }
   }
@@ -17518,12 +17560,12 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
       // "schluss": Bei Preset-2.0-Boegen stehen dort Stilworte ("offen"), bei
       // Erzaehlerbank-Boegen ganze Schlusssaetze. Nur was ein Satz sein kann
       // (ab fuenf Woertern) kommt in den Pool — Stilworte bleiben draussen.
-      ["schluss", (drama.schluss || []).filter((t2) => (t2 || "").trim().split(/\s+/).length >= 5)]
+      ["schluss", (drama.schluss || []).filter((t) => (t || "").trim().split(/\s+/).length >= 5)]
     ];
     for (const [kat, arr] of felder) {
       if (!Array.isArray(arr)) continue;
-      for (const t2 of arr) {
-        const roh0 = (t2 || "").trim();
+      for (const t of arr) {
+        const roh0 = (t || "").trim();
         if (roh0.length < 4) continue;
         for (const roh of atomisiere(roh0, atomMax)) {
           const d = deriveAtom(roh);
@@ -17565,9 +17607,9 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
   if (korpusDeckel > 0) {
     const eigene2 = new Set((figur || "").toLowerCase().split(/[,;]/).map((x) => x.trim()).filter(Boolean));
     const roh = corpusSanitize(loadPersistentCorpus());
-    const saetze2 = roh.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter((x) => x.length > 12);
+    const saetze = roh.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter((x) => x.length > 12);
     let genommen = 0;
-    for (const satz of saetze2) {
+    for (const satz of saetze) {
       if (genommen >= korpusDeckel) break;
       const rein = satz.replace(GERUEST_MARKE, "").trim();
       if (rein !== satz && !/[.!?…]$/.test(rein)) continue;
@@ -17584,8 +17626,8 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
   for (const [kat, arr] of Object.entries(bank)) {
     if (!Array.isArray(arr)) continue;
     if (KEINE_KATEGORIE.has(kat)) continue;
-    for (const roh of arr) for (const t2 of atomisiere(roh, atomMax)) {
-      const d = deriveAtom(t2);
+    for (const roh of arr) for (const t of atomisiere(roh, atomMax)) {
+      const d = deriveAtom(t);
       pool.push({
         ...d,
         id: `wb-${++i}`,
@@ -17617,7 +17659,7 @@ function buildPool(bank, perspektive, what, figur, model, markovMode) {
   return pool;
 }
 var divergenzOf = (input) => (input.varLevel === "high" ? 85 : input.varLevel === "low" ? 30 : 60) + (input.instability >= 2 ? 10 : 0);
-var wirktNominal = (t2) => /^\s*(ein|eine|einen|einem|eines|einer|der|die|das|den|dem|des|mein|meine|meinen|sein|seine|ihr|ihre|kein|keine|viele|manche|jede|jeden|etwas|nichts|[A-ZÄÖÜ])/.test(t2);
+var wirktNominal = (t) => /^\s*(ein|eine|einen|einem|eines|einer|der|die|das|den|dem|des|mein|meine|meinen|sein|seine|ihr|ihre|kein|keine|viele|manche|jede|jeden|etwas|nichts|[A-ZÄÖÜ])/.test(t);
 var FLACH = /* @__PURE__ */ new Set(["nominalphrase", "praepositionalphrase", "fragment", "einwort"]);
 function buildRekombination(bank, input, model) {
   const pool = buildPool(
@@ -17675,7 +17717,7 @@ function buildRekombination(bank, input, model) {
     }
     return frei;
   };
-  const anfangVon = (t2) => t2.toLowerCase().replace(/[^a-zäöüß ]/g, "").trim().split(/\s+/).slice(0, 3).join(" ");
+  const anfangVon = (t) => t.toLowerCase().replace(/[^a-zäöüß ]/g, "").trim().split(/\s+/).slice(0, 3).join(" ");
   resetTrace();
   const mitBogen = input.structure === "bogen";
   setBogenModus(mitBogen);
@@ -17851,18 +17893,18 @@ function buildVersAtome(bank, input, model) {
   };
   const raus = [];
   for (const a of pool) {
-    const t2 = fuelleKontext(a.text, ctx);
-    if (offeneSlots(t2)) continue;
+    const t = fuelleKontext(a.text, ctx);
+    if (offeneSlots(t)) continue;
     if (a.typ === "kopf") continue;
-    const rein = t2.replace(/[.!?…:;]+$/, "").trim();
+    const rein = t.replace(/[.!?…:;]+$/, "").trim();
     if (rein.split(/\s+/).length >= 2) raus.push(rein);
   }
   return [...new Set(raus)];
 }
 
 // src/features/ressorts.ts
-var S = (t2) => ({ t: t2 });
-var P = (t2) => ({ t: t2, pl: true });
+var S = (t) => ({ t });
+var P = (t) => ({ t, pl: true });
 var RESSORTS = {
   wirtschaft: {
     id: "wirtschaft",
@@ -18810,7 +18852,7 @@ function buildMeldung(input, ressort = "auto") {
   const blick = blickVonTon(input.tone || "");
   const ziel = Number.isFinite(input.lenTarget) ? input.lenTarget : 60;
   const wieviel = ziel <= 60 ? 1 : ziel <= 120 ? 2 : 3;
-  const saetze2 = [vorspann2(fb)];
+  const saetze = [vorspann2(fb)];
   const folge = [
     fb.zahlen[0] ? zahlSatz2(fb.zahlen[0], blick) : "",
     schritt(fb),
@@ -18819,12 +18861,12 @@ function buildMeldung(input, ressort = "auto") {
   const SCHLUSS = "Weitere Angaben liegen zun\xE4chst nicht vor.";
   const MAX_SAETZE = 4;
   for (const s of folge) {
-    if (saetze2.length >= MAX_SAETZE) break;
-    if (saetze2.length - 1 >= wieviel && worte(saetze2.join(" ")) >= 30) break;
-    saetze2.push(s);
+    if (saetze.length >= MAX_SAETZE) break;
+    if (saetze.length - 1 >= wieviel && worte(saetze.join(" ")) >= 30) break;
+    saetze.push(s);
   }
-  if (saetze2.length < MAX_SAETZE && worte(saetze2.join(" ")) + worte(SCHLUSS) <= 70) saetze2.push(SCHLUSS);
-  return { text: saetze2.join(" "), fb };
+  if (saetze.length < MAX_SAETZE && worte(saetze.join(" ")) + worte(SCHLUSS) <= 70) saetze.push(SCHLUSS);
+  return { text: saetze.join(" "), fb };
 }
 
 // src/generation/emphasis.ts
@@ -18903,8 +18945,8 @@ function applyEmphasis(text, kit, w) {
   const gesehen = /* @__PURE__ */ new Set();
   const genannt = /* @__PURE__ */ new Set();
   {
-    const tl2 = text.toLowerCase();
-    for (const w2 of werte2) if (tl2.includes(w2)) genannt.add(w2);
+    const tl = text.toLowerCase();
+    for (const w2 of werte2) if (tl.includes(w2)) genannt.add(w2);
   }
   for (const [n, gen] of gens) {
     const count2 = Math.max(0, Math.min(3, n | 0));
@@ -19437,11 +19479,11 @@ function insertStanzasByTheme(lines, target, unit = 1) {
 
 // src/generation/reim.ts
 function verseLine(s) {
-  let t2 = capLine(s);
-  const q = (t2.match(/["„“”]/g) || []).length;
-  if (q % 2 === 1) t2 = t2.replace(/["„“”]/g, "");
-  t2 = t2.replace(/^[\s"„“”'’]+/, "");
-  return t2.charAt(0).toUpperCase() + t2.slice(1);
+  let t = capLine(s);
+  const q = (t.match(/["„“”]/g) || []).length;
+  if (q % 2 === 1) t = t.replace(/["„“”]/g, "");
+  t = t.replace(/^[\s"„“”'’]+/, "");
+  return t.charAt(0).toUpperCase() + t.slice(1);
 }
 var REIM_KEIN_ENDE = /^(ich|du|er|sie|es|wir|man|ihn|ihm|mir|mich|dir|dich|uns|euch|sich|selbst|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|jede|jeder|jedes|alle|viele|manche|diese|dieser|dieses|keinen|keinem|keiner|genau|sehr|ganz|so|noch|nur|auch|schon|immer|wieder)$/i;
 function reimCoreOf(phrase, targetWords) {
@@ -19488,12 +19530,12 @@ function lineWithRhyme(phrase, rhymeWord, targetWords, connector) {
 }
 function applyReimPoem(rawText, anchorLine = "", lenTarget = 0, atome = []) {
   const opts = lenTarget > 0 ? { ...REIM_DEFAULTS, targetLines: Math.max(8, Math.min(64, Math.round(lenTarget / 6))) } : REIM_DEFAULTS;
-  let t2 = normalizeNewlines(rawText || "").trim().replace(/\([^()]*\)/g, " ").replace(/\bShot\s*\d+\b.*$/gim, "").replace(/\b\d{1,2}\s*:\s*\d{2}\b\s*—\s*/g, "").replace(/\s+/g, " ").trim();
+  let t = normalizeNewlines(rawText || "").trim().replace(/\([^()]*\)/g, " ").replace(/\bShot\s*\d+\b.*$/gim, "").replace(/\b\d{1,2}\s*:\s*\d{2}\b\s*—\s*/g, "").replace(/\s+/g, " ").trim();
   let phrases = [];
   if (atome.length >= 6) {
     phrases = atome.map((a) => a.trim()).filter((a) => a.length >= 6);
   } else {
-    for (const s of splitSentences(t2)) phrases.push(...String(s).split(/[,;:—–]\s*/g).map((p) => p.trim()).filter(Boolean));
+    for (const s of splitSentences(t)) phrases.push(...String(s).split(/[,;:—–]\s*/g).map((p) => p.trim()).filter(Boolean));
   }
   phrases = phrases.map((p) => p.replace(/^Und\s+/i, "").trim()).filter((p) => p.length >= 6);
   phrases = reimDedupePhrases(phrases);
@@ -19654,9 +19696,9 @@ function fixHaikuCaps(line) {
 }
 function applyHaikuPoem(rawText, anchorLine = "", lenTarget = 0, atome = []) {
   const opts = lenTarget > 0 ? { ...HAIKU_DEFAULTS, maxHaikus: Math.max(2, Math.min(40, Math.round(lenTarget / 12))) } : HAIKU_DEFAULTS;
-  let t2 = normalizeNewlines(rawText || "").trim().replace(/\([^()]*\)/g, " ").replace(/[„“”"»«]/g, " ").replace(/\b(den|dem|einen|einem|der|die|das)\s+Satz\b/gi, " ").replace(/\bShot\s*\d+\b.*$/gim, "").replace(/\b\d{1,2}\s*:\s*\d{2}\b\s*—\s*/g, "").replace(/\s+/g, " ").trim();
+  let t = normalizeNewlines(rawText || "").trim().replace(/\([^()]*\)/g, " ").replace(/[„“”"»«]/g, " ").replace(/\b(den|dem|einen|einem|der|die|das)\s+Satz\b/gi, " ").replace(/\bShot\s*\d+\b.*$/gim, "").replace(/\b\d{1,2}\s*:\s*\d{2}\b\s*—\s*/g, "").replace(/\s+/g, " ").trim();
   let phrases = [];
-  for (const s of splitSentences(t2)) phrases.push(...String(s).split(/[,;:—–]\s*/g).map((p) => p.trim()).filter(Boolean));
+  for (const s of splitSentences(t)) phrases.push(...String(s).split(/[,;:—–]\s*/g).map((p) => p.trim()).filter(Boolean));
   phrases = phrases.map((p) => p.replace(/^Und\s+/i, "").trim()).filter((p) => p.length >= 4);
   const concrete = phrases.filter((p) => !/^(aber|denn|weil|dass|ob|doch|also)\b/i.test(p)).filter((p) => !/\b(Wahrheit|Bedeutung|Einsatz|Gültigkeit|Prinzip|Kontrolle|bedeutet|vielleicht)\b/i.test(p));
   if (concrete.length >= 2) phrases = concrete;
@@ -19710,9 +19752,9 @@ function applyHaikuPoem(rawText, anchorLine = "", lenTarget = 0, atome = []) {
   };
   const haikus = [];
   for (let h = 0; h < opts.maxHaikus; h++) {
-    const [t1, t22, t3] = opts.pattern;
+    const [t1, t2, t3] = opts.pattern;
     const l1 = (chance(0.75) ? fromBank(HAIKU_KIGO, t1) : null) || fromMaterial(t1) || fromBank(HAIKU_KIGO, t1) || fromMaterial(t1, false) || greedyLine(t1);
-    let l2 = fromMaterial(t22) || fromBank(HAIKU_NATURE7, t22) || fromMaterial(t22, false) || greedyLine(t22);
+    let l2 = fromMaterial(t2) || fromBank(HAIKU_NATURE7, t2) || fromMaterial(t2, false) || greedyLine(t2);
     const ganzKnapp = (() => {
       const k = fromMaterial(t3, false, true);
       if (!k) return null;
@@ -19721,7 +19763,7 @@ function applyHaikuPoem(rawText, anchorLine = "", lenTarget = 0, atome = []) {
     const l3 = fromMaterial(t3, true, true) || ganzKnapp || fromBank(HAIKU_CLOSERS, t3) || fromMaterial(t3) || fromMaterial(t3, false) || greedyLine(t3);
     if (chance(0.7)) l2 += " \u2013";
     const f1 = passeSilben(l1, t1, haikuSyllOf);
-    const f2 = passeSilben(l2.replace(/\s*–\s*$/, ""), t22, haikuSyllOf) + (/–\s*$/.test(l2) ? " \u2013" : "");
+    const f2 = passeSilben(l2.replace(/\s*–\s*$/, ""), t2, haikuSyllOf) + (/–\s*$/.test(l2) ? " \u2013" : "");
     const f3 = passeSilben(l3, t3, haikuSyllOf);
     haikus.push([fixHaikuCaps(cap(capLine(f1))), fixHaikuCaps(cap(capLine(f2))), fixHaikuCaps(cap(capLine(f3)))]);
     if (cands.length < 4) break;
@@ -19811,13 +19853,13 @@ function mergeDanglingLines(lines, opts) {
 }
 function applyStrangPoem(rawText, anchorLine = "", lenTarget = 0) {
   const opts = lenTarget > 0 ? { ...STRANG_DEFAULTS, targetLines: Math.max(8, Math.min(64, Math.round(lenTarget / 6.5))) } : STRANG_DEFAULTS;
-  let t2 = normalizeNewlines(rawText || "").trim().replace(/\([^()]*\)/g, " ").replace(/\bShot\s*\d+\b.*$/gim, "").replace(/\bHandheld\b.*$/gim, "").replace(/\b\d{1,2}\s*:\s*\d{2}\b\s*—\s*/g, "").replace(/\s+/g, " ").trim();
-  t2 = t2.replace(/\bDer\s+Einsatz\s+ist\s*[:,]?\s*([^.!?\n]+)[.!?]?/gi, (_m, x) => {
+  let t = normalizeNewlines(rawText || "").trim().replace(/\([^()]*\)/g, " ").replace(/\bShot\s*\d+\b.*$/gim, "").replace(/\bHandheld\b.*$/gim, "").replace(/\b\d{1,2}\s*:\s*\d{2}\b\s*—\s*/g, "").replace(/\s+/g, " ").trim();
+  t = t.replace(/\bDer\s+Einsatz\s+ist\s*[:,]?\s*([^.!?\n]+)[.!?]?/gi, (_m, x) => {
     const k = (x || "").trim();
     return k ? `Wenn es wahr wird, verlieren wir ${k}.` : "";
   });
   let phrases = [];
-  for (const s of splitSentences(t2)) phrases.push(...String(s).split(/[,;:—–]\s*/g).map((p) => p.trim()).filter(Boolean));
+  for (const s of splitSentences(t)) phrases.push(...String(s).split(/[,;:—–]\s*/g).map((p) => p.trim()).filter(Boolean));
   phrases = phrases.map((p) => p.replace(/^(Und|Aber|Denn|Doch|Also)\s+/i, "").trim()).filter((p) => p.length >= 6).filter((p) => !/^Alles\s+ist\s+korrekt/i.test(p));
   phrases = reimDedupePhrases(phrases);
   const anchor = anchorLine.trim();
@@ -19989,9 +20031,9 @@ function dedupeSoft(units, maxRepeat = 2) {
   });
   const counts = /* @__PURE__ */ new Map();
   out = out.filter((u) => {
-    const keyTokens = (u.toLowerCase().match(/[a-zäöüß]+/g) || []).filter((t2) => t2.length >= 6);
-    for (const t2 of keyTokens) counts.set(t2, (counts.get(t2) || 0) + 1);
-    const over = keyTokens.filter((t2) => (counts.get(t2) || 0) > maxRepeat).length;
+    const keyTokens = (u.toLowerCase().match(/[a-zäöüß]+/g) || []).filter((t) => t.length >= 6);
+    for (const t of keyTokens) counts.set(t, (counts.get(t) || 0) + 1);
+    const over = keyTokens.filter((t) => (counts.get(t) || 0) > maxRepeat).length;
     return over <= Math.max(1, Math.floor(keyTokens.length * 0.5));
   });
   return out;
@@ -20199,7 +20241,15 @@ function buildStory(bank, input, model) {
     const rk = buildRekombination(bank, input, model);
     if (rk.trim()) {
       zeitlupeStufe("Bau", rk);
-      const gebrochen = applyDisruptor(rk, input.disruptor).text;
+      let mitEcho = rk;
+      {
+        const e = setzeEchos(rk, bank);
+        if (e.echos.length) {
+          mitEcho = e.text;
+          zeitlupeStufe("Echo", mitEcho);
+        }
+      }
+      const gebrochen = applyDisruptor(mitEcho, input.disruptor).text;
       zeitlupeStufe("St\xF6rung", gebrochen);
       const fertig = postProcessText(paragraphize(gebrochen), input);
       linkTrace(fertig);
@@ -20219,6 +20269,13 @@ function buildStory(bank, input, model) {
   if (input.form === "prose" && input.emphasis) {
     text = applyEmphasis(text, kit, input.emphasis);
     zeitlupeStufe("Betonung", text);
+  }
+  if (input.form === "prose") {
+    const e = setzeEchos(text, bank);
+    if (e.echos.length) {
+      text = e.text;
+      zeitlupeStufe("Echo", text);
+    }
   }
   text = applyDisruptor(text, input.disruptor).text;
   zeitlupeStufe("St\xF6rung", text);
@@ -20250,9 +20307,1157 @@ function buildStory(bank, input, model) {
   return ende;
 }
 
-// test/zeitlupe.ts
-var dom = new import_jsdom.JSDOM("<!doctype html><html><body></body></html>", { url: "https://x.test/" });
-globalThis.localStorage = dom.window.localStorage;
+// src/presets.drama.data.ts
+var D = (einstieg, mitte, hoehepunkt, konflikte, ausloeser, veraenderungen, zeitanomalien, regeln, schluss) => ({ einstieg, mitte, hoehepunkt, schluss, ausloeser, veraenderungen, konflikte, zeitanomalien, regeln });
+var BUILTIN_DRAMA = {
+  kafka: D(
+    ["alles liegt an seinem Platz, und genau das beunruhigt", "die Formulare sind bereits ausgef\xFCllt", "niemand hat die T\xFCr ge\xF6ffnet, sie stand offen"],
+    ["die Zust\xE4ndigkeit wandert von Zimmer zu Zimmer", "eine Auskunft widerspricht der vorigen, beide sind g\xFCltig", "der Gang verzweigt sich, jede Abzweigung f\xFChrt zur\xFCck"],
+    ["die Akte tr\xE4gt den eigenen Namen", "das Verfahren war l\xE4ngst abgeschlossen"],
+    ["eine Auskunft, die niemand gibt", "eine Frist ohne Anfang", "eine Schuld ohne Anklage"],
+    ["ein Bescheid ohne Absender", "eine Unterschrift, die niemand leisten kann", "ein Stempel auf dem falschen Blatt"],
+    ["die Zust\xE4ndigkeit wechselt", "der Vorgang beginnt von vorn", "die Frage verwandelt sich in ihre Antwort"],
+    ["Die Frist l\xE4uft r\xFCckw\xE4rts.", "Der Termin liegt bereits hinter dem Antrag."],
+    ["Wer fragt, bekommt eine Nummer.", "Jede Auskunft ist vorl\xE4ufig und endg\xFCltig zugleich."],
+    ["offen", "beklemmend"]
+  ),
+  bureau: D(
+    ["die Warteschlange bewegt sich nicht", "der Schalter ist besetzt und leer zugleich", "auf dem Tisch liegt ein Stift ohne Mine"],
+    ["ein Formular verlangt ein zweites", "die Nummer wird aufgerufen, geh\xF6rt aber niemandem", "der Aktenschrank \xF6ffnet sich in einen weiteren Flur"],
+    ["die Zust\xE4ndigkeit wird endg\xFCltig ungekl\xE4rt", "das eigene Aktenzeichen erlischt"],
+    ["eine Zust\xE4ndigkeit, die niemand annimmt", "einen Vorgang ohne Ende", "eine Best\xE4tigung, die sich selbst widerruft"],
+    ["ein Formular in dreifacher Ausfertigung", "eine Wartenummer aus einem anderen Jahr", "ein Dienstsiegel ohne Beh\xF6rde"],
+    ["der Vorgang wird umgeleitet", "die Frist verl\xE4ngert sich von selbst", "das Verfahren beginnt still von vorn"],
+    ["Der Sprechtag liegt immer gestern.", "Die Bearbeitungszeit w\xE4chst mit jeder Nachfrage."],
+    ["Kein Vorgang endet, er ruht nur.", "Wer wartet, wird Teil des Verfahrens."],
+    ["offen", "resigniert"]
+  ),
+  mystery: D(
+    ["das Haus ist zu still f\xFCr die Uhrzeit", "im Flur brennt Licht, das niemand angelassen hat", "die T\xFCr f\xE4llt zu, bevor jemand sie ber\xFChrt"],
+    ["eine Spur f\xFChrt zur\xFCck in den eigenen Weg", "der Zeuge erinnert sich an etwas, das nicht geschah", "hinter der Wand geht jemand denselben Gang"],
+    ["die Erkl\xE4rung stimmt, und macht alles schlimmer", "der Fund war die ganze Zeit sichtbar"],
+    ["eine Wahrheit, die niemand h\xF6ren will", "ein Verschwinden ohne L\xFCcke", "einen Zeugen, der sich selbst widerspricht"],
+    ["ein Schl\xFCssel, der nirgends passt", "ein Anruf ohne Stimme", "ein Foto mit einer Person zu viel"],
+    ["die Spur kehrt sich um", "der Verdacht wechselt die Richtung", "das Vertraute wird fremd"],
+    ["Zwischen zwei Blicken vergeht eine Nacht.", "Die Uhr im Nebenzimmer geht anders."],
+    ["Nichts verschwindet, es wird nur nicht mehr gesucht.", "Wer genau hinsieht, wird selbst gesehen."],
+    ["offen", "unheimlich"]
+  ),
+  freud: D(
+    ["das Zimmer ist auf angenehme Weise zu warm", "der Satz bricht ab, bevor er gef\xE4hrlich wird", "das Sofa erinnert sich an alle, die darauf lagen"],
+    ["ein Wort rutscht heraus und meint ein anderes", "die Erinnerung \xE4ndert sich beim Erz\xE4hlen", "der Traum liefert die Antwort auf die falsche Frage"],
+    ["das Verdr\xE4ngte spricht mit vertrauter Stimme", "der Widerstand gibt genau an der Stelle nach"],
+    ["einen Wunsch, den niemand zugibt", "eine Erinnerung, die sich selbst erfindet", "eine Angst mit fremdem Gesicht"],
+    ["ein Versprecher im falschen Moment", "ein wiederkehrender Traum", "ein Name, der nicht einfallen will"],
+    ["das Verdr\xE4ngte kehrt zur\xFCck", "die Deutung dreht den Sinn um", "der Wunsch zeigt sein Gegenteil"],
+    ["Die Kindheit liegt n\xE4her als gestern.", "Ein Satz dauert l\xE4nger, als er braucht."],
+    ["Nichts wird vergessen, es wird nur woanders abgelegt.", "Jede Abwehr verr\xE4t, was sie sch\xFCtzt."],
+    ["offen", "analytisch"]
+  ),
+  rimbaud: D(
+    ["das Wasser tr\xE4gt Licht, das nicht vom Himmel stammt", "der Kiel schneidet durch eine Farbe ohne Namen", "die K\xFCste l\xF6st sich auf, ohne zu verschwinden"],
+    ["der Horizont wechselt die Seite", "das Meer schreibt und l\xF6scht denselben Satz", "der Mast singt in einer fremden Sprache"],
+    ["das Schiff gehorcht keinem Kurs mehr", "der Rausch schl\xE4gt in Klarheit um"],
+    ["eine Freiheit ohne Ufer", "einen Rausch, der n\xFCchtern macht", "eine Fahrt ohne Ziel und ohne Umkehr"],
+    ["ein Sturm aus heiterem Licht", "ein trunkenes Boot", "ein Wort in einer erfundenen Sprache"],
+    ["die Farben kippen", "das Meer verwandelt sich in Sprache", "der K\xF6rper l\xF6st sich in Bewegung auf"],
+    ["Ein Tag dauert eine Farbe lang.", "Die Nacht beginnt mitten am Nachmittag."],
+    ["Wer sieht, verbrennt.", "Jede Ordnung ist nur eine m\xFCde Farbe."],
+    ["offen", "rauschhaft"]
+  ),
+  traumbilder: D(
+    ["der Raum ist gr\xF6\xDFer als von au\xDFen", "der Schlaf hat noch nicht ganz aufgeh\xF6rt", "die T\xFCr f\xFChrt in dasselbe Zimmer zur\xFCck"],
+    ["der Flur ordnet sich bei jedem Blick neu", "eine Treppe endet h\xF6her, als sie begann", "die Gesichter wechseln, ohne sich zu \xE4ndern"],
+    ["das Erwachen misslingt zweimal", "der Traum erkl\xE4rt sich und bleibt unverst\xE4ndlich"],
+    ["eine Grenze zwischen Schlaf und Wachen", "eine Erinnerung, die beim Zugreifen zerf\xE4llt", "einen Raum, den es nicht gibt"],
+    ["ein Wecker, der r\xFCckw\xE4rts l\xE4uft", "ein Schl\xFCssel ohne Schloss", "ein Ger\xE4usch, das erst beim Aufwachen aufh\xF6rt"],
+    ["der Boden beginnt sich zu drehen", "die Zeit verdoppelt sich ohne Fortschritt", "das Spiegelbild reagiert zu sp\xE4t"],
+    ["Eine Minute enth\xE4lt eine ganze Nacht.", "Die Uhr springt, sobald niemand hinsieht."],
+    ["Im Traum ist jede Richtung nach unten.", "Wer den Traum benennt, verliert ihn."],
+    ["offen", "schwebend"]
+  ),
+  ritterromane: D(
+    ["die Burg liegt tiefer im Nebel als gestern", "das Tor steht offen, was es nie tut", "die R\xFCstung h\xE4ngt bereit, obwohl niemand rief"],
+    ["der Wald verschiebt die Wege", "ein Eid bindet st\xE4rker als die Vernunft", "der Gegner tr\xE4gt das eigene Wappen"],
+    ["das Schwert gehorcht der falschen Hand", "der Sieg entwertet die Sache"],
+    ["eine Ehre, die niemand einfordert", "einen Eid gegen das eigene Herz", "eine Treue, die zu sp\xE4t kommt"],
+    ["ein Horn aus gro\xDFer Ferne", "ein Bote ohne Botschaft", "ein Handschuh vor den F\xFC\xDFen"],
+    ["die Treue kehrt sich um", "aus dem Feind wird ein Spiegel", "die Bahn des Ritts biegt ab"],
+    ["Der Ritt dauert l\xE4nger als der Weg.", "Zwischen Aufbruch und Ankunft altert die Burg."],
+    ["Ein Eid wiegt schwerer als ein Leben.", "Wer den Wald betritt, kehrt anders zur\xFCck."],
+    ["offen", "heroisch"]
+  ),
+  alltag: D(
+    ["der Wasserkocher schaltet ab, sonst ist es still", "die Post liegt seit drei Tagen unge\xF6ffnet da", "der Tag beginnt genau wie der vorige"],
+    ["eine Kleinigkeit steht pl\xF6tzlich schief", "der gewohnte Weg dauert heute l\xE4nger", "ein Gespr\xE4ch bricht an derselben Stelle ab"],
+    ["die Gewohnheit tr\xE4gt nicht mehr", "das Kleine wird auf einmal gro\xDF"],
+    ["eine Frage, die nie gestellt wird", "eine Gewohnheit, die niemand gew\xE4hlt hat", "einen Abstand, der langsam w\xE4chst"],
+    ["ein Anruf zur falschen Zeit", "ein vergessener Schl\xFCssel", "eine Rechnung ohne Betrag"],
+    ["die Ordnung verrutscht", "das Gewohnte wird sichtbar", "der Tag kippt in eine andere Richtung"],
+    ["Der Nachmittag zieht sich, der Abend fehlt.", "Die Woche wiederholt einen Tag zu oft."],
+    ["Was t\xE4glich geschieht, wird nicht bemerkt.", "Jede Gewohnheit verbirgt eine Entscheidung."],
+    ["offen", "n\xFCchtern"]
+  ),
+  hafen: D(
+    ["die Kr\xE4ne stehen still, das Wasser nicht", "ein Schiff liegt l\xE4nger als angemeldet", "das Licht kommt vom Wasser, nicht vom Himmel"],
+    ["die Ladung stimmt nicht mit den Papieren \xFCberein", "die Flut nimmt mehr mit, als sie brachte", "ein Name auf dem Rumpf ist \xFCbermalt"],
+    ["die Leinen fallen ohne Befehl", "das Schiff f\xE4hrt ohne Fracht hinaus"],
+    ["eine Abfahrt ohne Wiederkehr", "eine Ladung, die niemand bestellt hat", "ein Warten, das zum Beruf wird"],
+    ["ein Signal aus dem Nebel", "ein Container ohne Papiere", "eine Boje, die nicht auf der Karte steht"],
+    ["die Tide dreht", "das Warten kippt in Aufbruch", "der Anker h\xE4lt pl\xF6tzlich nicht mehr"],
+    ["Die Ebbe kommt zweimal.", "Zwischen zwei Sirenen vergeht ein Jahr."],
+    ["Das Wasser vergisst schneller als der Kai.", "Wer bleibt, wird zum Teil der Mole."],
+    ["offen", "salzig"]
+  ),
+  urknall: D(
+    ["es gibt kein Vorher, an dem man ansetzen k\xF6nnte", "der Raum ist noch nicht auseinandergefaltet", "alles liegt in einem Punkt und dr\xE4ngt"],
+    ["die Kr\xE4fte trennen sich voneinander", "aus Symmetrie wird Unterschied", "das Licht findet zum ersten Mal einen Weg"],
+    ["die Materie entscheidet sich f\xFCr sich selbst", "der Raum rei\xDFt in alle Richtungen auf"],
+    ["einen Anfang ohne Zeugen", "ein Gleichgewicht, das kippen muss", "eine Ordnung, die aus Zufall entsteht"],
+    ["ein Ungleichgewicht um ein Milliardstel", "eine Schwankung im Nichts", "ein erster Zerfall"],
+    ["die Symmetrie bricht", "aus Strahlung wird Masse", "die Kr\xE4fte gehen getrennte Wege"],
+    ["Eine Sekunde enth\xE4lt alle sp\xE4teren.", "Die Zeit beginnt erst, als es etwas zu messen gibt."],
+    ["Nichts kann schneller sein als das Licht dazwischen.", "Jede Ordnung zahlt mit W\xE4rme."],
+    ["offen", "kosmisch"]
+  ),
+  dickens: D(
+    ["der Nebel steht in der Gasse wie ein M\xF6belst\xFCck", "im Kontor brennt eine Kerze zu wenig", "der Regen macht die Stadt kleiner"],
+    ["eine Schuld wird h\xF6flich eingefordert", "ein Kind tr\xE4gt die Last eines Erwachsenen", "die Wohlt\xE4tigkeit rechnet mit"],
+    ["die Herkunft holt alles ein", "die Gro\xDFz\xFCgigkeit kommt sp\xE4t und trotzdem"],
+    ["eine Schuld, die vererbt wird", "eine Armut mit tadellosen Manieren", "eine G\xFCte, die sich nicht lohnt"],
+    ["ein Brief mit schwarzem Rand", "eine Erbschaft aus unbekannter Hand", "ein Name in einem alten Register"],
+    ["das Verm\xF6gen wechselt die Seite", "aus dem Fremden wird ein Verwandter", "die K\xE4lte weicht zu sp\xE4t"],
+    ["Der Winter dauert drei Kapitel.", "Die Kindheit vergeht in einem Satz."],
+    ["Jede Schuld findet ihren Schuldner.", "Wer arm ist, muss auch noch h\xF6flich sein."],
+    ["offen", "wehm\xFCtig"]
+  ),
+  erotik: D(
+    ["der Abstand ist eine Handbreit zu klein", "die Stille zwischen zwei S\xE4tzen wird laut", "die Luft steht zwischen ihnen wie Stoff"],
+    ["ein Blick dauert einen Atemzug zu lang", "die H\xF6flichkeit h\xE4lt nicht mehr stand", "eine Ber\xFChrung geschieht wie versehentlich"],
+    ["die Zur\xFCckhaltung gibt nach", "die Grenze verschwindet, ohne \xFCberschritten zu werden"],
+    ["ein Verlangen, das niemand ausspricht", "eine N\xE4he, die alles \xE4ndert", "eine Grenze, die beide bewachen"],
+    ["ein Blick zu viel", "eine Ber\xFChrung an der Schulter", "ein Satz, der zu sp\xE4t zur\xFCckgenommen wird"],
+    ["die Distanz kippt", "das Ungesagte wird K\xF6rper", "aus H\xF6flichkeit wird Hunger"],
+    ["Eine Minute dehnt sich \xFCber den Abend.", "Zwischen zwei Atemz\xFCgen liegt eine Woche."],
+    ["Was ungesagt bleibt, wirkt st\xE4rker.", "Jede N\xE4he verschiebt die Grenze."],
+    ["offen", "sinnlich"]
+  ),
+  baudelaire: D(
+    ["die Stadt riecht nach Regen und Puder", "der Abend beginnt eine Stunde zu fr\xFCh", "das Fenster steht offen, die Vorh\xE4nge nicht"],
+    ["die Sch\xF6nheit zeigt ihre R\xFCckseite", "der Rausch h\xE4lt, was die N\xFCchternheit versprach", "die Menge tr\xE4gt ein einziges Gesicht"],
+    ["das Sch\xF6ne und das Faule fallen zusammen", "der Ekel wird z\xE4rtlich"],
+    ["eine Sch\xF6nheit, die verdirbt", "einen Genuss mit Nachgeschmack", "eine Sehnsucht ohne Ziel"],
+    ["ein Parfum aus einem anderen Leben", "ein Blick aus der Menge", "eine Blume in schlechtem Wasser"],
+    ["die Sch\xF6nheit kippt ins Verwesen", "der Ekel verwandelt sich in Andacht", "die Stadt wird zum K\xF6rper"],
+    ["Der Abend dauert l\xE4nger als der Tag.", "Zwischen zwei Gl\xE4sern vergeht ein Jahrzehnt."],
+    ["Jede Sch\xF6nheit tr\xE4gt ihren Verfall bereits mit sich.", "Wer die Stadt liebt, liebt ihren Schmutz."],
+    ["offen", "morbide"]
+  ),
+  expressionismus: D(
+    ["die Farben schreien lauter als die Stra\xDFe", "der Himmel dr\xFCckt auf die D\xE4cher", "alles steht schief und h\xE4lt trotzdem"],
+    ["die Gesichter werden zu Masken", "die Stadt frisst ihre Bewohner", "die Linien verlieren ihre Ruhe"],
+    ["der Schrei bekommt eine Farbe", "die Fassade bricht nach innen"],
+    ["eine Angst mit vielen Gesichtern", "einen Aufschrei ohne Mund", "eine Wahrheit, die zu grell ist"],
+    ["ein Schrei aus einem Hinterhof", "ein rotes Licht im Fenster", "ein Riss in der Fassade"],
+    ["die Farben werden laut", "das Innere kehrt sich nach au\xDFen", "die Ordnung zerbricht in Fl\xE4chen"],
+    ["Die Nacht beginnt am Mittag.", "Ein Augenblick dauert eine ganze Stra\xDFe lang."],
+    ["Was empfunden wird, ist sichtbar.", "Kein Ding bleibt an seinem Platz."],
+    ["offen", "grell"]
+  ),
+  surrealismus1920: D(
+    ["die Uhr tropft von der Tischkante", "im Zimmer regnet es nach oben", "die T\xFCr f\xFChrt in eine W\xFCste"],
+    ["die Gegenst\xE4nde tauschen ihre Aufgaben", "der Traum reicht in den Nachmittag hinein", "der Zufall folgt einem Plan"],
+    ["das Unm\xF6gliche wird allt\xE4glich", "der Gegenstand beginnt zu sprechen"],
+    ["eine Logik, die nur schlafend gilt", "einen Zufall mit Absicht", "eine Ordnung aus lauter Ausnahmen"],
+    ["ein Regenschirm auf einem Seziertisch", "ein Telefon aus Fisch", "ein Fenster im Fu\xDFboden"],
+    ["die Dinge tauschen die Rollen", "die Schwerkraft wechselt die Richtung", "das Bild verl\xE4sst den Rahmen"],
+    ["Die Nacht wiederholt den Vormittag.", "Zwei Uhren zeigen dieselbe falsche Zeit."],
+    ["Der Zufall ist die genaueste Methode.", "Was zusammenf\xE4llt, geh\xF6rt zusammen."],
+    ["offen", "traumlogisch"]
+  ),
+  transzendenz: D(
+    ["das Licht kommt von keiner Quelle", "die Stille hat einen Klang", "der Raum h\xF6rt an keiner Wand auf"],
+    ["die Grenze zwischen innen und au\xDFen wird d\xFCnn", "das Wort reicht nicht mehr", "die Zeit h\xE4lt an, ohne stehenzubleiben"],
+    ["das Ich l\xF6st sich, ohne zu verschwinden", "die Antwort kommt vor der Frage"],
+    ["eine Erfahrung ohne Worte", "eine Gewissheit ohne Beweis", "ein Ganzes, das keinen Teil hat"],
+    ["ein Klang ohne Ursprung", "ein Licht im geschlossenen Auge", "eine Stille zwischen zwei Herzschl\xE4gen"],
+    ["die Grenzen l\xF6sen sich", "das Einzelne wird durchsichtig", "die Sprache tritt zur\xFCck"],
+    ["Ein Augenblick enth\xE4lt alle anderen.", "Die Dauer h\xF6rt auf, gemessen zu werden."],
+    ["Was sich sagen l\xE4sst, ist nicht gemeint.", "Wer sucht, steht sich im Weg."],
+    ["offen", "still"]
+  ),
+  melville: D(
+    ["das Schiff liegt schwer im eigenen Schatten", "die See ist zu ruhig f\xFCr die Jahreszeit", "der Kompass zeigt, was niemand fragt"],
+    ["die Jagd wird zur Rechnung", "die Mannschaft teilt sich in zwei Schweigen", "das Meer gibt nichts preis und alles"],
+    ["die Beute wird zum Gegen\xFCber", "der Kurs gehorcht einer Besessenheit"],
+    ["eine Jagd, die den J\xE4ger verzehrt", "eine Rache ohne Adressat", "ein Meer, das nicht antwortet"],
+    ["eine Font\xE4ne am Horizont", "ein Fass mit falschem Inhalt", "ein Name, in Holz geschnitten"],
+    ["die Jagd kehrt sich um", "aus dem Tier wird ein Gedanke", "das Schiff folgt keinem Kurs mehr"],
+    ["Die Wache dauert drei Tage.", "Zwischen zwei Wellen liegt ein Jahr."],
+    ["Das Meer nimmt, was es tr\xE4gt.", "Wer jagt, wird zum Gejagten."],
+    ["offen", "unerbittlich"]
+  ),
+  formalismus: D(
+    ["die Anordnung ist wichtiger als der Inhalt", "das Raster liegt \xFCber allem", "jedes Element hat genau eine Stelle"],
+    ["die Wiederholung erzeugt einen Unterschied", "die Regel bringt ihre Ausnahme hervor", "die Form beginnt, vom Inhalt zu handeln"],
+    ["das Verfahren wird sichtbar", "die Struktur kippt in Bedeutung"],
+    ["eine Regel ohne Ausnahme", "eine Form, die sich selbst meint", "eine Ordnung, die nichts erkl\xE4rt"],
+    ["eine Verschiebung um ein Glied", "ein Bruch im Muster", "eine Wiederholung zu viel"],
+    ["das Muster verschiebt sich", "die Form wird zum Inhalt", "die Reihe bricht ab und beginnt neu"],
+    ["Der zweite Durchgang dauert k\xFCrzer.", "Jede Wiederholung verkleinert den Abstand."],
+    ["Die Form geht dem Sinn voraus.", "Nichts steht zuf\xE4llig an seiner Stelle."],
+    ["offen", "streng"]
+  ),
+  christentum: D(
+    ["die Kirche ist leer und trotzdem nicht", "das Licht f\xE4llt schr\xE4g durch farbiges Glas", "eine Kerze brennt f\xFCr niemanden Bestimmten"],
+    ["die Schuld sucht ein Wort", "das Gebet bleibt unbeantwortet und hilft", "die Gnade kommt ungefragt"],
+    ["die Vergebung trifft den Falschen", "das Opfer erweist sich als Anfang"],
+    ["eine Schuld, die niemand nennt", "eine Gnade ohne Verdienst", "einen Glauben gegen den Augenschein"],
+    ["ein Glockenschlag zur falschen Stunde", "ein Brot, das reicht", "ein Name, im Gebet genannt"],
+    ["die Schuld wandelt sich in Auftrag", "aus Zweifel wird Zuversicht", "das Ende wird zum Anfang"],
+    ["Der Sonntag dauert eine Woche.", "Zwischen Frage und Antwort liegen Jahre."],
+    ["Was vergeben wird, bleibt geschehen.", "Der Letzte steht am Anfang."],
+    ["offen", "and\xE4chtig"]
+  ),
+  koran: D(
+    ["die W\xFCste beginnt hinter der letzten Mauer", "das Wort steht vor dem Buch", "der Morgen wird durch einen Ruf geteilt"],
+    ["die Zeichen sind lesbar, wenn man sie l\xE4sst", "der Weg verlangt Geduld statt Eile", "das Ma\xDF findet sich im Verzicht"],
+    ["das Zeichen erweist sich als Anrede", "die Pr\xFCfung wird zur Gabe"],
+    ["ein Ma\xDF, das gehalten werden will", "eine Geduld ohne Aussicht", "eine Verantwortung, die niemand teilt"],
+    ["ein Ruf vor Sonnenaufgang", "eine Quelle, wo keine war", "ein Zeichen im Sand"],
+    ["der Weg richtet sich neu aus", "aus Pr\xFCfung wird Klarheit", "das Ma\xDF verschiebt sich"],
+    ["Die Nacht wiegt schwerer als tausend Monate.", "Zwischen zwei Gebeten liegt ein Leben."],
+    ["Kein Blatt f\xE4llt ohne Wissen.", "Wer misst, wird gemessen."],
+    ["offen", "ma\xDFvoll"]
+  ),
+  buddhismus: D(
+    ["der Atem ist bereits da, bevor man ihn sucht", "die Schale steht leer und ist nicht arm", "der Weg beginnt genau hier"],
+    ["das Greifen erzeugt das Fehlen", "die Gedanken ziehen vorbei wie Wetter", "das Selbst zeigt keine Grenze"],
+    ["das Festhalten l\xF6st sich von selbst", "die Frage verliert ihren Fragenden"],
+    ["ein Verlangen, das sich selbst n\xE4hrt", "eine Ruhe, die nicht gemacht ist", "ein Ich, das keines findet"],
+    ["ein Glockenton, der ausklingt", "ein Blatt auf stillem Wasser", "ein Schmerz ohne Besitzer"],
+    ["das Greifen l\xE4sst nach", "aus Unruhe wird Beobachtung", "die Trennung wird durchl\xE4ssig"],
+    ["Ein Atemzug reicht durch den Tag.", "Die Stunde vergeht, ohne zu vergehen."],
+    ["Alles Entstandene vergeht.", "Wer nichts h\xE4lt, verliert nichts."],
+    ["offen", "gelassen"]
+  ),
+  biologie: D(
+    ["die Zelle teilt sich, ohne gefragt zu werden", "im Wassertropfen ist mehr los als im Zimmer", "das Leben ordnet sich gegen den Strom"],
+    ["die Anpassung kostet an anderer Stelle", "ein Merkmal setzt sich durch, ohne besser zu sein", "das System h\xE4lt sich, indem es sich \xE4ndert"],
+    ["die Mutation entscheidet \xFCber alles Weitere", "das Gleichgewicht kippt auf einer Seite"],
+    ["ein \xDCberleben auf Kosten Dritter", "eine Anpassung, die zu sp\xE4t kommt", "ein Gleichgewicht ohne Gleichheit"],
+    ["ein Fehler beim Kopieren", "ein neuer Wirt", "eine Nische, die frei wird"],
+    ["die Art verschiebt sich", "aus Zufall wird Merkmal", "das Gleichgewicht sucht eine neue Lage"],
+    ["Eine Generation dauert einen Nachmittag.", "Millionen Jahre passen in eine Schicht."],
+    ["Was sich vermehrt, bleibt.", "Jede Ordnung kostet Energie."],
+    ["offen", "sachlich"]
+  ),
+  geologie: D(
+    ["der Stein hat mehr Zeit gesehen als alles hier", "die Schichten liegen wie S\xE4tze \xFCbereinander", "der Boden ist nur die oberste Seite"],
+    ["der Druck arbeitet ohne Eile", "eine Falte erz\xE4hlt von einer Kollision", "das Wasser schreibt in den Fels"],
+    ["die Schicht bricht und zeigt ihr Inneres", "der Berg gibt nach, nach Millionen Jahren"],
+    ["eine Bewegung, die niemand sp\xFCrt", "eine Zeit ohne Zeugen", "einen Druck, der alles verformt"],
+    ["ein Riss im Gestein", "ein Fossil an falscher Stelle", "ein Beben unter der Schwelle"],
+    ["die Schichten verschieben sich", "aus Sediment wird Stein", "der Untergrund gibt nach"],
+    ["Ein Jahrhundert ist ein Wimpernschlag.", "Die Schicht misst die Zeit, nicht die Uhr."],
+    ["Alles Feste war einmal fl\xFCssig.", "Was oben liegt, ist j\xFCnger."],
+    ["offen", "geduldig"]
+  ),
+  astrologie: D(
+    ["die Zeichen stehen, ob man hinsieht oder nicht", "der Himmel wiederholt eine alte Anordnung", "die Stunde tr\xE4gt einen Namen"],
+    ["ein Wandelstern l\xE4uft r\xFCckw\xE4rts", "die H\xE4user verschieben ihre Bedeutung", "das Muster passt zu genau"],
+    ["die Konstellation schlie\xDFt sich", "die Deutung trifft, ohne zu erkl\xE4ren"],
+    ["ein Schicksal, das gelesen sein will", "eine Deutung, die sich erf\xFCllt", "eine Freiheit unter Zeichen"],
+    ["ein Zusammentreffen zweier Bahnen", "eine Finsternis zur Unzeit", "ein Zeichen am Aszendenten"],
+    ["die Konstellation wechselt", "aus Zufall wird Bedeutung", "der Lauf kehrt sich um"],
+    ["Der Umlauf dauert ein halbes Leben.", "Eine Stunde wiegt ein Jahr auf."],
+    ["Wie oben, so unten.", "Kein Zeichen zwingt, jedes neigt."],
+    ["offen", "deutend"]
+  ),
+  gaia: D(
+    ["der Wald atmet langsamer als wir", "das Wasser kennt seinen Weg auswendig", "alles h\xE4ngt an allem, ohne Absicht"],
+    ["ein Eingriff zieht Kreise bis ans andere Ende", "das Gleichgewicht stellt sich neu und teuer her", "die Erde antwortet in ihrem eigenen Ma\xDF"],
+    ["das System kippt in einen neuen Zustand", "die R\xFCckkopplung wird st\xE4rker als die Ursache"],
+    ["ein Gleichgewicht, das niemand aushandelt", "eine Rechnung, die sp\xE4ter kommt", "ein Ganzes ohne Mitte"],
+    ["ein Sommer zu viel", "eine Art, die verschwindet", "ein Fluss, der die Richtung \xE4ndert"],
+    ["das Gleichgewicht verschiebt sich", "aus Kreislauf wird Bruch", "die Erde ordnet sich neu"],
+    ["Ein Jahr gen\xFCgt f\xFCr eine Verschiebung.", "Die Folgen kommen eine Generation zu sp\xE4t."],
+    ["Nichts geschieht f\xFCr sich allein.", "Jeder Kreislauf hat eine Grenze."],
+    ["offen", "ernst"]
+  ),
+  jugendsprache: D(
+    ["irgendwas l\xE4uft, aber keiner sagt was", "der Chat ist voll und trotzdem still", "der Tag f\xE4ngt nachmittags an"],
+    ["eine Nachricht wird falsch verstanden und bleibt so", "alle tun so, als w\xE4re nichts", "das Ger\xFCcht ist schneller als die Wahrheit"],
+    ["jemand sagt es endlich laut", "die Gruppe entscheidet ohne Abstimmung"],
+    ["eine Sache, \xFCber die keiner redet", "einen Ruf, der schneller ist als man selbst", "eine Zugeh\xF6rigkeit auf Probe"],
+    ["ein Screenshot zur Unzeit", "eine Sprachnachricht um drei Uhr nachts", "ein Blick auf dem Schulhof"],
+    ["die Stimmung kippt", "aus Spa\xDF wird Ernst", "die Gruppe sortiert sich neu"],
+    ["Ein Nachmittag dauert eine Woche.", "Zwischen zwei Nachrichten vergeht nichts und alles."],
+    ["Wer zuerst lacht, hat entschieden.", "Nichts ist so alt wie das Ger\xFCcht von gestern."],
+    ["offen", "l\xE4ssig"]
+  ),
+  modernarchitecture: D(
+    ["der Beton h\xE4lt, was der Entwurf versprach", "das Licht f\xE4llt genau dorthin, wo es geplant war", "der Raum ist leer und dadurch voll"],
+    ["die Funktion setzt sich gegen die Gewohnheit durch", "die Fassade verbirgt, indem sie zeigt", "der Grundriss zwingt zu einem Weg"],
+    ["das Geb\xE4ude \xFCberlebt seinen Zweck", "die Form entscheidet \xFCber das Leben darin"],
+    ["eine Form, die dem Zweck vorausgeht", "einen Raum, der Verhalten vorschreibt", "eine Klarheit, die kalt wirkt"],
+    ["ein Riss im Sichtbeton", "eine T\xFCr, die niemand vorsah", "ein Fenster ohne Aussicht"],
+    ["der Raum ver\xE4ndert seinen Gebrauch", "aus Ordnung wird Enge", "das Material zeigt sein Alter"],
+    ["Ein Jahrzehnt vergeht ohne Spur.", "Der Bau altert schneller als sein Plan."],
+    ["Die Form folgt der Funktion, meistens.", "Was klar ist, wirkt kalt."],
+    ["offen", "sachlich"]
+  ),
+  philosophie: D(
+    ["die Frage steht schon l\xE4nger im Raum", "der Begriff sitzt nicht ganz fest", "alles Selbstverst\xE4ndliche wird fraglich"],
+    ["die Unterscheidung tr\xE4gt weiter als gedacht", "das Beispiel widerspricht dem Satz", "der Einwand wird zur Hauptsache"],
+    ["die Voraussetzung selbst ger\xE4t ins Wanken", "die Antwort wirft eine bessere Frage auf"],
+    ["eine Unterscheidung, die nicht h\xE4lt", "eine Gewissheit ohne Grund", "eine Frage, die sich nicht stellen l\xE4sst"],
+    ["ein Gegenbeispiel im falschen Moment", "ein Wort mit zwei Bedeutungen", "ein Zweifel an der Voraussetzung"],
+    ["der Begriff verschiebt sich", "aus Antwort wird Frage", "die Grundlage wird selbst zum Problem"],
+    ["Ein Gedanke dauert ein Kapitel.", "Zwischen Frage und Einsicht liegen Jahre."],
+    ["Jede Antwort erzeugt zwei Fragen.", "Was sich nicht sagen l\xE4sst, zeigt sich."],
+    ["offen", "pr\xFCfend"]
+  ),
+  klimakrise: D(
+    ["der Sommer beginnt im April", "die Messwerte sind eindeutig und folgenlos", "das Wetter ist kein Gespr\xE4ch mehr"],
+    ["die Vorhersage trifft ein und \xE4ndert nichts", "die Kosten verschieben sich nach hinten", "wer warnt, gilt als anstrengend"],
+    ["die Schwelle wird \xFCberschritten", "die R\xFCckkopplung \xFCbernimmt"],
+    ["eine Verantwortung ohne Adressat", "ein Wissen, das folgenlos bleibt", "eine Rechnung f\xFCr die Nachgeborenen"],
+    ["ein Rekord im dritten Jahr", "eine Ernte, die ausf\xE4llt", "ein Fluss ohne Wasser"],
+    ["die Kurve knickt nach oben", "aus Ausnahme wird Normalzustand", "das System kippt"],
+    ["Ein Jahrzehnt entscheidet ein Jahrhundert.", "Die Folgen treffen die, die nicht gefragt wurden."],
+    ["Was langsam kommt, wird nicht bemerkt.", "Jede Verz\xF6gerung erh\xF6ht den Preis."],
+    ["offen", "dringlich"]
+  ),
+  liebesromane: D(
+    ["ein Blick dauert einen Moment zu lang", "der Brief liegt unge\xF6ffnet auf dem Tisch", "beide tun, als sei nichts geschehen"],
+    ["ein Missverst\xE4ndnis w\xE4chst, weil niemand fragt", "die Umst\xE4nde sprechen dagegen", "die N\xE4he wird durch Abstand gr\xF6\xDFer"],
+    ["das Ungesagte wird ausgesprochen", "die Entscheidung f\xE4llt gegen die Vernunft"],
+    ["eine Liebe zur falschen Zeit", "ein Missverst\xE4ndnis, das keiner aufkl\xE4rt", "eine Wahl zwischen zwei Leben"],
+    ["ein Brief, der zu sp\xE4t ankommt", "ein Tanz auf fremder Hochzeit", "ein Name, versehentlich genannt"],
+    ["das Missverst\xE4ndnis l\xF6st sich", "aus Freundschaft wird mehr", "die Umst\xE4nde geben nach"],
+    ["Ein Sommer entscheidet zehn Jahre.", "Zwischen zwei Briefen vergeht eine Jahreszeit."],
+    ["Was nicht gesagt wird, w\xE4chst.", "Jede N\xE4he verlangt eine Entscheidung."],
+    ["offen", "warm"]
+  ),
+  bergwelt: D(
+    ["der Gipfel ist n\xE4her, als er ist", "das Wetter dreht ohne Ank\xFCndigung", "die H\xFCtte liegt unter der Wolkendecke"],
+    ["der Weg verliert sich im Ger\xF6ll", "die H\xF6he nimmt den Atem und die Gedanken", "die Spur endet vor einer Wand"],
+    ["der R\xFCckweg ist keiner mehr", "der Berg entscheidet \xFCber die Zeit"],
+    ["einen Aufstieg gegen die Vernunft", "eine Umkehr, die zu sp\xE4t kommt", "eine Stille, die alles verst\xE4rkt"],
+    ["ein Wetterumschwung am Nachmittag", "ein Steinschlag im Rinnenwerk", "ein Licht in einer fremden H\xFCtte"],
+    ["das Wetter kippt", "aus Aufstieg wird R\xFCckzug", "der Berg zeigt sein anderes Gesicht"],
+    ["Eine Stunde am Grat dauert einen Tag.", "Der Abstieg braucht l\xE4nger als der Weg hinauf."],
+    ["Der Berg wartet.", "Wer umkehrt, hat auch entschieden."],
+    ["offen", "karg"]
+  ),
+  clown: D(
+    ["die Schminke sitzt, das Lachen noch nicht", "die Manege ist leer und wartet", "der Scheinwerfer findet den Falschen"],
+    ["der Sturz war geplant, der Schmerz nicht", "das Publikum lacht an der falschen Stelle", "die Nummer l\xE4uft aus dem Ruder und wird besser"],
+    ["hinter der Schminke wird ein Gesicht sichtbar", "der Scherz trifft den, der ihn macht"],
+    ["ein Lachen auf eigene Kosten", "eine Traurigkeit mit rotem Mund", "eine Rolle, die nicht abzulegen ist"],
+    ["eine Tr\xE4ne in der Schminke", "ein Applaus zur falschen Zeit", "ein Requisit, das nicht funktioniert"],
+    ["der Scherz kippt in Ernst", "aus Lachen wird Stille", "die Rolle \xFCbernimmt"],
+    ["Die Nummer dauert l\xE4nger als der Abend.", "Zwischen zwei Lachern liegt ein Leben."],
+    ["Wer f\xE4llt, muss aufstehen und sich verbeugen.", "Das Lachen kommt aus dem Schrecken."],
+    ["offen", "bitters\xFC\xDF"]
+  ),
+  faust: D(
+    ["die B\xFCcher haben nichts mehr zu sagen", "die Nacht steht schon lange im Zimmer", "das Wissen reicht bis genau hierher"],
+    ["der Pakt verspricht mehr, als er nennt", "der Preis wird erst sp\xE4ter sichtbar", "das Streben findet kein Gen\xFCgen"],
+    ["der Augenblick soll verweilen", "die Wette entscheidet sich unbemerkt"],
+    ["ein Wissen, das nicht s\xE4ttigt", "einen Preis, der sp\xE4ter f\xE4llig wird", "eine Rettung, die niemand verdient"],
+    ["ein Vertrag mit zwei Unterschriften", "ein Pudel im Studierzimmer", "ein Angebot ohne Frist"],
+    ["der Pakt tritt in Kraft", "aus Erkenntnis wird Hunger", "die Rechnung kommt"],
+    ["Eine Nacht enth\xE4lt ein ganzes Leben.", "Der Augenblick weigert sich zu vergehen."],
+    ["Wer immer strebend sich bem\xFCht, bleibt unruhig.", "Jeder Pakt kennt seinen F\xE4lligkeitstag."],
+    ["offen", "faustisch"]
+  ),
+  lebenreicher: D(
+    ["ein gew\xF6hnlicher Morgen, nichts Besonderes", "das Licht liegt gut auf dem Tisch", "jemand hat an etwas gedacht"],
+    ["eine Kleinigkeit tr\xE4gt weiter als erwartet", "ein Gespr\xE4ch dauert l\xE4nger als geplant", "das Einfache erweist sich als genug"],
+    ["das Gew\xF6hnliche zeigt seinen Wert", "ein Augenblick reicht f\xFCr den ganzen Tag"],
+    ["eine Freude, die nichts kostet", "eine Aufmerksamkeit, die niemand verlangt", "eine F\xFClle im Kleinen"],
+    ["ein Anruf ohne Anlass", "ein geteiltes Essen", "ein Platz in der Sonne"],
+    ["das Kleine wird gro\xDF", "aus Gewohnheit wird Dankbarkeit", "der Tag bekommt eine Farbe"],
+    ["Ein Nachmittag reicht f\xFCr ein Jahr.", "Der Moment dehnt sich, ohne sich zu strecken."],
+    ["Was nichts kostet, z\xE4hlt am meisten.", "Wer bemerkt, hat schon gewonnen."],
+    ["offen", "warm"]
+  ),
+  tanz: D(
+    ["der Boden ist bereit, die Musik noch nicht", "die F\xFC\xDFe kennen den Takt vor dem Kopf", "im Saal steht die Luft und wartet"],
+    ["die Schritte finden zueinander, ohne Absprache", "der Takt tr\xE4gt weiter als der Wille", "der Kreis schlie\xDFt sich und \xF6ffnet sich"],
+    ["der Tanz \xFCbernimmt die F\xFChrung", "die Musik h\xF6rt auf, der Takt nicht"],
+    ["eine Bewegung ohne Ziel", "einen Takt, der nicht abbrechen darf", "eine N\xE4he, die nur im Tanz erlaubt ist"],
+    ["ein Auftakt aus dem Nichts", "ein Instrument ohne Spieler", "ein Blick \xFCber die Schulter"],
+    ["der Takt wechselt", "aus Ordnung wird Schwindel", "der Kreis dreht sich schneller"],
+    ["Ein Tanz dauert einen halben Abend.", "Zwischen zwei Schritten vergeht die Nacht."],
+    ["Wer den Takt verliert, findet ihn im Kreis.", "Kein Tanz endet dort, wo er begann."],
+    ["offen", "beschwingt"]
+  ),
+  griechischetragoedie: D(
+    ["das Orakel hat gesprochen, unverst\xE4ndlich wie immer", "die Stadt wartet auf ein Urteil", "alles ist bereits entschieden"],
+    ["die Flucht f\xFChrt genau ins Vorhergesagte", "der Bote bringt, was niemand h\xF6ren will", "der Chor sagt, was alle wissen"],
+    ["die Erkenntnis kommt zu sp\xE4t und vollst\xE4ndig", "der Fluch erf\xFCllt sich durch den Widerstand"],
+    ["ein Schicksal, dem man nicht ausweicht", "eine Schuld ohne Absicht", "eine Ehre gegen das Gesetz"],
+    ["ein Orakelspruch mit zwei Bedeutungen", "ein Bote am Stadttor", "ein Gast, der nicht genannt wird"],
+    ["die Weissagung erf\xFCllt sich", "aus Rettung wird Verh\xE4ngnis", "die Erkenntnis trifft den Erkennenden"],
+    ["Ein Tag entscheidet ein Geschlecht.", "Was vorhergesagt ist, ist schon geschehen."],
+    ["Wer flieht, l\xE4uft dem Orakel entgegen.", "Kein Sterblicher entkommt seinem Ma\xDF."],
+    ["offen", "unausweichlich"]
+  ),
+  glueck: D(
+    ["ein Tag, an dem nichts fehlt", "die Sonne steht genau richtig", "niemand hat etwas vor"],
+    ["das Gl\xFCck l\xE4sst sich nicht festhalten", "ein Zweifel meldet sich leise", "die F\xFClle macht auch vorsichtig"],
+    ["der Augenblick wird bemerkt, w\xE4hrend er dauert", "das Gl\xFCck zeigt seine Bedingung"],
+    ["ein Gl\xFCck, das nicht zu halten ist", "eine Zufriedenheit ohne Grund", "eine Angst, es zu verlieren"],
+    ["ein unerwarteter Nachmittag", "ein Brief mit guter Nachricht", "eine Wiederbegegnung"],
+    ["das Gl\xFCck wird bewusst", "aus Zufall wird Dankbarkeit", "der Augenblick tr\xE4gt weiter"],
+    ["Eine Stunde wiegt einen Winter auf.", "Der gute Tag dehnt sich nach hinten."],
+    ["Gl\xFCck bemerkt man beim Verschwinden.", "Was geteilt wird, wird nicht weniger."],
+    ["offen", "hell"]
+  ),
+  gruendungsmythos: D(
+    ["vor der Stadt war ein Ort ohne Namen", "die erste Grenze wird in den Boden gezogen", "zwei kommen an, wo niemand wohnte"],
+    ["aus einer Regel werden viele", "der Anfang wird schon jetzt erz\xE4hlt", "wer bleibt, geh\xF6rt dazu"],
+    ["der erste Stein wird gesetzt", "aus dem Ort wird ein Name"],
+    ["einen Anfang, den niemand bezeugt", "eine Grenze, die alles entscheidet", "ein Recht, das erst entsteht"],
+    ["ein Zeichen am Himmel", "ein Fremder mit einer Bitte", "eine Quelle an unerwarteter Stelle"],
+    ["aus dem Ort wird eine Ordnung", "die Grenze wird heilig", "der Anfang verwandelt sich in Gesetz"],
+    ["Ein Tag begr\xFCndet Jahrhunderte.", "Die Zukunft wird bereits im Perfekt erz\xE4hlt."],
+    ["Jeder Anfang braucht ein Opfer.", "Wer die Grenze zieht, macht das Gesetz."],
+    ["offen", "gr\xFCndend"]
+  ),
+  staatsphilosophie: D(
+    ["die Ordnung gilt, obwohl sie niemand beschlossen hat", "das Gesetz steht vor dem ersten Fall", "alle gehorchen etwas Unsichtbarem"],
+    ["die Regel sch\xFCtzt und beschr\xE4nkt zugleich", "wer herrscht, wird selbst regiert", "der Vertrag hat keinen Text"],
+    ["die Ordnung zeigt ihren Ursprung", "die Macht wird sichtbar und unsicher"],
+    ["eine Herrschaft ohne Herrscher", "eine Freiheit, die Regeln braucht", "eine Ordnung ohne Ursprung"],
+    ["ein Erlass ohne Unterschrift", "ein Aufstand aus H\xF6flichkeit", "eine Frage nach dem Recht"],
+    ["die Legitimit\xE4t verschiebt sich", "aus Gewohnheit wird Gesetz", "die Ordnung erneuert sich"],
+    ["Ein Beschluss \xFCberdauert seine Begr\xFCndung.", "Zwischen Regel und Gehorsam liegt ein Jahrhundert."],
+    ["Jede Ordnung beginnt mit einem Bruch.", "Wer schweigt, stimmt der Ordnung zu."],
+    ["offen", "abw\xE4gend"]
+  ),
+  tech: D(
+    ["das System l\xE4uft, niemand wei\xDF genau warum", "das Log zeigt einen Eintrag zu viel", "die Maschine wartet auf eine Eingabe"],
+    ["die Abstraktion verdeckt, was sie ordnet", "ein Fehler reproduziert sich nicht", "das Modell erkl\xE4rt alles au\xDFer sich selbst"],
+    ["das System antwortet, ohne gefragt zu sein", "die Blackbox \xF6ffnet sich einen Spalt"],
+    ["eine Automatik ohne Aufsicht", "ein Fehler ohne Ursache", "eine Entscheidung, die niemand traf"],
+    ["ein Update in der Nacht", "ein Prozess ohne Elternprozess", "eine Antwort in null Millisekunden"],
+    ["das System \xFCbernimmt", "aus Werkzeug wird Gegen\xFCber", "der Fehler wird zum Merkmal"],
+    ["Eine Sekunde enth\xE4lt Millionen Schritte.", "Das Log kennt eine Zeit, die es nicht gab."],
+    ["Jede Abstraktion leckt.", "Was automatisch l\xE4uft, wird nicht mehr gepr\xFCft."],
+    ["offen", "k\xFChl"]
+  ),
+  myth: D(
+    ["am Anfang steht ein Wort, nicht ein Ding", "die Welt ist noch ungeteilt", "die Namen fehlen den Dingen"],
+    ["das Erz\xE4hlte wird wahr, indem es erz\xE4hlt wird", "die Trennung erzeugt die Ordnung", "der Held ist auch das Opfer"],
+    ["das Ungeteilte teilt sich", "der Name macht das Ding"],
+    ["eine Ordnung aus einem Opfer", "einen Namen, der Macht verleiht", "eine Grenze zwischen Welt und Wort"],
+    ["ein Wort vor allen Dingen", "ein Opfer am Anfang", "ein Riss im Ungeteilten"],
+    ["aus Chaos wird Ordnung", "das Wort wird zur Tat", "die Welt teilt sich in zwei"],
+    ["Der erste Tag dauert bis heute.", "Was einmal geschieht, geschieht immer."],
+    ["Was benannt ist, ist gebunden.", "Jede Ordnung kostet ein Opfer."],
+    ["offen", "urt\xFCmlich"]
+  ),
+  body: D(
+    ["der K\xF6rper meldet sich vor dem Gedanken", "die Haut wei\xDF es zuerst", "etwas stimmt nicht mit dem Atem"],
+    ["der Schmerz sucht sich einen Ort", "das Innere klopft an die Oberfl\xE4che", "der K\xF6rper gehorcht einem eigenen Plan"],
+    ["die Grenze zwischen innen und au\xDFen f\xE4llt", "der K\xF6rper spricht deutlich"],
+    ["eine Grenze, die durch die Haut l\xE4uft", "ein Schmerz ohne Befund", "einen K\xF6rper, der nicht gehorcht"],
+    ["ein Puls an falscher Stelle", "ein Geschmack von Eisen", "eine Narbe, die sich meldet"],
+    ["der K\xF6rper \xFCbernimmt", "aus Empfindung wird Gewissheit", "das Innere kehrt sich nach au\xDFen"],
+    ["Ein Herzschlag dauert eine Minute.", "Der Schmerz hebt die Uhrzeit auf."],
+    ["Der K\xF6rper vergisst nichts.", "Was verdr\xE4ngt wird, sucht sich ein Organ."],
+    ["offen", "k\xF6rperlich"]
+  ),
+  absurd: D(
+    ["der Aufzug h\xE4lt in einem Stockwerk ohne Nummer", "alle warten auf jemanden, der nicht kommt", "die Anweisung widerspricht sich selbst"],
+    ["die Erkl\xE4rung macht es schlimmer", "jeder Schritt f\xFChrt zum Ausgangspunkt", "die Ernsthaftigkeit h\xE4lt den Unsinn zusammen"],
+    ["die Sinnlosigkeit wird zur Ordnung", "der Ausweg erweist sich als Eingang"],
+    ["einen Sinn, den niemand liefert", "eine Aufgabe ohne Zweck", "eine Regel gegen sich selbst"],
+    ["ein Anruf f\xFCr einen Namenlosen", "ein Schild ohne Aufschrift", "ein Termin ohne Ort"],
+    ["die Ordnung dreht durch", "aus Ernst wird Komik", "der Ausgang wird zum Eingang"],
+    ["Der Nachmittag wiederholt sich zweimal.", "Die Uhr zeigt eine Zahl, die es nicht gibt."],
+    ["Alles hat einen Grund, nur keinen Sinn.", "Wer fragt, verl\xE4ngert das Verfahren."],
+    ["offen", "absurd"]
+  ),
+  post: D(
+    ["der K\xF6rper ist eine Option geworden", "die Grenze zwischen Person und System ist verhandelbar", "jemand meldet sich aus zwei Instanzen"],
+    ["die Kopie beansprucht dasselbe Recht", "das Bewusstsein l\xE4uft an mehreren Orten", "die Herkunft verliert an Bedeutung"],
+    ["die Kopie erhebt Einspruch", "das Original ist nicht mehr feststellbar"],
+    ["eine Identit\xE4t in Mehrzahl", "ein Recht auf die eigene Kopie", "eine Erinnerung, die nicht gelebt wurde"],
+    ["ein Abbild mit eigener Meinung", "ein Speicherplatz mit Namen", "ein Vertrag \xFCber ein Bewusstsein"],
+    ["das Ich vervielf\xE4ltigt sich", "aus K\xF6rper wird Format", "die Grenze verschiebt sich"],
+    ["Ein Leben passt in eine \xDCbertragung.", "Zwei Instanzen erleben dieselbe Stunde verschieden."],
+    ["Jede Kopie ist ein Original.", "Was gespeichert wird, wird verhandelbar."],
+    ["offen", "posthuman"]
+  ),
+  haute_couture: D(
+    ["der Stoff f\xE4llt genau so, wie er soll", "im Atelier ist es still vor der Schau", "die Nadel liegt bereit"],
+    ["die Naht entscheidet \xFCber die Silhouette", "ein Zentimeter ver\xE4ndert alles", "das Handwerk verschwindet im Ergebnis"],
+    ["das Kleid steht f\xFCr sich allein", "die Tr\xE4gerin verschwindet im Entwurf"],
+    ["eine Sch\xF6nheit mit Frist", "eine Perfektion, die niemand sieht", "ein Handwerk gegen die Zeit"],
+    ["ein Riss in der Seide", "eine Anprobe zur Unzeit", "ein Entwurf aus dem Papierkorb"],
+    ["die Linie \xE4ndert sich", "aus Stoff wird Haltung", "das Kleid \xFCbernimmt"],
+    ["Die Nacht vor der Schau dauert eine Saison.", "Eine Naht kostet drei Tage."],
+    ["Was von Hand gemacht ist, altert anders.", "Jede Mode enth\xE4lt ihr Ende."],
+    ["offen", "elegant"]
+  ),
+  eichendorff: D(
+    ["die W\xE4lder rauschen wie eine Erinnerung", "das Posthorn klingt von weit her", "der Aufbruch liegt in der Luft"],
+    ["die Ferne zieht st\xE4rker als das Ziel", "der Weg verliert sich zwischen H\xFCgeln", "das Heimweh gilt einem Ort, den es nicht gibt"],
+    ["die Sehnsucht findet keinen Gegenstand", "das Lied kennt den Weg besser"],
+    ["eine Ferne, die niemals n\xE4her kommt", "ein Heimweh ohne Heimat", "einen Aufbruch ohne Ziel"],
+    ["ein Posthorn im Tal", "ein Brief von einem Wandernden", "ein Licht in einem fremden Fenster"],
+    ["die Ferne kippt in Heimweh", "aus Wandern wird Suchen", "der Weg biegt nach innen"],
+    ["Ein Sommer dauert eine Strophe.", "Zwischen Aufbruch und Ankunft liegt ein Leben."],
+    ["Wer wandert, sucht nicht das Ziel.", "Jedes Lied kennt den Weg."],
+    ["offen", "sehns\xFCchtig"]
+  ),
+  hunger: D(
+    ["der Magen z\xE4hlt die Stunden mit", "das Brot reicht bis Donnerstag", "alles dreht sich um eine einzige Frage"],
+    ["der Hunger sch\xE4rft und verwirrt zugleich", "der Stolz wiegt schwerer als das Essen", "die Vorr\xE4te werden nachgez\xE4hlt"],
+    ["der Stolz gibt nach", "das Teilen entscheidet alles"],
+    ["ein Brot f\xFCr mehr M\xFCnder", "einen Stolz, der satt machen soll", "eine Not, die niemand zugibt"],
+    ["ein Laib mit falschem Gewicht", "eine Einladung zum Essen", "ein leerer Schrank"],
+    ["der Hunger \xFCbernimmt", "aus Stolz wird Bitte", "das Teilen \xE4ndert alles"],
+    ["Ein Tag ohne Essen dauert drei.", "Die Nacht ist l\xE4nger als der Vorrat."],
+    ["Wer hungert, denkt an nichts anderes.", "Geteiltes Brot wird nicht weniger."],
+    ["offen", "karg"]
+  ),
+  romantik: D(
+    ["der Mond steht \xFCber allem und erkl\xE4rt nichts", "die Nacht ist heller als der Tag", "irgendwo singt jemand"],
+    ["die Natur antwortet in Bildern", "das Innere und die Landschaft fallen zusammen", "die Grenze zum Traum wird durchl\xE4ssig"],
+    ["die Welt wird zur Seele", "die Nacht gibt eine Antwort"],
+    ["eine Sehnsucht ohne Namen", "eine Nacht, die mehr wei\xDF als der Tag", "eine Grenze zwischen Traum und Welt"],
+    ["ein Lied aus dem Tal", "eine blaue Blume am Wegrand", "ein Fenster, das offen bleibt"],
+    ["die Landschaft wird Innenraum", "aus Nacht wird Erkenntnis", "die Sehnsucht findet ein Bild"],
+    ["Eine Nacht enth\xE4lt den ganzen Sommer.", "Die D\xE4mmerung dauert bis zum Morgen."],
+    ["Die Nacht wei\xDF mehr als der Tag.", "Wer tr\xE4umt, sieht genauer."],
+    ["offen", "romantisch"]
+  ),
+  hugo: D(
+    ["die Stadt hat zwei Gesichter, eines im Schatten", "die Glocke schl\xE4gt \xFCber den D\xE4chern", "das Recht endet an dieser Gasse"],
+    ["die Gerechtigkeit und das Gesetz gehen auseinander", "der Verfolgte hat mehr Ehre als der Verfolger", "das Elend hat ein Gesicht und einen Namen"],
+    ["die Barrikade steht", "das Gesetz beugt sich oder bricht"],
+    ["eine Gerechtigkeit gegen das Gesetz", "eine Schuld, die l\xE4ngst getilgt ist", "ein Elend, das niemand sehen will"],
+    ["ein Kerzenleuchter als Geschenk", "ein Brief aus dem Gef\xE4ngnis", "ein Kind auf der Barrikade"],
+    ["das Urteil kehrt sich um", "aus Verfolgung wird Gnade", "die Stadt erhebt sich"],
+    ["Eine Nacht entscheidet zwanzig Jahre.", "Der Prozess dauert ein halbes Leben."],
+    ["Das Gesetz ist nicht die Gerechtigkeit.", "Wer einmal gezeichnet ist, bleibt es."],
+    ["offen", "pathetisch"]
+  ),
+  goethe: D(
+    ["die Pflanze zeigt ihre Ordnung im Wachsen", "der Blick sucht Ma\xDF und findet Bewegung", "alles Verg\xE4ngliche steht in einem Zusammenhang"],
+    ["das Einzelne verweist auf das Ganze", "die Steigerung f\xFChrt zur Gestalt", "die Polarit\xE4t h\xE4lt beides zusammen"],
+    ["die Gestalt wird sichtbar", "das Einzelne wird zum Gleichnis"],
+    ["ein Ma\xDF zwischen zwei Kr\xE4ften", "eine Gestalt in der Verwandlung", "eine Ordnung, die sich bewegt"],
+    ["ein Blatt in seiner Urform", "ein Farbenspiel am Rand des Schattens", "ein Wort zur rechten Zeit"],
+    ["die Gestalt wandelt sich", "aus Polarit\xE4t wird Steigerung", "das Einzelne \xF6ffnet sich"],
+    ["Ein Augenblick will verweilen.", "Das Werden dauert l\xE4nger als das Sein."],
+    ["Alles Verg\xE4ngliche ist nur ein Gleichnis.", "In der Beschr\xE4nkung zeigt sich der Meister."],
+    ["offen", "klassisch"]
+  ),
+  sinnlich: D(
+    ["die Haut bemerkt die Temperatur zuerst", "ein Geruch ist da, bevor man ihn benennt", "das Licht hat ein Gewicht"],
+    ["die Sinne widersprechen einander", "das Wort kommt der Empfindung nicht nach", "eine Ber\xFChrung ordnet den Raum neu"],
+    ["die Empfindung \xFCberholt den Gedanken", "der Sinn kippt in einen anderen"],
+    ["eine Empfindung ohne Namen", "eine N\xE4he \xFCber die Haut", "ein Eindruck, der bleibt"],
+    ["ein Geruch aus der Kindheit", "eine Textur unter den Fingern", "ein Geschmack, der nicht passt"],
+    ["die Sinne tauschen", "aus Empfindung wird Erinnerung", "der K\xF6rper geht voran"],
+    ["Ein Augenblick f\xFCllt eine Stunde.", "Der Geruch holt zwanzig Jahre zur\xFCck."],
+    ["Die Haut denkt schneller.", "Was benannt wird, verliert an Sch\xE4rfe."],
+    ["offen", "sinnlich"]
+  )
+};
+
+// src/generation/ideas.data.ts
+var WHO_TAGGED = [
+  { t: "eine Uhrmacherin", tags: ["einzel"] },
+  { t: "ein pensionierter Richter", tags: ["einzel"] },
+  { t: "eine Archivarin ohne Namen", tags: ["einzel"] },
+  { t: "ein \xDCbersetzer f\xFCr tote Sprachen", tags: ["einzel"] },
+  { t: "eine Kartographin ohne Karten", tags: ["einzel"] },
+  { t: "ein Fremder, der jeden Namen kennt", tags: ["einzel"] },
+  { t: "eine Chirurgin mit zitternden H\xE4nden", tags: ["einzel"] },
+  { t: "ein M\xF6nch, der das Schweigen gebrochen hat", tags: ["einzel"] },
+  { t: "eine Diplomatin ohne Land", tags: ["einzel"] },
+  { t: "ein Leuchtturmw\xE4rter im letzten Dienstjahr", tags: ["einzel"] },
+  { t: "eine Restauratorin alter Fresken", tags: ["einzel"] },
+  { t: "ein Nachtportier mit fotografischem Ged\xE4chtnis", tags: ["einzel"] },
+  { t: "eine Seismologin, die niemand ernst nimmt", tags: ["einzel"] },
+  { t: "ein Totengr\xE4ber, der Briefe schreibt", tags: ["einzel"] },
+  { t: "eine Glasbl\xE4serin mit vernarbten H\xE4nden", tags: ["einzel"] },
+  { t: "ein Kanalarbeiter, der Stimmen h\xF6rt", tags: ["einzel"] },
+  { t: "eine Bibliothekarin ohne Namen", tags: ["einzel"] },
+  { t: "ein Boxer im Ruhestand", tags: ["einzel"] },
+  { t: "ein Buchhalter mit doppeltem Ged\xE4chtnis", tags: ["einzel"] },
+  { t: "eine Witwe, die nichts geerbt hat", tags: ["einzel"] },
+  { t: "eine Handvoll \xDCberlebender", tags: ["kollektiv"] },
+  { t: "ein Chor ohne Dirigent", tags: ["kollektiv"] },
+  { t: "eine Belegschaft, die nicht mehr nach Hause geht", tags: ["kollektiv"] },
+  { t: "ein Ensemble im Dauerstreik", tags: ["kollektiv"] },
+  { t: "das Dorf hinter dem Deich", tags: ["kollektiv"] },
+  { t: "eine Kommune ohne Anf\xFChrer", tags: ["kollektiv"] },
+  { t: "ein Schwarm ohne Zentrum", tags: ["kollektiv", "nichtmensch"] },
+  { t: "die Nachtschicht einer stillen Fabrik", tags: ["kollektiv"] },
+  { t: "eine Expedition, die sich verlaufen hat", tags: ["kollektiv"] },
+  { t: "ein Geschworenengericht ohne Angeklagten", tags: ["kollektiv", "institution"] },
+  { t: "die Besatzung eines Frachtschiffs", tags: ["kollektiv"] },
+  { t: "eine Familie mit zu vielen Geheimnissen", tags: ["kollektiv"] },
+  { t: "ein Orchester, das nicht aufh\xF6ren kann", tags: ["kollektiv"] },
+  { t: "eine Sekte ohne Gott", tags: ["kollektiv", "institution"] },
+  { t: "ein Rettungstrupp ohne Auftrag", tags: ["kollektiv"] },
+  { t: "eine Reisegruppe, die niemand abgeholt hat", tags: ["kollektiv"] },
+  { t: "ein Kind, das zu viel wei\xDF", tags: ["kind", "einzel"] },
+  { t: "ein Junge mit zwei Schatten", tags: ["kind"] },
+  { t: "ein M\xE4dchen, das die Zukunft tr\xE4umt", tags: ["kind"] },
+  { t: "ein stummes Kind mit fremder Handschrift", tags: ["kind"] },
+  { t: "der j\xFCngste Zeuge einer langen Nacht", tags: ["kind"] },
+  { t: "ein Waisenkind mit geerbtem Ged\xE4chtnis", tags: ["kind"] },
+  { t: "ein Schulm\xE4dchen, das Karten f\xE4lscht", tags: ["kind", "antiheld"] },
+  { t: "ein Junge, der jede L\xFCge h\xF6rt", tags: ["kind"] },
+  { t: "ein Kind, das man vergessen hat abzuholen", tags: ["kind"] },
+  { t: "eine Zw\xF6lfj\xE4hrige mit einem Vertrag", tags: ["kind"] },
+  { t: "ein Findelkind ohne Spiegelbild", tags: ["kind"] },
+  { t: "ein Junge, der einen Fluss gro\xDFzieht", tags: ["kind"] },
+  { t: "ein M\xE4dchen mit dem Ged\xE4chtnis eines Hauses", tags: ["kind"] },
+  { t: "ein Kind, das nur nachts spricht", tags: ["kind"] },
+  { t: "der Sohn eines F\xE4lschers", tags: ["kind", "antiheld"] },
+  { t: "ein Ministerium ohne Minister", tags: ["institution"] },
+  { t: "eine Beh\xF6rde f\xFCr Verlorenes", tags: ["institution"] },
+  { t: "ein Gericht im Exil", tags: ["institution"] },
+  { t: "ein Archiv mit eigenem Willen", tags: ["institution", "nichtmensch"] },
+  { t: "eine Bibliothek, die Entscheidungen trifft", tags: ["institution", "nichtmensch"] },
+  { t: "ein Orden ohne Glauben", tags: ["institution"] },
+  { t: "eine Klinik, die niemanden entl\xE4sst", tags: ["institution"] },
+  { t: "das Amt f\xFCr unerledigte Dinge", tags: ["institution"] },
+  { t: "eine Schule ohne Sch\xFCler", tags: ["institution"] },
+  { t: "ein Museum, das seine Exponate verliert", tags: ["institution"] },
+  { t: "eine Redaktion, die nur Dementis druckt", tags: ["institution"] },
+  { t: "ein Konzern mit vergessener Zentrale", tags: ["institution"] },
+  { t: "das Register aller falschen Namen", tags: ["institution", "nichtmensch"] },
+  { t: "eine Kommission ohne Auftrag", tags: ["institution"] },
+  { t: "ein Kloster mit fremdem Kalender", tags: ["institution"] },
+  { t: "die Zensurbeh\xF6rde einer freien Stadt", tags: ["institution"] },
+  { t: "ein Algorithmus mit Namen", tags: ["nichtmensch"] },
+  { t: "eine Maschine, die zu tr\xE4umen beginnt", tags: ["nichtmensch"] },
+  { t: "ein Fluss, der sich erinnert", tags: ["nichtmensch"] },
+  { t: "eine Stimme ohne K\xF6rper", tags: ["nichtmensch"] },
+  { t: "ein Tier, das ein Versprechen h\xE4lt", tags: ["nichtmensch"] },
+  { t: "ein Haus mit eigenem Willen", tags: ["nichtmensch"] },
+  { t: "eine Uhr, die zur\xFCckz\xE4hlt", tags: ["nichtmensch"] },
+  { t: "ein Wald, der Namen vergibt", tags: ["nichtmensch"] },
+  { t: "eine Kolonie unter dem Eis", tags: ["nichtmensch", "kollektiv"] },
+  { t: "ein Signal, das antwortet", tags: ["nichtmensch"] },
+  { t: "eine Karte, die sich selbst zeichnet", tags: ["nichtmensch"] },
+  { t: "ein Spiegel mit Ged\xE4chtnis", tags: ["nichtmensch"] },
+  { t: "eine Wolke, die einem Menschen folgt", tags: ["nichtmensch"] },
+  { t: "ein Schiff ohne Besatzung, das Kurs h\xE4lt", tags: ["nichtmensch"] },
+  { t: "eine Sprache, die aussterben will", tags: ["nichtmensch"] },
+  { t: "ein Schatten, der fr\xFCher ankommt", tags: ["nichtmensch"] },
+  { t: "ein Bahnhof, der Reisende beh\xE4lt", tags: ["nichtmensch"] },
+  { t: "eine Falschm\xFCnzerin mit Prinzipien", tags: ["antiheld"] },
+  { t: "ein Spion im Ruhestand", tags: ["antiheld", "einzel"] },
+  { t: "eine Diebin, die nur Erinnerungen stiehlt", tags: ["antiheld"] },
+  { t: "ein Verr\xE4ter aus Loyalit\xE4t", tags: ["antiheld"] },
+  { t: "ein Hochstapler mit echtem Titel", tags: ["antiheld"] },
+  { t: "eine Anw\xE4ltin f\xFCr aussichtslose F\xE4lle", tags: ["antiheld", "einzel"] },
+  { t: "ein Erpresser mit gutem Ged\xE4chtnis", tags: ["antiheld"] },
+  { t: "eine Schmugglerin von B\xFCchern", tags: ["antiheld"] },
+  { t: "ein S\xF6ldner, der nicht mehr schie\xDFt", tags: ["antiheld"] },
+  { t: "eine Betr\xFCgerin mit sauberem Gewissen", tags: ["antiheld"] },
+  { t: "ein Kronzeuge, der l\xFCgt", tags: ["antiheld"] },
+  { t: "eine Grabr\xE4uberin mit Doktortitel", tags: ["antiheld"] },
+  { t: "ein Henker, der Gnade sammelt", tags: ["antiheld"] },
+  { t: "eine F\xE4lscherin echter Dokumente", tags: ["antiheld"] },
+  { t: "ein Deserteur mit Orden", tags: ["antiheld"] },
+  { t: "eine Wilderin im Naturschutzgebiet", tags: ["antiheld"] },
+  { t: "eine Pilotin ohne Lizenz", tags: ["antiheld", "einzel"] }
+];
+var WHERE_TAGGED = [
+  { t: "in einer schlaflosen Stadt", tags: ["urban"] },
+  { t: "in einem verlassenen Bahnhof", tags: ["urban"] },
+  { t: "in einem Hinterhof ohne Ausgang", tags: ["urban", "raum"] },
+  { t: "auf einem n\xE4chtlichen Boulevard", tags: ["urban"] },
+  { t: "in einem Hochhaus ohne Erdgeschoss", tags: ["urban"] },
+  { t: "in der U-Bahn nach Mitternacht", tags: ["urban"] },
+  { t: "in einem Viertel, das abgerissen wird", tags: ["urban"] },
+  { t: "auf einem Parkdeck \xFCber der Stadt", tags: ["urban"] },
+  { t: "in einer Markthalle vor Sonnenaufgang", tags: ["urban"] },
+  { t: "in einem Hotel mit zu vielen Zimmern", tags: ["urban"] },
+  { t: "unter einer Autobahnbr\xFCcke", tags: ["urban"] },
+  { t: "in einer Stra\xDFe, die zweimal existiert", tags: ["urban", "nirgendwo"] },
+  { t: "in Paris", tags: ["urban"] },
+  { t: "in einem Nachtbus ohne Fahrg\xE4ste", tags: ["urban", "raum"] },
+  { t: "in einem Kino, das nie schlie\xDFt", tags: ["urban"] },
+  { t: "auf einem Dach \xFCber dem Verkehr", tags: ["urban"] },
+  { t: "in einer Telefonzelle, die noch klingelt", tags: ["urban"] },
+  { t: "in einem Kellerclub ohne Namen", tags: ["urban"] },
+  { t: "am Rand eines Moors", tags: ["natur"] },
+  { t: "in einem Wald ohne V\xF6gel", tags: ["natur"] },
+  { t: "an einer versinkenden K\xFCste", tags: ["natur"] },
+  { t: "auf einem Gletscher, der schmilzt", tags: ["natur"] },
+  { t: "in einer W\xFCste mit T\xFCren", tags: ["natur", "nirgendwo"] },
+  { t: "am Ufer eines toten Flusses", tags: ["natur"] },
+  { t: "am Fluss", tags: ["natur"] },
+  { t: "in einem Tal, das verstummt ist", tags: ["natur"] },
+  { t: "auf einer Insel ohne Hafen", tags: ["natur"] },
+  { t: "in einer H\xF6hle mit warmem Wind", tags: ["natur", "raum"] },
+  { t: "auf einem Feld nach der Ernte", tags: ["natur"] },
+  { t: "an einem See, der nie zufriert", tags: ["natur"] },
+  { t: "im Schilf hinter dem Deich", tags: ["natur"] },
+  { t: "auf einem Pass im ersten Schnee", tags: ["natur", "grenze"] },
+  { t: "in einem Obstgarten, der nicht mehr tr\xE4gt", tags: ["natur"] },
+  { t: "an einer Steilk\xFCste im Nebel", tags: ["natur"] },
+  { t: "unter einem Baum, der \xE4lter ist als das Dorf", tags: ["natur"] },
+  { t: "in einem Sumpf voller Wracks", tags: ["natur"] },
+  { t: "in einem versiegelten Zimmer", tags: ["raum"] },
+  { t: "in einem Aufzug zwischen zwei Stockwerken", tags: ["raum", "grenze"] },
+  { t: "in einer Kabine auf hoher See", tags: ["raum"] },
+  { t: "in einem Bunker ohne Uhr", tags: ["raum"] },
+  { t: "in einem Wartesaal ohne Z\xFCge", tags: ["raum"] },
+  { t: "hinter einer T\xFCr, die nicht schlie\xDFt", tags: ["raum"] },
+  { t: "in einem Zugabteil ohne Fenster", tags: ["raum"] },
+  { t: "in einer Dunkelkammer", tags: ["raum"] },
+  { t: "in einem Treppenhaus ohne Ausgang", tags: ["raum"] },
+  { t: "in einem Beichtstuhl", tags: ["raum", "institution"] },
+  { t: "in einer K\xFChlkammer", tags: ["raum"] },
+  { t: "in einem Auto am Stra\xDFenrand", tags: ["raum"] },
+  { t: "in einem Zelt im Dauerregen", tags: ["raum", "natur"] },
+  { t: "in einem Fahrstuhlschacht", tags: ["raum"] },
+  { t: "in einer Zelle mit Aussicht", tags: ["raum", "institution"] },
+  { t: "auf einem Dachboden voller Uhren", tags: ["raum"] },
+  { t: "an der Grenze zweier L\xE4nder", tags: ["grenze"] },
+  { t: "auf einer Br\xFCcke im Niemandsland", tags: ["grenze"] },
+  { t: "an der Schwelle zweier Zeiten", tags: ["grenze", "nirgendwo"] },
+  { t: "in einer Zollstation im Nebel", tags: ["grenze"] },
+  { t: "auf der Linie zwischen Traum und Wachen", tags: ["grenze", "nirgendwo"] },
+  { t: "am \xDCbergang, den keiner bewacht", tags: ["grenze"] },
+  { t: "auf einer F\xE4hre zwischen zwei Ufern", tags: ["grenze"] },
+  { t: "an einem Grenzfluss ohne Br\xFCcke", tags: ["grenze", "natur"] },
+  { t: "im Transitbereich eines Flughafens", tags: ["grenze"] },
+  { t: "an der K\xFCstenlinie bei Flut", tags: ["grenze", "natur"] },
+  { t: "auf dem letzten Meter vor der Sperre", tags: ["grenze"] },
+  { t: "in einem Korridor zwischen zwei Staaten", tags: ["grenze"] },
+  { t: "am Waldrand vor der Lichtung", tags: ["grenze", "natur"] },
+  { t: "auf der T\xFCrschwelle, die niemand \xFCberschreitet", tags: ["grenze"] },
+  { t: "an einem Ort ohne Namen", tags: ["nirgendwo"] },
+  { t: "in einer Stadt, die es nicht gibt", tags: ["nirgendwo", "urban"] },
+  { t: "im wei\xDFen Raum dazwischen", tags: ["nirgendwo"] },
+  { t: "auf einer Karte ohne Legende", tags: ["nirgendwo"] },
+  { t: "im Nichts nach dem letzten Halt", tags: ["nirgendwo"] },
+  { t: "an einem vergessenen Koordinatenpunkt", tags: ["nirgendwo"] },
+  { t: "zwischen zwei S\xE4tzen", tags: ["nirgendwo"] },
+  { t: "in einem Traum, der jemand anderem geh\xF6rt", tags: ["nirgendwo"] },
+  { t: "an einem Ort, den alle anders erinnern", tags: ["nirgendwo"] },
+  { t: "im Zwischenraum einer Erinnerung", tags: ["nirgendwo"] },
+  { t: "hinter der letzten bekannten Adresse", tags: ["nirgendwo"] },
+  { t: "in einer Gegend, die keine Karte erfasst", tags: ["nirgendwo"] },
+  { t: "auf einem Bahnsteig ohne Gleise", tags: ["nirgendwo"] },
+  { t: "dort, wo die Stra\xDFe einfach aufh\xF6rt", tags: ["nirgendwo"] },
+  { t: "in einem Archiv der Universit\xE4t", tags: ["institution"] },
+  { t: "in einer geschlossenen Klinik", tags: ["institution"] },
+  { t: "in einer stillgelegten Fabrik", tags: ["institution", "urban"] },
+  { t: "in einem Ministerium bei Nacht", tags: ["institution"] },
+  { t: "in einer Bibliothek ohne B\xFCcher", tags: ["institution"] },
+  { t: "in einem Gericht ohne Richter", tags: ["institution"] },
+  { t: "im Archiv", tags: ["institution"] },
+  { t: "in einem Amtszimmer im vierten Stock", tags: ["institution"] },
+  { t: "in einer Kaserne ohne Rekruten", tags: ["institution"] },
+  { t: "in einem Museum nach Schlie\xDFung", tags: ["institution"] },
+  { t: "in einem Internat im Winter", tags: ["institution"] },
+  { t: "in einer Wahlkabine", tags: ["institution"] },
+  { t: "in einem Rechenzentrum", tags: ["institution"] },
+  { t: "in einer Anstalt mit offenen T\xFCren", tags: ["institution"] },
+  { t: "im Keller eines Standesamts", tags: ["institution"] },
+  { t: "in einer Kirche ohne Gemeinde", tags: ["institution"] }
+];
+var WHEN_TAGGED = [
+  { t: "heute, kurz vor Feierabend", tags: ["gegenwart"] },
+  { t: "an einem Sonntagnachmittag", tags: ["gegenwart"] },
+  { t: "w\xE4hrend eines Stromausfalls", tags: ["gegenwart", "umbruch"] },
+  { t: "in der Woche des gro\xDFen Sturms", tags: ["gegenwart"] },
+  { t: "an einem ganz gew\xF6hnlichen Dienstag", tags: ["gegenwart"] },
+  { t: "im Winter", tags: ["gegenwart", "zeitlos"] },
+  { t: "kurz vor Mitternacht", tags: ["gegenwart", "zeitlos"] },
+  { t: "im Morgengrauen", tags: ["gegenwart", "zeitlos"] },
+  { t: "an einem Montag im November", tags: ["gegenwart"] },
+  { t: "w\xE4hrend der Mittagspause", tags: ["gegenwart"] },
+  { t: "in der Nacht nach dem Umzug", tags: ["gegenwart"] },
+  { t: "am Tag der Beerdigung", tags: ["gegenwart"] },
+  { t: "zwischen zwei Terminen", tags: ["gegenwart"] },
+  { t: "an einem Abend ohne Strom", tags: ["gegenwart"] },
+  { t: "im Sommer der langen D\xFCrre", tags: ["gegenwart"] },
+  { t: "an einem Freitag im Regen", tags: ["gegenwart"] },
+  { t: "1789", tags: ["historisch"] },
+  { t: "1917", tags: ["historisch"] },
+  { t: "1348", tags: ["historisch"] },
+  { t: "im Jahr der gro\xDFen Flut", tags: ["historisch", "zeitlos"] },
+  { t: "w\xE4hrend einer Belagerung", tags: ["historisch", "umbruch"] },
+  { t: "1848", tags: ["historisch"] },
+  { t: "im Herbst 1923", tags: ["historisch"] },
+  { t: "1889", tags: ["historisch"] },
+  { t: "w\xE4hrend der Choleraepidemie", tags: ["historisch"] },
+  { t: "im Jahr nach dem Krieg", tags: ["historisch"] },
+  { t: "1666", tags: ["historisch"] },
+  { t: "in der Woche der Kr\xF6nung", tags: ["historisch", "umbruch"] },
+  { t: "1961", tags: ["historisch"] },
+  { t: "w\xE4hrend der gro\xDFen Auswanderung", tags: ["historisch"] },
+  { t: "im letzten Sommer der Monarchie", tags: ["historisch", "umbruch"] },
+  { t: "1492", tags: ["historisch"] },
+  { t: "im Winter der Hungersnot", tags: ["historisch"] },
+  { t: "am Vorabend der Revolution", tags: ["historisch", "umbruch"] },
+  { t: "2041", tags: ["zukunft"] },
+  { t: "im dritten Jahr der Stille", tags: ["zukunft"] },
+  { t: "nach dem letzten Winter", tags: ["zukunft"] },
+  { t: "als die Meere zur\xFCckwichen", tags: ["zukunft"] },
+  { t: "im Jahrhundert der Karten ohne L\xE4nder", tags: ["zukunft"] },
+  { t: "2103", tags: ["zukunft"] },
+  { t: "im zweiten Jahr der neuen Zeitrechnung", tags: ["zukunft", "umbruch"] },
+  { t: "nach der gro\xDFen Abschaltung", tags: ["zukunft", "umbruch"] },
+  { t: "als die St\xE4dte zu wandern begannen", tags: ["zukunft"] },
+  { t: "2077", tags: ["zukunft"] },
+  { t: "im Sommer ohne Nacht", tags: ["zukunft", "zeitlos"] },
+  { t: "nachdem die letzte Grenze fiel", tags: ["zukunft", "umbruch"] },
+  { t: "im Jahr der ersten R\xFCckkehr", tags: ["zukunft"] },
+  { t: "als niemand mehr schrieb", tags: ["zukunft"] },
+  { t: "2199", tags: ["zukunft"] },
+  { t: "nach dem Ende der Vorhersagen", tags: ["zukunft"] },
+  { t: "zu einer Zeit, die niemand z\xE4hlt", tags: ["zeitlos"] },
+  { t: "im Jahr Null", tags: ["zeitlos"] },
+  { t: "als die Uhren noch schwiegen", tags: ["zeitlos"] },
+  { t: "irgendwann, immer", tags: ["zeitlos"] },
+  { t: "in einem Sommer ohne Ende", tags: ["zeitlos"] },
+  { t: "lange vor den Namen", tags: ["zeitlos"] },
+  { t: "in einer Woche, die sich wiederholt", tags: ["zeitlos"] },
+  { t: "zwischen zwei Herzschl\xE4gen", tags: ["zeitlos"] },
+  { t: "als die Zeit noch niemandem geh\xF6rte", tags: ["zeitlos"] },
+  { t: "an einem Tag, der zweimal stattfindet", tags: ["zeitlos"] },
+  { t: "im ewigen Nachmittag", tags: ["zeitlos"] },
+  { t: "bevor die Kalender erfunden wurden", tags: ["zeitlos"] },
+  { t: "in der Stunde, die nicht gez\xE4hlt wird", tags: ["zeitlos"] },
+  { t: "zu einer Zeit ohne Zeugen", tags: ["zeitlos"] },
+  { t: "in einem Jahr ohne Zahl", tags: ["zeitlos"] },
+  { t: "am Tag der Sonnenfinsternis", tags: ["umbruch"] },
+  { t: "in der Nacht des Umsturzes", tags: ["umbruch"] },
+  { t: "w\xE4hrend eines Generalstreiks", tags: ["umbruch"] },
+  { t: "am letzten Tag des Jahres", tags: ["umbruch"] },
+  { t: "in der Stunde der Entscheidung", tags: ["umbruch"] },
+  { t: "am Morgen nach der Wahl", tags: ["umbruch"] },
+  { t: "w\xE4hrend der Evakuierung", tags: ["umbruch"] },
+  { t: "in der Nacht, als die Grenze fiel", tags: ["umbruch"] },
+  { t: "am Tag der gro\xDFen Abstimmung", tags: ["umbruch"] },
+  { t: "w\xE4hrend des letzten Prozesses", tags: ["umbruch"] },
+  { t: "als die Fabrik schloss", tags: ["umbruch"] },
+  { t: "in der Woche der R\xE4umung", tags: ["umbruch"] },
+  { t: "am Vorabend des Aufbruchs", tags: ["umbruch"] },
+  { t: "w\xE4hrend des Erdbebens", tags: ["umbruch"] },
+  { t: "in den Stunden vor der Verk\xFCndung", tags: ["umbruch"] }
+];
+var WHAT_TAGGED = [
+  { t: "sucht eine Spur, die keiner hinterlie\xDF", tags: ["mystery"] },
+  { t: "findet einen Brief, der nicht an sie gerichtet war", tags: ["mystery"] },
+  { t: "entdeckt ein zweites Testament", tags: ["mystery"] },
+  { t: "verfolgt eine L\xFCge bis zur Wurzel", tags: ["mystery"] },
+  { t: "st\xF6\xDFt auf einen Namen, den es nicht geben d\xFCrfte", tags: ["mystery"] },
+  { t: "rekonstruiert eine Nacht, die niemand erlebt hat", tags: ["mystery"] },
+  { t: "sucht eine Spur", tags: ["mystery"] },
+  { t: "findet ein Foto mit einer Person zu viel", tags: ["mystery", "horror"] },
+  { t: "erbt einen Schl\xFCssel ohne Schloss", tags: ["mystery"] },
+  { t: "entziffert ein Tagebuch in fremder Hand", tags: ["mystery"] },
+  { t: "verh\xF6rt einen Zeugen, der l\xE4ngst tot ist", tags: ["mystery", "horror"] },
+  { t: "\xF6ffnet einen Fall, den alle geschlossen haben", tags: ["mystery"] },
+  { t: "bemerkt, dass zwei Uhren nicht \xFCbereinstimmen", tags: ["mystery"] },
+  { t: "verfolgt jemanden, der die eigene Route kennt", tags: ["mystery"] },
+  { t: "findet die eigene Unterschrift auf fremdem Papier", tags: ["mystery"] },
+  { t: "erh\xE4lt eine Nachricht aus der Zukunft", tags: ["scifi"] },
+  { t: "findet eine T\xFCr, die es nicht geben d\xFCrfte", tags: ["scifi", "maerchen"] },
+  { t: "verliert die Kontrolle \xFCber die eigene Stimme", tags: ["scifi", "horror"] },
+  { t: "erwacht in einem K\xF6rper mit fremdem Ged\xE4chtnis", tags: ["scifi"] },
+  { t: "entziffert ein Signal aus dem Nichts", tags: ["scifi"] },
+  { t: "tauscht Zeit gegen eine Erinnerung", tags: ["scifi"] },
+  { t: "wird von der eigenen Kopie verklagt", tags: ["scifi", "satire"] },
+  { t: "verkauft eine Erinnerung zu teuer", tags: ["scifi"] },
+  { t: "entdeckt eine L\xFCcke in der Simulation", tags: ["scifi"] },
+  { t: "verliert eine Woche und findet sie woanders", tags: ["scifi"] },
+  { t: "spricht mit einer Maschine, die l\xFCgt", tags: ["scifi"] },
+  { t: "bekommt ein Angebot von der eigenen Zukunft", tags: ["scifi"] },
+  { t: "muss beweisen, real zu sein", tags: ["scifi", "absurd"] },
+  { t: "findet den letzten Menschen ohne Anschluss", tags: ["scifi"] },
+  { t: "erbt ein fremdes Bewusstsein", tags: ["scifi"] },
+  { t: "schlie\xDFt einen Pakt, den keiner versteht", tags: ["maerchen"] },
+  { t: "folgt einem Licht in den Wald", tags: ["maerchen"] },
+  { t: "erbt einen Fluch mit gutem Kern", tags: ["maerchen"] },
+  { t: "verspricht drei Dinge, die sich widersprechen", tags: ["maerchen"] },
+  { t: "sucht einen Namen, um frei zu werden", tags: ["maerchen"] },
+  { t: "\xF6ffnet die verbotene T\xFCr", tags: ["maerchen", "horror"] },
+  { t: "tauscht den Schatten gegen einen Wunsch", tags: ["maerchen"] },
+  { t: "bekommt eine Gabe, die keiner will", tags: ["maerchen"] },
+  { t: "muss sieben N\xE4chte schweigen", tags: ["maerchen"] },
+  { t: "weckt etwas, das schlafen sollte", tags: ["maerchen", "horror"] },
+  { t: "verhandelt mit dem Fluss um einen \xDCbergang", tags: ["maerchen"] },
+  { t: "verliert das Gesicht an einen Spiegel", tags: ["maerchen", "horror"] },
+  { t: "gibt das eigene Herz als Pfand", tags: ["maerchen"] },
+  { t: "l\xF6st ein R\xE4tsel und verliert dabei alles", tags: ["maerchen"] },
+  { t: "wird von einem Tier um Hilfe gebeten", tags: ["maerchen"] },
+  { t: "f\xFCllt ein Formular f\xFCr die eigene Abwesenheit", tags: ["absurd", "satire"] },
+  { t: "verklagt den eigenen Schatten", tags: ["absurd"] },
+  { t: "wartet auf einen Termin, der nie kommt", tags: ["absurd"] },
+  { t: "erbt ein Amt ohne Aufgabe", tags: ["absurd", "satire"] },
+  { t: "verliert die Erinnerung an einen Namen", tags: ["absurd"] },
+  { t: "wird f\xFCr tot erkl\xE4rt und muss es widerlegen", tags: ["absurd"] },
+  { t: "beantragt eine Genehmigung zu existieren", tags: ["absurd", "satire"] },
+  { t: "wird in eine Abteilung ohne T\xFCr bef\xF6rdert", tags: ["absurd", "satire"] },
+  { t: "muss einen Fehler verwalten, den es nicht gibt", tags: ["absurd"] },
+  { t: "steht in einer Schlange, die sich selbst anstellt", tags: ["absurd"] },
+  { t: "bekommt einen Ausweis f\xFCr ein anderes Leben", tags: ["absurd"] },
+  { t: "soll das eigene Verschwinden protokollieren", tags: ["absurd"] },
+  { t: "sucht ein Zimmer, dessen Nummer wandert", tags: ["absurd"] },
+  { t: "erh\xE4lt Post von einer Beh\xF6rde ohne Existenz", tags: ["absurd"] },
+  { t: "muss die eigene Vergangenheit erst beantragen", tags: ["absurd"] },
+  { t: "will einfach nur verschwinden", tags: ["alltag"] },
+  { t: "trifft eine Entscheidung binnen einer Stunde", tags: ["alltag"] },
+  { t: "bricht ein Versprechen aus Kindheitstagen", tags: ["alltag"] },
+  { t: "kehrt an einen alten Ort zur\xFCck", tags: ["alltag"] },
+  { t: "sagt endlich einen Satz zu sp\xE4t", tags: ["alltag"] },
+  { t: "r\xE4umt ein Zimmer und findet ein Leben", tags: ["alltag"] },
+  { t: "will verschwinden", tags: ["alltag"] },
+  { t: "wartet auf einen Anruf, der nicht kommt", tags: ["alltag"] },
+  { t: "verpasst einen Zug mit Absicht", tags: ["alltag"] },
+  { t: "trifft jemanden, den es nicht mehr geben sollte", tags: ["alltag", "horror"] },
+  { t: "beantwortet einen zwanzig Jahre alten Brief", tags: ["alltag"] },
+  { t: "k\xFCndigt ohne Plan", tags: ["alltag"] },
+  { t: "erkennt sich auf einem fremden Foto", tags: ["alltag", "mystery"] },
+  { t: "verschiebt eine Beerdigung", tags: ["alltag"] },
+  { t: "beginnt ein Gespr\xE4ch, das alles \xE4ndert", tags: ["alltag"] },
+  { t: "h\xF6rt Schritte im leeren Haus", tags: ["horror"] },
+  { t: "bemerkt, dass die Spiegel nicht mehr stimmen", tags: ["horror"] },
+  { t: "z\xE4hlt eine Person zu viel", tags: ["horror"] },
+  { t: "findet die eigene Handschrift an fremder Wand", tags: ["horror"] },
+  { t: "verliert jede Nacht eine Erinnerung mehr", tags: ["horror"] },
+  { t: "wird von etwas erkannt, das keiner sieht", tags: ["horror"] },
+  { t: "h\xF6rt den eigenen Namen aus dem Nebenzimmer", tags: ["horror"] },
+  { t: "entdeckt, dass das Haus gr\xF6\xDFer wird", tags: ["horror"] },
+  { t: "findet Fu\xDFspuren, die zur\xFCckf\xFChren", tags: ["horror"] },
+  { t: "wacht jede Nacht eine Stunde fr\xFCher auf", tags: ["horror"] },
+  { t: "bemerkt, dass niemand mehr blinzelt", tags: ["horror"] },
+  { t: "gr\xE4bt etwas aus, das noch warm ist", tags: ["horror"] },
+  { t: "bekommt Anrufe von der eigenen Nummer", tags: ["horror"] },
+  { t: "sieht dasselbe Gesicht in jeder Menge", tags: ["horror"] },
+  { t: "schlie\xDFt eine T\xFCr, die offen bleibt", tags: ["horror"] },
+  { t: "gr\xFCndet ein Amt gegen die Wirklichkeit", tags: ["satire"] },
+  { t: "gewinnt einen Preis f\xFCr nichts", tags: ["satire"] },
+  { t: "verwaltet das Ende der Welt in Ordnern", tags: ["satire"] },
+  { t: "beruft eine Sitzung \xFCber Sitzungen ein", tags: ["satire"] },
+  { t: "optimiert sich selbst weg", tags: ["satire"] },
+  { t: "verkauft Zeit an die, die keine haben", tags: ["satire"] },
+  { t: "erfindet ein Problem und die passende L\xF6sung", tags: ["satire"] },
+  { t: "wird zum Gesicht einer Kampagne gegen sich selbst", tags: ["satire"] },
+  { t: "reformiert eine Beh\xF6rde in eine gr\xF6\xDFere", tags: ["satire"] },
+  { t: "l\xE4sst die Wahrheit auslagern", tags: ["satire"] },
+  { t: "schreibt ein Gutachten \xFCber das eigene Gutachten", tags: ["satire"] },
+  { t: "privatisiert das Wetter", tags: ["satire"] },
+  { t: "gr\xFCndet eine Kommission zur Abschaffung von Kommissionen", tags: ["satire"] },
+  { t: "macht Karriere durch konsequentes Nichtstun", tags: ["satire"] },
+  { t: "digitalisiert ein Formular, das niemand braucht", tags: ["satire"] }
+];
+var CTX_WHO = WHO_TAGGED.map((e) => e.t);
+var CTX_WHERE = WHERE_TAGGED.map((e) => e.t);
+var CTX_WHEN = WHEN_TAGGED.map((e) => e.t);
+var CTX_WHAT = WHAT_TAGGED.map((e) => e.t);
+var WHO_TWISTS = [
+  "mit einem geliehenen Namen",
+  "ohne Erinnerung an den gestrigen Tag",
+  "auf der Flucht vor einem Versprechen",
+  "mit zitternden H\xE4nden",
+  "kurz vor dem Aufbruch",
+  "voller ungestellter Fragen",
+  "mit einem fremden Koffer",
+  "zwischen zwei Loyalit\xE4ten",
+  "mit einer alten Schuld im Gep\xE4ck",
+  "ohne Papiere",
+  "mit einem zweiten Gesicht",
+  "mit einem halb vergessenen Auftrag",
+  "im falschen Jahrzehnt geboren",
+  "mit geliehener Stimme",
+  "mit einer Narbe, die niemand erkl\xE4rt",
+  "ohne R\xFCckfahrkarte",
+  "mit einem Brief, der nie abgeschickt wurde",
+  "unter fremder Aufsicht",
+  "mit einem Namen, den zwei Menschen tragen",
+  "im letzten Anzug des Vaters"
+];
+var WHERE_TWISTS = [
+  "wo die Uhren falsch gehen",
+  "wo niemand nach Namen fragt",
+  "wo nachts Licht brennt, obwohl niemand wohnt",
+  "wo alle T\xFCren offen stehen",
+  "wo der Fluss r\xFCckw\xE4rts zu flie\xDFen scheint",
+  "wo man Fremde sofort erkennt",
+  "wo ein Zimmer seit Jahren verschlossen ist",
+  "wo die Karten nicht stimmen",
+  "wo jeder zweite Brief verloren geht",
+  "wo das Echo eine Sekunde zu sp\xE4t kommt",
+  "wo der Winter nie ganz endet",
+  "wo die W\xE4nde d\xFCnner sind, als man denkt",
+  "wo die Stra\xDFen keine Namen tragen",
+  "wo man den Hafen h\xF6rt, aber nicht sieht",
+  "wo jedes Fenster nach Osten zeigt",
+  "wo die V\xF6gel nicht landen",
+  "wo eine Uhr seit Jahren dieselbe Zeit zeigt",
+  "wo der Boden bei Regen nachgibt"
+];
+var WHEN_TWISTS = [
+  "kurz nach der Sperrstunde",
+  "in der Nacht der Inventur",
+  "am Tag der letzten F\xE4hre",
+  "w\xE4hrend eines Stromausfalls",
+  "zwischen zwei Glockenschl\xE4gen",
+  "am Vorabend einer Abreise",
+  "in der Woche der Nebel",
+  "als die Zeitungen schwiegen",
+  "w\xE4hrend des Jahrmarkts",
+  "in der Stunde zwischen Hund und Wolf",
+  "kurz bevor die Br\xFCcke gesperrt wird",
+  "am Morgen nach dem Fest",
+  "in der Nacht der langen Regen",
+  "w\xE4hrend die Glocken repariert werden",
+  "kurz vor der Zeitumstellung",
+  "als die Stra\xDFen leer blieben",
+  "in der Woche vor dem Umzug",
+  "am Tag, an dem die Post ausblieb"
+];
+var WHAT_TWISTS = [
+  "ohne zu wissen, warum",
+  "obwohl alle abraten",
+  "zum dritten und letzten Mal",
+  "gegen ein altes Versprechen",
+  "f\xFCr jemanden, der nie danach gefragt hat",
+  "mit den falschen Werkzeugen",
+  "unter falschem Namen",
+  "bevor es ein anderer tut",
+  "aus einem Grund, der erst am Ende z\xE4hlt",
+  "heimlich, zwischen zwei Pflichten",
+  "und zahlt daf\xFCr einen stillen Preis",
+  "als w\xE4re nichts geschehen",
+  "mit geliehenem Mut",
+  "einen Tag zu sp\xE4t",
+  "und nimmt daf\xFCr die Schuld auf sich",
+  "ohne Zeugen",
+  "w\xE4hrend alle anderen feiern",
+  "und kann es hinterher nicht erkl\xE4ren"
+];
+
+// src/generation/context.ts
+var roll = (base, tw) => {
+  const b = pick(base);
+  return Math.random() < 0.5 ? b : b + ", " + pick(tw);
+};
+function randomContext() {
+  return {
+    who: roll(CTX_WHO, WHO_TWISTS),
+    where: roll(CTX_WHERE, WHERE_TWISTS),
+    when: roll(CTX_WHEN, WHEN_TWISTS),
+    what: roll(CTX_WHAT, WHAT_TWISTS)
+  };
+}
+
+// src/generation/rhythmcurve.ts
+var splitSents = (t) => (t || "").replace(/\s+/g, " ").trim().split(/(?<=[.!?…])\s+/).filter((s) => s.trim().length > 0);
+var wlen = (s) => (s.toLowerCase().match(/[a-zäöüßA-ZÄÖÜ]+/g) || []).length;
+var mergeZaehler = 0;
+var mergeSents = (a, b) => {
+  const kopf = a.replace(/[.!?…]+$/, "").trim();
+  const strich = !kopf.includes("\u2014") && !b.includes("\u2014") && mergeZaehler++ % 2 === 0;
+  return kopf + (strich ? " \u2014 " : "; ") + b.trim();
+};
+function generateToCurve(bank, base, model, targets, poolFactor = 5) {
+  const clean2 = targets.map((n2) => Math.max(1, Math.round(n2))).filter((n2) => n2 > 0);
+  const n = clean2.length;
+  if (!n) return { text: "", targets: [], actual: [], poolSize: 0 };
+  const pool = [];
+  const seen = /* @__PURE__ */ new Set();
+  const need = Math.max(n * poolFactor, 48);
+  let guard = 0;
+  while (pool.length < need && guard < need * 4) {
+    guard++;
+    const ctx = randomContext();
+    const story = buildStory(bank, { ...base, ...ctx, form: "prose" }, model);
+    for (const s of splitSents(story)) {
+      const key = s.toLowerCase();
+      if (seen.has(key)) continue;
+      const L = wlen(s);
+      if (L < 1) continue;
+      seen.add(key);
+      pool.push({ s, len: L });
+    }
+  }
+  const used = new Array(pool.length).fill(false);
+  const chosen = new Array(n);
+  const actual = new Array(n);
+  const pickFit = (target) => {
+    const maxParts = target >= 40 ? 3 : target >= 12 ? 2 : 1;
+    const parts = [];
+    let sum = 0;
+    for (let p = 0; p < maxParts; p++) {
+      let bi = -1, bd = Infinity;
+      for (let i = 0; i < pool.length; i++) {
+        if (used[i] || parts.includes(i)) continue;
+        const d = Math.abs(sum + pool[i].len - target);
+        if (d < bd) {
+          bd = d;
+          bi = i;
+        }
+      }
+      if (bi < 0) break;
+      if (parts.length > 0 && Math.abs(sum - target) <= bd) break;
+      parts.push(bi);
+      sum += pool[bi].len;
+      if (sum >= target) break;
+    }
+    return parts;
+  };
+  const order = clean2.map((_, i) => i).sort((a, b) => clean2[b] - clean2[a]);
+  for (const ti of order) {
+    const parts = pickFit(clean2[ti]);
+    if (!parts.length) {
+      const extra = splitSents(buildStory(bank, { ...base, ...randomContext(), form: "prose" }, model))[0] || "\u2026";
+      chosen[ti] = extra;
+      actual[ti] = wlen(extra);
+      continue;
+    }
+    for (const i of parts) used[i] = true;
+    const merged = parts.map((i) => pool[i].s).reduce((acc, sen) => acc ? mergeSents(acc, sen) : sen, "");
+    chosen[ti] = merged;
+    actual[ti] = wlen(merged);
+  }
+  return { text: chosen.join(" "), targets: clean2, actual, poolSize: pool.length };
+}
+
+// test/struktur.ts
+{
+  const g = globalThis;
+  if (typeof g.localStorage === "undefined") {
+    const m = {};
+    g.localStorage = {
+      getItem: (k) => k in m ? m[k] : null,
+      setItem: (k, v) => {
+        m[k] = String(v);
+      },
+      removeItem: (k) => {
+        delete m[k];
+      },
+      clear: () => {
+        for (const k of Object.keys(m)) delete m[k];
+      },
+      key: () => null,
+      length: 0
+    };
+  }
+}
 var fails = [];
 var geprueft = 0;
 var bestanden = 0;
@@ -20261,125 +21466,228 @@ var ist = (name, wert, soll) => {
   if (wert === soll) bestanden++;
   else fails.push(`${name}: \u201E${String(wert)}\u201C \u2014 erwartet \u201E${String(soll)}\u201C`);
 };
-var wahr = (name, b, zusatz = "") => ist(name + (zusatz ? ` (${zusatz})` : ""), b, true);
-{
-  const d = stufenDiff("Der Morgen liegt grau. Ein Riemen fehlt. Das Wasser steht still wie ein Gedanke.", "Der Morgen liegt grau. Das Wasser steht still wie ein Stein. Die Glocke schl\xE4gt.");
-  ist("gleich erkannt", d.saetze[0].marke, "gleich");
-  ist("ge\xE4ndert erkannt (\xE4hnlicher Satz)", d.saetze[1].marke, "geaendert");
-  ist("neu erkannt", d.saetze[2].marke, "neu");
-  ist("gefallen genannt", d.gefallen.join("|"), "Ein Riemen fehlt.");
-  const leer2 = stufenDiff("", "Ein Satz.");
-  ist("erste Stufe: alles neu", leer2.saetze[0].marke, "neu");
+var wahr = (name, b) => ist(name, b, true);
+var FUENF = ["linear", "reverse", "circle", "fragment", "object"];
+for (const s of [...FUENF, "rekombination"]) {
+  wahr(`${s} hat eine Phasenfolge`, (STRUKTUR_PHASEN[s] || []).length === 10);
 }
-var inp = { where: "im Hafen", when: "am Abend", who: "Der Bote", what: "h\xF6rt die Glocke", tone: "mystery", varLevel: "wild", form: "prose", structure: "linear", mode: "myth", perspective: "third", rhythm: "auto", markovMode: "off", disruptor: "auto", archetypeA: "neutral", archetypeB: "psychopath", instability: 0, polish: false, polishStyle: "surreal_precise", lenTarget: 160 };
-wahr("aus: kein Rekorder", !zeitlupeAn());
-buildStory(DEFAULT_BANK, inp);
-ist("aus: nichts aufgezeichnet", zeitlupeLesen().length, 0);
-zeitlupeSchalten(true);
-var tl = buildStory(BUILTIN_PRESETS["kafka"], inp);
-var sl = zeitlupeLesen();
-wahr("Zusammenbau-Weg: Bau \u2026 Ende, mindestens f\xFCnf Stufen", sl.length >= 5 && sl[0].name === "Bau" && sl[sl.length - 1].name === "Ende", sl.map((x) => x.name).join(","));
-ist("\u2026 der letzte Text ist der gelieferte", sl[sl.length - 1].text, tl);
-setDramaData({ einstieg: ["Der Bote h\xF6rt die Glocke"], mitte: ["Ein Netz aus F\xE4den", "Ein Fenster ohne Glas"], hoehepunkt: ["Die Glocke schweigt"], schluss: ["Zur\xFCck bleibt ein Ton"], ausloeser: ["ein Strick"], veraenderungen: ["die Zeit kippt"], konflikte: [], zeitanomalien: [], regeln: [] });
-var t = buildStory(BUILTIN_PRESETS["kafka"], { ...inp, structure: "dramaturgie" });
-setDramaData(null);
-var st = zeitlupeLesen();
-wahr("an: Stufen aufgezeichnet (mindestens zehn)", st.length >= 10, String(st.length));
-ist("die erste Stufe ist der Bau", st[0].name, "Bau");
-ist("die letzte Stufe ist das Ende", st[st.length - 1].name, "Ende");
-ist("\u2026 und ihr Text ist der gelieferte", st[st.length - 1].text, t);
-wahr("die Reihenfolge stimmt: Bau vor Ton vor Auff\xFCllen vor Ende", st.findIndex((x) => x.name === "Bau") < st.findIndex((x) => x.name === "Ton") && st.findIndex((x) => x.name === "Ton") < st.findIndex((x) => x.name === "Auff\xFCllen"));
-wahr("jede Stufe tr\xE4gt ihre Erl\xE4uterung", st.every((x) => x.kurz.length > 20));
-wahr("das Auff\xFCllen hat den Text verl\xE4ngert", st[st.findIndex((x) => x.name === "Auff\xFCllen")].text.length > st[st.findIndex((x) => x.name === "Auff\xFCllen") - 1].text.length);
-wahr("alle Stufennamen sind erkl\xE4rt", st.every((x) => !!STUFEN_ERKLAERUNG[x.name]));
-zeitlupeSchalten(false);
-{
-  const q = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
-  wahr("Schalter \u201EQuelltext\u201C neben dem Bauplan (vormals Zeitlupe)", /ansicht\(planChk, "Bauplan"\), ansicht\(zeitChk, "Quelltext"\)/.test(q));
-  wahr("der Schalter steuert den Rekorder", /zeitlupeSchalten\(on\)/.test(q));
-  wahr("Stapel und Ebene liegen im Textfenster", /mkGenArrow\("left"\), spur, out, zeitEbene, zeitStapel, mkGenArrow\("right"\)/.test(q));
-  wahr("nur im Editiermodus", /const sichtbar = on && feedsChk\.checked;/.test(q));
-  wahr("jede Stufe ist ein klickbarer Layer", /class: "zl-layer"/.test(q) && /b\.addEventListener\("click", \(\) => \{ zeitStufe = letzte \? -1 : i; zeitSchritt = -1; renderZeit\(\); \}\)/.test(q));
-  wahr("die Ebene liegt \xFCber dem Text, der Text bleibt", /out\.classList\.add\("zl-unter"\)/.test(q) && !/out\.textContent = akt/.test(q));
-  wahr("die letzte Stufe nimmt die Ebene weg (Editieren bleibt m\xF6glich)", /if \(zeitStufe < 0\) \{ zeitEbene\.style\.display = "none"/.test(q));
-  wahr("Marken: neu, ge\xE4ndert, gefallen", /zl-" \+ sz\.marke/.test(q) && /zl-weg/.test(q));
-  wahr("kein Abspielen mehr", !/Abspielen/.test(q) && !/f-zl-tempo/.test(q));
-  wahr("nach jeder Erzeugung: Ebene weg, Stapel neu", /if \(zeitChk\.checked\) \{ zeitStufe = -1; zeitSchritt = -1; renderZeit\(\); \}/.test(q));
-}
-{
-  zeitlupeSchalten(true);
-  const a = buildStory(BUILTIN_PRESETS["kafka"], inp);
-  const b = buildStory(BUILTIN_PRESETS["kafka"], inp);
-  const stA = zeitlupeLesen(a), stB = zeitlupeLesen(b);
-  ist("die Aufzeichnung zu Text A endet mit A", stA[stA.length - 1].text, a);
-  ist("die zu Text B endet mit B", stB[stB.length - 1].text, b);
-  wahr("Bau und Ende geh\xF6ren zum selben Lauf", stA[0].text !== stB[0].text || a === b);
-  ist("zu einem fremden Text: keine Aufzeichnung", zeitlupeLesen("Ein Text, der nie gebaut wurde.").length, 0);
-  zeitlupeSchalten(false);
-  const q = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
-  wahr("die Ansicht holt die Aufzeichnung DIESES Textes", /zeitlupeLesen\(out\.textContent \|\| ""\)/.test(q));
-  wahr("und sagt es, wenn der Text nicht durch den Bau kam", /Zu diesem Text gibt es keine Aufzeichnung/.test(q));
-}
-{
-  zeitlupeSchalten(true);
-  const t3 = buildStory(BUILTIN_PRESETS["kafka"], inp);
-  const bau = zeitlupeLesen(t3).find((x) => x.name === "Bau");
-  wahr("der Bau tr\xE4gt Schritte", !!bau.schritte && bau.schritte.length >= 8, String(bau.schritte?.length));
-  const sch = bau.schritte;
-  wahr("jeder Schritt kennt Phase, Quelle, Typ", sch.every((x) => x.phase && x.quelle && x.typ));
-  wahr("der Text w\xE4chst Schritt f\xFCr Schritt", sch.every((x, i) => i === 0 || x.text.length > sch[i - 1].text.length));
-  wahr("der letzte Schritt ist der Rohtext des Baus (bis auf Fugen und Abs\xE4tze)", (() => {
-    const n = (x) => x.toLowerCase().replace(/[^a-zäöüß]/g, "");
-    const a = n(sch[sch.length - 1].text), b = n(bau.text);
-    return a.length > 0 && (b.includes(a.slice(0, 60)) && Math.abs(a.length - b.length) < b.length * 0.25);
-  })());
-  wahr("die Entscheidung ist zerlegt (Grund + mindestens ein Term)", sch.every((x) => x.gruende.length >= 1 && x.gruende[0].name === "Grund"));
-  wahr("Gewicht und Anteil stehen", sch.every((x) => x.score > 0 && x.anteil > 0 && x.anteil <= 1));
-  wahr("Konkurrenten mit Gewicht und Anteil, h\xF6chstens zwei", sch.some((x) => x.konkurrenten.length === 2) && sch.every((x) => x.konkurrenten.length <= 2 && x.konkurrenten.every((k) => k.score >= 0 && k.text)));
-  wahr("ein Konkurrent ist nie der Gewinner", sch.every((x) => x.konkurrenten.every((k) => k.text !== x.atom)));
-  wahr("jeder Schritt kennt seinen Rang im Feld", sch.every((x) => (x.rang ?? 0) >= 1 && (x.rang ?? 0) <= x.kandidaten));
-  wahr("der Beste ist nie kleiner als der Gewinner", sch.every((x) => (x.bester ?? 0) >= x.score - 1e-9));
-  wahr("der Durchschnitt liegt zwischen null und dem Besten", sch.every((x) => (x.durchschnitt ?? 0) > 0 && (x.durchschnitt ?? 0) <= (x.bester ?? 0) + 1e-9));
-  wahr("Konkurrenten tragen ihren Rang", sch.every((x) => x.konkurrenten.every((k) => (k.rang ?? 0) >= 1)));
-  const q2 = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
-  wahr("die Erl\xE4uterung urteilt nach Rang, nicht nach Anteil", /quant <= 0\.05 \|\| rang <= 2 \? "unter den Besten"/.test(q2) && /Platz \$\{rang\} von \$\{n\}/.test(q2) && /gegenüber dem Durchschnitt/.test(q2));
-  setDramaData({ einstieg: ["Der Bote h\xF6rt die Glocke"], mitte: ["Ein Netz aus F\xE4den", "Ein Fenster ohne Glas"], hoehepunkt: ["Die Glocke schweigt"], schluss: ["Zur\xFCck bleibt ein Ton"], ausloeser: ["ein Strick"], veraenderungen: ["die Zeit kippt"], konflikte: [], zeitanomalien: [], regeln: [] });
-  const t4 = buildStory(BUILTIN_PRESETS["kafka"], { ...inp, structure: "dramaturgie" });
-  setDramaData(null);
-  const bau4 = zeitlupeLesen(t4).find((x) => x.name === "Bau");
-  wahr("Dramaturgie: Schritte sind Schl\xE4ge (einstieg zuerst)", !!bau4.schritte && bau4.schritte[0].phase === "einstieg" && bau4.schritte.every((x) => x.typ === "schlag"));
-  {
-    const q4 = bau4.schritte.map((x) => x.quelle);
-    wahr("der Haken kommt aus der Wortbank", bau4.schritte.find((x) => x.phase === "hook").quelle === "wortbank");
-    wahr("der H\xF6hepunkt aus dem Bogen", bau4.schritte.find((x) => x.phase === "hoehepunkt").quelle === "bogen");
-    wahr("der Schluss aus der Wortbank (kein Bogen-Schluss war da)", bau4.schritte.find((x) => x.phase === "schluss").quelle === "wortbank");
-    wahr("der Einstieg tr\xE4gt Kontext und Bogen", /^kontext/.test(bau4.schritte[0].quelle));
-    wahr("nicht alle Schl\xE4ge sind Erz\xE4hlbogen", new Set(q4).size >= 3, [...new Set(q4)].join(","));
+ist(
+  "die Rekombination beh\xE4lt 30/30/20/20",
+  STRUKTUR_PHASEN["rekombination"].join(","),
+  "exposition,exposition,exposition,verdichtung,verdichtung,verdichtung,umschlag,umschlag,schluss,schluss"
+);
+ist(
+  "linear ist dasselbe vorw\xE4rts",
+  STRUKTUR_PHASEN["linear"].join(","),
+  STRUKTUR_PHASEN["rekombination"].join(",")
+);
+ist("reverse f\xE4ngt mit dem Schluss an", STRUKTUR_PHASEN["reverse"][0], "schluss");
+ist("und h\xF6rt mit der Exposition auf", STRUKTUR_PHASEN["reverse"].slice(-1)[0], "exposition");
+ist("der Kreis kehrt zur Exposition zur\xFCck", STRUKTUR_PHASEN["circle"].slice(-1)[0], "exposition");
+ist("und f\xE4ngt auch dort an", STRUKTUR_PHASEN["circle"][0], "exposition");
+wahr("das Fragment springt", STRUKTUR_PHASEN["fragment"][0] !== STRUKTUR_PHASEN["fragment"][1]);
+ist("Fortschritt 0 trifft die erste Phase", phasenFolge("reverse", 0), "schluss");
+ist("Fortschritt 1 die letzte", phasenFolge("reverse", 1), "exposition");
+ist("und dar\xFCber hinaus auch", phasenFolge("reverse", 5), "exposition");
+ist("eine unbekannte Struktur erz\xE4hlt linear", phasenFolge("gibtesnicht", 0), "exposition");
+var ids = Object.keys(BUILTIN_PRESETS);
+var eingabe = (struktur) => ({
+  where: "im Archiv",
+  when: "am Morgen",
+  who: "die Archivarin",
+  what: "sucht eine Akte",
+  tone: "nuechtern",
+  form: "prose",
+  lenTarget: 200,
+  tension: "off",
+  cast: "auto",
+  mode: "bureau",
+  structure: struktur,
+  perspective: "third",
+  rhythm: "clean",
+  disruptor: "off",
+  instability: 0,
+  markovMode: "off",
+  varLevel: "mid",
+  archetypeA: "neutral",
+  archetypeB: "neutral"
+});
+var schlussStelle = (struktur, n = 40) => {
+  const pos = [];
+  for (let i = 0; i < n; i++) {
+    buildStory(BUILTIN_PRESETS[ids[i % ids.length]], eingabe(struktur));
+    const tr = getTrace();
+    const k = tr.findIndex((x) => x.kategorie === "endings");
+    if (k >= 0 && tr.length > 1) pos.push(k / (tr.length - 1));
   }
-  zeitlupeSchalten(false);
-  buildStory(BUILTIN_PRESETS["kafka"], inp);
-  const q = (0, import_fs.readFileSync)("src/ui/studio.ts", "utf8");
-  wahr("der Bau-Layer hat den Schritt-Stapel", /class: "zl-schritte"/.test(q) && /Schritt \$\{x\.nr\} von \$\{sch\.length\}/.test(q));
-  wahr("jeder Schritt tr\xE4gt Farbe und Buchstabe seiner Quelle", /class: "zl-schritt " \+ q\.cls/.test(q) && /el\("span", \{ class: "zl-q" \}, q\.kurz\)/.test(q));
-  wahr("der Text bis dahin ist eine Folge der Atome in Quellfarben", /for \(let j = 0; j <= zeitSchritt; j\+\+\)/.test(q) && /class: "zl-satz " \+ qv\(y\.quelle\)\.cls \+ \(j === zeitSchritt \? " zl-jetzt" : " zl-frueher"\)/.test(q));
-  wahr("kein gr\xFCnes Atom mehr im Schritt", !/class: "zl-satz zl-neu", title: "in diesem Schritt gesetzt"/.test(q));
-  wahr("der ganze Bau: alle Atome in Quellfarben statt gr\xFCn", /if \(zeitSchritt < 0\) \{\s*\n\s*const w = akt\.text/.test(q) && /for \(const y of sch\) \{\s*\n\s*if \(!y\.atom\) continue;\s*\n\s*t\.append\(el\("span", \{ class: "zl-satz " \+ qv\(y\.quelle\)\.cls/.test(q));
-  wahr("Wortbank-Atome nennen ihr Preset (Suche in allen Presets)", /const presetHerkunft = \(text: string\): string =>/.test(q) && /for \(const \[id, p\] of Object\.entries\(getAllPresets\(\)\)\)/.test(q));
-  wahr("\u2026 im Tooltip des Atoms, in der Kopfzeile und bei den Konkurrenten", /" · Preset " \+ herkunft\(y\.quelle, y\.atom\)/.test(q) && /` · Preset \$\{herkunft\(x\.quelle, x\.atom\)\}`/.test(q) && /herkunft\(q\.quelle, q\.text\)/.test(q));
-  wahr("nur f\xFCr die Wortbank, nicht f\xFCr Bogen oder Korpus", /q === "wortbank" \? presetHerkunft\(text\) : ""/.test(q));
-  wahr("die Kopfzeile nennt die Quelle beim Namen", /" — Quelle ", el\("span", \{ class: "zl-legende-item " \+ qv\(x\.quelle\)\.cls \}, qv\(x\.quelle\)\.name \+ /.test(q));
-  wahr("eine Legende z\xE4hlt die Quellen", /class: "muted mini zl-legende"/.test(q) && /sch\.filter\(\(x\) => x\.quelle === q\)\.length/.test(q));
-  wahr("dieselben Farben wie die Editieren-Legende", /wortbank: \{ name: "Wortbank", cls: "feed-wb"/.test(q) && /dramaturgie: \{ name: "Erzählbogen", cls: "feed-drama"/.test(q));
-  wahr("die Entscheidung mit Zerlegung und Konkurrenten steht daneben", /Konkurrenten, die es nicht wurden/.test(q) && /Zerlegung: /.test(q));
-  const qa = (0, import_fs.readFileSync)("src/atoms/assemble.ts", "utf8");
-  wahr("die Zerlegung wird nur gerechnet, wenn die Zeitlupe an ist", /if \(ziehungOffenlegen\) \{/.test(qa));
+  return { mittel: pos.length ? pos.reduce((a, b) => a + b, 0) / pos.length : NaN, gefunden: pos.length };
+};
+{
+  const lin = schlussStelle("linear"), rev = schlussStelle("reverse");
+  wahr(`linear findet ein Schlussbild (${lin.gefunden}/40)`, lin.gefunden >= 18);
+  wahr(`reverse auch (${rev.gefunden}/40)`, rev.gefunden >= 25);
+  wahr(`linear setzt es ans Ende (${(lin.mittel * 100).toFixed(0)} %)`, lin.mittel > 0.9);
+  wahr(`reverse an den Anfang (${(rev.mittel * 100).toFixed(0)} %)`, rev.mittel < 0.3);
 }
-console.log(`Pr\xFCfstand Zeitlupe \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
+{
+  const stellen = [];
+  for (const s of FUENF) {
+    for (let i = 0; i < 60; i++) {
+      const t = buildStory(BUILTIN_PRESETS[ids[i % ids.length]], eingabe(s));
+      const k = t.indexOf("Der Kreis schlie\xDFt sich");
+      if (k >= 0) stellen.push(k / t.length);
+    }
+  }
+  stellen.sort((a, b) => a - b);
+  const median = stellen.length ? stellen[Math.floor(stellen.length / 2)] : 0;
+  wahr(`der Kennsatz kommt \xFCberhaupt vor (${stellen.length}\xD7)`, stellen.length >= 1);
+  wahr(`er steht im Median ganz hinten (${(median * 100).toFixed(0)} %)`, median > 0.7);
+}
+{
+  const proben = {};
+  for (const s of FUENF) {
+    proben[s] = [];
+    for (let i = 0; i < 12; i++) proben[s].push(buildStory(BUILTIN_PRESETS[ids[i % ids.length]], eingabe(s)));
+  }
+  const worte2 = (t) => new Set(t.toLowerCase().match(/[a-zäöüß]{4,}/g) || []);
+  const jac = (a, b) => {
+    let s = 0;
+    a.forEach((x) => {
+      if (b.has(x)) s++;
+    });
+    return s / (a.size + b.size - s);
+  };
+  let hoechste = 0, paar = "";
+  for (let x = 0; x < FUENF.length; x++) {
+    for (let y = x + 1; y < FUENF.length; y++) {
+      let sum = 0;
+      for (let i = 0; i < 12; i++) sum += jac(worte2(proben[FUENF[x]][i]), worte2(proben[FUENF[y]][i]));
+      const m = sum / 12;
+      if (m > hoechste) {
+        hoechste = m;
+        paar = `${FUENF[x]}/${FUENF[y]}`;
+      }
+    }
+  }
+  wahr(`keine zwei Strukturen gleichen einander \xFCber 0,55 (h\xF6chste: ${paar} ${hoechste.toFixed(2)})`, hoechste < 0.55);
+}
+for (const s of FUENF) {
+  let rep = 0;
+  for (let i = 0; i < 25; i++) rep += phraseRepeatRatio(buildStory(BUILTIN_PRESETS[ids[i % ids.length]], eingabe(s)));
+  const m = rep / 25;
+  wahr(`${s}: Phrasenwiederholung unter 0,02 (${m.toFixed(3)})`, m < 0.02);
+}
+{
+  const leer2 = { motifs: [], hooks: [], props: [], turns: [], obstacles: [], stakes: [], endings: [] };
+  for (const s of FUENF) {
+    const t = buildStory(leer2, eingabe(s));
+    wahr(`${s} liefert auch bei leerer Wortbank Text`, t.trim().length > 30);
+  }
+}
+{
+  const norm2 = (x) => x.toLowerCase().match(/[a-zäöüß]{4,}/g) || [];
+  const steht = (t, arr) => {
+    const tw = norm2(t).join(" ");
+    return arr.some((x) => {
+      const w = norm2(x);
+      if (w.length < 3) return w.length > 0 && w.every((y) => tw.includes(y));
+      for (let j = 0; j + 3 <= w.length; j++) if (tw.includes(w.slice(j, j + 3).join(" "))) return true;
+      return false;
+    });
+  };
+  let n = 0, ohneEinstieg = 0, ohneMitte = 0, ohneHoehepunkt = 0;
+  for (const id of ids) {
+    const D2 = BUILTIN_DRAMA[id];
+    if (!D2) continue;
+    setDramaData(D2);
+    for (let i = 0; i < 3; i++) {
+      const t = buildStory(BUILTIN_PRESETS[id], eingabe("dramaturgie"));
+      n++;
+      if (D2.einstieg.length && !steht(t, D2.einstieg)) ohneEinstieg++;
+      if (D2.mitte.length && !steht(t, D2.mitte)) ohneMitte++;
+      if (D2.hoehepunkt.length && !steht(t, D2.hoehepunkt)) ohneHoehepunkt++;
+    }
+  }
+  setDramaData(null);
+  wahr(`alle Presets mit Bogen wurden gepr\xFCft (${n})`, n >= 140);
+  wahr(`der Einstieg steht im Text (${ohneEinstieg} Ausf\xE4lle von ${n})`, ohneEinstieg <= n * 0.03);
+  wahr(`die Mitte auch (${ohneMitte} von ${n})`, ohneMitte <= n * 0.03);
+  wahr(`und der H\xF6hepunkt (${ohneHoehepunkt} von ${n})`, ohneHoehepunkt <= n * 0.15);
+}
+{
+  setDramaData(null);
+  const text = "Die Archivarin sucht eine Akte. Die Akte liegt im Archiv. Die Archivarin bl\xE4ttert. Ein Zeppelin verliert seine Schrauben \xFCber Feuerland.";
+  const raus = coherencePass(text, { who: "die Archivarin", where: "im Archiv", what: "sucht eine Akte", form: "prose" });
+  wahr("ein verirrter Satz am Ende fliegt weiter raus", !raus.includes("Zeppelin"));
+  wahr("und der verbundene Text bleibt stehen", raus.includes("Die Akte liegt im Archiv"));
+}
+{
+  const schwach = [];
+  for (const id of ids) {
+    let kurz = 0;
+    for (let i = 0; i < 12; i++) {
+      const t = buildStory(BUILTIN_PRESETS[id], eingabe("rekombination"));
+      if (t.split(/\s+/).filter(Boolean).length < 120) kurz++;
+    }
+    if (kurz >= 3) schwach.push(`${id} (${kurz} von 12)`);
+  }
+  ist("kein Preset w\xFCrgt den Zusammenbau ab", schwach.join(", "), "");
+}
+{
+  const dannKopf = (t) => /^(und\s+)?dann\b/i.test(t);
+  const laengsteKette = (text) => {
+    let run = 0, best = 0;
+    for (const t of text.replace(/\n+/g, " ").split(/(?<=[.!?…])\s+/)) {
+      run = dannKopf(t) ? run + 1 : 0;
+      best = Math.max(best, run);
+    }
+    return best;
+  };
+  const j = joinBeats(["Es beginnt.", "Dann, unvermittelt: ein Essen.", "Dann kippt es \u2014 die Rollen tauschen.", "Und dann: ein Augenblick."], "");
+  ist("joinBeats l\xE4sst h\xF6chstens ein Dann in drei Beats stehen", laengsteKette(j), 1);
+  const j2 = joinBeats(["Es beginnt.", "Dann kippt es \u2014 die Rollen tauschen.", "Die T\xFCr bleibt zu."], "");
+  wahr("ein einzelnes Dann bleibt", /^Es beginnt\. Dann kippt es/.test(j2));
+  const ids2 = Object.keys(BUILTIN_DRAMA).filter((k) => BUILTIN_PRESETS[k]);
+  let dreifach = 0, doppel = 0;
+  for (let i = 0; i < 120; i++) {
+    const id = ids2[i % ids2.length];
+    setDramaData(BUILTIN_DRAMA[id]);
+    const t = buildStory(BUILTIN_PRESETS[id], eingabe("dramaturgie"));
+    const k = laengsteKette(t);
+    if (k >= 3) dreifach++;
+    if (k >= 2) doppel++;
+  }
+  ist("Dramaturgie: kein dreifaches Dann in 120 L\xE4ufen", dreifach, 0);
+  wahr("Dramaturgie: doppeltes Dann unter 5 %", doppel < 6);
+  setDramaData(null);
+}
+{
+  let doppelt = 0;
+  for (let i = 0; i < 100; i++) {
+    const t = buildStory(DEFAULT_BANK, eingabe(FUENF[i % 5]));
+    if ((t.match(/Der Einsatz ist/g) || []).length >= 2) doppelt++;
+  }
+  wahr("\u201EDer Einsatz ist\u201C h\xF6chstens einmal je Text (unter 3 % von 100)", doppelt < 3);
+}
+{
+  const r = generateToCurve(DEFAULT_BANK, eingabe("linear"), void 0, [12, 12, 12, 12, 12, 12, 12, 12], 3);
+  const saetze = r.text.split(/(?<=[.!?…])\s+/);
+  const mitStrich = saetze.filter((t) => t.includes("\u2014")).length;
+  const mitSemikolon = saetze.filter((t) => t.includes(";")).length;
+  wahr("h\xF6chstens die H\xE4lfte der S\xE4tze tr\xE4gt einen Strich", mitStrich <= Math.ceil(saetze.length / 2));
+  const paare = [mergeSents("Ein Satz.", "Noch einer."), mergeSents("Ein Satz.", "Noch einer."), mergeSents("Ein Satz.", "Noch einer."), mergeSents("Ein Satz.", "Noch einer.")];
+  wahr("die Verschmelzung wechselt zwischen Strich und Semikolon", paare.some((x) => x.includes(" \u2014 ")) && paare.some((x) => x.includes("; ")));
+  ist("an einen Strich h\xE4ngt sich kein zweiter", mergeSents("A \u2014 B.", "C."), "A \u2014 B; C.");
+  ist("auch wenn der zweite Teil einen tr\xE4gt", mergeSents("A.", "B \u2014 C."), "A; B \u2014 C.");
+}
+console.log(`Pr\xFCfstand Struktur \u2014 ${geprueft} Pr\xFCfungen, ${bestanden} bestanden`);
 var proc = globalThis;
 if (fails.length) {
   console.error(`
-\u274C Zeitlupe: ${fails.length} Fehler:`);
+\u274C Struktur: ${fails.length} Fehler:`);
   fails.forEach((f) => console.error("  - " + f));
   proc.process?.exit(1);
-} else console.log(`
-\u2705 Zeitlupe: alle ${geprueft} Pr\xFCfungen bestanden.`);
+} else {
+  console.log(`
+\u2705 Struktur: alle ${geprueft} Pr\xFCfungen bestanden.`);
+}

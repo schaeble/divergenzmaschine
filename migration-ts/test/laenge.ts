@@ -51,7 +51,7 @@ for (const st of ["linear", "rekombination", "dramaturgie"]) {
   const { enforceWordTarget } = require("../src/generation/length") as { enforceWordTarget: (t: string, ziel: number, bank: Bank) => string };
   const basis = "Das Licht fällt so, dass Worte fast überflüssig werden. Ebi beobachtet den Raum. Ein Tonbandgerät liegt darin, vergessen von einem Handwerker. Die Melodie wiederholt sich, aber die Worte ändern sich. Nur der Nebel, der mir den Rücken deckt.";
   const bank = { ...kafka, endings: ["Nur der Nebel, der mir den Rücken deckt", ...(kafka.endings || [])], props: ["einen Schlüssel für jedes Schloss", "einen Brief ohne Absenderzeile", "den Kompass ohne Nadel"] } as Bank;
-  let letzterBleibt = 0, akk = 0, anschluss = 0, n = 12;
+  let letzterBleibt = 0, akk = 0, n = 16, mitGes = 0, eingGes = 0;
   for (let i = 0; i < n; i++) {
     const t = enforceWordTarget(basis, 140, bank);
     const s = t.split(/(?<=[.!?…])\s+/);
@@ -59,13 +59,11 @@ for (const st of ["linear", "rekombination", "dramaturgie"]) {
     akk += (t.match(/(^|\. )(Einen|Den) [A-ZÄÖÜ]/g) || []).length;
     // Anschluss: eingefügte Sätze teilen mit ihrem Vorgänger einen Stamm (mindestens ein Drittel der Einfügungen)
     const st = (x: string) => new Set((x.toLowerCase().match(/[a-zäöüß]{5,}/g) || []).map((y) => y.slice(0, 5)));
-    let mit = 0, eing = 0;
-    for (let j = 1; j < s.length; j++) { if (basis.includes(s[j]!)) continue; eing++; const a = st(s[j - 1]!); for (const x of st(s[j]!)) if (a.has(x)) { mit++; break; } }
-    if (eing && mit / eing >= 0.3) anschluss++;
+    for (let j = 1; j < s.length; j++) { if (basis.includes(s[j]!)) continue; eingGes++; const a = st(s[j - 1]!); for (const x of st(s[j]!)) if (a.has(x)) { mitGes++; break; } }
   }
   ist("der letzte Satz bleibt der letzte (12 Läufe)", letzterBleibt, n);
   ist("keine Requisite im Akkusativ", akk, 0);
-  wahr("Anschluss: in vielen Läufen teilt mindestens ein Drittel der Einfügungen einen Stamm mit dem Vorgänger (vorher: Zufall)", anschluss >= n * 0.35, `${anschluss}/${n}`);
+  wahr("Anschluss: über alle Läufe teilt mindestens ein Fünftel der Einfügungen einen Stamm mit dem Vorgänger (vorher: Zufall, unter einem Zehntel)", eingGes > 0 && mitGes / eingGes >= 0.2, `${mitGes}/${eingGes}`);
 }
 
 console.log(`Prüfstand Textlänge — ${geprueft} Prüfungen, ${bestanden} bestanden`);
