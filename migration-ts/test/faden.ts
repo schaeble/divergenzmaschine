@@ -76,6 +76,7 @@ ist("Serienlänge fünf", SERIEN_LAENGE, 5);
   const q = readFileSync("src/ui/studio.ts", "utf8");
   wahr("die Fortsetzung erzeugt drei Kandidaten und nimmt den mit der größten Fadenstärke", /for \(let k = 0; k < 3; k\+\+\) \{\s*\n\s*generate\(\);/.test(q) && /if \(!bester \|\| st\.wert > bester\.st\.wert\) bester = \{ text: mitDing, st \};/.test(q));
   wahr("die Fadenzeile steht unter dem Titel", /fadenZeile\.textContent = letzteFadenstaerke \? fadenBeschreibung\(letzteFadenstaerke\) : ""/.test(q));
+  wahr("„Behalten“ merkt die letzte Folge mit Serie, Nummer und Fadenstärke", /const serienSet = f && fadenKopf \? \{ serie: f\.serie, folge: String\(f\.folge - 1\)/.test(q) && /set: \{ \.\.\.einstellungen\(\), \.\.\.serienSet \}/.test(q));
   const qt = readFileSync("src/ui/treasuryView.ts", "utf8");
   wahr("die Schatzkammer zeigt Serie, Folge und Fadenstärke", /Serie „\$\{it\.set\.serie\}“ · Folge/.test(qt));
 }

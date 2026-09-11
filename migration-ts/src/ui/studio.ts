@@ -1907,7 +1907,12 @@ export function mountStudio(root: HTMLElement): void {
 
   const keepBtn = el("button", {}, icon("star"), " ", keepLbl);
   keepBtn.addEventListener("click", () => {
-    const n = addToTreasury(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value, set: einstellungen() });
+    // Gefragt: Muss ich die Fortsetzungen merken? Die vorigen Folgen legt
+    // "Fortsetzung" von selbst ab — die LETZTE nicht. "Behalten" traegt sie
+    // jetzt mit Serie, Nummer und Fadenstaerke ein, wenn ein Faden aktiv ist.
+    const f = ladeFaden();
+    const serienSet = f && fadenKopf ? { serie: f.serie, folge: String(f.folge - 1), ...(letzteFadenstaerke ? { faden: fadenBeschreibung(letzteFadenstaerke) } : {}) } : {};
+    const n = addToTreasury(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value, set: { ...einstellungen(), ...serienSet } });
     // Erst HIER weiss man, dass der Text behalten wird. Der Index traegt es
     // nach; ohne diesen Schritt saehe jeder Eintrag gleich aus und die
     // Auswertung koennte nichts unterscheiden.
