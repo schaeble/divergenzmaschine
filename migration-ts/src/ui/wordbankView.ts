@@ -9,6 +9,7 @@ import { feedLivePools, LIVE_W } from "../features/livepools";
 import { openPresetWizard } from "./presetWizard";
 import { preset2AusText, zuordnung, VORLAGE_EVOLUTION } from "../features/textpreset";
 import { findeDoppel, kernwortGruppen } from "../features/hygiene";
+import { entnamen } from "../features/namenwaechter";
 import { openArchive } from "./archiveView";
 import {
   setzeEigenes, ladeEigene, registerVon, WELT_LABEL, SPRACHE_LABEL,
@@ -404,13 +405,16 @@ export function mountWordbank(root: HTMLElement): void {
   const applyAllBtn = button("Alle übernehmen");
   applyAllBtn.addEventListener("click", () => {
     const bank = loadBank();
-    for (const [key] of CATS) bank[key as BankKey] = fullAreas[key]!.value.split("\n").map((x) => x.trim()).filter(Boolean);
+    // Namen-Wächter (4.365.0): Vornamen in den Einträgen werden beim
+    // Übernehmen zu Pronomen — das Material bringt keine Figur mit.
+    let namen = 0; const namenBeispiele: string[] = [];
+    for (const [key] of CATS) bank[key as BankKey] = fullAreas[key]!.value.split("\n").map((x) => x.trim()).filter(Boolean).map((x) => { const e = entnamen(x); if (e.ersetzt.length) { namen += e.ersetzt.length; for (const r of e.ersetzt) if (namenBeispiele.length < 3 && !namenBeispiele.includes(r.name + " → " + r.durch.toLowerCase())) namenBeispiele.push(r.name + " → " + r.durch.toLowerCase()); } return e.text; });
     const vw = verwLesen(); if (vw.length) bank.verwandlungen = vw; else delete bank.verwandlungen;
     if (!saveBank(bank)) { fullInfo.textContent = "Speichern fehlgeschlagen — Speicher voll. Erst Korpus/Schatzkammer leeren (Einstellungen ▸ Speicher) oder exportieren."; return; }
     load(); renderFull();
     let extra = "";
     if (preset.value.startsWith("user:")) { saveCurrentBankAsUserPreset(preset.value.slice(5)); extra = ` · Preset „${preset.value.slice(5)}“ aktualisiert`; }
-    fullInfo.textContent = `Übernommen ✓ — ${bankEntryCount(bank)} Einträge${extra}.`;
+    fullInfo.textContent = `Übernommen ✓ — ${bankEntryCount(bank)} Einträge${extra}.` + (namen ? ` Namen-Wächter: ${namen} ${namen === 1 ? "Name" : "Namen"} ersetzt (${namenBeispiele.join(", ")}).` : "");
   });
   const saveAsFileBtn = el("button", {}, icon("floppy"), " Speichern unter…");
   saveAsFileBtn.addEventListener("click", () => {

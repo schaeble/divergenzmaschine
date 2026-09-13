@@ -13,6 +13,7 @@ import { ladeArbeitsplatz, speichereArbeitsplatz, platzBrauchbar, SCHLAGFOLGEN, 
 import { loadDramaData } from "../generation/dramaturgie";
 import { ERZAEHLUNGEN_VORLAGEN } from "../features/erzaehlungen.data";
 import { preset2AusText } from "../features/textpreset";
+import { entnamen, namenMeldung } from "../features/namenwaechter";
 
 const PHASEN: [Exclude<keyof ReturnType<typeof preset2AusText>["drama"], "folge" | "name">, string][] = [
   ["einstieg", "Einstieg"], ["mitte", "Mitte"], ["hoehepunkt", "Höhepunkt"], ["schluss", "Schluss"],
@@ -111,12 +112,16 @@ export function mountErzaehlerbank(root: HTMLElement): void {
 
   const speichern = el("button", { class: "primary", type: "button", title: "Ins Archiv der gewählten Bauform legen — gleicher Titel sichert den Fortschritt, neuer Titel ist eine neue Geschichte." }, "Speichern") as HTMLButtonElement;
   speichern.addEventListener("click", () => {
+    // Namen-Wächter (4.365.0): Vornamen im Text werden beim Speichern zu
+    // Pronomen — die Geschichte gibt ihre Form her, nicht ihre Figuren.
+    const ne = entnamen(textIn.value);
+    if (ne.ersetzt.length) { textIn.value = ne.text; malStand(); }
     const ez = aktuell();
     if (!platzBrauchbar(ez)) { speichern.textContent = "Zu wenig Text (ab 40 Wörtern)"; window.setTimeout(() => { speichern.textContent = "Speichern"; }, 2000); return; }
     speichereArbeitsplatz(ez); archiviere(ez);
     if (!geburt) geburt = ez.folge;
-    speichern.textContent = "Gespeichert ✓";
-    window.setTimeout(() => { speichern.textContent = "Speichern"; }, 1500);
+    speichern.textContent = ne.ersetzt.length ? `Gespeichert ✓ · ${namenMeldung(ne)}` : "Gespeichert ✓";
+    window.setTimeout(() => { speichern.textContent = "Speichern"; }, ne.ersetzt.length ? 4000 : 1500);
     malArchiv();
   });
   const leeren = el("button", { class: "danger", type: "button", title: "Arbeitsplatz leeren — das Archiv bleibt." }, "Arbeitsplatz leeren") as HTMLButtonElement;

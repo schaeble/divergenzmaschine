@@ -25,6 +25,7 @@ import type { DramaData } from "../generation/dramaturgie";
 import { deriveAtom } from "../atoms/derive";
 import { clean } from "../text-utils";
 import { praesensUmschreiben } from "../generation/coherence";
+import { entnamen } from "./namenwaechter";
 
 const KATEGORIEN: BankKey[] = ["motifs", "hooks", "props", "turns", "obstacles", "stakes", "endings"];
 
@@ -71,7 +72,9 @@ export function presetAusText(text: string): PresetAusText {
     // Der Umschreiber bringt, was er sicher kann; was er nicht entscheiden
     // kann, bleibt (der Editor warnt).
     const u = praesensUmschreiben(s0);
-    const s = u.ok && u.changed ? u.text : s0;
+    // Namen-Wächter (4.365.0): Vornamen werden zu Pronomen — der Text bringt
+    // seine Figuren mit, das Preset soll keine haben.
+    const s = entnamen(u.ok && u.changed ? u.text : s0).text;
     const key = s.toLowerCase();
     if (gesehen.has(key)) return;
     gesehen.add(key);
