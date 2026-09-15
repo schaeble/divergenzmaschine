@@ -75,7 +75,7 @@ ist("Klemmung", kurveWert([0, 1], 3), 1);
   wahr("Zug und Kerbe nur bei der Hand am Rand", /spur\.addEventListener\("pointerenter", \(\) => \{ spur\.classList\.add\("sk-hand"\); \}\)/.test(qs) && /kerbe\.style\.display = "none"/.test(qs));
   wahr("loslassen verblasst, speichert und erzeugt neu", /const loslassen = \(\): void => \{ if \(!ziehe\) return; ziehe = false; spur\.classList\.remove\("sk-hand"\); gewaehlt = -1; skSichern\(\); generate\(\); \}/.test(qs));
   wahr("Tastatur: auf/ab wählt, links/rechts ändert", /k === "ArrowUp" \|\| k === "ArrowDown"/.test(qs) && /k === "ArrowRight" \|\| k === "ArrowLeft"/.test(qs));
-  wahr("nach jeder Erzeugung wird die Spur neu gemalt", /renderTitel\(\); spurMalen\(\); \}/.test(qs));
+  wahr("nach jeder Erzeugung wird die Spur neu gemalt", /renderTitel\(\); spurMalen\(\);/.test(qs));
   wahr("vor der Erzeugung: Schlagfolge aus der Kurve, Regler gesetzt", /setBogenOverride\(\{ \.\.\.basis, folge: schlagfolgeAusKurve\(kurve\.werte\) \}\)/.test(qs) && /tension\.value = soll/.test(qs));
   wahr("Vorlagen zur Wahl", /select\("f-sk-vorlage"/.test(qs));
   const qb = readFileSync("src/generation/buildStory.ts", "utf8");

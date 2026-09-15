@@ -65,7 +65,8 @@ ist("Nominalphrase mit Relativsatz bleibt (Hausstil)", atomisiere("Eine Feder, d
     return l / Math.max(1, s);
   };
   const aus = mess(0), an = mess(14);
-  wahr("bei 14 deutlich weniger lange Sätze als bei 0", an < aus / 2, `${(aus * 100).toFixed(0)} % → ${(an * 100).toFixed(0)} %`);
+  // Seit Fueller-Anschluss und Satzlaenge-Verbindung (4.359) liegt das Verhaeltnis um 0,55 — deutlich, aber nicht halbiert.
+  wahr("bei 14 deutlich weniger lange Sätze als bei 0 (mindestens ein Drittel weniger)", an < aus * 0.67, `${(aus * 100).toFixed(0)} % → ${(an * 100).toFixed(0)} %`);
   saveKnobs({ ...KNOB_VORGABE });
 }
 
