@@ -6955,11 +6955,21 @@ function darfVerbinden(a, b, obergrenze) {
   if (/^(Es geht um|Der Einsatz ist|Auf dem Spiel steht|Alles dreht sich um|Was zählt, ist)\b/.test(a) || /steht auf dem Spiel\.$/.test(a)) return false;
   return wa + wb <= obergrenze;
 }
+var ZEIT_NOMEN = /* @__PURE__ */ new Set(["ende", "mitte", "anfang"]);
+function istAdjektivVorNomen(wort, naechstes) {
+  const w = (wort || "").toLowerCase();
+  if (w.length < 4 || !/(es|em|en|er|e)$/.test(w)) return false;
+  if (!/^[A-ZÄÖÜ]/.test(naechstes || "")) return false;
+  if (w in NOUN_GENDER || w in NOUN_GENDER_2 || ZEIT_NOMEN.has(w)) return false;
+  return true;
+}
 function verbinde(a, b, satzartig) {
   const kopf = a.trim().replace(/[.!?…]+$/, "");
   const rest = b.trim();
-  const wort = (rest.match(/^[A-Za-zÄÖÜäöüß]+/) || [""])[0].toLowerCase();
-  const darfKlein = KEIN_NOMEN.has(wort) || !!VERB_CONJ[wort];
+  const m = rest.match(/^([A-Za-zÄÖÜäöüß]+)(?:\s+([A-Za-zÄÖÜäöüß]+))?/);
+  const wort = (m?.[1] || "").toLowerCase();
+  const naechstes = m?.[2] || "";
+  const darfKlein = KEIN_NOMEN.has(wort) || !!VERB_CONJ[wort] || istAdjektivVorNomen(wort, naechstes);
   const weiter = darfKlein ? rest.charAt(0).toLowerCase() + rest.slice(1) : rest;
   if (!satzartig) return `${kopf} \u2014 ${weiter}`;
   return `${kopf}${pick([", und ", "; ", " \u2014 "])}${weiter}`;
@@ -7963,6 +7973,7 @@ function wieGefunden(gefunden, ziel) {
   const grossAmAnfang = /^[A-ZÄÖÜ]/.test(gefunden);
   return grossAmAnfang ? ziel.charAt(0).toUpperCase() + ziel.slice(1) : ziel.charAt(0).toLowerCase() + ziel.slice(1);
 }
+var HOECHSTENS_JE_PAAR = 2;
 function verwandleMotive(text, paare) {
   if (!text || !paare.length) return text;
   let t = text;
@@ -7972,7 +7983,8 @@ function verwandleMotive(text, paare) {
       const re = new RegExp(`(^|[^A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])(${escapeRegExp(von)})(?![A-Za-z\xC4\xD6\xDC\xE4\xF6\xFC\xDF])`, "gi");
       t = t.replace(re, (ganz, davor, wort) => {
         gesehen++;
-        return gesehen === 1 ? ganz : davor + wieGefunden(wort, nach);
+        if (gesehen === 1 || gesehen > 1 + HOECHSTENS_JE_PAAR) return ganz;
+        return davor + wieGefunden(wort, nach);
       });
     } catch {
     }
@@ -16065,9 +16077,6 @@ var BUILTIN_PRESETS = {
       "ein Ton, der im Brustbein sitzt"
     ],
     "hooks": [
-      "ein Duft kommt ohne Quelle",
-      "die Haut sp\xFCrt ein Ger\xE4usch",
-      "ein Geschmack weckt ein Datum",
       "das Licht f\xFChlt sich schwer an",
       "eine Ber\xFChrung klingt nach",
       "Ein Duft kommt durch das Treppenhaus, ohne Quelle.",
@@ -16078,16 +16087,15 @@ var BUILTIN_PRESETS = {
       "Sie legt die Hand auf den Stein und bleibt stehen.",
       "Der Regen klingt anders auf diesem Dach.",
       "Die W\xE4rme bleibt an der Stelle, wo eine Hand lag.",
-      "Etwas riecht nach einer Wohnung von vor drei\xDFig Jahren."
+      "Etwas riecht nach einer Wohnung von vor drei\xDFig Jahren.",
+      "Der Kies knirscht anders, wenn jemand fehlt.",
+      "Ein L\xF6ffel bleibt k\xE4lter als die Suppe.",
+      "Die Stimme aus dem Hof geh\xF6rt zu keinem Gesicht."
     ],
     "props": [
-      "eine Orange",
-      "einen Wollschal",
-      "eine Schale Wasser",
       "ein St\xFCck Rinde",
       "eine Glocke",
       "ein Tuch",
-      "eine Kerze",
       "einen Kieselstein",
       "eine Orange mit dicker Schale",
       "einen Wollschal, der kratzt",
@@ -16096,12 +16104,13 @@ var BUILTIN_PRESETS = {
       "eine Kerze aus Bienenwachs",
       "einen Stein, den die Sonne aufgew\xE4rmt hat",
       "eine Feder f\xFCr die Innenseite des Arms",
-      "ein Glas mit einem Rest Salz"
+      "ein Glas mit einem Rest Salz",
+      "einen Zuckerw\xFCrfel, der sich aufl\xF6st",
+      "ein Kissen, das nach Sonne riecht",
+      "eine Handvoll Kastanien, noch gl\xE4nzend"
     ],
     "turns": [
       "ein Sinn \xFCbernimmt die Arbeit des anderen",
-      "der Geruch f\xFChrt an einen Ort zur\xFCck",
-      "die Ber\xFChrung ver\xE4ndert die Farbe",
       "das H\xF6ren wird zum Sehen",
       "der Geschmack bleibt l\xE4nger als die Erinnerung",
       "der Geruch f\xFChrt an einen Ort zur\xFCck, den es nicht mehr gibt",
@@ -16126,9 +16135,6 @@ var BUILTIN_PRESETS = {
       "sie riecht es zuerst und sagt es zuletzt"
     ],
     "obstacles": [
-      "die Worte fehlen f\xFCr das Gef\xFChlte",
-      "der Duft verfliegt zu schnell",
-      "niemand sonst nimmt es wahr",
       "die Haut gew\xF6hnt sich",
       "der Ton liegt au\xDFerhalb des H\xF6rens",
       "die Worte fehlen f\xFCr das, was gef\xFChlt wird",

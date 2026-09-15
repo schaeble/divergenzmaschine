@@ -73,7 +73,17 @@ function wieGefunden(gefunden: string, ziel: string): string {
     : ziel.charAt(0).toLowerCase() + ziel.slice(1);
 }
 
-/** Verwandelt jedes WEITERE Vorkommen eines Motivs.
+/** Wie oft ein Paar im Text höchstens greift. Gemeldet (Blatt „Schafsweide",
+ *  Preset „sinnlich" mit Rimbaud-Bogen): „Licht→Gerücht" traf vier Sätze in
+ *  Folge — „Das Gerücht wechselt", „Ein Gerücht, das die Farben verschiebt",
+ *  „Das Gerücht fühlt sich schwer an", „Gerücht durch geschlossene Lider".
+ *  Gemessen über 400 Texte: 5,7 Verwandlungen je Text, in 12 % der Texte
+ *  drei oder mehr „Gerücht". Ein Bild, das einmal kippt, ist eine
+ *  Verwandlung; ein Bild, das viermal kippt, ist ein Wortfehler. Nach der
+ *  zweiten Verwandlung bleibt das Motiv wieder, wie es eingeführt wurde. */
+export const HOECHSTENS_JE_PAAR = 2;
+
+/** Verwandelt weitere Vorkommen eines Motivs — höchstens HOECHSTENS_JE_PAAR.
  *
  *  Das erste bleibt: Ohne Einführung ist die Verwandlung keine, sondern nur ein
  *  anderes Wort. Gezählt wird über den ganzen Text, nicht je Absatz — ein Motiv
@@ -90,7 +100,8 @@ export function verwandleMotive(text: string, paare: Verwandlung[]): string {
       const re = new RegExp(`(^|[^A-Za-zÄÖÜäöüß])(${escapeRegExp(von)})(?![A-Za-zÄÖÜäöüß])`, "gi");
       t = t.replace(re, (ganz: string, davor: string, wort: string) => {
         gesehen++;
-        return gesehen === 1 ? ganz : davor + wieGefunden(wort, nach);
+        if (gesehen === 1 || gesehen > 1 + HOECHSTENS_JE_PAAR) return ganz;
+        return davor + wieGefunden(wort, nach);
       });
     } catch { /* ein unbrauchbares Paar überspringt seine Verwandlung */ }
   }

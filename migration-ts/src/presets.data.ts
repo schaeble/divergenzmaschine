@@ -7546,9 +7546,6 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "ein Ton, der im Brustbein sitzt"
     ],
     "hooks": [
-      "ein Duft kommt ohne Quelle",
-      "die Haut spürt ein Geräusch",
-      "ein Geschmack weckt ein Datum",
       "das Licht fühlt sich schwer an",
       "eine Berührung klingt nach",
       "Ein Duft kommt durch das Treppenhaus, ohne Quelle.",
@@ -7559,16 +7556,15 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "Sie legt die Hand auf den Stein und bleibt stehen.",
       "Der Regen klingt anders auf diesem Dach.",
       "Die Wärme bleibt an der Stelle, wo eine Hand lag.",
-      "Etwas riecht nach einer Wohnung von vor dreißig Jahren."
+      "Etwas riecht nach einer Wohnung von vor dreißig Jahren.",
+      "Der Kies knirscht anders, wenn jemand fehlt.",
+      "Ein Löffel bleibt kälter als die Suppe.",
+      "Die Stimme aus dem Hof gehört zu keinem Gesicht."
     ],
     "props": [
-      "eine Orange",
-      "einen Wollschal",
-      "eine Schale Wasser",
       "ein Stück Rinde",
       "eine Glocke",
       "ein Tuch",
-      "eine Kerze",
       "einen Kieselstein",
       "eine Orange mit dicker Schale",
       "einen Wollschal, der kratzt",
@@ -7577,12 +7573,13 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "eine Kerze aus Bienenwachs",
       "einen Stein, den die Sonne aufgewärmt hat",
       "eine Feder für die Innenseite des Arms",
-      "ein Glas mit einem Rest Salz"
+      "ein Glas mit einem Rest Salz",
+      "einen Zuckerwürfel, der sich auflöst",
+      "ein Kissen, das nach Sonne riecht",
+      "eine Handvoll Kastanien, noch glänzend"
     ],
     "turns": [
       "ein Sinn übernimmt die Arbeit des anderen",
-      "der Geruch führt an einen Ort zurück",
-      "die Berührung verändert die Farbe",
       "das Hören wird zum Sehen",
       "der Geschmack bleibt länger als die Erinnerung",
       "der Geruch führt an einen Ort zurück, den es nicht mehr gibt",
@@ -7607,9 +7604,6 @@ export const BUILTIN_PRESETS: Record<string, Bank> = {
       "sie riecht es zuerst und sagt es zuletzt"
     ],
     "obstacles": [
-      "die Worte fehlen für das Gefühlte",
-      "der Duft verfliegt zu schnell",
-      "niemand sonst nimmt es wahr",
       "die Haut gewöhnt sich",
       "der Ton liegt außerhalb des Hörens",
       "die Worte fehlen für das, was gefühlt wird",

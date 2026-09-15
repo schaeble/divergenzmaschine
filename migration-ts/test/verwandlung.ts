@@ -17,7 +17,7 @@
       key: () => null, length: 0 } as unknown as Storage;
   }
 }
-import { leseVerwandlungen, verwandleMotive, pruefePaar } from "../src/generation/verwandlung";
+import { leseVerwandlungen, verwandleMotive, pruefePaar, HOECHSTENS_JE_PAAR } from "../src/generation/verwandlung";
 import { buildStory } from "../src/generation/buildStory";
 import { buildBericht } from "../src/generation/bericht";
 import { BUILTIN_PRESETS } from "../src/presets.data";
@@ -66,6 +66,15 @@ ist("das zweite Mal wird verwandelt",
   verwandleMotive("Der Regen fällt. Später der Regen.", P), "Der Regen fällt. Später der Nebel.");
 ist("und jedes weitere auch",
   verwandleMotive("Regen. Regen. Regen.", P), "Regen. Nebel. Nebel.");
+// Aber nicht endlos. Gemeldet (Blatt „Schafsweide"): „Licht→Gerücht" traf
+// vier Sätze in Folge, und „Gerücht durch geschlossene Lider" trägt kein
+// Bild mehr. Nach HOECHSTENS_JE_PAAR Verwandlungen bleibt das Motiv wieder.
+ist("nach der Höchstzahl bleibt das Motiv wieder stehen",
+  verwandleMotive("Regen. Regen. Regen. Regen. Regen.", P), "Regen. Nebel. Nebel. Regen. Regen.");
+ist("die Höchstzahl ist zwei", HOECHSTENS_JE_PAAR, 2);
+// Gegentest mit absichtlichem Fehler: Ein Zähler, der nie abschaltet, würde hier fünf Nebel liefern.
+wahr("mehr als die Höchstzahl wird nie verwandelt",
+  (verwandleMotive("Regen. ".repeat(9), P).match(/Nebel/g) || []).length === HOECHSTENS_JE_PAAR);
 // Groß und klein: Ein Motiv am Satzanfang steht groß, mitten im Satz klein.
 ist("die Schreibung der Fundstelle bleibt",
   verwandleMotive("Regen fällt. Es beginnt regen.", P), "Regen fällt. Es beginnt nebel.");

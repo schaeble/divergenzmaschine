@@ -12,6 +12,7 @@ import { readFileSync } from "fs";
 import { BUILTIN_PRESETS } from "../src/presets.data";
 import { DEFAULT_BANK } from "../src/constants";
 import { buildStory } from "../src/generation/buildStory";
+import { verbinde, istAdjektivVorNomen } from "../src/generation/shape";
 import type { GenInput, Bank } from "../src/types";
 
 const fails: string[] = [];
@@ -64,6 +65,22 @@ for (const st of ["linear", "rekombination", "dramaturgie"]) {
   ist("der letzte Satz bleibt der letzte (12 Läufe)", letzterBleibt, n);
   ist("keine Requisite im Akkusativ", akk, 0);
   wahr("Anschluss: über alle Läufe teilt mindestens ein Fünftel der Einfügungen einen Stamm mit dem Vorgänger (vorher: Zufall, unter einem Zehntel)", eingGes > 0 && mitGes / eingGes >= 0.2, `${mitGes}/${eingGes}`);
+}
+
+// ── Verbinden: Groß und klein an der Naht ─────────────────────────────────
+// Gemeldet (Blatt „Schafsweide"): „Ein trunkenes Boot, und Kaltes Wasser an
+// den Handgelenken." Ein Adjektiv steht in keiner Liste, also blieb es groß.
+{
+  const naht = (a: string, b: string): string => verbinde(a, b, false).replace(/^.*? — /, "");
+  ist("ein Adjektiv vor einem Nomen wird klein", naht("Ein trunkenes Boot.", "Kaltes Wasser an den Handgelenken."), "kaltes Wasser an den Handgelenken.");
+  ist("auch im Dativ", naht("Eine Schale.", "Lauwarmem Wasser fehlt der Geschmack."), "lauwarmem Wasser fehlt der Geschmack.");
+  // Gegentests: Was groß bleiben muss, bleibt groß.
+  ist("ein Nomen bleibt groß", naht("Der Wind dreht.", "Wäsche auf dem Balkon."), "Wäsche auf dem Balkon.");
+  ist("ein Nomen vor einem Namen bleibt groß", naht("Es klingelt.", "Tante Erna steht vor der Tür."), "Tante Erna steht vor der Tür.");
+  ist("eine Zeitangabe bleibt groß", naht("Es wird kalt.", "Ende Oktober fällt der erste Schnee."), "Ende Oktober fällt der erste Schnee.");
+  ist("ein Adjektiv vor einem kleinen Wort bleibt, wie es war", naht("Es regnet.", "Kaltes ist nicht immer nass."), "Kaltes ist nicht immer nass.");
+  wahr("istAdjektivVorNomen trifft den gemeldeten Fall", istAdjektivVorNomen("Kaltes", "Wasser"));
+  wahr("und nicht das Nomen davor", !istAdjektivVorNomen("Kinder", "Gottes"));
 }
 
 console.log(`Prüfstand Textlänge — ${geprueft} Prüfungen, ${bestanden} bestanden`);

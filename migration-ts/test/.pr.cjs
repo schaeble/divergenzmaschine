@@ -7546,9 +7546,6 @@ var BUILTIN_PRESETS = {
       "ein Ton, der im Brustbein sitzt"
     ],
     "hooks": [
-      "ein Duft kommt ohne Quelle",
-      "die Haut sp\xFCrt ein Ger\xE4usch",
-      "ein Geschmack weckt ein Datum",
       "das Licht f\xFChlt sich schwer an",
       "eine Ber\xFChrung klingt nach",
       "Ein Duft kommt durch das Treppenhaus, ohne Quelle.",
@@ -7559,16 +7556,15 @@ var BUILTIN_PRESETS = {
       "Sie legt die Hand auf den Stein und bleibt stehen.",
       "Der Regen klingt anders auf diesem Dach.",
       "Die W\xE4rme bleibt an der Stelle, wo eine Hand lag.",
-      "Etwas riecht nach einer Wohnung von vor drei\xDFig Jahren."
+      "Etwas riecht nach einer Wohnung von vor drei\xDFig Jahren.",
+      "Der Kies knirscht anders, wenn jemand fehlt.",
+      "Ein L\xF6ffel bleibt k\xE4lter als die Suppe.",
+      "Die Stimme aus dem Hof geh\xF6rt zu keinem Gesicht."
     ],
     "props": [
-      "eine Orange",
-      "einen Wollschal",
-      "eine Schale Wasser",
       "ein St\xFCck Rinde",
       "eine Glocke",
       "ein Tuch",
-      "eine Kerze",
       "einen Kieselstein",
       "eine Orange mit dicker Schale",
       "einen Wollschal, der kratzt",
@@ -7577,12 +7573,13 @@ var BUILTIN_PRESETS = {
       "eine Kerze aus Bienenwachs",
       "einen Stein, den die Sonne aufgew\xE4rmt hat",
       "eine Feder f\xFCr die Innenseite des Arms",
-      "ein Glas mit einem Rest Salz"
+      "ein Glas mit einem Rest Salz",
+      "einen Zuckerw\xFCrfel, der sich aufl\xF6st",
+      "ein Kissen, das nach Sonne riecht",
+      "eine Handvoll Kastanien, noch gl\xE4nzend"
     ],
     "turns": [
       "ein Sinn \xFCbernimmt die Arbeit des anderen",
-      "der Geruch f\xFChrt an einen Ort zur\xFCck",
-      "die Ber\xFChrung ver\xE4ndert die Farbe",
       "das H\xF6ren wird zum Sehen",
       "der Geschmack bleibt l\xE4nger als die Erinnerung",
       "der Geruch f\xFChrt an einen Ort zur\xFCck, den es nicht mehr gibt",
@@ -7607,9 +7604,6 @@ var BUILTIN_PRESETS = {
       "sie riecht es zuerst und sagt es zuletzt"
     ],
     "obstacles": [
-      "die Worte fehlen f\xFCr das Gef\xFChlte",
-      "der Duft verfliegt zu schnell",
-      "niemand sonst nimmt es wahr",
       "die Haut gew\xF6hnt sich",
       "der Ton liegt au\xDFerhalb des H\xF6rens",
       "die Worte fehlen f\xFCr das, was gef\xFChlt wird",
@@ -7672,6 +7666,67 @@ var BUILTIN_PRESETS = {
     ]
   }
 };
+
+// src/features/ki.ts
+var KATEGORIE_VORGABE = [
+  {
+    key: "motifs",
+    anzahl: 22,
+    min: 16,
+    max: 30,
+    woerter: 6,
+    text: "wiederkehrende Bilder, Nominalphrase MIT Artikel und eigenem Kopf"
+  },
+  {
+    key: "hooks",
+    anzahl: 17,
+    min: 14,
+    max: 20,
+    woerter: 8,
+    text: "kleine, irritierende Details oder S\xE4tze"
+  },
+  {
+    key: "props",
+    anzahl: 20,
+    min: 15,
+    max: 28,
+    woerter: 4,
+    text: 'Gegenst\xE4nde MIT unbestimmtem Artikel im Akkusativ, z.B. "einen Schl\xFCssel zum Kerker"'
+  },
+  { key: "turns", anzahl: 21, min: 18, max: 26, woerter: 8, text: "Wendepunkte, je ein knapper Satz" },
+  { key: "obstacles", anzahl: 20, min: 17, max: 26, woerter: 7, text: "Hindernisse, je ein knapper Satz" },
+  {
+    key: "stakes",
+    anzahl: 11,
+    min: 7,
+    max: 14,
+    woerter: 9,
+    text: 'S\xE4tze, jeder beginnt mit "Der Einsatz ist"'
+  },
+  { key: "endings", anzahl: 15, min: 11, max: 18, woerter: 8, text: "Schlusss\xE4tze" },
+  {
+    key: "verwandlungen",
+    anzahl: 8,
+    min: 4,
+    max: 12,
+    woerter: 0,
+    text: "Motivpaare \u2014 siehe unten"
+  }
+];
+function buildWordbankPrompt(ctx) {
+  let p = `Du erstellst eine "Wortbank" f\xFCr einen prozeduralen, deutschsprachigen Kreativ-Textgenerator. Die Wortbank besteht aus 7 Textkategorien mit ZUSAMMEN rund 125 kurzen, stimmungsvollen deutschen Phrasen (keine ganzen Abs\xE4tze, meist 3-10 W\xF6rter), passend zu folgendem Kontext:
+Ort: ${ctx.where || "(offen)"}
+Zeit: ${ctx.when || "(offen)"}
+Figur(en): ${ctx.who || "(offen)"}
+Handlung: ${ctx.what || "(offen)"}
+Ton: ${ctx.tone || "(offen)"}
+`;
+  if (ctx.userPrompt) p += `
+ZUS\xC4TZLICHE VORGABE DES NUTZERS (vorrangig): ${ctx.userPrompt}
+`;
+  p += "\nKategorien mit ANZAHL (die Zahlen bitte einhalten, sie sind gemessen):\n" + KATEGORIE_VORGABE.map((k) => `- ${k.key}: ${k.anzahl} ${k.text} (${k.min}\u2013${k.max})` + (k.woerter ? `, ~${k.woerter} W\xF6rter je Eintrag` : "") + "\n").join("") + '\nEINE HAND, NICHT DREI: Alle Eintr\xE4ge m\xFCssen aus DERSELBEN Welt stammen \u2014 gleiches Register, gleiche Bildwelt, gleicher Wortschatz. Das ist keine Stilfrage, sondern gemessen: Ein Preset aus einer Hand tr\xE4gt einen langen Text auf 95 % der Vorgabe, eine Mischung aus drei Presets bei GLEICHER Gr\xF6\xDFe nur auf 84 %. Der Generator pr\xFCft jeden Anschluss auf Kasus, Tempus und Satztyp und verwirft mehr, wenn das Material auseinanderf\xE4llt. Lieber 120 Eintr\xE4ge aus einer Welt als 200 aus dreien.\n\nWORTZAHL \u2014 das eigentliche Ma\xDF: Die 120 Eintr\xE4ge sollen ZUSAMMEN rund 850 W\xF6rter tragen, im Schnitt also SIEBEN W\xF6rter je Eintrag. Das ist gemessen, nicht gesch\xE4tzt: \xDCber 23 Presets sagt die Zahl der Eintr\xE4ge kaum etwas \xFCber die erreichte Textl\xE4nge voraus, die Zahl der W\xF6rter dagegen deutlich (r = 0,80). Ein Preset mit 123 Eintr\xE4gen und 557 W\xF6rtern tr\xE4gt einen 450-W\xF6rter-Bericht nur auf 72 %; eines mit 128 Eintr\xE4gen und 923 W\xF6rtern auf 108 %. Drei- und Vierwortbrocken ("Das ist so random.") f\xFCllen die Liste, aber nicht den Text. Schreibe also lieber "ein Wappen ohne Farbe an kalter Mauer" als "ein Wappen".\n\nWO die W\xF6rter stehen, entscheidet mit: turns, obstacles und endings tragen den Bericht deutlich st\xE4rker als props und motifs. In einem Versuch mit f\xFCnf Presets brachten hundert zus\xE4tzliche W\xF6rter in den SATZ-Kategorien rund 9 Prozentpunkte L\xE4nge, hundert W\xF6rter in den Nominal-Kategorien nur rund 6. Halte turns, obstacles und endings deshalb bei mindestens sieben W\xF6rtern \u2014 ein vollst\xE4ndiger Satz mit einem Umstand, nicht ein Stichwort. F\xFCr props gilt das NICHT: Sie stehen im Bestand bei rund vier W\xF6rtern, weil sie als Objekt in einen fremden Satz gesetzt werden \u2014 "einen Kompass mit beschlagenem Glas" ist die richtige L\xE4nge, ein ganzer Satz w\xE4re dort falsch. \xDCber alle Kategorien tragen die Satz-Kategorien (hooks, turns, obstacles, endings) rund 65 Prozent der W\xF6rter; das ist die Verteilung, die der Bestand hat.\n\nMOTIVE M\xDCSSEN ALLEIN STEHEN K\xD6NNEN: Jedes motif ist eine Nominalphrase mit Artikel und eigenem Kopf, am besten mit Relativsatz \u2014 "eine Glocke, die \xFCber allen D\xE4chern h\xE4ngt". NICHT: "Brot und Ketten", "Kan\xE4le unter der Stadt", "die Kathedrale im Regen". Solche Bruchst\xFCcke haben keinen Kopf, an den der Generator anschlie\xDFen kann. Gemessen an einem Preset mit zehn davon: Der Zusammenbau brach in 33 von 60 L\xE4ufen mitten im Text ab, der Median lag bei 90 statt 400 W\xF6rtern. Nach dem Umschreiben: 387.\n\nDie Zahl 120 ist \xFCbrigens KEIN Ziel f\xFCr sich. \xDCber 23 Presets gemessen sagt die Eintragszahl nichts mehr voraus, sobald die Wortzahl bekannt ist (r = -0,04). 90 lange Eintr\xE4ge sind so gut wie 120 kurze, solange die 850 W\xF6rter zusammenkommen.\n\nUND NICHT MEHR ALS 850: Der Ertrag s\xE4ttigt. An zw\xF6lf nachverdichteten Presets gemessen bringen hundert zus\xE4tzliche W\xF6rter unterhalb von 85 Prozent L\xE4nge noch 11 bis 18 Punkte, oberhalb von 91 Prozent nur noch 1 bis 3. Wer \xFCber 850 hinausschreibt, gewinnt keine L\xE4nge mehr, sondern nur noch Abwechslung \u2014 das ist ein Grund, aber ein anderer.\n\nMOTIVVERWANDLUNGEN \u2014 die achte Liste: 41 der 51 eingebauten Presets tragen sie, im Median acht Paare. Ein Paar sagt, was aus einem Bild wird, wenn es WIEDERKEHRT: Das erste Vorkommen bleibt stehen und f\xFChrt das Motiv ein, jedes weitere wird verwandelt. Der Leser sieht dasselbe Ding zweimal, und beim zweiten Mal ist es etwas anderes geworden.\nForm: "Wort\u2192Wort", ein Paar je Eintrag, z.B. "Glocke\u2192Stimme", "Harpune\u2192Feder", "Akte\u2192Mappe".\nHARTE BEDINGUNG: Beide W\xF6rter m\xFCssen DASSELBE GESCHLECHT haben (der/der, die/die, das/das). Sonst steht im Text "das Stille", weil der Artikel davor nicht mitverwandelt wird \u2014 und der Generator wirft solche Paare still weg. Nimm Grundw\xF6rter im Singular, keine Wortgruppen.\n\nKEINE DUBLETTEN: Kein Eintrag darf zweimal vorkommen, auch nicht leicht abgewandelt. Ein Eintrag zweimal ist kein zweiter Eintrag.\n\nZEITFORM: Satzartige Eintr\xE4ge (hooks, turns, obstacles, endings) im PR\xC4SENS. Kein Pr\xE4teritum, kein Perfekt.\n\nWICHTIG: Deine Antwort MUSS mit { beginnen und mit } enden \u2014 nur reines JSON mit genau diesen 8 Schl\xFCsseln (motifs, hooks, props, turns, obstacles, stakes, endings, verwandlungen), jeweils ein Array von Strings. Keine Erkl\xE4rungen, kein Markdown.';
+  return p;
+}
 
 // src/text-utils.ts
 function clean(s) {
@@ -9729,6 +9784,15 @@ var NOUN_GENDER = {
 
 // src/generation/nouns2.data.ts
 var NOUN_GENDER_2 = {
+  // Nachtrag 4.357.1 (Blatt „Ost-Berlin": „Ein rotes Ballon")
+  ballon: "m",
+  luftballon: "m",
+  stoff: "m",
+  geschmack: "m",
+  sperrstunde: "f",
+  zugang: "m",
+  kopie: "f",
+  l\u00F6schung: "f",
   // ── Häufigste ──
   ende: "n",
   jahr: "n",
@@ -10692,67 +10756,6 @@ function normalizeBankShape(bank) {
     if (gut.length) out.verwandlungen = gut;
   }
   return out;
-}
-
-// src/features/ki.ts
-var KATEGORIE_VORGABE = [
-  {
-    key: "motifs",
-    anzahl: 22,
-    min: 16,
-    max: 30,
-    woerter: 6,
-    text: "wiederkehrende Bilder, Nominalphrase MIT Artikel und eigenem Kopf"
-  },
-  {
-    key: "hooks",
-    anzahl: 17,
-    min: 14,
-    max: 20,
-    woerter: 8,
-    text: "kleine, irritierende Details oder S\xE4tze"
-  },
-  {
-    key: "props",
-    anzahl: 20,
-    min: 15,
-    max: 28,
-    woerter: 4,
-    text: 'Gegenst\xE4nde MIT unbestimmtem Artikel im Akkusativ, z.B. "einen Schl\xFCssel zum Kerker"'
-  },
-  { key: "turns", anzahl: 21, min: 18, max: 26, woerter: 8, text: "Wendepunkte, je ein knapper Satz" },
-  { key: "obstacles", anzahl: 20, min: 17, max: 26, woerter: 7, text: "Hindernisse, je ein knapper Satz" },
-  {
-    key: "stakes",
-    anzahl: 11,
-    min: 7,
-    max: 14,
-    woerter: 9,
-    text: 'S\xE4tze, jeder beginnt mit "Der Einsatz ist"'
-  },
-  { key: "endings", anzahl: 15, min: 11, max: 18, woerter: 8, text: "Schlusss\xE4tze" },
-  {
-    key: "verwandlungen",
-    anzahl: 8,
-    min: 4,
-    max: 12,
-    woerter: 0,
-    text: "Motivpaare \u2014 siehe unten"
-  }
-];
-function buildWordbankPrompt(ctx) {
-  let p = `Du erstellst eine "Wortbank" f\xFCr einen prozeduralen, deutschsprachigen Kreativ-Textgenerator. Die Wortbank besteht aus 7 Textkategorien mit ZUSAMMEN rund 125 kurzen, stimmungsvollen deutschen Phrasen (keine ganzen Abs\xE4tze, meist 3-10 W\xF6rter), passend zu folgendem Kontext:
-Ort: ${ctx.where || "(offen)"}
-Zeit: ${ctx.when || "(offen)"}
-Figur(en): ${ctx.who || "(offen)"}
-Handlung: ${ctx.what || "(offen)"}
-Ton: ${ctx.tone || "(offen)"}
-`;
-  if (ctx.userPrompt) p += `
-ZUS\xC4TZLICHE VORGABE DES NUTZERS (vorrangig): ${ctx.userPrompt}
-`;
-  p += "\nKategorien mit ANZAHL (die Zahlen bitte einhalten, sie sind gemessen):\n" + KATEGORIE_VORGABE.map((k) => `- ${k.key}: ${k.anzahl} ${k.text} (${k.min}\u2013${k.max})` + (k.woerter ? `, ~${k.woerter} W\xF6rter je Eintrag` : "") + "\n").join("") + '\nEINE HAND, NICHT DREI: Alle Eintr\xE4ge m\xFCssen aus DERSELBEN Welt stammen \u2014 gleiches Register, gleiche Bildwelt, gleicher Wortschatz. Das ist keine Stilfrage, sondern gemessen: Ein Preset aus einer Hand tr\xE4gt einen langen Text auf 95 % der Vorgabe, eine Mischung aus drei Presets bei GLEICHER Gr\xF6\xDFe nur auf 84 %. Der Generator pr\xFCft jeden Anschluss auf Kasus, Tempus und Satztyp und verwirft mehr, wenn das Material auseinanderf\xE4llt. Lieber 120 Eintr\xE4ge aus einer Welt als 200 aus dreien.\n\nWORTZAHL \u2014 das eigentliche Ma\xDF: Die 120 Eintr\xE4ge sollen ZUSAMMEN rund 850 W\xF6rter tragen, im Schnitt also SIEBEN W\xF6rter je Eintrag. Das ist gemessen, nicht gesch\xE4tzt: \xDCber 23 Presets sagt die Zahl der Eintr\xE4ge kaum etwas \xFCber die erreichte Textl\xE4nge voraus, die Zahl der W\xF6rter dagegen deutlich (r = 0,80). Ein Preset mit 123 Eintr\xE4gen und 557 W\xF6rtern tr\xE4gt einen 450-W\xF6rter-Bericht nur auf 72 %; eines mit 128 Eintr\xE4gen und 923 W\xF6rtern auf 108 %. Drei- und Vierwortbrocken ("Das ist so random.") f\xFCllen die Liste, aber nicht den Text. Schreibe also lieber "ein Wappen ohne Farbe an kalter Mauer" als "ein Wappen".\n\nWO die W\xF6rter stehen, entscheidet mit: turns, obstacles und endings tragen den Bericht deutlich st\xE4rker als props und motifs. In einem Versuch mit f\xFCnf Presets brachten hundert zus\xE4tzliche W\xF6rter in den SATZ-Kategorien rund 9 Prozentpunkte L\xE4nge, hundert W\xF6rter in den Nominal-Kategorien nur rund 6. Halte turns, obstacles und endings deshalb bei mindestens sieben W\xF6rtern \u2014 ein vollst\xE4ndiger Satz mit einem Umstand, nicht ein Stichwort. F\xFCr props gilt das NICHT: Sie stehen im Bestand bei rund vier W\xF6rtern, weil sie als Objekt in einen fremden Satz gesetzt werden \u2014 "einen Kompass mit beschlagenem Glas" ist die richtige L\xE4nge, ein ganzer Satz w\xE4re dort falsch. \xDCber alle Kategorien tragen die Satz-Kategorien (hooks, turns, obstacles, endings) rund 65 Prozent der W\xF6rter; das ist die Verteilung, die der Bestand hat.\n\nMOTIVE M\xDCSSEN ALLEIN STEHEN K\xD6NNEN: Jedes motif ist eine Nominalphrase mit Artikel und eigenem Kopf, am besten mit Relativsatz \u2014 "eine Glocke, die \xFCber allen D\xE4chern h\xE4ngt". NICHT: "Brot und Ketten", "Kan\xE4le unter der Stadt", "die Kathedrale im Regen". Solche Bruchst\xFCcke haben keinen Kopf, an den der Generator anschlie\xDFen kann. Gemessen an einem Preset mit zehn davon: Der Zusammenbau brach in 33 von 60 L\xE4ufen mitten im Text ab, der Median lag bei 90 statt 400 W\xF6rtern. Nach dem Umschreiben: 387.\n\nDie Zahl 120 ist \xFCbrigens KEIN Ziel f\xFCr sich. \xDCber 23 Presets gemessen sagt die Eintragszahl nichts mehr voraus, sobald die Wortzahl bekannt ist (r = -0,04). 90 lange Eintr\xE4ge sind so gut wie 120 kurze, solange die 850 W\xF6rter zusammenkommen.\n\nUND NICHT MEHR ALS 850: Der Ertrag s\xE4ttigt. An zw\xF6lf nachverdichteten Presets gemessen bringen hundert zus\xE4tzliche W\xF6rter unterhalb von 85 Prozent L\xE4nge noch 11 bis 18 Punkte, oberhalb von 91 Prozent nur noch 1 bis 3. Wer \xFCber 850 hinausschreibt, gewinnt keine L\xE4nge mehr, sondern nur noch Abwechslung \u2014 das ist ein Grund, aber ein anderer.\n\nMOTIVVERWANDLUNGEN \u2014 die achte Liste: 41 der 51 eingebauten Presets tragen sie, im Median acht Paare. Ein Paar sagt, was aus einem Bild wird, wenn es WIEDERKEHRT: Das erste Vorkommen bleibt stehen und f\xFChrt das Motiv ein, jedes weitere wird verwandelt. Der Leser sieht dasselbe Ding zweimal, und beim zweiten Mal ist es etwas anderes geworden.\nForm: "Wort\u2192Wort", ein Paar je Eintrag, z.B. "Glocke\u2192Stimme", "Harpune\u2192Feder", "Akte\u2192Mappe".\nHARTE BEDINGUNG: Beide W\xF6rter m\xFCssen DASSELBE GESCHLECHT haben (der/der, die/die, das/das). Sonst steht im Text "das Stille", weil der Artikel davor nicht mitverwandelt wird \u2014 und der Generator wirft solche Paare still weg. Nimm Grundw\xF6rter im Singular, keine Wortgruppen.\n\nKEINE DUBLETTEN: Kein Eintrag darf zweimal vorkommen, auch nicht leicht abgewandelt. Ein Eintrag zweimal ist kein zweiter Eintrag.\n\nZEITFORM: Satzartige Eintr\xE4ge (hooks, turns, obstacles, endings) im PR\xC4SENS. Kein Pr\xE4teritum, kein Perfekt.\n\nWICHTIG: Deine Antwort MUSS mit { beginnen und mit } enden \u2014 nur reines JSON mit genau diesen 8 Schl\xFCsseln (motifs, hooks, props, turns, obstacles, stakes, endings, verwandlungen), jeweils ein Array von Strings. Keine Erkl\xE4rungen, kein Markdown.';
-  return p;
 }
 
 // src/features/preset2.ts

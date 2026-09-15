@@ -14527,9 +14527,6 @@ var BUILTIN_PRESETS = {
       "ein Ton, der im Brustbein sitzt"
     ],
     "hooks": [
-      "ein Duft kommt ohne Quelle",
-      "die Haut sp\xFCrt ein Ger\xE4usch",
-      "ein Geschmack weckt ein Datum",
       "das Licht f\xFChlt sich schwer an",
       "eine Ber\xFChrung klingt nach",
       "Ein Duft kommt durch das Treppenhaus, ohne Quelle.",
@@ -14540,16 +14537,15 @@ var BUILTIN_PRESETS = {
       "Sie legt die Hand auf den Stein und bleibt stehen.",
       "Der Regen klingt anders auf diesem Dach.",
       "Die W\xE4rme bleibt an der Stelle, wo eine Hand lag.",
-      "Etwas riecht nach einer Wohnung von vor drei\xDFig Jahren."
+      "Etwas riecht nach einer Wohnung von vor drei\xDFig Jahren.",
+      "Der Kies knirscht anders, wenn jemand fehlt.",
+      "Ein L\xF6ffel bleibt k\xE4lter als die Suppe.",
+      "Die Stimme aus dem Hof geh\xF6rt zu keinem Gesicht."
     ],
     "props": [
-      "eine Orange",
-      "einen Wollschal",
-      "eine Schale Wasser",
       "ein St\xFCck Rinde",
       "eine Glocke",
       "ein Tuch",
-      "eine Kerze",
       "einen Kieselstein",
       "eine Orange mit dicker Schale",
       "einen Wollschal, der kratzt",
@@ -14558,12 +14554,13 @@ var BUILTIN_PRESETS = {
       "eine Kerze aus Bienenwachs",
       "einen Stein, den die Sonne aufgew\xE4rmt hat",
       "eine Feder f\xFCr die Innenseite des Arms",
-      "ein Glas mit einem Rest Salz"
+      "ein Glas mit einem Rest Salz",
+      "einen Zuckerw\xFCrfel, der sich aufl\xF6st",
+      "ein Kissen, das nach Sonne riecht",
+      "eine Handvoll Kastanien, noch gl\xE4nzend"
     ],
     "turns": [
       "ein Sinn \xFCbernimmt die Arbeit des anderen",
-      "der Geruch f\xFChrt an einen Ort zur\xFCck",
-      "die Ber\xFChrung ver\xE4ndert die Farbe",
       "das H\xF6ren wird zum Sehen",
       "der Geschmack bleibt l\xE4nger als die Erinnerung",
       "der Geruch f\xFChrt an einen Ort zur\xFCck, den es nicht mehr gibt",
@@ -14588,9 +14585,6 @@ var BUILTIN_PRESETS = {
       "sie riecht es zuerst und sagt es zuletzt"
     ],
     "obstacles": [
-      "die Worte fehlen f\xFCr das Gef\xFChlte",
-      "der Duft verfliegt zu schnell",
-      "niemand sonst nimmt es wahr",
       "die Haut gew\xF6hnt sich",
       "der Ton liegt au\xDFerhalb des H\xF6rens",
       "die Worte fehlen f\xFCr das, was gef\xFChlt wird",

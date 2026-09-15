@@ -9,6 +9,8 @@ import { conjugateVerbToken } from "./verbconj";
 import { ICH_DU_ZU_ER } from "./wordcls";
 import { beugeVerb, istVerbform } from "./verben";
 import { guessGender } from "./declension";
+import { NOUN_GENDER as NOUN_GENDER_1 } from "./nouns.data";
+import { NOUN_GENDER_2 } from "./nouns2.data";
 
 export interface DisruptorResult { text: string; fired: boolean; kind: string; }
 
@@ -427,16 +429,36 @@ function darfVerbinden(a: string, b: string, obergrenze: number): boolean {
   return wa + wb <= obergrenze;
 }
 
+/** Zeitangaben, die wie Adjektive enden und vor einem großen Wort stehen
+ *  („Ende Oktober", „Mitte Mai") — die Nomenliste führt sie nicht. */
+const ZEIT_NOMEN = new Set(["ende", "mitte", "anfang"]);
+
+/** Ist das erste Wort ein flektiertes Adjektiv vor einem Nomen? Gemeldet
+ *  (Blatt „Schafsweide"): „Ein trunkenes Boot, und Kaltes Wasser an den
+ *  Handgelenken." Ein Adjektiv steht weder in KEIN_NOMEN noch in VERB_CONJ,
+ *  also blieb es groß. Erkannt wird es an der Endung UND am großen Wort
+ *  dahinter: „kaltes Wasser", „lauwarmem Wasser", „leeren Räume". Ein
+ *  bekanntes Nomen („Tante Erna", „Kinder Gottes") bleibt groß. */
+export function istAdjektivVorNomen(wort: string, naechstes: string): boolean {
+  const w = (wort || "").toLowerCase();
+  if (w.length < 4 || !/(es|em|en|er|e)$/.test(w)) return false;
+  if (!/^[A-ZÄÖÜ]/.test(naechstes || "")) return false;
+  if (w in NOUN_GENDER_1 || w in NOUN_GENDER_2 || ZEIT_NOMEN.has(w)) return false;
+  return true;
+}
+
 /** Verbindet zwei Sätze. Ein Satzglied ohne finites Verb wird angehängt wie eine
  *  Apposition (Gedankenstrich), zwei ganze Sätze mit Komma und Konjunktion. */
-function verbinde(a: string, b: string, satzartig: boolean): string {
+export function verbinde(a: string, b: string, satzartig: boolean): string {
   const kopf = a.trim().replace(/[.!?…]+$/, "");
   const rest = b.trim();
   // Kleinschreiben nur, wenn das erste Wort sicher KEIN Nomen ist. Deutsche
   // Nomen bleiben auch mitten im Satz gross - ohne diese Pruefung entstand
   // "... — wäsche auf dem Balkon".
-  const wort = (rest.match(/^[A-Za-zÄÖÜäöüß]+/) || [""])[0]!.toLowerCase();
-  const darfKlein = KEIN_NOMEN.has(wort) || !!VERB_CONJ[wort];
+  const m = rest.match(/^([A-Za-zÄÖÜäöüß]+)(?:\s+([A-Za-zÄÖÜäöüß]+))?/);
+  const wort = (m?.[1] || "").toLowerCase();
+  const naechstes = m?.[2] || "";
+  const darfKlein = KEIN_NOMEN.has(wort) || !!VERB_CONJ[wort] || istAdjektivVorNomen(wort, naechstes);
   const weiter = darfKlein ? rest.charAt(0).toLowerCase() + rest.slice(1) : rest;
   if (!satzartig) return `${kopf} — ${weiter}`;
   // Kein ", denn": Das behauptet einen Grund, den der Text nicht hergibt.
