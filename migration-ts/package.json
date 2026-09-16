@@ -1,20 +1,18 @@
 {
   "name": "divergenzmaschine-ts",
-  "version": "4.366.0",
+  "version": "4.365.2",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "test": "npm run test:a && npm run test:b && npm run test:c && npm run test:d && npm run test:e",
     "prebuild": "node scripts/sync-version.mjs",
-    "test:einer": "node test/lauf.mjs",
-    "test:a": "node test/lauf.mjs property regression pruefstand meldung wirkung umbruch musterseite varianz",
-    "test:b": "node test/lauf.mjs verwandlung themenpool ressort struktur nr44 hilfe schliff perspektive",
-    "test:c": "node test/lauf.mjs studio",
-    "test:d": "node test/lauf.mjs sammler bildrahmen zeitung lehrer bildsammler bildwelt reiter autopilot prompt schaltplan speicher nutzung assistent waechter register textindex registerliste assoz einfach titel",
-    "test:e": "node test/lauf.mjs verben nomen textpreset erzaehler satzwaechter atomisieren verblex hygiene waechterstat erzmigration video selbstreinigung spannungskurve laenge zeitlupe variabilitaet echo faden namen"
+    "test": "node scripts/pruefen.mjs",
+    "test:1": "node scripts/pruefen.mjs 1/3",
+    "test:2": "node scripts/pruefen.mjs 2/3",
+    "test:3": "node scripts/pruefen.mjs 3/3",
+    "test:einer": "node scripts/pruefen.mjs"
   },
   "devDependencies": {
     "typescript": "^5.5.4",
