@@ -26,3 +26,5 @@ test/.rl.cjs
 test/.az.cjs
 test/.ef.cjs
 test/.arch
+test/.*.cjs
+test/.tmp/
