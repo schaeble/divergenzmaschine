@@ -1229,3 +1229,6 @@ button.ek-probe:hover .ek-blaettern{opacity:1;color:var(--acc2)}
 /* Der Faden: Fadenzeile unter dem Titel, Serien-Kennzeichen in der Schatzkammer (4.363.0). */
 .fadenzeile{margin:-4px 0 8px;letter-spacing:.02em}
 .tserie{color:var(--acc2)}
+/* Serien-Dramaturgie: die Tafel unter der Fadenzeile (4.366.0). */
+.serientafel{margin:-4px 0 8px;letter-spacing:.02em}
+.serientafel:empty{display:none}

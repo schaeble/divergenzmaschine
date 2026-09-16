@@ -94,7 +94,7 @@ ist("ein kurzer Titel bleibt ganz, ohne Punkt", kuerzeTitel("Eine Narbe im Morge
 const q = readFileSync("src/ui/studio.ts", "utf8");
 wahr("es gibt den Schalter", /id: "f-titel-an"/.test(q));
 wahr("der Schalter wird gespeichert", /localStorage\.setItem\(TITEL_KEY/.test(q));
-wahr("der Titel steht über dem Text (seit dem Faden mit Bisher- und Fadenzeile dazwischen)", /titelLbl\), titelEl, bisherEl, fadenZeile, outWrap/.test(q));
+wahr("der Titel steht über dem Text (seit dem Faden mit Bisher- und Fadenzeile dazwischen)", /titelLbl\), titelEl, bisherEl, fadenZeile, serienTafel, outWrap/.test(q));
 wahr("aus heißt kein Titel", /if \(!titelChk\.checked\) return "";/.test(q));
 wahr("und er wandert in den Leser", /titel: aktuellerTitel\(\)/.test(q));
 wahr("der Leser zeigt ihn", /ctx\.titel\) body\.prepend/.test(readFileSync("src/ui/reader.ts", "utf8")));

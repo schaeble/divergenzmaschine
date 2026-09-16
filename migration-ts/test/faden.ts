@@ -82,6 +82,23 @@ ist("Serienlänge fünf", SERIEN_LAENGE, 5);
   wahr("die Schatzkammer zeigt Serie, Folge und Fadenstärke", /Serie „\$\{it\.set\.serie\}“ · Folge/.test(qt));
 }
 
+// ── Serien-Dramaturgie (4.366.0): Kurve, Länge, Satzlänge je Schlag ────────
+{
+  const { SERIEN_DRAMATURGIE, serienDramaturgieAn, setzeSerienDramaturgie, serienBeschreibung } = require("../src/features/faden") as { SERIEN_DRAMATURGIE: Record<string, { kurve: string; laengeFaktor: number; satzlaenge: number }>; serienDramaturgieAn: () => boolean; setzeSerienDramaturgie: (a: boolean) => void; serienBeschreibung: (s: string, b: number, k: string) => string };
+  const { KURVEN_VORLAGEN } = require("../src/features/spannungskurve") as { KURVEN_VORLAGEN: Record<string, unknown> };
+  wahr("jeder Schlag hat eine Einstellung", ["einstieg", "konflikt", "wende", "hoehepunkt", "schluss"].every((k) => !!SERIEN_DRAMATURGIE[k]));
+  wahr("jede Kurve ist eine Vorlage", Object.values(SERIEN_DRAMATURGIE).every((e) => !!KURVEN_VORLAGEN[e.kurve]));
+  wahr("der Höhepunkt zieht sich zusammen: kürzer, kürzere Sätze", SERIEN_DRAMATURGIE["hoehepunkt"]!.laengeFaktor < SERIEN_DRAMATURGIE["einstieg"]!.laengeFaktor && SERIEN_DRAMATURGIE["hoehepunkt"]!.satzlaenge < SERIEN_DRAMATURGIE["einstieg"]!.satzlaenge);
+  wahr("der Schluss wird länger und ruhiger", SERIEN_DRAMATURGIE["schluss"]!.laengeFaktor > 1 && SERIEN_DRAMATURGIE["schluss"]!.satzlaenge > SERIEN_DRAMATURGIE["hoehepunkt"]!.satzlaenge);
+  wahr("Vorgabe an, abschaltbar", serienDramaturgieAn() === true && (setzeSerienDramaturgie(false), serienDramaturgieAn() === false) && (setzeSerienDramaturgie(true), true));
+  ist("die Tafel nennt Schlag, Kurve, Länge, Satzlänge", serienBeschreibung("hoehepunkt", 200, "Katastrophe zuerst"), "Serien-Dramaturgie: Höhepunkt — Kurve Katastrophe zuerst · Länge 160 Wörter (80 %) · Satzlänge 6");
+  const q = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("die Fortsetzung setzt Kurve, Länge und Satzlänge nach dem Schlag", /const e2 = SERIEN_DRAMATURGIE\[schlag\];/.test(q) && /kurve = \{ an: true, werte: \[\.\.\.vorlage\.werte\] \}/.test(q) && /knobs\.satzlaenge = e2\.satzlaenge; saveKnobs\(knobs\);/.test(q));
+  wahr("Folge 1 setzt das Maß; die Kurve von vorher wird gemerkt", /if \(!f\.laengeBasis\) f\.laengeBasis = parseInt\(lenSlider\.value, 10\)/.test(q) && /if \(!f\.kurveVorher\) f\.kurveVorher = /.test(q));
+  wahr("„Serie beenden“ stellt Kurve und Länge zurück", /if \(f\?\.kurveVorher\) \{ kurve = \{ an: f\.kurveVorher\.an, werte: \[\.\.\.f\.kurveVorher\.werte\] \};/.test(q) && /if \(f\?\.laengeBasis\) \{ lenSlider\.value = String\(f\.laengeBasis\)/.test(q));
+  wahr("Schalter neben der Fortsetzung, nur bei aktivem Faden", /id: "serien-dramaturgie"/.test(q) && /sdLbl\.style\.display = f \? "" : "none";/.test(q));
+}
+
 console.log(`Prüfstand Faden — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) { console.error(`\n❌ Faden: ${fails.length} Fehler:`); fails.forEach((f) => console.error("  - " + f)); proc.process?.exit(1); }

@@ -21,7 +21,7 @@ import { phasenAusSchlagfolge } from "../atoms/assemble";
 import { ladeKurve, speichereKurve, schlagfolgeAusKurve, reglerAusKurve, kurveSpitzen, KURVEN_VORLAGEN, STUETZEN } from "../features/spannungskurve";
 import { zeitlupeSchalten, zeitlupeLesen, stufenDiff } from "../features/zeitlupe";
 import { variabilitaetFuer, messeUndMerke, variabilitaetWort } from "../features/variabilitaet";
-import { ladeFaden, speichereFaden, fadenAus, schlagDerFolge, BAUFORM_JE_SCHLAG, SCHLAG_NAME, dingSatz, fadenstaerke, fadenBeschreibung } from "../features/faden";
+import { ladeFaden, speichereFaden, fadenAus, schlagDerFolge, BAUFORM_JE_SCHLAG, SCHLAG_NAME, dingSatz, fadenstaerke, fadenBeschreibung, SERIEN_DRAMATURGIE, serienDramaturgieAn, setzeSerienDramaturgie, serienBeschreibung } from "../features/faden";
 import { setBogenOverride } from "../generation/dramaturgie";
 import { ziehVorrat, vorratStand, type VorratFund } from "../features/wikisammler";
 import { ziehBildvorrat, ladeBildvorrat, type BildFund } from "../features/bildsammler";
@@ -1848,10 +1848,16 @@ export function mountStudio(root: HTMLElement): void {
   const fadenLoesen = el("button", { class: "danger", style: "display:none", title: "Die Serie beenden: die letzte Folge mit ihrer Nummer in die Schatzkammer legen (falls sie noch nicht dort liegt) und den Faden lösen — der nächste Text beginnt ohne Faden." }, "Serie beenden") as HTMLButtonElement;
   const bisherEl = el("div", { class: "muted bisher", style: "display:none" });
   const fadenZeile = el("div", { class: "muted mini fadenzeile", style: "display:none" });
+  const serienTafel = el("div", { class: "muted mini serientafel" });
+  const sdChk = el("input", { type: "checkbox", id: "serien-dramaturgie", title: "Serien-Dramaturgie: Die Fortsetzung setzt je Folge die Spannungskurve, die Ziellänge und die Satzlänge nach dem Schlag der Serie — der Höhepunkt zieht sich zusammen, der Schluss wird ruhig. Aus: alles bleibt, wie es steht." }) as HTMLInputElement;
+  sdChk.checked = serienDramaturgieAn();
+  sdChk.addEventListener("change", () => setzeSerienDramaturgie(sdChk.checked));
+  const sdLbl = el("label", { class: "chk mini", style: "display:none" }, sdChk, " Serien-Dramaturgie");
   let letzteFadenstaerke: ReturnType<typeof fadenstaerke> | null = null;
   const fadenStand = (): void => {
     const f = ladeFaden();
     fadenLoesen.style.display = f ? "" : "none";
+    sdLbl.style.display = f ? "" : "none";
     fadenBtn.textContent = f ? ` Folge ${f.folge} erzeugen` : " Fortsetzung";
     fadenBtn.prepend(icon("arrowRight"));
   };
@@ -1864,6 +1870,9 @@ export function mountStudio(root: HTMLElement): void {
     if (f && fadenKopf && text.trim() && !loadTreasury().some((t) => t.t.trim() === text.trim())) {
       addToTreasury(text, { who: who.value, where: where.value, when: when.value, what: what.value, form: form.value, set: { ...einstellungen(), serie: f.serie, folge: String(f.folge), ...(letzteFadenstaerke ? { faden: fadenBeschreibung(letzteFadenstaerke) } : {}) } });
     }
+    if (f?.kurveVorher) { kurve = { an: f.kurveVorher.an, werte: [...f.kurveVorher.werte] }; speichereKurve(kurve); skChk.checked = kurve.an; spurMalen(); }
+    if (f?.laengeBasis) { lenSlider.value = String(f.laengeBasis); lenVal.textContent = String(f.laengeBasis); }
+    serienTafel.textContent = "";
     speichereFaden(null); fadenKopf = ""; folgeBauform = null; bisherEl.style.display = "none"; fadenZeile.style.display = "none"; letzteFadenstaerke = null; fadenStand(); renderTitel();
   });
   fadenBtn.addEventListener("click", () => {
@@ -1891,6 +1900,24 @@ export function mountStudio(root: HTMLElement): void {
     // generate() nach der Weiche anwendet (folgeBauform).
     folgeBauform = SCHLAGFOLGEN[BAUFORM_JE_SCHLAG[schlag]]!.folge;
     fadenKopf = `Folge ${f.folge} · ${SCHLAG_NAME[schlag]}`;
+    // Serien-Dramaturgie (4.366.0): Spannungskurve, Ziellänge und Satzlänge
+    // folgen dem Schlag der Folge — Folge 1 setzt das Maß, der Höhepunkt zieht
+    // sich zusammen, der Schluss wird ruhig. Abschaltbar; die Kurve von vor der
+    // Serie wird gemerkt und bei "Serie beenden" zurückgestellt.
+    serienTafel.textContent = "";
+    if (serienDramaturgieAn()) {
+      const e2 = SERIEN_DRAMATURGIE[schlag];
+      if (!f.laengeBasis) f.laengeBasis = parseInt(lenSlider.value, 10) || 110;
+      if (!f.kurveVorher) f.kurveVorher = { an: ladeKurve().an, werte: [...ladeKurve().werte] };
+      speichereFaden(f);
+      const vorlage = KURVEN_VORLAGEN[e2.kurve];
+      if (vorlage) { kurve = { an: true, werte: [...vorlage.werte] }; speichereKurve(kurve); skChk.checked = true; }
+      const neueLaenge = Math.max(40, Math.min(400, Math.round(f.laengeBasis * e2.laengeFaktor / 5) * 5));
+      lenSlider.value = String(neueLaenge); lenVal.textContent = String(neueLaenge);
+      knobs.satzlaenge = e2.satzlaenge; saveKnobs(knobs);
+      const kSel = wrap.querySelector("#k-satzlaenge") as HTMLSelectElement | null; if (kSel) kSel.value = String(e2.satzlaenge);
+      serienTafel.textContent = serienBeschreibung(schlag, f.laengeBasis, vorlage?.name || e2.kurve);
+    }
     renderPresetChecks();
     // Kettenauslese (4.363.0): drei Kandidaten für die Folge, jeder mit
     // Fadenstärke (Ding, Figur, Frage, Echo über die Naht) und Neuheit; der
@@ -1960,7 +1987,7 @@ export function mountStudio(root: HTMLElement): void {
   const bestChk = el("input", { type: "checkbox", id: "f-best" }) as HTMLInputElement;
   bestChk.checked = true;
   const bestLbl = el("label", { class: "chk", title: "Erzeugt bei jedem Klick 12 Kandidaten und zeigt den bestbewerteten (Längentreue, Wortvielfalt, Rhythmus, wenig Wiederholung, Grammatik, Abstand zur Schatzkammer)." }, bestChk, " Bestenauslese");
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, fadenBtn, fadenLoesen, vaultBtn, readBtn, speakBtn, lenRow, bestLbl, titelLbl), titelEl, bisherEl, fadenZeile, outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, fadenBtn, fadenLoesen, sdLbl, vaultBtn, readBtn, speakBtn, lenRow, bestLbl, titelLbl), titelEl, bisherEl, fadenZeile, serienTafel, outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
 
   // ── Test & Ranking ──
   let lastRanking: Ranking | null = null;

@@ -29,6 +29,8 @@ export interface Faden {
   folge: number;        // Nummer der NÄCHSTEN Folge
   laenge: number;       // Folgen je Serie (Vorgabe 5)
   bauform: string;      // Serien-Bauform (Schlüssel aus SCHLAGFOLGEN)
+  laengeBasis?: number; // Ziellänge der ersten Folge — Maß für die Serien-Dramaturgie
+  kurveVorher?: { an: boolean; werte: number[] };  // die Kurve vor der Serie, für "Serie beenden"
 }
 
 const KEY = "dm_faden_v1";
@@ -39,7 +41,8 @@ export function ladeFaden(): Faden | null {
     const v = JSON.parse(localStorage.getItem(KEY) || "null") as Partial<Faden> | null;
     if (!v || !v.aktiv) return null;
     return { aktiv: true, serie: String(v.serie || ""), figur: String(v.figur || ""), ding: String(v.ding || ""), frage: String(v.frage || ""),
-      letzterSatz: String(v.letzterSatz || ""), folge: Math.max(2, Number(v.folge) || 2), laenge: Math.max(2, Number(v.laenge) || SERIEN_LAENGE), bauform: String(v.bauform || "standard") };
+      letzterSatz: String(v.letzterSatz || ""), folge: Math.max(2, Number(v.folge) || 2), laenge: Math.max(2, Number(v.laenge) || SERIEN_LAENGE), bauform: String(v.bauform || "standard"),
+      laengeBasis: Number(v.laengeBasis) || undefined, kurveVorher: v.kurveVorher && Array.isArray(v.kurveVorher.werte) ? { an: !!v.kurveVorher.an, werte: v.kurveVorher.werte.map(Number) } : undefined };
   } catch { return null; }
 }
 export function speichereFaden(f: Faden | null): void {
@@ -118,6 +121,8 @@ export function fadenAus(text: string, figur: string, titel: string, bisher: Fad
     folge: (bisher?.folge || 1) + 1,
     laenge: bisher?.laenge || SERIEN_LAENGE,
     bauform: bisher?.bauform || "standard",
+    laengeBasis: bisher?.laengeBasis,
+    kurveVorher: bisher?.kurveVorher,
   };
 }
 
@@ -193,4 +198,28 @@ export function fadenBeschreibung(s: Fadenstaerke): string {
     s.echo ? "Echo über die Naht" : "kein Echo über die Naht",
   ];
   return `Faden: ${kugeln} — ${teile.join(", ")} · Neuheit ${Math.round(s.neuheit * 100)} %`;
+}
+
+// ── Serien-Dramaturgie (4.366.0): Intensität über die Folgen ─────────────────
+// Je Schlag der Serie eine Einstellung, die die Fortsetzung setzt — die
+// Spannungskurve (Vorlage), die Ziellänge als Anteil der Länge von Folge 1
+// und die Stellschraube Satzlänge. Die Höhepunkt-Folge ist kürzer und hat
+// kürzere Sätze, die Schluss-Folge wieder länger und ruhiger. Abschaltbar
+// (Schalter neben "Fortsetzung"), dann bleibt alles, wie es steht.
+export interface SerienEinstellung { kurve: string; laengeFaktor: number; satzlaenge: number }
+export const SERIEN_DRAMATURGIE: Record<SerienSchlag, SerienEinstellung> = {
+  einstieg:   { kurve: "steigend",    laengeFaktor: 1.0,  satzlaenge: 12 },
+  konflikt:   { kurve: "spaet",       laengeFaktor: 1.0,  satzlaenge: 9 },
+  wende:      { kurve: "doppelt",     laengeFaktor: 0.95, satzlaenge: 9 },
+  hoehepunkt: { kurve: "katastrophe", laengeFaktor: 0.8,  satzlaenge: 6 },
+  schluss:    { kurve: "flach",       laengeFaktor: 1.1,  satzlaenge: 15 },
+};
+const SD_KEY = "dm_serien_dramaturgie_v1";
+export function serienDramaturgieAn(): boolean {
+  try { const v = localStorage.getItem(SD_KEY); return v === null ? true : v === "1"; } catch { return true; }
+}
+export function setzeSerienDramaturgie(an: boolean): void { try { localStorage.setItem(SD_KEY, an ? "1" : "0"); } catch { /* voll */ } }
+export function serienBeschreibung(schlag: SerienSchlag, basisLaenge: number, kurvenName: string): string {
+  const e = SERIEN_DRAMATURGIE[schlag];
+  return `Serien-Dramaturgie: ${SCHLAG_NAME[schlag]} — Kurve ${kurvenName} · Länge ${Math.round(basisLaenge * e.laengeFaktor)} Wörter (${Math.round(e.laengeFaktor * 100)} %) · Satzlänge ${e.satzlaenge}`;
 }
