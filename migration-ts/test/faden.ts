@@ -49,7 +49,7 @@ ist("Serienlänge fünf", SERIEN_LAENGE, 5);
   wahr("würfelt alles außer der Figur, setzt Wer und Was aus dem Faden", /who\.value = f\.figur;\s*\n\s*what\.value = f\.frage;/.test(q) && /rollPresets\(\);\s*\n\s*rolling = false;\s*\n\s*who\.value = f\.figur/.test(q));
   wahr("die Bauform folgt dem Schlag der Folge — als Merker, den generate() nach der Weiche anwendet", /folgeBauform = SCHLAGFOLGEN\[BAUFORM_JE_SCHLAG\[schlag\]\]!\.folge;/.test(q) && /if \(folgeBauform\) \{ const basisF = loadDramaData\(\); if \(basisF\) setBogenOverride\(\{ \.\.\.basisF, folge: folgeBauform/.test(q));
   wahr("Titel „Folge n · Schlag“ und Bisher-Zeile", /fadenKopf = `Folge \$\{f\.folge\} · \$\{SCHLAG_NAME\[schlag\]\}`/.test(q) && /bisherEl\.textContent = `Bisher: \$\{f\.letzterSatz\}`/.test(q));
-  wahr("das Ding kommt in die Folge, wenn der Text es nicht trägt", /s\.splice\(at, 0, dingSatz\(f\.ding\)\)/.test(q));
+  wahr("das Ding kommt in die Folge, wenn der Text es nicht trägt — in seiner Stufe", /s\.splice\(at, 0, dingSatz\(dingJetzt\)\)/.test(q));
   wahr("„Serie beenden“ legt die letzte Folge ab (falls sie fehlt) und löst den Faden", /"Serie beenden"\)/.test(q) && /!loadTreasury\(\)\.some\(\(t\) => t\.t\.trim\(\) === text\.trim\(\)\)/.test(q) && /speichereFaden\(null\); fadenKopf = ""/.test(q));
 }
 
@@ -97,6 +97,35 @@ ist("Serienlänge fünf", SERIEN_LAENGE, 5);
   wahr("Folge 1 setzt das Maß; die Kurve von vorher wird gemerkt", /if \(!f\.laengeBasis\) f\.laengeBasis = parseInt\(lenSlider\.value, 10\)/.test(q) && /if \(!f\.kurveVorher\) f\.kurveVorher = /.test(q));
   wahr("„Serie beenden“ stellt Kurve und Länge zurück", /if \(f\?\.kurveVorher\) \{ kurve = \{ an: f\.kurveVorher\.an, werte: \[\.\.\.f\.kurveVorher\.werte\] \};/.test(q) && /if \(f\?\.laengeBasis\) \{ lenSlider\.value = String\(f\.laengeBasis\)/.test(q));
   wahr("Schalter neben der Fortsetzung, nur bei aktivem Faden", /id: "serien-dramaturgie"/.test(q) && /sdLbl\.style\.display = f \? "" : "none";/.test(q));
+}
+
+// ── Maßnahmen 2 + 3 (4.367.0): das Ding als Steigerungsreihe, das Serien-Echo ──
+{
+  const { dingStufe, kernbildAus, serienEcho } = require("../src/features/faden") as { dingStufe: (d: string, s: string) => string; kernbildAus: (t: string, f: string) => string; serienEcho: (t: string, k: string, s: string, v: string[]) => { text: string; echo: string } };
+  ist("Einstieg: das Ding, wie es ist", dingStufe("ein Schlüssel", "einstieg"), "ein Schlüssel");
+  ist("Konflikt: Relativsatz als Objekt (den)", dingStufe("ein Schlüssel", "konflikt"), "ein Schlüssel, den niemand nimmt");
+  ist("Wende: Adjektiv nach Genus (m, unbestimmt)", dingStufe("ein Schlüssel", "wende"), "ein verbogener Schlüssel");
+  ist("Wende: Adjektiv (f, bestimmt)", dingStufe("die Uhr", "wende"), "die verbogene Uhr");
+  ist("Höhepunkt: Relativsatz als Subjekt (der)", dingStufe("ein Schlüssel", "hoehepunkt"), "ein verbogener Schlüssel, der zu nichts mehr passt");
+  ist("Höhepunkt (n): das", dingStufe("das Fenster", "hoehepunkt"), "das verbogene Fenster, das zu nichts mehr passt");
+  ist("Schluss: im Fluss, zurück am Anfang", dingStufe("ein Schlüssel", "schluss"), "ein Schlüssel im Fluss, zurück am Anfang");
+  ist("kein Ding: unverändert", dingStufe("", "wende"), "");
+  const t1 = "Der Bote hört die Glocke im Hafen. Ein Schlüssel liegt auf dem Tisch. Es geht um den Schlüssel. Der Bote wartet.";
+  ist("das Kernbild: der erste Satz mit Kernwort, nicht der Einsatz, nicht die Figur allein", kernbildAus(t1, "Der Bote"), "Der Bote hört die Glocke im Hafen.");
+  const nt = "Ein Regen fällt über Ost-Berlin. Der Bote findet nichts. Ein Zug fährt ein. Die Uhr schlägt ohne Zeiger. Der Bahnsteig atmet Beton. Und der Bescheid bleibt ohne Antwort.";
+  const h = serienEcho(nt, "Der Bote hört die Glocke im Hafen.", "hoehepunkt", ["Die Glocke schlägt, und niemand hört sie", "eine Glocke aus Glas"]);
+  ist("Höhepunkt: das stärkere Bild desselben Kerns", h.echo, "Die Glocke schlägt, und niemand hört sie.");
+  wahr("… vor dem Höhepunkt, nicht am Ende", h.text.indexOf("Die Glocke schlägt") < h.text.indexOf("Der Bahnsteig atmet"));
+  const sch = serienEcho(nt, "Der Bote hört die Glocke im Hafen.", "schluss", []);
+  wahr("Schluss: das Kernbild wörtlich vor dem letzten Satz", /Der Bote hört die Glocke im Hafen\. Und der Bescheid bleibt ohne Antwort\.$/.test(sch.text));
+  ist("Wende: kein Serien-Echo", serienEcho(nt, "Der Bote hört die Glocke im Hafen.", "wende", []).echo, "");
+  ist("steht das Bild schon im Text: kein Echo", serienEcho(nt + " Der Bote hört die Glocke im Hafen.", "Der Bote hört die Glocke im Hafen.", "schluss", []).echo, "");
+  const f3 = fadenAus(t1, "Der Bote", "Serie", null);
+  ist("der Faden merkt sich das Kernbild aus Folge 1", f3.kernbild, "Der Bote hört die Glocke im Hafen.");
+  const q = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("die Fortsetzung legt das Ding in seiner Stufe hin", /const dingJetzt = serienDramaturgieAn\(\) \? dingStufe\(f\.ding, schlag\) : f\.ding;/.test(q) && /s\.splice\(at, 0, dingSatz\(dingJetzt\)\)/.test(q));
+  wahr("… und setzt das Serien-Echo vor der Auslese", /const mitDing = legeEcho\(mitDing0\);/.test(q) && /serienEcho\(t, f\.kernbild, schlag, echoVorrat\)/.test(q));
+  wahr("die Tafel nennt Ding-Stufe und Serien-Echo", /` · Ding: \$\{dingStufe\(f\.ding, schlag\)\}`/.test(q) && /Serien-Echo: „/.test(q));
 }
 
 console.log(`Prüfstand Faden — ${geprueft} Prüfungen, ${bestanden} bestanden`);

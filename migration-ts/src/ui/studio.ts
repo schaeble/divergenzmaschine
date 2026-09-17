@@ -21,7 +21,7 @@ import { phasenAusSchlagfolge } from "../atoms/assemble";
 import { ladeKurve, speichereKurve, schlagfolgeAusKurve, reglerAusKurve, kurveSpitzen, KURVEN_VORLAGEN, STUETZEN } from "../features/spannungskurve";
 import { zeitlupeSchalten, zeitlupeLesen, stufenDiff } from "../features/zeitlupe";
 import { variabilitaetFuer, messeUndMerke, variabilitaetWort } from "../features/variabilitaet";
-import { ladeFaden, speichereFaden, fadenAus, schlagDerFolge, BAUFORM_JE_SCHLAG, SCHLAG_NAME, dingSatz, fadenstaerke, fadenBeschreibung, SERIEN_DRAMATURGIE, serienDramaturgieAn, setzeSerienDramaturgie, serienBeschreibung } from "../features/faden";
+import { ladeFaden, speichereFaden, fadenAus, schlagDerFolge, BAUFORM_JE_SCHLAG, SCHLAG_NAME, dingSatz, fadenstaerke, fadenBeschreibung, SERIEN_DRAMATURGIE, serienDramaturgieAn, setzeSerienDramaturgie, serienBeschreibung, dingStufe, serienEcho } from "../features/faden";
 import { setBogenOverride } from "../generation/dramaturgie";
 import { ziehVorrat, vorratStand, type VorratFund } from "../features/wikisammler";
 import { ziehBildvorrat, ladeBildvorrat, type BildFund } from "../features/bildsammler";
@@ -1916,7 +1916,7 @@ export function mountStudio(root: HTMLElement): void {
       lenSlider.value = String(neueLaenge); lenVal.textContent = String(neueLaenge);
       knobs.satzlaenge = e2.satzlaenge; saveKnobs(knobs);
       const kSel = wrap.querySelector("#k-satzlaenge") as HTMLSelectElement | null; if (kSel) kSel.value = String(e2.satzlaenge);
-      serienTafel.textContent = serienBeschreibung(schlag, f.laengeBasis, vorlage?.name || e2.kurve);
+      serienTafel.textContent = serienBeschreibung(schlag, f.laengeBasis, vorlage?.name || e2.kurve) + ` · Ding: ${dingStufe(f.ding, schlag)}` + (f.kernbild && (schlag === "hoehepunkt" || schlag === "schluss") ? ` · Serien-Echo: „${f.kernbild.slice(0, 40)}${f.kernbild.length > 40 ? "…" : ""}“` : "");
     }
     renderPresetChecks();
     // Kettenauslese (4.363.0): drei Kandidaten für die Folge, jeder mit
@@ -1924,19 +1924,28 @@ export function mountStudio(root: HTMLElement): void {
     // beste wird genommen. Zusammenhang zählt nur bis zu einer Schwelle —
     // der Faden soll dünn bleiben.
     const stamm = (f.ding.match(/[A-ZÄÖÜ][a-zäöüß]{3,}/) || [""])[0]!.toLowerCase().slice(0, 5);
+    // Das Ding in seiner Stufe (4.367.0): Folge für Folge verwandelt es sich —
+    // „ein Schlüssel" → „ein Schlüssel, den niemand nimmt" → „ein verbogener
+    // Schlüssel" → „…, der zu nichts mehr passt" → „ein Schlüssel im Fluss".
+    const dingJetzt = serienDramaturgieAn() ? dingStufe(f.ding, schlag) : f.ding;
     const legeDing = (t: string): { text: string; hingelegt: boolean } => {
       if (!stamm || t.toLowerCase().includes(stamm)) return { text: t, hingelegt: false };
       const s = t.split(/(?<=[.!?…])\s+/);
       const at = Math.max(1, Math.floor(s.length / 3));
-      s.splice(at, 0, dingSatz(f.ding));
+      s.splice(at, 0, dingSatz(dingJetzt));
       return { text: s.join(" "), hingelegt: true };
     };
+    // Das Serien-Echo (4.367.0): Im Höhepunkt kehrt das Kernbild aus Folge 1
+    // gesteigert wieder, im Schluss wörtlich vor dem letzten Satz.
+    const echoVorrat = (() => { const b = loadBank() as unknown as Record<string, string[]>; return [...(b.motifs || []), ...(b.hooks || []), ...(b.turns || [])]; })();
+    const legeEcho = (t: string): string => (serienDramaturgieAn() && f.kernbild ? serienEcho(t, f.kernbild, schlag, echoVorrat).text : t);
     let bester: { text: string; st: ReturnType<typeof fadenstaerke> } | null = null;
     for (let k = 0; k < 3; k++) {
       generate();
       const roh = out.textContent || "";
       if (!roh.trim()) continue;
-      const { text: mitDing, hingelegt } = legeDing(roh);
+      const { text: mitDing0, hingelegt } = legeDing(roh);
+      const mitDing = legeEcho(mitDing0);
       const st = fadenstaerke(text, mitDing, f, hingelegt);
       if (!bester || st.wert > bester.st.wert) bester = { text: mitDing, st };
     }

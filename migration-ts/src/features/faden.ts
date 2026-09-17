@@ -31,6 +31,7 @@ export interface Faden {
   bauform: string;      // Serien-Bauform (Schlüssel aus SCHLAGFOLGEN)
   laengeBasis?: number; // Ziellänge der ersten Folge — Maß für die Serien-Dramaturgie
   kurveVorher?: { an: boolean; werte: number[] };  // die Kurve vor der Serie, für "Serie beenden"
+  kernbild?: string;    // ein Bild aus Folge 1, das im Höhepunkt und im Schluss wiederkehrt (Serien-Echo)
 }
 
 const KEY = "dm_faden_v1";
@@ -42,7 +43,8 @@ export function ladeFaden(): Faden | null {
     if (!v || !v.aktiv) return null;
     return { aktiv: true, serie: String(v.serie || ""), figur: String(v.figur || ""), ding: String(v.ding || ""), frage: String(v.frage || ""),
       letzterSatz: String(v.letzterSatz || ""), folge: Math.max(2, Number(v.folge) || 2), laenge: Math.max(2, Number(v.laenge) || SERIEN_LAENGE), bauform: String(v.bauform || "standard"),
-      laengeBasis: Number(v.laengeBasis) || undefined, kurveVorher: v.kurveVorher && Array.isArray(v.kurveVorher.werte) ? { an: !!v.kurveVorher.an, werte: v.kurveVorher.werte.map(Number) } : undefined };
+      laengeBasis: Number(v.laengeBasis) || undefined, kurveVorher: v.kurveVorher && Array.isArray(v.kurveVorher.werte) ? { an: !!v.kurveVorher.an, werte: v.kurveVorher.werte.map(Number) } : undefined,
+      kernbild: typeof v.kernbild === "string" ? v.kernbild : undefined };
   } catch { return null; }
 }
 export function speichereFaden(f: Faden | null): void {
@@ -123,6 +125,7 @@ export function fadenAus(text: string, figur: string, titel: string, bisher: Fad
     bauform: bisher?.bauform || "standard",
     laengeBasis: bisher?.laengeBasis,
     kurveVorher: bisher?.kurveVorher,
+    kernbild: bisher?.kernbild || kernbildAus(text, figur),
   };
 }
 
@@ -222,4 +225,70 @@ export function setzeSerienDramaturgie(an: boolean): void { try { localStorage.s
 export function serienBeschreibung(schlag: SerienSchlag, basisLaenge: number, kurvenName: string): string {
   const e = SERIEN_DRAMATURGIE[schlag];
   return `Serien-Dramaturgie: ${SCHLAG_NAME[schlag]} — Kurve ${kurvenName} · Länge ${Math.round(basisLaenge * e.laengeFaktor)} Wörter (${Math.round(e.laengeFaktor * 100)} %) · Satzlänge ${e.satzlaenge}`;
+}
+
+// ── Das Ding als Steigerungsreihe (4.367.0, Maßnahme 2) ─────────────────────
+// Der Schlüssel liegt nicht in jeder Folge gleich da: Folge für Folge
+// verwandelt er sich — dieselbe Requisite, die Verlust erzählt. Die Stufe
+// folgt dem Schlag der Serie; die Endung des Adjektivs dem Genus des Nomens.
+const STEIGERUNG: Record<SerienSchlag, { adj?: string; nachsatz?: string }> = {
+  einstieg:   {},
+  konflikt:   { nachsatz: "{akk} niemand nimmt" },         // Relativpronomen als Objekt
+  wende:      { adj: "verbogen" },
+  hoehepunkt: { adj: "verbogen", nachsatz: "{nom} zu nichts mehr passt" },   // als Subjekt
+  schluss:    { nachsatz: "im Fluss, zurück am Anfang" },
+};
+export function dingStufe(ding: string, schlag: SerienSchlag): string {
+  const m = ding.match(/^(ein|eine|einen|der|die|das)\s+(?:([a-zäöüß]+)\s+)?([A-ZÄÖÜ][a-zäöüß]+)$/i);
+  if (!m) return ding;
+  const art = m[1]!.toLowerCase(), nomen = m[3]!;
+  const g = guessGender(nomen) || (art === "die" || art === "eine" ? "f" : art === "das" ? "n" : "m");
+  const st = STEIGERUNG[schlag];
+  const indef = art.startsWith("ein");
+  const adjEnd = indef ? (g === "m" ? "er" : g === "f" ? "e" : "es") : "e";
+  const akk = g === "m" ? "den" : g === "f" ? "die" : "das";
+  const nom = g === "m" ? "der" : g === "f" ? "die" : "das";
+  const adj = st.adj ? st.adj + adjEnd + " " : (m[2] ? m[2] + " " : "");
+  const kopf = `${art} ${adj}${nomen}`;
+  if (!st.nachsatz) return kopf;
+  return `${kopf}, ${st.nachsatz.replace("{akk}", akk).replace("{nom}", nom)}`.replace(/, im Fluss/, " im Fluss");
+}
+
+// ── Das Serien-Echo (4.367.0, Maßnahme 3) ───────────────────────────────────
+// Ein Bild aus Folge 1 kehrt im Höhepunkt wieder — gesteigert, wenn das
+// Preset ein zweites Bild desselben Kerns hat, sonst wörtlich — und im
+// Schluss noch einmal als Kreisschluss vor dem letzten Satz.
+const KERN = /[A-ZÄÖÜ][a-zäöüß]{4,}/g;
+export function kernbildAus(text: string, figur: string): string {
+  const s = splitSentences(text.replace(/\n+/g, " "));
+  const fw = (figur.match(/[A-ZÄÖÜ][a-zäöüß]{2,}$/) || [figur])[0]!.toLowerCase();
+  for (const satz of s.slice(0, Math.max(2, Math.ceil(s.length / 2)))) {
+    const kerne = (satz.match(KERN) || []).filter((k) => k.toLowerCase() !== fw && !/^(Dann|Danach|Später|Vielleicht|Nichts|Alles|Niemand|Jemand|Etwas)$/.test(k));
+    const w = satz.split(/\s+/).length;
+    if (kerne.length && w >= 4 && w <= 16 && !/^(Es geht um|Der Einsatz|Was zählt|Auf dem Spiel)/.test(satz)) return satz.trim();
+  }
+  return "";
+}
+export function serienEcho(text: string, kernbild: string, schlag: SerienSchlag, vorrat: string[]): { text: string; echo: string } {
+  if (!kernbild || (schlag !== "hoehepunkt" && schlag !== "schluss")) return { text, echo: "" };
+  const s = splitSentences(text.replace(/\n+/g, " "));
+  if (s.length < 4) return { text, echo: "" };
+  const norm = (x: string): string => x.toLowerCase().replace(/[^a-zäöüß ]/g, "").trim();
+  if (s.some((x) => norm(x) === norm(kernbild))) return { text, echo: "" };
+  const kerne = new Set((kernbild.match(KERN) || []).map((k) => k.toLowerCase().slice(0, 5)));
+  let echo = "";
+  if (schlag === "hoehepunkt") {
+    // Gesteigert: ein zweites Bild desselben Kerns aus dem Vorrat, das
+    // stärkere (Steigerungswort oder länger) — sonst das Bild selbst.
+    const kand = vorrat.filter((v) => { const vk = (v.match(KERN) || []).map((k) => k.toLowerCase().slice(0, 5)); return vk.some((k) => kerne.has(k)) && norm(v) !== norm(kernbild) && !s.some((x) => norm(x) === norm(v)); });
+    kand.sort((a, b) => (Number(/\b(niemand|nicht|kein|mehr|noch|zu spät)\b/i.test(b)) - Number(/\b(niemand|nicht|kein|mehr|noch|zu spät)\b/i.test(a))) || (b.length - a.length));
+    echo = kand[0] ? kand[0].trim().replace(/^[a-z]/, (c) => c.toUpperCase()) : kernbild;
+    if (!/[.!?…]$/.test(echo)) echo += ".";
+    const at = Math.min(s.length - 2, Math.max(2, Math.floor(s.length * 0.7)));
+    s.splice(at, 0, echo);
+  } else {
+    echo = kernbild;
+    s.splice(s.length - 1, 0, echo);          // vor dem letzten Satz: der Kreis schließt sich
+  }
+  return { text: s.join(" "), echo };
 }
