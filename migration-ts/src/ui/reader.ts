@@ -2,8 +2,15 @@
 import { el } from "./dom";
 import { icon } from "./icons";
 import { addToTreasury } from "../features/treasury";
+import { speichereText } from "../features/textexport";
+import { VERSION } from "../version";
 
-export interface ReaderCtx { who?: string; where?: string; when?: string; what?: string; titel?: string; }
+// `form` ist der ANZEIGENAME („Prosa", „Assoziation"), nicht der Schluessel der
+// Auswahlliste: Der Leser gibt ihn unveraendert in den Dateikopf weiter.
+export interface ReaderCtx {
+  who?: string; where?: string; when?: string; what?: string; titel?: string;
+  form?: string; einstellungen?: Record<string, string>;
+}
 
 export function openReader(text: string, ctx: ReaderCtx = {}): void {
   const t = text || "Noch kein Text.";
@@ -20,6 +27,10 @@ export function openReader(text: string, ctx: ReaderCtx = {}): void {
   const copy = el("button", {}, icon("copy"), " ", copyLbl);
   const keepLbl = el("span", {}, "Merken");
   const keep = el("button", {}, icon("star"), " ", keepLbl);
+  // Speichern gehoert in DIESE Leiste, nicht nur unter die Textbox: Im
+  // einfachen Modus fuehrt „Los" unmittelbar hierher, und wer den Text hier
+  // liest, hat den Knopf im Studio gar nicht vor Augen (4.369.0).
+  const save = el("button", { title: "Als Textdatei speichern — mit Umschalt als Markdown" }, icon("floppy"), " Speichern");
   const speakLbl = el("span", {}, "Vorlesen");
   const speak = el("button", {}, icon("volume"), " ", speakLbl);
   const close = el("button", { class: "x", "aria-label": "Schließen" }, icon("x"));
@@ -31,6 +42,12 @@ export function openReader(text: string, ctx: ReaderCtx = {}): void {
     const n = addToTreasury(t, ctx);
     keepLbl.textContent = n < 0 ? "— schon drin" : `Gemerkt (${n})`;
     setTimeout(() => (keepLbl.textContent = "Merken"), 1400);
+  });
+  save.addEventListener("click", (ev) => {
+    speichereText(t, {
+      titel: ctx.titel, form: ctx.form, who: ctx.who, where: ctx.where, when: ctx.when, what: ctx.what,
+      version: VERSION, einstellungen: ctx.einstellungen,
+    }, (ev as MouseEvent).shiftKey ? "md" : "txt");
   });
   let rSpeaking = false;
   speak.addEventListener("click", () => {
@@ -45,6 +62,6 @@ export function openReader(text: string, ctx: ReaderCtx = {}): void {
   const dismiss = (): void => { window.speechSynthesis?.cancel(); overlay.remove(); };
   close.addEventListener("click", dismiss);
 
-  overlay.append(el("div", { class: "reader-bar" }, smaller, bigger, copy, keep, speak, close), body);
+  overlay.append(el("div", { class: "reader-bar" }, smaller, bigger, copy, keep, save, speak, close), body);
   document.body.append(overlay);
 }

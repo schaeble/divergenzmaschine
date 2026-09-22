@@ -192,7 +192,7 @@ export function mountHelp(root: HTMLElement): void {
       el("b", {}, "Bilder"), ": „Bild einfügen“ setzt ein Foto über feste Bildplätze im Spaltenraster oder frei; der Text bricht am Bild um. Höchstens acht Bilder, sie liegen im Browser-Speicher.")],
     ["Drucken", P("Reiter und Knopf zugleich: öffnet den Druckdialog des Browsers für den aktuellen Text. Für die ganze Seite siehe ", lnk("Zeitungsseite", "aktionen"), ".")],
     ["Pfeile / Wischen", P("die Pfeile links und rechts im Textfenster erzeugen eine neue Variante; auf dem Handy genügt ein Wischen nach links oder rechts über den Text.")],
-    ["Lesen", P("Vollbild-Lesemodus mit Werkzeugleiste: A−/A+ (Schriftgröße), Kopieren, Merken, Vorlesen.")],
+    ["Lesen", P("Vollbild-Lesemodus mit Werkzeugleiste: A−/A+ (Schriftgröße), Kopieren, Merken, Speichern, Vorlesen. „Speichern“ legt dieselbe Datei an wie im Studio — mit Titel, Form, den vier W und der Reglerstellung im Kopf.")],
     ["Vorlesen", P("liest den Text per Browser-Sprachausgabe auf Deutsch vor (offline).")],
     ["Textlänge", P("Ziel-Wortzahl (40–400): steuert bei Prosa das Kürzen/Auffüllen, bei Szene/Dialog die Rundenzahl, bei Multi-Shot die Sichtplätze je Shot. Das Auffüllen zieht aus Bildern, Wenden, Haken, Hindernissen und Requisiten des Presets und hört auf, wenn nichts Frisches mehr da ist — ein kürzerer Text liest sich besser als ein wiederholter Satz. Für 400 Wörter braucht ein Preset darum Material: Die eingebauten (120–140 Einträge) tragen 400 und mehr; ein Preset aus Text mit 30 Sätzen wird deutlich früher aufhören.")],
   ]));

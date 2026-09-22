@@ -60,7 +60,7 @@ import { openReader } from "./reader";
 import { worldLogGeneration, worldFillContext } from "../features/world";
 import { uebernehmeKontext, geaendert as geaenderteFelder, offeneQuellen, ziehQuelle, QUELLE_LABEL, W4_FELDER, type W4 } from "../features/kontext";
 import { loadTreasury, addToTreasury, addToTreasurySecret, clearTreasury } from "../features/treasury";
-import { textDatei, dateiname, ladeHerunter } from "../features/textexport";
+import { speichereText } from "../features/textexport";
 import { VERSION as DM_VERSION } from "../version";
 import { THEMES, loadTheme, applyTheme, loadAccent, saveAccent, applyAccent } from "../features/theme";
 import { loadAiKey, saveAiKey, loadAiModel, saveAiModel } from "../features/ki";
@@ -2887,7 +2887,8 @@ export function mountStudio(root: HTMLElement): void {
     // stuende der Text ohne jede Angabe da, wo er herkommt.
     if (kopfWahl.einfach) {
       openReader(out.textContent || "",
-        { who: who.value, where: where.value, when: when.value, what: what.value, titel: aktuellerTitel() });
+        { who: who.value, where: where.value, when: when.value, what: what.value, titel: aktuellerTitel(),
+          form: form.selectedOptions[0]?.textContent?.trim() || form.value, einstellungen: einstellungen() });
     }
   });
 
@@ -2957,24 +2958,26 @@ export function mountStudio(root: HTMLElement): void {
   form.addEventListener("change", updEmphVis);
   form.addEventListener("change", updHints);
   copyBtn.addEventListener("click", () => { void navigator.clipboard?.writeText(out.textContent || ""); });
-  saveBtn.addEventListener("click", (ev) => {
-    const text = out.textContent || "";
-    if (!text.trim()) return;
-    const format = (ev as MouseEvent).shiftKey ? "md" : "txt";
+  // Der Kopf der Datei: Titel wie ueber dem Text, Form als ANZEIGENAME (nicht
+  // der Listenschluessel), die vier W und die Reglerstellung.
+  const dateiKopf = () => {
     const t0 = aktuellerTitel();
-    const titel = fadenKopf ? (t0 ? `${fadenKopf} — ${t0}` : fadenKopf) : t0;
-    const jetzt = new Date();
-    const inhalt = textDatei(text, {
-      titel, form: form.selectedOptions[0]?.textContent?.trim() || form.value,
+    return {
+      titel: fadenKopf ? (t0 ? `${fadenKopf} — ${t0}` : fadenKopf) : t0,
+      form: form.selectedOptions[0]?.textContent?.trim() || form.value,
       who: who.value, where: where.value, when: when.value, what: what.value,
-      datum: `${jetzt.getFullYear()}-${String(jetzt.getMonth() + 1).padStart(2, "0")}-${String(jetzt.getDate()).padStart(2, "0")} ${String(jetzt.getHours()).padStart(2, "0")}:${String(jetzt.getMinutes()).padStart(2, "0")}`,
       version: DM_VERSION, einstellungen: einstellungen(),
-    }, format);
-    ladeHerunter(inhalt, dateiname("divergenz", titel || form.value, format, jetzt), format);
+    };
+  };
+  saveBtn.addEventListener("click", (ev) => {
+    speichereText(out.textContent || "", dateiKopf(), (ev as MouseEvent).shiftKey ? "md" : "txt");
   });
 
   // Lesemodus (Vollbild-Overlay)
-  readBtn.addEventListener("click", () => openReader(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, titel: aktuellerTitel() }));
+  readBtn.addEventListener("click", () => {
+    const k = dateiKopf();
+    openReader(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, titel: k.titel, form: k.form, einstellungen: k.einstellungen });
+  });
 
   // Vorlesen
   let speaking = false;

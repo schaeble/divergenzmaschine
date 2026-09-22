@@ -141,7 +141,7 @@ export function mountAssoc(root: HTMLElement): void {
   goBtn.addEventListener("click", neuBauen);
   const readBtn = el("button", {}, icon("book"), " Lesemodus");
   readBtn.addEventListener("click", () => {
-    if (kette.length) openReader(kette.join(" → "));
+    if (kette.length) openReader(kette.join(" → "), { form: "Assoziation" });
   });
 
   rebuildSeeds();

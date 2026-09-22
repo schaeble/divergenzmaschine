@@ -268,7 +268,7 @@ export function mountLehrer(root: HTMLElement): void {
     setTimeout(() => (merkInfo.textContent = ""), 2000);
   });
   const leseBtn = el("button", {}, icon("book"), " Lesemodus");
-  leseBtn.addEventListener("click", () => { if (ergebnis.trim()) openReader(ergebnis); });
+  leseBtn.addEventListener("click", () => { if (ergebnis.trim()) openReader(ergebnis, { form: "KI-Lehrer" }); });
   const kopierBtn = button("Kopieren");
   kopierBtn.addEventListener("click", () => {
     if (!ergebnis.trim()) return;

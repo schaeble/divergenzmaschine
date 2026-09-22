@@ -309,7 +309,7 @@ export function mountWorkshop(root: HTMLElement): void {
       const o = copyBtn.textContent; copyBtn.textContent = "Kopiert ✓"; setTimeout(() => (copyBtn.textContent = o), 1200);
     });
     const readBtn = el("button", {}, icon("book"), " Lesemodus");
-    readBtn.addEventListener("click", () => { const v = pane.value.trim(); if (v) openReader(v); });
+    readBtn.addEventListener("click", () => { const v = pane.value.trim(); if (v) openReader(v, { form: "Werkstatt" }); });
     const keepBtn = el("button", {}, icon("star"), " Merken");
     keepBtn.addEventListener("click", () => {
       const v = pane.value.trim(); if (!v) return;

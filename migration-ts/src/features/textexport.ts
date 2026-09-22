@@ -134,6 +134,13 @@ export function dateiname(stamm: string, titel: string, format: ExportFormat, da
   return [stamm, slug, tag].filter(Boolean).join("_") + "." + format;
 }
 
+/** Datum und Uhrzeit fuer den Kopf: „2026-09-22 14:03", in Ortszeit.
+ *  Nicht toISOString — das rechnet nach UTC und datiert abends zurueck. */
+export function zeitStempel(d = new Date()): string {
+  const z = (n: number): string => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`;
+}
+
 // ── Browser ──────────────────────────────────────────────────────────────────
 
 /** Lädt einen Text als Datei herunter. Der Anker muss im Dokument hängen, sonst
@@ -145,4 +152,14 @@ export function ladeHerunter(inhalt: string, name: string, format: ExportFormat)
   a.href = url; a.download = name; a.style.display = "none";
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+/** Ein Text mit Kopf als Datei — der eine Weg fuer Studio und Lesemodus.
+ *  Rueckgabe: false, wenn nichts zu speichern war. */
+export function speichereText(text: string, kopf: ExportKopf, format: ExportFormat): boolean {
+  if (!(text || "").trim()) return false;
+  const jetzt = new Date();
+  const voll: ExportKopf = { datum: zeitStempel(jetzt), ...kopf };
+  ladeHerunter(textDatei(text, voll, format), dateiname("divergenz", voll.titel || voll.form || "", format, jetzt), format);
+  return true;
 }
