@@ -4,9 +4,11 @@
 // Feld im Filter schaltet den Tresor mit „#g“ frei (× oder Tab-Wechsel verbirgt ihn wieder).
 import { el, button } from "./dom";
 import { icon } from "./icons";
+import { schatzkammerDatei, dateiname, ladeHerunter } from "../features/textexport";
+import { VERSION } from "../version";
 import { speichereArbeitsplatz, archiviere, eintragId, setzeQuelle } from "../features/erzaehlerbank";
 import {
-  loadTreasury, deleteTreasureAt, clearTreasury, exportTreasuryTxt,
+  loadTreasury, deleteTreasureAt, clearTreasury,
   treasureType, wordCount, treasureStats, setTreasureSecretAt,
 } from "../features/treasury";
 
@@ -170,12 +172,18 @@ export function mountTreasury(root: HTMLElement): void {
     });
   };
 
+  // Beide Knöpfe nehmen seit 4.368.0 Form und Reglerstellung mit — vorher
+  // schrieb der Export nur Datum, Wer, Wo und Wann, und die Datei hatte keinen
+  // Zeichensatz im Typ.
+  const exportiere = (format: "txt" | "md"): void => {
+    const list = loadTreasury();
+    if (!list.length) return;
+    ladeHerunter(schatzkammerDatei(list, format, treasureType, VERSION), dateiname("schatzkammer", "", format), format);
+  };
   const exportBtn = button("Alle als TXT exportieren");
-  exportBtn.addEventListener("click", () => {
-    const blob = new Blob([exportTreasuryTxt()], { type: "text/plain" });
-    const a = el("a", { href: URL.createObjectURL(blob), download: "schatzkammer.txt" });
-    a.click();
-  });
+  exportBtn.addEventListener("click", () => exportiere("txt"));
+  const exportMdBtn = button("als Markdown");
+  exportMdBtn.addEventListener("click", () => exportiere("md"));
   clearBtn = button("Alle löschen", "danger");
   clearBtn.addEventListener("click", () => {
     const n = loadTreasury().length;
@@ -189,7 +197,7 @@ export function mountTreasury(root: HTMLElement): void {
     el("h2", {}, "Schatzkammer"),
     overview,
     secretRow,
-    el("div", { class: "btnrow" }, exportBtn, clearBtn),
+    el("div", { class: "btnrow" }, exportBtn, exportMdBtn, clearBtn),
     list);
   root.append(wrap);
   render();

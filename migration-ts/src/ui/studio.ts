@@ -60,6 +60,8 @@ import { openReader } from "./reader";
 import { worldLogGeneration, worldFillContext } from "../features/world";
 import { uebernehmeKontext, geaendert as geaenderteFelder, offeneQuellen, ziehQuelle, QUELLE_LABEL, W4_FELDER, type W4 } from "../features/kontext";
 import { loadTreasury, addToTreasury, addToTreasurySecret, clearTreasury } from "../features/treasury";
+import { textDatei, dateiname, ladeHerunter } from "../features/textexport";
+import { VERSION as DM_VERSION } from "../version";
 import { THEMES, loadTheme, applyTheme, loadAccent, saveAccent, applyAccent } from "../features/theme";
 import { loadAiKey, saveAiKey, loadAiModel, saveAiModel } from "../features/ki";
 import { storageReport, lesePosten, formatBytes } from "../features/storage-status";
@@ -1751,6 +1753,10 @@ export function mountStudio(root: HTMLElement): void {
   merkeForm();
   const varBtn = button("Variante");
   const copyBtn = el("button", {}, icon("copy"), " Kopieren");
+  // Speichern (4.368.0): der Text als Datei, mit Kopf — Titel, Form, 4W und
+  // Reglerstellung. Kopieren nimmt nur den Text; wer ihn später wiederfindet,
+  // weiß sonst nicht mehr, woraus er entstand. Umschalt+Klick: Markdown.
+  const saveBtn = el("button", { title: "Als Textdatei speichern — mit Umschalt als Markdown" }, icon("floppy"), " Speichern");
   const diceBtn = el("button", {}, icon("dice"), " Würfeln");
   const rollSel = (s: HTMLSelectElement): void => { if (locked.has(s.id)) return; s.selectedIndex = Math.floor(Math.random() * s.options.length); s.dispatchEvent(new Event("change")); };
   // Gewürfelt wird, was ein SCHLOSS trägt — nicht, was in einer Liste steht.
@@ -1996,7 +2002,7 @@ export function mountStudio(root: HTMLElement): void {
   const bestChk = el("input", { type: "checkbox", id: "f-best" }) as HTMLInputElement;
   bestChk.checked = true;
   const bestLbl = el("label", { class: "chk", title: "Erzeugt bei jedem Klick 12 Kandidaten und zeigt den bestbewerteten (Längentreue, Wortvielfalt, Rhythmus, wenig Wiederholung, Grammatik, Abstand zur Schatzkammer)." }, bestChk, " Bestenauslese");
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, keepBtn, fadenBtn, fadenLoesen, sdLbl, vaultBtn, readBtn, speakBtn, lenRow, bestLbl, titelLbl), titelEl, bisherEl, fadenZeile, serienTafel, outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, saveBtn, keepBtn, fadenBtn, fadenLoesen, sdLbl, vaultBtn, readBtn, speakBtn, lenRow, bestLbl, titelLbl), titelEl, bisherEl, fadenZeile, serienTafel, outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
 
   // ── Test & Ranking ──
   let lastRanking: Ranking | null = null;
@@ -2951,6 +2957,21 @@ export function mountStudio(root: HTMLElement): void {
   form.addEventListener("change", updEmphVis);
   form.addEventListener("change", updHints);
   copyBtn.addEventListener("click", () => { void navigator.clipboard?.writeText(out.textContent || ""); });
+  saveBtn.addEventListener("click", (ev) => {
+    const text = out.textContent || "";
+    if (!text.trim()) return;
+    const format = (ev as MouseEvent).shiftKey ? "md" : "txt";
+    const t0 = aktuellerTitel();
+    const titel = fadenKopf ? (t0 ? `${fadenKopf} — ${t0}` : fadenKopf) : t0;
+    const jetzt = new Date();
+    const inhalt = textDatei(text, {
+      titel, form: form.selectedOptions[0]?.textContent?.trim() || form.value,
+      who: who.value, where: where.value, when: when.value, what: what.value,
+      datum: `${jetzt.getFullYear()}-${String(jetzt.getMonth() + 1).padStart(2, "0")}-${String(jetzt.getDate()).padStart(2, "0")} ${String(jetzt.getHours()).padStart(2, "0")}:${String(jetzt.getMinutes()).padStart(2, "0")}`,
+      version: DM_VERSION, einstellungen: einstellungen(),
+    }, format);
+    ladeHerunter(inhalt, dateiname("divergenz", titel || form.value, format, jetzt), format);
+  });
 
   // Lesemodus (Vollbild-Overlay)
   readBtn.addEventListener("click", () => openReader(out.textContent || "", { who: who.value, where: where.value, when: when.value, what: what.value, titel: aktuellerTitel() }));

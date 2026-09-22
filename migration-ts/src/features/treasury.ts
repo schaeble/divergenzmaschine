@@ -84,6 +84,7 @@ const FORM_LABEL: Record<string, string> = {
   // „montage" bleibt: Der Reiter ist seit 4.236.0 weg, aber alte Einträge in
   // der Schatzkammer tragen die Form noch und sollen nicht namenlos werden.
   montage: "Montage", workshop: "Werkstatt", assoz: "Assoziation",
+  bericht: "Bericht", meldung: "Meldung",
 };
 
 /** Anzahl der Wörter eines Textes. */
