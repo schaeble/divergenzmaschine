@@ -9,6 +9,7 @@ import { tenseBreakRatio, phraseRepeatRatio, castSpread, perspectiveBreakRatio }
 import { loadSettings } from "../storage";
 import { buildNoveltyContext, noveltyOf, cooldownHit, frequentContentWords, type NoveltyContext } from "./novelty";
 import { grammarFlags } from "./grammar";
+import { geschmackWert, ladeGeschmack } from "../features/geschmack";
 
 export interface TextMetrics {
   len: number; wordCount: number; repetitionRatio: number; lenFit: number;
@@ -114,6 +115,7 @@ export function bestOf(bank: Bank, input: GenInput, model: MarkovModel | undefin
   // Fuer die Anzeige mitfuehren: Wer haette OHNE Umwelt gewonnen? Nur so laesst
   // sich zeigen, ob die Umwelt die Auswahl wirklich gedreht hat - die blosse
   // Anwesenheit der Zeichen im Text sagt darueber nichts.
+  const gesch = (() => { try { const g = ladeGeschmack(); return g.phrasen.length ? g : null; } catch { return null; } })();
   let best: { txt: string; score: number } | null = null;
   let bestOhne: { txt: string; score: number } | null = null;
   for (const txt of genN(bank, input, model, N)) {
@@ -128,6 +130,12 @@ export function bestOf(bank: Bank, input: GenInput, model: MarkovModel | undefin
     sc -= fehl * fehl * 120;
     if (ctx) sc += nw * (noveltyOf(txt, ctx) * 40) - nw * (cooldownHit(txt, ctx) * 30);
     if (opts.grammarFilter) sc -= Math.min(grammarFlags(txt).count, 6) * 12;
+    // Geschmack (4.370.0): Merken und Verwerfen richten die Auslese. Der Wert
+    // liegt in -1..1 und ist 0, solange kein Urteil vorliegt - eine frische
+    // Installation verhaelt sich also wie vorher. 20 Punkte: genug, um unter
+    // zwoelf aehnlich guten Kandidaten zu entscheiden, zu wenig, um einen
+    // schwachen Text nach oben zu tragen.
+    if (gesch) sc += geschmackWert(txt, gesch) * 20;
     sc -= coherencePenalty(txt, { ...opts, perspective: opts.perspective ?? input.perspective });
     // Bauplan F: Die Umwelt richtet die Auswahl. Sie wirkt hier und nicht nur im
     // Auslese-Tab - der normale Weg ueber "Generieren" ist der, den man benutzt.

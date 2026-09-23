@@ -93,6 +93,23 @@ export function feedLivePools(text: string, weight: number): void {
   saveLive(list);
 }
 
+/** Gegenstueck zum Fuettern (4.370.0): Ein verworfener Text hat die Pools beim
+ *  Erzeugen bereits mit Gewicht 1 gefuettert — ohne diesen Weg bliebe das
+ *  stehen, und das Verwerfen waere folgenlos. Was auf 0 faellt, verschwindet. */
+export function schwaecheLivePools(text: string, weight: number): void {
+  const phrases = extractPhrases(text).map((p) => { const u = praesensUmschreiben(p); return u.ok ? u.text : ""; }).filter(Boolean);
+  if (!phrases.length) return;
+  const weg = new Set(phrases);
+  const list = loadLive();
+  let geaendert = false;
+  const rest = list.filter((e) => {
+    if (!weg.has(e.t)) return true;
+    e.n -= weight; geaendert = true;
+    return e.n > 0;
+  });
+  if (geaendert) saveLive(rest);
+}
+
 /** Texte, nach Stärke sortiert — die Ideenmaschine zieht daraus. */
 export function liveTexts(): string[] {
   return loadLive().sort((a, b) => (b.n - a.n) || (b.d - a.d)).map((e) => e.t);

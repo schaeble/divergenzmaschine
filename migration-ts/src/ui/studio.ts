@@ -61,6 +61,8 @@ import { worldLogGeneration, worldFillContext } from "../features/world";
 import { uebernehmeKontext, geaendert as geaenderteFelder, offeneQuellen, ziehQuelle, QUELLE_LABEL, W4_FELDER, type W4 } from "../features/kontext";
 import { loadTreasury, addToTreasury, addToTreasurySecret, clearTreasury } from "../features/treasury";
 import { speichereText } from "../features/textexport";
+import { trageUrteilEin, neigung, abneigung, ladeGeschmack, REGLER_NAME } from "../features/geschmack";
+import { schwaecheLivePools } from "../features/livepools";
 import { VERSION as DM_VERSION } from "../version";
 import { THEMES, loadTheme, applyTheme, loadAccent, saveAccent, applyAccent } from "../features/theme";
 import { loadAiKey, saveAiKey, loadAiModel, saveAiModel } from "../features/ki";
@@ -1986,9 +1988,61 @@ export function mountStudio(root: HTMLElement): void {
       const idx = ladeIndex();
       if (markiereBehalten(idx, indexSchluessel(out.textContent || ""))) sichereIndex(idx);
     } catch { /* egal */ }
+    try { trageUrteilEin(out.textContent || "", { ...einstellungen(), ...serienSet }, 1); zeigeNeigung(); } catch { /* egal */ }
     keepLbl.textContent = n < 0 ? "— schon drin" : `Gemerkt (${n})`;
     setTimeout(() => (keepLbl.textContent = "Merken"), 1400);
   });
+  // Verwerfen (4.370.0): der zweite Pol. Bisher war Merken das einzige Urteil,
+  // und jeder erzeugte Text fuetterte die Pools ohnehin mit Gewicht 1 — auch
+  // der weggeworfene. Hier wird das zurueckgenommen UND als Nein gezaehlt:
+  // fuer die Wendungen des Textes und fuer die Reglerstellung, unter der er
+  // entstand. Danach laeuft gleich ein neuer Durchgang, denn wer verwirft,
+  // will den naechsten Text sehen und nicht erst wieder auf „Generieren" zielen.
+  const verwerfLbl = el("span", {}, "Verwerfen");
+  const verwerfBtn = el("button", { title: "Zaehlt als Nein — schwaecht die Wendungen dieses Textes und diese Reglerstellung, dann neu erzeugen" }, icon("x"), " ", verwerfLbl);
+  verwerfBtn.addEventListener("click", () => {
+    const t = out.textContent || "";
+    if (!t.trim()) return;
+    try { trageUrteilEin(t, einstellungen(), -1); } catch { /* egal */ }
+    try { schwaecheLivePools(t, LIVE_W.gen); } catch { /* egal */ }
+    zeigeNeigung();
+    verwerfLbl.textContent = "Verworfen";
+    setTimeout(() => (verwerfLbl.textContent = "Verwerfen"), 1400);
+    genBtn.click();
+  });
+
+  // Was die Maschine aus den Urteilen gelernt hat — sichtbar, nicht heimlich.
+  const neigungText = el("span", {});
+  const neigungBtn = el("button", { class: "mini", title: "Setzt Ton, Struktur, Modus, Perspektive und Rhythmus auf die bestbewertete Stellung" }, "übernehmen");
+  const neigungZeile = el("p", { class: "muted mini", style: "display:none" }, neigungText, " ", neigungBtn);
+  const NEIG_SELECTS: Record<string, HTMLSelectElement> = {
+    tone, structure, mode, perspective: persp, rhythm,
+  };
+  const zeigeNeigung = (): void => {
+    let n: ReturnType<typeof neigung> = [], ab: ReturnType<typeof abneigung> = [], stand = { gefallen: 0, verworfen: 0 };
+    try { const g = ladeGeschmack(); stand = g; n = neigung(g); ab = abneigung(g); } catch { /* egal */ }
+    if (!n.length && !ab.length) { neigungZeile.style.display = "none"; return; }
+    const nenne = (x: { regler: string; wert: string; punkte: number }): string => `${REGLER_NAME[x.regler] || x.regler}: ${x.wert} (${x.punkte > 0 ? "+" : ""}${x.punkte.toFixed(2)})`;
+    const teile = [`Neigung aus ${stand.gefallen}× Merken und ${stand.verworfen}× Verwerfen — ` + (n.slice(0, 4).map(nenne).join(" · ") || "noch nichts Belegtes")];
+    if (ab.length) teile.push("gegen: " + ab.slice(0, 3).map(nenne).join(" · "));
+    neigungText.textContent = teile.join(" | ");
+    neigungZeile.style.display = "";
+    neigungBtn.style.display = n.some((x) => NEIG_SELECTS[x.regler]) ? "" : "none";
+  };
+  neigungBtn.addEventListener("click", () => {
+    let gesetzt = 0;
+    for (const x of neigung()) {
+      const sel = NEIG_SELECTS[x.regler];
+      if (!sel) continue;
+      // Nur Werte, die es in dieser Liste wirklich gibt — Presets und alte
+      // Staende koennen Stellungen enthalten, die es nicht mehr gibt.
+      if (!Array.from(sel.options).some((o) => o.value === x.wert)) continue;
+      sel.value = x.wert; gesetzt++;
+    }
+    neigungBtn.textContent = gesetzt ? `${gesetzt} übernommen` : "nichts Passendes";
+    setTimeout(() => (neigungBtn.textContent = "übernehmen"), 1400);
+  });
+
   const vaultLbl = el("span", {}, "Tresor");
   const vaultBtn = el("button", {}, icon("lock"), " ", vaultLbl);
   vaultBtn.addEventListener("click", () => {
@@ -2002,7 +2056,8 @@ export function mountStudio(root: HTMLElement): void {
   const bestChk = el("input", { type: "checkbox", id: "f-best" }) as HTMLInputElement;
   bestChk.checked = true;
   const bestLbl = el("label", { class: "chk", title: "Erzeugt bei jedem Klick 12 Kandidaten und zeigt den bestbewerteten (Längentreue, Wortvielfalt, Rhythmus, wenig Wiederholung, Grammatik, Abstand zur Schatzkammer)." }, bestChk, " Bestenauslese");
-  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, saveBtn, keepBtn, fadenBtn, fadenLoesen, sdLbl, vaultBtn, readBtn, speakBtn, lenRow, bestLbl, titelLbl), titelEl, bisherEl, fadenZeile, serienTafel, outWrap, vorratHint, feedsRow, planBox, struktBox, kling);
+  wrap.append(el("div", { class: "btnrow" }, genBtn, varBtn, diceBtn, copyBtn, saveBtn, verwerfBtn, keepBtn, fadenBtn, fadenLoesen, sdLbl, vaultBtn, readBtn, speakBtn, lenRow, bestLbl, titelLbl), titelEl, bisherEl, fadenZeile, serienTafel, outWrap, neigungZeile, vorratHint, feedsRow, planBox, struktBox, kling);
+  zeigeNeigung();   // beim Aufbau: was aus frueheren Sitzungen schon bekannt ist
 
   // ── Test & Ranking ──
   let lastRanking: Ranking | null = null;
