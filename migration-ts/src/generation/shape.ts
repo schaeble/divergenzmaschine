@@ -449,7 +449,7 @@ export function istAdjektivVorNomen(wort: string, naechstes: string): boolean {
 
 /** Verbindet zwei Sätze. Ein Satzglied ohne finites Verb wird angehängt wie eine
  *  Apposition (Gedankenstrich), zwei ganze Sätze mit Komma und Konjunktion. */
-export function verbinde(a: string, b: string, satzartig: boolean): string {
+export function verbinde(a: string, b: string, satzartig: boolean, fugen: string[] = [", und ", "; ", " — "]): string {
   const kopf = a.trim().replace(/[.!?…]+$/, "");
   const rest = b.trim();
   // Kleinschreiben nur, wenn das erste Wort sicher KEIN Nomen ist. Deutsche
@@ -462,7 +462,7 @@ export function verbinde(a: string, b: string, satzartig: boolean): string {
   const weiter = darfKlein ? rest.charAt(0).toLowerCase() + rest.slice(1) : rest;
   if (!satzartig) return `${kopf} — ${weiter}`;
   // Kein ", denn": Das behauptet einen Grund, den der Text nicht hergibt.
-  return `${kopf}${pick([", und ", "; ", " — "])}${weiter}`;
+  return `${kopf}${pick(fugen)}${weiter}`;
 }
 
 /** Hebt kurze Sätze an die Marke, indem Nachbarn verbunden werden. 0 lässt alles

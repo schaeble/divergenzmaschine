@@ -17,6 +17,9 @@ import { looksLikeFullClause } from "./wordcls";
 import { ziehFaktenblatt, erlaubteZahlen, ALLE_NAMEN, ROLLE_LABEL, type Faktenblatt, type FbPerson, type FbZahl } from "../features/faktenblatt";
 import { buildVersAtome } from "../atoms/rekombination";
 import { RESSORTS, type RessortId } from "../features/ressorts";
+import { verbinde } from "./shape";
+import { teilsaetze, woerter } from "../features/schneider";
+import { chance } from "../text-utils";
 
 /** Blickrichtung des Berichts. Der Ton bestimmt sie: "Hoffnungsvoll",
  *  "Humorvoll" und "Zärtlich" melden Gewinn, alles andere meldet Verlust oder
@@ -248,6 +251,9 @@ function vorspann(fb: Faktenblatt, b: Buchfuehrung, blick: Blick): string {
  *  billiger als eine Seite, die niemand liest. */
 function mische(fakten: string[], frei: string[]): string[] {
   const raus: string[] = [];
+  // Gezählt nach dem Reihen der Fakten (4.371.0): Zwei verbundene Faktensätze
+  // sind EIN Satz. Mit dem Deckel vor dem Reihen stieg der Anteil der Sätze
+  // ohne Fakt von 59 auf 62 % und riss die Marke des Bericht-Prüfstands.
   const gedeckelt = frei.slice(0, Math.max(1, fakten.length));
   const n = Math.max(fakten.length, gedeckelt.length);
   for (let i = 0; i < n; i++) {
@@ -255,6 +261,67 @@ function mische(fakten: string[], frei: string[]): string[] {
     if (gedeckelt[i]) raus.push(gedeckelt[i]!);
   }
   return raus;
+}
+
+/** Reiht benachbarte Faktensätze zu einem Satz — nach Wolf Schneider.
+ *
+ *  Gemessen (4.370.0, 2880 Berichte): 79,7 % aller Sätze lagen zwischen sechs
+ *  und zwölf Wörtern, 6,6 % darüber, keiner über zwanzig. Das ist das
+ *  Stakkato, das Schneider tadelt: Er verlangt nicht Kürze, sondern Wechsel —
+ *  mäßig lange Sätze neben kurzen. Seine Grenze liegt beim TEILSATZ (die
+ *  3-Sekunden-Regel: eine Einheit, rund zwölf Wörter), nicht beim Satz.
+ *
+ *  Deshalb verbunden werden nur:
+ *    · Faktensätze aus dem Gerüst, nie Vorratssätze aus dem Preset — zwei
+ *      Tatsachen desselben Absatzes stehen in einer Beziehung, ein Bild neben
+ *      einer Zahl nicht;
+ *    · mit „, und" oder Semikolon — beides behauptet keinen Grund; kein
+ *      Gedankenstrich, der wäre im Bericht ein Stilbruch;
+ *    · wenn jeder Teilsatz höchstens zwölf und das Ganze höchstens 22 Wörter
+ *      trägt (nahe der dpa-Obergrenze des Erwünschten, die Schneider zitiert);
+ *    · nicht, wenn einer schon einen Doppelpunkt trägt (zwei Ankündigungen in
+ *      einem Satz) oder beide mit demselben Wort beginnen („Betroffen ist …,
+ *      und betroffen sind …");
+ *    · nur mit Wahrscheinlichkeit — alles zu verbinden wäre das Gegenteil
+ *      von Wechsel. */
+function reiheFakten(fakten: string[]): string[] {
+  const raus: string[] = [];
+  for (const s of fakten) {
+    const a = raus[raus.length - 1];
+    if (a && darfReihen(a, s) && chance(0.6)) raus[raus.length - 1] = reihe(a, s);
+    else raus.push(s);
+  }
+  return raus;
+}
+
+/** Die Fuge. „und" nur, wenn der zweite Satz mit einer Zeitangabe beginnt — dann
+ *  meint es „und danach", eine Abfolge, die das Gerüst wirklich hergibt. Sonst
+ *  das Semikolon: Es reiht, ohne eine Beziehung zu behaupten. Die erste Fassung
+ *  nahm beides zufällig und schrieb „Die erste Beschwerde kam im Herbst, und
+ *  es geht um 40 Millionen Euro".
+ *
+ *  Kleinschreibung: Die Gerüstsätze beginnen oft mit einem Partizip
+ *  („Betroffen sind", „Gemessen wurden"), das `verbinde` nicht kennt — im
+ *  ersten Lauf stand „; Betroffen sind außerdem …". Ein Wort auf -en/-t vor
+ *  einem klein geschriebenen Verb ist hier nie ein Nomen; Namen wie „Kraus
+ *  ist" enden anders und bleiben groß. */
+export function reihe(a: string, b: string): string {
+  const zeitlich = /^(Am|Im|Vor|Seit|Zuletzt|Kurz|Nach|Anfang|Ende|Mitte)\b/.test(b.trim());
+  const m = b.trim().match(/^([A-ZÄÖÜ][a-zäöüß]+)\s+([a-zäöüß]+)/);
+  const partizip = !!m && /(en|t)$/.test(m[1]!) && /^(ist|sind|war|waren|wurde|wurden|wird|werden|hat|haben|liegen|liegt|stehen|steht)$/.test(m[2]!);
+  const b2 = partizip ? b.trim().charAt(0).toLowerCase() + b.trim().slice(1) : b;
+  return verbinde(a, b2, true, [zeitlich ? ", und " : "; "]);
+}
+
+export function darfReihen(a: string, b: string): boolean {
+  if (!/\.$/.test(a.trim()) || !/\.$/.test(b.trim())) return false;
+  if (/[:„“—–]/.test(a) || /[:„“—–]/.test(b)) return false;
+  // Auch keine Kette: Ein Satz, der schon aus zwei besteht, nimmt keinen dritten.
+  if (/;|, und /.test(a)) return false;
+  const erstes = (x: string): string => (woerter(x)[0] || "").toLowerCase();
+  if (erstes(a) === erstes(b)) return false;
+  if (woerter(a).length + woerter(b).length > 22) return false;
+  return [...teilsaetze(a), ...teilsaetze(b)].every((t) => woerter(t).length <= 12);
 }
 
 function hergang(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<string>, extra: number, vorrat: string[], blick: Blick): string {
@@ -325,7 +392,7 @@ function hergang(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<stri
     const aus = reihenfolge(frei.length >= 2 ? frei : bt).slice(0, 2 + Math.min(2, Math.floor(extra / 3)));
     teile.push(w.weitere(aufzaehlung(aus)));
   }
-  return mische(teile, frei).join(" ");
+  return mische(reiheFakten(teile), frei).join(" ");
 }
 
 function zitat(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<string>, welche: number, vorrat: string[]): string {
@@ -372,7 +439,7 @@ function hintergrund(fb: Faktenblatt, bank: Bank, b: Buchfuehrung, benutzt: Set<
   }
   const z3 = fb.zahlen[2];
   if (z3) teile.push(zahlSatz(z3));
-  return mische(teile, frei).join(" ");
+  return mische(reiheFakten(teile), frei).join(" ");
 }
 
 function ausblick(fb: Faktenblatt, blick: Blick): string {
@@ -481,7 +548,7 @@ export function buildBericht(bank: Bank, input: GenInput, ressort: RessortId | "
   // abgetrennt.
   {
     const rest = fb.zahlen.slice(3);
-    if (rest.length) abschnitte.push(`In Zahlen: ${rest.map((z) => zahlSatz(z)).join(" ")}`);
+    if (rest.length) abschnitte.push(`In Zahlen: ${reiheFakten(rest.map((z) => zahlSatz(z))).join(" ")}`);
   }
   // Zusatzabschnitt des Ressorts - die einzige Abweichung vom Grundgeruest.
   {

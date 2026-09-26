@@ -230,7 +230,7 @@ if (zaehl.size) {
     }
   }
   const anteil = gesamt ? ohne / gesamt : 0;
-  console.log(`  Vorratsanteil: ${Math.round(anteil * 100)} % der Sätze ohne Faktenmarke`);
+  console.log(`  Vorratsanteil: ${(anteil * 100).toFixed(1)} % der Sätze ohne Faktenmarke`);
   if (anteil > 0.6) {
     console.error(`\n❌ ${Math.round(anteil * 100)} % der Sätze tragen keinen Fakt — das ist kein Bericht mehr.`);
     fehler = true;

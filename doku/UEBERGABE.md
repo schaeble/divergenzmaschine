@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.298.0**, Zweig `typescript-migration`.
+Stand: **v4.371.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -97,6 +97,7 @@ Beide laufen bei `npm test` mit.
 | `test/musterseite.ts` | Musterseiten: Spaltenverteilung, Deckung, Wortziele — 71 Prüfungen |
 | `test/umbruch.ts` | Seitenumbruch: Verteilung, Fußauffüllung, Aufmacher, Füllgrad |
 | `test/wirkung.ts` | Wirkungsmesser: Blindprobe unter der Schwelle, Form darüber, Rechnung |
+| `test/schneider.ts` | Wolf Schneiders zählbare Regeln an Bericht und Meldung: Satzlängen-Bänder, Teilsatz ≤ 12 Wörter, Verbklammer, Verbote; mit Gegenprobe (35 Prüfungen) |
 | `test/zeitung.ts` | Zeitungssetzer: Layout-Logik, jsdom-Rundgang und ein Abgleich der Stilvorlage gegen die Rechnung (74 Prüfungen) |
 
 Der Formen-Prüfstand trennt **Formen im Gebrauch** (Prosa, Reim, Haiku,
@@ -2386,6 +2387,18 @@ dort steht, weil eine Spalte aufgehen musste, könnte das Beste der Seite sein
 oder das Schwächste — beides sollte man beim Lesen wissen. Eine Marke auf dem
 Papier wäre dagegen eine Bedienspur.
 
+**Schneider-Regeln** (seit 4.371.0): `features/schneider.ts` misst Wolf
+Schneiders zählbare Regeln (3-Sekunden-Regel als Teilsatz ≤ 12 Wörter,
+Verbklammer ≤ 6, Passiv, Streckverben, Bläh- und Füllwörter, Nebensatz voran,
+Genitivketten). Befund 4.370.0: Die Verbote hält die Maschine schon ein; ihr
+Fehler ist das Stakkato — im Bericht lagen 79,7 % der Sätze zwischen 6 und 12
+Wörtern, 6,6 % darüber, keiner über 20. Der Bericht reiht jetzt benachbarte
+FAKTENsätze (`reiheFakten`, nie Vorratssätze aus dem Preset): Semikolon, „und"
+nur vor einer Zeitangabe, jeder Teilsatz ≤ 12, gesamt ≤ 22, mit 60 %
+Wahrscheinlichkeit. Nachher 13–30 Wörter: 11,0 % (vorher 6,6 %). Die Wirkung
+ist bewusst begrenzt — die Vorratssätze stellen den Großteil. Die Prosa ist
+ausgenommen: Fragmente und Sinnsprüche sind dort Stilmittel.
+
 ## 7 · Fallen in diesem Quelltext
 
 - **`let` im Setzer steht in einer Reihenfolge.** `oeffneZeitungssetzer()` ist
@@ -2479,6 +2492,13 @@ Benutzer behält, ist das einzige belastbare „gut" dieses Programms.
   Zerlegung ist gegen fehlende Felder abgesichert und läuft gegen nachgebildete
   Beispieldaten; bleibt der Reiter im Browser leer, zuerst die Adressen in
   `feedAdressen()` gegen die aktuelle Wikimedia-Dokumentation halten.
+
+- **`pruefstand-formen` erscheint im Gesamtlauf immer rot**: Er gibt nie ein
+  ✅ aus, `scripts/pruefen.mjs` verlangt aber eines. Sein Exit-Code ist 0 —
+  der Fehler liegt im Bericht des Laufs, nicht im Prüfstand.
+- **Vorratsanteil des Berichts** liegt bei 59,8 % gegen die Marke 60 % in
+  `test/pruefstand.ts` — schon vor 4.371.0 auf der Kante (Anzeige jetzt mit
+  einer Nachkommastelle).
 
 ## 9 · Wo die übrigen Papiere liegen
 
