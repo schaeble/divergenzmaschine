@@ -22,6 +22,8 @@ import { BUILTIN_PRESETS } from "../src/presets.data";
 import { RESSORT_IDS } from "../src/features/ressorts";
 import { misseSchneider, schneiderSaetze, teilsaetze, verbklammer, woerter, VERBOTE, type SchneiderBefund } from "../src/features/schneider";
 import type { GenInput, Bank } from "../src/types";
+import { scoreBericht, scoreText } from "../src/generation/scoring";
+import { sinnsprueche, vorratsanteil } from "../src/generation/bericht";
 
 const fails: string[] = [];
 let geprueft = 0;
@@ -71,15 +73,22 @@ const TOENE = ["neutral", "uplifting"];
 const basis = { varLevel: "wild", structure: "rekombination", mode: "auto", perspective: "third", rhythm: "auto",
   markovMode: "off", disruptor: "off", archetypeA: "neutral", archetypeB: "neutral", instability: 2 } as unknown as GenInput;
 const presets = Object.keys(BUILTIN_PRESETS);
-const bericht: string[] = [], meldung: string[] = [];
+const bericht: string[] = [], meldung: string[] = [], wasFehlt: string[] = [];
 let i = 0;
 for (const who of WER) for (const what of WAS) for (const when of WANN) for (const where of WO) for (const tone of TOENE) {
   i++;
   const e = { ...basis, who, what, when, where, tone } as GenInput;
-  meldung.push(buildMeldung({ ...e, form: "meldung", lenTarget: 60 } as GenInput).text);
-  bericht.push(buildBericht(BUILTIN_PRESETS[presets[i % presets.length]!] as Bank, { ...e, lenTarget: 220 } as GenInput,
-    RESSORT_IDS[i % RESSORT_IDS.length]!).text);
+  const mt = buildMeldung({ ...e, form: "meldung", lenTarget: 60 } as GenInput).text;
+  const bt = buildBericht(BUILTIN_PRESETS[presets[i % presets.length]!] as Bank, { ...e, lenTarget: 220 } as GenInput,
+    RESSORT_IDS[i % RESSORT_IDS.length]!).text;
+  meldung.push(mt); bericht.push(bt);
+  // Das Was muss vollständig dastehen (4.372.0). „stellt den Betrieb ein"
+  // erschien als „stellt den Betrieb" — über 480 Läufe mit genau dieser
+  // Eingabe, und kein Muster suchte nach dem, was FEHLT.
+  if (!bt.includes(what)) wasFehlt.push(`Bericht: „${what}“ → ${bt.split("\n")[2]}`);
+  if (!mt.includes(what)) wasFehlt.push(`Meldung: „${what}“ → ${mt.slice(0, 90)}`);
 }
+pruefe(wasFehlt.length === 0, `Was unvollständig in ${wasFehlt.length} Texten, z. B. ${wasFehlt[0]}`);
 
 const zeige = (name: string, b: SchneiderBefund): void => {
   console.log(`${name}: ${b.saetze} Sätze, Median ${b.median} Wörter`);
@@ -109,6 +118,27 @@ for (const [name, b] of [["Bericht", B], ["Meldung", M]] as [string, SchneiderBe
 // und sie stellen den Großteil — daher die bescheidene Marke.
 pruefe(B.baender[2] + B.baender[3] >= 0.09, `Bericht: zu wenig mäßig lange Sätze (13–30 Wörter: ${pz(B.baender[2] + B.baender[3])})`);
 pruefe(B.baender[0] >= 0.05, `Bericht: kein kurzer Satz mehr (≤5 Wörter: ${pz(B.baender[0])}) — Wechsel heißt beides`);
+
+// ── 3 · Bestenauslese für den Bericht (4.372.0) ─────────────────────────────
+// Gegenproben mit festen Texten: gleiche Länge, gleicher Bau — einer trägt
+// Fakten, der andere Sinnsprüche. Die Wertung muss den ersten vorziehen, und
+// der Tempuswechsel der Vorgeschichte darf nichts kosten.
+{
+  const kopf = "Dürrhausen · Wirtschaft\n\nKraus stellt den Betrieb ein\n\nAm Donnerstag: Kraus stellt den Betrieb ein. Bekannt wurde, dass 80 Zulieferer betroffen sind.\n\n";
+  const fakten = kopf + "Vor zwei Jahren gab es die erste Anfrage; gemessen wurden 900 Meter Kaimauer. Am Donnerstag folgte der Schritt, über den Kraus nun informiert. Betroffen ist damit die Hälfte der Zulieferer. Auf dem Spiel stehen die Lieferkette und die Ausbildungsplätze der Werft am Hafen.";
+  const sprueche = kopf + "Der Glaube verlangt einen Sprung ohne Boden. Die Stille wird laut und dann wieder still. Die Zeit läuft rückwärts durch die Halle. Die Wahrheit steht im Hafen und wartet auf ein Schiff.";
+  pruefe(sinnsprueche(sprueche) >= 4 && sinnsprueche(fakten) === 0, `Sinnspruch-Zählung: ${sinnsprueche(sprueche)} / ${sinnsprueche(fakten)}`);
+  pruefe(sinnsprueche("„Die Stille wird laut“, sagte Möller.") === 0, "Sinnspruch im Zitat darf nicht zählen");
+  pruefe(vorratsanteil(fakten) < vorratsanteil(sprueche), "Vorratsanteil unterscheidet Fakten nicht von Sprüchen");
+  const f = scoreBericht(fakten, 60).score, sp = scoreBericht(sprueche, 60).score;
+  pruefe(f > sp + 20, `Bericht-Wertung zieht Fakten nicht klar vor (${f.toFixed(1)} gegen ${sp.toFixed(1)})`);
+  // Der Faktenkasten gehört nicht zum Text, den die Wertung liest.
+  pruefe(Math.abs(scoreBericht(fakten + "\n\nFaktenkasten\n· Betroffen: 80 Zulieferer\n· 2019: erste Anfrage", 60).score - f) < 3,
+    "Faktenkasten verschiebt die Bericht-Wertung");
+  // Gegenprobe zur alten Wertung: Sie sah den Unterschied kaum.
+  const altAbstand = scoreText(fakten, 60).score - scoreText(sprueche, 60).score;
+  console.log(`Bestenauslese: Fakten vor Sprüchen — neu ${(f - sp).toFixed(1)} Punkte, alt ${altAbstand.toFixed(1)}`);
+}
 
 console.log(`Prüfstand Schneider — ${geprueft} Prüfungen`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };

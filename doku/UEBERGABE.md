@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.371.0**, Zweig `typescript-migration`.
+Stand: **v4.372.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -2398,6 +2398,27 @@ nur vor einer Zeitangabe, jeder Teilsatz ≤ 12, gesamt ≤ 22, mit 60 %
 Wahrscheinlichkeit. Nachher 13–30 Wörter: 11,0 % (vorher 6,6 %). Die Wirkung
 ist bewusst begrenzt — die Vorratssätze stellen den Großteil. Die Prosa ist
 ausgenommen: Fragmente und Sinnsprüche sind dort Stilmittel.
+
+**Bestenauslese für den Bericht** (seit 4.372.0): `scoreBericht()` in
+`scoring.ts` ersetzt für die Form Bericht die Prosa-Wertung in `bestOf` und
+`runRanking`. Vorher wählte die Auslese Berichte nur nach Grammatik und
+„Tempusbrüchen" (die im Bericht meist richtig sind); Faktenanteil, Satzwechsel
+und Sinnsprüche lagen beim Sieger im Mittel. Jetzt: Faktenanteil ×200,
+Sätze 13–30 Wörter ×100 (gedeckelt bei 30 %), Stummelsätze über 20 % −60,
+Sinnspruch außerhalb von Zitaten −8, Schneider-Verbot −10; heraus fallen
+Tempus, Perspektive, Doppelpunkt, Wortvielfalt. Gemessen an 96 Auslesen à 12:
+anderer Sieger in 62; beim Sieger Sätze 13–30 W. 11,4 → 14,4 %, Sinnsprüche
+0,35 → 0,22 je Text, Faktenanteil 40,0 → 42,1 %, Grammatik gleich (0,56 → 0,61).
+Grenze: Die Auslese wählt nur unter dem, was der Bau anbietet — die
+Vorratssätze stecken in jedem Kandidaten. `FAKTENMARKE` und
+`vorratsanteil()` stehen jetzt in `bericht.ts`, der Prüfstand nutzt dieselbe
+Marke. Die Meldung läuft weiter über die Prosa-Wertung.
+
+**„ein" als Vorsilbe** (4.372.0): `kuerzeAmBruch` machte aus „stellt den
+Betrieb ein" „stellt den Betrieb" — in Schlagzeile und Vorspann jedes Berichts
+und jeder Meldung mit diesem Was. `endetAufVerbklammer()` lässt Verb + Objekt
++ Vorsilbe stehen; `test/schneider.ts` prüft seither, dass das Was vollständig
+im Text steht.
 
 ## 7 · Fallen in diesem Quelltext
 

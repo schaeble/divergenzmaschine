@@ -117,8 +117,30 @@ export function splitSentences(txt: string): string[] {
 // wieder „Er kommt".
 const HAENGT_IN_DER_LUFT = /(^|\s)(ein|eine|einem|einen|einer|eines|der|die|das|dem|den|des|und|oder|aber|wie|als|im|am|beim|zum|zur|vom|von|für|ohne|durch|gegen|bei|seit|während|wegen|trotz|dass|weil|denn|sondern|sowie|bzw|etwa|sehr|dessen|deren|welche[rsmn]?)$/i;
 
+/** Endet der Text auf einer echten Verbklammer — finites Verb, direkt danach
+ *  das Objekt, am Ende die trennbare Vorsilbe? „stellt den Betrieb ein",
+ *  „lädt die Gäste ein", „nimmt das Angebot an".
+ *
+ *  Gemeldet mit 4.372.0: Aus „stellt den Betrieb ein" wurde im Bericht
+ *  „Reinhard Kraus stellt den Betrieb" — in Schlagzeile UND Vorspann. „ein"
+ *  stand in der Artikelliste und fiel im ersten Durchgang; der zweite hätte es
+ *  auch geschnitten, weil davor ein Nomen steht. Beide Prüfstände liefen mit
+ *  genau dieser Eingabe und sahen es nicht: Sie suchen Muster, die da sind,
+ *  nicht Wörter, die fehlen.
+ *
+ *  Das Objekt muss UNMITTELBAR hinter dem Verb stehen. „Er läuft seit vielen
+ *  Jahren auf" hat auch ein Verb, aber dazwischen eine Präposition — dort ist
+ *  „auf" der Rest eines abgeschnittenen Satzglieds und fällt weiter weg. Die
+ *  erste Fassung hielt dort „vielen" für das Verb (Endung -en) — deshalb gilt
+ *  ein Wort direkt hinter einer Präposition nie als Verb; die zweite hielt
+ *  „seit" selbst dafür (Endung -t) — Präpositionen und Adverbien auf -t/-en
+ *  sind als Verb ausgeschlossen. */
+const VERBKLAMMER_ENDE = /(?:^|\s)(?<!(?:^|\s)(?:seit|vor|nach|mit|zu|in|an|auf|bei|von|aus|für|über|unter|gegen|durch|ohne|um|während|wegen|trotz|im|am|zum|zur|beim|vom|ins)\s)(?!(?:seit|nicht|jetzt|erst|fast|längst|meist|zuletzt|zunächst|selbst|sehr|oben|unten|neben|zwischen|hinten|vorn|gegen|trotz|während|wegen|ohne|unter|über|nach|mit)\s)[a-zäöüß]{2,}(?:t|en|st|et)\s+(?:(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|sein|seine|seinen|seinem|ihr|ihre|ihren|ihrem|kein|keine|keinen|mein|meine|meinen|unser|unsere|unseren)\s+)?(?:[a-zäöüß]+(?:e|en|er|es|em)\s+)*[A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]+\s+(?:an|auf|aus|ein|mit|nach|vor|zu|um|ab|bei|los|weg|hin|her|fest|frei|zurück)$/;
+export function endetAufVerbklammer(t: string): boolean { return VERBKLAMMER_ENDE.test(t); }
+
 export function kuerzeAmBruch(text: string): string {
   let t = (text || "").replace(/\s*…\s*$/, "").replace(/\s*[.,;:–—-]+\s*$/, "").trim();
+  if (endetAufVerbklammer(t)) return t;
   for (let i = 0; i < 8 && t && HAENGT_IN_DER_LUFT.test(t); i++) {
     const komma = t.lastIndexOf(",");
     if (komma >= 12) {

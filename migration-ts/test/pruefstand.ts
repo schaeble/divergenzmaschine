@@ -10,7 +10,7 @@ const st={};global.localStorage={getItem:k=>st[k]??null,setItem:(k,v)=>{st[k]=St
 // Jeder Fehler, den der Benutzer je gefunden hat, steht hier als Muster. Damit
 // kann er nicht zweimal auftreten, ohne dass es auffällt.
 
-import { buildBericht, pruefeBericht } from "../src/generation/bericht";
+import { buildBericht, pruefeBericht, FAKTENMARKE } from "../src/generation/bericht";
 import { RESSORT_IDS, RESSORTS } from "../src/features/ressorts";
 import { BUILTIN_PRESETS } from "../src/presets.data";
 import type { GenInput, Bank } from "../src/types";
@@ -219,7 +219,10 @@ if (zaehl.size) {
 // Er darf nicht überwiegen — sonst ist es kein Bericht mehr, sondern Prosa mit
 // Zahlen darin.
 {
-  const marke = /\d|Betroffen|Auf dem Spiel|In Aussicht|Profitieren|folgte|zeichnete|Angefangen|gab es|kam die|Gemessen|Es geht um|ist seit|besteht seit|sagte|Bekannt wurde|entsteht im ersten Jahr/;
+  // Dieselbe Marke wie die Bestenauslese (4.372.0). Die Zählweise hier bleibt
+  // die alte (Faktenkasten zählt mit, das Semikolon trennt nicht), damit die
+  // Marke von 60 % vergleichbar bleibt.
+  const marke = FAKTENMARKE;
   let ohne = 0, gesamt = 0;
   for (const t of texte) {
     for (const satz of t.split(/(?<!\d)[.!?](?=\s|$)/)) {

@@ -485,6 +485,37 @@ function reihenfolge<T>(a: T[]): T[] {
   return x;
 }
 
+/** Faktenmarke: Woran ein Satz als Tatsache des Gerüsts zu erkennen ist —
+ *  Zahl, Zitat oder eine der festen Gerüstwendungen. Stand bisher nur im
+ *  Prüfstand; seit 4.372.0 wählt auch die Bestenauslese danach, deshalb hier
+ *  EINE Fassung für beide. Die klein geschriebenen Formen sind neu: Hinter
+ *  einem Semikolon (reiheFakten) steht „betroffen sind". */
+export const FAKTENMARKE = /\d|Betroffen|betroffen|Auf dem Spiel|auf dem Spiel|In Aussicht|Profitieren|folgte|zeichnete|Angefangen|gab es|kam die|Gemessen|gemessen|Es geht um|es geht um|ist seit|besteht seit|sagte|Bekannt wurde|entsteht im ersten Jahr/;
+
+/** Anteil der Sätze ohne Faktenmarke — das „Rauschen zwischen den Fakten".
+ *  Der Faktenkasten zählt nicht mit; er ist per Bau reine Tatsache. */
+export function vorratsanteil(text: string): number {
+  let ohne = 0, gesamt = 0;
+  for (const satz of text.replace(/Faktenkasten[\s\S]*$/, "").split(/(?<!\d)[.!?;](?=\s|$)/)) {
+    const x = satz.trim();
+    if (x.length < 12) continue;
+    gesamt++;
+    if (!FAKTENMARKE.test(x)) ohne++;
+  }
+  return gesamt ? ohne / gesamt : 0;
+}
+
+/** Sinnspruch außerhalb eines Zitats: ein Abstraktum als Satzsubjekt am
+ *  Satzanfang — „Der Glaube verlangt einen Sprung", „Die Stille wird laut".
+ *  In der Prosa ein Mittel, im Bericht ein Fremdkörper (Schneider: konkret,
+ *  nicht erbaulich). Eine geschlossene Liste, also eine Näherung: Sie
+ *  übersieht Sinnsprüche mit anderem Subjekt, meldet aber keine Tatsache. */
+const SINNSPRUCH = /(?:^|[.!?;]\s+)(?:Der|Die|Das) (?:Glaube|Zweifel|Wahrheit|Hoffnung|Wahrnehmung|Erinnerung|Stille|Zeit|Schweigen|Angst|Liebe|Gesetz|Licht|Dunkel|Sinn|Offensichtliche|Himmel|Welt|Leere|Frage|Antwort|Ironie|Hierarchie|Form|Funktion|Freiheit|Gewissheit|Wirklichkeit|Vergangenheit|Zukunft|Ordnung|Stadt|Nacht)\b/g;
+export function sinnsprueche(text: string): number {
+  const ohneZitat = text.replace(/Faktenkasten[\s\S]*$/, "").replace(/„[^“]*“/g, "„…“");
+  return (ohneZitat.match(SINNSPRUCH) || []).length;
+}
+
 export interface BerichtErgebnis { text: string; fb: Faktenblatt; hergang: string; }
 
 export function buildBericht(bank: Bank, input: GenInput, ressort: RessortId | "auto" = "auto"): BerichtErgebnis {

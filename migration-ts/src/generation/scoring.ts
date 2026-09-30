@@ -10,6 +10,8 @@ import { loadSettings } from "../storage";
 import { buildNoveltyContext, noveltyOf, cooldownHit, frequentContentWords, type NoveltyContext } from "./novelty";
 import { grammarFlags } from "./grammar";
 import { geschmackWert, ladeGeschmack } from "../features/geschmack";
+import { vorratsanteil, sinnsprueche } from "./bericht";
+import { misseSchneider } from "../features/schneider";
 
 export interface TextMetrics {
   len: number; wordCount: number; repetitionRatio: number; lenFit: number;
@@ -103,6 +105,61 @@ export function scoreText(txt: string, lenTarget: number): { score: number; a: T
   return { score, a };
 }
 
+/** Bewertung für die Form „Bericht" (4.372.0).
+ *
+ *  Vorher lief der Bericht durch dieselbe Wertung wie die Prosa. Gemessen über
+ *  72 Auslesen à 12 Kandidaten wählte sie praktisch nur nach zwei Dingen:
+ *  Grammatik-Auffälligkeiten (Abzug im Mittel 22, beim Sieger 5) und
+ *  „Tempusbrüchen" (25 gegen 21). Der zweite ist im Bericht meist gar kein
+ *  Fehler — die Vorgeschichte im Präteritum neben dem Präsens der Meldung ist
+ *  richtig. Faktenanteil, Satzlängenwechsel und Sinnsprüche lagen beim Sieger
+ *  genau im Mittel: Die Auslese sah sie nicht.
+ *
+ *  Deshalb eine eigene Rechnung. Heraus fallen, was im Bericht falsch misst:
+ *  Tempusbruch, Perspektivbruch (die Ich-Form steht in Zitaten), Doppelpunkte
+ *  (die Abschnittsköpfe „Zur Einordnung:", „Chronik:" sind Bau, bei jedem
+ *  Kandidaten gleich), Wortvielfalt (ein Bericht nennt seinen Namen zu Recht
+ *  mehrmals — Schneider: lieber das Wort wiederholen als ein Ersatzwort).
+ *  Hinein, was einen Bericht ausmacht:
+ *    · Faktenanteil — die Sätze MIT Faktenmarke;
+ *    · Wechsel der Satzlängen nach Schneider: mäßig lange Sätze (13–30 Wörter)
+ *      belohnt, ein Übermaß an Stummelsätzen (über 20 % mit höchstens fünf
+ *      Wörtern) bestraft;
+ *    · Sinnsprüche außerhalb der Zitate — bestraft;
+ *    · Schneiders Verbote (Streckverb, Blähwort, Füllwort, Verbklammer) —
+ *      bestraft; heute kommen sie kaum vor, aber eigene Presets können sie
+ *      einschleppen.
+ *  Die Gewichte sind so gesetzt, dass jedes Maß über die Kandidaten eine
+ *  Streuung von etwa fünf bis acht Punkten erzeugt: genug, um zwischen
+ *  ähnlich guten zu entscheiden; die Grammatik (12 je Befund) bleibt das
+ *  stärkste Einzelmaß. Längentreue und Phrasenwiederholung bleiben. */
+export interface BerichtWerte { faktenanteil: number; lang: number; kurz: number; sinnsprueche: number; verbote: number; }
+export function berichtWerte(txt: string): BerichtWerte {
+  const S = misseSchneider([txt]);
+  const v = S.verbote;
+  return {
+    faktenanteil: 1 - vorratsanteil(txt),
+    lang: S.baender[2] + S.baender[3],
+    kurz: S.baender[0],
+    sinnsprueche: sinnsprueche(txt),
+    verbote: Math.round(((v["Streckverb"] || 0) + (v["Blähwort"] || 0) + (v["Füllwort"] || 0) + S.klammerWeit) * S.saetze),
+  };
+}
+export function scoreBericht(txt: string, lenTarget: number): { score: number; w: BerichtWerte } {
+  const koerper = txt.replace(/Faktenkasten[\s\S]*$/, "");
+  const a = analyzeText(koerper, lenTarget);
+  const w = berichtWerte(txt);
+  const score = a.lenFit * 30 - (a.tooShort ? 20 : 0)
+    + w.faktenanteil * 200
+    + Math.min(w.lang, 0.3) * 100
+    - Math.max(0, w.kurz - 0.2) * 60
+    - Math.min(w.sinnsprueche, 4) * 8
+    - Math.min(w.verbote, 4) * 10
+    - phraseRepeatRatio(koerper) * 40;
+  return { score, w };
+}
+const istBericht = (input: GenInput): boolean => input.form === "bericht";
+
 /** Feld-freie Bestenauslese für den Generieren-Standardpfad: erzeugt N Kandidaten,
  *  bewertet sie (Score + optional Novelty gegen die Schatzkammer + Grammatikfilter)
  *  und liefert den besten Text — ohne Korpus-Selbstfütterung (die bleibt bei Merken/Ranking). */
@@ -119,7 +176,8 @@ export function bestOf(bank: Bank, input: GenInput, model: MarkovModel | undefin
   let best: { txt: string; score: number } | null = null;
   let bestOhne: { txt: string; score: number } | null = null;
   for (const txt of genN(bank, input, model, N)) {
-    let sc = scoreText(txt, lt).score;
+    const bericht = istBericht(input);
+    let sc = bericht ? scoreBericht(txt, lt).score : scoreText(txt, lt).score;
     // Laengendefizit quadratisch bestrafen. Ohne das gewinnen kurze Fassungen: Sie
     // haben zwangslaeufig die bessere Wortvielfalt und weniger Wiederholung, und
     // diese Punkte ueberwogen die Laengentreue. In der Rekombination, wo die Ausbeute
@@ -136,7 +194,7 @@ export function bestOf(bank: Bank, input: GenInput, model: MarkovModel | undefin
     // zwoelf aehnlich guten Kandidaten zu entscheiden, zu wenig, um einen
     // schwachen Text nach oben zu tragen.
     if (gesch) sc += geschmackWert(txt, gesch) * 20;
-    sc -= coherencePenalty(txt, { ...opts, perspective: opts.perspective ?? input.perspective });
+    if (!bericht) sc -= coherencePenalty(txt, { ...opts, perspective: opts.perspective ?? input.perspective });
     // Bauplan F: Die Umwelt richtet die Auswahl. Sie wirkt hier und nicht nur im
     // Auslese-Tab - der normale Weg ueber "Generieren" ist der, den man benutzt.
     const ohne = sc;
@@ -215,9 +273,13 @@ export function runRanking(bank: Bank, input: GenInput, model: MarkovModel | und
   const ctx: NoveltyContext | null = nw > 0 ? buildNoveltyContext() : null;
   const umwR = opts.umwelt ?? loadUmwelt();
 
+  const bericht = istBericht(input);
   const results: RankItem[] = genN(bank, input, model, N).map((txt) => {
     const { score, a } = scoreText(txt, lt);
-    return { txt, score, baseScore: score, ...a };
+    // Der Bericht bekommt seine eigene Grundwertung; die Prosa-Maße bleiben
+    // zur Anzeige im Eintrag stehen.
+    const basis = bericht ? scoreBericht(txt, lt).score : score;
+    return { txt, score: basis, baseScore: basis, ...a };
   });
 
   for (const r of results) {
@@ -246,7 +308,7 @@ export function runRanking(bank: Bank, input: GenInput, model: MarkovModel | und
       r.grammar = g;
       sc -= Math.min(g, 6) * 12;   // Grammatik-Auffälligkeiten stark abwerten
     }
-    {
+    if (!bericht) {
       sc -= coherencePenalty(r.txt, opts);   // Tempus, Phrasen-Wiederholung, Figuren-Disziplin
     }
     sc += umweltBeitrag(r.txt, umwR);        // Bauplan F

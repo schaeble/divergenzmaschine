@@ -208,6 +208,16 @@ ist("ein ganzer Satz bleibt ganz", kuerzeAmBruch("Die Archivarin sucht eine Akte
 ist("ein trennbares Präfix bleibt stehen", kuerzeAmBruch("Er kommt an"), "Er kommt an");
 ist("und noch eines", kuerzeAmBruch("Das Licht geht aus"), "Das Licht geht aus");
 ist("bleibt nichts Ganzes übrig, kommt nichts zurück", kuerzeAmBruch("wie der"), "");
+// Die Verbklammer mit Objekt (4.372.0): „ein" ist hier Vorsilbe, kein Artikel.
+// Gemeldet als Schlagzeile „Reinhard Kraus stellt den Betrieb".
+ist("Verbklammer mit „ein“ bleibt", kuerzeAmBruch("stellt den Betrieb ein"), "stellt den Betrieb ein");
+ist("mit Namen davor", kuerzeAmBruch("Reinhard Kraus lädt die Gäste ein"), "Reinhard Kraus lädt die Gäste ein");
+ist("mit Adjektiv im Objekt", kuerzeAmBruch("Die Werft stellt die gesamte Produktion ein"), "Die Werft stellt die gesamte Produktion ein");
+ist("auch mit „an“", kuerzeAmBruch("Der Rat nimmt das Angebot an"), "Der Rat nimmt das Angebot an");
+// Gegenfälle: Die Ausnahme darf die alten Schnitte nicht aufheben.
+ist("Präposition vor dem Nomen: weiter geschnitten", kuerzeAmBruch("Er läuft seit vielen Jahren auf"), "Er läuft seit vielen Jahren");
+ist("„ein“ ohne Nomen davor bleibt ein hängender Artikel", kuerzeAmBruch("Am Abend kam ein"), "Am Abend kam");
+ist("hängender Artikel nach Nomen weiter geschnitten", kuerzeAmBruch("Ein Weg führt zu dem Haus und der"), "Ein Weg führt zu dem Haus");
 // Kurze, frei getippte Felder dürfen NICHT verschwinden — die Funktion läuft
 // auch über sie.
 for (const kurz of ["sucht eine Akte", "gewinnt", "eine Wandmalerei"]) {
