@@ -132,3 +132,22 @@ if (zaehl.size) {
 console.log(`  Beiwerk (Prosagedicht, Strang, Szene): ${n - nGebrauch - (sauber - sauberGebrauch)} von ${n - nGebrauch} mit Befund`);
 [...zaehlBeiwerk].sort((a, b) => b[1] - a[1]).slice(0, 5).forEach(([f, c]) =>
   console.log(`    ${String(c).padStart(4)}×  ${f}`));
+
+// Die Marke (4.372.1). Bis hierher war der Prüfstand ein reiner Bericht: Er
+// endete immer mit Exit 0 und ohne ✅, und der Gesamtlauf (scripts/pruefen.mjs)
+// zeigte ihn deshalb IMMER rot — ein Rot, das nichts bedeutete und das man sich
+// abgewöhnt hätte. Nur ein ✅ anzuhängen hätte ihn immer grün gemacht, eine
+// Sperre, die nie zuschlägt. Jetzt gilt: Die Formen im Gebrauch müssen zu
+// mindestens 97 % ohne Befund sein (gemessen: 1421 von 1440, 98,7 %). Das
+// Beiwerk bleibt gezählt, aber ohne Marke — seine Mängel sind bekannt und
+// bewusst zurückgestellt (UEBERGABE, Abschnitt 8).
+{
+  const quote = nGebrauch ? sauberGebrauch / nGebrauch : 0;
+  const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
+  if (quote < 0.97) {
+    console.error(`\n❌ Formen: nur ${(100 * quote).toFixed(1)} % der Läufe im Gebrauch ohne Befund (Marke 97 %).`);
+    proc.process?.exit(1);
+  } else {
+    console.log(`\n✅ Formen: ${(100 * quote).toFixed(1)} % der Läufe im Gebrauch ohne Befund (Marke 97 %).`);
+  }
+}

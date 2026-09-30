@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.372.0**, Zweig `typescript-migration`.
+Stand: **v4.372.1**, Zweig `typescript-migration`.
 
 ---
 
@@ -88,7 +88,7 @@ Beide laufen bei `npm test` mit.
 | `test/property.ts` | Eigenschaften über 200 Prosa- und 20 Dialogläufe |
 | `test/regression.ts` | sechs benannte Fehlerfälle |
 | `test/pruefstand.ts` | Bericht: 2880 Läufe (8 Wer × 9 Was × 5 Wann × 4 Wo × 2 Töne), 12 Verbotsmuster, 7 semantische Prüfungen |
-| `test/pruefstand-formen.ts` | alle Formen: 2520 Läufe, Muster aus echten Funden, Strukturprüfungen je Form |
+| `test/pruefstand-formen.ts` | alle Formen: 2520 Läufe, Muster aus echten Funden, Strukturprüfungen je Form; Marke seit 4.372.1: Formen im Gebrauch ≥ 97 % ohne Befund |
 | `test/meldung.ts` | Meldung: 2880 Läufe über dieselbe Matrix wie der Bericht, dazu neun Gegenproben |
 | `test/sammler.ts` | Sammler: 61 Prüfungen gegen nachgebildete Feed-Daten, mit Gegentests |
 | `test/bildrahmen.ts` | Bildrahmen: 67 Prüfungen, 560 Skalier- und 1600 Rasterfälle als Matrix |
@@ -2514,9 +2514,6 @@ Benutzer behält, ist das einzige belastbare „gut" dieses Programms.
   Beispieldaten; bleibt der Reiter im Browser leer, zuerst die Adressen in
   `feedAdressen()` gegen die aktuelle Wikimedia-Dokumentation halten.
 
-- **`pruefstand-formen` erscheint im Gesamtlauf immer rot**: Er gibt nie ein
-  ✅ aus, `scripts/pruefen.mjs` verlangt aber eines. Sein Exit-Code ist 0 —
-  der Fehler liegt im Bericht des Laufs, nicht im Prüfstand.
 - **Vorratsanteil des Berichts** liegt bei 59,8 % gegen die Marke 60 % in
   `test/pruefstand.ts` — schon vor 4.371.0 auf der Kante (Anzeige jetzt mit
   einer Nachkommastelle).
