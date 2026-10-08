@@ -169,7 +169,7 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   // ihrem Weltblatt und läuft — wie der Bericht — nicht durch die
   // Nachbearbeitung. Bei anderen Formen bleibt die Welt ohne Wirkung; das
   // Studio sagt das unter den Feldern, statt still etwas anderes zu bauen.
-  if (input.welt === "utopie" && input.form === "prose") return buildUtopie(input).text;
+  if (input.welt === "utopie" && input.form === "prose") return buildUtopie(input, bank).text;
   if (input.form === "bericht") return kleinerArtikel(buildBericht(bank, input, (input.ressort as Parameters<typeof buildBericht>[2]) ?? "auto").text);
   // Die Meldung geht NICHT durch die Bank: Sie referiert nur aus dem
   // Faktenblatt. Deshalb steht sie vor allem, was Atome zieht.

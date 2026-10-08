@@ -16,9 +16,10 @@
 // Einschübe und Satzauslese würden Sätze hinzufügen oder wegnehmen, die das
 // Blatt nicht kennt. Der Ton wirkt stattdessen als „Blick" (hell, dunkel,
 // Spott, kühl) auf Schluss und Kehrseite.
-import type { GenInput } from "../types";
+import type { Bank, GenInput } from "../types";
 import { pick } from "../text-utils";
 import { ziehWeltblatt, fuelle, LAGEN, type Weltblatt, type LageTyp } from "../features/weltblatt";
+import { utopieMaterial, ZAHLWORT } from "../features/utopieMaterial";
 
 /** Ein Satz mit Rang: ohne Rang Pflicht, sonst wird er nach Rang (klein
  *  zuerst) ergänzt, bis die Ziellänge erreicht ist. */
@@ -26,7 +27,30 @@ interface Satz { s: string; rang?: number }
 export type AbschnittId = "ankunft" | "ordnung" | "alltag" | "kehrseite" | "abschied";
 interface Abschnitt { id: AbschnittId; saetze: Satz[] }
 
-export interface UtopieErgebnis { text: string; fb: Weltblatt; folge: AbschnittId[] }
+/** Was aus dem Preset gezogen wurde — je Rahmen höchstens ein Eintrag. */
+export interface PresetWahl { motiv?: string; wendung?: string; verwandlung?: [string, string]; requisit?: string }
+
+export interface UtopieErgebnis { text: string; fb: Weltblatt; folge: AbschnittId[]; preset: PresetWahl }
+
+const cap1 = (s: string): string => (s ? s[0]!.toUpperCase() + s.slice(1) : s);
+
+/** Die vier Rahmen. Der Prüfer liest sie mit `PRESET_RAHMEN` zurück — beide
+ *  stehen deshalb nebeneinander. */
+// „Was man in N zuerst sieht" stand beim Gast im dritten Absatz — also gerade
+// nicht zuerst (gefunden beim Lesen, 4.374.0). Beide Rahmen sind jetzt
+// ortsfest und passen an jede Stelle.
+const MOTIV_RAHMEN = ["Mitten auf dem Platz: {m}.", "Am Rand des Platzes: {m}."];
+function presetSaetze(fb: Weltblatt, pw: PresetWahl): { motiv?: Satz; wendung?: Satz; verwandlung?: Satz; requisit?: Satz } {
+  const N = fb.name;
+  return {
+    // Das Motiv ist Pflicht: Wer ein Preset ankreuzt, soll es im Text finden.
+    motiv: pw.motiv ? { s: fuelle(pick(MOTIV_RAHMEN), { N, m: pw.motiv }) } : undefined,
+    wendung: pw.wendung ? { s: `Eine Geschichte, die man in ${N} gern erzählt: ${cap1(pw.wendung)}.`, rang: 1 } : undefined,
+    verwandlung: pw.verwandlung ? { s: `In ${N} sagt man nicht „${pw.verwandlung[0]}“, sondern „${pw.verwandlung[1]}“.`, rang: 1 } : undefined,
+    requisit: pw.requisit ? { s: `In jedem Haus in ${N} liegt ${pw.requisit}.`, rang: 2 } : undefined,
+  };
+}
+let PS: ReturnType<typeof presetSaetze> = {};
 
 const lc = (s: string): string => (s ? s[0]!.toLowerCase() + s.slice(1) : s);
 const worte = (s: string): number => (s.match(/[A-Za-zÄÖÜäöüß0-9]+/g) || []).length;
@@ -82,6 +106,7 @@ function ordnung(fb: Weltblatt, mitFrage: boolean): Abschnitt {
   if (fb.zeit === "nachbruch") s.push({ s: "Die Alten erinnern sich an die Zeit davor; sie sprechen nicht gern darüber." });
   if (fb.zeit === "zukunft") s.push({ s: `Was vorher war, kennt man in ${fb.name} nur aus Büchern.`, rang: 3 });
   if (fb.zeit === "vergangenheit") s.push({ s: `Von der übrigen Welt weiß man in ${fb.name} wenig, und man vermisst nichts.`, rang: 3 });
+  if (PS.verwandlung) s.push(PS.verwandlung);
   if (mitFrage) s.push(...frageSaetze(fb));
   return { id: "ordnung", saetze: s };
 }
@@ -95,7 +120,9 @@ const BLICK_ALLTAG: Record<Weltblatt["blick"], string> = {
 
 function alltag(fb: Weltblatt, vorweg: Satz[] = []): Abschnitt {
   const g = fb.grundsatz, W = fb.werte;
-  const s: Satz[] = [...vorweg, { s: fb.brauch.text }, { s: fb.brauch.alltag }];
+  const s: Satz[] = [...vorweg, ...(PS.motiv ? [PS.motiv] : []), { s: fb.brauch.text }, { s: fb.brauch.alltag }];
+  if (PS.wendung) s.push(PS.wendung);
+  if (PS.requisit) s.push(PS.requisit);
   g.alltag.forEach((x, i) => s.push(i === 0 ? { s: fuelle(x, W) } : { s: fuelle(x, W), rang: 1 }));
   s.push({ s: `Das Kostbarste in ${fb.name} ist ${fb.lage.knapp}; man geht sparsam damit um und redet nicht darüber.`, rang: 2 });
   s.push({ s: BLICK_ALLTAG[fb.blick], rang: 2 });
@@ -226,29 +253,56 @@ function setze(abschnitte: Abschnitt[], ziel: number): string {
     .filter(Boolean).join("\n\n");
 }
 
-export function buildUtopie(input: GenInput): UtopieErgebnis {
+export function buildUtopie(input: GenInput, bank?: Partial<Bank>): UtopieErgebnis {
   const fb = ziehWeltblatt(input);
+  // Das Preset liefert Material, gefiltert für die gezogene Lage.
+  const mat = utopieMaterial(bank, fb.lageTyp);
+  const pw: PresetWahl = {
+    motiv: mat.motive.length ? pick(mat.motive) : undefined,
+    wendung: mat.wendungen.length ? pick(mat.wendungen) : undefined,
+    verwandlung: mat.verwandlungen.length ? pick(mat.verwandlungen) : undefined,
+    requisit: mat.requisiten.length ? pick(mat.requisiten) : undefined,
+  };
+  PS = presetSaetze(fb, pw);
   const abschnitte = fb.erzaehler.art === "bewohner" ? bauBewohner(fb)
     : fb.erzaehler.art === "gehend" ? bauGehend(fb) : bauGast(fb);
   const ziel = Number.isFinite(input.lenTarget as number) ? (input.lenTarget as number) : 110;
-  return { text: setze(abschnitte, ziel), fb, folge: abschnitte.map((a) => a.id) };
+  const text = setze(abschnitte, ziel);
+  PS = {};
+  return { text, fb, folge: abschnitte.map((a) => a.id), preset: pw };
 }
 
 // ── Prüfung ─────────────────────────────────────────────────────────────────
-
-// Wortgrenzen ausdrücklich über Buchstaben, nicht über \b: Für \b ist „ß" kein
-// Wortzeichen, und „Dreißig" wurde als „drei" gelesen (gefunden beim ersten
-// Lauf, 4.373.0). Längere Zahlwörter stehen vorn, damit „zweihundert" nicht
-// als „zwei" endet.
-const ZAHLWORT = /(?<![\p{L}\d])(einundzwanzig|zweihundert|dreizehn|vierzehn|fünfzehn|sechzehn|siebzehn|achtzehn|neunzehn|dreißig|vierzig|fünfzig|sechzig|zwanzig|hundert|tausend|zwölf|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|\d+)(?![\p{L}\d])/giu;
 
 const zahlenIn = (s: string): string[] => (s.match(ZAHLWORT) || []).map((z) => z.toLowerCase());
 
 /** Prüft einen Utopie-Text gegen sein Blatt. Leere Liste = ohne Befund.
  *  `eingabe` sind die rohen vier W: Was der Nutzer selbst schreibt, darf im
  *  Text stehen, auch wenn es eine Lage-Marke oder eine Zahl ist. */
-export function pruefeUtopie(text: string, fb: Weltblatt, eingabe = ""): string[] {
+export function pruefeUtopie(text: string, fb: Weltblatt, eingabe = "", bank?: Partial<Bank>): string[] {
   const b: string[] = [];
+  // Preset-Material: Jeder Rahmen muss Material aus DIESER Bank tragen, für
+  // DIESE Lage tauglich. Und wenn die Bank Motive für die Lage hat, muss eins
+  // im Text stehen — sonst wäre das Preset wieder ein Regler ohne Wirkung.
+  if (bank) {
+    const m = utopieMaterial(bank, fb.lageTyp);
+    const N = fb.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const funde: string[] = [];
+    for (const r of [/Mitten auf dem Platz: ([^.]+)\./g, /Am Rand des Platzes: ([^.]+)\./g]) {
+      for (const x of text.matchAll(r)) { funde.push("m"); if (!m.motive.includes(x[1]!)) b.push(`Motiv nicht aus dem Preset: „${x[1]}"`); }
+    }
+    for (const x of text.matchAll(new RegExp(`Eine Geschichte, die man in ${N} gern erzählt: ([^.]+)\\.`, "g"))) {
+      const w = x[1]![0]!.toLowerCase() + x[1]!.slice(1);
+      if (!m.wendungen.includes(w) && !m.wendungen.includes(x[1]!)) b.push(`Wendung nicht aus dem Preset: „${x[1]}"`);
+    }
+    for (const x of text.matchAll(/sagt man nicht „([^“]+)“, sondern „([^“]+)“/g)) {
+      if (!m.verwandlungen.some(([p, q]) => p === x[1] && q === x[2])) b.push(`Verwandlung nicht aus dem Preset: ${x[1]}→${x[2]}`);
+    }
+    for (const x of text.matchAll(new RegExp(`In jedem Haus in ${N} liegt ([^.]+)\\.`, "g"))) {
+      if (!m.requisiten.includes(x[1]!)) b.push(`Requisit nicht aus dem Preset: „${x[1]}"`);
+    }
+    if (m.motive.length && !funde.length) b.push("Preset ohne Wirkung: kein Motiv im Text");
+  }
   if (/[{}]|\bundefined\b|\bnull\b|\bNaN\b/.test(text)) b.push("Platzhalter oder Leerwert im Text");
   if ((text.match(new RegExp(`(?<!\\p{L})${fb.name}(?!\\p{L})`, "gu")) || []).length < 2) b.push(`Name „${fb.name}" seltener als zweimal`);
   if (!text.includes(`„${fb.satz}“`)) b.push("Grundsatz nicht wörtlich zitiert");
@@ -269,7 +323,9 @@ export function pruefeUtopie(text: string, fb: Weltblatt, eingabe = ""): string[
   }
   // Satzbau, zählbar.
   if (/ {2}|\s[,.;:!?]/.test(text)) b.push("Leerzeichen vor Satzzeichen oder doppelt");
-  const dw = text.match(/(?<!\p{L})(\p{L}+) \1(?!\p{L})/iu);
+  // Artikel doppelt ist oft richtig: „die Bank, auf der der Herold saß",
+  // „etwas, das das Original vergessen hat" (Preset-Material, 4.374.0).
+  const dw = text.replace(/(?<!\p{L})(der|die|das|den|dem) \1(?!\p{L})/giu, "$1").match(/(?<!\p{L})(\p{L}+) \1(?!\p{L})/iu);
   if (dw) b.push(`Doppeltes Wort: „${dw[0]}"`);
   if (/[.!?]\s+[a-zäöü]/.test(text.replace(/„[^“]*“/g, "„…“"))) b.push("Satzanfang klein");
   if (/\.\.|\.“\./.test(text)) b.push("Doppelter Punkt");

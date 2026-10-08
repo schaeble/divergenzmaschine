@@ -45,6 +45,7 @@ import {
   VARIANZ_OPTS, DISRUPTOR_OPTS, MARKOV_OPTS, ARCH_OPTS, WELT_OPTS,
 } from "../generation/optionen";
 import { erkenneLage, erkenneErzaehler, erkenneZeit, erkenneGrundsatz, istNurName, LAGEN } from "../features/weltblatt";
+import { utopieMaterial } from "../features/utopieMaterial";
 import {
   ladeStand as ladeReiter, sichereStand as sichereReiter, ordne as ordneReiter,
   verschiebe as verschiebeReiter, schalte as schalteReiter, derKanon, PFLICHT as REITER_PFLICHT,
@@ -817,7 +818,33 @@ export function mountStudio(root: HTMLElement): void {
     // Wie eine Eingabe von Hand: Schloss-Werte, Merkzettel, Hinweise ziehen nach.
     for (const i of [where, when, who, what]) { i.dispatchEvent(new Event("input")); i.dispatchEvent(new Event("change")); }
   };
+  // Regler, die bei der Utopie nichts bewegen (4.374.0). Sie werden
+  // ausgegraut statt still mitgeführt — ein Regler, der nichts tut, ist
+  // schlimmer als keiner. Die Utopie hat ihr eigenes Gerüst (Struktur, Bogen,
+  // Spannung), erzählt in der Ich-Form (Perspektive), setzt ihre Sätze selbst
+  // (Rhythmus, Stellschrauben, Markov, Störer) und zieht keine Atome
+  // (Modus, Archetypen, Varianz, Instabilität, Figuren, 4W-Stärke).
+  const UTOPIE_AUS = ["f-structure", "f-bogen", "f-bauform", "f-mode", "f-persp", "f-rhythm", "f-tension", "f-cast",
+    "f-instab", "f-markov", "f-disruptor", "f-varianz", "f-archa", "f-archb", "f-w-wo", "f-w-wann", "f-w-wer", "f-w-was"];
+  const UTOPIE_AUS_TITEL = "Bei der Gattung Utopie ohne Wirkung: Sie baut aus ihrem Weltblatt, mit eigenem Gerüst und in der Ich-Form.";
+  const reglerFuerUtopie = (): void => {
+    const an = istUtopie() && form.value === "prose";
+    const ziele = Array.from(wrap.querySelectorAll<HTMLSelectElement | HTMLInputElement>("select, input"))
+      .filter((c) => UTOPIE_AUS.includes(c.id) || /^k-/.test(c.id));
+    for (const c of ziele) {
+      const feld = c.closest(".field, .knobrow, .lenrow") as HTMLElement | null;
+      if (an && !c.disabled) {
+        c.dataset.utopieAus = "1"; c.dataset.titelVorher = c.title || ""; c.disabled = true; c.title = UTOPIE_AUS_TITEL;
+        if (feld) feld.style.opacity = "0.45";
+      } else if (!an && c.dataset.utopieAus) {
+        // Nur zurücknehmen, was HIER gesperrt wurde — andere Sperren bleiben.
+        c.disabled = false; c.title = c.dataset.titelVorher || ""; delete c.dataset.utopieAus; delete c.dataset.titelVorher;
+        if (feld) feld.style.opacity = "";
+      }
+    }
+  };
   const weltBeschriften = (): void => {
+    reglerFuerUtopie();
     const t = istUtopie() ? W4_TEXTE.utopie : W4_TEXTE.keine;
     const paare: [HTMLElement, HTMLInputElement, readonly string[]][] = [[fWo, where, t.wo], [fWann, when, t.wann], [fWer, who, t.wer], [fWas, what, t.was]];
     for (const [f, inp, [lbl, ph]] of paare) {
@@ -831,6 +858,12 @@ export function mountStudio(root: HTMLElement): void {
     const bsp = el("button", { type: "button", class: "mini", title: "Trägt ein ausgefülltes Beispiel in die vier Felder ein." }, "Beispiel einsetzen");
     bsp.addEventListener("click", () => { setze4W(BEISPIEL_UTOPIE); generate(); });
     weltZeile.append(el("span", {}, "Gattung Utopie: Die vier Felder beschreiben eine Welt, kein Ereignis. Leere Felder werden gezogen. "), bsp);
+    // Was das Preset beisteuert — gezählt ohne Lage; die Lage filtert beim
+    // Erzeugen noch einmal (in der Wüste fällt die Gischt heraus).
+    const m = utopieMaterial(loadBank(), null);
+    weltZeile.append(m.motive.length
+      ? el("div", { style: "margin-top:4px" }, `Aus den gewählten Presets passen ${m.motive.length} Motive, ${m.wendungen.length} Wendungen, ${m.verwandlungen.length} Verwandlungen und ${m.requisiten.length} Requisiten. Struktur, Perspektive, Rhythmus, Modus und Stellschrauben wirken hier nicht.`)
+      : el("div", { style: "margin-top:4px" }, "⚠ Aus den gewählten Presets passt kein Motiv in eine Utopie — das Preset bleibt hier ohne Wirkung."));
     if (form.value !== "prose") weltZeile.append(el("div", { style: "margin-top:4px" }, `⚠ Die Utopie ist bisher nur für Form „Prosa“ angeschlossen. Bei „${form.options[form.selectedIndex]?.text || form.value}“ bleibt die Gattung ohne Wirkung.`));
   };
   let weltVorher = welt.value;
@@ -846,6 +879,9 @@ export function mountStudio(root: HTMLElement): void {
   });
   form.addEventListener("change", weltBeschriften);
   weltBeschriften();
+  // Die Regler des Werkzeugkastens entstehen erst weiter unten; das Ausgrauen
+  // braucht sie, also noch einmal, wenn der Aufbau fertig ist.
+  setTimeout(weltBeschriften, 0);
 
 
   const lenSlider = el("input", { id: "f-len", type: "range", min: "40", max: "400", step: "5", value: "110", style: "flex:1" }) as HTMLInputElement;
@@ -2608,6 +2644,8 @@ export function mountStudio(root: HTMLElement): void {
     }
     const model = markov.value !== "off" ? buildModelFromCorpus(2) : undefined;
     const input = readInput();
+    // Die Preset-Zählung über den Feldern folgt jeder Änderung der Auswahl.
+    if (istUtopie()) weltBeschriften();
     try {
       if (bestChk.checked) {
         const w = bestOf(loadBank(), input, model, 12, { noveltyWeight: 0.5, grammarFilter: true, castDiscipline: parseFloat(cast.value) || 0, expectedCast: who.value.split(/[,;]/).map((x) => x.trim()).filter(Boolean), perspective: persp.value });

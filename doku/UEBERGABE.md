@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.373.0**, Zweig `typescript-migration`.
+Stand: **v4.374.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -2444,6 +2444,29 @@ Beim Bau gefunden: `\b` hält „ß" nicht für einen Buchstaben, der Zahlprüfe
 las „Dreißig" als „drei" (jetzt Lookarounds mit `\p{L}`); beim Lesen: „Das war
 morgen.", ein Schluss „am Tor" nach Ankunft am Steg, „Niemand regiert" neben
 „Regiert wird" — alle drei behoben und als Muster mit Gegenprobe im Prüfstand.
+
+**Presets in der Utopie** (4.374.0): Bis 4.373.0 bewegte das Preset bei der
+Utopie nichts. Jetzt liefert es das Material, das Weltblatt behält die Fakten.
+`features/utopieMaterial.ts` filtert je Bank vier Rahmen: Motiv („Mitten auf
+dem Platz: …" / „Am Rand des Platzes: …", immer im Text), Wendung („Eine
+Geschichte, die man in N gern erzählt: …"), Verwandlung („In N sagt man nicht
+„A“, sondern „B“."), Requisit („In jedem Haus in N liegt …", Akkusativ auf
+Nominativ zurückgeführt). Heraus fallen Sätze mit Schlusspunkt, Anrede/Ich,
+Zahlen (auch „null"), schwach gebeugte Akkusative („einen Seismographen") und
+Wörter einer fremden Lage (Meer, Schnee, Sand, Wald + die Lage-Marken).
+Gemessen über 51 Presets: Motive 932/1135, Wendungen 654/1065, Verwandlungen
+299/299, Requisiten 984/1016 passen (vor den letzten Filtern); kein Preset ohne
+Motiv. Im Prüfstand: Motiv in 100 % der Läufe, `pruefeUtopie(…, bank)` prüft,
+dass jedes Material aus GENAU dieser Bank stammt (Gegenprobe Rimbaud-Text gegen
+Kafka-Bank) und dass ein Preset mit Motiven nie wirkungslos bleibt.
+Ausgegraut bei Utopie + Prosa: Struktur, Bogen, Modus, Perspektive, Rhythmus,
+Spannung, Figurendisziplin, Instabilität, Markov, Störer, Varianz, Archetypen,
+4W-Stärke, alle Stellschrauben — nur, was hier gesperrt wurde, wird wieder
+freigegeben (`data-utopie-aus`). Über den Feldern: wie viel aus der Auswahl
+passt, mit Warnung bei null Motiven.
+Funde: Doppelwort-Prüfer hielt „auf der der Herold saß" für einen Fehler;
+„null" galt als Leerwert; Ruder und „vereist" in der Wüste; „Was man zuerst
+sieht" im dritten Absatz — alle behoben, die Lage-Funde als Einzelprüfung.
 
 ## 7 · Fallen in diesem Quelltext
 

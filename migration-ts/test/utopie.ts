@@ -17,6 +17,7 @@ import { erkenneLage, erkenneErzaehler, erkenneZeit, erkenneGrundsatz, istNurNam
 import { grammarFlags } from "../src/generation/grammar";
 import { buildStory } from "../src/generation/buildStory";
 import { BUILTIN_PRESETS } from "../src/presets.data";
+import { utopieMaterial, requisitNominativ, fremdInLage } from "../src/features/utopieMaterial";
 import type { GenInput } from "../src/types";
 
 const fehler: string[] = [];
@@ -39,6 +40,19 @@ soll(erkenneZeit("vor zweihundert Jahren") === "vergangenheit", "Wann: vor … J
 soll(erkenneGrundsatz("Es gibt kein Geld.")?.id === "geld", "Was: Geld");
 soll(erkenneGrundsatz("Die Gesetze verfallen")?.id === "gesetz", "Was: Gesetz");
 soll(erkenneGrundsatz("Alle tragen Hüte") === null, "Was: freier Grundsatz");
+// Preset-Material (4.374.0)
+soll(requisitNominativ("einen alten Siegelring") === "ein alter Siegelring", "Requisit: Akkusativ → Nominativ");
+soll(requisitNominativ("einen Kompass ohne Norden") === "ein Kompass ohne Norden", "Requisit: Nomen ohne Adjektiv");
+soll(requisitNominativ("einen Seismographen aus Messing") === null, "Requisit: schwaches Nomen im Akkusativ fällt (Fund in der Stichprobe)");
+soll(fremdInLage("eine vereiste Monstranz", "wueste"), "Lage: vereist in der Wüste fremd (Fund in der Stichprobe)");
+soll(requisitNominativ("die Schlüssel") === null, "Requisit: bestimmter Artikel (Plural möglich) fällt");
+soll(requisitNominativ("ein Brief mit zwei Siegeln") === null, "Requisit: Zahl fällt");
+soll(fremdInLage("phosphoreszierende Gischt", "wueste") && !fremdInLage("phosphoreszierende Gischt", "insel"), "Lage: Gischt in der Wüste fremd, auf der Insel nicht");
+soll(fremdInLage("ein rostiges Ruder", "wueste"), "Lage: Ruder in der Wüste fremd (Fund beim Lesen)");
+soll(!fremdInLage("eine Seele ohne Namen", "wueste") && !fremdInLage("ein Eisentor", "wueste") && !fremdInLage("eine Decke", "wueste"), "Lage: Seele, Eisen, Decke sind keine Meer- oder Eiswörter");
+soll(utopieMaterial(BUILTIN_PRESETS["rimbaud"]!, "wueste").motive.every((m) => !/Gischt|Meer|Brandung|Wasser/.test(m)), "Rimbaud in der Wüste ohne Meeresmotive");
+const ohneMotiv = Object.keys(BUILTIN_PRESETS).filter((id) => !utopieMaterial(BUILTIN_PRESETS[id]!, null).motive.length);
+soll(!ohneMotiv.length, `Presets ohne taugliches Motiv: ${ohneMotiv.join(", ")}`);
 
 // ── 2 · Matrix ──────────────────────────────────────────────────────────────
 const WO = ["", "eine Insel im Nordmeer", "in der Wüste", "eine Stadt unter dem Eis", "im Gebirge", "Velmar", "auf der Insel Amaurot", "in einem Keller"];
@@ -51,19 +65,30 @@ const funde = new Map<string, number>();
 const beispiel = new Map<string, string>();
 const laengen: Record<number, number[]> = { 110: [], 400: [] };
 let laeufe = 0;
+const PRESET_IDS = Object.keys(BUILTIN_PRESETS);
+const presetGenutzt = { motiv: 0, wendung: 0, verwandlung: 0, requisit: 0 };
 for (const where of WO) for (const when of WANN) for (const who of WER) for (const what of WAS) for (const tone of TOENE) {
   const lenTarget = laeufe % 2 ? 400 : 110;
   const input = { where, when, who, what, tone, form: "prose", lenTarget } as GenInput;
-  const r = buildUtopie(input);
+  const presetId = PRESET_IDS[laeufe % PRESET_IDS.length]!;
+  const bankP = BUILTIN_PRESETS[presetId]!;
+  const r = buildUtopie(input, bankP);
   laeufe++;
+  for (const k of Object.keys(presetGenutzt) as (keyof typeof presetGenutzt)[]) {
+    const v = r.preset[k];
+    const t = k === "verwandlung" ? (v ? `„${(v as [string, string])[0]}“` : "") : (v as string || "");
+    if (t && r.text.includes(k === "wendung" ? t.slice(1) : t)) presetGenutzt[k]++;
+  }
   laengen[lenTarget]!.push(r.text.split(/\s+/).length);
-  const befunde = pruefeUtopie(r.text, r.fb, [where, when, who, what].join(" "));
+  const befunde = pruefeUtopie(r.text, r.fb, [where, when, who, what].join(" "), bankP);
   // Der allgemeine Grammatik-Melder — OHNE seine Klasse „Verb-Kollision". Die
   // lief hier in 8767 von 8960 Läufen an, und jeder geprüfte Treffer war
   // falsch: Sie zählt über Satzgrenzen hinweg („hat. Am Waagentag legt") und
   // hält „nicht" und „längst" für finite Verben („bin ich nicht", „ist
   // längst"). Ein Melder, der fast immer anschlägt, prüft nichts.
-  const g = grammarFlags(r.text);
+  // Artikel doppelt („auf der der Herold saß") ist richtig; der allgemeine
+  // Melder zählt es als Wortverdopplung.
+  const g = grammarFlags(r.text.replace(/(?<!\p{L})(der|die|das|den|dem) \1(?!\p{L})/giu, "$1"));
   const echte = g.issues.filter((x) => !/^Verb-Kollision/.test(x));
   if (echte.length) befunde.push("Grammatik-Melder: " + echte.join("; "));
   // Vorrang: Ein eingetragener Grundsatz steht wörtlich da.
@@ -100,8 +125,8 @@ soll(!/auf dem \S+ gebaut ist/.test(bericht), "Weiche: Bericht mit Welt Utopie b
 // ── 3 · Gegenproben ─────────────────────────────────────────────────────────
 const gegen: string[] = [];
 let gegenFehler = 0;
-const probe = (name: string, text: string, fb: Parameters<typeof pruefeUtopie>[1], muster: RegExp, eingabe = ""): void => {
-  const b = pruefeUtopie(text, fb, eingabe);
+const probe = (name: string, text: string, fb: Parameters<typeof pruefeUtopie>[1], muster: RegExp, eingabe = "", bank?: Parameters<typeof pruefeUtopie>[3]): void => {
+  const b = pruefeUtopie(text, fb, eingabe, bank);
   const ok = b.some((x) => muster.test(x));
   gegen.push(`    ${ok ? "✓" : "✗"} ${name}`);
   if (!ok) gegenFehler++;
@@ -120,13 +145,29 @@ probe("Kehrseite entfernt", t0.replace(fb0.grundsatz.kehrseite[0]!.replace("{N}"
 probe("Netze in der Wüste", t0.replace(/\n\n/, " Am Abend flickt man Netze.\n\n"), fb0, /Marke der Lage „insel"/);
 probe("Platzhalter stehen geblieben", t0.replace(fb0.name, "{N}"), fb0, /Platzhalter/);
 probe("Grundsatz verändert", t0.replace(`„${fb0.satz}“`, "„Es regiert der König.“"), fb0, /Grundsatz/);
-probe("Doppeltes Wort", t0.replace(/\bdie\b/, "die die"), fb0, /Doppeltes Wort/);
+probe("Doppeltes Wort", t0.replace(/\bund\b/, "und und"), fb0, /Doppeltes Wort/);
 probe("Satzanfang klein", t0.replace(/\. ([A-ZÄÖÜ])/, (_, c: string) => ". " + c.toLowerCase()), fb0, /Satzanfang klein/);
 probe("Absätze vertauscht (Blickwinkel)", t0.split("\n\n").reverse().join("\n\n"), fb0, /Blickwinkel/);
 probe("Brauch entfernt", t0.replace(fb0.brauch.text, ""), fb0, /Brauch/);
 probe("„Das war morgen“", t0.replace(/\n\n/, " Das war morgen.\n\n"), fb0, /Zukunftszeit/);
 probe("Schluss am Tor bei anderer Ankunft", t0.replace(/\n\n/, " Niemand stand am Tor.\n\n"), { ...fb0, lage: { ...fb0.lage, ankunft: "Am Steg" } }, /am Tor/);
 probe("„Niemand regiert“ neben „Regiert wird“", t0.replace(`„${fb0.satz}“`, "„Niemand regiert.“").replace(/\n\n/, " Regiert wird alles vom Rat.\n\n"), { ...fb0, satz: "Niemand regiert." }, /Niemand regiert/);
+// Preset-Gegenproben: ein Rimbaud-Text gegen die Kafka-Bank geprüft, und ein
+// Text, aus dem das Motiv entfernt wurde.
+{
+  const rb = BUILTIN_PRESETS["rimbaud"]!, kb = BUILTIN_PRESETS["kafka"]!;
+  let r1 = buildUtopie({ where: "eine Insel", when: "", who: "", what: "", tone: "uplifting", form: "prose", lenTarget: 400 } as GenInput, rb);
+  for (let i = 0; i < 50 && !(r1.preset.motiv && !utopieMaterial(kb, r1.fb.lageTyp).motive.includes(r1.preset.motiv)); i++) r1 = buildUtopie({ where: "eine Insel", when: "", who: "", what: "", tone: "uplifting", form: "prose", lenTarget: 400 } as GenInput, rb);
+  const eig = pruefeUtopie(r1.text, r1.fb, "eine Insel", rb);
+  gegen.push(`    ${eig.length ? "✗" : "✓"} Rimbaud-Text gegen Rimbaud-Bank ohne Befund${eig.length ? ": " + eig.join("; ") : ""}`);
+  if (eig.length) gegenFehler++;
+  probe("Rimbaud-Text gegen Kafka-Bank", r1.text, r1.fb, /nicht aus dem Preset/, "eine Insel", kb);
+  const ohne = r1.text.replace(/(Mitten auf dem Platz|Am Rand des Platzes): [^.]+\. ?/, "");
+  const b3 = pruefeUtopie(ohne, r1.fb, "eine Insel", rb);
+  const ok3 = b3.some((x) => /Preset ohne Wirkung/.test(x));
+  gegen.push(`    ${ok3 ? "✓" : "✗"} Motiv entfernt → „Preset ohne Wirkung“`);
+  if (!ok3) gegenFehler++;
+}
 // Der Fund des ersten Laufs: „Dreißig" ist nicht „drei".
 {
   const fbD = { ...fb0, zahlen: ["dreißig"] };
@@ -139,6 +180,7 @@ probe("„Niemand regiert“ neben „Regiert wird“", t0.replace(`„${fb0.sat
 console.log(`Prüfstand Utopie: ${laeufe} Läufe (8 Wo × 5 Wann × 8 Wer × 7 Was × 4 Töne)`);
 console.log(`  Umfang bei Ziel 110: ${Math.min(...kurz)}–${Math.max(...kurz)} Wörter, Mittel ${mittel(kurz).toFixed(0)}`);
 console.log(`  Umfang bei Ziel 400: ${Math.min(...lang)}–${Math.max(...lang)} Wörter, Mittel ${mittel(lang).toFixed(0)}`);
+console.log(`  Preset im Text: Motiv ${(100 * presetGenutzt.motiv / laeufe).toFixed(1)} %, Wendung ${(100 * presetGenutzt.wendung / laeufe).toFixed(1)} %, Verwandlung ${(100 * presetGenutzt.verwandlung / laeufe).toFixed(1)} %, Requisit ${(100 * presetGenutzt.requisit / laeufe).toFixed(1)} % der Läufe (51 Presets reihum)`);
 console.log(`  Abwechslung: ${viele.size} verschiedene Texte aus 20 gleichen Eingaben`);
 if (funde.size) {
   console.log("  Befunde:");
