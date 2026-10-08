@@ -26,6 +26,7 @@ import { enforceWordTarget } from "./length";
 import { buildRekombination, buildVersAtome } from "../atoms/rekombination";
 import { buildBericht } from "./bericht";
 import { buildMeldung } from "./meldung";
+import { buildUtopie } from "./utopie";
 import { linkTrace } from "../atoms/trace";
 import { linkMarkovTrace } from "./markovTrace";
 import { applyEmphasis } from "./emphasis";
@@ -164,6 +165,11 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   // einen Buchstaben. „… bemerkt Ein Bergsteiger" stand sonst auch im Bericht,
   // und seit der einfache Kopf den Zeitungsbericht an erster Stelle anbietet,
   // ist das der haeufigste Weg.
+  // Welt „Utopie" (4.373.0): bisher nur für Prosa angeschlossen. Sie liest aus
+  // ihrem Weltblatt und läuft — wie der Bericht — nicht durch die
+  // Nachbearbeitung. Bei anderen Formen bleibt die Welt ohne Wirkung; das
+  // Studio sagt das unter den Feldern, statt still etwas anderes zu bauen.
+  if (input.welt === "utopie" && input.form === "prose") return buildUtopie(input).text;
   if (input.form === "bericht") return kleinerArtikel(buildBericht(bank, input, (input.ressort as Parameters<typeof buildBericht>[2]) ?? "auto").text);
   // Die Meldung geht NICHT durch die Bank: Sie referiert nur aus dem
   // Faktenblatt. Deshalb steht sie vor allem, was Atome zieht.

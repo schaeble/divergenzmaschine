@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.372.1**, Zweig `typescript-migration`.
+Stand: **v4.373.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -98,6 +98,7 @@ Beide laufen bei `npm test` mit.
 | `test/umbruch.ts` | Seitenumbruch: Verteilung, Fußauffüllung, Aufmacher, Füllgrad |
 | `test/wirkung.ts` | Wirkungsmesser: Blindprobe unter der Schwelle, Form darüber, Rechnung |
 | `test/schneider.ts` | Wolf Schneiders zählbare Regeln an Bericht und Meldung: Satzlängen-Bänder, Teilsatz ≤ 12 Wörter, Verbklammer, Verbote; mit Gegenprobe (35 Prüfungen) |
+| `test/utopie.ts` | Gattung Utopie: 8960 Läufe (8 Wo × 5 Wann × 8 Wer × 7 Was × 4 Töne) gegen das eigene Weltblatt, 15 Gegenproben |
 | `test/zeitung.ts` | Zeitungssetzer: Layout-Logik, jsdom-Rundgang und ein Abgleich der Stilvorlage gegen die Rechnung (74 Prüfungen) |
 
 Der Formen-Prüfstand trennt **Formen im Gebrauch** (Prosa, Reim, Haiku,
@@ -2420,6 +2421,30 @@ und jeder Meldung mit diesem Was. `endetAufVerbklammer()` lässt Verb + Objekt
 + Vorsilbe stehen; `test/schneider.ts` prüft seither, dass das Was vollständig
 im Text steht.
 
+**Gattung „Utopie"** (4.373.0): neues Wählfeld „Gattung" neben Ton und Form
+(intern `welt`, `WELT_OPTS`, `GenInput.welt` — in der Oberfläche „Gattung",
+weil „Welt" schon der Reiter des Weltensimulators und die Einteilung im
+einfachen Kopf heißt). Bei „Utopie" beschreiben die vier W eine Welt statt
+eines Ereignisses. `features/weltblatt.ts` zieht einmal: Name, Lage (8 Typen,
+je mit Knappheit, Maß, Arbeit, Ankunftsort und Marken-Wörtern), Grundsatz
+(10 Prämissen + freier Grundsatz, jede mit eigener Kehrseite und Frage),
+Regierung, Gesetz, Brauch, Blickwinkel, Zeitlage, Blick (aus dem Ton). Was der
+Nutzer einträgt, hat Vorrang. `generation/utopie.ts` baut fünf Abschnitte,
+deren Reihenfolge am Blickwinkel hängt (Gast / Bewohner / jemand, der gehen
+muss), ergänzt Rang-Sätze bis zur Ziellänge und läuft NICHT durch die
+Nachbearbeitung. `pruefeUtopie()` hält Text und Blatt gegeneinander.
+Angeschlossen ist nur Prosa; bei anderen Formen steht ein Hinweis über den
+Feldern. Die vier W werden je Gattung gemerkt (`divergenz_welt_4w_v1`). Das
+Feld hat kein Schloss und wird nicht gewürfelt — sonst stünden Ereignis-Angaben
+in einer Utopie.
+Länge: Ziel 110 → 174–274 Wörter (Mittel 229), Ziel 400 → 259–352 (Mittel
+312). Unter rund 180 geht es nicht, weil die Pflichtsätze (Kehrseite, Brauch,
+Grundsatz) bleiben; über rund 350 fehlt Material.
+Beim Bau gefunden: `\b` hält „ß" nicht für einen Buchstaben, der Zahlprüfer
+las „Dreißig" als „drei" (jetzt Lookarounds mit `\p{L}`); beim Lesen: „Das war
+morgen.", ein Schluss „am Tor" nach Ankunft am Steg, „Niemand regiert" neben
+„Regiert wird" — alle drei behoben und als Muster mit Gegenprobe im Prüfstand.
+
 ## 7 · Fallen in diesem Quelltext
 
 - **`let` im Setzer steht in einer Reihenfolge.** `oeffneZeitungssetzer()` ist
@@ -2517,6 +2542,15 @@ Benutzer behält, ist das einzige belastbare „gut" dieses Programms.
 - **Vorratsanteil des Berichts** liegt bei 59,8 % gegen die Marke 60 % in
   `test/pruefstand.ts` — schon vor 4.371.0 auf der Kante (Anzeige jetzt mit
   einer Nachkommastelle).
+
+- **Grammatik-Melder, Klasse „Verb-Kollision"** (`grammar.ts`): schlug auf
+  Utopie-Texten in 8767 von 8960 Läufen an, jeder geprüfte Treffer falsch —
+  sie zählt über Satzgrenzen hinweg („hat. Am Waagentag legt") und hält
+  „nicht"/„längst" für finite Verben. Im Prüfstand Utopie ausgenommen. Da sie
+  in `bestOf` als Abwertung wirkt, lohnt eine Messung, wie oft sie bei Prosa
+  falsch liegt.
+- **Gattung Utopie** für Bericht und Meldung anschließen (Zeitung aus der
+  Utopie); dazu Dystopie als zweiter Eintrag.
 
 ## 9 · Wo die übrigen Papiere liegen
 

@@ -66,6 +66,9 @@ export interface GenInput {
   tension?: string; // Spannungs-Peak-Position (off/top/mid/low), nur Prosa
   /** Zeitungsressort, Formen "bericht" und "meldung". "auto" raet aus dem Stoff. */
   ressort?: string;
+  /** Welt (4.373.0): "keine" oder "utopie". Bei "utopie" beschreiben die vier W
+   *  eine Welt statt eines Ereignisses; angeschlossen ist bisher nur Prosa. */
+  welt?: string;
 }
 
 /** "Kit": die aus Bank + Input abgeleiteten Bausteine für einen Lauf. */

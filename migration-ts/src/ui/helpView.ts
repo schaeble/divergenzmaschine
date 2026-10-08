@@ -142,6 +142,18 @@ export function mountHelp(root: HTMLElement): void {
     ["Farbcode im Feld", P("der Feldhintergrund bewertet die Eingabe von Rot bis Grün — grün: sicher einsetzbar, gelbgrün: wird automatisch angepasst, gelb: brauchbar, orange/rot: kann nicht sicher eingesetzt werden (hier drohen Grammatikbrüche im Text). Leere Felder bleiben neutral.")],
   ]));
 
+  wrap.append(section("welt", "Gattung: Utopie", [
+    ["Was das Feld tut", P("steht neben Ton und Form und sagt, ", el("b", {}, "wovon"), " ein Text handelt, nicht wie er gebaut ist. Bei „Utopie“ beschreiben die vier Felder eine ", el("b", {}, "Welt"), " statt eines Ereignisses. Angeschlossen ist bisher nur Form „Prosa“; bei anderen Formen steht über den Feldern ein Hinweis, und die Gattung bleibt ohne Wirkung. Das Feld hat kein Schloss und wird beim Würfeln nicht verändert.")],
+    ["Die vier Felder", P(el("b", {}, "Wo liegt sie?"), " — die Lage; sie bestimmt, was knapp ist und womit gerechnet wird (Wüste: Wasser, Eis: Wärme, Insel: Holz). Ein bloßer Name („Velmar“) wird der Name der Welt. ",
+      el("b", {}, "Wann?"), " — Vergangenheit, Zukunft oder „nach dem letzten Krieg“; nach einem Bruch trägt die Ordnung Narben. ",
+      el("b", {}, "Wer erzählt?"), " — ein Gast (Vorgabe: Ankunft, Staunen, Kehrseite spät), ein Bewohner (Innensicht, ein Fremder kommt in der Mitte) oder jemand, der gehen muss (der Text beginnt mit dem Abschied, die Kehrseite ist der Grund). ",
+      el("b", {}, "Was ist anders?"), " — der eine Grundsatz („Es gibt kein Geld.“). Er wird wörtlich zitiert, und die Kehrseite folgt aus ihm. Leere Felder werden gezogen; was du einträgst, hat immer Vorrang.")],
+    ["Das Weltblatt", P("wird einmal gezogen, und jeder Abschnitt liest daraus: Name, Lage, Regierung, Gesetz, Brauch, Kehrseite. Deshalb heißt der Rat im zweiten Absatz genauso wie im vierten, und in der Wüste flickt niemand Netze. Fünf Abschnitte: Ankunft, Ordnung, Alltag, Kehrseite, Abschied — ihre Reihenfolge richtet sich nach „Wer erzählt?“.")],
+    ["Ton", P("wirkt als Blick auf Kehrseite und Schluss: Hoffnungsvoll, Zärtlich, Poetisch hell; Düster, Unheimlich, Melancholisch dunkel; Ironisch und Humorvoll spöttisch; Nüchtern kühl.")],
+    ["Getrennte Felder je Gattung", P("Die vier Felder werden je Gattung gemerkt. Beim Umschalten erscheinen die Werte, die zuletzt in dieser Gattung standen — beim ersten Mal leere Felder mit Beispielen als Platzhalter. „Beispiel einsetzen“ füllt alle vier aus.")],
+    ["Textlänge", P("ergänzt Sätze nach Rang. Pflichtsätze wie die Kehrseite bleiben immer stehen; deshalb ist eine Utopie nie kürzer als rund 180 Wörter und derzeit höchstens rund 350.")],
+  ]));
+
   wrap.append(section("staerke", "Stärke der 4W (nur Prosa, experimentell)", [
     ["Wo / Wann / Wer / Was", P("je ein kleiner Regler direkt unter jedem ", lnk("4W-Feld", "kontext"), ", nur bei Form Prosa sichtbar. Reines Hochregeln: je höher ein Regler, desto mehr Sätze über diese Dimension werden eingewoben (mehr Ort-Atmosphäre, mehr Zeit-Rahmung, mehr über die Figur oder mehr Handlung). Standard 0 = neutral. Die Gesamtlänge bleibt über den Textlängen-Regler stabil; die Gewichtung verschiebt die Verteilung. Wirkt in Echtzeit.")],
   ]));

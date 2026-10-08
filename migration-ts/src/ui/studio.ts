@@ -42,8 +42,9 @@ import { el, select, field, textInput, button } from "./dom";
 import {
   TONE_OPTS, FORM_OPTS, STRUCTURE_OPTS, MODE_OPTS, PERSP_OPTS, RHYTHM_OPTS,
   TENSION_OPTS, CAST_OPTS, INSTAB_OPTS,
-  VARIANZ_OPTS, DISRUPTOR_OPTS, MARKOV_OPTS, ARCH_OPTS,
+  VARIANZ_OPTS, DISRUPTOR_OPTS, MARKOV_OPTS, ARCH_OPTS, WELT_OPTS,
 } from "../generation/optionen";
+import { erkenneLage, erkenneErzaehler, erkenneZeit, erkenneGrundsatz, istNurName, LAGEN } from "../features/weltblatt";
 import {
   ladeStand as ladeReiter, sichereStand as sichereReiter, ordne as ordneReiter,
   verschiebe as verschiebeReiter, schalte as schalteReiter, derKanon, PFLICHT as REITER_PFLICHT,
@@ -94,6 +95,23 @@ export function mountStudio(root: HTMLElement): void {
   const when = textInput("f-when", "Wann?", "vor langer Zeit");
   const who = textInput("f-who", "Wer? (mehrere durch Komma = Dialog)", "Baucis, Philemon");
   const what = textInput("f-what", "Was passiert?", "ein Wunder geschieht");
+  // ── Welt (4.373.0), in der Oberfläche „Gattung" ──────────────────────────
+  // „Welt" heißt dort schon der Reiter des Weltensimulators und im einfachen
+  // Kopf die Einteilung real/gehoben/irreal; ein drittes „Welt" hätte
+  // verwechselt werden können. Intern bleibt der Name.
+  //
+  // Steht neben Ton und Form, gehört aber zu den vier W: Bei „Utopie"
+  // beschreiben sie eine Welt statt eines Ereignisses. Früh angelegt, weil
+  // die Hinweiszeilen unter den Feldern sie lesen.
+  //
+  // KEIN Schloss, und deshalb würfelt „Alles würfeln" sie nicht mit. Ein
+  // Würfel, der die Welt umschaltet, setzte Ereignis-Angaben in eine Utopie
+  // oder umgekehrt — die Felder passten dann nie zur Welt.
+  const WELT_KEY = "divergenz_welt_v1";
+  const WELT_4W_KEY = "divergenz_welt_4w_v1";
+  const welt = select("f-welt", WELT_OPTS, "keine");
+  try { const w = localStorage.getItem(WELT_KEY); if (w && WELT_OPTS.some(([v]) => v === w)) welt.value = w; } catch { /* egal */ }
+  const istUtopie = (): boolean => welt.value === "utopie";
   const clearable = (input: HTMLInputElement): HTMLElement => {
     const x = el("button", { class: "clr", type: "button", title: "Feld leeren" }, "×");
     x.addEventListener("click", () => { input.value = ""; input.dispatchEvent(new Event("input")); input.focus(); });
@@ -393,7 +411,33 @@ export function mountStudio(root: HTMLElement): void {
   const hintWann = el("span", { class: "ctxhint" });
   const hintWer = el("span", { class: "ctxhint" });
   const hintWas = el("span", { class: "ctxhint" });
+  /** Die Hinweiszeilen bei Welt „Utopie": Sie sagen, welche ROLLE die Eingabe
+   *  im Weltblatt bekommt — das erklärt im Tippen, dass hier andere Werte
+   *  gefragt sind als bei einem Ereignis. */
+  const updHintsUtopie = (): void => {
+    const wo = where.value.trim(), wann = when.value.trim(), wer = who.value.trim(), was = what.value.trim();
+    const LAGE_NAME: Record<string, string> = { eis: "Eis", wueste: "Wüste", insel: "Insel", gebirge: "Gebirge", wald: "Wald", tal: "Tal und Wasser", stadt: "Stadt" };
+    if (!wo) hintWo.textContent = "→ wird gezogen";
+    else if (istNurName(wo)) hintWo.textContent = `→ Name der Welt: ${wo} · die Lage wird gezogen`;
+    else { const t = erkenneLage(wo); hintWo.textContent = t ? `→ Lage: ${LAGE_NAME[t]} · knapp ist ${LAGEN[t].knapp}, gerechnet wird in ${LAGEN[t].mass}` : `→ ${normWhere(wo) || wo} · eigene Lage, knapp ist Zeit`; }
+    const z = erkenneZeit(wann);
+    hintWann.textContent = !wann ? "→ wird gezogen"
+      : z === "nachbruch" ? "→ nach einem Bruch: die Ordnung trägt Narben"
+      : z === "zukunft" ? "→ Zukunft" : z === "vergangenheit" ? "→ Vergangenheit: Bericht im Rückblick" : "→ Zeit ohne feste Lage";
+    const e = erkenneErzaehler(wer);
+    const zusatz = wer.includes(",") && e.art !== "gehend" ? " · nur die erste Figur erzählt" : "";
+    hintWer.textContent = !wer ? "→ ein Gast erzählt (Vorgabe) · die Kehrseite kommt spät"
+      : e.art === "gehend" ? "→ jemand, der gehen muss: Der Text beginnt mit dem Abschied, die Kehrseite ist der Grund"
+      : e.art === "bewohner" ? "→ Bewohner: die Innensicht, ein Fremder kommt erst in der Mitte" + zusatz
+      : "→ Gast: Ankunft, Staunen, die Kehrseite kommt spät" + zusatz;
+    const g = erkenneGrundsatz(was);
+    hintWas.textContent = !was ? "→ wird gezogen"
+      : g ? `→ Grundsatz, wörtlich zitiert · die Kehrseite folgt aus „${g.id === "los" ? "Los" : g.id[0]!.toUpperCase() + g.id.slice(1)}“`
+      : "→ Grundsatz, wörtlich zitiert · eigene Prämisse, die Kehrseite bleibt allgemein";
+    for (const i of [where, when, who, what]) i.style.backgroundColor = "";
+  };
   const updHints = (): void => {
+    if (istUtopie()) { updHintsUtopie(); return; }
     const h = (inp: HTMLInputElement, fn: (v: string) => string, out: HTMLElement): void => {
       const v = inp.value.trim(); const n = v ? fn(v) : "";
       out.textContent = v && n && n !== v ? "→ " + n : "";
@@ -463,8 +507,11 @@ export function mountStudio(root: HTMLElement): void {
   umweltSel.addEventListener("change", () => { umweltSichern(); generate(); });
   umweltZeigen();
 
-  wrap.append(el("div", { class: "grid2" },
-    field4w("Wo?", where, wWo, hintWo), field4w("Wann?", when, wWann, hintWann), field4w("Wer?", who, wWer, hintWer), field4w("Was passiert?", what, wWas, hintWas)),
+  const fWo = field4w("Wo?", where, wWo, hintWo), fWann = field4w("Wann?", when, wWann, hintWann);
+  const fWer = field4w("Wer?", who, wWer, hintWer), fWas = field4w("Was passiert?", what, wWas, hintWas);
+  // Die Zeile über den Feldern — nur bei Welt „Utopie" sichtbar.
+  const weltZeile = el("div", { class: "muted mini weltzeile", style: "display:none;margin:0 0 6px" });
+  wrap.append(weltZeile, el("div", { class: "grid2" }, fWo, fWann, fWer, fWas),
     el("label", { class: "field" },
       el("span", { class: "field-label lockrow" },
         el("span", { class: "hilfe", title: "Begriffe, Wörter, Zahlenkombinationen oder Zeichen. Sie erzeugen keinen Text — sie richten die Auswahl: Nahrung bevorzugt Fassungen, die sie aufnehmen, Gift bevorzugt Fassungen, die sie meiden. Wirkt nur bei eingeschalteter Bestenauslese." }, "Umwelt"),
@@ -753,7 +800,52 @@ export function mountStudio(root: HTMLElement): void {
   // Der Schalter steht NEBEN dem Preset-Feld, nicht darin: Das Feld trägt ein
   // Schloss, und alles darin gilt dem Schaltplan als Regler.
   wrap.append(presetField, el("div", { class: "btnrow mini", style: "margin:-6px 0 8px" }, varLbl));
-  wrap.append(el("div", { class: "grid3" }, lockField("Ton", tone), lockField("Form", form)));
+  wrap.append(el("div", { class: "grid3" }, lockField("Ton", tone), lockField("Form", form),
+    el("div", { class: "field" }, el("span", { class: "field-label hilfe", title: "Wovon der Text handelt — unabhängig von der Form. „Utopie“: Die vier Felder beschreiben eine Welt statt eines Ereignisses. Wird beim Würfeln nicht verändert." }, "Gattung"), welt)));
+  // ── Welt umschalten ───────────────────────────────────────────────────────
+  // Beschriftung, Platzhalter und Hinweise wechseln mit der Welt; die vier W
+  // werden JE WELT gemerkt. Wer von „keine" auf „Utopie" schaltet, hätte sonst
+  // „Die Brücke stürzt ein" als Grundsatz einer Utopie stehen.
+  const W4_TEXTE = {
+    keine: { wo: ["Wo?", "auf der Schafsweide"], wann: ["Wann?", "vor langer Zeit"], wer: ["Wer?", "Baucis, Philemon"], was: ["Was passiert?", "ein Wunder geschieht"] },
+    utopie: { wo: ["Wo liegt sie?", "eine Insel im Nordmeer"], wann: ["Wann?", "nach dem letzten Krieg"], wer: ["Wer erzählt?", "ein Reisender · eine, die gehen muss"], was: ["Was ist anders?", "Es gibt kein Geld."] },
+  } as const;
+  const BEISPIEL_UTOPIE = { where: "eine Insel im Nordmeer", when: "nach dem letzten Krieg", who: "ein Kartograf", what: "Es gibt kein Geld." };
+  const lade4W = (): Record<string, Record<string, string>> => { try { return JSON.parse(localStorage.getItem(WELT_4W_KEY) || "{}") as Record<string, Record<string, string>>; } catch { return {}; } };
+  const setze4W = (w: Record<string, string>): void => {
+    where.value = w.where ?? ""; when.value = w.when ?? ""; who.value = w.who ?? ""; what.value = w.what ?? "";
+    // Wie eine Eingabe von Hand: Schloss-Werte, Merkzettel, Hinweise ziehen nach.
+    for (const i of [where, when, who, what]) { i.dispatchEvent(new Event("input")); i.dispatchEvent(new Event("change")); }
+  };
+  const weltBeschriften = (): void => {
+    const t = istUtopie() ? W4_TEXTE.utopie : W4_TEXTE.keine;
+    const paare: [HTMLElement, HTMLInputElement, readonly string[]][] = [[fWo, where, t.wo], [fWann, when, t.wann], [fWer, who, t.wer], [fWas, what, t.was]];
+    for (const [f, inp, [lbl, ph]] of paare) {
+      const span = f.querySelector(".field-label > span");
+      if (span) span.textContent = lbl!;
+      inp.placeholder = ph!;
+    }
+    weltZeile.innerHTML = "";
+    if (!istUtopie()) { weltZeile.style.display = "none"; return; }
+    weltZeile.style.display = "";
+    const bsp = el("button", { type: "button", class: "mini", title: "Trägt ein ausgefülltes Beispiel in die vier Felder ein." }, "Beispiel einsetzen");
+    bsp.addEventListener("click", () => { setze4W(BEISPIEL_UTOPIE); generate(); });
+    weltZeile.append(el("span", {}, "Gattung Utopie: Die vier Felder beschreiben eine Welt, kein Ereignis. Leere Felder werden gezogen. "), bsp);
+    if (form.value !== "prose") weltZeile.append(el("div", { style: "margin-top:4px" }, `⚠ Die Utopie ist bisher nur für Form „Prosa“ angeschlossen. Bei „${form.options[form.selectedIndex]?.text || form.value}“ bleibt die Gattung ohne Wirkung.`));
+  };
+  let weltVorher = welt.value;
+  welt.addEventListener("change", () => {
+    const alle = lade4W();
+    alle[weltVorher] = { where: where.value, when: when.value, who: who.value, what: what.value };
+    try { localStorage.setItem(WELT_4W_KEY, JSON.stringify(alle)); localStorage.setItem(WELT_KEY, welt.value); } catch { /* voll */ }
+    // Für die andere Welt: was dort zuletzt stand — bei der ersten Utopie leer,
+    // damit die Platzhalter zeigen, was gefragt ist.
+    setze4W(alle[welt.value] || { where: "", when: "", who: "", what: "" });
+    weltVorher = welt.value;
+    weltBeschriften(); updHints(); generate();
+  });
+  form.addEventListener("change", weltBeschriften);
+  weltBeschriften();
 
 
   const lenSlider = el("input", { id: "f-len", type: "range", min: "40", max: "400", step: "5", value: "110", style: "flex:1" }) as HTMLInputElement;
@@ -764,6 +856,9 @@ export function mountStudio(root: HTMLElement): void {
   const applyLengthLive = (): void => {
     const target = parseInt(lenSlider.value, 10);
     const form = readInput().form;
+    // Die Utopie baut ihre Länge beim Erzeugen aus Rang-Sätzen; nachträglich
+    // gekürzt verlöre sie Pflichtsätze wie die Kehrseite.
+    if (form === "prose" && istUtopie()) { generate(); return; }
     if (form === "prose") {
       const src = baseText.trim() ? baseText : (out.textContent || "");
       if (!src.trim()) { generate(); return; }
@@ -2462,6 +2557,7 @@ export function mountStudio(root: HTMLElement): void {
     archetypeA: archA.value, archetypeB: archB.value,
     instability: parseInt(instab.value, 10) as 0 | 1 | 2,
     ressort: ressort.value,
+    welt: welt.value,
     shots: parseInt(shots.value, 10), totalSec: parseInt(secs.value, 10),
     lenTarget: parseInt(lenSlider.value, 10),
     tension: tension.value,
