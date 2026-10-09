@@ -29,6 +29,7 @@ import { buildMeldung } from "./meldung";
 import { buildUtopie } from "./utopie";
 import { buildMaerchen } from "./maerchen";
 import { buildFabel } from "./fabel";
+import { buildMythos } from "./mythos";
 import { linkTrace } from "../atoms/trace";
 import { linkMarkovTrace } from "./markovTrace";
 import { applyEmphasis } from "./emphasis";
@@ -174,6 +175,7 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   if ((input.welt === "utopie" || input.welt === "dystopie") && input.form === "prose") return buildUtopie(input, bank, input.welt).text;
   if (input.welt === "maerchen" && input.form === "prose") return buildMaerchen(input, bank).text;
   if (input.welt === "fabel" && input.form === "prose") return buildFabel(input, bank).text;
+  if (input.welt === "mythos" && input.form === "prose") return buildMythos(input, bank).text;
   if (input.form === "bericht") return kleinerArtikel(buildBericht(bank, input, (input.ressort as Parameters<typeof buildBericht>[2]) ?? "auto").text);
   // Die Meldung geht NICHT durch die Bank: Sie referiert nur aus dem
   // Faktenblatt. Deshalb steht sie vor allem, was Atome zieht.

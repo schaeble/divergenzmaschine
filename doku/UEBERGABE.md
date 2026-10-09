@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.377.0**, Zweig `typescript-migration`.
+Stand: **v4.378.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -157,6 +157,7 @@ Beide laufen bei `npm test` mit.
 | `test/utopie.ts` | Gattung Utopie: 8960 Läufe (8 Wo × 5 Wann × 8 Wer × 7 Was × 4 Töne) gegen das eigene Weltblatt, 15 Gegenproben |
 | `test/maerchen.ts` | Gattung Märchen: 4800 Läufe (6 Wo × 4 Wann × 10 Wer × 5 Was × 4 Töne), Heldenerkennung, 15 Gegenproben |
 | `test/fabel.ts` | Gattung Fabel: 4800 Läufe, Tier- und Lehre-Erkennung, 11 Gegenproben (u. a. fremde Lehre unter einer Handlung) |
+| `test/mythos.ts` | Gattung Gründungsmythos: 2880 Läufe, Namens- und Gründungserkennung, 12 Gegenproben |
 | `test/zeitung.ts` | Zeitungssetzer: Layout-Logik, jsdom-Rundgang und ein Abgleich der Stilvorlage gegen die Rechnung (74 Prüfungen) |
 
 Der Formen-Prüfstand trennt **Formen im Gebrauch** (Prosa, Reim, Haiku,
@@ -2575,6 +2576,20 @@ dem Blatt — so fällt eine fremde Lehre auf. Beim Lesen gefunden: „lachte ü
 den Igel, weil er so langsam war" (mehrdeutiges Pronomen) und eine düstere
 Lehrzeile, die nicht passte, wenn beide Tiere überleben.
 
+**Gattung „Gründungsmythos"** (4.378.0): `generation/mythos.ts`. Fünf
+Abschnitte: Urzustand, Ankunft mit gescheitertem Versuch, Opfer (die Stimme
+verlangt es, der Gründer gibt es, nun gelingt es), Gründung mit Namen und
+Bedeutung, „Seitdem"-Brauch. Sechs Opfer tragen Bitte, Gabe, Bedeutung und
+Brauch gemeinsam; `pruefeMythos()` liest das Opfer aus der Gabe im Text und
+hält Bedeutung und Brauch dagegen. Der Name darf nicht vor der Gründung
+stehen. Gründer wie der Märchenheld (`erkenneHeld`); wer einen Namen trägt,
+opfert ihn nicht. Was: Artikel + Nomen oder ein Eigenname (`istEigenname`,
+NICHT `istNurName` — die Lage-Erkennung hielt „Talheim" für ein Tal). Ein Name
+im Wo wird zum Namen des Gegründeten; im Urzustand heißt es „an dieser Stelle".
+Funde beim Lesen: „Der Hafen gab es noch nicht" (jetzt „war noch nicht da"),
+„Und Die Brücke", ein Relativsatz ohne Komma, „Die Hirtin" in jedem Satz
+(jetzt Pronomen), Talheim übergangen.
+
 ## 7 · Fallen in diesem Quelltext
 
 - **`let` im Setzer steht in einer Reihenfolge.** `oeffneZeitungssetzer()` ist
@@ -2680,7 +2695,7 @@ Benutzer behält, ist das einzige belastbare „gut" dieses Programms.
   in `bestOf` als Abwertung wirkt, lohnt eine Messung, wie oft sie bei Prosa
   falsch liegt.
 - **Gattung Utopie/Dystopie** für Bericht und Meldung anschließen (Zeitung aus
-  der Utopie). Weitere Gattungen mit eigenem Gerüst: Gründungsmythos, Kriminalgeschichte.
+  der Utopie). Weitere Gattung mit eigenem Gerüst: Kriminalgeschichte.
 
 ## 9 · Wo die übrigen Papiere liegen
 
