@@ -28,7 +28,7 @@ export const FORM_OPTS: Wahlliste = [
 
 /** Welt (4.373.0). Steht NEBEN der Form, nicht in ihr: Die Form sagt, wie ein
  *  Text gebaut ist, die Welt, wovon er handelt — beides lässt sich kombinieren. */
-export const WELT_OPTS: Wahlliste = [["keine", "keine"], ["utopie", "Utopie"], ["dystopie", "Dystopie"], ["maerchen", "Märchen"]];
+export const WELT_OPTS: Wahlliste = [["keine", "keine"], ["utopie", "Utopie"], ["dystopie", "Dystopie"], ["maerchen", "Märchen"], ["fabel", "Fabel"]];
 
 export const STRUCTURE_OPTS: Wahlliste = [
   ["auto", "Auto"], ["linear", "Linear"], ["reverse", "Reverse"], ["circle", "Kreis"],

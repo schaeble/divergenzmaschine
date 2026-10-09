@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.376.0**, Zweig `typescript-migration`.
+Stand: **v4.377.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -156,6 +156,7 @@ Beide laufen bei `npm test` mit.
 | `test/schneider.ts` | Wolf Schneiders zählbare Regeln an Bericht und Meldung: Satzlängen-Bänder, Teilsatz ≤ 12 Wörter, Verbklammer, Verbote; mit Gegenprobe (35 Prüfungen) |
 | `test/utopie.ts` | Gattung Utopie: 8960 Läufe (8 Wo × 5 Wann × 8 Wer × 7 Was × 4 Töne) gegen das eigene Weltblatt, 15 Gegenproben |
 | `test/maerchen.ts` | Gattung Märchen: 4800 Läufe (6 Wo × 4 Wann × 10 Wer × 5 Was × 4 Töne), Heldenerkennung, 15 Gegenproben |
+| `test/fabel.ts` | Gattung Fabel: 4800 Läufe, Tier- und Lehre-Erkennung, 11 Gegenproben (u. a. fremde Lehre unter einer Handlung) |
 | `test/zeitung.ts` | Zeitungssetzer: Layout-Logik, jsdom-Rundgang und ein Abgleich der Stilvorlage gegen die Rechnung (74 Prüfungen) |
 
 Der Formen-Prüfstand trennt **Formen im Gebrauch** (Prosa, Reim, Haiku,
@@ -2561,6 +2562,19 @@ ihm/ihn/ihnen/er erweitert — wirkt auch bei der Utopie), Held holte bei
 versiegtem Brunnen eine Feder (jetzt „um zu holen, was fehlte"). Die
 Gegenprobe fand, dass der Gegner-Prüfer „Der Riese" am Satzanfang übersah.
 
+**Gattung „Fabel"** (4.377.0): `generation/fabel.ts`. 18 Tiere mit allen vier
+Fällen, Pronomen und Eigenschaften (schwache Nomen ausdrücklich: „den Löwen",
+„dem Hasen"); sechs Schemata (Wettlauf, Käse, Vorsorge, Netz, Bach, Teller und
+Krug), jedes mit zwei Rollen (Eigenschaft), Lage, Rede, Wende, Lehren und
+Erkennungsmuster für eine eingetragene Lehre. Vorrang: Eine erkannte Lehre
+wählt das Schema und steht wörtlich da; passen die eingetragenen Tiere (in
+beiden Reihenfolgen), spielen sie; sonst gezogen. Eine unerkannte Lehre bleibt
+ohne Wirkung, die Hinweiszeile sagt es. Wann ist gesperrt (die Fabel kennt
+keine Zeit). `pruefeFabel()` liest das Schema aus der WENDE im Text, nicht aus
+dem Blatt — so fällt eine fremde Lehre auf. Beim Lesen gefunden: „lachte über
+den Igel, weil er so langsam war" (mehrdeutiges Pronomen) und eine düstere
+Lehrzeile, die nicht passte, wenn beide Tiere überleben.
+
 ## 7 · Fallen in diesem Quelltext
 
 - **`let` im Setzer steht in einer Reihenfolge.** `oeffneZeitungssetzer()` ist
@@ -2666,7 +2680,7 @@ Benutzer behält, ist das einzige belastbare „gut" dieses Programms.
   in `bestOf` als Abwertung wirkt, lohnt eine Messung, wie oft sie bei Prosa
   falsch liegt.
 - **Gattung Utopie/Dystopie** für Bericht und Meldung anschließen (Zeitung aus
-  der Utopie). Weitere Gattungen mit eigenem Gerüst: Fabel, Gründungsmythos, Kriminalgeschichte.
+  der Utopie). Weitere Gattungen mit eigenem Gerüst: Gründungsmythos, Kriminalgeschichte.
 
 ## 9 · Wo die übrigen Papiere liegen
 

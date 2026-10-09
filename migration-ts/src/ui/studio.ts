@@ -48,6 +48,7 @@ import { erkenneLage, erkenneErzaehler, erkenneZeit, erkenneGrundsatz, istNurNam
 import { utopieMaterial } from "../features/utopieMaterial";
 import { utopieTitel } from "../generation/utopie";
 import { erkenneHeld, maerchenTitelAusText } from "../generation/maerchen";
+import { erkenneTiere, erkenneLehre, schemaFuerTiere, fabelTitelAusText } from "../generation/fabel";
 import {
   ladeStand as ladeReiter, sichereStand as sichereReiter, ordne as ordneReiter,
   verschiebe as verschiebeReiter, schalte as schalteReiter, derKanon, PFLICHT as REITER_PFLICHT,
@@ -121,6 +122,7 @@ export function mountStudio(root: HTMLElement): void {
   // Irgendeine Gattung mit eigenem Gerüst (Utopie, Dystopie, Märchen, 4.376.0).
   const istGattung = (): boolean => welt.value !== "keine";
   const istMaerchen = (): boolean => welt.value === "maerchen";
+  const istFabel = (): boolean => welt.value === "fabel";
   const gattungName = (): string => welt.options[welt.selectedIndex]?.text || welt.value;
   const clearable = (input: HTMLInputElement): HTMLElement => {
     const x = el("button", { class: "clr", type: "button", title: "Feld leeren" }, "×");
@@ -449,6 +451,23 @@ export function mountStudio(root: HTMLElement): void {
       : `→ Grundsatz ${art} · eigene Prämisse, ${ks} bleibt allgemein`;
     for (const i of [where, when, who, what]) i.style.backgroundColor = "";
   };
+  /** Hinweise bei der Fabel: welche Tiere, welche Fabel, welche Lehre. */
+  const updHintsFabel = (): void => {
+    const wo = where.value.trim(), wer = who.value.trim(), was = what.value.trim();
+    hintWo.textContent = wo ? `→ ${normWhere(wo) || wo}` : "→ wird gezogen";
+    hintWann.textContent = "→ die Fabel kennt keine Zeit — das Feld bleibt ohne Wirkung";
+    const lehre = erkenneLehre(was);
+    const tiere = erkenneTiere(wer);
+    const wahl = tiere.length ? schemaFuerTiere(tiere, lehre) : null;
+    hintWer.textContent = !wer ? "→ werden gezogen"
+      : !tiere.length ? "→ kein bekanntes Tier — werden gezogen (Fuchs, Rabe, Löwe, Maus, Hase, Igel, Wolf, Lamm, Storch …)"
+      : wahl ? `→ ${wahl.a.nom} und ${wahl.b.nom}: Fabel „${wahl.s.name}“`
+      : `→ ${tiere.map((t) => t.nomen).join(" und ")} passen in keine Fabel${lehre ? " zu dieser Lehre" : ""} — werden gezogen`;
+    hintWas.textContent = !was ? "→ wird gezogen"
+      : lehre ? `→ Lehre erkannt (Fabel „${lehre.name}“) — wird wörtlich übernommen`
+      : "→ nicht erkannt — eine Lehre wird gezogen, die eingetragene bleibt ohne Wirkung";
+    for (const i of [where, when, who, what]) i.style.backgroundColor = "";
+  };
   /** Hinweise beim Märchen: Wer wird zum Helden, Was zum Mangel. */
   const updHintsMaerchen = (): void => {
     const wo = where.value.trim(), wann = when.value.trim(), wer = who.value.trim(), was = what.value.trim();
@@ -464,6 +483,7 @@ export function mountStudio(root: HTMLElement): void {
   const updHints = (): void => {
     if (istUtopie()) { updHintsUtopie(); return; }
     if (istMaerchen()) { updHintsMaerchen(); return; }
+    if (istFabel()) { updHintsFabel(); return; }
     const h = (inp: HTMLInputElement, fn: (v: string) => string, out: HTMLElement): void => {
       const v = inp.value.trim(); const n = v ? fn(v) : "";
       out.textContent = v && n && n !== v ? "→ " + n : "";
@@ -837,11 +857,13 @@ export function mountStudio(root: HTMLElement): void {
     utopie: { wo: ["Wo liegt sie?", "eine Insel im Nordmeer"], wann: ["Wann?", "nach dem letzten Krieg"], wer: ["Wer erzählt?", "ein Reisender · eine, die gehen muss"], was: ["Was ist anders?", "Es gibt kein Geld."] },
     dystopie: { wo: ["Wo liegt sie?", "eine Stadt unter dem Eis"], wann: ["Wann?", "im Jahr 2300"], wer: ["Wer erzählt?", "ein Reisender · eine, die gehen muss"], was: ["Was ist Pflicht?", "Niemand lügt."] },
     maerchen: { wo: ["Wo spielt es?", "hinter den sieben Bergen"], wann: ["Wann?", "vor langer Zeit"], wer: ["Wer zieht aus?", "ein armer Schneider"], was: ["Was fehlt?", "Der Brunnen ist versiegt."] },
+    fabel: { wo: ["Wo?", "am Rand eines Waldes"], wann: ["Wann? (ohne Wirkung)", "— die Fabel kennt keine Zeit"], wer: ["Welche Tiere?", "Fuchs, Rabe"], was: ["Was soll sie lehren?", "Wie du mir, so ich dir."] },
   } as const;
   const BEISPIELE: Record<string, Record<string, string>> = {
     utopie: { where: "eine Insel im Nordmeer", when: "nach dem letzten Krieg", who: "ein Kartograf", what: "Es gibt kein Geld." },
     dystopie: { where: "eine Stadt unter dem Eis", when: "im Jahr 2300", who: "eine, die gehen muss", what: "Niemand lügt." },
     maerchen: { where: "hinter den sieben Bergen", when: "vor langer Zeit", who: "eine arme Müllerstochter", what: "Der Brunnen im Dorf ist versiegt." },
+    fabel: { where: "am Rand eines Waldes", when: "", who: "Fuchs, Storch", what: "Wie du mir, so ich dir." },
   };
   const lade4W = (): Record<string, Record<string, string>> => { try { return JSON.parse(localStorage.getItem(WELT_4W_KEY) || "{}") as Record<string, Record<string, string>>; } catch { return {}; } };
   const setze4W = (w: Record<string, string>): void => {
@@ -876,19 +898,26 @@ export function mountStudio(root: HTMLElement): void {
   };
   const weltBeschriften = (): void => {
     reglerFuerUtopie();
-    const t = istMaerchen() ? W4_TEXTE.maerchen : istDystopie() ? W4_TEXTE.dystopie : istUtopie() ? W4_TEXTE.utopie : W4_TEXTE.keine;
+    const t = istFabel() ? W4_TEXTE.fabel : istMaerchen() ? W4_TEXTE.maerchen : istDystopie() ? W4_TEXTE.dystopie : istUtopie() ? W4_TEXTE.utopie : W4_TEXTE.keine;
     const paare: [HTMLElement, HTMLInputElement, readonly string[]][] = [[fWo, where, t.wo], [fWann, when, t.wann], [fWer, who, t.wer], [fWas, what, t.was]];
     for (const [f, inp, [lbl, ph]] of paare) {
       const span = f.querySelector(".field-label > span");
       if (span) span.textContent = lbl!;
       inp.placeholder = ph!;
     }
+    // Die Fabel kennt keine Zeit: Das Wann-Feld wird gesperrt statt still
+    // übergangen — ein Feld, das nichts bewirkt, soll das zeigen.
+    const wannAus = istFabel() && form.value === "prose";
+    if (wannAus && !when.disabled) { when.dataset.utopieAus = "1"; when.disabled = true; (when.closest(".field") as HTMLElement | null)?.style.setProperty("opacity", "0.45"); }
+    else if (!wannAus && when.dataset.utopieAus) { when.disabled = false; delete when.dataset.utopieAus; (when.closest(".field") as HTMLElement | null)?.style.removeProperty("opacity"); }
     weltZeile.innerHTML = "";
     if (!istGattung()) { weltZeile.style.display = "none"; return; }
     weltZeile.style.display = "";
     const bsp = el("button", { type: "button", class: "mini", title: "Trägt ein ausgefülltes Beispiel in die vier Felder ein." }, "Beispiel einsetzen");
     bsp.addEventListener("click", () => { setze4W(BEISPIELE[welt.value] || BEISPIELE.utopie!); generate(); });
-    weltZeile.append(el("span", {}, istMaerchen()
+    weltZeile.append(el("span", {}, istFabel()
+      ? "Gattung Fabel: Ort, zwei Tiere und die Lehre. Leere Felder werden gezogen; eine Lehre, die keiner Fabel zuzuordnen ist, bleibt ohne Wirkung. "
+      : istMaerchen()
       ? "Gattung Märchen: Die vier Felder beschreiben Ort, Zeit, Held und Mangel. Leere Felder werden gezogen. "
       : `Gattung ${gattungName()}: Die vier Felder beschreiben eine Welt, kein Ereignis. Leere Felder werden gezogen. `), bsp);
     // Was das Preset beisteuert — gezählt ohne Lage; die Lage filtert beim
@@ -896,7 +925,10 @@ export function mountStudio(root: HTMLElement): void {
     const m = utopieMaterial(loadBank(), null);
     weltZeile.append(m.motive.length
       // Das Märchen nimmt keine Requisiten — es hat seine Gabe.
-      ? el("div", { style: "margin-top:4px" }, `Aus den gewählten Presets passen ${m.motive.length} Motive, ${m.wendungen.length} Wendungen${istMaerchen() ? " und" : ","} ${m.verwandlungen.length} Verwandlungen${istMaerchen() ? "" : ` und ${m.requisiten.length} Requisiten`}. Struktur, Perspektive, Rhythmus, Modus und Stellschrauben wirken hier nicht.`)
+      // Das Märchen nimmt keine Requisiten, die Fabel nur ein Motiv.
+      ? el("div", { style: "margin-top:4px" }, istFabel()
+        ? `Aus den gewählten Presets passen ${m.motive.length} Motive — eines davon steht in der Fabel. Struktur, Perspektive, Rhythmus, Modus und Stellschrauben wirken hier nicht.`
+        : `Aus den gewählten Presets passen ${m.motive.length} Motive, ${m.wendungen.length} Wendungen${istMaerchen() ? " und" : ","} ${m.verwandlungen.length} Verwandlungen${istMaerchen() ? "" : ` und ${m.requisiten.length} Requisiten`}. Struktur, Perspektive, Rhythmus, Modus und Stellschrauben wirken hier nicht.`)
       : el("div", { style: "margin-top:4px" }, `⚠ Aus den gewählten Presets passt kein Motiv in die Gattung ${gattungName()} — das Preset bleibt hier ohne Wirkung.`));
     if (form.value !== "prose") weltZeile.append(el("div", { style: "margin-top:4px" }, `⚠ Die Gattung ${gattungName()} ist bisher nur für Form „Prosa“ angeschlossen. Bei „${form.options[form.selectedIndex]?.text || form.value}“ bleibt sie ohne Wirkung.`));
   };
@@ -992,7 +1024,7 @@ export function mountStudio(root: HTMLElement): void {
     const txt = out.textContent || "";
     if (txt !== titelText) {
       // Bei Utopie und Dystopie ist der Name der Welt der Titel (4.375.0).
-      const weltName = form.value !== "prose" ? "" : istUtopie() ? utopieTitel(txt) : istMaerchen() ? maerchenTitelAusText(txt) : "";
+      const weltName = form.value !== "prose" ? "" : istUtopie() ? utopieTitel(txt) : istMaerchen() ? maerchenTitelAusText(txt) : istFabel() ? fabelTitelAusText(txt) : "";
       titelAktuell = weltName || titelFuer(txt, { who: who.value, where: where.value, when: when.value, what: what.value }, form.value, ladeGesehen());
       titelText = txt;
       merkeGesehen(titelAktuell);
