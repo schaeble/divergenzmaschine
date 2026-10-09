@@ -12,12 +12,14 @@ const st: Record<string, string> = {};
 //      Vorrang der Ortsangabe, Satzbau, Blickwinkel).
 //   3. Gegenproben: Jede Prüfung bekommt einen Text mit absichtlich
 //      eingebautem Fehler. Schlägt sie dort nicht an, ist sie keine.
-import { buildUtopie, pruefeUtopie } from "../src/generation/utopie";
+import { buildUtopie, pruefeUtopie, utopieTitel } from "../src/generation/utopie";
 import { erkenneLage, erkenneErzaehler, erkenneZeit, erkenneGrundsatz, istNurName } from "../src/features/weltblatt";
 import { grammarFlags } from "../src/generation/grammar";
 import { buildStory } from "../src/generation/buildStory";
 import { BUILTIN_PRESETS } from "../src/presets.data";
 import { utopieMaterial, requisitNominativ, fremdInLage } from "../src/features/utopieMaterial";
+import { fuelle } from "../src/features/weltblatt";
+const fuelleRiss = (fb: { texte: { kehrseite: string[] }; werte: Record<string, string> }): string => fuelle(fb.texte.kehrseite[0]!, fb.werte);
 import type { GenInput } from "../src/types";
 
 const fehler: string[] = [];
@@ -67,12 +69,15 @@ const laengen: Record<number, number[]> = { 110: [], 400: [] };
 let laeufe = 0;
 const PRESET_IDS = Object.keys(BUILTIN_PRESETS);
 const presetGenutzt = { motiv: 0, wendung: 0, verwandlung: 0, requisit: 0 };
-for (const where of WO) for (const when of WANN) for (const who of WER) for (const what of WAS) for (const tone of TOENE) {
+const ARTEN = ["utopie", "dystopie"] as const;
+const jeArt: Record<string, number> = { utopie: 0, dystopie: 0 };
+for (const art of ARTEN) for (const where of WO) for (const when of WANN) for (const who of WER) for (const what of WAS) for (const tone of TOENE) {
   const lenTarget = laeufe % 2 ? 400 : 110;
   const input = { where, when, who, what, tone, form: "prose", lenTarget } as GenInput;
   const presetId = PRESET_IDS[laeufe % PRESET_IDS.length]!;
   const bankP = BUILTIN_PRESETS[presetId]!;
-  const r = buildUtopie(input, bankP);
+  const r = buildUtopie(input, bankP, art);
+  jeArt[art]!++;
   laeufe++;
   for (const k of Object.keys(presetGenutzt) as (keyof typeof presetGenutzt)[]) {
     const v = r.preset[k];
@@ -92,13 +97,15 @@ for (const where of WO) for (const when of WANN) for (const who of WER) for (con
   const echte = g.issues.filter((x) => !/^Verb-Kollision/.test(x));
   if (echte.length) befunde.push("Grammatik-Melder: " + echte.join("; "));
   // Vorrang: Ein eingetragener Grundsatz steht wörtlich da.
+  // Die Überschrift ist der Name der Welt (4.375.0).
+  if (utopieTitel(r.text) !== r.fb.name) befunde.push("Titel ist nicht der Name der Welt");
   // Verglichen ab dem zweiten Zeichen: Der Satzanfang wird großgeschrieben
   // („kein Geld" → „Kein Geld."); der erste Vergleich meldete das 1280-mal.
   if (what && !r.text.includes(what.replace(/[.!?]$/, "").slice(1))) befunde.push("Eingetragenes Was fehlt im Text");
   for (const b of befunde) {
     const art = b.replace(/„[^"“]*["“]/g, "„…“").replace(/: .*$/, "");
     funde.set(art, (funde.get(art) || 0) + 1);
-    if (!beispiel.has(art)) beispiel.set(art, `${b} ← ${JSON.stringify({ where, when, who, what, tone })}`);
+    if (!beispiel.has(art)) beispiel.set(art, `${b} ← ${JSON.stringify({ where, when, who, what, tone, fassung: r.fb.art })}`);
   }
 }
 
@@ -168,6 +175,23 @@ probe("„Niemand regiert“ neben „Regiert wird“", t0.replace(`„${fb0.sat
   gegen.push(`    ${ok3 ? "✓" : "✗"} Motiv entfernt → „Preset ohne Wirkung“`);
   if (!ok3) gegenFehler++;
 }
+// Fassungen dürfen sich nicht mischen (4.375.0): ein Utopie-Satz in einer
+// Dystopie und umgekehrt, und eine Dystopie ohne Riss.
+{
+  const d = buildUtopie({ where: "in der Wüste", when: "", who: "ein Reisender", what: "Es gibt kein Geld.", tone: "dark", form: "prose", lenTarget: 110 } as GenInput, undefined, "dystopie");
+  const dSauber = pruefeUtopie(d.text, d.fb, "in der Wüste ein Reisender Es gibt kein Geld.");
+  gegen.push(`    ${dSauber.length ? "✗" : "✓"} Dystopie-Ausgangstext ohne Befund${dSauber.length ? ": " + dSauber.join("; ") : ""}`);
+  if (dSauber.length) gegenFehler++;
+  probe("Utopie-Satz in einer Dystopie", d.text.replace(/\n\n/, " Am Tor fragte niemand nach meinem Namen.\n\n"), d.fb, /Satz der Fassung „utopie"/, "in der Wüste");
+  probe("Dystopie-Satz in einer Utopie", t0.replace(/\n\n/, " Man ließ mich den Satz nachsprechen.\n\n"), fb0, /Satz der Fassung „dystopie"/);
+  probe("Riss entfernt", d.text.replace(fuelleRiss(d.fb), ""), d.fb, /Riss der Prämisse fehlt/, "in der Wüste");
+}
+{
+  // Gegenprobe Titel: Ohne Namen im ersten Absatz darf kein Titel entstehen.
+  const t = utopieTitel("Ich stehe am Steg und warte.\n\nIn Velmar regiert der Rat.");
+  gegen.push(`    ${t === "" ? "✓" : "✗"} Titel nur aus dem ersten Absatz (gefunden: „${t}")`);
+  if (t !== "") gegenFehler++;
+}
 // Der Fund des ersten Laufs: „Dreißig" ist nicht „drei".
 {
   const fbD = { ...fb0, zahlen: ["dreißig"] };
@@ -177,7 +201,7 @@ probe("„Niemand regiert“ neben „Regiert wird“", t0.replace(`„${fb0.sat
 }
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
-console.log(`Prüfstand Utopie: ${laeufe} Läufe (8 Wo × 5 Wann × 8 Wer × 7 Was × 4 Töne)`);
+console.log(`Prüfstand Utopie/Dystopie: ${laeufe} Läufe (2 Fassungen × 8 Wo × 5 Wann × 8 Wer × 7 Was × 4 Töne; ${jeArt.utopie} Utopien, ${jeArt.dystopie} Dystopien)`);
 console.log(`  Umfang bei Ziel 110: ${Math.min(...kurz)}–${Math.max(...kurz)} Wörter, Mittel ${mittel(kurz).toFixed(0)}`);
 console.log(`  Umfang bei Ziel 400: ${Math.min(...lang)}–${Math.max(...lang)} Wörter, Mittel ${mittel(lang).toFixed(0)}`);
 console.log(`  Preset im Text: Motiv ${(100 * presetGenutzt.motiv / laeufe).toFixed(1)} %, Wendung ${(100 * presetGenutzt.wendung / laeufe).toFixed(1)} %, Verwandlung ${(100 * presetGenutzt.verwandlung / laeufe).toFixed(1)} %, Requisit ${(100 * presetGenutzt.requisit / laeufe).toFixed(1)} % der Läufe (51 Presets reihum)`);
@@ -196,8 +220,8 @@ fehler.forEach((f) => console.log(`  - ${f}`));
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 const summe = [...funde.values()].reduce((a, b) => a + b, 0);
 if (summe || gegenFehler || fehler.length) {
-  console.error(`\n❌ Utopie: ${summe} Befund(e) in ${laeufe} Läufen, ${gegenFehler} Gegenprobe(n) ohne Wirkung, ${fehler.length} Einzelprüfung(en) rot.`);
+  console.error(`\n❌ Utopie/Dystopie: ${summe} Befund(e) in ${laeufe} Läufen, ${gegenFehler} Gegenprobe(n) ohne Wirkung, ${fehler.length} Einzelprüfung(en) rot.`);
   proc.process?.exit(1);
 } else {
-  console.log(`\n✅ Utopie: ${laeufe} Läufe ohne Befund, alle Gegenproben schlagen an.`);
+  console.log(`\n✅ Utopie/Dystopie: ${laeufe} Läufe ohne Befund, alle Gegenproben schlagen an.`);
 }

@@ -46,6 +46,7 @@ import {
 } from "../generation/optionen";
 import { erkenneLage, erkenneErzaehler, erkenneZeit, erkenneGrundsatz, istNurName, LAGEN } from "../features/weltblatt";
 import { utopieMaterial } from "../features/utopieMaterial";
+import { utopieTitel } from "../generation/utopie";
 import {
   ladeStand as ladeReiter, sichereStand as sichereReiter, ordne as ordneReiter,
   verschiebe as verschiebeReiter, schalte as schalteReiter, derKanon, PFLICHT as REITER_PFLICHT,
@@ -112,7 +113,10 @@ export function mountStudio(root: HTMLElement): void {
   const WELT_4W_KEY = "divergenz_welt_4w_v1";
   const welt = select("f-welt", WELT_OPTS, "keine");
   try { const w = localStorage.getItem(WELT_KEY); if (w && WELT_OPTS.some(([v]) => v === w)) welt.value = w; } catch { /* egal */ }
-  const istUtopie = (): boolean => welt.value === "utopie";
+  // „Welt an" heißt: Utopie ODER Dystopie (4.375.0). Beide bauen aus dem
+  // Weltblatt; was sie unterscheidet, steht in generation/utopie.ts.
+  const istUtopie = (): boolean => welt.value === "utopie" || welt.value === "dystopie";
+  const istDystopie = (): boolean => welt.value === "dystopie";
   const clearable = (input: HTMLInputElement): HTMLElement => {
     const x = el("button", { class: "clr", type: "button", title: "Feld leeren" }, "×");
     x.addEventListener("click", () => { input.value = ""; input.dispatchEvent(new Event("input")); input.focus(); });
@@ -427,14 +431,17 @@ export function mountStudio(root: HTMLElement): void {
       : z === "zukunft" ? "→ Zukunft" : z === "vergangenheit" ? "→ Vergangenheit: Bericht im Rückblick" : "→ Zeit ohne feste Lage";
     const e = erkenneErzaehler(wer);
     const zusatz = wer.includes(",") && e.art !== "gehend" ? " · nur die erste Figur erzählt" : "";
-    hintWer.textContent = !wer ? "→ ein Gast erzählt (Vorgabe) · die Kehrseite kommt spät"
-      : e.art === "gehend" ? "→ jemand, der gehen muss: Der Text beginnt mit dem Abschied, die Kehrseite ist der Grund"
+    // In der Dystopie heißt die Kehrseite „Riss": das, was die Leute trotzdem tun.
+    const ks = istDystopie() ? "der Riss" : "die Kehrseite";
+    hintWer.textContent = !wer ? `→ ein Gast erzählt (Vorgabe) · ${ks} kommt spät`
+      : e.art === "gehend" ? (istDystopie() ? "→ jemand, der fliehen muss: Der Text beginnt mit dem Warten auf die Dunkelheit" : "→ jemand, der gehen muss: Der Text beginnt mit dem Abschied, die Kehrseite ist der Grund")
       : e.art === "bewohner" ? "→ Bewohner: die Innensicht, ein Fremder kommt erst in der Mitte" + zusatz
-      : "→ Gast: Ankunft, Staunen, die Kehrseite kommt spät" + zusatz;
+      : `→ Gast: Ankunft, ${istDystopie() ? "Kontrolle" : "Staunen"}, ${ks} kommt spät` + zusatz;
     const g = erkenneGrundsatz(was);
+    const art = istDystopie() ? "als Zwang" : "wörtlich zitiert";
     hintWas.textContent = !was ? "→ wird gezogen"
-      : g ? `→ Grundsatz, wörtlich zitiert · die Kehrseite folgt aus „${g.id === "los" ? "Los" : g.id[0]!.toUpperCase() + g.id.slice(1)}“`
-      : "→ Grundsatz, wörtlich zitiert · eigene Prämisse, die Kehrseite bleibt allgemein";
+      : g ? `→ Grundsatz ${art} · ${ks} folgt aus „${g.id === "los" ? "Los" : g.id[0]!.toUpperCase() + g.id.slice(1)}“`
+      : `→ Grundsatz ${art} · eigene Prämisse, ${ks} bleibt allgemein`;
     for (const i of [where, when, who, what]) i.style.backgroundColor = "";
   };
   const updHints = (): void => {
@@ -810,8 +817,12 @@ export function mountStudio(root: HTMLElement): void {
   const W4_TEXTE = {
     keine: { wo: ["Wo?", "auf der Schafsweide"], wann: ["Wann?", "vor langer Zeit"], wer: ["Wer?", "Baucis, Philemon"], was: ["Was passiert?", "ein Wunder geschieht"] },
     utopie: { wo: ["Wo liegt sie?", "eine Insel im Nordmeer"], wann: ["Wann?", "nach dem letzten Krieg"], wer: ["Wer erzählt?", "ein Reisender · eine, die gehen muss"], was: ["Was ist anders?", "Es gibt kein Geld."] },
+    dystopie: { wo: ["Wo liegt sie?", "eine Stadt unter dem Eis"], wann: ["Wann?", "im Jahr 2300"], wer: ["Wer erzählt?", "ein Reisender · eine, die gehen muss"], was: ["Was ist Pflicht?", "Niemand lügt."] },
   } as const;
-  const BEISPIEL_UTOPIE = { where: "eine Insel im Nordmeer", when: "nach dem letzten Krieg", who: "ein Kartograf", what: "Es gibt kein Geld." };
+  const BEISPIELE: Record<string, Record<string, string>> = {
+    utopie: { where: "eine Insel im Nordmeer", when: "nach dem letzten Krieg", who: "ein Kartograf", what: "Es gibt kein Geld." },
+    dystopie: { where: "eine Stadt unter dem Eis", when: "im Jahr 2300", who: "eine, die gehen muss", what: "Niemand lügt." },
+  };
   const lade4W = (): Record<string, Record<string, string>> => { try { return JSON.parse(localStorage.getItem(WELT_4W_KEY) || "{}") as Record<string, Record<string, string>>; } catch { return {}; } };
   const setze4W = (w: Record<string, string>): void => {
     where.value = w.where ?? ""; when.value = w.when ?? ""; who.value = w.who ?? ""; what.value = w.what ?? "";
@@ -826,7 +837,7 @@ export function mountStudio(root: HTMLElement): void {
   // (Modus, Archetypen, Varianz, Instabilität, Figuren, 4W-Stärke).
   const UTOPIE_AUS = ["f-structure", "f-bogen", "f-bauform", "f-mode", "f-persp", "f-rhythm", "f-tension", "f-cast",
     "f-instab", "f-markov", "f-disruptor", "f-varianz", "f-archa", "f-archb", "f-w-wo", "f-w-wann", "f-w-wer", "f-w-was"];
-  const UTOPIE_AUS_TITEL = "Bei der Gattung Utopie ohne Wirkung: Sie baut aus ihrem Weltblatt, mit eigenem Gerüst und in der Ich-Form.";
+  const UTOPIE_AUS_TITEL = "Bei den Gattungen Utopie und Dystopie ohne Wirkung: Sie bauen aus ihrem Weltblatt, mit eigenem Gerüst und in der Ich-Form.";
   const reglerFuerUtopie = (): void => {
     const an = istUtopie() && form.value === "prose";
     const ziele = Array.from(wrap.querySelectorAll<HTMLSelectElement | HTMLInputElement>("select, input"))
@@ -845,7 +856,7 @@ export function mountStudio(root: HTMLElement): void {
   };
   const weltBeschriften = (): void => {
     reglerFuerUtopie();
-    const t = istUtopie() ? W4_TEXTE.utopie : W4_TEXTE.keine;
+    const t = istDystopie() ? W4_TEXTE.dystopie : istUtopie() ? W4_TEXTE.utopie : W4_TEXTE.keine;
     const paare: [HTMLElement, HTMLInputElement, readonly string[]][] = [[fWo, where, t.wo], [fWann, when, t.wann], [fWer, who, t.wer], [fWas, what, t.was]];
     for (const [f, inp, [lbl, ph]] of paare) {
       const span = f.querySelector(".field-label > span");
@@ -856,15 +867,15 @@ export function mountStudio(root: HTMLElement): void {
     if (!istUtopie()) { weltZeile.style.display = "none"; return; }
     weltZeile.style.display = "";
     const bsp = el("button", { type: "button", class: "mini", title: "Trägt ein ausgefülltes Beispiel in die vier Felder ein." }, "Beispiel einsetzen");
-    bsp.addEventListener("click", () => { setze4W(BEISPIEL_UTOPIE); generate(); });
-    weltZeile.append(el("span", {}, "Gattung Utopie: Die vier Felder beschreiben eine Welt, kein Ereignis. Leere Felder werden gezogen. "), bsp);
+    bsp.addEventListener("click", () => { setze4W(BEISPIELE[welt.value] || BEISPIELE.utopie!); generate(); });
+    weltZeile.append(el("span", {}, `Gattung ${istDystopie() ? "Dystopie" : "Utopie"}: Die vier Felder beschreiben eine Welt, kein Ereignis. Leere Felder werden gezogen. `), bsp);
     // Was das Preset beisteuert — gezählt ohne Lage; die Lage filtert beim
     // Erzeugen noch einmal (in der Wüste fällt die Gischt heraus).
     const m = utopieMaterial(loadBank(), null);
     weltZeile.append(m.motive.length
       ? el("div", { style: "margin-top:4px" }, `Aus den gewählten Presets passen ${m.motive.length} Motive, ${m.wendungen.length} Wendungen, ${m.verwandlungen.length} Verwandlungen und ${m.requisiten.length} Requisiten. Struktur, Perspektive, Rhythmus, Modus und Stellschrauben wirken hier nicht.`)
       : el("div", { style: "margin-top:4px" }, "⚠ Aus den gewählten Presets passt kein Motiv in eine Utopie — das Preset bleibt hier ohne Wirkung."));
-    if (form.value !== "prose") weltZeile.append(el("div", { style: "margin-top:4px" }, `⚠ Die Utopie ist bisher nur für Form „Prosa“ angeschlossen. Bei „${form.options[form.selectedIndex]?.text || form.value}“ bleibt die Gattung ohne Wirkung.`));
+    if (form.value !== "prose") weltZeile.append(el("div", { style: "margin-top:4px" }, `⚠ Die ${istDystopie() ? "Dystopie" : "Utopie"} ist bisher nur für Form „Prosa“ angeschlossen. Bei „${form.options[form.selectedIndex]?.text || form.value}“ bleibt die Gattung ohne Wirkung.`));
   };
   let weltVorher = welt.value;
   welt.addEventListener("change", () => {
@@ -957,7 +968,9 @@ export function mountStudio(root: HTMLElement): void {
     if (!titelChk.checked) return "";
     const txt = out.textContent || "";
     if (txt !== titelText) {
-      titelAktuell = titelFuer(txt, { who: who.value, where: where.value, when: when.value, what: what.value }, form.value, ladeGesehen());
+      // Bei Utopie und Dystopie ist der Name der Welt der Titel (4.375.0).
+      const weltName = istUtopie() && form.value === "prose" ? utopieTitel(txt) : "";
+      titelAktuell = weltName || titelFuer(txt, { who: who.value, where: where.value, when: when.value, what: what.value }, form.value, ladeGesehen());
       titelText = txt;
       merkeGesehen(titelAktuell);
     }

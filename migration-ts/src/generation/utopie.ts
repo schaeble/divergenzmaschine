@@ -18,7 +18,7 @@
 // Spott, kühl) auf Schluss und Kehrseite.
 import type { Bank, GenInput } from "../types";
 import { pick } from "../text-utils";
-import { ziehWeltblatt, fuelle, LAGEN, type Weltblatt, type LageTyp } from "../features/weltblatt";
+import { ziehWeltblatt, fuelle, LAGEN, type Weltblatt, type LageTyp, type WeltArt } from "../features/weltblatt";
 import { utopieMaterial, ZAHLWORT } from "../features/utopieMaterial";
 
 /** Ein Satz mit Rang: ohne Rang Pflicht, sonst wird er nach Rang (klein
@@ -34,6 +34,74 @@ export interface UtopieErgebnis { text: string; fb: Weltblatt; folge: AbschnittI
 
 const cap1 = (s: string): string => (s ? s[0]!.toUpperCase() + s.slice(1) : s);
 
+// ── Die zwei Fassungen (4.375.0) ────────────────────────────────────────────
+// Utopie und Dystopie teilen Weltblatt, Gerüst und Prüfung. Verschieden sind
+// die Rahmensätze: Wo der Gast in der Utopie Wasser und ein Bett bekommt, nimmt
+// man ihm in der Dystopie die Papiere ab. Die Kehrseite der Utopie wird in der
+// Dystopie zum RISS — zu dem, was die Leute trotzdem tun. Die Einleitung sagt
+// „im Verborgenen", nicht „trotzdem": Jeder Riss beginnt selbst mit
+// „Trotzdem …", und „was man trotzdem tut. Trotzdem wird getauscht" stand
+// doppelt da (gefunden beim Lesen, 4.375.0).
+const RAHMEN: Record<WeltArt, Record<string, string>> = {
+  utopie: {
+    gastOrt: "{ankunft} fragte niemand nach meinem Namen.",
+    gastSatz: "Man gab mir Wasser und ein Bett und sagte mir als Erstes den Satz, auf dem {N} gebaut ist: „{satz}“",
+    gastSieht: "Ich sah zu und schrieb mit.",
+    gastKehr: "{abend} erzählte mir jemand von dem, worüber man in {N} nicht gern spricht.",
+    gastKarte: "Ich zeichnete {N} in meine Karte, mit einem dünnen Strich.",
+    gastFort: "Am Morgen meiner Abreise war {N} still wie am ersten Tag.",
+    bewSatz: "Bei uns gilt ein Satz, den jedes Kind kennt: „{satz}“",
+    bewFremd: "{ankunft} fragt ihn niemand nach seinem Namen, nur, ob er müde ist.",
+    bewKehr: "Es gibt etwas, worüber wir nicht gern sprechen.",
+    bewFort: "Der Fremde ist längst weitergezogen. Ich bin geblieben, wie fast alle.",
+    gehWarten: "Ich stehe {ort} und warte.",
+    gehSatz: "Ich bin hier aufgewachsen, mit dem Satz, den jedes Kind kennt: „{satz}“",
+    gehAlltag: "Ich werde vieles vermissen.",
+    gehKehr: "Und dann ist da das, worüber man in {N} nicht gern spricht.",
+    gehGrund: "Ich gehe, weil ich diesen Preis nicht länger zahlen will.",
+    knapp: "Das Kostbarste in {N} ist {knapp}; man geht sparsam damit um und redet nicht darüber.",
+    nachbruch: "Die Alten erinnern sich an die Zeit davor; sie sprechen nicht gern darüber.",
+    zukunft: "Was vorher war, kennt man in {N} nur aus Büchern.",
+    vergangenheit: "Von der übrigen Welt weiß man in {N} wenig, und man vermisst nichts.",
+    wendung: "Eine Geschichte, die man in {N} gern erzählt: {w}.",
+    verwandlung: "In {N} sagt man nicht „{a}“, sondern „{b}“.",
+  },
+  dystopie: {
+    gastOrt: "{ankunft} wurde mein Name in ein Buch geschrieben, bevor ich ihn gesagt hatte.",
+    gastSatz: "Man nahm mir die Papiere ab und ließ mich den Satz nachsprechen, auf dem {N} gebaut ist: „{satz}“",
+    gastSieht: "Ich sah zu und schrieb nichts auf.",
+    gastKehr: "{abend} zeigte mir jemand, was in {N} im Verborgenen geschieht.",
+    gastKarte: "Meine Karte von {N} musste ich beim Abschied abgeben.",
+    gastFort: "Am Morgen meiner Abreise wurde ich {zumOrt} begleitet, freundlich und ohne ein Wort.",
+    bewSatz: "Bei uns gilt ein Satz, den jedes Kind aufsagen muss: „{satz}“",
+    bewFremd: "{ankunft} wird er gefragt, wie lange er bleibt, und die Antwort wird aufgeschrieben.",
+    bewKehr: "Es gibt etwas, das wir im Verborgenen tun.",
+    bewFort: "Der Fremde ist weitergezogen, oder er ist geblieben; man erfährt es nicht. Ich bin geblieben, wie alle.",
+    gehWarten: "Ich stehe {ort} und warte auf die Dunkelheit.",
+    gehSatz: "Ich bin hier aufgewachsen, mit dem Satz, den jedes Kind aufsagen muss: „{satz}“",
+    gehAlltag: "Ich werde weniges vermissen, und das Wenige sehr.",
+    gehKehr: "Und dann ist da das, was in {N} im Verborgenen geschieht.",
+    gehGrund: "Ich gehe, bevor sie merken, dass ich gehe.",
+    knapp: "Das Kostbarste in {N} ist {knapp}; es wird zugeteilt, und wer mehr will, muss es begründen.",
+    nachbruch: "Die Alten erinnern sich an die Zeit davor; man hat ihnen geraten, es nicht zu tun.",
+    zukunft: "Was vorher war, steht in keinem Buch, das man ausleihen darf.",
+    vergangenheit: "Von der übrigen Welt weiß man in {N} nur, was verlesen wird.",
+    wendung: "Eine Geschichte, die man in {N} nur leise erzählt: {w}.",
+    verwandlung: "In {N} darf man nicht „{a}“ sagen, nur „{b}“.",
+  },
+};
+
+/** Ein Rahmensatz der aktuellen Fassung, gefüllt mit den Werten des Blatts. */
+const R = (fb: Weltblatt, k: string, extra: Record<string, string> = {}): string =>
+  fuelle(RAHMEN[fb.art][k]!, { ...fb.werte, ankunft: fb.lage.ankunft, satz: fb.satz, ...extra });
+
+/** Sätze, die nur in EINER Fassung vorkommen. Der Prüfer sucht die der anderen
+ *  Fassung — eine Utopie-Zeile in einer Dystopie wäre ein Bruch. */
+const MARKEN: Record<WeltArt, RegExp[]> = {
+  utopie: [/fragte niemand nach meinem Namen/, /sagte mir als Erstes den Satz/, /den jedes Kind kennt/, /nicht gern spricht|nicht gern sprechen/, /diesen Preis nicht länger/, /gern erzählt:/, /sagt man nicht „/],
+  dystopie: [/bevor ich ihn gesagt hatte/, /Satz nachsprechen/, /aufsagen muss/, /im Verborgenen/, /bevor sie merken/, /nur leise erzählt:/, /darf man nicht „/],
+};
+
 /** Die vier Rahmen. Der Prüfer liest sie mit `PRESET_RAHMEN` zurück — beide
  *  stehen deshalb nebeneinander. */
 // „Was man in N zuerst sieht" stand beim Gast im dritten Absatz — also gerade
@@ -45,14 +113,13 @@ function presetSaetze(fb: Weltblatt, pw: PresetWahl): { motiv?: Satz; wendung?: 
   return {
     // Das Motiv ist Pflicht: Wer ein Preset ankreuzt, soll es im Text finden.
     motiv: pw.motiv ? { s: fuelle(pick(MOTIV_RAHMEN), { N, m: pw.motiv }) } : undefined,
-    wendung: pw.wendung ? { s: `Eine Geschichte, die man in ${N} gern erzählt: ${cap1(pw.wendung)}.`, rang: 1 } : undefined,
-    verwandlung: pw.verwandlung ? { s: `In ${N} sagt man nicht „${pw.verwandlung[0]}“, sondern „${pw.verwandlung[1]}“.`, rang: 1 } : undefined,
+    wendung: pw.wendung ? { s: R(fb, "wendung", { w: cap1(pw.wendung) }), rang: 1 } : undefined,
+    verwandlung: pw.verwandlung ? { s: R(fb, "verwandlung", { a: pw.verwandlung[0], b: pw.verwandlung[1] }), rang: 1 } : undefined,
     requisit: pw.requisit ? { s: `In jedem Haus in ${N} liegt ${pw.requisit}.`, rang: 2 } : undefined,
   };
 }
 let PS: ReturnType<typeof presetSaetze> = {};
 
-const lc = (s: string): string => (s ? s[0]!.toLowerCase() + s.slice(1) : s);
 const worte = (s: string): number => (s.match(/[A-Za-zÄÖÜäöüß0-9]+/g) || []).length;
 
 /** Antwort in direkter Rede vor „, sagte sie": Der Schlusspunkt fällt weg,
@@ -60,8 +127,8 @@ const worte = (s: string): number => (s.match(/[A-Za-zÄÖÜäöüß0-9]+/g) || 
 const redeVorBegleitsatz = (a: string): string => a.replace(/\.$/, "");
 
 function frageSaetze(fb: Weltblatt): Satz[] {
-  const f = fuelle(fb.grundsatz.frage.frage, fb.werte);
-  const a = fuelle(fb.grundsatz.frage.antwort, fb.werte);
+  const f = fuelle(fb.texte.frage.frage, fb.werte);
+  const a = fuelle(fb.texte.frage.antwort, fb.werte);
   const sp = fb.sprecher;
   switch (fb.erzaehler.art) {
     case "bewohner": return [{ s: `Einer von ihnen hat mich einmal gefragt, ${f}.` }, { s: `Ich habe gesagt: „${a}“` }];
@@ -102,54 +169,95 @@ function ordnung(fb: Weltblatt, mitFrage: boolean): Abschnitt {
   const s: Satz[] = [{ s: fb.regierung.text }];
   // Ist der Grundsatz selbst das Gesetz, stünde derselbe Satz zweimal da.
   if (!(g.id === "gesetz" && !fb.satzAusEingabe)) s.push({ s: fb.gesetz.text });
-  g.ordnung.forEach((x, i) => s.push(i === 0 ? { s: fuelle(x, W) } : { s: fuelle(x, W), rang: 1 }));
-  if (fb.zeit === "nachbruch") s.push({ s: "Die Alten erinnern sich an die Zeit davor; sie sprechen nicht gern darüber." });
-  if (fb.zeit === "zukunft") s.push({ s: `Was vorher war, kennt man in ${fb.name} nur aus Büchern.`, rang: 3 });
-  if (fb.zeit === "vergangenheit") s.push({ s: `Von der übrigen Welt weiß man in ${fb.name} wenig, und man vermisst nichts.`, rang: 3 });
+  fb.texte.ordnung.forEach((x, i) => s.push(i === 0 ? { s: fuelle(x, W) } : { s: fuelle(x, W), rang: 1 }));
+  if (fb.zeit === "nachbruch") s.push({ s: R(fb, "nachbruch") });
+  if (fb.zeit === "zukunft") s.push({ s: R(fb, "zukunft"), rang: 3 });
+  if (fb.zeit === "vergangenheit") s.push({ s: R(fb, "vergangenheit"), rang: 3 });
   if (PS.verwandlung) s.push(PS.verwandlung);
   if (mitFrage) s.push(...frageSaetze(fb));
   return { id: "ordnung", saetze: s };
 }
 
-const BLICK_ALLTAG: Record<Weltblatt["blick"], string> = {
-  hell: "Niemand hat es eilig, und trotzdem wird alles fertig.",
-  dunkel: "Manchmal sehen alle zur selben Zeit weg.",
-  spott: "Es ist alles sehr vernünftig, und man merkt es an jeder Ecke.",
-  kuehl: "Ordnung herrscht, ohne dass jemand sie ausruft.",
+const BLICK_ALLTAG: Record<WeltArt, Record<Weltblatt["blick"], string>> = {
+  utopie: {
+    hell: "Niemand hat es eilig, und trotzdem wird alles fertig.",
+    dunkel: "Manchmal sehen alle zur selben Zeit weg.",
+    spott: "Es ist alles sehr vernünftig, und man merkt es an jeder Ecke.",
+    kuehl: "Ordnung herrscht, ohne dass jemand sie ausruft.",
+  },
+  dystopie: {
+    hell: "Und doch summt jemand, wenn er sich unbeobachtet glaubt.",
+    dunkel: "Alle sehen zur selben Zeit weg; man hat es geübt.",
+    spott: "Es ist alles sehr vernünftig, und wer daran zweifelt, bekommt es erklärt, ausführlich.",
+    kuehl: "Ordnung herrscht, und jeden Morgen wird sie ausgerufen.",
+  },
 };
 
 function alltag(fb: Weltblatt, vorweg: Satz[] = []): Abschnitt {
-  const g = fb.grundsatz, W = fb.werte;
+  const W = fb.werte;
   const s: Satz[] = [...vorweg, ...(PS.motiv ? [PS.motiv] : []), { s: fb.brauch.text }, { s: fb.brauch.alltag }];
   if (PS.wendung) s.push(PS.wendung);
   if (PS.requisit) s.push(PS.requisit);
-  g.alltag.forEach((x, i) => s.push(i === 0 ? { s: fuelle(x, W) } : { s: fuelle(x, W), rang: 1 }));
-  s.push({ s: `Das Kostbarste in ${fb.name} ist ${fb.lage.knapp}; man geht sparsam damit um und redet nicht darüber.`, rang: 2 });
-  s.push({ s: BLICK_ALLTAG[fb.blick], rang: 2 });
+  fb.texte.alltag.forEach((x, i) => s.push(i === 0 ? { s: fuelle(x, W) } : { s: fuelle(x, W), rang: 1 }));
+  s.push({ s: R(fb, "knapp"), rang: 2 });
+  s.push({ s: BLICK_ALLTAG[fb.art][fb.blick], rang: 2 });
   if (fb.gesetz.alltag) s.push({ s: fb.gesetz.alltag, rang: 3 });
-  if (fb.erzaehler.art === "gast") s.push({ s: "Ich sah zu und schrieb mit.", rang: 4 });
+  if (fb.erzaehler.art === "gast") s.push({ s: R(fb, "gastSieht"), rang: 4 });
   return { id: "alltag", saetze: s };
 }
 
-const BLICK_KEHRSEITE: Record<Weltblatt["blick"], string> = {
-  hell: "Man verschweigt es nicht; man hofft nur, dass es weniger wird.",
-  dunkel: "Wer danach fragt, bekommt keine Antwort, nur einen Blick.",
-  spott: "Man ist in {N} sehr stolz darauf, das offen zuzugeben.",
-  kuehl: "",
+const BLICK_KEHRSEITE: Record<WeltArt, Record<Weltblatt["blick"], string>> = {
+  utopie: {
+    hell: "Man verschweigt es nicht; man hofft nur, dass es weniger wird.",
+    dunkel: "Wer danach fragt, bekommt keine Antwort, nur einen Blick.",
+    spott: "Man ist in {N} sehr stolz darauf, das offen zuzugeben.",
+    kuehl: "",
+  },
+  dystopie: {
+    hell: "Es sind wenige, aber es werden nicht weniger.",
+    dunkel: "Wer davon weiß, sagt es niemandem.",
+    spott: "Offiziell gibt es das nicht, und offiziell ist in {N} alles.",
+    kuehl: "",
+  },
 };
 
 function kehrseite(fb: Weltblatt, einleitung: string, nachsatz?: string): Abschnitt {
   const W = fb.werte;
   const s: Satz[] = [{ s: einleitung }];
-  fb.grundsatz.kehrseite.forEach((x, i) => s.push(i === 0 ? { s: fuelle(x, W) } : { s: fuelle(x, W), rang: 1 }));
-  const b = BLICK_KEHRSEITE[fb.blick];
+  fb.texte.kehrseite.forEach((x, i) => s.push(i === 0 ? { s: fuelle(x, W) } : { s: fuelle(x, W), rang: 1 }));
+  const b = BLICK_KEHRSEITE[fb.art][fb.blick];
   if (b) s.push({ s: fuelle(b, W), rang: fb.blick === "spott" ? undefined : 2 });
   if (nachsatz) s.push({ s: nachsatz });
   return { id: "kehrseite", saetze: s };
 }
 
-// Schlüsse je Blickwinkel und Blick. Kein Schluss nennt eine Zahl.
-const SCHLUSS: Record<"gast" | "bewohner" | "gehend", Record<Weltblatt["blick"], string[]>> = {
+// Schlüsse je Fassung, Blickwinkel und Blick. Kein Schluss nennt eine Zahl.
+type Schluesse = Record<"gast" | "bewohner" | "gehend", Record<Weltblatt["blick"], string[]>>;
+const SCHLUSS_DYS: Schluesse = {
+  gast: {
+    hell: ["Ich weiß nicht, ob sie es schaffen. Aber ich habe gesehen, dass sie es versuchen.",
+      "Seitdem achte ich überall darauf, wer an den richtigen Stellen schweigt."],
+    dunkel: ["Als ich mich umdrehte, stand niemand mehr {ort}. Man hatte mich schon vergessen; so ist es vorgesehen.",
+      "Ich habe {N} in keine Karte eingetragen. Man soll nicht hinfinden."],
+    spott: ["Zu Hause erzählte ich von {N}, und man fand es dort sehr ordentlich. Ich habe nicht widersprochen.",
+      "Man hat mir eine Bescheinigung mitgegeben, dass ich nichts gesehen habe. Sie ist sehr schön gestempelt."],
+    kuehl: ["Ich habe aufgeschrieben, was ich gesehen habe, und weggelassen, was ich gehört habe.",
+      "Hier endet mein Bericht über {N}. Er wurde vor meiner Abreise gelesen."],
+  },
+  bewohner: {
+    hell: ["Ich bleibe. Jemand muss die Sätze leise anders betonen."],
+    dunkel: ["Manchmal gehe ich {zumOrt} und sehe denen nach, die gehen. Dann gehe ich schnell wieder nach Hause, bevor es jemand bemerkt."],
+    spott: ["Wenn er wiederkommt, werde ich ihm sagen, dass alles noch genauso ist. Das wird geprüft und stimmt dann auch."],
+    kuehl: ["Mehr darf über {N} nicht gesagt werden."],
+  },
+  gehend: {
+    hell: ["Hinter mir wird es hell. Ich nehme nichts mit außer dem Satz, und den werde ich draußen anders betonen."],
+    dunkel: ["Niemand ist gekommen, um mich zu verabschieden. Wer kommt, wird notiert."],
+    spott: ["Draußen, sagt man, braucht man für alles einen Grund. Ich habe einen. Er steht in keinem Buch."],
+    kuehl: ["Mein Weg führt nach Süden. Was aus {N} wird, steht dort im Buch."],
+  },
+};
+const SCHLUSS: Schluesse = {
   gast: {
     hell: ["Ich weiß nicht, ob ich zurückkomme. Aber ich habe etwas dagelassen, falls jemand es braucht.",
       "Seitdem messe ich jeden Ort, an den ich komme, an {N}. Keiner hält stand, und das ist gut so."],
@@ -174,6 +282,8 @@ const SCHLUSS: Record<"gast" | "bewohner" | "gehend", Record<Weltblatt["blick"],
   },
 };
 
+const schluss = (fb: Weltblatt): Schluesse => (fb.art === "dystopie" ? SCHLUSS_DYS : SCHLUSS);
+
 const GRUENDE = ["ohne es zu suchen", "weil man mir gesagt hatte, es gebe diesen Ort nicht", "weil das Wetter mich dorthin trieb"];
 
 function bauGast(fb: Weltblatt): Abschnitt[] {
@@ -186,17 +296,16 @@ function bauGast(fb: Weltblatt): Abschnitt[] {
     { s: erster },
     ...lageSatz(fb),
     { s: `Nach ${fb.tage} Tagen ${fb.lage.weg} sah ich es zum ersten Mal.`, rang: 2 },
-    { s: `${fb.lage.ankunft} fragte niemand nach meinem Namen.` },
-    { s: `Man gab mir Wasser und ein Bett und sagte mir als Erstes den Satz, auf dem ${N} gebaut ist: „${fb.satz}“` },
+    { s: R(fb, "gastOrt") },
+    { s: R(fb, "gastSatz") },
     zeitSatz(fb),
   ] };
   const abend = pick(["Am vierten Abend", "Am letzten Abend vor meiner Abreise", "Am dritten Abend"]);
   const abschied: Abschnitt = { id: "abschied", saetze: [
-    { s: karte ? `Ich zeichnete ${N} in meine Karte, mit einem dünnen Strich.` : `Am Morgen meiner Abreise war ${N} still wie am ersten Tag.` },
-    { s: fuelle(pick(SCHLUSS.gast[fb.blick]), fb.werte) },
+    { s: karte ? R(fb, "gastKarte") : R(fb, "gastFort") },
+    { s: fuelle(pick(schluss(fb).gast[fb.blick]), fb.werte) },
   ] };
-  return [ankunft, ordnung(fb, true), alltag(fb),
-    kehrseite(fb, `${abend} erzählte mir jemand von dem, worüber man in ${N} nicht gern spricht.`), abschied];
+  return [ankunft, ordnung(fb, true), alltag(fb), kehrseite(fb, R(fb, "gastKehr", { abend })), abschied];
 }
 
 function bauBewohner(fb: Weltblatt): Abschnitt[] {
@@ -205,39 +314,37 @@ function bauBewohner(fb: Weltblatt): Abschnitt[] {
     { s: `Ich lebe in ${N}, seit ich denken kann.` },
     ...selbstVorstellung(fb),
     ...lageSatz(fb),
-    { s: `Bei uns gilt ein Satz, den jedes Kind kennt: „${fb.satz}“` },
+    { s: R(fb, "bewSatz") },
     zeitSatz(fb),
   ];
   const ankunft: Abschnitt = { id: "ankunft", saetze: [
     { s: `Manchmal kommt ein Fremder nach ${N}.` },
     { s: `Nach ${fb.tage} Tagen ${fb.lage.weg} sind die meisten müde.`, rang: 2 },
-    { s: `${fb.lage.ankunft} fragt ihn niemand nach seinem Namen, nur, ob er müde ist.` },
+    { s: R(fb, "bewFremd") },
     ...frageSaetze(fb),
   ] };
   const abschied: Abschnitt = { id: "abschied", saetze: [
-    { s: "Der Fremde ist längst weitergezogen. Ich bin geblieben, wie fast alle." },
-    { s: fuelle(pick(SCHLUSS.bewohner[fb.blick]), fb.werte) },
+    { s: R(fb, "bewFort") },
+    { s: fuelle(pick(schluss(fb).bewohner[fb.blick]), fb.werte) },
   ] };
-  return [alltag(fb, vorweg), ordnung(fb, false), ankunft,
-    kehrseite(fb, "Es gibt etwas, worüber wir nicht gern sprechen."), abschied];
+  return [alltag(fb, vorweg), ordnung(fb, false), ankunft, kehrseite(fb, R(fb, "bewKehr")), abschied];
 }
 
 function bauGehend(fb: Weltblatt): Abschnitt[] {
   const N = fb.name;
   const anfang: Abschnitt = { id: "abschied", saetze: [
-    { s: `Ich stehe ${lc(fb.lage.ankunft)} und warte.` },
+    { s: R(fb, "gehWarten") },
     { s: `Morgen bin ich nicht mehr in ${N}.` },
     ...selbstVorstellung(fb),
     ...lageSatz(fb),
-    { s: `Ich bin hier aufgewachsen, mit dem Satz, den jedes Kind kennt: „${fb.satz}“` },
+    { s: R(fb, "gehSatz") },
     zeitSatz(fb),
   ] };
   const aufbruch: Abschnitt = { id: "ankunft", saetze: [
-    { s: fuelle(pick(SCHLUSS.gehend[fb.blick]), fb.werte) },
+    { s: fuelle(pick(schluss(fb).gehend[fb.blick]), fb.werte) },
   ] };
-  return [anfang, ordnung(fb, true), alltag(fb, [{ s: "Ich werde vieles vermissen." }]),
-    kehrseite(fb, `Und dann ist da das, worüber man in ${N} nicht gern spricht.`, "Ich gehe, weil ich diesen Preis nicht länger zahlen will."),
-    aufbruch];
+  return [anfang, ordnung(fb, true), alltag(fb, [{ s: R(fb, "gehAlltag") }]),
+    kehrseite(fb, R(fb, "gehKehr"), R(fb, "gehGrund")), aufbruch];
 }
 
 /** Ergänzt Rang-Sätze, bis die Ziellänge erreicht ist. Pflichtsätze bleiben
@@ -253,8 +360,8 @@ function setze(abschnitte: Abschnitt[], ziel: number): string {
     .filter(Boolean).join("\n\n");
 }
 
-export function buildUtopie(input: GenInput, bank?: Partial<Bank>): UtopieErgebnis {
-  const fb = ziehWeltblatt(input);
+export function buildUtopie(input: GenInput, bank?: Partial<Bank>, art: WeltArt = "utopie"): UtopieErgebnis {
+  const fb = ziehWeltblatt(input, art);
   // Das Preset liefert Material, gefiltert für die gezogene Lage.
   const mat = utopieMaterial(bank, fb.lageTyp);
   const pw: PresetWahl = {
@@ -270,6 +377,16 @@ export function buildUtopie(input: GenInput, bank?: Partial<Bank>): UtopieErgebn
   const text = setze(abschnitte, ziel);
   PS = {};
   return { text, fb, folge: abschnitte.map((a) => a.id), preset: pw };
+}
+
+/** Die Überschrift einer Utopie oder Dystopie: der Name der Welt. Die
+ *  allgemeine Titelregel baut aus Wer und Was — aus „eine, die gehen muss" und
+ *  „Niemand lügt." wurde „Eine und Niemand lügt" (gefunden im Bild, 4.375.0).
+ *  Der Name steht im ersten Absatz jeder Erzählhaltung hinter „nach" oder „in". */
+export function utopieTitel(text: string): string {
+  const erster = (text || "").split("\n\n")[0] || "";
+  const m = erster.match(/\b(?:nach|in) ([A-ZÄÖÜ][a-zäöüß]+(?:-[A-ZÄÖÜ][a-zäöüß]+)?)[,.]/);
+  return m ? m[1]! : "";
 }
 
 // ── Prüfung ─────────────────────────────────────────────────────────────────
@@ -291,11 +408,12 @@ export function pruefeUtopie(text: string, fb: Weltblatt, eingabe = "", bank?: P
     for (const r of [/Mitten auf dem Platz: ([^.]+)\./g, /Am Rand des Platzes: ([^.]+)\./g]) {
       for (const x of text.matchAll(r)) { funde.push("m"); if (!m.motive.includes(x[1]!)) b.push(`Motiv nicht aus dem Preset: „${x[1]}"`); }
     }
-    for (const x of text.matchAll(new RegExp(`Eine Geschichte, die man in ${N} gern erzählt: ([^.]+)\\.`, "g"))) {
+    for (const x of text.matchAll(new RegExp(`Eine Geschichte, die man in ${N} (?:gern|nur leise) erzählt: ([^.]+)\\.`, "g"))) {
       const w = x[1]![0]!.toLowerCase() + x[1]!.slice(1);
       if (!m.wendungen.includes(w) && !m.wendungen.includes(x[1]!)) b.push(`Wendung nicht aus dem Preset: „${x[1]}"`);
     }
-    for (const x of text.matchAll(/sagt man nicht „([^“]+)“, sondern „([^“]+)“/g)) {
+    for (const x of text.matchAll(/(?:sagt man nicht „([^“]+)“, sondern|darf man nicht „([^“]+)“ sagen, nur) „([^“]+)“/g)) {
+      x[1] = x[1] || x[2]; x[2] = x[3];
       if (!m.verwandlungen.some(([p, q]) => p === x[1] && q === x[2])) b.push(`Verwandlung nicht aus dem Preset: ${x[1]}→${x[2]}`);
     }
     for (const x of text.matchAll(new RegExp(`In jedem Haus in ${N} liegt ([^.]+)\\.`, "g"))) {
@@ -314,7 +432,11 @@ export function pruefeUtopie(text: string, fb: Weltblatt, eingabe = "", bank?: P
   for (const m of text.matchAll(/\bRat der (\S+?)[.,;:\s]/g)) {
     if (!fb.regierung.text.includes(`Rat der ${m[1]}`)) b.push(`Rat der ${m[1]} steht nicht im Blatt`);
   }
-  if (!text.includes(fuelle(fb.grundsatz.kehrseite[0]!, fb.werte))) b.push("Kehrseite der Prämisse fehlt");
+  if (!text.includes(fuelle(fb.texte.kehrseite[0]!, fb.werte))) b.push(fb.art === "dystopie" ? "Riss der Prämisse fehlt" : "Kehrseite der Prämisse fehlt");
+  // Die Fassungen dürfen sich nicht mischen, und die eigene muss erkennbar sein.
+  const andere: WeltArt = fb.art === "dystopie" ? "utopie" : "dystopie";
+  for (const r of MARKEN[andere]) if (r.test(text)) b.push(`Satz der Fassung „${andere}" in einer ${fb.art === "dystopie" ? "Dystopie" : "Utopie"}: ${r.source}`);
+  if (!MARKEN[fb.art].some((r) => r.test(text))) b.push(`Keine Marke der Fassung „${fb.art}"`);
   if (!text.includes(fb.brauch.text)) b.push("Brauch fehlt");
   // Vorrang des Wo: Marken anderer Lagen dürfen nicht stehen.
   for (const [t, d] of Object.entries(LAGEN) as [LageTyp, typeof LAGEN[LageTyp]][]) {

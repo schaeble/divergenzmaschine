@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.374.0**, Zweig `typescript-migration`.
+Stand: **v4.375.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -2524,6 +2524,22 @@ Funde: Doppelwort-Prüfer hielt „auf der der Herold saß" für einen Fehler;
 „null" galt als Leerwert; Ruder und „vereist" in der Wüste; „Was man zuerst
 sieht" im dritten Absatz — alle behoben, die Lage-Funde als Einzelprüfung.
 
+**Gattung „Dystopie"** (4.375.0): dritter Eintrag im Feld „Gattung". Derselbe
+Bau wie die Utopie (`buildUtopie(input, bank, "dystopie")`), dasselbe
+Weltblatt; `ziehWeltblatt(input, art)` wählt die Fassung. Jede Prämisse trägt
+ein `dys`-Feld (Ordnung, Alltag, Kehrseite, Frage); die Kehrseite heißt dort
+**Riss** — was die Leute trotzdem tun. Regierungen, Gesetze und Bräuche haben
+`dtext`/`dalltag`. Die Rahmensätze beider Fassungen stehen in `RAHMEN` in
+`utopie.ts`, Blicke und Schlüsse je Fassung. `MARKEN` hält Sätze, die nur in
+einer Fassung vorkommen; `pruefeUtopie()` meldet eine Vermischung und eine
+Fassung ohne eigene Marke. Studio: „Was ist Pflicht?", eigenes Beispiel, Hinweise
+sprechen vom Riss; die vier W werden je Gattung getrennt gemerkt.
+Titel bei Utopie/Dystopie: der Name der Welt (`utopieTitel()`), statt
+„Eine und Niemand lügt" aus der allgemeinen Titelregel.
+Prüfstand: 17920 Läufe (beide Fassungen), Gegenproben für Vermischung, fehlenden
+Riss und Titel. Beim Lesen gefunden: „was man trotzdem tut. Trotzdem wird
+getauscht" — die Einleitungen sagen jetzt „im Verborgenen".
+
 ## 7 · Fallen in diesem Quelltext
 
 - **`let` im Setzer steht in einer Reihenfolge.** `oeffneZeitungssetzer()` ist
@@ -2628,8 +2644,8 @@ Benutzer behält, ist das einzige belastbare „gut" dieses Programms.
   „nicht"/„längst" für finite Verben. Im Prüfstand Utopie ausgenommen. Da sie
   in `bestOf` als Abwertung wirkt, lohnt eine Messung, wie oft sie bei Prosa
   falsch liegt.
-- **Gattung Utopie** für Bericht und Meldung anschließen (Zeitung aus der
-  Utopie); dazu Dystopie als zweiter Eintrag.
+- **Gattung Utopie/Dystopie** für Bericht und Meldung anschließen (Zeitung aus
+  der Utopie). Nächste Gattung mit eigenem Gerüst: Märchen.
 
 ## 9 · Wo die übrigen Papiere liegen
 
