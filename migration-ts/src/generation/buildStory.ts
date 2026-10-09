@@ -27,6 +27,7 @@ import { buildRekombination, buildVersAtome } from "../atoms/rekombination";
 import { buildBericht } from "./bericht";
 import { buildMeldung } from "./meldung";
 import { buildUtopie } from "./utopie";
+import { buildMaerchen } from "./maerchen";
 import { linkTrace } from "../atoms/trace";
 import { linkMarkovTrace } from "./markovTrace";
 import { applyEmphasis } from "./emphasis";
@@ -170,6 +171,7 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   // Nachbearbeitung. Bei anderen Formen bleibt die Welt ohne Wirkung; das
   // Studio sagt das unter den Feldern, statt still etwas anderes zu bauen.
   if ((input.welt === "utopie" || input.welt === "dystopie") && input.form === "prose") return buildUtopie(input, bank, input.welt).text;
+  if (input.welt === "maerchen" && input.form === "prose") return buildMaerchen(input, bank).text;
   if (input.form === "bericht") return kleinerArtikel(buildBericht(bank, input, (input.ressort as Parameters<typeof buildBericht>[2]) ?? "auto").text);
   // Die Meldung geht NICHT durch die Bank: Sie referiert nur aus dem
   // Faktenblatt. Deshalb steht sie vor allem, was Atome zieht.

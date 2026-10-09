@@ -60,7 +60,10 @@ export function fremdInLage(s: string, lage: LageTyp): boolean {
   return false;
 }
 
-const PERSON = wort("ich|du|dich|dir|mich|mir|wir|uns|euch|ihr|dein\\w*|mein\\w*|unser\\w*|euer\\w*");
+// „ihm", „ihn", „ihnen", „er" zeigen auf jemanden außerhalb des Eintrags:
+// „Ein Fremder nennt ihm den Namen des Schlosses" — wem? (gefunden beim Lesen,
+// 4.376.0). Im Rahmen gibt es niemanden, auf den sie sich beziehen könnten.
+const PERSON = wort("ich|du|dich|dir|mich|mir|wir|uns|euch|ihr|dein\\w*|mein\\w*|unser\\w*|euer\\w*|ihm|ihn|ihnen|er(?!\\p{L})");
 
 /** Gemeinsame Tauglichkeit: kein Satzschluss, keine Anführung, keine Person,
  *  keine Zahl, nicht zu lang. */

@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.375.0**, Zweig `typescript-migration`.
+Stand: **v4.376.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -155,6 +155,7 @@ Beide laufen bei `npm test` mit.
 | `test/wirkung.ts` | Wirkungsmesser: Blindprobe unter der Schwelle, Form darüber, Rechnung |
 | `test/schneider.ts` | Wolf Schneiders zählbare Regeln an Bericht und Meldung: Satzlängen-Bänder, Teilsatz ≤ 12 Wörter, Verbklammer, Verbote; mit Gegenprobe (35 Prüfungen) |
 | `test/utopie.ts` | Gattung Utopie: 8960 Läufe (8 Wo × 5 Wann × 8 Wer × 7 Was × 4 Töne) gegen das eigene Weltblatt, 15 Gegenproben |
+| `test/maerchen.ts` | Gattung Märchen: 4800 Läufe (6 Wo × 4 Wann × 10 Wer × 5 Was × 4 Töne), Heldenerkennung, 15 Gegenproben |
 | `test/zeitung.ts` | Zeitungssetzer: Layout-Logik, jsdom-Rundgang und ein Abgleich der Stilvorlage gegen die Rechnung (74 Prüfungen) |
 
 Der Formen-Prüfstand trennt **Formen im Gebrauch** (Prosa, Reim, Haiku,
@@ -2540,6 +2541,26 @@ Prüfstand: 17920 Läufe (beide Fassungen), Gegenproben für Vermischung, fehlen
 Riss und Titel. Beim Lesen gefunden: „was man trotzdem tut. Trotzdem wird
 getauscht" — die Einleitungen sagen jetzt „im Verborgenen".
 
+**Gattung „Märchen"** (4.376.0): `generation/maerchen.ts`, eigenes Gerüst ohne
+Weltblatt. Märchenblatt: Held (aus Wer: Artikel + Adjektiv + Nomen → bestimmte
+Form, Geschlecht, Pronomen; Name → „jemand mit Namen …"; sonst gezogen), Ort,
+Mangel (aus Was, als Zitat „Eines Tages hieß es im ganzen Land: …"; sonst
+gezogen mit Ziel und Lösung), Helfer, Gabe mit Einsatz, Bedingung (gehalten;
+bei Blick „dunkel" gebrochen), Gegner, Zielort, zwei Prüfungen. Fünf Abschnitte:
+Eingang, Auszug, Zuerst/Danach, Zuletzt, Heimkehr mit Schlussformel je Blick.
+Der Held steht in allen Vorlagen im Nominativ (schwache Nomen!). Preset:
+Motiv (Pflicht), Wendung, Verwandlung. `pruefeMaerchen()` prüft Formel,
+Reihenfolge der Prüfungen, Gabe vor Einsatz, Gegner unbestimmt vor bestimmt,
+Bedingung gehalten/gebrochen, Mangel/Lösung, Schlussformel am Ende, Material
+aus genau dieser Bank, Komma nach Relativsatz, Held nach Präposition.
+Titel: Held und Gabe (`maerchenTitelAusText()` im Studio, gegen das Blatt geprüft).
+Funde beim Lesen: fehlendes Komma nach Relativsatz („… aufgeschlossen wird zu
+holen"), „von der jüngste Sohn", „gab, was das Waisenkind hatte" (jetzt
+Pronomen), ein Preset-Eintrag mit „ihm" ohne Bezug (PERSON-Filter um
+ihm/ihn/ihnen/er erweitert — wirkt auch bei der Utopie), Held holte bei
+versiegtem Brunnen eine Feder (jetzt „um zu holen, was fehlte"). Die
+Gegenprobe fand, dass der Gegner-Prüfer „Der Riese" am Satzanfang übersah.
+
 ## 7 · Fallen in diesem Quelltext
 
 - **`let` im Setzer steht in einer Reihenfolge.** `oeffneZeitungssetzer()` ist
@@ -2645,7 +2666,7 @@ Benutzer behält, ist das einzige belastbare „gut" dieses Programms.
   in `bestOf` als Abwertung wirkt, lohnt eine Messung, wie oft sie bei Prosa
   falsch liegt.
 - **Gattung Utopie/Dystopie** für Bericht und Meldung anschließen (Zeitung aus
-  der Utopie). Nächste Gattung mit eigenem Gerüst: Märchen.
+  der Utopie). Weitere Gattungen mit eigenem Gerüst: Fabel, Gründungsmythos, Kriminalgeschichte.
 
 ## 9 · Wo die übrigen Papiere liegen
 
