@@ -32,7 +32,7 @@ const URZUSTAENDE: Urzustand[] = [
   { nichts: "Wald, so dicht, dass kein Licht auf den Boden fiel", widerstand: "Wer eine Lichtung schlug, fand sie am nächsten Morgen zugewachsen." },
 ];
 
-const GRUENDER: Held[] = [
+export const GRUENDER: Held[] = [
   { ein: "eine Hirtin mit einem lahmen Bein", def: "die Hirtin", rel: "die", pron: "sie", ausEingabe: false },
   { ein: "ein Fischer, der nicht schwimmen konnte", def: "der Fischer", rel: "der", pron: "er", ausEingabe: false },
   { ein: "eine Bärin", def: "die Bärin", rel: "die", pron: "sie", ausEingabe: false },
@@ -72,8 +72,8 @@ export const OPFER: Opfer[] = [
 
 /** Das Gegründete. `pd`: Dativpronomen für „Man gab ihr den Namen"; bei einem
  *  Namen leer — dann ist der Name das Gegründete selbst. */
-interface Gruendung { def: string; pd: string }
-const GRUENDUNGEN: Gruendung[] = [
+export interface Gruendung { def: string; pd: string }
+export const GRUENDUNGEN: Gruendung[] = [
   { def: "die Stadt", pd: "ihr" }, { def: "das Dorf", pd: "ihm" }, { def: "der Markt", pd: "ihm" },
   { def: "die Brücke", pd: "ihr" }, { def: "der Hafen", pd: "ihm" },
 ];

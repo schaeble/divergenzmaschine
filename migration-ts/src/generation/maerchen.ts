@@ -50,7 +50,10 @@ export interface Held {
 const PRON: Record<"der" | "die" | "das", string> = { der: "er", die: "sie", das: "es" };
 
 /** Nomen, die mit „ein" sächlich sind. Die Endung -chen/-lein trägt das selbst. */
-const NEUTRA = /^(Kind|Mädchen|Fräulein|Männlein|Pferd|Schaf|Huhn|Tier|Volk|Waisenkind|Bauernkind|Königskind|Geißlein|Rehlein)$/;
+// Am ENDE des Nomens, nicht als ganzes Wort: Zusammensetzungen tragen das
+// Geschlecht ihres letzten Glieds. „ein Findelkind" wurde sonst „der
+// Findelkind" (gefunden beim Würfeln, 4.381.0).
+const NEUTRA = /(kind|mädchen|fräulein|männlein|pferd|schaf|lamm|huhn|tier|volk|geißlein|rehlein|kalb|fohlen|ferkel)$/i;
 
 /** Liest einen Helden aus dem Wer-Feld. `null`, wenn sich nichts sicher
  *  bilden lässt — dann wird gezogen. */
@@ -88,7 +91,7 @@ export function erkenneHeld(wer: string): Held | null {
   return { ein: `ein ${rest}`, def: `${g} ${[...adjDef, ...worte.slice(i)].join(" ")}`, rel: g, pron: PRON[g], ausEingabe: true };
 }
 
-const HELDEN: Held[] = [
+export const HELDEN: Held[] = [
   { ein: "ein armer Schneider", def: "der arme Schneider", rel: "der", pron: "er", ausEingabe: false },
   { ein: "eine arme Müllerstochter", def: "die arme Müllerstochter", rel: "die", pron: "sie", ausEingabe: false },
   { ein: "ein Hirtenjunge", def: "der Hirtenjunge", rel: "der", pron: "er", ausEingabe: false },
@@ -101,7 +104,7 @@ const HELDEN: Held[] = [
 
 // ── Ort, Mangel, Helfer, Gabe, Gegner ──────────────────────────────────────
 
-const ORTE: { wo: string; lage: LageTyp }[] = [
+export const ORTE: { wo: string; lage: LageTyp }[] = [
   { wo: "hinter den sieben Bergen", lage: "gebirge" },
   { wo: "in einem Dorf am Rand des großen Waldes", lage: "wald" },
   { wo: "in einer Mühle an einem Bach", lage: "tal" },

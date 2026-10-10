@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.380.0**, Zweig `typescript-migration`.
+Stand: **v4.381.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -158,6 +158,7 @@ Beide laufen bei `npm test` mit.
 | `test/maerchen.ts` | Gattung Märchen: 4800 Läufe (6 Wo × 4 Wann × 10 Wer × 5 Was × 4 Töne), Heldenerkennung, 15 Gegenproben |
 | `test/fabel.ts` | Gattung Fabel: 4800 Läufe, Tier- und Lehre-Erkennung, 11 Gegenproben (u. a. fremde Lehre unter einer Handlung) |
 | `test/mythos.ts` | Gattung Gründungsmythos: 2880 Läufe, Namens- und Gründungserkennung, 12 Gegenproben |
+| `test/gattungwurf.ts` | „Alles würfeln" bei Gattung: 2000 Würfe, jeder von seiner Gattung gelesen und ohne Befund gebaut |
 | `test/zeitung.ts` | Zeitungssetzer: Layout-Logik, jsdom-Rundgang und ein Abgleich der Stilvorlage gegen die Rechnung (74 Prüfungen) |
 
 Der Formen-Prüfstand trennt **Formen im Gebrauch** (Prosa, Reim, Haiku,
@@ -2608,6 +2609,21 @@ Gattung, im Wert „N Motive passen" (`Umgebung.presetMaterial`, in
 `sammleUmgebung` mit `utopieMaterial(loadBank(), null)` gezählt); kein
 passendes Motiv → Preset „leer", Leitung tot, Befund. Ohne Gattung keine
 Leitung und kein Urteil über Motive.
+
+**Alles würfeln bei Gattung** (4.381.0): Gemessen im Browser (12 Würfe je
+Gattung): Die Form landete in der Hälfte der Würfe auf Reim/Szene/Meldung
+(Gattung ohne Wirkung), und die vier W kamen aus Ereignis-Quellen („Ich kam
+als Hai nach Velwen", Grundsatz „Sucht Nahrung."). Jetzt: `rollAlle` lässt die
+Form bei Gattung auf Prosa (wie verschlossen; auch der Wahrnehmungs-Stil setzt
+sie nicht), und „Alles würfeln"/„Kontext würfeln" ziehen die vier W aus
+`features/gattungWurf.ts` — dem Vorrat der Gattung, bei der Fabel Tierpaar und
+Lehre aus derselben Fabel. Gesperrte Felder bleiben; ein leerer Vorschlag darf
+bei der Gattung ein Feld leeren. Gefunden dabei: „der Findelkind" (sächliche
+Zusammensetzungen — NEUTRA prüft jetzt die Endung), „einer, der fliehen muss"
+nicht als gehend erkannt, zwei Lagen des eigenen Vorrats nicht erkannt
+(„verschneit", „Hang"), eine eingebaute Lehre nicht erkannt („Not") und eine
+der falschen Fabel zugeordnet („hilft" → Netz statt Bach; `erkenneLehre`
+prüft jetzt zuerst den Wortlaut).
 
 ## 7 · Fallen in diesem Quelltext
 

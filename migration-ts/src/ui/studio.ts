@@ -50,6 +50,7 @@ import { utopieTitel } from "../generation/utopie";
 import { erkenneHeld, maerchenTitelAusText } from "../generation/maerchen";
 import { erkenneTiere, erkenneLehre, schemaFuerTiere, fabelTitelAusText } from "../generation/fabel";
 import { erkenneGruendung, istEigenname, mythosTitelAusText } from "../generation/mythos";
+import { wuerfleGattung4W } from "../features/gattungWurf";
 import {
   ladeStand as ladeReiter, sichereStand as sichereReiter, ordne as ordneReiter,
   verschiebe as verschiebeReiter, schalte as schalteReiter, derKanon, PFLICHT as REITER_PFLICHT,
@@ -223,7 +224,7 @@ export function mountStudio(root: HTMLElement): void {
     el("div", { class: "field" }, el("span", { class: "field-label lockrow" }, el("span", {}, label), lockBtn(sel, label)), sel);
 
   const ctxDice = el("button", {}, icon("dice"), " Kontext würfeln");
-  ctxDice.addEventListener("click", () => { const c = randomContext(); if (!locked.has(where.id)) where.value = c.where; if (!locked.has(when.id)) when.value = c.when; if (!locked.has(who.id)) who.value = c.who; if (!locked.has(what.id)) what.value = c.what; updHints(); ctxSichern(); });
+  ctxDice.addEventListener("click", () => { const c = istGattung() ? wuerfleGattung4W(welt.value) : randomContext(); if (!locked.has(where.id)) where.value = c.where; if (!locked.has(when.id)) when.value = c.when; if (!locked.has(who.id)) who.value = c.who; if (!locked.has(what.id)) what.value = c.what; updHints(); ctxSichern(); });
   // Wiki-Taste: derselbe Griff wie der Würfel, nur aus dem Sammler-Vorrat.
   // Sie greift NICHT ins Netz — sie liest, was der Reiter „Sammler“ abgelegt
   // hat, und arbeitet damit auch offline.
@@ -242,12 +243,18 @@ export function mountStudio(root: HTMLElement): void {
     // Die Quelle wird mitgewürfelt: Welt, Wiki-Vorrat oder Bildvorrat, je
     // nachdem, was gefüllt ist. Welche es war, sagt die Zeile darunter — sonst
     // wüsste man bei vier gleichen Feldern nicht, ob der Vorrat leer war.
-    const quelle = ziehQuelle(offeneQuellen(vorratStand().funde, ladeBildvorrat().length, themenStand().funde));
+    // Bei gewählter Gattung (4.381.0) kommen die vier W aus ihrem eigenen
+    // Vorrat. Die Ereignis-Quellen lieferten „Ich kam als Hai nach Velwen"
+    // und einen Grundsatz „Sucht Nahrung." — Werte, die keine Gattung liest.
+    const gattungWurf = istGattung();
+    const quelle = gattungWurf ? "welt" : ziehQuelle(offeneQuellen(vorratStand().funde, ladeBildvorrat().length, themenStand().funde));
     let vorschlag: Partial<Record<W4, string>> = {};
-    let woher: string = QUELLE_LABEL[quelle];
+    let woher: string = gattungWurf ? `Gattung · ${gattungName()}` : QUELLE_LABEL[quelle];
     let omniStil: Record<string, string> | null = null;
     let omniGew = "";
-    if (quelle === "wiki") {
+    if (gattungWurf) {
+      vorschlag = wuerfleGattung4W(welt.value);
+    } else if (quelle === "wiki") {
       const f = ziehVorrat();
       if (f) { vorschlag = f.ctx; woher = `Wiki · ${f.titel}`; } else vorschlag = worldFillContext();
     } else if (quelle === "abschrift") {
@@ -278,7 +285,11 @@ export function mountStudio(root: HTMLElement): void {
     }
     // Die Regel steht in `uebernehmeKontext` und wird dort geprüft: Ein
     // gesperrtes Feld bleibt, ein leerer Vorschlag überschreibt nichts.
-    const neu = uebernehmeKontext(felder, vorschlag, (id) => locked.has(id));
+    // Bei der Gattung darf ein leerer Vorschlag ein Feld leeren — „Wann" bei
+    // der Fabel, „Es war einmal" beim Märchen sind gewollt leer.
+    const neu = gattungWurf
+      ? Object.fromEntries(W4_FELDER.map((f) => [f, locked.has(felder[f].id) ? felder[f].wert : (vorschlag[f] ?? "")])) as Record<W4, string>
+      : uebernehmeKontext(felder, vorschlag, (id) => locked.has(id));
     const bewegt = geaenderteFelder(felder, neu);
     where.value = neu.where; when.value = neu.when; who.value = neu.who; what.value = neu.what;
     // Drei Fälle, drei Sätze. „Alle gesperrt" und „der Vorschlag stand schon
@@ -299,7 +310,8 @@ export function mountStudio(root: HTMLElement): void {
         if (!Array.from(el.options).some((o) => o.value === v)) return;
         el.value = v; studioReglerStand[el.id] = v;
       };
-      setzeStil(form, omniStil["form"]); setzeStil(structure, omniStil["structure"]);
+      if (!istGattung()) setzeStil(form, omniStil["form"]);
+      setzeStil(structure, omniStil["structure"]);
       setzeStil(persp, omniStil["perspective"]); setzeStil(rhythm, omniStil["rhythm"]);
       setzeStil(varianz, omniStil["varLevel"]); setzeStil(mode, omniStil["mode"]);
       setzeStil(tone, omniStil["tone"]); setzeStil(markov, omniStil["markovMode"]);
@@ -2063,7 +2075,12 @@ export function mountStudio(root: HTMLElement): void {
   };
   const rollAlle = (): void => {
     rolling = true;
-    wuerfelbar().filter((c) => c !== preset).forEach(rollEins);
+    // Bei gewählter Gattung bleibt die Form auf Prosa, als wäre sie
+    // verschlossen: In der Hälfte der Würfe landete sie sonst auf Reim, Szene
+    // oder Meldung, und die Gattung wirkte nicht (gemessen, 4.381.0).
+    const gattungHaelt = istGattung();
+    wuerfelbar().filter((c) => c !== preset && !(gattungHaelt && c === form)).forEach(rollEins);
+    if (gattungHaelt && !locked.has(form.id) && form.value !== "prose") { form.value = "prose"; form.dispatchEvent(new Event("change")); }
     rollPresets();
     rollBauform();
     rolling = false;

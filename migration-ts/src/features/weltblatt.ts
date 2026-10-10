@@ -46,13 +46,13 @@ export interface LageDaten {
 
 export const LAGEN: Record<LageTyp, LageDaten> = {
   eis: {
-    re: /\b(eis|gletscher|pol|polar|schnee|frost|tundra|packeis)/i,
+    re: /\b(eis|gletscher|pol|polar|schnee|verschneit|frost|tundra|packeis)/i,
     lagen: ["unter dem Eis eines Gletschers", "am Rand des ewigen Eises", "in einer Senke, die neun Monate im Jahr verschneit ist"],
     knapp: "Wärme", mass: "Scheiten Holz", arbeit: "Eis hackt", ankunft: "Am Windfang",
     weg: "über das Eis", marken: /\b(Windfang|Eis hackt|Gletscher)/,
   },
   wueste: {
-    re: /\b(wüste|sand|düne|oase|steppe|salzpfanne)/i,
+    re: /\b(wüste|sand|düne|oase|steppe|salzpfanne|ausgetrocknet)/i,
     lagen: ["in einer Oase am Rand der Salzwüste", "zwischen zwei Dünenketten", "in einem ausgetrockneten Flussbett"],
     knapp: "Wasser", mass: "Krügen Wasser", arbeit: "Zisternen reinigt", ankunft: "Am Brunnen vor dem Tor",
     weg: "durch den Sand", marken: /\b(Zisterne\w*|Düne\w*|Sand)\b/,
@@ -64,7 +64,7 @@ export const LAGEN: Record<LageTyp, LageDaten> = {
     weg: "auf dem Meer", marken: /\b(Netze|Steg|Meer)\b/,
   },
   gebirge: {
-    re: /\b(berg|gebirge|alpen|gipfel|pass|hochland|hochtal|fels)/i,
+    re: /\b(berg|gebirge|alpen|gipfel|pass|hochland|hochtal|fels|hang)/i,
     lagen: ["in einem Hochtal, das nur über einen Pass zu erreichen ist", "auf einem Felsplateau über den Wolken", "an einem Hang, der zu steil für Wagen ist"],
     knapp: "ebener Boden", mass: "Tagwerken", arbeit: "Terrassen mauert", ankunft: "Am Passtor",
     weg: "im Fels", marken: /\b(Passtor|Terrassen|Fels)\b/,
@@ -380,7 +380,7 @@ const BRAEUCHE: FormMitZahl[] = [
 
 export type ErzaehlerArt = "gast" | "bewohner" | "gehend";
 
-const RE_GEHEND = /\b(geh(en|t)\s+muss|muss\s+gehen|verbannt|ausgesto(ß|ss)en|verlässt|verlassen\s+muss|flieht|abschied|letzte[nr]? tag)/i;
+const RE_GEHEND = /\b(geh(en|t)\s+muss|muss\s+gehen|verbannt|ausgesto(ß|ss)en|verlässt|verlassen\s+muss|flieh(en|t)|abschied|letzte[nr]? tag)/i;
 const RE_BEWOHNER = /\b(bewohner\w*|einheimisch\w*|bürger\w*|geboren|von hier|aus\s+[A-ZÄÖÜ]\w+|älteste\w*|fischer\w*|bäcker\w*|lehrer\w*|kind\b)/i;
 
 export interface Erzaehler {
@@ -430,7 +430,7 @@ export function erkenneZeit(wann: string): ZeitLage | null {
   return "offen";
 }
 
-const ZEIT_VORRAT: Record<Exclude<ZeitLage, "offen">, string[]> = {
+export const ZEIT_VORRAT: Record<Exclude<ZeitLage, "offen">, string[]> = {
   vergangenheit: ["vor vielen Jahren", "in einem Sommer, an den sich sonst niemand erinnert", "vor zweihundert Jahren"],
   zukunft: ["im Jahr 2300", "lange nach unserer Zeit", "in einem der kommenden Jahrhunderte"],
   nachbruch: ["nach dem letzten Krieg", "im Jahr nach der großen Flut", "nach dem Zusammenbruch"],

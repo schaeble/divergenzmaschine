@@ -95,7 +95,7 @@ export const SCHEMATA: Schema[] = [
     extra: "Es war ein guter Käse, und es war der letzte.",
     lehre: ["Wer Schmeicheleien glaubt, bezahlt dafür.", "Hüte dich vor dem, der dich lobt, wenn er etwas von dir will."] },
   { id: "vorsorge", name: "Vorsorge", rolleA: "fleiss", rolleB: "sorglos",
-    re: /vorsorg|fleiß|faul|sommer|winter|vorrat|arbeit/i,
+    re: /vorsorg|fleiß|faul|sommer|winter|vorrat|arbeit|\bnot\b/i,
     lage: ["Den ganzen Sommer trug {A} Vorräte in {Aposs}en Bau, während {B} im Gras saß und sang."],
     rede: ["„Warum arbeitest du bei diesem Wetter?“, fragte {B}.", "„Weil es nicht immer Sommer ist“, sagte {A}."],
     wende: ["Als der Winter kam, klopfte {B} hungrig bei {Ad} an.", "„Was hast du im Sommer getan?“, fragte {A}.", "„Ich habe gesungen“, sagte {B}.", "„Dann tanz jetzt“, sagte {A} und schloss die Tür."],
@@ -124,7 +124,7 @@ export const SCHEMATA: Schema[] = [
     lehre: ["Wie du mir, so ich dir.", "Wer andere hereinlegt, muss damit rechnen, dass es ihm genauso ergeht."] },
 ];
 
-const ORTE = ["am Rand eines Waldes", "auf einer Wiese am Fluss", "in einem alten Garten", "an einem Hang über dem Dorf"];
+export const FABEL_ORTE = ["am Rand eines Waldes", "auf einer Wiese am Fluss", "in einem alten Garten", "an einem Hang über dem Dorf"];
 
 /** Die Lehre je Blick. Der Satz der Lehre steht immer unverändert darin. */
 const LEHRE_RAHMEN: Record<Blick, string> = {
@@ -144,9 +144,15 @@ export function erkenneTiere(wer: string): Tier[] {
   return funde.map((x) => x.t);
 }
 
+/** Eine eingebaute Lehre gehört IMMER zu ihrer Fabel — erst der Wortlaut,
+ *  dann die Stichwörter. Vorher entschied nur das erste passende Stichwort:
+ *  „Gegen den Mächtigen hilft …" landete wegen „hilft" beim Netz statt beim
+ *  Bach (gefunden vom Prüfstand Gattungswurf, 4.381.0). */
 export function erkenneLehre(was: string): Schema | null {
   const w = (was || "").trim();
-  return w ? SCHEMATA.find((s) => s.re.test(w)) || null : null;
+  if (!w) return null;
+  const norm = (x: string): string => x.toLowerCase().replace(/[.!?…\s]+$/, "");
+  return SCHEMATA.find((s) => s.lehre.some((l) => norm(l) === norm(w))) || SCHEMATA.find((s) => s.re.test(w)) || null;
 }
 
 const passt = (s: Schema, a: Tier, b: Tier): boolean => a.eigen.includes(s.rolleA) && b.eigen.includes(s.rolleB);
@@ -203,7 +209,7 @@ export function ziehFabelblatt(input: GenInput): Fabelblatt {
   const lehre = vorgabe ? cap(wasRoh.replace(/\s+/g, " ").replace(/[\s.]*$/, "")) + (/[!?…]$/.test(wasRoh) ? "" : ".") : pick(wahl.s.lehre);
   return {
     schema: wahl.s, a: wahl.a, b: wahl.b,
-    wo: woRoh ? (normWhere(woRoh) || woRoh) : pick(ORTE), lage: woRoh ? erkenneLage(woRoh) : null,
+    wo: woRoh ? (normWhere(woRoh) || woRoh) : pick(FABEL_ORTE), lage: woRoh ? erkenneLage(woRoh) : null,
     lehre, lehreAusEingabe: !!vorgabe, tiereAusEingabe: !!ausTieren,
     blick: blickVonTon(input.tone),
     werte: werteFuer(wahl.a, wahl.b),
