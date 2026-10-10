@@ -1964,6 +1964,8 @@ export function mountStudio(root: HTMLElement): void {
     markovMode: markov.value, disruptor: disruptor.value, tension: tension.value,
     archetypeA: archA.value, archetypeB: archB.value, instability: instab.value,
     ressort: ressort.value, preset: aktivePresetIds().join("+") || preset.value, lenTarget: lenSlider.value,
+    // Die Gattung (4.379.0) — der Schaltplan zeigt sie mit ihren Unterknoten.
+    welt: welt.value,
   });
 
   const genBtn = el("button", { class: "primary" }, icon("play"), " Generieren");
@@ -3405,6 +3407,7 @@ export function mountStudio(root: HTMLElement): void {
   ROLL_SELECTS.forEach((s) => s.addEventListener("change", anlageSichern));
   [where, when, who, what, umweltIn, novSlider, surpSlider, lenSlider, wWo, wWann, wWer, wWas].forEach((i) => i.addEventListener("input", anlageSichern));
   umweltSel.addEventListener("change", anlageSichern);
+  welt.addEventListener("change", anlageSichern);
   anlageSichern();
   // Schlösser haben Übergabewerte überschrieben? Hinweis mit Sofortlösung zeigen.
   const blocked = handedOver.filter((h) => locked.has(h.el.id) && h.el.value !== h.want);

@@ -125,6 +125,64 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   ist("ein offener Regler nicht", knoten(a, "form")?.gesperrt, false);
 }
 
+// ── 3b · Gattung mit Unterknoten (4.379.0) ─────────────────────────────────
+// Gefragt: „Aktualisiere im Schaltplan Diagnose die Gattung mit Unterkategorien."
+// Der Plan muss zeigen, welche Gattung baut, was aus den vier W wird — und dass
+// die Regler, die sie umgeht, ohne Wirkung sind.
+{
+  const ohne = baueAnlage(STAND(), UMGEBUNG());
+  ist("ohne Gattung: Knoten steht auf aus", knoten(ohne, "gattung")?.zustand, "aus");
+  wahr("ohne Gattung: alle Gattungen zur Wahl genannt", /Utopie · Dystopie · Märchen · Fabel · Gründungsmythos/.test(knoten(ohne, "gattung")?.hinweis || ""));
+  wahr("ohne Gattung: keine Unterknoten", !ohne.knoten.some((k) => k.id.startsWith("g-")));
+  ist("ohne Gattung: Struktur wirkt", knoten(ohne, "struktur")?.zustand, "an");
+
+  const u = baueAnlage({ ...STAND({ welt: "utopie" }), w4: { where: "in der Wüste", when: "", who: "eine, die gehen muss", what: "Es gibt kein Geld." }, zeit: "" }, UMGEBUNG());
+  ist("Utopie + Prosa: Gattung an", knoten(u, "gattung")?.zustand, "an");
+  ist("Utopie: Lage aus dem Wo", knoten(u, "g-wo")?.wert, "Wüste · knapp: Wasser");
+  ist("Utopie: Blickwinkel aus dem Wer", knoten(u, "g-wer")?.wert, "jemand, der gehen muss");
+  wahr("Utopie: Grundsatz erkannt", /^geld · Kehrseite/.test(knoten(u, "g-was")?.wert || ""));
+  ist("Utopie: Struktur umgangen", knoten(u, "struktur")?.zustand, "aus");
+  wahr("und sagt warum", /von der Gattung „Utopie“ umgangen/.test(knoten(u, "struktur")?.hinweis || ""));
+  ist("Utopie: Stellschraube umgangen", knoten(u, "k-phrase")?.zustand, "aus");
+  ist("Utopie: Form wirkt weiter", knoten(u, "form")?.zustand, "an");
+  // Markov an ohne Korpus wäre sonst ein Befund — bei der Gattung ist Markov umgangen.
+  const um = baueAnlage({ ...STAND({ welt: "utopie", markovMode: "on" }), w4: { where: "", when: "", who: "", what: "" }, zeit: "" }, UMGEBUNG());
+  wahr("Utopie: kein Markov-Befund, wenn Markov umgangen ist", !um.befunde.some((b) => /^Markov/.test(b)));
+  wahr("Dystopie: Riss statt Kehrseite", /Riss/.test(knoten(baueAnlage({ ...STAND({ welt: "dystopie" }), w4: { where: "", when: "", who: "", what: "Niemand lügt." }, zeit: "" }, UMGEBUNG()), "g-was")?.wert || ""));
+
+  const b = baueAnlage(STAND({ welt: "maerchen", form: "bericht" }), UMGEBUNG());
+  ist("Märchen bei Form Bericht: Gattung leer", knoten(b, "gattung")?.zustand, "leer");
+  wahr("und der Befund nennt die Form", b.befunde.some((x) => /nur für Form „Prosa“/.test(x)));
+  wahr("ohne Wirkung: keine Unterknoten, Struktur wirkt", !b.knoten.some((k) => k.id.startsWith("g-")) && knoten(b, "struktur")?.zustand === "an");
+
+  const m = baueAnlage({ ...STAND({ welt: "maerchen" }), w4: { where: "", when: "morgen", who: "eine, die gehen muss", what: "" }, zeit: "" }, UMGEBUNG());
+  ist("Märchen: unlesbarer Held ist leer", knoten(m, "g-wer")?.zustand, "leer");
+  ist("Märchen: „morgen“ in der Formel ist leer", knoten(m, "g-wann")?.zustand, "leer");
+  ist("und die Leitung von den vier W ist tot", m.kanten.find((k) => k.von === "w4" && k.nach === "g-wer")?.zustand, "leer");
+  const m2 = baueAnlage({ ...STAND({ welt: "maerchen" }), w4: { where: "", when: "", who: "ein kleines Mädchen", what: "" }, zeit: "" }, UMGEBUNG());
+  ist("Märchen: Held gelesen", knoten(m2, "g-wer")?.wert, "das kleine Mädchen");
+
+  const f = baueAnlage({ ...STAND({ welt: "fabel" }), w4: { where: "", when: "", who: "Fuchs, Lamm", what: "Alle tragen Hüte" }, zeit: "" }, UMGEBUNG());
+  ist("Fabel: unpassende Tiere sind leer", knoten(f, "g-wer")?.zustand, "leer");
+  ist("Fabel: unerkannte Lehre ist leer", knoten(f, "g-was")?.zustand, "leer");
+  ist("Fabel: Wann gesperrt", knoten(f, "g-wann")?.zustand, "aus");
+  const f2 = baueAnlage({ ...STAND({ welt: "fabel" }), w4: { where: "", when: "", who: "Rabe, Fuchs", what: "" }, zeit: "" }, UMGEBUNG());
+  ist("Fabel: Tiere in beiden Reihenfolgen", knoten(f2, "g-wer")?.wert, "Fuchs und Rabe → Käse");
+
+  const y = baueAnlage({ ...STAND({ welt: "mythos" }), w4: { where: "Velmar", when: "", who: "", what: "Talheim" }, zeit: "" }, UMGEBUNG());
+  ist("Mythos: Name aus Was", knoten(y, "g-was")?.wert, "Talheim (Name)");
+  ist("Mythos: zweiter Name im Wo ist leer", knoten(y, "g-wo")?.zustand, "leer");
+  // Jeder Unterknoten springt irgendwohin.
+  for (const id of ["gattung", "g-wo", "g-wann", "g-wer", "g-was", "g-blatt"]) wahr(`Sprungziel für ${id}`, !!knoten(y, id)?.ziel);
+  // Die Gruppe steht geschlossen am Anfang der Steuerung.
+  const band2 = y.knoten.filter((k) => k.band === 2).map((k) => k.id);
+  ist("Gattung steht als erster Knoten der Steuerung", band2[0], "gattung");
+  ist("ihre Unterknoten folgen direkt", band2.slice(1, 6).join(","), "g-wo,g-wann,g-wer,g-was,g-blatt");
+  // Die Anordnung hält auch mit Unterknoten.
+  const { platz } = ordne(y);
+  ist("mit Unterknoten hat jeder Knoten einen Platz", Object.keys(platz).length, y.knoten.length);
+}
+
 // ── 4 · Die Anordnung überlappt nicht ─────────────────────────────────────
 // Ohne diese Prüfung würde ein neuer Knoten irgendwann unter einem alten
 // liegen, und niemand sähe es, solange der Plan „irgendwie" gezeichnet wird.

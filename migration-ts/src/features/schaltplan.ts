@@ -20,7 +20,11 @@ import { KNOB_VORGABE, type Knobs } from "./knobs";
 import { ladeQuelle, archivEintraege, eintragNachId, platzBrauchbar, SCHLAGFOLGEN } from "./erzaehlerbank";
 import { statistikKurz, ZAEHLER_NAMEN } from "./waechterStatistik";
 import { TONE_OPTS, FORM_OPTS, STRUCTURE_OPTS, MODE_OPTS, PERSP_OPTS, RHYTHM_OPTS,
-  VARIANZ_OPTS, DISRUPTOR_OPTS, ARCH_OPTS, MARKOV_OPTS, type Wahlliste } from "../generation/optionen";
+  VARIANZ_OPTS, DISRUPTOR_OPTS, ARCH_OPTS, MARKOV_OPTS, WELT_OPTS, type Wahlliste } from "../generation/optionen";
+import { erkenneLage, istNurName, erkenneErzaehler, erkenneZeit, erkenneGrundsatz, blickVonTon, LAGEN } from "./weltblatt";
+import { erkenneHeld } from "../generation/maerchen";
+import { erkenneTiere, erkenneLehre, schemaFuerTiere } from "../generation/fabel";
+import { erkenneGruendung, istEigenname } from "../generation/mythos";
 
 /** an = wirkt · leer = eingeschaltet, wirkt aber nicht · aus = abgeschaltet.
  *
@@ -67,6 +71,12 @@ export function sprungZiel(id: string, u?: Umgebung): SprungZiel | undefined {
     w4: { reiter: "Studio", element: "f-where" },
     neuheit: { reiter: "Studio", element: "f-novelty" }, ueberraschung: { reiter: "Studio", element: "f-surprise" },
     schliff: { reiter: "Diagnose", element: "waechter-statistik" },
+    // Gattung (4.379.0): der Knoten springt zum Wählfeld, seine Unterknoten zu
+    // dem der vier Felder, aus dem sie lesen.
+    gattung: { reiter: "Studio", element: "f-welt" },
+    "g-wo": { reiter: "Studio", element: "f-where" }, "g-wann": { reiter: "Studio", element: "f-when" },
+    "g-wer": { reiter: "Studio", element: "f-who" }, "g-was": { reiter: "Studio", element: "f-what" },
+    "g-blatt": { reiter: "Studio", element: "f-welt" },
   };
   return T[id];
 }
@@ -425,6 +435,114 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
     meldung ? "Die Meldung hat eine feste Länge — gemessen 32 Wörter, ob der Regler auf 40 oder auf 300 steht" : "",
     "f-len");
 
+  // ── Gattung (4.379.0) ────────────────────────────────────────────────────
+  // Eine Gattung baut nach eigenem Gerüst aus einem Blatt. Der Plan zeigt sie
+  // mit ihren Unterknoten: was aus jedem der vier W in DIESER Gattung wird —
+  // und ob es überhaupt ankommt. Ein eingetragenes Feld, das die Gattung nicht
+  // lesen kann („Fuchs, Lamm" passt in keine Fabel), steht auf „leer": Es ist
+  // eingeschaltet und wirkt nicht. Genau dafür gibt es den Zustand.
+  //
+  // Die Regler, die eine Gattung umgeht, werden auf „aus" gestellt und sagen,
+  // warum. Vorher zeigte der Plan Struktur, Rhythmus und Stellschrauben als
+  // wirksam, während der Text längst aus dem Blatt kam.
+  const welt = r["welt"] || "keine";
+  const gattungAn = welt !== "keine";
+  const gattungName = bez(WELT_OPTS, welt);
+  const alleGattungen = WELT_OPTS.filter(([v]) => v !== "keine").map(([, l]) => l).join(" · ");
+  const gattungWirkt = gattungAn && form === "prose";
+  knoten("gattung", 2, "Gattung", gattungAn ? gattungName : "keine",
+    !gattungAn ? "aus" : gattungWirkt ? "an" : "leer",
+    !gattungAn ? `zur Wahl: ${alleGattungen}`
+      : gattungWirkt ? `baut nach eigenem Gerüst · zur Wahl: ${alleGattungen}`
+      : `„${gattungName}“ ist nur für Form „Prosa“ angeschlossen — bei „${bez(FORM_OPTS, form)}“ bleibt sie ohne Wirkung`);
+  if (gattungWirkt) {
+    const wo = (w4.where || "").trim(), wann = (w4.when || "").trim(), wer = (w4.who || "").trim(), was = (w4.what || "").trim();
+    const zukunftWort = /^(morgen|übermorgen|bald|heute|demnächst|nächste)/i;
+    const unter = (id: string, label: string, wert: string, zustand: Zustand, hinweis = ""): void =>
+      knoten(id, 2, "↳ " + label, wert, zustand, hinweis);
+    const LAGE_NAME: Record<string, string> = { eis: "Eis", wueste: "Wüste", insel: "Insel", gebirge: "Gebirge", wald: "Wald", tal: "Tal", stadt: "Stadt" };
+    const ortKnoten = (): void => unter("g-wo", "Ort (Wo)", wo || "wird gezogen", "an");
+    if (welt === "utopie" || welt === "dystopie") {
+      const t = wo && !istNurName(wo) ? erkenneLage(wo) : null;
+      unter("g-wo", "Lage (Wo)",
+        !wo ? "wird gezogen" : istNurName(wo) ? `Name ${wo} · Lage gezogen` : t ? `${LAGE_NAME[t]} · knapp: ${LAGEN[t].knapp}` : "eigene Lage · knapp: Zeit", "an");
+      const z = erkenneZeit(wann);
+      unter("g-wann", "Zeitlage (Wann)", !wann ? "wird gezogen" : z === "nachbruch" ? "nach einem Bruch" : z === "zukunft" ? "Zukunft" : z === "vergangenheit" ? "Vergangenheit" : "ohne feste Lage", "an");
+      const e = erkenneErzaehler(wer);
+      unter("g-wer", "Blickwinkel (Wer)", !wer ? "Gast (Vorgabe)" : e.art === "gehend" ? (welt === "dystopie" ? "jemand, der flieht" : "jemand, der gehen muss") : e.art === "bewohner" ? "Bewohner" : "Gast", "an");
+      const gs = erkenneGrundsatz(was);
+      const ks = welt === "dystopie" ? "Riss" : "Kehrseite";
+      unter("g-was", "Grundsatz (Was)", !was ? "wird gezogen" : gs ? `${gs.id} · ${ks} aus der Prämisse` : `eigener · ${ks} allgemein`, "an",
+        was && !gs ? `Der Grundsatz wird zitiert; eine eigene ${ks} hat der Vorrat für ihn nicht` : "");
+      unter("g-blatt", "Weltblatt", "Regierung · Gesetz · Brauch · Zahlen", "an", "einmal gezogen; jeder Abschnitt liest daraus");
+    } else if (welt === "maerchen") {
+      ortKnoten();
+      unter("g-wann", "Formel (Wann)", !wann ? "Es war einmal …" : zukunftWort.test(wann) ? "passt nicht — Es war einmal" : `${wann}, so erzählt man …`,
+        wann && zukunftWort.test(wann) ? "leer" : "an", wann && zukunftWort.test(wann) ? "Eine Zeitangabe nach vorn passt nicht in die Eingangsformel; sie bleibt ohne Wirkung" : "");
+      const h = erkenneHeld(wer);
+      unter("g-wer", "Held (Wer)", !wer ? "wird gezogen" : h ? h.def : "nicht lesbar — gezogen", wer && !h ? "leer" : "an",
+        wer && !h ? "Artikel + Nomen („ein armer Schneider“) oder ein Name — anderes wird übergangen" : "");
+      unter("g-was", "Mangel (Was)", was ? `„${was}“` : "wird gezogen", "an");
+      const dunkel = blickVonTon(r["tone"] || "") === "dunkel";
+      unter("g-blatt", "Gabe · Bedingung", dunkel ? "gezogen · Bedingung gebrochen" : "gezogen · Bedingung gehalten", "an", "Der Ton entscheidet: Düster/Unheimlich/Melancholisch/Mystery brechen die Bedingung");
+    } else if (welt === "fabel") {
+      ortKnoten();
+      unter("g-wann", "Zeit (Wann)", "ohne Wirkung — gesperrt", "aus", "Die Fabel kennt keine Zeit");
+      const lehre = erkenneLehre(was);
+      const tiere = erkenneTiere(wer);
+      const wahl = tiere.length >= 2 ? schemaFuerTiere(tiere, lehre) : null;
+      const einTier = tiere.length === 1 && !!schemaFuerTiere(tiere, lehre);
+      unter("g-wer", "Tiere (Wer)",
+        !wer ? "werden gezogen" : wahl ? `${wahl.a.nomen} und ${wahl.b.nomen} → ${wahl.s.name}` : einTier ? `${tiere[0]!.nomen} + gezogener Partner` : tiere.length ? `${tiere.map((t) => t.nomen).join(", ")} passen in keine Fabel` : "kein bekanntes Tier",
+        wer && !wahl && !einTier ? "leer" : "an",
+        wer && !wahl && !einTier ? "Die eingetragenen Tiere werden übergangen; zwei Tiere werden gezogen" : "");
+      unter("g-was", "Lehre (Was)", !was ? "wird gezogen" : lehre ? `erkannt → ${lehre.name}` : "nicht erkannt", was && !lehre ? "leer" : "an",
+        was && !lehre ? "Eine Lehre, die zu keiner Fabel gehört, bleibt ohne Wirkung — eine andere wird gezogen" : "");
+      unter("g-blatt", "Fabel", lehre ? lehre.name : wahl ? wahl.s.name : "wird gezogen", "an", "Die Lehre folgt aus der Handlung; die Prüfung liest sie aus der Wende");
+    } else if (welt === "mythos") {
+      const gr = erkenneGruendung(was);
+      const woName = wo && istEigenname(wo);
+      unter("g-wo", "Ort (Wo)", !wo ? "an dieser Stelle" : woName ? (gr?.name ? `Name übergangen — ${gr.name} aus Was` : `Name ${wo} · fällt nach der Gründung`) : wo,
+        woName && gr?.name ? "leer" : "an", woName && gr?.name ? "Zwei Namen: Der aus „Was entsteht?“ gilt, dieser bleibt ohne Wirkung" : "");
+      unter("g-wann", "Urzeit (Wann)", !wann ? "Am Anfang …" : zukunftWort.test(wann) ? "passt nicht — Am Anfang" : `${wann}, so sagen die Alten …`,
+        wann && zukunftWort.test(wann) ? "leer" : "an", wann && zukunftWort.test(wann) ? "Eine Zeitangabe nach vorn passt nicht in die Urzeit; sie bleibt ohne Wirkung" : "");
+      const h = erkenneHeld(wer);
+      unter("g-wer", "Gründer (Wer)", !wer ? "wird gezogen" : h ? h.def : "nicht lesbar — gezogen", wer && !h ? "leer" : "an");
+      unter("g-was", "Gegründetes (Was)", !was ? "wird gezogen" : gr ? (gr.name ? `${gr.name} (Name)` : gr.def) : "nicht lesbar — gezogen", was && !gr ? "leer" : "an",
+        was && !gr ? "Artikel + Nomen („die Stadt“) oder ein Name — anderes wird übergangen" : "");
+      unter("g-blatt", "Opfer · Brauch", "gezogen · Name und Brauch folgen daraus", "an", "Bedeutung des Namens und Brauch gehören immer zum Opfer");
+    }
+    // Was die Gattung umgeht, steht auf „aus" — mit Grund. Befunde, die diese
+    // Regler vorher erzeugt hätten (Markov ohne Korpus …), entfallen: Ein
+    // abgeklemmter Regler kann nicht ins Leere laufen.
+    const UMGANGEN = ["struktur", "drama", "modus", "markov", "disruptor", "varianz", "instab", "archa", "archb", "cast",
+      "persp", "rhythm", "spannung", "gewicht", "schliff", "k-fuegeteil", "k-w4max", "k-abstand", "k-bogen", "k-ton",
+      "k-korpus", "k-phrase", "k-satzlaenge", "k-atomgroesse"];
+    for (const k of K) {
+      if (!UMGANGEN.includes(k.id)) continue;
+      const vorher = k.label;
+      k.zustand = "aus";
+      k.wert = `${k.wert} · ohne Wirkung`;
+      k.hinweis = `von der Gattung „${gattungName}“ umgangen — sie baut nach eigenem Gerüst`;
+      for (let i = befunde.length - 1; i >= 0; i--) if (befunde[i]!.startsWith(vorher + ":")) befunde.splice(i, 1);
+    }
+    const p = K.find((k) => k.id === "preset");
+    if (p) p.hinweis = `liefert bei der Gattung „${gattungName}“ nur Material (Motive${welt === "fabel" || welt === "mythos" ? "" : ", Wendungen, Verwandlungen"})`;
+    const t = K.find((k) => k.id === "ton");
+    if (t) t.hinweis = "wirkt bei der Gattung als Blick auf Schluss und Kehrseite";
+  }
+
+  // Die Gattung und ihre Unterknoten stehen GESCHLOSSEN am Anfang der
+  // Steuerung. Angehängt wie die übrigen Knoten, lagen sie verstreut hinter
+  // zwanzig ausgegrauten Reglern — eine Gruppe, die man suchen muss, ist keine.
+  {
+    const gruppe = K.filter((k) => k.id === "gattung" || k.id.startsWith("g-"));
+    const rest = K.filter((k) => !gruppe.includes(k));
+    const erster = rest.findIndex((k) => k.band === 2);
+    K.length = 0;
+    K.push(...rest.slice(0, erster), ...gruppe, ...rest.slice(erster));
+  }
+
   // ── Leitungen ────────────────────────────────────────────────────────────
   // Gezeichnet werden NUR die Leitungen, die tot sein können — also die, bei
   // denen ein Schalter an sein kann, während seine Quelle leer ist. Der übrige
@@ -437,6 +555,9 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
     ["fragen", "w4"],
     ["preset", "drama"], ["erzaehler", "drama"],
   ] as [string, string][]) kante(a, b);
+  // Die vier W speisen die Unterknoten der Gattung — und diese Leitungen
+  // können tot sein (eingetragen, aber nicht lesbar).
+  for (const id of ["g-wo", "g-wann", "g-wer", "g-was"]) if (K.some((k) => k.id === id)) kante("w4", id);
 
   // Der Wurf wird am speisenden Knoten vermerkt — sonst steht im Plan das
   // eingestellte Profil neben vier W, die aus einem ganz anderen stammen.

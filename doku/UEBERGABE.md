@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.378.0**, Zweig `typescript-migration`.
+Stand: **v4.379.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -2589,6 +2589,18 @@ im Wo wird zum Namen des Gegründeten; im Urzustand heißt es „an dieser Stell
 Funde beim Lesen: „Der Hafen gab es noch nicht" (jetzt „war noch nicht da"),
 „Und Die Brücke", ein Relativsatz ohne Komma, „Die Hirtin" in jedem Satz
 (jetzt Pronomen), Talheim übergangen.
+
+**Schaltplan: Gattung mit Unterknoten** (4.379.0): Knoten „Gattung" (Steuerung,
+Sprung zu `f-welt`) mit allen Gattungen im Hinweis; bei aktiver Gattung und
+Prosa fünf Unterknoten `g-wo`, `g-wann`, `g-wer`, `g-was`, `g-blatt`, die
+zeigen, was aus jedem W in DIESER Gattung wird (gelesen mit denselben
+Erkennern wie der Bau). Ein eingetragenes Feld, das die Gattung nicht lesen
+kann, steht auf „leer" (Leitung von „Vier W" tot). Bei anderer Form steht die
+Gattung selbst auf „leer" mit Befund. Die umgangenen Regler (Struktur …
+Stellschrauben, Schliff) stehen auf „aus · ohne Wirkung" mit Grund; ihre
+Befunde entfallen. Die Gruppe steht geschlossen am Anfang der Steuerung.
+`einstellungen()` im Studio trägt jetzt `welt`. Prüfstand Schaltplan: 36 neue
+Prüfungen (237).
 
 ## 7 · Fallen in diesem Quelltext
 
