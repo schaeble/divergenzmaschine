@@ -181,6 +181,9 @@ export interface Umgebung {
   erzaehlerBrauchbar: number;
   /** Geschichten im Archiv, über alle Bauformen. */
   erzaehlerArchiv: number;
+  /** Was aus dem aktiven Preset in die Rahmen der Gattungen passt (4.380.0).
+   *  Optional: Fehlt es, urteilt der Plan nicht darüber. */
+  presetMaterial?: { motive: number; wendungen: number; verwandlungen: number; requisiten: number };
   /** Wächter-Statistik (Punkt 5): verworfen/angenommen, häufigste Regel, Umschreibungen, Zerlegungen. */
   waechter: { verworfen: number; angenommen: number; quote: number; haeufigste: string; umgeschrieben: number; zerlegt: number };
 }
@@ -310,7 +313,9 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   const gewAn = gew.some((x) => (parseInt(x, 10) || 0) !== 0);
   knoten("gewicht", 1, "4W-Gewichtung", gew.join(" · "), gewAn ? "an" : "aus",
     gewAn ? "" : "alle vier gleich gewichtet");
-  knoten("preset", 1, "Wortbank", u.presetLabel || r["preset"] || "—", "an", "", "f-preset");
+  // „Preset", nicht „Wortbank": Das Studio nennt dieselbe Auswahl „Preset",
+  // und wer im Plan danach suchte, fand nichts (gefragt, 4.380.0).
+  knoten("preset", 1, "Preset", u.presetLabel || r["preset"] || "—", "an", "", "f-preset");
   knoten("ton", 1, "Ton", bez(TONE_OPTS, r["tone"] || "neutral"), "an", "", "f-tone");
 
   // ── Spalte 2: Bau ────────────────────────────────────────────────────────
@@ -526,8 +531,25 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
       k.hinweis = `von der Gattung „${gattungName}“ umgangen — sie baut nach eigenem Gerüst`;
       for (let i = befunde.length - 1; i >= 0; i--) if (befunde[i]!.startsWith(vorher + ":")) befunde.splice(i, 1);
     }
+    // Das Preset liefert bei der Gattung nur Material. Wie viel davon in die
+    // Rahmen passt, steht im Knoten; passt kein Motiv, ist die Leitung zur
+    // Gattung tot — dasselbe Muster wie Markov ohne Korpus.
     const p = K.find((k) => k.id === "preset");
-    if (p) p.hinweis = `liefert bei der Gattung „${gattungName}“ nur Material (Motive${welt === "fabel" || welt === "mythos" ? "" : ", Wendungen, Verwandlungen"})`;
+    if (p) {
+      const nurMotiv = welt === "fabel" || welt === "mythos";
+      const m = u.presetMaterial;
+      p.hinweis = `liefert bei der Gattung „${gattungName}“ nur Material (Motive${nurMotiv ? "" : welt === "maerchen" ? ", Wendungen, Verwandlungen" : ", Wendungen, Verwandlungen, Requisiten"})`;
+      if (m) {
+        p.wert += ` · ${m.motive} Motive passen`;
+        if (!m.motive) {
+          p.zustand = "leer";
+          p.hinweis = `Aus dem Preset passt kein Motiv in die Rahmen der Gattung „${gattungName}“ — es bleibt ohne Wirkung`;
+          befunde.push(`Preset: ${p.hinweis}`);
+        } else if (!nurMotiv) {
+          p.hinweis += ` — passend: ${m.motive} Motive, ${m.wendungen} Wendungen, ${m.verwandlungen} Verwandlungen${welt === "maerchen" ? "" : `, ${m.requisiten} Requisiten`}`;
+        }
+      }
+    }
     const t = K.find((k) => k.id === "ton");
     if (t) t.hinweis = "wirkt bei der Gattung als Blick auf Schluss und Kehrseite";
   }
@@ -558,6 +580,8 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   // Die vier W speisen die Unterknoten der Gattung — und diese Leitungen
   // können tot sein (eingetragen, aber nicht lesbar).
   for (const id of ["g-wo", "g-wann", "g-wer", "g-was"]) if (K.some((k) => k.id === id)) kante("w4", id);
+  // Das Preset speist die Gattung mit Material — sichtbar als Leitung.
+  if (K.some((k) => k.id === "g-blatt")) kante("preset", "gattung");
 
   // Der Wurf wird am speisenden Knoten vermerkt — sonst steht im Plan das
   // eingestellte Profil neben vier W, die aus einem ganz anderen stammen.
@@ -607,6 +631,8 @@ import { loadIdeaProfile } from "./ideaprofile";
 import { alleOmniProfile, loadOmniStand } from "./omnikognition";
 import { fragenStand } from "./fragen";
 import { PRESET_LABELS } from "../presets.data";
+import { loadBank } from "../storage";
+import { utopieMaterial } from "./utopieMaterial";
 
 const LOCK_KEY = "divergenz_studio_locks_v1";
 
@@ -645,6 +671,10 @@ export function sammleUmgebung(preset: string): Umgebung {
     omniProfile: zahl(() => alleOmniProfile().length, 0),
     omniProfil: zahl(() => { const st = loadOmniStand(); return st ? (st.profil.name || "") : ""; }, ""),
     fragen: zahl(() => fragenStand().funde, 0),
+    presetMaterial: zahl(() => {
+      const m = utopieMaterial(loadBank(), null);
+      return { motive: m.motive.length, wendungen: m.wendungen.length, verwandlungen: m.verwandlungen.length, requisiten: m.requisiten.length };
+    }, undefined),
     // Auch EIGENE Presets beim Namen nennen. PRESET_LABELS kennt nur die 51
     // eingebauten; ein eigenes stand als „user:MeinPreset" im Plan, waehrend
     // das Studio daneben den blossen Namen zeigte.

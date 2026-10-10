@@ -174,6 +174,22 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   ist("Mythos: zweiter Name im Wo ist leer", knoten(y, "g-wo")?.zustand, "leer");
   // Jeder Unterknoten springt irgendwohin.
   for (const id of ["gattung", "g-wo", "g-wann", "g-wer", "g-was", "g-blatt"]) wahr(`Sprungziel für ${id}`, !!knoten(y, id)?.ziel);
+  // Das Preset (4.380.0): heißt so wie im Studio, speist die Gattung, und
+  // ohne passendes Motiv ist die Leitung tot.
+  ist("der Knoten heißt „Preset“", knoten(y, "preset")?.label, "Preset");
+  ist("ohne Materialangabe urteilt der Plan nicht", knoten(y, "preset")?.zustand, "an");
+  wahr("Leitung Preset → Gattung", y.kanten.some((k) => k.von === "preset" && k.nach === "gattung"));
+  const mat = (n: number) => ({ motive: n, wendungen: 3, verwandlungen: 2, requisiten: 4 });
+  const pm = baueAnlage(STAND({ welt: "utopie" }), UMGEBUNG({ presetMaterial: mat(14) }));
+  wahr("passende Motive stehen im Knoten", /14 Motive passen/.test(knoten(pm, "preset")?.wert || ""));
+  ist("und die Leitung ist an", pm.kanten.find((k) => k.von === "preset" && k.nach === "gattung")?.zustand, "an");
+  const p0 = baueAnlage(STAND({ welt: "fabel" }), UMGEBUNG({ presetMaterial: mat(0) }));
+  ist("kein passendes Motiv: Preset leer", knoten(p0, "preset")?.zustand, "leer");
+  ist("und die Leitung zur Gattung tot", p0.kanten.find((k) => k.von === "preset" && k.nach === "gattung")?.zustand, "leer");
+  wahr("mit Befund", p0.befunde.some((b) => /kein Motiv/.test(b)));
+  const pk = baueAnlage(STAND(), UMGEBUNG({ presetMaterial: mat(0) }));
+  ist("ohne Gattung bleibt das Preset an, auch ohne Motive", knoten(pk, "preset")?.zustand, "an");
+  wahr("ohne Gattung keine Leitung zur Gattung", !pk.kanten.some((k) => k.von === "preset" && k.nach === "gattung"));
   // Die Gruppe steht geschlossen am Anfang der Steuerung.
   const band2 = y.knoten.filter((k) => k.band === 2).map((k) => k.id);
   ist("Gattung steht als erster Knoten der Steuerung", band2[0], "gattung");

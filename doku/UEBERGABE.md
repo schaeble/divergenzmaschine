@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.379.0**, Zweig `typescript-migration`.
+Stand: **v4.380.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -2601,6 +2601,13 @@ Stellschrauben, Schliff) stehen auf „aus · ohne Wirkung" mit Grund; ihre
 Befunde entfallen. Die Gruppe steht geschlossen am Anfang der Steuerung.
 `einstellungen()` im Studio trägt jetzt `welt`. Prüfstand Schaltplan: 36 neue
 Prüfungen (237).
+
+**Schaltplan: Preset** (4.380.0): Der Knoten heißt „Preset" statt „Wortbank"
+(so heißt die Auswahl im Studio). Bei wirkender Gattung: Leitung Preset →
+Gattung, im Wert „N Motive passen" (`Umgebung.presetMaterial`, in
+`sammleUmgebung` mit `utopieMaterial(loadBank(), null)` gezählt); kein
+passendes Motiv → Preset „leer", Leitung tot, Befund. Ohne Gattung keine
+Leitung und kein Urteil über Motive.
 
 ## 7 · Fallen in diesem Quelltext
 
