@@ -9,7 +9,7 @@ const st: Record<string, string> = {};
 // würfeln sie aus dem Vorrat der Gattung — und jeder Wurf muss von IHREN
 // Erkennern gelesen werden und einen Text ohne Befund ergeben. Ein Wurf, den
 // die Gattung übergeht, wäre so falsch wie vorher.
-import { wuerfleGattung4W } from "../src/features/gattungWurf";
+import { wuerfleGattung4W, wuerfleGattung, WUERFEL_GATTUNGEN } from "../src/features/gattungWurf";
 import { erkenneLage, erkenneZeit, erkenneGrundsatz, erkenneErzaehler } from "../src/features/weltblatt";
 import { erkenneHeld, buildMaerchen, pruefeMaerchen } from "../src/generation/maerchen";
 import { erkenneTiere, erkenneLehre, schemaFuerTiere, buildFabel, pruefeFabel } from "../src/generation/fabel";
@@ -63,6 +63,21 @@ for (let i = 0; i < N; i++) {
   const r = buildMythos(ein(w, TOENE[i % 4]), bank);
   const b = pruefeMythos(r.text, r.fb, bank);
   if (b.length) melde(`mythos: Befund ${b[0]}`, JSON.stringify(w));
+}
+// Das Gattungs-Schloss offen (4.382.0): Bei offener Form oder Prosa kommt
+// immer eine der fünf Gattungen, nie „keine"; jede kommt vor. Gegenprobe: Ist
+// die Form auf etwas anderes gesperrt, kommt „keine".
+{
+  const gesehen = new Set<string>();
+  for (let i = 0; i < 500; i++) {
+    for (const [f, zu] of [["reim", false], ["prose", true], ["prose", false]] as const) {
+      const g = wuerfleGattung(f, zu);
+      if (!WUERFEL_GATTUNGEN.includes(g)) melde(`Gattungswurf: „${g}" bei Form ${f}${zu ? " (gesperrt)" : ""}`, g);
+      gesehen.add(g);
+    }
+    for (const f of ["reim", "script", "meldung"]) if (wuerfleGattung(f, true) !== "keine") melde(`Gegenprobe: Gattung trotz gesperrter Form ${f}`, f);
+  }
+  for (const g of WUERFEL_GATTUNGEN) if (!gesehen.has(g)) melde(`Gattungswurf: „${g}" kam in 1500 Würfen nie`, g);
 }
 // Unbekannte Gattung: nichts.
 const leer = wuerfleGattung4W("keine");

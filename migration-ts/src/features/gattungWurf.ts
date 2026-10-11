@@ -10,6 +10,7 @@
 // eigenen Erkenner lesen können. Der Prüfstand hält das fest: Jeder Wurf muss
 // von der Gattung verstanden werden, sonst wäre er so falsch wie vorher.
 import { pick } from "../text-utils";
+import { WELT_OPTS } from "../generation/optionen";
 import { LAGEN, GRUNDSAETZE, ZEIT_VORRAT, type LageTyp } from "./weltblatt";
 import { HELDEN, ORTE as MAERCHEN_ORTE } from "../generation/maerchen";
 import { SCHEMATA, TIERE, FABEL_ORTE } from "../generation/fabel";
@@ -47,4 +48,17 @@ export function wuerfleGattung4W(welt: string): Vier {
     return { where: pick(MYTHOS_WO), when: pick(MYTHOS_WANN), who: pick(GRUENDER).ein.replace(/,.*$/, ""), what: pick(GRUENDUNGEN).def };
   }
   return { where: "", when: "", who: "", what: "" };
+}
+
+/** Die Gattungen, die „Alles würfeln" bei offenem Schloss zieht (4.382.0).
+ *  Ohne „keine": Wer das Schloss öffnet, will eine Gattung. */
+export const WUERFEL_GATTUNGEN: readonly string[] = WELT_OPTS.map(([v]) => v).filter((v) => v !== "keine");
+
+/** Welche Gattung „Alles würfeln" setzt, wenn ihr Schloss offen ist.
+ *  Eine Gattung wirkt nur in Prosa: Ist die Form auf etwas anderes
+ *  GESPERRT, kommt „keine" heraus. Ist die Form offen, zieht der Würfel eine
+ *  Gattung, und die Form wird danach auf Prosa gestellt. */
+export function wuerfleGattung(form: string, formGesperrt: boolean): string {
+  if (formGesperrt && form !== "prose") return "keine";
+  return pick([...WUERFEL_GATTUNGEN]);
 }

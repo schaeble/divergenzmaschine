@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.381.0**, Zweig `typescript-migration`.
+Stand: **v4.382.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -2624,6 +2624,18 @@ nicht als gehend erkannt, zwei Lagen des eigenen Vorrats nicht erkannt
 („verschneit", „Hang"), eine eingebaute Lehre nicht erkannt („Not") und eine
 der falschen Fabel zugeordnet („hilft" → Netz statt Bach; `erkenneLehre`
 prüft jetzt zuerst den Wortlaut).
+
+**Gattung mitwürfeln** (4.382.0): Das Feld Gattung hat ein Schloss, beim
+ersten Start zu (Merker `divergenz_welt_schloss_v1`), dann bleibt alles wie in
+4.381.0. Offen zieht „Alles würfeln" ZUERST eine der fünf Gattungen
+(`wuerfleGattung`, Liste aus `WELT_OPTS` ohne „keine"), schaltet über
+`gattungUmschalten()` um (vier W je Gattung gemerkt, ohne zu erzeugen) und
+würfelt danach die vier W aus ihrem Vorrat; die Form geht auf Prosa. Ist die
+Form auf etwas anderes gesperrt, kommt „keine". Der Stil-Würfel und die
+Fortsetzung fassen die Gattung nicht an (`wuerfelbar()` schließt sie aus).
+Falle im Prüfstand Studio: Mehrere Studios hängen im selben jsdom-Dokument,
+und `querySelector("#id")` sucht dokumentweit — die erste ID liegt in einem
+anderen Studio, das Ergebnis ist null. Dort `select[id="…"]` nehmen.
 
 ## 7 · Fallen in diesem Quelltext
 

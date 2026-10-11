@@ -50,7 +50,7 @@ import { utopieTitel } from "../generation/utopie";
 import { erkenneHeld, maerchenTitelAusText } from "../generation/maerchen";
 import { erkenneTiere, erkenneLehre, schemaFuerTiere, fabelTitelAusText } from "../generation/fabel";
 import { erkenneGruendung, istEigenname, mythosTitelAusText } from "../generation/mythos";
-import { wuerfleGattung4W } from "../features/gattungWurf";
+import { wuerfleGattung4W, wuerfleGattung } from "../features/gattungWurf";
 import {
   ladeStand as ladeReiter, sichereStand as sichereReiter, ordne as ordneReiter,
   verschiebe as verschiebeReiter, schalte as schalteReiter, derKanon, PFLICHT as REITER_PFLICHT,
@@ -110,9 +110,11 @@ export function mountStudio(root: HTMLElement): void {
   // beschreiben sie eine Welt statt eines Ereignisses. Früh angelegt, weil
   // die Hinweiszeilen unter den Feldern sie lesen.
   //
-  // KEIN Schloss, und deshalb würfelt „Alles würfeln" sie nicht mit. Ein
-  // Würfel, der die Welt umschaltet, setzte Ereignis-Angaben in eine Utopie
-  // oder umgekehrt — die Felder passten dann nie zur Welt.
+  // Seit 4.382.0 MIT Schloss, anfangs geschlossen (dann bleibt alles wie
+  // vorher). Offen zieht „Alles würfeln" ZUERST eine Gattung und würfelt die
+  // vier W danach aus ihrem Vorrat — so passen die Felder zur Gattung. Der
+  // gewöhnliche Würfel der Stilregler lässt sie in Ruhe: Er fasst die vier W
+  // nicht an, und eine neue Gattung mit alten Feldern passte nie.
   const WELT_KEY = "divergenz_welt_v1";
   const WELT_4W_KEY = "divergenz_welt_4w_v1";
   const welt = select("f-welt", WELT_OPTS, "keine");
@@ -140,6 +142,15 @@ export function mountStudio(root: HTMLElement): void {
   const LOCKVAL_KEY = "divergenz_locked_vals_v1";
   const lockVals: Record<string, string> = (() => { try { return JSON.parse(localStorage.getItem(LOCKVAL_KEY) || "{}") as Record<string, string>; } catch { return {}; } })();
   const saveLockVals = (): void => { try { localStorage.setItem(LOCKVAL_KEY, JSON.stringify(lockVals)); } catch { /* voll */ } };
+  // Das Gattungs-Schloss ist beim ersten Start nach 4.382.0 zu — wer es nie
+  // anfasst, merkt keinen Unterschied. Danach gilt, was der Nutzer setzt.
+  try {
+    if (!localStorage.getItem("divergenz_welt_schloss_v1")) {
+      locked.add(welt.id); lockVals[welt.id] = welt.value;
+      saveLocks(); saveLockVals();
+      localStorage.setItem("divergenz_welt_schloss_v1", "1");
+    }
+  } catch { /* egal */ }
   const lockCtrls: Record<string, HTMLSelectElement | HTMLInputElement> = {};
   // Ein Schloss kann jetzt an MEHREREN Stellen stehen (Werkzeugkasten und Chip).
   // Die Maler werden deshalb mit ihrem Knopf gefuehrt: Die Chipzeile wird bei
@@ -246,6 +257,11 @@ export function mountStudio(root: HTMLElement): void {
     // Bei gewählter Gattung (4.381.0) kommen die vier W aus ihrem eigenen
     // Vorrat. Die Ereignis-Quellen lieferten „Ich kam als Hai nach Velwen"
     // und einen Grundsatz „Sucht Nahrung." — Werte, die keine Gattung liest.
+    // Offenes Gattungs-Schloss (4.382.0): erst die Gattung, dann alles andere.
+    if (!locked.has(welt.id)) {
+      const neuG = wuerfleGattung(form.value, locked.has(form.id));
+      if (neuG !== welt.value) gattungUmschalten(neuG);
+    }
     const gattungWurf = istGattung();
     const quelle = gattungWurf ? "welt" : ziehQuelle(offeneQuellen(vorratStand().funde, ladeBildvorrat().length, themenStand().funde));
     let vorschlag: Partial<Record<W4, string>> = {};
@@ -880,7 +896,7 @@ export function mountStudio(root: HTMLElement): void {
   // Schloss, und alles darin gilt dem Schaltplan als Regler.
   wrap.append(presetField, el("div", { class: "btnrow mini", style: "margin:-6px 0 8px" }, varLbl));
   wrap.append(el("div", { class: "grid3" }, lockField("Ton", tone), lockField("Form", form),
-    el("div", { class: "field" }, el("span", { class: "field-label hilfe", title: "Wovon der Text handelt — unabhängig von der Form. „Utopie“: Die vier Felder beschreiben eine Welt statt eines Ereignisses. Wird beim Würfeln nicht verändert." }, "Gattung"), welt)));
+    el("div", { class: "field" }, el("span", { class: "field-label hilfe lockrow", title: "Wovon der Text handelt — unabhängig von der Form. „Utopie“: Die vier Felder beschreiben eine Welt statt eines Ereignisses. Schloss zu: bleibt beim Würfeln stehen. Schloss offen: „Alles würfeln“ zieht eine der fünf Gattungen, stellt die Form auf Prosa und würfelt die vier Felder aus dem Vorrat der Gattung." }, el("span", {}, "Gattung"), lockBtn(welt, "Gattung")), welt)));
   // ── Welt umschalten ───────────────────────────────────────────────────────
   // Beschriftung, Platzhalter und Hinweise wechseln mit der Welt; die vier W
   // werden JE WELT gemerkt. Wer von „keine" auf „Utopie" schaltet, hätte sonst
@@ -970,7 +986,10 @@ export function mountStudio(root: HTMLElement): void {
     if (form.value !== "prose") weltZeile.append(el("div", { style: "margin-top:4px" }, `⚠ Die Gattung ${gattungName()} ist bisher nur für Form „Prosa“ angeschlossen. Bei „${form.options[form.selectedIndex]?.text || form.value}“ bleibt sie ohne Wirkung.`));
   };
   let weltVorher = welt.value;
-  welt.addEventListener("change", () => {
+  // Umschalten ohne Erzeugen — der Würfel erzeugt am Ende selbst.
+  const gattungUmschalten = (neu?: string): void => {
+    if (neu !== undefined) welt.value = neu;
+    if (locked.has(welt.id)) { lockVals[welt.id] = welt.value; saveLockVals(); }
     const alle = lade4W();
     alle[weltVorher] = { where: where.value, when: when.value, who: who.value, what: what.value };
     try { localStorage.setItem(WELT_4W_KEY, JSON.stringify(alle)); localStorage.setItem(WELT_KEY, welt.value); } catch { /* voll */ }
@@ -978,8 +997,9 @@ export function mountStudio(root: HTMLElement): void {
     // damit die Platzhalter zeigen, was gefragt ist.
     setze4W(alle[welt.value] || { where: "", when: "", who: "", what: "" });
     weltVorher = welt.value;
-    weltBeschriften(); updHints(); generate();
-  });
+    weltBeschriften(); updHints();
+  };
+  welt.addEventListener("change", () => { gattungUmschalten(); generate(); });
   form.addEventListener("change", weltBeschriften);
   weltBeschriften();
   // Die Regler des Werkzeugkastens entstehen erst weiter unten; das Ausgrauen
@@ -2028,7 +2048,9 @@ export function mountStudio(root: HTMLElement): void {
   const wuerfelbar = (): (HTMLSelectElement | HTMLInputElement)[] =>
     Array.from(wrap.querySelectorAll("select, input[type=range]")).filter((s) => {
       const feld = s.closest(".field") || s.closest(".lenrow") || s.closest(".rankrow");
-      return !!feld && !!feld.querySelector(".lockbtn");
+      // Die Gattung hat ein Schloss, würfelt aber nur in „Alles würfeln" —
+      // dort zusammen mit den vier W, die zu ihr passen müssen (4.382.0).
+      return !!feld && !!feld.querySelector(".lockbtn") && s !== welt;
     }) as (HTMLSelectElement | HTMLInputElement)[];
   const rollRange = (r: HTMLInputElement): void => {
     if (locked.has(r.id)) return;

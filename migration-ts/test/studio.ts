@@ -386,8 +386,33 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
       alleKnopf3.click();
       for (const sel of felder) if (sel.value !== start[sel.id]) bewegt.add(sel.id);
     }
-    const tot = felder.filter((sel) => !bewegt.has(sel.id)).map((sel) => sel.id);
+    // Die Gattung (4.382.0) hat ein Schloss, das anfangs ZU ist; bei offenem
+    // Schloss stellt sie die Form auf Prosa. Deshalb zwei Durchgänge: erst
+    // alles andere bei geschlossenem Gattungs-Schloss, dann die Gattung allein.
+    // Nicht „#f-welt": Mehrere Studios hängen im selben Dokument, und jsdom
+    // sucht eine ID dokumentweit — die erste liegt in einem anderen Studio.
+    const gattung = wurzel3.querySelector('select[id="f-welt"]') as HTMLSelectElement | null;
+    const gattungSchloss = gattung?.closest(".field")?.querySelector(".lockbtn") as HTMLButtonElement | null;
+    wahr("das Gattungs-Schloss ist anfangs zu", !!gattungSchloss?.classList.contains("on"));
+    const tot = felder.filter((sel) => sel !== gattung && !bewegt.has(sel.id)).map((sel) => sel.id);
     ist("jedes Feld mit Schloss wird auch gewürfelt", tot.join(", "), "");
+    ist("Gattungs-Schloss zu: die Gattung bleibt stehen", bewegt.has("f-welt"), false);
+    if (gattung && gattungSchloss) {
+      gattungSchloss.click();
+      const form = wurzel3.querySelector('select[id="f-form"]') as HTMLSelectElement;
+      const gezogen = new Set<string>();
+      let nichtProsa = 0;
+      for (let i = 0; i < 24; i++) {
+        alleKnopf3.click();
+        gezogen.add(gattung.value);
+        if (form.value !== "prose") nichtProsa++;
+      }
+      ist("Gattungs-Schloss offen: nie „keine\"", gezogen.has("keine"), false);
+      wahr(`Gattungs-Schloss offen: mehrere Gattungen gezogen (${[...gezogen].join(", ")})`, gezogen.size >= 3);
+      ist("Gattungs-Schloss offen: die Form bleibt auf Prosa", nichtProsa, 0);
+      gattungSchloss.click();
+      gattung.value = "keine"; gattung.dispatchEvent(new dom.window.Event("change"));
+    }
 
     // Gegenrichtung: Ein Schloss muss weiterhin halten. Ohne diese Prüfung wäre
     // „alles würfeln" auch dann grün, wenn der Würfel die Schlösser ignoriert.

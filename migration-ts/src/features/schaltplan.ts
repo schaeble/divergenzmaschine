@@ -120,7 +120,7 @@ export const QUELLE_ZU_KNOTEN: Record<string, string> = {
  *  denselben Knoten zeigen — die vier W sind ein Feld im Plan und vier in der
  *  Oberfläche. */
 export const SCHLOSS_ZU_KNOTEN: Record<string, string> = {
-  "f-preset": "preset", "f-tone": "ton", "f-form": "form", "f-structure": "struktur",
+  "f-preset": "preset", "f-welt": "gattung", "f-tone": "ton", "f-form": "form", "f-structure": "struktur",
   "f-mode": "modus", "f-markov": "markov", "f-disruptor": "disruptor", "f-varianz": "varianz",
   "f-instab": "instab", "f-archa": "archa", "f-archb": "archb", "f-cast": "cast",
   "f-persp": "persp", "f-rhythm": "rhythm", "f-tension": "spannung", "f-ressort": "ressort",
