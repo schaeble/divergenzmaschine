@@ -283,7 +283,10 @@ ist("und die Szene nicht mehr", KOPF_FORMEN.some(([f]) => f === "script"), false
 // Ein Loeschknopf im Eingabefeld: Ohne ihn markiert man den Satz und tippt
 // darueber — auf dem Handy drei Griffe fuer etwas, das einer sein sollte.
 wahr("das Saatfeld hat einen Loeschknopf", /class: "ek-weg"/.test(q));
-wahr("und er leert wirklich", /saatIn\.value = ""; kopfWahl\.saat = ""/.test(q));
+wahr("und er leert wirklich", /saatWeg\.addEventListener\("click", \(\) => \{\s*setzeSaat\(""\)/.test(q));
+// setzeSaat (4.383.0) schreibt ohne Gattung in die Wahl des Kopfes, mit
+// Gattung in deren eigenen Satz.
+wahr("setzeSaat schreibt Feld und Wahl", /saatIn\.value = t;[\s\S]{0,300}kopfWahl\.saat = t; sichereKopfWahl\(kopfWahl\)/.test(q));
 
 // ── 3d · Festgehaltene Regler werden ANGEZEIGT ─────────────────────────────
 // Der teuerste Fehler dieser Reihe. Der Kopf laesst festgehaltene Regler in
@@ -373,7 +376,7 @@ wahr("es gibt den Einfügeknopf", /class: "ek-einfuegen"/.test(q));
 wahr("er steht neben dem Leeren in der Wovon-Reihe", /saatIn, saatWeg, saatEin, saatWuerfel/.test(q));
 wahr("er liest die Zwischenablage", /navigator\.clipboard\?\.readText\?\.\(\)/.test(q));
 wahr("und setzt den Fokus, wenn das Lesen versagt", /\.catch\(\(\) => \{ saatIn\.focus\(\); \}\)/.test(q));
-wahr("der Inhalt landet in der Wahl und im Feld", /saatIn\.value = t; kopfWahl\.saat = t; sichereKopfWahl\(kopfWahl\)/.test(q));
+wahr("der Inhalt landet in der Wahl und im Feld", /if \(!t\) \{ saatIn\.focus\(\); return; \}\s*setzeSaat\(t\)/.test(q));
 
 // ── 6 · Beim Erzeugen: Was fix, Wer/Wo/Wann gewürfelt ───────────────────────
 // Gemeldet: „Beim Würfeln sollen die 3W mitgewürfelt werden. 1W ist fix und

@@ -121,7 +121,7 @@ wahr("die Ablage wandert in die Projektdatei", EIGEN_KEY.startsWith("divergenz_"
   const st = dom.window.document.createElement("div");
   dom.window.document.body.append(st);
   mountStudio(st);
-  const chips = Array.from(st.querySelectorAll(".ek-wahl button")) as HTMLButtonElement[];
+  const chips = Array.from(st.querySelectorAll(".ek-wahl:not(.ek-gattung) button")) as HTMLButtonElement[];
   wahr(`die Formchips sind da (${chips.length})`, chips.length === 4);
   wahr("und bei gesperrter Form alle abgeschaltet", chips.every((c) => c.disabled));
   const hinweis = st.querySelector(".ek-gesperrt")?.textContent || "";
@@ -133,9 +133,12 @@ wahr("die Ablage wandert in die Projektdatei", EIGEN_KEY.startsWith("divergenz_"
   const st2 = dom.window.document.createElement("div");
   dom.window.document.body.append(st2);
   mountStudio(st2);
-  const chips2 = Array.from(st2.querySelectorAll(".ek-wahl button")) as HTMLButtonElement[];
+  const chips2 = Array.from(st2.querySelectorAll(".ek-wahl:not(.ek-gattung) button")) as HTMLButtonElement[];
   wahr("ohne Schloss sind die Chips klickbar", chips2.every((c) => !c.disabled));
-  ist("und der Hinweis bleibt leer", (st2.querySelector(".ek-gesperrt")?.textContent || ""), "");
+  // Seit 4.383.0 zeigt der Kopf nach dem Zufallsstart, was wirklich steht —
+  // würfelt der Start eine Form außerhalb der vier, steht DAS im Hinweis.
+  // Von einem Schloss darf er nicht sprechen.
+  wahr("und der Hinweis nennt kein Schloss", !/festgehalten|🔒/.test(st2.querySelector(".ek-gesperrt")?.textContent || ""));
 
   // ── Die Chips zeigen, was WIRKLICH eingestellt ist ────────────────────────
   // Gemeldet: Wer im Reglerkasten die Form aendert und festhaelt, sah im Kopf
@@ -144,7 +147,7 @@ wahr("die Ablage wandert in die Projektdatei", EIGEN_KEY.startsWith("divergenz_"
   const formSel = (w: HTMLElement): HTMLSelectElement =>
     Array.from(w.querySelectorAll("select")).find((x) => (x as HTMLSelectElement).id === "f-form") as HTMLSelectElement;
   const gedrueckt = (w: HTMLElement): string[] =>
-    (Array.from(w.querySelectorAll(".ek-wahl button")) as HTMLButtonElement[])
+    (Array.from(w.querySelectorAll(".ek-wahl:not(.ek-gattung) button")) as HTMLButtonElement[])
       .filter((c) => c.getAttribute("aria-pressed") === "true").map((c) => c.textContent || "");
 
   formSel(st2).value = "reim";
@@ -158,7 +161,7 @@ wahr("die Ablage wandert in die Projektdatei", EIGEN_KEY.startsWith("divergenz_"
   // gedankenlos mit, statt zu pruefen, ob die Umbenennung gewollt war.
   const letzterName = KOPF_FORMEN[KOPF_FORMEN.length - 1]![1];
   const letzteId = KOPF_FORMEN[KOPF_FORMEN.length - 1]![0];
-  const letzter = (Array.from(st2.querySelectorAll(".ek-wahl button")) as HTMLButtonElement[])
+  const letzter = (Array.from(st2.querySelectorAll(".ek-wahl:not(.ek-gattung) button")) as HTMLButtonElement[])
     .find((c) => c.textContent === letzterName)!;
   wahr(`der letzte Chip heisst „${letzterName}"`, !!letzter);
   letzter.click();

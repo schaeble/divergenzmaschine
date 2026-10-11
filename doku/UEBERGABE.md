@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.382.0**, Zweig `typescript-migration`.
+Stand: **v4.383.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -2636,6 +2636,21 @@ Fortsetzung fassen die Gattung nicht an (`wuerfelbar()` schließt sie aus).
 Falle im Prüfstand Studio: Mehrere Studios hängen im selben jsdom-Dokument,
 und `querySelector("#id")` sucht dokumentweit — die erste ID liegt in einem
 anderen Studio, das Ergebnis ist null. Dort `select[id="…"]` nehmen.
+
+**Gattung im einfachen Kopf** (4.383.0): Der Kopf ersetzt den Reglerkasten
+und damit das Feld Gattung — im einfachen Modus kam man an keine Gattung
+heran. Jetzt fünf Reihen: Form · Gattung · Wovon · Länge · Reibung. Die
+Gattungs-Chips (`.ek-wahl.ek-gattung`) schreiben über `gattungUmschalten()`
+ins echte Feld; das löst das Ereignis „gattung" am Feld aus, auf das der Kopf
+hört (auch bei Würfel und Reglerkasten). Eine Gattung stellt die Form auf
+Prosa; ein Form-Chip außer Prosa setzt „keine". Die Reihe Wovon heißt bei
+einer Gattung Grundsatz/Mangel/Lehre/Gründung (`KOPF_WOVON`), der Satz geht
+GANZ ins Was (`gattungKopfKontext`; „Es gibt kein Geld." wurde sonst zu Wer
+„Es"), die übrigen W aus dem Vorrat, bei der Fabel ein Tierpaar zur Lehre.
+Jede Gattung behält ihren Satz (`divergenz_kopf_saat_gattung_v1`). Nebenbei:
+Der Zufallsstart würfelte die Form ohne change-Ereignis, und der Kopf zeigte
+„Prosa" gedrückt bei eingestelltem Multi-Shot — jetzt `zeigeSchloesser()`
+nach dem Start.
 
 ## 7 · Fallen in diesem Quelltext
 

@@ -625,6 +625,34 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
     ist("… die Preset-Auswahl bleibt stehen", aktiv(), presetStand);
     ist("… der Reibungsregler auch", reibung2.value, "0");
   }
+  // Gattung im einfachen Kopf (4.383.0): Die Chips schreiben ins echte Feld,
+  // eine Gattung stellt die Form auf Prosa, die Reihe Wovon heißt nach ihr,
+  // und Erzeugen legt den Satz GANZ ins Was. Gegenprobe: Reim verlässt sie.
+  {
+    const q = (sel: string): HTMLElement | null => wurzelR.querySelector(sel);
+    const chip = (t: string): HTMLButtonElement | undefined =>
+      Array.from(wurzelR.querySelectorAll(".ek-wahl button")).find((b) => b.textContent === t) as HTMLButtonElement | undefined;
+    const weltSel = q('select[id="f-welt"]') as HTMLSelectElement;
+    const formSel = q('select[id="f-form"]') as HTMLSelectElement;
+    const marken = (): string => Array.from(wurzelR.querySelectorAll(".ek-reihe .ek-marke")).map((m) => m.textContent).join("/");
+    wahr("der Kopf hat eine Reihe Gattung", /Form\/Gattung\//.test(marken()), marken());
+    chip("Haiku")?.click();
+    chip("Märchen")?.click();
+    ist("Chip Märchen → Feld Gattung", weltSel.value, "maerchen");
+    ist("… und die Form auf Prosa", formSel.value, "prose");
+    wahr("… die Reihe heißt Mangel", /\/Mangel\//.test(marken()), marken());
+    const saat = (q(".ek-satz input") as HTMLInputElement).value;
+    wahr("… mit einem Satz aus dem Vorrat", saat.length > 5, saat);
+    const los = Array.from(wurzelR.querySelectorAll("button")).find((b) => /Text erzeugen/.test(b.textContent || "")) as HTMLButtonElement;
+    los.click();
+    ist("Erzeugen: der Satz steht ganz im Was", (q('input[id="f-what"]') as HTMLInputElement).value, saat);
+    chip("Reim")?.click();
+    ist("Gegenprobe: Reim verlässt die Gattung", weltSel.value, "keine");
+    wahr("… und die Reihe heißt wieder Wovon", /\/Wovon\//.test(marken()), marken());
+    chip("Märchen")?.click();
+    ist("zurück zum Märchen: sein Satz ist noch da", (q(".ek-satz input") as HTMLInputElement).value, saat);
+    chip("keine")?.click();
+  }
   // Zusage im Quelltext, die eine Messung nicht sieht: Der Erzeugen-Knopf
   // würfelt die Presets nicht mehr um — das Würfeln war die andere Hälfte
   // der Unsynchronität.

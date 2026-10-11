@@ -9,7 +9,7 @@ const st: Record<string, string> = {};
 // würfeln sie aus dem Vorrat der Gattung — und jeder Wurf muss von IHREN
 // Erkennern gelesen werden und einen Text ohne Befund ergeben. Ein Wurf, den
 // die Gattung übergeht, wäre so falsch wie vorher.
-import { wuerfleGattung4W, wuerfleGattung, WUERFEL_GATTUNGEN } from "../src/features/gattungWurf";
+import { wuerfleGattung4W, wuerfleGattung, WUERFEL_GATTUNGEN, gattungKopfKontext, gattungSaat, KOPF_WOVON } from "../src/features/gattungWurf";
 import { erkenneLage, erkenneZeit, erkenneGrundsatz, erkenneErzaehler } from "../src/features/weltblatt";
 import { erkenneHeld, buildMaerchen, pruefeMaerchen } from "../src/generation/maerchen";
 import { erkenneTiere, erkenneLehre, schemaFuerTiere, buildFabel, pruefeFabel } from "../src/generation/fabel";
@@ -79,6 +79,20 @@ for (let i = 0; i < N; i++) {
   }
   for (const g of WUERFEL_GATTUNGEN) if (!gesehen.has(g)) melde(`Gattungswurf: „${g}" kam in 1500 Würfen nie`, g);
 }
+// Einfacher Kopf (4.383.0): Der Satz geht GANZ ins Was, die anderen W aus
+// dem Vorrat; ein leerer Satz wird gewürfelt; jeder Vorschlag ist lesbar.
+for (const g of WUERFEL_GATTUNGEN) {
+  if (!KOPF_WOVON[g]) melde(`Kopf: keine Wovon-Zeile für ${g}`, g);
+  for (let i = 0; i < 60; i++) {
+    const saat = gattungSaat(g);
+    const k = gattungKopfKontext(g, saat);
+    if (k.what !== saat) melde(`Kopf ${g}: Satz nicht ganz im Was`, `${saat} → ${k.what}`);
+    if (!gattungKopfKontext(g, "").what) melde(`Kopf ${g}: leerer Satz bleibt leer`, g);
+    if (g === "fabel" && !schemaFuerTiere(erkenneTiere(k.who), erkenneLehre(k.what))) melde("Kopf fabel: Tiere passen nicht zur Lehre", `${k.who} / ${k.what}`);
+  }
+}
+// Gegenprobe: Der Grundsatz „Es gibt kein Geld." wird NICHT zerlegt.
+if (gattungKopfKontext("utopie", "Es gibt kein Geld.").what !== "Es gibt kein Geld.") melde("Gegenprobe: Grundsatz zerlegt", "");
 // Unbekannte Gattung: nichts.
 const leer = wuerfleGattung4W("keine");
 if (leer.where || leer.when || leer.who || leer.what) melde("keine Gattung: Wurf nicht leer", JSON.stringify(leer));

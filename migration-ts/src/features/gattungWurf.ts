@@ -13,7 +13,7 @@ import { pick } from "../text-utils";
 import { WELT_OPTS } from "../generation/optionen";
 import { LAGEN, GRUNDSAETZE, ZEIT_VORRAT, type LageTyp } from "./weltblatt";
 import { HELDEN, ORTE as MAERCHEN_ORTE } from "../generation/maerchen";
-import { SCHEMATA, TIERE, FABEL_ORTE } from "../generation/fabel";
+import { SCHEMATA, TIERE, FABEL_ORTE, erkenneLehre } from "../generation/fabel";
 import { GRUENDER, GRUENDUNGEN } from "../generation/mythos";
 
 export interface Vier { where: string; when: string; who: string; what: string }
@@ -25,7 +25,7 @@ const MYTHOS_WO = ["am großen Fluss", "auf einem Hügel über dem Meer", "in ei
 const MYTHOS_WANN = ["nach der großen Flut", "vor allen Zeiten", "als die Berge noch wanderten", ""];
 
 /** Die vier W aus dem Vorrat der Gattung. Unbekannte Gattung: leer. */
-export function wuerfleGattung4W(welt: string): Vier {
+export function wuerfleGattung4W(welt: string, lehre?: string): Vier {
   if (welt === "utopie" || welt === "dystopie") {
     const typ = pick(Object.keys(LAGEN).filter((t) => LAGEN[t as LageTyp].lagen.length)) as LageTyp;
     const zeit = pick(["vergangenheit", "zukunft", "nachbruch"] as const);
@@ -38,8 +38,9 @@ export function wuerfleGattung4W(welt: string): Vier {
   }
   if (welt === "fabel") {
     // Erst die Fabel, dann ein Tierpaar, das hineinpasst, dann ihre Lehre —
-    // so gehören alle drei zusammen.
-    const s = pick(SCHEMATA);
+    // so gehören alle drei zusammen. Ist die Lehre vorgegeben (einfacher Kopf),
+    // kommt die Fabel aus ihr.
+    const s = (lehre && erkenneLehre(lehre)) || pick(SCHEMATA);
     const a = pick(TIERE.filter((t) => t.eigen.includes(s.rolleA)));
     const b = pick(TIERE.filter((t) => t !== a && t.eigen.includes(s.rolleB)));
     return { where: pick(FABEL_ORTE), when: "", who: `${a.nomen}, ${b.nomen}`, what: pick(s.lehre) };
@@ -61,4 +62,36 @@ export const WUERFEL_GATTUNGEN: readonly string[] = WELT_OPTS.map(([v]) => v).fi
 export function wuerfleGattung(form: string, formGesperrt: boolean): string {
   if (formGesperrt && form !== "prose") return "keine";
   return pick([...WUERFEL_GATTUNGEN]);
+}
+
+// ── Der einfache Kopf bei gewählter Gattung (4.383.0) ──────────────────────
+// Ohne Gattung zerlegt der Kopf den Wovon-Satz in die vier W — eine Figur,
+// ein Ort, ein Jahr, ein Vorgang. Bei einer Gattung trägt das „Was" etwas
+// anderes: den Grundsatz der Utopie, den Mangel im Märchen, die Lehre der
+// Fabel, das Gegründete im Mythos. „Es gibt kein Geld." in Figur und Vorgang
+// zu zerlegen ergab Wer „Es", Was „gibt kein Geld". Deshalb geht der Satz bei
+// einer Gattung GANZ ins Was, und die drei anderen W kommen aus ihrem Vorrat.
+
+/** Wie die Zeile „Wovon" bei einer Gattung heißt, und ein Beispiel dafür. */
+export const KOPF_WOVON: Record<string, { marke: string; beispiel: string; frage: string }> = {
+  utopie: { marke: "Grundsatz", beispiel: "Niemand besitzt etwas.", frage: "Nach welchem Grundsatz lebt diese Welt?" },
+  dystopie: { marke: "Grundsatz", beispiel: "Es gibt kein Geld.", frage: "Welcher Grundsatz kippt in dieser Welt?" },
+  maerchen: { marke: "Mangel", beispiel: "Der Brunnen ist versiegt.", frage: "Was fehlt, und wer zieht los?" },
+  fabel: { marke: "Lehre", beispiel: "Beharrlichkeit kommt weiter als Hochmut.", frage: "Welche Lehre soll die Fabel tragen?" },
+  mythos: { marke: "Gründung", beispiel: "die Brücke", frage: "Was wird gegründet?" },
+};
+
+/** Ein Vorschlag für den Wovon-Satz der Gattung — derselbe Vorrat wie beim
+ *  Würfeln, damit der Satz von der Gattung gelesen werden kann. */
+export function gattungSaat(welt: string): string {
+  return wuerfleGattung4W(welt).what;
+}
+
+/** Die vier W für „Text erzeugen" im Kopf bei gewählter Gattung: Das Was ist
+ *  der Satz (oder, ist er leer, ein Wurf), die anderen drei kommen aus dem
+ *  Vorrat. Bei der Fabel passt das Tierpaar zur Lehre. */
+export function gattungKopfKontext(welt: string, saat: string): Vier {
+  const was = (saat || "").replace(/\s+/g, " ").trim();
+  const wurf = wuerfleGattung4W(welt, welt === "fabel" ? was : undefined);
+  return { ...wurf, what: was || wurf.what };
 }

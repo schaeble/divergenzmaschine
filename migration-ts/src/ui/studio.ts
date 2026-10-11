@@ -50,7 +50,7 @@ import { utopieTitel } from "../generation/utopie";
 import { erkenneHeld, maerchenTitelAusText } from "../generation/maerchen";
 import { erkenneTiere, erkenneLehre, schemaFuerTiere, fabelTitelAusText } from "../generation/fabel";
 import { erkenneGruendung, istEigenname, mythosTitelAusText } from "../generation/mythos";
-import { wuerfleGattung4W, wuerfleGattung } from "../features/gattungWurf";
+import { wuerfleGattung4W, wuerfleGattung, gattungKopfKontext, gattungSaat, KOPF_WOVON } from "../features/gattungWurf";
 import {
   ladeStand as ladeReiter, sichereStand as sichereReiter, ordne as ordneReiter,
   verschiebe as verschiebeReiter, schalte as schalteReiter, derKanon, PFLICHT as REITER_PFLICHT,
@@ -998,6 +998,9 @@ export function mountStudio(root: HTMLElement): void {
     setze4W(alle[welt.value] || { where: "", when: "", who: "", what: "" });
     weltVorher = welt.value;
     weltBeschriften(); updHints();
+    // Der einfache Kopf hört mit (4.383.0) — gleich, ob von Hand, aus dem
+    // Reglerkasten oder vom Würfel umgeschaltet wurde.
+    welt.dispatchEvent(new Event("gattung"));
   };
   welt.addEventListener("change", () => { gattungUmschalten(); generate(); });
   form.addEventListener("change", weltBeschriften);
@@ -2973,6 +2976,10 @@ export function mountStudio(root: HTMLElement): void {
       if (locked.has(form.id)) return;
       kopfWahl.form = i;
       sichereKopfWahl(kopfWahl);
+      // Eine Gattung wirkt nur in Prosa (4.383.0). Wer Reim oder Bericht
+      // wählt, verlässt sie — sonst stünde „Märchen" gedrückt über einem
+      // Reim, der kein Märchen wird.
+      if (KOPF_FORMEN[i]![0] !== "prose" && istGattung()) gattungUmschalten("keine");
       // Den echten Regler SOFORT mitziehen, nicht erst beim Erzeugen. Dann
       // stimmen Kopf und Reglerkasten in beide Richtungen ueberein, und der
       // Chip ist nicht mehr eine Notiz ueber eine spaetere Absicht, sondern die
@@ -2981,6 +2988,26 @@ export function mountStudio(root: HTMLElement): void {
       form.dispatchEvent(new Event("change"));
     });
     formReihe.append(b);
+  });
+
+  // ── Gattung im Kopf (4.383.0) ─────────────────────────────────────────────
+  // Der einfache Kopf ersetzt den Reglerkasten — und damit auch das Feld
+  // Gattung, das dort steht. Ohne diese Reihe kam man im einfachen Modus an
+  // keine Utopie und kein Märchen heran. Die Chips schreiben ins ECHTE Feld
+  // (gattungUmschalten), wie die Form-Chips in die echte Form; eine Gattung
+  // stellt die Form auf Prosa, weil sie nur dort wirkt.
+  const gattungReihe = el("div", { class: "ek-wahl ek-gattung" });
+  WELT_OPTS.forEach(([v, label]) => {
+    const b = el("button", { type: "button" }, label) as HTMLButtonElement;
+    b.dataset["gattung"] = v;
+    b.addEventListener("click", () => {
+      if (v !== "keine" && form.value !== "prose") {
+        if (locked.has(form.id)) return;
+        form.value = "prose"; form.dispatchEvent(new Event("change"));
+      }
+      if (v !== welt.value) gattungUmschalten(v);
+    });
+    gattungReihe.append(b);
   });
 
   // ── Was der Kopf NICHT anfassen darf ──────────────────────────────────────
@@ -3014,6 +3041,15 @@ export function mountStudio(root: HTMLElement): void {
       x.setAttribute("title", fSperr ? "Die Form ist festgehalten — Schloss im Reglerkasten öffnen" : "");
     });
     formReihe.classList.toggle("gesperrt", fSperr);
+    // Ist die Form auf etwas anderes als Prosa festgehalten, kann keine
+    // Gattung wirken — dann sind ihre Chips gesperrt, „keine" ausgenommen.
+    const gSperr = fSperr && form.value !== "prose";
+    Array.from(gattungReihe.children).forEach((x) => {
+      const v = (x as HTMLElement).dataset["gattung"];
+      (x as HTMLButtonElement).disabled = gSperr && v !== "keine";
+      x.setAttribute("aria-pressed", String(v === welt.value));
+      x.setAttribute("title", gSperr && v !== "keine" ? "Eine Gattung wirkt nur in Prosa — die Form ist festgehalten" : "");
+    });
     if (fSperr) fest.push("Form");
     if (locked.has(lenSlider.id)) { laengeIn.disabled = true; fest.push("Länge"); } else laengeIn.disabled = false;
     if (locked.has(preset.id)) { reibungIn.disabled = true; fest.push("Reibung"); } else reibungIn.disabled = false;
@@ -3032,12 +3068,25 @@ export function mountStudio(root: HTMLElement): void {
   const saatIn = el("input", {
     type: "text", value: kopfWahl.saat, "aria-label": "Wovon soll der Text handeln",
   }) as HTMLInputElement;
-  saatIn.addEventListener("input", () => { kopfWahl.saat = saatIn.value; sichereKopfWahl(kopfWahl); });
+  // Der Wovon-Satz gehört zur Gattung (4.383.0): ohne Gattung ein Ereignis
+  // („Ein Wachmann am Hafen, 1953"), bei der Utopie ein Grundsatz, beim
+  // Märchen ein Mangel … Jede Gattung behält ihren eigenen Satz — beim
+  // Umschalten käme sonst der Wachmann als Grundsatz in die Utopie.
+  const SAAT_GATTUNG_KEY = "divergenz_kopf_saat_gattung_v1";
+  const saatJeGattung: Record<string, string> = (() => { try { return JSON.parse(localStorage.getItem(SAAT_GATTUNG_KEY) || "{}") as Record<string, string>; } catch { return {}; } })();
+  const setzeSaat = (t: string): void => {
+    saatIn.value = t;
+    if (istGattung()) {
+      saatJeGattung[welt.value] = t;
+      try { localStorage.setItem(SAAT_GATTUNG_KEY, JSON.stringify(saatJeGattung)); } catch { /* voll */ }
+    } else { kopfWahl.saat = t; sichereKopfWahl(kopfWahl); }
+  };
+  saatIn.addEventListener("input", () => setzeSaat(saatIn.value));
   // Ein Loeschknopf im Feld. Ohne ihn markiert man den Satz und tippt
   // darueber — auf dem Handy drei Griffe fuer etwas, das einer sein sollte.
   const saatWeg = el("button", { type: "button", title: "Feld leeren", class: "ek-weg" }, "×");
   saatWeg.addEventListener("click", () => {
-    saatIn.value = ""; kopfWahl.saat = ""; sichereKopfWahl(kopfWahl); saatIn.focus();
+    setzeSaat(""); saatIn.focus();
   });
   // Ein Einfügeknopf neben dem Leeren — gewünscht als Weg neben Strg+V, weil
   // das Handy kein Strg hat und das Kontextmenü zwei Griffe kostet. Er liest
@@ -3051,8 +3100,7 @@ export function mountStudio(root: HTMLElement): void {
     lesen.then((txt) => {
       const t = (txt || "").replace(/\s+/g, " ").trim();
       if (!t) { saatIn.focus(); return; }
-      saatIn.value = t; kopfWahl.saat = t; sichereKopfWahl(kopfWahl);
-      saatIn.dispatchEvent(new Event("input"));
+      setzeSaat(t);
       saatIn.focus();
     }).catch(() => { saatIn.focus(); });
   });
@@ -3061,6 +3109,12 @@ export function mountStudio(root: HTMLElement): void {
   // gespeichert: Ein neuer Sitzungsbeginn darf wieder von vorn anfangen.
   const saatGezogen: string[] = [];
   saatWuerfel.addEventListener("click", () => {
+    // Bei einer Gattung aus ihrem eigenen Vorrat — Sätze, die sie lesen kann.
+    if (istGattung()) {
+      let n = gattungSaat(welt.value);
+      for (let k = 0; k < 6 && n === saatIn.value; k++) n = gattungSaat(welt.value);
+      setzeSaat(n); return;
+    }
     // Nach QUELLE gewichtet (Welt 50 %, Pool 40 %, Beispiele 10 %) statt
     // gleichverteilt über den Topf — gemeldet: die fünf Beispiele und
     // dieselben Pool-Fragmente häuften sich (gemessen 49 % + 39 %).
@@ -3070,7 +3124,7 @@ export function mountStudio(root: HTMLElement): void {
     const n = ziehSaat(liveTexts(), zieher, [saatIn.value, ...saatGezogen]);
     saatGezogen.push(n);
     if (saatGezogen.length > 8) saatGezogen.shift();
-    saatIn.value = n; kopfWahl.saat = n; sichereKopfWahl(kopfWahl);
+    setzeSaat(n);
   });
 
   const laengeIn = el("input", {
@@ -3187,19 +3241,24 @@ export function mountStudio(root: HTMLElement): void {
     // Das alte Wuerfeln an dieser Stelle ersetzte beim Erzeugen kommentarlos,
     // was im Studio angekreuzt war. (Die Form wird weiterhin NACH einem etwa
     // laufenden Preset-Wechsel gesetzt — Presets bringen eigene Formen mit.)
-    if (!locked.has(form.id)) { form.value = st.form; form.dispatchEvent(new Event("change")); }
+    if (!locked.has(form.id) && !istGattung()) { form.value = st.form; form.dispatchEvent(new Event("change")); }
     if (!locked.has(lenSlider.id)) { lenSlider.value = String(st.lenTarget); lenSlider.dispatchEvent(new Event("input")); }
     // Wer, Wo und Wann werden MITGEWÜRFELT — aus der Welt, wie bei „Alles
     // würfeln"; nur das Was ist fix und kommt aus dem Wovon. Die Regel dazu
     // steht in kopfKontext(): Was die Saat selbst nennt, gewinnt vor dem
     // Wurf, und ein Schloss hält wie überall.
-    const wurf = ((): Partial<VierW> => {
+    // Bei einer Gattung (4.383.0) geht der Satz ganz ins Was, die anderen
+    // drei W kommen aus ihrem Vorrat — auch leer, wo die Gattung es so will
+    // (kein Wann in der Fabel). Die Form steht dann auf Prosa.
+    const gattungKopf = istGattung();
+    if (gattungKopf && !locked.has(form.id) && form.value !== "prose") { form.value = "prose"; form.dispatchEvent(new Event("change")); }
+    const wurf = gattungKopf ? {} : ((): Partial<VierW> => {
       try { return worldFillContext(); } catch { return randomContext(); }
     })();
-    const ctx = kopfKontext(st.ctx, wurf,
+    const ctx = gattungKopf ? gattungKopfKontext(welt.value, saatIn.value) : kopfKontext(st.ctx, wurf,
       { who: who.value, where: where.value, when: when.value, what: what.value });
     for (const [feld, wert] of [[where, ctx.where], [when, ctx.when], [who, ctx.who], [what, ctx.what]] as [HTMLInputElement, string][]) {
-      if (locked.has(feld.id) || !wert || feld.value === wert) continue;
+      if (locked.has(feld.id) || (!wert && !gattungKopf) || feld.value === wert) continue;
       feld.value = wert; feld.dispatchEvent(new Event("input"));
     }
     generate();
@@ -3233,9 +3292,26 @@ export function mountStudio(root: HTMLElement): void {
   };
   umschalter.addEventListener("click", () => setzeModus(!kopfWahl.einfach));
   const frage = el("span", { class: "ek-frage" }, "");
+  const wovonReihe = reihe("Wovon", el("div", { class: "ek-satz" }, saatIn, saatWeg, saatEin, saatWuerfel));
+  const wovonMarke = wovonReihe.querySelector(".ek-marke") as HTMLElement;
+  // Die Reihe Wovon nennt, was sie bei der Gattung trägt, und holt deren Satz.
+  const kopfGattung = (): void => {
+    const w = KOPF_WOVON[welt.value];
+    wovonMarke.textContent = w ? w.marke : "Wovon";
+    saatIn.placeholder = w ? w.beispiel : "";
+    saatIn.title = w ? w.frage : "";
+    saatIn.setAttribute("aria-label", w ? w.frage : "Wovon soll der Text handeln");
+    if (istGattung()) {
+      if (saatJeGattung[welt.value] === undefined) { saatJeGattung[welt.value] = gattungSaat(welt.value); try { localStorage.setItem(SAAT_GATTUNG_KEY, JSON.stringify(saatJeGattung)); } catch { /* voll */ } }
+      saatIn.value = saatJeGattung[welt.value]!;
+    } else saatIn.value = kopfWahl.saat;
+    zeigeSchloesser();
+  };
+  welt.addEventListener("gattung", kopfGattung);
   const koerper = el("div", { class: "ek-koerper" },
       reihe("Form", formReihe),
-      reihe("Wovon", el("div", { class: "ek-satz" }, saatIn, saatWeg, saatEin, saatWuerfel)),
+      reihe("Gattung", gattungReihe),
+      wovonReihe,
       reihe("Länge", laengeIn, stufenZeile(LAENGE_NAMEN, "ek-laenge-stufen")),
       reihe("Reibung", reibungIn, stufenZeile(REIBUNG_NAMEN, "ek-reibung-stufen")),
       probeBox,
@@ -3258,6 +3334,8 @@ export function mountStudio(root: HTMLElement): void {
   }
   // Auch wenn die Form im Reglerkasten wechselt, ohne dass ein Schloss faellt.
   form.addEventListener("change", zeigeSchloesser);
+  // Zu Beginn: Reihe Wovon und Gattungs-Chips nach dem gespeicherten Stand.
+  kopfGattung();
   zeigeSchloesser();
   setzeModus(kopfWahl.einfach !== false);
   zeichneProbe();
@@ -3405,6 +3483,12 @@ export function mountStudio(root: HTMLElement): void {
     for (const s of ROLL_SELECTS) { const v = studioReglerStand[s.id]; if (v !== undefined && Array.from(s.options).some((o) => o.value === v)) s.value = v; }
   }
   restoreLocked();
+  // Der Zufallsstart würfelt die Form ohne change-Ereignis. Bei gewählter
+  // Gattung muss sie auf Prosa bleiben, und der einfache Kopf muss zeigen,
+  // was wirklich steht — beim Öffnen war „Prosa" gedrückt, eingestellt war
+  // „Multi-Shot" (gefunden beim Prüfen von 4.383.0).
+  if (istGattung() && !locked.has(form.id) && form.value !== "prose") form.value = "prose";
+  zeigeSchloesser();
   // Reglerstand festhalten, damit die Rückkehr in den Tab ihn wiederherstellen kann
   // Die Schieber gehören in denselben Merkzettel: Sonst käme ein Wurf, der im
   // Reiter Diagnose gefallen ist, beim Zurückwechseln nur zur Hälfte an.
