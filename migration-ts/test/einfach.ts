@@ -334,7 +334,9 @@ wahr("auch die Reibung", /reibungIn\.disabled = false/.test(kq));
 wahr("er sitzt im Studio", /wrap\.prepend\(kopf\)/.test(q));
 // Er ERSETZT den Reglerkasten beim Aufruf, er steht nicht darüber. Das Studio
 // hat siebenunddreißig Regler, und wer es zum ersten Mal öffnet, sah sie alle.
-ist("der einfache Modus ist die Vorgabe", VORGABE.einfach, true);
+// Seit 4.384.0 gewünscht: Die Maschine startet mit allen Reglern.
+ist("der volle Reglerkasten ist die Vorgabe", VORGABE.einfach, false);
+wahr("und ohne gespeicherte Wahl startet das Studio voll", /setzeModus\(kopfWahl\.einfach === true\)/.test(q));
 wahr("und er blendet den Reglerkasten aus", /studio-einfach/.test(q));
 wahr("die Umschaltung ist ein Knopf, kein Aufklapper", /umschalter\.addEventListener\("click"/.test(q));
 ist("kein details/summary mehr", /class: "ek-kopf", open/.test(q), false);

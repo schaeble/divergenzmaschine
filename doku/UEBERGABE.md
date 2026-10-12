@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.383.0**, Zweig `typescript-migration`.
+Stand: **v4.384.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -2651,6 +2651,10 @@ Jede Gattung behält ihren Satz (`divergenz_kopf_saat_gattung_v1`). Nebenbei:
 Der Zufallsstart würfelte die Form ohne change-Ereignis, und der Kopf zeigte
 „Prosa" gedrückt bei eingestelltem Multi-Shot — jetzt `zeigeSchloesser()`
 nach dem Start.
+
+**Start mit allen Reglern** (4.384.0, gewünscht): `VORGABE.einfach` ist
+`false`; ohne gespeicherte Wahl öffnet das Studio den vollen Reglerkasten,
+„einfach" schaltet auf den Kopf. Eine gespeicherte Wahl gilt weiter.
 
 ## 7 · Fallen in diesem Quelltext
 

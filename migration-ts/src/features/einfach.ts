@@ -189,7 +189,9 @@ export function kopfKontext(saat: VierW, wurf: Partial<VierW>, alt: VierW): Vier
 
 export interface KopfWahl {
   form: number; laenge: number; reibung: number; saat: string;
-  /** Ist der einfache Kopf der ganze Reiter? Vorgabe JA.
+  /** Ist der einfache Kopf der ganze Reiter? Vorgabe seit 4.384.0 NEIN
+   *  (gewünscht: Die Maschine startet mit allen Reglern; der Kopf ist einen
+   *  Klick entfernt). Bis dahin galt:
    *
    *  Das Studio hat siebenunddreissig Regler, und wer es zum ersten Mal
    *  oeffnet, sieht sie alle. Der einfache Kopf ersetzt sie beim Aufruf; wer
@@ -302,7 +304,7 @@ export function ziehSaat(
 }
 
 export const KOPF_KEY = "divergenz_einfach_v1";
-export const VORGABE: KopfWahl = { form: 1, laenge: 1, reibung: 1, saat: SAAT_BEISPIELE[0]!, einfach: true };
+export const VORGABE: KopfWahl = { form: 1, laenge: 1, reibung: 1, saat: SAAT_BEISPIELE[0]!, einfach: false };
 
 export function ladeWahl(): KopfWahl {
   try {

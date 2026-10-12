@@ -3337,7 +3337,8 @@ export function mountStudio(root: HTMLElement): void {
   // Zu Beginn: Reihe Wovon und Gattungs-Chips nach dem gespeicherten Stand.
   kopfGattung();
   zeigeSchloesser();
-  setzeModus(kopfWahl.einfach !== false);
+  // Ohne gespeicherte Wahl: alle Regler (4.384.0, gewünscht).
+  setzeModus(kopfWahl.einfach === true);
   zeichneProbe();
   markiere("ek-laenge-stufen", kopfWahl.laenge);
   kopfPresetSync();
