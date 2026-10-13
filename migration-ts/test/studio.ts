@@ -413,6 +413,17 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
       gattungSchloss.click();
       gattung.value = "keine"; gattung.dispatchEvent(new dom.window.Event("change"));
     }
+    // Der Würfel im Rahmen des Textfensters würfelt ALLES (4.385.0): auch die
+    // vier W, nicht nur die Stilregler. Gemessen am gemounteten Studio.
+    {
+      const rahmen = wurzel3.querySelector("button.genarrow.wuerfel") as HTMLButtonElement | null;
+      wahr("es gibt den Würfel im Rahmen", !!rahmen);
+      const vierW = (): string => ["f-where", "f-when", "f-who", "f-what"].map((id) => (wurzel3.querySelector(`input[id="${id}"]`) as HTMLInputElement | null)?.value || "").join("|");
+      const vorher = vierW();
+      let bewegt4 = false;
+      for (let i = 0; i < 8 && !bewegt4; i++) { rahmen?.dispatchEvent(new dom.window.Event("pointerdown")); if (vierW() !== vorher) bewegt4 = true; }
+      wahr("der Würfel im Rahmen würfelt auch die vier W", bewegt4, vorher);
+    }
 
     // Gegenrichtung: Ein Schloss muss weiterhin halten. Ohne diese Prüfung wäre
     // „alles würfeln" auch dann grün, wenn der Würfel die Schlösser ignoriert.
@@ -770,7 +781,10 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
 {
   const q = readFileSync("src/ui/studio.ts", "utf8");
   wahr("ein Würfel sitzt im Rahmen des Textfensters", /class: "genarrow wuerfel"/.test(q) && /mkGenArrow\("right"\), rahmenWuerfel, grip\)/.test(q));
-  wahr("er tut, was der Würfeln-Knopf tut", /rahmenWuerfel\.addEventListener\("pointerdown", \(e\) => \{ e\.preventDefault\(\); diceBtn\.click\(\); \}\)/.test(q));
+  // Seit 4.385.0 „Alles würfeln" statt „Würfeln" — gemeldet: Er hieß so, würfelte
+  // aber die vier W und die Gattung nicht mit.
+  wahr("er tut, was „Alles würfeln“ tut", /rahmenWuerfel\.addEventListener\("pointerdown", \(e\) => \{ e\.preventDefault\(\); alleBtn\.click\(\); \}\)/.test(q));
+  wahr("Gegenprobe: nicht mehr der Knopf „Würfeln“", !/rahmenWuerfel\.addEventListener\("pointerdown", \(e\) => \{ e\.preventDefault\(\); diceBtn\.click\(\)/.test(q));
   wahr("und nennt beim Überfahren die Schlösser", /Schlösser bleiben/.test(q) && /rahmenWuerfel\.addEventListener\("pointerenter", rahmenWuerfelTitel\)/.test(q));
   wahr("der Würfel wählt eins bis drei Presets", /const k = Math\.min\(ids\.length, 1 \+ Math\.floor\(Math\.random\(\) \* 3\)\);/.test(q) && /applySelection\(wahl\)/.test(q));
   wahr("das Preset-Schloss hält weiter alles fest", /if \(locked\.has\(preset\.id\)\) return;\s*\n\s*const ids = Object\.keys\(getAllPresets\(\)\)/.test(q));

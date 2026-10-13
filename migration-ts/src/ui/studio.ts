@@ -1291,15 +1291,19 @@ export function mountStudio(root: HTMLElement): void {
   const zeitStapel = el("div", { class: "zl-stapel", style: "display:none", role: "tablist", "aria-label": "Stufen der Text-Werdung" });
   const zeitEbene = el("div", { class: "zl-ebene", style: "display:none" });
   // Der Würfel im Rahmen (4.358.0, gewünscht): oben rechts im Textfenster, wie
-  // die Pfeile halbtransparent; tut, was der Würfeln-Knopf oben tut, und sagt
-  // beim Überfahren, welche Schlösser halten — damit man nicht nach oben muss.
+  // die Pfeile halbtransparent, und sagt beim Überfahren, welche Schlösser
+  // halten — damit man nicht nach oben muss.
+  //
+  // Er hieß „Alles würfeln", drückte aber den Knopf „Würfeln": nur die
+  // Stilregler, nicht die vier W und nicht die Gattung (gemeldet, 4.385.0:
+  // „würfelt nicht alles"). Jetzt drückt er „Alles würfeln".
   const rahmenWuerfel = el("button", { class: "genarrow wuerfel", type: "button", "aria-label": "Alles würfeln" }, "⚄") as HTMLButtonElement;
   const rahmenWuerfelTitel = (): void => {
     const namen = Array.from(locked).map((id) => { const f = wrap.querySelector("#" + CSS.escape(id))?.closest(".field, .lenrow, .rankrow, .knobrow"); return f?.querySelector(".field-label span, .knob-label, label")?.textContent?.trim() || id; });
-    rahmenWuerfel.title = "Alles würfeln" + (namen.length ? ` — ${namen.length} ${namen.length === 1 ? "Schloss bleibt" : "Schlösser bleiben"}: ${namen.join(" · ")}` : " — kein Schloss gesetzt") + ". Presets: eins bis drei, zufällig; bei fester Geschichte der Erzählerbank wechselt ihre Bauform.";
+    rahmenWuerfel.title = "Alles würfeln: vier W, Stilregler, Presets" + (locked.has(welt.id) ? "" : ", Gattung") + (namen.length ? ` — ${namen.length} ${namen.length === 1 ? "Schloss bleibt" : "Schlösser bleiben"}: ${namen.join(" · ")}` : " — kein Schloss gesetzt") + ". Presets: eins bis drei, zufällig; bei fester Geschichte der Erzählerbank wechselt ihre Bauform.";
   };
   rahmenWuerfel.addEventListener("pointerenter", rahmenWuerfelTitel);
-  rahmenWuerfel.addEventListener("pointerdown", (e) => { e.preventDefault(); diceBtn.click(); });
+  rahmenWuerfel.addEventListener("pointerdown", (e) => { e.preventDefault(); alleBtn.click(); });
   const outWrap = el("div", { class: "outwrap" }, mkGenArrow("left"), spur, out, zeitEbene, zeitStapel, mkGenArrow("right"), rahmenWuerfel, grip);
   // Pfeile mittig im SICHTBAREN Ausschnitt des Textfensters halten — unabhängig
   // von der Inhaltshöhe (kein Springen beim Generieren).

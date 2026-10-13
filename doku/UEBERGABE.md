@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.384.0**, Zweig `typescript-migration`.
+Stand: **v4.385.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -2655,6 +2655,12 @@ nach dem Start.
 **Start mit allen Reglern** (4.384.0, gewünscht): `VORGABE.einfach` ist
 `false`; ohne gespeicherte Wahl öffnet das Studio den vollen Reglerkasten,
 „einfach" schaltet auf den Kopf. Eine gespeicherte Wahl gilt weiter.
+
+**Würfel im Textfenster** (4.385.0, gemeldet: „würfelt nicht alles"): Er
+hieß „Alles würfeln", drückte aber `diceBtn` (nur Stilregler). Jetzt
+`alleBtn.click()` — vier W, Stilregler, Presets und bei offenem Schloss die
+Gattung. Der Prüfstand Studio misst es am gemounteten Studio (die vier W
+müssen sich bewegen).
 
 ## 7 · Fallen in diesem Quelltext
 
