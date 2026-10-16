@@ -278,7 +278,10 @@ export function kleinerArtikel(t: string): string {
   // vor Komma, Semikolon, Punkt. Ein Was mit Komma hinter dem Leitverb
   // („bringt, was …") kommt aus den Vorlagen als „bringt , was", auch im
   // Bericht („Der Bote bringt , was niemand hören will", sagte …).
-  return (t || "").replace(/[ \t]+([,;.!?])/g, "$1").replace(/([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/g,
+  // Nach einem Satzende mit schließendem Anführungszeichen beginnt ein neuer
+  // Satz: „… ist es Winter.“ Ein Bild … wurde zu „ein Bild" (gefunden im
+  // Multi-Shot aus der Fabel, 4.386.0).
+  return (t || "").replace(/[ \t]+([,;.!?])/g, "$1").replace(/(?<![.!?…])([^\s.!?…:„"»(])([ \t]+)(Ein|Eine|Einen|Einem|Einer|Eines|Der|Die|Das|Den|Dem|Des)\b/g,
     (_m: string, vor: string, sp: string, w: string) => vor + sp + w.charAt(0).toLowerCase() + w.slice(1));
 }
 

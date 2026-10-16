@@ -152,7 +152,9 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
 
   const b = baueAnlage(STAND({ welt: "maerchen", form: "bericht" }), UMGEBUNG());
   ist("Märchen bei Form Bericht: Gattung leer", knoten(b, "gattung")?.zustand, "leer");
-  wahr("und der Befund nennt die Form", b.befunde.some((x) => /nur für Form „Prosa“/.test(x)));
+  wahr("und der Befund nennt die Formen", b.befunde.some((x) => /nur für die Formen „Prosa“ und „Multi-Shot“/.test(x)));
+  // Seit 4.386.0 wirkt die Gattung auch im Multi-Shot (Shots aus dem Prosatext).
+  ist("Märchen bei Multi-Shot: Gattung an", knoten(baueAnlage(STAND({ welt: "maerchen", form: "video" }), UMGEBUNG()), "gattung")?.zustand, "an");
   wahr("ohne Wirkung: keine Unterknoten, Struktur wirkt", !b.knoten.some((k) => k.id.startsWith("g-")) && knoten(b, "struktur")?.zustand === "an");
 
   const m = baueAnlage({ ...STAND({ welt: "maerchen" }), w4: { where: "", when: "morgen", who: "eine, die gehen muss", what: "" }, zeit: "" }, UMGEBUNG());

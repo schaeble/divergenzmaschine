@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.385.0**, Zweig `typescript-migration`.
+Stand: **v4.386.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -2661,6 +2661,19 @@ hieß „Alles würfeln", drückte aber `diceBtn` (nur Stilregler). Jetzt
 `alleBtn.click()` — vier W, Stilregler, Presets und bei offenem Schloss die
 Gattung. Der Prüfstand Studio misst es am gemounteten Studio (die vier W
 müssen sich bewegen).
+
+**Multi-Shot aus Prosa, 30 Sekunden** (4.386.0, gewünscht): Vorgabe der
+Gesamtlänge 30 s (`VIDEO_SEK_VORGABE`, Feld `f-secs`). Der Video-Zweig in
+`buildStory` baut zuerst einen Prosatext aus denselben Einstellungen (mit
+Gattung aus deren Gerüst; mit Erzählbogen in „Dramaturgie"), `prosaSaetze()`
+zerlegt ihn (Präsens, halbe Zitate fallen, ein Zitat über zwei Sätze bleibt
+zusammen), `verteileSaetze()` legt die Sätze der Reihe nach auf die Shots
+(je Shot 1–4 nach Längenregler; zu viele: Anfang und Schluss bleiben). Mit
+Vorlage trägt ein Shot nur Handlung, Licht, Schnitt, Kamera; der erste den
+Ort. Kopfzeile `GRUNDIDEE:` = erster Prosasatz. Ohne Prosa bleiben die
+Bildszenen aus Bank und Bogen (test/video.ts prüft beide Wege). Die Gattung
+wirkt damit auch im Multi-Shot (`gattungsForm`). Nebenfund: `kleinerArtikel`
+schrieb nach „.“ einen Artikel klein.
 
 ## 7 · Fallen in diesem Quelltext
 

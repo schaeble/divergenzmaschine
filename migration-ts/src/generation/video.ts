@@ -15,7 +15,9 @@ import { hatFinitesVerb } from "../atoms/derive";
 import { loadActiveBankLabel } from "../wordbank";
 
 export const clampShotCount = (n: number): number => Math.max(3, Math.min(10, Number.isFinite(n) ? n : 5));
-export const clampTotalSec = (n: number): number => Math.max(3, Math.min(600, Number.isFinite(n) ? n : 15));
+// Gesamtlänge seit 4.386.0 als Vorgabe 30 Sekunden (gewünscht; vorher 15).
+export const VIDEO_SEK_VORGABE = 30;
+export const clampTotalSec = (n: number): number => Math.max(3, Math.min(600, Number.isFinite(n) ? n : VIDEO_SEK_VORGABE));
 const fmtSec = (x: number): string => { if (!isFinite(x)) return "0s"; const v = Math.round(x * 10) / 10; return (v % 1 === 0 ? v.toFixed(0) : String(v)) + "s"; };
 const stripTailPunct = (s: string): string => clean(s).replace(/[.!?…]+$/, "");
 
@@ -79,7 +81,7 @@ const KAMERA: string[] = [
   "Kran abwärts", "Aus der Sicht des Gegenstands",
 ];
 
-function buildVideoShots(kit: StoryKit, shotCount: number, lenTarget = 0, bank?: Bank, tone = "neutral"): { shots: string[]; kamera: string[] } {
+function buildVideoShots(kit: StoryKit, shotCount: number, lenTarget = 0, bank?: Bank, tone = "neutral", handlung?: string[][]): { shots: string[]; kamera: string[] } {
   const place = normalizePlace(kit.W);
   const who = kit.P;
   const bogen = loadDramaData();
@@ -177,11 +179,23 @@ function buildVideoShots(kit: StoryKit, shotCount: number, lenTarget = 0, bank?:
     const erster = i === 0, letzter = i === shotCount - 1, mitte = i === Math.floor(shotCount / 2);
     const teile: string[] = [];
     // BILD
-    if (erster) { const p0 = stripTailPunct(kit.propDat || kit.prop); teile.push(istNP(p0) ? `${cap(place)}: ${who} nahe ${p0}.` : `${cap(place)}: ${who}.`); }
-    const bild = zieh(bilder, stripTailPunct(kit.motif));
+    // Mit Prosa-Vorlage: nur der Ort als Einstellung — die Figur stellt die
+    // Prosa selbst vor („Am Rand eines Waldes: Hase nahe einem Foto." stand
+    // sonst vor „Ein Hase und ein Igel leben am Rand eines Waldes.").
+    if (erster && handlung) teile.push(`${cap(place)}.`);
+    else if (erster) { const p0 = stripTailPunct(kit.propDat || kit.prop); teile.push(istNP(p0) ? `${cap(place)}: ${who} nahe ${p0}.` : `${cap(place)}: ${who}.`); }
+    // Mit Prosa-Vorlage trägt die Handlung den Shot; ein Bild aus der Bank
+    // kommt erst bei großer Länge dazu, sonst stünde es quer zur Geschichte.
+    // Bank-Bilder, Bank-Requisiten, Hindernisse und Ton-Sätze stünden quer
+    // zur Geschichte („Ein Formular mit einem Feld zu viel" in der Fabel) —
+    // mit Prosa-Vorlage tragen nur Handlung, Licht, Schnitt und Kamera.
+    const bild = handlung ? "" : zieh(bilder, stripTailPunct(kit.motif));
     if ((!erster || stufe >= 2) && bild) setze(teile, `${cap(bild)}.`);
+    // HANDLUNG aus der Prosa (4.386.0): Die Sätze des Prosatextes, die auf
+    // diesen Shot fallen, in ihrer Reihenfolge — die Geschichte der Sequenz.
+    if (handlung) { for (const satz of handlung[i] || []) setze(teile, satz); }
     // BEWEGUNG — mit Schlagfolge: die Schläge dieses Shots; sonst an den Gelenken der Bogen
-    if (folge && schlaegeJeShot[i]!.length) {
+    else if (folge && schlaegeJeShot[i]!.length) {
       const saetze = schlaegeJeShot[i]!.map(schlagSatz).filter((x): x is string => !!x && !/:\s*\.$/.test(x) && !/^(Nah|Regel|Es geht um|Etwas kippt)[: ]+\.$/.test(x) && x.replace(/[^A-Za-zÄÖÜäöüß]/g, "").length > 3);
       if (saetze.length) teile.push(...saetze.slice(0, stufe >= 3 ? 3 : 2));
       else { const b = zieh(bewegungen, kit.hook); if (b) setze(teile, `${cap(b)}.`); }
@@ -191,14 +205,14 @@ function buildVideoShots(kit: StoryKit, shotCount: number, lenTarget = 0, bank?:
     else if (letzter) teile.push(`${cap(stripTailPunct(kit.ending))}.`);
     else { const b = zieh(bewegungen, kit.hook); if (b) setze(teile, `${cap(b)}.`); }
     // NAH
-    if (stufe >= 1 && !letzter && !teile.some((t) => t.startsWith("Nah: "))) { const r = zieh(requisiten, istNP(stripTailPunct(kit.prop)) ? stripTailPunct(kit.prop) : ""); if (r) setze(teile, `Nah: ${nominativ(r)}.`); }
+    if (!handlung && stufe >= 1 && !letzter && !teile.some((t) => t.startsWith("Nah: "))) { const r = zieh(requisiten, istNP(stripTailPunct(kit.prop)) ? stripTailPunct(kit.prop) : ""); if (r) setze(teile, `Nah: ${nominativ(r)}.`); }
     // HINDERNIS im vorletzten Drittel
-    if (stufe >= 2 && !erster && !letzter && hindernisse.length && i >= Math.floor(shotCount / 3)) { const h = zieh(hindernisse, kit.obstacle); if (h) setze(teile, `${cap(h)}.`); }
+    if (!handlung && stufe >= 2 && !erster && !letzter && hindernisse.length && i >= Math.floor(shotCount / 3)) { const h = zieh(hindernisse, kit.obstacle); if (h) setze(teile, `${cap(h)}.`); }
     // LICHT
     if (stufe >= 2) { const l = zieh(licht, ""); if (l) setze(teile, `${l}.`); }
     // TON und zweites Bild bei hoher Länge
-    if (stufe >= 3 && ton.length) { const t = zieh(ton, ""); if (t) setze(teile, ensurePunct(t).trim()); }
-    if (stufe >= 4) { const b2 = zieh(bilder, ""); if (b2) setze(teile, `${cap(b2)}.`); }
+    if (!handlung && stufe >= 3 && ton.length) { const t = zieh(ton, ""); if (t) setze(teile, ensurePunct(t).trim()); }
+    if (!handlung && stufe >= 4) { const b2 = zieh(bilder, ""); if (b2) setze(teile, `${cap(b2)}.`); }
     if (letzter) teile.push(`Nur ${pick(["der Riss", "das Fenster", "die Karte", "das Licht"])} bleibt sichtbar.`);
     // SCHNITT
     if (!letzter) teile.push(zieh(SCHNITT, "") || "Schnitt.");
@@ -215,19 +229,81 @@ function reihenfolge<T>(a: T[]): T[] {
   return x;
 }
 
-export function buildVideoSequenceText(kit: StoryKit, shotCount = 5, totalSec = 15, lenTarget = 0, bank?: Bank, tone = "neutral"): string {
+// ── Prosa als Vorlage (4.386.0) ────────────────────────────────────────────
+// Gewünscht: „Die Grundidee für den Inhalt des Multi-Shots soll sich am
+// Prosatext orientieren." Vorher war jeder Shot aus losen Bank-Bildern und
+// Bogen-Sätzen zusammengesetzt — Bilder ohne Geschichte. Jetzt wird zuerst ein
+// Prosatext aus denselben Einstellungen gebaut (mit Gattung: Märchen, Fabel …),
+// und seine Sätze werden der Reihe nach auf die Shots verteilt. Licht, Nah,
+// Schnitt und Kamera bleiben das Handwerk der Sequenz.
+
+/** Sätze eines Prosatextes, ins Präsens gebracht, wo das sicher geht. */
+export function prosaSaetze(prosa: string): string[] {
+  const roh = (prosa || "").replace(/\s+/g, " ").trim();
+  if (!roh) return [];
+  // Satzende: Punkt, Ausrufe- oder Fragezeichen, ggf. mit schließendem
+  // Anführungszeichen, dann Großbuchstabe oder Anführung.
+  const stuecke = roh.split(/(?<=[.!?…][“"»«]?)\s+(?=[„"»«A-ZÄÖÜ])/u).map((x) => x.trim());
+  // Ein Zitat über mehrere Sätze bleibt zusammen; was danach noch ein
+  // halbes Zitat ist („Da, der Flohzirkus!«, flüstert …" aus einem
+  // Zeitungstext), fällt weg — wie im Satz-Wächter der Bildszenen.
+  const offen = (x: string): number => (x.match(/[„»]/g) || []).length - (x.match(/[“«]/g) || []).length;
+  // Höchstens zwei Stücke werden zusammengehalten: Schließt das Zitat bis
+  // dahin nicht, war es ein halbes — das erste Stück fällt, ab dem zweiten
+  // wird neu gelesen. Sonst verschluckte ein „»absolut zuverlässig." den
+  // ganzen Rest des Textes in einen einzigen Satz (gefunden beim Prüfen).
+  const teile: string[] = [];
+  let i = 0;
+  while (i < stuecke.length) {
+    let puffer = stuecke[i]!, k = i;
+    // Ein echtes Zitat über zwei Sätze beginnt am Satzanfang oder nach
+    // Doppelpunkt/Komma; „nennt ihn »absolut zuverlässig." ist ein halbes.
+    const zitatAnfang = /^[„»]|[:,]\s[„»]/.test(puffer);
+    while (zitatAnfang && offen(puffer) > 0 && k + 1 < stuecke.length && k - i < 1) { k++; puffer += " " + stuecke[k]; }
+    if (offen(puffer) > 0) { i++; continue; }
+    teile.push(puffer); i = k + 1;
+  }
+  return teile.filter((x) => offen(x) === 0 && x.replace(/[^A-Za-zÄÖÜäöüß]/g, "").length > 3).map((x) => {
+    const u = praesensUmschreiben(x);
+    const t = u.ok ? u.text.trim() : x;
+    return /[.!?…“"»]$/.test(t) ? t : t + ".";
+  });
+}
+
+/** Verteilt die Sätze auf die Shots: der Reihe nach, möglichst gleich viele,
+ *  höchstens `jeShot` je Shot. Sind es mehr, bleiben erster und letzter Satz,
+ *  dazwischen gleichmäßig verteilte — die Geschichte läuft durch, nur dichter. */
+export function verteileSaetze(saetze: string[], n: number, jeShot: number): string[][] {
+  const max = Math.max(1, n * Math.max(1, jeShot));
+  let wahl = saetze;
+  if (saetze.length > max) {
+    wahl = Array.from({ length: max }, (_, k) => saetze[Math.round((k * (saetze.length - 1)) / (max - 1 || 1))]!);
+  }
+  const out: string[][] = Array.from({ length: n }, () => []);
+  wahl.forEach((x, k) => { out[Math.min(n - 1, Math.floor((k * n) / wahl.length))]!.push(x); });
+  return out;
+}
+
+export function buildVideoSequenceText(kit: StoryKit, shotCount = 5, totalSec = VIDEO_SEK_VORGABE, lenTarget = 0, bank?: Bank, tone = "neutral", prosa?: string): string {
   const n = clampShotCount(shotCount);
   const total = clampTotalSec(totalSec);
   const dur = total / n;
   // F.2: Die Textmenge je Shot folgt dem Laengenregler. Die Shot-ZAHL bleibt am
   // eigenen Regler - sie ist eine Angabe fuer den Schnitt, keine Textlaenge.
-  const { shots, kamera } = buildVideoShots(kit, n, lenTarget, bank, tone);
+  const proShot = lenTarget > 0 ? lenTarget / n : 30;
+  const jeShot = proShot < 26 ? 1 : proShot < 40 ? 2 : proShot < 55 ? 3 : 4;
+  const saetze = prosa ? prosaSaetze(prosa) : [];
+  const handlung = saetze.length >= 2 ? verteileSaetze(saetze, n, jeShot) : undefined;
+  const { shots, kamera } = buildVideoShots(kit, n, lenTarget, bank, tone, handlung);
   // Kopfzeile: zuerst das Preset, dann der Modus. Vorher stand dort NUR der
   // Modus - und der ist eine Einstellung, kein Titel: Wer ihn fest eingestellt
   // hat, las in jeder Sequenz dieselbe Zeile ("Intime Koerperwahrnehmung"), ohne
   // zu erfahren, aus welchem Stoff sie gebaut ist.
   const titel = [loadActiveBankLabel(), kit.mode.label].filter(Boolean).join(" · ");
-  const out = [`SEQUENZ — ${titel}`.trim(), `WER: ${kit.PRaw || kit.P}`, `WO: ${kit.W}`, `WANN: ${kit.T}`, `WAS: ${kit.A}`, `GESAMTLÄNGE: ${fmtSec(total)} • ${fmtSec(dur)} pro Shot`, ""];
+  // Die Grundidee: der erste Satz der Prosa-Vorlage — sagt, wovon die
+  // Sequenz erzählt, bevor die Shots es zeigen.
+  const idee = saetze[0] ? [`GRUNDIDEE: ${saetze[0]}`] : [];
+  const out = [`SEQUENZ — ${titel}`.trim(), `WER: ${kit.PRaw || kit.P}`, `WO: ${kit.W}`, `WANN: ${kit.T}`, `WAS: ${kit.A}`, ...idee, `GESAMTLÄNGE: ${fmtSec(total)} • ${fmtSec(dur)} pro Shot`, ""];
   for (let i = 0; i < shots.length; i++) { out.push(`Shot ${i + 1} (${fmtSec(dur)})`, `DE: ${shots[i]}`, `KAMERA: ${kamera[i]}.`, ""); }
   return out.join("\n");
 }

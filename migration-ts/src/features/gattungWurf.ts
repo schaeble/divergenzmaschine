@@ -60,7 +60,7 @@ export const WUERFEL_GATTUNGEN: readonly string[] = WELT_OPTS.map(([v]) => v).fi
  *  GESPERRT, kommt „keine" heraus. Ist die Form offen, zieht der Würfel eine
  *  Gattung, und die Form wird danach auf Prosa gestellt. */
 export function wuerfleGattung(form: string, formGesperrt: boolean): string {
-  if (formGesperrt && form !== "prose") return "keine";
+  if (formGesperrt && form !== "prose" && form !== "video") return "keine";
   return pick([...WUERFEL_GATTUNGEN]);
 }
 

@@ -125,6 +125,9 @@ export function mountStudio(root: HTMLElement): void {
   const istDystopie = (): boolean => welt.value === "dystopie";
   // Irgendeine Gattung mit eigenem Gerüst (Utopie, Dystopie, Märchen, 4.376.0).
   const istGattung = (): boolean => welt.value !== "keine";
+  // Wo eine Gattung wirkt: in Prosa und, seit 4.386.0, im Multi-Shot — dessen
+  // Shots erzählen den Prosatext der Gattung nach.
+  const gattungsForm = (f: string): boolean => f === "prose" || f === "video";
   const istMaerchen = (): boolean => welt.value === "maerchen";
   const istFabel = (): boolean => welt.value === "fabel";
   const istMythos = (): boolean => welt.value === "mythos";
@@ -773,7 +776,7 @@ export function mountStudio(root: HTMLElement): void {
   const tone = select("f-tone", TONE_OPTS, "mystery");
   const form = select("f-form", FORM_OPTS, "prose");
   const shots = el("input", { id: "f-shots", type: "number", value: "5", min: "3", max: "10" }) as HTMLInputElement;
-  const secs = el("input", { id: "f-secs", type: "number", value: "15", min: "3", max: "600" }) as HTMLInputElement;
+  const secs = el("input", { id: "f-secs", type: "number", value: "30", min: "3", max: "600" }) as HTMLInputElement;
   const structure = select("f-structure", STRUCTURE_OPTS, "rekombination");
   // ── Bogen aus der Erzählerbank ─────────────────────────────────────────
   // Gewünscht: Die Erzählerbank (zehn Geschichten, Reiter neben der Wortbank)
@@ -819,7 +822,7 @@ export function mountStudio(root: HTMLElement): void {
     const platzLeer = /^a:/.test(q) && !eintragNachId(q);
     // Multi-Shot (4.343.1): Der Bogen wirkt dort unabhängig von der Struktur —
     // die Schlagfolge wird auf die Shots verteilt.
-    if (form.value === "video") { bogenStatus.append(platzLeer ? "wirkt nicht: der gewählte Eintrag fehlt im Archiv" : q === "wuerfeln" && !brauchbar ? "wirkt nicht: das Archiv der Erzählerbank ist leer" : "wirkt · Multi-Shot verteilt die Schlagfolge auf die Shots"); return; }
+    if (form.value === "video") { bogenStatus.append(platzLeer ? "wirkt nicht: der gewählte Eintrag fehlt im Archiv" : q === "wuerfeln" && !brauchbar ? "wirkt nicht: das Archiv der Erzählerbank ist leer" : "wirkt · der Prosatext folgt der Schlagfolge, die Shots folgen dem Prosatext"); return; }
     if (form.value !== "prose") bogenStatus.append("wirkt nicht: nur bei Form „Prosa“ oder „Multi-Shot“");
     else if (!bogenStruktur) {
       const knopf = el("button", { type: "button", class: "mini-link" }, "auf „Dramaturgie“ stellen");
@@ -932,7 +935,7 @@ export function mountStudio(root: HTMLElement): void {
     "f-instab", "f-markov", "f-disruptor", "f-varianz", "f-archa", "f-archb", "f-w-wo", "f-w-wann", "f-w-wer", "f-w-was"];
   const UTOPIE_AUS_TITEL = "Bei einer Gattung (Utopie, Dystopie, Märchen) ohne Wirkung: Sie baut nach eigenem Gerüst aus ihrem Blatt.";
   const reglerFuerUtopie = (): void => {
-    const an = istGattung() && form.value === "prose";
+    const an = istGattung() && gattungsForm(form.value);
     const ziele = Array.from(wrap.querySelectorAll<HTMLSelectElement | HTMLInputElement>("select, input"))
       .filter((c) => UTOPIE_AUS.includes(c.id) || /^k-/.test(c.id));
     for (const c of ziele) {
@@ -958,7 +961,7 @@ export function mountStudio(root: HTMLElement): void {
     }
     // Die Fabel kennt keine Zeit: Das Wann-Feld wird gesperrt statt still
     // übergangen — ein Feld, das nichts bewirkt, soll das zeigen.
-    const wannAus = istFabel() && form.value === "prose";
+    const wannAus = istFabel() && gattungsForm(form.value);
     if (wannAus && !when.disabled) { when.dataset.utopieAus = "1"; when.disabled = true; (when.closest(".field") as HTMLElement | null)?.style.setProperty("opacity", "0.45"); }
     else if (!wannAus && when.dataset.utopieAus) { when.disabled = false; delete when.dataset.utopieAus; (when.closest(".field") as HTMLElement | null)?.style.removeProperty("opacity"); }
     weltZeile.innerHTML = "";
@@ -983,7 +986,7 @@ export function mountStudio(root: HTMLElement): void {
         ? `Aus den gewählten Presets passen ${m.motive.length} Motive — eines davon steht ${istMythos() ? "im Mythos" : "in der Fabel"}. Struktur, Perspektive, Rhythmus, Modus und Stellschrauben wirken hier nicht.`
         : `Aus den gewählten Presets passen ${m.motive.length} Motive, ${m.wendungen.length} Wendungen${istMaerchen() ? " und" : ","} ${m.verwandlungen.length} Verwandlungen${istMaerchen() ? "" : ` und ${m.requisiten.length} Requisiten`}. Struktur, Perspektive, Rhythmus, Modus und Stellschrauben wirken hier nicht.`)
       : el("div", { style: "margin-top:4px" }, `⚠ Aus den gewählten Presets passt kein Motiv in die Gattung ${gattungName()} — das Preset bleibt hier ohne Wirkung.`));
-    if (form.value !== "prose") weltZeile.append(el("div", { style: "margin-top:4px" }, `⚠ Die Gattung ${gattungName()} ist bisher nur für Form „Prosa“ angeschlossen. Bei „${form.options[form.selectedIndex]?.text || form.value}“ bleibt sie ohne Wirkung.`));
+    if (!gattungsForm(form.value)) weltZeile.append(el("div", { style: "margin-top:4px" }, `⚠ Die Gattung ${gattungName()} ist für die Formen „Prosa“ und „Multi-Shot“ angeschlossen. Bei „${form.options[form.selectedIndex]?.text || form.value}“ bleibt sie ohne Wirkung.`));
   };
   let weltVorher = welt.value;
   // Umschalten ohne Erzeugen — der Würfel erzeugt am Ende selbst.
@@ -2109,7 +2112,7 @@ export function mountStudio(root: HTMLElement): void {
     // oder Meldung, und die Gattung wirkte nicht (gemessen, 4.381.0).
     const gattungHaelt = istGattung();
     wuerfelbar().filter((c) => c !== preset && !(gattungHaelt && c === form)).forEach(rollEins);
-    if (gattungHaelt && !locked.has(form.id) && form.value !== "prose") { form.value = "prose"; form.dispatchEvent(new Event("change")); }
+    if (gattungHaelt && !locked.has(form.id) && !gattungsForm(form.value)) { form.value = "prose"; form.dispatchEvent(new Event("change")); }
     rollPresets();
     rollBauform();
     rolling = false;
@@ -3492,7 +3495,7 @@ export function mountStudio(root: HTMLElement): void {
   // Gattung muss sie auf Prosa bleiben, und der einfache Kopf muss zeigen,
   // was wirklich steht — beim Öffnen war „Prosa" gedrückt, eingestellt war
   // „Multi-Shot" (gefunden beim Prüfen von 4.383.0).
-  if (istGattung() && !locked.has(form.id) && form.value !== "prose") form.value = "prose";
+  if (istGattung() && !locked.has(form.id) && !gattungsForm(form.value)) form.value = "prose";
   zeigeSchloesser();
   // Reglerstand festhalten, damit die Rückkehr in den Tab ihn wiederherstellen kann
   // Die Schieber gehören in denselben Merkzettel: Sonst käme ein Wurf, der im

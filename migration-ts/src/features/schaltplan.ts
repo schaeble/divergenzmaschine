@@ -454,12 +454,12 @@ export function baueAnlage(stand: AnlageStand, u: Umgebung): Anlage {
   const gattungAn = welt !== "keine";
   const gattungName = bez(WELT_OPTS, welt);
   const alleGattungen = WELT_OPTS.filter(([v]) => v !== "keine").map(([, l]) => l).join(" · ");
-  const gattungWirkt = gattungAn && form === "prose";
+  const gattungWirkt = gattungAn && (form === "prose" || form === "video");
   knoten("gattung", 2, "Gattung", gattungAn ? gattungName : "keine",
     !gattungAn ? "aus" : gattungWirkt ? "an" : "leer",
     !gattungAn ? `zur Wahl: ${alleGattungen}`
       : gattungWirkt ? `baut nach eigenem Gerüst · zur Wahl: ${alleGattungen}`
-      : `„${gattungName}“ ist nur für Form „Prosa“ angeschlossen — bei „${bez(FORM_OPTS, form)}“ bleibt sie ohne Wirkung`);
+      : `„${gattungName}“ ist nur für die Formen „Prosa“ und „Multi-Shot“ angeschlossen — bei „${bez(FORM_OPTS, form)}“ bleibt sie ohne Wirkung`);
   if (gattungWirkt) {
     const wo = (w4.where || "").trim(), wann = (w4.when || "").trim(), wer = (w4.who || "").trim(), was = (w4.what || "").trim();
     const zukunftWort = /^(morgen|übermorgen|bald|heute|demnächst|nächste)/i;

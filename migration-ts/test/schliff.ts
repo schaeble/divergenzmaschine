@@ -240,6 +240,11 @@ ist("auch nach dem Gedankenstrich", kleinerArtikel("Zwei nicht — Der Bote spü
 ist("nach Doppelpunkt bleibt groß", kleinerArtikel("Er sagt: Der Bote kommt."), "Er sagt: Der Bote kommt.");
 ist("im Zitat bleibt groß", kleinerArtikel("Sie sagt „Die Uhr steht“."), "Sie sagt „Die Uhr steht“.");
 ist("am Zeilenanfang bleibt groß", kleinerArtikel("Zeile eins\nDie zweite Zeile."), "Zeile eins\nDie zweite Zeile.");
+// 4.386.0: Nach einem Satzende im Zitat beginnt ein neuer Satz (gefunden im
+// Multi-Shot: „… ist es Winter.“ ein Bild …). Gegenprobe: nach einem Zitat
+// OHNE Satzzeichen davor wird weiter klein geschrieben.
+ist("nach Satzende im Zitat bleibt groß", kleinerArtikel("„Bis dahin ist es Winter.“ Ein Bild dunkelt nach."), "„Bis dahin ist es Winter.“ Ein Bild dunkelt nach.");
+ist("Gegenprobe: nach Zitat ohne Satzzeichen klein", kleinerArtikel("Er nennt es „Haus“ Der Bote lacht."), "Er nennt es „Haus“ der Bote lacht.");
 // Nach „kennen" der Akkusativ: „Ich kenne den Boten", nicht „Ich kenne Der Bote".
 ist("kennen verlangt den Akkusativ", dekliniere("Der Bote", "akk"), "den Boten");
 wahr("die Objekt-Perspektive nutzt ihn", /Ich kenne \$\{dekliniere\(P, "akk"\)\}/.test(readFileSync("src/generation/structures.ts", "utf8")));

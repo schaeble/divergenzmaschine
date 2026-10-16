@@ -10,7 +10,8 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https
 import { readFileSync } from "fs";
 import { DEFAULT_BANK } from "../src/constants";
 import { presetAusText } from "../src/features/textpreset";
-import { buildStory } from "../src/generation/buildStory";
+import { buildStory, buildKit } from "../src/generation/buildStory";
+import { buildVideoSequenceText, prosaSaetze, verteileSaetze, clampTotalSec } from "../src/generation/video";
 import { setDramaData } from "../src/generation/dramaturgie";
 import type { GenInput } from "../src/types";
 
@@ -27,7 +28,11 @@ const inp: GenInput = { where: "in einem verlassenen Bahnhof", when: "vor dem er
   tone: "mystery", varLevel: "wild", form: "video", structure: "linear", mode: "myth", perspective: "third",
   rhythm: "auto", markovMode: "off", disruptor: "off", archetypeA: "neutral", archetypeB: "psychopath",
   instability: 0, polish: false, polishStyle: "surreal_precise", shots: 5, totalSec: 25, lenTarget: 200 } as never;
-const bau = (o: Partial<GenInput> = {}): string => buildStory(DEFAULT_BANK, { ...inp, ...o } as never);
+// Seit 4.386.0 erzählen die Shots einen Prosatext nach (Abschnitt 7). Die
+// Bildszenen aus Bank und Bogen bleiben der Weg, wenn keine Prosa entsteht —
+// die Abschnitte 1, 3, 4 und 5 prüfen ihn direkt, ohne Vorlage.
+const bau = (o: Partial<GenInput> = {}): string => { const i = { ...inp, ...o } as never as GenInput; return buildVideoSequenceText(buildKit(DEFAULT_BANK, i), i.shots ?? 5, i.totalSec ?? 30, (i.lenTarget as number) ?? 110, DEFAULT_BANK, i.tone); };
+const bauMitProsa = (o: Partial<GenInput> = {}): string => buildStory(DEFAULT_BANK, { ...inp, ...o } as never);
 const shots = (t: string): string[] => t.split("\n").filter((l) => l.startsWith("DE: ")).map((l) => l.slice(4));
 
 // ── 1 · Sichtplätze ─────────────────────────────────────────────────────────
@@ -46,7 +51,7 @@ const shots = (t: string): string[] => t.split("\n").filter((l) => l.startsWith(
 
 // ── 2 · Länge folgt dem Regler ──────────────────────────────────────────────
 {
-  const w = (lt: number): number => { let s = 0; for (let i = 0; i < 6; i++) s += bau({ lenTarget: lt } as never).split(/\s+/).length; return s / 6; };
+  const w = (lt: number): number => { let s = 0; for (let i = 0; i < 6; i++) s += bauMitProsa({ lenTarget: lt } as never).split(/\s+/).length; return s / 6; };
   const a = w(110), b = w(200), c = w(300);
   wahr("110 < 200 < 300 im Wortmaß", a < b && b < c, `${a.toFixed(0)} < ${b.toFixed(0)} < ${c.toFixed(0)}`);
   wahr("bei 300 über 250 Wörter (vorher blieb es dünn)", c > 250, c.toFixed(0));
@@ -95,7 +100,7 @@ const shots = (t: string): string[] => t.split("\n").filter((l) => l.startsWith(
   wahr("Rückwärts: Einstieg im letzten Shot", /Der Bahnhof atmet zum ersten Mal/.test(sh[4]!));
   setDramaData(null);
   const qs = readFileSync("src/ui/studio.ts", "utf8");
-  wahr("das Studio sagt bei Multi-Shot: wirkt", /wirkt · Multi-Shot verteilt die Schlagfolge auf die Shots/.test(qs));
+  wahr("das Studio sagt bei Multi-Shot: wirkt", /wirkt · der Prosatext folgt der Schlagfolge, die Shots folgen dem Prosatext/.test(qs));
 }
 
 // ── 6 · Sequenz „Wohnungslos": Material aus einem Zeitungstext ─────────────
@@ -105,6 +110,8 @@ const shots = (t: string): string[] => t.split("\n").filter((l) => l.startsWith(
   let dubl = 0, praet = 0, halbeZitate = 0, nahMitVerb = 0, schlechterOrt = 0;
   for (let i = 0; i < 10; i++) {
     const t = buildStory(bank as never, { ...inp, where: "Urbane Straße mit Graffiti-Wand", lenTarget: 200 } as never);
+    const tb = buildVideoSequenceText(buildKit(bank as never, { ...inp, where: "Urbane Straße mit Graffiti-Wand", lenTarget: 200 } as never), 5, 30, 200, bank as never, "mystery");
+    if (/Nah: Oder /.test(tb) || /Nah: .*flüstert/.test(tb)) nahMitVerb++;
     const saetze = t.split(/(?<=[.!?…])\s+/).map((x) => x.toLowerCase().replace(/[^a-zäöüß ]/g, "").trim()).filter((x) => x.split(" ").length >= 4);
     dubl += saetze.length - new Set(saetze).size;
     if (/fühlte sich/.test(t)) praet++;
@@ -118,6 +125,38 @@ const shots = (t: string): string[] => t.split("\n").filter((l) => l.startsWith(
   ist("Nah verlangt eine Nominalphrase", nahMitVerb, 0);
   ist("Ort mit Adjektiv ohne Artikel wird gebeugt", schlechterOrt, 0);
   wahr("„Auf einer urbanen Straße“", /Auf einer urbanen Straße mit Graffiti-Wand/.test(buildStory(bank as never, { ...inp, where: "Urbane Straße mit Graffiti-Wand" } as never)));
+}
+
+// ── 7 · Prosa als Vorlage, 30 Sekunden (4.386.0) ───────────────────────────
+// Gewünscht: Gesamtlänge 30 Sekunden; die Grundidee kommt aus dem Prosatext.
+{
+  ist("Vorgabe der Gesamtlänge: 30 Sekunden", clampTotalSec(NaN), 30);
+  const qs = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("das Studio-Feld steht auf 30", /id: "f-secs", type: "number", value: "30"/.test(qs));
+  const t = bauMitProsa({ totalSec: undefined, lenTarget: 200 } as never);
+  wahr("GESAMTLÄNGE 30s, 6s je Shot", /GESAMTLÄNGE: 30s • 6s pro Shot/.test(t), t.split("\n").find((l) => l.startsWith("GESAMT")) || "");
+  wahr("eine GRUNDIDEE im Kopf", /^GRUNDIDEE: .+/m.test(t));
+  // Verteilung: der Reihe nach, erster und letzter Satz bleiben.
+  const v = verteileSaetze(["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"], 3, 2);
+  ist("gekürzt auf 3 × 2", v.flat().length, 6);
+  wahr("erster und letzter Satz bleiben, in Reihenfolge", v.flat()[0] === "a" && v.flat()[5] === "l" && v.flat().join("") === [...v.flat()].sort().join(""));
+  ist("wenige Sätze: keiner fällt weg", verteileSaetze(["a", "b", "c"], 5, 2).flat().join(""), "abc");
+  wahr("prosaSaetze trennt auch nach Zitat", prosaSaetze("„Komm mit.“ Der Hase lacht. Er läuft.").length === 3);
+  ist("ein Zitat über zwei Sätze bleibt zusammen", prosaSaetze("„Komm. Wir gehen.“ Er lacht.")[0], "„Komm. Wir gehen.“");
+  ist("Gegenprobe: ein halbes Zitat fällt", prosaSaetze("Er nennt ihn »absolut zuverlässig. Da, der Zirkus!«, flüstert er. Es regnet.").join(" | "), "Es regnet.");
+  // Die Fabel als Multi-Shot: Die Shots erzählen sie der Reihe nach.
+  const fab = bauMitProsa({ welt: "fabel", where: "am Rand eines Waldes", when: "", who: "Hase, Igel", what: "Wer sich seines Vorsprungs zu sicher ist, verliert ihn.", lenTarget: 200 } as never);
+  const fs = shots(fab);
+  wahr("Fabel: der erste Shot stellt Hase und Igel vor", /Ein Hase und ein Igel/.test(fs[0]!), fs[0]!);
+  wahr("Fabel: der letzte Shot trägt die Lehre", /Wer sich seines Vorsprungs zu sicher ist, verliert ihn/.test(fs[fs.length - 1]!), fs[fs.length - 1]!);
+  // Gegenprobe: Mit Prosa-Vorlage stehen keine losen Bank-Requisiten im Shot;
+  // ohne Vorlage (Bildszenen) schon.
+  wahr("mit Vorlage kein „Nah:“ aus der Bank", !/Nah: /.test(fab));
+  wahr("Gegenprobe: ohne Vorlage gibt es „Nah:“", /Nah: /.test(bau({ lenTarget: 200 } as never)));
+  // Der Fund beim Bauen: „… ist es Winter.“ ein Bild … (kleinerArtikel).
+  let klein = 0;
+  for (let i = 0; i < 8; i++) if (/[.!?]“ (ein|eine|der|die|das) /.test(bauMitProsa({ welt: "fabel", where: "am Rand eines Waldes", when: "", who: "Hase, Igel", what: "Wer sich seines Vorsprungs zu sicher ist, verliert ihn.", lenTarget: 200 } as never))) klein++;
+  ist("nach Satzende im Zitat kein kleiner Artikel", klein, 0);
 }
 
 console.log(`Prüfstand Multi-Shot — ${geprueft} Prüfungen, ${bestanden} bestanden`);

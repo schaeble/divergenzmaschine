@@ -21,7 +21,7 @@ import { verwandleMotive, leseVerwandlungen } from "./verwandlung";
 import { MarkovModel, isSaneMarkov, smoothMarkov } from "../corpus";
 import { praesensUmschreiben } from "./coherence";
 import { biasedAutoChoice } from "./autochoice";
-import { buildVideoSequenceText } from "./video";
+import { buildVideoSequenceText, VIDEO_SEK_VORGABE } from "./video";
 import { enforceWordTarget } from "./length";
 import { buildRekombination, buildVersAtome } from "../atoms/rekombination";
 import { buildBericht } from "./bericht";
@@ -182,7 +182,17 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
   if (input.form === "meldung") return kleinerArtikel(buildMeldung(input, (input.ressort as Parameters<typeof buildMeldung>[1]) ?? "auto").text);
   if (input.form === "script") return postProcessText(makeDialogueScene(kit, lenTarget), input);
   if (input.form === "video") {
-    return postProcessText(buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? 15, lenTarget, bank, input.tone), input);
+    // Die Grundidee kommt aus einem Prosatext derselben Einstellungen
+    // (4.386.0) — mit Gattung aus deren Gerüst. Die Trace des Prosalaufs wird
+    // beim nächsten buildStory ohnehin zurückgesetzt.
+    let prosa = "";
+    // Mit Erzählbogen (Erzählerbank) baut die Prosa in „Dramaturgie": Dann
+    // folgt sie der Schlagfolge, und die Shots folgen ihr — der Bogen wirkt im
+    // Multi-Shot weiter, nur über die Geschichte statt über lose Sätze.
+    const mitBogen = hasDramaData() && input.structure !== "dramaturgie" && input.structure !== "bogen";
+    try { prosa = buildStory(bank, { ...input, form: "prose", ...(mitBogen ? { structure: "dramaturgie" } : {}) }, model); } catch { prosa = ""; }
+    resetMarkovTrace();
+    return postProcessText(buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? VIDEO_SEK_VORGABE, lenTarget, bank, input.tone, prosa), input);
   }
   if (input.form === "poem") {
     // Rekombination gilt auch fuers Prosagedicht: Der Zweig lag bisher hinter dieser
