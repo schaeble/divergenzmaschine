@@ -55,7 +55,19 @@ export function grammarFlags(text: string): GrammarReport {
   // 2) Leerzeichen vor Satzzeichen.
   add((raw.match(/\s+[,.;:!?]/g) || []).length, "Leerzeichen vor Satzzeichen");
   // 3) Verdoppelte Wörter ("der der", "die die").
-  add((raw.match(/\b([a-zäöüßA-ZÄÖÜ]{2,})\s+\1\b/gi) || []).length, "Wortverdopplung");
+  // Nicht jede Verdopplung ist ein Fehler (4.390.0): „eine Hand, die die Tür
+  // hält" ist ein Relativsatz — Pronomen und Artikel stoßen zusammen. Solche
+  // Sätze rutschten in der Bestenauslese zu Unrecht nach hinten. Und über
+  // einen Zeilenwechsel hinweg („… pro Shot / Shot 1") ist es keine. Wort-
+  // grenzen über Buchstaben, weil \b bei „ß" und Umlauten danebenliegt.
+  {
+    let n = 0;
+    for (const m of raw.matchAll(/(?<![\p{L}])([\p{L}]{2,})[ \t]+\1(?![\p{L}])/giu)) {
+      const relativ = /^(der|die|das|den|dem|denen|deren)$/i.test(m[1]!) && /,\s*$/.test(raw.slice(Math.max(0, m.index! - 2), m.index!));
+      if (!relativ) n++;
+    }
+    add(n, "Wortverdopplung");
+  }
   // 4) Fehlendes Leerzeichen nach Satzzeichen (Wort.Wort).
   add((raw.match(/[a-zäöüß][.,;:!?][A-Za-zÄÖÜ]/g) || []).length, "fehlendes Leerzeichen");
 

@@ -19,7 +19,7 @@ import { declineHookPhrase, ensureArticle } from "./declension";
 import { applyDisruptor, applyRhythm, applyTension, paragraphize, applyPerspective, pronominalize, guessPronoun, entferneDubletten } from "./shape";
 import { verwandleMotive, leseVerwandlungen } from "./verwandlung";
 import { MarkovModel, isSaneMarkov, smoothMarkov } from "../corpus";
-import { praesensUmschreiben } from "./coherence";
+import { praesensUmschreiben, isFirstPerson } from "./coherence";
 import { biasedAutoChoice } from "./autochoice";
 import { buildVideoSequenceText, VIDEO_SEK_VORGABE } from "./video";
 import { enforceWordTarget } from "./length";
@@ -77,11 +77,19 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
   const archB = (input.archetypeB || "neutral").toLowerCase();
 
   const modeKey = resBiased(input.mode, "mode", MODES, archA, archB);
-  const M = MODE_DATA[modeKey] || MODE_DATA.bureau!;
+  const M0 = MODE_DATA[modeKey] || MODE_DATA.bureau!;
+  // Ausdrücklich „Er/Sie" (4.390.0): Regeln der Welt in Ich-Form („Ich bin
+  // nicht ich, nur Version.") fallen heraus, solange genug übrig bleibt.
+  const dritte = input.perspective === "third";
+  const regelnOhneIch = M0.rules.filter((x) => !isFirstPerson(x));
+  const M = dritte && regelnOhneIch.length >= 2 ? { ...M0, rules: regelnOhneIch } : M0;
   let structure = resBiased(input.structure, "structure", STRUCTURES, archA, archB);
   // "fragment" liest sich telegrammartig - bei Struktur "Auto" ausschließen,
   // damit Prosa fließend bleibt. Explizit gewählt bleibt Fragment erhalten.
   if (input.structure === "auto" && structure === "fragment") structure = pick(STRUCTURES.filter((x) => x !== "fragment"));
+  // Die Struktur „Objekt" erzählt als Ich („Ich bin der Schrein. Ich liege
+  // …"). Bei ausdrücklich gewählter dritter Person zieht „Auto" sie nicht.
+  if (input.structure === "auto" && structure === "object" && dritte) structure = pick(STRUCTURES.filter((x) => x !== "object" && x !== "fragment"));
   const perspective = input.perspective === "auto" ? (biasedAutoChoice("perspective", archA, archB) || pick(PERSPECTIVES)) : input.perspective;
   let rhythm = resBiased(input.rhythm, "rhythm", RHYTHMS, archA, archB);
   // Ton gewichtet das Satzlängen-Profil mit: bei Rhythmus "Auto" bevorzugt den
@@ -151,8 +159,26 @@ export function buildKit(bank: Bank, input: GenInput, model?: MarkovModel): Stor
 }
 
 /** Erzeugt einen Text zu Bank + Eingabe. */
-export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): string {
+/** Bank ohne Ich-Einträge — für die gewählte Perspektive „Er/Sie" (4.390.0).
+ *  Gemessen an 4.386: In 70 von 200 Prosatexten mit Perspektive Er/Sie stand
+ *  ein Ich-Satz aus der Bank („Ich bin nicht ich, nur Version."). Ein Pool
+ *  bleibt unangetastet, wenn sonst zu wenig übrig bliebe. Wörtliche Rede
+ *  zählt nicht: „Ich komme", sagt er — das ist dritte Person. */
+export function bankOhneIch(bank: Bank): Bank {
+  const out: Record<string, unknown> = { ...(bank as unknown as Record<string, unknown>) };
+  for (const [k, v] of Object.entries(out)) {
+    if (!Array.isArray(v) || !v.length || typeof v[0] !== "string") continue;
+    const rest = (v as string[]).filter((x) => !isFirstPerson(x.replace(/„[^“]*“|»[^«]*«|"[^"]*"/g, "")));
+    if (rest.length >= Math.max(3, Math.ceil(v.length * 0.3))) out[k] = rest;
+  }
+  return out as unknown as Bank;
+}
+
+export function buildStory(bankRoh: Bank, input: GenInput, model?: MarkovModel): string {
   resetMarkovTrace();
+  // Nur bei AUSDRÜCKLICH gewählter dritter Person und in erzählenden Formen;
+  // im Dialog sprechen Figuren, im Bericht zitiert die Zeitung.
+  const bank = input.perspective === "third" && /^(prose|poem|strang|video)$/.test(input.form) ? bankOhneIch(bankRoh) : bankRoh;
   const kit = buildKit(bank, input, model);
 
   const lenTarget = Number.isFinite(input.lenTarget as number) ? (input.lenTarget as number) : 110;

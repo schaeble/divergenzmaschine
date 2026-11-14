@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.389.0**, Zweig `typescript-migration`.
+Stand: **v4.390.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -2722,6 +2722,20 @@ Archetyp ist das Gegenüber ein Mensch; Regieanweisungen ohne Sprecher;
 Haltungs-Vorräte fast verdoppelt, damit 40 Runden ohne Dublette gehen.
 Runden = (Ziel − 14) / 8. Neuer Prüfstand `test/dialog.ts` (67 gesamt).
 Nicht gebaut: Dialog mit Gattung (Märchen als Szene).
+
+**Vier kleine Fehler** (4.390.0, Prüfstand `test/kleinfehler.ts`, 68 gesamt):
+(1) Perspektive Er/Sie mit Ich-Sätzen (70/200): Quellen waren die Struktur
+„object" („Ich bin der Schrein …"), Regeln der Modi (`modes.data.ts`) und
+Bank-Einträge. Bei AUSDRÜCKLICH gewählter dritter Person zieht „Auto" die
+Struktur object nicht, Ich-Regeln fallen, und `bankOhneIch()` filtert die
+Pools (Zitate zählen nicht; ein Pool bleibt ganz, wenn unter 30 % blieben).
+Der Störer „Erzählerwechsel" („Ich übernehme hier") bleibt — das ist seine
+Aufgabe. (2) Bericht-Kopfzeile: `dachOrt` gibt nach „einer"/„der" dem
+Adjektiv -e, sonst fällt es weg. (3) Strang: Schlussanker doppelt, nur ein
+Komma verschieden — Zeilen werden ohne Satzzeichen verglichen. (4)
+`grammarFlags`: „, die die" im Relativsatz und Verdopplung über einen
+Zeilenwechsel zählen nicht mehr. Falle Wächter: Ein Array mit vier
+Form-Werten gilt als zweite Werteliste — Regex nehmen.
 
 ## 7 · Fallen in diesem Quelltext
 

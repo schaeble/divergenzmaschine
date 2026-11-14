@@ -88,6 +88,14 @@ export function applyStrangPoem(rawText: string, anchorLine = "", lenTarget = 0)
     const already = lines.some((l) => l.toLowerCase().includes(anchorLn.toLowerCase().slice(0, Math.min(18, anchorLn.length))));
     if (!already) lines.push(anchorLn);
   }
+  // Keine Zeile zweimal (4.390.0): Der Schlussanker stand in 13 von 200
+  // Strängen doppelt — einmal aus dem Text („So endet die Weide wo ein Tempel
+  // begann"), einmal angehängt, nur ein Komma verschieden. Verglichen wird
+  // ohne Satzzeichen; die spätere Zeile bleibt (sie trägt den Schluss).
+  {
+    const nackt = (l: string): string => l.toLowerCase().replace(/[^a-zäöüß]/g, "");
+    lines = lines.filter((l, i) => !lines.some((m, j) => j > i && nackt(m) === nackt(l) && nackt(l).length > 8));
+  }
   if (lines.length) {
     let last = lines[lines.length - 1]!.replace(/[,;:—–\s]+$/, "");
     const lw = stripDanglingTail(last.split(/\s+/).filter(Boolean));

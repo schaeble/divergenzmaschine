@@ -324,10 +324,17 @@ export function dachOrt(roh: string): string {
   let o = (roh || "").trim();
   // Führende Umstandswörter zuerst: „hoch in der Luft" ergab sonst „Hoch in".
   o = o.replace(/^(hoch|tief|weit|mitten|ganz|dicht|nahe|irgendwo|weit draußen|draußen|drinnen|oben|unten|dort|hier)\s+/i, "");
-  o = o.replace(/^(in|an|auf|bei|im|am|vor|über|unter|zu|zur|zum)\s+/i, "")
-    .replace(/^(der|die|das|dem|den|des|ein|eine|einen|einem|einer|eines)\s+/i, "")
-    .trim();
+  o = o.replace(/^(in|an|auf|bei|im|am|vor|über|unter|zu|zur|zum)\s+/i, "");
+  const artikel = (o.match(/^(der|die|das|dem|den|des|ein|eine|einen|einem|einer|eines)\s+/i) || [])[1]?.toLowerCase() || "";
+  o = o.replace(/^(der|die|das|dem|den|des|ein|eine|einen|einem|einer|eines)\s+/i, "").trim();
   o = (o.split(",")[0] || "").trim();
+  // Ein gebeugtes Adjektiv vorn (4.390.0): Aus „in einer schlaflosen Stadt"
+  // wurde „Schlaflosen Stadt · Gesellschaft" — in 17 von 200 Berichten. Nach
+  // „einer" oder „der" ist das Nomen weiblich, das Adjektiv bekommt -e
+  // („Schlaflose Stadt"). Sonst ist das Geschlecht offen (einem Bahnhof /
+  // einem Zimmer) — dann fällt das Adjektiv weg. Lieber weniger als falsch.
+  const adj = o.match(/^([a-zäöüß]{3,}?)(en|em|er)\s+([A-ZÄÖÜ].*)$/);
+  if (adj) o = artikel === "einer" || artikel === "der" ? `${adj[1]}e ${adj[3]}` : adj[3]!;
   // NUR an eindeutigen Marken kappen. Die erste Fassung schnitt auch an einem
   // bloßen „der" — und aus „hoch in der Luft" wurde „Hoch in".
   o = o.replace(/\s+(wo|worin|woran|worauf|welche[rs]?)\s+.*$/i, "").trim();
