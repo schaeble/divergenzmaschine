@@ -12,7 +12,7 @@
 // findet „hören". Die Liste ist Handarbeit, nach Häufigkeit gewählt, und
 // gegen die 6930 eingebauten Bausteine geprüft (test/verblex.ts). Wer ein
 // Verb vermisst, trägt es hier ein — alphabetisch, ein Wort je Eintrag.
-const GRUND = `
+const GRUND = `breiten schichten 
 achten ächzen ahnen ändern ärgern arbeiten atmen backen baden bangen bauen beben bedeuten beeilen befehlen beginnen begreifen
 behalten beißen bellen bergen bersten beten betteln beugen bewegen biegen bieten bilden binden bitten blasen bleiben blenden blicken
 blinken blinzeln blitzen blühen bluten bohren borgen brauchen brausen brechen bremsen brennen bringen brüllen brummen buchen bücken
@@ -102,6 +102,8 @@ export const VERB_PRAEFIXE = ["zusammen", "zurück", "wieder", "gegen", "hinter"
 // Präteritum → Präsens der starken Verben (aus coherence.ts hierher gezogen,
 // damit Morphologie und Umschreiber dieselbe Tabelle lesen).
 export const PAST2PRES: Record<string, string> = {
+  // Ergänzt 4.387.0 (Märchen und Fabel als Multi-Shot: „wartet, bis es fror"):
+  fror: "friert", froren: "frieren", "fraß": "frisst", "fraßen": "fressen", grub: "gräbt", gruben: "graben", breitete: "breitet",
   // Ergänzt 4.338.2 (Blatt „Vier Kinder": „Das Herz schlug mir bis zum Hals" blieb stehen):
   schlug: "schlägt", schlugen: "schlagen", roch: "riecht", rochen: "riechen", traf: "trifft", trafen: "treffen",
   schob: "schiebt", schoben: "schieben", tat: "tut", taten: "tun", wusch: "wäscht", stritt: "streitet", glitt: "gleitet",

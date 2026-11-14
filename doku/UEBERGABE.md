@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.386.0**, Zweig `typescript-migration`.
+Stand: **v4.387.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -2674,6 +2674,26 @@ Ort. Kopfzeile `GRUNDIDEE:` = erster Prosasatz. Ohne Prosa bleiben die
 Bildszenen aus Bank und Bogen (test/video.ts prüft beide Wege). Die Gattung
 wirkt damit auch im Multi-Shot (`gattungsForm`). Nebenfund: `kleinerArtikel`
 schrieb nach „.“ einen Artikel klein.
+
+**Multi-Shot nachgezogen** (4.387.0): Messung an 4.386 (je 200 Läufe je
+Gattung) fand sieben Fehler, alle behoben und in test/video.ts Abschnitt 8
+als Muster mit Gegenprobe: Ort doppelt im ersten Shot (200/200 bei Märchen
+und Fabel); Zeiten gemischt (152/200 Märchen) — jetzt EINE Zeit je Text:
+`prosaSaetze` schreibt nur außerhalb der Anführungszeichen um, mit Beleg
+für den ganzen Text, und fällt geschlossen auf die Erzählzeit zurück, wenn
+ein Satz nicht geht; Vorsilben-Regel in `toPresent` („einschlief",
+„stillstand") NUR mit Beleg (`mitVorsilbe`), sonst beschädigt sie
+Bank-Bausteine; `isPastTense` las „Schloss", „Verband", „Fuß|note" als
+Präteritum. Neonlicht im Märchen → `LICHT_ZEITLOS`; Übergänge gemischt;
+Titel = Titel der Geschichte; Schlussbild aus `SCHLUSSBILD`; Sätze je Shot
+aus dem Wortziel (Ziel 200 → rund 200 statt 339); „Es war einmal" wird zum
+Bild; leere vier W zeigen keine Platzhalter im Kopf. Prüfstand Studio war
+seit 4.386 gelegentlich rot (Form Multi-Shot ist bei Gattung erlaubt).
+Offen aus der Analyse: Längenregler ohne Wirkung bei Fabel, Mythos,
+Prosagedicht, Strang; Szene/Dialog mit zwei festen Sätzen in 99 von 100
+Szenen; Ich-Sätze bei Perspektive Er/Sie (70/200); Bericht-Kopfzeile
+gebeugt (17/200); Strang-Schlusszeile doppelt (13/200); `grammarFlags`
+wertet „die die" als Fehler.
 
 ## 7 · Fallen in diesem Quelltext
 

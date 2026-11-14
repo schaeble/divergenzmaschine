@@ -405,11 +405,13 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
       for (let i = 0; i < 24; i++) {
         alleKnopf3.click();
         gezogen.add(gattung.value);
-        if (form.value !== "prose") nichtProsa++;
+        // Seit 4.386.0 wirkt die Gattung auch im Multi-Shot; stand die Form
+        // vorher dort, bleibt sie (der Prüfstand war deshalb gelegentlich rot).
+        if (form.value !== "prose" && form.value !== "video") nichtProsa++;
       }
       ist("Gattungs-Schloss offen: nie „keine\"", gezogen.has("keine"), false);
       wahr(`Gattungs-Schloss offen: mehrere Gattungen gezogen (${[...gezogen].join(", ")})`, gezogen.size >= 3);
-      ist("Gattungs-Schloss offen: die Form bleibt auf Prosa", nichtProsa, 0);
+      ist("Gattungs-Schloss offen: die Form bleibt auf Prosa oder Multi-Shot", nichtProsa, 0);
       gattungSchloss.click();
       gattung.value = "keine"; gattung.dispatchEvent(new dom.window.Event("change"));
     }

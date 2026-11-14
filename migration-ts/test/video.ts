@@ -12,6 +12,7 @@ import { DEFAULT_BANK } from "../src/constants";
 import { presetAusText } from "../src/features/textpreset";
 import { buildStory, buildKit } from "../src/generation/buildStory";
 import { buildVideoSequenceText, prosaSaetze, verteileSaetze, clampTotalSec } from "../src/generation/video";
+import { isPastTense } from "../src/generation/coherence";
 import { setDramaData } from "../src/generation/dramaturgie";
 import type { GenInput } from "../src/types";
 
@@ -42,7 +43,7 @@ const shots = (t: string): string[] => t.split("\n").filter((l) => l.startsWith(
   ist("fünf Shots", sh.length, 5);
   wahr("der erste Shot verankert Ort und Figur", /^In einem verlassenen Bahnhof: Eine Uhrmacherin nahe /.test(sh[0]!));
   wahr("jeder Shot außer dem letzten hat ein Nah-Detail", sh.slice(0, -1).every((s) => /Nah: /.test(s)));
-  wahr("jeder Shot außer dem letzten endet mit einem Schnitt", sh.slice(0, -1).every((s) => /(Schnitt\.|das Bild geht\.|Atemzug lang\.|Überblendung ins Nächste\.|das Bild nicht\.|Das Bild reißt\.)$/.test(s)));
+  wahr("jeder Shot außer dem letzten endet mit einem Schnitt", sh.slice(0, -1).every((s) => /(Schnitt\.|das Bild geht\.|Atemzug lang\.|Überblendung ins Nächste\.|das Bild nicht\.|Das Bild reißt\.|Schnitt auf das Detail\.|ohne dass sich etwas ändert\.)$/.test(s)));
   wahr("der letzte Shot trägt den Schluss und lässt etwas sichtbar", /Nur (der Riss|das Fenster|die Karte|das Licht) bleibt sichtbar\.$/.test(sh[4]!));
   wahr("jeder Shot hat eine KAMERA-Zeile auf Deutsch", (t.match(/^KAMERA: .+\.$/gm) || []).length === 5 && !/KAMERA: .*(camera|push|pull|close-up)/i.test(t));
   wahr("kein Englisch mehr im Bild", !/\b(cold blue light|floating dust|fine fog|neon flicker|slow push)\b/i.test(t));
@@ -157,6 +158,71 @@ const shots = (t: string): string[] => t.split("\n").filter((l) => l.startsWith(
   let klein = 0;
   for (let i = 0; i < 8; i++) if (/[.!?]“ (ein|eine|der|die|das) /.test(bauMitProsa({ welt: "fabel", where: "am Rand eines Waldes", when: "", who: "Hase, Igel", what: "Wer sich seines Vorsprungs zu sicher ist, verliert ihn.", lenTarget: 200 } as never))) klein++;
   ist("nach Satzende im Zitat kein kleiner Artikel", klein, 0);
+}
+
+// ── 8 · Multi-Shot nachgezogen (4.387.0) ───────────────────────────────────
+// Sieben Befunde aus der Messung an 4.386 (je 200 Läufe): Ort doppelt, Zeiten
+// gemischt, Neonlicht im Märchen, feste Übergänge, Preset-Name als Titel,
+// Bank-Gegenstand im Schlussbild, Länge über dem Ziel.
+{
+  const G: Record<string, Partial<GenInput>> = {
+    maerchen: { welt: "maerchen", where: "in einem Städtchen mit schiefen Türmen", when: "vor langer Zeit", who: "ein Hirtenjunge", what: "Die Glocken sind gestohlen." },
+    fabel: { welt: "fabel", where: "am Rand eines Waldes", when: "", who: "Wolf, Zicklein", what: "Wer Unrecht tun will, findet immer einen Grund." },
+  } as never;
+  const PRAET = /(?<!\p{L})(bekam|kam|ging|sagte|fror|gab|nahm|stand|stillstand|schlief|einschlief|breitete|war|hatte|hatten|sah|lief|fand|bat|trug|lebte|lebten|wurde|fraß|floss|fragte)(?!\p{L})/u;
+  for (const [g, o] of Object.entries(G)) {
+    let ortDoppelt = 0, praet = 0, modern = 0, presetTitel = 0, bankSchluss = 0, woerter = 0, es = 0, platzhalter = 0;
+    const schnitt1 = new Map<string, number>();
+    const N = 60;
+    for (let i = 0; i < N; i++) {
+      const t = bauMitProsa({ ...o, lenTarget: 200 } as never);
+      const de = (t.match(/^DE: .*/gm) || []).map((x) => x.replace(/„[^“]*“/g, ""));
+      const m = t.match(/Shot 1[^\n]*\nDE: ([^.]+)\.(.*)/);
+      if (m && m[2]!.toLowerCase().includes(m[1]!.toLowerCase())) ortDoppelt++;
+      if (PRAET.test(de.join(" "))) praet++;
+      if (/Neon|Natrium|Kondenswasser|körnig wie Film/.test(t)) modern++;
+      if (/Körperwahrnehmung|Mystik|Horror|Monolog|Alltag|Welt$/.test(t.split("\n")[0]!)) presetTitel++;
+      if (/Nur (der Riss|das Fenster|die Karte|das Licht) bleibt sichtbar/.test(t)) bankSchluss++;
+      if (/Es ist einmal/.test(t)) es++;
+      if (/WANN: zu einer Zeit/.test(t)) platzhalter++;
+      woerter += (t.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+      const k = de[0]!.split(/(?<=[.!?])\s+/).pop() || ""; schnitt1.set(k, (schnitt1.get(k) || 0) + 1);
+    }
+    ist(`${g}: Ort steht nicht doppelt im ersten Shot`, ortDoppelt, 0);
+    ist(`${g}: kein Präteritum neben Präsens`, praet, 0);
+    ist(`${g}: kein Neon- oder Natriumlicht`, modern, 0);
+    ist(`${g}: der Titel ist nicht der Preset-Name`, presetTitel, 0);
+    ist(`${g}: kein Bank-Gegenstand im Schlussbild`, bankSchluss, 0);
+    ist(`${g}: kein „Es ist einmal“`, es, 0);
+    ist(`${g}: kein Platzhalter „zu einer Zeit“ im Kopf`, platzhalter, 0);
+    wahr(`${g}: Länge nahe am Ziel 200 (${Math.round(woerter / N)})`, woerter / N > 150 && woerter / N < 260);
+    wahr(`${g}: der Übergang nach Shot 1 wechselt (${schnitt1.size} verschiedene)`, schnitt1.size >= 4);
+  }
+  // Gefunden im Browser: Mit leeren vier W standen die Platzhalter im Kopf
+  // und „An einem Ort." im ersten Shot.
+  { const t = bauMitProsa({ welt: "maerchen", where: "", when: "", who: "", what: "", lenTarget: 200 } as never);
+    wahr("leere Felder + Gattung: keine Platzhalter", !/WER: Jemand|WO: an einem Ort|WAS: etwas|An einem Ort\./.test(t), t.slice(0, 300));
+    wahr("Gegenprobe: gefüllte Felder stehen im Kopf", /WER: ein Hirtenjunge/.test(bauMitProsa({ ...G["maerchen"], lenTarget: 200 } as never))); }
+  wahr("Märchen: der Titel nennt den Helden", /^SEQUENZ — .*Hirtenjunge/.test(bauMitProsa({ ...G["maerchen"], lenTarget: 200 } as never)));
+  // Gegenproben: Ohne Gattung bleibt der Preset-Titel, und die Bildszenen
+  // ohne Vorlage behalten ihr Schlussbild.
+  wahr("Gegenprobe: ohne Vorlage bleibt „Nur … bleibt sichtbar“", /Nur (der Riss|das Fenster|die Karte|das Licht) bleibt sichtbar/.test(bau({ lenTarget: 200 } as never)));
+  // Eine Zeit für den ganzen Text: Lässt sich ein Satz nicht umschreiben,
+  // bleibt alles in der Erzählzeit.
+  const gem = prosaSaetze("Der Hase lief los. Der Igel blieb sitzen. Er schmurgelte ein wenig. Dann kam der Hase zurück.");
+  wahr("nicht umschreibbar → alles bleibt Präteritum", gem.every((x) => !/läuft|bleibt|kommt/.test(x)) && /lief/.test(gem[0]!), gem.join(" | "));
+  const um = prosaSaetze("Der Hase lief los. Der Igel blieb sitzen. Dann kam der Hase zurück.");
+  ist("umschreibbar → alles Präsens", um.join(" "), "Der Hase läuft los. Der Igel bleibt sitzen. Dann kommt der Hase zurück.");
+  ist("Vorsilbe: „einschlief“ im Nebensatz", prosaSaetze("Der Wolf aß, bis er einschlief. Dann kam der Junge. Er nahm das Tuch.")[0], "Der Wolf isst, bis er einschläft.");
+  ist("wörtliche Rede bleibt unberührt", prosaSaetze("„Ich war dort“, sagte der Fuchs. Der Rabe sah ihn an. Dann flog er davon.")[0], "„Ich war dort“, sagt der Fuchs.");
+  // Der Detektor, dem die Umschreibung vertraut — erst prüfen, dann trauen:
+  ist("„Schloss“ ist kein Präteritum", isPastTense("Nicht weit davon: ein Schlüssel ohne Schloss."), false);
+  ist("„Verband“ ist kein Präteritum", isPastTense("Der Fuchs bittet um einen Verband für sein Bein."), false);
+  ist("„Fußnote“ ist kein Präteritum", isPastTense("Nicht weit davon: eine Definition mit Fußnote."), false);
+  ist("Gegenprobe: „schloss“ klein ist Präteritum", isPastTense("Er schloss die Tür."), true);
+  ist("Gegenprobe: Partizip bleibt („verschlossen“)", prosaSaetze("Das Tor blieb verschlossen. Der Junge kam näher. Er sah hinauf.")[0], "Das Tor bleibt verschlossen.");
+  ist("Gegenprobe: „Herzog“ wird nicht umgeschrieben", prosaSaetze("Der Herzog kam spät. Er sah müde aus. Dann ging er.")[0], "Der Herzog kommt spät.");
+  ist("Eingangsformel wird zum Bild", prosaSaetze("Es war einmal ein Hirtenjunge, der lebte hinter den sieben Bergen. Er ging los. Er kam an.")[0], "Ein Hirtenjunge lebt hinter den sieben Bergen.");
 }
 
 console.log(`Prüfstand Multi-Shot — ${geprueft} Prüfungen, ${bestanden} bestanden`);

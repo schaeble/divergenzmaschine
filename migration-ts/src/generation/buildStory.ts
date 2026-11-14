@@ -26,10 +26,10 @@ import { enforceWordTarget } from "./length";
 import { buildRekombination, buildVersAtome } from "../atoms/rekombination";
 import { buildBericht } from "./bericht";
 import { buildMeldung } from "./meldung";
-import { buildUtopie } from "./utopie";
-import { buildMaerchen } from "./maerchen";
-import { buildFabel } from "./fabel";
-import { buildMythos } from "./mythos";
+import { buildUtopie, utopieTitel } from "./utopie";
+import { buildMaerchen, maerchenTitelAusText } from "./maerchen";
+import { buildFabel, fabelTitelAusText } from "./fabel";
+import { buildMythos, mythosTitelAusText } from "./mythos";
 import { linkTrace } from "../atoms/trace";
 import { linkMarkovTrace } from "./markovTrace";
 import { applyEmphasis } from "./emphasis";
@@ -192,7 +192,17 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
     const mitBogen = hasDramaData() && input.structure !== "dramaturgie" && input.structure !== "bogen";
     try { prosa = buildStory(bank, { ...input, form: "prose", ...(mitBogen ? { structure: "dramaturgie" } : {}) }, model); } catch { prosa = ""; }
     resetMarkovTrace();
-    return postProcessText(buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? VIDEO_SEK_VORGABE, lenTarget, bank, input.tone, prosa), input);
+    // Mit Gattung trägt die Sequenz den Titel ihrer Geschichte (4.387.0).
+    let gTitel = "";
+    try {
+      gTitel = !prosa ? "" : input.welt === "maerchen" ? maerchenTitelAusText(prosa) : input.welt === "fabel" ? fabelTitelAusText(prosa)
+        : input.welt === "mythos" ? mythosTitelAusText(prosa) : input.welt === "utopie" || input.welt === "dystopie" ? utopieTitel(prosa) : "";
+    } catch { gTitel = ""; }
+    const gattungAn = !!input.welt && input.welt !== "keine";
+    return postProcessText(buildVideoSequenceText(kit, input.shots ?? 5, input.totalSec ?? VIDEO_SEK_VORGABE, lenTarget, bank, input.tone, prosa, gattungAn ? (gTitel || "ohne Titel") : undefined,
+      // Leere Felder: Mit Gattung zieht das Blatt Ort, Held und Mangel selbst —
+      // im Kopf stünden sonst die Platzhalter „Jemand", „an einem Ort", „etwas".
+      gattungAn ? { wo: !input.where?.trim(), wann: !input.when?.trim(), wer: !input.who?.trim(), was: !input.what?.trim() } : {}), input);
   }
   if (input.form === "poem") {
     // Rekombination gilt auch fuers Prosagedicht: Der Zweig lag bisher hinter dieser

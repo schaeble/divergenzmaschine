@@ -4,7 +4,7 @@
 // typischen Symptome zusammengesetzter Texte.
 import { splitSentences } from "../text-utils";
 import { KEIN_VERB, istVerbform, beugeVerb, infinitivZuStamm, kenntInfinitiv } from "./verben";
-import { PAST2PRES } from "./verblex.data";
+import { PAST2PRES, VERB_PRAEFIXE } from "./verblex.data";
 import { zaehle } from "../features/waechterStatistik";
 import { NOUN_GENDER } from "./nouns.data";
 
@@ -17,7 +17,9 @@ const PRAET_STRONG = /\b(war|waren|warst|hatte|hatten|wurde|wurden|ging|gingen|k
 // Praeteritum gehalten - ein reiner Praesens-Text bekam dadurch die schlechteste
 // Note. Die zweite Person Plural ("ihr wartetet") faellt jetzt durch; sie kommt in
 // erzaehlendem Text praktisch nicht vor.
-const PRAET_WEAK = /\b[a-zäöüß]{3,}(te|ten|test)\b/;
+// Wortgrenzen über Buchstaben, nicht \b (4.387.0): Für \b ist „ß" kein
+// Wortzeichen — in „Fußnote" wurde „note" als Präteritum gelesen.
+const PRAET_WEAK = /(?<![\p{L}])[a-zäöüß]{3,}(te|ten|test)(?![\p{L}])/u;
 const PRAES_MARK = /\b(ist|sind|bin|bist|seid|hat|habe|hast|haben|habt|wird|werden|wirst|kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollen|darf|dürfen|weiß|wissen|geht|gehen|kommt|kommen|sieht|sehen|steht|stehen|bleibt|bleiben|liegt|liegen|gibt|geben|nimmt|nehmen|spricht|sprechen|trägt|tragen|läuft|laufen|fällt|fallen|geschieht|passiert|beginnt|endet|wartet|antwortet|arbeitet|bedeutet|beobachtet|berichtet|schlägt|zeigt|dauert|öffnet|schließt|klingt|riecht|scheint|hört|fühlt|wirkt|führt|dreht|zieht|hält|läuft|fließt|wächst|sinkt|steigt|schweigt|spricht|denkt|kennt|nennt|trägt|findet|verliert|verschwindet)\b/i;
 
 /** Steht dieser einzelne Eintrag/Satz im Präteritum? (für Wortbank-Prüfung) */
@@ -40,18 +42,24 @@ export function schwachesPraeteritum(w: string, satz: string): boolean {
   return !re.test(satz) && !KEIN_VERB.has(m[1]! + "t") && !KEIN_VERB.has(m[1]!);
 }
 const weakLooksVerbal = (t: string): boolean => {
-  const m = t.match(/\b[a-zäöüß]{3,}(te|ten|test|tet)\b/g);
+  const m = t.match(/(?<![\p{L}])[a-zäöüß]{3,}(te|ten|test|tet)(?![\p{L}])/gu);
   if (!m) return false;
-  return m.some((w) => schwachesPraeteritum(w, t));
+  // Ordnungszahlen sind keine Verben: „die auf eine zweite verweist".
+  return m.some((w) => !/^(erste|zweite|dritte|vierte|fünfte|sechste|siebte|achte|neunte|zehnte|letzte|nächste|meiste)n?$/.test(w) && schwachesPraeteritum(w, t));
 };
 
 export function isPastTense(s: string): boolean {
   const t = s || "";
   if (PRAES_MARK.test(t)) return false;
-  if (PRAET_STRONG.test(t)) return true;
+  // PRAET_STRONG läuft ohne Großschreibung zu beachten; Nomen in der Satzmitte
+  // („ohne Schloss") nimmt diese Fassung vorher heraus (4.387.0).
+  if (PRAET_STRONG.test(t.replace(/(?<=[\p{L},;:]\s)[A-ZÄÖÜ][a-zäöüß]+/gu, "·"))) return true;
   if (PRAET_WEAK.test(t) && weakLooksVerbal(t) && !ADJ_CONTEXT.test(t)) return true;
   // Auch die Verben der Konverter-Tabelle erkennen (hält Warnung und Umschreibung synchron)
-  return (t.toLowerCase().match(/[a-zäöüß]+/g) || []).some((w) => !!PAST2PRES[w]);
+  // Nur kleingeschriebene Wörter und das Satzanfangswort (4.387.0): „ein
+  // Schlüssel ohne Schloss" und „einen Verband für sein Bein" galten als
+  // Präteritum, weil „schloss" und „verband" in der Tabelle stehen.
+  return (t.match(/[A-Za-zÄÖÜäöüß]+/g) || []).some((w, i) => (i === 0 || w === w.toLowerCase()) && !!PAST2PRES[w.toLowerCase()]);
 }
 
 /** Anteil der Sätze, die von der vorherrschenden Zeitform abweichen (0 = einheitlich). */
@@ -156,6 +164,13 @@ const PERSON_FORMS: Record<string, Record<string, string>> = {
   wusste:{ ich: "weiß", du: "weißt", wir: "wissen", sie: "weiß", er: "weiß", es: "weiß" },
 };
 
+// Nur wenn der Aufrufer weiß, dass der Text im Präteritum steht (Multi-Shot
+// aus einem Märchen). In Bank-Bausteinen ist „ein Gespräch, das nicht
+// stattfand" gewollt — die Gegenprobe über 6924 Bausteine zeigte dreizehn
+// Beschädigungen, als die Vorsilben-Regel überall galt.
+let mitVorsilbe = false;
+const PRAET_VORSILBEN = [...VERB_PRAEFIXE.filter((x) => x !== "ge" && x !== "da"), "statt", "heim", "herauf", "herbei", "hervor"].sort((x, y) => y.length - x.length);
+
 export interface TenseFix { text: string; changed: boolean; unsure: string[]; }
 /** Wandelt NUR eindeutige, unregelmäßige Präteritum-Formen ins Präsens (Tabelle
  *  + Personenabgleich). Schwache Formen auf -te/-ten bleiben bewusst unangetastet:
@@ -171,7 +186,19 @@ export function toPresent(entry: string): TenseFix {
     const w = zeichen ? roh.slice(0, -zeichen.length) : roh;
     if (!/^[A-Za-zÄÖÜäöüß]+$/.test(w)) continue;
     const low = w.toLowerCase();
-    const base = PAST2PRES[low];
+    // Mit Vorsilbe (4.387.0): „einschlief", „stillstand", „hinaufkam", „bekam"
+    // standen im Nebensatz und blieben stehen — die Tabelle kennt nur die
+    // Grundformen. Nur kleingeschrieben: „Herzog" ist kein „her" + „zog".
+    let base = PAST2PRES[low];
+    if (!base && w === low && mitVorsilbe) {
+      for (const pr of PRAET_VORSILBEN) {
+        const rest = low.slice(pr.length);
+        // Untrennbare Vorsilbe + Form auf -en ist meist ein Partizip:
+        // „das Grab bleibt verschlossen" wurde zu „verschließen".
+        if (/^(ver|be|er|ent|zer|emp|miss)$/.test(pr) && /en$/.test(rest)) continue;
+        if (low.startsWith(pr) && rest.length >= 3 && PAST2PRES[rest]) { base = pr + PAST2PRES[rest]; break; }
+      }
+    }
     if (base) {
       // Person aus dem vorangehenden Wort ableiten (z. B. „Ich war“ → „Ich bin“)
       const prev = (words.slice(0, i).reverse().find((x) => /^[A-Za-zÄÖÜäöüß]+$/.test(x)) || "").toLowerCase();
@@ -211,8 +238,10 @@ export function toPresent(entry: string): TenseFix {
 // (dritte Person, Bindevokal beachtet). Bleibt danach noch Präteritum
 // stehen (Perfekt, unbekannte starke Form), meldet ok = false — dann verwirft
 // der Aufrufer wie bisher.
-export function praesensUmschreiben(entry: string): { text: string; ok: boolean; changed: boolean } {
-  const first = toPresentSicher(entry);
+export function praesensUmschreiben(entry: string, belegt = false): { text: string; ok: boolean; changed: boolean } {
+  mitVorsilbe = belegt;
+  let first: TenseFix;
+  try { first = toPresentSicher(entry); } finally { mitVorsilbe = false; }
   const words = first.text.split(/(\s+)/);
   let changed = first.changed;
   const ARTIKEL = /^(der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|kein|keine|keinen|mein|meine|meinen|dein|deine|sein|seine|seinen|ihr|ihre|ihren|unser|unsere|jede|jeder|jedes|diese|dieser|dieses|manche|viele|alle|zwei|drei|im|am|zum|zur|beim|ins|vom)$/i;
@@ -232,7 +261,9 @@ export function praesensUmschreiben(entry: string): { text: string; ok: boolean;
   // oder Konsonantenhäufung + ete (öffnete, atmete). „bieten", „treten",
   // „arbeiten" enden auf -eten, sind aber Präsens — darum der Stamm-Test.
   const EINDEUTIG = /(?:[td]|chn|ffn|gn|tm|dm|ckn|kn)ete(?:n|st|t)?$/;
-  const belegtPraeteritum = first.changed || (first.text.match(/\b[a-zäöüß]{3,}ete(?:n|st)?\b/g) || []).some((x) => EINDEUTIG.test(x));
+  // `belegt`: Der Aufrufer weiß, dass der ganze Text im Präteritum steht
+  // (Multi-Shot aus einem Märchen) — dann gilt der Beleg für jeden Satz.
+  const belegtPraeteritum = belegt || first.changed || (first.text.match(/\b[a-zäöüß]{3,}ete(?:n|st)?\b/g) || []).some((x) => EINDEUTIG.test(x));
   let unklar = 0;
   for (let i = 0; i < words.length; i++) {
     const roh = words[i]!;

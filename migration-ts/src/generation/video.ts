@@ -10,7 +10,7 @@ import { guessGender } from "./declension";
 import { atomisiere } from "../atoms/atomisieren";
 import { loadKnobs } from "../features/knobs";
 import { satzPlausibel } from "./satzwaechter";
-import { praesensUmschreiben } from "./coherence";
+import { praesensUmschreiben, isPastTense } from "./coherence";
 import { hatFinitesVerb } from "../atoms/derive";
 import { loadActiveBankLabel } from "../wordbank";
 
@@ -71,6 +71,17 @@ const LICHT: string[] = [
   "Kondenswasser läuft an einer Scheibe", "Das Licht kommt von unten", "Ein einziger Lichtstreifen teilt den Raum", "Die Farben sind aus dem Bild gewaschen",
   "Ein Bild, das langsam nachdunkelt", "Glanz auf nassem Stein", "Die Luft körnig wie Film",
 ];
+// Licht ohne Technik (4.387.0): Im Märchen flackerte ein Neonlicht, über der
+// Fabel lag Natriumlicht — in 110 von 200 Läufen je Gattung. Mit Gattung
+// zieht die Sequenz nur aus diesem Vorrat.
+const LICHT_ZEITLOS: string[] = [
+  "Gegenlicht, die Figur nur als Rand", "Mondlicht durch Dunst", "Ein bewölkter Tag ohne Schatten", "Staub steht im Licht", "Feiner Nebel auf Kniehöhe",
+  "Das Licht kommt von unten", "Ein einziger Lichtstreifen teilt den Raum", "Glanz auf nassem Stein", "Tiefe Schatten, weiches Licht",
+  "Morgenlicht, flach und golden", "Feuerschein an den Rändern", "Dämmerung, die Farben werden still", "Kaltes Blau liegt auf allem",
+];
+// Schlussbilder für Sequenzen, die eine Geschichte erzählen: kein Gegenstand
+// aus der Bank („Nur die Karte bleibt sichtbar." unter einem Märchen).
+const SCHLUSSBILD: string[] = ["Das Bild steht.", "Langsam ins Schwarz.", "Abblende.", "Das Bild bleibt, bis es still ist.", "Die Kamera zieht sich zurück."];
 const SCHNITT: string[] = [
   "Schnitt.", "Harter Schnitt.", "Die Kamera bleibt, das Bild geht.", "Schwarz, einen Atemzug lang.", "Überblendung ins Nächste.",
   "Der Ton läuft weiter, das Bild nicht.", "Schnitt auf das Detail.", "Schnitt, ohne dass sich etwas ändert.", "Das Bild reißt.",
@@ -81,7 +92,7 @@ const KAMERA: string[] = [
   "Kran abwärts", "Aus der Sicht des Gegenstands",
 ];
 
-function buildVideoShots(kit: StoryKit, shotCount: number, lenTarget = 0, bank?: Bank, tone = "neutral", handlung?: string[][]): { shots: string[]; kamera: string[] } {
+function buildVideoShots(kit: StoryKit, shotCount: number, lenTarget = 0, bank?: Bank, tone = "neutral", handlung?: string[][], zeitlos = false, ortLeer = false): { shots: string[]; kamera: string[] } {
   const place = normalizePlace(kit.W);
   const who = kit.P;
   const bogen = loadDramaData();
@@ -117,7 +128,10 @@ function buildVideoShots(kit: StoryKit, shotCount: number, lenTarget = 0, bank?:
   const requisiten = reihenfolge([...s(bank?.props), ...s(bogen?.ausloeser)].filter(istNP));
   const hindernisse = reihenfolge([...s(bank?.obstacles)]);
   const ton = TONE_DATA[tone]?.flavor ? reihenfolge([...TONE_DATA[tone]!.flavor]) : [];
-  const licht = reihenfolge(LICHT);
+  const licht = reihenfolge(zeitlos ? LICHT_ZEITLOS : LICHT);
+  // Gemischt (4.387.0): Vorher zog jeder Lauf die Übergänge in Listenfolge —
+  // Shot 1 „Schnitt.", Shot 2 „Harter Schnitt." …, in 100 von 100 Sequenzen.
+  const schnitte = reihenfolge(SCHNITT);
   const kamera = reihenfolge(KAMERA);
   const benutzt = new Set<string>();
   // Die Requisite des ersten Bildes („nahe einer Lampe") zählt als benutzt —
@@ -182,7 +196,17 @@ function buildVideoShots(kit: StoryKit, shotCount: number, lenTarget = 0, bank?:
     // Mit Prosa-Vorlage: nur der Ort als Einstellung — die Figur stellt die
     // Prosa selbst vor („Am Rand eines Waldes: Hase nahe einem Foto." stand
     // sonst vor „Ein Hase und ein Igel leben am Rand eines Waldes.").
-    if (erster && handlung) teile.push(`${cap(place)}.`);
+    // Nennt die Handlung des Shots den Ort schon, entfällt die Einstellung —
+    // „In einem Städtchen. … lebt ein Hirtenjunge in einem Städtchen." stand
+    // in jedem Märchen und jeder Fabel (4.387.0).
+    if (erster && handlung) {
+      const hier = (handlung[0] || []).join(" ").toLowerCase();
+      const kern = (place.match(/[A-ZÄÖÜ][a-zäöüß]{3,}/g) || []).map((x) => x.toLowerCase());
+      const genannt = kern.length ? kern.every((k) => hier.includes(k)) : hier.includes(place.toLowerCase());
+      // Ein leeres Wo ergäbe den Platzhalter „An einem Ort." — die Gattung
+      // hat ihren Ort selbst gezogen und nennt ihn in der Handlung.
+      if (!genannt && !ortLeer) teile.push(`${cap(place)}.`);
+    }
     else if (erster) { const p0 = stripTailPunct(kit.propDat || kit.prop); teile.push(istNP(p0) ? `${cap(place)}: ${who} nahe ${p0}.` : `${cap(place)}: ${who}.`); }
     // Mit Prosa-Vorlage trägt die Handlung den Shot; ein Bild aus der Bank
     // kommt erst bei großer Länge dazu, sonst stünde es quer zur Geschichte.
@@ -213,9 +237,9 @@ function buildVideoShots(kit: StoryKit, shotCount: number, lenTarget = 0, bank?:
     // TON und zweites Bild bei hoher Länge
     if (!handlung && stufe >= 3 && ton.length) { const t = zieh(ton, ""); if (t) setze(teile, ensurePunct(t).trim()); }
     if (!handlung && stufe >= 4) { const b2 = zieh(bilder, ""); if (b2) setze(teile, `${cap(b2)}.`); }
-    if (letzter) teile.push(`Nur ${pick(["der Riss", "das Fenster", "die Karte", "das Licht"])} bleibt sichtbar.`);
+    if (letzter) teile.push(handlung ? pick(SCHLUSSBILD) : `Nur ${pick(["der Riss", "das Fenster", "die Karte", "das Licht"])} bleibt sichtbar.`);
     // SCHNITT
-    if (!letzter) teile.push(zieh(SCHNITT, "") || "Schnitt.");
+    if (!letzter) teile.push(zieh(schnitte, "") || "Schnitt.");
     shots.push(teile.filter(Boolean).join(" "));
     kameras.push(zieh(kamera, "Statische Einstellung, 35 mm"));
   }
@@ -263,11 +287,40 @@ export function prosaSaetze(prosa: string): string[] {
     if (offen(puffer) > 0) { i++; continue; }
     teile.push(puffer); i = k + 1;
   }
-  return teile.filter((x) => offen(x) === 0 && x.replace(/[^A-Za-zÄÖÜäöüß]/g, "").length > 3).map((x) => {
-    const u = praesensUmschreiben(x);
-    const t = u.ok ? u.text.trim() : x;
-    return /[.!?…“"»]$/.test(t) ? t : t + ".";
+  // Die Eingangsformel des Märchens ist eine Erzählerstimme, kein Bild: Aus
+  // „Es war einmal X, der lebte Y." wurde im Präsens „Es ist einmal X, der
+  // lebt Y." (4.387.0). Für den Shot wird sie zum schlichten Satz: „X lebt Y."
+  const ohneFormel = (x: string): string => x
+    .replace(/^Es war einmal (.+?), (?:der|die|das) lebte (.+)$/, (_m, h: string, o: string) => `${h.charAt(0).toUpperCase()}${h.slice(1)} lebte ${o}`)
+    .replace(/^Es war einmal (.+?)\.$/, (_m, h: string) => `${h.charAt(0).toUpperCase()}${h.slice(1)}.`);
+  const saetze = teile.filter((x) => offen(x) === 0 && x.replace(/[^A-Za-zÄÖÜäöüß]/g, "").length > 3).map(ohneFormel);
+  const punkt = (t: string): string => /[.!?…“"»]$/.test(t) ? t : t + ".";
+  // Eine Zeit für den ganzen Text (4.387.0). Vorher wurde Satz für Satz
+  // entschieden: Was sich sicher umschreiben ließ, stand im Präsens, der Rest
+  // im Präteritum — „wartet, bis es fror", in 152 von 200 Märchen. Jetzt:
+  // Steht die Vorlage im Präteritum, gilt das als Beleg für jeden Satz; und
+  // bleibt danach in irgendeinem Satz Präteritum stehen, behält der ganze
+  // Text seine Erzählzeit. Gemischt wird nicht mehr.
+  const ohneZitat = (x: string): string => x.replace(/„[^“]*“|»[^«]*«/g, "");
+  const belegt = saetze.filter((x) => isPastTense(ohneZitat(x))).length >= 2;
+  // Wörtliche Rede bleibt, wie sie ist: umgeschrieben wird nur außerhalb der
+  // Anführungszeichen („Warum arbeitest du?“ machte den Satz sonst unklar).
+  // Plusquamperfekt im Nebensatz wird Perfekt: „gespannt hatten" → „haben".
+  const um = saetze.map((x) => {
+    const stuecke = x.split(/(„[^“]*“|»[^«]*«)/);
+    let ok = true, changed = false;
+    const text = stuecke.map((st, k) => {
+      if (k % 2 === 1 || !st.trim()) return st;
+      const pq = belegt ? st.replace(/((?:ge|ver|be|er|zer|ent)[a-zäöüß]+(?:t|en)) hatten(?![\p{L}])/gu, "$1 haben").replace(/((?:ge|ver|be|er|zer|ent)[a-zäöüß]+(?:t|en)) hatte(?![\p{L}])/gu, "$1 hat") : st;
+      const u = praesensUmschreiben(pq, belegt);
+      if (!u.ok) ok = false;
+      if (u.changed || pq !== st) changed = true;
+      return u.text;
+    }).join("");
+    return { text, ok, changed };
   });
+  if (belegt && um.some((u) => !u.ok || isPastTense(ohneZitat(u.text)))) return saetze.map(punkt);
+  return um.map((u, k) => punkt(u.ok ? u.text.trim() : saetze[k]!));
 }
 
 /** Verteilt die Sätze auf die Shots: der Reihe nach, möglichst gleich viele,
@@ -284,26 +337,34 @@ export function verteileSaetze(saetze: string[], n: number, jeShot: number): str
   return out;
 }
 
-export function buildVideoSequenceText(kit: StoryKit, shotCount = 5, totalSec = VIDEO_SEK_VORGABE, lenTarget = 0, bank?: Bank, tone = "neutral", prosa?: string): string {
+export function buildVideoSequenceText(kit: StoryKit, shotCount = 5, totalSec = VIDEO_SEK_VORGABE, lenTarget = 0, bank?: Bank, tone = "neutral", prosa?: string, gattungTitel?: string, leer: { wo?: boolean; wann?: boolean; wer?: boolean; was?: boolean } = {}): string {
   const n = clampShotCount(shotCount);
   const total = clampTotalSec(totalSec);
   const dur = total / n;
   // F.2: Die Textmenge je Shot folgt dem Laengenregler. Die Shot-ZAHL bleibt am
   // eigenen Regler - sie ist eine Angabe fuer den Schnitt, keine Textlaenge.
-  const proShot = lenTarget > 0 ? lenTarget / n : 30;
-  const jeShot = proShot < 26 ? 1 : proShot < 40 ? 2 : proShot < 55 ? 3 : 4;
   const saetze = prosa ? prosaSaetze(prosa) : [];
+  // Sätze je Shot aus dem Wortziel (4.387.0): Kopf und Kamerazeilen kosten
+  // rund 70 Wörter, Licht und Schnitt rund 8 je Shot; der Rest geteilt durch
+  // die mittlere Satzlänge der Vorlage. Vorher standen bei Ziel 200 im
+  // Schnitt 339 Wörter da.
+  const mittel = saetze.length ? saetze.reduce((a, x) => a + x.split(/\s+/).length, 0) / saetze.length : 12;
+  const jeShot = Math.max(1, Math.min(4, Math.round((((lenTarget > 0 ? lenTarget : 150) - 70) / n - 8) / mittel)));
   const handlung = saetze.length >= 2 ? verteileSaetze(saetze, n, jeShot) : undefined;
-  const { shots, kamera } = buildVideoShots(kit, n, lenTarget, bank, tone, handlung);
+  const { shots, kamera } = buildVideoShots(kit, n, lenTarget, bank, tone, handlung, !!gattungTitel, !!leer.wo);
   // Kopfzeile: zuerst das Preset, dann der Modus. Vorher stand dort NUR der
   // Modus - und der ist eine Einstellung, kein Titel: Wer ihn fest eingestellt
   // hat, las in jeder Sequenz dieselbe Zeile ("Intime Koerperwahrnehmung"), ohne
   // zu erfahren, aus welchem Stoff sie gebaut ist.
-  const titel = [loadActiveBankLabel(), kit.mode.label].filter(Boolean).join(" · ");
+  // Mit Gattung heißt die Sequenz wie ihre Geschichte (4.387.0) — über einem
+  // Märchen stand „SEQUENZ — Intime Körperwahrnehmung".
+  const titel = gattungTitel || [loadActiveBankLabel(), kit.mode.label].filter(Boolean).join(" · ");
   // Die Grundidee: der erste Satz der Prosa-Vorlage — sagt, wovon die
   // Sequenz erzählt, bevor die Shots es zeigen.
+  // Ohne Wann (Fabel) stand der Platzhalter „zu einer Zeit" im Kopf.
+  const wannLeer = !!leer.wann || /^zu einer zeit$/i.test((kit.T || "").trim());
   const idee = saetze[0] ? [`GRUNDIDEE: ${saetze[0]}`] : [];
-  const out = [`SEQUENZ — ${titel}`.trim(), `WER: ${kit.PRaw || kit.P}`, `WO: ${kit.W}`, `WANN: ${kit.T}`, `WAS: ${kit.A}`, ...idee, `GESAMTLÄNGE: ${fmtSec(total)} • ${fmtSec(dur)} pro Shot`, ""];
+  const out = [`SEQUENZ — ${titel}`.trim(), ...(leer.wer ? [] : [`WER: ${kit.PRaw || kit.P}`]), ...(leer.wo ? [] : [`WO: ${kit.W}`]), ...(wannLeer ? [] : [`WANN: ${kit.T}`]), ...(leer.was ? [] : [`WAS: ${kit.A}`]), ...idee, `GESAMTLÄNGE: ${fmtSec(total)} • ${fmtSec(dur)} pro Shot`, ""];
   for (let i = 0; i < shots.length; i++) { out.push(`Shot ${i + 1} (${fmtSec(dur)})`, `DE: ${shots[i]}`, `KAMERA: ${kamera[i]}.`, ""); }
   return out.join("\n");
 }
