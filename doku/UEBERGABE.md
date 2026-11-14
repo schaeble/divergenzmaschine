@@ -2752,6 +2752,11 @@ verschiedene Sätze; Mythos 872, kein Satz mehr in jedem Text. Dabei
 gefunden: „Niemand hatte der Fischer gerufen" (Längensatz aus 4.388.0,
 Gründer als Objekt im Nominativ) — behoben, Muster in `pruefeMythos`.
 
+**Strang, Nachtrag** (4.391.0): Der Vergleich gegen doppelte Zeilen ließ
+kurze Zeilen aus („Die Karte" / „Die Karte.", „Ist." / „Ist.") — rund einer
+von 600 Strängen, `test/kleinfehler.ts` war deshalb gelegentlich rot. Jetzt
+ab zwei Buchstaben; 4000 Läufe ohne Fund.
+
 ## 7 · Fallen in diesem Quelltext
 
 - **`let` im Setzer steht in einer Reihenfolge.** `oeffneZeitungssetzer()` ist
