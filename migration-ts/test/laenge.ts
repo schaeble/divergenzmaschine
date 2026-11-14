@@ -83,6 +83,39 @@ for (const st of ["linear", "rekombination", "dramaturgie"]) {
   wahr("und nicht das Nomen davor", !istAdjektivVorNomen("Kinder", "Gottes"));
 }
 
+// ── Der Regler wirkt auch dort, wo er leerlief (4.388.0) ───────────────────
+// Gemessen an 4.386, je 20 Läufe bei Ziel 110 / 300–500:
+//   Prosagedicht 103 / 106 · Strang 104 / 111 · Fabel 111 / 119 · Mythos 157 / 189
+// Muster: Bei großem Ziel muss der Text deutlich länger sein als bei kleinem.
+{
+  const P = Object.keys(BUILTIN_PRESETS);
+  const W = (t: string): number => (t.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+  const mittel = (o: Partial<GenInput>, len: number, n = 24): number => {
+    let s = 0;
+    for (let i = 0; i < n; i++) s += W(buildStory(BUILTIN_PRESETS[P[i % P.length]!]! as Bank, { where: "an einem Fluss", when: "im Herbst", who: "eine Fährfrau", what: "wartet auf den letzten Gast", tone: "neutral", varLevel: "mid", form: "prose", structure: "linear", mode: "auto", perspective: "third", rhythm: "auto", markovMode: "off", disruptor: "off", archetypeA: "neutral", archetypeB: "neutral", instability: 0, ...o, lenTarget: len } as GenInput));
+    return s / n;
+  };
+  for (const [name, o, klein, gross, faktor] of [
+    ["Prosagedicht", { form: "poem" }, 110, 300, 2.2],
+    ["Gedicht-Strang", { form: "strang" }, 110, 300, 2.0],
+    ["Fabel", { welt: "fabel", where: "", when: "", who: "", what: "" }, 80, 300, 1.3],
+    ["Gründungsmythos", { welt: "mythos", where: "", when: "", who: "", what: "" }, 80, 400, 1.3],
+  ] as [string, Partial<GenInput>, number, number, number][]) {
+    const a = mittel(o, klein), b = mittel(o, gross);
+    wahr(`${name}: Ziel ${gross} gibt deutlich mehr als Ziel ${klein} (${Math.round(a)} → ${Math.round(b)})`, b >= a * faktor);
+  }
+  const pg = mittel({ form: "poem" }, 300), st = mittel({ form: "strang" }, 300);
+  wahr(`Prosagedicht trifft Ziel 300 auf ±15 % (${Math.round(pg)})`, Math.abs(pg - 300) <= 45);
+  wahr(`Strang trifft Ziel 300 auf ±20 % (${Math.round(st)})`, Math.abs(st - 300) <= 60);
+  // Gegenprobe: Die Meldung bleibt kurz — dort soll der Regler nichts tun,
+  // und das Studio sagt es.
+  wahr("Gegenprobe: die Meldung wächst nicht mit", mittel({ form: "meldung" }, 400, 12) < 90);
+  const qs = readFileSync("src/ui/studio.ts", "utf8");
+  wahr("das Studio nennt die Grenze der Fabel", /eine Fabel endet bei etwa 170 Wörtern/.test(qs));
+  wahr("… und sagt bei der Meldung, dass der Regler nicht wirkt", /Meldung: rund 50 Wörter, der Regler wirkt hier nicht/.test(qs));
+  wahr("der Regler erzeugt bei Versformen neu", !/Vers-\/Videoformen: Textlänge ohne Wirkung/.test(qs));
+}
+
 console.log(`Prüfstand Textlänge — ${geprueft} Prüfungen, ${bestanden} bestanden`);
 const proc = globalThis as unknown as { process?: { exit: (c: number) => void } };
 if (fails.length) { console.error(`\n❌ Textlänge: ${fails.length} Fehler:`); fails.forEach((f) => console.error("  - " + f)); proc.process?.exit(1); }

@@ -216,6 +216,32 @@ export function ziehFabelblatt(input: GenInput): Fabelblatt {
   };
 }
 
+// ── Vorrat für die Länge (4.388.0) ─────────────────────────────────────────
+// Gemessen an 4.386: Die Fabel hatte bei Ziel 110 wie bei Ziel 500 rund 115
+// Wörter — der Regler bewegte einen einzigen Satz. Eine Fabel bleibt kurz;
+// aber zwischen knapp und ausgemalt liegt Platz. Diese Sätze passen zu jeder
+// der Fabeln: ein Porträt je Tier aus seiner Eigenschaft, der Ort, die
+// Zeugen. Sie kommen der Reihe nach dazu, bis das Wortziel erreicht ist.
+const PORTRAET: Record<Eigenschaft, string[]> = {
+  list: ["{N} war bekannt dafür, dass {p} für jede Tür einen Schlüssel fand.", "{N} kam immer zu dem, was {p} wollte, und selten auf geradem Weg."],
+  eitel: ["{N} putzte sich jeden Morgen, bevor {p} irgendetwas anderes tat.", "{N} hörte nichts lieber als das, was man über {pa} sagte."],
+  fleiss: ["{N} stand vor allen anderen auf und ging nach allen anderen schlafen.", "{N} ließ keinen Tag aus."],
+  sorglos: ["{N} dachte nie weiter als bis zum Abend.", "{N} nahm jeden Tag, wie er kam."],
+  stark: ["{N} fürchtete niemanden, und alle wussten es.", "{N} musste nie zweimal bitten."],
+  klein: ["{N} war so klein, dass man {pa} leicht übersah.", "Von {d} nahm kaum jemand Notiz."],
+  beharrlich: ["{N} ließ sich von nichts aus der Ruhe bringen.", "{N} fing nichts an, was {p} nicht zu Ende brachte."],
+  hochmut: ["{N} hielt sich für schneller als den Wind.", "{N} hatte noch nie verloren und hielt das für ein Gesetz."],
+  gier: ["{N} hatte immer Hunger, auch wenn {p} satt war.", "{N} nahm, was {p} bekommen konnte."],
+  schwach: ["{N} tat keinem etwas und rechnete damit, dass es umgekehrt genauso war.", "{N} war noch nicht lange auf der Welt."],
+  schnabel: ["{N} war stolz auf seinen langen Schnabel.", "{N} aß langsam und mit Bedacht."],
+};
+const ORT_SATZ = ["Es war ein stiller Ort, und jeder kannte jeden.", "Dort geschah selten etwas, worüber man lange sprach.", "Die Tage glichen einander."];
+const ZEUGEN = ["Am Abend wussten es alle.", "Noch im nächsten Jahr erzählte man sich davon.", "Wer dabei gewesen war, vergaß es nicht."];
+const portraet = (t: Tier, rolle: Eigenschaft): string =>
+  pick(PORTRAET[rolle]).replace(/\{N\}/g, cap(t.nom)).replace(/\{p\}/g, t.p).replace(/\{pa\}/g, t.pa).replace(/\{d\}/g, t.dat);
+const worte = (x: string): number => (x.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+interface FSatz { s: string; rang?: number }
+
 // ── Der Bau ─────────────────────────────────────────────────────────────────
 
 export interface FabelErgebnis { text: string; fb: Fabelblatt; motiv?: string }
@@ -226,13 +252,28 @@ export function buildFabel(input: GenInput, bank?: Partial<Bank>): FabelErgebnis
   const F = (x: string): string => fuelle(x, W);
   const mat = utopieMaterial(bank, fb.lage);
   const motiv = mat.motive.length ? pick(mat.motive) : undefined;
-  const lang = (Number.isFinite(input.lenTarget as number) ? (input.lenTarget as number) : 110) > 150;
+  const ziel = Number.isFinite(input.lenTarget as number) ? (input.lenTarget as number) : 110;
+  const requisit = mat.requisiten.length ? pick(mat.requisiten) : undefined;
 
-  const eingang = [`${cap(fb.a.ein)} und ${fb.b.ein} lebten ${fb.wo}.`, ...(motiv ? [`Nicht weit davon: ${motiv}.`] : []), ...s.lage.map(F)];
-  const rede = s.rede.map(F);
-  const wende = [...s.wende.map(F), ...(lang ? [s.extra] : [])];
-  const lehre = fuelle(LEHRE_RAHMEN[fb.blick], { L: fb.lehre });
-  const text = [eingang, rede, wende].map((a) => a.join(" ")).concat(lehre).join("\n\n");
+  // Pflichtsätze ohne Rang; die übrigen kommen nach Rang dazu, bis das
+  // Wortziel erreicht ist. Rang 1 ist der eine Satz, den es vorher gab.
+  const eingang: FSatz[] = [
+    { s: `${cap(fb.a.ein)} und ${fb.b.ein} lebten ${fb.wo}.` },
+    { s: pick(ORT_SATZ), rang: 4 },
+    ...(motiv ? [{ s: `Nicht weit davon: ${motiv}.` }] : []),
+    ...(requisit ? [{ s: `Am Wegrand lag ${requisit}, und niemand fragte danach.`, rang: 6 }] : []),
+    { s: portraet(fb.a, s.rolleA), rang: 2 },
+    { s: portraet(fb.b, s.rolleB), rang: 3 },
+    ...s.lage.map((x) => ({ s: F(x) })),
+  ];
+  const rede: FSatz[] = s.rede.map((x) => ({ s: F(x) }));
+  const wende: FSatz[] = [...s.wende.map((x) => ({ s: F(x) })), { s: s.extra, rang: 1 }, { s: pick(ZEUGEN), rang: 5 }];
+  const lehre: FSatz[] = [{ s: fuelle(LEHRE_RAHMEN[fb.blick], { L: fb.lehre }) }];
+  const abschnitte = [eingang, rede, wende, lehre];
+  const an = new Set<FSatz>(abschnitte.flat().filter((x) => x.rang === undefined));
+  const zaehle = (): number => [...an].reduce((n, x) => n + worte(x.s), 0);
+  for (const k of abschnitte.flat().filter((x) => x.rang !== undefined).sort((a, b) => a.rang! - b.rang!)) { if (zaehle() >= ziel) break; an.add(k); }
+  const text = abschnitte.map((a) => a.filter((x) => an.has(x)).map((x) => x.s).join(" ")).join("\n\n");
   return { text, fb, motiv };
 }
 

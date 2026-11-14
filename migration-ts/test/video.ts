@@ -222,6 +222,7 @@ const shots = (t: string): string[] => t.split("\n").filter((l) => l.startsWith(
   ist("Gegenprobe: „schloss“ klein ist Präteritum", isPastTense("Er schloss die Tür."), true);
   ist("Gegenprobe: Partizip bleibt („verschlossen“)", prosaSaetze("Das Tor blieb verschlossen. Der Junge kam näher. Er sah hinauf.")[0], "Das Tor bleibt verschlossen.");
   ist("Gegenprobe: „Herzog“ wird nicht umgeschrieben", prosaSaetze("Der Herzog kam spät. Er sah müde aus. Dann ging er.")[0], "Der Herzog kommt spät.");
+  ist("die Lehre bleibt mit ihrem Nachsatz ein Satz", prosaSaetze("Der Hase läuft. Der Igel geht. Die Lehre daraus: Eile hilft nicht. Aber wer sie braucht, hört sie selten.").length, 3);
   ist("Eingangsformel wird zum Bild", prosaSaetze("Es war einmal ein Hirtenjunge, der lebte hinter den sieben Bergen. Er ging los. Er kam an.")[0], "Ein Hirtenjunge lebt hinter den sieben Bergen.");
 }
 

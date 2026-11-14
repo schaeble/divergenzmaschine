@@ -146,41 +146,59 @@ export function buildMythos(input: GenInput, bank?: Partial<Bank>): MythosErgebn
   const W = fb.werte, F = (s: string): string => fuelle(s, W);
   const mat = utopieMaterial(bank, fb.lage);
   const motiv = mat.motive.length ? pick(mat.motive) : undefined;
-  const lang = (Number.isFinite(input.lenTarget as number) ? (input.lenTarget as number) : 110) > 150;
+  // Längenregler (4.388.0): Vorher schaltete das Ziel nur drei Sätze zu —
+  // bei 110 Wörtern Ziel standen 157 da, bei 500 nur 189. Jetzt kommen die
+  // Sätze mit Rang der Reihe nach dazu, bis das Wortziel erreicht ist; ohne
+  // Rang stehen die Pflichtsätze des Mythos.
+  const ziel = Number.isFinite(input.lenTarget as number) ? (input.lenTarget as number) : 110;
   const g = fb.gruendung, nameIstGruendung = !g.pd;
+  const requisit = mat.requisiten.length ? pick(mat.requisiten) : undefined;
+  interface MSatz { s: string; rang?: number }
 
-  const ur = [
-    fb.wann ? `${cap(fb.wann)}, so sagen die Alten, war ${fb.wo} nichts als ${fb.urzustand.nichts}.` : `Am Anfang war ${fb.wo} nichts als ${fb.urzustand.nichts}.`,
+  const ur: MSatz[] = [
+    { s: fb.wann ? `${cap(fb.wann)}, so sagen die Alten, war ${fb.wo} nichts als ${fb.urzustand.nichts}.` : `Am Anfang war ${fb.wo} nichts als ${fb.urzustand.nichts}.` },
     // Heißt das Gegründete wie der Ort, darf es hier nicht beim Namen stehen.
     // „Der Hafen gab es noch nicht" war der falsche Fall: „es gibt" verlangt
     // den Akkusativ. „war noch nicht da" trägt den Nominativ (gefunden beim Lesen).
-    nameIstGruendung ? "Eine Stadt gab es noch nicht, kein Haus und keinen Weg." : `${cap(g.def)} war noch nicht da.`,
-    fb.urzustand.widerstand,
-    ...(motiv ? [`Nur eines war schon da: ${motiv}.`] : []),
+    { s: nameIstGruendung ? "Eine Stadt gab es noch nicht, kein Haus und keinen Weg." : `${cap(g.def)} war noch nicht da.` },
+    { s: fb.urzustand.widerstand },
+    { s: pick(["Wer dort hindurchmusste, ging schnell und sah sich nicht um.", "Die Tiere mieden den Ort.", "Niemand blieb länger als eine Nacht."]), rang: 5 },
+    ...(motiv ? [{ s: `Nur eines war schon da: ${motiv}.` }] : []),
   ];
-  const ankunft = [
-    `Da kam ${/, /.test(fb.gruender.ein) ? fb.gruender.ein + "," : fb.gruender.ein} ${fb.herkunft}.`,
-    F(`{Hc} ${fb.tat.versuch}, doch ${fb.tat.scheitern}.`),
-    ...(lang ? [F("{Pc} versuchte es wieder und wieder, und jedes Mal nahm das Land es zurück.")] : []),
+  const ankunft: MSatz[] = [
+    { s: `Da kam ${/, /.test(fb.gruender.ein) ? fb.gruender.ein + "," : fb.gruender.ein} ${fb.herkunft}.` },
+    { s: F(pick(["{Pc} hatte nichts bei sich als das, was {P} am Leib trug.", "Niemand hatte {H} gerufen, und niemand erwartete etwas."])), rang: 6 },
+    { s: F(`{Hc} ${fb.tat.versuch}, doch ${fb.tat.scheitern}.`) },
+    { s: F("{Pc} versuchte es wieder und wieder, und jedes Mal nahm das Land es zurück."), rang: 1 },
   ];
-  const opfer = [
-    F(`Da hörte {H} eine Stimme ${fb.quelle}: „Gib mir ${fb.opfer.du}, dann soll es halten.“`),
-    F(fb.opfer.gabe),
-    F(`Nun ${fb.tat.gelingen.split("|")[0]} {P} ${fb.tat.gelingen.split("|")[1]}.`),
+  const opfer: MSatz[] = [
+    { s: F(`Da hörte {H} eine Stimme ${fb.quelle}: „Gib mir ${fb.opfer.du}, dann soll es halten.“`) },
+    { s: F(`{Pc} schwieg lange, denn es war viel verlangt.`), rang: 7 },
+    { s: F(fb.opfer.gabe) },
+    { s: F(`Nun ${fb.tat.gelingen.split("|")[0]} {P} ${fb.tat.gelingen.split("|")[1]}.`) },
+    { s: "Und diesmal hielt es.", rang: 8 },
   ];
-  const ordnung = [
-    `So entstand ${nameIstGruendung ? fb.name : g.def}.`,
-    nameIstGruendung
+  const ordnung: MSatz[] = [
+    { s: `So entstand ${nameIstGruendung ? fb.name : g.def}.` },
+    { s: nameIstGruendung
       ? `In der alten Sprache heißt das ‚${fb.opfer.bedeutung}‘.`
-      : `Man gab ${g.pd} den Namen ${fb.name}; in der alten Sprache heißt das ‚${fb.opfer.bedeutung}‘.`,
-    ...(lang ? ["Andere kamen dazu, erst wenige, dann viele."] : []),
+      : `Man gab ${g.pd} den Namen ${fb.name}; in der alten Sprache heißt das ‚${fb.opfer.bedeutung}‘.` },
+    { s: "Andere kamen dazu, erst wenige, dann viele.", rang: 2 },
+    { s: "Sie blieben, weil es hielt.", rang: 4 },
   ];
-  const seitdem = [
-    F(fb.opfer.brauch),
-    ...(lang ? ["Wer fragt, warum, dem erzählt man diese Geschichte."] : []),
-    nameIstGruendung && fb.blick === "hell" ? `Und ${fb.name} besteht bis heute.` : F(SCHLUSS[fb.blick]),
+  const seitdem: MSatz[] = [
+    { s: F(fb.opfer.brauch) },
+    ...(requisit ? [{ s: `Bis heute liegt dort ${requisit}, und niemand rührt daran.`, rang: 9 }] : []),
+    { s: "Wer fragt, warum, dem erzählt man diese Geschichte.", rang: 3 },
+    { s: "Die Kinder lernen sie, bevor sie zählen können.", rang: 10 },
+    { s: nameIstGruendung && fb.blick === "hell" ? `Und ${fb.name} besteht bis heute.` : F(SCHLUSS[fb.blick]) },
   ];
-  const text = [ur, ankunft, opfer, ordnung, seitdem].map((a) => a.join(" ")).join("\n\n");
+  const abschnitte = [ur, ankunft, opfer, ordnung, seitdem];
+  const worte = (x: string): number => (x.match(/[A-Za-zÄÖÜäöüß]+/g) || []).length;
+  const an = new Set<MSatz>(abschnitte.flat().filter((x) => x.rang === undefined));
+  const zaehle = (): number => [...an].reduce((n, x) => n + worte(x.s), 0);
+  for (const k of abschnitte.flat().filter((x) => x.rang !== undefined).sort((a, b) => a.rang! - b.rang!)) { if (zaehle() >= ziel) break; an.add(k); }
+  const text = abschnitte.map((a) => a.filter((x) => an.has(x)).map((x) => x.s).join(" ")).join("\n\n");
   return { text, fb, motiv };
 }
 

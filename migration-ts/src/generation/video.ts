@@ -294,6 +294,11 @@ export function prosaSaetze(prosa: string): string[] {
     .replace(/^Es war einmal (.+?), (?:der|die|das) lebte (.+)$/, (_m, h: string, o: string) => `${h.charAt(0).toUpperCase()}${h.slice(1)} lebte ${o}`)
     .replace(/^Es war einmal (.+?)\.$/, (_m, h: string) => `${h.charAt(0).toUpperCase()}${h.slice(1)}.`);
   const saetze = teile.filter((x) => offen(x) === 0 && x.replace(/[^A-Za-zÄÖÜäöüß]/g, "").length > 3).map(ohneFormel);
+  // Die Lehre der Fabel bleibt mit ihrem Nachsatz zusammen (4.388.0): Sonst
+  // fiel beim Ausdünnen die Lehre weg, und der letzte Shot begann mit „Aber
+  // wer sie braucht, hört sie selten."
+  const li = saetze.findIndex((x) => /^(Die Lehre daraus|Lehre): /.test(x));
+  if (li >= 0 && li < saetze.length - 1) saetze.splice(li, saetze.length - li, saetze.slice(li).join(" "));
   const punkt = (t: string): string => /[.!?…“"»]$/.test(t) ? t : t + ".";
   // Eine Zeit für den ganzen Text (4.387.0). Vorher wurde Satz für Satz
   // entschieden: Was sich sicher umschreiben ließ, stand im Präsens, der Rest

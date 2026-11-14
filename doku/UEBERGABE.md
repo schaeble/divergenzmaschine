@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.387.0**, Zweig `typescript-migration`.
+Stand: **v4.388.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -2694,6 +2694,20 @@ Prosagedicht, Strang; Szene/Dialog mit zwei festen Sätzen in 99 von 100
 Szenen; Ich-Sätze bei Perspektive Er/Sie (70/200); Bericht-Kopfzeile
 gebeugt (17/200); Strang-Schlusszeile doppelt (13/200); `grammarFlags`
 wertet „die die" als Fehler.
+
+**Längenregler angeschlossen** (4.388.0): Gemessen an 4.386 bewegte der
+Regler nichts bei Prosagedicht (103/106 Wörter bei Ziel 110/400), Strang
+(104/111), Fabel (111/119), Mythos (157/189). Jetzt: Prosagedicht und Strang
+füllen ihr Gerüst vor dem Umbruch mit `enforceWordTarget` (Strang: Zeilenziel
+= Ziel/5,4, Füllung auf 110 %); Fabel und Mythos tragen Sätze mit `rang`, die
+der Reihe nach dazukommen (Fabel: `PORTRAET` je Eigenschaft, `ORT_SATZ`,
+`ZEUGEN`, Requisit aus dem Preset — bis etwa 170 Wörter; Mythos bis etwa
+240). Die Lehre der Fabel muss der Schluss bleiben (`pruefeFabel`), darum
+kein Nachsatz. Das Studio zeigt neben dem Regler, wo eine Form endet
+(`laengenGrenze`), und der Regler erzeugt bei Vers- und Videoformen neu.
+Falle: `grammarFlags` meldet „rechnete nicht damit." als Satz auf
+Funktionswort — Satz umgeschrieben, Melder nicht angefasst. Offen bleibt
+Szene/Dialog (Deckel bei 30 Runden, Punkt 3 der Analyse).
 
 ## 7 · Fallen in diesem Quelltext
 

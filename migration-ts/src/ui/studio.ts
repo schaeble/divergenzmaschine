@@ -1035,15 +1035,40 @@ export function mountStudio(root: HTMLElement): void {
       // Beide bauen ihre Laenge beim Erzeugen, nicht nachtraeglich: Ein Bericht
       // laesst sich nicht kuerzen, ohne Fakten zu verlieren.
       generate();
+    } else {
+      // Prosagedicht, Strang, Reim, Haiku und Multi-Shot bauen ihre Länge
+      // ebenfalls beim Erzeugen (4.388.0). Vorher stand hier „ohne Wirkung",
+      // und der Regler bewegte bis zum nächsten Erzeugen nichts.
+      generate();
     }
-    // Vers-/Videoformen: Textlänge ohne Wirkung
   };
+  // Wie weit der Regler bei dieser Form oder Gattung trägt (4.388.0). Eine
+  // Fabel bleibt eine Fabel: Über rund 170 Wörter hinaus hat sie nichts mehr
+  // zu erzählen. Statt den Regler still leerlaufen zu lassen, steht es da.
+  const lenGrenze = el("span", { class: "muted mini len-grenze" });
+  const laengenGrenze = (): { max: number; text: string } | null => {
+    const f = form.value, g = welt.value;
+    if (f === "meldung") return { max: 0, text: "Meldung: rund 50 Wörter, der Regler wirkt hier nicht" };
+    if (f === "script") return { max: 280, text: "Szene/Dialog endet bei etwa 280 Wörtern" };
+    if (f === "prose" && g === "fabel") return { max: 170, text: "eine Fabel endet bei etwa 170 Wörtern" };
+    if (f === "prose" && g === "mythos") return { max: 240, text: "ein Gründungsmythos endet bei etwa 240 Wörtern" };
+    return null;
+  };
+  const lenGrenzeMalen = (): void => {
+    const gr = laengenGrenze();
+    const ziel = parseInt(lenSlider.value, 10);
+    lenGrenze.textContent = gr && ziel > gr.max ? ` · ${gr.text}` : "";
+  };
+  form.addEventListener("change", lenGrenzeMalen);
+  welt.addEventListener("change", lenGrenzeMalen);
+  welt.addEventListener("gattung", lenGrenzeMalen);
   lenSlider.addEventListener("input", () => {
     lenVal.textContent = lenSlider.value;
+    lenGrenzeMalen();
     clearTimeout(lenTimer);
     lenTimer = setTimeout(applyLengthLive, 180);
   });
-  const lenRow = el("div", { class: "field lenrow" }, el("span", { class: "mlabel lockrow" }, el("span", {}, "Textlänge"), lockBtn(lenSlider, "Textlänge")), lenSlider, " ", lenVal);
+  const lenRow = el("div", { class: "field lenrow" }, el("span", { class: "mlabel lockrow" }, el("span", {}, "Textlänge"), lockBtn(lenSlider, "Textlänge")), lenSlider, " ", lenVal, lenGrenze);
 
   // Schriftart + Schriftgröße der Ausgabe (neben der Textlänge)
   const fontSel = el("select", { id: "f-font" },
@@ -3497,6 +3522,7 @@ export function mountStudio(root: HTMLElement): void {
   // „Multi-Shot" (gefunden beim Prüfen von 4.383.0).
   if (istGattung() && !locked.has(form.id) && !gattungsForm(form.value)) form.value = "prose";
   zeigeSchloesser();
+  lenGrenzeMalen();
   // Reglerstand festhalten, damit die Rückkehr in den Tab ihn wiederherstellen kann
   // Die Schieber gehören in denselben Merkzettel: Sonst käme ein Wurf, der im
   // Reiter Diagnose gefallen ist, beim Zurückwechseln nur zur Hälfte an.

@@ -211,7 +211,10 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
     const rk = input.structure === "rekombination" ? buildRekombination(bank, input, model) : "";
     if (rk.trim()) { const fertig = postProcessText(asProsePoem(rk), { ...input, form: "poem" }); linkTrace(fertig); linkMarkovTrace(fertig); return fertig; }
     const body = pickStructureBuilder(kit.structure === "fragment" ? "linear" : kit.structure)({ ...kit });
-    return postProcessText(asProsePoem(body), { ...input, form: "poem" });
+    // Längenregler (4.388.0): Das Prosagedicht brach nur die Sätze des
+    // Gerüsts um — bei Ziel 110 wie bei Ziel 400 rund 105 Wörter. Jetzt wird
+    // das Gerüst zuerst auf die Ziellänge gebracht, wie die Prosa.
+    return postProcessText(asProsePoem(entferneDubletten(enforceWordTarget(body, lenTarget, bank, model, input.markovMode || "mix"))), { ...input, form: "poem" });
   }
 
   const verseForm = input.form === "reim" || input.form === "haiku" || input.form === "strang" || input.form === "drama";
@@ -313,7 +316,9 @@ export function buildStory(bank: Bank, input: GenInput, model?: MarkovModel): st
     // die Versform soll waehlen, nicht zerschneiden.
     return asHaiku(finalText, anchor, lenTarget, buildVersAtome(bank, input, model));
   }
-  if (input.form === "strang") return asStrang(finalText, anchor, lenTarget);
+  // Der Strang wählt Zeilen aus dem Text; reicht der Text nicht, hilft kein
+  // Zeilenziel (bei jedem Ziel rund 110 Wörter). Darum erst auffüllen.
+  if (input.form === "strang") return asStrang(entferneDubletten(enforceWordTarget(finalText, Math.round(lenTarget * 1.1), bank, model, input.markovMode || "mix")), anchor, lenTarget);
   if (input.form === "drama") return asDrama(finalText, kit.speakerA, kit.speakerB || kit.P);
   // Ganz zum Schluss noch einmal: Das Auffüllen auf die Ziellänge hängt Material
   // an und kann dabei denselben Satz zweimal nebeneinander stellen. Gemessen war
