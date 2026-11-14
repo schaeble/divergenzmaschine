@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.390.0**, Zweig `typescript-migration`.
+Stand: **v4.391.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -2736,6 +2736,21 @@ Komma verschieden — Zeilen werden ohne Satzzeichen verglichen. (4)
 `grammarFlags`: „, die die" im Relativsatz und Verdopplung über einen
 Zeilenwechsel zählen nicht mehr. Falle Wächter: Ein Array mit vier
 Form-Werten gilt als zweite Werteliste — Regex nehmen.
+
+**Mehr Vorrat für Fabel und Mythos** (4.391.0): Fabel von 6 auf 12 Schemata
+(Höhle, Knochen, Fremde Federn, Aufblasen, Reiche Tafel, Brunnen; Stoffe
+nach Äsop, neu erzählt), 4 neue Tiere (Frosch, Ochse, Stadtmaus, Feldmaus),
+6 neue Eigenschaften mit Porträts. Regeln für neue Schemata: `wende[0]` muss
+eindeutig sein (daran erkennt `pruefeFabel` die Fabel); `extra` wird NICHT
+gefüllt (keine Platzhalter); jede Rolle braucht ein Tier, das nicht zugleich
+die andere Rolle allein besetzt; Sätze so schreiben, dass
+`praesensUmschreiben` sie schafft (kein „glichen", kein Plusquamperfekt) —
+sonst bleibt der Multi-Shot im Präteritum. Mythos: Urzustände 4→8, Gründer
+5→11, Herkunft 4→7, Taten 4→7, Quellen 4→7, Opfer 6→10, Gegründetes 5→8,
+Längensätze mit Varianten. Messung (120 Läufe, Ziel 300): Fabel 254 → 500
+verschiedene Sätze; Mythos 872, kein Satz mehr in jedem Text. Dabei
+gefunden: „Niemand hatte der Fischer gerufen" (Längensatz aus 4.388.0,
+Gründer als Objekt im Nominativ) — behoben, Muster in `pruefeMythos`.
 
 ## 7 · Fallen in diesem Quelltext
 

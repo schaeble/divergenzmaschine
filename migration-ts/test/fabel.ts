@@ -34,8 +34,10 @@ soll(loewe.akk === "den Löwen" && loewe.dat === "dem Löwen", `Löwe schwach: $
 
 // ── 2 · Matrix ──────────────────────────────────────────────────────────────
 const WO = ["", "am Rand eines Waldes", "in der Wüste", "Velmar"];
-const WER = ["", "Fuchs, Rabe", "Rabe, Fuchs", "der Löwe und die Maus", "Hase", "Igel, Hase", "Elefant", "Fuchs, Lamm", "Storch", "eine Ameise und eine Grille"];
-const WAS = ["", "Wie du mir, so ich dir.", "Wer Schmeicheleien glaubt, bezahlt dafür.", "Hochmut kommt vor dem Fall", "Alle tragen Hüte", "Verachte niemanden, weil er klein ist!"];
+const WER = ["", "Fuchs, Rabe", "Rabe, Fuchs", "der Löwe und die Maus", "Hase", "Igel, Hase", "Elefant", "Fuchs, Lamm", "Storch", "eine Ameise und eine Grille",
+  // 4.391.0: die sechs neuen Fabeln
+  "Frosch, Ochse", "Stadtmaus und Feldmaus", "Wolf, Kranich", "Krähe, Pfau", "Bär, Fuchs"];
+const WAS = ["", "Wie du mir, so ich dir.", "Wer Schmeicheleien glaubt, bezahlt dafür.", "Hochmut kommt vor dem Fall", "Alle tragen Hüte", "Verachte niemanden, weil er klein ist!", "Lieber wenig in Ruhe als viel in Angst."];
 const TOENE = ["uplifting", "dark", "ironisch", "nuechtern"];
 const IDS = Object.keys(BUILTIN_PRESETS);
 const funde = new Map<string, number>();

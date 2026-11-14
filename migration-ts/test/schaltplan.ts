@@ -164,7 +164,8 @@ const knoten = (a: ReturnType<typeof baueAnlage>, id: string) => a.knoten.find((
   const m2 = baueAnlage({ ...STAND({ welt: "maerchen" }), w4: { where: "", when: "", who: "ein kleines Mädchen", what: "" }, zeit: "" }, UMGEBUNG());
   ist("Märchen: Held gelesen", knoten(m2, "g-wer")?.wert, "das kleine Mädchen");
 
-  const f = baueAnlage({ ...STAND({ welt: "fabel" }), w4: { where: "", when: "", who: "Fuchs, Lamm", what: "Alle tragen Hüte" }, zeit: "" }, UMGEBUNG());
+  const f = baueAnlage({ ...STAND({ welt: "fabel" }), w4: { where: "", when: "", who: "Hase, Lamm", what: "Alle tragen Hüte" }, zeit: "" }, UMGEBUNG());
+  // Seit 4.391.0 passen Fuchs und Lamm in die Fabel „Brunnen"; Hase und Lamm passen in keine.
   ist("Fabel: unpassende Tiere sind leer", knoten(f, "g-wer")?.zustand, "leer");
   ist("Fabel: unerkannte Lehre ist leer", knoten(f, "g-was")?.zustand, "leer");
   ist("Fabel: Wann gesperrt", knoten(f, "g-wann")?.zustand, "aus");

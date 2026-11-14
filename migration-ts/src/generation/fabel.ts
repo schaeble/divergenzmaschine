@@ -21,7 +21,9 @@ import { utopieMaterial } from "../features/utopieMaterial";
 
 const cap = (s: string): string => (s ? s[0]!.toUpperCase() + s.slice(1) : s);
 
-export type Eigenschaft = "list" | "eitel" | "fleiss" | "sorglos" | "stark" | "klein" | "beharrlich" | "hochmut" | "gier" | "schwach" | "schnabel";
+export type Eigenschaft = "list" | "eitel" | "fleiss" | "sorglos" | "stark" | "klein" | "beharrlich" | "hochmut" | "gier" | "schwach" | "schnabel"
+  // 4.391.0, für sechs weitere Fabeln:
+  | "schwarz" | "pracht" | "neid" | "gross" | "verwoehnt" | "genuegsam";
 
 export interface Tier {
   nomen: string;
@@ -44,9 +46,9 @@ const n = (nomen: string, eigen: Eigenschaft[]): Tier =>
 
 export const TIERE: Tier[] = [
   m("Fuchs", ["list"]),
-  m("Rabe", ["eitel"], true),
-  f("Krähe", ["eitel"]),
-  m("Pfau", ["eitel"]),
+  m("Rabe", ["eitel", "schwarz"], true),
+  f("Krähe", ["eitel", "schwarz"]),
+  m("Pfau", ["eitel", "pracht"]),
   f("Ameise", ["fleiss"]),
   m("Biber", ["fleiss"]),
   f("Grille", ["sorglos"]),
@@ -61,6 +63,10 @@ export const TIERE: Tier[] = [
   n("Zicklein", ["schwach"]),
   m("Storch", ["schnabel"]),
   m("Kranich", ["schnabel"]),
+  m("Frosch", ["neid"]),
+  m("Ochse", ["gross"], true),
+  f("Stadtmaus", ["verwoehnt"]),
+  f("Feldmaus", ["genuegsam"]),
 ];
 
 interface Schema {
@@ -122,6 +128,52 @@ export const SCHEMATA: Schema[] = [
     wende: ["Am nächsten Tag stellte {B} das Essen in einen Krug mit engem Hals.", "{Bc} aß mit dem langen Schnabel, und {A} saß hungrig daneben und leckte nur den Rand."],
     extra: "Gegrüßt haben sie einander danach nicht mehr.",
     lehre: ["Wie du mir, so ich dir.", "Wer andere hereinlegt, muss damit rechnen, dass es ihm genauso ergeht."] },
+  // ── Sechs weitere (4.391.0) ──────────────────────────────────────────────
+  // Gemessen an 4.386: 254 verschiedene Sätze in 120 Fabeln, 44 davon mit
+  // demselben Anfang. Stoffe nach Äsop, neu erzählt. `extra` wird nicht
+  // gefüllt — dort keine Platzhalter.
+  { id: "hoehle", name: "Höhle", rolleA: "stark", rolleB: "list",
+    re: /spur|einladung|schaden der anderen/i,
+    lage: ["{Ac} war alt geworden und konnte nicht mehr jagen.", "Also legte {Ap} sich in {Aposs}e Höhle und ließ verbreiten, {Ap} sei krank."],
+    rede: ["Ein Tier nach dem anderen kam zu Besuch, und keines kam wieder heraus.", "Zuletzt kam {B}, blieb aber vor dem Eingang stehen.", "„Komm doch näher“, rief {A}, „ich höre so schlecht.“"],
+    wende: ["„Lieber nicht“, sagte {B}.", "„Ich sehe viele Spuren, die hineinführen, und keine, die herausführt.“", "Dann ging {B} davon."],
+    extra: "In der Höhle blieb es an diesem Abend still.",
+    lehre: ["Der Kluge lernt aus dem Schaden der anderen.", "Sieh auf die Spuren, bevor du einer Einladung folgst."] },
+  { id: "knochen", name: "Knochen", rolleA: "gier", rolleB: "schnabel",
+    re: /lohn|undank|dem bösen|räuber/i,
+    lage: ["{Ac} hatte zu hastig gefressen, und ein Knochen steckte {Apd} quer im Hals."],
+    rede: ["„Zieh ihn mir heraus“, bat {A} {Ba}, „ich will dich reich belohnen.“", "{Bc} steckte den langen Schnabel tief in den Rachen und zog den Knochen heraus."],
+    wende: ["„Und mein Lohn?“, fragte {B}.", "„Du hast deinen Kopf heil aus meinem Rachen gezogen“, sagte {A}. „Das ist Lohn genug.“"],
+    extra: "Der Knochen blieb im Gras liegen.",
+    lehre: ["Wer dem Bösen dient, darf froh sein, wenn er heil davonkommt.", "Von einem Räuber erwarte keinen Dank."] },
+  { id: "federn", name: "Fremde Federn", rolleA: "schwarz", rolleB: "pracht",
+    re: /fremde[nr]? federn|schmückt/i,
+    lage: ["{Ac} fand ein paar Federn, die {B} verloren hatte, und steckte sie sich zwischen die eigenen."],
+    rede: ["So geschmückt stolzierte {A} umher und sah die alten Gefährten nicht mehr an.", "„Wer bist du denn?“, fragte {B}."],
+    wende: ["{Bc} erkannte die eigenen Federn sofort und riss sie {Ad} wieder aus.", "Zerzaust kehrte {A} zu den alten Gefährten zurück, aber die wollten {Aa} auch nicht mehr kennen."],
+    extra: "Die Federn trug der Wind davon.",
+    lehre: ["Wer sich mit fremden Federn schmückt, steht am Ende ohne da.", "Wer mehr scheinen will, als er ist, verliert auch das, was er war."] },
+  { id: "aufblasen", name: "Aufblasen", rolleA: "neid", rolleB: "gross",
+    re: /aufblas|größer scheinen|zerplatz|bewunder/i,
+    lage: ["{Ac} saß am Ufer und sah {Ba} auf der Wiese stehen.", "So groß wollte {A} auch sein."],
+    rede: ["„Seht her“, rief {A} den anderen zu und blies sich auf. „Bin ich jetzt so groß?“", "„Noch lange nicht“, sagten sie und zeigten auf {Ba}."],
+    wende: ["{Ac} blies sich weiter auf, und noch ein Stück, und noch eines.", "Dann gab es einen Knall."],
+    extra: "Auf der Wiese hatte niemand etwas bemerkt.",
+    lehre: ["Wer größer scheinen will, als er ist, zerplatzt daran.", "Nicht jeder kann werden, was er bewundert."] },
+  { id: "tafel", name: "Reiche Tafel", rolleA: "verwoehnt", rolleB: "genuegsam",
+    re: /in ruhe|in angst|karg|in frieden|in furcht/i,
+    lage: ["{Ac} besuchte {Ba} und fand das Essen dort ärmlich, nichts als Körner und Wurzeln."],
+    rede: ["„Komm mit zu mir“, sagte {A}, „bei mir gibt es Käse und Kuchen, so viel du willst.“", "{Bc} ging mit, und die Tafel war wirklich reich gedeckt."],
+    wende: ["Kaum saßen sie am Tisch, ging die Tür auf, und beide flohen in ein Loch.", "Das geschah dreimal an diesem Abend.", "„Behalte deinen Kuchen“, sagte {B}. „Ich esse meine Körner in Ruhe.“"],
+    extra: "Der Kuchen stand am Morgen noch da.",
+    lehre: ["Lieber wenig in Ruhe als viel in Angst.", "Ein karger Tisch in Frieden ist besser als ein reicher in Furcht."] },
+  { id: "brunnen", name: "Brunnen", rolleA: "list", rolleB: "schwach",
+    re: /hineinspring|herauskomm|in der klemme|brunnen/i,
+    lage: ["{Ac} war in einen Brunnen gefallen und kam nicht wieder heraus."],
+    rede: ["Da schaute {B} über den Rand und fragte, ob das Wasser gut sei.", "„Herrlich“, rief {A}, „komm herunter und trink.“", "{Bc} sprang hinein."],
+    wende: ["Sofort stieg {A} {Bd} auf den Rücken, von dort auf den Rand und war draußen.", "„Wer hineinspringt“, rief {A} hinunter, „sollte vorher wissen, wie er wieder herauskommt.“"],
+    extra: "Im Brunnen wurde es Abend.",
+    lehre: ["Sieh nach, wie du herauskommst, bevor du hineinspringst.", "Trau keinem Rat von einem, der in der Klemme sitzt."] },
 ];
 
 export const FABEL_ORTE = ["am Rand eines Waldes", "auf einer Wiese am Fluss", "in einem alten Garten", "an einem Hang über dem Dorf"];
@@ -234,8 +286,14 @@ const PORTRAET: Record<Eigenschaft, string[]> = {
   gier: ["{N} hatte immer Hunger, auch wenn {p} satt war.", "{N} nahm, was {p} bekommen konnte."],
   schwach: ["{N} tat keinem etwas und rechnete damit, dass es umgekehrt genauso war.", "{N} war noch nicht lange auf der Welt."],
   schnabel: ["{N} war stolz auf seinen langen Schnabel.", "{N} aß langsam und mit Bedacht."],
+  schwarz: ["{N} war schwarz vom Schnabel bis zum Schwanz und fand das zu wenig.", "{N} sah gern den Bunten nach."],
+  pracht: ["{N} trug ein Rad aus hundert Augen und wusste es.", "{N} zeigte sich gern und oft."],
+  neid: ["{N} wollte immer sein, was {p} gerade sah.", "{N} fand sich selbst zu klein."],
+  gross: ["{N} kaute und sah niemanden an.", "{N} war so breit wie ein Heuwagen."],
+  verwoehnt: ["{N} kannte nur gedeckte Tische.", "{N} hatte noch nie nach Essen suchen müssen."],
+  genuegsam: ["{N} brauchte nicht viel und hatte es.", "{N} schlief gut."],
 };
-const ORT_SATZ = ["Es war ein stiller Ort, und jeder kannte jeden.", "Dort geschah selten etwas, worüber man lange sprach.", "Die Tage glichen einander."];
+const ORT_SATZ = ["Es war ein stiller Ort, und jeder kannte jeden.", "Dort geschah selten etwas, worüber man lange sprach.", "Ein Tag war wie der andere."];
 const ZEUGEN = ["Am Abend wussten es alle.", "Noch im nächsten Jahr erzählte man sich davon.", "Wer dabei gewesen war, vergaß es nicht."];
 const portraet = (t: Tier, rolle: Eigenschaft): string =>
   pick(PORTRAET[rolle]).replace(/\{N\}/g, cap(t.nom)).replace(/\{p\}/g, t.p).replace(/\{pa\}/g, t.pa).replace(/\{d\}/g, t.dat);

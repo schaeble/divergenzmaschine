@@ -30,6 +30,11 @@ const URZUSTAENDE: Urzustand[] = [
   { nichts: "Steine und Wind", widerstand: "Was einer aufschichtete, trug der Wind in der Nacht davon." },
   { nichts: "Wasser, das nicht wusste, wohin", widerstand: "Was einer an Land zog, holte das Wasser zurück." },
   { nichts: "Wald, so dicht, dass kein Licht auf den Boden fiel", widerstand: "Wer eine Lichtung schlug, fand sie am nächsten Morgen zugewachsen." },
+  // Mehr Vorrat (4.391.0) — in 120 Mythen standen zwei Sätze in jedem.
+  { nichts: "Sand, der jeden Tag anders lag", widerstand: "Wer einen Pfahl einschlug, fand ihn am Morgen begraben." },
+  { nichts: "Eis und ein Himmel ohne Vögel", widerstand: "Wer eine Hütte baute, dem drückte der Frost sie in einer Nacht zusammen." },
+  { nichts: "Sumpf und Mücken", widerstand: "Wer einen Weg legte, sah ihn bis zum Abend versinken." },
+  { nichts: "Fels, auf dem nichts wuchs", widerstand: "Was einer säte, holten sich die Krähen, ehe es keimte." },
 ];
 
 export const GRUENDER: Held[] = [
@@ -38,8 +43,15 @@ export const GRUENDER: Held[] = [
   { ein: "eine Bärin", def: "die Bärin", rel: "die", pron: "sie", ausEingabe: false },
   { ein: "ein Fremder mit salzigem Haar", def: "der Fremde", rel: "der", pron: "er", ausEingabe: false },
   { ein: "eine alte Schmiedin", def: "die Schmiedin", rel: "die", pron: "sie", ausEingabe: false },
+  { ein: "ein Köhler mit schwarzen Händen", def: "der Köhler", rel: "der", pron: "er", ausEingabe: false },
+  { ein: "eine Fährfrau ohne Fähre", def: "die Fährfrau", rel: "die", pron: "sie", ausEingabe: false },
+  { ein: "ein Hütejunge", def: "der Hütejunge", rel: "der", pron: "er", ausEingabe: false },
+  { ein: "eine Weberin, die im Gehen spann", def: "die Weberin", rel: "die", pron: "sie", ausEingabe: false },
+  { ein: "ein alter Lotse", def: "der Lotse", rel: "der", pron: "er", ausEingabe: false },
+  { ein: "eine Hebamme mit einem leeren Korb", def: "die Hebamme", rel: "die", pron: "sie", ausEingabe: false },
 ];
-const HERKUNFT = ["von jenseits der Berge", "über das Wasser", "aus einem Land, das es nicht mehr gibt", "auf dem letzten Pfad, der noch begehbar war"];
+const HERKUNFT = ["von jenseits der Berge", "über das Wasser", "aus einem Land, das es nicht mehr gibt", "auf dem letzten Pfad, der noch begehbar war",
+  "den Fluss herauf", "aus der Richtung, aus der sonst nur der Wind kommt", "über den Pass, den man heute meidet"];
 
 /** `gelingen` als „Verb|Rest" — der Satz beginnt mit „Nun", das Subjekt steht
  *  hinter dem Verb: „Nun zog sie die Furche ein zweites Mal …". */
@@ -49,8 +61,11 @@ const TATEN: Tat[] = [
   { versuch: "zündete auf dem höchsten Stein ein Feuer an", scheitern: "der Wind blies es aus, ehe die Nacht vorüber war", gelingen: "zündete|das Feuer neu an, und es brannte, bis der Morgen kam, und weiter" },
   { versuch: "legte einen Grundstein", scheitern: "der Grund verschluckte ihn", gelingen: "legte|den Stein ein zweites Mal, und er blieb liegen" },
   { versuch: "grub nach Wasser", scheitern: "die Grube blieb trocken", gelingen: "grub|ein zweites Mal, und Wasser stieg herauf, klar und kalt" },
+  { versuch: "rammte einen Pfahl in den Boden", scheitern: "am Morgen lag er daneben", gelingen: "rammte|den Pfahl ein zweites Mal ein, und er stand" },
+  { versuch: "spannte ein Seil zwischen zwei Steine", scheitern: "in der Nacht riss es", gelingen: "spannte|das Seil ein zweites Mal, und es hielt" },
+  { versuch: "setzte einen Baum", scheitern: "bis zum Abend war er verdorrt", gelingen: "setzte|den Baum ein zweites Mal, und er trieb aus, noch ehe es dunkel wurde" },
 ];
-const QUELLEN = ["aus der Tiefe", "aus dem Wind", "aus dem Wasser", "aus dem Stein"];
+const QUELLEN = ["aus der Tiefe", "aus dem Wind", "aus dem Wasser", "aus dem Stein", "aus dem Boden", "aus dem Nebel", "aus der Nacht"];
 
 /** Das Opfer trägt alles, was danach gilt: die Bitte (in Du-Form), die Gabe,
  *  die Bedeutung des Namens und den Brauch. `gabe` und `brauch` mit {Hc}/{P}/{N}. */
@@ -68,6 +83,14 @@ export const OPFER: Opfer[] = [
     brauch: "Seitdem wird in {N} von jeder Ernte das erste Korn nicht gegessen, sondern vergraben." },
   { id: "schlaf", du: "deinen Schlaf", gabe: "{Pc} gab den eigenen Schlaf hin und hat seitdem kein Auge mehr zugetan.", bedeutung: "Die Wachende",
     brauch: "Seitdem wacht in {N} in jeder Nacht einer, damit die anderen schlafen können." },
+  { id: "schritt", du: "deinen Schritt", gabe: "{Pc} gab den eigenen Schritt hin und ging von da an keinen Fuß mehr weiter.", bedeutung: "Wo man bleibt",
+    brauch: "Seitdem geht in {N} am Gründungstag niemand vor die Tür." },
+  { id: "lied", du: "dein Lied", gabe: "{Pc} gab das eigene Lied hin und hat es seitdem nie wieder gesungen.", bedeutung: "Verschenktes Lied",
+    brauch: "Seitdem singt man in {N} an jedem Gründungstag ein Lied ohne Worte." },
+  { id: "heimweg", du: "deinen Heimweg", gabe: "{Pc} gab den eigenen Heimweg hin und fand nie mehr dorthin zurück, woher {P} gekommen war.", bedeutung: "Kein Weg zurück",
+    brauch: "Seitdem fragt in {N} niemand einen Fremden, woher er kommt." },
+  { id: "spiegelbild", du: "dein Spiegelbild", gabe: "{Pc} gab das eigene Spiegelbild hin, und von da an blieb jedes Wasser leer, in das {P} sah.", bedeutung: "Leeres Wasser",
+    brauch: "Seitdem hängt in {N} in keinem Haus ein Spiegel der Tür gegenüber." },
 ];
 
 /** Das Gegründete. `pd`: Dativpronomen für „Man gab ihr den Namen"; bei einem
@@ -76,6 +99,7 @@ export interface Gruendung { def: string; pd: string }
 export const GRUENDUNGEN: Gruendung[] = [
   { def: "die Stadt", pd: "ihr" }, { def: "das Dorf", pd: "ihm" }, { def: "der Markt", pd: "ihm" },
   { def: "die Brücke", pd: "ihr" }, { def: "der Hafen", pd: "ihm" },
+  { def: "der Brunnen", pd: "ihm" }, { def: "die Mühle", pd: "ihr" }, { def: "der Turm", pd: "ihm" },
 ];
 const PD: Record<string, string> = { der: "ihm", die: "ihr", das: "ihm" };
 
@@ -167,30 +191,30 @@ export function buildMythos(input: GenInput, bank?: Partial<Bank>): MythosErgebn
   ];
   const ankunft: MSatz[] = [
     { s: `Da kam ${/, /.test(fb.gruender.ein) ? fb.gruender.ein + "," : fb.gruender.ein} ${fb.herkunft}.` },
-    { s: F(pick(["{Pc} hatte nichts bei sich als das, was {P} am Leib trug.", "Niemand hatte {H} gerufen, und niemand erwartete etwas."])), rang: 6 },
+    { s: F(pick(["{Pc} hatte nichts bei sich als das, was {P} am Leib trug.", "Niemand hatte gerufen, und niemand erwartete etwas."])), rang: 6 },
     { s: F(`{Hc} ${fb.tat.versuch}, doch ${fb.tat.scheitern}.`) },
-    { s: F("{Pc} versuchte es wieder und wieder, und jedes Mal nahm das Land es zurück."), rang: 1 },
+    { s: F(pick(["{Pc} versuchte es wieder und wieder, und jedes Mal nahm das Land es zurück.", "Dreimal versuchte {P} es, und dreimal war es umsonst."])), rang: 1 },
   ];
   const opfer: MSatz[] = [
     { s: F(`Da hörte {H} eine Stimme ${fb.quelle}: „Gib mir ${fb.opfer.du}, dann soll es halten.“`) },
-    { s: F(`{Pc} schwieg lange, denn es war viel verlangt.`), rang: 7 },
+    { s: F(pick(["{Pc} schwieg lange, denn es war viel verlangt.", "{Pc} sah lange zu Boden.", "{Pc} fragte nicht, wer da sprach."])), rang: 7 },
     { s: F(fb.opfer.gabe) },
     { s: F(`Nun ${fb.tat.gelingen.split("|")[0]} {P} ${fb.tat.gelingen.split("|")[1]}.`) },
-    { s: "Und diesmal hielt es.", rang: 8 },
+    { s: pick(["Und diesmal hielt es.", "Es hielt.", "Diesmal nahm das Land es nicht zurück."]), rang: 8 },
   ];
   const ordnung: MSatz[] = [
     { s: `So entstand ${nameIstGruendung ? fb.name : g.def}.` },
     { s: nameIstGruendung
       ? `In der alten Sprache heißt das ‚${fb.opfer.bedeutung}‘.`
       : `Man gab ${g.pd} den Namen ${fb.name}; in der alten Sprache heißt das ‚${fb.opfer.bedeutung}‘.` },
-    { s: "Andere kamen dazu, erst wenige, dann viele.", rang: 2 },
-    { s: "Sie blieben, weil es hielt.", rang: 4 },
+    { s: pick(["Andere kamen dazu, erst wenige, dann viele.", "Bald kamen andere nach.", "Nach dem ersten Winter kamen die Nächsten."]), rang: 2 },
+    { s: pick(["Sie blieben, weil es hielt.", "Wer kam, blieb.", "Keiner von ihnen ging wieder."]), rang: 4 },
   ];
   const seitdem: MSatz[] = [
     { s: F(fb.opfer.brauch) },
     ...(requisit ? [{ s: `Bis heute liegt dort ${requisit}, und niemand rührt daran.`, rang: 9 }] : []),
-    { s: "Wer fragt, warum, dem erzählt man diese Geschichte.", rang: 3 },
-    { s: "Die Kinder lernen sie, bevor sie zählen können.", rang: 10 },
+    { s: pick(["Wer fragt, warum, dem erzählt man diese Geschichte.", "Fragt ein Kind danach, erzählt man ihm, was hier steht.", "Den Grund kennt dort jeder."]), rang: 3 },
+    { s: pick(["Die Kinder lernen die Geschichte, bevor sie zählen können.", "Jedes Kind dort kennt die Geschichte auswendig.", "Abends am Feuer wird die Geschichte wieder erzählt."]), rang: 10 },
     { s: nameIstGruendung && fb.blick === "hell" ? `Und ${fb.name} besteht bis heute.` : F(SCHLUSS[fb.blick]) },
   ];
   const abschnitte = [ur, ankunft, opfer, ordnung, seitdem];
@@ -253,6 +277,9 @@ export function pruefeMythos(text: string, fb: Mythosblatt, bank?: Partial<Bank>
     if (!x && mat.motive.length) b.push("Preset ohne Wirkung: kein Motiv im Text");
   }
   // Muster aus dem Lesen (4.378.0):
+  // 4.391.0: „Niemand hatte der Fischer gerufen" — der Gründer als Objekt im
+  // Nominativ (stand seit 4.388.0 in einem der Längensätze).
+  if (/^(der) /.test(fb.gruender.def) && new RegExp(`(?<!\\p{L})(hatte|rief|sah|kannte|erwartete) ${fb.gruender.def}(?!\\p{L})`, "u").test(text)) b.push("Gründer als Objekt im Nominativ");
   if (/(?<!\p{L})Der [^.]*? gab es noch nicht/u.test(text)) b.push("Falscher Fall vor „gab es“ (Nominativ statt Akkusativ)");
   if (/(?<!\p{L})(und|Und|aber|als|doch) (Der|Die|Das|Den|Dem)(?!\p{L})/u.test(text)) b.push("Großgeschriebener Artikel mitten im Satz");
   if (/, der [^.,]*? kam [a-zäöü]/.test(text)) b.push("Relativsatz ohne schließendes Komma");

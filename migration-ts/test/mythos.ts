@@ -105,6 +105,15 @@ if (funde.size) {
     console.log(`           ${beispiel.get(art)}`);
   }
 } else console.log("  keine Fehlerklasse ausgelöst");
+// 4.391.0: Gründer als Objekt im Nominativ — braucht einen männlichen Gründer.
+{
+  const rm = buildMythos({ where: "", when: "", who: "ein Fischer", what: "ein Hafen", tone: "uplifting", form: "prose", lenTarget: 400 } as GenInput, bank0);
+  const sauberM = pruefeMythos(rm.text, rm.fb, bank0);
+  const schlecht = rm.text.replace(/(Da kam [^.]+\.)/, "$1 Niemand hatte der Fischer gerufen.");
+  const trifft = schlecht !== rm.text && pruefeMythos(schlecht, rm.fb, bank0).some((x) => /Objekt im Nominativ/.test(x));
+  gegen.push(`    ${trifft && !sauberM.length ? "✓" : "✗"} Gründer als Objekt im Nominativ${sauberM.length ? " — Ausgangstext: " + sauberM.join("; ") : ""}`);
+  if (!trifft || sauberM.length) gegenFehler++;
+}
 console.log("  Gegenproben:");
 gegen.forEach((z) => console.log(z));
 fehler.forEach((f) => console.log(`  - ${f}`));
