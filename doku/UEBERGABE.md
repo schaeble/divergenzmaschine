@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.388.0**, Zweig `typescript-migration`.
+Stand: **v4.389.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -2708,6 +2708,20 @@ kein Nachsatz. Das Studio zeigt neben dem Regler, wo eine Form endet
 Falle: `grammarFlags` meldet „rechnete nicht damit." als Satz auf
 Funktionswort — Satz umgeschrieben, Melder nicht angefasst. Offen bleibt
 Szene/Dialog (Deckel bei 30 Runden, Punkt 3 der Analyse).
+
+**Szene/Dialog aus dem Stoff** (4.389.0): Gemessen an 4.386 standen zwei
+feste Sätze in 99 von 100 Szenen, das Was kam nie vor, und vor jeder Zeile
+stand die ganze Figurenbeschreibung. Jetzt (`generation/dialogue.ts`): Das
+Gegenüber eröffnet mit dem Was in der Du-Form (`wasInPerson`: erster
+Teilsatz, Verb über `beugeVerb`, „sich" angepasst; bei Possessiv der dritten
+Person oder ohne Verb vorn → Hörensagen „Man erzählt sich, …"); Beats für
+Ort, Zeit, Requisit, Motiv, Wende und das Was in der Ich-Form ziehen aus
+Vorräten; `sprecherName` kürzt auf das Nomen ohne Artikel; ein Zusatz („eine
+ohne Papiere") oder Relativsatz ist kein Sprecher (`istSprecher`); ohne
+Archetyp ist das Gegenüber ein Mensch; Regieanweisungen ohne Sprecher;
+Haltungs-Vorräte fast verdoppelt, damit 40 Runden ohne Dublette gehen.
+Runden = (Ziel − 14) / 8. Neuer Prüfstand `test/dialog.ts` (67 gesamt).
+Nicht gebaut: Dialog mit Gattung (Märchen als Szene).
 
 ## 7 · Fallen in diesem Quelltext
 

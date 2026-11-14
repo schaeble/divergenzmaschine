@@ -3,9 +3,12 @@
 // Instabilitäts-Guard, echte Regieanweisungen, roter Faden übers Thema.
 import type { StoryKit } from "../types";
 import { clean, pick, chance, ensurePunct } from "../text-utils";
+import { beugeVerb } from "./verben";
 
 const ARCHETYPE_SPEAKERS: Record<string, string[]> = {
-  neutral: ["Die Stimme", "Das System", "Ein Unbekannter", "Das Archiv", "Der Apparat"],
+  // Ohne Archetyp ein Mensch als Gegenüber (4.389.0): „Das System" und „Der
+  // Apparat" sprachen mit jeder Figur, auch mit der Fährfrau am Fluss.
+  neutral: ["Die Nachbarin", "Ein Fremder", "Der Wirt", "Die Schwester", "Ein Kind", "Der Alte", "Die Zöllnerin", "Ein Bote"],
   skorpion: ["Die Zeugin", "Der Blick", "Die Hand", "Die Stimme", "Der Vermerk"],
   psychopath: ["Der Gutachter", "Das Protokoll", "Die Instanz", "Der Operator", "Die Akte"],
   entdecker: ["Die Karte", "Der Weg", "Die Tür", "Der Rand", "Das Zeichen"],
@@ -14,6 +17,50 @@ const ARCHETYPE_SPEAKERS: Record<string, string[]> = {
 export function pickSpeakerForArchetype(archId: string): string {
   return pick(ARCHETYPE_SPEAKERS[archId] || ARCHETYPE_SPEAKERS.neutral!);
 }
+
+// ── Der Stoff im Dialog (4.389.0) ──────────────────────────────────────────
+// Gemessen an 4.386, 100 Szenen: „Und was hat das mit uns zu tun?" und „Das
+// ist nur die Oberfläche." standen in 99 davon; vom Was der vier W war in
+// keiner die Rede. Jetzt eröffnet das Gegenüber mit dem, was die Figur TUT,
+// und Ort, Zeit, Requisit und Motiv kommen in wechselnden Sätzen vor.
+
+/** Kurzer Sprechername: „Ein Nachtportier mit fotografischem Gedächtnis, der
+ *  …" → „Nachtportier". Ohne Artikel, damit kein Geschlecht geraten wird;
+ *  ein Adjektiv davor bleibt („Alter Mann"). Namen bleiben, wie sie sind. */
+export function sprecherName(person: string): string {
+  const roh = clean(person || "").split(",")[0]!.trim();
+  const m = roh.match(/^(?:ein|eine|einen|der|die|das)\s+(.+)$/i);
+  if (!m) return roh;
+  const worte = m[1]!.split(/\s+/);
+  // Bis zum ersten Nomen (großgeschrieben), höchstens ein Adjektiv davor.
+  const i = worte.findIndex((w) => /^[A-ZÄÖÜ]/.test(w));
+  if (i < 0) return roh;
+  const kopf = worte.slice(Math.max(0, i - 1), i + 1).join(" ");
+  return kopf.charAt(0).toUpperCase() + kopf.slice(1);
+}
+
+/** Das Was in der Du- oder Ich-Form: nur der erste Teilsatz, das Verb gebeugt,
+ *  „sich" angepasst. null, wenn es nicht sicher geht (kein Verb vorn, ein
+ *  Possessiv der dritten Person, ein zweites Verb im Teilsatz). */
+export function wasInPerson(was: string, person: "du" | "ich"): string | null {
+  const teil = clean(was || "").split(/[,;]|\s+(?:und|oder|aber|bevor|bis|weil|während|obwohl|damit|ohne dass)\s+/)[0]!.replace(/[.!?…]+$/, "").trim();
+  const worte = teil.split(/\s+/);
+  if (worte.length < 2 || worte.length > 12) return null;
+  if (/(?<![\p{L}])(sein|seine|seinen|seinem|seiner|seines|ihr|ihre|ihren|ihrem|ihrer|ihres|er|sie|es|ihn|ihm)(?![\p{L}])/iu.test(teil)) return null;
+  const verb = beugeVerb(worte[0]!.toLowerCase(), person);
+  if (!verb) return null;
+  const rest = worte.slice(1).join(" ").replace(/(?<![\p{L}])sich(?![\p{L}])/gu, person === "du" ? "dich" : "mich");
+  return `${verb} ${rest}`;
+}
+
+const NACHFRAGE = ["Warum?", "Seit wann?", "Stimmt das?", "Und niemand soll es merken?", "Wozu?", "Wie lange noch?", "Weiß das jemand?"];
+const ERWIDERUNG = ["Das ist nicht alles.", "Das sagst du jedes Mal.", "Und weiter?", "So einfach ist es nicht.", "Das glaubt dir keiner.", "Davon wird es nicht leichter.", "Du redest drum herum.", "Das hatten wir schon."];
+const ORT_ZEILE = ["Warum gerade hier, {W}?", "Hier, {W}, fragt niemand danach.", "{Wc} hört jeder mit.", "{Wc} gelten andere Regeln."];
+const ZEIT_ZEILE = ["Ausgerechnet {T}.", "Und das {T}.", "Warum {T}?"];
+const PROP_ZEILE = ["Du hast {X} dabei.", "Wozu {X}?", "Leg {X} weg.", "Ich sehe {X}. Was soll das?"];
+const MOTIV_ZEILE = ["Siehst du das? {Mc}.", "Da ist es wieder, {M}.", "Und dann {M}. Das auch noch.", "{Mc}. Ich habe es nicht erfunden."];
+const WENDE_ZEILE = ["Dann — {X}.", "Und dann, {X}.", "Bis es kippt, {X}."];
+const SELBST_ZEILE = ["Ich {X}. Mehr nicht.", "Ich {X}. Das ist alles.", "Ich {X}, und ich höre nicht auf.", "Ja. Ich {X}."];
 
 type PoolKey = "setup" | "conflict" | "twist" | "fallout";
 type Pool = Record<PoolKey, string[]>;
@@ -28,17 +75,39 @@ export function makeDialogueScene(kit: StoryKit, lenTarget = 110): string {
   const bId = kit.archetypeB || "neutral";
   const speakerA = kit.speakerA || kit.P;
   const speakerB = kit.speakerB || pickSpeakerForArchetype(bId);
-  const cast = (kit.speakers && kit.speakers.length >= 2) ? kit.speakers : [speakerA, speakerB];
+  // Kurze Namen vor dem Doppelpunkt; zwei gleiche (zwei Schwestern) behalten
+  // ihre lange Form, damit man sie unterscheiden kann.
+  // „eine ohne Rückfahrkarte" ist ein Zusatz zur Figur, kein zweiter Sprecher
+  // (stand als „Ohne Papiere:" vor jeder zweiten Zeile).
+  // Auch ein abgetrennter Relativsatz ist keiner („Ein Kind, das zu viel
+  // weiß" → „Das zu viel weiß:"). Ein Sprecher ist ein Name oder Artikel,
+  // höchstens ein Adjektiv, dann ein Nomen.
+  const istSprecher = (x: string): boolean => {
+    const t = (x || "").trim();
+    if (/^(ein|eine|einer)\s+(ohne|mit)\b/i.test(t)) return false;
+    return /^(?:(?:ein|eine|der|die|das)\s+)?(?:[a-zäöüß]+\s+)?[A-ZÄÖÜ]/.test(t.charAt(0).toLowerCase() + t.slice(1)) || /^[A-ZÄÖÜ][a-zäöüß]+$/.test(t);
+  };
+  const echt = (kit.speakers || []).filter((x, k) => k === 0 || istSprecher(x));
+  const lang = echt.length >= 2 ? echt : [speakerA, istSprecher(speakerB) ? speakerB : pickSpeakerForArchetype(bId)];
+  let kurz = lang.map(sprecherName);
+  // Heißen zwei gleich („Kind" und „Kind"), bekommt das Gegenüber einen
+  // anderen Namen aus dem Vorrat; hilft das nicht, eine Ziffer.
+  if (new Set(kurz).size < kurz.length && kurz.length === 2) {
+    for (let k = 0; k < 6 && kurz[0] === kurz[1]; k++) kurz = [kurz[0]!, sprecherName(pickSpeakerForArchetype(bId))];
+  }
+  const cast = new Set(kurz).size === kurz.length ? kurz : kurz.map((n, k) => (kurz.indexOf(n) === k ? n : `${n} ${k + 1}`));
 
-  let rounds = Math.round(lenTarget / 7) + (kit.instability === 2 ? 2 : kit.instability === 1 ? 1 : 0);
-  rounds = Math.max(4, Math.min(30, rounds));
-  if (rounds % 2 !== 0) rounds = Math.min(30, rounds + 1);
+  // Runden aus dem Wortziel: Eine Zeile trägt samt Sprechername rund neun
+  // Wörter (vorher durch sieben geteilt — bei Ziel 200 standen 283 da).
+  let rounds = Math.round((lenTarget - 14) / 8) + (kit.instability === 2 ? 2 : kit.instability === 1 ? 1 : 0);
+  rounds = Math.max(4, Math.min(40, rounds));
+  if (rounds % 2 !== 0) rounds = Math.min(40, rounds + 1);
 
   const evenAt = (f: number): number => { let x = Math.round(rounds * f); if (x % 2 !== 0) x++; return Math.max(2, Math.min(rounds - 2, x)); };
   const oddAt = (f: number): number => { let x = Math.round(rounds * f); if (x % 2 === 0) x++; return Math.max(3, Math.min(rounds - 1, x)); };
   const BEAT = {
-    propB: oddAt(0.22), obstA: evenAt(0.38), surfB: oddAt(0.42),
-    turnA: evenAt(0.64), stakeB: oddAt(0.68), endA: rounds - 2, stageB: rounds - 1,
+    ortB: oddAt(0.12), propB: oddAt(0.22), zeitB: oddAt(0.3), obstA: evenAt(0.38), surfB: oddAt(0.42),
+    motivA: evenAt(0.52), turnA: evenAt(0.64), stakeB: oddAt(0.68), selbstA: evenAt(0.8), endA: rounds - 2, stageB: rounds - 1,
   };
 
   const phaseFor = (i: number): 0 | 1 | 2 | 3 => {
@@ -80,22 +149,22 @@ export function makeDialogueScene(kit: StoryKit, lenTarget = 110): string {
   // damit der Mittelteil nicht austauschbar wird (glauben vs zweifeln vs abwehren).
   const STANCE_LINES: Record<string, Pool> = {
     glauben: {
-      setup: ["Ich weiß, was ich gesehen habe.", "Es war genau so.", "Hör mir zu, es stimmt.", "Ich habe keinen Zweifel.", "Das ist die Wahrheit, ob du willst oder nicht."],
-      conflict: ["Es ist trotzdem wahr.", "Ich bleibe dabei.", "Du musst mir das glauben.", "Ich habe es selbst erlebt.", "Daran ändert dein Zweifel nichts."],
-      twist: ["Also hatte ich recht.", "Dann bestätigt es sich.", "Ich wusste es die ganze Zeit.", "Genau das habe ich gesagt.", "Siehst du — es stimmt."],
-      fallout: ["Ich stehe dazu.", "Es bleibt wahr.", "Ich bereue kein Wort.", "So war es, so bleibt es."],
+      setup: ["Ich weiß, was ich gesehen habe.", "Es war genau so.", "Hör mir zu, es stimmt.", "Ich habe keinen Zweifel.", "Das ist die Wahrheit, ob du willst oder nicht.", "Ich war dabei.", "Frag, wen du willst.", "Ich sage es, wie es ist.", "Daran ist nichts zu deuten."],
+      conflict: ["Es ist trotzdem wahr.", "Ich bleibe dabei.", "Du musst mir das glauben.", "Ich habe es selbst erlebt.", "Daran ändert dein Zweifel nichts.", "Ich nehme kein Wort zurück.", "Du warst nicht dort.", "Es wird nicht falsch, weil es dir nicht passt.", "Ich habe keinen Grund zu lügen."],
+      twist: ["Also hatte ich recht.", "Dann bestätigt es sich.", "Ich wusste es die ganze Zeit.", "Genau das habe ich gesagt.", "Siehst du — es stimmt.", "Jetzt siehst du es selbst.", "Mehr wollte ich nie sagen.", "So fügt es sich."],
+      fallout: ["Ich stehe dazu.", "Es bleibt wahr.", "Ich bereue kein Wort.", "So war es, so bleibt es.", "Ich würde es wieder sagen.", "Dabei bleibt es.", "Das nimmt mir keiner."],
     },
     zweifeln: {
-      setup: ["Woher willst du das wissen?", "Bist du sicher?", "Das klingt zu einfach.", "Kann das überhaupt stimmen?", "Ich glaube nichts ohne Beweis."],
-      conflict: ["Das kann nicht stimmen.", "Beweis es mir.", "Da fehlt etwas.", "Warum sollte ich dir glauben?", "Deine Geschichte hat Löcher."],
-      twist: ["Vielleicht hatte ich unrecht.", "Oder es ist ganz anders.", "Und wenn es doch stimmt?", "Jetzt zweifle ich an meinem Zweifel."],
-      fallout: ["Ich bin noch nicht überzeugt.", "Sicher bin ich trotzdem nicht.", "Vielleicht. Vielleicht auch nicht.", "Ich behalte meine Fragen."],
+      setup: ["Woher willst du das wissen?", "Bist du sicher?", "Das klingt zu einfach.", "Kann das überhaupt stimmen?", "Ich glaube nichts ohne Beweis.", "Wer hat dir das gesagt?", "Hast du es selbst gesehen?", "Das höre ich zum ersten Mal.", "Und das soll ich glauben?"],
+      conflict: ["Das kann nicht stimmen.", "Beweis es mir.", "Da fehlt etwas.", "Warum sollte ich dir glauben?", "Deine Geschichte hat Löcher.", "Gestern klang es anders.", "Zeig es mir.", "Das eine passt nicht zum anderen.", "Du machst es dir leicht."],
+      twist: ["Vielleicht hatte ich unrecht.", "Oder es ist ganz anders.", "Und wenn es doch stimmt?", "Jetzt zweifle ich an meinem Zweifel.", "Das ändert die Frage.", "Damit habe ich nicht gerechnet.", "Dann stimmt etwas anderes nicht.", "Sag das noch einmal."],
+      fallout: ["Ich bin noch nicht überzeugt.", "Sicher bin ich trotzdem nicht.", "Vielleicht. Vielleicht auch nicht.", "Ich behalte meine Fragen.", "Ich sehe es mir morgen noch einmal an.", "Glauben ist zu viel gesagt.", "Wir werden sehen."],
     },
     abwehren: {
-      setup: ["Muss das jetzt sein?", "Lass uns nicht darüber reden.", "Das geht dich nichts an.", "Ich will das nicht.", "Es ist nicht so wichtig."],
-      conflict: ["Das führt zu nichts.", "Hör auf zu bohren.", "Ich habe nichts gesagt.", "Lenk nicht ab.", "Reden wir über etwas anderes."],
-      twist: ["Es ist zu spät dafür.", "Jetzt ist es sowieso egal.", "Ich hätte schweigen sollen.", "Vergiss, was ich gesagt habe."],
-      fallout: ["Es ist erledigt.", "Reden wir nicht mehr davon.", "Vergessen wir das.", "Genug jetzt."],
+      setup: ["Muss das jetzt sein?", "Lass uns nicht darüber reden.", "Das geht dich nichts an.", "Ich will das nicht.", "Es ist nicht so wichtig.", "Nicht hier.", "Frag jemand anderen.", "Dazu sage ich nichts.", "Später vielleicht."],
+      conflict: ["Das führt zu nichts.", "Hör auf zu bohren.", "Ich habe nichts gesagt.", "Lenk nicht ab.", "Reden wir über etwas anderes.", "Lass es gut sein.", "Du hörst, was du hören willst.", "Ich bin müde.", "Das habe ich so nie gemeint."],
+      twist: ["Es ist zu spät dafür.", "Jetzt ist es sowieso egal.", "Ich hätte schweigen sollen.", "Vergiss, was ich gesagt habe.", "Dann weißt du es eben.", "Das wollte ich vermeiden.", "Nun ist es heraus.", "Mach damit, was du willst."],
+      fallout: ["Es ist erledigt.", "Reden wir nicht mehr davon.", "Vergessen wir das.", "Genug jetzt.", "Ich gehe.", "Mehr sage ich nicht.", "Lass mich in Ruhe."],
     },
   };
 
@@ -107,7 +176,17 @@ export function makeDialogueScene(kit: StoryKit, lenTarget = 110): string {
   const capFirst = (s: string): string => { s = String(s || "").trim(); return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; };
   const stripLead = (s: string): string => String(s || "").replace(/^(und|dann|aber|denn|so|doch)\s+/i, "").trim();
   const topic = clean(kit.motif || kit.W || "").replace(/[.!?…]+$/, "");
-  const STAGE = ["Stille.", "Ein langer Blick.", "Keiner spricht weiter.", "Der Wind trägt den Rest fort.", "Die Weide liegt still.", "Nichts bewegt sich."];
+  // „Die Weide liegt still." stand hier fest — auch im Ministerium bei Nacht.
+  const STAGE = ["Stille.", "Ein langer Blick.", "Keiner spricht weiter.", "Nichts bewegt sich.", "Draußen wird es still.", "Einer von beiden geht."];
+  const ort = clean(kit.W || "").replace(/[.!?…]+$/, "");
+  const ortKurz = ort.split(",")[0]!.trim();
+  const zeit = clean(kit.T || "").replace(/[.!?…]+$/, "").split(",")[0]!.trim();
+  const duWas = wasInPerson(kit.A || "", "du");
+  const ichWas = wasInPerson(kit.A || "", "ich");
+  const fuelleZ = (z: string, w: Record<string, string>): string => z.replace(/\{(\w+)\}/g, (_m, k: string) => w[k] ?? "");
+  // Jeder Beat zieht einmal aus seinem Vorrat; ob er überhaupt kommt, hängt
+  // an der Länge der Szene (bei vier Runden ist kein Platz für alles).
+  const platz = (min: number): boolean => rounds >= min;
 
   const cleanDialogLine = (s: string): string => {
     s = clean(s);
@@ -134,13 +213,19 @@ export function makeDialogueScene(kit: StoryKit, lenTarget = 110): string {
   };
 
   const injectBeat = (i: number): string | null => {
-    if (i === 0) return topic ? `Das Thema: ${topic}.` : "Sag mir, was du gesehen hast.";
-    if (i === 1) return topic ? "Und was hat das mit uns zu tun?" : "Was genau meinst du?";
-    if (i === BEAT.propB && kit.propAcc) return `Du hast ${kit.propAcc} dabei.`;
+    // Die Reihenfolge entscheidet bei gleicher Position (kurze Szenen): Was
+    // die Geschichte trägt, kommt zuerst.
     if (i === BEAT.obstA) return ensurePunct(capFirst(stripLead(kit.obstacle)));
-    if (i === BEAT.surfB) return "Das ist nur die Oberfläche.";
-    if (i === BEAT.turnA) return `Dann — ${capFirst(stripLead(clean(kit.turn).replace(/[.!?…]+$/, "")))}.`;
+    if (i === BEAT.turnA) return fuelleZ(pick(WENDE_ZEILE), { X: stripLead(clean(kit.turn).replace(/[.!?…]+$/, "")) });
     if (i === BEAT.stakeB) return ensurePunct(capFirst(stripLead(kit.stake)));
+    // Ein Requisit mit Nebensatz („eine Karte, auf der der Weg fehlt") steht
+    // nur dort, wo nach ihm nichts mehr kommt — sonst „… fehlt dabei."
+    if (i === BEAT.propB && kit.propAcc) return fuelleZ(pick(/,/.test(kit.propAcc) ? PROP_ZEILE.filter((z) => /\{X\}[.?]/.test(z)) : PROP_ZEILE), { X: kit.propAcc });
+    if (i === BEAT.surfB) return pick(ERWIDERUNG);
+    if (i === BEAT.ortB && ortKurz && platz(10)) return fuelleZ(pick(ORT_ZEILE), { W: ortKurz, Wc: capFirst(ortKurz) });
+    if (i === BEAT.zeitB && zeit && platz(12) && !/^(als|während|bevor|nachdem|wenn|bis)\s/i.test(zeit)) return fuelleZ(pick(ZEIT_ZEILE), { T: zeit });
+    if (i === BEAT.motivA && topic && platz(8)) return fuelleZ(pick(MOTIV_ZEILE), { M: topic, Mc: capFirst(topic) });
+    if (i === BEAT.selbstA && ichWas && platz(14)) return fuelleZ(pick(SELBST_ZEILE), { X: ichWas });
     if (i === BEAT.endA) return ensurePunct(capFirst(kit.ending));
     if (i === BEAT.stageB) return chance(0.6) ? `(${pick(STAGE)})` : null;
     return null;
@@ -170,7 +255,14 @@ export function makeDialogueScene(kit: StoryKit, lenTarget = 110): string {
       .replace(/\bIch sucht\b/gi, "Ich suche").replace(/\.\s*\./g, ".").replace(/\s{2,}/g, " ").trim();
   };
 
-  const out: string[] = [`SZENE: ${kit.W}, ${kit.T}.`];
+  const out: string[] = [`SZENE: ${capFirst(ort)}, ${clean(kit.T || "").replace(/[.!?…]+$/, "")}.`];
+  // Die Eröffnung gehört dem Gegenüber und nennt, was die Figur tut — in der
+  // Du-Form, wo sich das Was sicher beugen lässt, sonst als Hörensagen.
+  const gegenueber = cast[1 % cast.length]!;
+  const figur = clean(kit.PRaw || kit.P || "").split(",")[0]!.trim();
+  const wasKurz = clean(kit.A || "").split(/[,;]/)[0]!.replace(/[.!?…]+$/, "").trim();
+  if (duWas) out.push(`${gegenueber}: ${cleanDialogLine(`Du ${duWas}. ${pick(NACHFRAGE)}`)}`);
+  else if (figur && wasKurz) out.push(`${gegenueber}: ${cleanDialogLine(`Man erzählt sich, ${/^(Ein|Eine|Der|Die|Das)\s/.test(figur) ? figur.charAt(0).toLowerCase() + figur.slice(1) : figur} ${wasKurz}. ${pick(["Bist du das?", "Stimmt das?", "Meinen sie dich?"])}`)}`);
   for (let i = 0; i < rounds; i++) {
     const isA = i % 2 === 0;
     const ci = i % cast.length;
@@ -181,7 +273,8 @@ export function makeDialogueScene(kit: StoryKit, lenTarget = 110): string {
     line = ensurePunct(line);
     line = applyInstability(line, arch, ph);
     line = cleanDialogLine(line);
-    out.push(`${speaker}: ${line}`);
+    // Eine Regieanweisung gehört keinem Sprecher.
+    out.push(/^\(.*\)$/.test(line) ? line : `${speaker}: ${line}`);
   }
   return out.join("\n");
 }
