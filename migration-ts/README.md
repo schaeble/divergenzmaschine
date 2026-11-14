@@ -42,3 +42,8 @@ weiterer Push, der die `paths`-Filter trifft.
 
 Dauerhaft beheben ließe sich das, indem die Workflow-Datei zusätzlich auf `main`
 abgelegt wird; dann steht der Knopf zur Verfügung.
+
+## Prüfen
+
+`node scripts/pruefen.mjs` lässt alle Prüfstände laufen (Stand 4.387.0: 66),
+`node scripts/pruefen.mjs video` einen einzelnen.
