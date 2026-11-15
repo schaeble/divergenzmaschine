@@ -2757,6 +2757,25 @@ kurze Zeilen aus („Die Karte" / „Die Karte.", „Ist." / „Ist.") — rund 
 von 600 Strängen, `test/kleinfehler.ts` war deshalb gelegentlich rot. Jetzt
 ab zwei Buchstaben; 4000 Läufe ohne Fund.
 
+**`studio.ts` aufteilen — gemessen, nicht getan** (15.11.2026): Punkt 6 der
+Analyse von 4.386. `scripts/studio-abhaengigkeiten.cjs` liest über den
+TypeScript-Compiler ab, was ein Zeilenbereich von `mountStudio` braucht und
+liefert. Befund: 627 Anweisungen in einer Funktion; nur 224 davon (291
+Zeilen, meist Einzeiler) hängen von nichts ab. Schnittstellen der Abschnitte
+(braucht / liefert): Einspeisungen 2 / 5 · Spannungskurve 10 / 9 · Test &
+Ranking 10 / 8 · Titel 15 / 9 · Zeitlupe 25 / 8 · Stellschrauben 28 / 8 ·
+einfacher Kopf 35 / 7 · Faden 47 / 4 · Reiter/generate 51 / 3. Ein
+mechanisches Zerlegen ergäbe Module mit Kontextobjekten von 30 bis 50
+Feldern — mehr Umweg, nicht weniger Risiko. Dazu lesen 14 Prüfstände den
+Quelltext von `studio.ts` per Regex. Entscheidung: nicht in einem Zug
+aufteilen. Sinnvoller Weg, wenn ein Abschnitt ohnehin angefasst wird:
+(1) die Prüfstände über einen Helfer alle Studio-Dateien lesen lassen,
+(2) mit den drei kleinen Schnittstellen anfangen, (3) Zustand, den viele
+teilen (`locked`, die Regler, `generate`), zuerst in ein benanntes Objekt
+heben. README im Wurzelordner und in `migration-ts/` neu geschrieben.
+`t.cjs` im Wurzelordner war ein versehentlich eingechecktes Bündel aus
+4.386.0 (246 KB) — entfernt.
+
 ## 7 · Fallen in diesem Quelltext
 
 - **`let` im Setzer steht in einer Reihenfolge.** `oeffneZeitungssetzer()` ist
