@@ -400,18 +400,31 @@ ist("kein Einschub steht in zwei Tönen", ueberschneidung, 0);
     if (gattung && gattungSchloss) {
       gattungSchloss.click();
       const form = wurzel3.querySelector('select[id="f-form"]') as HTMLSelectElement;
-      const gezogen = new Set<string>();
-      let nichtProsa = 0;
-      for (let i = 0; i < 24; i++) {
+      // Seit 4.392.0 (gemeldet: „Alles würfeln verändert die Form nicht, Prosa
+      // überwiegt"): Die Form fällt zuerst, gleichmäßig über alle Formen, und
+      // die Gattung richtet sich nach ihr.
+      const gezogen = new Set<string>(), formenGezogen = new Map<string, number>();
+      let gattungOhneForm = 0;
+      const N = 72;
+      for (let i = 0; i < N; i++) {
         alleKnopf3.click();
         gezogen.add(gattung.value);
-        // Seit 4.386.0 wirkt die Gattung auch im Multi-Shot; stand die Form
-        // vorher dort, bleibt sie (der Prüfstand war deshalb gelegentlich rot).
-        if (form.value !== "prose" && form.value !== "video") nichtProsa++;
+        formenGezogen.set(form.value, (formenGezogen.get(form.value) || 0) + 1);
+        if (gattung.value !== "keine" && form.value !== "prose" && form.value !== "video") gattungOhneForm++;
       }
-      ist("Gattungs-Schloss offen: nie „keine\"", gezogen.has("keine"), false);
-      wahr(`Gattungs-Schloss offen: mehrere Gattungen gezogen (${[...gezogen].join(", ")})`, gezogen.size >= 3);
-      ist("Gattungs-Schloss offen: die Form bleibt auf Prosa oder Multi-Shot", nichtProsa, 0);
+      wahr(`Gattungs-Schloss offen: alle Formen kommen vor (${formenGezogen.size} von ${form.options.length})`, formenGezogen.size === form.options.length);
+      const prosa = formenGezogen.get("prose") || 0;
+      wahr(`… und Prosa überwiegt nicht (${prosa} von ${N})`, prosa / N < 0.3);
+      ist("… eine Gattung steht nur bei Prosa oder Multi-Shot", gattungOhneForm, 0);
+      wahr(`… mehrere Gattungen gezogen (${[...gezogen].join(", ")})`, gezogen.size >= 4);
+      // Gattung fest gewählt, Form offen: nur Prosa oder Multi-Shot — und beide.
+      gattungSchloss.click();
+      gattung.value = "fabel"; gattung.dispatchEvent(new dom.window.Event("change"));
+      const beiFabel = new Set<string>(); let fabelWeg = 0;
+      for (let i = 0; i < 24; i++) { alleKnopf3.click(); beiFabel.add(form.value); if (gattung.value !== "fabel") fabelWeg++; }
+      ist("Gattung fest: sie bleibt stehen", fabelWeg, 0);
+      ist("Gattung fest: die Form wechselt zwischen Prosa und Multi-Shot", [...beiFabel].sort().join(","), "prose,video");
+      gattungSchloss.click();
       gattungSchloss.click();
       gattung.value = "keine"; gattung.dispatchEvent(new dom.window.Event("change"));
     }

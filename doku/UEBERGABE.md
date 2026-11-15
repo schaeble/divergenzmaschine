@@ -3,7 +3,7 @@
 Dieses Blatt reicht, um an einem anderen Rechner oder in einer neuen Sitzung
 weiterzuarbeiten. Es liegt im Repo, wandert also mit `git clone` mit.
 
-Stand: **v4.391.0**, Zweig `typescript-migration`.
+Stand: **v4.392.0**, Zweig `typescript-migration`.
 
 ---
 
@@ -2775,6 +2775,19 @@ teilen (`locked`, die Regler, `generate`), zuerst in ein benanntes Objekt
 heben. README im Wurzelordner und in `migration-ts/` neu geschrieben.
 `t.cjs` im Wurzelordner war ein versehentlich eingechecktes Bündel aus
 4.386.0 (246 KB) — entfernt.
+
+**Form würfelt mit** (4.392.0, gemeldet: „Alles würfeln verändert die Form
+nicht. Prosa überwiegt."): Seit 4.382.0 zog der Würfel bei offenem
+Gattungs-Schloss immer eine Gattung und stellte die Form auf Prosa; bei
+gewählter Gattung stand die Form. Jetzt `wuerfleFormUndGattung()` in
+`features/gattungWurf.ts`: Die Form fällt zuerst, gleichmäßig über alle
+Formen; nur bei Prosa oder Multi-Shot kommt eine Gattung dazu (oder keine).
+Gattung fest gewählt → Form zwischen Prosa und Multi-Shot. Form gesperrt →
+bleibt. `rollAlle(true)` fasst die Form dann nicht mehr an; der
+Wahrnehmungs-Stil der Quelle setzt sie nicht mehr. Der Knopf „Würfeln"
+(Stilregler) wechselt bei Gattung ebenfalls zwischen Prosa und Multi-Shot.
+Folge, bewusst: Bei offenem Schloss kommt eine Gattung nur noch in knapp
+jedem fünften Wurf.
 
 ## 7 · Fallen in diesem Quelltext
 

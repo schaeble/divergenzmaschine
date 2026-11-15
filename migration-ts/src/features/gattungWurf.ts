@@ -59,6 +59,39 @@ export const WUERFEL_GATTUNGEN: readonly string[] = WELT_OPTS.map(([v]) => v).fi
  *  Eine Gattung wirkt nur in Prosa: Ist die Form auf etwas anderes
  *  GESPERRT, kommt „keine" heraus. Ist die Form offen, zieht der Würfel eine
  *  Gattung, und die Form wird danach auf Prosa gestellt. */
+/** Wo eine Gattung wirkt: in Prosa und im Multi-Shot. */
+export const istGattungsForm = (f: string): boolean => f === "prose" || f === "video";
+
+/** Form UND Gattung für „Alles würfeln" (4.392.0).
+ *
+ *  Gemeldet: „Alles würfeln verändert die Form nicht. Prosa überwiegt." Bis
+ *  4.391.0 zog der Würfel bei offenem Gattungs-Schloss IMMER eine Gattung und
+ *  stellte die Form dafür auf Prosa; bei gewählter Gattung blieb die Form
+ *  stehen. Jetzt entscheidet die Form zuerst, und zwar gleichmäßig über alle
+ *  Formen; die Gattung richtet sich nach ihr:
+ *
+ *    Form offen, Gattung offen   Form aus allen; trägt sie eine Gattung
+ *                                (Prosa, Multi-Shot), dann eine der Gattungen
+ *                                oder „keine", sonst „keine".
+ *    Form offen, Gattung fest    mit Gattung: Prosa oder Multi-Shot;
+ *                                ohne: Form aus allen.
+ *    Form fest,  Gattung offen   trägt die Form eine Gattung: eine der fünf;
+ *                                sonst „keine".
+ *    beide fest                  nichts ändert sich. */
+export function wuerfleFormUndGattung(o: { form: string; formZu: boolean; welt: string; weltZu: boolean; formen: string[] }): { form: string; welt: string } {
+  const formen = o.formen.length ? o.formen : [o.form];
+  let form = o.form, welt = o.welt;
+  if (!o.formZu) {
+    const wahl = o.weltZu && o.welt !== "keine" ? formen.filter(istGattungsForm) : formen;
+    form = pick(wahl.length ? wahl : formen);
+  }
+  if (!o.weltZu) {
+    if (!istGattungsForm(form)) welt = "keine";
+    else welt = o.formZu ? pick([...WUERFEL_GATTUNGEN]) : pick(["keine", ...WUERFEL_GATTUNGEN]);
+  }
+  return { form, welt };
+}
+
 export function wuerfleGattung(form: string, formGesperrt: boolean): string {
   if (formGesperrt && form !== "prose" && form !== "video") return "keine";
   return pick([...WUERFEL_GATTUNGEN]);

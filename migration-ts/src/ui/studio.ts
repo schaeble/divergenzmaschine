@@ -50,7 +50,7 @@ import { utopieTitel } from "../generation/utopie";
 import { erkenneHeld, maerchenTitelAusText } from "../generation/maerchen";
 import { erkenneTiere, erkenneLehre, schemaFuerTiere, fabelTitelAusText } from "../generation/fabel";
 import { erkenneGruendung, istEigenname, mythosTitelAusText } from "../generation/mythos";
-import { wuerfleGattung4W, wuerfleGattung, gattungKopfKontext, gattungSaat, KOPF_WOVON } from "../features/gattungWurf";
+import { wuerfleGattung4W, wuerfleFormUndGattung, gattungKopfKontext, gattungSaat, KOPF_WOVON } from "../features/gattungWurf";
 import {
   ladeStand as ladeReiter, sichereStand as sichereReiter, ordne as ordneReiter,
   verschiebe as verschiebeReiter, schalte as schalteReiter, derKanon, PFLICHT as REITER_PFLICHT,
@@ -261,9 +261,12 @@ export function mountStudio(root: HTMLElement): void {
     // Vorrat. Die Ereignis-Quellen lieferten „Ich kam als Hai nach Velwen"
     // und einen Grundsatz „Sucht Nahrung." — Werte, die keine Gattung liest.
     // Offenes Gattungs-Schloss (4.382.0): erst die Gattung, dann alles andere.
-    if (!locked.has(welt.id)) {
-      const neuG = wuerfleGattung(form.value, locked.has(form.id));
-      if (neuG !== welt.value) gattungUmschalten(neuG);
+    // Seit 4.392.0 fällt zuerst die Form (gemeldet: „verändert die Form nicht,
+    // Prosa überwiegt"), und die Gattung richtet sich nach ihr.
+    {
+      const wurf = wuerfleFormUndGattung({ form: form.value, formZu: locked.has(form.id), welt: welt.value, weltZu: locked.has(welt.id), formen: Array.from(form.options).map((o) => o.value) });
+      if (wurf.form !== form.value) { form.value = wurf.form; studioReglerStand[form.id] = wurf.form; form.dispatchEvent(new Event("change")); }
+      if (wurf.welt !== welt.value) gattungUmschalten(wurf.welt);
     }
     const gattungWurf = istGattung();
     const quelle = gattungWurf ? "welt" : ziehQuelle(offeneQuellen(vorratStand().funde, ladeBildvorrat().length, themenStand().funde));
@@ -321,7 +324,7 @@ export function mountStudio(root: HTMLElement): void {
     wikiTitel(); abschriftTitel(); themaTitel();
     letzteQuelle = woher;
     updHints(); ctxSichern();
-    rollAlle();
+    rollAlle(true);
     // Erst jetzt: Was die Wahrnehmung vorgibt, steht über dem allgemeinen Wurf.
     if (omniStil) {
       const setzeStil = (el: HTMLSelectElement, v: string | undefined): void => {
@@ -329,7 +332,8 @@ export function mountStudio(root: HTMLElement): void {
         if (!Array.from(el.options).some((o) => o.value === v)) return;
         el.value = v; studioReglerStand[el.id] = v;
       };
-      if (!istGattung()) setzeStil(form, omniStil["form"]);
+      // Die Form ist seit 4.392.0 schon gewürfelt; der Wahrnehmungs-Stil der
+      // Quelle setzt sie nicht mehr (er zog sie sonst wieder zu seinen Formen).
       setzeStil(structure, omniStil["structure"]);
       setzeStil(persp, omniStil["perspective"]); setzeStil(rhythm, omniStil["rhythm"]);
       setzeStil(varianz, omniStil["varLevel"]); setzeStil(mode, omniStil["mode"]);
@@ -899,7 +903,7 @@ export function mountStudio(root: HTMLElement): void {
   // Schloss, und alles darin gilt dem Schaltplan als Regler.
   wrap.append(presetField, el("div", { class: "btnrow mini", style: "margin:-6px 0 8px" }, varLbl));
   wrap.append(el("div", { class: "grid3" }, lockField("Ton", tone), lockField("Form", form),
-    el("div", { class: "field" }, el("span", { class: "field-label hilfe lockrow", title: "Wovon der Text handelt — unabhängig von der Form. „Utopie“: Die vier Felder beschreiben eine Welt statt eines Ereignisses. Schloss zu: bleibt beim Würfeln stehen. Schloss offen: „Alles würfeln“ zieht eine der fünf Gattungen, stellt die Form auf Prosa und würfelt die vier Felder aus dem Vorrat der Gattung." }, el("span", {}, "Gattung"), lockBtn(welt, "Gattung")), welt)));
+    el("div", { class: "field" }, el("span", { class: "field-label hilfe lockrow", title: "Wovon der Text handelt — unabhängig von der Form. „Utopie“: Die vier Felder beschreiben eine Welt statt eines Ereignisses. Schloss zu: bleibt beim Würfeln stehen; die Form wechselt dann zwischen Prosa und Multi-Shot. Schloss offen: „Alles würfeln“ würfelt zuerst die Form über alle Formen; fällt sie auf Prosa oder Multi-Shot, kommt eine Gattung dazu oder keine, und die vier Felder kommen aus ihrem Vorrat." }, el("span", {}, "Gattung"), lockBtn(welt, "Gattung")), welt)));
   // ── Welt umschalten ───────────────────────────────────────────────────────
   // Beschriftung, Platzhalter und Hinweise wechseln mit der Welt; die vier W
   // werden JE WELT gemerkt. Wer von „keine" auf „Utopie" schaltet, hätte sonst
@@ -2130,14 +2134,19 @@ export function mountStudio(root: HTMLElement): void {
     const neuId = bauformAendern(q, neu);
     if (neuId) { setzeQuelle(neuId); bogenFuellen(); bauformSync(); }
   };
-  const rollAlle = (): void => {
+  const rollAlle = (formSteht = false): void => {
     rolling = true;
-    // Bei gewählter Gattung bleibt die Form auf Prosa, als wäre sie
-    // verschlossen: In der Hälfte der Würfe landete sie sonst auf Reim, Szene
-    // oder Meldung, und die Gattung wirkte nicht (gemessen, 4.381.0).
+    // Bei gewählter Gattung würfelt die Form nur zwischen Prosa und
+    // Multi-Shot: Auf Reim, Szene oder Meldung wirkte die Gattung nicht
+    // (gemessen, 4.381.0). `formSteht`: „Alles würfeln" hat Form und Gattung
+    // schon gemeinsam gezogen (4.392.0) — dann fasst dieser Wurf sie nicht an.
     const gattungHaelt = istGattung();
-    wuerfelbar().filter((c) => c !== preset && !(gattungHaelt && c === form)).forEach(rollEins);
-    if (gattungHaelt && !locked.has(form.id) && !gattungsForm(form.value)) { form.value = "prose"; form.dispatchEvent(new Event("change")); }
+    wuerfelbar().filter((c) => c !== preset && !((gattungHaelt || formSteht) && c === form)).forEach(rollEins);
+    if (gattungHaelt && !formSteht && !locked.has(form.id)) {
+      const wahl = Array.from(form.options).map((o) => o.value).filter(gattungsForm);
+      const neu = wahl[Math.floor(Math.random() * wahl.length)] || "prose";
+      if (neu !== form.value) { form.value = neu; form.dispatchEvent(new Event("change")); }
+    }
     rollPresets();
     rollBauform();
     rolling = false;

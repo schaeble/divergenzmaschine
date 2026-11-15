@@ -9,7 +9,7 @@ const st: Record<string, string> = {};
 // würfeln sie aus dem Vorrat der Gattung — und jeder Wurf muss von IHREN
 // Erkennern gelesen werden und einen Text ohne Befund ergeben. Ein Wurf, den
 // die Gattung übergeht, wäre so falsch wie vorher.
-import { wuerfleGattung4W, wuerfleGattung, WUERFEL_GATTUNGEN, gattungKopfKontext, gattungSaat, KOPF_WOVON } from "../src/features/gattungWurf";
+import { wuerfleGattung4W, wuerfleGattung, wuerfleFormUndGattung, WUERFEL_GATTUNGEN, gattungKopfKontext, gattungSaat, KOPF_WOVON } from "../src/features/gattungWurf";
 import { erkenneLage, erkenneZeit, erkenneGrundsatz, erkenneErzaehler } from "../src/features/weltblatt";
 import { erkenneHeld, buildMaerchen, pruefeMaerchen } from "../src/generation/maerchen";
 import { erkenneTiere, erkenneLehre, schemaFuerTiere, buildFabel, pruefeFabel } from "../src/generation/fabel";
@@ -93,6 +93,33 @@ for (const g of WUERFEL_GATTUNGEN) {
 }
 // Gegenprobe: Der Grundsatz „Es gibt kein Geld." wird NICHT zerlegt.
 if (gattungKopfKontext("utopie", "Es gibt kein Geld.").what !== "Es gibt kein Geld.") melde("Gegenprobe: Grundsatz zerlegt", "");
+// Form und Gattung gemeinsam (4.392.0). Gemeldet: „Alles würfeln verändert
+// die Form nicht. Prosa als Form überwiegt." Vier Fälle, je mit Gegenprobe.
+{
+  const FORMEN = ["prose", "poem", "strang", "reim", "haiku", "script", "video", "bericht", "meldung"];
+  const N = 3000;
+  const z = (o: { form: string; formZu: boolean; welt: string; weltZu: boolean }): { f: Map<string, number>; g: Map<string, number>; falsch: number } => {
+    const f = new Map<string, number>(), g = new Map<string, number>(); let falsch = 0;
+    for (let i = 0; i < N; i++) { const w = wuerfleFormUndGattung({ ...o, formen: FORMEN }); f.set(w.form, (f.get(w.form) || 0) + 1); g.set(w.welt, (g.get(w.welt) || 0) + 1); if (w.welt !== "keine" && w.form !== "prose" && w.form !== "video") falsch++; }
+    return { f, g, falsch };
+  };
+  const offen = z({ form: "prose", formZu: false, welt: "keine", weltZu: false });
+  if (offen.f.size !== FORMEN.length) melde(`beide offen: nur ${offen.f.size} von ${FORMEN.length} Formen`, "");
+  for (const [k, n] of offen.f) if (n / N > 0.16 || n / N < 0.07) melde(`beide offen: Form ${k} nicht gleichmäßig (${n}/${N})`, k);
+  if (offen.falsch) melde("beide offen: Gattung bei einer Form, die sie nicht trägt", String(offen.falsch));
+  for (const gt of WUERFEL_GATTUNGEN) if (!offen.g.has(gt)) melde(`beide offen: Gattung ${gt} kam nie`, gt);
+  const fest = z({ form: "reim", formZu: false, welt: "fabel", weltZu: true });
+  if ([...fest.f.keys()].sort().join(",") !== "prose,video") melde("Gattung fest: Form nicht nur Prosa/Multi-Shot", [...fest.f.keys()].join(","));
+  if (fest.g.size !== 1 || !fest.g.has("fabel")) melde("Gattung fest: sie hat sich bewegt", [...fest.g.keys()].join(","));
+  const ohne = z({ form: "reim", formZu: false, welt: "keine", weltZu: true });
+  if (ohne.f.size !== FORMEN.length || ohne.g.size !== 1) melde("Gegenprobe: Gattung fest auf keine → Form aus allen, Gattung bleibt", `${ohne.f.size}/${ohne.g.size}`);
+  const formFest = z({ form: "reim", formZu: true, welt: "fabel", weltZu: false });
+  if (formFest.f.size !== 1 || formFest.g.size !== 1 || !formFest.g.has("keine")) melde("Form fest auf Reim: Gattung muss keine sein", [...formFest.g.keys()].join(","));
+  const prosaFest = z({ form: "prose", formZu: true, welt: "keine", weltZu: false });
+  if (prosaFest.g.has("keine") || prosaFest.g.size !== WUERFEL_GATTUNGEN.length) melde("Form fest auf Prosa: eine der fünf Gattungen", [...prosaFest.g.keys()].join(","));
+  const zu = wuerfleFormUndGattung({ form: "haiku", formZu: true, welt: "mythos", weltZu: true, formen: FORMEN });
+  if (zu.form !== "haiku" || zu.welt !== "mythos") melde("Gegenprobe: beide fest → nichts ändert sich", `${zu.form}/${zu.welt}`);
+}
 // Unbekannte Gattung: nichts.
 const leer = wuerfleGattung4W("keine");
 if (leer.where || leer.when || leer.who || leer.what) melde("keine Gattung: Wurf nicht leer", JSON.stringify(leer));
